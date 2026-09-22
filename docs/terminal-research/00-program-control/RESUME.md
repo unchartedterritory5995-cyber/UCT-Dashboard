@@ -44,11 +44,11 @@ succeeded. All six commits are live in production.
 
 # ⛔⛔ COLD START — 2026-09-20. This block supersedes everything below it.
 
-**One sentence: 25 of 32 systems are DONE and 1 (S7) is RULED-HOLD; TWO new proposals are waiting
-on a signature (found and scoped this pass, closing two of D2's own open findings — see §1), the
-production read is DONE (see §2 — none of the four supported a ruling, and one was genuinely
-unblocked), and D2 itself still needs real member traffic to accumulate. Read this whole block
-before touching anything.**
+**One sentence: 27 of 32 systems are DONE and 1 (S7) is RULED-HOLD; NOTHING is waiting on a
+signature (the two proposals found and scoped this pass, closing two of D2's own open findings,
+are both now signed and built — see §1), the production read is DONE (see §2 — none of the four
+supported a ruling, and one was genuinely unblocked), and D2 itself still needs real member
+traffic to accumulate. Read this whole block before touching anything.**
 
 ⚰️ *This said "27 of 32 systems are fully DONE, 5 more have a ready-to-sign proposal…". Nothing in
 `COMPLETION_AUDIT.md` supports 27 — its table, re-derived row by row on 2026-09-21, says 22 as of
@@ -57,7 +57,9 @@ that morning (§6 below), and three of the "5 more" were already inside those 22
 ⚰️ *S1-CP3, D3-CP4, D4-CP5, A12-CP1 and A14-CP1 were all signed and built 2026-09-21 (§0b) — the
 DONE count moved 22 → 23 → 24 → 25 the same day. The pending-signature list in §1 went EMPTY that
 day, then gained two NEW entries 2026-09-22 (F-D2-1, F-D2-3) from a fresh audit sweep, not from
-anything left over.*
+anything left over — and both of those were themselves signed and built the SAME day (F-D2-1
+fingerprint `454e11421`; F-D2-3, as D2 CP5, fingerprint `06ddbe081`), moving DONE 25 → 26 → 27 and
+returning §1's pending-signature list to EMPTY again.*
 
 ## 0. The three worktrees — re-verify every one before doing anything
 
@@ -148,25 +150,22 @@ worktree (`s7-price-level`) against `origin/master`, never from the docs worktre
 - `sign_gate.py <packet>` **SIGNS IMMEDIATELY** — there is no dry-run flag; `--read-check`/`--self-check`
   run only on synthetic text. To check a real packet read-only, import the tool and call `read_approval()`.
 
-## 1. One new proposal is ready for the owner's signature (2026-09-22)
+## 1. Nothing is waiting on a signature (both closed 2026-09-22)
 
-⚰️ *This said two — F-D2-1 and F-D2-3, both found in the same audit sweep. **F-D2-1 SIGNED
-(fingerprint `454e11421`) and BUILT AND MERGED 2026-09-22**, `feat/s7-price-level` `1a15a752a` —
-see COMPLETION_AUDIT.md's F-D2-1 row. One remains.*
-
-```sh
-python tools/sign_gate.py docs/terminal-research/12-decisions/gates/d2-f-d2-3-ordinal-inventory-scoped-proposal.md --by "Patrick (owner)" --on <today> --scope-file .scopes/d2-f-d2-3-ordinal-inventory-scoped-proposal.scope.txt
-```
-
-Run YOURSELF via `!` in chat — same absolute rule as every prior signature this programme has
-used: the AI must never fill in `APPROVED BY/ON/AT-SHA/SCOPE APPROVED` itself.
-
-| Proposal | What it does | Risk |
-|---|---|---|
-| D2 / F-D2-3 | **Read this one's §1 before signing.** Builds a checked-in inventory of 21+ places across 19 files that read chart-bar data by a fragile bare-integer position instead of by name — the SAME class of bug already fixed once for `ticker_returns.py`, now proven to exist much more widely, including the site's main chart endpoint. This proposal only counts and records that exposure; it deliberately does NOT touch any of the 21+ live call sites (several may restart flow-worker, which needs after-hours timing and its own separate proposal) | Low as scoped (detection-only, zero runtime behavior change) — but the finding it documents is real and worth reading in full, not just the risk column |
+⚰️ *This said two proposals pending — F-D2-1 and F-D2-3, both found in the same audit sweep, then
+one — F-D2-1. **Both are now SIGNED and BUILT AND MERGED, same day.** F-D2-1: fingerprint
+`454e11421`, `feat/s7-price-level` `1a15a752a`. F-D2-3 (assigned checkpoint **D2 CP5** when the
+first sign attempt was correctly refused for naming no checkpoint the packet declared — see the
+packet's own "Why this is CP5" section): fingerprint `06ddbe081`, `feat/s7-price-level`
+`8d3688213` — `tools/bars_ordinal_census.py`, the whole-repo AST census (1,380 modules scanned, 31
+positional, 1 named-access; detection-only, no reader migrated). See COMPLETION_AUDIT.md's F-D2-1
+and F-D2-3 rows for full detail.*
 
 Both were found, investigated, and scoped in the same pass — from an audit sweep the owner asked
 for ("everything remaining that keeps us from 150% complete"), not from a pre-existing backlog.
+Everything else remaining in the whole program (A9's next data point, A11, A13, event-proximity,
+D2's own top-level system needing real member traffic) is now purely time/market-gated — nothing
+further is waiting to be signed or built.
 
 ## 2. The dark comparison numbers have been read — none of the four supports a ruling yet
 
