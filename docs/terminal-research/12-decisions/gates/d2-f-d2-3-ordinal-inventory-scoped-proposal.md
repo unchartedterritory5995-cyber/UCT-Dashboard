@@ -1,6 +1,7 @@
 ---
 id: GATE-D2-F-D2-3-ORDINAL-INVENTORY
-title: D2 follow-up — F-D2-3, close the "other positional readers are named in the
+unit: D2 CP5
+title: D2 CP5 — F-D2-3, close the "other positional readers are named in the
   finding" gap that was never actually delivered
 role: Narrow pre-implementation review packet. Detection and inventory ONLY — this
   packet does not migrate any of the 21+ exposed call sites, and says so repeatedly
@@ -31,13 +32,27 @@ sources: docs/terminal-research/12-decisions/gates/d2-canonical-data-model-pre-i
   application code was modified to produce this packet.
 ---
 
-# D2 follow-up — closing F-D2-3's undelivered enumeration
+# D2 CP5 — closing F-D2-3's undelivered enumeration
 
-## Why this file is named this way
+## Why this is CP5, and how that number was chosen (not guessed)
 
-Same reason as the sibling F-D2-1 proposal: D2's checkpoint numbering has already
-drifted once (see F-D2-2's own closure), and this packet is named after the finding
-it closes rather than guessing a slot in an ambiguous sequence.
+⚰️ *This section originally argued for naming the packet after its finding
+(F-D2-3) instead of a checkpoint number, to avoid guessing a slot in D2's
+already-drifted numbering (see F-D2-2's own closure). That reasoning was
+right about the risk and wrong about the fix: `tools/sign_gate.py`'s own
+`sign()` requires the `--scope-file` text to name a checkpoint id the packet
+itself declares (`declared_checkpoints()`) — a signature cannot be written
+at all without one. Discovered when the first sign attempt on this file was
+correctly REFUSED (exit `REFUSED_UNDECLARED_SCOPE`) for naming no checkpoint.*
+
+**CP5 is genuinely unused, checked directly rather than assumed:** D2's numbering
+has two tracks — the base sequence (CP1, CP2, "top-level CP3") and a second
+sequence living under §4 (§4-CP3, §4-CP4, added for the timeframe-map and
+indicator-axis work). Neither track has ever used 5. A repo-wide grep for
+`D2 CP5`/`D2CP5`/`D2-CP5`/`§4-CP5`/`§5-CP` before this line was written found
+nothing. This packet declares itself via the `unit: D2 CP5` frontmatter line —
+the STRONG, table/unit-line form `declared_checkpoints()` prefers over scanning
+prose — so a future reader (or tool) never has to re-derive this from scratch.
 
 ## APPROVAL — this block is filled in by the OWNER, not the author
 
