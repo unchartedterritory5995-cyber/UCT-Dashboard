@@ -178,14 +178,18 @@ describe('NotebookTab — graph view wiring', () => {
     expect(screen.getByTestId('note-graph')).toBeInTheDocument()
   })
 
-  it('OFFERS "Save view" in graph mode', () => {
-    // ⚰️ This asserted the OPPOSITE, and correctly so at the time:
-    // `create_saved_view` refused any view_type outside ("list","table"), so
-    // the control would have been a button that 400s. The server enum is now
-    // SAVEABLE_VIEW_TYPES and carries all five, so hiding it would withhold a
-    // capability that works.
-    renderTab()
-    fireEvent.click(graphBtn())
-    expect(screen.getByRole('button', { name: /save view/i })).toBeInTheDocument()
-  })
+  // ⚰️ REMOVED 2026-09-22, second-authority cleanup. This test asserted Save
+  // view IS OFFERED in graph mode -- correct at ITS OWN "at the time" (the
+  // server's SAVEABLE_VIEW_TYPES had widened to accept "graph", so the old
+  // 400-refusal reason for hiding the button was gone). Competitive audit
+  // finding UX #18 (2026-09-22) reversed the DECISION on different grounds --
+  // not "does it 400", but "a saved graph view has nothing to reopen INTO"
+  // (NoteGraphView takes no filter/sort/groupBy; a saved graph view would be
+  // indistinguishable from a fresh one, a silent trap) -- and re-added the
+  // exclusion this test contradicted. The current, correct, already-controlled
+  // test for this exact behavior is `NotebookTab.test.jsx`'s own
+  // "⛔ Graph mode never offers a 'Save this view' trap" describe block
+  // ("the Save-view button is absent in Graph mode" + a List-mode CONTROL
+  // proving the query isn't vacuous) -- kept there, not duplicated here, so
+  // this fact has exactly one authority instead of two disagreeing ones.
 })
