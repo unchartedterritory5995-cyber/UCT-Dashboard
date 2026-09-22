@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from 'react'
 import UIcon from '../../../../components/ui/UIcon'
 import { buildMonthGrid, monthLabel, dowLabels, todayET, monthOffset } from '../../lib/calendar'
 import { useOptimisticNoteProperty } from '../../lib/useOptimisticNoteProperty'
-import { BLOCKED_TITLE } from '../../lib/offline/unsyncedCopy'
+import BlockedBadge from './BlockedBadge'
 import styles from './NoteCalendarView.module.css'
 
 /**
@@ -156,9 +156,19 @@ export default function NoteCalendarView({
         draggable={!isBlocked}
         onDragStart={(ev) => ev.dataTransfer.setData('text/plain', n.id)}
         className={`${styles.chip} ${extraClass} ${isBusy(n.id) ? styles.chipBusy : ''}`}
-        title={isBlocked ? BLOCKED_TITLE : (n.title || 'Untitled')}
+        title={n.title || 'Untitled'}
         onClick={() => onOpenNote && onOpenNote(n)}
       >
+        {/* ⛔⛔ THIS USED TO RENDER NOTHING VISIBLE FOR A BLOCKED NOTE — only
+            the native `title` hover attribute carried the message, which is
+            unreachable on touch (this app's touch tier is <=1024px, most of
+            mobile/tablet). `compact` (icon only) fits this chip's
+            single-line, ellipsis-truncating layout; the button's own
+            `title` above still carries the full sentence for desktop hover
+            (BlockedBadge's own `title` would be redundant/shadowed here, so
+            the chip keeps owning it, same as it already owned the plain
+            title case). Competitive audit finding UX #15, 2026-09-22. */}
+        {isBlocked && <BlockedBadge compact className={styles.chipBlockedIcon} />}
         {n.title || 'Untitled'}
       </button>
     )

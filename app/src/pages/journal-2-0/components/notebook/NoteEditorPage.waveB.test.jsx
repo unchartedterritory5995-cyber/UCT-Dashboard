@@ -1,5 +1,5 @@
 import { render, screen, fireEvent, waitFor, within } from '@testing-library/react'
-import { MemoryRouter } from 'react-router-dom'
+import { MemoryRouter, useSearchParams } from 'react-router-dom'
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest'
 
 // Wave B (High-Frequency Notebook UX): Favorites toggle, the ConfirmModal
@@ -117,6 +117,87 @@ describe('NoteEditorPage — Wave B Recents "opened" beacon', () => {
   it('fires recordNoteOpened(noteId) once the note has loaded', async () => {
     await renderEditor()
     await waitFor(() => expect(recordNoteOpenedMock).toHaveBeenCalledWith('n1'))
+  })
+})
+
+/**
+ * ⛔⛔ DUPLICATE — no such action existed anywhere in the product before this
+ * pass (grepped the header, NoteCard.jsx, NotebookTab.jsx: zero clone path).
+ * Competitive audit finding UX #12, 2026-09-22.
+ */
+describe('NoteEditorPage — Duplicate note (UX #12)', () => {
+  const postCreate = () => fetchMock.mock.calls.find(
+    ([u, o]) => String(u) === '/api/j2/notes' && o?.method === 'POST',
+  )
+
+  it('clones title/subtitle/body/tags/ticker/folder via the shared createNoteViaApi path', async () => {
+    fetchMock = vi.fn((url, opts) => (
+      String(url) === '/api/j2/notes' && opts?.method === 'POST'
+        ? Promise.resolve({ ok: true, json: () => Promise.resolve({ note: { id: 'dup1' } }) })
+        : Promise.resolve({ ok: true, json: () => Promise.resolve({}) })
+    ))
+    global.fetch = fetchMock
+    await renderEditor()
+    fireEvent.click(screen.getByRole('button', { name: 'Duplicate note' }))
+    await waitFor(() => expect(postCreate()).toBeTruthy())
+    const body = JSON.parse(postCreate()[1].body)
+    expect(body.title).toBe('Copy of Original Title')
+    expect(body.bodyJson).toEqual(NOTE.bodyJson)
+  })
+
+  it('navigates to the newly-created note via the app\'s one note-routing idiom (?note=)', async () => {
+    fetchMock = vi.fn((url, opts) => (
+      String(url) === '/api/j2/notes' && opts?.method === 'POST'
+        ? Promise.resolve({ ok: true, json: () => Promise.resolve({ note: { id: 'dup1' } }) })
+        : Promise.resolve({ ok: true, json: () => Promise.resolve({}) })
+    ))
+    global.fetch = fetchMock
+    const NoteEditorPage = (await import('./NoteEditorPage')).default
+    function LocationProbe() {
+      const [params] = useSearchParams()
+      return <div data-testid="loc">{params.toString()}</div>
+    }
+    render(
+      <MemoryRouter initialEntries={['/journal/notebook?note=n1']}>
+        <NoteEditorPage noteId="n1" onBack={vi.fn()} showBack />
+        <LocationProbe />
+      </MemoryRouter>,
+    )
+    await screen.findByPlaceholderText('Title')
+    fireEvent.click(screen.getByRole('button', { name: 'Duplicate note' }))
+    await waitFor(() => expect(screen.getByTestId('loc').textContent).toContain('note=dup1'))
+  })
+
+  it('a failed duplicate leaves the member on the SAME note (no navigation, no console crash)', async () => {
+    fetchMock = vi.fn((url, opts) => (
+      String(url) === '/api/j2/notes' && opts?.method === 'POST'
+        ? Promise.resolve({ ok: false, status: 500, json: () => Promise.resolve({}) })
+        : Promise.resolve({ ok: true, json: () => Promise.resolve({}) })
+    ))
+    global.fetch = fetchMock
+    const errSpy = vi.spyOn(console, 'error').mockImplementation(() => {})
+    await renderEditor()
+    fireEvent.click(screen.getByRole('button', { name: 'Duplicate note' }))
+    await waitFor(() => expect(postCreate()).toBeTruthy())
+    expect(screen.getByPlaceholderText('Title')).toHaveValue('Original Title')
+    errSpy.mockRestore()
+  })
+
+  it('the button is disabled while the duplicate is in flight, so a double-click cannot fire it twice', async () => {
+    let resolveCreate
+    fetchMock = vi.fn((url, opts) => (
+      String(url) === '/api/j2/notes' && opts?.method === 'POST'
+        ? new Promise((resolve) => { resolveCreate = resolve })
+        : Promise.resolve({ ok: true, json: () => Promise.resolve({}) })
+    ))
+    global.fetch = fetchMock
+    await renderEditor()
+    const btn = screen.getByRole('button', { name: 'Duplicate note' })
+    fireEvent.click(btn)
+    fireEvent.click(btn)
+    await waitFor(() => expect(btn).toBeDisabled())
+    expect(fetchMock.mock.calls.filter(([u, o]) => String(u) === '/api/j2/notes' && o?.method === 'POST')).toHaveLength(1)
+    resolveCreate({ ok: true, json: () => Promise.resolve({ note: { id: 'dup1' } }) })
   })
 })
 

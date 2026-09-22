@@ -156,6 +156,38 @@ describe('a 409 must never overwrite the server', () => {
     expect(body.title).toContain(LOCAL_TITLE)
   })
 
+  /**
+   * ⛔⛔ THE SUBTITLE USED TO BE SILENTLY DROPPED HERE. Found while adding
+   * `createNoteViaApi`'s `subtitle` param for an unrelated reason (UX #12,
+   * Duplicate note) -- this call sat right beside that gap the whole time,
+   * in the ONE path this file's own header calls "PRESERVE BOTH." The old
+   * code's own comment claimed the subtitle "carries... in the body," which
+   * nothing actually implemented; only a console.info (invisible to the
+   * member) recorded the loss. 2026-09-22.
+   */
+  it('a locally-edited subtitle rides along on the conflicted copy, not just the title/body', async () => {
+    updateMock.mockRejectedValue(conflict())
+    await renderEditor()
+    fireEvent.change(screen.getByPlaceholderText('Subtitle (optional)'), { target: { value: 'my subtitle, offline' } })
+    await editLocallyAndLetAutosaveFire()
+    await act(async () => { vi.advanceTimersByTime(200) })
+
+    await waitFor(() => expect(postedNotes().length).toBe(1))
+    const body = JSON.parse(postedNotes()[0][1].body)
+    expect(body.subtitle).toBe('my subtitle, offline')
+  })
+
+  it('⛔ CONTROL — no local subtitle means the field is simply omitted, not sent as an empty string', async () => {
+    updateMock.mockRejectedValue(conflict())
+    await renderEditor()
+    await editLocallyAndLetAutosaveFire()
+    await act(async () => { vi.advanceTimersByTime(200) })
+
+    await waitFor(() => expect(postedNotes().length).toBe(1))
+    const body = JSON.parse(postedNotes()[0][1].body)
+    expect('subtitle' in body).toBe(false)
+  })
+
   it('tells the member, and does not pretend the save succeeded', async () => {
     updateMock.mockRejectedValue(conflict())
     await renderEditor()

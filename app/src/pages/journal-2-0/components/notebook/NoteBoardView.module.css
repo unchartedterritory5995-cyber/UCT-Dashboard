@@ -160,10 +160,11 @@
   padding: 1px 7px;
 }
 
+/* Positioning ONLY -- BlockedBadge.module.css now owns color/background/
+   border/padding/font-size (UX #15, 2026-09-22), the same visual everywhere
+   it's used, not a fourth independent tuning. */
 .blocked {
   align-self: flex-start;
-  font-size: 10px;
-  color: var(--ind-warn-border);
 }
 
 .moveWrap {

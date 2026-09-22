@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import UIcon from '../../../../components/ui/UIcon'
-import { BLOCKED_BADGE, BLOCKED_TITLE } from '../../lib/offline/unsyncedCopy'
+import BlockedBadge from './BlockedBadge'
 import { useOptimisticNoteProperty } from '../../lib/useOptimisticNoteProperty'
 import styles from './NoteBoardView.module.css'
 
@@ -205,7 +205,9 @@ export default function NoteBoardView({
                       </button>
                       {n.ticker ? <span className={styles.ticker}>{n.ticker}</span> : null}
                       {isBlocked ? (
-                        <span className={styles.blocked} title={BLOCKED_TITLE}>{BLOCKED_BADGE}</span>
+                        // UX #15, 2026-09-22: this used to be text-only, the
+                        // only one of the four note-list views with no icon.
+                        <BlockedBadge className={styles.blocked} />
                       ) : (
                         /* The non-drag door. See the header: touch never fires
                            HTML5 drag events, and drag-only fails WCAG 2.1.1. */

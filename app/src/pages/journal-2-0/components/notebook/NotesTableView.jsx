@@ -1,6 +1,6 @@
 import ResponsiveTable from '../../../../components/mobile/ResponsiveTable'
 import UIcon from '../../../../components/ui/UIcon'
-import { BLOCKED_BADGE, BLOCKED_TITLE } from '../../lib/offline/unsyncedCopy'
+import BlockedBadge from './BlockedBadge'
 import styles from './NotesTableView.module.css'
 
 function formatCellValue(def, value) {
@@ -96,12 +96,7 @@ export default function NotesTableView({
       render: (n) => (
         <span className={styles.titleCell}>
           {n.title || 'Untitled'}
-          {isBlocked(n.id) && (
-            <span className={styles.unsynced} title={BLOCKED_TITLE}>
-              <UIcon name="warning" size={11} style={{ verticalAlign: '-1px', marginRight: 3 }} />
-              {BLOCKED_BADGE}
-            </span>
-          )}
+          {isBlocked(n.id) && <BlockedBadge className={styles.unsynced} />}
         </span>
       ),
     },

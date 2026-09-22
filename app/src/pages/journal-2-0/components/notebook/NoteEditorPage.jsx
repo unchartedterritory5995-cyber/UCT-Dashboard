@@ -1459,17 +1459,22 @@ export default function NoteEditorPage({ noteId, onBack, showBack = true, onTitl
     const localTitle = titleRef.current || ''
     const localSubtitle = subtitleRef.current || ''
     const localBody = editor.getJSON()
+    // ⛔⛔ THIS USED TO SILENTLY DROP THE SUBTITLE. `createNoteViaApi` took no
+    // `subtitle` param until UX #12 (Duplicate note, 2026-09-22) added one --
+    // this call sat right beside that gap the whole time, in the ONE path
+    // this file's own header calls "PRESERVE BOTH." The prior code's own
+    // comment claimed the subtitle "carries... in the body," which was never
+    // actually implemented -- nothing appended it anywhere; only a
+    // console.info (invisible to the member) recorded the loss. Found while
+    // adding the param for an unrelated reason, fixed because it sat exactly
+    // on this session's "never lose member data" conflict-handling path.
     await createNoteViaApi({
       title: `${localTitle} (conflicted copy)`.trim(),
+      subtitle: localSubtitle || undefined,
       bodyJson: localBody,
       tags: ['sync-conflict'],
       folderId: note?.folderId || undefined,
     })
-    if (localSubtitle) {
-      // The create endpoint takes no subtitle; the copy carries it in the body
-      // only if the member had one. Recorded here rather than silently dropped.
-      console.info('[note-conflict] subtitle not carried onto the conflicted copy')
-    }
 
     // The editor now shows what the SERVER has — the canonical version — so the
     // member is not typing into a document that no longer exists anywhere.
@@ -1728,6 +1733,46 @@ export default function NoteEditorPage({ noteId, onBack, showBack = true, onTitl
   const onTagsChange = async (tagsCsv) => {
     const tags = tagsCsv.split(',').map((t) => t.trim()).filter(Boolean)
     await settleMetadataRevision(await update({ tags }))
+  }
+
+  // ⛔⛔ DUPLICATE — no such action existed anywhere in the product (grepped
+  // this header, NoteCard.jsx, NotebookTab.jsx: zero clone/duplicate path).
+  // Notion: right-click any page -> Duplicate. Evernote: right-click ->
+  // Duplicate Note. Competitive audit finding UX #12, 2026-09-22.
+  // ⛔ Clones the SAVED note (title/subtitle/bodyJson/tags/ticker/
+  // folderId/propertiesJson), not the live unsaved editor buffer -- a
+  // member with unsaved edits duplicates what the note IS, not a draft
+  // they haven't committed to it yet. Routes through the shared
+  // `createNoteViaApi` (already used by every other creation path in
+  // NotebookTab.jsx/noteCreation.js), then opens the new note through the
+  // app's ONE routing idiom for a note (`applyTargetToParams`, same as the
+  // CapturedSourceSheet "open owning note" door above) -- never a second
+  // route shape or a full page navigation.
+  const [duplicating, setDuplicating] = useState(false)
+  const onDuplicate = async () => {
+    if (duplicating) return
+    setDuplicating(true)
+    try {
+      const created = await createNoteViaApi({
+        title: note.title ? `Copy of ${note.title}` : 'Copy of Untitled',
+        subtitle: note.subtitle || undefined,
+        bodyJson: note.bodyJson,
+        tags: note.tags,
+        ticker: note.ticker || undefined,
+        folderId: note.folderId || undefined,
+        properties: note.propertiesJson || undefined,
+      })
+      // Same predicate NotebookTab's own refreshSidebarCounts uses -- the
+      // sidebar's note lists (All notes/Recents/per-folder) are OTHER
+      // components' SWR hooks, unreachable from here except through the
+      // shared global cache.
+      globalMutate((key) => typeof key === 'string' && key.startsWith('/api/j2/notes'))
+      setSearchParams((prev) => applyTargetToParams(prev, { noteId: created.id, depth: 'note' }))
+    } catch (e) {
+      console.error('[notebook] duplicate failed', e)
+    } finally {
+      setDuplicating(false)
+    }
   }
 
   // Wave B: native confirm() replaced with the shared ConfirmModal (G-103) —
@@ -1995,6 +2040,17 @@ export default function NoteEditorPage({ noteId, onBack, showBack = true, onTitl
             onBlur={(e) => onTagsChange(e.target.value)}
             style={{ width: 200 }}
           />
+          <button
+            type="button"
+            className={styles.chromeBtn}
+            onClick={onDuplicate}
+            disabled={duplicating}
+            title="Create a copy of this note"
+            aria-label="Duplicate note"
+          >
+            <UIcon name="copy" size={13} style={{ verticalAlign: '-2px', marginRight: 4 }} />
+            {duplicating ? 'Duplicating…' : 'Duplicate'}
+          </button>
           <button type="button" className="btn btn-danger" onClick={onDeleteRequest}>
             Delete
           </button>

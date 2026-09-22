@@ -204,6 +204,17 @@ describe('NoteBoardView', () => {
     expect(global.fetch).not.toHaveBeenCalled()
   })
 
+  // ⛔⛔ UX #15, 2026-09-22: Board was the only one of the four note-list
+  // views whose blocked badge had NO icon, text only. The test above
+  // already pinned the text; this pins the shared component actually
+  // rendered (an svg, not just words), so a future regression to a
+  // text-only span fails here even if the wording stays identical.
+  it('the blocked badge now carries the same icon the other three views use', () => {
+    renderBoard({ blockedNoteIds: new Set(['n1']) })
+    const card = screen.getByText('NVDA thesis').closest('article')
+    expect(within(card).getByText(/edit again to sync/i).closest('span').querySelector('svg')).toBeTruthy()
+  })
+
   it('a DROP carrying a blocked note is refused by move() itself', async () => {
     // ⛔ THE RENDER GUARD AND THE move() GUARD ARE TWO DIFFERENT GUARDS, and
     // the test above only reaches the first: a blocked card renders a badge

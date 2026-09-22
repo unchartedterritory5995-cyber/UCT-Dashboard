@@ -238,6 +238,27 @@ describe('NoteCalendarView', () => {
       .toHaveAttribute('draggable', 'false')
   })
 
+  /**
+   * ⛔⛔ THIS USED TO RENDER NOTHING VISIBLE — only a native `title` hover
+   * attribute carried "edit it again to sync", unreachable on touch (this
+   * app's touch tier is <=1024px, most of mobile/tablet). Competitive audit
+   * finding UX #15, 2026-09-22.
+   */
+  it('a blocked note now shows a VISIBLE icon on its chip, not just a hover title', () => {
+    renderCal({ notes: [n('a', 'NVDA review', '2026-09-10')], blockedNoteIds: new Set(['a']) })
+    const chip = screen.getByText('NVDA review').closest('button')
+    expect(chip.querySelector('svg'), 'no visible icon on a blocked chip').toBeTruthy()
+    // The icon-only badge still needs its own accessible name -- it has no
+    // visible text of its own inside this cramped, single-line chip.
+    expect(within(chip).getByRole('img')).toBeInTheDocument()
+  })
+
+  it('⛔ CONTROL — a note that is NOT blocked has no such icon', () => {
+    renderCal({ notes: [n('a', 'NVDA review', '2026-09-10')] })
+    const chip = screen.getByText('NVDA review').closest('button')
+    expect(chip.querySelector('svg')).toBeNull()
+  })
+
   it('a failed drag puts the note back on its original day', async () => {
     global.fetch = vi.fn(() => Promise.resolve({ ok: false, status: 500 }))
     renderCal({ notes: [n('a', 'NVDA review', '2026-09-10')] })

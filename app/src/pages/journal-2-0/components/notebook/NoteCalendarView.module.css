@@ -204,6 +204,11 @@
 }
 
 .chipBusy { opacity: 0.55; }
+/* The compact BlockedBadge sits inline before the title inside a single-line,
+   nowrap chip (UX #15, 2026-09-22) -- it supplies its own icon spacing via
+   the icon's `marginRight: 0` (compact), so this is purely the gap between
+   the badge and the title text that follows it. */
+.chipBlockedIcon { margin-right: 3px; }
 
 .error {
   font-size: 11px;
