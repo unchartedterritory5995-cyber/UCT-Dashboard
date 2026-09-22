@@ -20,6 +20,50 @@ side-by-side. The local dev loop (`scripts/hub_sandbox_boot.py --port 8000` +
 
 ---
 
+## ⛔⛔ 2026-09-22 — TWO NUMBERS THIS PROGRAMME PUBLISHES ARE WRONG
+
+Both are measurement defects, not engine defects, and both make the engine look
+worse than it is. Read this before quoting any figure below.
+
+### 1. THE DENOMINATOR IS 187, NOT 266
+
+A script with no drawing call cannot draw, and the object lane refuses it
+CORRECTLY. Measured (`ast/drawingDenominator.measure.test.js`): only **187 of
+the 266** committed scripts contain a drawing constructor or method at all.
+
+| | |
+|---|---|
+| reported so far | 4 of 266 — 1.5% |
+| **honest** | **4 of 187 — 2.1%** |
+
+⭐ And the more useful half: the same instrument asks the question TWO
+independent ways — does the SOURCE mention a drawing call, and does the ENGINE
+refuse for having nothing to draw — and **ten scripts say yes to the first and
+no to the second.** Those are drawing calls the object pass cannot SEE: a
+capability gap wearing the costume of an empty script, sitting inside a row a
+reader skips as "correctly refused, not work". Three of the ten are
+fair-value-gap scripts and three are volume-profile ones, which is the shape of
+ONE shared cause.
+
+### 2. EVERY DISTANCE IS AN OVER-ESTIMATE BY AN UNKNOWN AMOUNT
+
+96 of 266 scripts (36.1%) stop on a refusal that **cannot say where it is**
+(`ast/approximateRefusals.measure.test.js`). The runtime lane pins such a refusal
+to whichever statement was open, so the reported line is innocent — and any tool
+that peels BY LINE cannot make progress. `distanceToWorking` therefore records
+those scripts as UNREACHED regardless of how close they are.
+
+⭐ It is ONE seam, not scattered sites: every `runtime:`-namespaced guard keeps
+its position and every `pine:` guard reaching the runtime lane loses it. ⛔ Two
+plausible fixes at the RAISE sites were tried, measured as no-ops on the corpus
+count, and reverted — see that file's header before attempting a third.
+
+⚠️ **So "250 of 266 are more than 20 walls away" is not trustworthy.** It is an
+upper bound on distance produced by an instrument that cannot see past a
+location-less refusal.
+
+---
+
 ## ⭐⭐⭐ 2026-09-22 — THE SELECTION RULE CHANGED, AND THE METRIC WENT 1 → 4
 
 > **Pick the guard that COMPLETES a script, not the one that blocks the most.**
@@ -64,6 +108,8 @@ is WORTH. Both share one peeler (`peelToBuilding.js`), mutation-proved.
 | `280a05f29` | the cross family over runtime state (`ta.crossover`/`crossunder`/`cross`) | **draws 2 → 4**, builds 3 → 5. `liquidity-pools` (500 objects) and `trendlines` (8) — both NAMED IN ADVANCE by the queue. |
 | `0f58a80a9` | the peeler replaces a failing binding instead of blanking it | no metric change by design — it is an INSTRUMENT fix. Queue 7 → 10; `position-size-calc` 12 → 2, `wyckoff` UNREACHED → 2. |
 | `bd11b4d9a` | a drawing inside an `else` arm (two spellings of one guard) | metric unchanged — `else` was a SECOND wall for all 120 drawing scripts that use it. Queue 10 → 12; `inside-bar-boxes` 11 → 4 walls. |
+| `c5f87dbc8` | the approximate-refusal instrument | no metric change — it MEASURES a measurement defect: 96 of 266 stop on a refusal with no location. |
+| `9523b028d` | the drawing-denominator instrument | no metric change — it corrects the denominator to 187 and names 10 scripts whose drawing calls are invisible to the object pass. |
 
 ### ⛔⛔ THE GUARDS-HIT TABLE IS MOSTLY CASCADE — measured 2026-09-22
 
