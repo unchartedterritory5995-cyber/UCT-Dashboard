@@ -489,6 +489,14 @@
     min-width: var(--tap-min, 44px);
     min-height: var(--tap-min, 44px);
   }
+  /* Wave 4's date/sector/theme search filters — reachable only via
+     `showFilters` (never rendered by a static page load, so the audit tool's
+     own probe never saw them). Driving the real panel at 390px measured
+     26-31px tall date inputs and selects, both well under the floor. */
+  .searchFilterField input,
+  .searchFilterField select {
+    min-height: var(--tap-min, 44px);
+  }
 }
 
 /* A failed folder mutation, said in the member's language — replaces a native
