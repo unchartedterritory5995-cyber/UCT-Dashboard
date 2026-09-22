@@ -182,29 +182,54 @@ values and is a renderer capability, not a front-end one.
 
 ## THE CORPUS MAP — where 266 real published scripts die
 
-⭐ **Re-measure, do not quote.** Run `buildRuntimeIr` over `corpus/committed`
-with `{ tf: 'D', ...runtimeClockOpts(false) }` — see the trap below.
+⭐⭐ **RE-MEASURE, DO NOT QUOTE — AND SINCE 2026-09-21 THAT IS ONE COMMAND:**
 
-At `8b0581541`, first blockers, largest first:
+```sh
+cd app && node node_modules/vitest/vitest.mjs run \
+  src/components/chart/engine/ast/runtimeCorpusCensus.measure.test.js
+```
+
+It prints the whole first-blocker table and **asserts no count**, deliberately:
+a census pinned to a number goes red every time the lane improves, which is why
+several `.measure` files already sit in the failing baseline. What it does
+assert is that the corpus was found, that every script is accounted for
+(nothing silently dropped from the walk), and the contamination rail below.
+
+⚰️ **This section used to be hand-recorded prose under the instruction
+"re-measure, do not quote" — with no way to re-measure.** So every reader either
+trusted numbers that predated several waves of work or rebuilt the harness from
+scratch. Its figures were three commits and two capabilities stale by the time
+anyone read them.
+
+**Measured 2026-09-21 at `e04815d69`, 266 scripts, tf=D, clock told.
+Compiled end to end: 8 (3.0%)** — was 5 at `8b0581541`. First blockers, largest
+first:
 
 | n | guard | what it is |
 |---|---|---|
 | 47 | `runtime:declaration` | `strategy()` scripts — **OUT OF SCOPE by design** |
 | 23 | `pine:character` | member access on a CALL RESULT (`full.get(y).vol`) — UDT family |
-| 21 | `pine:builtin` | table gaps (e.g. `time` is ms in Pine, seconds here) |
-| 16 | `pine:undefined` | loop vars in the COLUMNAR lane |
-| 15 | `runtime:statement` · `pine:function` · `runtime:call-undeclared-builtin-state` | |
-| 14 | `runtime:expression-statement` | |
-
-Across the session: **compiled end-to-end 2 → 5**; `runtime:presentation` 22 →
-out of the top eight; `runtime:array` 19 → out.
+| 20 | `pine:builtin` | table gaps (e.g. `time` is ms in Pine, seconds here) |
+| 18 | `pine:undefined` | loop vars in the COLUMNAR lane |
+| 17 | `runtime:statement` | |
+| 15 | `runtime:expression-statement` · `runtime:call-undeclared-builtin-state` · `pine:function` | |
+| 12 | `runtime:udt` | |
+| 11 | `pine:block` | |
+| 8 | `runtime:array` · `runtime:object-op` | |
 
 ⚠️ **Scripts mostly move to their NEXT blocker rather than clearing.** That is
-why `compiled` moves slowly, and it is the honest shape of the number.
+why `compiled` moves slowly, and it is the honest shape of the number. It is
+also why the top of this table barely moves while real work lands: the two
+largest entries are unchanged since `8b0581541`.
 
 ⛔ **THE CENSUS CAN CONTAMINATE ITSELF.** Run without `runtimeClockOpts`, it
-reports **39 `runtime:realtime-untold`** as the top blocker — that is the
-harness not telling the lane about the clock, not a property of the corpus.
+reports `runtime:realtime-untold` scripts — that is the harness not telling the
+lane about the clock, not a property of the corpus. **That trap is now a rail**
+(`the harness TELLS the lane about the clock`): it runs the census BOTH ways and
+asserts the clean pass reports zero while the contaminated one reports more than
+zero. If it ever stops differing, either the trap was fixed upstream or the
+clean run has quietly stopped passing the clock — and in the second case every
+number above is contaminated.
 
 ---
 
@@ -361,9 +386,13 @@ dashboard builds, runs and draws.
    next instance of item (1)'s principle, and it is deliberately not bundled
    here because it will move real diagnostic counts and wants its own
    before/after measurement.
-4. **Re-measure the CORPUS.** Every number in the map below predates this
-   session; the clock, session, statement-body, `%`, colour-literal and enum
-   work will have moved many first-blockers. Re-run before planning from it.
+4. ✅ **DONE 2026-09-21 — the corpus is re-measured, and re-measuring is now a
+   COMMAND** rather than an instruction nobody could follow:
+   `runtimeCorpusCensus.measure.test.js`. See THE CORPUS MAP below for the
+   fresh table. **Compiled end to end moved 5 → 8 of 266.**
+   ⚠️ The top of the table barely moved — `runtime:declaration` (47, strategies,
+   out of scope by design) and `pine:character` (23, the UDT family) are
+   unchanged. Plan from the table, not from the headline.
 5. **The gradient fill** — the last blocker on script 2. Front end is easy;
    the renderer is the work.
 6. **Still owed, market hours only:** vendor M2, M5, M1's realtime half, and
