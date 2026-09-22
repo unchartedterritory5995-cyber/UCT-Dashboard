@@ -247,7 +247,20 @@ plot(a)
     // census found the same mistake sitting in the corpus numbers (`str.upper`,
     // `int` and `iff` were all filed as windowed), and the split below is what
     // that correction looks like. These three refusals are three different walls.
-    ['a SCAN-BACKWARDS builtin fed by state', `${head}var x = 0.0\nx := close\nplot(ta.barssince(x > 100))\n`, 'runtime:call-windowed-state'],
+    // ⚰️⚰️ THE SCAN-BACKWARDS ROW IS GONE, AND THIS TIME THE CATEGORY CLOSED
+    // RATHER THAN THE SPECIMEN MOVING. It read
+    //   ['a SCAN-BACKWARDS builtin fed by state', 'plot(ta.barssince(x > 100))',
+    //    'runtime:call-windowed-state'],
+    // and `ta.barssince` over state now EXECUTES — Pine's unbounded twin is the
+    // `CARRIED` member `barssincePine`, as `ta.valuewhen` became a `CARRIED2`
+    // member a wave earlier. Those two ARE the scan-backwards family, so unlike
+    // the `ta.cum` and `math.max` re-pointings recorded above there is no
+    // replacement specimen to name: the wall this row described no longer exists.
+    // ⛔ Deleting the row rather than parking it on a near-miss is the point the
+    // paragraph above makes — a specimen chosen for what it happened to be that
+    // day, asserted as if it were a claim about the CATEGORY, is how this table
+    // went wrong three times. The live proof that the family executes is
+    // `finiteWindow.test.js` and `barssince.test.js`, not an absence here.
     // ⚰️⚰️ AND THE UNDECLARED ROW HAS NOW MOVED OFF `ta.cum` TOO — the third
     // time this table has had to re-point a row, and the first time in the other
     // direction: `cum` was ADMITTED to the closed table, so "undeclared" became

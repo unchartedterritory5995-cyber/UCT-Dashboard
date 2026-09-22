@@ -249,6 +249,45 @@ export const RUNTIME_CROSS_CARRIED = Object.freeze({
   cross: 'crossAny',
 })
 
+/** ⭐⭐ THE PINE NAMES THIS LANE OWNS AS TWINS — name -> the arity it owns, or
+ *  `null` for "every arity".
+ *
+ *  ⛔⛔ A TWIN IS A NAME THE COLUMNAR LANE ALSO HAS, WITH DIFFERENT SEMANTICS.
+ *  `interpret.js` holds `valueWhen(cond, src, n)` counting BARS and
+ *  `barsSince(cond, n)` SATURATING at `n`; Pine's count OCCURRENCES and count
+ *  without bound. Both house functions serve the screener's frozen column
+ *  contract and neither is touched — the Pine spellings are implemented BESIDE
+ *  them, in this lane, and this table is the one place that says so.
+ *
+ *  ⛔⛔ THE ARITY IS LOAD-BEARING FOR `barssince` AND IS THE WHOLE REASON THIS
+ *  WAVE IS SAFE. Measured on the build before it: `barssince(cond, 5)` BUILDS
+ *  and answers the saturating house series, while `ta.barssince(…)` is refused
+ *  at EVERY arity and bare `barssince(cond)` is refused for arity. So owning
+ *  ARITY 1 ONLY cannot change any call that works today — the two-argument form
+ *  never enters this table and keeps routing to the columnar lane exactly as it
+ *  did. Correcting the closed table to Pine's one-argument signature would
+ *  REMOVE that working call, which is a member-visible change and an owner
+ *  ruling (the vendor capture's own `_notPinned` marker routes it that way).
+ *
+ *  ⭐ `valuewhen` DECLARES `null` RATHER THAN 3, deliberately. Its predicate
+ *  matched every arity before this table existed, and pinning it to 3 would
+ *  quietly move a malformed `valuewhen(a, b)` from this lane's refusal to the
+ *  columnar one's. This table was added to widen the mechanism, not to re-rule
+ *  a name that already had an answer. */
+export const RUNTIME_PINE_TWINS = Object.freeze({
+  'ta.valuewhen': null,
+  valuewhen: null,
+  'ta.barssince': 1,
+  barssince: 1,
+})
+
+/** Does this lane own `name` called with `argc` arguments? */
+export const runtimeOwnsPineTwin = (name, argc) => {
+  if (!Object.prototype.hasOwnProperty.call(RUNTIME_PINE_TWINS, name)) return false
+  const arity = RUNTIME_PINE_TWINS[name]
+  return arity === null || arity === argc
+}
+
 /** How many firings back `ta.valuewhen` will look. The ring is allocated from
  *  this, and the corpus's largest occurrence is a small literal. */
 export const MAX_VALUEWHEN_OCCURRENCE = 1000
@@ -1312,7 +1351,15 @@ export function buildRuntimeIr(source, opts = {}) {
    *  fact this walk already computes and then threw away. Recovering it with a
    *  second walker would be a second authority on what counts as a drawing call
    *  (`lesson_a_second_authority_over_one_value`); returning it is free. */
-  /** Is Pine's `ta.valuewhen` anywhere in this subtree?
+  /** Is a Pine TWIN this lane owns anywhere in this subtree? (`RUNTIME_PINE_TWINS`)
+   *
+   *  ⛔ ONE WALKER, A TABLE OF NAMES — not a predicate per function. The tree
+   *  walk below is the whole mechanism (follow bindings, ask the subtree, cap
+   *  the depth) and a second copy of it per twin would be
+   *  `lesson_a_guard_repeated_is_a_guard_unproved`: the copies would disagree
+   *  the first time either was touched, silently, because both answer a
+   *  plausible route. What differs BETWEEN twins is only the arity they own,
+   *  and that is declared in the table rather than written into this walk.
    *
    *  ⛔⛔ THE ROUTE DECISION RUNS FIRST, AND WITHOUT THIS THE BRANCH THAT
    *  LOWERS `ta.valuewhen` CAN NEVER BE REACHED. A `ta.valuewhen(cond, src, 0)`
@@ -1326,10 +1373,13 @@ export function buildRuntimeIr(source, opts = {}) {
    *  the same reason: `ta.valuewhen(c, x, 0) + 1` is a pure head over a call
    *  this lane must keep, and a head-only test would route the sum away and
    *  report a refusal about a lane the caller is not using. */
-  const holdsPineValueWhen = (node, depth = 0) => {
+  const holdsPineTwin = (node, depth = 0) => {
     if (!node || typeof node !== 'object' || depth > 24) return false
+    // ⛔ THE ARITY IS PART OF THE QUESTION, NOT AN AFTERTHOUGHT. `barssince` at
+    // arity 2 is the HOUSE function and belongs to the columnar lane; stealing
+    // it here would refuse the one spelling of that name which builds today.
     if (node.type === 'call'
-      && (node.name === 'ta.valuewhen' || node.name === 'valuewhen')) return true
+      && runtimeOwnsPineTwin(node.name, (node.args || []).length)) return true
     // ⛔⛔ IT FOLLOWS A BINDING, AND WITHOUT THAT IT MISSES THE COMMONEST SHAPE.
     // A top-level binding that reads no slot becomes an `env` MACRO, substituted
     // at its use — so `v0 = ta.valuewhen(…)` followed by `plot(v0 - v1)` reaches
@@ -1341,14 +1391,14 @@ export function buildRuntimeIr(source, opts = {}) {
     // cap is what keeps a self-referential binding from spinning here.
     if (node.type === 'name') {
       const bound = env.get(node.name)
-      return !!(bound && bound.kind === 'expr' && holdsPineValueWhen(bound.node, depth + 1))
+      return !!(bound && bound.kind === 'expr' && holdsPineTwin(bound.node, depth + 1))
     }
     for (const k of ['left', 'right', 'test', 'yes', 'no', 'arg', 'value', 'cond']) {
-      if (holdsPineValueWhen(node[k], depth + 1)) return true
+      if (holdsPineTwin(node[k], depth + 1)) return true
     }
     if (Array.isArray(node.args)) {
       for (const a of node.args) {
-        if (holdsPineValueWhen(a && a.value !== undefined ? a.value : a, depth + 1)) return true
+        if (holdsPineTwin(a && a.value !== undefined ? a.value : a, depth + 1)) return true
       }
     }
     return false
@@ -2764,14 +2814,17 @@ export function buildRuntimeIr(source, opts = {}) {
         // before the branch that knows it can ever be reached. That is exactly
         // how the `size.*` fix read as a no-op until BOTH places changed.
         && !(node.type === 'name' && ORDER_ENUM[node.name] !== undefined)
-        // ⭐⭐ AND PINE'S `ta.valuewhen` IS THIS LANE'S, NOT THE COLUMNAR ONE'S.
-        // The columnar lane has a function of the same name that counts BARS
-        // where Pine counts OCCURRENCES, and it refuses the Pine spelling with
-        // a correct, detailed sentence — which is the right answer for a
-        // SCREENER formula and the wrong one here, where the occurrence
-        // semantics are implemented. Without this clause that refusal arrives
-        // before the branch that serves it, exactly as with `size.*`.
-        && !holdsPineValueWhen(node)) {
+        // ⭐⭐ AND PINE'S TWINS ARE THIS LANE'S, NOT THE COLUMNAR ONE'S.
+        // The columnar lane has functions of the same names with different
+        // semantics — `valuewhen` counts BARS where Pine counts OCCURRENCES,
+        // `barssince` SATURATES where Pine does not — and it refuses the Pine
+        // spellings with correct, detailed sentences. That is the right answer
+        // for a SCREENER formula and the wrong one here, where the Pine
+        // semantics are implemented. Without this clause those refusals arrive
+        // before the branches that serve them, exactly as with `size.*`.
+        // ⛔ `RUNTIME_PINE_TWINS` declares the arity each name is owned at, so
+        // the house `barssince(cond, n)` still routes to the columnar lane.
+        && !holdsPineTwin(node)) {
       // ⚰️ A `timeframe.period` CLAUSE STOOD IN THIS CONDITION AND COULD NOT BE
       // PROVED. It looked necessary — the comment above says in as many words
       // that *"the ROUTE decision runs FIRST"*, and handling the name in the
@@ -3802,6 +3855,68 @@ export function buildRuntimeIr(source, opts = {}) {
           carried2Main.push({ fn: 'valuewhen', n: occ, name: `${node.name}(${occ})` })
           // ⭐ CONDITION THEN SOURCE — the order `lowerIr` walks them in.
           return carried2Call(idx, lowerExpr(given[0], scope), lowerExpr(given[1], scope))
+        }
+        // ⭐⭐ PINE'S `ta.barssince` — UNBOUNDED, AND ONE ARGUMENT.
+        //
+        // ⛔⛔ NOT `interpret.js::barsSince`, WHICH SHARES THE NAME AND
+        // SATURATES. That one's `n` is a SENTINEL — "not true within the last n
+        // bars" — so it caps both the count and the claim; Pine's counts back as
+        // far as the condition requires. They line up positionally and answer
+        // different numbers, so the host lane keeps its screener function and
+        // this lane gets a twin, exactly as `ta.valuewhen` did above.
+        //
+        // ⛔⛔ ARITY 1 ONLY, AND THAT IS A SAFETY PROPERTY RATHER THAN A
+        // SIGNATURE CHECK. `barssince(cond, n)` BUILDS today and answers the
+        // house saturating series; `RUNTIME_PINE_TWINS` therefore owns this name
+        // at arity 1 alone, so the two-argument call never reaches this branch
+        // and never changes. Narrowing the closed table to Pine's real
+        // one-argument signature would REMOVE that working call — a
+        // member-visible change and an owner ruling, which this wave does not
+        // take (`r11-barssince-spy-1d-2026-09-11.json`'s `_notPinned` marker).
+        //
+        // ⭐ BOTH SPELLINGS, because 15 of the 104 corpus sites write the bare
+        // v1-v3 form and it is the SAME Pine function.
+        //
+        // ⭐⭐ AND IT IS `OP.CARRIED`, NOT `OP.CARRIED2`, WHICH IS WHY THERE IS
+        // NO USER-FUNCTION REFUSAL HERE. `ta.valuewhen` and the cross family
+        // refuse inside a user function because `OP.CARRIED2` has no
+        // frame-relative base and two invocations would share one ring.
+        // `OP.CARRIED` HAS one (`carriedBase`), so two invocations of one body
+        // keep two counters through one instruction — demonstrated in
+        // `barssince.test.js` rather than assumed from the opcode's comment.
+        if (runtimeOwnsPineTwin(node.name, node.args.length)
+          && (node.name === 'ta.barssince' || node.name === 'barssince')
+          // ⛔ THE SCRIPT'S OWN DEFINITION WINS. `barssince` is a plain name in
+          // the v1-v3 spelling and a member may define one; hijacking it would
+          // compute a builtin nobody wrote. Same clause the cross family carries.
+          && !definedNames.has(node.name)) {
+          const at = locate(node.tok)
+          const given = node.args.map((a) => (a && a.value !== undefined ? a.value : a))
+          // ⭐ Reachable only at arity 1 via the table, so this is a belt-and-
+          // braces message rather than the live arity gate — but a zero-argument
+          // call must still say what is missing rather than throw a TypeError.
+          if (given.length !== 1) {
+            throw new RuntimeRefusal('runtime:statement',
+              `\`${node.name}\` takes one condition, given ${given.length}`, at)
+          }
+          const entry = {
+            // ⛔ `n` IS UNREAD BY THIS STEP, AND 1 RATHER THAN 0 BECAUSE
+            // `program.js` REFUSES `CARRIED` BELOW 1 — that floor exists for the
+            // members whose `n` is a real length. Declaring a length here would
+            // be inventing a bound this function does not have, so the value is
+            // the validator's minimum and the step never looks at it.
+            fn: 'barssincePine', n: 1, name: `${node.name}(…)`,
+          }
+          let aidx
+          if (owner !== null) {
+            const list = functions[owner].carriedLocals || (functions[owner].carriedLocals = [])
+            aidx = list.length
+            list.push(entry)
+          } else {
+            aidx = carriedMain.length
+            carriedMain.push(entry)
+          }
+          return carriedCall(aidx, lowerExpr(given[0], scope))
         }
         const car = carriedTarget(node.name)
         if (car) {

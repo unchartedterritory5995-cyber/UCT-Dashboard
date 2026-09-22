@@ -1119,6 +1119,45 @@ function monotoneStep(st, o, v, n, cmp) {
 const risingStep = (st, o, v, n) => monotoneStep(st, o, v, n, (a, b) => a > b)
 const fallingStep = (st, o, v, n) => monotoneStep(st, o, v, n, (a, b) => a < b)
 
+/** ⭐⭐ PINE'S `ta.barssince(condition)` — ONE CELL, AND IT IS UNBOUNDED.
+ *
+ *  ⛔⛔ NOT `interpret.js::barsSince`, WHICH SHARES THE NAME AND SATURATES.
+ *  That one's `n` is a SENTINEL meaning "not true within the last n bars", and
+ *  it caps both the count and the claim. Pine's counts back as far as the
+ *  condition requires and caps nothing — so translating one onto the other
+ *  would be a different number wearing the same name. The two coexist by ARITY;
+ *  see the table note above for why the house form is deliberately untouched.
+ *
+ *  ⭐ ONE CELL, AND `NaN` IS THE "NEVER FIRED" STATE RATHER THAN A SECOND FLAG.
+ *  That is not a trick: `na` is precisely what the vendor answers before the
+ *  first firing (405 of 405 bars on a never-true condition), so the state and
+ *  the answer are the same fact and cannot drift apart. A separate boolean
+ *  would be a second authority over "has it fired yet".
+ */
+const BARSSINCE_PINE_CELLS = 1
+
+function barsSincePineInit(st, o) { st[o] = NaN }
+
+/** One bar of Pine's `ta.barssince`.
+ *
+ *  ⛔ 0 ON THE FIRING BAR — measured, `theOrdinaryCase.min === 0` with no `na`
+ *  anywhere once the condition has fired. Answering 1 there is the obvious
+ *  off-by-one and there are 104 corpus sites riding on it.
+ *
+ *  ⚠️ AN `na` CONDITION DOES NOT FIRE, AND THE BAR STILL COUNTS. Nothing in the
+ *  capture exercises an `na` condition — its three probe channels are all
+ *  finite comparisons — so this is THIS ENGINE'S CHOICE and is pinned as such
+ *  in `barssince.test.js` rather than presented as a vendor fact. The reasoning:
+ *  `na` is not a firing (the `ta.valuewhen` twin already rules that way), but a
+ *  bar is still a bar, so a counter that has already started advances across it.
+ *  Resetting to `na` would forget a firing this engine really saw.
+ */
+function barsSincePineStep(st, o, cond) {
+  if (!Number.isNaN(cond) && cond !== 0) st[o] = 0
+  else if (!Number.isNaN(st[o])) st[o] += 1
+  return st[o]
+}
+
 // ⚰️ `emaCol` AND `rmaCol` LIVED HERE AND ARE GONE. They were one-line alpha
 // wrappers over `smoothCol`, and 2F-2C moved the alpha into `CARRIED` so the
 // runtime and this lane read the SAME constant from the SAME place. Keeping them
@@ -1523,15 +1562,29 @@ const windowFn = (name) => (series, n) =>
  *  closed table does not declare it at all); `barssince`/`valuewhen` are the same
  *  SHAPE and deliberately NOT members — see the note below.
  *
- *  ⚠️ `barssince` AND `valuewhen` ARE ABSENT ON PURPOSE, AND IT IS NOT AN
- *  OVERSIGHT. `interpret.js::barsSince`/`valueWhen` are forward passes over two
- *  scalars each, so they FIT this table mechanically. They are excluded because
- *  `pine.js` refuses `ta.barssince` and `ta.valuewhen` BY NAME: Pine's are
- *  unbounded / occurrence-indexed and this table's are bounded / period-indexed,
- *  which are different functions. Admitting them here would build a runtime for
- *  a spelling no member can reach, and the honest first dependency is the CLOSED
- *  TABLE declaring Pine's actual signatures. Measured, not assumed — see the
- *  execution-shape census and gap register PART V.
+ *  ⚰️ THIS SAID `barssince` AND `valuewhen` WERE "ABSENT ON PURPOSE", and the
+ *  REASONING was right while the CONCLUSION has been overtaken. Its argument was
+ *  that `pine.js` refuses `ta.barssince`/`ta.valuewhen` BY NAME because Pine's
+ *  are unbounded / occurrence-indexed and the house pair are bounded /
+ *  period-indexed — different functions — so "admitting them here would build a
+ *  runtime for a spelling no member can reach".
+ *
+ *  ⭐⭐ THE ANSWER TURNED OUT TO BE A TWIN, NOT A CORRECTION TO THE TABLE.
+ *  Pine's `valuewhen` now lives in `CARRIED2` and Pine's `barssince` lives here
+ *  as `barssincePine`, BESIDE the house functions rather than over them:
+ *  `interpret.js::barsSince`/`valueWhen` are untouched and still serve the
+ *  screener's frozen column contract. What made the spelling reachable was the
+ *  runtime front end owning the Pine name (see `RUNTIME_PINE_TWINS`), not the
+ *  closed table changing its mind — so the "honest first dependency" this note
+ *  named was real but was not the only door.
+ *
+ *  ⛔⛔ AND THE HALF IT WAS RIGHT ABOUT IS STILL OPEN. Correcting the closed
+ *  table's `barssince(series, int)` to Pine's ONE-argument signature REMOVES a
+ *  call that translates today, which is a member-visible change and an owner
+ *  ruling — `tests/fixtures/vendor/r11-barssince-spy-1d-2026-09-11.json`'s own
+ *  `_notPinned` marker routes it that way. The twin below takes only the half
+ *  that removes nothing: ARITY 1 is Pine's, arity 2 is still the house
+ *  function's, and no call that worked before this wave answers differently.
  */
 export const CARRIED = Object.freeze({
   ema: { cells: SMOOTH_CELLS, init: smoothInit, step: smoothStep, alpha: (n) => 2 / (n + 1) },
@@ -1549,6 +1602,42 @@ export const CARRIED = Object.freeze({
   // this change is that only GAPPY sources should.
   rising: { cells: MONOTONE_CELLS, init: monotoneInit, step: risingStep },
   falling: { cells: MONOTONE_CELLS, init: monotoneInit, step: fallingStep },
+  // ⭐⭐ PINE'S UNBOUNDED `ta.barssince`, AND THE KEY IS `barssincePine` RATHER
+  // THAN `barssince` ON PURPOSE — this is a COLLISION GUARD, not a style.
+  // `carriedTarget()` resolves a Pine name to a member of THIS table by its bare
+  // spelling, so a member literally called `barssince` would capture the house
+  // two-argument call `barssince(cond, n)` — the one spelling that builds today
+  // — and refuse it for having the wrong arity. Measured before the rename was
+  // chosen: that call answers `[0,1,2,3,4,5,5,…]` on this build and must keep
+  // doing so. `CARRIED2.valuewhen` needs no such guard because `carriedTarget`
+  // never consults `CARRIED2`.
+  //
+  // ⭐ NO `alpha`, and its `step` reads no length — `n` is the slot `ema`/`rma`
+  // spend on a decay and `rising`/`falling` spend on a span, and this member
+  // spends on nothing. One signature, three uses, which is what lets a single
+  // driver serve the whole table.
+  //
+  // ⭐⭐⭐ `runtimeOnly` — THE FIRST MEMBER WITH NO COLUMNAR COUNTERPART, AND
+  // IT IS DECLARED HERE RATHER THAN SKIP-LISTED IN THE RAILS THAT DERIVE FROM
+  // THIS TABLE. Three of them do: `carriedState.test.js` differentials every
+  // member against the columnar lane under the spelling `ta.<key>(source, n)`,
+  // and `executionShapeCensus.test.js` requires every member to be a CLOSED
+  // TABLE name. All three assumptions are false for this one and TRUE for every
+  // other member, so the fact belongs to the table.
+  //
+  // ⛔ WHY IT CANNOT HAVE A COLUMNAR TWIN: its Pine spelling is `ta.barssince`,
+  // the columnar lane's `barssince` is the DIFFERENT saturating function, and
+  // giving this one a columnar entry would mean declaring Pine's one-argument
+  // signature in the closed table — the member-visible change that is an owner
+  // ruling. There is therefore nothing to differentiate it against, and a rail
+  // that pretended otherwise would be comparing it with a function it is
+  // deliberately not.
+  barssincePine: {
+    cells: BARSSINCE_PINE_CELLS,
+    init: barsSincePineInit,
+    step: barsSincePineStep,
+    runtimeOnly: true,
+  },
 })
 
 /** ─── ⭐⭐ TWO-INPUT CARRIED STATE — PINE'S `ta.valuewhen` ──────────────────
