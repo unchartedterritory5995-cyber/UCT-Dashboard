@@ -92,7 +92,8 @@ export default function DayAttachments({
       const next = [...attachments, uploaded]
       await onSave({ ...narrativeBundle, attachments: next, rules })
     } catch (e) {
-      setError(`Upload failed: ${e.message}`)
+      console.error('Failed to upload attachment:', e)
+      setError("Couldn't upload this image. Nothing was added — try again.")
     }
     e.target.value = ''
   }
