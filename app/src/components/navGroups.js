@@ -25,7 +25,7 @@ export const NAV_GROUPS = [
   { key: 'charts', label: 'Charts', icon: 'chart',
     routes: ['/model-book', '/watchlists', '/theme-tracker', '/setup-library', '/formulas/reference'] },
   { key: 'journal', label: 'Journal', icon: 'journal',
-    routes: ['/journal', '/community', '/desk', '/support'] },
+    routes: ['/journal', '/community', '/desk', '/support', '/portfolio-heat'] },
 ]
 
 // The full set of `to` targets a consumer actually navigates a user to,
