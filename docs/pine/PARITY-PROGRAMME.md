@@ -75,22 +75,56 @@ reached the pane path refused, silently. Fixed to `'non-repainting'`, rail:
 "Identical to TradingView" is an engineering statement whose unit is one
 capture.**
 
+### ✅ The queue is MEASURED as of 2026-09-21 — and it is 29, not 86
+
+`vendorParityCoverage.measure.test.js` crosses what `closedTable.json` declares
+(71 functions) against what the committed **probe sources** actually call, and
+against corpus demand. Run it; do not quote it.
+
+⛔ **The first attempt at this measurement reported ZERO and was wrong.** It
+asked "is there a test that reads a vendor fixture and names this function",
+which one large test file satisfies for every name at once. That read as
+"Phase 1 is already done". The check now keys on **call sites in
+`tools/visual_conformance/probes/*.pine`** — the scripts actually run on
+TradingView — with comments stripped, and carries a saturation guard that
+reports INCONCLUSIVE rather than publishing another zero.
+
+| signal | uncovered, used by corpus |
+|---|---|
+| weak (name appears anywhere in a fixture) | 3 |
+| **authoritative (name CALLED in a probe)** | **29** |
+
+**The real queue, most-used first:** `abs` 95 scripts · `nz` 94 · `atr` 73 ·
+`change` 72 · `ema` 65 · `sum` 40 · `pow` 36 · `sqrt` 33 · `rsi` 32 ·
+`stdev` 27 · `wma` 23 · `rma` 21 · `sign` 21 · `exp` 19 · `hma` 17 ·
+`highestbars` 11 · `lowestbars` 11 · then a tail of ≤7.
+
 **Deliverables:**
-- `tools/pine_vendor_capture.py` extended to a semi-automated harness: feed it
-  a name, get back a fixture in `tests/fixtures/vendor/<name>-spy-1d-<date>.json`
-  that records TradingView's numeric output over a known bar range.
-- A rail (`tests/vendor_parity_coverage.test.js`) that walks `closedTable.json`
-  and fails on any declared function without a fixture. Starts red (bulk of
-  86 functions missing) and greens one entry at a time.
-- A public-facing "parity ledger" surfaced somewhere in `/formulas/reference`
-  showing coverage.
+- ✅ **Wave-1 probe written and self-checked** —
+  `tools/visual_conformance/probes/p1-top-unmeasured.pine` covers `nz`, `abs`,
+  `change`, `ema`, `rma`, `atr`, `stdev`, `sum` in one run. Every reading
+  discriminates between competing implementations (the EMA/RMA **seed**, `nz`'s
+  argument order, `abs(na)`, `change` on bar 0, population-vs-sample `stdev`)
+  and it carries an identity control (`ta.atr(5)` must equal
+  `ta.rma(ta.tr(true), 5)`). **Both lanes translate it**, so every reading is
+  one both sides can produce.
+  ⛔ **Needs one human-in-the-loop TradingView session.** The seeding questions
+  are answered in the FIRST ~20 BARS and nowhere else.
+- Wave-2 probe for the composites (`rsi`, `macd`, `stoch`, `cci`, `hma`, `wma`,
+  `percentrank`, `mfi`, `atan`, `avwap`) — deliberately AFTER wave 1, because
+  each depends on the seeding answers and measuring them first produces
+  readings nobody can attribute.
+- A per-fixture manifest naming which function each existing capture measures,
+  so the weak signal can be retired.
+- A public "parity ledger" in `/formulas/reference`.
 
-**Cost:** ~15-30 min per function once the harness is polished. 86 named
-functions today ⇒ ~40 hours of harness runs, done in 3-agent waves.
+⭐ **The self-check pays for itself before the session is spent.** Running the
+wave-1 probe through our own translator first found `ta.variance` is not
+declared by this engine — a capture of it would have yielded a vendor number
+with nothing to compare against.
 
-**Ordering:** highest corpus demand first. The corpus census
-(`runtimeCorpusCensus.measure.test.js`) surfaces this ordering; the census can
-be extended to count function-name occurrences.
+**Cost:** far lower than the ~40 hours originally estimated here. One capture
+session covers 8 names; the tail is ~3-4 more sessions.
 
 **Runs independently of every other phase.** Its output is fixtures — no new
 capability — so it can't break anything.
