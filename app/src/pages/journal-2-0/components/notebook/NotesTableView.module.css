@@ -20,6 +20,15 @@
   color: var(--text-bright);
   font-weight: 500;
 }
+/* Same treatment as NoteCard.module.css/NoteBoardView.module.css's own
+   `.ticker` -- one visual convention for a ticker wherever it appears. */
+.tickerCell {
+  color: var(--accent);
+  font-weight: 600;
+  font-family: var(--font-mono);
+  letter-spacing: 0.5px;
+  font-size: 13px;
+}
 .emptyCell {
   color: var(--text-muted);
   opacity: 0.6;

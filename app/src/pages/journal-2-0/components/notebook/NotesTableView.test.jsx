@@ -1,9 +1,12 @@
 import { describe, it, expect, vi } from 'vitest'
-import { render, screen, fireEvent } from '@testing-library/react'
+import { render, screen, fireEvent, within } from '@testing-library/react'
 import NotesTableView from './NotesTableView'
 
 const defs = [
-  { id: 'builtin:ticker', name: 'Ticker', type: 'text', source: 'financial_derived' },
+  // Sector, not Ticker -- Ticker is now its own DELIBERATE fixed pseudo-column
+  // (UX #2, 2026-09-22), so it's no longer a usable example of "a
+  // financial_derived def must never leak in as a dynamic property column".
+  { id: 'builtin:sector', name: 'Sector', type: 'text', source: 'financial_derived' },
   {
     id: 'p1', name: 'Thesis Status', type: 'select', source: 'user_set',
     options: [{ id: 'active', label: 'Active' }, { id: 'closed', label: 'Closed' }],
@@ -51,9 +54,9 @@ describe('NotesTableView', () => {
     expect(screen.queryByText('Unused Prop')).toBeNull()
   })
 
-  it('never shows a financial-derived property as its own column (it is not a value column here)', () => {
+  it('never shows a financial-derived property as its own DYNAMIC column (it is not a usedDefs value column here)', () => {
     setup()
-    expect(screen.queryByText('Ticker')).toBeNull()
+    expect(screen.queryByText('Sector')).toBeNull()
   })
 
   it('clicking a row opens that note with the WHOLE note object (openNote reads note.id itself -- passing a bare id string here previously produced ?note=undefined, caught live via browser E2E)', () => {
@@ -76,17 +79,41 @@ describe('NotesTableView', () => {
     expect(onPropertySortChange).toHaveBeenCalledWith('p1')
   })
 
+  /**
+   * ⛔⛔ TABLE VIEW STRUCTURALLY COULD NOT SHOW TICKER — the one view built
+   * explicitly for sorting/scanning a database was the single view that
+   * couldn't show it. List and Board already do. Competitive audit finding
+   * UX #2, 2026-09-22.
+   */
+  it('shows the note ticker as its own column, matching List/Board', () => {
+    setup({
+      notes: [
+        { id: 'n1', title: 'NVDA Thesis', updatedAt: '2026-09-01T00:00:00Z', ticker: 'NVDA', propertiesJson: {} },
+        { id: 'n2', title: 'No ticker note', updatedAt: '2026-09-02T00:00:00Z', ticker: null, propertiesJson: {} },
+      ],
+    })
+    expect(screen.getByText('$NVDA')).toBeTruthy()
+    expect(screen.getByText('Ticker')).toBeTruthy()
+  })
+
   it('a note with no value for a shown property renders an empty dash, not a broken cell', () => {
     // The column only appears because n1/n2 use it -- n3 (no value) must
     // still render a dash for that cell rather than the column just
-    // silently omitting the row's data.
+    // silently omitting the row's data. Scoped to n3's OWN row -- its
+    // Ticker cell is also legitimately a dash (UX #2's fixed column, no
+    // ticker on this note), so an unscoped getByText('—') is now ambiguous
+    // by design, not broken.
     setup({
       notes: [
         ...notes,
         { id: 'n3', title: 'No Status', updatedAt: '2026-09-03T00:00:00Z', propertiesJson: {} },
       ],
     })
-    expect(screen.getByText('—')).toBeTruthy()
+    const row = screen.getByText('No Status').closest('tr')
+    // TWO dashes in this row now, by design -- the Ticker column (UX #2, no
+    // ticker on this note) AND the Thesis Status column (no value) both
+    // correctly render the empty state rather than a broken cell.
+    expect(within(row).getAllByText('—')).toHaveLength(2)
   })
 })
 

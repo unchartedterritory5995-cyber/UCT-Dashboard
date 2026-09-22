@@ -105,6 +105,19 @@ export default function NotesTableView({
         </span>
       ),
     },
+    // ⛔ TICKER IS A FIXED PSEUDO-COLUMN, SAME AS TITLE/UPDATED ABOVE — never
+    // gated on `source === 'user_set'` like the usedDefs loop below, because
+    // it isn't a user-defined property at all (note_properties.py:47-51:
+    // financial_derived, excluded outright by that filter). List and Board
+    // views both show it prominently on every card; Table -- the one view
+    // built explicitly for sorting/scanning a database -- was the single
+    // view that structurally could not. Competitive audit finding UX #2,
+    // 2026-09-22. Not sortable (yet) -- sorting by ticker is a new server
+    // capability, out of scope for surfacing the column itself.
+    {
+      key: 'ticker', header: 'Ticker', secondary: true,
+      render: (n) => (n.ticker ? <span className={styles.tickerCell}>${n.ticker}</span> : <span className={styles.emptyCell}>—</span>),
+    },
     { key: 'updated', header: updatedHeader, secondary: true, render: (n) => timeAgo(n.updatedAt) },
     ...usedDefs.map((def) => ({
       key: def.id,

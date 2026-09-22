@@ -377,3 +377,73 @@ def test_search_excludes_a_trashed_note_by_default():
     c.commit()
     results = {r["id"] for r in list_notes("u1", q="capex", conn=c)}
     assert results == {"n1"}, "a trashed note must never appear in a normal (non-Trash-view) search"
+
+
+# ── j2_notes_fts_map O(1)-lookup fix — due-diligence check (competitive
+# audit finding Performance QW-5, 2026-09-22) ────────────────────────────
+#
+# The existing tests above prove the map is CORRECT (insert/update/delete
+# keep it in sync). None of them proved it is FAST -- the entire reason the
+# map exists (db.py:448-475: measured 7.9x tax at 5,000 notes, 32.0x at
+# 20,000, because `note_id` is UNINDEXED on the j2_notes_fts virtual table).
+# A wall-clock benchmark (tools/wave4_fts_benchmark.py) exists but is a
+# manual script, not a CI regression gate, and timing assertions in a test
+# suite are their own flakiness risk on a shared/loaded box. This proves the
+# MECHANISM instead, via SQLite's own query planner -- deterministic, no
+# wall clock, and it fails by name if the map (or its index) is ever removed.
+
+def test_the_map_delete_uses_an_indexed_lookup_not_a_scan():
+    """The trigger deletes via `rowid = (SELECT fts_rowid FROM
+    j2_notes_fts_map WHERE note_id = ?)` -- j2_notes_fts_map.note_id is a
+    PRIMARY KEY, so SQLite's planner must use it as a SEARCH, never a SCAN."""
+    c = _conn()
+    plan = c.execute(
+        "EXPLAIN QUERY PLAN SELECT fts_rowid FROM j2_notes_fts_map WHERE note_id = ?",
+        ("n1",),
+    ).fetchall()
+    detail = " | ".join(row["detail"] for row in plan)
+    assert "SEARCH" in detail, f"expected an indexed SEARCH, got: {detail}"
+    assert "SCAN" not in detail, f"the map lookup must never be a SCAN: {detail}"
+
+
+def test_CONTROL_deleting_by_note_id_directly_against_fts_WOULD_scan():
+    """The control the finding asked for: what the trigger would cost
+    WITHOUT the map, i.e. deleting straight off `j2_notes_fts.note_id` --
+    that column is declared UNINDEXED on the virtual table (db.py:441), so
+    the planner has no choice but a full SCAN. This is the query the old,
+    unfixed trigger ran; proving it still plans as a SCAN today is what
+    proves the map is load-bearing, not decorative -- if this control ever
+    started reporting SEARCH instead, the map's own gain would need
+    re-measuring, not assuming."""
+    c = _conn()
+    plan = c.execute(
+        "EXPLAIN QUERY PLAN DELETE FROM j2_notes_fts WHERE note_id = ?",
+        ("n1",),
+    ).fetchall()
+    detail = " | ".join(row["detail"] for row in plan)
+    assert "SCAN" in detail, (
+        f"expected the un-mapped path to still cost a SCAN (proving the fix "
+        f"matters) -- got: {detail}"
+    )
+
+
+def test_the_map_is_actually_consulted_on_a_real_delete_not_just_indexable():
+    """Belt-and-braces: the two tests above prove the QUERY PLANS in
+    isolation. This proves the trigger ACTUALLY reaches the map on a real
+    delete -- emptying the map first (simulating "the map exists but this
+    note was never recorded in it," the state a bypassed/broken write path
+    would leave) makes the subquery return NULL, so the delete is a
+    structural no-op and the FTS row survives. A delete that still cleaned
+    up without the map would mean something else silently duplicates the
+    lookup -- worth knowing either way."""
+    c = _conn()
+    _insert_note(c, "n1", body_plain="mapless")
+    c.execute("DELETE FROM j2_notes_fts_map WHERE note_id = ?", ("n1",))
+    c.commit()
+    c.execute("DELETE FROM j2_notes WHERE id = ?", ("n1",))
+    c.commit()
+    assert _fts_ids(c, "mapless") == {"n1"}, (
+        "with no map row, the trigger's subquery returns NULL and the "
+        "FTS row is orphaned -- confirming the map is the ONLY path that "
+        "cleans it up, not an incidental optimization on top of another one"
+    )
