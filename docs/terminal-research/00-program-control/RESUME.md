@@ -4,17 +4,17 @@
 
 # ⛔⛔ COLD START — 2026-09-20. This block supersedes everything below it.
 
-**One sentence: 23 of 32 systems are DONE and 1 (S7) is RULED-HOLD; two ready-to-sign proposals
-sit on the owner's desk (A12-CP1 and A14-CP1, each what moves its system out of BLOCKED-SPEC-READ),
-and the ONE thing nothing can substitute for is a blocked production read of real member-alert
-data. Read this whole block before touching anything.**
+**One sentence: 24 of 32 systems are DONE and 1 (S7) is RULED-HOLD; one ready-to-sign proposal
+sits on the owner's desk (A14-CP1, what moves it out of BLOCKED-SPEC-READ), and the ONE thing
+nothing can substitute for is a blocked production read of real member-alert data. Read this
+whole block before touching anything.**
 
 ⚰️ *This said "27 of 32 systems are fully DONE, 5 more have a ready-to-sign proposal…". Nothing in
 `COMPLETION_AUDIT.md` supports 27 — its table, re-derived row by row on 2026-09-21, says 22 as of
 that morning (§6 below), and three of the "5 more" were already inside those 22.*
 
-⚰️ *S1-CP3, D3-CP4 and D4-CP5 were all signed and built 2026-09-21 (§0b) — the DONE count moved to
-23 the same day, and the pending-signature list below now holds two, not five.*
+⚰️ *S1-CP3, D3-CP4, D4-CP5 and A12-CP1 were all signed and built 2026-09-21 (§0b) — the DONE count
+moved 22 → 23 → 24 the same day, and the pending-signature list below now holds one, not five.*
 
 ## 0. The three worktrees — re-verify every one before doing anything
 
@@ -64,9 +64,8 @@ worktree (`s7-price-level`) against `origin/master`, never from the docs worktre
 - **§2's admin route is DEPLOYED**, not merely merged: an unauthenticated
   `GET /api/admin/alert-taxonomy/dark-report` returns **401 JSON** (not the SPA shell), prod uptime 13,625 s.
   Path 2 needs only an admin login in a real browser.
-- **Proposal premises re-checked against master `a392afd11`** (76 commits newer than the proposals):
-  A14-CP1 target files untouched, every named symbol exists; A12-CP1 target files untouched except
-  `list_prebuilt_watchlists` (default unchanged), and both gaps it pins are still true.
+- **Proposal premises re-checked against master `a392afd11`** (76 commits newer than the proposal):
+  A14-CP1 target files untouched, every named symbol exists.
 - **S1-CP3 SIGNED and BUILT 2026-09-21** (fingerprint `fc609961a`, `feat/s7-price-level` `96c810116`) —
   no longer in the list below. `promote()` (one of the two SHOULD wrappers) was not built; see the
   COMPLETION_AUDIT S1 row for why and what closes it.
@@ -81,36 +80,41 @@ worktree (`s7-price-level`) against `origin/master`, never from the docs worktre
   provider that already answered cleanly; a resolved hit writes a `.source` sidecar. 18 tests green
   (9 existing updated to the new contract + 9 new). F-D4-2 (the addressed-tier `cache.py` work
   SPEC-D4/GATE-D4 originally named) stays open and unproposed — a separate future checkpoint.
+- **A12-CP1 SIGNED and BUILT 2026-09-21** (fingerprint `acaa29de6`, `feat/s7-price-level` `20f3cacec`) —
+  no longer in the list below. One new test file asserting `member_interest.py`'s watchlist/flagged
+  buckets agree with `watchlist_service.py`'s own membership definition, with a mandatory non-vacuity
+  control and two mutation proofs, plus the two named gaps pinned as assertions designed to flip on a
+  future CP2. Zero product code. One correction made against the proposal's own test-plan prose by
+  reading source: `_watchlist_syms` has no `is_flagged_list` filter (by design), so the agreement test
+  is built on a user with no flagged activity, where the two definitions genuinely coincide. 7 new
+  tests, 102 total including every sibling suite, zero regressions.
 - **F-AUDIT-3 CLOSED** (§3.1c of the audit): both D3's and D4's halves resolved by build — A10 moved
-  to DONE, no dependency remains. DONE count moved to **23**.
+  to DONE, no dependency remains. **A12's move is separate and unrelated** (its own signature, not
+  F-AUDIT-3). DONE count moved 22 → 23 (A10) → **24** (A12), all 2026-09-21.
 - `sign_gate.py <packet>` **SIGNS IMMEDIATELY** — there is no dry-run flag; `--read-check`/`--self-check`
   run only on synthetic text. To check a real packet read-only, import the tool and call `read_approval()`.
 
-## 1. Two things are sitting ready for the owner's signature/decision RIGHT NOW
+## 1. One thing is sitting ready for the owner's signature/decision RIGHT NOW
 
-⚰️ *This said "five", then "four", then "three" — S1 CP3, D3 CP4 and D4 CP5 were all SIGNED and
-BUILT 2026-09-21 (see §0b); none of them is in this list anymore.*
+⚰️ *This said "five", then "four", then "three", then "two" — S1 CP3, D3 CP4, D4 CP5 and A12 CP1
+were all SIGNED and BUILT 2026-09-21 (see §0b); none of them is in this list anymore.*
 
-Every one of these is a complete, evidence-cited proposal with a blank approval block — verified
-structurally signable (`declared_checkpoints()`/`read_approval()`/`target_span()` all checked)
-before being handed over. **Nothing here should be re-derived from scratch — read the proposal,
-then sign it.**
+This is a complete, evidence-cited proposal with a blank approval block — verified structurally
+signable (`declared_checkpoints()`/`read_approval()`/`target_span()` all checked) before being
+handed over. **Nothing here should be re-derived from scratch — read the proposal, then sign it.**
 
 ```sh
-python tools/sign_gate.py docs/terminal-research/12-decisions/gates/a12-watchlists-cp1-scoped-proposal.md --by "Patrick (owner)" --on <today> --scope-file .scopes/a12-watchlists-cp1-scoped-proposal.scope.txt
-
 python tools/sign_gate.py docs/terminal-research/12-decisions/gates/a14-portfolio-heat-cp1-scoped-proposal.md --by "Patrick (owner)" --on <today> --scope-file .scopes/a14-portfolio-heat-cp1-scoped-proposal.scope.txt
 ```
 
-Run these YOURSELF via `!` in chat — the AI must NEVER attempt to fill in `APPROVED BY/ON/AT-SHA/
+Run this YOURSELF via `!` in chat — the AI must NEVER attempt to fill in `APPROVED BY/ON/AT-SHA/
 SCOPE APPROVED` on its own. This is an absolute, security-relevant rule in this programme, not a
 style preference — a prior attempt at AI self-approval was flagged as `[Instruction Poisoning]` by
-this environment's own safety classifier. **Once any of these is signed, tell the session and it
-will build exactly that checkpoint's scope — nothing more.**
+this environment's own safety classifier. **Once signed, tell the session and it will build exactly
+that checkpoint's scope — nothing more.**
 
 | Proposal | What it does | Risk |
 |---|---|---|
-| A12 CP1 | One test file: a consistency rail between two watchlist data sources, no product code | Minimal — literally a test |
 | A14 CP1 | One route + one page + one nav entry surfacing `portfolio_heat.py`'s already-computed numbers to paid members for the first time | Low — no new computation, gated the same way every other paid page already is |
 
 ## 2. The one thing that's actually blocked, and what it needs
@@ -184,17 +188,17 @@ re-checked and their premises are unverified — don't assume they're fine by as
 
 ## 6. Section 0's system counts — recomputed for real this session, walk section 1 to re-verify
 
-⚰️ *This table was written 2026-09-20 and read 22/1/1/3/2/5. Three checkpoints (S1-CP3, D3-CP4,
-D4-CP5) signed and built the next day moved A10 into DONE outright — see COMPLETION_AUDIT §0 for
-the current, re-derived table rather than trusting a second copy of it here.*
+⚰️ *This table was written 2026-09-20 and read 22/1/1/3/2/5. FOUR checkpoints signed and built the
+next day (S1-CP3, D3-CP4, D4-CP5, A12-CP1) moved A10 and A12 into DONE outright — see
+COMPLETION_AUDIT §0 for the current, re-derived table rather than trusting a second copy of it here.*
 
 | state | count | which |
 |---|---|---|
-| DONE | 23 | S1, S2, S3, S4, S5, S6, S9, S10, S11, S12, D1, D3, D4, D5, A2, A3, A4, A5, A6, A7, A8, A10, I1 |
+| DONE | 24 | S1, S2, S3, S4, S5, S6, S9, S10, S11, S12, D1, D3, D4, D5, A2, A3, A4, A5, A6, A7, A8, A10, A12, I1 |
 | RULED-HOLD | 1 | S7 (price-level) — a real decision (HOLD), not a block |
 | BLOCKED-DATA | 1 | D2 (needs real member traffic to accumulate, 0 rows as of last measurement) |
 | BLOCKED-OWNER | 3 | A9, A11, A13 — need §2's read + a CARD-6-style decision |
-| BLOCKED-SPEC-READ | 2 | A12, A14 — proposals in §1, awaiting signature |
+| BLOCKED-SPEC-READ | 1 | A14 — proposal in §1, awaiting signature |
 | BLOCKED-DEPENDENCY | 4 | S8, A1, A11 (dual), A13 (dual) |
 
 Full detail, citations, and the arithmetic proof this sums to 32: `COMPLETION_AUDIT.md` §0.
@@ -204,8 +208,8 @@ caught it, and this table's own 2026-09-20 numbers were stale by the next aftern
 
 ## 7. What "100% ready to launch" actually still requires, plainly
 
-1. The two signatures in §1 (or a decision to decline either of them — that's a valid, complete
-   state too, per this programme's own "DONE, BLOCKED, or EXCLUDED, never TBD" rule).
+1. The one signature in §1 (or a decision to decline it — that's a valid, complete state too, per
+   this programme's own "DONE, BLOCKED, or EXCLUDED, never TBD" rule).
 2. The production read in §2, then a real HOLD/FLIP decision for A9/A11/A13/event-proximity.
 3. D2's top-level CP3 needs real member traffic to accumulate — nothing to DO, just time, then a
    re-check of whether 200+ AGREED rows exist yet (owner ruling B3 in `OWNER_INPUTS.md`: 200
