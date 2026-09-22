@@ -7,6 +7,53 @@
 > ⚠️ `docs/pine/SESSION-STATE.md` is the **closed R0/R1 wave's** resume doc, not
 > this one. Do not update it for this work.
 >
+> ### ⛔⛔ 2026-09-21, LATER — THE DRAWING FAMILIES, AND ONE NUMBER THAT DID NOT MOVE
+>
+> Branch **`pine/runtime-object-ops`** off `feat/pine-value-model`, at
+> **`03a0d21a3`** (two commits, pushed, not merged).
+>
+> | | |
+> |---|---|
+> | `9f0e1fde1` | **the DRAWING arrays** — `array.new_box`/`_line`/`_label`/`_linefill`, plus a zero-size fix that is general |
+> | `03a0d21a3` | **`runtime:object-op` is a question about the CALLER** — the refusal says so, a value-position drawing is filed under its own family, and the census asks both questions |
+>
+> ⭐⭐ **THE HEADLINE IS THE NUMBER THAT DID NOT MOVE.** A new standing
+> instrument, `runtime/__tests__/objectLaneCensus.measure.test.js`, measures the
+> PRODUCT path — `buildObjectLane`, the pipeline a drawing actually goes
+> through, with every refusal tagged by the lane that raised it. It reads
+> **2 of 266 draw end to end**, and it read 2 of 266 before this work as well —
+> **the same two scripts** (`4c-nyse-market-breadth-ratio`,
+> `makuchaku039s-trade-tools-fair-value-gaps`). Both commits moved the
+> runtime-lane census and neither moved the drawing.
+>
+> ⛔ **So the runtime-lane census is not the product's bottleneck, and planning
+> from it alone will keep producing that result.** Roughly half the corpus dies
+> in the OBJECT PASS before the runtime lane is consulted at all —
+> `pine:character` 23, `objects:nothing-drawn` 13, `pine:declaration-strategy`
+> 13, `pine:block` 11, `objects:iterated-tree-not-last-bar` 11. Read the
+> object-lane table BESIDE the runtime-lane one before choosing the next
+> capability.
+>
+> ⭐⭐ **AND `runtime:object-op` WAS NEVER THE WORK QUEUE IT LOOKED LIKE.**
+> Measured: **11 of its 12** scripts move off it the moment the caller declares
+> it owns the drawing (`objectTrees`, which `buildObjectLane` always passes),
+> and **four then compile end to end**. The row was the harness asking a
+> two-lane pipeline with one lane — the same disease as the clock contamination
+> that file already rails against. There is now a second contamination rail
+> beside the clock one, and the owned pass prints its own table
+> (**compiled 12/266 owned vs 8/266 bare**).
+>
+> ⭐ **The ONE genuine gap in that family** is a drawing used as a VALUE —
+> `array.push(highLineArray, line.new(…))`, `liquidity-levels-sonarlab` @L170.
+> It is refused under ownership too, deliberately: there is no honest number
+> for a drawing handle, and `na` would make `na(array.get(zones, i))` read TRUE
+> for a line already drawn. Pinned in `ast/objectOpOwnership.test.js`.
+>
+> **Census delta, runtime lane, bare:** `runtime:array` **8 → 3** ·
+> `runtime:object-op` **8 → 12** and `pine:drawing` **5 → 1** (a clean
+> reclassification — 13 both sides, nothing gained or lost) · compiled
+> **8 → 8**.
+>
 > ### 2026-09-21 — items 1-4 of NEXT, IN ORDER are closed
 >
 > | | |
@@ -207,6 +254,12 @@ values and is a renderer capability, not a front-end one.
 ```sh
 cd app && node node_modules/vitest/vitest.mjs run \
   src/components/chart/engine/ast/runtimeCorpusCensus.measure.test.js
+
+# ⭐⭐ AND SINCE 2026-09-21 THERE IS A SECOND ONE, WHICH IS THE PRODUCT'S
+# OWN QUESTION: does the script DRAW? Read them together — the runtime-lane
+# table moved twice this day and this one did not move at all.
+cd app && node node_modules/vitest/vitest.mjs run \
+  src/components/chart/engine/runtime/__tests__/objectLaneCensus.measure.test.js
 ```
 
 It prints the whole first-blocker table and **asserts no count**, deliberately:
@@ -236,6 +289,14 @@ first:
 | 12 | `runtime:udt` | |
 | 11 | `pine:block` | |
 | 8 | `runtime:array` · `runtime:object-op` | |
+
+⚰️ **THE LAST ROW IS STALE IN BOTH DIRECTIONS AS OF `03a0d21a3`, and how it is
+stale is worth more than the numbers.** `runtime:array` is **3** (the drawing
+constructors landed). `runtime:object-op` is **12**, which looks like a
+*regression* and is not: four rows moved INTO it out of `pine:drawing` (5 → 1),
+which is the columnar lane's guard and was being reported for a lane this
+caller is not using. And **11 of those 12 are the HARNESS**, not the corpus —
+see the second contamination rail. Re-run the command; do not read this table.
 
 ⚠️ **Scripts mostly move to their NEXT blocker rather than clearing.** That is
 why `compiled` moves slowly, and it is the honest shape of the number. It is
@@ -413,6 +474,25 @@ dashboard builds, runs and draws.
    ⚠️ The top of the table barely moved — `runtime:declaration` (47, strategies,
    out of scope by design) and `pine:character` (23, the UDT family) are
    unchanged. Plan from the table, not from the headline.
+4b. ✅ **DONE 2026-09-21 (`pine/runtime-object-ops`) — the DRAWING families.**
+   `array.new_box`/`_line`/`_label`/`_linefill` are served (`runtime:array`
+   8 → 3), and `runtime:object-op` was measured rather than implemented: 11 of
+   its 12 scripts are the harness, not the corpus. See the ⛔⛔ block at the top
+   of this file.
+   ⭐⭐ **AND THE FINDING THAT SHOULD SHAPE ITEMS 5+ :** neither commit moved
+   the DRAWING. `objectLaneCensus.measure.test.js` reads 2 of 266 before and
+   after, the same two scripts. **Plan from the object-lane table, not from the
+   runtime-lane one** — roughly half the corpus is refused by the OBJECT PASS
+   before the runtime lane is consulted, and the four largest of those
+   (`pine:character` 23, `objects:nothing-drawn` 13,
+   `pine:declaration-strategy` 13, `pine:block` 11) are all object-pass work.
+   ⚠️ **Open, found and deliberately not fixed:** a drawing bound to a PLAIN
+   name and used later (`nl = cond ? line.new(…) : na` … `array.push(rays, nl)`)
+   is still filed under the columnar lane's `pine:drawing`. `holdsObjectCall`
+   tests the subtree and that subtree is a bare name; `holdsArray` resolves such
+   a name through `env` and this could too — but `holdsObjectCall` also decides
+   the ownership SKIP at three declaration branches, so widening it changes what
+   gets skipped and wants its own cases.
 5. **The gradient fill** — the last blocker on script 2. Front end is easy;
    the renderer is the work.
 6. **Still owed, market hours only:** vendor M2, M5, M1's realtime half, and
