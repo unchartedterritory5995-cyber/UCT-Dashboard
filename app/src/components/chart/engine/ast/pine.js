@@ -11265,8 +11265,44 @@ function buildObjectProgram(stmts, source, env, makeResolver, bindingByStatement
       // the guard reader accepts `and`, and `BIN` maps `and` to `&&`. One
       // spelling for one meaning.
       const tok = ast && ast.tok
-      const one = g.negate ? { type: 'op', name: '!', args: [ast] } : ast
-      acc = acc === null ? one : { type: 'op', name: '&&', args: [acc, one] }
+      // ⚰️⚰️ AND FOR A LONG TIME THE TWO LINES BELOW STILL EMITTED `op`
+      // UNCONDITIONALLY, directly under the paragraph that says they must not.
+      // The comment described the corrected behaviour and the code did the old
+      // thing, so every reader who checked came away reassured
+      // (`lesson_a_comment_claiming_agreement_is_not_agreement`). MEASURED cost:
+      // EVERY drawing statement inside EVERY `else` arm refused `pine:statement`
+      // — `else` appears in 1,328 lines across 141 corpus scripts, 120 of which
+      // draw.
+      //
+      // ⛔⛔ AND THE COMMENT'S OWN FIX WAS HALF RIGHT, WHICH IS WORSE THAN
+      // WRONG. Emitting the parser's shape UNCONDITIONALLY — exactly what the
+      // paragraph above prescribes — turns the `else` family green and breaks
+      // the VENDOR PARITY suite: 28 tests, including every drawn-cell comparison
+      // against the TradingView captures, with `an object tree refused — the
+      // cells below would be NaN`.
+      //
+      // ⭐⭐ BECAUSE THE INNER NODE'S SHAPE IS MODE-DEPENDENT, SO THE WRAPPER'S
+      // MUST BE TOO. `canonicalOf` hands back the RAW parse node under
+      // `rawTrees` and a RESOLVED canonical node otherwise. Wrapping a canonical
+      // node in a parser node builds a hybrid neither reader can read. There is
+      // no single correct shape here — there are two, and which one is right is
+      // decided by the same flag that decided the inner node.
+      //
+      // ⚠️ So the paragraph above is kept because its DIAGNOSIS is exactly
+      // right and its REMEDY is not: *"every reader downstream takes the
+      // parser's shape"* is false — the object reader on the canonical path
+      // takes the resolver's. Railed both ways in
+      // `runtime/__tests__/elseGuardShape.test.js`.
+      const one = g.negate
+        ? (rawTrees
+          ? { type: 'unary', op: 'not', arg: ast, tok }
+          : { type: 'op', name: '!', args: [ast] })
+        : ast
+      acc = acc === null
+        ? one
+        : (rawTrees
+          ? { type: 'binary', op: 'and', left: acc, right: one, tok }
+          : { type: 'op', name: '&&', args: [acc, one] })
     }
     const extra = {
       ...(lastBarOnly ? { lastBarOnly: true } : {}),
