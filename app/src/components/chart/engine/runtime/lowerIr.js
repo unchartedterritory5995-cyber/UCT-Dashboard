@@ -100,6 +100,16 @@ export function lowerIrProgram(ir) {
       // `indexOf`, i.e. strict equality, so the number `5` and the string `"5"`
       // are two entries and cannot be confused for one another.
       case EXPR.STR: emit(OP.CONST, constIndex(e.value)); return
+      // ⭐ THE SAME OPCODE AND THE SAME POOL AGAIN, and that is the whole of the
+      // back end's involvement with a drawing handle: it is pushed, stored and
+      // handed to a collection call, and NOTHING reads it. There is no `OP.DRAWING`
+      // because there is no operation — a new opcode would be a branch in the VM
+      // that could only ever do what `CONST` already does.
+      //
+      // ⛔ `constIndex` interns with `Object.is`, so the handle's OBJECT IDENTITY
+      // decides: `ir.js::drawing` builds it once per node, so one create is one
+      // pool entry and two creates are two. Never rebuild the sentinel here.
+      case EXPR.DRAWING: emit(OP.CONST, constIndex(e.value)); return
       case EXPR.CONCAT: expr(e.left); expr(e.right); emit(OP.CONCAT); return
       // ⭐ EXACTLY THE `POINTWISE` SHAPE: arguments are pushed left to right,
       // then one instruction naming the function and how many it takes.

@@ -42,7 +42,7 @@ import {
   declare, assign, ifStmt, emit, emitIter, naValue, call as irCall, builtin as irBuiltin, histSlot,
   windowCall, carriedCall, textCall, arrayCall, exprStmt,
   forStmt, breakStmt, continueStmt, tuple, destructure, requestCall, colourCall,
-  clock, session,
+  clock, session, drawing,
 } from '../runtime/ir.js'
 import { CLOCK_FIELDS } from '../runtime/program.js'
 import { TEXT_FNS, producesText } from '../runtime/text.js'
@@ -207,6 +207,23 @@ export const RUNTIME_COLOUR_OUTPUTS = Object.freeze(new Set(['bgcolor', 'barcolo
 
 const OBJECT_NS = /^(line|label|box|table|polyline|linefill)\./
 const ARRAY_NS = /^(array|matrix|map)\./
+
+/** ⭐ WHICH ARGUMENT OF A COLLECTION CALL CARRIES A VALUE, counting the
+ *  collection itself. `push(coll, v)` → 1; `set(coll, i, v)` → 2.
+ *
+ *  ⛔⛔ THIS IS `pineObjects.js`'s `VALUE_ARG` WITH THE COLLECTION COUNTED IN.
+ *  That table is written over the arguments AFTER the collection (`push` → 0)
+ *  because that is the list its reader walks; this one is written over the WHOLE
+ *  argument list because that is the list THIS lowering walks. The two numbers
+ *  differ by one and name the same position, and two hand-typed tables of one
+ *  fact is the drift this repo pays for most — so `drawingAsValue.test.js`
+ *  DERIVES this one from that one and fails if either moves alone.
+ *
+ *  ⛔ Every other collection call takes an index or nothing, so it has NO value
+ *  position — and a shape absent from this table can never admit a drawing.
+ *
+ *  ⭐ EXPORTED FOR THAT RAIL. Nothing else reads it. */
+export const COLLECTION_VALUE_ARG = Object.freeze({ 'array.push': 1, 'array.set': 2 })
 /** The input kinds whose VALUE IS TEXT.
  *
  *  ⛔⛔ `pine.js` REFUSES THESE AND IS RIGHT TO. That lane's value model is
@@ -543,6 +560,12 @@ export function buildRuntimeIr(source, opts = {}) {
   // as much as one that references forty. `Array.isArray([])` is the test, never
   // `.length`.
   const objectPassOwnsDrawing = Array.isArray(opts.objectTrees)
+
+  /** How many drawing-as-value creates this build has lowered. ⛔ THIS LANE'S
+   *  OWN ORDINAL — see `runtime/handles.js`: it is NOT the object program's
+   *  site id, nothing joins the two, and nothing reads it. It exists so two
+   *  creates do not intern to one const. */
+  let drawingSites = 0
 
   const note = (family) => {
     diagnostics.families[family] = (diagnostics.families[family] || 0) + 1
@@ -1054,7 +1077,52 @@ export function buildRuntimeIr(source, opts = {}) {
         locate(node.tok))
     }
     const typeArg = node.tok && Array.isArray(node.tok.typeArgs) ? node.tok.typeArgs[0] : null
-    return arrayCall(node.name, given.map((x) => lowerExpr(x, scope)), typeArg)
+    return arrayCall(
+      node.name,
+      given.map((x, i) => (nestedCreateHandle(node.name, i, x) || lowerExpr(x, scope))),
+      typeArg,
+    )
+  }
+
+  /**
+   * ⭐⭐⭐ A DRAWING USED AS A VALUE — `array.push(zones, box.new(…))`.
+   *
+   * ⛔⛔ THE VALUE RUNTIME STILL DOES NOT DRAW, AND THIS DOES NOT TEACH IT TO.
+   * It builds no coordinates, reads no properties and emits no drawing op: it
+   * yields an OPAQUE HANDLE (`runtime/handles.js`) standing for the object the
+   * OBJECT PASS made at this site. The object program holds the drawing; this
+   * lane holds a value it cannot read.
+   *
+   * ⭐⭐ AND IT IS ADMITTED IN EXACTLY THE POSITIONS THE OBJECT PASS COLLECTS
+   * ONE, which is the whole composition rule. `pineObjects.js::nestedCreate` is
+   * reached from `emitCollection` and from nowhere else, at `VALUE_ARG[method]`
+   * — so `array.push(coll, line.new(…))` becomes a `create` op plus a
+   * `{r:'site', id}` reference over there, and a handle over here. Admitting one
+   * anywhere else would have this lane claim a drawing the object pass never
+   * collected: two lanes disagreeing about what exists, with no site for the
+   * object program to resolve. Everywhere else `runtime:object-op` still stands,
+   * and `line.get_y1(l)` in a value position still refuses — READING a drawing
+   * is a different capability from HOLDING one, and this lane has neither.
+   *
+   * ⛔ ONLY `<family>.new`. A method call is not a create: it mutates or reads
+   * an object this lane does not hold, and `objectOpDetail` already sends its
+   * refusal to the object program, which is where that work belongs.
+   *
+   * @returns {object|null} the IR handle, or null when this is not that case —
+   *          the caller then lowers the argument normally, so a shape this does
+   *          not recognise behaves exactly as it did before the rule landed.
+   */
+  const nestedCreateHandle = (fnName, argIndex, valueNode) => {
+    if (!objectPassOwnsDrawing) return null
+    if (COLLECTION_VALUE_ARG[fnName] !== argIndex) return null
+    if (!valueNode || valueNode.type !== 'call') return null
+    const m = /^([a-z]+)\.new$/.exec(String(valueNode.name || ''))
+    if (!m || !OBJECT_NS.test(`${m[1]}.`)) return null
+    // ⭐ THE ORDINAL IS THIS LANE'S OWN, and `handles.js` says plainly that it
+    // is NOT joined to the object program's site id. It exists so two creates
+    // are not `===`; nothing reads it.
+    drawingSites += 1
+    return drawing(m[1], drawingSites - 1)
   }
 
   /** Resolve a TEXT input to the string the script will actually see.

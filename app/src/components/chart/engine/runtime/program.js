@@ -34,6 +34,7 @@
 import { TEXT_FNS } from './text.js'
 import { ARRAY_FNS } from './collections.js'
 import { COLOUR_FNS } from './colours.js'
+import { isDrawingHandle } from './handles.js'
 
 export const OP = Object.freeze({
   // ── operands ──
@@ -259,9 +260,18 @@ export function makeProgram({
     // the silent-coercion class this engine keeps paying for. The members are
     // checked HERE so a bad one is named at build time rather than read as a
     // missing number on bar 0. See `VALUE_MODEL_DECISION.md`.
+    // ⭐⭐ AND A DRAWING HANDLE IS THE THIRD, ADMITTED BY A PREDICATE RATHER
+    // THAN BY `typeof`. The rule above is *"a const is a number or a string"*,
+    // and its reason is that anything else silently coerces — `Float64Array`
+    // turning `'abc'` into `NaN` is the case it was written from. A handle is
+    // admitted because it does the OPPOSITE: `kindOf` answers `'drawing'`, so
+    // every declared-kind check in the VM refuses it BY NAME instead of
+    // coercing it. `isDrawingHandle` asks a symbol, so a member's own object
+    // can never widen this.
     consts: Object.freeze((consts || []).map((c, i) => {
       if (typeof c === 'number' || typeof c === 'string') return c
-      throw new ProgramError(`const ${i}: a const is a number or a string, got ${typeof c}`)
+      if (isDrawingHandle(c)) return c
+      throw new ProgramError(`const ${i}: a const is a number, a string or a drawing handle, got ${typeof c}`)
     })),
     columns: Object.freeze((columns || []).slice()),
     // ⭐⭐ AN OUTPUT IS A DESCRIPTOR, NOT A NAME. It began as a bare string

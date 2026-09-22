@@ -19,6 +19,7 @@
 // not." Loops, functions, tuples, arrays and object operations have their node
 // shapes here NOW so the IR cannot need re-cutting when they land. Anything not
 // yet lowerable is refused BY NAME at lowering, never silently dropped.
+import { drawingHandle, isDrawingHandle } from './handles.js'
 
 /** Statement kinds. ⛔ DERIVED-FROM, never retyped: `lowerIr.js` switches on
  *  these and `irShape.test.js` asserts the two agree. */
@@ -52,6 +53,12 @@ export const EXPR = Object.freeze({
   STR: 'str',
   CONCAT: 'concat',       // `+` between two STRINGS — never the numeric `+`
   COLOUR: 'colour',   // a `color.*` producer — a packed 0xTTBBGGRR integer
+  // ⭐⭐ AN OPAQUE DRAWING HANDLE — the RESULT of a `<family>.new(…)` the OBJECT
+  // PASS has taken responsibility for. See `runtime/handles.js` for why it is
+  // neither a number nor `na`, and `pineRuntimeFrontend.js` for the ONE position
+  // that may build one. ⛔ It carries no arguments and no coordinates: this lane
+  // holds the handle, the object program holds the drawing.
+  DRAWING: 'drawing',
   TEXT: 'text',           // a `str.*` builtin — see runtime/text.js
   ARRAY: 'array',         // an `array.*` builtin — see runtime/collections.js
   TUPLE: 'tuple',         // several values at once — only a function RESULT
@@ -214,6 +221,16 @@ export function validateIr(p) {
         // changed to end.
         if (typeof e.value !== 'string') {
           throw new IrError(`${where}: a str carries a string, got ${JSON.stringify(e.value)}`)
+        }
+        return
+      // ⛔ THE VALUE IS CHECKED BY THE SAME ARGUMENT `NUM` AND `STR` ARE. A
+      // handle reaches the const pool, and `program.js` admits one THERE by
+      // asking `isDrawingHandle` — so a plain object wearing this kind would
+      // be rejected far from the front end that built it. Asking here names
+      // the producer instead.
+      case EXPR.DRAWING:
+        if (!isDrawingHandle(e.value)) {
+          throw new IrError(`${where}: a drawing carries a drawing handle, got ${typeof e.value}`)
         }
         return
       case EXPR.CONCAT:
@@ -568,6 +585,21 @@ export const num = (value) => ({ kind: EXPR.NUM, value })
  *  'the author wrote absent' from 'something lost its value on the way here'. */
 export const naValue = () => ({ kind: EXPR.NUM, value: NaN, na: true })
 export const str = (value) => ({ kind: EXPR.STR, value })
+/** ⭐⭐ THE RESULT OF A CREATE THE OBJECT PASS OWNS — an opaque handle.
+ *
+ *  ⛔ THE VALUE IS BUILT HERE, ONCE PER NODE, AND CARRIED. `lowerIr` interns
+ *  consts with `Object.is`, so two calls made from one node must be ONE pool
+ *  entry and two different creates must be two — which is a property of the
+ *  OBJECT IDENTITY, not of the fields. Rebuilding the sentinel at lowering time
+ *  would make every occurrence a fresh entry and grow the pool without bound.
+ *
+ *  ⛔ AND THERE IS NO `naValue()` EQUIVALENT FOR A HANDLE, deliberately. Pine's
+ *  null drawing handle is a real value, but `collections.js` already wrote down
+ *  why this lane must not have one: answering `na` makes the standard emptiness
+ *  test read TRUE for a drawing the object program has already made. Nothing
+ *  here mints an absent handle; a create either produces one or is refused. */
+export const drawing = (family, site) => (
+  { kind: EXPR.DRAWING, value: drawingHandle(family, site) })
 /** ⛔ CONCATENATION IS NOT `binary('+')`, and the difference is a correctness
  *  one rather than a tidiness one. `BINARY['+']` is `(a, b) => a + b`, which on
  *  a string and a number silently produces a string — Pine calls that a TYPE
