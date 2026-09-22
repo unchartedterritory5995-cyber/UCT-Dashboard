@@ -130,14 +130,6 @@ describe('the value model', () => {
 })
 
 describe('reading a type declaration', () => {
-  const decl = (src) => {
-    const { lexPine, blockStatements } = require('../../ast/pine.js')
-    return collectUdtTypes(blockStatements(...(() => {
-      const l = lexPine(src)
-      return [l.tokens, l.indents, 0]
-    })()))
-  }
-
   it('fields come off the member\'s OWN LINES, defaults and generics included', async () => {
     const { lexPine, blockStatements } = await import('../../ast/pine.js')
     const src = `${head}type Zone
