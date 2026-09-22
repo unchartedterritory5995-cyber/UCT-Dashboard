@@ -231,10 +231,15 @@ noteLink chip elsewhere in the same browser tab until a full reload — fixed vi
 targeted cache-invalidation hook on the four write paths that change a note's own
 title/status (save, Wave C restore, trash, un-trash), real-browser verified before and
 after. Residual, explicitly accepted debt: no context-preview on backlink rows (vs.
-Obsidian's "Show more context"), and the `[[`/SlashMenu popups' editable root lacks an
-explicit `role="combobox"`/`aria-autocomplete` pairing (a pre-existing pattern shared
-by both menus, not a Wave D regression) — left as recorded debt per this pass's
-explicit no-scope-creep mandate.
+Obsidian's "Show more context") — still open — and the `[[`/SlashMenu popups' editable
+root lacking an explicit `role="combobox"`/`aria-autocomplete` pairing (a pre-existing
+pattern shared by both menus, not a Wave D regression) — **CLOSED 2026-09-22**: verified
+the gap was still real (not another stale-ledger case — grepped the whole tree, the
+pairing existed nowhere on either editor root), then closed it via a shared, tested
+`comboboxWiring.js` helper (replacing a duplicated inline copy in each file) and
+live-verified in a real browser for both triggers — `role`, `aria-autocomplete`,
+`aria-expanded`, `aria-controls` and `aria-activedescendant` all correctly present,
+tracking arrow-key navigation, and correctly stripped on Escape.
 
 ## Document Intelligence II — Excerpts / Highlights / Page-Aware Evidence (Wave J, 2026-09-07)
 
