@@ -20,6 +20,53 @@ side-by-side. The local dev loop (`scripts/hub_sandbox_boot.py --port 8000` +
 
 ---
 
+## ⛔⛔ READ THIS BEFORE PLANNING FROM ANY TABLE BELOW — measured 2026-09-21
+
+> **The runtime-lane census is NOT the product's question, and this programme
+> was sized against it.**
+
+Every first-blocker table in this document counts `buildRuntimeIr`. **A member
+does not see a compiled IR; a member sees a drawing.** The product path is
+`buildObjectLane`, and measured over the same 266 scripts it draws **2**:
+
+    node node_modules/vitest/vitest.mjs run       src/components/chart/engine/runtime/__tests__/objectLaneCensus.measure.test.js
+
+⭐⭐ **`2 of 266`, and agent C's whole wave did not move it** — the same two
+scripts before and after, re-verified in the integrator's session by reverting
+its two source files to `acc9d8c57` and re-running the census. Meanwhile the
+runtime-lane census moved 8 → 12 compiled. **Two numbers, one of which is the
+member's.**
+
+⛔ **Where the drawing actually dies — roughly half the corpus is refused by the
+OBJECT PASS before the runtime lane is consulted at all:**
+
+| n | guard | lane |
+|---|---|---|
+| 23 | `pine:character` | objects |
+| 13 | `objects:nothing-drawn` | objects |
+| 13 | `pine:declaration-strategy` | objects |
+| 11 | `pine:block` | objects |
+| 11 | `objects:iterated-tree-not-last-bar` | objects |
+
+⛔ **CONSEQUENCE FOR THE PHASES, and it is not a small one.** Phase 2 (the
+named-vocabulary sweep) is a RUNTIME-LANE queue, so on this evidence it will
+close guards and move **no member-visible drawing**. The four largest
+product-path blockers are all object-pass work, and `pine:character` at the top
+of both tables is Phase 3. **Phase 3 should be pulled forward; Phase 2 should be
+re-justified against the object-lane table or re-scoped.** That re-plan is owed
+and is deliberately NOT written in here yet — recording the measurement is not
+the same as having decided what to do about it.
+
+⭐ Agent C's own words, which is the sentence that earned this block:
+*"The brief's implicit model — 'clear census rows ⇒ scripts draw' — is not
+supported by measurement."*
+
+⚠️ **This does not retire the runtime-lane tables.** Value correctness is real
+work and a drawing script needs BOTH lanes. It retires using them **alone** to
+decide what to build next.
+
+---
+
 ## The honest timeline
 
 | Target | Effort |
@@ -147,6 +194,10 @@ capability — so it can't break anything.
 ---
 
 ## Phase 2 — Close the named-vocabulary gaps (~1-2 weeks with 3-agent waves)
+
+⛔⛔ **Re-read the measured block at the top of this file before working this
+phase.** This table is the RUNTIME lane; clearing it is not yet shown to move
+what a member sees.
 
 The runtime lane's first-blocker table (fresh at `17192d37d`, 2026-09-21):
 
