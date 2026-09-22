@@ -340,7 +340,19 @@ export function collectObjectOps(stmts, h) {
             // by bar 8, and the whole indicator refused. The ladder caught it at
             // Level 9 — a dashboard is the commonest `var` initialiser in the
             // corpus, so this was not an edge case, it was the main road.
-            emitFromRhs(rhs, name, guards, inLoop, st, localScope, true)
+            //
+            // ⛔⛔ A `var` INITIALISER IS NOT SPLIT ON ITS TERNARY, AND THE
+            // REFUSAL IS COUNTED. `var line l = cond ? line.new(…) : na`
+            // evaluates its right-hand side ONCE, on the first bar, and Pine
+            // leaves `l` as `na` for the whole run if `cond` was false there. A
+            // guarded `once` create would instead fire on the first bar the
+            // condition turns true — a line on a member's chart their script
+            // never drew, which is the wrong direction to fail in. Saying so is
+            // the only honest answer available without a second op kind.
+            if (!emitFromRhs(rhs, name, guards, inLoop, st, localScope, true)) {
+              const named = createNameIn(rhs)
+              if (named) diagnostics.unsupported.push(named)
+            }
           }
           continue
         }
@@ -418,6 +430,25 @@ export function collectObjectOps(stmts, h) {
             continue
           }
         }
+        // ── ⭐⭐ A CONDITIONAL CREATE — `x := cond ? line.new(…) : na` ─────
+        //
+        // ⛔ `var` IS EXCLUDED BY NAME, and the untyped spelling is why the test
+        // is here rather than only in the branch above: `var l = cond ?
+        // line.new(…) : na` has no type annotation, so the untyped branch does
+        // not recognise it and it FALLS THROUGH to this one. Splitting it here
+        // would reintroduce exactly the once-initialised divergence that branch
+        // refuses, by the back door.
+        const named = word !== 'var' && word !== 'varip' ? createNameIn(rhs) : null
+        if (named) {
+          // ⛔ THE FAMILY COMES FROM THE CONSTRUCTOR, and the declaration is
+          // registered BEFORE the emit because `into` is resolved through
+          // `decls` — the same order the unconditional branch above uses, and
+          // with the same safety net: `buildObjectProgram` prunes a register no
+          // surviving op writes, so a decl whose create is then dropped costs
+          // nothing.
+          if (!decls.has(name)) decls.set(name, { family: nsOf(named), kind: 'local' })
+          if (emitTernaryCreate(rhs, name, guards, inLoop, st, localScope)) continue
+        }
       }
 
       // ── a POSTFIX METHOD on a collection read ────────────────────────────
@@ -482,6 +513,17 @@ export function collectObjectOps(stmts, h) {
         // `x = b.get_left()` (a BINDING, which that guard does not see) the lane
         // answered OK and drew a box whose setter had disappeared.
         if (emitMethodForm(word, t, guards, inLoop, st, localScope)) continue
+      }
+
+      // ── ⭐ A BARE CONDITIONAL CREATE — `cond ? box.new(…) : na` ───────────
+      //
+      // The statement has no target at all: the object is drawn for its own
+      // sake and no handle keeps it. `assign < 0` is what keeps this off every
+      // assignment the branch above already read — it is tried LAST, so a shape
+      // with a reader of its own never reaches it.
+      if (assign < 0 && createNameIn(t)
+          && emitTernaryCreate(t, null, guards, inLoop, st, localScope)) {
+        continue
       }
 
       // ⭐ AN ORDINARY BINDING JOINS THE BLOCK'S SCOPE for every statement
@@ -620,19 +662,128 @@ export function collectObjectOps(stmts, h) {
     } catch { return null }
   }
 
+  /** The `<family>.new` this token span NAMES anywhere, or null.
+   *
+   *  ⛔ IT IS A DIAGNOSTIC READER, NOT A PARSER. Its only job is to tell a
+   *  right-hand side that mentions a constructor this reader could not lift out
+   *  from one that mentions none — so that the first is COUNTED and the second
+   *  stays silent. Reading it as "there is a create here" would make every
+   *  `str.tostring(line.get_x1(l))` look like a drawing. */
+  const createNameIn = (toks) => {
+    for (const tk of toks || []) {
+      if (!tk || tk.kind !== 'ident') continue
+      const name = String(tk.value)
+      const ns = nsOf(name)
+      if (ns && OBJECT_NAMESPACES.includes(ns) && methodOf(name) === 'new') return name
+    }
+    return null
+  }
+
+  /**
+   * ⭐⭐ `cond ? a : b`, SPLIT AT THE TOP LEVEL — or null.
+   *
+   * ⛔ THE `:` MUST BE THE ONE THAT CLOSES THIS `?`, not the first one seen. A
+   * chained ternary (`a ? x : b ? y : z`) opens a second `?` before its own
+   * colon arrives, so a first-colon split would hand back `b ? y` as the ELSE
+   * arm of the outer test and lose the inner condition entirely — the create
+   * would then be emitted under the wrong guard, which draws on the wrong bars
+   * rather than not at all.
+   *
+   * ⛔ `:=` IS A SINGLE TOKEN in this lexer, so an assignment can never be
+   * mistaken for a ternary colon. That is a property of `lexPine`, not an
+   * assumption made here — `reassignedIn` above leans on the same one.
+   */
+  const splitTernary = (toks) => {
+    let depth = 0
+    let q = -1
+    for (let i = 0; i < toks.length; i += 1) {
+      const tk = toks[i]
+      if (!tk || tk.kind !== 'punct') continue
+      if (tk.value === '(' || tk.value === '[') { depth += 1; continue }
+      if (tk.value === ')' || tk.value === ']') { depth -= 1; continue }
+      if (depth === 0 && tk.value === '?') { q = i; break }
+    }
+    if (q <= 0) return null
+    depth = 0
+    let pending = 0
+    for (let i = q + 1; i < toks.length; i += 1) {
+      const tk = toks[i]
+      if (!tk || tk.kind !== 'punct') continue
+      if (tk.value === '(' || tk.value === '[') { depth += 1; continue }
+      if (tk.value === ')' || tk.value === ']') { depth -= 1; continue }
+      if (depth !== 0) continue
+      if (tk.value === '?') { pending += 1; continue }
+      if (tk.value !== ':') continue
+      if (pending > 0) { pending -= 1; continue }
+      if (i === toks.length - 1) return null
+      return { cond: toks.slice(0, q), then: toks.slice(q + 1, i), alt: toks.slice(i + 1) }
+    }
+    return null
+  }
+
+  /**
+   * ⭐⭐ A CONDITIONAL CREATE — `x := cond ? line.new(…) : na`.
+   *
+   * ⚰️ THE READER SAW A CREATE ONLY WHERE THE CALL WAS THE WHOLE RIGHT-HAND
+   * SIDE. `emitFromRhs` demands `rhs[0]` BE `<family>.new`, so a right-hand side
+   * opening with a CONDITION matched nothing, fell through every branch of the
+   * walk, and left no op AND NO DIAGNOSTIC — an uncounted drop, which the
+   * method-form note above calls out as the worst shape a gap can take.
+   * Measured on `corpus/committed` before this was written: 46 such sites in 17
+   * scripts, the ONLY create shape in 7 of them, and 6 of them in
+   * `liquidity-pools__fa7b28e733.pine` — a script that DRAWS today, from two
+   * ops, while its source asks for more.
+   *
+   * ⭐⭐ AND IT IS THE GUARD STACK, NOT A NEW CAPABILITY. `x := cond ?
+   * line.new(…) : na` is the same Pine operation as
+   *
+   *     if cond
+   *         x := line.new(…)
+   *
+   * which the walk has carried since C3B by pushing `{toks: cond, negate:
+   * false}` and letting `emitFromRhs` stamp it on. This needed the same stack
+   * entry off a different token span: no new op kind, no new runtime, no new
+   * validator rule. `objectTernaryCreate.test.js` rails the two spellings
+   * against each other, and that is the test that would go red first if this
+   * ever grew an opinion of its own.
+   *
+   * ⛔ AN ARM THAT NAMES A CREATE THIS READER CANNOT LIFT OUT IS COUNTED. The
+   * whole point of the change is that a conditional drawing stops disappearing
+   * in silence; replacing one silent drop with another would be no change at
+   * all.
+   *
+   * @returns {boolean} whether any create was emitted.
+   */
+  function emitTernaryCreate(rhs, intoName, guards, inLoop, st, scope) {
+    const split = splitTernary(rhs)
+    if (!split) return false
+    let emitted = false
+    for (const [arm, negate] of [[split.then, false], [split.alt, true]]) {
+      const next = [...guards, { toks: split.cond, negate }]
+      if (emitFromRhs(arm, intoName, next, inLoop, st, scope)) { emitted = true; continue }
+      if (emitTernaryCreate(arm, intoName, next, inLoop, st, scope)) { emitted = true; continue }
+      const named = createNameIn(arm)
+      if (named) diagnostics.unsupported.push(named)
+    }
+    return emitted
+  }
+
+  /** @returns {boolean} whether a create was emitted — the caller needs to know
+   *  so a right-hand side this could not read can be COUNTED rather than left
+   *  to vanish. */
   function emitFromRhs(rhs, intoName, guards, inLoop, st, scope, once = false) {
-    if (!rhs.length || rhs[0].kind !== 'ident') return
+    if (!rhs.length || rhs[0].kind !== 'ident') return false
     const ns = nsOf(rhs[0].value)
-    if (!ns || !OBJECT_NAMESPACES.includes(ns) || methodOf(rhs[0].value) !== 'new') return
+    if (!ns || !OBJECT_NAMESPACES.includes(ns) || methodOf(rhs[0].value) !== 'new') return false
     // ⛔ STILL REFUSED FOR A LOOP THIS READER COULD NOT PARSE. `inLoop` is
     // now true ONLY for a `while`, a `for … by`, or a head of a shape the
     // parser does not know — a counted `for` clears it and nests instead.
     // ⚰️ Deleting these outright (first cut of the loop reader) made a `while`
     // body emit its ops as if they ran ONCE, which is precisely the lie the
     // original refusal existed to prevent.
-    if (inLoop) { diagnostics.loopBlocked.push(`${ns}.new`); return }
+    if (inLoop) { diagnostics.loopBlocked.push(`${ns}.new`); return false }
     const args = argsOf(rhs)
-    if (!args) { diagnostics.unsupported.push(`${ns}.new`); return }
+    if (!args) { diagnostics.unsupported.push(`${ns}.new`); return false }
     siteSeq += 1
     ops.push({
       k: 'create',
@@ -647,6 +798,7 @@ export function collectObjectOps(stmts, h) {
       at: rhs[0],
       line: st.header[0].line,
     })
+    return true
   }
 
   function emitMethod(ns, method, toks, guards, inLoop, st, scope) {
