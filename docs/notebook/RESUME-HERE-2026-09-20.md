@@ -10,32 +10,30 @@
 
 ---
 
-## ⛔⛔ THE FIRST THING: FOUR COMMITS ARE STAGED AND NOT PUSHED
+## ✅ 2026-09-21/22 SESSION — PUSHED AND DEPLOYED, §2/§3 WORKED THROUGH
 
-Branch `feat/notebook-kill-switch`, worktree
-`C:\Users\Patrick\uct-worktrees\notebook-k`.
+Branch `feat/notebook-kill-switch` fast-forward-merged to `master` at
+**`60e73757b`**, 2026-09-22T01:20:00Z. **Verified three ways, not by a status
+field alone:** `origin/production` ancestry (`git merge-base --is-ancestor`),
+Railway's own `web` deploy record (`SUCCESS | 60e73757b`), and `/api/health`
+`uptime_seconds` reset (2686 → 47) and held stable across three follow-up
+probes. `C:\data` confirmed untouched (content-hash, 58 DBs) across the whole
+session, including every real note/attachment/OCR/share/import/Ask call made
+against the local sandbox.
 
-| | |
-|---|---|
-| branch tip | `b71ef218e` (or later — re-read it) |
-| commits ahead of master | **4** |
-| tree | clean |
+The 13 commits: the two original CSS floor fixes, and — worked through this
+session, §2/§3 below, each with real local-sandbox evidence — the large-note
+import killer (verified closed, already fixed in code, never proven until
+now), one real fix (an internal-field-name error message rewritten to be
+member-legible, reaching the editor + import wizard + all six connectors),
+and full verification passes on attachments/OCR, share/templates/export, the
+Ask panel, and Obsidian import, plus a code review of the six connectors.
+Every phase's evidence is inline in its own §2 bullet below — read there
+before re-deriving.
 
-```
-intro:  Skip had no touch tier, and it is on every page load
-editor: the toolbar floor covered one axis and skipped its own neighbours
-+ two gate manifests with their direction classifications
-```
-
-**A master push is Production Deploy and the owner runs it:**
-
-```bash
-cd /c/Users/Patrick/uct-worktrees/notebook-k && git push origin feat/notebook-kill-switch:master
-```
-
-⚠️ Master moves every ~20 minutes (pine + screener workstreams). Expect to
-rebase before it lands. There is **zero file overlap** — this branch touches two
-stylesheets.
+**Worktree:** `C:\Users\Patrick\uct-worktrees\notebook-k`. Tree clean at the
+tip above; re-`git fetch`/`git log` before trusting this SHA if it's been a
+while.
 
 ---
 
