@@ -1,0 +1,367 @@
+/opt/hostedtoolcache/Python/3.12.14/x64/lib/python3.12/site-packages/pytest_asyncio/plugin.py:208: PytestDeprecationWarning: The configuration option "asyncio_default_fixture_loop_scope" is unset.
+The event loop scope for asynchronous fixtures will default to the fixture caching scope. Future versions of pytest-asyncio will default the loop scope for asynchronous fixtures to function scope. Set the default fixture loop scope explicitly in order to avoid unexpected behavior in the future. Valid fixture loop scopes are: "function", "class", "module", "package", "session"
+
+  warnings.warn(PytestDeprecationWarning(_DEFAULT_FIXTURE_LOOP_SCOPE_UNSET))
+........................................................................ [  2%]
+........................................................................ [  5%]
+....................................F................................... [  8%]
+........................................................................ [ 10%]
+........................................................................ [ 13%]
+......................................F................................. [ 16%]
+........................................................................ [ 19%]
+........................................................................ [ 21%]
+........................................................................ [ 24%]
+........................................................................ [ 27%]
+........................................................................ [ 29%]
+........................................................................ [ 32%]
+........................................................................ [ 35%]
+........................................................................ [ 38%]
+........................................................................ [ 40%]
+........................................................................ [ 43%]
+........................................................................ [ 46%]
+........................................................................ [ 48%]
+........................................................................ [ 51%]
+........................................................................ [ 54%]
+........................................................................ [ 57%]
+........................................................................ [ 59%]
+........................................................................ [ 62%]
+........................................................................ [ 65%]
+........................................................................ [ 68%]
+...............F........................................................ [ 70%]
+...............F........................................................ [ 73%]
+........................................................................ [ 76%]
+........................................................................ [ 78%]
+...................................................................sss.. [ 81%]
+.......F...........sss.................................................. [ 84%]
+.....F.................................................................. [ 87%]
+........................................................................ [ 89%]
+........................................................................ [ 92%]
+........................................................................ [ 95%]
+........................................................................ [ 97%]
+......................................................                   [100%]
+=================================== FAILURES ===================================
+_____ test_the_CORPUS_of_FIRM_PHRASINGS_gets_a_NAMED_OUTCOME_for_EVERY_ROW _____
+
+concierge = <module 'api.services.definition_concierge' from '/home/runner/work/UCT-Dashboard/UCT-Dashboard/api/services/definition_concierge.py'>
+
+    def test_the_CORPUS_of_FIRM_PHRASINGS_gets_a_NAMED_OUTCOME_for_EVERY_ROW(concierge):
+        """🔴 THE GATE. For every real member phrasing: what the door understood, or
+        the part it NAMES as not understood. ⛔ A ROW THAT PRODUCES NEITHER IS A
+        PHRASING THIS DOOR IS SILENTLY BLIND TO — it reaches the model as bare English
+        with nothing anchored, which is exactly the "21 pre-written concepts" ceiling
+        this task exists to lift.
+    
+        ⚠️ `unanchored` IS NOT A FAILURE IN GENERAL — "a twenty bar average" is a
+        perfectly good request the model composes freely. What is asserted here is
+        narrower and harder: the phrasings the FIRM ITSELF publishes are anchored,
+        because those are the words a member has already been taught to use.
+        """
+        rows = _corpus()
+        assert len(rows) >= 200, f"{len(rows)} rows is not a corpus"
+    
+        # ⭐ THE SETUP TAXONOMY IS THE ONE SOURCE THIS DOOR DOES NOT OWN. `setupGroups`
+        # / `setupCatalog` name the firm's SETUPS ("Bull Flag", "Cup & Handle"), and
+        # nothing in the manifest or the concept vocabulary grounds those words into a
+        # tree. ⛔ WRITING ONE HERE WOULD BE THE VERY DEFECT THIS TASK GUARDS: a
+        # definition of "Bull Flag" that nobody at the firm reviewed. So they are
+        # measured with a ratchet and NAMED, and the gap is stated rather than papered
+        # over — E-8's starter library is where a setup becomes sayable.
+        TAXONOMY = {"setup_name", "setup_essence"}
+    
+        blind, outcomes = [], {}
+        for row in rows:
+            got = concierge.plan(row["text"], "scan")
+            outcomes[got["path"]] = outcomes.get(got["path"], 0) + 1
+            if not (got["concepts"] or got["terms"] or got["not_understood"]
+                    or got["unavailable"]):
+                blind.append((row["source"], row["key"], row["text"]))
+    
+        owned = [b for b in blind if b[0] not in TAXONOMY]
+>       assert not owned, (
+            f"{len(owned)} of {len(rows)} firm phrasings anchored NOTHING, and every "
+            "one of them is worded by an artifact this door READS:\n"
+            + "\n".join(f"  [{s}] {k}: {t}" for s, k, t in owned[:25]))
+E       AssertionError: 5 of 1325 firm phrasings anchored NOTHING, and every one of them is worded by an artifact this door READS:
+E           [filter_label] security_type: Type
+E           [starter_screen] starter_uct_50: UCT 50
+E           [starter_screen] starter_base_pocket_pivot: Pocket pivots
+E           [starter_screen] starter_stage2_breakout: Stage-2 breakouts
+E           [starter_screen] starter_three_weeks_tight: Three weeks tight
+E       assert not [('filter_label', 'security_type', 'Type'), ('starter_screen', 'starter_uct_50', 'UCT 50'), ('starter_screen', 'starte... 'starter_stage2_breakout', 'Stage-2 breakouts'), ('starter_screen', 'starter_three_weeks_tight', 'Three weeks tight')]
+
+tests/test_definition_concierge.py:3582: AssertionError
+_____ test_the_real_boundary_resolve_and_run_railway_status_json_for_real ______
+
+    def test_the_real_boundary_resolve_and_run_railway_status_json_for_real():
+        """⛔ RULE 10: the fake-`run` cases above CANNOT see a PATH-resolution defect. This one can."""
+>       exe = resolve_railway()                     # real shutil.which — raises if absent
+
+tests/test_deploy_watch.py:104: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+which = <function which at 0x7faba4424680>
+
+    def resolve_railway(which=shutil.which) -> str:
+        """The resolved absolute path to the CLI, or raise. This is the whole 2026-09-10 defect."""
+        exe = which("railway")
+        if not exe:
+>           raise RailwayNotFound(
+                "`railway` is not on PATH. shutil.which found nothing, so every probe would raise "
+                "FileNotFoundError and the watch would report nothing while looking healthy."
+            )
+E           deploy_watch.RailwayNotFound: `railway` is not on PATH. shutil.which found nothing, so every probe would raise FileNotFoundError and the watch would report nothing while looking healthy.
+
+scripts/deploy_watch.py:47: RailwayNotFound
+_________ test_a_fresh_capture_matches_the_stored_golden_at_zero_drift _________
+
+captures = ({'generated_by': 'docs/discord-render/instruments/golden_capture.py', 'scenarios': {'buzz/board/drawn': {'edits': [{'...re', 'target': 'flow fetch_fn', 'why': 'flow-worker over HTTP; the fixture is a fixed tape'}, ...], 'version': 1, ...})
+
+    def test_a_fresh_capture_matches_the_stored_golden_at_zero_drift(captures):
+        """⛔ ZERO. Not 'close', not 'within tolerance' — a payload either is what we ship today or it
+        is not. Every name below is a member-visible change: read it, then decide whether to
+        re-baseline with `--write`."""
+        drift = gc.diff_paths(gc.load_golden(), captures[0])
+>       assert not drift, ("the pre-V2 reply payloads have MOVED — that is the one thing P2 promised "
+                           "would not happen:\n  " + "\n  ".join(drift[:40]))
+E       AssertionError: the pre-V2 reply payloads have MOVED — that is the one thing P2 promised would not happen:
+E           /scenarios/buzz/board/drawn/edits[0]/filename: 'buzz.png' vs absent
+E           /scenarios/buzz/board/drawn/edits[0]/png_bytes: 40 vs absent
+E           /scenarios/buzz/board/drawn/edits[0]/png_sha256: '734c96490c57c55cadc8b1af0fa03d3aefa20d645f44f6db803f4979e6928c60' vs absent
+E           /scenarios/flow/NVDA/1/not-ok/edits[0]/content: "⚠️ The flow feed is reconnecting — couldn't read **NVDA** right now. Try again in a moment." vs '⚠️ **NVDA** — the options-flow service returned an error.'
+E           /scenarios/flow/NVDA/1/unreadable/edits[0]/content: "⚠️ The flow feed is reconnecting — couldn't read **NVDA** right now. Try again in a moment." vs '⚠️ **NVDA** — the options-flow service returned an error.'
+E       assert not ["/scenarios/buzz/board/drawn/edits[0]/filename: 'buzz.png' vs absent", '/scenarios/buzz/board/drawn/edits[0]/png_byte...\'t read **NVDA** right now. Try again in a moment." vs \'⚠️ **NVDA** — the options-flow service returned an error.\'']
+
+tests/test_discord_render_goldens.py:119: AssertionError
+_____________ test_no_module_in_the_v2_package_calls_log_exception _____________
+
+    def test_no_module_in_the_v2_package_calls_log_exception():
+        """Every exception path goes through observe.exception, which scrubs. Read from the AST, so
+        prose that SAYS `log.exception` (observe's own docstring does) is not a match."""
+        import ast
+        import pathlib
+    
+        def calls(src):
+            return [n.lineno for n in ast.walk(ast.parse(src))
+                    if isinstance(n, ast.Call) and isinstance(n.func, ast.Attribute) and n.func.attr == "exception"
+                    and isinstance(n.func.value, ast.Name) and n.func.value.id in ("log", "logger", "logging")]
+        assert calls("log.exception('x')") == [1]                                  # the scanner can see one
+        assert calls("# log.exception('x')\n'''log.exception('y')'''\n") == []     # and prose is not one
+        pkg = pathlib.Path(observe.__file__).parent
+        offenders = {p.name: calls(p.read_text(encoding="utf-8")) for p in sorted(pkg.glob("*.py"))}
+        assert len(offenders) >= 7, offenders                                        # it read the package
+>       assert not {k: v for k, v in offenders.items() if v}
+E       AssertionError: assert not {'cold_path_instrument.py': [77, 109], 'cold_path_manifest.py': [73], 'cold_start_guard.py': [117]}
+
+tests/test_discord_render_observe.py:147: AssertionError
+_ TestAClaimNobodyCanServeIsNotProcessing.test_the_member_facing_chain_ends_at_a_navigable_page _
+
+self = <tests.test_document_ocr.TestAClaimNobodyCanServeIsNotProcessing object at 0x7fab830cd910>
+env = None
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x7fab82815700>
+
+    def test_the_member_facing_chain_ends_at_a_navigable_page(self, env, monkeypatch):
+        # ⛔⛔ A SERVICE RAIL IS NOT A ROUTE RAIL. The test above proves the
+        # pipeline; this one proves the DOOR — the member searches, and what
+        # comes back is a document at a page they can open, carrying the fact
+        # that its words were read off an image.
+        monkeypatch.setenv(tess.FLAG, "1")
+        monkeypatch.setenv("TESSERACT_BINARY", _TESS_BIN)
+>       assert tess.install_if_enabled()["active"] is True
+E       assert False is True
+
+tests/test_document_ocr.py:835: AssertionError
+---------------------------- Captured stdout setup -----------------------------
+[auth] Database ready at /tmp/uct_tests_authdb_ld2t6dzm/auth.db
+----------------------------- Captured stderr call -----------------------------
+2026-09-22 11:55:16,578 WARNING api.services.journal_two.document_ocr_tesseract: [doc-ocr] J2_OCR_ENABLED=1 but no usable tesseract binary was found — OCR stays unavailable
+------------------------------ Captured log call -------------------------------
+WARNING  api.services.journal_two.document_ocr_tesseract:document_ocr_tesseract.py:128 [doc-ocr] J2_OCR_ENABLED=1 but no usable tesseract binary was found — OCR stays unavailable
+_____ test_build_environment_produces_a_usable_env_for_a_real_sandbox_root _____
+
+tmp_path = PosixPath('/tmp/pytest-of-runner/pytest-0/test_build_environment_produce0')
+
+    def test_build_environment_produces_a_usable_env_for_a_real_sandbox_root(tmp_path):
+>       env = launcher.build_environment(tmp_path / "sandbox", "e2e@local.test")
+
+tests/test_e2e_sandbox_guard.py:186: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+tools/e2e_sandbox_launcher.py:76: in build_environment
+    env = sandbox_env_tool.sandbox_env(resolved)  # raises SystemExit on any gap
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+root = PosixPath('/tmp/pytest-of-runner/pytest-0/test_build_environment_produce0/sandbox')
+
+    def sandbox_env(root: pathlib.Path) -> dict[str, str]:
+        """Every shared-root pin redirected under ``root``, plus the quiet flags.
+    
+        Raises if the census reports a literal it cannot redirect — an audit that
+        starts with an unpinnable path is exactly the thing this file prevents.
+        """
+        import conftest  # noqa: E402  (repo root is on sys.path above)
+    
+        literals, pins, unpinnable = conftest.shared_data_root_census()
+        if unpinnable:
+>           raise SystemExit(
+                "REFUSING to build a sandbox environment: the census reports "
+                f"{len(unpinnable)} shared literal(s) with no env override, so a local "
+                "backend would still reach the live data root.\n  "
+                + "\n  ".join(sorted(unpinnable))
+                + "\n\nGive each an override whose default is the literal already there "
+                  "(that is how the other pins work), then re-run."
+            )
+E           SystemExit: REFUSING to build a sandbox environment: the census reports 1 shared literal(s) with no env override, so a local backend would still reach the live data root.
+E             /data/hub_reports.db
+E           
+E           Give each an override whose default is the literal already there (that is how the other pins work), then re-run.
+
+tools/audit_sandbox_env.py:73: SystemExit
+=============================== warnings summary ===============================
+../../../../../opt/hostedtoolcache/Python/3.12.14/x64/lib/python3.12/site-packages/starlette/testclient.py:40
+  /opt/hostedtoolcache/Python/3.12.14/x64/lib/python3.12/site-packages/starlette/testclient.py:40: DeprecationWarning: The anyio.abc.BlockingPortal alias is deprecated, use anyio.from_thread.BlockingPortal instead.
+    _PortalFactoryType = typing.Callable[[], typing.ContextManager[anyio.abc.BlockingPortal]]
+
+api/baselines.py:456
+  /home/runner/work/UCT-Dashboard/UCT-Dashboard/api/baselines.py:456: DeprecationWarning: datetime.datetime.utcnow() is deprecated and scheduled for removal in a future version. Use timezone-aware objects to represent datetimes in UTC: datetime.datetime.now(datetime.UTC).
+    _baselines_last_loaded = datetime.utcnow()
+
+tests/test_definition_record.py:262
+  /home/runner/work/UCT-Dashboard/UCT-Dashboard/tests/test_definition_record.py:262: SyntaxWarning: invalid escape sequence '\d'
+    the one thing in the run that touched it. On a box where `C:\data` exists
+
+tests/test_definition_sharing.py:55
+  /home/runner/work/UCT-Dashboard/UCT-Dashboard/tests/test_definition_sharing.py:55: SyntaxWarning: invalid escape sequence '\d'
+    passed only because the shared `C:\data\auth.db` happened to hold a real
+
+tests/test_darkpool_bigblock.py: 14 warnings
+  /home/runner/work/UCT-Dashboard/UCT-Dashboard/api/darkpool_bigblock.py:269: DeprecationWarning: datetime.datetime.utcnow() is deprecated and scheduled for removal in a future version. Use timezone-aware objects to represent datetimes in UTC: datetime.datetime.now(datetime.UTC).
+    now = datetime.utcnow().isoformat()
+
+tests/test_darkpool_eod_card.py::test_render_card_accepts_record_and_tier_rows
+  /home/runner/work/UCT-Dashboard/UCT-Dashboard/api/darkpool_eod.py:241: DeprecationWarning: Image.Image.getdata is deprecated and will be removed in Pillow 14 (2027-10-15). Use get_flattened_data instead.
+    for (r, g, b, a) in _logo.getdata()])
+
+tests/test_deep_backfill_sync.py::test_deep_intraday_partial_request_returns_full_depth_synchronously
+tests/test_deep_backfill_sync.py::test_deep_intraday_marks_history_complete
+tests/test_deep_backfill_sync.py::test_shallow_intraday_request_still_uses_swr_path
+  /home/runner/work/UCT-Dashboard/UCT-Dashboard/api/services/bars_fetch.py:1256: DeprecationWarning: datetime.datetime.utcnow() is deprecated and scheduled for removal in a future version. Use timezone-aware objects to represent datetimes in UTC: datetime.datetime.now(datetime.UTC).
+    age_days = (datetime.utcnow().timestamp() - last_ts) / 86400
+
+tests/test_deep_backfill_sync.py::test_deep_daily_request_keeps_background_path
+  /home/runner/work/UCT-Dashboard/UCT-Dashboard/api/services/bars_fetch.py:365: DeprecationWarning: datetime.datetime.utcnow() is deprecated and scheduled for removal in a future version. Use timezone-aware objects to represent datetimes in UTC: datetime.datetime.now(datetime.UTC).
+    d = datetime.utcnow()
+
+tests/test_definition_record.py::test_the_record_has_EXACTLY_ONE_PRODUCTION_WRITER_and_it_is_NAMED
+  <unknown>:19: SyntaxWarning: invalid escape sequence '\d'
+
+tests/test_definition_record.py::test_the_record_has_EXACTLY_ONE_PRODUCTION_WRITER_and_it_is_NAMED
+  <unknown>:10: SyntaxWarning: invalid escape sequence '\d'
+
+tests/test_definition_record.py::test_the_record_has_EXACTLY_ONE_PRODUCTION_WRITER_and_it_is_NAMED
+  <unknown>:85: SyntaxWarning: invalid escape sequence '\s'
+
+tests/test_desk_recap_poster.py::test_overloaded_render_never_spills_past_floor
+tests/test_desk_recap_poster.py::test_overloaded_render_never_spills_past_floor
+  /home/runner/work/UCT-Dashboard/UCT-Dashboard/tests/test_desk_recap_poster.py:92: DeprecationWarning: Image.Image.getdata is deprecated and will be removed in Pillow 14 (2027-10-15). Use get_flattened_data instead.
+    return list(img.crop((0, H - 108, rp._W, H - 82)).getdata())
+
+tests/test_desk_thumbnail.py::test_candle_skyline_draws_both_up_and_down_candles
+  /home/runner/work/UCT-Dashboard/UCT-Dashboard/tests/test_desk_thumbnail.py:337: DeprecationWarning: Image.Image.getdata is deprecated and will be removed in Pillow 14 (2027-10-15). Use get_flattened_data instead.
+    px = list(img.crop((0, 300, t._W, 518)).getdata())
+
+tests/test_desk_thumbnail.py::test_candle_skyline_wicks_rise_above_every_body
+  /home/runner/work/UCT-Dashboard/UCT-Dashboard/tests/test_desk_thumbnail.py:350: DeprecationWarning: Image.Image.getdata is deprecated and will be removed in Pillow 14 (2027-10-15). Use get_flattened_data instead.
+    lit = sum(1 for r, g, b in band.getdata() if max(r, g, b) > 60)
+
+tests/test_desk_thumbnail.py::test_candle_skyline_bodies_are_rooted_at_the_waterline
+  /home/runner/work/UCT-Dashboard/UCT-Dashboard/tests/test_desk_thumbnail.py:358: DeprecationWarning: Image.Image.getdata is deprecated and will be removed in Pillow 14 (2027-10-15). Use get_flattened_data instead.
+    row = list(img.crop((0, 512, t._W, 513)).getdata())      # just above waterline 518
+
+tests/test_desk_thumbnail.py::test_evening_card_carries_green_candles_over_the_sunset
+  /home/runner/work/UCT-Dashboard/UCT-Dashboard/tests/test_desk_thumbnail.py:367: DeprecationWarning: Image.Image.getdata is deprecated and will be removed in Pillow 14 (2027-10-15). Use get_flattened_data instead.
+    (0, 300, t._W, 518)).getdata())
+
+tests/test_discord_render_adapters.py::test_the_v2_handlers_bind_adapters_and_not_the_raw_clients[_chart_kwargs]
+tests/test_earnings_intel_model.py::TestFiscalIdentity::test_consensus_rows_placed_by_report_date_not_calendar_quarter
+tests/test_earnings_reaction.py::TestSurvivability::test_a_bars_failure_returns_empty_instead_of_raising
+  /home/runner/work/UCT-Dashboard/UCT-Dashboard/api/services/bars_fetch.py:1843: DeprecationWarning: datetime.datetime.utcnow() is deprecated and scheduled for removal in a future version. Use timezone-aware objects to represent datetimes in UTC: datetime.datetime.now(datetime.UTC).
+    to_date = datetime.utcnow().strftime("%Y-%m-%d")
+
+tests/test_discord_render_adapters.py::test_the_v2_handlers_bind_adapters_and_not_the_raw_clients[_chart_kwargs]
+tests/test_earnings_intel_model.py::TestFiscalIdentity::test_consensus_rows_placed_by_report_date_not_calendar_quarter
+tests/test_earnings_reaction.py::TestSurvivability::test_a_bars_failure_returns_empty_instead_of_raising
+  /home/runner/work/UCT-Dashboard/UCT-Dashboard/api/services/bars_fetch.py:1846: DeprecationWarning: datetime.datetime.utcnow() is deprecated and scheduled for removal in a future version. Use timezone-aware objects to represent datetimes in UTC: datetime.datetime.now(datetime.UTC).
+    from_date = (datetime.utcnow() - timedelta(days=lookback)).strftime("%Y-%m-%d")
+
+tests/test_discord_render_forensics.py::test_c09_background_work_yields_to_members_in_the_queue_and_is_capped_at_the_renderer
+tests/test_discord_render_forensics.py::test_c13_a_playwright_call_log_carrying_the_render_token_is_scrubbed_before_it_is_logged
+  /home/runner/work/UCT-Dashboard/UCT-Dashboard/services/chart_renderer/app.py:720: DeprecationWarning: 
+          on_event is deprecated, use lifespan event handlers instead.
+  
+          Read more about it in the
+          [FastAPI docs for Lifespan Events](https://fastapi.tiangolo.com/advanced/events/).
+          
+    @app.on_event("startup")
+
+tests/test_discord_render_forensics.py::test_c09_background_work_yields_to_members_in_the_queue_and_is_capped_at_the_renderer
+tests/test_discord_render_forensics.py::test_c09_background_work_yields_to_members_in_the_queue_and_is_capped_at_the_renderer
+tests/test_discord_render_forensics.py::test_c13_a_playwright_call_log_carrying_the_render_token_is_scrubbed_before_it_is_logged
+tests/test_discord_render_forensics.py::test_c13_a_playwright_call_log_carrying_the_render_token_is_scrubbed_before_it_is_logged
+  /opt/hostedtoolcache/Python/3.12.14/x64/lib/python3.12/site-packages/fastapi/applications.py:4495: DeprecationWarning: 
+          on_event is deprecated, use lifespan event handlers instead.
+  
+          Read more about it in the
+          [FastAPI docs for Lifespan Events](https://fastapi.tiangolo.com/advanced/events/).
+          
+    return self.router.on_event(event_type)
+
+tests/test_discord_render_forensics.py::test_c09_background_work_yields_to_members_in_the_queue_and_is_capped_at_the_renderer
+tests/test_discord_render_forensics.py::test_c13_a_playwright_call_log_carrying_the_render_token_is_scrubbed_before_it_is_logged
+  /home/runner/work/UCT-Dashboard/UCT-Dashboard/services/chart_renderer/app.py:827: DeprecationWarning: 
+          on_event is deprecated, use lifespan event handlers instead.
+  
+          Read more about it in the
+          [FastAPI docs for Lifespan Events](https://fastapi.tiangolo.com/advanced/events/).
+          
+    @app.on_event("shutdown")
+
+tests/test_discord_render_symbols.py::test_the_pre_v2_dispatch_chooses_the_partition_from_the_symbol
+tests/test_discord_render_symbols.py::test_an_equity_still_reads_the_stocks_partition
+tests/test_discord_render_symbols.py::test_an_unknown_symbol_takes_flow_sources_documented_default
+  /home/runner/work/UCT-Dashboard/UCT-Dashboard/api/watchlist_card.py:124: DeprecationWarning: Image.Image.getdata is deprecated and will be removed in Pillow 14 (2027-10-15). Use get_flattened_data instead.
+    for (r, g, b, a) in lg.getdata()])
+
+tests/test_document_ocr.py::TestAClaimNobodyCanServeIsNotProcessing::test_the_member_facing_chain_ends_at_a_navigable_page
+  /home/runner/work/UCT-Dashboard/UCT-Dashboard/tests/test_document_ocr.py:834: PytestWarning: Value of environment variable TESSERACT_BINARY type should be str, but got None (type: NoneType); converted to str implicitly
+    monkeypatch.setenv("TESSERACT_BINARY", _TESS_BIN)
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+- generated xml file: /home/runner/work/UCT-Dashboard/UCT-Dashboard/pytest-junit.xml -
+=========================== short test summary info ============================
+SKIPPED [1] tests/test_document_ocr.py:642: no tesseract binary on this machine — the real-engine rail cannot run here (the dark-by-default rails above still do)
+SKIPPED [1] tests/test_document_ocr.py:668: no tesseract binary on this machine — the real-engine rail cannot run here (the dark-by-default rails above still do)
+SKIPPED [1] tests/test_document_ocr.py:683: no tesseract binary on this machine — the real-engine rail cannot run here (the dark-by-default rails above still do)
+SKIPPED [1] tests/test_document_ocr.py:1051: no tesseract binary on this machine
+SKIPPED [1] tests/test_document_ocr.py:1075: no tesseract binary on this machine
+SKIPPED [1] tests/test_document_ocr.py:1103: no tesseract binary on this machine
+FAILED tests/test_definition_concierge.py::test_the_CORPUS_of_FIRM_PHRASINGS_gets_a_NAMED_OUTCOME_for_EVERY_ROW - AssertionError: 5 of 1325 firm phrasings anchored NOTHING, and every one of them is worded by an artifact this door READS:
+    [filter_label] security_type: Type
+    [starter_screen] starter_uct_50: UCT 50
+    [starter_screen] starter_base_pocket_pivot: Pocket pivots
+    [starter_screen] starter_stage2_breakout: Stage-2 breakouts
+    [starter_screen] starter_three_weeks_tight: Three weeks tight
+assert not [('filter_label', 'security_type', 'Type'), ('starter_screen', 'starter_uct_50', 'UCT 50'), ('starter_screen', 'starte... 'starter_stage2_breakout', 'Stage-2 breakouts'), ('starter_screen', 'starter_three_weeks_tight', 'Three weeks tight')]
+FAILED tests/test_deploy_watch.py::test_the_real_boundary_resolve_and_run_railway_status_json_for_real - deploy_watch.RailwayNotFound: `railway` is not on PATH. shutil.which found nothing, so every probe would raise FileNotFoundError and the watch would report nothing while looking healthy.
+FAILED tests/test_discord_render_goldens.py::test_a_fresh_capture_matches_the_stored_golden_at_zero_drift - AssertionError: the pre-V2 reply payloads have MOVED — that is the one thing P2 promised would not happen:
+    /scenarios/buzz/board/drawn/edits[0]/filename: 'buzz.png' vs absent
+    /scenarios/buzz/board/drawn/edits[0]/png_bytes: 40 vs absent
+    /scenarios/buzz/board/drawn/edits[0]/png_sha256: '734c96490c57c55cadc8b1af0fa03d3aefa20d645f44f6db803f4979e6928c60' vs absent
+    /scenarios/flow/NVDA/1/not-ok/edits[0]/content: "⚠️ The flow feed is reconnecting — couldn't read **NVDA** right now. Try again in a moment." vs '⚠️ **NVDA** — the options-flow service returned an error.'
+    /scenarios/flow/NVDA/1/unreadable/edits[0]/content: "⚠️ The flow feed is reconnecting — couldn't read **NVDA** right now. Try again in a moment." vs '⚠️ **NVDA** — the options-flow service returned an error.'
+assert not ["/scenarios/buzz/board/drawn/edits[0]/filename: 'buzz.png' vs absent", '/scenarios/buzz/board/drawn/edits[0]/png_byte...\'t read **NVDA** right now. Try again in a moment." vs \'⚠️ **NVDA** — the options-flow service returned an error.\'']
+FAILED tests/test_discord_render_observe.py::test_no_module_in_the_v2_package_calls_log_exception - AssertionError: assert not {'cold_path_instrument.py': [77, 109], 'cold_path_manifest.py': [73], 'cold_start_guard.py': [117]}
+FAILED tests/test_document_ocr.py::TestAClaimNobodyCanServeIsNotProcessing::test_the_member_facing_chain_ends_at_a_navigable_page - assert False is True
+FAILED tests/test_e2e_sandbox_guard.py::test_build_environment_produces_a_usable_env_for_a_real_sandbox_root - SystemExit: REFUSING to build a sandbox environment: the census reports 1 shared literal(s) with no env override, so a local backend would still reach the live data root.
+  /data/hub_reports.db
+
+Give each an override whose default is the literal already there (that is how the other pins work), then re-run.
+6 failed, 2634 passed, 6 skipped, 50 warnings in 385.23s (0:06:25)
