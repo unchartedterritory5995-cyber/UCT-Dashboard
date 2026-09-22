@@ -79,7 +79,8 @@ export default function ClosePositionModal({ position, currentPrice, onSave, onC
       })
       onClose?.()
     } catch (e) {
-      setErrorMsg(String(e?.message || e))
+      console.error('Failed to close position:', e)
+      setErrorMsg("Couldn't close this position. Nothing was changed — try again.")
     } finally {
       setSaving(false)
     }
