@@ -166,6 +166,7 @@ const sameCols = (a, b) =>
 export default function ShellToolbar({ meta, view, onView, visibleColumns, allColumns,
   onColumns, onResetColumns, density, onDensity, snapshot, snapshotDate,
   total, shown, isLoading, onExport, exportState, saveBar, reviewBar = null,
+  libraryBar = null,
   presets = [], onApplyPreset, onDeletePreset, onSavePreset }) {
   const [pickerOpen, setPickerOpen] = useState(false)
   const overviewCols = (meta?.views || []).find(v => v.key === DEFAULT_VIEW)?.columns
@@ -237,11 +238,14 @@ export default function ShellToolbar({ meta, view, onView, visibleColumns, allCo
         <button type="button" className={styles.toolBtn} disabled={exportState?.busy} onClick={onExport}>
           <UIcon name="download" size={13} /> {exportState?.busy ? 'Exporting…' : 'CSV'}
         </button>
-        {/* ⭐ THE REVIEW DOOR SITS WITH THE OTHER ACTIONS ON THE RESULT SET
-            (Columns, density, CSV) rather than beside the filters — it acts on
-            the answer, not on the question. A SLOT for the same reason `saveBar`
-            is one: this toolbar renders chrome and must not learn what a review
-            session is. */}
+        {/* ⭐ THESE DOORS SIT WITH THE OTHER ACTIONS ON THE RESULT SET (Columns,
+            CSV) rather than beside the filters — they act on the answer, not on
+            the question. Each is a SLOT for the same reason: this toolbar renders
+            chrome and must not learn what a review session, a saved scan or the
+            structure library is. `libraryBar` (a reference to the STRUCTURE
+            column's base structures) moved here out of the filter-chips row,
+            where it read as a stray filter. */}
+        {libraryBar}
         {reviewBar}
         {saveBar}
       </span>
