@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
-import { render, screen, fireEvent, waitFor } from '@testing-library/react'
+import { render, screen, fireEvent, waitFor, within } from '@testing-library/react'
 import { MemoryRouter, useNavigate } from 'react-router-dom'
 
 // Heavy children + data hook are stubbed — these tests are about the tab's own
@@ -22,11 +22,15 @@ vi.mock('../components/notebook/FolderSidebar', () => ({
   // A minimal interactive stub — exposes an "onSelectFolder('__trash__')"
   // trigger the same way ImportWizard's mock exposes "fire onImported",
   // so trash-view wiring can be driven through the real prop instead of
-  // reaching into NotebookTab's internal state.
-  default: ({ onSelectFolder }) => (
+  // reaching into NotebookTab's internal state. UX #1's onSelectView/
+  // onDeleteView/onRenameView triggers follow the identical convention.
+  default: ({ onSelectFolder, onSelectView, onDeleteView, onRenameView }) => (
     <div data-testid="folder-sidebar">
       <button type="button" onClick={() => onSelectFolder('__trash__')}>go to trash</button>
       <button type="button" onClick={() => onSelectFolder(null)}>go to all notes</button>
+      <button type="button" onClick={() => onSelectView({ id: 'v1', name: 'My View', viewType: 'list' })}>select view v1</button>
+      <button type="button" onClick={() => onDeleteView('v1', 'My View')}>delete view v1</button>
+      <button type="button" onClick={() => onRenameView('v1', 'Renamed View')}>rename view v1</button>
     </div>
   ),
 }))
@@ -553,5 +557,54 @@ describe('⛔ Graph mode never offers a "Save this view" trap', () => {
     renderTab()
     fireEvent.click(screen.getByRole('button', { name: 'List view' }))
     expect(screen.getByRole('button', { name: 'Save view' })).toBeInTheDocument()
+  })
+})
+
+/**
+ * ⛔⛔ UX #1, 2026-09-22: `useJ2SavedViews.js` has always fully implemented
+ * rename/remove -- NotebookTab never imported them. These pin the ONE piece
+ * of logic that has to live here rather than in FolderSidebar: deleting the
+ * CURRENTLY ACTIVE view must clear `activeView`, the same "clear the active
+ * selection if it was this one" rule folder-delete already applies to
+ * `activeFolderId` (FolderSidebar owns that one directly; this one can't,
+ * because `activeView` state lives in NotebookTab).
+ */
+describe('Saved view delete clears activeView when it was the active one (UX #1)', () => {
+  it('deleting the ACTIVE view drops the "Clear filter" affordance once confirmed', async () => {
+    renderTab()
+    fireEvent.click(screen.getByText('select view v1'))
+    expect(screen.getByRole('button', { name: 'Clear filter' })).toBeInTheDocument()
+
+    fireEvent.click(screen.getByText('delete view v1'))
+    const dialog = screen.getByRole('dialog')
+    expect(within(dialog).getByText('Delete view "My View"?')).toBeInTheDocument()
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Delete' }))
+
+    await waitFor(() => expect(screen.queryByRole('button', { name: 'Clear filter' })).not.toBeInTheDocument())
+    expect(global.fetch).toHaveBeenCalledWith(
+      '/api/j2/saved-views/v1',
+      expect.objectContaining({ method: 'DELETE' }),
+    )
+  })
+
+  it('cancelling the confirm leaves the view selected (no delete call)', () => {
+    renderTab()
+    fireEvent.click(screen.getByText('select view v1'))
+    fireEvent.click(screen.getByText('delete view v1'))
+    const dialog = screen.getByRole('dialog')
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Cancel' }))
+    expect(screen.getByRole('button', { name: 'Clear filter' })).toBeInTheDocument()
+    expect(global.fetch.mock.calls.some(
+      ([u, o]) => String(u) === '/api/j2/saved-views/v1' && o?.method === 'DELETE',
+    )).toBe(false)
+  })
+
+  it('renaming calls the PUT endpoint with the new name', async () => {
+    renderTab()
+    fireEvent.click(screen.getByText('rename view v1'))
+    await waitFor(() => expect(global.fetch).toHaveBeenCalledWith(
+      '/api/j2/saved-views/v1',
+      expect.objectContaining({ method: 'PUT', body: JSON.stringify({ name: 'Renamed View' }) }),
+    ))
   })
 })

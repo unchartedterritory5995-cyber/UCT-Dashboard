@@ -372,8 +372,14 @@
 .searchResultSkeletonRow { display: flex; flex-direction: column; gap: 6px; }
 .noteIcon { flex: 0 0 auto; opacity: 0.75; }
 .noteTitle { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.actions { display: flex; gap: 4px; opacity: 0; transition: opacity 100ms ease; }
+.actions { display: flex; gap: 4px; opacity: 0; transition: opacity 100ms ease; margin-left: auto; }
 .row:hover .actions { opacity: 1; }
+/* UX #1, 2026-09-22: Saved Views' row/rename/delete affordance reuses
+   `.actions`/`.iconBtn` (the same hover-reveal pattern folder rows already
+   use), but that row is `.noteRow`, not `.row` -- a different class, so the
+   rule above never matched it and the icons would sit at opacity:0
+   permanently, unreachable even on hover, without this. */
+.noteRow:hover .actions { opacity: 1; }
 .iconBtn {
   display: inline-flex;
   align-items: center;

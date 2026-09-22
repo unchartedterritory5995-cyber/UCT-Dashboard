@@ -1296,6 +1296,88 @@ describe('Saved Views sidebar section (Wave E)', () => {
 })
 
 /**
+ * ⛔⛔ UX #1, 2026-09-22: `useJ2SavedViews.js` has always fully implemented
+ * `rename(id, name)`/`remove(id)` -- this section's own comment claimed
+ * saved views were "fully renameable/deletable" while nothing in the UI
+ * ever called either. Mirrors Folder rename's exact interaction (UX #10,
+ * double-click OR a visible pencil icon).
+ */
+describe('Saved View rename/delete (UX #1)', () => {
+  const view = { id: 'v1', name: 'Active Theses', viewType: 'list' }
+
+  it('a visible Rename icon enters edit mode, the same as double-click', () => {
+    render(<FolderSidebar notes={[]} activeFolderId={null} onSelectFolder={() => {}}
+                          activeTag={null} onSelectTag={() => {}} savedViews={[view]} />)
+    fireEvent.click(screen.getByLabelText('Rename Active Theses'))
+    expect(screen.getByDisplayValue('Active Theses').tagName).toBe('INPUT')
+  })
+
+  it('double-clicking the row also enters edit mode', () => {
+    render(<FolderSidebar notes={[]} activeFolderId={null} onSelectFolder={() => {}}
+                          activeTag={null} onSelectTag={() => {}} savedViews={[view]} />)
+    fireEvent.doubleClick(screen.getByText('Active Theses'))
+    expect(screen.getByDisplayValue('Active Theses').tagName).toBe('INPUT')
+  })
+
+  it('Enter submits the new name via onRenameView', () => {
+    const onRenameView = vi.fn()
+    render(<FolderSidebar notes={[]} activeFolderId={null} onSelectFolder={() => {}}
+                          activeTag={null} onSelectTag={() => {}} savedViews={[view]}
+                          onRenameView={onRenameView} />)
+    fireEvent.click(screen.getByLabelText('Rename Active Theses'))
+    const input = screen.getByDisplayValue('Active Theses')
+    fireEvent.change(input, { target: { value: 'Renamed View' } })
+    fireEvent.keyDown(input, { key: 'Enter' })
+    expect(onRenameView).toHaveBeenCalledWith('v1', 'Renamed View')
+  })
+
+  it('Escape cancels without calling onRenameView', () => {
+    const onRenameView = vi.fn()
+    render(<FolderSidebar notes={[]} activeFolderId={null} onSelectFolder={() => {}}
+                          activeTag={null} onSelectTag={() => {}} savedViews={[view]}
+                          onRenameView={onRenameView} />)
+    fireEvent.click(screen.getByLabelText('Rename Active Theses'))
+    const input = screen.getByDisplayValue('Active Theses')
+    fireEvent.change(input, { target: { value: 'Should not save' } })
+    fireEvent.keyDown(input, { key: 'Escape' })
+    expect(onRenameView).not.toHaveBeenCalled()
+    expect(screen.getByText('Active Theses')).toBeInTheDocument()
+  })
+
+  it('an empty submit is a cancel, never an empty-named view', () => {
+    const onRenameView = vi.fn()
+    render(<FolderSidebar notes={[]} activeFolderId={null} onSelectFolder={() => {}}
+                          activeTag={null} onSelectTag={() => {}} savedViews={[view]}
+                          onRenameView={onRenameView} />)
+    fireEvent.click(screen.getByLabelText('Rename Active Theses'))
+    const input = screen.getByDisplayValue('Active Theses')
+    fireEvent.change(input, { target: { value: '   ' } })
+    fireEvent.keyDown(input, { key: 'Enter' })
+    expect(onRenameView).not.toHaveBeenCalled()
+  })
+
+  it('clicking Delete calls onDeleteView with the id and name, WITHOUT selecting the view', () => {
+    const onDeleteView = vi.fn()
+    const onSelectView = vi.fn()
+    render(<FolderSidebar notes={[]} activeFolderId={null} onSelectFolder={() => {}}
+                          activeTag={null} onSelectTag={() => {}} savedViews={[view]}
+                          onDeleteView={onDeleteView} onSelectView={onSelectView} />)
+    fireEvent.click(screen.getByLabelText('Delete Active Theses'))
+    expect(onDeleteView).toHaveBeenCalledWith('v1', 'Active Theses')
+    expect(onSelectView).not.toHaveBeenCalled()
+  })
+
+  it('clicking Rename does NOT also select the view (stopPropagation)', () => {
+    const onSelectView = vi.fn()
+    render(<FolderSidebar notes={[]} activeFolderId={null} onSelectFolder={() => {}}
+                          activeTag={null} onSelectTag={() => {}} savedViews={[view]}
+                          onSelectView={onSelectView} />)
+    fireEvent.click(screen.getByLabelText('Rename Active Theses'))
+    expect(onSelectView).not.toHaveBeenCalled()
+  })
+})
+
+/**
  * ⛔⛔ RENAME HAD ZERO VISUAL AFFORDANCE — discoverable only by
  * double-clicking a folder row, a desktop-file-manager convention this
  * product never taught anywhere. Competitive audit finding UX #10,

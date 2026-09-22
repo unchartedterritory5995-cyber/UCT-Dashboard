@@ -30,6 +30,7 @@ import { useOutboxDrain } from '../lib/offline/useOutboxDrain'
 import { useBlockedNotes } from '../lib/offline/useBlockedNotes'
 import { reportOptIn } from '../lib/offline/offlineOptInEvent'
 import { SAVEABLE_VIEW_MODES, VIEW_MODES } from '../lib/savedViewModes'
+import ConfirmModal from '../components/ConfirmModal'
 import styles from './NotebookTab.module.css'
 import { settleNoteWrite } from '../lib/offline/settleNoteWrite'
 
@@ -164,7 +165,35 @@ export default function NotebookTab() {
   const [propertyFilter, setPropertyFilter] = useState(null)
   const [propertySort, setPropertySort] = useState(null)
   const [saveViewOpen, setSaveViewOpen] = useState(false)
-  const { savedViews, create: createSavedView } = useJ2SavedViews()
+  const { savedViews, create: createSavedView, rename: renameSavedView, remove: removeSavedView } = useJ2SavedViews()
+  // ⛔⛔ UX #1, 2026-09-22: the hook has always fully implemented rename/
+  // remove -- the UI just never imported them. Mirrors the folder
+  // rename/delete handlers in FolderSidebar.jsx exactly (same "clear the
+  // active selection if it was THIS one" rule delete already needs for
+  // folders, `onSelectFolder(null)` there / `setActiveView(null)` here),
+  // since NotebookTab is the only place `activeView` state lives.
+  const [savedViewError, setSavedViewError] = useState(null)
+  const onRenameView = async (id, name) => {
+    try {
+      await renameSavedView(id, name)
+    } catch (err) {
+      console.error('[notebook] rename saved view failed', err)
+      setSavedViewError("Couldn't rename that view. It kept its old name.")
+    }
+  }
+  const [deleteViewTarget, setDeleteViewTarget] = useState(null) // { id, name } | null
+  const onDeleteViewRequest = (id, name) => setDeleteViewTarget({ id, name })
+  const onDeleteViewConfirm = async () => {
+    if (!deleteViewTarget) return
+    const { id } = deleteViewTarget
+    try {
+      await removeSavedView(id)
+      if (activeView?.id === id) setActiveView(null)
+    } catch (err) {
+      console.error('[notebook] delete saved view failed', err)
+      setSavedViewError("Couldn't delete that view. Nothing was removed.")
+    }
+  }
   const { propertyDefs } = useJ2PropertyDefs()
   const [creating, setCreating] = useState(false)
   // App focus (= charts Group A) seeds a new entry's ticker.
@@ -661,6 +690,8 @@ export default function NotebookTab() {
             savedViews={savedViews}
             activeViewId={activeView?.id ?? null}
             onSelectView={handleSelectView}
+            onRenameView={onRenameView}
+            onDeleteView={onDeleteViewRequest}
             onAddStarterViews={addStarterThesisViews}
             isHome={isHome}
             onSelectAllNotes={selectAllNotes}
@@ -848,6 +879,25 @@ export default function NotebookTab() {
           onClose={() => setSaveViewOpen(false)}
           onSave={handleSaveCurrentView}
         />
+
+        {/* UX #1, 2026-09-22: mirrors the folder-delete ConfirmModal in
+            FolderSidebar.jsx exactly -- same reason it lives here rather
+            than there (folders own rename/remove via their OWN hook call;
+            saved views' rename/remove had to live wherever `activeView`
+            state lives, which is here, not FolderSidebar). */}
+        {deleteViewTarget && (
+          <ConfirmModal
+            title={`Delete view "${deleteViewTarget.name}"?`}
+            body="This removes the saved view. It does not delete any notes."
+            confirmLabel="Delete"
+            tone="danger"
+            onConfirm={onDeleteViewConfirm}
+            onClose={() => setDeleteViewTarget(null)}
+          />
+        )}
+        {savedViewError && (
+          <div className={styles.error} role="alert">{savedViewError}</div>
+        )}
 
         {error && (
           <div className={styles.error} role="alert">

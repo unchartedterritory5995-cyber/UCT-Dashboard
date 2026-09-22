@@ -208,9 +208,24 @@ function RecencySection({ label, icon, notes, activeNoteId, onOpenNote }) {
 // moment the member has any saved view (their own or the starter set), so
 // nothing here becomes nav clutter for someone who doesn't use thesis
 // properties at all.
-function SavedViewsSection({ views, activeViewId, onSelectView, onAddStarterViews }) {
+function SavedViewsSection({ views, activeViewId, onSelectView, onRenameView, onDeleteView, onAddStarterViews }) {
   const [expanded, setExpanded] = useState(true)
   const [addingStarters, setAddingStarters] = useState(false)
+  // ⛔⛔ UX #1, 2026-09-22: this section's own comment two paragraphs above
+  // has always claimed saved views are "fully renameable/deletable" -- the
+  // hook (useJ2SavedViews.js) always was; nothing in this component ever
+  // called it. Mirrors FolderNode's exact rename-affordance pattern
+  // (double-click OR a visible pencil icon opens an inline input; Enter/
+  // blur submits, Escape cancels) so a member learns one interaction, not
+  // two, for renaming anything in this sidebar.
+  const [editingViewId, setEditingViewId] = useState(null)
+  const [editViewName, setEditViewName] = useState('')
+  const submitViewRename = (id) => {
+    const trimmed = editViewName.trim()
+    setEditingViewId(null)
+    if (!trimmed) return // empty submit = cancel, never an empty-named view
+    onRenameView(id, trimmed)
+  }
   if (!views.length) {
     if (!onAddStarterViews) return null
     return (
@@ -252,30 +267,59 @@ function SavedViewsSection({ views, activeViewId, onSelectView, onAddStarterView
       {expanded && views.map((view) => (
         <div key={view.id} className={styles.rowWrap}>
           <span className={styles.disclosureSpacer} aria-hidden="true" />
-          <button
-            type="button"
-            className={`${styles.noteRow} ${activeViewId === view.id ? styles.rowActive : ''}`}
-            onClick={() => onSelectView(view)}
-            title={view.name}
-          >
-            {/*
-              ⛔ DERIVED FROM VIEW_MODES, NEVER A LIST/TABLE BINARY -- a saved
-              Board/Calendar/Graph view used to render the same generic "rows"
-              icon as List, a hand-typed second authority over data
-              `lib/savedViewModes` already has correct. An unrecognised
-              viewType (an older view, or one saved by a newer client) falls
-              back to `rows`, matching FALLBACK_VIEW_MODE ('list'). Competitive
-              audit finding UX #6, 2026-09-22. `data-view-icon` is a test seam
-              only, not a product attribute.
-            */}
-            <UIcon
-              name={VIEW_MODES.find((m) => m.id === view.viewType)?.icon || 'rows'}
-              size={13}
-              gold={false}
-              data-view-icon={VIEW_MODES.find((m) => m.id === view.viewType)?.icon || 'rows'}
+          {editingViewId === view.id ? (
+            <input
+              className={styles.editInput}
+              autoFocus
+              value={editViewName}
+              onChange={(e) => setEditViewName(e.target.value)}
+              onBlur={() => submitViewRename(view.id)}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter') submitViewRename(view.id)
+                if (e.key === 'Escape') setEditingViewId(null)
+              }}
             />
-            <span className={styles.noteTitle}>{view.name}</span>
-          </button>
+          ) : (
+            <button
+              type="button"
+              className={`${styles.noteRow} ${activeViewId === view.id ? styles.rowActive : ''}`}
+              onClick={() => onSelectView(view)}
+              onDoubleClick={() => { setEditingViewId(view.id); setEditViewName(view.name) }}
+              title={view.name}
+            >
+              {/*
+                ⛔ DERIVED FROM VIEW_MODES, NEVER A LIST/TABLE BINARY -- a saved
+                Board/Calendar/Graph view used to render the same generic "rows"
+                icon as List, a hand-typed second authority over data
+                `lib/savedViewModes` already has correct. An unrecognised
+                viewType (an older view, or one saved by a newer client) falls
+                back to `rows`, matching FALLBACK_VIEW_MODE ('list'). Competitive
+                audit finding UX #6, 2026-09-22. `data-view-icon` is a test seam
+                only, not a product attribute.
+              */}
+              <UIcon
+                name={VIEW_MODES.find((m) => m.id === view.viewType)?.icon || 'rows'}
+                size={13}
+                gold={false}
+                data-view-icon={VIEW_MODES.find((m) => m.id === view.viewType)?.icon || 'rows'}
+              />
+              <span className={styles.noteTitle}>{view.name}</span>
+              <span className={styles.actions}>
+                <span
+                  className={styles.iconBtn}
+                  onClick={(e) => { e.stopPropagation(); setEditingViewId(view.id); setEditViewName(view.name) }}
+                  title="Rename view"
+                  aria-label={`Rename ${view.name}`}
+                ><UIcon name="edit" size={11} gold={false} /></span>
+                <span
+                  className={styles.iconBtn}
+                  onClick={(e) => { e.stopPropagation(); onDeleteView(view.id, view.name) }}
+                  title="Delete view"
+                  aria-label={`Delete ${view.name}`}
+                ><UIcon name="x" size={11} gold={false} /></span>
+              </span>
+            </button>
+          )}
         </div>
       ))}
     </div>
@@ -513,6 +557,10 @@ export default function FolderSidebar({
   savedViews = [],
   activeViewId = null,
   onSelectView = () => {},
+  // UX #1, 2026-09-22: optional, default no-op so an existing caller/test
+  // that only exercises selection still renders exactly as before.
+  onRenameView = () => {},
+  onDeleteView = () => {},
   onAddStarterViews = null,
   // Wave H: Research Home is now the bare-root state (checkpoint decision
   // 32/33) -- both null, same as "All notes" with no filter, so an explicit
@@ -1153,6 +1201,8 @@ export default function FolderSidebar({
             views={savedViews}
             activeViewId={activeViewId}
             onSelectView={onSelectView}
+            onRenameView={onRenameView}
+            onDeleteView={onDeleteView}
             onAddStarterViews={onAddStarterViews}
           />
           <div className={styles.section}>
