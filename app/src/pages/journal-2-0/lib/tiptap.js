@@ -7,7 +7,7 @@ import StarterKit from '@tiptap/starter-kit'
 import { TextStyle, FontFamily, FontSize } from '@tiptap/extension-text-style'
 import { ResizableImage } from './resizableImage'
 import Link from '@tiptap/extension-link'
-import Placeholder from '@tiptap/extension-placeholder'
+import { NotebookPlaceholder } from './notebookPlaceholder'
 import { Table, TableRow, TableHeader, TableCell } from '@tiptap/extension-table'
 import { TaskList, TaskItem } from '@tiptap/extension-list'
 import { SlashMenuExtension } from '../components/notebook/SlashMenu'
@@ -52,7 +52,9 @@ export function buildExtensions({ placeholder = 'Start writing… or type / for 
       isAllowedUri: (url, ctx) => url.startsWith('/journal') || url.startsWith('import-link://') || ctx.defaultValidate(url),
       HTMLAttributes: { rel: 'noreferrer', target: '_blank' },
     }),
-    Placeholder.configure({ placeholder }),
+    // G-035: NotebookPlaceholder, not the stock @tiptap/extension-placeholder --
+    // see the header comment on notebookPlaceholder.js for the measured reason.
+    NotebookPlaceholder.configure({ placeholder }),
     Table.configure({ resizable: false }), TableRow, TableHeader, TableCell,
     TaskList, TaskItem.configure({ nested: true }),
     AttachmentChip,
