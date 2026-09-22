@@ -4211,5 +4211,13 @@ already-live page. A member who has never had a Leadership 20 pick sees nothing
 different at all. No schema change, no new write path, no change to
 `get_leader_persistence` or the Brain Pack pipeline.
 
-**Not yet deployed to production** — built and pushed to `feat/s7-price-level`
-only, same as G and H were before their own cherry-pick.
+✅ **DEPLOYED TO PRODUCTION, same day.** Cherry-picked from `feat/s7-price-level`
+(`4b3958155`) onto `master` as `f2b3a406d`. First push attempt hit the normal
+settle-window refusal (another session's deploy was still inside its 3-5 min
+settle period) — waited it out with a bounded retry loop rather than
+self-attesting past it; landed clean on attempt 7 once master was quiet. Railway
+`web` confirmed `SUCCESS` on `f2b3a406d` specifically (polled the deployment
+list's top entry by commit SHA, not just by status, after an earlier check
+mistakenly read the *previous* commit's stale SUCCESS as if it were this one's).
+Verified live via `/api/health` returning `uptime_seconds: 65` — a fresh boot,
+not a stale process.
