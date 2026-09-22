@@ -38,6 +38,9 @@ import { useNeighborWarm } from '../../hooks/useNeighborWarm'
 import { expectedLatestCompletedBar, expectedBarsBehind, isCurrentEnoughForPaint } from '../../utils/marketSession'
 import { memPeek } from '../../utils/barsMemCache'
 import { idbGet } from '../../utils/barsIDB'
+import { mergeChartSettings } from '../../components/chart/chartDefaults'
+import * as registry from '../../components/chart/engine/nativeRegistry'
+import { addInstance } from '../../components/chart/engine/instanceControls'
 
 // ── Lock 3: no preference write can leave this page ──
 const BLOCKED = []
@@ -75,6 +78,19 @@ window.__scanHarnessBlocked = BLOCKED
 const params = new URLSearchParams(location.search)
 const TF = params.get('tf') || '5'
 const SYMS = (params.get('syms') || '').split(',').filter(Boolean)
+// `?studies=1` — the legend-handoff harness. Seeds THIS widget's own
+// `opts.settings` (page state, never a preference) with the default moving
+// averages + Volume, plus an own-pane RSI and a multi-output MACD, so every
+// legend surface — Bar Info, the study stack, the volume strip and the pane
+// readouts — is on screen at once. Added through the product's own writer.
+const STUDIES = params.get('studies') === '1'
+const seedSettings = () => {
+  if (!STUDIES) return undefined
+  let cs = mergeChartSettings(null)
+  cs = addInstance(cs, 'rsi', registry)
+  cs = addInstance(cs, 'macd', registry)
+  return cs
+}
 
 /** What the harness can see about a symbol WITHOUT touching the network — the
  *  "is the next click already prepared?" question, asked before every switch. */
@@ -96,7 +112,10 @@ async function readiness(sym, tf) {
 
 function Harness() {
   const [groupSyms, setGroupSyms] = useState({ A: SYMS[0] || 'SPY', B: null, C: null, D: null })
-  const [opts, setOpts] = useState({ tf: TF })
+  const [opts, setOpts] = useState(() => {
+    const settings = seedSettings()
+    return settings ? { tf: TF, settings } : { tf: TF }
+  })
   const activeChartRef = useRef(null)
   const activeWatchlistRef = useRef(null)
   const chartApiById = useRef(new Map())
