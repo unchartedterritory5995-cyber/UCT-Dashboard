@@ -94,7 +94,8 @@ export default function useJ2CoachChat(accountId) {
         }
       }
     } catch (e) {
-      setStreamError(String(e.message || e))
+      console.error('Compass chat stream failed:', e)
+      setStreamError("Compass didn't respond. Try again.")
     } finally {
       setStreaming(false)
       setStreamingTokens('')
