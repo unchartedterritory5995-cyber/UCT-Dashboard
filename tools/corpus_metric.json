@@ -522,9 +522,11 @@
       "host": false,
       "screener": false,
       "hostGuards": [
+        "pine:builtin",
         "pine:function"
       ],
       "screenerGuards": [
+        "pine:builtin",
         "pine:function"
       ]
     },
@@ -2099,10 +2101,10 @@
       "host": false,
       "screener": false,
       "hostGuards": [
-        "pine:function"
+        "pine:collection"
       ],
       "screenerGuards": [
-        "pine:function"
+        "pine:collection"
       ]
     },
     {

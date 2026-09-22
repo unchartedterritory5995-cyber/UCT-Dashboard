@@ -87,21 +87,48 @@ describe('⭐ `math.pi` is PINNED, and it is a constant rather than a function',
   })
 })
 
-describe('⛔⛔ `ceil` / `floor` are MEASURED and NOT PINNED — the price is the reason', () => {
-  it('they still refuse, and the refusal is the honest one', () => {
+describe('⭐⭐ `ceil` / `floor` — MEASURED, and NOW PINNED (2026-09-22)', () => {
+  // ⚰️ THIS BLOCK USED TO ASSERT THE OPPOSITE, and the flip is the condition it
+  // set for itself, MET rather than waived. It read:
+  //
+  //     "⛔ If this ever flips, the corpus cases and the re-frozen digests must
+  //      have landed WITH it — that is what the two red gates were asking for."
+  //
+  // They landed with it. Declaring the two names reddened ELEVEN derived
+  // artifacts — `GRAMMAR.md`, the manifest counts in `parse.test.js`, the
+  // sentence totality rails, `pine.derived`, `pine.window`, `pine.windowAdvice`
+  // and the thinkScript `Floor` refusal — and every one was re-frozen in the
+  // same commit. ⭐ That red fan IS the gate working: the price this block named
+  // was real, it was paid, and nothing was relaxed to avoid paying it.
+  //
+  // ⭐⭐ AND NO NEW CAPTURE WAS NEEDED, which is why it was cheap enough to do.
+  // The reading was already banked below and it is the discriminating one:
+  // `floor(-2.5) = -3`, `ceil(-2.5) = -2`, verdict "toward -∞". That is the
+  // NATIVE pair, so the implementation needed no hand-written correction the way
+  // `round`'s away-from-zero half-rule did.
+  //
+  // ⭐ WHY NOW: they were the LAST TWO names missing from the whole `math.*`
+  // family — abs, max, min, round, sqrt, pow, sign, avg, log, exp and sum all
+  // already resolved in both lanes — and `math.floor` is what stood between
+  // `market-structure-by-leviathan` and building.
+  it('they RESOLVE now, in both lanes, and no longer refuse', () => {
     for (const src of ['plot(math.ceil(close))', 'plot(math.floor(close))']) {
-      const r = tr(src, { strict: true }).refusals || []
-      expect(r.length, src).toBe(1)
-      expect(r[0].guard, src).toBe('pine:function')
+      expect(tr(src, { strict: true }).refusals || [], src).toEqual([])
+      expect(tr(src, {}).refusals || [], src).toEqual([])
     }
   })
 
-  it('and the table does NOT declare them', () => {
-    // ⛔ If this ever flips, the corpus cases and the re-frozen digests must have
-    // landed WITH it — that is what the two red gates were asking for.
-    expect(TABLE.functions.ceil).toBeUndefined()
-    expect(TABLE.functions.floor).toBeUndefined()
+  it('and the table DECLARES them', () => {
+    expect(TABLE.functions.ceil).toBeDefined()
+    expect(TABLE.functions.floor).toBeDefined()
+    // ⛔ ORDINARY POINTWISE ENTRIES — a lookback of 0 and one source argument.
+    // A window form here would be a different claim about the grammar.
+    for (const n of ['ceil', 'floor']) {
+      expect(TABLE.functions[n].lookback, n).toBe(0)
+      expect(TABLE.functions[n].args, n).toEqual(['series'])
+    }
   })
+
 
   it('⭐ but the reading is banked, and it is the discriminating one', () => {
     expect(cap.readings['math.ceil'].at_negative_2p5).toBe(-2)

@@ -357,6 +357,11 @@ const FORMS = [
   { kind: 'call', name: 'wma', parts: ['the ', 1, '-bar weighted average of ', 0] },
   { kind: 'call', name: 'sign', parts: ['the sign of ', 0] },
   { kind: 'call', name: 'round', parts: [0, ' rounded to a whole number'] },
+  // ⭐ `ceil` / `floor` (2026-09-22). The two literals differ from `round`'s by
+  // an inserted word, so no form is a prefix of another and the reader stays
+  // unambiguous — which the round-trip rail below checks rather than assumes.
+  { kind: 'call', name: 'ceil', parts: [0, ' rounded UP to a whole number'] },
+  { kind: 'call', name: 'floor', parts: [0, ' rounded DOWN to a whole number'] },
   { kind: 'call', name: 'na', parts: [0, ' being unknown'] },
   { kind: 'call', name: 'nz', parts: [0, ' where it is known, and ', 1, ' where it is not'] },
 
@@ -1020,6 +1025,7 @@ describe('totality over the closed table — derived from the manifest, never ha
       'function:bbw',
       'function:bop',
       'function:cci',
+      'function:ceil',
       'function:change',
       'function:cos',
       'function:crossOver',
@@ -1049,6 +1055,7 @@ describe('totality over the closed table — derived from the manifest, never ha
       // `ta.pvt`'s windowed-delta bounded form, mirroring `obvN`). Two named
       // entries, not a bumped count.
       'function:falling',
+      'function:floor',
       'function:highest',
       'function:highestbars',
       'function:hma',
@@ -1102,7 +1109,7 @@ describe('totality over the closed table — derived from the manifest, never ha
     // into the CLOCK rather than into a family of their own. The count moves
     // deliberately, beside the list it describes, because the list is what the
     // rail actually asserts.
-    expect(entries.length).toBe(110)
+    expect(entries.length).toBe(112)
   })
 
   it('EVERY declared entry renders, is ASCII, and ROUND-TRIPS — by construction', () => {
@@ -1112,7 +1119,7 @@ describe('totality over the closed table — derived from the manifest, never ha
     // loop. ⛔ The count is asserted against the list above rather than retyped
     // as prose a second time.
     const subjects = treesForTheWholeTable(TABLE)
-    expect(subjects.length).toBe(110)
+    expect(subjects.length).toBe(112)
     for (const { entry, ast: tree } of subjects) {
       const s = sentenceFor(tree, {})
       expect(s, `${entry} rendered an empty sentence`).not.toBe('')
@@ -2511,7 +2518,7 @@ describe('the inversion rail — a sentence round-trips to the same maths', () =
     // rather than one number for exactly this reason: the corpus half moves on
     // its own and the table half moves on its own, and a single literal would
     // hide which one did.
-    expect(sentences.length).toBe(CORPUS.cases.length + 110)
+    expect(sentences.length).toBe(CORPUS.cases.length + 112)
     for (const s of sentences) {
       const found = readSentenceCandidates(s)
       expect(found.map((f) => f.via), `${found.length} parses of: ${s}`).toHaveLength(1)

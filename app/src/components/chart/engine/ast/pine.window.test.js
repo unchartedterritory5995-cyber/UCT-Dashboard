@@ -292,13 +292,26 @@ describe('the fold computes what the ENGINE computes, derived', () => {
       ['len = input(20)\nplot(sma(close, 0 - len))', 'pine:window', '0', 4, 17],
       ['plot(sma(close, close > open ? 10 : 20))', 'pine:window', 'close', 3, 17],
       ['plot(sma(close, highest(close, 5)))', 'pine:window', 'highest', 3, 17],
-      ['len = input(20)\nplot(sma(close, floor(len / 2)))', 'pine:function', 'floor', 4, 17],
+      // ⚰️ REMOVED 2026-09-22 — AND ITS REMOVAL IS A GAIN, NOT A RELAXATION.
+      // This row pinned `floor` refusing at `pine:function` because the table
+      // declared no such callable. It declares one now, so the expression FOLDS:
+      // `sma(close, floor(len / 2))` becomes `sma(close, 10)`. The positive case
+      // is asserted below, so the behaviour is PINNED rather than merely un-pinned.
     ]
     const got = PINNED.map(([body]) => {
       const r = refusal(body)
       return [body, r.guard, r.token, r.line, r.column]
     })
     expect(got).toEqual(PINNED)
+  })
+
+  it('⭐ …and `floor(len / 2)` now FOLDS, which is what that row used to forbid', () => {
+    // ⛔ THE OTHER HALF OF REMOVING A REFUSAL. Deleting a pinned row proves only
+    // that it stopped refusing — it could have started doing anything. This says
+    // what it does instead, and the VALUE is what makes it a fold rather than a
+    // coincidence.
+    const src = ['len = input(20)', 'plot(sma(close, floor(len / 2)))'].join('\n')
+    expect(formula(src)).toBe('sma(close, 10)')
   })
 })
 

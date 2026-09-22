@@ -387,6 +387,17 @@
       "yields": "num",
       "sentence": "the {3}-bar commodity channel index of {0}, {1} and {2}"
     },
+    "ceil": {
+      "args": [
+        "series"
+      ],
+      "argRoles": [
+        "source"
+      ],
+      "lookback": 0,
+      "yields": "num",
+      "sentence": "{0} rounded UP to a whole number"
+    },
     "change": {
       "args": [
         "series"
@@ -545,6 +556,17 @@
       "lookback": "arg1",
       "yields": "bool",
       "sentence": "{0} falling for {1} bars"
+    },
+    "floor": {
+      "args": [
+        "series"
+      ],
+      "argRoles": [
+        "source"
+      ],
+      "lookback": 0,
+      "yields": "num",
+      "sentence": "{0} rounded DOWN to a whole number"
     },
     "highest": {
       "args": [

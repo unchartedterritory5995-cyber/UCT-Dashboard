@@ -449,7 +449,7 @@ describe('the hash that decides a rev bump', () => {
 })
 
 describe('the manifest', () => {
-  it('declares 5 series, 19 clock, 15 operators, 71 functions and 137 scalars — 247 names, one grammar', () => {
+  it('declares 5 series, 19 clock, 15 operators, 73 functions and 137 scalars — 249 names, one grammar', () => {
     expect(Object.keys(TABLE.series)).toHaveLength(5)
     // ⭐ THE FIFTH SECTION (tableVersion 2, 2026-08-26). Thirteen bar-clock
     // values — the seven ET wall-clock fields, `sessionfirst`, `barindex` and the
@@ -530,7 +530,16 @@ describe('the manifest', () => {
     // reader, `reads: "bars"`, the structural mirror of `obvN` — its window is
     // `arg0`, the same declaration shape `obvN` already uses). No new node
     // type, argument kind, or lookback form. `tableVersion` is unmoved.
-    expect(Object.keys(TABLE.functions)).toHaveLength(71)
+    // ⭐ 71 -> 73 (2026-09-22): `ceil` and `floor`, the LAST TWO names missing
+    // from the whole `math.*` family — every other one the corpus uses (abs,
+    // max, min, round, sqrt, pow, sign, avg, log, exp, sum) already resolved in
+    // both lanes. Declared under the ruling `pine.nineNames.test.js` recorded:
+    // the vendor reading was already BANKED and says `floor(-2.5) = -3`,
+    // `ceil(-2.5) = -2`, verdict "toward -∞", so the implementation needed no
+    // hand-written correction the way `round`'s half-rule did. Ordinary
+    // pointwise entries — no new node type, argument kind or lookback form, and
+    // `tableVersion` is unmoved.
+    expect(Object.keys(TABLE.functions)).toHaveLength(73)
     // ⭐ THE FOURTH SECTION (Phase E Task 1). Counted SEPARATELY from the three
     // above, not folded into one total: 48 is the BAR vocabulary a corpus case
     // can exercise against 579 bars, and 54 is the per-symbol vocabulary that
@@ -625,9 +634,11 @@ describe('the manifest', () => {
     // _barstate` says why `barstate.*` is evaluated per bar on a pane and
     // still folded on a screen, and why the trading calendar stays in Python
     // rather than being restated in JS. Scalar half untouched at 137.
-    expect(bar.size).toBe(110)
+    // ⭐ 110 -> 112 (2026-09-22): `ceil` and `floor`. Pointwise entries, no
+    // node type, no argument kind, no lookback form, `tableVersion` unmoved.
+    expect(bar.size).toBe(112)
     const declared = new Set([...bar, ...Object.keys(TABLE.scalars)])
-    expect(declared.size).toBe(247)
+    expect(declared.size).toBe(249)
     // ⚠️ `tableVersion` WENT 1 -> 2 ON 2026-08-26, AND THE CRITERION IN THIS
     // COMMENT IS WHY IT TOOK UNTIL NOW. It versions what a READER must have, and
     // for Phase E that was exactly "the node types and the keys a persisted tree

@@ -2099,14 +2099,31 @@ describe('the refusals this map makes BY NAME, and why each one is a refusal', (
     }
   })
 
-  it('⛔ Floor refuses — this engine declares no `floor` callable, measured', () => {
-    // Functions/Math---Trig/Floor — "Rounds a value down to the nearest integer".
-    // There is no `floor` in `closedTable.functions`, and `round` is round-to-
+  it('⭐⭐ Floor / Ceil MAP now — the manifest grew the callable they needed', () => {
+    // ⚰️ THIS CASE ASSERTED A REFUSAL, and the reason it gave was exact:
+    // *"There is no `floor` in `closedTable.functions`, and `round` is round-to-
     // whole (half away from zero), which is a DIFFERENT function on every value
-    // whose fraction is ≥ .5. Mapping it would be wrong on about half of all bars.
-    expect(guard('Floor(close)')).toBe('thinkscript:function')
-    expect(Object.keys(TABLE.functions)).not.toContain('floor')
-    expect(Object.keys(TABLE.functions)).not.toContain('ceil')
+    // whose fraction is >= .5. Mapping it would be wrong on about half of all
+    // bars."* That reasoning was right, and it is why `Floor` was never mapped
+    // onto `round` as a convenience.
+    //
+    // ⭐ WHAT CHANGED IS THE MANIFEST, NOT THE STANDARD. `floor` and `ceil` are
+    // declared now, so each thinkScript name maps onto ITSELF rather than onto an
+    // approximation — and the published definitions agree to the word:
+    // Functions/Math---Trig/Floor is "Rounds a value down to the nearest integer".
+    expect(Object.keys(TABLE.functions)).toContain('floor')
+    expect(Object.keys(TABLE.functions)).toContain('ceil')
+    const FLOOR_SRC = ['plot p = Floor(close);', ''].join('\n')
+    const CEIL_SRC = ['plot p = Ceil(close);', ''].join('\n')
+    expect(translateThinkScript(FLOOR_SRC).refusal).toBeFalsy()
+    expect(translateThinkScript(CEIL_SRC).refusal).toBeFalsy()
+
+    // ⛔⛔ AND THEY ARE NOT `round`, WHICH IS THE ENTIRE POINT OF THE OLD
+    // REFUSAL. A mapping onto `round` would agree on 2.4 and disagree on 2.5 —
+    // so the formulas must differ by NAME, not merely produce a number.
+    expect(formulaOf(FLOOR_SRC)).toContain('floor(')
+    expect(formulaOf(CEIL_SRC)).toContain('ceil(')
+    expect(formulaOf(FLOOR_SRC)).not.toContain('round(')
   })
 
   it('⛔⛔ RSI refuses BY NAME — the study page publishes NO default for `length` or `price`', () => {
@@ -2388,7 +2405,13 @@ describe('⭐⭐ THE ARGUMENT PLAN — the answer to the arity rail W3.4 left re
     // ⛔ THE FLOOR IS THEREFORE 1, NOT 5, AND THAT IS NOT A WEAKENING: the
     // per-shape rails below check the citation on all 22 rows, which is a wider
     // net than this list ever was.
-    expect(Object.keys(TS_UNCITED).length).toBeGreaterThan(0)
+    // ⚰️ AND IT IS EMPTY NOW (2026-09-22). `Floor` was the last entry, and it left
+    // because its reason stopped being true: the manifest declares `floor` and
+    // `ceil`, so both MAP onto themselves. ⭐ An empty roster is a real statement
+    // — no thinkScript name is currently refused for want of an engine callable —
+    // and the loop below is a no-op only because there is nothing left to refuse.
+    // The wider net the comment above names (a citation on all 22 shapes) still runs.
+    expect(Object.keys(TS_UNCITED).length).toBe(0)
     for (const [name, why] of Object.entries(TS_UNCITED)) {
       expect(why.length, name).toBeGreaterThan(60)
       expect(Object.keys(TS_CALL_SHAPES), `${name} is both mapped and refused`)
@@ -3232,7 +3255,10 @@ describe('🔴🔴 EVERY DOCUMENTATION-BLOCKED REFUSAL NAMES THE DOCUMENT IT NEE
     // unroller. No page Schwab could publish changes any of those, and saying one
     // would is the same false-reason defect pointed the other way.
     const msg = (src) => translateThinkScript(src).refusal.message
-    for (const src of ['plot p = Floor(close);\n', 'plot p = HighestAll(high);\n',
+    // ⚰️ `Floor(close)` WAS THE FIRST EXAMPLE HERE and left on 2026-09-22 for
+    // exactly the reason `MovingAverage(AverageType.HULL, …)` did, noted below:
+    // it stopped being a CAPABILITY refusal when the manifest declared `floor`.
+    for (const src of ['plot p = HighestAll(high);\n',
       'def s = fold i = 0 to 8 with p do p + close;\nplot q = s;\n',
       // ⚰️ `MovingAverage(AverageType.HULL, …)` WAS ON THIS LIST and is now a
       // CAPABILITY rather than a capability refusal — the manifest declares `hma`.

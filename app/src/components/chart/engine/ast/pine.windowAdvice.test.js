@@ -75,16 +75,39 @@ describe('🔴 the half-window the advice names is the one the manifest declares
     expect(up.worst).toBeGreaterThan(0.1)
   })
 
-  it('⛔ `floor` is NOT declared, so `idiv` is the only downward spelling a member can type', () => {
-    // The reason the advice offers `idiv` rather than the mathematically obvious
-    // name: advising `floor(…)` would hand a member a formula that refuses.
-    expect(Object.keys(TABLE.functions)).not.toContain('floor')
+  it('⚰️ `floor` IS declared now (2026-09-22) — so the advice text is STALE, not wrong', () => {
+    // ⚰️ THIS CASE ASSERTED THE OPPOSITE, and the reason it gave was true when
+    // it was written: *"advising `floor(…)` would hand a member a formula that
+    // refuses."* It no longer would. `ceil` and `floor` were declared on
+    // 2026-09-22 — the last two names missing from the whole `math.*` family.
+    expect(Object.keys(TABLE.functions)).toContain('floor')
     expect(Object.keys(TABLE.functions)).toContain('idiv')
     expect(Object.keys(TABLE.functions)).toContain('round')
-    // …and `idiv(x, 1)` really is the floor for a positive x — the value the
-    // advice prints. Derived through the engine, not asserted.
+
+    // ⭐ AND `floor` REALLY IS USABLE AS A WINDOW NOW, which is the half that
+    // makes this a gain rather than a bookkeeping change: the expression the
+    // advice exists to rescue translates on its own.
+    expect(col('floor(27.5)')[199]).toBe(27)
     expect(col('idiv(27.5, 1)')[199]).toBe(27)
+
+    // ⛔⛔ THE ADVICE TEXT STILL SAYS `idiv`, AND IT IS LEFT ALONE ON PURPOSE.
+    // `idiv(x, 1)` is still correct for a positive window, so nothing a member
+    // is told today is false — it is merely no longer the ONLY spelling. Changing
+    // member-facing copy is a product decision with its own assertions two cases
+    // down, and quietly rewriting it inside a maths change is how copy drifts
+    // away from the rulings that chose it.
+    //
+    // ⚠️ FOLLOW-UP, NAMED SO IT IS NOT LOST: offer `floor(…)` beside `idiv(…)`
+    // in `pine:window` advice. It is the name a member would reach for first,
+    // and the only reason it was not offered has now gone.
+    //
+    // ⛔ AND `floor` IS NOT A DROP-IN FOR `idiv` ON A NEGATIVE WINDOW — floor
+    // goes toward -∞ and integer division toward zero. A window is positive by
+    // construction, so they agree HERE and would not agree everywhere.
+    expect(col('floor(-2.5)')[199]).toBe(-3)
+    expect(col('idiv(-2.5, 1)')[199]).toBe(-2)
   })
+
 
   it('⭐ the advice names BOTH whole numbers, with their values, when they differ', () => {
     const r = refusalFor('plot(ta.wma(close, 55 * 1/2))')

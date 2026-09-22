@@ -1372,6 +1372,18 @@ const POINTWISE = Object.freeze({
   // ROUNDS IT TO EVEN. Pine rounds a half AWAY FROM ZERO and so does this, in
   // both lanes, spelled the same way. See `_functions_rounding`.
   round: (x) => (Number.isNaN(x) ? NaN : POINTWISE.sign(x) * Math.floor(Math.abs(x) + 0.5)),
+  // ⭐⭐ THE TWO WITH NO CONVENTION TO SETTLE, and that is worth stating beside
+  // `round`, which has one. `floor` is the largest integer not greater than x
+  // and `ceil` the smallest not less than x — identical on every platform, for
+  // every input. `round` needed a vendor capture because Pine rounds a half
+  // AWAY FROM ZERO, which neither `Math.round` (toward +∞) nor Python's
+  // `round` (to even) does. These two needed none.
+  // ⛔ THE NaN GUARD IS WRITTEN OUT EVEN THOUGH `Math.floor(NaN)` IS ALREADY
+  // NaN. Every other entry here states it, and "it happens to work" and "it is
+  // specified to" are different claims — the next person editing this line
+  // cannot see which one they are standing on.
+  floor: (x) => (Number.isNaN(x) ? NaN : Math.floor(x)),
+  ceil: (x) => (Number.isNaN(x) ? NaN : Math.ceil(x)),
   // ⭐⭐ THE TWO THAT DO NOT PROPAGATE, AND THEY ARE THE ONLY TWO. `na` INSPECTS
   // not-computable and `nz` REPLACES it — see `_functions_na` for why a table
   // built entirely around NaN meaning "we do not know" declares them anyway.
@@ -1874,6 +1886,16 @@ export const FN = Object.freeze({
   round: (series) => {
     const out = nan(series.length)
     for (let i = 0; i < series.length; i++) out[i] = POINTWISE.round(series[i])
+    return out
+  },
+  floor: (series) => {
+    const out = nan(series.length)
+    for (let i = 0; i < series.length; i++) out[i] = POINTWISE.floor(series[i])
+    return out
+  },
+  ceil: (series) => {
+    const out = nan(series.length)
+    for (let i = 0; i < series.length; i++) out[i] = POINTWISE.ceil(series[i])
     return out
   },
   na: (series) => {
