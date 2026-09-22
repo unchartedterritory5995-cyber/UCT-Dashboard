@@ -7,7 +7,7 @@
     "get_bars_before",
     "get_bars_since"
   ],
-  "modules_scanned": 1380,
+  "modules_scanned": 1423,
   "summary": {
     "named_access_count": 1,
     "positional_count": 31,
@@ -54,23 +54,23 @@
       "calls": [
         {
           "function": "get_bars",
-          "line": 392
+          "line": 393
         },
         {
           "function": "get_bars",
-          "line": 565
+          "line": 566
         },
         {
           "function": "get_bars",
-          "line": 583
+          "line": 584
         },
         {
           "function": "get_bars",
-          "line": 4256
+          "line": 4409
         }
       ],
       "evidence": {
-        "line": 399,
+        "line": 400,
         "pattern": "int-subscript",
         "index": 0
       }
@@ -168,71 +168,71 @@
       "calls": [
         {
           "function": "get_bars_since",
-          "line": 220
+          "line": 223
         },
         {
           "function": "get_bars",
-          "line": 1182
+          "line": 1283
         },
         {
           "function": "get_bars_since",
-          "line": 1514
+          "line": 1615
         },
         {
           "function": "get_bars",
-          "line": 1986
+          "line": 2087
         },
         {
           "function": "get_bars_before",
-          "line": 2064
+          "line": 2165
         },
         {
           "function": "get_bars_before",
-          "line": 2083
+          "line": 2184
         },
         {
           "function": "get_bars_before",
-          "line": 2143
+          "line": 2244
         },
         {
           "function": "get_bars_before",
-          "line": 2207
+          "line": 2308
         },
         {
           "function": "get_bars_since",
-          "line": 2328
+          "line": 2444
         },
         {
           "function": "get_bars",
-          "line": 2332
+          "line": 2448
         },
         {
           "function": "get_bars",
-          "line": 2712
+          "line": 2958
         },
         {
           "function": "get_bars",
-          "line": 2759
+          "line": 3005
         },
         {
           "function": "get_bars",
-          "line": 2844
+          "line": 3092
         },
         {
           "function": "get_bars",
-          "line": 2909
+          "line": 3157
         },
         {
           "function": "get_bars",
-          "line": 3003
+          "line": 3251
         },
         {
           "function": "get_bars",
-          "line": 3121
+          "line": 3389
         }
       ],
       "evidence": {
-        "line": 220,
+        "line": 223,
         "pattern": "int-subscript",
         "index": 0
       }
@@ -424,11 +424,11 @@
       "calls": [
         {
           "function": "get_bars",
-          "line": 969
+          "line": 1026
         }
       ],
       "evidence": {
-        "line": 645,
+        "line": 702,
         "pattern": "int-subscript",
         "index": 0
       }
@@ -438,15 +438,15 @@
       "calls": [
         {
           "function": "get_bars",
-          "line": 587
+          "line": 591
         },
         {
           "function": "get_bars",
-          "line": 614
+          "line": 618
         }
       ],
       "evidence": {
-        "line": 591,
+        "line": 595,
         "pattern": "int-subscript",
         "index": 0
       }
