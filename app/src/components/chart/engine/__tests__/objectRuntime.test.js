@@ -255,6 +255,28 @@ describe('C3B — the resource envelope', () => {
     expect(r.reason).toMatch(/more than 5 object operations/)
   })
 
+  it('⛔⛔ AND IT STOPS STEPPING — a spent envelope draws no further BARS', () => {
+    // ⚰️ THE STATUS CANNOT TELL A STOPPED RUN FROM ONE THAT KEPT GOING.
+    // `fail()` latches on the first breach, so `status` and `reason` read
+    // identically whether the walk ended there or ran every remaining bar —
+    // which is exactly the hole its sibling in `objectLoop.test.js` found inside
+    // ONE bar. This is the same claim one level up, across bars.
+    //
+    // ⛔ IT IS THE ONLY RAIL ON THE ENVELOPE STOP. That stop used to be the bar
+    // loop's own condition; it now lives inside `beginObjects().step`, because
+    // `runObjectLane` drives the drawing from inside the VM's bar loop and has
+    // no loop condition of its own. Work done is the only thing that separates
+    // reporting a runaway from ending one.
+    const ops = Array.from({ length: 12 }, (_, i) => ({
+      k: 'create', family: 'label', site: `s${i}`, into: null, when: null, props: {},
+    }))
+    const r = evaluateObjects(P({ limits: { opsPerBar: 2 }, ops }), ctxOf(40))
+    expect(r.status).toBe(OBJECT_STATUS.LIMIT_EXCEEDED)
+    // Bar 0 runs three ops — the third is the one that breaches — and no bar
+    // after it runs any. Forty bars' worth would be a hundred and twenty.
+    expect(r.stats.opsExecuted).toBe(3)
+  })
+
   it('⭐⭐ CREATE→DELETE across thousands of bars stays FLAT — this is the GC proof', () => {
     const prog = P({
       regs: [{ id: 'l', family: 'line' }],

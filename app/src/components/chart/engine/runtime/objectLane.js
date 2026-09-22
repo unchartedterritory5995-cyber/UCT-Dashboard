@@ -48,7 +48,7 @@ import { buildRuntimeIr } from '../ast/pineRuntimeFrontend.js'
 // gate and the columns read separately. See docs/pine/barstate.md.
 import { runtimeClockOpts, newestBarIsFormingFrom } from '../ast/pineRuntimeClock.js'
 import { bindObjectProgram, treeRefsOfOp } from '../ast/objectProgram.js'
-import { evaluateObjects } from '../objectRuntime.js'
+import { beginObjects } from '../objectRuntime.js'
 import { lowerIrProgram } from './lowerIr.js'
 import { execute } from './vm.js'
 
@@ -109,6 +109,99 @@ function nothingDrawn(diagnostics) {
     message: 'this script creates no line, label, box, table or linefill — it '
       + 'draws with plots, which the object lane does not carry',
   }
+}
+
+/**
+ * ⭐⭐ THE PER-ROW TREES, RESOLVED ONCE — THE GUARD AND THE COSTING READ THE SAME WALK.
+ *
+ * Extracted from `buildObjectLane` unchanged so that the instrument which
+ * measures what per-bar iteration storage would COST cannot drift from the
+ * guard that decides whether it is needed. A second walk over the same ops
+ * would be a second authority over one value, and the value in question is
+ * "is this drawing reading rows from the wrong moment".
+ *
+ * ⛔ IT REFUSES NOTHING. It REPORTS `unbounded` and `offender`; the caller
+ * turns those into refusals, in the order it always did.
+ *
+ * @returns {{iterSpecs:object[], iterTreeIndex:Map<number,number>,
+ *            orphanTrees:Set<number>, offender:object|null,
+ *            unbounded:object|null, iterated:object}}
+ */
+export function resolveIterTrees(objects, trees) {
+  const iterated = objects.iteratedTrees || {}
+  const iterSet = new Set(Object.keys(iterated).map(Number))
+
+  // tree index → the loop enclosing the op that READS it.
+  //
+  // ⭐ ONE TREE HAS EXACTLY ONE READER, and that is a property of raw-tree mode
+  // rather than an assumption: `internTree` dedupes by `printFormula`, which
+  // throws on a raw parse node, so every occurrence interns its own index.
+  // Measured over the committed corpus — 218 iterated trees across 153
+  // scripts, ZERO read by more than one op. `iteratedTreeReaders.test.js`
+  // holds that invariant, so if dedupe is ever switched on here the rail names
+  // it instead of this quietly keeping whichever loop was walked last.
+  // ⛔ A refusal for the two-reader case was written first and then REMOVED: no
+  // fixture could make it fire, and a guard that cannot fire reads as
+  // protection without being any.
+  const readBy = new Map()
+  let offender = null
+  let unbounded = null
+  const walkReads = (list, reachedIn, loop) => {
+    for (const op of list || []) {
+      if (!op || typeof op !== 'object') continue
+      // ⭐ `objectRuntime` skips a `lastBarOnly` op unless `bar === barCount-1`,
+      // and a loop's body only runs when the loop op itself runs — so a position
+      // is last-bar-only if ANY op enclosing it is, or it is itself.
+      const reached = reachedIn || !!op.lastBarOnly
+      for (const i of treeRefsOfOp(op)) {
+        if (!iterSet.has(i)) continue
+        // ⭐ `lastBarOnly` IS RECORDED PER TREE, not just as the one `offender`.
+        // Which buffers need a BAR DIMENSION is exactly this set, and a single
+        // first-offender field cannot answer "how many" — which is the number
+        // the storage decision turns on.
+        if (!readBy.has(i)) readBy.set(i, { loop, lastBarOnly: reached })
+        // ⛔ SAFETY IS DECIDED HERE, NOT FROM `readBy` — so a second reader (if
+        // dedupe is ever enabled) can change which BOUNDS are chosen but can
+        // never turn an every-bar read into a compile.
+        if (!reached && !offender) offender = { k: op.k, counter: loop && loop.id }
+      }
+      if (op.k === 'loop') walkReads(op.body, reached, op)
+    }
+  }
+  walkReads(objects.ops, false, null)
+
+  const iterSpecs = []
+  const iterTreeIndex = new Map()
+  const orphanTrees = new Set()
+  for (const i of [...iterSet].sort((a, b) => a - b)) {
+    const read = readBy.get(i)
+    // ⭐⭐ AN ORPHAN IS DROPPED, NOT REFUSED ON. A tree can be marked `iterated`
+    // at intern time and then lose the op that would have read it — the object
+    // pass drops an op whose guard, handle or content it cannot read, and the
+    // tree it already interned stays behind. Refusing the whole drawing because
+    // a value NOTHING READS mentions a loop counter fails a script for a row it
+    // does not draw. It keeps its output slot (passed as `null` below) so the
+    // tree→output map stays index-aligned.
+    if (!read) { orphanTrees.add(i); continue }
+    // ⛔ REPORTED, NOT THROWN. This walk is also the costing instrument's only
+    // reader (`iterStorageCost.measure.test.js`), and an instrument that cannot
+    // see past the first refusal measures the guard instead of the corpus.
+    if (!read.loop) { unbounded = { tree: i, counter: iterated[i] }; break }
+    iterTreeIndex.set(i, iterSpecs.length)
+    iterSpecs.push({
+      node: trees[i],
+      counter: read.loop.id,
+      from: read.loop.fromNode,
+      to: read.loop.toNode,
+      // ⭐⭐ THE ONE BIT THE STORAGE DECISION TURNS ON. A buffer read only on
+      // the last bar can stay flat — the last bar is the bar that wrote it.
+      // Everything else needs the value AS OF THE BAR BEING DRAWN.
+      tree: i,
+      lastBarOnly: read.lastBarOnly === true,
+    })
+  }
+
+  return { iterSpecs, iterTreeIndex, orphanTrees, offender, unbounded, iterated }
 }
 
 /**
@@ -174,89 +267,44 @@ export function buildObjectLane(source, opts = {}) {
   // "compiles" would have meant a table of real numbers from the wrong moment.
   // The cheap fix was not merely imprecise; it was wrong in the dangerous
   // direction.
-  const iterated = objects.iteratedTrees || {}
-  const iterSet = new Set(Object.keys(iterated).map(Number))
-
-  // tree index → the loop enclosing the op that READS it.
-  //
-  // ⭐ ONE TREE HAS EXACTLY ONE READER, and that is a property of raw-tree mode
-  // rather than an assumption: `internTree` dedupes by `printFormula`, which
-  // throws on a raw parse node, so every occurrence interns its own index.
-  // Measured over the committed corpus — 218 iterated trees across 153
-  // scripts, ZERO read by more than one op. `iteratedTreeReaders.test.js`
-  // holds that invariant, so if dedupe is ever switched on here the rail names
-  // it instead of this quietly keeping whichever loop was walked last.
-  // ⛔ A refusal for the two-reader case was written first and then REMOVED: no
-  // fixture could make it fire, and a guard that cannot fire reads as
-  // protection without being any.
-  const readBy = new Map()
-  let offender = null
-  const walkReads = (list, reachedIn, loop) => {
-    for (const op of list || []) {
-      if (!op || typeof op !== 'object') continue
-      // ⭐ `objectRuntime` skips a `lastBarOnly` op unless `bar === barCount-1`,
-      // and a loop's body only runs when the loop op itself runs — so a position
-      // is last-bar-only if ANY op enclosing it is, or it is itself.
-      const reached = reachedIn || !!op.lastBarOnly
-      for (const i of treeRefsOfOp(op)) {
-        if (!iterSet.has(i)) continue
-        if (!readBy.has(i)) readBy.set(i, { loop })
-        // ⛔ SAFETY IS DECIDED HERE, NOT FROM `readBy` — so a second reader (if
-        // dedupe is ever enabled) can change which BOUNDS are chosen but can
-        // never turn an every-bar read into a compile.
-        if (!reached && !offender) offender = { k: op.k, counter: loop && loop.id }
-      }
-      if (op.k === 'loop') walkReads(op.body, reached, op)
-    }
-  }
-  walkReads(objects.ops, false, null)
-
-  const iterSpecs = []
-  const iterTreeIndex = new Map()
-  const orphanTrees = new Set()
-  for (const i of [...iterSet].sort((a, b) => a - b)) {
-    const read = readBy.get(i)
-    // ⭐⭐ AN ORPHAN IS DROPPED, NOT REFUSED ON. A tree can be marked `iterated`
-    // at intern time and then lose the op that would have read it — the object
-    // pass drops an op whose guard, handle or content it cannot read, and the
-    // tree it already interned stays behind. Refusing the whole drawing because
-    // a value NOTHING READS mentions a loop counter fails a script for a row it
-    // does not draw. It keeps its output slot (passed as `null` below) so the
-    // tree→output map stays index-aligned.
-    if (!read) { orphanTrees.add(i); continue }
-    if (!read.loop) {
-      return refuse('objects', {
-        guard: 'objects:iterated-tree-unbounded',
-        message: `a per-row value names counter \`${iterated[i]}\`, which no loop in `
-          + 'this drawing declares — its range is unknown and cannot be guessed',
-      })
-    }
-    iterTreeIndex.set(i, iterSpecs.length)
-    iterSpecs.push({
-      node: trees[i],
-      counter: read.loop.id,
-      from: read.loop.fromNode,
-      to: read.loop.toNode,
-    })
-  }
-
-  // ⛔⛔ THE REFUSAL IS ABOUT THE *READ*, NOT ABOUT THE PRESENCE OF A LOOP. The
-  // iteration buffer is overwritten every bar (`vm.js` allocates `iters` ONCE
-  // for the whole run, indexed by the counter alone — there is no bar
-  // dimension), so only the bar that wrote it last can be read back. For a
-  // `barstate.islast` drawing — which is how every dashboard in the corpus is
-  // written — that bar IS the one being drawn. For anything else the buffer
-  // holds another bar's rows, and handing those back would be a table of real
-  // numbers from the wrong moment: the most convincing kind of wrong.
-  if (offender) {
+  const {
+    iterSpecs, iterTreeIndex, orphanTrees, offender, unbounded, iterated,
+  } = resolveIterTrees(objects, trees)
+  if (unbounded) {
     return refuse('objects', {
-      guard: 'objects:iterated-tree-not-last-bar',
-      message: `a \`${offender.k}\` inside the loop on counter \`${offender.counter}\` `
-        + 'reads a per-row value on every bar, not only the last — the '
-        + 'per-iteration buffer holds only the bar that wrote it last, so those '
-        + 'rows would come from another moment',
+      guard: 'objects:iterated-tree-unbounded',
+      message: `a per-row value names counter \`${iterated[unbounded.tree]}\`, which no loop in `
+        + 'this drawing declares — its range is unknown and cannot be guessed',
     })
   }
+  // ─── ⚰️⭐⭐ `objects:iterated-tree-not-last-bar` WAS HERE, AND WHY IT IS NOT ──
+  //
+  // The refusal was CORRECT for the engine it was written against. The
+  // iteration buffer is overwritten every bar, `vm.js` allocates `iters` once
+  // for the whole run indexed by the counter alone, and the drawing ran as a
+  // SECOND pass after the VM had finished every bar — so an op reading a
+  // per-row value on bar 300 read whatever bar 4,999 left behind. Handing
+  // those back is a table of real numbers from the wrong moment, which is the
+  // most convincing kind of wrong, and refusing was the right answer.
+  //
+  // ⛔⛔ AND THE OBVIOUS FIX WAS MEASURED AND IS NOT BUILDABLE. Giving the
+  // buffers a bar dimension costs, for ONE corpus script at the 5,000 bars a
+  // chart asks for, 1,621MB in full form; 801MB counting only the buffers that
+  // are read off a bar other than the last. The runtime's own MEMORY ceiling
+  // is 64MB. `iterStorageCost.measure.test.js` holds those numbers.
+  //
+  // ⭐⭐ WHAT CHANGED IS *WHEN* THE DRAWING STANDS, NOT WHAT IS STORED. The two
+  // bar walks are now ONE: `runObjectLane` drives the object program's bar from
+  // inside the VM's own bar loop, so a per-row value is read on the bar that
+  // wrote it, by construction rather than by a guard. That is also what Pine
+  // does — a member's `for` and the `line.new` inside it are one program
+  // advancing one bar at a time.
+  //
+  // ⛔⛔ THE INVARIANT IS ENFORCED WHERE IT CAN FAIL, NOT ASSUMED HERE.
+  // `readObjectLaneNode` THROWS if a per-row value is asked for on any bar but
+  // the one the VM has just finished, so wiring the two walks apart again is a
+  // named crash rather than a quiet table from the wrong moment.
+  // ⭐ `offender` is still computed — it is what the costing instrument counts.
 
   // ⭐⭐ THE CLOCK TRI-STATE, ASKED OF THE CALLER FIRST AND THE BARS SECOND.
   //
@@ -333,6 +381,15 @@ export function buildObjectLane(source, opts = {}) {
     // tree index → { buffer, counter } for the per-row values.
     iterByTree: new Map([...iterTreeIndex].map(([i, b]) => (
       [i, { buffer: b, counter: iterSpecs[b].counter }]))),
+    // ⭐ THE PER-ROW READ THAT HAPPENS OFF A BAR OTHER THAN THE LAST — `{k,
+    // counter}`, or `null`. It is no longer a refusal (see the note above), but
+    // it is still the fact that distinguishes a drawing whose rows are rebuilt
+    // every bar from one written the dashboard way, and it is what the costing
+    // instrument counts. ⛔ IT NAMES THE OP AND THE COUNTER, not merely that a
+    // loop exists: resolving a per-row value by its counter's NAME rather than
+    // by the loop enclosing its READER is the mistake that declared two corpus
+    // scripts safe when both carry two different loops called `i`.
+    offLastBarRead: offender,
     // The per-row trees nothing reads. Carried so the reader can answer
     // `undefined` for one rather than the contents of an output nobody filled.
     orphanTrees,
@@ -353,6 +410,40 @@ export function buildObjectLane(source, opts = {}) {
  */
 export function runObjectLane(lane, view) {
   const bars = Math.max(0, view.bars | 0)
+  // ─── ⭐⭐⭐ ONE BAR WALK, NOT TWO — AND THAT IS THE WHOLE FIX ─────────
+  //
+  // ⚰️ THIS RAN `execute` TO COMPLETION AND *THEN* DREW. Every number the
+  // drawing read came out of an array indexed by bar, so that was harmless for
+  // all of them but one: the per-ITERATION buffers have no bar dimension and
+  // are overwritten every bar, so by the time the drawing started they held
+  // bar 4,999 and nothing else. A drawing that read a per-row value on any
+  // other bar got real numbers from the wrong moment, and `buildObjectLane`
+  // refused it rather than draw them — eleven corpus scripts, all of them
+  // drawers, the largest genuinely-blocked drawing row in the census.
+  //
+  // ⛔⛔ THE STORAGE FIX WAS MEASURED FIRST AND REJECTED: 1,621MB full /
+  // 801MB sparse for ONE script at 5,000 bars, against a 64MB ceiling
+  // (`iterStorageCost.measure.test.js`). Advancing the drawing INSIDE the VM's
+  // bar loop costs nothing at all and is exact, because the value is read on
+  // the bar that is still standing.
+  //
+  // ⛔ THE ORDER IS NOT A DETAIL. `onBar` fires after the bar's last
+  // instruction and after the history commit, so `outputs[*][bar]` and every
+  // iteration buffer hold this bar's finished values and nothing of the next.
+  const cursor = { bar: -1 }
+  // ⭐ The reader is built on the FIRST bar, because `outputs` and `iters` are
+  // the VM's own arrays and it has not allocated them until the run starts.
+  // They are allocated ONCE for the whole run, so binding them once is right.
+  let read = null
+  const drawing = beginObjects(lane.objects, {
+    barCount: bars,
+    readNode: (treeIndex, bar, loopVars) => (
+      read ? read(treeIndex, bar, loopVars) : NaN),
+    readTime: view.readTime,
+    readParam: view.readParam,
+    limits: view.limits,
+    trace: view.trace,
+  })
   // ⛔⛔ `barTimes` AND `requestBars` ARE NOT OPTIONAL EXTRAS FOR THIS LANE.
   //
   // A watchlist dashboard is made ENTIRELY of `request.security` — its every
@@ -366,23 +457,21 @@ export function runObjectLane(lane, view) {
   // ⚠️ They stay OPTIONAL on `view` on purpose: a drawing that reads neither
   // (a label on this chart's own price) must not have to invent them. What is
   // fixed is that a caller which HAS them can no longer fail to pass them.
-  const { outputs, iters, requested } = execute(lane.program, {
+  const { requested } = execute(lane.program, {
     bars,
     series: view.series,
     columns: lane.program.columns,
     confirmed: view.confirmed !== false,
     barTimes: view.barTimes,
     requestBars: view.requestBars,
-  }, view.limits)
-
-  const drawn = evaluateObjects(lane.objects, {
-    barCount: bars,
-    readNode: readObjectLaneNode(lane, outputs, iters),
-    readTime: view.readTime,
-    readParam: view.readParam,
-    limits: view.limits,
-    trace: view.trace,
+  }, view.limits, {
+    onBar: (bar, iters, outputs) => {
+      if (!read) read = readObjectLaneNode(lane, outputs, iters, cursor)
+      cursor.bar = bar
+      drawing.step(bar)
+    },
   })
+  const drawn = drawing.finish()
   // ⭐⭐ WHAT THE RUN ASKED FOR AND COULD NOT GET, CARRIED OUT WITH THE DRAWING.
   // A watchlist dashboard discovers its symbols WHILE it runs, so the host
   // cannot know what to fetch until the first pass reports it — that is the
@@ -398,7 +487,7 @@ export function runObjectLane(lane, view) {
  *  number and a colour; NaN is the only value the object runtime's own finiteness
  *  guards already treat as "do not draw this". `buildObjectLane` refuses the case
  *  where this could happen in bulk — this is the per-read floor under that. */
-export function readObjectLaneNode(lane, outputs, iters = []) {
+export function readObjectLaneNode(lane, outputs, iters = [], cursor = null) {
   const map = lane.treeOutputs
   const byTree = lane.iterByTree || new Map()
   const orphans = lane.orphanTrees || new Set()
@@ -418,6 +507,26 @@ export function readObjectLaneNode(lane, outputs, iters = []) {
     // exists to prevent, and it looks exactly like data.
     const it = byTree.get(treeIndex)
     if (it) {
+      // ⛔⛔ THE ITERATION BUFFER HAS NO BAR DIMENSION, SO THE READER CHECKS
+      // WHICH BAR IT IS STANDING ON.
+      //
+      // `vm.js` allocates `iters` once for the whole run and overwrites it
+      // every bar, which is exactly why `objects:iterated-tree-not-last-bar`
+      // used to refuse these drawings. `runObjectLane` now advances the drawing
+      // INSIDE the VM's bar loop, so the buffer always holds the bar being
+      // drawn — and this is the assertion that says so rather than assuming it.
+      //
+      // ⛔ IT THROWS, IT DOES NOT DRAW NOTHING. The two walks being wired apart
+      // is a defect in this repository, not a shape a member can write, and the
+      // failure it would otherwise produce is a table of plausible numbers from
+      // another moment — which is what a silent `undefined` would hide.
+      if (!cursor || cursor.bar !== bar) {
+        throw new Error(
+          `objects: a per-row value was asked for on bar ${bar} while the runtime `
+          + `stands on bar ${cursor ? cursor.bar : 'no'} — the iteration buffer `
+          + 'holds only the bar that wrote it, so that row would come from '
+          + 'another moment')
+      }
       const k = loopVars && loopVars.get ? loopVars.get(it.counter) : undefined
       if (!Number.isInteger(k)) return undefined
       const buf = iters[it.buffer]

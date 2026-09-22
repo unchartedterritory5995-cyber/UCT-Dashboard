@@ -153,6 +153,8 @@ export function execute(program, ctx, limits, opts) {
   // request made inside a request is reported to the same caller.
   const requested = (opts && opts.requested) || new Set()
   const requestCache = (opts && opts.requestCache) || new Map()
+  // ⭐⭐ THE PER-BAR HOOK — SEE THE END OF THE BAR LOOP FOR WHY IT EXISTS.
+  const onBar = (opts && typeof opts.onBar === 'function') ? opts.onBar : null
   budget.peak('IR_SIZE', program.instructions)
   budget.peak('HISTORY', ctx.bars)
 
@@ -920,6 +922,26 @@ export function execute(program, ctx, limits, opts) {
       }
       committed += 1
     }
+
+    // ─── ⭐⭐⭐ THE BAR IS FINISHED — AND A DRAWING MAY STAND ON IT ────────
+    //
+    // ⛔⛔ THIS IS WHAT REPLACES A BAR DIMENSION ON `iters`, AND THE NUMBERS ARE
+    // WHY. Giving those buffers a bar dimension costs, for ONE corpus script at
+    // the 5,000 bars a chart asks for, 1,621MB in full form and 801MB counting
+    // only the buffers that need it, against this runtime's own 64MB ceiling
+    // (`iterStorageCost.measure.test.js`). A value does not have to be STORED
+    // per bar if whatever reads it is standing on the bar that produced it.
+    //
+    // ⭐ EVERYTHING THIS BAR PRODUCED IS COMPLETE HERE: every `outputs[*][bar]`
+    // was written by an EMIT during the bar, every iteration buffer by an
+    // EMIT_ITER, and the history commit above has already run — so a reader
+    // called from here sees exactly the bar it was told about and nothing of
+    // the next one.
+    //
+    // ⛔ TOP-LEVEL ONLY. `runRequest` builds its sub-`execute` with its own
+    // opts and passes no hook, so another symbol's bars can never drive a
+    // drawing that belongs to this chart's.
+    if (onBar) onBar(bar, iters, outputs)
   }
 
   return { outputs, iters, budget, requested: Array.from(requested).sort() }

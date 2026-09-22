@@ -18,6 +18,9 @@ import { describe, it, expect } from 'vitest'
 
 import { translatePine } from '../../ast/pine.js'
 import { execute } from '../vm.js'
+// ⭐ THE OLD TWO-PASS DRIVER, kept here as the CONTROL for the interleaved
+//   one — see the stale-wiring case below.
+import { evaluateObjects } from '../../objectRuntime.js'
 import { buildObjectLane, runObjectLane, readObjectLaneNode } from '../objectLane.js'
 
 const N = 4
@@ -181,20 +184,109 @@ describe('⭐⭐⭐ THE ACCEPTANCE SHAPE — a watchlist table, one row per symb
 })
 
 describe('⛔⛔ what the per-row channel refuses, and what it will not render', () => {
-  it('⛔⛔ AN UNGUARDED LOOP IS REFUSED — the buffer holds ONE bar', () => {
-    // ⚰️ The iteration buffer is overwritten every bar, so only the bar that
-    // wrote it last can be read back. A drawing that is not last-bar guarded
-    // would read another bar's rows: real numbers from the wrong moment, which
-    // is the most convincing kind of wrong. Every other case here IS guarded,
-    // so without this one the refusal could be deleted with nothing going red.
-    const lane = buildObjectLane(head
-      + 'var syms = array.from("AAPL", "MSFT")\n'
-      + 'var t = table.new(position.top_right, 1, 3)\n'
-      + 'for r = 0 to 1\n'
-      + '    table.cell(t, 0, r + 1, array.get(syms, r))\n',
-      { bars: BARS, inputs: {}, newestBarIsForming: false })
-    expect(lane.ok).toBe(false)
-    expect(lane.refusal.guard).toBe('objects:iterated-tree-not-last-bar')
+  // ─── ⭐⭐⭐ THE UNGUARDED LOOP — THE CASE THIS WHOLE WAVE IS ABOUT ─────
+  //
+  // ⚰️ `objects:iterated-tree-not-last-bar` REFUSED THIS, AND WAS RIGHT TO.
+  // `vm.js` allocates the per-iteration buffers ONCE for the whole run, indexed
+  // by the loop counter alone, and the drawing used to run as a second pass
+  // AFTER the VM had finished every bar — so every bar's rows read whatever the
+  // LAST bar left behind. Eleven corpus scripts died there, all of them drawers.
+  //
+  // ⛔⛔ EVERY VALUE BELOW IS COMPUTED FROM THE BAR SERIES, NEVER A LITERAL,
+  // and that is what makes this a rail rather than a demonstration. `close` is
+  // 100, 101, 102, 103 across the four bars, so the right answer and the stale
+  // one are different numbers on three bars out of four. A literal fixture
+  // (`array.from(1.5, 2.5)`) folds to the same constants on every bar and would
+  // pass just as happily against the buffer the old engine handed back.
+  const PER_BAR_ROWS = 'var a = array.new<float>(2, 0.0)\n'
+    + 'array.set(a, 0, close)\n'
+    + 'array.set(a, 1, close * 2)\n'
+    + 'for r = 0 to 1\n'
+    + '    label.new(bar_index, array.get(a, r), str.tostring(array.get(a, r)))\n'
+
+  /** Every label, grouped by the bar it was created on, as its text. */
+  const rowsByBar = (r) => {
+    const out = {}
+    for (const o of (r.live || [])) {
+      if (o.family !== 'label') continue
+      if (!out[o.createdBar]) out[o.createdBar] = []
+      out[o.createdBar].push((o.props || {}).text)
+    }
+    return out
+  }
+
+  it('⭐⭐⭐ AN UNGUARDED LOOP DRAWS, AND EACH BAR\'S ROWS ARE ITS OWN', () => {
+    const lane = build(PER_BAR_ROWS)
+    expect(lane.ok, lane.ok ? '' : `${lane.lane}: ${lane.refusal.message}`).toBe(true)
+    // ⭐ The lane still SAYS it reads a per-row value off a bar other than the
+    // last — it just no longer refuses it. If this ever reads false the case
+    // below is exercising the guarded path and proves nothing.
+    expect(lane.offLastBarRead, 'this fixture is supposed to read a per-row '
+      + 'value on every bar — if it does not, it is not testing the thing')
+      .toEqual({ k: 'create', counter: 'r' })
+    const r = runObjectLane(lane, { bars: N, series: SERIES })
+    expect(r.status).toBe('ok')
+    expect(rowsByBar(r)).toEqual({
+      0: ['100', '200'],
+      1: ['101', '202'],
+      2: ['102', '204'],
+      3: ['103', '206'],
+    })
+  })
+
+  it('⛔⛔ CONTROL — THE OLD TWO-PASS WIRING DRAWS THE LAST BAR\'S ROWS ON EVERY BAR', () => {
+    // ⭐⭐ THIS IS THE STALE ENGINE, REPRODUCED EXACTLY: run the VM to
+    // completion, THEN draw, reading the one flat buffer with a cursor that
+    // never disagrees with the bar being asked for. That was the wiring until
+    // this change, and it is the only way to show that the case above is
+    // distinguishing the right bar from a plausible wrong one rather than
+    // simply passing.
+    //
+    // ⛔ WITHOUT THIS THE FIXTURE PROVES NOTHING. A drawing of real numbers
+    // from the wrong moment renders identically to a correct one, so "it drew
+    // and nothing threw" is exactly the answer the refusal existed to reject.
+    const lane = build(PER_BAR_ROWS)
+    expect(lane.ok).toBe(true)
+    const { outputs, iters } = execute(lane.program, {
+      bars: N, series: SERIES, columns: lane.program.columns, confirmed: true,
+    })
+    const cursor = { bar: -1 }
+    const read = readObjectLaneNode(lane, outputs, iters, cursor)
+    const stale = evaluateObjects(lane.objects, {
+      barCount: N,
+      readNode: (treeIndex, bar, loopVars) => {
+        cursor.bar = bar
+        return read(treeIndex, bar, loopVars)
+      },
+    })
+    // Every bar reads bar 3's buffer: 103 and 206, four times over.
+    expect(rowsByBar(stale)).toEqual({
+      0: ['103', '206'],
+      1: ['103', '206'],
+      2: ['103', '206'],
+      3: ['103', '206'],
+    })
+  })
+
+  it('⛔ THE READER REFUSES A PER-ROW VALUE ASKED FOR OFF THE BAR THE VM STANDS ON', () => {
+    // ⛔⛔ THE INVARIANT IS ENFORCED WHERE IT CAN FAIL. Nothing in this
+    // repository may run the two bar walks apart again without a named crash —
+    // a silent `undefined` would draw nothing and read as an empty chart, and
+    // answering anyway is the table-from-another-moment this wave removed.
+    const lane = build(PER_BAR_ROWS)
+    const { outputs, iters } = execute(lane.program, {
+      bars: N, series: SERIES, columns: lane.program.columns, confirmed: true,
+    })
+    const perRow = [...(lane.iterByTree || new Map()).keys()]
+    expect(perRow.length, 'this fixture declares no per-row tree at all')
+      .toBeGreaterThan(0)
+    const counter = lane.iterByTree.get(perRow[0]).counter
+    const read = readObjectLaneNode(lane, outputs, iters, { bar: 0 })
+    expect(() => read(perRow[0], N - 1, new Map([[counter, 0]])))
+      .toThrow(/another moment/)
+    // ⛔ CONTROL — it answers happily when the bars agree, so the case above
+    // is not passing because the reader throws for everything.
+    expect(() => read(perRow[0], 0, new Map([[counter, 0]]))).not.toThrow()
   })
 
   it('⭐⭐ a per-row value in a NUMERIC slot — an address, not text', () => {
@@ -338,22 +430,31 @@ describe('⭐⭐ a per-row value is scoped by the loop that READS it', () => {
       + '    label.new(bar_index, close, "x")\n',
     )
     expect(lane.ok, lane.ok ? '' : `${lane.lane}/${lane.refusal.guard}`).toBe(true)
+    // ⛔⛔ AND THE LANE SAYS THE READ IS LAST-BAR-ONLY. Since the refusal was
+    // lifted, `ok` alone no longer separates the two shapes — it is true for
+    // both — so without this the discriminator above stopped discriminating and
+    // the case would read as a rail while testing nothing.
+    expect(lane.offLastBarRead, 'the only loop reading a per-row value here is '
+      + 'inside `if barstate.islast`; naming the `q` loop means the scope came '
+      + 'from a loop that touches none of this').toBe(null)
   })
 
-  it('⛔⛔ AN UNGUARDED READ STILL REFUSES, AND NAMES THE OP THAT DOES IT', () => {
-    // The safety half. Without this the case above could be satisfied by
-    // deleting the guard outright.
+  it('⛔⛔ AN UNGUARDED READ IS NAMED BY THE OP THAT DOES IT, AND STILL DRAWS', () => {
+    // The other half. The old guard REFUSED this; the lane now draws it (the
+    // drawing advances inside the VM's own bar loop, so the rows belong to the
+    // bar being drawn) but it must still be able to SAY which op reads a
+    // per-row value off a bar other than the last — naming the `cell` and the
+    // counter `r`, not merely that a loop exists. That distinction is the whole
+    // difference between resolving by the counter's NAME and resolving by the
+    // loop enclosing the READER, and two corpus scripts carry two different
+    // loops both called `i`.
     const lane = build(
       'var t = table.new(position.top_right, 1, 3)\n'
       + 'for r = 0 to 1\n'
       + `    table.cell(t, 0, r + 1, ${PER_ROW})\n`,
     )
-    expect(lane.ok).toBe(false)
-    expect(lane.refusal.guard).toBe('objects:iterated-tree-not-last-bar')
-    // ⛔ The message must name the READ, not merely restate that a loop exists
-    // — that is the whole difference between the old guard and this one.
-    expect(lane.refusal.message).toContain('`cell`')
-    expect(lane.refusal.message).toContain('`r`')
+    expect(lane.ok, lane.ok ? '' : `${lane.lane}/${lane.refusal.guard}`).toBe(true)
+    expect(lane.offLastBarRead).toEqual({ k: 'cell', counter: 'r' })
   })
 
   it('⭐ an inner guarded loop under an UNGUARDED outer one compiles', () => {

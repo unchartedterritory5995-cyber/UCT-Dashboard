@@ -50,6 +50,25 @@ function truthy(v) {
 }
 
 /**
+ * ⭐⭐ THE DRAWING, ONE BAR AT A TIME — SO SOMETHING ELSE CAN OWN THE BAR LOOP.
+ *
+ * `evaluateObjects` below is this driven to completion, and it is the only
+ * caller that needs to be. The stepper exists because of ONE measured fact:
+ * the runtime lane's per-iteration buffers are written by the VM as it walks
+ * bars and are OVERWRITTEN every bar, so a drawing that reads a per-row value
+ * on any bar but the last was reading whatever the last bar left behind.
+ *
+ * ⛔⛔ THE ALTERNATIVE WAS MEASURED AND IS NOT BUILDABLE. Giving those buffers
+ * a bar dimension costs, for ONE corpus script at the 5,000 bars a chart asks
+ * for, 1,621MB in full form and 801MB counting only the buffers that need it,
+ * against a 64MB runtime ceiling — see `iterStorageCost.measure.test.js`. The
+ * value does not have to be STORED per bar if the drawing is standing on the
+ * bar that produced it, which is what this makes possible.
+ *
+ * ⭐ AND IT IS WHAT PINE ACTUALLY DOES. A member's `for` loop and the
+ * `line.new` inside it are one program advancing one bar at a time; the two
+ * separate passes were this engine's convenience, never the vendor's model.
+ *
  * @param {object} program        a validated object program
  * @param {object} ctx
  * @param {number} ctx.barCount
@@ -58,8 +77,10 @@ function truthy(v) {
  * @param {(bar:number)=>number}         [ctx.readTime]  bar timestamp
  * @param {object}                       [ctx.limits]    override the envelope
  * @param {boolean}                      [ctx.trace]     keep a per-bar event log
+ * @returns {{barCount:number, ok:()=>boolean, step:(bar:number)=>void,
+ *            finish:()=>object}}
  */
-export function evaluateObjects(program, ctx) {
+export function beginObjects(program, ctx) {
   assertObjectProgram(program)
   const limits = { ...DEFAULT_OBJECT_LIMITS, ...(program.limits || {}), ...(ctx.limits || {}) }
   const barCount = Math.max(0, ctx.barCount | 0)
@@ -91,7 +112,9 @@ export function evaluateObjects(program, ctx) {
     if (status === OBJECT_STATUS.OK) { status = OBJECT_STATUS.LIMIT_EXCEEDED; reason = why }
   }
 
-  for (let bar = 0; bar < barCount && status === OBJECT_STATUS.OK; bar += 1) {
+  // ⛔ THE BAR IS A PARAMETER NOW, NOT A LOOP VARIABLE. Everything below is
+  // byte-for-byte what the `for` body was; the only change is who advances it.
+  const stepBar = (bar) => {
     /** site id → instanceId created on THIS bar. ⭐ Cleared every bar, which is
      *  the whole meaning of a site reference: `line.new(...)` used inline names
      *  the object made now, never one made yesterday. */
@@ -468,6 +491,7 @@ export function evaluateObjects(program, ctx) {
     if (opsThisBar > maxOpsInABar) maxOpsInABar = opsThisBar
   }
 
+  const finish = () => {
   // ⭐ CREATION ORDER IS RENDER ORDER, and it is the object id because the id IS
   // a creation counter. Sorting by anything else (price, family) would put a
   // later object under an earlier one and quietly change what the author drew.
@@ -493,6 +517,33 @@ export function evaluateObjects(program, ctx) {
     },
     ...(ctx.trace ? { events } : {}),
   }
+  }
+
+  return {
+    barCount,
+    // ⛔⛔ THE ENVELOPE STOP LIVES HERE, AND IN EXACTLY ONE PLACE. It was the
+    // `for` loop's own condition, and a second driver arrived (`runObjectLane`
+    // advances this from inside the VM's bar loop) which has no loop condition
+    // to put it in — it cannot stop feeding bars, because the VM owns the loop.
+    // ⛔ SO IT IS NOT REPEATED IN THE DRIVERS. Two copies of one invariant is a
+    // guard that cannot be mutation-proved: killing either leaves the other
+    // answering, and the rail stays green while half the protection is gone
+    // (`lesson_a_guard_repeated_is_a_guard_unproved`). The rail that watches
+    // THIS one is `objectRuntime.test.js`'s "it stops stepping" case, which
+    // counts the ops executed AFTER the failure — the status alone cannot tell
+    // a run that stopped from one that kept going, because `fail()` latches.
+    step: (bar) => { if (status === OBJECT_STATUS.OK) stepBar(bar) },
+    finish,
+  }
+}
+
+/** ⭐ THE WHOLE DRAWING, DRIVEN HERE — the shape every caller but the runtime
+ *  lane wants, and the ONE driver for everyone who has no bar loop of their own.
+ *  ⛔ DERIVED FROM THE STEPPER, NEVER A SECOND COPY OF THE WALK. */
+export function evaluateObjects(program, ctx) {
+  const run = beginObjects(program, ctx)
+  for (let bar = 0; bar < run.barCount; bar += 1) run.step(bar)
+  return run.finish()
 }
 
 function cellsOf(map) {
