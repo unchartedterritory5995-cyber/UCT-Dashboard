@@ -1,11 +1,31 @@
 # Pine RVOL slice — RESUME HERE
 
 > **Branch `feat/pine-value-model`. Read this before touching the Pine engine.**
-> State at **`9d68ddab5`**, 2026-09-20 (was `5bc01520b`). Nothing here is merged
+> State at **`17192d37d`**, 2026-09-21 (was `9d68ddab5`). Nothing here is merged
 > and nothing reaches a member.
 >
 > ⚠️ `docs/pine/SESSION-STATE.md` is the **closed R0/R1 wave's** resume doc, not
 > this one. Do not update it for this work.
+>
+> ### 2026-09-21 — items 1-4 of NEXT, IN ORDER are closed
+>
+> | | |
+> |---|---|
+> | `3e93cb281` | **`table.clear` is carried** — a cell the author removed leaves the drawing |
+> | `e04815d69` | **`text_formatting` is carried AND rendered** — the target's 6 header cells keep their bold |
+> | `17192d37d` | **the corpus census is a command**, not prose: `runtimeCorpusCensus.measure.test.js` |
+>
+> **Compiled end to end: 8 of 266 (3.0%)**, up from 5. Item 2
+> (`calc_bars_count`) is measured and deliberately left inert — the reason is in
+> the list, and it is a measurement, not a preference.
+>
+> ⭐ **What is left is NOT more of the same.** Item 5 (the gradient fill) is a
+> RENDERER job by its own description, and item 6 needs the market open. The
+> cheap, principled items in this lane are done.
+>
+> ⛔ **The standing question is untouched and is still the owner's:** all of this
+> improves a lane with **zero live importers** (ruling D2). The objects-only pane
+> path is dark behind `VITE_PINE_OBJECTS_ONLY_PANE_ENABLED`.
 
 > ## ⛔⛔ THE ACCEPTANCE SCRIPT CHANGED, AND IT IS NOT IN THIS REPO
 >
