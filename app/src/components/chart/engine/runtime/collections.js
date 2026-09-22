@@ -60,6 +60,43 @@ const at = (arr, i, what) => {
  *  refusing the other two until somebody measures them. */
 const DEFAULT_FOR = Object.freeze({ float: NaN, int: NaN })
 
+/** ⛔⛔ THE FOUR DRAWING ELEMENT TYPES — `box`, `line`, `label`, `linefill`.
+ *
+ *  A Pine script that draws more than one of anything keeps its drawings in an
+ *  array, and measured over the 266-script committed corpus that is the
+ *  DOMINANT idiom, not a niche one: `array.new_line` 108 sites across 28
+ *  scripts, `array.new_box` 83 across 27, `array.new_label` 46 across 18,
+ *  `array.new_linefill` 1 across 1.
+ *
+ *  ⛔ THEY ARE NOT IN `DEFAULT_FOR`, AND THAT IS THE POINT. The value Pine
+ *  fills an unsupplied element with is a NULL DRAWING HANDLE, and a drawing
+ *  handle belongs to the object program — this lane has no value for one. The
+ *  tempting answer is `na`, and it is the wrong one: it would make the standard
+ *  emptiness test `na(array.get(zones, i))` read TRUE for a box the object
+ *  program had already drawn, which is a confident wrong answer wearing the
+ *  costume of a fact.
+ *
+ *  ⭐ Naming them here is what turns the refusal from the false *"the runtime
+ *  has no collections yet"* into the true one, and it is the same move
+ *  `bool`/`string` already make in `TYPED_NEW`. */
+const DRAWING_TYPES = Object.freeze(['box', 'line', 'label', 'linefill'])
+
+/** Why a sized `array.new<T>` with no initial value cannot be served.
+ *
+ *  ⛔ TWO SENTENCES, NOT ONE, BECAUSE THEY ARE TWO DIFFERENT FACTS. A `bool`
+ *  array's fill is a value nobody has WATCHED Pine produce; a `box` array's
+ *  fill is a value this lane STRUCTURALLY does not have. Collapsing them would
+ *  send an engineer to take a vendor capture that cannot help. */
+const noDefaultReason = (typeArg, n) => (
+  DRAWING_TYPES.includes(typeArg)
+    ? `array.new<${typeArg}>(${n}) with no initial value — Pine fills it with a null `
+      + 'drawing handle, and a drawing handle belongs to the object program rather than '
+      + `to this lane. Answering \`na\` would make \`na(array.get(…))\` read TRUE for a `
+      + `${typeArg} that had already been drawn`
+    : `array.new<${typeArg || '?'}>(${n}) with no initial value — what Pine fills a `
+      + `\`${typeArg || 'that'}\` array with has not been measured on a chart, and this `
+      + 'engine does not guess a value a member would read as data')
+
 const filled = (n, value) => {
   const out = new Array(n)
   for (let i = 0; i < n; i += 1) out[i] = value
@@ -93,11 +130,16 @@ const ARRAY_NEW = {
     }
     budget.peak('ARRAY_ELEMENTS', n)
     if (a.length === 2) return filled(n, a[1])
+    // ⛔⛔ A ZERO-LENGTH ARRAY HAS NO ELEMENT, SO THE FILL VALUE CANNOT BE
+    // REACHED — and refusing one on the grounds of an unknown fill refuses a
+    // case the reason cannot apply to. `array.new_bool(0)` and
+    // `array.new_string(0)` were refused that way, and so was every
+    // `array.new_box(0)`, which is the corpus's second-commonest drawing-array
+    // spelling. This is checked BEFORE the default lookup, deliberately: after
+    // it, the lookup's verdict decides a case it has no stake in.
+    if (n === 0) return []
     if (!Object.prototype.hasOwnProperty.call(DEFAULT_FOR, typeArg)) {
-      throw new CollectionError(
-        `array.new<${typeArg || '?'}>(${n}) with no initial value — what Pine fills a `
-        + `\`${typeArg || 'that'}\` array with has not been measured on a chart, and this `
-        + 'engine does not guess a value a member would read as data')
+      throw new CollectionError(noDefaultReason(typeArg, n))
     }
     return filled(n, DEFAULT_FOR[typeArg])
   },
@@ -122,8 +164,15 @@ const ARRAY_NEW = {
  *  the refusal from *"this engine has no such function"* to the accurate
  *  *"what Pine fills a bool array with has not been measured"*, which is a
  *  different sentence and the true one.
+ *
+ *  ⭐⭐ AND THE FOUR DRAWING TYPES JOIN ON EXACTLY THAT ARGUMENT. `box`, `line`,
+ *  `label` and `linefill` are listed for the same reason and serve the same
+ *  three shapes every other type does: an empty array, an explicit size of
+ *  zero, and an explicit initial value. What they do NOT serve is a sized array
+ *  with no initial value — see `DRAWING_TYPES` for why that is a different
+ *  refusal from `bool`'s, and `noDefaultReason` for the sentence.
  */
-const TYPED_NEW = Object.freeze(['float', 'int', 'bool', 'string', 'color'])
+const TYPED_NEW = Object.freeze(['float', 'int', 'bool', 'string', 'color', ...DRAWING_TYPES])
 
 const typedNew = (typeArg) => ({
   ...ARRAY_NEW,
