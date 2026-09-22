@@ -30,7 +30,8 @@ export default function usePreTradeVerdict(accountId) {
       setVerdict(data)
       return data
     } catch (e) {
-      setError(String(e.message || e))
+      console.error('Failed to get pre-trade verdict:', e)
+      setError("Compass couldn't grade this trade. Try again.")
       return null
     } finally {
       setIsLoading(false)
