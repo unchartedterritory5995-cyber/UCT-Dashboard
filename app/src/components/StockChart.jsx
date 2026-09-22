@@ -13000,6 +13000,39 @@ export default function StockChart({
     updateChart()
   }, [updateChart])
 
+  // ⛔⛔ ON A SYMBOL SWITCH, APPLY BEFORE THE BROWSER PAINTS. The effect above is
+  // PASSIVE, so it runs AFTER the frame is composited. On a symbol change that
+  // orders the two halves of the member's chart one frame apart:
+  //
+  //    React commits B's DOM (the ticker now reads B)
+  //    → browser PAINTS            ← B ticker over A's candles
+  //    → passive effect → setData(B)
+  //    → browser paints again      ← B ticker over B's candles
+  //
+  // The frame-accurate harness measured that window on 24/24 switches, p50 31ms,
+  // max 47ms. It is not a cache problem and not a latency problem: the data for B
+  // was already in hand. The two halves simply committed in different frames.
+  //
+  // ⭐ A LAYOUT EFFECT RUNS AFTER THE DOM MUTATION AND BEFORE THE PAINT, so the
+  // new label and the new candles land in the SAME composited frame — which is
+  // the atomicity the contract asks for, with no second chart, no overlay, and
+  // no faked paint.
+  //
+  // ⚠️ SCOPED TO THE SWITCH, DELIBERATELY. `updateChart` is the heaviest function
+  // in this file (candles + volume + every overlay and indicator) and its deps
+  // include live data, so making the ORDINARY path synchronous would put that
+  // work inside every 30s poll's frame budget. This fires only when the applied
+  // symbol/timeframe is not the one being rendered; the passive effect continues
+  // to own every other update, and `updateChart` self-corrects (the second call
+  // plans 'noop' because the bars are already identical).
+  const _appliedSymTfRef = useRef(null)
+  useLayoutEffect(() => {
+    const key = `${sym}_${resolvedTf}`
+    if (_appliedSymTfRef.current === key) return
+    _appliedSymTfRef.current = key
+    updateChart()
+  }, [sym, resolvedTf, updateChart])
+
   // ── Live session tags (Pre/Post chip + locked RTH close) ──────────────────
   // Their own applier, deliberately OUTSIDE updateChart. These tags follow the live
   // extended-hours price, so while they rode `allPriceLines` every ext-price change

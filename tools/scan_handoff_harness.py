@@ -255,6 +255,39 @@ def main():
                                        timeout=6000)
                 r["watch"] = page.evaluate("() => window.__scan.watchResult()")
 
+            # ── RAPID A->B->C->D, faster than preparation can finish ──
+            # Generations, not ticker equality: the burst deliberately revisits a
+            # symbol so "same name" cannot stand in for "same request".
+            print("  rapid burst…", flush=True)
+            burst = SCAN[1:5] + [SCAN[1]]
+            page.evaluate("(s) => { window.__scanWatch = null; window.__scan.watch(s) }", burst[-1])
+            # ⚠️ NOT `b` — that is the browser handle, and shadowing it made
+            # `b.close()` raise 'str' object has no attribute 'close' AFTER the
+            # whole scan had run, losing the results.
+            for bsym in burst:
+                page.evaluate("(s) => window.__scan.select(s)", bsym)
+                page.wait_for_timeout(18)      # well inside any preparation
+            page.wait_for_timeout(1800)
+            rapid = {
+                "sequence": burst,
+                "final": page.evaluate(SAMPLE_JS),
+                "watch": page.evaluate("() => window.__scan.watchResult()"),
+            }
+            print(f"  rapid final: dom={rapid['final'].get('domSym')} chart={rapid['final'].get('chartSym')}", flush=True)
+
+            # ── LONG SCAN: a second pass over the whole list (50+ switches total) ──
+            print("  long scan…", flush=True)
+            long_watch = []
+            for j, sym in enumerate(SCAN, 1):
+                page.evaluate("(s) => { window.__scanWatch = null; window.__scan.watch(s) }", sym)
+                page.evaluate("(s) => window.__scan.select(s)", sym)
+                page.wait_for_timeout(420)
+                try:
+                    page.wait_for_function("() => window.__scanWatch", timeout=5000)
+                    long_watch.append(page.evaluate("() => window.__scan.watchResult()"))
+                except Exception:                      # noqa: BLE001
+                    long_watch.append({"target": sym, "tCoherent": None, "mixedMs": None, "emptyMs": None})
+
             # ── CONTROL: prove the classifier can FAIL ──
             control = None
             forced = page.evaluate(FORCE_MISMATCH_JS, "ZZZZ_NOT_THE_DRAWN_SYMBOL")
@@ -267,6 +300,7 @@ def main():
             rows = page.evaluate("() => window.__uctChartTiming.report()")
             blocked = page.evaluate("() => window.__scan.blocked()")
             out = {"pre": pre, "samples": samples, "rows": rows, "control": control,
+                   "rapid": rapid, "long": long_watch,
                    "blocked": blocked, "errors": errs,
                    "requests": fixture.requests}
             b.close()
