@@ -21,13 +21,25 @@
 // about the CALL: nobody said who owns the drawing, and saying so is one
 // argument away.
 //
-// ⭐ THE ONE GENUINELY MISSING CAPABILITY IS PINNED HERE TOO, at the bottom: a
-// drawing call used as a VALUE (`array.push(labels, label.new(…))`) is refused
-// even under ownership, deliberately, because there is no honest number to
-// return for a drawing handle. That refusal must NOT carry the ownership hint —
-// it is the real gap, and pointing it at the seam would send the next reader
-// somewhere the fix is not. It is the twelfth script,
-// `liquidity-levels-sonarlab` @L170, written in exactly that shape.
+// ⚰️ STRUCK 2026-09-22: *"THE ONE GENUINELY MISSING CAPABILITY IS PINNED HERE
+// TOO — a drawing call used as a VALUE (`array.push(labels, label.new(…))`) is
+// refused even under ownership, deliberately, because there is no honest number
+// to return for a drawing handle."* It was the twelfth script,
+// `liquidity-levels-sonarlab` @L170, and it is **CLOSED**. The premise was that
+// the value lane has no representation for a drawing handle; `runtime/handles.js`
+// gives it one — opaque, `kindOf`-named `'drawing'`, never a number and never
+// `na` — so a create written at a position the OBJECT PASS collects one from
+// now lowers to that handle and the two lanes compose. The synthetic shape
+// DRAWS end to end (`runtime/__tests__/drawingAsValue.test.js`).
+//
+// ⭐⭐ WHAT REPLACED IT AS THE SHAPE THAT STILL REFUSES UNDER OWNERSHIP IS A
+// DIFFERENT CAPABILITY, and the survivor moved straight onto it: READING a
+// drawing (`line.get_y1(l)`) in a value position. Holding a handle and
+// answering a number ABOUT the drawing are not the same thing, and this lane
+// has neither the drawing nor an honest number — `liquidity-levels-sonarlab`
+// is now @L100, not @L170. That refusal is the one the control below pins, and
+// it must still NOT carry the ownership hint: pointing its reader at the seam
+// would send them where the fix is not.
 //
 // ⚠️ ONE SHAPE IS STILL MISFILED AND IS NOT FIXED HERE, recorded rather than
 // hidden: a drawing bound to a PLAIN name and used later
@@ -103,27 +115,47 @@ describe('⛔ the refusal names the CALLER, because the caller is the answer', (
   })
 
   it('⛔ CONTROL: the hint is ABSENT where ownership WAS declared', () => {
-    // ⭐ The one shape that still refuses under ownership is a drawing used as
-    // a VALUE — and that is the real gap, not a routing question. Sending its
-    // reader to the ownership seam would send them where the fix is not.
-    const b = build('var labels = array.new_label()\n'
-      + 'array.push(labels, label.new(bar_index, close, "x"))\n'
-      + 'plot(array.size(labels))', true)
+    // ⭐ The shape that still refuses under ownership is a drawing READ — and
+    // that is a real gap, not a routing question. Sending its reader to the
+    // ownership seam would send them where the fix is not.
+    // ⚰️ This fixture was `array.push(labels, label.new(…))` until that shape
+    // started compiling. Swapping it kept the CONTROL's question intact while
+    // the answer to a different question changed.
+    const b = build('var lines = array.new_line()\n'
+      + 'array.push(lines, line.new(bar_index, low, bar_index, high))\n'
+      + 'plot(line.get_y1(array.get(lines, 0)))', true)
     expect(b.ok).toBe(false)
     expect(b.refusal.guard).toBe('runtime:object-op')
+    expect(b.refusal.message).toMatch(/line\.get_y1/)
     expect(b.refusal.message).not.toMatch(/objectTrees/)
   })
 
-  it('⭐ a drawing used as a VALUE is refused under ownership too, by design', () => {
-    // There is no honest number for a drawing handle: `na` would make
-    // `na(array.get(labels, i))` read TRUE for a label already drawn. The
-    // corpus shape is `array.push(labels, label.new(…))`, and this is the
-    // capability the census row should point at once the routing half is read
-    // correctly.
+  it('⭐⭐ a drawing used as a VALUE now BUILDS under ownership — the seam closed', () => {
+    // ⭐⭐ THE CORPUS'S DOMINANT LIST-OF-DRAWINGS IDIOM, and the case this file
+    // used to pin as the one genuinely missing capability. The object pass
+    // collects a create written here and refers to it by site; this lane gives
+    // the expression an opaque handle and holds it. Neither lane learned
+    // anything about the other's job.
+    // ⛔ IF THIS GOES RED, the seam has re-opened and 19 corpus scripts are back
+    // behind one refusal.
+    const owned = build('var labels = array.new_label()\n'
+      + 'array.push(labels, label.new(bar_index, close, "x"))\n'
+      + 'plot(array.size(labels))', true)
+    expect(owned.ok, owned.ok ? '' : `${owned.refusal.guard} — ${owned.refusal.message}`)
+      .toBe(true)
+  })
+
+  it('⛔ CONTROL: and WITHOUT ownership the same line still refuses', () => {
+    // ⭐ Without this the case above is satisfied by a lane that stopped
+    // checking: a handle may stand only for a create somebody has taken
+    // responsibility for, and a caller that never ran the object pass has taken
+    // none. The refusal here still carries the ownership hint, because for THIS
+    // caller the hint is the answer.
     const b = build('var labels = array.new_label()\n'
       + 'array.push(labels, label.new(bar_index, close, "x"))\n'
       + 'plot(array.size(labels))', false)
     expect(b.ok).toBe(false)
     expect(b.refusal.guard).toBe('runtime:object-op')
+    expect(b.refusal.message).toMatch(/objectTrees/)
   })
 })

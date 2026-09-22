@@ -24,6 +24,7 @@
 // line; it appears in neither script.
 
 import { RuntimeLimitError } from './limits.js'
+import { isDrawingHandle } from './handles.js'
 
 export class CollectionError extends Error {
   constructor(message) { super(message); this.name = 'CollectionError' }
@@ -31,9 +32,17 @@ export class CollectionError extends Error {
 
 /** What kind is this runtime value? The VM checks declared operand kinds
  *  against this, so 'array' is a real kind rather than `typeof v === 'object'`
- *  spread across nine call sites. */
+ *  spread across nine call sites.
+ *
+ *  ⭐⭐ `'drawing'` IS A KIND OF ITS OWN, AND `'other'` WOULD NOT HAVE DONE.
+ *  A drawing handle already answered `'other'` here by falling off the end, and
+ *  every kind check would have refused it just the same — but the REFUSAL is
+ *  what a member reads, and *"takes a number, got other"* names nothing they
+ *  wrote. `handles.js` explains why a handle must never coerce; this is the
+ *  sentence that says so when one lands where a number was declared. */
 export const kindOf = (v) => {
   if (Array.isArray(v)) return 'array'
+  if (isDrawingHandle(v)) return 'drawing'
   const t = typeof v
   return t === 'number' || t === 'string' ? t : 'other'
 }
