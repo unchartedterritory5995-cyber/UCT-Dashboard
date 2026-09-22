@@ -36,7 +36,8 @@ export default function useTradeReview(accountId) {
       setReview(data)
       return data
     } catch (e) {
-      setError(String(e.message || e))
+      console.error('Failed to generate trade review:', e)
+      setError("Compass couldn't review this trade. Try again.")
       return null
     } finally {
       setIsLoading(false)
@@ -53,7 +54,8 @@ export default function useTradeReview(accountId) {
       setReview(data)
       return data
     } catch (e) {
-      setError(String(e.message || e))
+      console.error('Failed to regenerate trade review:', e)
+      setError("Compass couldn't regenerate this review. Nothing was changed — try again.")
       return null
     } finally {
       setIsLoading(false)
@@ -69,7 +71,8 @@ export default function useTradeReview(accountId) {
       )
       setReview((r) => r && r.id === reviewId ? { ...r, feedback: value } : r)
     } catch (e) {
-      setError(String(e.message || e))
+      console.error('Failed to save trade review feedback:', e)
+      setError("Couldn't save your feedback. Try again.")
     }
   }, [accountId, callJson])
 
@@ -81,7 +84,8 @@ export default function useTradeReview(accountId) {
       )
       setReview(null)
     } catch (e) {
-      setError(String(e.message || e))
+      console.error('Failed to remove trade review:', e)
+      setError("Couldn't remove this review. Try again.")
     }
   }, [accountId, callJson])
 
