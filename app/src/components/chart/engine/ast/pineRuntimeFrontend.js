@@ -32,6 +32,7 @@ import {
   lexPine, blockStatements, parseWholeExpression, Resolver,
   findTop, isPunct, boundName, locate, PineRefusal, functionParams,
   VALUE_NAMESPACES, PINE_CALL_SHAPES, PINE_NAMESPACED_TREE, colourHexByName, objectEnumValue,
+  OWN_TF_NAMES, basePeriodOf,
 } from './pine.js'
 import { CLOCK_REALTIME } from '../../indicators.js'
 import { TABLE, isPointwise } from './parse.js'
@@ -718,6 +719,18 @@ export function buildRuntimeIr(source, opts = {}) {
     symbol: opts.symbol,
   })
 
+  /** ⭐⭐ THE BARS THIS BUILD IS FOR — read ONCE, here, from the BUILD's options.
+   *
+   *  ⛔⛔ IT CANNOT BE READ INSIDE `lowerExpr`, AND THAT IS A MEASURED TRAP, NOT
+   *  A STYLE NOTE. `lowerExpr(node, scope, opts)` takes a parameter called
+   *  `opts` — its own per-expression flags — which SHADOWS this function's
+   *  options object. `basePeriodOf(opts)` written in there silently read
+   *  `{multi: true}` or `undefined` and answered the DEFAULT for every build,
+   *  so a caller passing `basePeriod: '60'` got `'D'` and nothing said so. It
+   *  was caught by a rail that drove two different bases; a rail that only ever
+   *  drove the default would have passed. */
+  const lanePeriod = basePeriodOf(opts)
+
   const slots = []
   const columns = []
   const columnByKey = new Map()
@@ -908,7 +921,17 @@ export function buildRuntimeIr(source, opts = {}) {
       const slot = scope.lookup(node.name)
       if (slot !== null) return !!(slots[slot] && slots[slot].text)
       const bound = env.get(node.name)
-      return !!(bound && bound.kind === 'expr' && holdsText(bound.node, scope, depth + 1))
+      if (bound) return !!(bound.kind === 'expr' && holdsText(bound.node, scope, depth + 1))
+      // ⭐⭐ `timeframe.period` IS TEXT, and this reader is where a BINDING to it
+      // learns that. `tf = timeframe.period` then `request.security(sym, tf, x)`
+      // is the corpus idiom; without this the bound name reads as numeric, the
+      // route sends it to the columnar lane, and a member is told their script
+      // *"uses a text feature our chart does not render yet"* about a name this
+      // engine answers one lane over.
+      // ⛔ A BINDING WINS — the `if (bound)` above returns before this — for the
+      // same reason `ownTimeframeOf` consults one first: `period = "60"` is a
+      // legal v2/v3 line and means hourly.
+      return OWN_TF_NAMES.has(node.name)
     }
     // ⛔ A `str.*` THAT RETURNS A STRING IS TEXT; one that returns a NUMBER is
     // not. `str.length(s)` composes with ordinary arithmetic and must not mark
@@ -2135,6 +2158,15 @@ export function buildRuntimeIr(source, opts = {}) {
         // before the branch that knows it can ever be reached. That is exactly
         // how the `size.*` fix read as a no-op until BOTH places changed.
         && !(node.type === 'name' && ORDER_ENUM[node.name] !== undefined)) {
+      // ⚰️ A `timeframe.period` CLAUSE STOOD IN THIS CONDITION AND COULD NOT BE
+      // PROVED. It looked necessary — the comment above says in as many words
+      // that *"the ROUTE decision runs FIRST"*, and handling the name in the
+      // switch alone really did read as a no-op. What closed the gap was
+      // teaching `holdsText` the name, which makes `touchesText` true, which
+      // makes the CATCH below fall through for the bare name as well as for a
+      // binding to it. With that in place a mutation deleting this clause left
+      // the suite green, while deleting the `holdsText` arm turned it red —
+      // `lesson_a_guard_repeated_is_a_guard_unproved`, so one mechanism stands.
       // ⭐⭐⭐ THE COLUMNAR LANE'S OWN VERDICT DECIDES, NOT A SECOND GUESS ABOUT
       // WHAT IT CAN HOLD. A static "does this contain text?" predicate reads as
       // the obvious routing rule and is wrong in the expensive direction:
@@ -2208,6 +2240,29 @@ export function buildRuntimeIr(source, opts = {}) {
         if (ORDER_ENUM[node.name] !== undefined
             && scope.lookup(node.name) === null && !env.has(node.name)) {
           return str(ORDER_ENUM[node.name])
+        }
+        // ⭐⭐ `timeframe.period` IS A STRING CONSTANT IN THIS LANE TOO, and it
+        // has to be lowered HERE rather than left to the columnar resolver.
+        // `admitRequest` demands `EXPR.STR` for a request's timeframe — *"it
+        // decides which bars must be fetched before the run"* — and text never
+        // reaches the columnar lane at all, so a name that resolves perfectly
+        // well as bind-time text over there arrives here as nothing.
+        //
+        // ⚰️ MEASURED: with the columnar half alone, four corpus scripts writing
+        // `request.security(<sym>, timeframe.period, close)` moved from a FALSE
+        // refusal (*"the grammar does not hold `timeframe.period`"*) to a
+        // MISLEADING one (*"this script uses a text feature our chart does not
+        // render yet"*) — about a request whose real problem is its symbol.
+        // Serving the name in one lane and not the other is what produced that.
+        //
+        // ⛔ SAME VALUE, ONE READER (`basePeriodOf`), and the SAME roster
+        // (`OWN_TF_NAMES`) the columnar half asks — otherwise `tf == 'D'` and
+        // `request.security(sym, tf, x)` could disagree inside one script.
+        // ⛔ AND A BINDING STILL WINS, exactly as it does for the clock fields
+        // above and in `ownTimeframeOf`: a script may write `period = "60"`.
+        if (OWN_TF_NAMES.has(node.name)
+            && scope.lookup(node.name) === null && !env.has(node.name)) {
+          return str(lanePeriod)
         }
         const slot = scope.lookup(node.name)
         if (slot !== null) return read(slot)

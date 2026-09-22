@@ -545,6 +545,79 @@ const PINE_TF_SPELLING = Object.freeze({
   D: 'D', '1D': 'D', W: 'W', M: 'M',
 })
 
+/** Every timeframe CODE this door recognises — DERIVED from the spelling map's
+ *  values rather than retyped, so a spelling that lands tomorrow is recognised by
+ *  the `timeframe.*` family on the same day. A code outside this set is not
+ *  classified, it is REFUSED: the three readers below answer `null` for it and
+ *  every caller falls through to the refusal it already had.
+ *
+ *  ⭐ That is the rule `indicators.js::timeframeFlags` already states for the
+ *  clock — *"`null` FOR AN UNKNOWN CODE, NEVER A GUESSED DEFAULT"* — applied to
+ *  the same question one namespace over. */
+const TF_CODES = Object.freeze(new Set(Object.values(PINE_TF_SPELLING)))
+
+/** ⭐⭐ WHICH CODES ARE A PLAIN NUMBER OF MINUTES. Pine spells an intraday
+ *  timeframe as the minute count itself (`"5"`, `"60"`), which is why
+ *  `timeframe.multiplier` and `timeframe.in_seconds` are ARITHMETIC over these
+ *  and a TABLE over the other three. Asked of the code, never of its shape at a
+ *  call site — `"1"` and `"1M"` differ by one character and mean a minute and a
+ *  month. */
+const isMinuteCode = (code) => typeof code === 'string' && /^[0-9]+$/.test(code)
+
+/** ⭐⭐ ONE BAR OF `D`, `W` OR `M`, IN SECONDS — PINE'S DOCUMENTED CONSTANTS.
+ *
+ *  ⛔ NOT VENDOR-WITNESSED HERE, AND SAYING SO IS THE POINT. The intraday half of
+ *  `timeframe.in_seconds` is a derivation (minutes x 60) and needs no authority;
+ *  these three are a CONVENTION TradingView publishes — a day is 86,400 seconds,
+ *  a week is 7 of those, and a MONTH IS 30 DAYS, which is a choice rather than a
+ *  fact about any calendar. They are written as that arithmetic so the convention
+ *  is visible instead of arriving as three magic numbers, and
+ *  `pineTimeframeFamily.test.js` pins the relation.
+ *
+ *  ⚠️ A code with no entry here and no minute count answers `null` and REFUSES,
+ *  which is the direction a guess would be worst in: `timeframe.in_seconds` is
+ *  compared against literal second counts (`<= 3600`) all over the corpus, so a
+ *  plausible-but-wrong number does not degrade the answer, it INVERTS the branch
+ *  a member's script takes. */
+const TF_SECONDS_DAILY_AND_ABOVE = Object.freeze({
+  D: 24 * 60 * 60,
+  W: 7 * 24 * 60 * 60,
+  M: 30 * 24 * 60 * 60,
+})
+
+/** `timeframe.multiplier` for a code, or `null` when this engine does not hold
+ *  the code at all.
+ *
+ *  ⭐ Pine's own definition: the NUMBER in front of the unit. `"5"` is five
+ *  minutes so the multiplier is 5; `"D"`, `"W"` and `"M"` carry no number, so the
+ *  multiplier is 1 — the same answer Pine gives, for the same reason. */
+export function timeframeMultiplier(code) {
+  if (!TF_CODES.has(code)) return null
+  return isMinuteCode(code) ? Number(code) : 1
+}
+
+/** `timeframe.in_seconds(<code>)`, or `null` when the code is not one this engine
+ *  holds a length for. */
+export function timeframeSeconds(code) {
+  if (!TF_CODES.has(code)) return null
+  if (isMinuteCode(code)) return Number(code) * 60
+  return own(TF_SECONDS_DAILY_AND_ABOVE, code) ? TF_SECONDS_DAILY_AND_ABOVE[code] : null
+}
+
+/** ⭐⭐ THE BARS A TRANSLATION IS FOR, READ OFF ITS OPTIONS — ONE READER, TWO
+ *  LANES. `Resolver` answers `timeframe.period` with this, and the runtime front
+ *  end lowers the same name to the same string with it; two copies of
+ *  `opts.basePeriod || BASE_TF` would let `tf == 'D'` and
+ *  `request.security(sym, tf, x)` disagree about ONE name in ONE script, which
+ *  is the second-authority-over-one-value defect this file records more than any
+ *  other.
+ *
+ *  ⚠️ The DEFAULT is `BASE_TF`, which is derived rather than typed — see
+ *  `interpret.js`. It is not a guess: it is what the ladder says this engine is
+ *  handed. */
+export const basePeriodOf = (opts) =>
+  (opts && typeof opts.basePeriod === 'string' ? opts.basePeriod : BASE_TF)
+
 /** The spellings that mean “THIS chart's symbol”, across Pine versions.
  *
  *  ⚠️ `tickerid` AND `ticker` ARE THE v2/v3 NAMES for what v5 spells
@@ -563,7 +636,7 @@ const PINE_TF_SPELLING = Object.freeze({
  *  fixed for three lines away, left standing on the timeframe side; the symbol
  *  fix even documents the ordering rule that this line then ignored. Caught by a
  *  shadowing CONTROL, not by review — for the second time. */
-const OWN_TF_NAMES = new Set(['timeframe.period', 'period'])
+export const OWN_TF_NAMES = new Set(['timeframe.period', 'period'])
 
 const OWN_SYMBOL_NAMES = new Set([
   'syminfo.tickerid', 'syminfo.ticker', 'tickerid', 'ticker',
@@ -1165,6 +1238,59 @@ export const BUILTIN_TIMEFRAME_ALIAS = Object.freeze({
   'timeframe.isweekly': 'isweekly',
   'timeframe.ismonthly': 'ismonthly',
   'timeframe.isintraday': 'isintraday',
+})
+
+/** ⭐⭐ `timeframe.multiplier` — A FIFTH KIND OF DOTTED NAME: a value the BARS
+ *  THIS TRANSLATION IS FOR settle, which is neither a constant, a calendar fact,
+ *  a column nor a symbol.
+ *
+ *  ⛔⛔ AND IT READS `this.basePeriod`, WHICH IS NOT A NEW AUTHORITY. That field
+ *  is already documented as *"THE BARS THIS TRANSLATION IS FOR"*, and this door
+ *  has ALREADY equated it with "the chart's own timeframe" for months:
+ *  `ownTimeframeOf` declares `timeframe.period` to name the chart's own
+ *  timeframe, and `securityAsNode` folds `request.security(own, <basePeriod>, x)`
+ *  to the identity on exactly that basis — the two spellings of one request.
+ *  Handing the same code back as a VALUE states what that equation already
+ *  assumed; a second source for "what timeframe is this" is precisely the defect
+ *  `lesson_a_second_authority_over_one_value` records.
+ *
+ *  ⛔ THE SHAPE IS `code -> number | null`, AND `null` REFUSES. Every reader here
+ *  falls through to the namespace guard's own sentence when the code is one this
+ *  engine does not hold — never to a plausible default, because these numbers are
+ *  compared against literals in a member's own script.
+ */
+export const BUILTIN_TIMEFRAME_SCALAR = Object.freeze({
+  'timeframe.multiplier': timeframeMultiplier,
+})
+
+/** The `timeframe.*` names that arrive as CALLS. Their arity and their argument
+ *  handling live in `Resolver.timeframeCallOf`; this map is only the roster the
+ *  two hooks (name path and call path) consult, so neither can serve a name the
+ *  other refuses. */
+export const BUILTIN_TIMEFRAME_CALL = Object.freeze({
+  'timeframe.in_seconds': true,
+})
+
+/** 🔴 `timeframe.<name>` RULED ON BY NAME, with the reason — the same arrangement
+ *  `BUILTIN_RULED` and `symbolScope.json::unserved` keep, and it exists for the
+ *  same reason: once `timeframe.period`, `.multiplier` and `.in_seconds` resolve,
+ *  a generic *"the engine grammar does not hold this"* about the name beside them
+ *  teaches a reader to distrust every refusal in the file.
+ *
+ *  ⛔ `timeframe.change` IS NOT "NOT BUILT YET" — it is a PER-BAR EVENT. It is
+ *  true on the first bar of each new period of the timeframe it is handed, so it
+ *  is a column decided bar by bar rather than a value one binding settles. The
+ *  three names that now resolve are all constant for a binding; this one is not,
+ *  and folding it to either constant would be a confident wrong answer on every
+ *  bar. */
+export const BUILTIN_TIMEFRAME_RULED = Object.freeze({
+  'timeframe.change': 'it is true on the FIRST BAR OF EACH NEW PERIOD, so it is decided '
+    + 'bar by bar rather than settled once for a binding — unlike its siblings '
+    + '`timeframe.period`, `timeframe.multiplier` and `timeframe.in_seconds`, which '
+    + 'this engine does hold. Serving it needs a CLOCK COLUMN for "is this the first '
+    + 'bar of a new <tf>", which the manifest does not declare; folding it to a '
+    + 'constant would answer the same thing on every bar, which is the one answer it '
+    + 'is never allowed to give.',
 })
 
 /** ⭐⭐⭐ `barstate.<name>` — SERVED AS CLOCK COLUMNS ON THE HOST CONTRACT, and
@@ -4670,7 +4796,7 @@ export class Resolver {
      *  `D` ends: *"what would unblock this is a BASE, not a bucketing rule"*. This is
      *  that input. Default `BASE_TF` (derived, = `'D'`), overridable so the guard
      *  below is PROVABLE rather than merely present. */
-    this.basePeriod = typeof opts.basePeriod === 'string' ? opts.basePeriod : BASE_TF
+    this.basePeriod = basePeriodOf(opts)
     /** Whether the newest bar in hand is still forming. Consulted ONLY to REFUSE an
      *  identity fold on an intraday base; never to produce a value. */
     this.newestBarIsForming = opts.newestBarIsForming === true
@@ -5557,10 +5683,44 @@ export class Resolver {
     if (node.type === 'bound') {
       return this.throughBinding(node.binding, (b) => this.stringValueOf(b.node, depth + 1))
     }
+    // ⭐⭐ A TERNARY WHOSE SELECTOR IS A CONSTANT IS THE BRANCH IT TAKES — the
+    // idiom `ownTimeframeOf` and `timeframeLiteralOf` have carried all along,
+    // asked here for the same reason. `corr_tf = tf_corr == "" ? timeframe.period
+    // : tf_corr` is how the corpus writes "this timeframe, unless the member
+    // overrode it", and BOTH arms are text, so refusing it would refuse a
+    // question that is already decided.
+    // ⛔ ONLY A CONSTANT SELECTOR. `constantBranchOf` returns null for anything
+    // that resolves per bar, so a runtime choice between two strings is still
+    // not a string this translator knows.
+    if (node.type === 'ternary') {
+      const taken = this.constantBranchOf(node)
+      return taken ? this.stringValueOf(taken, depth + 1) : null
+    }
     if (node.type === 'name') {
       if (own(this.table.series, node.name)) return null
-      return this.throughBinding(this.env.get(node.name),
-        (b) => this.stringValueOf(b.node, depth + 1))
+      const bound = this.env.get(node.name)
+      if (bound) {
+        return this.throughBinding(bound, (b) => this.stringValueOf(b.node, depth + 1))
+      }
+      // ⭐⭐ `timeframe.period` IS A STRING THIS TRANSLATION ALREADY KNOWS — the
+      // code of the bars it is being made for. `tf == 'D'`, `switch tf`,
+      // `str.contains(tf, "M")` are all the SAME question a literal answers, one
+      // step earlier, so they are answered the same way and fold to a number
+      // before anything textual can reach a tree.
+      //
+      // ⛔⛔ THE BINDING IS CONSULTED FIRST AND THAT IS THE WHOLE GUARD. This is
+      // the FIFTH place in this file where a Pine name has to yield to what the
+      // script SAID — `ownSymbolNameOf`, `ownTimeframeOf`, `resolveName` and the
+      // `request.security` carve-out each carry the same note, each after the
+      // same defect. `OWN_TF_NAMES` holds the bare v2/v3 spelling `period`, which
+      // a script may legally reassign (`period = "60"` means hourly), so reading
+      // the name before the binding would answer off whatever bars are loaded.
+      //
+      // ⛔ AND THE MAP IS THE SAME ONE `ownTimeframeOf` ASKS. A second roster of
+      // "which spellings mean the chart's own timeframe" would let this door and
+      // `securityAsNode` disagree about one script.
+      if (OWN_TF_NAMES.has(node.name)) return this.basePeriod
+      return null
     }
     if (node.type === 'call' && (node.name === 'input' || node.name.startsWith('input.'))) {
       const named = node.args.find((a) => a.name === 'defval')
@@ -6573,6 +6733,46 @@ export class Resolver {
       if (own(BUILTIN_TIMEFRAME_ALIAS, name)) {
         return { type: 'series', name: BUILTIN_TIMEFRAME_ALIAS[name] }
       }
+      // ⭐⭐ KIND 5 — SETTLED BY THE BARS THIS TRANSLATION IS FOR. A number, so it
+      // folds here; see `BUILTIN_TIMEFRAME_SCALAR` for why `this.basePeriod` is
+      // the authority rather than a new one.
+      // ⛔ `null` FALLS THROUGH, IT DOES NOT ANSWER. A code this engine holds no
+      // multiplier for keeps the namespace guard's own sentence rather than a
+      // guessed 1 — which would read as "this is a daily chart" on a timeframe
+      // nobody has classified.
+      if (own(BUILTIN_TIMEFRAME_SCALAR, name)) {
+        const v = BUILTIN_TIMEFRAME_SCALAR[name](this.basePeriod)
+        if (v !== null) return cNum(v)
+      }
+      // ⚰️ A SECOND `BUILTIN_TIMEFRAME_RULED` THROW STOOD HERE AND COULD NOT BE
+      // PROVED. Every name in that map is a CALL (`timeframe.change(tf)`), so it
+      // reaches `resolveCall` and never this arm; a mutation that deleted this
+      // copy left the whole suite green while deleting the `resolveCall` one
+      // turned it red. Two guards over one value, only one of which could be
+      // shown to matter — `lesson_a_guard_repeated_is_a_guard_unproved`, so the
+      // unprovable one is gone rather than kept "for safety".
+      // ⚠️ A ruled name that is a VARIABLE rather than a call would need an arm
+      // here, and would arrive with its own rail proving it fires.
+      // ⭐⭐ `timeframe.in_seconds(…)` ARRIVES HERE AS WELL AS AT `resolveCall`,
+      // and a hook on only one of them is a capability that works in some
+      // expressions and not others — the note `resolveVectorRead` carries six
+      // lines down, after that exact defect was measured on `array.get`.
+      // ⛔ `Array.isArray(node.args)` IS THE CALL TEST AND IT IS LOAD-BEARING.
+      // Without it the BARE name `timeframe.in_seconds`, which Pine does not
+      // have, reads as a zero-argument call and folds to the chart's own length —
+      // a number for something a member never wrote.
+      if (Array.isArray(node.args)) {
+        const asTfCall = this.timeframeCallOf(name, node)
+        if (asTfCall) return asTfCall
+      }
+      // ⭐ AND THE TEXT ONE GETS THE TEXT REFUSAL. `timeframe.period` resolves as
+      // BIND-TIME TEXT (see `stringValueOf`), so the true sentence about
+      // `plot(timeframe.period)` is the one a bare string literal already gets:
+      // text is not a value in this engine. `pine:builtin` here would say the
+      // grammar has no home for a name three lines of this file serve.
+      if (OWN_TF_NAMES.has(name) && name.includes('.')) {
+        throw new PineRefusal('pine:text-value', REFUSALS['pine:text-value'], locate(node.tok))
+      }
       // ⭐⭐ KIND 4 — SYMBOL-SCOPED, AND TEXT. This is the only place in the
       // translator that mints a `symtext` node, and it is deliberately a dead end
       // for everything except the bind-time fold: `interpret.js` has no case for
@@ -7011,6 +7211,28 @@ export class Resolver {
       const folded = this.resolveVectorRead(name, node)
       if (folded) return folded
     }
+    // ⭐⭐ `timeframe.in_seconds([tf])` — TRIED BEFORE THE NAMESPACE GUARD AND
+    // FALLING THROUGH TO IT, the shape `request.security` and the text predicates
+    // both established above. A call this cannot settle is NOT a special case
+    // with a message of its own; it keeps the one sentence the namespace already
+    // publishes.
+    // ⛔ AND IT YIELDS TO A USER DEFINITION OF THE SAME NAME, for the reason
+    // recorded at the `security` carve-out: consult what the script SAID before
+    // what the table knows. This is the fourth instance of that defect in this
+    // file and the note is repeated because each one was found separately.
+    if (own(BUILTIN_TIMEFRAME_CALL, name) && !this.shadowedByDefinition(name)) {
+      const folded = this.timeframeCallOf(name, node)
+      if (folded) return folded
+    }
+    // ⛔ A RULED `timeframe.*` CALL GETS ITS RULING, not the namespace shrug —
+    // `timeframe.change(tf)` reaches the door as a CALL, so the check in
+    // `resolveName` above cannot see it.
+    if (own(BUILTIN_TIMEFRAME_RULED, name) && !this.shadowedByDefinition(name)) {
+      throw new PineRefusal('pine:builtin',
+        `\`${name}\` is a Pine built-in this engine holds no COLUMN for, though it `
+        + `holds its siblings: ${BUILTIN_TIMEFRAME_RULED[name]}`,
+        locate(node.tok))
+    }
     if (ns && own(NAMESPACE_GUARD, ns) && !VALUE_NAMESPACES.has(ns)) {
       const guard = NAMESPACE_GUARD[ns]
       // ⭐⭐ A `request.security` THAT DECLINED FOR A NAMEABLE REASON SAYS SO. Every
@@ -7121,6 +7343,43 @@ export class Resolver {
     // and is correctly not a branch anybody can name.
     if (!test || test.type !== 'num') return null
     return test.value ? node.yes : node.no
+  }
+
+  /** `timeframe.in_seconds([tf])` → a `num` node, or null for every shape this
+   *  cannot settle honestly.
+   *
+   *  ⭐⭐ THE ARGUMENT IS OPTIONAL AND THE TWO CASES ARE ONE QUESTION. With no
+   *  argument Pine means the CHART'S OWN timeframe, which is `basePeriod`; with
+   *  one it means whatever code that expression is, which `stringValueOf` already
+   *  answers for a literal, a binding and an `input.timeframe` default. So both
+   *  arms produce a CODE and the same reader turns a code into seconds.
+   *
+   *  ⛔ NULL, NEVER A REFUSAL OF ITS OWN — the contract `securityAsNode` states:
+   *  the caller falls through to `pine:builtin` and the namespace keeps ONE
+   *  sentence. A computed argument (`timeframe.in_seconds(userFn(x))`), an arity
+   *  Pine does not have, or a code this engine holds no length for all land
+   *  there.
+   *
+   *  ⚠️ THE ARGUMENT IS READ AS BIND-TIME TEXT, NOT AS A VALUE. Nothing textual
+   *  survives this call: it consumes a string and returns a number, which is the
+   *  same containment `PINE_TEXT_PREDICATE` relies on. */
+  timeframeCallOf(name, node) {
+    if (name !== 'timeframe.in_seconds') return null
+    const raw = (node.args || []).filter((a) => a && !a.name)
+      .map((a) => (a.value !== undefined ? a.value : a))
+    let code = null
+    if (raw.length === 0) {
+      code = this.basePeriod
+    } else if (raw.length === 1) {
+      const lit = this.stringValueOf(raw[0])
+      // ⭐ THE SPELLING MAP IS ASKED, NOT COPIED. `'1H'`, `'1D'` and `'4H'` are
+      // Pine spellings of codes this engine already holds, and recognising them
+      // here rather than only their bare forms is free.
+      code = lit === null ? null : (PINE_TF_SPELLING[String(lit).trim().toUpperCase()] || null)
+    }
+    if (code === null) return null
+    const secs = timeframeSeconds(code)
+    return secs === null ? null : cNum(secs)
   }
 
   /** Does this node name THIS CHART'S OWN timeframe? → the spelling, or null.
