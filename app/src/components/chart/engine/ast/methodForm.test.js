@@ -446,3 +446,70 @@ describe('⭐⭐ E — one Pine operation, one verdict, whichever spelling', () 
     expect(r.refusal.message).toContain('array.reverse')
   })
 })
+
+// --------------------------------------------------------------------------- //
+// G — the receiver is a UDT FIELD PATH, not a bare name
+// --------------------------------------------------------------------------- //
+
+/** A UDT holding one box, instantiated once, its field assigned a real box.
+ *
+ *  ⛔ RULE 5 — every coordinate is series data, so nothing folds to a constant.
+ *  ⭐ The field is assigned with `:=` on a `var` instance, which is how the
+ *  smart-money scripts in the corpus actually carry a drawing across bars. */
+const Z = 'type Zone\n    box b\n\nvar Zone z = Zone.new(na)\nif close > open\n'
+  + '    z.b := box.new(bar_index - 2, high, bar_index, low)\n'
+
+describe('⛔⛔ G — a method form on a UDT FIELD is the same op as the name form', () => {
+  it('⭐⭐ `z.b.set_bgcolor(c)` === `box.set_bgcolor(z.b, c)`', () => {
+    // ⚰️ MEASURED BEFORE THE FIX: the NAME form already worked — `z.b` lexes as
+    // one ident, so the declaration collector registers it and `targetRef`
+    // resolves it as an ordinary register. The METHOD form died one layer
+    // earlier, in `splitMethodName`, which split at the FIRST dot and then
+    // refused any method still carrying one: `z.b.set_bgcolor` came back as
+    // recv `z`, method `b.set_bgcolor`, and was rejected outright.
+    //
+    // ⛔ SO THE OBJECT PASS EMITTED NOTHING AND COUNTED NOTHING. The only thing
+    // between that and a member's chart was the RUNTIME lane independently
+    // refusing the line `runtime:expression-statement` — the same accidental
+    // catch this file's header records, in another lane, one more time.
+    expect(opsJson(pass(`${Z}    z.b.set_bgcolor(color.red)\n`)))
+      .toBe(opsJson(pass(`${Z}    box.set_bgcolor(z.b, color.red)\n`)))
+  })
+
+  it('⛔⛔ `z.b.delete()` === `box.delete(z.b)` — the op that MUST NOT go missing', () => {
+    expect(opsJson(pass(`${Z}    z.b.delete()\n`)))
+      .toBe(opsJson(pass(`${Z}    box.delete(z.b)\n`)))
+  })
+
+  it('⭐ a coordinate setter carrying series data — `z.b.set_right(bar_index)`', () => {
+    expect(opsJson(pass(`${Z}    z.b.set_right(bar_index)\n`)))
+      .toBe(opsJson(pass(`${Z}    box.set_right(z.b, bar_index)\n`)))
+  })
+
+  it('⛔ CONTROL — the name form was ALREADY working, so the test above can fail', () => {
+    // ⭐⭐ WITHOUT THIS THE SECTION IS VACUOUS. Both sides of an equality that
+    // compares two EMPTY op lists pass, and would have passed before the fix.
+    // This pins that the right-hand side of every comparison above is a real
+    // program, so an equality here means "the method form reached it" rather
+    // than "neither form emitted anything".
+    const namedForm = pass(`${Z}    box.set_bgcolor(z.b, color.red)\n`)
+    expect(kinds(namedForm)).toEqual(['setreg', 'create', 'update'])
+  })
+
+  it('⛔ CONTROL — an UNDECLARED field path emits NOTHING and invents no family', () => {
+    // A last-dot split hands `nothing.here` to the declaration lookup, which
+    // must answer null rather than inventing a family out of the method name.
+    const t = pass(`${H5}if close > open\n    nothing.here.set_bgcolor(color.red)\n`.slice(H5.length))
+    expect(kinds(t)).toEqual([])
+    expect(diag(t).unsupported || []).toEqual([])
+  })
+
+  it('⛔⛔ CONTROL — a prototype reach is still refused, not read as a field path', () => {
+    // `close.constructor.constructor` IS `Function`. Splitting at the last dot
+    // makes it LOOK like a field path with method `constructor`; the escape
+    // census credits `canonicalise:member` with catching this, and that guard
+    // lives in another layer that this change must not route around.
+    const r = lane(`${H6}plot(close.constructor.constructor)\n`.slice(H6.length), H6)
+    expect(r.ok).toBe(false)
+  })
+})

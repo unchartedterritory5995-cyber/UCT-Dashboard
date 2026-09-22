@@ -39,29 +39,47 @@
 // `resolveName`, `request.security`). So the caller passes `shadowed`, and a
 // name the script defines is never rewritten.
 //
-// ⛔ THE RECEIVER MUST BE A SINGLE, DECLARED NAME. `k._box.pop()` and
-// `info.retestTimes.size()` lex as ONE dotted ident whose head is a UDT field,
-// not a collection this engine declared; `_hline.get(0)` in the committed
-// corpus names a user-FUNCTION PARAMETER. None of those has a declaration to
-// read a family off, and the family may never be guessed from the method name —
-// `delete` belongs to five object families and `get` to three collection ones.
-// They stay unresolved and are refused/counted by the caller, by name.
+// ⛔ THE RECEIVER MUST BE A DECLARED NAME, and THE CALLER DECIDES THAT — this
+// function only says where the name ends. `k._box.pop()` and
+// `info.retestTimes.size()` lex as ONE dotted ident; `_hline.get(0)` in the
+// committed corpus names a user-FUNCTION PARAMETER. A receiver with no
+// declaration has no family to read, and the family may never be guessed from
+// the method name — `delete` belongs to five object families and `get` to three
+// collection ones. Those stay unresolved and are refused/counted by the caller,
+// by name, exactly as before.
 
-/** `'coll.get'` → `{ recv: 'coll', method: 'get' }`, or null when the name is
- *  not exactly two segments.
+/** `'coll.get'` → `{ recv: 'coll', method: 'get' }`, splitting at the LAST dot,
+ *  or null when there is no receiver or no method.
  *
- *  ⛔ EXACTLY TWO. `a.b.c` is a field path through a user type, and its head is
- *  not the receiver of `c` — treating it as one would address the wrong object
- *  with no error anywhere, which is the same seam `postfixMember.test.js`
- *  section A keeps open for the chained form. */
+ *  ⭐⭐ THE LAST DOT, NOT THE FIRST, AND THE DIFFERENCE IS A SILENT DROP.
+ *  `z.b.set_bgcolor(c)` — a drawing held in a USER-TYPE FIELD, which is how the
+ *  smart-money scripts in the corpus carry a box across bars — split at the
+ *  first dot to recv `z`, method `b.set_bgcolor`, and the old
+ *  `method.indexOf('.') >= 0` line then threw the whole thing away.
+ *
+ *  ⚰️ MEASURED: the object pass emitted `["setreg","create"]` where the name
+ *  form `box.set_bgcolor(z.b, c)` emits `["setreg","create","update"]` — the
+ *  setter GONE — with `unsupported: []` and `droppedOps: 0`. Every diagnostic
+ *  counter read zero, so nothing anywhere recorded that a member's line had
+ *  been discarded. The only thing between that and a chart was the RUNTIME lane
+ *  independently refusing `runtime:expression-statement`, a guard in another
+ *  lane catching it by accident — the third time this file's own header records
+ *  that same accident.
+ *
+ *  ⭐ A TWO-SEGMENT NAME IS UNAFFECTED: first dot and last dot are the same dot,
+ *  so every existing caller sees byte-identical answers for `array.get`,
+ *  `box.set_bgcolor` and the rest. What changes is only names of three segments
+ *  or more, all of which previously answered null.
+ *
+ *  ⛔ AND THE HEAD IS NOT THE RECEIVER — that was the old comment's objection to
+ *  reading `a.b.c` at all, and it was right: `a` does not own `c`. `a.b` does.
+ *  Splitting at the last dot is what makes the receiver the whole path, so the
+ *  op addresses the object the member named rather than the wrong one. */
 export function splitMethodName(name) {
   const s = String(name || '')
-  const dot = s.indexOf('.')
+  const dot = s.lastIndexOf('.')
   if (dot <= 0 || dot === s.length - 1) return null
-  const recv = s.slice(0, dot)
-  const method = s.slice(dot + 1)
-  if (method.indexOf('.') >= 0) return null
-  return { recv, method }
+  return { recv: s.slice(0, dot), method: s.slice(dot + 1) }
 }
 
 /**
