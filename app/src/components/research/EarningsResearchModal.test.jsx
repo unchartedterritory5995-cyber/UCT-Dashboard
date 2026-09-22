@@ -662,6 +662,22 @@ describe('footer + §12', () => {
     expect(within(subhead).getByRole('button', { name: /full research/i })).toBeTruthy()
   })
 
+  // Packet P CP1 (signed 2026-09-22, fingerprint 64a4811e8) -- restores the
+  // "Add to calendar" link the old, deleted EarningsModal.jsx carried
+  // (commit 7c63b89fd), lost when this modal replaced it.
+  it('offers an Add to calendar link pointed at the untouched report.ics endpoint', () => {
+    renderModal({ reportDate: '2026-08-06', timing: 'amc' })
+    const subhead = screen.getByTestId('erm-subhead')
+    const link = within(subhead).getByRole('link', { name: /add to calendar/i })
+    expect(link.getAttribute('href')).toBe('/api/calendar/report.ics?sym=NVDA&date=2026-08-06&timing=amc')
+  })
+
+  it('does not render Add to calendar when the report date is unknown', () => {
+    renderModal({ reportDate: null })
+    const subhead = screen.getByTestId('erm-subhead')
+    expect(within(subhead).queryByRole('link', { name: /add to calendar/i })).toBeNull()
+  })
+
   it('the standing line is the only thing left in the footer', () => {
     // Guards the declutter itself: a control creeping back into this band is
     // how the modal ends in two stacked strips of chrome again.
