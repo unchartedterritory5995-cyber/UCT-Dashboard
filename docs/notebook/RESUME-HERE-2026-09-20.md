@@ -157,7 +157,27 @@ real viewport or exercised end-to-end this pass**:
   landed (commit `0893b66e8`): the size-cap error was leaking the backend
   field name `body_json` to the member. **NOT covered**: tables, the slash
   command menu, undo/redo, touch-viewport typing — none exercised this pass.
-- **attachments / hero image / OCR** (Wave P)
+- ✅ **attachments / hero image / OCR — VERIFIED 2026-09-21**, real Tesseract
+  (`--ocr` armed on the local sandbox), a genuinely scanned-look PDF (Pillow
+  raster, no text layer). Hero + inline image upload: clean. The real member
+  path (toolbar "Attach a file" → inline chip in the body, not the raw API)
+  through to OCR: extraction completed in ~0.4s, `textComplete: true`,
+  `textOrigin: "ocr"`; the transcript is genuinely legible with normal
+  Tesseract-typical minor misreads (expected, not a defect). Document search
+  (`/notes/documents/search`) correctly finds the OCR'd text by two different
+  query terms, with proper snippets, note linkage and `sourceKind`/
+  `textOrigin` provenance — closes "cite". Clicking the inline chip opens a
+  real `DocumentPreviewSheet`: the actual scanned page image, a "SCANNED
+  TEXT" provenance badge, Open-in-new-tab/Download/Ask — closes "click
+  through". The passive `DocumentTextStatus` disclosure banner in the body
+  ("Text read from a scanned page. Check exact figures against the page.")
+  is correct, honest, unprompted, and — this cost one round of confusion in
+  testing — is NOT itself clickable by design (`role="status"`, no handler);
+  attaching via the raw `/attachments` API instead of the toolbar button
+  skips the inline chip entirely, which looks like a broken click-through
+  and isn't one. **Not tested: real old-Safari pdf.js/Iterator crash class**
+  (`CLAUDE.md`'s own section on this) — structurally invisible to Chromium,
+  needs a real device.
 - **share / public note links**, **templates**, **export** (PNG / Print / Markdown)
 - the **Ask panel**
 - the **import wizard** (Notion / Obsidian / Evernote / md · docx · html)
