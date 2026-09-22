@@ -255,6 +255,19 @@ export const REFUSALS = Object.freeze({
   // describes is this repo's most repeated defect and `NODE_TYPES` already owns it.
   'pine:type':
     'a user-defined type is outside the node shapes this engine stores',
+  // ⭐⭐ THE POSTFIX MEMBER'S OWN SENTENCE, and it exists because the honest
+  // answer changed. Before the postfix rule, `arr.get(i).delete()` was refused
+  // `pine:character` — "Pine has no character like this one" — about a dot every
+  // Pine author writes, which sends a member hunting for a typo in a line that
+  // has none. The construct now lexes and parses; what stops it is the RECEIVER'S
+  // TYPE, and Pine decides which family `.delete` belongs to from that type. This
+  // engine tracks no such type, so the sentence says so and names the spelling
+  // that works today rather than implying the script is malformed.
+  'pine:member':
+    'reading a member off the result of an expression needs the type of that '
+    + 'result, and Pine decides which family the member belongs to from it — '
+    + 'a type this engine does not track. Written with the receiver as the first '
+    + 'argument instead, the same call resolves',
   'pine:function-def':
     'a Pine function definition introduces a name this engine has nowhere to keep',
   'pine:tuple':
@@ -2097,6 +2110,59 @@ export function lexPine(src) {
       continue
     }
 
+    // ⭐⭐ POSTFIX MEMBER ACCESS — A `.` ON THE RESULT OF AN EXPRESSION.
+    //
+    // Pine allows a member read or a method call on ANY expression, not only on
+    // a name: `array.new_float(1).size()`, `htfFVGs.first().area.delete()`,
+    // `(l[1]).delete()`. The dotted-name rule above can only join two IDENTS, so
+    // every one of those sent the dot to punctuation, matched nothing, and blamed
+    // the character. Measured on the corpus: 23 of 266 published scripts die on
+    // exactly this — the single largest blocker in the object lane.
+    //
+    // ⛔⛔ IT IS A POSTFIX, AND THE PRECEDING TOKEN IS THE WHOLE TEST. Lexing a
+    // bare `.` as punctuation everywhere would break the two neighbouring rules
+    // this lexer already pays for:
+    //   · `x\n.foo` MUST still refuse at the dot. A newline never joins a member
+    //     to a receiver — joining one would invent a name the author never wrote,
+    //     and `x` + `.foo` are two complete statements at the same indent.
+    //   · `math .max` is ONE dotted name, handled by the ident rule above, which
+    //     runs first and consumes it — so nothing here can change that answer.
+    // A postfix dot is therefore admitted only where a VALUE has just closed on
+    // THIS line: after `)` or `]`, or after a member segment this rule itself
+    // emitted (which is what makes `f().a.b` a chain rather than a dotted name).
+    //
+    // ⛔ THE SEGMENT IS SINGLE, NEVER DOTTED. `f().area.delete()` must lex as
+    // `. area . delete` and not as `. area.delete`: the receiver of `delete` is
+    // the FIELD, and handing the parser one glued name would lose that seam and
+    // silently address the wrong object.
+    if (ch === '.') {
+      const prev = tokens[tokens.length - 1]
+      const closes = prev && prev.line === line
+        && ((prev.kind === 'punct' && (prev.value === ')' || prev.value === ']'))
+          || (prev.kind === 'ident' && prev.member === true))
+      if (closes) {
+        let k = i + 1
+        while (text[k] === ' ' || text[k] === '\t') k += 1
+        if (IDENT_START.test(text[k] || '')) {
+          let j = k
+          while (j < text.length && IDENT_PART.test(text[j])) j += 1
+          tokens.push({ kind: 'punct', value: '.', line, column: col, index: i })
+          tokens.push({
+            kind: 'ident',
+            value: text.slice(k, j),
+            member: true,
+            line,
+            column: k - lineStart + 1,
+            index: k,
+          })
+          i = j
+          continue
+        }
+      }
+      // ⭐ ANYTHING ELSE FALLS THROUGH TO THE REFUSAL BELOW, with the dot as the
+      // token — the answer `x\n.foo` and `1 .. 2` got before this rule existed.
+    }
+
     // punctuation
     const punct = PUNCT.find((p) => text.startsWith(p, i))
     if (punct) {
@@ -3595,6 +3661,47 @@ function parsePostfix(cur) {
           locate(cur.peek()))
       }
       node = { type: 'offset', arg: node, n: idx, tok }
+      continue
+    }
+    if (isPunct(tok, '.')) {
+      // ⭐⭐ POSTFIX MEMBER ACCESS ON THE RESULT OF AN EXPRESSION. The lexer only
+      // emits this `.` where a value has just closed on the same line, and it
+      // always emits exactly one ident segment after it — so `cur.next()` twice
+      // is the whole of the shape, and the member name can never be dotted.
+      cur.next()
+      const nameTok = cur.next()
+      const member = nameTok.value
+      const isCall = isPunct(cur.peek(), '(')
+      let args = null
+      let endTok = null
+      if (isCall) {
+        cur.next()
+        args = parseArguments(cur)
+        endTok = cur.toks[cur.i - 1] || null
+      }
+
+      // ⭐⭐ A NAME RECEIVER IS THE DOTTED NAME ITSELF — THE SAME PROGRAM, not
+      // merely also accepted. `(a).size()` and `a.size()` are one expression in
+      // Pine, and the lexer's spaced-dot rule already holds itself to this exact
+      // standard (`math .max` IS `math.max`, tested by statement identity rather
+      // than by both returning ok). Emitting a second shape for the second
+      // spelling would give one construct two representations and hand every
+      // downstream reader a choice it has no way to make correctly.
+      //
+      // ⛔ ONLY A BARE `name` QUALIFIES. An `offset` (`(l[1])`), a `call`
+      // (`f().m`) or another member chain has no dotted spelling at all — there
+      // is no name to append to — so those keep the receiver as a subtree.
+      if (node.type === 'name') {
+        const joined = `${node.name}.${member}`
+        node = isCall
+          ? { type: 'call', name: joined, args, tok: node.tok, endTok }
+          : { type: 'name', name: joined, tok: node.tok }
+        continue
+      }
+
+      node = isCall
+        ? { type: 'method', recv: node, name: member, args, tok: nameTok, endTok }
+        : { type: 'member', recv: node, name: member, tok: nameTok }
       continue
     }
     if (isPunct(tok, '(')) {
@@ -6108,6 +6215,16 @@ export class Resolver {
       }
       case 'name': return this.resolveName(node)
       case 'call': return this.resolveCall(node)
+      // ⭐⭐ A POSTFIX MEMBER REACHING A COLUMN REFUSES BY ITS OWN NAME, AND
+      // WITH A POSITION. It falls to `default:` otherwise, which says "this Pine
+      // line is not a shape the translator reads" — the sentence for a line the
+      // parser could not read at all, which this one plainly could. Naming the
+      // member and pointing at it is the difference between "your script is
+      // malformed" and "this construct needs a type I do not have".
+      case 'member':
+      case 'method':
+        throw new PineRefusal('pine:member',
+          `${REFUSALS['pine:member']} — \`.${node.name}\``, locate(node.tok))
       default:
         throw new PineRefusal('pine:statement', REFUSALS['pine:statement'], locate(node.tok))
     }
@@ -9553,6 +9670,17 @@ function vectorFromRhs(rhs, nameTok, isVar, env, notes, markOpaque) {
     }
   }
   if (!rhs[argStart] || !isPunct(rhs[argStart], '(')) return null
+  // ⛔⛔ THE CREATION MUST BE THE WHOLE RIGHT-HAND SIDE. This reader takes the
+  // arguments as "everything between the `(` and the LAST token", which is only
+  // true when the call closes the statement. `x = array.new_float(1).size()` is
+  // a SIZE, not an array — and read this way it was registered as a plan-time
+  // vector whose binding has no node at all, so the first read of `x` crashed
+  // inside `resolve` and arrived as `pine:statement` with NO LINE AND NO COLUMN.
+  // ⚰️ That is the defect `lexerGaps.test.js`'s own header calls the expensive
+  // half: a refusal that cannot say WHERE. The postfix member rule is what made
+  // this shape reachable, so the guard lands with it.
+  const closes = matchBracket(rhs, argStart)
+  if (closes !== rhs.length - 1) return null
   const inner = rhs.slice(argStart + 1, rhs.length - 1)
   let sizeNode = null
   // ⭐ THE SIZE IS STORED UNRESOLVED. Folding it here would be a second

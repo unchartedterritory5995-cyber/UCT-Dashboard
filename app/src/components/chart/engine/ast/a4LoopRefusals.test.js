@@ -185,15 +185,26 @@ describe('a4 — a retired loop form refuses AT ITS OWN LINE', () => {
   // available**, because an earlier refusal fires on all of them:
   //
   //   ai-supertrend-…-presenttrading__3b9db05a48   :259   pine:declaration-strategy@5
-  //   ict-killzones-pivots-tfo__d0b8be94f1         :768   pine:character@250
+  //   ict-killzones-pivots-tfo__d0b8be94f1         :768   pine:constant-only (7 outputs)
   //   multi-timeframe-supply-demand-zones__a98a…   :264   pine:no-output (0 outputs)
-  //   volume-footprint-…__e15e52b27d  (×9 uses)    :595…  pine:character@1572
+  //   volume-footprint-…__e15e52b27d  (×9 uses)    :595…  pine:module@13
   //
   // ⭐ SO THE MOOT-NESS ITSELF BECOMES THE ASSERTION, rather than the case being
-  // deleted. If any of these scripts ever becomes reachable — the `pine:character`
-  // class is a source-encoding refusal that a later wave may well close — this goes
-  // RED, which is precisely the moment R1 should be reopened on corpus evidence.
-  // A deleted case would have gone quiet instead.
+  // deleted. If any of these scripts ever becomes reachable this goes RED, which is
+  // precisely the moment R1 should be reopened on corpus evidence. A deleted case
+  // would have gone quiet instead.
+  //
+  // ⭐⭐ AND IT DID GO RED, EXACTLY AS DESIGNED — 2026-09-21. Two of the four were
+  // pinned at `pine:character`, and the paragraph above predicted that class would
+  // close: it did. The postfix-member rule (`arr.get(i).delete()`, `(l[1]).delete()`)
+  // is not a source-ENCODING fix but the same door, and both scripts walked through
+  // it to their next wall — `ict-killzones` to `pine:constant-only` with 7 outputs,
+  // `volume-footprint` to `pine:module` at its line 13.
+  // ⛔ R1 STAYS CLOSED, AND THAT IS THE MEASURED PART. Both still refuse EARLIER
+  // than their `for … in`, so neither can exercise the loop line yet and the
+  // case's claim is unchanged. What moved is which wall stops them, so the two
+  // guards are re-pinned rather than the case being loosened — a floor here
+  // ("refuses something") would stop catching the one event it exists for.
   //
   // ⚠️ `SnD_Type` at :264 is also a FUNCTION PARAMETER, so even reachable it would
   // exercise a `param` binding rather than a vector. That is recorded as owed under
@@ -201,8 +212,8 @@ describe('a4 — a retired loop form refuses AT ITS OWN LINE', () => {
   it('⭐ CORPUS / R6 — all 13 owed `for x in` uses are refused EARLIER, so none can test the loop line', () => {
     const CASES = [
       ['ai-supertrend-x-pivot-percentile-strategy-presenttrading__3b9db05a48.pine', 'pine:declaration-strategy'],
-      ['ict-killzones-pivots-tfo__d0b8be94f1.pine', 'pine:character'],
-      ['volume-footprint-measuring-classical-indicators-by-math-geometry-intro__e15e52b27d.pine', 'pine:character'],
+      ['ict-killzones-pivots-tfo__d0b8be94f1.pine', 'pine:constant-only'],
+      ['volume-footprint-measuring-classical-indicators-by-math-geometry-intro__e15e52b27d.pine', 'pine:module'],
       ['multi-timeframe-supply-demand-zones__a98a2ab367.pine', 'pine:no-output'],
     ]
     for (const [name, expected] of CASES) {

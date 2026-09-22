@@ -32,6 +32,7 @@ import {
   lexPine, blockStatements, parseWholeExpression, Resolver,
   findTop, isPunct, boundName, locate, PineRefusal, functionParams,
   VALUE_NAMESPACES, PINE_CALL_SHAPES, PINE_NAMESPACED_TREE, colourHexByName, objectEnumValue,
+  REFUSALS as PINE_REFUSALS,
 } from './pine.js'
 import { CLOCK_REALTIME } from '../../indicators.js'
 import { TABLE, isPointwise } from './parse.js'
@@ -2843,6 +2844,17 @@ export function buildRuntimeIr(source, opts = {}) {
         note(g)
         throw new RuntimeRefusal(g, `\`${node.name}\``, locate(node.tok))
       }
+      // ⭐⭐ BOTH LANES ANSWER A POSTFIX MEMBER ALIKE. The guard is `pine.js`'s
+      // because the construct is the PARSER's, not this lane's — and a refusal
+      // whose wording depends on which lane happened to reach it first is the
+      // "one value, two authorities" trade this file already refuses to make for
+      // `pine:text-value`. Falling to `default:` here would have said "a `method`
+      // beside a mutable value", which names this lane's internals rather than
+      // the member's own line.
+      case 'member':
+      case 'method':
+        throw new PineRefusal('pine:member',
+          `${PINE_REFUSALS['pine:member']} — \`.${node.name}\``, locate(node.tok))
       default:
         throw new RuntimeRefusal('runtime:statement', `a \`${node.type}\` beside a mutable value`, locate(node.tok))
     }
