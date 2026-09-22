@@ -1,9 +1,10 @@
 /*
- * ⛔ TOKENS, NOT --color-* NAMES. Several neighbouring modules in this directory
- * write `var(--color-text-muted, #98a0aa)`; `--color-text-muted` is not declared
- * anywhere in tokens.css, so those rules are living on their fallback literal and
- * would not follow a theme change. The declared names are --text-muted,
- * --text-dim, --border, --bg-surface and --ut-gold. Use those.
+ * TOKENS, NOT --color- NAMES. G-104 (2026-09-21) repointed the neighbouring
+ * modules this comment used to warn about: they wrote undefined names not
+ * declared anywhere in tokens.css and lived on their fallback literal
+ * forever, never following a theme change. The declared names are
+ * --text-muted, --border, --bg-surface and --ut-gold. This file was
+ * already correct.
  */
 
 .wrap {
@@ -20,32 +21,32 @@
   align-items: center;
   gap: 16px;
   font-size: 12px;
-  color: var(--text-muted, #98a0aa);
+  color: var(--text-muted);
 }
 
 .legend b {
-  color: var(--text-primary, #e8eaed);
+  color: var(--text-bright);
   font-variant-numeric: tabular-nums;
 }
 
 /* Unlinked notes are the finding, so the count that names them is not dimmed
    into furniture. */
 .orphan b {
-  color: var(--ut-gold, #c9a84c);
+  color: var(--ut-gold);
 }
 
 .truncated {
   font-style: italic;
-  color: var(--text-dim, #7c848f);
+  color: var(--text-muted);
 }
 
 .canvasWrap {
   position: relative;
   flex: 1;
   min-height: 360px;
-  border: 1px solid var(--border, #232932);
+  border: 1px solid var(--border);
   border-radius: var(--radius-md, 8px);
-  background: var(--bg-surface, #12161c);
+  background: var(--bg-surface);
   overflow: hidden;
 }
 
@@ -61,12 +62,12 @@
   padding: 32px 16px;
   text-align: center;
   font-size: 13px;
-  color: var(--text-muted, #98a0aa);
+  color: var(--text-muted);
 }
 
 .state code {
   padding: 1px 5px;
   border-radius: var(--radius-sm, 4px);
-  background: var(--bg-elevated, #1b2029);
-  color: var(--ut-gold, #c9a84c);
+  background: var(--bg-elevated);
+  color: var(--ut-gold);
 }

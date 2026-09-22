@@ -4,7 +4,7 @@
 .wrap {
   margin: 12px 0 20px;
   padding-bottom: 12px;
-  border-bottom: 1px solid var(--color-border, #232932);
+  border-bottom: 1px solid var(--border);
 }
 .list {
   list-style: none;
@@ -23,7 +23,7 @@
 .label {
   flex: 0 0 140px;
   font-size: 12px;
-  color: var(--color-text-muted, #98a0aa);
+  color: var(--text-muted);
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -34,7 +34,7 @@
 }
 .readonlyValue {
   font-size: 13px;
-  color: var(--color-text-primary, #e8eaed);
+  color: var(--text-bright);
 }
 .input,
 .select {
@@ -43,10 +43,10 @@
   min-height: 32px;
   padding: 4px 8px;
   font-size: 13px;
-  background: var(--color-surface, #14171c);
-  border: 1px solid var(--color-border, #232932);
+  background: var(--bg-surface);
+  border: 1px solid var(--border);
   border-radius: var(--radius-sm, 4px);
-  color: var(--color-text-primary, #e8eaed);
+  color: var(--text-bright);
 }
 .checkbox {
   width: 18px;
@@ -62,13 +62,13 @@
   align-items: center;
   gap: 5px;
   font-size: 12px;
-  color: var(--color-text-primary, #e8eaed);
+  color: var(--text-bright);
   cursor: pointer;
 }
 .addLink {
   background: none;
   border: none;
-  color: var(--color-text-muted, #98a0aa);
+  color: var(--text-muted);
   font-size: 12px;
   padding: 4px 2px;
   cursor: pointer;
@@ -77,7 +77,7 @@
   align-items: center;
 }
 .addLink:hover {
-  color: #dcbb5e;
+  color: var(--ut-gold);
 }
 .pickerWrap {
   position: relative;
@@ -89,8 +89,8 @@
   left: 0;
   z-index: 20;
   min-width: 200px;
-  background: var(--color-surface, #14171c);
-  border: 1px solid var(--color-border, #232932);
+  background: var(--bg-surface);
+  border: 1px solid var(--border);
   border-radius: var(--radius-md, 6px);
   box-shadow: 0 6px 18px rgba(0, 0, 0, 0.4);
   padding: 4px;
@@ -101,7 +101,7 @@
   text-align: left;
   background: none;
   border: none;
-  color: var(--color-text-primary, #e8eaed);
+  color: var(--text-bright);
   font-size: 13px;
   padding: 8px 10px;
   min-height: 36px;
@@ -116,7 +116,7 @@
   flex-direction: column;
   gap: 6px;
   padding: 8px;
-  border-top: 1px solid var(--color-border, #232932);
+  border-top: 1px solid var(--border);
   margin-top: 4px;
 }
 .newPropInput,
@@ -124,14 +124,14 @@
   min-height: 32px;
   padding: 4px 8px;
   font-size: 13px;
-  background: var(--color-bg, #0a0c0f);
-  border: 1px solid var(--color-border, #232932);
+  background: var(--bg);
+  border: 1px solid var(--border);
   border-radius: var(--radius-sm, 4px);
-  color: var(--color-text-primary, #e8eaed);
+  color: var(--text-bright);
 }
 .newPropCreate {
   min-height: 32px;
-  background: #dcbb5e;
+  background: var(--ut-gold);
   color: #0a0c0f;
   border: none;
   border-radius: var(--radius-sm, 4px);
@@ -145,7 +145,7 @@
 }
 .error {
   font-size: 12px;
-  color: var(--loss, #ef4444);
+  color: var(--loss);
   margin-top: 4px;
 }
 

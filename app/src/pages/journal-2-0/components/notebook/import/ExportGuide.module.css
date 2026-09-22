@@ -16,8 +16,8 @@
   align-items: center;
   gap: 6px;
   background: transparent;
-  border: 1px solid var(--border, #2e3127);
-  color: var(--text-bright, #e0dac8);
+  border: 1px solid var(--border);
+  color: var(--text-bright);
   border-radius: var(--radius-md, 6px);
   padding: 6px 12px;
   font-size: 12.5px;
@@ -26,12 +26,12 @@
   min-height: 32px;
 }
 .tab:hover {
-  background: var(--bg-hover, #2a2d24);
+  background: var(--bg-hover);
 }
 .tabActive {
-  border-color: #dcbb5e;
+  border-color: var(--ut-gold);
   background: rgba(220, 187, 94, 0.1);
-  color: #dcbb5e;
+  color: var(--ut-gold);
 }
 
 .detail {
@@ -39,18 +39,18 @@
   flex-direction: column;
   gap: 6px;
   padding: 10px 12px;
-  border: 1px solid var(--border, #2e3127);
+  border: 1px solid var(--border);
   border-radius: var(--radius-md, 6px);
   background: rgba(255, 255, 255, 0.02);
 }
 .line {
   margin: 0;
   font-size: 12.5px;
-  color: var(--text-muted, #8c8674);
+  color: var(--text-muted);
   line-height: 1.5;
 }
 .line strong {
-  color: var(--text-bright, #e0dac8);
+  color: var(--text-bright);
 }
 .lineWarn {
   margin: 0;
@@ -58,7 +58,7 @@
   align-items: flex-start;
   gap: 6px;
   font-size: 12.5px;
-  color: #d8b962;
+  color: var(--ut-gold-bright);
   line-height: 1.5;
 }
 .lineWarn svg {
