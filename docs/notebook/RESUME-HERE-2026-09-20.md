@@ -178,7 +178,21 @@ real viewport or exercised end-to-end this pass**:
   and isn't one. **Not tested: real old-Safari pdf.js/Iterator crash class**
   (`CLAUDE.md`'s own section on this) — structurally invisible to Chromium,
   needs a real device.
-- **share / public note links**, **templates**, **export** (PNG / Print / Markdown)
+- ✅ **share links / templates / export — VERIFIED 2026-09-21**, all real,
+  no bugs. Share: created, resolved PUBLICLY with no cookie, real content,
+  no owner-only fields leaked — and, the security-relevant check, a
+  **revoked token is genuinely dead (404)**, not merely hidden from the
+  owner's UI; a bogus token 404s cleanly too. (`J2_SHARE_LINKS_ENABLED`
+  defaults OFF and is unset in the sandbox by design — confirmed **`armed`
+  on `web`** in `docs/feature_flags.json` before testing, set it for the
+  run.) Templates: the documented deep link
+  (`/journal/notebook?new=thesis&ticker=NVDA`) loads in 1.4s and correctly
+  seeds a real, well-structured thesis template (Bull/Bear case, Key
+  assumptions, Catalysts, Risks). Export: Markdown download is real,
+  correctly-formed (YAML frontmatter + proper heading hierarchy — the exact
+  shape the import pipeline already round-trips per Phase 0); PNG download
+  is a real non-empty image; Print button is reachable and doesn't crash
+  the tab (the actual print output can't be observed headlessly).
 - the **Ask panel**
 - the **import wizard** (Notion / Obsidian / Evernote / md · docx · html)
 - **connectors** (Roam, Craft, Notion, Dropbox, OneNote, OneDrive — shipped dark)
