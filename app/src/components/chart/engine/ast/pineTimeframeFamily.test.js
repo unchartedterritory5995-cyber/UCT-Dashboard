@@ -355,10 +355,26 @@ describe('`timeframe.change` is REFUSED, and the refusal teaches', () => {
   })
 
   it('⭐ CONTROL — a `timeframe.*` name nobody has ruled on keeps the shared clause', () => {
-    // This is what separates a fix from a deletion. `timeframe.isminutes` is a
-    // real Pine predicate this engine holds no column for and has NOT thought
-    // about, so the generic sentence is exactly right and must survive.
-    const r = refusal('plot(timeframe.isminutes ? close : open)')
+    // This is what separates a fix from a deletion: a name the engine genuinely
+    // has not thought about must still get the generic sentence.
+    //
+    // ⚰️ THIS CONTROL USED `timeframe.isminutes` AND THE FIX BROKE IT — correctly.
+    // `isminutes` shipped on 2026-09-22, so the fixture stopped being an example
+    // of an unserved name and the control started asserting the opposite of the
+    // truth. ⭐ A control whose fixture can be SERVED out from under it is a
+    // control with an expiry date nobody wrote down
+    // (`lesson_an_arming_condition_that_names_a_test_expires`).
+    //
+    // ⛔ SO THE FIXTURE CHECKS ITSELF FIRST. If a later wave serves this name
+    // too, the assertion below fails with an instruction instead of a puzzle.
+    const UNSERVED = 'timeframe.isdwm'
+    for (const map of [BUILTIN_TIMEFRAME_SCALAR, BUILTIN_TIMEFRAME_ALIAS,
+      BUILTIN_TIMEFRAME_CALL, BUILTIN_TIMEFRAME_RULED]) {
+      expect(Object.prototype.hasOwnProperty.call(map, UNSERVED),
+        `${UNSERVED} is now served or ruled — pick another unserved timeframe.* name for this control`)
+        .toBe(false)
+    }
+    const r = refusal(`plot(${UNSERVED} ? close : open)`)
     expect(r.guard).toBe('pine:builtin')
     expect(r.message).toMatch(/names something the engine grammar does not hold/i)
   })
@@ -414,6 +430,74 @@ describe('the maps stay disjoint and point at real things', () => {
     // kind.
     for (const n of OWN_TF_NAMES) {
       expect(Object.prototype.hasOwnProperty.call(BUILTIN_SYMBOL_SCOPED, n), n).toBe(false)
+    }
+  })
+})
+// ───────────────────────────────────────────────────────────────────────────
+describe('`timeframe.isseconds` / `timeframe.isminutes` — the unit predicates', () => {
+  // ⭐⭐ THE SIXTH AND SEVENTH NAMES IN THE FAMILY, and they are KIND 5 —
+  // settled by the bars this translation is for, exactly like
+  // `timeframe.multiplier`. They are NOT clock columns: the chart's timeframe
+  // does not change bar to bar, so folding them is the same move `multiplier`
+  // already makes and needs no manifest change.
+  //
+  // ⛔ DERIVED FROM THE SPELLING MAP, NEVER RESTATED. `isminutes` asks the same
+  // `isMinuteCode` test that `timeframe.multiplier` asks, and `isseconds` asks
+  // whether the code is a SECONDS spelling. The engine holds no seconds
+  // spelling today, so `isseconds` is 0 everywhere — but it is 0 BECAUSE THE
+  // MAP SAYS SO, so the day a seconds code lands it answers 1 without anyone
+  // remembering this file. A hard-coded `0` would rot in the direction that
+  // silently INVERTS a member's branch.
+  //
+  // ⚠️ NOT VENDOR-WITNESSED, AND SAYING SO IS THE POINT — the same label
+  // `TF_SECONDS_DAILY_AND_ABOVE` carries. Pine documents these as "is the
+  // chart's timeframe seconds / minutes"; no capture in this repo reads them.
+  // What IS witnessed is the engine's own spelling map, which is what decides
+  // the answer here.
+
+  it('⭐ both fold, on both contracts', () => {
+    okBoth('plot(timeframe.isminutes ? close : open)')
+    okBoth('plot(timeframe.isseconds ? close : open)')
+  })
+
+  it('⭐⭐ `isminutes` is 1 on a minute code and 0 on D/W/M', () => {
+    expect(formula('plot(close + timeframe.isminutes)', { basePeriod: '60' })).toBe('close + 1')
+    expect(formula('plot(close + timeframe.isminutes)', { basePeriod: '5' })).toBe('close + 1')
+    expect(formula('plot(close + timeframe.isminutes)', { basePeriod: 'D' })).toBe('close + 0')
+    expect(formula('plot(close + timeframe.isminutes)', { basePeriod: 'W' })).toBe('close + 0')
+    expect(formula('plot(close + timeframe.isminutes)', { basePeriod: 'M' })).toBe('close + 0')
+  })
+
+  it('⭐ `isseconds` is 0 on every code this engine holds — and that is DERIVED', () => {
+    for (const base of ['1', '60', 'D', 'W', 'M']) {
+      expect(formula('plot(close + timeframe.isseconds)', { basePeriod: base }),
+        `isseconds on ${base}`).toBe('close + 0')
+    }
+  })
+
+  it('⛔⛔ THE TWO ARE NOT THE SAME NAME — a fixture that cannot tell them apart', () => {
+    // ⭐ THE LOAD-BEARING CASE. Both answer 0 on a daily chart, so a test that
+    // only ever asked a daily base would pass with the two wired to one
+    // function. The minute base is what separates them.
+    expect(formula('plot(close + timeframe.isminutes)', { basePeriod: '60' }))
+      .not.toBe(formula('plot(close + timeframe.isseconds)', { basePeriod: '60' }))
+  })
+
+  it('⛔ an UNKNOWN code refuses — it does not answer 0', () => {
+    // ⛔ `null` FALLS THROUGH, exactly as `timeframe.multiplier` does. Answering
+    // 0 for a timeframe nobody has classified would read as "not minutes" and
+    // send a member's script down the daily branch.
+    const r = refusal('plot(close + timeframe.isminutes)', { basePeriod: 'NOPE' })
+    expect(r.guard).toBeTruthy()
+  })
+
+  it('⛔ the roster is CONSISTENT — both names are scalars, neither is an alias', () => {
+    // ⭐ The two maps must not both claim a name: the alias path returns a
+    // series and the scalar path folds a number, and a name in both would
+    // resolve differently depending on which arm ran first.
+    for (const n of ['timeframe.isseconds', 'timeframe.isminutes']) {
+      expect(Object.prototype.hasOwnProperty.call(BUILTIN_TIMEFRAME_SCALAR, n), n).toBe(true)
+      expect(Object.prototype.hasOwnProperty.call(BUILTIN_TIMEFRAME_ALIAS, n), n).toBe(false)
     }
   })
 })

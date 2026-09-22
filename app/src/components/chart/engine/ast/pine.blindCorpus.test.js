@@ -41,6 +41,7 @@ import path from 'node:path'
 import {
   translatePine, treeYieldsBool,
   BUILTIN_SYMBOL_UNSERVED, BUILTIN_BARSTATE_REFUSED, BUILTIN_TIMEFRAME_RULED,
+  BUILTIN_TIMEFRAME_SCALAR, BUILTIN_TIMEFRAME_ALIAS, BUILTIN_TIMEFRAME_CALL,
 } from './pine.js'
 import { parseFormula } from './parse.js'
 
@@ -462,13 +463,26 @@ plot(${body} ? 1 : 0)
     // ⛔ SO THE PROPERTY IS ASSERTED, NOT ASSUMED. The roster check below fails
     // FIRST and BY NAME the day this one is ruled on, instead of surfacing as a
     // confusing guard mismatch that reads like a regression in the mintick
-    // sentence. `timeframe.isminutes` is a real Pine predicate this engine holds
-    // no column for and has ruled nothing about.
-    const CONTROL = 'timeframe.isminutes'
+    // sentence.
+    //
+    // ⚰️⚰️ AND IT MOVED A THIRD TIME, ON 2026-09-22, THROUGH A HOLE IN THIS
+    // VERY CHECK. The control was `timeframe.isminutes`, and the loop below
+    // asked only the RULED rosters — so when `isminutes` was SERVED (it folds
+    // from the chart's own code, `BUILTIN_TIMEFRAME_SCALAR`) the guard that
+    // exists to catch exactly this said nothing, and the control failed as a
+    // bare guard mismatch two files away.
+    //
+    // ⭐ THERE ARE TWO WAYS A NAME STOPS BEING UNRULED — somebody RULES on it,
+    // or somebody SERVES it — and a check that asks about one of them is a
+    // check with a hole the size of the other. Both are asked now.
+    const CONTROL = 'timeframe.isdwm'
     for (const [which, roster] of Object.entries({
       syminfo: BUILTIN_SYMBOL_UNSERVED,
       barstate: BUILTIN_BARSTATE_REFUSED,
       timeframe: BUILTIN_TIMEFRAME_RULED,
+      'timeframe (served: scalar)': BUILTIN_TIMEFRAME_SCALAR,
+      'timeframe (served: alias)': BUILTIN_TIMEFRAME_ALIAS,
+      'timeframe (served: call)': BUILTIN_TIMEFRAME_CALL,
     })) {
       expect(Object.prototype.hasOwnProperty.call(roster, CONTROL),
         `${CONTROL} has been RULED ON (${which}) — this control needs an UNRULED `

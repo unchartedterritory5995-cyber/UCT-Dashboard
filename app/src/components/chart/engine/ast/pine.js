@@ -564,6 +564,21 @@ const TF_CODES = Object.freeze(new Set(Object.values(PINE_TF_SPELLING)))
  *  month. */
 const isMinuteCode = (code) => typeof code === 'string' && /^[0-9]+$/.test(code)
 
+/** ⭐⭐ WHICH CODES ARE A NUMBER OF SECONDS. Pine spells a seconds timeframe as
+ *  the count followed by `S` (`"1S"`, `"30S"`), which is a spelling
+ *  `PINE_TF_SPELLING` does not currently hold — so this answers false for every
+ *  code the engine recognises today.
+ *
+ *  ⛔ IT IS A TEST, NOT A CONSTANT `false`, AND THE DIFFERENCE IS THE WHOLE
+ *  POINT. `timeframe.isseconds` is 0 on every chart this engine can render
+ *  BECAUSE THE SPELLING MAP HOLDS NO SECONDS CODE — so the day one lands, this
+ *  answers 1 without anyone remembering the name exists. A hard-coded 0 would
+ *  keep answering "not seconds" on a seconds chart, and these predicates are
+ *  branch conditions in a member's own script: a plausible-but-wrong answer
+ *  does not degrade the output, it INVERTS the branch. That is the same
+ *  reasoning `TF_SECONDS_DAILY_AND_ABOVE` records one screen up. */
+const isSecondsCode = (code) => typeof code === 'string' && /^[0-9]+S$/.test(code)
+
 /** ⭐⭐ ONE BAR OF `D`, `W` OR `M`, IN SECONDS — PINE'S DOCUMENTED CONSTANTS.
  *
  *  ⛔ NOT VENDOR-WITNESSED HERE, AND SAYING SO IS THE POINT. The intraday half of
@@ -594,6 +609,28 @@ const TF_SECONDS_DAILY_AND_ABOVE = Object.freeze({
 export function timeframeMultiplier(code) {
   if (!TF_CODES.has(code)) return null
   return isMinuteCode(code) ? Number(code) : 1
+}
+
+/** `timeframe.isminutes` — 1 when the chart's own code is a minute count, 0 when
+ *  it is `D`/`W`/`M`, `null` when this engine does not hold the code at all.
+ *
+ *  ⭐ IT ASKS THE SAME TEST `timeframeMultiplier` ASKS. "Is this a minute code"
+ *  has exactly one authority in this file and both readers use it, so the two
+ *  names can never disagree about what `"60"` is
+ *  (`lesson_a_second_authority_over_one_value`). */
+export function timeframeIsMinutes(code) {
+  if (!TF_CODES.has(code)) return null
+  return isMinuteCode(code) ? 1 : 0
+}
+
+/** `timeframe.isseconds` — 1 when the chart's own code is a seconds count,
+ *  `null` when this engine does not hold the code.
+ *
+ *  ⚠️ 0 FOR EVERY CODE THE ENGINE HOLDS TODAY, and derived rather than asserted
+ *  — see `isSecondsCode` for why that distinction is load-bearing. */
+export function timeframeIsSeconds(code) {
+  if (!TF_CODES.has(code)) return null
+  return isSecondsCode(code) ? 1 : 0
 }
 
 /** `timeframe.in_seconds(<code>)`, or `null` when the code is not one this engine
@@ -1261,6 +1298,13 @@ export const BUILTIN_TIMEFRAME_ALIAS = Object.freeze({
  */
 export const BUILTIN_TIMEFRAME_SCALAR = Object.freeze({
   'timeframe.multiplier': timeframeMultiplier,
+  // ⭐ THE UNIT PREDICATES ARE KIND 5 TOO, NOT CLOCK COLUMNS. The chart's
+  // timeframe does not change bar to bar, so they settle once for a binding
+  // exactly as `multiplier` does — which is why they need no manifest column
+  // and no alias. `timeframe.change` is the name that genuinely CANNOT fold
+  // this way, and `BUILTIN_TIMEFRAME_RULED` says so in its own words.
+  'timeframe.isminutes': timeframeIsMinutes,
+  'timeframe.isseconds': timeframeIsSeconds,
 })
 
 /** The `timeframe.*` names that arrive as CALLS. Their arity and their argument
