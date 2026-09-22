@@ -11,6 +11,7 @@
 // already complete). Here we recover the new session from the snapshot itself.
 
 import { computeBarTime, PERIOD_SECONDS } from './barTime'
+import { expectedDailyTailForPaintET } from '../../utils/marketSession'
 
 const DWM = new Set(['D', 'W', 'M'])
 
@@ -101,6 +102,29 @@ export function classifyLiveBar({ tf, last, live, tickSec, nowSec }) {
     if (barTime !== last.time && barTime > last.time) return { kind: 'new', time: barTime }
   }
 
-  // Can't confirm a new session — fold into the current-session last bar.
+  // ⛔ …BUT ONLY IF `last` IS THE CURRENT SESSION. This line said it was folding
+  // into "the current-session last bar" and never checked that it was one. The
+  // intraday REST floor twenty lines up already refuses exactly this ("folding the
+  // live price onto that stale bar fuses the whole gap into ONE giant candle"); the
+  // daily branch was the one that didn't, so a body ending at the last SEALED
+  // session took TODAY's price onto YESTERDAY's candle — a sealed bar silently
+  // rewritten with a price that is not its own.
+  //
+  // That shape used to be rare. It is now the normal cold daily path: the body ends
+  // at the last sealed session and today's candle is supplied by the current-session
+  // seed, so `last` is legitimately yesterday while the tape is live. Skip instead;
+  // the seed owns today's slot and the fetch/`new` branch plants the real bar.
+  // ⛔ SCOPED TO DAILY, AND KEYED ON THE SESSION FRONTIER — NOT THE CALENDAR. A raw
+  // `computeBarTime(tf, now)` reads SATURDAY as "later than Friday" and would stop
+  // the harmless weekend re-top, whose own rail says folding there is correct
+  // (Friday IS the most recent session). `expectedDailyTailForPaintET` is the
+  // frontier the rest of the daily stack already reasons with: Friday on a weekend,
+  // today during RTH. W/M are excluded because their `last.time` is a week/month
+  // key, which a daily frontier cannot be compared against.
+  if (tf === 'D') {
+    const frontier = expectedDailyTailForPaintET(
+      typeof nowSec === 'number' ? nowSec * 1000 : undefined)
+    if (frontier && typeof last.time === 'string' && frontier > last.time) return { kind: 'skip' }
+  }
   return { kind: 'update' }
 }

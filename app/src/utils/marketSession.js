@@ -87,8 +87,8 @@ function _effectiveCloseMinutesET(d) {
  * preference on every full NYSE holiday evening — never wrongly activate one
  * early. This fix removes that asymmetry rather than papering over one side of it.
  */
-export function expectedLatestDailySessionET() {
-  const nowET = new Date(new Date().toLocaleString('en-US', { timeZone: 'America/New_York' }))
+export function expectedLatestDailySessionET(nowMs = Date.now()) {
+  const nowET = new Date(new Date(nowMs).toLocaleString('en-US', { timeZone: 'America/New_York' }))
   const dow = nowET.getDay()               // 0 Sun … 6 Sat
   const mins = nowET.getHours() * 60 + nowET.getMinutes()
   const d = new Date(nowET)
@@ -137,8 +137,12 @@ export function isDailyTailStale(isoTail) {
  * stay close-anchored for the prefetch warmer + intraday session model, which must
  * not start re-warming every daily mid-session.
  */
-export function expectedDailyTailForPaintET() {
-  const nowET = new Date(new Date().toLocaleString('en-US', { timeZone: 'America/New_York' }))
+// `nowMs` is injectable so a caller that already KNOWS the instant it is reasoning
+// about (the live-bar classifier is handed a tick time) asks about that instant
+// rather than about the wall clock. Defaults to now, so every existing caller is
+// unchanged.
+export function expectedDailyTailForPaintET(nowMs = Date.now()) {
+  const nowET = new Date(new Date(nowMs).toLocaleString('en-US', { timeZone: 'America/New_York' }))
   const dow = nowET.getDay()
   const mins = nowET.getHours() * 60 + nowET.getMinutes()
   // RTH (weekday 09:30–16:00 ET): the server carries today's developing bar, so the
@@ -147,7 +151,7 @@ export function expectedDailyTailForPaintET() {
     const p = (n) => String(n).padStart(2, '0')
     return `${nowET.getFullYear()}-${p(nowET.getMonth() + 1)}-${p(nowET.getDate())}`
   }
-  return expectedLatestDailySessionET()
+  return expectedLatestDailySessionET(nowMs)
 }
 
 /**
@@ -193,6 +197,107 @@ export function isDailyTodayCloseProvisionalForPaint(isoTail) {
   const mins = nowET.getHours() * 60 + nowET.getMinutes()
   if (!(dow >= 1 && dow <= 5 && mins >= _effectiveCloseMinutesET(nowET))) return false   // only at/after today's close
   return isoTail.slice(0, 10) === _isoOfET(nowET)
+}
+
+/**
+ * How many TRADING SESSIONS a daily tail is missing relative to the frontier a
+ * fresh series should carry for PAINT (expectedDailyTailForPaintET).
+ *
+ * ⭐ THE GENERALISATION OF A CONSTANT. The framing layer previously reserved a
+ * hard-coded ONE right-edge slot for "today", which is correct only when exactly
+ * one session is missing. A tail k sessions behind then had k bars merged in after
+ * first paint while one slot was held, and the frame translated by k-1 — the daily
+ * load-shift. This counts the real sessions, weekend- and NYSE-holiday-aware, so
+ * the reserve can never disagree with what actually arrives.
+ *
+ * ⛔ IT IS A MEASUREMENT, NOT A LICENCE. A large answer means "this cache is far
+ * behind", and the paint-authority rule treats that as REPAIR INPUT, not as a
+ * bigger whitespace domain to paint. `cap` exists so a years-old tail costs a
+ * bounded walk and can never manufacture a huge phantom right edge; the caller
+ * that asks for a frame reserve passes a small cap, and a caller that only wants
+ * to know "is this far behind?" compares against the cap.
+ *
+ * Returns 0 when the tail is at/after the frontier (nothing missing), and never
+ * more than `cap`.
+ */
+export function dailySessionsMissingForPaint(isoTail, cap = 8) {
+  return dailyMissingSessionsForPaint(isoTail, cap).length
+}
+
+/**
+ * The actual missing session DATES, ascending, ending at the paint frontier.
+ *
+ * ⭐ ONE LIST, TWO CONSUMERS, NO WAY TO DISAGREE. The framing reserve and the
+ * whitespace seed must hold the SAME slots: reserve n while seeding m produces a
+ * frame that is off by (n - m) on the very first commit. They used to be written
+ * separately — one keyed on `_etPeriodStartISO`, the other on `_developingBarISO`
+ * — and agreed only by coincidence inside RTH. Handing both the same array makes
+ * the agreement structural.
+ *
+ * Bounded by `cap` for the same reason as the count: a years-old tail must cost a
+ * bounded walk and must never be able to manufacture a large phantom right edge.
+ */
+export function dailyMissingSessionsForPaint(isoTail, cap = 8) {
+  if (typeof isoTail !== 'string' || isoTail.length < 10) return []
+  const frontier = expectedDailyTailForPaintET()
+  const tail = isoTail.slice(0, 10)
+  if (tail >= frontier) return []
+  const out = []
+  const d = new Date(`${frontier}T12:00:00Z`)
+  while (out.length < cap) {
+    const iso = _isoOfUTC(d)
+    out.unshift(iso)
+    if (iso <= tail) break
+    // step back one calendar day, then skip weekends / NYSE full holidays
+    do { d.setUTCDate(d.getUTCDate() - 1) } while (_isNonTradingDayET(new Date(`${_isoOfUTC(d)}T12:00:00`)))
+    if (_isoOfUTC(d) <= tail) break
+  }
+  return out
+}
+
+// ISO of a Date treated as a bare ET calendar day (the walker above builds its
+// dates at UTC noon precisely so no timezone shift can move the calendar date).
+function _isoOfUTC(d) {
+  return d.toISOString().slice(0, 10)
+}
+
+/**
+ * The oldest a TODAY-dated daily bar may be and still be painted as-is during RTH.
+ *
+ * ⭐ DERIVED, NOT PICKED. This is exactly the ceiling the product ALREADY accepts
+ * for a seeded today bar (`todayPackClient.MAX_SEED_AGE_MS`). A cached today bar
+ * older than that is, by the app's own existing standard, staler than something it
+ * would refuse to seed — so it must not paint unchallenged either.
+ */
+export const DAILY_TODAY_MAX_AGE_MS = 90_000
+
+/**
+ * True when a TODAY-dated daily tail is too OLD to be the first thing the member
+ * sees, during RTH.
+ *
+ * 🔴 THE GAP THIS CLOSES. `isDailyTailStaleForPaint` asks only "is a session
+ * missing?", and a tail dated today never is — so a daily bar written at 10:05
+ * painted unchallenged at 14:00 with four-hour-old H/L/C, and /api/bars corrected
+ * it in front of the user a beat later. HAS TODAY is not TODAY IS CURRENT.
+ *
+ * `savedAtMs` is the browser's own write stamp (barsIDB stores `savedAt`); the bar
+ * itself carries no source timestamp, so this is the strongest honest signal we
+ * have for a cached set, and it errs the safe way — real age is always >= this.
+ * A caller holding a source-stamped bar (live-price `observed_at`) should pass
+ * that instead.
+ *
+ * Scoped to RTH only: before the open there is no developing bar, and at/after the
+ * close `isDailyTodayCloseProvisionalForPaint` already owns the window.
+ */
+export function isDailyTodayBarStaleForPaint(isoTail, savedAtMs, nowMs = Date.now()) {
+  if (typeof isoTail !== 'string' || isoTail.length < 10) return false
+  const nowET = new Date(new Date(nowMs).toLocaleString('en-US', { timeZone: 'America/New_York' }))
+  const dow = nowET.getDay()
+  const mins = nowET.getHours() * 60 + nowET.getMinutes()
+  if (!(dow >= 1 && dow <= 5 && mins >= 570 && mins < _effectiveCloseMinutesET(nowET))) return false
+  if (isoTail.slice(0, 10) !== _isoOfET(nowET)) return false
+  if (!Number.isFinite(savedAtMs) || savedAtMs <= 0) return true   // unknown age => not paintable as current
+  return (nowMs - savedAtMs) > DAILY_TODAY_MAX_AGE_MS
 }
 
 // ET calendar date ('YYYY-MM-DD') of a unix-SECONDS timestamp (intraday bars carry
