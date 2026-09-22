@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import Sheet from '../../../components/mobile/Sheet'
 import StructureProvenance from '../../../components/screener/StructureProvenance'
+import MethodologyPanel from '../../../components/screener/MethodologyPanel'
 import useRealtimePrices from '../../../hooks/useRealtimePrices'
 import { prefetchBars } from '../../../utils/prefetchBars'
 import { useIsPhone } from '../../../hooks/useBreakpoint'
@@ -119,6 +120,8 @@ export default function ScannerShell({ embedded = false }) {
   const [liveSortOn, setLiveSortOn] = useState(false)
   const [sheetOpen, setSheetOpen] = useState(false)
   const [libOpen, setLibOpen] = useState(false)
+  // Packet O CP1 (signed 2026-09-22, fingerprint fd57fe079)
+  const [methodologyOpen, setMethodologyOpen] = useState(false)
   const [exportState, setExportState] = useState({})
 
   // ⛔⛔ THE SERVER'S OWN ANSWER OUTRANKS A FABRICATED ONE. `s.visibleColumns` is
@@ -283,6 +286,11 @@ export default function ScannerShell({ embedded = false }) {
           <button type="button" className={styles.toolBtn} onClick={() => setLibOpen(true)}>
             <UIcon name="book" size={11} /> Structure library
           </button>
+          {/* Packet O CP1 (signed 2026-09-22, fingerprint fd57fe079) -- same
+              toolBtn + Sheet idiom as "Structure library" above. */}
+          <button type="button" className={styles.toolBtn} onClick={() => setMethodologyOpen(true)}>
+            <UIcon name="book" size={11} /> Methodology
+          </button>
           <FilterChips meta={meta} activeFilters={s.filters}
             onRemove={key => s.setFilter(key, null)} onClear={s.clearFilters}
             scanJoins={result?.scan_joins} onReplace={(k, v) => s.setFilter(k, v)} />
@@ -355,6 +363,11 @@ export default function ScannerShell({ embedded = false }) {
       <Sheet open={libOpen} onClose={() => setLibOpen(false)} variant="auto"
         title="Structure library" ariaLabel="Structure library" maxWidth={880}>
         {libOpen && <StructureProvenance />}
+      </Sheet>
+      {/* Packet O CP1 (signed 2026-09-22, fingerprint fd57fe079) */}
+      <Sheet open={methodologyOpen} onClose={() => setMethodologyOpen(false)} variant="auto"
+        title="Methodology" ariaLabel="Methodology" maxWidth={880}>
+        {methodologyOpen && <MethodologyPanel />}
       </Sheet>
       <FiltersSheet open={sheetOpen} onClose={() => setSheetOpen(false)}
         onClear={s.clearFilters} onApply={() => setSheetOpen(false)}
