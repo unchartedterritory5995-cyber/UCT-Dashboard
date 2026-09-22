@@ -22,14 +22,36 @@
 // guard rather than about the property. Recorded because the narrow number is
 // the one a reader will remember.
 //
-// ⭐⭐ AND IT DEFEATS EVERY TOOL THAT WORKS BY LINE, which is what makes it a
-// measurement problem rather than only a diagnostics one. `distanceToWorking`
-// peels the refused line and rebuilds; when the reported line is innocent,
-// peeling it changes nothing, the same refusal returns on the same line, and
-// the script is recorded UNREACHED. So roughly a third of the corpus is filed
-// as "more than 20 capabilities away" on the strength of refusals that never
-// knew where they were. Every distance in this programme is an OVER-estimate by
-// an unknown amount until this is closed.
+// ✅✅ **CLOSED 2026-09-22 — 96 → 2, and 193 → 169 stop anywhere at all.**
+// The seam was ONE PREDICATE in `pineRuntimeFrontend`'s catch, and the numbers
+// above are kept verbatim as the measured BEFORE:
+//
+//     scripts that STOP on a refusal        : 193  →  169
+//     …of which the location is APPROXIMATE : 96   →    2   (36.1% → 0.8%)
+//
+// ⭐ THE SECOND NUMBER MOVED BECAUSE THE FIRST DID, and that is the product
+// point rather than a side effect: `stoppedOn` peels the refused LINE, so a
+// refusal pointing at an innocent statement peels something irrelevant, the
+// same refusal returns on the same line, and the script is recorded STUCK.
+// Twenty-four scripts stopped being stuck the moment the line was right.
+//
+// ⛔ THE TWO SURVIVORS ARE CORRECT, NOT RESIDUE. `runtime/colours.js` throws a
+// bare `ColourError` for an eight-digit hex — an ordinary `Error` with no
+// position to recover — so the statement fallback fires and says so. That is
+// what `locationIsStatement` is FOR, and it is why the flag is kept rather than
+// removed with the defect. The classifier control below is anchored on exactly
+// that shape.
+//
+// ⭐⭐ THE FIX, AND WHY BOTH EARLIER ATTEMPTS MEASURED ZERO. `RuntimeRefusal`
+// FLATTENS its position into `line`/`column`/`token`; `PineRefusal` keeps the
+// same object NESTED at `.at` and never sets `.line`. The catch asked
+// `e.line == null`, which is TRUE FOR EVERY `PineRefusal` whether or not it
+// knows where it is — so a real position was overwritten with the enclosing
+// statement's and stamped approximate. The raise sites were raising the
+// position correctly all along; it was discarded one frame later. Both
+// tombstoned fixes below aimed at the raise sites, which is why each changed
+// the count by ZERO. The rail is
+// `app/src/components/chart/engine/ast/refusalLocationSeam.test.js`.
 //
 // ─── WHAT IS ESTABLISHED, AND WHAT IS NOT ───────────────────────────────────
 //
@@ -55,8 +77,9 @@
 // six guards show the behaviour, so a fix aimed at that one arm would move
 // 79 of the 96 and leave the class open.
 //
-// ⛔ NOT ESTABLISHED, and two plausible fixes were tried and MEASURED AS NO-OPS
-// rather than assumed to work:
+// ⚰️ TWO PLAUSIBLE FIXES WERE TRIED AND MEASURED AS NO-OPS. Kept because the
+// reason they measured zero is the finding: both aimed at a RAISE SITE, and no
+// raise site was ever the problem.
 //
 //   1. `parsePrimary`'s cursor-exhaustion raise throws with a literal `null`
 //      location and looks like the obvious culprit. Giving it the last token's
@@ -70,10 +93,12 @@
 //      synthesised" — the natural explanation — is FALSE for the calls that
 //      were observed.
 //
-// ⛔⛔ BOTH FIXES WERE REVERTED. Each is a real improvement in principle and
-// neither could be shown to fire, and a guard nobody has seen fire is
-// decoration (`lesson_gate_that_cannot_fail`). The next engineer starts from a
-// measured position rather than from two plausible patches that changed nothing.
+// ⛔⛔ BOTH FIXES WERE REVERTED, and reverting them was right: neither could
+// be shown to fire, and a guard nobody has seen fire is decoration
+// (`lesson_gate_that_cannot_fail`). ⭐ What they also did was RULE OUT the raise
+// sites — twice, from two different angles — which is what left the seam as the
+// only place the position could still be going. Two measured no-ops are not two
+// wasted days.
 //
 // ⛔ IT ASSERTS NO COUNT. A census pinned to a number goes red the day someone
 // improves it. What is asserted is that the corpus is real and that the
@@ -144,11 +169,31 @@ describe('⭐⭐ refusals that do not know their own line', () => {
     expect((exact.refusal || {}).locationIsStatement, 'the exact fixture reads approximate')
       .not.toBe(true)
 
-    // APPROXIMATE: a guard delegated to `pine.js`.
-    const approx = build(`plot(ta.notarealfunction(close, 5))${LF}`)
+    // APPROXIMATE: a refusal that genuinely knows no position.
+    // ⚰️ THIS WAS `plot(ta.notarealfunction(close, 5))` UNTIL 2026-09-22, and the
+    // fix that closed this census made that fixture EXACT — so the control that
+    // proves the classifier can tell the two kinds apart had to be re-anchored
+    // on a refusal that still cannot say where it is. `runtime/colours.js`
+    // throws a bare `ColourError` for an eight-digit hex: an ordinary `Error`,
+    // no `line`, no `at`. ⭐ The unreadable colour is written on the line ABOVE
+    // and the refusal reports the `bgcolor` statement — an honest approximation,
+    // marked as one, which is what the flag is for.
+    const approx = build(`myCol = #00e67610${LF}bgcolor(myCol)${LF}`)
     expect(approx && approx.ok === false, 'the approximate fixture did not refuse').toBe(true)
+    expect((approx.refusal || {}).message, 'a different refusal fired')
+      .toContain('not a colour this engine can read')
     expect((approx.refusal || {}).locationIsStatement, 'the approximate fixture reads exact')
       .toBe(true)
+
+    // ⛔ AND THE DISCRIMINATOR RUNS THE OTHER WAY TOO. The fixture this control
+    // used to call approximate is now EXACT, and asserting that here is what
+    // stops the seam fix being silently undone with this census still green.
+    const wasApprox = build(`plot(ta.notarealfunction(close, 5))${LF}`)
+    expect(wasApprox && wasApprox.ok === false, 'the ex-approximate fixture did not refuse')
+      .toBe(true)
+    expect((wasApprox.refusal || {}).locationIsStatement,
+      'a `pine:` guard is approximate again — the refusal-location seam has reopened')
+      .not.toBe(true)
   })
 
   it('⭐⭐ prints how many scripts stop on a refusal that cannot say where it is', () => {
@@ -181,8 +226,10 @@ describe('⭐⭐ refusals that do not know their own line', () => {
       ...[...byGuard.entries()].sort((a, b) => b[1] - a[1])
         .map(([g, n]) => `${String(n).padStart(5)}  ${g}`),
       '',
-      '⭐ the site is `parseWholeExpression` in pine.js. Two plausible fixes were',
-      '  tried and measured as NO-OPS — see this file’s header before trying a third.',
+      '✅ CLOSED 2026-09-22 — 96 of 266 → 2 of 266. The seam was ONE PREDICATE in',
+      '  `pineRuntimeFrontend`’s catch: it asked `e.line`, which is null for EVERY',
+      '  `PineRefusal` because that class nests its position at `.at`. Whatever is',
+      '  still listed below knows no position at all — read this file’s header.',
       '',
       ...rows.slice(0, 12).map((r) => `    ${r}`),
       rows.length > 12 ? `    …and ${rows.length - 12} more` : '',
