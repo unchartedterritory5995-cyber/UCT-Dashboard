@@ -245,8 +245,13 @@ def test_bars_are_read_with_the_daily_store_key(client, monkeypatch):
 
     def fake_get_bars(ticker, tf, max_bars):
         calls.append((ticker, tf, max_bars))
+        # ⛔⛔ F-D2-3: OHLC must be PAIRWISE DISTINCT. o=95.0/c=95.0 (the original
+        # fixture) let an open/close ordinal swap pass this assertion vacuously
+        # — rows[0]["c"] == 95.0 is true whether "c" correctly reads position 4
+        # or wrongly reads position 1. Every value below differs from every
+        # other so ANY column-position bug actually changes the number checked.
         return [(int((date(2026, 6, 1) + timedelta(days=i)).strftime("%Y%m%d")),
-                 95.0, 100.0, 90.0, 95.0, 1000) for i in range(5)]
+                 92.0, 100.0, 90.0, 95.0, 1000) for i in range(5)]
 
     monkeypatch.setattr(bars_sqlite, "get_bars", fake_get_bars)
     rows = sig._fetch_bars("nvda", 60)

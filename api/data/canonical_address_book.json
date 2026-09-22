@@ -79,6 +79,58 @@
         "sentence"
       ],
       "metric_count": 5
+    },
+    "earnings_table": {
+      "declared_in": "api/services/earnings_table.py",
+      "kind": "earnings_table",
+      "authority": "derived",
+      "shape": {
+        "snapshot_top_level": [
+          "_v",
+          "annual",
+          "quarterly",
+          "reported_through",
+          "stale_quarters",
+          "ticker"
+        ],
+        "annual_row": [
+          "_source",
+          "eps",
+          "eps_chg_pct",
+          "eps_revision",
+          "estimate",
+          "sales",
+          "sales_chg_pct",
+          "sales_revision",
+          "year"
+        ],
+        "annual_row_declared_in": "api/services/annual_financials.py",
+        "quarterly_row": {
+          "discriminator": "reported",
+          "reported": [
+            "eps_actual",
+            "eps_estimate",
+            "eps_surprise_pct",
+            "label",
+            "reported",
+            "rev_actual",
+            "rev_estimate",
+            "rev_surprise_pct"
+          ],
+          "forward": [
+            "eps_est_chg_pct",
+            "eps_estimate",
+            "label",
+            "period_end",
+            "report_date",
+            "reported",
+            "rev_est_chg_pct",
+            "rev_estimate"
+          ]
+        }
+      },
+      "why_no_flat_metrics": "unlike ohlcv, one snapshot is TWO LISTS OF ROWS (annual, quarterly), each with its own per-row shape and no single as-of column across the whole payload -- flat metric.column entries the way ohlcv.c is declared would misrepresent this shape rather than address it. Migrating a reader onto a per-field address is a separate, future checkpoint; this record only makes the shape checkable.",
+      "metric_count": 0
     }
   },
   "axis_report": {
