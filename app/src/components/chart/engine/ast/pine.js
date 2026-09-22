@@ -105,7 +105,15 @@ import { memberNumber } from './memberValue.js'
 // statements; `objectProgram.js` owns the canonical shape they become. Neither
 // imports this file, so there is no cycle and the object model stays authorable
 // without Pine (the Builder-future-proofing rule this wave was given).
-import { collectObjectOps, CREATE_POSITIONAL, CELL_POSITIONAL, CLEAR_POSITIONAL } from './pineObjects.js'
+import {
+  collectObjectOps, CREATE_POSITIONAL, CELL_POSITIONAL, CLEAR_POSITIONAL,
+  OBJECT_NAMESPACES, OUT_OF_SCOPE_NAMESPACES,
+} from './pineObjects.js'
+// ⭐ Pine's method form. Only the SPLITTER is needed here: `mutatorTargets`
+// works on tokens rather than on parse nodes, and what it has to recognise is
+// that `a.push` names a receiver `a`. One splitter, so this file and the object
+// pass cannot disagree about what a receiver is.
+import { splitMethodName } from './ufcs.js'
 import {
   OBJECT_PROGRAM_VERSION, DEFAULT_OBJECT_LIMITS,
   FAMILY_PROPS as OBJECT_FAMILY_PROPS, CELL_PROPS as OBJECT_CELL_PROPS,
@@ -9154,9 +9162,76 @@ function mutatorTargets(toks) {
         && toks[i + 2] && toks[i + 2].kind === 'ident') {
       out.add(toks[i + 2].value)
     }
+    // ⭐⭐ AND THE METHOD FORM IS THE SAME MUTATION — `a.push(x)` IS
+    // `array.push(a, x)`.
+    //
+    // ⚰️⚰️ MEASURED ON THE BRANCH POINT, AND IT WAS A SILENT WRONG NUMBER. The
+    // scan above matches the token `array.push` and the method form arrives as
+    // the token `a.push`, so it was invisible here — and the read above it
+    // folded anyway. Same program, two spellings, two plotted numbers, neither
+    // refusing:
+    //
+    //     a = array.new_float(0)
+    //     for i = 0 to 3
+    //         array.push(a, close[i])   → plot(array.size(a))  folds to 4
+    //         a.push(close[i])          → plot(array.size(a))  folds to 0
+    //
+    // That is precisely the hole the paragraph above this one was written to
+    // close, met again through the spelling it did not know. 2,570 method-form
+    // sites across 37 of the 266 committed scripts write the losing one.
+    //
+    // ⛔ OPAQUE, NOT UNROLLED, AND THE DIFFERENCE IS DELIBERATE. Marking the
+    // array opaque makes the READ refuse by name — the honest answer the block
+    // already earned. Teaching `pendingUnrollFrom` to unroll the method form
+    // would make it fold to 4 instead, which is better still, but it must first
+    // yield to a script's own `method push(…)`, and a wrong UNROLL is a wrong
+    // number where a wrong OPACITY is only a refusal. Recorded, measured, and
+    // left to the lane that can rail the shadow rule.
+    //
+    // ⛔ IT DOES NOT CHECK FOR A USER DEFINITION, ON PURPOSE. If a script
+    // defines its own `method push(…)`, this lane cannot model that either — so
+    // "the array was written by something I cannot read" is true in both cases
+    // and opacity is the right answer to both.
+    //
+    // ⛔ A PINE NAMESPACE IS NOT A RECEIVER. `array.push(a, x)` and
+    // `table.clear(t, …)` split the same way, and adding `array`/`table` to a
+    // set of MUTATED VARIABLE NAMES would be noise at best and, for a script
+    // that happens to bind one of those words, an opacity nobody asked for. The
+    // name form is the branch directly above; this one is only for the other
+    // spelling.
+    //
+    // ⚠️ THIS EXCLUSION IS NOT INDEPENDENTLY PROVABLE, AND SAYING SO IS THE
+    // POINT. A mutation deleting `PINE_MEMBER_NAMESPACES.has(...)` stays GREEN
+    // across every suite that touches this function, because nothing downstream
+    // can tell: the set is consumed by name, and a script cannot BIND one of
+    // these words for the extra entry to collide with. Measured 2026-09-22 —
+    // `table`, `matrix`, `map` and `linefill` are each refused before a binding
+    // exists, and the one that DOES bind (`str`) shares no member name with
+    // `VEC.WRITE_MEMBERS`, so the clause cannot fire for it either.
+    //
+    // ⛔ It is kept for the reason `parseForHead`'s `by`/`while` guards are
+    // kept one file over: it states the INTENT, so a future reader who widens
+    // either roster meets the rule rather than rediscovering it. It is NOT
+    // counted as a guard this file can demonstrate
+    // (`lesson_a_guard_repeated_is_a_guard_unproved`).
+    if (tok.kind === 'ident' && toks[i + 1] && isPunct(toks[i + 1], '(')) {
+      const m = splitMethodName(String(tok.value))
+      if (m && !PINE_MEMBER_NAMESPACES.has(m.recv)
+          && WRITE_LIKE_ARRAY_MEMBERS.has(m.method)) {
+        out.add(m.recv)
+      }
+    }
   }
   return out
 }
+
+/** The namespaces whose own members share names with `VEC.WRITE_MEMBERS`, so a
+ *  namespace-form call is never mistaken for a method-form one. ⭐ Derived from
+ *  the object pass's roster plus the three collection namespaces, rather than
+ *  hand-listed: a family added there is covered here the same day. */
+const PINE_MEMBER_NAMESPACES = new Set([
+  'array', 'matrix', 'map', 'str', ...OBJECT_NAMESPACES, ...OUT_OF_SCOPE_NAMESPACES,
+])
 
 /** The `array.*` members that WRITE, for `mutatorTargets`. Derived from the one
  *  set in `arrayVectors.js` so a member added there is covered here the same day

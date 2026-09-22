@@ -47,6 +47,11 @@ import {
 import { CLOCK_FIELDS } from '../runtime/program.js'
 import { TEXT_FNS, producesText } from '../runtime/text.js'
 import { ARRAY_FNS, producesArray, isVoid, argKind } from '../runtime/collections.js'
+// ⭐ Pine's method form, and it decides no legality — see `ufcs.js`. The rewrite
+// hands `array.push` / `table.cell` to the rosters this file already consults,
+// so a method-form call is admitted or refused by the same table, with the same
+// sentence, as the name form it is.
+import { methodFormCall, splitMethodName } from './ufcs.js'
 
 /** Array calls whose RESULT is one element of the array. ⭐ Used only to carry
  *  a collection's element KIND to the value that reads it out. */
@@ -578,6 +583,36 @@ export function buildRuntimeIr(source, opts = {}) {
   let stmts
   try { stmts = blockStatements(tokens, indents, 0) } catch (e) { return fail(e, diagnostics) }
 
+  /** ⛔⛔ EVERY NAME THIS SCRIPT DEFINES AS A FUNCTION OR A PINE 6 `method`, so
+   *  the method-form rewrite can YIELD to it.
+   *
+   *  19 of the 266 committed scripts declare their own methods, and one of them
+   *  writes `top.maintainPivot(ph)` where `top` really is a declared array.
+   *  Rewriting that to `array.maintainPivot` would refuse while naming a
+   *  built-in nobody wrote; a script defining `method get(array<float> this, int i)`
+   *  would have its own method silently replaced by ours. `pine.js` records four
+   *  previous instances of that second defect and fixes each the same way —
+   *  consult what the script SAID before what the table knows.
+   *
+   *  ⭐ COLLECTED OVER THE WHOLE TREE BEFORE THE WALK, because `fnByName` fills
+   *  as the walk goes and a definition may sit below a call inside another
+   *  function body. */
+  const definedNames = new Set()
+  const scanDefs = (list) => {
+    for (const s of list || []) {
+      const ts = s.header || []
+      if (ts.length > 1 && ts[0].kind === 'ident') {
+        if (ts[0].value === 'method' && ts[1].kind === 'ident') definedNames.add(String(ts[1].value))
+        else if (isPunct(ts[1], '(') && findTop(ts, (x) => isPunct(x, '=>')) > 0) {
+          const bare = splitMethodName(String(ts[0].value))
+          definedNames.add(bare ? bare.method : String(ts[0].value))
+        }
+      }
+      if (s.sub && s.sub.length) scanDefs(s.sub)
+    }
+  }
+  scanDefs(stmts)
+
   // ⛔⛔ RULING 3.3 — REFUSE BY NAME, NEVER BLANK.
   // ⭐⭐ SCANNED OVER TOKENS, NOT SOURCE TEXT. `lexPine` has already dropped comments
   // and strings, so a realtime name written in a COMMENT cannot trigger this — the
@@ -798,6 +833,18 @@ export function buildRuntimeIr(source, opts = {}) {
     // — only so it can be refused precisely there.
     if (node.type === 'name' && guardOuter && guardOuter.lookup(node.name) !== null) return true
     if (node.type === 'call' && isUserFn(node.name)) return true
+    // ⭐⭐ A METHOD FORM READS ITS RECEIVER, AND THE RECEIVER IS A SLOT.
+    // `a.get(0)` is `array.get(a, 0)`, so the statement genuinely reads `a` —
+    // but the receiver arrives glued into the CALL NAME rather than as a `name`
+    // node, so this walk could not see it and routed the whole expression to
+    // the columnar lane. ⚰️ That lane then refused `pine:builtin` — *"the engine
+    // grammar does not hold `a.get`"* — which is false twice: `a.get` is not a
+    // built-in, and `array.get` is a thing THIS lane holds. Measured: the name
+    // form compiled and the method form did not, for the same program.
+    if (node.type === 'call') {
+      const uf = splitMethodName(String(node.name || ''))
+      if (uf && scope.lookup(uf.recv) !== null) return true
+    }
     // ⭐⭐ AN INPUT'S LABEL CANNOT DECIDE ITS LANE, and until 2026-09-21 every
     // label did. `group`, `tooltip`, `title`, `inline`, `display` and `confirm`
     // name a control in the settings dialog; none of them can change the number
@@ -1001,18 +1048,42 @@ export function buildRuntimeIr(source, opts = {}) {
    *  enclosing expression to the lane that cannot read it while reporting
    *  nothing — the column would simply refuse and the script would die naming
    *  the wrong cause. */
+  /** ⭐ IT ANSWERS WITH THE CALL'S NAME, NOT A BARE `true`, AND EVERY EXISTING
+   *  CALLER IS UNCHANGED — a name is truthy and `null` is falsy, so the four
+   *  `if (holdsObjectCall(…))` sites read exactly as they did.
+   *
+   *  ⛔ THE REASON IS THE METHOD FORM. `b.set_bgcolor(c)` is `box.set_bgcolor(b, c)`,
+   *  and to say so this lane has to know which FAMILY `b` was bound from — a
+   *  fact this walk already computes and then threw away. Recovering it with a
+   *  second walker would be a second authority on what counts as a drawing call
+   *  (`lesson_a_second_authority_over_one_value`); returning it is free. */
   const holdsObjectCall = (node, depth = 0) => {
-    if (!node || typeof node !== 'object' || depth > 24) return false
-    if (node.type === 'call' && OBJECT_NS.test(String(node.name || ''))) return true
+    if (!node || typeof node !== 'object' || depth > 24) return null
+    if (node.type === 'call' && OBJECT_NS.test(String(node.name || ''))) return String(node.name)
     for (const k of ['left', 'right', 'test', 'yes', 'no', 'arg', 'value', 'cond']) {
-      if (holdsObjectCall(node[k], depth + 1)) return true
+      const hit = holdsObjectCall(node[k], depth + 1)
+      if (hit) return hit
     }
     if (Array.isArray(node.args)) {
       for (const a of node.args) {
-        if (holdsObjectCall(a && a.value !== undefined ? a.value : a, depth + 1)) return true
+        const hit = holdsObjectCall(a && a.value !== undefined ? a.value : a, depth + 1)
+        if (hit) return hit
       }
     }
-    return false
+    return null
+  }
+
+  /** Names this lane saw bound to a drawing call → the FAMILY they hold.
+   *
+   *  ⛔ A RECORD, NOT A GUARD, and it is noted at EVERY binding path rather than
+   *  at the two that skip. A `b = box.new(…)` that is neither `var` nor mutated
+   *  never becomes a slot at all — it is absorbed by the `env` macro path — so a
+   *  map filled only where a statement is SKIPPED would miss the commonest
+   *  spelling and `b.delete()` would refuse for a reason that is not true. */
+  const drawingHandles = new Map()
+  const noteHandle = (name, value) => {
+    const hit = holdsObjectCall(value)
+    if (hit) drawingHandles.set(String(name), hit.slice(0, hit.indexOf('.')))
   }
 
   /** Does this subtree evaluate to a COLLECTION?
@@ -2533,6 +2604,37 @@ export function buildRuntimeIr(source, opts = {}) {
         if (Object.prototype.hasOwnProperty.call(ARRAY_FNS, node.name)) {
           return admitArrayCall(node, scope, false)
         }
+        // ⭐⭐ THE METHOD FORM IN VALUE POSITION — `a.size()` IS `array.size(a)`.
+        //
+        // MEASURED over `corpus/committed`: 839 `.size()` and 815 `.get()` sites
+        // on a DECLARED collection, which makes this the single largest method
+        // form in the corpus — and the lane that actually HAS collections is
+        // this one. ⚰️ Before this landed it refused `pine:builtin` — *"this
+        // Pine built-in names something the engine grammar does not hold —
+        // `a.get`"* — which is false twice over: `a.get` is not a built-in, and
+        // the thing it names is one this lane holds.
+        //
+        // ⛔ THE RECEIVER MUST BE A SLOT THIS LANE MARKED AS A COLLECTION, so
+        // the rewrite cannot fire on a UDT field or a name it never bound, and
+        // the method form yields to a script's own definition of the same name.
+        // Everything after the rewrite is `admitArrayCall`, the one admitter —
+        // same arity check, same void rule, same lowering as the name form.
+        {
+          const uf = splitMethodName(String(node.name || ''))
+          const rslot = uf && !definedNames.has(uf.method) ? scope.lookup(uf.recv) : null
+          if (rslot !== null && rslot !== undefined && slots[rslot] && slots[rslot].collection) {
+            const rew = methodFormCall(node, () => 'array', (m) => definedNames.has(m))
+            if (rew && Object.prototype.hasOwnProperty.call(ARRAY_FNS, rew.node.name)) {
+              return admitArrayCall(rew.node, scope, false)
+            }
+            // ⛔ AND A MEMBER THIS RUNTIME DOES NOT HOLD REFUSES BY THE
+            // CANONICAL NAME. `array.median` is the thing that is missing;
+            // `a.median` names a variable and sends the reader nowhere.
+            note('runtime:array')
+            throw new RuntimeRefusal('runtime:array',
+              familyDetail('runtime:array', `array.${uf.method}`), locate(node.tok))
+          }
+        }
         const fam = callFamily(node.name)
         // ⛔⛔ NO `objectPassOwnsDrawing` ESCAPE HATCH IN THE EXPRESSION
         // POSITION, DELIBERATELY. The two shapes that legitimately mention a
@@ -3453,6 +3555,7 @@ export function buildRuntimeIr(source, opts = {}) {
         // declared a slot for the handle (its `var … = na` declaration is a
         // handle binding too), so asking for one first would refuse at
         // `runtime:unbound` and blame the wrong statement.
+        noteHandle(nameTok.value, value)
         if (objectPassOwnsDrawing && holdsObjectCall(value)) continue
         const slot = scope.lookup(nameTok.value)
         if (slot === null) {
@@ -3487,6 +3590,7 @@ export function buildRuntimeIr(source, opts = {}) {
         // nothing. ⭐ Skipping also gives the better failure: a name this lane
         // never declared refuses LOUDLY at `pine:undefined` if anything outside
         // a drawing call reads it, instead of quietly yielding `na`.
+        noteHandle(nameTok.value, value)
         if (objectPassOwnsDrawing && holdsObjectCall(value)) continue
         const slot = scope.declare(nameTok.value, newSlot(nameTok.value, true))
         // ⭐ MARKED BEFORE THE INITIALISER IS LOWERED, so a later read of this
@@ -3583,6 +3687,7 @@ export function buildRuntimeIr(source, opts = {}) {
         // from its absence. The proved copies are the `var` branch above and the
         // `:=` branch; this one read as protection and was not
         // (`lesson_a_guard_repeated_is_a_guard_unproved`).
+        noteHandle(nameTok.value, value)
         const isCollection = holdsArray(value, scope)
         if (!mutable && !isCollection && !readsSlot(value, scope)) {
           env.set(nameTok.value, { kind: 'expr', node: value, env: new Map(env), at: locate(nameTok) })
@@ -3641,6 +3746,46 @@ export function buildRuntimeIr(source, opts = {}) {
         const f = callFamily(word)
         if (f === 'runtime:object-op' && objectPassOwnsDrawing) continue
         if (f) { note(f); throw new RuntimeRefusal(f, familyDetail(f, word), locate(first)) }
+        // ── the METHOD FORM — `t.cell(…)` IS `table.cell(t, …)` ──────────
+        //
+        // ⛔⛔ IT IS THE SAME STATEMENT AS THE NAME FORM ABOVE AND MUST GET THE
+        // SAME ANSWER. ⚰️ Measured before this landed: `t.cell(0, 0, txt)` on a
+        // declared table refused `runtime:expression-statement` while
+        // `table.cell(t, 0, 0, txt)` compiled and drew — one Pine operation,
+        // two verdicts, decided by which spelling the author happened to use.
+        // 211 method-form sites on a declared drawing handle across 19 of the
+        // 266 committed scripts write the losing one.
+        //
+        // ⛔ THE RECEIVER MUST BE A NAME THIS LANE SAW BOUND TO A DRAWING, and
+        // the family comes from that binding — never from the method name.
+        // `delete` belongs to five families; guessing one would skip a statement
+        // this lane should have refused.
+        const uf = splitMethodName(word)
+        if (uf && !definedNames.has(uf.method)) {
+          const fam = drawingHandles.get(uf.recv)
+          if (fam) {
+            if (objectPassOwnsDrawing) continue
+            note('runtime:object-op')
+            throw new RuntimeRefusal('runtime:object-op',
+              objectOpDetail(`${fam}.${uf.method}`), locate(first))
+          }
+          // ⭐ A COLLECTION RECEIVER GOES THROUGH `admitArrayCall`, THE ONE
+          // ADMITTER — same arity check, same void rule, same lowering as a
+          // hand-written `array.push(a, x)`. The rewrite happens first and
+          // nothing below this line knows the spelling it came from.
+          const rslot = scope.lookup(uf.recv)
+          if (rslot !== null && slots[rslot] && slots[rslot].collection) {
+            const rew = methodFormCall(parseWholeExpression(toks),
+              () => 'array', (m) => definedNames.has(m))
+            if (rew && ARRAY_FNS[rew.node.name]) {
+              out.push(exprStmt(admitArrayCall(rew.node, scope, true)))
+              continue
+            }
+            note('runtime:array')
+            throw new RuntimeRefusal('runtime:array',
+              familyDetail('runtime:array', `array.${uf.method}`), locate(first))
+          }
+        }
         note('runtime:expression-statement')
         throw new RuntimeRefusal('runtime:expression-statement', `\`${word}()\``, locate(first))
       }
