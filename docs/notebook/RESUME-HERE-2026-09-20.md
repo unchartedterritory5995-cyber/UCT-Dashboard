@@ -203,7 +203,20 @@ real viewport or exercised end-to-end this pass**:
   ("I couldn't find that in this note.", `noAnswer: true`, zero fabricated
   citations) — confirmed this never calls the model (by design, so a
   question the corpus can't answer never burns spend).
-- the **import wizard** (Notion / Obsidian / Evernote / md · docx · html)
+- ✅ **the import wizard — VERIFIED 2026-09-21 for Obsidian**, real folder
+  picker, real vault (`.obsidian/` marker + a `[[wikilink]]` + a
+  `![[wiki-embed]]` between two notes), through the actual wizard UI:
+  auto-detect correctly identifies "Obsidian" (not generic markdown), and
+  — the genuinely hard, differentiating check — **the `[[wikilink]]`
+  resolved to a real cross-note link pointing at the target note's actual
+  id**, no leftover `import-link://` placeholder. One non-bug found and
+  understood: Obsidian inline `#hashtags` in body text are NOT extracted
+  into `tags` — confirmed **by design** in the adapter's own header
+  comment (tags come from YAML frontmatter only); my first fixture used
+  the wrong style, not a product defect. **Not this pass: Notion, Evernote,
+  docx, html** — each has its own adapter + unit tests (`notion.test.js`,
+  `evernote.test.js`, `generic.test.js`) but no real-file, real-wizard pass
+  yet.
 - **connectors** (Roam, Craft, Notion, Dropbox, OneNote, OneDrive — shipped dark)
 
 ### 3. A large document — ✅ **VERIFIED CLOSED, 2026-09-21** (was "a known killer")
