@@ -554,7 +554,14 @@ def test_import_confirm_isolates_a_realistically_oversized_meeting_log_without_l
     r = notes_svc.import_confirm("u1", payload, conn=conn)
     assert {n["importKey"] for n in r["created"]} == {
         "x:before-1", "x:before-2", "x:after-1", "x:after-2"}
-    assert r["failed"] == [{"importKey": "x:huge-log", "error": "body_json too large (>1MB)"}]
+    # Member-facing (2026-09-21 polish): the raw backend field name
+    # "body_json" used to reach the member verbatim, in both this path AND
+    # the editor's own save-error banner (NoteEditorPage.saveerror.test.jsx
+    # deliberately shows a real backend detail VERBATIM by design -- so the
+    # fix belongs at the ONE raise site, not a per-surface translation).
+    assert r["failed"] == [{"importKey": "x:huge-log",
+                             "error": "This note is too long to save as one page. "
+                                      "Split it into two or more notes and try again."}]
     assert notes_svc.import_check("u1", ["x:huge-log"], conn=conn)["existing"] == {}
 
 
@@ -574,7 +581,9 @@ def test_import_confirm_isolates_an_oversized_many_inline_images_note(conn):
     ]}
     r = notes_svc.import_confirm("u1", payload, conn=conn)
     assert {n["importKey"] for n in r["created"]} == {"x:ok-1", "x:ok-2"}
-    assert r["failed"] == [{"importKey": "x:huge-images", "error": "body_json too large (>1MB)"}]
+    assert r["failed"] == [{"importKey": "x:huge-images",
+                             "error": "This note is too long to save as one page. "
+                                      "Split it into two or more notes and try again."}]
 
 
 # ── Non-image attachment upload ──────────────────────────────────────────────

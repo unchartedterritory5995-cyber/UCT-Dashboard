@@ -432,7 +432,21 @@ def _validate_body_json(raw: Any) -> dict[str, Any]:
         raise NoteValidationError("body_json must be a TipTap doc")
     serialized = json.dumps(raw)
     if len(serialized.encode("utf-8")) > MAX_BODY_JSON_BYTES:
-        raise NoteValidationError("body_json too large (>1MB)")
+        # ⛔ THIS STRING REACHES A MEMBER VERBATIM, TWICE OVER, BY DESIGN —
+        # never re-word it at a display site. `NoteEditorPage`'s own
+        # `friendlySaveError` deliberately shows a real backend detail
+        # UNCHANGED (its own regression test: "a real backend-authored
+        # detail ... is preserved verbatim"), and the import wizard's
+        # "Needs attention" list renders `item.error` the same way
+        # (commit.js). Measured 2026-09-21 against a real note that grew
+        # past the cap while already open in the editor: the member saw
+        # "Save failed: body_json too large (>1MB)" — an internal field
+        # name, with no idea what to do about it. One raise site fixes
+        # both surfaces; a per-surface translation would fix neither for
+        # the other and would be a second authority over this sentence.
+        raise NoteValidationError(
+            "This note is too long to save as one page. "
+            "Split it into two or more notes and try again.")
     return raw
 
 
