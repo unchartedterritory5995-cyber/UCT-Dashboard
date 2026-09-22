@@ -27,10 +27,10 @@ sources: product-architecture.md §"A12 — Watchlists & Lists" (line 715),
 ## APPROVAL — this block is filled in by the OWNER, not the author
 
 ```
-APPROVED BY:
-APPROVED ON:
-APPROVED AT SHA:
-SCOPE APPROVED:
+APPROVED BY:      Patrick (owner)
+APPROVED ON:      2026-09-21
+APPROVED AT SHA:  acaa29de6
+SCOPE APPROVED:   A12 CP1 -- watchlists/S6 consistency rail, per docs/terminal-research/12-decisions/gates/a12-watchlists-cp1-scoped-proposal.md section 2. MUST BUILD (the entire authorization): one new test file, tests/test_a12_s6_consistency_rail.py, asserting member_interest.interest_for(user_id)'s watchlist and flagged buckets are byte-identical to what watchlist_service.py's own functions say that user's membership is, for the same seeded user and DB state -- with a mandatory non-vacuity control (a user seeded with symbols in both an ordinary list and the flagged list, proving the rail can tell them apart) and a mandatory mutation proof (goes RED if member_interest's is_flagged_list filter is flipped/removed, or if its join is pointed at a copy missing new watchlist_service.add_item rows). The same file also pins, as falsifiable assertions (not prose), the two named gaps this checkpoint measures and does not fix: column presets have no typed store (Watchlists.jsx's COL_PRESETS/visiblePerf are plain component state, never persisted) and watchlist/tag rows are not yet S5 saved objects (no revision/CAS column, no watchlist_view_documents-shaped table) -- both assertions are designed to flip, on purpose, the day a future CP2 lands. Files touched: exactly one, the new test file. No .jsx file, no router, no schema migration, no change to member_interest.py's behavior. SHOULD BUILD: none -- matches the house convention (S5 CP1, S6 CP1) that a first checkpoint on a system with no PRD is a rail, not a feature. EXPLICITLY DEFERRED, NOT AUTHORIZED BY THIS LINE: CP2 (a watchlist_view_documents table + GET/PUT /api/watchlists/view-state, sized in section 2 but not authorized here); S2's #watchlist scope grammar; S7 price-level absorbing the legacy per-symbol watchlist alert path; writing an A12 PRD/spec; any ruling on SET vs WEIGHTED SET or other S6 boundary questions (A12 CP1 consumes S6's already-shipped interest_for as a fixed input and takes no position on it).
 ```
 
 No field above is filled in. This packet proposes exactly one checkpoint (§2); nothing
