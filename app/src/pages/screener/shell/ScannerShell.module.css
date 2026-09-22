@@ -16,11 +16,19 @@
 .railSearchRow { display: flex; align-items: center; gap: 6px; padding: 10px; position: sticky; top: 0; background: var(--bg-surface); z-index: 2; border-bottom: 1px solid var(--border); }
 .railSearch { flex: 1; background: var(--bg-elevated); border: 1px solid var(--border); border-radius: var(--radius-sm, 6px); padding: 6px 8px; color: var(--text); font-size: 12px; min-width: 0; }
 .railClear { background: none; border: none; color: var(--ut-gold); font-size: 11px; cursor: pointer; text-decoration: underline; white-space: nowrap; }
-.railGroup { border-bottom: 1px solid var(--border); padding-bottom: 4px; }
-.railHead { display: flex; align-items: center; gap: 6px; width: 100%; background: none; border: none; color: var(--text-muted); font-size: 10px; text-transform: uppercase; letter-spacing: var(--ls-label, .5px); padding: 9px 10px 5px; cursor: pointer; }
+.railGroup { border-bottom: 1px solid var(--border); }
+/* Group headers read as real, clickable rows now: brighter label, a hover fill,
+   and a clearly-visible chevron (the old one was a faint 11px glyph). */
+.railHead { display: flex; align-items: center; gap: 6px; width: 100%; background: none; border: none;
+  color: var(--text); font-size: 10.5px; font-weight: 600; text-transform: uppercase;
+  letter-spacing: .06em; padding: 11px 12px; cursor: pointer; transition: background .1s; }
 .railHead span:first-child { flex: 1; text-align: left; }
-.railHead:hover { color: var(--ut-gold); }
-.railPip { background: var(--ut-gold); color: var(--bg); border-radius: var(--radius-lg); padding: 0 5px; font-size: 9px; font-weight: 700; }
+.railHead:hover { color: var(--ut-gold); background: var(--bg-hover); }
+.railHead[aria-expanded="true"] { color: var(--text-bright); }
+.railChev { display: inline-flex; color: var(--text-muted); }
+.railHead:hover .railChev, .railHead[aria-expanded="true"] .railChev { color: var(--ut-gold); }
+.railPip { background: var(--ut-gold); color: #141207; border-radius: 999px; padding: 1px 6px;
+  font-size: 9.5px; font-weight: 700; }
 
 /* ColumnPicker */
 .pickerPop { position: absolute; top: calc(100% + 4px); right: 0; z-index: 20; width: 300px; max-height: 55vh; display: flex; flex-direction: column; background: var(--bg-surface); border: 1px solid var(--border-accent); border-radius: var(--radius-md, 8px); box-shadow: var(--shadow-popover, 0 8px 24px rgba(0, 0, 0, .4)); }
@@ -268,6 +276,9 @@
 .uMenuFoot { border-top: 1px solid var(--border); margin-top: 6px; padding: 8px 2px 0; }
 .uBase { font-size: 11.5px; color: var(--text-muted); }
 .uBaseHint { opacity: .6; }
+/* The count stays on screen while a new scan loads, just dimmed — never blanked
+   (blanking on every keystroke/toggle was the "flashing" count). */
+.uCountStale { opacity: .45; transition: opacity .1s; }
 @media (max-width: 640px) { .uBaseHint { display: none; } }
 
 /* The ⓘ that opens the "what each universe means" popover, and the Clear that

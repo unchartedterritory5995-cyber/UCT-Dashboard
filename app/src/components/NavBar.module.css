@@ -31,12 +31,15 @@
      workspace, plus a 1px inner right-edge highlight so the panel edge is crisp
      against the dimmed page (the "slick" touch). */
   box-shadow: 6px 0 30px rgba(0, 0, 0, 0.40), inset -1px 0 0 rgba(255, 255, 255, 0.05);
-  /* Expand INSTANTLY on hover (no enter-delay). The old 0.12s delay guarded against
-     the "menu shakes by itself" bug — a transient layout flick (scrollbar toggle,
-     re-render reflow) sliding the IN-FLOW rail under a stationary cursor. The rail
-     is now position:fixed (out of flow), so layout flicks can't move it and the
-     spurious-hover risk is gone — the expand can start the instant the cursor
-     touches the 60px column. */
+  /* ⛔ HOVER-INTENT DELAY. The expand waits 0.22s after the cursor enters the
+     60px column; a quicker pass-through never triggers it. This is the fix for
+     "reaching toward the left rail pops the nav open over it" — the collapse is
+     still instant (the base `.nav` transition carries no delay), so leaving snaps
+     shut at once. (The old "menu shakes by itself" reason for removing a delay is
+     gone: the rail is position:fixed, so a layout flick can't slide it under a
+     stationary cursor and manufacture a spurious hover.) */
+  transition: width 0.18s cubic-bezier(0.4, 0, 0.2, 1) 0.22s,
+              box-shadow 0.18s ease 0.22s;
 }
 .brand {
   display: flex;
