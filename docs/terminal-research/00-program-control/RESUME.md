@@ -148,28 +148,24 @@ worktree (`s7-price-level`) against `origin/master`, never from the docs worktre
 - `sign_gate.py <packet>` **SIGNS IMMEDIATELY** — there is no dry-run flag; `--read-check`/`--self-check`
   run only on synthetic text. To check a real packet read-only, import the tool and call `read_approval()`.
 
-## 1. Two new proposals are ready for the owner's signature (2026-09-22)
+## 1. One new proposal is ready for the owner's signature (2026-09-22)
 
-⚰️ *This said the list was EMPTY. It was, until this pass swept D2's two remaining OPEN findings
-(F-D2-1, F-D2-3) — both genuinely investigable without more real-world time, unlike A9/A11/A13/
-event-proximity. Both are now scoped, drafted, and structurally verified signable
-(`read_approval()`/`target_span()` both checked, exactly one blank block each).*
+⚰️ *This said two — F-D2-1 and F-D2-3, both found in the same audit sweep. **F-D2-1 SIGNED
+(fingerprint `454e11421`) and BUILT AND MERGED 2026-09-22**, `feat/s7-price-level` `1a15a752a` —
+see COMPLETION_AUDIT.md's F-D2-1 row. One remains.*
 
 ```sh
-python tools/sign_gate.py docs/terminal-research/12-decisions/gates/d2-f-d2-1-fundamentals-declaration-scoped-proposal.md --by "Patrick (owner)" --on <today> --scope-file .scopes/d2-f-d2-1-fundamentals-declaration-scoped-proposal.scope.txt
-
 python tools/sign_gate.py docs/terminal-research/12-decisions/gates/d2-f-d2-3-ordinal-inventory-scoped-proposal.md --by "Patrick (owner)" --on <today> --scope-file .scopes/d2-f-d2-3-ordinal-inventory-scoped-proposal.scope.txt
 ```
 
-Run each YOURSELF via `!` in chat — same absolute rule as every prior signature this programme has
+Run YOURSELF via `!` in chat — same absolute rule as every prior signature this programme has
 used: the AI must never fill in `APPROVED BY/ON/AT-SHA/SCOPE APPROVED` itself.
 
 | Proposal | What it does | Risk |
 |---|---|---|
-| D2 / F-D2-1 | Declares `earnings_table`'s fundamentals row shape into the canonical address book, the same way bars' `ohlcv` table already is — a pure declaration, no schema change, no reader migrated | Low — additive tooling + book entries only |
 | D2 / F-D2-3 | **Read this one's §1 before signing.** Builds a checked-in inventory of 21+ places across 19 files that read chart-bar data by a fragile bare-integer position instead of by name — the SAME class of bug already fixed once for `ticker_returns.py`, now proven to exist much more widely, including the site's main chart endpoint. This proposal only counts and records that exposure; it deliberately does NOT touch any of the 21+ live call sites (several may restart flow-worker, which needs after-hours timing and its own separate proposal) | Low as scoped (detection-only, zero runtime behavior change) — but the finding it documents is real and worth reading in full, not just the risk column |
 
-Both were found, investigated, and scoped in this same pass — from an audit sweep the owner asked
+Both were found, investigated, and scoped in the same pass — from an audit sweep the owner asked
 for ("everything remaining that keeps us from 150% complete"), not from a pre-existing backlog.
 
 ## 2. The dark comparison numbers have been read — none of the four supports a ruling yet
