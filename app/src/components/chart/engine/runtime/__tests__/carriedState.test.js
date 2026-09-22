@@ -139,15 +139,21 @@ describe('⭐⭐ the source can be any runtime value, at any scope', () => {
   })
 
   it('⭐⭐ AN EXPRESSION SOURCE — a recurrence needs no committed series', () => {
-    // ⛔ THE ASYMMETRY WITH 2F-2B IS DELIBERATE AND LOAD-BEARING.
-    // `ta.sma(x + 1, 5)` refuses (`runtime:history-expression`) because a window
-    // needs a committed series; `ta.ema(x + 1, 5)` executes, because a
-    // recurrence reads only this bar's value.
+    // ⛔ THE ASYMMETRY WITH 2F-2B IS DELIBERATE AND LOAD-BEARING, AND IT
+    // SURVIVED THE ROOT-STATEMENT HOIST INTACT — what changed is how it is
+    // OBSERVED. `ta.sma(x + 1, 5)` used to refuse; it now hoists the source into
+    // its own slot and allocates a RING. `ta.ema(x + 1, 5)` still allocates
+    // NONE, because a recurrence reads only this bar's value.
+    //
+    // ⚰️ THE OLD ASSERTION WAS A REFUSAL, AND A REFUSAL IS THE WEAKER WITNESS:
+    // once the window compiled, "it refuses" would have to be deleted, and
+    // deleting it would delete the asymmetry with it. A ring count of 0 against
+    // 1 says the same thing and keeps saying it.
     const { out, ir } = runPine(`${head}var x = 0.0\nx := close\nplot(ta.ema(x + 1, 5))\n`)
     sameSeries(out, pureLane('ta.ema(close + 1, 5)'), 'expression source')
-    expect(ir.history, 'an expression source must allocate NO ring').toHaveLength(0)
-    expect(refusalOf(`${head}var x = 0.0\nx := close\nplot(ta.sma(x + 1, 5))\n`).guard)
-      .toBe('runtime:history-expression')
+    expect(ir.history, 'a recurrence over an expression allocates NO ring').toHaveLength(0)
+    const { ir: winIr } = runPine(`${head}var x = 0.0\nx := close\nplot(ta.sma(x + 1, 5))\n`)
+    expect(winIr.history, 'a WINDOW over the same expression allocates one').toHaveLength(1)
   })
 
   it('⭐⭐ a UDF PARAMETER', () => {
@@ -674,10 +680,19 @@ describe('⭐ `ta.change` — lowered into semantics that already ship (§42–�
     sameSeries(out, pureLane('ta.change(close)'), 'change in a udf')
   })
 
+  it('⭐ an EXPRESSION source is hoisted at a root statement, and equals the columnar door', () => {
+    // ⚰️ THIS ASSERTED `runtime:history-expression`. The root statement list now
+    // gives the expression its own committed series, so `x - x[1]` is lowered
+    // over a hoisted slot — still ONE definition of `change`, with the ring
+    // supplying `x[1]` and the subtraction supplying the NaN rule.
+    const { out } = runPine(`${head}var x = 0.0\nx := close\nplot(ta.change(x * 2))\n`)
+    sameSeries(out, pureLane('ta.change(close * 2)'), 'change over an expression')
+  })
+
   it('⛔ the forms it does NOT serve refuse BY NAME, each for its own reason', () => {
-    // an expression source has no committed series — same wall as a window
-    expect(refusalOf(`${head}var x = 0.0\nx := close\nplot(ta.change(x + 1))\n`).guard)
-      .toBe('runtime:history-expression')
+    // an expression source INSIDE A BRANCH still has nowhere to put the series
+    const branch = `${head}var x = 0.0\nx := close\nvar y = 0.0\nif close > 0\n    y := ta.change(x + 1)\nplot(y)\n`
+    expect(refusalOf(branch).guard).toBe('runtime:history-expression')
     // `ta.change(source, length)` is a CLOSED TABLE gap: the table's `change`
     // declares one argument, so the two-argument Pine overload has no entry.
     const r = refusalOf(`${head}var x = 0.0\nx := close\nplot(ta.change(x, 3))\n`)

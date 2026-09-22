@@ -89,8 +89,17 @@ capture.**
 functions today ⇒ ~40 hours of harness runs, done in 3-agent waves.
 
 **Ordering:** highest corpus demand first. The corpus census
-(`runtimeCorpusCensus.measure.test.js`) surfaces this ordering; the census can
-be extended to count function-name occurrences.
+(`runtimeCorpusCensus.measure.test.js`) surfaces this ordering, and
+`pineDemandCensus.measure.test.js` orders it by NAME.
+
+⛔⛔ **BUT A CENSUS ROW IS A TOKEN, NOT A CAPABILITY — READ THE CALL SITES BEFORE
+SIZING ONE.** Measured 2026-09-21: the demand census's second row is
+`16  [  runtime:history-expression,pine:builtin,…`, which reads as "the history
+operator blocks 16 scripts". It is not. **Fifteen of those sixteen call sites
+are TUPLE DESTRUCTURING** (`[a, b, c] = f(…)`) and exactly one is a history
+read. One token, two unrelated jobs, and the larger of the two is invisible in
+the table. A lane was opened against the wrong one before anyone opened the
+scripts.
 
 **Runs independently of every other phase.** Its output is fixtures — no new
 capability — so it can't break anything.

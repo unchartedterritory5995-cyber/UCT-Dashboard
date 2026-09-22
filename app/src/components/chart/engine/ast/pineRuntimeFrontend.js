@@ -1175,6 +1175,27 @@ export function buildRuntimeIr(source, opts = {}) {
    *  on the same bar. ⭐ Non-null only inside a request's value — the one
    *  region that has somewhere to put them. */
   let hoistSink = null
+  /** ⭐⭐⭐ THE SAME MECHANISM, AT THE ROOT STATEMENT LIST — the sink a history
+   *  offset, a finite window or a `ta.change` over an EXPRESSION writes its
+   *  committed series into. Non-null ONLY while lowering a statement of the
+   *  root list, and that bound is a correctness argument rather than caution:
+   *
+   *  ⛔⛔ A DECLARE HOISTED OUT OF AN `if` BODY WOULD RUN ON EVERY BAR while the
+   *  window inside the body runs only on the bars the branch takes. Those are
+   *  two different series, and TradingView's answer for a conditionally-called
+   *  `ta.*` is NOT vendor-pinned here — `carriedState.test.js` pins the opposite
+   *  rule for recurrences (they step only when called), so guessing would put a
+   *  plausible number where a capture belongs. A nested list therefore lowers
+   *  with NO sink and the refusal keeps its name.
+   *
+   *  ⛔ IT IS SEPARATE FROM `hoistSink` BECAUSE THE TWO ADMIT DIFFERENT NODES.
+   *  A request's region hoists ANY unresolved source, because inside a request
+   *  there is nowhere for the member to put the binding themselves. Here there
+   *  is: a name that does not resolve is a DIFFERENT gap
+   *  (`runtime:function-global-state`) with its own measurement, and hoisting it
+   *  would lift a refusal nobody asked to lift — the exact failure recorded for
+   *  the wider deferred-function inlining a few lines below. */
+  let stmtHoistSink = null
   /** name → a function body kept as an AST, so a call site can lower it in the
    *  CALLER's context when the shared frame will not do. */
   const inlineBodyByName = new Map()
@@ -1738,6 +1759,59 @@ export function buildRuntimeIr(source, opts = {}) {
     return null
   }
 
+  /** ⭐⭐⭐ GIVE AN EXPRESSION ITS OWN COMMITTED SERIES.
+   *
+   *  A history offset, a finite window and `ta.change` all ask the same thing of
+   *  the same machinery: a slot whose value this bar can be read again next bar.
+   *  Only a declared variable had one, so `(x + 1)[1]`, `ta.sma(x + 1, 5)` and
+   *  `ta.change(x * 2)` each refused `runtime:history-expression` with a message
+   *  telling the member to write the binding themselves. This performs that
+   *  rewrite instead of demanding it: the expression is lowered ONCE into a
+   *  synthetic slot declared immediately before the statement that needs it.
+   *
+   *  Returns `null` when the caller must keep refusing, and the three reasons
+   *  are each load-bearing:
+   *
+   *  ⛔ NO SINK — a nested statement list (an `if` body, a `for` body, a
+   *     function body). See `stmtHoistSink`.
+   *  ⛔ INSIDE A FRAME (`owner !== null`) — a function's history is allocated
+   *     per call site off `historyBase`, and a slot declared into the caller's
+   *     root list would be shared by every site. The frame case is real work
+   *     with its own measurement, not a special case of this one.
+   *  ⚰️ A THIRD GUARD — `srcNode.type === 'name'` — WAS WRITTEN HERE AND
+   *  DELETED, because a mutation proved it DEAD. It was meant to stop an
+   *  unresolvable name being hoisted instead of refusing
+   *  `runtime:function-global-state`; measured with BOTH it and the frame guard
+   *  removed, that refusal still fires, from `lowerExpr` below — which owns the
+   *  name and answers with the better guard name. Every call site checks the
+   *  shape before calling anyway. A second copy of a guard another function
+   *  already enforces cannot be mutation-proved and reads as protection
+   *  (`lesson_a_guard_repeated_is_a_guard_unproved`), so it is gone and the
+   *  refusal it protected has its own case in `historyExpression.test.js`.
+   *
+   *  ⛔⛔ THE IR IS BUILT BEFORE THE SLOT IS DECLARED, and that order is not
+   *  tidiness: `lowerExpr` can refuse, and a slot declared first would be left
+   *  bound in the member's scope with nothing ever assigning it — a name that
+   *  resolves to a value that never exists. Nothing is registered unless the
+   *  whole hoist succeeds.
+   *
+   *  ⭐ A NESTED HOIST LANDS FIRST BY CONSTRUCTION. `lowerExpr` below may hoist
+   *  its own source into the same sink; it pushes before this line does, so the
+   *  inner binding precedes the outer one, which is the order they must run in.
+   */
+  const hoistCommittedSeries = (srcNode, scope, label) => {
+    if (!stmtHoistSink) return null
+    if (owner !== null) return null
+    if (!srcNode || typeof srcNode !== 'object') return null
+    // ⭐ A NAME NO PINE IDENTIFIER CAN COLLIDE WITH — it carries spaces, exactly
+    // as the request region's own hoisted sources do.
+    const tmp = `${label} src ${stmtHoistSink.length}`
+    const value = lowerExpr(srcNode, scope)
+    const slot = scope.declare(tmp, newSlot(tmp, false))
+    stmtHoistSink.push(declare(slot, value))
+    return { slot, label: tmp }
+  }
+
   // ⭐ `opts.multi` IS SET BY THE DESTRUCTURING AND BY NOTHING ELSE. It marks
   // the ONE position where an expression may leave several values on the
   // stack, and it deliberately does NOT propagate into sub-expressions —
@@ -2055,9 +2129,27 @@ export function buildRuntimeIr(source, opts = {}) {
           // real Pine form and needs its OWN committed series; distributing the
           // offset over the operands is right for `+` and wrong the moment
           // anything inside carries state.
+          //
+          // ⭐⭐⭐ SO IT IS GIVEN ONE. `hoistCommittedSeries` declares the
+          // expression into a slot on the line above — the rewrite this
+          // refusal's own message asks the member to perform. It still returns
+          // `null` for every shape that is a different gap, and the refusal
+          // below is then exactly the one that was always here.
           if (node.arg.type !== 'name') {
-            note('runtime:history-expression')
-            throw new RuntimeRefusal('runtime:history-expression', null, at)
+            const hoisted = hoistCommittedSeries(node.arg, scope, 'history')
+            if (!hoisted) {
+              note('runtime:history-expression')
+              throw new RuntimeRefusal('runtime:history-expression', null, at)
+            }
+            // ⛔ THE OFFSET IS FOLDED AFTER THE HOIST, NOT BEFORE, so an offset
+            // only known while the bar runs refuses by ITS OWN name
+            // (`runtime:history-dynamic-offset`) rather than being reported as
+            // the expression problem this line just solved.
+            const hb = foldOffset(node.n, at)
+            // ⭐ `e[0]` IS `e`. Routing it through the ring would answer with
+            // the PREVIOUS bar — one bar wrong in the one case nobody checks.
+            if (hb === 0) return read(hoisted.slot)
+            return histSlot(hoisted.slot, historySlotFor(hoisted.slot, hb, at), hb)
           }
           const varSlot = scope.lookup(node.arg.name)
           if (varSlot === null) {
@@ -2297,6 +2389,15 @@ export function buildRuntimeIr(source, opts = {}) {
             varSlot = slot
             srcLabel = tmp
           }
+          // ⭐⭐⭐ AND THE SAME REWRITE AT THE ROOT STATEMENT LIST. The request
+          // region above hoists ANY unresolved source because a member has
+          // nowhere to put the binding inside a request; here they do, so only
+          // a node that is genuinely NOT A NAME is admitted and
+          // `runtime:function-global-state` keeps firing for the other case.
+          if (varSlot === null) {
+            const hoisted = hoistCommittedSeries(srcNode, scope, node.name)
+            if (hoisted) { varSlot = hoisted.slot; srcLabel = hoisted.label }
+          }
           if (varSlot === null) {
             if (!srcNode || srcNode.type !== 'name') {
               note('runtime:history-expression')
@@ -2377,9 +2478,18 @@ export function buildRuntimeIr(source, opts = {}) {
           }
           const srcNode = given[0]
           if (!srcNode || srcNode.type !== 'name') {
-            note('runtime:history-expression')
-            throw new RuntimeRefusal('runtime:history-expression',
-              `\`${node.name}\` over an expression needs that expression's own committed series`, at)
+            // ⭐⭐⭐ `x - x[1]` NEEDS THE SAME COMMITTED SERIES, so it gets one
+            // the same way. Nothing about the lowering below changes: the
+            // hoisted slot is an ordinary slot and the subtraction is still the
+            // one definition of `change` this file has.
+            const hoisted = hoistCommittedSeries(srcNode, scope, node.name)
+            if (!hoisted) {
+              note('runtime:history-expression')
+              throw new RuntimeRefusal('runtime:history-expression',
+                `\`${node.name}\` over an expression needs that expression's own committed series`, at)
+            }
+            return binary('-', read(hoisted.slot),
+              histSlot(hoisted.slot, historySlotFor(hoisted.slot, 1, at), 1))
           }
           const varSlot = scope.lookup(srcNode.name)
           if (varSlot === null) {
@@ -2756,9 +2866,36 @@ export function buildRuntimeIr(source, opts = {}) {
   // is kept rather than smoothed over: a fallback that pretended to be exact would
   // send the next reader to the wrong sub-expression with full confidence.
   let lastStmtTok = null
-  const lowerStmts = (list, scope) => {
+  /** ⭐⭐ `rootHoist` OPTS THIS LIST IN AS A HOIST SINK — see `stmtHoistSink`.
+   *  Exactly ONE call site passes it (the root walk); every nested list lowers
+   *  with no sink, which is what keeps a hoisted declare out of a branch body.
+   *
+   *  ⛔ THE SINK IS SAVED AND RESTORED, NOT MERELY CLEARED, AND THE RESTORE IS
+   *  IN A `finally`. A nested list is lowered from inside a root statement, and
+   *  `lowerInlineCall` is called under a `catch` that FALLS THROUGH and keeps
+   *  going (the shared-frame fallback) — so a throw that did not restore would
+   *  leave the REST of that root statement sinkless, and the same source line
+   *  would compile or refuse depending on what had thrown earlier in it.
+   *
+   *  ⚠️ AND THIS RESTORE IS **NOT MUTATION-PROVED** — said plainly rather than
+   *  counted as covered. Turning it into `stmtHoistSink = null` leaves all 221
+   *  rail cases green, because `if (rootHoist) stmtHoistSink = out` re-arms the
+   *  sink at the top of every iteration: reaching it needs a root statement that
+   *  lowers a nested list AND then needs a hoist LATER IN THE SAME STATEMENT,
+   *  and no such shape was constructed. It is kept as exception safety for the
+   *  catch-and-fall-through path above, and labelled, because a guard nobody has
+   *  seen fire is not a guard — recording that is the honest half. */
+  const lowerStmts = (list, scope, rootHoist = false) => {
     const out = []
+    const outerStmtSink = stmtHoistSink
+    stmtHoistSink = null
+    try {
     for (let i = 0; i < list.length; i += 1) {
+      // ⭐ RE-ESTABLISHED PER STATEMENT so it survives a nested list lowered
+      // mid-statement, and it always points at THIS list's `out` — which holds
+      // every statement lowered so far, i.e. exactly the position immediately
+      // before the statement being lowered now.
+      if (rootHoist) stmtHoistSink = out
       const st = list[i]
       const toks = st.header || []
       if (!toks.length) continue
@@ -3282,6 +3419,9 @@ export function buildRuntimeIr(source, opts = {}) {
 
       throw new RuntimeRefusal('runtime:statement', null, locate(first))
     }
+    } finally {
+      stmtHoistSink = outerStmtSink
+    }
     return out
   }
 
@@ -3503,7 +3643,10 @@ export function buildRuntimeIr(source, opts = {}) {
     iterPending.set(spec.counter, list)
   })
   try {
-    statements = lowerStmts(stmts, root)
+    // ⭐⭐ THE ONE `rootHoist` CALL SITE. Every other `lowerStmts` is a nested
+    // list — a branch body, a loop body, a function body — and lowers with no
+    // sink on purpose (see `stmtHoistSink`).
+    statements = lowerStmts(stmts, root, true)
     // ⛔ AFTER THE WALK, ON THE FINISHED SCOPE. An object coordinate is an
     // ordinary expression over the script's own bindings, so it must resolve
     // through exactly the bindings a plot would see — the same rule the object

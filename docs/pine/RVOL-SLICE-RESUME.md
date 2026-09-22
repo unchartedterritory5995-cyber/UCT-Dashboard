@@ -19,8 +19,22 @@
 > (`calc_bars_count`) is measured and deliberately left inert — the reason is in
 > the list, and it is a measurement, not a preference.
 >
-> ⭐ **What is left is NOT more of the same.** Item 5 (the gradient fill) is a
-> RENDERER job by its own description, and item 6 needs the market open. The
+> ### 2026-09-21 — item 5 closed, and it moved the corpus by ZERO
+>
+> **History / window / `ta.change` over an EXPRESSION** compiles at a root
+> statement (`historyExpression.test.js`). **`compiled` stayed at 8/266 and
+> `runtime:history-expression` stayed at 3** — all three of its scripts hit the
+> construct inside a user function. A spike that widened the scope to function
+> bodies took the guard **3 → 0** with `compiled` **still 8**. The whole
+> capability, at maximum scope, buys nothing on this corpus. Details in item 5.
+>
+> ⚰️⚰️ **AND `16  [` IN THE DEMAND CENSUS IS NOT THE HISTORY OPERATOR.** Fifteen
+> of those sixteen call sites are **tuple destructuring** (`[a, b] = f(…)`); one
+> is a history read. That row is one TOKEN over two unrelated capabilities.
+> **Read the call sites before sizing a row of that table.**
+>
+> ⭐ **What is left is NOT more of the same.** Item 6 (the gradient fill) is a
+> RENDERER job by its own description, and item 7 needs the market open. The
 > cheap, principled items in this lane are done.
 >
 > ⛔ **The standing question is untouched and is still the owner's:** all of this
@@ -413,9 +427,38 @@ dashboard builds, runs and draws.
    ⚠️ The top of the table barely moved — `runtime:declaration` (47, strategies,
    out of scope by design) and `pine:character` (23, the UDT family) are
    unchanged. Plan from the table, not from the headline.
-5. **The gradient fill** — the last blocker on script 2. Front end is easy;
+5. ✅ **DONE 2026-09-21 — history / window / `ta.change` over an EXPRESSION, at
+   a ROOT statement.** `(x + 1)[1]`, `ta.sma(x + 1, 5)` and `ta.change(x * 2)`
+   compile: the expression is hoisted into its own committed series on the line
+   above — the rewrite the refusal's own message used to *demand*. 17 cases in
+   `runtime/__tests__/historyExpression.test.js`, 7 of 8 mutations RED, 0 NEW
+   failures on the engine suite AND on pine.js's other consumers.
+
+   ⛔⛔ **AND THE CORPUS DELTA IS ZERO. MEASURED, TWICE, AND IT IS THE POINT OF
+   THIS ENTRY.** `compiled end to end` stayed at **8/266** and
+   `runtime:history-expression` stayed at **3**, because all three of its
+   corpus scripts hit the construct INSIDE A USER FUNCTION, which this
+   deliberately does not serve. A throwaway spike that widened the scope to
+   function bodies was then run to price the rest of the capability: the guard
+   went **3 → 0** and `compiled` **stayed at 8** — the three scripts moved to
+   `pine:undefined`, `runtime:call-undeclared-builtin-state` and
+   `runtime:request-with-state`. **The whole capability, at maximum scope, buys
+   zero additional compiled scripts.** Do not spend a wave on the frame case
+   expecting corpus movement; it is language correctness, not throughput.
+
+   ⚰️⚰️ **AND THE 16-SCRIPT FIGURE THAT SENT THIS LANE HERE WAS A MISREAD.** The
+   demand census reports `16  [  runtime:history-expression,pine:builtin,…` and
+   that row was taken to mean the history operator blocks 16 scripts. It does
+   not. Reading the 16 REAL CALL SITES, **fifteen are TUPLE DESTRUCTURING** —
+   `[a, b, c] = f(…)` — and exactly **one** is a history read
+   (`ad-line-of-sp-sectors` L30). `[` is one TOKEN spanning two unrelated
+   capabilities, and the census cannot tell them apart because it reports the
+   token, not the construct. ⭐ **The queue's own top row is therefore
+   `[a,b] = …`, not `[]`** — a far larger and completely different job. Read the
+   call sites before sizing a row of that table.
+6. **The gradient fill** — the last blocker on script 2. Front end is easy;
    the renderer is the work.
-6. **Still owed, market hours only:** vendor M2, M5, M1's realtime half, and
+7. **Still owed, market hours only:** vendor M2, M5, M1's realtime half, and
    **M7's all-equal / already-descending halves** (see `sort_indices` — the tie
    rule is measured, those two are extrapolated and labelled as such).
 
