@@ -1,0 +1,588 @@
+{
+  "schema_version": 1,
+  "generated_by": "tools/bars_ordinal_census.py",
+  "what_this_is": "D2 CP5 (closes F-D2-3) — a MODULE-LEVEL census of every api/** module that calls bars_sqlite.get_bars/get_bars_before/get_bars_since, classified as named_access (goes through address_book.row_position) or positional (a fixed-ordinal tuple unpack or integer-literal subscript found anywhere in the module). Detection only — no reader listed here was migrated or modified by this checkpoint.",
+  "bars_family_functions": [
+    "get_bars",
+    "get_bars_before",
+    "get_bars_since"
+  ],
+  "modules_scanned": 1423,
+  "summary": {
+    "named_access_count": 1,
+    "positional_count": 31,
+    "named_access": [
+      "api/services/ticker_returns.py"
+    ],
+    "positional": [
+      "api/main.py",
+      "api/routers/ai_search.py",
+      "api/routers/backtest.py",
+      "api/routers/screener_backtest.py",
+      "api/routers/signature.py",
+      "api/services/adjustment_basis.py",
+      "api/services/audit.py",
+      "api/services/bars_fetch.py",
+      "api/services/bars_split_repair.py",
+      "api/services/barspack.py",
+      "api/services/desk_article_anchors.py",
+      "api/services/discord_render/symbols.py",
+      "api/services/indicator_alert_evaluator.py",
+      "api/services/journal_two/excursion_engine.py",
+      "api/services/pattern_engine/memory.py",
+      "api/services/pattern_vision/modelbook_examples.py",
+      "api/services/pattern_vision/orchestrator.py",
+      "api/services/research/ratings_universe.py",
+      "api/services/scan_gainers.py",
+      "api/services/scan_ipo.py",
+      "api/services/scan_volume.py",
+      "api/services/screener/scan_evaluator.py",
+      "api/services/screener/snapshot_builder.py",
+      "api/services/single_stock_etfs.py",
+      "api/services/theme_engine/comovement.py",
+      "api/services/theme_index.py",
+      "api/services/voice_deep_data_tools.py",
+      "api/services/wisdom/core/stt.py",
+      "api/services/wisdom/evals/bars_asof.py",
+      "api/services/wisdom/publish/level_alerts.py",
+      "api/services/wisdom/publish/lookalike.py"
+    ]
+  },
+  "modules": {
+    "api/main.py": {
+      "classification": "positional",
+      "calls": [
+        {
+          "function": "get_bars",
+          "line": 393
+        },
+        {
+          "function": "get_bars",
+          "line": 566
+        },
+        {
+          "function": "get_bars",
+          "line": 584
+        },
+        {
+          "function": "get_bars",
+          "line": 4409
+        }
+      ],
+      "evidence": {
+        "line": 400,
+        "pattern": "int-subscript",
+        "index": 0
+      }
+    },
+    "api/routers/ai_search.py": {
+      "classification": "positional",
+      "calls": [
+        {
+          "function": "get_bars_before",
+          "line": 1489
+        }
+      ],
+      "evidence": {
+        "line": 859,
+        "pattern": "int-subscript",
+        "index": 1
+      }
+    },
+    "api/routers/backtest.py": {
+      "classification": "positional",
+      "calls": [
+        {
+          "function": "get_bars",
+          "line": 65
+        }
+      ],
+      "evidence": {
+        "line": 68,
+        "pattern": "int-subscript",
+        "index": 0
+      }
+    },
+    "api/routers/screener_backtest.py": {
+      "classification": "positional",
+      "calls": [
+        {
+          "function": "get_bars_before",
+          "line": 680
+        }
+      ],
+      "evidence": {
+        "line": 697,
+        "pattern": "known-positional-delegate",
+        "delegate": "_fmt_sqlite_bars"
+      }
+    },
+    "api/routers/signature.py": {
+      "classification": "positional",
+      "calls": [
+        {
+          "function": "get_bars",
+          "line": 241
+        },
+        {
+          "function": "get_bars",
+          "line": 828
+        }
+      ],
+      "evidence": {
+        "line": 245,
+        "pattern": "int-subscript",
+        "index": 0
+      }
+    },
+    "api/services/adjustment_basis.py": {
+      "classification": "positional",
+      "calls": [
+        {
+          "function": "get_bars",
+          "line": 86
+        }
+      ],
+      "evidence": {
+        "line": 84,
+        "pattern": "int-subscript",
+        "index": 0
+      }
+    },
+    "api/services/audit.py": {
+      "classification": "positional",
+      "calls": [
+        {
+          "function": "get_bars",
+          "line": 394
+        }
+      ],
+      "evidence": {
+        "line": 349,
+        "pattern": "int-subscript",
+        "index": 0
+      }
+    },
+    "api/services/bars_fetch.py": {
+      "classification": "positional",
+      "calls": [
+        {
+          "function": "get_bars_since",
+          "line": 223
+        },
+        {
+          "function": "get_bars",
+          "line": 1283
+        },
+        {
+          "function": "get_bars_since",
+          "line": 1615
+        },
+        {
+          "function": "get_bars",
+          "line": 2087
+        },
+        {
+          "function": "get_bars_before",
+          "line": 2165
+        },
+        {
+          "function": "get_bars_before",
+          "line": 2184
+        },
+        {
+          "function": "get_bars_before",
+          "line": 2244
+        },
+        {
+          "function": "get_bars_before",
+          "line": 2308
+        },
+        {
+          "function": "get_bars_since",
+          "line": 2444
+        },
+        {
+          "function": "get_bars",
+          "line": 2448
+        },
+        {
+          "function": "get_bars",
+          "line": 2958
+        },
+        {
+          "function": "get_bars",
+          "line": 3005
+        },
+        {
+          "function": "get_bars",
+          "line": 3092
+        },
+        {
+          "function": "get_bars",
+          "line": 3157
+        },
+        {
+          "function": "get_bars",
+          "line": 3251
+        },
+        {
+          "function": "get_bars",
+          "line": 3389
+        }
+      ],
+      "evidence": {
+        "line": 223,
+        "pattern": "int-subscript",
+        "index": 0
+      }
+    },
+    "api/services/bars_split_repair.py": {
+      "classification": "positional",
+      "calls": [
+        {
+          "function": "get_bars",
+          "line": 89
+        }
+      ],
+      "evidence": {
+        "line": 92,
+        "pattern": "int-subscript",
+        "index": 0
+      }
+    },
+    "api/services/barspack.py": {
+      "classification": "positional",
+      "calls": [
+        {
+          "function": "get_bars",
+          "line": 328
+        }
+      ],
+      "evidence": {
+        "line": 340,
+        "pattern": "known-positional-delegate",
+        "delegate": "_fmt_sqlite_bars"
+      }
+    },
+    "api/services/desk_article_anchors.py": {
+      "classification": "positional",
+      "calls": [
+        {
+          "function": "get_bars_before",
+          "line": 48
+        }
+      ],
+      "evidence": {
+        "line": 52,
+        "pattern": "int-subscript",
+        "index": 4
+      }
+    },
+    "api/services/discord_render/symbols.py": {
+      "classification": "positional",
+      "calls": [
+        {
+          "function": "get_bars",
+          "line": 55
+        }
+      ],
+      "evidence": {
+        "line": 151,
+        "pattern": "int-subscript",
+        "index": 1
+      }
+    },
+    "api/services/indicator_alert_evaluator.py": {
+      "classification": "positional",
+      "calls": [
+        {
+          "function": "get_bars",
+          "line": 1104
+        }
+      ],
+      "evidence": {
+        "line": 838,
+        "pattern": "int-subscript",
+        "index": 0
+      }
+    },
+    "api/services/journal_two/excursion_engine.py": {
+      "classification": "positional",
+      "calls": [
+        {
+          "function": "get_bars",
+          "line": 170
+        }
+      ],
+      "evidence": {
+        "line": 85,
+        "pattern": "int-subscript",
+        "index": 4
+      }
+    },
+    "api/services/pattern_engine/memory.py": {
+      "classification": "positional",
+      "calls": [
+        {
+          "function": "get_bars_since",
+          "line": 328
+        }
+      ],
+      "evidence": {
+        "line": 346,
+        "pattern": "assign-unpack",
+        "size": 6
+      }
+    },
+    "api/services/pattern_vision/modelbook_examples.py": {
+      "classification": "positional",
+      "calls": [
+        {
+          "function": "get_bars",
+          "line": 79
+        }
+      ],
+      "evidence": {
+        "line": 85,
+        "pattern": "int-subscript",
+        "index": 0
+      }
+    },
+    "api/services/pattern_vision/orchestrator.py": {
+      "classification": "positional",
+      "calls": [
+        {
+          "function": "get_bars",
+          "line": 53
+        }
+      ],
+      "evidence": {
+        "line": 60,
+        "pattern": "int-subscript",
+        "index": 0
+      }
+    },
+    "api/services/research/ratings_universe.py": {
+      "classification": "positional",
+      "calls": [
+        {
+          "function": "get_bars",
+          "line": 68
+        }
+      ],
+      "evidence": {
+        "line": 70,
+        "pattern": "int-subscript",
+        "index": 4
+      }
+    },
+    "api/services/scan_gainers.py": {
+      "classification": "positional",
+      "calls": [
+        {
+          "function": "get_bars",
+          "line": 72
+        }
+      ],
+      "evidence": {
+        "line": 75,
+        "pattern": "known-positional-delegate",
+        "delegate": "_fmt_sqlite_bars"
+      }
+    },
+    "api/services/scan_ipo.py": {
+      "classification": "positional",
+      "calls": [
+        {
+          "function": "get_bars",
+          "line": 49
+        }
+      ],
+      "evidence": {
+        "line": 52,
+        "pattern": "known-positional-delegate",
+        "delegate": "_fmt_sqlite_bars"
+      }
+    },
+    "api/services/scan_volume.py": {
+      "classification": "positional",
+      "calls": [
+        {
+          "function": "get_bars",
+          "line": 125
+        }
+      ],
+      "evidence": {
+        "line": 133,
+        "pattern": "int-subscript",
+        "index": 0
+      }
+    },
+    "api/services/screener/scan_evaluator.py": {
+      "classification": "positional",
+      "calls": [
+        {
+          "function": "get_bars",
+          "line": 1026
+        }
+      ],
+      "evidence": {
+        "line": 702,
+        "pattern": "int-subscript",
+        "index": 0
+      }
+    },
+    "api/services/screener/snapshot_builder.py": {
+      "classification": "positional",
+      "calls": [
+        {
+          "function": "get_bars",
+          "line": 591
+        },
+        {
+          "function": "get_bars",
+          "line": 618
+        }
+      ],
+      "evidence": {
+        "line": 595,
+        "pattern": "int-subscript",
+        "index": 0
+      }
+    },
+    "api/services/single_stock_etfs.py": {
+      "classification": "positional",
+      "calls": [
+        {
+          "function": "get_bars",
+          "line": 312
+        }
+      ],
+      "evidence": {
+        "line": 215,
+        "pattern": "int-subscript",
+        "index": 0
+      }
+    },
+    "api/services/theme_engine/comovement.py": {
+      "classification": "positional",
+      "calls": [
+        {
+          "function": "get_bars",
+          "line": 13
+        }
+      ],
+      "evidence": {
+        "line": 14,
+        "pattern": "int-subscript",
+        "index": 4
+      }
+    },
+    "api/services/theme_index.py": {
+      "classification": "positional",
+      "calls": [
+        {
+          "function": "get_bars",
+          "line": 65
+        }
+      ],
+      "evidence": {
+        "line": 69,
+        "pattern": "int-subscript",
+        "index": 0
+      }
+    },
+    "api/services/ticker_returns.py": {
+      "classification": "named_access",
+      "calls": [
+        {
+          "function": "get_bars_before",
+          "line": 78
+        },
+        {
+          "function": "get_bars_since",
+          "line": 84
+        }
+      ],
+      "evidence": {
+        "line": 65,
+        "pattern": "row_position"
+      }
+    },
+    "api/services/voice_deep_data_tools.py": {
+      "classification": "positional",
+      "calls": [
+        {
+          "function": "get_bars",
+          "line": 79
+        }
+      ],
+      "evidence": {
+        "line": 90,
+        "pattern": "int-subscript",
+        "index": 4
+      }
+    },
+    "api/services/wisdom/core/stt.py": {
+      "classification": "positional",
+      "calls": [
+        {
+          "function": "get_bars_before",
+          "line": 104
+        }
+      ],
+      "evidence": {
+        "line": 88,
+        "pattern": "int-subscript",
+        "index": 2
+      }
+    },
+    "api/services/wisdom/evals/bars_asof.py": {
+      "classification": "positional",
+      "calls": [
+        {
+          "function": "get_bars_before",
+          "line": 59
+        },
+        {
+          "function": "get_bars_since",
+          "line": 64
+        }
+      ],
+      "evidence": {
+        "line": 103,
+        "pattern": "int-subscript",
+        "index": 1
+      }
+    },
+    "api/services/wisdom/publish/level_alerts.py": {
+      "classification": "positional",
+      "calls": [
+        {
+          "function": "get_bars_before",
+          "line": 38
+        }
+      ],
+      "evidence": {
+        "line": 119,
+        "pattern": "int-subscript",
+        "index": 0
+      }
+    },
+    "api/services/wisdom/publish/lookalike.py": {
+      "classification": "positional",
+      "calls": [
+        {
+          "function": "get_bars_before",
+          "line": 51
+        }
+      ],
+      "evidence": {
+        "line": 62,
+        "pattern": "int-subscript",
+        "index": 4
+      }
+    }
+  }
+}
