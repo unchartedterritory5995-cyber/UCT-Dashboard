@@ -48,6 +48,12 @@ vi.mock('./hooks/useCompanyNews', () => ({
     isLoading: false,
   }),
 }))
+// Packet G CP1 (2026-09-22): same idiom -- the Catalysts tab's own hook
+// resolved so ?section=catalysts has positive content (the empty-state
+// text) to assert against synchronously.
+vi.mock('./hooks/useCatalystHistory', () => ({
+  default: () => ({ data: { ticker: 'AAPL', entries: [] }, isLoading: false }),
+}))
 
 // Wave H: "My Research" bridges to the SAME component Notebook's own route
 // mounts (checkpoint decision 6) -- mocked here so this file stays scoped to
@@ -184,6 +190,21 @@ describe('ResearchPage', () => {
     auth.isPaid = true
     renderWithProviders(<ResearchPage />, { route: '/research/AAPL' })
     expect(screen.getByRole('button', { name: 'News' })).toBeInTheDocument()
+  })
+
+  it('honours ?section=catalysts — lands on the new Catalysts tab', () => {
+    // Packet G CP1 (2026-09-22, fingerprint 5331c90c2): what has UCT's own
+    // catalyst engine ever flagged about this ticker, across every date.
+    auth.isPaid = true
+    renderWithProviders(<ResearchPage />, { route: '/research/AAPL?section=catalysts' })
+    expect(screen.getByText('No catalysts recorded for this ticker yet.')).toBeInTheDocument()
+    expect(screen.queryByText(/Key stats/i)).not.toBeInTheDocument()
+  })
+
+  it('renders the "Catalysts" tab button', () => {
+    auth.isPaid = true
+    renderWithProviders(<ResearchPage />, { route: '/research/AAPL' })
+    expect(screen.getByRole('button', { name: 'Catalysts' })).toBeInTheDocument()
   })
 
   it('honours ?section=technical — lands on the new Technical tab', () => {
