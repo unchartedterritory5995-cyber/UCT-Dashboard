@@ -3,10 +3,10 @@
 .frame {
   position: relative;
   margin: 10px 0;
-  border: 1px solid var(--border, #2a2a2a);
+  border: 1px solid var(--border);
   border-radius: var(--radius-lg);
   overflow: hidden;
-  background: var(--panel, #101010);
+  background: var(--bg);
 }
 /* Full-width embeds BREAK OUT of the prose column (owner feedback: charts in
    a ~600px text column can never look like a chart-page screenshot). The
@@ -85,8 +85,8 @@
   padding: 5px 10px 7px;
   font-size: 11.5px;
   font-family: var(--font-sans, 'Instrument Sans', sans-serif);
-  color: var(--text-dim, #9a9a9a);
-  border-top: 1px solid var(--border, #2a2a2a);
+  color: var(--text-muted);
+  border-top: 1px solid var(--border);
 }
 
 /* The frozen-evidence date on a live-RENDERED snapshot (bottom-left, over the
@@ -101,9 +101,9 @@
   font-family: var(--font-sans, 'Instrument Sans', sans-serif);
   font-size: 10px;
   letter-spacing: 0.03em;
-  color: var(--text-dim, #9a9a9a);
+  color: var(--text-muted);
   background: rgba(12, 12, 12, 0.72);
-  border: 1px solid var(--border, #2a2a2a);
+  border: 1px solid var(--border);
   pointer-events: none;
 }
 /* ...except on a CHART, whose own brand mark already owns that corner
@@ -124,10 +124,10 @@
   font-family: var(--font-sans, 'Instrument Sans', sans-serif);
   font-size: 13px;
 }
-.placeholderLine { color: var(--text, #cfcfcf); font-weight: 600; }
-.placeholderWhy { color: var(--text-dim, #8a8a8a); font-size: 11px; }
+.placeholderLine { color: var(--text); font-weight: 600; }
+.placeholderWhy { color: var(--text-muted); font-size: 11px; }
 
-.loading { background: var(--panel-2, #141414); }
+.loading { background: var(--bg-surface); }
 
 .toolbar {
   position: absolute;
@@ -185,14 +185,14 @@
 .toolBtn {
   padding: 2px 8px;
   border-radius: 5px;
-  border: 1px solid var(--border, #333);
-  background: var(--panel, rgba(12, 12, 12, 0.92));
-  color: var(--text, #cfcfcf);
+  border: 1px solid var(--border);
+  background: var(--bg);
+  color: var(--text);
   font-family: var(--font-sans, 'Instrument Sans', sans-serif);
   font-size: 11px;
   cursor: pointer;
 }
-.toolBtn:hover { border-color: var(--ut-gold, #dcbb5e); }
+.toolBtn:hover { border-color: var(--ut-gold); }
 /* The "Charts ↗" control is an <a> (middle-click opens a tab) — strip the
    link underline so it reads as one of the buttons beside it. */
 a.toolBtn { text-decoration: none; line-height: 1.5; }
@@ -200,23 +200,23 @@ a.toolBtn { text-decoration: none; line-height: 1.5; }
    declarations at equal specificity — the Done button's gold was dead CSS
    (panel finding). */
 .toolBtnActive {
-  background: var(--ut-gold, #dcbb5e);
+  background: var(--ut-gold);
   color: var(--bg);
-  border-color: var(--ut-gold, #dcbb5e);
+  border-color: var(--ut-gold);
 }
 .toolSelect {
   padding: 2px 4px;
   border-radius: 5px;
-  border: 1px solid var(--border, #333);
-  background: var(--panel, rgba(12, 12, 12, 0.92));
-  color: var(--text, #cfcfcf);
+  border: 1px solid var(--border);
+  background: var(--bg);
+  color: var(--text);
   font-family: var(--font-sans, 'Instrument Sans', sans-serif);
   font-size: 11px;
   cursor: pointer;
 }
-.toolSelect:hover { border-color: var(--ut-gold, #dcbb5e); }
+.toolSelect:hover { border-color: var(--ut-gold); }
 .toolbarMsg {
-  color: var(--ut-gold, #dcbb5e);
+  color: var(--ut-gold);
   font-family: var(--font-sans, 'Instrument Sans', sans-serif);
   font-size: 11px;
   padding-right: 4px;
@@ -265,7 +265,7 @@ a.toolBtn { text-decoration: none; line-height: 1.5; }
   font-weight: 700;
   letter-spacing: 0.06em;
   color: var(--bg);
-  background: var(--ut-gold, #dcbb5e);
+  background: var(--ut-gold);
   pointer-events: none;
 }
 

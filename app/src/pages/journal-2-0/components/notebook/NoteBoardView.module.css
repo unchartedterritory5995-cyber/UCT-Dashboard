@@ -1,7 +1,10 @@
-/* Tokens: --text-muted / --text-dim / --border / --bg-surface / --ut-gold are
-   the declared names. Several files in this directory write --color-text-*,
-   which tokens.css does not define — those rules survive on their fallback
-   literal and would not follow a theme change. Do not copy them. */
+/* Tokens: --text-muted / --border / --bg-surface / --ut-gold are the declared
+   names. G-104 (2026-09-21) repointed the neighbouring files this comment
+   used to warn about (they referenced --color-text-etc names tokens.css
+   never defined, so they rendered their fallback literal forever, never
+   responding to theme). This file was already correct. The .c_* board tag
+   swatches below are a deliberate categorical palette (picker colours,
+   not semantic roles) and are left as literals on purpose. */
 
 .wrap {
   display: flex;
@@ -20,14 +23,14 @@
 
 .groupLabel {
   font-size: 12px;
-  color: var(--text-muted, #98a0aa);
+  color: var(--text-muted);
 }
 
 .groupSelect,
 .move {
-  background: var(--bg-elevated, #1b2029);
-  color: var(--text-primary, #e8eaed);
-  border: 1px solid var(--border, #232932);
+  background: var(--bg-elevated);
+  color: var(--text-bright);
+  border: 1px solid var(--border);
   border-radius: var(--radius-sm, 4px);
   font-size: 12px;
   padding: 5px 8px;
@@ -36,7 +39,7 @@
 
 .error {
   font-size: 12px;
-  color: var(--loss-border, #f87171);
+  color: var(--loss-border);
 }
 
 /* One horizontal scroller of columns. On a phone the columns simply narrow
@@ -55,8 +58,8 @@
 .column {
   flex: 0 0 260px;
   max-width: 260px;
-  background: var(--bg-surface, #12161c);
-  border: 1px solid var(--border, #232932);
+  background: var(--bg-surface);
+  border: 1px solid var(--border);
   border-radius: var(--radius-md, 8px);
   padding: 10px;
   min-height: 160px;
@@ -64,7 +67,7 @@
 
 /* The drop target has to be visible while a card is in the air. */
 .columnOver {
-  border-color: var(--ut-gold, #c9a84c);
+  border-color: var(--ut-gold);
   background: rgba(201, 168, 76, 0.07);
 }
 
@@ -87,13 +90,13 @@
   white-space: nowrap;
 }
 
-.columnName { color: var(--text-primary, #e8eaed); }
+.columnName { color: var(--text-bright); }
 /* "No value" is a real column but not a status — it should not read as one. */
-.unsetName { color: var(--text-dim, #7c848f); font-style: italic; }
+.unsetName { color: var(--text-muted); font-style: italic; }
 
 .count {
   font-size: 11px;
-  color: var(--text-muted, #98a0aa);
+  color: var(--text-muted);
   font-variant-numeric: tabular-nums;
 }
 
@@ -101,7 +104,7 @@
   width: 8px;
   height: 8px;
   border-radius: 50%;
-  background: var(--text-dim, #7c848f);
+  background: var(--text-muted);
   flex: none;
 }
 .c_green  { background: #4ade80; }
@@ -119,8 +122,8 @@
 }
 
 .card {
-  background: var(--bg-elevated, #1b2029);
-  border: 1px solid var(--border, #232932);
+  background: var(--bg-elevated);
+  border: 1px solid var(--border);
   border-radius: var(--radius-sm, 4px);
   padding: 9px 10px;
   display: flex;
@@ -141,17 +144,17 @@
   text-align: left;
   font-size: 13px;
   line-height: 1.35;
-  color: var(--text-primary, #e8eaed);
+  color: var(--text-bright);
   cursor: pointer;
 }
 
-.cardTitle:hover { color: var(--ut-gold, #c9a84c); }
+.cardTitle:hover { color: var(--ut-gold); }
 
 .ticker {
   align-self: flex-start;
   font-size: 10px;
   letter-spacing: 0.08em;
-  color: var(--ut-gold, #c9a84c);
+  color: var(--ut-gold);
   border: 1px solid rgba(201, 168, 76, 0.35);
   border-radius: var(--radius-pill, 999px);
   padding: 1px 7px;
@@ -160,7 +163,7 @@
 .blocked {
   align-self: flex-start;
   font-size: 10px;
-  color: var(--ind-warn-border, #fbbf24);
+  color: var(--ind-warn-border);
 }
 
 .moveWrap {
@@ -174,7 +177,7 @@
 .emptyCol {
   margin: 0;
   font-size: 11px;
-  color: var(--text-dim, #7c848f);
+  color: var(--text-muted);
   font-style: italic;
 }
 
@@ -182,7 +185,7 @@
   padding: 32px 16px;
   text-align: center;
   font-size: 13px;
-  color: var(--text-muted, #98a0aa);
+  color: var(--text-muted);
   line-height: 1.6;
 }
 

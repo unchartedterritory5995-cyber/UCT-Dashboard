@@ -1,6 +1,9 @@
-/* Declared tokens only: --text-muted / --text-dim / --border / --bg-surface /
-   --ut-gold. Neighbours in this directory use --color-text-*, which tokens.css
-   never defines; those survive on their fallback literal. Do not copy them. */
+/* Declared tokens only: --text-muted / --border / --bg-surface / --ut-gold.
+   G-104 (2026-09-21) repointed the neighbouring files this comment used to
+   warn about (they referenced --color-text-etc names tokens.css never
+   defined, so they rendered their fallback literal forever, never
+   responding to theme). This file was already correct; keep new code
+   this way too. */
 
 .wrap {
   display: flex;
@@ -25,9 +28,9 @@
 
 .navBtn,
 .todayBtn {
-  background: var(--bg-elevated, #1b2029);
-  color: var(--text-primary, #e8eaed);
-  border: 1px solid var(--border, #232932);
+  background: var(--bg-elevated);
+  color: var(--text-bright);
+  border: 1px solid var(--border);
   border-radius: var(--radius-sm, 4px);
   cursor: pointer;
   min-height: var(--tap-min, 44px);
@@ -49,19 +52,19 @@
   font-weight: 600;
   min-width: 132px;
   text-align: center;
-  color: var(--text-primary, #e8eaed);
+  color: var(--text-bright);
 }
 
 .byLabel {
   font-size: 12px;
-  color: var(--text-muted, #98a0aa);
+  color: var(--text-muted);
   margin-left: auto;
 }
 
 .bySelect {
-  background: var(--bg-elevated, #1b2029);
-  color: var(--text-primary, #e8eaed);
-  border: 1px solid var(--border, #232932);
+  background: var(--bg-elevated);
+  color: var(--text-bright);
+  border: 1px solid var(--border);
   border-radius: var(--radius-sm, 4px);
   font-size: 12px;
   padding: 5px 8px;
@@ -71,14 +74,14 @@
 .elsewhere {
   font-size: 11px;
   font-style: italic;
-  color: var(--text-dim, #7c848f);
+  color: var(--text-muted);
 }
 
 .grid {
-  border: 1px solid var(--border, #232932);
+  border: 1px solid var(--border);
   border-radius: var(--radius-md, 8px);
   overflow: hidden;
-  background: var(--bg-surface, #12161c);
+  background: var(--bg-surface);
 }
 
 .dowRow,
@@ -93,15 +96,15 @@
   letter-spacing: 0.06em;
   text-transform: uppercase;
   text-align: center;
-  color: var(--text-muted, #98a0aa);
-  border-bottom: 1px solid var(--border, #232932);
+  color: var(--text-muted);
+  border-bottom: 1px solid var(--border);
 }
 
 .cell,
 .padCell {
   min-height: 92px;
-  border-right: 1px solid var(--border, #232932);
-  border-bottom: 1px solid var(--border, #232932);
+  border-right: 1px solid var(--border);
+  border-bottom: 1px solid var(--border);
   padding: 4px;
   display: flex;
   flex-direction: column;
@@ -116,12 +119,12 @@
 
 .cellToday {
   background: rgba(201, 168, 76, 0.08);
-  box-shadow: inset 0 0 0 1px var(--ut-gold, #c9a84c);
+  box-shadow: inset 0 0 0 1px var(--ut-gold);
 }
 
 .dayNum {
   font-size: 10px;
-  color: var(--text-muted, #98a0aa);
+  color: var(--text-muted);
   font-variant-numeric: tabular-nums;
 }
 
@@ -129,10 +132,10 @@
   display: block;
   width: 100%;
   text-align: left;
-  background: var(--bg-elevated, #1b2029);
-  border: 1px solid var(--border, #232932);
+  background: var(--bg-elevated);
+  border: 1px solid var(--border);
   border-radius: var(--radius-sm, 4px);
-  color: var(--text-primary, #e8eaed);
+  color: var(--text-bright);
   font-size: 11px;
   line-height: 1.3;
   padding: 3px 5px;
@@ -143,12 +146,12 @@
 }
 
 .chip:hover {
-  border-color: var(--ut-gold, #c9a84c);
-  color: var(--ut-gold, #c9a84c);
+  border-color: var(--ut-gold);
+  color: var(--ut-gold);
 }
 
 .unscheduled {
-  border: 1px dashed var(--border, #232932);
+  border: 1px dashed var(--border);
   border-radius: var(--radius-md, 8px);
   padding: 10px;
 }
@@ -158,14 +161,14 @@
   font-size: 11px;
   letter-spacing: 0.06em;
   text-transform: uppercase;
-  color: var(--text-dim, #7c848f);
+  color: var(--text-muted);
   display: flex;
   align-items: center;
   gap: 8px;
 }
 
 .count {
-  color: var(--text-muted, #98a0aa);
+  color: var(--text-muted);
   font-variant-numeric: tabular-nums;
 }
 
@@ -181,7 +184,7 @@
   padding: 32px 16px;
   text-align: center;
   font-size: 13px;
-  color: var(--text-muted, #98a0aa);
+  color: var(--text-muted);
   line-height: 1.6;
 }
 
@@ -197,19 +200,19 @@
    because it means the same thing. */
 .cellOver {
   background: rgba(201, 168, 76, 0.10);
-  box-shadow: inset 0 0 0 1px var(--ut-gold, #c9a84c);
+  box-shadow: inset 0 0 0 1px var(--ut-gold);
 }
 
 .chipBusy { opacity: 0.55; }
 
 .error {
   font-size: 11px;
-  color: var(--loss-border, #f87171);
+  color: var(--loss-border);
 }
 
 .emptyUnsched {
   margin: 0;
   font-size: 11px;
   font-style: italic;
-  color: var(--text-dim, #7c848f);
+  color: var(--text-muted);
 }

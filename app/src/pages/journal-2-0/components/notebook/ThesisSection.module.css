@@ -1,7 +1,7 @@
 .wrap {
   margin: 4px 0 20px;
   padding-bottom: 12px;
-  border-bottom: 1px solid var(--color-border, #232932);
+  border-bottom: 1px solid var(--border);
   display: flex;
   flex-direction: column;
   gap: 10px;
@@ -35,17 +35,17 @@
   flex-shrink: 0;
 }
 .supports {
-  color: #4ade80;
-  background: rgba(74, 222, 128, 0.12);
+  color: var(--gain);
+  background: var(--gain-bg);
 }
 .opposes {
-  color: #f87171;
-  background: rgba(248, 113, 113, 0.12);
+  color: var(--loss);
+  background: var(--loss-bg);
 }
 .evidenceLink {
   background: none;
   border: none;
-  color: var(--color-text-primary, #e8eaed);
+  color: var(--text-bright);
   font-size: 13px;
   cursor: pointer;
   padding: 0;
@@ -57,27 +57,27 @@
   white-space: nowrap;
 }
 .evidenceLink:hover {
-  color: #dcbb5e;
+  color: var(--ut-gold);
 }
 /* The source behind the reason — dimmed so the caption still leads, present
    so a document_excerpt row is always a real, page-aware citation. */
 .evidenceCitation {
-  color: var(--color-text-muted, #98a0aa);
+  color: var(--text-muted);
 }
 /* Wave N §10 — a purged source. Muted and NOT interactive: it is a record of
    a judgement the member made, not a door to something that still exists.
    Deliberately not colour-only — the row says "source no longer available" in
    words and carries a warning glyph. */
 .evidenceGone {
-  color: var(--color-text-muted, #98a0aa);
+  color: var(--text-muted);
   cursor: default;
 }
 .evidenceGone:hover {
-  color: var(--color-text-muted, #98a0aa);
+  color: var(--text-muted);
 }
 .evidenceLabel {
   font-size: 13px;
-  color: var(--color-text-primary, #e8eaed);
+  color: var(--text-bright);
   flex: 1;
   min-width: 0;
   overflow: hidden;
@@ -87,18 +87,18 @@
 .removeBtn {
   background: none;
   border: none;
-  color: var(--color-text-muted, #98a0aa);
+  color: var(--text-muted);
   cursor: pointer;
   padding: 4px;
   flex-shrink: 0;
 }
 .removeBtn:hover {
-  color: #f87171;
+  color: var(--loss);
 }
 .addLink {
   background: none;
   border: none;
-  color: var(--color-text-muted, #98a0aa);
+  color: var(--text-muted);
   font-size: 12px;
   padding: 4px 2px;
   cursor: pointer;
@@ -108,15 +108,15 @@
   align-self: flex-start;
 }
 .addLink:hover {
-  color: #dcbb5e;
+  color: var(--ut-gold);
 }
 .picker {
   display: flex;
   flex-direction: column;
   gap: 8px;
   padding: 10px;
-  background: var(--color-surface, #14171c);
-  border: 1px solid var(--color-border, #232932);
+  background: var(--bg-surface);
+  border: 1px solid var(--border);
   border-radius: var(--radius-md, 6px);
 }
 .pickerRow {
@@ -126,14 +126,14 @@
 }
 .stanceToggle {
   display: inline-flex;
-  border: 1px solid var(--color-border, #232932);
+  border: 1px solid var(--border);
   border-radius: var(--radius-sm, 4px);
   overflow: hidden;
 }
 .stanceBtn {
   background: none;
   border: none;
-  color: var(--color-text-muted, #98a0aa);
+  color: var(--text-muted);
   font-size: 12px;
   padding: 5px 10px;
   cursor: pointer;
@@ -141,21 +141,21 @@
 }
 .stanceBtnActive {
   background: rgba(220, 187, 94, 0.14);
-  color: #dcbb5e;
+  color: var(--ut-gold);
 }
 .searchInput {
   width: 100%;
   min-height: 32px;
   padding: 4px 8px;
   font-size: 13px;
-  background: var(--color-bg, #0a0c0f);
-  border: 1px solid var(--color-border, #232932);
+  background: var(--bg);
+  border: 1px solid var(--border);
   border-radius: var(--radius-sm, 4px);
-  color: var(--color-text-primary, #e8eaed);
+  color: var(--text-bright);
 }
 .hint {
   font-size: 12px;
-  color: var(--color-text-muted, #98a0aa);
+  color: var(--text-muted);
 }
 .resultsList {
   list-style: none;
@@ -171,7 +171,7 @@
   text-align: left;
   background: none;
   border: none;
-  color: var(--color-text-primary, #e8eaed);
+  color: var(--text-bright);
   font-size: 13px;
   padding: 6px 8px;
   min-height: 32px;
@@ -187,18 +187,18 @@
   justify-content: space-between;
   gap: 8px;
   font-size: 13px;
-  color: var(--color-text-primary, #e8eaed);
+  color: var(--text-bright);
   padding: 4px 0;
 }
 .clearSel {
   background: none;
   border: none;
-  color: var(--color-text-muted, #98a0aa);
+  color: var(--text-muted);
   font-size: 11px;
   cursor: pointer;
 }
 .clearSel:hover {
-  color: #dcbb5e;
+  color: var(--ut-gold);
 }
 .pickerActions {
   display: flex;
@@ -208,7 +208,7 @@
 .cancelBtn {
   background: none;
   border: none;
-  color: var(--color-text-muted, #98a0aa);
+  color: var(--text-muted);
   font-size: 12px;
   min-height: 30px;
   padding: 4px 10px;
@@ -216,7 +216,7 @@
 }
 .saveBtn {
   min-height: 30px;
-  background: #dcbb5e;
+  background: var(--ut-gold);
   color: #0a0c0f;
   border: none;
   border-radius: var(--radius-sm, 4px);
@@ -231,11 +231,11 @@
 }
 .error {
   font-size: 12px;
-  color: var(--loss, #ef4444);
+  color: var(--loss);
 }
 .emptyChangelog {
   font-size: 12px;
-  color: var(--color-text-muted, #98a0aa);
+  color: var(--text-muted);
   padding: 4px 0;
 }
 .changelogList {
@@ -254,10 +254,10 @@
 }
 .changelogDate {
   flex: 0 0 76px;
-  color: var(--color-text-muted, #98a0aa);
+  color: var(--text-muted);
 }
 .changelogText {
-  color: var(--color-text-primary, #e8eaed);
+  color: var(--text-bright);
 }
 
 @media (max-width: 640px) {
@@ -278,7 +278,7 @@
   display: block;
   font-size: 12px;
   font-weight: 600;
-  color: var(--color-text, #e8eaed);
+  color: var(--text);
 }
 .candidateSource {
   display: block;
@@ -287,7 +287,7 @@
   line-height: 1.45;
   font-style: italic;
   opacity: 0.86;
-  border-left: 2px solid var(--color-accent, #c9a84c);
+  border-left: 2px solid var(--accent);
   padding-left: 8px;
 }
 .candidateAnnotation {
@@ -378,8 +378,8 @@
   line-height: 14px;
   letter-spacing: 0.3px;
   text-transform: uppercase;
-  color: var(--color-text-muted, #98a0aa);
-  border: 1px solid var(--color-border, #2a2f38);
+  color: var(--text-muted);
+  border: 1px solid var(--border);
   border-radius: 3px;
   vertical-align: 1px;
 }
