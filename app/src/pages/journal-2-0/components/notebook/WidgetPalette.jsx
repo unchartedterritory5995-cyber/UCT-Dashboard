@@ -67,11 +67,38 @@ export default function WidgetPalette({ editor, onClose }) {
   const [day, setDay] = useState('')
   const [inserted, setInserted] = useState(null)
   const symRef = useRef(null)
+  const panelRef = useRef(null)
 
   // Opening a form focuses the ticker — the whole point is speed.
   useEffect(() => {
     if (kind) symRef.current?.focus()
   }, [kind])
+
+  // ⛔⛔ THIS WAS A role="dialog" WITH NO KEYBOARD ESCAPE HATCH AT ALL -- a
+  // real WAI-ARIA dialog-pattern violation. The parent's own Escape handler
+  // (NoteEditorPage.jsx) is scoped to a DIFFERENT panel (findOpen) and never
+  // references this one. Mirrors CaptureDialog.jsx's proven Escape+Tab-trap
+  // shape exactly, scoped to `panelRef` rather than a `dialogRef` name --
+  // this panel is NOT wrapped in Sheet (it's a deliberately anchored popover
+  // pinned to the editor toolbar's bottom edge, not a modal -- see the
+  // mount-site comment in NoteEditorPage.jsx -- so Sheet's centered-modal/
+  // bottom-sheet treatment would fight that design, not fix this bug).
+  // Competitive audit finding UX #13, 2026-09-22.
+  useEffect(() => {
+    const onKey = (e) => {
+      if (e.key === 'Escape') { e.stopPropagation(); onClose?.(); return }
+      if (e.key !== 'Tab') return
+      const nodes = panelRef.current?.querySelectorAll(
+        'button:not([disabled]), input, textarea, select, a[href], [tabindex]:not([tabindex="-1"])')
+      if (!nodes || !nodes.length) return
+      const first = nodes[0]
+      const last = nodes[nodes.length - 1]
+      if (e.shiftKey && document.activeElement === first) { e.preventDefault(); last.focus() }
+      else if (!e.shiftKey && document.activeElement === last) { e.preventDefault(); first.focus() }
+    }
+    document.addEventListener('keydown', onKey, true)
+    return () => document.removeEventListener('keydown', onKey, true)
+  }, [onClose])
 
   const { args, reason: blockReason } = kind ? parseSelection(kind, sym, tfTok, day) : { args: null, reason: null }
   const multi = kind === 'mtf' || kind === 'compare'
@@ -101,7 +128,7 @@ export default function WidgetPalette({ editor, onClose }) {
   const backToList = () => { setKind(null); setSym(''); setDay(''); setInserted(null) }
 
   return (
-    <div className={styles.panel} role="dialog" aria-label="Insert widget" contentEditable={false}>
+    <div ref={panelRef} className={styles.panel} role="dialog" aria-label="Insert widget" contentEditable={false}>
       <div className={styles.panelHead}>
         {kind ? (
           <button type="button" className={styles.headBtn} onClick={backToList}>‹ Back</button>
