@@ -28,6 +28,13 @@
 // re-implementing them would put a second authority on Pine's grammar. So the
 // caller hands them in and this module holds no opinion about tokens beyond
 // what it is given.
+//
+// ⭐ `ufcs.js` IS THE ONE EXCEPTION AND IT IMPORTS NOTHING, so it can be a real
+// import rather than an injected helper: there is no cycle to make. It performs
+// Pine's method form — `b.set_bgcolor(c)` IS `box.set_bgcolor(b, c)` — and
+// decides no legality, so this file's rosters stay the only authority on which
+// members exist.
+import { methodFormCall, splitMethodName } from './ufcs.js'
 
 /** Pine's own positional argument order, per constructor. ⭐ MEASURED FROM THE
  *  REACHABLE 27 — a positional call is common in the corpus and a named-only
@@ -131,6 +138,54 @@ export function collectObjectOps(stmts, h) {
     return dot > 0 ? word.slice(0, dot) : null
   }
   const methodOf = (word) => word.slice(word.indexOf('.') + 1)
+
+  /** ⛔⛔ EVERY NAME THIS SCRIPT DEFINES AS A FUNCTION OR A PINE 6 `method`.
+   *
+   *  The method form yields to it, and that is not a nicety. 19 of the 266
+   *  committed scripts declare their own methods, and `pro-trading-art-…` writes
+   *
+   *      method maintainPivot(array<float> srcArray, float value) => …
+   *      top.maintainPivot(ph)          ← `top` IS a declared array
+   *
+   *  Rewriting that to `array.maintainPivot` would refuse while naming a
+   *  built-in nobody wrote. And the other direction is worse: a script defining
+   *  `method get(array<float> this, int i) =>` would have its own method
+   *  silently replaced by ours — the binding-order defect `pine.js` records four
+   *  previous instances of. Collected over the WHOLE tree before the walk, since
+   *  Pine lets a definition sit below its first use inside another function. */
+  const defined = new Set()
+  const scanDefs = (list) => {
+    for (const s2 of list || []) {
+      const ts = s2.header || []
+      if (ts.length > 1) {
+        if (ts[0].kind === 'ident' && ts[0].value === 'method' && ts[1].kind === 'ident') {
+          defined.add(String(ts[1].value))
+        } else if (ts[0].kind === 'ident' && h.isPunct(ts[1], '(')
+            && h.findTop(ts, (x) => h.isPunct(x, '=>')) > 0) {
+          const bare = splitMethodName(String(ts[0].value))
+          defined.add(bare ? bare.method : String(ts[0].value))
+        }
+      }
+      if (s2.sub && s2.sub.length) scanDefs(s2.sub)
+    }
+  }
+  scanDefs(stmts)
+  const isDefined = (name) => defined.has(name)
+
+  /** The namespace a METHOD-FORM receiver speaks for — `array`/`matrix`/`map`
+   *  for a collection, the drawing family for a handle — read off `decls` and
+   *  nowhere else.
+   *
+   *  ⛔⛔ THE FAMILY COMES FROM THE DECLARATION, NEVER FROM THE METHOD NAME.
+   *  `delete` belongs to line, label, box, table and linefill alike and `get` to
+   *  three collection namespaces, so reading the family off `.delete` would be
+   *  this reader inventing a type system Pine already has and this engine does
+   *  not. `array.new_line()` said `line`; that is the answer. */
+  const receiverNs = (name) => {
+    const d = decls.get(name)
+    if (!d) return null
+    return d.kind === 'coll' ? 'array' : d.family
+  }
 
   /** Every name a block REASSIGNS with `:=`, at any depth inside it.
    *
@@ -343,6 +398,25 @@ export function collectObjectOps(stmts, h) {
             if (OBJECT_NAMESPACES.includes(fam)) decls.set(name, { family: fam, kind: 'coll' })
             continue
           }
+          // ⭐⭐ THE GENERIC SPELLING IS THE SAME DECLARATION — `array.new<label>()`.
+          //
+          // ⚰️ ONLY `array.new_label()` WAS READ, and the corpus prefers the other
+          // one: `imbalanceLab = array.new<label>()` (footprint-iq-pro) is the
+          // shape behind the very call sites this method-form lane was opened
+          // for, and it was invisible here, so `decls` had no `coll` entry and
+          // every `imbalanceLab.get(x).set_textcolor(…)` was unaddressable for a
+          // reason that had nothing to do with the method form.
+          //
+          // ⭐ THE ELEMENT TYPE IS READ OFF `typeArgs`, WHICH THE LEXER ALREADY
+          // PUT THERE. `lexPine` strips `<…>` and hangs the segment on the head
+          // token (`genericTypeArguments.test.js`), so this needs no second
+          // parse of the angle brackets — and no second opinion about where a
+          // type argument ends.
+          if (rhs[0].value === 'array.new' && Array.isArray(rhs[0].typeArgs)) {
+            const fam = String(rhs[0].typeArgs[0] || '')
+            if (OBJECT_NAMESPACES.includes(fam)) decls.set(name, { family: fam, kind: 'coll' })
+            continue
+          }
         }
       }
 
@@ -387,6 +461,27 @@ export function collectObjectOps(stmts, h) {
           emitMethod(ns, method, t, guards, inLoop, st, localScope)
           continue
         }
+        // ── the METHOD FORM of the two branches above ────────────────────
+        // `b.set_bgcolor(c)` IS `box.set_bgcolor(b, c)`; `ls.push(l)` IS
+        // `array.push(ls, l)`. Tried LAST, so a hand-written `array.push(…)` or
+        // `box.delete(…)` never reaches it and there is exactly one reader per
+        // spelling. Measured over `corpus/committed`: 211 method-form sites on a
+        // declared drawing handle across 19 scripts, 2,570 on a declared
+        // collection across 37 more.
+        //
+        // ⛔⛔ AND AN UNREADABLE ONE IS COUNTED, WHICH IS THE HALF THAT MATTERS.
+        // ⚰️ Before this branch existed, `b.set_bgcolor(c)` fell out of the
+        // bare-call block with `ns = 'b'` matching nothing, and the statement
+        // vanished: `emitMethodOnStatement`'s equivalent for `box.set_bgcolor(b, c)`
+        // emits an `update`, the method form emitted NOTHING, and
+        // `diagnostics.unsupported` stayed EMPTY — an UNCOUNTED drop, the same
+        // defect class as `box.new(…).delete()` compiling to a lone create. The
+        // only thing standing between that and a member's chart was the RUNTIME
+        // lane independently refusing the same line `runtime:expression-statement`
+        // — a guard in another lane catching it by accident. Measured: with
+        // `x = b.get_left()` (a BINDING, which that guard does not see) the lane
+        // answered OK and drew a box whose setter had disappeared.
+        if (emitMethodForm(word, t, guards, inLoop, st, localScope)) continue
       }
 
       // ⭐ AN ORDINARY BINDING JOINS THE BLOCK'S SCOPE for every statement
@@ -677,17 +772,75 @@ export function collectObjectOps(stmts, h) {
     // reaches here — the parser folds `(b).delete()` back into the dotted name
     // `b.delete`, which is the bare-call branch's business — so this is the
     // whole of what the object program can resolve today.
-    if (!recv || recv.type !== 'call' || recv.name !== 'array.get') return false
-    if (!Array.isArray(recv.args) || recv.args.length !== 2) return false
-    const cn = recv.args[0] && recv.args[0].value
+    if (!recv || recv.type !== 'call') return false
+    // ⭐⭐ `ls.get(i).set_x2(n)` IS `array.get(ls, i).set_x2(n)`, AND IT BECOMES
+    // THE SAME NODE BEFORE ANYTHING ELSE LOOKS AT IT. Rewriting the receiver
+    // here rather than teaching `targetRef` a second shape is what keeps ONE
+    // reference format in the object program: everything below this line, and
+    // every consumer of the op it emits, sees the name form it always saw.
+    //
+    // ⛔ `pop()`, `shift()` AND `first()`/`last()` ARE NOT REWRITTEN, on purpose.
+    // `{r:'coll', index}` addresses an element; `pop` and `shift` REMOVE one, so
+    // resolving `k._box.pop().delete()` to a read would delete the right object
+    // and leave the collection holding a handle the script believes it took out.
+    // `first`/`last` are readable in principle but their index is `0` and
+    // `size-1`, and `size` is runtime state this pass has no node for. All four
+    // fall through and are counted by the caller.
+    const asMethod = recv.name === 'array.get'
+      ? recv
+      : (methodFormCall(recv, receiverNs, isDefined) || {}).node
+    if (!asMethod || asMethod.name !== 'array.get') return false
+    if (!Array.isArray(asMethod.args) || asMethod.args.length !== 2) return false
+    const cn = asMethod.args[0] && asMethod.args[0].value
     const collName = cn && cn.type === 'name' ? cn.name : null
     const d = collName ? decls.get(collName) : null
     if (!d || d.kind !== 'coll' || !OBJECT_NAMESPACES.includes(d.family)) return false
     const method = node.name
     if (method.startsWith('get_')) { diagnostics.getters.push(`${d.family}.${method}`); return true }
     if (inLoop) { diagnostics.loopBlocked.push(`${d.family}.${method}`); return true }
-    emitMethodOn(d.family, method, { name: null, value: recv, tok: toks[0] },
+    // ⛔ THE TARGET CARRIES `asMethod`, NEVER `recv`. For the name form the two
+    // are the same object; for the method form `recv` is `{name:'ls.get'}`,
+    // which `targetRef` answers null for — so the op would be emitted with NO
+    // target and the drawing would address nothing.
+    emitMethodOn(d.family, method, { name: null, value: asMethod, tok: toks[0] },
       node.args || [], toks[0], guards, st, scope)
+    return true
+  }
+
+  /** ⭐⭐ A METHOD-FORM STATEMENT — `b.set_bgcolor(c)`, `ls.push(l)`, `t.cell(…)`.
+   *
+   *  @returns {boolean} true when this reader OWNED the statement, which includes
+   *  every case it owned and could not carry: those are COUNTED here rather than
+   *  left to fall through and vanish. False means "not a method form on anything
+   *  this pass declared", and the caller behaves exactly as it did before. */
+  function emitMethodForm(word, toks, guards, inLoop, st, scope) {
+    const split = splitMethodName(word)
+    if (!split) return false
+    const { recv, method } = split
+    // ⛔⛔ THE SCRIPT'S OWN METHOD WINS — see the note on `defined` above. This
+    // is checked BEFORE the declaration lookup so that a shadowing definition
+    // takes the statement back even when the receiver is a perfectly good
+    // collection, which is exactly the case the corpus writes.
+    if (isDefined(method)) return false
+    const d = decls.get(recv)
+    if (!d) return false
+    const ns = d.kind === 'coll' ? 'array' : d.family
+    const args = argsOf(toks)
+    // ⛔ THE SPAN GUARD'S ANSWER IS A COUNTED DROP, NOT SILENCE. `argsOf` returns
+    // null when the first `(` does not close on the last token — `b.copy().delete()`
+    // — and that is precisely the half-read shape that put a box on a member's
+    // chart forever the last time this pass met it.
+    if (!args) { diagnostics.unsupported.push(`${ns}.${method}`); return true }
+    if (d.kind === 'coll') {
+      if (!COLLECTION_CALLS.has(method)) { diagnostics.unsupported.push(`array.${method}`); return true }
+      if (inLoop) { diagnostics.loopBlocked.push(`array.${method}`); return true }
+      emitCollectionOn(method, recv, args, toks, guards, st, scope)
+      return true
+    }
+    if (method.startsWith('get_')) { diagnostics.getters.push(`${ns}.${method}`); return true }
+    if (inLoop) { diagnostics.loopBlocked.push(`${ns}.${method}`); return true }
+    emitMethodOn(ns, method, { name: null, value: { type: 'name', name: recv, tok: toks[0] }, tok: toks[0] },
+      args, toks[0], guards, st, scope)
     return true
   }
 
@@ -698,7 +851,19 @@ export function collectObjectOps(stmts, h) {
     const collName = args[0] && args[0].value && args[0].value.type === 'name'
       ? args[0].value.name : null
     if (!collName || !decls.has(collName) || decls.get(collName).kind !== 'coll') return
-    const rest = args.slice(1)
+    emitCollectionOn(method, collName, args.slice(1), toks, guards, st, scope)
+  }
+
+  /** ⭐⭐ ONE PLACE TURNS A COLLECTION, A METHOD AND THE REST INTO A `coll_*` OP.
+   *
+   *  ⛔ EXTRACTED FROM `emitCollection` RATHER THAN COPIED, for the reason
+   *  `emitMethodOn` records one screen up: `array.push(ls, l)` and `ls.push(l)`
+   *  are ONE Pine operation written two ways, and a second emitter would be a
+   *  second opinion about which argument carries an inline create. The only
+   *  thing the method-form caller supplies differently is WHERE the collection
+   *  name came from. */
+  function emitCollectionOn(method, collName, restIn, toks, guards, st, scope) {
+    const rest = restIn
     const at = VALUE_ARG[method]
     if (at !== undefined && rest[at]) {
       const site = nestedCreate(rest[at], guards, scope, st, toks)
