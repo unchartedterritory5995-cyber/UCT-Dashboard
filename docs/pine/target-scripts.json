@@ -29,6 +29,11 @@
       "name": "RVOL",
       "path": "corpus/committed/rvol__05fcd9e160.pine",
       "why": "host lane already draws it; runtime lane gap is the gradient fill"
+    },
+    {
+      "name": "P1 probe (self-check)",
+      "path": "tools/visual_conformance/probes/p1-top-unmeasured.pine",
+      "why": "verify the probe itself translates before asking the owner to run it on TradingView"
     }
   ]
 }
