@@ -38,7 +38,10 @@ import { describe, it, expect } from 'vitest'
 import fs from 'node:fs'
 import path from 'node:path'
 
-import { translatePine, treeYieldsBool } from './pine.js'
+import {
+  translatePine, treeYieldsBool,
+  BUILTIN_SYMBOL_UNSERVED, BUILTIN_BARSTATE_REFUSED, BUILTIN_TIMEFRAME_RULED,
+} from './pine.js'
 import { parseFormula } from './parse.js'
 
 const DIR = path.resolve(process.cwd(), '../tests/fixtures/pine_blind')
@@ -446,15 +449,35 @@ plot(${body} ? 1 : 0)
   it('⛔ NON-VACUITY: a built-in with no ruling still gets the generic sentence', () => {
     // Without this, a change that appended the mintick paragraph to every
     // built-in refusal would satisfy both cases above.
-    // ⚰️ THIS USED `barstate.islast`, WHICH NOW TRANSLATES. Its refusal was
-    // withdrawn on 2026-09-09 (the newest bar is the same bar at any fetch
-    // depth), so the control had quietly become a test of a name that no longer
-    // refuses — it would have gone red for the right reason and been "fixed" by
-    // deleting it. `timeframe.period` is a REAL Pine built-in this engine still
-    // holds no column for and has ruled nothing about, which is exactly the
-    // property this control needs.
-    const r = refuse('timeframe.period')
+    //
+    // ⚰️⚰️ THIS CONTROL HAS NOW MOVED TWICE, AND THE SHAPE IS THE LESSON. It
+    // used `barstate.islast`, which started translating on 2026-09-09; it then
+    // used `timeframe.period`, which started translating on 2026-09-22 (it is
+    // bind-time TEXT, so its honest refusal is `pine:text-value`). Both times the
+    // name was chosen BECAUSE nobody had ruled on it — which is exactly the
+    // property that makes it the next thing somebody rules on. ⭐ A hand-picked
+    // unruled name is a control with a shelf life, and the shelf life is "until
+    // this engine gets good enough".
+    //
+    // ⛔ SO THE PROPERTY IS ASSERTED, NOT ASSUMED. The roster check below fails
+    // FIRST and BY NAME the day this one is ruled on, instead of surfacing as a
+    // confusing guard mismatch that reads like a regression in the mintick
+    // sentence. `timeframe.isminutes` is a real Pine predicate this engine holds
+    // no column for and has ruled nothing about.
+    const CONTROL = 'timeframe.isminutes'
+    for (const [which, roster] of Object.entries({
+      syminfo: BUILTIN_SYMBOL_UNSERVED,
+      barstate: BUILTIN_BARSTATE_REFUSED,
+      timeframe: BUILTIN_TIMEFRAME_RULED,
+    })) {
+      expect(Object.prototype.hasOwnProperty.call(roster, CONTROL),
+        `${CONTROL} has been RULED ON (${which}) — this control needs an UNRULED `
+        + 'name, so pick a new one rather than relaxing the assertion below')
+        .toBe(false)
+    }
+    const r = refuse(CONTROL)
     expect(r.guard).toBe('pine:builtin')
+    expect(r.message).toMatch(/names something the engine grammar does not hold/i)
     expect(r.message).not.toContain('minimum price increment')
   })
 })
