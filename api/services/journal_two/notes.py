@@ -1504,6 +1504,84 @@ def get_symbol_backlinks(
             conn.close()
 
 
+_LINK_CONTEXT_CHARS = 140
+
+
+def _link_context_snippets(body_json: Any, target_note_id: str) -> list[str]:
+    """The Wave D closure-pass residual debt, closed 2026-09-22: Obsidian's
+    "show more context" for a backlink -- a short piece of the SOURCE note's
+    own prose surrounding each `noteLink` reference to `target_note_id`, in
+    document order (one entry per occurrence).
+
+    `noteLink` is an ATOMIC, TITLE-LESS node by design (see
+    noteLinkNode.jsx's own docstring: it stores only an id and resolves the
+    live title elsewhere, so renaming a target never needs rewriting notes
+    that link to it) -- it carries no text of its own, so "context" can only
+    come from its SIBLINGS in the enclosing block. This walks the tree
+    tracking each node's DIRECT content array; when a `noteLink` child
+    matches, the snippet is that array's OWN flattened text (the enclosing
+    paragraph/heading/listItem's line), never the whole document.
+
+    Deliberately its own small walk, not a branch inside `extract_plain_
+    text`: that function answers "what does the whole document say," this
+    answers "what does ONE specific block say," and conflating them would
+    mean threading a target-match state through a walk built for something
+    else entirely."""
+    if not isinstance(body_json, dict) or not target_note_id:
+        return []
+    snippets: list[str] = []
+
+    def flatten_block(nodes: list, skip_index: int) -> str:
+        # `skip_index` excludes the ONE noteLink occurrence this snippet is
+        # FOR -- it should never mark itself as a quiet "…" inside its own
+        # context. A DIFFERENT noteLink sibling (a different target, or even
+        # the same one linked twice in one block) still gets marked; only
+        # the specific occurrence being reported on is silent.
+        out: list[str] = []
+        for i, n in enumerate(nodes):
+            if i == skip_index or not isinstance(n, dict):
+                continue
+            t = n.get("type")
+            if t == "text":
+                v = n.get("text")
+                if isinstance(v, str):
+                    out.append(v)
+            elif t == "noteLink":
+                out.append("…")
+            elif t in ("videoTimestamp", "attachmentChip", "documentExcerpt", "widgetEmbed"):
+                out.append("[…]")
+        # Collapsed, not just stripped: a real note commonly has a trailing
+        # space before an inline atom and a leading space after it (e.g.
+        # "second " + <atom> + " third") -- skipping the atom without
+        # collapsing would leave the double space in the reader-facing
+        # snippet, a real cosmetic artifact, not a hypothetical one.
+        text = re.sub(r"\s+", " ", "".join(out)).strip()
+        if len(text) > _LINK_CONTEXT_CHARS:
+            text = text[:_LINK_CONTEXT_CHARS].rstrip() + "…"
+        return text
+
+    def walk(node: Any) -> None:
+        if not isinstance(node, dict):
+            return
+        content = node.get("content")
+        if not isinstance(content, list):
+            return
+        for idx, child in enumerate(content):
+            if not isinstance(child, dict):
+                continue
+            if child.get("type") == "noteLink":
+                attrs = child.get("attrs")
+                if isinstance(attrs, dict) and attrs.get("noteId") == target_note_id:
+                    text = flatten_block(content, idx)
+                    if text:  # a link entirely alone in its block has no context to show
+                        snippets.append(text)
+            else:
+                walk(child)
+
+    walk(body_json)
+    return snippets
+
+
 def get_note_backlinks(
     user_id: str, note_id: str, limit: int = 50, conn: sqlite3.Connection | None = None,
 ) -> dict[str, Any]:
@@ -1536,7 +1614,7 @@ def get_note_backlinks(
         if not out["count"]:
             return out
         rows = conn.execute(
-            "SELECT n.id, n.title, n.updated_at, COUNT(*) AS refs"
+            "SELECT n.id, n.title, n.updated_at, n.body_json, COUNT(*) AS refs"
             " FROM j2_note_links l"
             " JOIN j2_notes n ON n.id = l.note_id AND n.user_id = l.user_id"
             " WHERE l.user_id = ? AND l.target_note_id = ? AND n.deleted_at IS NULL"
@@ -1545,10 +1623,26 @@ def get_note_backlinks(
             " LIMIT ?",
             (user_id, note_id, max(1, min(limit, 200))),
         ).fetchall()
-        out["notes"] = [{
-            "id": r["id"], "title": r["title"] or "Untitled",
-            "updatedAt": r["updated_at"], "refs": int(r["refs"] or 0),
-        } for r in rows]
+        out["notes"] = []
+        for r in rows:
+            # A context snippet is a nice-to-have on top of the count/title
+            # this row already had -- a note whose body_json fails to parse
+            # (never expected, but this projection must not 500 the whole
+            # backlinks list over one bad row) degrades to no snippet, same
+            # philosophy as _sync_note_sidecars' own "note save is
+            # authoritative, this projection is not."
+            context = None
+            try:
+                doc = json.loads(r["body_json"] or "{}")
+                found = _link_context_snippets(doc, note_id)
+                context = found[0] if found else None
+            except Exception:  # noqa: BLE001
+                context = None
+            out["notes"].append({
+                "id": r["id"], "title": r["title"] or "Untitled",
+                "updatedAt": r["updated_at"], "refs": int(r["refs"] or 0),
+                "context": context,
+            })
         return out
     finally:
         if owned:
