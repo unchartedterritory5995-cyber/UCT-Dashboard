@@ -409,6 +409,14 @@ export function validateIr(p) {
           walkExpr(s.value, `${at}.value`)
           return
         case STMT.EXPR:
+          // ⛔ A NEGATIVE OR FRACTIONAL `drop` MOVES `sp` SOMEWHERE THE STACK
+          // ARITHMETIC CANNOT RECOVER FROM — below zero it hands back values
+          // another frame owns and calls them this call's result. Named here,
+          // where the artifact is checked, rather than met as nonsense at bar 0.
+          if (s.drop !== undefined
+              && (!Number.isInteger(s.drop) || s.drop < 0)) {
+            throw new IrError(`${at}: expr.drop must be a non-negative integer`)
+          }
           walkExpr(s.value, `${at}.value`)
           return
         case STMT.FOR:
@@ -661,8 +669,16 @@ export const emit = (output, value) => ({ kind: STMT.EMIT, output, value })
 export const emitIter = (iter, index, value) => (
   { kind: STMT.EMIT_ITER, iter, index, value })
 /** An expression evaluated for its EFFECT. Admitted only for a call that has
- *  one — see `lowerIr.js`'s STMT.EXPR arm. */
-export const exprStmt = (value) => ({ kind: STMT.EXPR, value })
+ *  one — see `lowerIr.js`'s STMT.EXPR arm.
+ *
+ *  ⭐⭐ `drop` IS HOW MANY VALUES THE CALL LEAVES BEHIND, and it is carried
+ *  HERE rather than re-derived in the lowering. A void collection call leaves
+ *  NOTHING (`drop: 0`); a user function called for its effect leaves exactly
+ *  `fn.returns` values, which only the front end — the thing that compiled the
+ *  definition — knows. A lowering that counted them itself would be a second
+ *  authority over one value, and the two would disagree the first time a helper
+ *  returned a tuple (`lesson_a_second_authority_over_one_value`). */
+export const exprStmt = (value, drop = 0) => ({ kind: STMT.EXPR, value, drop })
 /** `for slot = from to to [by step]`.
  *
  *  ⛔ `from`, `to` AND `step` ARE EXPRESSIONS EVALUATED ONCE, at loop entry.

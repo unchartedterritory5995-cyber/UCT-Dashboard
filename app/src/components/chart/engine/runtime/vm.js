@@ -856,6 +856,11 @@ export function execute(program, ctx, limits, opts) {
           }
           break
         }
+        // ⭐⭐ THE RESULT OF A CALL-FOR-EFFECT, THROWN AWAY. `a` values, not
+        // one: a Pine function may hand back a tuple and a statement discards
+        // all of it. Nothing is read, so there is no value to coerce and no NaN
+        // rule to apply — `sp` alone is the state that changes.
+        case OP.DROP: sp -= a; break
         case OP.HALT: break
         default:
           throw new VmError(

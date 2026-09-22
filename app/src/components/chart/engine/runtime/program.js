@@ -183,6 +183,18 @@ export const OP = Object.freeze({
   // the argument count. A colour is a packed integer, so it needs no new
   // carrier on the stack — only a name table and a kind.
   COLOUR: 85,
+  // ⭐⭐ DISCARD `a` VALUES — the one instruction a CALL-FOR-EFFECT needs.
+  // Pine's `f(x)` on a line of its own runs `f` and throws its result away, and
+  // `f` may hand back a TUPLE — so the count is an OPERAND rather than a fixed
+  // one. ARITY MATTERS: dropping one value from a two-value call leaves the
+  // other on the stack for the rest of the run, which the end-of-bar `sp !== 0`
+  // rail catches on bar 0 rather than as an overflow thousands of bars later.
+  //
+  // ⛔ NOT A `STORE_LOCAL` INTO A SCRATCH SLOT, which is the cheaper-looking
+  // alternative. A slot has an address, a lifetime and a place in the frame
+  // size; a discarded value has none of those, and giving it one would put an
+  // entry in the slot table that no READ can ever name.
+  DROP: 86,
   // ── RESERVED, not yet emitted or executed. Declared so the shape is settled. ──
   ARR_NEW: 80, ARR_PUSH: 81, ARR_GET: 82, ARR_SET: 83, ARR_SIZE: 84,
   OBJ_CREATE: 90, OBJ_UPDATE: 91, OBJ_DELETE: 92,
@@ -201,7 +213,7 @@ export const IMPLEMENTED = Object.freeze(new Set([
   OP.READ_HIST_SLOT,
   OP.JUMP, OP.JUMP_IF_FALSE, OP.JUMP_IF_INIT,
   OP.CALL, OP.RET, OP.POINTWISE, OP.WINDOW, OP.CARRIED, OP.CONCAT, OP.TEXT, OP.ARRAY,
-  OP.LOOP_TICK, OP.REQUEST, OP.COLOUR,
+  OP.LOOP_TICK, OP.REQUEST, OP.COLOUR, OP.DROP,
   OP.EMIT, OP.EMIT_ITER, OP.HALT,
 ]))
 
