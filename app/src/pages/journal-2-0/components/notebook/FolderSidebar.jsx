@@ -385,7 +385,7 @@ function FolderNode({
                 className={styles.iconBtn}
                 onClick={(e) => { e.stopPropagation(); onDelete(node.id, node.name) }}
                 title="Delete folder"
-              >×</span>
+              ><UIcon name="x" size={11} gold={false} /></span>
             </span>
           </button>
         )}
@@ -852,7 +852,7 @@ export default function FolderSidebar({
                 className={styles.searchClear}
                 onClick={() => { setQuery(''); searchInputRef.current?.focus() }}
                 aria-label="Clear search"
-              >×</button>
+              ><UIcon name="x" size={11} gold={false} /></button>
             )}
             {/* Wave 4 Slice 1/3: collapsed by default -- a member who just
                 wants to type-and-search never sees this. */}

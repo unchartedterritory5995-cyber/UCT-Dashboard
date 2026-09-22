@@ -1,5 +1,6 @@
 import { useRef, useState } from 'react'
 import { settleNoteWrite } from '../../lib/offline/settleNoteWrite'
+import UIcon from '../../../../components/ui/UIcon'
 import styles from './HeroImagePicker.module.css'
 
 export default function HeroImagePicker({ noteId, value, onChange }) {
@@ -129,7 +130,7 @@ export default function HeroImagePicker({ noteId, value, onChange }) {
             <button
               type="button" className={styles.iconBtn}
               onClick={remove} title="Remove"
-            >×</button>
+            ><UIcon name="x" size={12} gold={false} /></button>
           </div>
           {dragOver && <div className={styles.dropHint}>Drop to replace hero</div>}
         </div>

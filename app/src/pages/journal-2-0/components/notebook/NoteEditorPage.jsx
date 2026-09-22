@@ -233,7 +233,7 @@ export function CaptureInboxTray({ editor, onPlaced }) {
                 ? { background: 'none', border: '1px solid var(--ut-gold, #c9a84c)', borderRadius: 6, color: 'var(--ut-gold, #c9a84c)', padding: '2px 7px', cursor: 'pointer', font: 'inherit', fontSize: 11 }
                 : { background: 'none', border: 'none', color: 'var(--text-dim, #777)', cursor: 'pointer', font: 'inherit' }}
             >
-              {confirmId === cap.id ? 'Discard?' : '✕'}
+              {confirmId === cap.id ? 'Discard?' : <UIcon name="x" size={12} gold={false} />}
             </button>
           </span>
         )

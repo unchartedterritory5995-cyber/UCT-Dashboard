@@ -214,7 +214,7 @@ export default function AskPanel({
             </span>
             <button type="button" className={styles.closeBtn}
                     onClick={() => { setOpen(false); onClose?.() }}
-                    aria-label="Close Ask">×</button>
+                    aria-label="Close Ask"><UIcon name="x" size={11} gold={false} /></button>
           </div>
 
           <div className={styles.inputRow}>
