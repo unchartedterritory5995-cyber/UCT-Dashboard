@@ -4,17 +4,18 @@
 
 # ⛔⛔ COLD START — 2026-09-20. This block supersedes everything below it.
 
-**One sentence: 24 of 32 systems are DONE and 1 (S7) is RULED-HOLD; one ready-to-sign proposal
-sits on the owner's desk (A14-CP1, what moves it out of BLOCKED-SPEC-READ), and the ONE thing
-nothing can substitute for is a blocked production read of real member-alert data. Read this
-whole block before touching anything.**
+**One sentence: 25 of 32 systems are DONE and 1 (S7) is RULED-HOLD; ZERO proposals are waiting on
+a signature (the last one, A14-CP1, was signed and built 2026-09-21), and the ONE thing nothing
+can substitute for is a blocked production read of real member-alert data. Read this whole block
+before touching anything.**
 
 ⚰️ *This said "27 of 32 systems are fully DONE, 5 more have a ready-to-sign proposal…". Nothing in
 `COMPLETION_AUDIT.md` supports 27 — its table, re-derived row by row on 2026-09-21, says 22 as of
 that morning (§6 below), and three of the "5 more" were already inside those 22.*
 
-⚰️ *S1-CP3, D3-CP4, D4-CP5 and A12-CP1 were all signed and built 2026-09-21 (§0b) — the DONE count
-moved 22 → 23 → 24 the same day, and the pending-signature list below now holds one, not five.*
+⚰️ *S1-CP3, D3-CP4, D4-CP5, A12-CP1 and A14-CP1 were all signed and built 2026-09-21 (§0b) — the
+DONE count moved 22 → 23 → 24 → 25 the same day, and the pending-signature list in §1 below is now
+EMPTY.*
 
 ## 0. The three worktrees — re-verify every one before doing anything
 
@@ -89,33 +90,32 @@ worktree (`s7-price-level`) against `origin/master`, never from the docs worktre
   is built on a user with no flagged activity, where the two definitions genuinely coincide. 7 new
   tests, 102 total including every sibling suite, zero regressions.
 - **F-AUDIT-3 CLOSED** (§3.1c of the audit): both D3's and D4's halves resolved by build — A10 moved
-  to DONE, no dependency remains. **A12's move is separate and unrelated** (its own signature, not
-  F-AUDIT-3). DONE count moved 22 → 23 (A10) → **24** (A12), all 2026-09-21.
+  to DONE, no dependency remains. **A12's and A14's moves are separate and unrelated** (their own
+  signatures, not F-AUDIT-3). DONE count moved 22 → 23 (A10) → 24 (A12) → **25** (A14), all 2026-09-21.
+- **A14-CP1 SIGNED and BUILT 2026-09-21** (fingerprint `417b6b853`, `feat/s7-price-level` `f662b84d5`) —
+  no longer in the list below, which is now EMPTY. `api/routers/portfolio_heat.py` (`GET
+  /api/portfolio/heat`, per-router `require_paid`) + `app/src/pages/PortfolioHeat.jsx` (new page) +
+  a nav entry, all a byte-identical read of `portfolio_heat.py`'s already-computed numbers.
+  **This is the first of the five 2026-09-21 checkpoints a member can actually see** — a new page,
+  reachable from the sidebar, not a dark/invisible change like S1/D3/D4/A12 were. Placeholder-stop
+  positions render flagged, never hidden. Paid-gated the ordinary way (`FREE_PAGES` untouched). 4/4
+  tests named in the proposal's §5 pass; zero regressions across 48 backend + frontend tests run
+  (router, AST rail, nav taxonomy ×3 suites, nav-resolution, startup fingerprint). Corp-actions
+  display stays explicitly deferred. **Built and pushed to `feat/s7-price-level` only — NOT
+  deployed to master/production.**
 - `sign_gate.py <packet>` **SIGNS IMMEDIATELY** — there is no dry-run flag; `--read-check`/`--self-check`
   run only on synthetic text. To check a real packet read-only, import the tool and call `read_approval()`.
 
-## 1. One thing is sitting ready for the owner's signature/decision RIGHT NOW
+## 1. Nothing is sitting ready for a signature right now — the list is EMPTY
 
-⚰️ *This said "five", then "four", then "three", then "two" — S1 CP3, D3 CP4, D4 CP5 and A12 CP1
-were all SIGNED and BUILT 2026-09-21 (see §0b); none of them is in this list anymore.*
+⚰️ *This said "five", then "four", then "three", then "two", then "one" — S1 CP3, D3 CP4, D4 CP5,
+A12 CP1 and now A14 CP1 (the last one) have all been SIGNED and BUILT 2026-09-21 (see §0b). There
+is currently no proposal awaiting the owner's signature anywhere in this programme.*
 
-This is a complete, evidence-cited proposal with a blank approval block — verified structurally
-signable (`declared_checkpoints()`/`read_approval()`/`target_span()` all checked) before being
-handed over. **Nothing here should be re-derived from scratch — read the proposal, then sign it.**
-
-```sh
-python tools/sign_gate.py docs/terminal-research/12-decisions/gates/a14-portfolio-heat-cp1-scoped-proposal.md --by "Patrick (owner)" --on <today> --scope-file .scopes/a14-portfolio-heat-cp1-scoped-proposal.scope.txt
-```
-
-Run this YOURSELF via `!` in chat — the AI must NEVER attempt to fill in `APPROVED BY/ON/AT-SHA/
-SCOPE APPROVED` on its own. This is an absolute, security-relevant rule in this programme, not a
-style preference — a prior attempt at AI self-approval was flagged as `[Instruction Poisoning]` by
-this environment's own safety classifier. **Once signed, tell the session and it will build exactly
-that checkpoint's scope — nothing more.**
-
-| Proposal | What it does | Risk |
-|---|---|---|
-| A14 CP1 | One route + one page + one nav entry surfacing `portfolio_heat.py`'s already-computed numbers to paid members for the first time | Low — no new computation, gated the same way every other paid page already is |
+The next thing that needs the owner is **not a signature** — it's §2's blocked production read
+(the only genuinely open item left that isn't a scoping/proposal-writing task), or a fresh
+proposal for one of the deferred-on-purpose items in §7. Until a new proposal is drafted and
+signed, there is nothing here to hand back a `!`-prefixed command for.
 
 ## 2. The one thing that's actually blocked, and what it needs
 
@@ -188,17 +188,18 @@ re-checked and their premises are unverified — don't assume they're fine by as
 
 ## 6. Section 0's system counts — recomputed for real this session, walk section 1 to re-verify
 
-⚰️ *This table was written 2026-09-20 and read 22/1/1/3/2/5. FOUR checkpoints signed and built the
-next day (S1-CP3, D3-CP4, D4-CP5, A12-CP1) moved A10 and A12 into DONE outright — see
-COMPLETION_AUDIT §0 for the current, re-derived table rather than trusting a second copy of it here.*
+⚰️ *This table was written 2026-09-20 and read 22/1/1/3/2/5. FIVE checkpoints signed and built the
+next day (S1-CP3, D3-CP4, D4-CP5, A12-CP1, A14-CP1) moved A10, A12 and A14 into DONE outright —
+see COMPLETION_AUDIT §0 for the current, re-derived table rather than trusting a second copy of it
+here.*
 
 | state | count | which |
 |---|---|---|
-| DONE | 24 | S1, S2, S3, S4, S5, S6, S9, S10, S11, S12, D1, D3, D4, D5, A2, A3, A4, A5, A6, A7, A8, A10, A12, I1 |
+| DONE | 25 | S1, S2, S3, S4, S5, S6, S9, S10, S11, S12, D1, D3, D4, D5, A2, A3, A4, A5, A6, A7, A8, A10, A12, A14, I1 |
 | RULED-HOLD | 1 | S7 (price-level) — a real decision (HOLD), not a block |
 | BLOCKED-DATA | 1 | D2 (needs real member traffic to accumulate, 0 rows as of last measurement) |
 | BLOCKED-OWNER | 3 | A9, A11, A13 — need §2's read + a CARD-6-style decision |
-| BLOCKED-SPEC-READ | 1 | A14 — proposal in §1, awaiting signature |
+| BLOCKED-SPEC-READ | 0 | none — A14 was the last one and it's DONE now |
 | BLOCKED-DEPENDENCY | 4 | S8, A1, A11 (dual), A13 (dual) |
 
 Full detail, citations, and the arithmetic proof this sums to 32: `COMPLETION_AUDIT.md` §0.
@@ -208,15 +209,19 @@ caught it, and this table's own 2026-09-20 numbers were stale by the next aftern
 
 ## 7. What "100% ready to launch" actually still requires, plainly
 
-1. The one signature in §1 (or a decision to decline it — that's a valid, complete state too, per
-   this programme's own "DONE, BLOCKED, or EXCLUDED, never TBD" rule).
-2. The production read in §2, then a real HOLD/FLIP decision for A9/A11/A13/event-proximity.
-3. D2's top-level CP3 needs real member traffic to accumulate — nothing to DO, just time, then a
+⚰️ *Item 1 used to be "the one signature in §1" — §1 is now empty, so that item is closed. What's
+left is the production read and D2's time-based wait, neither of which a signature can shortcut.*
+
+1. The production read in §2, then a real HOLD/FLIP decision for A9/A11/A13/event-proximity.
+2. D2's top-level CP3 needs real member traffic to accumulate — nothing to DO, just time, then a
    re-check of whether 200+ AGREED rows exist yet (owner ruling B3 in `OWNER_INPUTS.md`: 200
    AGREED specifically, not 200 rows of any outcome).
-4. Everything else genuinely deferred on purpose (D5 CP2 — nothing reads it; DEC-08's own
+3. Everything else genuinely deferred on purpose (D5 CP2 — nothing reads it; DEC-08's own
    corp-actions calendar — real work, gated on F-09's provider gap, not yet scoped) needs no
    action unless the owner wants to prioritize it.
+4. Separately, and not part of the "ready to launch" definition above: A14-CP1's code
+   (`feat/s7-price-level` `f662b84d5`) is built and pushed but **not deployed to master/production**
+   — that needs its own explicit "deploy" instruction, same as F-S7-RC-3's pending cherry-pick.
 
 Nothing else in this programme is "unfinished" in the sense of sitting on an agent's desk. Verify
 that claim yourself before trusting it — grep `COMPLETION_AUDIT.md` for "not yet\|unscoped\|worth
