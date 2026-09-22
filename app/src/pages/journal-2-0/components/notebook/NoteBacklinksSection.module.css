@@ -24,9 +24,22 @@
 .row:hover {
   background: rgba(220, 187, 94, 0.1);
 }
-.rowTitle {
+.rowMain {
   flex: 1;
+  display: flex;
+  flex-direction: column;
+  min-width: 0; /* required for ellipsis truncation inside a flex child */
+  gap: 2px;
+}
+.rowTitle {
   font-size: 13px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.rowContext {
+  font-size: 11px;
+  color: var(--text-muted);
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -35,4 +48,5 @@
   font-size: 11px;
   color: var(--text-muted);
   margin-left: 8px;
+  flex-shrink: 0;
 }
