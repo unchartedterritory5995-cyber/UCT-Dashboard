@@ -80,7 +80,15 @@ describe('⭐⭐ the call sites behind one guard', () => {
     const lines = ['', `CALL SITES — guard=${GUARD}   (${hits.length} scripts)`, '']
     for (const h of hits) {
       lines.push(`  ${h.name}  [lane ${h.lane}]`)
-      lines.push(`    L${h.line}: ${h.text.slice(0, 120)}`)
+      // ⛔ A WHOLE-PROGRAM REFUSAL HAS NO SOURCE LINE, AND SAYING SO IS THE
+      // POINT. This printed a bare `L0:` with an empty tail for guards like
+      // `objects:nothing-drawn` and `objects:iterated-tree-not-last-bar`, which
+      // reads as "the reader could not find it" — missing data — when the truth
+      // is that the guard refuses the PROGRAM, not a token. A reader who takes a
+      // blank for a failed lookup goes hunting for a line that cannot exist.
+      lines.push(h.line > 0
+        ? `    L${h.line}: ${h.text.slice(0, 120)}`
+        : '    (no source line — this guard refuses the whole program, not a token)')
       if (h.message) lines.push(`    why: ${h.message.slice(0, 200)}`)
       lines.push('')
     }
