@@ -756,6 +756,23 @@ def get_ticker_for_date(ticker: str, market_date: str) -> Optional[dict]:
         return _deserialize_row(dict(row)) if row else None
 
 
+def history_for_ticker(ticker: str, limit: int = 50) -> list[dict]:
+    """Every catalyst row this engine has ever recorded for one ticker, newest
+    first — the "what has UCT's own catalyst engine ever flagged about THIS
+    ticker" read (Packet G CP1). Deliberately UNFILTERED by rank: a ticker
+    that surfaced but did not make a given day's top-20 still shows here,
+    since the research page's Catalysts tab is a history of what the engine
+    NOTICED, not a re-rendering of the top-20 list. An empty list is a
+    genuine, honest answer (the engine has never flagged this ticker) —
+    never an error."""
+    with contextlib.closing(_connect()) as c:
+        rows = c.execute(
+            "SELECT * FROM catalysts WHERE ticker = ? ORDER BY market_date DESC LIMIT ?",
+            (ticker, int(limit)),
+        ).fetchall()
+        return [_deserialize_row(dict(r)) for r in rows]
+
+
 def clear_ranks_for_date(market_date: str) -> None:
     """Null-out ranks for all rows on a given date. Called before re-ranking
     so that dropped tickers stay in the DB (rank=NULL) for historical view."""

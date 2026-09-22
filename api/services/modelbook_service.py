@@ -274,6 +274,26 @@ def get_all_stocks() -> list[dict]:
         return [dict(r) for r in c.execute("SELECT * FROM modelbook_stocks").fetchall()]
 
 
+def get_stock_appearances(symbol: str) -> list[dict]:
+    """Every curated Model Book appearance for one symbol, across all years,
+    newest first (Packet H CP1 -- the "has this ticker ever been in the
+    Model Book" read for the per-ticker research page). Same join shape as
+    `get_stocks_for_year`, filtered by symbol instead of year. An empty list
+    is a genuine, honest answer (this ticker has never been curated) —
+    never an error."""
+    with contextlib.closing(_connect()) as c:
+        rows = c.execute(
+            """SELECT s.*, COUNT(u.id) AS setup_count
+               FROM modelbook_stocks s
+               LEFT JOIN modelbook_setups u ON u.stock_id = s.id
+               WHERE s.symbol = ?
+               GROUP BY s.id
+               ORDER BY s.year DESC""",
+            (symbol,),
+        ).fetchall()
+        return [dict(r) for r in rows]
+
+
 def regen_descriptions(version_tag: str) -> None:
     """One-time (per tag): clear AI descriptions so the warm regenerates them with
     an updated prompt. Flag-gated by version_tag so each prompt revision runs once."""

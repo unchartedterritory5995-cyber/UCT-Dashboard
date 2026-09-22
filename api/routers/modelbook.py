@@ -290,6 +290,14 @@ def all_stocks(_user: dict = Depends(require_paid)):
                        for s in svc.get_all_stocks()]}
 
 
+@router.get("/appearances/{symbol}")
+def get_appearances(symbol: str, _user: dict = Depends(require_paid)):
+    """Every curated Model Book appearance for one symbol, across all years
+    (Packet H CP1) -- the per-ticker research page's "has this ever been in
+    the Model Book" tab. An empty list is a genuine, honest answer."""
+    return {"symbol": symbol.upper(), "appearances": svc.get_stock_appearances(symbol.upper())}
+
+
 @router.get("/stock/{stock_id}")
 def get_stock(stock_id: int, _user: dict = Depends(require_paid)):
     stock = svc.get_stock_detail(stock_id)
