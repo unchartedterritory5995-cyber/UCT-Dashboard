@@ -127,6 +127,18 @@ export const RUNTIME_REFUSALS = Object.freeze({
   'runtime:call-undeclared-builtin-state':
     'a builtin fed by a mutable value that the CLOSED TABLE does not declare at all — '
     + 'this one is blocked on the builtin existing, not on the runtime',
+  // ⭐⭐ SPLIT OUT FOR THE REASON 2E AND 2F-1 SPLIT THE TWO ABOVE, and it is the
+  // THIRD instance of the mislabel `builtinStateFamily` records in its own
+  // comment (a `plot` bound to a name; the eight `PINE_CALL_SHAPES` spellings).
+  // An input is not a table function in EITHER lane — `pine.js::resolveInput`
+  // folds it and the closed table has never held one — so filing it under "the
+  // closed table does not declare this builtin" sends a reader to add an entry
+  // that would do nothing. What is actually wrong is upstream of any table: an
+  // input is settled once, before bar 0, so a default or a bound that is only
+  // known while a bar runs is not a default or a bound.
+  'runtime:input-state':
+    'an input whose DEFAULT or BOUNDS read a mutable variable — an input is settled '
+    + 'once, before bar 0, so both have to be fixed when the script is written',
   'runtime:operator': 'an operator the runtime has no instruction for',
   'runtime:switch': 'a switch — the runtime has no multi-way branch yet',
   'runtime:varip': 'varip — intrabar persistence, which a closed-bar runtime cannot reproduce',
@@ -203,6 +215,64 @@ const ARRAY_NS = /^(array|matrix|map)\./
  *  every other text capability in this wave, and the columnar rule is left
  *  exactly where it is rather than widened. */
 const TEXT_INPUTS = new Set(['input.text_area', 'input.string'])
+
+/** Is this NAME Pine's input family?
+ *
+ *  ⛔ ONE SPELLING, READ TWICE. The route decision asks it of a node and
+ *  `builtinStateFamily` asks it of a bare name; two hand-written copies of
+ *  `name === 'input' || name.startsWith('input.')` would be two authorities
+ *  over one question, and the one that drifts is the one nobody reads again
+ *  (`lesson_a_guard_repeated_is_a_guard_unproved`). */
+const isInputName = (name) => typeof name === 'string'
+  && (name === 'input' || name.startsWith('input.'))
+
+/** Is this node a call to Pine's input family? */
+const isInputCall = (node) => !!(node && node.type === 'call' && isInputName(node.name))
+
+/** The NAMED arguments of an input call that a reader in EITHER lane consults.
+ *
+ *  ⭐⭐ DERIVED FROM THE READERS, NOT FROM THE REFERENCE MANUAL. `pine.js`'s
+ *  `resolveInput` reads exactly `defval`, and the NAMED `minval`/`maxval`/`step`
+ *  — the bounds that decide whether a MEMBER'S number is admitted at all. This
+ *  file's own `admitTextInput` reads `defval` and the NAMED `options`. Nothing
+ *  anywhere reads `group`, `tooltip`, `inline`, `display` or `confirm` when
+ *  computing a value, because none of them can move one: they name a control in
+ *  the settings dialog.
+ *
+ *  ⛔ SO THIS IS A FACT ABOUT THIS ENGINE, CHECKABLE IN THOSE TWO FUNCTIONS, and
+ *  deliberately NOT a transcription of TradingView's positional signatures —
+ *  which differ per kind, are vendor surface, and would be a second authority
+ *  over a question the readers already answer. */
+const INPUT_VALUE_ARGS = Object.freeze(new Set(['defval', 'minval', 'maxval', 'step', 'options']))
+
+/** The arguments of an input call whose value can reach the input's own value.
+ *
+ *  ⭐ The DEFVAL is read the way `resolveInput` reads it — named, or the
+ *  argument at index 0 — so the two cannot disagree about which argument is the
+ *  default. Every other POSITIONAL argument is skipped for the reason above:
+ *  no reader in either lane consults one. `input.source(close, 'Price', tip, …)`
+ *  — the `bollinger-band-width-percentile` shape, with `tip` a `var string` —
+ *  passes its tooltip third, and a tooltip cannot change a source.
+ *
+ *  ⚠️ THE COST OF THAT, STATED RATHER THAN HIDDEN: a POSITIONAL `minval` is
+ *  already ignored by `resolveInput`'s member-bound check, which finds bounds by
+ *  NAME only. Skipping it here does not widen that gap; it matches it. A
+ *  positional bound that mattered would have to be read by a reader first. */
+const inputValueArgs = (node) => {
+  const args = (node && node.args) || []
+  const out = []
+  for (let i = 0; i < args.length; i += 1) {
+    const a = args[i]
+    const v = a && a.value !== undefined ? a.value : a
+    if (a && a.name) {
+      if (INPUT_VALUE_ARGS.has(a.name)) out.push(v)
+    } else if (i === 0) {
+      out.push(v)
+    }
+  }
+  return out
+}
+
 /** Pine's three numeric casts, as a REPORTING label only.
  *
  *  ⭐ THEY ARE `pine.js`'s, not this file's invention: its resolver handles
@@ -705,6 +775,33 @@ export function buildRuntimeIr(source, opts = {}) {
     // — only so it can be refused precisely there.
     if (node.type === 'name' && guardOuter && guardOuter.lookup(node.name) !== null) return true
     if (node.type === 'call' && isUserFn(node.name)) return true
+    // ⭐⭐ AN INPUT'S LABEL CANNOT DECIDE ITS LANE, and until 2026-09-21 every
+    // label did. `group`, `tooltip`, `title`, `inline`, `display` and `confirm`
+    // name a control in the settings dialog; none of them can change the number
+    // the input yields on any bar. Walking them here meant the ordinary Pine
+    // idiom
+    //
+    //     var string GROUP_FRACT = "Fractals"
+    //     n = input.int(10, title = "Fractal Period", minval = 2, group = GROUP_FRACT)
+    //
+    // read as "this call reads a mutable slot", so the whole call was handed to
+    // the runtime lane — which has no `input.*` node and reported
+    // `runtime:call-undeclared-builtin-state`, *"a builtin … that the CLOSED
+    // TABLE does not declare at all"*. That sentence sends the next engineer to
+    // add `input.int` to the closed table, and `input.int` is not a table
+    // function in either lane: the SAME script with the group spelled as a
+    // literal compiles today. NINE of 266 corpus scripts died there.
+    //
+    // ⛔ NOTHING IS REWRITTEN. The node keeps every argument it was parsed
+    // with, so `boundName`, the title the param manifest reads, and the
+    // author's own bounds are all exactly where they were — only the LANE that
+    // reads the call changes.
+    if (isInputCall(node)) {
+      for (const v of inputValueArgs(node)) {
+        if (needsRuntime(v, scope)) return true
+      }
+      return false
+    }
     for (const k of ['left', 'right', 'test', 'yes', 'no', 'arg', 'value']) {
       if (needsRuntime(node[k], scope)) return true
     }
@@ -1688,6 +1785,11 @@ export function buildRuntimeIr(source, opts = {}) {
    *  mapping is authoritative. */
   const builtinStateFamily = (rawName) => {
     const name = String(rawName || '')
+    // ⭐ AN INPUT ANSWERS FOR ITSELF, and it is read BEFORE the namespace strip
+    // for the same reason `str.` is: the namespace settles the question, and
+    // stripping first would hand `input.int` to the closed table as `int` — a
+    // CONVERSION, which is a third wrong answer rather than the second.
+    if (isInputName(name)) return 'runtime:input-state'
     if (/^request\./.test(name)) return 'runtime:request-with-state'
     // ⚰️⚰️ A PRESENTATION CALL BOUND TO A NAME IS PRESENTATION, NOT AN UNKNOWN
     // BUILTIN — and 2F-2's census is what caught this. `upPlot = plot(trend == 1 ? up : na, …)`
