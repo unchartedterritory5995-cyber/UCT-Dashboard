@@ -219,6 +219,83 @@ it by reverting and re-running.
 
 ---
 
+## ⭐⭐ WAVE 2 — three lanes, TWO REAL DEFECTS, and a fourth honest zero
+
+Merged 2026-09-22: per-bar iteration storage, drawing-as-a-value, method-form
+(UFCS) calls. Gated together, 0 NEW failures.
+
+⛔⛔ **`draws end to end` is STILL 2 of 266.** Fourth wave running with no
+movement in the product metric, and the reason is now measured rather than
+guessed: **a capability is a SECOND wall almost everywhere.** The UFCS lane
+measured its own: of 37 corpus scripts using method-form calls on a declared
+collection, **36 die earlier on something unrelated** (`pine:module` ×10,
+`runtime:udt` ×10, `runtime:declaration` ×10, …). Clearing one wall reveals the
+next one.
+
+### ⭐⭐ The two findings worth more than the headline capabilities
+
+**1. A LIVE SILENT WRONG NUMBER, on the branch point.**
+
+```pine
+a = array.new_float(0)
+for i = 0 to 3
+    array.push(a, close)    // plot(array.size(a))  ->  4   correct
+    a.push(close)           // plot(array.size(a))  ->  0   WRONG, and no refusal
+```
+
+The same program, two spellings, two plotted numbers, **neither refusing**.
+`mutatorTargets` matched the TOKEN `array.push`; the method form arrived as
+`a.push`, so the write was invisible and the read folded anyway. Verified after
+the merge: both spellings now answer 4.
+
+**2. AN UNCOUNTED SILENT DROP in the object pass.** A method-form statement was
+dropped with an EMPTY `unsupported` ledger — the `box.new(…).delete()` class.
+Written as a binding, the lane answered OK and drew a box whose setter had
+disappeared. Now counted by name.
+
+### ⭐ Per-bar iteration cost nothing, because the question was wrong
+
+The costing rejected every storage option **on measurement**: FULL cross-product
+**1,621 MB** for one script, SPARSE **801 MB**, against the runtime's own
+**64 MB** ceiling — and the bounded ring was *inapplicable* rather than merely
+expensive (the object walk needs bar 0's rows while the VM stands at bar 4,999).
+
+What shipped instead **interleaves the two bar walks**: a value need not be
+stored per bar if whatever reads it is standing on the bar that produced it.
+Zero bytes, exact rather than approximate, and it is what Pine itself does — two
+passes were this engine's convenience, never the vendor's model.
+`objects:iterated-tree-not-last-bar` is gone from the census entirely.
+
+### ⚰⚰ My briefs were wrong, and the agents measured it
+
+The UFCS brief pointed its measurement command at an **unrelated guard**
+(`runtime:declaration` is about the SCRIPT's declaration — `strategy()`,
+`import` — not a collection's), and **three of its five flagship call-site
+examples are unreachable by the brief's own stated rule** (family from the
+declaration): two are UDT fields, one is a user-function parameter. The one
+addressable example was blocked by the generic `array.new<T>()` declaration, not
+by the method form — proved by reverting that layer alone and watching all three
+moved scripts revert with it.
+
+⭐ **That is the third wave running where an agent corrected the brief it was
+given.** Briefs are sized from censuses; censuses name guards, not capabilities.
+Read the call sites.
+
+### ⛔⛔ AND A REPO-WIDE INSTRUMENT IS VACUOUS — verified with a control
+
+`grep -c $'' <file>` through the Bash tool **always answers 0**. Measured: a
+file containing two CR bytes answers `0`, while `grep -c alpha` on the same file
+answers `1`. Every line-ending check run through that command today measured
+nothing.
+
+⚠️ It caused no damage — `python tools/check_repo_hygiene.py` reports clean over
+12,104 files and all 49 files changed this session have uniform endings — but
+that was `autocrlf` doing the work, not the check. **Use the repo's own gate, or
+count bytes in Python.** `git diff --stat` is the other honest signal: a
+whole-file ending flip shows up as thousands of changed lines.
+
+---
+
 ## The honest timeline
 
 | Target | Effort |
