@@ -4,10 +4,15 @@
 
 # ⛔⛔ COLD START — 2026-09-20. This block supersedes everything below it.
 
-**One sentence: 27 of 32 systems are fully DONE, 5 more have a ready-to-sign proposal or an
-already-made decision sitting on the owner's desk, and the ONE thing nothing can substitute for
-is a blocked production read of real member-alert data. Read this whole block before touching
-anything.**
+**One sentence: 22 of 32 systems are DONE and 1 (S7) is RULED-HOLD; five ready-to-sign proposals
+sit on the owner's desk (S1-CP3, D3-CP4, D4-CP5 are extra checkpoints on systems already counted
+DONE; A12-CP1 and A14-CP1 are what move their systems out of BLOCKED-SPEC-READ), and the ONE thing
+nothing can substitute for is a blocked production read of real member-alert data. Read this whole
+block before touching anything.**
+
+⚰️ *This said "27 of 32 systems are fully DONE, 5 more have a ready-to-sign proposal…". Nothing in
+`COMPLETION_AUDIT.md` supports 27 — its table, re-derived row by row on 2026-09-21, says 22 (§6
+below), and three of the "5 more" were already inside those 22.*
 
 ## 0. The three worktrees — re-verify every one before doing anything
 
@@ -29,6 +34,41 @@ anything — will ALWAYS report "not merged," regardless of the true state on `o
 produced at least THREE false alarms this session alone (S2/S7-price-level, event-proximity CP3,
 D2 section-4-CP3) before the pattern was named. **Always verify code-merge status from the CODE
 worktree (`s7-price-level`) against `origin/master`, never from the docs worktree's own history.**
+
+## 0b. Re-verified 2026-09-21 — deltas from everything above (read before re-checking any of it)
+
+- **Merge tree** is `C:\Users\Patrick\uct-worktrees\_merge-master` (branch `merge-run`). A handoff
+  prompt spelled it `uct-worktrees_merge-master`; that path does not exist. `merge-run` was **76
+  commits behind** `origin/master` (`a392afd11`) — fast-forward it before any cherry-pick.
+- **"Is this code merged?" is answered by PATCH-ID, from the code tree**: `git cherry origin/master HEAD`
+  (`-` = already on master under another SHA, `+` = genuinely absent). Ancestry is the wrong test because
+  master receives cherry-picks. Measured: **77 `-`, 2 `+`**. Of the two, `304ac481c` has a same-subject twin
+  on master (`dda293e87`, not this programme's); **`87b5735f4` (F-S7-RC-3) is genuinely absent.**
+- ⛔ **F-S7-RC-3 is FIXED ON THE BRANCH AND NOT DEPLOYED** — `COMPLETION_AUDIT.md` §3.1 said "fix shipped"
+  and was wrong. Production runs without it. ⛔ **It does NOT contaminate the regime-change dark read**:
+  `regime_change_projection.py` is read-only ("no `add_insight`") and models the legacy emitter as declared
+  params (`_params()`), never by calling `maybe_emit_regime_shift` or reading its insight rows — so the
+  two are independent. What its absence IS: a **live member-facing defect** (path B re-queues the same
+  "regime shifted" insight every scan cycle until the shared 8/day cap, crowding out `daily_focus`). Whether
+  it is actually firing in production is **UNMEASURED**. Deploying it needs the cherry-pick, the owner's
+  explicit "deploy", and a member-impact paragraph. ⚰️ *An earlier draft of this bullet said the dark
+  numbers "come from pre-fix code" — wrong, retracted before publishing.*
+- ⛔ **`tools/terminal_next_env_check.py` FALSE-STOPs** (**F-ENVCHECK-1**): it tests ancestry, so it prints
+  `FAIL … 10 unpublished commits` on a clean tree, 9 of which are on master. A STOP from check 1 is **not
+  evidence** until `git cherry` agrees — but do not skip it either: `87b5735f4` is a real `+`.
+- **S1-CP3's proposal said "all 21 existing entries"; `WIDGET_REGISTRY` has 20** (same at `1b1903257`, HEAD
+  and master). Corrected in the proposal and its scope file, count now derived not typed. It was unsigned;
+  if it is ever re-derived after signing, that changes the fingerprint.
+- **§2's admin route is DEPLOYED**, not merely merged: an unauthenticated
+  `GET /api/admin/alert-taxonomy/dark-report` returns **401 JSON** (not the SPA shell), prod uptime 13,625 s.
+  Path 2 needs only an admin login in a real browser.
+- **Proposal premises re-checked against master `a392afd11`** (76 commits newer than the proposals): D3-CP4,
+  D4-CP5, A14-CP1 target files untouched, every named symbol exists; A12-CP1 target files untouched except
+  `list_prebuilt_watchlists` (default unchanged), and both gaps it pins are still true; S1-CP3 see above.
+- **F-AUDIT-3** (§3.1c of the audit): D3/D4 are counted DONE while A10 waits on exactly their new
+  checkpoints. Counts stay at 22 pending a ruling; under the other reading DONE is 20. Owner call.
+- `sign_gate.py <packet>` **SIGNS IMMEDIATELY** — there is no dry-run flag; `--read-check`/`--self-check`
+  run only on synthetic text. To check a real packet read-only, import the tool and call `read_approval()`.
 
 ## 1. Five things are sitting ready for the owner's signature/decision RIGHT NOW
 

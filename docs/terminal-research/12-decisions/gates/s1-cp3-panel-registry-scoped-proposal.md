@@ -80,8 +80,9 @@ tab landing as its own hand-wired import — "`Technical` is a NEW tab... Source
 EXISTING `/api/patterns/{sym}` endpoint," "`Ask AI` is the ONE contextual AI door...
 Placed last." That is precisely the anti-pattern product-architecture.md §5 calls out
 for S1's *board* ("a hand-curated widget list that grows slower than the product" —
-`WIDGET_REGISTRY`, measured this pass at **21 entries**, up from the 18 the survey
-cited, `workspace-systems-survey.md:43`) — except here it is a hand-curated *tab* list
+`WIDGET_REGISTRY`, measured at **20 entries** (re-derived 2026-09-21 by parsing the
+literal on origin/master; ⚰️ this said 21, a miscount, same 20 at `1b1903257`, at HEAD
+and at master), up from the 18 the survey cited, `workspace-systems-survey.md:43`) — except here it is a hand-curated *tab* list
 growing *faster* than any registry tracks it. Same root cause (no registry), opposite
 symptom. Every tab shipped this way works today; the cost is that the next consumer
 (a chart widget wanting to open one lens inline, an alert wanting to deep-link to one
@@ -128,7 +129,8 @@ flag armed" constraints):
   (required `labels`, `defaults`, `paramsSchema`) before it lands in the registry, so
   a malformed entry fails at registration time instead of at first render (today's
   failure mode, per `registry.test.js`'s own characterization-rail framing). **No
-  existing entry's behavior changes** — `menus.terminal` defaults false for all 21.
+  existing entry's behavior changes** — `menus.terminal` defaults false for every existing entry (the count is derived from the
+  registry, never typed: ⚰️ this said "all 21"; the registry holds 20).
 - **The TD-02 error boundary** — `tech-debt-register.md` TD-02, confirmed still absent
   this pass (`grep -n ErrorBoundary app/src/pages/charts/{ChartsWorkspace,WidgetHost}.jsx`
   → no matches, both files, both this pass and the register's own citation). One
@@ -201,7 +203,7 @@ or the reversibility ledger already closed):
 | Component | State |
 |---|---|
 | `registerPanel`/`promote(`/`popout(` | **Absent, repo-wide** (`git grep`, `app/src`, empty). |
-| `WIDGET_REGISTRY` (`app/src/widgets/registry.js`) | 21 entries (measured this pass; `workspace-systems-survey.md:43` cites 18 — drifted since that survey). `menus` shape is `{workspace, tab, mobile, journal}` — no `terminal` key. Metadata-only by design (file header, lines 1-15): "no component imports, no host imports, no CSS." |
+| `WIDGET_REGISTRY` (`app/src/widgets/registry.js`) | 20 entries (re-derived 2026-09-21; ⚰️ this said 21 — a miscount; `workspace-systems-survey.md:43` cites 18 — drifted since that survey). `menus` shape is `{workspace, tab, mobile, journal}` — no `terminal` key. Metadata-only by design (file header, lines 1-15): "no component imports, no host imports, no CSS." |
 | TD-02 (per-widget error boundary) | Confirmed absent this pass, same two files the register cites. |
 | Panel-count / mount-queue cap on the single board | Absent (capability-ledger C1; re-confirmed, no cap literal under `app/src/pages/charts`). `useStaggeredMount` exists but only under `pages/charts/grid/` (Multi-Chart Grid), never imported by `ChartsWorkspace.jsx`/`WidgetHost.jsx`. |
 | Pop-out | **Working, real code** — `PopoutWindow.jsx`, `PopoutShell.jsx`, `PoppedLayout.jsx`, wired from `WidgetHeader.jsx`'s pop-out buttons. Not named as a primitive; no test asserts a stable `popout(panel)` contract. |
@@ -259,7 +261,7 @@ addition (and the *next* board widget) from paying the same bespoke-wiring cost 
 
 | Risk | Real, because | Mitigation this checkpoint carries |
 |---|---|---|
-| **`registerPanel` becomes an unused abstraction** — built before any second consumer needs it, the exact anti-pattern §2 DEFER cites for the entity page. | `WIDGET_REGISTRY` already works without a validation wrapper; 21 entries ship fine today. | Scoped as a thin, additive validation layer over the *existing* shape (no new fields required of current entries besides a defaulted `menus.terminal: false`) — cost is small enough that "unused" is a low-consequence outcome, unlike a full registry-hosted entity-page rebuild. |
+| **`registerPanel` becomes an unused abstraction** — built before any second consumer needs it, the exact anti-pattern §2 DEFER cites for the entity page. | `WIDGET_REGISTRY` already works without a validation wrapper; its 20 entries ship fine today. | Scoped as a thin, additive validation layer over the *existing* shape (no new fields required of current entries besides a defaulted `menus.terminal: false`) — cost is small enough that "unused" is a low-consequence outcome, unlike a full registry-hosted entity-page rebuild. |
 | **`promote`/`popout` naming existing behavior reads as busywork.** | Both mechanisms already work; nothing user-visible changes. | Named explicitly as the point in §2 SHOULD — the payoff is the *next* page/panel adopting one contract instead of re-deriving `embedded` or the popout wiring from scratch, not a member-facing change today. |
 | **The panel-count cap picks the wrong number** — too low frustrates a power user's board, too high defeats the point of `useStaggeredMount`. | No production telemetry on max concurrent widgets per board was queried this pass (out of scope — a live-DB read, same category GATE-S1 and the sibling D3 CP4 proposal both flag as owner-bound rather than run unilaterally). | Named as an owner-bound question (§6) rather than a guessed constant; `useStaggeredMount`'s own `limit` parameter is proven adjustable without a schema change (Multi-Chart Grid already tunes it). |
 | **This checkpoint is read as clearing DEC-01 or the OI-06 diff-against-shipped obligation by proxy**, because it ships under the S1 banner right after those items were discussed. | The S1/S2 PROVISIONAL-SHIPPED exception's own text warns exactly against this shape of drift. | §1 states explicitly, in the same words as the reversibility ledger, that nothing here decides DEC-01 or discharges the diff obligation; §6 asks the question directly rather than assuming silence means "not needed." |
@@ -297,7 +299,7 @@ as a fourth surface kind, and cross-surface lens-hosting are all explicitly DEFE
 | Test | Proves |
 |---|---|
 | `test_registerPanel_validates_required_manifest_fields` | A manifest missing `labels`/`defaults`/`paramsSchema` is rejected at registration, not at first render. |
-| `test_registerPanel_defaults_menus_terminal_false_for_existing_entries` | All 21 current `WIDGET_REGISTRY` entries pass through unchanged; `menus.terminal` defaults `false` — zero behavior change for existing widgets. |
+| `test_registerPanel_defaults_menus_terminal_false_for_existing_entries` | Every current `WIDGET_REGISTRY` entry (the test iterates `Object.keys(WIDGET_REGISTRY)` and asserts against that length, never a typed count; 20 today) passes through unchanged; `menus.terminal` defaults `false` — zero behavior change for existing widgets. |
 | `test_throwing_widget_is_isolated_by_error_boundary` | Mounts a widget that throws on render inside `WidgetBody`; asserts sibling widgets stay mounted and interactive — mutation-proved (deleting the boundary must fail this test). |
 | `test_board_mount_count_is_bounded_by_staggered_mount` | Adding N widgets past the published cap leaves only `limit` concurrently mounted, mirroring `useStaggeredMount.test.js`'s existing grid coverage applied to the single-board path. |
 | `test_popout_wraps_existing_popout_window_behavior_unchanged` | `popout(panel)` produces byte-identical behavior to today's `WidgetHeader` pop-out button path (a characterization test, not a new-behavior test). |
