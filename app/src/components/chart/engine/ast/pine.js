@@ -105,7 +105,7 @@ import { memberNumber } from './memberValue.js'
 // statements; `objectProgram.js` owns the canonical shape they become. Neither
 // imports this file, so there is no cycle and the object model stays authorable
 // without Pine (the Builder-future-proofing rule this wave was given).
-import { collectObjectOps, CREATE_POSITIONAL, CELL_POSITIONAL } from './pineObjects.js'
+import { collectObjectOps, CREATE_POSITIONAL, CELL_POSITIONAL, CLEAR_POSITIONAL } from './pineObjects.js'
 import {
   OBJECT_PROGRAM_VERSION, DEFAULT_OBJECT_LIMITS,
   FAMILY_PROPS as OBJECT_FAMILY_PROPS, CELL_PROPS as OBJECT_CELL_PROPS,
@@ -10907,6 +10907,23 @@ function buildObjectProgram(stmts, source, env, makeResolver, bindingByStatement
       const target = targetRef(op.target)
       if (!target) { dropped('delete:target'); continue }
       ops.push({ k: 'delete', target, when, ...lastBarOnly })
+    } else if (op.k === 'clear') {
+      const target = targetRef(op.target)
+      if (!target) { dropped('clear:target'); continue }
+      const raw = namedOrPositional(op.args, CLEAR_POSITIONAL)
+      const startCol = raw.start_column ? valueRef(raw.start_column) : null
+      const startRow = raw.start_row ? valueRef(raw.start_row) : null
+      // ⛔ BOTH STARTS ARE REQUIRED. Pine has no default for them, so a call
+      // this door cannot read the address of is dropped and COUNTED — never
+      // widened to "the whole table", which would delete cells nobody named.
+      if (!startCol || !startRow) { dropped('clear:address'); continue }
+      // ⭐ THE DEFAULT IS THE START, per Pine's own signature — so an absent
+      // `end_` argument reuses the start's REFERENCE, and the rectangle
+      // collapses to the single cell the author named.
+      const endCol = raw.end_column ? valueRef(raw.end_column) : startCol
+      const endRow = raw.end_row ? valueRef(raw.end_row) : startRow
+      if (!endCol || !endRow) { dropped('clear:bounds'); continue }
+      ops.push({ k: 'clear', target, startCol, startRow, endCol, endRow, when, ...lastBarOnly })
     } else if (op.k === 'cell') {
       const target = targetRef(op.target)
       const col = op.col ? valueRef(op.col.value) : null

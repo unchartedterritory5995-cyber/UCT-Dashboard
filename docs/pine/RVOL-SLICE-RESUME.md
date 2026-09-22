@@ -67,10 +67,24 @@ The wall moved **L82 → L106 → L129 → L143 → none** over this session.
 The ORB logic is proved separately in `objectLane`/clock rails
 (`NaN,0,1,1,1,1,1,1` once later closes exceed the opening range).
 
-⛔ **`table.clear` IS SILENTLY IGNORED** — absent from the ops AND absent from
-`droppedOps`. Harmless for a last-bar-only draw, and it is still a silent
-omission rather than a named refusal, which this codebase treats as a defect.
-First item on the list below.
+✅ **`table.clear` IS CARRIED (2026-09-21).** It used to be read, filed under
+`objectDiagnostics.unsupported`, and then dropped — absent from the ops AND
+absent from `droppedOps`, so nothing downstream could tell the call had ever
+been there. It is now a real `clear` op through all four layers (reader →
+converter → program → runtime) and removes the inclusive rectangle it names.
+
+⭐ **Carried, not refused, and the reason is worth keeping:** refusing it by
+name would have stopped the acceptance dashboard, which calls it at its own
+line 108 — a by-name refusal was the only option that would have REGRESSED the
+one script this lane can currently draw. Ten of the 266 corpus scripts call it,
+17+ sites.
+
+⚠️ **It is not a whole-table fix.** On `strong-start-rvol-dashboard` the two
+clears still do not reach the program: both sit under a guard the converter
+cannot translate, which is the same pre-existing limit that drops 8 of that
+same script's CELLS (`guard:cell`). What changed there is that an
+untranslatable clear is now a COUNTED drop with a named reason
+(`dropReasons['guard:clear'] === 2`) instead of vanishing.
 
 ### The previous script (`strong-start-rvol-dashboard`)
 
@@ -300,9 +314,18 @@ case. Compare failing test NAMES.
 lowering inside a request · the ET clock and session clock · the target
 dashboard builds, runs and draws.
 
-1. **`table.clear` — silently ignored.** Not in the ops, not in `droppedOps`.
-   Either carry it or refuse it BY NAME; a silent omission is the failure mode
-   this engine exists to avoid. Smallest item, highest principle.
+1. ✅ **DONE 2026-09-21 — `table.clear` is CARRIED.** Reader → converter →
+   program → runtime, 12 cases in
+   `runtime/__tests__/tableClear.test.js`, five mutations RED, 0 NEW failures
+   against a pristine-HEAD baseline on both the engine suite and pine.js's
+   other consumers. See the ✅ block near the top for what it does and does
+   NOT fix.
+   ⭐ **One finding worth carrying into (2) and (3):** the first four cases all
+   used integer-literal bounds, which fold to constants — so deleting the
+   binding that turns a bound into something the runtime can read left the
+   whole rail GREEN. A fifth case with a bound computed from `close` is what
+   catches it. **Any op whose arguments can be either a literal or an
+   expression needs a computed-argument case, or its binding is unrailed.**
 2. **`calc_bars_count`** — a named argument on `request.security`, accepted and
    ignored today. Decide: honour it (bounds the history a request needs) or
    refuse by name.

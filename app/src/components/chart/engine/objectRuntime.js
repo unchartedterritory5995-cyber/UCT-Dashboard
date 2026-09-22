@@ -373,6 +373,39 @@ export function evaluateObjects(program, ctx) {
           if (ctx.trace) events.push({ bar, k: 'cell', id: inst.id, col, row })
           break
         }
+        // ⭐⭐ THE RECTANGLE THE AUTHOR REMOVED. Pine's `table.clear` takes an
+        // INCLUSIVE block of cells out of the drawing; the corpus idiom is to
+        // clear a block and repopulate it, so skipping this leaves last bar's
+        // rows under this bar's header with nothing marking them stale.
+        case 'clear': {
+          const target = resolveRef(op.target)
+          const inst = target === null ? null : live.get(target)
+          if (!inst) { writesToDeleted += 1; break }
+          const startCol = Number(value(op.startCol))
+          const startRow = Number(value(op.startRow))
+          const endCol = Number(value(op.endCol))
+          const endRow = Number(value(op.endRow))
+          // ⛔ A BOUND THAT IS NOT A WHOLE NUMBER CLEARS NOTHING, never "all of
+          // it" — the same call `cell` makes for its address. `array.size(x)-1`
+          // before the array is filled is `na`, and treating that as a bound
+          // would empty a table the author was still writing into.
+          if (![startCol, startRow, endCol, endRow].every(Number.isInteger)) break
+          const map = cells.get(inst.id)
+          if (!map) break
+          // ⚠️ ASCENDING ONLY, AND DELIBERATELY NOT NORMALISED. Whether Pine
+          // swaps a rectangle whose end precedes its start is NOT measured, and
+          // the two readings fail in opposite directions: iterating a reversed
+          // range clears nothing (stale cells, the defect this op fixes),
+          // normalising it clears cells nobody named (content destroyed). No
+          // corpus call site writes one, so the cheaper mistake is taken until
+          // a vendor capture says otherwise.
+          for (let c = startCol; c <= endCol; c += 1) {
+            for (let r = startRow; r <= endRow; r += 1) map.delete(`${c},${r}`)
+          }
+          updated += 1
+          if (ctx.trace) events.push({ bar, k: 'clear', id: inst.id, startCol, startRow, endCol, endRow })
+          break
+        }
         case 'delete': {
           const target = resolveRef(op.target)
           const inst = target === null ? null : live.get(target)

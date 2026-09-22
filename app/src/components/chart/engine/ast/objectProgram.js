@@ -115,7 +115,7 @@ export const CELL_PROPS = Object.freeze(['text', 'text_color', 'text_size', 'tex
 export const REF_PROPS = Object.freeze({ 'linefill.line1': 'line', 'linefill.line2': 'line' })
 
 export const OBJECT_OP_KINDS = Object.freeze([
-  'create', 'update', 'delete', 'cell', 'setreg', 'push', 'collset', 'collclear', 'collremove',
+  'create', 'update', 'delete', 'cell', 'clear', 'setreg', 'push', 'collset', 'collclear', 'collremove',
   // ⭐⭐ THE TENTH KIND, AND THE FIRST ONE THAT CONTAINS OTHER OPS.
   //
   // ⚰ `pineObjects.js` refuses an object operation inside a `for`/`while` and
@@ -498,13 +498,24 @@ export function assertObjectProgram(program) {
           throw new Error(`${where}: a ${op.family} cannot be stored in register ${op.into}, which holds ${reg.family}`)
         }
       }
-    } else if (op.k === 'update' || op.k === 'delete' || op.k === 'cell') {
+    } else if (op.k === 'update' || op.k === 'delete' || op.k === 'cell' || op.k === 'clear') {
       const fam = resolveTargetFamily(op, where, regs, colls, siteFamily)
       if (op.k === 'cell') {
         if (fam !== 'table') throw new Error(`${where}: cell targets a ${fam}, but only a table has cells`)
         assertValueRef(op.col, `${where}.col`)
         assertValueRef(op.row, `${where}.row`)
         assertCellProps(op, where)
+      }
+      // ⛔ ALL FOUR BOUNDS ARE ASSERTED, including the two Pine lets an author
+      // omit — the converter fills an absent `end_` from its own start, so by
+      // the time an op reaches here a missing one is a CONVERTER defect, and a
+      // rectangle with an unreadable edge would delete an arbitrary block.
+      if (op.k === 'clear') {
+        if (fam !== 'table') throw new Error(`${where}: clear targets a ${fam}, but only a table has cells`)
+        assertValueRef(op.startCol, `${where}.startCol`)
+        assertValueRef(op.startRow, `${where}.startRow`)
+        assertValueRef(op.endCol, `${where}.endCol`)
+        assertValueRef(op.endRow, `${where}.endRow`)
       }
       if (op.k === 'update') assertProps(op, where, fam, regs, colls, siteFamily)
     } else if (op.k === 'setreg') {
@@ -748,6 +759,15 @@ export function bindObjectProgram(program, nodeOf) {
     if (op.value && op.value.r) out.value = bindRef(op.value)
     if (op.col) out.col = bindValue(op.col)
     if (op.row) out.row = bindValue(op.row)
+    // ⛔ THE CLEAR RECTANGLE BINDS TOO, for the reason the loop comment above
+    // gives: an unbound `{v:'tree'}` reaching the runtime reads as an unknown
+    // kind and answers `undefined`, and a bound that is not a number clears
+    // NOTHING — so a forgotten bind here is a `table.clear` that silently
+    // stops working rather than one that fails.
+    if (op.startCol) out.startCol = bindValue(op.startCol)
+    if (op.startRow) out.startRow = bindValue(op.startRow)
+    if (op.endCol) out.endCol = bindValue(op.endCol)
+    if (op.endRow) out.endRow = bindValue(op.endRow)
     if (op.index) out.index = bindValue(op.index)
     if (op.props) {
       out.props = Object.fromEntries(Object.entries(op.props)

@@ -48,6 +48,16 @@ export const CREATE_POSITIONAL = Object.freeze({
 export const CELL_POSITIONAL = Object.freeze(['text', 'width', 'height', 'text_color',
   'text_halign', 'text_valign', 'bgcolor', 'tooltip', 'text_size'])
 
+/** `table.clear(table_id, start_column, start_row, end_column, end_row)` — the
+ *  four bounds AFTER the handle, in Pine's own order.
+ *
+ *  ⭐ `end_column`/`end_row` are OPTIONAL and default to their `start_`
+ *  counterpart, so `table.clear(t, 0, 2)` takes exactly the one cell. They are
+ *  left ABSENT here rather than filled in, because the default is a property of
+ *  the other argument and only the converter has both in hand. */
+export const CLEAR_POSITIONAL = Object.freeze(['start_column', 'start_row',
+  'end_column', 'end_row'])
+
 /**
  * A Pine setter name → the canonical properties it writes, in the order its
  * arguments arrive AFTER the object handle.
@@ -503,6 +513,22 @@ export function collectObjectOps(stmts, h) {
     const rest = args.slice(1)
     if (method === 'delete') {
       ops.push({ k: 'delete', family: ns, target, guards, locals: scope, loopIds: [...loopIds], at: toks[0], line: st.header[0].line })
+      return
+    }
+    // ⭐⭐ `table.clear` REMOVES A RECTANGLE OF CELLS, and it is carried rather
+    // than refused because ignoring it draws a WRONG table, not a smaller one.
+    // The corpus idiom is *clear the block, then repopulate it*; on a bar where
+    // fewer rows qualify than the bar before, the rows nobody rewrote stay on
+    // screen as last bar's numbers under this bar's header.
+    //
+    // ⛔ REFUSING IT BY NAME WAS THE OTHER OPTION AND WOULD HAVE BEEN A
+    // REGRESSION: the acceptance dashboard calls it at its line 108, so a
+    // refusal would stop the one script this lane can currently draw.
+    if (ns === 'table' && method === 'clear') {
+      ops.push({
+        k: 'clear', target, args: rest,
+        guards, locals: scope, loopIds: [...loopIds], at: toks[0], line: st.header[0].line,
+      })
       return
     }
     if (ns === 'table' && method === 'cell') {
