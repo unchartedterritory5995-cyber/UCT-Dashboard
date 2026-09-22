@@ -296,6 +296,63 @@ whole-file ending flip shows up as thousands of changed lines.
 
 ---
 
+## ⚰⚰ THE BOTTLENECK MOVED, AND IT FALSIFIES WHAT THIS FILE SAID YESTERDAY
+
+**Struck, 2026-09-22.** The block above headed *"READ THIS BEFORE PLANNING FROM ANY
+TABLE BELOW"* concluded:
+
+> *"Phase 2 (the named-vocabulary sweep) is a RUNTIME-LANE queue, so on this
+> evidence it will close guards and move no member-visible drawing. The four
+> largest product-path blockers are all object-pass work."*
+
+**That was true when written and is false now.** Two waves cleared the object
+pass. Re-measured on the merged tree, the object-lane census reads:
+
+| n | drawers | lane / guard |
+|---|---|---|
+| 35 | **35** | runtime/`runtime:declaration` |
+| 21 | **21** | runtime/`pine:builtin` |
+| 17 | **17** | runtime/`runtime:udt` |
+| 13 | **13** | runtime/`pine:undefined` |
+| 12 | **12** | runtime/`runtime:statement` |
+| 12 | **12** | runtime/`runtime:expression-statement` |
+| 12 | 10 | objects/`pine:no-output` |
+
+**Almost every top row is now the RUNTIME lane, and every one of them is all
+drawers.** The object-pass rows that dominated — `pine:character` 23,
+`objects:nothing-drawn` 13, `objects:iterated-tree-not-last-bar` 11 — are gone
+or reclassified. So the named-vocabulary sweep is now exactly where the work is,
+which is the opposite of yesterday's conclusion.
+
+⭐ **The correction is the point, not an embarrassment.** Yesterday's block was
+right to retire "clear census rows ⇒ scripts draw"; what it got wrong was
+treating a snapshot of WHICH LANE refuses as a durable property of the corpus.
+It is a moving target, and the drawer cross-tab — not the row size — is what
+stays true. **Re-measure before planning; that is what the commands are for.**
+
+### ⭐⭐ `pine:builtin` is THREE jobs, read from its call sites
+
+Not one, and not 23 unrelated ones:
+
+1. **The `timeframe.*` family** — `period`, `multiplier`, `in_seconds`, `change`.
+   The largest cluster, and the one with the demand behind it:
+   **`timeframe.period` is 339 uses in 71 scripts**, `timeframe.in_seconds` 119
+   uses in 28. The refusal is literally *"this Pine built-in names something the
+   engine grammar does not hold"*.
+2. **`time` IS MILLISECONDS IN PINE AND SECONDS HERE** — a thousand-fold
+   difference, refused deliberately and loudly rather than silently compared
+   against a literal no member wrote. A units ruling, not a vocabulary gap.
+3. **A tail** — `barstate.isnew` (needs per-tick evaluation), `syminfo.basecurrency`,
+   `str.length`.
+
+⛔ **And declaring a name is not free**, which shapes how any of this lands:
+`closedTable.json` is mirrored by the PYTHON lane in
+`api/services/ast_interpret.py`, and `screenerColumns.test.js` freezes those
+columns for it to read. One name added on 2026-09-22 cost **23 new test
+failures** before it was reverted. Measure the ripple first.
+
+---
+
 ## The honest timeline
 
 | Target | Effort |
