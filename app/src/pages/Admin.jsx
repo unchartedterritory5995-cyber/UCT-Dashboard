@@ -5,6 +5,7 @@ import TwitterAccountsPanel from '../components/admin/TwitterAccountsPanel'
 import CommunityReportsPanel from '../components/admin/CommunityReportsPanel'
 import AiSearchInsightsPanel from '../components/admin/AiSearchInsightsPanel'
 import CatalystRulesPanel from '../components/admin/CatalystRulesPanel'
+import CompassHealthPanel from '../components/admin/CompassHealthPanel'
 import { formatETDate } from '../utils/timeAgo'
 
 // ── Constants ──
@@ -2025,6 +2026,9 @@ export default function Admin() {
 
       {/* ── Section 6e: Catalyst Curator learned rules (notes → durable rules) ── */}
       <CatalystRulesPanel />
+
+      {/* ── Section 6f: Compass Health (Packet M, signed 2026-09-22) ── */}
+      <CompassHealthPanel />
 
       {/* ── Section 7: System Health ── */}
       <div className={styles.healthSection}>
