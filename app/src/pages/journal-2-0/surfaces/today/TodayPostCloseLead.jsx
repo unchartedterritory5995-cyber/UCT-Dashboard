@@ -34,7 +34,8 @@ export default function TodayPostCloseLead({ account, overview }) {
       const out = await generate()
       if (out?.skipped) setErrorMsg('No activity today — Compass took the day off.')
     } catch (e) {
-      setErrorMsg(String(e.message || e))
+      console.error('Failed to generate EOD recap:', e)
+      setErrorMsg("Couldn't generate today's recap. Nothing was lost — try again.")
     } finally {
       setGenerating(false)
     }
@@ -55,7 +56,12 @@ export default function TodayPostCloseLead({ account, overview }) {
           recap={todaysRecap}
           onFeedback={(v) => feedback(todaysRecap.id, v)}
           onRegenerate={async () => {
-            try { await regenerate(todaysRecap.id) } catch (e) { setErrorMsg(String(e.message || e)) }
+            try {
+              await regenerate(todaysRecap.id)
+            } catch (e) {
+              console.error('Failed to regenerate EOD recap:', e)
+              setErrorMsg("Couldn't regenerate today's recap. Nothing was lost — try again.")
+            }
           }}
           onForget={() => forget(todaysRecap.id)}
         />
