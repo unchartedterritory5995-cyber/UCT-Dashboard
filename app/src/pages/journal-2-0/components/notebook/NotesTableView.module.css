@@ -1,7 +1,7 @@
 .sortBtn {
   background: none;
   border: none;
-  color: var(--color-text-muted, #98a0aa);
+  color: var(--text-muted);
   font-size: 12px;
   font-weight: 600;
   text-transform: uppercase;
@@ -13,15 +13,15 @@
   min-height: 32px;
 }
 .sortBtn:hover {
-  color: #dcbb5e;
+  color: var(--ut-gold);
 }
 .titleCell {
   font-size: 13px;
-  color: var(--color-text-primary, #e8eaed);
+  color: var(--text-bright);
   font-weight: 500;
 }
 .emptyCell {
-  color: var(--color-text-muted, #98a0aa);
+  color: var(--text-muted);
   opacity: 0.6;
 }
 /* Wave Q1 — the same badge as the card grid, on the other list view.
@@ -42,7 +42,7 @@
 .valueChip {
   background: rgba(220, 187, 94, 0.12);
   border: 1px solid rgba(220, 187, 94, 0.3);
-  color: #dcbb5e;
+  color: var(--ut-gold);
   font-size: 11px;
   padding: 3px 8px;
   border-radius: 999px;

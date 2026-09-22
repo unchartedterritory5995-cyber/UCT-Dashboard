@@ -9,8 +9,8 @@
 .sheet {
   width: 100%; max-width: 520px;
   max-height: min(88vh, 760px); overflow-y: auto;
-  background: var(--color-surface, #14161a);
-  border: 1px solid var(--color-border, rgba(255, 255, 255, 0.12));
+  background: var(--bg-surface);
+  border: 1px solid var(--border);
   border-radius: 10px;
   padding: 16px 18px 14px;
   box-shadow: 0 18px 48px rgba(0, 0, 0, 0.45);
@@ -27,7 +27,7 @@
 .destRow {
   display: flex; align-items: baseline; gap: 8px;
   padding: 8px 10px; margin-bottom: 12px;
-  border: 1px solid var(--color-border, rgba(255, 255, 255, 0.12));
+  border: 1px solid var(--border);
   border-radius: 6px;
   background: var(--color-surface-2, rgba(255, 255, 255, 0.03));
 }
@@ -42,7 +42,7 @@
   font-size: 16px; line-height: 1.45;
   color: inherit;
   background: var(--color-input-bg, rgba(255, 255, 255, 0.04));
-  border: 1px solid var(--color-border, rgba(255, 255, 255, 0.14));
+  border: 1px solid var(--border);
   border-radius: 6px;
 }
 .textarea { resize: vertical; min-height: 44px; }
@@ -51,7 +51,7 @@
    member's own writing (§2). The distinction is carried by the rule, the indent
    and the label -- never by colour alone. */
 .quoted {
-  border-left: 3px solid var(--color-accent, #c9a84c);
+  border-left: 3px solid var(--accent);
   padding-left: 12px;
   font-style: italic;
 }
@@ -62,9 +62,9 @@
 }
 .refusal { border: 1px solid rgba(234, 179, 8, 0.4); background: rgba(234, 179, 8, 0.08); }
 .refusalText { margin: 0 0 8px; }
-.error { border: 1px solid rgba(248, 113, 113, 0.4); background: rgba(248, 113, 113, 0.08); }
+.error { border: 1px solid var(--loss-border); background: var(--loss-bg); }
 .saved {
-  border: 1px solid rgba(74, 222, 128, 0.35); background: rgba(74, 222, 128, 0.07);
+  border: 1px solid var(--gain-border); background: var(--gain-bg);
   display: flex; align-items: center; justify-content: space-between; gap: 10px;
 }
 .link { background: none; border: none; cursor: pointer; color: inherit; text-decoration: underline; padding: 0; }
@@ -91,14 +91,14 @@
     max-height: 92vh;
     padding-bottom: calc(14px + env(safe-area-inset-bottom, 0px));
   }
-  .foot { position: sticky; bottom: 0; background: var(--color-surface, #14161a); padding-top: 10px; }
+  .foot { position: sticky; bottom: 0; background: var(--bg-surface); padding-top: 10px; }
 }
 
 .destPicker {
   flex: 1; min-height: var(--tap-min, 44px);
   font-size: 16px; padding: 6px 8px; color: inherit;
   background: var(--color-input-bg, rgba(255, 255, 255, 0.04));
-  border: 1px solid var(--color-border, rgba(255, 255, 255, 0.14));
+  border: 1px solid var(--border);
   border-radius: 6px;
 }
 .change {
@@ -115,7 +115,7 @@
 .offer {
   display: flex; align-items: center; gap: 8px; flex-wrap: wrap;
   margin-top: 8px; padding: 7px 10px; font-size: 12px;
-  border: 1px solid var(--color-border, rgba(255, 255, 255, 0.14));
+  border: 1px solid var(--border);
   border-radius: 6px;
 }
 

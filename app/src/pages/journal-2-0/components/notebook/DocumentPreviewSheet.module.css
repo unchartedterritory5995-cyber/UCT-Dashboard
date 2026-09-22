@@ -29,13 +29,13 @@
   justify-content: space-between;
   gap: 12px;
   padding: 10px 14px;
-  border-bottom: 1px solid var(--color-border, #232932);
+  border-bottom: 1px solid var(--border);
   flex-shrink: 0;
 }
 .name {
   font-size: 13px;
   font-weight: 600;
-  color: var(--color-text-primary, #e8eaed);
+  color: var(--text-bright);
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -51,12 +51,12 @@
   align-items: center;
   gap: 5px;
   font-size: 12px;
-  color: var(--color-text-muted, #98a0aa);
+  color: var(--text-muted);
   text-decoration: none;
   min-height: 32px;
 }
 .actionLink:hover {
-  color: #dcbb5e;
+  color: var(--ut-gold);
 }
 .frame {
   flex: 1;

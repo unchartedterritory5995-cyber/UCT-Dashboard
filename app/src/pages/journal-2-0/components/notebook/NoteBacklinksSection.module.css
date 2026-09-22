@@ -1,6 +1,6 @@
 .wrap {
   margin-top: 24px;
-  border-top: 1px solid var(--color-border, #232932);
+  border-top: 1px solid var(--border);
   padding-top: 8px;
 }
 .list {
@@ -18,7 +18,7 @@
   border-radius: var(--radius-md);
   padding: 8px 6px;
   cursor: pointer;
-  color: var(--color-text-primary, #e8eaed);
+  color: var(--text-bright);
   min-height: 44px;
 }
 .row:hover {
@@ -33,6 +33,6 @@
 }
 .rowMeta {
   font-size: 11px;
-  color: var(--color-text-muted, #98a0aa);
+  color: var(--text-muted);
   margin-left: 8px;
 }

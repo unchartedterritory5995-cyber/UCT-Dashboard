@@ -5,13 +5,13 @@
   min-height: 100vh;
   display: flex; align-items: center; justify-content: center;
   padding: 20px 16px;
-  background: var(--color-bg, #0d0f12);
-  color: var(--color-text, #e8eaed);
+  background: var(--bg);
+  color: var(--text);
 }
 .card {
   width: 100%; max-width: 460px;
-  background: var(--color-surface, #14161a);
-  border: 1px solid var(--color-border, rgba(255, 255, 255, 0.12));
+  background: var(--bg-surface);
+  border: 1px solid var(--border);
   border-radius: 10px;
   padding: 20px 20px 16px;
   box-shadow: 0 18px 48px rgba(0, 0, 0, 0.45);
@@ -23,7 +23,7 @@
 .body { margin: 0 0 16px; font-size: 13px; line-height: 1.6; opacity: 0.88; }
 
 .grants {
-  border: 1px solid var(--color-border, rgba(255, 255, 255, 0.12));
+  border: 1px solid var(--border);
   border-radius: 8px;
   padding: 12px 14px;
   background: var(--color-surface-2, rgba(255, 255, 255, 0.03));
@@ -43,7 +43,7 @@
 .fine { margin: 14px 0 0; font-size: 12px; line-height: 1.5; opacity: 0.72; }
 .error {
   margin: 12px 0 0; font-size: 13px; line-height: 1.5;
-  color: var(--color-danger, #f87171);
+  color: var(--loss);
 }
 
 .actions { display: flex; gap: 10px; margin-top: 18px; }
@@ -58,12 +58,12 @@
   text-decoration: none;
 }
 .primary {
-  border: 1px solid var(--color-accent, #c9a84c);
-  background: var(--color-accent, #c9a84c);
+  border: 1px solid var(--accent);
+  background: var(--accent);
   color: #14161a;
 }
 .secondary {
-  border: 1px solid var(--color-border, rgba(255, 255, 255, 0.16));
+  border: 1px solid var(--border);
   background: transparent; color: inherit;
 }
 .primary:disabled, .secondary:disabled { opacity: 0.6; cursor: default; }

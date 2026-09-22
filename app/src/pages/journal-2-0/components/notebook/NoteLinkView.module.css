@@ -10,7 +10,7 @@
   margin: 0;
   font: inherit;
   font-weight: 500;
-  color: var(--ut-gold, #d4af37);
+  color: var(--ut-gold);
   cursor: pointer;
   border-bottom: 1px solid transparent;
 }
@@ -21,11 +21,11 @@
   cursor: default;
 }
 .chipUnavailable {
-  color: var(--text-muted, #888);
+  color: var(--text-muted);
   font-style: italic;
 }
 .chipTrashed {
-  color: var(--text-muted, #999);
+  color: var(--text-muted);
 }
 .badge {
   margin-left: 5px;
@@ -33,8 +33,8 @@
   font-weight: 600;
   text-transform: uppercase;
   letter-spacing: 0.4px;
-  color: #f87171;
-  background: rgba(248, 113, 113, 0.12);
+  color: var(--loss);
+  background: var(--loss-bg);
   border-radius: 3px;
   padding: 1px 4px;
 }
