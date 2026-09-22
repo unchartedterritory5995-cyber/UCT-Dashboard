@@ -69,6 +69,39 @@ def test_get_ticker_today_for_skip_stable_check(s):
     assert s.get_ticker_for_date("MISSING", "2026-05-26") is None
 
 
+def test_history_for_ticker_returns_newest_first_across_dates(s):
+    s.upsert_catalyst(_row("NVDA", market_date="2026-05-20", thesis="oldest"))
+    s.upsert_catalyst(_row("NVDA", market_date="2026-05-26", thesis="newest"))
+    s.upsert_catalyst(_row("NVDA", market_date="2026-05-23", thesis="middle"))
+    s.upsert_catalyst(_row("AMD", market_date="2026-05-26", thesis="not nvda"))
+    rows = s.history_for_ticker("NVDA")
+    assert [r["thesis_text"] for r in rows] == ["newest", "middle", "oldest"]
+
+
+def test_history_for_ticker_is_not_filtered_by_rank(s):
+    """Packet G CP1: a ticker that surfaced but did not make a given day's
+    top-20 (rank=None, cleared by clear_ranks_for_date) still shows in its
+    own history -- the Catalysts tab is a history of what the engine
+    NOTICED, not a re-rendering of the top-20 list."""
+    s.upsert_catalyst(_row("TSLA", market_date="2026-05-26", rank=3))
+    s.clear_ranks_for_date("2026-05-26")
+    rows = s.history_for_ticker("TSLA")
+    assert len(rows) == 1
+    assert rows[0]["rank"] is None
+
+
+def test_history_for_ticker_never_flagged_returns_empty_not_an_error(s):
+    assert s.history_for_ticker("ZZZZ") == []
+
+
+def test_history_for_ticker_respects_limit(s):
+    for i, d in enumerate(["2026-05-20", "2026-05-21", "2026-05-22"]):
+        s.upsert_catalyst(_row("SPY", market_date=d))
+    rows = s.history_for_ticker("SPY", limit=2)
+    assert len(rows) == 2
+    assert rows[0]["market_date"] == "2026-05-22"
+
+
 def test_clear_unselected_for_date_keeps_top_12(s):
     for i, t in enumerate(["A", "B", "C"]):
         s.upsert_catalyst(_row(t, rank=i + 1))

@@ -13,7 +13,9 @@ from typing import Optional
 
 from fastapi import APIRouter, Body, Depends, Header, HTTPException, Path
 
-from api.middleware.auth_middleware import get_current_user, require_admin
+from api.middleware.auth_middleware import (
+    get_current_user, get_current_user_with_plan, is_paid_user, require_admin,
+)
 from api.services.catalyst import engine, store
 
 logger = logging.getLogger(__name__)
@@ -21,6 +23,23 @@ router = APIRouter(prefix="/api", tags=["catalysts"])
 
 _ET = ZoneInfo("America/New_York")
 _DATE_RE = re.compile(r"^\d{4}-\d{2}-\d{2}$")
+
+
+def require_paid(user: dict = Depends(get_current_user_with_plan)) -> dict:
+    """Paid gate for the per-ticker catalyst history read (Packet G CP1).
+
+    ⛔ `get_current_user` alone is NOT the right gate here, unlike this
+    router's other reads (`by-date`, `explain`) -- those are deliberately
+    session-only because they serve the FREE Morning Wire page's own
+    CatalystTable. This endpoint's only authorized consumer is
+    `ResearchPage.jsx`, which is already 100% paid-gated end to end -- so a
+    session-only gate here would be the free tier reaching a paid page's data
+    through a side door. Defined HERE, never imported from a sibling, per
+    this codebase's own per-router 402 convention (see `modelbook.py`).
+    """
+    if not is_paid_user(user):
+        raise HTTPException(status_code=402,
+                            detail="Full catalyst history requires a paid plan")
 
 
 def _today() -> str:
@@ -128,6 +147,19 @@ def catalysts_by_date(ymd: str = Path(...), user=Depends(get_current_user)):
         raise HTTPException(400, "date must be YYYY-MM-DD")
     rows = store.get_for_date(ymd, ranked_only=True)
     return {"market_date": ymd, "rows": rows}
+
+
+@router.get("/catalysts/history/{sym}")
+def catalysts_history(sym: str = Path(...), user=Depends(require_paid)):
+    """Every catalyst entry UCT's engine has ever recorded for one ticker,
+    across all dates -- the per-ticker research page's Catalysts tab (Packet
+    G CP1). An empty `entries` list is a genuine, honest answer, never an
+    error: most tickers have never surfaced a catalyst."""
+    sym = sym.upper().strip()
+    if not sym or not sym.isalpha() or len(sym) > 6:
+        raise HTTPException(400, "invalid ticker")
+    entries = store.history_for_ticker(sym)
+    return {"ticker": sym, "entries": entries}
 
 
 @router.post("/catalysts/refresh")
