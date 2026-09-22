@@ -1,0 +1,116 @@
+/opt/hostedtoolcache/Python/3.12.14/x64/lib/python3.12/site-packages/pytest_asyncio/plugin.py:208: PytestDeprecationWarning: The configuration option "asyncio_default_fixture_loop_scope" is unset.
+The event loop scope for asynchronous fixtures will default to the fixture caching scope. Future versions of pytest-asyncio will default the loop scope for asynchronous fixtures to function scope. Set the default fixture loop scope explicitly in order to avoid unexpected behavior in the future. Valid fixture loop scopes are: "function", "class", "module", "package", "session"
+
+  warnings.warn(PytestDeprecationWarning(_DEFAULT_FIXTURE_LOOP_SCOPE_UNSET))
+........................................................................ [  4%]
+............................................F........................... [  9%]
+........................................................................ [ 14%]
+........................................................................ [ 18%]
+........................................................................ [ 23%]
+........................................................................ [ 28%]
+........................................................................ [ 32%]
+........................................................................ [ 37%]
+........................................................................ [ 42%]
+........................................................................ [ 47%]
+........................................................................ [ 51%]
+........................................................................ [ 56%]
+........................................................................ [ 61%]
+........................................................................ [ 65%]
+........................................................................ [ 70%]
+........................................................................ [ 75%]
+........................................................................ [ 80%]
+........................................................................ [ 84%]
+........................................................................ [ 89%]
+........................................................................ [ 94%]
+........................................................................ [ 98%]
+.................                                                        [100%]
+=================================== FAILURES ===================================
+_________________ test_most_anticipated_card_render_is_pinned __________________
+
+    def test_most_anticipated_card_render_is_pinned():
+        """calendar_png_common is shared by all three cards, so a change there
+        reaches this already-shipped one too. The hash is a TRIPWIRE, not a
+        freeze: when a deliberate chrome change trips it, look at the render and
+        re-pin. Last re-pinned 2026-07-30 for the full-bleed logo tile (which
+        also nudged the monogram corner radius 0.22 -> 0.24)."""
+        import hashlib
+        from api.services.calendar_anticipated_png import render_anticipated_png
+        entries = [
+            {"sym": "AAPL", "name": "Apple Inc.", "timing": "amc", "weekday": "MON",
+             "mc_b": 3400.0, "logo_path": None},
+            {"sym": "MSFT", "name": "Microsoft Corporation", "timing": "bmo",
+             "weekday": "WED", "mc_b": 3100.0, "logo_path": None},
+            {"sym": "NVDA", "name": "NVIDIA Corporation", "timing": "amc",
+             "weekday": "THU", "mc_b": 4200.0, "logo_path": None},
+            {"sym": "XOM", "name": "Exxon Mobil Corporation", "timing": "bmo",
+             "weekday": "FRI", "mc_b": 480.0, "logo_path": None},
+            {"sym": "KO", "name": "The Coca-Cola Company", "timing": "bmo",
+             "weekday": "TUE", "mc_b": 290.5, "logo_path": None},
+            {"sym": "F", "name": "Ford Motor Company", "timing": "amc",
+             "weekday": "TUE", "mc_b": 0.42, "logo_path": None},
+        ]
+        got = hashlib.sha256(
+            render_anticipated_png("Week of Aug 3-7, 2026", entries)).hexdigest()
+>       assert got == "f1ae5925d8d831afff593177813d75518587518dca245ce9b3bfc17075e86d0c"
+E       AssertionError: assert '814a9107c457...e7d9627274bdd' == 'f1ae5925d8d8...fc17075e86d0c'
+E         
+E         - f1ae5925d8d831afff593177813d75518587518dca245ce9b3bfc17075e86d0c
+E         + 814a9107c457afb2317fcc8d49c5e2ce60fea889e08b325febfe7d9627274bdd
+
+tests/test_calendar_week_post.py:283: AssertionError
+=============================== warnings summary ===============================
+../../../../../opt/hostedtoolcache/Python/3.12.14/x64/lib/python3.12/site-packages/starlette/testclient.py:40
+  /opt/hostedtoolcache/Python/3.12.14/x64/lib/python3.12/site-packages/starlette/testclient.py:40: DeprecationWarning: The anyio.abc.BlockingPortal alias is deprecated, use anyio.from_thread.BlockingPortal instead.
+    _PortalFactoryType = typing.Callable[[], typing.ContextManager[anyio.abc.BlockingPortal]]
+
+api/baselines.py:456
+  /home/runner/work/UCT-Dashboard/UCT-Dashboard/api/baselines.py:456: DeprecationWarning: datetime.datetime.utcnow() is deprecated and scheduled for removal in a future version. Use timezone-aware objects to represent datetimes in UTC: datetime.datetime.now(datetime.UTC).
+    _baselines_last_loaded = datetime.utcnow()
+
+tests/test_chart_renderer_admin_recycle.py: 32 warnings
+tests/test_chart_renderer_pool.py: 17 warnings
+tests/test_chart_renderer_service.py: 6 warnings
+  /home/runner/work/UCT-Dashboard/UCT-Dashboard/services/chart_renderer/app.py:693: DeprecationWarning: 
+          on_event is deprecated, use lifespan event handlers instead.
+  
+          Read more about it in the
+          [FastAPI docs for Lifespan Events](https://fastapi.tiangolo.com/advanced/events/).
+          
+    @app.on_event("startup")
+
+tests/test_chart_renderer_admin_recycle.py: 64 warnings
+tests/test_chart_renderer_pool.py: 34 warnings
+tests/test_chart_renderer_service.py: 12 warnings
+  /opt/hostedtoolcache/Python/3.12.14/x64/lib/python3.12/site-packages/fastapi/applications.py:4495: DeprecationWarning: 
+          on_event is deprecated, use lifespan event handlers instead.
+  
+          Read more about it in the
+          [FastAPI docs for Lifespan Events](https://fastapi.tiangolo.com/advanced/events/).
+          
+    return self.router.on_event(event_type)
+
+tests/test_chart_renderer_admin_recycle.py: 32 warnings
+tests/test_chart_renderer_pool.py: 17 warnings
+tests/test_chart_renderer_service.py: 6 warnings
+  /home/runner/work/UCT-Dashboard/UCT-Dashboard/services/chart_renderer/app.py:800: DeprecationWarning: 
+          on_event is deprecated, use lifespan event handlers instead.
+  
+          Read more about it in the
+          [FastAPI docs for Lifespan Events](https://fastapi.tiangolo.com/advanced/events/).
+          
+    @app.on_event("shutdown")
+
+tests/test_comparison_ai_adapter.py::TestRoute::test_route_shape_when_authenticated
+tests/test_comparison_ai_adapter.py::TestRoute::test_route_degrades_safely_on_an_exception
+  /opt/hostedtoolcache/Python/3.12.14/x64/lib/python3.12/site-packages/starlette/testclient.py:484: DeprecationWarning: Setting per-request cookies=<...> is being deprecated, because the expected behaviour on cookie persistence is ambiguous. Set cookies directly on the client instance instead.
+    return super().request(
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+- generated xml file: /home/runner/work/UCT-Dashboard/UCT-Dashboard/pytest-junit.xml -
+=========================== short test summary info ============================
+SKIPPED [1] tests/test_chart_parity_harness.py:46: chart_parity imports playwright at module scope
+FAILED tests/test_calendar_week_post.py::test_most_anticipated_card_render_is_pinned - AssertionError: assert '814a9107c457...e7d9627274bdd' == 'f1ae5925d8d8...fc17075e86d0c'
+  
+  - f1ae5925d8d831afff593177813d75518587518dca245ce9b3bfc17075e86d0c
+  + 814a9107c457afb2317fcc8d49c5e2ce60fea889e08b325febfe7d9627274bdd
+1 failed, 1528 passed, 1 skipped, 224 warnings in 127.41s (0:02:07)

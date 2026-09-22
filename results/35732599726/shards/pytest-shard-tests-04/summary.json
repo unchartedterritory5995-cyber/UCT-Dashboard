@@ -1,0 +1,15 @@
+{
+  "suite": "pytest",
+  "collected": 1530,
+  "passed": 1528,
+  "failed": 1,
+  "errored": 0,
+  "skipped": 1,
+  "wall_s": 127.41,
+  "failed_files": [
+    "tests/test_calendar_week_post.py"
+  ],
+  "totals_line_found": true,
+  "runner_line": "1 failed, 1528 passed, 1 skipped, 224 warnings in 127.41s (0:02:07)",
+  "ok": true
+}
