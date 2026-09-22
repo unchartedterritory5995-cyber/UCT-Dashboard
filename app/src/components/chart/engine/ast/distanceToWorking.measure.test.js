@@ -86,6 +86,62 @@ describe('⭐⭐ how far the corpus is from building, measured by peeling', () =
     expect(p.distance, 'one bad line did not cost exactly one peel').toBe(1)
   })
 
+  it('⛔⛔ CONTROL — keeping a binding never peels WORSE, and sometimes better', () => {
+    // ⭐ WHAT THIS GUARDS. Blanking a failing line removes the NAME as well as the
+    // capability, so a later line that reads it refuses `pine:undefined` and
+    // costs another peel. Replacing it with `name = 0.0` keeps the name.
+    //
+    // ⚰️⚰️ MY FIRST TWO FIXTURES FOR THIS WERE BOTH WRONG, and the second
+    // one is the instructive failure. A PURE top-level binding is INLINED by
+    // this engine as a macro, so an unreadable right-hand side surfaces at every
+    // USE site and the binding line is never the refusal line at all — a planted
+    // `k = ta.notarealfunction(...)` refuses at `plot(k + close)`, and the
+    // replacement path never runs. (The first fixture was worse: its consumers
+    // folded to constants once `k` became `0.0` and were refused
+    // `runtime:no-output`, so it measured the substitution's own bias.)
+    // The improvement is real and fires where the refusal lands ON a binding —
+    // a `var` slot, a `:=` reassignment — which is not a shape worth faking.
+    //
+    // ⭐⭐ SO THE CONTROL ASSERTS THE RELATION, NOT A NUMBER. Over real
+    // scripts: keeping the binding must never reach LESS far, and must reach
+    // strictly further for at least one. Both halves matter — the first is the
+    // safety claim, the second is why the change was made. Pinning the measured
+    // distances instead is the mistake `nearestToWorking` already paid for: a
+    // rail that breaks every time the engine improves.
+    const LOOK = 20
+    const named = [
+      'position-size-calc__a42db1a620.pine',
+      'vold-market-breadth__9c5cde9557.pine',
+      'wyckoff-accumulation-distribution__d9ae726e21.pine',
+    ]
+    for (const n of named) {
+      expect(SCRIPTS.includes(n), `control fixture missing from the corpus: ${n}`).toBe(true)
+    }
+    const reach = (r) => (r.reached ? r.distance : Number.POSITIVE_INFINITY)
+    let strictlyBetter = 0
+    for (const n of named) {
+      const src = readScript(n)
+      const kept = reach(peel(src, LOOK, true))
+      const blanked = reach(peel(src, LOOK, false))
+      expect(kept, `keeping the binding peeled WORSE on ${n}`).toBeLessThanOrEqual(blanked)
+      if (kept < blanked) strictlyBetter += 1
+    }
+    expect(strictlyBetter, 'keeping bindings made no difference anywhere — the replacement is inert')
+      .toBeGreaterThan(0)
+
+    // ⛔⛔ AND THE DEFAULT IS WHAT EVERY PUBLISHED NUMBER USES. The three
+    // assertions above pass the flag EXPLICITLY, so they watch the parameter
+    // and not the default — measured: flipping `preserveBindings` to `false`
+    // in the signature left all four tests in this file GREEN while the
+    // histogram below, `nearestToWorking`'s queue and every distance ever
+    // quoted silently reverted. A guard on the argument is not a guard on the
+    // caller (`lesson_a_guard_that_tests_the_adjacent_thing`).
+    const probe = readScript(named[0])
+    expect(JSON.stringify(peel(probe, LOOK)),
+      'the DEFAULT no longer preserves bindings — every distance here just moved')
+      .toBe(JSON.stringify(peel(probe, LOOK, true)))
+  })
+
   it('⭐⭐ prints the distance histogram and what is hit on the way', () => {
     const results = []
     for (const name of SCRIPTS) {
