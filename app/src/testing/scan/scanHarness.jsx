@@ -126,6 +126,43 @@ function Harness() {
       tf: TF,
       symbols: SYMS,
       select: (s) => setGroupSyms(p => ({ ...p, A: s })),
+      // ⛔⛔ MEASURE IN-PAGE, NOT BY POLLING OVER CDP. Driving samples from
+      // Playwright costs a ~10-25ms round-trip each, so a dense burst covers
+      // only the first ~200ms and then leaves a hole — which quantised the
+      // first honest latency run (symbols resolving inside the gap were all
+      // attributed to its far edge). This watches every animation frame and
+      // records the EXACT instant the rendered ticker and the painted symbol
+      // both reach the target, so the number is frame-accurate.
+      watch: (target) => {
+        const t0 = performance.now()
+        const out = { target, t0, tCoherent: null, mixedMs: 0, emptyMs: 0, frames: 0 }
+        let lastTs = t0
+        const tick = () => {
+          const now = performance.now()
+          const dt = now - lastTs
+          lastTs = now
+          out.frames += 1
+          const el = document.querySelector('[data-testid="sym-label"]')
+          const dom = el ? (el.textContent || '').trim().split(/[\s(·]/)[0].toUpperCase() : null
+          const rows = window.__uctChartTiming ? window.__uctChartTiming.report() : null
+          let chart = null
+          if (Array.isArray(rows)) {
+            for (let i = rows.length - 1; i >= 0; i--) {
+              if (rows[i]['T0→paint'] != null) { chart = String(rows[i].sym || '').toUpperCase(); break }
+            }
+          }
+          if (dom && chart && dom !== chart) out.mixedMs += dt
+          if (dom && chart === null) out.emptyMs += dt
+          if (out.tCoherent == null && dom === target && chart === target) {
+            out.tCoherent = Math.round(now - t0)
+          }
+          if (out.tCoherent == null && now - t0 < 4000) requestAnimationFrame(tick)
+          else window.__scanWatch = out
+        }
+        requestAnimationFrame(tick)
+        return true
+      },
+      watchResult: () => window.__scanWatch || null,
       requested: () => groupSyms.A,
       readiness: (s) => readiness(s, TF),
       blocked: () => BLOCKED.slice(),
@@ -157,4 +194,15 @@ function Harness() {
   )
 }
 
-createRoot(document.getElementById('root')).render(<Harness />)
+// ⛔⛔ `?blank=1` MOUNTS NOTHING, AND IT IS NOT A CONVENIENCE. Seeding IndexedDB
+// requires an `onupgradeneeded` that recreates the store, and a version change
+// BLOCKS FOREVER while another connection to the same database is open. With
+// the app mounted, the harness page itself holds that connection — so a driver
+// that loads this page and then seeds hangs indefinitely with no error at all
+// (measured: 30+ minutes, silent). The driver must seed on `?blank=1` FIRST and
+// only then load the real page.
+if (new URLSearchParams(location.search).get('blank') === '1') {
+  document.getElementById('root').textContent = 'blank (seed here, then reload without ?blank=1)'
+} else {
+  createRoot(document.getElementById('root')).render(<Harness />)
+}

@@ -65,17 +65,61 @@ CLEAR_IDB = ("() => new Promise(res => { const r = indexedDB.deleteDatabase('uct
 
 # Sample what the MEMBER can see: the widget's rendered ticker and the symbol the
 # candles on the canvas actually belong to.
+# ⛔⛔ FAIL-CLOSED. The previous probe read `__uctBarsDebug.paintSym` and
+# `__chartBarCount` — neither exists in the ChartWidget context — so all 360
+# samples returned null, every one fell into a "nothing drawn yet" bucket, and
+# the classifier produced a PLAUSIBLE PASS out of no evidence at all. Missing
+# evidence is now its own verdict and it FAILS the run.
+#
+# Both signals are real and member-visible:
+#   domSym   the rendered ticker, read from `[data-testid="sym-label"]` — the
+#            node ChartIdentityRow always claimed both branches render (they do
+#            now; the SymbolSearch branch was missing the attribute).
+#   chartSym the symbol the drawn candles belong to: the newest timing row that
+#            actually recorded a paint. That record is written by StockChart's
+#            own paint site, so it cannot report a symbol that was never drawn.
 SAMPLE_JS = """
 () => {
+  const now = performance.now();
+  const el = document.querySelector('[data-testid="sym-label"]');
+  const domSym = el ? (el.textContent || '').trim().split(/[\s(·]/)[0].toUpperCase() : null;
   const t = window.__uctChartTiming;
-  const rows = t ? t.report() : [];
-  const last = rows.length ? rows[rows.length - 1] : null;
+  const rows = t ? t.report() : null;
+  let chartSym = null, chartCurrent = null, chartBehind = null;
+  if (Array.isArray(rows)) {
+    for (let i = rows.length - 1; i >= 0; i--) {
+      if (rows[i]['T0→paint'] != null) {
+        chartSym = String(rows[i].sym || '').toUpperCase();
+        chartCurrent = rows[i].paintWasCurrent;
+        chartBehind = rows[i].paintBarsBehind;
+        break;
+      }
+    }
+  }
   return {
-    requested: window.__scan ? window.__scan.requested() : null,
-    paintSym: window.__uctBarsDebug ? window.__uctBarsDebug.paintSym : null,
-    barCount: window.__chartBarCount ?? null,
-    lastRow: last,
+    ts: now,
+    requested: (window.__scan && window.__scan.requested()) || null,
+    domSym,
+    chartSym,
+    chartCurrent,
+    chartBehind,
+    // A deliberately wrong label, set ONLY by the classifier control below, to
+    // prove this probe can actually detect a mismatch.
+    forced: window.__scanForceLabel || null,
   };
+}
+"""
+
+# ⭐ THE CONTROL. A classifier that has never been shown to FAIL is not evidence.
+# This rewrites the rendered ticker to a symbol that is not the one drawn, in the
+# HARNESS ONLY, and the run asserts the classifier reports INVALID_MIXED for it.
+FORCE_MISMATCH_JS = """
+(fake) => {
+  const el = document.querySelector('[data-testid="sym-label"]');
+  if (!el) return false;
+  window.__scanForceLabel = fake;
+  el.textContent = fake;
+  return true;
 }
 """
 
@@ -144,11 +188,16 @@ def main():
             states = plan(tf_min)
 
             url = f"{base}/scan-harness.html?tf={tf}&syms={','.join(SCAN)}"
-            page.goto(url, wait_until="domcontentloaded")
+            # ⛔ SEED ON A BLANK, SAME-ORIGIN PAGE. `SEED_JS` triggers an IndexedDB
+            # version change, which BLOCKS while any other connection is open — and
+            # with the app mounted the harness page holds one. Seeding on the live
+            # page hung silently for 30+ minutes with no error and no output.
+            page.goto(f"{base}/scan-harness.html?blank=1", wait_until="domcontentloaded")
             page.evaluate(CLEAR_IDB)
             page.evaluate("() => { try { localStorage.setItem('uct.chartTiming','1') } catch {} }")
 
             # Plant the cache mix BEFORE the scan.
+            print(f"  seeding {len(states)} symbols on the blank page…", flush=True)
             for sym, (kind, tail) in states.items():
                 if tail is None:
                     continue
@@ -160,8 +209,12 @@ def main():
                 # all any of these assertions read.
                 page.evaluate(SEED_JS, [sym, tf, make_bars(tf_min, tail, 4), CACHE_LOGIC_VERSION])
 
+            print("  seeded; loading the live harness page…", flush=True)
             page.goto(url, wait_until="domcontentloaded")
             page.wait_for_timeout(3500)     # let the first chart mount + settle
+            if not page.evaluate("() => !!window.__scan"):
+                raise RuntimeError("harness did not mount (window.__scan missing)")
+            print("  mounted; scanning…", flush=True)
 
             # Ask BEFORE each click whether the next symbol is already prepared.
             pre = []
@@ -171,20 +224,49 @@ def main():
                 r = page.evaluate("(s) => window.__scan.readiness(s)", sym)
                 r["planned"] = states[sym][0]
                 pre.append(r)
-                page.evaluate("(s) => window.__scan.select(s)", sym)
+                # ⛔ T0 IS STAMPED HERE, IN THE PAGE, IMMEDIATELY BEFORE THE
+                # SELECTION ENTERS THE PIPELINE. The chart's own T0 starts when
+                # StockChart RECEIVES an already-committed symbol, so it measures
+                # commit->paint and silently excludes the entire preparation and
+                # handoff wait — which is the half the member actually feels.
+                # Start the in-page frame watcher BEFORE the selection, so the
+                # clock starts at the click and every frame in between is seen.
+                t0 = page.evaluate(
+                    "(s) => { window.__scanWatch = null; window.__scan.watch(s);"
+                    "         const t = performance.now(); window.__scan.select(s); return t; }", sym)
+                r["t0_click"] = t0
                 # Sample densely across the transition to catch a visible bad frame.
                 # Sample across the transition. Each evaluate is a CDP
                 # round-trip (~10ms), so this window is ~300ms of real time —
                 # wide enough to catch a visible bad frame on the warm path and
                 # the start of a slow one.
                 for _ in range(14):
-                    samples.append(page.evaluate(SAMPLE_JS))
+                    smp = page.evaluate(SAMPLE_JS)
+                    smp["forSym"] = sym
+                    smp["t0_click"] = t0
+                    samples.append(smp)
                 page.wait_for_timeout(260)
-                samples.append(page.evaluate(SAMPLE_JS))
+                smp = page.evaluate(SAMPLE_JS)
+                smp["forSym"] = sym
+                smp["t0_click"] = t0
+                samples.append(smp)
+                # Frame-accurate truth for this switch, measured in-page.
+                page.wait_for_function("() => window.__scanWatch !== null && window.__scanWatch !== undefined",
+                                       timeout=6000)
+                r["watch"] = page.evaluate("() => window.__scan.watchResult()")
+
+            # ── CONTROL: prove the classifier can FAIL ──
+            control = None
+            forced = page.evaluate(FORCE_MISMATCH_JS, "ZZZZ_NOT_THE_DRAWN_SYMBOL")
+            if forced:
+                control = page.evaluate(SAMPLE_JS)
+                control["forSym"] = SCAN[-1]
+                control["t0_click"] = 0
+            print(f"  control mismatch injected: {forced}", flush=True)
 
             rows = page.evaluate("() => window.__uctChartTiming.report()")
             blocked = page.evaluate("() => window.__scan.blocked()")
-            out = {"pre": pre, "samples": samples, "rows": rows,
+            out = {"pre": pre, "samples": samples, "rows": rows, "control": control,
                    "blocked": blocked, "errors": errs,
                    "requests": fixture.requests}
             b.close()
