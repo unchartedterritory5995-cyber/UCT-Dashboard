@@ -4138,9 +4138,14 @@ links to the bare `/model-book` page, not a URL shape that would silently do not
 
 **Member impact:** two new tabs on an already-paid, already-live page. No schema
 change, no new write path, no change to the catalyst engine or Model Book themselves,
-no change to any of the page's other ten tabs. Not yet deployed to production — built
-and pushed to `feat/s7-price-level` only; production deployment follows this
-program's normal cherry-pick path when the owner asks for it.
+no change to any of the page's other ten tabs.
+
+✅ **DEPLOYED TO PRODUCTION, same day.** Cherry-picked from `feat/s7-price-level`
+onto `master` as `11df4f589` (Packet G) / `9db027bb7` (Packet H), Railway `web`
+confirmed `SUCCESS`, verified live via `/api/health` (fresh `uptime_seconds`) and an
+unauthenticated fetch of the new routes confirming `402` (paid-gated, not `404`) —
+both tabs are live for members on `/research/:sym` today. *(This entry previously
+said "Not yet deployed to production" — corrected here rather than left stale.)*
 
 **What remains, explicitly not scoped into either packet:** the "Desk lens" — a
 tab synthesizing what UCT itself has called on a name (setup track record, wire
@@ -4160,3 +4165,51 @@ changed, confirming the file's whole text is hashed, not just the approval block
 Reverted via `git restore` before anything was staged; both packet files remain
 byte-identical to what the owner actually signed. This entry is the durable record of
 completion instead.
+
+## ✅ BUILT — Packet I, UCT20 Leadership badge on `/research/:sym` Overview, 2026-09-22
+
+Third gap found the same way as G and H: `GET /api/leader-persistence/{symbol}`
+(`api/routers/intelligence.py`) already computed a real, correct, paid-gated answer
+— consecutive-day count on UCT's Leadership 20, weekend-gap-aware — with **zero
+frontend callers anywhere in `app/src`** and **zero test coverage anywhere in
+`tests/`**, checked directly against source before writing the packet.
+
+Signed by the owner (fingerprint `830cec48e`), built and pushed same day:
+`feat/s7-price-level` `4b3958155`. **ZERO NEW BACKEND CODE** — the entire
+MUST-BUILD was the endpoint's first-ever test coverage
+(`tests/test_leader_persistence.py`, 7 tests, isolating the cross-repo
+`uct_intelligence` import via a fake `sys.modules` package tree so the suite can
+never reach the real `C:\Users\Patrick\uct-intelligence` checkout) plus one small
+frontend badge — not a new tab, since this is one fact, not a category of content.
+
+**A deliberate deviation from the packet's own draft wording, same discipline as
+G and H:** the proposal called for "a new frontend hook, same SWR shape as every
+other tab's hook." Mid-build, `app/src/pages/research/DeskCoverage.jsx` was found
+already doing exactly this job for a different fact (desk coverage) — a
+self-contained card with its own inline fetch, rendering null when there's
+nothing to show. `LeadershipBadge.jsx` was modeled on that existing precedent
+instead of building a parallel hooks-file convention for one consumer.
+
+**A real, minor, out-of-scope defect found and documented, not fixed:** the
+endpoint has THREE distinct "empty" response shapes depending on WHY the answer
+is empty — engine unavailable (2 keys), no rows for this ticker (3 keys,
+`first_seen`/`last_seen` entirely absent rather than `null`), and real data (5
+keys). Changing `get_leader_persistence` itself was explicitly deferred by the
+packet; the frontend badge is instead written defensively
+(`data?.consecutive_days || 0`, `typeof data.total_appearances === 'number'`,
+`data.first_seen &&`) to tolerate all three shapes without a backend change.
+
+Verified: 86 backend tests pass (`test_leader_persistence.py` +
+`test_paywall_gate_free_tier.py`), 46 frontend tests pass (Research page +
+Leadership badge + Catalysts tab + Model Book tab suites together), repo hygiene
+clean, flow-worker watch coverage OK, `reachable.test.js` confirms
+`LeadershipBadge.jsx` is correctly wired into the app's import graph (only the
+pre-existing, already-filed R-29 `focusDivergence.js` finding remains).
+
+**Member impact:** one small conditionally-rendered card on an already-paid,
+already-live page. A member who has never had a Leadership 20 pick sees nothing
+different at all. No schema change, no new write path, no change to
+`get_leader_persistence` or the Brain Pack pipeline.
+
+**Not yet deployed to production** — built and pushed to `feat/s7-price-level`
+only, same as G and H were before their own cherry-pick.
