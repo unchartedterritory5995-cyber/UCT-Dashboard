@@ -838,6 +838,81 @@ def test_update_note_without_body_change_keeps_sidecar(conn):
     assert rows["c"] == 2
 
 
+# ── Performance QW-2 (2026-09-22): one combined sidecar sync ─────────────────
+# _sync_note_sidecars replaced five separate _sync_note_* functions (embeds/
+# mentions/links/fact_refs/excerpt_refs), four of which used to walk the same
+# body_json document tree independently. The two tests below are the direct
+# evidence for that change: the first proves nothing got crossed when the
+# four walks were merged into one (a real risk -- e.g. swapping fact_ids and
+# excerpt_ids, which share an identical INSERT shape); the second is the
+# actual mutation-proof that the walk now happens once, not four times.
+
+ALL_SIDECARS_DOC = {"type": "doc", "content": [
+    {"type": "widgetEmbed", "attrs": {"widgetId": "chart", "params": {"symbol": "AMD"}}},
+    {"type": "noteLink", "attrs": {"noteId": "target-note-1"}},
+    {"type": "financialFact", "attrs": {"factId": "fact-1"}},
+    {"type": "documentExcerpt", "attrs": {"excerptId": "excerpt-1"}},
+]}
+
+
+def test_one_combined_sync_populates_all_five_sidecars_without_crossing_them(conn):
+    n = svc.create_note("u1", {"title": "T", "bodyJson": ALL_SIDECARS_DOC}, conn=conn)
+    embeds = conn.execute(
+        "SELECT widget_id FROM j2_note_embeds WHERE note_id = ?", (n["id"],)).fetchall()
+    links = conn.execute(
+        "SELECT target_note_id FROM j2_note_links WHERE note_id = ?", (n["id"],)).fetchall()
+    facts = conn.execute(
+        "SELECT fact_id FROM j2_note_fact_refs WHERE note_id = ?", (n["id"],)).fetchall()
+    excerpts = conn.execute(
+        "SELECT excerpt_id FROM j2_note_excerpt_refs WHERE note_id = ?", (n["id"],)).fetchall()
+    assert [r["widget_id"] for r in embeds] == ["chart"]
+    assert [r["target_note_id"] for r in links] == ["target-note-1"]
+    # The load-bearing assertions: a copy-paste slip merging the walks could
+    # easily swap these two (both are `[{type, attrs: {<x>Id}}]` shapes with
+    # a single string id) without any single-sidecar test noticing.
+    assert [r["fact_id"] for r in facts] == ["fact-1"]
+    assert [r["excerpt_id"] for r in excerpts] == ["excerpt-1"]
+
+
+def test_sync_note_sidecars_walks_the_document_exactly_once(conn):
+    """Mutation-proof for the actual perf claim: build a document out of
+    nodes that count their own `type` reads (the combined walk's `walk()`
+    reads `node.get("type")` exactly once per node it visits, dict or not).
+    A regression back to four separate per-sidecar walks would read every
+    node's type 4x; this asserts the total equals the node count exactly."""
+    reads = {"n": 0}
+
+    class CountingNode(dict):
+        def get(self, key, default=None):  # noqa: A003 - matching dict's own signature
+            if key == "type":
+                reads["n"] += 1
+            return super().get(key, default)
+
+    def node(ntype, content=None, **attrs):
+        n = CountingNode(type=ntype)
+        if attrs:
+            n["attrs"] = dict(attrs)
+        if content is not None:
+            n["content"] = content
+        return n
+
+    doc = node("doc", content=[
+        node("widgetEmbed", widgetId="chart", params={"symbol": "AMD"}),
+        node("noteLink", noteId="target-note-1"),
+        node("financialFact", factId="fact-1"),
+        node("documentExcerpt", excerptId="excerpt-1"),
+        node("paragraph", content=[node("text")]),
+    ])
+    NODE_COUNT = 7  # doc, widgetEmbed, noteLink, financialFact, documentExcerpt, paragraph, text
+
+    svc._sync_note_sidecars(conn, "u1", "n-walk-count", doc, "")
+    assert reads["n"] == NODE_COUNT, (
+        f"expected exactly one `type` read per node ({NODE_COUNT}), got "
+        f"{reads['n']} -- a regression to separate per-sidecar walks reads "
+        f"every node's type 4x instead of once"
+    )
+
+
 def test_list_notes_filters_by_embed_symbol_and_widget(conn):
     svc.create_note("u1", {"title": "With AMD", "bodyJson": WIDGET_DOC}, conn=conn)
     svc.create_note("u1", {"title": "Plain"}, conn=conn)
