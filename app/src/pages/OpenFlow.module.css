@@ -34,7 +34,7 @@
   padding: 8px 12px;
   border-radius: 6px;
   border: 1px solid var(--border);
-  background: var(--surface-2);
+  background: var(--bg-surface);
   color: var(--text-primary);
   font-size: 13px;
   min-width: 160px;
@@ -44,7 +44,7 @@
   padding: 8px 10px;
   border-radius: 6px;
   border: 1px solid var(--border);
-  background: var(--surface-2);
+  background: var(--bg-surface);
   color: var(--text-primary);
   font-size: 13px;
 }
@@ -84,7 +84,7 @@
   text-transform: uppercase;
   letter-spacing: 0.4px;
   border-bottom: 1px solid var(--border);
-  background: var(--surface-2);
+  background: var(--bg-surface);
 }
 
 .table td {
@@ -104,7 +104,7 @@
 
 .sym {
   font-weight: 600;
-  color: var(--gold, #c9a84c);
+  color: var(--ut-gold);
   cursor: pointer;
 }
 
