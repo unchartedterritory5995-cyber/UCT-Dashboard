@@ -44,9 +44,10 @@ succeeded. All six commits are live in production.
 
 # ⛔⛔ COLD START — 2026-09-20. This block supersedes everything below it.
 
-**One sentence: 25 of 32 systems are DONE and 1 (S7) is RULED-HOLD; ZERO proposals are waiting on
-a signature (the last one, A14-CP1, was signed and built 2026-09-21), and the ONE thing nothing
-can substitute for is a blocked production read of real member-alert data. Read this whole block
+**One sentence: 25 of 32 systems are DONE and 1 (S7) is RULED-HOLD; TWO new proposals are waiting
+on a signature (found and scoped this pass, closing two of D2's own open findings — see §1), the
+production read is DONE (see §2 — none of the four supported a ruling, and one was genuinely
+unblocked), and D2 itself still needs real member traffic to accumulate. Read this whole block
 before touching anything.**
 
 ⚰️ *This said "27 of 32 systems are fully DONE, 5 more have a ready-to-sign proposal…". Nothing in
@@ -54,8 +55,9 @@ before touching anything.**
 that morning (§6 below), and three of the "5 more" were already inside those 22.*
 
 ⚰️ *S1-CP3, D3-CP4, D4-CP5, A12-CP1 and A14-CP1 were all signed and built 2026-09-21 (§0b) — the
-DONE count moved 22 → 23 → 24 → 25 the same day, and the pending-signature list in §1 below is now
-EMPTY.*
+DONE count moved 22 → 23 → 24 → 25 the same day. The pending-signature list in §1 went EMPTY that
+day, then gained two NEW entries 2026-09-22 (F-D2-1, F-D2-3) from a fresh audit sweep, not from
+anything left over.*
 
 ## 0. The three worktrees — re-verify every one before doing anything
 
@@ -146,16 +148,29 @@ worktree (`s7-price-level`) against `origin/master`, never from the docs worktre
 - `sign_gate.py <packet>` **SIGNS IMMEDIATELY** — there is no dry-run flag; `--read-check`/`--self-check`
   run only on synthetic text. To check a real packet read-only, import the tool and call `read_approval()`.
 
-## 1. Nothing is sitting ready for a signature right now — the list is EMPTY
+## 1. Two new proposals are ready for the owner's signature (2026-09-22)
 
-⚰️ *This said "five", then "four", then "three", then "two", then "one" — S1 CP3, D3 CP4, D4 CP5,
-A12 CP1 and now A14 CP1 (the last one) have all been SIGNED and BUILT 2026-09-21 (see §0b). There
-is currently no proposal awaiting the owner's signature anywhere in this programme.*
+⚰️ *This said the list was EMPTY. It was, until this pass swept D2's two remaining OPEN findings
+(F-D2-1, F-D2-3) — both genuinely investigable without more real-world time, unlike A9/A11/A13/
+event-proximity. Both are now scoped, drafted, and structurally verified signable
+(`read_approval()`/`target_span()` both checked, exactly one blank block each).*
 
-The next thing that needs the owner is **not a signature** — it's §2's blocked production read
-(the only genuinely open item left that isn't a scoping/proposal-writing task), or a fresh
-proposal for one of the deferred-on-purpose items in §7. Until a new proposal is drafted and
-signed, there is nothing here to hand back a `!`-prefixed command for.
+```sh
+python tools/sign_gate.py docs/terminal-research/12-decisions/gates/d2-f-d2-1-fundamentals-declaration-scoped-proposal.md --by "Patrick (owner)" --on <today> --scope-file .scopes/d2-f-d2-1-fundamentals-declaration-scoped-proposal.scope.txt
+
+python tools/sign_gate.py docs/terminal-research/12-decisions/gates/d2-f-d2-3-ordinal-inventory-scoped-proposal.md --by "Patrick (owner)" --on <today> --scope-file .scopes/d2-f-d2-3-ordinal-inventory-scoped-proposal.scope.txt
+```
+
+Run each YOURSELF via `!` in chat — same absolute rule as every prior signature this programme has
+used: the AI must never fill in `APPROVED BY/ON/AT-SHA/SCOPE APPROVED` itself.
+
+| Proposal | What it does | Risk |
+|---|---|---|
+| D2 / F-D2-1 | Declares `earnings_table`'s fundamentals row shape into the canonical address book, the same way bars' `ohlcv` table already is — a pure declaration, no schema change, no reader migrated | Low — additive tooling + book entries only |
+| D2 / F-D2-3 | **Read this one's §1 before signing.** Builds a checked-in inventory of 21+ places across 19 files that read chart-bar data by a fragile bare-integer position instead of by name — the SAME class of bug already fixed once for `ticker_returns.py`, now proven to exist much more widely, including the site's main chart endpoint. This proposal only counts and records that exposure; it deliberately does NOT touch any of the 21+ live call sites (several may restart flow-worker, which needs after-hours timing and its own separate proposal) | Low as scoped (detection-only, zero runtime behavior change) — but the finding it documents is real and worth reading in full, not just the risk column |
+
+Both were found, investigated, and scoped in this same pass — from an audit sweep the owner asked
+for ("everything remaining that keeps us from 150% complete"), not from a pre-existing backlog.
 
 ## 2. The dark comparison numbers have been read — none of the four supports a ruling yet
 
