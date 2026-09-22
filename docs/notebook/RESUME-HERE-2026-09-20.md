@@ -217,7 +217,25 @@ real viewport or exercised end-to-end this pass**:
   docx, html** — each has its own adapter + unit tests (`notion.test.js`,
   `evernote.test.js`, `generic.test.js`) but no real-file, real-wizard pass
   yet.
-- **connectors** (Roam, Craft, Notion, Dropbox, OneNote, OneDrive — shipped dark)
+- ✅ **connectors — CODE-REVIEWED 2026-09-21, not live-tested (structural
+  limit, stated honestly)**: Roam/Craft/Notion/Dropbox/OneNote/OneDrive all
+  need real third-party OAuth apps or graph tokens this local sandbox does
+  not have — no amount of local tooling closes that, so this phase is a
+  correctness review, not an end-to-end pass. What the review found: **474
+  connector tests pass, run for real on this tree** (not merely present);
+  zero stub/TODO/`NotImplementedError` markers in any of the six provider
+  files; the double-gate (`note_sync` router mounts unconditionally,
+  `NOTE_SYNC_ENABLED` gates only the scheduler) matches its own docstring
+  exactly. The per-provider config-check pattern looked inconsistent at
+  first (`_require_configured()` exists on Dropbox, not on the other five)
+  — resolved by reading `oauth.py`: Notion/OneNote/OneDrive share ONE
+  centralized, tested OAuth module (Dropbox self-contains its own for a
+  documented historical reason — it predates that module — with an honest
+  note that consolidating "just hasn't been done, not because the shape
+  doesn't fit"); Roam/Craft are graph-token connect, so there is no
+  platform-level config to check. My Phase 1 fix (the size-cap error
+  message) structurally reaches all six too, since they share
+  `import_confirm`.
 
 ### 3. A large document — ✅ **VERIFIED CLOSED, 2026-09-21** (was "a known killer")
 `project_notebook_migration_wave0`'s record was itself stale: the actual root
