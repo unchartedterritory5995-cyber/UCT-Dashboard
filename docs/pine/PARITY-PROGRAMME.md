@@ -62,6 +62,29 @@ is WORTH. Both share one peeler (`peelToBuilding.js`), mutation-proved.
 | `fcf682f46` | the `nearestToWorking` queue instrument | none directly; it is how the above was chosen |
 | `01ef1fd76` | `ta.valuewhen` — occurrences, not a bar window | 377 sites / 39 scripts no longer walled here. Metric unchanged — it moved a wall; see below. |
 | `280a05f29` | the cross family over runtime state (`ta.crossover`/`crossunder`/`cross`) | **draws 2 → 4**, builds 3 → 5. `liquidity-pools` (500 objects) and `trendlines` (8) — both NAMED IN ADVANCE by the queue. |
+| `0f58a80a9` | the peeler replaces a failing binding instead of blanking it | no metric change by design — it is an INSTRUMENT fix. Queue 7 → 10; `position-size-calc` 12 → 2, `wyckoff` UNREACHED → 2. |
+| `bd11b4d9a` | a drawing inside an `else` arm (two spellings of one guard) | metric unchanged — `else` was a SECOND wall for all 120 drawing scripts that use it. Queue 10 → 12; `inside-bar-boxes` 11 → 4 walls. |
+
+### ⛔⛔ THE GUARDS-HIT TABLE IS MOSTLY CASCADE — measured 2026-09-22
+
+`distanceToWorking`'s cumulative guard-hit table is NOT a work queue, and its
+top two rows are the two most inflated in it. Comparing the FIRST-BLOCKER
+census (no peeling, so no cascade) against the walk's own hits:
+
+| guard | first blocker | peel hits | inflation |
+|---|---:|---:|---:|
+| `runtime/pine:undefined` | 14 scripts | 1,075 | **77x** |
+| `runtime/pine:statement` | 3 scripts | 768 | **256x** |
+
+⭐ THE MECHANISM: blanking a failing line removed the NAME as well as the
+capability, so every later line reading it refused `pine:undefined` and each one
+cost another peel. `peel` now REPLACES a failing binding with `name = 0.0`
+(`0f58a80a9`). Measured: 4 scripts UNREACHED -> reached, 4 shorter, mean
+distance 7.09 -> 5.45, none regressed, and the walk is ~30% faster.
+
+⚠️ A corollary worth carrying: **1,075 undefined-name refusals, and 847 of
+them (78.8%) name something the member DID define.** An "undefined name" in this
+corpus is almost never a vocabulary gap.
 
 ### ⭐ …and the wall it moved to was the NEXT job, which delivered
 
