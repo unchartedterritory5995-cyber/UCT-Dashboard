@@ -131,7 +131,7 @@ the second-authority-over-one-value defect that has caused three separate outage
 | `charts/widgets/MobileChartFallback.jsx` — "mobile <640px renders a full-screen StockChart via MobileChartFallback" | 🗑️ **DELETED** with its test (`ed53f9b6`). `ChartsWorkspace.jsx` imports and renders **`MobileWorkspace`** — that is the phone branch. |
 | `journal-2-0/components/BrokerSyncStatus.jsx` | 🗑️ **DELETED** with its test (`ed53f9b6`). The bar was absorbed into `components/trust/SyncTrustCenter.jsx`, which is what renders sync freshness. |
 | `journal-2-0/components/BrokerEquityCurve.jsx` + `hooks/useBrokerEquityCurve.js` — "Open Positions leads with a real equity curve" | 🗑️ **DELETED** (`d26cee0c`). ⚠️ **The data outlived the renderer**: `j2_broker_equity_snapshots` is still written daily and nothing draws it. That is a product decision waiting to be made, not a leftover to clean up. |
-| "ON THE TAPE" section on `MoversSidebar.jsx` + `hooks/useTapeFeed.js` | 🗑️ **`useTapeFeed.js` DELETED** — superseded, not merely unmounted. `3dc5036a` moved the tape out of the sidebar; the successor is `components/tiles/TapeFeed.jsx`, mounted on `Dashboard.jsx` twice (desktop + mobile) and reading **`/api/tweets/feed`** via `hooks/useTweetFeed.js`. The *name* survived onto the new tile, which is why this read as live. ⚠️ **`GET /api/tweets/tape` is still mounted and now has zero callers** — deliberately: a browser holding the previous bundle still polls it. Retire the route a deploy cycle later, not in the same commit as its last caller. |
+| "ON THE TAPE" section on `MoversSidebar.jsx` + `hooks/useTapeFeed.js` | ⚰️ This row said `useTapeFeed.js` was DELETED — **stale, corrected 2026-09-22.** The file was restored (`06d3a6318 revert(web): restore useTapeFeed.js — it was never mine to delete`) by another session and is now **IN-FLIGHT, not orphaned**: `reachable.test.js` tracks it correctly as "a 30s poll of `/api/tweets/tape` whose docstring names its intended mount (MoversSidebar) — the wire is planned rather than lost," and explicitly warns against mounting OR deleting it as guessing at an owner's intent that has already been reverted once. **Do not touch this file** — read `reachable.test.js`'s own entry for it before acting. The successor tile this row also describes is real and unaffected: `components/tiles/TapeFeed.jsx`, mounted on `Dashboard.jsx` twice (desktop + mobile), reading **`/api/tweets/feed`** via `hooks/useTweetFeed.js`. ⚠️ **`GET /api/tweets/tape` is still mounted and now has zero *frontend* callers** — a browser holding the previous bundle still polls it; retiring the route is a separate decision from whatever happens to `useTapeFeed.js`. |
 | `components/PositionCalc.jsx` — "TickerPopup … position calculator" | 🗑️ **DELETED** (`d26cee0c`). `TickerPopup.jsx` contains no calculator. |
 | `components/tiles/NHNLModal.jsx` — "opens on click of NH or NL in MarketBreadth" | 🗑️ **DELETED** (`d26cee0c`). `MarketBreadth.jsx` never referenced it — and no longer renders NH/NL at all (see its own section below). |
 | `api/earnings_router.py` — its own docstring says *"Mount in main.py: `app.include_router(earnings_router, prefix="/api/schwab")`"* | 🔴 **STILL PRESENT, STILL UNMOUNTED — the only live row in this table.** `earnings_router` appears nowhere in `api/main.py`. It is also superseded: `api/schwab_router.py`'s Yahoo-backed `_fetch_earnings_yf` + `POST /api/schwab/earnings` is what actually serves, at the very prefix the docstring asks for. ⚠️ That instruction is in a file this doc's owner cannot edit; **do not follow it** — FastAPI answers on first match, so mounting the Finviz-scraping predecessor would put a second authority on earnings dates and silently shadow one of the two. |
@@ -436,10 +436,12 @@ Plan: `docs/superpowers/plans/2026-07-02-compass-brain-bridge.md`.
 - **3 chat parity tools** (chat-only additions; voice already had them):
   `get_quote` · `get_regime` · `get_breadth`, delegated to the voice impls via
   `voice_tools.dispatch` so there is one implementation.
-- **Known-by-design parity gap:** golden-set questions **R1-06 (earnings date)
-  and R1-07 (top movers)** need `get_earnings_intel`/`get_earnings_this_week`/
-  `get_movers`, which exist voice-side only — text chat fails those two report-card
-  questions until those tools are added to chat parity.
+- ✅ **CLOSED, corrected 2026-09-22 — this said the parity gap was still open.** All three —
+  `get_earnings_intel`/`get_earnings_this_week`/`get_movers` — are already registered in
+  `coach_chat_tools.py`'s `TOOLS` dict, unconditionally (above the `BRAIN_TOOLS_ENABLED` gate),
+  each via `_voice_delegate(name)` → `voice_tools.dispatch()`. Commit `bff6022cf "feat(brain): chat
+  parity - get_movers + earnings tools delegate to the voice registry (closes exam gap
+  R1-06/R1-07)"` is an ancestor of current HEAD. R1-06/R1-07 pass on text chat today.
 
 ### Flags / env (Railway web pod; all default OFF)
 - `BRAIN_PACK_ENABLED=1` — boot pull + 6h refresh in `main.py` lifespan (also
@@ -636,10 +638,11 @@ Plan: `docs/superpowers/plans/2026-07-02-awareness-engine-m1.md`.
   7:30am, so a very active user's awareness insights can exhaust the budget and
   silently drop that day's `daily_focus`. If activated, watch for this; the fix
   (reserve a slot / sub-cap awareness) is M2.
-- **Cold earnings-calendar cache:** `_collect_earnings_window` calls Finnhub up to
-  4× per 20-min cycle when `calendar_weekly` is cold (e.g. right after a redeploy,
-  pre-market before anyone opens /calendar). Bounded + off the request path, but a
-  small per-day memo in the engine would cut Finnhub contention — M2.
+- ✅ **CLOSED, corrected 2026-09-22 — this said a per-day memo was still M2 backlog.** It already
+  exists: `api/services/awareness/engine.py` has `_EARNINGS_MEMO` (TTL `_EARNINGS_MEMO_TTL=3600`,
+  a shorter `_EARNINGS_MEMO_TTL_PARTIAL=300` for partial-failure days), shipped in
+  `13b3be90b "fix(awareness): restore per-symbol insight cooldown + memoize earnings window"`
+  (2026-09-06, S10). Finnhub contention on cold-cache cycles is bounded by this memo today.
 - **`awareness_regime_snapshots` grows unbounded** (~51 rows/weekday, no prune). Trivial
   for years; add a retention sweep eventually.
 - **Score ceiling:** a near-stop proximity warning and an actual stop breach can both
