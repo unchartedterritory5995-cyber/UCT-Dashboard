@@ -35,7 +35,8 @@ export default function DeleteAllModal({ tradeCount, onConfirm, onClose }) {
       await onConfirm()
       onClose?.()
     } catch (e) {
-      setErrorMsg(String(e?.message || e))
+      console.error('Failed to delete all trades:', e)
+      setErrorMsg("Couldn't delete your trades. Nothing was changed — try again.")
     } finally {
       setDeleting(false)
     }
