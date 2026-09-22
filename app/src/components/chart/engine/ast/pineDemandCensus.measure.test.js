@@ -66,6 +66,29 @@ function bucketOf(token) {
   if (!token || typeof token !== 'string') return 'unknown'
   const t = token.trim()
   if (!t) return 'unknown'
+
+  // ⛔⛔ PUNCTUATION IS NOT A NAME, AND SIZING A ROW OF IT COST A WHOLE LANE.
+  //
+  // ⚰️ MEASURED 2026-09-21. This census reported `16  [` and it was read as
+  // "the history operator blocks 16 scripts". An agent was dispatched against
+  // it. Reading the sixteen real call sites showed **fifteen are TUPLE
+  // DESTRUCTURING** (`[a, b, c] = f(…)`) and exactly ONE is a history read.
+  // The true first-blocker count for `runtime:history-expression` is 3.
+  //
+  // ⭐ A NAME maps to one capability. A PUNCTUATION TOKEN maps to as many
+  // capabilities as the grammar gives it roles, and this table cannot tell them
+  // apart — `[` is subscript AND destructuring AND a list literal; `.` is member
+  // access AND a namespace separator AND a chained method call; `=` is
+  // declaration AND a named argument. Counting them together produces a number
+  // that is the SUM of unrelated jobs and belongs to none of them.
+  //
+  // ⛔ So they get their own bucket whose whole message is DO NOT SIZE THIS
+  // ROW — open the scripts. Independently verified the same day: 104 corpus
+  // scripts contain a tuple destructure, so the capability hiding behind `[`
+  // is an order of magnitude larger than the row implied, in the other
+  // direction.
+  if (/^[^A-Za-z_]/.test(t)) return 'PUNCT'
+
   const dot = t.indexOf('.')
   if (dot <= 0) {
     // A bare name. Could be a builtin we lack (`nz`, `fixnan`) or a user's own
@@ -141,6 +164,12 @@ describe('⭐⭐ the work queue — which NAME blocks the most scripts', () => {
       '',
       `── BUCKET C — NOT PINE: library calls / UDT fields. DO NOT DECLARE (${byBucket('C').length}) ──`,
       ...fmt(byBucket('C'), 15),
+      '',
+      `⛔⛔ PUNCT — NOT NAMES. ONE TOKEN, MANY CAPABILITIES. DO NOT SIZE THESE ROWS (${byBucket('PUNCT').length}) ──`,
+      '   Each spans several grammatical roles this table cannot separate.',
+      '   Open the call sites before opening a lane. (`[` once read as 16 scripts',
+      '   of history operator; it was 15 tuple destructures and 1 history read.)',
+      ...fmt(byBucket('PUNCT'), 12),
       '',
     ].join('\n'))
 
