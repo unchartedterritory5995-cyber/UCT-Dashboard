@@ -6,6 +6,7 @@ import { createNoteViaApi, createNoteFromTemplateViaApi } from '../../lib/noteCr
 import { notePath } from '../../../../hooks/useNoteBacklinks'
 import AskPanel from './AskPanel'
 import DocumentPreviewSheet from './DocumentPreviewSheet'
+import { SkeletonLine } from '../../../../components/Skeleton'
 import styles from './TickerResearchWorkspace.module.css'
 
 const DOC_STATUS_LABEL = {
@@ -101,7 +102,17 @@ export default function TickerResearchWorkspace({ symbol, onOpenNote, showBackLi
   }
 
   if (isLoading || !summary) {
-    return <div className={styles.loading}>Loading…</div>
+    // G-106 (Wave B lower-frequency sweep): same skeleton idiom as
+    // ResearchHome's own loading state -- a title-shaped line, then a
+    // couple of body-shaped lines -- rather than bare text.
+    return (
+      <div className={styles.loading} role="status" aria-label="Loading…">
+        <SkeletonLine width="40%" height={18} />
+        <div style={{ height: 16 }} />
+        <SkeletonLine width="85%" height={13} />
+        <SkeletonLine width="65%" height={13} />
+      </div>
+    )
   }
 
   const { identity, notes, activeTheses, pastTheses, facts, documents, tradeSummary } = summary

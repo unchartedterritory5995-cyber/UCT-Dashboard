@@ -1064,14 +1064,31 @@ describe('search panel — Wave I document (PDF page) search, sectioned separate
     )
   })
 
-  it('shows an honest "Searching documents…" state while a document query is in flight', () => {
+  it('shows a Skeleton loading state (not bare text) while a document query is in flight', () => {
     useDocumentSearchMock.mockReturnValue({ results: [], isLoading: true, error: null })
     render(<FolderSidebar notes={[]} activeFolderId={null} onSelectFolder={() => {}}
                           activeTag={null} onSelectTag={() => {}} />)
     openSearch()
     fireEvent.change(screen.getByPlaceholderText(/search notes/i), { target: { value: 'x' } })
     settle()
-    expect(screen.getByText('Searching documents…')).toBeInTheDocument()
+    expect(screen.getByRole('status', { name: 'Searching documents…' })).toBeInTheDocument()
+  })
+
+  it('the document-search skeleton disappears once results land', () => {
+    useDocumentSearchMock.mockReturnValue({
+      results: [{
+        documentId: 'd1', pageNumber: 3, noteId: 'n1', noteTitle: 'NVDA notes',
+        name: 'deck.pdf', attachmentUrl: '/x.pdf', snippet: 'a <mark>match</mark>',
+      }],
+      isLoading: false, error: null,
+    })
+    render(<FolderSidebar notes={[]} activeFolderId={null} onSelectFolder={() => {}}
+                          activeTag={null} onSelectTag={() => {}} />)
+    openSearch()
+    fireEvent.change(screen.getByPlaceholderText(/search notes/i), { target: { value: 'match' } })
+    settle()
+    expect(screen.queryByRole('status', { name: 'Searching documents…' })).not.toBeInTheDocument()
+    expect(screen.getByText('deck.pdf · p.3')).toBeInTheDocument()
   })
 })
 
@@ -1170,14 +1187,31 @@ describe('FolderSidebar — Wave J saved-excerpt search', () => {
     )
   })
 
-  it('shows an honest "Searching evidence…" state while an excerpt query is in flight', () => {
+  it('shows a Skeleton loading state (not bare text) while an excerpt query is in flight', () => {
     useExcerptSearchMock.mockReturnValue({ results: [], isLoading: true, error: null })
     render(<FolderSidebar notes={[]} activeFolderId={null} onSelectFolder={() => {}}
                           activeTag={null} onSelectTag={() => {}} />)
     openSearch()
     fireEvent.change(screen.getByPlaceholderText(/search notes/i), { target: { value: 'x' } })
     settle()
-    expect(screen.getByText('Searching evidence…')).toBeInTheDocument()
+    expect(screen.getByRole('status', { name: 'Searching evidence…' })).toBeInTheDocument()
+  })
+
+  it('the evidence-search skeleton disappears once results land', () => {
+    useExcerptSearchMock.mockReturnValue({
+      results: [{
+        excerptId: 'e1', noteId: 'n1', noteTitle: 'NVDA thesis',
+        documentId: 'd1', documentName: 'q3-deck.pdf', pageNumber: 2,
+        annotation: null, snippet: 'a <mark>match</mark>',
+      }],
+      isLoading: false, error: null,
+    })
+    render(<FolderSidebar notes={[]} activeFolderId={null} onSelectFolder={() => {}}
+                          activeTag={null} onSelectTag={() => {}} />)
+    openSearch()
+    fireEvent.change(screen.getByPlaceholderText(/search notes/i), { target: { value: 'match' } })
+    settle()
+    expect(screen.queryByRole('status', { name: 'Searching evidence…' })).not.toBeInTheDocument()
   })
 })
 
@@ -1247,14 +1281,24 @@ describe('search — thesis reviews section', () => {
     )
   })
 
-  it('shows an honest "Searching your reviews…" state while the query is in flight', () => {
+  it('shows a Skeleton loading state (not bare text) while the query is in flight', () => {
     useReviewSearchMock.mockReturnValue({ results: [], isLoading: true, error: null })
     render(<FolderSidebar notes={[]} activeFolderId={null} onSelectFolder={() => {}}
                           activeTag={null} onSelectTag={() => {}} />)
     openSearch()
     fireEvent.change(screen.getByPlaceholderText(/search notes/i), { target: { value: 'x' } })
     settle()
-    expect(screen.getByText('Searching your reviews…')).toBeInTheDocument()
+    expect(screen.getByRole('status', { name: 'Searching your reviews…' })).toBeInTheDocument()
+  })
+
+  it('the review-search skeleton disappears once results land', () => {
+    useReviewSearchMock.mockReturnValue({ results: [REVIEW], isLoading: false, error: null })
+    render(<FolderSidebar notes={[]} activeFolderId={null} onSelectFolder={() => {}}
+                          activeTag={null} onSelectTag={() => {}} />)
+    openSearch()
+    fireEvent.change(screen.getByPlaceholderText(/search notes/i), { target: { value: 'datacenter' } })
+    settle()
+    expect(screen.queryByRole('status', { name: 'Searching your reviews…' })).not.toBeInTheDocument()
   })
 
   it('a search with no review hits grows no empty block', () => {

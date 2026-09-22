@@ -2,6 +2,39 @@ import { render, screen, fireEvent, waitFor } from '@testing-library/react'
 import { describe, it, expect, vi } from 'vitest'
 import DropboxFolderPicker from './DropboxFolderPicker'
 
+describe('DropboxFolderPicker — loading state (G-106)', () => {
+  it('shows a Skeleton loading state, not bare text, while folders are in flight', () => {
+    const listFolders = vi.fn(() => new Promise(() => {})) // never settles in this test
+    render(
+      <DropboxFolderPicker
+        open
+        listFolders={listFolders}
+        addSource={vi.fn()}
+        onClose={() => {}}
+        onPicked={() => {}}
+      />
+    )
+    expect(screen.getByRole('status')).toHaveAccessibleName('Loading folders…')
+  })
+
+  it('the loading skeleton disappears once folders resolve', async () => {
+    const listFolders = vi.fn(async () => [
+      { name: 'Team Notes', remoteId: '/team notes', drillPath: '/team notes' },
+    ])
+    render(
+      <DropboxFolderPicker
+        open
+        listFolders={listFolders}
+        addSource={vi.fn()}
+        onClose={() => {}}
+        onPicked={() => {}}
+      />
+    )
+    expect(await screen.findByText('Team Notes')).toBeInTheDocument()
+    expect(screen.queryByRole('status')).toBeNull()
+  })
+})
+
 describe('DropboxFolderPicker (Task 12b)', () => {
   it('renders the folder list from the mocked GET, requesting the root path first', async () => {
     const listFolders = vi.fn(async () => [

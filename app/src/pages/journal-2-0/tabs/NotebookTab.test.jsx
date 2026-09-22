@@ -300,6 +300,42 @@ describe('NotebookTab — export', () => {
   })
 })
 
+// G-106 (Wave B lower-frequency sweep, competitive-gap-ledger.md): the main
+// grid's own initial-load state used to be bare "Loading…" text. Reached
+// via `?view=all` (renderTab's default entry), same as the pagination tests
+// below -- bare-root Home is a separate, already-mocked component here.
+describe('NotebookTab — initial grid loading (G-106)', () => {
+  function mockMainList({ notes, isLoading = false, total = 0 }) {
+    useJ2NotesMock.mockImplementation((opts) => {
+      if (opts?.sort === 'title') {
+        return { notes: [], isLoading: false, error: null, refresh: vi.fn(), mutate: vi.fn(), total: 0, hasMore: false, loadMore: vi.fn(), isLoadingMore: false }
+      }
+      return { notes, isLoading, error: null, refresh: mockRefresh, mutate: vi.fn(), total, hasMore: false, loadMore: mockLoadMore, isLoadingMore: false }
+    })
+  }
+
+  it('shows a Skeleton loading state, not bare text, before the first page lands', () => {
+    mockMainList({ notes: [], isLoading: true })
+    renderTab()
+    expect(screen.getByRole('status')).toHaveAccessibleName('Loading…')
+    expect(screen.queryByText('Your notebook is empty.')).not.toBeInTheDocument()
+  })
+
+  it('the loading skeleton disappears once notes land', () => {
+    mockMainList({ notes: [{ id: 'n1', title: 'A' }], total: 1 })
+    renderTab()
+    expect(screen.queryByRole('status')).not.toBeInTheDocument()
+    expect(screen.getByTestId('note-card')).toBeInTheDocument()
+  })
+
+  it('a genuinely empty (loaded) notebook shows the empty state, never the skeleton', () => {
+    mockMainList({ notes: [], isLoading: false })
+    renderTab()
+    expect(screen.queryByRole('status')).not.toBeInTheDocument()
+    expect(screen.getByText('Your notebook is empty.')).toBeInTheDocument()
+  })
+})
+
 describe('NotebookTab — pagination (Task 11: the browse path must survive a migrated library)', () => {
   // The sidebar's OWN unfiltered `sort: 'title'` fetch shares this same
   // mocked hook — route it to an empty, harmless response so these

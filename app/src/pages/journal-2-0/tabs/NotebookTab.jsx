@@ -31,6 +31,7 @@ import { useBlockedNotes } from '../lib/offline/useBlockedNotes'
 import { reportOptIn } from '../lib/offline/offlineOptInEvent'
 import { SAVEABLE_VIEW_MODES, VIEW_MODES } from '../lib/savedViewModes'
 import ConfirmModal from '../components/ConfirmModal'
+import { SkeletonLine } from '../../../components/Skeleton'
 import styles from './NotebookTab.module.css'
 import { settleNoteWrite } from '../lib/offline/settleNoteWrite'
 
@@ -907,7 +908,19 @@ export default function NotebookTab() {
         )}
 
         {isLoading && notes.length === 0 ? (
-          <div className={styles.empty}>Loading…</div>
+          // G-106 (Wave B lower-frequency sweep): a small grid of card-shaped
+          // skeleton placeholders -- reusing the same `.grid` layout the real
+          // NoteCard grid renders into -- instead of bare text. Not
+          // view-mode-aware (this branch runs before viewMode is even
+          // consulted below), so it approximates the DEFAULT list/grid view.
+          <div className={styles.grid} role="status" aria-label="Loading…">
+            {[0, 1, 2, 3, 4, 5].map((i) => (
+              <div key={i} className={styles.noteCardSkeleton} aria-hidden="true">
+                <SkeletonLine width="70%" height={15} />
+                <SkeletonLine width="40%" height={11} />
+              </div>
+            ))}
+          </div>
         ) : notes.length === 0 && isTrashView ? (
           <div className={styles.empty}>
             <p>Trash is empty.</p>

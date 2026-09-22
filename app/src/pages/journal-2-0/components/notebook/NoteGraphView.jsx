@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import useSWR from 'swr'
+import { SkeletonBlock } from '../../../../components/Skeleton'
 import styles from './NoteGraphView.module.css'
 
 /**
@@ -364,7 +365,16 @@ export default function NoteGraphView({ onOpenNote }) {
     return best
   }, [])
 
-  if (isLoading) return <div className={styles.state}>Loading the graph…</div>
+  if (isLoading) {
+    // G-106 (Wave B lower-frequency sweep): a chart-shaped placeholder
+    // (SkeletonBlock -- the same primitive SkeletonChart wraps elsewhere in
+    // the app) standing in for the canvas, instead of bare centered text.
+    return (
+      <div className={styles.state} role="status" aria-label="Loading the graph…">
+        <SkeletonBlock width="100%" height={420} />
+      </div>
+    )
+  }
   if (!graph.nodes.length) {
     return (
       <div className={styles.state}>

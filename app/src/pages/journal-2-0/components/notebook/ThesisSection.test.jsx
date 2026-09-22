@@ -191,6 +191,36 @@ describe('ThesisSection', () => {
     expect(JSON.parse(postCall[1].body)).toMatchObject({ targetType: 'note', targetId: 'n2', stance: 'supports' })
   })
 
+  // G-106 (Wave B lower-frequency sweep): the note-link picker's own search
+  // used to be bare "Searching…" text.
+  it('shows a Skeleton loading state (not bare text) while the note-link query is in flight, and it disappears once results land', async () => {
+    let resolveSearch
+    global.fetch.mockImplementation((url) => {
+      if (url.includes('/notes?q=')) {
+        return new Promise((resolve) => {
+          resolveSearch = () => resolve({
+            ok: true, json: () => Promise.resolve({ notes: [{ id: 'n2', title: 'Supporting note' }] }),
+          })
+        })
+      }
+      return Promise.resolve({ ok: true, json: () => Promise.resolve({}) })
+    })
+    renderIt(THESIS_NOTE_BY_TAG)
+    fireEvent.click(screen.getByText('Add evidence'))
+    fireEvent.change(screen.getByPlaceholderText('Search notes…'), { target: { value: 'support' } })
+    // Scoped by name: the section's own "Review status" aria-live region is
+    // also role="status" and always present, so a bare getByRole('status')
+    // is ambiguous once both exist on screen.
+    expect(screen.getByRole('status', { name: 'Searching…' })).toBeInTheDocument()
+    // `searching` flips true synchronously; the fetch itself fires only after
+    // the 300ms debounce (real timers here, same as the test above) -- wait
+    // for the request to actually land before resolving it.
+    await waitFor(() => expect(resolveSearch).toBeTypeOf('function'), { timeout: 1000 })
+    resolveSearch()
+    await waitFor(() => expect(screen.getByText('Supporting note')).toBeTruthy(), { timeout: 1000 })
+    expect(screen.queryByRole('status', { name: 'Searching…' })).not.toBeInTheDocument()
+  })
+
   it('removing evidence calls the delete endpoint and refreshes', async () => {
     global.fetch.mockResolvedValue({ ok: true, json: () => Promise.resolve({}) })
     const refresh = vi.fn()
