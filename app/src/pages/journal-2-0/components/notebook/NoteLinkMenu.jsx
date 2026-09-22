@@ -10,6 +10,12 @@
  * factoring out a common core was judged not worth the risk of
  * destabilizing SlashMenu for this pass. The POSITIONING/ARIA behavior is
  * intentionally the same shape, just not literally the same code.
+ *
+ * ⛔ ONE EXCEPTION, added 2026-09-22: the combobox-role ARIA wiring
+ * (`applyComboboxWiring`, `../../lib/comboboxWiring.js`) IS shared with
+ * SlashMenu.jsx — it's a small, pure, zero-dependency DOM-attribute
+ * function with no positioning/timing/async surface to destabilize, unlike
+ * the "common core" the paragraph above declined to extract.
  */
 
 import { Extension } from '@tiptap/react'
@@ -18,6 +24,7 @@ import { PluginKey } from '@tiptap/pm/state'
 import { ReactRenderer } from '@tiptap/react'
 import { useEffect, useImperativeHandle, useState, forwardRef } from 'react'
 import UIcon from '../../../../components/ui/UIcon'
+import { applyComboboxWiring } from '../../lib/comboboxWiring'
 import { SkeletonLine } from '../../../../components/Skeleton'
 import styles from './NoteLinkMenu.module.css'
 
@@ -180,14 +187,7 @@ export const NoteLinkMenuExtension = Extension.create({
           const onViewportChange = () => position()
 
           const setActiveDescendant = (id) => {
-            if (!editorDom) return
-            if (id && !dismissed) {
-              editorDom.setAttribute('aria-controls', MENU_ID)
-              editorDom.setAttribute('aria-activedescendant', id)
-            } else {
-              editorDom.removeAttribute('aria-controls')
-              editorDom.removeAttribute('aria-activedescendant')
-            }
+            applyComboboxWiring(editorDom, { menuId: MENU_ID, activeId: id, showing: Boolean(id && !dismissed) })
           }
 
           return {

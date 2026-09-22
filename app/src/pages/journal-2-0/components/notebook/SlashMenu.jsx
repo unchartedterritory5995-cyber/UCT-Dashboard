@@ -14,6 +14,7 @@ import { WIDGET_REGISTRY, JOURNAL_MENU_TYPES, tfText } from '../../../../widgets
 import {
   parseChartSlashArgs, parseMtfSlashArgs, parseCompareSlashArgs, chartInsertNodes,
 } from '../../lib/widgetEmbedCore'
+import { applyComboboxWiring } from '../../lib/comboboxWiring'
 import styles from './SlashMenu.module.css'
 
 const ITEMS = [
@@ -396,18 +397,14 @@ export const SlashMenuExtension = Extension.create({
           const onViewportChange = () => position()
 
           // The editor is the focused element, so it carries the combobox
-          // wiring: aria-controls names the listbox, aria-activedescendant
-          // tracks the highlighted option (SlashList reports through
-          // onActiveChange). Cleared whenever the menu isn't offering items.
+          // wiring: role="combobox" + aria-autocomplete + aria-expanded +
+          // aria-controls (naming the listbox) + aria-activedescendant
+          // (tracking the highlighted option, reported by SlashList through
+          // onActiveChange) -- shared with NoteLinkMenu.jsx via
+          // applyComboboxWiring, since both popups need the identical
+          // pairing. Cleared whenever the menu isn't offering items.
           const setActiveDescendant = (id) => {
-            if (!editorDom) return
-            if (id && !dismissed) {
-              editorDom.setAttribute('aria-controls', MENU_ID)
-              editorDom.setAttribute('aria-activedescendant', id)
-            } else {
-              editorDom.removeAttribute('aria-controls')
-              editorDom.removeAttribute('aria-activedescendant')
-            }
+            applyComboboxWiring(editorDom, { menuId: MENU_ID, activeId: id, showing: Boolean(id && !dismissed) })
           }
 
           return {
