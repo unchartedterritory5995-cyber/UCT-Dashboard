@@ -24,10 +24,17 @@ beforeEach(() => {
 })
 
 describe('ResearchHome', () => {
-  it('shows a loading state while the hook is loading', () => {
+  it('shows a Skeleton loading state (not bare text) while the hook is loading', () => {
     hookResult = { home: EMPTY, isLoading: true, error: null, refresh: vi.fn() }
     renderHome()
-    expect(screen.getByText('Loading…')).toBeTruthy()
+    expect(screen.getByRole('status')).toHaveAccessibleName('Loading…')
+    expect(screen.queryByText('Welcome to your Notebook')).toBeNull()
+  })
+
+  it('the loading skeleton disappears once the home data resolves', () => {
+    hookResult = { home: EMPTY, isLoading: false, error: null, refresh: vi.fn() }
+    renderHome()
+    expect(screen.queryByRole('status')).toBeNull()
   })
 
   it('shows the first-run empty state for a brand new account', () => {

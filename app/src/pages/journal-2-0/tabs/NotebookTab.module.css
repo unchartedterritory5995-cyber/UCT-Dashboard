@@ -270,6 +270,18 @@
   grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
   gap: 18px;
 }
+/* G-106: mirrors NoteCard.module.css's .card geometry (border/radius/padding)
+   closely enough to reserve the right box, without importing that module --
+   this is a placeholder shape, never a real card. */
+.noteCardSkeleton {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  background: var(--bg-surface);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 14px;
+}
 .loadMoreRow {
   display: flex;
   align-items: center;

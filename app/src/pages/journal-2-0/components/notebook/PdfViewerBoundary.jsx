@@ -1,4 +1,5 @@
 import { Component, Suspense, lazy } from 'react'
+import { SkeletonBlock } from '../../../../components/Skeleton'
 import styles from './DocumentPreviewSheet.module.css'
 
 /**
@@ -61,7 +62,14 @@ class Catch extends Component {
 export default function PdfViewerBoundary(props) {
   return (
     <Catch>
-      <Suspense fallback={<div className={styles.pdfLoading} role="status">Loading preview…</div>}>
+      <Suspense fallback={(
+        // G-106 (Wave B lower-frequency sweep): a chart/canvas-shaped
+        // SkeletonBlock reserving the preview's own box, instead of bare
+        // centered text -- matching the app-wide Skeleton idiom.
+        <div className={styles.pdfLoading} role="status" aria-label="Loading preview…">
+          <SkeletonBlock width="100%" height={160} />
+        </div>
+      )}>
         <PdfDocumentViewer {...props} />
       </Suspense>
     </Catch>

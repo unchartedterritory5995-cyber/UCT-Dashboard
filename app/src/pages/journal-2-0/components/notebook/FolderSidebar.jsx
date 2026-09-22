@@ -1097,13 +1097,23 @@ export default function FolderSidebar({
               something to say (a real query in flight, or real results) so
               an empty/filters-only search doesn't grow an extra empty block. */}
           {trimmedQuery && (documentsSearching || documentResults.length > 0) && (
+            documentsSearching ? (
+              // G-106 (Wave B lower-frequency sweep): same skeleton-row idiom
+              // as the Notes search above, instead of a bare count string.
+              <div className={styles.searchResultsSkeleton} role="status" aria-label="Searching documents…">
+                {[0, 1].map((i) => (
+                  <div key={i} className={styles.searchResultSkeletonRow}>
+                    <SkeletonLine width="70%" height={12} />
+                    <SkeletonLine width="90%" height={10} />
+                  </div>
+                ))}
+              </div>
+            ) : (
             <div className={styles.searchResults}>
               <div className={styles.searchCount}>
-                {documentsSearching
-                  ? 'Searching documents…'
-                  : `${documentResults.length} document page${documentResults.length === 1 ? '' : 's'}`}
+                {`${documentResults.length} document page${documentResults.length === 1 ? '' : 's'}`}
               </div>
-              {!documentsSearching && documentResults.map((d) => (
+              {documentResults.map((d) => (
                 <button
                   key={`${d.documentId}-${d.pageNumber}`}
                   type="button"
@@ -1137,6 +1147,7 @@ export default function FolderSidebar({
                 </button>
               ))}
             </div>
+            )
           )}
 
           {/* Wave J: Evidence section — the passages this member chose to
@@ -1144,13 +1155,23 @@ export default function FolderSidebar({
               Documents, each still its own list. Same render-only-when-it-
               has-something-to-say rule as Documents above. */}
           {trimmedQuery && (excerptsSearching || excerptResults.length > 0) && (
+            excerptsSearching ? (
+              // G-106 (Wave B lower-frequency sweep): same skeleton-row idiom
+              // as the Notes search above, instead of a bare count string.
+              <div className={styles.searchResultsSkeleton} role="status" aria-label="Searching evidence…">
+                {[0, 1].map((i) => (
+                  <div key={i} className={styles.searchResultSkeletonRow}>
+                    <SkeletonLine width="70%" height={12} />
+                    <SkeletonLine width="90%" height={10} />
+                  </div>
+                ))}
+              </div>
+            ) : (
             <div className={styles.searchResults}>
               <div className={styles.searchCount}>
-                {excerptsSearching
-                  ? 'Searching evidence…'
-                  : `${excerptResults.length} saved excerpt${excerptResults.length === 1 ? '' : 's'}`}
+                {`${excerptResults.length} saved excerpt${excerptResults.length === 1 ? '' : 's'}`}
               </div>
-              {!excerptsSearching && excerptResults.map((e) => (
+              {excerptResults.map((e) => (
                 <button
                   key={e.excerptId}
                   type="button"
@@ -1169,6 +1190,7 @@ export default function FolderSidebar({
                 </button>
               ))}
             </div>
+            )
           )}
 
           {/* Wave O6: Thesis reviews — the member's own conclusions. Fourth and
@@ -1177,13 +1199,23 @@ export default function FolderSidebar({
               rendered only their prose would make "I was wrong about this" and
               "no change" look like the same finding. */}
           {trimmedQuery && (reviewsSearching || reviewResults.length > 0) && (
+            reviewsSearching ? (
+              // G-106 (Wave B lower-frequency sweep): same skeleton-row idiom
+              // as the Notes search above, instead of a bare count string.
+              <div className={styles.searchResultsSkeleton} role="status" aria-label="Searching your reviews…">
+                {[0, 1].map((i) => (
+                  <div key={i} className={styles.searchResultSkeletonRow}>
+                    <SkeletonLine width="70%" height={12} />
+                    <SkeletonLine width="90%" height={10} />
+                  </div>
+                ))}
+              </div>
+            ) : (
             <div className={styles.searchResults}>
               <div className={styles.searchCount}>
-                {reviewsSearching
-                  ? 'Searching your reviews…'
-                  : `${reviewResults.length} thesis review${reviewResults.length === 1 ? '' : 's'}`}
+                {`${reviewResults.length} thesis review${reviewResults.length === 1 ? '' : 's'}`}
               </div>
-              {!reviewsSearching && reviewResults.map((r) => (
+              {reviewResults.map((r) => (
                 <button
                   key={r.reviewId}
                   type="button"
@@ -1207,6 +1239,7 @@ export default function FolderSidebar({
                 </button>
               ))}
             </div>
+            )
           )}
         </div>
       ) : (

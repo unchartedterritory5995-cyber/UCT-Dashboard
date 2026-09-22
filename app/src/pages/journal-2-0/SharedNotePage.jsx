@@ -3,6 +3,7 @@ import { useParams } from 'react-router-dom'
 import { useEditor, EditorContent } from '@tiptap/react'
 import { buildExtensions } from './lib/tiptap'
 import { SHARED_NOTE_ENDPOINT } from './lib/noteShareLink'
+import { SkeletonLine } from '../../components/Skeleton'
 import styles from './SharedNotePage.module.css'
 
 /**
@@ -32,7 +33,20 @@ export default function SharedNotePage() {
   }, [token])
 
   if (state.status === 'loading') {
-    return <div className={styles.page}><div className={styles.centered}>Loading…</div></div>
+    // G-106 (Wave B lower-frequency sweep): a title-shaped line plus a
+    // couple of body-shaped lines, matching the notebook's own note-loading
+    // skeleton (NoteEditorPage.jsx) -- this page renders the far end of the
+    // same note, so it reuses the same idiom rather than a bare word.
+    return (
+      <div className={styles.page}>
+        <div className={styles.centered} role="status" aria-label="Loading…">
+          <SkeletonLine width="55%" height={20} />
+          <div style={{ height: 14 }} />
+          <SkeletonLine width="90%" height={13} />
+          <SkeletonLine width="75%" height={13} />
+        </div>
+      </div>
+    )
   }
   if (state.status !== 'ok' || !state.note) {
     return (

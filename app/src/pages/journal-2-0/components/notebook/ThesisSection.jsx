@@ -14,6 +14,7 @@ import ThesisReviewSection from './ThesisReviewSection'
 // truth, and the one place the '· p.2' defect would have survived Wave M.
 import { searchResultTitle } from '../../lib/searchResultLabel'
 import { notePath } from '../../../../hooks/useNoteBacklinks'
+import { SkeletonLine } from '../../../../components/Skeleton'
 import styles from './ThesisSection.module.css'
 
 const THESIS_RESEARCH_TYPES = new Set(['long_thesis', 'short_thesis'])
@@ -491,7 +492,15 @@ export default function ThesisSection({ noteId, note, onOpenExcerptSource,
                     onChange={(e) => setQuery(e.target.value)}
                     autoFocus
                   />
-                  {searching && <div className={styles.hint}>Searching…</div>}
+                  {searching && (
+                    // G-106 (Wave B lower-frequency sweep): a couple of
+                    // skeleton rows standing in for result rows, instead of
+                    // bare text -- same idiom as NoteLinkMenu's popup.
+                    <div className={styles.searchingSkeleton} role="status" aria-label="Searching…">
+                      <SkeletonLine width="75%" height={12} />
+                      <SkeletonLine width="55%" height={12} />
+                    </div>
+                  )}
                   {results.length > 0 && (
                     <ul className={styles.resultsList}>
                       {results.map((n) => (

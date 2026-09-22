@@ -45,10 +45,15 @@ beforeEach(() => {
 })
 
 describe('TickerResearchWorkspace', () => {
-  it('shows a loading state before the summary resolves', () => {
+  it('shows a Skeleton loading state (not bare text) before the summary resolves', () => {
     hookResult = { summary: null, isLoading: true, error: null, refresh: vi.fn() }
     renderWorkspace()
-    expect(screen.getByText('Loading…')).toBeTruthy()
+    expect(screen.getByRole('status')).toHaveAccessibleName('Loading…')
+  })
+
+  it('the loading skeleton disappears once the summary resolves', () => {
+    renderWorkspace()
+    expect(screen.queryByRole('status')).toBeNull()
   })
 
   it('shows the honest empty state for a security with zero research', () => {

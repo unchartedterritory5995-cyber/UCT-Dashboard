@@ -88,6 +88,21 @@ describe('ConnectedAppsCard — upsell', () => {
   })
 })
 
+// G-106 (Wave B lower-frequency sweep, competitive-gap-ledger.md): the
+// isLoading branch used to be bare "Loading…" text.
+describe('ConnectedAppsCard — loading (G-106)', () => {
+  afterEach(() => vi.restoreAllMocks())
+
+  it('shows a Skeleton loading state, not bare text, while connector status is in flight', async () => {
+    let resolveFetch
+    global.fetch = vi.fn(() => new Promise((resolve) => { resolveFetch = resolve }))
+    render(<ConnectedAppsCard />)
+    expect(screen.getByRole('status')).toHaveAccessibleName('Loading…')
+    resolveFetch({ ok: true, status: 200, json: async () => EMPTY_STATUS })
+    await waitFor(() => expect(screen.queryByRole('status')).not.toBeInTheDocument())
+  })
+})
+
 describe('ConnectedAppsCard — provider matrix', () => {
   afterEach(() => {
     window.history.replaceState({}, '', '/settings')

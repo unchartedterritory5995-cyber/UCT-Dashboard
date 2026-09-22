@@ -78,7 +78,12 @@ describe('NoteGraphView', () => {
   it('says it is loading rather than drawing an empty canvas', () => {
     swrResult = { data: undefined, isLoading: true }
     render(<NoteGraphView />)
-    expect(screen.getByText(/loading the graph/i)).toBeTruthy()
+    expect(screen.getByRole('status')).toHaveAccessibleName(/loading the graph/i)
+  })
+
+  it('the loading skeleton disappears once the graph data resolves', () => {
+    render(<NoteGraphView />)
+    expect(screen.queryByRole('status')).toBeNull()
   })
 
   it('tells a member with no notes what to do instead of showing a blank box', () => {

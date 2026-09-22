@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import { NodeViewWrapper } from '@tiptap/react'
 import useNoteFacts from '../../hooks/useNoteFacts'
 import UIcon from '../../../../components/ui/UIcon'
+import { SkeletonLine } from '../../../../components/Skeleton'
 import styles from './FinancialFactView.module.css'
 
 function formatObservedAt(iso) {
@@ -66,10 +67,16 @@ export default function FinancialFactView({ node, editor, deleteNode }) {
   // null key), so without this check the settle-window gap above would
   // render "no longer available" for ~50ms on every single note open.
   if ((isLoading || !noteId) && !fact) {
+    // G-106 (Wave B lower-frequency sweep): a couple of skeleton lines
+    // inside the same small card, instead of bare italic text -- matching
+    // the app-wide Skeleton idiom rather than inventing a new one for this
+    // embed.
     return (
       <NodeViewWrapper as="div" className={styles.wrap} data-financial-fact>
-        <div className={styles.card}>
-          <span className={styles.muted}>Loading captured fact…</span>
+        <div className={styles.card} role="status" aria-label="Loading captured fact…">
+          <SkeletonLine width="35%" height={11} />
+          <div style={{ height: 6 }} />
+          <SkeletonLine width="60%" height={13} />
         </div>
       </NodeViewWrapper>
     )

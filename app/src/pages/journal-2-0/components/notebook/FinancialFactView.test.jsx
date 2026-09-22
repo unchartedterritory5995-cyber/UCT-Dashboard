@@ -21,10 +21,23 @@ beforeEach(() => {
 })
 
 describe('FinancialFactView', () => {
-  it('shows a loading state before the note facts resolve', () => {
+  it('shows a Skeleton loading state (not bare text) before the note facts resolve', () => {
     hookResult = { facts: [], isLoading: true, refresh: vi.fn() }
     render(<FinancialFactView node={nodeFor('f1')} editor={editorWith('n1')} deleteNode={vi.fn()} />)
-    expect(screen.getByText(/Loading captured fact/)).toBeTruthy()
+    expect(screen.getByRole('status')).toHaveAccessibleName('Loading captured fact…')
+  })
+
+  it('the loading skeleton disappears once the fact resolves', () => {
+    hookResult = {
+      facts: [{
+        id: 'f1', ticker: 'NVDA', factType: 'price', factLabel: 'Price',
+        value: 142.83, unit: 'usd_per_share', temporalMode: 'snapshot',
+        observedAt: '2026-09-06T14:00:00Z', caption: null,
+      }],
+      isLoading: false, refresh: vi.fn(),
+    }
+    render(<FinancialFactView node={nodeFor('f1')} editor={editorWith('n1')} deleteNode={vi.fn()} />)
+    expect(screen.queryByRole('status')).toBeNull()
   })
 
   it('shows "no longer available" when the fact cannot be found', () => {
@@ -47,7 +60,7 @@ describe('FinancialFactView', () => {
       hookResult = { facts: [], isLoading: false, refresh: vi.fn() }
       const editor = { storage: {} }  // uctJournalWidgets not stamped yet
       render(<FinancialFactView node={nodeFor('f1')} editor={editor} deleteNode={vi.fn()} />)
-      expect(screen.getByText(/Loading captured fact/)).toBeTruthy()
+      expect(screen.getByRole('status')).toHaveAccessibleName('Loading captured fact…')
       expect(screen.queryByText(/no longer available/)).toBeNull()
       // useNoteFacts must never be called with a noteId of null/undefined --
       // that would fire a request no note can answer.

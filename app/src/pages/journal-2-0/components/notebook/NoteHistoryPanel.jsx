@@ -6,6 +6,7 @@ import { timeAgo, formatET } from '../../../../utils/timeAgo'
 import { useJ2NoteVersions, useJ2NoteVersion, restoreNoteVersion } from '../../hooks/useJ2NoteVersions'
 import { diffNoteBodies, diffHasChanges } from '../../lib/noteVersionDiff'
 import NoteVersionPreview from './NoteVersionPreview'
+import { SkeletonLine } from '../../../../components/Skeleton'
 import styles from './NoteHistoryPanel.module.css'
 
 /**
@@ -77,7 +78,15 @@ export default function NoteHistoryPanel({ open, onClose, noteId, currentNote, o
       ariaLabel="Version history"
     >
       <div className={styles.wrap}>
-        {isLoading && <div className={styles.centered}>Loading history…</div>}
+        {/* G-106 (Wave B lower-frequency sweep): same skeleton-line idiom as
+            NoteEditorPage/ResearchHome, instead of bare text. */}
+        {isLoading && (
+          <div className={styles.centered} role="status" aria-label="Loading history…">
+            <SkeletonLine width="70%" height={13} />
+            <SkeletonLine width="55%" height={13} />
+            <SkeletonLine width="65%" height={13} />
+          </div>
+        )}
         {!isLoading && error && (
           <div className={styles.centered} role="alert">
             Couldn't load history for this note. <button type="button" className="btn btn-ghost" onClick={onClose}>Close</button>
@@ -111,7 +120,13 @@ export default function NoteHistoryPanel({ open, onClose, noteId, currentNote, o
               ))}
             </ul>
             <div className={styles.detail}>
-              {versionLoading && <div className={styles.centered}>Loading version…</div>}
+              {versionLoading && (
+                <div className={styles.centered} role="status" aria-label="Loading version…">
+                  <SkeletonLine width="45%" height={16} />
+                  <SkeletonLine width="90%" height={13} />
+                  <SkeletonLine width="80%" height={13} />
+                </div>
+              )}
               {!versionLoading && selected && (
                 <>
                   <div className={styles.detailHeader}>

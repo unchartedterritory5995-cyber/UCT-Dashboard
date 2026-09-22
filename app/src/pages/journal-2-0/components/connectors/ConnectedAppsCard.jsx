@@ -51,6 +51,7 @@ import ConnectTokenModal from './ConnectTokenModal'
 import DropboxFolderPicker from './DropboxFolderPicker'
 import ObsidianConnectModal from './ObsidianConnectModal'
 import SourceRow from './SourceRow'
+import { SkeletonLine } from '../../../../components/Skeleton'
 import styles from './ConnectedAppsCard.module.css'
 
 export default function ConnectedAppsCard() {
@@ -137,9 +138,14 @@ export default function ConnectedAppsCard() {
   }
 
   if (isLoading) {
+    // G-106 (Wave B lower-frequency sweep): a couple of provider-tile-shaped
+    // skeleton rows, instead of bare text.
     return (
       <TileCard icon="link" title="Connected Apps">
-        <div className={styles.muted}>Loading…</div>
+        <div className={styles.section} role="status" aria-label="Loading…">
+          <SkeletonLine width="60%" height={13} />
+          <SkeletonLine width="45%" height={13} />
+        </div>
       </TileCard>
     )
   }

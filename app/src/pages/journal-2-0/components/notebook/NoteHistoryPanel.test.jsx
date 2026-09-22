@@ -37,11 +37,32 @@ afterEach(() => {
 })
 
 describe('NoteHistoryPanel', () => {
-  it('shows a loading state while the version list is fetching', () => {
+  it('shows a Skeleton loading state (not bare text) while the version list is fetching', () => {
     useJ2NoteVersions.mockReturnValue({ versions: [], isLoading: true, error: null })
     useJ2NoteVersion.mockReturnValue({ version: null, isLoading: false })
     render(<NoteHistoryPanel open noteId="n1" currentNote={CURRENT} onClose={() => {}} />)
-    expect(screen.getByText(/loading history/i)).toBeTruthy()
+    expect(screen.getByRole('status')).toHaveAccessibleName(/loading history/i)
+  })
+
+  it('the version-list skeleton disappears once versions land', () => {
+    useJ2NoteVersions.mockReturnValue(versionsList([
+      { id: 'v1', title: 'Older', subtitle: null, createdAt: '2026-09-05T11:00:00Z' },
+    ]))
+    useJ2NoteVersion.mockReturnValue({
+      version: { id: 'v1', title: 'Older', subtitle: null, bodyJson: null, bodyPlain: '' },
+      isLoading: false,
+    })
+    render(<NoteHistoryPanel open noteId="n1" currentNote={CURRENT} onClose={() => {}} />)
+    expect(screen.queryByRole('status')).toBeNull()
+  })
+
+  it('shows a Skeleton loading state for the selected version detail pane', () => {
+    useJ2NoteVersions.mockReturnValue(versionsList([
+      { id: 'v1', title: 'Older', subtitle: null, createdAt: '2026-09-05T11:00:00Z' },
+    ]))
+    useJ2NoteVersion.mockReturnValue({ version: null, isLoading: true })
+    render(<NoteHistoryPanel open noteId="n1" currentNote={CURRENT} onClose={() => {}} />)
+    expect(screen.getByRole('status')).toHaveAccessibleName(/loading version/i)
   })
 
   it('shows an honest empty state for a note with no history yet -- never fabricated versions', () => {
