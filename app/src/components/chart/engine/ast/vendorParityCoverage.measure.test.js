@@ -17,14 +17,21 @@
 // and never measured against the vendor.** Those are the claims this engine
 // makes that nothing has ever checked.
 //
-// ⛔⛔ THE FIXTURE SCAN IS A HEURISTIC AND THE DIRECTION OF ITS ERROR MATTERS.
-// Fixtures are named by capture THEME (`r11-nine-safe-spy-1d-…`,
-// `groupb-hilo-default-…`), not by function, so coverage is detected by
-// searching each fixture's TEXT for the name. That OVER-reports: a fixture
-// whose prose mentions `ta.sma` while capturing something else counts as
-// covered. So the "uncovered" list is a LOWER BOUND on the real work — the true
-// queue is at least this long, never shorter. Stated because a queue that
-// flatters itself is worse than no queue.
+// ⭐⭐ TWO SIGNALS, AND THE GAP BETWEEN THEM IS THE POINT.
+//
+// WEAK — the name appears anywhere under `tests/fixtures/vendor/`. Fixtures are
+// named by capture THEME (`r11-nine-safe-spy-1d-…`), not by function, so this
+// OVER-reports badly: a capture whose prose mentions a name while measuring
+// something else counts as covered.
+//
+// AUTHORITATIVE — the name is CALLED in a committed probe source under
+// `tools/visual_conformance/probes/*.pine`. Those are the scripts actually run
+// on TradingView to produce the fixtures (each fixture names its probe in
+// `_probe`), so their call sites are what a capture genuinely measured.
+//
+// ⚠️ Measured 2026-09-21 the two disagree by an order of magnitude: the weak
+// signal leaves 3 names uncovered, the authoritative one leaves 29. The weak
+// number would have read as "Phase 1 is nearly done".
 //
 // ⛔ IT ASSERTS NO COUNT — same contract as the other censuses. A queue pinned
 // to a number goes red every time the queue is worked.
@@ -110,47 +117,59 @@ describe('⭐⭐ Phase 1 queue — declared, used, never measured', () => {
     const coveredCount = rows.filter((r) => r.covered).length
     const unusedUncovered = rows.filter((r) => !r.covered && r.scripts === 0)
 
-    // ⭐⭐ THE STRONGER SIGNAL, because the weak one flatters. "Mentioned in a
-    // fixture" counts a name that appears in a capture's prose while the
-    // capture measures something else. What actually makes a claim CHECKED is
-    // a TEST that reads a vendor fixture AND names the function — so count
-    // that separately and report both. The gap between the two numbers IS the
-    // over-report, made visible instead of argued about.
-    const assertedInTests = (() => {
+    // ⭐⭐ THE AUTHORITATIVE SIGNAL — THE PROBE SOURCES THEMSELVES.
+    //
+    // A vendor capture is produced by running a real Pine script on
+    // TradingView. Those scripts are committed at
+    // `tools/visual_conformance/probes/*.pine` and each fixture names the one
+    // it came from in its `_probe` field. So "what did this capture actually
+    // measure" is answered by the CALL SITES IN THE PROBE — not by what a
+    // fixture's prose happens to mention, and not by what a test file happens
+    // to contain.
+    //
+    // ⛔⛔ COMMENTS ARE STRIPPED FIRST AND THAT IS LOAD-BEARING, NOT TIDINESS.
+    // `r11-nine-safe.pine`'s own header names `alma`, `ta.nvi` and
+    // `ta.correlation` to say they are **deliberately NOT in this probe** —
+    // "a compile failure there would take these four with it". Grep the file
+    // and all three read as covered by the very capture that excludes them.
+    // That is `CLAUDE.md`'s "CODE, NEVER PROSE" in its purest form, and this
+    // directory is where it would have bitten next.
+    const probedNames = (() => {
       const hits = new Set()
-      const roots = [
-        path.join(REPO, 'app/src/components/chart/engine'),
-        path.join(REPO, 'tests'),
-      ]
-      const walk = (dir) => {
-        if (!fs.existsSync(dir)) return
-        for (const e of fs.readdirSync(dir, { withFileTypes: true })) {
-          const p = path.join(dir, e.name)
-          if (e.isDirectory()) { if (e.name !== 'node_modules') walk(p); continue }
-          if (!/\.(test|spec)\.[jt]sx?$|^test_.*\.py$/.test(e.name)) continue
-          let txt = ''
-          try { txt = fs.readFileSync(p, 'utf8') } catch { continue }
-          // Only a test that actually reaches a vendor fixture can be asserting
-          // against the vendor. Everything else is an internal consistency test.
-          if (!/fixtures[\/\\]vendor/.test(txt)) continue
-          for (const n of names) if (txt.includes(n)) hits.add(n)
+      const dir = path.join(REPO, 'tools/visual_conformance/probes')
+      if (!fs.existsSync(dir)) return hits
+      for (const f of fs.readdirSync(dir).filter((x) => x.endsWith('.pine'))) {
+        let raw = ''
+        try { raw = fs.readFileSync(path.join(dir, f), 'utf8') } catch { continue }
+        const code = raw.split('\n')
+          .map((l) => { const i = l.indexOf('//'); return i === -1 ? l : l.slice(0, i) })
+          .join('\n')
+        for (const n of names) {
+          const re = new RegExp(`\\b${n.replace(/\./g, '\\.')}\\s*\\(`)
+          if (re.test(code)) hits.add(n)
         }
       }
-      roots.forEach(walk)
       return hits
     })()
+    const assertedInTests = probedNames
     const usedRows = rows.filter((r) => r.scripts > 0)
     const assertedUsed = usedRows.filter((r) => assertedInTests.has(r.name))
     const realQueue = usedRows.filter((r) => !assertedInTests.has(r.name))
       .sort((a, b) => b.scripts - a.scripts || a.name.localeCompare(b.name))
 
     // ⛔⛔ A SATURATED INSTRUMENT REPORTS ZERO, AND ZERO READS AS "NOTHING TO
-    // DO". Measured 2026-09-21: this check marks 42 of 42 used names as
-    // "asserted" and the queue as EMPTY — which is not a finding, it is the
-    // filter matching everything. A single large test file that reads any
-    // vendor fixture and mentions many function names satisfies the predicate
-    // for all of them, so the "narrower" check has a WIDER false-positive
-    // surface than the one it was meant to tighten.
+    // DO" — SO SATURATION IS DETECTED RATHER THAN PUBLISHED.
+    //
+    // ⚰️ THIS GUARD EXISTS BECAUSE THE FIRST ATTEMPT AT THE STRONG SIGNAL FIRED
+    // IT. That version asked "is there a TEST that reads a vendor fixture AND
+    // names this function", and it marked 42 of 42 used names as covered — an
+    // EMPTY queue. Not a finding: one large test file reading any fixture and
+    // mentioning many names satisfied it for all of them, so the "narrower"
+    // check had a WIDER false-positive surface than the one it tightened.
+    // Replacing it with the probe call sites took the queue from 0 to 29.
+    //
+    // ⭐ The guard stays live because the probe check could saturate the same
+    // way if probes ever grow to name everything.
     //
     // ⭐ So the saturation is DETECTED and reported as INCONCLUSIVE rather than
     // published as a zero. An absence is only evidence if the instrument could
@@ -169,8 +188,8 @@ describe('⭐⭐ Phase 1 queue — declared, used, never measured', () => {
       `  no mention, USED by corpus : ${uncoveredUsed.length}`,
       `  no mention, unused         : ${unusedUncovered.length}`,
       '',
-      'STRONG signal — a TEST that reads a vendor fixture AND names the function:',
-      `  asserted AND used by corpus : ${assertedUsed.length} of ${usedRows.length} used`,
+      'AUTHORITATIVE — a call site in a committed PROBE source (comments stripped):',
+      `  probed AND used by corpus   : ${assertedUsed.length} of ${usedRows.length} used`,
       ...(saturated ? [
         '',
         '  ⛔⛔ INCONCLUSIVE — THIS CHECK IS SATURATED.',
