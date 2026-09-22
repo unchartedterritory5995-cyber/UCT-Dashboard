@@ -4,15 +4,18 @@
 
 # ⛔⛔ COLD START — 2026-09-20. This block supersedes everything below it.
 
-**One sentence: 22 of 32 systems are DONE and 1 (S7) is RULED-HOLD; five ready-to-sign proposals
-sit on the owner's desk (S1-CP3, D3-CP4, D4-CP5 are extra checkpoints on systems already counted
-DONE; A12-CP1 and A14-CP1 are what move their systems out of BLOCKED-SPEC-READ), and the ONE thing
+**One sentence: 22 of 32 systems are DONE and 1 (S7) is RULED-HOLD; four ready-to-sign proposals
+sit on the owner's desk (D3-CP4, D4-CP5 are extra checkpoints on systems already counted DONE;
+A12-CP1 and A14-CP1 are what move their systems out of BLOCKED-SPEC-READ), and the ONE thing
 nothing can substitute for is a blocked production read of real member-alert data. Read this whole
 block before touching anything.**
 
 ⚰️ *This said "27 of 32 systems are fully DONE, 5 more have a ready-to-sign proposal…". Nothing in
 `COMPLETION_AUDIT.md` supports 27 — its table, re-derived row by row on 2026-09-21, says 22 (§6
 below), and three of the "5 more" were already inside those 22.*
+
+⚰️ *S1-CP3 was signed and built 2026-09-21 (§0b) — the count above already reflects four remaining,
+not five.*
 
 ## 0. The three worktrees — re-verify every one before doing anything
 
@@ -64,13 +67,19 @@ worktree (`s7-price-level`) against `origin/master`, never from the docs worktre
   Path 2 needs only an admin login in a real browser.
 - **Proposal premises re-checked against master `a392afd11`** (76 commits newer than the proposals): D3-CP4,
   D4-CP5, A14-CP1 target files untouched, every named symbol exists; A12-CP1 target files untouched except
-  `list_prebuilt_watchlists` (default unchanged), and both gaps it pins are still true; S1-CP3 see above.
+  `list_prebuilt_watchlists` (default unchanged), and both gaps it pins are still true.
+- **S1-CP3 SIGNED and BUILT 2026-09-21** (fingerprint `fc609961a`, `feat/s7-price-level` `96c810116`) —
+  no longer in the four-remaining list below. `promote()` (one of the two SHOULD wrappers) was not built;
+  see the COMPLETION_AUDIT S1 row for why and what closes it.
 - **F-AUDIT-3** (§3.1c of the audit): D3/D4 are counted DONE while A10 waits on exactly their new
   checkpoints. Counts stay at 22 pending a ruling; under the other reading DONE is 20. Owner call.
 - `sign_gate.py <packet>` **SIGNS IMMEDIATELY** — there is no dry-run flag; `--read-check`/`--self-check`
   run only on synthetic text. To check a real packet read-only, import the tool and call `read_approval()`.
 
-## 1. Five things are sitting ready for the owner's signature/decision RIGHT NOW
+## 1. Four things are sitting ready for the owner's signature/decision RIGHT NOW
+
+⚰️ *This said "five" and listed S1 CP3 first — S1 CP3 was SIGNED and BUILT 2026-09-21 (see §0b);
+it is no longer in this list.*
 
 Every one of these is a complete, evidence-cited proposal with a blank approval block — verified
 structurally signable (`declared_checkpoints()`/`read_approval()`/`target_span()` all checked)
@@ -78,8 +87,6 @@ before being handed over. **Nothing here should be re-derived from scratch — r
 then sign it.**
 
 ```sh
-python tools/sign_gate.py docs/terminal-research/12-decisions/gates/s1-cp3-panel-registry-scoped-proposal.md --by "Patrick (owner)" --on <today> --scope-file .scopes/s1-cp3-panel-registry-scoped-proposal.scope.txt
-
 python tools/sign_gate.py docs/terminal-research/12-decisions/gates/d3-cp4-price-level-consumer-scoped-proposal.md --by "Patrick (owner)" --on <today> --scope-file .scopes/d3-cp4-price-level-consumer-scoped-proposal.scope.txt
 
 python tools/sign_gate.py docs/terminal-research/12-decisions/gates/d4-cp5-ticker-logos-cache-scoped-proposal.md --by "Patrick (owner)" --on <today> --scope-file .scopes/d4-cp5-ticker-logos-cache-scoped-proposal.scope.txt
@@ -97,7 +104,6 @@ will build exactly that checkpoint's scope — nothing more.**
 
 | Proposal | What it does | Risk |
 |---|---|---|
-| S1 CP3 | `registerPanel` validation over the existing widget registry, a TD-02 error boundary, a panel-mount cap, `popout`/`promote` named wrappers over already-working code | Low — zero behavior change except naming |
 | D3 CP4 | S7 price-level's dark sweep becomes D3's first real streaming consumer (beside the existing poll path, never replacing it) | Medium — first real architectural use of D3, still DARK, zero member impact |
 | D4 CP5 | `ticker_logos.py`'s daily miss-retry stops re-walking providers that already answered cleanly | Low — one file, no schema change, revert-by-one-commit |
 | A12 CP1 | One test file: a consistency rail between two watchlist data sources, no product code | Minimal — literally a test |
