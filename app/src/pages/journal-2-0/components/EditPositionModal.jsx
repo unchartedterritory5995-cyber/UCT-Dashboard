@@ -89,7 +89,8 @@ export default function EditPositionModal({ position, settings, onSave, onClose 
       await onSave(patch)
       onClose?.()
     } catch (e) {
-      setErrorMsg(String(e?.message || e))
+      console.error('Failed to save position changes:', e)
+      setErrorMsg("Couldn't save these changes. Nothing was changed — try again.")
     } finally {
       setSaving(false)
     }
