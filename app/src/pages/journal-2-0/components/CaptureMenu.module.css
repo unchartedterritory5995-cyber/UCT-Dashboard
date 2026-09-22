@@ -1,0 +1,42 @@
+/* UX #14, 2026-09-22 -- extracted out of inline styles. Every sibling popup
+   in this directory (CaptureDialog, TemplatePicker, CapturedSourceSheet,
+   ObsidianConnectModal, etc.) uses a paired .module.css file; this one used
+   raw `style={{}}` with hardcoded color FALLBACKS on top of pseudo-tokens
+   (`--color-bg`, `--color-border`, `--color-text-primary`) that were never
+   defined anywhere in tokens.css -- the same never-defined-pseudo-token
+   class G-104 fixed across 41 .module.css files, just living in a .jsx
+   file's inline styles, which that CSS-file sweep never reached. The
+   fallback values were therefore what every member saw, in every theme,
+   permanently -- real tokens (--bg/--border/--text-bright) restore actual
+   theme responsiveness. */
+.wrap {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 8px 10px 10px;
+}
+.comment {
+  width: 100%;
+  resize: vertical;
+  font: inherit;
+  font-size: 13px;
+  padding: 6px 8px;
+  border-radius: 6px;
+  background: var(--bg);
+  border: 1px solid var(--border);
+  color: var(--text-bright);
+}
+.targetBtn {
+  text-align: left;
+  padding: 7px 9px;
+  background: transparent;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  color: var(--text-bright);
+  font: inherit;
+  font-size: 13px;
+  cursor: pointer;
+}
+.targetBtn:disabled {
+  cursor: default;
+}

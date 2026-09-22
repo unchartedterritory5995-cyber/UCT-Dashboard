@@ -3,6 +3,7 @@ import ContextPopover from '../../../components/mobile/ContextPopover'
 import { targetsFor } from '../lib/captureTargets'
 import { sendCaptureToJournal } from '../lib/sendToJournal'
 import { buildWidgetEmbedAttrs } from '../lib/widgetEmbedCore'
+import styles from './CaptureMenu.module.css'
 
 /** Wave 1 (P1-1): the optional destination + comment picker for a capture.
  *
@@ -61,34 +62,24 @@ export default function CaptureMenu({
 
   return (
     <ContextPopover open={open} onClose={onClose} anchor={anchor} title="Send to Notebook" width={260}>
-      <div style={{ display: 'flex', flexDirection: 'column', gap: 8, padding: '8px 10px 10px' }}>
+      <div className={styles.wrap}>
         <textarea
+          className={styles.comment}
           value={comment}
           onChange={(e) => setComment(e.target.value)}
           placeholder="Add a comment (optional)"
           rows={2}
           disabled={sending}
           aria-label="Capture comment"
-          style={{
-            width: '100%', resize: 'vertical', font: 'inherit', fontSize: 13,
-            padding: '6px 8px', borderRadius: 6,
-            background: 'var(--color-bg, #0b0d12)',
-            border: '1px solid var(--color-border, #232932)',
-            color: 'var(--color-text-primary, #e8eaed)',
-          }}
         />
         {targets.map((t) => (
           <button
             key={t.id}
             type="button"
+            className={styles.targetBtn}
             disabled={sending}
             onClick={() => send(t.id)}
             title={t.hint}
-            style={{
-              textAlign: 'left', padding: '7px 9px', cursor: sending ? 'default' : 'pointer',
-              background: 'transparent', border: '1px solid var(--color-border, #232932)',
-              borderRadius: 6, color: 'var(--color-text-primary, #e8eaed)', font: 'inherit', fontSize: 13,
-            }}
           >
             {t.label}
           </button>
