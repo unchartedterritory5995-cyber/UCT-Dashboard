@@ -60,7 +60,8 @@ def _finite(v) -> Optional[float]:
         return None
 
 
-def sane_wick(metric: str, o: float, h: float, l: float, c: float) -> tuple[bool, str]:
+def sane_wick(metric: str, o: float, h: float, l: float, c: float,
+              skip_range_cap: bool = False) -> tuple[bool, str]:
     """Gate one reconstructed candle before it is trusted. Returns (ok, reason).
 
     Universal: all finite, and h ≥ max(o,c) ≥ min(o,c) ≥ l (a wick can only EXTEND
@@ -77,8 +78,67 @@ def sane_wick(metric: str, o: float, h: float, l: float, c: float) -> tuple[bool
     if metric in _PCT_METRICS:
         if l < -1e-6 or h > 100.0 + 1e-6:
             return False, "pct metric outside [0,100]"
-        if (h - l) > MAX_PCT_INTRADAY_DELTA:
+        # RETIRED FOR THE CORRECTED 1-MINUTE PATH (`skip_range_cap=True`). Proven to
+        # censor legitimate extreme sessions; `path_quality` replaces it. The finite,
+        # ordering and [0,100] domain checks are UNTOUCHED -- only the magnitude cap
+        # goes, and only where a path-shape rule takes over.
+        if not skip_range_cap and (h - l) > MAX_PCT_INTRADAY_DELTA:
             return False, f"pct intraday range {h - l:.1f} > {MAX_PCT_INTRADAY_DELTA} (garbage-wick signature)"
+    return True, "ok"
+
+
+#: THE AMENDED PATH-QUALITY RULE (R-B). Versioned, because the artifact records which
+#: rule produced it and a future reader must be able to tell them apart.
+PATH_RULE_VERSION = "amended-R-B-v1"
+PATH_RULE = {
+    "max_jump_frac": 0.45,    # one bucket may not dominate the range
+    "pop_jump_frac": 0.15,    # the measured population may not jump
+    "top3_jump_frac": 1.00,   # three jumps may not exceed the whole range
+    "min_abs_jump": 5.0,      # ...and the dominating jump must actually be large
+    "min_range": 5.0,         # ...and the zig-zag test needs a range worth policing
+}
+
+
+def path_quality(metric: str, shape: dict, rule: Optional[dict] = None) -> tuple:
+    """Gate a reconstructed path on its SHAPE, never on its magnitude.
+
+    WHAT THIS REPLACES. The fixed `range > 30` cap was calibrated on the slow families
+    -- `pct_above_50sma` never exceeds a 23.9-point range in nineteen years -- and it
+    censored the fast ones. Measured over 2,313 reconstructed paths, the rejected and
+    accepted classes are indistinguishable on every diagnostic that describes path
+    QUALITY (median max-jump/range 0.102 vs 0.109; top3/range 0.282 vs 0.288) and
+    differ only in size. 2008-12-01 uct `pct_above_5sma` opened at 64.2 and fell to
+    11.6 across 390 buckets with a largest single minute of 7.3 -- 14% of the range.
+    That is a -9% session, not a corrupt reconstruction, and the old rule deleted the
+    most informative candle of that year.
+
+    THE DISCRIMINATING AXIS IS FRACTION, NOT SIZE. Real paths reach max-jump/range
+    0.36; the four injected corruption classes start at 0.51, and a population
+    discontinuity moves the measured cohort by 0.50 against a real-world maximum of
+    0.0386. Both thresholds sit in empty bands.
+
+    THE ABSOLUTE GUARD IS NOT OPTIONAL. Without `min_abs_jump` the ratios are
+    degenerate at tiny ranges: 2020-03-16 `pct_above_20ema` moves 1.2 points all day,
+    so a 0.7-point minute "dominates" it and the fraction test fires on a perfectly
+    good candle. That false positive is why this rule is the AMENDED one -- do not drop
+    the conjunction to simplify it.
+    """
+    r = dict(PATH_RULE)
+    if rule:
+        r.update(rule)
+    rng = float(shape.get("range") or 0.0)
+    mj = float(shape.get("max_jump") or 0.0)
+    t3 = float(shape.get("top3_jump") or 0.0)
+    pj = float(shape.get("pop_jump_frac") or 0.0)
+    if pj > r["pop_jump_frac"]:
+        return False, "population discontinuity %.3f > %.2f" % (pj, r["pop_jump_frac"])
+    if rng > 0:
+        if mj / rng > r["max_jump_frac"] and mj >= r["min_abs_jump"]:
+            return False, ("single bucket dominates: %.1f of %.1f (%.3f) > %.2f"
+                           % (mj, rng, mj / rng, r["max_jump_frac"]))
+        if t3 / rng > r["top3_jump_frac"] and rng >= r["min_range"]:
+            return False, ("zig-zag exceeds range: top3 %.1f vs range %.1f (%.3f)"
+                           % (t3, rng, t3 / rng))
     return True, "ok"
 
 
@@ -118,7 +178,8 @@ def _add_composites(m: dict) -> None:
 
 def aggregate_day(levels: dict, prices_by_bucket: list[dict], close_val_by_metric: dict,
                   vols_by_bucket: Optional[list[dict]] = None,
-                  max_pct_delta: float = MAX_PCT_INTRADAY_DELTA) -> dict:
+                  max_pct_delta: float = MAX_PCT_INTRADAY_DELTA,
+                  path_rule: Optional[dict] = None) -> dict:
     """Reconstruct one past day's per-metric OHLC from intraday buckets.
 
     `levels`            — build_levels() for the day (MAs fixed from prior closes).
@@ -136,7 +197,14 @@ def aggregate_day(levels: dict, prices_by_bucket: list[dict], close_val_by_metri
         return {}
     globals_max = max_pct_delta
     agg: dict = {}   # metric -> [o, h, l]  (close comes from close_val_by_metric)
+    # PATH SHAPE, ACCUMULATED IN THE SAME SINGLE PASS. `path_quality` needs the largest
+    # per-bucket move and the three largest, which are streaming statistics -- keeping
+    # them here costs one comparison per value and saves replaying 390 buckets a second
+    # time. `shp[k] = [last, j1, j2, j3]`, jumps descending.
+    shp: dict = {}
+    pop: list = []
     for bi, prices in enumerate(prices_by_bucket):
+        pop.append(len(prices))
         vols = vols_by_bucket[bi] if vols_by_bucket and bi < len(vols_by_bucket) else None
         try:
             m = compute_metrics(levels, prices, vols)
@@ -152,11 +220,27 @@ def aggregate_day(levels: dict, prices_by_bucket: list[dict], close_val_by_metri
             a = agg.get(k)
             if a is None:
                 agg[k] = [fv, fv, fv]        # o, h, l
+                shp[k] = [fv, 0.0, 0.0, 0.0]
             else:
                 if fv > a[1]:
                     a[1] = fv
                 if fv < a[2]:
                     a[2] = fv
+                sp = shp[k]
+                d = abs(fv - sp[0])
+                sp[0] = fv
+                if d > sp[1]:
+                    sp[1], sp[2], sp[3] = d, sp[1], sp[2]
+                elif d > sp[2]:
+                    sp[2], sp[3] = d, sp[2]
+                elif d > sp[3]:
+                    sp[3] = d
+
+    pop_jump_frac = 0.0
+    if len(pop) > 1:
+        mx = max(pop) or 1
+        pop_jump_frac = max(abs(pop[i + 1] - pop[i])
+                            for i in range(len(pop) - 1)) / float(mx)
 
     out: dict = {}
     for k, (o, h, l) in agg.items():
@@ -167,8 +251,15 @@ def aggregate_day(levels: dict, prices_by_bucket: list[dict], close_val_by_metri
         # bucket ≠ official EOD); widen the wick to include it so ordering holds.
         h = max(h, o, c)
         l = min(l, o, c)
-        ok, reason = sane_wick(k, o, h, l, c)
-        if ok and (k not in _PCT_METRICS or (h - l) <= globals_max):
+        ok, reason = sane_wick(k, o, h, l, c, skip_range_cap=path_rule is not None)
+        if ok and path_rule is not None:
+            sp = shp.get(k) or [0.0, 0.0, 0.0, 0.0]
+            ok, reason = path_quality(k, {
+                "range": h - l, "max_jump": sp[1],
+                "top3_jump": sp[1] + sp[2] + sp[3],
+                "pop_jump_frac": pop_jump_frac}, path_rule)
+        if ok and (path_rule is not None
+                   or k not in _PCT_METRICS or (h - l) <= globals_max):
             out[k] = {"o": round(o, 4), "h": round(h, 4), "l": round(l, 4),
                       "c": round(c, 4), "source": "intraday_recon"}
         else:
@@ -432,7 +523,8 @@ def drop_incoherent_levels(basis: dict, levels_close: dict, day_ts: int,
 def session_ohlc(D: str, per_ticker: dict, levels: dict,
                  bucket_min: int = 1, members: Optional[set] = None,
                  basis: Optional[dict] = None,
-                 eod_prices: Optional[dict] = None) -> Optional[dict]:
+                 eod_prices: Optional[dict] = None,
+                 path_rule: Optional[dict] = None) -> Optional[dict]:
     """ONE universe's OHLC from an ALREADY-DOWNLOADED session. The whole math path.
 
     ⭐⭐ EXTRACTED SO THE EXPENSIVE FILE IS READ ONCE. `recon_day` below is now a thin
@@ -549,7 +641,7 @@ def session_ohlc(D: str, per_ticker: dict, levels: dict,
     close_m = compute_metrics(levels, close_px) or {}
     _add_composites(close_m)
     close_val = {k: v for k, v in close_m.items() if not k.startswith("_")}
-    out = aggregate_day(levels, prices_by_bucket, close_val)
+    out = aggregate_day(levels, prices_by_bucket, close_val, path_rule=path_rule)
     if out:
         ok, detail = bsess.validate_against_calendar(D, bounds[1])
         out["_session"] = {"open_min": bounds[0], "close_min": bounds[1],

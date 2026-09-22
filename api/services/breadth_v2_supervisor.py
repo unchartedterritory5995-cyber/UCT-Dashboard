@@ -62,18 +62,22 @@ from datetime import datetime, timezone
 
 DATA_DIR = os.environ.get("DATA_DIR", "/data")
 AUDIT_DIR = os.path.join(DATA_DIR, "_audit")
+# ⛔ THE CORRECTED RUN HAS ITS OWN MARKERS, LOCK, LEDGER AND ARTIFACT. Reusing
+# V2's would either park instantly on its DONE marker or overwrite the forensic
+# evidence that the corrected run exists to be compared against.
+RUN_ID = os.environ.get("BREADTH_V2_RUN_ID", "v2c")
 ARTIFACT = os.environ.get("BREADTH_V2_ARTIFACT",
-                          os.path.join(AUDIT_DIR, "breadth_replacement_v2.db"))
-LOCK_PATH = os.path.join(AUDIT_DIR, "v2_runner.lock")
-DONE_PATH = os.path.join(AUDIT_DIR, "v2_runner.DONE")
-FAILED_PATH = os.path.join(AUDIT_DIR, "v2_runner.FAILED")
+                          os.path.join(AUDIT_DIR, "breadth_replacement_v2_corrected.db"))
+LOCK_PATH = os.path.join(AUDIT_DIR, "%s_runner.lock" % RUN_ID)
+DONE_PATH = os.path.join(AUDIT_DIR, "%s_runner.DONE" % RUN_ID)
+FAILED_PATH = os.path.join(AUDIT_DIR, "%s_runner.FAILED" % RUN_ID)
 #: ⭐ THE CONTROLLED-LAUNCH GATE. While this file exists the runner does everything
 #: EXCEPT start the pass: preflight runs, `bars.db` is restored, the status endpoint
 #: comes up — and then it parks. That is what makes the golden smoke a real gate rather
 #: than a thing done afterwards and hoped about: the smoke runs in THIS container, on
 #: THIS bars.db, against a separate artifact, and only then is the hold lifted.
-HOLD_PATH = os.path.join(AUDIT_DIR, "v2_runner.HOLD")
-LEDGER_PATH = os.path.join(AUDIT_DIR, "v2_status.json")
+HOLD_PATH = os.path.join(AUDIT_DIR, "%s_runner.HOLD" % RUN_ID)
+LEDGER_PATH = os.path.join(AUDIT_DIR, "%s_status.json" % RUN_ID)
 
 #: The accepted remediation, pinned by content digest so this runner cannot silently
 #: drift onto a different build of the methodology.
@@ -91,9 +95,10 @@ LEDGER_PATH = os.path.join(AUDIT_DIR, "v2_status.json")
 #: `session_eod_closes` index fix — 25 insertions, 2 deletions, one file, proved
 #: result-identical before it was allowed near this runner.
 ACCEPTED_SHA = "6d7e4c0deaa8003491b0450a837e521afe020f39"
-PINNED_COMBINED_MD5 = "14e7a59d935a8b891a58bbd5e0e8a00c"
+PINNED_COMBINED_MD5 = "297c482246f7bc1243e2e416749bf07b"
 ACCEPTED_WICK_RECON_MD5 = "cc041dba7dc16caec6c5de7e93360bb9"
-PINNED_WICK_RECON_MD5 = "9422957bcfd5df65eebfb15b62c72370"
+PINNED_WICK_RECON_MD5 = "4ea6e4a86331dd799074f55709e940cb"
+PINNED_GROUPED_MD5 = "ac4d7002647e4526692df2a6c5f32876"
 
 #: A `ArtifactRefused` from universe resolution is the deferred web-502 defect, not a
 #: data defect (see the `breadth-pass-universe-resolution-502` note). The guard itself
@@ -344,6 +349,7 @@ def preflight() -> dict:
     mod_dir = os.path.dirname(os.path.abspath(cp.__file__))
     checks["combined_md5"] = _md5(os.path.join(mod_dir, "breadth_combined_pass.py"))
     checks["wick_recon_md5"] = _md5(os.path.join(mod_dir, "breadth_wick_recon.py"))
+    checks["grouped_md5"] = _md5(os.path.join(mod_dir, "breadth_grouped_history.py"))
     checks["methodology"] = cp.METHODOLOGY
     checks["gate_present"] = hasattr(wr, "drop_incoherent_levels")
     checks["session_basis_present"] = hasattr(wr, "session_basis")
@@ -365,7 +371,10 @@ def preflight() -> dict:
             "breadth_wick_recon.py is neither the accepted build (%s) nor the accepted "
             "build plus the proved index fix (%s) — it is %s"
             % (ACCEPTED_WICK_RECON_MD5, PINNED_WICK_RECON_MD5, checks["wick_recon_md5"]))
-    if checks["methodology"] != "rth-1m-composites-v1":
+    if checks["grouped_md5"] != PINNED_GROUPED_MD5:
+        problems.append("breadth_grouped_history.py is not the corrected build "
+                        "(%s != %s)" % (checks["grouped_md5"], PINNED_GROUPED_MD5))
+    if checks["methodology"] != "rth-1m-composites-v2-corrected":
         problems.append("methodology drifted: %r" % (checks["methodology"],))
     if not checks["gate_present"] or not checks["session_basis_present"]:
         problems.append("remediation functions missing — this is not the V2 code")

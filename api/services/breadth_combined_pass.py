@@ -35,7 +35,12 @@ from typing import Optional
 
 _log = logging.getLogger("breadth_combined_pass")
 
-METHODOLOGY = "rth-1m-composites-v1"
+# The corrected methodology: grouped adjusted daily history is the canonical
+# historical LEVELS source (Candidate E) and the official session close (Candidate B),
+# and the fixed pct-range cap is replaced by the amended path-quality rule (R-B).
+METHODOLOGY = "rth-1m-composites-v2-corrected"
+BODY_SOURCE = "intraday_recon_1m_body"
+PATH_SOURCE = "intraday_recon_1m"
 
 #: Universes this pass can build, and where each one's membership comes from.
 #:   uct  — the collector's population, via the production resolver (present-day list,
@@ -190,12 +195,15 @@ def run(artifact: str, from_date: str, to_date: str,
         limit: int = 0, progress_every: int = 1) -> dict:
     """Generate the replacement artifact. Chronological, atomic per session, resumable."""
     from datetime import date as _d, timedelta as _td
+    from api.services import breadth_grouped_history as gh
     from api.services import breadth_history_recon as _recon
     from api.services import breadth_live as bl
     from api.services import breadth_metrics as bm
     from api.services import breadth_pit_frame as bpf
     from api.services import breadth_wick_recon as wr
     from api.services import build_intraday_cache as bic
+
+    gh.assert_frame_width()
 
     c = open_artifact(artifact)
     uct_tickers, uct_date = _recon._resolve_universe()
@@ -208,18 +216,50 @@ def run(artifact: str, from_date: str, to_date: str,
     if client is None:
         raise ArtifactRefused("no S3 client — the minute source is unreachable here")
 
+    # PROVENANCE IS PER LEG, NEVER OVERWRITTEN. `pass_meta`'s PK is `key`, so the old
+    # pass let leg 2 silently overwrite leg 1's `uct_universe_date` and the artifact
+    # could not attest which membership produced its earliest sessions. Each leg now
+    # writes its own numbered block and the shared keys are written once.
+    import hashlib as _hl
+    leg = 0
+    for _k in list(c.execute("SELECT key FROM pass_meta WHERE key LIKE 'leg%_started_at'")):
+        leg += 1
+    uct_sig = _hl.sha256("\n".join(sorted(uct_tickers)).encode()).hexdigest()
+    ref_sig = _hl.sha256(
+        "\n".join(sorted(ref_map)).encode()).hexdigest() if ref_map else None
+    cache_id = gh.cache_identity()
     _meta(c, methodology=METHODOLOGY, commit=_head(), resolution=f"{bucket_min}m",
-          session="RTH", universes=",".join(universes),
-          requested_from=from_date, requested_to=to_date,
-          uct_universe_date=str(uct_date), provider="massive-s3-flatfiles",
-          started_at=time.strftime("%Y-%m-%dT%H:%M:%S"))
+          session="RTH", provider="massive-s3-flatfiles",
+          levels_source="grouped_adjusted_daily", close_source="grouped_adjusted_daily",
+          path_rule=wr.PATH_RULE_VERSION, path_rule_params=json.dumps(wr.PATH_RULE),
+          body_source=BODY_SOURCE, path_source=PATH_SOURCE,
+          grouped_cache=json.dumps(cache_id))
+    _meta(c, **{
+        f"leg{leg}_started_at": time.strftime("%Y-%m-%dT%H:%M:%S"),
+        f"leg{leg}_universes": ",".join(universes),
+        f"leg{leg}_requested_from": from_date,
+        f"leg{leg}_requested_to": to_date,
+        f"leg{leg}_uct_universe_date": str(uct_date),
+        f"leg{leg}_uct_members": str(len(uct_tickers)),
+        f"leg{leg}_uct_membership_sha256": uct_sig,
+        f"leg{leg}_pit_reference_names": str(len(ref_map or {})),
+        f"leg{leg}_pit_reference_sha256": str(ref_sig),
+        f"leg{leg}_grouped_calendar_sha256": cache_id.get("calendar_sha256"),
+    })
     c.commit()
 
     done = completed(c)
     d, end = _d.fromisoformat(from_date), _d.fromisoformat(to_date)
     stats = {"attempted": 0, "done": 0, "missing_source": 0, "failed": 0, "rows": 0,
              "skipped_existing": len(done)}
-    conn_bars = bl._bars_conn()
+    # THE CORRECTED HISTORICAL PATH DOES NOT OPEN `bars.db` AT ALL. That is the
+    # guarantee, expressed by construction rather than by discipline: there is no
+    # connection available to fall back to, so a missing grouped level can only make a
+    # security ineligible for that metric -- it can never be quietly answered from the
+    # warmed product store, which is the cohort-drift defect this run exists to fix.
+    # `session_basis` takes a connection argument it does not use (it reads the
+    # provider's grouped adjusted/raw pair), so None is correct and deliberate.
+    conn_bars = None
     t_start = time.time()
 
     while d <= end:
@@ -240,6 +280,7 @@ def run(artifact: str, from_date: str, to_date: str,
                 continue
             unis = resolve_universes(D, per_all, uct_tickers, ref_map)
             rows, sizes, sess_meta = [], {}, None
+            body, flagged_detail = [], []
             # ⭐⭐ ONE LEVELS BUILD FOR ALL FOUR UNIVERSES. `build_levels` is per-ticker —
             # a name's 50-day average and 52-week extremes do not depend on who else is
             # in the frame — so building it once over the UNION and restricting each
@@ -252,9 +293,10 @@ def run(artifact: str, from_date: str, to_date: str,
                 stats["failed"] += 1
                 continue
             day_ts = bl._ts_int(_d.fromisoformat(D))
-            levels = wr._levels_for_day(conn_bars, union, day_ts)
+            levels = gh.levels_for_day(union, D)
             if levels is None:
-                _checkpoint(c, D, "missing_source", detail="no levels (bars history)")
+                _checkpoint(c, D, "missing_source",
+                            detail="no levels (grouped history shorter than the frame)")
                 stats["missing_source"] += 1
                 continue
             # ⭐⭐ ONE BASIS AND ONE AUTHORITATIVE CLOSE PER SESSION, BUILT ONCE AND
@@ -269,7 +311,8 @@ def run(artifact: str, from_date: str, to_date: str,
                             detail="no corporate-action basis (raw closes unavailable)")
                 stats["missing_source"] += 1
                 continue
-            eod_px = wr.session_eod_closes(conn_bars, day_ts, union)
+            # CANDIDATE B: the official close over the SAME population as the path.
+            eod_px = gh.official_closes(D, union)
             # ⛔ AND THEN REFUSE THE NAMES WHOSE LEVELS ARE NOT ON THAT BASIS EITHER.
             # The factor is provider-internal by construction; this drops the tail where
             # `bars.db` itself disagrees with the provider for the session, which is a
@@ -284,12 +327,13 @@ def run(artifact: str, from_date: str, to_date: str,
                 member_set = set(names)
                 sub = {t: per_all[t] for t in names if t in per_all}
                 out = wr.session_ohlc(D, sub, levels, bucket_min, members=member_set,
-                                      basis=basis, eod_prices=eod_px)
+                                      basis=basis, eod_prices=eod_px,
+                                      path_rule=wr.PATH_RULE)
                 if not out:
                     continue
                 sess_meta = sess_meta or out.get("_session")
                 for metric, r in out.items():
-                    if metric.startswith("_") or r.get("source") != "intraday_recon":
+                    if metric.startswith("_"):
                         continue
                     # ⛔ THE CANONICAL GATE, not a local opinion: `applies_to` is what
                     # `library_rows` and the sweep already read, so a metric excluded
@@ -298,12 +342,31 @@ def run(artifact: str, from_date: str, to_date: str,
                         continue
                     if not bm.applies_to(metric, u):
                         continue
-                    rows.append((u, D, metric, r["o"], r["h"], r["l"], r["c"],
-                                 "intraday_recon_1m"))
-            if not rows:
+                    src = r.get("source")
+                    if src == "intraday_recon":
+                        rows.append((u, D, metric, r["o"], r["h"], r["l"], r["c"],
+                                     PATH_SOURCE))
+                        continue
+                    # ⚰️⚰️ THE ROW SURVIVES. `aggregate_day` degrades a rejected path to
+                    # an honest body (o=h=l=c=the official close) and the old pass then
+                    # dropped it because its source was not `intraday_recon` -- a
+                    # fallback written for the INCREMENTAL sweep, where a close_recon row
+                    # already exists to be "left as is". A from-scratch artifact has no
+                    # such row, so the observation was simply lost: 2,140 rows, biased
+                    # 2.2-2.7x toward the most volatile sessions in the dataset.
+                    #
+                    # ⛔ AND IT IS LABELLED. A body-only observation is stored under its
+                    # OWN source so nothing downstream can mistake it for a reconstructed
+                    # candle whose high and low were observed. They were not.
+                    if r.get("flagged") and r.get("c") is not None:
+                        cc = r["c"]
+                        body.append((u, D, metric, cc, cc, cc, cc, BODY_SOURCE))
+                        flagged_detail.append("%s/%s:%s" % (u, metric, r.get("flagged")))
+            if not rows and not body:
                 _checkpoint(c, D, "failed", detail="no universe produced rows")
                 stats["failed"] += 1
                 continue
+            rows = rows + body
             # ⚠️ ONE TRANSACTION: every universe's rows for D, the session record and
             # the checkpoint commit together or not at all.
             c.execute("BEGIN IMMEDIATE")

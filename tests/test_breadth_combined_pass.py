@@ -106,7 +106,13 @@ def test_h_provenance_is_recorded(tmp_path):
     cp._meta(c, methodology=cp.METHODOLOGY, resolution="1m", session="RTH")
     c.commit()
     meta = dict(c.execute("SELECT key, value FROM pass_meta"))
-    assert meta["methodology"] == "rth-1m-composites-v1"
+    # THE METHODOLOGY STRING IS THE ARTIFACT'S IDENTITY, so it moves when the
+    # methodology does. `-v2-corrected` marks the run that sources historical levels
+    # AND the official close from the provider's grouped daily tape (Candidates E
+    # and B) and replaces the fixed pct-range cap with the amended path-quality
+    # rule. An artifact must never be able to claim `-v1` while carrying corrected
+    # rows.
+    assert meta["methodology"] == "rth-1m-composites-v2-corrected"
     assert meta["resolution"] == "1m" and meta["session"] == "RTH"
     c.close()
 
