@@ -258,6 +258,38 @@
   }
 }
 
+/* Phone: the header action cluster (Log Trade / ? / account / report /
+   settings / More) doesn't fit one row at 390px. `.header`'s own
+   `flex-wrap: wrap` moves `.headerRight` to its own line, but with no width
+   cap the row itself just overflows past the right edge — found by driving
+   the real page at 390px: `.settingsPill`/`.gearIcon` sat flush against the
+   viewport edge and the "More" button (Community + Accounts — the only door
+   to Journal Accounts) was entirely out of frame with no scroll affordance.
+   Made scrollable rather than reflowed, so nothing in the cluster is lost —
+   same idiom as this directory's own `.mobileNav` (JournalMobileNav.module.css). */
+@media (max-width: 640px) {
+  .headerRight {
+    min-width: 0;
+    max-width: 100%;
+    flex-wrap: nowrap;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    scrollbar-width: none;
+    padding-bottom: 2px;
+  }
+  .headerRight::-webkit-scrollbar {
+    display: none;
+  }
+  /* Flex children shrink by default only to their min-content size unless
+     told not to — without this each pill/button still refuses to go below
+     its own natural width inside the now-scrollable row, which is fine (that
+     is the point), but they must not each ALSO try to grow/shrink and fight
+     the scroll container. */
+  .headerRight > * {
+    flex-shrink: 0;
+  }
+}
+
 /* ── Placeholder surface (Today, until B1) ────────────────────────────────── */
 
 .placeholder {
