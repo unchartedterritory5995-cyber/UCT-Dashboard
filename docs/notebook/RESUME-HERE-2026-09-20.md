@@ -148,7 +148,15 @@ baseline captured *before* the push. Never by a status field alone.
 Everything below is built and has tests, and **none of it has been opened at a
 real viewport or exercised end-to-end this pass**:
 
-- the **editor's actual writing experience** (only its chrome was measured)
+- ✅ **the editor's actual writing experience — VERIFIED 2026-09-21**, real
+  Playwright typing/formatting (Bold/H1/bullet list applied, confirmed landed
+  server-side via the API, survives a reload) + the large-note-already-loaded
+  case (903KB note loads in 1.17s/1730 paragraphs, stays responsive, growing
+  it past the 1MB cap fails cleanly with a member-honest message and the
+  draft-recovery banner genuinely restores the overflow text). One real fix
+  landed (commit `0893b66e8`): the size-cap error was leaking the backend
+  field name `body_json` to the member. **NOT covered**: tables, the slash
+  command menu, undo/redo, touch-viewport typing — none exercised this pass.
 - **attachments / hero image / OCR** (Wave P)
 - **share / public note links**, **templates**, **export** (PNG / Print / Markdown)
 - the **Ask panel**
