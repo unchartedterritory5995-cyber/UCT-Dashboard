@@ -5160,7 +5160,37 @@ export function buildRuntimeIr(source, opts = {}) {
     // The fallback: a refusal that knows no location inherits the STATEMENT's,
     // so `line: null` never reaches a member. Marked `approximate` so nobody
     // later reads it as the offending sub-expression's own position.
-    if (e && e.line == null && lastStmtTok) {
+    //
+    // ⛔⛔ THE QUESTION IS `position(e)`, NOT `e.line`, AND THAT ONE WORD WAS THE
+    // WHOLE DEFECT. The two refusal classes carry their position differently:
+    // `RuntimeRefusal` FLATTENS `at` into `line`/`column`/`token` in its
+    // constructor, while `PineRefusal` keeps the same object NESTED at `.at`
+    // and never sets `.line` at all. So `e.line == null` is TRUE FOR EVERY
+    // `PineRefusal`, whether or not it knows exactly where it is — and this
+    // branch then overwrote a real position with the enclosing STATEMENT's and
+    // stamped it approximate. `position(e)` asks the question this branch meant
+    // to ask: does this refusal know where it is, IN EITHER VOCABULARY.
+    //
+    // ⭐ MEASURED OVER `corpus/committed`, 266 real scripts, before and after this
+    // one word changed: scripts stopping on a refusal that cannot say where it
+    // is went **96 (36.1%) → 2 (0.8%)**, and scripts stuck ANYWHERE went
+    // 193 → 169 — because a tool that peels the refused LINE cannot move a
+    // script whose refusal points at an innocent statement. The two survivors
+    // are correct: both are bare `Error`s with no position to recover, which is
+    // what this fallback exists for.
+    //
+    // ⚰️ `fail()` BELOW ALREADY READ BOTH FORMS, under a comment naming this
+    // exact hazard — so the fix had landed in ONE of the two readers of one
+    // fact, and the other ran first and clobbered it
+    // (`lesson_a_guard_repeated_is_a_guard_unproved`). There is one authority
+    // now: this branch asks the same helper `fail` does.
+    //
+    // ⛔ TWO EARLIER FIXES AIMED AT THE RAISE SITES WERE MEASURED AS NO-OPS on
+    // the corpus count and reverted (`approximateRefusals.measure.test.js`'s
+    // header keeps both tombstones). They changed nothing because the raise
+    // sites were never the problem: they raised the position correctly and it
+    // was discarded here, one frame later.
+    if (e && position(e).line == null && lastStmtTok) {
       const at = locate(lastStmtTok)
       if (at) {
         e.line = at.line
