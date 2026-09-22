@@ -741,8 +741,22 @@ def resolve(token: str, include_dormant: bool = False) -> Optional[Series]:
 
 
 def is_market_indicator(token: str) -> bool:
-    """True when this deploy will SERVE `token` as a market indicator."""
-    return resolve(token) is not None
+    """True when this deploy will SERVE `token` as a market indicator.
+
+    ⭐⭐ A PRODUCT ANSWERS YES, AND IT HAS TO. `resolve()` is the SERIES authority and
+    correctly refuses a product — but `/api/bars/AAII:SURVEY` is a real request once a
+    product is a primary-chart identity, and this is the oracle every routing decision
+    in `api/routers/bars.py` consults. Answering no here would send the product down
+    the ordinary bars path, which has no rows for it, and a member would get the
+    cacheable `200 + bars: []` that blanked every market-indicator chart in V1.
+
+    ⚠️ IT DOES NOT MAKE A PRODUCT A SERIES. `series.build_bars` serves the product's
+    PRIMARY COMPONENT under the product's own ticker; nothing here invents bars.
+    """
+    if resolve(token) is not None:
+        return True
+    # ⚠️ Defined below this function at import time; the call is at request time.
+    return resolve_product(token) is not None
 
 
 # ── PRODUCTS — one member-facing thing made of several canonical series ──────
@@ -773,6 +787,10 @@ class Product:
     components: tuple                  # ordered canonical series ids
     description: str = ""
     synonyms: tuple = ()
+    #: Extra spellings that RESOLVE to this product — the member-facing shorthand.
+    #: ⛔ A product resolves so it can be a PRIMARY CHART identity; it still serves
+    #: no bars of its own (`primary_component` below names the series that does).
+    aliases: tuple = ()
 
     @property
     def family_label(self) -> str:
@@ -789,12 +807,29 @@ class Product:
             c = SERIES.get(cid)
             if c is not None:
                 comp.extend([c.display, c.short, c.metric_name])
-        return naming.search_tokens(self.id, self.display, self.short,
+        return naming.search_tokens(self.id, self.display, self.short, self.aliases,
                                     self.synonyms, self.family_label, comp)
+
+    @property
+    def primary_component(self) -> str:
+        """The component a PRIMARY chart binds its own series to.
+
+        ⭐⭐ THE FIRST ONE, AND THAT IS A DECLARED ORDER RATHER THAN AN ARBITRARY
+        PICK. `components` is already the draw and legend order — the order AAII
+        themselves publish — so "the first" is the same answer every other surface
+        gives. The other components are added ALONGSIDE it as ordinary overlays, so
+        the chart shows the whole product; this only decides which series the chart's
+        own price slot holds.
+
+        ⛔ AND IT IS NOT "the product's bars". A product has none. This names a real
+        canonical series that does.
+        """
+        return self.components[0]
 
     def to_row(self) -> dict:
         return {
             "id": self.id, "kind": "product",
+            "primary_component": self.primary_component,
             "symbol": self.id, "display": self.display, "short": self.short,
             "family": self.family, "family_label": self.family_label,
             "description": self.description,
@@ -815,7 +850,7 @@ class Product:
                 for c in (SERIES.get(cid) for cid in self.components)
                 if c is not None
             ],
-            "aliases": [], "status": ST_PUBLISHED,
+            "aliases": list(self.aliases), "status": ST_PUBLISHED,
             # ⛔ A PRODUCT IS NEVER CANDLE-CAPABLE, and not because of its own
             # nature: it has no bars of its own at all. Saying so explicitly keeps
             # the fail-closed reader from having to interpret an absence.
@@ -833,7 +868,16 @@ PRODUCTS: list[Product] = [
         description="The weekly AAII member survey in full — the share of individual "
                     "investors reporting a bullish, bearish or neutral six-month view, "
                     "drawn together on one percentage scale. The three sum to 100%.",
-        synonyms=("AAII", "SENTIMENT SURVEY", "INDIVIDUAL INVESTOR SENTIMENT",
+        # ⭐⭐ `AAII` IS AN ALIAS, NOT MERELY A SYNONYM, AND THE DIFFERENCE IS THE BUG
+        # THIS SHIPPED WITH. A synonym only makes a row SEARCHABLE; an alias makes it
+        # RESOLVE — and `discovery.search` scores an alias match as tier 0, which is
+        # what `ticker_search` reads as `symbol_hit` to rank a row at the FRONT. With
+        # only synonyms the product scored ≥2, landed behind every general match, and
+        # depended on nothing truncating the list. It is also what lets a member type
+        # `AAII` into the SYMBOL box and get the survey rather than nothing.
+        aliases=("AAII", "AAII:SURVEY", "AAIISURVEY", "AAII SENTIMENT",
+                 "AAII SENTIMENT SURVEY"),
+        synonyms=("SENTIMENT SURVEY", "INDIVIDUAL INVESTOR SENTIMENT",
                   "BULLS BEARS NEUTRAL", "AAII SURVEY"),
     ),
 ]
@@ -853,6 +897,36 @@ def products() -> list[Product]:
 
 def get_product(pid: str) -> Optional[Product]:
     return _PRODUCT_BY_ID.get((pid or "").strip().upper())
+
+
+#: Every spelling that resolves to a product. ⛔ BUILT FROM THE PRODUCTS, never typed
+#: twice — an alias list that can disagree with the rows it names is an alias that
+#: resolves to nothing on the day somebody edits one of them.
+_PRODUCT_ALIAS_INDEX = {
+    str(k).strip().upper(): p.id
+    for p in PRODUCTS
+    for k in (p.id, p.short, p.display, *p.aliases)
+    if k
+}
+
+
+def resolve_product(token: str) -> Optional[Product]:
+    """A member-facing spelling → its Product, or None.
+
+    ⭐⭐ THIS IS WHAT MAKES A PRODUCT A PRIMARY-CHART IDENTITY. `resolve()` answers for
+    SERIES and must keep answering None here — a product has no bars of its own, and a
+    caller that wanted a series must not silently receive something that cannot serve
+    one. This is the second, explicit question: "is this token a product?"
+
+    ⚠️ CASE- AND SPACE-INSENSITIVE ON THE MEMBER'S SIDE ONLY. `AAII`, `aaii`,
+    `AAII Sentiment Survey` and `AAII:SURVEY` are all the same request; nothing here
+    infers a product from a shape.
+    """
+    if not token:
+        return None
+    key = " ".join(str(token).strip().upper().split())
+    pid = _PRODUCT_ALIAS_INDEX.get(key)
+    return _PRODUCT_BY_ID.get(pid) if pid else None
 
 
 def product_of(series_id: str) -> Optional[Product]:

@@ -820,6 +820,40 @@ export const PRODUCT_SERIES_COLORS = Object.freeze([
   '#EC407A',
 ])
 
+/**
+ * The rows a discovery list shows for the CURRENT query — browse and query UNIONED.
+ *
+ * ⚰️⚰️ THE PRODUCTION DEFECT THIS EXISTS TO PREVENT, stated once so both discovery
+ * surfaces can share the rule. `ChartSettingsIndicators` computed this inline as
+ * `query ? symbolRows : browsed` — so the instant a member TYPED, every browsed row
+ * was discarded and the list became whatever `/api/ticker-search` returned. Browse
+ * is the only path carrying the Market Indicators catalogue, so searching "AAII"
+ * made that catalogue irrelevant and the AAII Sentiment Survey's existence depended
+ * on one remote reply whose market-indicator injection is wrapped in
+ * `except Exception: pass` server-side.
+ *
+ * ⭐ THE ASYMMETRY IS WHY IT READ AS A DATA BUG. The AAII Bull-Bear Spread kept
+ * appearing because it ALSO arrives from `useBreadthSymbols`, which needs no network
+ * at all. One AAII row present and the other absent looks like "the Survey is
+ * missing"; it was really "the Survey had one door and that door was remote".
+ *
+ * ⛔ THE REMOTE ANSWER LEADS. It is ranked by a server that knows more than a
+ * substring test; the caller's dedupe keeps the first of any key, so a row present in
+ * both sources reads exactly as it did before this existed.
+ *
+ * @param {string} query          the member's text, '' while browsing
+ * @param {Array} queryRows       rows from the remote answer
+ * @param {Array} browsedRows     rows from the local catalogues
+ * @param {Function} matchesFn    `(row, query) => boolean` — the caller's own matcher
+ */
+export function liveDiscoveryRows(query, queryRows, browsedRows, matchesFn) {
+  const browsed = Array.isArray(browsedRows) ? browsedRows : []
+  if (!query) return browsed
+  const remote = Array.isArray(queryRows) ? queryRows : []
+  const match = typeof matchesFn === 'function' ? matchesFn : () => false
+  return [...remote, ...browsed.filter((r) => match(r, query))]
+}
+
 export function createProductSeries(cs, components, registry) {
   if (!cs || typeof cs !== 'object') return cs
   if (!Array.isArray(components) || !components.length) return cs

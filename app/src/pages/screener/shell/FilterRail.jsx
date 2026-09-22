@@ -59,7 +59,9 @@ export default function FilterRail({ meta, activeFilters, onChange, onClear, var
               onClick={() => toggle(cat.key)}>
               <span>{cat.label}</span>
               {n > 0 && <span className={styles.railPip}>{n}</span>}
-              <UIcon name={isOpen ? 'chevronDown' : 'chevronRight'} size={11} />
+              <span className={styles.railChev}>
+                <UIcon name={isOpen ? 'chevronDown' : 'chevronRight'} size={14} gold={false} />
+              </span>
             </button>
             {isOpen && list.map(f => (
               f.control === 'typeset' ? (

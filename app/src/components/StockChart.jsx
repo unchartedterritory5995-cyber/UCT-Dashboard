@@ -813,7 +813,9 @@ import { LIBRARY_HIDDEN_IDS } from './chart/discoveryCatalog'
 import { useSecondarySources } from './chart/engine/useSecondarySources'
 import { useServerColumns } from './chart/engine/useServerColumns'
 import { loadBreadthSymbols, breadthRecord } from '../hooks/useBreadthSymbols'
-import { canonicalFamily, canonicalPresentation, loadMarketIndicators } from '../hooks/useMarketIndicators'
+import useMarketIndicators, { canonicalFamily, canonicalPresentation, canonicalSourceCapability, canonicalProduct, loadMarketIndicators } from '../hooks/useMarketIndicators'
+import { primaryChartTypeFor, primaryChartTypesFor } from './chart/engine/sourceCapability'
+import { withPrimaryProduct } from './chart/engine/primaryProduct'
 
 const NOOP = () => {}
 
@@ -2470,10 +2472,86 @@ export default function StockChart({
 
   // ── Chart settings from user preferences ──
   const csBase = useMemo(() => mergeChartSettings(prefs.chart_settings), [prefs.chart_settings])
-  const cs = useMemo(
+  // ⭐ THE MARKET-INDICATOR CATALOGUE, SUBSCRIBED RATHER THAN MERELY FETCHED.
+  // `loadMarketIndicators()` below starts the request, but a module-level fetch
+  // landing does not re-render anyone — and the two memos under this line ASK the
+  // registry a question at memo time (is this symbol a scalar? is it a product?).
+  // Without a subscription the answer computed on the first render, before the
+  // catalogue existed, would stand for the life of the chart: a survey would open
+  // as candles and a product would draw one line instead of three.
+  //
+  // ⚠️ ONE SUBSCRIPTION, ZERO EXTRA REQUESTS — the hook shares the same module
+  // cache the search box and the discovery panel already warm.
+  const _miRegistry = useMarketIndicators()
+  const miReady = _miRegistry.ready
+
+  const csMerged = useMemo(
     () => (settingsOverride ? mergeSettingsOverride(csBase, settingsOverride) : csBase),
     [csBase, settingsOverride],
   )
+
+  // ⭐⭐ ONE SOURCE SEMANTIC TRUTH → INDICATOR PRESENTATION **AND** PRIMARY-CHART
+  // PRESENTATION. This single line is the whole of the primary-chart half of the
+  // contract, and it is here rather than at a call site because `cs` is built in
+  // exactly ONE place and read as `cs.chartType` in 29 others. Clamping the blob
+  // means every one of them inherits the answer and none of them has to learn it.
+  //
+  // ⚰️⚰️ MEASURED IN PRODUCTION: NAAIM as the PRIMARY SYMBOL rendered as CANDLES.
+  // The capability contract shipped in V1 governed the indicator/dataSeries lane
+  // only — `isOhlcType(cs.chartType)` had never asked what the SOURCE could mean.
+  // A weekly survey was drawn with an "open" that is last week's reading and a
+  // range derived from the pair: four numbers that look like an auction and
+  // describe none. The only prior mitigation was the Breadth WIDGET forcing
+  // `settingsOverride={{chartType:'line'}}` from outside — a surface hack that the
+  // /charts primary chart never received.
+  //
+  // ⛔ NO TICKER TEST. `canonicalFamily` is the same oracle the binder gates on,
+  // and it is fail-closed about `security`; `sourceCapabilityOf` turns that into
+  // the allow-list, and `primaryChartTypeFor` translates it into this vocabulary.
+  //
+  // ⚠️ THE MEMBER'S STORED TYPE IS NOT REWRITTEN. This is a reading of the setting
+  // at a source, exactly like the plot-style clamp — chart a security again and
+  // their Candles come straight back.
+  const cs = useMemo(() => {
+    const fam = canonicalFamily(sym)
+    const _primaryProduct = canonicalProduct(sym)
+    // ⛔⛔ AN UNCLASSIFIED SYMBOL IS NOT CLAMPED, AND THIS IS THE OPPOSITE DIRECTION
+    // FROM THE CANDLE GATE ON PURPOSE.
+    //
+    // `canonicalFamily` withholds `security` until BOTH registries have answered —
+    // fail-closed, because offering candles over a survey is the dangerous error for
+    // an INDICATOR output. On the PRIMARY chart the dangerous error is the mirror
+    // image: clamping an ordinary equity to a line because a catalogue had not
+    // arrived yet. ⚰️ MEASURED: building a capability from `'unknown'` turned every
+    // chart into a line until the registries landed — four StockChart suites went red
+    // with "the chart never created a candle series", which is exactly what a member
+    // would have seen as a flash of line on every load.
+    //
+    // ⚠️ SO `null` MEANS "SAY NOTHING", and `primaryChartTypeFor` returns the member's
+    // own setting untouched. The clamp applies only once the registry has actually
+    // classified the symbol — and the `miReady` dependency above is what re-runs this
+    // the moment it does.
+    // ⚠️ A PRODUCT IS ASKED BEFORE THE FAMILY. It is absent from the SERIES index by
+    // design, so `canonicalFamily` would answer `'security'` for it — the one
+    // classification that grants candles. Resolving as a product is itself proof the
+    // registry has landed, so the `unknown` guard below does not apply to it.
+    const cap = _primaryProduct
+      ? canonicalSourceCapability(sym, false)
+      : fam === 'unknown'
+        ? null
+        : canonicalSourceCapability(sym, fam === 'security' || fam === 'volatility')
+    const ct = primaryChartTypeFor(csMerged.chartType, cap)
+    const typed = ct === csMerged.chartType ? csMerged : { ...csMerged, chartType: ct }
+    // ⭐⭐ A PRODUCT IDENTITY BRINGS ITS OTHER COMPONENTS WITH IT. The price slot
+    // already holds the product's PRIMARY component (`series.build_bars` serves it
+    // under the product's own ticker); these are the rest, as ordinary `dataSeries`
+    // overlays on the price pane — no new renderer, no multi-bars contract.
+    //
+    // ⛔ DERIVED, NEVER PERSISTED. They live only in the blob the renderer reads, so
+    // charting a product does not write to a member's `chart_settings` and switching
+    // away removes them with no cleanup. Same discipline as the clamp above.
+    return withPrimaryProduct(typed, _primaryProduct)
+  }, [csMerged, sym, miReady])
 
   // ⛔⭐ B5 TASK 12 — `csPanes` STOOD HERE AND IS GONE, WITH ITS SUBJECT.
   //
@@ -5379,7 +5457,22 @@ export default function StockChart({
       ? [{ id: 'priceactions', title: `At $${fmtPrice(clickPrice)}`, items: [drawLineItem, copyPriceItem] }]
       : []
     const TF_OPTS = [['1', '1m'], ['5', '5m'], ['15', '15m'], ['30', '30m'], ['60', '1h'], ['D', '1D'], ['W', '1W'], ['M', '1M']]
+    // ⛔ THE MENU OFFERS WHAT THE RESOLVER WILL HONOUR, AND NOTHING ELSE. A chart-type
+    // item the clamp above would immediately undo is a control that lies — the same
+    // rule `availableStyles` already states for an indicator output's Plot style.
+    // ⚠️ THE SAME "UNKNOWN SAYS NOTHING" RULE as the clamp — a menu that hid Candles
+    // because a catalogue had not landed would be a menu that lies the other way.
+    const _ctFam = canonicalFamily(sym)
+    const _ctProd = canonicalProduct(sym)
+    const _ctAllowed = primaryChartTypesFor(
+      _ctProd
+        ? canonicalSourceCapability(sym, false)
+        : _ctFam === 'unknown'
+          ? null
+          : canonicalSourceCapability(sym, _ctFam === 'security' || _ctFam === 'volatility'),
+    )
     const CT_OPTS = [['candles', 'Candles'], ['hollow', 'Hollow'], ['bars', 'Bars'], ['line', 'Line'], ['area', 'Area']]
+      .filter(([val]) => _ctAllowed.includes(val))
     const tfSection = typeof onTfChange === 'function' ? {
       id: 'tf', title: 'Timeframe',
       items: TF_OPTS.map(([code, label]) => ({ id: 'tf-' + code, label, kind: 'toggle', checked: resolvedTf === code, onSelect: () => onTfChange(code) })),

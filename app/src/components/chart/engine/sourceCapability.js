@@ -93,3 +93,69 @@ export function sourceCapabilityOf(meta, ohlcCapable = false) {
     allowedStyles: ohlcCapable ? OHLC_STYLES : SCALAR_STYLES,
   }
 }
+
+// ─── THE PRIMARY CHART'S OWN VOCABULARY ─────────────────────────────────────
+//
+// ⭐⭐ THE PRIMARY CHART SPEAKS A DIFFERENT LANGUAGE FROM AN INDICATOR OUTPUT, and
+// pretending otherwise is how the two drifted apart in the first place. An output
+// has a PLOT STYLE (`line`, `histogram`, `dots`, …); the main chart has a CHART
+// TYPE (`candles`, `hollow`, `bars`, `hlc`, `line`, `area`) which is a chart-WIDE
+// member setting stored as `chart_settings.chartType`. Two vocabularies, and until
+// now only one of them was governed by what the SOURCE can actually mean.
+//
+// ⚰️⚰️ MEASURED IN PRODUCTION: NAAIM entered as the PRIMARY SYMBOL rendered as
+// CANDLES. `StockChart` reads `isOhlcType(cs.chartType)` and nothing in that path
+// had ever asked `ohlcCapability` anything — the whole capability contract governed
+// the indicator/dataSeries lane only. A weekly survey was drawn with an "open" that
+// is last week's reading and a range derived from the pair: four numbers that look
+// like an auction and describe none.
+//
+// ⛔ SO THE CLAMP IS THE SAME CONTRACT, TRANSLATED — not a second rule. It reuses
+// `sourceCapabilityOf`'s answer and maps it into this vocabulary, so a source can
+// never be candle-capable in one lane and not the other.
+
+/** Chart types that CLAIM an auction period. Mirrors `StockChart.OHLC_TYPES`. */
+export const OHLC_CHART_TYPES = Object.freeze(['candles', 'hollow', 'bars', 'hlc'])
+
+/** Chart types a scalar source may wear. */
+export const SCALAR_CHART_TYPES = Object.freeze(['line', 'area'])
+
+/** A scalar source's declared default STYLE → the chart TYPE that expresses it.
+ *  ⚠️ Anything with no chart-type equivalent (histogram, dots, step) falls to
+ *  `line`: the main chart cannot draw them, and a line is the honest reading of
+ *  one value per period. */
+const STYLE_TO_CHART_TYPE = Object.freeze({ line: 'line', area: 'area' })
+
+/**
+ * The chart type the PRIMARY chart may actually use for this source.
+ *
+ * @param {string|null|undefined} chartType the member's stored `cs.chartType`
+ * @param {{defaultStyle?: string, allowedStyles?: string[]}|null} cap
+ *        `sourceCapabilityOf(...)` for the primary symbol
+ * @returns {string} the member's own type when the source can mean it
+ *
+ * ⚠️ ABSENT CAPABILITY CHANGES NOTHING. A caller that has not been taught, or a
+ * symbol no registry has classified yet, keeps the member's setting exactly —
+ * the same "absent means the old behaviour" shape the rest of this contract uses.
+ * The fail-CLOSED direction lives in `canonicalFamily`, which withholds
+ * `security` until both registries have answered; this function must not
+ * additionally clamp on "not yet known" or every chart would flash a line on load.
+ */
+export function primaryChartTypeFor(chartType, cap) {
+  if (!cap || !Array.isArray(cap.allowedStyles)) return chartType
+  const ct = chartType || 'candles'
+  if (!OHLC_CHART_TYPES.includes(ct)) return chartType   // already scalar — untouched
+  if (cap.allowedStyles.includes('candles')) return chartType
+  // ⛔ THE STORED VALUE IS NOT REWRITTEN — the same read-time clamp the plot-style
+  // resolver uses. A member who set Candles keeps Candles; it simply is not drawn
+  // over a source that cannot mean it, and returns the moment they chart one that can.
+  return STYLE_TO_CHART_TYPE[cap.defaultStyle] || 'line'
+}
+
+/** The chart types worth OFFERING for this source — for the chart-type menu. */
+export function primaryChartTypesFor(cap) {
+  const all = [...OHLC_CHART_TYPES, ...SCALAR_CHART_TYPES]
+  if (!cap || !Array.isArray(cap.allowedStyles)) return all
+  if (cap.allowedStyles.includes('candles')) return all
+  return [...SCALAR_CHART_TYPES]
+}
