@@ -4104,3 +4104,59 @@ URL directly in their browser and see the real, live agreed/new_only/legacy_only
 not_comparable counts for every S7 alert type's dark-comparison predicates — no SSH,
 no Python script, no `railway ssh` required. This is the durable answer to "how does
 anyone read this data" for all seven types, not just price-level.
+
+---
+
+## ✅ BUILT — Packets G + H, two Catalysts/Model Book tabs on `/research/:sym`, 2026-09-22
+
+Found while checking whether the product's per-ticker page actually matches a
+Bloomberg-terminal-style "one place, everything" bar. `/research/:sym` (twelve tabs,
+reachable from every ticker via `TickerActions.jsx`) already IS that page — the
+terminal-research planning docs describing a still-deferred "entity page" were three
+weeks stale, not current. Two precise, real gaps were found by reading the page's own
+tab list against what it does NOT cover, each scoped as its own narrow packet rather
+than one large speculative build.
+
+**Packet G — Catalysts tab.** Signed by the owner (fingerprint `5331c90c2`), built and
+pushed same day: `feat/s7-price-level` `7e398c6f4`. New read-only
+`history_for_ticker()` store query + `GET /api/catalysts/history/{sym}` (paid-gated,
+correcting the packet's own draft wording — its sibling endpoints are free-tier by a
+reason that does not apply here) + a new Catalysts tab, one real per-entry
+`Provenance` citation (not `FreshnessBadge`, and not one shared citation for the whole
+list — both would have misrepresented what the data actually is). 98 backend + 33
+frontend tests pass.
+
+**Packet H — Model Book appearances tab.** Signed by the owner (fingerprint
+`f119617df`), built and pushed same day: `feat/s7-price-level` `e78283a43`. New
+read-only `get_stock_appearances()` store query (same join shape as the existing
+`get_stocks_for_year`, filtered by symbol) + `GET /api/modelbook/appearances/{symbol}`
++ a new Model Book tab. Found and respected a real constraint rather than working
+around it: `ModelBook.jsx` reads no year/symbol deep-link param anywhere, and this
+packet's own scope explicitly excludes changing Model Book's own pages — so the tab
+links to the bare `/model-book` page, not a URL shape that would silently do nothing.
+138 backend + 40 frontend tests pass (cumulative with Packet G's suite).
+
+**Member impact:** two new tabs on an already-paid, already-live page. No schema
+change, no new write path, no change to the catalyst engine or Model Book themselves,
+no change to any of the page's other ten tabs. Not yet deployed to production — built
+and pushed to `feat/s7-price-level` only; production deployment follows this
+program's normal cherry-pick path when the owner asks for it.
+
+**What remains, explicitly not scoped into either packet:** the "Desk lens" — a
+tab synthesizing what UCT itself has called on a name (setup track record, wire
+mentions, Model Book appearances) into one read with a verdict on whether the firm
+was right. Checked this session: the track-record data (`setup_triggers`) lives in
+the separate `uct-intelligence` engine, reachable today only through the existing
+Brain Pack bridge's aggregate-by-setup-type functions (`setup_winrate`,
+`find_historical_analogs`) — neither takes a ticker. A real per-ticker answer needs
+one new query on the engine side plus one new pass-through on the bridge side before
+any dashboard tab could show it. Genuinely undesigned; not proposed prematurely.
+
+⛔ **Corrigendum, recorded here rather than by editing either signed packet:** an
+attempt to update Packet G's and Packet H's own frontmatter `status:` line after
+build (from "PROPOSED, unsigned" to a completion note) was caught before committing
+— `rederive_signed()` no longer matched either fingerprint the moment the frontmatter
+changed, confirming the file's whole text is hashed, not just the approval block.
+Reverted via `git restore` before anything was staged; both packet files remain
+byte-identical to what the owner actually signed. This entry is the durable record of
+completion instead.
