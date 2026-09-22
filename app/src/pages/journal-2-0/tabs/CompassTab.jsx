@@ -104,7 +104,8 @@ export default function CompassTab() {
       await generate(weekStart)
       await refreshProfile()
     } catch (e) {
-      setErrorMsg(String(e.message || e))
+      console.error('Failed to generate weekly review:', e)
+      setErrorMsg("Couldn't generate this week's review. Nothing was lost — try again.")
     } finally {
       setGenerating(false)
     }
@@ -114,7 +115,8 @@ export default function CompassTab() {
     try {
       await saveProfile('')
     } catch (e) {
-      setErrorMsg(String(e.message || e))
+      console.error('Failed to clear trader profile:', e)
+      setErrorMsg("Couldn't clear your Trader Profile. Nothing was changed — try again.")
     }
   }
 
@@ -134,7 +136,8 @@ export default function CompassTab() {
       await saveProfile(src)
       await refreshProfile()
     } catch (e) {
-      setErrorMsg(String(e.message || e))
+      console.error('Failed to import trader profile:', e)
+      setErrorMsg("Couldn't import that Trader Profile. Nothing was changed — try again.")
     }
   }
 
@@ -254,7 +257,8 @@ export default function CompassTab() {
                         setErrorMsg('No activity today — Compass took the day off.')
                       }
                     } catch (e) {
-                      setErrorMsg(String(e.message || e))
+                      console.error('Failed to generate EOD recap:', e)
+                      setErrorMsg("Couldn't generate today's recap. Nothing was lost — try again.")
                     } finally {
                       setGenerating(false)
                     }
@@ -287,7 +291,8 @@ export default function CompassTab() {
               try {
                 await regenerateEod(r.id)
               } catch (e) {
-                setErrorMsg(String(e.message || e))
+                console.error('Failed to regenerate EOD recap:', e)
+                setErrorMsg("Couldn't regenerate that recap. Nothing was lost — try again.")
               }
             }}
             onForget={() => forgetEod(r.id)}
@@ -316,7 +321,8 @@ export default function CompassTab() {
               await regenerate(r.id)
               await refreshProfile()
             } catch (e) {
-              setErrorMsg(String(e.message || e))
+              console.error('Failed to regenerate weekly review:', e)
+              setErrorMsg("Couldn't regenerate this week's review. Nothing was lost — try again.")
             } finally {
               setGenerating(false)
             }
