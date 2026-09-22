@@ -239,14 +239,20 @@ def _bull_by_date(day="6/21/2026"):
 
 def test_bars_are_read_with_the_daily_store_key(client, monkeypatch):
     """bars_sqlite's daily rows are stored under tf="D". "1D" (the product
-    label) matches nothing and returns 0 rows — a silent, permanent no-signal."""
+    label) matches nothing and returns 0 rows — a silent, permanent no-signal.
+
+    ⛔ D2 CP5 (F-D2-3) fixture fix: o=92.0 != c=95.0 on purpose. The fixture
+    used to set o==c==95.0, so a column-position bug swapping open<->close
+    would still satisfy `rows[0]["c"] == 95.0` — the assertion could not
+    discriminate an ordinal swap from a correct read. Pairwise-distinct OHLC
+    values make `rows[0]["c"]` mean something."""
     from api.services import bars_sqlite
     calls = []
 
     def fake_get_bars(ticker, tf, max_bars):
         calls.append((ticker, tf, max_bars))
         return [(int((date(2026, 6, 1) + timedelta(days=i)).strftime("%Y%m%d")),
-                 95.0, 100.0, 90.0, 95.0, 1000) for i in range(5)]
+                 92.0, 100.0, 90.0, 95.0, 1000) for i in range(5)]
 
     monkeypatch.setattr(bars_sqlite, "get_bars", fake_get_bars)
     rows = sig._fetch_bars("nvda", 60)
