@@ -33,8 +33,96 @@ let _pack = null          // { d, bars }
 let _ts = 0               // epoch ms of the last successful load
 let _inflight = null      // in-flight promise — many charts mount at once
 
+// ── Proactive keep-warm ─────────────────────────────────────────────────────
+// 🔴 THE OLD MODEL WAS STRUCTURALLY ONE SYMBOL LATE. Refresh happened only inside
+// `touchTodayPack()`, i.e. on a symbol CHANGE, and the fetch it starts lands after
+// the seed for THAT symbol has already run — the docstring below says so in as many
+// words ("the fetch started here is for the NEXT symbol"). So the first ticker opened
+// after any gap longer than MAX_SEED_AGE_MS got a null seed and a whitespace hole,
+// and the refresh it triggered benefited the ticker after it. A member scanning a
+// theme they paused on hit that on exactly the tickers they cared about.
+//
+// ⭐ SO REFRESH ON A CLOCK, NOT ON A CLICK — BUT ONLY WHILE IT PAYS. The original
+// objection to a timer stands and is respected: ~630KB raw (~200KB gzipped) on a
+// fixed interval is real money for "a tab someone left open, to benefit a symbol
+// they may never type". The timer therefore runs only when ALL of these hold:
+//   • the document is VISIBLE (a background tab seeds nothing),
+//   • the user has interacted within ACTIVE_MS (an idle tab is not scanning), and
+//   • the last pack was NON-EMPTY, which is the server's own way of saying the
+//     regular session is open (it returns an empty pack otherwise).
+// An idle or hidden tab therefore costs ZERO requests — strictly cheaper than the
+// old model, which fetched on every symbol change regardless. An actively scanning
+// tab costs one request per REFRESH_MS, which is exactly the budget the old model
+// already spent while scanning.
+const ACTIVE_MS = 120_000       // "still scanning" window after the last interaction
+const CLOSED_PROBE_MS = 300_000 // pack empty (session shut) → slow probe for the open
+let _timer = null
+let _lastInteraction = 0
+let _wired = false
+let _emptyAt = 0                // when we last saw an EMPTY pack (session not open)
+
 function _isFresh() {
   return _pack && (Date.now() - _ts) < REFRESH_MS
+}
+
+/** Age of the loaded pack in ms; Infinity when nothing is loaded. */
+export function todayPackAgeMs() {
+  return _pack ? (Date.now() - _ts) : Infinity
+}
+
+/**
+ * Whether the pack can currently answer a seed AT ALL — loaded, inside
+ * MAX_SEED_AGE_MS, and non-empty. `getTodayBar` still decides per symbol; this is
+ * the question the paint gate asks before it decides whether a first frame can be
+ * assembled without the network.
+ */
+export function todayPackUsable() {
+  return !!(_pack && _pack.d && todayPackAgeMs() <= MAX_SEED_AGE_MS)
+}
+
+function _shouldKeepWarm() {
+  try {
+    if (typeof document !== 'undefined' && document.visibilityState !== 'visible') return false
+  } catch { /* non-browser */ }
+  if (Date.now() - _lastInteraction > ACTIVE_MS) return false
+  // Server says the session is shut (empty pack) → don't spin; probe slowly instead.
+  if (_emptyAt && (Date.now() - _emptyAt) < CLOSED_PROBE_MS) return false
+  return true
+}
+
+function _tick() {
+  if (!_shouldKeepWarm()) return
+  // Refresh BEFORE expiry, not after a symbol click discovers expiry.
+  if (!_isFresh()) ensureTodayPack()
+}
+
+function _noteInteraction() {
+  _lastInteraction = Date.now()
+  // A click after a quiet spell must not wait a whole interval for the next tick.
+  if (!_isFresh()) _tick()
+}
+
+function _wire() {
+  if (_wired || typeof window === 'undefined') return
+  _wired = true
+  try {
+    for (const ev of ['pointerdown', 'keydown', 'wheel']) {
+      window.addEventListener(ev, _noteInteraction, { passive: true })
+    }
+    document.addEventListener('visibilitychange', () => {
+      if (document.visibilityState === 'visible') _noteInteraction()
+    })
+  } catch { /* SSR / locked-down host */ }
+  _timer = setInterval(_tick, 15_000)   // cheap poll; _shouldKeepWarm gates the fetch
+  try { if (_timer && typeof _timer.unref === 'function') _timer.unref() } catch { /* browser */ }
+}
+
+/** Test seam — stop the keep-warm timer and listeners. */
+export function __stopKeepWarm() {
+  if (_timer) { clearInterval(_timer); _timer = null }
+  _wired = false
+  _lastInteraction = 0
+  _emptyAt = 0
 }
 
 async function _fetchPack() {
@@ -50,6 +138,10 @@ async function _fetchPack() {
   if (!j || typeof j !== 'object' || typeof j.bars !== 'object') throw new Error('today-pack shape')
   _pack = { d: j.d || '', bars: j.bars || {} }
   _ts = Date.now()
+  // An empty pack is the server saying "no open regular session" (todaypack.py
+  // gates on `_regular_session_has_opened_today`). Remember when we saw that so the
+  // keep-warm loop backs off to a slow probe instead of polling a closed market.
+  _emptyAt = _pack.d ? 0 : Date.now()
   return _pack
 }
 
@@ -79,6 +171,8 @@ export function ensureTodayPack() {
  * already served from whatever is in memory.
  */
 export function touchTodayPack() {
+  _lastInteraction = Date.now()
+  _wire()
   return ensureTodayPack()
 }
 
@@ -109,4 +203,5 @@ export function todayPackDate() {
 /** Test seam — module state outlives a test file otherwise. */
 export function __resetForTest() {
   _pack = null; _ts = 0; _inflight = null
+  __stopKeepWarm()
 }

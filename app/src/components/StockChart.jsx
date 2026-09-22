@@ -11,7 +11,7 @@ import useBoundDrawingAlerts from './chart/useBoundDrawingAlerts'
 // to freeze an error card or a loading skeleton as the snapshot. Inert on every
 // other surface — it is a data attribute nothing styles.
 import { RENDER_UNAVAILABLE } from '../lib/captureSafety'
-import { getTodayBar, touchTodayPack } from '../lib/todayPackClient'
+import { getTodayBar, touchTodayPack, todayPackUsable } from '../lib/todayPackClient'
 import useSWR, { mutate as globalMutate } from 'swr'
 import { createChart, CandlestickSeries, BarSeries, HistogramSeries, LineSeries, AreaSeries, BaselineSeries, ColorType, LineType, LineStyle } from 'lightweight-charts'
 import usePreferences from '../hooks/usePreferences'
@@ -769,9 +769,9 @@ import styles from './StockChart.module.css'
 import { streamStatus } from '../utils/streamStatus'
 import brandMark from './intro/assets/compass-mark.png'
 import { idbGet, idbPut, idbDelete, mergeDelta, _closeMismatch, _findRecentBarByT } from '../utils/barsIDB'
-import { memPeek, memPut } from '../utils/barsMemCache'
+import { memPeek, memPut, memPeekSavedAt } from '../utils/barsMemCache'
 import { timingStart, timingMark, timingMarkPaint, timingMarkEmpty } from '../utils/intradayTiming'
-import { classifyIntradayTail, isCurrentEnoughForPaint, isDailyTailStaleForPaint, isDailyTodayCloseProvisionalForPaint, isIntradayTailStale, isTradingSessionTodayET, isHolidayISO } from '../utils/marketSession'
+import { classifyIntradayTail, isCurrentEnoughForPaint, isDailyTodayCloseProvisionalForPaint, isDailyTodayBarStaleForPaint, dailyMissingSessionsForPaint, isIntradayTailStale, isTradingSessionTodayET, isHolidayISO } from '../utils/marketSession'
 import { resample, resampleForSpec } from '../utils/resampleBars'
 import { isNativeTf, fetchTf, resampleSpec, parseTf } from './chart/timeframes'
 import { barsRenderPlan } from './chart/renderPlan'
@@ -1608,17 +1608,54 @@ export function _intradayLoadReserve(bars, tf) {
     const gap = Math.floor((Date.now() / 1000 - lt) / tfSec)
     return gap > 0 ? Math.min(INTRADAY_RESERVE_MAX, gap) : 0
   }
-  if (tf === 'D' || tf === 'W' || tf === 'M') {
+  if (tf === 'D') {
+    // ⭐ COUNT THE SESSIONS, DON'T ASSUME ONE. This used to return a flat 1, which is
+    // right only when exactly one session is missing. A tail k sessions behind then had
+    // k bars merged in after first paint against ONE held slot, and the settling
+    // re-assert (which pins `to` to lastIdx + reserve) translated the whole frame by
+    // k-1 — the daily load-shift. The reserve now holds exactly the slots the seed
+    // fills, because both read the SAME list.
+    return _dailyReserveDates(lt).length
+  }
+  if (tf === 'W' || tf === 'M') {
+    // ⛔ NOT GENERALISED ON PURPOSE. A week/month start is not "n sessions back", so the
+    // session walk is the wrong instrument here; W/M keep the single-slot rule until
+    // their own period semantics are designed. The scope of this change is DAILY.
     if (typeof lt !== 'string' || lt.length < 10) return 0
-    // Only reserve when a developing-period bar is actually expected today — a trading session
-    // (weekday, not an NYSE holiday). On a weekend/holiday no late bar lands, so reserving would
-    // just open a phantom right gap that never fills.
     if (!isTradingSessionTodayET()) return 0
     const ps = _etPeriodStartISO(tf)
     return (ps && lt < ps) ? 1 : 0
   }
   return 0
 }
+
+// The right-edge slots a DAILY series is missing relative to the paint frontier —
+// the single list the framing reserve and the whitespace/today seed both consume.
+//
+// ⛔ BOUNDED, AND THE BOUND IS THE POINT. A generalised reserve must never become a
+// licence to paint a years-old chart "stably": 250 whitespace slots is a stable
+// picture of the wrong thing. The paint-authority gate refuses anything further behind
+// than DAILY_PAINT_MAX_GAP anyway, so this cap only ever absorbs an UNEXPECTED
+// right-edge arrival (a session boundary rolling mid-load); it can never manufacture a
+// visible phantom right edge.
+export const DAILY_RESERVE_MAX = 2
+export function _dailyReserveDates(lastISO) {
+  if (!_intradayLoadAnchorEnabled()) return []
+  if (typeof lastISO !== 'string' || lastISO.length < 10) return []
+  return dailyMissingSessionsForPaint(lastISO, DAILY_RESERVE_MAX)
+}
+
+// How far behind the paint frontier a cached DAILY set may be and still be allowed to
+// be the FIRST thing the member sees.
+//
+// ⭐ ONE, AND IT IS DERIVED FROM THE PRODUCT RULE, NOT FROM A PERFORMANCE GUESS. The
+// rule is "no historical bars are inserted at the right edge after B is visible". A set
+// missing ONE session can satisfy it, because the missing session is TODAY and today
+// can be supplied locally from the current-session seed — the frame is then final at
+// first paint. A set missing TWO or more cannot: the older missing sessions exist only
+// on the server, so painting it GUARANTEES a later right-edge insertion. Everything
+// past this threshold is REPAIR INPUT, not paint authority.
+export const DAILY_PAINT_MAX_GAP = 1
 
 // The ISO date of the CURRENT developing bar for a D/W/M tf (today / this week's Friday / first
 // of this month) — the SAME `t` the real developing bar will carry (computeBarTime), or null when
@@ -6417,6 +6454,11 @@ export default function StockChart({
   const [idbBars, setIdbBars]   = useState(null)
   const [idbLoaded, setIdbLoaded] = useState(false)
   const idbSinceRef     = useRef(null)
+  const idbSavedAtRef   = useRef(null)  // epoch ms this browser wrote the IDB entry (recency, not source time)
+  // True only while the candle series is showing a CACHED today bar that our own
+  // recency gate calls stale. The in-place repair is scoped to exactly that; see the
+  // assignment site below for why an unscoped repair is wrong.
+  const dailyRepairTodayRef = useRef(false)
   const idbReadyForRef  = useRef(null)  // string `${sym}_${tf}` once IDB load completes
   // Always-current mirror of idbBars. The SWR-merge effect keys on [data] and would
   // otherwise read a STALE closured idbBars: when the shallow full set resolves right
@@ -6444,6 +6486,7 @@ export default function StockChart({
     setIdbBars(null)
     setIdbLoaded(false)
     idbSinceRef.current = null
+    idbSavedAtRef.current = null
     idbReadyForRef.current = null  // synchronous — invalidates the gate immediately
     axisWidthRatchetRef.current = 0  // new sym/tf → let the axis column re-fit once
     const key = `${sym}_${resolvedTf}`
@@ -6475,6 +6518,11 @@ export default function StockChart({
       if (entry?.bars?.length) {
         setIdbBars(entry.bars)
         idbSinceRef.current = entry.lastT ?? null
+        // WHEN this browser received the set. The bars carry no source timestamp, so
+        // this is the strongest honest recency signal a cached daily tail has — and it
+        // errs safe (real age is always >= this). It is what lets the daily gate tell
+        // "has today" apart from "today is current".
+        idbSavedAtRef.current = Number.isFinite(entry.savedAt) ? entry.savedAt : null
         _browserHasCachedBars = true   // this browser has a pack → be patient from now on
       }
       idbReadyForRef.current = key
@@ -6585,10 +6633,102 @@ export default function StockChart({
   // (isDailyTodayCloseProvisionalForPaint — the "loads a mid-session price then snaps
   // to the real close" after-hours flicker). Either way, defer to the network's
   // sealed set so the first frame is correct.
+  // ── THE CURRENT-SESSION SEED, RESOLVED ONCE ────────────────────────────────
+  // Today's developing daily bar as the freshest LOCAL source can state it, or null.
+  // Two consumers read this and they must agree: the paint-authority verdict below
+  // (which asks "can today be supplied without the network?") and the ohlcData seed
+  // (which actually places it). One function, so they cannot drift.
+  //
+  // ⛔ PROVENANCE ONLY — NOTHING IS DERIVED, EXTRAPOLATED OR HEURISTIC. Every field
+  // comes from a provider `day` aggregate that some door already serves; the live
+  // store is preferred purely because it is the FRESHEST copy of that same aggregate
+  // (a 2s poll against the pack's 90s seed ceiling), not because it knows more.
+  // ⛔ REGULAR SESSION ONLY, both doors. Outside RTH the daily candle is settled at
+  // the 4pm close and an extended print must not move it.
+  const _resolveDailyTodaySeed = () => {
+    if (resolvedTf !== 'D') return null
+    const _dev = _developingBarISO('D')
+    if (!_dev) return null
+    try {
+      const _sess = getExtSessionCached()
+      if (_sess && (_sess.session === 'pre' || _sess.session === 'post')) return null
+    } catch { /* fall through — the per-source ext guards below still hold */ }
+    // 1) Live-price store — the same `day.h`/`day.l` aggregate, at the freshest cadence
+    //    UCT has (15s server TTL behind a 2s client poll), and it carries the vendor's
+    //    own `observed_at` so the age we report is not a guess.
+    try {
+      const _snap = (typeof getLivePriceStoreSnapshot === 'function') ? getLivePriceStoreSnapshot()[sym] : null
+      const _px = _snap ? _effLivePrice(_snap) : null
+      if (_px && !_snap.ext_session && isSaneLivePrice(_px, lastBarRef.current?.close, lastServerCloseRef.current)
+          && _snap.day_open > 0 && _snap.day_high > 0 && _snap.day_low > 0) {
+        const _obs = Number(_snap.observed_at)
+        return {
+          t: _dev,
+          o: _snap.day_open,
+          h: Math.max(_snap.day_high, _px),
+          l: Math.min(_snap.day_low, _px),
+          c: _px,
+          src: 'live-store',
+          ageMs: Number.isFinite(_obs) && _obs > 0 ? Math.max(0, Date.now() - _obs * 1000) : null,
+        }
+      }
+    } catch { /* fall through to the pack */ }
+    // 2) Today-pack — the whole-market projection of the same snapshot. Its own client
+    //    enforces the seed ceiling; `todayPackUsable()` is that ceiling asked out loud.
+    try {
+      if (todayPackUsable()) {
+        const _tb = getTodayBar(sym)
+        if (_tb && isSaneLivePrice(_tb.c, lastBarRef.current?.close, lastServerCloseRef.current)) {
+          return { t: _dev, o: _tb.o, h: _tb.h, l: _tb.l, c: _tb.c, src: 'today-pack', ageMs: null }
+        }
+      }
+    } catch { /* no seed */ }
+    return null
+  }
+  const _dailyTodaySeed = _resolveDailyTodaySeed()
+
+  // ── THE DAILY PAINT AUTHORITY ──────────────────────────────────────────────
+  // ⭐ ONE VERDICT, COMPOSED OF THE PREDICATES THAT ALREADY EXIST. Whether a CACHED
+  // daily set may be the first thing the member sees is asked here and nowhere else,
+  // so no performance flag can answer it by accident (which is exactly what
+  // `_splitDeepUsable && _fpEdge` was doing).
+  //
+  //   CACHE USEFULNESS != PAINT AUTHORITY.
+  //
+  // A set that fails here is still perfectly good DEPTH and REPAIR input — it just
+  // may not be the first frame. Returns 'ok' or the reason it is refused (the reason
+  // is what the harness reads, so a refusal can never be mistaken for a missing paint).
+  const _dailyCacheVerdict = (tailISO, savedAtMs) => {
+    if (resolvedTf !== 'D' || typeof tailISO !== 'string' || tailISO.length < 10) return 'ok'
+    if (isDailyTodayCloseProvisionalForPaint(tailISO)) return 'provisional-close'
+    const gap = dailyMissingSessionsForPaint(tailISO, DAILY_PAINT_MAX_GAP + 1).length
+    // Missing MORE than the current session: the older missing sessions exist only on
+    // the server, so painting this guarantees a right-edge insertion afterwards. No
+    // reserve size makes that acceptable — a stable picture of the wrong week is still
+    // the wrong week. Repair first.
+    if (gap > DAILY_PAINT_MAX_GAP) return 'too-far-behind'
+    // Missing exactly TODAY: paintable only if we can put a REAL today bar there now.
+    // Without a seed the slot would be whitespace and would become a candle in front
+    // of the member — the transition this whole change exists to remove.
+    if (gap > 0) return _dailyTodaySeed ? 'ok' : 'no-local-today'
+    // Reaches the frontier, but the today bar itself may simply be OLD. That is
+    // repairable IN PLACE (same date, so no geometry moves) when a seed is available.
+    if (isDailyTodayBarStaleForPaint(tailISO, savedAtMs)) return _dailyTodaySeed ? 'ok' : 'today-stale'
+    return 'ok'
+  }
+
+  // Three ways a cached daily tail is not fit to be the FIRST frame:
+  //   (1) it is missing a session            — isDailyTailStaleForPaint
+  //   (2) its today CLOSE is provisional     — isDailyTodayCloseProvisionalForPaint (after the close)
+  //   (3) its today bar is simply OLD        — isDailyTodayBarStaleForPaint (during RTH)
+  // (3) is the one that was missing. A tail dated today is never "missing a session",
+  // so a bar written at 10:05 painted unchallenged at 14:00 with four-hour-old H/L/C
+  // and /api/bars corrected it in front of the member. HAS TODAY is not TODAY IS
+  // CURRENT, and this is where the difference is stated.
+  const _idbDailyVerdict = _dailyCacheVerdict(idbSinceRef.current, idbSavedAtRef.current)
   const idbStaleDaily = resolvedTf === 'D'
     && typeof idbSinceRef.current === 'string'
-    && (isDailyTailStaleForPaint(idbSinceRef.current)
-        || isDailyTodayCloseProvisionalForPaint(idbSinceRef.current))
+    && _idbDailyVerdict !== 'ok'
   // VALUE-SANITY gate for the instant daily paint (complements the timestamp gate
   // above). A cached daily bar can be internally corrupt — right DATE, wrong OHLC:
   // e.g. a stale ~$32 open persisted in IDB while the stock trades ~$21 (the 8/19
@@ -6607,10 +6747,9 @@ export default function StockChart({
       if (Math.abs(o - c) / c > 0.5) return true                               // open >50% off close = phantom
       return false
     })()
-  const _memTailStaleDaily = (arr) => {
+  const _memTailStaleDaily = (arr, savedAtMs) => {
     if (resolvedTf !== 'D' || !Array.isArray(arr) || !arr.length) return false
-    const _t = arr[arr.length - 1]?.t
-    return isDailyTailStaleForPaint(_t) || isDailyTodayCloseProvisionalForPaint(_t)
+    return _dailyCacheVerdict(arr[arr.length - 1]?.t, savedAtMs) !== 'ok'
   }
   let _sinceParam = null
   // ⭐ 'behind' NOW TAKES THE TAIL PATH TOO (it used to force a full refetch).
@@ -6897,6 +7036,11 @@ export default function StockChart({
       if (_dbg) console.log('[bars-delta]', sym, resolvedTf, `=> MERGED ${idbBars.length} -> ${merged.length}`)
       setIdbBars(merged)
       if (merged.length) idbSinceRef.current = merged[merged.length - 1].t
+      // The set was just healed FROM THE SERVER, so its recency is NOW — not whenever
+      // this browser first wrote the entry. Without this re-stamp the daily
+      // intra-session age gate would keep calling a freshly-merged set stale and the
+      // chart would drop its own deep history one commit after healing it.
+      idbSavedAtRef.current = Date.now()
       idbPut(sym, resolvedTf, merged)
       memPut(sym, resolvedTf, merged)
     } else if (!data.delta && data.bars.length) {
@@ -6910,7 +7054,14 @@ export default function StockChart({
       // Read the authoritative CURRENT idb bars from the ref, not the [data]-closured
       // state (which can lag a just-committed deep IDB paint and cause the truncation).
       const curIdb = idbBarsRef.current
-      const deeperInIdb = sameSymTf && curIdb?.length > data.bars.length
+      // `>=`, not `>`. A full daily refetch returns the most-recent N bars, so when the
+      // cache already holds N bars ending one session back the fresh set is the SAME
+      // LENGTH but SLID: replacing drops the oldest bar, which moves every logical index
+      // down by one and translates the whole chart right by a bar the instant the tail
+      // lands. The suffix guard on the next line is what makes a merge valid, and it is
+      // just as true at equal length — the server still wins every overlapping bar, we
+      // simply stop throwing away the one on the left.
+      const deeperInIdb = sameSymTf && curIdb?.length >= data.bars.length
         && data.bars[0] && curIdb[0] && data.bars[0].t >= curIdb[0].t
       const next = deeperInIdb ? mergeDelta(curIdb, data.bars) : data.bars
       if (_dbg) console.log('[bars-delta]', sym, resolvedTf,
@@ -6918,6 +7069,7 @@ export default function StockChart({
       idbBarsRef.current = next        // keep the mirror current for any same-tick re-run
       setIdbBars(next)
       idbSinceRef.current = next[next.length - 1]?.t ?? null
+      idbSavedAtRef.current = Date.now()        // healed from the server — see above
       idbPut(sym, resolvedTf, next)
       memPut(sym, resolvedTf, next)
     }
@@ -6946,6 +7098,14 @@ export default function StockChart({
     if (!cur?.length) {
       idbBarsRef.current = histData.bars
       setIdbBars(histData.bars)
+      // ⛔ STATE THE TAIL. This branch used to publish bars WITHOUT publishing what
+      // they end at, and the daily paint authority reads exactly that ref — an unset
+      // tail reads as "no daily verdict to make", which would have let this sealed
+      // set (which ends at the last SEALED day, i.e. yesterday during RTH) onto the
+      // screen unexamined. That is the stale-paint bypass reopening through a second
+      // door. The set is genuinely fresh FROM THE SERVER, so the recency stamp is now.
+      idbSinceRef.current = histData.bars[histData.bars.length - 1]?.t ?? null
+      idbSavedAtRef.current = Date.now()
       idbPut(sym, resolvedTf, histData.bars)
       memPut(sym, resolvedTf, histData.bars)
       return
@@ -6954,6 +7114,9 @@ export default function StockChart({
     if (merged.length === cur.length) return                       // no older bars added — nothing to repaint (idempotent on re-run)
     idbBarsRef.current = merged
     setIdbBars(merged)
+    // A history merge only PREPENDS, so the tail is unchanged — but state it anyway
+    // rather than leaving the ref to be right by accident.
+    idbSinceRef.current = merged[merged.length - 1]?.t ?? idbSinceRef.current
     idbPut(sym, resolvedTf, merged)
     memPut(sym, resolvedTf, merged)
   }, [histData, idbBars])  // eslint-disable-line react-hooks/exhaustive-deps
@@ -6986,6 +7149,7 @@ export default function StockChart({
       idbBarsRef.current = _intradayDeepData.bars
       setIdbBars(_intradayDeepData.bars)
       idbSinceRef.current = _intradayDeepData.bars[_intradayDeepData.bars.length - 1]?.t ?? idbSinceRef.current
+      idbSavedAtRef.current = Date.now()        // healed from the server — see above
       idbPut(sym, resolvedTf, _intradayDeepData.bars)
       memPut(sym, resolvedTf, _intradayDeepData.bars)
       return
@@ -7124,6 +7288,15 @@ export default function StockChart({
   const _splitDeepUsable = _splitOn && idbBars?.length > 0
     && idbReadyForRef.current === `${sym}_${resolvedTf}`
     && !_idbDailyLastInsane && !_idbBasisMismatch
+  // ⛔ AND THE PAINTABLE HALF, WHICH IS A DIFFERENT QUESTION. `_splitDeepUsable` is a
+  // USEFULNESS verdict — identity, basis, value sanity — and it says nothing about
+  // currency, because DEPTH does not go stale. It was nonetheless standing in for a
+  // freshness check at the two render arms below, with `_fpEdge` (a performance flag)
+  // as its only companion: that is how a multi-session-old tail became a member's
+  // first frame and then translated the frame when the missing sessions merged in.
+  // The optimisation flag still chooses the STRATEGY; the daily authority decides
+  // whether the data has earned the screen.
+  const _splitDeepPaintable = _splitDeepUsable && !idbStaleDaily
   // Provisional stale-intraday paint: cached bars for THE CURRENT sym+tf that are
   // too stale to trust as live (idbStaleIntraday) are normally suppressed to avoid
   // fusing a live-price spike onto an old tail — but that left an intraday sym-switch
@@ -7147,7 +7320,7 @@ export default function StockChart({
   const _memBarsRaw = (!_overrideArr && !barsOverridePending) ? memPeek(sym, resolvedTf) : null
   // Don't fall back to a stale daily mem entry either (prefetch's _memPromoteFresh
   // always promotes D/W/M, so mem can hold a multi-session-old daily just like IDB).
-  const _memBars = _memTailStaleDaily(_memBarsRaw) ? null : _memBarsRaw
+  const _memBars = _memTailStaleDaily(_memBarsRaw, memPeekSavedAt(sym, resolvedTf)) ? null : _memBarsRaw
   // Phase-A A4: optimistic same-frame TF switch. Switching to Weekly/Monthly on a
   // ticker whose Daily is already in the sync mem cache normally still costs a
   // full /api/bars round-trip (skeleton flash) for the W/M payload. Instead,
@@ -7180,8 +7353,12 @@ export default function StockChart({
             // it back to ~600 bars until the dwell-warm re-fetches deep (the "cuts off
             // pre-2024 then reloads" flicker). The merge effect still heals idbBars's
             // recent tail from data.bars (server wins on overlap), so this stays correct.
-            ? (((_idbFresh || _splitDeepUsable) && idbBars.length > data.bars.length) ? idbBars : data.bars)
-            : ((_idbFresh || (_splitDeepUsable && _fpEdge))
+            // …and only when that deeper set is itself PAINTABLE. A deep-but-stale set
+            // would otherwise win on length alone and put its old tail on screen; the
+            // merge effect heals it one commit later and the deep history then arrives
+            // as a LEFT-side prepend, which moves no right-edge geometry at all.
+            ? (((_idbFresh || _splitDeepPaintable) && idbBars.length > data.bars.length) ? idbBars : data.bars)
+            : ((_idbFresh || (_splitDeepPaintable && _fpEdge))
                 // Fix 2 cold-tail: paint the deep SEALED history the moment it arrives, even while
                 // the /api/bars tail is still pending/hung — turns a cold-ticker 20s blank into an
                 // instant full chart (today's bar fills in when the tail lands). Gated → inert at PCT=0.
@@ -7201,6 +7378,23 @@ export default function StockChart({
                         : (_memBars?.length
                             ? _memBars
                             : (_aggBars?.length ? _aggBars : (_idbProvisional || null))))))))
+  // ── SCOPE OF THE STALE-TODAY REPAIR ────────────────────────────────────────
+  // ⚰️ THE REPAIR WAS UNCONDITIONAL, AND THAT WALKED THE CLOSE BACKWARDS. It rewrites
+  // today's slot from the freshest LOCAL source and runs on every evaluation of the
+  // candle memo — including after /api/bars has landed. A pack up to its 90s ceiling
+  // is then OLDER than the served bar, so re-stamping from it dragged an already
+  // authoritative close back in time (measured: served 220.5 → repainted 220.1).
+  //
+  // The repair exists for ONE situation: a CACHED today bar that our own recency gate
+  // calls stale, which the gate only admitted to the screen BECAUSE a seed could
+  // repair it. Once the server's own set is what we are painting, the served bar is
+  // by definition fresher than any local seed and must be left alone. Identity is the
+  // exact test for which arm won, and the savedAt term self-cancels the moment a
+  // server heal re-stamps the cache.
+  dailyRepairTodayRef.current = resolvedTf === 'D' && !!bars
+    && (bars === idbBars || bars === _memBars)
+    && isDailyTodayBarStaleForPaint(idbSinceRef.current, idbSavedAtRef.current)
+
   // The live-bar writers consult this to freeze until a CURRENT-session payload
   // replaces the data — BUT only when the stale tail is from a PRIOR session
   // (>8h old: overnight / weekend / multi-day), which is the "fuse a live spike
@@ -8505,65 +8699,71 @@ export default function StockChart({
       if (_intradayLoadAnchorEnabled() && !exactDateRange && !entryDate && !replayCutoff && arr.length && displayBars.length) {
         const _dev = _developingBarISO(resolvedTf)
         const _lastRaw = displayBars[displayBars.length - 1]?.t
-        if (_dev && typeof _lastRaw === 'string' && _lastRaw < _dev) {
-          // Default: an empty whitespace slot (reserve only). When _seedLiveEnabled(), upgrade
-          // to a REAL candle at the live price so today is VISIBLE at the tape on first paint.
-          // Same store + sane-price source as Writer D; whitespace fallback when no sane price.
+        // ── DAILY: seed EXACTLY the slots the framing reserve holds ─────────────
+        // `_dailyReserveDates` is the same list `_intradayLoadReserve` counts, so the
+        // seed and the frame cannot disagree — the off-by-(reserve − seeded) that
+        // translated the chart is now unrepresentable. The FRONTIER slot gets the real
+        // current-session bar when one is available locally; earlier slots stay
+        // whitespace (their bars exist only on the server, which is exactly why the
+        // paint authority refuses to show such a set in the first place — reaching here
+        // with more than one slot means an unexpected right-edge arrival, and holding
+        // bounded whitespace for it is strictly better than translating the frame).
+        if (resolvedTf === 'D' && typeof _lastRaw === 'string') {
+          const _slots = _dailyReserveDates(_lastRaw)
+          if (_slots.length) {
+            const _seed = _resolveDailyTodaySeed()
+            const _frontier = _slots[_slots.length - 1]
+            for (const _iso of _slots) {
+              arr.push((_iso === _frontier && _seed && _seed.t === _iso)
+                ? { time: adjustTime(_iso), open: _seed.o, high: _seed.h, low: _seed.l, close: _seed.c }
+                : { time: adjustTime(_iso) })
+            }
+          } else {
+            // ── STALE-TODAY REPAIR, IN PLACE ────────────────────────────────────
+            // The set already reaches today, so the GEOMETRY is final — but the bar
+            // itself can be hours old (a cache written at 10:05, painted at 14:00),
+            // and /api/bars' own copy is only as fresh as the store row behind it.
+            // Replacing the values at the SAME date moves nothing and removes the
+            // "body right, wick corrects a beat later" flash.
+            //
+            // ⛔ NOT FABRICATION, AND NOT EXTRAPOLATION. Close is the live price — the
+            // one genuinely real-time field UCT has. High/low come from the provider's
+            // own `day` aggregate, the same object every other door serves; reconciling
+            // the two observations with max/min is valid because a session high never
+            // falls and a session low never rises. Nothing is invented, and no value
+            // moves except toward a later observation of the same quantity.
+            const _seed = dailyRepairTodayRef.current ? _resolveDailyTodaySeed() : null
+            const _i = arr.length - 1
+            const _cur = arr[_i]
+            if (_seed && _cur && _cur.time === adjustTime(_seed.t) && _cur.open !== undefined) {
+              arr[_i] = {
+                ..._cur,
+                high: Math.max(_cur.high, _seed.h),
+                low: Math.min(_cur.low, _seed.l),
+                close: _seed.c,
+              }
+            }
+          }
+        } else if (_dev && typeof _lastRaw === 'string' && _lastRaw < _dev) {
+          // ── WEEKLY / MONTHLY ONLY (daily is handled above) ────────────────────
+          // ⛔ UNCHANGED ON PURPOSE. A week/month period start is not "n sessions
+          // back", so the daily session walk is the wrong instrument here; W/M keep
+          // the single-slot rule until their own period semantics are designed. The
+          // today-PACK arm that used to live here was daily-only and is now
+          // unreachable from this branch, so it is gone rather than left as dead code
+          // that reads like a live path.
           let _pt = null
           if (_seedLiveEnabled()) {
             try {
               const _snap = (typeof getLivePriceStoreSnapshot === 'function') ? getLivePriceStoreSnapshot()[sym] : null
               const _px = _snap ? _effLivePrice(_snap) : null
-              // ⛔ REGULAR SESSION ONLY. Outside 9:30-16:00 ET `_effLivePrice` returns the
-              // EXTENDED-hours price (`ext_price` when `ext_session`), but the DAILY candle is
-              // settled at the 4pm close (pre/post-market moves are not part of it). Seeding the
-              // post-market price here painted today's candle at e.g. 40.12 then the fetch's
-              // settled 40.26 corrected it ~0.25s later — the "wrong price then corrects" flash.
-              // In an extended session, skip the live seed → the reserved whitespace slot holds
-              // and the fetch's settled/developing close fills today's candle correctly. During
-              // RTH `ext_session` is false so `_effLivePrice` is the developing regular price.
+              // ⛔ REGULAR SESSION ONLY. Outside 09:30-16:00 ET `_effLivePrice` returns the
+              // EXTENDED-hours price, but the period candle is settled at the 4pm close.
               if (_px && !_snap.ext_session && isSaneLivePrice(_px, lastBarRef.current?.close, lastServerCloseRef.current)) {
                 const _o = (_snap.day_open && _snap.day_open > 0) ? _snap.day_open : _px
                 const _h = Math.max((_snap.day_high && _snap.day_high > 0) ? _snap.day_high : _px, _px)
                 const _l = Math.min((_snap.day_low && _snap.day_low > 0) ? _snap.day_low : _px, _px)
                 _pt = { time: adjustTime(_dev), open: _o, high: _h, low: _l, close: _px }
-              }
-            } catch { /* fall back to whitespace */ }
-          }
-          // ── COLD SYMBOL: seed today from the TODAY-PACK ────────────────────
-          // The live-price store above is EMPTY for a symbol just typed — its first
-          // poll is still in flight — so the seed missed exactly when it was needed
-          // most, and today's candle waited on /api/bars (300-500ms of pure network;
-          // server compute is 0.8ms). The today-pack is prefetched for the WHOLE
-          // market, so this symbol's bar is already here. A warm symbol never reaches
-          // this line; the live store answers first and is fresher.
-          //
-          // ⚠️ DAILY ONLY. `_dev` for W/M is the start of the WEEK/MONTH, whose open
-          // is Monday's (or the 1st's) and whose high/low span the whole period —
-          // today's OHLC is not that bar, and seeding it there would paint a visibly
-          // wrong candle that the fetch then corrects.
-          // ⛔ REGULAR SESSION ONLY — the same rule the live-price seed above obeys, and
-          // I shipped this without it. The pack's close is the snapshot's `last_price`,
-          // which in post-market is the POST-MARKET print; the daily candle is settled at
-          // the 4pm close and must not move for an extended-hours trade. Seeding it
-          // anyway paints today's candle at the post price and lets the fetch correct it
-          // a beat later — the exact "wrong price then corrects" flash the ext_session
-          // branch above exists to prevent. Pre-market needs no test here (the server
-          // sends an empty pack before the open) but the check is written for the
-          // SESSION, not for post, so it cannot rot if that ever changes.
-          //
-          // ⚰️ THIS READ `marketSession === 'regular'` FOR ONE COMMIT. The value is
-          // `'pre' | 'post' | 'rth'` — there is no `'regular'` — so the test was
-          // permanently FALSE and the whole feature silently did nothing, on every
-          // symbol, with no error and a green test suite. `_inExtWindow` is the named
-          // concept that already exists; use it rather than restating a literal.
-          if (!_pt && resolvedTf === 'D' && !_inExtWindow) {
-            try {
-              const _tb = getTodayBar(sym)
-              // Same sanity chokepoint as the live path — a bad pack row must not
-              // reach the chart just because it came from a different door.
-              if (_tb && isSaneLivePrice(_tb.c, lastBarRef.current?.close, lastServerCloseRef.current)) {
-                _pt = { time: adjustTime(_dev), open: _tb.o, high: _tb.h, low: _tb.l, close: _tb.c }
               }
             } catch { /* fall back to whitespace */ }
           }
@@ -8575,6 +8775,10 @@ export default function StockChart({
     // NOTE: livePrices is deliberately NOT a dep — the seed reads the live-price store
     // imperatively (fresh at eval), and the live writers own prices that arrive later; a
     // livePrices dep would re-run this O(n) memo every tick (churn) even when dark.
+    // `_resolveDailyTodaySeed` is omitted for the SAME reason and is the eslint warning
+    // on this line: it is a per-render closure over exactly those imperative sources, so
+    // listing it would bust this memo on every single render — the churn the note above
+    // exists to prevent. It is read, never captured.
     [displayBars, adjustTime, sym, _inExtWindow, sessionPreviewLastBar, canvasTheme, boldCandles, modelBookLook, mbUp, mbDown, userCandleColors, cs.candles.upColor, cs.candles.downColor, cs.candles.upBorder, cs.candles.downBorder, cs.candles.upWick, cs.candles.downWick, resolvedTf, exactDateRange, entryDate, replayCutoff]
   )
   // Publish the DRAWN candle count (see the `onDrawnBarCount` prop). Reported on

@@ -119,8 +119,30 @@ describe('classifyLiveBar — daily, REST floor (no timestamp = Frankenstein cas
     expect(d.kind).toBe('update')
   })
 
-  it('no prev_close in snapshot → cannot confirm → update (safe default)', () => {
-    const last = { time: '2026-06-12', close: 6.75 }
+  // ⚰️ THIS EXPECTED 'update', AND CALLED IT "the safe default". It was not safe.
+  // `last` is FRIDAY's sealed bar, the clock is Monday 14:00 ET, and folding the
+  // live Monday price into it rewrites a settled candle with a price that is not
+  // its own — the same "fuse a live tick onto a stale bar" failure the INTRADAY
+  // REST floor already refuses by name. Nothing confirms a new session here, so
+  // the honest answer is to write nothing and let the fetch (or the `new` branch,
+  // once day_open/prev_close confirm) plant Monday's bar.
+  //
+  // The shape stopped being rare when the daily cold path started painting a body
+  // that ends at the last SEALED session with today supplied by the current-session
+  // seed: `last` is then legitimately yesterday while the tape is live.
+  it('no prev_close, and `last` is a PRIOR session → skip (never rewrite a sealed bar)', () => {
+    const last = { time: '2026-06-12', close: 6.75 }        // Friday
+    const d = classifyLiveBar({
+      tf: 'D', last, live: { day_open: 7.03 }, tickSec: undefined, nowSec: MON_1400_ET,
+    })
+    expect(d.kind).toBe('skip')
+  })
+
+  // …and the mirror image, so the guard cannot be widened into silence: when `last`
+  // IS the current session the live price still folds in, which is the whole point
+  // of the developing candle.
+  it('no prev_close, but `last` IS the current session → update', () => {
+    const last = { time: '2026-06-15', close: 7.02 }        // Monday
     const d = classifyLiveBar({
       tf: 'D', last, live: { day_open: 7.03 }, tickSec: undefined, nowSec: MON_1400_ET,
     })
