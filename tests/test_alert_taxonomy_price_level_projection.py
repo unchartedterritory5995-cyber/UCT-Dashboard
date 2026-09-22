@@ -1103,3 +1103,286 @@ def test_prices_for_MUTATION_without_the_breadth_path_a_pseudo_ticker_is_lost(mo
     assert missing == ["UCTA5"], (
         "with the breadth path disabled the pseudo-ticker should be lost, "
         "proving the real fix (not this test) is what recovers it")
+
+
+# ═════════════════════════════════════════════════════════════════════════════
+# D3 CP4 (GATE-D3-CP4-PRICE-LEVEL-CONSUMER, signed 2026-09-21, fingerprint
+# 657002015) — S7 price-level becomes D3's first real consumer. §7 acceptance.
+# ═════════════════════════════════════════════════════════════════════════════
+
+@pytest.fixture(autouse=True)
+def _d3_interest_reset():
+    """`_d3_interest_syms` is process-lifetime module state (§2 — it must
+    reconcile a cohort that shrinks, which means it must persist BETWEEN
+    ticks). Left uncleared it leaks across tests exactly like `auth`/`dbp`
+    would if they were session-scoped — reset before and after every test."""
+    _proj._reset_d3_interest_for_tests()
+    yield
+    _proj._reset_d3_interest_for_tests()
+
+
+def _fake_broadcaster(prices: dict[str, float]):
+    """A minimal stand-in for bar_broadcaster.get_broadcaster() — only the two
+    methods `_d3_prices_for` actually calls."""
+    calls = {"add_interest": [], "remove_interest": []}
+
+    class _FakeBB:
+        def add_interest(self, symbols):
+            calls["add_interest"].append(sorted(symbols))
+
+        def remove_interest(self, symbols):
+            calls["remove_interest"].append(sorted(symbols))
+
+        def get_last_price(self, sym):
+            px = prices.get(sym.upper())
+            return {"price": px, "ts": 0, "volume": None} if px is not None else None
+
+    return _FakeBB(), calls
+
+
+def test_d3_path_is_called_only_from_the_scheduler_jobs_run_dark_sweep():
+    """§2 MUST: 'the call site is named and railed... the new test asserts
+    run_dark_sweep is the D3 arm's sole caller' — mirroring the existing
+    inertness-rail idiom (bar_broadcaster.last_tick_age) now flipped to an
+    EXISTENCE assertion: `_d3_prices_for` has exactly one caller in this
+    module, and it is `run_dark_sweep`. `run_dark_sweep` itself is already
+    railed as the scheduler job's sole caller
+    (test_the_dark_sweep_is_actually_wired_to_a_tick, above) — together the
+    two prove the whole chain from the cron job down to the D3 primitives.
+    """
+    src = (_AT / "price_level_projection.py").read_text(encoding="utf-8")
+    tree = ast.parse(src)
+    callers = []
+    for node in ast.walk(tree):
+        if isinstance(node, ast.FunctionDef):
+            for inner in ast.walk(node):
+                if (isinstance(inner, ast.Call) and isinstance(inner.func, ast.Name)
+                        and inner.func.id == "_d3_prices_for"):
+                    callers.append(node.name)
+    assert callers, "the probe found no call to _d3_prices_for at all — broken, not green"
+    assert set(callers) == {"run_dark_sweep"}, (
+        f"_d3_prices_for is called from {sorted(set(callers))} — it must have "
+        "exactly one caller, run_dark_sweep")
+
+
+def test_poll_path_unchanged_when_d3_arm_added(monkeypatch, dbp):
+    """§2 MUST / §5: the poll resolver runs byte-for-byte as before, and the
+    dark-vs-legacy outcome it produces does not move one bit for what the D3
+    arm reports — 'beside, not instead of' enforced, not just documented."""
+    uid = _user("admin")
+    _alert(uid, sym="TWIN", target=100.0, direction="above")
+
+    poll_calls = []
+
+    def fake_poll(symbols):
+        poll_calls.append(list(symbols))
+        return {s: 101.0 for s in symbols}, []
+
+    monkeypatch.setattr(_proj, "_prices_for", fake_poll)
+
+    # Run 1: D3 arm reports a WILDLY DIFFERENT (disagreeing) price.
+    monkeypatch.setattr(_proj, "_d3_prices_for", lambda syms: ({s: 50.0 for s in syms}, []))
+    with_d3 = _proj.run_dark_sweep(now=T0, db_path=dbp)
+
+    # Fresh store, same predicate, same poll price, D3 arm now UNPRICED entirely.
+    p2 = str(dbp) + "-b"
+    _db.init_db(db_path=p2)
+    _pl.register(db_path=p2)
+    monkeypatch.setattr(_proj, "_d3_prices_for", lambda syms: ({}, list(syms)))
+    without_d3_data = _proj.run_dark_sweep(now=T0, db_path=p2)
+
+    assert poll_calls[0] == poll_calls[1] == ["TWIN"], (
+        "the poll resolver must be asked for the exact same cohort either way")
+    assert with_d3["outcomes"] == without_d3_data["outcomes"], (
+        "the dark-vs-legacy outcome must not depend on what the D3 arm saw")
+    assert with_d3["priced"] == without_d3_data["priced"] == 1
+    assert with_d3["no_price"] == without_d3_data["no_price"] == []
+
+
+def test_add_interest_cohort_is_capped(monkeypatch):
+    """§2 SHOULD / §7: closes GATE-D3-REALTIME-STREAMING's own gap 2 —
+    `add_interest` has no length check of its own, and this checkpoint is its
+    first caller that can hand it a caller-controlled list. Mutation-proved:
+    removing the cap (setting it absurdly high) must let the uncapped size
+    through, or this test could pass for a cap that does nothing.
+    """
+    many = [f"SYM{i}" for i in range(_proj.D3_COHORT_CAP + 50)]
+    bb, calls = _fake_broadcaster({})
+    monkeypatch.setattr("api.services.bar_broadcaster.get_broadcaster", lambda: bb)
+    monkeypatch.setattr("api.services.bar_stream.subscribe_symbols", lambda *a, **k: None)
+
+    prices, missing = _proj._d3_prices_for(many)
+    added = calls["add_interest"][0]
+    assert len(added) == _proj.D3_COHORT_CAP, (
+        f"add_interest was handed {len(added)} symbols, cap is {_proj.D3_COHORT_CAP}")
+    assert len(missing) == len(many), "every symbol is unpriced (fake broadcaster has no prices)"
+
+    # MUTATION PROOF: raise the cap and confirm the size handed to add_interest
+    # actually grows — proves this test can tell a real cap from a no-op one.
+    _proj._reset_d3_interest_for_tests()
+    monkeypatch.setattr(_proj, "D3_COHORT_CAP", len(many) + 10)
+    _proj._d3_prices_for(many)
+    added2 = calls["add_interest"][-1]
+    assert len(added2) == len(many), (
+        "raising the cap must raise the size actually passed to add_interest")
+
+
+def test_d3_prices_for_reconciles_a_cohort_that_shrinks(monkeypatch):
+    """§2 MUST ('RECONCILED, not merely additive'): a symbol that leaves the
+    cohort must have its interest RELEASED, not held forever."""
+    bb, calls = _fake_broadcaster({"AAPL": 1.0, "MSFT": 2.0})
+    monkeypatch.setattr("api.services.bar_broadcaster.get_broadcaster", lambda: bb)
+    monkeypatch.setattr("api.services.bar_stream.subscribe_symbols", lambda *a, **k: None)
+    monkeypatch.setattr("api.services.bar_stream.unsubscribe_symbols", lambda *a, **k: None)
+
+    _proj._d3_prices_for(["AAPL", "MSFT"])
+    assert calls["add_interest"][0] == ["AAPL", "MSFT"]
+    assert calls["remove_interest"] == []
+
+    # MSFT's alert is gone next tick — its interest must be released, and AAPL
+    # (still wanted) must NOT be re-added (it is already held).
+    _proj._d3_prices_for(["AAPL"])
+    assert calls["remove_interest"] == [["MSFT"]], calls
+    assert calls["add_interest"] == [["AAPL", "MSFT"]], (
+        "AAPL is still wanted and already held -- it must not be re-added")
+
+    # And an EMPTY cohort (the tick run_dark_sweep takes when nobody is
+    # projected) releases everything still held.
+    _proj._d3_prices_for([])
+    assert calls["remove_interest"][-1] == ["AAPL"]
+
+
+def test_disagreement_between_sources_is_recorded_not_rated(dbp):
+    """§2 MUST: 'a stream-sourced cross and a poll-sourced cross that disagree
+    are the finding, and collapsing them to a percentage destroys the
+    information.' Drives run_projected_comparison directly with a poll price
+    that crosses and a D3 price that does not (POLL_ONLY), then the reverse
+    (D3_ONLY), then a tick where both cross (AGREED) — never a rate."""
+    uid = _user("admin")
+    aid = _alert(uid, sym="DIVERGE", target=100.0, direction="above")
+    pid = _proj.projected_predicate_id(aid)
+
+    # Baseline tick: both sources below the level, no cross possible yet.
+    out0 = _proj.run_projected_comparison({"DIVERGE": 90.0}, {"DIVERGE": 90.0}, now=T0, db_path=dbp)
+    assert out0["source_outcomes"] == {}, "a baseline tick establishes prev, it is not an event"
+
+    # Poll crosses (90 -> 101 >= 100); D3 stays flat at 90 -> no cross.
+    out1 = _proj.run_projected_comparison({"DIVERGE": 101.0}, {"DIVERGE": 90.0}, now=T0 + 1, db_path=dbp)
+    assert out1["source_outcomes"][pid] == _cmp.POLL_ONLY, out1
+
+    # Both sources re-baseline below the level (a real second approach), then
+    # this time only the D3 arm crosses.
+    _proj.run_projected_comparison({"DIVERGE": 95.0}, {"DIVERGE": 95.0}, now=T0 + 2, db_path=dbp)
+    out2 = _proj.run_projected_comparison({"DIVERGE": 96.0}, {"DIVERGE": 105.0}, now=T0 + 3, db_path=dbp)
+    assert out2["source_outcomes"][pid] == _cmp.D3_ONLY, out2
+
+    # Re-baseline, then both cross together.
+    _proj.run_projected_comparison({"DIVERGE": 95.0}, {"DIVERGE": 95.0}, now=T0 + 4, db_path=dbp)
+    out3 = _proj.run_projected_comparison({"DIVERGE": 110.0}, {"DIVERGE": 110.0}, now=T0 + 5, db_path=dbp)
+    assert out3["source_outcomes"][pid] == _cmp.AGREED, out3
+
+    # NEVER a rate: the four outcomes stay as distinct labeled counts, never
+    # collapsed to a fraction anywhere in the returned shape.
+    for out in (out1, out2, out3):
+        for v in out["source_outcomes"].values():
+            assert isinstance(v, str), "a source outcome must be a label, never a number"
+
+
+def test_source_outcomes_is_omitted_when_the_caller_never_passes_a_d3_map(dbp):
+    """Opt-in by omission (§2 docstring rule): the six OTHER trigger types
+    call this SAME-NAMED function in their OWN modules with no `d3_price_map`
+    at all, and every one of THIS module's own pre-CP4 callers does too — none
+    of them may have source-agreement bookkeeping silently switched on."""
+    uid = _user("admin")
+    _alert(uid, sym="NODATA3", target=100.0)
+    out = _proj.run_projected_comparison({"NODATA3": 101.0}, now=T0, db_path=dbp)
+    assert "source_outcomes" not in out, (
+        "omitting d3_price_map must not add a key nobody asked for")
+
+
+def test_heartbeat_distinguishes_d3_liveness_from_poll_liveness(monkeypatch, dbp):
+    """§2 MUST / §5: 'a D3-path failure must not read as agreement' — the
+    heartbeat's d3_priced/d3_no_price must move independently of priced/
+    no_price, mutation-proved in BOTH directions (D3 dead while poll is fine,
+    and the reverse)."""
+    import sqlite3
+
+    def beat():
+        c = sqlite3.connect(dbp)
+        c.row_factory = sqlite3.Row
+        try:
+            r = c.execute("SELECT * FROM price_level_sweep_heartbeat WHERE id=1").fetchone()
+            return dict(r) if r else None
+        finally:
+            c.close()
+
+    uid = _user("admin")
+    _alert(uid, sym="BOTH", target=100.0)
+
+    # Direction 1: poll healthy, D3 arm dead (no prices at all).
+    monkeypatch.setattr(_proj, "_prices_for", lambda syms: ({s: 99.0 for s in syms}, []))
+    monkeypatch.setattr(_proj, "_d3_prices_for", lambda syms: ({}, list(syms)))
+    _proj.run_dark_sweep(now=T0, db_path=dbp)
+    b = beat()
+    assert b["priced"] == 1 and b["d3_priced"] == 0, (
+        "a dead D3 arm must be visible on the heartbeat while the poll arm reads healthy")
+    assert "BOTH" in b["d3_no_price"]
+
+    # Direction 2: the reverse — poll arm dead, D3 arm healthy.
+    monkeypatch.setattr(_proj, "_prices_for", lambda syms: ({}, list(syms)))
+    monkeypatch.setattr(_proj, "_d3_prices_for", lambda syms: ({s: 99.0 for s in syms}, []))
+    _proj.run_dark_sweep(now=T0 + 60, db_path=dbp)
+    b = beat()
+    assert b["priced"] == 0 and b["d3_priced"] == 1, (
+        "a dead poll arm must be visible independently of a healthy D3 arm")
+    assert "BOTH" in b["no_price"]
+
+
+def test_prev_price_unaffected_by_d3_path(dbp):
+    """§2 MUST: 'prev_price stays exactly where it lives... the D3 path
+    supplies a price, not a new home for the comparison state.' Proved by
+    running the IDENTICAL poll-price sequence twice — once with a D3 map
+    supplied (disagreeing at every tick), once with none at all — and
+    asserting the dark-vs-legacy outcomes (which are entirely driven by the
+    `prev_legacy` baseline this axis tracks) are byte-identical either way."""
+    uid1 = _user("admin")
+    aid1 = _alert(uid1, sym="BASE", target=100.0, direction="above")
+
+    p2 = str(dbp) + "-nod3"
+    _db.init_db(db_path=p2)
+    _pl.register(db_path=p2)
+    # Re-seed an identical predicate against the second store's own auth rows —
+    # the fixture DB is shared (`auth` fixture), only the alert-taxonomy store
+    # (`dbp`) differs, so the SAME admin/alert rows project into both.
+
+    poll_sequence = [90.0, 95.0, 101.0, 97.0, 103.0]
+    outcomes_with_d3, outcomes_without_d3 = [], []
+    for i, price in enumerate(poll_sequence):
+        out_a = _proj.run_projected_comparison(
+            {"BASE": price}, {"BASE": price - 40.0}, now=T0 + i, db_path=dbp)
+        out_b = _proj.run_projected_comparison(
+            {"BASE": price}, now=T0 + i, db_path=p2)
+        outcomes_with_d3.append(out_a["outcomes"])
+        outcomes_without_d3.append(out_b["outcomes"])
+
+    assert outcomes_with_d3 == outcomes_without_d3, (
+        "the poll-vs-legacy outcome sequence must be identical whether or not "
+        "a (disagreeing) D3 price is supplied alongside it")
+
+
+def test_flow_worker_does_not_reach_d3_price_level_wiring():
+    """§3 / §5 non-risk, re-verified as a REGRESSION GUARD rather than trusted
+    from the proposal's own one-time measurement: none of the four modules
+    this checkpoint touches are in flow-worker's static import closure."""
+    from tools import flow_worker_watch_coverage as wc
+
+    root = wc.repo_root()
+    reachable = wc.reachable_paths(root)
+    touched = {
+        "api/services/alert_taxonomy/price_level_projection.py",
+        "api/services/alert_taxonomy/price_level_compare.py",
+        "api/services/bar_broadcaster.py",
+        "api/services/bar_stream.py",
+    }
+    hit = touched & reachable
+    assert not hit, f"flow-worker's import closure now reaches: {sorted(hit)}"

@@ -74,6 +74,120 @@ from api.services.alert_taxonomy import receipts as _receipts
 # comparison bookkeeping is keyed by the LEGACY ROW ID as ruled.
 PROJECTED_PREFIX = "legacy:"
 
+# ─────────────────────────────────────────────────────────────────────────────
+# D3 CP4 (GATE-D3-CP4-PRICE-LEVEL-CONSUMER, signed 2026-09-21, fingerprint
+# 657002015) — S7 price-level becomes D3's first real consumer. See §2 of the
+# proposal for the exact authorization; every DEFER item it names (retiring the
+# poll path, any delivery, the upstream-load set-difference, massive chunking,
+# G1) is out of scope here and NOT touched.
+# ─────────────────────────────────────────────────────────────────────────────
+
+# The owner tag `bar_stream.subscribe_symbols`/`bar_broadcaster.add_interest`
+# refcount this arm's interest under — distinct from "bars" (the chart feed)
+# and "nhnl" so releasing this arm's interest can never touch either.
+_D3_OWNER = "s7_price_level_dark"
+
+# SHOULD-BUILD (§2, §6): closes GATE-D3-REALTIME-STREAMING §7 gap 2 —
+# `add_interest` has no length check of its own, and this is its first caller
+# that can hand it a caller-controlled (member-armed) list. Sized conservatively
+# per §6's own resolution (the owner declined a live-DB cohort-size read this
+# pass): the S7 dark cohort is role-seeded to ADMINS ONLY during this dark
+# period (`rollout.S7_DARK`), not the member base, so a low-hundreds ceiling is
+# generous headroom rather than a guess at a real member-scale number. Tune here
+# — no schema change — if a future cohort read says otherwise.
+D3_COHORT_CAP = 200
+
+# The reconciliation state for this arm's D3 subscriptions/interest. Module
+# state, not a class, because the scheduler job that owns this arm runs with
+# `max_instances=1` (api/main.py's `alert_taxonomy_price_level_dark` job) — one
+# writer, ever, in production. Reconciled (not merely additive) every tick: a
+# symbol whose alert left the cohort has its interest released the SAME tick, or
+# the developing-bar partial `add_interest` holds alive for it would never be
+# torn down (bar_broadcaster.py's own `remove_interest` docstring).
+_d3_interest_syms: set[str] = set()
+
+
+def _reset_d3_interest_for_tests() -> None:
+    """Test-only: `_d3_interest_syms` is process-lifetime module state, and a
+    test that seeds it and never clears it leaks into the next one — the same
+    failure this repo's `auth`/`dbp` fixtures exist to prevent for the DBs."""
+    global _d3_interest_syms
+    _d3_interest_syms = set()
+
+
+def _d3_prices_for(symbols: list[str]) -> tuple[dict[str, float], list[str]]:
+    """The D3-SOURCED price arm — run BESIDE `_prices_for()` below, never
+    replacing it this checkpoint (§2 MUST). Reads the same developing-bar
+    partial the live chart feed reads, via `bar_broadcaster.get_last_price` —
+    never a second provider call, never a fallback to Massive. A miss here
+    means "D3 has no price for this symbol yet," which is itself part of what
+    this comparison measures; it is reported, exactly like `_prices_for`'s own
+    `missing`, never silently backfilled from the poll path.
+
+    ⛔ CAPPED at `D3_COHORT_CAP` — a symbol past the cap never gets a D3
+    subscription attempt at all this tick and is reported missing, the same as
+    any other unpriced symbol.
+
+    ⛔ RECONCILED: an empty `symbols` list (the empty-cohort tick) releases
+    every previously-held interest, so a cohort that empties out cannot leak a
+    subscription forever.
+
+    Bounded and never raises, matching `_prices_for`'s own contract — a D3
+    primitive failing costs this arm's tick, never the sweep, never a member
+    request.
+    """
+    global _d3_interest_syms
+    cohort = sorted(set(symbols))[:D3_COHORT_CAP]
+    over_cap = sorted(set(symbols) - set(cohort))
+    wanted = set(cohort)
+
+    added = wanted - _d3_interest_syms
+    removed = _d3_interest_syms - wanted
+    if added:
+        try:
+            from api.services import bar_stream as _bar_stream
+            _bar_stream.subscribe_symbols(added, owner=_D3_OWNER)
+        except Exception:
+            pass   # bounded: a subscribe failure costs this tick's D3 price, never the sweep
+        try:
+            from api.services.bar_broadcaster import get_broadcaster as _get_bb
+            _get_bb().add_interest(added)
+        except Exception:
+            pass
+    if removed:
+        try:
+            from api.services import bar_stream as _bar_stream
+            _bar_stream.unsubscribe_symbols(removed, owner=_D3_OWNER)
+        except Exception:
+            pass
+        try:
+            from api.services.bar_broadcaster import get_broadcaster as _get_bb
+            _get_bb().remove_interest(removed)
+        except Exception:
+            pass
+    _d3_interest_syms = wanted
+
+    prices: dict[str, float] = {}
+    missing: list[str] = list(over_cap)
+    try:
+        from api.services.bar_broadcaster import get_broadcaster as _get_bb
+        bb = _get_bb()
+    except Exception:
+        bb = None
+    for sym in cohort:
+        px = None
+        if bb is not None:
+            try:
+                hit = bb.get_last_price(sym)
+                px = (hit or {}).get("price")
+            except Exception:
+                px = None
+        if px:
+            prices[sym] = float(px)
+        else:
+            missing.append(sym)
+    return prices, sorted(missing)
+
 # ⚰️ S12'S SECOND MIGRATION DELETED ONE DECLARATION HERE. Retired verbatim:
 #
 #     ADMIN_ROLE = "admin"
@@ -191,7 +305,7 @@ def _anchor_fingerprint(p: dict[str, Any]) -> tuple:
             p.get("anchor_t1"), p.get("anchor_p1"), p.get("anchor_t2"), p.get("anchor_p2"))
 
 
-def run_projected_comparison(price_map: dict[str, float], *,
+def run_projected_comparison(price_map: dict[str, float], d3_price_map: Optional[dict[str, float]] = None, *,
                              now: Optional[float] = None,
                              db_path: str | None = None) -> dict[str, Any]:
     """One forward tick over the projected admin cohort.
@@ -210,10 +324,20 @@ def run_projected_comparison(price_map: dict[str, float], *,
     rewrite is visible as a changed fingerprint. ⛔ An instrumented legacy path
     would also only catch rewrites that went through that one function; an
     observed fingerprint catches a hand-edited row too.
+
+    `d3_price_map` (D3 CP4, §2 MUST) is a SECOND, OPTIONAL price source, run
+    BESIDE `price_map` — never in its place. ⛔ **Opt-in per call, by omission,
+    on purpose:** every existing caller of this function (this module's own
+    pre-CP4 tests; the six OTHER trigger types have their own, separately
+    defined `run_projected_comparison` — this is per-module) never passes it,
+    so `d3_price_map is None` skips the source-agreement block outright rather
+    than recording a `not_comparable` for a caller that never asked for this
+    feature. Passing `d3_price_map={}` (the arm ran, this tick just had no D3
+    prices) is a DIFFERENT, deliberate case — see `_cmp.record_source_outcome`.
     """
     now = time.time() if now is None else now
     projected = project_admin_alerts()
-    seen, outcomes, moves = [], {}, []
+    seen, outcomes, moves, source_outcomes = [], {}, [], {}
 
     for p in projected:
         pid = projected_predicate_id(p["legacy_id"])
@@ -229,8 +353,9 @@ def run_projected_comparison(price_map: dict[str, float], *,
             span = _cmp.open_span_if_absent(pid, p, now=now, db_path=db_path)
 
         prev = span["prev_legacy"]
-        dark_fires = _pl.level_at(p, now) is not None and _pl._crossed(
-            p.get("direction", "above"), prev, price, float(_pl.level_at(p, now)))
+        level = _pl.level_at(p, now)
+        direction = p.get("direction", "above")
+        dark_fires = level is not None and _pl._crossed(direction, prev, price, float(level))
         legacy_fires = legacy_would_fire(p, price, now)
 
         if dark_fires:
@@ -238,7 +363,7 @@ def run_projected_comparison(price_map: dict[str, float], *,
                 predicate_id=pid, trigger_type=_pl.TYPE_ID, user_id=p["user_id"],
                 entity_ref=sym, fire_key=f"proj:{p['legacy_id']}:{int(now)}",
                 triggering_value=price,
-                detail={"symbol": sym, "level": _pl.level_at(p, now),
+                detail={"symbol": sym, "level": level,
                         "direction": p.get("direction"), "level_kind": p.get("level_kind"),
                         "projected": True, "dark": True},
                 source_data_class="quote", freshness_class="real_time",
@@ -249,8 +374,27 @@ def run_projected_comparison(price_map: dict[str, float], *,
         if outcome:
             outcomes[pid] = outcome
 
-    return {"projected": len(projected), "evaluated": len(seen),
-            "outcomes": outcomes, "anchor_moves": len(moves), "at": now}
+        # D3 CP4 — the SOURCE-agreement axis, against the SAME `prev` baseline
+        # the dark-vs-legacy axis above just used. `prev_price` stays exactly
+        # where it is (§2): nothing here reads or writes `prev_legacy` itself —
+        # that already happened inside `record_outcome`, for the poll price,
+        # unchanged. The D3 price only ever supplies a SECOND `crossed` verdict
+        # against the SAME baseline the poll price was just tested against.
+        if d3_price_map is not None:
+            d3_price = d3_price_map.get(sym)
+            d3_crossed = (
+                None if d3_price is None or level is None
+                else _pl._crossed(direction, prev, float(d3_price), float(level)))
+            src_outcome = _cmp.record_source_outcome(
+                pid, dark_fires, d3_crossed, now=now, db_path=db_path)
+            if src_outcome:
+                source_outcomes[pid] = src_outcome
+
+    out = {"projected": len(projected), "evaluated": len(seen),
+           "outcomes": outcomes, "anchor_moves": len(moves), "at": now}
+    if d3_price_map is not None:
+        out["source_outcomes"] = source_outcomes
+    return out
 
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -354,19 +498,29 @@ def run_dark_sweep(*, now: Optional[float] = None,
 
     ⛔ STILL DARK. This writes `alert_fires` + receipts and comparison rows. It
     imports no delivery path, and the rails assert that from the source.
+
+    D3 CP4 (§2 MUST): the D3-sourced price arm (`_d3_prices_for`) runs on every
+    tick BESIDE the poll arm above — including the empty-cohort tick, so that
+    an emptied cohort releases any D3 interest it was holding rather than
+    leaking it.
     """
     at = time.time() if now is None else now
     symbols = sorted({p["symbol"] for p in project_admin_alerts() if p.get("symbol")})
     if not symbols:
+        _d3_prices_for([])   # release any interest a now-empty cohort was holding
         out = {"projected": 0, "evaluated": 0, "outcomes": {},
-               "anchor_moves": 0, "priced": 0, "no_price": []}
+               "anchor_moves": 0, "priced": 0, "no_price": [],
+               "d3_priced": 0, "d3_no_price": [], "source_outcomes": {}}
         _beat(at, out, db_path=db_path)
         return out
 
     prices, missing = _prices_for(symbols)
-    out = run_projected_comparison(prices, now=now, db_path=db_path)
+    d3_prices, d3_missing = _d3_prices_for(symbols)
+    out = run_projected_comparison(prices, d3_prices, now=now, db_path=db_path)
     out["priced"] = len(prices)
     out["no_price"] = missing
+    out["d3_priced"] = len(d3_prices)
+    out["d3_no_price"] = d3_missing
     _beat(at, out, db_path=db_path)
     return out
 
@@ -396,6 +550,30 @@ def _beat_conn(db_path: str | None = None):
     return _db.connect(db_path)
 
 
+# D3 CP4 (§2 MUST): "a heartbeat on every tick... stamped with which source
+# served each tick" -- two columns, same idempotent PRAGMA table_info + guarded
+# ALTER idiom `price_level_compare.py` uses (this table predates CP4, so
+# `_BEAT_DDL`'s own `CREATE TABLE IF NOT EXISTS` only ever reaches a brand-new
+# store). Without these the ONE stamp this table carries answers "is the sweep
+# alive" and nothing about whether the D3 arm specifically is -- a D3-only
+# failure (get_last_price returning nothing for the whole cohort while the poll
+# arm keeps working) would otherwise read identically to full health.
+_D3_BEAT_COLUMNS = ("d3_priced", "d3_no_price")
+
+
+def _ensure_d3_beat_columns(conn) -> None:
+    have = {r[1] for r in conn.execute(
+        "PRAGMA table_info(price_level_sweep_heartbeat)").fetchall()}
+    if "d3_priced" not in have:
+        conn.execute(
+            "ALTER TABLE price_level_sweep_heartbeat ADD COLUMN d3_priced "
+            "INTEGER NOT NULL DEFAULT 0")
+    if "d3_no_price" not in have:
+        conn.execute(
+            "ALTER TABLE price_level_sweep_heartbeat ADD COLUMN d3_no_price "
+            "TEXT NOT NULL DEFAULT '[]'")
+
+
 def _beat(at: float, out: dict, *, db_path: str | None = None) -> None:
     """Stamp one tick. ⭐ THE ONLY THING THAT CAN ANSWER "IS IT STILL TICKING".
 
@@ -412,6 +590,10 @@ def _beat(at: float, out: dict, *, db_path: str | None = None) -> None:
     the ones that priced nothing. A heartbeat that only beats on success is a
     success detector, not a liveness one.
 
+    D3 CP4: `d3_priced`/`d3_no_price` mirror `priced`/`no_price` for the D3 arm,
+    stamped on the SAME row at the SAME tick — so the two liveness answers can
+    be read side by side rather than folded into one.
+
     Best-effort: a heartbeat that raised would take the comparison down with it,
     which inverts the whole point.
     """
@@ -419,16 +601,20 @@ def _beat(at: float, out: dict, *, db_path: str | None = None) -> None:
         conn = _beat_conn(db_path)
         try:
             conn.executescript(_BEAT_DDL)
+            _ensure_d3_beat_columns(conn)
             conn.execute(
                 "INSERT INTO price_level_sweep_heartbeat "
-                "(id, last_tick, ticks, projected, priced, no_price) "
-                "VALUES (1, ?, 1, ?, ?, ?) "
+                "(id, last_tick, ticks, projected, priced, no_price, d3_priced, d3_no_price) "
+                "VALUES (1, ?, 1, ?, ?, ?, ?, ?) "
                 "ON CONFLICT(id) DO UPDATE SET last_tick=excluded.last_tick, "
                 "ticks = price_level_sweep_heartbeat.ticks + 1, "
                 "projected=excluded.projected, priced=excluded.priced, "
-                "no_price=excluded.no_price",
+                "no_price=excluded.no_price, d3_priced=excluded.d3_priced, "
+                "d3_no_price=excluded.d3_no_price",
                 (at, int(out.get("projected") or 0), int(out.get("priced") or 0),
-                 json.dumps(out.get("no_price") or [])))
+                 json.dumps(out.get("no_price") or []),
+                 int(out.get("d3_priced") or 0),
+                 json.dumps(out.get("d3_no_price") or [])))
             conn.commit()
         finally:
             conn.close()

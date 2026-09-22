@@ -29,6 +29,22 @@ row does not carry. Comparing only things that were both live at the same
 instant never needs the geometry's history at all.
 
 ──────────────────────────────────────────────────────────────────────────────
+D3 CP4 (GATE-D3-CP4-PRICE-LEVEL-CONSUMER, fingerprint 657002015) — A SECOND,
+INDEPENDENT AXIS: DOES THE D3-SOURCED PRICE AGREE WITH THE POLL-SOURCED ONE
+──────────────────────────────────────────────────────────────────────────────
+
+`record_outcome`/`observe` above compare two RULES (dark vs. legacy) evaluated
+on the SAME price. `record_source_outcome` below compares two PRICES (poll vs.
+D3-stream) evaluated against the SAME rule and the SAME `prev_legacy` baseline
+— a genuinely different question, sharing this module only because both are
+kept on the same per-predicate span (one geometry epoch, one anchor-move
+lifecycle) rather than a second table that could drift out of step with the
+first on an anchor rewrite. `AGREED`/`NOT_COMPARABLE` are reused (the words
+mean the same thing on either axis); `POLL_ONLY`/`D3_ONLY` are new because
+`NEW_ONLY`/`LEGACY_ONLY` name the OTHER axis specifically and reusing them here
+would silently blur two different findings into one column.
+
+──────────────────────────────────────────────────────────────────────────────
 THE FOUR OUTCOMES — and why NOT COMPARABLE is load-bearing
 ──────────────────────────────────────────────────────────────────────────────
 
@@ -86,6 +102,11 @@ NEW_ONLY = "new_only"
 LEGACY_ONLY = "legacy_only"
 NOT_COMPARABLE = "not_comparable"
 
+# D3 CP4 — the source-agreement axis' own two outcome names (AGREED/NOT_COMPARABLE
+# are shared with the axis above; see the module docstring section for why).
+POLL_ONLY = "poll_only"
+D3_ONLY = "d3_only"
+
 _SCHEMA = """
 CREATE TABLE IF NOT EXISTS price_level_comparison_spans (
     id              INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -107,9 +128,29 @@ CREATE INDEX IF NOT EXISTS idx_plcs_pred ON price_level_comparison_spans(predica
 """
 
 
+# D3 CP4 — four counters for the source-agreement axis, added to the SAME span
+# row the dark-vs-legacy axis already owns (see the module docstring section).
+# `PRAGMA table_info` + a guarded `ALTER TABLE`, the codebase's own idiom for an
+# idempotent column add on an existing store (api/services/ai_search_deep.py,
+# api/services/auth_db.py) — `_SCHEMA`'s `CREATE TABLE IF NOT EXISTS` only ever
+# reaches a brand-new file, never a store this module has already created.
+_SRC_COLUMNS = ("src_agreed", "src_poll_only", "src_d3_only", "src_not_comparable")
+
+
+def _ensure_source_columns(conn) -> None:
+    have = {r[1] for r in conn.execute(
+        "PRAGMA table_info(price_level_comparison_spans)").fetchall()}
+    for col in _SRC_COLUMNS:
+        if col not in have:
+            conn.execute(
+                f"ALTER TABLE price_level_comparison_spans ADD COLUMN {col} "
+                "INTEGER NOT NULL DEFAULT 0")
+
+
 def _conn(db_path: str | None = None):
     conn = _db.connect(db_path)
     conn.executescript(_SCHEMA)
+    _ensure_source_columns(conn)
     conn.commit()
     return conn
 
@@ -214,6 +255,52 @@ def record_outcome(predicate_id: str, dark_fired: bool, legacy_fired: bool,
         conn.close()
 
 
+def record_source_outcome(predicate_id: str, poll_crossed: Optional[bool],
+                          d3_crossed: Optional[bool], *, now: Optional[float] = None,
+                          db_path: str | None = None) -> Optional[str]:
+    """D3 CP4 — one tick's SOURCE-agreement outcome: did the D3-sourced price
+    cross the same way the poll-sourced price did, evaluated against the SAME
+    `prev_legacy` baseline the dark-vs-legacy axis already tracks (the caller —
+    `price_level_projection.run_projected_comparison` — computes both crossings
+    from that one shared `prev`; this function never reads or writes it).
+
+    `poll_crossed`/`d3_crossed` is `None` when that source had NO price this
+    tick — that is itself the finding (a source that can't answer), not an
+    absent argument, so it is recorded as NOT_COMPARABLE rather than skipped.
+
+    ⛔ Mirrors `record_outcome`'s own rule exactly: BOTH sources reporting "no
+    cross" is an ordinary quiet tick, not an outcome — recording it would drown
+    every real disagreement in noise, the same reasoning that already governs
+    the dark-vs-legacy axis on this same span.
+    """
+    now = time.time() if now is None else now
+    conn = _conn(db_path)
+    try:
+        row = conn.execute(
+            "SELECT id FROM price_level_comparison_spans WHERE predicate_id=? "
+            "AND closed_at IS NULL ORDER BY id DESC LIMIT 1", (predicate_id,)).fetchone()
+        if row is None:
+            return None
+        if poll_crossed is None or d3_crossed is None:
+            outcome = NOT_COMPARABLE
+        elif poll_crossed and d3_crossed:
+            outcome = AGREED
+        elif poll_crossed:
+            outcome = POLL_ONLY
+        elif d3_crossed:
+            outcome = D3_ONLY
+        else:
+            return None   # neither source crossed — an ordinary tick, not an outcome
+        col = "src_" + outcome
+        conn.execute(
+            f"UPDATE price_level_comparison_spans SET {col}={col}+1 WHERE id=?",
+            (int(row["id"]),))
+        conn.commit()
+        return outcome
+    finally:
+        conn.close()
+
+
 def note_anchor_move(predicate_id: str, new_twin: dict[str, Any], *,
                      now: Optional[float] = None, db_path: str | None = None) -> dict[str, int]:
     """An anchor rewrite RESETS the comparison clock.
@@ -232,19 +319,28 @@ def note_anchor_move(predicate_id: str, new_twin: dict[str, Any], *,
     conn = _conn(db_path)
     try:
         row = conn.execute(
-            "SELECT id, anchor_version, agreed, new_only, legacy_only, not_comparable "
+            "SELECT id, anchor_version, agreed, new_only, legacy_only, not_comparable, "
+            "src_agreed, src_poll_only, src_d3_only, src_not_comparable "
             "FROM price_level_comparison_spans WHERE predicate_id=? AND closed_at IS NULL "
             "ORDER BY id DESC LIMIT 1", (predicate_id,)).fetchone()
         discarded = 0
         version = 0
         if row is not None:
             discarded = int(row["agreed"]) + int(row["new_only"]) + int(row["legacy_only"])
+            # D3 CP4 — the source-agreement axis discards into ITS OWN
+            # not_comparable column, by the same reasoning as the axis above: a
+            # cross computed against a baseline the member just moved is not
+            # attributable to either price source.
+            src_discarded = (int(row["src_agreed"]) + int(row["src_poll_only"])
+                             + int(row["src_d3_only"]))
             version = int(row["anchor_version"])
             conn.execute(
                 "UPDATE price_level_comparison_spans SET closed_at=?, close_reason=?, "
-                "agreed=0, new_only=0, legacy_only=0, not_comparable=not_comparable+? "
+                "agreed=0, new_only=0, legacy_only=0, not_comparable=not_comparable+?, "
+                "src_agreed=0, src_poll_only=0, src_d3_only=0, "
+                "src_not_comparable=src_not_comparable+? "
                 "WHERE id=?",
-                (now, "anchor_move", discarded, int(row["id"])))
+                (now, "anchor_move", discarded, src_discarded, int(row["id"])))
         conn.execute(
             "INSERT INTO price_level_comparison_spans "
             "(predicate_id, anchor_version, opened_at, twin) VALUES (?,?,?,?)",
