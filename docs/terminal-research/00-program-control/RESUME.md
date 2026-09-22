@@ -157,33 +157,25 @@ The next thing that needs the owner is **not a signature** — it's §2's blocke
 proposal for one of the deferred-on-purpose items in §7. Until a new proposal is drafted and
 signed, there is nothing here to hand back a `!`-prefixed command for.
 
-## 2. The one thing that's actually blocked, and what it needs
+## 2. The dark comparison numbers have been read — none of the four supports a ruling yet
 
-**A9 (scan-membership), A11 (regime-change), A13 (position-risk), and event-proximity all have
-their dark-comparison machinery live and armed in production — nobody has read the real numbers
-yet.** Price-level (the template case) already went through this: read, ruled HOLD, on real
-evidence (DECISION_CARDS_2026-09-18.md CARD 6). The other four need the same treatment, and it
-needs real data first.
+**A9 (scan-membership), A11 (regime-change), A13 (position-risk), and event-proximity** each had
+their `dark-report` numbers read this session. Per CARD 6's own methodology (don't just report the
+numbers — check what they mean before recommending anything), none of the four has enough real
+signal for a HOLD/FLIP ruling today:
 
-**The read is blocked by this session's own auto-mode classifier under `[Production Reads]`** —
-confirmed blocked repeatedly, including after explicit owner chat approval (it's an
-environment-level gate, not a conversational one; don't waste a turn re-trying the identical
-action). Two real paths, owner's choice:
+| System | What the numbers show |
+|---|---|
+| **A9** | `predicate_count: 0` — nothing recorded to compare. Traced to a documented, expected cause: no member of the s7-dark cohort has ever subscribed to a saved-screen alert, so the comparison path this alert type depends on has never had anything to run against. A cohort/product gap, not a wiring defect — everything upstream (scheduler, flag, code) checks out correct. |
+| **A11** | 58 predicates tracked, up to 6 sessions observed, zero regime flips seen in any of them. The regime label moves at most ~once/day; a real flip hasn't happened yet in the window observed. |
+| **A13** | 8 predicates, 4 past their session minimum, but every real observation among those 4 landed as "not comparable" — no position has come close enough to its stop yet to produce one real side-by-side case. |
+| **event-proximity** | 26 predicates, 41 agreed observations total — the most real signal of the four — but no single predicate individually reached its own verdict-ready threshold. Closest of the four, not there yet. |
 
-1. **Add a Bash permission rule** in Claude Code settings allowing `railway ssh` reads against
-   `alert_taxonomy.db`, or
-2. **Open the admin HTTP endpoint built this session** while logged into an admin account in a
-   real browser, and paste back what you see:
-   `https://uctintelligence.com/api/admin/alert-taxonomy/dark-report` (or `/dark-report/{type}`
-   for one type — `regime-change`, `event-proximity`, `scan-membership-change`, `position-risk`).
-   This is real, deployed, admin-gated infrastructure (`feat/s7-price-level` `8a946b699`,
-   `dark_report.py` + two routes in `api/routers/alert_taxonomy.py`) — not a script, not SSH.
-
-Once real numbers exist for any of these four, replicate CARD 6's own methodology (check for
-synthetic/dogfooding fixtures, check trendline/anchor coverage, name the sample size honestly, ask
-whether a genuine unmade product-scope question — like price-level's one-shot-vs-re-fires
-question — would be answered by default if flipped) before recommending HOLD or FLIP. **Do not
-just report the four numbers and call it done — the decision needs the same rigor CARD 6 got.**
+**None of this is a decision the owner needs to make today.** All four are waiting on real-world
+events accumulating (a regime change, a stop being approached, cohort members using saved-screen
+alerts, or individual event-proximity predicates crossing their own threshold) — the same shape as
+D2's time-based wait. Re-check `dark-report` periodically; a ruling becomes possible only once one
+of these shows real comparable data.
 
 ## 3. Answered this session, recorded, and why they mattered
 
