@@ -497,7 +497,11 @@ def set_ohlc(date: str, metric: str, o: float, h: float, l: float, c: float,
 # deep close-basis history recomputed from daily bars (bodies, validated to textbook extremes
 # e.g. COVID low 2% / rally 77% above 50MA). NOT 'reconstruct' (the old synchronized-extreme
 # daily-bar WICK guess, which was wrong).
-_TRUSTED_SOURCES = ("live", "intraday_recon", "close_recon")
+# ⛔ THE SECOND DOOR. This tuple gates ~13 SERVING readers (`history`, `dates_since`,
+# `closes_for_dates`, `metric_before`, `distinct_dates*`, the reconstructed-table
+# builders). Fixing only `_MERGE_SQL` would adopt the V2 rows and then serve none of
+# them — the charts would be unchanged and the merge would still look successful.
+_TRUSTED_SOURCES = ("live", "intraday_recon_1m", "intraday_recon", "close_recon")
 
 
 def write_bulk(rows: list, source: str = "close_recon", overwrite_live: bool = False,

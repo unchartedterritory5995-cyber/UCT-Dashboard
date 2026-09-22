@@ -263,7 +263,22 @@ def _remote_latest(client, bucket) -> Optional[str]:
 # ⚠️ `{{susrc}}` is `s.universe` against a migrated snapshot and the literal 'uct'
 # against a pre-migration one, so a worker that has not yet redeployed still merges
 # correctly instead of failing on a missing column. Resolved once, in `_merge_from`.
-_RANK = ("CASE {c}.source WHEN 'live' THEN 3 WHEN 'intraday_recon' THEN 2 "
+# ⛔⛔ `intraday_recon_1m` IS THE V2 RE-GRIND'S SOURCE AND IT MUST OUTRANK BOTH
+# RECONSTRUCTIONS BELOW IT. It is a whole-session 1-MINUTE replay carrying the F1
+# provider-internal basis lift, the F2 domain registry and the F5 authoritative EOD
+# close; `intraday_recon` is the 30-minute sweep that PREDATES all three, and
+# `close_recon` is body-only. Omitting it (the state before this change) did not
+# merely rank it last — `ELSE 0` plus the `source IN (...)` gate meant every one of
+# the 568,694 V2 rows was filtered out and the merge reported success having adopted
+# NOTHING. Two doors, one omission.
+#
+# ⭐ `live` STILL WINS. The accumulator watched that session tick by tick and its
+# basis factor is 1.0 by construction (no corporate action has happened since), so a
+# reconstruction — however good — must never overwrite the day the system observed.
+# That is also what makes the post-cutover steady state safe: tomorrow's live row
+# outranks anything V2 holds for the same key.
+_RANK = ("CASE {c}.source WHEN 'live' THEN 4 "
+         "WHEN 'intraday_recon_1m' THEN 3 WHEN 'intraday_recon' THEN 2 "
          "WHEN 'close_recon' THEN 1 ELSE 0 END")
 _MERGE_SQL = f"""
 INSERT INTO breadth_daily_ohlc(universe,date,metric,o,h,l,c,source,updated_at)
@@ -271,7 +286,7 @@ SELECT {{susrc}},s.date,s.metric,s.o,s.h,s.l,s.c,s.source,s.updated_at
 FROM snap.breadth_daily_ohlc s
 LEFT JOIN breadth_daily_ohlc l
        ON l.universe = {{susrc}} AND l.date = s.date AND l.metric = s.metric
-WHERE s.source IN ('live','intraday_recon','close_recon')
+WHERE s.source IN ('live','intraday_recon_1m','intraday_recon','close_recon')
   AND s.o IS NOT NULL AND s.h IS NOT NULL AND s.l IS NOT NULL AND s.c IS NOT NULL
   AND s.o = s.o AND s.h = s.h AND s.l = s.l AND s.c = s.c
   AND s.h >= s.l AND s.h >= s.o AND s.h >= s.c
