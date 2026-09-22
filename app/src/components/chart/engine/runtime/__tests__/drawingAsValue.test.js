@@ -139,6 +139,21 @@ describe('⭐⭐⭐ a drawing used as a value, under object-pass ownership', () 
     expect(lane.refusal.message).toContain('box.new')
   })
 
+  it('⛔⛔ a drawing METHOD in the value position is NOT a create', () => {
+    // ⭐⭐ `.new` IS THE WHOLE TEST, and widening it to "any `<family>.<method>`"
+    // is the tempting simplification. `line.get_y1(l)` in a push position asks
+    // for a NUMBER about a drawing; handing back a handle would have this lane
+    // answer a question it cannot answer, with a value of the wrong kind — and
+    // the object pass, whose `nestedCreate` requires `methodOf(name) === 'new'`,
+    // would have collected nothing to pair it with.
+    const lane = build('var lines = array.new_line(0)\n'
+      + 'if close > open\n'
+      + '    array.push(lines, line.new(bar_index - 2, high, bar_index, low))\n'
+      + 'array.push(lines, line.get_y1(array.get(lines, 0)))\n')
+    expect(refusalOf(lane)).toBe('runtime/runtime:object-op')
+    expect(lane.refusal.message).toContain('line.get_y1')
+  })
+
   it('⛔ the COLLECTION argument is not a value position either', () => {
     const lane = build('var boxes = array.new_box(0)\n'
       + 'array.push(boxes, box.new(bar_index - 1, high, bar_index, low))\n'
