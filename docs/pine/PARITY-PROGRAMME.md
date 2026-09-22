@@ -102,6 +102,82 @@ decide what to build next.
 
 ---
 
+## ⭐⭐ WAVE RESULTS 2026-09-21/22 — three lanes, and the CEILING nobody had measured
+
+Three agents ran against the object pass and the lexer. **All three moved their
+rows. None moved "draws end to end".** It stayed at 2 of 266, the same two
+scripts, through every merge — and the reason is now measured rather than
+guessed.
+
+### ⛔⛔ THE DENOMINATOR WAS WRONG. Only **190 of 266** scripts contain a drawing call.
+
+```
+node node_modules/vitest/vitest.mjs run   src/components/chart/engine/runtime/__tests__/objectLaneDrawerCensus.measure.test.js
+```
+
+76 scripts (29%) carry no `line|label|box|table|linefill` constructor at all —
+they are plot-only indicators. `OBJECT_FAMILIES` is five families and a `plot()`
+is not one of them, so **nothing that is ever built can make those draw.**
+"2 of 266" is really **2 of 190**.
+
+⭐⭐ **TWO AGENTS REACHED THIS INDEPENDENTLY, BY DIFFERENT MATCHERS, AND IT WAS
+RE-VERIFIED IN THE INTEGRATOR'S SESSION.** It is the single most useful number
+this programme has produced, because it retires a whole way of choosing work.
+
+### ⛔ A ROW'S SCRIPT COUNT IS NOT ITS UPSIDE — ask how many of its scripts DRAW
+
+| row | scripts | drawers | verdict |
+|---|---|---|---|
+| `objects:no-objects-in-source` (was `nothing-drawn`) | 13 | **0** | the engine is RIGHT, permanently |
+| `pine:module` | 6 | **0** | correct refusal — library `import`; closing it needs a vendored library corpus and moves the metric by 0 |
+| `pine:state` | 7 | **1** | six are plot-only; ceiling of one script |
+| `objects:iterated-tree-not-last-bar` | 10 | **10** | every one a real drawer — where the value is |
+
+A row of 13 that cannot move the number outranks nothing. **Measure drawers
+before opening a lane.**
+
+### What the three waves actually bought
+
+| wave | row | result |
+|---|---|---|
+| postfix member access | `pine:character` 23 → **0** | `host_ok` 32 → **35**; all 23 met a second blocker |
+| create inside a collection call | `pine:no-output` 9 → 7 | 4 scripts cleared the object pass; `order-blocks` compiles 22 ops where it compiled none |
+| per-row scoping + exact split | `iterated-tree-unbounded` 3 → 0 | 4 scripts reached the runtime lane; `nothing-drawn` split into an exact terminal guard |
+
+### ⛔⛔ THE NEAR-MISS — the lexer fix ALONE would have shipped a wrong drawing
+
+Two readers recognise a statement by its FIRST token and take the first `(` as
+the whole call. Measured before/after:
+
+```
+box.new(<series args>)            -> ops ["create:box"]              correct
+box.new(<series args>).delete()   -> ops ["create:box"]              WRONG
+```
+
+**The delete vanished, with no diagnostic** — a box on a member's chart forever,
+drawn by a line their script says to remove. Span guards now require the call to
+cover what those readers read, and that rail is the load-bearing section of
+`postfixMember.test.js`.
+
+### The next three lanes, each DERIVED from a measurement
+
+1. **UFCS — `coll.get(i)` ⇒ `array.get(coll, i)` for a declared collection.**
+   The dominant receiver among the 23 is the name-form method call
+   (`imbalanceLab.get(x)`, `htfFVGs.first()`, `k._box.pop()`), and this engine
+   has **no method-form support at all**. Postfix member landed on top of a
+   missing capability; this is what unlocks those receivers.
+2. **`runtime:object-op` — a drawing used as a VALUE.** The single refusal
+   standing between the collection idiom and a drawing, reached by a minimal
+   synthetic script and nothing else. It is in `pineRuntimeFrontend`, not the
+   object pass.
+3. **Per-bar iteration storage.** `vm.js` allocates `iters` ONCE for the whole
+   run, `ITER_SLOTS` long, indexed by counter alone — there is no bar
+   dimension. That is the whole of what stands between the 10 remaining
+   iterated-tree drawers and the object pass, and it is a memory-scale
+   decision, not a lane fix.
+
+---
+
 ## The honest timeline
 
 | Target | Effort |
