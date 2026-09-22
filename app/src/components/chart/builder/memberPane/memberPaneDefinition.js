@@ -341,7 +341,23 @@ export function memberPaneDefinition({ source, id, name, translation = null } = 
     label: '',
     source: '0',
     ast: Object.freeze({ type: 'num', value: 0 }),
-    mode: 'clean',
+    // ⛔⛔ THE STRING FROM `REPAINT_MODES`, NOT AN OLD VOCABULARY.
+    // `worstRepaint([anchor.mode])` — the pipeline that stamps `meta.repaint` —
+    // treats a mode it does not recognise as UNKNOWN and fails CLOSED to
+    // `'repaints'`. The install door then re-lints a literal `0` and correctly
+    // measures `'non-repainting'`, so the declaration disagrees with the
+    // measurement and the definition is refused with
+    // *"declared 'repaints' but the linter MEASURES 'non-repainting'"* —
+    // the same disagreement `evaluateFormula`/`nativeRegistry.validateAstLane`
+    // catch in both directions.
+    // ⚰️ THIS WAS `'clean'` and `'clean'` is not in `REPAINT_MODES`
+    // (`['non-repainting', 'preview-repaints', 'repaints']`), which is old
+    // vocabulary from before the modes were named this way. Grep-verified:
+    // `mode: 'clean'` appeared NOWHERE else in `chart/`. Nothing was ever
+    // installing a member's objects-only definition end to end because of it.
+    // A literal `0` never depends on any bar, so `'non-repainting'` is not just
+    // conservative here — it is exactly what the linter will measure.
+    mode: 'non-repainting',
     readback: '',
     style: 'line',
     hidden: true,
