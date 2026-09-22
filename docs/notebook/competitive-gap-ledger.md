@@ -230,11 +230,22 @@ one real defect: a renamed/trashed/restored note's title/status could show stale
 noteLink chip elsewhere in the same browser tab until a full reload — fixed via a
 targeted cache-invalidation hook on the four write paths that change a note's own
 title/status (save, Wave C restore, trash, un-trash), real-browser verified before and
-after. Residual, explicitly accepted debt: no context-preview on backlink rows (vs.
-Obsidian's "Show more context") — still open — and the `[[`/SlashMenu popups' editable
-root lacking an explicit `role="combobox"`/`aria-autocomplete` pairing (a pre-existing
-pattern shared by both menus, not a Wave D regression) — **CLOSED 2026-09-22**: verified
-the gap was still real (not another stale-ledger case — grepped the whole tree, the
+after. Two residual, explicitly accepted debts recorded here, both **CLOSED 2026-09-22**:
+
+No context-preview on backlink rows (vs. Obsidian's "Show more context") —
+`_link_context_snippets` (notes.py) walks a linking note's body_json to find the
+enclosing block's own text around each noteLink reference (a noteLink is atomic
+and title-less by design, so context can only come from its siblings), returned
+as a new `context` field on each `get_note_backlinks` row and rendered as a
+second muted line under the title in `NoteBacklinksSection.jsx`. 15 backend + 2
+frontend tests, plus a real end-to-end live check against the running server
+(real save → real read → real render, not just tests) confirming the exact
+predicted snippet.
+
+The `[[`/SlashMenu popups' editable root lacking an explicit
+`role="combobox"`/`aria-autocomplete` pairing (a pre-existing pattern shared by
+both menus, not a Wave D regression) — verified the gap was still real (not
+another stale-ledger case — grepped the whole tree, the
 pairing existed nowhere on either editor root), then closed it via a shared, tested
 `comboboxWiring.js` helper (replacing a duplicated inline copy in each file) and
 live-verified in a real browser for both triggers — `role`, `aria-autocomplete`,
