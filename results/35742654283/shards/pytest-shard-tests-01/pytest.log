@@ -1,0 +1,229 @@
+/opt/hostedtoolcache/Python/3.12.14/x64/lib/python3.12/site-packages/pytest_asyncio/plugin.py:208: PytestDeprecationWarning: The configuration option "asyncio_default_fixture_loop_scope" is unset.
+The event loop scope for asynchronous fixtures will default to the fixture caching scope. Future versions of pytest-asyncio will default the loop scope for asynchronous fixtures to function scope. Set the default fixture loop scope explicitly in order to avoid unexpected behavior in the future. Valid fixture loop scopes are: "function", "class", "module", "package", "session"
+
+  warnings.warn(PytestDeprecationWarning(_DEFAULT_FIXTURE_LOOP_SCOPE_UNSET))
+........................................................................ [  2%]
+........................................................................ [  4%]
+........................................................................ [  7%]
+........................................................................ [  9%]
+........................................................................ [ 12%]
+........................................................................ [ 14%]
+........................................................................ [ 17%]
+........................................................................ [ 19%]
+........................................................................ [ 22%]
+........................................................................ [ 24%]
+........................................................................ [ 27%]
+........................................................................ [ 29%]
+........................................................................ [ 32%]
+........................................................................ [ 34%]
+........................................................................ [ 36%]
+........................................................................ [ 39%]
+........................................................................ [ 41%]
+........................................................................ [ 44%]
+........................................................................ [ 46%]
+........................................................................ [ 49%]
+......................................................................s. [ 51%]
+........................................................................ [ 54%]
+........................................................................ [ 56%]
+........................................................................ [ 59%]
+........................................................................ [ 61%]
+........................................................................ [ 64%]
+..............................F......................................... [ 66%]
+......................................F................................. [ 68%]
+.............................................s.......................... [ 71%]
+........................................................................ [ 73%]
+........................................................................ [ 76%]
+........................................................................ [ 78%]
+........................................................................ [ 81%]
+........................................................................ [ 83%]
+........................................................................ [ 86%]
+........................................................................ [ 88%]
+........................................................................ [ 91%]
+........................................................................ [ 93%]
+........................................................................ [ 96%]
+........................................................................ [ 98%]
+............................................                             [100%]
+==============================================================================
+SHARED PRODUCTION DATA ROOT WRITTEN TO BY THE TEST SUITE — 2 attempt(s)
+==============================================================================
+  sqlite3.connect -> /data/flow.db
+      test   : tests/test_admin_oi_routes_off_the_loop.py::test_route_answers_without_a_bare_500[/api/admin/flow/plan]
+      thread : AnyIO worker thread
+      at     : /opt/hostedtoolcache/Python/3.12.14/x64/lib/python3.12/threading.py:1032 _bootstrap
+      at     : /opt/hostedtoolcache/Python/3.12.14/x64/lib/python3.12/threading.py:1075 _bootstrap_inner
+      at     : /opt/hostedtoolcache/Python/3.12.14/x64/lib/python3.12/site-packages/anyio/_backends/_asyncio.py:1100 run
+      at     : /home/runner/work/UCT-Dashboard/UCT-Dashboard/api/main.py:8874 _sync
+      at     : /home/runner/work/UCT-Dashboard/UCT-Dashboard/conftest.py:648 _guarded_sqlite_connect
+  sqlite3.connect -> /data/flow.db
+      test   : tests/test_admin_oi_routes_off_the_loop.py::test_route_answers_without_a_bare_500[/api/admin/flow/optimize]
+      thread : AnyIO worker thread
+      at     : /opt/hostedtoolcache/Python/3.12.14/x64/lib/python3.12/threading.py:1032 _bootstrap
+      at     : /opt/hostedtoolcache/Python/3.12.14/x64/lib/python3.12/threading.py:1075 _bootstrap_inner
+      at     : /opt/hostedtoolcache/Python/3.12.14/x64/lib/python3.12/site-packages/anyio/_backends/_asyncio.py:1100 run
+      at     : /home/runner/work/UCT-Dashboard/UCT-Dashboard/api/main.py:8920 _sync
+      at     : /home/runner/work/UCT-Dashboard/UCT-Dashboard/conftest.py:648 _guarded_sqlite_connect
+
+=================================== FAILURES ===================================
+______ test_the_callers_of_the_type_module_are_exactly_the_declared_four _______
+
+    def test_the_callers_of_the_type_module_are_exactly_the_declared_four():
+        """§2a item 3: *what calls this, and which test fails if that wire is cut?*
+    
+        ⚰️ UPDATED BY NAMING, 2026-09-13. This asserted the harness was the ONLY
+        caller, which was true and load-bearing at CP1-CP2. CP3 adds exactly two
+        more by design — the projection, and `main.py`'s registration — so the set
+        is WIDENED TO A DECLARED ONE rather than loosened to a `>=`. A membership
+        test that only ever grows is not a test.
+    
+        ⭐ The projection is what the sweep calls; `main.py` is where `register()`
+        lives. A FOURTH name appearing here is a wire nobody classified, and that is
+        exactly what this fails on.
+    
+        ⭐⭐ UPDATED AGAIN, 2026-09-19, D2 §4-CP3 (a DIFFERENT "CP3" than the one
+        above — this file's CP1-CP3 is `indicator-condition`'s own taxonomy build
+        sequence; D2 §4-CP3 is the canonical-data-model packet retiring the
+        timeframe-map duplicates). `indicator_alert_evaluator.py` now imports
+        `timeframe_labels()` from this module instead of carrying its own
+        `_LEDGER_TIMEFRAME` dict — a declared FOURTH name, classified here rather
+        than discovered by this rail failing silently elsewhere.
+        """
+        naming = _modules_naming("indicator_condition")
+        # ⚠️ The type module does NOT appear here and that is correct: it names
+        # itself only through `__name__`, which carries no literal.
+>       assert naming == {"indicator_alert_evaluator.py",
+                          "indicator_condition_compare.py",
+                          "indicator_condition_projection.py",
+                          "main.py"}, (
+            f"the caller set changed: {sorted(naming)}")
+E       AssertionError: the caller set changed: ['dark_report.py', 'indicator_alert_evaluator.py', 'indicator_condition_compare.py', 'indicator_condition_projection.py', 'main.py']
+E       assert {'dark_report...y', 'main.py'} == {'indicator_a...y', 'main.py'}
+E         
+E         Extra items in the left set:
+E         'dark_report.py'
+E         
+E         Full diff:
+E           {
+E         +     'dark_report.py',
+E               'indicator_alert_evaluator.py',
+E               'indicator_condition_compare.py',
+E               'indicator_condition_projection.py',
+E               'main.py',
+E           }
+
+tests/test_alert_taxonomy_indicator_condition_schema.py:840: AssertionError
+________ test_aggregate_heat_has_NO_scheduled_or_delivering_legacy_path ________
+
+    def test_aggregate_heat_has_NO_scheduled_or_delivering_legacy_path():
+        """⛔⛔ THE MEASUREMENT THE SCHEMA'S THIRD SEVERITY RESTS ON.
+    
+        An anchored, comment-and-docstring-stripped AST sweep over `api/**` for
+        calls to `portfolio_heat(`. Every hit must be a REQUEST-TIME reader, the
+        module itself, or its sibling test — nothing scheduled, nothing delivering.
+    
+        ⚠️ The anchor matters. A naive substring adds `api/routers/intelligence.py`,
+        which calls `calculate_portfolio_heat` — a different function, from the
+        brain engine. A search that counts its own near-miss is how a "sixth call
+        site" gets reported.
+        """
+        rx = re.compile(r"(?<![A-Za-z0-9_])portfolio_heat\s*\(")
+        naive = re.compile(r"portfolio_heat\s*\(")
+        hits, naive_hits, scanned = [], [], 0
+        for p in (_REPO / "api").rglob("*.py"):
+            try:
+                code = _code_only(p)
+            except SyntaxError:
+                continue
+            scanned += 1
+            rel = str(p.relative_to(_REPO)).replace("\\", "/")
+            if rx.search(code):
+                hits.append(rel)
+            if naive.search(code):
+                naive_hits.append(rel)
+    
+        assert scanned > 100, f"the module walk found almost nothing ({scanned}) — it is broken"
+>       assert sorted(hits) == [
+            "api/services/ai_search_personal.py",
+            "api/services/journal_two/coach_chat_tools.py",
+            "api/services/portfolio_heat.py",
+            "api/services/test_portfolio_heat.py",
+            "api/services/voice_tool_impls.py",
+        ], f"the portfolio_heat call sites moved: {sorted(hits)}"
+E       AssertionError: the portfolio_heat call sites moved: ['api/routers/portfolio_heat.py', 'api/services/ai_search_personal.py', 'api/services/journal_two/coach_chat_tools.py', 'api/services/portfolio_heat.py', 'api/services/test_portfolio_heat.py', 'api/services/voice_tool_impls.py']
+E       assert ['api/routers...ool_impls.py'] == ['api/service...ool_impls.py']
+E         
+E         At index 0 diff: 'api/routers/portfolio_heat.py' != 'api/services/ai_search_personal.py'
+E         Left contains one more item: 'api/services/voice_tool_impls.py'
+E         
+E         Full diff:
+E           [
+E         +     'api/routers/portfolio_heat.py',
+E               'api/services/ai_search_personal.py',
+E               'api/services/journal_two/coach_chat_tools.py',
+E               'api/services/portfolio_heat.py',
+E               'api/services/test_portfolio_heat.py',
+E               'api/services/voice_tool_impls.py',
+E           ]
+
+tests/test_alert_taxonomy_position_risk_schema.py:289: AssertionError
+=============================== warnings summary ===============================
+../../../../../opt/hostedtoolcache/Python/3.12.14/x64/lib/python3.12/site-packages/starlette/testclient.py:40
+  /opt/hostedtoolcache/Python/3.12.14/x64/lib/python3.12/site-packages/starlette/testclient.py:40: DeprecationWarning: The anyio.abc.BlockingPortal alias is deprecated, use anyio.from_thread.BlockingPortal instead.
+    _PortalFactoryType = typing.Callable[[], typing.ContextManager[anyio.abc.BlockingPortal]]
+
+api/baselines.py:456
+  /home/runner/work/UCT-Dashboard/UCT-Dashboard/api/baselines.py:456: DeprecationWarning: datetime.datetime.utcnow() is deprecated and scheduled for removal in a future version. Use timezone-aware objects to represent datetimes in UTC: datetime.datetime.now(datetime.UTC).
+    _baselines_last_loaded = datetime.utcnow()
+
+tests/test_alert_taxonomy_price_level_projection.py:968
+  /home/runner/work/UCT-Dashboard/UCT-Dashboard/tests/test_alert_taxonomy_price_level_projection.py:968: SyntaxWarning: invalid escape sequence '\d'
+    incident reached `C:\data\auth.db` while reporting a clean start. A tool
+
+tests/test_alert_ledger_admission.py::test_the_door_has_EXACTLY_ONE_production_call_site
+  <unknown>:19: SyntaxWarning: invalid escape sequence '\d'
+
+tests/test_alert_ledger_admission.py::test_the_door_has_EXACTLY_ONE_production_call_site
+  <unknown>:10: SyntaxWarning: invalid escape sequence '\d'
+
+tests/test_alert_ledger_admission.py::test_the_door_has_EXACTLY_ONE_production_call_site
+  <unknown>:85: SyntaxWarning: invalid escape sequence '\s'
+
+tests/test_alpha_gold_eod.py::test_render_card_returns_png
+tests/test_alpha_gold_eod.py::test_render_card_empty_day_ok
+  /home/runner/work/UCT-Dashboard/UCT-Dashboard/api/alpha_gold_eod.py:470: DeprecationWarning: Image.Image.getdata is deprecated and will be removed in Pillow 14 (2027-10-15). Use get_flattened_data instead.
+    for (r, g, b, a) in _logo.getdata()])
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+- generated xml file: /home/runner/work/UCT-Dashboard/UCT-Dashboard/pytest-junit.xml -
+=========================== short test summary info ============================
+SKIPPED [1] tests/test_alert_replay.py:625: walks 1,845 bars; set ALERT_REPLAY_FULL=1 (or run `python tools/alert_replay.py --check`)
+SKIPPED [1] tests/test_alert_taxonomy_price_level_projection.py:982: no live data root on this box to test the refusal against
+FAILED tests/test_alert_taxonomy_indicator_condition_schema.py::test_the_callers_of_the_type_module_are_exactly_the_declared_four - AssertionError: the caller set changed: ['dark_report.py', 'indicator_alert_evaluator.py', 'indicator_condition_compare.py', 'indicator_condition_projection.py', 'main.py']
+assert {'dark_report...y', 'main.py'} == {'indicator_a...y', 'main.py'}
+  
+  Extra items in the left set:
+  'dark_report.py'
+  
+  Full diff:
+    {
+  +     'dark_report.py',
+        'indicator_alert_evaluator.py',
+        'indicator_condition_compare.py',
+        'indicator_condition_projection.py',
+        'main.py',
+    }
+FAILED tests/test_alert_taxonomy_position_risk_schema.py::test_aggregate_heat_has_NO_scheduled_or_delivering_legacy_path - AssertionError: the portfolio_heat call sites moved: ['api/routers/portfolio_heat.py', 'api/services/ai_search_personal.py', 'api/services/journal_two/coach_chat_tools.py', 'api/services/portfolio_heat.py', 'api/services/test_portfolio_heat.py', 'api/services/voice_tool_impls.py']
+assert ['api/routers...ool_impls.py'] == ['api/service...ool_impls.py']
+  
+  At index 0 diff: 'api/routers/portfolio_heat.py' != 'api/services/ai_search_personal.py'
+  Left contains one more item: 'api/services/voice_tool_impls.py'
+  
+  Full diff:
+    [
+  +     'api/routers/portfolio_heat.py',
+        'api/services/ai_search_personal.py',
+        'api/services/journal_two/coach_chat_tools.py',
+        'api/services/portfolio_heat.py',
+        'api/services/test_portfolio_heat.py',
+        'api/services/voice_tool_impls.py',
+    ]
+2 failed, 2920 passed, 2 skipped, 8 warnings in 388.41s (0:06:28)
