@@ -1197,6 +1197,15 @@ export function buildRuntimeIr(source, opts = {}) {
    *  `c = close > open ? color.green : color.red` followed by `bgcolor(c)`
    *  answers correctly one statement later.
    */
+  /** Pine's own `na`, and not a name the script bound to something else.
+   *
+   *  ⛔ THE SHADOW CHECK IS NOT DEFENSIVE PADDING — it is the same pair of
+   *  conditions the lowering uses one screen down before it emits `naValue()`.
+   *  Two places deciding what `na` means, by different rules, is exactly
+   *  `lesson_a_second_authority_over_one_value`; these agree by construction. */
+  const isBuiltinNa = (node, scope) => !!node && node.type === 'name'
+    && node.name === 'na' && scope.lookup('na') === null && !env.has('na')
+
   const holdsColour = (node, scope) => {
     if (!node || typeof node !== 'object') return false
     if (node.type === 'name') {
@@ -1218,8 +1227,37 @@ export function buildRuntimeIr(source, opts = {}) {
     // ⛔ BOTH ARMS, NOT EITHER. `cond ? color.red : 0` is a colour on one side
     // and a number on the other, which Pine rejects — answering "colour" for it
     // would send a price into a colour slot with no complaint.
+    //
+    // ⭐⭐ EXCEPT `na`, WHICH IS NOT A NUMBER — it is Pine's untyped null, and it
+    // belongs to every type, `color` included. `cond ? colour : na` is the ONLY
+    // way to write a `barcolor`/`bgcolor` that depends on the bar, and it is
+    // what ALL THREE scripts this guard refuses across `corpus/committed`
+    // write — `barcolor(isInsideBar() ? insideBarColor : na)` and two more.
+    // Demanding a colour on both arms refused the idiom, not a mistake.
+    //
+    // ⛔ THE RULE ABOVE IS UNWEAKENED, and the distinction is the whole point:
+    // `0` and `close` are NUMBERS, and a number in a colour slot paints a
+    // plausible shade computed from the wrong thing. Both stay refused, with a
+    // control each. `na` carries no value to be misread.
+    //
+    // ⭐ IT RECURSES, so `bull ? a : bear ? b : na` — the third corpus script —
+    // resolves through the nested arm rather than needing a second shape.
+    //
+    // ⚰️ AND IT CLOSES A SILENT WRONG NUMBER POINTING THE OTHER WAY. While
+    // `holdsColour` answered false for this shape, `plot(cond ? color.red : na)`
+    // was not a colour to the `plot` direction either, so it COMPILED and drew
+    // a packed colour integer as a price — a line at y = 5,394,687 that a
+    // member reads as data. Saying "yes, colour" is what lets `plot` refuse it.
     if (node.type === 'ternary') {
-      return holdsColour(node.yes, scope) && holdsColour(node.no, scope)
+      const y = holdsColour(node.yes, scope)
+      const n = holdsColour(node.no, scope)
+      if (y && n) return true
+      // ⛔ ONE ARM MUST STILL BE A COLOUR. `cond ? na : na` says nothing about
+      // the type, and answering "colour" for it would admit an expression on
+      // the strength of what it does NOT contain.
+      if (y) return isBuiltinNa(node.no, scope)
+      if (n) return isBuiltinNa(node.yes, scope)
+      return false
     }
     return false
   }

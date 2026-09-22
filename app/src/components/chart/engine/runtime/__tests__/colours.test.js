@@ -165,3 +165,107 @@ describe('⛔ the unserved colour calls keep their refusal', () => {
     expect(r.message).not.toMatch(/is not one/)
   })
 })
+
+// --------------------------------------------------------------------------- //
+// `na` IN A COLOUR SLOT — "do not paint this bar"
+// --------------------------------------------------------------------------- //
+
+/** ⛔ THE RAW SERIES, NOT `run()`'s. `run` coerces with `v >>> 0`, which turns
+ *  NaN into 0 — and 0 is a REAL packed colour (transparent black). A test that
+ *  read through that coercion could not tell "this bar was not painted" from
+ *  "this bar was painted black", which is the entire distinction below. */
+function runRaw(src) {
+  const built = buildRuntimeIr(head + src, { bars: BARS, inputs: {} })
+  if (!built.ok) throw new Error(`refused: ${built.refusal.guard} — ${built.refusal.message}`)
+  const program = lowerIrProgram(built.ir)
+  const res = execute(program, {
+    bars: N, series: SERIES, columns: program.columns, confirmed: true,
+    barTimes: BARS.map((b) => b.t),
+  })
+  return res.outputs.map((o) => Array.from(o))
+}
+
+describe('⭐⭐ `na` is a colour — it is how a member says "not on this bar"', () => {
+  // ⚰️ MEASURED: all THREE scripts the colour guard refuses across
+  // `corpus/committed` are this one shape, and none of them is doing anything
+  // exotic —
+  //   barcolor(isInsideBar() ? insideBarColor : na, title="Inside Bar")
+  //   bgcolor(bbg and (t1 or t2) ? color.new(cbg, tbg) : na)
+  //   barcolor(bull ? color.lime : bear ? color.purple : na, offset = -2)
+  // `holdsColour` demanded BOTH ternary arms be colours. `na` is Pine's untyped
+  // null: it belongs to every type, including `color`, and a conditional paint
+  // is the ONLY way to write `barcolor`/`bgcolor` that depends on the bar.
+  //
+  // ⭐ THE OLD GUARD'S CONCERN IS UNTOUCHED, and that is why this is narrow:
+  // it was written against `cond ? color.red : 0`, where the other arm is a
+  // PRICE-shaped number that would paint a plausible shade computed from the
+  // wrong thing. `na` is not a number. The control below holds that line.
+
+  it('⭐⭐ `bgcolor(cond ? colour : na)` RUNS, and paints only where cond holds', () => {
+    // bars: close>open, close<open, close>open
+    const [bg] = runRaw('bgcolor(close > open ? color.green : na)\nplot(close)')
+    expect(bg[0]).toBe(GREEN)
+    expect(bg[2]).toBe(GREEN)
+    expect(Number.isNaN(bg[1]), 'the unpainted bar must be na, not a colour').toBe(true)
+  })
+
+  it('⭐ the arms the other way round — `cond ? na : colour`', () => {
+    const [bg] = runRaw('bgcolor(close > open ? na : color.red)\nplot(close)')
+    expect(Number.isNaN(bg[0])).toBe(true)
+    expect(bg[1]).toBe(RED)
+    expect(Number.isNaN(bg[2])).toBe(true)
+  })
+
+  it('⭐ `barcolor` takes it too — the corpus spelling', () => {
+    const [bc] = runRaw('barcolor(close > open ? color.red : na)\nplot(close)')
+    expect(bc[0]).toBe(RED)
+    expect(Number.isNaN(bc[1])).toBe(true)
+  })
+
+  it('⭐⭐ NESTED — `bull ? a : bear ? b : na`, which is the third corpus script', () => {
+    // The `no` arm is itself a ternary, so this only works if the rule
+    // recurses rather than pattern-matching one level.
+    const [bc] = runRaw(
+      'barcolor(close > open ? color.green : close < open ? color.red : na)\nplot(close)')
+    expect(bc[0]).toBe(GREEN)
+    expect(bc[1]).toBe(RED)
+  })
+
+  it('a colour-or-na held in a VARIABLE reaches the consumer', () => {
+    const [bg] = runRaw('c = close > open ? color.green : na\nbgcolor(c)\nplot(close)')
+    expect(bg[0]).toBe(GREEN)
+    expect(Number.isNaN(bg[1])).toBe(true)
+  })
+
+  it('⛔⛔ CONTROL — `cond ? colour : 0` is STILL REFUSED', () => {
+    // ⭐ THE LINE THIS CHANGE MUST NOT CROSS. `0` is a number, and a number in
+    // a colour slot paints a shade computed from the wrong thing. If this ever
+    // goes green, `na` was admitted by loosening the type rule instead of by
+    // naming Pine's untyped null.
+    expect(refusalOf('bgcolor(close > open ? color.red : 0)\nplot(close)').guard)
+      .toBe('runtime:colour')
+  })
+
+  it('⛔⛔ CONTROL — `cond ? colour : close` is STILL REFUSED', () => {
+    // The same line, with the shape that actually appears in a member's script:
+    // a series, not a literal, so nothing folds it to a constant first.
+    expect(refusalOf('bgcolor(close > open ? color.red : close)\nplot(close)').guard)
+      .toBe('runtime:colour')
+  })
+
+  it('⛔ CONTROL — `plot(cond ? colour : na)` is STILL REFUSED, the other direction', () => {
+    // A plot draws numbers. Admitting `na` into the colour rule must not make a
+    // colour acceptable where a NUMBER is wanted — that is the opposite-facing
+    // half of the same confusion, and it has its own message.
+    const r = refusalOf('plot(close > open ? color.red : na)')
+    expect(r.guard).toBe('runtime:colour')
+    expect(r.message).toMatch(/draws numbers/)
+  })
+
+  it('⛔ CONTROL — `cond ? na : na` is not a colour', () => {
+    // Both arms null says nothing about the type, and answering "colour" for it
+    // would admit an expression on the strength of what it does NOT contain.
+    expect(refusalOf('bgcolor(close > open ? na : na)\nplot(close)').guard)
+      .toBe('runtime:colour')
+  })
+})
