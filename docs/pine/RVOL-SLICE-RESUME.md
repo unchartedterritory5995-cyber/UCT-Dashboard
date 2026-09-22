@@ -326,11 +326,41 @@ dashboard builds, runs and draws.
    whole rail GREEN. A fifth case with a bound computed from `close` is what
    catches it. **Any op whose arguments can be either a literal or an
    expression needs a computed-argument case, or its binding is unrailed.**
-2. **`calc_bars_count`** — a named argument on `request.security`, accepted and
-   ignored today. Decide: honour it (bounds the history a request needs) or
-   refuse by name.
-3. **`text.format_bold`** — `text_formatting` is not in `CELL_PROPS`, so the
-   target's header row loses its bold. Silent, same class as (1).
+2. ⏸️ **`calc_bars_count` — MEASURED 2026-09-21, LEFT ACCEPTED-AND-INERT ON
+   PURPOSE.** Neither honoured nor refused, and the reason is a measurement
+   rather than a preference. **4 of 266 corpus scripts** name it, with values
+   `200000`, `200000`, `10000`, `1000`. This app serves **at most 5,000 bars on
+   every timeframe** (CLAUDE.md, Charts section), so three of those four
+   **cannot bind at all** — the window is larger than any history the engine
+   holds. Only the `1000` can, on one script, and only for bars older than 1,000
+   from the end.
+   ⛔ **Refusing it by name would break 4 scripts over a parameter that is
+   structurally inert in 3 of them** — the `nvi`/`pvi` precedent (declared inert
+   on purpose, no code) rather than the `table.clear` one.
+   ⛔ **And honouring it needs a vendor capture this box cannot take.** Whether
+   bars outside the window read `na` (a semantic change) or the argument is only
+   a calculation bound (a performance hint) is NOT measured here, and the two
+   give different answers for deep history. Do not implement it from the
+   reference manual alone — take the capture first.
+3. ✅ **DONE 2026-09-21 — `text_formatting` is CARRIED and RENDERED.**
+   `CELL_PROPS` + the three `text.format_*` enum names + `ENUM_SLOTS` +
+   `objectTableDom`'s `fontWeight`/`fontStyle`. **Measured on the parked target:
+   all 6 of its header cells now carry `text_formatting`** (they carried none
+   before). 7 cases in `engine/__tests__/cellTextFormatting.test.js`, five
+   mutations RED, 0 NEW failures.
+   ⚰️ **It was a QUIETER omission than `table.clear`.** The cell converter skips
+   an unrecognised property with a bare `continue` — no value read, no
+   `dropProp`, no diagnostic entry — so unlike `table.clear`, which at least
+   appeared in `unsupported`, this left **no trace anywhere**. The table
+   rendered, every cell held the right text, and the row the author had marked
+   as headings looked exactly like the data.
+   ⛔ **STILL OPEN, and it is the general case of this bug:** that bare
+   `continue` (`pine.js`, in the `cell` branch of `convertList`) silently drops
+   EVERY unknown cell property, not just this one. Naming them — the way
+   `dropProp` already names a property whose VALUE could not be read — is the
+   next instance of item (1)'s principle, and it is deliberately not bundled
+   here because it will move real diagnostic counts and wants its own
+   before/after measurement.
 4. **Re-measure the CORPUS.** Every number in the map below predates this
    session; the clock, session, statement-body, `%`, colour-literal and enum
    work will have moved many first-blockers. Re-run before planning from it.

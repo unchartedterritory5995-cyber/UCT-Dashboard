@@ -9854,6 +9854,14 @@ const OBJECT_ENUM_VALUES = Object.freeze({
   'size.large': 'large', 'size.huge': 'huge', 'size.auto': 'auto',
   'text.align_left': 'left', 'text.align_center': 'center', 'text.align_right': 'right',
   'text.align_top': 'top', 'text.align_bottom': 'bottom',
+  // ⭐ A CLOSED THREE-NAME VOCABULARY. All 13 real usages across the corpus and
+  // the acceptance dashboard are plain `text.format_bold`; `none` and `italic`
+  // are carried because a table that knew one of three would drop the other two
+  // with no trace, which is the failure this property was added to stop.
+  // ⛔ A COMBINED `text.format_bold + text.format_italic` is NOT a name and
+  // does not resolve here — it falls to `valueRef`, which returns null, and the
+  // converter records it via `dropProp`. Counted, never half-applied.
+  'text.format_none': 'none', 'text.format_bold': 'bold', 'text.format_italic': 'italic',
   'position.top_left': 'top_left', 'position.top_center': 'top_center',
   'position.top_right': 'top_right', 'position.middle_left': 'middle_left',
   'position.middle_center': 'middle_center', 'position.middle_right': 'middle_right',
@@ -10385,7 +10393,7 @@ function buildObjectProgram(stmts, source, env, makeResolver, bindingByStatement
   // `CELL_PROPS`) whose vocabulary is `objectEnumValue`'s. `width`/`height` are
   // deliberately absent: they are numbers.
   const ENUM_SLOTS = new Set(['position', 'text_size', 'size', 'style', 'border_style',
-    'text_halign', 'text_valign', 'text_align', 'xloc', 'yloc', 'extend'])
+    'text_halign', 'text_valign', 'text_align', 'xloc', 'yloc', 'extend', 'text_formatting'])
 
   /** An enum-valued expression, read with `textNodeOf`'s walk and enum leaves.
    *  Returns a `text` template because that is what the object runtime already

@@ -107,7 +107,7 @@ export const FAMILY_PROPS = Object.freeze({
 /** The per-cell vocabulary. Tables are the biggest reachable demand, and a cell
  *  is not a `set_*` on the table — it is addressed by (column, row). */
 export const CELL_PROPS = Object.freeze(['text', 'text_color', 'text_size', 'text_halign',
-  'text_valign', 'bgcolor', 'width', 'height', 'tooltip'])
+  'text_valign', 'bgcolor', 'width', 'height', 'tooltip', 'text_formatting'])
 
 /** Properties whose VALUE IS ANOTHER OBJECT. ⛔ These may only ever hold a
  *  `refExpr` of the stated family — this is where cross-family misuse is
