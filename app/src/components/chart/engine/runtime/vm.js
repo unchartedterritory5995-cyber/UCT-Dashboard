@@ -22,7 +22,7 @@
 // forever, and the budget lives on the call rather than the module so that a
 // screener pass over 5,000 symbols cannot let symbol 4,000 inherit 3,999's spend.
 
-import { BINARY, UNARY, TERNARY, POINTWISE_FOR_PARITY, FINITE_WINDOW, CARRIED } from '../ast/interpret.js'
+import { BINARY, UNARY, TERNARY, POINTWISE_FOR_PARITY, FINITE_WINDOW, CARRIED, CARRIED2 } from '../ast/interpret.js'
 import { OP, OP_NAME, IMPLEMENTED, SERIES_NAMES, CLOCK_FIELDS } from './program.js'
 import { TEXT_FNS } from './text.js'
 import { COLOUR_FNS, colourArgKind } from './colours.js'
@@ -320,6 +320,35 @@ export function execute(program, ctx, limits, opts) {
   if (carPlan.length) {
     budget.peak('CARRIED_INSTANCES', carPlan.length)
     budget.peak('CARRIED_CELLS', carCells)
+  }
+  // ⭐⭐ THE TWO-INPUT CARRIED STORE — `ta.valuewhen`, and so far only it.
+  //
+  // ⛔ A SEPARATE REGION FROM `carState`, for the reason that region is separate
+  // from 2E's persistent block: different members, different lifetimes, and a
+  // slot-allocation bug in one must not read as a bug in the other.
+  //
+  // ⭐ `cells` IS A FUNCTION OF THE INSTANCE, not a constant. `ta.valuewhen`'s
+  // ring is exactly `occurrence + 1` long, which is what makes its read free —
+  // the slot the cursor is about to overwrite IS the Nth most recent firing.
+  const car2Plan = program.carried2 || []
+  const car2Spec = car2Plan.map((c) => {
+    const spec = CARRIED2[c.fn]
+    if (!spec) throw new VmError(`no two-input carried-state implementation for \`${c.fn}\``)
+    return spec
+  })
+  const car2Offset = new Int32Array(car2Plan.length)
+  let car2Cells = 0
+  for (let i = 0; i < car2Plan.length; i += 1) {
+    car2Offset[i] = car2Cells
+    car2Cells += car2Spec[i].cells(car2Plan[i].n)
+  }
+  const car2State = new Float64Array(car2Cells)
+  for (let i = 0; i < car2Plan.length; i += 1) {
+    car2Spec[i].init(car2State, car2Offset[i], car2Plan[i].n)
+  }
+  if (car2Plan.length) {
+    budget.peak('CARRIED_INSTANCES', carPlan.length + car2Plan.length)
+    budget.peak('CARRIED_CELLS', carCells + car2Cells)
   }
   // ⭐⭐⭐ THE NA POLICY IS READ FROM `FINITE_WINDOW`, NOT STORED IN THE ARTIFACT.
   // The columnar lane reaches the same field for the same member, so the two
@@ -753,6 +782,23 @@ export function execute(program, ctx, limits, opts) {
           // HELD value). Two lifetimes, two rules, one wave apart.
           budget.charge('CARRIED_STEPS', 1)
           stack[sp++] = carSpec[ci].step(carState, carOffset[ci], v, carPlan[ci].n, carAlpha[ci])
+          break
+        }
+                case OP.CARRIED2: {
+          // ⭐ TWO INPUTS, POPPED IN REVERSE. `lowerIr` walks the condition
+          // first and the source second, so the source is on top.
+          //
+          // ⛔ THE SITE IS GLOBAL, NOT FRAME-RELATIVE, AND THE FRONT END
+          // REFUSES `ta.valuewhen` INSIDE A USER FUNCTION FOR THAT REASON.
+          // `OP.CARRIED` adds `carriedBase` so two invocations of one body keep
+          // two recurrences; there is no `carried2Base` yet, so two invocations
+          // would SHARE one ring and answer a plausible wrong number. A named
+          // refusal is the honest version of that limit.
+          const v2src = stack[--sp]
+          const v2cond = stack[--sp]
+          budget.charge('CARRIED_STEPS', 1)
+          stack[sp++] = car2Spec[a].step(
+            car2State, car2Offset[a], v2cond, v2src, car2Plan[a].n)
           break
         }
                 case OP.RET: {

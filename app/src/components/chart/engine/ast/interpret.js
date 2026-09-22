@@ -1523,6 +1523,79 @@ export const CARRIED = Object.freeze({
   falling: { cells: MONOTONE_CELLS, init: monotoneInit, step: fallingStep },
 })
 
+/** ─── ⭐⭐ TWO-INPUT CARRIED STATE — PINE'S `ta.valuewhen` ──────────────────
+ *
+ *  ⛔⛔ A SEPARATE TABLE FROM `CARRIED`, BECAUSE ITS MEMBERS TAKE TWO SERIES AND
+ *  SIZE THEIR OWN STATE. Every `CARRIED` member takes one series and a fixed
+ *  `cells` count; bending that table to admit a second input would change the
+ *  `step` signature for `ema`, `rma`, `rising` and `falling` too, and a member
+ *  reading its fourth argument as a decay where another reads it as a source is
+ *  how one driver quietly grows two meanings.
+ *
+ *  ⭐⭐ AND IT IS A TWIN OF `valueWhen`, NOT A REPLACEMENT FOR IT. This file's
+ *  `valueWhen(cond, src, n)` counts BARS — it holds a value only while the
+ *  firing is within the last `n` bars — and it is the screener's function, with
+ *  a frozen column contract. Pine's third argument is an OCCURRENCE INDEX, and
+ *  two firings may be a thousand bars apart. They line up positionally and
+ *  answer different numbers, which is why `docs/pine/computation-crossref.md`
+ *  records refusing `ta.valuewhen` as a DELIBERATE RULING rather than a gap.
+ *  Nothing here touches the bar-window function or the columns built on it.
+ *
+ *  ⭐⭐⭐ THE SEMANTICS ARE MEASURED, NOT CHOSEN —
+ *  `tests/fixtures/vendor/r11-valuewhen-spy-2026-09-11.json`, AMEX:SPY 1D, 610
+ *  bars: occurrence 0 is INCLUSIVE of the current bar (122 discriminating bars,
+ *  122 inclusive, 0 exclusive), occurrence N is the Nth most recent FIRING (the
+ *  step between consecutive occurrences is 5 and only 5, where counting bars
+ *  would give 1), and a condition that never fires is `na` and never 0.
+ */
+
+/** Ring of the last `n + 1` firing values, plus a write cursor and a count.
+ *
+ *  ⭐ THE RING IS EXACTLY `n + 1` LONG, WHICH IS WHAT MAKES THE READ FREE: the
+ *  slot the cursor is about to overwrite IS the Nth most recent firing, so the
+ *  answer never has to be searched for. */
+const VALUEWHEN_CELLS = (n) => n + 3
+
+function valueWhenPineInit(st, off, n) {
+  for (let i = 0; i <= n; i += 1) st[off + i] = NaN
+  st[off + n + 1] = 0   // write cursor
+  st[off + n + 2] = 0   // firings seen, saturating at n + 1
+}
+
+/** One bar of Pine's `ta.valuewhen`.
+ *
+ *  ⛔ THE PUSH HAPPENS BEFORE THE READ, AND THAT IS QUESTION 4. A firing on THIS
+ *  bar is counted as occurrence 0 — measured, 122/122, and the single most
+ *  likely place in this function to be off by one with 377 corpus sites riding
+ *  on it. Reading first and pushing after is the exclusive reading, which the
+ *  vendor never answered on any discriminating bar.
+ *
+ *  ⚠️ AN `na` CONDITION DOES NOT FIRE AND DOES NOT RESET. The host bar-window
+ *  twin clears its held value on `na`; nothing in the capture exercises an `na`
+ *  condition (its `_bounds` says one condition shape, firing every 5th bar), so
+ *  this does the least surprising thing and says out loud that it is unmeasured
+ *  rather than copying a rule from the function it is deliberately not. */
+function valueWhenPineStep(st, off, cond, src, n) {
+  if (!Number.isNaN(cond) && cond !== 0) {
+    const w = st[off + n + 1]
+    st[off + w] = src
+    st[off + n + 1] = (w + 1) % (n + 1)
+    const seen = st[off + n + 2]
+    if (seen < n + 1) st[off + n + 2] = seen + 1
+  }
+  // ⛔ FEWER FIRINGS THAN ASKED FOR IS `na`, NEVER 0 — measured on 610 bars.
+  // 0 is the dangerous answer: `valuewhen(cond, x, 0) > 0` would read "never
+  // happened" as a real value of zero.
+  if (st[off + n + 2] < n + 1) return NaN
+  return st[off + st[off + n + 1]]
+}
+
+export const CARRIED2 = Object.freeze({
+  valuewhen: {
+    cells: VALUEWHEN_CELLS, init: valueWhenPineInit, step: valueWhenPineStep,
+  },
+})
+
 /** ⛔ THE COLUMN DRIVER IS DERIVED FROM THE TABLE, so `FN.ema` and the runtime
  *  cannot drift: both reach `CARRIED[name].step` and nothing else computes an
  *  exponential average in this file. */

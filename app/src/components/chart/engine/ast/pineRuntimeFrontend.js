@@ -41,7 +41,7 @@ import { bindConstsFor, foldBound } from './bind.js'
 import {
   makeIrProgram, SLOT, EXPR, num, str, concat, series, column, read, hist, binary, unary, ternary,
   declare, assign, ifStmt, emit, emitIter, naValue, call as irCall, builtin as irBuiltin, histSlot,
-  windowCall, carriedCall, textCall, arrayCall, exprStmt,
+  windowCall, carriedCall, carried2Call, textCall, arrayCall, exprStmt,
   forStmt, breakStmt, continueStmt, tuple, destructure, requestCall, colourCall,
   clock, session, drawing,
   // ⭐ ALIASED. `field` and `record` are ordinary English and this file already
@@ -227,6 +227,10 @@ export const RUNTIME_OUTPUT_CALLS = Object.freeze(new Set([
  *  `plot(color.red)` and `bgcolor(close)` — which are the same mistake pointing
  *  in opposite directions. */
 export const RUNTIME_COLOUR_OUTPUTS = Object.freeze(new Set(['bgcolor', 'barcolor']))
+
+/** How many firings back `ta.valuewhen` will look. The ring is allocated from
+ *  this, and the corpus's largest occurrence is a small literal. */
+export const MAX_VALUEWHEN_OCCURRENCE = 1000
 
 const OBJECT_NS = /^(line|label|box|table|polyline|linefill)\./
 const ARRAY_NS = /^(array|matrix|map)\./
@@ -874,6 +878,9 @@ export function buildRuntimeIr(source, opts = {}) {
   const windowsMain = []
   const windows = []
   const carriedMain = []
+  /** Two-input carried instances — `ta.valuewhen`. Main program only; see the
+   *  refusal in its lowering for why there is no per-call-site block. */
+  const carried2Main = []
   const carried = []
   const functions = []
   const fnByName = new Map()
@@ -1284,6 +1291,48 @@ export function buildRuntimeIr(source, opts = {}) {
    *  fact this walk already computes and then threw away. Recovering it with a
    *  second walker would be a second authority on what counts as a drawing call
    *  (`lesson_a_second_authority_over_one_value`); returning it is free. */
+  /** Is Pine's `ta.valuewhen` anywhere in this subtree?
+   *
+   *  ⛔⛔ THE ROUTE DECISION RUNS FIRST, AND WITHOUT THIS THE BRANCH THAT
+   *  LOWERS `ta.valuewhen` CAN NEVER BE REACHED. A `ta.valuewhen(cond, src, 0)`
+   *  over pure inputs reads no mutable slot, so the router hands the whole
+   *  subtree to the columnar lane — which refuses `pine:function` with a long,
+   *  correct sentence about a BAR WINDOW being a different function. That is
+   *  the `size.*` and `order.*` shape twice over: handling the name in the
+   *  switch alone reads as a no-op until BOTH places change.
+   *
+   *  ⛔ IT ASKS THE WHOLE SUBTREE, NOT THE HEAD — `holdsObjectCall`'s rule, for
+   *  the same reason: `ta.valuewhen(c, x, 0) + 1` is a pure head over a call
+   *  this lane must keep, and a head-only test would route the sum away and
+   *  report a refusal about a lane the caller is not using. */
+  const holdsPineValueWhen = (node, depth = 0) => {
+    if (!node || typeof node !== 'object' || depth > 24) return false
+    if (node.type === 'call'
+      && (node.name === 'ta.valuewhen' || node.name === 'valuewhen')) return true
+    // ⛔⛔ IT FOLLOWS A BINDING, AND WITHOUT THAT IT MISSES THE COMMONEST SHAPE.
+    // A top-level binding that reads no slot becomes an `env` MACRO, substituted
+    // at its use — so `v0 = ta.valuewhen(…)` followed by `plot(v0 - v1)` reaches
+    // the router as `v0 - v1`, two bare names with no call in sight. Measured:
+    // every single-call shape routed correctly and only the bound-and-combined
+    // one refused, which is exactly how a predicate that stops at the syntax
+    // reports a property of the SPELLING rather than of the program.
+    // ⭐ `holdsColour` resolves through `env` for the same reason, and the depth
+    // cap is what keeps a self-referential binding from spinning here.
+    if (node.type === 'name') {
+      const bound = env.get(node.name)
+      return !!(bound && bound.kind === 'expr' && holdsPineValueWhen(bound.node, depth + 1))
+    }
+    for (const k of ['left', 'right', 'test', 'yes', 'no', 'arg', 'value', 'cond']) {
+      if (holdsPineValueWhen(node[k], depth + 1)) return true
+    }
+    if (Array.isArray(node.args)) {
+      for (const a of node.args) {
+        if (holdsPineValueWhen(a && a.value !== undefined ? a.value : a, depth + 1)) return true
+      }
+    }
+    return false
+  }
+
   const holdsObjectCall = (node, depth = 0) => {
     if (!node || typeof node !== 'object' || depth > 24) return null
     if (node.type === 'call' && OBJECT_NS.test(String(node.name || ''))) return String(node.name)
@@ -2693,7 +2742,15 @@ export function buildRuntimeIr(source, opts = {}) {
         // the name is handed to the columnar lane and refused `pine:builtin`
         // before the branch that knows it can ever be reached. That is exactly
         // how the `size.*` fix read as a no-op until BOTH places changed.
-        && !(node.type === 'name' && ORDER_ENUM[node.name] !== undefined)) {
+        && !(node.type === 'name' && ORDER_ENUM[node.name] !== undefined)
+        // ⭐⭐ AND PINE'S `ta.valuewhen` IS THIS LANE'S, NOT THE COLUMNAR ONE'S.
+        // The columnar lane has a function of the same name that counts BARS
+        // where Pine counts OCCURRENCES, and it refuses the Pine spelling with
+        // a correct, detailed sentence — which is the right answer for a
+        // SCREENER formula and the wrong one here, where the occurrence
+        // semantics are implemented. Without this clause that refusal arrives
+        // before the branch that serves it, exactly as with `size.*`.
+        && !holdsPineValueWhen(node)) {
       // ⚰️ A `timeframe.period` CLAUSE STOOD IN THIS CONDITION AND COULD NOT BE
       // PROVED. It looked necessary — the comment above says in as many words
       // that *"the ROUTE decision runs FIRST"*, and handling the name in the
@@ -3627,6 +3684,59 @@ export function buildRuntimeIr(source, opts = {}) {
             carriedMain.push(entry)
           }
           return carriedCall(aidx, lowerExpr(trueRangeAst(), scope))
+        }
+        // ⭐⭐ PINE'S `ta.valuewhen` — THE Nth MOST RECENT FIRING.
+        //
+        // ⛔⛔ NOT `interpret.js::valueWhen`, WHICH SHARES THE NAME AND COUNTS
+        // BARS. That one holds a value only while the firing is within the last
+        // `n` bars; Pine's third argument is an OCCURRENCE INDEX and two firings
+        // may be a thousand bars apart. They line up positionally and answer
+        // different numbers, so the host lane keeps its screener function and
+        // this lane gets a twin — `docs/pine/computation-crossref.md` records
+        // refusing this name as a DELIBERATE RULING rather than as a gap.
+        //
+        // ⭐ BOTH SPELLINGS, because 180 of the 377 corpus sites write the bare
+        // v1-v3 form and it is the SAME Pine function.
+        if (node.name === 'ta.valuewhen' || node.name === 'valuewhen') {
+          const at = locate(node.tok)
+          const given = node.args.map((a) => (a && a.value !== undefined ? a.value : a))
+          if (given.length !== 3) {
+            throw new RuntimeRefusal('runtime:statement',
+              `\`${node.name}\` takes a condition, a source and an occurrence, `
+              + `given ${given.length}`, at)
+          }
+          // ⛔⛔ INSIDE A USER FUNCTION TWO INVOCATIONS WOULD SHARE ONE RING.
+          // `OP.CARRIED` adds a frame-relative `carriedBase` so one body keeps
+          // two recurrences; `OP.CARRIED2` has no such base yet, so a shared
+          // ring would answer a PLAUSIBLE WRONG NUMBER on every bar. A named
+          // refusal is the honest version of that limit, and it is the same
+          // choice `runtime:object-op` makes about drawings used as values.
+          if (owner !== null) {
+            throw new RuntimeRefusal('runtime:statement',
+              `\`${node.name}\` inside a user function is not served yet — each `
+              + 'invocation needs its own occurrence ring, and sharing one would '
+              + 'answer a plausible wrong number rather than refuse', at)
+          }
+          const occ = foldConstNode(given[2], at,
+            `the occurrence of \`${node.name}\` is only known while the bar is `
+            + 'running, so the ring it needs cannot be sized before bar 0')
+          if (!Number.isInteger(occ) || occ < 0) {
+            throw new RuntimeRefusal('runtime:statement',
+              `the occurrence of \`${node.name}\` counts firings back from this `
+              + `bar, so it must be a whole number of 0 or more, got ${occ}`, at)
+          }
+          // ⛔ A CEILING, BECAUSE THE RING IS ALLOCATED FROM IT. The corpus's
+          // largest occurrence is a small literal; an absurd one is a typo, and
+          // reserving its memory silently is how a script becomes a hang.
+          if (occ > MAX_VALUEWHEN_OCCURRENCE) {
+            throw new RuntimeRefusal('runtime:statement',
+              `the occurrence of \`${node.name}\` is ${occ}, past this engine's `
+              + `ceiling of ${MAX_VALUEWHEN_OCCURRENCE} firings`, at)
+          }
+          const idx = carried2Main.length
+          carried2Main.push({ fn: 'valuewhen', n: occ, name: `${node.name}(${occ})` })
+          // ⭐ CONDITION THEN SOURCE — the order `lowerIr` walks them in.
+          return carried2Call(idx, lowerExpr(given[0], scope), lowerExpr(given[1], scope))
         }
         const car = carriedTarget(node.name)
         if (car) {
@@ -5113,6 +5223,7 @@ export function buildRuntimeIr(source, opts = {}) {
       history,
       windows,
       carried,
+      carried2: carried2Main,
       requests,
     })
   } catch (e) { return fail(e, diagnostics) }

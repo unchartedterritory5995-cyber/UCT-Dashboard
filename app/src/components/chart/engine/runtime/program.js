@@ -214,6 +214,19 @@ export const OP = Object.freeze({
   // two indices for one string that nothing keeps in step.
   FIELD_GET: 88,
   FIELD_SET: 89,
+  /** ⭐⭐ TWO-INPUT CARRIED STATE — Pine's `ta.valuewhen`, and so far only it.
+   *
+   *  ⛔ A SEPARATE OPCODE FROM `CARRIED`, not a flag on it. `CARRIED` pops ONE
+   *  value and hands its member a fixed cell count; this pops TWO and sizes its
+   *  state from the instance's `n`. Widening `CARRIED` would have changed the
+   *  `step` signature for `ema`, `rma`, `rising` and `falling` as well, and a
+   *  member reading its fourth argument as a decay where another reads it as a
+   *  source is how one driver quietly grows two meanings.
+   *
+   *  ⭐ APPENDED, NEVER INSERTED. These numbers are a wire format — two waves
+   *  on one day already collided at 86 — so a new opcode takes the next free
+   *  number and nothing renumbers. */
+  CARRIED2: 90,
   // ── RESERVED, not yet emitted or executed. Declared so the shape is settled. ──
   ARR_NEW: 80, ARR_PUSH: 81, ARR_GET: 82, ARR_SET: 83, ARR_SIZE: 84,
   OBJ_CREATE: 90, OBJ_UPDATE: 91, OBJ_DELETE: 92,
@@ -234,6 +247,7 @@ export const IMPLEMENTED = Object.freeze(new Set([
   OP.CALL, OP.RET, OP.POINTWISE, OP.WINDOW, OP.CARRIED, OP.CONCAT, OP.TEXT, OP.ARRAY,
   OP.LOOP_TICK, OP.REQUEST, OP.COLOUR, OP.DROP,
   OP.RECORD, OP.FIELD_GET, OP.FIELD_SET,
+  OP.CARRIED2,
   OP.EMIT, OP.EMIT_ITER, OP.HALT,
 ]))
 
@@ -275,6 +289,7 @@ export class ProgramError extends Error {
 export function makeProgram({
   code, consts, columns, outputs, locals = 0, persists = 0, version = null,
   functions = [], callSites = [], pointwise = [], history = [], windows = [], carried = [],
+  carried2 = [],
   textOps = [], arrayOps = [], requests = [], colourOps = [], objectTreeOutputs = [],
   iterOutputs = [], recordTypes = [], fieldNames = [],
 }) {
@@ -417,6 +432,7 @@ export function makeProgram({
     // they are read from the table, so the artifact cannot disagree with the
     // semantics about how much state a member needs.
     carried: Object.freeze((carried || []).map((c) => Object.freeze({ ...c }))),
+    carried2: Object.freeze((carried2 || []).map((c) => Object.freeze({ ...c }))),
     // ⭐ Each entry is `{timeframe, entry, results}` — WHICH timeframe, WHERE
     // in this same code array the request's expression begins, and how many
     // values it leaves. The expression is a REGION of this program rather
@@ -478,6 +494,19 @@ export function validateProgram(p) {
       const c = p.carried[a]
       if (!(c.n >= 1)) {
         throw new ProgramError(`pc ${pc}: CARRIED length ${c.n} — a carried builtin needs a length of at least 1`)
+      }
+    }
+    if (op === OP.CARRIED2) {
+      if (a < 0 || a >= p.carried2.length) {
+        throw new ProgramError(`pc ${pc}: CARRIED2 ${a} outside ${p.carried2.length} two-input carried sites`)
+      }
+      // ⛔ ZERO IS LEGAL HERE, UNLIKE `CARRIED`. A carried builtin's `n` is a
+      // LENGTH and must be at least 1; this one's is an OCCURRENCE INDEX, and
+      // occurrence 0 — the most recent firing — is the commonest call in the
+      // corpus. Copying the neighbouring check would have refused 121 sites.
+      const c = p.carried2[a]
+      if (!(c.n >= 0)) {
+        throw new ProgramError(`pc ${pc}: CARRIED2 occurrence ${c.n} — an occurrence counts firings back and cannot be negative`)
       }
     }
         if (op === OP.WINDOW) {

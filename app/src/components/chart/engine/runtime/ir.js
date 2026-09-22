@@ -80,6 +80,7 @@ export const EXPR = Object.freeze({
   BUILTIN: 'builtin',     // a POINTWISE table builtin applied to current-bar values
   WINDOW: 'window',       // a FINITE-WINDOW table builtin over a runtime series
   CARRIED: 'carried',     // a CARRIED-STATE table builtin over a runtime series
+  CARRIED2: 'carried2',   // a TWO-INPUT carried-state builtin (`ta.valuewhen`)
   // ⭐⭐ A USER-DEFINED TYPE — see `runtime/records.js`. `RECORD` constructs one
   // (`Foo.new(…)`), `FIELD` reads one field of one (`f.top`). A field WRITE is a
   // statement, not an expression, and lives in `STMT.FIELD_SET`.
@@ -128,6 +129,7 @@ const isObj = (v) => v !== null && typeof v === 'object' && !Array.isArray(v)
 export function makeIrProgram({
   version = null, statements, slots, columns = [], outputs = [],
   functions = [], callSites = [], history = [], windows = [], carried = [],
+  carried2 = [],
   requests = [], objectTreeOutputs = [], iterOutputs = [],
 }) {
   if (!Array.isArray(statements)) throw new IrError('statements must be an array')
@@ -154,6 +156,7 @@ export function makeIrProgram({
     version, statements, slots: normalised, columns, outputs, functions: fns, callSites,
     windows: windows || [],
     carried: carried || [],
+    carried2: carried2 || [],
     requests: requests || [],
     // ⭐ tree index → the OUTPUT carrying that object-program tree's value,
     // one per bar. Empty for every ordinary script; the lane seam reads it.
@@ -390,6 +393,14 @@ export function validateIr(p) {
         if (!Number.isInteger(e.site) || e.site < 0 || e.site >= (p.carried || []).length) {
           throw new IrError(`${where}: carried site ${JSON.stringify(e.site)} outside ${(p.carried || []).length}`)
         }
+        walkExpr(e.source, `${where}.source`)
+        return
+      }
+      case EXPR.CARRIED2: {
+        if (!Number.isInteger(e.site) || e.site < 0 || e.site >= (p.carried2 || []).length) {
+          throw new IrError(`${where}: carried2 site ${JSON.stringify(e.site)} outside ${(p.carried2 || []).length}`)
+        }
+        walkExpr(e.cond, `${where}.cond`)
         walkExpr(e.source, `${where}.source`)
         return
       }
@@ -714,6 +725,12 @@ export const windowCall = (site, source) => ({ kind: EXPR.WINDOW, site, source }
  *  call site while each site keeps its own recurrence — the same addressing
  *  `persistBase` (2E) and `historyBase` (P7.2) already use. */
 export const carriedCall = (site, source) => ({ kind: EXPR.CARRIED, site, source })
+
+/** ⭐ A TWO-INPUT carried-state builtin — Pine's `ta.valuewhen(cond, src, n)`.
+ *  `site` is FRAME-RELATIVE exactly as `carriedCall`'s is, so one compiled body
+ *  serves every invocation and two call sites keep two rings. */
+export const carried2Call = (site, cond, source) => (
+  { kind: EXPR.CARRIED2, site, cond, source })
 
 export const declare = (slot, value) => ({ kind: STMT.DECLARE, slot, value })
 export const assign = (slot, value) => ({ kind: STMT.ASSIGN, slot, value })

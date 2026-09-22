@@ -281,6 +281,16 @@ export function lowerIrProgram(ir) {
         emit(OP.CARRIED, e.site)
         return
       }
+      case EXPR.CARRIED2: {
+        // ⭐ CONDITION FIRST, THEN SOURCE — the VM pops in reverse, so it takes
+        // the source off the top and the condition beneath it. The order is
+        // asserted in `valuewhen.test.js` by a case where swapping them changes
+        // the answer rather than merely the types.
+        expr(e.cond)
+        expr(e.source)
+        emit(OP.CARRIED2, e.site)
+        return
+      }
       case EXPR.CALL: {
         // ⭐ ARGUMENTS PUSH LEFT TO RIGHT; the frame pops them in reverse. The
         // order is fixed HERE rather than left to the host, because once an
@@ -577,6 +587,7 @@ export function lowerIrProgram(ir) {
     requests,
     windows: (ir.windows || []).map((w) => ({ ...w })),
     carried: (ir.carried || []).map((c) => ({ ...c })),
+    carried2: (ir.carried2 || []).map((c) => ({ ...c })),
     callSites: (ir.callSites || []).map((c) => ({
       fn: c.fn, persistBase: c.persistBase, historyBase: c.historyBase || 0,
       carriedBase: c.carriedBase || 0, windowBase: c.windowBase || 0, at: c.at || null,
