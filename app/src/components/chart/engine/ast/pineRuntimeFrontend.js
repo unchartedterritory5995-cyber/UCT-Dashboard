@@ -3786,6 +3786,50 @@ export function buildRuntimeIr(source, opts = {}) {
               familyDetail('runtime:array', `array.${uf.method}`), locate(first))
           }
         }
+        // ⭐⭐ A USER FUNCTION CALLED FOR ITS EFFECT — PINE'S OWN STATEMENT FORM.
+        //
+        // `zigzag(Length, DeviationThreshold)` on a line of its own is how ten of
+        // the 266 committed scripts drive their drawing: the helper opens the
+        // lines, pushes the labels and mutates the arrays, and its RESULT (§16 —
+        // the value of its last statement) is thrown away. Refusing the line said
+        // *"an expression evaluated for effect — nothing in this runtime has an
+        // effect yet"*, which stopped being true the moment `array.push` was
+        // admitted two branches above: this lane has arrays, loops and state, and
+        // a call is exactly how a script reaches them.
+        //
+        // ⛔⛔ IT IS LOWERED, NEVER SKIPPED. A skip compiles every one of those
+        // ten scripts and is WRONG: the helper's `array.push` never runs, so the
+        // collection the next line reads is empty and the dashboard renders real
+        // numbers from a run that did not happen. Measured as an instrument (and
+        // reverted): skipping moves `draws end to end` by ZERO, so the shortcut
+        // buys nothing it could be traded for.
+        //
+        // ⛔ `isUserFn`, NOT `fnByName` — the same one authority the expression
+        // position uses. A definition that died on its own parameter list is
+        // known only by its held refusal, and asking `fnByName` alone would send
+        // the call to the columnar resolver to be told there is no such function,
+        // about a function the member can see a few lines up.
+        if (isUserFn(word)) {
+          const callNode = parseWholeExpression(toks)
+          if (!callNode || callNode.type !== 'call') {
+            throw new RuntimeRefusal('runtime:statement',
+              `\`${word}()\` is not a shape this front end reads`, locate(first))
+          }
+          // ⭐⭐ `multi` IS WHAT MAKES A TUPLE-RETURNING HELPER LEGAL HERE, and
+          // it is safe for the same reason a destructuring's is: every value the
+          // call leaves is accounted for. The expression position refuses a
+          // multi-value call because ONE of its values would be read and the
+          // rest abandoned; a statement reads none and discards all.
+          const lowered = lowerExpr(callNode, scope, { multi: true })
+          // ⛔ THE COUNT COMES FROM THE COMPILED DEFINITION, NOT FROM THE CALL.
+          // `lowerExpr` has just compiled the body if it was not already, so
+          // `returns` is settled by now; deriving it from the call site would be
+          // a guess that is right until a helper returns a pair.
+          const fnIdx = fnByName.get(word)
+          const rec = fnIdx === undefined ? null : functions[fnIdx]
+          out.push(exprStmt(lowered, rec && rec.returns ? rec.returns : 1))
+          continue
+        }
         note('runtime:expression-statement')
         throw new RuntimeRefusal('runtime:expression-statement', `\`${word}()\``, locate(first))
       }

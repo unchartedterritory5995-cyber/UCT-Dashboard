@@ -407,8 +407,23 @@ export function lowerIrProgram(ir) {
             expr(s.value)
             break
           }
+          // ⭐⭐ A CALL-FOR-EFFECT — `zigzag(len, dev)` ON A LINE OF ITS OWN.
+          // Pine evaluates the call and throws the result away; §16 says every
+          // function has a result, so there is always something to throw away.
+          // The COUNT comes from the statement (`fn.returns`), so a helper that
+          // hands back a tuple discards all of it rather than the top of it.
+          //
+          // ⛔ AND ONLY WITH A COUNT. Lowering the call without the DROP would
+          // push values nothing pops, growing the stack every bar until the run
+          // dies far from the line that caused it — which is what the end-of-bar
+          // `sp !== 0` rail in `vm.js` exists to catch on bar 0 instead.
+          if (Number.isInteger(s.drop) && s.drop > 0) {
+            expr(s.value)
+            emit(OP.DROP, s.drop)
+            break
+          }
           throw new LoweringGap('an expression statement',
-            'only a collection operation has an effect in this runtime')
+            'only a collection operation or a call-for-effect has an effect here')
         default:
           throw new LoweringGap(s.kind)
       }
