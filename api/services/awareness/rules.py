@@ -124,6 +124,65 @@ def rule_stop_watch(scan_ctx: dict, user_ctx: dict) -> list[InsightCandidate]:
     return out
 
 
+def rule_thesis_stop_review(scan_ctx: dict, user_ctx: dict) -> list[InsightCandidate]:
+    """R6 (G-074, competitive gap ledger) -- a position hitting its stop is
+    exactly the moment the written reasoning behind it (a thesis, a captured
+    fact, any research at all) is most worth re-reading before re-entering
+    or moving on. Reuses R1's own AT/THROUGH-the-stop condition and
+    placeholder-stop skip (the SAME distance test, the SAME reason a
+    placeholder isn't a real stop) rather than re-deriving either -- this
+    rule differs from R1 only in WHO it's for and WHERE it points, never in
+    what counts as "hit."
+
+    ⛔ FIRES ONLY WHEN THE MEMBER HAS SOME RESEARCH ON THE SYMBOL
+    (`user_ctx["mentioned_symbols"]`, bulk-loaded by engine.py from
+    `notes.bulk_member_mentioned_symbols` -- every note/embed/mention the
+    member has ever made, trash excluded). "Review your thesis" is a
+    non-sequitur for a symbol with zero research; gating on real research
+    existing is what keeps this rule from firing for every stop-out
+    regardless of whether there is anything to review.
+
+    ⛔ NEVER fires on stop_proximity (nearing, not yet through) -- this is
+    the "re-examine the reasoning" moment, not an early warning; R2 already
+    owns the early-warning job. Distinct dedup_key namespace (`:thesis_
+    review`) from R1's `:stop_hit`/`:stop_near` so this insight's own 6h
+    cooldown can never suppress -- or be suppressed by -- R1's."""
+    out: list[InsightCandidate] = []
+    live_prices: dict = scan_ctx.get("live_prices") or {}
+    mentioned = user_ctx.get("mentioned_symbols") or set()
+    if not mentioned:
+        return out  # nothing this member has ever written about -- cheap exit
+
+    for pos in user_ctx.get("positions") or []:
+        sym = (pos.get("symbol") or "").upper()
+        side = pos.get("side")
+        stop = pos.get("stop_price")
+        entry = pos.get("entry_price")
+        source = pos.get("source")
+        if not sym or side not in ("Long", "Short") or stop is None or entry is None:
+            continue
+        if sym not in mentioned:
+            continue
+        if source == "broker" and is_placeholder_stop(stop, entry):
+            continue  # same placeholder-stop skip as R1 -- nothing real to watch
+
+        price = live_prices.get(sym)
+        if not price or price <= 0:
+            continue
+
+        if _stop_distance_pct(side, float(price), float(stop)) <= 0:
+            out.append(InsightCandidate(
+                kind="thesis_stop_review", symbol=sym,
+                headline=f"Your {sym} research may need a second look",
+                body=(f"{side} {sym} just hit its stop. You've written research "
+                      f"on this ticker — worth reviewing before you re-enter or "
+                      f"move on."),
+                base_signal=1.0, personal_multiplier=1.2, urgency=1.5,
+                dedup_key=f"{sym}:thesis_review",
+            ))
+    return out
+
+
 def rule_regime_flip(scan_ctx: dict, user_ctx: dict) -> list[InsightCandidate]:
     """R4: fires once per (label, cycle) for any user with something at
     stake (an open position or a watched symbol) -- an inactive account

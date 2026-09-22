@@ -1728,6 +1728,38 @@ def _member_mentioned_symbols(user_id: str, conn: sqlite3.Connection) -> list[st
     return [r["symbol"] for r in rows if r["symbol"]]
 
 
+def bulk_member_mentioned_symbols(conn: sqlite3.Connection) -> dict[str, set[str]]:
+    """The ALL-USERS shape of `_member_mentioned_symbols`, for a caller that
+    needs every member's vocabulary in one pass rather than one query per
+    member (the Awareness Engine's own `_bulk_load_user_contexts` — "no
+    N+1 per-user" is that module's own stated design constraint, and
+    calling the per-user query once per member would be exactly that).
+
+    Same UNION shape as `_member_mentioned_symbols`, with the `user_id`
+    predicate dropped and `user_id` added to the SELECT instead — kept as
+    a near-literal twin (not a from-scratch rewrite) specifically so the
+    two are easy to eyeball against each other; `test_bulk_member_mentioned_
+    symbols_agrees_with_the_per_user_version` is the real guarantee they
+    cannot drift on what "mentioned" means."""
+    rows = conn.execute(
+        "SELECT user_id, symbol FROM ("
+        "  SELECT e.user_id AS user_id, e.symbol AS symbol FROM j2_note_embeds e"
+        "  JOIN j2_notes n ON n.id = e.note_id AND n.user_id = e.user_id"
+        "  WHERE n.deleted_at IS NULL"
+        "  UNION"
+        "  SELECT m.user_id AS user_id, m.symbol AS symbol FROM j2_note_mentions m"
+        "  JOIN j2_notes n ON n.id = m.note_id AND n.user_id = m.user_id"
+        "  WHERE n.deleted_at IS NULL"
+        ")"
+    ).fetchall()
+    out: dict[str, set[str]] = {}
+    for r in rows:
+        if not r["symbol"]:
+            continue
+        out.setdefault(r["user_id"], set()).add(r["symbol"])
+    return out
+
+
 def resolve_sector_theme_symbols(
     user_id: str,
     *,

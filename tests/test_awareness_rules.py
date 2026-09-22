@@ -10,6 +10,7 @@ from api.services.awareness.rules import (
     InsightCandidate,
     compute_relevance_score,
     rule_stop_watch,
+    rule_thesis_stop_review,
     rule_regime_flip,
     rule_earnings_proximity,
 )
@@ -106,6 +107,101 @@ def test_stop_watch_skips_when_no_live_price_cached():
                                 "entry_price": 300.0, "stop_price": 280.0,
                                 "source": None}], "watch_syms": set()}
     assert rule_stop_watch(_scan({}), user_ctx) == []  # MSFT not cached this cycle
+
+
+# ── rule_thesis_stop_review (R6, G-074) ─────────────────────────────────────
+
+def _pos(sym="NVDA", side="Long", entry=100.0, stop=90.0, source=None):
+    return {"symbol": sym, "side": side, "entry_price": entry, "stop_price": stop,
+            "source": source}
+
+
+def test_thesis_stop_review_fires_when_stop_hit_and_member_has_research():
+    user_ctx = {"positions": [_pos()], "watch_syms": set(),
+                "mentioned_symbols": {"NVDA"}}
+    out = rule_thesis_stop_review(_scan({"NVDA": 88.0}), user_ctx)
+    assert len(out) == 1
+    assert out[0].kind == "thesis_stop_review"
+    assert out[0].symbol == "NVDA"
+    # Distinct cooldown namespace from R1's stop_hit/stop_near -- must never
+    # share a cooldown with, or be suppressed by, the raw stop alert.
+    assert out[0].dedup_key == "NVDA:thesis_review"
+
+
+def test_thesis_stop_review_silent_with_no_research_on_the_symbol():
+    # Same stop-hit condition as the fires-test above, but nothing in
+    # mentioned_symbols -- "review your research" is a non-sequitur here.
+    user_ctx = {"positions": [_pos()], "watch_syms": set(),
+                "mentioned_symbols": {"AMD"}}  # research exists, just not on NVDA
+    assert rule_thesis_stop_review(_scan({"NVDA": 88.0}), user_ctx) == []
+
+
+def test_thesis_stop_review_silent_with_empty_mentioned_symbols():
+    user_ctx = {"positions": [_pos()], "watch_syms": set(), "mentioned_symbols": set()}
+    assert rule_thesis_stop_review(_scan({"NVDA": 88.0}), user_ctx) == []
+
+
+def test_thesis_stop_review_silent_when_mentioned_symbols_key_absent():
+    # engine.py always sets this key, but the rule must degrade safely if a
+    # caller (or a future test) omits it rather than raising.
+    user_ctx = {"positions": [_pos()], "watch_syms": set()}
+    assert rule_thesis_stop_review(_scan({"NVDA": 88.0}), user_ctx) == []
+
+
+def test_thesis_stop_review_silent_on_mere_proximity_not_yet_through():
+    # stop=90, price=91.5 -> R1 would fire stop_proximity here; R6 must not.
+    user_ctx = {"positions": [_pos()], "watch_syms": set(),
+                "mentioned_symbols": {"NVDA"}}
+    assert rule_thesis_stop_review(_scan({"NVDA": 91.5}), user_ctx) == []
+
+
+def test_thesis_stop_review_silent_when_price_far_from_stop():
+    user_ctx = {"positions": [_pos()], "watch_syms": set(),
+                "mentioned_symbols": {"NVDA"}}
+    assert rule_thesis_stop_review(_scan({"NVDA": 110.0}), user_ctx) == []
+
+
+def test_thesis_stop_review_skips_broker_placeholder_stop():
+    user_ctx = {
+        "positions": [_pos(sym="AAPL", entry=150.0, stop=150.0, source="broker")],
+        "watch_syms": set(), "mentioned_symbols": {"AAPL"},
+    }
+    assert rule_thesis_stop_review(_scan({"AAPL": 140.0}), user_ctx) == []
+
+
+def test_thesis_stop_review_short_side_at_stop():
+    user_ctx = {"positions": [_pos(sym="TSLA", side="Short", entry=200.0, stop=210.0)],
+                "watch_syms": set(), "mentioned_symbols": {"TSLA"}}
+    out = rule_thesis_stop_review(_scan({"TSLA": 212.0}), user_ctx)
+    assert len(out) == 1
+    assert out[0].kind == "thesis_stop_review"
+
+
+def test_thesis_stop_review_fires_independently_alongside_stop_watch():
+    # ⛔ THE COMPLEMENTARY-NOT-COMPETING GUARANTEE. The same position, the
+    # same cycle, both rules run -- R1 still fires its own stop_hit AND R6
+    # fires thesis_stop_review, as two genuinely separate insights with
+    # non-colliding dedup keys. A regression that made one rule's dedup_key
+    # accidentally equal the other's would silently drop one insight via
+    # add_insight's cooldown -- this proves the keys the two rules choose
+    # are what actually differ, not just an assumption.
+    user_ctx = {"positions": [_pos()], "watch_syms": set(),
+                "mentioned_symbols": {"NVDA"}}
+    scan = _scan({"NVDA": 88.0})
+    r1_out = rule_stop_watch(scan, user_ctx)
+    r6_out = rule_thesis_stop_review(scan, user_ctx)
+    assert len(r1_out) == 1 and len(r6_out) == 1
+    assert r1_out[0].dedup_key != r6_out[0].dedup_key
+
+
+def test_thesis_stop_review_multiple_positions_only_fires_for_the_one_with_research():
+    user_ctx = {
+        "positions": [_pos(sym="NVDA"), _pos(sym="AMD", entry=50.0, stop=45.0)],
+        "watch_syms": set(), "mentioned_symbols": {"NVDA"},  # no AMD research
+    }
+    out = rule_thesis_stop_review(_scan({"NVDA": 88.0, "AMD": 40.0}), user_ctx)
+    assert len(out) == 1
+    assert out[0].symbol == "NVDA"
 
 
 # ── rule_regime_flip (R4) ────────────────────────────────────────────────────

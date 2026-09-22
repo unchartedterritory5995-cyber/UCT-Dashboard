@@ -451,3 +451,85 @@ def test_hyphenated_ticker_query_is_unaffected_by_the_leading_separator_strip():
     _insert_note(c, "n1", ticker="BRK-B", body_plain="no text mention")
     ids = {r["id"] for r in list_notes("u1", q="BRK-B", conn=c)}
     assert ids == {"n1"}
+
+
+# ── bulk_member_mentioned_symbols (Awareness Engine G-074 support) ──────────
+
+def test_bulk_member_mentioned_symbols_empty_db_returns_empty_dict():
+    from api.services.journal_two.notes import bulk_member_mentioned_symbols
+    c = _conn()
+    assert bulk_member_mentioned_symbols(c) == {}
+
+
+def test_bulk_member_mentioned_symbols_separates_users_correctly():
+    from api.services.journal_two.notes import bulk_member_mentioned_symbols
+    c = _conn()
+    _insert_note(c, "n1", user_id="u1")
+    _insert_mention(c, "n1", "u1", "NVDA")
+    _insert_note(c, "n2", user_id="u2")
+    _insert_mention(c, "n2", "u2", "AMD")
+    out = bulk_member_mentioned_symbols(c)
+    assert out == {"u1": {"NVDA"}, "u2": {"AMD"}}
+
+
+def test_bulk_member_mentioned_symbols_dedupes_embed_and_mention_of_the_same_symbol():
+    from api.services.journal_two.notes import bulk_member_mentioned_symbols
+    c = _conn()
+    _insert_note(c, "n1", user_id="u1")
+    _insert_mention(c, "n1", "u1", "NVDA")
+    c.execute(
+        "INSERT INTO j2_note_embeds (note_id, user_id, position, widget_id, symbol)"
+        " VALUES (?, ?, ?, ?, ?)",
+        ("n1", "u1", 0, "chart", "NVDA"),
+    )
+    c.commit()
+    out = bulk_member_mentioned_symbols(c)
+    assert out == {"u1": {"NVDA"}}  # one symbol, not two rows collapsed wrong
+
+
+def test_bulk_member_mentioned_symbols_excludes_a_trashed_notes_mention():
+    from api.services.journal_two.notes import bulk_member_mentioned_symbols
+    c = _conn()
+    _insert_note(c, "n1", user_id="u1")
+    _insert_mention(c, "n1", "u1", "NVDA")
+    c.execute("UPDATE j2_notes SET deleted_at = ? WHERE id = ?",
+              ("2026-01-02T00:00:00+00:00", "n1"))
+    c.commit()
+    assert bulk_member_mentioned_symbols(c) == {}
+
+
+def test_bulk_member_mentioned_symbols_agrees_with_the_per_user_version():
+    """⛔ THE LOAD-BEARING TEST. Two independent queries computing "which
+    symbols has this member mentioned" must never be allowed to drift --
+    the bulk version exists ONLY as a no-N+1 optimization of the per-user
+    one, never a second authority on what "mentioned" means. A multi-user,
+    multi-symbol, embed+mention+trash fixture, checked from BOTH sides."""
+    from api.services.journal_two.notes import (
+        bulk_member_mentioned_symbols, _member_mentioned_symbols,
+    )
+    c = _conn()
+    _insert_note(c, "n1", user_id="u1")
+    _insert_mention(c, "n1", "u1", "NVDA")
+    _insert_note(c, "n2", user_id="u1")
+    c.execute(
+        "INSERT INTO j2_note_embeds (note_id, user_id, position, widget_id, symbol)"
+        " VALUES (?, ?, ?, ?, ?)",
+        ("n2", "u1", 0, "chart", "AMD"),
+    )
+    c.commit()
+    _insert_note(c, "n3", user_id="u2")
+    _insert_mention(c, "n3", "u2", "TSLA")
+    _insert_note(c, "n4", user_id="u2")  # trashed -- must not widen u2's set
+    _insert_mention(c, "n4", "u2", "GME")
+    c.execute("UPDATE j2_notes SET deleted_at = ? WHERE id = ?",
+              ("2026-01-02T00:00:00+00:00", "n4"))
+    c.commit()
+
+    bulk = bulk_member_mentioned_symbols(c)
+    for uid in ("u1", "u2"):
+        assert bulk.get(uid, set()) == set(_member_mentioned_symbols(uid, c)), (
+            f"bulk and per-user disagree for {uid}: "
+            f"bulk={bulk.get(uid)} per_user={set(_member_mentioned_symbols(uid, c))}"
+        )
+    assert bulk["u1"] == {"NVDA", "AMD"}
+    assert bulk["u2"] == {"TSLA"}
