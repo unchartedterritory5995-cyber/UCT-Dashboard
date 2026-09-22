@@ -10705,6 +10705,29 @@ function buildObjectProgram(stmts, source, env, makeResolver, bindingByStatement
    *  `textEnumSlot.test.js`'s control asserts. */
   let enumLeaves = false
 
+  /** ⭐⭐ THE ONE PLACE A TEXT NODE BECOMES A FORMATTED NUMBER.
+   *
+   *  ⛔⛔ AND IT REFUSES UNDER AN ENUM WALK, BEFORE INTERNING. A `style`, a
+   *  `position` or a `size` is a closed vocabulary of WORDS; no number is one
+   *  of them, so `{t:'num'}` in an enum slot is a type error rather than an
+   *  approximation.
+   *
+   *  ⚰️ THE ORDER IS THE WHOLE FIX, AND THE FIRST ATTEMPT GOT IT WRONG.
+   *  Rejecting the numeric node in `enumNodeOf` — AFTER the walk — dropped the
+   *  prop and left the tree already MINTED, so it survived as an orphan output
+   *  and the script still died with *"output 3 must carry a number, got
+   *  string"*. `internTree` is what publishes an output; refusing after it has
+   *  run is not refusing.
+   *
+   *  ⭐ ONE GUARD, NOT THREE. All three numeric mint sites route through here,
+   *  so the rule is stated once and a fourth mint site cannot quietly skip it
+   *  (`lesson_a_guard_repeated_is_a_guard_unproved`). */
+  const numNode = (ast, fmt) => {
+    if (enumLeaves) return null
+    const ref = internTree(ast)
+    return ref ? { t: 'num', tree: ref.tree, ...(fmt ? { fmt } : {}) } : null
+  }
+
   const textNodeOf = (node, scope, depth = 0, inline = null, envAt = null) => {
     if (!node) return null
     // ⛔⛔ THE RECURSION GUARD, AND IT FAILED SILENTLY AT THE WRONG NUMBER.
@@ -10735,17 +10758,13 @@ function buildObjectProgram(stmts, source, env, makeResolver, bindingByStatement
       return null
     }
     if (node.type === 'string') return { t: 'lit', s: String(node.value) }
-    if (node.type === 'number') {
-      const ref = internTree({ type: 'num', value: Number(node.value) })
-      return ref ? { t: 'num', tree: ref.tree } : null
-    }
+    if (node.type === 'number') return numNode({ type: 'num', value: Number(node.value) })
     if (node.type === 'call' && (node.name === 'str.tostring' || node.name === 'tostring')) {
       const ast = canonicalOf(node.args && node.args[0] && node.args[0].value, inline, envAt)
       if (!ast) return null
-      const ref = internTree(ast)
       const fmtNode = node.args && node.args[1] && node.args[1].value
       const fmt = fmtNode && fmtNode.type === 'string' ? String(fmtNode.value) : undefined
-      return ref ? { t: 'num', tree: ref.tree, ...(fmt ? { fmt } : {}) } : null
+      return numNode(ast, fmt)
     }
     // ⭐⭐ R2 STEP 2 — A `bound` NODE IS A NAME THE FOLD HAS ALREADY RESOLVED.
     // `foldIfChain` builds its arms out of `boundNode(...)`, so the ternary that
@@ -10899,8 +10918,7 @@ function buildObjectProgram(stmts, source, env, makeResolver, bindingByStatement
     // than carrying nothing, and it is the only branch here that guesses.
     const ast = canonicalOf(node, inline, envAt)
     if (!ast) return null
-    const ref = internTree(ast)
-    return ref ? { t: 'num', tree: ref.tree } : null
+    return numNode(ast)
   }
 
   /** ⭐ A COLOUR EXPRESSION. The same shape, one branch shorter — and the
@@ -10959,9 +10977,47 @@ function buildObjectProgram(stmts, source, env, makeResolver, bindingByStatement
    *  Returns a `text` template because that is what the object runtime already
    *  evaluates per bar — and a position genuinely can vary per bar, since
    *  `table.set_position` is an ordinary op. */
+  /** ⛔⛔ AN ENUM SLOT MAY NEVER CARRY A FORMATTED NUMBER, ANYWHERE INSIDE IT.
+   *
+   *  `{t:'num'}` means "evaluate this numeric tree and format it as text",
+   *  which is exactly right for `text = str.tostring(x)` and can never be right
+   *  for a STYLE, a POSITION or a SIZE: those are closed vocabularies of WORDS,
+   *  and no number is one of them.
+   *
+   *  ⚰️ MEASURED ON `liquidity-pools`, 2026-09-22. `style = i_linestyle`, where
+   *  the script wrote `i_linestyle = input.string(defval = line.style_dotted,
+   *  …)`, produced `{v:'text', node:{t:'num', node:12}}`. That tree became a
+   *  numeric OUTPUT, the value underneath was the input's string, and the whole
+   *  script died at run time with *"output 18 must carry a number, got
+   *  string"* — every line, every label and every fill lost to one
+   *  dotted-vs-solid decision.
+   *
+   *  ⭐ THE CHECK IS RECURSIVE BECAUSE THE SHAPE IS. A concatenation or a
+   *  ternary can hold a `num` arm while its own tag says otherwise, and an enum
+   *  cannot legitimately contain a formatted number at ANY depth. */
+  const holdsFormattedNumber = (n, depth = 0) => {
+    if (!n || typeof n !== 'object' || depth > TEXT_MAX_DEPTH) return false
+    if (n.t === 'num') return true
+    for (const k of ['a', 'b', 'yes', 'no', 'then', 'other', 'left', 'right', 'node']) {
+      if (holdsFormattedNumber(n[k], depth + 1)) return true
+    }
+    if (Array.isArray(n.parts)) {
+      for (const p of n.parts) if (holdsFormattedNumber(p, depth + 1)) return true
+    }
+    return false
+  }
+
+  /** An enum-valued expression, read with `textNodeOf`'s walk and enum leaves.
+   *
+   *  ⛔ `null` DROPS THE PROP, which is the whole point: the renderer then uses
+   *  Pine's own default and the drawing survives. Serving the value is better
+   *  and is a real capability (`input.string` read as an enum word — 689 sites
+   *  across 109 drawing scripts); crashing is very much worse than either. */
   const enumNodeOf = (node, scope) => {
     enumLeaves = true
-    try { return textNodeOf(node, scope) } finally { enumLeaves = false }
+    let t = null
+    try { t = textNodeOf(node, scope) } finally { enumLeaves = false }
+    return holdsFormattedNumber(t) ? null : t
   }
 
   /**
@@ -11087,6 +11143,24 @@ function buildObjectProgram(stmts, source, env, makeResolver, bindingByStatement
     if (slot && ENUM_SLOTS.has(slot) && !(node.type === 'name' && objectEnumValue(node.name) !== undefined)) {
       const e = enumNodeOf(node, scopeEnv)
       if (e) return { v: 'text', node: e }
+      // ⛔⛔ AND IT STOPS HERE. An enum slot this reader cannot turn into a WORD
+      // is DROPPED — it must never fall through to the numeric paths below.
+      //
+      // ⚰️ MEASURED ON `liquidity-pools`, 2026-09-22, and the fall-through is
+      // the defect the `ENUM_SLOTS` note one screen up was written about — it
+      // just never closed this half. `style = i_linestyle`, from an
+      // `input.string`, fell past this arm and came back `{v:'graph'}`: a
+      // NUMERIC tree, published as an output, carrying the input's STRING at
+      // run time. The script died with *"output 3 must carry a number, got
+      // string"* — every line, label and fill in it lost to one
+      // dotted-vs-solid decision.
+      //
+      // ⭐ DROPPING COSTS ONE VISUAL DETAIL and the renderer falls back to
+      // Pine's own default. Reading it as a number costs the whole script, and
+      // `objectDiagnostics` counts the drop so it is visible rather than
+      // silent.
+      diagnostics.enumUnreadable = (diagnostics.enumUnreadable || 0) + 1
+      return null
     }
     if (node.type === 'string') return { v: 'const', value: node.value }
     if (node.type === 'colour') return { v: 'const', value: node.value }
