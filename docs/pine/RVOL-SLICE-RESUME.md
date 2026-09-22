@@ -461,6 +461,37 @@ dashboard builds, runs and draws.
 7. **Still owed, market hours only:** vendor M2, M5, M1's realtime half, and
    **M7's all-equal / already-descending halves** (see `sort_indices` — the tie
    rule is measured, those two are extrapolated and labelled as such).
+7. ✅ **DONE 2026-09-21 — the `input.*` family is off the closed-table wall**
+   (`feat/pine-input-runtime`, `f10a33b66`). ⭐⭐ **It was never a missing
+   capability.** Every kind — `input.int`/`bool`/`color`/`source`/`float`/
+   `timeframe` and bare `input` — already compiled on this lane with literal
+   arguments. What refused them was the ROUTE DECISION reading a **presentation
+   argument**: `var string GROUP_FRACT = "Fractals"` makes `group=GROUP_FRACT`
+   a slot read, `needsRuntime` walks every argument, and the whole call was
+   handed to the runtime lane and filed under `runtime:call-undeclared-builtin-
+   state` — *"the CLOSED TABLE does not declare this builtin"*, about a name
+   that is not a table function in either lane. `needsRuntime` now descends only
+   into an input's `defval` and its NAMED `minval`/`maxval`/`step`/`options`,
+   and `builtinStateFamily` answers `runtime:input-state` instead.
+   ⛔ **NOTHING IS REWRITTEN** — the node keeps every argument, so `boundName`
+   and the param-manifest title are untouched; only the LANE changes.
+   ⚠️ **ZERO scripts cleared end to end — 8 of 266 before and after.** All nine
+   blocked scripts moved to their next blocker; seven moved past the input
+   family outright. `runtime:call-undeclared-builtin-state` 15 → 6. Stated
+   rather than buried, the `timenow` precedent.
+8. **A `var` NAME BOUND TO A LITERAL AND NEVER REASSIGNED IS STILL A SLOT** —
+   the root cause one level above (7), and what still blocks the last two input
+   scripts (`var color c_defSolidLine = #FFFF00` used as a defval). By Pine's
+   own definition such a name IS its initialiser on every bar, so it needs no
+   slot. ⛔ **Its correctness turns on the initialiser being BAR-INVARIANT**:
+   `var x = close` is not — it is bar 0's close, pinned — so the condition is a
+   literal constant, not merely "reads no slot". It changes how EVERY `var`
+   declaration in the lane is lowered and wants its own measurement.
+9. **`var color c = input.color(…)` refuses at `pine:input-kind`** —
+   `producesColour` (`runtime/colours.js`) holds only `color.new`/`color.rgb`,
+   so `holdsColour` answers false for an `input.color` CALL and the binding is
+   routed to the columnar lane, which refuses the kind. Found as
+   `auto-trendline-dojiemoji`'s new first blocker after (7).
 
 ⚠️ **AND THE STANDING QUESTION NOBODY HAS RE-OPENED:** ruling D2 means all of
 this improves a lane with **zero live importers**. The objects-only pane path is
