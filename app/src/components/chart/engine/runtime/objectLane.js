@@ -48,7 +48,7 @@ import { buildRuntimeIr } from '../ast/pineRuntimeFrontend.js'
 // gate and the columns read separately. See docs/pine/barstate.md.
 import { runtimeClockOpts, newestBarIsFormingFrom } from '../ast/pineRuntimeClock.js'
 import { bindObjectProgram, treeRefsOfOp } from '../ast/objectProgram.js'
-import { evaluateObjects } from '../objectRuntime.js'
+import { beginObjects } from '../objectRuntime.js'
 import { lowerIrProgram } from './lowerIr.js'
 import { execute } from './vm.js'
 
@@ -277,23 +277,34 @@ export function buildObjectLane(source, opts = {}) {
         + 'this drawing declares — its range is unknown and cannot be guessed',
     })
   }
-  // ⛔⛔ THE REFUSAL IS ABOUT THE *READ*, NOT ABOUT THE PRESENCE OF A LOOP. The
-  // iteration buffer is overwritten every bar (`vm.js` allocates `iters` ONCE
-  // for the whole run, indexed by the counter alone — there is no bar
-  // dimension), so only the bar that wrote it last can be read back. For a
-  // `barstate.islast` drawing — which is how every dashboard in the corpus is
-  // written — that bar IS the one being drawn. For anything else the buffer
-  // holds another bar's rows, and handing those back would be a table of real
-  // numbers from the wrong moment: the most convincing kind of wrong.
-  if (offender) {
-    return refuse('objects', {
-      guard: 'objects:iterated-tree-not-last-bar',
-      message: `a \`${offender.k}\` inside the loop on counter \`${offender.counter}\` `
-        + 'reads a per-row value on every bar, not only the last — the '
-        + 'per-iteration buffer holds only the bar that wrote it last, so those '
-        + 'rows would come from another moment',
-    })
-  }
+  // ─── ⚰️⭐⭐ `objects:iterated-tree-not-last-bar` WAS HERE, AND WHY IT IS NOT ──
+  //
+  // The refusal was CORRECT for the engine it was written against. The
+  // iteration buffer is overwritten every bar, `vm.js` allocates `iters` once
+  // for the whole run indexed by the counter alone, and the drawing ran as a
+  // SECOND pass after the VM had finished every bar — so an op reading a
+  // per-row value on bar 300 read whatever bar 4,999 left behind. Handing
+  // those back is a table of real numbers from the wrong moment, which is the
+  // most convincing kind of wrong, and refusing was the right answer.
+  //
+  // ⛔⛔ AND THE OBVIOUS FIX WAS MEASURED AND IS NOT BUILDABLE. Giving the
+  // buffers a bar dimension costs, for ONE corpus script at the 5,000 bars a
+  // chart asks for, 1,621MB in full form; 801MB counting only the buffers that
+  // are read off a bar other than the last. The runtime's own MEMORY ceiling
+  // is 64MB. `iterStorageCost.measure.test.js` holds those numbers.
+  //
+  // ⭐⭐ WHAT CHANGED IS *WHEN* THE DRAWING STANDS, NOT WHAT IS STORED. The two
+  // bar walks are now ONE: `runObjectLane` drives the object program's bar from
+  // inside the VM's own bar loop, so a per-row value is read on the bar that
+  // wrote it, by construction rather than by a guard. That is also what Pine
+  // does — a member's `for` and the `line.new` inside it are one program
+  // advancing one bar at a time.
+  //
+  // ⛔⛔ THE INVARIANT IS ENFORCED WHERE IT CAN FAIL, NOT ASSUMED HERE.
+  // `readObjectLaneNode` THROWS if a per-row value is asked for on any bar but
+  // the one the VM has just finished, so wiring the two walks apart again is a
+  // named crash rather than a quiet table from the wrong moment.
+  // ⭐ `offender` is still computed — it is what the costing instrument counts.
 
   // ⭐⭐ THE CLOCK TRI-STATE, ASKED OF THE CALLER FIRST AND THE BARS SECOND.
   //
@@ -370,6 +381,15 @@ export function buildObjectLane(source, opts = {}) {
     // tree index → { buffer, counter } for the per-row values.
     iterByTree: new Map([...iterTreeIndex].map(([i, b]) => (
       [i, { buffer: b, counter: iterSpecs[b].counter }]))),
+    // ⭐ THE PER-ROW READ THAT HAPPENS OFF A BAR OTHER THAN THE LAST — `{k,
+    // counter}`, or `null`. It is no longer a refusal (see the note above), but
+    // it is still the fact that distinguishes a drawing whose rows are rebuilt
+    // every bar from one written the dashboard way, and it is what the costing
+    // instrument counts. ⛔ IT NAMES THE OP AND THE COUNTER, not merely that a
+    // loop exists: resolving a per-row value by its counter's NAME rather than
+    // by the loop enclosing its READER is the mistake that declared two corpus
+    // scripts safe when both carry two different loops called `i`.
+    offLastBarRead: offender,
     // The per-row trees nothing reads. Carried so the reader can answer
     // `undefined` for one rather than the contents of an output nobody filled.
     orphanTrees,
@@ -403,23 +423,55 @@ export function runObjectLane(lane, view) {
   // ⚠️ They stay OPTIONAL on `view` on purpose: a drawing that reads neither
   // (a label on this chart's own price) must not have to invent them. What is
   // fixed is that a caller which HAS them can no longer fail to pass them.
-  const { outputs, iters, requested } = execute(lane.program, {
+  // ─── ⭐⭐⭐ ONE BAR WALK, NOT TWO — AND THAT IS THE WHOLE FIX ─────────
+  //
+  // ⚰️ THIS RAN `execute` TO COMPLETION AND *THEN* DREW. Every number the
+  // drawing read came out of an array indexed by bar, so that was harmless for
+  // all of them but one: the per-ITERATION buffers have no bar dimension and
+  // are overwritten every bar, so by the time the drawing started they held
+  // bar 4,999 and nothing else. A drawing that read a per-row value on any
+  // other bar got real numbers from the wrong moment, and `buildObjectLane`
+  // refused it rather than draw them — eleven corpus scripts, all of them
+  // drawers, the largest genuinely-blocked drawing row in the census.
+  //
+  // ⛔⛔ THE STORAGE FIX WAS MEASURED FIRST AND REJECTED: 1,621MB full /
+  // 801MB sparse for ONE script at 5,000 bars, against a 64MB ceiling
+  // (`iterStorageCost.measure.test.js`). Advancing the drawing INSIDE the VM's
+  // bar loop costs nothing at all and is exact, because the value is read on
+  // the bar that is still standing.
+  //
+  // ⛔ THE ORDER IS NOT A DETAIL. `onBar` fires after the bar's last
+  // instruction and after the history commit, so `outputs[*][bar]` and every
+  // iteration buffer hold this bar's finished values and nothing of the next.
+  const cursor = { bar: -1 }
+  // ⭐ The reader is built on the FIRST bar, because `outputs` and `iters` are
+  // the VM's own arrays and it has not allocated them until the run starts.
+  // They are allocated ONCE for the whole run, so binding them once is right.
+  let read = null
+  const drawing = beginObjects(lane.objects, {
+    barCount: bars,
+    readNode: (treeIndex, bar, loopVars) => (
+      read ? read(treeIndex, bar, loopVars) : NaN),
+    readTime: view.readTime,
+    readParam: view.readParam,
+    limits: view.limits,
+    trace: view.trace,
+  })
+  const { requested } = execute(lane.program, {
     bars,
     series: view.series,
     columns: lane.program.columns,
     confirmed: view.confirmed !== false,
     barTimes: view.barTimes,
     requestBars: view.requestBars,
-  }, view.limits)
-
-  const drawn = evaluateObjects(lane.objects, {
-    barCount: bars,
-    readNode: readObjectLaneNode(lane, outputs, iters),
-    readTime: view.readTime,
-    readParam: view.readParam,
-    limits: view.limits,
-    trace: view.trace,
+  }, view.limits, {
+    onBar: (bar, iters, outputs) => {
+      if (!read) read = readObjectLaneNode(lane, outputs, iters, cursor)
+      cursor.bar = bar
+      drawing.step(bar)
+    },
   })
+  const drawn = drawing.finish()
   // ⭐⭐ WHAT THE RUN ASKED FOR AND COULD NOT GET, CARRIED OUT WITH THE DRAWING.
   // A watchlist dashboard discovers its symbols WHILE it runs, so the host
   // cannot know what to fetch until the first pass reports it — that is the
@@ -435,7 +487,7 @@ export function runObjectLane(lane, view) {
  *  number and a colour; NaN is the only value the object runtime's own finiteness
  *  guards already treat as "do not draw this". `buildObjectLane` refuses the case
  *  where this could happen in bulk — this is the per-read floor under that. */
-export function readObjectLaneNode(lane, outputs, iters = []) {
+export function readObjectLaneNode(lane, outputs, iters = [], cursor = null) {
   const map = lane.treeOutputs
   const byTree = lane.iterByTree || new Map()
   const orphans = lane.orphanTrees || new Set()
@@ -455,6 +507,26 @@ export function readObjectLaneNode(lane, outputs, iters = []) {
     // exists to prevent, and it looks exactly like data.
     const it = byTree.get(treeIndex)
     if (it) {
+      // ⛔⛔ THE ITERATION BUFFER HAS NO BAR DIMENSION, SO THE READER CHECKS
+      // WHICH BAR IT IS STANDING ON.
+      //
+      // `vm.js` allocates `iters` once for the whole run and overwrites it
+      // every bar, which is exactly why `objects:iterated-tree-not-last-bar`
+      // used to refuse these drawings. `runObjectLane` now advances the drawing
+      // INSIDE the VM's bar loop, so the buffer always holds the bar being
+      // drawn — and this is the assertion that says so rather than assuming it.
+      //
+      // ⛔ IT THROWS, IT DOES NOT DRAW NOTHING. The two walks being wired apart
+      // is a defect in this repository, not a shape a member can write, and the
+      // failure it would otherwise produce is a table of plausible numbers from
+      // another moment — which is what a silent `undefined` would hide.
+      if (!cursor || cursor.bar !== bar) {
+        throw new Error(
+          `objects: a per-row value was asked for on bar ${bar} while the runtime `
+          + `stands on bar ${cursor ? cursor.bar : 'no'} — the iteration buffer `
+          + 'holds only the bar that wrote it, so that row would come from '
+          + 'another moment')
+      }
       const k = loopVars && loopVars.get ? loopVars.get(it.counter) : undefined
       if (!Number.isInteger(k)) return undefined
       const buf = iters[it.buffer]

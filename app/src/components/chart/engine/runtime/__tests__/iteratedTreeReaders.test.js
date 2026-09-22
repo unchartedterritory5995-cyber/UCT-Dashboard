@@ -130,14 +130,44 @@ describe('⭐⭐ a per-row refusal is about a value that is actually read', () =
     lane && !lane.ok
     && String((lane.refusal && lane.refusal.guard) || '').startsWith('objects:iterated-tree')))
 
-  it('⛔ CONTROL — some script really does refuse this way', () => {
-    // Without this, the assertion below is satisfied by a corpus in which the
-    // guard never fires at all — which is exactly what a bug that disabled it
-    // would look like.
-    expect(PER_ROW_REFUSALS.length).toBeGreaterThan(0)
+  /** Per-row trees the object pass interned and NOTHING reads, by script.
+   *
+   *  ⛔ DERIVED FROM THE WALK, NOT FROM A BUILT LANE. `lane.orphanTrees` only
+   *  exists on a lane that compiled end to end, and in this corpus every script
+   *  carrying an orphan dies at some LATER gate — so keying the control off a
+   *  successful build measures how far the runtime lane has got, not whether
+   *  the orphan branch is exercised, and answers a confident ZERO. */
+  const ORPHANS_BY_SCRIPT = ANALYSIS
+    .map(({ name, readers }) => (readers
+      ? { name, n: [...readers.iterSet].filter((i) => !readers.byTree.has(i)).length }
+      : { name, n: 0 }))
+    .filter((r) => r.n > 0)
+
+  it('⛔ CONTROL — the corpus really does declare ORPHAN per-row trees', () => {
+    // ⚰️ THIS ASSERTED "some script really does refuse `objects:iterated-tree*`",
+    // and it was the right control for an engine with TWO such refusals. One of
+    // them — `objects:iterated-tree-not-last-bar` — was REMOVED when the object
+    // program's bar walk moved INSIDE the VM's, so a per-row value is now read on
+    // the bar that wrote it and there is nothing left to refuse. The survivor,
+    // `objects:iterated-tree-unbounded`, fires on NO script in this corpus.
+    //
+    // ⛔ SO THE OLD CONTROL COULD ONLY GO RED OR BE DELETED, and deleting it
+    // would take the non-vacuity with it: the case below passes trivially over
+    // an empty list, which is exactly what a bug that stopped classifying
+    // orphans would look like. What that case rests on is the orphan branch
+    // being EXERCISED at all, and that is still measurable — so this measures it.
+    expect(ORPHANS_BY_SCRIPT.length, 'no script in this corpus interns a per-row '
+      + 'tree that nothing reads — the orphan branch is unexercised and the claim '
+      + 'below is vacuous').toBeGreaterThan(0)
   })
 
-  it('⭐⭐ every one of them has an op that READS a per-row value', () => {
+  it('⭐⭐ an orphan is DROPPED — no script refuses over a value nothing reads', () => {
+    // ⚠️ SAID PLAINLY: over THIS corpus this list is empty on both sides, so
+    // the case is currently VACUOUS — `objects:iterated-tree-not-last-bar` is
+    // gone and `objects:iterated-tree-unbounded` fires on nothing here. It is
+    // kept because it is a CONDITIONAL invariant: the moment any per-row
+    // refusal reappears it has something to check, and the control above is
+    // what stops the emptiness being mistaken for coverage.
     const orphanRefusals = []
     for (const { name, lane, readers } of PER_ROW_REFUSALS) {
       if (!readers) continue

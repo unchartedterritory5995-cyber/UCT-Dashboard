@@ -34,7 +34,7 @@ import fs from 'node:fs'
 import path from 'node:path'
 
 import { translatePine } from '../../ast/pine.js'
-import { resolveIterTrees } from '../objectLane.js'
+import { buildObjectLane, resolveIterTrees } from '../objectLane.js'
 import { MAX_COLLECTION_CAP as ITER_SLOTS } from '../../ast/objectProgram.js'
 
 const REPO = path.resolve(process.cwd(), '..')
@@ -51,8 +51,18 @@ const BYTES_PER_SLOT = 8
 
 const MB = (n) => `${(n / (1024 * 1024)).toFixed(1)}MB`
 
-/** Every script's iterated-tree profile, computed once. */
+/** Every script's iterated-tree profile.
+ *
+ *  ⛔ COMPUTED ONCE FOR THE WHOLE FILE, and that is not tidiness: translating
+ *  266 scripts takes ~10s on a quiet box and over 20s on a contended one, so
+ *  paying for it per case put this file's cases over vitest's default ceiling
+ *  under load — measured, as a TIMEOUT that reads exactly like a failure of the
+ *  thing being measured. Both cases below also declare a ceiling of their own
+ *  rather than inheriting the default: a corpus-wide measure IS slow, and a
+ *  timeout dressed as a red is the least informative failure there is. */
+let _profile = null
 function profile() {
+  if (_profile) return _profile
   const rows = []
   for (const name of SCRIPTS) {
     const src = fs.readFileSync(path.join(DIR, name), 'utf8')
@@ -86,6 +96,7 @@ function profile() {
       unbounded: !!r.unbounded,
     })
   }
+  _profile = rows
   return rows
 }
 
@@ -152,8 +163,60 @@ describe('⭐⭐ the cost of a bar dimension on the iteration buffers', () => {
     // eslint-disable-next-line no-console
     console.log(lines.join('\n'))
 
-    // ⛔ THE ROW THIS FILE EXISTS FOR IS NOT EMPTY. If the guard ever stops
-    // firing this measure would print an empty table and read as a costing.
+    // ⛔ THE ROW THIS FILE EXISTS FOR IS NOT EMPTY. If the walk ever stops
+    // finding these reads this measure would print an empty table and read as a
+    // costing.
     expect(blocked.length).toBeGreaterThan(0)
-  })
+
+    // ⛔⛔ AND THE HOT/COLD SPLIT IS REAL, NOT A COLUMN OF ZEROES. Every number
+    // in the table above is `hot` × bars × slots, so a `lastBarOnly` that always
+    // answered TRUE would print a tidy 0.0MB for the sparse form and read as a
+    // costing that had been done. A script blocked on an off-last-bar read has,
+    // by definition, at least one buffer whose reader is not last-bar-only.
+    for (const r of blocked) {
+      expect(r.hot, `${r.name} is blocked on an off-last-bar read and reports `
+        + 'ZERO buffers needing a bar dimension').toBeGreaterThan(0)
+      expect(r.hot + r.cold).toBe(r.buffers)
+    }
+  }, 120000)
+
+  it('⭐⭐ prints WHERE each formerly-blocked script stops NOW', () => {
+    // ⛔⛔ LIFTING A BLOCKER IS NOT THE SAME AS MOVING THE PRODUCT, AND ONLY
+    // THIS SEPARATES THEM. `objects:iterated-tree-not-last-bar` blocked eleven
+    // scripts and every one of them was a real drawer, which is what made it
+    // the largest genuinely-blocked drawing row. A script that passes it and
+    // then dies two gates later has still not drawn anything, and a census line
+    // that only reports the row going to zero would read as progress.
+    //
+    // ⭐ SO THE ANSWER IS PRINTED PER SCRIPT, BY NAME: what each one hits next.
+    const rows = profile().filter((r) => r.blocked)
+    expect(rows.length).toBeGreaterThan(0)
+    const lines = ['', 'THE FORMERLY-BLOCKED ROW — WHERE EACH SCRIPT STOPS NOW', '']
+    const by = new Map()
+    for (const r of rows) {
+      const src = fs.readFileSync(path.join(DIR, r.name), 'utf8')
+      let now
+      try {
+        const built = buildObjectLane(src, { tf: 'D', newestBarIsForming: false })
+        now = built.ok
+          ? 'DRAWS'
+          : `${built.lane}/${(built.refusal && built.refusal.guard) || 'unnamed'}`
+      } catch (err) {
+        now = `threw/${(err && err.message ? err.message : String(err)).slice(0, 40)}`
+      }
+      by.set(now, (by.get(now) || 0) + 1)
+      lines.push(`  ${now.padEnd(34)}  ${r.name}`)
+    }
+    lines.push('')
+    for (const [k, n] of [...by.entries()].sort((a, b) => b[1] - a[1])) {
+      lines.push(`${String(n).padStart(4)}  ${k}`)
+    }
+    lines.push('')
+    // eslint-disable-next-line no-console
+    console.log(lines.join('\n'))
+    // ⛔ NOT ONE OF THEM MAY STILL DIE ON THE ROW THIS WAVE REMOVED. That is
+    // the only thing asserted here — a count of how many now DRAW would go red
+    // every time an unrelated gate moves.
+    for (const [k] of by) expect(k).not.toContain('iterated-tree-not-last-bar')
+  }, 120000)
 })
