@@ -556,6 +556,147 @@ def test_the_bars_store_record_names_the_module_it_was_derived_from():
 
 
 # ─────────────────────────────────────────────────────────────────────────────
+# D2 follow-up (closes F-D2-1) — `earnings_table`, a JSON-blob store with no DDL
+#
+# ⛔ Every oracle below re-parses `earnings_table.py` / `annual_financials.py`
+# ITSELF, independently of `earnings_table_store()` — the same discipline the
+# bars oracles above use, for the same reason: importing the builder's own
+# parser would only prove the builder agrees with itself.
+# ─────────────────────────────────────────────────────────────────────────────
+
+_EARNINGS_TABLE_MODULE = _REPO / "api" / "services" / "earnings_table.py"
+_ANNUAL_FINANCIALS_MODULE = _REPO / "api" / "services" / "annual_financials.py"
+
+
+def _earnings_table_store() -> dict:
+    store = _book()["stores"].get("earnings_table")
+    assert store, "the book carries no earnings_table store record"
+    return store
+
+
+def _independent_earnings_table_shapes() -> dict:
+    """Re-derive the snapshot/annual/quarterly shapes DIRECTLY from source,
+    never by calling the builder's own `earnings_table_store()`."""
+
+    def _keys_of(node):
+        return sorted(k.value for k in node.keys
+                      if isinstance(k, ast.Constant) and isinstance(k.value, str))
+
+    build_src = ast.parse(_EARNINGS_TABLE_MODULE.read_text(encoding="utf-8"))
+    build_fn = next(n for n in ast.walk(build_src)
+                     if isinstance(n, ast.FunctionDef) and n.name == "_build")
+    sanitize_dict = next(n.args[0] for n in ast.walk(build_fn)
+                         if isinstance(n, ast.Call) and isinstance(n.func, ast.Name)
+                         and n.func.id == "_sanitize" and n.args
+                         and isinstance(n.args[0], ast.Dict))
+    top_level = _keys_of(sanitize_dict)
+
+    quarterly_fn = next(n for n in ast.walk(build_src)
+                        if isinstance(n, ast.FunctionDef) and n.name == "_build_quarterly")
+    popped = {n.args[0].value for n in ast.walk(quarterly_fn)
+              if isinstance(n, ast.Call) and isinstance(n.func, ast.Attribute)
+              and n.func.attr == "pop" and n.args
+              and isinstance(n.args[0], ast.Constant) and isinstance(n.args[0].value, str)}
+    reported_dict = next(n.args[0] for n in ast.walk(quarterly_fn)
+                        if isinstance(n, ast.Call) and isinstance(n.func, ast.Attribute)
+                        and n.func.attr == "append" and isinstance(n.func.value, ast.Name)
+                        and n.func.value.id == "reported" and n.args
+                        and isinstance(n.args[0], ast.Dict))
+    forward_dict = next(n.args[0] for n in ast.walk(quarterly_fn)
+                       if isinstance(n, ast.Call) and isinstance(n.func, ast.Attribute)
+                       and n.func.attr == "append" and isinstance(n.func.value, ast.Name)
+                       and n.func.value.id == "out" and n.args
+                       and isinstance(n.args[0], ast.Dict))
+    reported_keys = sorted(set(_keys_of(reported_dict)) - popped)
+    forward_keys = _keys_of(forward_dict)
+
+    annual_src = ast.parse(_ANNUAL_FINANCIALS_MODULE.read_text(encoding="utf-8"))
+    row_dicts = [n.value for n in ast.walk(annual_src)
+                 if isinstance(n, ast.Assign) and len(n.targets) == 1
+                 and isinstance(n.targets[0], ast.Name) and n.targets[0].id == "row"
+                 and isinstance(n.value, ast.Dict)]
+    assert len(row_dicts) == 2, (
+        f"expected two `row = {{...}}` literals in annual_financials.py "
+        f"(actual + estimate branches); found {len(row_dicts)}")
+    annual_shapes = [set(_keys_of(d)) for d in row_dicts]
+    assert annual_shapes[0] == annual_shapes[1], (
+        f"annual row shapes disagree: {sorted(annual_shapes[0])} vs "
+        f"{sorted(annual_shapes[1])} — F-D2-1's premise no longer holds")
+
+    return {
+        "snapshot_top_level": top_level,
+        "annual_row": sorted(annual_shapes[0]),
+        "quarterly_row": {"reported": reported_keys, "forward": forward_keys},
+    }
+
+
+def test_the_earnings_table_side_is_NON_EMPTY_and_names_a_field_we_can_point_at():
+    """⛔ NON-VACUITY FOR THE NEW STORE. Every assertion below is over these."""
+    independent = _independent_earnings_table_shapes()
+    assert "eps" in independent["annual_row"]
+    assert "eps_actual" in independent["quarterly_row"]["reported"]
+    store = _earnings_table_store()
+    assert "eps" in store["shape"]["annual_row"]
+
+
+def test_the_book_agrees_with_earnings_table_py_about_the_snapshot_shape():
+    """The book's declared shapes match an INDEPENDENT re-parse of the source
+    — the same property `test_the_book_agrees_with_the_DDL_about` proves for
+    bars, one layer up (a whole snapshot shape rather than one column)."""
+    independent = _independent_earnings_table_shapes()
+    store = _earnings_table_store()["shape"]
+    assert store["snapshot_top_level"] == independent["snapshot_top_level"]
+    assert store["annual_row"] == independent["annual_row"]
+    assert store["quarterly_row"]["reported"] == independent["quarterly_row"]["reported"]
+    assert store["quarterly_row"]["forward"] == independent["quarterly_row"]["forward"]
+
+
+def test_earnings_table_has_no_flat_metrics_entries():
+    """⛔⛔ THE STRUCTURAL DIFFERENCE FROM BARS, ASSERTED, NOT ASSUMED.
+
+    A snapshot is two lists of rows with no single as-of column across the
+    whole payload — declaring `metric.column` entries the way `ohlcv.c` is
+    declared would misrepresent the shape rather than address it. F-D2-1's
+    own proposal defers that migration to a future checkpoint.
+    """
+    store = _earnings_table_store()
+    assert store["metric_count"] == 0
+    leaked = {n: d for n, d in _book()["metrics"].items()
+              if d.get("store") == "earnings_table"}
+    assert not leaked, f"earnings_table metrics appeared unexpectedly: {sorted(leaked)}"
+
+
+def test_earnings_table_store_record_names_the_modules_it_was_derived_from():
+    store = _earnings_table_store()
+    assert store["declared_in"] == "api/services/earnings_table.py"
+    assert (_REPO / store["declared_in"]).exists()
+    assert store["shape"]["annual_row_declared_in"] == "api/services/annual_financials.py"
+    assert (_REPO / store["shape"]["annual_row_declared_in"]).exists()
+    assert store["authority"] == "derived", (
+        "PRD-D2 §7's vocabulary is {authoritative, derived}; earnings_table has "
+        "no independent reconciliation oracle the way bars has Polygon — the "
+        "fundamentals accuracy monitor DETECTS drift, it does not adjudicate it")
+    assert store["kind"] == "earnings_table", (
+        "this must match the fund_snapshots.kind value the store actually writes")
+
+
+def test_the_earnings_table_shape_rail_CAN_FAIL(tmp_path):
+    """⛔ THE MUTATION, RUN IN-PROCESS. A rail nobody has seen fail is not a
+    rail. Corrupts a copy of the book — never the real one."""
+    book = _book()
+    book["stores"]["earnings_table"]["shape"]["annual_row"] = ["renamed_eps_field"]
+    corrupted = tmp_path / "book.json"
+    corrupted.write_text(json.dumps(book, indent=2), encoding="utf-8")
+
+    independent = _independent_earnings_table_shapes()
+    reloaded = json.loads(corrupted.read_text(encoding="utf-8"))
+    reloaded_shape = reloaded["stores"]["earnings_table"]["shape"]["annual_row"]
+    assert reloaded_shape != independent["annual_row"], (
+        "the corrupted book's annual_row still matches the independent "
+        "re-parse — then a real field rename would not be noticed either")
+
+
+# ─────────────────────────────────────────────────────────────────────────────
 # THE MIGRATED READER — the static half. The dual-compute half is
 # tests/test_d2_dual_read.py.
 # ─────────────────────────────────────────────────────────────────────────────

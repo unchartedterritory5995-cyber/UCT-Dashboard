@@ -67,6 +67,13 @@ _STORE_AUTHORITY = {
     # surgically deletes divergent rows, which is what makes the verdict a
     # measurement rather than a hope.
     "bars_sqlite": "authoritative",
+    # D2 follow-up (F-D2-1). `earnings_table` is a multi-provider assembly
+    # (FMP / yfinance / estimates funneled together in _build()) with no
+    # independent reconciliation oracle the way bars has Polygon — the
+    # fundamentals accuracy monitor DETECTS drift, it does not adjudicate it.
+    # PRD-D2 §7's vocabulary is exactly {"authoritative", "derived"}; this is
+    # the second one, honestly.
+    "earnings_table": "derived",
 }
 
 
@@ -388,6 +395,167 @@ def bars_store() -> tuple:
     return store_id, record, metrics
 
 
+# ─────────────────────────────────────────────────────────────────────────────
+# D2 follow-up (closes F-D2-1) — `earnings_table`, a JSON-blob store with no DDL
+#
+# ⛔ APPROVED SCOPE (owner, 2026-09-22), verbatim: "...AST-derived from
+# earnings_table.py's _build() dict-literal assembly plus annual_financials.py's
+# actual/estimate row builders and the two quarterly branches, never hand-typed
+# key names... No schema change on any live store. No new computation."
+#
+# ⛔⛔ THIS STORE HAS NO `metrics` ENTRIES, AND THAT IS DELIBERATE, NOT A GAP.
+# `fund_snapshots` is `(kind, ticker, payload, ttl, updated_at)` — a JSON blob —
+# and one `earnings_table` snapshot is TWO LISTS OF ROWS (annual, quarterly),
+# each with its own per-row shape and no single as-of column across the whole
+# payload. Forcing flat `metric.column` entries the way `ohlcv.c` is declared
+# would misrepresent that shape, not address it. This record makes the shape
+# CHECKABLE; migrating a reader onto a per-field address — the step that would
+# actually need `metrics` entries — is explicitly deferred to a future
+# checkpoint (see the proposal's own DEFER list).
+# ─────────────────────────────────────────────────────────────────────────────
+
+_EARNINGS_TABLE_MODULE = _ROOT / "api" / "services" / "earnings_table.py"
+_ANNUAL_FINANCIALS_MODULE = _ROOT / "api" / "services" / "annual_financials.py"
+
+
+def _dict_literal_keys(node: ast.Dict) -> list:
+    """String-constant keys of one dict literal.
+
+    ⛔ Refuses a `**spread` or a computed key rather than guessing the shape
+    has fewer fields than it does — the same "refuse, never guess" discipline
+    `_parse_create_table` already uses for an unrecognized SQL clause.
+    """
+    keys = []
+    for k in node.keys:
+        if not (isinstance(k, ast.Constant) and isinstance(k.value, str)):
+            _fail("a dict literal this book depends on has a non-string-constant "
+                  "key (a **spread or a computed key) — refusing to guess its shape")
+        keys.append(k.value)
+    return keys
+
+
+def _popped_string_keys(fn: ast.FunctionDef) -> set:
+    """Every string literal passed to a `<name>.pop(KEY, ...)` call anywhere in
+    one function body — keys a dict literal's OWN shape does not survive to
+    hand back (e.g. `r.pop("_sort", None)` before a row is returned).
+    """
+    out = set()
+    for node in ast.walk(fn):
+        if (isinstance(node, ast.Call) and isinstance(node.func, ast.Attribute)
+                and node.func.attr == "pop" and node.args
+                and isinstance(node.args[0], ast.Constant)
+                and isinstance(node.args[0].value, str)):
+            out.add(node.args[0].value)
+    return out
+
+
+def _module_level_str(tree: ast.Module, name: str) -> str:
+    for node in tree.body:
+        if (isinstance(node, ast.Assign) and len(node.targets) == 1
+                and isinstance(node.targets[0], ast.Name) and node.targets[0].id == name
+                and isinstance(node.value, ast.Constant) and isinstance(node.value.value, str)):
+            return node.value.value
+    _fail("could not find a module-level string constant %r" % name)
+
+
+def _function_by_name(tree: ast.Module, name: str) -> ast.FunctionDef:
+    for n in ast.walk(tree):
+        if isinstance(n, ast.FunctionDef) and n.name == name:
+            return n
+    _fail("expected a function named %r — the declaration's anchor moved" % name)
+
+
+def _one_dict_literal_call(fn: ast.FunctionDef, receiver: str, method: str) -> ast.Dict:
+    """The sole `<receiver>.<method>({...})` call inside a function.
+
+    Refuses if there is not EXACTLY one — zero means the anchor moved, more
+    than one means the book cannot tell which shape is the real one.
+    """
+    hits = [n.args[0] for n in ast.walk(fn)
+            if isinstance(n, ast.Call) and isinstance(n.func, ast.Attribute)
+            and n.func.attr == method and isinstance(n.func.value, ast.Name)
+            and n.func.value.id == receiver and n.args
+            and isinstance(n.args[0], ast.Dict)]
+    if len(hits) != 1:
+        _fail("expected exactly one `%s.%s({...})` call in %s(), found %d"
+              % (receiver, method, fn.name, len(hits)))
+    return hits[0]
+
+
+def earnings_table_store() -> tuple:
+    """(store_id, store_record) for `earnings_table`, the `fund_snapshots`
+    kind F-D2-1 names. No metrics dict — see the record's own
+    `why_no_flat_metrics`. Nothing typed: every key comes from the dict
+    literals the module actually assembles.
+    """
+    tree = _module_source(_EARNINGS_TABLE_MODULE)
+    kind = _module_level_str(tree, "_SNAP_KIND")
+
+    build_fn = _function_by_name(tree, "_build")
+    sanitize_calls = [n for n in ast.walk(build_fn)
+                       if isinstance(n, ast.Call) and isinstance(n.func, ast.Name)
+                       and n.func.id == "_sanitize" and n.args
+                       and isinstance(n.args[0], ast.Dict)]
+    if len(sanitize_calls) != 1:
+        _fail("expected exactly one `_sanitize({...})` call in _build(), found %d"
+              % len(sanitize_calls))
+    top_level_keys = sorted(_dict_literal_keys(sanitize_calls[0].args[0]))
+
+    quarterly_fn = _function_by_name(tree, "_build_quarterly")
+    reported_dict = _one_dict_literal_call(quarterly_fn, "reported", "append")
+    reported_keys = sorted(set(_dict_literal_keys(reported_dict))
+                           - _popped_string_keys(quarterly_fn))
+    forward_dict = _one_dict_literal_call(quarterly_fn, "out", "append")
+    forward_keys = sorted(_dict_literal_keys(forward_dict))
+
+    annual_tree = _module_source(_ANNUAL_FINANCIALS_MODULE)
+    row_assigns = [n.value for n in ast.walk(annual_tree)
+                    if isinstance(n, ast.Assign) and len(n.targets) == 1
+                    and isinstance(n.targets[0], ast.Name) and n.targets[0].id == "row"
+                    and isinstance(n.value, ast.Dict)]
+    if len(row_assigns) != 2:
+        _fail("expected exactly two `row = {...}` literals in %s (one actual "
+              "branch, one estimate branch); found %d"
+              % (_ANNUAL_FINANCIALS_MODULE.name, len(row_assigns)))
+    shapes = [set(_dict_literal_keys(d)) for d in row_assigns]
+    if shapes[0] != shapes[1]:
+        _fail("annual_financials.py's two row shapes disagree (%s vs %s) — the "
+              "declaration's premise, one uniform annual row shape, no longer "
+              "holds; F-D2-1 must be re-investigated before this can stand"
+              % (sorted(shapes[0]), sorted(shapes[1])))
+    annual_keys = sorted(shapes[0])
+
+    store_id = "earnings_table"
+    if store_id not in _STORE_AUTHORITY:
+        _fail("store %r is not classified in PRD-D2 §7" % store_id)
+
+    record = {
+        "declared_in": str(_EARNINGS_TABLE_MODULE.relative_to(_ROOT)).replace("\\", "/"),
+        "kind": kind,
+        "authority": _STORE_AUTHORITY[store_id],
+        "shape": {
+            "snapshot_top_level": top_level_keys,
+            "annual_row": annual_keys,
+            "annual_row_declared_in":
+                str(_ANNUAL_FINANCIALS_MODULE.relative_to(_ROOT)).replace("\\", "/"),
+            "quarterly_row": {
+                "discriminator": "reported",
+                "reported": reported_keys,
+                "forward": forward_keys,
+            },
+        },
+        "why_no_flat_metrics": (
+            "unlike ohlcv, one snapshot is TWO LISTS OF ROWS (annual, quarterly), "
+            "each with its own per-row shape and no single as-of column across "
+            "the whole payload -- flat metric.column entries the way ohlcv.c is "
+            "declared would misrepresent this shape rather than address it. "
+            "Migrating a reader onto a per-field address is a separate, future "
+            "checkpoint; this record only makes the shape checkable."
+        ),
+    }
+    return store_id, record
+
+
 def build() -> dict:
     from api.services.ast_lint import TABLE
     from api.services.signature import ledger as _sig_ledger
@@ -446,6 +614,11 @@ def build() -> dict:
         },
         bars_id: dict(bars_record, metric_count=len(bars_metrics)),
     }
+
+    # ── D2 follow-up (F-D2-1): fundamentals' shape, declared but NOT addressed
+    # at the metric level yet — see earnings_table_store()'s own note ────────
+    et_id, et_record = earnings_table_store()
+    stores[et_id] = dict(et_record, metric_count=0)
 
     def _hist(key):
         out: dict = {}
