@@ -193,7 +193,16 @@ real viewport or exercised end-to-end this pass**:
   shape the import pipeline already round-trips per Phase 0); PNG download
   is a real non-empty image; Print button is reachable and doesn't crash
   the tab (the actual print output can't be observed headlessly).
-- the **Ask panel**
+- ✅ **the Ask panel — VERIFIED 2026-09-21**, real retrieval + real Claude
+  synthesis (the sandbox has a live `ANTHROPIC_API_KEY`; not `--stub-ask`).
+  A real question ("What is the stop price... and why there?") against a
+  real note streamed a correctly-grounded, correctly-cited answer — the
+  right figure, the right reasoning, `cited: [1]`, `invalidCitations: []`,
+  streamed deltas concatenate to exactly the final answer. The complementary
+  safety check: an unanswerable question gets the DETERMINISTIC refusal
+  ("I couldn't find that in this note.", `noAnswer: true`, zero fabricated
+  citations) — confirmed this never calls the model (by design, so a
+  question the corpus can't answer never burns spend).
 - the **import wizard** (Notion / Obsidian / Evernote / md · docx · html)
 - **connectors** (Roam, Craft, Notion, Dropbox, OneNote, OneDrive — shipped dark)
 
