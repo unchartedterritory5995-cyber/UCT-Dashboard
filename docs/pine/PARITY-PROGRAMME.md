@@ -20,6 +20,75 @@ side-by-side. The local dev loop (`scripts/hub_sandbox_boot.py --port 8000` +
 
 ---
 
+## ⭐⭐⭐ 2026-09-22 — THE SELECTION RULE CHANGED, AND THE METRIC MOVED
+
+> **Pick the guard that COMPLETES a script, not the one that blocks the most.**
+
+Ten waves picked work off the first-blocker census — guards ranked by how many
+scripts they block — and moved `draws end to end` by zero every time. Measured
+with `guardUpperBound.measure.test.js`, the three LARGEST rows in the object
+lane are each worth **exactly nothing**:
+
+| guard | scripts it refuses | gain if solved PERFECTLY |
+|---|---:|---:|
+| `runtime:declaration` | 35 | **0** |
+| `runtime:statement` | 15 | **0** |
+| `pine:builtin` | 14 | **0** |
+| `runtime:colour` | **3** | **+1** |
+
+`runtime:colour` refuses three scripts and was worth one, because for one script
+it was the **last** wall rather than the first. Building it took the corpus from
+**1 to 2 scripts drawing end to end** — the first movement on this programme's
+product metric, after ten honest zeros (`850c22593`).
+
+⛔⛔ **A FIRST-BLOCKER CENSUS CANNOT SEE THIS, BY CONSTRUCTION.** A build stops at
+the first refusal, so a script with nine walls reports only its first, and the
+guard standing between it and working is invisible until the other eight go.
+That is what "first blocker" *means*; it is not a flaw to fix in those censuses.
+
+### The instrument that replaces the queue
+
+`nearestToWorking.measure.test.js` (`fcf682f46`) prints every script within 12
+walls of building, its FULL wall set, and the union as a work queue. Read it
+**with** `guardUpperBound`: this one says what is CLOSE, that one says what a row
+is WORTH. Both share one peeler (`peelToBuilding.js`), mutation-proved.
+
+### Today's shipped work, and what each one actually bought
+
+| commit | change | product effect |
+|---|---|---|
+| `2c204a21b` | `splitMethodName` splits at the LAST dot — a drawing in a UDT field is addressable | +6 object-pass ops in 3 scripts, recovered from a SILENT drop (every diagnostic counter read zero). Drawing metric unchanged. |
+| `850c22593` | `na` is a colour — `cond ? colour : na` | **draws 1 → 2**, builds 2 → 3. Also closed a silent wrong number the other way: `plot(cond ? color.red : na)` compiled and drew a packed colour as a price. |
+| `fcf682f46` | the `nearestToWorking` queue instrument | none directly; it is how the above was chosen |
+| `01ef1fd76` | `ta.valuewhen` — occurrences, not a bar window | 377 sites / 39 scripts no longer walled here. Metric unchanged — see below. |
+
+### ⛔ `ta.valuewhen` moved a wall rather than removing one, and the sizer said it might
+
+`liquidity-pools` was two walls out and `pine:function` was sized at **+1 AT
+BEST**, with that file's own header warning "a correct implementation will very
+likely reach fewer". Measured after shipping: the script's guard **moved** from
+`pine:function` to `runtime:call-windowed-state`. `ta.crossover(high, LSH)` over
+a runtime-stateful series "needs the series bridge" — a pre-existing
+architectural gap this work newly *reaches* rather than one it caused.
+
+⭐ **So the named next wall is the SERIES BRIDGE**: a windowed builtin
+(`ta.crossover`, `ta.sma`, …) fed by a value this lane computes at runtime
+rather than by a committed column. It is now the blocker for the nearest
+script in the corpus, and it is architecture, not vocabulary.
+
+### Still open with the owner
+
+1. **The ATR seed** (below, §"THE ATR SEED"). Recommendation unchanged: give
+   Pine its own seeding and leave Wilder's original everywhere else. `ta.valuewhen`
+   just shipped as exactly that shape — a vendor twin beside a house function —
+   without touching the screener's columns, which is the evidence that the
+   pattern works.
+2. **W4 capture** — written, self-checked, blocked on the TradingView session.
+
+---
+
+---
+
 ## ⛔⛔ READ THIS BEFORE PLANNING FROM ANY TABLE BELOW — measured 2026-09-21
 
 > **The runtime-lane census is NOT the product's question, and this programme
@@ -283,7 +352,8 @@ Read the call sites.
 
 ### ⛔⛔ AND A REPO-WIDE INSTRUMENT IS VACUOUS — verified with a control
 
-`grep -c $'' <file>` through the Bash tool **always answers 0**. Measured: a
+`grep -c $'
+' <file>` through the Bash tool **always answers 0**. Measured: a
 file containing two CR bytes answers `0`, while `grep -c alpha` on the same file
 answers `1`. Every line-ending check run through that command today measured
 nothing.
