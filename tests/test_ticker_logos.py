@@ -1,4 +1,5 @@
 import io
+import json
 import os
 import time
 from unittest import mock
@@ -46,7 +47,7 @@ def test_get_logo_path_returns_file_when_present(tmp_path):
 def test_resolve_and_cache_writes_png_from_first_working_source(tmp_path):
     png_bytes = b"\x89PNG\r\n\x1a\nrest"
     with mock.patch.object(tl, "_CACHE_DIR", str(tmp_path)), \
-         mock.patch.object(tl, "_fetch_sources", return_value=png_bytes), \
+         mock.patch.object(tl, "_fetch_sources", return_value=(png_bytes, "logodev")), \
          mock.patch.object(tl, "_normalize_png", return_value=png_bytes):
         out = tl.resolve_and_cache("NVDA")
     assert out is not None
@@ -55,7 +56,7 @@ def test_resolve_and_cache_writes_png_from_first_working_source(tmp_path):
 
 def test_resolve_and_cache_writes_miss_sentinel_when_all_fail(tmp_path):
     with mock.patch.object(tl, "_CACHE_DIR", str(tmp_path)), \
-         mock.patch.object(tl, "_fetch_sources", return_value=None):
+         mock.patch.object(tl, "_fetch_sources", return_value=(None, ())):
         out = tl.resolve_and_cache("ZZZZ")
     assert out is None
     assert os.path.exists(os.path.join(str(tmp_path), "ZZZZ.miss"))
@@ -269,7 +270,7 @@ def test_run_miss_retry_only_touches_miss_tickers(tmp_path):
     with mock.patch.object(tl, "_CACHE_DIR", str(tmp_path)), \
          mock.patch.object(tl, "_MISS_RETRY_LOCK", tl._MISS_RETRY_LOCK), \
          mock.patch.object(tl, "_fetch_sources_with_clearbit",
-                           return_value=png_bytes) as fetch_ext, \
+                           return_value=(png_bytes, "clearbit")) as fetch_ext, \
          mock.patch.object(tl, "_normalize_png", return_value=png_bytes), \
          mock.patch("time.sleep"):  # speed up test
         stats = tl.run_miss_retry()
@@ -290,7 +291,7 @@ def test_run_miss_retry_still_miss_when_all_sources_fail(tmp_path):
     open(os.path.join(str(tmp_path), "FAKE.miss"), "w").close()
 
     with mock.patch.object(tl, "_CACHE_DIR", str(tmp_path)), \
-         mock.patch.object(tl, "_fetch_sources_with_clearbit", return_value=None), \
+         mock.patch.object(tl, "_fetch_sources_with_clearbit", return_value=(None, ())), \
          mock.patch("time.sleep"):
         stats = tl.run_miss_retry()
 
@@ -312,7 +313,7 @@ def test_clearbit_source_attempted_via_domain(tmp_path):
         result = tl._fetch_sources_with_clearbit("AAPL")
 
     clearbit.assert_called_once_with("AAPL")
-    assert result == png_bytes
+    assert result == (png_bytes, tl._CLEARBIT_SOURCE_NAME)
 
 
 def test_clearbit_skips_when_no_website(tmp_path):
@@ -416,10 +417,15 @@ class TestResolveAndCacheMissClassification:
         """THE regression: before this fix, a Timeout/429/5xx during
         resolution wrote the EXACT SAME empty .miss sentinel as a genuine
         "no logo anywhere" verdict -- pinning a monogram for the full 7-day
-        TTL even though the provider recovered within minutes."""
-        def _fake_fetch(s):
+        TTL even though the provider recovered within minutes.
+
+        D4 CP5: the .miss sentinel's content is now JSON (`test_recent_miss_*`
+        below covers the parse side); this asserts the WRITE side -- a
+        transient attempt writes `transient: true` and an EMPTY failed list,
+        so a retry after the short TTL still re-tries everything."""
+        def _fake_fetch(s, skip=frozenset()):
             tl._mark_transient()
-            return None
+            return None, ()
         with mock.patch.object(tl, "_CACHE_DIR", str(tmp_path)), \
              mock.patch.object(tl, "_fetch_sources", side_effect=_fake_fetch):
             out = tl.resolve_and_cache("ZZZZ")
@@ -427,30 +433,35 @@ class TestResolveAndCacheMissClassification:
         miss_path = os.path.join(str(tmp_path), "ZZZZ.miss")
         assert os.path.exists(miss_path)
         with open(miss_path) as f:
-            assert f.read().strip() == tl._MISS_TRANSIENT_MARKER
+            data = json.loads(f.read())
+        assert data["transient"] is True
+        assert data["failed"] == []
 
     def test_writes_plain_miss_on_genuine_absence(self, tmp_path):
         """Control direction: a clean 'nothing found anywhere, no errors'
-        result still writes the original plain (7-day) sentinel."""
+        result writes `transient: false` and the full provider list -- every
+        base-chain source was genuinely walked, unskipped."""
         with mock.patch.object(tl, "_CACHE_DIR", str(tmp_path)), \
-             mock.patch.object(tl, "_fetch_sources", return_value=None):
+             mock.patch.object(tl, "_fetch_sources", return_value=(None, ())):
             out = tl.resolve_and_cache("YYYY")
         assert out is None
         miss_path = os.path.join(str(tmp_path), "YYYY.miss")
         assert os.path.exists(miss_path)
         with open(miss_path) as f:
-            assert f.read().strip() == ""
+            data = json.loads(f.read())
+        assert data["transient"] is False
+        assert set(data["failed"]) == set(tl._SOURCE_NAMES)
 
     def test_transient_flag_reset_between_calls(self, tmp_path):
         """A stale transient flag from a PRIOR resolve on the same thread must
         not leak into a later, cleanly-404ing call and mislabel it."""
         calls = {"n": 0}
 
-        def _fake_fetch(s):
+        def _fake_fetch(s, skip=frozenset()):
             calls["n"] += 1
             if calls["n"] == 1:
                 tl._mark_transient()
-            return None
+            return None, ()
 
         with mock.patch.object(tl, "_CACHE_DIR", str(tmp_path)), \
              mock.patch.object(tl, "_fetch_sources", side_effect=_fake_fetch):
@@ -458,7 +469,8 @@ class TestResolveAndCacheMissClassification:
             tl.resolve_and_cache("SECOND")
 
         with open(os.path.join(str(tmp_path), "SECOND.miss")) as f:
-            assert f.read().strip() == ""  # not "transient" leaked from FIRST
+            data = json.loads(f.read())
+        assert data["transient"] is False  # not leaked from FIRST
 
 
 class TestRecentMissTtlSplit:
@@ -503,7 +515,7 @@ def test_run_hires_upgrade_recaches_existing(tmp_path, monkeypatch):
     with open(png_path, "wb") as fh:
         fh.write(old)
 
-    monkeypatch.setattr(tl, "_fetch_sources", lambda s: _png_bytes(300, 300))
+    monkeypatch.setattr(tl, "_fetch_sources", lambda s: (_png_bytes(300, 300), "override"))
 
     stats = tl.run_hires_upgrade(sleep_seconds=0.0)
     assert stats["total"] == 1
@@ -512,3 +524,206 @@ def test_run_hires_upgrade_recaches_existing(tmp_path, monkeypatch):
     from PIL import Image
     im = Image.open(png_path)
     assert max(im.size) == 256
+
+
+def test_run_hires_upgrade_writes_source_sidecar(tmp_path, monkeypatch):
+    """D4 CP5 (§4 item 6, third call site): `_upgrade_one` unpacks the new
+    (bytes, name) shape and writes `.source` the same as the other two
+    resolution paths — a resolved hit is a resolved hit regardless of which
+    pass produced it."""
+    monkeypatch.setattr(tl, "_CACHE_DIR", str(tmp_path))
+    with open(tl._png_path("AAPL"), "wb") as fh:
+        fh.write(_png_bytes(80, 80))
+    monkeypatch.setattr(tl, "_fetch_sources", lambda s: (_png_bytes(300, 300), "logodev"))
+
+    tl.run_hires_upgrade(sleep_seconds=0.0)
+
+    with open(tl._source_path("AAPL")) as f:
+        assert f.read().strip() == "logodev"
+
+
+# ═════════════════════════════════════════════════════════════════════════════
+# D4 CP5 (GATE-D4-CP5-TICKER-LOGOS, signed 2026-09-21, fingerprint ce60908e5) —
+# ticker_logos.py's miss-retry stops re-walking providers that already
+# answered cleanly. §8 acceptance plan.
+# ═════════════════════════════════════════════════════════════════════════════
+
+def _write_legacy_miss(tmp_path, sym, content):
+    with open(os.path.join(str(tmp_path), f"{sym}.miss"), "w") as f:
+        f.write(content)
+
+
+def test_recent_miss_reads_legacy_bare_marker_format(tmp_path, monkeypatch):
+    """§7 row 1 / §8: a .miss file in TODAY's format (bare 'transient' marker,
+    or empty) keeps behaving exactly as it does today — no backfill, no
+    migration script."""
+    monkeypatch.setattr(tl, "_CACHE_DIR", str(tmp_path))
+
+    _write_legacy_miss(tmp_path, "TRANS", tl._MISS_TRANSIENT_MARKER)
+    past = time.time() - (tl._MISS_TRANSIENT_TTL + 60)
+    os.utime(os.path.join(str(tmp_path), "TRANS.miss"), (past, past))
+    assert tl._recent_miss("TRANS") is False, "a legacy transient marker must still get the short TTL"
+
+    _write_legacy_miss(tmp_path, "PLAIN", "")
+    os.utime(os.path.join(str(tmp_path), "PLAIN.miss"), (past, past))
+    assert tl._recent_miss("PLAIN") is True, "a legacy empty (genuine) miss must still get the 7-day TTL"
+
+
+def test_recent_miss_parses_new_json_format(tmp_path, monkeypatch):
+    """§8: a .miss file in the NEW JSON shape round-trips through _recent_miss
+    (TTL selection) and _read_miss (the failed set)."""
+    monkeypatch.setattr(tl, "_CACHE_DIR", str(tmp_path))
+    tl._write_miss("JSON1", transient=False, failed=["logodev", "parqet"])
+
+    transient, failed = tl._read_miss("JSON1")
+    assert transient is False
+    assert set(failed) == {"logodev", "parqet"}
+    assert tl._recent_miss("JSON1") is True, "a fresh non-transient miss is well inside the 7-day TTL"
+
+    tl._write_miss("JSON2", transient=True, failed=[])
+    past = time.time() - (tl._MISS_TRANSIENT_TTL + 60)
+    os.utime(os.path.join(str(tmp_path), "JSON2.miss"), (past, past))
+    assert tl._recent_miss("JSON2") is False, "a JSON transient miss must still get the short TTL"
+
+
+def test_clean_miss_records_every_walked_provider(tmp_path, monkeypatch):
+    """§8: a resolve_and_cache attempt where every source returns falsy (no
+    transient flag) writes `failed` equal to the full _SOURCE_NAMES tuple."""
+    monkeypatch.setattr(tl, "_CACHE_DIR", str(tmp_path))
+    monkeypatch.setattr(tl, "_fetch_sources", lambda s: (None, tl._SOURCE_NAMES))
+
+    tl.resolve_and_cache("CLEANM")
+
+    transient, failed = tl._read_miss("CLEANM")
+    assert transient is False
+    assert set(failed) == set(tl._SOURCE_NAMES)
+
+
+def test_transient_miss_records_empty_failed(tmp_path, monkeypatch):
+    """§8: an attempt where _mark_transient() fires writes failed=[], so a
+    subsequent retry does not skip anything."""
+    monkeypatch.setattr(tl, "_CACHE_DIR", str(tmp_path))
+
+    def _fake_fetch(s, skip=frozenset()):
+        tl._mark_transient()
+        return None, ()
+
+    monkeypatch.setattr(tl, "_fetch_sources", _fake_fetch)
+    tl.resolve_and_cache("TRANM")
+
+    transient, failed = tl._read_miss("TRANM")
+    assert transient is True
+    assert failed == ()
+
+
+def test_retry_skips_known_clean_failures_but_still_tries_clearbit(tmp_path, monkeypatch):
+    """§8: the differential proof that the skip set actually reduces egress —
+    _retry_one given a .miss with every base-chain provider already
+    clean-failed calls ONLY Clearbit, never the other five."""
+    monkeypatch.setattr(tl, "_CACHE_DIR", str(tmp_path))
+    monkeypatch.setattr(tl, "_MISS_RETRY_LOCK", tl._MISS_RETRY_LOCK)
+    tl._write_miss("RETRY1", transient=False, failed=list(tl._SOURCE_NAMES))
+
+    calls = []
+
+    def fake_base(name):
+        def _fn(*a, **k):
+            calls.append(name)
+            return None
+        return _fn
+
+    clearbit_bytes = b"\x89PNG\r\n\x1a\nclearbit-win"
+    with mock.patch.object(tl, "_override_logo_bytes", side_effect=fake_base("override")), \
+         mock.patch.object(tl, "_logodev_logo_bytes", side_effect=fake_base("logodev")), \
+         mock.patch.object(tl, "_url_bytes", side_effect=fake_base("url")), \
+         mock.patch.object(tl, "_finnhub_logo_bytes", side_effect=fake_base("finnhub")), \
+         mock.patch.object(tl, "_clearbit_logo_bytes", return_value=clearbit_bytes) as clearbit, \
+         mock.patch.object(tl, "_normalize_png", return_value=clearbit_bytes), \
+         mock.patch("time.sleep"):
+        stats = tl.run_miss_retry()
+
+    assert calls == [], (
+        f"a base-chain source was called despite being in the skip set: {calls}")
+    clearbit.assert_called_once()
+    assert stats["resolved"] == 1
+
+
+def test_hit_writes_source_sidecar_naming_the_winner(tmp_path, monkeypatch):
+    """§8: a resolved logo writes {SYM}.source naming whichever source
+    produced the bytes, including the alt:/name_domain tags for the fallback
+    paths (§4 item 6)."""
+    monkeypatch.setattr(tl, "_CACHE_DIR", str(tmp_path))
+    png_bytes = b"\x89PNG\r\n\x1a\nwinner"
+
+    # Primary chain hit: the .source file names the winning provider directly.
+    monkeypatch.setattr(tl, "_fetch_sources", lambda s: (png_bytes, "parqet"))
+    monkeypatch.setattr(tl, "_normalize_png", lambda raw: png_bytes)
+    tl.resolve_and_cache("PRIMARY")
+    with open(tl._source_path("PRIMARY")) as f:
+        assert f.read().strip() == "parqet"
+
+    # alt-symbol hit: tagged "alt:<name>".
+    def _fake_fetch(s):
+        return (None, ()) if s == "NOALT" else (png_bytes, "finnhub")
+    monkeypatch.setattr(tl, "_fetch_sources", _fake_fetch)
+    tl.resolve_and_cache("NOALT", alt="ALTSYM")
+    with open(tl._source_path("NOALT")) as f:
+        assert f.read().strip() == "alt:finnhub"
+
+    # name-based hit: tagged "name_domain".
+    monkeypatch.setattr(tl, "_fetch_sources", lambda s: (None, ()))
+    monkeypatch.setattr(tl, "_name_logo_bytes", lambda name: png_bytes)
+    tl.resolve_and_cache("NONAME", name="Some Company")
+    with open(tl._source_path("NONAME")) as f:
+        assert f.read().strip() == "name_domain"
+
+
+def test_existing_three_call_sites_unpack_tuple_return(tmp_path, monkeypatch):
+    """§7 row 3 / §8: resolve_and_cache, _retry_one, and _upgrade_one all
+    correctly consume the new (bytes, name) / (None, tried) shape — none of
+    the three passes a raw tuple into _normalize_png or crashes unpacking."""
+    monkeypatch.setattr(tl, "_CACHE_DIR", str(tmp_path))
+    monkeypatch.setattr(tl, "_MISS_RETRY_LOCK", tl._MISS_RETRY_LOCK)
+    monkeypatch.setattr(tl, "_HIRES_LOCK", tl._HIRES_LOCK)
+    png_bytes = b"\x89PNG\r\n\x1a\ndata"
+
+    # resolve_and_cache
+    monkeypatch.setattr(tl, "_fetch_sources", lambda s: (png_bytes, "override"))
+    monkeypatch.setattr(tl, "_normalize_png", lambda raw: png_bytes)
+    assert tl.resolve_and_cache("SITE1") is not None
+
+    # _retry_one (via run_miss_retry)
+    open(os.path.join(str(tmp_path), "SITE2.miss"), "w").close()
+    with mock.patch.object(tl, "_fetch_sources_with_clearbit", return_value=(png_bytes, "clearbit")), \
+         mock.patch("time.sleep"):
+        stats = tl.run_miss_retry()
+    assert stats["resolved"] == 1
+
+    # _upgrade_one (via run_hires_upgrade)
+    stats2 = tl.run_hires_upgrade(sleep_seconds=0.0)
+    assert stats2["total"] == 2   # SITE1 + SITE2, both now .png
+    assert stats2["unchanged"] == 0
+
+
+def test_router_and_prewarm_unaffected(tmp_path, monkeypatch):
+    """§8 / §5: GET /api/ticker-logo/{sym} and ticker_logos_prewarm.coverage()
+    behave identically before/after — neither reads .miss/.source content,
+    only get_logo_path's boolean."""
+    monkeypatch.setattr(tl, "_CACHE_DIR", str(tmp_path))
+    with open(tl._png_path("HASLOGO"), "wb") as fh:
+        fh.write(_png_bytes(64, 64))
+    tl._write_miss("MISSED", transient=False, failed=list(tl._SOURCE_NAMES))
+    tl._write_source("HASLOGO", "logodev")
+
+    from api.services import ticker_logos_prewarm as pw
+    monkeypatch.setattr(pw, "_load_universe", lambda: ["HASLOGO", "MISSED"])
+    cov = pw.coverage()
+    assert cov["cached"] == 1
+    assert cov["universe"] == 2
+    assert cov["misses"] == 1, "coverage() must count the .miss file regardless of its new JSON content"
+
+    from fastapi.testclient import TestClient
+    from api.main import app
+    client = TestClient(app)
+    r = client.get("/api/ticker-logo/HASLOGO")
+    assert r.status_code == 200
