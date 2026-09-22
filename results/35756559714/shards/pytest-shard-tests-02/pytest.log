@@ -1,0 +1,789 @@
+/opt/hostedtoolcache/Python/3.12.14/x64/lib/python3.12/site-packages/pytest_asyncio/plugin.py:208: PytestDeprecationWarning: The configuration option "asyncio_default_fixture_loop_scope" is unset.
+The event loop scope for asynchronous fixtures will default to the fixture caching scope. Future versions of pytest-asyncio will default the loop scope for asynchronous fixtures to function scope. Set the default fixture loop scope explicitly in order to avoid unexpected behavior in the future. Valid fixture loop scopes are: "function", "class", "module", "package", "session"
+
+  warnings.warn(PytestDeprecationWarning(_DEFAULT_FIXTURE_LOOP_SCOPE_UNSET))
+..........................................ss.............ss...s......... [  4%]
+........................................................................ [  8%]
+........................................................................ [ 12%]
+........................................................................ [ 16%]
+........................................................................ [ 20%]
+.........................................F.............................. [ 24%]
+........................................................................ [ 28%]
+........................................................................ [ 32%]
+..................x..................................................... [ 36%]
+............FFF.F....................................................... [ 40%]
+........................................................................ [ 44%]
+........................................................................ [ 48%]
+........................................................................ [ 52%]
+........................................................................ [ 56%]
+........................................................................ [ 61%]
+........................................................................ [ 65%]
+........................................................................ [ 69%]
+........................................................................ [ 73%]
+........................................................................ [ 77%]
+........................................................................ [ 81%]
+........................................................................ [ 85%]
+........................................................................ [ 89%]
+.....................................................................sss [ 93%]
+ss...................................................................... [ 97%]
+.........................................                                [100%]
+=================================== FAILURES ===================================
+________ test_the_scalar_section_PARTITIONS_snapshot_db_COLUMNS_exactly ________
+
+    def test_the_scalar_section_PARTITIONS_snapshot_db_COLUMNS_exactly():
+        """⛔ THE FLOOR IS DERIVED FROM THE SUBJECT, AND BOTH HALVES ARE REQUIRED.
+    
+        A declared list and an excluded list that together do not equal ``COLUMNS``
+        is a list of what somebody remembered — the DPC shape, where four constants
+        rode outside their own rail for the rule's entire life. With this identity a
+        sixty-sixth screener column lands RED here until somebody DECIDES about it,
+        which is the only thing that keeps the vocabulary honest as the screener
+        grows.
+        """
+        columns = set(COLUMNS)
+        # ⛔ NO WIDTH IS ASSERTED HERE, AND ITS ABSENCE IS DELIBERATE — DO NOT ADD ONE
+        # BACK. This read `len(columns) == len(COLUMNS) == 200`, and the `== 200` tail
+        # was a hand-typed schema width sitting in front of a real partition rail. It
+        # is the FIFTH copy of a defect this branch has already paid for four times:
+        # the same literal went `158 -> 160 -> 185 -> 200` in
+        # `test_screener_wave5_schema.py`, where it dragged a genuine `init_db` rail
+        # red for a whole build while every lane waved it through as a known red. A
+        # width is green until the next column lands and then it is a false red in
+        # front of a true check.
+        #
+        # ⭐ AND FOUR SWEEPS FOR "stale width" MISSED IT, which is the part worth
+        # keeping: this file imports `COLUMNS` BY NAME, so the literal never appears
+        # beside the symbol anybody was grepping for. A grep finds a SPELLING; it does
+        # not find a FACT.
+        #
+        # ⭐ WHAT THE NUMBER WAS STANDING FOR SURVIVES, split out and stated: the
+        # column list has no DUPLICATES, so the set below can be compared to it
+        # without a duplicate silently making the partition look total. That is an
+        # invariant, not a size, and it does not drift when column 201 lands.
+        assert len(columns) == len(COLUMNS), (
+            f"snapshot_db declares {len(COLUMNS)} columns but only {len(columns)} are "
+            f"distinct — duplicates: "
+            f"{sorted({c for c in COLUMNS if list(COLUMNS).count(c) > 1})}. The "
+            "partition below compares a SET against that list, so a duplicate would "
+            "make an incomplete partition read as total.")
+        # …and the subject is non-empty, which is the only floor a partition needs:
+        # `set() | set() == set()` is a perfectly true identity about nothing.
+        assert columns, "snapshot_db declares no columns — the partition is vacuous"
+        declared = {ast_table.scalar_source(n)["column"] for n in SCALARS}
+        excluded = ast_table.excluded_columns()
+    
+>       assert declared | excluded == columns, (
+            f"unpartitioned: {sorted(columns - declared - excluded)} is a screener "
+            f"column that is neither granted nor refused, and "
+            f"{sorted(declared | excluded - columns)} is named here and not a column")
+E       AssertionError: unpartitioned: ['security_type'] is a screener column that is neither granted nor refused, and ['above_50sma', 'adr_pct', 'adr_pct_1w', 'atr_ext_sma50', 'atr_pct', 'avg_body', 'avg_body_pct_5', 'avg_range', 'avg_volume_30d', 'base_relation_count', 'beta', 'blended_growth', 'body_pct', 'candle_recent_bars_ago', 'candle_score', 'chg_from_open_pct', 'chg_pct_1d', 'chg_pct_1m', 'chg_pct_1w', 'chg_pct_1y', 'chg_pct_ytd', 'close_cv_pct', 'close_position', 'consecutive_down', 'consecutive_up', 'current_ratio', 'days_to_earnings', 'debt_to_equity', 'dist_20d_high_pct', 'dist_20d_low_pct', 'dist_52w_high_pct', 'dist_52w_low_pct', 'dist_ath_pct', 'dividend_yield', 'dollar_vol_30d', 'downgrades_30d', 'dp_level_dist_pct', 'dp_notional_1d', 'dp_notional_5d', 'dp_prints_1d', 'ema10_rising', 'ema20_rising', 'ema_stack_intact', 'ema_touch_count', 'eps_growth', 'eps_next_5y_growth', 'eps_next_y_growth', 'eps_past_5y_growth', 'float_pct', 'float_shares', 'gap_pct', 'gross_margin', 'higher_lows_run', 'hvc_52w', 'implied_move_pct', 'in_uct20', 'index_dow', 'index_ndx', 'index_r2k', 'index_sp500', 'inside_bar_run', 'insider_cluster_days', 'insider_own_pct', 'insider_trans_pct', 'inst_pct', 'inst_trans_pct', 'ipo_age_days', 'is_etf', 'is_leveraged', 'last_report_move_pct', 'lower_wick_pct', 'lt_debt_to_capital', 'market_cap', 'narrow_bar', 'net_margin', 'new_52w_high', 'new_ath', 'nr7', 'op_margin', 'opt_bull_pct_1d', 'opt_net_premium_1d', 'opt_net_premium_5d', 'optionable', 'p_fcf', 'p_ocf', 'pattern_engine_conf', 'pattern_engine_dir', 'pattern_engine_flat_base', 'pattern_engine_vcp', 'pattern_entry_dist_pct', 'pattern_expectancy_r', 'pattern_stop_dist_pct', 'payout_ratio', 'pb', 'pct_vs_ema20', 'pct_vs_sma20', 'pct_vs_sma200', 'pct_vs_sma50', 'pe_fwd', 'pe_ttm', 'peg', 'pole_pct', 'prev_day_close', 'prev_day_high', 'prev_day_low', 'prev_day_open', 'price', 'ps', 'pt_target', 'pt_upside_pct', 'pullback_depth_pct', 'quick_ratio', 'rating_eps', 'rating_growth', 'rating_smr', 'rating_value', 'rev_growth', 'roa', 'roe', 'roic', 'rs_rank', 'rs_return', 'rsi14', 'sales_past_5y_growth', 'sector_rs_pct', 'shares_outstanding', 'short_float_pct', 'short_ratio', 'shortable', 'tight_consolidation', 'uct_composite', 'upgrades_30d', 'upper_wick_pct', 'vol_nweek_low', 'vol_ratio', 'vol_updown_ratio', 'wide_bar'] is named here and not a column
+E       assert {'above_50sma...urnover', ...} == {'above_50sma...urnover', ...}
+E         
+E         Extra items in the right set:
+E         'security_type'
+E         
+E         Full diff:
+E           {
+E               'above_50sma',
+E               'accdis',
+E               'adr_pct',
+E               'adr_pct_1w',
+E               'analyst_consensus',
+E               'asset_turnover',
+E               'atr_ext_sma50',
+E               'atr_pct',
+E               'avg_body',
+E               'avg_body_pct_5',
+E               'avg_range',
+E               'avg_volume_30d',
+E               'bar_character',
+E               'bar_character_label',
+E               'bars_asof',
+E               'base_matches',
+E               'base_relation_count',
+E               'base_render',
+E               'base_shape',
+E               'base_shape_label',
+E               'beta',
+E               'blended_growth',
+E               'body_pct',
+E               'book_value_ps',
+E               'built_at',
+E               'candle_label',
+E               'candle_matches',
+E               'candle_monthly',
+E               'candle_monthly_label',
+E               'candle_recent',
+E               'candle_recent_bars_ago',
+E               'candle_recent_label',
+E               'candle_recent_status',
+E               'candle_score',
+E               'candle_trend',
+E               'candle_type',
+E               'candle_weekly',
+E               'candle_weekly_label',
+E               'capex_to_revenue',
+E               'cash_conversion_cycle',
+E               'cash_ps',
+E               'cash_ratio',
+E               'chg_from_open_pct',
+E               'chg_pct_1d',
+E               'chg_pct_1m',
+E               'chg_pct_1w',
+E               'chg_pct_1y',
+E               'chg_pct_3m',
+E               'chg_pct_6m',
+E               'chg_pct_ytd',
+E               'close_cv_pct',
+E               'close_position',
+E               'company',
+E               'consecutive_down',
+E               'consecutive_up',
+E               'country',
+E               'current_ratio',
+E               'days_to_earnings',
+E               'debt_to_equity',
+E               'dist_20d_high_pct',
+E               'dist_20d_low_pct',
+E               'dist_52w_high_pct',
+E               'dist_52w_low_pct',
+E               'dist_ath_pct',
+E               'dividend_yield',
+E               'dollar_vol_30d',
+E               'downgrades_30d',
+E               'dp_level_dist_pct',
+E               'dp_notional_1d',
+E               'dp_notional_5d',
+E               'dp_prints_1d',
+E               'earnings_session',
+E               'earnings_setup_grade',
+E               'earnings_yield',
+E               'ebit_margin',
+E               'ebitda_margin',
+E               'ema10_rising',
+E               'ema20_rising',
+E               'ema_stack_intact',
+E               'ema_touch_count',
+E               'enterprise_value',
+E               'eps_growth',
+E               'eps_next_5y_growth',
+E               'eps_next_y_growth',
+E               'eps_past_5y_growth',
+E               'eps_ttm',
+E               'ev_ebitda',
+E               'ev_fcf',
+E               'ev_sales',
+E               'exchange',
+E               'fcf_ps',
+E               'fcf_yield',
+E               'float_pct',
+E               'float_shares',
+E               'gap_pct',
+E               'gross_margin',
+E               'higher_lows_run',
+E               'hvc_52w',
+E               'implied_move_pct',
+E               'in_uct20',
+E               'income_quality',
+E               'index_dow',
+E               'index_ndx',
+E               'index_r2k',
+E               'index_sp500',
+E               'industry',
+E               'inside_bar_run',
+E               'insider_cluster_days',
+E               'insider_own_pct',
+E               'insider_trans_pct',
+E               'inst_pct',
+E               'inst_trans_pct',
+E               'interest_coverage',
+E               'ipo_age_days',
+E               'ipo_date',
+E               'is_etf',
+E               'is_leveraged',
+E               'last_report_move_pct',
+E               'lower_wick_pct',
+E               'lt_debt_to_capital',
+E               'ma_stack',
+E               'market_cap',
+E               'narrow_bar',
+E               'net_debt_to_ebitda',
+E               'net_margin',
+E               'new_52w_high',
+E               'new_ath',
+E               'next_earnings_date',
+E               'nr7',
+E               'op_margin',
+E               'opt_bull_pct_1d',
+E               'opt_net_premium_1d',
+E               'opt_net_premium_5d',
+E               'optionable',
+E               'p_fcf',
+E               'p_ocf',
+E               'pattern_engine_conf',
+E               'pattern_engine_dir',
+E               'pattern_engine_flat_base',
+E               'pattern_engine_ids',
+E               'pattern_engine_vcp',
+E               'pattern_entry_dist_pct',
+E               'pattern_expectancy_r',
+E               'pattern_stop_dist_pct',
+E               'payout_ratio',
+E               'pb',
+E               'pct_vs_ema20',
+E               'pct_vs_sma20',
+E               'pct_vs_sma200',
+E               'pct_vs_sma50',
+E               'pe_fwd',
+E               'pe_ttm',
+E               'peg',
+E               'pole_pct',
+E               'prev_day_close',
+E               'prev_day_high',
+E               'prev_day_low',
+E               'prev_day_open',
+E               'price',
+E               'ps',
+E               'pt_target',
+E               'pt_upside_pct',
+E               'pullback_depth_pct',
+E               'quick_ratio',
+E               'rating_eps',
+E               'rating_growth',
+E               'rating_smr',
+E               'rating_value',
+E               'rev_growth',
+E               'revenue_ps',
+E               'rnd_to_revenue',
+E               'roa',
+E               'roce',
+E               'roe',
+E               'roic',
+E               'rs_line_trend',
+E               'rs_rank',
+E               'rs_return',
+E               'rsi14',
+E               'sales_past_5y_growth',
+E               'sbc_to_revenue',
+E               'sector',
+E               'sector_rs_pct',
+E         -     'security_type',
+E               'shares_outstanding',
+E               'short_float_pct',
+E               'short_ratio',
+E               'shortable',
+E               'snapshot_date',
+E               'sponsorship',
+E               'stage2',
+E               'stage4',
+E               'tax_rate',
+E               'theme',
+E               'ticker',
+E               'tight_consolidation',
+E               'uct_composite',
+E               'upgrades_30d',
+E               'upper_wick_pct',
+E               'vol_nweek_low',
+E               'vol_ratio',
+E               'vol_updown_ratio',
+E               'wide_bar',
+E               'working_capital',
+E           }
+
+tests/test_ast_scalars.py:194: AssertionError
+_______________ test_NO_variable_points_at_the_shared_data_root ________________
+
+tmp_path = PosixPath('/tmp/pytest-of-runner/pytest-0/test_NO_variable_points_at_the0')
+
+    def test_NO_variable_points_at_the_shared_data_root(tmp_path):
+        """The one property this tool exists for."""
+>       env = _env(tmp_path)
+
+tests/test_audit_sandbox_env.py:41: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+tests/test_audit_sandbox_env.py:31: in _env
+    return ASE.sandbox_env(tmp_path / "sandbox")
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+root = PosixPath('/tmp/pytest-of-runner/pytest-0/test_NO_variable_points_at_the0/sandbox')
+
+    def sandbox_env(root: pathlib.Path) -> dict[str, str]:
+        """Every shared-root pin redirected under ``root``, plus the quiet flags.
+    
+        Raises if the census reports a literal it cannot redirect — an audit that
+        starts with an unpinnable path is exactly the thing this file prevents.
+        """
+        import conftest  # noqa: E402  (repo root is on sys.path above)
+    
+        literals, pins, unpinnable = conftest.shared_data_root_census()
+        if unpinnable:
+>           raise SystemExit(
+                "REFUSING to build a sandbox environment: the census reports "
+                f"{len(unpinnable)} shared literal(s) with no env override, so a local "
+                "backend would still reach the live data root.\n  "
+                + "\n  ".join(sorted(unpinnable))
+                + "\n\nGive each an override whose default is the literal already there "
+                  "(that is how the other pins work), then re-run."
+            )
+E           SystemExit: REFUSING to build a sandbox environment: the census reports 1 shared literal(s) with no env override, so a local backend would still reach the live data root.
+E             /data/hub_reports.db
+E           
+E           Give each an override whose default is the literal already there (that is how the other pins work), then re-run.
+
+tools/audit_sandbox_env.py:73: SystemExit
+__________________ test_the_BARE_ROOT_pins_are_redirected_too __________________
+
+tmp_path = PosixPath('/tmp/pytest-of-runner/pytest-0/test_the_BARE_ROOT_pins_are_re0')
+
+    def test_the_BARE_ROOT_pins_are_redirected_too(tmp_path):
+        """⛔ The specific bug this file was written for.
+    
+        A pin whose literal is `/data` itself must land on the sandbox ROOT, not be
+        passed through. Asserted by NAME rather than by count, so the case survives a
+        future pin joining or leaving the group."""
+>       env = _env(tmp_path)
+
+tests/test_audit_sandbox_env.py:55: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+tests/test_audit_sandbox_env.py:31: in _env
+    return ASE.sandbox_env(tmp_path / "sandbox")
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+root = PosixPath('/tmp/pytest-of-runner/pytest-0/test_the_BARE_ROOT_pins_are_re0/sandbox')
+
+    def sandbox_env(root: pathlib.Path) -> dict[str, str]:
+        """Every shared-root pin redirected under ``root``, plus the quiet flags.
+    
+        Raises if the census reports a literal it cannot redirect — an audit that
+        starts with an unpinnable path is exactly the thing this file prevents.
+        """
+        import conftest  # noqa: E402  (repo root is on sys.path above)
+    
+        literals, pins, unpinnable = conftest.shared_data_root_census()
+        if unpinnable:
+>           raise SystemExit(
+                "REFUSING to build a sandbox environment: the census reports "
+                f"{len(unpinnable)} shared literal(s) with no env override, so a local "
+                "backend would still reach the live data root.\n  "
+                + "\n  ".join(sorted(unpinnable))
+                + "\n\nGive each an override whose default is the literal already there "
+                  "(that is how the other pins work), then re-run."
+            )
+E           SystemExit: REFUSING to build a sandbox environment: the census reports 1 shared literal(s) with no env override, so a local backend would still reach the live data root.
+E             /data/hub_reports.db
+E           
+E           Give each an override whose default is the literal already there (that is how the other pins work), then re-run.
+
+tools/audit_sandbox_env.py:73: SystemExit
+________________ test_it_REDIRECTS_EVERY_pin_the_census_derives ________________
+
+tmp_path = PosixPath('/tmp/pytest-of-runner/pytest-0/test_it_REDIRECTS_EVERY_pin_th0')
+
+    def test_it_REDIRECTS_EVERY_pin_the_census_derives(tmp_path):
+        """⛔ The non-vacuity guard. A sandbox that redirected three variables would
+        pass the check above trivially. The set it covers must be the census's own
+        set — not a subset, and not a hand-typed list that drifts from it."""
+>       env = _env(tmp_path)
+
+tests/test_audit_sandbox_env.py:68: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+tests/test_audit_sandbox_env.py:31: in _env
+    return ASE.sandbox_env(tmp_path / "sandbox")
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+root = PosixPath('/tmp/pytest-of-runner/pytest-0/test_it_REDIRECTS_EVERY_pin_th0/sandbox')
+
+    def sandbox_env(root: pathlib.Path) -> dict[str, str]:
+        """Every shared-root pin redirected under ``root``, plus the quiet flags.
+    
+        Raises if the census reports a literal it cannot redirect — an audit that
+        starts with an unpinnable path is exactly the thing this file prevents.
+        """
+        import conftest  # noqa: E402  (repo root is on sys.path above)
+    
+        literals, pins, unpinnable = conftest.shared_data_root_census()
+        if unpinnable:
+>           raise SystemExit(
+                "REFUSING to build a sandbox environment: the census reports "
+                f"{len(unpinnable)} shared literal(s) with no env override, so a local "
+                "backend would still reach the live data root.\n  "
+                + "\n  ".join(sorted(unpinnable))
+                + "\n\nGive each an override whose default is the literal already there "
+                  "(that is how the other pins work), then re-run."
+            )
+E           SystemExit: REFUSING to build a sandbox environment: the census reports 1 shared literal(s) with no env override, so a local backend would still reach the live data root.
+E             /data/hub_reports.db
+E           
+E           Give each an override whose default is the literal already there (that is how the other pins work), then re-run.
+
+tools/audit_sandbox_env.py:73: SystemExit
+_________ test_the_quiet_flags_blank_a_webhook_rather_than_removing_it _________
+
+tmp_path = PosixPath('/tmp/pytest-of-runner/pytest-0/test_the_quiet_flags_blank_a_w0')
+
+    def test_the_quiet_flags_blank_a_webhook_rather_than_removing_it(tmp_path):
+        """⚠️ A blank webhook posts nothing; an ABSENT one lets a default re-appear.
+        This repo has paged production from a test suite once, and that is the
+        distinction that prevents it."""
+>       env = _env(tmp_path)
+
+tests/test_audit_sandbox_env.py:95: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+tests/test_audit_sandbox_env.py:31: in _env
+    return ASE.sandbox_env(tmp_path / "sandbox")
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+root = PosixPath('/tmp/pytest-of-runner/pytest-0/test_the_quiet_flags_blank_a_w0/sandbox')
+
+    def sandbox_env(root: pathlib.Path) -> dict[str, str]:
+        """Every shared-root pin redirected under ``root``, plus the quiet flags.
+    
+        Raises if the census reports a literal it cannot redirect — an audit that
+        starts with an unpinnable path is exactly the thing this file prevents.
+        """
+        import conftest  # noqa: E402  (repo root is on sys.path above)
+    
+        literals, pins, unpinnable = conftest.shared_data_root_census()
+        if unpinnable:
+>           raise SystemExit(
+                "REFUSING to build a sandbox environment: the census reports "
+                f"{len(unpinnable)} shared literal(s) with no env override, so a local "
+                "backend would still reach the live data root.\n  "
+                + "\n  ".join(sorted(unpinnable))
+                + "\n\nGive each an override whose default is the literal already there "
+                  "(that is how the other pins work), then re-run."
+            )
+E           SystemExit: REFUSING to build a sandbox environment: the census reports 1 shared literal(s) with no env override, so a local backend would still reach the live data root.
+E             /data/hub_reports.db
+E           
+E           Give each an override whose default is the literal already there (that is how the other pins work), then re-run.
+
+tools/audit_sandbox_env.py:73: SystemExit
+=============================== warnings summary ===============================
+../../../../../opt/hostedtoolcache/Python/3.12.14/x64/lib/python3.12/site-packages/starlette/testclient.py:40
+  /opt/hostedtoolcache/Python/3.12.14/x64/lib/python3.12/site-packages/starlette/testclient.py:40: DeprecationWarning: The anyio.abc.BlockingPortal alias is deprecated, use anyio.from_thread.BlockingPortal instead.
+    _PortalFactoryType = typing.Callable[[], typing.ContextManager[anyio.abc.BlockingPortal]]
+
+api/baselines.py:456
+  /home/runner/work/UCT-Dashboard/UCT-Dashboard/api/baselines.py:456: DeprecationWarning: datetime.datetime.utcnow() is deprecated and scheduled for removal in a future version. Use timezone-aware objects to represent datetimes in UTC: datetime.datetime.now(datetime.UTC).
+    _baselines_last_loaded = datetime.utcnow()
+
+tests/test_ast_tf_sym.py: 15 warnings
+  /home/runner/work/UCT-Dashboard/UCT-Dashboard/api/services/ast_interpret.py:345: DeprecationWarning: datetime.datetime.utcfromtimestamp() is deprecated and scheduled for removal in a future version. Use timezone-aware objects to represent datetimes in UTC: datetime.datetime.fromtimestamp(timestamp, datetime.UTC).
+    return datetime.datetime.utcfromtimestamp(n).strftime("%Y-%m-%d")
+
+tests/test_bars_cold_delta_window.py::test_a_cold_ticker_does_not_reach_back_to_1969
+tests/test_bars_cold_delta_window.py::test_a_cold_window_is_small_enough_that_the_vendor_accepts_it
+tests/test_bars_cold_delta_window.py::test_a_WARM_ticker_still_gets_its_full_heal_window
+tests/test_bars_delta_gapfill.py::test_delta_intraday_restores_interior_hole_but_not_stored_bars
+tests/test_bars_delta_gapfill.py::test_delta_intraday_clean_data_only_reemits_trailing_window
+tests/test_bars_delta_gapfill.py::test_delta_intraday_killswitch_disables_gapfill
+  /home/runner/work/UCT-Dashboard/UCT-Dashboard/api/services/bars_fetch.py:1605: DeprecationWarning: datetime.datetime.utcnow() is deprecated and scheduled for removal in a future version. Use timezone-aware objects to represent datetimes in UTC: datetime.datetime.now(datetime.UTC).
+    from_date = (datetime.utcnow() - timedelta(days=gap_days)).strftime("%Y-%m-%d")
+
+tests/test_bars_cold_delta_window.py::test_a_cold_ticker_does_not_reach_back_to_1969
+tests/test_bars_cold_delta_window.py::test_a_cold_window_is_small_enough_that_the_vendor_accepts_it
+tests/test_bars_cold_delta_window.py::test_a_WARM_ticker_still_gets_its_full_heal_window
+tests/test_bars_delta_gapfill.py::test_delta_intraday_restores_interior_hole_but_not_stored_bars
+tests/test_bars_delta_gapfill.py::test_delta_intraday_clean_data_only_reemits_trailing_window
+tests/test_bars_delta_gapfill.py::test_delta_intraday_killswitch_disables_gapfill
+  /home/runner/work/UCT-Dashboard/UCT-Dashboard/api/services/bars_fetch.py:1606: DeprecationWarning: datetime.datetime.utcnow() is deprecated and scheduled for removal in a future version. Use timezone-aware objects to represent datetimes in UTC: datetime.datetime.now(datetime.UTC).
+    to_date   = datetime.utcnow().strftime("%Y-%m-%d")
+
+tests/test_bars_cold_delta_window.py::test_a_cold_ticker_does_not_reach_back_to_1969
+  /home/runner/work/UCT-Dashboard/UCT-Dashboard/tests/test_bars_cold_delta_window.py:62: DeprecationWarning: datetime.datetime.utcnow() is deprecated and scheduled for removal in a future version. Use timezone-aware objects to represent datetimes in UTC: datetime.datetime.now(datetime.UTC).
+    assert year >= _dt.datetime.utcnow().year - 1, f"from_date {d} is unbounded"
+
+tests/test_bars_cold_delta_window.py::test_a_cold_window_is_small_enough_that_the_vendor_accepts_it
+  /home/runner/work/UCT-Dashboard/UCT-Dashboard/tests/test_bars_cold_delta_window.py:72: DeprecationWarning: datetime.datetime.utcnow() is deprecated and scheduled for removal in a future version. Use timezone-aware objects to represent datetimes in UTC: datetime.datetime.now(datetime.UTC).
+    span_days = (_dt.datetime.utcnow() - start).days
+
+tests/test_bars_cold_delta_window.py::test_a_WARM_ticker_still_gets_its_full_heal_window
+  /home/runner/work/UCT-Dashboard/UCT-Dashboard/tests/test_bars_cold_delta_window.py:79: DeprecationWarning: datetime.datetime.utcnow() is deprecated and scheduled for removal in a future version. Use timezone-aware objects to represent datetimes in UTC: datetime.datetime.now(datetime.UTC).
+    eight_days_ago = int(_dt.datetime.utcnow().timestamp()) - 8 * 86400
+
+tests/test_bars_cold_delta_window.py::test_a_WARM_ticker_still_gets_its_full_heal_window
+  /home/runner/work/UCT-Dashboard/UCT-Dashboard/tests/test_bars_cold_delta_window.py:83: DeprecationWarning: datetime.datetime.utcnow() is deprecated and scheduled for removal in a future version. Use timezone-aware objects to represent datetimes in UTC: datetime.datetime.now(datetime.UTC).
+    span_days = (_dt.datetime.utcnow() - start).days
+
+tests/test_bars_coverage.py::test_coverage_stats_probes_freshness_by_list
+tests/test_bars_data_auth.py::test_the_tier_admits_the_SERVICE_TOKEN_on_the_gated_route
+  /home/runner/work/UCT-Dashboard/UCT-Dashboard/api/services/bars_sqlite.py:320: DeprecationWarning: datetime.datetime.utcnow() is deprecated and scheduled for removal in a future version. Use timezone-aware objects to represent datetimes in UTC: datetime.datetime.now(datetime.UTC).
+    cutoff = int((datetime.utcnow() - timedelta(days=fresh_within_days)).strftime("%Y%m%d"))
+
+tests/test_bars_data_auth.py: 50 warnings
+  /opt/hostedtoolcache/Python/3.12.14/x64/lib/python3.12/site-packages/starlette/testclient.py:484: DeprecationWarning: Setting per-request cookies=<...> is being deprecated, because the expected behaviour on cookie persistence is ambiguous. Set cookies directly on the client instance instead.
+    return super().request(
+
+tests/test_bars_data_auth.py::test_every_ENTITLED_class_reaches_the_data[AAPL-admin]
+tests/test_bars_data_auth.py::test_every_ENTITLED_class_reaches_the_data[QQQ-admin]
+  /home/runner/work/UCT-Dashboard/UCT-Dashboard/api/services/bars_fetch.py:1843: DeprecationWarning: datetime.datetime.utcnow() is deprecated and scheduled for removal in a future version. Use timezone-aware objects to represent datetimes in UTC: datetime.datetime.now(datetime.UTC).
+    to_date = datetime.utcnow().strftime("%Y-%m-%d")
+
+tests/test_bars_data_auth.py::test_every_ENTITLED_class_reaches_the_data[AAPL-admin]
+tests/test_bars_data_auth.py::test_every_ENTITLED_class_reaches_the_data[QQQ-admin]
+  /home/runner/work/UCT-Dashboard/UCT-Dashboard/api/services/bars_fetch.py:1846: DeprecationWarning: datetime.datetime.utcnow() is deprecated and scheduled for removal in a future version. Use timezone-aware objects to represent datetimes in UTC: datetime.datetime.now(datetime.UTC).
+    from_date = (datetime.utcnow() - timedelta(days=lookback)).strftime("%Y-%m-%d")
+
+tests/test_bars_fetch_validation_wired.py: 3 warnings
+tests/test_bars_request_deadline.py: 9 warnings
+  /home/runner/work/UCT-Dashboard/UCT-Dashboard/api/services/bars_fetch.py:1256: DeprecationWarning: datetime.datetime.utcnow() is deprecated and scheduled for removal in a future version. Use timezone-aware objects to represent datetimes in UTC: datetime.datetime.now(datetime.UTC).
+    age_days = (datetime.utcnow().timestamp() - last_ts) / 86400
+
+tests/test_bars_server_timing.py::test_layer_stale_swr_on_daily_rows
+tests/test_bars_server_timing.py::test_layer_stale_swr_on_daily_rows
+  /home/runner/work/UCT-Dashboard/UCT-Dashboard/api/services/bars_fetch.py:365: DeprecationWarning: datetime.datetime.utcnow() is deprecated and scheduled for removal in a future version. Use timezone-aware objects to represent datetimes in UTC: datetime.datetime.now(datetime.UTC).
+    d = datetime.utcnow()
+
+tests/test_bars_server_timing.py::test_layer_stale_swr_on_daily_rows
+  /home/runner/work/UCT-Dashboard/UCT-Dashboard/api/services/bars_fetch.py:1433: DeprecationWarning: datetime.datetime.utcnow() is deprecated and scheduled for removal in a future version. Use timezone-aware objects to represent datetimes in UTC: datetime.datetime.now(datetime.UTC).
+    from_date = (datetime.utcnow() - timedelta(days=days)).strftime("%Y-%m-%d")
+
+tests/test_bars_server_timing.py::test_layer_stale_swr_on_daily_rows
+  /home/runner/work/UCT-Dashboard/UCT-Dashboard/api/services/bars_fetch.py:1434: DeprecationWarning: datetime.datetime.utcnow() is deprecated and scheduled for removal in a future version. Use timezone-aware objects to represent datetimes in UTC: datetime.datetime.now(datetime.UTC).
+    to_date   = datetime.utcnow().strftime("%Y-%m-%d")
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+- generated xml file: /home/runner/work/UCT-Dashboard/UCT-Dashboard/pytest-junit.xml -
+=========================== short test summary info ============================
+SKIPPED [1] tests/test_ast_conformance.py:663: Task 4 has landed; this rail is superseded by --check
+SKIPPED [1] tests/test_ast_conformance.py:670: Task 5 has landed; this rail is superseded by --check
+SKIPPED [1] tests/test_ast_conformance.py:785: both lanes exist; Task 5 owns --record from here
+SKIPPED [1] tests/test_ast_conformance.py:791: the conformance log exists; --check is the real gate now
+SKIPPED [1] tests/test_ast_conformance.py:898: a guarded interpreter exists; Task 6 owns this exit code
+SKIPPED [1] tests/test_breadth_forward_seal_e2e.py:80: durable grouped-daily frame cache not present on this machine
+SKIPPED [1] tests/test_breadth_forward_seal_e2e.py:91: durable grouped-daily frame cache not present on this machine
+SKIPPED [1] tests/test_breadth_forward_seal_e2e.py:120: durable grouped-daily frame cache not present on this machine
+SKIPPED [1] tests/test_breadth_forward_seal_e2e.py:137: durable grouped-daily frame cache not present on this machine
+SKIPPED [1] tests/test_breadth_forward_seal_e2e.py:163: durable grouped-daily frame cache not present on this machine
+XFAIL tests/test_ast_tc2000_remainder.py::test_aroonUp_matches_the_published_formula_over_a_shaped_series - OPEN OWNER RULING, raised 2026-09-09 — TWO REAL AUTHORITIES DISAGREE ABOUT A TIE, and neither is obviously wrong. `days_since_extreme` above encodes the PUBLISHED words — 'the number of periods elapsed since the MOST RECENT x-day high' — so a tie resolves to the NEWEST bar holding the extreme. On 2026-09-08 `ta.highestbars` was measured on TradingView and ties resolve to the OLDEST bar (380/0 against 193/187 for the other reading); `aroonUp` is built on that walk, so it moved with it. ⚠️ TradingView has no built-in `ta.aroon` — its stock Aroon is Pine written over `ta.highestbars`, so TradingView's OWN Aroon presumably disagrees with the published words too, and that is the measurement that would settle this. Until somebody reads it off a TradingView Aroon pane, changing either side would be picking an authority rather than following one. ⛔ STRICT: the day the tie rule or the oracle moves, this goes RED and the decision gets recorded instead of quietly landing. Blast radius, RE-MEASURED 2026-09-09 over 2,031 real SPY daily bars: aroon differs on 0.6% of bars at both n=14 and n=25 (median 7.1 points on a 0-100 scale, max 14.3); the underlying highestbars tie moves 0.3-0.6% depending on field and length. An earlier note said 6-10% and was wrong by an order of magnitude. and NO live member definition calls aroon/highestbars/lowestbars today (count-only prod query 2026-09-09: 0 of 5).
+FAILED tests/test_ast_scalars.py::test_the_scalar_section_PARTITIONS_snapshot_db_COLUMNS_exactly - AssertionError: unpartitioned: ['security_type'] is a screener column that is neither granted nor refused, and ['above_50sma', 'adr_pct', 'adr_pct_1w', 'atr_ext_sma50', 'atr_pct', 'avg_body', 'avg_body_pct_5', 'avg_range', 'avg_volume_30d', 'base_relation_count', 'beta', 'blended_growth', 'body_pct', 'candle_recent_bars_ago', 'candle_score', 'chg_from_open_pct', 'chg_pct_1d', 'chg_pct_1m', 'chg_pct_1w', 'chg_pct_1y', 'chg_pct_ytd', 'close_cv_pct', 'close_position', 'consecutive_down', 'consecutive_up', 'current_ratio', 'days_to_earnings', 'debt_to_equity', 'dist_20d_high_pct', 'dist_20d_low_pct', 'dist_52w_high_pct', 'dist_52w_low_pct', 'dist_ath_pct', 'dividend_yield', 'dollar_vol_30d', 'downgrades_30d', 'dp_level_dist_pct', 'dp_notional_1d', 'dp_notional_5d', 'dp_prints_1d', 'ema10_rising', 'ema20_rising', 'ema_stack_intact', 'ema_touch_count', 'eps_growth', 'eps_next_5y_growth', 'eps_next_y_growth', 'eps_past_5y_growth', 'float_pct', 'float_shares', 'gap_pct', 'gross_margin', 'higher_lows_run', 'hvc_52w', 'implied_move_pct', 'in_uct20', 'index_dow', 'index_ndx', 'index_r2k', 'index_sp500', 'inside_bar_run', 'insider_cluster_days', 'insider_own_pct', 'insider_trans_pct', 'inst_pct', 'inst_trans_pct', 'ipo_age_days', 'is_etf', 'is_leveraged', 'last_report_move_pct', 'lower_wick_pct', 'lt_debt_to_capital', 'market_cap', 'narrow_bar', 'net_margin', 'new_52w_high', 'new_ath', 'nr7', 'op_margin', 'opt_bull_pct_1d', 'opt_net_premium_1d', 'opt_net_premium_5d', 'optionable', 'p_fcf', 'p_ocf', 'pattern_engine_conf', 'pattern_engine_dir', 'pattern_engine_flat_base', 'pattern_engine_vcp', 'pattern_entry_dist_pct', 'pattern_expectancy_r', 'pattern_stop_dist_pct', 'payout_ratio', 'pb', 'pct_vs_ema20', 'pct_vs_sma20', 'pct_vs_sma200', 'pct_vs_sma50', 'pe_fwd', 'pe_ttm', 'peg', 'pole_pct', 'prev_day_close', 'prev_day_high', 'prev_day_low', 'prev_day_open', 'price', 'ps', 'pt_target', 'pt_upside_pct', 'pullback_depth_pct', 'quick_ratio', 'rating_eps', 'rating_growth', 'rating_smr', 'rating_value', 'rev_growth', 'roa', 'roe', 'roic', 'rs_rank', 'rs_return', 'rsi14', 'sales_past_5y_growth', 'sector_rs_pct', 'shares_outstanding', 'short_float_pct', 'short_ratio', 'shortable', 'tight_consolidation', 'uct_composite', 'upgrades_30d', 'upper_wick_pct', 'vol_nweek_low', 'vol_ratio', 'vol_updown_ratio', 'wide_bar'] is named here and not a column
+assert {'above_50sma...urnover', ...} == {'above_50sma...urnover', ...}
+  
+  Extra items in the right set:
+  'security_type'
+  
+  Full diff:
+    {
+        'above_50sma',
+        'accdis',
+        'adr_pct',
+        'adr_pct_1w',
+        'analyst_consensus',
+        'asset_turnover',
+        'atr_ext_sma50',
+        'atr_pct',
+        'avg_body',
+        'avg_body_pct_5',
+        'avg_range',
+        'avg_volume_30d',
+        'bar_character',
+        'bar_character_label',
+        'bars_asof',
+        'base_matches',
+        'base_relation_count',
+        'base_render',
+        'base_shape',
+        'base_shape_label',
+        'beta',
+        'blended_growth',
+        'body_pct',
+        'book_value_ps',
+        'built_at',
+        'candle_label',
+        'candle_matches',
+        'candle_monthly',
+        'candle_monthly_label',
+        'candle_recent',
+        'candle_recent_bars_ago',
+        'candle_recent_label',
+        'candle_recent_status',
+        'candle_score',
+        'candle_trend',
+        'candle_type',
+        'candle_weekly',
+        'candle_weekly_label',
+        'capex_to_revenue',
+        'cash_conversion_cycle',
+        'cash_ps',
+        'cash_ratio',
+        'chg_from_open_pct',
+        'chg_pct_1d',
+        'chg_pct_1m',
+        'chg_pct_1w',
+        'chg_pct_1y',
+        'chg_pct_3m',
+        'chg_pct_6m',
+        'chg_pct_ytd',
+        'close_cv_pct',
+        'close_position',
+        'company',
+        'consecutive_down',
+        'consecutive_up',
+        'country',
+        'current_ratio',
+        'days_to_earnings',
+        'debt_to_equity',
+        'dist_20d_high_pct',
+        'dist_20d_low_pct',
+        'dist_52w_high_pct',
+        'dist_52w_low_pct',
+        'dist_ath_pct',
+        'dividend_yield',
+        'dollar_vol_30d',
+        'downgrades_30d',
+        'dp_level_dist_pct',
+        'dp_notional_1d',
+        'dp_notional_5d',
+        'dp_prints_1d',
+        'earnings_session',
+        'earnings_setup_grade',
+        'earnings_yield',
+        'ebit_margin',
+        'ebitda_margin',
+        'ema10_rising',
+        'ema20_rising',
+        'ema_stack_intact',
+        'ema_touch_count',
+        'enterprise_value',
+        'eps_growth',
+        'eps_next_5y_growth',
+        'eps_next_y_growth',
+        'eps_past_5y_growth',
+        'eps_ttm',
+        'ev_ebitda',
+        'ev_fcf',
+        'ev_sales',
+        'exchange',
+        'fcf_ps',
+        'fcf_yield',
+        'float_pct',
+        'float_shares',
+        'gap_pct',
+        'gross_margin',
+        'higher_lows_run',
+        'hvc_52w',
+        'implied_move_pct',
+        'in_uct20',
+        'income_quality',
+        'index_dow',
+        'index_ndx',
+        'index_r2k',
+        'index_sp500',
+        'industry',
+        'inside_bar_run',
+        'insider_cluster_days',
+        'insider_own_pct',
+        'insider_trans_pct',
+        'inst_pct',
+        'inst_trans_pct',
+        'interest_coverage',
+        'ipo_age_days',
+        'ipo_date',
+        'is_etf',
+        'is_leveraged',
+        'last_report_move_pct',
+        'lower_wick_pct',
+        'lt_debt_to_capital',
+        'ma_stack',
+        'market_cap',
+        'narrow_bar',
+        'net_debt_to_ebitda',
+        'net_margin',
+        'new_52w_high',
+        'new_ath',
+        'next_earnings_date',
+        'nr7',
+        'op_margin',
+        'opt_bull_pct_1d',
+        'opt_net_premium_1d',
+        'opt_net_premium_5d',
+        'optionable',
+        'p_fcf',
+        'p_ocf',
+        'pattern_engine_conf',
+        'pattern_engine_dir',
+        'pattern_engine_flat_base',
+        'pattern_engine_ids',
+        'pattern_engine_vcp',
+        'pattern_entry_dist_pct',
+        'pattern_expectancy_r',
+        'pattern_stop_dist_pct',
+        'payout_ratio',
+        'pb',
+        'pct_vs_ema20',
+        'pct_vs_sma20',
+        'pct_vs_sma200',
+        'pct_vs_sma50',
+        'pe_fwd',
+        'pe_ttm',
+        'peg',
+        'pole_pct',
+        'prev_day_close',
+        'prev_day_high',
+        'prev_day_low',
+        'prev_day_open',
+        'price',
+        'ps',
+        'pt_target',
+        'pt_upside_pct',
+        'pullback_depth_pct',
+        'quick_ratio',
+        'rating_eps',
+        'rating_growth',
+        'rating_smr',
+        'rating_value',
+        'rev_growth',
+        'revenue_ps',
+        'rnd_to_revenue',
+        'roa',
+        'roce',
+        'roe',
+        'roic',
+        'rs_line_trend',
+        'rs_rank',
+        'rs_return',
+        'rsi14',
+        'sales_past_5y_growth',
+        'sbc_to_revenue',
+        'sector',
+        'sector_rs_pct',
+  -     'security_type',
+        'shares_outstanding',
+        'short_float_pct',
+        'short_ratio',
+        'shortable',
+        'snapshot_date',
+        'sponsorship',
+        'stage2',
+        'stage4',
+        'tax_rate',
+        'theme',
+        'ticker',
+        'tight_consolidation',
+        'uct_composite',
+        'upgrades_30d',
+        'upper_wick_pct',
+        'vol_nweek_low',
+        'vol_ratio',
+        'vol_updown_ratio',
+        'wide_bar',
+        'working_capital',
+    }
+FAILED tests/test_audit_sandbox_env.py::test_NO_variable_points_at_the_shared_data_root - SystemExit: REFUSING to build a sandbox environment: the census reports 1 shared literal(s) with no env override, so a local backend would still reach the live data root.
+  /data/hub_reports.db
+
+Give each an override whose default is the literal already there (that is how the other pins work), then re-run.
+FAILED tests/test_audit_sandbox_env.py::test_the_BARE_ROOT_pins_are_redirected_too - SystemExit: REFUSING to build a sandbox environment: the census reports 1 shared literal(s) with no env override, so a local backend would still reach the live data root.
+  /data/hub_reports.db
+
+Give each an override whose default is the literal already there (that is how the other pins work), then re-run.
+FAILED tests/test_audit_sandbox_env.py::test_it_REDIRECTS_EVERY_pin_the_census_derives - SystemExit: REFUSING to build a sandbox environment: the census reports 1 shared literal(s) with no env override, so a local backend would still reach the live data root.
+  /data/hub_reports.db
+
+Give each an override whose default is the literal already there (that is how the other pins work), then re-run.
+FAILED tests/test_audit_sandbox_env.py::test_the_quiet_flags_blank_a_webhook_rather_than_removing_it - SystemExit: REFUSING to build a sandbox environment: the census reports 1 shared literal(s) with no env override, so a local backend would still reach the live data root.
+  /data/hub_reports.db
+
+Give each an override whose default is the literal already there (that is how the other pins work), then re-run.
+5 failed, 1753 passed, 10 skipped, 1 xfailed, 105 warnings in 107.43s (0:01:47)
