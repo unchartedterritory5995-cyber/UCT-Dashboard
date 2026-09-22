@@ -147,6 +147,17 @@ describe('ThesisSection', () => {
     expect(screen.getByText('Thesis edited')).toBeTruthy()
   })
 
+  it('renders a Compass verdict changelog event (G-073b)', () => {
+    summaryResult = {
+      evidence: [],
+      changelog: [{ type: 'compass_verdict', at: '2026-09-21T00:00:00Z', verdictId: 'v1', label: 'GO', symbol: 'NVDA' }],
+      isLoading: false, refresh: vi.fn(),
+    }
+    renderIt(THESIS_NOTE_BY_TAG)
+    fireEvent.click(screen.getByText('Changelog'))
+    expect(screen.getByText('Compass verdict: GO — NVDA')).toBeTruthy()
+  })
+
   it('opening the add-evidence picker lets a member choose supports/opposes and note/fact', () => {
     renderIt(THESIS_NOTE_BY_TAG)
     fireEvent.click(screen.getByText('Add evidence'))

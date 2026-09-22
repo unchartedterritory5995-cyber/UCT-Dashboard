@@ -149,6 +149,8 @@ function eventLabel(e) {
       return `Linked to ${e.symbol || 'a trade'}`
     case 'trade_closed':
       return `Trade closed${e.symbol ? ` — ${e.symbol}` : ''}${e.result ? ` (${e.result})` : ''}`
+    case 'compass_verdict':
+      return `Compass verdict: ${e.label}${e.symbol ? ` — ${e.symbol}` : ''}`
     default:
       return e.type
   }

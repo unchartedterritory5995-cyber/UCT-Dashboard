@@ -24,6 +24,15 @@ already has a durable, timestamped, authoritative home:
       resolved via note_trade_links.resolve_trade_ref; a position that has
       since graduated into a closed trade additionally surfaces a
       trade_closed event off that trade's own exit_date.
+  (f) Compass pre-trade verdicts (G-073b) -- j2_verdicts has no note_id (a
+      verdict is fired for a symbol, not authored against a specific thesis),
+      so this is a COMPUTED MATCH by ticker at read time, never a stored
+      link: every verdict whose symbol equals this note's own ticker
+      property, for a note whose thesis_status is not explicitly
+      invalidated/closed (owner ruling 2026-09-21 -- resolves the
+      multi-note-per-ticker ambiguity without guessing which note a bare
+      symbol match "means"; a note with no ticker set simply has nothing
+      to match, same idiom as note_properties._derived_financial_values).
 
 No new write path. No event can exist here that doesn't trace back to one
 of the systems above -- "auditable" by construction (directive §33/§169).
@@ -200,6 +209,45 @@ def _trade_events(user_id: str, note_id: str, conn: sqlite3.Connection) -> list[
     return events
 
 
+_HIDDEN_VERDICT_THESIS_STATUSES = frozenset({"invalidated", "closed"})
+
+
+def _verdict_events(user_id: str, note_id: str, conn: sqlite3.Connection) -> list[dict[str, Any]]:
+    """G-073b -- see this module's docstring, source (f). Matched by ticker,
+    not stored; a note with no ticker or an explicitly closed/invalidated
+    thesis_status contributes nothing here."""
+    note = conn.execute(
+        "SELECT ticker, properties_json FROM j2_notes WHERE id = ? AND user_id = ?",
+        (note_id, user_id),
+    ).fetchone()
+    if note is None:
+        return []
+    ticker = (note["ticker"] or "").strip().upper()
+    if not ticker:
+        return []
+    status = _parse_props(note["properties_json"]).get("builtin:thesis_status")
+    if status in _HIDDEN_VERDICT_THESIS_STATUSES:
+        return []
+    rows = conn.execute(
+        "SELECT id, symbol, side, label, paragraph, setup, created_at FROM j2_verdicts"
+        " WHERE user_id = ? AND UPPER(symbol) = ?",
+        (user_id, ticker),
+    ).fetchall()
+    return [
+        {
+            "type": "compass_verdict",
+            "at": r["created_at"],
+            "verdictId": r["id"],
+            "label": r["label"],
+            "symbol": r["symbol"],
+            "side": r["side"],
+            "setup": r["setup"],
+            "paragraph": r["paragraph"],
+        }
+        for r in rows
+    ]
+
+
 def get_thesis_changelog(
     user_id: str, note_id: str, conn: sqlite3.Connection | None = None,
 ) -> list[dict[str, Any]]:
@@ -212,7 +260,7 @@ def get_thesis_changelog(
     conn = conn or get_connection()
     try:
         events: list[dict[str, Any]] = []
-        for fn in (_content_transition_events, _evidence_events, _fact_events, _trade_events):
+        for fn in (_content_transition_events, _evidence_events, _fact_events, _trade_events, _verdict_events):
             try:
                 if fn is _content_transition_events:
                     events.extend(fn(conn, user_id, note_id))
