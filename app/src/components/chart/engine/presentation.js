@@ -31,6 +31,12 @@ export const DEFAULT_PLOT_STYLE = 'line'
  *  same fail-safe direction `resolvePlacement` takes. */
 export const PLOT_STYLES = Object.freeze([
   'line', 'histogram', 'dots', 'area', 'lastValueHorizontal',
+  // ⭐ THE STYLE A PERIODIC OBSERVATION ACTUALLY WANTS, and it cost a vocabulary
+  // entry rather than a renderer: `stepline` has been in the AUTHOR vocabulary and
+  // in `pool.js` since before this project (`lineType: WithSteps`, poolKey 'line'),
+  // so a survey that holds its reading until the next one can finally SAY so. It is
+  // a re-shape of one column like every entry above it, not a fourth-field claim.
+  'step',
   // ⭐⭐ RECOGNISED, MAPPED, AND NOT YET OFFERED (Phase A). `candles` is the
   // first style whose DATA SHAPE differs — every other entry above is a second
   // way to draw one column of numbers, and this one draws four. The engine can
@@ -47,6 +53,7 @@ export const PLOT_STYLE_CHOICES = Object.freeze([
   { value: 'histogram', label: 'Histogram' },
   { value: 'dots', label: 'Dots' },
   { value: 'area', label: 'Area' },
+  { value: 'step', label: 'Step line' },
   { value: 'lastValueHorizontal', label: 'Last value horizontal' },
   // ⚠️ APPENDED, NOT INSERTED. Every other entry is a way of drawing one column
   // and their order is the one members already read; candles are the odd one and
@@ -76,6 +83,7 @@ export const PLOT_STYLE_TO_DEF_STYLE = Object.freeze({
   histogram: 'histogram',
   dots: 'markers',
   area: 'area',
+  step: 'stepline',
   lastValueHorizontal: 'line',
   // ⚠️ THE ONE ENTRY THAT IS NOT A RE-SHAPE OF A COLUMN. The author vocabulary
   // gains `candles` alongside the user one because `pool.poolKey` reads the
@@ -137,7 +145,19 @@ export function availableStyles(plot, ctx) {
   // so the member-facing list is byte-identical to before; Phase B passes the
   // answer `ohlcCapability.ohlcCapabilityOf` gives for this instance's source.
   const ohlc = !!(ctx && ctx.ohlcCapable)
+  // ⭐⭐ THE SOURCE'S OWN ALLOW-LIST, INTERSECTED — NEVER UNIONED. `sourceCapability`
+  // answers "what may this DATA mean"; the two rules above answer "what is readable
+  // HERE". A style has to survive both, and intersection is the only combination that
+  // cannot be widened by adding a rule — a union would let a permissive source
+  // re-grant the histogram the volume pane just refused.
+  //
+  // ⚠️ ABSENT MEANS UNCONSTRAINED, not empty. Most call sites have never heard of a
+  // source capability and must keep the list they always had; a caller that HAS the
+  // answer narrows it. That is the same "absent means the old behaviour" shape
+  // `ctx.ohlcCapable` already uses, pointed the other way because this one subtracts.
+  const bySource = ctx && Array.isArray(ctx.allowedStyles) ? ctx.allowedStyles : null
   return PLOT_STYLES.filter((s) => {
+    if (bySource && !bySource.includes(s)) return false
     if (s === 'candles') return ohlc
     return !(shared && SHARED_PANE_EXCLUDED.has(s))
   })
@@ -179,6 +199,26 @@ export function resolvePlotStyle(instance, plot, ctx) {
   }
   if (!chosen && pres && isKnownStyle(pres.plotStyle)) chosen = pres.plotStyle
 
+  // ⭐⭐ THE SOURCE'S DEFAULT OUTRANKS THE DEFINITION'S — BUT ONLY FOR A ROW THAT *IS*
+  // THE SOURCE, and that condition is the whole reason this is safe. `dataSeries`
+  // declares `style: 'line'` for EVERY source it has ever plotted: that string is a
+  // placeholder, not an authored choice, so letting it win means a signed breadth
+  // count and a weekly survey are drawn identically to a share price forever. An
+  // AUTHORED definition is the opposite case — MACD's histogram is a histogram
+  // because its author said so, and no source may repaint it.
+  //
+  // ⛔ SO THE CALLER PASSES THIS ONLY WHEN `def.passthrough === true`. That is the
+  // same declared claim `ohlcCapability.outputIsSource` gates candles on — "this row
+  // is the instrument, not a calculation over it" — and reusing it means there is ONE
+  // answer to "is this row its source" rather than two that can disagree.
+  //
+  // ⚠️ IT SITS BELOW BOTH USER LEVELS ON PURPOSE. A member who chose Histogram keeps
+  // Histogram; a default is what you get before you choose, never a correction of a
+  // choice you already made.
+  if (!chosen && ctx && isKnownStyle(ctx.sourceDefaultStyle)) {
+    chosen = ctx.sourceDefaultStyle
+  }
+
   if (!chosen) {
     const declared = plot && plot.style
     // The definition's vocabulary is the author's; map it back into the user's.
@@ -211,6 +251,17 @@ export function resolvePlotStyle(instance, plot, ctx) {
   const allowed = availableStyles(plot, {
     target: instance && instance.placement && instance.placement.target,
     ohlcCapable: !!(ctx && ctx.ohlcCapable),
+    // ⛔⛔ THE SOURCE ALLOW-LIST BINDS THE RESOLVER, NOT JUST THE MENU — the same
+    // lesson the volume-pane clamp above already paid for. A NAAIM instance saved as
+    // `candles` by an older build must come back as a LINE, and it must do so because
+    // the RESOLVER refused it, not because a dropdown stopped listing it. Filtering a
+    // `<select>` alone leaves the chart drawing the invalid style it was told to.
+    //
+    // ⚠️ AND THE STORED VALUE IS STILL NOT REWRITTEN. This is a reading of state at a
+    // capability, not an edit of it — identical in shape to the placement clamp — so
+    // nothing migrates, nothing is destroyed, and a source that later gains the
+    // capability restores the member's choice untouched.
+    allowedStyles: ctx && Array.isArray(ctx.allowedStyles) ? ctx.allowedStyles : null,
   })
   if (allowed.length && !allowed.includes(chosen)) return allowed[0]
   return chosen

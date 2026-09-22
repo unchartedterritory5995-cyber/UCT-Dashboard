@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
-import { symbolFamily as breadthSymbolFamily, breadthRegistryReady } from './useBreadthSymbols'
+import { symbolFamily as breadthSymbolFamily, breadthRegistryReady, breadthRecord } from './useBreadthSymbols'
 import { OHLC_FAMILY } from '../components/chart/engine/ohlcCapability'
+import { sourceCapabilityOf } from '../components/chart/engine/sourceCapability'
 
 // ─── THE MARKET INDICATORS REGISTRY, CLIENT SIDE ────────────────────────────
 //
@@ -27,7 +28,17 @@ const EMPTY = { byKey: new Map(), rows: [], families: [], dormant: [] }
 function _index(data) {
   const byKey = new Map()
   const rows = Array.isArray(data?.rows) ? data.rows : []
-  for (const row of rows) {
+  // ⭐⭐ PRODUCT COMPONENTS ARE INDEXED BUT NOT BROWSABLE. They are deliberately
+  // absent from `rows` — a search for "AAII" must return ONE row — and they are
+  // nonetheless real, chartable canonical series that every capability gate has to
+  // be able to CLASSIFY.
+  //
+  // ⚰️ MEASURED IN A BROWSER: with them absent from the index entirely,
+  // `canonicalFamily('AAII:BULLS')` found no record, fell through to `security`, and
+  // Candles were offered over a weekly survey. Listability and identity are
+  // different questions and only one of them was being asked.
+  const components = Array.isArray(data?.components) ? data.components : []
+  for (const row of [...rows, ...components]) {
     // ⛔ EVERY SPELLING THAT MAY RESOLVE — id, member-facing symbol and explicit
     // aliases — because Rule 4 separates them on purpose and a lookup that only knew
     // one would answer 'unknown' for the other two.
@@ -38,6 +49,7 @@ function _index(data) {
   return {
     byKey,
     rows,
+    components,
     families: Array.isArray(data?.families) ? data.families : [],
     // ⚠️ Dormant rows are indexed NOWHERE. They are carried for a diagnostic surface
     // only; putting them in `byKey` would let `canonicalFamily` classify NYMO, which
@@ -151,6 +163,56 @@ export function presentationFamily(sym) {
   // registry is the one this label has always depended on, so defer to it alone.
   if (!marketIndicatorRegistryReady()) return breadthSymbolFamily(sym)
   return fam
+}
+
+/**
+ * THE SOURCE'S DECLARED PRESENTATION — the `presentation` string, from whichever
+ * catalogue owns the symbol, or `null`.
+ *
+ * ⭐⭐ BOTH CATALOGUES ALREADY PUBLISH THIS AND NOTHING ON THE CHART READ IT. The
+ * market-indicator registry has carried `presentation` (`line` / `histogram` /
+ * `step`) since V1 and `breadth_metrics` has carried it far longer — Net New
+ * High-Low has said `histogram` about itself for as long as it has existed — while
+ * `dataSeries` drew every source in the product as a line, because its single plot
+ * declares `style: 'line'` and there was no seam through which a SOURCE could say
+ * otherwise. This function is that seam, and it reads metadata that was already on
+ * the wire rather than adding any.
+ *
+ * ⛔ IT IS NOT A CAPABILITY AND MUST NEVER FEED ONE. `presentation` says how a
+ * source PREFERS to be drawn; whether it may wear candles is `ohlcCapability`'s
+ * answer and only ever `ohlcCapability`'s. Pointing a gate at this would let a
+ * catalogue string grant a candle, which is the exact inversion this project's whole
+ * contract exists to prevent — and `marketIndicatorPresentationIsNotACapability`
+ * already rails it for the family classifier.
+ *
+ * ⚠️ MARKET INDICATORS FIRST, THEN BREADTH — the same precedence `canonicalFamily`
+ * uses, so one symbol cannot be described by two catalogues differently depending on
+ * which function asked.
+ */
+export function canonicalPresentation(sym) {
+  if (!sym) return null
+  const mi = marketIndicatorRecord(sym)
+  if (mi && typeof mi.presentation === 'string' && mi.presentation) {
+    return mi.presentation
+  }
+  const br = breadthRecord(sym)
+  if (br && typeof br.presentation === 'string' && br.presentation) {
+    return br.presentation
+  }
+  return null
+}
+
+/**
+ * `{ defaultStyle, allowedStyles }` for a canonical symbol.
+ *
+ * ⚠️ `ohlcCapable` IS PASSED IN, NEVER COMPUTED HERE. The caller has already asked
+ * `ohlcCapabilityOf` — which needs the definition and the loaded bars, neither of
+ * which this hook can see — and re-deriving it from the registry alone would produce
+ * a second, weaker answer that disagreed with the gate.
+ */
+export function canonicalSourceCapability(sym, ohlcCapable) {
+  const presentation = canonicalPresentation(sym)
+  return sourceCapabilityOf(presentation ? { presentation } : null, !!ohlcCapable)
 }
 
 /** Start the fetch without mounting a component. Safe to call repeatedly. */

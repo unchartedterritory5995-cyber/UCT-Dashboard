@@ -259,3 +259,37 @@ def stats() -> dict:
     except Exception:
         pass
     return out
+
+
+def observations(key: str, limit: int = 0) -> list:
+    """The RAW readings for one series, ascending — `[{t, v}]`.
+
+    ⭐⭐ RAW, NOT FORWARD-FILLED, AND THAT IS THE WHOLE DIFFERENCE FROM
+    `values_asof`. That reader answers "what was in effect on this trading day",
+    which is the right question for a Monitor row and the wrong one for a chart
+    that must know WHICH WEEKS WERE ACTUALLY SURVEYED. Projecting observations onto
+    a session calendar is `market_indicators.series.step_to_daily`'s job, and it
+    can only do it honestly if something hands it the observations themselves.
+
+    ⚠️ EMPTY ON ANY ERROR, never a partial series — a survey with holes silently
+    removed reads as a survey that was never taken those weeks.
+    """
+    _ensure_init()
+    try:
+        with _conn() as c:
+            sql = ("SELECT date, value FROM breadth_sentiment "
+                   "WHERE key=? ORDER BY date ASC")
+            params = [str(key)]
+            if limit:
+                sql += " LIMIT ?"
+                params.append(int(limit))
+            rows = c.execute(sql, params).fetchall()
+    except Exception:
+        return []
+    out = []
+    for d, v in rows:
+        val = _finite(v)
+        if val is None:
+            continue
+        out.append({"t": d, "v": val})
+    return out
