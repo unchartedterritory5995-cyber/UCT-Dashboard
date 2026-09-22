@@ -243,3 +243,4 @@ tools/intraday_scan_out.json
 # `cap_universe.json`, the voice KB — is tracked the same way. A `!api/data/...`
 # line would look like it worked and would not.
 tools/intraday_current_out.json
+tools/scan_handoff_out.json
