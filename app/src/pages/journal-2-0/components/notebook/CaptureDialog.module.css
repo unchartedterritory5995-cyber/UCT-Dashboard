@@ -1,27 +1,9 @@
 /* The one capture surface. Calm, not celebratory: members may do this dozens of
-   times a day, so nothing here animates, shouts, or takes a victory lap. */
-.backdrop {
-  position: fixed; inset: 0; z-index: 1200;
-  background: rgba(0, 0, 0, 0.5);
-  display: flex; align-items: center; justify-content: center;
-  padding: 16px;
-}
-.sheet {
-  width: 100%; max-width: 520px;
-  max-height: min(88vh, 760px); overflow-y: auto;
-  background: var(--bg-surface);
-  border: 1px solid var(--border);
-  border-radius: 10px;
-  padding: 16px 18px 14px;
-  box-shadow: 0 18px 48px rgba(0, 0, 0, 0.45);
-}
-.head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 10px; }
+   times a day, so nothing here animates, shouts, or takes a victory lap.
+   Chrome (backdrop, panel sizing, header, close button, drag-to-dismiss,
+   body scroll lock, safe-area) is <Sheet>'s (competitive-audit UX #13 second
+   half, 2026-09-22) -- what's left here is CaptureDialog's own body content. */
 .heading { margin: 0; font-size: 15px; letter-spacing: 0.2px; }
-.close {
-  background: none; border: none; cursor: pointer; color: inherit;
-  min-width: var(--tap-min, 44px); min-height: var(--tap-min, 44px);
-  display: flex; align-items: center; justify-content: center;
-}
 
 /* Destination is never hidden behind an advanced menu. */
 .destRow {
@@ -81,17 +63,6 @@
    rail, and it had been reporting this. */
 @media (max-width: 1024px) {
   .actions button { min-height: var(--tap-min, 44px); }
-}
-
-/* Phone-only: the dialog becomes a bottom sheet. Layout, not touch sizing. */
-@media (max-width: 640px) {
-  .backdrop { align-items: flex-end; padding: 0; }
-  .sheet {
-    max-width: none; border-radius: 12px 12px 0 0;
-    max-height: 92vh;
-    padding-bottom: calc(14px + env(safe-area-inset-bottom, 0px));
-  }
-  .foot { position: sticky; bottom: 0; background: var(--bg-surface); padding-top: 10px; }
 }
 
 .destPicker {
