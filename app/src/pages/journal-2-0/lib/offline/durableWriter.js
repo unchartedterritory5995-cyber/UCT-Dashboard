@@ -19,6 +19,42 @@
  * ⛔ CHROME-MEASURED INITIAL OPERATING POINT. Safari/iOS and Firefox are not
  * measured yet; the debounce is a starting value, not a universal fact.
  *
+ * ⭐ QW-3 (competitive audit, 2026-09-22) asked the natural follow-up: does
+ * that 282.6ms/800.7ms/1,288.6ms number hold at MAX_BODY_JSON_BYTES (1MB),
+ * 20x the 48KB sample? Measured in a real Chrome tab (raw IndexedDB, same
+ * two-store one-transaction shape as putNoteWithIntent, same 40-write/
+ * warm-path methodology), isolating SIZE as the only variable by comparing
+ * a trivial ~108-byte doc against a ~1,000,000-byte one on the SAME origin:
+ *
+ *     ~108 B    p50   0.5 ms   p95   0.7 ms   max   1.1 ms
+ *     ~1 MB     p50   5.8 ms   p95  11.3 ms   max  17.8 ms
+ *
+ * ⛔ Size is NOT the dominant cost. Across ~9,300x more data, p50 grew by
+ * only ~5.3ms -- negligible next to the 200ms debounce and nowhere near the
+ * production-measured 282ms/800ms figures above. That means the original
+ * 48KB number was never really testing "48KB of data"; the transaction/
+ * commit round-trip is what costs hundreds of ms, and this measurement's
+ * own environment (a fresh local origin with ~0 existing IndexedDB usage)
+ * is NOT what produced it -- the production origin these 48KB numbers came
+ * from already held **558MB in `uct_bars_v1` on the same origin** (Q0 Gate 3,
+ * `docs/notebook/wave-q0-architecture.md`), which is the far more likely
+ * driver of that 280x-slower-than-localStorage result than document size
+ * ever was.
+ *
+ * ⛔ WHAT THIS DOES NOT SETTLE: a real 1MB write's cost on a production
+ * origin under real storage pressure -- a low-pressure local sandbox
+ * structurally cannot reproduce the thing that most plausibly dominates the
+ * original number, so this is reported as a genuine gap rather than papered
+ * over with a locally-clean re-run. If an absolute production figure is
+ * needed, it needs the SAME rig/origin the 48KB number came from, not a
+ * fresh local database.
+ *
+ * ⭐ Practical upshot: this WIDENS the debounce design's safety margin
+ * rather than narrowing it. The risk this file's debounce/coalescing exists
+ * to manage was never "a big note is slow to write" -- it is whatever the
+ * production origin's own storage pressure costs, at any note size, and
+ * that was already priced into the 48KB measurement above.
+ *
  * ⛔ ORDER IS ENFORCED, NOT ASSUMED. Every scheduled state carries a monotonic
  * generation, and a completion may only ever advance the committed generation —
  * so a late callback for an older snapshot can never mark newer work durable,
