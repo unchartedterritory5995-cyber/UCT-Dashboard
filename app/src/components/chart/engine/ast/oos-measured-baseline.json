@@ -156,7 +156,8 @@
   "high_engagement__18-cross-correlation-kioseff-trading.pine": {
     "outputs": 0,
     "refusals": [
-      "pine:character"
+      "pine:module",
+      "pine:module"
     ],
     "flat": 0,
     "pair": 0,

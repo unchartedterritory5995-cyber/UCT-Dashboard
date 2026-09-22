@@ -1,7 +1,7 @@
 {
   "measured_at": "2026-09-22",
   "scripts": 266,
-  "host_ok": 32,
+  "host_ok": 35,
   "screener_ok": 46,
   "threw": [
     "smart-money-breakouts-chartprime__ea79c79a67.pine"
@@ -327,13 +327,13 @@
     },
     {
       "file": "bigbeluga-smart-money-concepts__e41b7abd03.pine",
-      "host": false,
+      "host": true,
       "screener": false,
       "hostGuards": [
-        "pine:character"
+        "pine:constant-only"
       ],
       "screenerGuards": [
-        "pine:character"
+        "pine:constant-only"
       ]
     },
     {
@@ -424,10 +424,10 @@
       "host": false,
       "screener": false,
       "hostGuards": [
-        "pine:character"
+        "pine:module"
       ],
       "screenerGuards": [
-        "pine:character"
+        "pine:module"
       ]
     },
     {
@@ -866,10 +866,10 @@
       "host": false,
       "screener": false,
       "hostGuards": [
-        "pine:character"
+        "pine:objects-only"
       ],
       "screenerGuards": [
-        "pine:character"
+        "pine:objects-only"
       ]
     },
     {
@@ -888,10 +888,10 @@
       "host": false,
       "screener": false,
       "hostGuards": [
-        "pine:character"
+        "pine:no-output"
       ],
       "screenerGuards": [
-        "pine:character"
+        "pine:no-output"
       ]
     },
     {
@@ -921,10 +921,12 @@
       "host": false,
       "screener": false,
       "hostGuards": [
-        "pine:character"
+        "pine:module",
+        "pine:tuple"
       ],
       "screenerGuards": [
-        "pine:character"
+        "pine:module",
+        "pine:tuple"
       ]
     },
     {
@@ -988,10 +990,10 @@
       "host": false,
       "screener": false,
       "hostGuards": [
-        "pine:character"
+        "pine:no-output"
       ],
       "screenerGuards": [
-        "pine:character"
+        "pine:no-output"
       ]
     },
     {
@@ -1023,10 +1025,10 @@
       "host": false,
       "screener": false,
       "hostGuards": [
-        "pine:character"
+        "pine:objects-only"
       ],
       "screenerGuards": [
-        "pine:character"
+        "pine:objects-only"
       ]
     },
     {
@@ -1034,10 +1036,10 @@
       "host": false,
       "screener": false,
       "hostGuards": [
-        "pine:character"
+        "pine:objects-only"
       ],
       "screenerGuards": [
-        "pine:character"
+        "pine:objects-only"
       ]
     },
     {
@@ -1064,13 +1066,13 @@
     },
     {
       "file": "ict-killzones-pivots-tfo__d0b8be94f1.pine",
-      "host": false,
+      "host": true,
       "screener": false,
       "hostGuards": [
-        "pine:character"
+        "pine:constant-only"
       ],
       "screenerGuards": [
-        "pine:character"
+        "pine:constant-only"
       ]
     },
     {
@@ -1157,10 +1159,10 @@
       "host": false,
       "screener": false,
       "hostGuards": [
-        "pine:character"
+        "pine:no-output"
       ],
       "screenerGuards": [
-        "pine:character"
+        "pine:no-output"
       ]
     },
     {
@@ -1537,10 +1539,10 @@
       "host": false,
       "screener": false,
       "hostGuards": [
-        "pine:character"
+        "pine:no-output"
       ],
       "screenerGuards": [
-        "pine:character"
+        "pine:no-output"
       ]
     },
     {
@@ -1612,10 +1614,10 @@
       "host": false,
       "screener": false,
       "hostGuards": [
-        "pine:character"
+        "pine:no-output"
       ],
       "screenerGuards": [
-        "pine:character"
+        "pine:no-output"
       ]
     },
     {
@@ -2262,10 +2264,16 @@
       "host": false,
       "screener": false,
       "hostGuards": [
-        "pine:character"
+        "pine:module",
+        "pine:function",
+        "pine:reassign",
+        "pine:type"
       ],
       "screenerGuards": [
-        "pine:character"
+        "pine:module",
+        "pine:function",
+        "pine:reassign",
+        "pine:type"
       ]
     },
     {
@@ -2329,10 +2337,12 @@
       "host": false,
       "screener": false,
       "hostGuards": [
-        "pine:character"
+        "pine:builtin",
+        "pine:reassign"
       ],
       "screenerGuards": [
-        "pine:character"
+        "pine:builtin",
+        "pine:reassign"
       ]
     },
     {
@@ -2362,10 +2372,12 @@
       "host": false,
       "screener": false,
       "hostGuards": [
-        "pine:character"
+        "pine:block",
+        "pine:module"
       ],
       "screenerGuards": [
-        "pine:character"
+        "pine:block",
+        "pine:module"
       ]
     },
     {
@@ -2439,10 +2451,16 @@
       "host": false,
       "screener": false,
       "hostGuards": [
-        "pine:character"
+        "pine:module",
+        "pine:reassign",
+        "pine:type",
+        "pine:tuple"
       ],
       "screenerGuards": [
-        "pine:character"
+        "pine:module",
+        "pine:reassign",
+        "pine:type",
+        "pine:tuple"
       ]
     },
     {
@@ -2526,10 +2544,10 @@
       "host": false,
       "screener": false,
       "hostGuards": [
-        "pine:character"
+        "pine:reassign"
       ],
       "screenerGuards": [
-        "pine:character"
+        "pine:reassign"
       ]
     },
     {
@@ -2594,10 +2612,10 @@
       "host": false,
       "screener": false,
       "hostGuards": [
-        "pine:character"
+        "pine:type"
       ],
       "screenerGuards": [
-        "pine:character"
+        "pine:type"
       ]
     },
     {
@@ -2681,10 +2699,16 @@
       "host": false,
       "screener": false,
       "hostGuards": [
-        "pine:character"
+        "pine:declaration-strategy",
+        "pine:module",
+        "pine:block",
+        "pine:strategy-call"
       ],
       "screenerGuards": [
-        "pine:character"
+        "pine:declaration-strategy",
+        "pine:module",
+        "pine:block",
+        "pine:strategy-call"
       ]
     },
     {
@@ -2718,13 +2742,13 @@
     },
     {
       "file": "trend-lines-supports-and-resistances__413ee2ee3b.pine",
-      "host": false,
+      "host": true,
       "screener": false,
       "hostGuards": [
-        "pine:character"
+        "pine:constant-only"
       ],
       "screenerGuards": [
-        "pine:character"
+        "pine:constant-only"
       ]
     },
     {
@@ -2862,10 +2886,10 @@
       "host": false,
       "screener": false,
       "hostGuards": [
-        "pine:character"
+        "pine:type"
       ],
       "screenerGuards": [
-        "pine:character"
+        "pine:type"
       ]
     },
     {
@@ -2897,10 +2921,14 @@
       "host": false,
       "screener": false,
       "hostGuards": [
-        "pine:character"
+        "pine:module",
+        "pine:input-kind",
+        "pine:reassign"
       ],
       "screenerGuards": [
-        "pine:character"
+        "pine:module",
+        "pine:input-kind",
+        "pine:reassign"
       ]
     },
     {
@@ -2943,10 +2971,10 @@
       "host": false,
       "screener": false,
       "hostGuards": [
-        "pine:character"
+        "pine:module"
       ],
       "screenerGuards": [
-        "pine:character"
+        "pine:module"
       ]
     },
     {

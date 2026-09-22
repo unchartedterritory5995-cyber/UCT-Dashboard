@@ -37,8 +37,24 @@ const SCRIPTS = fs.existsSync(DIR)
   ? fs.readdirSync(DIR).filter((f) => f.endsWith('.pine')).sort()
   : []
 
-/** The guard to open up. Defaults to the largest object-pass row. */
-const GUARD = process.env.GUARD || 'pine:character'
+/** The guard to open up. Defaults to the largest object-pass row.
+ *
+ *  ⭐⭐ IT WAS `pine:character` UNTIL 2026-09-21, AND THE DEFAULT MOVING IS THE
+ *  RESULT, not maintenance. Reading its 23 call sites is what this file is for,
+ *  and all 23 turned out to be one construct — a member read on the result of an
+ *  expression (`array.get(lines, i).set_x2(…)`, `htfFVGs.first().area.delete()`,
+ *  `(l[1]).delete()`). The lexer only ever admitted a `.` between two idents, so
+ *  a dot every Pine author writes was refused as a character Pine does not have.
+ *  With the postfix rule that row is 0 and the assertion below fired, exactly as
+ *  designed — an instrument that says "already fixed?" and means it.
+ *
+ *  ⛔ THE 23 DID NOT START DRAWING. Every one meets a SECOND blocker behind the
+ *  dot, which is why the default now points at the largest surviving row rather
+ *  than at anything this lane closed. Their new walls, measured: 7
+ *  `runtime:declaration`, 6 `runtime:udt`, 4 `objects/pine:no-output`, 2
+ *  `objects:iterated-tree-not-last-bar`, 2 `pine:input-kind`, 1
+ *  `runtime:input-state`, 1 `pine:builtin`. */
+const GUARD = process.env.GUARD || 'runtime:declaration'
 
 /** Every refusal, with the source line it names. */
 function refusals() {

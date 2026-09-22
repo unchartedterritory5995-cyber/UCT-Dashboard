@@ -2861,6 +2861,18 @@ export function buildRuntimeIr(source, opts = {}) {
         note(g)
         throw new RuntimeRefusal(g, `\`${node.name}\``, locate(node.tok))
       }
+      // ⛔⛔ NO `case 'member'` / `case 'method'` HERE, AND THAT IS MEASURED.
+      // One was written — "both lanes should answer a postfix member alike" —
+      // and the mutation run caught it SURVIVING: reverting it changed no test.
+      // A marker probe then tried twelve shapes (a plot argument, a binding, a
+      // `:=` onto `var` state, inside `if`, inside `for`, a bare field read, a
+      // user function's return, a ternary, an `array.push` argument, an indexed
+      // receiver) and every one refused `pine:member` — from `pine.js`'s shared
+      // `Resolver`, which this lane calls, and NOT ONE from this switch.
+      //
+      // ⭐ So both lanes DO answer alike, and for a better reason than a second
+      // copy: there is one resolver. A case here would have been a guard that
+      // cannot fire, sitting exactly where a reader counts it as protection.
       default:
         throw new RuntimeRefusal('runtime:statement', `a \`${node.type}\` beside a mutable value`, locate(node.tok))
     }

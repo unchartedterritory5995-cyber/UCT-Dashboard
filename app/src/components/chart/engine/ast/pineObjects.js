@@ -346,6 +346,26 @@ export function collectObjectOps(stmts, h) {
         }
       }
 
+      // ── a POSTFIX METHOD on a collection read ────────────────────────────
+      // `array.get(lines, i).set_x2(bar_index)` — 23 of the 266 committed
+      // scripts write a member call on the RESULT of an expression, and this is
+      // the receiver shape the object program can already address: `targetRef`
+      // in `pine.js` resolves `array.get(coll, idx)` to `{r:'coll', id, index}`,
+      // and `decls` knows which drawing FAMILY that collection holds.
+      //
+      // ⛔ THE FAMILY COMES FROM THE DECLARATION, NEVER FROM THE METHOD NAME.
+      // `delete` belongs to line, label, box, table and linefill alike, and
+      // `set_color` to three of them — so reading the family off `.set_x2`
+      // would be this reader inventing a type system Pine already has and this
+      // engine does not. `array.new_line()` said `line`; that is the answer.
+      //
+      // ⛔ IT IS TRIED BEFORE the bare-call branch and falls through on any
+      // miss, so a postfix this cannot lower is dropped and COUNTED by
+      // `argsOf`'s span guard rather than half-read.
+      if (word && h.isPunct(t[1], '(') && emitPostfix(t, guards, inLoop, st, localScope)) {
+        continue
+      }
+
       // ── a bare call statement ────────────────────────────────────────────
       if (word && h.isPunct(t[1], '(')) {
         const ns = nsOf(word)
@@ -468,9 +488,38 @@ export function collectObjectOps(stmts, h) {
     } catch { return null }
   }
 
+  /** The index closing the bracket opened at `open`, or -1. */
+  const closeOf = (toks, open) => {
+    let depth = 0
+    for (let i = open; i < toks.length; i += 1) {
+      const tk = toks[i]
+      if (tk.kind !== 'punct') continue
+      if (tk.value === '(' || tk.value === '[') depth += 1
+      else if (tk.value === ')' || tk.value === ']') {
+        depth -= 1
+        if (depth === 0) return i
+      }
+    }
+    return -1
+  }
+
   const argsOf = (toks) => {
     const open = toks.findIndex((x) => h.isPunct(x, '('))
     if (open < 0) return null
+    // ⛔⛔ THE CALL MUST BE THE WHOLE STATEMENT, AND THIS IS THE GUARD THAT SAYS
+    // SO. This reader recognises a statement by its FIRST token and then takes
+    // the first `(` as the call — so `box.new(…).delete()` was read as
+    // `box.new(…)`, the create was emitted, and `.delete()` vanished without a
+    // word. A create with its delete dropped is not a smaller drawing: it is a
+    // box that stays on a member's chart forever, drawn by a line their script
+    // says to remove. Measured: `box.new(…).delete()` emitted `["create:box"]`
+    // and the name form emitted `["create:box","delete"]` for the same program.
+    //
+    // ⛔ A NULL HERE MEANS "THIS READER DOES NOT READ THIS STATEMENT", which
+    // every caller already turns into an `unsupported` diagnostic and NO op. A
+    // counted drop is this pass's own answer for a shape it cannot carry; an
+    // uncounted, half-read one is not.
+    if (closeOf(toks, open) !== toks.length - 1) return null
     try {
       return h.parseArguments(new h.Cursor(toks.slice(open + 1)))
     } catch { return null }
@@ -509,10 +558,22 @@ export function collectObjectOps(stmts, h) {
     if (inLoop) { diagnostics.loopBlocked.push(`${ns}.${method}`); return }
     const args = argsOf(toks)
     if (!args || !args.length) { diagnostics.unsupported.push(`${ns}.${method}`); return }
-    const target = args[0]
-    const rest = args.slice(1)
+    emitMethodOn(ns, method, args[0], args.slice(1), toks[0], guards, st, scope)
+  }
+
+  /** ⭐⭐ ONE PLACE TURNS A FAMILY, A METHOD, A TARGET AND THE REST INTO AN OP.
+   *
+   *  ⛔ EXTRACTED FROM `emitMethod` RATHER THAN COPIED, and the difference is the
+   *  whole point. `line.set_x2(l, n)` and `<expr>.set_x2(n)` are ONE Pine
+   *  operation written two ways — Pine's own docs define the second as the first
+   *  with the receiver moved. A second emitter would be a second opinion about
+   *  which methods are deletes, which are `table.cell`, and which property each
+   *  setter writes, and the two would drift the first time `SETTER_PROPS` gains
+   *  a row (`lesson_a_second_authority_over_one_value`). The only thing the
+   *  postfix caller supplies differently is WHERE the target came from. */
+  function emitMethodOn(ns, method, target, rest, at, guards, st, scope) {
     if (method === 'delete') {
-      ops.push({ k: 'delete', family: ns, target, guards, locals: scope, loopIds: [...loopIds], at: toks[0], line: st.header[0].line })
+      ops.push({ k: 'delete', family: ns, target, guards, locals: scope, loopIds: [...loopIds], at, line: st.header[0].line })
       return
     }
     // ⭐⭐ `table.clear` REMOVES A RECTANGLE OF CELLS, and it is carried rather
@@ -527,14 +588,14 @@ export function collectObjectOps(stmts, h) {
     if (ns === 'table' && method === 'clear') {
       ops.push({
         k: 'clear', target, args: rest,
-        guards, locals: scope, loopIds: [...loopIds], at: toks[0], line: st.header[0].line,
+        guards, locals: scope, loopIds: [...loopIds], at, line: st.header[0].line,
       })
       return
     }
     if (ns === 'table' && method === 'cell') {
       ops.push({
         k: 'cell', target, col: rest[0], row: rest[1], args: rest.slice(2),
-        guards, locals: scope, loopIds: [...loopIds], at: toks[0], line: st.header[0].line,
+        guards, locals: scope, loopIds: [...loopIds], at, line: st.header[0].line,
       })
       return
     }
@@ -542,7 +603,7 @@ export function collectObjectOps(stmts, h) {
     if (!props) { diagnostics.unsupported.push(`${ns}.${method}`); return }
     ops.push({
       k: 'update', family: ns, target, props, args: rest,
-      guards, locals: scope, loopIds: [...loopIds], at: toks[0], line: st.header[0].line,
+      guards, locals: scope, loopIds: [...loopIds], at, line: st.header[0].line,
     })
   }
 
@@ -600,6 +661,35 @@ export function collectObjectOps(stmts, h) {
    *  collection itself. `push(coll, v)` → 0; `set(coll, i, v)` → 1. Every other
    *  collection call takes an index or nothing, so it has no create position. */
   const VALUE_ARG = Object.freeze({ push: 0, set: 1 })
+
+  /** `<array.get(coll, i)>.<method>(args)` as a STATEMENT → the same op the
+   *  name form emits, or false if this reader does not read this shape.
+   *
+   *  ⛔ IT ANSWERS FALSE RATHER THAN THROWING, and the caller falls through to
+   *  the branches that already existed — so a postfix this cannot lower behaves
+   *  exactly as it did before the rule landed. */
+  function emitPostfix(toks, guards, inLoop, st, scope) {
+    let node = null
+    try { node = h.parseWholeExpression(toks) } catch { return false }
+    if (!node || node.type !== 'method') return false
+    const recv = node.recv
+    // ⛔ THE ONE RECEIVER `targetRef` CAN ADDRESS. A `name` receiver never
+    // reaches here — the parser folds `(b).delete()` back into the dotted name
+    // `b.delete`, which is the bare-call branch's business — so this is the
+    // whole of what the object program can resolve today.
+    if (!recv || recv.type !== 'call' || recv.name !== 'array.get') return false
+    if (!Array.isArray(recv.args) || recv.args.length !== 2) return false
+    const cn = recv.args[0] && recv.args[0].value
+    const collName = cn && cn.type === 'name' ? cn.name : null
+    const d = collName ? decls.get(collName) : null
+    if (!d || d.kind !== 'coll' || !OBJECT_NAMESPACES.includes(d.family)) return false
+    const method = node.name
+    if (method.startsWith('get_')) { diagnostics.getters.push(`${d.family}.${method}`); return true }
+    if (inLoop) { diagnostics.loopBlocked.push(`${d.family}.${method}`); return true }
+    emitMethodOn(d.family, method, { name: null, value: recv, tok: toks[0] },
+      node.args || [], toks[0], guards, st, scope)
+    return true
+  }
 
   function emitCollection(method, toks, guards, inLoop, st, scope) {
     if (inLoop) { diagnostics.loopBlocked.push(`array.${method}`); return }

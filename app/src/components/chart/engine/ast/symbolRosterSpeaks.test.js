@@ -107,10 +107,16 @@ describe('(h) — three syminfo fields retire by name, from the roster', () => {
     // "offers no plot and no alert condition", which is true and which reads to
     // the author of a working dashboard as "this engine cannot see my script".
     //
+    // ⭐ AND 42 → 43 ON 2026-09-21, AGAIN NOT BECAUSE OF (h). The postfix-member
+    // rule declared `pine:member`: `arr.get(i).delete()` used to be refused
+    // `pine:character` — "Pine has no character like this one" — about a dot
+    // every Pine author writes. It lexes and parses now; what stops it is the
+    // receiver's TYPE, and that is a different sentence.
+    //
     // ⚠️ WHAT THIS CASE ASKS IS UNCHANGED: did ruling (h) move the table? It did
     // not. The count is re-pinned rather than loosened to a floor, because a
     // floor would stop catching what it was written for — a roster edit that
     // quietly grows the refusal vocabulary.
-    expect(Object.keys(REFUSALS).length).toBe(42)
+    expect(Object.keys(REFUSALS).length).toBe(43)
   })
 })
