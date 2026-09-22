@@ -10,16 +10,32 @@
 
 ---
 
-## ✅ 2026-09-21/22 SESSION — PUSHED AND DEPLOYED, §2/§3 WORKED THROUGH
+## ✅ 2026-09-21/22 SESSION — TWO WAVES PUSHED AND DEPLOYED
 
-Branch `feat/notebook-kill-switch` fast-forward-merged to `master` at
-**`60e73757b`**, 2026-09-22T01:20:00Z. **Verified three ways, not by a status
-field alone:** `origin/production` ancestry (`git merge-base --is-ancestor`),
-Railway's own `web` deploy record (`SUCCESS | 60e73757b`), and `/api/health`
-`uptime_seconds` reset (2686 → 47) and held stable across three follow-up
-probes. `C:\data` confirmed untouched (content-hash, 58 DBs) across the whole
-session, including every real note/attachment/OCR/share/import/Ask call made
-against the local sandbox.
+**Wave 1** fast-forward-merged to `master` at `60e73757b`, 2026-09-22T01:20:00Z
+— §2/§3 below worked through (large-note import, editor writing, OCR,
+share/templates/export, Ask panel, Obsidian import, connectors review).
+
+**Wave 2** fast-forward-merged to `master` at **`29ccfae8c`**,
+2026-09-22T01:43:46Z — a live production-flag correction
+(`J2_SHARE_LINKS_ENABLED` ledger said "armed", live value was `0`, no
+exposure, ledger fixed) plus a pass over `competitive-gap-ledger.md`'s own
+OPEN rows: two (G-012 folder-sidebar leaf-row undercount, G-101 note-load
+error state) turned out ALREADY FIXED in code and unverified — both proven
+live against a real 1200-note sandbox / a real failed load; G-002 (version
+history)'s "no table exists" claim was factually wrong (the table exists,
+the member-facing UI doesn't — corrected, not closed); G-105 (5 raw
+close-button glyphs) fixed and verified two ways in a real browser.
+
+**Both waves verified three ways, not by a status field alone:**
+`origin/production` ancestry (`git merge-base --is-ancestor`, after a real
+`git fetch` — `git ls-remote` in a poll loop does NOT update local refs, and
+this session tripped on that once, corrected in-place), Railway's own `web`
+deploy record (`SUCCESS` on the exact SHA each time), and `/api/health`
+`uptime_seconds` reset + held stable across follow-up probes each time.
+`C:\data` confirmed untouched (content-hash, 58 DBs) across the WHOLE
+session, including every real note/attachment/OCR/share/import/Ask/1200-note-seed
+call made against the local sandbox, across both waves.
 
 The 13 commits: the two original CSS floor fixes, and — worked through this
 session, §2/§3 below, each with real local-sandbox evidence — the large-note
