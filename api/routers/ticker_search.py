@@ -248,6 +248,29 @@ def ticker_search(
                 row = {"ticker": rec["symbol"], "name": rec["display"],
                        "type": "indicator", "exchange": "UCT", "entity_id": None,
                        "indicator": True, "group_label": rec["family_label"]}
+                # ⛔⛔ A PRODUCT IS NOT A TICKER, AND SAYING SO HERE IS WHAT KEEPS IT
+                # OUT OF THE SYMBOL SEARCH. `AAII:SURVEY` names three canonical
+                # series; it has no bars of its own, so a member who typed it into
+                # the chart's symbol box would get an empty chart.
+                #
+                # ⚰️ MEASURED IN A BROWSER: without these two fields the Indicators
+                # panel rendered the product as an ordinary symbol row —
+                # `AAII:SURVEY` as the HEADLINE with "AAII Sentiment Survey"
+                # demoted to the subtitle — because a searched row overwrites the
+                # browsed one and only the browsed one knew it was a product. An
+                # internal id in the one place a member reads.
+                #
+                # ⚠️ CARRIED, NOT FILTERED OUT. Dropping products would lose the one
+                # row a search for "AAII" should return; the client re-shapes it
+                # from `kind` and `components` into the product it is.
+                if rec.get("kind") == "product":
+                    row["kind"] = "product"
+                    row["components"] = rec.get("components") or []
+                    row["component_rows"] = rec.get("component_rows") or []
+                    row["short_name"] = rec.get("short")
+                    row["description"] = rec.get("description") or ""
+                    row["presentation"] = rec.get("presentation")
+                    row["domain"] = rec.get("domain")
                 (m_front if rec.get("symbol_hit") else m_back).append(row)
             results = m_front + results + m_back
         except Exception:

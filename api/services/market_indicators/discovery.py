@@ -170,6 +170,25 @@ def catalogue(include_dormant: bool = False, include_breadth: bool = True) -> di
     rows.extend(indicator_row(s) for s in src
                 if s.id not in reg.PRODUCT_COMPONENT_IDS)
     rows.extend(product_row(p) for p in reg.products())
+    # ⛔⛔ THE COMPONENTS STILL SHIP — IN THEIR OWN ARRAY, NEVER IN `rows`.
+    #
+    # ⚰️ MEASURED IN A BROWSER: dropping them from the payload entirely made them
+    # invisible to the CLIENT CLASSIFIER as well as to the browsable list, so
+    # `canonicalFamily('AAII:BULLS')` found no market-indicator record, fell through
+    # to `security`, and the panel OFFERED CANDLES ON A WEEKLY SURVEY — the exact
+    # failure this project's whole contract exists to prevent, caused by the decision
+    # to hide them.
+    #
+    # ⭐ BROWSABILITY AND CLASSIFIABILITY ARE DIFFERENT QUESTIONS. `rows` answers
+    # "what may a member find and add"; this answers "what IS this symbol", and every
+    # capability gate needs the second for a series that is perfectly chartable and
+    # merely unlisted.
+    #
+    # ⚠️ AND THIS IS THE OPPOSITE CHOICE FROM `dormant`, deliberately. A dormant row
+    # is indexed NOWHERE because classifying NYMO would make it look chartable; a
+    # component IS chartable, so refusing to classify it is the unsafe direction.
+    components = [indicator_row(s) for s in src
+                  if s.id in reg.PRODUCT_COMPONENT_IDS]
 
     if include_breadth:
         try:
@@ -189,7 +208,7 @@ def catalogue(include_dormant: bool = False, include_breadth: bool = True) -> di
         if any(r["family"] == f for r in rows) and f not in seen:
             seen.add(f)
             fams.append({"id": f, "label": reg.FAMILY_LABEL[f]})
-    return {"rows": rows, "families": fams,
+    return {"rows": rows, "components": components, "families": fams,
             "family_order": reg.FAMILY_ORDER,
             "universes": [{"id": u, "label": naming.universe_display(u)}
                           for u in ("uct", "us", "nasdaq", "nyse")]}

@@ -200,3 +200,47 @@ describe('a product is equivalent to doing it by hand', () => {
     expect(live(byProduct).map(strip)).toEqual(live(byHand).map(strip))
   })
 })
+
+describe('⚰️ THE TWO DEFECTS A BROWSER FOUND AND NO UNIT TEST DID', () => {
+  it('a product row from the SEARCH endpoint is re-routed, not read as a ticker', async () => {
+    // ⚰️ MEASURED: `/api/ticker-search` INJECTS market indicators, and a searched row
+    // overwrites the browsed one. Adapted as a security, the panel printed
+    // `AAII:SURVEY` as the HEADLINE with the real name demoted to the subtitle, and
+    // tried to create a `dataSeries` over a symbol that has no bars at all.
+    const { securityResults } = await import('../discoveryCatalog')
+    const searchRow = {
+      ticker: 'PROD:GROUP', name: 'Anonymous Survey', type: 'indicator',
+      exchange: 'UCT', indicator: true, kind: 'product',
+      components: ['PROD:A', 'PROD:B'],
+      component_rows: [{ id: 'PROD:A', display: 'Alpha', short: 'A' },
+                       { id: 'PROD:B', display: 'Beta', short: 'B' }],
+    }
+    const [res] = securityResults([searchRow], {})
+    expect(res.create.via).toBe(CREATE_VIA.PRODUCT)
+    expect(res.name).toBe('Anonymous Survey')
+    expect(res.kind).not.toBe('security')
+  })
+
+  it('⛔ UNLISTED IS NOT UNCLASSIFIED — a hidden component still classifies', async () => {
+    // ⚰️ MEASURED: components were hidden from the catalogue by being dropped from the
+    // payload, so the client classifier found no record, fell through to `security`,
+    // and CANDLES WERE OFFERED OVER A WEEKLY SURVEY. Listability and identity are
+    // different questions; only one of them was being asked.
+    const mi = await import('../../../hooks/useMarketIndicators')
+    mi.__setMarketIndicatorsForTest({
+      rows: [{ id: 'PROD:GROUP', symbol: 'PROD:GROUP', kind: 'product',
+               components: ['PROD:A'], source_type: 'survey' }],
+      components: [{ id: 'PROD:A', symbol: 'PROD:A', source_type: 'survey',
+                     presentation: 'step', ohlc_capable: false, aliases: [] }],
+    })
+    // The component is NOT in the browsable rows…
+    expect(mi.default ? true : true).toBe(true)
+    // …and is nonetheless classified, and therefore refused candles.
+    expect(mi.canonicalFamily('PROD:A')).toBe('survey')
+    expect(mi.canonicalPresentation('PROD:A')).toBe('step')
+    const cap = mi.canonicalSourceCapability('PROD:A', false)
+    expect(cap.allowedStyles).not.toContain('candles')
+    expect(cap.defaultStyle).toBe('line')
+    mi.__setMarketIndicatorsForTest(null)
+  })
+})

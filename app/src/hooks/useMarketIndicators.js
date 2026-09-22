@@ -28,7 +28,17 @@ const EMPTY = { byKey: new Map(), rows: [], families: [], dormant: [] }
 function _index(data) {
   const byKey = new Map()
   const rows = Array.isArray(data?.rows) ? data.rows : []
-  for (const row of rows) {
+  // ⭐⭐ PRODUCT COMPONENTS ARE INDEXED BUT NOT BROWSABLE. They are deliberately
+  // absent from `rows` — a search for "AAII" must return ONE row — and they are
+  // nonetheless real, chartable canonical series that every capability gate has to
+  // be able to CLASSIFY.
+  //
+  // ⚰️ MEASURED IN A BROWSER: with them absent from the index entirely,
+  // `canonicalFamily('AAII:BULLS')` found no record, fell through to `security`, and
+  // Candles were offered over a weekly survey. Listability and identity are
+  // different questions and only one of them was being asked.
+  const components = Array.isArray(data?.components) ? data.components : []
+  for (const row of [...rows, ...components]) {
     // ⛔ EVERY SPELLING THAT MAY RESOLVE — id, member-facing symbol and explicit
     // aliases — because Rule 4 separates them on purpose and a lookup that only knew
     // one would answer 'unknown' for the other two.
@@ -39,6 +49,7 @@ function _index(data) {
   return {
     byKey,
     rows,
+    components,
     families: Array.isArray(data?.families) ? data.families : [],
     // ⚠️ Dormant rows are indexed NOWHERE. They are carried for a diagnostic surface
     // only; putting them in `byKey` would let `canonicalFamily` classify NYMO, which
