@@ -87,7 +87,7 @@ import { CLEAN } from './engine/repaintVerdict'
 import styles from './ChartSettingsModal.module.css'
 import SourceField from './SourceField'
 import { availableStyles, resolvePlotStyle, PLOT_STYLE_CHOICES, resolveSignColors } from './engine/presentation'
-import { ohlcCapabilityOf } from './engine/ohlcCapability'
+import { ohlcCapabilityOf, outputIsSource } from './engine/ohlcCapability'
 import { anyCachedBars } from './engine/secondaryBars'
 // ⭐ THE COMPOSED CLASSIFIER — breadth AND market indicators, ONE authority.
 // ⚰️ This used to import `symbolFamily` (breadth only). Every call site here asks
@@ -95,7 +95,7 @@ import { anyCachedBars } from './engine/secondaryBars'
 // function would classify a Cboe volatility index as a plain security and offer it
 // candles for the wrong reason. `canonicalFamily` composes both and is fail-closed
 // until both registries have landed.
-import useMarketIndicators, { canonicalFamily, presentationFamily } from '../../hooks/useMarketIndicators'
+import useMarketIndicators, { canonicalFamily, canonicalSourceCapability, presentationFamily } from '../../hooks/useMarketIndicators'
 import useBreadthSymbols from '../../hooks/useBreadthSymbols'
 import { POPULAR_RESULTS, INDICES_PRESET } from './symbolSearchModel'
 import {
@@ -206,6 +206,33 @@ function ohlcCapableFor(def, inst) {
   const parsed = parseSource(declared[0][1])
   if (!parsed || parsed.kind !== 'symbol') return false
   return ohlcCapabilityOf(def, parsed, anyCachedBars(parsed.symbol), canonicalFamily).ok
+}
+
+/**
+ * The SOURCE's presentation capability for one instance — the exact answer the
+ * binder computes, from the exact same two functions.
+ *
+ * ⛔⛔ THE MENU AND THE RENDERER MUST READ ONE CONTRACT, and this is the whole
+ * reason this helper exists rather than an inline object. A dropdown that offers a
+ * style the resolver then clamps is a dropdown that lies; a dropdown that hides a
+ * style the resolver would have honoured silently removes a member's control. Both
+ * are the same bug — two implementations of one rule — and the way to not have it
+ * is for `styleCtx` here and `sourceCapabilityFor` in `binder.js` to be the same
+ * three lines over the same inputs.
+ *
+ * ⚠️ THE DEFAULT IS GATED ON `passthrough` HERE TOO, identically: only a row that
+ * IS its source takes its source's default, because `dataSeries` declares
+ * `style: 'line'` generically while an authored definition means it.
+ */
+function sourceCapabilityFor(def, inst) {
+  if (!inst || !def) return null
+  const declared = sourceInputsOf(def, inst)
+  if (!declared.length) return null
+  const parsed = parseSource(declared[0][1])
+  if (!parsed || parsed.kind !== 'symbol' || !parsed.symbol) return null
+  const cap = canonicalSourceCapability(parsed.symbol, ohlcCapableFor(def, inst))
+  if (outputIsSource(def)) return cap
+  return { defaultStyle: null, allowedStyles: cap.allowedStyles }
 }
 
 export default function ChartSettingsIndicators({
@@ -2324,7 +2351,16 @@ export default function ChartSettingsIndicators({
     const ohlcCapable = ohlcCapableFor(def, inst)
 
     const target = resolveDisplayTarget(inst, settings)
-    const styleCtx = { target, ohlcCapable }
+    // ⭐ ONE CONTRACT, TWO READERS. `availableStyles` below now offers exactly what
+    // the binder will honour, and `resolvePlotStyle` shows exactly what it will draw
+    // — including the source's own default for a row that has never been restyled.
+    const srcCap = sourceCapabilityFor(def, inst)
+    const styleCtx = {
+      target,
+      ohlcCapable,
+      sourceDefaultStyle: srcCap ? srcCap.defaultStyle : null,
+      allowedStyles: srcCap ? srcCap.allowedStyles : null,
+    }
     const plots = Array.isArray(def.plots) ? def.plots : []
     const restyleable = plots.filter((pl) => availableStyles(pl, styleCtx).length > 0)
     if (!restyleable.length) return null

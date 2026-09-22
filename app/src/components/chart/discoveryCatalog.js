@@ -34,8 +34,8 @@
 
 import { catalogRows, userCatalogRows, BUILT_IN_ROWS } from './indicatorCatalog'
 import { isOverlayRemoved } from './chartDefaults'
-import { symbolSource, canonicalSymbol, derivedSourceName } from './engine/sourceRef'
-import { addInstance, setInstanceInput, findInstance } from './engine/instanceControls'
+import { symbolSource, canonicalSymbol, derivedSourceName, paneOfTarget } from './engine/sourceRef'
+import { addInstance, setInstanceInput, findInstance, setInstanceDisplayTarget } from './engine/instanceControls'
 import { cachedBars, SOURCE_STATUS } from './engine/secondaryBars'
 
 // ─── the vocabulary ─────────────────────────────────────────────────────────
@@ -107,6 +107,10 @@ export const CAPABILITY = Object.freeze({
 export const CREATE_VIA = Object.freeze({
   DEFINITION: 'definition',
   DATA_SERIES: 'dataSeries',
+  // ⭐ SEVERAL CANONICAL SERIES ADDED AS ONE THING, into one pane. It is not a new
+  // KIND of series — every component is an ordinary `DATA_SERIES` — it is a
+  // statement that the member asked for all of them together.
+  PRODUCT: 'product',
 })
 
 /** The definition id every symbol result creates through. One place. */
@@ -330,6 +334,17 @@ export function breadthResults(rows, { tf, bars } = {}) {
   const out = []
   for (const row of (Array.isArray(rows) ? rows : [])) {
     if (!row) continue
+    // ⛔⛔ A PRODUCT IS ADAPTED BEFORE THE SYMBOL PATH, because it HAS no bars of
+    // its own and every question below this point assumes it does.
+    // `knownCapabilityOf` would ask the bars cache about `AAII:SURVEY`, find
+    // nothing — correctly, there is no such series — and mark the row
+    // UNSUPPORTED, which `createFromResult` refuses. The member would see the one
+    // row we went to the trouble of building and be unable to add it.
+    if (row.kind === 'product') {
+      const prod = productResult(row, { tf, bars })
+      if (prod) out.push(prod)
+      continue
+    }
     const sym = canonicalSymbol(row.symbol || row.ticker)
     if (!sym) continue
     const name = str(row.name, sym)
@@ -390,6 +405,64 @@ export function breadthResults(rows, { tf, bars } = {}) {
     }))
   }
   return out
+}
+
+/**
+ * A PRODUCT catalogue row → one addable discovery result.
+ *
+ * ⭐⭐ ITS CAPABILITY IS ITS COMPONENTS'. A product cannot be asked whether IT has
+ * bars, so the honest question is whether anything it would create can be drawn —
+ * and the answer is the best answer among its components. One unavailable
+ * component degrades the product; all of them unavailable refuses it, which is the
+ * same rule a single series follows.
+ *
+ * ⚠️ THE MEMBER-FACING NAME IS THE PRODUCT'S, AND NO INTERNAL WORD APPEARS. Not
+ * `dataSeries`, not a provider key, not `AAII:BULLS` — the row reads
+ * "AAII Sentiment Survey" and its components are addresses the UI never prints.
+ */
+export function productResult(row, { tf, bars } = {}) {
+  if (!row) return null
+  const id = str(row.id || row.symbol, '')
+  // ⭐ THE NAMED ROWS WHEN THE SERVER SENT THEM, the bare ids otherwise. A client
+  // reading an older catalogue still gets a working product; it just labels the
+  // components from their sources.
+  const named = Array.isArray(row.component_rows || row.componentRows)
+    ? (row.component_rows || row.componentRows).filter((c) => c && c.id) : []
+  const components = named.length
+    ? named
+    : (Array.isArray(row.components) ? row.components.filter(Boolean).map((c) => ({ id: c })) : [])
+  if (!id || !components.length) return null
+  const name = str(row.name || row.display, id)
+  // ⭐ ASK THE BARS CACHE ABOUT THE THINGS THAT ACTUALLY HAVE BARS.
+  const caps = components.map((c) => knownCapabilityOf(canonicalSymbol(c.id), tf, bars))
+  const best = caps.find((c) => c && c.capability !== CAPABILITY.UNSUPPORTED) || caps[0] || {}
+  const pres = presentationFor(row)
+  return result({
+    id,
+    kind: 'breadth',
+    name,
+    shortName: str(row.short_name || row.shortName, name),
+    lead: name,
+    sub: str(row.family_label || row.familyLabel, ''),
+    metricShort: str(row.short_name || row.shortName, ''),
+    universeLabel: '',
+    category: str(row.family_label || row.familyLabel, 'Market Indicators'),
+    description: str(row.description, name),
+    tags: ['market-indicator', 'product'],
+    ...best,
+    create: {
+      via: CREATE_VIA.PRODUCT,
+      components: components.map((c) => ({
+        source: symbolSource(canonicalSymbol(c.id), 'close'),
+        // ⛔ THE MEMBER-FACING NAME, NOT THE ID. Absent, `createDirectSeries`
+        // derives the label from the source and the pane legend prints the
+        // canonical address — an internal word in the one place it must never be.
+        name: str(c.display, '') || null,
+        compact: str(c.short, '') || null,
+        presentation: pres || null,
+      })),
+    },
+  })
 }
 
 /**
@@ -552,6 +625,12 @@ export function createFromResult(cs, res, registry) {
       ? addInstance(cs, res.create.defId, registry)
       : cs
   }
+  if (res.create.via === CREATE_VIA.PRODUCT) {
+    // ⚠️ THE PRODUCT'S OWN NAME IS NOT STAMPED ON ITS COMPONENTS. Each series is
+    // named by `semanticNamesFor` from its OWN catalogue row, so the pane legend
+    // reads `Bullish / Bearish / Neutral` rather than the product name three times.
+    return createProductSeries(cs, res.create.components, registry)
+  }
   if (res.create.via === CREATE_VIA.DATA_SERIES) {
     // ⭐ THE DISPLAY NAME TRAVELS WITH THE ADD (P2.2). See `createDirectSeries`.
     const names = semanticNamesFor(res)
@@ -677,6 +756,64 @@ function withDisplay(cs, instanceId, display) {
 /** The instance a `createFromResult` just minted, for a caller that needs to
  *  address it (a settings dialog, a label write, a test). `null` when the create
  *  was refused. */
+/**
+ * ADD A PRODUCT — several canonical series that a member adds, and reads, as one.
+ *
+ * ⭐⭐ IT BUILDS NOTHING NEW. Every component is an ORDINARY `dataSeries` created
+ * through the ORDINARY door, and the only extra act is pointing components 2..N at
+ * the pane the first one hosts. That is exactly what a member could do by hand with
+ * three adds and two "Display in" changes — which is the property that makes the
+ * pane, the pane-owned legend, the micro-rails, per-output styling, show/hide,
+ * scale sharing, formula addressability and saved-chart reconstruction all work
+ * with no code that knows a product exists. A bespoke multi-series renderer would
+ * have had to reimplement every one of them.
+ *
+ * ⛔ THE HOST IS THE FIRST COMPONENT THAT ACTUALLY LANDED, NOT `components[0]`.
+ * `createDirectSeries` fails closed (a refused input write creates nothing), so
+ * assuming the first one exists would point the other two at an instance that is
+ * not there — and `setInstanceDisplayTarget` would refuse, leaving three separate
+ * panes with no error anywhere. Reading the host back is the same
+ * "never predict a minted id" rule `createDirectSeries` already states.
+ *
+ * ⚠️ A PARTIAL PRODUCT IS BETTER THAN NONE, and it is not silent: a component that
+ * cannot be created is skipped and the rest still land in one pane. The alternative
+ * — abandoning the whole add because one series is unavailable — turns a degraded
+ * chart into no chart.
+ */
+export function createProductSeries(cs, components, registry) {
+  if (!cs || typeof cs !== 'object') return cs
+  if (!Array.isArray(components) || !components.length) return cs
+
+  let next = cs
+  let hostId = null
+  for (const comp of components) {
+    if (!comp || typeof comp.source !== 'string' || !comp.source) continue
+    const before = next
+    next = createDirectSeries(next, comp.source, registry, {
+      name: comp.name || null,
+      compact: comp.compact || null,
+      presentation: comp.presentation || null,
+    })
+    if (next === before) continue                    // refused — skip, do not abort
+    const minted = lastCreatedInstance(before, next)
+    if (!minted || !minted.instanceId) continue
+    if (hostId === null) {
+      // ⭐ THE FIRST LANDED COMPONENT OWNS THE PANE and keeps its own default
+      // placement. Writing a target for it would be writing `@<self>`, which
+      // `setInstanceDisplayTarget` refuses by identity — correctly.
+      hostId = minted.instanceId
+      continue
+    }
+    const moved = setInstanceDisplayTarget(next, minted.instanceId,
+                                           paneOfTarget(hostId), registry)
+    // ⚠️ A REFUSED MOVE LEAVES THE SERIES IN ITS OWN PANE rather than dropping it.
+    // The member sees the data and can move it; they never silently lose a series
+    // because a placement write was rejected.
+    if (moved !== next) next = moved
+  }
+  return next
+}
+
 export function lastCreatedInstance(before, after) {
   if (!after || after === before) return null
   const b = new Set((Array.isArray(before?.indicatorInstances) ? before.indicatorInstances : [])

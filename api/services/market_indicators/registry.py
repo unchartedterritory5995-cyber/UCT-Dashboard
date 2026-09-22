@@ -140,6 +140,17 @@ class Series:
     #: capability would draw a tidy candlestick over a synthesised o=h=l=c whose body
     #: and range mean nothing, which a member cannot tell by looking.
     has_ohlc: bool = True
+    #: ⛔⛔ WHICH OBSERVATION STREAM A SURVEY READS, DECLARED RATHER THAN DISPATCHED ON
+    #: THE ID. `series.daily_bars` used to answer `SRC_SURVEY` by calling `naaim_store`
+    #: outright, which was correct while NAAIM was the only survey and becomes a silent
+    #: wrong answer the moment a second one exists: AAII would have been served NAAIM's
+    #: numbers under AAII's name. Naming the stream here keeps ONE survey branch that
+    #: reads what the row says, so adding a third survey is a row and not a branch.
+    #:
+    #: ⚠️ REQUIRED FOR `SRC_SURVEY` AND FORBIDDEN OTHERWISE — `__post_init__` enforces
+    #: both, because a survey with no stream serves silence and a non-survey with one
+    #: is a claim nothing reads.
+    survey_key: Optional[str] = None
 
     def __post_init__(self):
         object.__setattr__(self, "symbol", (self.symbol or self.id).upper())
@@ -166,6 +177,13 @@ class Series:
             raise ValueError(f"unknown status {self.status!r} for {self.id}")
         if self.frequency not in (FREQ_DAILY, FREQ_WEEKLY):
             raise ValueError(f"unknown frequency {self.frequency!r} for {self.id}")
+        # ⛔ A SURVEY WITHOUT A STREAM WOULD SERVE SILENCE, and silence reads as "the
+        # market was flat" everywhere downstream. Refusing at construction makes it a
+        # test failure at import rather than an empty chart in production.
+        if self.source_type == SRC_SURVEY and not self.survey_key:
+            raise ValueError(f"{self.id} is a survey and declares no survey_key")
+        if self.source_type != SRC_SURVEY and self.survey_key:
+            raise ValueError(f"{self.id} declares survey_key but is not a survey")
 
     @property
     def family_label(self) -> str:
@@ -447,6 +465,7 @@ _ROWS: list[Series] = [
         synonyms=("NAAIM EXPOSURE", "EXPOSURE INDEX", "ACTIVE MANAGERS",
                   "MANAGER EXPOSURE", "POSITIONING"),
         presentation=PRES_STEP, centerline=0.0, reference_lines=(0.0, 100.0),
+        survey_key="naaim",
         methodology="The average US equity exposure reported weekly by NAAIM member "
                     "managers, as of each Wednesday's close. Scale runs −200 "
                     "(leveraged short) to +200 (leveraged long); 0 is cash/market "
@@ -472,10 +491,87 @@ _ROWS: list[Series] = [
                   "changes nothing above it.",
     ),
 
+    # ── AAII Sentiment Survey ───────────────────────────────────────────────
+    #
+    # ⭐⭐ THREE COMPONENT SERIES, ONE MEMBER-FACING PRODUCT. The member never sees
+    # three library entries — `PRODUCTS` below groups these into "AAII Sentiment
+    # Survey", which is what discovery returns and what the chart adds. They are
+    # registered individually because each one IS a canonical series: it has its own
+    # observations, its own bars door, its own formula address. Grouping is a
+    # PRESENTATION fact and belongs in the product, not in the identity.
+    #
+    # ⛔⛔ AND THEY ARE READ, NEVER DERIVED. `aaii_bulls` / `aaii_bears` /
+    # `aaii_neutral` are first-class keys in two canonical UCT stores and have been
+    # since long before this project. The one thing that would be dishonest here —
+    # recovering three components from the single Bull-Bear Spread — is arithmetically
+    # impossible (one equation, three unknowns) and `aaii_store` cannot even read the
+    # spread. The spread remains its own long-standing series at `UCTAAII`.
+    #
+    # ⚠️ THE FOURTH FIGURE IS NOT A SERIES. Bullish + Bearish + Neutral sum to 100 by
+    # construction, so a fourth "total" row would be a constant wearing a name.
+]
+
+
+def _aaii(comp: str, name: str, short: str, *, synonyms=()) -> Series:
+    """One AAII component. A FUNCTION for the same reason `_vol` is one: the three
+    differ in a word and a key, and anything else differing between them would be a
+    drift nobody would see on a chart where all three are drawn together."""
+    return Series(
+        id=f"AAII:{comp.upper()}", symbol=f"AAII:{comp.upper()}",
+        family=FAM_SENTIMENT, source_type=SRC_SURVEY,
+        frequency=FREQ_WEEKLY, unit=UNIT_PERCENT, domain=DOMAIN_PCT,
+        display=f"AAII {name}", short=short,
+        metric_name=f"AAII {name}", metric_short=short,
+        aliases=(f"AAII:{comp.upper()}", f"AAII{comp.upper()}"),
+        synonyms=naming.search_tokens("AAII", "SENTIMENT", "SURVEY",
+                                      "INDIVIDUAL INVESTOR", synonyms),
+        # ⭐ STEP, NOT LINE, AND FOR A DATA REASON. One reading stands until the next
+        # survey; a sloped line between two Wednesdays would draw daily values nobody
+        # measured. `step_to_daily` already serves flat carried bars — this is the
+        # presentation that tells the truth about them.
+        presentation=PRES_STEP,
+        reference_lines=(),
+        survey_key=f"aaii_{comp.lower()}",
+        methodology=f"The share of AAII members reporting a {name.lower()} view of "
+                    "the US stock market over the next six months, from AAII's own "
+                    "weekly member survey. Bullish, Bearish and Neutral sum to 100%. "
+                    "⛔ One reading per week — no OHLC, no interpolation, and the "
+                    "components are READ from the survey, never recovered from the "
+                    "Bull-Bear Spread.",
+        methodology_version="aaii-v1",
+        history_start=None,                    # answered at runtime by the store
+        observation_semantics="The date is the WEDNESDAY the survey closed for.",
+        knowledge_semantics="AAII publish the week's result on the Thursday. The "
+                            "stored observation is dated to the survey week, not to "
+                            "the day UCT read it.",
+        provenance="Two canonical UCT stores, stitched on a date seam: the public "
+                   "archive seed `breadth_sentiment_history` (1987-07-24 onward) and "
+                   "the 4:15pm Breadth collector's `breadth_snapshots` (2026-01-02 "
+                   "onward), deduplicated by `aaii_survey_date`. This project added "
+                   "NO ingestion — both writers predate it.",
+        source_owner="AAII (American Association of Individual Investors)",
+        licensing="⚠️ POC ONLY, and the same posture as NAAIM. AAII publish the "
+                  "survey history as a free spreadsheet on their own site "
+                  "(aaii.com/files/surveys/sentiment.xls) with no access control; "
+                  "the weekly numbers are very widely redisplayed with attribution. "
+                  "Commercial redisplay should carry 'Source: AAII Sentiment Survey' "
+                  "and be confirmed with AAII before this leaves POC.",
+        reproduces_reference=True,
+        has_ohlc=False,
+    )
+
+
+_ROWS += [
+    _aaii("BULLS", "Bullish", "Bullish", synonyms=("BULLS", "BULLISH")),
+    _aaii("BEARS", "Bearish", "Bearish", synonyms=("BEARS", "BEARISH")),
+    _aaii("NEUTRAL", "Neutral", "Neutral", synonyms=("NEUTRAL",)),
+]
+
+
     # ── Volatility ──────────────────────────────────────────────────────────
     # Rule 1 throughout: these ARE the established indices, published by Cboe, and we
     # serve Cboe's own numbers rather than a calculation of our own. No UCT prefix.
-]
+
 
 
 def _vol(sym: str, name: str, start: str, *, synonyms=(), status=ST_PUBLISHED,
@@ -647,6 +743,125 @@ def resolve(token: str, include_dormant: bool = False) -> Optional[Series]:
 def is_market_indicator(token: str) -> bool:
     """True when this deploy will SERVE `token` as a market indicator."""
     return resolve(token) is not None
+
+
+# ── PRODUCTS — one member-facing thing made of several canonical series ──────
+#
+# ⭐⭐ A PRODUCT IS A DISCOVERY FACT, NOT AN IDENTITY. Each component below is a
+# real canonical series with its own id, its own bars door and its own formula
+# address; a product says only that a member who asks for one wants all of them,
+# together, in one pane. Keeping the grouping OUT of `Series` is what stops the
+# chart engine ever having to learn the concept — it adds three ordinary series
+# and places them, exactly as a member could by hand.
+#
+# ⛔ THE COMPONENTS ARE HIDDEN FROM THE CATALOGUE LIST, NOT FROM RESOLUTION. A
+# search for "AAII" must return ONE row, and `/api/bars/AAII:BULLS` must still
+# serve — those are different questions and conflating them is how a product
+# becomes a wall a member cannot address through.
+#
+# ⚠️ ORDER IS THE DRAW ORDER AND THE LEGEND ORDER, and it is a product decision:
+# Bullish, Bearish, Neutral is how AAII themselves publish the three.
+
+
+@dataclass(frozen=True)
+class Product:
+    """Several canonical series a member adds, and reads, as one thing."""
+    id: str
+    display: str
+    short: str
+    family: str
+    components: tuple                  # ordered canonical series ids
+    description: str = ""
+    synonyms: tuple = ()
+
+    @property
+    def family_label(self) -> str:
+        return FAMILY_LABEL[self.family]
+
+    @property
+    def tokens(self) -> tuple:
+        # ⭐ THE COMPONENTS' OWN WORDS MATCH THE PRODUCT. A member who types "bullish"
+        # is looking for the survey that HAS a bullish reading, and the component row
+        # that carries the word is deliberately not in the browsable list — so without
+        # this the one query most specific to the product returns nothing at all.
+        comp = []
+        for cid in self.components:
+            c = SERIES.get(cid)
+            if c is not None:
+                comp.extend([c.display, c.short, c.metric_name])
+        return naming.search_tokens(self.id, self.display, self.short,
+                                    self.synonyms, self.family_label, comp)
+
+    def to_row(self) -> dict:
+        return {
+            "id": self.id, "kind": "product",
+            "symbol": self.id, "display": self.display, "short": self.short,
+            "family": self.family, "family_label": self.family_label,
+            "description": self.description,
+            "components": list(self.components),
+            # ⭐⭐ THE COMPONENTS' MEMBER-FACING NAMES TRAVEL WITH THE PRODUCT, and
+            # they have to: the client creates three series from these ids, and
+            # without a name each one falls back to a label DERIVED FROM ITS SOURCE
+            # — so a pane legend would read `AAII:BULLS / AAII:BEARS /
+            # AAII:NEUTRAL`, three internal addresses in the one place the member
+            # actually reads. Naming lives on the server (`naming.py`) for every
+            # other series and it stays there for these.
+            #
+            # ⚠️ THE SHORT NAME IS THE ONE THE LEGEND USES, so it is the bare word —
+            # `Bullish`, not `AAII Bullish`. The pane already says which survey
+            # these are; repeating "AAII" three times inside it is furniture.
+            "component_rows": [
+                {"id": c.id, "display": c.display, "short": c.short}
+                for c in (SERIES.get(cid) for cid in self.components)
+                if c is not None
+            ],
+            "aliases": [], "status": ST_PUBLISHED,
+            # ⛔ A PRODUCT IS NEVER CANDLE-CAPABLE, and not because of its own
+            # nature: it has no bars of its own at all. Saying so explicitly keeps
+            # the fail-closed reader from having to interpret an absence.
+            "ohlc_capable": False, "has_ohlc": False,
+        }
+
+
+PRODUCTS: list[Product] = [
+    Product(
+        id="AAII:SURVEY",
+        display="AAII Sentiment Survey",
+        short="AAII Survey",
+        family=FAM_SENTIMENT,
+        components=("AAII:BULLS", "AAII:BEARS", "AAII:NEUTRAL"),
+        description="The weekly AAII member survey in full — the share of individual "
+                    "investors reporting a bullish, bearish or neutral six-month view, "
+                    "drawn together on one percentage scale. The three sum to 100%.",
+        synonyms=("AAII", "SENTIMENT SURVEY", "INDIVIDUAL INVESTOR SENTIMENT",
+                  "BULLS BEARS NEUTRAL", "AAII SURVEY"),
+    ),
+]
+
+_PRODUCT_BY_ID = {p.id: p for p in PRODUCTS}
+
+#: Every series id that belongs to some product. ⚠️ DERIVED, never typed twice —
+#: a component list and a "hide these" list that can disagree is a component that
+#: appears twice in discovery on the day somebody edits one of them.
+PRODUCT_COMPONENT_IDS = frozenset(
+    cid for p in PRODUCTS for cid in p.components)
+
+
+def products() -> list[Product]:
+    return list(PRODUCTS)
+
+
+def get_product(pid: str) -> Optional[Product]:
+    return _PRODUCT_BY_ID.get((pid or "").strip().upper())
+
+
+def product_of(series_id: str) -> Optional[Product]:
+    """The product a component belongs to, if any."""
+    sid = (series_id or "").strip().upper()
+    for p in PRODUCTS:
+        if sid in p.components:
+            return p
+    return None
 
 
 def published_rows() -> list[Series]:

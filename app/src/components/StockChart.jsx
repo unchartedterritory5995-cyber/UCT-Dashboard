@@ -813,7 +813,7 @@ import { LIBRARY_HIDDEN_IDS } from './chart/discoveryCatalog'
 import { useSecondarySources } from './chart/engine/useSecondarySources'
 import { useServerColumns } from './chart/engine/useServerColumns'
 import { loadBreadthSymbols, breadthRecord } from '../hooks/useBreadthSymbols'
-import { canonicalFamily, loadMarketIndicators } from '../hooks/useMarketIndicators'
+import { canonicalFamily, canonicalPresentation, loadMarketIndicators } from '../hooks/useMarketIndicators'
 
 const NOOP = () => {}
 
@@ -11959,6 +11959,16 @@ export default function StockChart({
         // No ticker, no prefix: the binder asks what KIND of thing this is, and
         // `ohlcCapability` owns what each kind may be drawn as.
         ohlcFamilyOf: canonicalFamily,
+        // ⭐⭐ WHAT THE SOURCE SAYS ABOUT HOW IT WANTS TO BE DRAWN — the other half
+        // of the presentation contract, and a STRICTLY DIFFERENT QUESTION from the
+        // one above. `ohlcFamilyOf` decides what a source may MEAN (and therefore
+        // whether a candle is honest); this decides what it should LOOK LIKE first,
+        // and it may never be routed into a capability gate — `canonicalPresentation`
+        // says so in its own header and the engine rail asserts it.
+        //
+        // ⚠️ IT READS METADATA THAT WAS ALREADY ON THE WIRE. Both catalogues have
+        // published `presentation` all along; until now nothing on the chart asked.
+        sourcePresentationOf: canonicalPresentation,
         registry: engineRegistry,
         // The SAME bars `indicatorData` computes from (`:3895`) — parity under
         // Flip A means the engine's column and the legacy one are the same array.

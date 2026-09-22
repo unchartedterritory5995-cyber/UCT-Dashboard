@@ -72,7 +72,8 @@ import {
   sourceInputsOf, parseSource, barFieldSeries, orderByDependency,
 } from './sourceRef'
 import { projectionFor, clippedBarsFor } from './symbolProjection'
-import { ohlcCapabilityOf, barHasOhlc } from './ohlcCapability'
+import { ohlcCapabilityOf, barHasOhlc, outputIsSource } from './ohlcCapability'
+import { sourceCapabilityOf } from './sourceCapability'
 import { resolvePlotStyle, resolveCandleColors } from './presentation'
 
 /** A fill's colour and opacity — the plot's own `fillColor`/`fillOpacity` when it
@@ -1063,9 +1064,37 @@ export function createBinder({ chart, LWC }) {
       const entry = secondary ? secondary.get(parsed.symbol) : null
       return ohlcCapabilityOf(idef, parsed, entry, ctx.ohlcFamilyOf).ok
     }
+    // ⭐⭐ WHAT THE SOURCE ITSELF SAYS ABOUT HOW IT WANTS TO BE DRAWN.
+    //
+    // ⛔ GATED ON `passthrough`, AND THAT CONDITION IS THE WHOLE SAFETY ARGUMENT.
+    // Only a row that IS its source may take its source's default: `dataSeries`
+    // declares `style: 'line'` for everything it plots, so that string is a
+    // placeholder rather than an authored choice, while MACD's histogram IS an
+    // authored choice and no source may repaint it. `outputIsSource` is the same
+    // declared claim the candle gate already turns on, so the two cannot disagree
+    // about what "this row is its source" means.
+    //
+    // ⚠️ THE ALLOW-LIST IS RETURNED FOR *EVERY* ROW, PASSTHROUGH OR NOT — only the
+    // DEFAULT is gated. An RSI still cannot wear candles, and a formula over a
+    // survey still cannot; capability is about the data either way.
+    const sourceCapabilityFor = (instance) => {
+      const idef = registry.getDefinition(instance && instance.defId)
+      if (!idef) return null
+      const declared = sourceInputsOf(idef, instance)
+      if (!declared.length) return null
+      const parsed = parseSource(declared[0][1])
+      if (!parsed || parsed.kind !== 'symbol' || !parsed.symbol) return null
+      const pres = typeof ctx.sourcePresentationOf === 'function'
+        ? ctx.sourcePresentationOf(parsed.symbol) : null
+      const cap = sourceCapabilityOf(pres ? { presentation: pres } : null,
+                                     ohlcCapableFor(instance))
+      if (outputIsSource(idef)) return cap
+      return { defaultStyle: null, allowedStyles: cap.allowedStyles }
+    }
     const { bind, release } = planBindings(instances, registry, held, {
       hasData,
       ohlcCapable: ohlcCapableFor,
+      sourceCapability: sourceCapabilityFor,
       // ⭐ THE MEMBER'S OWN UP/DOWN, straight off the settings blob this sync was
       // already handed. `applyThemeToSettings` writes `cs.candles` when a UCT
       // Chart Theme is chosen, so a signed histogram that stores no colour of its

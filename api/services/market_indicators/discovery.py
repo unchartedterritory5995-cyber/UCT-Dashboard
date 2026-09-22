@@ -108,6 +108,40 @@ def indicator_row(s: reg.Series) -> dict:
     out = s.to_row()
     out["catalogue"] = "market_indicators"
     out["legacy"] = False
+    # ⭐ A COMPONENT SAYS WHICH PRODUCT IT BELONGS TO, so a surface that resolves one
+    # directly (a saved chart, a formula, `/api/bars/AAII:BULLS`) can still name the
+    # thing the member thinks they are looking at.
+    prod = reg.product_of(s.id)
+    if prod is not None:
+        out["product"] = prod.id
+        out["product_display"] = prod.display
+    return out
+
+
+def product_row(p) -> dict:
+    """A PRODUCT as a catalogue row, shaped like every other row.
+
+    ⛔⛔ THE SAME KEYS AS A SERIES ROW, AND THAT IS THE WHOLE TRICK. Discovery, search
+    ranking and the client list all walk one row shape; a product that needed its own
+    shape would fork every one of them. `kind: 'product'` and `components` are the only
+    additions, and a reader that ignores both still renders a correct entry.
+    """
+    out = p.to_row()
+    out["catalogue"] = "market_indicators"
+    out["legacy"] = False
+    out["source_type"] = reg.SRC_SURVEY
+    out["frequency"] = reg.FREQ_WEEKLY
+    # ⚠️ THE PRODUCT INHERITS ITS COMPONENTS' SEMANTICS RATHER THAN DECLARING ITS OWN,
+    # and refuses to exist if they disagree — three outputs sharing one pane and one
+    # scale is a claim about the DATA, and it has to be checked somewhere.
+    rows = [reg.get(c) for c in p.components]
+    rows = [r for r in rows if r is not None]
+    units = {r.unit for r in rows}
+    doms = {r.domain for r in rows}
+    press = {r.presentation for r in rows}
+    out["unit"] = units.pop() if len(units) == 1 else None
+    out["domain"] = doms.pop() if len(doms) == 1 else None
+    out["presentation"] = press.pop() if len(press) == 1 else reg.PRES_LINE
     return out
 
 
@@ -128,7 +162,14 @@ def catalogue(include_dormant: bool = False, include_breadth: bool = True) -> di
     """Every discoverable canonical series, plus the families they fall into."""
     rows: list[dict] = []
     src = reg._ROWS if include_dormant else reg.published_rows()
-    rows.extend(indicator_row(s) for s in src)
+    # ⛔⛔ A PRODUCT REPLACES ITS COMPONENTS IN THE LIST, NEVER JOINS THEM. Searching
+    # "AAII" must return ONE row — that is the entire product decision — and the way to
+    # guarantee it is to drop components here rather than to hope no surface lists them.
+    # They remain fully RESOLVABLE (`reg.resolve`, `/api/bars/AAII:BULLS`, a formula
+    # address); this is a statement about the browsable catalogue and nothing else.
+    rows.extend(indicator_row(s) for s in src
+                if s.id not in reg.PRODUCT_COMPONENT_IDS)
+    rows.extend(product_row(p) for p in reg.products())
 
     if include_breadth:
         try:
@@ -208,8 +249,16 @@ def search(q: str, limit: int = 40, include_dormant: bool = False,
         own = " ".join(str(v).upper() for v in
                        (r.get("display"), r.get("short"), r.get("symbol")) if v)
         if r["catalogue"] == "market_indicators":
-            s = reg.get(r["id"])
-            hay = _indicator_haystack(s) if s else own
+            row = reg.get(r["id"])
+            if row is not None:
+                hay = _indicator_haystack(row)
+            else:
+                # ⭐ A PRODUCT ID RESOLVES TO NO SERIES, BY DESIGN. Falling through to
+                # `own` would search only its display name and lose both its synonyms
+                # and its components' words — so "bullish" would find nothing at all
+                # while the row that carries the word is deliberately unlisted.
+                prod = reg.get_product(r["id"])
+                hay = " ".join(prod.tokens) if prod is not None else own
         else:
             hay = _breadth_haystack(r)
         code = str(r.get("id", "")).split(":")[-1].upper()

@@ -186,6 +186,50 @@ def resample(daily: list[dict], tf: str) -> list[dict]:
     return [buckets[k] for k in order]
 
 
+# ── Survey observation streams ───────────────────────────────────────────────
+#
+# ⛔⛔ ONE BRANCH THAT READS THE ROW, NOT ONE BRANCH PER SURVEY. `daily_bars` used to
+# answer `SRC_SURVEY` by calling `naaim_store` outright. That was correct while NAAIM
+# was the only survey and became a SILENT WRONG ANSWER the instant a second one
+# existed: AAII would have been served NAAIM's exposure numbers under AAII's name,
+# on a chart, with no error anywhere — the single most dangerous shape of bug this
+# project can produce, because a plausible line is indistinguishable from a true one.
+#
+# ⭐ SO THE ROW NAMES ITS STREAM (`Series.survey_key`) and this maps stream → reader.
+# A third survey is an entry here plus a registry row; it is never a new branch in
+# the builder, and a row whose stream is unknown serves NOTHING rather than serving
+# somebody else's series.
+
+def _naaim_observations() -> list[dict]:
+    from api.services.market_indicators import naaim_store
+    return [{"t": o["observed_on"], "v": o["value"]}
+            for o in (naaim_store.observations() or [])]
+
+
+def _aaii_observations(key: str) -> list[dict]:
+    from api.services.market_indicators import aaii_store
+    return aaii_store.observations(key)
+
+
+def survey_observations(row) -> list[dict]:
+    """`[{t, v}]` ascending for one survey row's declared stream, or `[]`.
+
+    ⚠️ AN UNKNOWN STREAM RETURNS EMPTY AND SAYS SO IN THE LOG. Falling back to any
+    particular reader is how a mis-declared row acquires another survey's numbers.
+    """
+    key = getattr(row, "survey_key", None)
+    if not key:
+        return []
+    if key == "naaim":
+        return _naaim_observations()
+    if key.startswith("aaii_"):
+        return _aaii_observations(key)
+    _log.warning("market indicators: %s declares unknown survey stream %r — "
+                 "serving nothing rather than another survey's numbers",
+                 getattr(row, "id", "?"), key)
+    return []
+
+
 # ── The one builder ──────────────────────────────────────────────────────────
 
 def daily_bars(series_id: str) -> list[dict]:
@@ -203,9 +247,7 @@ def daily_bars(series_id: str) -> list[dict]:
         return cboe_store.bars(row.symbol)
 
     if row.source_type == reg.SRC_SURVEY:
-        from api.services.market_indicators import naaim_store
-        obs = naaim_store.observations()
-        pts = [{"t": o["observed_on"], "v": o["value"]} for o in obs]
+        pts = survey_observations(row)
         if not pts:
             return []
         cal = session_calendar("us", since=pts[0]["t"])
