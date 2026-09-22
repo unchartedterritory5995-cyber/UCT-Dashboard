@@ -4221,3 +4221,44 @@ list's top entry by commit SHA, not just by status, after an earlier check
 mistakenly read the *previous* commit's stale SUCCESS as if it were this one's).
 Verified live via `/api/health` returning `uptime_seconds: 65` — a fresh boot,
 not a stale process.
+
+## ✅ BUILT + DEPLOYED — Packet J, UCT confidence-score badge on `/research/:sym` Overview, 2026-09-22
+
+Fourth gap found the same way as G, H and I, in the same source file as I:
+`GET /api/confidence-scores/{symbol}` (`api/routers/intelligence.py:146-175`) already computed
+UCT's own 6-component confidence breakdown for a ticker — correct, paid-gated, with **zero
+frontend callers anywhere in `app/src`** and no coverage of its row-shaping/degradation logic
+(only the paid-gate itself was tested, in `test_paywall_gate_free_tier.py`). Checked directly
+against source before writing the packet, including tracing the endpoint's `symbol` column back
+to a real `ALTER TABLE` migration (`uct_intelligence/db.py`'s `_migrate_confidence_scores_phase2`)
+that runs unconditionally at `init_db()` — not a stale assumption.
+
+Signed by the owner (fingerprint `d3e86c615`), built and pushed same day:
+`feat/s7-price-level` `4c95105bd`. **ZERO NEW BACKEND CODE** — 8 new tests
+(`tests/test_confidence_score_endpoint.py`) plus one small frontend badge
+(`ConfidenceBadge.jsx`), modeled directly on `LeadershipBadge.jsx`'s idiom, mounted beside it on
+`OverviewTab.jsx`.
+
+**Unlike Packet I's endpoint, this one has no shape inconsistency to work around:** both
+"never scored" and "engine unavailable" return the identical `{symbol, score: null}` — verified
+directly in tests, nothing to report or defend against on the frontend side.
+
+Verified: 8 backend tests pass, 52 frontend tests pass (Research page + Leadership badge +
+Confidence badge + Catalysts tab + Model Book tab suites together), repo hygiene clean,
+flow-worker watch coverage OK, `reachable.test.js` confirms `ConfidenceBadge.jsx` is correctly
+wired (only the pre-existing R-29 finding remains).
+
+✅ **DEPLOYED TO PRODUCTION, same day, clean on the first attempt.** Cherry-picked from
+`feat/s7-price-level` onto `master` as `3c696ad83`. Master was quiet by the time this one pushed
+— no settle-window wait needed. Railway `web` confirmed `SUCCESS` on `3c696ad83` specifically;
+verified live via `/api/health` returning `uptime_seconds: 42`, a fresh boot.
+
+**Member impact:** one small conditionally-rendered card on an already-paid, already-live page.
+A ticker that has never been scored by UCT shows nothing different at all. No schema change, no
+new write path, no change to `get_confidence_score` or the autonomous-brain scoring pipeline.
+
+**Four packets (G, H, I, J), same session, same discipline:** each found by reading the page's
+own tab list against what its backend already computes and has no door to; each scoped narrow
+enough that "zero new backend code" held for three of the four; each deployed same-day once
+signed. What remains unscoped and undesigned: the "Desk lens" (recorded under Packet G/H's
+entry above) — the next real gap would need new backend work, not another wiring packet.
