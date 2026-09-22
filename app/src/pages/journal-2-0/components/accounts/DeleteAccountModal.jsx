@@ -67,7 +67,8 @@ export default function DeleteAccountModal({ account, allAccounts, conflict, onC
       mutate('/api/j2/accounts/comparison')
       onClose?.()
     } catch (e) {
-      setError(String(e.message || e))
+      console.error('Failed to delete account:', e)
+      setError("Couldn't delete this account. Please try again.")
     } finally {
       setBusy(false)
     }
