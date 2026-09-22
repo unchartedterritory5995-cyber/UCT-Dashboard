@@ -1,0 +1,1 @@
+ZERO — no `ERROR collecting` sections across 17 shard log(s)
