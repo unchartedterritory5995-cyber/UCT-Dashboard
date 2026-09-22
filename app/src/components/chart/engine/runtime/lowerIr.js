@@ -38,6 +38,8 @@ export function lowerIrProgram(ir) {
   const textOps = []
   const colourOps = []
   const arrayOps = []
+  const recordTypes = []
+  const fieldNames = []
 
   const constIndex = (v) => {
     // ⛔ `indexOf` CANNOT FIND NaN (`NaN !== NaN`), so an `na` would push a new
@@ -76,6 +78,29 @@ export function lowerIrProgram(ir) {
     }
     arrayOps.push({ fn, typeArg: typeArg || null })
     return arrayOps.length - 1
+  }
+  // ⛔⛔ KEYED BY THE TYPE NAME **AND** ITS FIELD LIST, for the reason
+  // `arrayIndex` is keyed by name and type argument. Interning on the NAME
+  // alone is the bug that shape exists to prevent one level up: two Pine
+  // scripts cannot collide here, but a front end that ever compiled two
+  // declarations of one name — a local type shadowing an outer one is the
+  // obvious future case — would hand the second one the first one's fields,
+  // and every construction after that would pair values with the wrong names.
+  const recordIndex = (type, fields) => {
+    const key = `${type}(${fields.join(',')})`
+    for (let i = 0; i < recordTypes.length; i += 1) {
+      if (`${recordTypes[i].type}(${recordTypes[i].fields.join(',')})` === key) return i
+    }
+    recordTypes.push({ type, fields: fields.slice() })
+    return recordTypes.length - 1
+  }
+  /** ⭐ ONE TABLE FOR READS AND WRITES — a `top` read and a `top` write name
+   *  one field, and two tables would be two indices for one string. */
+  const fieldIndex = (name) => {
+    const i = fieldNames.indexOf(name)
+    if (i >= 0) return i
+    fieldNames.push(name)
+    return fieldNames.length - 1
   }
   // ⭐ WHERE `break` AND `continue` JUMP TO. A stack, because loops nest and the
   // innermost one owns both words — the depth is also what `LOOP_TICK` carries.
@@ -143,6 +168,19 @@ export function lowerIrProgram(ir) {
         emit(OP.ARRAY, arrayIndex(e.fn, e.typeArg), e.args.length)
         return
       }
+      // ⭐ THE SAME SHAPE AS `TEXT`/`ARRAY`: the field values are pushed in
+      // DECLARATION order, then one instruction naming the type and the count.
+      // The order is the contract `records.js` pairs names to values by, and
+      // `validateProgram` checks the count against the type's own field list.
+      case EXPR.RECORD: {
+        for (const a of e.args) expr(a)
+        emit(OP.RECORD, recordIndex(e.type, e.fields), e.args.length)
+        return
+      }
+      case EXPR.FIELD:
+        expr(e.of)
+        emit(OP.FIELD_GET, fieldIndex(e.name))
+        return
       case EXPR.SERIES: {
         const i = SERIES_NAMES.indexOf(e.name)
         if (i < 0) throw new LoweringGap('series', `\`${e.name}\` is not one of ${SERIES_NAMES.join(', ')}`)
@@ -409,6 +447,17 @@ export function lowerIrProgram(ir) {
           }
           throw new LoweringGap('an expression statement',
             'only a collection operation has an effect in this runtime')
+        // ⭐⭐ `f.top := x`. The RECORD is pushed first and the VALUE second,
+        // so `FIELD_SET` pops them in the order a two-operand opcode already
+        // reads its stack — the same convention `CONCAT` and every binary use.
+        // ⛔ IT PUSHES NOTHING BACK. Pine's field assignment is a statement and
+        // yields no value; leaving the record on the stack "because it is handy"
+        // is exactly the unpopped value the `EXPR` arm above refuses.
+        case STMT.FIELD_SET:
+          expr(s.of)
+          expr(s.value)
+          emit(OP.FIELD_SET, fieldIndex(s.name))
+          break
         default:
           throw new LoweringGap(s.kind)
       }
@@ -508,6 +557,8 @@ export function lowerIrProgram(ir) {
     objectTreeOutputs: ir.objectTreeOutputs || [],
     iterOutputs: ir.iterOutputs || [],
     arrayOps,
+    recordTypes,
+    fieldNames,
     requests,
     windows: (ir.windows || []).map((w) => ({ ...w })),
     carried: (ir.carried || []).map((c) => ({ ...c })),

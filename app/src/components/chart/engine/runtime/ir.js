@@ -31,6 +31,10 @@ export const STMT = Object.freeze({
   // ⭐⭐ ONE SLOT OF A PER-ITERATION BUFFER. See `iterOutputs` on the program.
   EMIT_ITER: 'emitIter',  // { iter, index, value }
   EXPR: 'expr',           // an expression evaluated for effect
+  // ⭐ `f.field := e` — a field write. ⛔ A STATEMENT, NOT AN EXPRESSION, for
+  // the reason `array.push` is: Pine's field assignment yields nothing, and an
+  // expression form would leave a value on the stack that nothing pops.
+  FIELD_SET: 'fieldSet',
   // ── declared, not yet lowerable ──
   FOR: 'for',
   WHILE: 'while',
@@ -76,6 +80,18 @@ export const EXPR = Object.freeze({
   BUILTIN: 'builtin',     // a POINTWISE table builtin applied to current-bar values
   WINDOW: 'window',       // a FINITE-WINDOW table builtin over a runtime series
   CARRIED: 'carried',     // a CARRIED-STATE table builtin over a runtime series
+  // ⭐⭐ A USER-DEFINED TYPE — see `runtime/records.js`. `RECORD` constructs one
+  // (`Foo.new(…)`), `FIELD` reads one field of one (`f.top`). A field WRITE is a
+  // statement, not an expression, and lives in `STMT.FIELD_SET`.
+  //
+  // ⛔ THE FIELD NAMES RIDE ON THE NODE, NOT IN A SIDE TABLE KEYED BY TYPE. Two
+  // `Foo.new` sites build the same shape, and a shared table would be a second
+  // authority over which fields a record has — one that `lowerIr` would have to
+  // keep in step with the front end's own type registry. The node carries what
+  // it needs and the program interns the name lists, so the artifact still holds
+  // each list once.
+  RECORD: 'record',
+  FIELD: 'field',
   // ── declared, not yet lowerable ──
   ARRAY_OP: 'arrayOp',
   OBJECT_OP: 'objectOp',
@@ -254,6 +270,33 @@ export function validateIr(p) {
         if (!Array.isArray(e.args)) throw new IrError(`${where}: an array call carries an args array`)
         e.args.forEach((x, i) => walkExpr(x, `${where}.${e.fn}[${i}]`))
         return
+      // ⛔⛔ THE ARITY IS CHECKED AGAINST THE FIELD LIST HERE, AND THAT IS THE
+      // POINT OF CARRYING BOTH. A `Foo.new(a, b)` that lost one of three
+      // arguments somewhere in the front end would otherwise build a record
+      // whose third field is `undefined` — which reads back as neither a number
+      // nor `na`, and would surface on some bar as a JavaScript symptom of a
+      // compiler fault. `records.js` refuses the same mismatch at run time; this
+      // is the half that names the PRODUCER.
+      case EXPR.RECORD:
+        if (typeof e.type !== 'string' || !e.type) {
+          throw new IrError(`${where}: a record carries the name of its type`)
+        }
+        if (!Array.isArray(e.fields) || !e.fields.every((f) => typeof f === 'string' && f)) {
+          throw new IrError(`${where}: \`${e.type}\` carries its field names`)
+        }
+        if (!Array.isArray(e.args) || e.args.length !== e.fields.length) {
+          throw new IrError(
+            `${where}: \`${e.type}\` declares ${e.fields.length} field(s) and the `
+            + `construction carries ${e.args && e.args.length} value(s)`)
+        }
+        e.args.forEach((a, i) => walkExpr(a, `${where}.${e.type}.${e.fields[i]}`))
+        return
+      case EXPR.FIELD:
+        if (typeof e.name !== 'string' || !e.name) {
+          throw new IrError(`${where}: a field read carries a field name`)
+        }
+        walkExpr(e.of, `${where}.of`)
+        return
       case EXPR.COLOUR:
       case EXPR.TEXT:
         if (typeof e.fn !== 'string') throw new IrError(`${where}: a text call carries a name`)
@@ -409,6 +452,13 @@ export function validateIr(p) {
           walkExpr(s.value, `${at}.value`)
           return
         case STMT.EXPR:
+          walkExpr(s.value, `${at}.value`)
+          return
+        case STMT.FIELD_SET:
+          if (typeof s.name !== 'string' || !s.name) {
+            throw new IrError(`${at}: a field write carries a field name`)
+          }
+          walkExpr(s.of, `${at}.of`)
           walkExpr(s.value, `${at}.value`)
           return
         case STMT.FOR:
@@ -616,6 +666,19 @@ export const colourCall = (fn, args) => ({ kind: EXPR.COLOUR, fn, args })
  *  `array.new` reads — it decides the per-element default for a sized array. */
 export const arrayCall = (fn, args, typeArg = null) => (
   { kind: EXPR.ARRAY, fn, args, typeArg })
+/** `Foo.new(…)` — one instance of a user-defined type.
+ *
+ *  ⛔ `fields` IS IN DECLARATION ORDER AND `args` MATCHES IT POSITION FOR
+ *  POSITION, ALWAYS. Pine allows named arguments and omitted trailing ones; the
+ *  FRONT END resolves both against the declaration and hands a complete,
+ *  ordered list here. Letting a partial list through would make the back end a
+ *  second place that knows a type's defaults. */
+export const record = (type, fields, args) => (
+  { kind: EXPR.RECORD, type, fields, args })
+/** `e.name` — one field of a record. ⭐ Chained access is nesting, not a path:
+ *  `a.b.c` is `field(field(read(a), 'b'), 'c')`, so every intermediate read goes
+ *  through the same one checked accessor. */
+export const field = (of, name) => ({ kind: EXPR.FIELD, of, name })
 export const series = (name) => ({ kind: EXPR.SERIES, name })
 export const clock = (field) => ({ kind: EXPR.CLOCK, field })
 export const session = (start, end) => ({ kind: EXPR.SESSION, start, end })
@@ -663,6 +726,10 @@ export const emitIter = (iter, index, value) => (
 /** An expression evaluated for its EFFECT. Admitted only for a call that has
  *  one — see `lowerIr.js`'s STMT.EXPR arm. */
 export const exprStmt = (value) => ({ kind: STMT.EXPR, value })
+/** `of.name := value`. ⭐ `of` is an EXPRESSION, not a slot, which is what lets
+ *  `array.get(obs, i).top := x` and `a.b.c := x` be the same statement. */
+export const fieldSet = (of, name, value) => (
+  { kind: STMT.FIELD_SET, of, name, value })
 /** `for slot = from to to [by step]`.
  *
  *  ⛔ `from`, `to` AND `step` ARE EXPRESSIONS EVALUATED ONCE, at loop entry.

@@ -25,6 +25,7 @@
 
 import { RuntimeLimitError } from './limits.js'
 import { isDrawingHandle } from './handles.js'
+import { isUdtRecord } from './records.js'
 
 export class CollectionError extends Error {
   constructor(message) { super(message); this.name = 'CollectionError' }
@@ -43,6 +44,14 @@ export class CollectionError extends Error {
 export const kindOf = (v) => {
   if (Array.isArray(v)) return 'array'
   if (isDrawingHandle(v)) return 'drawing'
+  // ⭐⭐ A RECORD ANSWERS ITS OWN TYPE NAME, which is the same argument as
+  // `'drawing'` one type further out. No declared operand kind in any of the
+  // four tables is ever a user type name, so every kind check refuses a record
+  // BY NAME — *"`array.push` argument 2 takes a number, got orderBlock"* names
+  // the type on the member's own line, where `'other'` named nothing.
+  // ⛔ `records.js` explains why this cannot widen by accident: the test is a
+  // Symbol, not the shape of the object.
+  if (isUdtRecord(v)) return v.type
   const t = typeof v
   return t === 'number' || t === 'string' ? t : 'other'
 }

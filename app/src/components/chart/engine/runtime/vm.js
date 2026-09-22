@@ -27,6 +27,12 @@ import { OP, OP_NAME, IMPLEMENTED, SERIES_NAMES, CLOCK_FIELDS } from './program.
 import { TEXT_FNS } from './text.js'
 import { COLOUR_FNS, colourArgKind } from './colours.js'
 import { ARRAY_FNS, kindOf, argKind } from './collections.js'
+// ⭐ ALIASED AT THE IMPORT. `vm.js` already has local `fieldGet`-shaped names in
+// scope in other arms, and a record accessor silently shadowed by one of them
+// would read the wrong thing with nothing red.
+import {
+  udtRecord, fieldGet as recFieldGet, fieldSet as recFieldSet,
+} from './records.js'
 import { Budget } from './limits.js'
 import { etClockAt } from '../../indicators.js'
 
@@ -644,6 +650,40 @@ export function execute(program, ctx, limits, opts) {
           if (spec.returns !== 'void') stack[sp++] = out
           break
         }
+        // ⭐⭐ USER-DEFINED TYPES — see `runtime/records.js`. Three opcodes, and
+        // the VM does no type reasoning in any of them: the field NAMES come
+        // from the artifact, the pairing is positional, and every refusal is
+        // `records.js`'s own sentence naming the member's type and field.
+        case OP.RECORD: {
+          const t = program.recordTypes[a]
+          sp -= b
+          // ⛔⛔ THE SLICE IS TAKEN INTO A LOCAL BEFORE THE PUSH, AND THAT IS A
+          // CORRECTNESS REQUIREMENT, NOT A STYLE. Written as the one-liner
+          // `stack[sp++] = udtRecord(…, slice(stack, sp, sp + b))`, JavaScript
+          // evaluates the assignment TARGET first — so `sp` is already
+          // incremented by the time the slice reads it, and every field is
+          // paired with the value one position along. Measured: every field
+          // read came back `na` while the IR, the lowering and the program
+          // validator were all correct.
+          // ⛔ AND IT IS A COPY. `udtRecord` keeps no reference to the array it
+          // is handed, which is what stops a later bar's stack traffic from
+          // being visible through a record that had aliased it.
+          const vals = Array.prototype.slice.call(stack, sp, sp + b)
+          stack[sp] = udtRecord(t.type, t.fields, vals)
+          sp += 1
+          break
+        }
+        case OP.FIELD_GET:
+          stack[sp - 1] = recFieldGet(stack[sp - 1], program.fieldNames[a])
+          break
+        case OP.FIELD_SET:
+          // ⛔ BOTH OPERANDS ARE CONSUMED AND NOTHING IS PUSHED. Pine's field
+          // assignment is a statement; a VM that left the record behind would
+          // grow the stack once per write, and `bigbeluga-smart-money-concepts`
+          // writes 222 fields.
+          sp -= 2
+          recFieldSet(stack[sp], program.fieldNames[a], stack[sp + 1])
+          break
         case OP.WINDOW: {
           // ⭐⭐ FRAME-RELATIVE, like every other per-site store. `windowBase` is
           // what keeps two call sites of one function from sharing an
