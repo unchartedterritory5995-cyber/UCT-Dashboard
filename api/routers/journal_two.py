@@ -1824,6 +1824,20 @@ def list_recents_endpoint(
     return {"notes": notes_service.list_recents(user["id"], limit=limit)}
 
 
+@router.get("/notes/sector-theme-facets")
+def sector_theme_facets_endpoint(
+    user: dict = Depends(get_current_user),
+) -> dict[str, Any]:
+    """Competitive-audit UX #9: the search panel's Sector/Theme filter
+    dropdowns' option lists — see `notes_service.get_sector_theme_facets`'s
+    own docstring for why this is the member's own mentioned-symbol
+    vocabulary, never the full themes_taxonomy.json list.
+
+    ⛔ MUST stay declared ABOVE `GET /notes/{note_id}`, same reason as
+    `/notes/favorites`/`/notes/recents` immediately above."""
+    return notes_service.get_sector_theme_facets(user["id"])
+
+
 @router.post("/notes/{note_id}/embeds")
 def append_note_embed_endpoint(
     note_id: str, payload: dict[str, Any], user: dict = Depends(get_current_user),

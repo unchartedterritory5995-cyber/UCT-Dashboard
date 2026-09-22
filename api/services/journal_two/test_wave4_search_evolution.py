@@ -315,6 +315,89 @@ def test_resolve_sector_theme_symbols_ignores_a_provider_failure_for_one_symbol(
     assert matched == ["NVDA"]
 
 
+# ── Competitive-audit UX #9: the Sector/Theme filters' option lists ─────────
+# (the free-text inputs above had no way for a member to discover a valid
+# value -- see get_sector_theme_facets's own docstring)
+
+def test_get_sector_theme_facets_empty_vocabulary_returns_empty_lists():
+    from api.services.journal_two.notes import get_sector_theme_facets
+    c = _conn()
+    assert get_sector_theme_facets("u1", conn=c) == {"sectors": [], "themes": []}
+
+
+def test_get_sector_theme_facets_returns_distinct_sorted_values(monkeypatch):
+    from api.services.journal_two.notes import get_sector_theme_facets
+    c = _conn()
+    _insert_note(c, "n1", user_id="u1")
+    _insert_mention(c, "n1", "u1", "NVDA")
+    _insert_note(c, "n2", user_id="u1")
+    _insert_mention(c, "n2", "u1", "AMD")
+    _insert_note(c, "n3", user_id="u1")
+    _insert_mention(c, "n3", "u1", "JPM")
+    _stub_ticker_meta(monkeypatch, {
+        "NVDA": {"sector": "Technology", "industry": "Semiconductors", "theme": "AI Infrastructure"},
+        "AMD": {"sector": "Technology", "industry": "Semiconductors", "theme": "Data Center"},
+        "JPM": {"sector": "Financials", "industry": "Banks", "theme": None},
+    })
+    facets = get_sector_theme_facets("u1", conn=c)
+    # Distinct AND sorted -- two Technology symbols collapse to one entry;
+    # a theme-less symbol (JPM) contributes to sectors but not themes.
+    assert facets["sectors"] == ["Financials", "Technology"]
+    assert facets["themes"] == ["AI Infrastructure", "Data Center"]
+
+
+def test_get_sector_theme_facets_round_trips_through_the_filter_it_feeds(monkeypatch):
+    """The exact guarantee this endpoint exists for: every value it offers
+    is one resolve_sector_theme_symbols will actually match -- proven by
+    feeding a returned facet straight back into the filter and confirming
+    it finds the same note, not by asserting the two never disagree in the
+    abstract."""
+    from api.services.journal_two.notes import get_sector_theme_facets, resolve_sector_theme_symbols
+    c = _conn()
+    _insert_note(c, "n1", user_id="u1")
+    _insert_mention(c, "n1", "u1", "NVDA")
+    _stub_ticker_meta(monkeypatch, {
+        "NVDA": {"sector": "Technology", "industry": "Semiconductors", "theme": "AI Infrastructure"},
+    })
+    facets = get_sector_theme_facets("u1", conn=c)
+    assert facets["sectors"] == ["Technology"]
+    matched = resolve_sector_theme_symbols("u1", sector=facets["sectors"][0], conn=c)
+    assert matched == ["NVDA"]
+
+
+def test_get_sector_theme_facets_ignores_a_provider_failure_for_one_symbol(monkeypatch):
+    from api.services.journal_two.notes import get_sector_theme_facets
+    c = _conn()
+    _insert_note(c, "n1", user_id="u1")
+    _insert_mention(c, "n1", "u1", "NVDA")
+    _insert_note(c, "n2", user_id="u1")
+    _insert_mention(c, "n2", "u1", "BADSYM")
+
+    def flaky(sym):
+        if sym == "BADSYM":
+            raise RuntimeError("provider hiccup")
+        return {"sector": "Technology", "industry": "Semiconductors", "theme": None}
+    monkeypatch.setattr("api.services.ticker_meta.get_ticker_meta", flaky)
+
+    facets = get_sector_theme_facets("u1", conn=c)
+    assert facets["sectors"] == ["Technology"]
+
+
+def test_get_sector_theme_facets_never_leaks_another_members_vocabulary(monkeypatch):
+    from api.services.journal_two.notes import get_sector_theme_facets
+    c = _conn()
+    _insert_note(c, "n1", user_id="u1")
+    _insert_mention(c, "n1", "u1", "NVDA")
+    _insert_note(c, "n2", user_id="u2")
+    _insert_mention(c, "n2", "u2", "JPM")
+    _stub_ticker_meta(monkeypatch, {
+        "NVDA": {"sector": "Technology", "industry": "Semiconductors", "theme": "AI Infrastructure"},
+        "JPM": {"sector": "Financials", "industry": "Banks", "theme": None},
+    })
+    facets = get_sector_theme_facets("u1", conn=c)
+    assert facets["sectors"] == ["Technology"]
+
+
 def test_symbol_in_filter_composes_via_list_notes(monkeypatch):
     from api.services.journal_two.notes import list_notes
     c = _conn()

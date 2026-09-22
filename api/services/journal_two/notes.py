@@ -1706,6 +1706,28 @@ def resolve_note_link_targets(
             conn.close()
 
 
+def _member_mentioned_symbols(user_id: str, conn: sqlite3.Connection) -> list[str]:
+    """The member's own bounded, DISTINCT mentioned-symbol vocabulary
+    (widget embeds + cashtag mentions, trash excluded) — the shared query
+    behind resolve_sector_theme_symbols and get_sector_theme_facets, pulled
+    out so the two can never drift on what "mentioned" means. Same
+    trash-exclusion join shape as get_symbol_backlinks — a symbol mentioned
+    only in a trashed note must not widen the member's resolved vocabulary."""
+    rows = conn.execute(
+        "SELECT DISTINCT symbol FROM ("
+        "  SELECT e.symbol AS symbol FROM j2_note_embeds e"
+        "  JOIN j2_notes n ON n.id = e.note_id AND n.user_id = e.user_id"
+        "  WHERE e.user_id = ? AND n.deleted_at IS NULL"
+        "  UNION"
+        "  SELECT m.symbol AS symbol FROM j2_note_mentions m"
+        "  JOIN j2_notes n ON n.id = m.note_id AND n.user_id = m.user_id"
+        "  WHERE m.user_id = ? AND n.deleted_at IS NULL"
+        ")",
+        (user_id, user_id),
+    ).fetchall()
+    return [r["symbol"] for r in rows if r["symbol"]]
+
+
 def resolve_sector_theme_symbols(
     user_id: str,
     *,
@@ -1736,22 +1758,7 @@ def resolve_sector_theme_symbols(
     owned = conn is None
     conn = conn or get_connection()
     try:
-        # Same trash-exclusion join shape as get_symbol_backlinks above —
-        # a symbol mentioned only in a trashed note must not widen the
-        # member's resolved vocabulary.
-        rows = conn.execute(
-            "SELECT DISTINCT symbol FROM ("
-            "  SELECT e.symbol AS symbol FROM j2_note_embeds e"
-            "  JOIN j2_notes n ON n.id = e.note_id AND n.user_id = e.user_id"
-            "  WHERE e.user_id = ? AND n.deleted_at IS NULL"
-            "  UNION"
-            "  SELECT m.symbol AS symbol FROM j2_note_mentions m"
-            "  JOIN j2_notes n ON n.id = m.note_id AND n.user_id = m.user_id"
-            "  WHERE m.user_id = ? AND n.deleted_at IS NULL"
-            ")",
-            (user_id, user_id),
-        ).fetchall()
-        symbols = [r["symbol"] for r in rows if r["symbol"]]
+        symbols = _member_mentioned_symbols(user_id, conn)
         if not symbols:
             return []
         from api.services.ticker_meta import get_ticker_meta
@@ -1772,6 +1779,56 @@ def resolve_sector_theme_symbols(
                 continue
             matched.append(sym)
         return matched
+    finally:
+        if owned:
+            conn.close()
+
+
+def get_sector_theme_facets(
+    user_id: str, conn: sqlite3.Connection | None = None,
+) -> dict[str, list[str]]:
+    """Competitive-audit UX #9 (2026-09-22): the distinct sector/theme
+    VALUES a member can actually filter by — i.e. exactly the labels
+    `resolve_sector_theme_symbols` above would accept and get at least one
+    match for. Backs the Notebook search panel's Sector/Theme filters,
+    which shipped as free-text inputs against an EXACT (if
+    case-insensitive) match with no way for a member to discover a valid
+    value — almost every typed guess matched nothing, silently, and the
+    filter read as broken rather than as "you have to know the exact
+    string."
+
+    ⛔ Deliberately NOT sourced from themes_taxonomy.json. That file lists
+    every sector/theme in the firm's whole taxonomy; offering one this
+    member has zero mentioned symbols in would be a dropdown option
+    guaranteed to return no results — worse than the free-text box it
+    replaces, which at least let a member who already knew the exact
+    string get a real answer. This reuses the SAME bounded,
+    member's-own-vocabulary scan as resolve_sector_theme_symbols (shared
+    via `_member_mentioned_symbols` so the two can never disagree about
+    what counts as a valid filter value), just inverted: instead of asking
+    which symbols match a given sector/theme, it asks which sectors/themes
+    this member's symbol set actually has."""
+    owned = conn is None
+    conn = conn or get_connection()
+    try:
+        symbols = _member_mentioned_symbols(user_id, conn)
+        if not symbols:
+            return {"sectors": [], "themes": []}
+        from api.services.ticker_meta import get_ticker_meta
+        sectors: set[str] = set()
+        themes: set[str] = set()
+        for sym in symbols:
+            try:
+                meta = get_ticker_meta(sym)
+            except Exception:
+                continue
+            sec = (meta.get("sector") or "").strip()
+            if sec:
+                sectors.add(sec)
+            th = (meta.get("theme") or "").strip()
+            if th:
+                themes.add(th)
+        return {"sectors": sorted(sectors), "themes": sorted(themes)}
     finally:
         if owned:
             conn.close()

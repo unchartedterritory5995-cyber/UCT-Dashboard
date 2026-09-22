@@ -136,7 +136,7 @@
   font-size: 10px;
   color: var(--text-muted);
 }
-.searchFilterField input {
+.searchFilterField input, .searchFilterField select {
   background: var(--bg-surface);
   border: 1px solid var(--border);
   border-radius: 6px;
@@ -145,7 +145,10 @@
   padding: 4px 6px;
   width: 118px;
 }
-.searchFilterField input:focus { outline: none; border-color: var(--ut-gold); }
+.searchFilterField select { cursor: pointer; }
+.searchFilterField input:focus, .searchFilterField select:focus {
+  outline: none; border-color: var(--ut-gold);
+}
 .searchFilterClear {
   background: transparent;
   border: none;

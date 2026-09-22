@@ -2,6 +2,7 @@ import { useEffect, useMemo, useRef, useState } from 'react'
 import useJ2NoteFolders from '../../hooks/useJ2NoteFolders'
 import useJ2Notes, {
   useJ2NoteFolderCounts, useJ2NotesByFolders, useJ2Favorites, useJ2Recents,
+  useJ2SectorThemeFacets,
 } from '../../hooks/useJ2Notes'
 import useJ2NoteTags from '../../hooks/useJ2NoteTags'
 import useDocumentSearch from '../../hooks/useDocumentSearch'
@@ -602,6 +603,21 @@ export default function FolderSidebar({
   const [themeFilter, setThemeFilter] = useState('')
   const hasActiveFilters = Boolean(dateFrom || dateTo || sectorFilter || themeFilter)
 
+  // Competitive-audit UX #9: the Sector/Theme fields used to be free-text
+  // against an exact match with no way to discover a valid value (see
+  // useJ2SectorThemeFacets's own comment) -- fetched only once the filter
+  // panel is actually open, matching this whole section's "collapsed by
+  // default, never fetch what nobody asked to see" discipline.
+  const { sectors: sectorOptionsRaw, themes: themeOptionsRaw, isLoading: facetsLoading } =
+    useJ2SectorThemeFacets({ enabled: showFilters })
+  // Defensive: a currently-set value that isn't (yet, or any longer) in the
+  // fetched option list must still render as the select's chosen option
+  // rather than silently blanking out from under the member.
+  const sectorOptions = sectorFilter && !(sectorOptionsRaw || []).includes(sectorFilter)
+    ? [sectorFilter, ...(sectorOptionsRaw || [])] : (sectorOptionsRaw || [])
+  const themeOptions = themeFilter && !(themeOptionsRaw || []).includes(themeFilter)
+    ? [themeFilter, ...(themeOptionsRaw || [])] : (themeOptionsRaw || [])
+
   useEffect(() => {
     if (mode === 'search') searchInputRef.current?.focus()
   }, [mode])
@@ -969,13 +985,25 @@ export default function FolderSidebar({
               </label>
               <label className={styles.searchFilterField}>
                 <span>Sector</span>
-                <input type="text" value={sectorFilter} placeholder="e.g. Technology"
-                  onChange={(e) => setSectorFilter(e.target.value)} />
+                <select value={sectorFilter} onChange={(e) => setSectorFilter(e.target.value)}>
+                  <option value="">
+                    {facetsLoading ? 'Loading…' : sectorOptions.length ? 'Any sector' : 'No sectors yet'}
+                  </option>
+                  {sectorOptions.map((s) => (
+                    <option key={s} value={s}>{s}</option>
+                  ))}
+                </select>
               </label>
               <label className={styles.searchFilterField}>
                 <span>Theme</span>
-                <input type="text" value={themeFilter} placeholder="e.g. AI Infrastructure"
-                  onChange={(e) => setThemeFilter(e.target.value)} />
+                <select value={themeFilter} onChange={(e) => setThemeFilter(e.target.value)}>
+                  <option value="">
+                    {facetsLoading ? 'Loading…' : themeOptions.length ? 'Any theme' : 'No themes yet'}
+                  </option>
+                  {themeOptions.map((t) => (
+                    <option key={t} value={t}>{t}</option>
+                  ))}
+                </select>
               </label>
               {hasActiveFilters && (
                 <button

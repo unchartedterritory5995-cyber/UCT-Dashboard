@@ -34,12 +34,20 @@ const useJ2NotesByFoldersMock = vi.fn(() => ({ byFolder: {}, isLoading: false, e
 // every other "still loading vs. genuinely empty" default above.
 const useJ2FavoritesMock = vi.fn(() => ({ notes: [], isLoading: false, error: null, refresh: vi.fn() }))
 const useJ2RecentsMock = vi.fn(() => ({ notes: [], isLoading: false, error: null, refresh: vi.fn() }))
+// Competitive-audit UX #9: the Sector/Theme filters' option lists. Default
+// (loaded, empty) so most tests exercise the "no facets yet" select state —
+// tests proving the population itself override this explicitly, same
+// "still loading vs. genuinely empty" convention as every other hook here.
+const useJ2SectorThemeFacetsMock = vi.fn(() => ({
+  sectors: [], themes: [], isLoading: false, error: null, refresh: vi.fn(),
+}))
 vi.mock('../../hooks/useJ2Notes', () => ({
   default: (...args) => useJ2NotesMock(...args),
   useJ2NoteFolderCounts: (...args) => useJ2NoteFolderCountsMock(...args),
   useJ2NotesByFolders: (...args) => useJ2NotesByFoldersMock(...args),
   useJ2Favorites: (...args) => useJ2FavoritesMock(...args),
   useJ2Recents: (...args) => useJ2RecentsMock(...args),
+  useJ2SectorThemeFacets: (...args) => useJ2SectorThemeFacetsMock(...args),
 }))
 
 // The tag cloud's honest, whole-library counts (final-review C5). Default
@@ -94,6 +102,10 @@ beforeEach(() => {
   useJ2FavoritesMock.mockImplementation(() => ({ notes: [], isLoading: false, error: null, refresh: vi.fn() }))
   useJ2RecentsMock.mockReset()
   useJ2RecentsMock.mockImplementation(() => ({ notes: [], isLoading: false, error: null, refresh: vi.fn() }))
+  useJ2SectorThemeFacetsMock.mockReset()
+  useJ2SectorThemeFacetsMock.mockImplementation(() => ({
+    sectors: [], themes: [], isLoading: false, error: null, refresh: vi.fn(),
+  }))
 })
 
 describe('folder tree', () => {
@@ -848,17 +860,105 @@ describe('search panel — Wave 4 date/sector/theme filters', () => {
   })
 
   it('Clear filters resets all four fields and is only shown while a filter is active', () => {
+    useJ2SectorThemeFacetsMock.mockImplementation(() => ({
+      sectors: ['Technology'], themes: [], isLoading: false, error: null, refresh: vi.fn(),
+    }))
     render(<FolderSidebar notes={[]} activeFolderId={null} onSelectFolder={() => {}}
                           activeTag={null} onSelectTag={() => {}} />)
     openSearch()
     fireEvent.click(screen.getByLabelText('Search filters'))
     expect(screen.queryByText('Clear filters')).not.toBeInTheDocument()
-    const sectorInput = screen.getByPlaceholderText('e.g. Technology')
-    fireEvent.change(sectorInput, { target: { value: 'Technology' } })
+    const sectorSelect = screen.getByText('Sector').parentElement.querySelector('select')
+    fireEvent.change(sectorSelect, { target: { value: 'Technology' } })
     expect(screen.getByText('Clear filters')).toBeInTheDocument()
     fireEvent.click(screen.getByText('Clear filters'))
-    expect(screen.getByPlaceholderText('e.g. Technology')).toHaveValue('')
+    expect(screen.getByText('Sector').parentElement.querySelector('select')).toHaveValue('')
     expect(screen.queryByText('Clear filters')).not.toBeInTheDocument()
+  })
+
+  // ── Competitive-audit UX #9: Sector/Theme are real pickers, not free text
+  // (the exact-match filter had no way for a member to discover a valid
+  // value -- see get_sector_theme_facets's own docstring) ──────────────────
+
+  it('Sector/Theme render as real dropdowns, never free-text inputs', () => {
+    render(<FolderSidebar notes={[]} activeFolderId={null} onSelectFolder={() => {}}
+                          activeTag={null} onSelectTag={() => {}} />)
+    openSearch()
+    fireEvent.click(screen.getByLabelText('Search filters'))
+    expect(screen.getByText('Sector').parentElement.querySelector('select')).toBeInTheDocument()
+    expect(screen.getByText('Theme').parentElement.querySelector('select')).toBeInTheDocument()
+    expect(screen.queryByPlaceholderText(/e\.g\. Technology/i)).not.toBeInTheDocument()
+    expect(screen.queryByPlaceholderText(/e\.g\. AI Infrastructure/i)).not.toBeInTheDocument()
+  })
+
+  it('the dropdowns are populated from the facets hook, not a hardcoded or taxonomy-wide list', () => {
+    useJ2SectorThemeFacetsMock.mockImplementation(() => ({
+      sectors: ['Financials', 'Technology'], themes: ['AI Infrastructure'],
+      isLoading: false, error: null, refresh: vi.fn(),
+    }))
+    render(<FolderSidebar notes={[]} activeFolderId={null} onSelectFolder={() => {}}
+                          activeTag={null} onSelectTag={() => {}} />)
+    openSearch()
+    fireEvent.click(screen.getByLabelText('Search filters'))
+    const sectorSelect = screen.getByText('Sector').parentElement.querySelector('select')
+    const themeSelect = screen.getByText('Theme').parentElement.querySelector('select')
+    expect(within(sectorSelect).getAllByRole('option').map((o) => o.value))
+      .toEqual(['', 'Financials', 'Technology'])
+    expect(within(themeSelect).getAllByRole('option').map((o) => o.value))
+      .toEqual(['', 'AI Infrastructure'])
+  })
+
+  it('a member with no mentioned tickers yet sees an honest "No sectors/themes yet", not a blank dropdown', () => {
+    // Default mock (isLoading:false, sectors:[]/themes:[]) already covers
+    // this -- asserted explicitly so the honest-empty copy can't silently
+    // regress to a bare blank option.
+    render(<FolderSidebar notes={[]} activeFolderId={null} onSelectFolder={() => {}}
+                          activeTag={null} onSelectTag={() => {}} />)
+    openSearch()
+    fireEvent.click(screen.getByLabelText('Search filters'))
+    expect(within(screen.getByText('Sector').parentElement.querySelector('select'))
+      .getByText('No sectors yet')).toBeInTheDocument()
+    expect(within(screen.getByText('Theme').parentElement.querySelector('select'))
+      .getByText('No themes yet')).toBeInTheDocument()
+  })
+
+  it('while the facets are loading, the placeholder option reads "Loading…", not "No sectors yet"', () => {
+    useJ2SectorThemeFacetsMock.mockImplementation(() => ({
+      sectors: undefined, themes: undefined, isLoading: true, error: null, refresh: vi.fn(),
+    }))
+    render(<FolderSidebar notes={[]} activeFolderId={null} onSelectFolder={() => {}}
+                          activeTag={null} onSelectTag={() => {}} />)
+    openSearch()
+    fireEvent.click(screen.getByLabelText('Search filters'))
+    expect(within(screen.getByText('Sector').parentElement.querySelector('select'))
+      .getByText('Loading…')).toBeInTheDocument()
+  })
+
+  it('the facets fetch is gated on the filter panel actually being open', () => {
+    render(<FolderSidebar notes={[]} activeFolderId={null} onSelectFolder={() => {}}
+                          activeTag={null} onSelectTag={() => {}} />)
+    openSearch()
+    // Filters collapsed (default) -- the panel that renders the dropdowns
+    // isn't mounted, so the facets hook must be told not to fetch.
+    expect(useJ2SectorThemeFacetsMock.mock.calls.at(-1)[0]).toEqual({ enabled: false })
+    fireEvent.click(screen.getByLabelText('Search filters'))
+    expect(useJ2SectorThemeFacetsMock.mock.calls.at(-1)[0]).toEqual({ enabled: true })
+  })
+
+  it('picking a sector option enables the search fetch with that exact value', () => {
+    useJ2SectorThemeFacetsMock.mockImplementation(() => ({
+      sectors: ['Technology'], themes: [], isLoading: false, error: null, refresh: vi.fn(),
+    }))
+    render(<FolderSidebar notes={[]} activeFolderId={null} onSelectFolder={() => {}}
+                          activeTag={null} onSelectTag={() => {}} />)
+    openSearch()
+    fireEvent.click(screen.getByLabelText('Search filters'))
+    const sectorSelect = screen.getByText('Sector').parentElement.querySelector('select')
+    fireEvent.change(sectorSelect, { target: { value: 'Technology' } })
+    settle()
+    const call = useJ2NotesMock.mock.calls.filter(([opts]) => opts?.sector === 'Technology').at(-1)[0]
+    expect(call.enabled).toBe(true)
+    expect(call.sector).toBe('Technology')
   })
 
   it('a result with a body snippet renders the highlighted excerpt, never the old naive 120-char slice', () => {
