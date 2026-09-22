@@ -166,16 +166,18 @@ signal for a HOLD/FLIP ruling today:
 
 | System | What the numbers show |
 |---|---|
-| **A9** | `predicate_count: 0` — nothing recorded to compare. Traced to a documented, expected cause: no member of the s7-dark cohort has ever subscribed to a saved-screen alert, so the comparison path this alert type depends on has never had anything to run against. A cohort/product gap, not a wiring defect — everything upstream (scheduler, flag, code) checks out correct. |
+| **A9** | `predicate_count: 0` at read time — nothing recorded to compare. Traced to a documented, expected cause: no member of the s7-dark cohort (admin/staff/test accounts only, by design) had ever subscribed to a saved-screen alert, so the comparison path had nothing to run against. Everything upstream (scheduler, flag, code) checked out correct. ⚰️ **RESOLVED same session, owner-authorized**: `smoke@uctintelligence.internal` (already in the cohort) subscribed to its existing "Oops Reversal" saved screen through the real subscribe endpoint — confirmed via a real GET showing the new row. Picked up by the next nightly sweep; still needs several nights before a ruling is possible on it. |
 | **A11** | 58 predicates tracked, up to 6 sessions observed, zero regime flips seen in any of them. The regime label moves at most ~once/day; a real flip hasn't happened yet in the window observed. |
 | **A13** | 8 predicates, 4 past their session minimum, but every real observation among those 4 landed as "not comparable" — no position has come close enough to its stop yet to produce one real side-by-side case. |
 | **event-proximity** | 26 predicates, 41 agreed observations total — the most real signal of the four — but no single predicate individually reached its own verdict-ready threshold. Closest of the four, not there yet. |
 
-**None of this is a decision the owner needs to make today.** All four are waiting on real-world
-events accumulating (a regime change, a stop being approached, cohort members using saved-screen
-alerts, or individual event-proximity predicates crossing their own threshold) — the same shape as
-D2's time-based wait. Re-check `dark-report` periodically; a ruling becomes possible only once one
-of these shows real comparable data.
+**None of A11/A13/event-proximity is a decision the owner needs to make today.** All three are
+waiting on real-world events accumulating (a regime change, a stop being approached, individual
+event-proximity predicates crossing their own threshold) — the same shape as D2's time-based wait,
+and nothing manufactures those honestly. A9 got the one lever that existed without fabricating
+anything: using the app's own real subscribe path on an already-in-cohort test account. Re-check
+`dark-report` periodically; a ruling becomes possible only once one of these shows real comparable
+data across enough sessions.
 
 ## 3. Answered this session, recorded, and why they mattered
 
