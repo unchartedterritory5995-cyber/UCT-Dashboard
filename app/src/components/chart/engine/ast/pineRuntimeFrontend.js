@@ -1738,6 +1738,40 @@ export function buildRuntimeIr(source, opts = {}) {
     return null
   }
 
+  /**
+   * The detail a family refusal carries — and for `runtime:object-op`, WHO WAS
+   * ASKED matters more than which call it was.
+   *
+   * ⛔⛔ MEASURED 2026-09-21, AND IT CHANGES WHAT THE NUMBER MEANS. The corpus
+   * census reports EIGHT scripts whose first blocker is `runtime:object-op`.
+   * All eight move off it the moment the caller declares ownership, and two
+   * then compile end to end — so the eight are a property of the HARNESS, a
+   * two-lane pipeline asked with one lane, and not of the corpus.
+   * `buildObjectLane` declares ownership on every call; a bare `buildRuntimeIr`
+   * does not.
+   *
+   * ⛔ THE OLD SENTENCE WAS TRUE AND SENT THE READER THE WRONG WAY. *"These
+   * belong to the object program, not the value runtime"* is a fact about the
+   * LANE, and read as a work queue it says "teach the value runtime to draw" —
+   * the one thing this lane must never learn. The missing half is a fact about
+   * the CALL, and it is one argument away.
+   *
+   * ⭐ AND IT IS ADDED ONLY WHERE IT IS TRUE. Under ownership a drawing
+   * STATEMENT is skipped, so anything still refusing is a drawing used as a
+   * VALUE — the real gap, for which there is no honest number. Pointing that
+   * one at the ownership seam would send its reader where the fix is not.
+   */
+  const objectOpDetail = (name) => (objectPassOwnsDrawing
+    ? `\`${name}\``
+    : `\`${name}\` — and nobody told this build who owns the drawing. Pass `
+      + '`objectTrees` (as `buildObjectLane` does) and every '
+      + 'line/label/box/table/linefill STATEMENT is skipped here instead')
+
+  /** One place that decides how a family refusal reads, so the three sites that
+   *  raise one cannot drift. */
+  const familyDetail = (family, name) => (
+    family === 'runtime:object-op' ? objectOpDetail(name) : `\`${name}\``)
+
   // ⭐ `opts.multi` IS SET BY THE DESTRUCTURING AND BY NOTHING ELSE. It marks
   // the ONE position where an expression may leave several values on the
   // stack, and it deliberately does NOT propagate into sub-expressions —
@@ -1755,20 +1789,30 @@ export function buildRuntimeIr(source, opts = {}) {
     // ⛔ A TEXT-INPUT DEPENDENCE NEVER GOES TO THE COLUMNAR LANE — see
     // `dependsOnTextInput`. That lane would fold it from the author's
     // default and never raise, so waiting for a refusal would wait forever.
-    // ⚰️ A FOURTH CLAUSE FOR DRAWING CALLS WAS TRIED HERE AND REMOVED, because a
-    // mutation proved it DEAD: `var t = table.new(…)` never reaches this route
-    // decision at all, since both declaration branches skip a handle binding
-    // before lowering its initialiser. It was written first, while that skip did
-    // not yet exist, and left behind it would have read as a live guard —
-    // `lesson_a_guard_repeated_is_a_guard_unproved`. The skip is the one guard;
-    // `holdsObjectCall` still exists and is still called, from there.
+    // ⛔⛔ A DRAWING CALL USED AS A VALUE IS NOT A COLUMN, AND THIS CLAUSE IS
+    // LIVE AGAIN — it was removed once as dead and it has a case now.
+    //
+    // ⚰️ The removal was right at the time: `var t = table.new(…)` never reaches
+    // this route decision, because both declaration branches skip a handle
+    // binding before lowering its initialiser, so the clause could not fire and
+    // read as a live guard (`lesson_a_guard_repeated_is_a_guard_unproved`). What
+    // changed is that `array.new_label()` now BUILDS, so the corpus's own
+    // `array.push(labels, label.new(…))` reaches here as an ARGUMENT — a
+    // position no declaration branch covers.
+    //
+    // ⛔ WITHOUT IT THE COLUMNAR LANE ANSWERS, AND IT ANSWERS ABOUT ITSELF:
+    // `pine:drawing`, "that lane refuses the whole namespace". True, and about
+    // a lane this caller is not using — the same misreport `holdsArray` fixes
+    // for an unserved collection call. The call is still REFUSED either way;
+    // what this decides is whether the member is told `runtime:object-op` and
+    // sent to the object program, or `pine:drawing` and sent nowhere.
     // ⛔ AN OBJECT ENUM IS NOT A COLUMN EITHER. `size.tiny` reads no slot, so
     // the route sent it to the columnar lane — which refuses the whole family
     // at `pine:builtin`, "names something the engine grammar does not hold",
     // about a vocabulary `objectEnumValue` holds. A column is a number per
     // bar; an enum is a fixed string the drawing layer reads.
     if (!inRequestValue && !readsSlot(node, scope) && !dependsOnTextInput(node, scope)
-        && !readsPlotRef(node) && !holdsColour(node, scope)
+        && !readsPlotRef(node) && !holdsColour(node, scope) && !holdsObjectCall(node)
         && !(node.type === 'name' && objectEnumValue(node.name) !== undefined)
         // ⭐ AND A SORT DIRECTION IS A STRING, NOT A COLUMN — same reason as the
         // drawing enums one line up. Handling `order.*` in the name branch is
@@ -2237,7 +2281,7 @@ export function buildRuntimeIr(source, opts = {}) {
         // return for it: `num(NaN)` was tried and `ir.js` rightly refuses a
         // non-finite const, and `0` is a coordinate. Refusing by name is the
         // answer, and it keeps the message pointing at the real shape.
-        if (fam) { note(fam); throw new RuntimeRefusal(fam, `\`${node.name}\``, locate(node.tok)) }
+        if (fam) { note(fam); throw new RuntimeRefusal(fam, familyDetail(fam, node.name), locate(node.tok)) }
         // ⭐⭐ A POINTWISE BUILTIN OVER RUNTIME STATE — 2F-1's whole capability.
         // Its arguments are lowered in the caller's scope, so a state-derived
         // argument is an ordinary runtime expression, and the result composes
@@ -3260,7 +3304,7 @@ export function buildRuntimeIr(source, opts = {}) {
         }
         const f = callFamily(word)
         if (f === 'runtime:object-op' && objectPassOwnsDrawing) continue
-        if (f) { note(f); throw new RuntimeRefusal(f, `\`${word}\``, locate(first)) }
+        if (f) { note(f); throw new RuntimeRefusal(f, familyDetail(f, word), locate(first)) }
         note('runtime:expression-statement')
         throw new RuntimeRefusal('runtime:expression-statement', `\`${word}()\``, locate(first))
       }
@@ -3275,7 +3319,7 @@ export function buildRuntimeIr(source, opts = {}) {
         // the pieces arrive separately, and the note at `isVoid` above says the
         // same thing about `array.push`. Two copies of one guard cannot both be
         // proved, and the unreachable one reads as protection.
-        if (f) { note(f); throw new RuntimeRefusal(f, `\`${name}\``, locate(first)) }
+        if (f) { note(f); throw new RuntimeRefusal(f, familyDetail(f, name), locate(first)) }
         note('runtime:expression-statement')
         throw new RuntimeRefusal('runtime:expression-statement', `\`${name}()\``, locate(first))
       }
