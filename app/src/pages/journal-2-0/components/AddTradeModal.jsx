@@ -149,7 +149,8 @@ export default function AddTradeModal({ settings, onSave, onClose, accountName, 
       })
       onClose?.()
     } catch (e) {
-      setErrorMsg(String(e?.message || e))
+      console.error('Failed to save trade:', e)
+      setErrorMsg("Couldn't save this trade. Nothing was changed — try again.")
     } finally {
       setSaving(false)
     }
