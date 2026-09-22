@@ -92,6 +92,7 @@ const OptionsFlow = lazyPage('/options-flow', () => import('./pages/OptionsFlow'
 const FlowScoreboard = lazyPage('/flow-scoreboard', () => import('./pages/FlowScoreboard'))
 const LiveFlowMassive = lazyPage('/live-massive', () => import('./pages/LiveFlowMassive'))
 const Traders = lazyPage('/traders', () => import('./pages/Traders'))
+const PortfolioHeat = lazyPage('/portfolio-heat', () => import('./pages/PortfolioHeat'))
 const AlertTester = lazy(() => import('./pages/AlertTester'))
 const DarkPool = lazyPage('/dark-pool', () => import('./pages/DarkPool'))
 const PostMarket = lazyPage('/post-market', () => import('./pages/PostMarket'))
@@ -605,6 +606,7 @@ export default function App() {
                     is `tests/test_navigation_targets_resolve.py`, which resolves
                     every voice navigation target against this route table. */}
                 <Route path="/traders" element={<Traders />} />
+                <Route path="/portfolio-heat" element={<PortfolioHeat />} />
                 <Route path="/dark-pool" element={<DarkPool />} />
                 <Route path="/post-market" element={<PostMarket />} />
                 <Route path="/model-book" element={<ModelBook />} />

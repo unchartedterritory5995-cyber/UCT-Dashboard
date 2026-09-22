@@ -37,8 +37,8 @@ node tools/nav_manifest.mjs            # this table, plus the route diff
 node tools/nav_manifest.mjs --self-check
 ```
 
-Derived by **acorn AST** from `NAV_ITEMS` in `app/src/components/NavBar.jsx:18`
-on **2026-09-18**. Regenerate after any change to that array.
+Derived by **acorn AST** from `NAV_ITEMS` in `app/src/components/NavBar.jsx:19`
+on **2026-09-21**. Regenerate after any change to that array.
 
 | label | route |
 |---|---|
@@ -58,13 +58,14 @@ on **2026-09-18**. Regenerate after any change to that array.
 | Formula Reference | `/formulas/reference` |
 | The Desk | `/desk` |
 | Journal | `/journal` |
+| Portfolio Risk | `/portfolio-heat` |
 | Community | `/community` |
 | Support | `/support` |
 
-**18 entries** (was 16 — `/catalysts/history` and `/formulas/reference` added
-2026-09-18, F-NAV-1's own default: a reachable route with real inbound links AND
-non-zero 16-day production traffic gets a sidebar entry). Every one resolves to a
-registered route (`navWithoutRoute = 0` against 88 routes in `App.jsx`) — so the
+**19 entries** (was 18 — `/portfolio-heat` added 2026-09-21, A14 CP1: a real member
+door on `portfolio_heat.py`'s already-computed risk numbers, paid-gated the normal
+way per G1's "no free tier, only paid" answer). Every one resolves to a
+registered route (`navWithoutRoute = 0` against 89 routes in `App.jsx`) — so the
 **phantom-entry defect this section used to commit is currently absent**, and the
 generator is what keeps saying so.
 
