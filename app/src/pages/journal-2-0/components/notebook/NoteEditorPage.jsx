@@ -33,7 +33,7 @@ import {
   recordLandedRevision, SESSION_ID,
 } from '../../lib/offline/useDurableNote'
 import { useBlockedNotes } from '../../lib/offline/useBlockedNotes'
-import { blockedLabel, unsyncedLabel } from '../../lib/offline/unsyncedCopy'
+import { blockedLabel, unsyncedLabel, OFFLINE_VIEWING_BANNER } from '../../lib/offline/unsyncedCopy'
 import { usableBaseline, isUsableBaseline } from '../../lib/offline/baseline'
 import { settleNoteWrite } from '../../lib/offline/settleNoteWrite'
 import {
@@ -351,6 +351,28 @@ export default function NoteEditorPage({ noteId, onBack, showBack = true, onTitl
   // filter yields another member's research. It degrades to `supported: false`
   // (private windows, old browsers) without taking the editor with it.
   const durable = useDurableNote({ accountId: user?.id, noteId })
+
+  // ⛔⛔ A DIFFERENT AXIS FROM `saveStatus` BELOW — a READ signal, not a write
+  // one. Wave Q1's durable working copy lets a member reopen a previously-
+  // viewed note while offline (G-083), completely silently. `navigator.onLine`
+  // read once at mount would go stale the instant connectivity changes with
+  // the tab still open, so this tracks the two DOM events reactively -- the
+  // same events `useOutboxDrain.js` already listens for for its own,
+  // different reason (retrying the queue). Competitive audit finding
+  // Accessibility QW-5, 2026-09-22.
+  const [isOffline, setIsOffline] = useState(
+    typeof navigator !== 'undefined' ? !navigator.onLine : false,
+  )
+  useEffect(() => {
+    const goOnline = () => setIsOffline(false)
+    const goOffline = () => setIsOffline(true)
+    window.addEventListener('online', goOnline)
+    window.addEventListener('offline', goOffline)
+    return () => {
+      window.removeEventListener('online', goOnline)
+      window.removeEventListener('offline', goOffline)
+    }
+  }, [])
 
   // Wave Q1 — THE OPEN NOTE CAN ALSO BE BLOCKED, and until now it said nothing.
   // The sweep never touches the open note (`excludeNoteId`), so this state can
@@ -1944,6 +1966,19 @@ export default function NoteEditorPage({ noteId, onBack, showBack = true, onTitl
           <div className={styles.saveStatus} role="status">
             <UIcon name="warning" size={13} style={{ verticalAlign: '-2px', marginRight: 4 }} />
             {'Conflict — this note changed elsewhere. Your version was kept as a conflicted copy.'}
+          </div>
+        )}
+        {/* ⛔⛔ A DIFFERENT AXIS FROM THE THREE ABOVE — connectivity, not save
+            status. Independent (never else-if'd with the blocked/unsynced/
+            conflict states): a member can be offline AND have an unrelated
+            queued-write problem at the same time, and each fact is honest on
+            its own. Auto-clears the instant `online` fires -- no dismiss
+            state to manage for something that already un-shows itself.
+            Competitive audit finding Accessibility QW-5, 2026-09-22. */}
+        {isOffline && (
+          <div className={styles.saveStatus} role="status">
+            <UIcon name="warning" size={13} style={{ verticalAlign: '-2px', marginRight: 4 }} />
+            {OFFLINE_VIEWING_BANNER}
           </div>
         )}
         {(saveStatus === 'error' || saveStatus === 'reconnecting') && (

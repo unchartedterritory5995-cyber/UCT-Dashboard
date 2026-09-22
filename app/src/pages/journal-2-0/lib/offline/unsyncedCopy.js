@@ -53,3 +53,17 @@ export const BLOCKED_BADGE = 'Edit again to sync'
 /** What the badge says when a pointer rests on it — the full sentence. */
 export const BLOCKED_TITLE =
   'This note has words that have not reached the server, and will not until you edit it again.'
+
+/**
+ * ⛔ A DIFFERENT AXIS FROM EVERYTHING ABOVE. The strings above are about
+ * UNSENT WORK -- the member typed something and the server does not have it
+ * yet. This one is about a READ, not a write: Wave Q1's durable IndexedDB
+ * working copy lets a member reopen a previously-viewed note while offline
+ * (G-083, verified live 2026-09-22) -- correct and useful, and completely
+ * silent about it. A member navigating between a cached thesis and a
+ * never-opened one (silently, honestly absent) had no way to tell "my
+ * connection is fine and this note is just short" from "I'm offline and
+ * this is what's saved locally" — the same undifferentiated silence in both
+ * cases. Competitive audit finding Accessibility QW-5, 2026-09-22.
+ */
+export const OFFLINE_VIEWING_BANNER = "Viewing an earlier saved copy — you're offline."

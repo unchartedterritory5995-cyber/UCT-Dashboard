@@ -113,6 +113,36 @@ describe('NoteEditorPage — Wave B delete uses ConfirmModal, not native confirm
   })
 })
 
+/**
+ * ⛔⛔ A DIFFERENT AXIS FROM SAVE STATUS — connectivity, not writes. Wave Q1's
+ * durable working copy lets a member reopen a previously-viewed note while
+ * offline (G-083), completely silently before this. Competitive audit
+ * finding Accessibility QW-5, 2026-09-22.
+ */
+describe('NoteEditorPage — offline-viewing banner (Accessibility QW-5)', () => {
+  const BANNER_TEXT = "Viewing an earlier saved copy — you're offline."
+
+  it('shows nothing while online (the default)', async () => {
+    await renderEditor()
+    expect(screen.queryByText(BANNER_TEXT)).toBeNull()
+  })
+
+  it('appears the instant the browser goes offline, no reload needed', async () => {
+    await renderEditor()
+    expect(screen.queryByText(BANNER_TEXT)).toBeNull()
+    fireEvent(window, new Event('offline'))
+    expect(screen.getByText(BANNER_TEXT)).toBeInTheDocument()
+  })
+
+  it('auto-clears the instant connectivity returns — no dismiss state to manage', async () => {
+    await renderEditor()
+    fireEvent(window, new Event('offline'))
+    expect(screen.getByText(BANNER_TEXT)).toBeInTheDocument()
+    fireEvent(window, new Event('online'))
+    expect(screen.queryByText(BANNER_TEXT)).toBeNull()
+  })
+})
+
 describe('NoteEditorPage — Wave B Recents "opened" beacon', () => {
   it('fires recordNoteOpened(noteId) once the note has loaded', async () => {
     await renderEditor()
