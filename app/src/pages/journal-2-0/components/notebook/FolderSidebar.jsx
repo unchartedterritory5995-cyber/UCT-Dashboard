@@ -150,6 +150,14 @@ function NoteIcon() {
 // system-derived and capped small enough that collapsing rarely matters;
 // Favorites can grow, so the affordance is there for a member who wants it
 // out of the way without leaving the section itself invisible).
+// ⛔⛔ D-40, 2026-09-22: both note-row buttons in this file (here, and
+// FolderNode's own inline folder-notes list below) now carry
+// `data-note-card-id`, the SAME identity NoteCard.jsx already gives the
+// joystick hub (R-18) -- never `data-note-id`, which TipTap's inline
+// note-link node already owns. The hub's cursor (notebookSection.js)
+// queries `[data-note-card-id]` against the WHOLE document, so a note row
+// with no such attribute was simply invisible to it, silently. Competitive
+// audit finding UX #11 / Accessibility QW-6.
 function RecencySection({ label, icon, notes, activeNoteId, onOpenNote }) {
   const [expanded, setExpanded] = useState(true)
   if (!notes.length) return null
@@ -178,6 +186,7 @@ function RecencySection({ label, icon, notes, activeNoteId, onOpenNote }) {
             className={`${styles.noteRow} ${activeNoteId === note.id ? styles.rowActive : ''}`}
             onClick={() => onOpenNote(note)}
             title={note.title?.trim() || 'Untitled'}
+            data-note-card-id={note.id}
           >
             <NoteIcon />
             <span className={styles.noteTitle}>{note.title?.trim() || 'Untitled'}</span>
@@ -458,6 +467,7 @@ function FolderNode({
                 className={`${styles.noteRow} ${activeNoteId === note.id ? styles.rowActive : ''}`}
                 onClick={() => onOpenNote(note)}
                 title={note.title?.trim() || 'Untitled'}
+                data-note-card-id={note.id}
               >
                 <NoteIcon />
                 <span className={styles.noteTitle}>{note.title?.trim() || 'Untitled'}</span>

@@ -96,6 +96,21 @@ describe('NotesTableView', () => {
     expect(screen.getByText('Ticker')).toBeTruthy()
   })
 
+  /**
+   * ⛔⛔ D-40 — the joystick hub's cursor queries `[data-note-card-id]`
+   * against the whole document, not scoped to the List grid. Without this,
+   * a touch member on Table view was invisible to the hub's note-scrub
+   * cursor -- silently, since a missing attribute produces zero found
+   * notes, not an error. Competitive audit finding UX #11 / Accessibility
+   * QW-6, 2026-09-22.
+   */
+  it('each row carries data-note-card-id, the same identity NoteCard.jsx already gives the hub (R-18)', () => {
+    setup()
+    const row = screen.getByText('NVDA Thesis').closest('[data-note-card-id]')
+    expect(row).not.toBeNull()
+    expect(row.getAttribute('data-note-card-id')).toBe('n1')
+  })
+
   it('a note with no value for a shown property renders an empty dash, not a broken cell', () => {
     // The column only appears because n1/n2 use it -- n3 (no value) must
     // still render a dash for that cell rather than the column just

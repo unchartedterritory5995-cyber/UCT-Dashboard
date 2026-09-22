@@ -168,6 +168,17 @@ export default function NotesTableView({
       rowKey={(n) => n.id}
       mode="card"
       cardTitle={(n) => n.title || 'Untitled'}
+      // D-40, 2026-09-22: the joystick hub's cursor (notebookSection.js)
+      // queries `[data-note-card-id]` against the WHOLE document -- a
+      // global selector, not scoped to the List/NoteCard grid. On a touch
+      // device viewing Table (or a tablet, where the hub is active up to
+      // 1023px but ResponsiveTable's own phone threshold is 640px, so the
+      // DESKTOP <table> markup is what's actually on screen) the hub found
+      // zero notes, silently, because neither of ResponsiveTable's two row
+      // shapes carried the attribute. Same name NoteCard already uses
+      // (R-18) -- never `data-note-id`, which TipTap's inline note-link
+      // node already owns.
+      rowDataAttrs={(n) => ({ 'data-note-card-id': n.id })}
       // openNote (NotebookTab.jsx) reads note.id itself -- it wants the
       // whole note object, the same contract NoteCard's onOpen already
       // uses. Passing n.id here instead sent openNote a bare string,

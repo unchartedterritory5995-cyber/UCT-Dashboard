@@ -34,6 +34,12 @@ export default function ResponsiveTable({
   cardTitle,
   className = '',
   emptyText = 'No data',
+  // D-40 (2026-09-22): an optional `(row, i) => {attrName: value}` spread
+  // onto the ROW ROOT in BOTH renderings -- generic on purpose, so this
+  // shared primitive never hardcodes any one caller's attribute name (e.g.
+  // the Notebook hub's `data-note-card-id` contract, R-18). Every
+  // pre-existing caller omits it and is unaffected.
+  rowDataAttrs,
 }) {
   const isPhone = useIsPhone()
 
@@ -42,6 +48,8 @@ export default function ResponsiveTable({
 
   const cellValue = (col, row, i) =>
     col.render ? col.render(row, i) : row[col.key]
+
+  const dataAttrsOf = (row, i) => (rowDataAttrs ? rowDataAttrs(row, i) : undefined)
 
   // ── Real table (desktop, tablet, or phone scroll mode) ──
   const renderTable = (phoneScroll) => (
@@ -70,6 +78,7 @@ export default function ResponsiveTable({
               key={keyOf(row, i)}
               onClick={onRowClick ? () => onRowClick(row, i) : undefined}
               className={onRowClick ? styles.clickable : ''}
+              {...dataAttrsOf(row, i)}
             >
               {columns.map((col) => (
                 <td
@@ -110,6 +119,7 @@ export default function ResponsiveTable({
           key={keyOf(row, i)}
           className={`${styles.card} ${onRowClick ? styles.clickable : ''}`}
           onClick={onRowClick ? () => onRowClick(row, i) : undefined}
+          {...dataAttrsOf(row, i)}
         >
           <div className={styles.cardHead}>
             {cardTitle

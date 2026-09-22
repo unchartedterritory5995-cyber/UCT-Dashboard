@@ -136,6 +136,23 @@ describe('folder tree', () => {
       expect.objectContaining({ id: 'n1', folderId: 'c' }),
     )
   })
+
+  /**
+   * ⛔⛔ D-40 — the joystick hub's cursor queries `[data-note-card-id]`
+   * against the whole document. A note listed inline under its expanded
+   * folder (this call site, distinct from Favorites/Recents' own) was
+   * invisible to it, silently. Competitive audit finding UX #11 /
+   * Accessibility QW-6, 2026-09-22.
+   */
+  it('a note listed under its expanded folder carries data-note-card-id, same as NoteCard.jsx (R-18)', () => {
+    render(<FolderSidebar
+      notes={[{ id: 'n1', title: 'Commentary', folderId: 'c', tags: [] }]}
+      activeFolderId={null} onSelectFolder={() => {}}
+      activeTag={null} onSelectTag={() => {}} onOpenNote={vi.fn()} />)
+    fireEvent.click(screen.getByLabelText('Expand Journal'))
+    expect(screen.getByText('Commentary').closest('[data-note-card-id]'))
+      .toHaveAttribute('data-note-card-id', 'n1')
+  })
 })
 
 describe('header toolbar — collapse + search mode', () => {
@@ -1217,6 +1234,22 @@ describe('Favorites + Recents sidebar sections (Wave B)', () => {
     render(<FolderSidebar notes={[]} activeFolderId={null} onSelectFolder={() => {}}
                           activeTag={null} onSelectTag={() => {}} />)
     expect(screen.getByText('Untitled')).toBeInTheDocument()
+  })
+
+  /**
+   * ⛔⛔ D-40 — the joystick hub's cursor queries `[data-note-card-id]`
+   * against the whole document. Without this, a Favorites/Recents row was
+   * invisible to it, silently. Competitive audit finding UX #11 /
+   * Accessibility QW-6, 2026-09-22.
+   */
+  it('a Favorites row carries data-note-card-id, the same identity NoteCard.jsx gives the hub (R-18)', () => {
+    useJ2FavoritesMock.mockImplementation(() => ({
+      notes: [{ id: 'f1', title: 'Favorited Thesis' }], isLoading: false, error: null, refresh: vi.fn(),
+    }))
+    render(<FolderSidebar notes={[]} activeFolderId={null} onSelectFolder={() => {}}
+                          activeTag={null} onSelectTag={() => {}} />)
+    expect(screen.getByText('Favorited Thesis').closest('[data-note-card-id]'))
+      .toHaveAttribute('data-note-card-id', 'f1')
   })
 })
 
