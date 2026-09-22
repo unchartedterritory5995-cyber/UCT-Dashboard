@@ -37,10 +37,10 @@ time, that is a one-line edit to the `SCOPE APPROVED:` text, not a re-derivation
 ## APPROVAL — this block is filled in by the OWNER, not the author
 
 ```
-APPROVED BY:
-APPROVED ON:
-APPROVED AT SHA:
-SCOPE APPROVED:
+APPROVED BY:      Patrick (owner)
+APPROVED ON:      2026-09-22
+APPROVED AT SHA:  454e11421
+SCOPE APPROVED:   D2 follow-up (closes F-D2-1) -- the fundamentals declaration, per docs/terminal-research/12-decisions/gates/d2-f-d2-1-fundamentals-declaration-scoped-proposal.md section 2. MUST BUILD: one new declaration function, earnings_table_store(), in tools/build_canonical_address_book.py alongside the existing bars_store() -- AST-derived from earnings_table.py's _build() dict-literal assembly plus annual_financials.py's actual/estimate row builders and the two quarterly branches, never hand-typed key names; new table-qualified entries in api/data/canonical_address_book.json for the earnings_table kind only (cannot collide with the 137 screener names or the 5 existing ohlcv.* names); tests/test_canonical_address_book.py extended with a derivation-matches-checked-in-book test and a mutation test proving the new declaration can fail. SHOULD BUILD: none. EXPLICITLY DEFERRED, NOT AUTHORIZED BY THIS LINE: migrating any fundamentals reader onto the declared shape; declaring any of the other four fund_snapshots kinds (fund_snapshot_v3, earnings_intel_v10, fin_stmts_v2, research_snapshot); resolving CP2.1's cross-module vocabulary divergence (the "ten metric spellings" finding). No schema change on any live store. No new computation.
 ```
 
 No field above is filled in. This packet proposes exactly one checkpoint (section 2);
