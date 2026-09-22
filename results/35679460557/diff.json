@@ -1,0 +1,100 @@
+{
+  "verdict": "NEW_FAILURES",
+  "counts": {
+    "new": 5,
+    "fixed": 0,
+    "unchanged": 265,
+    "missing": 0,
+    "baseline": 265,
+    "current": 272,
+    "current_ran": 51120,
+    "new_flaky": 2,
+    "flaky_size": 5,
+    "flaky_new": 2,
+    "flaky_fixed": 0,
+    "file_level_resolved": 0,
+    "coverage_lost": 0,
+    "new_ours": 2,
+    "new_others": 0,
+    "new_unattributed": 3
+  },
+  "arithmetic": "baseline 265 = unchanged 265 + fixed 0 + missing 0  |  current 272 = unchanged 265 + new 5 + new-but-flaky 2",
+  "invalid_because": [],
+  "baseline_run_id": "35676670162",
+  "current_run_id": "35679460557",
+  "baseline_sha": "29ccfae8c8cb8fdef7c49a63b81ea709b92e2c0f",
+  "current_sha": "feb0180224f5976bad07314d269b2d0389748add",
+  "commit_range": "29ccfae8c8cb8fdef7c49a63b81ea709b92e2c0f..feb0180224f5976bad07314d269b2d0389748add",
+  "first_run": false,
+  "new": [
+    "pytest|tests.test_alert_taxonomy_position_risk_schema|test_aggregate_heat_has_NO_scheduled_or_delivering_legacy_path",
+    "pytest|tests.test_ticker_logos|test_existing_three_call_sites_unpack_tuple_return",
+    "pytest|tests.test_ticker_logos|test_run_hires_upgrade_writes_source_sidecar",
+    "vitest|src/components/chart/engine/__tests__/stockChartWiring.test.jsx|an engine series is inserted where its legacy twin would have been > and BEFORE the whole rest of the chart, not just the first block",
+    "vitest|src/surfaces/manifest.test.js|S1 CP1 \u2014 the surface manifest is derived, not typed > every Layout-hosted route has a declaration"
+  ],
+  "missing": [],
+  "fixed": [],
+  "new_flaky": [
+    "pytest|tests.test_mutation_check.TestVerdicts|test_a_detected_mutation_passes_the_check",
+    "pytest|tests.test_mutation_check.TestVerdicts|test_expect_red_naming_the_right_test_passes"
+  ],
+  "flaky": [
+    "pytest|tests.test_discord_close_note|test_a_note_that_cannot_be_written_still_posts_the_charts",
+    "pytest|tests.test_mutation_check.TestRestoreGuarantee|test_the_file_is_byte_identical_after_a_detected_mutation",
+    "pytest|tests.test_mutation_check.TestVerdicts|test_a_detected_mutation_passes_the_check",
+    "pytest|tests.test_mutation_check.TestVerdicts|test_expect_red_naming_the_right_test_passes",
+    "vitest|src/components/chart/engine/__tests__/stockChartWiring.test.jsx|an engine-drawn indicator still appears in the crosshair legend > \u26d4\u26d4 A HOVER REACHES THE RENDERER NOT AT ALL"
+  ],
+  "file_level_resolved": [],
+  "coverage_lost": [],
+  "missing_buckets": {},
+  "attribution": {
+    "pytest|tests.test_alert_taxonomy_position_risk_schema|test_aggregate_heat_has_NO_scheduled_or_delivering_legacy_path": {
+      "class": "UNATTRIBUTED",
+      "commits": [],
+      "workstreams": [],
+      "reason": "no commit in 29ccfae8c..feb018022 touched tests/test_alert_taxonomy_position_risk_schema.py or anything it imports"
+    },
+    "pytest|tests.test_ticker_logos|test_existing_three_call_sites_unpack_tuple_return": {
+      "class": "test-file-change",
+      "commits": [
+        "920ca72e1"
+      ],
+      "workstreams": [
+        {
+          "commit": "920ca72e1",
+          "workstream": "D4 CP5",
+          "confidence": "message-tag",
+          "ours": true
+        }
+      ]
+    },
+    "pytest|tests.test_ticker_logos|test_run_hires_upgrade_writes_source_sidecar": {
+      "class": "test-file-change",
+      "commits": [
+        "920ca72e1"
+      ],
+      "workstreams": [
+        {
+          "commit": "920ca72e1",
+          "workstream": "D4 CP5",
+          "confidence": "message-tag",
+          "ours": true
+        }
+      ]
+    },
+    "vitest|src/components/chart/engine/__tests__/stockChartWiring.test.jsx|an engine series is inserted where its legacy twin would have been > and BEFORE the whole rest of the chart, not just the first block": {
+      "class": "UNATTRIBUTED",
+      "commits": [],
+      "workstreams": [],
+      "reason": "no commit in 29ccfae8c..feb018022 touched src/components/chart/engine/__tests__/stockChartWiring.test.jsx or anything it imports"
+    },
+    "vitest|src/surfaces/manifest.test.js|S1 CP1 \u2014 the surface manifest is derived, not typed > every Layout-hosted route has a declaration": {
+      "class": "UNATTRIBUTED",
+      "commits": [],
+      "workstreams": [],
+      "reason": "no commit in 29ccfae8c..feb018022 touched src/surfaces/manifest.test.js or anything it imports"
+    }
+  }
+}
