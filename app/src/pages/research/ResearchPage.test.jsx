@@ -54,6 +54,11 @@ vi.mock('./hooks/useCompanyNews', () => ({
 vi.mock('./hooks/useCatalystHistory', () => ({
   default: () => ({ data: { ticker: 'AAPL', entries: [] }, isLoading: false }),
 }))
+// Packet H CP1 (2026-09-22): same idiom -- the Model Book tab's own hook
+// resolved so ?section=modelbook has positive content to assert against.
+vi.mock('./hooks/useModelBookAppearances', () => ({
+  default: () => ({ data: { symbol: 'AAPL', appearances: [] }, isLoading: false }),
+}))
 
 // Wave H: "My Research" bridges to the SAME component Notebook's own route
 // mounts (checkpoint decision 6) -- mocked here so this file stays scoped to
@@ -159,6 +164,20 @@ describe('ResearchPage', () => {
     auth.isPaid = true
     renderWithProviders(<ResearchPage />, { route: '/research/AAPL?section=filings' })
     expect(screen.getByText('SEC filings (EDGAR)')).toBeInTheDocument()
+  })
+
+  it('honours ?section=modelbook — lands on the new Model Book tab', () => {
+    // Packet H CP1 (2026-09-22, fingerprint f119617df): has this ticker ever
+    // been a curated Model Book entry.
+    auth.isPaid = true
+    renderWithProviders(<ResearchPage />, { route: '/research/AAPL?section=modelbook' })
+    expect(screen.getByText('Not yet in the Model Book.')).toBeInTheDocument()
+  })
+
+  it('renders the "Model Book" tab button', () => {
+    auth.isPaid = true
+    renderWithProviders(<ResearchPage />, { route: '/research/AAPL' })
+    expect(screen.getByRole('button', { name: 'Model Book' })).toBeInTheDocument()
   })
 
   it('honours ?section=analyst-ratings — lands on the new Analyst Ratings tab', () => {
