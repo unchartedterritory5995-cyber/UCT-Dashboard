@@ -228,6 +228,27 @@ export const RUNTIME_OUTPUT_CALLS = Object.freeze(new Set([
  *  in opposite directions. */
 export const RUNTIME_COLOUR_OUTPUTS = Object.freeze(new Set(['bgcolor', 'barcolor']))
 
+/** ⭐ The cross family this lane serves over RUNTIME state, Pine spelling ->
+ *  the `CARRIED2` member.
+ *
+ *  ⚰️ `ta.cross` WAS LEFT OUT OF THIS TABLE AND THE REASONING WAS WRONG. It
+ *  looked like a name with no authority — `closedTable.json` declares
+ *  `crossOver` and `crossUnder` and no `cross` — so serving it here seemed like
+ *  inventing a ruling. Measured instead of assumed: `pine.js` rewrites
+ *  `cross(a, b)` to `crossOver(a, b) || crossUnder(a, b)`, `ta.cross` over PURE
+ *  arguments COMPILES today, and `BINARY['||']` propagates NaN so the warm-up
+ *  shape matches `crossover`'s exactly. Leaving it out would have created the
+ *  very asymmetry the exclusion was meant to avoid — pure compiles, stateful
+ *  refuses — in 28 sites across 8 scripts. */
+export const RUNTIME_CROSS_CARRIED = Object.freeze({
+  'ta.crossover': 'crossOver',
+  crossover: 'crossOver',
+  'ta.crossunder': 'crossUnder',
+  crossunder: 'crossUnder',
+  'ta.cross': 'crossAny',
+  cross: 'crossAny',
+})
+
 /** How many firings back `ta.valuewhen` will look. The ring is allocated from
  *  this, and the corpus's largest occurrence is a small literal. */
 export const MAX_VALUEWHEN_OCCURRENCE = 1000
@@ -3684,6 +3705,50 @@ export function buildRuntimeIr(source, opts = {}) {
             carriedMain.push(entry)
           }
           return carriedCall(aidx, lowerExpr(trueRangeAst(), scope))
+        }
+        // ⭐⭐ `ta.crossover` / `ta.crossunder` OVER RUNTIME STATE.
+        //
+        // ⛔⛔ ONLY OVER RUNTIME STATE, AND NOT BY A CHECK HERE. A cross over
+        // PURE arguments never reaches this branch — the route decision sends
+        // the whole subtree to the columnar lane, which has answered it
+        // correctly for as long as it has existed. What arrives here is the
+        // shape that used to refuse `runtime:call-windowed-state`: a cross fed
+        // by a mutable variable.
+        //
+        // ⛔⛔ AND IT IS A CARRIED STEP RATHER THAN AN OPERATOR LOWERING, which
+        // is the decision the comment above `ta.change` already argued and left
+        // unbuilt. `a > b and a[1] <= b[1]` is NOT the definition of a crossing:
+        // `interpret.js::crossing` answers NaN when any of the four values is
+        // NaN, while this grammar's `>` answers 0 on a NaN. The operator form
+        // would report "did not cross" on every warm-up bar, where the table
+        // says NOT COMPUTABLE — a silent approximation on 338 corpus sites.
+        if (RUNTIME_CROSS_CARRIED[node.name]
+          // ⛔ THE SCRIPT'S OWN DEFINITION WINS. `crossover` is a plain name in
+          // the v1-v3 spelling and a member may define one; hijacking it would
+          // compute a builtin nobody wrote.
+          && !definedNames.has(node.name)) {
+          const at = locate(node.tok)
+          const given = node.args.map((a) => (a && a.value !== undefined ? a.value : a))
+          if (given.length !== 2) {
+            throw new RuntimeRefusal('runtime:statement',
+              `\`${node.name}\` takes two series, given ${given.length}`, at)
+          }
+          // ⛔ SAME RING-SHARING LIMIT AS `ta.valuewhen`: `OP.CARRIED2` has no
+          // frame-relative base, so two invocations inside one user function
+          // would share one previous-pair and answer a plausible wrong series.
+          if (owner !== null) {
+            throw new RuntimeRefusal('runtime:statement',
+              `\`${node.name}\` inside a user function is not served yet — each `
+              + 'invocation needs its own previous-bar pair, and sharing one would '
+              + 'answer a plausible wrong series rather than refuse', at)
+          }
+          const idx = carried2Main.length
+          carried2Main.push({ fn: RUNTIME_CROSS_CARRIED[node.name], n: 0, name: node.name })
+          // ⭐ FIRST ARGUMENT FIRST — `crossover(a, b)` is "a crossed ABOVE b",
+          // and the pair is NOT symmetric. The VM hands them to the step in
+          // this order; `crossFamily.test.js` asserts swapping them changes the
+          // answer rather than merely the types.
+          return carried2Call(idx, lowerExpr(given[0], scope), lowerExpr(given[1], scope))
         }
         // ⭐⭐ PINE'S `ta.valuewhen` — THE Nth MOST RECENT FIRING.
         //

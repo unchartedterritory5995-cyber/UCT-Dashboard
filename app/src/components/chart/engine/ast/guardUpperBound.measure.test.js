@@ -11,11 +11,32 @@
 //       node node_modules/vitest/vitest.mjs run \
 //         src/components/chart/engine/ast/guardUpperBound.measure.test.js
 //
-// ⭐⭐ THE METHOD IS A STRICT UPPER BOUND, AND THAT IS WHAT MAKES IT SAFE TO
-// ACT ON. For the named guard, every line that refuses WITH THAT GUARD is
-// neutralised — the most permissive treatment possible, better than any correct
-// implementation could ever be, because a correct lowering can only fail in MORE
-// places than deleting the line. So:
+// ⚰️⚰️ IT IS NOT A STRICT UPPER BOUND, AND THIS FILE SAID IT WAS.
+// The claim was that deleting a refused line is "the most permissive treatment
+// possible, better than any correct implementation could ever be, because a
+// correct lowering can only fail in MORE places than deleting the line."
+//
+// ⛔ THAT IS FALSE WHENEVER THE REFUSED LINE IS A BINDING. Deleting it does not
+// merely remove a capability — it removes a NAME, and every later line that
+// consumes that name then fails `pine:undefined`. Implementing the function
+// keeps the name and its consumers. So for a binding, deleting is STRICTER than
+// implementing, and the bound UNDERSTATES.
+//
+// ⭐ MEASURED, 2026-09-22, not reasoned about. This file sized
+// `runtime/runtime:call-windowed-state` at **+1 AT BEST**. Serving the cross
+// family delivered **+2** builds and +2 draws. The extra script is
+// `trendlines__43QQg9nDN0.pine`, whose refused lines are
+//     86: long_break  = crossover(close, res_y)
+//     87: short_break = crossunder(close, sup_y)
+// — bindings, whose consumers the peel then broke. The queue instrument had
+// even printed the tell: `trendlines`'s walls read
+// `call-windowed-state, pine:undefined`, and that second wall was an ARTIFACT
+// OF THE PEELER, not a property of the script.
+//
+// ⭐⭐ SO READ IT AS AN ESTIMATE OF ORDER IN BOTH DIRECTIONS. A zero still
+// means "expect nothing" and has been right every time it was checked; a
+// positive number is a rough size, which a binding-heavy guard can beat. What
+// it is NOT is a ceiling you can plan against. So:
 //
 //   · the bound comes back ZERO  ⇒  building it moves nothing. Certain.
 //   · the bound comes back N > 0 ⇒  a perfect implementation might reach N,
@@ -157,11 +178,16 @@ describe('⭐⭐ the upper bound on one guard', () => {
       `  GAIN, AT BEST                    : ${gained}`,
       '',
       ...(gained === 0
-        ? ['⛔ ZERO. Solving this guard perfectly moves the build count by nothing.',
+        ? ['⛔ ZERO. Solving this guard perfectly moves the build count by nothing',
+          '  ON THE FIRST-BLOCKER PATH. A guard whose refused lines are BINDINGS can',
+          '  still gain: deleting a binding breaks its consumers, so the peel is',
+          '  stricter than an implementation. Measured once, +1 forecast -> +2 real.',
           '  That is not a reason to skip it — it may still be a correctness fix —',
           '  but it IS a reason not to expect movement, and to say so up front.']
-        : [`⭐ UP TO ${gained} more scripts could build. A correct implementation will`,
-          '  very likely reach fewer; this is the ceiling, not the forecast.']),
+        : [`⭐ ABOUT ${gained} more scripts could build — an estimate of ORDER, not a`,
+          '  ceiling. A correct implementation usually reaches fewer, and reaches',
+          '  MORE when the refused lines are bindings whose consumers the peel',
+          '  breaks (measured: +1 forecast, +2 real, on the cross family).']),
       '',
       'where the peeled scripts stop instead:',
       ...[...walls.entries()].sort((a, b) => b[1] - a[1]).slice(0, 12)

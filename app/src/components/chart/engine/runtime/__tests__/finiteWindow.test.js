@@ -421,7 +421,23 @@ describe('⛔⛔ what 2F-2B does NOT admit — the families stay apart', () => {
     // ⚠️ AND IT MOVED NO CORPUS NUMBER — `call-undeclared-builtin-state` is 2
     // scripts before and after, because no corpus script hits one of the eight
     // as its FIRST blocker. A diagnostic can be wrong without being visible.
-    const r = refusalOf(`${head}var x = 0.0\nx := close\nplot(ta.crossover(x, 105) ? 1 : 0)\n`)
+    // ⚰️⚰️ AND THE SPECIMEN DRIFTED A SECOND TIME, IN THE SAME TEST. It was
+    // `ta.crossover`, which this lane now SERVES over runtime state (the cross
+    // family got its own carried step, `runtime/__tests__/crossFamily.test.js`)
+    // — so a probe pointed at it stopped testing "mapped but windowed" and
+    // started testing nothing at all. That is exactly the failure the `ta.cum`
+    // note below records, arriving again from the other direction: a specimen
+    // is only a specimen while the thing it stands for is still true of it.
+    // ⭐ `ta.dmiplusleg` is one of the same eight `PINE_CALL_SHAPES` mappings
+    // (`dmiplusleg` -> `plusDI`) and still answers windowed — established by
+    // driving ALL EIGHT, not by picking one that looked safe. Two of the eight
+    // would have been wrong: `crossover`/`crossunder` now compile, and
+    // `ta.wpr` answers `undeclared` today, which is a pre-existing hole in
+    // this very claim and is recorded here rather than quietly stepped around.
+    const r = refusalOf(`${head}var x = 0.0
+x := close
+plot(ta.dmiplusleg(x, 105))
+`)
     expect(r.guard).not.toBe('runtime:call-undeclared-builtin-state')
     expect(r.guard).toBe('runtime:call-windowed-state')
     // ⭐ NON-VACUITY: a name the table genuinely does NOT declare must still

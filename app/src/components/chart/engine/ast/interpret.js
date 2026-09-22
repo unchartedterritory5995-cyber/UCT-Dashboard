@@ -1159,6 +1159,34 @@ function elementwise2(a, b, f) {
  *  refuses a 0.5 at registration for a native; a formula must not be the way in.
  *  Alerts, the screener and the Python AST lane all consume this one shape, and
  *  a JS `true` round-trips through JSON as `true`, not as 1. */
+/** ⭐⭐ THE TWO CROSSING PREDICATES, DECLARED ONCE AND SHARED BY BOTH LANES.
+ *
+ *  ⛔ THEY WERE INLINE IN `crossOver`/`crossUnder` AND ARE LIFTED OUT RATHER
+ *  THAN COPIED. The runtime lane's carried step needs the same rule bar by bar;
+ *  a second `an > bn && ap <= bp` written there is
+ *  `lesson_a_second_authority_over_one_value`, and the copies would disagree
+ *  the first time either was touched — silently, because both answer a
+ *  plausible 0/1 series.
+ *
+ *  ⛔ THE ORDER MEANS SOMETHING: `crossOver(a, b)` is "a crossed ABOVE b". The
+ *  comparisons are NOT symmetric and swapping the pair yields the other
+ *  function, which is why the runtime test asserts the two spellings differ. */
+const CROSS_OVER_FIRED = (an, bn, ap, bp) => an > bn && ap <= bp
+const CROSS_UNDER_FIRED = (an, bn, ap, bp) => an < bn && ap >= bp
+/** ⭐ `ta.cross` IS THE OR OF THE TWO, AND THAT IS `pine.js`'S OWN RULE — it
+ *  rewrites `cross(a, b)` to `crossOver(a, b) || crossUnder(a, b)`, so this
+ *  composes the same two predicates rather than inventing a third.
+ *
+ *  ⛔ THE NaN AGREEMENT WAS MEASURED, NOT ASSUMED. The worry was that the
+ *  columnar path builds its answer with `||` over two NaN warm-ups while a
+ *  carried step propagates NaN directly — two different rules reaching one
+ *  name. Measured: `BINARY['||'](NaN, NaN)` is NaN, and `ta.cross` over pure
+ *  arguments answers `[na, na, na, 0, 1, 0]` on this fixture, the same warm-up
+ *  shape `ta.crossover` gives. The two agree, so the carried form is exact
+ *  parity rather than a near-miss. */
+const CROSS_ANY_FIRED = (an, bn, ap, bp) => (
+  CROSS_OVER_FIRED(an, bn, ap, bp) || CROSS_UNDER_FIRED(an, bn, ap, bp))
+
 function crossing(a, b, fired) {
   const out = nan(a.length)
   for (let i = 1; i < a.length; i++) {
@@ -1590,10 +1618,47 @@ function valueWhenPineStep(st, off, cond, src, n) {
   return st[off + st[off + n + 1]]
 }
 
+/** ⭐⭐ THE CROSS FAMILY AS A CARRIED STEP — two series in, the PREVIOUS PAIR
+ *  as state, one value out. The fit to `CARRIED2` is exact, so this needed no
+ *  new opcode.
+ *
+ *  ⛔⛔ AND IT EXISTS BECAUSE THE OPERATOR LOWERING WOULD HAVE BEEN A SILENT
+ *  APPROXIMATION. `ta.change(x)` is lowered into `x - x[1]` because that IS its
+ *  definition; `a > b and a[1] <= b[1]` is NOT the definition of a crossing,
+ *  because `crossing` answers NaN when any of the four values is NaN while this
+ *  grammar's `>` answers 0 on a NaN. The operator form would report "did not
+ *  cross" on every warm-up bar, where the table says NOT COMPUTABLE.
+ *
+ *  ⭐ TWO CELLS: the previous `a` and the previous `b`. Initialised to NaN,
+ *  which is what makes bar 0 answer `na` without a separate counter —
+ *  `crossing` starts its loop at `i = 1` for the same reason. */
+const CROSS_CELLS = () => 2
+
+function crossInit(st, off) { st[off] = NaN; st[off + 1] = NaN }
+
+/** ⛔ THE PAIR IS STORED AFTER IT IS READ, and both halves are stored every bar
+ *  whether or not the answer is computable — a NaN input is still this bar's
+ *  value, and skipping the store would compare against a stale pair two bars
+ *  back and report a crossing that never happened. */
+const crossStep = (fired) => (st, off, a, b) => {
+  const ap = st[off]
+  const bp = st[off + 1]
+  st[off] = a
+  st[off + 1] = b
+  if (Number.isNaN(a) || Number.isNaN(b) || Number.isNaN(ap) || Number.isNaN(bp)) return NaN
+  return fired(a, b, ap, bp) ? 1 : 0
+}
+
 export const CARRIED2 = Object.freeze({
   valuewhen: {
     cells: VALUEWHEN_CELLS, init: valueWhenPineInit, step: valueWhenPineStep,
   },
+  // ⭐ `n` IS UNUSED BY THESE TWO — it is the slot `valuewhen` reads as an
+  // occurrence, and one signature serving both is what lets one opcode drive
+  // the table. The same arrangement `CARRIED`'s `alpha` argument already has.
+  crossOver: { cells: CROSS_CELLS, init: crossInit, step: crossStep(CROSS_OVER_FIRED) },
+  crossUnder: { cells: CROSS_CELLS, init: crossInit, step: crossStep(CROSS_UNDER_FIRED) },
+  crossAny: { cells: CROSS_CELLS, init: crossInit, step: crossStep(CROSS_ANY_FIRED) },
 })
 
 /** ⛔ THE COLUMN DRIVER IS DERIVED FROM THE TABLE, so `FN.ema` and the runtime
@@ -1728,8 +1793,8 @@ export const FN = Object.freeze({
     return out
   },
   nz: (a, b) => elementwise2(a, b, POINTWISE.nz),
-  crossOver: (a, b) => crossing(a, b, (an, bn, ap, bp) => an > bn && ap <= bp),
-  crossUnder: (a, b) => crossing(a, b, (an, bn, ap, bp) => an < bn && ap >= bp),
+  crossOver: (a, b) => crossing(a, b, CROSS_OVER_FIRED),
+  crossUnder: (a, b) => crossing(a, b, CROSS_UNDER_FIRED),
 
   // ── the indicators, bound to the chart's own maths ──────────────────────
   //

@@ -700,16 +700,34 @@ describe('⭐ `ta.change` — lowered into semantics that already ship (§42–�
     expect(r.message).toMatch(/closed-table gap/)
   })
 
-  it('⛔⛔ `ta.crossover`/`crossunder` STAY REFUSED, and the reason is MEASURED', () => {
-    // ⭐ THEY LOOK LIKE THE SAME SHAPE AND THEY ARE NOT SERVABLE THE SAME WAY.
-    // `interpret.js::crossing` answers NaN when ANY of the four values it reads
-    // is NaN. This grammar's `>` answers 0 on a NaN — measured below, not
-    // assumed — so lowering `a > b and a[1] <= b[1]` would answer 0 where the
-    // table says NOT COMPUTABLE. That is a silent approximation, so they wait
-    // for the family to get its own authoritative step.
+  it('⛔⛔ the cross family is NOT an operator lowering — the NaN reason still stands', () => {
+    // ⚰️ THIS TEST USED TO ASSERT THEY STAY REFUSED, and it was right until
+    // the condition it named came true. Its own words: they "wait for the family
+    // to get its own authoritative step". That step exists now (`CARRIED2`'s
+    // `crossOver`/`crossUnder`, `runtime/__tests__/crossFamily.test.js`), so
+    // `ta.crossover` over runtime state COMPILES and the refusal is gone.
+    //
+    // ⭐⭐ WHAT SURVIVES IS THE REASON, AND IT IS THE HALF WORTH RAILING. The
+    // refusal was never the point — the point is that `ta.change`'s trick does
+    // NOT generalise here: `interpret.js::crossing` answers NaN when any of its
+    // four values is NaN, while this grammar's `>` answers 0 on a NaN. So an
+    // operator lowering would report "did not cross" on every warm-up bar, where
+    // the table says NOT COMPUTABLE. The carried step is what keeps that
+    // distinction, and this asserts BOTH halves: the operator still swallows the
+    // NaN, and the served path still does not.
     expect(BINARY['>'](NaN, 5), 'the operator swallows the NaN').toBe(0)
-    expect(refusalOf(`${head}var x = 0.0\nx := close\nplot(ta.crossover(x, 102) ? 1 : 0)\n`).guard)
-      .toBe('runtime:call-windowed-state')
+
+    // ⛔ `ta.sma(close, 3)` is na on bars 0-1, so the cross is not computable
+    // on bars 0, 1 and 2 — bar 2 because the PREVIOUS bar is still na. An
+    // operator lowering answers 0 on all three, a different claim entirely.
+    const { out } = runPine(`${head}var m = na
+m := ta.sma(close, 3)
+`
+      + `plot(ta.crossover(close, m) ? 1 : 0)
+`)
+    expect(Number.isNaN(out[0]), 'bar 0 answered a number').toBe(true)
+    expect(Number.isNaN(out[2]), 'bar 2 answered a number — the PREVIOUS bar was na').toBe(true)
+    expect(out.slice(3).every((v) => v === 0 || v === 1), 'never became computable').toBe(true)
   })
 
   it('⛔ the classifier asks the TABLE, and a synthetic one proves the lookup is live', () => {

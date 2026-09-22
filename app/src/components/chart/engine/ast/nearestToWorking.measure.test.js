@@ -48,7 +48,14 @@ import { peel, SCRIPTS, readScript } from './peelToBuilding.js'
 
 const LF = String.fromCharCode(10)
 
-/** How far to look. ⭐ DELIBERATELY SHORTER THAN THE SIBLING'S 20: this file is
+/** How far to look.
+ *
+ *  ⚠️ `cap` COUNTS PEELS, so a cap of 12 admits scripts up to distance
+ *  ELEVEN — the build that would report a twelfth as reached never runs.
+ *  Measured in the cap control below, and left alone rather than corrected:
+ *  changing `peel` moves every number its sibling has ever published.
+ *
+ *  ⭐ DELIBERATELY SHORTER THAN THE SIBLING'S 20: this file is
  *  a shortlist of what is nearly working, and a script twelve walls out is not
  *  nearly working. The sibling answers the "how far is the whole corpus"
  *  question and keeps the longer reach. */
@@ -80,28 +87,43 @@ describe('⭐⭐ the scripts nearest to working, and the walls between', () => {
     // queue as "no work available". Both read as a finding rather than as a
     // broken instrument.
     //
-    // ⛔ THREE NAMED SCRIPTS, NOT THE CORPUS, and measured distances rather
-    // than guesses: one builds already, one is two walls out, one is eleven.
-    // Raising the cap past 2 must admit the middle one and must NOT admit the
-    // far one — which is a property of the cap, not of how many rows come back.
-    const near0 = 'makuchaku039s-trade-tools-fair-value-gaps__b951deedc8.pine'
-    const near2 = 'liquidity-pools__fa7b28e733.pine'
-    const far = 'inside-bar-boxes__2f747d848b.pine'
-    const subset = [near0, near2, far]
-    // ⛔ A CONTROL THAT SILENTLY SKIPS IS WORSE THAN NO CONTROL. If the corpus
-    // no longer holds these, this must say so rather than pass vacuously.
-    for (const n of subset) {
-      expect(SCRIPTS.includes(n), `control fixture missing from the corpus: ${n}`).toBe(true)
-    }
+    // ⚰️⚰️ THIS CONTROL NAMED THREE CORPUS SCRIPTS AT MEASURED DISTANCES
+    // (0, 2 and 11) AND MY OWN NEXT COMMIT BROKE IT. Serving the cross family
+    // moved two of those three, so a rail written to watch the instrument was
+    // actually watching the CORPUS — and it went red for the programme working
+    // exactly as intended. A queue instrument whose control breaks every time
+    // the queue is worked is the pinned-count defect this file's own header
+    // warns about, committed one screen below the warning.
+    //
+    // ⭐ SO THE CAP IS TESTED ON A PLANTED SOURCE, where the distance is a
+    // property of the fixture rather than of the engine's current reach. Two
+    // bad lines: a cap of 1 must NOT reach, a cap of 2 must.
+    const q = String.fromCharCode(34)
+    const H = `//@version=6${LF}indicator(${q}t${q}, overlay = true)${LF}`
+    const twoBad = `${H}var t = table.new(position.top_right, 1, 1)${LF}`
+      // ⛔ PLOTS, NOT BINDINGS — an UNUSED binding is elided before it can
+      // refuse, so it would cost zero peels and this would measure dead-code
+      // removal instead of the cap (the sibling's control records the same trap).
+      + `plot(ta.notarealfunction(close, 5))${LF}`
+      + `plot(alsonotreal(close))${LF}`
+      + `if barstate.islast${LF}    table.cell(t, 0, 0, str.tostring(close))${LF}`
 
-    const tight = shortlist(1, subset).map((r) => r.name)
-    const loose = shortlist(3, subset).map((r) => r.name)
-
-    expect(tight, 'a script that already builds was not admitted at cap 1').toContain(near0)
-    expect(tight, 'a script two walls out was admitted at cap 1').not.toContain(near2)
-    expect(loose, 'a script two walls out was not admitted at cap 3').toContain(near2)
-    expect(loose, 'a script eleven walls out was admitted at cap 3').not.toContain(far)
-  }, 120000)
+    // ⛔⛔ `cap` COUNTS PEELS, AND REPORTING "reached" NEEDS ONE BUILD MORE
+    // THAN PEELS — measured here, not assumed. `peel`'s loop runs `cap` times
+    // and the build that would answer "it works now" is the FIRST statement of
+    // the NEXT iteration, so a script two walls out needs a cap of THREE to come
+    // back reached. A cap of exactly 2 peels both lines and stops one build
+    // short of the good news.
+    // ⭐ THE CONSEQUENCE IS ON THE PRINTED HEADLINE: this file's CAP of 12
+    // admits scripts up to distance ELEVEN, not twelve. Stated rather than
+    // silently corrected — changing `peel` would move every number its sibling
+    // has ever published.
+    expect(peel(twoBad, 1).reached, 'a cap of 1 reached a 2-wall script').toBe(false)
+    expect(peel(twoBad, 2).reached, 'a cap of 2 (2 peels, 2 builds) reported reached')
+      .toBe(false)
+    expect(peel(twoBad, 3).reached, 'a cap of 3 did not reach a 2-wall script').toBe(true)
+    expect(peel(twoBad, 3).distance, 'the distance is a property of the fixture').toBe(2)
+  })
 
   it('⭐⭐ prints the queue: nearest scripts, their walls, and the union', () => {
     const rows = shortlist()
@@ -131,7 +153,15 @@ describe('⭐⭐ the scripts nearest to working, and the walls between', () => {
 
     // ⛔ NON-VACUITY: a shortlist with no walls in it is either a finished
     // corpus or a broken peeler, and the second is far likelier.
-    expect(rows.length).toBeGreaterThan(0)
+    // ⛔ NON-VACUITY, ON THE WALK THIS TEST ALREADY DID. It pins no distance
+    // and names no script: both move every time this programme does its job,
+    // and a control that breaks when the queue is WORKED is the pinned-count
+    // defect this file's own header warns about. What must stay true is that
+    // the word "nearest" still means something.
+    expect(rows.length, 'empty — a broken peeler, or a finished corpus')
+      .toBeGreaterThan(0)
+    expect(rows.length, 'the shortlist admitted the whole corpus')
+      .toBeLessThan(SCRIPTS.length)
     expect(rows.some((r) => r.walls.length > 0)).toBe(true)
   }, 900000)
 })
