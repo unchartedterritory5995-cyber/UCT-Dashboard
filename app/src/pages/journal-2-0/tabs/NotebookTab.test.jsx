@@ -531,3 +531,27 @@ describe('⛔ restoring from trash lands the note revision', () => {
     spy.mockRestore()
   })
 })
+
+/**
+ * ⛔⛔ GRAPH MODE OFFERS NO "Save this view" — it would silently save nothing.
+ *
+ * The server's SAVEABLE_VIEW_TYPES (note_properties.py) and the client's
+ * SAVEABLE_VIEW_MODES both now accept "graph", so a save no longer 400s — it
+ * would silently SUCCEED and produce a named view with no filter/sort/groupBy
+ * (NoteGraphView takes none of those props; it always fetches the whole
+ * notebook). Reopening that "saved" view is indistinguishable from clicking
+ * Graph fresh. Competitive audit finding UX #18, 2026-09-22.
+ */
+describe('⛔ Graph mode never offers a "Save this view" trap', () => {
+  it('the Save-view button is absent in Graph mode', () => {
+    renderTab()
+    fireEvent.click(screen.getByRole('button', { name: 'Graph view' }))
+    expect(screen.queryByRole('button', { name: 'Save view' })).toBeNull()
+  })
+
+  it('⛔ CONTROL — the same button IS present in List mode', () => {
+    renderTab()
+    fireEvent.click(screen.getByRole('button', { name: 'List view' }))
+    expect(screen.getByRole('button', { name: 'Save view' })).toBeInTheDocument()
+  })
+})

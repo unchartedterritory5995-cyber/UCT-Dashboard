@@ -1260,6 +1260,34 @@ describe('Saved Views sidebar section (Wave E)', () => {
     expect(screen.queryByText('Active Theses')).not.toBeInTheDocument()
     expect(screen.getByText('Saved Views')).toBeInTheDocument()
   })
+
+  /**
+   * ⛔⛔ THE ROW ICON MUST MATCH THE VIEW'S OWN TYPE, NOT A LIST/TABLE BINARY.
+   *
+   * This used to be `view.viewType === 'table' ? 'columns' : 'rows'` — a
+   * saved Board, Calendar or Graph view all rendered the same generic
+   * "rows" icon, a hand-typed second authority over data `lib/savedViewModes`
+   * already has correct (VIEW_MODES). Competitive audit finding UX #6,
+   * 2026-09-22.
+   */
+  it('the row icon matches each saved view type, not a list/table binary', () => {
+    const views = [
+      { id: 'v1', name: 'A Board', viewType: 'board' },
+      { id: 'v2', name: 'A Calendar', viewType: 'calendar' },
+      { id: 'v3', name: 'A Graph', viewType: 'graph' },
+      { id: 'v4', name: 'A List', viewType: 'list' },
+      { id: 'v5', name: 'A Table', viewType: 'table' },
+    ]
+    render(<FolderSidebar notes={[]} activeFolderId={null} onSelectFolder={() => {}}
+                          activeTag={null} onSelectTag={() => {}} savedViews={views} />)
+    const iconFor = (name) => screen.getByText(name).closest('button')
+      .querySelector('svg[data-view-icon]').getAttribute('data-view-icon')
+    expect(iconFor('A Board')).toBe('board')
+    expect(iconFor('A Calendar')).toBe('calendar')
+    expect(iconFor('A Graph')).toBe('graph')
+    expect(iconFor('A List')).toBe('rows')
+    expect(iconFor('A Table')).toBe('columns')
+  })
 })
 
 describe('⛔⛔ a search hit says what it IS (Wave M §8)', () => {

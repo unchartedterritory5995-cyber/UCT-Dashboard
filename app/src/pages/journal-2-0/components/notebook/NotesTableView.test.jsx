@@ -89,3 +89,94 @@ describe('NotesTableView', () => {
     expect(screen.getByText('—')).toBeTruthy()
   })
 })
+
+/**
+ * ⛔⛔ SELECT/MULTI-SELECT COLOR MUST REACH THE TABLE CELL.
+ *
+ * `note_properties.py` computes a real color per option
+ * (thesis_status: active -> green, etc.) and Board view's column HEADER
+ * already renders it via a dot -- but the table's own value chip, the one
+ * place a member actually scans a database, rendered plain text with no
+ * color anywhere. Competitive audit finding UX #3, 2026-09-22. Reuses
+ * Board's own dot+color-class idiom rather than inventing a new one.
+ */
+describe('NotesTableView — select/multi_select option color', () => {
+  const coloredDefs = [
+    {
+      id: 'p1', name: 'Thesis Status', type: 'select', source: 'user_set',
+      options: [
+        { id: 'active', label: 'Active', color: 'green' },
+        { id: 'closed', label: 'Closed', color: 'gray' },
+      ],
+    },
+    {
+      id: 'p2', name: 'Tags', type: 'multi_select', source: 'user_set',
+      options: [
+        { id: 'earnings', label: 'Earnings', color: 'amber' },
+        { id: 'macro', label: 'Macro', color: 'blue' },
+      ],
+    },
+  ]
+  const coloredNotes = [
+    {
+      id: 'n1', title: 'NVDA Thesis', updatedAt: '2026-09-01T00:00:00Z',
+      propertiesJson: { p1: 'active', p2: ['earnings', 'macro'] },
+    },
+  ]
+
+  // Each pill's label text lives directly inside that pill's own span
+  // (sibling to its dot) -- NOT scoped via the shared outer button, which
+  // would return the FIRST pill in the cell regardless of which label this
+  // helper was asked about.
+  const dotColorFor = (label) => screen.getByText(label)
+    .querySelector('[data-option-color]')
+    .getAttribute('data-option-color')
+
+  it('a select value carries its configured color', () => {
+    render(
+      <NotesTableView
+        notes={coloredNotes} propertyDefs={coloredDefs} sort="updated"
+        onSortChange={vi.fn()} propertySort={null} onPropertySortChange={vi.fn()}
+        onQuickFilter={vi.fn()} onOpenNote={vi.fn()}
+      />,
+    )
+    expect(dotColorFor('Active')).toBe('green')
+  })
+
+  it('EACH value of a multi_select carries its OWN color, not one shared color', () => {
+    render(
+      <NotesTableView
+        notes={coloredNotes} propertyDefs={coloredDefs} sort="updated"
+        onSortChange={vi.fn()} propertySort={null} onPropertySortChange={vi.fn()}
+        onQuickFilter={vi.fn()} onOpenNote={vi.fn()}
+      />,
+    )
+    expect(dotColorFor('Earnings')).toBe('amber')
+    expect(dotColorFor('Macro')).toBe('blue')
+  })
+
+  it('⛔ CONTROL — an option with no configured color renders no color attribute (falls back to the neutral dot, same as Board)', () => {
+    render(
+      <NotesTableView
+        notes={notes} propertyDefs={defs} sort="updated"
+        onSortChange={vi.fn()} propertySort={null} onPropertySortChange={vi.fn()}
+        onQuickFilter={vi.fn()} onOpenNote={vi.fn()}
+      />,
+    )
+    const dot = screen.getByText('Active').querySelector('[data-option-color]')
+    expect(dot.getAttribute('data-option-color')).toBe('')
+  })
+
+  it('clicking anywhere in a multi_select chip still applies the SAME quick filter as before (no behavior change, visual only)', () => {
+    const onQuickFilter = vi.fn()
+    render(
+      <NotesTableView
+        notes={coloredNotes} propertyDefs={coloredDefs} sort="updated"
+        onSortChange={vi.fn()} propertySort={null} onPropertySortChange={vi.fn()}
+        onQuickFilter={onQuickFilter} onOpenNote={vi.fn()}
+      />,
+    )
+    fireEvent.click(screen.getByText('Earnings'))
+    expect(onQuickFilter).toHaveBeenCalledWith('p2', ['earnings', 'macro'])
+  })
+})

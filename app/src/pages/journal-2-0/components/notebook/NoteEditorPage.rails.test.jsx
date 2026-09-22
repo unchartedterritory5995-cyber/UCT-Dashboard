@@ -95,6 +95,26 @@ describe('NoteEditorPage editor toolbar row', () => {
     expect(q.getByTitle('Download this note as a PNG image')).toBeInTheDocument()
     expect(q.getByTitle('Print — or Save as PDF from the print dialog')).toBeInTheDocument()
   })
+
+  /**
+   * ⛔⛔ EVERY TOOL BUTTON NEEDS AN ACCESSIBLE NAME — `ToolButton` sets
+   * `aria-label={title}`, so a button with no `title` has NO accessible name
+   * at all when its visible content is an `aria-hidden` UIcon (Link) or a
+   * bare decorative dash (Horizontal rule) with no real text meaning. The
+   * Image/Attach buttons right beside them already do this correctly.
+   * Competitive audit finding UX #7, 2026-09-22.
+   */
+  it('the Link and Horizontal-rule buttons have accessible names, matching their Image/Attach neighbors', async () => {
+    const NoteEditorPage = (await import('./NoteEditorPage')).default
+    render(<MemoryRouter><NoteEditorPage noteId="n1" onBack={() => {}} /></MemoryRouter>)
+    const row = await screen.findByRole('toolbar', { name: 'Editor toolbar' })
+    const q = within(row)
+    expect(q.getByLabelText('Insert link')).toBeInTheDocument()
+    expect(q.getByLabelText('Horizontal rule')).toBeInTheDocument()
+    // Controls — the two that already worked, so this is a real gap check, not a broken query
+    expect(q.getByLabelText('Insert image')).toBeInTheDocument()
+    expect(q.getByLabelText('Attach a file')).toBeInTheDocument()
+  })
 })
 
 describe('NoteEditorPage widget palette', () => {

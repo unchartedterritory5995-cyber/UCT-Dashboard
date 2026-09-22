@@ -119,6 +119,7 @@ export default function HeroImagePicker({ noteId, value, onChange }) {
           className={`${styles.filled} ${dragOverCls}`}
           tabIndex={0}
           title="Click image, then paste (Ctrl+V) to replace · or drag a file here"
+          aria-label="Current hero image. Press Ctrl+V to replace it, or use the buttons below."
         >
           <img src={value} alt="" />
           <div className={styles.overlay}>

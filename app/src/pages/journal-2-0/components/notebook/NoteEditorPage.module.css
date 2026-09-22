@@ -134,6 +134,22 @@
   outline: none;
   line-height: 1.15;
 }
+/* ⛔ `.titleInput`/`.subtitleInput`/`.proseEditor` all set `outline: none`
+   unconditionally, at the SAME specificity as the app-wide `:focus-visible`
+   rule in tokens.css — component-after-global cascade order means these
+   three silently defeat that global rule with no compensating indicator of
+   their own. A keyboard user tabbing into the title, subtitle or note body
+   got no non-text focus indicator (WCAG 2.4.7, AA). `:focus-visible` (not
+   `:focus`) matches the `.fontSelect`/`.fontSizeSelect` idiom two rules
+   below: it fires for keyboard focus, stays silent for a mouse click, so
+   clicking into the editor to place a cursor doesn't wrap the whole body in
+   an outline. Competitive audit finding Accessibility QW-1, 2026-09-22. */
+.titleInput:focus-visible,
+.subtitleInput:focus-visible,
+.proseEditor:focus-visible {
+  outline: 2px solid var(--ut-gold);
+  outline-offset: 2px;
+}
 .subtitleInput {
   background: transparent;
   border: none;

@@ -2104,6 +2104,7 @@ export default function NoteEditorPage({ noteId, onBack, showBack = true, onTitl
                 if (url) editor.chain().focus().setLink({ href: url }).run()
               }}
               label={<UIcon name="link" size={14} />}
+              title="Insert link"
             />
             <ToolButton
               onClick={() => fileInputRef.current?.click()}
@@ -2118,6 +2119,7 @@ export default function NoteEditorPage({ noteId, onBack, showBack = true, onTitl
             <ToolButton
               onClick={() => editor.chain().focus().setHorizontalRule().run()}
               label="―"
+              title="Horizontal rule"
             />
           {/* Widget palette door — point-and-click inserts for people who
               don't reach for slash commands (owner ask). */}

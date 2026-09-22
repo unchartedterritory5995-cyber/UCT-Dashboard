@@ -40,6 +40,9 @@
   white-space: nowrap;
 }
 .valueChip {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
   background: rgba(220, 187, 94, 0.12);
   border: 1px solid rgba(220, 187, 94, 0.3);
   color: var(--ut-gold);
@@ -52,3 +55,30 @@
 .valueChip:hover {
   background: rgba(220, 187, 94, 0.22);
 }
+/* One pill per selected option (select: always 1, multi_select: N) --
+   label + a small color dot, mirroring Board view's column-header dot
+   idiom exactly rather than inventing a second color convention.
+   Competitive audit finding UX #3, 2026-09-22. */
+.optionPill {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+}
+.optionDot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--text-muted);
+  flex: none;
+}
+/* Same 7-swatch categorical palette as NoteBoardView.module.css -- a
+   deliberate duplicate, not a token gap: this is a categorical tag/option
+   color set with no design-token equivalent, the same reasoning that kept
+   Board's own copy untouched through the G-104 token-adoption pass. */
+.c_green  { background: #4ade80; }
+.c_red    { background: #f87171; }
+.c_amber  { background: #fbbf24; }
+.c_blue   { background: #7aa2c8; }
+.c_gray   { background: #7c848f; }
+.c_purple { background: #a78bfa; }
+.c_teal   { background: #2dd4bf; }

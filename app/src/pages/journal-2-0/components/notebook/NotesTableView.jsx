@@ -20,6 +20,22 @@ function formatCellValue(def, value) {
 }
 
 /**
+ * ⛔ THE OPTION OBJECTS THEMSELVES (id/label/color), not a joined string --
+ * `note_properties.py` computes a real color per option and Board's column
+ * header already renders it (a dot); the table's value chip did not.
+ * `select` resolves to 0-or-1 entries, `multi_select` to N -- both return the
+ * same shape so the render side doesn't need to branch on type. Competitive
+ * audit finding UX #3, 2026-09-22.
+ */
+function selectedOptionsFor(def, value) {
+  const opts = def.options || []
+  const ids = def.type === 'multi_select' ? (value || []) : [value]
+  return ids
+    .map((id) => opts.find((o) => o.id === id))
+    .filter(Boolean)
+}
+
+/**
  * Wave E — Table view (checkpoint §16). One row per note; sortable headers
  * (Title/Updated + one column per user-defined property that has at least
  * one note using it, so a member's unused custom properties never clutter
@@ -108,6 +124,10 @@ export default function NotesTableView({
         const formatted = formatCellValue(def, raw)
         if (!formatted) return <span className={styles.emptyCell}>—</span>
         if (def.type === 'select' || def.type === 'multi_select') {
+          // Same single button, same onClick/title (onQuickFilter is called
+          // with the exact same args as before this fix) -- ONLY the visual
+          // rendering changed, from one plain-text chip to one dot+label pill
+          // per selected option, each colored by its own `option.color`.
           return (
             <button
               type="button"
@@ -115,7 +135,16 @@ export default function NotesTableView({
               onClick={(e) => { e.stopPropagation(); onQuickFilter(def.id, raw) }}
               title={`Filter by ${def.name}: ${formatted}`}
             >
-              {formatted}
+              {selectedOptionsFor(def, raw).map((opt) => (
+                <span key={opt.id} className={styles.optionPill}>
+                  <span
+                    className={`${styles.optionDot} ${styles[`c_${opt.color}`] || ''}`}
+                    aria-hidden="true"
+                    data-option-color={opt.color || ''}
+                  />
+                  {opt.label}
+                </span>
+              ))}
             </button>
           )
         }

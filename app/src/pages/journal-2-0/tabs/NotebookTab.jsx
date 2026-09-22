@@ -737,15 +737,23 @@ export default function NotebookTab() {
                 </button>
               ))}
               {/*
-                ⛔ NO "Save this view" IN GRAPH MODE. A saved view stores a
-                propertyFilter/propertySort pair and `create_saved_view` refuses
-                any view_type outside ("list", "table") -- so leaving the button
-                up here would offer the member a control that 400s. The graph
-                has no per-view state to save, so the honest thing is not to
-                offer it rather than to widen the server's enum for a spec the
-                graph would never read back.
+                ⛔ NO "Save this view" IN GRAPH MODE -- still true, for a
+                DIFFERENT reason than this comment used to give. The server's
+                SAVEABLE_VIEW_TYPES (note_properties.py) now accepts "graph",
+                and the client's SAVEABLE_VIEW_MODES mirrors it -- so a save no
+                longer 400s, it silently SUCCEEDS and produces a named view
+                that captures nothing: handleSaveCurrentView only
+                special-cases board/calendar state, graph has no
+                filter/sort/groupBy of its own to store, and NoteGraphView
+                takes no filter/sort props at all (always fetches the whole
+                notebook). Reopening that "saved" view is indistinguishable
+                from clicking Graph fresh -- a silent trap, not a loud
+                refusal. Excluding it here is still the honest choice until a
+                real design decision gives a saved graph view something to
+                actually mean (e.g. a local-graph scope) -- competitive audit
+                finding UX #18, 2026-09-22.
               */}
-              {!activeView && (
+              {!activeView && viewMode !== 'graph' && (
                 <button
                   type="button"
                   className={styles.saveViewBtn}

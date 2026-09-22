@@ -154,11 +154,20 @@ def _obsidian_configured() -> bool:
     prerequisites:
 
       1. `NOTE_SYNC_OBSIDIAN_ENABLED=1` — a DELIBERATE rollout flag,
-         registered `dark` in docs/feature_flags.json (the plugin itself is
-         a separate, not-yet-published repo — Wave 3b — and Task 6's
-         mock-plugin live-gate lifecycle test has not run yet). Without
-         this a fresh deploy would immediately advertise a "Connect" button
-         for a door nothing outside this repo can walk through yet.
+         registered `dark` in docs/feature_flags.json. ⚰️ This used to say
+         "the plugin itself is a separate, not-yet-published repo — Wave
+         3b" — stale as of a 2026-09-22 competitive audit: a real, tagged,
+         released plugin exists —
+         `unchartedterritory5995-cyber/obsidian-uct-notebook-sync`,
+         releases 0.1.0 and 0.1.1, listed on the third-party ObsidianStats
+         tracker. Whether it has been SUBMITTED to and accepted into
+         Obsidian's own official `obsidian.md/plugins` in-app directory
+         (installable without BRAT/manual unzip) is a separate, still-open
+         question this correction does not answer — check
+         `obsidian/obsidian-releases` before claiming that half. Without
+         this flag a fresh deploy would immediately advertise a "Connect"
+         button for a door a member may not yet be able to walk through
+         from inside Obsidian itself.
       2. `crypto_box.NoteBox.is_configured()` — a genuine capability check,
          the same shape `_notion_configured`/`_dropbox_configured` use for
          their own OAuth env vars: without `NOTE_ENCRYPTION_KEY`,

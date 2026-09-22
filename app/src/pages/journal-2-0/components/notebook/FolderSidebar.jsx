@@ -16,6 +16,7 @@ import { isScannedText, SCANNED_TEXT_LABEL, SCANNED_TEXT_HINT }
 import UIcon from '../../../../components/ui/UIcon'
 import ConfirmModal from '../ConfirmModal'
 import { SkeletonLine } from '../../../../components/Skeleton'
+import { VIEW_MODES } from '../../lib/savedViewModes'
 import styles from './FolderSidebar.module.css'
 
 // Debounce before the search query reaches the server (below) — short enough
@@ -248,7 +249,22 @@ function SavedViewsSection({ views, activeViewId, onSelectView, onAddStarterView
             onClick={() => onSelectView(view)}
             title={view.name}
           >
-            <UIcon name={view.viewType === 'table' ? 'columns' : 'rows'} size={13} gold={false} />
+            {/*
+              ⛔ DERIVED FROM VIEW_MODES, NEVER A LIST/TABLE BINARY -- a saved
+              Board/Calendar/Graph view used to render the same generic "rows"
+              icon as List, a hand-typed second authority over data
+              `lib/savedViewModes` already has correct. An unrecognised
+              viewType (an older view, or one saved by a newer client) falls
+              back to `rows`, matching FALLBACK_VIEW_MODE ('list'). Competitive
+              audit finding UX #6, 2026-09-22. `data-view-icon` is a test seam
+              only, not a product attribute.
+            */}
+            <UIcon
+              name={VIEW_MODES.find((m) => m.id === view.viewType)?.icon || 'rows'}
+              size={13}
+              gold={false}
+              data-view-icon={VIEW_MODES.find((m) => m.id === view.viewType)?.icon || 'rows'}
+            />
             <span className={styles.noteTitle}>{view.name}</span>
           </button>
         </div>

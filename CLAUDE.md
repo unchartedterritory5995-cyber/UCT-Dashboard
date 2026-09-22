@@ -5508,10 +5508,14 @@ scale win is about not fanning out per-user work.
   per-instance connections (kept verbatim in `useRealtimePrices.js`). Remove the
   legacy path only after weeks of green prod.
 - **WAL** is on for auth.db / bars.db / cot.db / breadth_monitor.db. Web `busy_timeout` is
-  deliberately LOW (2s on bars; auth.db still 10s — a KNOWN remaining risk, see memory).
+  deliberately LOW (2s on bars; auth.db is **3s** — `auth_db.py:506`,
+  `sqlite3.connect(_DB_PATH, timeout=3)`, its own comment reading `# timeout=3 (was 10)`).
+  ⚰️ This line said "auth.db still 10s — a KNOWN remaining risk" for long enough that a
+  fresh competitive audit (2026-09-22) had to re-derive the correction from the code —
+  the item below was already fixed by more than 3x and nobody moved it off the backlog.
 - **Down-alert monitor** (`worker_main._down_alert_decision`): worker keep-warm pings the
   web origin + posts 🔴/🟢 to Discord (`DISCORD_WEBHOOK_URL` + `DOWN_ALERT_ENABLED=1`).
-- **Known remaining (NOT yet done — memory has the ranked list):** auth.db 10s busy_timeout,
+- **Known remaining (NOT yet done — memory has the ranked list):**
   SSE event-loop 100ms→250ms + lock-free candle snapshot, alert-check delivery offload,
   Finnhub sub cap, table virtualization (react-virtual installed/unused), 1.1MB echarts shrink,
   eventual multi-instance architecture for scale beyond a few hundred users.
