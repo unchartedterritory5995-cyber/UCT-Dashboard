@@ -57,6 +57,41 @@ re-justified against the object-lane table or re-scoped.** That re-plan is owed
 and is deliberately NOT written in here yet — recording the measurement is not
 the same as having decided what to do about it.
 
+### ⭐⭐ AND THE TOP ROW IS ONE CAPABILITY, NOT 23 PROBLEMS — read 2026-09-21
+
+`pine:character` — *"Pine has no character like this one"* — is the largest
+row in BOTH tables and the name is actively misleading. Opening all 23 call
+sites with the new instrument:
+
+    GUARD=pine:character node node_modules/vitest/vitest.mjs run       src/components/chart/engine/runtime/__tests__/objectLaneCallSites.measure.test.js
+
+**Every one of the 23 is the same construct** — a member access on the result of
+an expression:
+
+    htfFVGs.first().area.delete()          k._box.pop().delete()
+    imbalanceLab.get(x).set_textcolor(…)   Candle.new().create()
+    array.get(levelGlow1Lines, i).set_x2(…)   (l[1]).delete()
+
+Minimal repro, measured:
+
+| source | result |
+|---|---|
+| `a.size()` (name . member) | fine |
+| `array.new_float(1).size()` (CALL . member) | **`pine:character` at the `.`** |
+| `(a).size()` (paren . member) | **`pine:character` at the `.`** |
+
+⛔ **The lexer only accepts `.` when the preceding token is a NAME**
+(`lexerGaps.test.js` documents the spaced-dot and newline cases around it).
+Pine allows postfix member access on any expression. So this is **one lexer +
+parser + lowering job worth 23 scripts**, the biggest single item in this
+programme — and it read as an encoding problem for as long as nobody opened
+the call sites.
+
+⚠️ **This is the third time a row has been sized without reading it**
+(`[` was 15 tuple destructures and 1 history read; `pine:input-kind` was a
+`group=` label). The instrument above exists so it is the last. **A count is a
+prompt to go look, never a sizing.**
+
 ⭐ Agent C's own words, which is the sentence that earned this block:
 *"The brief's implicit model — 'clear census rows ⇒ scripts draw' — is not
 supported by measurement."*
