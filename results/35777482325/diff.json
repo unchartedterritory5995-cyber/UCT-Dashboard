@@ -1,0 +1,90 @@
+{
+  "verdict": "COVERAGE_LOST",
+  "counts": {
+    "new": 5,
+    "fixed": 0,
+    "unchanged": 275,
+    "missing": 1,
+    "baseline": 276,
+    "current": 280,
+    "current_ran": 51468,
+    "new_flaky": 0,
+    "flaky_size": 5,
+    "flaky_new": 2,
+    "flaky_fixed": 0,
+    "file_level_resolved": 0,
+    "coverage_lost": 1,
+    "new_ours": 0,
+    "new_others": 0,
+    "new_unattributed": 5
+  },
+  "arithmetic": "baseline 276 = unchanged 275 + fixed 0 + missing 1  |  current 280 = unchanged 275 + new 5 + new-but-flaky 0",
+  "invalid_because": [],
+  "baseline_run_id": "35769103310",
+  "current_run_id": "35777482325",
+  "baseline_sha": "7c2e14d4e18ef1f6dba77e4e8bcc481f744799e1",
+  "current_sha": "3c9559846aa5b2719ee03c35181a0b6324a31951",
+  "commit_range": "7c2e14d4e18ef1f6dba77e4e8bcc481f744799e1..3c9559846aa5b2719ee03c35181a0b6324a31951",
+  "first_run": false,
+  "new": [
+    "vitest|src/components/dailyFirstPaintAcceptance.test.jsx|DAILY first-paint acceptance > NC-B late right-edge insertion",
+    "vitest|src/components/dailyFirstPaintAcceptance.test.jsx|DAILY first-paint acceptance > NC-C stale wick corrected after paint",
+    "vitest|src/components/dailyFirstPaintAcceptance.test.jsx|DAILY first-paint acceptance > NC-D camera moved after first paint",
+    "vitest|src/components/dailyFirstPaintIncidental.test.jsx|CASE B \u2014 a same-length daily refetch merges instead of dropping the oldest bar > the oldest cached bar survives and the geometry does not translate",
+    "vitest|src/pages/desk/ArticlesSection.native.test.jsx|clearing the query brings the full archive back"
+  ],
+  "missing": [
+    "vitest|src/pages/journal-2-0/tabs/NotebookTab.graphView.test.jsx|NotebookTab \u2014 graph view wiring > OFFERS \"Save view\" in graph mode"
+  ],
+  "fixed": [],
+  "new_flaky": [],
+  "flaky": [
+    "pytest|tests.test_discord_close_note|test_a_note_that_cannot_be_written_still_posts_the_charts",
+    "pytest|tests.test_mutation_check.TestRestoreGuarantee|test_the_file_is_byte_identical_after_a_detected_mutation",
+    "pytest|tests.test_mutation_check.TestVerdicts|test_a_detected_mutation_passes_the_check",
+    "pytest|tests.test_mutation_check.TestVerdicts|test_expect_red_naming_the_right_test_passes",
+    "vitest|src/components/chart/engine/__tests__/stockChartWiring.test.jsx|an engine-drawn indicator still appears in the crosshair legend > \u26d4\u26d4 A HOVER REACHES THE RENDERER NOT AT ALL"
+  ],
+  "file_level_resolved": [],
+  "coverage_lost": [
+    "vitest|src/pages/journal-2-0/tabs/NotebookTab.graphView.test.jsx|NotebookTab \u2014 graph view wiring > OFFERS \"Save view\" in graph mode"
+  ],
+  "missing_buckets": {
+    "vitest|src/pages/journal-2-0/tabs/NotebookTab.graphView.test.jsx|NotebookTab \u2014 graph view wiring > OFFERS \"Save view\" in graph mode": [
+      "UNATTRIBUTED",
+      "src/pages/journal-2-0/tabs/NotebookTab.graphView.test.jsx is absent and no deletion is attributable in the diff"
+    ]
+  },
+  "attribution": {
+    "vitest|src/components/dailyFirstPaintAcceptance.test.jsx|DAILY first-paint acceptance > NC-B late right-edge insertion": {
+      "class": "UNATTRIBUTED",
+      "commits": [],
+      "workstreams": [],
+      "reason": "no commit in 7c2e14d4e..3c9559846 touched src/components/dailyFirstPaintAcceptance.test.jsx or anything it imports"
+    },
+    "vitest|src/components/dailyFirstPaintAcceptance.test.jsx|DAILY first-paint acceptance > NC-C stale wick corrected after paint": {
+      "class": "UNATTRIBUTED",
+      "commits": [],
+      "workstreams": [],
+      "reason": "no commit in 7c2e14d4e..3c9559846 touched src/components/dailyFirstPaintAcceptance.test.jsx or anything it imports"
+    },
+    "vitest|src/components/dailyFirstPaintAcceptance.test.jsx|DAILY first-paint acceptance > NC-D camera moved after first paint": {
+      "class": "UNATTRIBUTED",
+      "commits": [],
+      "workstreams": [],
+      "reason": "no commit in 7c2e14d4e..3c9559846 touched src/components/dailyFirstPaintAcceptance.test.jsx or anything it imports"
+    },
+    "vitest|src/components/dailyFirstPaintIncidental.test.jsx|CASE B \u2014 a same-length daily refetch merges instead of dropping the oldest bar > the oldest cached bar survives and the geometry does not translate": {
+      "class": "UNATTRIBUTED",
+      "commits": [],
+      "workstreams": [],
+      "reason": "no commit in 7c2e14d4e..3c9559846 touched src/components/dailyFirstPaintIncidental.test.jsx or anything it imports"
+    },
+    "vitest|src/pages/desk/ArticlesSection.native.test.jsx|clearing the query brings the full archive back": {
+      "class": "UNATTRIBUTED",
+      "commits": [],
+      "workstreams": [],
+      "reason": "no commit in 7c2e14d4e..3c9559846 touched src/pages/desk/ArticlesSection.native.test.jsx or anything it imports"
+    }
+  }
+}
