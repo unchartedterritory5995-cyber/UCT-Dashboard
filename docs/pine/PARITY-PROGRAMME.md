@@ -20,7 +20,7 @@ side-by-side. The local dev loop (`scripts/hub_sandbox_boot.py --port 8000` +
 
 ---
 
-## ⭐⭐⭐ 2026-09-22 — THE SELECTION RULE CHANGED, AND THE METRIC MOVED
+## ⭐⭐⭐ 2026-09-22 — THE SELECTION RULE CHANGED, AND THE METRIC WENT 1 → 4
 
 > **Pick the guard that COMPLETES a script, not the one that blocks the most.**
 
@@ -60,7 +60,28 @@ is WORTH. Both share one peeler (`peelToBuilding.js`), mutation-proved.
 | `2c204a21b` | `splitMethodName` splits at the LAST dot — a drawing in a UDT field is addressable | +6 object-pass ops in 3 scripts, recovered from a SILENT drop (every diagnostic counter read zero). Drawing metric unchanged. |
 | `850c22593` | `na` is a colour — `cond ? colour : na` | **draws 1 → 2**, builds 2 → 3. Also closed a silent wrong number the other way: `plot(cond ? color.red : na)` compiled and drew a packed colour as a price. |
 | `fcf682f46` | the `nearestToWorking` queue instrument | none directly; it is how the above was chosen |
-| `01ef1fd76` | `ta.valuewhen` — occurrences, not a bar window | 377 sites / 39 scripts no longer walled here. Metric unchanged — see below. |
+| `01ef1fd76` | `ta.valuewhen` — occurrences, not a bar window | 377 sites / 39 scripts no longer walled here. Metric unchanged — it moved a wall; see below. |
+| `280a05f29` | the cross family over runtime state (`ta.crossover`/`crossunder`/`cross`) | **draws 2 → 4**, builds 3 → 5. `liquidity-pools` (500 objects) and `trendlines` (8) — both NAMED IN ADVANCE by the queue. |
+
+### ⭐ …and the wall it moved to was the NEXT job, which delivered
+
+`liquidity-pools`'s guard moved `pine:function` → `runtime:call-windowed-state`.
+That row sized at **+1 at best**; serving it delivered **+2 builds and +2 draws**.
+Both drawers were on the queue before the work started.
+
+### ⛔⛔ THE SIZER IS NOT A STRICT UPPER BOUND — corrected 2026-09-22
+
+It claimed deleting a refused line is "more permissive than any correct
+implementation could ever be". **False when the line is a BINDING.**
+`trendlines:86` is `long_break = crossover(close, res_y)`: deleting it removes a
+NAME and breaks every consumer, where implementing keeps them. So the peel is
+STRICTER than an implementation and the bound UNDERSTATES.
+
+⭐ The queue had printed the tell and nobody read it — `trendlines`'s walls read
+`call-windowed-state, pine:undefined`, and that second wall was **an artifact of
+the peeler**, not a property of the script. Read the sizer as an estimate of
+ORDER in both directions: a zero has been right every time it was checked; a
+positive number is a rough size a binding-heavy guard can beat.
 
 ### ⛔ `ta.valuewhen` moved a wall rather than removing one, and the sizer said it might
 
