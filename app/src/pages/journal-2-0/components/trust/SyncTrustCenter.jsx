@@ -293,7 +293,8 @@ function OrphanRow({ orphan, onReattach, trades }) {
       const res = await onReattach(orphan.tradeRef, target)
       setOutcome(res?.excursionConflict === true ? 'conflict' : 'reattached')
     } catch (e) {
-      setErr(String(e?.message || e))
+      console.error('Failed to reattach orphaned annotation:', e)
+      setErr("Couldn't reattach this. Nothing was moved — try again.")
     } finally {
       setBusy(false)
     }
