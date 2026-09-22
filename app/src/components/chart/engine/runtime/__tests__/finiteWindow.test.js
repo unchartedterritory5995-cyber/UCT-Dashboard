@@ -434,9 +434,25 @@ describe('⛔⛔ what 2F-2B does NOT admit — the families stay apart', () => {
     expect(refusalOf(`${head}var x = 0.0\nx := close\nplot(ta.vwma(x, 3))\n`).guard)
       .toBe('runtime:call-undeclared-builtin-state')
   })
-  it('⛔ a window over an EXPRESSION needs its own series, and says so', () => {
-    expect(refusalOf(`${head}var x = 0.0\nx := close\nplot(ta.sma(x + 1, 3))\n`).guard)
-      .toBe('runtime:history-expression')
+  it('⭐ a window over an EXPRESSION is GIVEN its own series at a root statement', () => {
+    // ⚰️ THIS ASSERTED `runtime:history-expression` UNTIL THE ROOT STATEMENT
+    // LIST LEARNED TO HOIST. The sentence the refusal used to carry — "needs
+    // that expression's own committed series" — is now performed rather than
+    // demanded, and the ring is the proof: a hoisted source allocates ONE, which
+    // is what separates this from the recurrence family one file over.
+    const b = buildRuntimeIr(`${head}var x = 0.0\nx := close\nplot(ta.sma(x + 1, 3))\n`,
+      { bars: BARS, inputs: {} })
+    expect(b.ok, JSON.stringify(b.refusal || {})).toBe(true)
+    expect(b.ir.history, 'the hoisted source gets a ring').toHaveLength(1)
+  })
+
+  it('⛔ but a window over an EXPRESSION inside a BRANCH still says so', () => {
+    // ⛔ THE BOUND IS A CORRECTNESS ARGUMENT, NOT CAUTION. A declare hoisted out
+    // of this branch would run on every bar while the window inside it runs only
+    // on the bars the branch takes — two different series, and the vendor answer
+    // for a conditionally-called `ta.*` is not pinned here.
+    const src = `${head}var x = 0.0\nx := close\nvar y = 0.0\nif close > 0\n    y := ta.sma(x + 1, 3)\nplot(y)\n`
+    expect(refusalOf(src).guard).toBe('runtime:history-expression')
   })
 
   it('⛔ a non-value namespace cannot reach a window reducer', () => {

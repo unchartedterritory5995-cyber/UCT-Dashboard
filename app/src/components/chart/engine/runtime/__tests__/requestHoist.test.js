@@ -52,13 +52,27 @@ describe('⭐⭐ a window over an expression, inside a request', () => {
     expect(() => lowerIrProgram(r.ir)).not.toThrow()
   })
 
-  it('⛔ OUTSIDE a request the refusal STANDS — the member can write the line', () => {
-    // ⛔ THE SOURCE MUST BE MUTABLE FOR THIS CASE TO MEAN ANYTHING. `ta.sma(high
-    // - low, 3)` at top level is a PURE subtree, which the COLUMNAR lane answers
-    // without ever reaching the runtime window path — so it compiles, and a
-    // fixture using it would assert the opposite of what it claims. Reading a
-    // `var` forces the runtime path, where the refusal lives.
+  // ⚰️ THIS ROW ASSERTED THAT OUTSIDE A REQUEST THE REFUSAL STANDS, on the
+  // grounds that "the member can write the line". The ROOT statement list now
+  // writes it for them — `historyExpression.test.js` — so the row moved rather
+  // than being deleted, to the part of the family that genuinely still refuses.
+  //
+  // ⛔ THE SOURCE MUST BE MUTABLE FOR EITHER CASE TO MEAN ANYTHING. `ta.sma(high
+  // - low, 3)` is a PURE subtree, which the COLUMNAR lane answers without ever
+  // reaching the runtime window path — so it compiles, and a fixture using it
+  // would assert the opposite of what it claims. Reading a `var` forces the
+  // runtime path, where the refusal lives.
+  it('⭐ OUTSIDE a request a ROOT statement now hoists it too', () => {
     const r = build('var float s = 0.0\ns := close\nplot(ta.sma(s + 1, 3))\n')
+    expect(r.ok, why(r)).toBe(true)
+  })
+
+  it('⛔ but inside a FUNCTION BODY the refusal still STANDS', () => {
+    // A frame's history is allocated per call site off `historyBase`; a slot
+    // declared into the caller's root list would be shared by every site. That
+    // is real work with its own measurement, and until it is done the wall keeps
+    // its name rather than becoming a plausible number.
+    const r = build('f(v) =>\n    ta.sma(v + 1, 3)\nplot(f(close))\n')
     expect(r.ok).toBe(false)
     expect(r.refusal.guard).toBe('runtime:history-expression')
   })

@@ -208,7 +208,14 @@ plot(a)
     // parts of the family that genuinely do not run yet — and they are three
     // different walls, named separately for the same reason 2E split
     // `call-with-state` and 2F-1 split the residue after it.
-    ['history over an EXPRESSION with state', `${head}var x = 0.0\nx := close\nplot((x + 1)[1])\n`, 'runtime:history-expression'],
+    // ⚰️ `plot((x + 1)[1])` WAS THIS ROW UNTIL THE ROOT STATEMENT LIST LEARNED
+    // TO HOIST IT (`historyExpression.test.js`) — the third time this table has
+    // had to move a row off a shipped capability, and the reason is the same
+    // each time: a row asserting a wall that is gone points the next reader at
+    // work already done. What replaces it is the part of the family that is
+    // genuinely still a wall — the SAME shape one block down, where hoisting
+    // would move the binding OUT of a branch and change the bars it runs on.
+    ['history over an EXPRESSION inside a BRANCH', `${head}var x = 0.0\nx := close\nvar y = 0.0\nif close > 0\n    y := (x + 1)[1]\nplot(y)\n`, 'runtime:history-expression'],
     ['a history offset only known while the bar runs', `${head}var x = 0.0\nx := close\nplot(x[bar_index % 3])\n`, 'runtime:history-dynamic-offset'],
     // ⚰️ `history over a FUNCTION-LOCAL value → runtime:history-function-local`
     // LIVED HERE UNTIL P7.2, which builds it (per-call-site rings, vendor-pinned

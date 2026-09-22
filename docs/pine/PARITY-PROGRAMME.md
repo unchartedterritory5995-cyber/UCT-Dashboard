@@ -123,8 +123,23 @@ wave-1 probe through our own translator first found `ta.variance` is not
 declared by this engine — a capture of it would have yielded a vendor number
 with nothing to compare against.
 
+
 **Cost:** far lower than the ~40 hours originally estimated here. One capture
 session covers 8 names; the tail is ~3-4 more sessions.
+
+
+**Ordering:** highest corpus demand first. The corpus census
+(`runtimeCorpusCensus.measure.test.js`) surfaces this ordering, and
+`pineDemandCensus.measure.test.js` orders it by NAME.
+
+⛔⛔ **BUT A CENSUS ROW IS A TOKEN, NOT A CAPABILITY — READ THE CALL SITES BEFORE
+SIZING ONE.** Measured 2026-09-21: the demand census's second row is
+`16  [  runtime:history-expression,pine:builtin,…`, which reads as "the history
+operator blocks 16 scripts". It is not. **Fifteen of those sixteen call sites
+are TUPLE DESTRUCTURING** (`[a, b, c] = f(…)`) and exactly one is a history
+read. One token, two unrelated jobs, and the larger of the two is invisible in
+the table. A lane was opened against the wrong one before anyone opened the
+scripts.
 
 **Runs independently of every other phase.** Its output is fixtures — no new
 capability — so it can't break anything.
