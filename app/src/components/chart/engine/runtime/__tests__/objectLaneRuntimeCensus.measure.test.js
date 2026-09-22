@@ -16,13 +16,35 @@
 // there" are different facts to a trader, and a screen that silently loses
 // symbols looks like a quiet market. The same applies here:
 //
-//   BUILD-REFUSED    the object lane refused — the sibling census's subject
-//   BUILD-THREW      the object lane RAISED — a translator crash, not a
-//                    refusal, and not the same fact as a run that raises
-//   INCONCLUSIVE     the script needs data this harness does not supply
-//   THREW            it ran and raised
-//   RAN-DREW-NOTHING it ran clean and emitted no object
-//   DREW             it ran clean and emitted objects
+//   BUILD-REFUSED     the object lane refused — the sibling census's subject
+//   BUILD-THREW       the object lane RAISED — a translator crash, not a
+//                     refusal, and not the same fact as a run that raises
+//   INCONCLUSIVE      the script needs data this harness does not supply
+//   THREW             it ran and raised
+//   RAN-DREW-NOTHING  it ran clean and emitted no object
+//   DREW-NOTHING-KEPT it emitted objects and the RENDERER kept none
+//   DREW              it ran clean and the renderer KEPT at least one object
+//
+// ⚰️⚰️ AND THIS FILE MADE ITS SIBLING'S MISTAKE ONE LAYER DOWN. The header
+// above mocked a census that "counted builds" — and then counted EMISSION,
+// which is just as far from paint. `liquidity-pools` emits 500 objects and the
+// renderer keeps NONE: every one is a linefill anchored to a line no create
+// ever made. That 500 was reported as this programme's largest win, in a
+// session report, before anyone asked the renderer.
+//
+// ⭐⭐ SO `DREW` NOW MEANS THE RENDERER KEPT SOMETHING, and it is the
+// product's OWN answer — the real `toRenderState`, the real `paintObjects`,
+// the real `layoutTables`, read through their own counters
+// (`lesson_did_it_render_needs_the_products_own_answer`). The honest drawer
+// set is THREE, and one of the three loses a quarter of its objects:
+//
+//   makuchaku fair-value-gaps   212 objects, all kept
+//   trendlines                    6 of 8 kept
+//   inside-bar-range-mother       2 objects, all kept
+//
+// ⛔ `6 of 8` IS THE NUMBER THAT JUSTIFIES THE WHOLE CHANGE. A census counting
+// emission reports `trendlines` as 8 and is wrong by two objects a member
+// never sees — a partial loss, which is the kind that never announces itself.
 //
 // ⭐ INCONCLUSIVE IS THE LOAD-BEARING ONE. `4c-nyse-market-breadth-ratio` makes
 // FIVE `request.security` calls; with no request data its requests answer `na`,
@@ -37,6 +59,8 @@ import fs from 'node:fs'
 import path from 'node:path'
 
 import { buildObjectLane, runObjectLane } from '../objectLane.js'
+import { toRenderState } from '../../objectRenderState.js'
+import { paintObjects, layoutTables } from '../../objectCanvas.js'
 
 const REPO = path.resolve(process.cwd(), '..')
 const DIR = path.join(REPO, 'corpus/committed')
@@ -82,6 +106,65 @@ function stripped(src) {
 
 const REQUEST_RE = /\brequest\.(security|financial|dividends|earnings|splits|quandl)\b/
 
+/**
+ * How many of the emitted objects the RENDERER actually keeps.
+ *
+ * ⭐⭐ THE PRODUCT'S OWN ANSWER, NOT A SECOND OPINION. This drives the real
+ * `toRenderState` and the real `paintObjects` — the two stages that drop — and
+ * reads their own counters. A re-implementation of "is this object anchored?"
+ * here would be a second authority over the keep rule and would drift from the
+ * renderer the first time either was touched.
+ *
+ * ⛔ BOTH STAGES DROP, AND FOR DIFFERENT REASONS. `toRenderState` drops an
+ * object whose coordinates do not resolve; `paintObjects` drops a linefill
+ * whose two anchor lines are not on the pane. Counting only the first would
+ * have missed the entire 500-object false positive.
+ *
+ * ⛔⛔ AND THERE ARE TWO SURFACES, NOT ONE — THE CONTROL CAUGHT ME ASSUMING
+ * OTHERWISE. A table is no longer painted on the canvas: R2 step 6 moved it to
+ * `objectTableDom.js`, which reads the SAME `layoutTables(state)` and builds a
+ * real `<table>`. So `paintObjects` never tallies one, and a keep-count that
+ * asks only the painter reports ZERO for every table-drawing script — which
+ * is most of the drawers. The first version of this helper did exactly that
+ * and classified a real `table.cell` as DREW-NOTHING-KEPT; the bucket-
+ * discrimination control failed on it immediately. ⭐ An instrument written to
+ * catch a false positive had manufactured its own, in the same shape, one
+ * function later. The product reads both counters (`data-uct-objects-drawn`
+ * and `data-uct-objects-tables` in `objectLayer.js`) and so does this.
+ */
+export function renderKept(live) {
+  if (!Array.isArray(live) || live.length === 0) return 0
+  let state
+  try { state = toRenderState(live, { bars: BARS }) } catch { return 0 }
+  // a recording context: the painter needs the calls to go somewhere, and
+  // nothing here asserts on them — only on the painter's own tallies.
+  const sink = () => {}
+  const ctx = {
+    save: sink, restore: sink, beginPath: sink, closePath: sink,
+    moveTo: sink, lineTo: sink, stroke: sink, fill: sink,
+    fillRect: sink, strokeRect: sink, fillText: sink, setLineDash: sink,
+    measureText: (s) => ({ width: String(s).length * 6 }),
+  }
+  const mapping = {
+    timeToX: (t) => Number(t) / 1000,
+    priceToY: (p) => 500 - Number(p),
+    width: 1000,
+    height: 500,
+  }
+  let painted = 0
+  try {
+    const res = paintObjects(ctx, state, mapping)
+    painted = Object.values((res && res.drawn) || {})
+      .reduce((a, b) => a + (Number(b) || 0), 0)
+  } catch { painted = 0 }
+
+  // the DOM half — a table that lays out is a table the member sees
+  let tables = 0
+  try { tables = (layoutTables(state) || []).length } catch { tables = 0 }
+
+  return painted + tables
+}
+
 /** One script -> one outcome, with the reason it got that outcome. */
 export function classify(src) {
   const needsRequests = REQUEST_RE.test(stripped(src))
@@ -111,8 +194,36 @@ export function classify(src) {
       ? { outcome: 'INCONCLUSIVE', detail: 'threw, and it reads request.* we do not supply' }
       : { outcome: 'THREW', detail: String(err && err.message).slice(0, 70) }
   }
-  const drawn = Array.isArray(run.live) ? run.live.length : 0
-  if (drawn > 0) return { outcome: 'DREW', detail: `${drawn} object(s)` }
+  const emitted = Array.isArray(run.live) ? run.live.length : 0
+  const kept = renderKept(run.live)
+
+  // ⚰️⚰️ EMITTED IS NOT PAINTED, AND THIS CENSUS REPORTED EMITTED FOR A DAY.
+  // `liquidity-pools` emits 500 objects and the renderer keeps NONE of them:
+  // every one is a linefill anchored to a line no create ever made
+  // (`{family:'linefill', props:{line1:null, line2:null}}`, four `line`
+  // registers declared and not one written). It was reported as this
+  // programme's largest win — 500 objects — while painting nothing.
+  //
+  // ⛔ THE THREE OUTCOMES BELOW ARE NOT COLLAPSED, for the reason the header
+  // gives: "it drew and the renderer dropped it all" and "it drew nothing" are
+  // different facts with different fixes. The first is a half-built drawing
+  // (a create the object pass cannot see); the second is a script that never
+  // asked to draw. Collapsing them hides exactly the defect that produced
+  // this comment.
+  if (kept > 0) {
+    return {
+      outcome: 'DREW',
+      detail: emitted === kept
+        ? `${kept} object(s)`
+        : `${kept} of ${emitted} object(s) kept`,
+    }
+  }
+  if (emitted > 0) {
+    return {
+      outcome: 'DREW-NOTHING-KEPT',
+      detail: `${emitted} object(s) emitted, the renderer kept NONE`,
+    }
+  }
   if (needsRequests) return { outcome: 'INCONCLUSIVE', detail: 'drew nothing, and it reads request.*' }
   return { outcome: 'RAN-DREW-NOTHING', detail: `status ${run.status}` }
 }
@@ -141,6 +252,57 @@ describe('⭐⭐ the object lane, EXECUTED over the committed corpus', () => {
     expect(classify(draws).outcome, 'a real table did not classify as DREW').toBe('DREW')
     expect(classify(refused).outcome).toBe('BUILD-REFUSED')
     expect(['BUILD-REFUSED', 'RAN-DREW-NOTHING']).toContain(classify(nothing).outcome)
+  })
+
+  it('⛔⛔ CONTROL — `classify` SEPARATES emitted from kept, end to end', () => {
+    // ⚰️⚰️ THE RAIL THAT WAS MISSING, AND THE MUTATION THAT FOUND IT. The
+    // first version of this fix changed `classify` to count kept objects and
+    // was mutation-checked by reverting it to `const kept = emitted` — and
+    // ALL FOUR TESTS STAYED GREEN. The controls exercised `renderKept`
+    // directly, the corpus census asserts no counts, and nothing drove the
+    // difference through `classify`. ⭐ A fix whose own revert leaves the
+    // suite green is not railed, however carefully it was written
+    // (`lesson_a_fixture_that_cannot_distinguish_is_not_a_rail`).
+    //
+    // This source EMITS one line and the renderer KEEPS none of it: the
+    // coordinates are `na`, so `toRenderState` drops it. Counting emission
+    // calls it DREW; counting paint calls it DREW-NOTHING-KEPT.
+    const q = String.fromCharCode(34)
+    const H = `//@version=6${LF}indicator(${q}t${q}, overlay = true)${LF}`
+    const emitsButPaintsNothing = `${H}if barstate.islast${LF}`
+      + `    line.new(bar_index, na, bar_index - 5, na)${LF}`
+
+    const got = classify(emitsButPaintsNothing)
+    expect(got.outcome, `expected the emitted-but-dropped bucket, got ${got.detail}`)
+      .toBe('DREW-NOTHING-KEPT')
+    expect(got.detail).toMatch(/emitted/)
+  })
+
+  it('⛔⛔ CONTROL — the KEEP count is real, and DREW-NOTHING-KEPT can FIRE', () => {
+    // ⚰️ THE BUCKET EXISTS BECAUSE OF A SPECIFIC FALSE POSITIVE, so it has to
+    // be shown firing on that exact shape. `liquidity-pools` emitted 500
+    // linefills whose `line1`/`line2` were never written by any create —
+    // reported as this programme's largest win while painting nothing.
+    // A bucket nobody has seen fire is decoration (`lesson_gate_that_cannot_fail`).
+    const unanchored = [
+      { id: 1, family: 'linefill', props: { line1: null, line2: null } },
+      { id: 2, family: 'linefill', props: { line1: null, line2: null } },
+    ]
+    expect(renderKept(unanchored), 'an unanchored linefill counted as kept').toBe(0)
+
+    // ⛔ …AND THE OTHER DIRECTION, or the helper is just answering 0 to
+    // everything and every script would read DREW-NOTHING-KEPT.
+    const realLine = [{
+      id: 3,
+      family: 'line',
+      props: { xloc: 'bar_index', x1: 10, y1: 100, x2: 20, y2: 110 },
+    }]
+    expect(renderKept(realLine), 'a well-formed line was not kept').toBeGreaterThan(0)
+
+    // ⭐ AND THE MIXED CASE IS THE ONE THAT MATTERS MOST, because it is what
+    // `trendlines` really is: some objects kept, some dropped, and a census
+    // that counts emission reports the whole set as drawn.
+    expect(renderKept([...realLine, ...unanchored])).toBe(renderKept(realLine))
   })
 
   it('⭐⭐ prints what every script does WHEN RUN, and accounts for all of them', () => {
