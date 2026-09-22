@@ -172,8 +172,13 @@ describe('⭐ C — an unlowerable postfix refuses BY NAME and WITH A POSITION',
   })
 
   it('⭐ and the RUNTIME lane answers alike — same guard, same line', () => {
-    // A refusal whose wording depends on which lane reached it first is the
-    // one-value-two-authorities trade this engine refuses elsewhere.
+    // ⭐⭐ BECAUSE THERE IS ONE RESOLVER, NOT TWO COPIES OF THE SENTENCE — and
+    // that is measured, not assumed. A `case 'member'` WAS written into
+    // `pineRuntimeFrontend`'s own switch for this; the mutation run caught it
+    // surviving (reverting it changed no test), and a marker probe over twelve
+    // shapes found every one refusing through `pine.js`'s shared `Resolver` and
+    // NOT ONE through that switch. The case was removed rather than kept as a
+    // guard that cannot fire. This rail is what holds the agreement.
     const r = buildRuntimeIr(SRC, { bars: BARS, inputs: {} })
     expect(r.ok).toBe(false)
     expect(r.refusal.guard).toBe('pine:member')

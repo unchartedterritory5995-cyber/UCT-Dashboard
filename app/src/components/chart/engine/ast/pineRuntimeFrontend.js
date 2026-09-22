@@ -32,7 +32,6 @@ import {
   lexPine, blockStatements, parseWholeExpression, Resolver,
   findTop, isPunct, boundName, locate, PineRefusal, functionParams,
   VALUE_NAMESPACES, PINE_CALL_SHAPES, PINE_NAMESPACED_TREE, colourHexByName, objectEnumValue,
-  REFUSALS as PINE_REFUSALS,
 } from './pine.js'
 import { CLOCK_REALTIME } from '../../indicators.js'
 import { TABLE, isPointwise } from './parse.js'
@@ -2844,17 +2843,18 @@ export function buildRuntimeIr(source, opts = {}) {
         note(g)
         throw new RuntimeRefusal(g, `\`${node.name}\``, locate(node.tok))
       }
-      // ⭐⭐ BOTH LANES ANSWER A POSTFIX MEMBER ALIKE. The guard is `pine.js`'s
-      // because the construct is the PARSER's, not this lane's — and a refusal
-      // whose wording depends on which lane happened to reach it first is the
-      // "one value, two authorities" trade this file already refuses to make for
-      // `pine:text-value`. Falling to `default:` here would have said "a `method`
-      // beside a mutable value", which names this lane's internals rather than
-      // the member's own line.
-      case 'member':
-      case 'method':
-        throw new PineRefusal('pine:member',
-          `${PINE_REFUSALS['pine:member']} — \`.${node.name}\``, locate(node.tok))
+      // ⛔⛔ NO `case 'member'` / `case 'method'` HERE, AND THAT IS MEASURED.
+      // One was written — "both lanes should answer a postfix member alike" —
+      // and the mutation run caught it SURVIVING: reverting it changed no test.
+      // A marker probe then tried twelve shapes (a plot argument, a binding, a
+      // `:=` onto `var` state, inside `if`, inside `for`, a bare field read, a
+      // user function's return, a ternary, an `array.push` argument, an indexed
+      // receiver) and every one refused `pine:member` — from `pine.js`'s shared
+      // `Resolver`, which this lane calls, and NOT ONE from this switch.
+      //
+      // ⭐ So both lanes DO answer alike, and for a better reason than a second
+      // copy: there is one resolver. A case here would have been a guard that
+      // cannot fire, sitting exactly where a reader counts it as protection.
       default:
         throw new RuntimeRefusal('runtime:statement', `a \`${node.type}\` beside a mutable value`, locate(node.tok))
     }
