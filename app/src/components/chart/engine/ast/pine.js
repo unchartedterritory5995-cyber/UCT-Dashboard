@@ -10614,8 +10614,33 @@ function buildObjectProgram(stmts, source, env, makeResolver, bindingByStatement
     }
   }
 
+  /** ⭐⭐ SITES THE CONVERSION ACTUALLY EMITTED — not the ones the reader named.
+   *
+   *  ⛔ A `{r:'site'}` reference to a create that was DROPPED is a build error:
+   *  `assertObjectProgram` refuses *"site is referenced but never created"* and
+   *  the whole translate throws, which arrives as `objectDiagnostics.failed` and
+   *  loses every other drawing in the script. So the push that named an inline
+   *  create is dropped with it, by the ordinary `coll:push` reason — the same
+   *  answer this door gave before inline creates existed.
+   *
+   *  ⭐ A POSITIVE SET, never a "dropped" one. `emittedSites.has(id)` is false
+   *  for a site that was dropped AND for a site that has not been converted yet,
+   *  and both of those are "cannot reference it"; a dropped-set would answer
+   *  "fine" for the second case. Ordering makes the distinction unnecessary
+   *  anyway — the reader emits the create immediately before the call. */
+  const emittedSites = new Set()
+
   const targetRef = (argNode) => {
     const v = argNode && argNode.value
+    // ⭐ A CREATE WRITTEN INSIDE THE CALL refers to the object made on THIS BAR
+    // at that site, which is exactly what `{r:'site'}` means in this format.
+    // Checked BEFORE `v`, because the site is a property of the ARGUMENT and a
+    // reader that demanded a resolvable value node first would never reach it.
+    if (argNode && argNode.createSite) {
+      return emittedSites.has(argNode.createSite)
+        ? { r: 'site', id: argNode.createSite }
+        : null
+    }
     if (!v) return null
     if (v.type === 'name' && regId.has(v.name)) return { r: 'reg', id: regId.get(v.name) }
     if (v.type === 'call' && v.name === 'array.get' && v.args && v.args.length === 2) {
@@ -10888,6 +10913,9 @@ function buildObjectProgram(stmts, source, env, makeResolver, bindingByStatement
       // Pine has no default there, so neither may this.
       if (!bad) for (const k of required) if (!(k in props)) { bad = true; break }
       if (bad) { dropped(`create:${op.family}`); continue }
+      // ⭐ RECORDED ONLY ONCE THE CREATE IS REALLY IN THE PROGRAM, which is what
+      // makes the `{r:'site'}` reference below safe to hand out.
+      emittedSites.add(op.site)
       ops.push({
         k: 'create',
         family: op.family,
