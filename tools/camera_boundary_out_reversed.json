@@ -1,0 +1,1050 @@
+{
+  "preflight": [
+    {
+      "check": "audit is armed",
+      "ok": true,
+      "evidence": "flag read"
+    },
+    {
+      "check": "A ownership latches on a real drag",
+      "ok": true,
+      "evidence": "False -> True"
+    },
+    {
+      "check": "B1 audit DETECTS a forced scrollToRealTime",
+      "ok": true,
+      "evidence": "invoke=invoked flagged=1 recorded=1"
+    },
+    {
+      "check": "B2 audit DETECTS a forced fitContent",
+      "ok": true,
+      "evidence": "invoke=invoked flagged=1 recorded=1"
+    },
+    {
+      "check": "B3 audit DETECTS a forced shiftOne",
+      "ok": true,
+      "evidence": "invoke=invoked flagged=1 recorded=1"
+    },
+    {
+      "check": "C current-bar updates reach the rendered series",
+      "ok": true,
+      "evidence": "closes=[100.35, 100.56, 100.77] 100.28 -> 100.84"
+    },
+    {
+      "check": "D a 5m boundary APPENDS a bar",
+      "ok": true,
+      "evidence": "bars 3000->3001  lastBar 1789478100->1789478400"
+    },
+    {
+      "check": "E camera observability returns structured events",
+      "ok": true,
+      "evidence": "time=True logical=True"
+    }
+  ],
+  "summary": {
+    "requested": 7,
+    "valid": 7,
+    "passed": 7,
+    "failed": 0,
+    "invalid": 0,
+    "accepted": true,
+    "preflightPassed": true,
+    "consoleErrors": [
+      "error: EventSource's response has a MIME type (\"application/json\") that is not \"text/event-stream\". Aborting the connection.",
+      "error: EventSource's response has a MIME type (\"application/json\") that is not \"text/event-stream\". Aborting the connection.",
+      "error: EventSource's response has a MIME type (\"application/json\") that is not \"text/event-stream\". Aborting the connection.",
+      "error: EventSource's response has a MIME type (\"application/json\") that is not \"text/event-stream\". Aborting the connection.",
+      "error: EventSource's response has a MIME type (\"application/json\") that is not \"text/event-stream\". Aborting the connection.",
+      "error: EventSource's response has a MIME type (\"application/json\") that is not \"text/event-stream\". Aborting the connection.",
+      "error: EventSource's response has a MIME type (\"application/json\") that is not \"text/event-stream\". Aborting the connection.",
+      "error: EventSource's response has a MIME type (\"application/json\") that is not \"text/event-stream\". Aborting the connection.",
+      "error: EventSource's response has a MIME type (\"application/json\") that is not \"text/event-stream\". Aborting the connection.",
+      "error: EventSource's response has a MIME type (\"application/json\") that is not \"text/event-stream\". Aborting the connection.",
+      "error: EventSource's response has a MIME type (\"application/json\") that is not \"text/event-stream\". Aborting the connection.",
+      "error: EventSource's response has a MIME type (\"application/json\") that is not \"text/event-stream\". Aborting the connection.",
+      "error: EventSource's response has a MIME type (\"application/json\") that is not \"text/event-stream\". Aborting the connection.",
+      "error: EventSource's response has a MIME type (\"application/json\") that is not \"text/event-stream\". Aborting the connection.",
+      "error: EventSource's response has a MIME type (\"application/json\") that is not \"text/event-stream\". Aborting the connection.",
+      "error: EventSource's response has a MIME type (\"application/json\") that is not \"text/event-stream\". Aborting the connection.",
+      "error: EventSource's response has a MIME type (\"application/json\") that is not \"text/event-stream\". Aborting the connection.",
+      "error: EventSource's response has a MIME type (\"application/json\") that is not \"text/event-stream\". Aborting the connection.",
+      "error: EventSource's response has a MIME type (\"application/json\") that is not \"text/event-stream\". Aborting the connection.",
+      "error: EventSource's response has a MIME type (\"application/json\") that is not \"text/event-stream\". Aborting the connection.",
+      "error: EventSource's response has a MIME type (\"application/json\") that is not \"text/event-stream\". Aborting the connection.",
+      "error: EventSource's response has a MIME type (\"application/json\") that is not \"text/event-stream\". Aborting the connection.",
+      "error: EventSource's response has a MIME type (\"application/json\") that is not \"text/event-stream\". Aborting the connection.",
+      "error: EventSource's response has a MIME type (\"application/json\") that is not \"text/event-stream\". Aborting the connection.",
+      "error: EventSource's response has a MIME type (\"application/json\") that is not \"text/event-stream\". Aborting the connection."
+    ],
+    "order": "reversed"
+  },
+  "scenarios": [
+    {
+      "scenario": "owned: fast-news replay",
+      "baseOwned": true,
+      "expectedOwned": true,
+      "baseTime": {
+        "from": 1789451700,
+        "to": 1789472100
+      },
+      "finalTime": {
+        "from": 1789451700,
+        "to": 1789472100
+      },
+      "baseLogical": {
+        "from": 2911.542422836161,
+        "to": 2978.3545150501673
+      },
+      "finalLogical": {
+        "from": 2911.542422836161,
+        "to": 2978.3545150501673
+      },
+      "baseRightPad": -20.645,
+      "cumulativeTimeDrift": 0,
+      "perBoundaryTimeDrift": [
+        0,
+        0,
+        0,
+        0
+      ],
+      "cumulativeLogicalDrift": 0.0,
+      "logicalFracSeries": [
+        0.5424,
+        0.5424,
+        0.5424,
+        0.5424
+      ],
+      "cameraCalls": 0,
+      "cameraCallDetail": [],
+      "boundaries": [
+        {
+          "boundary": 1,
+          "stimulusProven": true,
+          "bars": [
+            3000,
+            3001
+          ],
+          "lastBar": [
+            1789478100,
+            1789478400
+          ],
+          "distinctCloses": 8,
+          "stepTimeDrift": 0,
+          "cumTimeDrift": 0,
+          "cumLogicalDrift": 0.0,
+          "logicalFrom": 2911.5424,
+          "logicalFrac": 0.5424,
+          "rightOffset": 6,
+          "barSpacing": 17.637,
+          "rightPad": -21.645,
+          "owned": true
+        },
+        {
+          "boundary": 2,
+          "stimulusProven": true,
+          "bars": [
+            3001,
+            3002
+          ],
+          "lastBar": [
+            1789478400,
+            1789478700
+          ],
+          "distinctCloses": 8,
+          "stepTimeDrift": 0,
+          "cumTimeDrift": 0,
+          "cumLogicalDrift": 0.0,
+          "logicalFrom": 2911.5424,
+          "logicalFrac": 0.5424,
+          "rightOffset": 6,
+          "barSpacing": 17.637,
+          "rightPad": -22.645,
+          "owned": true
+        },
+        {
+          "boundary": 3,
+          "stimulusProven": true,
+          "bars": [
+            3002,
+            3003
+          ],
+          "lastBar": [
+            1789478700,
+            1789479000
+          ],
+          "distinctCloses": 8,
+          "stepTimeDrift": 0,
+          "cumTimeDrift": 0,
+          "cumLogicalDrift": 0.0,
+          "logicalFrom": 2911.5424,
+          "logicalFrac": 0.5424,
+          "rightOffset": 6,
+          "barSpacing": 17.637,
+          "rightPad": -23.645,
+          "owned": true
+        },
+        {
+          "boundary": 4,
+          "stimulusProven": true,
+          "bars": [
+            3003,
+            3004
+          ],
+          "lastBar": [
+            1789479000,
+            1789479300
+          ],
+          "distinctCloses": 8,
+          "stepTimeDrift": 0,
+          "cumTimeDrift": 0,
+          "cumLogicalDrift": 0.0,
+          "logicalFrom": 2911.5424,
+          "logicalFrac": 0.5424,
+          "rightOffset": 6,
+          "barSpacing": 17.637,
+          "rightPad": -24.645,
+          "owned": true
+        }
+      ],
+      "contractEvidence": {
+        "perBoundaryTimeDrift": [
+          0,
+          0,
+          0,
+          0
+        ]
+      },
+      "contract": "hold",
+      "verdict": "PASS"
+    },
+    {
+      "scenario": "owned: panned + zoomed OUT",
+      "baseOwned": true,
+      "expectedOwned": true,
+      "baseTime": {
+        "from": 1789403100,
+        "to": 1789473600
+      },
+      "finalTime": {
+        "from": 1789403100,
+        "to": 1789473600
+      },
+      "baseLogical": {
+        "from": 2845.5431039234377,
+        "to": 2983.499955993663
+      },
+      "finalLogical": {
+        "from": 2845.5431039234377,
+        "to": 2983.499955993663
+      },
+      "baseRightPad": -15.5,
+      "cumulativeTimeDrift": 0,
+      "perBoundaryTimeDrift": [
+        0,
+        0,
+        0,
+        0
+      ],
+      "cumulativeLogicalDrift": 0.0,
+      "logicalFracSeries": [
+        0.5431,
+        0.5431,
+        0.5431,
+        0.5431
+      ],
+      "cameraCalls": 0,
+      "cameraCallDetail": [],
+      "boundaries": [
+        {
+          "boundary": 1,
+          "stimulusProven": true,
+          "bars": [
+            3000,
+            3001
+          ],
+          "lastBar": [
+            1789478100,
+            1789478400
+          ],
+          "distinctCloses": 8,
+          "stepTimeDrift": 0,
+          "cumTimeDrift": 0,
+          "cumLogicalDrift": 0.0,
+          "logicalFrom": 2845.5431,
+          "logicalFrac": 0.5431,
+          "rightOffset": 6,
+          "barSpacing": 8.607,
+          "rightPad": -16.5,
+          "owned": true
+        },
+        {
+          "boundary": 2,
+          "stimulusProven": true,
+          "bars": [
+            3001,
+            3002
+          ],
+          "lastBar": [
+            1789478400,
+            1789478700
+          ],
+          "distinctCloses": 8,
+          "stepTimeDrift": 0,
+          "cumTimeDrift": 0,
+          "cumLogicalDrift": 0.0,
+          "logicalFrom": 2845.5431,
+          "logicalFrac": 0.5431,
+          "rightOffset": 6,
+          "barSpacing": 8.607,
+          "rightPad": -17.5,
+          "owned": true
+        },
+        {
+          "boundary": 3,
+          "stimulusProven": true,
+          "bars": [
+            3002,
+            3003
+          ],
+          "lastBar": [
+            1789478700,
+            1789479000
+          ],
+          "distinctCloses": 8,
+          "stepTimeDrift": 0,
+          "cumTimeDrift": 0,
+          "cumLogicalDrift": 0.0,
+          "logicalFrom": 2845.5431,
+          "logicalFrac": 0.5431,
+          "rightOffset": 6,
+          "barSpacing": 8.607,
+          "rightPad": -18.5,
+          "owned": true
+        },
+        {
+          "boundary": 4,
+          "stimulusProven": true,
+          "bars": [
+            3003,
+            3004
+          ],
+          "lastBar": [
+            1789479000,
+            1789479300
+          ],
+          "distinctCloses": 8,
+          "stepTimeDrift": 0,
+          "cumTimeDrift": 0,
+          "cumLogicalDrift": 0.0,
+          "logicalFrom": 2845.5431,
+          "logicalFrac": 0.5431,
+          "rightOffset": 6,
+          "barSpacing": 8.607,
+          "rightPad": -19.5,
+          "owned": true
+        }
+      ],
+      "contractEvidence": {
+        "perBoundaryTimeDrift": [
+          0,
+          0,
+          0,
+          0
+        ]
+      },
+      "contract": "hold",
+      "verdict": "PASS"
+    },
+    {
+      "scenario": "owned: panned + zoomed IN",
+      "baseOwned": true,
+      "expectedOwned": true,
+      "baseTime": {
+        "from": 1789458300,
+        "to": 1789473600
+      },
+      "finalTime": {
+        "from": 1789458300,
+        "to": 1789473600
+      },
+      "baseLogical": {
+        "from": 2933.551727433178,
+        "to": 2983.499955993663
+      },
+      "finalLogical": {
+        "from": 2933.551727433178,
+        "to": 2983.499955993663
+      },
+      "baseRightPad": -15.5,
+      "cumulativeTimeDrift": 0,
+      "perBoundaryTimeDrift": [
+        0,
+        0,
+        0,
+        0
+      ],
+      "cumulativeLogicalDrift": 0.0,
+      "logicalFracSeries": [
+        0.5517,
+        0.5517,
+        0.5517,
+        0.5517
+      ],
+      "cameraCalls": 0,
+      "cameraCallDetail": [],
+      "boundaries": [
+        {
+          "boundary": 1,
+          "stimulusProven": true,
+          "bars": [
+            3000,
+            3001
+          ],
+          "lastBar": [
+            1789478100,
+            1789478400
+          ],
+          "distinctCloses": 8,
+          "stepTimeDrift": 0,
+          "cumTimeDrift": 0,
+          "cumLogicalDrift": 0.0,
+          "logicalFrom": 2933.5517,
+          "logicalFrac": 0.5517,
+          "rightOffset": 6,
+          "barSpacing": 23.475,
+          "rightPad": -16.5,
+          "owned": true
+        },
+        {
+          "boundary": 2,
+          "stimulusProven": true,
+          "bars": [
+            3001,
+            3002
+          ],
+          "lastBar": [
+            1789478400,
+            1789478700
+          ],
+          "distinctCloses": 8,
+          "stepTimeDrift": 0,
+          "cumTimeDrift": 0,
+          "cumLogicalDrift": 0.0,
+          "logicalFrom": 2933.5517,
+          "logicalFrac": 0.5517,
+          "rightOffset": 6,
+          "barSpacing": 23.475,
+          "rightPad": -17.5,
+          "owned": true
+        },
+        {
+          "boundary": 3,
+          "stimulusProven": true,
+          "bars": [
+            3002,
+            3003
+          ],
+          "lastBar": [
+            1789478700,
+            1789479000
+          ],
+          "distinctCloses": 8,
+          "stepTimeDrift": 0,
+          "cumTimeDrift": 0,
+          "cumLogicalDrift": 0.0,
+          "logicalFrom": 2933.5517,
+          "logicalFrac": 0.5517,
+          "rightOffset": 6,
+          "barSpacing": 23.475,
+          "rightPad": -18.5,
+          "owned": true
+        },
+        {
+          "boundary": 4,
+          "stimulusProven": true,
+          "bars": [
+            3003,
+            3004
+          ],
+          "lastBar": [
+            1789479000,
+            1789479300
+          ],
+          "distinctCloses": 8,
+          "stepTimeDrift": 0,
+          "cumTimeDrift": 0,
+          "cumLogicalDrift": 0.0,
+          "logicalFrom": 2933.5517,
+          "logicalFrac": 0.5517,
+          "rightOffset": 6,
+          "barSpacing": 23.475,
+          "rightPad": -19.5,
+          "owned": true
+        }
+      ],
+      "contractEvidence": {
+        "perBoundaryTimeDrift": [
+          0,
+          0,
+          0,
+          0
+        ]
+      },
+      "contract": "hold",
+      "verdict": "PASS"
+    },
+    {
+      "scenario": "owned: deep pan back",
+      "baseOwned": true,
+      "expectedOwned": true,
+      "baseTime": {
+        "from": 1789404300,
+        "to": 1789458000
+      },
+      "finalTime": {
+        "from": 1789404300,
+        "to": 1789458000
+      },
+      "baseLogical": {
+        "from": 2849.9638267910577,
+        "to": 2931.0164583700052
+      },
+      "finalLogical": {
+        "from": 2849.9638267910577,
+        "to": 2931.0164583700052
+      },
+      "baseRightPad": -67.984,
+      "cumulativeTimeDrift": 0,
+      "perBoundaryTimeDrift": [
+        0,
+        0,
+        0,
+        0
+      ],
+      "cumulativeLogicalDrift": 0.0,
+      "logicalFracSeries": [
+        0.9638,
+        0.9638,
+        0.9638,
+        0.9638
+      ],
+      "cameraCalls": 0,
+      "cameraCallDetail": [],
+      "boundaries": [
+        {
+          "boundary": 1,
+          "stimulusProven": true,
+          "bars": [
+            3000,
+            3001
+          ],
+          "lastBar": [
+            1789478100,
+            1789478400
+          ],
+          "distinctCloses": 8,
+          "stepTimeDrift": 0,
+          "cumTimeDrift": 0,
+          "cumLogicalDrift": 0.0,
+          "logicalFrom": 2849.9638,
+          "logicalFrac": 0.9638,
+          "rightOffset": 6,
+          "barSpacing": 14.576,
+          "rightPad": -68.984,
+          "owned": true
+        },
+        {
+          "boundary": 2,
+          "stimulusProven": true,
+          "bars": [
+            3001,
+            3002
+          ],
+          "lastBar": [
+            1789478400,
+            1789478700
+          ],
+          "distinctCloses": 8,
+          "stepTimeDrift": 0,
+          "cumTimeDrift": 0,
+          "cumLogicalDrift": 0.0,
+          "logicalFrom": 2849.9638,
+          "logicalFrac": 0.9638,
+          "rightOffset": 6,
+          "barSpacing": 14.576,
+          "rightPad": -69.984,
+          "owned": true
+        },
+        {
+          "boundary": 3,
+          "stimulusProven": true,
+          "bars": [
+            3002,
+            3003
+          ],
+          "lastBar": [
+            1789478700,
+            1789479000
+          ],
+          "distinctCloses": 8,
+          "stepTimeDrift": 0,
+          "cumTimeDrift": 0,
+          "cumLogicalDrift": 0.0,
+          "logicalFrom": 2849.9638,
+          "logicalFrac": 0.9638,
+          "rightOffset": 6,
+          "barSpacing": 14.576,
+          "rightPad": -70.984,
+          "owned": true
+        },
+        {
+          "boundary": 4,
+          "stimulusProven": true,
+          "bars": [
+            3003,
+            3004
+          ],
+          "lastBar": [
+            1789479000,
+            1789479300
+          ],
+          "distinctCloses": 8,
+          "stepTimeDrift": 0,
+          "cumTimeDrift": 0,
+          "cumLogicalDrift": 0.0,
+          "logicalFrom": 2849.9638,
+          "logicalFrac": 0.9638,
+          "rightOffset": 6,
+          "barSpacing": 14.576,
+          "rightPad": -71.984,
+          "owned": true
+        }
+      ],
+      "contractEvidence": {
+        "perBoundaryTimeDrift": [
+          0,
+          0,
+          0,
+          0
+        ]
+      },
+      "contract": "hold",
+      "verdict": "PASS"
+    },
+    {
+      "scenario": "owned: moderate pan back",
+      "baseOwned": true,
+      "expectedOwned": true,
+      "baseTime": {
+        "from": 1789447500,
+        "to": 1789472100
+      },
+      "finalTime": {
+        "from": 1789447500,
+        "to": 1789472100
+      },
+      "baseLogical": {
+        "from": 2897.3018834712198,
+        "to": 2978.3545150501673
+      },
+      "finalLogical": {
+        "from": 2897.3018834712198,
+        "to": 2978.3545150501673
+      },
+      "baseRightPad": -20.645,
+      "cumulativeTimeDrift": 0,
+      "perBoundaryTimeDrift": [
+        0,
+        0,
+        0,
+        0
+      ],
+      "cumulativeLogicalDrift": 0.0,
+      "logicalFracSeries": [
+        0.3019,
+        0.3019,
+        0.3019,
+        0.3019
+      ],
+      "cameraCalls": 0,
+      "cameraCallDetail": [],
+      "boundaries": [
+        {
+          "boundary": 1,
+          "stimulusProven": true,
+          "bars": [
+            3000,
+            3001
+          ],
+          "lastBar": [
+            1789478100,
+            1789478400
+          ],
+          "distinctCloses": 8,
+          "stepTimeDrift": 0,
+          "cumTimeDrift": 0,
+          "cumLogicalDrift": 0.0,
+          "logicalFrom": 2897.3019,
+          "logicalFrac": 0.3019,
+          "rightOffset": 6,
+          "barSpacing": 14.576,
+          "rightPad": -21.645,
+          "owned": true
+        },
+        {
+          "boundary": 2,
+          "stimulusProven": true,
+          "bars": [
+            3001,
+            3002
+          ],
+          "lastBar": [
+            1789478400,
+            1789478700
+          ],
+          "distinctCloses": 8,
+          "stepTimeDrift": 0,
+          "cumTimeDrift": 0,
+          "cumLogicalDrift": 0.0,
+          "logicalFrom": 2897.3019,
+          "logicalFrac": 0.3019,
+          "rightOffset": 6,
+          "barSpacing": 14.576,
+          "rightPad": -22.645,
+          "owned": true
+        },
+        {
+          "boundary": 3,
+          "stimulusProven": true,
+          "bars": [
+            3002,
+            3003
+          ],
+          "lastBar": [
+            1789478700,
+            1789479000
+          ],
+          "distinctCloses": 8,
+          "stepTimeDrift": 0,
+          "cumTimeDrift": 0,
+          "cumLogicalDrift": 0.0,
+          "logicalFrom": 2897.3019,
+          "logicalFrac": 0.3019,
+          "rightOffset": 6,
+          "barSpacing": 14.576,
+          "rightPad": -23.645,
+          "owned": true
+        },
+        {
+          "boundary": 4,
+          "stimulusProven": true,
+          "bars": [
+            3003,
+            3004
+          ],
+          "lastBar": [
+            1789479000,
+            1789479300
+          ],
+          "distinctCloses": 8,
+          "stepTimeDrift": 0,
+          "cumTimeDrift": 0,
+          "cumLogicalDrift": 0.0,
+          "logicalFrom": 2897.3019,
+          "logicalFrac": 0.3019,
+          "rightOffset": 6,
+          "barSpacing": 14.576,
+          "rightPad": -24.645,
+          "owned": true
+        }
+      ],
+      "contractEvidence": {
+        "perBoundaryTimeDrift": [
+          0,
+          0,
+          0,
+          0
+        ]
+      },
+      "contract": "hold",
+      "verdict": "PASS"
+    },
+    {
+      "scenario": "owned: slight pan back",
+      "baseOwned": true,
+      "expectedOwned": true,
+      "baseTime": {
+        "from": 1789451700,
+        "to": 1789476300
+      },
+      "finalTime": {
+        "from": 1789451700,
+        "to": 1789476300
+      },
+      "baseLogical": {
+        "from": 2911.709118113008,
+        "to": 2992.7617496919556
+      },
+      "finalLogical": {
+        "from": 2911.709118113008,
+        "to": 2992.7617496919556
+      },
+      "baseRightPad": -6.238,
+      "cumulativeTimeDrift": 0,
+      "perBoundaryTimeDrift": [
+        0,
+        0,
+        0,
+        0
+      ],
+      "cumulativeLogicalDrift": 0.0,
+      "logicalFracSeries": [
+        0.7091,
+        0.7091,
+        0.7091,
+        0.7091
+      ],
+      "cameraCalls": 0,
+      "cameraCallDetail": [],
+      "boundaries": [
+        {
+          "boundary": 1,
+          "stimulusProven": true,
+          "bars": [
+            3000,
+            3001
+          ],
+          "lastBar": [
+            1789478100,
+            1789478400
+          ],
+          "distinctCloses": 8,
+          "stepTimeDrift": 0,
+          "cumTimeDrift": 0,
+          "cumLogicalDrift": 0.0,
+          "logicalFrom": 2911.7091,
+          "logicalFrac": 0.7091,
+          "rightOffset": 6,
+          "barSpacing": 14.576,
+          "rightPad": -7.238,
+          "owned": true
+        },
+        {
+          "boundary": 2,
+          "stimulusProven": true,
+          "bars": [
+            3001,
+            3002
+          ],
+          "lastBar": [
+            1789478400,
+            1789478700
+          ],
+          "distinctCloses": 8,
+          "stepTimeDrift": 0,
+          "cumTimeDrift": 0,
+          "cumLogicalDrift": 0.0,
+          "logicalFrom": 2911.7091,
+          "logicalFrac": 0.7091,
+          "rightOffset": 6,
+          "barSpacing": 14.576,
+          "rightPad": -8.238,
+          "owned": true
+        },
+        {
+          "boundary": 3,
+          "stimulusProven": true,
+          "bars": [
+            3002,
+            3003
+          ],
+          "lastBar": [
+            1789478700,
+            1789479000
+          ],
+          "distinctCloses": 8,
+          "stepTimeDrift": 0,
+          "cumTimeDrift": 0,
+          "cumLogicalDrift": 0.0,
+          "logicalFrom": 2911.7091,
+          "logicalFrac": 0.7091,
+          "rightOffset": 6,
+          "barSpacing": 14.576,
+          "rightPad": -9.238,
+          "owned": true
+        },
+        {
+          "boundary": 4,
+          "stimulusProven": true,
+          "bars": [
+            3003,
+            3004
+          ],
+          "lastBar": [
+            1789479000,
+            1789479300
+          ],
+          "distinctCloses": 8,
+          "stepTimeDrift": 0,
+          "cumTimeDrift": 0,
+          "cumLogicalDrift": 0.0,
+          "logicalFrom": 2911.7091,
+          "logicalFrac": 0.7091,
+          "rightOffset": 6,
+          "barSpacing": 14.576,
+          "rightPad": -10.238,
+          "owned": true
+        }
+      ],
+      "contractEvidence": {
+        "perBoundaryTimeDrift": [
+          0,
+          0,
+          0,
+          0
+        ]
+      },
+      "contract": "hold",
+      "verdict": "PASS"
+    },
+    {
+      "scenario": "unowned: default realtime follow",
+      "baseOwned": false,
+      "expectedOwned": false,
+      "baseTime": {
+        "from": 1789455000,
+        "to": 1789479600
+      },
+      "finalTime": {
+        "from": 1789456200,
+        "to": 1789480800
+      },
+      "baseLogical": {
+        "from": 2922,
+        "to": 3003.0526315789475
+      },
+      "finalLogical": {
+        "from": 2926,
+        "to": 3007.0526315789475
+      },
+      "baseRightPad": 4.053,
+      "cumulativeTimeDrift": 1200,
+      "perBoundaryTimeDrift": [
+        300,
+        300,
+        300,
+        300
+      ],
+      "cumulativeLogicalDrift": 4,
+      "logicalFracSeries": [
+        0,
+        0,
+        0,
+        0
+      ],
+      "cameraCalls": 0,
+      "cameraCallDetail": [],
+      "boundaries": [
+        {
+          "boundary": 1,
+          "stimulusProven": true,
+          "bars": [
+            3000,
+            3001
+          ],
+          "lastBar": [
+            1789478100,
+            1789478400
+          ],
+          "distinctCloses": 8,
+          "stepTimeDrift": 300,
+          "cumTimeDrift": 300,
+          "cumLogicalDrift": 1,
+          "logicalFrom": 2923,
+          "logicalFrac": 0,
+          "rightOffset": 6,
+          "barSpacing": 14.576,
+          "rightPad": 4.053,
+          "owned": false
+        },
+        {
+          "boundary": 2,
+          "stimulusProven": true,
+          "bars": [
+            3001,
+            3002
+          ],
+          "lastBar": [
+            1789478400,
+            1789478700
+          ],
+          "distinctCloses": 8,
+          "stepTimeDrift": 300,
+          "cumTimeDrift": 600,
+          "cumLogicalDrift": 2,
+          "logicalFrom": 2924,
+          "logicalFrac": 0,
+          "rightOffset": 6,
+          "barSpacing": 14.576,
+          "rightPad": 4.053,
+          "owned": false
+        },
+        {
+          "boundary": 3,
+          "stimulusProven": true,
+          "bars": [
+            3002,
+            3003
+          ],
+          "lastBar": [
+            1789478700,
+            1789479000
+          ],
+          "distinctCloses": 8,
+          "stepTimeDrift": 300,
+          "cumTimeDrift": 900,
+          "cumLogicalDrift": 3,
+          "logicalFrom": 2925,
+          "logicalFrac": 0,
+          "rightOffset": 6,
+          "barSpacing": 14.576,
+          "rightPad": 4.053,
+          "owned": false
+        },
+        {
+          "boundary": 4,
+          "stimulusProven": true,
+          "bars": [
+            3003,
+            3004
+          ],
+          "lastBar": [
+            1789479000,
+            1789479300
+          ],
+          "distinctCloses": 8,
+          "stepTimeDrift": 300,
+          "cumTimeDrift": 1200,
+          "cumLogicalDrift": 4,
+          "logicalFrom": 2926,
+          "logicalFrac": 0,
+          "rightOffset": 6,
+          "barSpacing": 14.576,
+          "rightPad": 4.053,
+          "owned": false
+        }
+      ],
+      "contractEvidence": {
+        "basePad": 4.053,
+        "pads": [
+          4.053,
+          4.053,
+          4.053,
+          4.053
+        ]
+      },
+      "contract": "follow",
+      "verdict": "PASS"
+    }
+  ]
+}

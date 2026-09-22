@@ -38,6 +38,8 @@ import { useNeighborWarm } from '../../hooks/useNeighborWarm'
 import { expectedLatestCompletedBar, expectedBarsBehind, isCurrentEnoughForPaint } from '../../utils/marketSession'
 import { memPeek } from '../../utils/barsMemCache'
 import { idbGet } from '../../utils/barsIDB'
+import { pollNow, getSnapshot } from '../../hooks/livePriceStore'
+import { cameraAuditEnabled, cameraAuditReport, cameraAuditClear, unauthorizedMoves, forceIllegalCameraMove, cameraAuditOwned, cameraTimeScaleOptions } from '../../utils/cameraAudit'
 
 // ── Lock 3: no preference write can leave this page ──
 const BLOCKED = []
@@ -163,6 +165,57 @@ function Harness() {
         return true
       },
       watchResult: () => window.__scanWatch || null,
+
+      // ── CAMERA ACCEPTANCE SURFACE ──────────────────────────────────────
+      // ⛔ READ-ONLY + DRIVE-ONLY. Nothing here decides anything about the
+      // view; it reads the chart's own probe and pushes the product's real
+      // live-price path. A harness that moved the camera itself, or that had
+      // its own idea of who owns the view, would be measuring itself.
+      //
+      // `visibleRange` comes from `window.__uctChartDebug`, the handle the
+      // chart already publishes for rigs — not a new side channel.
+      range: () => {
+        const d = window.__uctChartDebug || {}
+        const k = Object.keys(d)[0]
+        try { return k ? d[k].visibleRange() : null } catch { return null }
+      },
+      // Drive the REAL live path: the store fetches /api/live-prices (which the
+      // harness route-mocks) and StockChart's live writer mutates the current
+      // bar exactly as it does in production.
+      tick: () => { try { pollNow() } catch { /* store not registered yet */ } },
+      // ⛔ THE RENDERED SERIES, not the store and not React state. §6: a probe
+      // that measures the wrong layer can confirm a stimulus that never
+      // reached the chart.
+      // The member-visible camera: a TIME window. See visibleTimeRange's note.
+      timeRange: () => {
+        const d = window.__uctChartDebug || {}
+        const k = Object.keys(d)[0]
+        try { return k ? d[k].visibleTimeRange() : null } catch { return null }
+      },
+      rendered: () => {
+        const d = window.__uctChartDebug || {}
+        const k = Object.keys(d)[0]
+        try { return k ? { bar: d[k].lastRenderedBar(), n: d[k].renderedBarCount() } : null }
+        catch { return null }
+      },
+      // ⛔ WHICH LAYER IS STUCK? The rendered close froze at 104 while the
+      // fixture kept serving prices. Reading the STORE alongside the RENDERED
+      // series is the only way to tell "the feed stopped" from "the chart
+      // stopped listening" — and guessing between those two is how this
+      // project has repeatedly fixed the wrong layer.
+      store: () => { try { return getSnapshot() } catch { return null } },
+      camera: {
+        enabled: () => cameraAuditEnabled(),
+        report: () => cameraAuditReport(),
+        clear: () => cameraAuditClear(),
+        unauthorized: () => unauthorizedMoves(),
+        owned: () => cameraAuditOwned(),
+        tsOptions: (patch) => cameraTimeScaleOptions(patch),
+      },
+      // ⭐ THE NEGATIVE CONTROL (§5). Deliberately move the camera while the
+      // user owns the view; the audit MUST flag it. A clean camera run is
+      // meaningless until this has been shown to fail.
+      forceIllegalMove: (kind) => forceIllegalCameraMove(kind),
       requested: () => groupSyms.A,
       readiness: (s) => readiness(s, TF),
       blocked: () => BLOCKED.slice(),

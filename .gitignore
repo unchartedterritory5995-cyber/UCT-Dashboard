@@ -244,3 +244,5 @@ tools/intraday_scan_out.json
 # line would look like it worked and would not.
 tools/intraday_current_out.json
 tools/scan_handoff_out.json
+tools/camera_out.json
+tools/lwc_mechanism_out.json

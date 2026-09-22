@@ -103,6 +103,51 @@ class Fixture:
         #: A harness with a 0 ms server would hide exactly the wait under test.
         self.full_latency_ms = 111
         self.tail_latency_ms = 59
+        # ── DETERMINISTIC LIVE-PRICE STIMULUS ──
+        # A fixed ladder, so a scenario can assert "the chart was handed these
+        # exact values" rather than hoping something arrived. `served` is the
+        # evidence trail the stimulus check reads.
+        # ⛔⛔ MONOTONIC, NEVER CYCLIC. A repeating ladder aliases: burst counts
+        # that happen to be multiples of its period return the chart to the
+        # SAME price, so a before/after comparison reads "nothing changed" while
+        # the feed is working perfectly. That is exactly what happened -- nine
+        # scenarios with 40/50/60/120 ticks against a 10-value ladder all
+        # reported stimulus-not-proven while store and rendered close were
+        # tracking each other tick for tick.
+        #
+        # A small monotonic drift can never alias, and stays far inside
+        # `isSaneLivePrice`'s 50% band so every tick is accepted.
+        self.base_price = 100.0
+        self.price_step = 0.0007          # ~0.07% per tick
+        self._price_idx = {}
+        self.served_prices = []      # [(sym, price)] in order
+        #: A large jump is its own scenario (the PYPL-style news move).
+        self.jump_mode = False
+
+    def advance(self, seconds):
+        """Move the fixture's market clock forward.
+
+        ⛔⛔ TIME AND DATA MUST ADVANCE TOGETHER. Advancing only the BROWSER
+        clock leaves the fixture serving bars that end at the original instant,
+        so the chart's series is immediately behind the session frontier — and
+        the current-first-paint gate then correctly refuses to paint it, which
+        stops the live writer having anything to extend. That is precisely how
+        a clock advance in preflight D froze every later scenario's rendered
+        close at 101.12 while the feed kept serving prices.
+        """
+        self.server_now = self.server_now + timedelta(seconds=seconds)
+        return self.server_now
+
+    def next_price(self, sym):
+        key = sym.upper()
+        i = self._price_idx.get(key, 0)
+        if self.jump_mode:
+            px = round(self.base_price * (1.05 + 0.004 * i), 2)
+        else:
+            px = round(self.base_price * (1 + self.price_step * (i + 1)), 4)
+        self._price_idx[key] = i + 1
+        self.served_prices.append((key, px))
+        return px
 
     def bars_response(self, sym, tf, want, since):
         tf_min = int(tf) if tf.isdigit() else 5
@@ -146,7 +191,26 @@ def route_handler(fixture: Fixture):
         if "/api/auth/me" in path:
             return send({"email": "harness@local", "plan": "pro", "role": "user"})
         if "/api/live-prices" in path:
-            return send({})
+            # ⛔⛔ THIS USED TO RETURN `{}` AND THAT INVALIDATED EVERY REALTIME
+            # CAMERA SCENARIO. `livePriceStore` skips any entry without a
+            # finite price > 0, so an empty body meant the store never emitted,
+            # the chart's live writer never ran, and nine "clean" camera runs
+            # never received a single tick. Silence read as a pass.
+            #
+            # ⭐ DETERMINISTIC, ADVANCING, AND RECORDED. Each poll returns the
+            # next price in a fixed sequence so the harness can assert exactly
+            # which values the chart was given -- the stimulus is evidence, not
+            # an assumption.
+            syms = [t for t in (qs.get("tickers", "") or "").split(",") if t]
+            body = {}
+            for sym in syms:
+                px = fixture.next_price(sym)
+                body[sym.upper()] = {
+                    "price": px,
+                    "change_pct": round((px / fixture.base_price - 1) * 100, 3),
+                    "day_open": fixture.base_price,
+                }
+            return send(body)
         if "/api/r/chart-settings" in path:
             return send({})
         if "/api/ticker-meta" in path or "/api/ticker-logo" in path:
@@ -182,7 +246,17 @@ def free_port():
 # harness exists to observe.
 CLOCK_JS = """
 (() => {
-  const OFFSET = %d - Date.now();
+  // ⭐ A SHIFTED CLOCK, NOT A FROZEN ONE: time still advances, it just starts
+  // at the fixture's instant. Freezing it would stop every interval the
+  // product relies on.
+  //
+  // ⛔ AND IT IS ADVANCEABLE, because a new-bar test cannot wait five real
+  // minutes for a 5m bucket to close. `__uctTestClockAdvance(ms)` moves the
+  // shift forward so the very next live tick lands in the NEXT bucket and the
+  // product's own bar engine opens a candle — no faked bar, no hand-written
+  // series row. This is the narrowest seam that produces a real new bar: it
+  // lives in the HARNESS's clock shim, and the product knows nothing about it.
+  let OFFSET = %d - Date.now();
   const RealDate = Date;
   const shifted = () => new RealDate(RealDate.now() + OFFSET);
   function FakeDate(...a) { return a.length ? new RealDate(...a) : shifted() }
@@ -191,6 +265,8 @@ CLOCK_JS = """
   FakeDate.parse = RealDate.parse;
   FakeDate.UTC = RealDate.UTC;
   window.Date = FakeDate;
+  window.__uctTestClockAdvance = (ms) => { OFFSET += Number(ms) || 0; return FakeDate.now() };
+  window.__uctTestClockNow = () => FakeDate.now();
 })();
 """
 

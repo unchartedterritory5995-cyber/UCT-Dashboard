@@ -335,12 +335,28 @@ describe('anchorDate → framing wire', () => {
       <StockChart sym="AAPL" tf="D" barsOverride={FIXTURE_BARS} anchorDate={ANCHOR_DAY} />)
     await waitFor(() => expect(endsAt(lastRange(), ANCHOR_IDX)).toBe(true), { timeout: 3000 })
     fireEvent.wheel(container.querySelector('[class*="chart"]'))
+    // ⛔⛔ THE PAN MUST ACTUALLY MOVE THE VIEW, NOT ONLY LATCH THE REF. jsdom has
+    // no layout, so `fireEvent.wheel` sets `userViewMovedRef` and leaves the mocked
+    // time scale sitting ON the anchor frame. That made "the anchor re-asserted" and
+    // "the member's window was preserved" numerically identical, and the test could
+    // only separate them through an artifact of the retired bars-from-right remap,
+    // which slid the window left by however many bars the fixture dropped off the
+    // END. The preserve rule is time-anchored now, so a back-truncation leaves the
+    // pre-pan indices exactly where they were and that artifact is gone -- correctly,
+    // since those candles still exist and the member is still looking at them.
+    // Put the member somewhere they could only have reached by panning, and the two
+    // outcomes diverge again for a reason that is about THE LATCH rather than about
+    // the arithmetic of one particular remap.
+    spy.last = { from: 20, to: 60 }
     spy.setVisibleLogicalRange.mockClear()   // spy.last (the pre-update range) is kept
     rerender(<StockChart sym="AAPL" tf="D" barsOverride={FIXTURE_SHORT} anchorDate={ANCHOR_DAY} />)
     await waitFor(() => expect(lastRange()).toBeTruthy(), { timeout: 3000 })
     expect(endsAt(lastRange(), ANCHOR_IDX)).toBe(false)
-    // Positively the preserve result: the user's window stayed left of the anchor.
+    // Positively the preserve result: the user's window stayed left of the anchor,
+    // on the very candles they panned to.
     expect(lastRange().to).toBeLessThan(ANCHOR_IDX)
+    expect(lastRange().to).toBeCloseTo(60, 5)
+    expect(lastRange().from).toBeCloseTo(20, 5)
   })
 
   // Load-bearing for the Desk follow-along pane, which walks `sym` under one constant

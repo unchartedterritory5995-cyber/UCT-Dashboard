@@ -527,8 +527,18 @@ function _memPromoteFresh(tf, lastT) {
   if (String(tf) === 'D') return !isDailyTailStale(lastT)
   if (!_INTRADAY_TFS.has(String(tf))) return true   // W/M always promote
   if (typeof lastT !== 'number') return false
-  const tfSec = Math.max(60, (Number(tf) || 5) * 60)
-  return (Date.now() / 1000 - lastT) <= Math.max(6 * tfSec, 20 * 60)
+  // ⛔⛔ THIS USED TO ALLOW `max(6*tf, 20min)` — THIRTY MINUTES BEHIND ON A 5m
+  // CHART — and the sync mem cache is a PAINT SOURCE. So the ±6 neighbour
+  // warmer hoisted half-hour-old series into the fast path and the next switch
+  // painted a morning/premarket frame before the current one arrived (the
+  // owner's Theme Tracker report). A warmed intraday ticker must mean
+  // CURRENT-PAINT-READY, not "we have some bars".
+  //
+  // ⭐ THE SAME FRONTIER AS THE CHART'S OWN GATE. One notion of "fresh enough":
+  // if the chart would refuse to paint it, promoting it only buys a stale
+  // flash. A rejected entry is NOT discarded — it stays in IDB as a `since=`
+  // repair base, and `_idbWarmOne` repairs it, after which it promotes.
+  return isCurrentEnoughForPaint(lastT, tf)
 }
 
 export function warmMemFromIDB(tickers, tfs = SCAN_WARM_TFS) {

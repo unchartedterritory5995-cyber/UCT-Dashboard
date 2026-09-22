@@ -771,6 +771,8 @@ import brandMark from './intro/assets/compass-mark.png'
 import { idbGet, idbPut, idbDelete, mergeDelta, _closeMismatch, _findRecentBarByT } from '../utils/barsIDB'
 import { memPeek, memPut } from '../utils/barsMemCache'
 import { timingStart, timingMark, timingMarkPaint, timingMarkEmpty } from '../utils/intradayTiming'
+import { auditChartCamera, setOwnershipProbe } from '../utils/cameraAudit'
+import { remapVisibleRange } from './chart/remapVisibleRange'
 import { classifyIntradayTail, isCurrentEnoughForPaint, isDailyTailStaleForPaint, isDailyTodayCloseProvisionalForPaint, isIntradayTailStale, isTradingSessionTodayET, isHolidayISO } from '../utils/marketSession'
 import { resample, resampleForSpec } from '../utils/resampleBars'
 import { isNativeTf, fetchTf, resampleSpec, parseTf } from './chart/timeframes'
@@ -7147,7 +7149,35 @@ export default function StockChart({
   const _memBarsRaw = (!_overrideArr && !barsOverridePending) ? memPeek(sym, resolvedTf) : null
   // Don't fall back to a stale daily mem entry either (prefetch's _memPromoteFresh
   // always promotes D/W/M, so mem can hold a multi-session-old daily just like IDB).
-  const _memBars = _memTailStaleDaily(_memBarsRaw) ? null : _memBarsRaw
+  // ⛔⛔ THE INTRADAY MEM CACHE HAD NO PAINT GATE AT ALL, AND THAT IS THE
+  // STALE-FIRST-FRAME THE OWNER REPORTED. `_memTailStaleDaily` returns false
+  // immediately for anything that is not 'D', so for 5m this fallback painted
+  // whatever `memPeek` happened to hold — and `prefetchBars._memPromoteFresh`
+  // promotes an intraday entry up to `max(6*tf, 20min)` old, i.e. THIRTY
+  // MINUTES behind on a 5m chart. So the ±6 neighbour warmer would hoist a
+  // half-hour-old series into sync mem and the very next switch painted it.
+  //
+  // The sequence the member saw, exactly:
+  //   handoff verifies B is current (from IDB) and commits
+  //   → StockChart's FIRST render for B has idbBars still null (its idbGet is
+  //     async), so the selector falls through to this mem entry
+  //   → a stale morning/premarket frame paints
+  //   → ~1s later IDB/network resolves and the current candles replace it.
+  //
+  // ⭐ CACHE USEFULNESS IS NOT PAINT AUTHORITY. The entry stays in mem and is
+  // still a fine `since=` repair base; it simply may not BE the visible frame.
+  // Same rule, same helper, same frontier as the IDB gate — one notion of
+  // "fresh enough", not two.
+  const _memTailStaleIntraday = (arr) => {
+    if (!isIntraday || !Array.isArray(arr) || !arr.length) return false
+    const _t = arr[arr.length - 1]?.t
+    if (typeof _t !== 'number') return true          // unusable → never paint it
+    return !isCurrentEnoughForPaint(_t, resolvedTf, {
+      session: showExtended ? 'extended' : 'rth',
+    })
+  }
+  const _memBars = (_memTailStaleDaily(_memBarsRaw) || _memTailStaleIntraday(_memBarsRaw))
+    ? null : _memBarsRaw
   // Phase-A A4: optimistic same-frame TF switch. Switching to Weekly/Monthly on a
   // ticker whose Daily is already in the sync mem cache normally still costs a
   // full /api/bars round-trip (skeleton flash) for the W/M payload. Instead,
@@ -10211,6 +10241,16 @@ export default function StockChart({
         hoveredSeriesOnTop: false,
       })
       chartRef.current = chart
+      // ⭐ CAMERA AUDIT (dev/harness only, inert in production). Funnels every
+      // programmatic horizontal move through a recorder so "who moved the view
+      // during a live burst?" is answered by measurement rather than by reading
+      // ~40 call sites. It WRAPS and never blocks, so an audited run measures
+      // the same product a member gets. `userViewMovedRef` stays the one
+      // ownership authority — this only asks it.
+      try {
+        auditChartCamera(chart)
+        setOwnershipProbe(() => userViewMovedRef.current === true)
+      } catch { /* diagnostics must never break a chart */ }
       // Read-only debug handle for probes/rigs (the __uctBarsPush idiom):
       // the mobile pinch gate needs the visible logical range and every
       // pixel/UI side-channel for it proved unreliable (gridlines light every
@@ -10221,6 +10261,34 @@ export default function StockChart({
         window.__uctChartDebug[chartId || 'main'] = {
           visibleRange: () => {
             try { return chartRef.current?.timeScale().getVisibleLogicalRange() || null } catch { return null }
+          },
+          // ⛔⛔ THE LAST BAR THE RENDERER ACTUALLY HOLDS — read off the series,
+          // not off React state or a cache. A harness that proves "the store
+          // changed" has proven nothing about the chart: this project has
+          // already shipped probes that measured the wrong layer and reported a
+          // confident PASS from it. Asserting a realtime stimulus reached the
+          // RENDERED series closes that gap, and it is read-only.
+          // ⛔⛔ THE CAMERA IS A TIME WINDOW, NOT AN INDEX WINDOW. Logical
+          // indices are positions in the CURRENT series, so appending a bar to
+          // a capped window slides every index by one and the SAME visible time
+          // span reports a different logical range. Measuring "did the view
+          // move?" in logical coordinates therefore reports a phantom +1 on
+          // every append — which is exactly what an A/B test showed, with the
+          // drift appearing identically whether or not the user owned the view
+          // and whether or not shiftVisibleRangeOnNewBar was disabled.
+          visibleTimeRange: () => {
+            try { return chartRef.current?.timeScale().getVisibleRange() || null } catch { return null }
+          },
+          lastRenderedBar: () => {
+            try {
+              const d = candleSeriesRef.current?.data?.()
+              if (!Array.isArray(d) || !d.length) return null
+              const b = d[d.length - 1]
+              return { time: b.time, open: b.open, high: b.high, low: b.low, close: b.close, value: b.value }
+            } catch { return null }
+          },
+          renderedBarCount: () => {
+            try { return candleSeriesRef.current?.data?.()?.length ?? null } catch { return null }
           },
           // ⭐ THE VERTICAL HALF, for the same reason the horizontal half is here.
           // "The chart pinches a little more every time I pan" is a claim about
@@ -12858,30 +12926,24 @@ export default function StockChart({
       // the PRE-setData range (captured at updateChart top, before LWC could shift
       // it), so a big depth jump keeps the user exactly where they were instead of
       // snapping to the default window. (Model Book / entryDate have their own pins.)
-      const newBarCount = filteredBars.length
-      const pr = _preUpdateRange
-      const barsFromRight = oldBarCount - pr.to
-      const width = pr.to - pr.from
-      const to = newBarCount - barsFromRight
-      const from = to - width
-      const lastIdx = newBarCount - 1
-      // The bars-from-right remap ASSUMES a PREPEND (older history added at the
-      // front, newest bar unchanged) → the view is invariant in bars-from-right.
-      // A full no-`since` REPLACE refetch (more common since the intraday freshness
-      // gate was tightened) can instead return a DIFFERENT count with a SLID window,
-      // making `barsFromRight` stale and pushing the computed window ENTIRELY into
-      // the empty right-pad — the chart then shows only the price axis until "Reset
-      // view" (the pinned-right net below is disabled once the user has panned). So
-      // apply the remap ONLY when it lands on REAL bars (the last bar stays in view:
-      // to > 0 AND from < lastIdx). Otherwise the mapping is invalid → re-pin the
-      // newest candle at its default on-screen position (keeping the zoom width) so
-      // the view is NEVER left blank.
-      if (width > 0 && Number.isFinite(from) && Number.isFinite(to) && to > 0 && from < lastIdx) {
-        try { chart.timeScale().setVisibleLogicalRange({ from, to }) } catch {}
-      } else if (width > 0 && lastIdx > 0) {
-        const to2 = lastIdx + width * (1 - lastCandlePos(plotWidthOf(chart, containerRef.current)))
-        const from2 = to2 - width
-        try { chart.timeScale().setVisibleLogicalRange({ from: from2, to: to2 }) } catch {}
+      // ⭐ THE REMAP IS A PURE FUNCTION IN `chart/remapVisibleRange.js`, which is
+      // where its rationale and its rails live. It is time-anchored, so it is
+      // correct under a PREPEND (the case this branch was written for) AND under
+      // a live APPEND (the case that was silently dragging the view forward one
+      // bar per new candle). Extracted rather than inlined because "count
+      // changed" does not name the mutation, and the six mutation shapes are only
+      // testable deterministically as data.
+      const _remap = remapVisibleRange({
+        prevBars: prevBarsRef.current,
+        nextBars: filteredBars,
+        prevRange: _preUpdateRange,
+        lastCandleFraction: lastCandlePos(plotWidthOf(chart, containerRef.current)),
+        // An untouched chart is a live tape and must keep following; the member's
+        // own latch is the only authority on which of the two it is.
+        followRight: !userViewMovedRef.current,
+      })
+      if (_remap.from != null && _remap.to != null) {
+        try { chart.timeScale().setVisibleLogicalRange({ from: _remap.from, to: _remap.to }) } catch {}
       }
       }   // ← closes the `if (anchorOwnsFrame() …) {} else {` wrapper above
     }
