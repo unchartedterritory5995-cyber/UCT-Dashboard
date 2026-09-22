@@ -46,65 +46,14 @@
 // direction — a script at 1 really is close, a script at 15 really is far —
 // and not a work ticket. `UNREACHED` means it did not build within the cap.
 import { describe, it, expect } from 'vitest'
-import fs from 'node:fs'
-import path from 'node:path'
+// ⭐ THE PEELER ITSELF LIVES IN `peelToBuilding.js`, shared with
+// `nearestToWorking.measure.test.js`. It was extracted VERBATIM; the controls
+// below are its rails and still exercise every line of it. Two copies of a walk
+// with this file's error history would be two opinions about what "distance"
+// means (`lesson_a_second_authority_over_one_value`).
+import { peel, SCRIPTS, readScript, DEFAULT_CAP as CAP } from './peelToBuilding.js'
 
-import { buildObjectLane } from '../runtime/objectLane.js'
-
-const REPO = path.resolve(process.cwd(), '..')
-const DIR = path.join(REPO, 'corpus/committed')
-const SCRIPTS = fs.existsSync(DIR)
-  ? fs.readdirSync(DIR).filter((f) => f.endsWith('.pine')).sort()
-  : []
-
-const N = 60
-const BARS = Array.from({ length: N }, (_, i) => ({
-  t: 1700000000 + i * 86400,
-  o: 100 + (i % 7), h: 104 + (i % 5), l: 96 - (i % 3), c: 100 + (i % 11), v: 1000000 + i,
-}))
 const LF = String.fromCharCode(10)
-const CAP = 20
-
-/** One build attempt → `null` when it built, else `{line, guard}`. */
-function refusalOf(src) {
-  let r = null
-  try {
-    r = buildObjectLane(src, { tf: 'D', newestBarIsForming: false, bars: BARS })
-  } catch (err) {
-    return { line: 0, guard: `threw:${String(err && err.message).slice(0, 40)}` }
-  }
-  if (r.ok) return null
-  const ref = r.refusal || {}
-  const line = Number(ref.line || (ref.at && ref.at.line) || 0)
-  return { line, guard: `${r.lane}/${ref.guard || 'unnamed'}` }
-}
-
-/**
- * Peel one script. Returns `{distance, guards, reached}`.
- *
- * ⛔ A REFUSAL WITH NO LINE CANNOT BE PEELED, and that is reported rather than
- * skipped. Whole-program refusals (`objects:no-objects-in-source`,
- * `pine:declaration-strategy`) name no line by construction — peeling would
- * loop forever or, worse, neutralise an arbitrary line and call it progress.
- */
-export function peel(source, cap = CAP) {
-  const lines = source.split(LF)
-  const guards = []
-  const killed = new Set()
-  for (let step = 0; step < cap; step += 1) {
-    const src = lines.map((l, i) => (killed.has(i) ? '' : l)).join(LF)
-    const ref = refusalOf(src)
-    if (!ref) return { distance: step, guards, reached: true }
-    guards.push(ref.guard)
-    const idx = ref.line - 1
-    // no line, or a line already neutralised → we cannot make progress
-    if (!(idx >= 0 && idx < lines.length) || killed.has(idx)) {
-      return { distance: step, guards, reached: false, stuck: ref.guard }
-    }
-    killed.add(idx)
-  }
-  return { distance: cap, guards, reached: false, stuck: 'cap' }
-}
 
 describe('⭐⭐ how far the corpus is from building, measured by peeling', () => {
   it('⛔ CONTROL — the corpus is on disk', () => {
@@ -140,7 +89,7 @@ describe('⭐⭐ how far the corpus is from building, measured by peeling', () =
   it('⭐⭐ prints the distance histogram and what is hit on the way', () => {
     const results = []
     for (const name of SCRIPTS) {
-      const src = fs.readFileSync(path.join(DIR, name), 'utf8')
+      const src = readScript(name)
       results.push({ name, ...peel(src) })
     }
 
