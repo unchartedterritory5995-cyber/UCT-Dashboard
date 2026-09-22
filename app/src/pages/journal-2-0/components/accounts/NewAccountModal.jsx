@@ -66,7 +66,8 @@ export default function NewAccountModal({ onClose }) {
       setAccount(created.id)
       onClose?.()
     } catch (e) {
-      setError(String(e.message || e))
+      console.error('Failed to create account:', e)
+      setError("Couldn't create this account. Nothing was added — try again.")
     } finally {
       setSaving(false)
     }
