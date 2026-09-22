@@ -410,19 +410,6 @@ export function buildObjectLane(source, opts = {}) {
  */
 export function runObjectLane(lane, view) {
   const bars = Math.max(0, view.bars | 0)
-  // ⛔⛔ `barTimes` AND `requestBars` ARE NOT OPTIONAL EXTRAS FOR THIS LANE.
-  //
-  // A watchlist dashboard is made ENTIRELY of `request.security` — its every
-  // number belongs to another symbol — and its session columns read the ET
-  // clock off the bar's own instant. Without these two the program still runs
-  // and still draws: every request answers `na`, every clock read answers `na`,
-  // and the table paints its "no data" state. ⭐ That is the worst shape a gap
-  // can take here, because it is indistinguishable from a quiet market, and it
-  // is exactly what this runner produced before they were forwarded.
-  //
-  // ⚠️ They stay OPTIONAL on `view` on purpose: a drawing that reads neither
-  // (a label on this chart's own price) must not have to invent them. What is
-  // fixed is that a caller which HAS them can no longer fail to pass them.
   // ─── ⭐⭐⭐ ONE BAR WALK, NOT TWO — AND THAT IS THE WHOLE FIX ─────────
   //
   // ⚰️ THIS RAN `execute` TO COMPLETION AND *THEN* DREW. Every number the
@@ -457,6 +444,19 @@ export function runObjectLane(lane, view) {
     limits: view.limits,
     trace: view.trace,
   })
+  // ⛔⛔ `barTimes` AND `requestBars` ARE NOT OPTIONAL EXTRAS FOR THIS LANE.
+  //
+  // A watchlist dashboard is made ENTIRELY of `request.security` — its every
+  // number belongs to another symbol — and its session columns read the ET
+  // clock off the bar's own instant. Without these two the program still runs
+  // and still draws: every request answers `na`, every clock read answers `na`,
+  // and the table paints its "no data" state. ⭐ That is the worst shape a gap
+  // can take here, because it is indistinguishable from a quiet market, and it
+  // is exactly what this runner produced before they were forwarded.
+  //
+  // ⚠️ They stay OPTIONAL on `view` on purpose: a drawing that reads neither
+  // (a label on this chart's own price) must not have to invent them. What is
+  // fixed is that a caller which HAS them can no longer fail to pass them.
   const { requested } = execute(lane.program, {
     bars,
     series: view.series,
