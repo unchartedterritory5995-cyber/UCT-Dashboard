@@ -4262,3 +4262,25 @@ own tab list against what its backend already computes and has no door to; each 
 enough that "zero new backend code" held for three of the four; each deployed same-day once
 signed. What remains unscoped and undesigned: the "Desk lens" (recorded under Packet G/H's
 entry above) — the next real gap would need new backend work, not another wiring packet.
+
+## ✅ DEPLOYED — the deferred F-D2-1 / D2-CP5 batch, 2026-09-22
+
+The batch that hit the pre-push guard's busy-master refusal earlier today (a genuine BURST
+condition, then a hard "build in flight" refusal from another session's concurrent deploy) and
+was deferred rather than self-attested past — originally scheduled for an autonomous quiet-window
+retry at ~11:11 PM CT via a session-only cron job (id `da73ef5a`). Master went quiet on its own
+well before that window, so the batch was re-attempted and landed same-afternoon instead;
+**the scheduled cron job is now redundant and stopped** (see below).
+
+Cherry-picked from `feat/s7-price-level` (`1a15a752a` F-D2-1 + `82470eafd` correction + `8d3688213`
+D2 CP5) onto `master` as **`771d195a0`**, clean on the first attempt (master quiet — no
+settle-window wait needed this time). One expected environmental hiccup, same as the last attempt:
+`test_bars_ordinal_census_matches_a_fresh_derivation` failed because `modules_scanned` had drifted
+1,380→1,423 purely from other, unrelated commits already on master adding files under `api/**`
+since the packet was built — verified by diffing `summary.positional`/`summary.named_access`
+between old and freshly-regenerated (zero additions, zero removals) before regenerating and
+committing that fix as its own separate, clearly-labeled commit.
+
+Railway `web` confirmed `SUCCESS` on `771d195a0` specifically (polled the deployment list's top
+entry by commit SHA); verified live via `/api/health` returning `uptime_seconds: 80`, a fresh
+boot. Full detail in `COMPLETION_AUDIT.md`'s F-D2-1 and F-D2-3 rows and `RESUME.md`.

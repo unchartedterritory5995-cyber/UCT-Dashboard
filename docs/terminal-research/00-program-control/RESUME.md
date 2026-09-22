@@ -161,6 +161,14 @@ packet's own "Why this is CP5" section): fingerprint `06ddbe081`, `feat/s7-price
 positional, 1 named-access; detection-only, no reader migrated). See COMPLETION_AUDIT.md's F-D2-1
 and F-D2-3 rows for full detail.*
 
+⚰️ *Both were then CHERRY-PICKED TO PRODUCTION `master` as `771d195a0`, 2026-09-22 — after an
+earlier push attempt hit the pre-push guard's normal busy-master refusal and was deliberately
+deferred to a quiet window rather than self-attested past. The census needed a one-line
+regeneration first (`modules_scanned` had drifted 1,380→1,423 purely from other, unrelated
+commits already on master; diffed old vs fresh before regenerating — zero findings changed).
+See LEDGER.md for the full deploy verification (Railway `web` SUCCESS + `/api/health` fresh-boot
+check).*
+
 Both were found, investigated, and scoped in the same pass — from an audit sweep the owner asked
 for ("everything remaining that keeps us from 150% complete"), not from a pre-existing backlog.
 Everything else remaining in the whole program (A9's next data point, A11, A13, event-proximity,
