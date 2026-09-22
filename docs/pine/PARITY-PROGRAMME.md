@@ -178,6 +178,47 @@ cover what those readers read, and that rail is the load-bearing section of
 
 ---
 
+## ⭐⭐ THE ATR SEED — settled, half-shipped, and the other half priced
+
+**Measured at the vendor 2026-09-21** (`seed-warmup-spy-12m-2026-09-21.json`):
+TradingView emits `ta.atr(n)` at **bar n-1**, seeded as the mean of the first n
+true ranges where bar 0 counts as `high - low` (`ta.tr(true)`). Ours emits at
+bar n. Same recurrence, two seeds; the delta decays by exactly (n-1)/n.
+
+### ✅ SHIPPED — the request path
+`ta.atr` inside a `request` took a separate desugar that built its true range
+from a bare `close[1]`, `na` on bar 0. So `ta.atr` would have meant one thing in
+a request and another everywhere else. Fixed, and railed structurally (no
+harness executes a request, only builds its IR). **The mutation of that desugar
+had survived every behavioural test in the file** — the path had no coverage.
+
+### ⛔⛔ OPEN — the host/columnar path, and it is NOT a one-line change
+Routing Pine to a separately-seeded column **was built and reverted**. It works:
+`ta.atr(5)` matched the vendor at **delta 0** across the captured series. What
+stopped it:
+
+| | |
+|---|---|
+| declaring a name in `closedTable.json` | the **Python lane** mirrors that table in `api/services/ast_interpret.py`, and `screenerColumns.test.js` **freezes those columns for it to read** — so a Pine script's screener column changes name with no Python implementation behind it |
+| measured cost of the attempt | **23 new failures**: manifest count pins, the sentence round-trip, the vendor-note roster, the corpus snapshot, the frozen screener columns, the formula reference |
+| re-seeding the SHARED column instead | **worse** — it moves ThinkScript's `ATR`, the native ATR and ATR-bands indicators, and the pattern engine's ATR levels, which the firm trades on |
+
+⭐ **So the ruling stands and is recorded rather than quietly deferred:** Pine
+gets its own seeding, Wilder's original stays everywhere else — and doing that
+in the host lane is a **Python-lane + screener-contract job**, not a Pine job.
+Scope it as one piece: a `_fn_atr_pine` twin, regenerated screener-column /
+corpus / formula artifacts, and the count pins. Until then the host lane keeps a
+one-bar warm-up difference that `closedTable.json`'s `vendorNote` already
+discloses honestly and that is 4e-12 by bar 300.
+
+⚠️ **GATE NOTE.** `stockChartWiring > A HOVER REACHES THE RENDERER NOT AT ALL`
+is **INTERMITTENT, not merely load-sensitive** — it failed ALONE after passing
+alone three times the same day, and fails alone at HEAD with the change
+reverted. For that one case "re-run it alone" is not a discriminator; establish
+it by reverting and re-running.
+
+---
+
 ## The honest timeline
 
 | Target | Effort |
