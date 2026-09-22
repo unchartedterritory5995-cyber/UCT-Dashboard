@@ -2,6 +2,46 @@
 
 ---
 
+## ✅ DEPLOYED TO MASTER 2026-09-21/22 — all six ready items, in one push
+
+All six pieces of finished, tested work that had been sitting on `feat/s7-price-level` were
+cherry-picked onto `merge-run` (fast-forwarded to `origin/master` first) and pushed as
+`merge-run:master` (`3443bc09c..feb018022`), owner-authorized ("you decide and I will approve").
+Zero cherry-pick conflicts (git auto-merged the two files — `api/main.py`, `ChartsWorkspace.jsx` —
+that master's unrelated same-day work also touched). Verified before push: 1070/1070 frontend
+tests pass (fresh `node_modules` via a directory junction to the code worktree's install, not a
+risky `npm ci`), 157/161 backend tests pass — the 4 failures (`test_ticker_logos.py` FMP-mock
+shapes) reproduced identically on the untouched code worktree, confirmed pre-existing and
+unrelated. `python tools/check_repo_hygiene.py`: clean.
+
+| Commit on master | What it is |
+|---|---|
+| `9ddce6824` | F-S7-RC-3 — stops a live defect (a repeat regime-shift insight was crowding out members' daily coaching message) |
+| `424bf3355` | S1 CP3 — panel registry formalization (dark) |
+| `c915c40fc` | D3 CP4 — S7 price-level's dark sweep becomes D3's first real consumer (dark) |
+| `920ca72e1` | D4 CP5 — ticker logo miss-retry stops re-walking clean providers (dark) |
+| `627d9e8ef` | A12 CP1 — S6 consistency rail, test-only (dark) |
+| `feb018022` | **A14 CP1 — the Portfolio Risk page, the only one of the six a member can see** |
+
+⚠️ **Two real hazards hit and cleared during this push, recorded so the next session doesn't
+re-trip them:** (1) a garbled paste corrupted a `cd` command and ran a cherry-pick attempt in the
+CODE worktree instead of the merge worktree — caught before any commit landed, cleaned with
+`git cherry-pick --abort`, verified the code worktree was back at exactly `f662b84d5` (its pushed
+state) before retrying correctly. (2) The repo's own `pre-push` guard correctly refused the first
+four push attempts — a web deploy (`3443bc09c`) had landed shortly before and needed its full
+3-5 min settle window ("one master merge at a time, repo-wide") — and succeeded on the fifth once
+that window passed. Neither hazard reached production; both are exactly what these guards exist
+to catch.
+
+✅ **CONFIRMED LIVE, same session.** Railway `web`'s new deployment (id
+`fca4d82f-8a74-421f-a951-9696017f1014` — a Railway deployment id, not a git commit) reached
+`SUCCESS` at 2026-09-22T02:29Z. `GET /api/health` returned `uptime_seconds: 117` (a fresh boot, down from the
+589-621s the pod was showing before the push). `GET /api/portfolio/heat` unauthenticated returned
+**401**, not 404 — proof the new route is mounted and correctly gated, not merely that the deploy
+succeeded. All six commits are live in production.
+
+---
+
 # ⛔⛔ COLD START — 2026-09-20. This block supersedes everything below it.
 
 **One sentence: 25 of 32 systems are DONE and 1 (S7) is RULED-HOLD; ZERO proposals are waiting on
@@ -101,8 +141,8 @@ worktree (`s7-price-level`) against `origin/master`, never from the docs worktre
   positions render flagged, never hidden. Paid-gated the ordinary way (`FREE_PAGES` untouched). 4/4
   tests named in the proposal's §5 pass; zero regressions across 48 backend + frontend tests run
   (router, AST rail, nav taxonomy ×3 suites, nav-resolution, startup fingerprint). Corp-actions
-  display stays explicitly deferred. **Built and pushed to `feat/s7-price-level` only — NOT
-  deployed to master/production.**
+  display stays explicitly deferred. ⚰️ *Was "built and pushed but NOT deployed"* — **DEPLOYED
+  2026-09-21/22** to master as `feb018022`, see the deploy-record block at the top of this file.
 - `sign_gate.py <packet>` **SIGNS IMMEDIATELY** — there is no dry-run flag; `--read-check`/`--self-check`
   run only on synthetic text. To check a real packet read-only, import the tool and call `read_approval()`.
 
@@ -219,9 +259,9 @@ left is the production read and D2's time-based wait, neither of which a signatu
 3. Everything else genuinely deferred on purpose (D5 CP2 — nothing reads it; DEC-08's own
    corp-actions calendar — real work, gated on F-09's provider gap, not yet scoped) needs no
    action unless the owner wants to prioritize it.
-4. Separately, and not part of the "ready to launch" definition above: A14-CP1's code
-   (`feat/s7-price-level` `f662b84d5`) is built and pushed but **not deployed to master/production**
-   — that needs its own explicit "deploy" instruction, same as F-S7-RC-3's pending cherry-pick.
+4. ⚰️ *Was: A14-CP1's code "built and pushed but not deployed" and F-S7-RC-3 "pending cherry-pick".*
+   **Both DEPLOYED 2026-09-21/22** — see the deploy-record block at the top of this file. Nothing
+   outstanding here anymore.
 
 Nothing else in this programme is "unfinished" in the sense of sitting on an agent's desk. Verify
 that claim yourself before trusting it — grep `COMPLETION_AUDIT.md` for "not yet\|unscoped\|worth
