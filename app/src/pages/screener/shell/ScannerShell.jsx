@@ -105,7 +105,9 @@ export default function ScannerShell({ embedded = false }) {
   const { presets: columnPresets, save: saveColumnPreset, remove: removeColumnPreset } = useColumnPresets()
 
   const [rows, setRows] = useState([])
-  const [total, setTotal] = useState(0)
+  // null until the first scan answers — so the count shows nothing (not a
+  // flashed "0 names") before the pool size is known.
+  const [total, setTotal] = useState(null)
   useEffect(() => {
     if (!result) return
     setTotal(result.total)

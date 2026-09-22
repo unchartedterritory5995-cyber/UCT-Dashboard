@@ -201,9 +201,15 @@ export default function UniverseBar({ meta, activeList, activeUniverse, onSetFil
       <span className={styles.uBase}>
         {isAllMarket ? 'Global Universe' : isUCT ? 'UCT Universe' : single ? labelName(single.label) : isCombo ? `${val.length} lists · any of` : ''}
         {/* Live count of the current selection: with no filters this is the
-            pool's own size (names); once filters narrow it, it's the matches. */}
-        {total != null && !isLoading && (
-          <>{' · '}<b>{total.toLocaleString()}</b>{' '}{hasFilters ? 'matches' : (total === 1 ? 'name' : 'names')}</>
+            pool's own size (names); once filters narrow it, it's the matches.
+            ⛔ The count is NOT hidden while a new scan is loading — blanking it on
+            every keystroke/toggle made it "flash", and made a filter's effect on
+            the number invisible. The last count STAYS on screen, dimmed, until the
+            fresh one replaces it. */}
+        {total != null && (
+          <span className={isLoading ? styles.uCountStale : undefined}>
+            {' · '}<b>{total.toLocaleString()}</b>{' '}{hasFilters ? 'matches' : (total === 1 ? 'name' : 'names')}
+          </span>
         )}
         {!hasFilters && <span className={styles.uBaseHint}> → add filters to build a scan</span>}
       </span>
