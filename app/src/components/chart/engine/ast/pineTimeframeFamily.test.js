@@ -281,6 +281,25 @@ describe('`timeframe.multiplier` and `timeframe.in_seconds` are numbers', () => 
     expect(numberIn('plot(close + timeframe.in_seconds(timeframe.period))')).toBe('close + 86400')
   })
 
+  it('⛔⛔ a NAMED argument is READ, never dropped — the trap is a WRONG NUMBER', () => {
+    // ⚰️ `securityAsNode` records this exact defect one door over: *"THIS USED TO
+    // BE `args.filter((a) => !a.name)`, WHICH DROPPED EVERY NAMED ARGUMENT ON THE
+    // FLOOR."* Here the consequence is worse than a false refusal. Filtering the
+    // named form away leaves ZERO positional arguments — which is the legal
+    // no-argument spelling — so the call would answer the CHART'S OWN length,
+    // silently, for a call the member wrote correctly.
+    expect(numberIn('plot(close + timeframe.in_seconds(timeframe = "60"))'))
+      .toBe('close + 3600')
+    // ⛔ AND THE CONTROL THAT MAKES THAT ASSERTION MEAN SOMETHING: on a daily
+    // base the dropped-argument bug answers 86400, so the two are distinguishable.
+    expect(basePeriodOf({})).toBe('D')
+    expect(timeframeSeconds('D')).toBe(86400)
+    // A name Pine does not declare is a shape this door does not take.
+    expect(refusal('plot(close + timeframe.in_seconds(tf = "60"))').guard).toBe('pine:builtin')
+    // Two arguments is not Pine's signature either.
+    expect(refusal('plot(close + timeframe.in_seconds("60", "D"))').guard).toBe('pine:builtin')
+  })
+
   it('⛔ an argument this door cannot settle FALLS THROUGH to the namespace', () => {
     // ⭐ NULL, NEVER A REFUSAL OF ITS OWN — the contract `securityAsNode` states.
     // A shape this cannot take keeps the ONE sentence the namespace publishes,

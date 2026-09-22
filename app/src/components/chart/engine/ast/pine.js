@@ -7365,13 +7365,29 @@ export class Resolver {
    *  same containment `PINE_TEXT_PREDICATE` relies on. */
   timeframeCallOf(name, node) {
     if (name !== 'timeframe.in_seconds') return null
-    const raw = (node.args || []).filter((a) => a && !a.name)
-      .map((a) => (a.value !== undefined ? a.value : a))
+    const args = (node.args || []).filter(Boolean)
+    const positional = args.filter((a) => !a.name)
+    const named = args.filter((a) => a.name)
+    // ⛔⛔ A NAMED ARGUMENT IS READ, NOT DROPPED — and this is the defect
+    // `securityAsNode` already records one door over: *"THIS USED TO BE
+    // `args.filter((a) => !a.name)`, WHICH DROPPED EVERY NAMED ARGUMENT ON THE
+    // FLOOR."* Here the consequence is worse than a false refusal: filtering the
+    // named form away leaves ZERO positional arguments, which is the legal
+    // no-argument spelling, so `timeframe.in_seconds(timeframe = "60")` would
+    // have answered the CHART'S OWN length — a confident wrong number, silently,
+    // for a call the member wrote correctly.
+    // ⭐ Pine declares exactly one parameter and it is called `timeframe`.
+    // Anything else, or more than one argument in total, is a shape this door
+    // does not take and falls through to the namespace's own sentence.
+    if (named.some((a) => a.name !== 'timeframe')) return null
+    if (positional.length + named.length > 1) return null
+    const given = positional.length ? positional[0] : (named[0] || null)
     let code = null
-    if (raw.length === 0) {
+    if (given === null) {
       code = this.basePeriod
-    } else if (raw.length === 1) {
-      const lit = this.stringValueOf(raw[0])
+    } else {
+      const raw = given.value !== undefined ? given.value : given
+      const lit = this.stringValueOf(raw)
       // ⭐ THE SPELLING MAP IS ASKED, NOT COPIED. `'1H'`, `'1D'` and `'4H'` are
       // Pine spellings of codes this engine already holds, and recognising them
       // here rather than only their bare forms is free.
