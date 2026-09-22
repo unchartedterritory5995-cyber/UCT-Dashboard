@@ -1,0 +1,56 @@
+{
+  "verdict": "NO_NEW_FAILURES",
+  "counts": {
+    "new": 0,
+    "fixed": 1,
+    "unchanged": 271,
+    "missing": 0,
+    "baseline": 272,
+    "current": 273,
+    "current_ran": 51185,
+    "new_flaky": 2,
+    "flaky_size": 5,
+    "flaky_new": 2,
+    "flaky_fixed": 0,
+    "file_level_resolved": 0,
+    "coverage_lost": 0,
+    "new_ours": 0,
+    "new_others": 0,
+    "new_unattributed": 0
+  },
+  "arithmetic": "baseline 272 = unchanged 271 + fixed 1 + missing 0  |  current 273 = unchanged 271 + new 0 + new-but-flaky 2",
+  "invalid_because": [],
+  "baseline_run_id": "35685440768",
+  "current_run_id": "35686894745",
+  "baseline_sha": "6bad92e9c83f398edb58c163625ea7c91a47986d",
+  "current_sha": "6eaf2387851f7676d8ac415c2a7299a8145a52a4",
+  "commit_range": "6bad92e9c83f398edb58c163625ea7c91a47986d..6eaf2387851f7676d8ac415c2a7299a8145a52a4",
+  "first_run": false,
+  "new": [],
+  "missing": [],
+  "fixed": [
+    "vitest|src/pages/screener/ScreensManager.test.jsx|a second attempt replaces the previous refusal rather than stacking one under it"
+  ],
+  "new_flaky": [
+    "pytest|tests.test_mutation_check.TestRestoreGuarantee|test_the_file_is_byte_identical_after_a_detected_mutation",
+    "pytest|tests.test_mutation_check.TestVerdicts|test_a_detected_mutation_passes_the_check"
+  ],
+  "flaky": [
+    "pytest|tests.test_discord_close_note|test_a_note_that_cannot_be_written_still_posts_the_charts",
+    "pytest|tests.test_mutation_check.TestRestoreGuarantee|test_the_file_is_byte_identical_after_a_detected_mutation",
+    "pytest|tests.test_mutation_check.TestVerdicts|test_a_detected_mutation_passes_the_check",
+    "pytest|tests.test_mutation_check.TestVerdicts|test_expect_red_naming_the_right_test_passes",
+    "vitest|src/components/chart/engine/__tests__/stockChartWiring.test.jsx|an engine-drawn indicator still appears in the crosshair legend > \u26d4\u26d4 A HOVER REACHES THE RENDERER NOT AT ALL"
+  ],
+  "file_level_resolved": [],
+  "coverage_lost": [],
+  "missing_buckets": {},
+  "attribution": {
+    "vitest|src/pages/screener/ScreensManager.test.jsx|a second attempt replaces the previous refusal rather than stacking one under it": {
+      "class": "UNATTRIBUTED",
+      "commits": [],
+      "workstreams": [],
+      "reason": "no commit in 6bad92e9c..6eaf23878 touched src/pages/screener/ScreensManager.test.jsx or anything it imports"
+    }
+  }
+}
