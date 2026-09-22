@@ -155,10 +155,35 @@ real viewport or exercised end-to-end this pass**:
 - the **import wizard** (Notion / Obsidian / Evernote / md · docx · html)
 - **connectors** (Roam, Craft, Notion, Dropbox, OneNote, OneDrive — shipped dark)
 
-### 3. A large document — **a known killer**
-`project_notebook_migration_wave0` records that **one ~210KB note silently
-destroys an import batch and reports `ok`**. The editor has never been opened
-with a very large note this pass. Test before any launch that invites imports.
+### 3. A large document — ✅ **VERIFIED CLOSED, 2026-09-21** (was "a known killer")
+`project_notebook_migration_wave0`'s record was itself stale: the actual root
+cause was fully diagnosed in `docs/superpowers/phase-reports/2026-09-02-notebook-migration-adversarial-audit.md`
+(findings A1/A2) and the fix landed in `notes.py::import_confirm` (per-note
+`SAVEPOINT`, never a whole-batch rollback), `note_connectors/engine.py` (status
+correctly reports `warning` only on genuine total loss, never masks a real
+partial failure as `ok`), and `commit.js::runImport` (a failed batch no longer
+`break`s the loop; a per-note `failed` entry renders as "Needs attention" with
+the real reason). None of that had been proven against a *running* build —
+this session did, three ways, on this branch's rebased tip:
+
+1. **Server reproduction**, the audit's own shape (13-note batch, 1 oversized)
+   via real HTTP calls shaped exactly like `runImport` sends: 9/9 checks pass
+   — 12 siblings created, the oversized note named honestly in `failed`
+   (`"body_json too large (>1MB)"`), idempotent on re-run (siblings skip, no
+   dupes; the oversized note still fails, never silently vanishes), and the
+   12 siblings are real, listable notes afterward.
+2. **Real browser, real wizard, real file** — a 1.24MB single-file markdown
+   import (2600 headed sections, the audit's own worst-case shape), through
+   Playwright driving the actual `ImportWizard` UI on the local sandbox:
+   client-side parse **0.30s** (no hang), server correctly rejects it
+   (`Created: 0`), and the summary screen renders the honest member-facing
+   copy verbatim: *"Some notes couldn't be fully imported: huge_trading_journal_v2
+   — body_json too large (>1MB)... Nothing here is lost — running this import
+   again retries only these notes."*
+3. Confirmed `C:\data` untouched (content-hash compare, 58 DBs) through both.
+
+**Not yet verified: the editor itself with a large note already loaded** (as
+opposed to import) — that is Phase 1, next.
 
 ### 4. Real usage by the owner — **the highest-value item**
 Every defect found tonight came from looking at realistic scale. Nobody but the
