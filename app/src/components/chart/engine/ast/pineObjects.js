@@ -546,6 +546,61 @@ export function collectObjectOps(stmts, h) {
     })
   }
 
+  /**
+   * ⭐⭐ A CREATE WRITTEN INSIDE THE CALL — `array.push(zones, box.new(…))`.
+   *
+   * ⚰️ THE READER ONLY EVER SAW A CREATE IN A STATEMENT POSITION. `emitFromRhs`
+   * is reached from `var x = box.new(…)`, `x := box.new(…)` and a bare
+   * `box.new(…)` statement, and from nowhere else — so the corpus idiom for a
+   * script that keeps a LIST of drawings was invisible. Measured on the
+   * committed corpus: `array.push(<coll>, <fam>.new(…))` appears in 19 of 266
+   * scripts, and for two of them EVERY create is written that way, so the object
+   * pass collected zero creates, `buildObjectProgram` answered `program: null`,
+   * and the drawing was reported as "the script draws nothing".
+   *
+   * ⭐ THE OBJECT PROGRAM ALREADY HAD THE REFERENCE THIS NEEDS, and its own
+   * format note says so: `{r:'site', id}` is *"what THIS bar's create at that
+   * site made"*, and the note beside it names this exact case — *"`line.new(...)`
+   * used inline as an argument refers to the object made on THIS bar"*. The
+   * runtime resolves it from `siteNow`, the validator type-checks it against the
+   * collection's family. Nothing new was built; the READER was the missing half.
+   *
+   * ⛔ THE CREATE IS EMITTED BEFORE THE CALL THAT REFERENCES IT, into the same
+   * sink, so the ops stay in source order. `buildObjectProgram` walks them in
+   * that order, which is what lets it know the site was really emitted rather
+   * than dropped — see `emittedSites` there.
+   *
+   * @returns {string|null} the site id, or null when the argument is not a create.
+   */
+  const nestedCreate = (arg, guards, scope, st, toks) => {
+    const v = arg && arg.value
+    if (!v || v.type !== 'call') return null
+    const name = String(v.name || '')
+    const ns = nsOf(name)
+    if (!ns || !OBJECT_NAMESPACES.includes(ns) || methodOf(name) !== 'new') return null
+    siteSeq += 1
+    const site = `s${siteSeq}`
+    ops.push({
+      k: 'create',
+      family: ns,
+      site,
+      into: null,
+      once: false,
+      guards,
+      locals: scope,
+      loopIds: [...loopIds],
+      args: v.args || [],
+      at: v.tok || toks[0],
+      line: st.header[0].line,
+    })
+    return site
+  }
+
+  /** The argument of `array.<method>` that carries an OBJECT, after the
+   *  collection itself. `push(coll, v)` → 0; `set(coll, i, v)` → 1. Every other
+   *  collection call takes an index or nothing, so it has no create position. */
+  const VALUE_ARG = Object.freeze({ push: 0, set: 1 })
+
   function emitCollection(method, toks, guards, inLoop, st, scope) {
     if (inLoop) { diagnostics.loopBlocked.push(`array.${method}`); return }
     const args = argsOf(toks)
@@ -553,8 +608,19 @@ export function collectObjectOps(stmts, h) {
     const collName = args[0] && args[0].value && args[0].value.type === 'name'
       ? args[0].value.name : null
     if (!collName || !decls.has(collName) || decls.get(collName).kind !== 'coll') return
+    const rest = args.slice(1)
+    const at = VALUE_ARG[method]
+    if (at !== undefined && rest[at]) {
+      const site = nestedCreate(rest[at], guards, scope, st, toks)
+      // ⭐ The argument KEEPS its parse node and gains the site — `targetRef`
+      // reads `createSite` first, and anything else reading the node is
+      // unaffected. Replacing the node with a synthetic name would have needed
+      // a synthetic DECL to go with it, and a register that outlives the bar is
+      // the wrong lifetime for an inline create.
+      if (site) rest[at] = { ...rest[at], createSite: site }
+    }
     ops.push({
-      k: `coll_${method}`, coll: collName, args: args.slice(1),
+      k: `coll_${method}`, coll: collName, args: rest,
       guards, locals: scope, loopIds: [...loopIds], at: toks[0], line: st.header[0].line,
     })
   }

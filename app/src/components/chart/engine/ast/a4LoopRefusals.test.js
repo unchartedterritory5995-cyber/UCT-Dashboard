@@ -186,8 +186,22 @@ describe('a4 — a retired loop form refuses AT ITS OWN LINE', () => {
   //
   //   ai-supertrend-…-presenttrading__3b9db05a48   :259   pine:declaration-strategy@5
   //   ict-killzones-pivots-tfo__d0b8be94f1         :768   pine:character@250
-  //   multi-timeframe-supply-demand-zones__a98a…   :264   pine:no-output (0 outputs)
+  //   multi-timeframe-supply-demand-zones__a98a…   :264   pine:objects-only (0 outputs)
   //   volume-footprint-…__e15e52b27d  (×9 uses)    :595…  pine:character@1572
+  //
+  // ⚠️ RE-MEASURED 2026-09-21, AND ONE PIN MOVED — `multi-timeframe-supply-demand-zones`
+  // answered `pine:no-output` until the object reader learned to collect a create
+  // written inside a collection call (`array.push(zones, box.new(…))`, which is how
+  // all four of that script's boxes are written). Both guards come from the SAME
+  // branch — "there is no column to screen on" — and it picks between them on
+  // whether the object pass found anything to draw; before, it found nothing,
+  // because the reader only ever saw a create in a statement position.
+  //
+  // ⭐ THE RULING IS UNCHANGED AND THIS CASE IS STILL MOOT. R6 asks whether the LOOP
+  // line has become the frontier, and `pine:objects-only` is not a loop refusal — it
+  // still fires at the top of the script, far ahead of the `for x in` at :264. The pin
+  // moved because the earlier refusal got MORE accurate about the same script, not
+  // because anything got closer to the loop.
   //
   // ⭐ SO THE MOOT-NESS ITSELF BECOMES THE ASSERTION, rather than the case being
   // deleted. If any of these scripts ever becomes reachable — the `pine:character`
@@ -203,7 +217,7 @@ describe('a4 — a retired loop form refuses AT ITS OWN LINE', () => {
       ['ai-supertrend-x-pivot-percentile-strategy-presenttrading__3b9db05a48.pine', 'pine:declaration-strategy'],
       ['ict-killzones-pivots-tfo__d0b8be94f1.pine', 'pine:character'],
       ['volume-footprint-measuring-classical-indicators-by-math-geometry-intro__e15e52b27d.pine', 'pine:character'],
-      ['multi-timeframe-supply-demand-zones__a98a2ab367.pine', 'pine:no-output'],
+      ['multi-timeframe-supply-demand-zones__a98a2ab367.pine', 'pine:objects-only'],
     ]
     for (const [name, expected] of CASES) {
       const src = fs.readFileSync(path.join(CORPUS, name), 'utf8')
