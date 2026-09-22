@@ -1092,7 +1092,20 @@ async def get_bars_history(
     (shallow tail) history via serve_bars_history — the unchanged, backward-compatible path.
     See docs/superpowers/specs/2026-08-31-edge-deep-history."""
     origin = os.environ.get("BARS_HISTORY_ORIGIN_URL", "").rstrip("/")
-    if origin and os.environ.get("BARS_HISTORY_PROXY_ENABLED", "0") == "1":
+    # ⛔⛔ MARKET INDICATORS ARE NEVER PROXIED, for exactly the reason the hot-path proxy
+    # excludes them (`_bars_proxy_should_route`): their stores — `cboe_indices.db`,
+    # `naaim_series.db`, and the derivation over `breadth_daily_ohlc` — live on the WEB
+    # pod, which is also where the boot refresh writes them. The bars worker has the deep
+    # `bars.db` and nothing else, so it answers `bars: []` with a 200 and the chart paints
+    # a blank canvas.
+    #
+    # ⚰️ THE THIRD SEAM OF THE SAME DEFECT, found only by asking production which ORIGIN
+    # answered. `/api/bars` and `/api/bars-history` were both taught the branch, and this
+    # proxy still sent the request somewhere the branch could not help. A capability that
+    # depends on WHICH POD serves it has to be excluded at every routing decision, not
+    # just the ones that look like routing.
+    if origin and os.environ.get("BARS_HISTORY_PROXY_ENABLED", "0") == "1" \
+            and not _is_market_indicator(ticker):
         try:
             return await _proxy_bars_history_to_worker(ticker, tf, bars, v, d, origin)
         except Exception:

@@ -102,3 +102,32 @@ def test_both_doors_ask_the_same_membership_authority(doors):
         "membership is asked through _is_market_indicator(), not re-imported inline")
     for fn in (doors.serve_bars_history, doors._bars_proxy_should_route):
         assert "_is_market_indicator(" in inspect.getsource(fn)
+
+def test_the_history_proxy_never_sends_a_market_indicator_to_the_bars_worker():
+    """⚰️ THE THIRD SEAM. Both doors branched correctly and members still saw blank
+    charts, because `/api/bars-history` PROXIES to the bars worker when
+    BARS_HISTORY_PROXY_ENABLED=1 — a pod holding the deep `bars.db` and none of the
+    market-indicator stores. It answered `bars: []` with a 200.
+
+    ⛔ A capability that depends on WHICH POD serves it must be excluded at EVERY
+    routing decision, not only the ones named "route".
+    """
+    import inspect
+    from api.routers import bars as barsmod
+    src = inspect.getsource(barsmod.get_bars_history)
+    assert "_is_market_indicator(ticker)" in src, (
+        "the history proxy must exclude market indicators")
+    i = src.index("BARS_HISTORY_PROXY_ENABLED")
+    j = src.index("_proxy_bars_history_to_worker")
+    k = src.index("_is_market_indicator(ticker)")
+    assert i < k < j, "the exclusion must gate the proxy call, not follow it"
+
+
+def test_every_pod_routing_decision_excludes_market_indicators():
+    """⭐ THE COMPLETE SET. Three decisions choose a pod for chart data; all three must
+    ask the same oracle. This test is the inventory — a fourth one added later without
+    the exclusion is the same defect again."""
+    import inspect
+    from api.routers import bars as barsmod
+    for fn in (barsmod._bars_proxy_should_route, barsmod.get_bars_history):
+        assert "_is_market_indicator(" in inspect.getsource(fn), fn.__name__
