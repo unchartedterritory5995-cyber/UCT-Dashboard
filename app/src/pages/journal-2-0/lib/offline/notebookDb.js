@@ -104,7 +104,11 @@ export function openNotebookDb(accountId, {
     try {
       req = idbFactory.open(name, version)
     } catch (e) {
-      reject(new OfflineUnavailable(String(e && e.message ? e.message : e)))
+      // ⛔ G-128: a fixed, safe message — never the native exception's own text
+      // (a quota error can carry a byte count, a security error a policy
+      // string, neither meant for a member). The original is kept, unstringified,
+      // via `cause` so a future console.error(err.cause) upstream still sees it.
+      reject(new OfflineUnavailable('IndexedDB could not be opened', { cause: e }))
       return
     }
     req.onupgradeneeded = () => createStores(req.result)
