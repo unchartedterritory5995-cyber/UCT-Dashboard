@@ -198,6 +198,13 @@ function Harness() {
         try { return k ? { bar: d[k].lastRenderedBar(), n: d[k].renderedBarCount() } : null }
         catch { return null }
       },
+      // The boundary replay scores BAR N and BAR N+1 independently -- see the
+      // renderedTail note in StockChart's debug handle.
+      tail: (k) => {
+        const d = window.__uctChartDebug || {}
+        const key = Object.keys(d)[0]
+        try { return key ? d[key].renderedTail(k || 2) : null } catch { return null }
+      },
       // ⛔ WHICH LAYER IS STUCK? The rendered close froze at 104 while the
       // fixture kept serving prices. Reading the STORE alongside the RENDERED
       // series is the only way to tell "the feed stopped" from "the chart

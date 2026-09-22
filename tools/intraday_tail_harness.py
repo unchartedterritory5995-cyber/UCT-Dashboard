@@ -121,8 +121,31 @@ class Fixture:
         self.price_step = 0.0007          # ~0.07% per tick
         self._price_idx = {}
         self.served_prices = []      # [(sym, price)] in order
+        self._scripted = {}
         #: A large jump is its own scenario (the PYPL-style news move).
         self.jump_mode = False
+
+    def script(self, sym, snapshots):
+        """Queue exact live-price snapshots for `sym`, one per poll.
+
+        ⛔ THE POINT IS THE TIMESTAMP, NOT THE PRICE. Production's price lane
+        stamps `updated_at = int(time.time())` -- the SERVER'S RECEIPT clock --
+        and discards the provider's own `ts`. Scripting both lets the replay ask
+        the one question that matters: does a trade that happened in bucket N but
+        was observed in bucket N+1 become N+1's OPEN?"""
+        self._scripted[sym.upper()] = list(snapshots)
+
+    def next_scripted(self, sym):
+        q = self._scripted.get(sym.upper())
+        if not q:
+            return None
+        # The LAST scripted snapshot repeats, so a poll after the tape ends
+        # holds the final state instead of silently reverting to the ladder
+        # (which would look like a live correction the product never made).
+        return q.pop(0) if len(q) > 1 else q[0]
+
+    def scripted_remaining(self, sym):
+        return len(self._scripted.get(sym.upper(), []))
 
     def advance(self, seconds):
         """Move the fixture's market clock forward.
@@ -204,6 +227,17 @@ def route_handler(fixture: Fixture):
             syms = [t for t in (qs.get("tickers", "") or "").split(",") if t]
             body = {}
             for sym in syms:
+                # ⭐ SCRIPTED MODE, for the boundary replay. When a scripted
+                # snapshot is queued for this symbol the fixture serves it
+                # VERBATIM -- price AND `updated_at` -- because `updated_at` is
+                # the field StockChart's Writer A buckets on, and the whole
+                # question is what happens when that stamp disagrees with the
+                # trade's own market time. Unscripted symbols keep the
+                # deterministic advancing ladder the camera scenarios rely on.
+                scripted = fixture.next_scripted(sym)
+                if scripted is not None:
+                    body[sym.upper()] = scripted
+                    continue
                 px = fixture.next_price(sym)
                 body[sym.upper()] = {
                     "price": px,

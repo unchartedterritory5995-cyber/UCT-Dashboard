@@ -1,0 +1,2322 @@
+{
+  "summary": {
+    "requested": 11,
+    "valid": 10,
+    "passed": 3,
+    "failed": 7,
+    "invalid": 1,
+    "accepted": true,
+    "expectationMismatches": [],
+    "productDefects": [
+      {
+        "scenario": "E2 receipt-time race",
+        "classification": [
+          "PREVIOUS_CLOSE_STALE",
+          "BUCKET_TIMESTAMP_ERROR",
+          "NEW_OPEN_WRONG"
+        ],
+        "falseGap": 0.13,
+        "fields": {
+          "prevClose": false,
+          "newOpen": false,
+          "newHigh": true,
+          "newLow": false,
+          "newClose": true
+        }
+      },
+      {
+        "scenario": "E4 snapshot-open (throttled)",
+        "classification": [
+          "PREVIOUS_CLOSE_STALE",
+          "LAST_OLD_BUCKET_EVENT_MISSED"
+        ],
+        "falseGap": 0.15,
+        "fields": {
+          "prevClose": false,
+          "newOpen": true,
+          "newHigh": true,
+          "newLow": true,
+          "newClose": true
+        }
+      }
+    ]
+  },
+  "scenarios": [
+    {
+      "scenario": "E1 baseline (no race)",
+      "note": "every trade well inside its bucket",
+      "expected": "PASS",
+      "observation": {
+        "clock": "receipt"
+      },
+      "authoritative": {
+        "N": {
+          "t": 1789492500,
+          "o": 146.3,
+          "h": 146.32,
+          "l": 146.29,
+          "c": 146.29,
+          "n": 3
+        },
+        "N1": {
+          "t": 1789492800,
+          "o": 146.31,
+          "h": 146.35,
+          "l": 146.31,
+          "c": 146.33,
+          "n": 3
+        }
+      },
+      "rendered": {
+        "N": {
+          "time": 1789478100,
+          "open": 100.33,
+          "high": 146.32,
+          "low": 100.07,
+          "close": 146.29
+        },
+        "N1": {
+          "time": 1789478400,
+          "open": 146.31,
+          "high": 146.35,
+          "low": 146.31,
+          "close": 146.33
+        }
+      },
+      "renderedTailBefore": [
+        {
+          "time": 1789477500,
+          "open": 101.32,
+          "high": 101.62,
+          "low": 101.07,
+          "close": 101.42
+        },
+        {
+          "time": 1789477800,
+          "open": 102.07,
+          "high": 102.37,
+          "low": 101.82,
+          "close": 102.17
+        },
+        {
+          "time": 1789478100,
+          "open": 100.33,
+          "high": 100.63,
+          "low": 100.07,
+          "close": 100.14
+        }
+      ],
+      "renderedTailAfter": [
+        {
+          "time": 1789477800,
+          "open": 102.07,
+          "high": 102.37,
+          "low": 101.82,
+          "close": 102.17
+        },
+        {
+          "time": 1789478100,
+          "open": 100.33,
+          "high": 146.32,
+          "low": 100.07,
+          "close": 146.29
+        },
+        {
+          "time": 1789478400,
+          "open": 146.31,
+          "high": 146.35,
+          "low": 146.31,
+          "close": 146.33
+        }
+      ],
+      "eventLedger": [
+        {
+          "marketTs": 1789492788.0,
+          "observedTs": 1789492788.5,
+          "price": 146.3,
+          "updated_at": 1789492788,
+          "marketBucket": 1789492500,
+          "assignedBucket": 1789492500,
+          "coalescedOver": null,
+          "staleReplay": null,
+          "misbucketed": null,
+          "renderedLast": {
+            "time": 1789478100,
+            "open": 100.33,
+            "high": 146.3,
+            "low": 100.07,
+            "close": 146.3
+          },
+          "renderedCount": 3
+        },
+        {
+          "marketTs": 1789492791.0,
+          "observedTs": 1789492791.5,
+          "price": 146.32,
+          "updated_at": 1789492791,
+          "marketBucket": 1789492500,
+          "assignedBucket": 1789492500,
+          "coalescedOver": null,
+          "staleReplay": null,
+          "misbucketed": null,
+          "renderedLast": {
+            "time": 1789478100,
+            "open": 100.33,
+            "high": 146.32,
+            "low": 100.07,
+            "close": 146.32
+          },
+          "renderedCount": 3
+        },
+        {
+          "marketTs": 1789492794.0,
+          "observedTs": 1789492794.5,
+          "price": 146.29,
+          "updated_at": 1789492794,
+          "marketBucket": 1789492500,
+          "assignedBucket": 1789492500,
+          "coalescedOver": null,
+          "staleReplay": null,
+          "misbucketed": null,
+          "renderedLast": {
+            "time": 1789478100,
+            "open": 100.33,
+            "high": 146.32,
+            "low": 100.07,
+            "close": 146.29
+          },
+          "renderedCount": 3
+        },
+        {
+          "marketTs": 1789492802.0,
+          "observedTs": 1789492802.5,
+          "price": 146.31,
+          "updated_at": 1789492802,
+          "marketBucket": 1789492800,
+          "assignedBucket": 1789492800,
+          "coalescedOver": null,
+          "staleReplay": null,
+          "misbucketed": null,
+          "renderedLast": {
+            "time": 1789478400,
+            "open": 146.31,
+            "high": 146.31,
+            "low": 146.31,
+            "close": 146.31
+          },
+          "renderedCount": 3
+        },
+        {
+          "marketTs": 1789492805.0,
+          "observedTs": 1789492805.5,
+          "price": 146.35,
+          "updated_at": 1789492805,
+          "marketBucket": 1789492800,
+          "assignedBucket": 1789492800,
+          "coalescedOver": null,
+          "staleReplay": null,
+          "misbucketed": null,
+          "renderedLast": {
+            "time": 1789478400,
+            "open": 146.31,
+            "high": 146.35,
+            "low": 146.31,
+            "close": 146.35
+          },
+          "renderedCount": 3
+        },
+        {
+          "marketTs": 1789492809.0,
+          "observedTs": 1789492809.5,
+          "price": 146.33,
+          "updated_at": 1789492809,
+          "marketBucket": 1789492800,
+          "assignedBucket": 1789492800,
+          "coalescedOver": null,
+          "staleReplay": null,
+          "misbucketed": null,
+          "renderedLast": {
+            "time": 1789478400,
+            "open": 146.31,
+            "high": 146.35,
+            "low": 146.31,
+            "close": 146.33
+          },
+          "renderedCount": 3
+        }
+      ],
+      "etOffset": -14400,
+      "fields": {
+        "prevClose": true,
+        "newOpen": true,
+        "newHigh": true,
+        "newLow": true,
+        "newClose": true
+      },
+      "authoritativeGap": 0.02,
+      "renderedGap": 0.02,
+      "falseGap": 0.0,
+      "classification": [
+        "GENUINE_MARKET_GAP"
+      ],
+      "verdict": "PASS",
+      "asExpected": true
+    },
+    {
+      "scenario": "E2 receipt-time race",
+      "note": "last trade of N observed after the boundary",
+      "expected": "FAIL",
+      "observation": {
+        "clock": "receipt"
+      },
+      "authoritative": {
+        "N": {
+          "t": 1789492500,
+          "o": 146.3,
+          "h": 146.44,
+          "l": 146.29,
+          "c": 146.44,
+          "n": 3
+        },
+        "N1": {
+          "t": 1789492800,
+          "o": 146.46,
+          "h": 146.48,
+          "l": 146.46,
+          "c": 146.48,
+          "n": 2
+        }
+      },
+      "rendered": {
+        "N": {
+          "time": 1789478100,
+          "open": 100.33,
+          "high": 146.3,
+          "low": 100.07,
+          "close": 146.29
+        },
+        "N1": {
+          "time": 1789478400,
+          "open": 146.44,
+          "high": 146.48,
+          "low": 146.44,
+          "close": 146.48
+        }
+      },
+      "renderedTailBefore": [
+        {
+          "time": 1789477500,
+          "open": 101.32,
+          "high": 101.62,
+          "low": 101.07,
+          "close": 101.42
+        },
+        {
+          "time": 1789477800,
+          "open": 102.07,
+          "high": 102.37,
+          "low": 101.82,
+          "close": 102.17
+        },
+        {
+          "time": 1789478100,
+          "open": 100.33,
+          "high": 100.63,
+          "low": 100.07,
+          "close": 100.14
+        }
+      ],
+      "renderedTailAfter": [
+        {
+          "time": 1789477800,
+          "open": 102.07,
+          "high": 102.37,
+          "low": 101.82,
+          "close": 102.17
+        },
+        {
+          "time": 1789478100,
+          "open": 100.33,
+          "high": 146.3,
+          "low": 100.07,
+          "close": 146.29
+        },
+        {
+          "time": 1789478400,
+          "open": 146.44,
+          "high": 146.48,
+          "low": 146.44,
+          "close": 146.48
+        }
+      ],
+      "eventLedger": [
+        {
+          "marketTs": 1789492788.0,
+          "observedTs": 1789492788.5,
+          "price": 146.3,
+          "updated_at": 1789492788,
+          "marketBucket": 1789492500,
+          "assignedBucket": 1789492500,
+          "coalescedOver": null,
+          "staleReplay": null,
+          "misbucketed": null,
+          "renderedLast": {
+            "time": 1789478100,
+            "open": 100.33,
+            "high": 146.3,
+            "low": 100.07,
+            "close": 146.3
+          },
+          "renderedCount": 3
+        },
+        {
+          "marketTs": 1789492794.0,
+          "observedTs": 1789492794.5,
+          "price": 146.29,
+          "updated_at": 1789492794,
+          "marketBucket": 1789492500,
+          "assignedBucket": 1789492500,
+          "coalescedOver": null,
+          "staleReplay": null,
+          "misbucketed": null,
+          "renderedLast": {
+            "time": 1789478100,
+            "open": 100.33,
+            "high": 146.3,
+            "low": 100.07,
+            "close": 146.29
+          },
+          "renderedCount": 3
+        },
+        {
+          "marketTs": 1789492799.8,
+          "observedTs": 1789492800.25,
+          "price": 146.44,
+          "updated_at": 1789492800,
+          "marketBucket": 1789492500,
+          "assignedBucket": 1789492800,
+          "coalescedOver": null,
+          "staleReplay": null,
+          "misbucketed": null,
+          "renderedLast": {
+            "time": 1789478400,
+            "open": 146.44,
+            "high": 146.44,
+            "low": 146.44,
+            "close": 146.44
+          },
+          "renderedCount": 3
+        },
+        {
+          "marketTs": 1789492801.5,
+          "observedTs": 1789492802.0,
+          "price": 146.46,
+          "updated_at": 1789492802,
+          "marketBucket": 1789492800,
+          "assignedBucket": 1789492800,
+          "coalescedOver": null,
+          "staleReplay": null,
+          "misbucketed": null,
+          "renderedLast": {
+            "time": 1789478400,
+            "open": 146.44,
+            "high": 146.46,
+            "low": 146.44,
+            "close": 146.46
+          },
+          "renderedCount": 3
+        },
+        {
+          "marketTs": 1789492806.0,
+          "observedTs": 1789492806.5,
+          "price": 146.48,
+          "updated_at": 1789492806,
+          "marketBucket": 1789492800,
+          "assignedBucket": 1789492800,
+          "coalescedOver": null,
+          "staleReplay": null,
+          "misbucketed": null,
+          "renderedLast": {
+            "time": 1789478400,
+            "open": 146.44,
+            "high": 146.48,
+            "low": 146.44,
+            "close": 146.48
+          },
+          "renderedCount": 3
+        }
+      ],
+      "etOffset": -14400,
+      "fields": {
+        "prevClose": false,
+        "newOpen": false,
+        "newHigh": true,
+        "newLow": false,
+        "newClose": true
+      },
+      "authoritativeGap": 0.02,
+      "renderedGap": 0.15,
+      "falseGap": 0.13,
+      "classification": [
+        "PREVIOUS_CLOSE_STALE",
+        "BUCKET_TIMESTAMP_ERROR",
+        "NEW_OPEN_WRONG"
+      ],
+      "verdict": "FAIL",
+      "asExpected": true
+    },
+    {
+      "scenario": "E3 market-time bucketing",
+      "note": "SAME tape, stamped with the trade's own ts",
+      "expected": "PASS",
+      "observation": {
+        "clock": "market"
+      },
+      "authoritative": {
+        "N": {
+          "t": 1789492500,
+          "o": 146.3,
+          "h": 146.44,
+          "l": 146.29,
+          "c": 146.44,
+          "n": 3
+        },
+        "N1": {
+          "t": 1789492800,
+          "o": 146.46,
+          "h": 146.48,
+          "l": 146.46,
+          "c": 146.48,
+          "n": 2
+        }
+      },
+      "rendered": {
+        "N": {
+          "time": 1789478100,
+          "open": 100.33,
+          "high": 146.44,
+          "low": 100.07,
+          "close": 146.44
+        },
+        "N1": {
+          "time": 1789478400,
+          "open": 146.46,
+          "high": 146.48,
+          "low": 146.46,
+          "close": 146.48
+        }
+      },
+      "renderedTailBefore": [
+        {
+          "time": 1789477500,
+          "open": 101.32,
+          "high": 101.62,
+          "low": 101.07,
+          "close": 101.42
+        },
+        {
+          "time": 1789477800,
+          "open": 102.07,
+          "high": 102.37,
+          "low": 101.82,
+          "close": 102.17
+        },
+        {
+          "time": 1789478100,
+          "open": 100.33,
+          "high": 100.63,
+          "low": 100.07,
+          "close": 100.14
+        }
+      ],
+      "renderedTailAfter": [
+        {
+          "time": 1789477800,
+          "open": 102.07,
+          "high": 102.37,
+          "low": 101.82,
+          "close": 102.17
+        },
+        {
+          "time": 1789478100,
+          "open": 100.33,
+          "high": 146.44,
+          "low": 100.07,
+          "close": 146.44
+        },
+        {
+          "time": 1789478400,
+          "open": 146.46,
+          "high": 146.48,
+          "low": 146.46,
+          "close": 146.48
+        }
+      ],
+      "eventLedger": [
+        {
+          "marketTs": 1789492788.0,
+          "observedTs": 1789492788.5,
+          "price": 146.3,
+          "updated_at": 1789492788,
+          "marketBucket": 1789492500,
+          "assignedBucket": 1789492500,
+          "coalescedOver": null,
+          "staleReplay": null,
+          "misbucketed": null,
+          "renderedLast": {
+            "time": 1789478100,
+            "open": 100.33,
+            "high": 146.3,
+            "low": 100.07,
+            "close": 146.3
+          },
+          "renderedCount": 3
+        },
+        {
+          "marketTs": 1789492794.0,
+          "observedTs": 1789492794.5,
+          "price": 146.29,
+          "updated_at": 1789492794,
+          "marketBucket": 1789492500,
+          "assignedBucket": 1789492500,
+          "coalescedOver": null,
+          "staleReplay": null,
+          "misbucketed": null,
+          "renderedLast": {
+            "time": 1789478100,
+            "open": 100.33,
+            "high": 146.3,
+            "low": 100.07,
+            "close": 146.29
+          },
+          "renderedCount": 3
+        },
+        {
+          "marketTs": 1789492799.8,
+          "observedTs": 1789492800.25,
+          "price": 146.44,
+          "updated_at": 1789492799,
+          "marketBucket": 1789492500,
+          "assignedBucket": 1789492500,
+          "coalescedOver": null,
+          "staleReplay": null,
+          "misbucketed": null,
+          "renderedLast": {
+            "time": 1789478100,
+            "open": 100.33,
+            "high": 146.44,
+            "low": 100.07,
+            "close": 146.44
+          },
+          "renderedCount": 3
+        },
+        {
+          "marketTs": 1789492801.5,
+          "observedTs": 1789492802.0,
+          "price": 146.46,
+          "updated_at": 1789492801,
+          "marketBucket": 1789492800,
+          "assignedBucket": 1789492800,
+          "coalescedOver": null,
+          "staleReplay": null,
+          "misbucketed": null,
+          "renderedLast": {
+            "time": 1789478400,
+            "open": 146.46,
+            "high": 146.46,
+            "low": 146.46,
+            "close": 146.46
+          },
+          "renderedCount": 3
+        },
+        {
+          "marketTs": 1789492806.0,
+          "observedTs": 1789492806.5,
+          "price": 146.48,
+          "updated_at": 1789492806,
+          "marketBucket": 1789492800,
+          "assignedBucket": 1789492800,
+          "coalescedOver": null,
+          "staleReplay": null,
+          "misbucketed": null,
+          "renderedLast": {
+            "time": 1789478400,
+            "open": 146.46,
+            "high": 146.48,
+            "low": 146.46,
+            "close": 146.48
+          },
+          "renderedCount": 3
+        }
+      ],
+      "etOffset": -14400,
+      "fields": {
+        "prevClose": true,
+        "newOpen": true,
+        "newHigh": true,
+        "newLow": true,
+        "newClose": true
+      },
+      "authoritativeGap": 0.02,
+      "renderedGap": 0.02,
+      "falseGap": 0.0,
+      "classification": [
+        "GENUINE_MARKET_GAP"
+      ],
+      "verdict": "PASS",
+      "asExpected": true
+    },
+    {
+      "scenario": "E4 snapshot-open (throttled)",
+      "note": "market-time clock, but the 1Hz throttle hides the first new trade",
+      "expected": "FAIL",
+      "observation": {
+        "clock": "market",
+        "throttle": 4.0
+      },
+      "authoritative": {
+        "N": {
+          "t": 1789492500,
+          "o": 146.3,
+          "h": 146.44,
+          "l": 146.29,
+          "c": 146.44,
+          "n": 3
+        },
+        "N1": {
+          "t": 1789492800,
+          "o": 146.46,
+          "h": 146.48,
+          "l": 146.46,
+          "c": 146.48,
+          "n": 2
+        }
+      },
+      "rendered": {
+        "N": {
+          "time": 1789478100,
+          "open": 100.33,
+          "high": 146.3,
+          "low": 100.07,
+          "close": 146.29
+        },
+        "N1": {
+          "time": 1789478400,
+          "open": 146.46,
+          "high": 146.48,
+          "low": 146.46,
+          "close": 146.48
+        }
+      },
+      "renderedTailBefore": [
+        {
+          "time": 1789477500,
+          "open": 101.32,
+          "high": 101.62,
+          "low": 101.07,
+          "close": 101.42
+        },
+        {
+          "time": 1789477800,
+          "open": 102.07,
+          "high": 102.37,
+          "low": 101.82,
+          "close": 102.17
+        },
+        {
+          "time": 1789478100,
+          "open": 100.33,
+          "high": 100.63,
+          "low": 100.07,
+          "close": 100.14
+        }
+      ],
+      "renderedTailAfter": [
+        {
+          "time": 1789477800,
+          "open": 102.07,
+          "high": 102.37,
+          "low": 101.82,
+          "close": 102.17
+        },
+        {
+          "time": 1789478100,
+          "open": 100.33,
+          "high": 146.3,
+          "low": 100.07,
+          "close": 146.29
+        },
+        {
+          "time": 1789478400,
+          "open": 146.46,
+          "high": 146.48,
+          "low": 146.46,
+          "close": 146.48
+        }
+      ],
+      "eventLedger": [
+        {
+          "marketTs": 1789492788.0,
+          "observedTs": 1789492788.5,
+          "price": 146.3,
+          "updated_at": 1789492788,
+          "marketBucket": 1789492500,
+          "assignedBucket": 1789492500,
+          "coalescedOver": null,
+          "staleReplay": null,
+          "misbucketed": null,
+          "renderedLast": {
+            "time": 1789478100,
+            "open": 100.33,
+            "high": 146.3,
+            "low": 100.07,
+            "close": 146.3
+          },
+          "renderedCount": 3
+        },
+        {
+          "marketTs": 1789492794.0,
+          "observedTs": 1789492794.5,
+          "price": 146.29,
+          "updated_at": 1789492794,
+          "marketBucket": 1789492500,
+          "assignedBucket": 1789492500,
+          "coalescedOver": null,
+          "staleReplay": null,
+          "misbucketed": null,
+          "renderedLast": {
+            "time": 1789478100,
+            "open": 100.33,
+            "high": 146.3,
+            "low": 100.07,
+            "close": 146.29
+          },
+          "renderedCount": 3
+        },
+        {
+          "marketTs": 1789492801.5,
+          "observedTs": 1789492802.0,
+          "price": 146.46,
+          "updated_at": 1789492801,
+          "marketBucket": 1789492800,
+          "assignedBucket": 1789492800,
+          "coalescedOver": 146.44,
+          "staleReplay": null,
+          "misbucketed": null,
+          "renderedLast": {
+            "time": 1789478400,
+            "open": 146.46,
+            "high": 146.46,
+            "low": 146.46,
+            "close": 146.46
+          },
+          "renderedCount": 3
+        },
+        {
+          "marketTs": 1789492806.0,
+          "observedTs": 1789492806.5,
+          "price": 146.48,
+          "updated_at": 1789492806,
+          "marketBucket": 1789492800,
+          "assignedBucket": 1789492800,
+          "coalescedOver": null,
+          "staleReplay": null,
+          "misbucketed": null,
+          "renderedLast": {
+            "time": 1789478400,
+            "open": 146.46,
+            "high": 146.48,
+            "low": 146.46,
+            "close": 146.48
+          },
+          "renderedCount": 3
+        }
+      ],
+      "etOffset": -14400,
+      "fields": {
+        "prevClose": false,
+        "newOpen": true,
+        "newHigh": true,
+        "newLow": true,
+        "newClose": true
+      },
+      "authoritativeGap": 0.02,
+      "renderedGap": 0.17,
+      "falseGap": 0.15,
+      "classification": [
+        "PREVIOUS_CLOSE_STALE",
+        "LAST_OLD_BUCKET_EVENT_MISSED"
+      ],
+      "verdict": "FAIL",
+      "asExpected": true
+    },
+    {
+      "scenario": "NC1 drop first new-bucket event",
+      "note": "",
+      "expected": "FAIL",
+      "observation": {
+        "clock": "market",
+        "drop_first_new": true
+      },
+      "authoritative": {
+        "N": {
+          "t": 1789492500,
+          "o": 146.3,
+          "h": 146.32,
+          "l": 146.29,
+          "c": 146.29,
+          "n": 3
+        },
+        "N1": {
+          "t": 1789492800,
+          "o": 146.31,
+          "h": 146.35,
+          "l": 146.31,
+          "c": 146.33,
+          "n": 3
+        }
+      },
+      "rendered": {
+        "N": {
+          "time": 1789478100,
+          "open": 100.33,
+          "high": 146.32,
+          "low": 100.07,
+          "close": 146.29
+        },
+        "N1": {
+          "time": 1789478400,
+          "open": 146.35,
+          "high": 146.35,
+          "low": 146.33,
+          "close": 146.33
+        }
+      },
+      "renderedTailBefore": [
+        {
+          "time": 1789477500,
+          "open": 101.32,
+          "high": 101.62,
+          "low": 101.07,
+          "close": 101.42
+        },
+        {
+          "time": 1789477800,
+          "open": 102.07,
+          "high": 102.37,
+          "low": 101.82,
+          "close": 102.17
+        },
+        {
+          "time": 1789478100,
+          "open": 100.33,
+          "high": 100.63,
+          "low": 100.07,
+          "close": 100.14
+        }
+      ],
+      "renderedTailAfter": [
+        {
+          "time": 1789477800,
+          "open": 102.07,
+          "high": 102.37,
+          "low": 101.82,
+          "close": 102.17
+        },
+        {
+          "time": 1789478100,
+          "open": 100.33,
+          "high": 146.32,
+          "low": 100.07,
+          "close": 146.29
+        },
+        {
+          "time": 1789478400,
+          "open": 146.35,
+          "high": 146.35,
+          "low": 146.33,
+          "close": 146.33
+        }
+      ],
+      "eventLedger": [
+        {
+          "marketTs": 1789492788.0,
+          "observedTs": 1789492788.5,
+          "price": 146.3,
+          "updated_at": 1789492788,
+          "marketBucket": 1789492500,
+          "assignedBucket": 1789492500,
+          "coalescedOver": null,
+          "staleReplay": null,
+          "misbucketed": null,
+          "renderedLast": {
+            "time": 1789478100,
+            "open": 100.33,
+            "high": 146.3,
+            "low": 100.07,
+            "close": 146.3
+          },
+          "renderedCount": 3
+        },
+        {
+          "marketTs": 1789492791.0,
+          "observedTs": 1789492791.5,
+          "price": 146.32,
+          "updated_at": 1789492791,
+          "marketBucket": 1789492500,
+          "assignedBucket": 1789492500,
+          "coalescedOver": null,
+          "staleReplay": null,
+          "misbucketed": null,
+          "renderedLast": {
+            "time": 1789478100,
+            "open": 100.33,
+            "high": 146.32,
+            "low": 100.07,
+            "close": 146.32
+          },
+          "renderedCount": 3
+        },
+        {
+          "marketTs": 1789492794.0,
+          "observedTs": 1789492794.5,
+          "price": 146.29,
+          "updated_at": 1789492794,
+          "marketBucket": 1789492500,
+          "assignedBucket": 1789492500,
+          "coalescedOver": null,
+          "staleReplay": null,
+          "misbucketed": null,
+          "renderedLast": {
+            "time": 1789478100,
+            "open": 100.33,
+            "high": 146.32,
+            "low": 100.07,
+            "close": 146.29
+          },
+          "renderedCount": 3
+        },
+        {
+          "marketTs": 1789492805.0,
+          "observedTs": 1789492805.5,
+          "price": 146.35,
+          "updated_at": 1789492805,
+          "marketBucket": 1789492800,
+          "assignedBucket": 1789492800,
+          "coalescedOver": null,
+          "staleReplay": null,
+          "misbucketed": null,
+          "renderedLast": {
+            "time": 1789478400,
+            "open": 146.35,
+            "high": 146.35,
+            "low": 146.35,
+            "close": 146.35
+          },
+          "renderedCount": 3
+        },
+        {
+          "marketTs": 1789492809.0,
+          "observedTs": 1789492809.5,
+          "price": 146.33,
+          "updated_at": 1789492809,
+          "marketBucket": 1789492800,
+          "assignedBucket": 1789492800,
+          "coalescedOver": null,
+          "staleReplay": null,
+          "misbucketed": null,
+          "renderedLast": {
+            "time": 1789478400,
+            "open": 146.35,
+            "high": 146.35,
+            "low": 146.33,
+            "close": 146.33
+          },
+          "renderedCount": 3
+        }
+      ],
+      "etOffset": -14400,
+      "fields": {
+        "prevClose": true,
+        "newOpen": false,
+        "newHigh": true,
+        "newLow": false,
+        "newClose": true
+      },
+      "authoritativeGap": 0.02,
+      "renderedGap": 0.06,
+      "falseGap": 0.04,
+      "classification": [
+        "NEW_OPEN_WRONG",
+        "FIRST_NEW_BUCKET_EVENT_MISSED"
+      ],
+      "verdict": "FAIL",
+      "asExpected": true
+    },
+    {
+      "scenario": "NC2 drop last old-bucket event",
+      "note": "",
+      "expected": "FAIL",
+      "observation": {
+        "clock": "market",
+        "drop_last_old": true
+      },
+      "authoritative": {
+        "N": {
+          "t": 1789492500,
+          "o": 146.3,
+          "h": 146.32,
+          "l": 146.29,
+          "c": 146.29,
+          "n": 3
+        },
+        "N1": {
+          "t": 1789492800,
+          "o": 146.31,
+          "h": 146.35,
+          "l": 146.31,
+          "c": 146.33,
+          "n": 3
+        }
+      },
+      "rendered": {
+        "N": {
+          "time": 1789478100,
+          "open": 100.33,
+          "high": 146.32,
+          "low": 100.07,
+          "close": 146.32
+        },
+        "N1": {
+          "time": 1789478400,
+          "open": 146.31,
+          "high": 146.35,
+          "low": 146.31,
+          "close": 146.33
+        }
+      },
+      "renderedTailBefore": [
+        {
+          "time": 1789477500,
+          "open": 101.32,
+          "high": 101.62,
+          "low": 101.07,
+          "close": 101.42
+        },
+        {
+          "time": 1789477800,
+          "open": 102.07,
+          "high": 102.37,
+          "low": 101.82,
+          "close": 102.17
+        },
+        {
+          "time": 1789478100,
+          "open": 100.33,
+          "high": 100.63,
+          "low": 100.07,
+          "close": 100.14
+        }
+      ],
+      "renderedTailAfter": [
+        {
+          "time": 1789477800,
+          "open": 102.07,
+          "high": 102.37,
+          "low": 101.82,
+          "close": 102.17
+        },
+        {
+          "time": 1789478100,
+          "open": 100.33,
+          "high": 146.32,
+          "low": 100.07,
+          "close": 146.32
+        },
+        {
+          "time": 1789478400,
+          "open": 146.31,
+          "high": 146.35,
+          "low": 146.31,
+          "close": 146.33
+        }
+      ],
+      "eventLedger": [
+        {
+          "marketTs": 1789492788.0,
+          "observedTs": 1789492788.5,
+          "price": 146.3,
+          "updated_at": 1789492788,
+          "marketBucket": 1789492500,
+          "assignedBucket": 1789492500,
+          "coalescedOver": null,
+          "staleReplay": null,
+          "misbucketed": null,
+          "renderedLast": {
+            "time": 1789478100,
+            "open": 100.33,
+            "high": 146.3,
+            "low": 100.07,
+            "close": 146.3
+          },
+          "renderedCount": 3
+        },
+        {
+          "marketTs": 1789492791.0,
+          "observedTs": 1789492791.5,
+          "price": 146.32,
+          "updated_at": 1789492791,
+          "marketBucket": 1789492500,
+          "assignedBucket": 1789492500,
+          "coalescedOver": null,
+          "staleReplay": null,
+          "misbucketed": null,
+          "renderedLast": {
+            "time": 1789478100,
+            "open": 100.33,
+            "high": 146.32,
+            "low": 100.07,
+            "close": 146.32
+          },
+          "renderedCount": 3
+        },
+        {
+          "marketTs": 1789492802.0,
+          "observedTs": 1789492802.5,
+          "price": 146.31,
+          "updated_at": 1789492802,
+          "marketBucket": 1789492800,
+          "assignedBucket": 1789492800,
+          "coalescedOver": null,
+          "staleReplay": null,
+          "misbucketed": null,
+          "renderedLast": {
+            "time": 1789478400,
+            "open": 146.31,
+            "high": 146.31,
+            "low": 146.31,
+            "close": 146.31
+          },
+          "renderedCount": 3
+        },
+        {
+          "marketTs": 1789492805.0,
+          "observedTs": 1789492805.5,
+          "price": 146.35,
+          "updated_at": 1789492805,
+          "marketBucket": 1789492800,
+          "assignedBucket": 1789492800,
+          "coalescedOver": null,
+          "staleReplay": null,
+          "misbucketed": null,
+          "renderedLast": {
+            "time": 1789478400,
+            "open": 146.31,
+            "high": 146.35,
+            "low": 146.31,
+            "close": 146.35
+          },
+          "renderedCount": 3
+        },
+        {
+          "marketTs": 1789492809.0,
+          "observedTs": 1789492809.5,
+          "price": 146.33,
+          "updated_at": 1789492809,
+          "marketBucket": 1789492800,
+          "assignedBucket": 1789492800,
+          "coalescedOver": null,
+          "staleReplay": null,
+          "misbucketed": null,
+          "renderedLast": {
+            "time": 1789478400,
+            "open": 146.31,
+            "high": 146.35,
+            "low": 146.31,
+            "close": 146.33
+          },
+          "renderedCount": 3
+        }
+      ],
+      "etOffset": -14400,
+      "fields": {
+        "prevClose": false,
+        "newOpen": true,
+        "newHigh": true,
+        "newLow": true,
+        "newClose": true
+      },
+      "authoritativeGap": 0.02,
+      "renderedGap": -0.01,
+      "falseGap": -0.03,
+      "classification": [
+        "PREVIOUS_CLOSE_STALE",
+        "LAST_OLD_BUCKET_EVENT_MISSED"
+      ],
+      "verdict": "FAIL",
+      "asExpected": true
+    },
+    {
+      "scenario": "NC3 misbucket an old event",
+      "note": "",
+      "expected": "FAIL",
+      "observation": {
+        "clock": "market",
+        "misbucket": true
+      },
+      "authoritative": {
+        "N": {
+          "t": 1789492500,
+          "o": 146.3,
+          "h": 146.32,
+          "l": 146.29,
+          "c": 146.29,
+          "n": 3
+        },
+        "N1": {
+          "t": 1789492800,
+          "o": 146.31,
+          "h": 146.35,
+          "l": 146.31,
+          "c": 146.33,
+          "n": 3
+        }
+      },
+      "rendered": {
+        "N": {
+          "time": 1789478100,
+          "open": 100.33,
+          "high": 146.32,
+          "low": 100.07,
+          "close": 146.32
+        },
+        "N1": {
+          "time": 1789478400,
+          "open": 146.29,
+          "high": 146.35,
+          "low": 146.29,
+          "close": 146.33
+        }
+      },
+      "renderedTailBefore": [
+        {
+          "time": 1789477500,
+          "open": 101.32,
+          "high": 101.62,
+          "low": 101.07,
+          "close": 101.42
+        },
+        {
+          "time": 1789477800,
+          "open": 102.07,
+          "high": 102.37,
+          "low": 101.82,
+          "close": 102.17
+        },
+        {
+          "time": 1789478100,
+          "open": 100.33,
+          "high": 100.63,
+          "low": 100.07,
+          "close": 100.14
+        }
+      ],
+      "renderedTailAfter": [
+        {
+          "time": 1789477800,
+          "open": 102.07,
+          "high": 102.37,
+          "low": 101.82,
+          "close": 102.17
+        },
+        {
+          "time": 1789478100,
+          "open": 100.33,
+          "high": 146.32,
+          "low": 100.07,
+          "close": 146.32
+        },
+        {
+          "time": 1789478400,
+          "open": 146.29,
+          "high": 146.35,
+          "low": 146.29,
+          "close": 146.33
+        }
+      ],
+      "eventLedger": [
+        {
+          "marketTs": 1789492788.0,
+          "observedTs": 1789492788.5,
+          "price": 146.3,
+          "updated_at": 1789492788,
+          "marketBucket": 1789492500,
+          "assignedBucket": 1789492500,
+          "coalescedOver": null,
+          "staleReplay": null,
+          "misbucketed": null,
+          "renderedLast": {
+            "time": 1789478100,
+            "open": 100.33,
+            "high": 146.3,
+            "low": 100.07,
+            "close": 146.3
+          },
+          "renderedCount": 3
+        },
+        {
+          "marketTs": 1789492791.0,
+          "observedTs": 1789492791.5,
+          "price": 146.32,
+          "updated_at": 1789492791,
+          "marketBucket": 1789492500,
+          "assignedBucket": 1789492500,
+          "coalescedOver": null,
+          "staleReplay": null,
+          "misbucketed": null,
+          "renderedLast": {
+            "time": 1789478100,
+            "open": 100.33,
+            "high": 146.32,
+            "low": 100.07,
+            "close": 146.32
+          },
+          "renderedCount": 3
+        },
+        {
+          "marketTs": 1789492794.0,
+          "observedTs": 1789492794.5,
+          "price": 146.29,
+          "updated_at": 1789492800,
+          "marketBucket": 1789492500,
+          "assignedBucket": 1789492800,
+          "coalescedOver": null,
+          "staleReplay": null,
+          "misbucketed": true,
+          "renderedLast": {
+            "time": 1789478400,
+            "open": 146.29,
+            "high": 146.29,
+            "low": 146.29,
+            "close": 146.29
+          },
+          "renderedCount": 3
+        },
+        {
+          "marketTs": 1789492802.0,
+          "observedTs": 1789492802.5,
+          "price": 146.31,
+          "updated_at": 1789492802,
+          "marketBucket": 1789492800,
+          "assignedBucket": 1789492800,
+          "coalescedOver": null,
+          "staleReplay": null,
+          "misbucketed": null,
+          "renderedLast": {
+            "time": 1789478400,
+            "open": 146.29,
+            "high": 146.31,
+            "low": 146.29,
+            "close": 146.31
+          },
+          "renderedCount": 3
+        },
+        {
+          "marketTs": 1789492805.0,
+          "observedTs": 1789492805.5,
+          "price": 146.35,
+          "updated_at": 1789492805,
+          "marketBucket": 1789492800,
+          "assignedBucket": 1789492800,
+          "coalescedOver": null,
+          "staleReplay": null,
+          "misbucketed": null,
+          "renderedLast": {
+            "time": 1789478400,
+            "open": 146.29,
+            "high": 146.35,
+            "low": 146.29,
+            "close": 146.35
+          },
+          "renderedCount": 3
+        },
+        {
+          "marketTs": 1789492809.0,
+          "observedTs": 1789492809.5,
+          "price": 146.33,
+          "updated_at": 1789492809,
+          "marketBucket": 1789492800,
+          "assignedBucket": 1789492800,
+          "coalescedOver": null,
+          "staleReplay": null,
+          "misbucketed": null,
+          "renderedLast": {
+            "time": 1789478400,
+            "open": 146.29,
+            "high": 146.35,
+            "low": 146.29,
+            "close": 146.33
+          },
+          "renderedCount": 3
+        }
+      ],
+      "etOffset": -14400,
+      "fields": {
+        "prevClose": false,
+        "newOpen": false,
+        "newHigh": true,
+        "newLow": false,
+        "newClose": true
+      },
+      "authoritativeGap": 0.02,
+      "renderedGap": -0.03,
+      "falseGap": -0.05,
+      "classification": [
+        "PREVIOUS_CLOSE_STALE",
+        "BUCKET_TIMESTAMP_ERROR",
+        "NEW_OPEN_WRONG"
+      ],
+      "verdict": "FAIL",
+      "asExpected": true
+    },
+    {
+      "scenario": "NC4 stale snapshot replayed",
+      "note": "",
+      "expected": "FAIL",
+      "observation": {
+        "clock": "market",
+        "stale_replay": true
+      },
+      "authoritative": {
+        "N": {
+          "t": 1789492500,
+          "o": 146.3,
+          "h": 146.32,
+          "l": 146.29,
+          "c": 146.29,
+          "n": 3
+        },
+        "N1": {
+          "t": 1789492800,
+          "o": 146.31,
+          "h": 146.35,
+          "l": 146.31,
+          "c": 146.33,
+          "n": 3
+        }
+      },
+      "rendered": {
+        "N": {
+          "time": 1789478100,
+          "open": 100.33,
+          "high": 146.32,
+          "low": 100.07,
+          "close": 146.29
+        },
+        "N1": {
+          "time": 1789478400,
+          "open": 146.31,
+          "high": 146.35,
+          "low": 146.31,
+          "close": 146.35
+        }
+      },
+      "renderedTailBefore": [
+        {
+          "time": 1789477500,
+          "open": 101.32,
+          "high": 101.62,
+          "low": 101.07,
+          "close": 101.42
+        },
+        {
+          "time": 1789477800,
+          "open": 102.07,
+          "high": 102.37,
+          "low": 101.82,
+          "close": 102.17
+        },
+        {
+          "time": 1789478100,
+          "open": 100.33,
+          "high": 100.63,
+          "low": 100.07,
+          "close": 100.14
+        }
+      ],
+      "renderedTailAfter": [
+        {
+          "time": 1789477800,
+          "open": 102.07,
+          "high": 102.37,
+          "low": 101.82,
+          "close": 102.17
+        },
+        {
+          "time": 1789478100,
+          "open": 100.33,
+          "high": 146.32,
+          "low": 100.07,
+          "close": 146.29
+        },
+        {
+          "time": 1789478400,
+          "open": 146.31,
+          "high": 146.35,
+          "low": 146.31,
+          "close": 146.35
+        }
+      ],
+      "eventLedger": [
+        {
+          "marketTs": 1789492788.0,
+          "observedTs": 1789492788.5,
+          "price": 146.3,
+          "updated_at": 1789492788,
+          "marketBucket": 1789492500,
+          "assignedBucket": 1789492500,
+          "coalescedOver": null,
+          "staleReplay": null,
+          "misbucketed": null,
+          "renderedLast": {
+            "time": 1789478100,
+            "open": 100.33,
+            "high": 146.3,
+            "low": 100.07,
+            "close": 146.3
+          },
+          "renderedCount": 3
+        },
+        {
+          "marketTs": 1789492791.0,
+          "observedTs": 1789492791.5,
+          "price": 146.32,
+          "updated_at": 1789492791,
+          "marketBucket": 1789492500,
+          "assignedBucket": 1789492500,
+          "coalescedOver": null,
+          "staleReplay": null,
+          "misbucketed": null,
+          "renderedLast": {
+            "time": 1789478100,
+            "open": 100.33,
+            "high": 146.32,
+            "low": 100.07,
+            "close": 146.32
+          },
+          "renderedCount": 3
+        },
+        {
+          "marketTs": 1789492794.0,
+          "observedTs": 1789492794.5,
+          "price": 146.29,
+          "updated_at": 1789492794,
+          "marketBucket": 1789492500,
+          "assignedBucket": 1789492500,
+          "coalescedOver": null,
+          "staleReplay": null,
+          "misbucketed": null,
+          "renderedLast": {
+            "time": 1789478100,
+            "open": 100.33,
+            "high": 146.32,
+            "low": 100.07,
+            "close": 146.29
+          },
+          "renderedCount": 3
+        },
+        {
+          "marketTs": 1789492802.0,
+          "observedTs": 1789492802.5,
+          "price": 146.31,
+          "updated_at": 1789492802,
+          "marketBucket": 1789492800,
+          "assignedBucket": 1789492800,
+          "coalescedOver": null,
+          "staleReplay": null,
+          "misbucketed": null,
+          "renderedLast": {
+            "time": 1789478400,
+            "open": 146.31,
+            "high": 146.31,
+            "low": 146.31,
+            "close": 146.31
+          },
+          "renderedCount": 3
+        },
+        {
+          "marketTs": 1789492805.0,
+          "observedTs": 1789492805.5,
+          "price": 146.35,
+          "updated_at": 1789492805,
+          "marketBucket": 1789492800,
+          "assignedBucket": 1789492800,
+          "coalescedOver": null,
+          "staleReplay": null,
+          "misbucketed": null,
+          "renderedLast": {
+            "time": 1789478400,
+            "open": 146.31,
+            "high": 146.35,
+            "low": 146.31,
+            "close": 146.35
+          },
+          "renderedCount": 3
+        },
+        {
+          "marketTs": 1789492809.0,
+          "observedTs": 1789492809.5,
+          "price": 146.33,
+          "updated_at": 1789492809,
+          "marketBucket": 1789492800,
+          "assignedBucket": 1789492800,
+          "coalescedOver": null,
+          "staleReplay": null,
+          "misbucketed": null,
+          "renderedLast": {
+            "time": 1789478400,
+            "open": 146.31,
+            "high": 146.35,
+            "low": 146.31,
+            "close": 146.33
+          },
+          "renderedCount": 3
+        },
+        {
+          "marketTs": 1789492805.0,
+          "observedTs": 1789492805.5,
+          "price": 146.35,
+          "updated_at": 1789492805,
+          "marketBucket": 1789492800,
+          "assignedBucket": 1789492800,
+          "coalescedOver": null,
+          "staleReplay": true,
+          "misbucketed": null,
+          "renderedLast": {
+            "time": 1789478400,
+            "open": 146.31,
+            "high": 146.35,
+            "low": 146.31,
+            "close": 146.35
+          },
+          "renderedCount": 3
+        }
+      ],
+      "etOffset": -14400,
+      "fields": {
+        "prevClose": true,
+        "newOpen": true,
+        "newHigh": true,
+        "newLow": true,
+        "newClose": false
+      },
+      "authoritativeGap": 0.02,
+      "renderedGap": 0.02,
+      "falseGap": 0.0,
+      "classification": [
+        "GENUINE_MARKET_GAP",
+        "STALE_SNAPSHOT_WON",
+        "OUT_OF_ORDER_EVENT"
+      ],
+      "verdict": "FAIL",
+      "asExpected": true
+    },
+    {
+      "scenario": "NC5 GENUINE market gap",
+      "note": "a real 1.00 gap \u2014 must PASS and stay visible",
+      "expected": "PASS",
+      "observation": {
+        "clock": "market"
+      },
+      "authoritative": {
+        "N": {
+          "t": 1789492500,
+          "o": 99.8,
+          "h": 100.0,
+          "l": 99.8,
+          "c": 100.0,
+          "n": 2
+        },
+        "N1": {
+          "t": 1789492800,
+          "o": 101.0,
+          "h": 101.1,
+          "l": 101.0,
+          "c": 101.1,
+          "n": 2
+        }
+      },
+      "rendered": {
+        "N": {
+          "time": 1789478100,
+          "open": 100.33,
+          "high": 100.63,
+          "low": 99.8,
+          "close": 100
+        },
+        "N1": {
+          "time": 1789478400,
+          "open": 101,
+          "high": 101.1,
+          "low": 101,
+          "close": 101.1
+        }
+      },
+      "renderedTailBefore": [
+        {
+          "time": 1789477500,
+          "open": 101.32,
+          "high": 101.62,
+          "low": 101.07,
+          "close": 101.42
+        },
+        {
+          "time": 1789477800,
+          "open": 102.07,
+          "high": 102.37,
+          "low": 101.82,
+          "close": 102.17
+        },
+        {
+          "time": 1789478100,
+          "open": 100.33,
+          "high": 100.63,
+          "low": 100.07,
+          "close": 100.14
+        }
+      ],
+      "renderedTailAfter": [
+        {
+          "time": 1789477800,
+          "open": 102.07,
+          "high": 102.37,
+          "low": 101.82,
+          "close": 102.17
+        },
+        {
+          "time": 1789478100,
+          "open": 100.33,
+          "high": 100.63,
+          "low": 99.8,
+          "close": 100
+        },
+        {
+          "time": 1789478400,
+          "open": 101,
+          "high": 101.1,
+          "low": 101,
+          "close": 101.1
+        }
+      ],
+      "eventLedger": [
+        {
+          "marketTs": 1789492790.0,
+          "observedTs": 1789492790.5,
+          "price": 99.8,
+          "updated_at": 1789492790,
+          "marketBucket": 1789492500,
+          "assignedBucket": 1789492500,
+          "coalescedOver": null,
+          "staleReplay": null,
+          "misbucketed": null,
+          "renderedLast": {
+            "time": 1789478100,
+            "open": 100.33,
+            "high": 100.63,
+            "low": 99.8,
+            "close": 99.8
+          },
+          "renderedCount": 3
+        },
+        {
+          "marketTs": 1789492796.0,
+          "observedTs": 1789492796.5,
+          "price": 100.0,
+          "updated_at": 1789492796,
+          "marketBucket": 1789492500,
+          "assignedBucket": 1789492500,
+          "coalescedOver": null,
+          "staleReplay": null,
+          "misbucketed": null,
+          "renderedLast": {
+            "time": 1789478100,
+            "open": 100.33,
+            "high": 100.63,
+            "low": 99.8,
+            "close": 100
+          },
+          "renderedCount": 3
+        },
+        {
+          "marketTs": 1789492803.0,
+          "observedTs": 1789492803.5,
+          "price": 101.0,
+          "updated_at": 1789492803,
+          "marketBucket": 1789492800,
+          "assignedBucket": 1789492800,
+          "coalescedOver": null,
+          "staleReplay": null,
+          "misbucketed": null,
+          "renderedLast": {
+            "time": 1789478400,
+            "open": 101,
+            "high": 101,
+            "low": 101,
+            "close": 101
+          },
+          "renderedCount": 3
+        },
+        {
+          "marketTs": 1789492807.0,
+          "observedTs": 1789492807.5,
+          "price": 101.1,
+          "updated_at": 1789492807,
+          "marketBucket": 1789492800,
+          "assignedBucket": 1789492800,
+          "coalescedOver": null,
+          "staleReplay": null,
+          "misbucketed": null,
+          "renderedLast": {
+            "time": 1789478400,
+            "open": 101,
+            "high": 101.1,
+            "low": 101,
+            "close": 101.1
+          },
+          "renderedCount": 3
+        }
+      ],
+      "etOffset": -14400,
+      "fields": {
+        "prevClose": true,
+        "newOpen": true,
+        "newHigh": true,
+        "newLow": true,
+        "newClose": true
+      },
+      "authoritativeGap": 1.0,
+      "renderedGap": 1,
+      "falseGap": 0.0,
+      "classification": [
+        "GENUINE_MARKET_GAP"
+      ],
+      "verdict": "PASS",
+      "asExpected": true
+    },
+    {
+      "scenario": "NC6 dead stimulus",
+      "note": "no new-bucket event at all \u2014 must be INVALID",
+      "expected": "INVALID",
+      "observation": {
+        "clock": "market"
+      },
+      "authoritative": {
+        "N": {
+          "t": 1789492500,
+          "o": 146.3,
+          "h": 146.3,
+          "l": 146.29,
+          "c": 146.29,
+          "n": 2
+        },
+        "N1": null
+      },
+      "rendered": {
+        "N": {
+          "time": 1789478100,
+          "open": 100.33,
+          "high": 146.3,
+          "low": 100.07,
+          "close": 146.29
+        },
+        "N1": null
+      },
+      "renderedTailBefore": [
+        {
+          "time": 1789477500,
+          "open": 101.32,
+          "high": 101.62,
+          "low": 101.07,
+          "close": 101.42
+        },
+        {
+          "time": 1789477800,
+          "open": 102.07,
+          "high": 102.37,
+          "low": 101.82,
+          "close": 102.17
+        },
+        {
+          "time": 1789478100,
+          "open": 100.33,
+          "high": 100.63,
+          "low": 100.07,
+          "close": 100.14
+        }
+      ],
+      "renderedTailAfter": [
+        {
+          "time": 1789477500,
+          "open": 101.32,
+          "high": 101.62,
+          "low": 101.07,
+          "close": 101.42
+        },
+        {
+          "time": 1789477800,
+          "open": 102.07,
+          "high": 102.37,
+          "low": 101.82,
+          "close": 102.17
+        },
+        {
+          "time": 1789478100,
+          "open": 100.33,
+          "high": 146.3,
+          "low": 100.07,
+          "close": 146.29
+        }
+      ],
+      "eventLedger": [
+        {
+          "marketTs": 1789492788.0,
+          "observedTs": 1789492788.5,
+          "price": 146.3,
+          "updated_at": 1789492788,
+          "marketBucket": 1789492500,
+          "assignedBucket": 1789492500,
+          "coalescedOver": null,
+          "staleReplay": null,
+          "misbucketed": null,
+          "renderedLast": {
+            "time": 1789478100,
+            "open": 100.33,
+            "high": 146.3,
+            "low": 100.07,
+            "close": 146.3
+          },
+          "renderedCount": 3
+        },
+        {
+          "marketTs": 1789492794.0,
+          "observedTs": 1789492794.5,
+          "price": 146.29,
+          "updated_at": 1789492794,
+          "marketBucket": 1789492500,
+          "assignedBucket": 1789492500,
+          "coalescedOver": null,
+          "staleReplay": null,
+          "misbucketed": null,
+          "renderedLast": {
+            "time": 1789478100,
+            "open": 100.33,
+            "high": 146.3,
+            "low": 100.07,
+            "close": 146.29
+          },
+          "renderedCount": 3
+        }
+      ],
+      "etOffset": -14400,
+      "verdict": "INVALID",
+      "why": "stimulus not proven: NC6 dead stimulus: new-bucket events were delivered | evidence=0",
+      "asExpected": true
+    },
+    {
+      "scenario": "R0 bad boundary (pre-repair)",
+      "note": "seed the wrong bars, then repair them",
+      "expected": "FAIL",
+      "observation": {
+        "clock": "receipt"
+      },
+      "authoritative": {
+        "N": {
+          "t": 1789492500,
+          "o": 146.3,
+          "h": 146.44,
+          "l": 146.29,
+          "c": 146.44,
+          "n": 3
+        },
+        "N1": {
+          "t": 1789492800,
+          "o": 146.46,
+          "h": 146.48,
+          "l": 146.46,
+          "c": 146.48,
+          "n": 2
+        }
+      },
+      "rendered": {
+        "N": {
+          "time": 1789478100,
+          "open": 100.33,
+          "high": 146.3,
+          "low": 100.07,
+          "close": 146.29
+        },
+        "N1": {
+          "time": 1789478400,
+          "open": 146.44,
+          "high": 146.48,
+          "low": 146.44,
+          "close": 146.48
+        }
+      },
+      "renderedTailBefore": [
+        {
+          "time": 1789477500,
+          "open": 101.32,
+          "high": 101.62,
+          "low": 101.07,
+          "close": 101.42
+        },
+        {
+          "time": 1789477800,
+          "open": 102.07,
+          "high": 102.37,
+          "low": 101.82,
+          "close": 102.17
+        },
+        {
+          "time": 1789478100,
+          "open": 100.33,
+          "high": 100.63,
+          "low": 100.07,
+          "close": 100.14
+        }
+      ],
+      "renderedTailAfter": [
+        {
+          "time": 1789477800,
+          "open": 102.07,
+          "high": 102.37,
+          "low": 101.82,
+          "close": 102.17
+        },
+        {
+          "time": 1789478100,
+          "open": 100.33,
+          "high": 146.3,
+          "low": 100.07,
+          "close": 146.29
+        },
+        {
+          "time": 1789478400,
+          "open": 146.44,
+          "high": 146.48,
+          "low": 146.44,
+          "close": 146.48
+        }
+      ],
+      "eventLedger": [
+        {
+          "marketTs": 1789492788.0,
+          "observedTs": 1789492788.5,
+          "price": 146.3,
+          "updated_at": 1789492788,
+          "marketBucket": 1789492500,
+          "assignedBucket": 1789492500,
+          "coalescedOver": null,
+          "staleReplay": null,
+          "misbucketed": null,
+          "renderedLast": {
+            "time": 1789478100,
+            "open": 100.33,
+            "high": 146.3,
+            "low": 100.07,
+            "close": 146.3
+          },
+          "renderedCount": 3
+        },
+        {
+          "marketTs": 1789492794.0,
+          "observedTs": 1789492794.5,
+          "price": 146.29,
+          "updated_at": 1789492794,
+          "marketBucket": 1789492500,
+          "assignedBucket": 1789492500,
+          "coalescedOver": null,
+          "staleReplay": null,
+          "misbucketed": null,
+          "renderedLast": {
+            "time": 1789478100,
+            "open": 100.33,
+            "high": 146.3,
+            "low": 100.07,
+            "close": 146.29
+          },
+          "renderedCount": 3
+        },
+        {
+          "marketTs": 1789492799.8,
+          "observedTs": 1789492800.25,
+          "price": 146.44,
+          "updated_at": 1789492800,
+          "marketBucket": 1789492500,
+          "assignedBucket": 1789492800,
+          "coalescedOver": null,
+          "staleReplay": null,
+          "misbucketed": null,
+          "renderedLast": {
+            "time": 1789478400,
+            "open": 146.44,
+            "high": 146.44,
+            "low": 146.44,
+            "close": 146.44
+          },
+          "renderedCount": 3
+        },
+        {
+          "marketTs": 1789492801.5,
+          "observedTs": 1789492802.0,
+          "price": 146.46,
+          "updated_at": 1789492802,
+          "marketBucket": 1789492800,
+          "assignedBucket": 1789492800,
+          "coalescedOver": null,
+          "staleReplay": null,
+          "misbucketed": null,
+          "renderedLast": {
+            "time": 1789478400,
+            "open": 146.44,
+            "high": 146.46,
+            "low": 146.44,
+            "close": 146.46
+          },
+          "renderedCount": 3
+        },
+        {
+          "marketTs": 1789492806.0,
+          "observedTs": 1789492806.5,
+          "price": 146.48,
+          "updated_at": 1789492806,
+          "marketBucket": 1789492800,
+          "assignedBucket": 1789492800,
+          "coalescedOver": null,
+          "staleReplay": null,
+          "misbucketed": null,
+          "renderedLast": {
+            "time": 1789478400,
+            "open": 146.44,
+            "high": 146.48,
+            "low": 146.44,
+            "close": 146.48
+          },
+          "renderedCount": 3
+        }
+      ],
+      "etOffset": -14400,
+      "fields": {
+        "prevClose": false,
+        "newOpen": false,
+        "newHigh": true,
+        "newLow": false,
+        "newClose": true
+      },
+      "authoritativeGap": 0.02,
+      "renderedGap": 0.15,
+      "falseGap": 0.13,
+      "classification": [
+        "PREVIOUS_CLOSE_STALE",
+        "BUCKET_TIMESTAMP_ERROR",
+        "NEW_OPEN_WRONG"
+      ],
+      "verdict": "FAIL",
+      "asExpected": true
+    }
+  ],
+  "repair": {
+    "owned": {
+      "scenario": "R2 repair with the member owning the view",
+      "owned": true,
+      "barsRequests": 2,
+      "seriesChanged": true,
+      "cameraBefore": {
+        "from": 1789448700,
+        "to": 1789473300
+      },
+      "cameraAfter": {
+        "from": 1789448700,
+        "to": 1789473300
+      },
+      "cameraMoved": false,
+      "verdict": "PASS"
+    },
+    "scenario": "R1 authoritative tail repair",
+    "seededFrom": {
+      "prevClose": false,
+      "newOpen": false,
+      "newHigh": true,
+      "newLow": false,
+      "newClose": true
+    },
+    "barsRequestsDuringWindow": 2,
+    "barsRequestSample": [
+      "http://127.0.0.1:59112/api/bars/USO?tf=5&bars=600&since=1789492499",
+      "http://127.0.0.1:59112/api/bars/USO?tf=5&bars=600&since=1789492799"
+    ],
+    "verdict": "PASS",
+    "why": null,
+    "harnessReady": true,
+    "ownedBefore": false,
+    "badTail": [
+      {
+        "time": 1789477800,
+        "open": 102.07,
+        "high": 102.37,
+        "low": 101.82,
+        "close": 102.17
+      },
+      {
+        "time": 1789478100,
+        "open": 100.33,
+        "high": 146.3,
+        "low": 100.07,
+        "close": 146.29
+      },
+      {
+        "time": 1789478400,
+        "open": 146.44,
+        "high": 146.48,
+        "low": 146.44,
+        "close": 146.48
+      }
+    ],
+    "repairedTail": [
+      {
+        "time": 1789477800,
+        "open": 102.07,
+        "high": 102.37,
+        "low": 101.82,
+        "close": 102.17
+      },
+      {
+        "time": 1789478100,
+        "open": 100.33,
+        "high": 100.63,
+        "low": 100.08,
+        "close": 100.43
+      },
+      {
+        "time": 1789478400,
+        "open": 101.08,
+        "high": 146.48,
+        "low": 100.83,
+        "close": 146.48
+      }
+    ],
+    "secondsToRepair": 25.52,
+    "repaired": true,
+    "cameraBefore": {
+      "from": 1789455000,
+      "to": 1789479600
+    },
+    "cameraAfter": {
+      "from": 1789455300,
+      "to": 1789479900
+    },
+    "cameraMoved": true
+  },
+  "boundary": 1789492800
+}

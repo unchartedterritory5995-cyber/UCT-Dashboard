@@ -28,7 +28,7 @@
     {
       "check": "C current-bar updates reach the rendered series",
       "ok": true,
-      "evidence": "closes=[100.28, 100.56, 100.77] 100.21 -> 100.84"
+      "evidence": "closes=[100.35, 100.56, 100.77] 100.21 -> 100.84"
     },
     {
       "check": "D a 5m boundary APPENDS a bar",

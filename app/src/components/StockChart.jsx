@@ -10290,6 +10290,21 @@ export default function StockChart({
           renderedBarCount: () => {
             try { return candleSeriesRef.current?.data?.()?.length ?? null } catch { return null }
           },
+          // ⛔⛔ A BOUNDARY HAS TWO BARS AND THEY FAIL SEPARATELY. A false gap
+          // can be a wrong PREVIOUS CLOSE with a correct new open, a correct
+          // previous close with a wrong new OPEN, or both -- and "is there a
+          // gap?" cannot tell those apart. Reading only the newest bar makes the
+          // previous bar's close unobservable, so the boundary replay could only
+          // ever score half the question. Read-only, like every sibling here.
+          renderedTail: (k = 2) => {
+            try {
+              const d = candleSeriesRef.current?.data?.()
+              if (!Array.isArray(d) || !d.length) return null
+              return d.slice(Math.max(0, d.length - k)).map(b => ({
+                time: b.time, open: b.open, high: b.high, low: b.low, close: b.close,
+              }))
+            } catch { return null }
+          },
           // ⭐ THE VERTICAL HALF, for the same reason the horizontal half is here.
           // "The chart pinches a little more every time I pan" is a claim about
           // numbers nothing on the page reports: the candle pane's own height, the
