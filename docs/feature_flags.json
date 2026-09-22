@@ -789,11 +789,11 @@
       "note": "Wave P OCR. Read as FLAG = \"J2_OCR_ENABLED\" then os.getenv(FLAG, \"0\") in api/services/journal_two/document_ocr_tesseract.py. ⛔⛔ IT WAS INVISIBLE TO THIS LEDGER UNTIL 2026-09-12: the AST index matched a string CONSTANT at the call site, and an env name held in a variable has none — so a LIVE, ARMED production flag had no entry and nothing could tell. Found when the index was generalised for Wave K. Read live from Railway the same day: J2_OCR_ENABLED=1 on web, unset on worker and bars-api."
     },
     "J2_SHARE_LINKS_ENABLED": {
-      "status": "armed",
+      "status": "dark",
       "where": [
         "web"
       ],
-      "note": ""
+      "note": "STALE until 2026-09-22: this entry read status=armed with an empty note, and that was wrong — read live via `railway variables --service web --kv`, the value is 0. The owner returned it to 0 on 2026-09-07 (docs/notebook/competitive-gap-ledger.md, row G-080): no affirmative evidence the §21 legal review (shared vendor-data exposure) was ever completed, and \"a sanitized payload, static embeds, a wired UI and an uneventful live period are risk controls and elapsed time, not approval.\" The implementation is real and is NOT to be deleted; re-arm only on durable evidence that review has completed."
     },
     "LIVEFLOW_MONITOR_ENABLED": {
       "status": "armed",
