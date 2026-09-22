@@ -3151,9 +3151,28 @@ def _get_bars_inner(ticker: str, tf: str, bars: int):  # noqa: C901
                     _sd_do = True
             if _sd_do:
                 try:
-                    _sd_new = _delta_intraday(ticker_up, tf, last_ts)
-                    if _sd_new and not _is_intraday_stale(_sd_new):
-                        _sqlite.put_bars(ticker_up, tf, _sd_new, date_tf=False)
+                    # ⛔⛔ BOUNDED. This was a BARE `_delta_intraday(...)` on the request
+                    # thread -- the last member-facing provider call with no application
+                    # deadline, so it inherited the Massive client's `read=25.0`
+                    # (massive.py). Measured on production 2026-09-22 during a vendor
+                    # 502 storm: a full intraday serve took 8.2 s at bars=600 and
+                    # 25.4 s at bars=3000 while `since=` deltas and daily stayed at
+                    # 86-145 ms. A member flipping to a slightly-stale intraday chart
+                    # sat on a dead socket, and paint authority (correctly) refused the
+                    # stale bars, so the wait was a BLANK chart.
+                    #
+                    # ⭐ `_bounded_delta` IS THE EXISTING PURPOSE SEAM, not a new one: it
+                    # is the same wrapper the sibling cold-stale branch already uses,
+                    # it carries `_REQUEST_DEADLINE_SECONDS` (the interactive budget),
+                    # it persists + guards `_is_intraday_stale` exactly as the inline
+                    # code did, and it NEVER cancels the job -- a shed fetch still
+                    # lands for the next poll. So a healthy provider repairs as before
+                    # and only a STALLED one is abandoned, to serve local history now.
+                    #
+                    # ⚠️ Deliberately NOT a change to massive.py's timeout: background
+                    # deepfill and worker reconstruction legitimately need the long
+                    # read, and lowering it globally would break them to fix this.
+                    _bounded_delta(ticker_up, tf, last_ts, False)
                     _sd_rows = _sqlite.get_bars(ticker_up, tf, bars)
                     payload = {
                         "ticker": ticker_up, "tf": tf,
