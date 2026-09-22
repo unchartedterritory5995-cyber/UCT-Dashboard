@@ -39,6 +39,34 @@ const SCRIPTS = fs.existsSync(DIR)
   ? fs.readdirSync(DIR).filter((f) => f.endsWith('.pine')).sort()
   : []
 
+// ⚰⚰ THIS HEADLINE SAID "draws end to end" AND COUNTED BUILDS.
+//
+// `if (r.ok) drew.push(name)` — and `r` is `buildObjectLane(...)`. This file
+// never executes anything, so the number was a BUILD result wearing a RUNTIME
+// name, and it was quoted as "2 of 266 draw" in commits, in
+// `docs/pine/PARITY-PROGRAMME.md` and in five session reports before anyone
+// ran the two scripts it names.
+//
+// ⭐ WHAT RUNNING THEM ACTUALLY SHOWED, 2026-09-22, and it is reported with its
+// limits rather than as a defect:
+//   · `4c-nyse-market-breadth-ratio` THREW — `output 3 must carry a number, got
+//     string`. It makes FIVE `request.security` calls and the probe supplied no
+//     `requestBars`, so its requests answer `na` and a `str.tostring` of that
+//     reaches a plot. Consistent with the fixture, NOT evidence of a defect.
+//   · `makuchaku039s-trade-tools-fair-value-gaps` ran to `status: ok` and
+//     emitted ZERO objects — on smooth synthetic bars, which is what a
+//     fair-value-gap detector should do when there are no gaps.
+//
+// ⛔ SO THE HONEST POSITION IS THREE SENTENCES, NOT ONE. The census measures
+// BUILD, which is certain from the code. Whether either script DRAWS on real
+// data is a separate question this file does not answer and must not be read as
+// answering. A runtime census needs bars, request data and a clock — which is
+// why it does not exist yet, and saying so is cheaper than a number that reads
+// like it does.
+//
+// ⭐ `runObjectLane(lane, view)` is the entry that actually runs one, with
+// `{bars, series, confirmed, readTime, barTimes, requestBars}` — see
+// `memberPaneTables.test.js` for the member's own route end to end.
 describe('⭐⭐ the object lane, measured over the committed corpus', () => {
   it('⛔ CONTROL — the corpus is actually on disk', () => {
     // An empty result is a failed invocation until proven otherwise.
@@ -72,7 +100,8 @@ describe('⭐⭐ the object lane, measured over the committed corpus', () => {
     const lines = [
       '',
       `OBJECT-LANE CENSUS  —  ${SCRIPTS.length} scripts, tf=D, clock told`,
-      `draws end to end : ${drew.length}  (${pct(drew.length)})`,
+      `the object lane BUILDS : ${drew.length}  (${pct(drew.length)})`,
+      '  ⛔ A BUILD IS NOT A DRAW — nothing here is EXECUTED. A script that builds and then throws, or runs and emits no object, is counted above.',
       '  n  lane / guard',
       ...rows.map(([k, n]) => `${String(n).padStart(3)}  ${k}`),
       '',

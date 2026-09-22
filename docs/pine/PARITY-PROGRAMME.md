@@ -353,6 +353,48 @@ failures** before it was reverted. Measure the ripple first.
 
 ---
 
+## ⚰⚰ "2 OF 266 DRAW" WAS A BUILD COUNT — corrected 2026-09-22
+
+This file, five session reports and a dozen commit messages have quoted
+**"draws end to end: 2 of 266"** as the product metric. The census that produces
+it does this:
+
+```js
+const r = buildObjectLane(src, { tf: 'D', newestBarIsForming: false })
+if (r.ok) { drew.push(name); continue }
+```
+
+**It never executes anything.** `r.ok` means the object lane did not REFUSE. The
+number was a BUILD result wearing a RUNTIME name, and it is now labelled
+`the object lane BUILDS`.
+
+⭐ **What running the two named scripts actually showed — with its limits, not
+as a defect:**
+
+| script | result |
+|---|---|
+| `4c-nyse-market-breadth-ratio` | **threw** — *output 3 must carry a number, got string*. It makes FIVE `request.security` calls and the probe supplied no `requestBars`, so its requests answer `na` and a `str.tostring` of that reaches a plot. **Consistent with the fixture, not evidence of a defect.** |
+| `makuchaku039s-trade-tools-fair-value-gaps` | ran to `status: ok` and emitted **zero objects** — on smooth synthetic bars, which is what a fair-value-gap detector *should* do when there are no gaps. |
+
+⛔ **So the honest position is three sentences, not one.** The census measures
+BUILD, which is certain from the code. Whether either script DRAWS on real data
+is a separate question nothing currently answers. A runtime census needs bars,
+request data and a clock — which is why it does not exist yet, and saying so is
+cheaper than a number that reads as though it does.
+
+⭐⭐ **The corrected reading does not change any decision made today.** Every
+wave was judged on "did this number move", and it did not move under either
+reading. What changes is what the number is allowed to be CALLED — and that it
+is now clear a runtime census is owed, which nobody had noticed was missing
+because the build census had taken its name.
+
+⚠️ `runObjectLane(lane, view)` is the entry that actually runs one
+(`{bars, series, confirmed, readTime, barTimes, requestBars}`);
+`memberPaneTables.test.js` drives the member's own route end to end and is the
+model for the runtime census when somebody builds it.
+
+---
+
 ## The honest timeline
 
 | Target | Effort |
