@@ -75,7 +75,8 @@ export default function ImportCsvModal({ onConfirmed, onClose }) {
       if (data.format === 'unknown') setStep('mapping')
       else setStep('preview')
     } catch (e) {
-      setErrorMsg(String(e?.message || e))
+      console.error('Failed to preview CSV import:', e)
+      setErrorMsg("Couldn't read this file. Nothing was imported — try again.")
     } finally {
       setBusy(false)
     }
@@ -101,7 +102,8 @@ export default function ImportCsvModal({ onConfirmed, onClose }) {
       setPreview(data)
       setStep('preview')
     } catch (e) {
-      setErrorMsg(String(e?.message || e))
+      console.error('Failed to preview mapped CSV import:', e)
+      setErrorMsg("Couldn't read this file with that column mapping. Nothing was imported — try again.")
     } finally {
       setBusy(false)
     }
@@ -162,7 +164,8 @@ export default function ImportCsvModal({ onConfirmed, onClose }) {
       onConfirmed?.(data.imported, data.skipped || 0)
       onClose?.()
     } catch (e) {
-      setErrorMsg(String(e?.message || e))
+      console.error('Failed to import trades:', e)
+      setErrorMsg("Couldn't import these trades. Nothing was added — try again.")
     } finally {
       setBusy(false)
     }
