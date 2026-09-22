@@ -89,9 +89,30 @@ const MEMBERS = Object.keys(CARRIED)
 // counter. Deriving the subset means a fifth member lands in the right rails on
 // the day it is added instead of the day somebody remembers to widen a list.
 const SMOOTHERS = MEMBERS.filter((fn) => CARRIED[fn].alpha)
+// ⭐⭐ THE MEMBERS THAT EXIST IN BOTH LANES, DERIVED FROM THE TABLE — same idiom
+// as `SMOOTHERS` one line up, and for the same reason: a member added tomorrow
+// lands in the right rails on the day it is added.
+//
+// ⛔⛔ A DIFFERENTIAL NEEDS TWO LANES, AND `runtimeOnly` MEMBERS HAVE ONE.
+// `barssincePine` is Pine's unbounded `ta.barssince`; the columnar lane's
+// `barssince` is the DIFFERENT saturating function, so `pureLane` has nothing
+// to compare against — and the two loops below would spell it `ta.barssincePine`
+// and pass it `(source, 6)`, neither of which is the function. Excluding it here
+// is not a hole: `barssince.test.js` differentials it against its own vendor
+// capture AND against the house counter, which is the comparison that matters.
+const MIRRORED = MEMBERS.filter((fn) => !CARRIED[fn].runtimeOnly)
 
 describe('⭐⭐⭐ graph-vs-runtime differential — every declared member (§47/§76)', () => {
-  for (const fn of MEMBERS) {
+  it('⛔ CONTROL — the mirrored subset is REAL and is not the whole table', () => {
+    // ⭐ Without this, a `runtimeOnly` flag spreading across the table (or a typo
+    // in the property name) would empty or fill the loop below and every case in
+    // this describe would pass by never running / never excluding.
+    expect(MIRRORED.length, 'nothing left to differentiate').toBeGreaterThan(0)
+    expect(MEMBERS.length - MIRRORED.length, 'no member is runtime-only any more —'
+      + ' if that is deliberate, delete MIRRORED rather than leaving it inert').toBe(1)
+  })
+
+  for (const fn of MIRRORED) {
     it(`⭐ ta.${fn} over runtime state equals the columnar lane, index for index`, () => {
       const { out } = runPine(`${head}var x = 0.0\nx := close\nplot(ta.${fn}(x, 6))\n`)
       const want = pureLane(`ta.${fn}(close, 6)`)
@@ -107,9 +128,9 @@ describe('⭐⭐⭐ graph-vs-runtime differential — every declared member (§4
     // ⛔ OVER THE WHOLE SERIES, NOT A SIX-BAR SLICE. `rising` and `falling` are
     // booleans: on any six consecutive bars they can both read 0, and a window
     // that narrow would report two genuinely different members as one.
-    const seen = MEMBERS.map((fn) =>
+    const seen = MIRRORED.map((fn) =>
       JSON.stringify(Array.from(runPine(`${head}var x = 0.0\nx := close\nplot(ta.${fn}(x, 6))\n`).out)))
-    expect(new Set(seen).size, 'no two carried members may agree everywhere').toBe(MEMBERS.length)
+    expect(new Set(seen).size, 'no two carried members may agree everywhere').toBe(MIRRORED.length)
   })
 
   it('⭐ several lengths, including 1', () => {

@@ -387,11 +387,25 @@ describe('⛔⛔ what 2F-2B does NOT admit — the families stay apart', () => {
     }
   })
 
-  it('SCAN-BACKWARDS builtins are still refused', () => {
+  it('SCAN-BACKWARDS builtins are NOT window members — and now execute via CARRIED', () => {
+    // ⚰️ THIS ASSERTED `ta.barssince` OVER STATE WAS REFUSED `call-windowed-state`,
+    // and that stopped being true when Pine's unbounded `ta.barssince` landed as
+    // the `CARRIED` member `barssincePine` (its twin `ta.valuewhen` went to
+    // `CARRIED2` a wave earlier). The SCAN-BACKWARDS family is no longer a
+    // refusal category at all, so there is no specimen left to re-point to.
+    //
+    // ⭐ THE ASSERTION THEREFORE MOVES FROM "is refused" TO "is not a member",
+    // which is the property THIS file owns — exactly the move the `ema`/`rma`
+    // case immediately above already made, for the same reason and in the same
+    // words. Scanning backwards for a CONDITION is still not expressible through
+    // a window, and that is what these two lines say.
     expect(FINITE_WINDOW.barssince).toBeUndefined()
     expect(FINITE_WINDOW.valuewhen).toBeUndefined()
-    expect(refusalOf(`${head}var x = 0.0\nx := close\nplot(ta.barssince(x > 100))\n`).guard)
-      .toBe('runtime:call-windowed-state')
+    const b = buildRuntimeIr(`${head}var x = 0.0\nx := close\nplot(ta.barssince(x > 100))\n`,
+      { bars: BARS, inputs: {} })
+    expect(b.ok, 'ta.barssince over state should execute via CARRIED').toBe(true)
+    expect(b.ir.windows, 'a scan-backwards builtin must not allocate a window').toHaveLength(0)
+    expect(b.ir.carried.map((c) => c.fn)).toEqual(['barssincePine'])
   })
 
   it('CUMULATIVE and undeclared builtins are still refused', () => {
