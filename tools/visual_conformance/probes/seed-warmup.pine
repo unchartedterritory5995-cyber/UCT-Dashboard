@@ -1,0 +1,30 @@
+//@version=6
+indicator("UCT seed probe S1", overlay = false)
+
+// ─── ⭐⭐ THE ONE PLACE A SEED IS OBSERVABLE ────────────────────────────────
+//
+// Every recurrence in this family — ema, rma, atr, and everything gated on
+// them — converges. Two implementations seeded differently are IDENTICAL
+// after ~5n bars, which is why the 2026-09-21 capture (bars 8168..8467)
+// could not settle the question it was asked. The seed lives in the first n
+// bars of the series and nowhere else.
+//
+// ⛔ EVERY READING BELOW IS A DISCRIMINATOR. A probe whose plots agree under
+// both candidate seedings measures nothing:
+//   atr5 vs rma_tr_true_5  — Pine DEFINES the first as the second. If they
+//                            differ at the vendor, that definition is wrong.
+//   ema5 vs sma5           — an SMA-seeded ema equals sma at bar 4; an
+//                            ema seeded from the first value does not.
+//   rma_close5 vs sma5     — the same question for Wilder's smoother.
+//   rsi5                   — gated on rma; shows whether the gate inherits.
+//
+// ⭐ bar_index is plotted so the export can be keyed on the SERIES index
+// rather than on a row number, which is what makes "bar 0" unambiguous.
+plot(bar_index,                    "bar_index")
+plot(ta.tr(true),                  "tr_true")
+plot(ta.atr(5),                    "atr5")
+plot(ta.rma(ta.tr(true), 5),       "rma_tr_true_5")
+plot(ta.ema(close, 5),             "ema5")
+plot(ta.rma(close, 5),             "rma_close5")
+plot(ta.sma(close, 5),             "sma5")
+plot(ta.rsi(close, 5),             "rsi5")
