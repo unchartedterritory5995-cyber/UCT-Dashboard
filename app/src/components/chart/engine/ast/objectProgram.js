@@ -637,10 +637,23 @@ export function graphNodesReferenced(program) {
   return [...seen].sort((a, b) => a - b)
 }
 
-/** Every UNBOUND tree index the program reads. ⭐ The mirror of
- *  `graphNodesReferenced`, and the two together are what let the document
- *  validator say which FORM a program is in rather than guessing. */
-export function treeRefsReferenced(program) {
+/**
+ * ⭐⭐ THE ONE AUTHORITY ON "WHICH TREES DOES *THIS* OP READ".
+ *
+ * ⛔ IT DOES NOT DESCEND INTO `op.body`. A loop's body is the NEXT level of
+ * ops, and a caller that needs to know WHERE a read happens — which enclosing
+ * loop it sits in, whether that position is reached only on the last bar — must
+ * be able to ask about one op at a time. `treeRefsReferenced` below walks the
+ * whole program and unions these, so the two can never disagree about what
+ * counts as a read (`lesson_a_second_authority_over_one_value`).
+ *
+ * ⚰️ THE ADDRESS FIELDS OF `clear` WERE MISSING and are included here. A tree
+ * referenced only by `table.clear(t, startCol, …)` was invisible to the
+ * document validator, which is the one consumer whose whole job is to say that
+ * every referenced index exists. Finding MORE references is strictly safer
+ * there: a ref it cannot see is a ref it cannot check.
+ */
+export function treeRefsOfOp(op) {
   const seen = new Set()
   const walkText = (t) => {
     if (!isObj(t)) return
@@ -660,14 +673,28 @@ export function treeRefsReferenced(program) {
     if (v.v === 'op') (v.args || []).forEach(walkValue)
   }
   const walkRef = (r) => { if (isObj(r) && r.r === 'coll') walkValue(r.index) }
+  if (!isObj(op)) return seen
+  walkValue(op.when); walkValue(op.from); walkValue(op.to)
+  walkRef(op.target); walkRef(op.value)
+  walkValue(op.col); walkValue(op.row); walkValue(op.index)
+  walkValue(op.startCol); walkValue(op.startRow)
+  walkValue(op.endCol); walkValue(op.endRow)
+  for (const v of Object.values(op.props || {})) {
+    if (isObj(v) && v.r) walkRef(v)
+    else walkValue(v)
+  }
+  return seen
+}
+
+/** Every UNBOUND tree index the program reads. ⭐ The mirror of
+ *  `graphNodesReferenced`, and the two together are what let the document
+ *  validator say which FORM a program is in rather than guessing.
+ *
+ *  ⭐ DERIVED from `treeRefsOfOp`, never a second copy of the walk. */
+export function treeRefsReferenced(program) {
+  const seen = new Set()
   for (const [, op] of walkOps(program.ops || [])) {
-    walkValue(op.when); walkValue(op.from); walkValue(op.to)
-    walkRef(op.target); walkRef(op.value)
-    walkValue(op.col); walkValue(op.row); walkValue(op.index)
-    for (const v of Object.values(op.props || {})) {
-      if (isObj(v) && v.r) walkRef(v)
-      else walkValue(v)
-    }
+    for (const i of treeRefsOfOp(op)) seen.add(i)
   }
   return [...seen].sort((a, b) => a - b)
 }
