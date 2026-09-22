@@ -105,11 +105,44 @@ is WORTH. Both share one peeler (`peelToBuilding.js`), mutation-proved.
 | `850c22593` | `na` is a colour — `cond ? colour : na` | **draws 1 → 2**, builds 2 → 3. Also closed a silent wrong number the other way: `plot(cond ? color.red : na)` compiled and drew a packed colour as a price. |
 | `fcf682f46` | the `nearestToWorking` queue instrument | none directly; it is how the above was chosen |
 | `01ef1fd76` | `ta.valuewhen` — occurrences, not a bar window | 377 sites / 39 scripts no longer walled here. Metric unchanged — it moved a wall; see below. |
-| `280a05f29` | the cross family over runtime state (`ta.crossover`/`crossunder`/`cross`) | **draws 2 → 4**, builds 3 → 5. `liquidity-pools` (500 objects) and `trendlines` (8) — both NAMED IN ADVANCE by the queue. |
+| `280a05f29` | the cross family over runtime state (`ta.crossover`/`crossunder`/`cross`) | ⚰️ **CORRECTED — see below. This row read "draws 2 → 4 … `liquidity-pools` (500 objects)" and the 500 paint NOTHING.** The honest effect is **draws 2 → 3** (`trendlines`, of which the renderer keeps 6 of 8), builds 3 → 5. |
 | `0f58a80a9` | the peeler replaces a failing binding instead of blanking it | no metric change by design — it is an INSTRUMENT fix. Queue 7 → 10; `position-size-calc` 12 → 2, `wyckoff` UNREACHED → 2. |
 | `bd11b4d9a` | a drawing inside an `else` arm (two spellings of one guard) | metric unchanged — `else` was a SECOND wall for all 120 drawing scripts that use it. Queue 10 → 12; `inside-bar-boxes` 11 → 4 walls. |
 | `c5f87dbc8` | the approximate-refusal instrument | no metric change — it MEASURES a measurement defect: 96 of 266 stop on a refusal with no location. |
 | `9523b028d` | the drawing-denominator instrument | no metric change — it corrects the denominator to 187 and names 10 scripts whose drawing calls are invisible to the object pass. |
+
+### ⚰️⚰️ THE 500-OBJECT WIN PAINTED NOTHING — corrected 2026-09-22
+
+**`liquidity-pools` was reported at 500 objects, the largest number this
+programme has published. The renderer keeps none of them.**
+
+    CREATE FAMILIES : ["create:linefill","create:linefill"]
+    REGS            : ["line","line","line","line"]
+    RAW0            : {"family":"linefill","props":{"line1":null,"line2":null}}
+
+Two creates, both linefills. Four `line` registers declared and **not one
+written by any create**, so every linefill is anchored to a line that was never
+made — and `toRenderState` drops a fill without both its lines, by design and
+with a comment saying so. Checked every drawer rather than only the flagged
+one: liquidity-pools **500 emitted / 0 kept**, makuchaku 212/212, trendlines
+8/**6**.
+
+⭐⭐ **THE INSTRUMENT WAS AT FAULT, NOT ONLY THE SCRIPT.** The executing census
+counted `run.live.length` — objects the runtime EMITTED — so a script could
+score 500 while painting zero, and nothing in the suite could tell. It now asks
+the product's own renderer (`toRenderState` → `paintObjects` → `layoutTables`,
+read through their own counters) and reports `DREW-NOTHING-KEPT` as a bucket of
+its own. Fixed in `f31675658`.
+
+⛔ **AND `trendlines` IS THE NUMBER THAT MATTERS MORE THAN THE 500.** It keeps
+**6 of 8**. A total loss is loud — somebody eventually opens the chart. A
+PARTIAL loss is silent: the drawing appears, looks right, and is missing two
+objects nobody counts. An emission-based census cannot see it at all.
+
+⚠️ **The honest drawing metric is 3, not 4** — makuchaku fair-value-gaps (212),
+trendlines (6 of 8), inside-bar-range-mother (2). Every "draws N" in this
+document before 2026-09-22 counts emission and is an over-estimate by an
+unknown amount.
 
 ### ⛔⛔ THE GUARDS-HIT TABLE IS MOSTLY CASCADE — measured 2026-09-22
 
@@ -867,6 +900,37 @@ Every capability that closes a bug or adds a feature ships with:
 
 **This is what makes "identical to TradingView" a measurement rather than a
 claim.**
+
+### ⛔⛔ 6. AND A CAPTURE WITH NO READER IS NOT EVIDENCE — it is a file
+
+**Cross-referencing every fixture in `tests/fixtures/vendor/` against every
+`app/src/**`, `tools/**`, `scripts/**` and `api/**` file on 2026-09-22:
+13 of 35 captures were read by NOTHING.** Measurements that were paid for,
+several of which needed a live TradingView session, settling questions nobody
+could then get wrong for free — sitting unread on disk.
+
+⚰️ **THE COST IS NOT THE CAPTURE. IT IS THE DECISION THAT WAITS ON IT.** Two
+items sat on this programme's own open list as owner rulings still owed, and
+both had been answered on disk since 2026-09-11:
+
+| listed as owed | actually answered in |
+|---|---|
+| `math.round`'s half-rule ("blocked on the TradingView session") | `groupb-readings-spy-1d-2026-09-11.json` |
+| `time(<timeframe>)` semantics | `r11-time-tf-spy-1d-2026-09-11.json` + `r11-time-session-spy-5m-2026-09-11.json` |
+
+⭐ **A capture is pinned the day it lands, or it does not count.** Four of the
+thirteen now have readers (`313bc122e`, `ff2e1f138`). A pin asserts what the
+vendor said AND what we do today — including asserting that a GAP still
+REFUSES, because "we do not serve this" and "we serve it wrongly" are different
+facts and only the first is shippable.
+
+⛔⛔ **AND ONE CAPTURE SAYS A NAME MUST NEVER BE BUILT.** Bare `alma` does not
+exist in Pine v6 — TradingView refuses it, so our `pine:function` refusal is
+CORRECT and adding the name would make this engine accept a script the vendor
+rejects. **That is a divergence in the one direction nothing here measures:**
+every instrument in this programme counts scripts we refuse that the vendor
+accepts, and none counts the reverse. It would have looked like progress on the
+demand census.
 
 ---
 
