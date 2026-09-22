@@ -40,7 +40,9 @@ describe('symbol-switch paint ordering', () => {
 
   it('⛔ a SWITCH applies through useLayoutEffect, before the browser paints', () => {
     // The guarded pre-paint apply: keyed on sym+tf, skipped when already applied.
-    const m = src.match(/useLayoutEffect\(\(\) => \{\s*const key = `\$\{sym\}_\$\{resolvedTf\}`[\s\S]{0,320}?updateChart\(\)\s*\}, \[sym, resolvedTf, updateChart\]\)/)
+    // `updateChart()` is no longer the effect's LAST statement: the legend
+    // refresh follows it in the same commit (railed in legendHandoff.test.js).
+    const m = src.match(/useLayoutEffect\(\(\) => \{\s*const key = `\$\{sym\}_\$\{resolvedTf\}`[\s\S]{0,320}?updateChart\(\)[\s\S]{0,1200}?\}, \[sym, resolvedTf, updateChart\]\)/)
     expect(m, 'the pre-paint switch apply is gone or was reshaped').toBeTruthy()
   })
 

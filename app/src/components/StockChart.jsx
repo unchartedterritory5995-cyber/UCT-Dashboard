@@ -4750,6 +4750,15 @@ export default function StockChart({
     (alwaysShowLegend && !compactLegendRef.current) ? computeLatestCrosshair() : null
   )
   /**
+   * Re-derive the off-cursor readout from the bars currently on the chart,
+   * unless a hover or a synced crosshair owns it. ONE expression for the data
+   * refresh effect and the switch-time applier, so the two cannot disagree.
+   */
+  const refreshOffCursorReadout = () => {
+    if (readoutIsOwned()) return
+    setCrosshairData(effAlwaysShow ? computeLatestCrosshair() : null)
+  }
+  /**
    * Is something already OWNING the readout, so the off-hover refreshers must
    * stand down?
    *
@@ -13289,7 +13298,12 @@ export default function StockChart({
     // preserved view and measure the outgoing vertical placement.
     lastBarCountRef.current = filteredBars.length
     prevBarsRef.current = filteredBars
-    prevBarsSymRef.current = symRef.current   // whose bars these are — see the ref's note
+    // ⛔ STAMPED WITH THIS CALLBACK'S OWN `sym`, NOT `symRef.current`. `filteredBars`
+    // and `sym` come from the same render, so this is the bars' true owner. The
+    // ref lags: on a switch the pre-paint layout effect below runs this before
+    // `symRef` is mirrored, which stamped B's bars as A — the readout then saw a
+    // mismatch and printed NOTHING (the A → blank → B legend flicker).
+    prevBarsSymRef.current = sym   // whose bars these are — see the ref's note
     // Baseline for the next render plan — the bars this paint actually put on screen.
     prevPaintBarsRef.current = displayBars
     // ⚠️ `userDefsGeneration` IS A DEPENDENCY ON MODULE STATE, AND IT IS
@@ -13332,12 +13346,42 @@ export default function StockChart({
   // symbol/timeframe is not the one being rendered; the passive effect continues
   // to own every other update, and `updateChart` self-corrects (the second call
   // plans 'noop' because the bars are already identical).
+  //
+  // Mirror rapidly-changing values into refs so processCrosshair reads them
+  // without forcing the subscription useEffect below to re-run on every change.
+  //
+  // ⭐ A LAYOUT EFFECT, DECLARED ABOVE THE SWITCH APPLIER, so these refs describe
+  // THIS render before anything paints. It was a passive effect declared far
+  // below, which left `symRef` (and the overlay data the readout prints) one
+  // phase behind the candles on every switch. Assignments only — no cost.
+  useLayoutEffect(() => {
+    overlayDataRef.current = overlayData
+    comparisonDataRef.current = comparisonData
+    livePricesRef.current = livePrices
+    resolvedOverlaysRef.current = resolvedOverlays
+    symRef.current = sym
+    resolvedTfRef.current = resolvedTf
+    onCrosshairMoveRef.current = onCrosshairMove
+    volMaDataRef.current = volMaData
+    // ⛔ `csIndicatorsRef.current = cs.indicators` stood here — the LEGACY chip
+    // lane's inputs. That lane has no producer after B5 Task 6, and the engine
+    // lane resolves inputs per INSTANCE inside `engineChips`.
+  })
   const _appliedSymTfRef = useRef(null)
   useLayoutEffect(() => {
     const key = `${sym}_${resolvedTf}`
     if (_appliedSymTfRef.current === key) return
     _appliedSymTfRef.current = key
     updateChart()
+    // ⭐ AND THE LEGEND CROSSES THE SAME BOUNDARY. A state write in a layout
+    // effect re-renders synchronously before the browser paints, so the new
+    // candles and the new readout land in ONE composited frame: A+A → B+B, never
+    // B candles under A's numbers (the passive readout effect below used to
+    // follow a frame later). No new generation counter — the payload is built
+    // from exactly the bars `updateChart` just stamped, and `computeLatestCrosshair`
+    // refuses bars whose stamp is not the current symbol.
+    if (chartReady) refreshOffCursorReadout()
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [sym, resolvedTf, updateChart])
 
   // ── Live session tags (Pre/Post chip + locked RTH close) ──────────────────
@@ -14540,21 +14584,8 @@ export default function StockChart({
     return () => { for (const u of unsubs) { try { u() } catch {} } }
   }, [enabledComparisons, comparisonsData, adjustTime])
 
-  // Mirror rapidly-changing values into refs so processCrosshair reads them
-  // without forcing the subscription useEffect below to re-run on every change.
-  useEffect(() => {
-    overlayDataRef.current = overlayData
-    comparisonDataRef.current = comparisonData
-    livePricesRef.current = livePrices
-    resolvedOverlaysRef.current = resolvedOverlays
-    symRef.current = sym
-    resolvedTfRef.current = resolvedTf
-    onCrosshairMoveRef.current = onCrosshairMove
-    volMaDataRef.current = volMaData
-    // ⛔ `csIndicatorsRef.current = cs.indicators` stood here — the LEGACY chip
-    // lane's inputs. That lane has no producer after B5 Task 6, and the engine
-    // lane resolves inputs per INSTANCE inside `engineChips`.
-  })
+  // (The ref mirror that stood here now runs in the LAYOUT phase, above the
+  // switch-time `updateChart` — see "Mirror rapidly-changing values".)
 
   // ── Crosshair legend: subscribe to hover events ──
   useEffect(() => {
@@ -14797,8 +14828,7 @@ export default function StockChart({
     // is retired: 'hold' mode ends the peek when the pointer is released, so it
     // needs no ownership.) Without the gate this effect replaces the owned bar with
     // the latest one on the next data tick.
-    if (readoutIsOwned()) return
-    setCrosshairData(effAlwaysShow ? computeLatestCrosshair() : null)
+    refreshOffCursorReadout()
     // ⭐ W0.1 (2026-08-25) — AND WHEN THE INSTANCE LIST MOVES. A colour (or period)
     // edit in the settings dialog re-syncs the engine through `updateChart` (its
     // deps carry `cs`; it is declared above this effect, so `engineInstancesRef`
