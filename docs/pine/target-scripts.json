@@ -1,0 +1,34 @@
+{
+  "_README": [
+    "THE TARGET LIST — the indicators we are committing to make draw identically.",
+    "",
+    "Drop a path in `scripts` and run:",
+    "  cd app && node node_modules/vitest/vitest.mjs run \\",
+    "    src/components/chart/engine/ast/targetScriptReport.measure.test.js",
+    "",
+    "Paths are resolved relative to the REPO ROOT, or may be absolute.",
+    "A path that does not exist is REPORTED as missing, never skipped silently —",
+    "a target list that quietly drops entries is a list that lies about coverage.",
+    "",
+    "⛔ Do NOT commit a licence-bearing third-party script into this repo.",
+    "This repo is PUBLIC. Park the file outside it (e.g. C:/Users/Patrick/uct-pine-local/)",
+    "and point at it with an absolute path — the report reads it, the repo never holds it."
+  ],
+  "scripts": [
+    {
+      "name": "RVOL + ATR Dashboard",
+      "path": "C:/Users/Patrick/uct-pine-local/rvol-atr-dashboard.pine",
+      "why": "the acceptance script — owner's own, drives the runtime-lane programme"
+    },
+    {
+      "name": "Strong Start RVOL Dashboard",
+      "path": "corpus/committed/strong-start-rvol-dashboard__36140b1cbe.pine",
+      "why": "the previous acceptance target; its cells still drop at guard:cell"
+    },
+    {
+      "name": "RVOL",
+      "path": "corpus/committed/rvol__05fcd9e160.pine",
+      "why": "host lane already draws it; runtime lane gap is the gradient fill"
+    }
+  ]
+}
