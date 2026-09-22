@@ -1262,7 +1262,7 @@ export function buildRuntimeIr(source, opts = {}) {
    *  next. */
   const trueRangeAst = () => {
     const src = ['//@version=6', 'x = math.max(high - low, math.max('
-      + 'math.abs(high - close[1]), math.abs(low - close[1])))', ''].join('\n')
+      + 'math.abs(high - nz(close[1], close)), math.abs(low - nz(close[1], close))))', ''].join('\n')
     const { tokens } = lexPine(src)
     const eq = tokens.findIndex((t) => isPunct(t, '='))
     return parseWholeExpression(tokens.slice(eq + 1))

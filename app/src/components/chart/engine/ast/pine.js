@@ -660,13 +660,37 @@ export const VALUE_NAMESPACES = Object.freeze(new Set(['ta', 'math']))
  * each of the TABLE's argument positions: `{pine: i}` takes Pine's i-th argument,
  * `{series: 'high'}` supplies a chart series Pine leaves implicit.
  *
- * ⛔ `ta.atr` IS ABSENT ON PURPOSE AND ITS ABSENCE IS A MEASUREMENT. Pine's
- * `ta.atr` is Wilder's RMA of true range; this table's `atr(h,l,c,n)` matches
+ * ⚰⚰ THIS SAID `ta.atr` WAS ABSENT ON PURPOSE, AND BOTH HALVES WERE WRONG.
+ *
+ * It read: *"`ta.atr` IS ABSENT ON PURPOSE… this table's `atr(h,l,c,n)` matches
  * NEITHER that (max difference 0.20) NOR a plain SMA of true range (0.21), so it
- * runs a third smoothing convention and a member reading Pine's number would get
- * a different one. It refuses at `pine:arity` today because the arities also
- * differ; if the arities ever agree it must still refuse until the conventions
- * are reconciled. Same reasoning holds for `ta.cci`, whose Pine definition is
+ * runs a third smoothing convention… It refuses at `pine:arity` today."*
+ *
+ * It is NOT a third convention. `closedTable.json`'s own standing answer says so
+ * and a Python rail proves it: the shipped column IS Wilder's original, matching
+ * an independent construction to 5.4e-16 over 565 bars. The 0.20 was the WARM-UP,
+ * not a convention — `pine.vendorParity.test.js` measures that same gap decaying
+ * geometrically to 7.47e-16 by bar 385. And `ta.atr` is neither absent nor
+ * refusing: the entry below has mapped it all along.
+ *
+ * ⭐⭐ WHAT IS TRUE, MEASURED AT THE VENDOR 2026-09-21, AND IT IS THE SEED.
+ * `ta.atr(n)` is defined as `ta.rma(ta.tr(true), n)`, and `tr(true)` counts bar 0
+ * as `high - low`, so TradingView emits at bar n-1 where this column emits at
+ * bar n. Captured on a 12M chart, the only SPY timeframe whose whole series fits
+ * one loaded window: `tests/fixtures/vendor/seed-warmup-spy-12m-2026-09-21.json`.
+ *
+ * ⛔⛔ CLOSING IT IS NOT A ONE-LINE CHANGE, AND THAT IS WHY IT IS STILL OPEN.
+ * Routing Pine to a separately-seeded column means declaring a name in
+ * `closedTable.json`, which the PYTHON lane mirrors in
+ * `api/services/ast_interpret.py` and which `screenerColumns.test.js` freezes
+ * for that lane to read — so a Pine script's screener column would change name
+ * with no Python implementation behind it. Measured cost of the attempt: 23 new
+ * test failures across the manifest count pins, the sentence round-trip, the
+ * vendor-note roster, the corpus snapshot and the frozen screener columns.
+ * Re-seeding the SHARED column instead is worse — it moves ThinkScript, the
+ * native indicators and the pattern engine's ATR levels, which the firm trades on.
+ * ⚠️ `ta.cci` IS STILL ABSENT and for its own reason — its Pine definition is
+ * built on an arbitrary `source` rather than on the typical price.
  * built on an arbitrary `source` rather than on the typical price.
  */
 /** ⭐⭐ PINE SPELLINGS THAT MAY OMIT A LEADING SOURCE, AND THE SERIES THAT FILLS IT.

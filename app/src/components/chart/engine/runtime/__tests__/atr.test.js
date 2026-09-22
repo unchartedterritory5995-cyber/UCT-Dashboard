@@ -215,3 +215,64 @@ describe('⛔⛔ Pine DEFINES `ta.atr(n)` as `ta.rma(ta.tr(true), n)` — ours d
     expect(tr[0]).toBeCloseTo(BARS[0].h - BARS[0].l, 10)
   })
 })
+
+describe('⛔⛔ THE REQUEST PATH USES PINE’S TRUE RANGE — or `ta.atr` means two things', () => {
+  // ⛔⛔ `ta.atr` TAKES TWO ROUTES AND THEY MUST NOT DISAGREE.
+  //
+  // Measured by mutation 2026-09-21: a throw planted as the `ta.atr` branch's
+  // first statement in `pineRuntimeFrontend.js` fires ONLY for `ta.atr` inside
+  // a `request`. A plain call, one beside runtime state, one in a user function
+  // and one in an `if` body are all served by the columnar lane. So the desugar
+  // guarded here is the request path and nothing else.
+  //
+  // ⭐ The desugar builds Pine's true range, and Pine's counts bar 0 as
+  // `high - low` (`ta.tr(true)`). A bare `close[1]` is `na` there, which starts
+  // the warm-up a bar late and seeds the whole series differently — so the
+  // request path would answer one thing and every other path another.
+  //
+  // ⚠️ THIS IS A STRUCTURAL RAIL AND SAYS SO. No harness in this suite
+  // EXECUTES a request — only its IR is built — so it asserts the shape that
+  // makes bar 0 safe, not the values. It exists because a mutation of that
+  // desugar SURVIVED every behavioural test in this file: the path had no
+  // coverage whatsoever.
+  const requestValue = () => {
+    const r = buildRuntimeIr(
+      '//@version=6\nindicator(\"t\", overlay = true)\n'
+      + 'plot(request.security(\"A\", \"D\", ta.atr(14)))\n',
+      { bars: BARS, inputs: {}, newestBarIsForming: false })
+    if (!r.ok) throw new Error(`refused ${r.refusal.guard}: ${r.refusal.message}`)
+    const req = (r.ir.requests || [])[0]
+    expect(req, 'no request was built — this fixture no longer reaches the path').toBeTruthy()
+    return req.value
+  }
+
+  /** Every node, so the walk cannot miss a nesting level. */
+  const walk = (node, out = []) => {
+    if (!node || typeof node !== 'object') return out
+    out.push(node)
+    for (const k of Object.keys(node)) {
+      const v = node[k]
+      if (Array.isArray(v)) v.forEach((c) => walk(c, out))
+      else if (v && typeof v === 'object') walk(v, out)
+    }
+    return out
+  }
+
+  it('⛔⛔ no BARE `close[1]` reaches the true range — bar 0 would be na', () => {
+    const nodes = walk(requestValue())
+    const hists = nodes.filter((n) => n.kind === 'hist'
+      && n.of && n.of.name === 'close' && n.back === 1)
+    // ⛔ NON-VACUITY FIRST: a tree with no close[1] at all satisfies the
+    // assertion below trivially, and that is what a broken build gives.
+    expect(hists.length, 'the true range contains no close[1] at all').toBeGreaterThan(0)
+    const guarded = nodes.filter((n) => n.kind === 'builtin' && n.fn === 'nz'
+      && Array.isArray(n.args) && n.args.length === 2
+      && n.args[0] && n.args[0].kind === 'hist' && n.args[0].back === 1
+      && n.args[0].of && n.args[0].of.name === 'close'
+      && n.args[1] && n.args[1].kind === 'series' && n.args[1].name === 'close')
+    // ⭐ Substituting THIS bar's own close yields `high - low` exactly, because
+    // close is inside [low, high]. So EVERY close[1] here must be wrapped.
+    expect(guarded.length, 'a close[1] in the true range is not nz-guarded')
+      .toBe(hists.length)
+  })
+})
