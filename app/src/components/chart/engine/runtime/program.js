@@ -195,6 +195,25 @@ export const OP = Object.freeze({
   // size; a discarded value has none of those, and giving it one would put an
   // entry in the slot table that no READ can ever name.
   DROP: 86,
+  // ⚰⚰ RECORD/FIELD_GET/FIELD_SET WERE 86/87/88 AT BRANCH TIME, AND ARE 87/88/89
+  // NOW. Statement-forms landed the same day and took 86 for DROP; this file's
+  // own header says appending is safe and reordering is not, so DROP kept its
+  // number and this trio moved by one. Every consumer of these three lives in
+  // files this branch owns, so the renumber is confined to them.
+  // ⭐⭐ USER-DEFINED TYPES — see `runtime/records.js`.
+  //
+  // `RECORD a b` — `a` indexes `program.recordTypes` (a `{type, fields}`
+  // descriptor); `b` is how many values are on the stack, which the build
+  // validates against that descriptor's field count. Same shape as `TEXT` and
+  // for the same reason: a type table in the artifact costs one opcode for
+  // every type a member ever declares.
+  RECORD: 87,
+  // `FIELD_GET a` / `FIELD_SET a` — `a` indexes `program.fieldNames`, ONE
+  // interned list shared by both. ⛔ TWO OPCODES OVER ONE TABLE, deliberately:
+  // a read and a write of `top` name the same field, and two tables would be
+  // two indices for one string that nothing keeps in step.
+  FIELD_GET: 88,
+  FIELD_SET: 89,
   // ── RESERVED, not yet emitted or executed. Declared so the shape is settled. ──
   ARR_NEW: 80, ARR_PUSH: 81, ARR_GET: 82, ARR_SET: 83, ARR_SIZE: 84,
   OBJ_CREATE: 90, OBJ_UPDATE: 91, OBJ_DELETE: 92,
@@ -214,6 +233,7 @@ export const IMPLEMENTED = Object.freeze(new Set([
   OP.JUMP, OP.JUMP_IF_FALSE, OP.JUMP_IF_INIT,
   OP.CALL, OP.RET, OP.POINTWISE, OP.WINDOW, OP.CARRIED, OP.CONCAT, OP.TEXT, OP.ARRAY,
   OP.LOOP_TICK, OP.REQUEST, OP.COLOUR, OP.DROP,
+  OP.RECORD, OP.FIELD_GET, OP.FIELD_SET,
   OP.EMIT, OP.EMIT_ITER, OP.HALT,
 ]))
 
@@ -256,7 +276,7 @@ export function makeProgram({
   code, consts, columns, outputs, locals = 0, persists = 0, version = null,
   functions = [], callSites = [], pointwise = [], history = [], windows = [], carried = [],
   textOps = [], arrayOps = [], requests = [], colourOps = [], objectTreeOutputs = [],
-  iterOutputs = [],
+  iterOutputs = [], recordTypes = [], fieldNames = [],
 }) {
   if (!Array.isArray(code) || code.length % 3 !== 0) {
     throw new ProgramError(`code must be a flat array of [op,a,b] triples; got length ${code && code.length}`)
@@ -352,6 +372,35 @@ export function makeProgram({
         throw new ProgramError(`arrayOp ${i}: no implementation for \`${name}\``)
       }
       return Object.freeze({ fn: name, typeArg: op.typeArg || null })
+    })),
+    // ⭐⭐ ONE DESCRIPTOR PER USER TYPE — `{type, fields}` — validated here for
+    // the same reason a text op's name is: a descriptor with no field list, or
+    // with a duplicated field, would surface on some bar as a record whose
+    // writes landed in the wrong place, which reads as a data problem rather
+    // than a compiler one.
+    // ⛔ DUPLICATES ARE REFUSED. `udtRecord` builds its field table with the
+    // LAST value winning, so two `top`s would silently make the first argument
+    // unreachable — a value the member passed that nothing can ever read.
+    recordTypes: Object.freeze((recordTypes || []).map((t, i) => {
+      const type = t && t.type
+      const fields = t && t.fields
+      if (typeof type !== 'string' || !type) {
+        throw new ProgramError(`recordType ${i}: a record type carries a name`)
+      }
+      if (!Array.isArray(fields) || !fields.every((f) => typeof f === 'string' && f)) {
+        throw new ProgramError(`recordType ${i}: \`${type}\` carries a list of field names`)
+      }
+      if (new Set(fields).size !== fields.length) {
+        throw new ProgramError(`recordType ${i}: \`${type}\` names a field twice`)
+      }
+      return Object.freeze({ type, fields: Object.freeze(fields.slice()) })
+    })),
+    // ⭐ The interned field names both `FIELD_GET` and `FIELD_SET` index.
+    fieldNames: Object.freeze((fieldNames || []).map((n, i) => {
+      if (typeof n !== 'string' || !n) {
+        throw new ProgramError(`fieldName ${i}: a field name is a non-empty string`)
+      }
+      return n
     })),
     // ⭐ THE HISTORY PLAN IS PART OF THE ARTIFACT, not something the VM discovers.
     // Each entry is `{name, kind, depth, owner}` — how deep this slot's ring must
@@ -482,6 +531,29 @@ export function validateProgram(p) {
     if (op === OP.POINTWISE) {
       if (a < 0 || a >= p.pointwise.length) {
         throw new ProgramError(`pc ${pc}: POINTWISE ${a} outside ${p.pointwise.length} names`)
+      }
+    }
+    // ⛔⛔ THE ARITY IS CHECKED AGAINST THE TYPE'S OWN FIELD COUNT, like `TEXT`
+    // above and for a sharper reason: `udtRecord` pairs `fields[i]` with
+    // `values[i]`, so a construction one value short would not merely fail — it
+    // would pair every field after the gap with the WRONG value, and each of
+    // them is a real number of the right kind. Nothing downstream could see it.
+    if (op === OP.RECORD) {
+      if (a < 0 || a >= p.recordTypes.length) {
+        throw new ProgramError(`pc ${pc}: RECORD ${a} outside ${p.recordTypes.length} record types`)
+      }
+      const want = p.recordTypes[a].fields.length
+      const got = p.code[pc * 3 + 2]
+      if (got !== want) {
+        throw new ProgramError(
+          `pc ${pc}: \`${p.recordTypes[a].type}\` declares ${want} field(s), `
+          + `the construction passes ${got}`)
+      }
+    }
+    if (op === OP.FIELD_GET || op === OP.FIELD_SET) {
+      if (a < 0 || a >= p.fieldNames.length) {
+        throw new ProgramError(
+          `pc ${pc}: ${OP_NAME[op]} ${a} outside ${p.fieldNames.length} field names`)
       }
     }
     if (op === OP.READ_HIST_SLOT) {

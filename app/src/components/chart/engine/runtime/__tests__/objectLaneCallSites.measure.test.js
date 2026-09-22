@@ -50,10 +50,27 @@ const SCRIPTS = fs.existsSync(DIR)
  *
  *  ⛔ THE 23 DID NOT START DRAWING. Every one meets a SECOND blocker behind the
  *  dot, which is why the default now points at the largest surviving row rather
- *  than at anything this lane closed. Their new walls, measured: 7
+ *  than at anything this lane closed. Their walls as measured THAT DAY: 7
  *  `runtime:declaration`, 6 `runtime:udt`, 4 `objects/pine:no-output`, 2
  *  `objects:iterated-tree-not-last-bar`, 2 `pine:input-kind`, 1
- *  `runtime:input-state`, 1 `pine:builtin`. */
+ *  `runtime:input-state`, 1 `pine:builtin`.
+ *
+ *  ⚰️ THAT LIST IS DATED, AND SAYING SO IS THE POINT OF THIS FILE. `runtime:udt`
+ *  is **0** as of 2026-09-22 — the UDT wave took every one of the 17 scripts on
+ *  that row past their declaration, and none of them started drawing either.
+ *  Their walls, derived that day, are **TEN DISTINCT guards** over 17 scripts,
+ *  the largest shared by only three:
+ *
+ *      3 runtime:udt-method   3 pine:block      3 pine:input-kind
+ *      2 pine:builtin         1 runtime:statement (a `for … in`)
+ *      1 runtime:loop (`while`)          1 runtime:call-conversion-state
+ *      1 pine:function        1 pine:statement  1 runtime:expression-statement
+ *
+ *  ⭐⭐ RUN IT, DO NOT READ IT. A count in a comment beside the instrument that
+ *  prints the count is exactly the drift this whole file exists to replace —
+ *  and the first draft of THIS paragraph said "eleven" and "four `switch`es",
+ *  both hand-counted off the printout and both wrong, within an hour of being
+ *  written. The table above is derived; the next reader should re-derive it. */
 const GUARD = process.env.GUARD || 'runtime:declaration'
 
 /** Every refusal, with the source line it names. */

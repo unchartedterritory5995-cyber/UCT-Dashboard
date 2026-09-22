@@ -43,6 +43,10 @@ import {
   windowCall, carriedCall, textCall, arrayCall, exprStmt,
   forStmt, breakStmt, continueStmt, tuple, destructure, requestCall, colourCall,
   clock, session, drawing,
+  // ⭐ ALIASED. `field` and `record` are ordinary English and this file already
+  // uses both words as local variables; an IR constructor shadowed by one would
+  // build the wrong node with nothing red.
+  record as irRecord, field as irField, fieldSet as irFieldSet,
 } from '../runtime/ir.js'
 import { CLOCK_FIELDS } from '../runtime/program.js'
 import { TEXT_FNS, producesText } from '../runtime/text.js'
@@ -147,7 +151,20 @@ export const RUNTIME_REFUSALS = Object.freeze({
   'runtime:operator': 'an operator the runtime has no instruction for',
   'runtime:switch': 'a switch — the runtime has no multi-way branch yet',
   'runtime:varip': 'varip — intrabar persistence, which a closed-bar runtime cannot reproduce',
+  // ⭐⭐ THE FAMILY SURVIVES THE CAPABILITY, exactly as `runtime:fill-target`
+  // does above. A `type Foo` declaration, `Foo.new(…)`, a field read and a
+  // field write all execute now; what remains of the family is named BY ITS
+  // OWN GUARD below, so the next dependency is a census row rather than one
+  // undifferentiated wall. ⛔ The bare guard is kept for a `type` statement this
+  // lane cannot READ — a declaration whose field lines carry no name it can
+  // find is not a type it may guess at.
   'runtime:udt': 'a user-defined type',
+  'runtime:udt-field':
+    'a field this type does not declare — the head of the path is a record this lane '
+    + 'holds, so the name is a field, not a variable',
+  'runtime:udt-method':
+    'a Pine 6 `method` declared on a user type — a method is a user FUNCTION whose '
+    + 'receiver is argument 0, and this lane does not yet bind one',
   // ⭐ RULING 3.3 (owner, 2026-09-12) — THIS LANE REFUSES RATHER THAN BLANKS.
   // The four realtime barstate columns are decided by `opts.newestBarIsForming`, a
   // tri-state produced on the Python side. Nothing in `app/src` supplies it to this
@@ -212,6 +229,116 @@ export const RUNTIME_COLOUR_OUTPUTS = Object.freeze(new Set(['bgcolor', 'barcolo
 
 const OBJECT_NS = /^(line|label|box|table|polyline|linefill)\./
 const ARRAY_NS = /^(array|matrix|map)\./
+
+// ── ⭐⭐ USER-DEFINED TYPES — `type Foo` ─────────────────────────────────────
+//
+// ⛔⛔ A `type` DECLARATION ARRIVES AS **ONE STATEMENT HEADER**, FIELDS AND
+// ALL, AND THAT IS NOT A BUG TO ROUTE AROUND. `blockStatements` opens a `sub`
+// block for the words that open one — `if`, `for`, `=>` — and `type` is not one
+// of them, so its indented field lines are absorbed as CONTINUATIONS of the
+// header. Measured on a five-field type, the header is:
+//
+//     type Point  float x = 0.0  int y  box b = na  array<line> ls
+//
+// ⭐ THE PHYSICAL LINE IS RECOVERABLE AND IS THE RIGHT SEPARATOR. Every token
+// still carries its own `line`, and Pine writes one field per line — so the
+// fields are the token runs grouped by `tok.line`, which is exactly what the
+// member typed. ⛔ Splitting on TYPE WORDS instead was tried and is wrong:
+// `float x = 0.0` is followed by `int y`, and a split on "the next type word"
+// cannot tell that from a default value that happens to mention one
+// (`color c = color.new(color.red, 0)`).
+//
+// ⛔ `array<line> ls` HAS ALREADY LOST ITS ANGLE BRACKETS BY HERE.
+// `stripTypeArguments` runs in the LEXER and moves `<line>` onto the head token
+// as `typeArgs`, so the run is two idents and the element type is read off
+// `tok.typeArgs` rather than re-parsed. One normalisation, both lanes.
+
+/** Pine's own type words, which may precede a field name. ⭐ A field's type may
+ *  also be ANOTHER user type (`orderBlockInfo info`), so this list is not a
+ *  whitelist — it is only used to tell a QUALIFIER from the field name. */
+const FIELD_QUALIFIERS = Object.freeze(new Set(['series', 'simple', 'const', 'input']))
+
+/**
+ * The fields of one `type` declaration, read out of its flattened header.
+ *
+ * @param {object[]} toks  the whole statement header, starting at `type`
+ * @returns {{name:string, type:string, typeArgs:string[]|null, def:object[]|null, tok:object}[]}
+ */
+function readTypeFields(toks) {
+  // ⭐ GROUPED BY THE MEMBER'S OWN LINE — see the header above.
+  const lines = new Map()
+  for (let i = 2; i < toks.length; i += 1) {
+    const t = toks[i]
+    if (!lines.has(t.line)) lines.set(t.line, [])
+    lines.get(t.line).push(t)
+  }
+  const out = []
+  for (const run of lines.values()) {
+    const eq = findTop(run, (t) => isPunct(t, '='))
+    const head = eq > 0 ? run.slice(0, eq) : run
+    // ⛔ THE NAME IS THE LAST IDENT OF THE DECLARATION HALF, and the TYPE is
+    // what sits before it. A run of one token has no type and is not a field —
+    // returning `null` there would be a field named after its own type.
+    const idents = head.filter((t) => t.kind === 'ident' && !FIELD_QUALIFIERS.has(t.value))
+    if (idents.length < 2) continue
+    const nameTok = idents[idents.length - 1]
+    const typeTok = idents[idents.length - 2]
+    out.push({
+      name: nameTok.value,
+      type: typeTok.value,
+      typeArgs: Array.isArray(typeTok.typeArgs) ? typeTok.typeArgs.slice() : null,
+      def: eq > 0 ? run.slice(eq + 1) : null,
+      tok: nameTok,
+    })
+  }
+  return out
+}
+
+/**
+ * Every `type Foo` in the tree, nested bodies included.
+ *
+ * ⛔⛔ COLLECTED BEFORE THE WALK, for the reason `scanMutability` is. A type may
+ * be declared BELOW the function that constructs it — `ict-institutional-order-
+ * flow-fadi` declares nine types and calls `Helper.new()` above three of them —
+ * and a registry that filled as the walk went would refuse the constructor as
+ * an unknown namespace and then register the type one statement later.
+ *
+ * ⚠️ IT IS ALSO WHY A DUPLICATE IS THE FIRST DECLARATION, NOT THE LAST: nothing
+ * in this lane scopes a type to a block, so two declarations of one name would
+ * otherwise depend on walk order. Pine forbids the duplicate outright; keeping
+ * the first is the stable answer, and it is recorded rather than assumed.
+ */
+export function collectUdtTypes(stmts, out) {
+  const acc = out || new Map()
+  for (const st of stmts) {
+    const toks = st.header || []
+    const first = toks[0]
+    // ⛔⛔ `type = input(…)` IS A BINDING TO A VARIABLE CALLED `type`, NOT A
+    // TYPE DECLARATION, and this engine has already counted one as one.
+    // `screener-mean-reversion-channel` writes
+    //     type = input("SuperSmoother", title="Filter Type", options=[…])
+    // and it sat on the `runtime:udt` census row for weeks — 1 of the 17
+    // scripts that row claimed, in a script that declares no type at all.
+    //
+    // ⭐ THE SECOND TOKEN IS WHAT TELLS THEM APART, and one test does it: a
+    // DECLARATION's second token is a NAME, a binding's is `=`. Requiring an
+    // `ident` there rejects the binding by construction.
+    // ⚰️ A second clause, `&& !isPunct(toks[2], '=')`, was written here as
+    // well and is gone on its own measurement: removing it left every case
+    // green, because `toks[1]` is already the `=` in that shape and is not an
+    // ident. Two tests of one fact, the redundant one sitting where a reader
+    // counts it (`lesson_a_guard_repeated_is_a_guard_unproved`).
+    if (first && first.kind === 'ident' && first.value === 'type'
+        && toks[1] && toks[1].kind === 'ident') {
+      const name = toks[1].value
+      if (!acc.has(name)) {
+        acc.set(name, { name, fields: readTypeFields(toks), tok: toks[1] })
+      }
+    }
+    if (st.sub && st.sub.length) collectUdtTypes(st.sub, acc)
+  }
+  return acc
+}
 
 /** ⭐ WHICH ARGUMENT OF A COLLECTION CALL CARRIES A VALUE, counting the
  *  collection itself. `push(coll, v)` → 1; `set(coll, i, v)` → 2.
@@ -630,6 +757,9 @@ export function buildRuntimeIr(source, opts = {}) {
     }
   }
   const mut = scanMutability(stmts)
+  /** ⭐⭐ EVERY `type Foo` THIS SCRIPT DECLARES, collected before the walk — see
+   *  `collectUdtTypes` for why the order matters. `typeName → {name, fields}`. */
+  const udtTypes = collectUdtTypes(stmts)
 
   // The resolver's environment holds ONLY pure bindings. A mutable name never
   // enters it — that is what keeps the two lanes from disagreeing about a name.
@@ -845,6 +975,42 @@ export function buildRuntimeIr(source, opts = {}) {
       const uf = splitMethodName(String(node.name || ''))
       if (uf && scope.lookup(uf.recv) !== null) return true
     }
+    // ⭐⭐ A FIELD PATH READS ITS HEAD, AND THE HEAD IS A SLOT. `ob.top`
+    // arrives as ONE dotted `name` token, so the plain lookup above cannot see
+    // it — the same blind spot the method-form note directly above records, in
+    // the other of the two shapes the lexer glues a `.` into. Without this, an
+    // expression mentioning only fields routes to the COLUMNAR lane, which has
+    // never heard of a user type and answers `pine:builtin` about a namespace
+    // the member never wrote.
+    // ⛔ `syminfo.tickerid` MUST NOT MATCH. The test is a declared HEAD, not a
+    // dot: the first segment has to be something this lane marked with a user
+    // type.
+    // ⛔⛔ AND IT IS THE HEAD, NOT THE WHOLE PATH. Testing `fieldPathOf` here
+    // was tried and is subtly wrong: a MISSPELT field makes the path
+    // unresolvable, so the expression routed to the columnar lane, which
+    // answered *"this Pine built-in names something the engine grammar does not
+    // hold — `p.tpo`"*. That sends the member to look for a built-in namespace
+    // called `p`, when the fault is one letter in a field of a type they
+    // declared six lines up. Owning the whole head is what lets the refusal say
+    // so (`runtime:udt-field`).
+    if (node.type === 'name' && String(node.name || '').indexOf('.') > 0
+        && udtHeadOf(node, scope)) return true
+    // ⛔ A `Foo.new(…)` LOOKS LIKE A NAMESPACED BUILTIN AND IS NOT ONE. Left to
+    // the columnar lane it refuses `pine:builtin` — *"the engine grammar does
+    // not hold `orderBlock.new`"* — naming a namespace the member declared
+    // fourteen lines up.
+    if (udtCtorOf(node)) return true
+    // ⛔⛔ A POSTFIX MEMBER ON A RECORD, AND *ONLY* ON A RECORD.
+    // `array.get(obs, i).top` is a `member` node, and the generic walk below
+    // does not carry `recv` — so without this the whole expression reads as
+    // pure and the columnar `Resolver` answers `pine:member`, *"a type this
+    // engine does not track"*, about a type the member declared.
+    // ⛔ ADDING `recv` TO THE GENERIC WALK WAS THE OBVIOUS FIX AND IS THE WRONG
+    // ONE: it would route EVERY member whose receiver touches a slot into this
+    // lane, changing a long-standing `pine:member` refusal into this file's
+    // less specific `runtime:statement` for shapes nothing here can serve. The
+    // narrow test moves exactly the shape that now has an answer.
+    if (node.type === 'member' && udtTypeOf(node.recv, scope)) return true
     // ⭐⭐ AN INPUT'S LABEL CANNOT DECIDE ITS LANE, and until 2026-09-21 every
     // label did. `group`, `tooltip`, `title`, `inline`, `display` and `confirm`
     // name a control in the settings dialog; none of them can change the number
@@ -1086,6 +1252,32 @@ export function buildRuntimeIr(source, opts = {}) {
     if (hit) drawingHandles.set(String(name), hit.slice(0, hit.indexOf('.')))
   }
 
+  /**
+   * A BARE `<family>.new(…)` → this lane's opaque handle for it, or null.
+   *
+   * ⛔⛔ ONE AUTHORITY, TWO CALLERS — `nestedCreateHandle` (a create passed to
+   * a collection call) and `lowerFieldValue` (a create assigned to a UDT
+   * field). Both admit exactly the same shape for exactly the same reason, and
+   * `lesson_a_second_authority_over_one_value` is about the third copy nobody
+   * updates. See `runtime/handles.js` for why a handle is opaque and why `na`
+   * and a number are both the wrong answer.
+   *
+   * ⛔ THE TEST IS `^([a-z]+)\.new$`, NOT `OBJECT_NS`. `OBJECT_NS` matches the
+   * whole `box.` namespace, so it also answers true for `box.set_bgcolor(b, c)`
+   * — an UPDATE, which makes no new drawing and has no handle to be.
+   */
+  const mintHandle = (valueNode) => {
+    if (!objectPassOwnsDrawing) return null
+    if (!valueNode || valueNode.type !== 'call') return null
+    const m = /^([a-z]+)\.new$/.exec(String(valueNode.name || ''))
+    if (!m || !OBJECT_NS.test(`${m[1]}.`)) return null
+    // ⭐ THE ORDINAL IS THIS LANE'S OWN, and `handles.js` says plainly that it
+    // is NOT joined to the object program's site id. It exists so two creates
+    // are not `===`; nothing reads it.
+    drawingSites += 1
+    return drawing(m[1], drawingSites - 1)
+  }
+
   /** Does this subtree evaluate to a COLLECTION?
    *
    *  ⛔ SEPARATE FROM `holdsText` because the two route for the same REASON
@@ -1112,6 +1304,319 @@ export function buildRuntimeIr(source, opts = {}) {
       return !!(bound && bound.kind === 'expr' && holdsArray(bound.node, scope))
     }
     return false
+  }
+
+  // ── ⭐⭐ USER-DEFINED TYPES, RESOLVED ────────────────────────────────────
+  //
+  // Four questions, and each one is asked in exactly one place below:
+  //   • is this expression a `Foo.new(…)`?            `udtCtorOf`
+  //   • what TYPE does this expression produce?       `udtTypeOf`
+  //   • is `a.b.c` a field path, and through what?    `fieldPathOf`
+  //   • what does a field named `f` of type `T` hold? `fieldSpec`
+
+  /** `Foo.new` → the type's declaration, or null. ⛔ ASKED OF THE REGISTRY, so
+   *  `line.new` and `array.new` can never be mistaken for one: a script would
+   *  have to DECLARE `type line` for the name to resolve here, and if it does,
+   *  its own declaration is what Pine means too. */
+  const udtCtorOf = (node) => {
+    if (!node || node.type !== 'call') return null
+    const split = splitMethodName(String(node.name || ''))
+    if (!split || split.method !== 'new') return null
+    return udtTypes.get(split.recv) || null
+  }
+
+  /** One field of one type, by name. */
+  const fieldSpec = (typeName, fieldName) => {
+    const t = udtTypes.get(typeName)
+    if (!t) return null
+    return t.fields.find((f) => f.name === fieldName) || null
+  }
+
+  /** What USER TYPE does this subtree produce? `null` when it is not a record.
+   *
+   *  ⛔ IT NEVER GUESSES FROM A FIELD NAME. Two types may both declare `info`,
+   *  and answering from the name alone would address the wrong record with no
+   *  error anywhere — the defect `ufcs.js`'s header records four instances of.
+   *  Every answer here comes from a DECLARATION: the constructor's own type, a
+   *  slot marked at its binding, or a field's declared type. */
+  const udtTypeOf = (node, scope, depth = 0) => {
+    if (!node || typeof node !== 'object' || depth > 24) return null
+    if (node.type === 'call') {
+      const ctor = udtCtorOf(node)
+      if (ctor) return ctor.name
+      // ⭐⭐ READING AN ELEMENT OUT OF AN `array<Foo>` YIELDS A `Foo`. The
+      // roster is `ARRAY_READS_ELEMENT`, the SAME one the text/colour element
+      // kinds already ride, so a call added there carries the user type too
+      // rather than needing a second list that drifts.
+      if (ARRAY_READS_ELEMENT.has(String(node.name || ''))) {
+        const first = (node.args || [])[0]
+        const fv = first && first.value !== undefined ? first.value : first
+        if (fv && fv.type === 'name') {
+          const s0 = scope.lookup(fv.name)
+          if (s0 !== null) return (slots[s0] && slots[s0].elemUdt) || null
+        }
+      }
+      // ⭐ THE METHOD FORM OF THE SAME READ — `obs.get(i)`, `obs.last()`.
+      // `ufcs.js` rewrites it to `array.get(obs, i)` downstream; here the
+      // receiver is still glued into the name, so the receiver's own element
+      // type is read directly rather than running the rewrite twice.
+      {
+        const uf = splitMethodName(String(node.name || ''))
+        if (uf && ARRAY_READS_ELEMENT.has(`array.${uf.method}`)) {
+          const s0 = scope.lookup(uf.recv)
+          if (s0 !== null) return (slots[s0] && slots[s0].elemUdt) || null
+        }
+      }
+      return null
+    }
+    if (node.type === 'name') {
+      const slot = scope.lookup(node.name)
+      if (slot !== null) return (slots[slot] && slots[slot].udt) || null
+      const path = fieldPathOf(node, scope)
+      if (path) return path.type
+      const bound = env.get(node.name)
+      if (bound && bound.kind === 'expr') return udtTypeOf(bound.node, scope, depth + 1)
+      return null
+    }
+    // ⭐ A POSTFIX MEMBER ON A RECORD IS THE FIELD'S DECLARED TYPE — which is
+    // what lets `array.get(obs, i).info.top` resolve one step at a time.
+    if (node.type === 'member') {
+      const recvType = udtTypeOf(node.recv, scope, depth + 1)
+      const spec = recvType ? fieldSpec(recvType, node.name) : null
+      return spec && udtTypes.has(spec.type) ? spec.type : null
+    }
+    // ⭐ A TERNARY OVER TWO RECORDS OF ONE TYPE IS THAT TYPE. `cond ? a : b`
+    // is how the corpus picks between two order blocks. ⛔ Two DIFFERENT types
+    // answer `null` rather than the first one: a union is not a type this lane
+    // has, and naming one arm would let a field read resolve against a record
+    // the other branch never had.
+    if (node.type === 'ternary') {
+      const a = udtTypeOf(node.yes, scope, depth + 1)
+      const b = udtTypeOf(node.no, scope, depth + 1)
+      return a && a === b ? a : null
+    }
+    return null
+  }
+
+  /** The user type the FIRST segment of a dotted name holds, or null.
+   *
+   *  ⭐ SEPARATE FROM `fieldPathOf` BECAUSE THE TWO ANSWER DIFFERENT QUESTIONS.
+   *  "Is this whole path readable?" and "does this lane own this name at all?"
+   *  diverge exactly on a misspelt field — and that is the case where owning it
+   *  is what lets the refusal name the member's own type. */
+  const udtHeadOf = (node, scope) => {
+    if (!node || node.type !== 'name' || typeof node.name !== 'string') return null
+    const head = node.name.split('.')[0]
+    if (head === node.name) return null
+    const slot = scope.lookup(head)
+    if (slot !== null) return (slots[slot] && slots[slot].udt) || null
+    const bound = env.get(head)
+    if (bound && bound.kind === 'expr') return udtTypeOf(bound.node, scope)
+    return null
+  }
+
+  /** `a.b.c` → `{head, steps:['b','c'], type}` when `a` really holds a record
+   *  and every step is a declared field; null otherwise.
+   *
+   *  ⛔⛔ EVERY STEP IS CHECKED AGAINST THE DECLARATION, AND A BAD ONE ANSWERS
+   *  `null` RATHER THAN REFUSING HERE. This function is also the TEST other
+   *  call sites use ("is this a field path?"), and a test that throws cannot be
+   *  asked. The refusal is raised by the one caller that knows a field path was
+   *  required — `lowerExpr`'s `name` arm — which is what keeps
+   *  `syminfo.tickerid` and a member's own `sd.info.breakTime` from sharing a
+   *  sentence.
+   *
+   *  ⛔ THE HEAD IS THE WHOLE FIRST SEGMENT AND NOTHING LONGER. `ufcs.js` makes
+   *  the same ruling for the receiver of a method call, and for the same reason:
+   *  `a.b.c` addresses `c` OF `a.b`, and reading `a.b` as the head of `c` would
+   *  address the wrong object with no error anywhere. */
+  const fieldPathOf = (node, scope) => {
+    if (!node || node.type !== 'name' || typeof node.name !== 'string') return null
+    const parts = node.name.split('.')
+    if (parts.length < 2) return null
+    const head = parts[0]
+    const slot = scope.lookup(head)
+    let type = null
+    if (slot !== null) type = (slots[slot] && slots[slot].udt) || null
+    else {
+      const bound = env.get(head)
+      if (bound && bound.kind === 'expr') type = udtTypeOf(bound.node, scope)
+    }
+    if (!type) return null
+    const steps = []
+    for (let i = 1; i < parts.length; i += 1) {
+      const spec = fieldSpec(type, parts[i])
+      if (!spec) return null
+      steps.push(parts[i])
+      // ⭐ THE NEXT STEP'S TYPE IS THE FIELD'S DECLARED ONE — which is a user
+      // type for `ob.info.top` and a Pine word (`float`, `box`) at the leaf.
+      // A Pine word is not in the registry, so a further step answers `null`,
+      // which is the correct answer for `ob.info.top.nonsense`.
+      type = udtTypes.has(spec.type) ? spec.type : null
+      if (!type && i < parts.length - 1) return null
+    }
+    return { head, steps, type, slot }
+  }
+
+  /**
+   * `Foo.new(a, b, c)` / `Foo.new(y = 3)` → one `EXPR.RECORD`.
+   *
+   * ⛔⛔ EVERY FIELD IS SUPPLIED, ALWAYS, IN DECLARATION ORDER. Pine lets a
+   * construction omit trailing fields and name the rest, and the back end must
+   * never see a partial list — `records.js` pairs `fields[i]` with `values[i]`,
+   * so a gap would pair every field after it with the WRONG value, and each of
+   * those is a plausible number of the right kind. The defaults are resolved
+   * HERE, from the declaration, and `ir.js` and `program.js` both re-check the
+   * count so a front-end slip is a build error rather than a quiet mis-pairing.
+   *
+   * ⭐ A FIELD WITH NO DEFAULT IS `na`, which is Pine's own rule and the same
+   * answer `var float x = na` already gives in this lane.
+   */
+  const lowerRecordNew = (ctor, node, scope) => {
+    const fields = ctor.fields
+    if (!fields.length) {
+      // ⛔ A TYPE WHOSE FIELDS THIS LANE COULD NOT READ IS REFUSED, NOT BUILT
+      // EMPTY. An empty record would make every later `f.anything` a field the
+      // type "does not declare" — a sentence blaming the member's own spelling
+      // for a declaration this lane failed to parse.
+      note('runtime:udt')
+      throw new RuntimeRefusal('runtime:udt',
+        `\`${ctor.name}\` — this lane read no fields from its declaration`, locate(node.tok))
+    }
+    const byName = new Map()
+    const positional = []
+    for (const a of (node.args || [])) {
+      const v = a && a.value !== undefined ? a.value : a
+      if (a && a.name) byName.set(a.name, v)
+      else positional.push(v)
+    }
+    if (positional.length > fields.length) {
+      throw new RuntimeRefusal('runtime:statement',
+        `\`${ctor.name}.new\` takes ${fields.length} field(s), given ${positional.length}`,
+        locate(node.tok))
+    }
+    for (const k of byName.keys()) {
+      if (!fields.some((f) => f.name === k)) {
+        note('runtime:udt-field')
+        throw new RuntimeRefusal('runtime:udt-field',
+          `\`${ctor.name}.new(${k} = …)\` — \`${ctor.name}\` declares no field \`${k}\``,
+          locate(node.tok))
+      }
+    }
+    const args = fields.map((f, i) => {
+      const supplied = byName.has(f.name) ? byName.get(f.name)
+        : (i < positional.length ? positional[i] : null)
+      if (supplied) return lowerFieldValue(f, supplied, scope, node)
+      // ⭐ THE DECLARATION'S OWN DEFAULT, parsed from the tokens the field line
+      // carried. It is lowered in the SCOPE OF THE CONSTRUCTION, not of the
+      // declaration — Pine evaluates a field default at construction time, and
+      // the corpus writes `bool disabled = false` / `string s = na`, which are
+      // literals either way.
+      if (f.def && f.def.length) {
+        return lowerFieldValue(f, parseWholeExpression(f.def), scope, node)
+      }
+      return naValue()
+    })
+    return irRecord(ctor.name, fields.map((f) => f.name), args)
+  }
+
+  /** One field's value, with the ONE case that is not an ordinary expression.
+   *
+   *  ⭐⭐ A FIELD MAY HOLD A DRAWING, AND THE OBJECT PASS OWNS IT. `type
+   *  orderBlock` / `box orderBox = na` / `ob.orderBox := box.new(…)` is the
+   *  corpus's dominant order-block shape, and a `box.new(…)` reaching an
+   *  ordinary expression position refuses at `runtime:object-op` — "these
+   *  belong to the object program". `handles.js` is the answer: the create is
+   *  admitted as an OPAQUE handle, exactly as `array.push(zones, box.new(…))`
+   *  already is, so this lane carries the value and the object program keeps
+   *  the drawing. ⛔ ONLY UNDER OWNERSHIP — with no object pass there is no
+   *  program that took responsibility, and minting a handle would be this lane
+   *  claiming to have drawn something. */
+  const lowerFieldValue = (spec, valueNode, scope, at) => {
+    const hit = objectPassOwnsDrawing ? holdsObjectCall(valueNode) : null
+    if (hit) {
+      // ⛔ ONE AUTHORITY OVER "IS THIS A BARE CREATE" — `mintHandle`, shared
+      // with the collection path. Two copies of the `^([a-z]+)\.new$` test is
+      // the drift this file pays for most, and the half that drifted would be
+      // whichever one a later family (`polyline`) was added to first.
+      const handle = mintHandle(valueNode)
+      if (handle) return handle
+    }
+    if (hit) {
+      // ⛔ A CREATE BURIED INSIDE AN EXPRESSION IS REFUSED, NOT UNWRAPPED.
+      // `cond ? box.new(…) : na` makes a drawing on SOME bars, and answering
+      // one handle for both arms would hand back a drawing the object program
+      // did not make on this bar.
+      note('runtime:object-op')
+      throw new RuntimeRefusal('runtime:object-op',
+        `\`${hit}\` inside the value of field \`${spec.name}\``,
+        locate((valueNode && valueNode.tok) || (at && at.tok)))
+    }
+    return lowerExpr(valueNode, scope)
+  }
+
+  // ⚰️ `holdsRecord(node, scope)` WAS HERE — the mirror of `holdsArray`, so the
+  // binding path could force a record into a slot. It is gone, and the reason is
+  // recorded rather than the function: `readsSlot` already answers TRUE for
+  // every way a record can be obtained (`udtCtorOf` for a construction, a slot
+  // read for everything else), so the clause could never decide anything.
+  // Its argument survives at the binding path that used it.
+
+  /** The `<T>` of an `array<T>` / `array.new<T>()`, when `T` is a user type.
+   *
+   *  ⭐⭐ THIS IS WHAT MAKES `ob = array.get(obs, i)` A RECORD. An array of
+   *  order blocks is the corpus's dominant shape — 8 of the 16 real
+   *  `runtime:udt` scripts write one — and without the element type the read
+   *  comes back as an untyped value, so the very next line (`ob.top`) cannot
+   *  find a field. ⛔ It is read off the DECLARATION (`stripTypeArguments` put
+   *  it on the token in the lexer), never guessed from what was pushed. */
+  const udtElemOf = (node, scope, annot) => {
+    if (annot && annot.kind === 'ident' && Array.isArray(annot.typeArgs)
+        && udtTypes.has(annot.typeArgs[0])) {
+      return annot.typeArgs[0]
+    }
+    if (node && node.type === 'call') {
+      const n = String(node.name || '')
+      if (n.startsWith('array.new')) {
+        const ta = node.tok && Array.isArray(node.tok.typeArgs) ? node.tok.typeArgs[0] : null
+        return ta && udtTypes.has(ta) ? ta : null
+      }
+      // `array.copy(a)` / `array.slice(a, …)` keep their source's element type,
+      // exactly as they keep its text-ness one function up.
+      if (n === 'array.copy' || n === 'array.slice') {
+        const first = (node.args || [])[0]
+        const fv = first && first.value !== undefined ? first.value : first
+        if (fv && fv.type === 'name') {
+          const s0 = scope.lookup(fv.name)
+          if (s0 !== null) return (slots[s0] && slots[s0].elemUdt) || null
+        }
+      }
+    }
+    return null
+  }
+
+  /**
+   * Mark a freshly declared slot with the user type it holds.
+   *
+   * ⛔⛔ THE WRITTEN ANNOTATION WINS OVER THE INITIALISER, and the case that
+   * settles it is the corpus's most common one: `var orderBlockInfo info = na`.
+   * The initialiser is `na` and produces no type at all, so an initialiser-only
+   * rule would leave the slot untyped — and the `info := orderBlockInfo.new(…)`
+   * on the next line is an ASSIGNMENT, which declares nothing. Every later
+   * `info.top` would then refuse as an unbound name.
+   *
+   * ⚠️ AND A DISAGREEMENT KEEPS THE ANNOTATION. Pine rejects `Point p =
+   * Other.new(…)` outright; this lane does not type-check, so it records what
+   * the member DECLARED rather than what one expression happened to build.
+   */
+  const markUdtSlot = (slot, value, scope, toks, eq) => {
+    const annot = Number.isInteger(eq) && eq >= 2 ? toks[eq - 2] : null
+    const declared = annot && annot.kind === 'ident' && udtTypes.has(annot.value)
+      ? annot.value : null
+    const t = declared || udtTypeOf(value, scope)
+    if (t) slots[slot].udt = t
+    const elem = udtElemOf(value, scope, annot)
+    if (elem) slots[slot].elemUdt = elem
   }
 
   /** Lower an `array.*` call.
@@ -1186,14 +1691,7 @@ export function buildRuntimeIr(source, opts = {}) {
   const nestedCreateHandle = (fnName, argIndex, valueNode) => {
     if (!objectPassOwnsDrawing) return null
     if (COLLECTION_VALUE_ARG[fnName] !== argIndex) return null
-    if (!valueNode || valueNode.type !== 'call') return null
-    const m = /^([a-z]+)\.new$/.exec(String(valueNode.name || ''))
-    if (!m || !OBJECT_NS.test(`${m[1]}.`)) return null
-    // ⭐ THE ORDINAL IS THIS LANE'S OWN, and `handles.js` says plainly that it
-    // is NOT joined to the object program's site id. It exists so two creates
-    // are not `===`; nothing reads it.
-    drawingSites += 1
-    return drawing(m[1], drawingSites - 1)
+    return mintHandle(valueNode)
   }
 
   /** Resolve a TEXT input to the string the script will actually see.
@@ -2209,6 +2707,30 @@ export function buildRuntimeIr(source, opts = {}) {
             && scope.lookup(node.name) === null && !env.has(node.name)) {
           return str(ORDER_ENUM[node.name])
         }
+        // ⭐⭐ A FIELD PATH THROUGH A USER-DEFINED TYPE — `ob.top`,
+        // `sd.info.breakTime`. It arrives as ONE dotted `name` node because the
+        // LEXER glues a `.` between two idents into a single token, which is
+        // also why `ufcs.js` can split a method call's receiver off the front.
+        //
+        // ⛔ TESTED BEFORE THE PLAIN SLOT LOOKUP, because the whole dotted
+        // string is never a slot name and the lookup would answer `null` for a
+        // path whose head this lane holds.
+        if (node.name.indexOf('.') > 0) {
+          const path = fieldPathOf(node, scope)
+          if (path) return path.steps.reduce((acc, f) => irField(acc, f), lowerExpr({ type: 'name', name: path.head, tok: node.tok }, scope))
+          // ⛔⛔ A HEAD THIS LANE KNOWS IS A RECORD, WITH A FIELD IT DOES NOT,
+          // IS REFUSED BY NAME AND NOT LEFT TO FALL THROUGH. Falling through
+          // reaches `runtime:unbound` — *"this Pine name was never given a
+          // value"* — naming the WHOLE dotted string, which sends the reader
+          // hunting for a variable called `ob.tpo` that nobody ever wrote. The
+          // real fault is one misspelt field on a type declared upstairs.
+          const headType = udtHeadOf(node, scope)
+          if (headType) {
+            note('runtime:udt-field')
+            throw new RuntimeRefusal('runtime:udt-field',
+              `\`${node.name}\` — \`${headType}\` declares no such field`, locate(node.tok))
+          }
+        }
         const slot = scope.lookup(node.name)
         if (slot !== null) return read(slot)
         // ⭐ AN IMMUTABLE TEXT BINDING IS EXPANDED INLINE. A non-mutated name
@@ -2460,6 +2982,19 @@ export function buildRuntimeIr(source, opts = {}) {
         return hist(column(columnOf(node.arg, locate(node.tok))), back)
       }
       case 'call': {
+        // ⭐⭐ `Foo.new(…)` — ONE INSTANCE OF A USER-DEFINED TYPE.
+        //
+        // ⛔ FIRST IN THIS ARM, BEFORE THE USER-FUNCTION TABLE AND BEFORE THE
+        // METHOD-FORM REWRITE. `ufcs.js` would otherwise read `Foo.new` as
+        // "call `new` on a receiver named `Foo`" and go looking for `Foo`'s
+        // namespace; a script is free to have BOTH a type `Foo` and a variable
+        // `Foo`, and the member who wrote `Foo.new(…)` meant the type. Asking
+        // the registry first is the same ruling `ufcs.js` makes about yielding
+        // to a user definition, applied to the constructor.
+        {
+          const ctor = udtCtorOf(node)
+          if (ctor) return lowerRecordNew(ctor, node, scope)
+        }
         // ⭐⭐ A USER FUNCTION CALL — the 2E path. Each call gets its OWN call
         // site, and the site is what will own the invocation's persistent
         // locals: `f(1)` and `f(10)` on two lines are two sites, so a `var`
@@ -3043,6 +3578,31 @@ export function buildRuntimeIr(source, opts = {}) {
       // ⭐ So both lanes DO answer alike, and for a better reason than a second
       // copy: there is one resolver. A case here would have been a guard that
       // cannot fire, sitting exactly where a reader counts it as protection.
+      //
+      // ⭐⭐ AND NOW ONE CAN FIRE, WHICH IS WHY THE CASE BELOW EXISTS. The
+      // probe's twelve shapes all had one thing in common: nothing in either
+      // lane could say what TYPE the receiver produced, which is exactly what
+      // `pine:member`'s sentence says. A declared user type answers that
+      // question — `zones.get(0).top` is a `Zone`'s `top`, by declaration —
+      // so this arm serves the ONE shape that has an answer and leaves every
+      // other to the resolver that already refuses it accurately.
+      // ⛔ THE GUARD IS `udtTypeOf`, NOT `node.type === 'member'`. Widening it
+      // to every member would re-create the guard that could not fire, and
+      // would answer for receivers this lane knows nothing about.
+      case 'member': {
+        const recvType = udtTypeOf(node.recv, scope)
+        if (recvType) {
+          const spec = fieldSpec(recvType, node.name)
+          if (!spec) {
+            note('runtime:udt-field')
+            throw new RuntimeRefusal('runtime:udt-field',
+              `\`.${node.name}\` — \`${recvType}\` declares no such field`, locate(node.tok))
+          }
+          return irField(lowerExpr(node.recv, scope), node.name)
+        }
+        throw new RuntimeRefusal('runtime:statement',
+          `a \`${node.type}\` beside a mutable value`, locate(node.tok))
+      }
       default:
         throw new RuntimeRefusal('runtime:statement', `a \`${node.type}\` beside a mutable value`, locate(node.tok))
     }
@@ -3257,7 +3817,42 @@ export function buildRuntimeIr(source, opts = {}) {
       if (word === 'import' || word === 'export') {
         throw new RuntimeRefusal('runtime:declaration', `\`${word}\``, locate(first))
       }
-      if (word === 'type') { note('runtime:udt'); throw new RuntimeRefusal('runtime:udt', null, locate(first)) }
+      // ⭐⭐ A `type` DECLARATION EMITS NO IR AND IS NOT SKIPPED BLIND. It was
+      // registered by `collectUdtTypes` before the walk — see there for why a
+      // pre-pass rather than this line is what makes a forward reference work.
+      // ⛔ WHAT STILL REFUSES IS A DECLARATION THIS LANE COULD NOT READ. A
+      // `type` whose field lines yielded nothing is not an empty type; it is a
+      // type whose shape this lane does not know, and constructing one would
+      // make every later `f.field` read as the MEMBER's misspelling.
+      // ⚠️ `type = input(…)` never reaches here as a declaration — see
+      // `collectUdtTypes` — and falls through to the ordinary binding path,
+      // which is what `screener-mean-reversion-channel` needs.
+      // ⛔ THE SAME TEST AS `collectUdtTypes`, AND IT HAS TO BE: a shape that
+      // registry does not treat as a declaration must not be skipped as one
+      // here, or `type = input(…)` loses its binding and every later read of
+      // `type` refuses as an unbound name. `udtTypes.get` below is what keeps
+      // them in step — a `type` statement the registry never saw has no entry
+      // and refuses by name rather than being silently dropped.
+      if (word === 'type' && toks[1] && toks[1].kind === 'ident') {
+        const decl = udtTypes.get(toks[1].value)
+        if (!decl || !decl.fields.length) {
+          note('runtime:udt')
+          throw new RuntimeRefusal('runtime:udt',
+            `\`type ${toks[1].value}\` — this lane read no fields from it`, locate(first))
+        }
+        continue
+      }
+      // ⛔ A PINE 6 `method` IS A USER FUNCTION WITH A RECEIVER, AND IT GETS ITS
+      // OWN GUARD RATHER THAN SHARING `runtime:udt`. The two are separately
+      // schedulable — a method needs the function table to bind a receiver as
+      // argument 0 and `ufcs.js` to route the call form to it — and one label
+      // over both is exactly the mis-sizing `RUNTIME_REFUSALS`'s own header
+      // records three previous instances of.
+      if (word === 'method') {
+        note('runtime:udt-method')
+        throw new RuntimeRefusal('runtime:udt-method',
+          toks[1] && toks[1].kind === 'ident' ? `\`${toks[1].value}\`` : null, locate(first))
+      }
       if (word === 'varip') { note('runtime:varip'); throw new RuntimeRefusal('runtime:varip', null, locate(first)) }
       // ⭐⭐ `for name = from to to [by step]`. `while` keeps the old refusal —
       // neither acceptance script uses one, and a loop whose bound is re-read
@@ -3543,6 +4138,56 @@ export function buildRuntimeIr(source, opts = {}) {
           throw new RuntimeRefusal('runtime:statement', 'a reassignment target must be a name', locate(first))
         }
         const value = parseWholeExpression(toks.slice(walrus + 1))
+        // ⭐⭐ `ob.top := x` — A FIELD WRITE, WHICH IS NOT A SLOT ASSIGNMENT.
+        //
+        // ⛔⛔ TESTED BEFORE THE HANDLE SKIP BELOW, AND THAT ORDER IS LOAD-
+        // BEARING. `ob.orderBox := box.new(…)` satisfies `holdsObjectCall`, so
+        // the skip would `continue` past it — and a skipped write leaves the
+        // field holding the `na` its declaration gave it, so every later
+        // `ob.orderBox` reads absent for a box the object program HAS drawn.
+        // That is `collections.js`'s own argument about why `na` is the wrong
+        // answer for a drawing, arriving through a different door.
+        // ⭐ The skip is right for a BARE NAME (`lb := label.new(…)`), where
+        // this lane never declared a slot at all; a field always exists.
+        if (nameTok.value.indexOf('.') > 0) {
+          const path = fieldPathOf({ type: 'name', name: nameTok.value, tok: nameTok }, scope)
+          if (path) {
+            const last = path.steps[path.steps.length - 1]
+            // ⭐ THE TYPE THAT OWNS THE FIELD BEING WRITTEN — for `a.b` that is
+            // `a`'s, for `a.b.c` it is `a.b`'s. `fieldPathOf` answered for the
+            // WHOLE path one line up, so the prefix necessarily resolves too.
+            // ⛔ AND IT IS STILL NULL-CHECKED. "Necessarily" is a claim about
+            // today's `fieldPathOf`; a `.type` straight off a null would surface
+            // to the member as a TypeError wearing a refusal's clothes, which is
+            // the failure this file records paying for twice.
+            const prefix = path.steps.length === 1 ? null : fieldPathOf({
+              type: 'name',
+              name: `${path.head}.${path.steps.slice(0, -1).join('.')}`,
+              tok: nameTok,
+            }, scope)
+            const ownerType = path.steps.length === 1
+              ? udtTypeOf({ type: 'name', name: path.head, tok: nameTok }, scope)
+              : (prefix && prefix.type)
+            const spec = ownerType ? fieldSpec(ownerType, last) : null
+            if (!spec) {
+              note('runtime:udt-field')
+              throw new RuntimeRefusal('runtime:udt-field',
+                `\`${nameTok.value}\` — this lane cannot name the type that owns `
+                + `\`${last}\``, locate(nameTok))
+            }
+            const target = path.steps.slice(0, -1).reduce(
+              (acc, f) => irField(acc, f),
+              lowerExpr({ type: 'name', name: path.head, tok: nameTok }, scope))
+            out.push(irFieldSet(target, last, lowerFieldValue(spec, value, scope, { tok: nameTok })))
+            continue
+          }
+          const headType = udtHeadOf({ type: 'name', name: nameTok.value, tok: nameTok }, scope)
+          if (headType) {
+            note('runtime:udt-field')
+            throw new RuntimeRefusal('runtime:udt-field',
+              `\`${nameTok.value}\` — \`${headType}\` declares no such field`, locate(nameTok))
+          }
+        }
         // ⭐⭐ `lb := label.new(…)` — THE THIRD BINDING PATH, AND THE ONE REAL
         // PINE USES MOST. The corpus idiom for a drawing is `var label lb = na`
         // followed by a reassignment, so the handle is declared empty and only
@@ -3610,6 +4255,13 @@ export function buildRuntimeIr(source, opts = {}) {
           slots[slot].collection = true
           slots[slot].elemText = arrayHoldsText(value, scope)
         }
+        // ⭐⭐ MARKED AT THE BINDING, exactly as text, colour and the element
+        // kind are, and for the same reason all three are: without it the NEXT
+        // statement's `p.x` cannot tell a record from a number, and the field
+        // path would fall through to `runtime:unbound` naming a variable called
+        // `p.x` that nobody wrote.
+        // ⛔ FROM THE DECLARED TYPE, never from the name. See `udtTypeOf`.
+        markUdtSlot(slot, value, scope, toks, eq)
         out.push(declare(slot, lowerExpr(value, scope)))
         continue
       }
@@ -3689,6 +4341,20 @@ export function buildRuntimeIr(source, opts = {}) {
         // (`lesson_a_guard_repeated_is_a_guard_unproved`).
         noteHandle(nameTok.value, value)
         const isCollection = holdsArray(value, scope)
+        // ⛔⛔ A RECORD BINDING IS ALWAYS A SLOT, NEVER AN `env` MACRO — an
+        // `env` macro is SUBSTITUTED at each use, so `ob = orderBlock.new(…)`
+        // followed by `ob.top := x` and a read of `ob.top` would build a FRESH
+        // record at every mention: the write lands in one instance and the read
+        // comes from another, answering the default forever with nothing red.
+        //
+        // ⭐ AND `readsSlot` ALREADY ENFORCES IT — its `udtCtorOf` clause is
+        // what makes a construction reach the runtime lane, and every other way
+        // to obtain a record (a name, an element read, a ternary) reads a slot
+        // by construction. ⚰️ A dedicated `!isRecord(value, scope)` clause was
+        // written here too and is gone on its own measurement: removing it left
+        // every case green, because nothing can produce a record while reading
+        // no slot. `frontend-needsRuntime-ctor` is the mutation that holds the
+        // surviving half.
         if (!mutable && !isCollection && !readsSlot(value, scope)) {
           env.set(nameTok.value, { kind: 'expr', node: value, env: new Map(env), at: locate(nameTok) })
           continue
@@ -3703,6 +4369,7 @@ export function buildRuntimeIr(source, opts = {}) {
           slots[slot].collection = true
           slots[slot].elemText = arrayHoldsText(value, scope)
         }
+        markUdtSlot(slot, value, scope, toks, eq)
         out.push(declare(slot, lowerExpr(value, scope)))
         continue
       }
