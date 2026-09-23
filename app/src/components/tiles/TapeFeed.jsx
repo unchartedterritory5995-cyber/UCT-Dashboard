@@ -2,6 +2,7 @@
 import useTweetFeed from '../../hooks/useTweetFeed'
 import TileCard from '../TileCard'
 import NewsFeed from './NewsFeed'
+import UIcon from '../ui/UIcon'
 import { SkeletonTileContent } from '../Skeleton'
 import { timeAgo } from '../../utils/timeAgo'
 import styles from './TapeFeed.module.css'
@@ -18,7 +19,6 @@ function isRecent(raw) {
 }
 
 // Style cashtags ($AAPL) in brand gold while keeping plain text intact.
-// Author handles are intentionally NOT rendered — content only.
 function renderTweetText(text) {
   if (!text) return null
   const parts = text.split(/(\$[A-Z]{1,5}\b)/g)
@@ -50,12 +50,21 @@ export default function TapeFeed({ data: propData }) {
               key={t.id}
               className={`${styles.item} ${t.is_retweet ? styles.retweet : ''}`}
             >
-              <div className={styles.text}>
-                {renderTweetText(t.text)}
+              <div className={styles.body}>
+                {(t.author_name || t.author_handle) && (
+                  <div className={styles.byline}>
+                    {t.author_name && <span className={styles.authorName}>{t.author_name}</span>}
+                    {t.author_handle && <span className={styles.authorHandle}>@{t.author_handle}</span>}
+                  </div>
+                )}
+                <div className={styles.text}>
+                  {renderTweetText(t.text)}
+                </div>
               </div>
               <div className={styles.meta}>
                 {isRecent(t.created_at) && <span className={styles.newDot} title="New" />}
                 <span className={styles.time}>{timeAgo(t.created_at)}</span>
+                <UIcon name="xWordmark" size={10} className={styles.xMark} title="on X" />
                 <a
                   className={styles.link}
                   href={t.url}

@@ -16,6 +16,7 @@ import sqlite3
 import threading
 import time
 from typing import Optional
+from zoneinfo import ZoneInfo
 
 logger = logging.getLogger(__name__)
 
@@ -380,6 +381,67 @@ def upsert_catalyst(row: dict) -> None:
             row,
         )
         c.commit()
+
+
+# PACKET-S CP5 (2026-09-22, RG-21 §1e): `raw_signals` carries the full
+# verbatim tweet/RSS text a catalyst was synthesized from, and nothing ever
+# trimmed it -- so a tweet quoted into a catalyst on day 1 was still sitting
+# here, full text intact, long after tweets.db's own 7-day sweep removed the
+# same tweet from its source-of-truth table. This does NOT touch
+# thesis_text/score/grade/tag/ticker or any other column -- those are UCT's
+# own synthesized output, not vendor content, and CLAUDE.md's "Indefinite
+# retention" design intent is preserved for exactly those fields.
+_ET = ZoneInfo("America/New_York")
+
+
+def redact_stale_raw_signals(days: int = 7) -> int:
+    """Strip verbatim vendor text bodies (tweet `text`; RSS `title`/`url`)
+    out of `raw_signals` for rows whose market_date is older than `days`,
+    once tweets.db's own 7-day sweep would already have dropped the source
+    tweet. Keeps every structural field the tile / `_compute_catalyst_at`
+    read -- tweet/RSS counts, `created_at`/`time_published` timestamps,
+    `source`, author fields, `earnings_meta`, `scanner_setup`,
+    `options_flow`, `brain_grade` -- untouched. Idempotent: a row with
+    nothing left to strip is skipped without a write, so re-running this on
+    an already-redacted row is a no-op. Returns the count of rows actually
+    modified."""
+    cutoff_date = (datetime.datetime.now(_ET).date() - datetime.timedelta(days=days)).isoformat()
+    redacted = 0
+    with _WRITE_LOCK, contextlib.closing(_connect()) as c:
+        rows = c.execute(
+            "SELECT market_date, ticker, raw_signals FROM catalysts "
+            "WHERE market_date < ? AND raw_signals IS NOT NULL",
+            (cutoff_date,),
+        ).fetchall()
+        for row in rows:
+            try:
+                signals = json.loads(row["raw_signals"])
+            except (TypeError, ValueError):
+                continue
+            if not isinstance(signals, dict):
+                continue
+
+            changed = False
+            for t in (signals.get("tweets") or []):
+                if isinstance(t, dict) and t.pop("text", None) is not None:
+                    changed = True
+            for r in (signals.get("rss") or []):
+                if not isinstance(r, dict):
+                    continue
+                if r.pop("title", None) is not None:
+                    changed = True
+                if r.pop("url", None) is not None:
+                    changed = True
+
+            if not changed:
+                continue
+            c.execute(
+                "UPDATE catalysts SET raw_signals = ? WHERE market_date = ? AND ticker = ?",
+                (json.dumps(signals, default=str), row["market_date"], row["ticker"]),
+            )
+            redacted += 1
+        c.commit()
+    return redacted
 
 
 def record_feedback(*, user_id: str, market_date: str, ticker: str,

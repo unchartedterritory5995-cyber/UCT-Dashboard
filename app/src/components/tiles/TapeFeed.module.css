@@ -23,9 +23,36 @@
 }
 .retweet { opacity: 0.78; }
 
-.text {
+/* Wraps the byline + tweet text so `.item` stays a simple two-column row
+   (body | meta) — the byline addition does not restructure that flex shape. */
+.body {
   flex: 1;
   min-width: 0;
+}
+
+.byline {
+  display: flex;
+  align-items: baseline;
+  gap: 4px;
+  margin-bottom: 1px;
+  min-width: 0;
+}
+.authorName {
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--text-bright);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 140px;
+}
+.authorHandle {
+  font-size: 10px;
+  color: var(--text-muted);
+  white-space: nowrap;
+}
+
+.text {
   font-size: 12px;
   color: var(--text-bright);
   line-height: 1.5;
@@ -59,6 +86,12 @@
   text-decoration: none;
 }
 .link:hover { color: var(--ut-gold); }
+
+/* X's own wordmark beside the permalink icon — brand display requirement. */
+.xMark {
+  flex-shrink: 0;
+  opacity: 0.75;
+}
 
 /* NEW pulse dot */
 .newDot {

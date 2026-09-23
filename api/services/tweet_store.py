@@ -154,6 +154,22 @@ def delete_tweets_older_than(days: int) -> int:
         return cur.rowcount
 
 
+def delete_tweets_by_ids(ids: list[str]) -> int:
+    """Delete specific tweets by id. Cascades to tweet_tickers. Returns row
+    count. Mirrors delete_tweets_older_than's shape (same _WRITE_LOCK +
+    contextlib.closing pattern) — used by the X deletion-sync (PACKET-S CP4,
+    RG-21 §1d) to remove tweets TwitterAPI.io reports as no longer resolving,
+    independent of the age-based sweep above."""
+    ids = [str(i) for i in ids if i]
+    if not ids:
+        return 0
+    with _WRITE_LOCK, contextlib.closing(_connect()) as c:
+        placeholders = ",".join("?" * len(ids))
+        cur = c.execute(f"DELETE FROM tweets WHERE id IN ({placeholders})", ids)
+        c.commit()
+        return cur.rowcount
+
+
 # ---- account CRUD ----------------------------------------------------------
 
 # Curated FinTwit accounts seeded idempotently on startup. INSERT OR IGNORE

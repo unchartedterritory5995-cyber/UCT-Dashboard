@@ -89,3 +89,51 @@ def test_missing_api_key_raises(monkeypatch):
     monkeypatch.delenv("TWITTERAPI_IO_API_KEY", raising=False)
     with pytest.raises(twitterapi_io.TwitterApiConfigError):
         twitterapi_io.get_user_last_tweets("DeItaone")
+
+
+# ---- find_deleted_tweet_ids (PACKET-S CP4, RG-21 §1d) ----------------------
+
+def test_find_deleted_tweet_ids_reports_ids_missing_from_the_response():
+    # TwitterAPI.io omits an id from `tweets` when it no longer resolves —
+    # "1" and "3" survive, "2" is gone (deleted/protected/suspended).
+    payload = {"tweets": [{"id": "1"}, {"id": "3"}], "status": "success", "message": ""}
+    with patch("requests.get", return_value=_resp(200, payload)):
+        gone = twitterapi_io.find_deleted_tweet_ids(["1", "2", "3"])
+    assert gone == {"2"}
+
+
+def test_find_deleted_tweet_ids_control_nothing_deleted_when_all_resolve():
+    # Control: if the response echoes back every id, nothing is reported gone —
+    # proves the set-difference logic isn't unconditionally flagging ids.
+    payload = {"tweets": [{"id": "1"}, {"id": "2"}], "status": "success", "message": ""}
+    with patch("requests.get", return_value=_resp(200, payload)):
+        gone = twitterapi_io.find_deleted_tweet_ids(["1", "2"])
+    assert gone == set()
+
+
+def test_find_deleted_tweet_ids_empty_input_short_circuits_without_a_call():
+    with patch("requests.get") as g:
+        assert twitterapi_io.find_deleted_tweet_ids([]) == set()
+    g.assert_not_called()
+
+
+def test_find_deleted_tweet_ids_hits_the_get_tweets_endpoint_with_comma_joined_ids():
+    with patch("requests.get", return_value=_resp(200, {"tweets": []})) as g:
+        twitterapi_io.find_deleted_tweet_ids(["10", "20"])
+    args, kwargs = g.call_args
+    assert args[0].endswith("/twitter/tweets")
+    assert kwargs["params"]["tweet_ids"] == "10,20"
+    assert kwargs["headers"]["x-api-key"] == "test-key-xyz"
+
+
+def test_find_deleted_tweet_ids_batches_over_the_conservative_cap():
+    ids = [str(i) for i in range(1, 251)]  # 250 ids -> 3 batches of <=100
+    with patch("requests.get", return_value=_resp(200, {"tweets": []})) as g:
+        twitterapi_io.find_deleted_tweet_ids(ids)
+    assert g.call_count == 3
+
+
+def test_find_deleted_tweet_ids_401_raises_auth_error():
+    with patch("requests.get", return_value=_resp(401, {"error": "invalid key"})):
+        with pytest.raises(twitterapi_io.TwitterApiAuthError):
+            twitterapi_io.find_deleted_tweet_ids(["1"])

@@ -472,6 +472,20 @@ const ICONS = {
       <rect x="10.3" y="13.3" width="3.4" height="3.6" rx="0.4" fill="currentColor" stroke="none" />
     </>
   ),
+
+  // ── Third-party brand marks ─────────────────────────────────────────────
+  // X's own wordmark (PACKET-S CP3, RG-21 §1c) — required alongside tweet
+  // content per X's display guidelines. Solid fill, not stroke, since the
+  // mark itself is a solid glyph — same treatment as `star-fill`/`microsoft`.
+  // Distinct from the existing `x` name above, which is a generic close/×
+  // control, not the brand mark.
+  xWordmark: (
+    <path
+      d="M18.901 1.153h3.68l-8.04 9.19L24 22.846h-7.406l-5.8-7.584-6.638 7.584H.474l8.6-9.83L0 1.154h7.594l5.243 6.932ZM17.61 20.644h2.039L6.486 3.24H4.298Z"
+      fill="currentColor"
+      stroke="none"
+    />
+  ),
 }
 
 export const UICON_NAMES = Object.keys(ICONS)
