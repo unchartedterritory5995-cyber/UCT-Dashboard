@@ -154,6 +154,12 @@ describe('AskCitationView — adjacent chips never steal each other\'s taps (DOM
     type: 'askCitation',
     attrs: { n, label: `Note ${n}`, nav: { kind: 'note', note_id: `n${n}` }, citation: 'exact', claim: null },
   })
+  // A source with no note to open (an excerpt never carries `note_id`) renders
+  // as a non-interactive <span> chip.
+  const noNoteChip = (n) => ({
+    type: 'askCitation',
+    attrs: { n, label: `Excerpt ${n}`, nav: { kind: 'excerpt' }, citation: 'exact', claim: null },
+  })
   const RUN_CONTENT = [
     { type: 'text', text: 'Margins fell ' },
     chip(2), chip(3),
@@ -161,7 +167,7 @@ describe('AskCitationView — adjacent chips never steal each other\'s taps (DOM
     chip(4),
     { type: 'text', text: ' and ' },
     { type: 'text', text: 'held', marks: [{ type: 'bold' }] },
-    chip(5),
+    chip(5), noNoteChip(6), chip(7),
   ]
   // The claim an insert would have written, so no chip reads "edited".
   for (const node of RUN_CONTENT) if (node.type === 'askCitation') node.attrs.claim = claimFromJson(RUN_CONTENT)
@@ -194,15 +200,28 @@ describe('AskCitationView — adjacent chips never steal each other\'s taps (DOM
   async function chips() {
     await mount(RUN_DOC)
     const buttons = await waitFor(() => {
-      const found = [2, 3, 4, 5].map((n) => screen.getByRole('button', { name: `Source ${n}: Note ${n}` }))
+      const found = [2, 3, 4, 5, 7].map((n) => screen.getByRole('button', { name: `Source ${n}: Note ${n}` }))
       return found
     })
     return buttons
   }
 
-  it('each chip is button < .wrap < the node-view span, and the node-view spans are the siblings', async () => {
-    const [b2, b3, b4, b5] = await chips()
-    const views = [b2, b3, b4, b5].map((b) => {
+  /** The chip element of the no-note source `[6]`: a <span>, not a button. */
+  function spanChip6() {
+    const chips = [...document.querySelectorAll(`.${styles.chip}`)]
+    const found = chips.filter((el) => el.textContent.includes('Source 6: Excerpt 6'))
+    expect(found).toHaveLength(1)
+    return found[0]
+  }
+
+  it('each chip is chip < .wrap < the node-view span, and the node-view spans are the siblings', async () => {
+    const [b2, b3, b4, b5, b7] = await chips()
+    const s6 = spanChip6()
+    // `[6]` has no note to open: a SPAN chip, carrying the same local class
+    // the touch rule positions (`.wrap .chip`), in the same sibling chain.
+    expect(s6.tagName).toBe('SPAN')
+    expect(s6.closest('button')).toBeNull()
+    const views = [b2, b3, b4, b5, s6, b7].map((b) => {
       const wrap = b.parentElement
       expect(wrap.classList.contains(styles.wrap)).toBe(true)
       expect(wrap.children).toHaveLength(1)
@@ -212,7 +231,7 @@ describe('AskCitationView — adjacent chips never steal each other\'s taps (DOM
       expect(view.parentElement.tagName).toBe('P')
       return view
     })
-    const [v2, v3, v4, v5] = views
+    const [v2, v3, v4, v5, v6, v7] = views
     // Text before `[2]` is not an element, so nothing precedes it.
     expect(v2.previousElementSibling).toBeNull()
     // `[2][3]` run together: element siblings, the shape the rule needs.
@@ -222,13 +241,18 @@ describe('AskCitationView — adjacent chips never steal each other\'s taps (DOM
     expect(v4.previousElementSibling).toBe(v3)
     // Formatted text is an element: `<strong>held</strong>[5]` is not adjacent.
     expect(v5.previousElementSibling?.tagName).toBe('STRONG')
+    // `[5][6][7]`: the no-note span chip sits in the same chain, right after a
+    // note chip and right before one.
+    expect(v6.previousElementSibling).toBe(v5)
+    expect(v7.previousElementSibling).toBe(v6)
   })
 
   it('the adjacency selector, exactly as written, matches the chips that follow a chip and no other', async () => {
-    const [b2, b3, b4, b5] = await chips()
+    const [b2, b3, b4, b5, b7] = await chips()
     const selector = adjacencySelector()
     const matched = [...document.querySelectorAll(selector)]
-    expect(matched).toEqual([b3, b4])
+    // `[7]` follows the span chip `[6]`, so its left side faces a chip too.
+    expect(matched).toEqual([b3, b4, b7])
     expect(matched).not.toContain(b2)
     expect(matched).not.toContain(b5)
   })

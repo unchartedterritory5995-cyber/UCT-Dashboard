@@ -69,8 +69,23 @@ describe('AskCitationView', () => {
     const rule = touchRules()
     expect(rule['.wrap .chip']).toMatch(/min-height:\s*0;/)
     expect(rule['.wrap .chip']).toMatch(/line-height:\s*inherit;/)
-    expect(rule['.wrap button.chip']).toMatch(/position:\s*relative;/)
     expect(rule['.wrap button.chip::after']).toMatch(/position:\s*absolute;/)
+  })
+
+  // G-064 close-out (review Important #2) — EVERY chip is positioned, the
+  // <span> chip of a source with no note included. A non-positioned box paints
+  // below every positioned one, so an earlier button chip's ::after covered a
+  // later span chip's own box: tapping `[7]` (an excerpt) opened source 6.
+  // `position: relative` sits on `.wrap .chip`, the rule both kinds match, and
+  // the span chip carries the class that rule needs.
+  it('every chip is positioned on touch, the no-note <span> chip included', () => {
+    const rule = touchRules()
+    expect(rule['.wrap .chip']).toMatch(/position:\s*relative;/)
+    render(<AskCitationView node={node({ nav: null })} decorations={[]} />)
+    const span = screen.getByText('Source 1: NVDA thesis').parentElement
+    expect(span.tagName).toBe('SPAN')
+    expect(span.className).toContain(styles.chip)
+    expect(span.parentElement.className).toContain(styles.wrap)
   })
 
   // G-064 close-out — a tap on a chip's OWN box must open that chip's source.
@@ -102,11 +117,15 @@ describe('AskCitationView', () => {
     expect(side(rule[adjacent], 'left')).toBe(0)
     expect(rule[adjacent]).not.toMatch(/top:/)
 
-    // Moved, not removed: at the comment's nominal smallest box (24px tall,
-    // 32px wide) the target still spans the 44px floor, including a chip that
-    // has lost its left side.
-    const BOX_H = 24
-    const BOX_W = 32
+    // Moved, not removed: at the SMALLEST MEASURED chip box the target still
+    // clears the 44px floor, including a chip that has lost its left side.
+    // Measured by the G-064 close-out review (review-polish.md, Minor #1,
+    // Playwright getBoundingClientRect): `[1]` is 30.3px wide in Segoe UI and
+    // system-ui (Chromium) and 31.4px in WebKit; the box is 23.5px tall in
+    // Chromium and 23px in WebKit. A narrower measurement belongs here, and
+    // turns this red.
+    const BOX_H = 23
+    const BOX_W = 30.3
     expect(BOX_H - top - bottom).toBeGreaterThanOrEqual(44)
     expect(BOX_W - right).toBeGreaterThanOrEqual(44)
     expect(BOX_W - left - right).toBeGreaterThanOrEqual(44)
