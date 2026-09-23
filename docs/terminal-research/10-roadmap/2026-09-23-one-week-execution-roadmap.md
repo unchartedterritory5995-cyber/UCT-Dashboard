@@ -183,7 +183,8 @@ when they see it.
 | Platform | S9 Entitlements | not built | A14 Portfolio & Risk |
 | Platform | S10 Presentation Primitives | SHIPPED | — |
 | Data | D1 Provider Abstraction | SHIPPED, adoption sweep open | nothing — safe to finish now |
-| Data | D2 Canonical Data Model | CP1–2 merged, the long pole | A11, A13, S8's full citations |
+| Data | D2 Canonical Data Model | **CP2, confirmed unchanged 2026-09-23** — still the long pole | A11, A13, S8's full citations |
+| Data | D3 Realtime Streaming | **CP4 shipped `bb312cc18`, owner-signed** (new as of 2026-09-23 — was "docs only" at last measurement) | A10, jointly with D4 |
 | Data | D5 Reference & Corp Actions | CP1 merged, CP2–7 open | partial |
 | Intelligence | I1 Intelligence Layer | SHIPPED, 3 slices | — |
 | App | A9 Screening | gate-only, closest to clear | S7 type CP3 |
@@ -192,10 +193,19 @@ when they see it.
 | App | A2 Charts, A10 Options & Flow | gate-only / partner-owned | S1/S2 (owner-bound) / Ravi ack |
 | App | A14 Portfolio & Risk | no member door at all | S9 + D8, both owner-bound |
 
-*Last full measurement: 10 days old. Day 0 opens with a fresh, fast re-derivation of
-this exact table before any wave is dispatched — a roster inherited from a previous
-roster is this program's own most-repeated defect, so this one gets re-measured, not
-retyped.*
+*Last full measurement: 10 days old at the time this document was written. Re-measured
+fresh on Day 0, 2026-09-23 — see the Day 0 close-out note after §3 for what changed and
+what didn't.*
+
+> ⚠️ **Naming collision, found during Day 0 re-measurement — do not conflate.** There
+> are two unrelated "D2" identifiers in this codebase's commit history: Terminal-Next's
+> own **D2 Canonical Data Model** (`api/services/canonical/address_book.py`), and a
+> completely different **D2 / F-D2-\*** series (`bars_ordinal_census.py`,
+> `earnings_table` fundamentals-shape declarations) belonging to the unrelated general
+> bug-hunting program, tracked in `COMPLETION_AUDIT.md`. Commits like "D2 CP5," "F-D2-1,"
+> "F-D2-3" are **not** this roster's D2 progressing. Verified by reading
+> `address_book.py` directly — Terminal-Next's D2 sat at CP2 both on 2026-09-13 and on
+> 2026-09-23; the other D2 series moved independently and means nothing for this roster.
 
 The competitive research already banked and not being redone: 11 accepted product
 dossiers (Unusual Whales, TradingView, Koyfin, Benzinga Pro, AlphaSense, Fiscal.ai,
@@ -223,6 +233,23 @@ the whole thing holds together.
 - **Owner:** answer the two CP-03 questions from §0, whenever today works. Nothing in
   Days 1–3 waits on it, but the longer it's open the more of Days 4–7 has to stay
   flagged dark instead of going live.
+
+> ✅ **Day 0 closed, 2026-09-23.** Two agents dispatched, both reported real findings —
+> nothing rubber-stamped:
+> - **Roster:** D2 confirmed unchanged at CP2 (the naming-collision warning above is the
+>   important catch here). D3 Realtime Streaming has real new progress — CP4 shipped,
+>   owner-signed — moving it off "docs only," though A10 still needs D4 too and stays
+>   blocked. A9's live match-count already shipped separately (see §4); its gate is
+>   otherwise unchanged.
+> - **Critical Path:** of the 11 non-CP-03 questions, all held with no regressions.
+>   CP-02 and CP-10 both closed a small, real, citable sub-gap via the unrelated packet
+>   wave (FRED attribution notice; FRED cache TTL). Two stale citations were caught and
+>   corrected in `CRITICAL_PATH.md` directly: CP-05's deploy-window figure (was ~3 min,
+>   is now measured at ~10 min end-to-end under the current deploy pipeline) and CP-11's
+>   Railway service count (was "five," is seven — the same drift already fixed once in
+>   `CLAUDE.md` this session, caught here as an uncorrected second copy).
+>
+> Nothing found changes the Day 1–7 plan's shape. Day 1's wave is dispatched next.
 
 ### Day 1 — finish what's already unblocked (nothing here waits on the owner)
 
@@ -353,14 +380,17 @@ as it should.
 - **Data / licensing:** Massive bars/quotes — R pending CP-03. Breadth's EOD row
   (yfinance) — already-flagged Unsuitable source, a real, separate fix, not new.
 
-### A9 — Screening — closest to clear
+### A9 — Screening — closest to clear, and now smaller than planned
 
-Already has a working evaluator and definition tree; the gap is purely the
-live-feedback UX layer.
+Already has a working evaluator and definition tree. **Live match-count feedback
+shipped separately on 2026-09-23** via the unrelated bug-hunting program's own packet
+(confirmed live: `useScreenerCount` wired into `ScannerShell.jsx`) — found during Day 0
+re-measurement, not planned. That doesn't move A9's roster gate (still needs S7's
+`scan-membership-change` type to reach CP3), but it does shrink what's left to build.
 
-- **Build this week:** live match-count as filters change (a cheap preview endpoint
-  already exists, unwired); named, addressable saved screens (terminal-grade property
-  3); keyboard-driven filter editing.
+- **Build this week (revised):** named, addressable saved screens (terminal-grade
+  property 3); keyboard-driven filter editing. Live match-count is already done —
+  removed from this week's scope.
 - **Data / licensing:** runs on already-computed screener rows — first-party derived,
   no new vendor exposure.
 
