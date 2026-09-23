@@ -262,6 +262,13 @@ export const RUNTIME_REFUSALS = Object.freeze({
   'runtime:unbound': 'a name nothing in this script binds',
   'runtime:statement': 'a statement shape this front end does not recognise',
   'runtime:declaration': 'a script that is not an indicator',
+  // ⛔⛔ SPLIT OUT OF `runtime:declaration` BECAUSE THAT SENTENCE WAS FALSE FOR IT.
+  // Measured over the committed corpus: 54 scripts stop at `runtime:declaration`,
+  // and they are TWO populations — 25 real `strategy()` scripts, for which *"not an
+  // indicator"* is exactly right, and **29 scripts that declare `indicator()`** and
+  // stop on an `import`. Telling those 29 they are not an indicator is a confident
+  // wrong answer about the one line of their script they did not get wrong.
+  'runtime:library': 'a Pine library import — this lane compiles the script it is given, not a library graph',
   'runtime:no-output': 'a script with nothing to plot',
   'runtime:recursion': 'a function that calls itself — Pine forbids it',
   'runtime:function-global-state': 'a function body reading a mutable GLOBAL — a frame has no address for one yet',
@@ -4687,7 +4694,23 @@ export function buildRuntimeIr(source, opts = {}) {
       if (word === 'strategy' || word === 'library') {
         throw new RuntimeRefusal('runtime:declaration', `\`${word}()\``, locate(first))
       }
-      if (word === 'import' || word === 'export') {
+      // ⛔ `import` AND `export` ARE NOT THE SAME FACT, so they no longer share a
+      // sentence. A script that EXPORTS is a library, and *"a script that is not an
+      // indicator"* is true of it. A script that IMPORTS is usually an indicator —
+      // 29 of the 266 committed scripts are exactly that — and what it needs is the
+      // imported library's SOURCE, which this engine does not fetch.
+      if (word === 'import') {
+        note('runtime:library')
+        // ⭐ QUOTE THE LINE THE MEMBER WROTE. The tokens lose the path's slashes to
+        // punctuation, so `toks.map(t => t.value).join(' ')` renders
+        // `import TradingView / ta / 7 as tvta` — a spelling that appears in no
+        // script and reads like the engine mis-parsed it.
+        const raw = String(source).split('\n')[(first.line || 1) - 1] || ''
+        const shown = raw.trim().slice(0, 72)
+        throw new RuntimeRefusal('runtime:library',
+          shown ? `\`${shown}\`` : '`import`', locate(first))
+      }
+      if (word === 'export') {
         throw new RuntimeRefusal('runtime:declaration', `\`${word}\``, locate(first))
       }
       // ⭐⭐ A `type` DECLARATION EMITS NO IR AND IS NOT SKIPPED BLIND. It was

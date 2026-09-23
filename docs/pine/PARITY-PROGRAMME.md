@@ -20,7 +20,7 @@ side-by-side. The local dev loop (`scripts/hub_sandbox_boot.py --port 8000` +
 
 ---
 
-## ⭐⭐⭐ 2026-09-23 — THE THREE OPEN DECISIONS, RULED
+## ⭐⭐⭐ 2026-09-23 — THE THREE OPEN DECISIONS, RULED (and a FOURTH, raised and ruled the same day)
 
 All three were delegated ("you decide and determine the best answer and decision
 for all of those"). Each is ruled below **on a measurement taken for the ruling**,
@@ -99,6 +99,40 @@ so in its own words — *"an unconfirmed spelling is never served"* — and the
 `pending_measurement` sentences tell a member it is a MEASUREMENT gap rather than a
 grammar gap, so a script that will work unchanged the day a witness lands is not
 rewritten by its author today.
+
+### 4. Pine LIBRARIES (`import`) — **OUT OF SCOPE FOR THIS PHASE, and the refusal now says so**
+
+⭐ **RAISED BY A MEASUREMENT, not by a plan.** Ranking the runtime lane's first walls
+after RC-L put `runtime:declaration` on top at **54 of 266** — and that row is two
+populations wearing one sentence:
+
+| | |
+|---|---|
+| **25** | real `strategy()` scripts — ruled out of scope in §1 above |
+| **29** | scripts declaring `indicator()` that stop on an **`import`** |
+
+All 29 open with `indicator(...)`, so the sentence they were shown — *"a script that is
+not an indicator"* — was **false about every one of them**.
+
+⛔ **THE RULING: libraries stay unserved, for the same reason `strategy()` does.**
+Serving them means fetching and compiling third-party Pine from TradingView. That is a
+distribution and licensing question (`docs/pine/LICENSING.md`) at least as much as an
+engineering one, and the programme's goal is *paste code and get the identical
+indicator* — a script that imports a library is not self-contained code the member
+pasted. **31 distinct libraries across the 29 scripts, 39 of 40 aliases really called**,
+so there is no cheap subset to pick off.
+
+⭐ **WHAT DID CHANGE IS THE SENTENCE** — `runtime:library`, quoting the member's own
+import line. `runtime:declaration` is now exactly the 25 strategies, which is the
+population its wording describes. **RC-M** carries the measurement and the rejected
+shortcut (aliasing `TradingView/ta` onto the `ta` namespace — two different sets, and
+serving one as the other is RC-A's defect).
+
+⚠️ **A NOTE ON THE INSTRUMENT, because it was wrong first.** The first ranking put
+`runtime:realtime-untold` on top at 49 scripts. That row was the PROBE's blind spot —
+it passed no `newestBarIsForming`, so the lane correctly refused every script naming a
+realtime barstate. Told the clock, the row vanishes. **Any first-wall table in this
+programme must state its fixture, or it is a measurement of itself.**
 
 ---
 

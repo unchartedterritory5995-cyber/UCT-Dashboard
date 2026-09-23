@@ -913,6 +913,85 @@ meet it as their scripts clear their other walls.
 
 ---
 
+## RC-M — 29 indicators were told they are not indicators
+
+`runtime:declaration` is the **largest first-wall row on the runtime lane — 54 of 266
+committed scripts** — and its sentence is:
+
+> a script that is not an indicator
+
+⛔⛔ **MEASURED, THAT ROW IS TWO POPULATIONS, and the sentence is true of one of them.**
+
+| | |
+|---|---|
+| **25** | real `strategy()` scripts — *"not an indicator"* is exact, and the owner ruled strategy OUT OF SCOPE on 2026-09-23 |
+| **29** | scripts that open with `indicator(...)` and stop on an **`import`** |
+
+All 29 declare `indicator()`. Telling their author the script is not an indicator is a
+confident wrong answer about the one line they did not get wrong — **RC-G's class**
+(*"a name the script defines is not one it never defined"*) arriving through a different
+door, and found the same afternoon RC-G's sibling was fixed in the `:=` path.
+
+⭐ **THE FIX IS THE SENTENCE, NOT THE CAPABILITY.** `import` gets its own family,
+`runtime:library`, and quotes the line the member wrote:
+
+```
+a Pine library import — this lane compiles the script it is given, not a library graph
+  — `import TradingView/ta/7 as tvta`
+```
+
+⛔ **`export` DELIBERATELY DOES NOT MOVE.** A script that exports IS a library, so
+*"not an indicator"* is exact for it. Sharing one sentence between `import` and `export`
+is what made the false half invisible; a mutation that folds `export` into the new family
+reds the control that says so.
+
+⚠️ **AND THE LINE IS READ FROM THE SOURCE, NOT REBUILT FROM TOKENS.** The path's slashes
+lex as punctuation, so `toks.map(t => t.value).join(' ')` renders
+`import TradingView / ta / 7 as tvta` — a spelling that appears in no script and reads
+like the engine mis-parsed the line rather than declined to follow it.
+
+### What it would take to SERVE them, measured
+
+**31 distinct libraries across the 29 scripts, and 39 of 40 aliases are really called** —
+so this is not a pile of unused imports that could be skipped. Serving it means fetching
+and compiling third-party Pine from TradingView, which is a distribution question as much
+as an engineering one (`docs/pine/LICENSING.md`).
+
+⛔⛔ **AND THE OBVIOUS SHORTCUT IS REJECTED, UNMEASURED, ON PURPOSE.** Seven of the 29
+import `TradingView/ta`, and it is tempting to alias `tvta.ema` onto the `ta.ema` this
+engine already serves. **`TradingView/ta` is a LIBRARY and `ta` is a NAMESPACE, and they
+are not the same set** — the corpus calls that library for `vStop` and
+`requestUpAndDownVolume`, which are not `ta.*` built-ins at all. Whether the names that
+DO collide mean the same thing has never been measured here, and serving them on the
+strength of a shared spelling is **RC-A's defect**: a name served by resemblance. The
+next reader will propose this; it is recorded as rejected so the proposal starts from a
+measurement rather than from the idea.
+
+### Measured
+
+| | |
+|---|---|
+| `runtime:declaration` | **54 → 25** — now exactly the population its sentence describes |
+| `runtime:library` | 0 → **29** |
+| indicators told they are not indicators | **29 → 0** |
+| object-lane BUILDS | 7 → **7** |
+| corpus scripts that BUILD | 13 → **13** |
+| gate | **0 NEW** over `chart/engine` + `chart/builder`, HEAD baseline re-measured by blob |
+
+⛔ **NO SCRIPT WALKS FURTHER, AND THAT IS THE WHOLE POINT.** This buys no coverage. It
+buys 29 members a true sentence about why their script stopped, instead of one that sends
+them to rewrite a declaration that was already correct.
+
+⚠️ **AND THE INSTRUMENT THAT FOUND IT WAS ITSELF WRONG FIRST.** The first ranking of
+first walls put `runtime:realtime-untold` on top at 49 scripts — because the probe passed
+no `newestBarIsForming`, so the lane correctly refused every script naming a realtime
+barstate. That was the PROBE's blind spot reported as the corpus's wall
+(`lesson_an_instrument_can_reproduce_its_own_blind_spot`). Told the clock, the row
+disappears entirely and `runtime:declaration` is the real top. **A census is a
+measurement of the census until its fixture is stated.**
+
+---
+
 ---
 
 ## The foreseeable problems — where this shape will bite next
