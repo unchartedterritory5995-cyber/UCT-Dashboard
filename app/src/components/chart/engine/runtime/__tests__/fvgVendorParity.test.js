@@ -211,25 +211,34 @@ describe('⭐⭐ Fair Value Gaps, against TradingView\'s own boxes', () => {
     expect(String(V._findings.maxBoxesCountDefault)).toMatch(/DELETED/)
   })
 
-  it('⛔⛔ KNOWN DIVERGENCE 2 — the forward edge lands on WEEKENDS', () => {
-    // `right = bar_index + 3` means three TRADING sessions. Past the last
-    // loaded bar our clock extrapolates by median spacing, which walks into
-    // Saturday and Sunday. Both cases are pinned; a fix reds this.
+  it('⭐⭐ DIVERGENCE 2 IS CLOSED — the forward edge lands on the vendor\'s own session', () => {
+    // ⚰️ THIS CASE USED TO PIN THE DEFECT. `right = bar_index + 3` means three
+    // TRADING sessions; our clock extrapolated by median spacing and walked into
+    // Saturday and Sunday. It required at least one mismatch AND asserted that
+    // every mismatch was a weekend — so a different forward-edge bug could never
+    // hide inside it, and its own message ("the forward-edge divergence is gone
+    // — remove this case") is what brought a reader here.
+    //
+    // ⭐ RC-C made the forward step session-aware, derived from the series' own
+    // weekdays rather than a constant. The result is not "fewer weekends": every
+    // right edge in the window now equals TradingView's exactly, with no
+    // mismatches of any other kind either.
     const { by } = ourBoxes()
-    const weekend = []
+    const mismatched = []
     for (const [leftDate, rightDate] of V.boxes) {
       if (!inWindow(leftDate) || !rightDate) continue
       const o = by.get(leftDate)
       if (!o || o.right === rightDate) continue
-      const day = new Date(`${o.right}T00:00:00Z`).getUTCDay()
-      weekend.push({ leftDate, ours: o.right, tv: rightDate, isWeekend: day === 0 || day === 6 })
+      mismatched.push({ leftDate, ours: o.right, tv: rightDate })
     }
-    expect(weekend.length, 'the forward-edge divergence is gone — remove this case')
+    expect(mismatched, 'a forward edge disagrees with the vendor').toEqual([])
+
+    // ⛔ NON-VACUITY, AND IT IS LOAD-BEARING HERE. `toEqual([])` is satisfied by
+    // a loop that compared nothing at all — a wrong window, an empty run or a
+    // lookup that never hits would all read as perfect agreement.
+    const compared = V.boxes
+      .filter(([l, r]) => inWindow(l) && r && by.get(l)).length
+    expect(compared, 'no box was compared — the window or the run is empty')
       .toBeGreaterThan(0)
-    for (const w of weekend) {
-      expect(w.isWeekend, `${w.leftDate}: ours ${w.ours} differs from tv ${w.tv} `
-        + 'but is NOT a weekend — this is a different defect than the one pinned here')
-        .toBe(true)
-    }
   })
 })

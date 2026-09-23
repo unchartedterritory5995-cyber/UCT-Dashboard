@@ -17,6 +17,15 @@ Captures: `tests/fixtures/vendor/visual/fvg-boxes-spy-1d-2026-09-22.json`,
 | Liquidity Pools | ⛔ nothing we still draw is inside the vendor's window |
 | 4C NYSE Breadth | ⚠️ cannot match — `request.security` has no feed here |
 
+⭐ **That table is the 2026-09-23 MEASUREMENT and is left as measured.** Since it was
+taken, RC-A, RC-B and RC-C have shipped. What has been **re-measured against the vendor
+since** is Fair Value Gaps, which now agrees on every dimension the rail checks — bars,
+prices, live box count and forward edges, both of its known divergences closed.
+⛔ **Trendlines and Liquidity Pools have NOT been re-captured.** Their root causes are
+fixed and their mechanisms are railed, but "the vendor now agrees" is a prediction for
+those two, not a measurement, and this programme's own standing rule is that only the
+vendor's numbers can settle it.
+
 ---
 
 ## The finding under the findings
@@ -174,11 +183,11 @@ quietly — four more primitives (`zorder.js`, `colorInt.js`, `textLayout.js`,
 
 ## RC-C — the clock models the future as a time step, not a session schedule
 
-**Status: DIAGNOSED, NOT YET FIXED.**
+**Status: FIXED.**
 
-`objectRenderState.js::makeBarClock` takes the **median of the last 40 bar gaps** and
-extends the axis by that constant. On a daily chart the median is 86,400 — one calendar
-day — so `bar_index + 3` walks onto Saturday.
+`objectRenderState.js::makeBarClock` took the **median of the last 40 bar gaps** and
+extended the axis by that constant. On a daily chart the median is 86,400 — one calendar
+day — so `bar_index + 3` walked onto Saturday.
 
 Pine's `bar_index + N` means **N future bars**, and the chart's future bars are trading
 sessions. Measured: Fair Value Gaps put two right edges on a Saturday and a Sunday;
@@ -188,11 +197,40 @@ Inside Bar stopped two sessions short.
 exchange calendar. TradingView has the session spec; we do not. So the fix is not "add
 86400 × weekday-skip" — that is another resemblance.
 
-**Fix (specified):** extend by the series' own observed session cadence, and where the
-calendar cannot answer, **say the coordinate is unknown rather than invent one** — the
-same rule the rest of this engine already keeps for `na`. An object whose right edge is
-beyond what we can place should be drawn to the pane edge and *recorded as
-extrapolated*, not given a fabricated date.
+**Fix (shipped):** the clock derives **which weekdays carry sessions** from the last 60
+bars and walks the forward axis a day at a time, counting only those. One derived fact
+answers all three cases, which is how you can tell it is not a weekend rule in disguise:
+
+| the series says | the clock does |
+|---|---|
+| five weekdays (equities daily) | skips Saturday and Sunday |
+| one weekday (a weekly series) | steps seven days, with **no special case for it** |
+| all seven (crypto) | nothing to skip — keeps the measured step |
+
+An intraday series is untouched: session-skipping is whole-day arithmetic, and applying
+it to an hourly series would put every projection a day out.
+
+**Mutation-proved two ways:** revert the cadence to a constant step (killed) · hard-code
+Mon–Fri instead of deriving it (killed — it breaks the weekly and 24/7 cases, which is
+exactly the claim "derived, never assumed" is making).
+
+⭐ **Result on the vendor rail: DIVERGENCE 2 IS CLOSED, and not partially.** Every box
+right edge in the comparison window now equals TradingView's — not "fewer weekends",
+none, and no mismatches of any other kind either. Fair Value Gaps now agrees with the
+vendor on every dimension measured: same bars, same prices, same live box count, same
+forward edges.
+
+⚠️ **HOLIDAYS REMAIN UNKNOWABLE, AND THIS DOES NOT PRETEND OTHERWISE.** A future
+Thanksgiving is a weekday with no session, and no property of the loaded bars can reveal
+that — only an exchange calendar can, and we have none. A projection spanning a market
+holiday is still one session long. That is a **bounded, named residual**, where what it
+replaces was a systematic error on every weekend.
+
+⚰️ The fix originally specified here was *"say the coordinate is unknown rather than
+invent one … drawn to the pane edge and recorded as extrapolated"*. That was not built,
+deliberately: nothing downstream consumes such a flag today, and adding an unread one
+would be `lesson_built_tested_green_and_unreachable` — the very defect RC-B above
+existed to undo. The residual is recorded in the code and here instead.
 
 ---
 
