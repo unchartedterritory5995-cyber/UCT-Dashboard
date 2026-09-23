@@ -50,9 +50,17 @@ smp = random.sample(cs, min(80, len(cs)))
 cls = collections.Counter(); rows = []
 for x in smp:
     try:
-        d = yf.Ticker(x["t"].replace(".", "-")).dividends
+        tk = yf.Ticker(x["t"].replace(".", "-"))
+        d = tk.dividends; sp = tk.splits
         d.index = [i.strftime("%Y-%m-%d") for i in d.index]
-        y = float(d.get(x["ex"])) if x["ex"] in d.index else None
+        sp.index = [i.strftime("%Y-%m-%d") for i in sp.index]
+        # Yahoo's dividend history is split-adjusted to today: undo splits AFTER the ex-date
+        k_after = 1.0
+        for sd, f in sp.items():
+            if sd > x["ex"] and f > 0:
+                k_after *= float(f)
+        y = float(d.get(x["ex"])) * k_after if x["ex"] in d.index else None
+        x["yahoo_split_factor_after"] = k_after
     except Exception:
         y = None
     a = x["amounts"]
@@ -64,7 +72,7 @@ R["yahoo_cs_sample"] = dict(cls)
 R["yahoo_by_gap"] = dict(collections.Counter((("near" if r["min_rel_gap"] < .02 else "far"), r["class"]) for r in rows).items()) if rows else {}
 R["yahoo_by_gap"] = {"%s|%s" % k: v for k, v in R["yahoo_by_gap"].items()}
 R["rows"] = rows
-p = "/data/_audit/v2cc/dividend_conflicts_cs_%s.json" % TAG
+p = "/data/_audit/v2cc/dividend_conflicts_cs_%s_splitadj.json" % TAG
 json.dump(R, open(p, "x"), indent=1, default=str)
 print(p); print(json.dumps({k: v for k, v in R.items() if k != "rows"}, indent=1, default=str))
 for r in rows:
