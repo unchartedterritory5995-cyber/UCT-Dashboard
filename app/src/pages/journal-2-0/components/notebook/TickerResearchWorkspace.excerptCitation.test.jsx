@@ -455,6 +455,47 @@ describe('TickerResearchWorkspace — a DOCUMENT citation opens by its kind', ()
     expect(onOpenNote).not.toHaveBeenCalled()
   })
 
+  // ⛔ PRE-GATE M-3: a listed row with NO file (`attachmentUrl` absent) is not a
+  // page the viewer can show -- it is `missing`, so its note opens, never a
+  // preview sheet with no `href`.
+  it('a listed PDF with no file opens its NOTE -- never an empty preview', async () => {
+    const onOpenNote = vi.fn()
+    installDocNetwork({
+      sources: [PDF_PAGE],
+      documents: jsonResponse(200, { documents: [{ id: 'd9', name: 'Q3 10-Q', status: 'processing', pageCount: 80 }] }),
+    })
+    renderWorkspace(onOpenNote)
+    const ask = await askAndClickCitation(PDF_PAGE.label)
+
+    await waitFor(() => expect(onOpenNote).toHaveBeenCalledWith({ id: 'n7' }))
+    expect(screen.queryByRole('dialog', { name: /Preview of/ })).toBeNull()
+    expect(screen.queryByTestId('pdf-viewer-stub')).toBeNull()
+    expect(within(ask).getByTestId('ask-nav-notice')).toBeEmptyDOMElement()
+  })
+
+  // ⛔ PRE-GATE M-1: the note's list says which rows are captured pages (the
+  // same server rule the citation's kind comes from), and a captured row is
+  // never handed to the viewer -- whatever the citation called it.
+  it('a cited page whose listed row is a CAPTURED page opens its note -- never the PDF viewer', async () => {
+    const onOpenNote = vi.fn()
+    const asPdf = {
+      ...PDF_PAGE, label: 'Reuters: NVDA margins · p.1',
+      navigation: { kind: 'document', document_id: 'dw', page_number: 1, note_id: 'n7', source_kind: 'attachment' },
+    }
+    installDocNetwork({
+      sources: [asPdf],
+      documents: jsonResponse(200, { documents: [
+        { ...N7_DOCUMENTS.documents[1], sourceKind: 'web', capturePassages: [{ pageNumber: 1, excerptId: 'exw' }] }] }),
+    })
+    renderWorkspace(onOpenNote)
+    const ask = await askAndClickCitation(asPdf.label)
+
+    await waitFor(() => expect(onOpenNote).toHaveBeenCalledWith({ id: 'n7' }))
+    expect(screen.queryByRole('dialog', { name: /Preview of/ })).toBeNull()
+    expect(screen.queryByTestId('pdf-viewer-stub')).toBeNull()
+    expect(within(ask).getByTestId('ask-nav-notice')).toBeEmptyDOMElement()
+  })
+
   it('the LAST tap wins here too: a slow document read never opens over the second', async () => {
     const B = {
       ...PDF_PAGE, n: 2, label: 'Q2 10-Q · p.9',

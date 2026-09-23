@@ -1230,6 +1230,8 @@ export default function NoteEditorPage({ noteId, onBack, showBack = true, onTitl
     if (source?.navigation?.kind === 'document') {
       // The decision lives in `searchNavigation`, beside the one Search uses,
       // so the two can never answer differently about the same document.
+      const openNote = ({ id }) => setSearchParams(
+        (prev) => applyTargetToParams(prev, { noteId: id, depth: 'note' }), { replace: false })
       const openPage = (nav) => {
         const here = noteDocuments.find((d) => d.id === nav.document_id)
         // A captured page of THIS note (an old packet has no kind; the list
@@ -1241,10 +1243,17 @@ export default function NoteEditorPage({ noteId, onBack, showBack = true, onTitl
         }
         // ⛔ A cited document of THIS note that the list no longer holds used
         // to set `?doc=` and wait forever for a row that never came. Read the
-        // list again: a stale list still opens the page; a document that left
-        // the note says so, in the same words the spanning hosts use.
+        // list again, and hand the FRESH row to the same one door
+        // (`openNoteDocument`) -- a captured page the cached list had not caught
+        // up with opens as a captured passage, never as a PDF viewer over
+        // `web:<sha256>`, even for a packet that names no kind. A document that
+        // left the note says so, in the same words the spanning hosts use: this
+        // note is the one already open (`hereNoteId`), so it is never "opened".
         if (!here && (nav.note_id || noteId) === noteId) {
-          return openDocumentPage({ ...nav, note_id: noteId }, { signal, openDocument: setPreviewDoc })
+          return openDocumentPage({ ...nav, note_id: noteId }, {
+            signal, openNote, hereNoteId: noteId,
+            openRow: (doc, { page }) => openNoteDocument(doc, { page, signal }),
+          })
         }
         const target = citationTarget({ navigation: nav }, { fallbackNoteId: noteId })
         if (!target) return SOURCE_NOWHERE
@@ -1255,13 +1264,13 @@ export default function NoteEditorPage({ noteId, onBack, showBack = true, onTitl
       // ⛔ AND IT GOES BY THE KIND THE SERVER SENT, through lib/openCitation.js
       // like every other host: a PDF takes the page route above; a captured
       // web passage opens as a captured passage (never `?doc=`, whose viewer
-      // would be a PDF viewer over `web:<sha256>` -- Wave N §9); a packet with
-      // no kind keeps the page route it had before the server sent one.
+      // would be a PDF viewer over `web:<sha256>` -- Wave N §9). A packet with
+      // no kind takes the same page route, and it guesses nothing: a row of
+      // this note's list opens by the list's `sourceKind`, and a row the list
+      // did not hold yet is read fresh and handed to the same door.
       return openDocumentCitation(source.navigation, {
         signal, openPage, legacy: openPage, hereNoteId: noteId,
-        openDocument: setPreviewDoc, openCapturedSource: setCapturedSource,
-        openNote: ({ id }) => setSearchParams(
-          (prev) => applyTargetToParams(prev, { noteId: id, depth: 'note' }), { replace: false }),
+        openDocument: setPreviewDoc, openCapturedSource: setCapturedSource, openNote,
       })
     }
     const ed = editorRef.current

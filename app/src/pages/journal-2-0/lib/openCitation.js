@@ -116,10 +116,18 @@ async function settle(read, signal, land) {
  * carries the file's URL (`DocumentPreviewSheet` takes `href` from its host;
  * the navigation deliberately does not carry it).
  *
- * @returns {Promise<{kind:'document', target:object}|{kind:'gone'}
+ * @returns {Promise<{kind:'document', target:object, doc:object, page:number|null}
+ *                  |{kind:'web', doc:object, page:number|null}|{kind:'gone'}
  *                  |{kind:'missing'}|{kind:'failed', error?:unknown}>}
  *          `gone`: the note itself is gone (404). `missing`: the note answered
- *          and no longer holds this document -- two different facts.
+ *          and no longer holds this document, or holds no file for it -- two
+ *          different facts. `web`: the row is a captured web page.
+ *
+ * ⛔ A CAPTURED WEB PAGE IS NEVER A VIEWER TARGET. It is a row of the same
+ * list, and its `attachmentUrl` is an identity (`web:<sha256>`), not a file:
+ * handing it to DocumentPreviewSheet is Wave N §9's fake viewer. The list's
+ * `sourceKind` is the ONE server rule (`document_source_kind`), so the row is
+ * returned as `web`, never as a `target`, and the host decides where it lands.
  */
 export async function resolveDocumentPage(nav, { signal } = {}) {
   let res
@@ -140,12 +148,16 @@ export async function resolveDocumentPage(nav, { signal } = {}) {
   }
   const doc = documents.find((d) => d.id === nav.document_id)
   if (!doc || !doc.attachmentUrl) return { kind: 'missing' }
-  const page = Number(nav.page_number)
+  const n = Number(nav.page_number)
+  const page = Number.isFinite(n) && n > 0 ? n : null
+  if (doc.sourceKind === SOURCE_WEB) return { kind: 'web', doc, page }
   return {
     kind: 'document',
+    doc,
+    page,
     target: {
       href: doc.attachmentUrl, name: doc.name || null, documentId: doc.id,
-      ...(Number.isFinite(page) && page > 0 ? { page } : {}),
+      ...(page ? { page } : {}),
     },
   }
 }
@@ -159,15 +171,31 @@ export async function resolveDocumentPage(nav, { signal } = {}) {
  * before pages were reachable (owner ruling). Otherwise, and when the note
  * itself is gone, it says the document is no longer available. "Try again" is
  * kept for a read that FAILED, and only for that.
+ *
+ * ⛔ A host with its own door for a row (`openRow(doc, {page})` -- the note
+ * editor's `openNoteDocument`) is handed the FRESH row, whatever its kind: that
+ * door sends a captured page to its passage and a PDF to its page, so a row the
+ * host's cached list had not caught up with is routed exactly like one it had.
+ * A host with no such door never gets a captured row as a viewer target: it
+ * opens the row's note, or says it cannot open it from here.
  */
-export function openDocumentPage(nav, { signal, openDocument, openNote = null, hereNoteId = null }) {
+export function openDocumentPage(nav, {
+  signal, openDocument, openNote = null, hereNoteId = null, openRow = null,
+}) {
   if (!nav?.note_id || !nav?.document_id) return Promise.resolve(SOURCE_NOWHERE)
+  // ONE copy of "may this host open the owning note": never the note that is
+  // already open (`hereNoteId`) -- "opening" it would change nothing on screen,
+  // which is a silent click.
+  const openedOwningNote = () => {
+    if (!openNote || nav.note_id === hereNoteId) return false
+    openNote({ id: nav.note_id })
+    return true
+  }
   return settle(resolveDocumentPage(nav, { signal }), signal, (r) => {
+    if (openRow && (r.kind === 'document' || r.kind === 'web')) return openRow(r.doc, { page: r.page })
     if (r.kind === 'document') { openDocument(r.target); return null }
-    if (r.kind === 'missing' && openNote && nav.note_id !== hereNoteId) {
-      openNote({ id: nav.note_id })
-      return null
-    }
+    if (r.kind === 'web') return openedOwningNote() ? null : SOURCE_NOWHERE
+    if (r.kind === 'missing' && openedOwningNote()) return null
     if (r.kind === 'gone' || r.kind === 'missing') return DOCUMENT_GONE
     if (r.error) console.error('[notebook] opening a cited document failed', r.error)
     return DOCUMENT_UNREADABLE
@@ -204,7 +232,10 @@ function openOwningNote(nav, openNote) {
  *   - anything else, absent included (a packet from before the server sent
  *     it) -> the host's behaviour from before (`legacy`, else the owning note).
  *     Never a guess: calling an unknown page a PDF is how a captured passage
- *     reached the PDF viewer.
+ *     reached the PDF viewer. So this never routes an unknown kind to the
+ *     viewer itself, and a `legacy` route that reads the note's list gets a
+ *     captured row back as `web`, never as a viewer target
+ *     (`resolveDocumentPage`).
  *
  * @returns {Promise<string|null>|string|null} what AskPanel's `onNavigate`
  *          returns -- a sentence when nothing could be opened.

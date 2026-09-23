@@ -523,6 +523,67 @@ describe('NoteEditorPage — every door that opens nothing says why', () => {
   })
 })
 
+// ⛔⛔ PRE-GATE M-1: THE FRESH ROW GOES THROUGH THE ONE DOOR. A cited document
+// this page's cached list does not hold is read again (M-3) -- and the row that
+// comes back is handed to `openNoteDocument`, never to the viewer directly. A
+// packet with no kind whose late row is a captured page used to open the PDF
+// viewer over `web:<sha256>`, "Open in new tab" and all (the final review's
+// PROBE-A). The page's own load (read 0) lacks the row; every re-read has it.
+describe('NoteEditorPage — a row the cached list had not caught up with opens through the one door', () => {
+  const lateWeb = (capturePassages) => ({
+    id: 'dw2', attachmentUrl: 'web:9b9b', name: 'Late capture', status: 'ready', pageCount: 1,
+    sourceKind: 'web', capturePassages,
+  })
+  const lateList = (row) => (n) => json(200, n === 0 ? N1_DOCUMENTS : { documents: [...N1_DOCUMENTS.documents, row] })
+  const LATE_EXCERPT = {
+    ...WEB_PAGE_EXCERPT, id: 'exw2', documentId: 'dw2', documentName: 'Late capture', attachmentUrl: 'web:9b9b',
+  }
+  const oldLate = {
+    ...PDF_PAGE, label: 'Late capture · p.1',
+    navigation: { kind: 'document', document_id: 'dw2', page_number: 1, note_id: 'n1' },
+  }
+
+  it('PROBE-A: an OLD packet (no kind) whose late row is a captured page opens the captured passage -- never the PDF viewer', async () => {
+    installDocNetwork({
+      source: oldLate, documents: lateList(lateWeb([{ pageNumber: 1, excerptId: 'exw2' }])),
+      excerpt: json(200, { excerpt: LATE_EXCERPT }),
+    })
+    const ask = await renderEditorAndTap(oldLate.label)
+
+    await screen.findByRole('dialog', { name: 'Captured passage from Late capture' })
+    expect(globalThis.fetch).toHaveBeenCalledWith('/api/j2/excerpts/exw2', expect.anything())
+    await settle()
+    expect(screen.queryByTestId('pdf-viewer-stub')).toBeNull()
+    expect(screen.queryByRole('dialog', { name: /Preview of/ })).toBeNull()
+    expect(within(ask).getByTestId('ask-nav-notice')).toBeEmptyDOMElement()
+  })
+
+  it('PROBE-A with no passage left says so in the panel -- and still never the PDF viewer', async () => {
+    installDocNetwork({ source: oldLate, documents: lateList(lateWeb([])) })
+    const ask = await renderEditorAndTap(oldLate.label)
+
+    await waitFor(() => expect(within(ask).getByTestId('ask-nav-notice'))
+      .toHaveTextContent('That passage is no longer available.'))
+    await settle()
+    expect(screen.queryByTestId('pdf-viewer-stub')).toBeNull()
+    expect(screen.queryByRole('dialog', { name: /Preview of|Captured passage/ })).toBeNull()
+  })
+
+  it('CONTROL: the same page, with the kind the new server sends, opens the captured passage', async () => {
+    const newLate = { ...oldLate, navigation: { ...oldLate.navigation, source_kind: 'web', excerpt_id: 'exw2' } }
+    installDocNetwork({
+      source: newLate, documents: lateList(lateWeb([{ pageNumber: 1, excerptId: 'exw2' }])),
+      excerpt: json(200, { excerpt: LATE_EXCERPT }),
+    })
+    const ask = await renderEditorAndTap(newLate.label)
+
+    await screen.findByRole('dialog', { name: 'Captured passage from Late capture' })
+    await settle()
+    expect(screen.queryByTestId('pdf-viewer-stub')).toBeNull()
+    expect(within(ask).getByTestId('ask-nav-notice')).toBeEmptyDOMElement()
+  })
+})
+
 // Non-vacuity for the preview assertions above: without a tap nothing opens.
 describe('NoteEditorPage — nothing opens on its own', () => {
   it('no preview sheet exists before a citation is tapped', async () => {
