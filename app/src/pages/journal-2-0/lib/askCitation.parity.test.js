@@ -157,14 +157,19 @@ describe('a citation only navigates when it can be verified', () => {
   it('a re-resolved single-hit range never navigates unless it verifies (fix round 1, Finding 4)', () => {
     // ⛔ An EMPTY paragraph makes textBetween emit an extra separator that
     // flatToPmRange's own walker does not count the same way, so a re-resolved
-    // range can land on the WRONG text (the reviewer's example: "Second."
-    // mapped to a range reading "econd.\n"). NEVER jump to the wrong passage --
-    // the file's own contract -- so a range that does not verify must fall
-    // back to VALID_NOTE_ONLY rather than claim RERESOLVED_EXACT.
+    // range can land on the WRONG text. Measured (reviewer + confirmed by Node
+    // probe against this exact doc, pre-guard): "Second." re-resolves to pm
+    // range {from:12, to:20}, and citationText(doc, 12, 20) reads "econd.\n" --
+    // one character short at the front, one block separator long at the back,
+    // because the paragraph AFTER "Second." gives flatToPmRange's `to` check a
+    // later text node to (wrongly) match against. NEVER jump to the wrong
+    // passage -- the file's own contract -- so a range that does not verify
+    // must fall back to VALID_NOTE_ONLY rather than claim RERESOLVED_EXACT.
     const doc = Node.fromJSON(schema, { type: 'doc', content: [
       { type: 'paragraph', content: [{ type: 'text', text: 'First.' }] },
       { type: 'paragraph' },
       { type: 'paragraph', content: [{ type: 'text', text: 'Second.' }] },
+      { type: 'paragraph', content: [{ type: 'text', text: 'Third.' }] },
     ] })
     const out = resolveNoteCitation(doc, { from: 999, to: 1000 }, 'Second.')
     if (out.state === RERESOLVED_EXACT) {
