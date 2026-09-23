@@ -139,6 +139,14 @@ MIGRATIONS: tuple[str, ...] = (
         published_at INTEGER NOT NULL, target TEXT NOT NULL, PRIMARY KEY (cik, derivation_version, target)
     );
     """,
+    # 3 -- Beta, precomputed on the worker (beta_store.py). A price statistic from
+    # UCT's own bars; isolated from the SEC fact tables it never touches.
+    """
+    CREATE TABLE beta_series (
+        cik INTEGER PRIMARY KEY, symbol TEXT NOT NULL, through TEXT,
+        input_hash TEXT NOT NULL, built_at INTEGER NOT NULL, points BLOB NOT NULL   -- gzip JSON [[t, v]]
+    );
+    """,
 )
 
 SCHEMA_VERSION = len(MIGRATIONS)

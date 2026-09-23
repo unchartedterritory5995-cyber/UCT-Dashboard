@@ -3,8 +3,8 @@
 The member path NEVER calls SEC and never opens the worker's database in
 production: it reads the per-company artifact the worker published (R2 via the
 existing data_sync client), through a small in-process TTL cache. Beta is a
-price statistic computed here from UCT's own daily bars (the same
-`bars_sqlite.get_bars(sym, "D", n)` read the signature router uses).
+price statistic the WORKER precomputes (beta_store.py) and publishes beside the
+artifact; this module only reads it.
 
 SOURCE (env FUNDAMENTALS_PIT_SOURCE):
   r2     production -- data_sync.get_bytes(publish.key_for(cik))
@@ -18,18 +18,13 @@ import json
 import os
 import threading
 import time
-from datetime import date
 
 from . import catalog as C
 from . import publish as P
-from .asof import close_utc
-from .beta import rolling_beta
 from .derive import DERIVATION_VERSION
 
 TTL = float(os.environ.get("FUNDAMENTALS_PIT_CACHE_TTL", "300"))
 BETA_ID = "beta_1y_spy"
-BETA_BENCHMARK = "SPY"
-BETA_MAX_BARS = 8000
 
 _cache: dict[str, tuple[float, object]] = {}
 _lock = threading.Lock()
@@ -106,36 +101,37 @@ def artifact_for(cik: int, version: int = DERIVATION_VERSION) -> dict | None:
                    lambda: (lambda b: json.loads(b) if b else None)(_read_key(P.key_for(cik, version))))
 
 
-def _default_closes(symbol: str) -> list[tuple]:
-    from api.services import bars_sqlite
-    rows = bars_sqlite.get_bars(symbol.upper(), "D", BETA_MAX_BARS) or []
-    out = []
-    for ts, _o, _h, _l, c, _v in rows:
-        if c:
-            n = int(ts)
-            out.append((date(n // 10000, n // 100 % 100, n % 100), float(c)))
-    return out
+def beta_artifact(cik: int) -> dict | None:
+    """The worker-precomputed Beta for one company (beta_store). READ ONLY."""
+    from . import beta_store as B
+    if _mode() == "db":
+        def load():
+            c = _db_conn()
+            try:
+                return B.read(c, cik)
+            finally:
+                c.close()
+        return _cached(f"beta:{cik}", load)
+    import gzip
+    return _cached(f"beta:{cik}",
+                   lambda: (lambda b: json.loads(gzip.decompress(b)) if b else None)(_read_key(B.key_for(cik))))
 
 
-def beta_points(symbol: str, closes_fn=None) -> list[list]:
-    """[[t_close_utc, beta, 'YYYY-MM-DD', 'rolling_252d'], ...] -- one per
-    session with a defined value; the value is known at that session's close."""
-    closes_fn = closes_fn or _default_closes
-    def load():
-        stock, bench = closes_fn(symbol), closes_fn(BETA_BENCHMARK)
-        if not stock or not bench:
-            return []
-        return [[int(close_utc(d).timestamp()), round(b, 6), d.isoformat(), "rolling_252d"]
-                for d, b in rolling_beta(stock, bench) if b is not None]
-    last = (closes_fn(symbol) or [(None,)])[-1][0]
-    return _cached(f"beta:{symbol.upper()}:{last}", load)
+def beta_points(symbol: str, version: int = DERIVATION_VERSION) -> list[list]:
+    """[[t_close_utc, beta], ...], as the WORKER
+    computed them. ⛔ Never computed here: a member request only reads (owner
+    ruling; a cold AAPL rebuild cost 589 ms on the web pod). A symbol with no
+    precomputed Beta is simply missing."""
+    cik = cik_for(symbol, version)
+    doc = beta_artifact(cik) if cik is not None else None
+    return list(doc.get("points") or []) if doc else []
 
 
 def allowed_series() -> set[str]:
     return C.stored_series_ids() | {BETA_ID}
 
 
-def series_response(symbol: str, series_ids: list[str], *, closes_fn=None,
+def series_response(symbol: str, series_ids: list[str], *,
                     version: int = DERIVATION_VERSION) -> tuple[int, dict, str | None]:
     """(http_status, body, etag). 400 unknown series; 404 unknown symbol."""
     bad = [s for s in series_ids if s not in allowed_series()]
@@ -163,7 +159,7 @@ def series_response(symbol: str, series_ids: list[str], *, closes_fn=None,
     else:
         out["missing"].extend(want_sec)
     if BETA_ID in series_ids:
-        pts = beta_points(sym, closes_fn)
+        pts = beta_points(sym, version)
         if pts:
             out["metrics"][BETA_ID] = pts
         else:

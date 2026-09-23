@@ -139,6 +139,8 @@ function oracleAsOf(points, ref) {
   let hit = null
   for (const p of points) if (p[0] <= ref) hit = p          // points ascend by public time
   if (!hit) return NaN
+  if (!Number.isFinite(hit[1])) return NaN                      // a gap point
+  if (!hit[2]) return hit[1]                                    // Beta: no period, no staleness
   const [y, m, d] = hit[2].split('-').map(Number)
   return (ref - Date.UTC(y, m - 1, d) / 1000) / 86400 >= 201 ? NaN : hit[1]
 }

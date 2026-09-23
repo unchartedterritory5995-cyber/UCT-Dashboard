@@ -8,7 +8,7 @@ routes return, so the harness can answer `/api/*` without any backend:
     <out>/fundamentals_pit/v<N>/tickers.json  == publish.index_key()
     <out>/fundamentals_pit/v<N>/cik/<cik>.json == publish.key_for(cik)   (via publish_company)
     <out>/fundamentals_pit/current.json      {version: N}  (harness-only)
-    <out>/beta/<SYM>.json                   == serving.beta_points(sym)
+    <out>/beta/<SYM>.json                   == the worker-precomputed Beta points (beta_store)
     <out>/bars/<SYM>_<TF>.json              == GET /api/bars/<SYM>?tf=<TF>  (shape: {ticker, tf, bars})
 
     python tools/fundamentals_pit_poc/export_harness_data.py --db <pit.db> \
@@ -23,7 +23,7 @@ from datetime import date
 
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..")))
 
-from api.services.fundamentals_pit import catalog as C, derive as D, publish as P, serving, store as S  # noqa: E402
+from api.services.fundamentals_pit import beta_store as B, catalog as C, derive as D, publish as P, store as S  # noqa: E402
 
 KEEP = {"D": 1600, "W": 520, "M": 240, "5": 1600, "60": 800}
 
@@ -56,9 +56,13 @@ def main():
         cik = S.cik_for_ticker(conn, sym)
         if cik is not None:
             print(sym, P.publish_company(conn, cik, local_root=a.out))
-        serving.clear_cache()
+        # Beta the way production gets it: precomputed (beta_store), then read.
+        doc = None
+        if cik is not None:
+            B.refresh(conn, [cik], closes_fn=closes)
+            doc = B.read(conn, cik)
         with open(os.path.join(a.out, "beta", f"{sym}.json"), "w") as f:
-            json.dump(serving.beta_points(sym, closes_fn=closes), f)
+            json.dump((doc or {}).get("points") or [], f)
         for tf, keep in KEEP.items():
             rows = bars.execute("SELECT ts, o, h, l, c, v FROM ohlcv WHERE ticker=? AND tf=? ORDER BY ts DESC LIMIT ?",
                                 (sym, tf, keep)).fetchall()[::-1]

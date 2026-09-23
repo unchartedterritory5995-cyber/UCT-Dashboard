@@ -164,3 +164,16 @@ def reconcile(db: str, companyfacts_zip: str, submissions_zip: str, *, fs_zips=(
     for z in fs_zips:
         argv += ["--fs-zip", z]
     return run(argv)
+
+
+def refresh_beta_all(conn, *, local_root: str | None = None, closes_fn=None) -> dict:
+    """The DAILY Beta pass (after the close): every company whose closes moved
+    is recomputed on the worker and republished. Idempotent -- an unchanged input
+    hash is skipped, and publish_beta skips an unchanged etag."""
+    from . import beta_store as BS
+    from .publish import publish_beta
+    ciks = [r[0] for r in conn.execute("SELECT cik FROM security ORDER BY cik")]
+    out = BS.refresh(conn, ciks, **({"closes_fn": closes_fn} if closes_fn else {}))
+    out["published"] = sum(1 for c in ciks if publish_beta(conn, c, local_root=local_root).get("published"))
+    return out
+

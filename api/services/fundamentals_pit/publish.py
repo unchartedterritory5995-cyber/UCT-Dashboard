@@ -18,6 +18,7 @@ TARGETS
 """
 from __future__ import annotations
 
+import gzip
 import hashlib
 import json
 import os
@@ -105,7 +106,41 @@ def publish_company(conn, cik: int, *, local_root: str | None = None, version: i
                          "DO UPDATE SET etag=excluded.etag, published_at=excluded.published_at",
                          (cik, version, etag, int(now), name))
         done.append(name)
-    return {"cik": cik, "published": bool(done), "targets": done, "etag": etag, "bytes": len(body)}
+    beta = publish_beta(conn, cik, local_root=local_root, now=now)
+    return {"cik": cik, "published": bool(done), "targets": done, "etag": etag, "bytes": len(body),
+            "beta": beta}
+
+
+def publish_beta(conn, cik: int, *, local_root: str | None = None, now: float | None = None) -> dict:
+    """Publish the worker-precomputed Beta (beta_store) for one company, if changed.
+    Logged in publish_log under target '<target>:beta' so the two artifacts are
+    independent."""
+    from . import beta_store as B
+    now = time.time() if now is None else now
+    doc = B.read(conn, cik)
+    if doc is None:
+        return {"published": False, "reason": "not built"}
+    body, etag = encode(doc)
+    gz = gzip.compress(body, mtime=0)            # etag is of the JSON; the object is gzip
+    targets = []
+    if local_root:
+        targets.append(("local:beta", lambda: _put_local(local_root, B.key_for(cik), gz)))
+    if r2_enabled():
+        from api.services import data_sync
+        targets.append(("r2:beta", lambda: data_sync.put_bytes(B.key_for(cik), gz, "application/gzip")))
+    done = []
+    for name, put in targets:
+        prev = conn.execute("SELECT etag FROM publish_log WHERE cik=? AND derivation_version=? AND target=?",
+                            (cik, B.BETA_METHOD_VERSION, name)).fetchone()
+        if prev and prev[0] == etag:
+            continue
+        put()
+        with S.tx(conn):
+            conn.execute("INSERT INTO publish_log VALUES (?,?,?,?,?) ON CONFLICT(cik, derivation_version, target) "
+                         "DO UPDATE SET etag=excluded.etag, published_at=excluded.published_at",
+                         (cik, B.BETA_METHOD_VERSION, etag, int(now), name))
+        done.append(name)
+    return {"published": bool(done), "targets": done, "etag": etag, "bytes": len(body), "gzip_bytes": len(gz)}
 
 
 def publish_index(conn, *, local_root: str | None = None, version: int = DERIVATION_VERSION) -> dict:

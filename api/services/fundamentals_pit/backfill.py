@@ -14,6 +14,7 @@ STEPS
   --splits-json PATH --splits-source NAME   split rows [[ticker, ex_date, ratio, ref], ...]
   --splits-massive FROM TO            split rows from the confirmed-splits adapter (needs MASSIVE_API_KEY)
   --no-derive                         ingest only
+  --beta                              also precompute Beta (worker bars store)
   --split-sources a,b                 sources the DERIVE step trusts (default: production)
   --workers N  --force  --report PATH
 
@@ -117,6 +118,8 @@ def run(argv: list[str] | None = None) -> dict:
     ap.add_argument("--splits-massive", nargs=2, metavar=("FROM", "TO"))
     ap.add_argument("--split-sources", default=",".join(PRODUCTION_SOURCES))
     ap.add_argument("--no-derive", action="store_true")
+    ap.add_argument("--beta", action="store_true",
+                    help="precompute Beta for derived companies from THIS process's bars store (worker)")
     ap.add_argument("--workers", type=int, default=4)
     ap.add_argument("--force", action="store_true")
     ap.add_argument("--report")
@@ -227,6 +230,12 @@ def run(argv: list[str] | None = None) -> dict:
                     report["derived"] += 1
                     if res.get("withheld_split_sensitive"):
                         report["split_unverified"].append(res["cik"])
+
+    # 4b. Beta, precomputed here -- never on a member request (beta_store.py)
+    if a.beta:
+        from . import beta_store as BS
+        ciks = sorted(set(done_ciks)) or [r[0] for r in conn.execute("SELECT cik FROM security")]
+        report["beta"] = BS.refresh(conn, ciks)
 
     # 5. reconciliation summary (read back from the store, not from memory)
     report["store"] = {t: conn.execute(f"SELECT count(*) FROM {t}").fetchone()[0]
