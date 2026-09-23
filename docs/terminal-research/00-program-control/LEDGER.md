@@ -4498,3 +4498,56 @@ returning `uptime_seconds: 52` on a fresh boot.
 **Member impact:** wording-only, on a coaching surface that already existed — Compass's ambient
 market-context sentence and the Journal 2.0 Insights "regime" section now say "Exposure
 Backdrop" instead of "regime" throughout. No behavior change, no new data, no schema change.
+
+## ✅ BUILT + DEPLOYED — Packets X and AC, plus a live deploy incident, 2026-09-23
+
+Two more findings from the week's "computed but never surfaced" gap hunt (Waves 1-7, which also
+produced six more UNSIGNED draft packets — U, Y, AA, AB, AD, AF — awaiting owner review;
+Packet AE additionally needs its `CHOOSE: A/B` line filled in first).
+
+**Packet X CP1** (fingerprint `314278988`) — `api/routers/modelbook.py`'s `debug-index-drawings`
+and `debug-desc/{sym}` routes carried ZERO auth of any kind while every other route in the file
+required paid or admin; `debug-desc` could fire up to 5 billed Anthropic calls per anonymous hit
+and bypassed the feature's own `MODELBOOK_DESC_ENABLED` kill switch. Fix: `require_admin` added
+to both signatures (already-imported dependency, two-line diff) + 6 new tests (first coverage of
+either route). Mutation-proved the guard is load-bearing — the FIRST attempt (directly editing
+out the `Depends(require_admin)` in the source file) was correctly BLOCKED by the session's own
+safety classifier as a security-weakening change; the proof was redone instead via a FastAPI
+`app.dependency_overrides` bypass, confirmed to flip both routes to 200 when the guard is
+disabled. ⚠️ That proof was first run as a bare `python script.py` invocation OUTSIDE pytest,
+which skips this repo's own conftest.py data-root sandbox — it caused one harmless write to
+`C:\data\ticker_meta_cache\NVDA.json` (public ticker metadata, no PII, idempotent) before being
+caught and redone correctly under `pytest`. `feat/s7-price-level` `e8b3a8c20`.
+
+**Packet AC CP1** (fingerprint `1839b8c60`) — `POST /api/auth/apply-referral` was fully built and
+correct but had zero frontend caller; a member who signed up without a `?ref=` link had no way to
+apply a referral code afterward. Fix: a "Have a referral code?" input + Apply button added to
+`ReferralSection` in `Settings.jsx` (now a named export for testability), reusing existing CSS
+classes, no backend change. 5 new tests, mutation-proved (broke the submit URL, confirmed 2 tests
+red, restored, confirmed green). `feat/s7-price-level` `78ed5278d`.
+
+**Deployed, with an incident on the first one.** Both cherry-picked onto `merge-run` and pushed
+in sequence. Packet X's push (`bab3f8b5c..4d31451ad`) went through cleanly on the first attempt
+(master was quiet) — but the resulting Railway deploy got genuinely STUCK: it sat in `DEPLOYING`
+past its 600s `healthcheckTimeout`, Railway eventually marked it `FAILED` server-side, but no
+replacement container ever came up — the OLD container had already fully shut down ~7 minutes
+in, leaving `/api/health` returning a real, sustained `502` for approximately **14 minutes**
+(confirmed 502 at multiple direct checks, ~13:13-13:26 UTC). The Railway deploy-tracking status
+poll never itself reported the failure clearly (it stayed silent/unclear rather than flipping to
+an obvious terminal state the polling script recognized), so the outage was caught by checking
+`/api/health` directly against the live domain, not by trusting the status poll alone. Fix:
+`railway redeploy --service web --yes` against the identical, already-tested commit — succeeded
+cleanly in ~3 minutes, confirmed live via `/api/health` (`uptime_seconds: 52`). Root cause
+assessed as a transient Railway-side infrastructure hiccup, not a code defect: the unchanged
+commit built and deployed successfully on the very next attempt, and the same diff had already
+passed the full local suite (including a real `api.main:app` import) multiple times before
+either push. Packet AC's own subsequent deploy (`4d31451ad..578d73b9e`) was watched closely
+given the above and completed cleanly in ~7 minutes with no stall; confirmed live
+(`uptime_seconds: 45`).
+
+**Member impact:** Packet X closes a real, if narrow, security/cost exposure (an unauthenticated,
+repeatable LLM-cost trigger) with zero change for the admin who legitimately uses the debug
+routes. Packet AC is a small, additive member-facing feature (apply a referral code after
+signup). Separately, the ~14-minute outage during Packet X's first deploy attempt was real
+member-facing downtime, caused by Railway infrastructure behavior on this deploy rather than by
+either packet's own code change.
