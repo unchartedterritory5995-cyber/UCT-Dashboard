@@ -1,6 +1,6 @@
 """PHASE 10 — the corrected specification WITH the F4 dividend basis, over the bounded matrix.
 
-argv: which(matrix|pit) commit tag [extra anchors comma-separated]
+argv: which(matrix|pit|boundary) commit tag [extra anchors comma-separated]
 Each anchor runs with its 9 preceding sessions (contiguous block: rolling-ratio priors,
 resume ordering). `pit` runs canonical UCT over every live PIT session in the vintage.
 """
@@ -26,6 +26,11 @@ if which == "matrix":
         ds.update(cal[max(0, i - 9):i + 1])
     art = "/data/_audit/v2cc/bounded_matrix_v2c2div_%s.db" % tag
     res = cp.run(art, sorted(ds), cp.UNIVERSES, os.environ["BREADTH_V2C2_INPUTS"])
+elif which == "boundary":
+    # PHASE 13 on real inputs: ask for canonical uct across the start; only >= 2026-03-23 may exist
+    ds = [d for d in cal if "2026-03-16" <= d <= "2026-03-25"]
+    art = "/data/_audit/v2cc/boundary_uct_v2c2div_%s.db" % tag
+    res = cp.run(art, ds, ("uct", "uct_backtest"), os.environ["BREADTH_V2C2_INPUTS"])
 else:
     ds = [d for d in cal if d >= "2026-03-23"]
     art = "/data/_audit/v2cc/pit_uct_v2c2div_%s.db" % tag
