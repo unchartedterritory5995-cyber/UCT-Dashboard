@@ -24,12 +24,21 @@ import { DocumentExcerpt } from './documentExcerptNode'
 import { AskInsert } from './askInsertNode'
 import { AskCitation } from './askCitationNode'
 import { PasteContainers } from './pasteContainers'
+import { NotebookCodeBlock } from './codeBlockNode'
 import { fmtTime } from '../../../components/video/playerUtils'
+// Wave 5: how the newer content reads on EVERY surface that renders a note
+// body — imported here because every one of them builds from this roster.
+import './noteContent.css'
 
 export function buildExtensions({ placeholder = 'Start writing… or type / for blocks and charts' } = {}) {
   return [
     StarterKit.configure({
       heading: { levels: [1, 2, 3] },
+      // Wave 5: replaced by NotebookCodeBlock below (same node name, same
+      // `language` attr, same HTML) — lowlight highlighting + a language
+      // picker. Two `codeBlock` extensions would register two node types of
+      // one name; the stock one must be off.
+      codeBlock: false,
       // StarterKit v3 bundles its own unconfigured Link internally. Schema-level
       // mark parsing dedups (our explicit Link below wins), but ProseMirror
       // PLUGINS are NOT deduped — both copies register a click handler, and
@@ -38,6 +47,10 @@ export function buildExtensions({ placeholder = 'Start writing… or type / for 
       // explicit openOnClick:false below. Disabling it here is load-bearing.
       link: false,
     }),
+    // ⛔ Listed where StarterKit's own code block sat (first), so its plugins
+    // keep the order they had — including the VS Code paste handler, which
+    // PasteContainers (last) must still precede. See PasteContainers below.
+    NotebookCodeBlock,
     // Text styling: a shared TextStyle mark carrying font-family + font-size,
     // driven by the editor toolbar's Font + Size dropdowns.
     TextStyle,

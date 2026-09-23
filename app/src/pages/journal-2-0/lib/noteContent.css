@@ -1,0 +1,98 @@
+/*
+ * Wave 5 — how the Notebook's newer CONTENT reads, on every surface that
+ * renders a note body: the editor, the shared-note page, a version preview,
+ * the Charts notebook widget. It is imported by lib/tiptap.js — the module
+ * every one of those surfaces builds its editor from — so a surface that can
+ * show a node can never ship without the rules that make it readable.
+ *
+ * ⛔ GLOBAL ON PURPOSE, SCOPED BY `.ProseMirror`. Node views and decorations
+ * write RAW class names into the DOM (a CSS module would hash `.uctCodeLang`
+ * into something the node view can never match — editorRawClasses.test.js),
+ * and a per-surface module would be one copy of these rules per renderer.
+ *
+ * ⛔ TOKENS ONLY, AND ONLY TOKENS THAT ALREADY CARRY A LIGHT-THEME VALUE.
+ * No colour below is a literal, so each one follows [data-theme] with no
+ * rule of its own — which is what keeps the palette readable in both themes.
+ *
+ * ⛔ A bare-element rule here needs the widget-embed guard the editor's own
+ * prose rules carry (`:not(:where([data-widget-embed-view] *))`): a widget
+ * embed mounts a whole app component inside the note, and note typography
+ * must not reach into it (proseEmbedIsolation.test.js explains the incident).
+ */
+
+/* ── Code blocks: the language picker ─────────────────────────────────────── */
+.ProseMirror .uctCodeBlock { margin: 14px 0; }
+.ProseMirror .uctCodeBlock > pre { margin: 0; }
+.ProseMirror .uctCodeBlockBar {
+  display: flex;
+  justify-content: flex-end;
+  margin-bottom: 4px;
+  font-family: var(--font-sans);
+  font-style: normal;
+  line-height: 1.2;
+}
+.ProseMirror .uctCodeLang {
+  background: var(--bg-surface);
+  border: 1px solid var(--border);
+  color: var(--text-muted);
+  border-radius: var(--radius-sm);
+  font-family: var(--font-sans);
+  font-size: 12px;
+  padding: 2px 6px;
+  cursor: pointer;
+}
+.ProseMirror .uctCodeLang:hover { border-color: var(--ut-gold); color: var(--text-bright); }
+.ProseMirror .uctCodeLang:focus-visible {
+  outline: 2px solid var(--ut-gold);
+  outline-offset: 1px;
+  color: var(--text-bright);
+}
+.ProseMirror .uctCodeLangLabel {
+  font-size: 12px;
+  color: var(--text-muted);
+}
+
+/* ── Code blocks: syntax colours (lowlight decorations, hljs-* classes) ───── */
+.ProseMirror pre code .hljs-keyword,
+.ProseMirror pre code .hljs-selector-tag,
+.ProseMirror pre code .hljs-doctag,
+.ProseMirror pre code .hljs-meta .hljs-keyword { color: var(--info); }
+.ProseMirror pre code .hljs-string,
+.ProseMirror pre code .hljs-regexp,
+.ProseMirror pre code .hljs-template-tag,
+.ProseMirror pre code .hljs-selector-attr,
+.ProseMirror pre code .hljs-addition { color: var(--gain); }
+.ProseMirror pre code .hljs-number,
+.ProseMirror pre code .hljs-literal,
+.ProseMirror pre code .hljs-symbol,
+.ProseMirror pre code .hljs-bullet,
+.ProseMirror pre code .hljs-attr,
+.ProseMirror pre code .hljs-attribute,
+.ProseMirror pre code .hljs-property,
+.ProseMirror pre code .hljs-selector-pseudo { color: var(--ind-warn); }
+.ProseMirror pre code .hljs-title,
+.ProseMirror pre code .hljs-section,
+.ProseMirror pre code .hljs-built_in,
+.ProseMirror pre code .hljs-type,
+.ProseMirror pre code .hljs-selector-class,
+.ProseMirror pre code .hljs-selector-id { color: var(--ut-gold); }
+.ProseMirror pre code .hljs-tag,
+.ProseMirror pre code .hljs-name,
+.ProseMirror pre code .hljs-deletion,
+.ProseMirror pre code .hljs-variable,
+.ProseMirror pre code .hljs-template-variable { color: var(--loss); }
+.ProseMirror pre code .hljs-comment,
+.ProseMirror pre code .hljs-quote,
+.ProseMirror pre code .hljs-meta { color: var(--text-muted); }
+.ProseMirror pre code .hljs-comment,
+.ProseMirror pre code .hljs-quote,
+.ProseMirror pre code .hljs-emphasis { font-style: italic; }
+.ProseMirror pre code .hljs-strong { font-weight: 700; }
+
+/* ── Touch tier: the 44px floor, and 16px so iOS does not zoom on focus ───── */
+@media (max-width: 1024px) {
+  .ProseMirror .uctCodeLang {
+    min-height: var(--tap-min);
+    font-size: 16px;
+  }
+}

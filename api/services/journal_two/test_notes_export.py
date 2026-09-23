@@ -1529,3 +1529,24 @@ def test_g064_a_string_n_still_exports_and_is_listed():
         "> \n"
         "> Sources as of insertion: [2] Call notes"
     )
+
+
+# ── Wave 5: code blocks carry their language as the fence info string ───────
+def _code(text, language):
+    return {"type": "codeBlock", "attrs": {"language": language},
+            "content": [{"type": "text", "text": text}]}
+
+
+def test_code_block_exports_a_fence_carrying_its_language():
+    md = tiptap_to_markdown(_doc(_code("def f(x):\n    return x", "python")))
+    assert md == "```python\ndef f(x):\n    return x\n```"
+
+
+def test_code_block_without_a_language_is_a_bare_fence():
+    assert tiptap_to_markdown(_doc(_code("x = 1", None))) == "```\nx = 1\n```"
+
+
+@pytest.mark.parametrize("language", ["py", "pinescript"])
+def test_code_block_keeps_an_alias_or_an_unknown_language_verbatim(language):
+    # The picker never rewrites what a pasted fence said; neither does export.
+    assert tiptap_to_markdown(_doc(_code("x", language))).startswith(f"```{language}\n")
