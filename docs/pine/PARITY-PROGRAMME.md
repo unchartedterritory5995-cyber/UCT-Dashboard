@@ -20,6 +20,87 @@ side-by-side. The local dev loop (`scripts/hub_sandbox_boot.py --port 8000` +
 
 ---
 
+## ⭐⭐⭐ 2026-09-23 — DECISIONS 5 AND 6, RULED (both delegated: *"You decide both of those"*)
+
+### 5. What "100%" is a percentage OF — **212, NOT 266**
+
+⛔ **The denominator is 212 and the two carve-outs stand.** `strategy()` (25
+scripts) and Pine libraries (29) stay out of scope, for reasons that are about
+what they ARE rather than about difficulty:
+
+- **A strategy is not an indicator.** Drawing one means simulating fills, position
+  sizing and an equity curve — a different product, with a financial-advice
+  surface this programme has no ruling for. It has now been ruled out three times.
+- **A library is not the pasted script.** Serving one means fetching and compiling
+  third-party Pine from TradingView across 31 distinct libraries — an unbounded
+  dependency graph and a distribution question (`LICENSING.md`), not a grammar gap.
+
+⭐ **AND THE PRACTICAL ARGUMENT IS STRONGER THAN THE PRINCIPLED ONE:** the road
+from here to 212 is ~160 scripts. Nothing about choosing 212 forecloses 266 —
+**re-examine both carve-outs when 212 is in sight**, when the cost of each will be
+known rather than estimated. Choosing 266 today buys a bigger number and no more
+scripts.
+
+### 6. Arm `VITE_PINE_OBJECTS_ONLY_PANE_ENABLED` — **YES, AND IT IS NOT A FLAG FLIP**
+
+⛔⛔ **THE FIRST THING THAT HAD TO BE CHECKED, AND IT MOVED THE ANSWER:
+`objectsOnlyPaneGate.js` DOES NOT EXIST ON MASTER.** Nor does any reference to
+`allowObjectsOnly` in master's `memberPaneDefinition.js` (0 occurrences). The
+objects-only pane is **unmerged work on `feat/pine-value-model`**, along with the
+rest of this programme: **198 files and +30,566 / −7,594 lines** separate master
+from this branch under `app/src/components/chart/engine/` alone.
+
+**So this is not one variable and one rebuild — and measured, it is worth far
+more than the +23 the flag alone buys. Merging the branch takes the member door
+from 26 to 52, with zero corpus regressions. The real sequence is:**
+
+1. **Merge the branch** (or a scoped subset carrying the objects-only pane).
+2. **Declare the ARG** — RC-N, already written here; master does not have it.
+3. **Set the Railway variable** on `web` and rebuild (it is a build constant, so
+   this is a DEPLOY).
+4. **Verify in the bundle**, not from `--kv`.
+
+⭐ **THE RULING IS STILL YES**, and the reasoning is about blast radius rather than
+confidence: attaching a script is **opt-in, per member, per script, on their own
+chart**; the failure mode is a drawing that differs from TradingView, not an
+outage, not other members, not a number anyone trades off; and it is reversible in
+minutes. Against that, 23 members currently meet a refusal written in SCREENER
+language — *"offers no plot or alert condition to filter on"* — at a CHART door,
+which is the same wrong-sentence class as RC-M.
+
+⚠️ **BUT IT IS RULED AS A SEQUENCE, NOT AS A SWITCH**, and the order matters:
+axis 2 (below) has no measurement, so arming this widens what we DRAW before we can
+say what we draw is RIGHT. The vendor-comparison harness is therefore ruled to come
+**first or alongside** — not after.
+
+### ⚰️ A NUMBER THIS FILE PUBLISHED EARLIER TODAY WAS MISLABELLED — CORRECTED
+
+The road-to-100% table below called **29 of 266** *"TODAY, as production builds
+it"*. That census ran against **this branch's code** with the objects-only flag
+forced off — not master. **Measured on master's own tree** (a worktree at
+`origin/master`, its own `npm install`, the same `memberPaneDefinition` probe):
+
+| tree | scripts a member can attach | |
+|---|---|---|
+| **`origin/master` — what production serves** | **26 of 266** | 9.8% |
+| this branch, objects-only OFF | 29 | 10.9% |
+| this branch, objects-only ON | **52** | 19.5% |
+
+⭐⭐ **SO THE BRANCH IS WORTH +26 SCRIPTS — IT DOUBLES MEMBER COVERAGE — AND IT
+COSTS NOTHING: the set master can attach is a strict SUBSET of the branch's.
+Scripts master serves that the branch does not: ZERO.**
+
+⭐ And master carries a row the branch has already cleared: **`pine:character` at
+24 scripts**, absent from the branch entirely (the postfix member-access fix). That
+row alone is most of the difference.
+
+⚠️ Fourth fixture error of the session, and the first about which CODE rather than
+which FLAGS. The three before it: an untold clock inventing a 49-script row, a
+local `app/.env.local` making two "different" runs identical, and three
+invocations of the translator giving 48 / 52 / 29.
+
+---
+
 ## ⭐⭐⭐ 2026-09-23 — THE ROAD TO 100%, DERIVED FROM ONE CENSUS
 
 > **The owner's bar is two things, not one: every pasted script BUILDS, and it
@@ -33,10 +114,13 @@ Every number below is `memberPaneDefinition({source, id})` — the call
 
 | | scripts | share |
 |---|---|---|
-| **TODAY, as production builds it** | **29** | 10.9% |
-| + arm `VITE_PINE_OBJECTS_ONLY_PANE_ENABLED` (RC-N: the ARG now exists) | **52** | 19.5% |
+| **TODAY — measured on `origin/master`, the tree production serves** | **26** | 9.8% |
+| + merge this branch, objects-only pane armed (decision 6) | **52** | 19.5% |
 | + wire the RUNTIME lane behind the same door | **58** | 21.8% |
 | — the two standing carve-outs (25 `strategy()`, 29 `import`) | ceiling **212** | 79.7% |
+
+⭐ **The first step DOUBLES member coverage and the set only grows: zero scripts
+that master attaches are lost by the branch.**
 
 ⛔⛔ **SO 100% OF 266 IS NOT REACHABLE UNDER THE CURRENT RULINGS, AND THAT IS A
 DECISION, NOT A LIMIT.** 54 scripts — **one in five** — are deliberately out of
