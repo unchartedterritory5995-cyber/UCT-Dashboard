@@ -1,0 +1,81 @@
+{
+  "verdict": "NO_NEW_FAILURES",
+  "counts": {
+    "new": 0,
+    "fixed": 5,
+    "unchanged": 277,
+    "missing": 0,
+    "baseline": 282,
+    "current": 277,
+    "current_ran": 51816,
+    "new_flaky": 0,
+    "flaky_size": 5,
+    "flaky_new": 2,
+    "flaky_fixed": 0,
+    "file_level_resolved": 0,
+    "coverage_lost": 0,
+    "new_ours": 0,
+    "new_others": 0,
+    "new_unattributed": 0
+  },
+  "arithmetic": "baseline 282 = unchanged 277 + fixed 5 + missing 0  |  current 277 = unchanged 277 + new 0 + new-but-flaky 0",
+  "invalid_because": [],
+  "baseline_run_id": "35877079835",
+  "current_run_id": "35880671996",
+  "baseline_sha": "d4e0217b6cb5ccd172b7c29b6a708485b0eaffc4",
+  "current_sha": "c7bddc04653b0bd3a936890f9be406ca8f0c0a8a",
+  "commit_range": "d4e0217b6cb5ccd172b7c29b6a708485b0eaffc4..c7bddc04653b0bd3a936890f9be406ca8f0c0a8a",
+  "first_run": false,
+  "new": [],
+  "missing": [],
+  "fixed": [
+    "pytest|tests.test_flow_tape_spool|test_a_window_the_spool_COVERED_is_not_re_read_over_rest",
+    "pytest|tests.test_flow_tape_spool|test_a_window_with_no_spooled_frames_is_handed_to_rest",
+    "pytest|tests.test_flow_tape_spool|test_it_never_raises_when_the_qpool_is_unavailable",
+    "pytest|tests.test_token_slots|test_no_token_value_is_ever_written",
+    "vitest|src/pages/journal-2-0/components/notebook/NoteEditorPage.waveB.test.jsx|NoteEditorPage \u2014 Wave B Favorites toggle > clicking again unfavorites (POST then DELETE semantics via the isFavorite arg)"
+  ],
+  "new_flaky": [],
+  "flaky": [
+    "pytest|tests.test_discord_close_note|test_a_note_that_cannot_be_written_still_posts_the_charts",
+    "pytest|tests.test_mutation_check.TestRestoreGuarantee|test_the_file_is_byte_identical_after_a_detected_mutation",
+    "pytest|tests.test_mutation_check.TestVerdicts|test_a_detected_mutation_passes_the_check",
+    "pytest|tests.test_mutation_check.TestVerdicts|test_expect_red_naming_the_right_test_passes",
+    "vitest|src/components/chart/engine/__tests__/stockChartWiring.test.jsx|an engine-drawn indicator still appears in the crosshair legend > \u26d4\u26d4 A HOVER REACHES THE RENDERER NOT AT ALL"
+  ],
+  "file_level_resolved": [],
+  "coverage_lost": [],
+  "missing_buckets": {},
+  "attribution": {
+    "pytest|tests.test_flow_tape_spool|test_a_window_the_spool_COVERED_is_not_re_read_over_rest": {
+      "class": "UNATTRIBUTED",
+      "commits": [],
+      "workstreams": [],
+      "reason": "no commit in d4e0217b6..c7bddc046 touched tests/test_flow_tape_spool.py or anything it imports"
+    },
+    "pytest|tests.test_flow_tape_spool|test_a_window_with_no_spooled_frames_is_handed_to_rest": {
+      "class": "UNATTRIBUTED",
+      "commits": [],
+      "workstreams": [],
+      "reason": "no commit in d4e0217b6..c7bddc046 touched tests/test_flow_tape_spool.py or anything it imports"
+    },
+    "pytest|tests.test_flow_tape_spool|test_it_never_raises_when_the_qpool_is_unavailable": {
+      "class": "UNATTRIBUTED",
+      "commits": [],
+      "workstreams": [],
+      "reason": "no commit in d4e0217b6..c7bddc046 touched tests/test_flow_tape_spool.py or anything it imports"
+    },
+    "pytest|tests.test_token_slots|test_no_token_value_is_ever_written": {
+      "class": "UNATTRIBUTED",
+      "commits": [],
+      "workstreams": [],
+      "reason": "no commit in d4e0217b6..c7bddc046 touched tests/test_token_slots.py or anything it imports"
+    },
+    "vitest|src/pages/journal-2-0/components/notebook/NoteEditorPage.waveB.test.jsx|NoteEditorPage \u2014 Wave B Favorites toggle > clicking again unfavorites (POST then DELETE semantics via the isFavorite arg)": {
+      "class": "UNATTRIBUTED",
+      "commits": [],
+      "workstreams": [],
+      "reason": "no commit in d4e0217b6..c7bddc046 touched src/pages/journal-2-0/components/notebook/NoteEditorPage.waveB.test.jsx or anything it imports"
+    }
+  }
+}
