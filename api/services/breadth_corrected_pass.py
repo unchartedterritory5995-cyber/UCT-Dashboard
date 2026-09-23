@@ -115,7 +115,10 @@ class Inputs:
         self.fingerprints = {k: _sha(p) for k, p in self.paths.items()}
 
     def pit_members(self, D: str):
-        if D < self.pit_from:
+        # Two floors, both hard: the ledger's own live_from AND the locked canonical start.
+        # Snapshots before 2026-03-23 were backfilled on 2026-03-22 (add-only, not PIT) —
+        # no canonical `uct` exists before it, whatever a ledger says.
+        if D < self.pit_from or D < CANONICAL_UCT_START:
             return None
         e = (self.pit.get("dates") or {}).get(D)
         return None if e is None else e["tickers"]
