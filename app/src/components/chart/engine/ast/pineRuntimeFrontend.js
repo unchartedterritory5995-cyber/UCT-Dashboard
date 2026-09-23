@@ -81,6 +81,13 @@ export const RUNTIME_REFUSALS = Object.freeze({
   'runtime:tuple': 'a tuple — the runtime has no multiple-value form yet',
   'runtime:array': 'an array or collection operation — the runtime has no collections yet',
   'runtime:object-op': 'a graphical-object operation — these belong to the object program, not the value runtime',
+  // ⭐ `x = if …` / `x = switch …` LOWER; this names the parts of them that do
+  // not. It is deliberately NOT `pine:block` — that sentence says "this engine
+  // stores a single expression", which is true of the COLUMNAR value model and
+  // false of this lane, and telling a member the engine cannot hold a block
+  // when the real limit is "this branch must be one expression" points them at
+  // the wrong thing entirely.
+  'runtime:block-value': 'a block used as a value, in a shape this lane does not lower',
   // ⭐⭐ 2F-2 IMPLEMENTED THIS. It stays in the vocabulary because the family is
   // wider than the capability: `x[1]` over a top-level mutable value now runs,
   // and the three shapes below are the parts that do not, each refused BY ITS OWN
@@ -4715,6 +4722,168 @@ export function buildRuntimeIr(source, opts = {}) {
         // is what lets `fill` resolve it without the VM carrying a value it
         // could not do anything with.
         plotRefs.set(nameTok.value, { call: callName, index, at: locate(nameTok) })
+        continue
+      }
+
+      // ── `name = if …` / `name = switch …` — A BLOCK IN VALUE POSITION ──
+      //
+      // ⭐⭐ IN PINE, `if` AND `switch` ARE EXPRESSIONS. A block yields the last
+      // value of the branch taken, and `na` when no branch is taken. This lane
+      // refused the whole family at `pine:block` — *"a Pine block spans several
+      // statements and this engine stores a single expression"* — which is a
+      // true sentence about the COLUMNAR value model, said about a lane that has
+      // statements, slots and `ifStmt` and needs none of that restriction.
+      //
+      // ⭐ MEASURED: `pine:block` is the largest addressable row in the
+      // object-lane census (22 scripts). Reading the call sites splits it —
+      // 13 die HERE, and 11 of those are exactly this shape (7 `switch`, 4 `if`).
+      //
+      // ⛔⛔ AND THIS IS MORE CORRECT THAN THE COLUMNAR FOLD, NOT A COPY OF IT.
+      // `foldIfChain` yields a value only when the chain HAS AN ELSE, because a
+      // ternary needs both sides. Pine has no such rule, and the corpus's first
+      // example is `impDownWick = if impDown` with no else at all. A slot
+      // initialised to `na` and assigned only inside a matching arm IS Pine's
+      // semantics, structurally rather than by a rule someone must remember.
+      const eqBlk = findTop(toks, (t) => isPunct(t, '='))
+      const rhsHead = eqBlk > 0 ? toks[eqBlk + 1] : null
+      if (rhsHead && rhsHead.kind === 'ident'
+          && (rhsHead.value === 'if' || rhsHead.value === 'switch')) {
+        const nameTok = boundName(toks, eqBlk)
+        if (!nameTok) throw new RuntimeRefusal('runtime:statement', 'a binding needs a name', locate(first))
+        const slot = scope.declare(nameTok.value, newSlot(nameTok.value, mut.persistent.has(nameTok.value)))
+        // ⛔ `na` IS THE INITIAL VALUE AND IT IS LOAD-BEARING. It is what an
+        // unmatched `if` with no else, and a `switch` with no default, must
+        // yield. Seeding with anything else — 0, the first arm — would hand a
+        // member a confident number for a branch their script never took.
+        out.push(declare(slot, naValue()))
+
+        /** One arm's body, as the statements that put its value in the slot. */
+        const armBody = (sub, armScope, atTok) => {
+          const body = sub || []
+          if (!body.length) {
+            throw new RuntimeRefusal('runtime:block-value',
+              `\`${nameTok.value} = ${rhsHead.value} …\` has a branch with no value`,
+              locate(atTok))
+          }
+          // ⚠️ ONE EXPRESSION PER BRANCH, AND THE LIMIT IS NAMED RATHER THAN
+          // GUESSED AT. Every one of the 11 corpus scripts on this row has
+          // single-expression arms. Serving a multi-statement arm means deciding
+          // what a mid-arm assignment does to an OUTER name, which is
+          // `foldIfChain`'s entire `touched` loop and wants its own measurement
+          // — so it refuses by name instead of lowering something plausible.
+          if (body.length > 1 || (body[0].sub && body[0].sub.length)) {
+            throw new RuntimeRefusal('runtime:block-value',
+              `a branch of \`${nameTok.value} = ${rhsHead.value} …\` must be one expression; `
+              + `this one spans ${body.length} statements`, locate(atTok))
+          }
+          return [assign(slot, lowerExpr(parseWholeExpression(body[0].header), armScope))]
+        }
+
+        /** An arm's scope, body and registration — one place, so the object
+         *  pass sees a value-position block exactly as it sees a statement one. */
+        const armOf = (sub, atTok) => {
+          const armScope = new Scope(scope)
+          const body = armBody(sub, armScope, atTok)
+          objectBlocks.push({ scope: armScope, body })
+          return body
+        }
+
+        if (rhsHead.value === 'if') {
+          // ⛔ THE WHOLE CHAIN IS COLLECTED FIRST, for the reason the statement
+          // form records above: lowering one arm at a time leaves the remaining
+          // `else if`s in the OUTER list, where the next turn of this loop meets
+          // an `else` with no `if`.
+          const arms = [{ testToks: toks.slice(eqBlk + 2), from: st }]
+          let finalElse = null
+          for (;;) {
+            const nxt = list[i + 1]
+            const w = nxt && nxt.header && nxt.header[0] && nxt.header[0].kind === 'ident'
+              ? nxt.header[0].value : null
+            if (w !== 'else') break
+            const elseToks = nxt.header.slice(1)
+            i += 1
+            if (elseToks.length && elseToks[0].kind === 'ident' && elseToks[0].value === 'if') {
+              arms.push({ testToks: elseToks.slice(1), from: nxt })
+              continue
+            }
+            finalElse = nxt
+            break
+          }
+          // ⛔ TEST BEFORE BODY — source order, for the same reason the
+          // statement form states: lowering allocates columns and rings, and a
+          // body lowered first can move a refusal to a line the member did not
+          // reach yet.
+          const lowered = arms.map((a) => {
+            const test = lowerExpr(parseWholeExpression(a.testToks), scope)
+            return { test, body: armOf(a.from.sub, a.from.header[0]) }
+          })
+          let chain = finalElse ? armOf(finalElse.sub, finalElse.header[0]) : []
+          // ⛔ NESTED IFs, NEVER A FLATTENED CONDITION — a later arm must not be
+          // evaluated once an earlier one matched.
+          for (let k = lowered.length - 1; k >= 0; k -= 1) {
+            chain = [ifStmt(lowered[k].test, lowered[k].body, chain)]
+          }
+          out.push(chain[0])
+          continue
+        }
+
+        // ── `name = switch …` ──
+        //
+        // ⭐ THE ARM GRAMMAR IS THE COLUMNAR LANE'S, not a second reading of it:
+        // `=>` at top level splits match from value, and a BARE `=>` (at index 0)
+        // is Pine's default arm. See `switchBinding` in `pine.js`.
+        //
+        // ⛔ A SUBJECT IS OPTIONAL. `switch` with no subject takes boolean arms,
+        // which is how a switch expresses a condition ladder — and it is the
+        // case that separates a real lowering from a constant fold, because a
+        // subject that moves bar to bar cannot be folded at all.
+        const subjToks = toks.slice(eqBlk + 2)
+        const subject = subjToks.length ? parseWholeExpression(subjToks) : null
+        const cases = []
+        let fallback = null
+        for (const arm of (st.sub || [])) {
+          const at = findTop(arm.header, (t) => isPunct(t, '=>'))
+          if (at < 0) {
+            throw new RuntimeRefusal('runtime:block-value',
+              `an arm of \`${nameTok.value} = switch …\` has no \`=>\``, locate(arm.header[0]))
+          }
+          const armRhs = arm.header.slice(at + 1)
+          const armScope = new Scope(scope)
+          const body = armRhs.length
+            ? [assign(slot, lowerExpr(parseWholeExpression(armRhs), armScope))]
+            : armBody(arm.sub, armScope, arm.header[0])
+          objectBlocks.push({ scope: armScope, body })
+          if (at === 0) fallback = body
+          else cases.push({ matchToks: arm.header.slice(0, at), body })
+        }
+        if (!cases.length && !fallback) {
+          throw new RuntimeRefusal('runtime:block-value',
+            `\`${nameTok.value} = switch …\` has no arms`, locate(rhsHead))
+        }
+        let chain = fallback || []
+        for (let k = cases.length - 1; k >= 0; k -= 1) {
+          const match = parseWholeExpression(cases[k].matchToks)
+          // ⛔⛔ THE SYNTHESISED NODE IS A *PARSE* NODE, NOT A CANONICAL ONE,
+          // AND THE TWO VOCABULARIES ARE EASY TO CONFUSE. `lowerExpr` consumes
+          // what `parseWholeExpression` produces — `{type:'binary', op, left,
+          // right}` — while `{type:'op', name, args}` is the COLUMNAR shape
+          // `pine.js`'s `cOp` builds after resolution. They describe the same
+          // arithmetic in two dialects.
+          // ⚰️ Measured: building the columnar shape here cost the three
+          // subject-bearing switch cases, and the failure did not say so — the
+          // throw escaped as the statement walk's catch-all `pine:statement`,
+          // "this Pine line is not a shape the translator reads", pointing at
+          // the BINDING rather than at the node nobody could read. The
+          // subject-less arms passed throughout, because only this branch
+          // builds a node instead of parsing one.
+          const test = subject
+            ? lowerExpr({
+              type: 'binary', op: '==', left: subject, right: match, tok: cases[k].matchToks[0],
+            }, scope)
+            : lowerExpr(match, scope)
+          chain = [ifStmt(test, cases[k].body, chain)]
+        }
+        for (const s of chain) out.push(s)
         continue
       }
 

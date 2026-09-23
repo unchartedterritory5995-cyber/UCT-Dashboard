@@ -480,7 +480,7 @@ case. Compare failing test NAMES.
 >
 > | scripts | row | what it actually is |
 > |---|---|---|
-> | ~15 | `pine:block` | an `if`/`switch` BLOCK IN VALUE POSITION (`x = if cond`). The body lives on later lines the expression parser never sees, so this is a statement-level change in the PRODUCTION columnar lane. `foldIfChain` already folds statement-level chains — the work is reaching it from a declaration's initialiser. **Largest single coherent capability in the corpus.** |
+> | ✅ | `pine:block` | **DONE 2026-09-22** — `x = if …` and `x = switch …` lower in the RUNTIME lane. `runtime/pine:block` **13 → 4**. ⭐ It was NOT a columnar change: the top-level columnar walk already handled both, and all 13 were dying in `pineRuntimeFrontend`, which has slots and `ifStmt` and needed none of the single-expression restriction. |
 > | ~7 | `pine:block` | a `for` loop reached through a user function — same guard, different job |
 > | ~10 | `time(...)` | the FUNCTION forms: `time('W')` (opening timestamp of the enclosing period, 3) and `time("", "0830-1201", tz)` (session clock, 2), plus 5 more on `pine:function`. RC-F served only the bare VARIABLE. |
 > | 4 | `input.color` | `producesColour` (`runtime/colours.js`) holds only `color.new`/`color.rgb`, so `holdsColour` answers false for an `input.color` CALL and the binding routes to the columnar lane, which refuses the kind |

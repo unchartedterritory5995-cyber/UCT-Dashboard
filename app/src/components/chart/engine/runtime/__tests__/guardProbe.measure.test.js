@@ -66,7 +66,7 @@ describe('PROBE', () => {
       if (!m.has(shape)) m.set(shape, [])
       const line = (r.refusal || {}).line
       const text = Number.isFinite(line) ? (src.split('\n')[line - 1] || '').trim() : ''
-      m.get(shape).push({ name, line, text: text.slice(0, 100) })
+      m.get(shape).push({ name, line, lane: r.lane, text: text.slice(0, 100) })
     }
     for (const [g, m] of byGuard) {
       const total = [...m.values()].reduce((a, v) => a + v.length, 0)
@@ -75,7 +75,7 @@ describe('PROBE', () => {
       for (const [shape, hits] of rows) {
         console.log(`\n  [${hits.length}]  ${shape}`)
         for (const h of (DETAIL ? hits : hits.slice(0, 2))) {
-          console.log(`        ${h.name} L${h.line}`)
+          console.log(`        [${h.lane}] ${h.name} L${h.line}`)
           console.log(`          ${h.text}`)
         }
       }

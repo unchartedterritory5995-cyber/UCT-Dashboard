@@ -1750,10 +1750,10 @@
       "host": false,
       "screener": false,
       "hostGuards": [
-        "pine:builtin"
+        "pine:input-kind"
       ],
       "screenerGuards": [
-        "pine:builtin"
+        "pine:input-kind"
       ]
     },
     {
@@ -2235,10 +2235,10 @@
       "host": false,
       "screener": false,
       "hostGuards": [
-        "pine:builtin"
+        "pine:input-kind"
       ],
       "screenerGuards": [
-        "pine:builtin"
+        "pine:input-kind"
       ]
     },
     {
