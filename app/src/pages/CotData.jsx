@@ -1,5 +1,6 @@
 // app/src/pages/CotData.jsx
 import { useState, useRef, useEffect, useMemo, Component } from 'react'
+import useSWR from 'swr'
 import {
   Chart as ChartJS,
   CategoryScale, LinearScale,
@@ -26,6 +27,10 @@ ChartJS.register(
   Title, Tooltip, Legend, Filler,
 )
 
+// Packet N CP1: shared fetcher for /api/cot/status and /api/cot/symbols.
+const jsonFetcher = (url) =>
+  fetch(url, { credentials: 'include' }).then((r) => (r.ok ? r.json() : null))
+
 const AXIS_TEXT  = '#706b5e'
 const GRID_FAINT = 'rgba(168, 162, 144, 0.07)'
 const ZERO_LINE  = 'rgba(201, 168, 76, 0.35)'
@@ -34,8 +39,19 @@ const ZERO_LINE  = 'rgba(201, 168, 76, 0.35)'
 ChartJS.defaults.font.family = CHART_FONT_FAMILY
 
 // ── Symbol data ────────────────────────────────────────────────────────────────
+//
+// Packet N CP1 (signed 2026-09-22, fingerprint d411866cd): these two consts
+// used to be the ONLY source for the picker. GET /api/cot/symbols already
+// serves the backend's own SYMBOL_GROUPS/SYMBOL_NAMES (a comment on the
+// backend's declaration says outright "keep the two in step" -- they had
+// already drifted: the backend has an "INDICES" group these fallbacks lack).
+// Kept here now ONLY as the fallback for the brief loading window / a fetch
+// failure -- never a blank picker. The live component derives its own
+// SYMBOL_GROUPS/SYMBOL_NAMES (same names, intentionally, so every existing
+// usage below picks up the fetched values with no other change) from
+// useSWR('/api/cot/symbols', ...), falling back to these when unset.
 
-const SYMBOL_NAMES = {
+const FALLBACK_SYMBOL_NAMES = {
   ES: 'S&P 500 E-Mini',      NQ: 'Nasdaq-100 E-Mini',   YM: 'DJIA E-Mini',
   QR: 'Russell 2000 Mini',   EW: 'S&P MidCap 400',      VI: 'VIX',
   NK: 'Nikkei 225',
@@ -59,7 +75,7 @@ const SYMBOL_NAMES = {
   L6: 'Brazilian Real',      BTC:'Bitcoin',              ETH:'Ether',
 }
 
-const SYMBOL_GROUPS = {
+const FALLBACK_SYMBOL_GROUPS = {
   'MOST WATCHED':    ['ES','NQ','YM','QR','EW','VI','NK','DX','J6','ZN','BTC','ETH'],
   METALS:            ['GC','SI','HG','PL','PA','AL'],
   ENERGIES:          ['CL','HO','RB','NG','FL','BZ'],
@@ -141,6 +157,39 @@ export default function CotData() {
   const railWrapRef    = useRef(null)
   const resizeStateRef = useRef(null)
   const isTouch        = useIsTouch()
+
+  // Packet N CP1: firing GET /api/cot/status on mount is what actually
+  // triggers cot_service's per-visit self-heal (`_maybe_auto_refresh_if_stale`)
+  // -- documented in CLAUDE.md as a defense layer, verified before this packet
+  // to have never fired because nothing called this endpoint. Fire-and-forget
+  // is enough for the self-heal; `last_updated`/`record_count` also back a
+  // small freshness line near the picker.
+  const { data: cotStatus } = useSWR('/api/cot/status', jsonFetcher, { revalidateOnFocus: false })
+
+  // The backend's own SYMBOL_GROUPS/SYMBOL_NAMES (GET /api/cot/symbols) --
+  // previously hand-copied here and already drifted (backend has an
+  // "INDICES" group these fallbacks never gained). Named to SHADOW the
+  // module-level FALLBACK_* consts under the same names every existing
+  // reference below already uses, so `SYMBOL_NAMES[x]`/`SYMBOL_GROUPS` picks
+  // up the live values with zero other changes, and falls back cleanly
+  // (never a blank picker) while loading or on a fetch failure.
+  const { data: cotSymbols } = useSWR('/api/cot/symbols', jsonFetcher, { revalidateOnFocus: false })
+  const SYMBOL_GROUPS = useMemo(() => {
+    if (!cotSymbols?.groups) return FALLBACK_SYMBOL_GROUPS
+    const out = {}
+    for (const [grp, entries] of Object.entries(cotSymbols.groups)) {
+      out[grp] = entries.map((e) => e.symbol)
+    }
+    return out
+  }, [cotSymbols])
+  const SYMBOL_NAMES = useMemo(() => {
+    if (!cotSymbols?.groups) return FALLBACK_SYMBOL_NAMES
+    const out = {}
+    for (const entries of Object.values(cotSymbols.groups)) {
+      for (const e of entries) out[e.symbol] = e.name
+    }
+    return out
+  }, [cotSymbols])
 
   // Cross-pane hover sync — written via DOM refs (never React state) so a
   // mousemove doesn't re-render four Chart.js instances. The positioning rail
@@ -769,6 +818,15 @@ export default function CotData() {
             </button>
           )}
         </div>
+
+        {/* Packet N CP1: firing the /status fetch above is what triggers the
+            per-visit self-heal; this line is the honest secondary benefit --
+            never blocks or replaces the chart when absent. */}
+        {cotStatus?.last_updated && (
+          <span className={styles.freshnessLine} title={`${cotStatus.record_count ?? 0} records`}>
+            Data through {cotStatus.last_updated}
+          </span>
+        )}
 
       </div>
 
