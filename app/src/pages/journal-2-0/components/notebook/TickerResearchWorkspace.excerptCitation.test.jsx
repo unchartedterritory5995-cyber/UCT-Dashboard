@@ -2,6 +2,7 @@ import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { render, screen, fireEvent, waitFor, within } from '@testing-library/react'
 import { MemoryRouter } from 'react-router-dom'
 import { SWRConfig } from 'swr'
+import { MQ } from '../../../../styles/breakpoints'
 
 // ⛔ AN EXCERPT CITATION IN "THIS RESEARCH" WAS A DEAD CLICK. Ask names a saved
 // passage ("Q3 filing.pdf · p.4"), and its navigation is
@@ -92,12 +93,15 @@ function installNetwork({ source = EXCERPT_SOURCE, excerpt }) {
   })
 }
 
+/** Ask, tap citation 1, and hand back the Ask panel itself -- a notice the
+ *  member can see is one INSIDE it (on touch it is a modal Sheet). */
 async function askAndClickCitation(label = EXCERPT_SOURCE.label) {
   fireEvent.click(await screen.findByRole('button', { name: 'Ask a question about this research' }))
   const dialog = await screen.findByRole('dialog', { name: /Ask/ })
   fireEvent.change(within(dialog).getByRole('textbox'), { target: { value: 'margins?' } })
   fireEvent.click(within(dialog).getByRole('button', { name: 'Ask' }))
   fireEvent.click(await within(dialog).findByRole('button', { name: `Source 1: ${label}` }))
+  return dialog
 }
 
 function renderWorkspace(onOpenNote) {
@@ -148,9 +152,10 @@ describe('TickerResearchWorkspace — an EXCERPT citation lands on the passage',
     const onOpenNote = vi.fn()
     installNetwork({ excerpt: jsonResponse(404, { detail: 'Not found' }) })
     renderWorkspace(onOpenNote)
-    await askAndClickCitation()
+    const ask = await askAndClickCitation()
 
-    expect(await screen.findByText('That passage is no longer available.')).toBeInTheDocument()
+    expect(await within(ask).findByText('That passage is no longer available.')).toBeInTheDocument()
+    expect(within(ask).getByTestId('ask-nav-notice')).toHaveAttribute('role', 'status')
     expect(screen.queryByTestId('pdf-viewer-stub')).toBeNull()
     expect(onOpenNote).not.toHaveBeenCalled()
   })
@@ -158,9 +163,9 @@ describe('TickerResearchWorkspace — an EXCERPT citation lands on the passage',
   it('a failed read is NOT reported as a deleted passage', async () => {
     installNetwork({ excerpt: jsonResponse(500, {}) })
     renderWorkspace(vi.fn())
-    await askAndClickCitation()
+    const ask = await askAndClickCitation()
 
-    expect(await screen.findByText("Couldn't open that passage — try again.")).toBeInTheDocument()
+    expect(await within(ask).findByText("Couldn't open that passage — try again.")).toBeInTheDocument()
     expect(screen.queryByText('That passage is no longer available.')).toBeNull()
   })
 
@@ -172,9 +177,9 @@ describe('TickerResearchWorkspace — an EXCERPT citation lands on the passage',
     }
     installNetwork({ source: fact, excerpt: jsonResponse(500, {}) })
     renderWorkspace(onOpenNote)
-    await askAndClickCitation(fact.label)
+    const ask = await askAndClickCitation(fact.label)
 
-    expect(await screen.findByText("That source can't be opened from here.")).toBeInTheDocument()
+    expect(await within(ask).findByText("That source can't be opened from here.")).toBeInTheDocument()
     expect(onOpenNote).not.toHaveBeenCalled()
     await waitFor(() => expect(global.fetch).not.toHaveBeenCalledWith(
       expect.stringMatching(/^\/api\/j2\/excerpts\//), expect.anything()))
@@ -192,5 +197,47 @@ describe('TickerResearchWorkspace — an EXCERPT citation lands on the passage',
 
     await waitFor(() => expect(onOpenNote).toHaveBeenCalledWith({ id: 'n1' }))
     expect(screen.queryByRole('alert')).toBeNull()
+    expect(screen.getByTestId('ask-nav-notice')).toBeEmptyDOMElement()
+  })
+})
+
+// ⛔ ON TOUCH THE ASK PANEL IS AN aria-modal SHEET OVER A SCRIM, and it stays
+// open when a citation is tapped. The first version of this fix wrote its
+// "no longer available" line into the workspace's own alert strip -- behind
+// that scrim, where the member saw nothing. test-setup stubs matchMedia to
+// `matches:false` (desktop), so this block overrides it for the touch query
+// alone, derived from MQ rather than typed.
+describe('TickerResearchWorkspace — on TOUCH the notice is inside the Sheet', () => {
+  const realMatchMedia = window.matchMedia
+  beforeEach(() => {
+    window.matchMedia = (query) => ({
+      matches: query === MQ.touchDown, media: query, onchange: null,
+      addListener() {}, removeListener() {}, addEventListener() {}, removeEventListener() {},
+      dispatchEvent() { return false },
+    })
+  })
+  afterEach(() => { window.matchMedia = realMatchMedia })
+
+  it('a deleted passage is said inside the modal Sheet the member is looking at', async () => {
+    installNetwork({ excerpt: jsonResponse(404, { detail: 'Not found' }) })
+    renderWorkspace(vi.fn())
+    const ask = await askAndClickCitation()
+
+    expect(ask).toHaveAttribute('aria-modal', 'true')
+    const line = await within(ask).findByText('That passage is no longer available.')
+    expect(ask.contains(line)).toBe(true)
+    expect(within(ask).getByTestId('ask-nav-notice')).toHaveAttribute('role', 'status')
+    // Nothing is left behind the scrim for the member to miss.
+    expect(screen.queryByRole('alert')).toBeNull()
+  })
+
+  it('a PDF passage still opens its preview, stacked above the Ask Sheet', async () => {
+    installNetwork({ excerpt: jsonResponse(200, { excerpt: PDF_EXCERPT }) })
+    renderWorkspace(vi.fn())
+    const ask = await askAndClickCitation()
+
+    const sheet = await screen.findByRole('dialog', { name: 'Preview of Q3 filing.pdf' })
+    expect(sheet).not.toBe(ask)
+    expect(within(ask).getByTestId('ask-nav-notice')).toBeEmptyDOMElement()
   })
 })

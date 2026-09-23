@@ -37,6 +37,7 @@ export const SCOPES = {
 
 const RATE_LIMIT_MSG = "You've hit today's Ask limit — it resets at midnight ET."
 const PAID_MSG = 'Ask requires a paid plan.'
+const OPEN_FAILED_MSG = "Couldn't open that source — try again."
 
 /** Read one SSE frame set out of a buffer. */
 function drainEvents(buf) {
@@ -62,6 +63,9 @@ export default function AskPanel({
   onNavigate = null,
   autoOpen = false,
   onClose = null,
+  // `onNavigate(source, resolved)` opens a cited source. It may return (or
+  // resolve to) a short sentence -- or `{ message }` -- when the source cannot
+  // be opened, and the panel shows it (see `navNotice`).
   // G-064 (spec §5.2). `onInsert(node) -> boolean` inserts into the note that
   // is OPEN; `onOpenNote(note)` opens a note, which enables the picker when
   // none is. A host passes whichever it can honour.
@@ -85,6 +89,16 @@ export default function AskPanel({
   // inserted twice), and the block the picker is placing.
   const [insertedAnswer, setInsertedAnswer] = useState(null)
   const [pickNode, setPickNode] = useState(null)
+  // ⛔ WHAT A CITATION TAP COULD NOT OPEN, SAID INSIDE THE PANEL. On touch the
+  // panel is an aria-modal Sheet over a scrim, and it stays open when a
+  // citation is tapped, so a host that reported "that passage is gone" in its
+  // own page chrome reported it BEHIND the scrim -- the member tapped and saw
+  // nothing, and a screen reader never heard it. The host returns the
+  // sentence; the panel is the one surface the member is certain to be
+  // looking at. `navSeqRef` makes the LAST tap (or question) the owner of the
+  // notice: an earlier tap's answer arriving late is dropped, never shown.
+  const [navNotice, setNavNotice] = useState('')
+  const navSeqRef = useRef(0)
   const abortRef = useRef(null)
   const historyRef = useRef([])
   const inputRef = useRef(null)
@@ -98,6 +112,7 @@ export default function AskPanel({
     historyRef.current = []
     setAnswer(''); setSources([]); setCoverageNotice(null); setStatus('idle')
     setInsertedAnswer(null); setPickNode(null)
+    navSeqRef.current += 1; setNavNotice('')
     setScopeLabel(SCOPES[scope]?.label || SCOPES.notebook.label)
   }, [scope, target])
 
@@ -121,6 +136,7 @@ export default function AskPanel({
     setStatus('asking'); setAnswer(''); setSources([])
     setCoverageNotice(null); setErrorMsg('')
     setInsertedAnswer(null); setPickNode(null)
+    navSeqRef.current += 1; setNavNotice('')
     const controller = new AbortController()
     abortRef.current = controller
     let text = ''
@@ -186,7 +202,9 @@ export default function AskPanel({
     }
   }, [query, status, scope, target, spec.label])
 
-  const handleCitation = useCallback((source) => {
+  const handleCitation = useCallback(async (source) => {
+    const seq = ++navSeqRef.current
+    setNavNotice('')
     let resolved = null
     if (source?.navigation?.kind === 'note' && getEditorDoc) {
       // ⛔ VERIFY BEFORE NAVIGATING. Positions do not survive an edit, and a
@@ -194,7 +212,16 @@ export default function AskPanel({
       resolved = resolveNoteCitation(getEditorDoc(), source.location,
                                      source.snippet)
     }
-    onNavigate?.(source, resolved)
+    let outcome = null
+    try {
+      outcome = await onNavigate?.(source, resolved)
+    } catch (e) {
+      console.error('[ask] opening a cited source failed', e)
+      outcome = OPEN_FAILED_MSG
+    }
+    if (seq !== navSeqRef.current) return
+    const message = typeof outcome === 'string' ? outcome : outcome?.message
+    if (message) setNavNotice(message)
   }, [getEditorDoc, onNavigate])
 
   const parts = useMemo(() => (answer ? splitAnswer(answer, sources) : []),
@@ -348,6 +375,20 @@ export default function AskPanel({
               ))}
             </div>
           )}
+
+          {/* The live region is always mounted while the panel is open, so a
+              sentence written into it is announced -- a region that mounts
+              WITH its text is not reliably read. Same quiet notice as the
+              coverage line above, never an error banner. */}
+          <div role="status" data-testid="ask-nav-notice">
+            {navNotice && (
+              <div className={styles.coverage}>
+                <UIcon name="info" size={12} gold={false}
+                       style={{ verticalAlign: '-2px', marginRight: 5 }} />
+                {navNotice}
+              </div>
+            )}
+          </div>
 
           {insertAllowed && !pickNode && (
             <div className={styles.insertRow}>

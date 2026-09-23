@@ -81,29 +81,27 @@ export default function TickerResearchWorkspace({ symbol, onOpenNote, showBackLi
   //
   // ⛔ AND NOTHING HERE IS SILENT. A citation that genuinely has nowhere to go
   // says so, in words, and a failed read is not reported as a deleted passage.
+  // The sentence is RETURNED to AskPanel, which shows it inside the panel: on
+  // touch the panel is a modal Sheet, and this page's own alert line sits
+  // behind its scrim.
   const openCitation = async (source) => {
     const nav = source?.navigation || {}
-    setActionError('')
     if (nav.kind === 'excerpt' && nav.excerpt_id) {
       try {
         const res = await fetch(`/api/j2/excerpts/${encodeURIComponent(nav.excerpt_id)}`,
                                 { credentials: 'include' })
-        if (res.status === 404) {
-          setActionError('That passage is no longer available.')
-          return
-        }
+        if (res.status === 404) return 'That passage is no longer available.'
         const excerpt = res.ok ? (await res.json())?.excerpt : null
         const target = excerptRevisitTarget(excerpt)
-        if (target?.kind === 'captured_source') { setCapturedSource(excerpt); return }
-        if (target) { setPreviewDoc({ ...target, emphasizeExcerpt: excerpt }); return }
+        if (target?.kind === 'captured_source') { setCapturedSource(excerpt); return null }
+        if (target) { setPreviewDoc({ ...target, emphasizeExcerpt: excerpt }); return null }
       } catch (e) {
         console.error('[research] open cited excerpt failed', e)
       }
-      setActionError("Couldn't open that passage — try again.")
-      return
+      return "Couldn't open that passage — try again."
     }
-    if (nav.note_id) { openNote({ id: nav.note_id }); return }
-    setActionError("That source can't be opened from here.")
+    if (nav.note_id) { openNote({ id: nav.note_id }); return null }
+    return "That source can't be opened from here."
   }
 
   // ⛔ These two used to be `alert(\`Could not create note: ${e.message}\`)`.
