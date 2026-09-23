@@ -17,9 +17,15 @@ import { act, render, screen, waitFor } from '@testing-library/react'
 import { MemoryRouter } from 'react-router-dom'
 import { useEditor, EditorContent } from '@tiptap/react'
 import StarterKit from '@tiptap/starter-kit'
+import fs from 'node:fs'
+import path from 'node:path'
+import { fileURLToPath } from 'node:url'
 import { AskInsert } from '../../lib/askInsertNode'
 import { AskCitation, askCitationStaleKey } from '../../lib/askCitationNode'
+import { ASK_CITATION_TYPE, claimFromJson } from '../../lib/askInsert'
+import styles from './AskCitationView.module.css'
 
+const HERE = path.dirname(fileURLToPath(import.meta.url))
 const EXT = [StarterKit, AskInsert, AskCitation]
 
 const DOC = {
@@ -132,5 +138,98 @@ describe('AskCitationView — a share-reduced chip is not "edited" (I1)', () => 
     await waitFor(() => expect(screen.getByText('[1]')).toBeInTheDocument())
     expect(screen.queryByText(/edited/)).toBeNull()
     expect(askCitationStaleKey.getState(editorRef.current.state).find()).toHaveLength(0)
+  })
+})
+
+// G-064 close-out — run-together chips `[2][3]`: a tap on `[2]`'s own box
+// opened source 3, because `[3]`'s enlarged touch target painted over it.
+// AskCitationView.module.css now drops the LEFT extension of a chip whose
+// previous element sibling is another chip. jsdom performs no layout, so the
+// geometry cannot be tested here; what CAN be is the precondition the rule
+// stands on, in the DOM a real TipTap React node view produces: which element
+// the siblings are, and that the selector exactly as written picks the right
+// chips out of it. AskCitationView.test.jsx pins the declarations.
+describe('AskCitationView — adjacent chips never steal each other\'s taps (DOM precondition)', () => {
+  const chip = (n) => ({
+    type: 'askCitation',
+    attrs: { n, label: `Note ${n}`, nav: { kind: 'note', note_id: `n${n}` }, citation: 'exact', claim: null },
+  })
+  const RUN_CONTENT = [
+    { type: 'text', text: 'Margins fell ' },
+    chip(2), chip(3),
+    { type: 'text', text: ' y' },
+    chip(4),
+    { type: 'text', text: ' and ' },
+    { type: 'text', text: 'held', marks: [{ type: 'bold' }] },
+    chip(5),
+  ]
+  // The claim an insert would have written, so no chip reads "edited".
+  for (const node of RUN_CONTENT) if (node.type === 'askCitation') node.attrs.claim = claimFromJson(RUN_CONTENT)
+  const RUN_DOC = {
+    type: 'doc',
+    content: [{
+      type: 'askInsert',
+      attrs: { insertedAt: '2026-09-22T12:00:00.000Z', scope: 'note', question: 'q' },
+      content: [{ type: 'paragraph', content: RUN_CONTENT }],
+    }],
+  }
+  const NODE_CLASS = `node-${ASK_CITATION_TYPE}`
+
+  /** The rule in the touch tier whose selector combines siblings, as written. */
+  function adjacencySelector() {
+    const css = fs.readFileSync(path.join(HERE, 'AskCitationView.module.css'), 'utf8').replace(/\/\*[\s\S]*?\*\//g, '')
+    const touch = /@media \(max-width: 1024px\) \{([\s\S]*)\}\s*$/.exec(css)?.[1] || ''
+    const rules = [...touch.matchAll(/([^{}]+)\{([^{}]*)\}/g)].filter(([, sel]) => /[+~]/.test(sel))
+    expect(rules).toHaveLength(1)
+    const [, sel, body] = rules[0]
+    expect(body).toMatch(/left:\s*0;/)
+    // What the browser sees: `:global(x)` unwrapped, local classes hashed the
+    // way this module's import hashes them, the pseudo-element dropped (the
+    // element it hangs off is the one a tap reaches).
+    return sel.trim()
+      .replace(/::after$/, '')
+      .replace(/:global\(([^)]+)\)|\.([A-Za-z_][\w-]*)/g, (m, global, local) => (global ?? `.${styles[local]}`))
+  }
+
+  async function chips() {
+    await mount(RUN_DOC)
+    const buttons = await waitFor(() => {
+      const found = [2, 3, 4, 5].map((n) => screen.getByRole('button', { name: `Source ${n}: Note ${n}` }))
+      return found
+    })
+    return buttons
+  }
+
+  it('each chip is button < .wrap < the node-view span, and the node-view spans are the siblings', async () => {
+    const [b2, b3, b4, b5] = await chips()
+    const views = [b2, b3, b4, b5].map((b) => {
+      const wrap = b.parentElement
+      expect(wrap.classList.contains(styles.wrap)).toBe(true)
+      expect(wrap.children).toHaveLength(1)
+      const view = wrap.parentElement
+      expect(view.classList.contains(NODE_CLASS)).toBe(true)
+      expect(view.children).toHaveLength(1)
+      expect(view.parentElement.tagName).toBe('P')
+      return view
+    })
+    const [v2, v3, v4, v5] = views
+    // Text before `[2]` is not an element, so nothing precedes it.
+    expect(v2.previousElementSibling).toBeNull()
+    // `[2][3]` run together: element siblings, the shape the rule needs.
+    expect(v3.previousElementSibling).toBe(v2)
+    // `+` skips text nodes: `[3] y[4]` is ALSO adjacent, and `[4]` loses its
+    // left side too -- the conservative direction, stated in the CSS comment.
+    expect(v4.previousElementSibling).toBe(v3)
+    // Formatted text is an element: `<strong>held</strong>[5]` is not adjacent.
+    expect(v5.previousElementSibling?.tagName).toBe('STRONG')
+  })
+
+  it('the adjacency selector, exactly as written, matches the chips that follow a chip and no other', async () => {
+    const [b2, b3, b4, b5] = await chips()
+    const selector = adjacencySelector()
+    const matched = [...document.querySelectorAll(selector)]
+    expect(matched).toEqual([b3, b4])
+    expect(matched).not.toContain(b2)
+    expect(matched).not.toContain(b5)
   })
 })

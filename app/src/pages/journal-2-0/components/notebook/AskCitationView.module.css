@@ -8,12 +8,38 @@
    out inline-block, so that floor grew every prose line holding a chip to
    about 44px. Here the floor comes off and the chip keeps the line's own
    height, while the FINGER TARGET stays at least 44px through an invisible
-   ::after that extends the button's hit area 12px above and below and 8px
-   either side without taking any layout space: the chip's box is roughly
-   24px tall and 32px wide at its smallest, so the target is about 48px each
-   way, above the 44px floor. `.wrap .chip` outranks the single imported class, because the order of
-   two CSS modules in the bundle is not a thing to lean on. Only the <button>
-   gets the extended target: a chip with no note to open is not interactive. */
+   ::after that extends the button's hit area without taking any layout
+   space. `.wrap .chip` outranks the single imported class, because the order
+   of two CSS modules in the bundle is not a thing to lean on. Only the
+   <button> gets the extended target: a chip with no note to open is not
+   interactive.
+
+   ⛔ A TAP ON A CHIP'S OWN BOX MUST OPEN THAT CHIP'S SOURCE. With the
+   extension on all four sides (-12px -8px), run-together chips `[2][3]` let a
+   tap on the right ~6px of `[2]` open source 3 (G-064 close-out), because
+   `[3]`'s ::after paints over `[2]`: every chip button is positioned,
+   positioned boxes paint in document order, and a tap goes to the topmost.
+   The same order is what makes the fix safe: an extension may reach only
+   LATER content (right along its line, and down onto the next), where a later
+   chip's own box paints above it -- so `[2]` keeps its right side over `[3]`,
+   and no `:has()` rule is needed for the earlier chip. The two
+   directions that reach EARLIER content are removed: UP, always (top: 0 --
+   a chip on the line below would otherwise cover the bottom of one on the
+   line above), and LEFT, when the element just before this chip is another
+   chip (the rule after this one). The height the upward extension gave now
+   sits below the chip instead, and the right side takes 4px more so a chip
+   that loses its left side still spans the floor. Box roughly 24px tall and
+   32px wide at its smallest: target about 48px tall and 52px wide (44px when
+   it follows a chip).
+
+   The adjacency rule matches TipTap's node-view element, `.node-askCitation`
+   (ReactNodeView's `node-${name}` class; the node's name can never change, or
+   every inserted answer would lose its chips). The chips' `.wrap` spans are
+   each an only child, so they are never siblings; the node-view spans are.
+   `+` skips text nodes, so a chip that follows another with only text between
+   also loses its left extension: a smaller target, never a wrong source.
+   Both facts are pinned in AskCitationView.live.test.jsx against a real
+   editor. */
 @media (max-width: 1024px) {
   .wrap .chip {
     min-height: 0;
@@ -27,6 +53,12 @@
   .wrap button.chip::after {
     content: '';
     position: absolute;
-    inset: -12px -8px;
+    top: 0;
+    right: -12px;
+    bottom: -24px;
+    left: -8px;
+  }
+  :global(.node-askCitation) + :global(.node-askCitation) .wrap button.chip::after {
+    left: 0;
   }
 }

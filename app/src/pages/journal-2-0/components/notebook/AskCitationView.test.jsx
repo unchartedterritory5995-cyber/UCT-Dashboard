@@ -8,10 +8,20 @@ import fs from 'node:fs'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 import AskCitationView from './AskCitationView'
+import { ASK_CITATION_TYPE } from '../../lib/askInsert'
 import styles from './AskCitationView.module.css'
 import askStyles from './AskPanel.module.css'
 
 const HERE = path.dirname(fileURLToPath(import.meta.url))
+
+/** The touch tier's rules, `{ selector: body }`, comments stripped. */
+function touchRules() {
+  const css = fs.readFileSync(path.join(HERE, 'AskCitationView.module.css'), 'utf8').replace(/\/\*[\s\S]*?\*\//g, '')
+  const touch = /@media \(max-width: 1024px\) \{([\s\S]*)\}\s*$/.exec(css)?.[1] || ''
+  const out = {}
+  for (const [, sel, body] of touch.matchAll(/([^{}]+)\{([^{}]*)\}/g)) out[sel.trim()] = body
+  return out
+}
 
 const node = (attrs = {}) => ({ attrs: {
   n: 1, label: 'NVDA thesis', nav: { kind: 'note', note_id: 'n1' }, citation: 'exact', claim: 'x', ...attrs,
@@ -56,14 +66,50 @@ describe('AskCitationView', () => {
     expect(b.className).toContain(askStyles.citationChip)
     expect(b.className).toContain(styles.chip)
 
-    const css = fs.readFileSync(path.join(HERE, 'AskCitationView.module.css'), 'utf8').replace(/\/\*[\s\S]*?\*\//g, '')
-    const touch = /@media \(max-width: 1024px\) \{([\s\S]*)\}\s*$/.exec(css)?.[1] || ''
-    const rule = (sel) => new RegExp(`${sel.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\s*\\{([^}]*)\\}`).exec(touch)?.[1] || ''
-    expect(rule('.wrap .chip')).toMatch(/min-height:\s*0;/)
-    expect(rule('.wrap .chip')).toMatch(/line-height:\s*inherit;/)
-    expect(rule('.wrap button.chip')).toMatch(/position:\s*relative;/)
-    expect(rule('.wrap button.chip::after')).toMatch(/position:\s*absolute;/)
-    expect(rule('.wrap button.chip::after')).toMatch(/inset:\s*-12px -8px;/)
+    const rule = touchRules()
+    expect(rule['.wrap .chip']).toMatch(/min-height:\s*0;/)
+    expect(rule['.wrap .chip']).toMatch(/line-height:\s*inherit;/)
+    expect(rule['.wrap button.chip']).toMatch(/position:\s*relative;/)
+    expect(rule['.wrap button.chip::after']).toMatch(/position:\s*absolute;/)
+  })
+
+  // G-064 close-out — a tap on a chip's OWN box must open that chip's source.
+  // With the extension on all four sides, `[3]`'s ::after painted over the
+  // right of `[2]` (positioned boxes paint in document order; a tap goes to
+  // the topmost). The extension may reach only LATER content: never up, and
+  // not left when the element before is another chip. jsdom does no layout,
+  // so this pins the DECLARATIONS; AskCitationView.live.test.jsx pins the DOM
+  // shape the adjacency selector depends on, against a real editor.
+  it('the touch target never reaches earlier content: no upward extension, no left one after a chip', () => {
+    const rule = touchRules()
+    const after = rule['.wrap button.chip::after']
+    expect(after).not.toMatch(/inset:/)
+    const side = (body, name) => {
+      const m = new RegExp(`(?:^|;|\\s)${name}:\\s*(-?\\d+)(?:px)?;`).exec(body)
+      return m ? Number(m[1]) : null
+    }
+    const top = side(after, 'top')
+    const right = side(after, 'right')
+    const bottom = side(after, 'bottom')
+    const left = side(after, 'left')
+    expect(top).toBe(0)
+    expect(right).toBeLessThan(0)
+    expect(bottom).toBeLessThan(0)
+    expect(left).toBeLessThan(0)
+
+    const adjacent = `:global(.node-${ASK_CITATION_TYPE}) + :global(.node-${ASK_CITATION_TYPE}) .wrap button.chip::after`
+    expect(Object.keys(rule)).toContain(adjacent)
+    expect(side(rule[adjacent], 'left')).toBe(0)
+    expect(rule[adjacent]).not.toMatch(/top:/)
+
+    // Moved, not removed: at the comment's nominal smallest box (24px tall,
+    // 32px wide) the target still spans the 44px floor, including a chip that
+    // has lost its left side.
+    const BOX_H = 24
+    const BOX_W = 32
+    expect(BOX_H - top - bottom).toBeGreaterThanOrEqual(44)
+    expect(BOX_W - right).toBeGreaterThanOrEqual(44)
+    expect(BOX_W - left - right).toBeGreaterThanOrEqual(44)
   })
 
   // G-064 final fix wave — `{}['constructor']` is a truthy function; a stored
