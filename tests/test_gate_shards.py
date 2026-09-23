@@ -213,9 +213,52 @@ def test_a_real_failing_test_and_a_file_level_error_still_parse():
 @pytest.mark.parametrize("path", [
     "src/a.test.js", "src/a.test.jsx", "src/a.test.ts", "src/a.test.tsx", "src/a.test.mjs",
     "src/a.test.cjs", "src/a.spec.js", "src/a.spec.tsx",
+    # Review M-1: the extensions vitest's default glob admits that a hand-typed list missed.
+    "src/a.test.mts", "src/a.spec.cjs", "src/a.test.cts", "src/a.spec.mjsx", "src/a.test.ctsx",
 ])
 def test_every_test_file_suffix_names_an_identity(path):
     assert parse_failures(f" FAIL  {path} > d > t\n") == [f"{path} > d > t"]
+
+
+# ── The test-file suffix is DERIVED from vitest's own include glob (review M-1) ─────────────────
+def test_the_suffix_is_the_translation_of_vitests_default_include():
+    import gate_shards
+    assert gate_shards.glob_file_suffix_regex(gate_shards.VITEST_DEFAULT_INCLUDE) == (
+        r"\.(?:test|spec)\.(?:c|m)?[jt]s(?:x)?")
+
+
+def test_the_pinned_glob_IS_the_installed_vitests_default_include():
+    """⛔ The constant is a copy of vitest's `defaultInclude`, so it is pinned to the installed
+    vitest's own literal -- a vitest upgrade that changes the default fails HERE, not silently in a
+    gate that stops seeing a class of failure. The gate cannot run without app/node_modules either,
+    so its absence FAILS rather than skips."""
+    import gate_shards
+    cfg = (pathlib.Path(__file__).resolve().parent.parent
+           / "app" / "node_modules" / "vitest" / "dist" / "config.cjs")
+    assert cfg.exists(), f"{cfg} is missing -- run `npm ci` in app/ (the gate needs it too)"
+    # A list of JS string literals -- matched literal by literal, because the glob itself
+    # carries a `]` (`[jt]`) that a bracket-to-bracket match would stop at.
+    m = re.search(r'defaultInclude\s*=\s*(\[(?:\s*"(?:[^"\\]|\\.)*"\s*,?)*\s*\])',
+                  cfg.read_text(encoding="utf-8"))
+    assert m, "vitest's config no longer declares `defaultInclude` -- re-derive the gate's suffix"
+    assert json.loads(m.group(1)) == [gate_shards.VITEST_DEFAULT_INCLUDE]
+
+
+def test_the_app_config_leaves_vitests_default_include_in_force():
+    """The default decides only while app/vite.config.js sets no `include` (or `projects`, whose
+    badge would precede every path) in its `test` block."""
+    cfg = (pathlib.Path(__file__).resolve().parent.parent / "app" / "vite.config.js").read_text(
+        encoding="utf-8")
+    parts = re.split(r"\n\s*test:\s*\{", cfg, maxsplit=1)
+    assert len(parts) == 2, "could not find the `test:` block in app/vite.config.js"
+    assert not re.search(r"^\s*(include|projects|workspace)\s*:", parts[1], re.M), (
+        "app/vite.config.js now overrides the test include set -- derive the gate's suffix from it")
+
+
+def test_the_translator_refuses_a_construct_it_does_not_know():
+    import gate_shards
+    with pytest.raises(ValueError):
+        gate_shards.glob_file_suffix_regex("**/*.+(test|spec).js")
 
 
 @pytest.mark.parametrize("line", [
@@ -241,6 +284,46 @@ def test_the_gate_verdict_does_not_see_the_probe_rows(tmp_path, monkeypatch):
     )
     assert manifest["failures"] == [REAL_TEST_IDENT]
     assert manifest["vs_baseline"]["new"] == []
+
+
+# ── Review M-2 -- the parser's count against vitest's own, published as a WARNING ──────────────
+ONE_FAILED_TOTALS = (
+    " Test Files  2 failed | 10 passed (12)\n"
+    "      Tests  1 failed | 99 passed (100)\n"
+)
+# What a vitest `projects` config prints: a badge BEFORE the path, which the identity pattern
+# cannot read -- so the failure is dropped, and only the count disagreement can say so.
+PROJECT_BADGE_LINE = " FAIL  |chromium| src/pages/Login.totp.test.jsx > Login 2FA challenge step > t\n"
+
+
+def _gate_over(tmp_path, monkeypatch, log, baseline):
+    import gate_shards
+    monkeypatch.setattr(gate_shards, "load_baseline",
+                        lambda: {"measured_at": "rail", "sha": "0" * 40, "failures": baseline})
+    return run_gate(1, tmp_path, tree_state_fn=lambda: ("0ffe68a14", []),
+                    run_shard_fn=lambda i: log, file_count_fn=lambda: 12)
+
+
+def test_parsed_identities_that_AGREE_with_vitest_publish_no_warning(tmp_path, monkeypatch):
+    import gate_shards
+    log = PROBE_TABLE_ROWS + REAL_TEST_FAIL_LINE + REAL_FILE_ERROR_LINE + ONE_FAILED_TOTALS
+    manifest = _gate_over(tmp_path, monkeypatch, log, [REAL_TEST_IDENT, REAL_FILE_ERROR_IDENT])
+    assert manifest["failures_reconcile"] == {"ok": True, "shards": []}
+    assert "Every shard's parsed test-level identities equal" in gate_shards.render(manifest)
+
+
+def test_a_dropped_identity_publishes_a_WARNING_and_leaves_the_verdict_alone(tmp_path, monkeypatch):
+    import gate_shards
+    manifest = _gate_over(tmp_path, monkeypatch, PROJECT_BADGE_LINE + ONE_FAILED_TOTALS, [])
+    # The badge line was dropped -- which is exactly why the count must be compared.
+    assert manifest["failures"] == []
+    assert manifest["failures_reconcile"] == {
+        "ok": False, "shards": [{"shard": 1, "parsed": 0, "vitest_failed": 1}]}
+    text = gate_shards.render(manifest)
+    assert "WARNING — parsed identities disagree with vitest's count" in text
+    assert "shard 1: parsed **0**" in text
+    # A warning, not a verdict: the exit code is still the failing-set comparison's.
+    assert gate_shards.verdict_exit_code(manifest) == gate_shards.EXIT_NO_NEW
 
 
 # ── PROOF (b) — a shard that did not run ALARMS, by name ──────────────────────────────────────
