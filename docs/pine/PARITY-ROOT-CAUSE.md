@@ -83,15 +83,23 @@ added later is covered the day it lands.
 
 ## RC-B — a correct implementation, built and left unwired past its own expiry
 
-**Status: DIAGNOSED, NOT YET FIXED.**
+**Status: FIXED.**
 
-Pine's drawing-object budget has three parts. We implement none of them correctly:
+Pine's drawing-object budget has three parts. We had two of them wrong:
 
-| | Pine | this engine |
+| | Pine | this engine (before) |
 |---|---|---|
 | default cap | **50** per family | `DEFAULT_OBJECT_LIMITS` = flat **500** |
-| declared override | `max_lines_count` etc., up to 500 | **never parsed** — `declarationOverlay` reads only `overlay` |
+| declared override | `max_lines_count` etc., up to 500 | ✅ **already parsed** — but off the RAW source |
 | at the cap | **evict the OLDEST** (FIFO) | `fail(...)` — stop creating, **keep the oldest** |
+
+⚰️ **THIS TABLE SAID THE OVERRIDE WAS "never parsed — `declarationOverlay` reads only
+`overlay`". THAT WAS WRONG.** `max_*_count` is read at `pine.js:11736` and has been.
+The correction matters because the false version pointed the fix at writing a parser
+that already existed, which is how the *real* third defect — that the scan ran over the
+raw source, so a `max_lines_count` inside a **comment** set the budget — nearly went
+unfixed. Getting a root-cause document wrong in the flattering direction (more broken
+than reality) costs exactly as much as getting it wrong the other way.
 
 `objectRuntime.js`:
 
@@ -125,12 +133,42 @@ It sits on the reachability allowlist:
 deadline attached, and the deadline lapsed unnoticed because nothing fails when an
 allowlist entry expires.
 
-**Fix (specified):**
-1. Parse `max_*_count` off the declaration — the same token scan `declarationOverlay`
-   already does, widened; it must not be a full parse, for the reason that note gives.
-2. Replace the `fail` with `createPoolSet(...)`'s FIFO, default 50 via
-   `resolveCapacity`.
-3. Make the allowlist entry **fail on expiry** rather than sit quietly.
+**Fix (shipped):**
+1. **Capacity has one owner.** `beginObjects` takes each pooled family's cap from
+   `objectPool.resolveCapacity(family, declared, pineVersion)` — fallback 50, ceiling
+   500. ⛔ Its STORAGE is deliberately not adopted: `objectRuntime.live` is an
+   insertion-ordered Map that registers, collections, table cells and the output
+   ordering all read, and a second copy of "what is live" would drift on the first
+   `delete`. Capacity: `objectPool`. Liveness: `runtime.live`.
+2. **The `fail` became a FIFO eviction**, through the SAME `reap` the `delete` path
+   uses — an object can now stop existing two ways, and both must leave every register
+   and collection that named it. One teardown, two callers.
+3. **Only the families Pine actually pools evict.** `POOL_LIMITS` is the roster with a
+   `max_*_count` and a documented FIFO. `table` and `linefill` have no vendor rule, so
+   they keep the house envelope's hard refusal — inventing an eviction rule for them
+   would be this document's own headline defect committed while fixing it.
+4. **The `max_*_count` scan reads comment-stripped source.** A declaration inside a
+   comment used to raise the budget (`CLAUDE.md`: *"every literal-hunting check strips
+   comments first"* — six instances in one session).
+5. **The allowlist entry is gone, not renewed.** `objectPool.js` is wired, so
+   `reachable.test.js` correctly refused to let a parking note excuse it.
+
+**Mutation-proved four ways**, each reverting exactly one layer: evict the NEWEST
+instead of the oldest (killed) · drop `resolveCapacity` back to a flat 500 (killed) ·
+scan the raw source again (killed) · eviction skips the shared teardown (killed).
+
+⚠️ **The fourth one survived at first, and the rail was the thing at fault.** The
+teardown case asserted `new Set(ids).size === live.length` — trivially true of any run,
+never reading a register or a collection. It now drives a collection to its cap, where
+an un-spliced array refuses the run at bar 500 on a script whose live set never exceeds
+50. ⛔ And only the COLLECTION half is asserted: ids are monotonic and never reused, so
+a register holding an evicted id and a cleared register produce the identical
+write-to-deleted. That half is recorded as unobservable rather than dressed in an
+assertion that would pass either way.
+
+**Still open:** make an expired allowlist entry FAIL on its date rather than sit
+quietly — four more primitives (`zorder.js`, `colorInt.js`, `textLayout.js`,
+`versionRender.js`) sit on the same lapsed expiry. That is S4 below.
 
 ---
 
@@ -183,7 +221,13 @@ Each is the same substitution, at a seam we have not yet compared:
 It is not a number that can be declared. It is a **measurement that has to keep
 running**, and this programme has just built the first instrument capable of taking it.
 
-**S1 — close RC-B and RC-C** (specified above). These are bounded and known.
+**S1 — close RC-B and RC-C.** ✅ **RC-B is closed** (above). ⛔ **RC-C is not**, and
+neither is the vendor RE-MEASUREMENT that RC-B earns: the fix makes the engine keep the
+NEWEST 50 boxes, and the FVG parity rail now agrees with TradingView's live box count
+exactly — but `liquidity-pools` has **not been re-captured against the vendor since the
+fix**, so "it now overlaps their window" is a prediction from the mechanism, not a
+measurement. ⭐ This programme's own standing rule applies to its own fix: a render of
+our own output shows we drew something, never that we drew the same thing.
 
 **S2 — make the vendor comparison continuous, not heroic.** Today one capture took a
 live browser session and a four-slice hand reassembly. That does not scale to 266

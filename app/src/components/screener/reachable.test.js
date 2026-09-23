@@ -381,9 +381,15 @@ const AWAITING_A_DECISION = {
     'R0.1 RENDERER PRIMITIVE — the text engine lightweight-charts lacks. Built '
     + 'ahead of the drawing path that consumes it. Wave 2 in flight; '
     + 'reachability decided at Wave 2 close (2026-09-14).',
-  'app/src/components/chart/engine/objectPool.js':
-    'R0.2 RENDERER PRIMITIVE — Pine\'s drawing-object quota and its FIFO '
-    + 'eviction. Same wave, same expiry.',
+  // ⭐ `objectPool.js` WAS HERE AND IS NOW WIRED (RC-B, 2026-09-22), so its
+  // entry is gone rather than renewed. `objectRuntime.beginObjects` imports
+  // `POOL_LIMITS` + `resolveCapacity` and takes its capacity policy from them.
+  // ⚰️ Its expiry — "Wave 2 close, 2026-09-14" — had PASSED while the module
+  // still sat here, and nothing failed on the date: that is the whole of
+  // `lesson_built_tested_green_and_unreachable` with a deadline attached. The
+  // correct FIFO lived in this repo, with tests, while the runtime it belonged
+  // to refused at the cap and kept the OLDEST objects — which is what made
+  // `liquidity-pools` draw a year-stale chart against TradingView.
   'app/src/components/chart/engine/versionRender.js':
     'R0.3 RENDERER PRIMITIVE — the version-dependent renderer. Same wave, same '
     + 'expiry.',

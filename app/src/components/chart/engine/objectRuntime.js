@@ -32,6 +32,15 @@
 import {
   OBJECT_FAMILIES, DEFAULT_OBJECT_LIMITS, assertObjectProgram,
 } from './ast/objectProgram'
+// ⭐ PINE'S CAPACITY TABLE, WIRED. `objectPool` has held the correct rule
+// (fallback 50, ceiling 500, per family) with tests since R0.2 and was imported
+// by nothing — parked on the reachability allowlist with an expiry that had
+// passed. This is the seam it was built for.
+import { POOL_LIMITS, resolveCapacity } from './objectPool'
+
+/** Own-property test — a family name must not reach `POOL_LIMITS` through the
+ *  prototype chain (`constructor`, `toString`) and read as a declared pool. */
+const own = (o, k) => Object.prototype.hasOwnProperty.call(o, k)
 
 export const OBJECT_STATUS = Object.freeze({
   OK: 'ok',
@@ -82,7 +91,29 @@ function truthy(v) {
  */
 export function beginObjects(program, ctx) {
   assertObjectProgram(program)
+  // ⭐⭐ CAPACITY IS PINE'S, AND `objectPool` OWNS THAT KNOWLEDGE.
+  //
+  // `DEFAULT_OBJECT_LIMITS` is this module's own envelope (a flat 500) and it is
+  // NOT Pine's rule: Pine defaults each drawing family to **50** when the script
+  // declares no `max_*_count`, and clamps a declared one to 500.
+  // `objectPool.resolveCapacity` is the one place that table lives.
+  //
+  // ⛔ ONE OWNER PER QUESTION. The pool owns CAPACITY; the `live` Map below owns
+  // LIVENESS. The pool also ships a FIFO store, and using it here would give us
+  // two truths about what is live — registers, collections, table cells and the
+  // output ordering all read `live`, so the two would drift on the first delete.
+  //
+  // ⚠️ `table` AND `linefill` ARE NOT IN THE POOL, AND THAT IS CORRECT. Pine
+  // publishes no `max_tables_count`/`max_linefills_count`; those two keep this
+  // module's own envelope rather than being given an invented Pine rule.
   const limits = { ...DEFAULT_OBJECT_LIMITS, ...(program.limits || {}), ...(ctx.limits || {}) }
+  const pineVersion = Number.isFinite(program.pineVersion) ? program.pineVersion : 6
+  for (const fam of OBJECT_FAMILIES) {
+    if (!own(POOL_LIMITS, fam)) continue
+    if (ctx.limits && ctx.limits[fam] !== undefined) continue   // an explicit test override wins
+    const declared = (program.limits || {})[fam]
+    limits[fam] = resolveCapacity(fam, declared === undefined ? null : declared, pineVersion).capacity
+  }
   const barCount = Math.max(0, ctx.barCount | 0)
   const readNode = ctx.readNode || (() => NaN)
   const readParam = ctx.readParam || (() => undefined)
@@ -102,7 +133,7 @@ export function beginObjects(program, ctx) {
    *  initialises the first time the path is reached and never again. */
   const firedOnce = new Set()
   let nextId = 1
-  let created = 0; let updated = 0; let deleted = 0
+  let created = 0; let updated = 0; let deleted = 0; let evicted = 0
   let writesToDeleted = 0; let opsExecuted = 0; let maxOpsInABar = 0
   const events = []
   let status = OBJECT_STATUS.OK
@@ -110,6 +141,50 @@ export function beginObjects(program, ctx) {
 
   const fail = (why) => {
     if (status === OBJECT_STATUS.OK) { status = OBJECT_STATUS.LIMIT_EXCEEDED; reason = why }
+  }
+
+  /**
+   * ⭐⭐ THE ONE WAY AN OBJECT STOPS EXISTING.
+   *
+   * An explicit `*.delete()` and a quota EVICTION are two different reasons for
+   * the same event, and they must leave the world in the same state. This is
+   * that state, in one place:
+   *
+   *   · it leaves `live`, so nothing renders it
+   *   · its table cells go with it
+   *   · its family's slot is returned
+   *   · ⛔ AND IT LEAVES EVERY CONTAINER THAT NAMED IT. A register or collection
+   *     still holding the id is a handle to nothing, and the next write against
+   *     it lands nowhere without a word — the "why did my update stop working"
+   *     bug. That rule predates eviction; eviction now owes it too.
+   *
+   * ⚠️ A SECOND COPY OF THIS IS THE DEFECT IT PREVENTS. Two teardown paths drift
+   * the first time either is touched, and the half that forgets a container
+   * fails silently rather than loudly.
+   */
+  function reap(inst) {
+    live.delete(inst.id)
+    cells.delete(inst.id)
+    counts[inst.family] -= 1
+    for (const [rid, held] of regs) if (held === inst.id) regs.set(rid, null)
+    for (const [cid, arr] of colls) {
+      const at = arr.indexOf(inst.id)
+      if (at >= 0) arr.splice(at, 1)
+    }
+  }
+
+  /**
+   * The oldest live object of one family — Pine's next eviction victim.
+   *
+   * ⭐ INSERTION ORDER IS CREATION ORDER for a JS Map, and ids are minted
+   * monotonically, so the first match walking `live` IS the oldest. That is the
+   * same contract `line.all`/`box.all` publish (read-only, oldest first, index 0
+   * is the next to go) — the order is a property of the structure rather than a
+   * sort anyone has to keep correct.
+   */
+  function oldestOf(family) {
+    for (const inst of live.values()) if (inst.family === family) return inst
+    return null
   }
 
   // ⛔ THE BAR IS A PARAMETER NOW, NOT A LOOP VARIABLE. Everything below is
@@ -352,8 +427,54 @@ export function beginObjects(program, ctx) {
           break
         }
         case 'create': {
+          // ⭐⭐ PINE EVICTS THE OLDEST. IT DOES NOT REFUSE.
+          //
+          // ⚰️⚰️ THIS BRANCH USED TO `fail(...)` AND STOP CREATING, which keeps
+          // the OLDEST objects — the exact opposite of Pine, which deletes the
+          // oldest to make room for the newest. Measured against TradingView
+          // 2026-09-23: `liquidity-pools` held lines whose newest was
+          // 2025-04-09 against a series running to 2026-09-11, while the vendor
+          // held the newest 90. Zero overlap. Every count looked healthy and the
+          // chart was a year stale.
+          //
+          // ⛔ THE EVICTION USES THE SAME TEARDOWN AS `delete`, and that is not
+          // tidiness. An object can stop existing two ways now, and an evicted
+          // one must leave every register and collection that named it exactly
+          // as a deleted one does — otherwise a handle points at nothing and the
+          // next write lands nowhere, silently. One `reap`, two callers.
+          // ⛔⛔ ONLY THE FAMILIES PINE ACTUALLY POOLS EVICT. `POOL_LIMITS` is
+          // the roster of kinds with a `max_*_count` parameter and a documented
+          // FIFO — line, label, box, polyline. A family with no vendor rule
+          // (table, linefill) keeps the house envelope's hard refusal, because
+          // we have no evidence about what the vendor does there and inventing
+          // an eviction rule is the same substitution this whole fix exists to
+          // undo: satisfying a Pine concept with a locally-reasonable primitive
+          // that RESEMBLES it.
+          // ⚰️ Written family-agnostic at first, which silently made TABLES
+          // evict too and turned the envelope's refusal into dead code.
+          const pooled = own(POOL_LIMITS, op.family)
+          while (pooled && counts[op.family] >= limits[op.family]) {
+            const victim = oldestOf(op.family)
+            // ⛔ NOTHING TO EVICT AND STILL OVER THE CAP is not a script error,
+            // it is a contradiction in our own bookkeeping — say so rather than
+            // spin.
+            if (victim === null) {
+              fail(`more than ${limits[op.family]} live ${op.family} objects (bar ${bar})`)
+              break
+            }
+            reap(victim)
+            evicted += 1
+            if (ctx.trace) events.push({ bar, k: 'evict', family: op.family, id: victim.id })
+          }
+          // ⛔ STILL AT THE CAP MEANS TWO DIFFERENT THINGS, AND ONLY ONE IS
+          // SILENT. A POOLED family that is still full here already called
+          // `fail` above (the victim-less contradiction), so it must not be
+          // reported twice. A NON-POOLED family never entered the loop at all
+          // and this is its refusal — without the `fail`, it would simply stop
+          // creating and report `ok`, which is a script drawing less than it
+          // asked for with nothing saying so.
           if (counts[op.family] >= limits[op.family]) {
-            fail(`more than ${limits[op.family]} live ${op.family} objects (bar ${bar})`)
+            if (!pooled) fail(`more than ${limits[op.family]} live ${op.family} objects (bar ${bar})`)
             break
           }
           const id = nextId
@@ -433,18 +554,11 @@ export function beginObjects(program, ctx) {
           const target = resolveRef(op.target)
           const inst = target === null ? null : live.get(target)
           if (!inst) { writesToDeleted += 1; break }
-          live.delete(inst.id)
-          cells.delete(inst.id)
-          counts[inst.family] -= 1
+          // ⭐ THE SAME TEARDOWN AN EVICTION USES — see `reap`. The container
+          // cleanup this branch used to spell out lives there now, so the two
+          // reasons an object can stop existing cannot drift apart.
+          reap(inst)
           deleted += 1
-          // ⭐ A DELETED OBJECT LEAVES EVERY CONTAINER THAT NAMED IT. Otherwise a
-          // register or collection keeps a handle to nothing and the next write
-          // silently lands nowhere — the "why did my update stop working" bug.
-          for (const [rid, held] of regs) if (held === inst.id) regs.set(rid, null)
-          for (const [cid, arr] of colls) {
-            const at = arr.indexOf(inst.id)
-            if (at >= 0) arr.splice(at, 1)
-          }
           if (ctx.trace) events.push({ bar, k: 'delete', id: inst.id })
           break
         }

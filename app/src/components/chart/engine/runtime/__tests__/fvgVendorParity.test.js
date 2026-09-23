@@ -193,13 +193,21 @@ describe('⭐⭐ Fair Value Gaps, against TradingView\'s own boxes', () => {
     expect(worst, 'no difference at all — is the rounding claim even real?').toBeGreaterThan(0)
   })
 
-  it('⛔⛔ KNOWN DIVERGENCE 1 — we ignore Pine\'s default `max_boxes_count`', () => {
-    // TradingView kept 50 and deleted the rest; we cap nothing. This is
-    // asserted so the day someone implements the cap, this fails BY NAME rather
-    // than the parity suite quietly changing meaning.
+  it('⭐⭐ DIVERGENCE 1 IS CLOSED — we now honour Pine\'s default `max_boxes_count`', () => {
+    // ⚰️ THIS CASE USED TO PIN THE DEFECT. It is renamed rather than deleted,
+    // because it is the before-and-after of the RC-B fix. It read "TradingView
+    // kept 50 and deleted the rest; we cap nothing" and required
+    // `emitted > V.boxCount` — true and measured at the time: the vendor held
+    // 50 live boxes and we emitted every one we ever made, uncapped.
+    //
+    // ⭐ AND IT FAILED BY NAME THE MOMENT THE CAP LANDED, which is the only
+    // reason the divergence could not quietly stop meaning what it said. Its
+    // own message — "we now cap our boxes, update this divergence" — is what
+    // brought a reader here.
     const { emitted } = ourBoxes()
     expect(V.boxCount, 'the vendor no longer caps at 50').toBe(50)
-    expect(emitted, 'we now cap our boxes — update this divergence').toBeGreaterThan(V.boxCount)
+    expect(emitted, 'our live box count no longer matches the vendor\'s')
+      .toBe(V.boxCount)
     expect(String(V._findings.maxBoxesCountDefault)).toMatch(/DELETED/)
   })
 

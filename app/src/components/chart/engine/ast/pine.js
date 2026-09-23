@@ -1529,6 +1529,47 @@ export const PINE_TEXT_PREDICATE = Object.freeze({
  *  bare `pivothigh(...)` still resolves to this table's own function, unshifted,
  *  because a member typing the bare name in OUR box means OUR vocabulary — the
  *  same rule `ta.barssince` established. */
+/**
+ * ⛔⛔ SOURCE WITH COMMENTS AND STRING LITERALS BLANKED, FOR A LITERAL SCAN.
+ *
+ * Any scan that hunts a literal in Pine source must run over CODE, never prose.
+ * The counter-example is concrete: `// max_lines_count = 500 would be nice` set
+ * the drawing budget for real, because the scan that reads it ran over the raw
+ * text.
+ *
+ * ⭐ IT PRESERVES LENGTH AND LINE STRUCTURE — each blanked character becomes a
+ * space and a newline stays a newline — so an offset taken from the stripped
+ * text still points at the right place in the original. A stripper that
+ * collapsed would silently move every span computed from it.
+ *
+ * ⚠️ NOT A LEXER, AND IT DOES NOT NEED TO BE. It is deliberately the same shape
+ * as the strippers the census instruments use; a Pine string cannot contain a
+ * newline-escaped quote in a way that matters to a `max_*_count` scan.
+ */
+export function strippedForScan(src) {
+  const NL = String.fromCharCode(10)
+  const DQ = String.fromCharCode(34)
+  const SQ = String.fromCharCode(39)
+  const out = []
+  let quote = null
+  for (let i = 0; i < src.length; i += 1) {
+    const c = src[i]
+    if (quote) {
+      if (c === quote) quote = null
+      out.push(c === NL ? NL : ' ')
+      continue
+    }
+    if (c === DQ || c === SQ) { quote = c; out.push(' '); continue }
+    if (c === '/' && src[i + 1] === '/') {
+      while (i < src.length && src[i] !== NL) { out.push(' '); i += 1 }
+      out.push(NL)
+      continue
+    }
+    out.push(c)
+  }
+  return out.join('')
+}
+
 export const PINE_NAMESPACED_TREE = Object.freeze({
   'ta.pivothigh': (a) => pivotAtConfirmation('pivothigh', a),
   'ta.pivotlow': (a) => pivotAtConfirmation('pivotlow', a),
@@ -11732,8 +11773,17 @@ function buildObjectProgram(stmts, source, env, makeResolver, bindingByStatement
   // ⭐ THE AUTHOR'S OWN CEILINGS. 15 of the reachable 27 declare them, so the
   // envelope is read rather than invented — and clamped to ours, because a
   // script asking for 500 boxes must not be able to ask for 50,000.
+  // ⛔⛔ CODE, NEVER PROSE. This scan used to run over the RAW source, so
+  // `// max_lines_count = 500 would be nice here` in a comment SET THE DRAWING
+  // BUDGET — and a budget is not a cosmetic: at the default of 50 it decides
+  // which objects survive eviction. This repo has paid for the unstripped-scan
+  // shape six times in one session (`CLAUDE.md`: "every literal-hunting check
+  // strips comments first"), and this was a seventh.
+  //
+  // ⚠️ STRINGS TOO, not only comments: a tooltip or an `input` title quoting the
+  // parameter name is prose about the budget, not a declaration of it.
   const limits = {}
-  for (const m of String(source).matchAll(/max_([a-z]+)_count\s*=\s*(\d+)/g)) {
+  for (const m of strippedForScan(String(source)).matchAll(/max_([a-z]+)_count\s*=\s*(\d+)/g)) {
     const fam = { lines: 'line', labels: 'label', boxes: 'box' }[m[1]]
     if (fam) limits[fam] = Math.min(Number(m[2]), DEFAULT_OBJECT_LIMITS[fam])
   }
