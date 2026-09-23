@@ -274,6 +274,21 @@ the whole thing holds together.
   hygiene + flow-worker watch coverage on each, plus Rule 6's end-of-day regression
   sweep.
 
+> ✅ **Day 1 closed, 2026-09-23.** Two of three items were already fully shipped
+> (S3 admin routes, D1 adoption sweep) — nothing to merge for either. The third (I1
+> spec) is genuine new work, spot-checked against real source and committed
+> (`175d14ba5`). **Pattern worth naming plainly:** this is the second day in a row where
+> "not built" turned out to mean "not yet reflected in this roster," not "not yet done."
+> Every remaining day's dispatch prompts already tell agents to verify against real
+> current source before building — that discipline is what caught both of today's, and
+> it stays non-negotiable for the rest of the week.
+>
+> **S7 Alerts is still unanswered in Discord** as Day 1 closes. Per the plan's own stated
+> fallback, Day 2's wave proceeds on D2 alone plus one item pulled forward from Day 3's
+> parallel UX work (panel resilience — it depends on neither D2 nor S7), rather than
+> running an agent slot idle waiting on a ruling. S7 slots back in the moment it's
+> answered.
+
 > ✅ **Agent 2 finding, 2026-09-23:** already fully built, tested, and live in
 > production — `api/routers/entity_master_admin.py`, mounted, `require_admin`-gated
 > (a deliberate, documented deviation from the gate's suggested no-auth shape). The
