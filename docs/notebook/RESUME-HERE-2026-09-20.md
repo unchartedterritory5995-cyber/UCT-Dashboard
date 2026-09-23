@@ -10,6 +10,109 @@
 
 ---
 
+## 🎯 2026-09-22 SESSION (later) — ledger status pass, 5 owner decisions, G-064 design
+
+**Read `competitive-gap-ledger.md` alongside this section — it is the master
+G-numbered (G-001–G-128) tracking doc this session worked from.**
+
+### What happened, in order
+1. **Full ledger census.** Wrote and iteratively fixed a Python classifier
+   that parses the ledger's actual STATUS column (position 10 of the
+   pipe-delimited table) — caught and fixed my own false positive first
+   (a naive keyword scan misread G-051's `**CLOSED (Wave K) — ... semantic
+   leg open as G-127**` as OPEN, because "open" appeared later in the
+   sentence describing a *different* row; fixed by anchoring on the row's
+   first bolded token only). Result, cross-checked by direct reading:
+   ~70 of ~89 active rows are DONE/CLOSED/SHIPPED/FIXED; the rest split into
+   legal-gated (G-062, G-080, G-127, G-052), owner-ruling-blocked (G-040),
+   platform-structural (G-044's iOS half), explicitly REJECTED
+   (G-043/G-071/G-081/G-086), deliberately-deferred EXPERIMENT
+   (G-017/G-082/G-085), and genuinely open engineering/design items
+   (G-004, G-035, G-064 — G-053 turned out to already be an honored
+   architecture constraint, not a build item).
+2. **Walked Patrick through it** — full scope status, then a Patrick-only
+   action checklist, then plain-language explanations of Tier 1/2/3 items
+   (Tier 4 = "needs an outside party" was named but not explained in detail,
+   since it needs Patrick's own action, not mine).
+3. **Patrick's decision, verbatim:** *"G-004 YES, G-035 Agree leave it,
+   G-074 yes turn it on, G-064 yes i want to build that properly, G-44
+   whatever you recomend. Okay lets proceed."* All four immediate items
+   executed same session; G-064 went through the full `superpowers:brainstorming`
+   Architectural path (below).
+
+### What actually shipped (all on `origin/master`, verified by ancestry)
+| item | commit(s) | what changed |
+|---|---|---|
+| G-004 (encryption-at-rest) | `2d02e0e8d` | Accepted as answered — Railway infra encryption is real, no code change. Ledger row → DONE. |
+| G-035 | `2d02e0e8d` | Kept OPEN, marked deliberate — owner-confirmed leave-as-is, ledger says so explicitly so it isn't silently re-opened later. |
+| G-44 (iOS half) | `2d02e0e8d` | Marked PARTIAL/deliberately-deferred — Android already DONE; do not build a native iOS app for this row alone; the lighter fallback is already tracked as G-043 (bookmarklet), not a new idea. |
+| G-074 (Awareness thesis-review scan) | `b689b063a` | **Real production flip.** `docs/feature_flags.json`: `AWARENESS_THESIS_REVIEW_ENABLED` `dark`→`armed`, `where: ["web"]`. Verified live in-process via `railway ssh` (not just `--kv`) — the scan reads the flag fresh every cycle, so it took effect within one 20-min APScheduler tick, no restart needed beyond the var-set redeploy itself. |
+| (unrelated packets, merged in along the way) | `a9d6a29ab` | Clean merge of 8 disjoint upstream commits (Packets Q/P/O/N/M/L — admin panels, OpenFlow board, screener methodology, COT fixes, CLAUDE.md correction), verified non-overlapping via `git merge-base` before merging. |
+
+**Push:** `96f8ea7af..a9d6a29ab`, ancestry-confirmed on `origin/master`. As of
+this writing the branch (`feat/notebook-kill-switch`) is **0 behind /
+1 ahead** of `origin/master` — the 1 ahead is the G-064 spec commit below,
+**not yet pushed**.
+
+### G-064 — Ask Notebook insert-into-note — DESIGN DONE, AWAITING OWNER REVIEW OF THE FILE
+
+Classified **Architectural** per `superpowers:brainstorming` (new node types,
+no existing "insert" flow to modify). Went through the full checklist: 5
+`AskUserQuestion` rounds (scope = all four Ask Notebook scopes with a
+note-picker · content = prose+citations preserved · visual = Callout-style
+bordered block · edit behavior = permanent marking, per-citation staleness ·
+picker = reuse the existing `[[` note-search pattern), two presented
+technical-design sections both confirmed, then:
+
+- **Spec written and committed:**
+  `docs/superpowers/specs/2026-09-22-ask-notebook-insert-design.md`,
+  commit **`39bc8fa2c`** (local to this branch, not yet pushed).
+- **Self-review caught and fixed three real issues before presenting it**:
+  (1) a genuine design contradiction — the draft named a `VITE_*` build flag
+  but also claimed "no redeploy needed to turn off", which is false for a
+  build flag; corrected to ride the **Wave K auth-payload mechanism**
+  (`_access_payload` in `api/routers/auth.py`, read per-request, no rebuild)
+  instead, working name `NOTEBOOK_ASK_INSERT_ENABLED`; (2) a fabricated
+  citation (an invented "Wave P3 §36" tag) — replaced with an exact
+  `file:line` quote after re-reading `AskPanel.jsx` directly; (3) a wording
+  ambiguity in the insertion-point rule.
+- **Two new TipTap node types**: `askInsert` (block container, styled like
+  the existing `Callout`) and `askCitation` (inline chip, modeled on
+  `noteLink`) — full attrs/shape in the spec §4.
+- **⛔ PER THE BRAINSTORMING SKILL'S USER REVIEW GATE — DO NOT SKIP THIS
+  EVEN THOUGH PATRICK ALREADY SAID "LETS BEGIN":** that approval was given
+  in chat *before* the spec was written. The skill requires the owner to
+  review the actual saved file before the next skill (`writing-plans`)
+  is invoked. **This is the exact state to resume into:** Patrick has been
+  asked to review the committed file and had not yet replied when this
+  session ended.
+
+### Immediate next action for the resuming session
+1. Check for Patrick's response to the spec review (chat history, or ask
+   again if none arrived).
+2. If he requests changes: make them in
+   `docs/superpowers/specs/2026-09-22-ask-notebook-insert-design.md`,
+   re-run the self-review checklist (placeholder/consistency/scope/ambiguity),
+   commit, ask again.
+3. If approved: invoke **`superpowers:writing-plans`** (the *only* next
+   skill on the Architectural path — never an implementation skill directly)
+   to produce `docs/superpowers/plans/2026-09-22-ask-notebook-insert.md` (or
+   similar), then execute it (subagent-driven or inline, per the plan's own
+   handoff prompt). Ship G-064 **dark** behind `NOTEBOOK_ASK_INSERT_ENABLED`
+   — building it does not mean activating it; that is a separate owner call,
+   matching how every other capability this session touched was handled.
+4. Push the G-064 spec commit (`39bc8fa2c`, currently local-only) — it's
+   docs-only, safe to push any time, but wasn't yet pushed as of session end.
+
+### Explicitly untouched, Tier 4 — not this session's to do
+**G-062** (analyst-estimates legal review), **G-080** (share-link legal
+review), **G-127** (semantic-search vendor ZDR confirmation) — all need
+Patrick's own outside-party action (a lawyer, a vendor contact), correctly
+not touched by this session since they were named as Tier 4 and were not
+part of his five-item decision batch.
+
+---
+
 ## ✅ 2026-09-21/22 SESSION — TWO WAVES PUSHED AND DEPLOYED
 
 **Wave 1** fast-forward-merged to `master` at `60e73757b`, 2026-09-22T01:20:00Z
@@ -153,10 +256,13 @@ pass measured the intro's geometry and attributed it to the editor.
 
 ## 📋 REMAINING WORK TO LAUNCH-READY
 
-### 1. Land the four staged commits (owner push) — **blocking**
-Then verify the deploy by artifact: `production` fast-forwards, `web` reaches
-SUCCESS on the SHA, and `/api/health` `uptime_seconds` **resets** against a
-baseline captured *before* the push. Never by a status field alone.
+### 1. Land the four staged commits (owner push) — ✅ **RESOLVED, 2026-09-22**
+Directly verified this session: the branch is 0 behind `origin/master`
+(everything through `a9d6a29ab` is an ancestor). Whatever remained staged
+here has landed. Continuing verification discipline forward — deploy by
+artifact (`production` fast-forwards, `web` reaches SUCCESS on the SHA,
+`/api/health` `uptime_seconds` resets against a pre-push baseline), never by
+a status field alone.
 
 ### 2. Surfaces never audited — **the largest unknown**
 Everything below is built and has tests, and **none of it has been opened at a
