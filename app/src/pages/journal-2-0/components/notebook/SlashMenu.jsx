@@ -109,6 +109,17 @@ export const ITEMS = [
     },
   },
   {
+    title: 'Emoji',
+    description: 'Type : and a name — e.g. :rocket or :chart',
+    command: ({ editor, range }) => {
+      editor.chain().focus().deleteRange(range).run()
+      // The `:` must start a word for the emoji menu to arm (EmojiMenu.jsx).
+      const { $from } = editor.state.selection
+      const before = $from.parent.textBetween(Math.max(0, $from.parentOffset - 1), $from.parentOffset)
+      editor.chain().insertContent(before && !/\s/.test(before) ? ' :' : ':').run()
+    },
+  },
+  {
     title: 'Image',
     description: 'Insert an image from your computer',
     command: ({ editor, range }) => {

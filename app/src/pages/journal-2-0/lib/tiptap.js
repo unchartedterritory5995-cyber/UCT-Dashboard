@@ -11,6 +11,7 @@ import { NotebookPlaceholder } from './notebookPlaceholder'
 import { Table, TableRow, TableHeader, TableCell } from '@tiptap/extension-table'
 import { TaskList, TaskItem } from '@tiptap/extension-list'
 import { SlashMenuExtension } from '../components/notebook/SlashMenu'
+import { EmojiMenuExtension } from '../components/notebook/EmojiMenu'
 import { VideoTimestamp } from './videoTimestampNode'
 import { AttachmentChip } from './attachmentChip'
 import { WidgetEmbed } from './widgetEmbedNode'
@@ -81,6 +82,8 @@ export function buildExtensions({ placeholder = 'Start writing… or type / for 
     TaskList, TaskItem.configure({ nested: true }),
     AttachmentChip,
     SlashMenuExtension,
+    // Wave 5: `:` emoji picker -- inserts plain Unicode text (no node type).
+    EmojiMenuExtension,
     VideoTimestamp,
     // ⚠️ Never remove: TipTap DROPS unknown node types at parse time, so
     // unregistering WidgetEmbed would delete every embed from every note on
