@@ -160,6 +160,15 @@ function Seal({ snapshot, snapshotDate }) {
 
 // A saved column preset is active when the columns on screen are exactly its
 // list (order included — a preset owns its column ORDER, not just the set).
+// The firm views surfaced as one-click tabs beside Overview (short tab labels
+// override the longer view labels). Keys must exist in `meta.views`; a missing
+// one renders nothing. Everything else stays in the Columns "Start from a layout".
+const FEATURED_VIEWS = [
+  { key: 'momentum', label: 'Momentum' },
+  { key: 'bases', label: 'Base watch' },
+  { key: 'uct_ratings', label: 'UCT Ratings' },
+]
+
 const sameCols = (a, b) =>
   Array.isArray(a) && Array.isArray(b) && a.length === b.length && a.every((x, i) => x === b[i])
 
@@ -184,18 +193,28 @@ export default function ShellToolbar({ meta, view, onView, visibleColumns, allCo
   return (
     <div className={styles.toolbar}>
       <div className={styles.viewTabs} role="tablist" aria-label="Column views">
-        {/* Only the default Overview tab remains. The firm's other column
-            layouts (Technical, Valuation, …) moved into the Columns picker's
-            "Start from a layout" list — a tab only ever swapped columns, and
-            Columns + saved presets now own that (owner call, 2026-09-20).
-            Overview is "active" when the on-screen columns ARE the default set,
-            so applying a layout or preset correctly un-highlights it. */}
+        {/* Overview + a CURATED set of firm views as tabs (owner call,
+            2026-09-22 — the mockup's Overview / Momentum / Base watch row). The
+            other firm layouts still live only in the Columns picker's "Start from
+            a layout" list; these few are the everyday workflows worth a one-click
+            tab. A view is "active" when the on-screen columns ARE its set, so a
+            layout, preset or manual column change correctly un-highlights it. */}
         {(meta?.views || []).filter(v => v.key === DEFAULT_VIEW).map(v => {
           const on = sameCols(visibleColumns, overviewCols)
           return (
             <button key={v.key} type="button" role="tab" aria-selected={on}
               className={`${styles.viewTab} ${on ? styles.viewTabOn : ''}`}
               onClick={() => onView(v.key)}>{v.label}</button>
+          )
+        })}
+        {FEATURED_VIEWS.map(fv => {
+          const v = (meta?.views || []).find(x => x.key === fv.key)
+          if (!v) return null
+          const on = sameCols(visibleColumns, v.columns)
+          return (
+            <button key={v.key} type="button" role="tab" aria-selected={on}
+              className={`${styles.viewTab} ${on ? styles.viewTabOn : ''}`}
+              onClick={() => onView(v.key)}>{fv.label}</button>
           )
         })}
         {/* The member's own saved column views, after the firm's. Each carries a
