@@ -1384,3 +1384,43 @@ def test_full_export_lists_document_excerpt_evidence_by_page_citation():
     body = zipfile.ZipFile(io.BytesIO(blob)).read("NVDA Thesis.md").decode("utf-8")
     assert "thesis_evidence:" in body
     assert "Investor Deck.pdf, p.17" in body
+
+
+def _g064_doc(question="What about margins?", inserted_at="2026-09-22T14:03:00.000Z"):
+    return {"type": "doc", "content": [
+        {"type": "askInsert",
+         "attrs": {"insertedAt": inserted_at, "scope": "note", "question": question},
+         "content": [
+             {"type": "paragraph", "content": [
+                 {"type": "text", "text": "Margins fell "},
+                 {"type": "askCitation", "attrs": {"n": 1, "label": "NVDA thesis"}},
+                 {"type": "text", "text": " in Q3."}]},
+             {"type": "paragraph", "content": [
+                 {"type": "text", "text": "Guidance held "},
+                 {"type": "askCitation", "attrs": {"n": 2, "label": "Call notes"}},
+                 {"type": "askCitation", "attrs": {"n": 1, "label": "NVDA thesis"}},
+                 {"type": "text", "text": "."}]}]}]}
+
+
+def test_g064_an_inserted_answer_exports_as_a_labelled_quote():
+    assert tiptap_to_markdown(_g064_doc()) == (
+        "> **From Ask Notebook** · 2026-09-22 · Q: What about margins?\n"
+        ">\n"
+        "> Margins fell [1] in Q3.\n"
+        ">\n"
+        "> Guidance held [2][1].\n"
+        ">\n"
+        "> Sources as of insertion: [1] NVDA thesis · [2] Call notes"
+    )
+
+
+def test_g064_missing_date_and_question_still_label_the_block():
+    out = tiptap_to_markdown(_g064_doc(question="", inserted_at=None))
+    assert out.startswith("> **From Ask Notebook**\n>\n> Margins fell [1] in Q3.")
+
+
+def test_g064_a_chip_outside_a_block_exports_as_its_number():
+    doc = {"type": "doc", "content": [{"type": "paragraph", "content": [
+        {"type": "text", "text": "See "},
+        {"type": "askCitation", "attrs": {"n": 3, "label": "x"}}]}]}
+    assert tiptap_to_markdown(doc) == "See [3]"

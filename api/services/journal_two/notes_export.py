@@ -433,6 +433,44 @@ def _table(node: dict[str, Any], resolver=None) -> str:
     return "\n".join(out)
 
 
+def _ask_insert_markdown(attrs: dict[str, Any], kids, resolver=None) -> str:
+    """G-064 (spec §7.4): an inserted Ask Notebook answer exports as a LABELLED
+    quote, so a member's Markdown never loses which passage was AI-assisted, and
+    lists its sources as they stood when it was inserted."""
+    date = str(attrs.get("insertedAt") or "")[:10]
+    question = str(attrs.get("question") or "").strip()
+    head = "**From Ask Notebook**"
+    if date:
+        head += f" · {date}"
+    if question:
+        head += f" · Q: {question}"
+
+    sources: dict[Any, str] = {}
+
+    def collect(n):
+        if not isinstance(n, dict):
+            return
+        if n.get("type") == "askCitation":
+            a = n.get("attrs") or {}
+            num = a.get("n")
+            if num is not None and num not in sources:
+                sources[num] = str(a.get("label") or "source")
+        for c in n.get("content") or []:
+            collect(c)
+
+    for c in kids or []:
+        collect(c)
+
+    body = "\n\n".join(b for b in (_block(c, resolver) for c in (kids or [])) if b != "")
+    lines = [f"> {head}", ">"]
+    lines += [f"> {ln}" if ln else ">" for ln in body.split("\n")]
+    if sources:
+        lines.append(">")
+        lines.append("> Sources as of insertion: "
+                     + " · ".join(f"[{k}] {v}" for k, v in sources.items()))
+    return "\n".join(lines)
+
+
 def _block(node: dict[str, Any], resolver=None) -> str:
     ntype = node.get("type")
     attrs = node.get("attrs") or {}
@@ -510,6 +548,11 @@ def _block(node: dict[str, Any], resolver=None) -> str:
             lines.append("")
             lines.append(f"*{annotation}*")
         return "\n".join(lines)
+    if ntype == "askInsert":
+        return _ask_insert_markdown(attrs, kids, resolver)
+    if ntype == "askCitation":
+        n = attrs.get("n")
+        return f"[{n}]" if n is not None else ""
     if ntype == "widgetEmbed":
         # A live widget cannot exist in markdown. Exporting nothing would make
         # the note look like it lost content, so emit the widget's own
