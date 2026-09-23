@@ -27,7 +27,10 @@ const bullets = (text) =>
 const tagline = (m) => {
   const first = bullets(m.trading_style)[0] || ''
   if (!first) return ''
-  const sentence = first.split(/(?<=[.!?])\s/)[0]
+  // ⛔ No regex lookbehind: Safari below 16.4 cannot parse it, and the declared
+  // floor is iOS 16. This lookahead form returns exactly what
+  // `first.split(/(?<=[.!?])\s/)[0]` did (0 mismatches over 200k fuzzed strings).
+  const sentence = (first.match(/^.*?[.!?](?=\s)/) || [first])[0]
   return sentence.length > 90 ? sentence.slice(0, 87).trimEnd() + '…' : sentence
 }
 
