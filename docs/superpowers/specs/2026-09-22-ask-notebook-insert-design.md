@@ -181,7 +181,11 @@ note…"** opens a note picker:
 - a first row **"Create a new note"**, titled with what the member typed, else the
   question (first 80 characters).
 
-Choosing a note **opens that note** and the answer is appended there when its
+The picker renders inline, inside the Ask panel. On touch the panel is already a
+`Sheet`, so this does not stack a second modal.
+
+Choosing a note **opens that note** through the host's own `onOpenNote` (the same
+function its note list uses), and the answer is appended there when its
 editor is ready (§5.2), then scrolled into view with a toast "Answer inserted at the
 end of this note." Choosing "Create a new note" creates the note with the block as
 its body in one request, then opens it.
@@ -289,22 +293,29 @@ built, and it is pure, so it is tested without an editor.
   button that cannot work. Inside the fullscreen document sheet the note is hidden,
   so the confirmation is the button changing to "Inserted" (§3.1), not a toast.
 - **Other note (§3.3) — a pending insert.**
-  1. The picker writes `{ noteId, node, createdAt }` to `sessionStorage` under one
-     key, `uct.j2.askInsert.pending` (one at a time; wrapped in try/catch), then
-     navigates to `notePath(noteId)` (`useNoteBacklinks.js:36`).
+  1. The picker hands `{ noteId, node, createdAt }` to two carriers: a module
+     variable and `sessionStorage` under `uct.j2.askInsert.pending`. This is the
+     exact `writePendingShare`/`takePendingShare` pattern (`shareTarget.js:171-205`).
+     Memory carries the in-app route change even where storage is refused;
+     `sessionStorage` carries a full reload. Only one entry is held at a time.
+     Then it calls the host's `onOpenNote(note)`: `ResearchHome.jsx:73`,
+     `TickerResearchWorkspace.jsx:67`, which fall back to `navigate(notePath(id))`.
   2. `NoteEditorPage` consumes it once, when all hold: `hydratedRef.current` is
      true (the consume effect is declared **after** the arming effect at
-     `NoteEditorPage.jsx:1418-1420`, because effects run in declaration order), the
-     editor is editable, no recovered-draft decision is pending (`pendingDraft`
-     null — a restore calls `setContent` and would erase the insert, `:793`), and
-     the entry's `noteId` matches and is under 15 minutes old.
+     `NoteEditorPage.jsx:1418-1420`, because effects run in declaration order), the editor is editable, the recovered-draft decision has **finished**
+     (`decide()` at `:695-722` is async; a new `recoveryDecided` state flips when it
+     settles, either way) and no draft is pending (`pendingDraft` null — a restore
+     calls `setContent` and would erase the insert, `:793`; the insert therefore
+     waits until the member restores or discards), and the entry's `noteId` matches
+     and is under 15 minutes old.
   3. Consume = **remove the key first, then insert** through the same transaction
      as the open-note case, so a StrictMode double effect or a reload can never
      insert twice. A mismatched or
      expired entry is removed without inserting.
-  4. If the note is not editable (trashed, read-only), the entry is removed and the
-     toast says "This note can't be edited, so the answer wasn't inserted", with a
-     Copy button holding the answer's plain text.
+  4. If the editor is not editable, the entry is removed and the note's toast says
+     "This note can't take changes right now, so the answer wasn't inserted. Ask
+     again to get it back." (The page never sets the editor read-only today, so this
+     guards a future state rather than a known one.)
 - **New note.** `createNoteViaApi({ title, bodyJson: { type: 'doc', content: [node] } })`
   (`noteCreation.js:21`), then navigate to it. A create is not a door
   (`doorFamilies.settle.test.jsx:146`).
@@ -444,7 +455,8 @@ here is Wave K's `NOTEBOOK_*` keys.)
   trap in §2.8(b).
 - **Chip.** AskPanel's `.citationChip`, imported, not copied.
 - **Touch.** The Insert button and picker rows are at least `--tap-min` (44px) at
-  ≤1024px. The picker uses `Sheet` on touch, like AskPanel's own `PanelShell`.
+  ≤1024px. The picker renders inside the Ask panel, which `PanelShell` already makes
+  a `Sheet` on touch.
 - **No new CSS custom properties.** Only existing tokens are used, so the theme-island
   rails are unaffected.
 
@@ -452,9 +464,9 @@ here is Wave K's `NOTEBOOK_*` keys.)
 
 ## 9. Errors
 
-- **`sessionStorage` unavailable** (private mode, storage full): the picker shows
-  "Couldn't hand this answer to that note. Copy it instead", with a Copy button, and
-  does not navigate.
+- **Storage refused** (private mode, storage full): the memory carrier still hands
+  the answer over on the in-app navigation. Only a full page reload between the pick
+  and the note opening loses it, and the entry was single-use anyway.
 - **Create-new fails:** the picker shows "Couldn't create the note. Your answer is
   still here." and logs `console.error`. The answer stays in the panel. Per the
   raw-error rail, no raw error text is shown.
@@ -474,7 +486,10 @@ here is Wave K's `NOTEBOOK_*` keys.)
 
 1. **Research-workspace citations** (§2.8a). `TickerResearchWorkspace` passes
    `onNavigate={(s) => { const id = s?.navigation?.note_id; if (id) openNote({ id }) }}`,
-   using its own `openNote` (`:67`), and drops the dead `onOpenNote` prop.
+   using its own `openNote` (`:67`). `onOpenNote` becomes a real AskPanel prop
+   (the picker's way to open a note), and the workspace passes its own `openNote`
+   wrapper, never its raw `onOpenNote` prop, which is undefined when the workspace
+   renders standalone.
 2. **Callout and Toggle CSS** (§2.8b). Wrap the raw editor class names in `:global()`,
    and add a rail: every raw class name that an editor node writes into the DOM
    (string literals in `lib/*Node.js(x)` `renderHTML` and DOM node views) must appear
