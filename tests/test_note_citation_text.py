@@ -721,3 +721,67 @@ class TestThePassagePickerPrefersAnExactOccurrence:
         doc = _DOC(self._CHIP, _P("Nothing else."))
         _snippet, loc, validity = ar._best_note_passage(doc, '"margins"')
         assert validity == ev.CITE_NOTE_ONLY and (loc["from"], loc["to"]) == (0, 1)
+
+
+# ── One index per flatten (final wave, review M-1) ───────────────────────────
+
+from api.services.journal_two.note_citation_text import SpanIndex  # noqa: E402
+
+
+def _linear_pm_range(a, b, spans):
+    """The linear scan SpanIndex replaced, kept here as the ORACLE."""
+    if b <= a:
+        return None
+    lo = hi = None
+    for s in spans:
+        if lo is None and s["flat_start"] <= a < s["flat_end"]:
+            lo = s["pm_start"] if s["is_atom"] else s["pm_start"] + len(s["text"][: a - s["flat_start"]].encode("utf-16-le", "surrogatepass")) // 2
+        if s["flat_start"] < b <= s["flat_end"]:
+            hi = s["pm_end"] if s["is_atom"] else s["pm_start"] + len(s["text"][: b - s["flat_start"]].encode("utf-16-le", "surrogatepass")) // 2
+    return None if lo is None or hi is None or hi <= lo else {"from": lo, "to": hi}
+
+
+def _linear_in_ask_insert(spans, a, b):
+    return any(s.get("in_ask_insert") and s["flat_start"] < b and a < s["flat_end"] for s in spans)
+
+
+class TestOneIndexPerFlatten:
+    """Ask "This note" asked four linear questions of every block, so a
+    3,000-paragraph note took ~3.7 s (final review M-1). `_note_blocks` now
+    builds ONE SpanIndex; its bisections must answer exactly as the scans did."""
+
+    @pytest.mark.parametrize("case", ["askInsertBlock", "astralThenChip", "realisticMixed",
+                                      "emptyTableCells", "chartsMtfThenSingle", "identityAtoms"])
+    def test_the_index_answers_exactly_as_the_linear_scan(self, case):
+        flat = flatten(_FIXTURES[case]["json"])
+        spans, n = flat["spans"], len(flat["text"])
+        index = SpanIndex(spans)
+        for a in range(-2, n + 3):
+            for b in range(-2, n + 3):
+                assert index.pm_range(a, b) == _linear_pm_range(a, b, spans), (a, b)
+                assert index.in_ask_insert(a, b) == _linear_in_ask_insert(spans, a, b), (a, b)
+
+    def test_the_fixtures_exercise_what_the_index_must_get_right(self):
+        # Non-vacuity: astral text, inserted answers and atoms are all present.
+        spans = [s for c in ("askInsertBlock", "astralThenChip") for s in flatten(_FIXTURES[c]["json"])["spans"]]
+        assert any(s["in_ask_insert"] for s in spans) and any(s["is_atom"] for s in spans)
+        assert any(ord(ch) > 0xFFFF for s in spans for ch in s["text"])
+
+    def test_note_blocks_builds_one_index_and_scans_nothing_per_block(self, monkeypatch):
+        from api.services.journal_two import ask_retrieval as ar
+        from api.services.journal_two import note_citation_text as nct
+        built = []
+
+        class Counting(SpanIndex):
+            def __init__(self, spans):
+                built.append(1)
+                super().__init__(spans)
+
+        def per_block(*_a, **_k):
+            raise AssertionError("a per-block scan of every span is back (review M-1)")
+
+        monkeypatch.setattr(nct, "SpanIndex", Counting)
+        for name in ("pm_range", "in_ask_insert", "atom_at", "precise_citation"):
+            monkeypatch.setattr(nct, name, per_block)
+        blocks = ar._note_blocks(_FIXTURES["chartsMtfThenSingle"]["json"], "chart")
+        assert len(blocks) == 6 and built == [1]

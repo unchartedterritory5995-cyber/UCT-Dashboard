@@ -86,6 +86,9 @@ text. See `fingerprint` (the fast path) and `verify` (the actual guarantee).
 """
 from __future__ import annotations
 
+from bisect import bisect_left, bisect_right
+from collections import Counter
+from functools import cached_property
 from typing import Any
 
 # Placeholder text for atom nodes, mirroring notes.extract_plain_text so the
@@ -344,13 +347,96 @@ def member_text(flat: dict[str, Any], start: int = 0, end: int | None = None) ->
     return "".join(out)
 
 
+class SpanIndex:
+    """ONE flatten's spans, indexed so each lookup a citation needs is
+    O(log n) or O(1) instead of a scan of every span.
+
+    ⛔ WHY: Ask "This note" (`ask_retrieval._note_blocks`) asks four of these
+    questions for EVERY block, so linear scans made a big note quadratic --
+    3,000 paragraphs took ~3.7 s (final review M-1). Build one index per
+    flatten and ask it; the module-level functions below build one per call,
+    so there is exactly ONE implementation of each question.
+
+    The answers equal the linear scans they replaced because `flatten` emits
+    spans in document order, non-empty and non-overlapping: `flat_start` and
+    `flat_end` both strictly increase, so a containing span is found by
+    bisection, the spans overlapping a range are one contiguous run, and an
+    atom's ProseMirror range is unique. The equality is proved against the
+    previous implementation (parity-report "Final wave").
+    """
+
+    def __init__(self, spans: list[dict[str, Any]] | None):
+        self.spans = spans or []
+
+    @cached_property
+    def _starts(self) -> list[int]:
+        return [s["flat_start"] for s in self.spans]
+
+    @cached_property
+    def _ends(self) -> list[int]:
+        return [s["flat_end"] for s in self.spans]
+
+    @cached_property
+    def _atoms(self) -> dict[tuple[Any, Any], dict[str, Any]]:
+        out: dict[tuple[Any, Any], dict[str, Any]] = {}
+        for s in self.spans:
+            if s["is_atom"]:
+                out.setdefault((s["pm_start"], s["pm_end"]), s)
+        return out
+
+    @cached_property
+    def _carriers(self) -> Counter:
+        return Counter((s["atom"]["type"], s["atom"]["id"])
+                       for s in self.spans if s["is_atom"] and s.get("atom"))
+
+    def in_ask_insert(self, flat_start: int, flat_end: int) -> bool:
+        # The spans overlapping [flat_start, flat_end): those ending after its
+        # start (a suffix) that also begin before its end (a prefix).
+        lo = bisect_right(self._ends, flat_start)
+        hi = bisect_left(self._starts, flat_end)
+        return any(self.spans[k].get("in_ask_insert") for k in range(lo, hi))
+
+    def pm_range(self, flat_start: int, flat_end: int) -> dict[str, int] | None:
+        if flat_end <= flat_start:
+            return None
+        pm_from = pm_to = None
+        i = bisect_right(self._starts, flat_start) - 1   # the span starting at or before it
+        if i >= 0 and flat_start < self.spans[i]["flat_end"]:
+            s = self.spans[i]
+            pm_from = s["pm_start"] if s["is_atom"] else _pm_at(s, flat_start)
+        j = bisect_left(self._starts, flat_end) - 1      # the span starting before it
+        if j >= 0 and flat_end <= self.spans[j]["flat_end"]:
+            s = self.spans[j]
+            pm_to = s["pm_end"] if s["is_atom"] else _pm_at(s, flat_end)
+        if pm_from is None or pm_to is None or pm_to <= pm_from:
+            return None
+        return {"from": pm_from, "to": pm_to}
+
+    def atom_span_at(self, pm_from: Any, pm_to: Any) -> dict[str, Any] | None:
+        try:
+            return self._atoms.get((pm_from, pm_to))
+        except TypeError:  # an unhashable position from a malformed location
+            return next((s for s in self.spans if s["is_atom"]
+                         and (s["pm_start"], s["pm_end"]) == (pm_from, pm_to)), None)
+
+    def atom_at(self, rng: dict[str, int] | None) -> dict[str, str] | None:
+        span = self.atom_span_at(rng.get("from"), rng.get("to")) if rng else None
+        atom = span.get("atom") if span else None
+        if not atom:
+            return None
+        return atom if self._carriers[(atom["type"], atom["id"])] == 1 else None
+
+    def precise(self, rng: dict[str, int] | None) -> bool:
+        if not rng:
+            return False
+        return self.atom_span_at(rng.get("from"), rng.get("to")) is None or self.atom_at(rng) is not None
+
+
 def in_ask_insert(flat: dict[str, Any], flat_start: int, flat_end: int) -> bool:
     """True when any run overlapping [flat_start, flat_end) sits inside an
-    inserted Ask Notebook answer (G-064, spec §7.2)."""
-    for s in flat.get("spans") or []:
-        if s.get("in_ask_insert") and s["flat_start"] < flat_end and flat_start < s["flat_end"]:
-            return True
-    return False
+    inserted Ask Notebook answer (G-064, spec §7.2). Asking many times of one
+    flatten? Use `SpanIndex(flat["spans"]).in_ask_insert`."""
+    return SpanIndex(flat.get("spans")).in_ask_insert(flat_start, flat_end)
 
 
 def pm_range(flat_start: int, flat_end: int, spans: list[dict[str, Any]]) -> dict[str, int] | None:
@@ -360,19 +446,10 @@ def pm_range(flat_start: int, flat_end: int, spans: list[dict[str, Any]]) -> dic
     example a range that falls entirely inside a block separator). A range
     spanning several text nodes -- which is precisely the mark-boundary case
     Slice 0 proved unresolvable by string search -- maps cleanly, because
-    ProseMirror positions do not know marks exist.
+    ProseMirror positions do not know marks exist. `spans` is a `flatten`
+    span list (document order). Asking many times? Use `SpanIndex.pm_range`.
     """
-    if flat_end <= flat_start:
-        return None
-    pm_from = pm_to = None
-    for s in spans:
-        if pm_from is None and s["flat_start"] <= flat_start < s["flat_end"]:
-            pm_from = s["pm_start"] if s["is_atom"] else _pm_at(s, flat_start)
-        if s["flat_start"] < flat_end <= s["flat_end"]:
-            pm_to = s["pm_end"] if s["is_atom"] else _pm_at(s, flat_end)
-    if pm_from is None or pm_to is None or pm_to <= pm_from:
-        return None
-    return {"from": pm_from, "to": pm_to}
+    return SpanIndex(spans).pm_range(flat_start, flat_end)
 
 
 def atom_at(flat: dict[str, Any], rng: dict[str, int] | None) -> dict[str, str] | None:
@@ -384,23 +461,17 @@ def atom_at(flat: dict[str, Any], rng: dict[str, int] | None) -> dict[str, str] 
     or /compare insert, a pasted copy). An identity that names two atoms would
     let the client select the wrong one, so such a citation opens the note
     only. Every atom counts, an inserted answer's included: the client's
-    lookup walks the whole doc."""
-    span = _atom_span_at(flat, rng.get("from"), rng.get("to")) if rng else None
-    atom = span.get("atom") if span else None
-    if not atom:
-        return None
-    carriers = sum(1 for s in flat.get("spans") or [] if s["is_atom"] and s.get("atom") == atom)
-    return atom if carriers == 1 else None
+    lookup walks the whole doc. Asking many times? Use `SpanIndex.atom_at`."""
+    return SpanIndex(flat.get("spans")).atom_at(rng)
 
 
 def precise_citation(flat: dict[str, Any], rng: dict[str, int] | None) -> bool:
     """Whether a citation to `rng` can ever open a precise passage: any text
     range can (it is verified by its text), a single atom only when an
     identity is issued for it (`atom_at`: it has one, and it is unique). The
-    server's label must not promise a passage the client will refuse to open."""
-    if not rng:
-        return False
-    return _atom_span_at(flat, rng.get("from"), rng.get("to")) is None or atom_at(flat, rng) is not None
+    server's label must not promise a passage the client will refuse to open.
+    Asking many times? Use `SpanIndex.precise`."""
+    return SpanIndex(flat.get("spans")).precise(rng)
 
 
 def _well_formed_atom(atom: Any) -> dict[str, str] | None:
@@ -415,10 +486,7 @@ def _well_formed_atom(atom: Any) -> dict[str, str] | None:
 
 def _atom_span_at(flat: dict[str, Any], pm_from: Any, pm_to: Any) -> dict[str, Any] | None:
     """The atom span whose ProseMirror range is exactly [pm_from, pm_to)."""
-    for s in flat.get("spans") or []:
-        if s["is_atom"] and (s["pm_start"], s["pm_end"]) == (pm_from, pm_to):
-            return s
-    return None
+    return SpanIndex(flat.get("spans")).atom_span_at(pm_from, pm_to)
 
 
 def fingerprint(doc: dict[str, Any] | None) -> str:
@@ -483,11 +551,11 @@ def locate(doc: dict[str, Any] | None, needle: str) -> list[dict[str, Any]]:
     if not needle:
         return []
     flat = flatten(doc)
-    text, spans = flat["text"], flat["spans"]
+    text, index = flat["text"], SpanIndex(flat["spans"])
     out: list[dict[str, Any]] = []
     start = text.find(needle)
     while start != -1:
-        rng = pm_range(start, start + len(needle), spans)
+        rng = index.pm_range(start, start + len(needle))
         if rng is not None:
             out.append({"flat_start": start, "flat_end": start + len(needle), **rng})
         start = text.find(needle, start + 1)

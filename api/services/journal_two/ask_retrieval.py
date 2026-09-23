@@ -259,20 +259,21 @@ def _best_note_passage(doc, expr: str, title: str = ""):
     low = text.lower()
     terms = [t for t in _terms(expr) if len(t) > 2]
     found_only_in_insert = False
+    index = nct.SpanIndex(flat["spans"])  # one index for every occurrence's lookups
     for term in terms:
         needle = term.lower()
         idx = low.find(needle)
         saw_any = idx >= 0
         first = -1
         while idx >= 0:
-            if not nct.in_ask_insert(flat, idx, idx + len(term)):
+            if not index.in_ask_insert(idx, idx + len(term)):
                 if first < 0:
                     first = idx
                 # Review M2: an occurrence inside an atom that can carry no
                 # identity only opens the note, so a LATER occurrence that can
                 # be cited exactly is preferred; with none, the first stands.
-                occ = nct.pm_range(idx, idx + len(term), flat["spans"])
-                if occ is None or nct.precise_citation(flat, occ):
+                occ = index.pm_range(idx, idx + len(term))
+                if occ is None or index.precise(occ):
                     break
             idx = low.find(needle, idx + 1)
         if idx < 0:
@@ -284,16 +285,16 @@ def _best_note_passage(doc, expr: str, title: str = ""):
         start = max(0, idx - 90)
         end = min(len(text), idx + len(term) + 150)
         snippet = nct.member_text(flat, start, end).strip()
-        rng = nct.pm_range(idx, idx + len(term), flat["spans"])
+        rng = index.pm_range(idx, idx + len(term))
         if rng:
             location = {**rng, "fingerprint": nct.fingerprint(doc),
                         "snippet_start": idx, "snippet_end": idx + len(term)}
-            atom = nct.atom_at(flat, rng)
+            atom = index.atom_at(rng)
             if atom:
                 # The term matched inside one atom's placeholder: cite the
                 # atom by identity, never by that text (review N1).
                 location["atom"] = atom
-            return snippet, location, (ev.CITE_EXACT if nct.precise_citation(flat, rng)
+            return snippet, location, (ev.CITE_EXACT if index.precise(rng)
                                        else ev.CITE_NOTE_ONLY)
     if found_only_in_insert:
         low_title = (title or "").lower()
@@ -1191,6 +1192,9 @@ def _note_blocks(doc, q: str) -> list[dict[str, Any]]:
         return []
     fp = nct.fingerprint(doc)
     terms = [t.lower() for t in _content_terms(q)]
+    # ONE index for every block's lookups: per-block scans of all spans made a
+    # 3,000-paragraph note take ~3.7 s (final review M-1).
+    index = nct.SpanIndex(flat["spans"])
 
     out: list[dict[str, Any]] = []
     cursor = 0
@@ -1200,23 +1204,23 @@ def _note_blocks(doc, q: str) -> list[dict[str, Any]]:
         body = raw.strip()
         if len(body) < _MIN_BLOCK_CHARS:
             continue
-        rng = nct.pm_range(start, end, flat["spans"])
+        rng = index.pm_range(start, end)
         if rng is None:
             continue
-        if nct.in_ask_insert(flat, start, end):
+        if index.in_ask_insert(start, end):
             # G-064 (spec §7.2): an inserted Ask answer is not the member's
             # writing, so it is never evidence in "This note" either.
             continue
         low = body.lower()
         hits = sum(1 for t in terms if t in low)
         location = {**rng, "fingerprint": fp, "snippet_start": start, "snippet_end": end}
-        atom = nct.atom_at(flat, rng)
+        atom = index.atom_at(rng)
         if atom:
             # A block that IS one atom is cited by that atom's identity: its
             # placeholder text cannot tell it from a look-alike (review N1).
             location["atom"] = atom
         out.append({"text": body, "hits": hits, "location": location,
-                     "precise": nct.precise_citation(flat, rng)})
+                     "precise": index.precise(rng)})
     return out
 
 
