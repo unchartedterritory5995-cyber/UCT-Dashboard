@@ -529,7 +529,11 @@ export const PasteContainers = Extension.create({
         // drop recomputes it from its own event after this runs. So a drag's
         // embed ids are left to handleDrop, which is handed the final answer.
         // A paste replaces the selection, so its ids are judged against the
-        // doc with the selection already gone.
+        // doc with the selection already gone. A drop from OUTSIDE the editor
+        // (no view.dragging) also comes through here, judged as a paste -- but
+        // a drop replaces nothing, so that can only MISS a collision (the
+        // selected chart counted as gone), never invent one; handleDrop
+        // re-judges every drop and catches it.
         transformPasted: (slice, view) => {
           const out = unwrapOpenContainers(slice)
           return view && !view.dragging ? freshEmbedIds(out, () => view.state.tr.deleteSelection().doc) : out
@@ -538,12 +542,14 @@ export const PasteContainers = Extension.create({
         // split toggle), then the belt for one it would throw on.
         handlePaste: (view, _event, slice) => pasteIntoSummary(view, slice) || pasteOrFallBack(view, slice),
         // A drop never reaches handlePaste (see Drops above): the same two, in
-        // the same order. `slice` has already been through transformPasted. A
-        // drag's embed ids are judged here, against the doc the drop lands in
-        // (after a move's source is gone); a slice that changes must then be
-        // placed by this plugin, since ProseMirror would place its own copy.
+        // the same order. `slice` has already been through transformPasted.
+        // EVERY drop's embed ids are judged here -- an in-editor drag's and one
+        // from outside the editor alike -- against the doc the drop lands in:
+        // after a move's source is gone, and otherwise the doc as it is (a drop
+        // removes no selection). A slice that changes must then be placed by
+        // this plugin, since ProseMirror would place its own copy.
         handleDrop: (view, event, slice, moved) => {
-          const own = view.dragging ? freshEmbedIds(slice, () => dropBegin(view, moved)().doc) : slice
+          const own = freshEmbedIds(slice, () => dropBegin(view, moved)().doc)
           return dropIntoSummary(view, event, own, moved) || dropOrFallBack(view, event, own, moved, own !== slice)
         },
       },

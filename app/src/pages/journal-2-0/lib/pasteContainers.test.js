@@ -832,6 +832,57 @@ describe('a chart DROPPED keeps a unique embedId -- decided by the drop, not by 
     expect(embedIds(ed)).toEqual(['e-orig'])
   })
 
+  // Pre-gate (final review M-2): a drop from OUTSIDE the editor -- another tab,
+  // another editor: no view.dragging, the slice parsed from the drop's HTML --
+  // replaces nothing, so it is judged against the doc as it is. transformPasted
+  // judges it as a paste (the selection counted as gone), which missed the
+  // collision when the same chart sat selected at the target.
+  const outsideDrop = (ed, pos, html) => {
+    ed.view.posAtCoords = () => ({ pos, inside: -1 })
+    ed.view.dragging = null
+    const ev = new Event('drop', { bubbles: true, cancelable: true })
+    Object.assign(ev, { clientX: 0, clientY: 0 })
+    Object.defineProperty(ev, 'dataTransfer', { value: { getData: (t) => (t === 'text/html' ? html : ''), files: [], types: ['text/html'] } })
+    ed.view.dom.dispatchEvent(ev)
+  }
+  const chartHtml = () => {
+    const src = second([P('Elsewhere.'), chart('e-orig'), P('End.')])
+    try { return copyNode(src, firstPos(src, 'widgetEmbed')) } finally { src.destroy() }
+  }
+
+  it('a chart dropped from OUTSIDE the editor onto a note where that chart is SELECTED gets a fresh id', () => {
+    const html = chartHtml()
+    const ed = mount([P('Mine.'), chart('e-orig'), P('After.')])
+    ed.view.dispatch(ed.state.tr.setSelection(NodeSelection.create(ed.state.doc, firstPos(ed, 'widgetEmbed'))))
+    outsideDrop(ed, locate(ed, 'After.') + 3, html)
+    ed.state.doc.check()
+    const ids = embedIds(ed)
+    expect(ids).toHaveLength(2) // the drop landed, and replaced nothing
+    expect(ids[0]).toBe('e-orig')
+    expect(ids[1]).not.toBe('e-orig')
+  })
+
+  it('CONTROL: the same outside drop with the caret in text gets a fresh id too', () => {
+    const html = chartHtml()
+    const ed = mount([P('Mine.'), chart('e-orig'), P('After.')])
+    ed.commands.setTextSelection(2)
+    outsideDrop(ed, locate(ed, 'After.') + 3, html)
+    const ids = embedIds(ed)
+    expect(ids).toHaveLength(2)
+    expect(ids[0]).toBe('e-orig')
+    expect(ids[1]).not.toBe('e-orig')
+  })
+
+  it('CONTROL: an in-editor MOVE of the SELECTED chart keeps its id -- the source is gone before the drop is judged', () => {
+    const ed = mount([P('Mine.'), chart('e-orig'), P('After.')])
+    const node = NodeSelection.create(ed.state.doc, firstPos(ed, 'widgetEmbed'))
+    ed.view.dispatch(ed.state.tr.setSelection(node))
+    domDrop(ed, locate(ed, 'After.') + 6, ed.state.selection.content(), { node: ed.state.selection })
+    ed.state.doc.check()
+    expect(embedIds(ed)).toEqual(['e-orig'])
+    expect(top(ed).slice(0, 2)).toEqual(['paragraph:Mine.', 'paragraph:After.']) // it did move
+  })
+
   it('a chart COPIED onto a toggle title lands after the toggle with a fresh id', () => {
     const ed = mount([P('Mine.'), chart('e-orig'), TOGGLE, P('After.')])
     const node = NodeSelection.create(ed.state.doc, firstPos(ed, 'widgetEmbed'))
