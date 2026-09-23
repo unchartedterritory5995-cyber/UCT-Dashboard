@@ -164,9 +164,9 @@
       "note": ""
     },
     "AWARENESS_THESIS_REVIEW_ENABLED": {
-      "status": "dark",
-      "where": [],
-      "note": "MEMBER-VISIBLE when on: a 6th Awareness Engine rule (G-074, competitive gap ledger) -- when a position hits its stop AND the member has any research on that symbol, an additional in-app/email/Discord insight nudges them to review it, separate from the existing stop_hit alert. Deliberately its own flag, not folded into AWARENESS_ENGINE_ENABLED, so it can be rolled back alone if it proves noisy. Owner decides."
+      "status": "armed",
+      "where": ["web"],
+      "note": "MEMBER-VISIBLE, live 2026-09-23: a 6th Awareness Engine rule (G-074, competitive gap ledger) -- when a position hits its stop AND the member has any research on that symbol, an additional in-app/email/Discord insight nudges them to review it, separate from the existing stop_hit alert. Deliberately its own flag, not folded into AWARENESS_ENGINE_ENABLED, so it can be rolled back alone if it proves noisy. Owner decision: flipped on 2026-09-22 (Patrick: \"yes turn it on\"). Verified live in the running process via railway ssh, not just --kv."
     },
     "BARSPACK_ENABLED": {
       "status": "armed",
