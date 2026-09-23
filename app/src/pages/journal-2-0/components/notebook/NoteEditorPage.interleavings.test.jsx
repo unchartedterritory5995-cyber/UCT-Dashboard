@@ -208,12 +208,22 @@ describe('E — the tab closes after the durable write but before the PUT', () =
     localStorage.removeItem('uct.j2.notedraft.n1')
     view.unmount()
     await act(async () => { await settleIdb(6) })
+    const sendsBefore = updateMock.mock.calls.length
 
     await renderEditor()
     await act(async () => { await settleIdb(6) })
-    await waitFor(() => expect(screen.getByText(/Unsaved changes from a previous session/i)).toBeInTheDocument())
-    // ⛔ And the sync intent is still queued: recovered on screen is not the
-    // same as sent. SAVED ON THIS DEVICE ≠ SYNCED TO UCT.
+    // ⭐ D3 change 1 / F5P-1 (docs/notebook/f5-fixes-2026-09-23.md §B): QUEUED
+    // words are the owner's to send, so reopening ADOPTS them -- on screen, no
+    // Restore/Discard banner. ⚰️ This rail used to wait for that banner: it was
+    // pinning the defect F5P-1 describes (words behind a banner that nothing
+    // ever sent while the member sat on the note).
+    await waitFor(() => expect(screen.getByPlaceholderText('Title').value).toBe('written while the server was gone'))
+    expect(screen.queryByText(/Unsaved changes from a previous session/i)).toBeNull()
+    // …and the owner tries to send them itself (the server is still down).
+    await tick(1000)
+    await waitFor(() => expect(updateMock.mock.calls.length).toBeGreaterThan(sendsBefore))
+    // ⛔ And the sync intent is still queued: recovered on screen — and even
+    // attempted — is not the same as sent. SAVED ON THIS DEVICE ≠ SYNCED TO UCT.
     expect(store('outbox')).toHaveLength(1)
     expect(store('outbox')[0].patch.title).toBe('written while the server was gone')
   })

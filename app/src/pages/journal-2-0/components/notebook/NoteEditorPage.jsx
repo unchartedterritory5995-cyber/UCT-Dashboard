@@ -33,7 +33,7 @@ import { useAuth } from '../../../../context/AuthContext'
 import { exportNoteAsPng, printNote } from '../../lib/exportNote'
 import {
   useDurableNote, settleLandedSave, beginInFlightSave, endInFlightSave,
-  recordLandedRevision, SESSION_ID,
+  recordLandedRevision, settleOwnerFork, SESSION_ID,
 } from '../../lib/offline/useDurableNote'
 import { useBlockedNotes } from '../../lib/offline/useBlockedNotes'
 import { blockedLabel, unsyncedLabel, OFFLINE_VIEWING_BANNER } from '../../lib/offline/unsyncedCopy'
@@ -653,6 +653,10 @@ export default function NoteEditorPage({ noteId, onBack, showBack = true, onTitl
   // local copies could be ordered at all. ⛔ An ambiguous answer is SAID so,
   // not smoothed over: the member is the only one who can settle it.
   const [recovery, setRecovery] = useState(null)
+  // D3 / F5P-1: words the member QUEUED for this note while away, handed back by
+  // `recover()` as `adopt`. Held here until the editor can take them (see the
+  // effect after the hydration gate).
+  const [pendingAdoption, setPendingAdoption] = useState(null)
   // G-064 fix round 1 (F2, controller ruling) — WHICH note the decision is
   // for, not a bare boolean. DEFENSE IN DEPTH: production mounts this page as
   // `<NoteEditorPage key={noteId}>` (tabs/NotebookTab.jsx:715), so each note
@@ -736,6 +740,18 @@ export default function NoteEditorPage({ noteId, onBack, showBack = true, onTitl
         decision = null
       }
       if (cancelled) return
+      // ⭐⭐ D3 / F5P-1 — QUEUED WORDS ARE SENT BY THIS NOTE'S OWNER, NOT OFFERED.
+      // The sweep will not send them while this editor owns the note
+      // (`excludeNoteId`), so a banner here meant nobody sent them for as long
+      // as the member sat on the note. `adopt` is non-null only for provably
+      // queued work (see `queuedWorkToAdopt`); everything else still gets the
+      // banner below, unchanged.
+      if (decision?.adopt) {
+        setPendingDraft(null)
+        setRecovery(null)
+        setPendingAdoption(decision.adopt)
+        return
+      }
       if (decision && decision.unsynced) {
         setPendingDraft({ ...decision.state, savedAt: lsDraft?.savedAt ?? null })
         setRecovery(decision)
@@ -808,6 +824,27 @@ export default function NoteEditorPage({ noteId, onBack, showBack = true, onTitl
     // trusting click de-duplication anywhere upstream.
     if (restoringDraftRef.current) return
     if (!pendingDraft || !editorRef.current) return
+    // ⭐⭐ D3 — A RECOVERED COPY WHOSE BASE IS KNOWN IS RESTORED THE WAY QUEUED WORK
+    // IS ADOPTED: on the copy it was written on, through our own save.
+    // ⚰️ MEASURED 2026-09-23: the direct PUT below 409'd against a server another
+    // device had moved, and left this editor on the SERVER'S CURRENT revision, so
+    // the member's next keystroke autosaved over the other device's words — 0
+    // forks. (After an append door, the captured block went the same way.)
+    // `recovery.base` comes from `baseOfRecovered`; with it, a moved server 409s
+    // into `reconcileConflict` like any other save. Without it (a crash draft
+    // whose base was never recorded) the path below is unchanged.
+    if (recovery?.base) {
+      setPendingDraft(null)
+      setRecovery(null)
+      setPendingAdoption({
+        state: {
+          title: pendingDraft.title || '', subtitle: pendingDraft.subtitle || '',
+          bodyJson: pendingDraft.bodyJson,
+        },
+        base: recovery.base,
+      })
+      return
+    }
     restoringDraftRef.current = true
     const draftTitle = pendingDraft.title || ''
     const draftSubtitle = pendingDraft.subtitle || ''
@@ -1528,6 +1565,37 @@ export default function NoteEditorPage({ noteId, onBack, showBack = true, onTitl
     hydratedRef.current = Boolean(editor && !editor.isDestroyed && note)
   }, [note?.id, editor, note])
 
+  // ⭐⭐ D3 / F5P-1 — TAKE THE QUEUED WORDS AND SEND THEM THROUGH OUR OWN SAVE.
+  // Declared AFTER the hydration gate so it runs after it in the same commit.
+  // ⛔⛔ THE BASELINE IS THE COPY THE WORDS WERE WRITTEN ON (`adopt.base`), NEVER
+  // THE SERVER'S CURRENT REVISION. On the current revision the PUT would succeed
+  // without a 409 and silently drop whatever a door appended while the member
+  // was away. On the words' own base it 409s whenever the server moved, and
+  // `reconcileConflict` decides: metadata ⇒ rebase, append ⇒ merge the block,
+  // anything else ⇒ fork, never clobber.
+  useEffect(() => {
+    if (!pendingAdoption || !editor || editor.isDestroyed || !note || !hydratedRef.current) return
+    const { state, base } = pendingAdoption
+    setPendingAdoption(null)
+    const t = state.title || ''
+    const s = state.subtitle || ''
+    setTitle(t)
+    titleRef.current = t
+    setSubtitle(s)
+    subtitleRef.current = s
+    try {
+      editor.commands.setContent(state.bodyJson || { type: 'doc', content: [] }, EMIT_NOTHING)
+    } catch { /* view not mounted yet -- the save below still carries the words */ }
+    lastSavedRef.current = {
+      title: base.title || '', subtitle: base.subtitle || '',
+      bodyJson: base.bodyJson, updatedAt: base.updatedAt || null,
+    }
+    setRecoveryDecidedFor(note.id)
+    // The ordinary autosave path: draft + durable snapshot + the debounced PUT.
+    scheduleAutosaveRef.current()
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [pendingAdoption, editor, note])
+
   // G-064 — insert an Ask Notebook answer into THIS note: an editor transaction
   // on the normal autosave path (spec §5.2). No endpoint, no settle, no door.
   const insertAskAnswer = useCallback((node) => {
@@ -1683,6 +1751,15 @@ export default function NoteEditorPage({ noteId, onBack, showBack = true, onTitl
       title: fresh.title || '', subtitle: fresh.subtitle || '',
       bodyJson: fresh.bodyJson, updatedAt: fresh.updatedAt || null,
     }
+    // ⭐ D3 / F5P-1 — THE SIBLING NOW HOLDS THE MEMBER'S WORDS; SETTLE THE DURABLE
+    // COPY THE WAY THE SWEEP'S FORK DOES. Without this the record stayed dirty
+    // with a queued entry the sibling already preserved, and once the note
+    // closed the sweep forked it AGAIN. `settleOwnerFork` first (it clears the
+    // queue), THEN `markSynced`, so the writer's latest state is the server copy
+    // too and no pending keystroke snapshot can re-dirty the record.
+    await settleOwnerFork({ accountId: user?.id, noteId, serverNote: fresh })
+    const serverNow = { title: fresh.title || '', subtitle: fresh.subtitle || '', bodyJson: fresh.bodyJson ?? null }
+    durableRef.current.markSynced({ acked: serverNow, current: serverNow, updatedAt: fresh.updatedAt || null })
     clearDraftLocally()
     setSaveStatus('conflict')
     setSaveErrorMsg('')
