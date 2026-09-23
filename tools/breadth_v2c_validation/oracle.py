@@ -46,6 +46,9 @@ PCT = ("pct_above_5sma", "pct_above_10sma", "pct_above_20ema", "pct_above_40sma"
        "pct_above_50sma", "pct_above_100sma", "pct_above_200sma", "hi_ratio", "lo_ratio")
 
 _GCACHE: dict = {}
+#: Correction toggles for the old->new ATTRIBUTION (Phase 9). All off = the V2c spec that
+#: reproduced the frozen artifact 5,874/5,874.
+CONF = {"gdir": None, "calendar": False, "withhold": None, "uct_filter": None}
 _CAL = None
 
 
@@ -58,10 +61,11 @@ def _cal():
 
 def grouped_raw(iso: str, adjusted: bool) -> dict:
     """Provider file verbatim (provider spelling, e.g. BRK.B)."""
-    k = (iso, adjusted)
+    gd = CONF["gdir"] or GROUPED
+    k = (gd, iso, adjusted)
     if k not in _GCACHE:
         try:
-            with open(os.path.join(GROUPED, "%s_%d.json" % (iso, 1 if adjusted else 0))) as f:
+            with open(os.path.join(gd, "%s_%d.json" % (iso, 1 if adjusted else 0))) as f:
                 d = json.load(f)
         except (OSError, ValueError):
             d = {}
@@ -175,8 +179,12 @@ def levels(names: list, D: str, mode: str) -> dict:
         look = [(t.replace(".", "-") if mode.startswith("spec") else t) for t in names]
         cols.append([g.get(k, np.nan) for k in look])
     C = np.ascontiguousarray(np.array(cols, dtype=float).T)   # names x dates, row-contiguous
+    wh = np.zeros(len(names), bool)
+    if CONF["withhold"]:
+        wh = np.array([CONF["withhold"](t, dates[0], D) for t in names], dtype=bool)
+        C[wh, :] = np.nan
     df = pd.DataFrame(C)
-    L = {"names": names, "dates": (dates[0], dates[-1], len(dates))}
+    L = {"names": names, "dates": (dates[0], dates[-1], len(dates)), "withheld": wh}
     L["prev"] = C[:, -1]
     for w in SMA:
         tail = C[:, -(w - 1):]
@@ -304,6 +312,8 @@ def replay(D: str, universes=("uct", "us", "nasdaq", "nyse"), mode: str = "faith
     rth = df[(df["m"] >= 570) & (df["m"] <= last_bar)]
     traded = set(df["ticker"].unique())
     mem = membership(D, traded)
+    if CONF["uct_filter"] and "uct" in mem:
+        mem["uct"] = [t for t in mem["uct"] if CONF["uct_filter"](t, D)]
     union = sorted({t for u in universes for t in mem[u]})
     L = levels(union, D, mode)
     idx = {t: i for i, t in enumerate(union)}
@@ -317,6 +327,9 @@ def replay(D: str, universes=("uct", "us", "nasdaq", "nyse"), mode: str = "faith
         a, r = dashed(adj_D), dashed(raw_D)
         eod = {t: a[t] for t in union if t in a}               # dot names miss here
         factor = {t: a[t] / r[t] for t in union if t in a and t in r}
+    if CONF["withhold"]:
+        whs = {t for t, w in zip(union, L["withheld"]) if w}
+        factor = {t: v for t, v in factor.items() if t not in whs}
     res = {"_geometry": {k: v for k, v in geo.items() if k != "minutes"},
            "_last_bar_used": last_bar, "_union": len(union),
            "_frame": L["dates"], "_sizes": {u: len(mem[u]) for u in universes}}
@@ -332,6 +345,9 @@ def replay(D: str, universes=("uct", "us", "nasdaq", "nyse"), mode: str = "faith
         dfu = df[df["ticker"].isin(set(names))]
         gu = session_geometry(dfu) if per_universe_geometry else geo
         lb = gu["last_bar"] if last_bar_override is None else last_bar_override
+        if CONF["calendar"]:
+            import oracle2
+            lb = oracle2.last_bar(D)
         mins_u = sorted(int(m) for m in dfu["m"].unique() if 570 <= m <= lb)
         colu = {m: j for j, m in enumerate(mins_u)}
         rel = {t: k for k, t in enumerate(names)}
