@@ -901,3 +901,67 @@
 @media (max-width: 1024px) {
   .shelfNav, .chipNav { min-width: var(--tap-min); min-height: var(--tap-min); }
 }
+
+/* ── Manage Categories (Packet U CP1) — one row per category: inline rename,
+   a kind/sort_order/blurb meta editor, and a collapsible video reorder list.
+   Reuses the .manageRow* / .pathsEmptyNote / .shelfAdminBtn language from the
+   Delete-path sheet above rather than inventing a second admin-row style. ── */
+.manageCatList { display: flex; flex-direction: column; }
+.manageCatRow {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 14px 0;
+  border-bottom: 1px solid var(--border);
+}
+.manageCatRow:last-of-type { border-bottom: none; }
+.manageCatRenameRow {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.manageCatRenameRow .input { flex: 1; min-width: 0; }
+.manageCatMergeWarning {
+  font-size: var(--text-sm);
+  color: var(--ut-gold);
+  background: rgba(220, 187, 94, 0.08);
+  border: 1px solid var(--ut-gold-glow);
+  border-radius: var(--radius-md);
+  padding: 8px 10px;
+}
+.manageCatMetaRow {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: 10px;
+}
+.manageCatMetaField {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 110px;
+}
+.manageCatMetaField:last-of-type { flex: 1; min-width: 160px; }
+.manageCatReorderList {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin-top: 4px;
+  padding: 8px;
+  background: var(--bg-surface);
+  border-radius: var(--radius-lg);
+}
+.manageCatReorderRow {
+  padding: 8px 10px;
+  border-radius: var(--radius-md);
+  background: var(--bg-elevated);
+  color: var(--text-bright);
+  font-size: var(--text-sm);
+  cursor: grab;
+  user-select: none;
+}
+.manageCatReorderRow:active { cursor: grabbing; }
+.manageCatReorderBusy {
+  font-size: var(--text-xs);
+  color: var(--text-muted);
+}

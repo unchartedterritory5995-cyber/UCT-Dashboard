@@ -211,6 +211,7 @@ export default function VideosSection() {
   // the slug PathView should open in edit mode (set right after a create).
   const [newPathOpen, setNewPathOpen] = useState(false)
   const [managePathsOpen, setManagePathsOpen] = useState(false)
+  const [manageCategoriesOpen, setManageCategoriesOpen] = useState(false)
   const [editSlug, setEditSlug] = useState(null)
   const progress = useSyncExternalStore(subscribe, getSnapshot, getSnapshot)
 
@@ -305,7 +306,7 @@ export default function VideosSection() {
   // one per route change).
   const searchRef = useRef(null)
   const editingRef = useRef(null)
-  editingRef.current = !!editing || newPathOpen || managePathsOpen
+  editingRef.current = !!editing || newPathOpen || managePathsOpen || manageCategoriesOpen
   useEffect(() => {
     const onSlash = (e) => {
       if (e.key !== '/' || e.ctrlKey || e.metaKey || e.altKey || e.isComposing) return
@@ -753,6 +754,15 @@ export default function VideosSection() {
                 Filters
               </button>
             )}
+            {isAdmin && (
+              <button
+                className={`${s.chip} ${s.filtersBtn}`}
+                onClick={() => setManageCategoriesOpen(true)}
+              >
+                <UIcon name="gear" size={13} gold={false} />
+                Manage Categories
+              </button>
+            )}
           </div>
           {landing && filtersOpen && tags.length > 0 && (
             <div className={s.tagRow} role="group" aria-label="Filter the library by tag">
@@ -1122,6 +1132,14 @@ export default function VideosSection() {
           onDeleted={() => mutatePaths()}
         />
       )}
+
+      {isAdmin && manageCategoriesOpen && (
+        <ManageCategoriesSheet
+          categories={categories}
+          onClose={() => setManageCategoriesOpen(false)}
+          mutateParent={mutate}
+        />
+      )}
     </div>
   )
 }
@@ -1476,5 +1494,347 @@ function DeletePathsSheet({ paths, onClose, onDeleted }) {
         {err && <div className={styles.formErr}>{err}</div>}
       </div>
     </Sheet>
+  )
+}
+
+// Manage Categories — Packet U CP1 (fingerprint 877d092c0). Wires the four
+// already-built, already-tested category-management routes described in
+// docs/terminal-research/12-decisions/gates/packet-u-desk-category-management-wiring-gate.md
+// §4/§6, modeled directly on this file's own NewPathSheet/DeletePathsSheet
+// idiom (Sheet wrapper, local busy/err state, inline error text, a parent
+// mutate() after every write — no new global state). The sheet's own
+// GET /api/education/categories call is the previously-uncalled read route —
+// it supplies the LIST of category names, re-mutate()-d after every write
+// made inside the sheet. Per-category kind/sort_order/blurb/videos come from
+// the parent's already-loaded `categories` prop (the /videos payload already
+// carries all three per category, per its own docstring) — no second,
+// redundant fetch of the same three fields.
+function ManageCategoriesSheet({ categories, onClose, mutateParent }) {
+  const { data, mutate: mutateNames } = useSWR('/api/education/categories', fetcher)
+  const names = data?.categories || []
+  const metaByName = useMemo(
+    () => Object.fromEntries(categories.map((c) => [c.name, c])),
+    [categories],
+  )
+
+  // Rename (wires POST /categories/rename) — optimistic apply to the local
+  // name list, reconciled against server truth on success, whole-list
+  // rollback on failure. Mirrors useChartLayouts.js's renameLayout SHAPE
+  // (optimistic apply → reconcile-with-server-truth → whole-state rollback)
+  // rather than its literal 409 case: rename_category treats a rename onto an
+  // existing name as a MERGE, not a rejection (surfaced to the admin in
+  // CategoryRow's merge-warning copy, never silently).
+  const renameCategory = useCallback(
+    async (oldName, newName) => {
+      const before = data
+      await mutateNames(
+        (cur) => {
+          const list = cur?.categories || []
+          const merging = list.includes(newName)
+          return {
+            categories: merging
+              ? list.filter((n) => n !== oldName)
+              : list.map((n) => (n === oldName ? newName : n)),
+          }
+        },
+        { revalidate: false },
+      )
+      try {
+        const r = await fetch('/api/education/categories/rename', {
+          method: 'POST',
+          credentials: 'include',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ from_name: oldName, to_name: newName }),
+        })
+        if (!r.ok) {
+          const j = await r.json().catch(() => ({}))
+          throw new Error(j.detail || 'Rename failed')
+        }
+        // Reconcile with server truth on both the sheet's own list AND the
+        // parent's /videos payload (chip bar + shelves render server order).
+        await Promise.all([mutateNames(), mutateParent()])
+      } catch (e) {
+        await mutateNames(before, { revalidate: false })
+        throw e
+      }
+    },
+    [data, mutateNames, mutateParent],
+  )
+
+  // Category meta (wires PATCH /categories/{name}) — PATCHes only the fields
+  // the admin actually changed (CategoryRow computes the diff).
+  const patchMeta = useCallback(
+    async (name, patch) => {
+      const r = await fetch(`/api/education/categories/${encodeURIComponent(name)}`, {
+        method: 'PATCH',
+        credentials: 'include',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(patch),
+      })
+      if (!r.ok) {
+        const j = await r.json().catch(() => ({}))
+        throw new Error(j.detail || 'Save failed')
+      }
+      await mutateParent()
+    },
+    [mutateParent],
+  )
+
+  // Per-category video reorder (wires POST /reorder) — the ONE fetch
+  // implementation every row's drag list calls into, so "parent mutate()
+  // after every write" (§4.5) has a single call site.
+  const reorderVideos = useCallback(
+    async (category, orderedIds) => {
+      const r = await fetch('/api/education/reorder', {
+        method: 'POST',
+        credentials: 'include',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ category, ordered_ids: orderedIds }),
+      })
+      if (!r.ok) {
+        const j = await r.json().catch(() => ({}))
+        throw new Error(j.detail || 'Reorder failed')
+      }
+      await mutateParent()
+    },
+    [mutateParent],
+  )
+
+  return (
+    <Sheet open onClose={onClose} variant="auto" title="Manage Categories">
+      <div className={s.manageCatList}>
+        {names.length === 0 && (
+          <div className={s.pathsEmptyNote}>No categories yet.</div>
+        )}
+        {names.map((name) => (
+          <CategoryRow
+            key={name}
+            name={name}
+            meta={metaByName[name]}
+            allNames={names}
+            onRename={renameCategory}
+            onPatchMeta={patchMeta}
+            onReorder={reorderVideos}
+          />
+        ))}
+      </div>
+    </Sheet>
+  )
+}
+
+// One category's admin controls: inline rename (with an explicit merge
+// warning when the typed target already matches an existing OTHER category —
+// rename_category's own already-tested, already-shipped merge behavior,
+// api/services/education_service.py:602-621 — surfaced here, never changed),
+// a kind/sort_order/blurb meta editor, and a collapsible drag-reorder of that
+// category's videos.
+function CategoryRow({ name, meta, allNames, onRename, onPatchMeta, onReorder }) {
+  const [renameValue, setRenameValue] = useState(name)
+  const [renaming, setRenaming] = useState(false)
+  const [renameErr, setRenameErr] = useState('')
+  useEffect(() => setRenameValue(name), [name])
+
+  const [kind, setKind] = useState(meta?.kind || 'library')
+  const [sortOrder, setSortOrder] = useState(meta?.sort_order ?? 0)
+  const [blurb, setBlurb] = useState(meta?.blurb || '')
+  const [metaBusy, setMetaBusy] = useState(false)
+  const [metaErr, setMetaErr] = useState('')
+  useEffect(() => {
+    setKind(meta?.kind || 'library')
+    setSortOrder(meta?.sort_order ?? 0)
+    setBlurb(meta?.blurb || '')
+  }, [meta?.kind, meta?.sort_order, meta?.blurb])
+
+  const [reorderOpen, setReorderOpen] = useState(false)
+
+  const trimmedRename = renameValue.trim()
+  const isMerge =
+    !!trimmedRename && trimmedRename !== name && allNames.includes(trimmedRename)
+
+  const saveRename = async () => {
+    if (!trimmedRename || trimmedRename === name) return
+    setRenaming(true)
+    setRenameErr('')
+    try {
+      await onRename(name, trimmedRename)
+    } catch (e) {
+      setRenameErr(e.message)
+    } finally {
+      setRenaming(false)
+    }
+  }
+
+  const savePatch = async () => {
+    const patch = {}
+    if (kind !== (meta?.kind || 'library')) patch.kind = kind
+    const so = Number(sortOrder)
+    if (Number.isFinite(so) && so !== (meta?.sort_order ?? 0)) patch.sort_order = so
+    const blurbTrim = blurb.trim()
+    if (blurbTrim !== (meta?.blurb || '')) patch.blurb = blurbTrim || null
+    if (Object.keys(patch).length === 0) return
+    setMetaBusy(true)
+    setMetaErr('')
+    try {
+      await onPatchMeta(name, patch)
+    } catch (e) {
+      setMetaErr(e.message)
+    } finally {
+      setMetaBusy(false)
+    }
+  }
+
+  return (
+    <div className={s.manageCatRow}>
+      <div className={s.manageCatRenameRow}>
+        <input
+          className={styles.input}
+          value={renameValue}
+          onChange={(e) => setRenameValue(e.target.value)}
+          aria-label={`Rename ${name}`}
+        />
+        <button
+          className="btn btn-ghost"
+          onClick={saveRename}
+          disabled={renaming || !trimmedRename || trimmedRename === name}
+        >
+          {renaming ? 'Saving…' : 'Save'}
+        </button>
+      </div>
+      {isMerge && (
+        <div className={s.manageCatMergeWarning} role="alert">
+          “{name}” already exists as “{trimmedRename}” — saving MERGES every
+          video from “{name}” into “{trimmedRename}”, and “{name}” stops
+          existing as its own category.
+        </div>
+      )}
+      {renameErr && <div className={styles.formErr}>{renameErr}</div>}
+
+      <div className={s.manageCatMetaRow}>
+        <label className={s.manageCatMetaField}>
+          <span className={styles.label}>Kind</span>
+          <select
+            className={styles.input}
+            value={kind}
+            onChange={(e) => setKind(e.target.value)}
+            aria-label={`Kind for ${name}`}
+          >
+            <option value="show">Show</option>
+            <option value="library">Library</option>
+          </select>
+        </label>
+        <label className={s.manageCatMetaField}>
+          <span className={styles.label}>Sort order</span>
+          <input
+            className={styles.input}
+            type="number"
+            value={sortOrder}
+            onChange={(e) => setSortOrder(e.target.value)}
+            aria-label={`Sort order for ${name}`}
+          />
+        </label>
+        <label className={s.manageCatMetaField}>
+          <span className={styles.label}>Blurb</span>
+          <input
+            className={styles.input}
+            value={blurb}
+            onChange={(e) => setBlurb(e.target.value)}
+            aria-label={`Blurb for ${name}`}
+            placeholder="optional"
+          />
+        </label>
+        <button className="btn btn-ghost" onClick={savePatch} disabled={metaBusy}>
+          {metaBusy ? 'Saving…' : 'Save meta'}
+        </button>
+      </div>
+      {metaErr && <div className={styles.formErr}>{metaErr}</div>}
+
+      <button
+        className={s.shelfAdminBtn}
+        onClick={() => setReorderOpen((o) => !o)}
+        aria-expanded={reorderOpen}
+      >
+        {reorderOpen ? 'Hide videos' : 'Reorder videos'}
+      </button>
+      {reorderOpen && (
+        <CategoryVideoReorder
+          category={name}
+          videos={meta?.videos || []}
+          onReorder={onReorder}
+        />
+      )}
+    </div>
+  )
+}
+
+// Per-category video drag-reorder — the EXACT native-HTML5 four-handler idiom
+// named in Watchlists.jsx's column reorder (app/src/pages/Watchlists.jsx:
+// headerDragProps, :1985-1991): draggable / onDragStart sets a ref /
+// onDragOver prevents default (required for onDrop to fire at all) / onDrop
+// reorders then clears the ref / onDragEnd clears the ref as a safety net.
+// Built from the parent's unfiltered, already-server-sort_order-ordered
+// `categories[i].videos` — never a search- or tag-filtered view (§4.4 / the
+// §5 risk that a filtered subset would silently drop videos out of sequence).
+function CategoryVideoReorder({ category, videos, onReorder }) {
+  const [order, setOrder] = useState(() => videos.map((v) => v.id))
+  const dragIdRef = useRef(null)
+  const [busy, setBusy] = useState(false)
+  const [err, setErr] = useState('')
+
+  // Resync when the parent's video list for this category changes underneath
+  // us (another write landed via mutate() while this panel was open).
+  useEffect(() => setOrder(videos.map((v) => v.id)), [videos])
+
+  const byId = useMemo(
+    () => Object.fromEntries(videos.map((v) => [v.id, v])),
+    [videos],
+  )
+
+  const commit = async (nextOrder) => {
+    setBusy(true)
+    setErr('')
+    try {
+      await onReorder(category, nextOrder)
+    } catch (e) {
+      setErr(e.message)
+      setOrder(videos.map((v) => v.id)) // revert to the last known-good order
+    } finally {
+      setBusy(false)
+    }
+  }
+
+  const moveVideo = (fromId, toId) => {
+    if (fromId == null || fromId === toId) return
+    const next = [...order]
+    const from = next.indexOf(fromId)
+    const to = next.indexOf(toId)
+    if (from < 0 || to < 0) return
+    next.splice(from, 1)
+    next.splice(to, 0, fromId)
+    setOrder(next)
+    commit(next)
+  }
+
+  const dragProps = (id) => ({
+    draggable: true,
+    onDragStart: (e) => { e.dataTransfer.effectAllowed = 'move'; dragIdRef.current = id },
+    onDragOver: (e) => { e.preventDefault() },
+    onDrop: (e) => { e.preventDefault(); moveVideo(dragIdRef.current, id); dragIdRef.current = null },
+    onDragEnd: () => { dragIdRef.current = null },
+  })
+
+  return (
+    <div
+      className={s.manageCatReorderList}
+      role="list"
+      aria-label={`Reorder videos in ${category}`}
+    >
+      {order.map((id) => (
+        <div key={id} role="listitem" className={s.manageCatReorderRow} {...dragProps(id)}>
+          {byId[id]?.title || `#${id}`}
+        </div>
+      ))}
+      {busy && <span className={s.manageCatReorderBusy}>Saving…</span>}
+      {err && <div className={styles.formErr}>{err}</div>}
+    </div>
   )
 }
