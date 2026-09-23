@@ -38,7 +38,7 @@ one paper/doc person. **Exclude** anyone who has helped build or test the produc
   shipped. Do not reuse an account between participants.
 - Have ready: one public article URL with a quotable paragraph, and one public 10-Q PDF (any
   company).
-- Tasks 7–8 need the participant's phone with the site open.
+- Task 9 needs the participant's phone, signed in to the site.
 - Ask permission to record the screen. Recordings are kept **30 days**, then deleted.
   Participants are named P1–P8 in every note and never by name.
 
