@@ -218,4 +218,24 @@ describe('TickerResearchWorkspace — Ask citations', () => {
     fireEvent.click(await within(dialog).findByRole('button', { name: 'Source 1: NVDA thesis' }))
     expect(onOpenNote).toHaveBeenCalledWith({ id: 'n1' })
   })
+
+  it('G-064: offers "Insert into a note…" in "This research"', async () => {
+    const { __resetNotebookFlags, latchNotebookFlags } = await import('../../lib/offline/notebookFlags')
+    __resetNotebookFlags()
+    latchNotebookFlags({ notebook_ask_insert_on: true })
+    renderWorkspace()
+    global.fetch = vi.fn().mockResolvedValue({
+      ok: true, status: 200, json: async () => ({}),
+      body: sseBody([
+        { type: 'sources', scope: 'security', scopeLabel: 'NVDA research', sources: [SOURCE], coverageNotice: null },
+        { type: 'final', answer: 'Margins fell [1].' },
+      ]),
+    })
+    fireEvent.click(screen.getByRole('button', { name: 'Ask a question about this research' }))
+    const dialog = await screen.findByRole('dialog')
+    fireEvent.change(within(dialog).getByRole('textbox'), { target: { value: 'margins?' } })
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Ask' }))
+    expect(await within(dialog).findByRole('button', { name: 'Insert into a note…' })).toBeInTheDocument()
+    __resetNotebookFlags()
+  })
 })

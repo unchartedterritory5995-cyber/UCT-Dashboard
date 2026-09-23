@@ -44,6 +44,8 @@ import WidgetPalette from './WidgetPalette'
 import { sharedNoteUrl } from '../../lib/noteShareLink'
 import AskPanel from './AskPanel'
 import { PRECISE_STATES } from '../../lib/askCitation'
+import { appendAskInsert } from '../../lib/askInsert'
+import usePendingAskInsert from '../../hooks/usePendingAskInsert'
 import NoteFindBar from './NoteFindBar'
 import NoteHistoryPanel from './NoteHistoryPanel'
 import NoteBacklinksSection from './NoteBacklinksSection'
@@ -638,6 +640,9 @@ export default function NoteEditorPage({ noteId, onBack, showBack = true, onTitl
   // local copies could be ordered at all. ⛔ An ambiguous answer is SAID so,
   // not smoothed over: the member is the only one who can settle it.
   const [recovery, setRecovery] = useState(null)
+  // G-064: the draft-recovery decision below is ASYNC. A pending Ask insert
+  // must wait for it: a restore's setContent would erase the inserted answer.
+  const [recoveryDecided, setRecoveryDecided] = useState(false)
   // Re-entrancy guard for restoreDraft (see its own comment) — a plain ref,
   // not state, since it must be checked synchronously before any render.
   const restoringDraftRef = useRef(false)
@@ -670,6 +675,7 @@ export default function NoteEditorPage({ noteId, onBack, showBack = true, onTitl
 
   useEffect(() => {
     if (!note) return undefined
+    setRecoveryDecided(false)
     setTitle(note.title || '')
     titleRef.current = note.title || ''
     setSubtitle(note.subtitle || '')
@@ -711,6 +717,7 @@ export default function NoteEditorPage({ noteId, onBack, showBack = true, onTitl
       if (decision && decision.unsynced) {
         setPendingDraft({ ...decision.state, savedAt: lsDraft?.savedAt ?? null })
         setRecovery(decision)
+        setRecoveryDecided(true)
         return
       }
       // Nothing local differs from the server: it saved fine (or was never
@@ -718,6 +725,7 @@ export default function NoteEditorPage({ noteId, onBack, showBack = true, onTitl
       if (raw) { try { localStorage.removeItem(DRAFT_KEY(note.id)) } catch { /* private mode */ } }
       setPendingDraft(null)
       setRecovery(null)
+      setRecoveryDecided(true)
     }
     decide()
     return () => { cancelled = true }
@@ -1419,6 +1427,27 @@ export default function NoteEditorPage({ noteId, onBack, showBack = true, onTitl
     hydratedRef.current = Boolean(editor && !editor.isDestroyed && note)
   }, [note?.id, editor, note])
 
+  // G-064 — insert an Ask Notebook answer into THIS note: an editor transaction
+  // on the normal autosave path (spec §5.2). No endpoint, no settle, no door.
+  const insertAskAnswer = useCallback((node) => {
+    const ok = appendAskInsert(editorRef.current, node)
+    if (ok) setUploadToast({ message: 'Answer inserted at the end of this note.', tone: 'success' })
+    return ok
+  }, [])
+
+  // G-064 — an answer picked for this note on another page (spec §5.2).
+  // ⛔ DECLARED AFTER the hydratedRef arming effect above: effects run in
+  // declaration order, and inserting before hydration is the "document changed
+  // without a person" class that effect exists to refuse.
+  usePendingAskInsert({
+    noteId,
+    editor,
+    ready: recoveryDecided && !pendingDraft && hydratedRef.current,
+    onResult: (ok) => setUploadToast(ok
+      ? { message: 'Answer inserted at the end of this note.', tone: 'success' }
+      : { message: "This note can't take changes right now, so the answer wasn't inserted. Ask again to get it back.", tone: 'error' }),
+  })
+
   // A15 conflict reconcile: pull the fresh note, merge in any block the SERVER
   // appended that the local doc lacks, then advance the baseline so the
   // caller's retry wins cleanly.
@@ -1893,6 +1922,7 @@ export default function NoteEditorPage({ noteId, onBack, showBack = true, onTitl
         onSaveExcerpt={handleSaveExcerpt}
         emphasizeExcerptId={previewDoc?.emphasizeExcerptId}
         documentId={previewDoc?.documentId}
+        onInsert={editor && editor.isEditable ? insertAskAnswer : null}
       />
       <CapturedSourceSheet
         open={!!capturedSource}
@@ -2008,6 +2038,7 @@ export default function NoteEditorPage({ noteId, onBack, showBack = true, onTitl
                against. */
             getEditorDoc={() => editorRef.current?.state?.doc}
             onNavigate={jumpToCitation}
+            onInsert={editor && editor.isEditable ? insertAskAnswer : null}
           />
           {/*
             ⛔ FIND HAD NO VISIBLE ENTRY POINT -- Cmd/Ctrl+F was the ONLY door

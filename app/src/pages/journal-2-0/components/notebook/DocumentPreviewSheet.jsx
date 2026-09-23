@@ -24,6 +24,10 @@ export default function DocumentPreviewSheet({
   open, href, name, page, onClose,
   excerpts = [], onSaveExcerpt, emphasizeExcerptId,
   documentId = null,
+  // G-064: inside a note, `onInsert` puts an answer into that note; in the
+  // research workspace, `onOpenNote` enables the picker (spec §3.2-3.3).
+  onInsert = null,
+  onOpenNote = null,
 }) {
   // Wave P5 — `bodyClassName` makes the sheet's body a flex column that does
   // not scroll, so the viewer below can size to the space that is LEFT and
@@ -65,6 +69,8 @@ export default function DocumentPreviewSheet({
                 const p = source?.navigation?.page_number
                 if (p) viewerRef.current?.scrollToPage?.(p)
               }}
+              onInsert={onInsert}
+              onOpenNote={onOpenNote}
             />
           )}
         </div>

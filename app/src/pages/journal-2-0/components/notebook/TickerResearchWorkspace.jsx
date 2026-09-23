@@ -147,6 +147,7 @@ export default function TickerResearchWorkspace({ symbol, onOpenNote, showBackLi
               `onNavigate`, into this workspace's own `openNote` (which falls
               back to the router when no host handler was passed). */}
           <AskPanel scope="security" target={identity.symbol}
+                    onOpenNote={openNote}
                     onNavigate={(s) => {
                       const id = s?.navigation?.note_id
                       if (id) openNote({ id })
@@ -276,6 +277,7 @@ export default function TickerResearchWorkspace({ symbol, onOpenNote, showBackLi
         name={previewDoc?.name}
         onClose={() => setPreviewDoc(null)}
         documentId={previewDoc?.documentId}
+        onOpenNote={openNote}
       />
     </div>
   )

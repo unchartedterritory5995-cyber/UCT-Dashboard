@@ -128,7 +128,7 @@ export default function ResearchHome({ onOpenNote, onCreateNote, onCreateThesis,
           answers "what was I working on, and where do I resume?" -- Ask is
           one affordance on that page, not the page. */}
       <div className={styles.askRow}>
-        <AskPanel scope="notebook" onNavigate={(s) => {
+        <AskPanel scope="notebook" onOpenNote={openNote} onNavigate={(s) => {
           const id = s?.navigation?.note_id
           if (id) openNote({ id })
         }} />
