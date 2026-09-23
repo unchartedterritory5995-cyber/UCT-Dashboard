@@ -66,6 +66,12 @@ AUDIT_DIR = os.path.join(DATA_DIR, "_audit")
 # V2's would either park instantly on its DONE marker or overwrite the forensic
 # evidence that the corrected run exists to be compared against.
 RUN_ID = os.environ.get("BREADTH_V2_RUN_ID", "v2c")
+#: ⭐ WHICH PASS THIS RUNNER DRIVES. `v2c` is the frozen corrected V2 (pinned below — on a
+#: branch whose breadth modules have moved on, its preflight REFUSES, as it must). `v2c2` is
+#: the corrected specification: its own preflight (`breadth_corrected_pass.preflight`: pins
+#: file, input manifests, single vintage, cache freshness) and its own `main`.
+PASS = os.environ.get("BREADTH_V2_PASS", "v2c")
+V2C2_INPUTS = os.environ.get("BREADTH_V2C2_INPUTS", "")
 ARTIFACT = os.environ.get("BREADTH_V2_ARTIFACT",
                           os.path.join(AUDIT_DIR, "breadth_replacement_v2_corrected.db"))
 LOCK_PATH = os.path.join(AUDIT_DIR, "%s_runner.lock" % RUN_ID)
@@ -334,6 +340,17 @@ def _park(state: str, started: str, boots: int, extra: dict) -> int:
 # ---------------------------------------------------------------- preflight
 
 def preflight() -> dict:
+    """Dispatch to the pass this runner drives (see PASS)."""
+    if PASS == "v2c2":
+        from api.services import breadth_corrected_pass as cp2
+        r = cp2.preflight(V2C2_INPUTS)
+        out = {"pass": "v2c2", "problems": r["problems"]}
+        out.update({k: v for k, v in r["checks"].items() if k != "pins"})
+        return out
+    return preflight_v2c()
+
+
+def preflight_v2c() -> dict:
     """Prove the environment before a multi-day run, and refuse rather than drift.
 
     ⛔⛔ THE ONE THAT MATTERS: this service must never be able to write production.
@@ -462,7 +479,7 @@ def main(argv=None) -> int:
         return _park("failed", started, boots, {"failure": "preflight",
                                                 "problems": checks["problems"]})
 
-    if not ensure_bars_db():
+    if PASS != "v2c2" and not ensure_bars_db():   # V2c2 never opens bars.db
         # Not a data failure — the level source simply is not here yet. Let the
         # infrastructure restart us and try again rather than burning the FAILED marker.
         _log("bars.db unavailable; exiting non-zero so the platform retries")
@@ -487,7 +504,11 @@ def main(argv=None) -> int:
         while True:
             try:
                 _log("starting canonical pass (attempt %d this process)" % (attempt + 1))
-                rc = cp.main(["--artifact", ARTIFACT])
+                if PASS == "v2c2":
+                    from api.services import breadth_corrected_pass as cp2
+                    rc = cp2.main(["--artifact", ARTIFACT, "--inputs", V2C2_INPUTS])
+                else:
+                    rc = cp.main(["--artifact", ARTIFACT])
                 _log("canonical pass returned rc=%r" % (rc,))
                 prog = _read_progress()
                 if (prog.get("failed") or 0) > 0:

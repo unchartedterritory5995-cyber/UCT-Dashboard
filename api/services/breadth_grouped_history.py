@@ -179,6 +179,20 @@ def closes_for(iso: str) -> dict:
     return {_MASTER[int(i)]: float(v) for i, v in zip(idx, val)}
 
 
+_RAW_LRU: dict = {}
+
+
+def raw_close(iso: str, t: str):
+    """One provider RAW close (canonical spelling), with a small per-session LRU."""
+    e = _RAW_LRU.get(iso)
+    if e is None:
+        e = raw_closes_for(iso)
+        _RAW_LRU[iso] = e
+        while len(_RAW_LRU) > 12:
+            _RAW_LRU.pop(next(iter(_RAW_LRU)))
+    return e.get(t)
+
+
 def raw_closes_for(iso: str) -> dict:
     """{ticker: provider RAW (as-traded) close} for one session, canonical spelling, from
     the SAME vintage directory as the adjusted closes."""
@@ -242,7 +256,7 @@ def _row_map(rows: list, size: int) -> np.ndarray:
 
 
 def levels_for_day(tickers: list, day_iso: str, n: int = FRAME_SESSIONS,
-                   withhold: frozenset = frozenset()):
+                   withhold: frozenset = frozenset(), dividend_basis=None):
     """Canonical levels for `day_iso`, built from grouped history. None if too short.
 
     ⛔⛔ IT CALLS THE CANONICAL BUILDER. `breadth_live.build_levels` is the one
@@ -272,6 +286,10 @@ def levels_for_day(tickers: list, day_iso: str, n: int = FRAME_SESSIONS,
         sel = m2r[idx]
         keep = sel >= 0
         closes[sel[keep], j] = val[keep]
+    # ⭐ F4 — the DIVIDEND-ADJUSTED basis (breadth_dividend_basis): the split-adjusted frame
+    # times the in-frame dividend factors; the last bar (D−1) stays unadjusted.
+    if dividend_basis is not None:
+        closes = closes * dividend_basis.factors(rows, dates)
     # ⛔ ADJUSTED-SERIES GUARD: a name whose frame straddles a non-REAL basis boundary gets
     # NO levels — it is counted, never compared (see breadth_adjusted_guard).
     if withhold:

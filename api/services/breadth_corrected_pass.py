@@ -32,7 +32,7 @@ from api.services.breadth_combined_pass import (ArtifactRefused, BODY_SOURCE, PA
                                                  NOT_MEMBER_INDEPENDENT, _checkpoint, _meta,
                                                  completed, open_artifact)
 
-METHODOLOGY = "rth-1m-composites-v2c2"
+METHODOLOGY = "rth-1m-composites-v2c2-div"
 UNIVERSES = ("uct", "uct_backtest", "us", "nasdaq", "nyse")
 PIT_UNIVERSES = ("us", "nasdaq", "nyse")
 #: Research universes: stored in an artifact, NEVER in `breadth_universes.UNIVERSES` (which
@@ -87,7 +87,8 @@ class Inputs:
             "vintage_manifest": "grouped_vintage_manifest.json",
             "splits": "splits_ledger.json",
             "pit_uct": "pit_uct_ledger.json",
-            "identity": "uct_identity_table_v3.json"}.items()}
+            "identity": "uct_identity_table_v3.json",
+            "dividends": "dividends_ledger.json"}.items()}
         for k, p in self.paths.items():
             if not os.path.exists(p):
                 raise ArtifactRefused(f"missing input {k}: {p}")
@@ -103,6 +104,14 @@ class Inputs:
             gh.grouped_dir(), self.paths["vintage_manifest"], self.paths["splits"],
             gh.session_calendar(), bt.canon, os.path.join(inputs_dir, "adjusted_guard_table.json"))
         self.guard_key = gt["input_key"]
+        from api.services import breadth_dividend_basis as bdb
+        cal = gh.session_calendar()
+        self.last_session = cal[-1]
+        self.divbasis, dt_ = bdb.load_or_build(
+            self.paths["dividends"], cal, gh.raw_close, bt.canon,
+            os.path.join(inputs_dir, "dividend_basis_table.json"), cal[-1])
+        self.dividend_key = dt_["input_key"]
+        self.dividend_counts = dt_["counts"]
         self.fingerprints = {k: _sha(p) for k, p in self.paths.items()}
 
     def pit_members(self, D: str):
@@ -182,6 +191,10 @@ def run(artifact: str, dates: list, universes: tuple = UNIVERSES, inputs_dir: st
           body_source=BODY_SOURCE, path_source=PATH_SOURCE,
           ticker_seam="breadth_ticker.canon (provider spelling; '-'→'.')",
           ema="pandas ewm(alpha=2/21, adjust=False, ignore_na=False)",
+          price_basis="dividend-adjusted (breadth_dividend_basis %s): split-adjusted provider close x "
+                      "prod(1 - cash/raw_prev_close) over in-frame ex-sessions; last bar unadjusted"
+                      % inp.divbasis.version,
+          dividend_input_key=inp.dividend_key, dividend_counts=json.dumps(inp.dividend_counts),
           guard_version=inp.guard.version, guard_input_key=inp.guard_key,
           identity_rule=inp.identity.rule, pit_uct_live_from=inp.pit_from,
           grouped_dir=gh.grouped_dir(), grouped_vintage_window=json.dumps(inp.vintage_window),
@@ -217,8 +230,9 @@ def run(artifact: str, dates: list, universes: tuple = UNIVERSES, inputs_dir: st
             unis = resolve_universes(D, set(per_all), inp, ref_map, universes)
             union = sorted({t for v in unis.values() for t in v})
             frame = gh.frame_dates(D)
-            withhold = frozenset(inp.guard.withheld_set(union, frame[0], D)) if frame else frozenset()
-            levels = gh.levels_for_day(union, D, withhold=withhold)
+            withhold = frozenset(t for t in union if frame and (
+                inp.guard.withheld(t, frame[0], D) or inp.divbasis.withheld_in(t, frame[0], D)))
+            levels = gh.levels_for_day(union, D, withhold=withhold, dividend_basis=inp.divbasis)
             if levels is None:
                 _checkpoint(c, D, "missing_source", detail="no levels (grouped history shorter than the frame)")
                 stats["missing_source"] += 1
@@ -293,3 +307,145 @@ def run(artifact: str, dates: list, universes: tuple = UNIVERSES, inputs_dir: st
     c.commit()
     c.close()
     return stats
+
+
+# ── Launcher: preflight + main (the V2c2 grind; NOT launched by this module) ─────────
+PINS_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)), "breadth_v2c2_pins.json")
+PINNED_MODULES = ("breadth_corrected_pass.py", "breadth_combined_pass.py", "breadth_wick_recon.py",
+                  "breadth_grouped_history.py", "breadth_live.py", "breadth_ticker.py",
+                  "breadth_calendar.py", "breadth_adjusted_guard.py", "breadth_identity.py",
+                  "breadth_dividend_basis.py", "breadth_metrics.py", "breadth_universes.py",
+                  "breadth_session.py", "breadth_pit_frame.py")
+CANONICAL_UCT_START = "2026-03-23"
+PRODUCTION_WRITING_FLAGS = ("BREADTH_COMBINED_PASS_ENABLED", "BREADTH_HISTORY_BACKFILL_ENABLED",
+                            "BREADTH_WICKS_ENABLED", "BREADTH_OHLC_REMOTE")
+
+
+def registry_digests() -> dict:
+    from api.services import breadth_metrics as bm
+    from api.services import breadth_universes as bu
+    ser = lambda o: hashlib.sha256(json.dumps(o, sort_keys=True, default=str).encode()).hexdigest()
+    return {"metrics": ser(bm.METRICS), "universes": ser({k: {kk: sorted(vv) if isinstance(vv, frozenset) else vv
+                                                              for kk, vv in v.items()} for k, v in bu.UNIVERSES.items()})}
+
+
+def current_pins() -> dict:
+    from api.services import breadth_adjusted_guard as bag
+    from api.services import breadth_dividend_basis as bdb
+    from api.services import breadth_identity as bi
+    digests = _code_digests()
+    return {"methodology": METHODOLOGY, "guard_version": bag.GUARD_VERSION,
+            "dividend_basis_version": bdb.DIVIDEND_BASIS_VERSION, "identity_rule": bi.IDENTITY_RULE,
+            "canonical_uct_start": CANONICAL_UCT_START,
+            "modules_md5_lf": {m: digests.get(m) for m in PINNED_MODULES},
+            "registries": registry_digests()}
+
+
+def _next_open_after(ts_utc: str) -> str:
+    """The first regular-session open (09:30 ET) strictly after an ISO UTC timestamp."""
+    import datetime as dt
+    from zoneinfo import ZoneInfo
+    from api.services import breadth_calendar as bcal
+    t = dt.datetime.fromisoformat(ts_utc.replace("Z", "+00:00"))
+    et = ZoneInfo("America/New_York")
+    d = t.astimezone(et).date()
+    for _ in range(15):
+        if bcal.is_trading_day(d.isoformat()):
+            o = dt.datetime(d.year, d.month, d.day, 9, 30, tzinfo=et)
+            if o > t:
+                return o.astimezone(dt.timezone.utc).isoformat()
+        d += dt.timedelta(days=1)
+    raise RuntimeError("no session open found")
+
+
+def preflight(inputs_dir: str, now_utc: str = None, verify_files: bool = True) -> dict:
+    """Refuse rather than drift. Returns {"checks": ..., "problems": [...]}."""
+    import datetime as dt
+    from api.services import breadth_grouped_history as gh
+    from api.services import breadth_universes as bu
+    checks, problems = {}, []
+    for v in PRODUCTION_WRITING_FLAGS:
+        checks[v] = os.environ.get(v)
+        if str(checks[v] or "0") != "0":
+            problems.append("%s must be 0 — it can write production" % v)
+    cur = current_pins()
+    checks["pins"] = cur
+    if not os.path.exists(PINS_PATH):
+        problems.append("no pins file (%s): re-pin only after the bounded gate passes" % PINS_PATH)
+    else:
+        want = json.load(open(PINS_PATH))
+        for k in ("methodology", "guard_version", "dividend_basis_version", "identity_rule",
+                  "canonical_uct_start", "registries"):
+            if want.get(k) != cur.get(k):
+                problems.append("pin mismatch %s: %r != %r" % (k, cur.get(k), want.get(k)))
+        for m, d in (want.get("modules_md5_lf") or {}).items():
+            if cur["modules_md5_lf"].get(m) != d:
+                problems.append("module digest mismatch %s: %s != %s" % (m, cur["modules_md5_lf"].get(m), d))
+    for r in RESEARCH_UNIVERSES:
+        if r in bu.UNIVERSES:
+            problems.append("research universe %s is in the production registry" % r)
+    man_path = os.path.join(inputs_dir, "INPUT_MANIFEST.json")
+    if not os.path.exists(man_path):
+        problems.append("no INPUT_MANIFEST.json in %s" % inputs_dir)
+        return {"checks": checks, "problems": problems}
+    man = json.load(open(man_path))
+    checks["input_manifest"] = {k: man[k] for k in ("tag", "last_session", "acquisition_window", "grouped_fetch_window")}
+    for f, h in man["objects_sha256"].items():
+        p = os.path.join(inputs_dir, f)
+        if f == "INPUT_MANIFEST.json":
+            continue
+        if not os.path.exists(p) or _sha(p) != h:
+            problems.append("input object changed or missing: %s" % f)
+    if os.path.abspath(man["grouped_dir"]) != os.path.abspath(gh.grouped_dir()):
+        problems.append("BREADTH_GROUPED_DIR %s is not the manifest's %s" % (gh.grouped_dir(), man["grouped_dir"]))
+    gm = json.load(open(os.path.join(inputs_dir, "grouped_vintage_manifest.json")))
+    if verify_files:
+        bad = [k for k, v in gm["manifest"].items()
+               if _sha(os.path.join(gm["dir"], k + ".json")) != v["sha256"]]
+        checks["grouped_files_verified"] = len(gm["manifest"]) - len(bad)
+        if bad:
+            problems.append("%d grouped files differ from the manifest (e.g. %s)" % (len(bad), bad[:3]))
+    w0, w1 = gm["fetch_window"]
+    if _next_open_after(w0) < w1.replace("Z", "+00:00"):
+        problems.append("the grouped fetch window %s..%s spans a session open — not one vintage" % (w0, w1))
+    now = now_utc or dt.datetime.now(dt.timezone.utc).isoformat()
+    nxt = _next_open_after(w1)
+    checks["cache_valid_until"] = nxt
+    if now >= nxt:
+        problems.append("STALE grouped cache: a session opened at %s after the fetch; refetch in one window" % nxt)
+    pit = json.load(open(os.path.join(inputs_dir, "pit_uct_ledger.json")))
+    if pit.get("live_from") != CANONICAL_UCT_START:
+        problems.append("PIT UCT ledger live_from %r != %s" % (pit.get("live_from"), CANONICAL_UCT_START))
+    return {"checks": checks, "problems": problems}
+
+
+def main(argv=None) -> int:
+    import argparse
+    import datetime as dt
+    import logging
+    import sys
+    ap = argparse.ArgumentParser(prog="breadth_corrected_pass")
+    ap.add_argument("--artifact", required=True)
+    ap.add_argument("--inputs", default=os.environ.get("BREADTH_V2C2_INPUTS"))
+    ap.add_argument("--from", dest="frm", default="2008-01-02")
+    ap.add_argument("--to", default=None)
+    a = ap.parse_args(argv)
+    logging.basicConfig(level=logging.INFO, stream=sys.stdout, format="%(asctime)s %(message)s")
+    pf = preflight(a.inputs)
+    if pf["problems"]:
+        for p in pf["problems"]:
+            print("PREFLIGHT REFUSED:", p, flush=True)
+        raise ArtifactRefused("preflight: %d problem(s)" % len(pf["problems"]))
+    man = json.load(open(os.path.join(a.inputs, "INPUT_MANIFEST.json")))
+    to = a.to or man["last_session"]
+    d, days = dt.date.fromisoformat(a.frm), []
+    while d.isoformat() <= to:
+        if d.weekday() < 5:
+            days.append(d.isoformat())
+        d += dt.timedelta(days=1)
+    t0 = time.time()
+    print("V2c2 PASS %s..%s (%d weekdays)" % (a.frm, to, len(days)), flush=True)
+    res = run(a.artifact, days, UNIVERSES, a.inputs, progress_every=25)
+    print("V2c2 RESULT %s" % json.dumps(res), flush=True)
+    print("PASS COMPLETE in %.1f h" % ((time.time() - t0) / 3600), flush=True)
+    return 0 if res.get("failed", 0) == 0 else 2

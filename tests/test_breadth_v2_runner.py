@@ -110,7 +110,12 @@ def test_supervisor_preflight_refuses_a_production_writing_environment(monkeypat
                 "BREADTH_WICKS_ENABLED", "BREADTH_OHLC_REMOTE"):
         monkeypatch.setenv(var, "0")
     monkeypatch.delenv("BREADTH_DIVIDEND_BASIS", raising=False)
-    assert sup.preflight()["problems"] == []
+    # On the V2c2 branch the frozen V2c build's modules have moved on, so its preflight
+    # already refuses on digests; what this pins is that NO production-writing flag
+    # problem is reported while every flag is 0, and each one IS reported when armed.
+    assert not any(v in p for p in sup.preflight()["problems"]
+                   for v in ("BREADTH_HISTORY_BACKFILL_ENABLED", "BREADTH_WICKS_ENABLED",
+                             "BREADTH_OHLC_REMOTE", "BREADTH_COMBINED_PASS_ENABLED"))
 
     for var, why in (("BREADTH_HISTORY_BACKFILL_ENABLED", "upload"),
                      ("BREADTH_WICKS_ENABLED", "sweep"),
@@ -225,9 +230,11 @@ def test_the_build_pin_survives_a_line_ending(tmp_path):
     assert sup._md5(str(lf)) == sup._md5(str(crlf))
 
 
-def test_preflight_pins_both_breadth_modules(monkeypatch):
-    """⛔ The pass must be the accepted build EXACTLY, and wick_recon must be the
-    accepted build plus the proved index fix — nothing else."""
+def test_the_frozen_v2c_build_cannot_be_launched_from_the_v2c2_branch(monkeypatch):
+    """⛔ SUPERSEDED PIN, KEPT AS A REFUSAL. The V2c pins describe the frozen corrected V2
+    (`ad8c157f…`). On the V2c2 branch `breadth_wick_recon` and `breadth_grouped_history`
+    have changed on purpose, so `BREADTH_V2_PASS=v2c` must REFUSE rather than run a pass
+    that is neither the frozen build nor the corrected specification."""
     from api.services import breadth_v2_supervisor as sup
     from api.services import breadth_combined_pass as cp
 
@@ -236,13 +243,11 @@ def test_preflight_pins_both_breadth_modules(monkeypatch):
         monkeypatch.setenv(var, "0")
     monkeypatch.delenv("BREADTH_DIVIDEND_BASIS", raising=False)
 
-    checks = sup.preflight()
-    assert checks["combined_md5"] == sup.PINNED_COMBINED_MD5
-    assert checks["wick_recon_md5"] == sup.PINNED_WICK_RECON_MD5
-    assert checks["problems"] == []
-
-    monkeypatch.setattr(sup, "PINNED_WICK_RECON_MD5", "0" * 32)
-    assert any("breadth_wick_recon.py" in p for p in sup.preflight()["problems"])
+    checks = sup.preflight_v2c()
+    assert checks["combined_md5"] == sup.PINNED_COMBINED_MD5          # the old pass itself is untouched
+    assert checks["wick_recon_md5"] != sup.PINNED_WICK_RECON_MD5
+    assert any("breadth_wick_recon.py" in p for p in checks["problems"])
+    assert any("breadth_grouped_history.py" in p for p in checks["problems"])
 
 
 def test_hold_gate_blocks_the_pass_without_becoming_a_failure(tmp_path, monkeypatch):
