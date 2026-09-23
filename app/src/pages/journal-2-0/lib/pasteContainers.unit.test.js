@@ -29,6 +29,20 @@ describe('unwrapOpenContainers', () => {
     expect(buildExtensions().map((e) => e.name)).toContain('pasteContainers')
   })
 
+  it('handles a paste after Link and BEFORE the table and VS Code code-block handlers (the order is load-bearing)', () => {
+    const el = document.createElement('div'); document.body.appendChild(el)
+    editor = new Editor({ element: el, extensions: buildExtensions(), content: { type: 'doc', content: [P('x')] } })
+    // The order ProseMirror asks plugins for handlePaste is their order in
+    // state.plugins. A PluginKey reads "name$" (or "name$N" for a repeat).
+    const order = editor.state.plugins.filter((p) => p.props.handlePaste).map((p) => p.key.replace(/\$\d*$/, ''))
+    // Non-vacuity: every handler this rail orders against is really there.
+    for (const k of ['handlePasteLink', 'pasteContainers', 'selectingCells', 'codeBlockVSCodeHandler']) expect(order).toContain(k)
+    const at = (k) => order.indexOf(k)
+    expect(at('pasteContainers')).toBeGreaterThan(at('handlePasteLink'))
+    expect(at('pasteContainers')).toBeLessThan(at('selectingCells'))
+    expect(at('pasteContainers')).toBeLessThan(at('codeBlockVSCodeHandler'))
+  })
+
   it('every slice of a nested doc comes back well-formed, with no container open on either edge spine', () => {
     const el = document.createElement('div'); document.body.appendChild(el)
     editor = new Editor({ element: el, extensions: buildExtensions(), content: { type: 'doc', content: NESTED } })

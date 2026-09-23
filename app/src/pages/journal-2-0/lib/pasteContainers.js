@@ -1,11 +1,16 @@
 import { Extension } from '@tiptap/core'
-import { Plugin, PluginKey } from '@tiptap/pm/state'
+import { Plugin, PluginKey, Selection, TextSelection } from '@tiptap/pm/state'
 import { Fragment, Slice } from '@tiptap/pm/model'
 
 /**
- * Paste/copy normalisation for the Notebook's three `defining` containers —
- * askInsert, callout, toggle. ONE helper, ONE plugin, both edges, the whole
- * open spine (see unwrapOpenContainers below).
+ * Paste/copy normalisation for the Notebook's own three container nodes —
+ * askInsert, callout, toggle: the three `defining` CONTAINERS this plugin
+ * unwraps. They are not the only `defining` nodes in the roster: blockquote,
+ * heading, codeBlock and the list items declare `defining` too (their upstream
+ * TipTap extensions), and are deliberately NOT unwrapped -- they keep
+ * ProseMirror's own wrap-on-paste behaviour. ONE helper, ONE plugin, both
+ * edges, the whole open spine (see unwrapOpenContainers below). The same
+ * plugin also owns pastes into a toggle's one-line title (pasteIntoSummary).
  *
  * The rule (G-064's I4 rule, first written for askInsert alone, generalised):
  * a container that is OPEN at an edge of a copied or pasted slice was only
@@ -151,47 +156,130 @@ function mergesInline(slice) {
   }
 }
 
-// A toggle's summary is its one-line title (`toggleSummary` is `inline*`). A
-// paste into it that is anything but inline content -- two lines of plain
-// text, several paragraphs, a list, a whole block -- made the Fitter close the
-// summary mid-paste and split the toggle in two around the pasted blocks
-// (measured: plain two-line text left `toggle(summary "plain words", empty
-// body)`, `paragraph("second lineSummary line")`, `toggle(empty summary,
-// original body)`). Such a paste lands as its TEXT, one line, blocks joined by
-// a single space. A single-line paste (mergesInline) is left to ProseMirror,
-// which keeps its marks. A slice of nothing but empty lines is taken as a
-// no-op; one with no text but real content (an image, a rule) is left to
-// ProseMirror: a title cannot hold it, and dropping it would lose it silently.
+// Rule 1's content: every textblock's INLINE content, joined with one space
+// between blocks. Marks and inline atoms (a note link, a citation chip) travel
+// as they are; a hard break, and a newline inside a code block, become a space,
+// because a title is one line. An empty block contributes nothing, so a slice
+// of nothing but empty lines comes back empty.
+function joinedInline(slice, schema) {
+  const out = []
+  slice.content.forEach((block) => {
+    const line = []
+    block.forEach((child) => {
+      if (child.isText) {
+        const text = child.text.replace(/[\r\n]+/g, ' ')
+        line.push(text === child.text ? child : schema.text(text, child.marks))
+      } else if (child.type === schema.linebreakReplacement || child.type.name === 'hardBreak') {
+        line.push(schema.text(' '))
+      } else {
+        line.push(child)
+      }
+    })
+    if (!line.length) return
+    if (out.length) out.push(schema.text(' '))
+    out.push(...line)
+  })
+  return Fragment.fromArray(out)
+}
+
+const pasteMeta = (tr) => tr.scrollIntoView().setMeta('paste', true).setMeta('uiEvent', 'paste')
+
+// Rules 2 and 3: the whole slice as blocks at `at` -- a position just outside
+// the toggle -- in ONE transaction (one undo step), with a selection inside the
+// title deleted as any paste replaces it and the caret left at the end of what
+// was inserted. The slice is tried CLOSED first (exactly the nodes that were
+// copied, a list keeping its nesting), then as it came, letting ProseMirror's
+// Fitter close whatever a cut left invalid; each result must pass `check()`.
+// If neither places, false: the belt and ProseMirror get the paste.
+function pasteBlocks(view, slice, at) {
+  const { state } = view
+  const { from, to, empty } = state.selection
+  for (const candidate of [new Slice(slice.content, 0, 0), slice]) {
+    try {
+      const tr = state.tr
+      if (!empty) tr.delete(from, to)
+      const pos = tr.mapping.map(at)
+      const size = tr.doc.content.size
+      tr.replace(pos, pos, candidate)
+      tr.doc.check()
+      const end = pos + (tr.doc.content.size - size)
+      tr.setSelection(Selection.near(tr.doc.resolve(end), -1))
+      view.dispatch(pasteMeta(tr))
+      return true
+    } catch {
+      // try the next shape
+    }
+  }
+  return false
+}
+
+// A toggle's summary is its one-line title (`toggleSummary` is `inline*`), so
+// it cannot hold a block. Before this path a multi-block paste made the Fitter
+// close the summary mid-paste and split the toggle in two (measured: plain
+// two-line text left `toggle(summary "plain words", empty body)`,
+// `paragraph("second lineSummary line")`, `toggle(empty summary, original
+// body)`). The ruling (fix round 1), in the order it is applied:
+//  4. An inline paste -- inline content, or ONE textblock open at both ends
+//     (a word from a paragraph, a list item, a body; mergesInline) -- is
+//     ProseMirror's own and keeps its marks: returned false, untouched.
+//  3. Caret at the START of a non-empty title (empty selection, offset 0):
+//     every other slice goes in as blocks immediately BEFORE the toggle, where
+//     ProseMirror used to put it; now explicit.
+//  1. TEXT-ONLY (every top-level node is a textblock -- paragraph, heading,
+//     code block): the blocks' inline content joins into the title at the
+//     selection (joinedInline). Nothing but empty lines is a no-op: the title
+//     has nowhere to put them and nothing is lost.
+//  2. STRUCTURE (anything else -- a block atom such as a file chip, an image, a
+//     rule, a chart; a closed callout, toggle or Ask answer; a list, table,
+//     blockquote or task list): never flattened, never dropped, the toggle
+//     never split. The whole slice goes in as blocks immediately AFTER the
+//     toggle, visible even when it is collapsed. A whole Ask answer keeps its
+//     wrapper, attrs and chips -- the I4 closed-block rule above.
+// Ranges that start or end OUTSIDE the title (sameParent false) are left to
+// ProseMirror, as before (review M-5, out of scope).
 export function pasteIntoSummary(view, slice) {
   if (!slice || !slice.size) return false
-  const { $from, $to } = view.state.selection
+  const { state } = view
+  const { selection } = state
+  const { $from, $to } = selection
   if ($from.parent.type.name !== 'toggleSummary' || !$from.sameParent($to)) return false
-  if (mergesInline(slice)) return false
-  const parts = []
-  slice.content.descendants((node) => {
-    if (!node.isTextblock) return true
-    const line = node.textContent.replace(/[\r\n]+/g, ' ')
-    if (line) parts.push(line)
-    return false
-  })
-  const text = parts.join(' ')
-  if (!text) {
-    // Nothing but empty lines: the title has nowhere to put them, and taking
-    // the paste as a no-op loses nothing (handing it on split the toggle).
-    // Anything else without text (an image, a rule) goes on to ProseMirror.
-    let content = false
-    slice.content.descendants((node) => { if (node.isLeaf && !node.isText) content = true })
-    return !content
+  if (mergesInline(slice)) return false // rule 4
+  const toggleDepth = $from.depth - 1
+  if (selection.empty && $from.parentOffset === 0 && $from.parent.content.size > 0) {
+    return pasteBlocks(view, slice, $from.before(toggleDepth)) // rule 3
   }
-  view.dispatch(view.state.tr.insertText(text).scrollIntoView().setMeta('paste', true).setMeta('uiEvent', 'paste'))
+  let textOnly = true
+  slice.content.forEach((node) => { if (!node.isTextblock) textOnly = false })
+  if (!textOnly) return pasteBlocks(view, slice, $from.after(toggleDepth)) // rule 2
+  const inline = joinedInline(slice, state.schema) // rule 1
+  if (!inline.size) return true // nothing but empty lines
+  const tr = state.tr.replaceWith($from.pos, $to.pos, inline)
+  try {
+    tr.doc.check()
+  } catch {
+    // The title refused something (no current schema shape does): the blocks
+    // go after the toggle whole rather than lose anything.
+    return pasteBlocks(view, slice, $from.after(toggleDepth))
+  }
+  tr.setSelection(TextSelection.create(tr.doc, $from.pos + inline.size))
+  view.dispatch(pasteMeta(tr))
   return true
 }
 
 // Belt-and-braces: if ProseMirror would still throw placing this slice (a
 // schema shape nothing above anticipated), paste its TEXT instead of losing it
 // to an uncaught error (which also leaves the browser's native paste
-// un-prevented). Dry-runs exactly what doPaste will do; on success returns
-// false so ProseMirror's own path runs unchanged.
+// un-prevented). What it dry-runs APPROXIMATES doPaste's final replace -- the
+// replace doPaste would make if no later handlePaste takes the paste -- and is
+// not a copy of it: it runs BEFORE three later handlePaste props (prosemirror-
+// tables' cell paste, the code block's VS Code handler, TipTap's paste rules),
+// so a slice one of those would have placed is judged as if it reached
+// doPaste; and for a single closed node it calls replaceSelectionWith with the
+// default mark inheritance, where doPaste passes `preferPlain` (the shift key).
+// The review measured no divergence (whole blocks pasted into bold text, a
+// table cell paste and a VS Code paste all placed normally, belt silent). On
+// success it returns false, so every later handler and ProseMirror's own path
+// run unchanged.
 export function pasteOrFallBack(view, slice) {
   if (!slice || !slice.size) return false
   const single = slice.openStart === 0 && slice.openEnd === 0 && slice.content.childCount === 1
@@ -226,8 +314,8 @@ export const PasteContainers = Extension.create({
       props: {
         transformCopied: (slice) => unwrapOpenContainers(slice),
         transformPasted: (slice) => unwrapOpenContainers(slice),
-        // The summary first (it is a paste ProseMirror would complete, wrongly),
-        // then the belt for one it would throw on.
+        // The title first (a paste ProseMirror would complete wrongly -- a
+        // split toggle), then the belt for one it would throw on.
         handlePaste: (view, _event, slice) => pasteIntoSummary(view, slice) || pasteOrFallBack(view, slice),
       },
     })]
