@@ -202,22 +202,23 @@ const CASES = {
     WIDGET('[chart: NVDA D]', '2026-09-02T14:00:00.000Z'),
     WIDGET('[chart: NVDA D]', '2026-09-02T14:00:00.000Z'),
     p('After.')),
-  // ── a block longer than the 400-character snippet cap (Wave 4), with astral
-  //    characters inside the first 400 so code points and UTF-16 units differ
-  //    exactly where the cut falls ──
   // ── hardBreak reads as ONE space (Wave 4): inside, doubled, first and last
   //    in a paragraph, and beside a mark -- one position each, no separator ──
   hardBreaks: doc(
     p('Guidance', BR, 'raised', BR, BR, t('again', ['bold'])),
     p(BR, 'lead'),
     p('tail', BR)),
+  // ── a block longer than the 400-character snippet cap (Wave 4), with astral
+  //    characters inside the first 400 so code points and UTF-16 units differ
+  //    exactly where the cut falls ──
   longBlock: doc(p('Intro.'),
     p(`Guidance \u{1F525} raised \u{1D538}: ${'the quarter closed with margins widening across every segment. '.repeat(8)}Final word.`),
     p('After.')),
 }
 
 // Passages cited in the astral cases -- before, inside, across a mark, and
-// after an astral character. Each must occur ONCE in its note. `passages`
+// after an astral character -- and across the hardBreak case's line breaks.
+// Each must occur ONCE in its note. `passages`
 // records the tightest range whose textBetween IS the passage, found by brute
 // force over textBetween itself -- never by the walker the rails test.
 const PASSAGES = {

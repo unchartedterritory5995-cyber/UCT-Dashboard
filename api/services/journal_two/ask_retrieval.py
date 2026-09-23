@@ -268,10 +268,16 @@ def _best_note_passage(doc, expr: str, title: str = ""):
         # IGNORECASE folds one character to one character, so a match's
         # offsets address `text` itself and it spans exactly len(term). The
         # lookahead keeps overlapping occurrences, as the find loop did.
-        starts = [m.start() for m in re.finditer(f"(?={re.escape(term)})", text, re.IGNORECASE)]
-        saw_any = bool(starts)
+        # Iterated LAZILY (review M5): the loop stops at the first usable
+        # occurrence, so a common term in a huge note is not collected whole
+        # first. Measured on a 1.17M-character note, one common term, the
+        # whole call (flatten included): collecting 68 ms, lazy 48 ms, the
+        # pre-Wave-4 find loop 49 ms; answers identical over 87,196 cases.
+        saw_any = False
         idx = first = -1
-        for at in starts:
+        for m in re.finditer(f"(?={re.escape(term)})", text, re.IGNORECASE):
+            at = m.start()
+            saw_any = True
             if index.in_ask_insert(at, at + len(term)):
                 continue
             if first < 0:

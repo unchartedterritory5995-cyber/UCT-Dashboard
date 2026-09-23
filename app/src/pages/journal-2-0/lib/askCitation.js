@@ -23,6 +23,10 @@
 // it is about to jump to. An ATOM (a chip, an excerpt, an embed) is the one
 // exception: its text is a placeholder look-alikes share, so an atom is
 // verified by an identity attr instead (citationAtomIdentity), never by text.
+// ⚠️ THE MIRROR IS PARTIAL, AND TEST-ONLY. The long-block prefix rule
+// (isTruncatedSnippet / location.text_length, Wave 4) exists HERE ONLY: the
+// Python resolve_note_citation matches a snippet whole and has no production
+// caller -- only the rails call it. This function is the one that navigates.
 //
 // NEVER JUMP TO THE WRONG PASSAGE. A failed precise citation is preferable to
 // a confident mis-navigation, so an AMBIGUOUS re-resolution opens the note
@@ -259,10 +263,16 @@ function resolveAtomCitation(doc, loc, atom) {
  * ⛔ NEVER WIDEN A WHOLE SNIPPET. A packet without `text_length` (issued
  * before it existed, or a term-level citation) and a snippet as long as the
  * cited text are matched exactly as before.
+ * ⛔ DECIDED ON THE SNIPPET AS SENT, BEFORE ANY TRIM (review M1). The server
+ * sends body[:cap] and text_length = the UTF-16 length of that same body, so
+ * equal lengths mean whole whatever either runtime trims. Comparing the
+ * JS-TRIMMED needle instead read a whole block ending in U+FEFF as cut short --
+ * JS trim() strips U+FEFF, Python strip() does not -- and widened its citation
+ * onto text appended after it.
  */
-export function isTruncatedSnippet(loc, needle) {
+export function isTruncatedSnippet(loc, snippet) {
   const n = loc?.text_length
-  return Number.isInteger(n) && typeof needle === 'string' && needle.length > 0 && needle.length < n
+  return Number.isInteger(n) && typeof snippet === 'string' && snippet.trim().length > 0 && snippet.length < n
 }
 
 /** Does [to, …) hold nothing but whitespace before the end of its block? The
@@ -296,7 +306,7 @@ export function resolveNoteCitation(doc, loc, snippet) {
   // A prefix of a longer block is matched as a PREFIX that runs to the end of
   // its block -- ONE block: a range that crosses a separator is two -- and
   // anything else only as the whole text.
-  const prefix = isTruncatedSnippet(loc, needle)
+  const prefix = isTruncatedSnippet(loc, snippet)
   const verifies = (text) => (prefix
     ? text.startsWith(needle) && !text.includes(BLOCK_SEPARATOR)
     : text === needle)

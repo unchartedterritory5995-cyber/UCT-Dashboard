@@ -618,6 +618,10 @@ def resolve_note_citation(doc, pm_from, pm_to, snippet, expected_fingerprint,
            identity, its placeholder cannot say which atom it was.
 
     Mirrored by askCitation.js::resolveNoteCitation, which is what navigates.
+    ⚠️ PARTIALLY, AND TEST-ONLY: this function has no production caller (the
+    rails call it), and it has NO long-block prefix rule -- a snippet cut
+    short of its block (`location.text_length`, Wave 4) is matched whole here,
+    while the client extends it to the end of its block. The client decides.
     Step 0 takes the same shape the client does -- a dict with a string
     ``type`` and a non-empty string ``id``; anything else is no identity and
     the citation is resolved by text, as the client resolves it.

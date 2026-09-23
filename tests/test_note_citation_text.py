@@ -753,9 +753,12 @@ class TestEachChartOfOneInsertIsItsOwnCitation:
 
 
 class TestEmbedIdLeavesShareAndExportUnchanged:
-    """Wave 4: embedId is an identity for citations only. Everything else that
-    reads a widget embed -- the markdown export, body_plain / search, and the
-    public share payload -- must come out byte-identical with or without it."""
+    """Wave 4: embedId is an identity for citations only. The markdown export
+    and body_plain / search must come out byte-identical with or without it.
+    The public share payload is NOT byte-identical -- a shared note now
+    carries embedId, which is harmless (a random id, no member data); what the
+    share rail below proves is that the share sanitiser passes the node
+    through UNTOUCHED (review M3)."""
 
     @staticmethod
     def _pair():
@@ -887,6 +890,30 @@ class TestThePassagePickerMatchesInTheOriginalText:
         doc = _DOC(_P("İİ Desk notes: MARGINS fell."))
         _snippet, loc, validity = ar._best_note_passage(doc, '"margins"')
         assert validity == ev.CITE_EXACT and verify(doc, loc["from"], loc["to"], "MARGINS")
+
+    def test_occurrences_are_read_lazily_and_stop_at_the_first_usable_one(self, monkeypatch):
+        # Review M5: collecting every occurrence before looking at any cost a
+        # common term in a huge note its whole scan. The picker must pull ONE
+        # occurrence when the first is exact.
+        import re as real_re
+        from api.services.journal_two import ask_retrieval as ar
+        pulled = []
+
+        class CountingRe:
+            def __getattr__(self, name):
+                return getattr(real_re, name)
+
+            @staticmethod
+            def finditer(*args, **kwargs):
+                for m in real_re.finditer(*args, **kwargs):
+                    pulled.append(m.start())
+                    yield m
+
+        monkeypatch.setattr(ar, "re", CountingRe())
+        doc = _DOC(_P("margins " * 500))
+        _snippet, loc, _validity = ar._best_note_passage(doc, '"margins"')
+        assert loc["snippet_start"] == 0
+        assert pulled == [0]
 
 
 # ── One index per flatten (final wave, review M-1) ───────────────────────────

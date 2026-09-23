@@ -759,8 +759,25 @@ describe('a long block is cited WHOLE although its snippet is a prefix (Wave 4)'
     notOpenedAtom(resolveNoteCitation(doc, { from: 99, to: 100, text_length: LONG.length }, snippet))
   })
 
+  it('a whole block ending in U+FEFF is never read as cut short, so never widened (review M1)', () => {
+    // Python strip() keeps U+FEFF, JS trim() drops it: the server sends the
+    // whole 9-character block with text_length 9, while the trimmed needle is
+    // 8. Truncation is decided on the snippet AS SENT.
+    const block = 'Buy NVDA﻿'
+    expect(block.length).toBe(9)
+    expect(block.trim().length).toBe(8) // non-vacuity: the two trims really disagree here
+    const loc = { from: 1, to: 1 + block.length, text_length: block.length }
+    expect(isTruncatedSnippet(loc, block)).toBe(false)
+    expect(resolveNoteCitation(build(para(block)), loc, block)).toEqual({ state: VALID_EXACT, from: 1, to: 10 })
+    // Grown after issue: still the original nine characters, not the new tail.
+    const grown = build(para(`${block} on the dip`))
+    expect(resolveNoteCitation(grown, loc, block)).toEqual({ state: VALID_EXACT, from: 1, to: 10 })
+  })
+
   it('isTruncatedSnippet reads only a real, larger integer length', () => {
     expect(isTruncatedSnippet({ text_length: 10 }, 'abc')).toBe(true)
+    expect(isTruncatedSnippet({ text_length: 4 }, 'abc﻿')).toBe(false) // length as sent, not trimmed
+    expect(isTruncatedSnippet({ text_length: 10 }, '   ')).toBe(false) // nothing to match
     expect(isTruncatedSnippet({ text_length: 3 }, 'abc')).toBe(false)
     expect(isTruncatedSnippet({ text_length: '10' }, 'abc')).toBe(false)
     expect(isTruncatedSnippet({}, 'abc')).toBe(false)
