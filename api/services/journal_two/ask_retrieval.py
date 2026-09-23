@@ -263,8 +263,20 @@ def _best_note_passage(doc, expr: str, title: str = ""):
         needle = term.lower()
         idx = low.find(needle)
         saw_any = idx >= 0
-        while idx >= 0 and nct.in_ask_insert(flat, idx, idx + len(term)):
+        first = -1
+        while idx >= 0:
+            if not nct.in_ask_insert(flat, idx, idx + len(term)):
+                if first < 0:
+                    first = idx
+                # Review M2: an occurrence inside an atom that can carry no
+                # identity only opens the note, so a LATER occurrence that can
+                # be cited exactly is preferred; with none, the first stands.
+                occ = nct.pm_range(idx, idx + len(term), flat["spans"])
+                if occ is None or nct.precise_citation(flat, occ):
+                    break
             idx = low.find(needle, idx + 1)
+        if idx < 0:
+            idx = first
         if idx < 0:
             if saw_any:
                 found_only_in_insert = True

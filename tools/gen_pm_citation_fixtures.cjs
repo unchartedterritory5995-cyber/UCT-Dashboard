@@ -169,6 +169,23 @@ const CASES = {
     WIDGET('NVDA daily chart', '2026-09-02T14:00:00.000Z'),
     p('After.')),
   identityAttrsEmpty: doc(p('Before.'), CHIP('q3.pdf', ''), EXCERPT(''), WIDGET('NVDA', ''), p('After.')),
+  // ── charts exactly as the REAL chartInsertNodes builds them (rereview2
+  //    R2-1): every chart of one /mtf or /compare insert shares ONE stamp, so
+  //    ONE identity; a later /chart has its own. This node module cannot load
+  //    widgetEmbedCore.js (extension-less imports), so these are literals --
+  //    askCitation.parity.test.js calls the real builder under a frozen clock
+  //    and requires it to produce exactly these nodes (projected to the attrs
+  //    citation text and identity read). ──
+  chartsMtfThenSingle: doc(p('NVDA thesis.'),
+    WIDGET('[chart: NVDA D]', '2026-09-01T14:00:00.000Z'),
+    WIDGET('[chart: NVDA 1h]', '2026-09-01T14:00:00.000Z'),
+    WIDGET('[chart: NVDA 15m]', '2026-09-01T14:00:00.000Z'),
+    p('Later.'),
+    WIDGET('[chart: AMD D]', '2026-09-01T14:05:00.000Z')),
+  chartsCompare: doc(p('Before the print.'),
+    WIDGET('[chart: NVDA D]', '2026-09-02T14:00:00.000Z'),
+    WIDGET('[chart: NVDA D]', '2026-09-02T14:00:00.000Z'),
+    p('After.')),
 }
 
 // Passages cited in the astral cases -- before, inside, across a mark, and

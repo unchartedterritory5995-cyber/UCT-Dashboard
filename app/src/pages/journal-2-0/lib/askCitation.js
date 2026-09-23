@@ -127,7 +127,7 @@ export function citationLeafText(node) {
 const nonEmpty = (v) => (typeof v === 'string' && v ? v : null)
 
 /**
- * The attr that names ONE atom, or null when it carries none.
+ * An atom's identity attr, or null when it carries none.
  *
  * ⛔ AN ATOM IS CITED BY IDENTITY, NEVER BY ITS PLACEHOLDER (review-parity N1).
  * Every excerpt reads "[excerpt]" and two chips of one file read alike, so no
@@ -136,7 +136,16 @@ const nonEmpty = (v) => (typeof v === 'string' && v ? v : null)
  *   documentExcerpt  excerptId            the immutable j2_note_excerpts row
  *   attachmentChip   href                 the upload URL, minted with a uuid4
  *   widgetEmbed      widgetId|capturedAt  the kind, and the instant it was
- *                                         captured (stamped once at insert)
+ *                                         captured (stamped once per node build)
+ * ⛔ SURVIVING IS NOT NAMING ONE ATOM (rereview2 R2-1). Every chart of one /mtf
+ * or /compare insert is built in the same millisecond and shares its stamp,
+ * and a copy/paste duplicates any of these attrs. So the SERVER issues
+ * `location.atom` only when exactly one atom of the note carries it at issue
+ * time (note_citation_text.py::atom_at); otherwise the citation carries none
+ * and opens the note only. A copy made AFTER issue shares the identity:
+ * resolveNoteCitation then finds it twice and opens the note only — unless
+ * the cited position still holds one of the copies, or the original is
+ * deleted and only the copy is left, when it opens the copy.
  * Mirrors `_ATOM_IDENTITY` in api/services/journal_two/note_citation_text.py;
  * the two are pinned together through tests/fixtures_pm_citation_text.json,
  * which tools/gen_pm_citation_fixtures.cjs computes by calling THIS function.
@@ -199,8 +208,9 @@ const NO_IDENTITY = Object.freeze({
 
 /**
  * Resolve a citation to ONE atom by its identity (`loc.atom = {type, id}`,
- * set by the server for a single-atom passage). Placeholder text is never
- * consulted: it is exactly what cannot tell two atoms apart.
+ * set by the server for a single-atom passage whose identity no other atom of
+ * the note carried at issue). Placeholder text is never consulted: it is
+ * exactly what cannot tell two atoms apart.
  *   the atom at [from,to) carries that identity -> VALID_EXACT, in place
  *   exactly one atom elsewhere carries it       -> RERESOLVED_EXACT, there
  *   none, or several                            -> VALID_NOTE_ONLY

@@ -2309,5 +2309,191 @@
    }
   ],
   "passages": []
+ },
+ "chartsMtfThenSingle": {
+  "json": {
+   "type": "doc",
+   "content": [
+    {
+     "type": "paragraph",
+     "content": [
+      {
+       "type": "text",
+       "text": "NVDA thesis."
+      }
+     ]
+    },
+    {
+     "type": "widgetEmbed",
+     "attrs": {
+      "widgetId": "chart",
+      "searchText": "[chart: NVDA D]",
+      "capturedAt": "2026-09-01T14:00:00.000Z"
+     }
+    },
+    {
+     "type": "widgetEmbed",
+     "attrs": {
+      "widgetId": "chart",
+      "searchText": "[chart: NVDA 1h]",
+      "capturedAt": "2026-09-01T14:00:00.000Z"
+     }
+    },
+    {
+     "type": "widgetEmbed",
+     "attrs": {
+      "widgetId": "chart",
+      "searchText": "[chart: NVDA 15m]",
+      "capturedAt": "2026-09-01T14:00:00.000Z"
+     }
+    },
+    {
+     "type": "paragraph",
+     "content": [
+      {
+       "type": "text",
+       "text": "Later."
+      }
+     ]
+    },
+    {
+     "type": "widgetEmbed",
+     "attrs": {
+      "widgetId": "chart",
+      "searchText": "[chart: AMD D]",
+      "capturedAt": "2026-09-01T14:05:00.000Z"
+     }
+    }
+   ]
+  },
+  "text": "NVDA thesis.\n[chart: NVDA D]\n[chart: NVDA 1h]\n[chart: NVDA 15m]\nLater.\n[chart: AMD D]",
+  "contentSize": 26,
+  "textSpans": [
+   {
+    "pm_start": 1,
+    "pm_end": 13,
+    "text": "NVDA thesis."
+   },
+   {
+    "pm_start": 18,
+    "pm_end": 24,
+    "text": "Later."
+   }
+  ],
+  "leafSpans": [
+   {
+    "pm_start": 14,
+    "pm_end": 15,
+    "text": "[chart: NVDA D]",
+    "atom": {
+     "type": "widgetEmbed",
+     "id": "chart|2026-09-01T14:00:00.000Z"
+    }
+   },
+   {
+    "pm_start": 15,
+    "pm_end": 16,
+    "text": "[chart: NVDA 1h]",
+    "atom": {
+     "type": "widgetEmbed",
+     "id": "chart|2026-09-01T14:00:00.000Z"
+    }
+   },
+   {
+    "pm_start": 16,
+    "pm_end": 17,
+    "text": "[chart: NVDA 15m]",
+    "atom": {
+     "type": "widgetEmbed",
+     "id": "chart|2026-09-01T14:00:00.000Z"
+    }
+   },
+   {
+    "pm_start": 25,
+    "pm_end": 26,
+    "text": "[chart: AMD D]",
+    "atom": {
+     "type": "widgetEmbed",
+     "id": "chart|2026-09-01T14:05:00.000Z"
+    }
+   }
+  ],
+  "passages": []
+ },
+ "chartsCompare": {
+  "json": {
+   "type": "doc",
+   "content": [
+    {
+     "type": "paragraph",
+     "content": [
+      {
+       "type": "text",
+       "text": "Before the print."
+      }
+     ]
+    },
+    {
+     "type": "widgetEmbed",
+     "attrs": {
+      "widgetId": "chart",
+      "searchText": "[chart: NVDA D]",
+      "capturedAt": "2026-09-02T14:00:00.000Z"
+     }
+    },
+    {
+     "type": "widgetEmbed",
+     "attrs": {
+      "widgetId": "chart",
+      "searchText": "[chart: NVDA D]",
+      "capturedAt": "2026-09-02T14:00:00.000Z"
+     }
+    },
+    {
+     "type": "paragraph",
+     "content": [
+      {
+       "type": "text",
+       "text": "After."
+      }
+     ]
+    }
+   ]
+  },
+  "text": "Before the print.\n[chart: NVDA D]\n[chart: NVDA D]\nAfter.",
+  "contentSize": 29,
+  "textSpans": [
+   {
+    "pm_start": 1,
+    "pm_end": 18,
+    "text": "Before the print."
+   },
+   {
+    "pm_start": 22,
+    "pm_end": 28,
+    "text": "After."
+   }
+  ],
+  "leafSpans": [
+   {
+    "pm_start": 19,
+    "pm_end": 20,
+    "text": "[chart: NVDA D]",
+    "atom": {
+     "type": "widgetEmbed",
+     "id": "chart|2026-09-02T14:00:00.000Z"
+    }
+   },
+   {
+    "pm_start": 20,
+    "pm_end": 21,
+    "text": "[chart: NVDA D]",
+    "atom": {
+     "type": "widgetEmbed",
+     "id": "chart|2026-09-02T14:00:00.000Z"
+    }
+   }
+  ],
+  "passages": []
  }
 }

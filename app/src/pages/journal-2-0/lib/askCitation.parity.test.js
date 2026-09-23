@@ -1,4 +1,4 @@
-import { describe, it, expect } from 'vitest'
+import { describe, it, expect, vi } from 'vitest'
 import { Schema, Node } from 'prosemirror-model'
 import fs from 'node:fs'
 import path from 'node:path'
@@ -17,6 +17,7 @@ import {
   resolveNoteCitation,
   splitAnswer,
 } from './askCitation'
+import { chartInsertNodes } from './widgetEmbedCore'
 
 // ─────────────────────────────────────────────────────────────────────────
 // WAVE K SLICE 6 — PARITY, NOT A SECOND AUTHORITY.
@@ -261,12 +262,18 @@ describe('re-resolution after an edit above never lands on the wrong text', () =
       const unique = full.split(span.text.trim()).length === 2
       if (unique && span.text.trim()) expect([VALID_EXACT, RERESOLVED_EXACT], `${name}: ${span.text}`).toContain(out.state)
     }
+    const carriers = (atom) => FIXTURES[name].leafSpans
+      .filter((o) => o.atom && o.atom.type === atom.type && o.atom.id === atom.id).length
     for (const span of FIXTURES[name].leafSpans) {
       const stale = { from: span.pm_start, to: span.pm_end }
-      // An atom with an identity is found again by it, exactly where it moved...
+      // An atom with a UNIQUE identity is found again by it, exactly where it
+      // moved. (A shared one is never issued -- R2-1 -- and, handed one anyway,
+      // the client finds it several times and opens the note only.)
       if (span.atom) {
         expect(resolveNoteCitation(edited, { ...stale, atom: span.atom }, span.text), `${name}: ${span.text}`)
-          .toEqual({ state: RERESOLVED_EXACT, from: stale.from + SHIFT, to: stale.to + SHIFT })
+          .toEqual(carriers(span.atom) === 1
+            ? { state: RERESOLVED_EXACT, from: stale.from + SHIFT, to: stale.to + SHIFT }
+            : { state: VALID_NOTE_ONLY, ambiguous: true, reason: 'several atoms carry this identity' })
       }
       // ...and by its placeholder text alone, never: text names no ONE atom.
       expect(PRECISE_STATES.has(resolveNoteCitation(edited, stale, span.text).state), `${name}: ${span.text}`)
@@ -457,5 +464,79 @@ describe('a passage near an astral character maps to ProseMirror\'s range (M3)',
     expect(resolveNoteCitation(doc, range, p.text)).toEqual({ state: VALID_EXACT, ...range })
     // From a stale location, it is re-found at exactly the same range.
     expect(resolveNoteCitation(doc, { from: 9999, to: 10000 }, p.text)).toEqual({ state: RERESOLVED_EXACT, ...range })
+  })
+})
+
+// ── Fix round 3 (rereview2-parity R2-1) ────────────────────────────────────
+
+describe('the chart fixtures are exactly what the REAL chart insert builds (R2-1)', () => {
+  // gen_pm_citation_fixtures.cjs cannot load widgetEmbedCore.js, so its chart
+  // cases are literals. This pins them: the real chartInsertNodes, under a
+  // clock frozen at the fixture's own stamp, must build exactly those nodes,
+  // projected to the attrs citation text and identity read.
+  const project = (n) => ({ type: n.type,
+    attrs: { widgetId: n.attrs.widgetId, searchText: n.attrs.searchText, capturedAt: n.attrs.capturedAt } })
+  const charts = (name) => FIXTURES[name].json.content.filter((n) => n.type === 'widgetEmbed')
+  const build = (kind, args, at) => {
+    vi.useFakeTimers({ toFake: ['Date'] })
+    vi.setSystemTime(new Date(at))
+    try { return chartInsertNodes(kind, args).map(project) } finally { vi.useRealTimers() }
+  }
+
+  it('/mtf mints three charts with ONE identity; a later /chart mints its own', () => {
+    const [d, h, m, single] = charts('chartsMtfThenSingle')
+    expect(build('mtf', { symbol: 'NVDA' }, d.attrs.capturedAt)).toEqual([d, h, m])
+    expect(build('chart', { symbol: 'AMD', tf: 'D' }, single.attrs.capturedAt)).toEqual([single])
+    const ids = [d, h, m, single].map((n) => citationAtomIdentity(Node.fromJSON(schema, n)))
+    expect(new Set(ids.slice(0, 3)).size).toBe(1)
+    expect(ids[3]).not.toBe(ids[0])
+  })
+
+  it('/compare mints a pair with ONE identity and ONE text', () => {
+    const [before, after] = charts('chartsCompare')
+    expect(build('compare', { symbol: 'NVDA', tf: 'D', day: 1757000000 }, before.attrs.capturedAt))
+      .toEqual([before, after])
+    expect(before).toEqual(after)
+  })
+})
+
+describe('deleting one chart of a shared-identity insert never opens a sibling (R2-1)', () => {
+  // The server issues NO atom for these charts (tests/test_note_citation_text.py
+  // and test_ask_note_scope.py pin that on the same fixtures), so the client
+  // is handed {from, to} and the snippet only.
+  const without = (name, index) => Node.fromJSON(schema, { type: 'doc',
+    content: FIXTURES[name].json.content.filter((_, i) => i !== index) })
+  const cite = (name, k) => {
+    const s = FIXTURES[name].leafSpans[k]
+    return [{ from: s.pm_start, to: s.pm_end }, s.text]
+  }
+
+  it.each([
+    ['case 14: the D chart ABOVE the cited 1h deleted', 'chartsMtfThenSingle', 1, 1],
+    ['case 15: the cited 1h deleted', 'chartsMtfThenSingle', 1, 2],
+    ['case 16: the cited D deleted', 'chartsMtfThenSingle', 0, 1],
+    ['case 19: the cited "before" chart deleted', 'chartsCompare', 0, 1],
+  ])('%s', (_label, name, cited, deleted) => {
+    const [loc, text] = cite(name, cited)
+    const out = resolveNoteCitation(without(name, deleted), loc, text)
+    expect(PRECISE_STATES.has(out.state)).toBe(false)
+    expect(out.from).toBeUndefined()
+  })
+
+  it('control: handed the SHARED identity, case 15 would open the 15m chart', () => {
+    // Why the server never issues it: the 15m slides into the 1h's position.
+    const [loc, text] = cite('chartsMtfThenSingle', 1)
+    const shared = FIXTURES.chartsMtfThenSingle.leafSpans[1].atom
+    const after = without('chartsMtfThenSingle', 2)
+    const out = resolveNoteCitation(after, { ...loc, atom: shared }, text)
+    expect(out).toEqual({ state: VALID_EXACT, ...loc })
+    expect(citationText(after, out.from, out.to)).toBe('[chart: NVDA 15m]')
+  })
+
+  it('a unique chart is still opened by the identity the server issues for it', () => {
+    const s = FIXTURES.chartsMtfThenSingle.leafSpans[3]
+    const after = without('chartsMtfThenSingle', 1) // a chart above it deleted
+    expect(resolveNoteCitation(after, { from: s.pm_start, to: s.pm_end, atom: s.atom }, s.text))
+      .toEqual({ state: RERESOLVED_EXACT, from: s.pm_start - 1, to: s.pm_end - 1 })
   })
 })

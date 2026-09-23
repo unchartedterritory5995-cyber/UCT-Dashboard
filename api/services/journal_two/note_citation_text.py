@@ -118,11 +118,19 @@ def _widget_identity(a: dict[str, Any]) -> str | None:
 # ⛔ AN ATOM IS CITED BY IDENTITY, NEVER BY ITS PLACEHOLDER (review-parity N1).
 # Every excerpt reads "[excerpt]" and two chips of one file read alike, so text
 # cannot say WHICH atom a citation meant: after one delete, a text match lands
-# on a look-alike. These attrs name ONE atom and survive edits and saves:
+# on a look-alike. These attrs survive edits and saves:
 #   documentExcerpt  excerptId            the immutable j2_note_excerpts row
 #   attachmentChip   href                 the upload URL, minted with a uuid4
 #   widgetEmbed      widgetId|capturedAt  the kind, and the instant it was
-#                                         captured -- stamped once at insert
+#                                         captured -- stamped once per NODE BUILD
+# ⛔ SURVIVING IS NOT NAMING ONE ATOM (rereview2 R2-1). Every chart of one /mtf
+# or /compare insert is built in the same millisecond and shares its stamp, and
+# a copy/paste duplicates any of these attrs. So an identity is ISSUED only
+# when exactly one atom of the note carries it at issue time (`atom_at`);
+# otherwise the citation carries none and opens the note only. A copy made
+# AFTER issue shares the identity: the client then finds it twice and opens
+# the note only -- unless the cited position still holds one of the copies,
+# or the original is deleted and only the copy is left.
 # A type absent here, or an atom missing its attr, carries NO identity, and a
 # citation to it opens the note without claiming a passage. The client's copy
 # is askCitation.js::citationAtomIdentity, pinned through the fixtures.
@@ -368,22 +376,41 @@ def pm_range(flat_start: int, flat_end: int, spans: list[dict[str, Any]]) -> dic
 
 
 def atom_at(flat: dict[str, Any], rng: dict[str, int] | None) -> dict[str, str] | None:
-    """The identity (``{"type", "id"}``) of the ONE atom a ProseMirror range
-    covers exactly -- what a single-atom citation carries in its location.
-    None for a text range, a range over several nodes, or an atom with no
-    identity (`_ATOM_IDENTITY`); such an atom citation opens the note only."""
+    """The identity (``{"type", "id"}``) to ISSUE for the one atom a
+    ProseMirror range covers exactly -- what a single-atom citation carries in
+    its location. None for a text range, a range over several nodes, an atom
+    with no identity (`_ATOM_IDENTITY`), and -- the R2-1 rule -- an atom whose
+    identity any OTHER atom of the note also carries (the charts of one /mtf
+    or /compare insert, a pasted copy). An identity that names two atoms would
+    let the client select the wrong one, so such a citation opens the note
+    only. Every atom counts, an inserted answer's included: the client's
+    lookup walks the whole doc."""
     span = _atom_span_at(flat, rng.get("from"), rng.get("to")) if rng else None
-    return span.get("atom") if span else None
+    atom = span.get("atom") if span else None
+    if not atom:
+        return None
+    carriers = sum(1 for s in flat.get("spans") or [] if s["is_atom"] and s.get("atom") == atom)
+    return atom if carriers == 1 else None
 
 
 def precise_citation(flat: dict[str, Any], rng: dict[str, int] | None) -> bool:
     """Whether a citation to `rng` can ever open a precise passage: any text
-    range can (it is verified by its text), a single atom only when it carries
-    an identity (`atom_at`). The server's label must not promise a passage the
-    client will refuse to open."""
+    range can (it is verified by its text), a single atom only when an
+    identity is issued for it (`atom_at`: it has one, and it is unique). The
+    server's label must not promise a passage the client will refuse to open."""
     if not rng:
         return False
     return _atom_span_at(flat, rng.get("from"), rng.get("to")) is None or atom_at(flat, rng) is not None
+
+
+def _well_formed_atom(atom: Any) -> dict[str, str] | None:
+    """A location's ``atom`` as ``{"type", "id"}``, or None unless it has the
+    shape askCitation.js::resolveNoteCitation accepts: a string ``type`` and a
+    non-empty string ``id`` (review M1: the mirror took any truthy value)."""
+    if not isinstance(atom, dict) or not isinstance(atom.get("type"), str):
+        return None
+    ident = _nonempty(atom.get("id"))
+    return {"type": atom["type"], "id": ident} if ident else None
 
 
 def _atom_span_at(flat: dict[str, Any], pm_from: Any, pm_to: Any) -> dict[str, Any] | None:
@@ -504,12 +531,16 @@ def resolve_note_citation(doc, pm_from, pm_to, snippet, expected_fingerprint,
            identity, its placeholder cannot say which atom it was.
 
     Mirrored by askCitation.js::resolveNoteCitation, which is what navigates.
+    Step 0 takes the same shape the client does -- a dict with a string
+    ``type`` and a non-empty string ``id``; anything else is no identity and
+    the citation is resolved by text, as the client resolves it.
     """
     flat = flatten(doc)
-    if atom:
-        found = [s for s in flat["spans"] if s["is_atom"] and s.get("atom") == atom]
+    want = _well_formed_atom(atom)
+    if want:
+        found = [s for s in flat["spans"] if s["is_atom"] and s.get("atom") == want]
         here = _atom_span_at(flat, pm_from, pm_to)
-        if here is not None and here.get("atom") == atom:
+        if here is not None and here.get("atom") == want:
             return {"state": VALID_EXACT, "from": pm_from, "to": pm_to}
         if len(found) == 1:
             return {"state": RERESOLVED_EXACT, "from": found[0]["pm_start"], "to": found[0]["pm_end"]}

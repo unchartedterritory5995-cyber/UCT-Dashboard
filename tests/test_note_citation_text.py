@@ -599,3 +599,125 @@ class TestAtomsResolveByIdentity:
         # No identity (a chip with no href): no atom, and never labelled exact.
         _snippet, loc, validity = ar._best_note_passage(_FIXTURES["chipMiddle"]["json"], '"filing"')
         assert "atom" not in loc and validity == ev.CITE_NOTE_ONLY
+
+
+# ── An identity is ISSUED only when it names one atom (fix round 3) ──────────
+
+from api.services.journal_two.note_citation_text import atom_at  # noqa: E402
+
+_MTF = "chartsMtfThenSingle"
+_MTF_SHARED = {"type": "widgetEmbed", "id": "chart|2026-09-01T14:00:00.000Z"}
+
+
+def _chart_blocks(case):
+    from api.services.journal_two import ask_retrieval as ar
+    return [b for b in ar._note_blocks(_FIXTURES[case]["json"], "") if b["text"].startswith("[chart:")]
+
+
+def _without(case, index):
+    """The fixture doc with its top-level node `index` deleted."""
+    content = list(_FIXTURES[case]["json"]["content"])
+    del content[index]
+    return {"type": "doc", "content": content}
+
+
+class TestAnIdentityIsIssuedOnlyWhenUnique:
+    """rereview2 R2-1: every chart of one /mtf or /compare insert shares
+    widgetId|capturedAt -- measured 500/500 on the real chartInsertNodes, and
+    these fixtures are pinned to that builder by askCitation.parity.test.js.
+    An identity that names several atoms let the client select a sibling
+    after one delete, so it is never issued."""
+
+    def test_the_fixture_really_holds_a_shared_identity(self):
+        # Non-vacuity: the rule below is only visible on atoms that share one.
+        ids = [s["atom"]["id"] for s in _FIXTURES[_MTF]["leafSpans"]]
+        assert len(ids) == 4 and len(set(ids[:3])) == 1 and ids[3] != ids[0]
+
+    def test_an_mtf_stack_issues_no_identity_and_is_labelled_note_only(self):
+        charts = _chart_blocks(_MTF)
+        assert [b["text"] for b in charts] == [
+            "[chart: NVDA D]", "[chart: NVDA 1h]", "[chart: NVDA 15m]", "[chart: AMD D]"]
+        for b in charts[:3]:
+            assert "atom" not in b["location"] and b["precise"] is False, b["text"]
+        # A later, separately inserted chart is unique and still gets its own.
+        assert charts[3]["location"]["atom"] == {
+            "type": "widgetEmbed", "id": "chart|2026-09-01T14:05:00.000Z"}
+        assert charts[3]["precise"] is True
+
+    def test_a_compare_pair_issues_no_identity(self):
+        charts = _chart_blocks("chartsCompare")
+        assert len(charts) == 2
+        assert all("atom" not in b["location"] and b["precise"] is False for b in charts)
+
+    @pytest.mark.parametrize("case,cited,deleted", [
+        (_MTF, 1, 1),            # reviewer case 14: the D chart ABOVE the cited 1h deleted
+        (_MTF, 1, 2),            # case 15: the cited 1h deleted
+        (_MTF, 0, 1),            # case 16: the cited D deleted
+        ("chartsCompare", 0, 1),  # case 19: the cited "before" chart deleted
+    ], ids=["case14", "case15", "case16", "case19"])
+    def test_deleting_one_chart_never_opens_a_sibling(self, case, cited, deleted):
+        b = _chart_blocks(case)[cited]
+        loc = b["location"]
+        r = resolve_note_citation(_without(case, deleted), loc["from"], loc["to"], b["text"],
+                                  loc["fingerprint"], atom=loc.get("atom"))
+        assert r["state"] not in PRECISE_STATES and r["from"] is None
+
+    def test_control_the_shared_identity_WOULD_open_a_sibling(self):
+        # Why it is never issued: handed it anyway, case 15 opens the 15m
+        # chart that slid into the deleted 1h's position.
+        after = _without(_MTF, 2)
+        r = resolve_note_citation(after, 15, 16, "[chart: NVDA 1h]", "stale", atom=_MTF_SHARED)
+        assert r["state"] == VALID_EXACT
+        lands = [s for s in flatten(after)["spans"] if s["is_atom"] and s["pm_start"] == r["from"]]
+        assert lands[0]["text"] == "[chart: NVDA 15m]"
+
+    def test_a_copy_inside_an_inserted_answer_still_counts(self):
+        # The client's lookup walks the whole doc, so the count does too.
+        alone = _DOC(_P("Thesis."), _EX("ex1"))
+        copied = _DOC(_P("Thesis."), _EX("ex1"), {"type": "askInsert", "content": [_EX("ex1")]})
+        rng = {"from": 9, "to": 10}
+        assert atom_at(flatten(alone), rng) == {"type": "documentExcerpt", "id": "ex1"}
+        assert atom_at(flatten(copied), rng) is None
+
+
+class TestTheMirrorTakesTheClientsAtomShape:
+    """Review M1: the client takes an identity only with a string `type` and a
+    non-empty string `id`; the mirror took any truthy value."""
+
+    @pytest.mark.parametrize("bad", [
+        {"type": "documentExcerpt", "id": ""}, {"type": 7, "id": "ex1"}, {"id": "ex1"}, "ex1", ["ex1"],
+    ], ids=["empty-id", "non-string-type", "no-type", "a-string", "a-list"])
+    def test_a_malformed_atom_is_no_identity_and_the_text_decides(self, bad):
+        doc = _DOC(_P("Management expects margins to normalize."))
+        hit = locate(doc, "margins")[0]
+        r = resolve_note_citation(doc, hit["from"], hit["to"], "margins", fingerprint(doc), atom=bad)
+        assert r["state"] == VALID_EXACT
+
+    def test_extra_keys_do_not_hide_a_well_formed_identity(self):
+        doc = _DOC(_P("Thesis."), _EX("ex1"))
+        r = resolve_note_citation(doc, 9, 10, "[excerpt]", fingerprint(doc),
+                                  atom={"type": "documentExcerpt", "id": "ex1", "label": "Q3"})
+        assert (r["state"], r["from"], r["to"]) == (VALID_EXACT, 9, 10)
+
+
+class TestThePassagePickerPrefersAnExactOccurrence:
+    """Review M2: the first occurrence of a term inside an atom with no
+    identity labelled the note note_only although a later plain-text
+    occurrence cites exactly."""
+
+    _CHIP = {"type": "attachmentChip", "attrs": {"name": "margins.pdf"}}  # no href
+
+    def test_a_later_text_occurrence_beats_an_idless_atom(self):
+        from api.services.journal_two import ask_evidence as ev
+        from api.services.journal_two import ask_retrieval as ar
+        doc = _DOC(self._CHIP, _P("Gross margins fell."))
+        _snippet, loc, validity = ar._best_note_passage(doc, '"margins"')
+        assert validity == ev.CITE_EXACT and "atom" not in loc
+        assert verify(doc, loc["from"], loc["to"], "margins")
+
+    def test_with_no_text_occurrence_the_atom_still_opens_the_note(self):
+        from api.services.journal_two import ask_evidence as ev
+        from api.services.journal_two import ask_retrieval as ar
+        doc = _DOC(self._CHIP, _P("Nothing else."))
+        _snippet, loc, validity = ar._best_note_passage(doc, '"margins"')
+        assert validity == ev.CITE_NOTE_ONLY and (loc["from"], loc["to"]) == (0, 1)

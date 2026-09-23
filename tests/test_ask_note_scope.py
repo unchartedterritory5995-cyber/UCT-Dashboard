@@ -110,6 +110,23 @@ class TestAnAtomBlockIsCitedByIdentity:
         from api.services.journal_two.ask_service import public_source
         assert public_source(1, by_text["[file: q4.pdf]"])["location"]["atom"]["id"].endswith("/q4.pdf")
 
+    def test_charts_that_share_one_identity_are_labelled_note_only(self, conn):
+        # Fix round 3 (rereview2 R2-1): the charts of one /mtf insert share
+        # widgetId|capturedAt, so none is issued an identity. The fixture is
+        # the real chartInsertNodes output (pinned by askCitation.parity.test.js).
+        import json
+        from pathlib import Path
+        fx = json.loads(Path(__file__).with_name("fixtures_pm_citation_text.json")
+                        .read_text(encoding="utf-8"))
+        _add(conn, "n1", "u1", "NVDA", fx["chartsMtfThenSingle"]["json"])
+        out = ar.retrieve_note("u1", "n1", "chart", conn=conn)
+        by_text = {i["text"]: i for i in out["evidence"]}
+        for shared in ("[chart: NVDA D]", "[chart: NVDA 1h]", "[chart: NVDA 15m]"):
+            assert by_text[shared]["citation_validity"] == ev.CITE_NOTE_ONLY, shared
+            assert "atom" not in by_text[shared]["location"], shared
+        assert by_text["[chart: AMD D]"]["citation_validity"] == ev.CITE_EXACT
+        assert by_text["[chart: AMD D]"]["location"]["atom"]["type"] == "widgetEmbed"
+
 
 class TestTheWholeNoteIsStillShown:
     def test_non_matching_blocks_are_still_sent_as_context(self, conn):
