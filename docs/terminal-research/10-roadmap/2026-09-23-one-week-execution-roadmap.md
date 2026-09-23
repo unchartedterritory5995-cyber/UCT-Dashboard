@@ -20,40 +20,35 @@ plan itself is never the thing that's lost.
 
 ---
 
-## 0 · Read this first — the one fact that gates everything
+## 0 · Read this first — the licensing gate is CLOSED, corrected 2026-09-23
 
-This isn't a nice-to-know. It's the program's own stated gate condition, and it hasn't
-been asked yet.
+⚰️ **This section originally said Critical Path CP-03 was "NOT OPEN" and framed the two
+questions below as the one fact blocking the whole week.** That was wrong the day it was
+written — CP-03 was actually resolved by the owner on **2026-09-19/20**, four days before
+this roadmap existed, and recorded in full in `OWNER_INPUTS_REQUESTED.md`'s own OI-03
+entry. This document cited `CRITICAL_PATH.md` instead, which had gone stale and never
+absorbed that resolution — the exact second-authority-drift defect this program repeatedly
+names elsewhere. The owner re-confirmed the same answer again today when asked. Both
+source docs are now corrected; this section is kept, struck through in spirit rather than
+deleted, so nobody re-derives the wrong version from an old copy of this file.
 
-> ⚠️ **Critical Path CP-03 — status: NOT OPEN.**
-> The research program's own gate for "product decisions begin" (Document B §27A) is
-> explicitly closed, and its own tracking says it **cannot open on research alone**. Of
-> the program's twelve gating questions, eleven are answered well enough to proceed. One
-> isn't — and it isn't a research gap, it's two facts only the owner has:
->
-> 1. What Massive/Polygon plan tier do we actually have — **Individual**, or
->    **Business/Enterprise**? (Individual restricts member-facing charts, analytics and
->    research use; Business, from ~$2,499/mo, is the tier that legalizes it.)
-> 2. Does an **FMP Data Display and Licensing Agreement** exist? (Without one, FMP's own
->    terms forbid showing FMP-sourced fields to more than one person — i.e. any
->    multi-member product surface.)
->
-> These two answers alone move the licensing register's **Restricted** count from 81 rows
-> down to 27, out of 118 total. Everything in §4 is tagged by what's safe to build
-> *regardless* of the answer, versus what should stay dark until this is answered.
+> ✅ **RESOLVED. Massive: Business/Enterprise (confirmed, already held). FMP: DDLA
+> confirmed to exist. Finviz/Finnhub/AlphaVantage/Schwab: all confirmed.** Net effect on
+> the 118-row licensing register: 18 stay Restricted (was 81), 76 Likely Allowed (was 7),
+> 12 Unknown (was 18). Two named exceptions remain, and they're structural, not pending
+> owner input: **FRED** (a per-series compliance task, not a provider-confirmation
+> question) and **yfinance** (an explicit, already-recorded risk-acceptance per
+> `OWNER_DECISIONS.md` D-004 — Yahoo sells no licence to accept, so there was never a
+> licence question to resolve here).
 
-**This is more urgent than "answer this week."** Massive and FMP data are already in
-production surfaces today — breadth, screener, movers — not just in this week's new
-work. If the tier really is Individual with no DDLA, that isn't a blocker for building
-more, it's a question about what's already shipping. **Answer this first, before
-anything else on Day 0.**
-
-**If the answer comes back unfavorable** (Individual tier, no DDLA): nothing this week is
-wasted, but the week's output changes shape. A9 Screening and A13 Journal & Track Record
-are entirely first-party data and ship live regardless. A1, A11 and most of A10 stay
-flagged dark indefinitely — not "for now," genuinely indefinitely, until a tier upgrade
-or agreement is a separate business decision made on its own economics. That's a real
-fork in the plan, not a footnote, and Day 7's report says explicitly which fork we're on.
+**What this actually changes for the rest of the week:** A1 Markets and A11 Breadth's
+Massive/FMP-sourced work is no longer required to stay flagged dark indefinitely on
+licensing grounds — the remaining reasons either stayed dark today (D2's unsigned CP3
+scope, A11's pending scope grant, A1's unbuilt "quote panel") are real, but they're no
+longer licensing reasons. Anything shipped dark earlier this week for licensing caution
+specifically is now a candidate for a real go/no-go review, not a permanent hold. Section
+6's own checklist (tests, real-device pass, explicit per-surface "go") still applies in
+full — a resolved licensing gate does not skip that.
 
 > 💡 **"Live" and "launched" are two different decisions.** The site is still in
 > `COMING_SOON_MODE` — account creation is closed, and today's users are admins and
@@ -68,9 +63,8 @@ fork in the plan, not a footnote, and Day 7's report says explicitly which fork 
 > what's the revenue path that justifies it at today's member count. Nothing in this plan
 > purchases anything; it only tells the owner what buying it would unlock.
 
-Two smaller, non-blocking asks land alongside it in §7 (a joint-ownership ruling on S7
-Alerts, and confirmation that this week's plan should proceed against the ~10-day-old
-system roster before a fresh re-measurement on Day 0).
+The remaining open items — S7's ruling, A11's small D2 scope grant, and the OI-17
+auth-on-five-endpoints question — are consolidated in §7, none of them blocking.
 
 ---
 
@@ -697,8 +691,8 @@ So there's exactly one list to answer from, not six scattered across a week of u
 
 | # | Decision needed | Blocks | Urgency |
 |---|---|---|---|
-| 1 | Massive plan tier: Individual or Business/Enterprise? | Whether Days 4–7's data-backed features can ever go live, not just build | **Today** |
-| 2 | Does an FMP Data Display & Licensing Agreement exist? | Same as above, for every FMP-sourced field | **Today** |
+| 1 | ~~Massive plan tier: Individual or Business/Enterprise?~~ | — | ✅ **RESOLVED — Business/Enterprise, confirmed 2026-09-19/20 and re-confirmed 2026-09-23. This was answered before this roadmap existed; §0 has the full correction.** |
+| 2 | ~~Does an FMP Data Display & Licensing Agreement exist?~~ | — | ✅ **RESOLVED — confirmed to exist, same dates as #1.** |
 | 3 | S7 Alerts joint-ownership ruling (draft text already exists, needs only acceptance or amendment) | Day 2–3's alerts work, and A9 Screening's own unblock | By end of Day 1 |
 | 4 | Proceed against the 10-day-old roster, or wait for Day 0's fresh re-measurement first? | Nothing — Day 0 re-measures regardless | Informational |
 | 5 | GitHub token rotation (dead as of last check) — needed if any part of this week wants CI/branch-protection visibility | Nothing this week's plan depends on directly | Whenever |
