@@ -4379,3 +4379,83 @@ one restored link, one live self-heal signal now visible on an existing chart, o
 methodology disclosure panel on an existing page. No schema changes, no new write paths on
 five of six packets (Q's PATCH endpoint already existed and was already reachable by the
 report side — only the admin read/action side was newly wired).
+
+## ✅ BUILT + DEPLOYED — Packets R, F, Z, S + D2 LINE 5, five more findings closed, 2026-09-23
+
+Five packets drafted and independently re-verified against current source during the same
+audit-continuation session that produced L–Q, then signed by the owner directly (not via a
+blanket chat approval — the session's own self-approval guardrail correctly stopped a batch
+sign-off attempt after three consecutive `sign_gate.py` invocations, and the owner ran the
+remaining two themselves).
+
+- **Packet R (RG-12)** — `api/services/catalyst/cost_guard.py` priced `claude-sonnet-5` at
+  $3.00/$15.00, Sonnet 4.6's rate, since before `narrative_cost_guard.py`'s sibling fix on
+  2026-08-30. Corrected to $2.00/$10.00. **Direction correction on the original finding:**
+  this over-prices Sonnet 5 by 50%, tripping the daily catalyst caps early — not "loosening"
+  them as first filed.
+- **Packet F (F-ENVCHECK-1)** — `tools/terminal_next_env_check.py`'s publish check used pure
+  git ancestry, which structurally cannot see this programme's own cherry-pick publishing
+  path (a commit lands on `origin/master` under a different SHA carrying the same patch).
+  Fixed with a `git cherry` patch-id fallback when ancestry says no; a genuinely unpublished
+  commit still fails and is named.
+- **Packet Z (RG-33)** — `api/data/cap_universe.json` carried 102 tickers the already-shipped
+  delisted registry independently confirms are delisted (re-derived fresh, same count as the
+  original 2026-09-02 research). One-time prune + a standing regression test. A real, if
+  incidental, fix: ticker-search's autocomplete now correctly badges these as "delisted"
+  instead of "stock."
+- **D2 top-level CP3 (LINE 5)** — the dual-compute flip's `ticker_returns.py` reader had been
+  stalled on real member traffic for eleven days (0 rows). A read-only dry run via the smoke
+  account's real session (before any code was written) measured 328 Desk videos, 278 with
+  real ticker moments, ~8,026 estimated dual-compute observations in one pass — roughly 40x
+  the ≥200-agreed-rows bar, confirming volume was never the blocker, only the gate's
+  session-span requirement (samples must bracket 09:45–15:45 ET). Built as a scheduled
+  in-process reader (`ticker_returns_warm_reader.py`, 7 ticks/day bracketing the gate's own
+  coverage constants) rather than the packet's literally-signed HTTP-through-the-smoke-account
+  mechanism — a deliberate, disclosed deviation (recorded in the module's own docstring and
+  confirmed with the owner before committing): the dual-compute observation lives entirely
+  inside `_close()`/`_dual.observe()`, which reads none of the caller's identity or transport,
+  so the HTTP+auth round-trip would write byte-identical rows at the cost of putting
+  SMOKE_EMAIL/SMOKE_PASSWORD into unattended server code for the first time, for zero
+  additional signal the gate needs. Ships with `D2_DUAL_COMPUTE_WARM_READER_ENABLED` OFF —
+  arming is a separate decision.
+- **Packet S (RG-21)** — five independent clause-vs-code licensing collisions, all
+  re-verified still live: FRED attribution notice (added to `Terms.jsx`), FRED cache TTL
+  (1800s → 300s, still dormant — `FRED_API_KEY` unset), X's missing author name/@handle on
+  `TapeFeed.jsx` (a pure frontend fix — the fields were already in the API payload), no
+  tweet deletion-sync (X's Developer Agreement needs 24h, the existing sweep only did a 7-day
+  age check — new deletion-sync wired into the *existing* nightly job, endpoint independently
+  verified against TwitterAPI.io's current docs rather than invented), and `catalysts.db`
+  retaining vendor tweet/RSS text past its stated 7-day window (new redaction step, same
+  existing job, same retention constant as the deletion-sync fix — closing the exact drift
+  RG-21 found between the two windows; UCT's own synthesized thesis/score/grade fields are
+  never touched).
+
+**Verified before push:** combined backend suite across all five packets' own test files
+(122 passed) + combined frontend suite (15 passed), both re-run again on the merge tree after
+cherry-picking (two clean auto-merges, `api/main.py` and `UIcon.jsx`, both additive — no
+conflict). `check_repo_hygiene.py` and `flow_worker_watch_coverage.py` both clean on the
+final merge tree.
+
+✅ **DEPLOYED TO PRODUCTION.** Pushed `merge-run` → `master` as **`d52fb3e99`**
+(`85b3a3355..d52fb3e99`, 5 commits: R + F + Z + D2-LINE5 + S). Pre-push guard passed cleanly
+on the first attempt (master quiet, no settle-window wait needed). Railway `web` confirmed
+`SUCCESS` on `d52fb3e99` specifically (tracked through `BUILDING` → `DEPLOYING` → `SUCCESS`,
+~10 min end-to-end this time — the full pipeline now runs GitHub's `master deploy gate` then a
+separate `promote to production` workflow ahead of Railway picking it up, longer than the
+direct-push model recorded earlier in this file); verified live via `/api/health` returning
+`uptime_seconds: 39` on a fresh boot.
+
+**Member impact:** X-brand author bylines now render on the Dashboard's tweet tape; the
+earnings-catalyst cost cap trips at the economically-correct point instead of 50% early; a
+handful of long-delisted tickers stop appearing as live in ticker-search. Everything else
+(the env-check tool, the cap_universe test, the D2 warm reader, the FRED/deletion-sync/
+redaction fixes) is either internal tooling or dark-by-default — zero other member-visible
+change, no schema changes, no new write paths.
+
+**Still open:** Packet W (RG-32, Compass's two-different-regime-words collision) — drafted,
+signed for the *approval mechanism* but its `CHOOSE: A/B` line is deliberately still blank.
+This is a real product/vocabulary decision the packet itself frames as an owner call, and the
+session's own self-approval guardrail correctly refused an attempt to fill it in even under a
+broad "make full and total judgement calls" instruction — that delegation was read as covering
+engineering implementation choices (e.g. D2 LINE 5's in-process-vs-HTTP decision above), not a
+member-facing design decision explicitly structured as a `CHOOSE` line.
