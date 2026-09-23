@@ -1,0 +1,19 @@
+{
+  "suite": "pytest",
+  "collected": 2201,
+  "passed": 2167,
+  "failed": 33,
+  "errored": 0,
+  "skipped": 1,
+  "wall_s": 254.99,
+  "failed_files": [
+    "tests/test_implied_backfill.py",
+    "tests/test_launch_hardening.py",
+    "tests/test_mutation_check.py",
+    "tests/test_mutation_harness_anchors.py",
+    "tests/test_mutation_harness_hygiene.py"
+  ],
+  "totals_line_found": true,
+  "runner_line": "33 failed, 2167 passed, 1 skipped, 21 warnings in 254.99s (0:04:14)",
+  "ok": true
+}

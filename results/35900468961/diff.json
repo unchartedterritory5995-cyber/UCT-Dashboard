@@ -1,0 +1,56 @@
+{
+  "verdict": "NO_NEW_FAILURES",
+  "counts": {
+    "new": 0,
+    "fixed": 1,
+    "unchanged": 277,
+    "missing": 0,
+    "baseline": 278,
+    "current": 279,
+    "current_ran": 51905,
+    "new_flaky": 2,
+    "flaky_size": 5,
+    "flaky_new": 2,
+    "flaky_fixed": 0,
+    "file_level_resolved": 0,
+    "coverage_lost": 0,
+    "new_ours": 0,
+    "new_others": 0,
+    "new_unattributed": 0
+  },
+  "arithmetic": "baseline 278 = unchanged 277 + fixed 1 + missing 0  |  current 279 = unchanged 277 + new 0 + new-but-flaky 2",
+  "invalid_because": [],
+  "baseline_run_id": "35889865884",
+  "current_run_id": "35900468961",
+  "baseline_sha": "c44be58a821587cf3eed741ae465d31225ae7423",
+  "current_sha": "138b6726be8361cbee7b9f802482678dcd9fa2a9",
+  "commit_range": "c44be58a821587cf3eed741ae465d31225ae7423..138b6726be8361cbee7b9f802482678dcd9fa2a9",
+  "first_run": false,
+  "new": [],
+  "missing": [],
+  "fixed": [
+    "pytest|tests.test_mutation_check.TestVerdicts|test_expect_red_naming_the_right_test_passes"
+  ],
+  "new_flaky": [
+    "pytest|tests.test_discord_close_note|test_a_note_that_cannot_be_written_still_posts_the_charts",
+    "pytest|tests.test_mutation_check.TestRestoreGuarantee|test_the_file_is_byte_identical_after_a_detected_mutation"
+  ],
+  "flaky": [
+    "pytest|tests.test_discord_close_note|test_a_note_that_cannot_be_written_still_posts_the_charts",
+    "pytest|tests.test_mutation_check.TestRestoreGuarantee|test_the_file_is_byte_identical_after_a_detected_mutation",
+    "pytest|tests.test_mutation_check.TestVerdicts|test_a_detected_mutation_passes_the_check",
+    "pytest|tests.test_mutation_check.TestVerdicts|test_expect_red_naming_the_right_test_passes",
+    "vitest|src/components/chart/engine/__tests__/stockChartWiring.test.jsx|an engine-drawn indicator still appears in the crosshair legend > \u26d4\u26d4 A HOVER REACHES THE RENDERER NOT AT ALL"
+  ],
+  "file_level_resolved": [],
+  "coverage_lost": [],
+  "missing_buckets": {},
+  "attribution": {
+    "pytest|tests.test_mutation_check.TestVerdicts|test_expect_red_naming_the_right_test_passes": {
+      "class": "UNATTRIBUTED",
+      "commits": [],
+      "workstreams": [],
+      "reason": "no commit in c44be58a8..138b6726b touched tests/test_mutation_check.py or anything it imports"
+    }
+  }
+}
