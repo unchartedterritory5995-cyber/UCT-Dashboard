@@ -133,9 +133,16 @@ describe('appendAskInsert (spec §5.2)', () => {
     const ed = mount({ type: 'doc', content: [MINE] })
     ed.commands.setNodeSelection(0)
     expect(appendAskInsert(ed, INSERT)).toBe(true)
-    expect(ed.state.doc.childCount).toBe(2)
+    // StarterKit's TrailingNode extension auto-appends an empty paragraph
+    // after a non-paragraph last block, so assert the real append position
+    // rather than an exact childCount.
+    expect(ed.state.doc.childCount).toBeGreaterThanOrEqual(2)
     expect(ed.state.doc.child(0).textContent).toBe('Mine.')
     expect(ed.state.doc.child(1).type.name).toBe('askInsert')
+    for (let i = 2; i < ed.state.doc.childCount; i += 1) {
+      expect(ed.state.doc.child(i).type.name).toBe('paragraph')
+      expect(ed.state.doc.child(i).textContent).toBe('')
+    }
   })
 
   it('refuses a missing, destroyed or read-only editor', () => {
