@@ -4,8 +4,10 @@ import UIcon from '../../../../components/ui/UIcon'
 import useTickerResearch from '../../hooks/useTickerResearch'
 import { createNoteViaApi, createNoteFromTemplateViaApi } from '../../lib/noteCreation'
 import { notePath } from '../../../../hooks/useNoteBacklinks'
+import { excerptRevisitTarget } from '../../lib/searchNavigation'
 import AskPanel from './AskPanel'
 import DocumentPreviewSheet from './DocumentPreviewSheet'
+import CapturedSourceSheet from './CapturedSourceSheet'
 import { SkeletonLine } from '../../../../components/Skeleton'
 import styles from './TickerResearchWorkspace.module.css'
 
@@ -62,9 +64,47 @@ export default function TickerResearchWorkspace({ symbol, onOpenNote, showBackLi
   const [creating, setCreating] = useState(false)
   const [showPastTheses, setShowPastTheses] = useState(false)
   const [previewDoc, setPreviewDoc] = useState(null)
+  const [capturedSource, setCapturedSource] = useState(null)
   const [actionError, setActionError] = useState('')
 
   const openNote = (note) => (onOpenNote ? onOpenNote(note) : navigate(notePath(note.id)))
+
+  // ⛔ AN EXCERPT CITATION USED TO BE A DEAD CLICK. Its navigation is
+  // `{kind:'excerpt', excerpt_id, document_id, page_number}` -- no `note_id` --
+  // and this handler only knew `note_id`. It now opens the passage the way the
+  // note editor already opens a saved excerpt (`handleOpenExcerptSource`): the
+  // single-excerpt read, which carries the document's URL and the owning note,
+  // then `excerptRevisitTarget` -- the one rule for where an excerpt may
+  // truthfully land -- into the same two sheets. A PDF passage opens at its
+  // page with the passage emphasised; a captured web passage opens as a
+  // captured passage, never in a PDF viewer over `web:<sha256>`.
+  //
+  // ⛔ AND NOTHING HERE IS SILENT. A citation that genuinely has nowhere to go
+  // says so, in words, and a failed read is not reported as a deleted passage.
+  const openCitation = async (source) => {
+    const nav = source?.navigation || {}
+    setActionError('')
+    if (nav.kind === 'excerpt' && nav.excerpt_id) {
+      try {
+        const res = await fetch(`/api/j2/excerpts/${encodeURIComponent(nav.excerpt_id)}`,
+                                { credentials: 'include' })
+        if (res.status === 404) {
+          setActionError('That passage is no longer available.')
+          return
+        }
+        const excerpt = res.ok ? (await res.json())?.excerpt : null
+        const target = excerptRevisitTarget(excerpt)
+        if (target?.kind === 'captured_source') { setCapturedSource(excerpt); return }
+        if (target) { setPreviewDoc({ ...target, emphasizeExcerpt: excerpt }); return }
+      } catch (e) {
+        console.error('[research] open cited excerpt failed', e)
+      }
+      setActionError("Couldn't open that passage — try again.")
+      return
+    }
+    if (nav.note_id) { openNote({ id: nav.note_id }); return }
+    setActionError("That source can't be opened from here.")
+  }
 
   // ⛔ These two used to be `alert(\`Could not create note: ${e.message}\`)`.
   // Two defects in one line: a raw provider/backend exception rendered to a
@@ -144,14 +184,10 @@ export default function TickerResearchWorkspace({ symbol, onOpenNote, showBackLi
               filter to ask about it. */}
           {/* ⛔ `onOpenNote` was never an AskPanel prop, so every citation in
               "This research" was a dead click. Citations navigate through
-              `onNavigate`, into this workspace's own `openNote` (which falls
-              back to the router when no host handler was passed). */}
+              `onNavigate`, into `openCitation` above. */}
           <AskPanel scope="security" target={identity.symbol}
                     onOpenNote={openNote}
-                    onNavigate={(s) => {
-                      const id = s?.navigation?.note_id
-                      if (id) openNote({ id })
-                    }} />
+                    onNavigate={openCitation} />
           <button type="button" className="btn btn-ghost btn-sm" onClick={handleNewNote} disabled={creating}>
             <UIcon name="plus" size={13} gold={false} /> New note
           </button>
@@ -275,9 +311,23 @@ export default function TickerResearchWorkspace({ symbol, onOpenNote, showBackLi
         open={!!previewDoc}
         href={previewDoc?.href}
         name={previewDoc?.name}
+        page={previewDoc?.page}
         onClose={() => setPreviewDoc(null)}
+        /* The viewer emphasises an excerpt only if it is HANDED that excerpt. */
+        excerpts={previewDoc?.emphasizeExcerpt ? [previewDoc.emphasizeExcerpt] : []}
+        emphasizeExcerptId={previewDoc?.emphasizeExcerptId}
         documentId={previewDoc?.documentId}
         onOpenNote={openNote}
+      />
+      <CapturedSourceSheet
+        open={!!capturedSource}
+        excerpt={capturedSource}
+        onClose={() => setCapturedSource(null)}
+        onOpenOwningNote={capturedSource ? () => {
+          const id = capturedSource.noteId
+          setCapturedSource(null)
+          openNote({ id })
+        } : null}
       />
     </div>
   )
