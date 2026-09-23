@@ -17,6 +17,7 @@ ANCHORS = ["2008-10-10", "2008-11-28", "2009-03-10", "2011-01-03", "2011-06-27",
            "2022-06-06", "2022-07-18", "2024-06-10", "2024-08-05", "2025-04-09", "2026-04-15",
            "2026-06-25", "2026-09-11"]
 which = sys.argv[1]
+os.environ["BREADTH_CODE_COMMIT"] = sys.argv[2] if len(sys.argv) > 2 else "unrecorded"
 cal = gh.session_calendar()
 if which == "matrix":
     ds = set()
