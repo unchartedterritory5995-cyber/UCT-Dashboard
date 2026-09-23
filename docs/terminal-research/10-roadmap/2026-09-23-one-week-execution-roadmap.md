@@ -459,6 +459,25 @@ the whole thing holds together.
 > **A1 is lower-priority for this week than the roster's "Extend" language suggested** —
 > nothing here is a same-day engineering task.
 
+> ✅ **A11 result, 2026-09-23 — regime authority resolved, metric registration blocked
+> for a different, legitimate reason.** (1) **Regime authority: fully resolved,
+> confirmed against live code** — `api/routers/intelligence.py`'s `/api/risk-summary` is
+> the *only* reader of the old `market_regimes` table anywhere in `api/`, and it has zero
+> frontend callers (confirmed by grep). `grade_ticker.py` calls
+> `voice_regime_classifier.get_current_regime()` directly. A11 can treat the classifier
+> as the single live authority with no reconciliation work — this boundary is closed, the
+> architecture doc's citation is simply stale. (2) **D2 metric registration: not blocked
+> by CP3, blocked by governance instead.** `resolve()` is never called by registration —
+> mechanically CP2 is sufficient. But every prior extension of `address_book.py` (CP1,
+> CP2, the earnings-table follow-up) required its own explicit, dated, owner-approved
+> scope line before being built, and A11's proprietary metrics (Exposure Rating, breadth
+> score, `pct_above_50sma`) live in the same single-JSON-blob-column shape
+> (`breadth_snapshots`) that the file's own authors already deferred once for the
+> structurally identical `earnings_table` case, by design — not an oversight. No
+> equivalent approval exists for breadth. **Correctly stopped rather than building an
+> unauthorized scope expansion** — logged as a candidate small decision-gate request
+> below, not forced.
+
 ### Day 6 — the two conditional systems, and integration
 
 - **Agent 1:** A10 Options & Flow polish — UI-only work that never touches the
@@ -660,6 +679,7 @@ So there's exactly one list to answer from, not six scattered across a week of u
 | 5 | GitHub token rotation (dead as of last check) — needed if any part of this week wants CI/branch-protection visibility | Nothing this week's plan depends on directly | Whenever |
 | 6 | A read-only production usage query (member counts, which surfaces actually get used) is currently blocked by this session's own permission layer, not by policy. If prioritizing Days 4–6 on real usage data matters more than the priority order in §3, either grant it or run the one-line query directly. | Whether the app-layer build order in §3 reflects a guess or real usage | Optional |
 | 7 | **OI-17 — should `/api/live-prices`, `/api/snapshot/{sym}`, `/api/movers`, `/api/gex/data` require authentication?** Confirmed still unauthenticated as of five days ago, unchanged since 2026-09-02. This program's own standing default is "assume unintended, make no change without the owner" — nobody has built anything to fix it without a ruling from you first. | Whether A1 Markets' one real open item is something to act on this week or leave as-is | Whenever, security-adjacent |
+| 8 | Approve a narrow scope for registering A11's proprietary breadth/exposure metrics into D2's address book (`address_book.py`), matching the exact form its own CP1/CP2/earnings-table approvals already took — a one-line, dated scope grant, not a redesign. Without it, A11's metrics stay unaddressed and its provenance receipts stay incomplete. | A11's D2-dependent work this week | Optional, low urgency |
 
 ---
 
