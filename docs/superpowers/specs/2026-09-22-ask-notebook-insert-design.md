@@ -273,7 +273,10 @@ Node.create({
     `handleDrop` instead, so the same plugin's `handleDrop` enters both again. A drop
     INTO a toggle title follows the title rules below; anywhere else the drop is
     ProseMirror's own, unchanged, unless a dry run of exactly that drop would throw,
-    and then the slice's text is dropped as plain paragraphs (the belt again).
+    and then the slice's text is dropped as plain paragraphs (the belt again). One
+    more exception: a copy-drop of a chart whose id collides (below) is placed by
+    the plugin, because ProseMirror would place its own copy with the old id; the
+    plugin's placement is ProseMirror's drop reproduced, identical apart from the id.
   - **The rule** (this I4 rule, generalised to all three): a container OPEN at an
     edge of a copied or pasted slice was only partly selected, so its content
     travels as plain content. Partial answer text lands as ordinary text wherever
@@ -282,10 +285,14 @@ Node.create({
     as a second block.
   - **A chart's identity** (`widgetEmbed.embedId`, cited precisely only while it is
     unique in the note). A chart pasted or dropped into the note it came from gets a
-    fresh id when its own would collide; the one already there keeps its own. A cut,
-    a drag that moves, and a paste into another note find no collision and keep their
-    id; a legacy chart with no id stays without one. A drag's decision is made by the
-    drop, which alone knows whether it moves.
+    fresh id when its own would collide; the one already there keeps its own.
+    Collisions are judged against the note as it will be once the paste or drop has
+    removed what it replaces: a cut, a drag that moves, a chart pasted over itself and
+    a select-all + paste of the note's own content all keep their ids, and so does a
+    paste into another note. An id repeated WITHIN the pasted slice (an old duplicate
+    pair) collides too, so one of the pair is re-stamped. A legacy chart with no id
+    stays without one. A drag's decision is made by the drop, which alone knows
+    whether it moves.
 - **Paste into a toggle title.** A toggle's title (`toggleSummary`, `inline*`)
   cannot hold a block, so `pasteIntoSummary` in the same plugin decides, in this
   order. Each outcome is one undo step, and none splits the toggle, drops a node or
@@ -311,8 +318,9 @@ Node.create({
     rule applies when it lands at the very start. A MOVED drag (not a copy) has its
     source removed in the same transaction as the insert, so one undo restores both,
     and the rules are judged on the document after that removal; a drop point the
-    removal itself consumes (a title's text dragged and let go on that title) is
-    cancelled. What was dropped ends up selected, as ProseMirror's own drop leaves it.
+    removal itself consumes (a title's text dragged and let go on the dragged
+    content itself) is cancelled. What was dropped ends up selected, as ProseMirror's
+    own drop leaves it.
 - Not added to the slash menu. The `renderHTML` fallback (used by HTML copy/paste
   and static renders) is a plain div with a content hole, and it parses back to the
   same node.

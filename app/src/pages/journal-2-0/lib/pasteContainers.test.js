@@ -1,12 +1,20 @@
 // pasteContainers.js — behavioural rails, written against the REAL extension
 // roster (buildExtensions) and the REAL clipboard path: `serializeForClipboard`
-// for the copy, `view.pasteHTML` / `view.pasteText` for the paste. Each rail
-// was RED before the fix it pins -- a throw, a lost paste, a callout/toggle
-// wrapped around member prose, a toggle split by a paste into its title, or a
-// node dropped or flattened there. The rails named CONTROL are green both ways
-// on purpose: they pin what the fixes must NOT change (a whole block keeps its
-// wrapper, a one-line paste into a title is still ProseMirror's own, an empty
-// title fills with pasted text).
+// for the copy, `view.pasteHTML` / `view.pasteText` for the paste.
+//
+// RED BEFORE ITS FIX: every rail not listed below was red against the code
+// before the fix it pins -- a throw, a lost paste, a callout/toggle wrapped
+// around member prose, a toggle split by a paste or a drop into its title, a
+// node dropped or flattened there, a copied chart keeping its source's
+// embedId, a chart pasted over itself losing its own.
+// GREEN BOTH WAYS, BY DESIGN -- they pin what a fix must NOT change:
+//  - every rail named CONTROL (a whole block keeps its wrapper, a one-line
+//    paste into a title is still ProseMirror's own, an empty title fills with
+//    pasted text, a paste is one undo step, an ordinary drop is byte-identical
+//    to ProseMirror's own);
+//  - the drag OUT of a title's own text (judged after the source is removed);
+//  - the five keep-the-id embed rails: cut + paste, a paste into another note,
+//    a legacy embed, a moved drag, a drag begun as a copy but dropped as a move.
 //
 // EMBED IDS: a chart pasted or dropped into the note it came from gets a fresh
 // embedId when its own would collide; a cut, a moved drag, a paste into another
@@ -17,8 +25,9 @@
 // view.posAtCoords is STUBBED to the position under test, and handleDrop is
 // driven the way prosemirror-view's own editHandlers.drop calls it --
 // view.someProp('handleDrop', f => f(view, event, slice, moved)) -- with
-// view.dragging set as a real drag leaves it. One rail and the drop CONTROL
-// instead dispatch a real DOM `drop` event, so that handler runs whole.
+// view.dragging set as a real drag leaves it. SIX rails (three title drops,
+// three chart drops) and the three drop-CONTROL cases instead dispatch a real
+// DOM `drop` event (domDrop), so that handler runs whole.
 import { describe, it, expect, afterEach, beforeEach, vi } from 'vitest'
 import { Editor } from '@tiptap/core'
 import { NodeSelection, TextSelection } from '@tiptap/pm/state'
@@ -736,6 +745,26 @@ describe('a chart PASTED keeps a unique embedId -- a copy gets a fresh one, the 
     ed.commands.deleteSelection() // the cut's own removal
     pasteAt(ed, locate(ed, 'After.') + 6, html)
     expect(embedIds(ed)).toEqual(['e-orig'])
+  })
+
+  // Wave 4 minors (M1): a paste replaces its selection, so the ids are judged
+  // against the doc WITHOUT it. The plain copy + paste above is the control:
+  // with the source still in the doc, it is re-stamped.
+  it('a chart pasted over ITSELF keeps its id -- the chart it replaces is the one that owned it', () => {
+    const ed = mount([P('Mine.'), chart('e-orig'), P('After.')])
+    const html = copyNode(ed, firstPos(ed, 'widgetEmbed')) // leaves the chart selected
+    ed.view.pasteHTML(html)
+    ed.state.doc.check()
+    expect(embedIds(ed)).toEqual(['e-orig'])
+  })
+
+  it('select-all + paste of the note\'s own content keeps EVERY id', () => {
+    const ed = mount([P('Mine.'), chart('e-a'), P('Between.'), chart('e-b'), P('After.')])
+    ed.commands.selectAll()
+    const html = ed.view.serializeForClipboard(ed.state.selection.content()).dom.innerHTML
+    ed.view.pasteHTML(html) // over the same select-all
+    ed.state.doc.check()
+    expect(embedIds(ed)).toEqual(['e-a', 'e-b'])
   })
 
   it('a paste into ANOTHER note keeps its id -- nothing there collides', () => {

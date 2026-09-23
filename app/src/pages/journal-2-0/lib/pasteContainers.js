@@ -192,10 +192,14 @@ function joinedInline(slice, schema) {
 // same) -- so both copies fell back to note-level citations. A widgetEmbed
 // whose embedId is already TAKEN in the doc it lands in (or earlier in the
 // same slice) gets a fresh one from widgetEmbedCore's own generator; the one
-// already in the doc keeps its own. A cut, or a drag that moves, lands in a
-// doc its source has already left, finds no collision, and keeps its id; so
-// does a paste into another note. An embed with NO embedId (stored before
-// ids existed) stays without one -- a legacy embed is never minted one here.
+// already in the doc keeps its own. "The doc it lands in" is the doc AFTER
+// whatever the paste or drop removes: a cut, or a drag that moves, lands in a
+// doc its source has already left, and a chart pasted over itself (or a
+// select-all + paste of the note's own content) replaces the chart its id
+// belongs to -- none of them collides, so each keeps its id and an Ask
+// citation naming it stays exact. So does a paste into another note. An
+// embed with NO embedId (stored before ids existed) stays without one -- a
+// legacy embed is never minted one here.
 // `docOf` is called only when the slice holds an embed with an id. Returns the
 // SAME slice when nothing changes.
 export function freshEmbedIds(slice, docOf) {
@@ -524,9 +528,11 @@ export const PasteContainers = Extension.create({
         // whether it moves: `view.dragging.move` is dragstart's verdict, and the
         // drop recomputes it from its own event after this runs. So a drag's
         // embed ids are left to handleDrop, which is handed the final answer.
+        // A paste replaces the selection, so its ids are judged against the
+        // doc with the selection already gone.
         transformPasted: (slice, view) => {
           const out = unwrapOpenContainers(slice)
-          return view && !view.dragging ? freshEmbedIds(out, () => view.state.doc) : out
+          return view && !view.dragging ? freshEmbedIds(out, () => view.state.tr.deleteSelection().doc) : out
         },
         // The title first (a paste ProseMirror would complete wrongly -- a
         // split toggle), then the belt for one it would throw on.
