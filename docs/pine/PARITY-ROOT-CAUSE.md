@@ -617,6 +617,85 @@ one site further on: **a fix is only as wide as the lane you measured it in.**
 
 ---
 
+## RC-J — Pine has one `if`; this engine served it in two positions of three
+
+```pine
+x = if c          ✅ the block-valued BINDING
+if c              ✅ the statement form
+f(c) =>           ⛔ the function BODY — `runtime:statement`
+    if c
+        1
+    else
+        2
+```
+
+⛔⛔ **THE SPLIT, NOT THE `if`.** A function body lowers as
+`lowerStmts(lines.slice(0, -1))` plus a result taken from the last line, because Pine
+returns the value of the last statement (§16). But an `if`/`else if`/`else` chain
+occupies **several entries** of that list — so the split handed the `if` to the
+statement lowerer and left a bare `else` as "the result expression", which parses as
+nothing. The refusal named the statement shape; the cause was the split. The fix finds
+where the trailing chain BEGINS.
+
+⭐ **EXTRACTED, NOT COPIED.** The chain collection and the arm rule now live in two
+shared helpers (`lowerIfChainInto`, `armAssignerFor`) that the binding, `switch` and the
+function body all call. The mutation proof is what makes that real: breaking either
+helper reds the new file **and** `blockValuedBinding.test.js` together.
+
+### Measured, and my own estimate was 3× optimistic
+
+| | |
+|---|---|
+| corpus scripts containing the construct | **57** across **147 sites** (21%) |
+| blocked by it — my estimate | 9 |
+| blocked by it — **actual** | **3** |
+| BUILDS | 7 → **7** |
+
+I read `runtime:statement` (5 scripts) as this shape without checking. It was not. The
+three that moved: `high-low-open-mid-ranges`, `ict-ipda-look-back` (to
+`runtime:block-value` — the stated multi-statement-arm limit, firing correctly), and
+`rsi-swing-indicator`, the one script whose first wall was `pine:undefined` naming
+**`else`**.
+
+### ⚰️ THE GATE CAUGHT A CHANGE I HAD NOT PREDICTED, and three hypotheses were wrong
+
+Three member-fixture tests failed on `diagnostics.statements` 77 → 75. In order, I was
+wrong that they were stale blocker pins (all three were the same counter), wrong that my
+refactor caused it (**measured innocent** — 77, identical to HEAD), and wrong that
+`uncharted-volume-v2` had no if-bodied function (my scan checked only the FIRST body
+line; `f_getVolumeUnit` at v2:161 **ends** in one — the scan was wrong, not the data).
+
+**Cause:** that chain now lowers through the value path, one `lowerExpr` per arm, and
+the counter only ticks inside `lowerStmts`.
+
+⛔ **THE NUMBER WAS CHANGED ONLY AFTER THE CODE WAS CHECKED**, because
+`pineRuntimeTextLane.test.js` carries a standing rule about this exact figure: *"The
+number was right and the code was wrong. A ledger that gets edited to match the code it
+is supposed to measure is not a ledger."* Evidence that 75 is right: identical refusal
+guard and line, a **byte-identical** skipped-function set, and both member scripts moving
+by exactly 2 (v2 77→75, v1 76→74) so the differential holds.
+
+⭐⭐ **AND THE PROPERTY THE COUNT WAS A PROXY FOR IS NOW RAILED DIRECTLY.** The
+2026-09-20 incident moved that number UP because an `if`'s BODY was lowered before its
+TEST — the lane stopped CHECKING and looked like it had gone further. A count cannot say
+which way round they ran; `functionBodyBlockValue.test.js` → "SOURCE ORDER" now puts a
+tuple in BOTH positions and requires the TEST's line to win, with single-position
+controls proving each side really can own the refusal.
+
+### ⚠️ FOUND, NOT CAUSED — a false sentence on a tuple arm
+
+`f_getVolumeUnit` returns **tuples** (`['B', 1e9]`) from its arms, and `armAssignerFor`
+assigns to ONE slot, so it still refuses — with `pine:collection`, *"an array, a matrix
+or a map is outside the expression grammar this engine runs"*. **`['B', 1e9]` is a Pine
+TUPLE, not an array**, so that sentence sends a member looking for array support that is
+not the problem. The byte-identical skipped set proves this **predates** the change; it
+was surfaced, not introduced. It is the same "wrong one of its own sentences" class as
+RC-G, RC-H and RC-I, and it is what stands between the firm's own indicator and this
+lane — so it is the next item, with tuple-valued arms (N slots, arity agreement across
+arms) the capability behind it.
+
+---
+
 ## The foreseeable problems — where this shape will bite next
 
 Each is the same substitution, at a seam we have not yet compared:

@@ -4389,6 +4389,85 @@ export function buildRuntimeIr(source, opts = {}) {
    *  and no such shape was constructed. It is kept as exception safety for the
    *  catch-and-fall-through path above, and labelled, because a guard nobody has
    *  seen fire is not a guard — recording that is the honest half. */
+  /** ⭐⭐ THE KEYWORD A BLOCK LINE OPENS WITH, or null. */
+  const blockKeywordOf = (ln) => (
+    ln && ln.header && ln.header[0] && ln.header[0].kind === 'ident'
+      ? ln.header[0].value : null)
+
+  /** ⭐⭐ ONE ARM OF A VALUE-POSITION BLOCK — the rule, in ONE place.
+   *
+   *  ⛔ EXTRACTED, NOT COPIED. Pine's `if` is an expression in three positions
+   *  (a binding, a statement, a function body) and "what does an arm yield"
+   *  must answer the same in all of them. Two copies of that is the
+   *  second-authority defect this engine has paid for repeatedly — RC-F is the
+   *  standing example, where a mutation SURVIVED because one rule had been
+   *  written twice (`lesson_a_guard_repeated_is_a_guard_unproved`). */
+  const armAssignerFor = (slot, label, parentScope) => (sub, atTok) => {
+    const lines = sub || []
+    if (!lines.length) {
+      throw new RuntimeRefusal('runtime:block-value',
+        `\`${label}\` has a branch with no value`, locate(atTok))
+    }
+    // ⚠️ ONE EXPRESSION PER BRANCH, AND THE LIMIT IS NAMED RATHER THAN GUESSED
+    // AT. Serving a multi-statement arm means deciding what a mid-arm assignment
+    // does to an OUTER name, which wants its own measurement — so it refuses by
+    // name instead of lowering something plausible.
+    if (lines.length > 1 || (lines[0].sub && lines[0].sub.length)) {
+      throw new RuntimeRefusal('runtime:block-value',
+        `a branch of \`${label}\` must be one expression; `
+        + `this one spans ${lines.length} statements`, locate(atTok))
+    }
+    const armScope = new Scope(parentScope)
+    const body = [assign(slot, lowerExpr(parseWholeExpression(lines[0].header), armScope))]
+    // ⭐ REGISTERED so the object pass sees a value-position block exactly as it
+    // sees a statement one.
+    objectBlocks.push({ scope: armScope, body })
+    return body
+  }
+
+  /** ⭐⭐ AN `if` / `else if` / `else` CHAIN, COLLECTED AND NESTED — also once.
+   *
+   *  `list[at]` is the `if` line and `firstTestToks` its condition; every
+   *  following `else` line is consumed. Returns the statement and the index of
+   *  the LAST line consumed, because the caller owns its own loop.
+   *
+   *  ⛔ THE WHOLE CHAIN IS COLLECTED FIRST. Lowering one arm at a time leaves
+   *  the remaining `else if`s in the caller's list, where the next turn meets an
+   *  `else` with no `if`.
+   *
+   *  ⛔ TEST BEFORE BODY — source order. Lowering allocates columns and rings,
+   *  and a body lowered first can move a refusal to a line the member has not
+   *  reached yet.
+   *
+   *  ⛔ NESTED IFs, NEVER A FLATTENED CONDITION — a later arm must not be
+   *  evaluated once an earlier one matched. */
+  const lowerIfChainInto = (list, at, firstTestToks, scope, mkArm) => {
+    const arms = [{ testToks: firstTestToks, from: list[at] }]
+    let finalElse = null
+    let k = at
+    for (;;) {
+      const nxt = list[k + 1]
+      if (blockKeywordOf(nxt) !== 'else') break
+      const elseToks = nxt.header.slice(1)
+      k += 1
+      if (elseToks.length && elseToks[0].kind === 'ident' && elseToks[0].value === 'if') {
+        arms.push({ testToks: elseToks.slice(1), from: nxt })
+        continue
+      }
+      finalElse = nxt
+      break
+    }
+    const lowered = arms.map((a) => ({
+      test: lowerExpr(parseWholeExpression(a.testToks), scope),
+      body: mkArm(a.from.sub, a.from.header[0]),
+    }))
+    let chain = finalElse ? mkArm(finalElse.sub, finalElse.header[0]) : []
+    for (let j = lowered.length - 1; j >= 0; j -= 1) {
+      chain = [ifStmt(lowered[j].test, lowered[j].body, chain)]
+    }
+    return { stmt: chain[0], next: k }
+  }
+
   const lowerStmts = (list, scope, rootHoist = false) => {
     const out = []
     const outerStmtSink = stmtHoistSink
@@ -4973,73 +5052,21 @@ export function buildRuntimeIr(source, opts = {}) {
         // member a confident number for a branch their script never took.
         out.push(declare(slot, naValue()))
 
-        /** One arm's body, as the statements that put its value in the slot. */
-        const armBody = (sub, armScope, atTok) => {
-          const body = sub || []
-          if (!body.length) {
-            throw new RuntimeRefusal('runtime:block-value',
-              `\`${nameTok.value} = ${rhsHead.value} …\` has a branch with no value`,
-              locate(atTok))
-          }
-          // ⚠️ ONE EXPRESSION PER BRANCH, AND THE LIMIT IS NAMED RATHER THAN
-          // GUESSED AT. Every one of the 11 corpus scripts on this row has
-          // single-expression arms. Serving a multi-statement arm means deciding
-          // what a mid-arm assignment does to an OUTER name, which is
-          // `foldIfChain`'s entire `touched` loop and wants its own measurement
-          // — so it refuses by name instead of lowering something plausible.
-          if (body.length > 1 || (body[0].sub && body[0].sub.length)) {
-            throw new RuntimeRefusal('runtime:block-value',
-              `a branch of \`${nameTok.value} = ${rhsHead.value} …\` must be one expression; `
-              + `this one spans ${body.length} statements`, locate(atTok))
-          }
-          return [assign(slot, lowerExpr(parseWholeExpression(body[0].header), armScope))]
-        }
-
-        /** An arm's scope, body and registration — one place, so the object
-         *  pass sees a value-position block exactly as it sees a statement one. */
-        const armOf = (sub, atTok) => {
-          const armScope = new Scope(scope)
-          const body = armBody(sub, armScope, atTok)
-          objectBlocks.push({ scope: armScope, body })
-          return body
-        }
+        // ⛔ ONE ARM RULE FOR EVERY POSITION — `armAssignerFor`, defined beside
+        // `lowerStmts`. The copy that used to live here was LIFTED OUT when the
+        // function-body form landed, so a binding, a `switch` and a function
+        // body cannot drift about what an arm yields or what a multi-statement
+        // arm refuses. Its mutation proof breaks the shared helper and watches
+        // every position go red at once.
+        const mkArm = armAssignerFor(slot, `${nameTok.value} = ${rhsHead.value} …`, scope)
 
         if (rhsHead.value === 'if') {
-          // ⛔ THE WHOLE CHAIN IS COLLECTED FIRST, for the reason the statement
-          // form records above: lowering one arm at a time leaves the remaining
-          // `else if`s in the OUTER list, where the next turn of this loop meets
-          // an `else` with no `if`.
-          const arms = [{ testToks: toks.slice(eqBlk + 2), from: st }]
-          let finalElse = null
-          for (;;) {
-            const nxt = list[i + 1]
-            const w = nxt && nxt.header && nxt.header[0] && nxt.header[0].kind === 'ident'
-              ? nxt.header[0].value : null
-            if (w !== 'else') break
-            const elseToks = nxt.header.slice(1)
-            i += 1
-            if (elseToks.length && elseToks[0].kind === 'ident' && elseToks[0].value === 'if') {
-              arms.push({ testToks: elseToks.slice(1), from: nxt })
-              continue
-            }
-            finalElse = nxt
-            break
-          }
-          // ⛔ TEST BEFORE BODY — source order, for the same reason the
-          // statement form states: lowering allocates columns and rings, and a
-          // body lowered first can move a refusal to a line the member did not
-          // reach yet.
-          const lowered = arms.map((a) => {
-            const test = lowerExpr(parseWholeExpression(a.testToks), scope)
-            return { test, body: armOf(a.from.sub, a.from.header[0]) }
-          })
-          let chain = finalElse ? armOf(finalElse.sub, finalElse.header[0]) : []
-          // ⛔ NESTED IFs, NEVER A FLATTENED CONDITION — a later arm must not be
-          // evaluated once an earlier one matched.
-          for (let k = lowered.length - 1; k >= 0; k -= 1) {
-            chain = [ifStmt(lowered[k].test, lowered[k].body, chain)]
-          }
-          out.push(chain[0])
+          // ⭐ THE CHAIN IS `lowerIfChainInto`'S — collection, source-ordered
+          // lowering and the nested-never-flattened shape all live there, shared
+          // with the function-body form. This site owns only the loop index.
+          const chain = lowerIfChainInto(list, i, toks.slice(eqBlk + 2), scope, mkArm)
+          i = chain.next
+          out.push(chain.stmt)
           continue
         }
 
@@ -5064,11 +5091,18 @@ export function buildRuntimeIr(source, opts = {}) {
               `an arm of \`${nameTok.value} = switch …\` has no \`=>\``, locate(arm.header[0]))
           }
           const armRhs = arm.header.slice(at + 1)
-          const armScope = new Scope(scope)
-          const body = armRhs.length
-            ? [assign(slot, lowerExpr(parseWholeExpression(armRhs), armScope))]
-            : armBody(arm.sub, armScope, arm.header[0])
-          objectBlocks.push({ scope: armScope, body })
+          // ⭐ AN INLINE `=>` VALUE IS ITS OWN SHAPE; A BLOCK ARM IS THE SHARED
+          // RULE. Routing the block case through `mkArm` is what keeps a
+          // `switch` arm and an `if` arm answering the same question the same
+          // way — it registers its own scope, so this site must not push again.
+          let body
+          if (armRhs.length) {
+            const armScope = new Scope(scope)
+            body = [assign(slot, lowerExpr(parseWholeExpression(armRhs), armScope))]
+            objectBlocks.push({ scope: armScope, body })
+          } else {
+            body = mkArm(arm.sub, arm.header[0])
+          }
           if (at === 0) fallback = body
           else cases.push({ matchToks: arm.header.slice(0, at), body })
         }
@@ -5449,25 +5483,60 @@ export function buildRuntimeIr(source, opts = {}) {
         if (!lines.length) {
           throw new RuntimeRefusal('runtime:function', 'a body with no statements', locate(nameTok))
         }
-        body = lowerStmts(lines.slice(0, -1), fnScope)
-        // ⭐ PINE RETURNS THE VALUE OF THE LAST STATEMENT (§16) — not an explicit
-        // `return`. A final binding yields the value it bound; a final bare
-        // expression yields itself.
-        const last = lines[lines.length - 1]
-        const lt = last.header || []
-        const eq = findTop(lt, (t) => isPunct(t, '='))
-        const walrus = findTop(lt, (t) => isPunct(t, ':='))
-        if (walrus > 0 || (eq > 0 && !isPunct(lt[0], '['))) {
-          body = body.concat(lowerStmts([last], fnScope))
-          const bound = walrus > 0 ? lt[walrus - 1] : boundName(lt, eq)
-          const slot = bound ? fnScope.lookup(bound.value) : null
-          if (slot === null) {
-            throw new RuntimeRefusal('runtime:function',
-              'a body whose last statement binds nothing this front end can return', locate(nameTok))
+        // ⭐⭐ A TRAILING `if` CHAIN IS THE BODY'S VALUE, AND IT SPANS SEVERAL
+        // LINES. Pine returns the value of the LAST STATEMENT (§16), and this
+        // site read that as `lines[lines.length - 1]` — but an
+        // `if`/`else if`/`else` chain occupies SEVERAL entries of this list. So
+        // the split handed the `if` to the statement lowerer and left a BARE
+        // `else` as the result expression, which parses as nothing at all: the
+        // refusal named the statement shape and the cause was the split.
+        //
+        // ⛔ SO THE CHAIN'S START IS FOUND, not the last line special-cased —
+        // which is also what lets statements sit in front of it.
+        let chainAt = -1
+        {
+          let k = lines.length - 1
+          if (blockKeywordOf(lines[k]) === 'if') chainAt = k
+          else if (blockKeywordOf(lines[k]) === 'else') {
+            while (k >= 0 && blockKeywordOf(lines[k]) === 'else') k -= 1
+            if (k >= 0 && blockKeywordOf(lines[k]) === 'if') chainAt = k
           }
-          result = read(slot)
+        }
+        if (chainAt >= 0) {
+          body = lowerStmts(lines.slice(0, chainAt), fnScope)
+          // ⛔ `na` IS THE SEED AND IT IS LOAD-BEARING. An `if` with no `else`
+          // that does not match has NO value; seeding with 0, or with the
+          // matched arm, hands a member a confident number for a branch their
+          // script never took. This is the binding form's rule because it is
+          // `armAssignerFor`'s rule — one implementation, three positions.
+          const vName = `__ifval_${fnIndex}`
+          const vSlot = fnScope.declare(vName, newSlot(vName, false))
+          body.push(declare(vSlot, naValue()))
+          const chain = lowerIfChainInto(lines, chainAt, lines[chainAt].header.slice(1),
+            fnScope, armAssignerFor(vSlot, `${nameTok.value}(…) => if …`, fnScope))
+          body.push(chain.stmt)
+          result = read(vSlot)
         } else {
-          result = lowerResult(parseWholeExpression(lt), fnScope)
+          body = lowerStmts(lines.slice(0, -1), fnScope)
+          // ⭐ PINE RETURNS THE VALUE OF THE LAST STATEMENT (§16) — not an explicit
+          // `return`. A final binding yields the value it bound; a final bare
+          // expression yields itself.
+          const last = lines[lines.length - 1]
+          const lt = last.header || []
+          const eq = findTop(lt, (t) => isPunct(t, '='))
+          const walrus = findTop(lt, (t) => isPunct(t, ':='))
+          if (walrus > 0 || (eq > 0 && !isPunct(lt[0], '['))) {
+            body = body.concat(lowerStmts([last], fnScope))
+            const bound = walrus > 0 ? lt[walrus - 1] : boundName(lt, eq)
+            const slot = bound ? fnScope.lookup(bound.value) : null
+            if (slot === null) {
+              throw new RuntimeRefusal('runtime:function',
+                'a body whose last statement binds nothing this front end can return', locate(nameTok))
+            }
+            result = read(slot)
+          } else {
+            result = lowerResult(parseWholeExpression(lt), fnScope)
+          }
         }
       } else {
         result = lowerResult(parseWholeExpression(toks.slice(arrow + 1)), fnScope)

@@ -147,6 +147,24 @@ describe('⭐⭐ v2 through the IR lane — where it stops now', () => {
     // rediscovered as a mystery.
     expect(r.refusal.line).toBe(249)
     expect(r.refusal.message).toContain('syminfo.ticker')
-    expect(r.diagnostics.statements).toBe(77)
+    // ⚰️ 2026-09-23: 77 → 75, AND THE CODE WAS CHECKED BEFORE THE NUMBER WAS.
+    // `f_getVolumeUnit` (v2:161) ends in an `if`/`else if`/`else` chain. That
+    // now lowers through the VALUE path — one `lowerExpr` per arm, as the
+    // block-valued BINDING has always done — instead of `lowerStmts`, and this
+    // counter only ticks inside `lowerStmts`. Two lines the lane still
+    // processes are no longer counted.
+    //
+    // ⛔ THE LANE'S REACH IS UNCHANGED, and that was measured, not assumed:
+    // same refusal guard, same line, and a BYTE-IDENTICAL skipped-function set
+    // (names, lines, guards). Both member scripts moved by exactly 2
+    // (v2 77→75, v1 76→74), so the differential this file reasons about holds.
+    //
+    // ⛔ THIS IS NOT THE 2026-09-20 INCIDENT. That one moved the number UP
+    // because an `if`'s BODY was lowered before its TEST, so the lane stopped
+    // CHECKING and looked like it had gone further. Source order is preserved
+    // here and is now railed DIRECTLY — `functionBodyBlockValue.test.js`,
+    // "SOURCE ORDER" — with a tuple in both positions and the test's line
+    // required to win. A count could never have said which way round they ran.
+    expect(r.diagnostics.statements).toBe(75)
   })
 })
