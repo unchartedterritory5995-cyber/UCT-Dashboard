@@ -135,6 +135,51 @@ export function unwrapOpenContainers(slice) {
   return r.changed ? new Slice(r.fragment, r.openStart, r.openEnd) : slice
 }
 
+// True when `slice` merges into the target textblock as inline content: inline
+// nodes at the top, or ONE textblock -- alone at every level above it -- that
+// is open at both ends (a word copied from a paragraph, a list item, a body).
+function mergesInline(slice) {
+  let fragment = slice.content
+  for (let depth = 0; ; depth += 1) {
+    if (depth === slice.openStart && depth === slice.openEnd) {
+      let inline = fragment.childCount > 0
+      fragment.forEach((node) => { if (!node.isInline) inline = false })
+      return inline
+    }
+    if (depth >= slice.openStart || depth >= slice.openEnd || fragment.childCount !== 1) return false
+    fragment = fragment.firstChild.content
+  }
+}
+
+// A toggle's summary is its one-line title (`toggleSummary` is `inline*`). A
+// paste into it that is anything but inline content -- two lines of plain
+// text, several paragraphs, a list, a whole block -- made the Fitter close the
+// summary mid-paste and split the toggle in two around the pasted blocks
+// (measured: plain two-line text left `toggle(summary "plain words", empty
+// body)`, `paragraph("second lineSummary line")`, `toggle(empty summary,
+// original body)`). Such a paste lands as its TEXT, one line, blocks joined by
+// a single space. A single-line paste (mergesInline) is left to ProseMirror,
+// which keeps its marks. A slice with no text at all (an image, a rule) is
+// left to ProseMirror too: a title cannot hold it, and dropping it would lose
+// it silently.
+export function pasteIntoSummary(view, slice) {
+  if (!slice || !slice.size) return false
+  const { $from, $to } = view.state.selection
+  if ($from.parent.type.name !== 'toggleSummary' || !$from.sameParent($to)) return false
+  if (mergesInline(slice)) return false
+  const parts = []
+  slice.content.descendants((node) => {
+    if (!node.isTextblock) return true
+    const line = node.textContent.replace(/[\r\n]+/g, ' ')
+    if (line) parts.push(line)
+    return false
+  })
+  const text = parts.join(' ')
+  if (!text) return false
+  view.dispatch(view.state.tr.insertText(text).scrollIntoView().setMeta('paste', true).setMeta('uiEvent', 'paste'))
+  return true
+}
+
 // Belt-and-braces: if ProseMirror would still throw placing this slice (a
 // schema shape nothing above anticipated), paste its TEXT instead of losing it
 // to an uncaught error (which also leaves the browser's native paste
@@ -174,7 +219,9 @@ export const PasteContainers = Extension.create({
       props: {
         transformCopied: (slice) => unwrapOpenContainers(slice),
         transformPasted: (slice) => unwrapOpenContainers(slice),
-        handlePaste: (view, _event, slice) => pasteOrFallBack(view, slice),
+        // The summary first (it is a paste ProseMirror would complete, wrongly),
+        // then the belt for one it would throw on.
+        handlePaste: (view, _event, slice) => pasteIntoSummary(view, slice) || pasteOrFallBack(view, slice),
       },
     })]
   },

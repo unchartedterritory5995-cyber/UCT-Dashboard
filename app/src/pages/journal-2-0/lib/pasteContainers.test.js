@@ -183,6 +183,57 @@ describe('a WHOLE block still pastes as that block (controls: green before and a
   }
 })
 
+// A toggle's summary is a one-line title. Measured before the fix: plain
+// two-line text pasted into a summary produced `toggle(summary "plain words",
+// empty body)`, `paragraph("second lineSummary line")`, `toggle(empty summary,
+// original body)` -- one toggle split into two around the pasted blocks.
+describe('a multi-block paste into a toggle SUMMARY stays in that summary as one line', () => {
+  const summaryOf = (ed) => { let s = null; ed.state.doc.descendants((n) => { if (s == null && n.type.name === 'toggleSummary') s = n.textContent }); return s }
+  const bodyOf = (ed) => { let s = null; ed.state.doc.descendants((n) => { if (s == null && n.type.name === 'toggleContent') s = n.textContent }); return s }
+  const CASES = [
+    ['plain two-line text', (ed) => ed.view.pasteText('plain words\nsecond line'), 'plain words second line'],
+    ['a multi-paragraph HTML paste', (ed) => ed.view.pasteHTML('<p>First para.</p><p>Second para.</p>'), 'First para. Second para.'],
+    ['a two-item list', (ed) => ed.view.pasteHTML('<ul><li>one</li><li>two</li></ul>'), 'one two'],
+  ]
+  for (const [label, paste, joined] of CASES) {
+    it(`${label}: exactly one toggle, the summary holds the joined text, the body is unchanged`, () => {
+      const ed = mount([P('Mine.'), TOGGLE, P('After.')])
+      ed.commands.setTextSelection(locate(ed, 'ary line')) // "Summ|ary line"
+      paste(ed)
+      ed.state.doc.check()
+      expect(count(ed, 'toggle')).toBe(1)
+      expect(summaryOf(ed)).toBe(`Summ${joined}ary line`)
+      expect(bodyOf(ed)).toBe('Toggle body.')
+      expect(top(ed)).toEqual(['paragraph:Mine.', `toggle:Summ${joined}ary lineToggle body.`, 'paragraph:After.'])
+    })
+  }
+
+  it('a WHOLE callout copied as a node and pasted into a summary lands as its text, not a second block', () => {
+    const ed = mount([P('Mine.'), CALLOUT, TOGGLE, P('After.')])
+    const html = copyNode(ed, firstPos(ed, 'callout'))
+    ed.commands.setTextSelection(locate(ed, 'ary line'))
+    ed.view.pasteHTML(html)
+    ed.state.doc.check()
+    expect(count(ed, 'toggle')).toBe(1)
+    expect(count(ed, 'callout')).toBe(1)
+    expect(summaryOf(ed)).toBe('SummInside callout.ary line')
+    expect(bodyOf(ed)).toBe('Toggle body.')
+  })
+
+  it('CONTROL: a word pasted into a summary is still ProseMirror\'s own inline paste -- its bold survives', () => {
+    const ed = mount([{ type: 'paragraph', content: [{ type: 'text', text: 'Bold', marks: [{ type: 'bold' }] }] }, TOGGLE])
+    const html = copyRange(ed, 1, 5)
+    ed.commands.setTextSelection(locate(ed, 'ary line'))
+    ed.view.pasteHTML(html)
+    let marks = null
+    ed.state.doc.descendants((n) => {
+      if (n.type.name === 'toggleSummary') n.forEach((c) => { if (c.text === 'Bold') marks = c.marks.map((m) => m.type.name) })
+    })
+    expect(summaryOf(ed)).toBe('SummBoldary line')
+    expect(marks).toEqual(['bold']) // a text-only paste would have dropped the mark
+  })
+})
+
 describe('the belt: a slice ProseMirror cannot place is pasted as text, never lost (belt)', () => {
   it('handlePaste falls back to plain text for the raw pre-fix toggle shape', () => {
     const ed = mount([P('Mine.'), P('After.')])
