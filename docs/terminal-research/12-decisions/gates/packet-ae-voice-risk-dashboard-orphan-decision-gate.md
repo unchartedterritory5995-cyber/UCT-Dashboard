@@ -300,11 +300,11 @@ CHOOSE ONE:
      endpoint, its function, and its own heat math are retired exactly as in
      Option A; only the refusal-history read is carried forward, relocated.
 
-CHOOSE: 
+CHOOSE: A
 ```
 
-**Not decided.** Left blank for the owner. §5's recommendation is A; it is
-recorded as a recommendation, not a decision made on the owner's behalf.
+**Decided 2026-09-23, by the owner, in chat: "A retire."** Matches §5's
+recommendation.
 
 ---
 
