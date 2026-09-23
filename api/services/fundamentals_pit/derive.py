@@ -21,7 +21,8 @@ from .series import build_series
 from .split_ledger import PRODUCTION_SOURCES, SPLIT_SENSITIVE_METRICS, LedgerConflict, ledger_from_rows, verify
 from .splits import Ledger
 
-DERIVATION_VERSION = 1
+# v2 (2026-09-23): series never regress to an older period (series.py).
+DERIVATION_VERSION = 2
 
 
 def load_knowledge(conn, cik: int):

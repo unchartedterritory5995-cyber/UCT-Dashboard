@@ -49,6 +49,16 @@ const REQUESTS = []
 const realFetch = window.fetch.bind(window)
 const json = (body, status = 200) => Promise.resolve(new Response(JSON.stringify(body),
   { status, headers: { 'content-type': 'application/json' } }))
+// The derivation version the exporter wrote (`current.json`), never hard-coded.
+let _pitRoot = null
+const pitRoot = async () => {
+  if (!_pitRoot) {
+    const r = await realFetch(`${DATA}/fundamentals_pit/current.json`)
+    const v = r.ok ? (await r.json()).version : 1
+    _pitRoot = `fundamentals_pit/v${v}`
+  }
+  return _pitRoot
+}
 const file = async (path) => {
   const r = await realFetch(`${DATA}/${path}`)
   if (!r.ok) return null
@@ -76,10 +86,10 @@ window.fetch = async (input, init) => {
     if (m) {
       const sym = decodeURIComponent(m[1]).toUpperCase()
       const ids = decodeURIComponent(m[2]).split(',')
-      const index = await file('fundamentals_pit/v1/tickers.json')
+      const index = await file(`${await pitRoot()}/tickers.json`)
       const cik = index && index.tickers ? index.tickers[sym] : null
-      const art = cik != null ? await file(`fundamentals_pit/v1/cik/${cik}.json`) : null
-      const out = { symbol: sym, derivation_version: 1, metrics: {}, missing: [] }
+      const art = cik != null ? await file(`${await pitRoot()}/cik/${cik}.json`) : null
+      const out = { symbol: sym, derivation_version: Number((await pitRoot()).split('/v')[1]), metrics: {}, missing: [] }
       if (art) Object.assign(out, { cik: art.cik, name: art.name, split_status: art.split_status,
         withheld_split_sensitive: art.withheld_split_sensitive })
       for (const id of ids) {
@@ -143,8 +153,8 @@ const ORACLE_COMPOSE = {
 async function audit(sym, tf, settings) {
   const cat = await file('catalog.json')
   const byId = Object.fromEntries(cat.metrics.map((m) => [m.id, m]))
-  const index = await file('fundamentals_pit/v1/tickers.json')
-  const art = await file(`fundamentals_pit/v1/cik/${index.tickers[sym]}.json`)
+  const index = await file(`${await pitRoot()}/tickers.json`)
+  const art = await file(`${await pitRoot()}/cik/${index.tickers[sym]}.json`)
   const bars = (await file(`bars/${sym}_${tf}.json`)).bars
   const dbg = window.__uctChartDebug || {}
   const plotted = dbg[Object.keys(dbg)[0]].engineSeries()

@@ -73,6 +73,15 @@ def build_series(kb: Knowledge, metrics: list[str] | None = None,
             pts = out[m]
             if val is None:
                 continue
+            # ⛔ A SERIES NEVER STEPS BACK TO AN OLDER PERIOD. `latest` falls back
+            # to the newest COMPUTABLE period, so when the newest one stops being
+            # computable (MEASURED: TSLA 2025-04-23, whose Q1-25 10-Q restated a
+            # 2024 comparative and invalidated the FY2024 fact) it re-derived the
+            # 2024-09-30 TTM and the chart showed a six-month-old period as
+            # current. 1,993 of 3,503 universe companies had such a regression.
+            # A restated value for the SAME latest period still flows through.
+            if pts and val.period_end < pts[-1].period_end:
+                continue
             if pts and pts[-1].period_end == val.period_end and _same(pts[-1].v, val.v):
                 continue
             pts.append(Point(t, val.v, val.period_end, val.sources, val.note))

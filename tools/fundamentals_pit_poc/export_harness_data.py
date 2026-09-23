@@ -5,8 +5,9 @@ and the local bars.db READ-ONLY, and writes the exact payloads the product's
 routes return, so the harness can answer `/api/*` without any backend:
 
     <out>/catalog.json                      == GET /api/fundamentals/pit/catalog
-    <out>/fundamentals_pit/v1/tickers.json  == publish.index_key()
-    <out>/fundamentals_pit/v1/cik/<cik>.json == publish.key_for(cik)   (via publish_company)
+    <out>/fundamentals_pit/v<N>/tickers.json  == publish.index_key()
+    <out>/fundamentals_pit/v<N>/cik/<cik>.json == publish.key_for(cik)   (via publish_company)
+    <out>/fundamentals_pit/current.json      {version: N}  (harness-only)
     <out>/beta/<SYM>.json                   == serving.beta_points(sym)
     <out>/bars/<SYM>_<TF>.json              == GET /api/bars/<SYM>?tf=<TF>  (shape: {ticker, tf, bars})
 
@@ -22,7 +23,7 @@ from datetime import date
 
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..")))
 
-from api.services.fundamentals_pit import catalog as C, publish as P, serving, store as S  # noqa: E402
+from api.services.fundamentals_pit import catalog as C, derive as D, publish as P, serving, store as S  # noqa: E402
 
 KEEP = {"D": 1600, "W": 520, "M": 240, "5": 1600, "60": 800}
 
@@ -41,6 +42,9 @@ def main():
     with open(os.path.join(a.out, "catalog.json"), "w") as f:
         json.dump(C.payload(), f)
     P.publish_index(conn, local_root=a.out)
+    # The harness reads the version from here rather than hard-coding a path.
+    with open(os.path.join(a.out, "fundamentals_pit", "current.json"), "w") as f:
+        json.dump({"version": D.DERIVATION_VERSION}, f)
 
     def closes(sym):
         rows = bars.execute("SELECT ts, c FROM ohlcv WHERE ticker=? AND tf='D' ORDER BY ts", (sym,)).fetchall()
