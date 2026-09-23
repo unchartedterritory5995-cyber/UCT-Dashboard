@@ -1,0 +1,1085 @@
+/opt/hostedtoolcache/Python/3.12.14/x64/lib/python3.12/site-packages/pytest_asyncio/plugin.py:208: PytestDeprecationWarning: The configuration option "asyncio_default_fixture_loop_scope" is unset.
+The event loop scope for asynchronous fixtures will default to the fixture caching scope. Future versions of pytest-asyncio will default the loop scope for asynchronous fixtures to function scope. Set the default fixture loop scope explicitly in order to avoid unexpected behavior in the future. Valid fixture loop scopes are: "function", "class", "module", "package", "session"
+
+  warnings.warn(PytestDeprecationWarning(_DEFAULT_FIXTURE_LOOP_SCOPE_UNSET))
+........................................................................ [  3%]
+.........................................................F.............. [  6%]
+.................................................FF..................... [ 10%]
+........................................................................ [ 13%]
+........................................................................ [ 16%]
+.........................................F.............................. [ 20%]
+........................................................................ [ 23%]
+........................................................................ [ 27%]
+..........ss............................................................ [ 30%]
+........................................................................ [ 33%]
+........................................................................ [ 37%]
+........................................................................ [ 40%]
+........................................................................ [ 44%]
+........................................................................ [ 47%]
+.......................................FFFFFFF...................F...... [ 50%]
+........................................................................ [ 54%]
+...........................s............................................ [ 57%]
+........................................................................ [ 61%]
+........................................................................ [ 64%]
+........................................................................ [ 67%]
+........................................................................ [ 71%]
+........................................................................ [ 74%]
+......................................F.........F....................... [ 78%]
+........................................................................ [ 81%]
+........................................................................ [ 84%]
+.....................s.................................................. [ 88%]
+........................................................................ [ 91%]
+........................................................................ [ 95%]
+..............................................F......................... [ 98%]
+..............................                                           [100%]
+=================================== FAILURES ===================================
+___________ test_scrub_removes_a_token_from_a_real_playwright_error ____________
+
+    def test_scrub_removes_a_token_from_a_real_playwright_error():
+        """End to end on the renderer's own scrub, with the shape that actually leaked."""
+        import importlib.util
+        spec = importlib.util.spec_from_file_location("cr_app_scrub", RENDERER)
+        mod = importlib.util.module_from_spec(spec)
+>       spec.loader.exec_module(mod)
+
+tests/test_render_token_never_logged.py:96: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+<frozen importlib._bootstrap_external>:999: in exec_module
+    ???
+<frozen importlib._bootstrap>:488: in _call_with_frames_removed
+    ???
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+    """chart-renderer: a tiny headless-Chromium screenshot service (Railway).
+    
+    POST /render  {url, selector?, width?, height?, scale?, settle_ms?, ready_js?, probe_js?}
+      → image/png of `selector` (default "#chart-export") on `url`, plus
+        X-Chart-Ready (did `ready_js` ever pass?) and X-Chart-Probe (the JSON value
+        of `probe_js`, read from the page at capture time).
+    
+    ⭐ The two report headers exist because a screenshot cannot be judged from its
+    pixels alone. This service used to swallow the readiness timeout — "a timeout is
+    not a verdict; the caller judges the image" — and the caller judged it by the
+    grey-level variance of the chart body. On 2026-08-31 that judgement passed three
+    charts with NO CANDLES IN THEM to a public channel: once /r/chart resolves a
+    symbol it paints a large centred watermark, a subtitle, grid lines and a stats
+    strip, which is 8-17 std-dev of ink with no data in it. Ink is not data. So the
+    page now STAMPS what it drew and this service carries that answer back, instead
+    of discarding the one fact it had. See `discord_chart_house.render_house_chart`.
+    
+    Exists because the house chart image is a screenshot of the dashboard's own
+    /r/chart page (the same thing the Sunday Scans / Substack renderers do from
+    the owner's PC) and the `web` service has no browser. Only hosts in
+    RENDER_ALLOWED_HOSTS may be rendered; every call needs X-Render-Secret.
+    Listens on :: so Railway's IPv6-only private network can reach it.
+    
+    Step 2.3 of docs/discord-render/03-architecture.md (§3.7), in two tiers.
+    
+    UNCONDITIONAL — none of these changes a render that keeps to its own budgets:
+      * log hygiene (C-13): no query string is ever logged or returned. Playwright's error
+        text carries its call log, and the call log printed the navigation URL — render token
+        included — 142 times in 14 days; `render failed: …` put the same text in the 502 body,
+        which web then logged too;
+      * a hard ceiling around the whole render (504 with a reason): by default the sum of the
+        budgets the request itself declares, so only a hang is cut. RENDER_HARD_TIMEOUT_S lowers it;
+      * `X-Correlation-Id` read and printed on one render log line (the path, never the query);
+      * /health reports `ready` and counters.
+    
+    BEHIND RENDER_POOL_ENABLED (default off): Chromium launched and warmed at boot before
+    `ready`, a pre-created fresh context per viewport, a browser recycle after
+    RENDER_RECYCLE_AFTER renders or RENDER_RSS_CEILING_MB, and `X-Render-Priority: background`
+    capped at RENDER_BACKGROUND_SLOTS of RENDER_MAX_CONCURRENT so the warm cycle yields to members.
+    
+    BEHIND RENDER_ADMIN_ENDPOINTS=1 (default off, and 404 — not 403 — when off, so the route is
+    indistinguishable from one that was never written): POST /admin/pool/recycle, bearer-gated on
+    RENDER_ADMIN_TOKEN, recycles EXACTLY ONE pooled page so determinism-across-recycle and the
+    self-heal chaos row have a real trigger with zero member impact. Owner ruling B1, 2026-09-14.
+    Both recycle paths are documented in docs/runbooks/discord-render-operations.md §9e.
+    """
+    from __future__ import annotations
+    
+    import asyncio
+    import contextvars
+    import hmac
+    import itertools
+    import json
+    import logging
+    import math
+    import os
+    import re
+    import time
+    import traceback
+    from collections import deque
+    from urllib.parse import urlparse
+    
+    from fastapi import FastAPI, Header, HTTPException, Request
+    from fastapi.responses import Response
+    from pydantic import BaseModel, Field
+    
+    # ⚠️ FLAT IMPORT, AND THE DOCKERFILE MUST COPY IT. The image has WORKDIR /app and
+    # starts `uvicorn app:app`, so siblings are top-level modules — and it copies
+    # files INDIVIDUALLY, so a new module that is not added to the Dockerfile is an
+    # ImportError on boot, not a missing feature.
+>   from edge_scope import EDGE_TOKEN_HEADER, edge_token_targets
+E   ModuleNotFoundError: No module named 'edge_scope'
+
+services/chart_renderer/app.py:71: ModuleNotFoundError
+___ test_every_SERIES_LOOKBACK_entry_is_TAGGED_so_none_can_ship_uncontained ____
+
+    def test_every_SERIES_LOOKBACK_entry_is_TAGGED_so_none_can_ship_uncontained():
+        """⛔⛔ THE HALF A `lookback: "series"` DECLARATION CANNOT SHIP WITHOUT.
+    
+        `series` says THE WINDOW IS THE DELIVERED SERIES — which is exactly the
+        property that makes a column a fact about the REQUEST rather than about the
+        market: widen the fetch and every value moves by one constant. That is the
+        defect `_functions_cumulative` refused `ta.cum` over, and the only reason the
+        refusal could be relaxed is that `_requirement_tags` now contains it.
+    
+        ⛔ SO THE TWO ARE ONE DECISION AND THIS ASSERTS IT. A second `series` entry
+        added without a tag would be callable, would resolve to 0 in the budget (which
+        is TRUE — it costs no warm-up), would pass every existing rail, and would flow
+        straight into the screener, the sweep, an alert, a share and a listing. The
+        budget cannot catch it because the budget is not the thing being violated.
+    
+        ⚠️ THE CONVERSE IS NOT ASSERTED, ON PURPOSE. A tag may name a call that is not
+        `series`-declared — a future tag might be about something else entirely (a
+        fetch to another symbol, say). One direction is the safety property; the other
+        would be a guess about tags nobody has written.
+        """
+        from api.services import ast_lint
+    
+        functions = ast_table.TABLE["functions"]
+        series_declared = sorted(
+            name for name, spec in functions.items()
+            if hasattr(spec, "get") and spec.get("lookback") == ast_lint.SERIES_LOOKBACK)
+    
+        # ⛔ NON-VACUITY. With no `series` entry at all the loop below is empty and
+        # this test passes while asserting nothing — the shape this repo names most.
+        assert series_declared, (
+            "no entry declares `lookback: \"series\"` — either the declaration was "
+            "removed (delete this rail with it) or the probe stopped finding it")
+    
+        tagged = set()
+        for tag, spec in (ast_table.TABLE.get("_requirement_tags") or {}).items():
+            if tag.startswith("_") or not hasattr(spec, "get"):
+                continue
+            tagged |= set(spec.get("calls") or ())
+    
+        missing = [n for n in series_declared if n not in tagged]
+>       assert not missing, (
+            f"{missing} declare(s) `lookback: \"series\"` and NO requirement tag names "
+            "them. The declaration says the value depends on how much history was "
+            "loaded; the tag is the only thing that stops that value reaching the "
+            "screener, the sweep, an alert, a share or a listing, where the defect is "
+            "invisible. Add the name to `_requirement_tags.<tag>.calls`.")
+E       AssertionError: ['valuewhenOccurrence'] declare(s) `lookback: "series"` and NO requirement tag names them. The declaration says the value depends on how much history was loaded; the tag is the only thing that stops that value reaching the screener, the sweep, an alert, a share or a listing, where the defect is invisible. Add the name to `_requirement_tags.<tag>.calls`.
+E       assert not ['valuewhenOccurrence']
+
+tests/test_requirement_tags.py:164: AssertionError
+_ test_a_series_declared_entry_really_is_REFUSED_by_the_comparability_consumers _
+
+    def test_a_series_declared_entry_really_is_REFUSED_by_the_comparability_consumers():
+        """⭐ THE RAIL ABOVE CHECKS THE WIRING; THIS CHECKS IT DOES SOMETHING.
+    
+        A name could be listed in a tag whose `refused_by` is empty, which would
+        satisfy the assertion above and refuse nobody.
+        """
+        from api.services import ast_lint
+        from api.services.user_definitions import consumer_refusal, requirement_tags
+    
+        for name, spec in ast_table.TABLE["functions"].items():
+            if not hasattr(spec, "get") or spec.get("lookback") != ast_lint.SERIES_LOOKBACK:
+                continue
+            tags = requirement_tags({"compute": {"ast": _call(name, VOLUME)}})
+>           assert tags, f"{name} is series-declared and `requirement_tags` returns nothing"
+E           AssertionError: valuewhenOccurrence is series-declared and `requirement_tags` returns nothing
+E           assert []
+
+tests/test_requirement_tags.py:185: AssertionError
+________________ test_a_sandbox_inside_this_worktree_is_REFUSED ________________
+
+    def test_a_sandbox_inside_this_worktree_is_REFUSED():
+        mod = _load()
+        inside = REPO / "docs" / "pine" / "wip" / "rig" / "rig-data"
+        with pytest.raises(SystemExit) as exc:
+            mod.rig_sandbox({"UCT_RIG_DATA": str(inside)})
+        msg = str(exc.value)
+        # ⭐ NAMED, not merely refused: the message carries the worktree it found and
+        # the path it resolved, because "REFUSED" alone sends nobody anywhere.
+        assert "REFUSED" in msg
+        assert "UCT_RIG_DATA" in msg
+>       assert str(REPO) in msg.replace("/", "\\")
+E       AssertionError: assert '/home/runner/work/UCT-Dashboard/UCT-Dashboard' in 'REFUSED: the rig sandbox would sit inside the git worktree at\n  \\home\\runner\\work\\UCT-Dashboard\\UCT-Dashboard\n... next session decides whether anything touched this checkout.\nSet UCT_RIG_DATA to a directory outside every worktree.'
+E        +  where '/home/runner/work/UCT-Dashboard/UCT-Dashboard' = str(PosixPath('/home/runner/work/UCT-Dashboard/UCT-Dashboard'))
+E        +  and   'REFUSED: the rig sandbox would sit inside the git worktree at\n  \\home\\runner\\work\\UCT-Dashboard\\UCT-Dashboard\n... next session decides whether anything touched this checkout.\nSet UCT_RIG_DATA to a directory outside every worktree.' = <built-in method replace of str object at 0x7f3316c76630>('/', '\\')
+E        +    where <built-in method replace of str object at 0x7f3316c76630> = 'REFUSED: the rig sandbox would sit inside the git worktree at\n  /home/runner/work/UCT-Dashboard/UCT-Dashboard\n  res... next session decides whether anything touched this checkout.\nSet UCT_RIG_DATA to a directory outside every worktree.'.replace
+
+tests/test_rig_sandbox_never_inside_a_worktree.py:47: AssertionError
+__________ test_the_route_counts_are_what_the_router_SOURCE_declares ___________
+
+    def test_the_route_counts_are_what_the_router_SOURCE_declares():
+        """⛔ THE MOUNTED TABLE AND THE FILE ARE TWO ARTIFACTS.
+    
+        Every other assertion in this file reads `router.routes`. If a handler were
+        defined but never mounted (a decorator on the wrong router object, a route
+        added inside a dead branch), the table would be short and every sweep below
+        would pass while the source told a different story. So the counts are
+        cross-checked against an AST walk of the SOURCE that counts decorated
+        handlers — the shape `tests/test_user_definitions_auth.py` uses to keep one
+        number honest across three files.
+        """
+        verbs = {"get", "post", "put", "delete", "patch", "head", "options"}
+        counted = {}
+        for name, path in (("scans", ROOT / "api" / "routers" / "scans.py"),
+                           ("screener", ROOT / "api" / "routers" / "screener.py")):
+            tree = pyast.parse(path.read_text(encoding="utf-8"))
+            n = 0
+            for node in pyast.walk(tree):
+                if not isinstance(node, (pyast.FunctionDef, pyast.AsyncFunctionDef)):
+                    continue
+                for dec in node.decorator_list:
+                    if (isinstance(dec, pyast.Call)
+                            and isinstance(dec.func, pyast.Attribute)
+                            and dec.func.attr in verbs
+                            and isinstance(dec.func.value, pyast.Name)
+                            and dec.func.value.id == "router"):
+                        n += 1
+            counted[name] = n
+    
+        # The control: the walk CAN see decorators, so a zero is a broken scan rather
+        # than a router that stopped declaring routes.
+        assert all(v > 0 for v in counted.values()), counted
+        assert counted["scans"] == EXPECTED_SCANS_ROUTES, counted
+>       assert counted["screener"] == EXPECTED_SCREENER_ROUTES, counted
+E       AssertionError: {'scans': 16, 'screener': 21}
+E       assert 21 == 20
+
+tests/test_scan_screener_auth.py:399: AssertionError
+_ test_every_route_is_paid_except_the_one_admin_route_and_the_one_public_door __
+
+    def test_every_route_is_paid_except_the_one_admin_route_and_the_one_public_door():
+        """The PARTITION, derived by dependency identity — the structural half.
+    
+        ⛔ `router.dependencies == []` IS LOAD-BEARING. `main.py` mounts both routers
+        with no router-level dependency, so a per-handler gate is the only gate there
+        is; the day someone "simplifies" by hoisting it, every per-handler assertion
+        below would keep passing for a route that declares none of its own, and this
+        is what says so.
+        """
+        by_klass = {"paid": [], "admin": [], "open": []}
+>       for name, route in _all_routes():
+
+tests/test_scan_screener_auth.py:412: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+    def _all_routes():
+        """[(router_name, route)] for both routers, with the counts asserted."""
+        scans_routes = _routes(scans_mod.router)
+        screener_routes = _routes(screener_mod.router)
+        assert len(scans_routes) == EXPECTED_SCANS_ROUTES, (
+            f"api/routers/scans.py mounts {len(scans_routes)} routes — one was added "
+            f"or removed. Update EXPECTED_SCANS_ROUTES DELIBERATELY.")
+>       assert len(screener_routes) == EXPECTED_SCREENER_ROUTES, (
+            f"api/routers/screener.py mounts {len(screener_routes)} routes — one was "
+            f"added or removed. Update EXPECTED_SCREENER_ROUTES DELIBERATELY.")
+E       AssertionError: api/routers/screener.py mounts 21 routes — one was added or removed. Update EXPECTED_SCREENER_ROUTES DELIBERATELY.
+E       assert 21 == 20
+E        +  where 21 = len([APIRoute(path='/api/screener', name='screener', methods=['GET']), APIRoute(path='/api/candidates', name='candidates',...dology', methods=['GET']), APIRoute(path='/api/screener/structures', name='screener_structures', methods=['GET']), ...])
+
+tests/test_scan_screener_auth.py:209: AssertionError
+__ test_an_anonymous_caller_is_refused_on_EVERY_route_except_the_public_door ___
+
+stub_services = {'rows': [], 'stubbed': True}
+
+    def test_an_anonymous_caller_is_refused_on_EVERY_route_except_the_public_door(stub_services):
+        """🔴 THE MEASUREMENT THIS CLOSES: `GET /api/scans/top-gainers-30d` answered
+        an anonymous caller 200 with 18,892 bytes of ranked whole-market data.
+    
+        NO body and NO overrides — the real cookie path, an empty jar. Dependencies
+        are solved before parameter validation, so a gated route answers 401 whatever
+        it was or wasn't sent.
+        """
+        client = _client(None)
+        seen = []
+>       for name, method, path, route in _pairs():
+
+tests/test_scan_screener_auth.py:465: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+tests/test_scan_screener_auth.py:219: in _pairs
+    for name, r in _all_routes():
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+    def _all_routes():
+        """[(router_name, route)] for both routers, with the counts asserted."""
+        scans_routes = _routes(scans_mod.router)
+        screener_routes = _routes(screener_mod.router)
+        assert len(scans_routes) == EXPECTED_SCANS_ROUTES, (
+            f"api/routers/scans.py mounts {len(scans_routes)} routes — one was added "
+            f"or removed. Update EXPECTED_SCANS_ROUTES DELIBERATELY.")
+>       assert len(screener_routes) == EXPECTED_SCREENER_ROUTES, (
+            f"api/routers/screener.py mounts {len(screener_routes)} routes — one was "
+            f"added or removed. Update EXPECTED_SCREENER_ROUTES DELIBERATELY.")
+E       AssertionError: api/routers/screener.py mounts 21 routes — one was added or removed. Update EXPECTED_SCREENER_ROUTES DELIBERATELY.
+E       assert 21 == 20
+E        +  where 21 = len([APIRoute(path='/api/screener', name='screener', methods=['GET']), APIRoute(path='/api/candidates', name='candidates',...dology', methods=['GET']), APIRoute(path='/api/screener/structures', name='screener_structures', methods=['GET']), ...])
+
+tests/test_scan_screener_auth.py:209: AssertionError
+___ test_a_FREE_member_is_refused_on_EVERY_route_with_THIS_routers_sentence ____
+
+stub_services = {'rows': [], 'stubbed': True}
+
+    def test_a_FREE_member_is_refused_on_EVERY_route_with_THIS_routers_sentence(stub_services):
+        """"Logged in" is not "paid" — the half `/api/screener/scan` was missing.
+    
+        The 402 sentence is asserted per router, so a route cannot pass by being
+        refused for somebody else's reason (the wrong-door defect this branch has hit
+        four times: a correct refusal from the wrong guard).
+        """
+        client = _client(FREE_USER)
+        seen = []
+>       for name, method, path, route in _pairs():
+
+tests/test_scan_screener_auth.py:492: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+tests/test_scan_screener_auth.py:219: in _pairs
+    for name, r in _all_routes():
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+    def _all_routes():
+        """[(router_name, route)] for both routers, with the counts asserted."""
+        scans_routes = _routes(scans_mod.router)
+        screener_routes = _routes(screener_mod.router)
+        assert len(scans_routes) == EXPECTED_SCANS_ROUTES, (
+            f"api/routers/scans.py mounts {len(scans_routes)} routes — one was added "
+            f"or removed. Update EXPECTED_SCANS_ROUTES DELIBERATELY.")
+>       assert len(screener_routes) == EXPECTED_SCREENER_ROUTES, (
+            f"api/routers/screener.py mounts {len(screener_routes)} routes — one was "
+            f"added or removed. Update EXPECTED_SCREENER_ROUTES DELIBERATELY.")
+E       AssertionError: api/routers/screener.py mounts 21 routes — one was added or removed. Update EXPECTED_SCREENER_ROUTES DELIBERATELY.
+E       assert 21 == 20
+E        +  where 21 = len([APIRoute(path='/api/screener', name='screener', methods=['GET']), APIRoute(path='/api/candidates', name='candidates',...dology', methods=['GET']), APIRoute(path='/api/screener/structures', name='screener_structures', methods=['GET']), ...])
+
+tests/test_scan_screener_auth.py:209: AssertionError
+_______________ test_a_PAID_member_still_gets_200_on_EVERY_route _______________
+
+stub_services = {'rows': [], 'stubbed': True}
+
+    def test_a_PAID_member_still_gets_200_on_EVERY_route(stub_services):
+        """⚠️ THE HALF THAT TELLS A GATE FROM AN OUTAGE.
+    
+        A sweep of refusals is satisfied by a router that refuses everybody. Every
+        route is driven with a paid caller and must answer 200 — the admin route
+        excepted, which must answer 403 to a paid non-admin because it is the one
+        route that spends provider budget.
+        """
+        client = _client(PAID_USER)
+>       for name, method, path, route in _pairs():
+
+tests/test_scan_screener_auth.py:523: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+tests/test_scan_screener_auth.py:219: in _pairs
+    for name, r in _all_routes():
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+    def _all_routes():
+        """[(router_name, route)] for both routers, with the counts asserted."""
+        scans_routes = _routes(scans_mod.router)
+        screener_routes = _routes(screener_mod.router)
+        assert len(scans_routes) == EXPECTED_SCANS_ROUTES, (
+            f"api/routers/scans.py mounts {len(scans_routes)} routes — one was added "
+            f"or removed. Update EXPECTED_SCANS_ROUTES DELIBERATELY.")
+>       assert len(screener_routes) == EXPECTED_SCREENER_ROUTES, (
+            f"api/routers/screener.py mounts {len(screener_routes)} routes — one was "
+            f"added or removed. Update EXPECTED_SCREENER_ROUTES DELIBERATELY.")
+E       AssertionError: api/routers/screener.py mounts 21 routes — one was added or removed. Update EXPECTED_SCREENER_ROUTES DELIBERATELY.
+E       assert 21 == 20
+E        +  where 21 = len([APIRoute(path='/api/screener', name='screener', methods=['GET']), APIRoute(path='/api/candidates', name='candidates',...dology', methods=['GET']), APIRoute(path='/api/screener/structures', name='screener_structures', methods=['GET']), ...])
+
+tests/test_scan_screener_auth.py:209: AssertionError
+________ test_an_ADMIN_gets_200_everywhere_including_the_refresh_route _________
+
+stub_services = {'rows': [], 'stubbed': True}
+
+    def test_an_ADMIN_gets_200_everywhere_including_the_refresh_route(stub_services):
+        """Admins are paid by `is_paid_user` (role first), and the one admin route
+        answers them — otherwise the strictest door would be shut to everybody."""
+        client = _client(ADMIN_USER)
+>       for name, method, path, route in _pairs():
+
+tests/test_scan_screener_auth.py:538: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+tests/test_scan_screener_auth.py:219: in _pairs
+    for name, r in _all_routes():
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+    def _all_routes():
+        """[(router_name, route)] for both routers, with the counts asserted."""
+        scans_routes = _routes(scans_mod.router)
+        screener_routes = _routes(screener_mod.router)
+        assert len(scans_routes) == EXPECTED_SCANS_ROUTES, (
+            f"api/routers/scans.py mounts {len(scans_routes)} routes — one was added "
+            f"or removed. Update EXPECTED_SCANS_ROUTES DELIBERATELY.")
+>       assert len(screener_routes) == EXPECTED_SCREENER_ROUTES, (
+            f"api/routers/screener.py mounts {len(screener_routes)} routes — one was "
+            f"added or removed. Update EXPECTED_SCREENER_ROUTES DELIBERATELY.")
+E       AssertionError: api/routers/screener.py mounts 21 routes — one was added or removed. Update EXPECTED_SCREENER_ROUTES DELIBERATELY.
+E       assert 21 == 20
+E        +  where 21 = len([APIRoute(path='/api/screener', name='screener', methods=['GET']), APIRoute(path='/api/candidates', name='candidates',...dology', methods=['GET']), APIRoute(path='/api/screener/structures', name='screener_structures', methods=['GET']), ...])
+
+tests/test_scan_screener_auth.py:209: AssertionError
+____________________ test_a_TRIAL_member_is_treated_as_paid ____________________
+
+stub_services = {'rows': [], 'stubbed': True}
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x7f32d2a0bda0>
+
+    def test_a_TRIAL_member_is_treated_as_paid(stub_services, monkeypatch):
+        """The owner's ruling includes *"a free trial granting paid access for a
+        period"*. `is_paid_user` is `admin OR paid plan OR in-trial`, so a trialling
+        member must pass the new gates — asserted here rather than assumed, because a
+        gate that refuses the trial cohort is the same outage as one that refuses
+        paid members, just quieter.
+        """
+        import api.services.trial as trial
+        monkeypatch.setattr(trial, "is_account_in_trial", lambda user, now=None: True)
+        client = _client({"id": "trial1", "role": "member", "plan": "free"})
+>       for name, method, path, route in _pairs():
+
+tests/test_scan_screener_auth.py:555: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+tests/test_scan_screener_auth.py:219: in _pairs
+    for name, r in _all_routes():
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+    def _all_routes():
+        """[(router_name, route)] for both routers, with the counts asserted."""
+        scans_routes = _routes(scans_mod.router)
+        screener_routes = _routes(screener_mod.router)
+        assert len(scans_routes) == EXPECTED_SCANS_ROUTES, (
+            f"api/routers/scans.py mounts {len(scans_routes)} routes — one was added "
+            f"or removed. Update EXPECTED_SCANS_ROUTES DELIBERATELY.")
+>       assert len(screener_routes) == EXPECTED_SCREENER_ROUTES, (
+            f"api/routers/screener.py mounts {len(screener_routes)} routes — one was "
+            f"added or removed. Update EXPECTED_SCREENER_ROUTES DELIBERATELY.")
+E       AssertionError: api/routers/screener.py mounts 21 routes — one was added or removed. Update EXPECTED_SCREENER_ROUTES DELIBERATELY.
+E       assert 21 == 20
+E        +  where 21 = len([APIRoute(path='/api/screener', name='screener', methods=['GET']), APIRoute(path='/api/candidates', name='candidates',...dology', methods=['GET']), APIRoute(path='/api/screener/structures', name='screener_structures', methods=['GET']), ...])
+
+tests/test_scan_screener_auth.py:209: AssertionError
+____ test_the_screener_COLUMN_SET_still_partitions_into_E1s_frozen_manifest ____
+
+store = PosixPath('/tmp/pytest-of-runner/pytest-0/test_the_screener_COLUMN_SET_s0/screener.db')
+
+    def test_the_screener_COLUMN_SET_still_partitions_into_E1s_frozen_manifest(store):
+        """⛔ NOT A LENGTH — A LENGTH ASSERTION PASSES A SWAP.
+    
+        E-1 froze the screener's column set into the closed table as a partition:
+        every column is either a declared `scalars` entry or a declared exclusion,
+        and the two are disjoint. Comparing the live `COLUMNS` against that partition
+        binds this task to E-1's measurement by NAME, with no integer restated in
+        either place — and a 66th column lands red here as well as there.
+        """
+        declared = {ast_table.scalar_source(n)["column"]
+                    for n in ast_table.scalar_names()}
+        excluded = ast_table.excluded_columns()
+>       assert declared | excluded == set(snapshot_db.COLUMNS), (
+            "unpartitioned: "
+            f"{sorted(set(snapshot_db.COLUMNS) - declared - excluded)} / stale: "
+            f"{sorted((declared | excluded) - set(snapshot_db.COLUMNS))}")
+E       AssertionError: unpartitioned: ['security_type'] / stale: []
+E       assert {'above_50sma...urnover', ...} == {'above_50sma...urnover', ...}
+E         
+E         Extra items in the right set:
+E         'security_type'
+E         
+E         Full diff:
+E           {
+E               'above_50sma',
+E               'accdis',
+E               'adr_pct',
+E               'adr_pct_1w',
+E               'analyst_consensus',
+E               'asset_turnover',
+E               'atr_ext_sma50',
+E               'atr_pct',
+E               'avg_body',
+E               'avg_body_pct_5',
+E               'avg_range',
+E               'avg_volume_30d',
+E               'bar_character',
+E               'bar_character_label',
+E               'bars_asof',
+E               'base_matches',
+E               'base_relation_count',
+E               'base_render',
+E               'base_shape',
+E               'base_shape_label',
+E               'beta',
+E               'blended_growth',
+E               'body_pct',
+E               'book_value_ps',
+E               'built_at',
+E               'candle_label',
+E               'candle_matches',
+E               'candle_monthly',
+E               'candle_monthly_label',
+E               'candle_recent',
+E               'candle_recent_bars_ago',
+E               'candle_recent_label',
+E               'candle_recent_status',
+E               'candle_score',
+E               'candle_trend',
+E               'candle_type',
+E               'candle_weekly',
+E               'candle_weekly_label',
+E               'capex_to_revenue',
+E               'cash_conversion_cycle',
+E               'cash_ps',
+E               'cash_ratio',
+E               'chg_from_open_pct',
+E               'chg_pct_1d',
+E               'chg_pct_1m',
+E               'chg_pct_1w',
+E               'chg_pct_1y',
+E               'chg_pct_3m',
+E               'chg_pct_6m',
+E               'chg_pct_ytd',
+E               'close_cv_pct',
+E               'close_position',
+E               'company',
+E               'consecutive_down',
+E               'consecutive_up',
+E               'country',
+E               'current_ratio',
+E               'days_to_earnings',
+E               'debt_to_equity',
+E               'dist_20d_high_pct',
+E               'dist_20d_low_pct',
+E               'dist_52w_high_pct',
+E               'dist_52w_low_pct',
+E               'dist_ath_pct',
+E               'dividend_yield',
+E               'dollar_vol_30d',
+E               'downgrades_30d',
+E               'dp_level_dist_pct',
+E               'dp_notional_1d',
+E               'dp_notional_5d',
+E               'dp_prints_1d',
+E               'earnings_session',
+E               'earnings_setup_grade',
+E               'earnings_yield',
+E               'ebit_margin',
+E               'ebitda_margin',
+E               'ema10_rising',
+E               'ema20_rising',
+E               'ema_stack_intact',
+E               'ema_touch_count',
+E               'enterprise_value',
+E               'eps_growth',
+E               'eps_next_5y_growth',
+E               'eps_next_y_growth',
+E               'eps_past_5y_growth',
+E               'eps_ttm',
+E               'ev_ebitda',
+E               'ev_fcf',
+E               'ev_sales',
+E               'exchange',
+E               'fcf_ps',
+E               'fcf_yield',
+E               'float_pct',
+E               'float_shares',
+E               'gap_pct',
+E               'gross_margin',
+E               'higher_lows_run',
+E               'hvc_52w',
+E               'implied_move_pct',
+E               'in_uct20',
+E               'income_quality',
+E               'index_dow',
+E               'index_ndx',
+E               'index_r2k',
+E               'index_sp500',
+E               'industry',
+E               'inside_bar_run',
+E               'insider_cluster_days',
+E               'insider_own_pct',
+E               'insider_trans_pct',
+E               'inst_pct',
+E               'inst_trans_pct',
+E               'interest_coverage',
+E               'ipo_age_days',
+E               'ipo_date',
+E               'is_etf',
+E               'is_leveraged',
+E               'last_report_move_pct',
+E               'lower_wick_pct',
+E               'lt_debt_to_capital',
+E               'ma_stack',
+E               'market_cap',
+E               'narrow_bar',
+E               'net_debt_to_ebitda',
+E               'net_margin',
+E               'new_52w_high',
+E               'new_ath',
+E               'next_earnings_date',
+E               'nr7',
+E               'op_margin',
+E               'opt_bull_pct_1d',
+E               'opt_net_premium_1d',
+E               'opt_net_premium_5d',
+E               'optionable',
+E               'p_fcf',
+E               'p_ocf',
+E               'pattern_engine_conf',
+E               'pattern_engine_dir',
+E               'pattern_engine_flat_base',
+E               'pattern_engine_ids',
+E               'pattern_engine_vcp',
+E               'pattern_entry_dist_pct',
+E               'pattern_expectancy_r',
+E               'pattern_stop_dist_pct',
+E               'payout_ratio',
+E               'pb',
+E               'pct_vs_ema20',
+E               'pct_vs_sma20',
+E               'pct_vs_sma200',
+E               'pct_vs_sma50',
+E               'pe_fwd',
+E               'pe_ttm',
+E               'peg',
+E               'pole_pct',
+E               'prev_day_close',
+E               'prev_day_high',
+E               'prev_day_low',
+E               'prev_day_open',
+E               'price',
+E               'ps',
+E               'pt_target',
+E               'pt_upside_pct',
+E               'pullback_depth_pct',
+E               'quick_ratio',
+E               'rating_eps',
+E               'rating_growth',
+E               'rating_smr',
+E               'rating_value',
+E               'rev_growth',
+E               'revenue_ps',
+E               'rnd_to_revenue',
+E               'roa',
+E               'roce',
+E               'roe',
+E               'roic',
+E               'rs_line_trend',
+E               'rs_rank',
+E               'rs_return',
+E               'rsi14',
+E               'sales_past_5y_growth',
+E               'sbc_to_revenue',
+E               'sector',
+E               'sector_rs_pct',
+E         -     'security_type',
+E               'shares_outstanding',
+E               'short_float_pct',
+E               'short_ratio',
+E               'shortable',
+E               'snapshot_date',
+E               'sponsorship',
+E               'stage2',
+E               'stage4',
+E               'tax_rate',
+E               'theme',
+E               'ticker',
+E               'tight_consolidation',
+E               'uct_composite',
+E               'upgrades_30d',
+E               'upper_wick_pct',
+E               'vol_nweek_low',
+E               'vol_ratio',
+E               'vol_updown_ratio',
+E               'wide_bar',
+E               'working_capital',
+E           }
+
+tests/test_scan_store.py:441: AssertionError
+___________ test_every_filter_FAMILY_is_VISIBLE_in_at_least_one_view ___________
+
+    def test_every_filter_FAMILY_is_VISIBLE_in_at_least_one_view():
+        """⛔ A FILTER CATEGORY WITH NO VIEW BEHIND IT IS A HALF-SHIPPED FAMILY.
+    
+        Found on 2026-08-23 by OPENING THE SCREEN, not by a test: Waves 5-6 shipped
+        the pattern engine, dark-pool/options positioning and the ownership/short
+        block — each with its own filter category — and not one of their columns
+        appeared in ANY view. A member could filter on dark-pool notional and then
+        have no way to SEE it short of hand-picking the column out of the picker.
+        Measuring the gap found three MORE families in the same state since Waves
+        1-2 (`context`, `events`, `multi_candle`).
+    
+        ⭐ DERIVED BOTH SIDES — categories come from `FILTERS` and columns from
+        `VIEWS`, so a family added tomorrow is covered the day it lands. `my_scans`
+        is exempt BY NAME and for a reason: its filter selects membership in a
+        saved scan, it is not a column family, and there is no column to show.
+        """
+        view_cols = {c for v in filters.VIEWS.values() for c in v["columns"]}
+        by_cat: dict[str, list[str]] = {}
+        for key, f in filters.FILTERS.items():
+            by_cat.setdefault(f.get("category"), []).append(f.get("column") or key)
+    
+        invisible = {
+            cat: cols for cat, cols in by_cat.items()
+            if cat != "my_scans" and not (set(cols) & view_cols)
+        }
+>       assert not invisible, (
+            "these filter families are filterable but INVISIBLE — no view shows any "
+            f"of their columns: { {k: sorted(v)[:4] for k, v in invisible.items()} }")
+E       AssertionError: these filter families are filterable but INVISIBLE — no view shows any of their columns: {'type': ['security_type']}
+E       assert not {'type': ['security_type']}
+
+tests/test_screener_filters.py:822: AssertionError
+_________________ test_no_filter_family_is_entirely_invisible __________________
+
+    def test_no_filter_family_is_entirely_invisible():
+        """⛔ A FILTER CATEGORY WITH NO VIEW BEHIND IT IS A HALF-SHIPPED FAMILY.
+    
+        🔴 This has happened twice. On 2026-08-23 three whole families — the pattern
+        engine, dark-pool/options positioning, and ownership/short — shipped with
+        filters and NOT ONE column visible in ANY of the eight views; a member could
+        screen on dark-pool notional and then have no way to SEE it. The comment in
+        `filters.VIEWS` records that fix and notes "nothing rails this". It happened
+        again on 2026-08-24: `bar_character`, `candle_recent`, `candle_weekly` and
+        `candle_trend` each shipped with a filter, and the `candles` view showed only
+        `candle_type`.
+    
+        ⭐ The assertion is at FAMILY level on purpose. A per-filter rule would be
+        wrong — a filter's query column is not always its display column (Candle Type
+        queries `candle_matches` and displays `candle_type`) — and 86 individual
+        filters have no view today, most of them fundamentals. What must never happen
+        is an entire family being unreachable.
+        """
+        shown = set()
+        for view in filters.VIEWS.values():
+            shown |= set(view["columns"])
+    
+        by_family = {}
+        for key, f in filters.FILTERS.items():
+            by_family.setdefault(f["category"], set()).add(f.get("column") or key)
+    
+        invisible = sorted(fam for fam, cols in by_family.items() if not (cols & shown))
+>       assert not invisible, f"filter families with nothing visible in any view: {invisible}"
+E       AssertionError: filter families with nothing visible in any view: ['type']
+E       assert not ['type']
+
+tests/test_screener_filters.py:1127: AssertionError
+__________________ test_every_valid_op_declares_its_operands ___________________
+
+    def test_every_valid_op_declares_its_operands():
+        """⛔ The rail that stops this from happening again.
+    
+        `_VALID_OPS` says which ops are legal; `OP_OPERANDS` says what each reads.
+        A new op that lands in one and not the other is exactly how the hand-typed
+        map this replaced fell six ops behind — silently, until a starter used one.
+    
+        ⭐ Asserted BOTH ways: an op with no operands declared, and an operand entry
+        for an op nothing accepts. The second half matters too — a stale entry is a
+        claim that an op exists when it does not."""
+        from api.services.screener import filters as scr_filters
+    
+        legal = set().union(*scr_filters._VALID_OPS.values())
+        declared = set(scr_filters.OP_OPERANDS)
+        assert legal, "no ops are declared legal — this test is measuring nothing"
+>       assert not (legal - declared), (
+            "these ops are legal but declare no operands, so anything reading "
+            f"OP_OPERANDS will KeyError on them: {sorted(legal - declared)}")
+E       AssertionError: these ops are legal but declare no operands, so anything reading OP_OPERANDS will KeyError on them: ['not_in']
+E       assert not ({'between', 'contains', 'eq', 'gt', 'gt_col', 'gte', ...} - {'between', 'contains', 'eq', 'gt', 'gt_col', 'gte', ...})
+
+tests/test_screener_saved.py:258: AssertionError
+=============================== warnings summary ===============================
+../../../../../opt/hostedtoolcache/Python/3.12.14/x64/lib/python3.12/site-packages/starlette/testclient.py:40
+  /opt/hostedtoolcache/Python/3.12.14/x64/lib/python3.12/site-packages/starlette/testclient.py:40: DeprecationWarning: The anyio.abc.BlockingPortal alias is deprecated, use anyio.from_thread.BlockingPortal instead.
+    _PortalFactoryType = typing.Callable[[], typing.ContextManager[anyio.abc.BlockingPortal]]
+
+api/baselines.py:456
+  /home/runner/work/UCT-Dashboard/UCT-Dashboard/api/baselines.py:456: DeprecationWarning: datetime.datetime.utcnow() is deprecated and scheduled for removal in a future version. Use timezone-aware objects to represent datetimes in UTC: datetime.datetime.now(datetime.UTC).
+    _baselines_last_loaded = datetime.utcnow()
+
+tests/test_scan_run.py:1340
+  /home/runner/work/UCT-Dashboard/UCT-Dashboard/tests/test_scan_run.py:1340: SyntaxWarning: invalid escape sequence '\d'
+    which leaves the carriage return inside the match, so a trailing ``(\d+)$``
+
+tests/test_reconcile_detect_only_daily.py::test_detect_drift_records_and_alerts_but_never_deletes
+tests/test_reconcile_detect_only_daily.py::test_closed_bar_drift_still_fires_when_today_also_drifts
+  /home/runner/work/UCT-Dashboard/UCT-Dashboard/api/services/bars_reconciliation.py:123: DeprecationWarning: datetime.datetime.utcnow() is deprecated and scheduled for removal in a future version. Use timezone-aware objects to represent datetimes in UTC: datetime.datetime.now(datetime.UTC).
+    "at": datetime.utcnow().isoformat() + "Z",
+
+tests/test_scan_period.py::test_ranks_common_stock_by_period_change
+tests/test_scan_period.py::test_ranks_common_stock_by_period_change
+  /home/runner/work/UCT-Dashboard/UCT-Dashboard/api/services/bars_fetch.py:1843: DeprecationWarning: datetime.datetime.utcnow() is deprecated and scheduled for removal in a future version. Use timezone-aware objects to represent datetimes in UTC: datetime.datetime.now(datetime.UTC).
+    to_date = datetime.utcnow().strftime("%Y-%m-%d")
+
+tests/test_scan_period.py::test_ranks_common_stock_by_period_change
+tests/test_scan_period.py::test_ranks_common_stock_by_period_change
+  /home/runner/work/UCT-Dashboard/UCT-Dashboard/api/services/bars_fetch.py:1846: DeprecationWarning: datetime.datetime.utcnow() is deprecated and scheduled for removal in a future version. Use timezone-aware objects to represent datetimes in UTC: datetime.datetime.now(datetime.UTC).
+    from_date = (datetime.utcnow() - timedelta(days=lookback)).strftime("%Y-%m-%d")
+
+tests/test_schwab_partner_fixes.py::test_snapshot_now_is_admin_only_not_merely_logged_in
+  /opt/hostedtoolcache/Python/3.12.14/x64/lib/python3.12/site-packages/starlette/testclient.py:484: DeprecationWarning: Setting per-request cookies=<...> is being deprecated, because the expected behaviour on cookie persistence is ambiguous. Set cookies directly on the client instance instead.
+    return super().request(
+
+tests/test_screener_backtest_auth.py::test_a_PAID_member_still_gets_200_on_EVERY_route
+  /opt/hostedtoolcache/Python/3.12.14/x64/lib/python3.12/site-packages/pydantic/_internal/_generate_schema.py:2249: UnsupportedFieldAttributeWarning: The 'alias' attribute with value 'from' was provided to the `Field()` function, which has no effect in the context it was used. 'alias' is field-specific metadata, and can only be attached to a model field using `Annotated` metadata or by assignment. This may have happened because an `Annotated` type alias using the `type` statement was used, or if the `Field()` function was attached to a single member of a union type.
+    warnings.warn(
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+- generated xml file: /home/runner/work/UCT-Dashboard/UCT-Dashboard/pytest-junit.xml -
+=========================== short test summary info ============================
+SKIPPED [2] tests/test_scalar_population_rail.py:406: set SCALAR_POPULATION_ARTIFACT=<path to a screener.db> to measure a real snapshot (the suite's own DB is a sandbox)
+SKIPPED [1] tests/test_screener_auth_surface.py:71: SCREEN_BACKTEST_ENABLED is off — the router is not mounted, so there is no served route to check (this is the flag working, not a gap)
+SKIPPED [1] tests/test_screener_integration.py:15: local bars reader unavailable: no such table: ohlcv
+FAILED tests/test_render_token_never_logged.py::test_scrub_removes_a_token_from_a_real_playwright_error - ModuleNotFoundError: No module named 'edge_scope'
+FAILED tests/test_requirement_tags.py::test_every_SERIES_LOOKBACK_entry_is_TAGGED_so_none_can_ship_uncontained - AssertionError: ['valuewhenOccurrence'] declare(s) `lookback: "series"` and NO requirement tag names them. The declaration says the value depends on how much history was loaded; the tag is the only thing that stops that value reaching the screener, the sweep, an alert, a share or a listing, where the defect is invisible. Add the name to `_requirement_tags.<tag>.calls`.
+assert not ['valuewhenOccurrence']
+FAILED tests/test_requirement_tags.py::test_a_series_declared_entry_really_is_REFUSED_by_the_comparability_consumers - AssertionError: valuewhenOccurrence is series-declared and `requirement_tags` returns nothing
+assert []
+FAILED tests/test_rig_sandbox_never_inside_a_worktree.py::test_a_sandbox_inside_this_worktree_is_REFUSED - AssertionError: assert '/home/runner/work/UCT-Dashboard/UCT-Dashboard' in 'REFUSED: the rig sandbox would sit inside the git worktree at\n  \\home\\runner\\work\\UCT-Dashboard\\UCT-Dashboard\n... next session decides whether anything touched this checkout.\nSet UCT_RIG_DATA to a directory outside every worktree.'
+ +  where '/home/runner/work/UCT-Dashboard/UCT-Dashboard' = str(PosixPath('/home/runner/work/UCT-Dashboard/UCT-Dashboard'))
+ +  and   'REFUSED: the rig sandbox would sit inside the git worktree at\n  \\home\\runner\\work\\UCT-Dashboard\\UCT-Dashboard\n... next session decides whether anything touched this checkout.\nSet UCT_RIG_DATA to a directory outside every worktree.' = <built-in method replace of str object at 0x7f3316c76630>('/', '\\')
+ +    where <built-in method replace of str object at 0x7f3316c76630> = 'REFUSED: the rig sandbox would sit inside the git worktree at\n  /home/runner/work/UCT-Dashboard/UCT-Dashboard\n  res... next session decides whether anything touched this checkout.\nSet UCT_RIG_DATA to a directory outside every worktree.'.replace
+FAILED tests/test_scan_screener_auth.py::test_the_route_counts_are_what_the_router_SOURCE_declares - AssertionError: {'scans': 16, 'screener': 21}
+assert 21 == 20
+FAILED tests/test_scan_screener_auth.py::test_every_route_is_paid_except_the_one_admin_route_and_the_one_public_door - AssertionError: api/routers/screener.py mounts 21 routes — one was added or removed. Update EXPECTED_SCREENER_ROUTES DELIBERATELY.
+assert 21 == 20
+ +  where 21 = len([APIRoute(path='/api/screener', name='screener', methods=['GET']), APIRoute(path='/api/candidates', name='candidates',...dology', methods=['GET']), APIRoute(path='/api/screener/structures', name='screener_structures', methods=['GET']), ...])
+FAILED tests/test_scan_screener_auth.py::test_an_anonymous_caller_is_refused_on_EVERY_route_except_the_public_door - AssertionError: api/routers/screener.py mounts 21 routes — one was added or removed. Update EXPECTED_SCREENER_ROUTES DELIBERATELY.
+assert 21 == 20
+ +  where 21 = len([APIRoute(path='/api/screener', name='screener', methods=['GET']), APIRoute(path='/api/candidates', name='candidates',...dology', methods=['GET']), APIRoute(path='/api/screener/structures', name='screener_structures', methods=['GET']), ...])
+FAILED tests/test_scan_screener_auth.py::test_a_FREE_member_is_refused_on_EVERY_route_with_THIS_routers_sentence - AssertionError: api/routers/screener.py mounts 21 routes — one was added or removed. Update EXPECTED_SCREENER_ROUTES DELIBERATELY.
+assert 21 == 20
+ +  where 21 = len([APIRoute(path='/api/screener', name='screener', methods=['GET']), APIRoute(path='/api/candidates', name='candidates',...dology', methods=['GET']), APIRoute(path='/api/screener/structures', name='screener_structures', methods=['GET']), ...])
+FAILED tests/test_scan_screener_auth.py::test_a_PAID_member_still_gets_200_on_EVERY_route - AssertionError: api/routers/screener.py mounts 21 routes — one was added or removed. Update EXPECTED_SCREENER_ROUTES DELIBERATELY.
+assert 21 == 20
+ +  where 21 = len([APIRoute(path='/api/screener', name='screener', methods=['GET']), APIRoute(path='/api/candidates', name='candidates',...dology', methods=['GET']), APIRoute(path='/api/screener/structures', name='screener_structures', methods=['GET']), ...])
+FAILED tests/test_scan_screener_auth.py::test_an_ADMIN_gets_200_everywhere_including_the_refresh_route - AssertionError: api/routers/screener.py mounts 21 routes — one was added or removed. Update EXPECTED_SCREENER_ROUTES DELIBERATELY.
+assert 21 == 20
+ +  where 21 = len([APIRoute(path='/api/screener', name='screener', methods=['GET']), APIRoute(path='/api/candidates', name='candidates',...dology', methods=['GET']), APIRoute(path='/api/screener/structures', name='screener_structures', methods=['GET']), ...])
+FAILED tests/test_scan_screener_auth.py::test_a_TRIAL_member_is_treated_as_paid - AssertionError: api/routers/screener.py mounts 21 routes — one was added or removed. Update EXPECTED_SCREENER_ROUTES DELIBERATELY.
+assert 21 == 20
+ +  where 21 = len([APIRoute(path='/api/screener', name='screener', methods=['GET']), APIRoute(path='/api/candidates', name='candidates',...dology', methods=['GET']), APIRoute(path='/api/screener/structures', name='screener_structures', methods=['GET']), ...])
+FAILED tests/test_scan_store.py::test_the_screener_COLUMN_SET_still_partitions_into_E1s_frozen_manifest - AssertionError: unpartitioned: ['security_type'] / stale: []
+assert {'above_50sma...urnover', ...} == {'above_50sma...urnover', ...}
+  
+  Extra items in the right set:
+  'security_type'
+  
+  Full diff:
+    {
+        'above_50sma',
+        'accdis',
+        'adr_pct',
+        'adr_pct_1w',
+        'analyst_consensus',
+        'asset_turnover',
+        'atr_ext_sma50',
+        'atr_pct',
+        'avg_body',
+        'avg_body_pct_5',
+        'avg_range',
+        'avg_volume_30d',
+        'bar_character',
+        'bar_character_label',
+        'bars_asof',
+        'base_matches',
+        'base_relation_count',
+        'base_render',
+        'base_shape',
+        'base_shape_label',
+        'beta',
+        'blended_growth',
+        'body_pct',
+        'book_value_ps',
+        'built_at',
+        'candle_label',
+        'candle_matches',
+        'candle_monthly',
+        'candle_monthly_label',
+        'candle_recent',
+        'candle_recent_bars_ago',
+        'candle_recent_label',
+        'candle_recent_status',
+        'candle_score',
+        'candle_trend',
+        'candle_type',
+        'candle_weekly',
+        'candle_weekly_label',
+        'capex_to_revenue',
+        'cash_conversion_cycle',
+        'cash_ps',
+        'cash_ratio',
+        'chg_from_open_pct',
+        'chg_pct_1d',
+        'chg_pct_1m',
+        'chg_pct_1w',
+        'chg_pct_1y',
+        'chg_pct_3m',
+        'chg_pct_6m',
+        'chg_pct_ytd',
+        'close_cv_pct',
+        'close_position',
+        'company',
+        'consecutive_down',
+        'consecutive_up',
+        'country',
+        'current_ratio',
+        'days_to_earnings',
+        'debt_to_equity',
+        'dist_20d_high_pct',
+        'dist_20d_low_pct',
+        'dist_52w_high_pct',
+        'dist_52w_low_pct',
+        'dist_ath_pct',
+        'dividend_yield',
+        'dollar_vol_30d',
+        'downgrades_30d',
+        'dp_level_dist_pct',
+        'dp_notional_1d',
+        'dp_notional_5d',
+        'dp_prints_1d',
+        'earnings_session',
+        'earnings_setup_grade',
+        'earnings_yield',
+        'ebit_margin',
+        'ebitda_margin',
+        'ema10_rising',
+        'ema20_rising',
+        'ema_stack_intact',
+        'ema_touch_count',
+        'enterprise_value',
+        'eps_growth',
+        'eps_next_5y_growth',
+        'eps_next_y_growth',
+        'eps_past_5y_growth',
+        'eps_ttm',
+        'ev_ebitda',
+        'ev_fcf',
+        'ev_sales',
+        'exchange',
+        'fcf_ps',
+        'fcf_yield',
+        'float_pct',
+        'float_shares',
+        'gap_pct',
+        'gross_margin',
+        'higher_lows_run',
+        'hvc_52w',
+        'implied_move_pct',
+        'in_uct20',
+        'income_quality',
+        'index_dow',
+        'index_ndx',
+        'index_r2k',
+        'index_sp500',
+        'industry',
+        'inside_bar_run',
+        'insider_cluster_days',
+        'insider_own_pct',
+        'insider_trans_pct',
+        'inst_pct',
+        'inst_trans_pct',
+        'interest_coverage',
+        'ipo_age_days',
+        'ipo_date',
+        'is_etf',
+        'is_leveraged',
+        'last_report_move_pct',
+        'lower_wick_pct',
+        'lt_debt_to_capital',
+        'ma_stack',
+        'market_cap',
+        'narrow_bar',
+        'net_debt_to_ebitda',
+        'net_margin',
+        'new_52w_high',
+        'new_ath',
+        'next_earnings_date',
+        'nr7',
+        'op_margin',
+        'opt_bull_pct_1d',
+        'opt_net_premium_1d',
+        'opt_net_premium_5d',
+        'optionable',
+        'p_fcf',
+        'p_ocf',
+        'pattern_engine_conf',
+        'pattern_engine_dir',
+        'pattern_engine_flat_base',
+        'pattern_engine_ids',
+        'pattern_engine_vcp',
+        'pattern_entry_dist_pct',
+        'pattern_expectancy_r',
+        'pattern_stop_dist_pct',
+        'payout_ratio',
+        'pb',
+        'pct_vs_ema20',
+        'pct_vs_sma20',
+        'pct_vs_sma200',
+        'pct_vs_sma50',
+        'pe_fwd',
+        'pe_ttm',
+        'peg',
+        'pole_pct',
+        'prev_day_close',
+        'prev_day_high',
+        'prev_day_low',
+        'prev_day_open',
+        'price',
+        'ps',
+        'pt_target',
+        'pt_upside_pct',
+        'pullback_depth_pct',
+        'quick_ratio',
+        'rating_eps',
+        'rating_growth',
+        'rating_smr',
+        'rating_value',
+        'rev_growth',
+        'revenue_ps',
+        'rnd_to_revenue',
+        'roa',
+        'roce',
+        'roe',
+        'roic',
+        'rs_line_trend',
+        'rs_rank',
+        'rs_return',
+        'rsi14',
+        'sales_past_5y_growth',
+        'sbc_to_revenue',
+        'sector',
+        'sector_rs_pct',
+  -     'security_type',
+        'shares_outstanding',
+        'short_float_pct',
+        'short_ratio',
+        'shortable',
+        'snapshot_date',
+        'sponsorship',
+        'stage2',
+        'stage4',
+        'tax_rate',
+        'theme',
+        'ticker',
+        'tight_consolidation',
+        'uct_composite',
+        'upgrades_30d',
+        'upper_wick_pct',
+        'vol_nweek_low',
+        'vol_ratio',
+        'vol_updown_ratio',
+        'wide_bar',
+        'working_capital',
+    }
+FAILED tests/test_screener_filters.py::test_every_filter_FAMILY_is_VISIBLE_in_at_least_one_view - AssertionError: these filter families are filterable but INVISIBLE — no view shows any of their columns: {'type': ['security_type']}
+assert not {'type': ['security_type']}
+FAILED tests/test_screener_filters.py::test_no_filter_family_is_entirely_invisible - AssertionError: filter families with nothing visible in any view: ['type']
+assert not ['type']
+FAILED tests/test_screener_saved.py::test_every_valid_op_declares_its_operands - AssertionError: these ops are legal but declare no operands, so anything reading OP_OPERANDS will KeyError on them: ['not_in']
+assert not ({'between', 'contains', 'eq', 'gt', 'gt_col', 'gte', ...} - {'between', 'contains', 'eq', 'gt', 'gt_col', 'gte', ...})
+15 failed, 2099 passed, 4 skipped, 11 warnings in 191.38s (0:03:11)
