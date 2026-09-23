@@ -7,6 +7,14 @@
 // on purpose: they pin what the fixes must NOT change (a whole block keeps its
 // wrapper, a one-line paste into a title is still ProseMirror's own, an empty
 // title fills with pasted text).
+//
+// DROPS: ProseMirror runs transformPasted on a drop but never handlePaste, so
+// the drop rails drive the plugin's handleDrop. jsdom has no layout, so
+// view.posAtCoords is STUBBED to the position under test, and handleDrop is
+// driven the way prosemirror-view's own editHandlers.drop calls it --
+// view.someProp('handleDrop', f => f(view, event, slice, moved)) -- with
+// view.dragging set as a real drag leaves it. One rail and the drop CONTROL
+// instead dispatch a real DOM `drop` event, so that handler runs whole.
 import { describe, it, expect, afterEach, beforeEach, vi } from 'vitest'
 import { Editor } from '@tiptap/core'
 import { NodeSelection, TextSelection } from '@tiptap/pm/state'
@@ -14,6 +22,12 @@ import { Fragment, Slice } from '@tiptap/pm/model'
 import { buildExtensions } from './tiptap'
 import { buildAskInsertNode } from './askInsert'
 
+// jsdom has no layout: a drop ends with view.focus() (as editHandlers.drop
+// does), which puts the DOM selection in the editor, and the next scrolled
+// transaction (an undo) then measures the caret. Same stub as
+// NoteEditorPage.attachments.test.jsx.
+if (!Range.prototype.getClientRects) Range.prototype.getClientRects = () => []
+if (!Range.prototype.getBoundingClientRect) Range.prototype.getBoundingClientRect = () => ({ top: 0, left: 0, right: 0, bottom: 0, width: 0, height: 0 })
 // jsdom has no ClipboardEvent; `view.pasteHTML` constructs one.
 if (typeof globalThis.ClipboardEvent === 'undefined') {
   globalThis.ClipboardEvent = class extends Event {
@@ -468,5 +482,214 @@ describe('the belt: a slice ProseMirror cannot place is pasted as text, never lo
     const handled = ed.view.someProp('handlePaste', (f) => f(ed.view, new ClipboardEvent('paste'), raw))
     expect(handled).toBe(true)
     expect(ed.state.doc.textContent).toContain('Summary line')
+  })
+})
+
+// ── Drops ────────────────────────────────────────────────────────────────────
+// A drag runs transformPasted but never handlePaste: prosemirror-view's
+// editHandlers.drop asks the handleDrop props instead, so without a handleDrop
+// neither the title rules nor the belt ran on a drop. jsdom has no layout --
+// see the header: `dropAt` stubs view.posAtCoords and calls handleDrop the way
+// editHandlers.drop does; `domDrop` dispatches a real `drop` event so that
+// handler runs whole (transformPasted, the handleDrop props, its own insert).
+const dropEvent = () => ({ clientX: 0, clientY: 0, preventDefault() {} })
+function dropAt(ed, pos, slice, { moved = false, node = null } = {}) {
+  ed.view.posAtCoords = () => ({ pos, inside: -1 })
+  ed.view.dragging = { slice, move: moved, node }
+  try { return ed.view.someProp('handleDrop', (f) => f(ed.view, dropEvent(), slice, moved)) } finally { ed.view.dragging = null }
+}
+function domDrop(ed, pos, slice, { copy = false, node = null } = {}) {
+  ed.view.posAtCoords = () => ({ pos, inside: -1 })
+  ed.view.dragging = { slice, move: !copy, node }
+  const ev = new Event('drop', { bubbles: true, cancelable: true })
+  Object.assign(ev, { clientX: 0, clientY: 0, ctrlKey: copy, altKey: copy }) // the copy modifier, either platform
+  Object.defineProperty(ev, 'dataTransfer', { value: { getData: () => '', files: [], types: [] } })
+  ed.view.dom.dispatchEvent(ev)
+  return ev
+}
+// Every doc-changing transaction a drop dispatches, by its `uiEvent` meta.
+const changes = (ed) => { const seen = []; ed.on('transaction', ({ transaction }) => { if (transaction.docChanged) seen.push(transaction.getMeta('uiEvent')) }); return seen }
+const TEXT_DOC = () => [P('First para.'), P('Second para.'), TOGGLE, P('After.')]
+const textSource = (ed) => ({ from: locate(ed, 'st para.'), to: locate(ed, 'Second') + 'Second'.length }) // "Fir[st para. | Second] para."
+
+describe('a DROP onto a toggle title follows the title rules -- the toggle is never split', () => {
+  it('multi-block text COPIED onto the middle of a title joins into it -- one toggle, the source kept', () => {
+    const ed = mount(TEXT_DOC())
+    const { from, to } = textSource(ed)
+    const slice = ed.state.doc.slice(from, to, true)
+    ed.commands.setTextSelection(1) // the selection is NOT where the drop lands
+    expect(dropAt(ed, locate(ed, 'ary line'), slice)).toBe(true)
+    ed.state.doc.check()
+    expect(count(ed, 'toggle')).toBe(1)
+    expect(summaryOf(ed)).toBe('Summst para. Secondary line')
+    expect(top(ed)).toEqual(['paragraph:First para.', 'paragraph:Second para.', 'toggle:Summst para. Secondary lineToggle body.', 'paragraph:After.'])
+    // As ProseMirror's own drop does, what was dropped ends up selected.
+    const { from: sf, to: st } = ed.state.selection
+    expect(ed.state.doc.textBetween(sf, st)).toBe('st para. Second')
+  })
+
+  it('multi-block text MOVED onto a title: the source goes, the text joins the title, ONE undo restores both', () => {
+    const ed = mount(TEXT_DOC())
+    const was = ed.state.doc
+    const { from, to } = textSource(ed)
+    ed.commands.setTextSelection({ from, to }) // a text drag moves the selection it started from
+    const slice = ed.state.selection.content()
+    const seen = changes(ed)
+    expect(dropAt(ed, locate(ed, 'ary line'), slice, { moved: true })).toBe(true)
+    ed.state.doc.check()
+    expect(top(ed)).toEqual(['paragraph:Fir para.', 'toggle:Summst para. Secondary lineToggle body.', 'paragraph:After.'])
+    expect(seen).toEqual(['drop']) // ONE transaction, marked as a drop
+    ed.commands.undo()
+    expect(ed.state.doc.eq(was)).toBe(true)
+  })
+
+  it('the same MOVE through prosemirror-view\'s own drop handler (a real drop event) keeps one toggle', () => {
+    const ed = mount(TEXT_DOC())
+    const { from, to } = textSource(ed)
+    ed.commands.setTextSelection({ from, to })
+    const ev = domDrop(ed, locate(ed, 'ary line'), ed.state.selection.content())
+    ed.state.doc.check()
+    expect(ev.defaultPrevented).toBe(true)
+    expect(count(ed, 'toggle')).toBe(1)
+    expect(top(ed)).toEqual(['paragraph:Fir para.', 'toggle:Summst para. Secondary lineToggle body.', 'paragraph:After.'])
+  })
+
+  it('a dragged attachment CHIP dropped mid-title lands after the toggle, the source removed, ONE undo restores both', () => {
+    const ed = mount([P('Look'), CHIP, TOGGLE, P('After.')])
+    const was = ed.state.doc
+    const node = NodeSelection.create(ed.state.doc, firstPos(ed, 'attachmentChip'))
+    const seen = changes(ed)
+    expect(dropAt(ed, locate(ed, 'ary line'), node.content(), { moved: true, node })).toBe(true)
+    ed.state.doc.check()
+    expect(count(ed, 'toggle')).toBe(1)
+    expect(summaryOf(ed)).toBe('Summary line')
+    expect(top(ed)).toEqual(['paragraph:Look', 'toggle:Summary lineToggle body.', 'attachmentChip:', 'paragraph:After.'])
+    expect(nodesOf(ed, 'attachmentChip')[0].n.attrs).toEqual(was.child(1).attrs)
+    expect(ed.state.selection.node && ed.state.selection.node.type.name).toBe('attachmentChip') // the dropped node, selected
+    expect(ed.view.hasFocus()).toBe(true) // and the editor focused, as editHandlers.drop leaves it
+    expect(seen).toEqual(['drop']) // ONE transaction, marked as a drop
+    ed.commands.undo()
+    expect(ed.state.doc.eq(was)).toBe(true)
+  })
+
+  it('a dragged Ask ANSWER dropped mid-title lands whole after the toggle, the source removed, ONE undo restores both', () => {
+    const ed = mount([P('Mine.'), INSERT, TOGGLE, P('After.')])
+    const was = ed.state.doc
+    const node = NodeSelection.create(ed.state.doc, firstPos(ed, 'askInsert'))
+    const seen = changes(ed)
+    expect(dropAt(ed, locate(ed, 'ary line'), node.content(), { moved: true, node })).toBe(true)
+    ed.state.doc.check()
+    const answers = nodesOf(ed, 'askInsert')
+    expect(answers).toHaveLength(1)
+    expect(answers[0].n.attrs).toEqual(was.child(1).attrs)
+    expect(count(ed, 'askCitation')).toBe(1)
+    expect(top(ed)).toEqual(['paragraph:Mine.', 'toggle:Summary lineToggle body.', `askInsert:${was.child(1).textContent}`, 'paragraph:After.'])
+    expect(seen).toEqual(['drop']) // ONE transaction, marked as a drop
+    ed.commands.undo()
+    expect(ed.state.doc.eq(was)).toBe(true)
+  })
+
+  it('a chip COPIED (the drag-copy modifier) onto a title lands after the toggle and the source stays', () => {
+    const ed = mount([P('Look'), CHIP, TOGGLE, P('After.')])
+    const node = NodeSelection.create(ed.state.doc, firstPos(ed, 'attachmentChip'))
+    expect(dropAt(ed, locate(ed, 'ary line'), node.content(), { node })).toBe(true)
+    expect(top(ed)).toEqual(['paragraph:Look', 'attachmentChip:', 'toggle:Summary lineToggle body.', 'attachmentChip:', 'paragraph:After.'])
+  })
+
+  it('dropped at the very START of a non-empty title, a chip lands ABOVE the toggle', () => {
+    const ed = mount([CHIP, P('Mine.'), TOGGLE, P('After.')])
+    const node = NodeSelection.create(ed.state.doc, 0)
+    expect(dropAt(ed, locate(ed, 'Summary line'), node.content(), { moved: true, node })).toBe(true)
+    expect(top(ed)).toEqual(['paragraph:Mine.', 'attachmentChip:', 'toggle:Summary lineToggle body.', 'paragraph:After.'])
+  })
+
+  it('a drag OUT of the title\'s own text dropped back on it is judged where it lands, after the source is gone', () => {
+    // Removing "ne. | Sum" moves the title's rest ("mary line") up into the
+    // paragraph -- ProseMirror's own delete -- so the drop point lands there,
+    // in a paragraph, and the drop is an ordinary one: no toggle is created.
+    const ed = mount([P('Mine.'), TOGGLE, P('After.')])
+    ed.commands.setTextSelection({ from: locate(ed, 'ne.'), to: locate(ed, 'mary line') })
+    domDrop(ed, locate(ed, 'line'), ed.state.selection.content())
+    ed.state.doc.check()
+    expect(count(ed, 'toggle')).toBe(1)
+    expect(top(ed)).toEqual(['paragraph:Mimary ne.', 'paragraph:Sumline', 'toggle:Toggle body.', 'paragraph:After.'])
+  })
+
+  it('a title\'s whole text dragged (moved) and let go at the title\'s own start is cancelled -- one toggle, nothing moves', () => {
+    // Found by the drop sweep: the move's removal rebuilds the emptied toggle,
+    // so the drop point is consumed by the dragged content itself; ProseMirror's
+    // own drop landed between the new title and the body and split the toggle.
+    const ed = mount([P('Mine.'), TOGGLE, P('After.')])
+    const was = ed.state.doc
+    const from = locate(ed, 'Summary line')
+    ed.commands.setTextSelection({ from, to: locate(ed, 'Toggle body.') })
+    domDrop(ed, from, ed.state.selection.content())
+    ed.state.doc.check()
+    expect(count(ed, 'toggle')).toBe(1)
+    expect(ed.state.doc.eq(was)).toBe(true)
+  })
+
+  it('nothing but empty lines dropped on a title changes nothing -- not even a moved source', () => {
+    const ed = mount([P('Mine.'), { type: 'paragraph' }, { type: 'paragraph' }, TOGGLE, P('After.')])
+    const was = ed.state.doc
+    const start = was.child(0).nodeSize
+    ed.commands.setTextSelection({ from: start + 1, to: start + 3 }) // the two empty lines
+    const slice = ed.state.selection.content()
+    expect(slice.content.childCount).toBe(2)
+    expect(dropAt(ed, locate(ed, 'ary line'), slice, { moved: true })).toBe(true)
+    expect(ed.state.doc.eq(was)).toBe(true)
+  })
+})
+
+describe('CONTROL: an ordinary drop between paragraphs is byte-identical to ProseMirror\'s own', () => {
+  // The same real drop event into an editor WITHOUT the plugin: that editor
+  // runs exactly the drop ProseMirror ran before this plugin had a handleDrop.
+  const withoutPlugin = (content) => {
+    const el = document.createElement('div'); document.body.appendChild(el)
+    return new Editor({ element: el, extensions: buildExtensions().filter((e) => e.name !== 'pasteContainers'), content: { type: 'doc', content } })
+  }
+  const TEXT = [P('First para.'), P('Second para.'), P('Mine.'), P('After.')]
+  const CASES = [
+    ['multi-block text copied into the middle of a paragraph', TEXT,
+      (ed) => ({ slice: ed.state.doc.slice(locate(ed, 'st para.'), locate(ed, 'Second') + 6, true), copy: true, pos: locate(ed, 'ter.') })],
+    ['a text selection moved to the end of another paragraph', TEXT,
+      (ed) => { ed.commands.setTextSelection({ from: locate(ed, 'st para.'), to: locate(ed, 'Second') + 6 }); return { slice: ed.state.selection.content(), pos: locate(ed, 'After.') + 6 } }],
+    ['a chip moved into the middle of a paragraph', [P('Look'), CHIP, P('Mine.'), P('After.')],
+      (ed) => { const node = NodeSelection.create(ed.state.doc, firstPos(ed, 'attachmentChip')); return { slice: node.content(), node, pos: locate(ed, 'ter.') } }],
+  ]
+  for (const [label, content, setup] of CASES) {
+    it(`${label}: the same doc and selection with and without the plugin`, () => {
+      const ed = mount(content)
+      const base = withoutPlugin(content)
+      try {
+        const a = setup(ed)
+        const b = setup(base)
+        const was = ed.state.doc
+        expect(dropAt(ed, a.pos, a.slice, { moved: !a.copy, node: a.node })).toBeFalsy() // left to ProseMirror
+        expect(ed.state.doc.eq(was)).toBe(true)
+        domDrop(ed, a.pos, a.slice, { copy: a.copy, node: a.node })
+        domDrop(base, b.pos, b.slice, { copy: b.copy, node: b.node })
+        expect(base.state.doc.eq(was)).toBe(false) // non-vacuity: the drop really changed the doc
+        expect(JSON.stringify(ed.state.doc.toJSON())).toBe(JSON.stringify(base.state.doc.toJSON()))
+        expect(ed.state.selection.toJSON()).toEqual(base.state.selection.toJSON())
+      } finally { base.destroy() }
+    })
+  }
+})
+
+describe('the drop belt: a dropped slice ProseMirror cannot place lands as text, never lost (belt)', () => {
+  it('handleDrop falls back to plain text for the raw pre-fix toggle shape, dropped between paragraphs', () => {
+    const ed = mount([P('Mine.'), P('After.')])
+    const { schema } = ed.state
+    const raw = new Slice(Fragment.from(schema.nodes.toggle.create({ open: true }, [
+      schema.nodes.toggleSummary.create(null, schema.text('Summary line')),
+      schema.nodes.toggleContent.create(null, Fragment.empty),
+    ])), 2, 2)
+    const at = locate(ed, 'After.') + 'After.'.length
+    expect(() => ed.state.tr.replaceRange(at, at, raw)).toThrow(/invalid content/) // ProseMirror's own drop would throw
+    expect(dropAt(ed, at, raw)).toBe(true)
+    ed.state.doc.check()
+    expect(ed.state.doc.textContent).toBe('Mine.After.Summary line')
+    expect(warn.mock.calls.filter((c) => String(c[0]).includes('[pasteContainers] drop fell back'))).toHaveLength(1)
   })
 })

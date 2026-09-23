@@ -1,6 +1,7 @@
 import { Extension } from '@tiptap/core'
-import { Plugin, PluginKey, Selection, TextSelection } from '@tiptap/pm/state'
+import { NodeSelection, Plugin, PluginKey, Selection, TextSelection } from '@tiptap/pm/state'
 import { Fragment, Slice } from '@tiptap/pm/model'
+import { dropPoint } from '@tiptap/pm/transform'
 
 /**
  * Paste/copy normalisation for the Notebook's own three container nodes —
@@ -10,7 +11,8 @@ import { Fragment, Slice } from '@tiptap/pm/model'
  * TipTap extensions), and are deliberately NOT unwrapped -- they keep
  * ProseMirror's own wrap-on-paste behaviour. ONE helper, ONE plugin, both
  * edges, the whole open spine (see unwrapOpenContainers below). The same
- * plugin also owns pastes into a toggle's one-line title (pasteIntoSummary).
+ * plugin also owns pastes into a toggle's one-line title (pasteIntoSummary),
+ * and drops, which never reach handlePaste (handleDrop; see Drops below).
  *
  * The rule (G-064's I4 rule, first written for askInsert alone, generalised):
  * a container that is OPEN at an edge of a copied or pasted slice was only
@@ -184,53 +186,31 @@ function joinedInline(slice, schema) {
 
 const pasteMeta = (tr) => tr.scrollIntoView().setMeta('paste', true).setMeta('uiEvent', 'paste')
 
-// Rules 2 and 3: the whole slice as blocks at `at` -- a position just outside
-// the toggle -- in ONE transaction (one undo step), with the caret left at the
-// end of what was inserted. The TITLE IS NEVER TOUCHED, even when the member
-// had text selected in it (ruling (b)): the content lands outside the title,
-// so deleting a word from it would be a change the member was not looking at.
-// The slice is tried CLOSED first (exactly the nodes that were copied, a list
-// keeping its nesting), then as it came, letting ProseMirror's Fitter close
-// whatever a cut left invalid; each result must pass `check()`. If neither
-// places, false: the belt and ProseMirror get the paste.
-function pasteBlocks(view, slice, at) {
-  const { state } = view
-  for (const candidate of [new Slice(slice.content, 0, 0), slice]) {
-    try {
-      const tr = state.tr
-      const size = tr.doc.content.size
-      tr.replace(at, at, candidate)
-      tr.doc.check()
-      const end = at + (tr.doc.content.size - size)
-      tr.setSelection(Selection.near(tr.doc.resolve(end), -1))
-      view.dispatch(pasteMeta(tr))
-      return true
-    } catch {
-      // try the next shape
-    }
-  }
-  return false
-}
+// The one closed node a slice consists of, or null -- the slice ProseMirror
+// places with replaceSelectionWith (a paste) / replaceRangeWith (a drop).
+const closedSingle = (slice) => (slice.openStart === 0 && slice.openEnd === 0 && slice.content.childCount === 1
+  ? slice.content.firstChild : null)
 
 // A toggle's summary is its one-line title (`toggleSummary` is `inline*`), so
 // it cannot hold a block. Before this path a multi-block paste made the Fitter
 // close the summary mid-paste and split the toggle in two (measured: plain
 // two-line text left `toggle(summary "plain words", empty body)`,
 // `paragraph("second lineSummary line")`, `toggle(empty summary, original
-// body)`). The ruling (fix round 1 + final wave), in the order it is applied:
+// body)`); a drop did the same. The ruling (fix round 1 + final wave + wave
+// 4), in the order it is applied:
 //  4. An inline paste -- inline content, or ONE textblock open at both ends
 //     (a word from a paragraph, a list item, a body; mergesInline) -- is
-//     ProseMirror's own and keeps its marks: returned false, untouched.
+//     ProseMirror's own and keeps its marks: null, untouched.
 //  0. Nothing but EMPTY LINES (a text-only slice whose joined inline content
 //     is empty) is a no-op at EVERY position in the title, its start included
 //     (ruling (a)): the title has nowhere to put them and nothing is lost.
-//  3. Caret at the START of a non-empty title (empty selection, offset 0):
+//  3. Caret at the START of a non-empty title (an empty target, offset 0):
 //     every other slice goes in as blocks immediately BEFORE the toggle, where
 //     ProseMirror used to put it; now explicit.
 //  1. TEXT-ONLY (every top-level node is a textblock -- paragraph, heading,
 //     code block): the blocks' inline content joins into the title at the
-//     selection (joinedInline), replacing a selected range as any inline
-//     paste does.
+//     target (joinedInline), replacing a selected range as any inline paste
+//     does.
 //  2. STRUCTURE (anything else -- a block atom such as a file chip, an image, a
 //     rule, a chart; a closed callout, toggle or Ask answer; a list, table,
 //     blockquote or task list): never flattened, never dropped, the toggle
@@ -238,35 +218,101 @@ function pasteBlocks(view, slice, at) {
 //     was (ruling (b)). The whole slice goes in as blocks immediately AFTER
 //     the toggle, visible even when it is collapsed. A whole Ask answer keeps
 //     its wrapper, attrs and chips -- the I4 closed-block rule above.
-// Ranges that start or end OUTSIDE the title (sameParent false) are left to
+// It is written ONCE, as a plan over positions in the current doc, and both
+// doors ask it: a paste targets the selection (`$from`..`$to`), a drop targets
+// the drop point (`$from` === `$to`, since a drop replaces nothing). Ranges
+// that start or end OUTSIDE the title (sameParent false) are left to
 // ProseMirror, as before (review M-5, out of scope).
-export function pasteIntoSummary(view, slice) {
-  if (!slice || !slice.size) return false
-  const { state } = view
-  const { selection } = state
-  const { $from, $to } = selection
-  if ($from.parent.type.name !== 'toggleSummary' || !$from.sameParent($to)) return false
-  if (mergesInline(slice)) return false // rule 4
+function titlePlan(schema, slice, $from, $to) {
+  if (!slice || !slice.size) return null
+  if ($from.parent.type.name !== 'toggleSummary' || !$from.sameParent($to)) return null
+  if (mergesInline(slice)) return null // rule 4
   const toggleDepth = $from.depth - 1
   let textOnly = true
   slice.content.forEach((node) => { if (!node.isTextblock) textOnly = false })
-  const inline = textOnly ? joinedInline(slice, state.schema) : null
-  if (textOnly && !inline.size) return true // rule 0: nothing but empty lines
-  if (selection.empty && $from.parentOffset === 0 && $from.parent.content.size > 0) {
-    return pasteBlocks(view, slice, $from.before(toggleDepth)) // rule 3
+  const inline = textOnly ? joinedInline(slice, schema) : null
+  if (textOnly && !inline.size) return { rule: 0 } // nothing but empty lines
+  if ($from.pos === $to.pos && $from.parentOffset === 0 && $from.parent.content.size > 0) {
+    return { rule: 3, at: $from.before(toggleDepth) }
   }
-  if (!textOnly) return pasteBlocks(view, slice, $from.after(toggleDepth)) // rule 2
-  const tr = state.tr.replaceWith($from.pos, $to.pos, inline) // rule 1
-  try {
-    tr.doc.check()
-  } catch {
-    // The title refused something (no current schema shape does): the blocks
-    // go after the toggle whole rather than lose anything.
-    return pasteBlocks(view, slice, $from.after(toggleDepth))
+  const after = $from.after(toggleDepth)
+  if (!textOnly) return { rule: 2, at: after }
+  return { rule: 1, from: $from.pos, to: $to.pos, inline, at: after }
+}
+
+// Places a plan in a transaction from `begin()` -- a bare `state.tr` for a
+// paste; for a MOVED drag, one that has already removed the dragged source.
+// The plan was made on the doc that transaction starts from (`begin().doc`),
+// so its positions are used as they are; each attempt starts a fresh
+// transaction. Returns { tr, from, to, placed } -- the span inserted and the
+// slice actually placed -- or null when nothing places (the belt and
+// ProseMirror then get it).
+function placePlan(begin, plan, slice) {
+  if (plan.rule === 1) {
+    try {
+      const tr = begin()
+      tr.replaceWith(plan.from, plan.to, plan.inline)
+      tr.doc.check()
+      return { tr, from: plan.from, to: plan.from + plan.inline.size, placed: null }
+    } catch {
+      // The title refused something (no current schema shape does): the
+      // blocks go after the toggle whole rather than lose anything.
+    }
   }
-  tr.setSelection(TextSelection.create(tr.doc, $from.pos + inline.size))
+  return placeBlocks(begin, slice, plan.at)
+}
+
+// Rules 2 and 3: the whole slice as blocks at `at` -- a position just outside
+// the toggle -- in ONE transaction (one undo step). The TITLE IS NEVER
+// TOUCHED, even when the member had text selected in it (ruling (b)): the
+// content lands outside the title, so deleting a word from it would be a
+// change the member was not looking at. The slice is tried CLOSED first
+// (exactly the nodes that were copied, a list keeping its nesting), then as it
+// came, letting ProseMirror's Fitter close whatever a cut left invalid; each
+// result must pass `check()`.
+function placeBlocks(begin, slice, at) {
+  for (const candidate of [new Slice(slice.content, 0, 0), slice]) {
+    try {
+      const tr = begin()
+      const size = tr.doc.content.size
+      tr.replace(at, at, candidate)
+      tr.doc.check()
+      return { tr, from: at, to: at + (tr.doc.content.size - size), placed: candidate }
+    } catch {
+      // try the next shape
+    }
+  }
+  return null
+}
+
+// The PASTE door into a title: the plan at the selection, the caret left at
+// the end of what was inserted.
+export function pasteIntoSummary(view, slice) {
+  const { state } = view
+  const { $from, $to } = state.selection
+  const plan = titlePlan(state.schema, slice, $from, $to)
+  if (!plan) return false
+  if (plan.rule === 0) return true
+  const done = placePlan(() => state.tr, plan, slice)
+  if (!done) return false
+  const { tr } = done
+  tr.setSelection(done.placed ? Selection.near(tr.doc.resolve(done.to), -1) : TextSelection.create(tr.doc, done.to))
   view.dispatch(pasteMeta(tr))
   return true
+}
+
+// The belt's last resort, shared by the paste and the drop: the slice's TEXT
+// as plain paragraphs, one per line, placed by `put`; if even that will not
+// place, the text as one line (`putLine`). Nothing copied is lost to an
+// uncaught error.
+function textInstead(schema, slice, put, putLine) {
+  const lines = slice.content.textBetween(0, slice.content.size, '\n', ' ').split('\n')
+  try {
+    const blocks = lines.map((line) => schema.nodes.paragraph.create(null, line ? schema.text(line) : null))
+    return put(new Slice(Fragment.fromArray(blocks), 1, 1))
+  } catch {
+    return putLine(lines.join(' '))
+  }
 }
 
 // Belt-and-braces: if ProseMirror would still throw placing this slice (a
@@ -285,27 +331,133 @@ export function pasteIntoSummary(view, slice) {
 // run unchanged.
 export function pasteOrFallBack(view, slice) {
   if (!slice || !slice.size) return false
-  const single = slice.openStart === 0 && slice.openEnd === 0 && slice.content.childCount === 1
-    ? slice.content.firstChild : null
+  const single = closedSingle(slice)
   try {
     if (single) view.state.tr.replaceSelectionWith(single)
     else view.state.tr.replaceSelection(slice)
     return false
   } catch (err) {
-    // eslint-disable-next-line no-console
     console.warn('[pasteContainers] paste fell back to plain text:', err && err.message)
-    const { schema } = view.state
-    const text = slice.content.textBetween(0, slice.content.size, '\n', ' ')
-    const lines = text.split('\n')
-    let tr
-    try {
-      const blocks = lines.map((line) => schema.nodes.paragraph.create(null, line ? schema.text(line) : null))
-      tr = view.state.tr.replaceSelection(new Slice(Fragment.fromArray(blocks), 1, 1))
-    } catch {
-      tr = view.state.tr.insertText(lines.join(' '))
-    }
+    const tr = textInstead(view.state.schema, slice,
+      (blocks) => view.state.tr.replaceSelection(blocks),
+      (line) => view.state.tr.insertText(line))
     view.dispatch(tr.scrollIntoView().setMeta('paste', true).setMeta('uiEvent', 'paste'))
     return true
+  }
+}
+
+// ── Drops ───────────────────────────────────────────────────────────────────
+// prosemirror-view runs transformPasted on a drag's slice but NEVER
+// handlePaste: a drop goes through its own editHandlers.drop, which asks the
+// handleDrop props and otherwise inserts at `dropPoint`. So the title rules
+// and the belt are entered a second time here, reproducing what that handler
+// does wherever this plugin takes the drop over (prosemirror-view 1.x,
+// `handleDrop` in dist/index.js).
+
+// The drop point, as editHandlers.drop finds it: posAtCoords at the event's
+// client coordinates. null off the document (it then drops nothing either).
+function dropTarget(view, event) {
+  const found = event ? view.posAtCoords({ left: event.clientX, top: event.clientY }) : null
+  return found ? view.state.doc.resolve(found.pos) : null
+}
+
+// A drop's transaction starts the way editHandlers.drop starts it: for a
+// MOVED drag (not a copy -- `moved` is its dragMoves verdict), the dragged
+// source is removed FIRST, in the same transaction, so one undo restores both
+// -- a node drag replaces its NodeSelection, a text drag deletes the
+// selection it began from. `view.dragging` is still set while handleDrop runs.
+function dropBegin(view, moved) {
+  const { state } = view
+  const node = moved && view.dragging ? view.dragging.node : null
+  return () => {
+    const tr = state.tr
+    if (moved) {
+      if (node) node.replace(tr)
+      else tr.deleteSelection()
+    }
+    return tr
+  }
+}
+
+// editHandlers.drop's ending, verbatim in effect: what was dropped is
+// selected -- one selectable closed node as a NodeSelection, anything else as
+// the range between its ends (through createSelectionBetween, as it asks) --
+// then focus, and `uiEvent: 'drop'` (which TipTap's paste rules read).
+function finishDrop(view, tr, from, to, placed) {
+  const $pos = tr.doc.resolve(from)
+  const single = placed ? closedSingle(placed) : null
+  if (single && NodeSelection.isSelectable(single) && $pos.nodeAfter && $pos.nodeAfter.sameMarkup(single)) {
+    tr.setSelection(new NodeSelection($pos))
+  } else {
+    const $to = tr.doc.resolve(to)
+    tr.setSelection(view.someProp('createSelectionBetween', (f) => f(view, $pos, $to)) || TextSelection.between($pos, $to))
+  }
+  view.focus()
+  view.dispatch(tr.setMeta('uiEvent', 'drop'))
+}
+
+// The DROP door into a title: the same plan as a paste, at the drop point --
+// judged on the doc the drop's transaction starts from, i.e. after a moved
+// drag's source is gone, with the drop point mapped past that removal as
+// editHandlers.drop maps its insert position. A drop point the removal itself
+// consumes is a drop onto the dragged content: CANCELLED, nothing moves.
+// (Measured by the drop sweep: a title's whole text dragged out and let go at
+// the title's own start -- ProseMirror rebuilds the emptied toggle in the
+// removal, its forward mapping lands between the new title and the body, and
+// its own insert there split the toggle.) A drag out of a title's own text back
+// onto the rest of it is judged where the drop actually lands.
+export function dropIntoSummary(view, event, slice, moved) {
+  const $mouse = dropTarget(view, event)
+  if (!$mouse || $mouse.parent.type.name !== 'toggleSummary') return false
+  const begin = dropBegin(view, moved)
+  const start = begin()
+  const mapped = start.mapping.mapResult($mouse.pos)
+  if (mapped.deleted) return true
+  const $at = start.doc.resolve(mapped.pos)
+  const plan = titlePlan(view.state.schema, slice, $at, $at)
+  if (!plan) return false
+  if (plan.rule === 0) return true // nothing to drop: the source stays too
+  const done = placePlan(begin, plan, slice)
+  if (!done) return false
+  finishDrop(view, done.tr, done.from, done.to, done.placed)
+  return true
+}
+
+// The drop belt, the paste belt's twin: a dry run of the drop editHandlers.drop
+// is about to make -- the same dropPoint, the same source removal, the same
+// replaceRangeWith / replaceRange -- and, ONLY if that would throw, the slice's
+// text dropped as plain paragraphs at the same point instead (warned once).
+// Otherwise false: ProseMirror's own drop runs, unchanged.
+export function dropOrFallBack(view, event, slice, moved) {
+  if (!slice || !slice.size) return false
+  const $mouse = dropTarget(view, event)
+  if (!$mouse) return false
+  const begin = dropBegin(view, moved)
+  let insertPos = $mouse.pos
+  try {
+    const found = dropPoint(view.state.doc, $mouse.pos, slice)
+    if (found != null) insertPos = found
+    const tr = begin()
+    const pos = tr.mapping.map(insertPos)
+    const single = closedSingle(slice)
+    if (single) tr.replaceRangeWith(pos, pos, single)
+    else tr.replaceRange(pos, pos, slice)
+    return false
+  } catch (err) {
+    console.warn('[pasteContainers] drop fell back to plain text:', err && err.message)
+    try {
+      let from = 0
+      const tr = textInstead(view.state.schema, slice,
+        (blocks) => { const t = begin(); from = t.mapping.map(insertPos); return t.replaceRange(from, from, blocks) },
+        (line) => { const t = begin(); from = t.mapping.map(insertPos); return t.insertText(line, from) })
+      // The end of what was inserted, found the way editHandlers.drop finds it.
+      let to = tr.mapping.map(insertPos)
+      tr.mapping.maps[tr.mapping.maps.length - 1].forEach((_f, _t, _nf, newTo) => { to = newTo })
+      finishDrop(view, tr, from, to, null)
+      return true
+    } catch {
+      return false // not even the text would place: ProseMirror's drop, as before
+    }
   }
 }
 
@@ -320,6 +472,10 @@ export const PasteContainers = Extension.create({
         // The title first (a paste ProseMirror would complete wrongly -- a
         // split toggle), then the belt for one it would throw on.
         handlePaste: (view, _event, slice) => pasteIntoSummary(view, slice) || pasteOrFallBack(view, slice),
+        // A drop never reaches handlePaste (see Drops above): the same two, in
+        // the same order. `slice` has already been through transformPasted.
+        handleDrop: (view, event, slice, moved) => dropIntoSummary(view, event, slice, moved)
+          || dropOrFallBack(view, event, slice, moved),
       },
     })]
   },

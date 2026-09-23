@@ -269,9 +269,11 @@ Node.create({
     (`transformCopied`), the paste side (`transformPasted`), and a belt
     (`handlePaste` pastes the text rather than lose a slice ProseMirror would throw
     on). A drag within the editor runs the copy and paste TRANSFORMS (`transformCopied`,
-    `transformPasted`) but never `handlePaste`, so neither the belt nor the
-    toggle-title rules below run on a drop: a multi-block drop onto a title can still
-    split the toggle (drop is out of scope for this close-out).
+    `transformPasted`) but never `handlePaste`: ProseMirror's own drop handler asks
+    `handleDrop` instead, so the same plugin's `handleDrop` enters both again. A drop
+    INTO a toggle title follows the title rules below; anywhere else the drop is
+    ProseMirror's own, unchanged, unless a dry run of exactly that drop would throw,
+    and then the slice's text is dropped as plain paragraphs (the belt again).
   - **The rule** (this I4 rule, generalised to all three): a container OPEN at an
     edge of a copied or pasted slice was only partly selected, so its content
     travels as plain content. Partial answer text lands as ordinary text wherever
@@ -298,6 +300,13 @@ Node.create({
     immediately AFTER the toggle, visible even when the toggle is collapsed. A
     whole answer keeps its wrapper, attributes and chips. A structure paste never
     touches the title: text selected in the title stays as it was.
+  - A DROP onto a title follows the same rules, decided by the same code (the plan
+    is shared), at the drop point: a drop replaces nothing, so the start-of-title
+    rule applies when it lands at the very start. A MOVED drag (not a copy) has its
+    source removed in the same transaction as the insert, so one undo restores both,
+    and the rules are judged on the document after that removal; a drop point the
+    removal itself consumes (a title's text dragged and let go on that title) is
+    cancelled. What was dropped ends up selected, as ProseMirror's own drop leaves it.
 - Not added to the slash menu. The `renderHTML` fallback (used by HTML copy/paste
   and static renders) is a plain div with a content hole, and it parses back to the
   same node.
