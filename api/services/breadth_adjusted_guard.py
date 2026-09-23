@@ -12,7 +12,8 @@ highs/lows, spurious 4 % moves, and SMA/stage distortion for up to a frame.
 
 ⭐ THE RAW SERIES IS THE ARBITER. For each name and each consecutive pair of its sessions
 (p → D) with a factor step s = f_D / f_p (|log s| > log 1.02) whose implied adjusted move
-exceeds one price tick (|adj_D − raw_D·f_p| > $0.0101 — finer is quote quantisation):
+exceeds one RAW price tick (|adj_D/f_p − raw_D| > $0.0101): the provider quantises in raw units
+before scaling, so on a name with a large later reverse split one raw cent is dollars adjusted:
 
     REAL_ACTION          the adjusted series absorbed the step: |log adj_ratio| ≤ ½|log s|
                          (raw moved by ≈ 1/s — a real split, with or without a ledger row)
@@ -38,7 +39,7 @@ import math
 import os
 from collections import defaultdict
 
-GUARD_VERSION = "adj-guard-v2"
+GUARD_VERSION = "adj-guard-v3"
 #: An adjusted close is quoted to the cent: a factor step whose implied adjusted move is
 #: within one tick is price QUANTISATION (penny names: 0.10 -> 0.11 reads as a 10% "step"),
 #: not a basis break. Measured: the v1 guard classified ~1,200 such steps as events.
@@ -82,7 +83,7 @@ def build_events(grouped_dir: str, manifest: dict, splits: list, calendar: list,
             ls = math.log(f / pf)
             if abs(ls) <= STEP_MIN:
                 continue
-            if abs(a - r * pf) <= TICK:           # within one price tick of the prior basis
+            if abs(a / pf - r) <= TICK:          # within one RAW price tick of the prior basis
                 continue
             lraw, ladj = math.log(r / pr), math.log(a / pa)
             gap = i - pi
