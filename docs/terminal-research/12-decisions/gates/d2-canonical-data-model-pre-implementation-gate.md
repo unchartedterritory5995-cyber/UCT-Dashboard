@@ -195,6 +195,62 @@ APPROVED AT SHA:  8c5f83ca0
 SCOPE APPROVED:   §4-CP3 -- Retire the timeframe-map duplicates onto the declared book. Three call sites: api/services/indicator_alert_evaluator.py's _LEDGER_TIMEFRAME dict + ledger_timeframe() (now reads api/services/alert_taxonomy/indicator_condition.py's pre-existing timeframe_labels() accessor, which reads the address book's axes.timeframe.code_to_label); app/src/pages/charts/grid/GridChartCell.jsx's hand-typed TF_LABELS (now imports the generated app/src/components/chart/engine/ast/timeframeLabels.json); and that generated file itself, a new export added to tools/build_canonical_address_book.py (extended, not a new builder), derived from the same axes.timeframe.code_to_label, never a fourth independent copy. Flow-worker classification measured directly via tools.flow_worker_watch_coverage's reachable_paths()/watched_paths(): indicator_alert_evaluator.py is reachable but unwatched, so this diff in isolation strands (verdict() returns FAIL) -- but the change is proved behaviour-identical (mutation-proved both lanes: reintroducing the old hand-typed dict/literal reds the non-regression tests; the generated export's --check catches real drift), so no marker bump and no after-hours window are needed -- merging carries zero flow-worker deploy risk at any time, since this specific unwatched file's push never triggers a flow-worker restart. No schema change on any live store. No member-visible behaviour change.
 ```
 
+## ⛔ APPROVAL — LINE 5 (top-level CP3). PROPOSED, unsigned.
+
+```
+APPROVED BY:
+APPROVED ON:
+APPROVED AT SHA:
+SCOPE APPROVED:
+```
+
+**The blocker, restated exactly as this file already named it (2026-09-12):** *"Whether one
+session yields 200 agreed rows depends on member traffic to one page. If Monday's count is short,
+the honest options are a scheduled synthetic reader or a second migrated reader on a warmer
+path — not a lowered threshold."* Ten days on, that traffic still hasn't arrived: `ticker_returns.
+_close()` — the ONE migrated reader — fires only from `GET /api/education/videos/{video_id}/
+ticker-returns`, which requires a member to open a specific Desk video that has real ticker
+moments recorded. `D2_DUAL_COMPUTE_SAMPLE_PCT` is unset on `web` (verified live, 2026-09-22),
+so the sampler is at its `DEFAULT_SAMPLE_PCT = 100` — every eligible call is already observed.
+The shortfall is genuinely call volume, not the sample rate.
+
+⛔ **A live row-count pull from `d2_dual_samples.db` was attempted this session and refused by
+this session's own production-read guardrail** (the same shape of block the S7 event-proximity
+dark read hit on 2026-09-20 — a live query blocked by tooling permissions, not by data absence).
+This proposal is therefore written against the mechanism, not a fresh count; whoever signs it
+should pull the current row count first (`SELECT COUNT(*), SUM(equal) FROM d2_dual_samples`)
+to confirm the shortfall is still real before arming anything.
+
+**Proposed mechanism — Option A, the scheduled reader, using the SAME real-traffic idiom that
+already closed A9's identical shortfall (`smoke@uctintelligence.internal`'s real paid session
+subscribing through the app's own subscribe path, not a hand-inserted row).** A new scheduled
+job, RTH-only, walks every currently-published Desk video carrying real `ticker_moments` and
+calls `GET /api/education/videos/{video_id}/ticker-returns` through the smoke account's genuine
+`require_paid` session — the exact route a member's browser calls, generating dual-compute
+samples through the already-built, already-tested `_dual.observe()` path. Nothing new is wired;
+this only supplies the traffic the existing mechanism has been waiting on.
+
+⛔ **Cache-aware, or it does nothing.** `returns_for_video()` caches 600s in-process
+(`_TTL_SECS`) and returns the cached payload on a hit **without calling `_close()` again** — a
+scheduled hit to the same video inside that window produces zero new samples. The job must
+either space repeat hits to one video ≥10 minutes apart or round-robin across every available
+video each cycle so it is always landing on cold entries.
+
+⛔ **Measure before scheduling anything recurring.** A single manual dry-run cycle — one pass
+through every published video with real ticker moments, via the smoke account, counting the
+rows `d2_dual_samples.db` gains — tells us whether one such pass clears a meaningful fraction of
+200 agreed rows or whether the video/symbol population is too thin for Option A alone. If thin,
+Option B (migrating a second, warmer `bars_sqlite` reader onto the same dual-compute pattern)
+stays the fallback this file already named — a materially bigger piece of work, not proposed here.
+
+**Scope, if signed:** ONE new scheduled job (cadence TBD by the dry-run's own numbers), calling
+an EXISTING, unmodified, `require_paid`-gated GET route through the EXISTING smoke account,
+generating read-only traffic through the EXISTING dual-compute rail. No change to `_dual.py`,
+`dual_sample_store.py`, the ≥200-agreed-rows/≥1-full-session gate itself, or any other reader.
+No state created by the smoke account (a GET with an in-process cache, nothing written to any
+member-facing store). Explicitly excludes Option B (a second migrated reader) — that is a
+separate, larger proposal if Option A's dry run comes back short.
+
 ### CP2.1 ⛔ THE STATED CRITERION PICKED THE STORE THAT CANNOT BE ADDRESSED
 
 **Measured, not asserted.** Every module of each candidate store parsed, docstrings and comments
