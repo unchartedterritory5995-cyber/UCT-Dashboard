@@ -105,18 +105,6 @@
   gap: 6px;
   flex-wrap: wrap;
 }
-.tagInput {
-  flex: 1 1 200px;
-  min-width: 0;
-  min-height: 30px;
-  padding: 4px 10px;
-  font: inherit;
-  font-size: 13px;
-  color: var(--text-bright);
-  background: var(--bg-surface);
-  border: 1px solid var(--border);
-  border-radius: 7px;
-}
 .removeRow {
   display: flex;
   flex-wrap: wrap;
@@ -163,7 +151,6 @@
 @media (max-width: 1024px) {
   .action,
   .moveSelect,
-  .tagInput,
   .tagChip,
   .linkBtn {
     min-height: var(--tap-min);

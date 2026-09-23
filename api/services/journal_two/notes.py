@@ -352,6 +352,18 @@ def _sync_note_sidecars(
 
 # ── Validation ───────────────────────────────────────────────────────────────
 
+def _normalize_tag_path(tag: str) -> str:
+    """Nested tags (Obsidian's `a/b/c`): every level trimmed, empty levels
+    dropped — so "Research / Semis", "research//semis" and a stray leading or
+    trailing slash all name ONE place in the tag tree. A flat tag (no `/`)
+    comes back exactly as `str.strip()` would give it: nothing else changes
+    for the tags every member already has."""
+    t = tag.strip()
+    if "/" not in t:
+        return t
+    return "/".join(seg.strip() for seg in t.split("/") if seg.strip())
+
+
 def _validate_tags(raw: Any) -> list[str]:
     if raw is None:
         return []
@@ -364,7 +376,7 @@ def _validate_tags(raw: Any) -> list[str]:
     for t in raw:
         if not isinstance(t, str):
             raise NoteValidationError("tag entries must be strings")
-        t2 = t.strip()
+        t2 = _normalize_tag_path(t)
         if not t2:
             continue
         if len(t2) > MAX_TAG_LENGTH:
@@ -974,9 +986,20 @@ def _notes_filter_sql(
         else:
             sql += " AND 0"
     if tag:
-        # JSON LIKE — case-insensitive substring of any tag value.
-        sql += ' AND lower(tags) LIKE ?'
+        # JSON LIKE — case-insensitive match of one whole tag value. This half
+        # is byte-for-byte what it was before nested tags: a flat tag with no
+        # children finds exactly the notes it always found.
+        # ⭐ Wave 5 nested tags: a tag is also the PARENT of every `tag/…` tag
+        # below it (the Obsidian convention), so filtering by "research" also
+        # finds notes tagged only "research/semis". That half compares decoded
+        # values with `substr`, never LIKE, so a `%` or `_` in a tag is text.
+        # ⛔ ONE predicate for the list AND its count — both build off this.
+        sql += (' AND (lower(tags) LIKE ?'
+                ' OR EXISTS (SELECT 1 FROM json_each(COALESCE(j2_notes.tags, \'[]\')) jt'
+                ' WHERE substr(lower(jt.value), 1, ?) = ?))')
+        parent_key = _normalize_tag_path(tag).lower()
         params.append(f'%"{tag.lower()}"%')
+        params.extend([len(parent_key) + 1, parent_key + "/"])
     if q:
         # FTS5 when the text yields a valid MATCH expression; the old
         # LIKE scan remains the fallback so a query FTS cannot parse
@@ -1270,6 +1293,104 @@ def tag_counts(
             (user_id,),
         ).fetchall()
         return [{"tag": r["tag"], "count": int(r["c"] or 0)} for r in rows]
+    finally:
+        if owned:
+            conn.close()
+
+
+def tag_tree(
+    user_id: str,
+    conn: sqlite3.Connection | None = None,
+) -> list[dict[str, Any]]:
+    """Wave 5 nested tags — every node of the member's tag tree with its
+    counts: `[{path, key, own, total}]`.
+
+    `path` is the display spelling ("Research/Semis"), `key` its case-folded
+    identity (the same case-insensitive rule `tag_counts` and the `tag=`
+    filter use). A parent that no note carries by itself ("research" when only
+    "research/semis" exists) is still a node, with `own` 0 — otherwise the
+    tree would have a child with no parent to hang from.
+
+    ⛔ `total` is DISTINCT NOTES in the subtree, never a sum of child counts: a
+    note tagged both "research" and "research/semis" is one note under
+    "research", and a summed count would claim two — the same honest-count
+    discipline as `tag_counts`. It is what filtering by that tag returns.
+
+    ⭐ Cheap for the common case: flat tags are counted in SQL exactly as
+    `tag_counts` counts them, and only rows carrying a `/` (plus the flat
+    parents those rows actually hang under) are read into Python."""
+    owned = conn is None
+    conn = conn or get_connection()
+    try:
+        flat_rows = conn.execute(
+            "SELECT MAX(je.value) AS tag, LOWER(je.value) AS k, COUNT(*) AS c"
+            " FROM j2_notes, json_each(COALESCE(j2_notes.tags, '[]')) je"
+            " WHERE j2_notes.user_id = ? AND j2_notes.deleted_at IS NULL"
+            " AND instr(je.value, '/') = 0"
+            " GROUP BY LOWER(je.value)",
+            (user_id,),
+        ).fetchall()
+        nested_rows = conn.execute(
+            "SELECT j2_notes.id AS nid, je.value AS tag"
+            " FROM j2_notes, json_each(COALESCE(j2_notes.tags, '[]')) je"
+            " WHERE j2_notes.user_id = ? AND j2_notes.deleted_at IS NULL"
+            " AND instr(je.value, '/') > 0",
+            (user_id,),
+        ).fetchall()
+
+        own: dict[str, int] = {}
+        spelled: dict[str, str] = {}      # explicit spellings win
+        implied: dict[str, str] = {}      # a parent named only through a child
+        for r in flat_rows:
+            key = _normalize_tag_path(r["k"] or "")
+            if not key:
+                continue
+            own[key] = own.get(key, 0) + int(r["c"] or 0)
+            spelled[key] = max(spelled.get(key, ""), _normalize_tag_path(r["tag"] or ""))
+
+        under: dict[str, set[str]] = {}  # key -> notes tagged it OR anything below it
+        own_nested: dict[str, set[str]] = {}
+        for r in nested_rows:
+            path = _normalize_tag_path(str(r["tag"] or ""))
+            if not path:
+                continue
+            segs = path.split("/")
+            for i in range(1, len(segs) + 1):
+                prefix = "/".join(segs[:i])
+                pkey = prefix.lower()
+                under.setdefault(pkey, set()).add(r["nid"])
+                if i < len(segs):
+                    implied[pkey] = max(implied.get(pkey, ""), prefix)
+            own_nested.setdefault(path.lower(), set()).add(r["nid"])
+            spelled[path.lower()] = max(spelled.get(path.lower(), ""), path)
+
+        # A flat tag that is also a PARENT: its own notes join its subtree.
+        flat_parents = [k for k in under if "/" not in k and k in own]
+        for start in range(0, len(flat_parents), _BATCH_READ_CHUNK):
+            chunk = flat_parents[start:start + _BATCH_READ_CHUNK]
+            placeholders = ",".join("?" * len(chunk))
+            for r in conn.execute(
+                "SELECT j2_notes.id AS nid, LOWER(je.value) AS k"
+                " FROM j2_notes, json_each(COALESCE(j2_notes.tags, '[]')) je"
+                " WHERE j2_notes.user_id = ? AND j2_notes.deleted_at IS NULL"
+                f" AND LOWER(je.value) IN ({placeholders})",
+                [user_id, *chunk],
+            ):
+                under[_normalize_tag_path(r["k"])].add(r["nid"])
+
+        for k, ids in own_nested.items():
+            own[k] = own.get(k, 0) + len(ids)
+
+        out: list[dict[str, Any]] = []
+        for key in set(own) | set(under):
+            out.append({
+                "path": spelled.get(key) or implied.get(key) or key,
+                "key": key,
+                "own": own.get(key, 0),
+                "total": len(under[key]) if key in under else own.get(key, 0),
+            })
+        out.sort(key=lambda n: (-n["total"], n["key"]))
+        return out
     finally:
         if owned:
             conn.close()

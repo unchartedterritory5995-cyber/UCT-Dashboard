@@ -206,6 +206,25 @@ describe('NotebookTab — bulk actions', () => {
     expect(batchCalls.map((c) => [c.op, c.args.tag])).toEqual([['addTag', 'research/semis'], ['removeTag', 'earnings']])
   })
 
+  it('the tag field suggests the member\'s tag TREE — a parent offers what sits below it', async () => {
+    const base = global.fetch
+    global.fetch = vi.fn((url, init) => (String(url).startsWith('/api/j2/notes/tags')
+      ? ok({
+        tags: [{ tag: 'research/semis', count: 2 }],
+        tree: [
+          { path: 'research', key: 'research', own: 0, total: 2 },
+          { path: 'research/semis', key: 'research/semis', own: 2, total: 2 },
+        ],
+      })
+      : base(url, init)))
+    renderTab()
+    fireEvent.click(box('First note'))
+    fireEvent.click(screen.getByRole('button', { name: 'Tags' }))
+    const input = screen.getByRole('combobox', { name: 'Tag to add to the selected notes' })
+    fireEvent.change(input, { target: { value: 'research/' } })
+    expect(await screen.findByRole('option', { name: 'research / semis' })).toBeInTheDocument()
+  })
+
   it('favorite lands nothing — it never advances a revision', async () => {
     renderTab()
     fireEvent.click(box('First note'))

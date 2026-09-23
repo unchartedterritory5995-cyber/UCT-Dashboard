@@ -20,7 +20,11 @@ function setup(over = {}) {
     onSelectAll: vi.fn(),
     onClear: vi.fn(),
     selectedTags: ['earnings', 'swing'],
-    tagSuggestions: ['earnings', 'research/semis'],
+    tagNodes: [
+      { path: 'earnings', key: 'earnings', own: 3, total: 3 },
+      { path: 'research', key: 'research', own: 0, total: 2 },
+      { path: 'research/semis', key: 'research/semis', own: 2, total: 2 },
+    ],
     onMove: vi.fn(),
     onAddTag: vi.fn(),
     onRemoveTag: vi.fn(),
@@ -144,7 +148,7 @@ describe('BulkActionBar — touch tier', () => {
   })
 
   it('every control class is floored to var(--tap-min) at the touch tier', () => {
-    for (const cls of ['.action', '.moveSelect', '.tagInput', '.tagChip', '.linkBtn']) {
+    for (const cls of ['.action', '.moveSelect', '.tagChip', '.linkBtn']) {
       expect(touch[1], cls).toMatch(new RegExp(`\\${cls}[\\s,][\\s\\S]*min-height:\\s*var\\(--tap-min\\)`))
     }
   })

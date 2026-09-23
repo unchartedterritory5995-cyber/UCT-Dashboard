@@ -1,6 +1,7 @@
 import { useId, useMemo, useState } from 'react'
 import UIcon from '../../../../components/ui/UIcon'
 import useJ2NoteFolders from '../../hooks/useJ2NoteFolders'
+import TagSuggestInput from './TagSuggestInput'
 import styles from './BulkActionBar.module.css'
 
 /** "Parent / Child" for every folder, sorted by that path. */
@@ -45,7 +46,8 @@ export default function BulkActionBar({
   trashView = false,
   busy = false,
   selectedTags = [],
-  tagSuggestions = [],
+  /** The member's tag tree nodes (`{path, key, total}`), for suggestions. */
+  tagNodes = [],
   onMove,
   onAddTag,
   onRemoveTag,
@@ -54,14 +56,12 @@ export default function BulkActionBar({
   onExport,
   onTrash,
   onRestore,
-  renderTagInput = null,
 }) {
   const { folders } = useJ2NoteFolders()
   const folderOptions = useMemo(() => folderPathOptions(folders), [folders])
   const [tagsOpen, setTagsOpen] = useState(false)
   const [tagDraft, setTagDraft] = useState('')
   const tagPanelId = useId()
-  const datalistId = useId()
 
   const submitTag = (e) => {
     e.preventDefault()
@@ -162,23 +162,15 @@ export default function BulkActionBar({
       {!trashView && tagsOpen && (
         <div id={tagPanelId} className={styles.tagPanel}>
           <form className={styles.tagForm} onSubmit={submitTag}>
-            {renderTagInput ? renderTagInput({ value: tagDraft, onChange: setTagDraft, disabled: busy }) : (
-              <>
-                <input
-                  className={styles.tagInput}
-                  value={tagDraft}
-                  onChange={(e) => setTagDraft(e.target.value)}
-                  placeholder="Add a tag, e.g. research/semis"
-                  aria-label="Tag to add to the selected notes"
-                  list={datalistId}
-                  disabled={busy}
-                  autoComplete="off"
-                />
-                <datalist id={datalistId}>
-                  {tagSuggestions.map((t) => <option key={t} value={t} />)}
-                </datalist>
-              </>
-            )}
+            {/* Suggests the member's own tags, hierarchy first — "res" offers
+                research/semis; "research/" offers what sits below it. */}
+            <TagSuggestInput
+              value={tagDraft}
+              onChange={setTagDraft}
+              nodes={tagNodes}
+              disabled={busy}
+              ariaLabel="Tag to add to the selected notes"
+            />
             <button type="submit" className={styles.action} disabled={busy || !tagDraft.trim()}>
               Add tag
             </button>

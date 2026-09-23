@@ -1,0 +1,60 @@
+/* Wave 5 nested tags — the tag field with hierarchy suggestions. Only
+   existing tokens; no new custom properties. */
+.wrap {
+  position: relative;
+  flex: 1 1 200px;
+  min-width: 0;
+}
+.input {
+  width: 100%;
+  box-sizing: border-box;
+  min-height: 30px;
+  padding: 4px 10px;
+  font: inherit;
+  font-size: 13px;
+  color: var(--text-bright);
+  background: var(--bg-surface);
+  border: 1px solid var(--border);
+  border-radius: 7px;
+}
+.list {
+  position: absolute;
+  z-index: 5;
+  top: calc(100% + 4px);
+  left: 0;
+  right: 0;
+  max-height: 240px;
+  overflow-y: auto;
+  margin: 0;
+  padding: 4px;
+  list-style: none;
+  background: var(--bg-elevated);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  box-shadow: 0 8px 22px rgba(0, 0, 0, 0.3);
+}
+.option {
+  display: flex;
+  align-items: baseline;
+  min-height: 30px;
+  padding: 5px 8px;
+  border-radius: 6px;
+  font-size: 13px;
+  cursor: pointer;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+.optionActive { background: var(--bg-hover); }
+.parents { color: var(--text-muted); }
+.leaf { color: var(--text-bright); font-weight: 600; }
+
+/* Touch tier (phone AND tablet): every suggestion and the field itself are
+   finger targets. */
+@media (max-width: 1024px) {
+  .input,
+  .option {
+    min-height: var(--tap-min);
+  }
+  .input { font-size: 16px; } /* no iOS focus-zoom */
+}

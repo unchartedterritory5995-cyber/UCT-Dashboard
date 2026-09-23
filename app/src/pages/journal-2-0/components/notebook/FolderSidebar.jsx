@@ -18,6 +18,9 @@ import UIcon from '../../../../components/ui/UIcon'
 import ConfirmModal from '../ConfirmModal'
 import { SkeletonLine } from '../../../../components/Skeleton'
 import { VIEW_MODES } from '../../lib/savedViewModes'
+import {
+  ancestorKeys, buildTagTree, fallbackNodes, hasNestedTags, tagKey,
+} from '../../lib/tagTree'
 import styles from './FolderSidebar.module.css'
 
 // Debounce before the search query reaches the server (below) — short enough
@@ -359,6 +362,63 @@ function SearchModeIcon() {
       <circle cx="10.5" cy="10.5" r="6" fill="none" stroke="currentColor" strokeWidth="1.7" />
       <line x1="14.8" y1="14.8" x2="20" y2="20" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" />
     </svg>
+  )
+}
+
+/**
+ * Wave 5 nested tags: one level of the tag tree. A parent's count is the
+ * DISTINCT notes in its whole subtree (server-computed) — and choosing a
+ * parent shows exactly those notes, children included, because the `tag=`
+ * filter treats a tag as the parent of every `tag/…` below it.
+ */
+function TagNode({ node, activeTagKey, expandedKeys, onToggle, onSelect }) {
+  const hasChildren = node.children.length > 0
+  const expanded = expandedKeys.has(node.key)
+  const active = activeTagKey === node.key
+  const noteWord = node.total === 1 ? 'note' : 'notes'
+  return (
+    <div className={styles.folderItem}>
+      <div className={styles.rowWrap} style={{ paddingLeft: node.depth * 14 }}>
+        {hasChildren ? (
+          <button
+            type="button"
+            className={styles.disclosureBtn}
+            aria-label={`${expanded ? 'Collapse' : 'Expand'} tag ${node.path}`}
+            aria-expanded={expanded}
+            onClick={() => onToggle(node.key)}
+          >
+            <Chevron expanded={expanded} />
+          </button>
+        ) : (
+          <span className={styles.disclosureSpacer} aria-hidden="true" />
+        )}
+        <button
+          type="button"
+          className={`${styles.row} ${active ? styles.rowActive : ''}`}
+          onClick={() => onSelect(node.path)}
+          aria-current={active ? 'true' : undefined}
+          aria-label={`Tag ${node.path}, ${node.total} ${noteWord}${hasChildren ? ' including the tags below it' : ''}`}
+          title={`#${node.path}`}
+        >
+          <span>{node.depth === 0 ? `#${node.label}` : node.label}</span>
+          <span className={styles.count}>{node.total}</span>
+        </button>
+      </div>
+      {hasChildren && expanded && (
+        <div className={styles.childrenList} style={{ '--guide-x': `${node.depth * 14 + 7}px` }}>
+          {node.children.map((child) => (
+            <TagNode
+              key={child.key}
+              node={child}
+              activeTagKey={activeTagKey}
+              expandedKeys={expandedKeys}
+              onToggle={onToggle}
+              onSelect={onSelect}
+            />
+          ))}
+        </div>
+      )}
+    </div>
   )
 }
 
@@ -772,7 +832,7 @@ export default function FolderSidebar({
   // the server hasn't answered yet (or for a caller/test that stubs the
   // hook away) — never blended with the server numbers, since a partial
   // merge would recreate the same "biased sample" defect this fix closes.
-  const { tagCounts: serverTagCounts } = useJ2NoteTags()
+  const { tagCounts: serverTagCounts, tagTree: serverTagTree } = useJ2NoteTags()
   const tagCountsFromPage = useMemo(() => {
     const c = new Map()
     for (const n of notes) for (const t of (n.tags || [])) {
@@ -784,16 +844,57 @@ export default function FolderSidebar({
     ? serverTagCounts.map((t) => [t.tag, t.count])
     : tagCountsFromPage
 
-  const tagsOverCap = tagCounts.length > TAG_CAP
+  // Wave 5 nested tags. The server's `tree` carries every node of the
+  // `a/b/c` hierarchy with honest DISTINCT-note subtree totals; without it
+  // (an older answer, the page fallback above) the nodes are derived from the
+  // flat counts — exact for every flat tag, an upper bound for a parent.
+  // ⛔ A LIBRARY WITH NO `/` IN ANY TAG DRAWS EXACTLY AS IT ALWAYS DID: same
+  // rows, same counts, same order, same markup (`nestedTags` false below).
+  const tagNodes = useMemo(
+    () => (serverTagTree && serverTagTree.length && serverTagCounts.length
+      ? serverTagTree
+      : fallbackNodes(tagCounts.map(([tag, count]) => ({ tag, count })))),
+    [serverTagTree, serverTagCounts.length, tagCounts],
+  )
+  const nestedTags = useMemo(() => hasNestedTags(tagNodes), [tagNodes])
+  const tagRoots = useMemo(() => buildTagTree(tagNodes), [tagNodes])
+  const activeTagKey = activeTag ? tagKey(activeTag) : null
+  const [expandedTagKeys, setExpandedTagKeys] = useState(() => new Set())
+  // The tag being browsed is always on screen: its parents open with it.
+  useEffect(() => {
+    if (!activeTagKey || !activeTagKey.includes('/')) return
+    setExpandedTagKeys((prev) => {
+      const want = ancestorKeys(activeTagKey).filter((k) => !prev.has(k))
+      if (!want.length) return prev
+      const next = new Set(prev)
+      for (const k of want) next.add(k)
+      return next
+    })
+  }, [activeTagKey])
+  const toggleTagExpanded = (key) => setExpandedTagKeys((prev) => {
+    const next = new Set(prev)
+    if (next.has(key)) next.delete(key)
+    else next.add(key)
+    return next
+  })
 
-  // A filter match searches the FULL tag list (not just the capped slice) so
-  // a low-frequency tag pushed off the visible cap is still reachable by name.
-  const visibleTagCounts = useMemo(() => {
-    const q = tagFilter.trim().toLowerCase()
-    if (q) return tagCounts.filter(([t]) => t.toLowerCase().includes(q))
-    if (showAllTags || !tagsOverCap) return tagCounts
-    return tagCounts.slice(0, TAG_CAP)
-  }, [tagCounts, tagFilter, showAllTags, tagsOverCap])
+  const tagsOverCap = tagRoots.length > TAG_CAP
+
+  // A filter match searches EVERY tag at every level (not just the capped
+  // slice of top-level tags) so a low-frequency or deeply nested tag stays
+  // reachable by name — listed by its full path, flat.
+  const filteredTagNodes = useMemo(() => {
+    const q = tagFilter.trim().toLowerCase().replace(/^#+/, '')
+    if (!q) return null
+    return tagNodes
+      .map((n) => ({ key: n.key || tagKey(n.path), path: n.path, total: Number(n.total ?? 0) }))
+      .filter((n) => n.path.toLowerCase().includes(q))
+      .sort((a, b) => (b.total - a.total) || a.key.localeCompare(b.key))
+  }, [tagNodes, tagFilter])
+  const visibleTagRoots = useMemo(() => {
+    if (showAllTags || !tagsOverCap) return tagRoots
+    return tagRoots.slice(0, TAG_CAP)
+  }, [tagRoots, showAllTags, tagsOverCap])
 
   // Fallback while the server total is unknown (still in flight, or the
   // request failed) OR for a test/caller that only supplies `notes` — the
@@ -1359,7 +1460,7 @@ export default function FolderSidebar({
             )}
           </div>
 
-          {tagCounts.length > 0 && (
+          {tagNodes.length > 0 && (
             <div className={styles.section}>
               <div className={styles.sectionLabel}>Tags</div>
               {tagsOverCap && (
@@ -1372,27 +1473,58 @@ export default function FolderSidebar({
                   aria-label="Filter tags"
                 />
               )}
-              {visibleTagCounts.map(([t, c]) => (
-                <button
-                  key={t}
-                  type="button"
-                  className={`${styles.row} ${activeTag === t ? styles.rowActive : ''}`}
-                  onClick={() => { onSelectTag(t); onSelectFolder(null) }}
-                >
-                  <span>#{t}</span>
-                  <span className={styles.count}>{c}</span>
-                </button>
-              ))}
-              {tagFilter.trim() && visibleTagCounts.length === 0 && (
+              {filteredTagNodes ? (
+                // Filtering: every matching tag at any level, by its full path.
+                filteredTagNodes.map((n) => (
+                  <button
+                    key={n.key}
+                    type="button"
+                    className={`${styles.row} ${activeTagKey === n.key ? styles.rowActive : ''}`}
+                    onClick={() => { onSelectTag(n.path); onSelectFolder(null) }}
+                  >
+                    <span>#{n.path}</span>
+                    <span className={styles.count}>{n.total}</span>
+                  </button>
+                ))
+              ) : !nestedTags ? (
+                // ⛔ FLAT LIBRARY: exactly the rows this section always drew.
+                visibleTagRoots.map((n) => (
+                  <button
+                    key={n.key}
+                    type="button"
+                    className={`${styles.row} ${activeTagKey === n.key ? styles.rowActive : ''}`}
+                    onClick={() => { onSelectTag(n.path); onSelectFolder(null) }}
+                  >
+                    <span>#{n.path}</span>
+                    <span className={styles.count}>{n.total}</span>
+                  </button>
+                ))
+              ) : (
+                // Nested: the same disclosure-button + row-button idiom as the
+                // folder tree above, so a member learns one tree, not two.
+                <div role="group" aria-label="Tags">
+                  {visibleTagRoots.map((n) => (
+                    <TagNode
+                      key={n.key}
+                      node={n}
+                      activeTagKey={activeTagKey}
+                      expandedKeys={expandedTagKeys}
+                      onToggle={toggleTagExpanded}
+                      onSelect={(path) => { onSelectTag(path); onSelectFolder(null) }}
+                    />
+                  ))}
+                </div>
+              )}
+              {filteredTagNodes && filteredTagNodes.length === 0 && (
                 <div className={styles.searchEmpty}>No tags match “{tagFilter.trim()}”.</div>
               )}
-              {tagsOverCap && !showAllTags && !tagFilter.trim() && (
+              {tagsOverCap && !showAllTags && !filteredTagNodes && (
                 <button
                   type="button"
                   className={styles.addBtn}
                   onClick={() => setShowAllTags(true)}
                 >
-                  Show all tags ({tagCounts.length})
+                  Show all tags ({tagRoots.length})
                 </button>
               )}
             </div>

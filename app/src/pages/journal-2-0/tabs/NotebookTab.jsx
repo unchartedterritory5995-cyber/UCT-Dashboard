@@ -38,6 +38,7 @@ import BulkActionBar from '../components/notebook/BulkActionBar'
 import { useNoteSelection } from '../lib/noteSelection'
 import { describeBatch, exportSelectedNotes, runNoteBatch } from '../lib/noteBatch'
 import useJ2NoteTags from '../hooks/useJ2NoteTags'
+import { fallbackNodes } from '../lib/tagTree'
 
 // Folders panel resize bounds (px).
 const SB_MIN = 190
@@ -577,7 +578,13 @@ export default function NotebookTab() {
   // the very commit that set it. This outlives it.
   const [bulkNotice, setBulkNotice] = useState(null) // { message, tone, undoIds? }
   const undoRef = useRef(null)
-  const { tagCounts } = useJ2NoteTags()
+  const { tagCounts, tagTree } = useJ2NoteTags()
+  // Suggestions for the bulk "add a tag" field: the whole tag tree (implied
+  // parents included); an older answer with no tree falls back to flat tags.
+  const tagTreeNodes = useMemo(
+    () => tagTree || fallbackNodes(tagCounts),
+    [tagTree, tagCounts],
+  )
 
   // A different folder / tag / view / mode is a different set of notes: the
   // old selection must not ride along into it.
@@ -1080,7 +1087,7 @@ export default function NotebookTab() {
             trashView={isTrashView}
             busy={bulkBusy}
             selectedTags={selectedTags}
-            tagSuggestions={tagCounts.map((t) => t.tag)}
+            tagNodes={tagTreeNodes}
             onMove={(folderId, folderName) => runBulk('move', { folderId }, { folderName })}
             onAddTag={(t) => runBulk('addTag', { tag: t }, { tag: t })}
             onRemoveTag={(t) => runBulk('removeTag', { tag: t }, { tag: t })}
