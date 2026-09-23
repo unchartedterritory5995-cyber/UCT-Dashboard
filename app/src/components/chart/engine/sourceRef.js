@@ -1,6 +1,7 @@
 import { SOURCE_BAR_FIELDS } from './defSchema'
 import { bindingKey } from './pool'
 import { semanticName } from './semanticName'
+import { FUND_MARK, parseFundamentalSource } from './fundamentalGrammar'
 
 /**
  * WHAT A CALCULATION READS — the numeric series, and nothing about where it draws.
@@ -203,6 +204,12 @@ export function parseSource(value) {
       if (!symbol || !SYMBOL_SOURCE_FIELDS.includes(field)) return null
       return { kind: 'symbol', symbol, field }
     }
+    // ⭐ THE FOURTH FAMILY: a historical point-in-time FUNDAMENTAL
+    // (`fundamentalSource.js`). Like `sym:`, it cannot shadow a bar field (none
+    // starts with `fund:`), and a malformed one is `null` -- unresolved -- never
+    // a fall-through to Close. It resolves AS-OF in the binder; `sym:` keeps its
+    // exact-t rule untouched.
+    if (value.startsWith(FUND_MARK)) return parseFundamentalSource(value)
     return SOURCE_BAR_FIELDS.includes(value) ? { kind: 'bar', field: value } : null
   }
   const body = value.slice(1)
@@ -245,6 +252,10 @@ export function symbolsNeeded(instances, defOf) {
     for (const [, value] of sourceInputsOf(def, inst)) {
       const parsed = parseSource(value)
       if (parsed && parsed.kind === 'symbol') out.add(parsed.symbol)
+      // ⭐ A PINNED fundamental (`fund:AAPL:market_cap` on another chart) needs
+      // THAT symbol's closes for the price-composed metrics -- the same bars a
+      // `sym:AAPL:close` source would fetch, so it rides the same request.
+      else if (parsed && parsed.kind === 'fundamental' && parsed.symbol) out.add(parsed.symbol)
     }
   }
   // ⚠️ SORTED so the same set of symbols is the same array every time. A caller
@@ -555,6 +566,14 @@ export function sourceOptions(cs, defOf, selfInstanceId, currentValue = null) {
     groups.push({
       label: 'Symbol',
       options: [{ value: currentValue, label: symbolSourceLabel(cur) }],
+    })
+  }
+  // Same rule for a fundamental: the stored value must be representable, or the
+  // select would blank it and the next change would overwrite it.
+  if (cur && cur.kind === 'fundamental') {
+    groups.push({
+      label: 'Fundamental',
+      options: [{ value: currentValue, label: cur.symbol ? `${cur.symbol} · ${cur.metric}` : cur.metric }],
     })
   }
 

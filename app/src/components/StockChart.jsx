@@ -811,6 +811,7 @@ import { parsePaneOfTarget, parseSource, sourceInputsOf } from './chart/engine/s
 import { chromePlan, capturedPriceRange, viewLockFractions } from './chart/chromeGeometry'
 import { LIBRARY_HIDDEN_IDS } from './chart/discoveryCatalog'
 import { useSecondarySources } from './chart/engine/useSecondarySources'
+import { useFundamentalSources } from './chart/engine/useFundamentalSources'
 import { useServerColumns } from './chart/engine/useServerColumns'
 import { loadBreadthSymbols, breadthRecord } from '../hooks/useBreadthSymbols'
 import useMarketIndicators, { canonicalFamily, canonicalPresentation, canonicalSourceCapability, canonicalProduct, loadMarketIndicators } from '../hooks/useMarketIndicators'
@@ -6418,6 +6419,10 @@ export default function StockChart({
   // repainting continuously.
   const secondarySources = useSecondarySources(
     _storedInstances, _defOf, resolvedTf, barCount, instFetcher, cs)
+  // ⭐ THE FOURTH SOURCE FAMILY'S DATA — historical point-in-time fundamentals
+  // (`fund:`). Same seam, same stable-identity discipline as the line above; a
+  // chart with no `fund:` source makes no request at all.
+  const fundamentalSources = useFundamentalSources(_storedInstances, _defOf, sym, cs)
 
   // ⭐ THE SERVER LANE'S REPAINT SIGNAL (the RS line). `computeFor` reads the
   // column cache synchronously and the fetch lands later; this is what tells
@@ -12277,6 +12282,8 @@ export default function StockChart({
         // instances name, already fetched and cached above. Absent is not an
         // error: it is a chart with no symbol sources, and every lookup misses.
         secondary: secondarySources,
+        // ⭐ Historical fundamentals, already resolved (see `useFundamentalSources`).
+        fundamentals: fundamentalSources,
         // ⭐⭐ WHICH PROVIDER FAMILY A CANONICAL SYMBOL BELONGS TO — the SEMANTIC
         // half of `ohlcCapability`. The breadth registry is the same authority
         // `api/routers/bars.py` routes on, read synchronously because the binder
@@ -13337,7 +13344,7 @@ export default function StockChart({
     // (mutation M3 SURVIVED): something else in this list is already unstable per
     // render. Kept as the one declaration that names this dependency; the full
     // reasoning is at the `useInstalledUserDefinitions` call site above.
-  }, [filteredBars, displayBars, ohlcData, closeData, volData, overlayData, comparisonData, sym, showVolume, mergedMarkers, mergedPriceLines, allPriceLines, dpZones, sessionShadeBands, _shadeOn, watermark, watermarkOpacity, cs, adjustTime, resolvedTf, tickerMeta, watermarkMeta, vwapOverride, hideWatermark, hidePriceLine, leftBarPad, modelBookLook, frozen, candleFrameFade, fadeCutoff, fitPriceToCandles, dailyDefaultBars, visibleBarsOverride, canvasTheme, sessionPreviewLastBar, sessionCandleActive, sessionExtReady, userDefsGeneration, sessionAppliedBars, _extendOverlaysLive, liveUpdates, replayMode, secondarySources, serverColumnsGeneration])
+  }, [filteredBars, displayBars, ohlcData, closeData, volData, overlayData, comparisonData, sym, showVolume, mergedMarkers, mergedPriceLines, allPriceLines, dpZones, sessionShadeBands, _shadeOn, watermark, watermarkOpacity, cs, adjustTime, resolvedTf, tickerMeta, watermarkMeta, vwapOverride, hideWatermark, hidePriceLine, leftBarPad, modelBookLook, frozen, candleFrameFade, fadeCutoff, fitPriceToCandles, dailyDefaultBars, visibleBarsOverride, canvasTheme, sessionPreviewLastBar, sessionCandleActive, sessionExtReady, userDefsGeneration, sessionAppliedBars, _extendOverlaysLive, liveUpdates, replayMode, fundamentalSources, secondarySources, serverColumnsGeneration])
 
   // Effect: update chart when data or settings change (NO cleanup — chart persists)
   useEffect(() => {

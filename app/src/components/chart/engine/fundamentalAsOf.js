@@ -61,13 +61,31 @@ function bucketEnd(iso, tf) {
   return iso
 }
 
-/** The instant (unix seconds UTC) a bar's value is "as of". */
+const DAILY_TFS = new Set(['D', 'W', 'M', '1D', '1W', '1M'])
+const bucketTf = (tf) => (tf === '1W' ? 'W' : tf === '1M' ? 'M' : tf === '1D' ? 'D' : tf)
+
+/** Seconds per bar for an intraday code: the chart's own codes are minutes as
+ *  strings ('1', '5', '15', '30', '60'); '5m' / '1h' spellings are accepted too. */
+function intradaySeconds(tf) {
+  if (tf in TF_SECONDS) return TF_SECONDS[tf]
+  const n = Number(tf)
+  return Number.isFinite(n) && n > 0 ? n * 60 : 0
+}
+
+/** The instant (unix seconds UTC) a bar's value is "as of".
+ *
+ *  ⚠️ `barT` IS THE RAW BAR TIME — true UTC seconds for intraday, an ISO day for
+ *  D/W/M. The chart shifts intraday times to ET only for DISPLAY (`adjustTime` in
+ *  the binder's point conversion); projecting against a shifted time would make a
+ *  16:42 ET filing appear hours early. */
 export function referenceTime(barT, tf, nowSec = null) {
-  if (typeof barT === 'string') {
-    const ref = closeUtcSeconds(bucketEnd(barT, tf))
-    return nowSec != null && (tf === 'W' || tf === 'M') ? Math.min(ref, nowSec) : ref
+  if (DAILY_TFS.has(tf)) {
+    const iso = typeof barT === 'string' ? barT.slice(0, 10) : isoOf(Number(barT) * 1000)
+    const b = bucketTf(tf)
+    const ref = closeUtcSeconds(bucketEnd(iso, b))
+    return nowSec != null && (b === 'W' || b === 'M') ? Math.min(ref, nowSec) : ref
   }
-  return Number(barT) + (TF_SECONDS[tf] ?? 0)
+  return Number(barT) + intradaySeconds(tf)
 }
 
 function periodAgeDays(refSec, pe) {

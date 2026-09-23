@@ -72,6 +72,7 @@ import {
   sourceInputsOf, parseSource, barFieldSeries, orderByDependency,
 } from './sourceRef'
 import { projectionFor, clippedBarsFor } from './symbolProjection'
+import { fundamentalColumn } from './fundamentalSource'
 import { ohlcCapabilityOf, barHasOhlc, outputIsSource } from './ohlcCapability'
 import { sourceCapabilityOf } from './sourceCapability'
 import { resolvePlotStyle, resolveCandleColors } from './presentation'
@@ -918,6 +919,23 @@ export function createBinder({ chart, LWC }) {
           // a GAP. A hole is the truth; a carried-forward value is a price that
           // never traded.
           series = secBars ? projectionFor(secBars, parsed.field, bars) : null
+        } else if (parsed && parsed.kind === 'fundamental') {
+          // ⭐⭐ A HISTORICAL FUNDAMENTAL — AS-OF, NOT EXACT-t. Each bar takes the
+          // value that was PUBLIC by that bar's close (`fundamentalAsOf.js`); the
+          // series arrived already resolved in `ctx.fundamentals`, exactly as
+          // `secondary` does. Price-composed metrics (Market Cap, P/E...) read the
+          // chart's OWN close, or the pinned symbol's close through the SAME
+          // exact-t projection a `sym:` source uses. Not-yet-loaded is `null`:
+          // not computable, never a guess.
+          series = fundamentalColumn(parsed, {
+            bars, tf: ctx.tf, sym: ctx.sym, fundamentals: ctx.fundamentals || null,
+            closeOf: (sym) => {
+              if (sym === String(ctx.sym || '').toUpperCase()) return barFieldSeries(bars, 'close')
+              const e = secondary ? secondary.get(sym) : null
+              const sb = e && Array.isArray(e.bars) && e.bars.length ? e.bars : null
+              return sb ? projectionFor(sb, 'close', bars) : null
+            },
+          })
         }
         sourceCols = sourceCols || {}
         sourceCols[key] = series
