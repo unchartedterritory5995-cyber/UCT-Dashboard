@@ -1,0 +1,30 @@
+/* G-064 — the inline picker inside the Ask panel. */
+.picker { margin-top: 10px; display: flex; flex-direction: column; gap: 6px; }
+.search {
+  width: 100%;
+  padding: 6px 8px;
+  font-size: 13px;
+  color: inherit;
+  background: transparent;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+}
+.row {
+  text-align: left;
+  padding: 6px 8px;
+  font-size: 12px;
+  color: inherit;
+  background: transparent;
+  border: none;
+  border-radius: var(--radius-md);
+  cursor: pointer;
+}
+.row:hover { background: var(--bg-surface); }
+.row:disabled { opacity: 0.6; cursor: default; }
+.error { font-size: 12px; }
+/* Touch tier is <=1024px (canonical breakpoint, breakpoints.css). 16px input
+   stops iOS zooming the page on focus. */
+@media (max-width: 1024px) {
+  .search { font-size: 16px; min-height: var(--tap-min, 44px); }
+  .row { min-height: var(--tap-min, 44px); }
+}
