@@ -108,32 +108,42 @@ describe('⭐⭐ v2:249 clears when the IR lane is told the symbol', () => {
     // driven by the DEFINITION lane, which renders this script's four plots and
     // both tables today. Naming it here is what stops it being rediscovered as a
     // mystery; chasing it is not this wave's work.
-    // ⚰️ 2026-09-23 — THE BLOCKER IS NOW TIMEFRAME-CONDITIONAL, AND THE WARNING
+    // ⚰️ 2026-09-23 — THE BLOCKER IS TIMEFRAME-CONDITIONAL, AND THE WARNING
     // ABOVE IS HONOURED RATHER THAN OVERRIDDEN. It still clears only with the
     // MEASUREMENT, for the builds that need one.
     //
-    // v2 BRANCHES ON THE CHART'S TIMEFRAME ITSELF — read the script at 247:
+    // v2 BRANCHES ON THE CHART TIMEFRAME ITSELF — read the script at 247:
     //     if isDaily
-    //         [a…h] = f_getDailyData()                       // direct call
+    //         [a…h] = f_getDailyData()                  // direct call
     //     else
-    //         [a…h] = request.security(…, 'D', …)            // line 261
+    //         [a…h] = request.security(…, 'D', …)       // line 261
     // Line 261 is the NON-DAILY arm. On a daily build the requested 'D' IS this
     // chart's period, so there is no higher-timeframe bar to be part-way through
-    // and no alignment to measure — the request folds to the expression and the
-    // lane walks on to the tuple shape behind it. On an INTRADAY build it is a
-    // genuine higher-timeframe request and the vendor fact still stops it.
+    // and no alignment to measure. On an INTRADAY build it is a genuine higher
+    // timeframe and the vendor fact still stops it.
     //
-    // ⛔ SO BOTH ARE ASSERTED. Pinning only the daily case would read as
-    // "lookahead is served now", which is false; pinning only the intraday case
-    // would lose the fact that the daily build got past it.
-    expect(withSym.refusal.line).toBe(261)
-    expect(withSym.refusal.guard).toBe('runtime:statement')
-    expect(withSym.refusal.message).toMatch(/f_getDailyData/)
+    // ⛔⛔ THE DAILY HALF IS A PROPERTY, NOT A LINE, AND THAT IS THIS FILE'S OWN
+    // RULE: *"A FLOOR, NOT A FIXED NUMBER — re-pinning an exact figure after
+    // every capability turns a measurement into maintenance."* It was pinned at
+    // 261 twice in two commits and moved both times (to the tuple shape, then
+    // past it to `ta.cum` at 227) — which is the lane ADVANCING, exactly what
+    // this case wants to see. What must stay true is that the daily build is no
+    // longer stopped by the VENDOR fact.
+    expect(withSym.ok).toBe(false)
+    expect(withSym.refusal.message,
+      `daily build still on the vendor fact at ${withSym.refusal.line}`)
+      .not.toMatch(/realtime half of this alignment/)
+    // ⭐ AND IT GOT FURTHER THAN THE NO-SYMBOL CONTROL — a floor, so a lane that
+    // went BACKWARDS still fails here.
+    expect(withSym.diagnostics.statements)
+      .toBeGreaterThan(without.diagnostics.statements)
 
-    // ⭐⭐ THE VENDOR FACT, WHERE IT GENUINELY APPLIES. `basePeriod` — NOT `tf` —
-    // is what `basePeriodOf` reads; passing `tf: '5'` leaves the lane on its
-    // default and silently builds a DAILY chart, which is the trap this file's
-    // own `lanePeriod` comment records one lane over.
+    // ⭐⭐ THE VENDOR FACT, PINNED EXACTLY, WHERE IT GENUINELY APPLIES. This half
+    // does NOT drift with capability: it clears only when the realtime half of
+    // the alignment is measured on an open market.
+    // ⛔ `basePeriod` — NOT `tf`. `basePeriodOf` reads `opts.basePeriod`; passing
+    // `tf: '5'` leaves the lane on its default and silently builds a DAILY
+    // chart, which cost a wrong diagnosis while this was being written.
     const intraday = build({ symbol: SYMBOL, basePeriod: '60' })
     expect(intraday.refusal.guard).toBe('runtime:request')
     expect(intraday.refusal.line).toBe(261)

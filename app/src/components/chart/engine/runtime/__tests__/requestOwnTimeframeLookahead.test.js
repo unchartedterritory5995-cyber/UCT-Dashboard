@@ -59,6 +59,15 @@ const build = (src, extra) => buildRuntimeIr(src, {
   ...runtimeClockOpts(false), tf: 'D', symbol: SYMBOL, bars: BARS, inputs: {}, ...extra,
 })
 const HEAD = ['//@version=5', 'indicator("t")'].join('\n') + '\n'
+/** ⭐ THE PROGRAM, WITHOUT ITS SOURCE POSITIONS.
+ *
+ *  ⛔ `line`/`column`/`index` MUST differ between two spellings of one program:
+ *  `[p, q] = request.security(…, g())` and `[p, q] = g()` do not start at the
+ *  same column, and a comparison including them would fail for a reason that has
+ *  nothing to do with the claim. Measured on this very case, those two keys were
+ *  the ONLY difference. Everything that decides what RUNS is kept. */
+const shape = (ir) => JSON.stringify(ir, (k, v) => (
+  k === 'line' || k === 'column' || k === 'index' ? undefined : v))
 /** `plot(request.security(<sym>, <tf>, close[, lookahead = <x>]))` */
 const req = (sym, tf, look) => `${HEAD}plot(request.security(${sym}, ${tf}, close`
   + (look ? `, lookahead = ${look}` : '') + '))\n'
@@ -139,6 +148,33 @@ describe('⭐⭐ a request for this chart, at this chart\'s period', () => {
     // It already worked through the columnar lane; this change must not move it.
     const bare = build(`${HEAD}plot(security(syminfo.tickerid, 'D', close))\n`)
     expect(bare.ok, bare.ok ? '' : `${bare.refusal.guard}`).toBe(true)
+  })
+
+  it('⭐⭐ A DESTRUCTURED identity still unpacks — the `multi` flag', () => {
+    // ⚰️ THE BUG THIS CASE WAS WRITTEN FOR, found by the flagship rather than
+    // by a unit test. `admitRequest` threads `callerOpts.multi` into the value
+    // it lowers — its own comment says why: *"without it a request could only
+    // return a tuple written INLINE"*. The identity fold returned
+    // `lowerExpr(value, scope)` with NO opts, so a tuple-returning helper behind
+    // a self-request refused:
+    //
+    //     `f_getDailyData` returns 8 values, so it can only be unpacked by a
+    //     `[a, b] = …` line
+    //
+    // — about a line that IS one. Exactly the sentence that comment records
+    // from the last time this flag went missing.
+    const fn = '\ng() =>\n    [close, close + 1]'
+    const viaReq = build(`${HEAD}` + fn
+      + '\n[p, q] = request.security(syminfo.tickerid, "D", g())'
+      + '\nplot(p + q)\n')
+    const direct = build(`${HEAD}` + fn
+      + '\n[p, q] = g()'
+      + '\nplot(p + q)\n')
+    expect(viaReq.ok, viaReq.ok ? '' : `${viaReq.refusal.guard}: ${viaReq.refusal.message}`)
+      .toBe(true)
+    // ⛔ AND IT IS THE SAME PROGRAM, not merely one that compiles. Compared by
+    // SHAPE — measured, `column` and `index` were the only things that differed.
+    expect(shape(viaReq.ir)).toBe(shape(direct.ir))
   })
 
   it('⭐⭐ THE PRODUCT CLAIM — the firm\'s own indicator walks past v2:261', () => {

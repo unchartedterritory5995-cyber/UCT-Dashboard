@@ -2372,6 +2372,23 @@ export function buildRuntimeIr(source, opts = {}) {
     }
     const argOf = (x) => (x && x.value !== undefined ? x.value : x)
 
+    /** ⭐⭐ THE VALUE OF A REQUEST, lowered in `sc`. ONE READER FOR `multi`.
+     *
+     *  ⛔ EXTRACTED THE DAY THE IDENTITY FOLD BELOW FORGOT IT. The destructuring
+     *  flag is what lets the value be a tuple-returning HELPER rather than a
+     *  tuple written inline — without it, `[a…h] = request.security(own, 'D',
+     *  f())` refused with *"`f` returns 8 values, so it can only be unpacked by
+     *  a `[a, b] = …` line"*, about a line that IS one. That is the second time
+     *  this flag has gone missing on this path, and two call sites reading it
+     *  separately is how (`lesson_a_second_authority_over_one_value`). */
+    const requestValueIr = (valueNode, sc) => {
+      const valueOpts = callerOpts && callerOpts.multi ? { multi: true } : undefined
+      return valueNode && valueNode.type === 'collection'
+        && Array.isArray(valueNode.elements) && valueNode.elements.length >= 2
+        ? tuple(valueNode.elements.map((x) => lowerExpr(x, sc)))
+        : lowerExpr(valueNode, sc, valueOpts)
+    }
+
     // ⭐⭐ THIS CHART, AT THIS CHART'S PERIOD, IS NOT A REQUEST — IT IS THE
     // EXPRESSION. `request.security(syminfo.tickerid, timeframe.period, x)` asks
     // for the bars already in hand, so it folds to `x` and nothing below applies
@@ -2407,7 +2424,10 @@ export function buildRuntimeIr(source, opts = {}) {
       (tfNode0.type === 'string' && String(tfNode0.value).trim() === String(lanePeriod).trim())
       || (tfNode0.type === 'name' && OWN_TF_NAMES.has(tfNode0.name)
           && scope.lookup(tfNode0.name) === null && !env.has(tfNode0.name)))
-    if (ownSymbol && ownPeriod) return lowerExpr(argOf(positional[2]), scope)
+    // ⛔ IN THE CALLER'S SCOPE, and `inRequestValue` stays false: at this
+    // chart's own period the expression runs in THIS context, which is the
+    // whole reason it folds.
+    if (ownSymbol && ownPeriod) return requestValueIr(argOf(positional[2]), scope)
 
     // ⛔⛔ CHECKED BEFORE ANYTHING IS LOWERED, and the ORDER is the point. The
     // symbol argument has its own seam (a symbol-settled value refuses when the
@@ -2468,11 +2488,7 @@ export function buildRuntimeIr(source, opts = {}) {
       // returns 5 values, so it can only be unpacked by a `[a, b] = …` line" —
       // about a line that IS one. The tuple machinery was already here; only the
       // permission to use it was missing.
-      const valueOpts = callerOpts && callerOpts.multi ? { multi: true } : undefined
-      valueIr = valueNode && valueNode.type === 'collection'
-        && Array.isArray(valueNode.elements) && valueNode.elements.length >= 2
-        ? tuple(valueNode.elements.map((x) => lowerExpr(x, inner)))
-        : lowerExpr(valueNode, inner, valueOpts)
+      valueIr = requestValueIr(valueNode, inner)
     } finally { inRequestValue = wasInRequest }
     const hoisted = hoistSink
     hoistSink = prevSink
