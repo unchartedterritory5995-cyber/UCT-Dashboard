@@ -128,6 +128,26 @@ describe('AskInsertPicker', () => {
     expect(rule).toMatch(/cursor:\s*default;/)
   })
 
+  // Review nit: a disabled row still lit up on hover. Every rule that paints
+  // the row highlight -- NoteLinkList's (shared with the `[[` menu) and the
+  // picker's own buttons -- is scoped to rows that are NOT disabled. jsdom
+  // computes no :hover, so the SELECTORS are pinned, read from the files.
+  it('no disabled row lights up on hover', () => {
+    const read = (f) => fs.readFileSync(path.join(HERE, f), 'utf8').replace(/\/\*[\s\S]*?\*\//g, '')
+    const rules = (css) => [...css.matchAll(/([^{}]+)\{([^{}]*)\}/g)].map(([, sel, body]) => [sel.trim(), body])
+
+    const highlight = rules(read('NoteLinkMenu.module.css'))
+      .filter(([sel, body]) => /background:/.test(body) && /\.item\S*:hover|\.itemActive/.test(sel))
+    expect(highlight.length).toBeGreaterThan(0) // control: the highlight rule was found
+    for (const [sel] of highlight) {
+      for (const part of sel.split(',')) expect(part).toContain(":not([aria-disabled='true'])")
+    }
+
+    const rowHover = rules(read('AskInsertPicker.module.css')).filter(([sel]) => /\.row\b[^,]*:hover/.test(sel))
+    expect(rowHover.length).toBeGreaterThan(0) // control
+    for (const [sel] of rowHover) expect(sel).toContain(':not(:disabled)')
+  })
+
   // The usual host unmounts the picker when a note opens, which used to hide
   // that `busy` was never reset after a SUCCESSFUL create. A host that keeps
   // it mounted must get a live picker back, not a disabled one.
