@@ -149,6 +149,44 @@ def test_the_kind_is_is_web_capture_not_the_raw_column(client, world):
     assert [p["excerptId"] for p in web["capturePassages"]] == [world["ex1"], world["ex2"]]
 
 
+def test_EVERY_surface_gives_the_same_answer_for_that_row(client, world):
+    """⛔⛔ ONE RULE, EVERYWHERE THE CLIENT ASKS. The door into a captured page
+    trusts the note's document list to route it to the excerpt path, and the
+    excerpt READ then decides where the passage lands (`excerptRevisitTarget`
+    keys on its `sourceKind`). If the list said web and the read said
+    attachment, the door ended in the PDF viewer over `web:<sha256>` -- the
+    review's PROBE-R measured exactly that. The excerpt read and both Search
+    sections now project the same `document_source_kind`."""
+    conn = get_connection()
+    try:
+        conn.execute("UPDATE j2_note_documents SET source_kind = ? WHERE id = ?",
+                     (wc.SOURCE_KIND_ATTACHMENT, world["web_id"]))
+        conn.commit()
+    finally:
+        conn.close()
+    assert _listed(client, world["note_id"])[world["web_id"]]["sourceKind"] == wc.SOURCE_KIND_WEB
+
+    read = client.get(f"/api/j2/excerpts/{world['ex1']}")
+    assert read.status_code == 200, read.text
+    assert read.json()["excerpt"]["sourceKind"] == wc.SOURCE_KIND_WEB
+
+    pages = client.get("/api/j2/notes/documents/search", params={"q": "normalize"}).json()["results"]
+    hits = [h for h in pages if h["documentId"] == world["web_id"]]
+    assert hits, "non-vacuity: the document search must find the captured page"
+    assert {h["sourceKind"] for h in hits} == {wc.SOURCE_KIND_WEB}
+
+    excerpts = client.get("/api/j2/notes/excerpts/search", params={"q": "normalize"}).json()["results"]
+    ex_hits = [h for h in excerpts if h["excerptId"] == world["ex1"]]
+    assert ex_hits, "non-vacuity: the excerpt search must find the captured passage"
+    assert {h["sourceKind"] for h in ex_hits} == {wc.SOURCE_KIND_WEB}
+
+
+def test_CONTROL_a_PDF_stays_a_PDF_on_every_surface(client, world):
+    assert _listed(client, world["note_id"])[world["pdf_id"]]["sourceKind"] == wc.SOURCE_KIND_ATTACHMENT
+    read = client.get(f"/api/j2/excerpts/{world['ex1']}").json()["excerpt"]
+    assert read["sourceKind"] == wc.SOURCE_KIND_WEB  # the untouched capture reads web
+
+
 def test_a_schema_without_the_capture_columns_names_no_kind(client, world, monkeypatch):
     # The columns were not selected: nothing is known, so nothing is claimed.
     monkeypatch.setattr(wc, "capture_columns", lambda conn, alias="d": "")

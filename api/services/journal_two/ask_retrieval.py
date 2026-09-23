@@ -432,7 +432,9 @@ def _link_capture_excerpts(conn, user_id: str, rows: list[dict[str, Any]]) -> li
     excerpt (the captured-passage sheet reads it). So a web page row carries
     its excerpt's id to the client as `capture_excerpt_id`; a PDF page never
     needs one. Tenant-scoped, one query per call, and a web page whose excerpt
-    was deleted simply carries none -- the client then opens its note.
+    was deleted simply carries none -- a host that spans notes then opens the
+    owning note, and "This note" (already open) says "That passage is no longer
+    available." instead.
 
     ⛔ Decided by `ev.is_web_capture`, the one server answer, so a row that did
     not select the capture columns is never linked (it is not known to be web).

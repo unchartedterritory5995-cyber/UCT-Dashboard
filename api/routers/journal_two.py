@@ -2984,6 +2984,7 @@ def search_note_documents_endpoint(
     """Page-aware lexical search over this member's extracted PDF text —
     tenant-scoped, sectioned separately from note search (never blended
     into one score with j2_notes_fts results; see document_search.py)."""
+    from api.services.journal_two.ask_evidence import document_source_kind
     rows = document_search.search_document_pages(user["id"], q, limit=limit)
     return {"results": [{
         "documentId": r["document_id"], "pageNumber": r["page_number"],
@@ -2992,8 +2993,10 @@ def search_note_documents_endpoint(
         # ⛔ WAVE M: the surface cannot tell the truth about a hit it cannot
         # identify. `sourceKind` is "attachment" (a real paginated document) or
         # "web" (a captured source, whose pageNumber is a CAPTURE ORDINAL and
-        # must never be rendered as a page).
-        "sourceKind": r["source_kind"] or "attachment",
+        # must never be rendered as a page). ⛔ Decided by the ONE server rule
+        # (`document_source_kind` -> `is_web_capture`, either column), never
+        # the raw column: Search and every door into a document must agree.
+        "sourceKind": document_source_kind(r) or "attachment",
         "sourceUrl": r["source_url"],
         # ⛔ WAVE P2 §21: PROVENANCE, NOT IDENTITY. The result is still a
         # DOCUMENT at a real page — this only says how UCT came to hold that
@@ -3165,14 +3168,15 @@ def search_excerpts_endpoint(
     """Excerpt/annotation lexical search -- tenant-scoped, sectioned
     separately from both note search and document-page search (never
     blended into one score; see excerpt_search.py)."""
+    from api.services.journal_two.ask_evidence import document_source_kind
     rows = excerpt_search.search_excerpts(user["id"], q, limit=limit)
     return {"results": [{
         "excerptId": r["excerpt_id"], "snippet": r["snippet"], "noteId": r["note_id"],
         "noteTitle": r["note_title"], "documentId": r["document_id"],
         "documentName": r["document_name"], "pageNumber": r["page_number"],
         "annotation": r["annotation"],
-        # Same contract as the document-page results above.
-        "sourceKind": r["source_kind"] or "attachment",
+        # Same contract, and the same ONE rule, as the document-page results above.
+        "sourceKind": document_source_kind(r) or "attachment",
         "sourceUrl": r["source_url"],
     } for r in rows]}
 
