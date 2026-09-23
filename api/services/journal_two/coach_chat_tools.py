@@ -1786,8 +1786,14 @@ _BRAIN_TOOLS = {
             "symbol": {"type": "string"}}, "required": ["symbol"]},
     },
     "get_regime": {
+        # PACKET-W CP1 (fingerprint 425778f2c): this description was wrong --
+        # it described journal_two's own four-tier Exposure Backdrop
+        # (green/amber/orange/red), but the tool this dict wires (via
+        # _voice_delegate) is voice_regime_classifier's independent 5-way
+        # market classification, matching its real description at
+        # voice_tool_impls.py's get_regime registration.
         "name": "get_regime",
-        "description": "Current market regime (GREEN/YELLOW/ORANGE/RED) with exposure guidance.",
+        "description": "Current market regime — one of bull_trend, bull_correction, distribution, chop, bear_trend — plus confidence and the breadth/VIX/MA signals driving the call. Always check this before recommending a setup; the same setup behaves very differently across regimes.",
         "requires_confirm": False,
         "executor": _voice_delegate("get_regime"),
         "input_schema": {"type": "object", "properties": {}},

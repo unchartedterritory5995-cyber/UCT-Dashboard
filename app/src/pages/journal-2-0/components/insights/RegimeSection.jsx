@@ -53,7 +53,9 @@ export default function RegimeSection({ analytics }) {
     <div className={styles.wrap}>
       <div className={styles.head}>
         <div className={styles.headMain}>
-          <h4 className={styles.title}>Win rate by regime</h4>
+          {/* PACKET-W CP1 (fingerprint 425778f2c): rendered copy only -- the
+              `regime`/`byRegime` fields and REGIME_META keys are unchanged. */}
+          <h4 className={styles.title}>Win rate by Exposure Backdrop</h4>
           <button
             type="button"
             className={styles.helpBtn}
@@ -61,7 +63,7 @@ export default function RegimeSection({ analytics }) {
             onClick={() => setHelpOpen((v) => !v)}
           >
             <UIcon name="compass" size={13} />
-            What are regimes?
+            What is Exposure Backdrop?
           </button>
         </div>
         <p className={styles.sub}>
@@ -74,8 +76,8 @@ export default function RegimeSection({ analytics }) {
       {helpOpen && (
         <div className={styles.help} role="note">
           <p className={styles.helpLede}>
-            A trade's <strong>regime</strong> is the market's exposure backdrop
-            the day you entered — how friendly conditions were for taking risk.
+            A trade's <strong>Exposure Backdrop</strong> is how friendly market
+            conditions were for taking risk the day you entered.
           </p>
           <ul className={styles.helpList}>
             {Object.entries(REGIME_META).map(([key, m]) => (
@@ -93,8 +95,9 @@ export default function RegimeSection({ analytics }) {
         <div className={styles.empty}>
           <UIcon name="compass" size={24} className={styles.emptyGlyph} />
           <p className={styles.emptyText}>
-            Not enough regime-tagged trades yet. As you log trades on days with a
-            market-regime read, your win rate by regime fills in here.
+            Not enough Exposure-Backdrop-tagged trades yet. As you log trades on
+            days with a market read, your win rate by Exposure Backdrop fills in
+            here.
           </p>
         </div>
       ) : (
@@ -107,8 +110,9 @@ export default function RegimeSection({ analytics }) {
 
       {unknownCount > 0 && (
         <p className={styles.footnote}>
-          {unknownCount} trade{unknownCount === 1 ? '' : 's'} without a regime tag
-          — imported or logged before regime tracking. Not counted in any bar.
+          {unknownCount} trade{unknownCount === 1 ? '' : 's'} without an Exposure
+          Backdrop tag — imported or logged before Exposure Backdrop tracking.
+          Not counted in any bar.
         </p>
       )}
     </div>

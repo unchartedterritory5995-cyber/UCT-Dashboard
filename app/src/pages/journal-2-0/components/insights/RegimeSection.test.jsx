@@ -43,39 +43,56 @@ describe('RegimeSection', () => {
 
   it('shows the unknown-bucket footnote when unknownCount > 0', () => {
     renderSection()
-    expect(screen.getByText(/without a regime tag/i)).toBeInTheDocument()
-    expect(screen.getByText(/7 trades without a regime tag/i)).toBeInTheDocument()
+    expect(screen.getByText(/without an Exposure Backdrop tag/i)).toBeInTheDocument()
+    expect(screen.getByText(/7 trades without an Exposure Backdrop tag/i)).toBeInTheDocument()
   })
 
   it('hides the unknown footnote when unknownCount is 0', () => {
     renderSection({ regime: { byRegime: analytics.regime.byRegime, unknownCount: 0 } })
-    expect(screen.queryByText(/without a regime tag/i)).not.toBeInTheDocument()
+    expect(screen.queryByText(/without an Exposure Backdrop tag/i)).not.toBeInTheDocument()
   })
 
   it('empty byRegime → an honest empty message, not a bare blank', () => {
     renderSection({ regime: { byRegime: [], unknownCount: 0 } })
-    expect(screen.getByText(/Not enough regime-tagged trades yet/i)).toBeInTheDocument()
+    expect(screen.getByText(/Not enough Exposure-Backdrop-tagged trades yet/i)).toBeInTheDocument()
     // No regime rows rendered.
     expect(screen.queryByText('Win Rate')).not.toBeInTheDocument()
   })
 
-  it('exposes a "What are regimes?" control that reveals the explanation', () => {
+  it('exposes a "What is Exposure Backdrop?" control that reveals the explanation', () => {
     renderSection()
-    const btn = screen.getByRole('button', { name: /what are regimes/i })
+    const btn = screen.getByRole('button', { name: /what is exposure backdrop/i })
     expect(btn).toBeInTheDocument()
     // Explanation hidden until opened.
-    expect(screen.queryByText(/exposure backdrop the day you entered/i)).not.toBeInTheDocument()
+    expect(screen.queryByText(/how friendly market/i)).not.toBeInTheDocument()
     fireEvent.click(btn)
-    expect(screen.getByText(/exposure backdrop the day you entered/i)).toBeInTheDocument()
+    expect(screen.getByText(/how friendly market/i)).toBeInTheDocument()
   })
 
   it('is resilient to a missing regime slice (renders the empty state)', () => {
     renderSection({})
-    expect(screen.getByText(/Not enough regime-tagged trades yet/i)).toBeInTheDocument()
+    expect(screen.getByText(/Not enough Exposure-Backdrop-tagged trades yet/i)).toBeInTheDocument()
   })
 
   it('renders no emoji (all iconography via UIcon)', () => {
     const { container } = renderSection()
     expect(container.textContent).not.toMatch(/\p{Extended_Pictographic}/u)
+  })
+
+  // PACKET-W CP1 (fingerprint 425778f2c): the word "regime" is retired from
+  // every rendered string -- the bucket keys (green/amber/orange/red) and the
+  // `regime`/`byRegime` field names are untouched, but a member reading the
+  // screen should never see the bare word. Header, help toggle, help body
+  // (opened), empty state and footnote are all covered.
+  it('never renders the bare word "regime" anywhere a member reads', () => {
+    const { container } = renderSection()
+    const helpBtn = screen.getByRole('button', { name: /what is exposure backdrop/i })
+    fireEvent.click(helpBtn)
+    expect(container.textContent).not.toMatch(/\bregimes?\b/i)
+  })
+
+  it('never renders "regime" in the empty state either', () => {
+    const { container } = renderSection({ regime: { byRegime: [], unknownCount: 0 } })
+    expect(container.textContent).not.toMatch(/\bregimes?\b/i)
   })
 })
