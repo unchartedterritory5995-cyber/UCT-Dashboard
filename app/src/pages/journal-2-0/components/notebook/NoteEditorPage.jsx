@@ -646,14 +646,16 @@ export default function NoteEditorPage({ noteId, onBack, showBack = true, onTitl
   // not smoothed over: the member is the only one who can settle it.
   const [recovery, setRecovery] = useState(null)
   // G-064 fix round 1 (F2, controller ruling) — WHICH note the decision is
-  // for, not a bare boolean. `NoteEditorPage` is a REUSED instance across an
-  // A -> B switch: on the first render after `noteId` changes, this state
-  // has not yet been reset (that happens in an effect, one render later), so
-  // a plain `recoveryDecided` boolean would stay stale-true across the
-  // switch and gate nothing. `recoveryDecidedFor` is compared against the
-  // CURRENT `noteId` at every read, so a decision made for the note this
-  // instance just left can never authorize an insert into the note it now
-  // shows.
+  // for, not a bare boolean. DEFENSE IN DEPTH: production mounts this page as
+  // `<NoteEditorPage key={noteId}>` (tabs/NotebookTab.jsx:715), so each note
+  // gets a FRESH instance and this state starts null. The per-note value
+  // matters only if this instance is ever reused across notes: on the first
+  // render after `noteId` changed, the state would not yet be reset (that
+  // happens in an effect, one render later), so a plain `recoveryDecided`
+  // boolean would stay stale-true across the switch and gate nothing.
+  // `recoveryDecidedFor` is compared against the CURRENT `noteId` at every
+  // read, so a decision made for another note can never authorize an insert
+  // into this one.
   const [recoveryDecidedFor, setRecoveryDecidedFor] = useState(null)
   // Re-entrancy guard for restoreDraft (see its own comment) — a plain ref,
   // not state, since it must be checked synchronously before any render.
@@ -1446,18 +1448,41 @@ export default function NoteEditorPage({ noteId, onBack, showBack = true, onTitl
     if (ok) setUploadToast({ message: ASK_INSERT_SUCCESS_MSG, tone: 'success' })
     return ok
   }, [])
+  // G-064 final fix wave (M1) — the CLICK path is offered under the same
+  // conditions the pending path waits for (below): an editable editor, no
+  // recovered draft awaiting Restore/Discard (a Restore's setContent would
+  // erase the insert), and no save in flight (a Restore's PUT must settle so
+  // the insert's own autosave carries the restored baseline). Otherwise the
+  // hosts get `null`, and AskPanel offers no Insert at all.
+  const askInsertHere = editor && editor.isEditable && !pendingDraft && saveStatus !== 'saving'
+    ? insertAskAnswer
+    : null
 
   // G-064 — an answer picked for this note on another page (spec §5.2).
-  // ⛔ DECLARED AFTER the hydratedRef arming effect above: effects run in
-  // declaration order, and inserting before hydration is the "document changed
-  // without a person" class that effect exists to refuse.
+  // ⛔ WHAT KEEPS THIS BEHIND HYDRATION, stated exactly: `ready` below reads
+  // `hydratedRef.current` DURING RENDER, so the declaration order of the
+  // effects is NOT what protects it. The protection is that `ready` also
+  // requires `recoveryDecidedFor === noteId`, and that decision is ALWAYS set
+  // asynchronously — after the `await durableRef.current.recover(...)` in the
+  // recovery effect, and an `await` yields even on an already-settled value —
+  // so it resumes only once the whole effect flush that started it has
+  // finished, the arming effect of that same commit included. Its setState
+  // then re-renders this page, and that render reads the ref already armed.
+  // Inserting before hydration is the "document changed without a person"
+  // class the arming effect exists to refuse. (If the note's editor is only
+  // committed AFTER the decision, the render that commits it reads the ref
+  // before its own arming effect runs, so `ready` stays false until the page
+  // next re-renders: the answer WAITS, it is never inserted early.
+  // Controller ruling M2: kept as is.)
   //
   // ⛔⛔ G-064 fix round 1 (F2, controller ruling) — `recoveryDecidedFor` is
-  // compared against THIS render's `noteId`, never a bare boolean: this
-  // component instance is REUSED across an A -> B switch, and a decision
-  // made for A must never authorize an insert into B. `note?.id === noteId`
-  // is the companion half — `note` can lag `noteId` by a render (the fetch
-  // hasn't resolved yet), and a stale A note object must not pass either.
+  // compared against THIS render's `noteId`, never a bare boolean. DEFENSE IN
+  // DEPTH: NotebookTab keys this page by noteId today
+  // (tabs/NotebookTab.jsx:715), so a switch mounts a fresh instance; if this
+  // instance is ever reused across notes, a decision made for A must still
+  // never authorize an insert into B. `note?.id === noteId` is the companion
+  // half — `note` can lag `noteId` by a render (the fetch hasn't resolved
+  // yet), and a stale A note object must not pass either.
   //
   // ⛔⛔ G-064 fix round 1 (F4, controller ruling) — `saveStatus !== 'saving'`
   // closes the slow-restore race: `restoreDraft()` sets `saveStatus:'saving'`
@@ -1952,7 +1977,7 @@ export default function NoteEditorPage({ noteId, onBack, showBack = true, onTitl
         onSaveExcerpt={handleSaveExcerpt}
         emphasizeExcerptId={previewDoc?.emphasizeExcerptId}
         documentId={previewDoc?.documentId}
-        onInsert={editor && editor.isEditable ? insertAskAnswer : null}
+        onInsert={askInsertHere}
       />
       <CapturedSourceSheet
         open={!!capturedSource}
@@ -2068,7 +2093,7 @@ export default function NoteEditorPage({ noteId, onBack, showBack = true, onTitl
                against. */
             getEditorDoc={() => editorRef.current?.state?.doc}
             onNavigate={jumpToCitation}
-            onInsert={editor && editor.isEditable ? insertAskAnswer : null}
+            onInsert={askInsertHere}
           />
           {/*
             ⛔ FIND HAD NO VISIBLE ENTRY POINT -- Cmd/Ctrl+F was the ONLY door

@@ -20,16 +20,27 @@ export const askCitationStaleKey = new PluginKey('askCitationStale')
  * Stale = the chip's paragraph text is no longer the text it had at insertion
  * (spec §6.2). ⛔ COMPUTED AT RENDER, NEVER STORED (§6.3): a decoration, so the
  * check can never dispatch a transaction and never trigger a save.
+ *
+ * ⛔ G-064 final fix wave (I1) — a chip with NO claim (`null`) is UNKNOWN, not
+ * edited, and is skipped. A public share serves every chip reduced to `{ n }`
+ * (note_shares._reduce_ask_citations, spec §7.5), so a shared chip has no
+ * claim to compare. When the attribute defaulted to `''` instead, `''` never
+ * equalled a paragraph with any text, and every chip on every shared note read
+ * "[n · edited]". `buildAskInsertNode` always writes a STRING claim (a
+ * chip-only paragraph's is the real value `''`), so every real insert is still
+ * checked.
  */
 export function staleCitationDecorations(doc) {
   const decos = []
   doc.descendants((node, pos) => {
     if (!node.isTextblock) return true
-    let claim = null
+    let current = null
     node.forEach((child, offset) => {
       if (child.type.name !== ASK_CITATION_TYPE) return
-      if (claim === null) claim = claimFromBlock(node)
-      if (claim !== (child.attrs.claim || '')) {
+      const stored = child.attrs.claim
+      if (typeof stored !== 'string') return
+      if (current === null) current = claimFromBlock(node)
+      if (current !== stored) {
         const from = pos + 1 + offset
         decos.push(Decoration.node(from, from + child.nodeSize, {}, { askStale: true }))
       }
@@ -87,10 +98,15 @@ export const AskCitation = Node.create({
         parseHTML: (el) => el.getAttribute('data-citation'),
         renderHTML: (a) => (a.citation ? { 'data-citation': a.citation } : {}),
       },
+      // G-064 final fix wave (I1) — `null` means UNKNOWN (a share-reduced copy
+      // carries only `n`), and staleCitationDecorations skips it. A present
+      // empty claim is a REAL value (a paragraph of chips only), so it is
+      // written as `data-claim=""` and read back as `''`, never collapsed
+      // into "unknown" on a copy/paste round trip.
       claim: {
-        default: '',
-        parseHTML: (el) => el.getAttribute('data-claim') || '',
-        renderHTML: (a) => (a.claim ? { 'data-claim': a.claim } : {}),
+        default: null,
+        parseHTML: (el) => (el.hasAttribute('data-claim') ? el.getAttribute('data-claim') : null),
+        renderHTML: (a) => (typeof a.claim === 'string' ? { 'data-claim': a.claim } : {}),
       },
     }
   },

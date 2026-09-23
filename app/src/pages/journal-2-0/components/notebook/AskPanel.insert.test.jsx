@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
-import { render, screen, fireEvent } from '@testing-library/react'
+import { render, screen, fireEvent, waitFor } from '@testing-library/react'
 import AskPanel from './AskPanel'
 import { __resetNotebookFlags, latchNotebookFlags } from '../../lib/offline/notebookFlags'
 
@@ -59,6 +59,27 @@ describe('Insert is offered only when it is honest to', () => {
   it('no host way to insert → no Insert', async () => {
     await ask({})
     expect(screen.queryByRole('button', { name: /Insert/ })).toBeNull()
+  })
+
+  // G-064 final fix wave (M8) — spec §3.1: "Not while streaming". The stream
+  // below has DELIVERED a cited delta (so every other condition already holds)
+  // but has not closed; only closing it may offer Insert.
+  it('while the answer is still streaming → no Insert; once the stream closes → Insert', async () => {
+    const enc = new TextEncoder()
+    let ctl
+    const body = new ReadableStream({ start(c) { ctl = c } })
+    global.fetch = vi.fn().mockResolvedValue({ ok: true, status: 200, json: async () => ({}), body })
+    render(<AskPanel scope="note" target="n1" autoOpen onInsert={vi.fn(() => true)} />)
+    fireEvent.change(screen.getByRole('textbox'), { target: { value: 'margins?' } })
+    fireEvent.click(screen.getByRole('button', { name: 'Ask' }))
+    ctl.enqueue(enc.encode(`data: ${JSON.stringify(head())}\n\n`))
+    ctl.enqueue(enc.encode(`data: ${JSON.stringify({ type: 'delta', text: 'Margins fell [1].' })}\n\n`))
+    await waitFor(() => expect(screen.getByTestId('ask-answer')).toHaveTextContent('Margins fell'))
+    expect(screen.getByTestId('ask-answer')).toHaveAttribute('aria-busy', 'true')
+    expect(screen.queryByRole('button', { name: /Insert/ })).toBeNull()
+
+    ctl.close()
+    expect(await screen.findByRole('button', { name: 'Insert into this note' })).toBeEnabled()
   })
 })
 

@@ -139,11 +139,22 @@ export function takePendingAskInsert(noteId, now = Date.now()) {
  * selected node (NoteEditorPage.jsx:164-166 — the capture tray ate an embed
  * that way). The note's own autosave persists the change: baseline check,
  * version capture and offline outbox all unchanged.
+ *
+ * G-064 final fix wave (M3) — when the note ENDS with an empty paragraph, that
+ * paragraph is replaced rather than appended after, so no blank line sits
+ * above the answer. Only an EMPTY paragraph is ever replaced, and the position
+ * is still derived from the document, never from the selection, so a selected
+ * node with content is never replaced. The empty paragraph that follows the
+ * answer is TrailingNode's (StarterKit), exactly as for a plain append.
  */
 export function appendAskInsert(editor, node) {
   if (!editor || editor.isDestroyed || !editor.isEditable || !node) return false
-  const at = editor.state.doc.content.size
-  const ok = editor.chain().insertContentAt(at, node).run()
+  const { doc } = editor.state
+  const size = doc.content.size
+  const last = doc.lastChild
+  const replaceEmptyLast = Boolean(last && last.type.name === 'paragraph' && last.content.size === 0)
+  const at = replaceEmptyLast ? size - last.nodeSize : size
+  const ok = editor.chain().insertContentAt(replaceEmptyLast ? { from: at, to: size } : at, node).run()
   if (!ok) return false
   try {
     const dom = editor.view.nodeDOM(at)

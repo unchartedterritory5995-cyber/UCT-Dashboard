@@ -75,9 +75,13 @@ def test_the_scan_would_MISS_it_without_the_table_form(tmp_path):
     (True, "NOTEBOOK_OFFLINE_READ_ON"),
     (True, "NOTEBOOK_CONFLICT_UX_ON"),
     (True, "NOTEBOOK_ATTACHMENTS_ON"),
+    # G-064: the Ask-insert enablement gate rides the same NOTEBOOK_FLAGS table.
+    (True, "NOTEBOOK_ASK_INSERT_ON"),
 ])
-def test_waveKs_four_capabilities_are_visible_to_the_index(expect_declared, name):
-    """The real thing, on the real repo — not a fixture."""
+def test_every_notebook_capability_is_visible_to_the_index(expect_declared, name):
+    """The real thing, on the real repo — not a fixture. Wave K's keys and
+    every one added to the same table since (count-free on purpose: the
+    parameter list is the roster, not a number in a name)."""
     found = ffi.gates(ffi.repo_roots(REPO), REPO)
     assert name in found, f"{name} is invisible to the flag index again"
     assert found[name]["sites"] == ["api/routers/auth.py"]

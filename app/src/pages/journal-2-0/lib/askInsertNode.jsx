@@ -1,6 +1,7 @@
 import { Node, mergeAttributes } from '@tiptap/core'
 import { ReactNodeViewRenderer } from '@tiptap/react'
 import { Plugin } from '@tiptap/pm/state'
+import { Fragment, Slice } from '@tiptap/pm/model'
 import { ReplaceStep, ReplaceAroundStep } from '@tiptap/pm/transform'
 import { isHistoryTransaction } from '@tiptap/pm/history'
 import AskInsertView from '../components/notebook/AskInsertView'
@@ -30,6 +31,51 @@ function deletedRangesOf(step) {
   return []
 }
 
+const childrenOf = (node) => {
+  const out = []
+  node.content.forEach((child) => out.push(child))
+  return out
+}
+
+/**
+ * G-064 final fix wave (I4, controller ruling) — strip every askInsert that is
+ * OPEN at an edge of a pasted slice, so a PARTIAL copy from inside an answer
+ * pastes as plain content, while a CLOSED askInsert (the whole block, copied as
+ * a node) keeps its wrapper and its provenance travels with it.
+ *
+ * Why it is needed: ProseMirror serializes a copy made inside the answer with a
+ * `data-pm-slice` context naming the askInsert around it, and the paste
+ * rebuilds that wrapper. askInsert is `defining`, so pasting that slice at the
+ * START of a member paragraph wrapped the MEMBER'S paragraph in a NEW
+ * askInsert: member prose read "From Ask Notebook" and silently dropped out of
+ * Ask. The same open wrapper made a paste at the start of a paragraph INSIDE an
+ * answer emit a step reaching past the block edge, which the filter below then
+ * refused without a word. Reproduced by askInsertNodes.test.js, "pasting answer
+ * text never wraps member prose".
+ *
+ * An open depth counts levels from the slice's top: unwrapping the FIRST node
+ * lowers `openStart` by one, and when that node is the ONLY top-level node its
+ * end was open too, so `openEnd` drops with it. The end side is symmetrical.
+ */
+export function unwrapOpenAskInserts(slice) {
+  let { openStart, openEnd } = slice
+  let nodes = childrenOf(slice.content)
+  let changed = false
+  while (openStart > 0 && nodes.length && nodes[0].type.name === 'askInsert') {
+    const only = nodes.length === 1
+    nodes = [...childrenOf(nodes[0]), ...nodes.slice(1)]
+    openStart -= 1
+    if (only && openEnd > 0) openEnd -= 1
+    changed = true
+  }
+  while (openEnd > 0 && nodes.length && nodes[nodes.length - 1].type.name === 'askInsert') {
+    nodes = [...nodes.slice(0, -1), ...childrenOf(nodes[nodes.length - 1])]
+    openEnd -= 1
+    changed = true
+  }
+  return changed ? new Slice(Fragment.fromArray(nodes), openStart, openEnd) : slice
+}
+
 /**
  * G-064 — an inserted Ask Notebook answer (spec §4.1).
  *
@@ -42,7 +88,8 @@ function deletedRangesOf(step) {
  * does NOT stop an explicit multi-position SELECTION spanning the block edge:
  * measured, selecting from inside a member paragraph into the answer (or the
  * reverse) and deleting or typing over it moves prose across the wrapper in
- * both directions (`probe_boundary.cjs`). `filterTransaction` below is the
+ * both directions (reproduced by askInsertNodes.test.js, "a selection cannot
+ * delete across the block edge", cases a-c). `filterTransaction` below is the
  * backstop: it rejects any step whose DELETED range crosses from outside an
  * askInsert to inside one (or vice versa), while leaving whole-block deletes,
  * in-block edits, select-all, and a plain append at the doc end untouched —
@@ -94,6 +141,12 @@ export const AskInsert = Node.create({
 
   addProseMirrorPlugins() {
     return [new Plugin({
+      // G-064 final fix wave (I4) — see unwrapOpenAskInserts above. Runs for a
+      // clipboard paste and for an in-editor drag alike (prosemirror-view
+      // applies `transformPasted` to both).
+      props: {
+        transformPasted: (slice) => unwrapOpenAskInserts(slice),
+      },
       filterTransaction(tr) {
         // G-064 fix round 2 (R2-1) — undo/redo only ever move the doc between
         // states THIS filter already accepted going forward, so replaying one

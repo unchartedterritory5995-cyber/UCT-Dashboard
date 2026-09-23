@@ -1,15 +1,16 @@
 import { describe, it, expect, afterEach } from 'vitest'
 import { Editor, generateHTML, generateJSON } from '@tiptap/core'
-import { TextSelection } from '@tiptap/pm/state'
+import { NodeSelection, TextSelection } from '@tiptap/pm/state'
+import { Slice } from '@tiptap/pm/model'
 import StarterKit from '@tiptap/starter-kit'
-import { AskInsert } from './askInsertNode'
+import { AskInsert, unwrapOpenAskInserts } from './askInsertNode'
 import { AskCitation, askCitationStaleKey } from './askCitationNode'
 import { appendAskInsert, buildAskInsertNode } from './askInsert'
 import { buildExtensions } from './tiptap'
 
 // G-064 fix round 2 (R2-1): jsdom has no global ClipboardEvent, and
-// `EditorView.pasteHTML` constructs one to synthesize a real paste. This
-// mirrors the reviewer's own probe scripts (`w.ClipboardEvent = ...`).
+// `EditorView.pasteHTML` constructs one to synthesize a real paste. A minimal
+// stand-in carrying `clipboardData` is all `pasteHTML` needs.
 if (typeof globalThis.ClipboardEvent === 'undefined') {
   globalThis.ClipboardEvent = class extends Event {
     constructor(type, opts) { super(type, opts); this.clipboardData = (opts && opts.clipboardData) || null }
@@ -116,10 +117,10 @@ describe('the provenance wrapper survives editing (P1)', () => {
 
 // G-064 fix round 1 (Finding F2, controller ruling) — `isolating` blocks a
 // JOIN across the edge (Backspace/Delete above) but not an explicit
-// multi-position SELECTION spanning it. Measured (probe_boundary.cjs):
+// multi-position SELECTION spanning it. Measured before the guard existed:
 // selecting from inside "Mine." into the answer and deleting produced
-// "Miins fell." — prose moved across the wrapper. `filterTransaction` in
-// askInsertNode.jsx is the backstop.
+// "Miins fell." — prose moved across the wrapper. Case (a) below is that exact
+// recipe. `filterTransaction` in askInsertNode.jsx is the backstop.
 describe('a selection cannot delete across the block edge (P1 fix round 1)', () => {
   it('(a) selecting from inside "Mine." into the answer, then deleting: the doc is unchanged', () => {
     const ed = mount(DOC)
@@ -196,33 +197,123 @@ describe('a selection cannot delete across the block edge (P1 fix round 1)', () 
 })
 
 // G-064 fix round 2 (R2-1, controller ruling) — history transactions bypass
-// the filter. Measured (reviewer's rr_probe*.cjs, reproduced independently
-// against the real repo code): copying a word from INSIDE the answer
-// paragraph and pasting it at the very START of a member paragraph triggers
-// ProseMirror's "defining-paste wrapping" (the copied slice carries a
-// `data-pm-slice` marker naming the source askInsert, so the paste re-wraps
-// the destination paragraph in a NEW askInsert of the same attrs). The
-// controller deferred that paste behaviour itself -- what this fixes is that
-// `editor.commands.undo()` on the result returned `true` while leaving the
-// document completely unchanged, permanently stranding every earlier undo
-// entry. `isHistoryTransaction` in askInsertNode.jsx's filterTransaction is
-// the fix; this reproduces the exact failing recipe and shows undo restores
-// the pre-paste document byte-for-byte.
-describe('undo after a defining-paste wrap is never stranded (fix round 2, R2-1)', () => {
-  it('pasting a copied answer fragment at the start of a member paragraph restores exactly on undo', () => {
+// the filter. The defect: an undo whose INVERSE step crosses the askInsert edge
+// was judged by filterTransaction like any forward edit and refused, while
+// `editor.commands.undo()` still returned `true` -- the document never
+// changed, and every earlier undo entry was stranded behind it for good.
+// `isHistoryTransaction` in askInsertNode.jsx's filterTransaction is the fix.
+//
+// ⚠️ Final fix wave (I4): this rail used to reach a crossing inverse through a
+// defining-paste wrap (answer text pasted at the start of a member paragraph
+// re-wrapped that paragraph). `transformPasted` now unwraps an open askInsert,
+// so that paste inserts plain text and its undo no longer crosses anything --
+// the old recipe could no longer fail. The setup is therefore the wrap itself,
+// dispatched directly: a wrap is a pure insertion (both of its deleted ranges
+// are empty), so the filter accepts it going forward, while its inverse
+// deletes the wrapper's two edges, each from outside the block to inside it.
+describe('undo of a wrap into an askInsert is never stranded (fix round 2, R2-1)', () => {
+  it('a member paragraph wrapped in an askInsert is restored exactly on undo', () => {
     const ed = mount(DOC)
     const before = ed.getJSON()
-    const copyFrom = locate(ed, 'ins') // interior of "Margins", inside the answer paragraph
-    const copyTo = copyFrom + 3
-    ed.view.dispatch(ed.state.tr.setSelection(TextSelection.create(ed.state.doc, copyFrom, copyTo)))
-    const html = ed.view.serializeForClipboard(ed.state.selection.content()).dom.innerHTML
-    ed.commands.setTextSelection(1)
-    ed.view.pasteHTML(html)
-    // Sanity: the paste actually mutated the document (defining-paste
-    // wrapping fired) -- otherwise undo restoring "before" would be trivial.
-    expect(ed.getJSON()).not.toEqual(before)
+    const range = ed.state.doc.resolve(locate(ed, 'Mine.')).blockRange()
+    ed.view.dispatch(ed.state.tr.wrap(range, [{ type: ed.schema.nodes.askInsert, attrs: INSERT.attrs }]))
+    // Sanity: the wrap was accepted -- otherwise undo restoring "before" is trivial.
+    expect(ed.state.doc.child(0).type.name).toBe('askInsert')
+    expect(ed.state.doc.child(0).textContent).toBe('Mine.')
     expect(ed.commands.undo()).toBe(true)
     expect(ed.getJSON()).toEqual(before)
+  })
+})
+
+// G-064 final fix wave (I4, controller ruling) — a PARTIAL copy from inside an
+// answer pastes as plain content; a WHOLE block keeps its wrapper.
+//
+// ProseMirror serializes a copy made inside the answer with a `data-pm-slice`
+// marker naming the askInsert around it, and the paste rebuilds that wrapper
+// (`addContext`). Because askInsert is `defining`, pasting such a slice at the
+// START of a member paragraph wrapped the MEMBER'S paragraph in a NEW
+// askInsert: the member's own words then read "From Ask Notebook" and dropped
+// out of Ask (spec §7.2) — provenance lying in reverse. `transformPasted` in
+// askInsertNode.jsx unwraps any askInsert that is OPEN at a slice edge; a
+// CLOSED one (the whole block, copied as a node) is left alone, so provenance
+// still travels with a real answer. Every case goes through the real clipboard
+// path: `serializeForClipboard` for the copy, `view.pasteHTML` for the paste.
+describe('pasting answer text never wraps member prose (final wave, I4)', () => {
+  const askInserts = (ed) => {
+    const out = []
+    ed.state.doc.descendants((node) => { if (node.type.name === 'askInsert') out.push(node) })
+    return out
+  }
+  function copyRange(ed, from, to) {
+    ed.view.dispatch(ed.state.tr.setSelection(TextSelection.create(ed.state.doc, from, to)))
+    return ed.view.serializeForClipboard(ed.state.selection.content()).dom.innerHTML
+  }
+  function copyNode(ed, pos) {
+    ed.view.dispatch(ed.state.tr.setSelection(NodeSelection.create(ed.state.doc, pos)))
+    return ed.view.serializeForClipboard(ed.state.selection.content()).dom.innerHTML
+  }
+
+  it('(a) a word copied from inside an answer, pasted at the start of a member paragraph, is plain text there', () => {
+    const ed = mount(DOC)
+    const at = locate(ed, 'ins') // interior of "Margins", inside the answer
+    const html = copyRange(ed, at, at + 3)
+    expect(html).toContain('askInsert') // the copy really carries the wrapper context
+    ed.commands.setTextSelection(1) // the start of "Mine."
+    ed.view.pasteHTML(html)
+    expect(askInserts(ed)).toHaveLength(1)
+    expect(ed.state.doc.child(0).type.name).toBe('paragraph')
+    expect(ed.state.doc.child(0).textContent).toBe('insMine.')
+  })
+
+  it('(b) a selection copied across the edge (member -> answer) pastes as member paragraphs, no new block', () => {
+    const ed = mount(DOC)
+    const html = copyRange(ed, locate(ed, 'ne.'), locate(ed, 'rgins'))
+    const end = locate(ed, 'After.') + 'After.'.length
+    ed.commands.setTextSelection(end)
+    ed.view.pasteHTML(html)
+    expect(askInserts(ed)).toHaveLength(1)
+    expect(ed.state.doc.textContent).toContain('After.ne.')
+    expect(ed.state.doc.textContent).toContain('Ma')
+  })
+
+  it('(c) the WHOLE block, copied as a node and pasted after the note, keeps its wrapper and attrs', () => {
+    const ed = mount(DOC)
+    const html = copyNode(ed, findInsert(ed).a)
+    ed.commands.setTextSelection(locate(ed, 'After.') + 'After.'.length)
+    ed.view.pasteHTML(html)
+    const blocks = askInserts(ed)
+    expect(blocks).toHaveLength(2)
+    expect(blocks[1].attrs).toEqual(INSERT.attrs)
+    expect(blocks[1].textContent).toBe('Margins fell .')
+  })
+
+  it('(d) answer text pasted at the start of a paragraph INSIDE the answer lands there (was silently refused)', () => {
+    const ed = mount(DOC)
+    const at = locate(ed, 'ins')
+    const html = copyRange(ed, at, at + 3)
+    ed.commands.setTextSelection(findInsert(ed).a + 2) // the start of the answer's paragraph
+    ed.view.pasteHTML(html)
+    const blocks = askInserts(ed)
+    expect(blocks).toHaveLength(1)
+    expect(blocks[0].textContent).toBe('insMargins fell .')
+  })
+
+  it('the unwrapped slice is well-formed, and a closed block is returned untouched', () => {
+    const ed = mount(DOC)
+    const { a, node } = findInsert(ed)
+    const ins = locate(ed, 'ins')
+    // `includeParents` = what `selection.content()` copies.
+    const cases = [[ins, ins + 3], [3, a + 4], [a + 4, a + node.nodeSize + 3], [1, 4]]
+    for (const [from, to] of cases) {
+      const out = unwrapOpenAskInserts(ed.state.doc.slice(from, to, true))
+      const max = Slice.maxOpen(out.content)
+      expect(out.openStart).toBeLessThanOrEqual(max.openStart)
+      expect(out.openEnd).toBeLessThanOrEqual(max.openEnd)
+      if (out.openStart) expect(out.content.firstChild.type.name).not.toBe('askInsert')
+      if (out.openEnd) expect(out.content.lastChild.type.name).not.toBe('askInsert')
+    }
+    const whole = ed.state.doc.slice(a, a + node.nodeSize, true)
+    expect(unwrapOpenAskInserts(whole)).toBe(whole)
   })
 })
 
@@ -258,6 +349,43 @@ describe("a parse rail for the citation chip's data-n attribute (fix round 2, R2
 
   it('data-n="0" parses to the real 0, not null', () => {
     expect(nOf(' data-n="0"')).toBe(0)
+  })
+})
+
+// G-064 final fix wave (I1) — the chip's `claim`: MISSING means "unknown" (a
+// share-reduced copy carries only `n`), and must read null; a PRESENT empty
+// claim is a real value (a paragraph holding only chips has claim '') and must
+// survive a round trip as '' rather than collapse into "unknown".
+describe("the citation chip's claim: missing is unknown, empty is real (final wave, I1)", () => {
+  function claimOf(spanAttr) {
+    const html = `<div data-type="ask-insert"><p>Hi <span data-type="ask-citation" data-n="1"${spanAttr}>[1]</span></p></div>`
+    return generateJSON(html, EXT).content[0].content[0].content[1].attrs.claim
+  }
+
+  it('no data-claim at all parses to null', () => {
+    expect(claimOf('')).toBeNull()
+  })
+
+  it('an empty data-claim parses to the real empty claim', () => {
+    expect(claimOf(' data-claim=""')).toBe('')
+  })
+
+  it('a chip-only paragraph keeps its empty claim through an HTML round trip', () => {
+    const chipOnly = buildAskInsertNode({ answer: '[1]', sources: [SRC], insertedAt: '2026-09-22T12:00:00.000Z' })
+    expect(chipOnly.content[0].content[0].attrs.claim).toBe('')
+    const doc = { type: 'doc', content: [chipOnly] }
+    const json = generateJSON(generateHTML(doc, EXT), EXT)
+    expect(json.content[0].content[0].content[0].attrs.claim).toBe('')
+  })
+
+  it('a chip with no claim is never marked stale, even in a paragraph with text', () => {
+    const ed = mount({ type: 'doc', content: [{
+      type: 'askInsert', attrs: { insertedAt: null, scope: null, question: '' },
+      content: [{ type: 'paragraph', content: [
+        { type: 'text', text: 'Margins fell ' }, { type: 'askCitation', attrs: { n: 1 } },
+      ] }],
+    }] })
+    expect(askCitationStaleKey.getState(ed.state).find()).toHaveLength(0)
   })
 })
 
@@ -319,6 +447,28 @@ describe('appendAskInsert (spec §5.2)', () => {
     expect(ed.state.doc.child(1).type.name).toBe('askInsert')
     expect(ed.state.doc.child(2).type.name).toBe('paragraph')
     expect(ed.state.doc.child(2).textContent).toBe('')
+  })
+
+  // G-064 final fix wave (M3) — a note that ends with an EMPTY paragraph (the
+  // usual state of a note whose last line is blank) used to get the answer
+  // AFTER that blank line, leaving a visible gap above it. The empty paragraph
+  // is now replaced; the one after the answer is TrailingNode's, as above.
+  it('replaces a trailing EMPTY paragraph instead of leaving a blank line above the answer', () => {
+    const ed = mount({ type: 'doc', content: [MINE, { type: 'paragraph' }] })
+    expect(appendAskInsert(ed, INSERT)).toBe(true)
+    expect(ed.state.doc.childCount).toBe(3)
+    expect(ed.state.doc.child(0).textContent).toBe('Mine.')
+    expect(ed.state.doc.child(1).type.name).toBe('askInsert')
+    expect(ed.state.doc.child(2).type.name).toBe('paragraph')
+    expect(ed.state.doc.child(2).textContent).toBe('')
+  })
+
+  it('an empty note gets the answer first, with no blank line above it', () => {
+    const ed = mount({ type: 'doc', content: [{ type: 'paragraph' }] })
+    expect(appendAskInsert(ed, INSERT)).toBe(true)
+    expect(ed.state.doc.childCount).toBe(2)
+    expect(ed.state.doc.child(0).type.name).toBe('askInsert')
+    expect(ed.state.doc.child(1).textContent).toBe('')
   })
 
   it('refuses a missing, destroyed or read-only editor', () => {

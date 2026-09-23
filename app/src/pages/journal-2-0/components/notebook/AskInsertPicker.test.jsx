@@ -72,4 +72,25 @@ describe('AskInsertPicker', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Cancel' }))
     expect(p.onCancel).toHaveBeenCalled()
   })
+
+  // G-064 final fix wave (M9) — two pickers on one page (a note's Ask and its
+  // document sheet's Ask) must not share an id: each label names its OWN input,
+  // and each result list has its own id.
+  it('two pickers on one page keep their own ids, and each label names its own input', async () => {
+    const search = vi.fn(async () => NOTES)
+    render(
+      <>
+        <AskInsertPicker node={NODE} onOpenNote={vi.fn()} onCancel={vi.fn()} search={search} />
+        <AskInsertPicker node={NODE} onOpenNote={vi.fn()} onCancel={vi.fn()} search={search} />
+      </>,
+    )
+    const inputs = screen.getAllByRole('textbox', { name: 'Find a note to insert into' })
+    expect(inputs).toHaveLength(2)
+    expect(inputs[0].id).not.toBe(inputs[1].id)
+    for (const el of inputs) fireEvent.change(el, { target: { value: 'nv' } })
+    const lists = await screen.findAllByRole('listbox', { name: 'Insert into a note' })
+    expect(lists).toHaveLength(2)
+    expect(lists[0].id).toBeTruthy()
+    expect(lists[0].id).not.toBe(lists[1].id)
+  })
 })

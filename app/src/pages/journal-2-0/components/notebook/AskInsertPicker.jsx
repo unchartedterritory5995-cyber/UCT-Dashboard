@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useId, useRef, useState } from 'react'
 import UIcon from '../../../../components/ui/UIcon'
 import { createNoteViaApi } from '../../lib/noteCreation'
 import { writePendingAskInsert } from '../../lib/askInsert'
@@ -25,6 +25,12 @@ export default function AskInsertPicker({
   const [error, setError] = useState('')
   const listRef = useRef(null)
   const searchRef = useRef(null)
+  // G-064 final fix wave (M9) — ids derived per instance, never fixed strings:
+  // two pickers on one page (a note's Ask and a document sheet's Ask) would
+  // otherwise share one id, and the label would point at whichever came first.
+  const uid = useId()
+  const searchId = `ask-insert-search-${uid}`
+  const listId = `ask-insert-picker-list-${uid}`
   if (!searchRef.current) searchRef.current = search || makeNoteSearch()
 
   useEffect(() => {
@@ -62,9 +68,9 @@ export default function AskInsertPicker({
   const typed = q.trim()
   return (
     <div className={styles.picker} data-testid="ask-insert-picker">
-      <label className={askStyles.srOnly} htmlFor="ask-insert-search">Find a note to insert into</label>
+      <label className={askStyles.srOnly} htmlFor={searchId}>Find a note to insert into</label>
       <input
-        id="ask-insert-search"
+        id={searchId}
         className={styles.search}
         value={q}
         onChange={(e) => setQ(e.target.value)}
@@ -85,7 +91,7 @@ export default function AskInsertPicker({
           items={items}
           loading={loading}
           command={choose}
-          menuId="ask-insert-picker-list"
+          menuId={listId}
           ariaLabel="Insert into a note"
         />
       )}

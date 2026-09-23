@@ -4,7 +4,7 @@ import UIcon from '../../../../components/ui/UIcon'
 import { useIsTouch } from '../../../../hooks/useBreakpoint'
 import {
   PRECISE_STATES,
-  PRECISION_WORDS,
+  precisionWords,
   citedSources,
   resolveNoteCitation,
   splitAnswer,
@@ -341,7 +341,7 @@ export default function AskPanel({
                       say something different about the same citation. */}
                   {!PRECISE_CITATION.has(s.citation) && (
                     <span className={styles.sourceApprox}>
-                      {PRECISION_WORDS[s.citation] || 'unavailable'}
+                      {precisionWords(s.citation)}
                     </span>
                   )}
                 </button>

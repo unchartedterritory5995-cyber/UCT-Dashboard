@@ -117,9 +117,9 @@ async function renderEditor() {
 
 // G-064 fix round 1 (F3, review finding) — the shipped tests mocked `update`
 // and never asserted on it, so an insert that rendered but never reached the
-// note's autosave (the reviewer's mutantB2: `setMeta('preventUpdate', true)`
-// inside the same transaction) read as a pass. `hasAskInsert` matches the
-// probe's own check.
+// note's autosave (e.g. `setMeta('preventUpdate', true)` inside the same
+// transaction) read as a pass. `hasAskInsert` is the check the two
+// "reaches the autosave" assertions below make on each PUT body.
 const hasAskInsert = (doc) => JSON.stringify(doc || {}).includes('"askInsert"')
 
 describe('NoteEditorPage — G-064 Ask insert', () => {
@@ -172,13 +172,15 @@ describe('NoteEditorPage — G-064 Ask insert', () => {
     }, { timeout: 3000 })
   })
 
-  // G-064 fix round 1 (F2, controller ruling) — `NoteEditorPage` is a REUSED
-  // instance across a note switch (the router does not remount it), so a
+  // G-064 fix round 1 (F2, controller ruling) — DEFENSE IN DEPTH. Production
+  // mounts `<NoteEditorPage key={noteId}>` (tabs/NotebookTab.jsx:715), so a
+  // note switch there gets a fresh instance. This test drives the case that
+  // key exists to prevent — the SAME instance re-rendered with a new noteId —
+  // so the gate still holds if the page is ever reused across notes: a
   // pending answer written for note B *while A is still open* must never be
-  // spent against A's about-to-be-destroyed editor. Reproduces the exact
-  // shape the reviewer's `lifecycle.probe.test.jsx` measured: render A, write
-  // the pending entry for B, THEN switch — the switch's first render still
-  // carries the async draft-recovery decision from A.
+  // spent against A's about-to-be-destroyed editor. Render A, write the
+  // pending entry for B, THEN switch — the switch's first render still
+  // carries the async draft-recovery decision made for A.
   it('an A->B switch never spends the answer against the stale editor -- B ends up holding it, and no failure toast fires', async () => {
     noteStore.n2 = { ...NOTE_B }
     const NoteEditorPage = (await import('./NoteEditorPage')).default
@@ -244,6 +246,33 @@ describe('NoteEditorPage — G-064 Ask insert', () => {
       const base = insertCall[1]?.baseUpdatedAt
       if (base !== undefined) expect(base).not.toBe(NOTE.updatedAt)
     }, { timeout: 3000 })
+  })
+
+  // G-064 final fix wave (M1) — the CLICK path gets the same gate the pending
+  // path has. While a recovered draft is waiting on the member's Restore or
+  // Discard, an insert would be erased by a Restore (setContent) or would ride
+  // an autosave built on the pre-restore baseline. So the page does not offer
+  // Insert at all until the draft question is settled.
+  it('"Insert into this note" is not offered while a recovered draft is pending, and is once it is settled', async () => {
+    latchNotebookFlags({ notebook_ask_insert_on: true })
+    localStorage.setItem('uct.j2.notedraft.n1', JSON.stringify({
+      title: 'Recovered Title', subtitle: '',
+      bodyJson: { type: 'doc', content: [{ type: 'paragraph', content: [{ type: 'text', text: 'Draft body.' }] }] },
+      savedAt: Date.now(),
+    }))
+    await renderEditor()
+    await screen.findByRole('button', { name: 'Restore' })
+    fireEvent.click(screen.getByRole('button', { name: 'Ask a question about this note' }))
+    const dialog = await screen.findByRole('dialog', { name: 'Ask This note' })
+    fireEvent.change(within(dialog).getByRole('textbox'), { target: { value: 'margins?' } })
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Ask' }))
+    // A finished, cited answer: every other condition for the button holds.
+    await waitFor(() => expect(within(dialog).getByTestId('ask-answer')).toHaveTextContent('Margins fell'))
+    await waitFor(() => expect(within(dialog).getByRole('button', { name: 'Ask' })).toBeInTheDocument())
+    expect(within(dialog).queryByRole('button', { name: /Insert/ })).toBeNull()
+
+    fireEvent.click(screen.getByRole('button', { name: 'Discard' }))
+    expect(await within(dialog).findByRole('button', { name: 'Insert into this note' })).toBeEnabled()
   })
 
   // G-064 fix round 1 (F5) — the failure toast, asserted by RENDERED TEXT.

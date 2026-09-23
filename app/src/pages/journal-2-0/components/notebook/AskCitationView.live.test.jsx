@@ -18,7 +18,7 @@ import { MemoryRouter } from 'react-router-dom'
 import { useEditor, EditorContent } from '@tiptap/react'
 import StarterKit from '@tiptap/starter-kit'
 import { AskInsert } from '../../lib/askInsertNode'
-import { AskCitation } from '../../lib/askCitationNode'
+import { AskCitation, askCitationStaleKey } from '../../lib/askCitationNode'
 
 const EXT = [StarterKit, AskInsert, AskCitation]
 
@@ -92,5 +92,45 @@ describe('AskCitationView — live re-render on a decoration-only change (F1)', 
       expect(screen.getByRole('button')).toHaveTextContent('[1]')
     })
     expect(screen.getByRole('button')).toHaveAccessibleName('Source 1: NVDA thesis')
+  })
+})
+
+// G-064 final fix wave (I1) — a PUBLIC SHARED note serves every chip reduced to
+// `{ n }` (note_shares._reduce_ask_citations, spec §7.5: the label, link,
+// precision and claim describe notes the member did not share). A reduced chip
+// therefore carries NO claim at all. Before this fix the attribute defaulted to
+// `''`, and `''` never equals the text of a paragraph that has any, so EVERY
+// chip on every shared note read "[n · edited]" -- a false statement about the
+// member's own words, on the one page strangers see. A missing claim means
+// "unknown", not "edited" (spec §6.3: the check works identically in
+// SharedNotePage). Mounted through the real EditorContent path, not a bare
+// Editor, because the words a reader sees are the node view's.
+describe('AskCitationView — a share-reduced chip is not "edited" (I1)', () => {
+  const SHARED_DOC = {
+    type: 'doc',
+    content: [
+      {
+        type: 'askInsert',
+        attrs: { insertedAt: '2026-09-22T12:00:00.000Z', scope: 'note', question: 'q' },
+        content: [
+          {
+            type: 'paragraph',
+            content: [
+              { type: 'text', text: 'Margins fell ' },
+              // Exactly what resolve_share serves: the number and nothing else.
+              { type: 'askCitation', attrs: { n: 1 } },
+              { type: 'text', text: '.' },
+            ],
+          },
+        ],
+      },
+    ],
+  }
+
+  it('reads [1], never [1 · edited], inside a paragraph that has text', async () => {
+    const editorRef = await mount(SHARED_DOC)
+    await waitFor(() => expect(screen.getByText('[1]')).toBeInTheDocument())
+    expect(screen.queryByText(/edited/)).toBeNull()
+    expect(askCitationStaleKey.getState(editorRef.current.state).find()).toHaveLength(0)
   })
 })

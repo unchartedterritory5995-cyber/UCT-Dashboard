@@ -45,6 +45,17 @@ export const PRECISION_WORDS = Object.freeze({
   page_only: 'page only', note_only: 'note only', record_only: 'record', unavailable: 'unavailable',
 })
 
+/**
+ * The words for a citation's precision, or `'unavailable'` for anything this
+ * map does not own. ⛔ An OWN key only (`Object.hasOwn`): a value that names a
+ * prototype member (`'constructor'`, `'toString'`) would otherwise look up a
+ * truthy FUNCTION and render it. The one lookup both surfaces call, so the
+ * guard exists once.
+ */
+export function precisionWords(citation) {
+  return (Object.hasOwn(PRECISION_WORDS, citation) && PRECISION_WORDS[citation]) || 'unavailable'
+}
+
 const BLOCK_SEPARATOR = '\n'
 const HANDLE_RE = /\[(\d{1,3})\]/g
 

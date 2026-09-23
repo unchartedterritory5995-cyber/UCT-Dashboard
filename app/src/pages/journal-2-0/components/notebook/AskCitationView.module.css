@@ -1,3 +1,32 @@
 /* G-064 — the chip itself is AskPanel.module.css's .citationChip. */
 .wrap { display: inline; }
 .stale { opacity: 0.75; }
+
+/* G-064 final fix wave (I3) — a chip INSIDE A NOTE sits in a line of prose.
+   AskPanel's touch rule gives .citationChip `min-height: var(--tap-min)` so
+   the panel's chips are finger targets; this chip is a <button>, which lays
+   out inline-block, so that floor grew every prose line holding a chip to
+   about 44px. Here the floor comes off and the chip keeps the line's own
+   height, while the FINGER TARGET stays at least 44px through an invisible
+   ::after that extends the button's hit area 12px above and below and 8px
+   either side without taking any layout space: the chip's box is roughly
+   24px tall and 32px wide at its smallest, so the target is about 48px each
+   way, above the 44px floor. `.wrap .chip` outranks the single imported class, because the order of
+   two CSS modules in the bundle is not a thing to lean on. Only the <button>
+   gets the extended target: a chip with no note to open is not interactive. */
+@media (max-width: 1024px) {
+  .wrap .chip {
+    min-height: 0;
+    line-height: inherit;
+    padding-top: 1px;
+    padding-bottom: 1px;
+  }
+  .wrap button.chip {
+    position: relative;
+  }
+  .wrap button.chip::after {
+    content: '';
+    position: absolute;
+    inset: -12px -8px;
+  }
+}

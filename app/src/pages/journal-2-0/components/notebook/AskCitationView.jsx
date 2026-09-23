@@ -1,7 +1,7 @@
 import { NodeViewWrapper } from '@tiptap/react'
 import { useNavigate } from 'react-router-dom'
 import { notePath } from '../../../../hooks/useNoteBacklinks'
-import { PRECISION_WORDS } from '../../lib/askCitation'
+import { precisionWords } from '../../lib/askCitation'
 import askStyles from './AskPanel.module.css'
 import styles from './AskCitationView.module.css'
 
@@ -12,7 +12,8 @@ import styles from './AskCitationView.module.css'
  * citation looks the same in the panel and in a note. Degradation is stated in
  * WORDS, never by colour alone (AskPanel.jsx:300): a stale chip reads
  * `[n · edited]`, and the insert-time precision uses AskPanel's own Sources-row
- * words — `PRECISION_WORDS` (G-064 fix round 1, Finding F5) is now the ONE
+ * words — `precisionWords` over `PRECISION_WORDS` (G-064 fix round 1, Finding
+ * F5; own-key guard added in the final fix wave) is now the ONE
  * export both surfaces read, in `lib/askCitation.js`.
  */
 export function citationDescription({ n, label, citation }, stale) {
@@ -21,7 +22,7 @@ export function citationDescription({ n, label, citation }, stale) {
   // server-render fallback, never `Source null: …` / `Source undefined: …`.
   const num = n == null ? '?' : n
   const parts = [`Source ${num}: ${label || 'source'}`]
-  if (citation && citation !== 'exact') parts.push(PRECISION_WORDS[citation] || 'unavailable')
+  if (citation && citation !== 'exact') parts.push(precisionWords(citation))
   if (stale) parts.push('text edited since inserted')
   return parts.join(', ')
 }
@@ -34,7 +35,7 @@ export default function AskCitationView({ node, decorations }) {
   const num = n == null ? '?' : n
   const text = stale ? `[${num} · edited]` : `[${num}]`
   const described = citationDescription({ n, label, citation }, stale)
-  const cls = `${askStyles.citationChip} ${stale ? styles.stale : ''}`
+  const cls = `${askStyles.citationChip} ${styles.chip} ${stale ? styles.stale : ''}`
 
   return (
     <NodeViewWrapper as="span" className={styles.wrap} data-ask-citation>

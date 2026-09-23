@@ -157,8 +157,8 @@ describe('a citation only navigates when it can be verified', () => {
   it('a re-resolved single-hit range never navigates unless it verifies (fix round 1, Finding 4)', () => {
     // ⛔ An EMPTY paragraph makes textBetween emit an extra separator that
     // flatToPmRange's own walker does not count the same way, so a re-resolved
-    // range can land on the WRONG text. Measured (reviewer + confirmed by Node
-    // probe against this exact doc, pre-guard): "Second." re-resolves to pm
+    // range can land on the WRONG text. Measured against the doc below, before
+    // the guard (this test is the reproduction): "Second." re-resolves to pm
     // range {from:12, to:20}, and citationText(doc, 12, 20) reads "econd.\n" --
     // one character short at the front, one block separator long at the back,
     // because the paragraph AFTER "Second." gives flatToPmRange's `to` check a
