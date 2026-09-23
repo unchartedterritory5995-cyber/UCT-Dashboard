@@ -4831,6 +4831,24 @@ export class Resolver {
      *  `BUILTIN_CONSTANT_TREE` lookup. Everything else about the translation is
      *  identical, which is the point: two contracts, one reading. */
     this.strict = opts.strict === true
+    /** ⭐⭐ WHICH LANGUAGE A BARE NAME IS IN.
+     *
+     *  Pine v1–v4 spelled its technical-analysis builtins without a namespace;
+     *  v5 moved them into `ta.` and left the bare spelling behind. This engine
+     *  ALSO has a function table of its own whose names a member types in the
+     *  formula box, and several collide with Pine's under different semantics.
+     *
+     *  ⛔ SO THE SAME SIX CHARACTERS MEAN TWO THINGS, AND ONLY THE VERSION CAN
+     *  SAY WHICH. `null` is the formula box — no `//@version`, so the member is
+     *  speaking OUR vocabulary and the house column is correct. A number is a
+     *  pasted script, and at 4 or below a bare `pivothigh` is PINE'S.
+     *
+     *  ⚰️ Measured against TradingView 2026-09-23: without this, every line the
+     *  `trendlines` indicator drew sat one pivot span early, because the house
+     *  `pivothigh` emits ON the pivot bar and Pine emits at the CONFIRMATION
+     *  bar. That is not an offset — it is LOOK-AHEAD, and `PINE_NAMESPACED_TREE`
+     *  says so itself: the `[R]` shift is what cancels it. */
+    this.pineVersion = Number.isFinite(opts.pineVersion) ? opts.pineVersion : null
     /** ⭐ A NOTE SINK, DEFAULTING TO A NO-OP. The walk owns `notes`; the
      *  Resolver never needed to add one before, so every other caller keeps
      *  working unchanged. ⛔ It is a FUNCTION rather than an array, so one
@@ -8172,9 +8190,35 @@ export class Resolver {
     // may spell a `ta.` builtin bare, and that spelling is then genuinely
     // ambiguous. `LEGACY_BARE_NAMESPACE` is this file's existing mechanism for
     // that decision and it is the pine lane's to widen; nothing here guesses.
+    // ⚰️ CLOSED 2026-09-23 — the paragraph above described the gap correctly
+    // and left it open; `namespacedName` below is the widening it asked for.
     // ⭐ AN EXACT IDENTITY BEATS A REFUSAL, and this one is keyed on the SPELLING
     // the member wrote rather than on the table's name — see `PINE_NAMESPACED_TREE`.
-    if (own(PINE_NAMESPACED_TREE, pineName)) {
+    // ⭐⭐ THE LEGACY BARE SPELLING, RESOLVED BY THE SCRIPT'S OWN VERSION.
+    //
+    // ⚰️ THE NOTE ABOVE USED TO END "nothing here guesses", and that was true
+    // and not enough: the gap it names was reachable by pasting any of the 71
+    // v4 scripts in `corpus/committed`. A documented hazard is not a bounded
+    // one. Measured against TradingView, it cost `trendlines` every one of its
+    // five lines (a pivot span early — LOOK-AHEAD, not an offset) and it put
+    // bare `highestbars` back on the inverted sign this repo has already
+    // shipped once.
+    //
+    // ⛔ THE BOUND IS THE VERSION, AND IT IS THE WHOLE SAFETY OF THE CHANGE.
+    // v5 REMOVED the bare spelling, so a v5 script writing `pivothigh(...)` is
+    // not writing Pine and keeps the house column; the formula box has no
+    // version at all and is untouched. Only v1–v4 — where the bare name is
+    // unambiguously Pine's own — is re-routed.
+    // ⭐ ONE NAME, RESOLVED ONCE. The legacy spelling and the modern one reach
+    // the SAME transform through the same three lines below — a second copy of
+    // the argument walk here is `lesson_a_second_authority_over_one_value`, and
+    // the two would drift the first time either was touched.
+    const namespacedName = own(PINE_NAMESPACED_TREE, pineName)
+      ? pineName
+      : ((this.pineVersion !== null && this.pineVersion <= 4
+          && !pineName.includes('.') && own(PINE_NAMESPACED_TREE, `ta.${pineName}`))
+        ? `ta.${pineName}` : null)
+    if (namespacedName) {
       // ⛔ NAMES REFUSE BEFORE ANYTHING IS RESOLVED — see `refuseUnmeasuredNamedArgs`.
       // `ta.pivothigh(source = high, rightbars = 3, leftbars = 7)` translated to
       // `pivothigh(high, 3, 7)[7]` before this line existed.
@@ -8183,7 +8227,7 @@ export class Resolver {
       // and this gate sits outside it. Same call, same order — spelled out rather
       // than reached for, so the two cannot quietly become different lists.
       const resolved = args.map((a) => this.resolve(a.value !== undefined ? a.value : a))
-      const shifted = PINE_NAMESPACED_TREE[pineName](resolved)
+      const shifted = PINE_NAMESPACED_TREE[namespacedName](resolved)
       if (shifted) return shifted
       throw new PineRefusal('pine:arity',
         `\`${pineName}\` returns its value \`rightbars\` after the pivot, so this `
@@ -12675,7 +12719,7 @@ export function translatePine(source, opts = {}) {
   const makeResolver = () => {
     const r = new Resolver(env, table, declaredTypes,
       { finalBindings, finalLocals, mutated: reassigned, source, rawOffsetMap, paramMint,
-        strict: opts.strict === true,
+        strict: opts.strict === true, pineVersion: version,
         noteSink: (code, message, tok) => notes.push(noteOf(code, message, tok)),
         // ⭐ THE BUDGET REACHES EVERY RESOLVER OR IT PROTECTS NONE. The object
         // pass below builds its own, and a hang there is just as fatal.
@@ -12964,7 +13008,7 @@ export function translatePine(source, opts = {}) {
       const probe = new Resolver(env, table, declaredTypes,
         { finalBindings, finalLocals, mutated: reassigned, source, rawOffsetMap,
           paramMint: null,
-          strict: opts.strict === true,
+          strict: opts.strict === true, pineVersion: version,
           basePeriod: opts.basePeriod, newestBarIsForming: opts.newestBarIsForming,
           budgetMs: opts.budgetMs, maxSteps: opts.maxSteps, maxDepth: opts.maxDepth,
           sourcePath: opts.sourcePath })
@@ -13114,7 +13158,7 @@ export function translatePine(source, opts = {}) {
       // call site outside the text reader passes today.
       const r = new Resolver(scope || env, table, declaredTypes,
         { finalBindings, finalLocals, mutated: reassigned, source, rawOffsetMap, paramMint: null,
-          strict: opts.strict === true,
+          strict: opts.strict === true, pineVersion: version,
           basePeriod: opts.basePeriod, newestBarIsForming: opts.newestBarIsForming,
           budgetMs: opts.budgetMs, maxSteps: opts.maxSteps, maxDepth: opts.maxDepth, sourcePath: opts.sourcePath })
       // ⭐⭐ THE OBJECT PASS TAKES THE SAME TWO KNOB SETTINGS THE OUTPUT LOOP
