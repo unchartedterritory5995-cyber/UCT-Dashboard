@@ -1480,3 +1480,52 @@ def test_g064_a_chip_outside_a_block_exports_as_its_number():
         {"type": "text", "text": "See "},
         {"type": "askCitation", "attrs": {"n": 3, "label": "x"}}]}]}
     assert tiptap_to_markdown(doc) == "See [3]"
+
+
+# G-064 close-out (review Minor #5): an `n` that is not an int or a string --
+# a list or dict is unhashable -- raised TypeError in the answer's source list
+# (`num not in sources`) and failed the WHOLE archive. It now reads as missing,
+# through ONE helper the chip branch shares, so the chip cannot print a number
+# the sources line leaves out.
+_MALFORMED_N = [[1], {"a": 1}, 1.5, True]
+
+
+@pytest.mark.parametrize("n", _MALFORMED_N, ids=repr)
+def test_g064_a_chip_with_a_malformed_n_inside_a_block_is_left_out_everywhere(n):
+    doc = _doc({"type": "askInsert",
+                "attrs": {"insertedAt": "2026-09-22T14:03:00.000Z", "question": "q"},
+                "content": [{"type": "paragraph", "content": [
+                    {"type": "text", "text": "Margins fell "},
+                    {"type": "askCitation", "attrs": {"n": n, "label": "Bad"}},
+                    {"type": "askCitation", "attrs": {"n": 1, "label": "NVDA thesis"}},
+                    {"type": "text", "text": "."}]}]})
+    assert tiptap_to_markdown(doc) == (
+        "> **From Ask Notebook** · 2026-09-22 · Q: q\n"
+        "> \n"
+        "> Margins fell [1].\n"
+        "> \n"
+        "> Sources as of insertion: [1] NVDA thesis"
+    )
+
+
+@pytest.mark.parametrize("n", _MALFORMED_N, ids=repr)
+def test_g064_a_chip_with_a_malformed_n_outside_a_block_exports_as_nothing(n):
+    doc = _doc({"type": "paragraph", "content": [
+        {"type": "text", "text": "See "},
+        {"type": "askCitation", "attrs": {"n": n, "label": "Bad"}},
+        {"type": "text", "text": "here."}]})
+    assert tiptap_to_markdown(doc) == "See here."
+
+
+def test_g064_a_string_n_still_exports_and_is_listed():
+    doc = _doc({"type": "askInsert", "attrs": {},
+                "content": [{"type": "paragraph", "content": [
+                    {"type": "text", "text": "A "},
+                    {"type": "askCitation", "attrs": {"n": "2", "label": "Call notes"}}]}]})
+    assert tiptap_to_markdown(doc) == (
+        "> **From Ask Notebook**\n"
+        "> \n"
+        "> A [2]\n"
+        "> \n"
+        "> Sources as of insertion: [2] Call notes"
+    )
