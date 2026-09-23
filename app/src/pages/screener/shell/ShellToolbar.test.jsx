@@ -51,22 +51,12 @@ const base = {
 }
 
 describe('ShellToolbar', () => {
-  it('shows Overview + the curated firm view tabs (Momentum, Base watch, UCT Ratings)', () => {
-    const meta = { views: [
-      { key: 'overview', label: 'Overview', columns: ['ticker', 'price'] },
-      { key: 'momentum', label: 'Momentum', columns: ['ticker', 'rs_rank'] },
-      { key: 'bases', label: 'Bases & Structure', columns: ['ticker', 'base_render'] },
-      { key: 'uct_ratings', label: 'UCT Ratings', columns: ['ticker', 'uct_composite'] },
-      { key: 'technical', label: 'Technical', columns: ['ticker', 'rsi14'] },  // NOT featured → no tab
-    ] }
-    render(<ShellToolbar {...base} meta={meta} />)
+  it('shows ONLY the Overview tab — firm views are chosen from the Columns picker, not tabs', () => {
+    render(<ShellToolbar {...base} />)
     expect(screen.getByRole('tab', { name: 'Overview' })).toBeInTheDocument()
-    expect(screen.getByRole('tab', { name: 'Momentum' })).toBeInTheDocument()
-    expect(screen.getByRole('tab', { name: 'Base watch' })).toBeInTheDocument()   // label override
-    expect(screen.getByRole('tab', { name: 'UCT Ratings' })).toBeInTheDocument()
-    expect(screen.queryByRole('tab', { name: 'Technical' })).toBeNull()           // stays in the picker
-    fireEvent.click(screen.getByRole('tab', { name: 'Momentum' }))
-    expect(base.onView).toHaveBeenCalledWith('momentum')
+    expect(screen.queryByRole('tab', { name: 'Momentum' })).toBeNull()
+    fireEvent.click(screen.getByRole('tab', { name: 'Overview' }))
+    expect(base.onView).toHaveBeenCalledWith('overview')
   })
 
   it('firm layouts moved into the column picker and apply columns on click', () => {
