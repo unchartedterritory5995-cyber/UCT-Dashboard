@@ -1,0 +1,47 @@
+{
+  "verdict": "NO_NEW_FAILURES",
+  "counts": {
+    "new": 0,
+    "fixed": 0,
+    "unchanged": 281,
+    "missing": 0,
+    "baseline": 281,
+    "current": 283,
+    "current_ran": 51934,
+    "new_flaky": 2,
+    "flaky_size": 5,
+    "flaky_new": 2,
+    "flaky_fixed": 0,
+    "file_level_resolved": 0,
+    "coverage_lost": 0,
+    "new_ours": 0,
+    "new_others": 0,
+    "new_unattributed": 0
+  },
+  "arithmetic": "baseline 281 = unchanged 281 + fixed 0 + missing 0  |  current 283 = unchanged 281 + new 0 + new-but-flaky 2",
+  "invalid_because": [],
+  "baseline_run_id": "35915132167",
+  "current_run_id": "35929056945",
+  "baseline_sha": "51a61a8b87b9b43b4d7ffb3301e3650dbb179cf4",
+  "current_sha": "e2ca7407f4e17a30d9448fe3f491a9c3022163ab",
+  "commit_range": "51a61a8b87b9b43b4d7ffb3301e3650dbb179cf4..e2ca7407f4e17a30d9448fe3f491a9c3022163ab",
+  "first_run": false,
+  "new": [],
+  "missing": [],
+  "fixed": [],
+  "new_flaky": [
+    "pytest|tests.test_mutation_check.TestRestoreGuarantee|test_the_file_is_byte_identical_after_a_detected_mutation",
+    "pytest|tests.test_mutation_check.TestVerdicts|test_expect_red_naming_the_right_test_passes"
+  ],
+  "flaky": [
+    "pytest|tests.test_discord_close_note|test_a_note_that_cannot_be_written_still_posts_the_charts",
+    "pytest|tests.test_mutation_check.TestRestoreGuarantee|test_the_file_is_byte_identical_after_a_detected_mutation",
+    "pytest|tests.test_mutation_check.TestVerdicts|test_a_detected_mutation_passes_the_check",
+    "pytest|tests.test_mutation_check.TestVerdicts|test_expect_red_naming_the_right_test_passes",
+    "vitest|src/components/chart/engine/__tests__/stockChartWiring.test.jsx|an engine-drawn indicator still appears in the crosshair legend > \u26d4\u26d4 A HOVER REACHES THE RENDERER NOT AT ALL"
+  ],
+  "file_level_resolved": [],
+  "coverage_lost": [],
+  "missing_buckets": {},
+  "attribution": {}
+}
