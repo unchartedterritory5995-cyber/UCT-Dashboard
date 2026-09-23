@@ -78,17 +78,39 @@ every one that changes what a member sees is summarised under **Decisions** belo
     page load for ~9 s, and the probe ran under it. An instrument artefact, not a product fact.
 - **Deploy:** recorded in the update to this section after the push.
 
+### Wave 4 — the "known, not fixed" list, closed (same day, owner: "continue with anything remaining")
+- **Charts citable one by one:** every widget embed carries its own `embedId` (stamped at creation;
+  a pasted/dropped copy is re-stamped only on an id collision; a move or cut-paste keeps its id).
+- **Long paragraphs** open WHOLE (`location.text_length`), not their first 400 characters.
+- **Line breaks** read as one space in citation text on both sides; the 'İ' case-folding drift is gone;
+  the Ask passage picker is lazy (identical results over 87,196 cases).
+- **Drops** onto a toggle title follow the paste title rules; a drop that would throw lands as text
+  (real-DOM sweep, 323,655 drops: 0 throws / lost / splits; old code: 2,354 splits).
+- **Ask citations that used to do nothing now open:** an excerpt opens its passage (PDF at its page
+  with the highlight, or the captured web passage) and a document opens at its cited page, in all
+  four Ask hosts, through ONE opener (`lib/openCitation.js`); anything that cannot open says why
+  INSIDE the Ask panel (visible on phones). A captured web page never reaches the PDF viewer from
+  any door (this also fixed a live instance in "This note").
+- **The gate itself:** `scripts/gate_shards.py` counts a FAIL line only when it names a test file
+  (the dailyFirstPaint probes' own `FAIL | NC-…` report rows were being recorded as failures), warns
+  when its count disagrees with vitest's, and `docs/plans/joystick/gate-baseline.json` is
+  RE-ADOPTED from a six-shard run on master `51a61a8b8` (126 rows, 0 timeouts; was 10 rows while
+  master failed ~124).
+- **Gate on the landing tree `dac59bda5` (branch + master `51a61a8b8`): GREEN — NEW 0, exit 0**,
+  1,741 files, 122 failing (all master's, baselined). `docs/notebook/gate-runs/g064-closeout/`.
+- **Live walk on the wave-4 build:** the same five checks pass (Ask focus on phone, toggle-span
+  paste, callout paste, title paste, chips); `C:\data` CLEAN, 0 writes
+  (`live-walk-wave4-2026-09-23.json`, `sandbox-runs/2026-09-23T16-35-41.md`).
+- Every wave-4 item: implementer → review → fix rounds → re-review → whole-branch review (READY).
+
 ### Known and recorded, NOT fixed (each ruled out of scope)
-- Chart citations from one `/mtf` or `/compare` insert share an identity, so they open the note
-  rather than the chart (no worse than before: atom citations did not exist). Durable fix: a real
-  per-node id stamped in `buildWidgetEmbedAttrs`.
-- Two identical atoms (two excerpts, two id-less chips) → a citation opens the note; two identical
-  paragraphs can still be confused by a precisely sized edit (text-only verify).
-- A cited block longer than the 400-char snippet cap re-resolves to its first 400 characters.
-- Drops are not covered by the paste plugin's belt or title rules (a multi-block drop onto a toggle
-  title can still split it); list-item copies with non-text endpoints can still throw on parse
+- An atom with no stable identity (a chart inserted BEFORE this deploy that shares its insert's id,
+  a chip with no href) → its citation opens the note, never a sibling; two identical paragraphs can
+  still be confused by a precisely sized edit (text-only verify).
+- The research workspace's Documents list opens a captured web page's NOTE, not the captured-passage
+  sheet (the research summary carries no capture passages).
+- List-item copies with non-text endpoints can still throw on parse
   (programmatic only); a stale pre-deploy clipboard can hit the old parse throw once.
-- `_best_note_passage` lower()-index drift for characters whose lowercase form is longer (e.g. İ).
 - The fingerprint "fast path" is computed and never compared (dead code).
 
 ### Decisions made under the delegation (full list in the session ledger)
