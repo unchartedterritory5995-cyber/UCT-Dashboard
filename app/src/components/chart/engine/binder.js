@@ -73,7 +73,7 @@ import {
 } from './sourceRef'
 import { projectionFor, clippedBarsFor } from './symbolProjection'
 import { fundamentalColumn } from './fundamentalSource'
-import { fundamentalFormatOfInputs, fundamentalPriceFormat } from './fundamentalFormat'
+import { fundamentalFormatOfInstance, fundamentalPriceFormat } from './fundamentalFormat'
 import { ohlcCapabilityOf, barHasOhlc, outputIsSource } from './ohlcCapability'
 import { sourceCapabilityOf } from './sourceCapability'
 import { resolvePlotStyle, resolveCandleColors } from './presentation'
@@ -1222,7 +1222,8 @@ export function createBinder({ chart, LWC }) {
         // the next paint — roughly once a second in extended hours.
         indicatorsHidden: ctx.indicatorsHidden === true,
         // ⭐ A `fund:` source's unit, from the catalogue -- null for everything else.
-        priceFormat: fundamentalPriceFormat(fundamentalFormatOfInputs(b.inst && b.inst.inputs)),
+        // An MA of a fundamental inherits its unit (`domainBehavior: 'inherit'`).
+        priceFormat: fundamentalPriceFormat(fundamentalFormatOfInstance(b.inst, (id) => registry.getDefinition(id), instances)),
         // ⭐ ONLY A CANDLE READS THESE, and resolving them HERE is what keeps the
         // chart's own palette the default: `cs.candles` is the member's candle
         // colour, so a secondary instrument wears it until they override it on

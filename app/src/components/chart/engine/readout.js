@@ -94,7 +94,7 @@
 // `sourceStemOf` below refuses to import and says why. See its header for why one
 // naming rule is shared and the other is deliberately spelled twice.
 import { semanticName, namesItselfSemantically } from './semanticName'
-import { formatFundamentalValue, fundamentalFormatOfInputs } from './fundamentalFormat'
+import { formatFundamentalValue, fundamentalFormatOfInstance } from './fundamentalFormat'
 
 /** LWC's own default when a plot declares no `legend.decimals`. Two, because
  *  that is `seriesOptionsDefaults.priceFormat.precision` and a chip with no
@@ -355,7 +355,10 @@ export function chipsFrom(entries, seriesData, registry, inputsFor, displayFor, 
     const decimals = Number.isInteger(plot.legend.decimals) ? plot.legend.decimals : DEFAULT_DECIMALS
     // ⭐ THE DECLARATION TRAVELS WITH THE CHIP — see `chipValueText`.
     const compact = plot.legend.compact === true
-    const format = fundamentalFormatOfInputs(inputs)
+    // ⭐ By INSTANCE, so an MA of a fundamental reads in the fundamental's unit.
+    const format = fundamentalFormatOfInstance(
+      (Array.isArray(instances) ? instances : []).find((i) => i && i.instanceId === e.instanceId) || { inputs },
+      get, instances)
     const label = chipLabel(def, plot, inputs,
       typeof displayFor === 'function' ? displayFor(e.defId, e.instanceId) : null)
 

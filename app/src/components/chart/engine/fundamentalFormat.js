@@ -50,6 +50,31 @@ export function fundamentalFormatOfInputs(inputs) {
   return m && typeof m.fmt === 'string' ? m.fmt : null
 }
 
+/**
+ * The unit an INSTANCE reads in: its own `fund:` source's, or -- for a
+ * definition that declares `domainBehavior: 'inherit'` (the Moving Average) --
+ * the unit of the instance it averages, recursively. An average of a percent is
+ * a percent; a definition that makes no such claim inherits nothing, which is
+ * the same rule `sourceRef.resolveScaleDomain` applies to ranges.
+ *
+ * ⚠️ The instance grammar (`@<instanceId>::<plotKey>`, `pool.bindingKey`) is
+ * read here rather than through `sourceRef.parseSource` -- see the no-sourceRef
+ * note above.
+ */
+export function fundamentalFormatOfInstance(inst, defOf, instances, depth = 0) {
+  if (!inst || depth > 8) return null
+  const own = fundamentalFormatOfInputs(inst.inputs)
+  if (own) return own
+  const def = typeof defOf === 'function' ? defOf(inst.defId) : null
+  if (!def || def.domainBehavior !== 'inherit') return null
+  const src = inst.inputs && typeof inst.inputs.source === 'string' ? inst.inputs.source : ''
+  if (src[0] !== '@') return null
+  const cut = src.lastIndexOf('::')
+  const id = cut > 1 ? src.slice(1, cut) : null
+  const next = id && Array.isArray(instances) ? instances.find((i) => i && i.instanceId === id) : null
+  return next ? fundamentalFormatOfInstance(next, defOf, instances, depth + 1) : null
+}
+
 // ⭐ ONE FROZEN priceFormat PER fmt, so re-binding the same series hands the
 // renderer the SAME object and never looks like an option change.
 const _priceFormats = new Map()

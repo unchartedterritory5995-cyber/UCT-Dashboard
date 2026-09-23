@@ -30,7 +30,8 @@ import ChartWidget from '../../pages/charts/widgets/ChartWidget'
 import { mergeChartSettings } from '../../components/chart/chartDefaults'
 import * as registry from '../../components/chart/engine/nativeRegistry'
 import { createDirectSeries, createFromResult, fundamentalResults } from '../../components/chart/discoveryCatalog'
-import { addInstance } from '../../components/chart/engine/instanceControls'
+import { addInstance, setInstanceInput } from '../../components/chart/engine/instanceControls'
+import { instanceSource } from '../../components/chart/engine/sourceRef'
 
 const ERRORS = []
 window.addEventListener('error', (e) => ERRORS.push(String((e.error && e.error.stack) || e.message)))
@@ -216,6 +217,17 @@ function seedSettings(ids, controls = []) {
   return file('catalog.json').then((cat) => {
     for (const res of fundamentalResults(cat.metrics).filter((r) => ids.includes(r.id))) {
       cs = createFromResult(cs, res, registry)
+    }
+    // `?ma=<period>` -- a Moving Average whose Source is the FIRST fundamental,
+    // written the way the MA's Source picker writes it (`instanceSource`).
+    const period = Number(params.get('ma'))
+    const host = (cs.indicatorInstances || []).find((i) => String(i.inputs && i.inputs.source).startsWith('fund:'))
+    if (period > 0 && host) {
+      const before = new Set(cs.indicatorInstances.map((i) => i.instanceId))
+      cs = addInstance(cs, 'movingAverage', registry)
+      const ma = cs.indicatorInstances.find((i) => !before.has(i.instanceId))
+      cs = setInstanceInput(cs, ma.instanceId, 'source', instanceSource(host.instanceId, 'value'), registry)
+      cs = setInstanceInput(cs, ma.instanceId, 'period', period, registry)
     }
     return cs
   })
