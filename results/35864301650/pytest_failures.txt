@@ -1,0 +1,87 @@
+tests.pattern_engine.test_pattern_db_shared_root_guard | test_explicit_allow_shared_root_override_bypasses_the_guard | AssertionError: assert '/data/patterns.db' == '/home/runner...\\patterns.db'
+tests.test_alert_taxonomy_indicator_condition_schema | test_the_callers_of_the_type_module_are_exactly_the_declared_four | AssertionError: the caller set changed: ['dark_report.py', 'indicator_alert_evaluator.py', 'indicator_condition_compare.py', 'indicator_condition_projection.py', 'main.py']
+tests.test_alert_taxonomy_position_risk_schema | test_aggregate_heat_has_NO_scheduled_or_delivering_legacy_path | AssertionError: the portfolio_heat call sites moved: ['api/routers/portfolio_heat.py', 'api/services/ai_search_personal.py', 'api/services/journal_two/coach_chat_tools.py', 'api/services/portfolio_heat.py', 'api/services/test_portfolio_heat.py', 'api/services/voice_tool_impls.py']
+tests.test_bars_ordinal_census | test_bars_ordinal_census_matches_a_fresh_derivation | AssertionError: the checked-in census is stale — regenerate with `python tools/bars_ordinal_census.py`
+tests.test_bars_server_include_today | test_todays_daily_bar_stamps_today_and_caches | TypeError: 'NoneType' object is not subscriptable
+tests.test_calendar_week_post | test_most_anticipated_card_render_is_pinned | AssertionError: assert '814a9107c457...e7d9627274bdd' == 'f1ae5925d8d8...fc17075e86d0c'
+tests.test_deploy_watch | test_the_real_boundary_resolve_and_run_railway_status_json_for_real | deploy_watch.RailwayNotFound: `railway` is not on PATH. shutil.which found nothing, so every probe would raise FileNotFoundError and the watch would report nothing while looking healthy.
+tests.test_document_ocr.TestAClaimNobodyCanServeIsNotProcessing | test_the_member_facing_chain_ends_at_a_navigable_page | assert False is True
+tests.test_entitlements_manifest | test_the_checked_in_manifest_IS_what_the_declarations_derive | AssertionError: the checked-in entitlements manifest is not what the declarations derive:
+tests.test_feature_flag_ledger | test_every_off_by_default_gate_is_declared | AssertionError: These feature gates are OFF unless something sets them, and nothing in docs/feature_flags.json says whether that is deliberate:
+tests.test_flow_aggregate | test_warm_means_this_exact_version_not_merely_something_cached | assert False is True
+tests.test_flow_aggregate | test_cold_is_reported_but_is_not_a_failure | AssertionError: assert (False is False and 'bundle_missing' == 'cold'
+tests.test_flow_aggregate | test_each_way_it_can_break_names_itself[env2-node_missing] | AssertionError: assert 'bundle_missing' == 'node_missing'
+tests.test_flow_aggregate | test_it_alerts_on_TRANSITION_only | assert (0 == 1)
+tests.test_flow_aggregate | test_recovery_is_announced_too | assert (0 == 1)
+tests.test_flow_prepare | test_warm_is_FALSE_when_the_parts_transport_is_on_but_cold | KeyError: 'warm_whole'
+tests.test_flow_prepare | test_CONTROL_with_parts_off_the_whole_D_verdict_is_unchanged | assert (False is True)
+tests.test_flow_prepare | test_warm_is_TRUE_once_the_parts_for_the_default_view_are_built | assert (False is True)
+tests.test_flow_prepare | test_parts_built_for_a_SUPERSEDED_version_are_not_warm | AssertionError: assert 'stale' in (('bundle_missing'))
+tests.test_flow_prepare | test_a_BURST_of_bumps_collapses_to_ONE_roll | AssertionError: 2 rolls from 5 bumps — the loop is observing intermediate versions, so a burst CAN reach the ledger and rolls 2..N would be misfiled as steady-state
+tests.test_fundamentals_snapshot_store | test_earnings_table_stale_serves_old_and_schedules_refresh | AssertionError: assert [] == ['ZZSTALE']
+tests.test_fundamentals_snapshot_store | test_earnings_table_too_old_rebuilds_synchronously | AssertionError: assert ['ZZOLD'] == ['ZZOLD', 'ZZOLD']
+tests.test_implied_backfill.TestFiscalJoin | test_off_calendar_filer_gets_the_right_quarter | TypeError: TestFiscalJoin.providers.<locals>.fake_fmp() got an unexpected keyword argument 'timeout'
+tests.test_implied_backfill.TestFiscalJoin | test_september_filer_gets_the_right_quarter | TypeError: TestFiscalJoin.providers.<locals>.fake_fmp() got an unexpected keyword argument 'timeout'
+tests.test_implied_backfill.TestFiscalJoin | test_future_announcements_are_excluded | TypeError: TestFiscalJoin.providers.<locals>.fake_fmp() got an unexpected keyword argument 'timeout'
+tests.test_implied_backfill.TestFiscalJoin | test_one_quarter_is_never_claimed_twice | TypeError: TestFiscalJoin.test_one_quarter_is_never_claimed_twice.<locals>.<lambda>() got an unexpected keyword argument 'timeout'
+tests.test_implied_backfill.TestFiscalJoin | test_distinct_quarters_all_survive | TypeError: TestFiscalJoin.providers.<locals>.fake_fmp() got an unexpected keyword argument 'timeout'
+tests.test_implied_backfill.TestFiscalJoin | test_a_far_away_period_is_refused_not_least_wrong | TypeError: TestFiscalJoin.test_a_far_away_period_is_refused_not_least_wrong.<locals>.<lambda>() got an unexpected keyword argument 'timeout'
+tests.test_implied_backfill.TestFmpIsThePrimaryFiscalSource | test_falls_back_to_finnhub_rather_than_dropping_the_symbol[None-a shrug \u2014 the provider never answered] | TypeError: TestFmpIsThePrimaryFiscalSource.test_falls_back_to_finnhub_rather_than_dropping_the_symbol.<locals>.<lambda>() got an unexpected keyword argument 'timeout'
+tests.test_implied_backfill.TestFmpIsThePrimaryFiscalSource | test_falls_back_to_finnhub_rather_than_dropping_the_symbol[fmp_result1-answered, but with no history] | TypeError: TestFmpIsThePrimaryFiscalSource.test_falls_back_to_finnhub_rather_than_dropping_the_symbol.<locals>.<lambda>() got an unexpected keyword argument 'timeout'
+tests.test_implied_backfill.TestFmpIsThePrimaryFiscalSource | test_falls_back_to_finnhub_rather_than_dropping_the_symbol[fmp_result2-answered, but the income statement carried no fiscal identity] | TypeError: TestFmpIsThePrimaryFiscalSource.test_falls_back_to_finnhub_rather_than_dropping_the_symbol.<locals>.<lambda>() got an unexpected keyword argument 'timeout'
+tests.test_implied_backfill.TestFmpIsThePrimaryFiscalSource | test_an_exception_from_fmp_falls_back_instead_of_escaping | TypeError: TestFmpIsThePrimaryFiscalSource.test_an_exception_from_fmp_falls_back_instead_of_escaping.<locals>.<lambda>() got an unexpected keyword argument 'timeout'
+tests.test_implied_backfill.TestFmpIsThePrimaryFiscalSource | test_the_real_fmp_leg_is_wired_up_end_to_end | TypeError: TestFmpIsThePrimaryFiscalSource.test_the_real_fmp_leg_is_wired_up_end_to_end.<locals>.fake_fmp() got an unexpected keyword argument 'timeout'
+tests.test_implied_backfill.TestFinnhubPacing | test_an_empty_finnhub_response_is_retried_not_accepted | TypeError: TestFinnhubPacing.test_an_empty_finnhub_response_is_retried_not_accepted.<locals>.<lambda>() got an unexpected keyword argument 'timeout'
+tests.test_implied_backfill.TestFinnhubPacing | test_gives_up_after_the_attempt_budget | TypeError: TestFinnhubPacing.test_gives_up_after_the_attempt_budget.<locals>.<lambda>() got an unexpected keyword argument 'timeout'
+tests.test_implied_backfill.TestFinnhubPacing | test_no_finnhub_call_at_all_when_fmp_has_nothing | TypeError: TestFinnhubPacing.test_no_finnhub_call_at_all_when_fmp_has_nothing.<locals>.<lambda>() got an unexpected keyword argument 'timeout'
+tests.test_implied_backfill.TestFinnhubPacing | test_every_finnhub_call_is_actually_paced | TypeError: TestFinnhubPacing.test_every_finnhub_call_is_actually_paced.<locals>.<lambda>() got an unexpected keyword argument 'timeout'
+tests.test_launch_hardening | test_theme_warm_is_throttled_and_capped | AssertionError: second immediate poll should be throttled
+tests.test_massive_ws_stop | test_stop_sends_close_frame_and_joins | assert False is True
+tests.test_massive_ws_stop | test_stop_idempotency_and_stop_before_start | assert False is True
+tests.test_mutation_check.TestRestoreGuarantee | test_the_file_is_byte_identical_after_a_detected_mutation | AssertionError: assert 1 == 0
+tests.test_nb_foreign_commits | test_the_tools_own_self_check_passes[args0-0] | AssertionError: 24 2026 -0500', 'subject': 'Q1 fix 4: a dirty record is never overwritten by server-derived state - and the gauntlet caught half of it as decoration', 'notebook_files': ['app/src/pages/journal-2-0/lib/offline/notebookDb.js', 'app/src/pages/journal-2-0/lib/offline/offlineWordsSurvive.property.test.jsx', 'app/src/pages/journal-2-0/lib/offline/remountNeverDiscardsUnsent.test.js', 'app/src/pages/journal-2-0/lib/offline/selfForkDoors.test.jsx', 'app/src/pages/journal-2-0/lib/offline/useDurableNote.js'], 'save_path_files': ['app/src/pages/journal-2-0/lib/offline/notebookDb.js', 'app/src/pages/journal-2-0/lib/offline/offlineWordsSurvive.property.test.jsx', 'app/src/pages/journal-2-0/lib/offline/remountNeverDiscardsUnsent.test.js', 'app/src/pages/journal-2-0/lib/offline/selfForkDoors.test.jsx', 'app/src/pages/journal-2-0/lib/offline/useDurableNote.js']}, {'sha': '99f2a6fb9', 'author': 'Claude Fable 5', 'when': 'Sun Sep 13 19:34:15 2026 -0500', 'subject': 'F5 freeze: amend the arming condition to "green or NAMED", per the ruling it contradicted', 'notebook_files': ['app/src/pages/journal-2-0/lib/offline/f5Freeze.test.js'], 'save_path_files': ['app/src/pages/journal-2-0/lib/offline/f5Freeze.test.js']}, {'sha': 'c988b3d4d', 'author': 'Claude Fable 5', 'when': 'Sun Sep 13 19:30:50 2026 -0500', 'subject': 'rails+audit: the remount defect reproduced at unit level (RED, held), and the cheap-answer audit', 'notebook_files': ['app/src/pages/journal-2-0/lib/offline/remountNeverDiscardsUnsent.test.js'], 'save_path_files': ['app/src/pages/journal-2-0/lib/offline/remountNeverDiscardsUnsent.test.js']}, {'sha': '7f9f72a65', 'author': 'Claude Fable 5', 'when': 'Sun Sep 13 17:31:12 2026 -0500', 'subject': 'F5: the supersede defect REPRODUCED at unit level, with both controls green', 'notebook_files': ['app/src/pages/journal-2-0/lib/offline/supersedeProvesContent.test.js'], 'save_path_files': ['app/src/pages/journal-2-0/lib/offline/supersedeProvesContent.test.js']}] want []
+tests.test_nb_observe | test_a_5xx_reading_is_SKIPPED_not_an_ANOMALY | AssertionError: errs = [x for x in observed
+tests.test_no_cr_in_tracked_text_blobs | test_no_tracked_text_file_is_staged_with_cr_line_endings | AssertionError: these tracked files would be committed with CR line endings, which makes `git blame` attribute the whole file to one commit and turns any concurrent edit into a whole-file conflict:
+tests.test_preference_key_validation | test_every_key_the_client_writes_is_still_accepted | AssertionError: unresolved key expressions: ['same']
+tests.test_render_token_never_logged | test_scrub_removes_a_token_from_a_real_playwright_error | ModuleNotFoundError: No module named 'edge_scope'
+tests.test_scan_screener_auth | test_a_PAID_member_still_gets_200_on_EVERY_route | TypeError: stub_services.<locals>.<lambda>() got an unexpected keyword argument 'user'
+tests.test_scan_screener_auth | test_an_ADMIN_gets_200_everywhere_including_the_refresh_route | TypeError: stub_services.<locals>.<lambda>() got an unexpected keyword argument 'user'
+tests.test_scan_screener_auth | test_a_TRIAL_member_is_treated_as_paid | TypeError: stub_services.<locals>.<lambda>() got an unexpected keyword argument 'user'
+tests.test_screener_wave2_analyst_store | test_fetch_one_all_four_legs_answer | AssertionError: assert None == {'consensus': 'Buy', 'downgrades_30d': 1, 'eps_next_y_growth': 50.0, 'pt_target': 200.0, ...}
+tests.test_screener_wave2_analyst_store | test_fetch_one_pt_target_falls_back_to_median | TypeError: 'NoneType' object is not subscriptable
+tests.test_screener_wave2_analyst_store | test_fetch_one_a_raising_leg_nulls_only_its_slice | TypeError: 'NoneType' object is not subscriptable
+tests.test_screener_wave2_analyst_store | test_fetch_one_zero_total_consensus_refused_but_other_legs_survive | TypeError: 'NoneType' object is not subscriptable
+tests.test_screener_wave2_analyst_store | test_fetch_one_negative_base_growth_is_refused | TypeError: 'NoneType' object is not subscriptable
+tests.test_screener_wave2_analyst_store | test_fetch_one_growth_needs_two_distinct_fiscal_years | TypeError: 'NoneType' object is not subscriptable
+tests.test_screener_wave2_analyst_store | test_fetch_one_growth_pairs_current_and_next_fy_not_the_payload_edges | TypeError: 'NoneType' object is not subscriptable
+tests.test_screener_wave2_analyst_store | test_fetch_one_30day_window_is_boundary_inclusive | TypeError: 'NoneType' object is not subscriptable
+tests.test_screener_wave2_analyst_store | test_fetch_one_30day_window_only_counts_upgrade_downgrade_actions | TypeError: 'NoneType' object is not subscriptable
+tests.test_screener_wave2_earnings_dates | test_run_pull_earliest_future_date_wins_and_receipt_rows_is_deduped_union | assert 84 == 0
+tests.test_screener_wave2_earnings_dates | test_run_pull_malformed_rows_are_skipped_not_fatal | AssertionError: assert {} == {'GOOD': {'da...sion': 'tbd'}}
+tests.test_screener_wave2_earnings_dates | test_run_pull_flags_a_chunk_at_the_fmp_row_cap_but_keeps_its_rows | AssertionError: assert [] == ['2026-08-27']
+tests.test_screener_wave2_earnings_dates | test_run_pull_et_evening_does_not_discard_a_report_dated_todays_et_date | AssertionError: assert 'TODAYREP' in {}
+tests.test_shared_data_root_guard | test_the_screener_default_would_still_name_the_live_database | AssertionError: expected the un-pinned resolution to name the shared root, got './data/screener.db'
+tests.test_shared_data_root_guard | test_each_newly_pinned_path_still_resolves_to_ITS_OLD_LITERAL_when_unset | AssertionError: an override CHANGED THE PRODUCTION DEFAULT — with nothing set the product must resolve exactly what the bare literal did:
+tests.test_shared_state_landmines | test_no_test_module_binds_into_sys_modules_at_import_time | AssertionError: import-time sys.modules bind(s) — install AND remove it in a fixture, or delete the stub if the reason for it has expired:
+tests.test_spa_head_reachability | test_the_spa_catch_all_answers_head_as_well_as_get | AssertionError: the SPA catch-all route is gone -- this rail is pointing at nothing
+tests.test_ticker_logos | test_fmp_profile_row_parses_list_of_one_shape | AssertionError: assert None == {'companyName': 'Apple Inc.', 'sector': 'Technology'}
+tests.test_ticker_logos | test_fmp_profile_row_parses_bare_dict_shape | AssertionError: assert None == {'companyName': 'Apple Inc.'}
+tests.test_ticker_logos | test_finnhub_logo_bytes_uses_fmp_image_when_present_and_skips_finnhub | AssertionError: assert None == b'\x89PNG\r\n\x1a\nfmp-logo'
+tests.test_ticker_logos | test_finnhub_logo_bytes_fmp_5xx_marks_transient_then_finnhub_still_tried | assert False is True
+tests.test_ticker_meta | test_fmp_is_tried_before_finnhub_and_finnhub_skipped_on_fmp_hit | AssertionError: assert {'exchange': ...r': None, ...} == {'exchange': ...hnology', ...}
+tests.test_ticker_meta | test_fmp_field_mapping_happy_path | AssertionError: assert None == 'Apple Inc.'
+tests.test_ticker_meta | test_fmp_market_cap_unit_conversion_asserts_magnitude | assert None == 4567767.716 ± 4.6e-03
+tests.test_ticker_meta | test_fmp_missing_marketcap_key_entirely_yields_none | AssertionError: assert None == 'No Cap Co'
+tests.test_ticker_meta | test_fmp_partial_then_finnhub_fills_remainder | AssertionError: assert {'exchange': ...r': None, ...} == {'exchange': ...hnology', ...}
+tests.test_two_engines_do_not_agree | test_the_shipped_thresholds_have_not_moved | AssertionError: these thresholds changed since the agreement table was measured:
+tests.test_web_capture_coverage.TestCoverageInTheEnvelope | test_a_web_passage_page_carries_selected_passage_only | KeyError: 'text_origin'
+tests.test_web_capture_coverage.TestCoverageInTheEnvelope | test_a_web_reference_carries_metadata_only | KeyError: 'text_origin'
+tests.test_web_capture_coverage.TestCoverageInTheEnvelope | test_a_PDF_page_still_carries_document_complete | KeyError: 'text_origin'
+tests.test_web_capture_coverage.TestCoverageInTheEnvelope | test_a_row_with_NO_capture_type_is_treated_as_a_pre_wave_L_pdf | KeyError: 'text_origin'
+tests.test_web_capture_coverage.TestCoverageInTheEnvelope | test_selected_passage_only_can_NEVER_map_to_document_complete | KeyError: 'text_origin'
+tests.test_web_capture_coverage.TestAdversarialCoverage | test_a_reference_only_capture_offers_NO_body_text_to_answer_from | KeyError: 'text_origin'
+tests.test_web_capture_coverage.TestCitationTruthfulness | test_a_web_capture_is_labelled_a_CAPTURED_PASSAGE_not_a_page | KeyError: 'text_origin'
+tests.test_web_capture_coverage.TestCitationTruthfulness | test_a_PDF_page_STILL_says_p_N | KeyError: 'text_origin'
+tests.test_wisdom_extract_tools | test_tools_refuse_paths_inside_the_shared_data_root | AssertionError: assert (False)
+tests.test_wisdom_publish_adapters_routes | test_admin_routes_answer_401_403_200 | AssertionError: assert (set() == {'NVDA'}
+tests.test_yf_guard_binds | test_every_yfinance_module_has_a_binding_proof_or_a_named_reason | AssertionError: these modules reach yfinance and have no binding proof:
