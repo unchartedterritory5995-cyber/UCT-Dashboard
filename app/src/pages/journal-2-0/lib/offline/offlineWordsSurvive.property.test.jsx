@@ -30,7 +30,9 @@ import { drainOutbox } from './outboxDrain'
 import { settleLandedSave, recordLandedRevision } from './useDurableNote'
 import { markerFor, markerKeyFor, landedKeyFor, withLanded, IN_FLIGHT_TTL_MS } from './inFlight'
 import { OFFLINE_FLAG_KEY } from './offlineFlag'
-import { nodeKeyOf } from './serverChange'
+import {
+  BODY_REWRITE, appendedServerNodes, classifyServerChange, missingServerNodes, nodeKeyOf, serverAppendedKeysIn,
+} from './serverChange'
 
 const doc = (t) => ({ type: 'doc', content: [{ type: 'paragraph', content: [{ type: 'text', text: t }] }] })
 const text = (bodyJson) => JSON.stringify(bodyJson || {})
@@ -92,7 +94,12 @@ beforeEach(() => {
  */
 function makeServer(startBody) {
   let rev = 0
-  const state = { body: startBody, updatedAt: T0 }
+  // ⛔ THE NOTE HAS A TITLE ON THE SERVER, as a real one does. D3 (wave 5): the
+  // fixture carried none while the member's record carried 'note', which was
+  // harmless until a settle's server copy became a classifier base -- then a
+  // title that differs only because the MODEL dropped it reads as an authored
+  // change and forks. The drain never sends a different title, so it stays put.
+  const state = { body: startBody, updatedAt: T0, title: 'note', subtitle: '' }
   const notes = { count: 1 }          // forks create a SECOND note
   const stamp = () => { rev += 1; state.updatedAt = `2026-09-10T13:00:${String(10 + rev).padStart(2, '0')}.000000+00:00` }
   return {
@@ -111,6 +118,14 @@ function makeServer(startBody) {
       }
       stamp()
       state.lastDoor = which
+      return { ...state }
+    },
+    /** A SECOND write after the door, always metadata: the revision moves and
+     *  the body does not. ⛔ Separate from `door` on purpose — the matrix
+     *  replaces `door` with the family under test, and this one must stay a
+     *  folder/ticker/tags write whatever that family is. */
+    metadataStamp() {
+      stamp()
       return { ...state }
     },
     /** the editor's / drain's compare-and-set body PUT */
@@ -234,12 +249,83 @@ async function doorHappens(server, which, { canSeeLocalState }) {
   if (canSettle) {
     await settleLandedSave({
       accountId: 'a1', noteId: 'n1',
-      acked: { bodyJson: s.body }, current: { bodyJson: doc(BOTH) },
+      // ⛔ `acked` is the SERVER'S WHOLE COPY and `current` the editor's, exactly as
+      // `settleMetadataRevision` passes them (`acked: saved`, `current: captureLocalState()`).
+      acked: { title: s.title, subtitle: s.subtitle, bodyJson: s.body },
+      current: { title: 'note', subtitle: '', bodyJson: doc(BOTH) },
       updatedAt: s.updatedAt, connect,
     })
   }
   await settleIdb(4)
   return s
+}
+
+/**
+ * ⭐ D3 (wave 5) — A METADATA DOOR THAT SETTLES *AFTER* THE FAMILY'S DOOR.
+ *
+ * The member queued words, the family's door moved the note, and THEN they
+ * changed a folder/ticker/tags from the open editor — the one door that settles
+ * with local state (`settleMetadataRevision` → `settleLandedSave`, acked = the
+ * server's copy, current = the member's words). Modelled exactly as
+ * `doorHappens` models its own settle-first case.
+ *
+ * ⛔ WHY IT IS ITS OWN ORDERING: the settle keeps the member's words dirty and
+ * re-queues them — and it also decides which server copy the drain's classifier
+ * will later diff against. For an APPEND family that copy is the whole
+ * question: diff against a copy that already holds the appended node and the
+ * node reads as "not a change", the queued body is re-sent over it, and the
+ * widget the member captured is gone. Nothing in the six single-door orderings
+ * can reach that, because in each of them the only settle is the door's own.
+ */
+async function metadataDoorSettles(server) {
+  const s = server.metadataStamp()
+  await recordLandedRevision({ accountId: 'a1', noteId: 'n1', updatedAt: s.updatedAt, connect })
+  await settleLandedSave({
+    accountId: 'a1', noteId: 'n1',
+    acked: { title: s.title, subtitle: s.subtitle, bodyJson: s.body },
+    current: { title: 'note', subtitle: '', bodyJson: doc(BOTH) },
+    updatedAt: s.updatedAt, connect,
+  })
+  await settleIdb(4)
+}
+
+/**
+ * ⭐ D3 (wave 5) — THE EDITOR MERGED THE DOOR'S CHANGE, SAVED, AND ITS SETTLE
+ * READ THE RECORD BEFORE THE MERGE REACHED IT.
+ *
+ * What `commitSave` does when the member is ON the note holding their words and
+ * a door moved it: PUT → 409 → `reconcileConflict` classifies the server's copy
+ * against the one the words were written on (`lastSavedRef`), inserts any
+ * server-appended blocks it lacks, advances the baseline and re-sends; on the
+ * 200 it calls `markSynced` AND `settleLandedSave` back to back.
+ *
+ * ⛔⛔ THE INTERLEAVING THAT MATTERS. `persist` (via `markSynced`'s flush) and
+ * `settleLandedSave` are two read-modify-write writers on one record, started
+ * in the same tick. IndexedDB serialises their WRITES but lets both READS run
+ * first, so the settle can read the record as it stood BEFORE the merged body
+ * was written and land LAST. Modelled here as the settle running alone against
+ * the pre-merge record: the one ordering whose final state is the settle's.
+ *
+ * ⭐ The merge is computed through the product's own classifier helpers, never
+ * typed, so this fixture cannot disagree with the editor about what it merges.
+ */
+async function editorMergesAndSaves(server) {
+  const rec = await getNote(db, 'n1')
+  const base = rec.serverBase                       // what the editor's lastSavedRef held
+  const fresh = { ...server.state, bodyJson: server.state.body }
+  const shape = classifyServerChange(fresh, base)
+  expect(shape, 'the editor only re-sends after a door it can prove').not.toBe(BODY_REWRITE)
+  const mine = doc(BOTH)
+  const missing = missingServerNodes(appendedServerNodes(fresh, base) || [], serverAppendedKeysIn(mine))
+  const merged = { ...mine, content: [...mine.content, ...missing] }
+  const saved = await server.send({
+    noteId: 'n1', baseUpdatedAt: server.state.updatedAt, patch: { title: 'note', subtitle: '', bodyJson: merged },
+  })
+  const sent = { title: 'note', subtitle: '', bodyJson: merged }
+  await settleLandedSave({
+    accountId: 'a1', noteId: 'n1', acked: sent, current: sent, updatedAt: saved.updatedAt, connect,
+  })
+  await settleIdb(4)
 }
 
 // ── the orderings ───────────────────────────────────────────────────────────
@@ -277,6 +363,16 @@ const ORDERINGS = {
     await doorHappens(server, 'folder', { canSeeLocalState: false })
     await putMeta(db, markerKeyFor('n1'), markerFor({ sessionId: 'previous-tab', baseUpdatedAt: T0 }))
     await settleIdb(4)
+  },
+  // ⭐ D3 (wave 5): two orderings with a SECOND write after the door. See the
+  // two helpers above for why each is a real product path and not a variant.
+  'a metadata door settles after it (the editor could report local state)': async (server) => {
+    await doorHappens(server, 'folder', { canSeeLocalState: false })
+    await metadataDoorSettles(server)
+  },
+  'the editor merged it and saved; its settle read the pre-merge record': async (server) => {
+    await doorHappens(server, 'folder', { canSeeLocalState: false })
+    await editorMergesAndSaves(server)
   },
 }
 

@@ -1,5 +1,32 @@
 # Q1-F5 — THE APPEND-ONLY MERGE IS UNREACHABLE FOR THE DOOR THIS BROWSER FIRED
 
+> ## ✅ CLOSED — read this first (2026-09-23, wave 5, decision D3)
+>
+> ⚰️ **Everything below this box is the 2026-09-13 record, kept verbatim. Its
+> "LIVE in production today" and "NOT FIXED HERE" stopped being true the same
+> day** — the owner ruled, and `9a213bd45` (*"Q1 fix 3 — classify before
+> choosing, so the append merge is reachable"*, 2026-09-13, an ancestor of
+> `origin/master`) added `ringVouchedPlan` to `outboxDrain.js`: the ring still
+> says "ours", but the diff now decides rebase / merge / fork. This file was
+> never updated, and on 2026-09-23 it was read as a live defect.
+>
+> **Measured at `feat/notebook-10` HEAD, 2026-09-23:**
+>
+> | check | result |
+> |---|---|
+> | `offlineWordsSurvive.property.test.jsx`, the original 7 families × 6 orderings | **42 / 42 GREEN** (the 18 append cells included) |
+> | mutation: `ringVouchedPlan` answers `'rebase'` for `APPEND_ONLY` (fix 3 undone) | **exactly the 18 append cells RED**, all 24 metadata cells green — the finding, reproduced to the cell. Restored, sha256 verified |
+> | production, `wave-q1-f5-production-matrix.md` (2026-09-19) | `append_widget_embed` **5 / 5 GREEN** (node present, sentence present, no fork). `append_financial_fact` / `append_document_excerpt` INCONCLUSIVE — the rig cannot open those doors (named limitations in `q1-product-followups.md`) |
+>
+> ⭐ **AND THE SAME CLASS WAS STILL OPEN ONE WRITER OVER.** Widening the rail with
+> two orderings that put a SECOND write after an append door found the node
+> dropped again — this time through `settleLandedSave`, not the ring: its
+> unsent-work branch replaced the record's `serverBase` with a copy that already
+> held the appended node, so the drain's diff read the append as "no change" and
+> re-sent the member's body over it (6 / 6 append cells RED, all metadata green).
+> Fixed under D3 in wave 5 — mechanism, fix, rails and mutation proofs in
+> **`docs/notebook/f5-fixes-2026-09-23.md` §2**.
+
 **Found 2026-09-13, at unit level, by widening the property rail to seven families —
 before the production driver was built. It is LIVE in production today.**
 

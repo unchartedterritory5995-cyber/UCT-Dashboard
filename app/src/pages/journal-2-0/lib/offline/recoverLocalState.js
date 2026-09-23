@@ -20,6 +20,7 @@
  */
 
 import { usableBaseline } from './baseline'
+import { appendedServerNodes } from './serverChange'
 
 /** A stable-enough id for "this page's editing session". */
 export function newSessionId() {
@@ -92,7 +93,33 @@ export function discardsUnsentWork(prev, incoming) {
   // unsent work would keep every note dirty forever — the failure direction
   // that breaks sync rather than the one that loses words.
   if (!prev || !prev.dirty) return false
-  return !sameAuthoredContent(incoming, prev)
+  if (sameAuthoredContent(incoming, prev)) return false
+  // ⭐⭐ D3 (wave 5) — WHAT LANDED MAY HOLD `prev`'S WORDS *AND* THE SERVER'S OWN
+  // APPENDS, AND THAT IS NOT A DISCARD.
+  //
+  // ⚰️ MEASURED (`offlineWordsSurvive.property.test.jsx`, "the editor merged it
+  // and saved"). A door appended a block while the member held unsent words; the
+  // editor merged the block in and saved, so the server now holds prev's words
+  // PLUS the block. Strict equality answered "unsent work", the settle kept the
+  // record dirty with a queued entry lacking the block, and the drain later
+  // re-sent it — a spurious `(conflicted copy)` of a note only this member
+  // touched (and, before this wave's `serverBase` fix, the block was dropped).
+  //
+  // ⛔ PROVEN, NEVER GUESSED — the same proof the drain's classifier demands:
+  // identical title and subtitle, every one of `prev`'s blocks still in place and
+  // byte-identical, and every extra block at the TAIL and of a type only the
+  // SERVER appends (`appendedServerNodes`). Anything else is still a discard:
+  // a changed paragraph, a moved block, a member-typed tail, a title edit.
+  return !holdsWithServerAppends(incoming, prev)
+}
+
+/** Does `incoming` hold `prev`'s authored content exactly, plus only blocks the
+ *  server appends on its own behalf, at the end? Positional proof, or false. */
+function holdsWithServerAppends(incoming, prev) {
+  if ((incoming?.title ?? '') !== (prev?.title ?? '')) return false
+  if ((incoming?.subtitle ?? '') !== (prev?.subtitle ?? '')) return false
+  const tail = appendedServerNodes({ bodyJson: incoming?.bodyJson }, { bodyJson: prev?.bodyJson })
+  return Array.isArray(tail) && tail.length > 0
 }
 
 /** Flatten a record to the words a member would recognise as theirs. */

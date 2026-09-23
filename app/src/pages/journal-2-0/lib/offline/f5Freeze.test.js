@@ -33,6 +33,25 @@
  * three append CALL SITES below are untouched, which is what the freeze is
  * actually about. The classifier and the settle are otherwise still frozen.
  *
+ * ⚖️ AMENDED 2026-09-23 — DECISION D3 (`docs/notebook/NOTEBOOK-10-OF-10-PLAN.md`
+ * §3, the owner's delegated ruling): the freeze is lifted for EXACTLY two
+ * changes and nothing else —
+ *   (1) F5P-1: words queued for the note a member is sitting on must be sent, by
+ *       the single writer that owns the note (the editor), never by the sweep;
+ *   (2) the append-merge class: a server-appended widget, fact or excerpt must
+ *       never be dropped by an offline sync.
+ * What moved under (2), wave 5: `settleLandedSave` (useDurableNote.js) keeps the
+ * base the record's unsent words were written on instead of adopting what just
+ * landed, and `discardsUnsentWork` (recoverLocalState.js) no longer reads the
+ * server's own appends as a discard. Both are recorded, with the commits, the
+ * reproductions and the mutation proofs, in `docs/notebook/f5-fixes-2026-09-23.md`.
+ * ⛔ NOT moved: the append CALL SITES below, `serverChange.js`,
+ * `settleNoteWrite.js`, or `outboxDrain.js` — the finding's own mechanism was
+ * already closed by `ringVouchedPlan` (9a213bd45) and re-proved at HEAD, so the
+ * drain's classification did not need to change. F5's table is still not all
+ * GREEN-or-NAMED, so `F5_OPEN` stays true: D3 lifted the freeze for two changes,
+ * it did not close F5.
+ *
  * ⛔ THIS RAIL EXPIRES BY CONSTRUCTION. `F5_OPEN` flips to false the day every
  * cell of the seven-family × six-ordering table is GREEN or NAMED (see the
  * constant's own note — amended 2026-09-13, because "zero INCONCLUSIVE rows"

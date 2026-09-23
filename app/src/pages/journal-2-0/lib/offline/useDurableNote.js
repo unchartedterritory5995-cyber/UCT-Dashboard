@@ -316,9 +316,28 @@ export async function settleLandedSave({
       localSavedAt: Date.now(),
       dirty: caughtUp ? 0 : 1,
       // ⭐ The server has just spoken: `acked` is what it accepted, at `landed`.
-      // That is the newest possible base, and it replaces whatever the record
-      // was carrying.
-      serverBase: caughtUp ? null : snapshotOfServerCopy(acked, landed),
+      // When the record settles onto `landed` (it takes `current`, at `landed`),
+      // that copy IS the base of what the record now holds.
+      //
+      // ⛔⛔ D3 (wave 5) — BUT NOT WHEN THE RECORD KEEPS ITS UNSENT WORK. Then it
+      // keeps `prev`'s words AND `prev`'s baseline, and the base of THOSE words
+      // is the server copy `prev` was already carrying — not `acked`.
+      //
+      // ⚰️ THE DEFECT, measured (`offlineWordsSurvive.property.test.jsx`, the two
+      // wave-5 orderings, 6/6 append rows RED): this line always wrote
+      // `acked@landed`. After a door appended a widget/fact/excerpt, `acked`
+      // already contains that node, so the drain's classifier diffed the server
+      // against a base that held it too, read "metadata-only", rebased the
+      // member's queued body over the server's — and the captured node was gone.
+      // The same shape as the Q1-F5 append-merge finding, reached through the
+      // settle instead of the ring. Keeping the older base, the diff sees the
+      // append for what it is and the drain MERGES it.
+      // ⛔ `acked@landed` stays the fallback: a dirty `prev` with no base of its
+      // own had nothing better, and that is the behaviour it had before.
+      serverBase: caughtUp ? null
+        : (unsentWork
+          ? (lastKnownServerCopy(prev) || snapshotOfServerCopy(acked, landed))
+          : snapshotOfServerCopy(acked, landed)),
     }
     const intent = caughtUp ? null : {
       mutationId: outboxIdFor(noteId),
