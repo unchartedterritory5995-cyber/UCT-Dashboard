@@ -13,6 +13,7 @@ import { targetFromParams, applyTargetToParams, citationTarget,
          reviewTargetFromParams } from '../../lib/searchNavigation'
 import { openExcerptCitation, openDocumentCitation, SOURCE_NOWHERE,
          PASSAGE_NOT_PINPOINTED, NOTE_LEVEL_SOURCE } from '../../lib/openCitation'
+import { SOURCE_WEB } from '../../lib/searchResultLabel'
 import useNoteDocuments from '../../hooks/useNoteDocuments'
 import DocumentTextStatus from './DocumentTextStatus'
 import useNoteExcerpts from '../../hooks/useNoteExcerpts'
@@ -945,6 +946,49 @@ export default function NoteEditorPage({ noteId, onBack, showBack = true, onTitl
   const { documents: noteDocuments, refresh: refreshDocuments } = useNoteDocuments(noteId)
   const { excerpts: noteExcerpts, refresh: refreshExcerpts } = useNoteExcerpts(noteId)
 
+  // Wave J: opens the preview Sheet for a document_excerpt evidence row in
+  // ThesisSection -- the excerpt may belong to a DIFFERENT note than the
+  // one open here, so it's resolved via GET /excerpts/{id} (carries the
+  // source document's attachmentUrl directly, no second lookup) rather
+  // than assuming it's among this note's own documents/excerpts.
+  // ⛔⛔ WAVE N §9 -- a captured web source carries `web:<sha256>`, an IDENTITY
+  // string, not a file, and is revisited as a captured passage, never in a
+  // PDF viewer (`excerptRevisitTarget`, the rule Search already obeys).
+  // ⭐ The transport now lives in lib/openCitation.js, the ONE path every Ask
+  // host shares -- an Ask citation of an excerpt reaches it through
+  // `jumpToCitation` below, a thesis evidence row directly. It returns the
+  // sentence to show when nothing opened; the evidence row ignores it, as
+  // before (that row already says "source no longer available" itself).
+  const handleOpenExcerptSource = useCallback((excerptId, { signal } = {}) => openExcerptCitation(excerptId, {
+    signal, openDocument: setPreviewDoc, openCapturedSource: setCapturedSource,
+  }), [])
+
+  // ⛔⛔ WAVE N §9 -- ONE DOOR FROM "A DOCUMENT OF THIS NOTE" TO A VIEWER.
+  // This note's document list holds captured web pages too (their
+  // `attachmentUrl` is `web:<sha256>`), and every entry point that holds one of
+  // its rows -- the `?doc=&page=` route below (Search, Ask's page route and an
+  // old Ask packet, any deep link), an excerpt card's citation, a PDF chip --
+  // opens it HERE. A captured page (`sourceKind`, the server's `is_web_capture`
+  // answer) opens as a captured passage through the excerpt path, the excerpt
+  // `capture_web_source` wrote beside it (`capturePassages`); a page whose
+  // saved passage is gone opens nothing -- this note, its honest floor, is
+  // already open. Everything else is a PDF, opened at its page as before.
+  const openNoteDocument = useCallback((doc, { page, excerptId, emphasizeExcerpt } = {}) => {
+    if (doc.sourceKind === SOURCE_WEB) {
+      const passages = doc.capturePassages || []
+      const id = excerptId
+        || (page ? passages.find((p) => p.pageNumber === page)?.excerptId : passages[0]?.excerptId)
+      if (id) handleOpenExcerptSource(id)
+      return
+    }
+    setPreviewDoc({
+      href: doc.attachmentUrl, name: doc.name, documentId: doc.id,
+      page: page || undefined,
+      emphasizeExcerptId: excerptId || undefined,
+      emphasizeExcerpt: emphasizeExcerpt ?? null,
+    })
+  }, [handleOpenExcerptSource])
+
   // ⭐ WAVE M — SEARCH LANDS ON THE OBJECT IT NAMED. A search hit that reads
   // "NVDA 10-Q · p.47" carries `?doc=&page=` alongside `?note=`, and this opens
   // the SAME `previewDoc` shape Wave J's click-to-source above already uses —
@@ -973,18 +1017,15 @@ export default function NoteEditorPage({ noteId, onBack, showBack = true, onTitl
     const localExcerpt = navTarget.excerptId
       ? noteExcerpts.find((e) => e.id === navTarget.excerptId) || null
       : null
-    setPreviewDoc({
-      href: doc.attachmentUrl, name: doc.name, documentId: doc.id,
-      page: navTarget.page || undefined,
-      emphasizeExcerptId: navTarget.excerptId || undefined,
-      emphasizeExcerpt: localExcerpt,
+    openNoteDocument(doc, {
+      page: navTarget.page, excerptId: navTarget.excerptId, emphasizeExcerpt: localExcerpt,
     })
     setSearchParams((prev) => {
       const next = new URLSearchParams(prev)
       for (const k of ['doc', 'page', 'excerpt']) next.delete(k)
       return next
     }, { replace: true })
-  }, [navTargetKey, navTarget, noteDocuments, noteExcerpts, setSearchParams])
+  }, [navTargetKey, navTarget, noteDocuments, noteExcerpts, setSearchParams, openNoteDocument])
 
   // ⭐ O6 §4: the same routing contract, one param further. A review is NOT a
   // document, so it deliberately does not go through `targetFromParams` /
@@ -1080,10 +1121,9 @@ export default function NoteEditorPage({ noteId, onBack, showBack = true, onTitl
       const doc = noteDocuments.find((d) => d.id === documentId)
       const localExcerpt = noteExcerpts.find((e) => e.id === excerptId)
       if (doc) {
-        setPreviewDoc({
-          href: doc.attachmentUrl, name: doc.name, documentId, page,
-          emphasizeExcerptId: excerptId, emphasizeExcerpt: localExcerpt || null,
-        })
+        openNoteDocument(doc, { page, excerptId, emphasizeExcerpt: localExcerpt || null })
+      } else if (localExcerpt?.sourceKind === SOURCE_WEB) {
+        handleOpenExcerptSource(excerptId)
       } else if (localExcerpt?.attachmentUrl) {
         // The excerpt's own document isn't one of THIS note's attachments
         // (an excerpt saved from elsewhere but inserted here) -- the
@@ -1115,25 +1155,9 @@ export default function NoteEditorPage({ noteId, onBack, showBack = true, onTitl
     // list -- the chip's own attrs never carried an id (attachments have
     // none of their own, per Wave I's filesystem-path identity model).
     const doc = noteDocuments.find((d) => d.attachmentUrl === href)
+    if (doc?.sourceKind === SOURCE_WEB) { openNoteDocument(doc); return }
     setPreviewDoc({ href, name, documentId: doc?.id || null })
   }
-
-  // Wave J: opens the preview Sheet for a document_excerpt evidence row in
-  // ThesisSection -- the excerpt may belong to a DIFFERENT note than the
-  // one open here, so it's resolved via GET /excerpts/{id} (carries the
-  // source document's attachmentUrl directly, no second lookup) rather
-  // than assuming it's among this note's own documents/excerpts.
-  // ⛔⛔ WAVE N §9 -- a captured web source carries `web:<sha256>`, an IDENTITY
-  // string, not a file, and is revisited as a captured passage, never in a
-  // PDF viewer (`excerptRevisitTarget`, the rule Search already obeys).
-  // ⭐ The transport now lives in lib/openCitation.js, the ONE path every Ask
-  // host shares -- an Ask citation of an excerpt reaches it through
-  // `jumpToCitation` below, a thesis evidence row directly. It returns the
-  // sentence to show when nothing opened; the evidence row ignores it, as
-  // before (that row already says "source no longer available" itself).
-  const handleOpenExcerptSource = useCallback((excerptId, { signal } = {}) => openExcerptCitation(excerptId, {
-    signal, openDocument: setPreviewDoc, openCapturedSource: setCapturedSource,
-  }), [])
 
   // Wave J: create the excerpt AND insert its node, in that order -- the
   // combined backend endpoint already does both atomically, so this is

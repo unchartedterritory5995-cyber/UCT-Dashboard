@@ -436,20 +436,14 @@ def _link_capture_excerpts(conn, user_id: str, rows: list[dict[str, Any]]) -> li
 
     ⛔ Decided by `ev.is_web_capture`, the one server answer, so a row that did
     not select the capture columns is never linked (it is not known to be web).
+    The pairing itself is `web_capture_store.capture_excerpt_ids`, the one join
+    the note's document list uses too.
     """
+    from api.services.journal_two.web_capture_store import capture_excerpt_ids
     web = [r for r in rows if ev.is_web_capture(r)]
     if not web:
         return rows
-    docs = sorted({r["document_id"] for r in web})
-    ph = ",".join("?" * len(docs))
-    first: dict[tuple, str] = {}
-    for e in conn.execute(
-        "SELECT id, document_id, page_number FROM j2_note_excerpts"
-        f" WHERE user_id = ? AND document_id IN ({ph})"
-        " ORDER BY created_at, id",
-        (user_id, *docs),
-    ).fetchall():
-        first.setdefault((e["document_id"], e["page_number"]), e["id"])
+    first = capture_excerpt_ids(conn, user_id, (r["document_id"] for r in web))
     for r in web:
         eid = first.get((r["document_id"], r["page_number"]))
         if eid:

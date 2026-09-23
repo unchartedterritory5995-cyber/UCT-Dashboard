@@ -5,6 +5,7 @@ import useTickerResearch from '../../hooks/useTickerResearch'
 import { createNoteViaApi, createNoteFromTemplateViaApi } from '../../lib/noteCreation'
 import { notePath } from '../../../../hooks/useNoteBacklinks'
 import { openSpanningCitation } from '../../lib/openCitation'
+import { SOURCE_WEB } from '../../lib/searchResultLabel'
 import AskPanel from './AskPanel'
 import DocumentPreviewSheet from './DocumentPreviewSheet'
 import CapturedSourceSheet from './CapturedSourceSheet'
@@ -219,13 +220,18 @@ export default function TickerResearchWorkspace({ symbol, onOpenNote, showBackLi
               <h3 className={styles.sectionTitle}>Documents</h3>
               <div className={styles.rows}>
                 {documents.map((d) => {
-                  const ready = d.status === 'ready' || d.status === 'no_text'
+                  // ⛔ WAVE N §9: a captured web page is listed here too, and
+                  // its `attachmentUrl` is a `web:<sha256>` identity, not a
+                  // file. It opens its note -- the honest floor Search uses for
+                  // a web hit -- never the PDF viewer.
+                  const viewable = (d.status === 'ready' || d.status === 'no_text')
+                    && d.sourceKind !== SOURCE_WEB
                   return (
                     <button
                       type="button"
                       key={d.id}
                       className={styles.row}
-                      onClick={() => (ready
+                      onClick={() => (viewable
                         ? setPreviewDoc({ href: d.attachmentUrl, name: d.name })
                         : openNote({ id: d.noteId }))}
                     >

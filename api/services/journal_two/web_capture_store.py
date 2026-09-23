@@ -246,6 +246,34 @@ def capture_web_source(
             conn.close()
 
 
+def capture_excerpt_ids(conn: sqlite3.Connection, user_id: str,
+                        document_ids) -> dict[tuple[str, int], str]:
+    """⭐ THE EXCERPT `capture_web_source` WROTE BESIDE EACH CAPTURED PAGE,
+    keyed `(document_id, page_number)`.
+
+    A member revisits a captured passage THROUGH its excerpt (the captured-
+    passage sheet reads it), so every surface that holds a captured page and
+    must open it asks here -- Ask's citation navigation and the note's own
+    document list -- rather than each writing its own join. Tenant-scoped, one
+    query; the FIRST excerpt per page (a later re-capture of the same passage
+    dedupes onto the same page). A page whose excerpt was deleted is simply
+    absent, and the caller opens the owning note instead.
+    """
+    docs = sorted({d for d in document_ids if d})
+    if not docs:
+        return {}
+    ph = ",".join("?" * len(docs))
+    first: dict[tuple[str, int], str] = {}
+    for e in conn.execute(
+        "SELECT id, document_id, page_number FROM j2_note_excerpts"
+        f" WHERE user_id = ? AND document_id IN ({ph})"
+        " ORDER BY created_at, id",
+        (user_id, *docs),
+    ).fetchall():
+        first.setdefault((e["document_id"], e["page_number"]), e["id"])
+    return first
+
+
 def _doc(conn: sqlite3.Connection, user_id: str, doc_id: str) -> dict[str, Any]:
     row = conn.execute(
         "SELECT * FROM j2_note_documents WHERE id = ? AND user_id = ?", (doc_id, user_id),

@@ -145,6 +145,25 @@ describe('TickerResearchWorkspace', () => {
     expect(screen.getByRole('dialog', { name: 'Preview of report.pdf' })).toBeTruthy()
   })
 
+  it('a captured WEB page in the Documents list opens its note, never the PDF viewer', () => {
+    // ⛔ Wave N §9: the research summary lists captured web pages too, and their
+    // `attachmentUrl` is a `web:<sha256>` identity, not a file. `sourceKind` is
+    // the server's `is_web_capture` answer (tests/test_document_list_kind.py).
+    hookResult = {
+      summary: {
+        ...EMPTY_SUMMARY,
+        documents: [{ id: 'dw', noteId: 'n7', attachmentUrl: 'web:3f2a', name: 'Reuters: NVDA margins', status: 'ready', pageCount: 1, createdAt: '2026-09-01T00:00:00Z', sourceKind: 'web' }],
+      },
+      isLoading: false, error: null, refresh: vi.fn(),
+    }
+    const onOpenNote = vi.fn()
+    renderWorkspace({ onOpenNote })
+    fireEvent.click(screen.getByText('Reuters: NVDA margins'))
+    expect(onOpenNote).toHaveBeenCalledWith({ id: 'n7' })
+    expect(screen.queryByRole('dialog', { name: 'Preview of Reuters: NVDA margins' })).toBeNull()
+    expect(screen.queryByTestId('pdf-viewer-stub')).toBeNull()
+  })
+
   it('a PENDING document shows "Processing…" and clicking it opens the owning note instead', () => {
     hookResult = {
       summary: {

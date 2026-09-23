@@ -431,6 +431,16 @@ describe('TickerResearchWorkspace — a DOCUMENT citation opens by its kind', ()
     expect(onOpenNote).not.toHaveBeenCalled()
   })
 
+  it('a cited PDF whose NOTE is gone (the list 404s) says the document is gone', async () => {
+    installDocNetwork({ sources: [PDF_PAGE], documents: jsonResponse(404, { detail: 'Not found' }) })
+    renderWorkspace(vi.fn())
+    const ask = await askAndClickCitation(PDF_PAGE.label)
+
+    expect(await within(ask).findByText('That document is no longer available.')).toBeInTheDocument()
+    expect(screen.queryByText("Couldn't open that document — try again.")).toBeNull()
+    expect(screen.queryByTestId('pdf-viewer-stub')).toBeNull()
+  })
+
   it('a failed read is NOT reported as a deleted document', async () => {
     installDocNetwork({ sources: [PDF_PAGE], documents: jsonResponse(500, {}) })
     renderWorkspace(vi.fn())

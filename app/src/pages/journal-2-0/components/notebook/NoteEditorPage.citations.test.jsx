@@ -199,14 +199,18 @@ const WEB_PAGE_EXCERPT = {
   ...PDF_EXCERPT, id: 'exw', noteId: 'n1', documentId: 'dw', documentName: 'Reuters: NVDA margins',
   attachmentUrl: 'web:3f2a', sourceKind: 'web', sourceUrl: 'https://www.reuters.com/x', pageNumber: 1,
 }
-// THIS note's own document list -- the web capture is in it, which is exactly
-// why the kind must come from the citation and never from this list.
+// THIS note's own document list, as `GET /notes/{id}/documents` answers it: the
+// web capture is in it, and the list says so (`sourceKind`, the server's same
+// `is_web_capture` rule) with the excerpt beside each captured page
+// (`capturePassages`) -- tests/test_document_list_kind.py pins that shape.
 const N1_DOCUMENTS = { documents: [
-  { id: 'd1', attachmentUrl: '/api/j2/notes/attachments/u1/n1/file/q3.pdf', name: 'Q3 10-Q', status: 'ready', pageCount: 80 },
-  { id: 'dw', attachmentUrl: 'web:3f2a', name: 'Reuters: NVDA margins', status: 'ready', pageCount: 1 },
+  { id: 'd1', attachmentUrl: '/api/j2/notes/attachments/u1/n1/file/q3.pdf', name: 'Q3 10-Q', status: 'ready',
+    pageCount: 80, sourceKind: 'attachment', capturePassages: [] },
+  { id: 'dw', attachmentUrl: 'web:3f2a', name: 'Reuters: NVDA margins', status: 'ready', pageCount: 1,
+    sourceKind: 'web', capturePassages: [{ pageNumber: 1, excerptId: 'exw' }] },
 ] }
 
-function installDocNetwork({ source, excerpt = json(500, {}) }) {
+function installDocNetwork({ source = PDF_PAGE, excerpt = json(500, {}), noteExcerpts = [] }) {
   global.fetch = vi.fn((url) => {
     const u = String(url)
     if (u.includes('/api/j2/ask/stream')) {
@@ -219,6 +223,7 @@ function installDocNetwork({ source, excerpt = json(500, {}) }) {
       })
     }
     if (u === '/api/j2/notes/n1/documents') return Promise.resolve(json(200, N1_DOCUMENTS))
+    if (u === '/api/j2/notes/n1/excerpts') return Promise.resolve(json(200, { excerpts: noteExcerpts }))
     if (u.startsWith('/api/j2/excerpts/')) return Promise.resolve(excerpt)
     return Promise.resolve({ ok: true, status: 200, json: () => Promise.resolve({}) })
   })
@@ -263,6 +268,95 @@ describe('NoteEditorPage ("This note") — a DOCUMENT citation opens by its kind
     expect(await within(sheet).findByTestId('pdf-viewer-stub')).toHaveAttribute('data-initial-page', '47')
     expect(global.fetch).not.toHaveBeenCalledWith(expect.stringMatching(/^\/api\/j2\/excerpts\//), expect.anything())
     expect(within(ask).getByTestId('ask-nav-notice')).toBeEmptyDOMElement()
+  })
+})
+
+// ⛔⛔ EVERY DOOR INTO `?doc=&page=` -- A WEB CAPTURE NEVER REACHES THE PDF VIEWER.
+// The route opens whatever row of this note's document list it names, and the
+// list holds captured web pages too. Found doors: Search (page + excerpt hits),
+// Ask's page route (a PDF citation, and an OLD packet with no kind), any deep
+// link, and -- outside the route but holding the same rows -- an excerpt card's
+// citation and a PDF chip. Each opens through ONE door (`openNoteDocument`).
+async function renderEditorAt(url) {
+  const NoteEditorPage = (await import('./NoteEditorPage')).default
+  render(<MemoryRouter initialEntries={[url]}><NoteEditorPage noteId="n1" onBack={vi.fn()} showBack /></MemoryRouter>)
+  await screen.findByPlaceholderText('Title')
+}
+const settle = () => new Promise((r) => setTimeout(r, 50))
+
+describe('NoteEditorPage — the `?doc=&page=` route opens a document by ITS kind', () => {
+  it('a deep link to a CAPTURED page opens the captured passage, never the PDF viewer', async () => {
+    installDocNetwork({ excerpt: json(200, { excerpt: WEB_PAGE_EXCERPT }) })
+    await renderEditorAt('/?note=n1&doc=dw&page=1')
+
+    await screen.findByRole('dialog', { name: 'Captured passage from Reuters: NVDA margins' })
+    expect(global.fetch).toHaveBeenCalledWith('/api/j2/excerpts/exw', expect.anything())
+    await settle()
+    expect(screen.queryByTestId('pdf-viewer-stub')).toBeNull()
+  })
+
+  it('CONTROL: a deep link to a PDF page still opens the viewer AT that page', async () => {
+    installDocNetwork({})
+    await renderEditorAt('/?note=n1&doc=d1&page=47')
+
+    const sheet = await screen.findByRole('dialog', { name: 'Preview of Q3 10-Q' })
+    expect(await within(sheet).findByTestId('pdf-viewer-stub')).toHaveAttribute('data-initial-page', '47')
+  })
+
+  it('a captured page with no saved passage opens NOTHING -- its note is already open', async () => {
+    installDocNetwork({})
+    await renderEditorAt('/?note=n1&doc=dw&page=2')
+    await settle()
+    expect(screen.queryByTestId('pdf-viewer-stub')).toBeNull()
+    expect(screen.queryByRole('dialog', { name: /Captured passage/ })).toBeNull()
+    expect(global.fetch).not.toHaveBeenCalledWith(expect.stringMatching(/^\/api\/j2\/excerpts\//), expect.anything())
+  })
+
+  it('an OLD Ask packet (no kind) citing a captured page takes the page route -- and still never the PDF viewer', async () => {
+    const oldWeb = { ...WEB_PAGE, navigation: { kind: 'document', document_id: 'dw', page_number: 1, note_id: 'n1' } }
+    installDocNetwork({ source: oldWeb, excerpt: json(200, { excerpt: WEB_PAGE_EXCERPT }) })
+    await renderEditorAndTap(oldWeb.label)
+
+    await screen.findByRole('dialog', { name: 'Captured passage from Reuters: NVDA margins' })
+    await settle()
+    expect(screen.queryByTestId('pdf-viewer-stub')).toBeNull()
+  })
+
+  it("an excerpt card's citation for a captured page opens the captured passage", async () => {
+    noteStore.n1 = {
+      ...NOTE,
+      bodyJson: { type: 'doc', content: [
+        { type: 'paragraph', content: [{ type: 'text', text: 'My own view.' }] },
+        { type: 'documentExcerpt', attrs: { excerptId: 'exw' } },
+      ] },
+    }
+    installDocNetwork({ excerpt: json(200, { excerpt: WEB_PAGE_EXCERPT }), noteExcerpts: [WEB_PAGE_EXCERPT] })
+    await renderEditorAt('/')
+
+    fireEvent.click(await screen.findByRole('button', { name: /Reuters: NVDA margins · p\.1/ }))
+    await screen.findByRole('dialog', { name: 'Captured passage from Reuters: NVDA margins' })
+    await settle()
+    expect(screen.queryByTestId('pdf-viewer-stub')).toBeNull()
+  })
+
+  it('a PDF-named chip whose row is a captured page opens the captured passage', async () => {
+    // The chip gate is the file NAME (`.pdf`), which a member controls; the
+    // row behind the chip is what says whether a PDF viewer can show it.
+    noteStore.n1 = {
+      ...NOTE,
+      bodyJson: { type: 'doc', content: [
+        { type: 'paragraph', content: [
+          { type: 'attachmentChip', attrs: { href: 'web:3f2a', name: 'reuters-capture.pdf', size: 1 } },
+        ] },
+      ] },
+    }
+    installDocNetwork({ excerpt: json(200, { excerpt: WEB_PAGE_EXCERPT }) })
+    await renderEditorAt('/')
+    await settle()   // the document list resolves before the tap
+
+    fireEvent.click(await screen.findByText('reuters-capture.pdf'))
+    await screen.findByRole('dialog', { name: 'Captured passage from Reuters: NVDA margins' })
+    expect(screen.queryByRole('dialog', { name: /Preview of/ })).toBeNull()
   })
 })
 
