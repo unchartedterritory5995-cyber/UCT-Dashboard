@@ -1,0 +1,60 @@
+{
+  "verdict": "NEW_FAILURES",
+  "counts": {
+    "new": 2,
+    "fixed": 0,
+    "unchanged": 283,
+    "missing": 0,
+    "baseline": 283,
+    "current": 285,
+    "current_ran": 51569,
+    "new_flaky": 0,
+    "flaky_size": 5,
+    "flaky_new": 2,
+    "flaky_fixed": 0,
+    "file_level_resolved": 0,
+    "coverage_lost": 0,
+    "new_ours": 0,
+    "new_others": 0,
+    "new_unattributed": 2
+  },
+  "arithmetic": "baseline 283 = unchanged 283 + fixed 0 + missing 0  |  current 285 = unchanged 283 + new 2 + new-but-flaky 0",
+  "invalid_because": [],
+  "baseline_run_id": "35801113899",
+  "current_run_id": "35804205249",
+  "baseline_sha": "96f8ea7afdbbc722fe35f29756fe50d24a767952",
+  "current_sha": "85b3a33556f23ecb1a88c44b3cfc0b599a2fb212",
+  "commit_range": "96f8ea7afdbbc722fe35f29756fe50d24a767952..85b3a33556f23ecb1a88c44b3cfc0b599a2fb212",
+  "first_run": false,
+  "new": [
+    "pytest|tests.test_ticker_logos_prewarm|test_run_pass_skips_warm_and_resolves_cold",
+    "vitest|src/pages/charts/widgets/IndexesWidget.test.jsx|CONTROL \u2014 the toast rail fails when the door says nothing"
+  ],
+  "missing": [],
+  "fixed": [],
+  "new_flaky": [],
+  "flaky": [
+    "pytest|tests.test_discord_close_note|test_a_note_that_cannot_be_written_still_posts_the_charts",
+    "pytest|tests.test_mutation_check.TestRestoreGuarantee|test_the_file_is_byte_identical_after_a_detected_mutation",
+    "pytest|tests.test_mutation_check.TestVerdicts|test_a_detected_mutation_passes_the_check",
+    "pytest|tests.test_mutation_check.TestVerdicts|test_expect_red_naming_the_right_test_passes",
+    "vitest|src/components/chart/engine/__tests__/stockChartWiring.test.jsx|an engine-drawn indicator still appears in the crosshair legend > \u26d4\u26d4 A HOVER REACHES THE RENDERER NOT AT ALL"
+  ],
+  "file_level_resolved": [],
+  "coverage_lost": [],
+  "missing_buckets": {},
+  "attribution": {
+    "pytest|tests.test_ticker_logos_prewarm|test_run_pass_skips_warm_and_resolves_cold": {
+      "class": "UNATTRIBUTED",
+      "commits": [],
+      "workstreams": [],
+      "reason": "no commit in 96f8ea7af..85b3a3355 touched tests/test_ticker_logos_prewarm.py or anything it imports"
+    },
+    "vitest|src/pages/charts/widgets/IndexesWidget.test.jsx|CONTROL \u2014 the toast rail fails when the door says nothing": {
+      "class": "UNATTRIBUTED",
+      "commits": [],
+      "workstreams": [],
+      "reason": "no commit in 96f8ea7af..85b3a3355 touched src/pages/charts/widgets/IndexesWidget.test.jsx or anything it imports"
+    }
+  }
+}
