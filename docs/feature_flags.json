@@ -718,6 +718,26 @@
       ],
       "note": ""
     },
+    "FUNDAMENTALS_PIT_ENABLED": {
+      "status": "dark",
+      "where": [
+        "web"
+      ],
+      "note": "Historical point-in-time fundamentals (Indicators -> Fundamentals, `fund:` chart source). Unset/0: /api/fundamentals/pit/* returns 404 and the Fundamentals tab shows a neutral notice; stored chart settings holding `fund:` instances are untouched and draw nothing. Dark until the production store, backfill and R2 publication are validated (docs/fundamentals-pit/MORNING-PLAN.md). Rollback = unset."
+    },
+    "FUNDAMENTALS_PIT_PUBLISH_R2": {
+      "status": "dark",
+      "where": [
+        "worker"
+      ],
+      "exposure": "internal",
+      "default": "0",
+      "values": [
+        "0",
+        "1"
+      ],
+      "note": "Worker-only. 1 = publish per-company fundamentals artifacts (fundamentals_pit/v<N>/...) and precomputed Beta (fundamentals_pit/beta/v1/...) to the PRIVATE data_sync bucket. INTERNAL exposure: nothing is public -- members read them only through the entitled, Cache-Control: private series route. Unset/0 = dry-run (no R2 write). Stop publishing = unset."
+    },
     "FUNDAMENTALS_WARM_ENABLED": {
       "status": "armed",
       "where": [
