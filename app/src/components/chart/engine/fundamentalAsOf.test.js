@@ -110,3 +110,31 @@ describe('⛔⛔ the artifact parser keeps a gap point (it used to drop it for i
     expect(Number.isNaN(col[1])).toBe(true)
   })
 })
+
+describe('⛔⛔ a moving average over a fundamental does not interpolate through a gap', () => {
+  it('SMA/EMA are empty inside the gap and restart with a full fresh window after it', async () => {
+    const registry = await import('./nativeRegistry')
+    const def = registry.getDefinition('movingAverage')
+    const at = (iso) => Date.parse(iso) / 1000
+    const pts = [
+      { t: at('2025-01-06T12:00:00Z'), v: 10, pe: '2024-12-31' },
+      { t: at('2025-01-13T12:00:00Z'), v: null, pe: '2025-03-31' },          // the gap
+      { t: at('2025-01-20T12:00:00Z'), v: 20, pe: '2025-03-31' },
+    ]
+    const days = []
+    for (let d = new Date('2025-01-06'); d <= new Date('2025-01-31'); d.setUTCDate(d.getUTCDate() + 1)) {
+      const w = d.getUTCDay(); if (w !== 0 && w !== 6) days.push({ t: d.toISOString().slice(0, 10) })
+    }
+    const col = Float64Array.from(projectAsOf(pts, days, 'D'))
+    const idx = (iso) => days.findIndex((b) => b.t === iso)
+    for (const maType of ['sma', 'ema']) {
+      const res = registry.computeFor(def, days, { source: 'close', period: 3, maType }, { source: col })
+      const ma = (res && res.ma) || []
+      // computeFor returns the resolved column (Float64Array; NaN = no value)
+      const val = (i) => (Number.isFinite(ma[i]) ? ma[i] : NaN)
+      for (let i = idx('2025-01-13'); i < idx('2025-01-20'); i++) expect(Number.isNaN(val(i)), `${maType} in gap ${days[i].t}`).toBe(true)
+      expect(Number.isNaN(val(idx('2025-01-21'))), `${maType} before a full window`).toBe(true)
+      expect(val(idx('2025-01-22'))).toBeCloseTo(20, 9)                  // 3 fresh values of 20 -- nothing of the 10 survives
+    }
+  })
+})

@@ -8,7 +8,7 @@ from fastapi.testclient import TestClient
 
 from api.bars_auth import require_bars_access
 from api.routers import fundamentals_pit as R
-from api.services.fundamentals_pit import serving
+from api.services.fundamentals_pit import derive as D, serving
 
 from .test_pipeline import CIK, _run
 
@@ -124,3 +124,26 @@ def test_beta_rebuilds_when_a_new_session_arrives(tmp_path):
     # no lookahead: every point is stamped at its own session's close, ascending
     ts = [p[0] for p in doc["points"]]
     assert ts == sorted(ts)
+
+
+def test_the_api_preserves_a_gap_as_null_end_to_end(app, tmp_path, monkeypatch):
+    """Gap contract, API link: a stored gap reaches the member payload as
+    [t, null, period_end, 'gap'] -- never dropped, never a number."""
+    from datetime import date, datetime, timezone
+    from api.services.fundamentals_pit import store as S
+    from api.services.fundamentals_pit.series import GAP, Point
+    monkeypatch.setenv("FUNDAMENTALS_PIT_ENABLED", "1")
+    conn = S.connect(str(tmp_path / "pit.db"))
+    pts = S.read_series(conn, CIK, D.DERIVATION_VERSION, ["revenue_ttm"])["revenue_ttm"]
+    last = pts[-1]
+    t_gap = datetime.fromtimestamp(last[0] + 86400 * 90, timezone.utc)
+    rows = [Point(datetime.fromtimestamp(t, timezone.utc), v, date.fromisoformat(pe), (), m) for t, v, pe, m in pts]
+    rows.append(Point(t_gap, float("nan"), date(2099, 3, 31), (), GAP))
+    with S.tx(conn):
+        S.replace_series(conn, CIK, D.DERIVATION_VERSION, {"revenue_ttm": rows}, "h", {})
+    conn.close()
+    serving.clear_cache()
+    body = _authed(app).get("/api/fundamentals/pit/series/TST?series=revenue_ttm").json()
+    got = body["metrics"]["revenue_ttm"]
+    assert got[-1][1] is None and got[-1][3] == GAP and got[-1][0] == int(t_gap.timestamp())
+    assert all(p[1] is not None for p in got[:-1])
