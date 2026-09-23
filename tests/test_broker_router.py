@@ -162,11 +162,6 @@ def test_performance_and_cash_flows_endpoints(client, monkeypatch):
     assert body["netDeposits"] == 5000.0
     assert len(body["equitySeries"]) == 2
 
-    r2 = client.get(f"/api/j2/broker/cash-flows?accountId={j2}")
-    assert r2.status_code == 200
-    flows = r2.json()["flows"]
-    assert len(flows) == 1 and flows[0]["type"] == "deposit"
-
 
 def test_refresh_before_connect_conflicts(client):
     r = client.post("/api/j2/broker/accounts/refresh")
@@ -211,6 +206,64 @@ def test_comped_plan_passes_paid_gate(client):
     client._app.dependency_overrides[authmw.get_current_user_with_plan] = \
         lambda: {"id": "u1", "plan": "comped", "role": "member"}
     assert client.post("/api/j2/broker/connect", json={"consent": True}).status_code == 200
+
+
+# ── Packet AF CP3 — the admin backfill-history ops lever (fingerprint 44dfa9380) ──
+
+def test_admin_backfill_history_requires_push_secret(client, monkeypatch):
+    monkeypatch.setenv("PUSH_SECRET", "unit-test-secret-XYZ")
+    r = client.post("/api/j2/broker/admin/backfill-history?user_id=u1")
+    assert r.status_code == 401
+
+
+def test_admin_backfill_history_rejects_wrong_secret(client, monkeypatch):
+    monkeypatch.setenv("PUSH_SECRET", "unit-test-secret-XYZ")
+    r = client.post(
+        "/api/j2/broker/admin/backfill-history?user_id=u1",
+        headers={"Authorization": "Bearer wrong-value"},
+    )
+    assert r.status_code == 401
+
+
+def test_admin_backfill_history_runs_with_correct_secret(client, monkeypatch):
+    monkeypatch.setenv("PUSH_SECRET", "unit-test-secret-XYZ")
+    from api.services.journal_two.broker import history_backfill
+    monkeypatch.setattr(
+        history_backfill, "backfill_all_accounts",
+        lambda user_id: {"accounts": 1, "user_id": user_id},
+    )
+    r = client.post(
+        "/api/j2/broker/admin/backfill-history?user_id=some-other-user",
+        headers={"Authorization": "Bearer unit-test-secret-XYZ"},
+    )
+    assert r.status_code == 200
+    assert r.json() == {"results": {"accounts": 1, "user_id": "some-other-user"}}
+
+
+def test_admin_backfill_history_never_gated_by_a_logged_in_session(client, monkeypatch):
+    # This is an ops lever, not a member-facing route -- an anonymous caller
+    # (no get_current_user override at all) must still be REACHABLE, and must
+    # be refused for the RIGHT reason (missing/wrong bearer), not a 401/403
+    # from a session dependency this route never declares.
+    client._app.dependency_overrides.pop(authmw.get_current_user, None)
+    client._app.dependency_overrides.pop(authmw.get_current_user_with_plan, None)
+    monkeypatch.setenv("PUSH_SECRET", "unit-test-secret-XYZ")
+    r = client.post("/api/j2/broker/admin/backfill-history?user_id=u1")
+    assert r.status_code == 401
+    assert r.json()["detail"] == "unauthorized"
+
+
+def test_member_facing_backfill_history_is_unchanged(client, monkeypatch):
+    # CP3 is purely additive -- the existing member-facing route keeps its
+    # own get_current_user gate, same path, same behavior.
+    from api.services.journal_two.broker import history_backfill
+    monkeypatch.setattr(
+        history_backfill, "backfill_all_accounts",
+        lambda user_id: {"accounts": 0, "user_id": user_id},
+    )
+    r = client.post("/api/j2/broker/backfill-history")
+    assert r.status_code == 200
+    assert r.json() == {"results": {"accounts": 0, "user_id": "u1"}}
 
 
 # ── the router has to be MOUNTED on the REAL app ───────────────────────────

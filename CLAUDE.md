@@ -130,11 +130,19 @@ the second-authority-over-one-value defect that has caused three separate outage
 | `components/calendar/FundamentalsStrip.jsx` — the fwd-PE strip | 🗑️ **DELETED** (`d26cee0c`) — dead by inheritance; its only importer was `EarningsModal.jsx`. ⚠️ Its neighbour `calendar/SentimentGauge.jsx` was NOT dead by inheritance and stays: `components/research/sections/CallSection.jsx` reuses it. |
 | `charts/widgets/MobileChartFallback.jsx` — "mobile <640px renders a full-screen StockChart via MobileChartFallback" | 🗑️ **DELETED** with its test (`ed53f9b6`). `ChartsWorkspace.jsx` imports and renders **`MobileWorkspace`** — that is the phone branch. |
 | `journal-2-0/components/BrokerSyncStatus.jsx` | 🗑️ **DELETED** with its test (`ed53f9b6`). The bar was absorbed into `components/trust/SyncTrustCenter.jsx`, which is what renders sync freshness. |
-| `journal-2-0/components/BrokerEquityCurve.jsx` + `hooks/useBrokerEquityCurve.js` — "Open Positions leads with a real equity curve" | 🗑️ **DELETED** (`d26cee0c`). ⚠️ **The data outlived the renderer**: `j2_broker_equity_snapshots` is still written daily and nothing draws it. That is a product decision waiting to be made, not a leftover to clean up. |
 | "ON THE TAPE" section on `MoversSidebar.jsx` + `hooks/useTapeFeed.js` | ⚰️ This row said `useTapeFeed.js` was DELETED — **stale, corrected 2026-09-22.** The file was restored (`06d3a6318 revert(web): restore useTapeFeed.js — it was never mine to delete`) by another session and is now **IN-FLIGHT, not orphaned**: `reachable.test.js` tracks it correctly as "a 30s poll of `/api/tweets/tape` whose docstring names its intended mount (MoversSidebar) — the wire is planned rather than lost," and explicitly warns against mounting OR deleting it as guessing at an owner's intent that has already been reverted once. **Do not touch this file** — read `reachable.test.js`'s own entry for it before acting. The successor tile this row also describes is real and unaffected: `components/tiles/TapeFeed.jsx`, mounted on `Dashboard.jsx` twice (desktop + mobile), reading **`/api/tweets/feed`** via `hooks/useTweetFeed.js`. ⚠️ **`GET /api/tweets/tape` is still mounted and now has zero *frontend* callers** — a browser holding the previous bundle still polls it; retiring the route is a separate decision from whatever happens to `useTapeFeed.js`. |
 | `components/PositionCalc.jsx` — "TickerPopup … position calculator" | 🗑️ **DELETED** (`d26cee0c`). `TickerPopup.jsx` contains no calculator. |
 | `components/tiles/NHNLModal.jsx` — "opens on click of NH or NL in MarketBreadth" | 🗑️ **DELETED** (`d26cee0c`). `MarketBreadth.jsx` never referenced it — and no longer renders NH/NL at all (see its own section below). |
 | `api/earnings_router.py` — its own docstring says *"Mount in main.py: `app.include_router(earnings_router, prefix="/api/schwab")`"* | 🔴 **STILL PRESENT, STILL UNMOUNTED — the only live row in this table.** `earnings_router` appears nowhere in `api/main.py`. It is also superseded: `api/schwab_router.py`'s Yahoo-backed `_fetch_earnings_yf` + `POST /api/schwab/earnings` is what actually serves, at the very prefix the docstring asks for. ⚠️ That instruction is in a file this doc's owner cannot edit; **do not follow it** — FastAPI answers on first match, so mounting the Finviz-scraping predecessor would put a second authority on earnings dates and silently shadow one of the two. |
+
+✅ **CORRECTED 2026-09-22 — `BrokerEquityCurve` is NOT orphaned; this table previously said
+🗑️ DELETED.** `journal-2-0/components/broker/BrokerEquityCurve.jsx` exists, is imported and
+rendered on both `OpenPositionsTab.jsx` (`:33,381`) and `AnalyticsTab.jsx` (`:26,164`,
+`compact`), and reads real data via `GET /api/j2/broker/equity-curve` over
+`j2_broker_equity_snapshots`. ⚠️ `hooks/useBrokerEquityCurve.js` — the hook this row also
+named — genuinely does not exist; the live component calls the shared `useMobileSWR` hook
+directly instead. The component came back (or never left where these two tabs render); the
+named hook file did not.
 
 | `journal-2-0/lib/offline/patchNote` — mentioned in Wave Q1 round-2 working notes | ⚰️ **REMOVED, NOT ORPHANED (2026-09-10).** It was ADDED by the Wave Q1 round-2 work and deleted again when the in-flight marker moved to the meta store; it is absent from `lib/offline/**`, not merely unreferenced. Recorded here so nobody files it as a dead export and goes looking for the file. Wave Q1 ruling **R-H** (`docs/notebook/wave-q1-RESUME-HERE.md`). |
 
@@ -288,7 +296,11 @@ Full session detail: user memory `project_broker_sync_2026_06_15.md`.
 ### Key files
 - BE: `broker/{snaptrade_client,snaptrade_adapter,service,sync,reconstruct,option_reconstruct,balances,balance_resolver,connections,activities_store,dedup,rate_limit}.py`, `routers/broker_sync.py`, `services/crypto_box.py`
 - FE: `pages/journal-2-0/components/{BrokerConnectionsCard (Settings),PositionsTable,BrokerReviewNudge}.jsx` + `components/trust/SyncTrustCenter.jsx` + `tabs/{OpenPositionsTab,TradeJournalTab}.jsx` (options merged into both tables)
-  - ⚰️ This list also named **`BrokerEquityCurve`** and **`BrokerSyncStatus`**. Both are orphaned — see *⚰️ DOCUMENTED BUT UNREACHABLE* near the top. `SyncTrustCenter` is what actually renders the sync bar.
+  - ⚰️ This list also named `BrokerSyncStatus`, which **is** orphaned — see *⚰️ DOCUMENTED BUT
+    UNREACHABLE* near the top; `SyncTrustCenter` is what renders the sync bar. `BrokerEquityCurve`
+    was also named here and previously marked orphaned too — **that was wrong, corrected
+    2026-09-22**: it is live on `OpenPositionsTab.jsx` and `AnalyticsTab.jsx` (see the correction
+    below the unreachable table).
 - Diagnostics (manual, gitignored state): `tools/snaptrade_{smoke_test,shape_audit,j2_e2e}.py`
 
 ### Env vars (Railway web pod; production)
@@ -316,8 +328,8 @@ balance cols on accounts.
 Connect/disconnect in **Settings → Brokerage Connections** (`BrokerConnectionsCard`).
 Open Positions tab leads with: `BrokerAccountHero` + `SyncTrustCenter` (sync freshness
 + one-tap re-sync), "needs a setup" nudge; **options render as rows in the same table as shares**
-⚰️ *(this said "real **equity curve** (from net-liq snapshots)" — `BrokerEquityCurve`
-has zero importers and no equity curve renders on this tab; see the unreachable table.)*
+✅ *(this said `BrokerEquityCurve` had zero importers — **wrong, corrected 2026-09-22**; it
+renders on this tab today, see the correction below the unreachable table.)*
 (`CRWV Oct 16 $110C` · `LONG CALL` · Current/P&L from broker mark). Trade Journal: closed
 options merged into the closed-trades table likewise. Compass already coaches imported
 trades (`imported:true` flag + `coach_prompts.py` rule).
@@ -664,7 +676,7 @@ The voice orb (`voice/FloatingOrb.jsx`, paid-only, bottom-right) and the feedbac
 `hooks/useMediaQuery.js` seeds from `matchMedia(q).matches` at MOUNT and only updates on a media **`change`** event. In a fixed mobile context the viewport never changes, so a JS `useIsTouch()` read can render the desktop variant on a phone. **Use CSS `@media` queries for layout/positioning** (for inline-styled components add a CSS-module class + `!important` inside the query); reserve `useIsTouch()` for click-triggered conditional rendering (open a `Sheet` vs anchored popover on tap). Scroll listeners must use capture phase — the app scrolls the inner `.main` element, not `window` (`Layout.module.css`: `.shell` overflow:hidden, `.main` overflow-y:auto).
 
 ### OptionsFlow mobile (partner-owned, ~7k lines, all inline styles)
-Rebase-safe technique only: add `className` HOOKS to `OptionsFlow.jsx` (never edit its inline `style={{}}` objects) + ride the additive `OptionsFlow.mobile.css` layer (all `@media (max-width:640px)` + `!important`). Hooks in use: `of-mroot` (root), `of-tabs` (tab bar), `of-chiprow`/`of-chiprow-seg`/`of-chiprow-wrap` (filter strips → horizontal scroll, 44px), `of-tip` (theme-help ⓘ, tap-toggled via a `data-pin` flag so the touch mouseenter→click ordering doesn't cancel it).
+Rebase-safe technique only: add `className` HOOKS to `OptionsFlow.jsx` (never edit its inline `style={{}}` objects) + ride the additive `OptionsFlow.mobile.css` layer (all `@media (max-width:640px)` + `!important`). Hooks in use, verified against `OptionsFlow.jsx` source 2026-09-22: `of-mroot` (root), `of-tabs` (tab bar), `of-chiprow-seg`/`of-chiprow-wrap` (filter strips → horizontal scroll, 44px), plus `of-fetchpl`/`of-order`/`of-pickrow`/`of-picks`/`of-refresh` (present, not previously documented here). ⚰️ **`of-tip` and its `data-pin` tap-toggle are GONE** — the theme-help ⓘ hook this line described no longer exists in the component. `OptionsFlow.mobile.css` still declares `.of-tip` and a bare `.of-chiprow` selector that now match nothing in the JSX (dead CSS, not a live hook) — a cleanup candidate, not corrected here.
 
 ## Responsive / Mobile System (2026-06-05 — mobile-seamless initiative)
 
