@@ -15,9 +15,12 @@ import {
   parseChartSlashArgs, parseMtfSlashArgs, parseCompareSlashArgs, chartInsertNodes,
 } from '../../lib/widgetEmbedCore'
 import { applyComboboxWiring } from '../../lib/comboboxWiring'
+import { BLOCK_MATH, INLINE_MATH, insertMathAndEdit } from '../../lib/mathNodes'
 import styles from './SlashMenu.module.css'
 
-const ITEMS = [
+// Exported for the rails (SlashMenu.items.test.jsx): the block entries a bare
+// `/` offers, and what each one inserts.
+export const ITEMS = [
   {
     title: 'Heading 1',
     description: 'Big section heading',
@@ -88,6 +91,22 @@ const ITEMS = [
         { type: 'toggleContent', content: [{ type: 'paragraph' }] },
       ],
     }).run(),
+  },
+  {
+    title: 'Inline math',
+    description: 'A formula inside the sentence (LaTeX) — or type $x^2$ then a space',
+    command: ({ editor, range }) => {
+      editor.chain().focus().deleteRange(range).run()
+      insertMathAndEdit(editor, INLINE_MATH)
+    },
+  },
+  {
+    title: 'Math block',
+    description: 'A displayed equation (LaTeX) — or type $$…$$ on its own line',
+    command: ({ editor, range }) => {
+      editor.chain().focus().deleteRange(range).run()
+      insertMathAndEdit(editor, BLOCK_MATH)
+    },
   },
   {
     title: 'Image',

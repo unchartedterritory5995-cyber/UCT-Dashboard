@@ -46,6 +46,7 @@
     "fflate": "^0.8.2",
     "highlight.js": "11.11.1",
     "jsep": "1.4.0",
+    "katex": "0.16.47",
     "lightweight-charts": "5.2.0",
     "lowlight": "3.3.0",
     "mammoth": "^1.12.1",

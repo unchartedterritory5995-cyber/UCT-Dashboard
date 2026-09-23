@@ -3,7 +3,9 @@
 // killed '/ch' discoverability, found by the owner on prod). Single token =
 // prefix match (completion, nothing to eat); with args/prose = exact name.
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
-import { widgetItems, factItems } from './SlashMenu'
+import { Editor } from '@tiptap/core'
+import { widgetItems, factItems, ITEMS } from './SlashMenu'
+import { buildExtensions } from '../../lib/tiptap'
 
 const titles = (q) => widgetItems(q).map((i) => i.title)
 
@@ -195,5 +197,42 @@ describe('/price (Wave F financial fact capture)', () => {
     const editor = { chain: () => chain, storage: {} }
     await factItems('price NVDA')[0].command({ editor, range: {} })
     expect(global.fetch).not.toHaveBeenCalled()
+  })
+})
+
+// ── Wave 5: the block entries a bare `/` offers ─────────────────────────────
+describe('block entries (Wave 5)', () => {
+  let editor
+  afterEach(() => { editor?.destroy(); editor = null })
+  // A real editor on the real roster: the command must insert what it says.
+  const run = (title, content) => {
+    const el = document.createElement('div')
+    document.body.appendChild(el)
+    editor = new Editor({ element: el, extensions: buildExtensions(), content })
+    const text = editor.state.doc.textContent
+    const item = ITEMS.find((it) => it.title === title)
+    expect(item, title).toBeTruthy()
+    // `/q` typed at the end of the first paragraph is the range a slash command replaces.
+    item.command({ editor, range: { from: 1 + text.length - 2, to: 1 + text.length } })
+    return editor
+  }
+  const found = (ed, type) => { const o = []; ed.state.doc.descendants((n) => { if (n.type.name === type) o.push(n) }); return o }
+
+  it('/math finds both formula entries', () => {
+    const math = ITEMS.filter((it) => it.title.toLowerCase().includes('math')).map((it) => it.title)
+    expect(math).toEqual(['Inline math', 'Math block'])
+  })
+
+  it('Inline math inserts an empty formula with its LaTeX editor open', () => {
+    const ed = run('Inline math', '<p>Area /m</p>')
+    expect(found(ed, 'inlineMath')).toHaveLength(1)
+    expect(ed.view.dom.querySelector('input.uctMathInput')).not.toBe(null)
+    expect(ed.state.doc.textContent).toBe('Area ')
+  })
+
+  it('Math block inserts an empty equation with its editor open', () => {
+    const ed = run('Math block', '<p>/m</p>')
+    expect(found(ed, 'blockMath')).toHaveLength(1)
+    expect(ed.view.dom.querySelector('textarea.uctMathInput')).not.toBe(null)
   })
 })

@@ -105,12 +105,18 @@ from typing import Any
 # words either side of a line break stay two words ("line one line two", never
 # "line oneline two") -- a phrase across the break can be found and quoted.
 # It is still one ProseMirror position, and, being inline, emits no separator.
+# Wave 5: a formula (inlineMath / blockMath) reads as its LaTeX SOURCE -- the
+# text a member can ask about and quote -- and an empty one as nothing. Like
+# every leaf it is ONE position however long its LaTeX. inlineMath is inline
+# (no separator, like hardBreak); blockMath is a block leaf (its own line).
 _ATOM_TEXT = {
     "attachmentChip": lambda a: f"[file: {a.get('name') or 'file'}]",
     "documentExcerpt": lambda a: "[excerpt]",
     "widgetEmbed": lambda a: (a.get("searchText") if isinstance(a.get("searchText"), str)
                               and a.get("searchText") else "[widget]"),
     "hardBreak": lambda a: " ",
+    "inlineMath": lambda a: a.get("latex") if isinstance(a.get("latex"), str) else "",
+    "blockMath": lambda a: a.get("latex") if isinstance(a.get("latex"), str) else "",
 }
 
 
@@ -164,11 +170,14 @@ _LEAF_TYPES = frozenset({
     # container: two positions plus a block separator, shifting every later
     # citation position in the note (spec §7.1).
     "askCitation",
+    # Wave 5: formulas (mathNodes.js) -- atoms holding their LaTeX in attrs.
+    "inlineMath", "blockMath",
 })
 
 # Leaves that sit INSIDE a textblock. textBetween only ever emits a separator
 # for a BLOCK leaf, so the walker must know which leaves are inline.
-_INLINE_LEAF_TYPES = frozenset({"hardBreak", "noteLink", "askCitation", "videoTimestamp"})
+_INLINE_LEAF_TYPES = frozenset({"hardBreak", "noteLink", "askCitation", "videoTimestamp",
+                                "inlineMath"})
 
 # Textblocks (content is inline). An EMPTY one still emits a separator in
 # textBetween, and an empty one carries no `content` to infer that from -- so

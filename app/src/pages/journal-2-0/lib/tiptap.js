@@ -25,6 +25,7 @@ import { AskInsert } from './askInsertNode'
 import { AskCitation } from './askCitationNode'
 import { PasteContainers } from './pasteContainers'
 import { NotebookCodeBlock } from './codeBlockNode'
+import { Mathematics } from './mathNodes'
 import { fmtTime } from '../../../components/video/playerUtils'
 // Wave 5: how the newer content reads on EVERY surface that renders a note
 // body — imported here because every one of them builds from this roster.
@@ -98,6 +99,11 @@ export function buildExtensions({ placeholder = 'Start writing… or type / for 
     // time.
     FinancialFact,
     DocumentExcerpt,
+    // Wave 5: inline + block math (inlineMath / blockMath leaves, KaTeX loaded
+    // lazily). Same "never remove" rule as WidgetEmbed above once notes hold
+    // formulas. Both nodes are rows in the citation tables (askCitation.js
+    // citationLeafText ⇄ note_citation_text.py _ATOM_TEXT).
+    Mathematics,
     // G-064: an inserted Ask Notebook answer and its citation chips. Same
     // "never remove" rule as WidgetEmbed above -- TipTap drops unknown node
     // types at parse time, and the flag gates only the Insert button.

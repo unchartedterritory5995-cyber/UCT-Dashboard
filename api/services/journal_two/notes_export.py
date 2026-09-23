@@ -509,6 +509,17 @@ def _block(node: dict[str, Any], resolver=None) -> str:
     if ntype == "codeBlock":
         lang = attrs.get("language") or ""
         return f"```{lang}\n{_inline(kids, resolver)}\n```"
+    if ntype == "inlineMath":
+        # Wave 5: `$…$`, the form Obsidian, Pandoc and Typora all read as
+        # math. Stripped, because `$ x $` (space inside the dollars) is not
+        # math to any of them. An empty formula exports as nothing.
+        latex = attrs.get("latex") if isinstance(attrs.get("latex"), str) else ""
+        return f"${latex.strip()}$" if latex.strip() else ""
+    if ntype == "blockMath":
+        # `$$` on lines of their own: the display-math block every Markdown
+        # math reader accepts, multi-line LaTeX (aligned environments) intact.
+        latex = attrs.get("latex") if isinstance(attrs.get("latex"), str) else ""
+        return f"$$\n{latex.strip()}\n$$" if latex.strip() else ""
     if ntype == "horizontalRule":
         return "---"
     if ntype == "hardBreak":

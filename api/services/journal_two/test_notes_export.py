@@ -1550,3 +1550,43 @@ def test_code_block_without_a_language_is_a_bare_fence():
 def test_code_block_keeps_an_alias_or_an_unknown_language_verbatim(language):
     # The picker never rewrites what a pasted fence said; neither does export.
     assert tiptap_to_markdown(_doc(_code("x", language))).startswith(f"```{language}\n")
+
+
+# ── Wave 5: math exports as $…$ / $$…$$ ──────────────────────────────────────
+def _math(latex):
+    return {"type": "inlineMath", "attrs": {"latex": latex}}
+
+
+def _bmath(latex):
+    return {"type": "blockMath", "attrs": {"latex": latex}}
+
+
+def test_inline_math_exports_between_single_dollars_inside_its_sentence():
+    md = tiptap_to_markdown(_doc({"type": "paragraph", "content": [
+        {"type": "text", "text": "Area is "}, _math("\\pi r^2"), {"type": "text", "text": " exactly."}]}))
+    assert md == "Area is $\\pi r^2$ exactly."
+
+
+def test_block_math_exports_between_double_dollars_on_their_own_lines():
+    md = tiptap_to_markdown(_doc(_para("Before."), _bmath("E = mc^2"), _para("After.")))
+    assert md == "Before.\n\n$$\nE = mc^2\n$$\n\nAfter."
+
+
+def test_multi_line_block_math_keeps_its_lines():
+    latex = "\\begin{aligned}\na &= b \\\\\nc &= d\n\\end{aligned}"
+    assert tiptap_to_markdown(_doc(_bmath(latex))) == f"$$\n{latex}\n$$"
+
+
+def test_math_latex_is_stripped_so_it_still_reads_as_math():
+    # `$ x $` is not math to Obsidian, Pandoc or Typora.
+    md = tiptap_to_markdown(_doc({"type": "paragraph", "content": [
+        {"type": "text", "text": "a "}, _math("  x^2 "), {"type": "text", "text": " b"}]}))
+    assert md == "a $x^2$ b"
+
+
+@pytest.mark.parametrize("attrs", [{"latex": ""}, {"latex": "   "}, {}, {"latex": None}, {"latex": 7}])
+def test_an_empty_or_malformed_formula_exports_as_nothing_and_never_raises(attrs):
+    doc = _doc({"type": "paragraph", "content": [
+        {"type": "text", "text": "A"}, {"type": "inlineMath", "attrs": attrs}, {"type": "text", "text": "B"}]},
+        {"type": "blockMath", "attrs": attrs}, _para("C"))
+    assert tiptap_to_markdown(doc) == "AB\n\nC"

@@ -59,6 +59,8 @@ const schema = new Schema({
     widgetEmbed: { group: 'block', atom: true, attrs: { widgetId: { default: null }, searchText: { default: null }, capturedAt: { default: null }, embedId: { default: null } }, toDOM: () => ['div'] },
     askInsert: { group: 'block', content: 'block+', toDOM: () => ['div', 0] },
     askCitation: { group: 'inline', inline: true, atom: true, attrs: { n: { default: null } }, toDOM: () => ['span'] },
+    inlineMath: { group: 'inline', inline: true, atom: true, attrs: { latex: { default: '' } }, toDOM: () => ['span'] },
+    blockMath: { group: 'block', atom: true, attrs: { latex: { default: '' } }, toDOM: () => ['div'] },
   },
   marks: {
     bold: { toDOM: () => ['strong', 0] },
@@ -459,7 +461,12 @@ describe('a passage near an astral character maps to ProseMirror\'s range (M3)',
     const full = citationText(doc, 0, doc.content.size)
     const i = full.indexOf(p.text)
     expect(flatToPmRange(doc, i, i + p.text.length)).toEqual(range)
-    if (isBlockAtomRange(doc, range.from, range.to)) {
+    // An atom passage is one the ground truth records as a LEAF span -- the
+    // Python rail's own predicate (test_note_citation_text.py, `want in
+    // leaves`). ⛔ Wave 5: this read `isBlockAtomRange` while no INLINE leaf
+    // read as text; an inline formula (reads as its LaTeX) is an atom too.
+    const isLeafPassage = FIXTURES[name].leafSpans.some((s) => s.pm_start === range.from && s.pm_end === range.to)
+    if (isLeafPassage) {
       // An atom passage maps to the atom -- but its text alone never opens
       // it, in place or re-found (fix round 2: identity, never placeholder).
       expect(resolveNoteCitation(doc, range, p.text).state).toBe(VALID_NOTE_ONLY)

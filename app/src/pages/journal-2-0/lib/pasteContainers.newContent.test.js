@@ -115,3 +115,48 @@ describe('a code block and its language survive copy and paste', () => {
     expect(nodesOf(ed, 'codeBlock').map((b) => b.n.attrs.language)).toEqual(['python'])
   })
 })
+
+// ── Math (inlineMath / blockMath) ────────────────────────────────────────────
+describe('a formula survives copy and paste, everywhere pasteContainers places a paste', () => {
+  const MATH = (latex) => ({ type: 'inlineMath', attrs: { latex } })
+  const BMATH = { type: 'blockMath', attrs: { latex: 'E = mc^2' } }
+  const WITH_INLINE = { type: 'paragraph', content: [{ type: 'text', text: 'Area ' }, MATH('\\pi r^2'), { type: 'text', text: ' holds.' }] }
+  const latexes = (ed, type) => nodesOf(ed, type).map((x) => x.n.attrs.latex)
+
+  for (const [where, content, at] of TARGETS) {
+    it(`a sentence holding inline math, copied and pasted into ${where}, keeps the formula`, () => {
+      const ed = mount([WITH_INLINE, ...content()])
+      const from = locate(ed, 'Area ')
+      const to = locate(ed, ' holds.') + ' holds.'.length
+      pasteAt(ed, at(ed), copyRange(ed, from, to))
+      expect(latexes(ed, 'inlineMath')).toEqual(['\\pi r^2', '\\pi r^2'])
+      if (where === 'a toggle title') expect(nodesOf(ed, 'toggle')).toHaveLength(1)
+    })
+
+    it(`an equation block copied as a node and pasted into ${where} arrives whole, LaTeX intact`, () => {
+      const ed = mount([...content(), BMATH, P('After.')])
+      pasteAt(ed, at(ed), copyNode(ed, nodesOf(ed, 'blockMath')[0].pos))
+      expect(latexes(ed, 'blockMath')).toEqual(['E = mc^2', 'E = mc^2'])
+      if (where === 'a toggle title') {
+        // STRUCTURE (a block atom) lands AFTER the toggle -- the title untouched.
+        expect(nodesOf(ed, 'toggle')).toHaveLength(1)
+        expect(summaryText(ed)).toBe('Summary line')
+      }
+    })
+  }
+
+  it('math HTML from another TipTap editor (data-latex) is read back as math', () => {
+    const ed = mount([P('Mine.'), { type: 'paragraph' }])
+    pasteAt(ed, 'Mine.'.length + 3,
+      '<p>Rate <span data-type="inline-math" data-latex="r_f">$r_f$</span> here</p><div data-type="block-math" data-latex="\\sum x">$$\\sum x$$</div>')
+    expect(latexes(ed, 'inlineMath')).toEqual(['r_f'])
+    expect(latexes(ed, 'blockMath')).toEqual(['\\sum x'])
+  })
+
+  it('a pasted "$5-$10" is text, never math (paste runs no input rule)', () => {
+    const ed = mount([P('Range: ')])
+    pasteAt(ed, 1 + 'Range: '.length, '<p>$5-$10 and $x^2$ </p>')
+    expect(nodesOf(ed, 'inlineMath')).toEqual([])
+    expect(ed.state.doc.textContent).toContain('$5-$10 and $x^2$')
+  })
+})

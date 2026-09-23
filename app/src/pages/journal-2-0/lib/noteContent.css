@@ -89,9 +89,52 @@
 .ProseMirror pre code .hljs-emphasis { font-style: italic; }
 .ProseMirror pre code .hljs-strong { font-weight: 700; }
 
+/* ── Math (mathNodes.js; KaTeX's own stylesheet loads with KaTeX) ─────────── */
+.ProseMirror .uctMathInline { padding: 0 1px; border-radius: var(--radius-sm); }
+.ProseMirror .uctMathBlock {
+  display: block;
+  margin: 14px 0;
+  padding: 6px 8px;
+  text-align: center;
+  overflow-x: auto;
+  border-radius: var(--radius-md);
+}
+.ProseMirror[contenteditable="true"] .uctMath { cursor: pointer; }
+.ProseMirror[contenteditable="true"] .uctMath:hover { background: var(--bg-hover); }
+.ProseMirror .uctMath.ProseMirror-selectednode { outline: 2px solid var(--ut-gold); outline-offset: 1px; }
+.ProseMirror .uctMathEmpty {
+  color: var(--text-muted);
+  font-family: var(--font-sans);
+  font-size: 0.85em;
+  font-style: italic;
+}
+.ProseMirror .uctMathInput {
+  background: var(--bg-surface);
+  color: var(--text-bright);
+  border: 1px solid var(--ut-gold);
+  border-radius: var(--radius-sm);
+  padding: 2px 6px;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-size: 14px;
+  font-style: normal;
+}
+.ProseMirror .uctMathInput:focus-visible { outline: 2px solid var(--ut-gold); outline-offset: 1px; }
+.ProseMirror .uctMathBlock .uctMathInput {
+  display: block;
+  width: 100%;
+  box-sizing: border-box;
+  resize: vertical;
+  text-align: left;
+}
+.ProseMirror .uctMathPreview { margin-top: 8px; }
+
 /* ── Touch tier: the 44px floor, and 16px so iOS does not zoom on focus ───── */
 @media (max-width: 1024px) {
   .ProseMirror .uctCodeLang {
+    min-height: var(--tap-min);
+    font-size: 16px;
+  }
+  .ProseMirror .uctMathInput {
     min-height: var(--tap-min);
     font-size: 16px;
   }
