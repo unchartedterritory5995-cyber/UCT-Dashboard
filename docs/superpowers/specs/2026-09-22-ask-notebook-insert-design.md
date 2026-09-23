@@ -268,7 +268,10 @@ Node.create({
     Notebook's three containers (askInsert, callout, toggle): the copy side
     (`transformCopied`), the paste side (`transformPasted`), and a belt
     (`handlePaste` pastes the text rather than lose a slice ProseMirror would throw
-    on). The same hooks apply to a drag within the editor.
+    on). A drag within the editor runs the copy and paste TRANSFORMS (`transformCopied`,
+    `transformPasted`) but never `handlePaste`, so neither the belt nor the
+    toggle-title rules below run on a drop: a multi-block drop onto a title can still
+    split the toggle (drop is out of scope for this close-out).
   - **The rule** (this I4 rule, generalised to all three): a container OPEN at an
     edge of a copied or pasted slice was only partly selected, so its content
     travels as plain content. Partial answer text lands as ordinary text wherever
