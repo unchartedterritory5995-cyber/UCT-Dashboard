@@ -992,6 +992,99 @@ measurement of the census until its fixture is stated.**
 
 ---
 
+## RC-N — an undeclared build arg was costing 23 scripts, and every rail was green
+
+⛔⛔ **THE BIGGEST SINGLE MEASURED LOSS IN THIS PROGRAMME, AND IT IS TWO LINES OF
+DOCKERFILE.** Measured at the member door — `memberPaneDefinition`, the call
+`MemberPane` actually makes — over the 266 committed scripts:
+
+| build | scripts a member can paste and attach |
+|---|---|
+| **production today** (`VITE_PINE_OBJECTS_ONLY_PANE_ENABLED` undefined) | **29 of 266** — 10.9% |
+| the same code with that flag set | **52 of 266** — 19.5% |
+
+**23 scripts, +79%**, and every one of them is a drawing-only indicator: fib
+retracements, ICT killzones and IPDA lookbacks, HTF candle footprints, liquidity
+dashboards. Exactly the scripts a member pastes because they want to SEE
+something.
+
+### Why it could not be turned on at all
+
+`Dockerfile.web` declared **no `ARG`** for it — 20 other `VITE_*` args, not that
+one. Railway offers each service variable as a build arg and **drops an
+undeclared one without a word**, so setting it would have reached the bundle as
+`undefined`, and `objectsOnlyPaneEnabled()` reads `=== '1'`. Undefined is off.
+
+⚰️ **AND THIS EXACT TRAP IS ALREADY WRITTEN DOWN IN THIS REPO, ABOUT ITS SIBLING.**
+`VITE_PINE_MEMBER_PANE_ENABLED`'s own ledger note says it *"COULD NOT HAVE BEEN
+TURNED ON AT ALL"* for the same reason until `e6ca532c6` closed it. **The fix was
+applied to one flag of a pair, shipped in the same programme, for the same door.**
+
+### Why the rail that exists for this did not fire
+
+`tests/test_dockerfile_vite_build_args.py` holds the ARG list to a DERIVED index
+(`tools/vite_flag_index`) precisely so a hand-kept list cannot drift. That index
+matched one pattern:
+
+```python
+_READ_RE = re.compile(r"import\.meta\.env\.(VITE_[A-Z0-9_]+)")
+```
+
+and `objectsOnlyPaneGate.js` reads its flag **late-bound**:
+
+```js
+const source = env === undefined ? import.meta.env : env
+return source.VITE_PINE_OBJECTS_ONLY_PANE_ENABLED === '1'
+```
+
+⭐⭐ **THE REFACTOR THAT MADE THE GATE TESTABLE IS WHAT MADE IT UNSHIPPABLE.** That
+late binding was written for a good reason, stated in the file: `import.meta.env`
+always exists under vitest, so a `catch` that reads it directly can never be
+entered by a test, and a mutation flipping the fail-closed `return false` stayed
+GREEN. Fixing that made the literal disappear, the index went blind, the Dockerfile
+was never held to an ARG, and the flag shipped permanently undefined.
+
+⛔ **AND THE EXISTING RAILS COULD NOT CATCH THE REGRESSION.** A name the index stops
+seeing simply stops being *required* — the ARG becomes "spare", and that file's own
+docstring calls a spare ARG inert. The blindness is invisible to every assertion
+that was there. So the scanner now has a rail of its own, with a control: a file
+that never mentions `import.meta.env` must NOT contribute its `VITE_*` tokens, or
+"see more" would have been implemented as "see everything".
+
+### The fix, and what it does NOT do
+
+1. `Dockerfile.web` declares the ARG and exports it, alphabetically beside its sibling.
+2. `tools/vite_flag_index` also reads any `VITE_*` in a file that mentions
+   `import.meta.env` — **scoped, not global**. Measured: 20 names → **21**, and the
+   one added is the missing flag.
+3. `docs/feature_flags.json` gains the row, declared `dark`.
+
+⛔⛔ **THIS DOES NOT TURN ANYTHING ON.** Declaring the ARG only makes the flag
+*settable*. It is a build constant, so arming it is a Railway variable **plus a
+rebuild** — a DEPLOY, not a variable change — and an owner decision. The ledger row
+says `status: dark`, `railway_value: UNSET on every service`, and carries the
+measured +23 so the decision can be taken on a number.
+
+**Mutation-proved four ways, each killing a different rail:** the ARG deleted ·
+the ENV export deleted · the index reverted to the direct pattern (which also reds
+the ledger's stale-row check) · the index widened *without* the scope hint.
+
+### ⚠️ Three fixtures, three different numbers — state which one you mean
+
+| invocation | scripts OK |
+|---|---|
+| `translatePine(src)` bare — the SCREENER's question | 48 |
+| `memberPaneDefinition(...)` with objects-only ON | 52 |
+| `memberPaneDefinition(...)` as **production builds it** | **29** |
+
+⛔ Only the last one answers *"can a member do this today"*, and it is the smallest.
+A census is a measurement of its fixture — the third time that has bitten in one
+session (the first was `runtime:realtime-untold` at a phantom 49; the second was a
+local `app/.env.local` that turned the flag on and made two "different" runs
+identical).
+
+---
+
 ---
 
 ## The foreseeable problems — where this shape will bite next

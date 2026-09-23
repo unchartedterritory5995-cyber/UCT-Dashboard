@@ -49,20 +49,49 @@ before somebody reads a rising number as shipped product.
 lane is what a pasted script reaches today; the runtime lane is its successor and
 is being built to the point where the door is worth opening. RC-G…RC-M are real
 engineering in that lane. **What none of them is, yet, is something a member can
-see** — and the day the door opens is a separate, deliberate piece of work that
-does not appear anywhere in this file's task lists.
+see.**
+
+⚰️⚰️ **AND THE SENTENCE THAT USED TO END THIS PARAGRAPH WAS WRONG, IN THE
+DIRECTION THAT MATTERS MOST.** It said the day the door opens *"is a separate,
+deliberate piece of work that does not appear anywhere in this file's task
+lists"*, which reads as **there is no door**. There is, it is the COLUMNAR lane's,
+and it has been **live in production since 2026-09-19**:
+`VITE_PINE_MEMBER_PANE_ENABLED=1`, owner-decided (*"do it so it is fully live"*),
+`baked_value: '1'` confirmed by a real member-door round trip that drew Uncharted
+Clouds' 20-layer gradient on a live SMCI chart. `MemberPane.jsx` is mounted from
+`BuilderSheet.jsx` and its "Add this script to my chart" control is what a member
+uses.
+
+⛔ **So the true statement is narrower and more useful:** the door is OPEN and it
+is the COLUMNAR lane's. The RUNTIME and OBJECT lanes are the successors behind it
+and reach no component yet — which is why their build counts must not be read as
+member-facing coverage. The member-facing number is §2 below, and it is **29 of
+266**.
 
 ⚠️ **IT REPORTS, IT DOES NOT GATE**, on purpose. A rail asserting *"the runtime
 lane is unreachable"* would go red on the day somebody opens the door — failing
 on exactly the progress it exists to describe.
 
-### 2. Where the corpus stops, per lane
+### 2. Where the corpus stops — and WHICH QUESTION each number answers
 
-| lane | of 266 committed scripts |
-|---|---|
-| COLUMNAR / host — **the member's lane** | **39** translate (`host_ok`), 48 in the screener form (`tools/corpus_metric.json`, measured 2026-09-23) |
-| RUNTIME | **13** build |
-| OBJECT | **7** build |
+⛔⛔ **THREE FIXTURES, THREE DIFFERENT NUMBERS. Name the one you mean.**
+
+| invocation | what it asks | of 266 |
+|---|---|---|
+| `translatePine(src)` bare | can this become a SCREENER column? | 48 |
+| `memberPaneDefinition(…)`, objects-only pane ON | what the code can do | **52** |
+| `memberPaneDefinition(…)` **as production builds it** | **can a member paste this and see it TODAY?** | **29** — 10.9% |
+| `buildRuntimeIr` (RUNTIME lane, no member door) | — | 13 |
+| object lane BUILD | — | 7 |
+
+⭐ **The 23-script gap between rows 2 and 3 is RC-N**, and it is not a Pine problem:
+`VITE_PINE_OBJECTS_ONLY_PANE_ENABLED` had no `ARG` in `Dockerfile.web`, so it could
+not be set at all. The ARG now exists; arming it is a Railway variable plus a
+rebuild and an owner decision.
+
+⚠️ `tools/corpus_metric.json` reports `host_ok` **39** and `screener_ok` **48** for
+the same day. Neither is the member-door number. A coverage figure quoted without
+its invocation has told you nothing.
 
 ### 3. The runtime lane's first walls — with the fixture STATED
 
