@@ -850,6 +850,11 @@
       "where": [],
       "note": "Wave K, 2026-09-12. Enablement gate for the Q2 Notebook attachments surface, which is NOT BUILT. The key ships with K so the wave that builds it ships behind a switch that already works, instead of bolting one on afterwards. Unset means OFF and that is the decision. Rides the auth payload (_access_payload); see docs/notebook/wave-k-flip-packet.md."
     },
+    "NOTEBOOK_ASK_INSERT_ON": {
+      "status": "dark",
+      "where": [],
+      "note": "G-064, 2026-09-22. Enablement gate for inserting an Ask Notebook answer into a note (spec docs/superpowers/specs/2026-09-22-ask-notebook-insert-design.md). Unset means OFF and that is the decision: the Insert button is hidden. The askInsert/askCitation node types are registered regardless, so a note that already holds an inserted answer keeps rendering after a rollback. Rides the auth payload (_access_payload)."
+    },
     "NOTEBOOK_CONFLICT_UX_ON": {
       "status": "dark",
       "where": [],

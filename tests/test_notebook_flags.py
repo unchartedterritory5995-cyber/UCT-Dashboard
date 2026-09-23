@@ -23,6 +23,7 @@ NOTEBOOK_KEYS = [
     "notebook_offline_read_on",
     "notebook_conflict_ux_on",
     "notebook_attachments_on",
+    "notebook_ask_insert_on",
 ]
 
 
