@@ -18,7 +18,8 @@ const CAT_ICON = {
 const openKey = k => `uct.screener.rail.${k}`
 const readOpen = k => { try { return localStorage.getItem(openKey(k)) !== '0' } catch { return true } }
 
-export default function FilterRail({ meta, activeFilters, onChange, onClear, variant = 'rail' }) {
+export default function FilterRail({ meta, activeFilters, onChange, onClear, variant = 'rail',
+  matchCount, matchCountEmpty, matchCountLoading }) {
   const [q, setQ] = useState('')
   const [open, setOpen] = useState(() =>
     Object.fromEntries((meta?.categories || []).map(c => [c.key, readOpen(c.key)])))
@@ -59,6 +60,22 @@ export default function FilterRail({ meta, activeFilters, onChange, onClear, var
       </div>
       {/* The distribution basis note + per-control percentile bands were removed
           by owner request; the rail is the search + grouped controls. */}
+      {/* PACKET-AB CP1 (fingerprint bc19457cf): a fast preview-count badge fed
+          by the cheap /api/screener/count endpoint, decoupled from and never
+          replacing ShellToolbar's own full-scan-derived status line. Same
+          wording as that line so the two can never read as disagreeing.
+          ⛔ Deliberately NO aria-live here -- tools/screener_ui_stress.py's
+          existing check reads the FIRST [aria-live="polite"] element in DOM
+          order, which is ShellToolbar's status line; giving this badge the
+          same attribute would silently redirect that check to the wrong
+          element (it would keep passing while watching nothing real). */}
+      {(matchCountLoading || matchCount != null) && (
+        <div className={`${styles.railMatchCount} ${matchCountEmpty ? styles.railMatchCountEmpty : ''}`}>
+          {matchCountLoading && matchCount == null
+            ? 'Scanning…'
+            : `${(matchCount ?? 0).toLocaleString()} matches`}
+        </div>
+      )}
       {(meta.categories || []).map(cat => {
         const list = byCat.get(cat.key) || []
         if (needle && !list.length) return null
