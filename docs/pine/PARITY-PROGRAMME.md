@@ -20,6 +20,94 @@ side-by-side. The local dev loop (`scripts/hub_sandbox_boot.py --port 8000` +
 
 ---
 
+## ⭐⭐⭐ 2026-09-23 — THE ROAD TO 100%, DERIVED FROM ONE CENSUS
+
+> **The owner's bar is two things, not one: every pasted script BUILDS, and it
+> LOOKS IDENTICAL to TradingView.** They are different axes with different
+> blockers, and only the first has ever been measured. This section sizes both.
+
+### Axis 1 — does it build at the member door?
+
+Every number below is `memberPaneDefinition({source, id})` — the call
+`MemberPane` makes — over the 266 committed scripts.
+
+| | scripts | share |
+|---|---|---|
+| **TODAY, as production builds it** | **29** | 10.9% |
+| + arm `VITE_PINE_OBJECTS_ONLY_PANE_ENABLED` (RC-N: the ARG now exists) | **52** | 19.5% |
+| + wire the RUNTIME lane behind the same door | **58** | 21.8% |
+| — the two standing carve-outs (25 `strategy()`, 29 `import`) | ceiling **212** | 79.7% |
+
+⛔⛔ **SO 100% OF 266 IS NOT REACHABLE UNDER THE CURRENT RULINGS, AND THAT IS A
+DECISION, NOT A LIMIT.** 54 scripts — **one in five** — are deliberately out of
+scope (decisions 1 and 4). "100%" therefore means one of two things, and the owner
+picks which:
+- **100% of 212** — keep both carve-outs. The number to drive to is 212.
+- **100% of 266** — re-open `strategy()` and/or Pine libraries. Each is a
+  programme in its own right; libraries additionally carry a distribution
+  question (`LICENSING.md`).
+
+⭐⭐ **AND THE RUNTIME LANE IS NOT THE BIG LEVER — measured, against the
+assumption.** It builds 13 scripts, but **7 of those 13 the columnar door already
+serves**. Wiring it adds **6**: five `pine:state` scripts plus one `pine:arity` and
+one `pine:plot-offset`. It is the right long-term lane and the wrong thing to
+prioritise on today's corpus.
+
+### What actually stands between 52 and 212 — ranked, with its kind
+
+| n | wall | kind | what it costs to clear |
+|---|---|---|---|
+| **33** | `pine:no-output` | **object-pass coverage** | ⭐ **32 of the 33 DO contain `line`/`label`/`box` calls** — 27 `line`, 21 `label`, 16 `box`. They are refused *"offers no plot and no alert condition to filter on"* because the object pass collected nothing, not because they draw nothing. **The biggest single row, and it is a coverage gap, not a ruling.** |
+| **17** | `pine:function` | vocabulary | one vendor ruling per name, then a closed-table entry |
+| **16** | `pine:state` | lane | carried forward past the bounded accumulator — the runtime lane's purpose |
+| **15** | `pine:request` | **vendor-gated** | `OWNER-CAPTURE-PACKET.md`; cannot be cleared by code |
+| **12** | `pine:block` | lane | `if`/`switch` as a value — served in the runtime lane (RC-L) |
+| **11** | `pine:plot-offset` | unmeasured | no ruling on file; size it before planning it |
+| **8** | `pine:reassign` | lane | `:=` — served in the runtime lane |
+| 7 / 5 / 5 | `collection` / `tuple` / `type` | vocabulary | |
+
+⚠️ **The `state`/`block`/`reassign` rows total 36 and are the columnar lane's
+limits, not the engine's** — the runtime lane answers all three by design. But see
+the measurement above: only 6 of them clear TODAY, because each of those scripts
+hits a *second* wall in the runtime lane. **A lane swap is not a coverage win until
+the second walls are cleared too**, which is what RC-G…RC-M have been doing.
+
+### Axis 2 — does it LOOK identical? — UNMEASURED, AND THAT IS THE REAL GAP
+
+⛔⛔ **THERE IS NO CONTINUOUS VENDOR COMPARISON. Not a weak one — none.** The
+programme's own S2 says it: *"one capture took a live browser session and a
+four-slice hand reassembly. That does not scale to 266 scripts."*
+
+So of the 29 scripts a member can attach today, the number verified to draw what
+TradingView draws is **the handful that have a hand capture**, and the standing
+rule is unforgiving about what that means:
+
+> a render of our own output is not evidence of parity. It shows we drew
+> *something*. Only the vendor's own numbers show we drew the same thing.
+
+⭐ **CONSEQUENCE FOR SEQUENCING, and it is the main recommendation of this
+section:** every script added to axis 1 without axis 2 is a script we cannot say
+is correct. **Build the comparison harness before, or alongside, the next coverage
+push** — otherwise the programme's headline number keeps rising while the claim it
+implies keeps getting weaker. The receipt discipline is already proven (FNV-1a in
+the page, verified after transport); what does not exist is the loop that runs it
+without a human.
+
+### The order this suggests
+
+1. **Arm the objects-only flag** — +23, plumbing already shipped (RC-N). One
+   Railway variable, one rebuild, one owner decision.
+2. **Build the vendor-comparison harness** — unblocks every claim on axis 2 and
+   is the only thing that makes "identical" checkable rather than asserted.
+3. **The object pass's 33** — the largest code-side row, and the one whose scripts
+   most obviously WANT to be drawn.
+4. **Rule `plot-offset` (11)** — unmeasured; size it before it is planned.
+5. **Then** the lane work: clear the runtime lane's second walls so the 36
+   `state`/`block`/`reassign` scripts actually land when the door opens.
+6. **Owner decision** on whether 100% means 212 or 266.
+
+---
+
 ## ⛔⛔ 2026-09-23 — WHERE THE PROGRAMME ACTUALLY STANDS, AND WHICH LANE A MEMBER REACHES
 
 > **Read this before quoting any build count in this file.** Three lanes publish
