@@ -10,6 +10,100 @@
 
 ---
 
+## ✅ Notebook close-out — 2026-09-23 (after G-064): four member-facing fixes, reviewed, gated, walked live
+
+Owner delegation, verbatim: *"Approve fully everything on full judgement call by you."* Every call
+made under it was recorded as a `Ruling:` in the session's scratch ledger (gitignored, not kept);
+every one that changes what a member sees is summarised under **Decisions** below.
+
+### What changed for members
+1. **⛔ LIVE DEFECT, FIXED — the Ask question box on phones and tablets lost focus after every
+   keystroke.** Verified on production 2026-09-23 (the owner's signed-in Chrome, a 386px same-origin
+   iframe of `/journal/notebook`, touch tier matched): every keystroke moved focus to the Ask toggle
+   behind the sheet, then to the sheet panel — on a phone that closes the keyboard after each
+   character. **Mechanism:** `components/mobile/Sheet.jsx`'s focus effect was keyed on
+   `[open, onClose]`; callers pass an inline `onClose`, so every parent render restored focus and
+   re-focused the panel. **Fixed as a class in `Sheet.jsx`** (the latest `onClose` lives in a ref;
+   the effect is keyed on `[open]`; drag-dismiss decides from a ref and calls `onClose` once, never
+   inside a state updater) — so every one of the ~53 callers is fixed, including three the re-review
+   found broken the same way: the COT symbol search, the hub's scrub slider and the nested
+   indicator editor. (H14: the next deploy was blocked until the live build was checked; it was
+   checked, and the fix rides in that deploy.)
+2. **Paste never throws, never loses words, never wraps a member's paragraph** (pre-existing bugs).
+   A partial copy spanning a Toggle threw `Called contentMatchAt on a node with invalid content` and
+   the paste was lost; Callout/Toggle are `defining`, so a partial copy pasted at the start of a
+   paragraph wrapped the member's paragraph in a new callout/toggle; a multi-line paste into a
+   toggle's title split the toggle in two. One plugin now owns copy/paste for the three containers:
+   `lib/pasteContainers.js` (`transformCopied` + `transformPasted` + a plain-text belt, and the
+   toggle-title rules). Fuzz, 285,652 real pastes: throws 9,047 → 0 in scope, lost pastes 3,407 → 0,
+   wrapped member paragraphs 9,816 → 0, lost nodes / toggle splits / flattened containers 0.
+3. **Ask "This note" citations land on the passage** (pre-existing). The server and client citation
+   text now equal ProseMirror's own `textBetween` (empty paragraphs, block atoms), positions count
+   UTF-16 (a citation after an emoji was off by one per emoji), and an atom (attachment, excerpt,
+   chart) is verified by its identity — issued only when unique in the note — never by its
+   placeholder text. Measured over 68 citations: 10 no-op clicks on unedited notes and 31 after an
+   edit → 0 and 0, with zero wrong-passage jumps in every combination. Ask "This note" is also
+   8–98× faster on large notes (3,000 paragraphs: 4.47 s → 0.046 s).
+4. **G-064 polish (still dark behind `NOTEBOOK_ASK_INSERT_ON`):** the picker focuses its search box,
+   disables rows while creating, never sticks busy; a tap on a citation chip's own box always opens
+   that chip's source, and every chip clears the 44px floor (measured in Chromium, WebKit, Firefox);
+   the caret lands after an inserted answer, never inside it; export never raises on malformed ask
+   attrs.
+
+### Verification
+- Every task: implementer → task review → fix rounds → scoped re-review; then a whole-branch Opus
+  review (FIX FIRST: 2 Important, both closed) and a scoped re-review of the final wave (READY).
+- Every new rail mutation-proved (red on the defect, restored by sha, green).
+- **Gates, both six-shard, both at master `c7bddc046`:** master alone — 1,709 test files, 120 failing
+  tests; the branch merged with it (`5974a7203`) — 1,725 files, 119 failing; both reconcile.
+  `scripts/gate_baseline_diff.classify` (base = the master run): **0 branch-introduced failures** —
+  the 4 rows it flags are the same four `| NC-A..D |` table rows `dailyFirstPaint` prints on master,
+  differing only in timings (366 ms vs 382 ms). Records: `docs/notebook/gate-runs/g064-closeout/`.
+  ⚠️ The committed `docs/plans/joystick/gate-baseline.json` (2026-09-14, 10 rows) is 130+ rows
+  behind master. It was NOT re-adopted here: master's set includes message rows whose text carries
+  timings, so adoption needs curation, not a copy — the two manifests are the measurement for
+  whoever adopts it.
+- **Live walk** — real Chromium (Playwright), the local sandbox
+  (`scripts/hub_sandbox_boot.py --data-dir C:\data-g064 --port 8093`, `NOTEBOOK_ASK_INSERT_ON=1`),
+  the built bundle, a 390px touch context, a synthetic sandbox account:
+  - Ask's question box keeps focus through "what moved margins" typed key by key (the Sheet fix);
+  - a summary→body toggle copy pasted with real Ctrl+C / Ctrl+V lands as plain text, no page error;
+  - a partial callout copy pasted at a paragraph's start does not wrap that paragraph;
+  - two lines pasted mid toggle-title keep one toggle, the title holding the joined text;
+  - chips `[2][3]`: the left, middle and right of each chip's own box hit THAT chip.
+  - `C:\data`: CLEAN at pre-boot / +15 s / +120 s, and 0 main `.db` files written through the stop
+    (mtime check after a PID-exact stop). Result: `docs/notebook/gate-runs/g064-closeout/live-walk-2026-09-23.json`;
+    integrity log `docs/plans/joystick/sandbox-runs/2026-09-23T12-16-46.md`.
+  - ⚠️ The first two walk attempts reported the chips unhittable: the cinematic intro overlays every
+    page load for ~9 s, and the probe ran under it. An instrument artefact, not a product fact.
+- **Deploy:** recorded in the update to this section after the push.
+
+### Known and recorded, NOT fixed (each ruled out of scope)
+- Chart citations from one `/mtf` or `/compare` insert share an identity, so they open the note
+  rather than the chart (no worse than before: atom citations did not exist). Durable fix: a real
+  per-node id stamped in `buildWidgetEmbedAttrs`.
+- Two identical atoms (two excerpts, two id-less chips) → a citation opens the note; two identical
+  paragraphs can still be confused by a precisely sized edit (text-only verify).
+- A cited block longer than the 400-char snippet cap re-resolves to its first 400 characters.
+- Drops are not covered by the paste plugin's belt or title rules (a multi-block drop onto a toggle
+  title can still split it); list-item copies with non-text endpoints can still throw on parse
+  (programmatic only); a stale pre-deploy clipboard can hit the old parse throw once.
+- `_best_note_passage` lower()-index drift for characters whose lowercase form is longer (e.g. İ).
+- The fingerprint "fast path" is computed and never compared (dead code).
+
+### Decisions made under the delegation (full list in the session ledger)
+- **Not built:** G-053 (Ask Notebook as Compass tools — a cross-workstream refactor), G-040 (already
+  descoped by the owner), F5P-1 (its fix sits in the F5-frozen save path), K-1 (its measured
+  precondition is not in hand). Legal/vendor items G-052/G-062/G-080/G-127 need outside parties.
+- **Accepted behaviour change:** a whole foreign `<aside>`/`<details>` pasted from another site into
+  an empty line becomes plain paragraphs, not a callout/toggle box (own whole-block copies still
+  paste as a box).
+- **Toggle-title paste rules:** text-only → one line in the title (marks and inline chips kept);
+  anything with structure → lands whole after the toggle (before it at the start of a non-empty
+  title); empty lines → no-op; a structure paste never touches the title's selection.
+
+---
+
 ## ✅ G-064 build verification — 2026-09-23 (branch `feat/notebook-kill-switch`, built dark)
 
 G-064 (insert an Ask Notebook answer into a note) is **built, reviewed and verified;

@@ -1,0 +1,59 @@
+{
+ "errors": [],
+ "login": 200,
+ "flag_askInsert": true,
+ "note_id": "2e2dad57966d4570a9340a82635d5892",
+ "intro_before": 0,
+ "intro_after": 0,
+ "start": {
+  "toggles": 2,
+  "callouts": 1
+ },
+ "B_toggle_span_paste": {
+  "new_errors": [],
+  "toggles": 2,
+  "after_text": [
+   "Mine.",
+   "After.mmary line",
+   "Togg",
+   "Margins fell [2][3] after the print."
+  ]
+ },
+ "C_callout_start_paste": {
+  "callouts": 1,
+  "first_top": "P:ideMine."
+ },
+ "D_title_paste": {
+  "toggles": 2,
+  "summary": "Summline one line twoary line"
+ },
+ "E_chips": [
+  {
+   "text": "[2]",
+   "w": 32.1,
+   "h": 23.5,
+   "left": "self",
+   "mid": "self",
+   "right": "self",
+   "top": 597,
+   "vh": 844,
+   "hitTag": "BUTTON._citationChip_14c0d_289 _chip_1nlg9_23 "
+  },
+  {
+   "text": "[3]",
+   "w": 32.1,
+   "h": 23.5,
+   "left": "self",
+   "mid": "self",
+   "right": "self",
+   "top": 597,
+   "vh": 844,
+   "hitTag": "BUTTON._citationChip_14c0d_289 _chip_1nlg9_23 "
+  }
+ ],
+ "A_ask_focus": {
+  "value": "what moved margins",
+  "active_is_input": true,
+  "sheet": 1
+ }
+}
