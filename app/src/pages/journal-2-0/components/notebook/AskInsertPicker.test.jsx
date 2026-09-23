@@ -78,6 +78,10 @@ describe('AskInsertPicker', () => {
     expect(p.onCancel).toHaveBeenCalled()
   })
 
+  // DESKTOP TIER ONLY. On the touch tier the picker sits inside AskPanel's
+  // Sheet, whose capture-phase Escape handler closes the whole Ask sheet first
+  // and stops the event, so this input's handler never runs there. Known and
+  // ruled out of scope (G-064 close-out); only a hardware keyboard reaches it.
   it('Escape in the search box closes it', () => {
     const p = setup()
     fireEvent.keyDown(input(), { key: 'Escape' })

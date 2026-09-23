@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState, useCallback } from 'react'
+import { useEffect, useLayoutEffect, useRef, useState, useCallback } from 'react'
 import { createPortal } from 'react-dom'
 import { useIsTouch } from '../../hooks/useBreakpoint'
 import { trapTabKey } from './useFocusTrap'
@@ -62,6 +62,25 @@ export default function Sheet({
   const draggingRef = useRef(false)
   const [dragY, setDragY] = useState(0)
 
+  // ⛔⛔ THE LATEST onClose LIVES IN A REF, AND NOTHING THAT MOVES FOCUS DEPENDS
+  // ON ITS IDENTITY. Callers pass `onClose` inline, so it is a new function on
+  // every parent render. The focus effect below used to list it as a
+  // dependency, so EVERY parent render ran the cleanup (focus back to where it
+  // was on open) and the setup again (focus the panel on the next frame).
+  // Measured on the deployed build at 386px (G-064 close-out): every keystroke
+  // in Ask's question box moved focus to the Ask toggle behind the sheet and
+  // then to the panel, which on a phone closes the keyboard after each
+  // character. Escape, the backdrop and drag-dismiss
+  // read the ref instead, so they always call the caller's LATEST onClose.
+  //
+  // Assigned in a layout effect, not during render: a render React discards
+  // (concurrent rendering, StrictMode) would otherwise leave an uncommitted
+  // callback in the ref, and a layout effect runs after commit and before the
+  // browser can deliver the next key or pointer event, which a passive effect
+  // does not guarantee.
+  const onCloseRef = useRef(onClose)
+  useLayoutEffect(() => { onCloseRef.current = onClose }, [onClose])
+
   // Resolve effective variant
   const resolved =
     variant === 'auto' ? (isTouch ? 'bottom-sheet' : 'modal') : variant
@@ -95,7 +114,7 @@ export default function Sheet({
       if (e.key === 'Escape') {
         if (!isTopmost()) return
         e.stopPropagation()
-        onClose?.()
+        onCloseRef.current?.()
         return
       }
       if (e.key !== 'Tab') return
@@ -118,7 +137,8 @@ export default function Sheet({
       trapTabKey(e, panel)
     }
     document.addEventListener('keydown', onKey, true)
-    // Focus the panel for screen readers / Escape handling
+    // Focus the panel for screen readers / Escape handling. ONCE per open:
+    // this effect is keyed on `open` alone (see onCloseRef above).
     const t = requestAnimationFrame(() => panelRef.current?.focus())
     return () => {
       document.removeEventListener('keydown', onKey, true)
@@ -126,7 +146,7 @@ export default function Sheet({
       const el = restoreFocusRef.current
       if (el && typeof el.focus === 'function') el.focus()
     }
-  }, [open, onClose])
+  }, [open])
 
   // Reset drag offset whenever opened
   useEffect(() => { if (open) setDragY(0) }, [open])
@@ -149,10 +169,10 @@ export default function Sheet({
     if (!draggingRef.current) return
     draggingRef.current = false
     setDragY((d) => {
-      if (d > 110) { onClose?.(); return 0 }
+      if (d > 110) { onCloseRef.current?.(); return 0 }
       return 0
     })
-  }, [onClose])
+  }, [])
 
   if (!open) return null
 
@@ -175,7 +195,7 @@ export default function Sheet({
       className={`${styles.backdrop} ${styles[resolved]}`}
       style={zIndex != null ? { zIndex } : undefined}
       onMouseDown={(e) => {
-        if (dismissOnBackdrop && e.target === e.currentTarget) onClose?.()
+        if (dismissOnBackdrop && e.target === e.currentTarget) onCloseRef.current?.()
       }}
     >
       <div

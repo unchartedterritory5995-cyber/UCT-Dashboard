@@ -35,10 +35,12 @@ export default function AskInsertPicker({
   if (!searchRef.current) searchRef.current = search || makeNoteSearch()
 
   // The search box takes focus when the picker opens (a live walk found the
-  // member had to tap into it). A plain mount focus, NoteFindBar's idiom: the
-  // picker replaces the Insert button inside a panel that is already open, so
-  // AskPanel's two-frame wait (a Sheet claiming focus as it mounts) does not
-  // apply here.
+  // member had to tap into it). A plain mount focus, NoteFindBar's idiom. On
+  // the touch tier the picker sits inside AskPanel's Sheet, and that Sheet used
+  // to take focus back a frame after EVERY AskPanel render (its focus effect
+  // re-ran whenever the inline onClose changed), including the render that
+  // opens this picker. The fix is in Sheet.jsx (the effect is keyed on `open`
+  // alone); AskPanel.touchFocus.test.jsx pins that this focus holds there.
   useEffect(() => { inputRef.current?.focus() }, [])
 
   useEffect(() => {
