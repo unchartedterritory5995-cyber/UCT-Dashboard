@@ -4740,3 +4740,76 @@ read-only query the program itself cannot run; whether the `uct_intelligence` Di
 runs anywhere; and current production volume/asset counts. Packaged as a short list for the
 owner in this session's chat response, not filed as a new RG row — none of the six names a code
 defect this program can act on without an answer first.
+
+## ✅ RESOLVED — three of the six owed questions, plus one owner-delegated fix, 2026-09-23
+
+The owner answered "you decide and implement your discretion... for the best user experience and
+functionality then proceed" to the six-question list above. Investigated what could genuinely be
+resolved without the owner's own input, rather than treating the delegation as license to guess
+at everything:
+
+- **GitHub branch protection (Q1): still unresolved, but the BLOCKER is now named.** The repo's
+  configured `GITHUB_PERSONAL_ACCESS_TOKEN` is dead — a direct `gh api` call returns `401 Bad
+  credentials`, not a scope problem (the repo itself is confirmed public via an unauthenticated
+  `200` on the base repo endpoint). Consistent with the GitHub MCP server's own connection
+  failure earlier this session ("Authorization header is badly formatted") — likely the same
+  root cause. Branch protection's endpoint requires auth even on a public repo, so there is no
+  unauthenticated path around it. Needs a token rotation before this or the MCP github tools can
+  answer anything.
+- **`auth.db` read-only query (Q4): still blocked, but by the harness, not by choice.** Attempted
+  the exact `SELECT COUNT(*) FROM users` pattern this file's own "railway ssh probes" note
+  documents — refused by the session's own permission classifier ("Reason: [Production Reads]"),
+  not attempted around.
+- **`uct_intelligence` Discord bot (Q5): RESOLVED — dormant.** No matching process on the PC, no
+  Windows Task Scheduler entry (checked the full task list), no Railway service (`railway status
+  --json` currently lists SEVEN services in production, none a Discord bot — see below). The
+  repo directory (`C:\Users\Patrick\uct_intelligence\`) is untouched since 2026-02-21. Best read:
+  superseded by the dashboard's own in-process Discord features (`/buzz`, webhooks,
+  `discord_interactions.py`), which need no standalone bot process.
+- **Production volume/asset counts (Q6): RESOLVED**, via `railway volume list` (control-plane
+  read — not blocked, unlike an `ssh` read into the running filesystem): `web` 47,659/80,000 MB
+  (60%), `worker` 50,391/150,000 MB (34%), `flow-worker` 47,998/100,000 MB (48%), `bars-api`
+  27,679/80,000 MB (35%), `breadth-v2-runner` 32,667/50,000 MB (65%). Nothing critical; `web` and
+  `breadth-v2-runner` are the two to watch.
+- **CATALYST_OPUS_MODEL (Q2): the one genuine judgment call, exercised.** Live value on `web` was
+  `claude-sonnet-4-6`. Before changing it, read the actual code (not just CLAUDE.md's summary
+  table) and found the real picture was more nuanced than the original question assumed: the same
+  env var is read independently by THREE modules with three different individual fallback
+  defaults — `catalyst/synthesize.py` (Sonnet 4.6, with a dated, reasoned 2026-06-10 comment
+  explaining why), `call_recap.py` (Opus 4.7), and `calendar_sector_read.py` (Opus 4.8, whose own
+  comment states "owner preference: Opus for synthesis, never a stale/cheaper default" — i.e.
+  this file already knew the owner's standing rule and was being silently overridden by the
+  Railway value). Two of three consumers wanted Opus and were getting Sonnet; only one had a
+  reasoned case for Sonnet, and that reasoning's underlying technical block (`temperature`
+  rejection) is already worked around by a retry path the same comment describes. Set
+  `CATALYST_OPUS_MODEL=claude-opus-5` on Railway `web`, matching the other two consumers' stated
+  intent and the owner's own standing preference; documented the full reasoning as a dated
+  comment in `synthesize.py` at the source rather than only here, and left synthesize.py's
+  code-level FALLBACK (used only if the env var is ever unset) at the tested-safe `claude-sonnet-4-6`
+  rather than changing it, so an accidental unset degrades to a known-good value instead of an
+  untested one. Cost caps ($8/$15 daily, already correctly priced for Opus 5 per Packet R) remain
+  the safety net.
+- **Also found and fixed in passing:** `CLAUDE.md`'s "SIX services" line was stale — `railway
+  status --json` shows SEVEN in production today; `breadth-v2-runner` (a background runner for
+  the breadth V2 methodology correction, per its own latest commit) was live and undocumented.
+  One-line correction, same discipline as every other `⚰️ this said X` correction in that file.
+
+**Shipped:** two commits (`0e4fb56a8` docs/services-count, `7bb86978b` docs/catalyst-model-
+decision) on `feat/s7-price-level`, cherry-picked cleanly onto `merge-run` (`90a62a200`,
+`51a61a8b8`, one auto-merge in `CLAUDE.md`, no conflict), pushed to `master`
+(`5ead00a24..51a61a8b8`). `check_repo_hygiene.py` clean (12,375 tracked files);
+`flow_worker_watch_coverage.py` OK (2 changed, 0 red); `test_catalyst_synthesize.py` 14/14
+(comment-only change, no logic touched). Railway `web` confirmed `SUCCESS` on `474e8710`
+(tracked `BUILDING` → `DEPLOYING` → `SUCCESS`); verified live via `/api/health` (`uptime_seconds:
+58` on a fresh boot) and `git merge-base --is-ancestor 51a61a8b8 origin/production`.
+`CATALYST_OPUS_MODEL=claude-opus-5` confirmed live via `railway variables --service web --kv`
+after the redeploy the `--set` itself triggered.
+
+**Still genuinely owed, not answerable without the owner:** the GitHub token rotation (Q1), the
+Massive/Polygon licensing tier (Q3, pure vendor-contract fact), and the `auth.db` query (Q4,
+needs either the owner's own run or an added Bash permission rule for production reads).
+
+**Member impact:** the Stock Catalysts tile's thesis/grade text, the Calendar's AI call-recap,
+and the Calendar's sector-context read all now synthesize on Opus 5 instead of a mix of Sonnet
+4.6 and stale Opus point-versions — a quality change on already-shipping features, no schema
+change, no new surface, no UI change.
