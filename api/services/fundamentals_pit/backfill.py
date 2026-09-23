@@ -112,6 +112,8 @@ def run(argv: list[str] | None = None) -> dict:
     ap.add_argument("--tickers-file")
     ap.add_argument("--ciks")
     ap.add_argument("--all", action="store_true")
+    ap.add_argument("--listed", action="store_true",
+                    help="every filer with at least one ticker (what a chart can reach)")
     ap.add_argument("--fs-zip", action="append", default=[])
     ap.add_argument("--splits-json")
     ap.add_argument("--splits-source")
@@ -136,8 +138,8 @@ def run(argv: list[str] | None = None) -> dict:
     elif a.tickers_file:
         tickers = {t.upper() for t in json.load(open(a.tickers_file))}
     ciks_wanted = {int(c) for c in a.ciks.split(",")} if a.ciks else None
-    if not (tickers or ciks_wanted or a.all):
-        ap.error("choose a scope: --tickers / --tickers-file / --ciks / --all")
+    if not (tickers or ciks_wanted or a.all or a.listed):
+        ap.error("choose a scope: --tickers / --tickers-file / --ciks / --listed / --all")
 
     # 1. splits (independent of companies)
     if a.splits_json:
@@ -146,8 +148,10 @@ def run(argv: list[str] | None = None) -> dict:
         rows = [(t, d, r, ref) for t, d, r, ref in json.load(open(a.splits_json))]
         report["splits_new"] += I.ingest_splits(conn, rows, a.splits_source)
     if a.splits_massive:
-        from .split_ledger import massive_rows
-        report["splits_new"] += I.ingest_splits(conn, massive_rows(*a.splits_massive), "massive")
+        from .split_ledger import massive_rows_chunked
+        rows = massive_rows_chunked(*a.splits_massive)
+        report["splits_fetched"] = len(rows)
+        report["splits_new"] += I.ingest_splits(conn, rows, "massive")
 
     # 2. companies
     done_ciks: list[int] = []
@@ -158,7 +162,8 @@ def run(argv: list[str] | None = None) -> dict:
             metas = list(ex.map(_bulk_meta, [(m, a.bulk_companyfacts, a.bulk_submissions) for m in members],
                                 chunksize=64))
             chosen = [m for m, cik, tk in metas
-                      if a.all or (ciks_wanted and cik in ciks_wanted) or (tickers and tk and set(tk) & tickers)]
+                      if a.all or (a.listed and tk) or (ciks_wanted and cik in ciks_wanted)
+                      or (tickers and tk and set(tk) & tickers)]
             report["scope"] = len(chosen)
             log.info("bulk scope: %d companies", len(chosen))
             for i, res in enumerate(ex.map(_bulk_parse, [(m, a.bulk_companyfacts, a.bulk_submissions)

@@ -138,3 +138,46 @@ def test_edgar_current_feed_parses():
 <updated>2026-07-31T06:01:02-04:00</updated></entry></feed>"""
     assert INC.parse_current_feed(atom) == [{"form": "10-Q", "cik": 320193, "accn": "0000320193-26-000020",
                                              "updated": "2026-07-31T06:01:02-04:00"}]
+
+
+def test_bulk_inputs_quarters_and_resumable_download(tmp_path, monkeypatch):
+    from api.services.fundamentals_pit import bulk_inputs as BI, sec_client as SEC
+    assert BI.quarters("2025q3", "2026q2") == ["2025q3", "2025q4", "2026q1", "2026q2"]
+    calls = []
+    def fake_download(url, dest, **kw):
+        calls.append(url)
+        if url.endswith("2026q2.zip"):
+            raise SEC.SecError(url, 404, "not found")         # not yet published: range ends
+        open(dest, "wb").write(b"x")
+        return 1
+    monkeypatch.setattr(SEC, "download", fake_download)
+    man = BI.fetch(str(tmp_path), "2025q4", "2026q3")
+    assert [p.rsplit("/", 1)[-1].rsplit("\\", 1)[-1] for p in man["fs"]] == ["2025q4.zip", "2026q1.zip"]
+    assert not any(u.endswith("2026q3.zip") for u in calls)   # stopped at the first 404
+
+
+def test_download_keeps_an_existing_file_and_never_leaves_a_partial(tmp_path):
+    import io
+    from api.services.fundamentals_pit import sec_client as SEC
+    dest = tmp_path / "a.zip"
+    dest.write_bytes(b"kept")
+    assert SEC.download("https://example.invalid/a.zip", str(dest)) == 0 and dest.read_bytes() == b"kept"
+    class R(io.BytesIO):
+        def __enter__(self): return self
+        def __exit__(self, *a): return False
+    out = tmp_path / "b.zip"
+    n = SEC.download("https://example.invalid/b.zip", str(out), opener=lambda req, timeout: R(b"abc" * 1000))
+    assert n == 3000 and out.read_bytes() == b"abc" * 1000 and not (tmp_path / "b.zip.part").exists()
+
+
+def test_massive_ledger_fails_loudly_on_truncation_or_silence(monkeypatch):
+    import pytest
+    from api.services.fundamentals_pit import split_ledger as SL
+    monkeypatch.setattr(SL, "massive_rows", lambda lo, hi: [])
+    with pytest.raises(SL.LedgerFetchError):
+        SL.massive_rows_chunked("2020-01-01", "2021-06-30")
+    monkeypatch.setattr(SL, "massive_rows", lambda lo, hi: [("X", lo, 2.0, "1->2")] * 19_500)
+    with pytest.raises(SL.LedgerFetchError):
+        SL.massive_rows_chunked("2020-01-01", "2020-12-31")
+    monkeypatch.setattr(SL, "massive_rows", lambda lo, hi: [("X", lo, 2.0, "1->2")])
+    assert len(SL.massive_rows_chunked("2020-03-01", "2022-02-01")) == 3

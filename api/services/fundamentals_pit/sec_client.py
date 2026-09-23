@@ -72,6 +72,43 @@ def get_bytes(url: str, retries: int = 4, timeout: float = 60.0, opener=None) ->
     raise SecError(url, getattr(last, "code", None), f"gave up after {retries + 1} attempts: {last}")
 
 
+def download(url: str, dest: str, retries: int = 4, timeout: float = 300.0, opener=None) -> int:
+    """Stream a large SEC file (bulk archives, FS data sets) to `dest` under the
+    same fair-access rules as every other call: one rate-limited request, the
+    declared User-Agent, bounded retries. Written to `dest.part` and renamed, so
+    a killed download never leaves a truncated file under the real name. An
+    existing `dest` is kept (idempotent). Returns bytes written (0 if kept)."""
+    if os.path.exists(dest):
+        return 0
+    ua = os.environ.get("SEC_USER_AGENT", DEFAULT_UA)
+    tmp = dest + ".part"
+    last: Exception | None = None
+    for attempt in range(retries + 1):
+        _wait_turn()
+        req = urllib.request.Request(url, headers={"User-Agent": ua})
+        try:
+            n = 0
+            with (opener or urllib.request.urlopen)(req, timeout=timeout) as r, open(tmp, "wb") as f:
+                while True:
+                    chunk = r.read(1 << 20)
+                    if not chunk:
+                        break
+                    f.write(chunk)
+                    n += len(chunk)
+            os.replace(tmp, dest)
+            return n
+        except urllib.error.HTTPError as e:
+            if e.code == 404:
+                raise SecError(url, 404, "not found") from e
+            last = e
+            if e.code not in (403, 429, 500, 502, 503, 504):
+                raise SecError(url, e.code, str(e)) from e
+        except (urllib.error.URLError, TimeoutError, ConnectionError, OSError) as e:
+            last = e
+        time.sleep(min(60.0, 2.0 ** attempt))
+    raise SecError(url, getattr(last, "code", None), f"gave up after {retries + 1} attempts: {last}")
+
+
 def get_json(url: str, cache_dir: str | None = None, cache_name: str | None = None, **kw) -> dict:
     """JSON GET with an OPTIONAL on-disk cache (backfill / repair runs)."""
     if cache_dir and cache_name:

@@ -63,6 +63,34 @@ def massive_rows(from_iso: str, to_iso: str) -> list[tuple]:
     return out
 
 
+PAGE_CAP_ROWS = 20_000      # reference_corp_actions paginates at most 20 x 1000
+
+
+class LedgerFetchError(RuntimeError):
+    pass
+
+
+def massive_rows_chunked(from_iso: str, to_iso: str) -> list[tuple]:
+    """`massive_rows` one calendar year at a time, FAILING LOUDLY where the adapter
+    fails quietly. Two traps in `fetch_confirmed_splits` for a whole-history pull:
+    it stops at 20 pages (a 2003->today range could be silently truncated), and it
+    returns [] on ANY provider failure (an outage reads as "no splits"). A short
+    ledger withholds rather than corrupts, but it would quietly blank split-
+    sensitive metrics for every affected company -- so neither is accepted here."""
+    y0, y1 = int(from_iso[:4]), int(to_iso[:4])
+    out: list[tuple] = []
+    for y in range(y0, y1 + 1):
+        lo = from_iso if y == y0 else f"{y}-01-01"
+        hi = to_iso if y == y1 else f"{y}-12-31"
+        rows = massive_rows(lo, hi)
+        if len(rows) >= PAGE_CAP_ROWS - 1000:
+            raise LedgerFetchError(f"{lo}..{hi}: {len(rows)} rows is at the adapter's page cap -- truncated")
+        if not rows and y < y1:
+            raise LedgerFetchError(f"{lo}..{hi}: no splits in a whole year -- provider failure, not data")
+        out.extend(rows)
+    return out
+
+
 class LedgerConflict(ValueError):
     pass
 
