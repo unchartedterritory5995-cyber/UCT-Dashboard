@@ -101,11 +101,16 @@ from typing import Any
 # "no_answer" to 2 of 3 questions about an attached filing and an embedded
 # chart (closeout-parity probe, 2026-09-23) -- an atom that reads as nothing
 # cannot be asked about.
+# hardBreak (Wave 4) is the one INLINE leaf here: it reads as ONE space, so the
+# words either side of a line break stay two words ("line one line two", never
+# "line oneline two") -- a phrase across the break can be found and quoted.
+# It is still one ProseMirror position, and, being inline, emits no separator.
 _ATOM_TEXT = {
     "attachmentChip": lambda a: f"[file: {a.get('name') or 'file'}]",
     "documentExcerpt": lambda a: "[excerpt]",
     "widgetEmbed": lambda a: (a.get("searchText") if isinstance(a.get("searchText"), str)
                               and a.get("searchText") else "[widget]"),
+    "hardBreak": lambda a: " ",
 }
 
 

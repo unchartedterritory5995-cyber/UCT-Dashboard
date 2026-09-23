@@ -112,6 +112,11 @@ export function citedSources(answer, sources) {
  * `leafText`: the argument changes citation text and nothing else, while a
  * schema leafText would also change `doc.textContent` and the plain-text
  * clipboard of a selected chip (measured, closeout-parity 2026-09-23).
+ *
+ * hardBreak (Wave 4) is the one INLINE leaf that reads as text: ONE space, so
+ * the words either side of a line break stay two words ("line one line two",
+ * never "line oneline two"). It stays one position, and textBetween emits no
+ * separator for an inline node.
  */
 export function citationLeafText(node) {
   const attrs = node?.attrs || {}
@@ -120,6 +125,7 @@ export function citationLeafText(node) {
     case 'documentExcerpt': return '[excerpt]'
     case 'widgetEmbed':
       return typeof attrs.searchText === 'string' && attrs.searchText ? attrs.searchText : '[widget]'
+    case 'hardBreak': return ' '
     default: return ''
   }
 }

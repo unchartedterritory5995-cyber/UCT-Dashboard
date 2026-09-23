@@ -828,6 +828,42 @@ class TestThePassagePickerPrefersAnExactOccurrence:
         assert validity == ev.CITE_NOTE_ONLY and (loc["from"], loc["to"]) == (0, 1)
 
 
+class TestAHardBreakReadsAsOneSpace:
+    """Wave 4: a line break read as nothing, gluing the words either side of
+    it into one ("line oneline two"), so a phrase across it could not be found
+    or quoted. It reads as ONE space in `_ATOM_TEXT` and in the client's
+    citationLeafText (pinned through the fixtures), is still one ProseMirror
+    position, and -- inline -- emits no separator."""
+
+    def test_the_words_either_side_stay_two_words(self):
+        assert flatten(_FIXTURES["hardBreakInline"]["json"])["text"] == "line one line two"
+
+    def test_each_break_is_one_position_one_space_and_no_separator(self):
+        flat = flatten(_FIXTURES["hardBreaks"]["json"])
+        breaks = [s for s in flat["spans"] if s["is_atom"]]
+        assert len(breaks) == 5
+        assert all(s["pm_end"] - s["pm_start"] == 1 and s["text"] == " " and s["atom"] is None for s in breaks)
+        assert flat["text"] == "Guidance raised  again\n lead\ntail "  # separators only between paragraphs
+
+    def test_ask_this_note_reads_and_cites_each_paragraph_across_its_breaks(self):
+        from api.services.journal_two import ask_retrieval as ar
+        doc = _FIXTURES["hardBreaks"]["json"]
+        flat = flatten(doc)
+        index = SpanIndex(flat["spans"])
+        blocks = ar._note_blocks(doc, "raised")
+        assert [b["text"] for b in blocks] == ["Guidance raised  again", "lead", "tail"]
+        for b in blocks:
+            loc = b["location"]
+            assert b["precise"] is True and "atom" not in loc, b["text"]
+            # The range is the block as split (a leading or trailing break
+            # included); the client reads it trimmed, as it reads every block.
+            assert index.pm_range(loc["snippet_start"], loc["snippet_end"]) == {"from": loc["from"], "to": loc["to"]}
+            assert flat["text"][loc["snippet_start"]:loc["snippet_end"]].strip() == b["text"]
+        # A phrase across two breaks reads back from its own range.
+        assert verify(doc, blocks[0]["location"]["from"], blocks[0]["location"]["to"], "Guidance raised  again")
+        assert blocks[0]["hits"] == 1
+
+
 class TestThePassagePickerMatchesInTheOriginalText:
     """Wave 4: `text.lower()` is not index-aligned with `text` -- 'İ' (U+0130)
     lowercases to TWO code points -- so an offset found in the lowercased copy

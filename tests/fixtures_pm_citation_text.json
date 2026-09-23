@@ -1519,7 +1519,7 @@
     }
    ]
   },
-  "text": "line oneline two",
+  "text": "line one line two",
   "contentSize": 19,
   "textSpans": [
    {
@@ -1533,7 +1533,14 @@
     "text": "line two"
    }
   ],
-  "leafSpans": [],
+  "leafSpans": [
+   {
+    "pm_start": 9,
+    "pm_end": 10,
+    "text": " ",
+    "atom": null
+   }
+  ],
   "passages": []
  },
  "noteLinkInline": {
@@ -2687,6 +2694,151 @@
    }
   ],
   "passages": []
+ },
+ "hardBreaks": {
+  "json": {
+   "type": "doc",
+   "content": [
+    {
+     "type": "paragraph",
+     "content": [
+      {
+       "type": "text",
+       "text": "Guidance"
+      },
+      {
+       "type": "hardBreak"
+      },
+      {
+       "type": "text",
+       "text": "raised"
+      },
+      {
+       "type": "hardBreak"
+      },
+      {
+       "type": "hardBreak"
+      },
+      {
+       "type": "text",
+       "text": "again",
+       "marks": [
+        {
+         "type": "bold"
+        }
+       ]
+      }
+     ]
+    },
+    {
+     "type": "paragraph",
+     "content": [
+      {
+       "type": "hardBreak"
+      },
+      {
+       "type": "text",
+       "text": "lead"
+      }
+     ]
+    },
+    {
+     "type": "paragraph",
+     "content": [
+      {
+       "type": "text",
+       "text": "tail"
+      },
+      {
+       "type": "hardBreak"
+      }
+     ]
+    }
+   ]
+  },
+  "text": "Guidance raised  again\n lead\ntail ",
+  "contentSize": 38,
+  "textSpans": [
+   {
+    "pm_start": 1,
+    "pm_end": 9,
+    "text": "Guidance"
+   },
+   {
+    "pm_start": 10,
+    "pm_end": 16,
+    "text": "raised"
+   },
+   {
+    "pm_start": 18,
+    "pm_end": 23,
+    "text": "again"
+   },
+   {
+    "pm_start": 26,
+    "pm_end": 30,
+    "text": "lead"
+   },
+   {
+    "pm_start": 32,
+    "pm_end": 36,
+    "text": "tail"
+   }
+  ],
+  "leafSpans": [
+   {
+    "pm_start": 9,
+    "pm_end": 10,
+    "text": " ",
+    "atom": null
+   },
+   {
+    "pm_start": 16,
+    "pm_end": 17,
+    "text": " ",
+    "atom": null
+   },
+   {
+    "pm_start": 17,
+    "pm_end": 18,
+    "text": " ",
+    "atom": null
+   },
+   {
+    "pm_start": 25,
+    "pm_end": 26,
+    "text": " ",
+    "atom": null
+   },
+   {
+    "pm_start": 36,
+    "pm_end": 37,
+    "text": " ",
+    "atom": null
+   }
+  ],
+  "passages": [
+   {
+    "text": "Guidance raised",
+    "pm_from": 1,
+    "pm_to": 16
+   },
+   {
+    "text": "raised  again",
+    "pm_from": 10,
+    "pm_to": 23
+   },
+   {
+    "text": "lead",
+    "pm_from": 26,
+    "pm_to": 30
+   },
+   {
+    "text": "tail",
+    "pm_from": 32,
+    "pm_to": 36
+   }
+  ]
  },
  "longBlock": {
   "json": {

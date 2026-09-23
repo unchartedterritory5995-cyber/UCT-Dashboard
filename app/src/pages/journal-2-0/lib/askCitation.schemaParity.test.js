@@ -95,10 +95,22 @@ describe('the Python walker describes the SAME schema the editor runs', () => {
     for (const t of containers) expect(t.isBlock, `${t.name} is an inline container`).toBe(true)
   })
 
-  it('the leaves that read as text are exactly the Python placeholders, and all are BLOCK atoms', () => {
+  it('the leaves that read as text are exactly the Python placeholders; each is a BLOCK atom or an inline leaf Python knows', () => {
     const reading = real.filter((t) => t.isLeaf && citationLeafText(t.create()) !== '').map((t) => t.name)
     expect(sorted(pyNames('_ATOM_TEXT'))).toEqual(sorted(reading))
-    for (const n of reading) expect(schema.nodes[n].isBlock, n).toBe(true)
+    // A BLOCK leaf that reads as text is its own line; an INLINE one (hardBreak
+    // reads as one space, Wave 4) must emit NO separator, which the walker
+    // knows only through _INLINE_LEAF_TYPES.
+    const inline = reading.filter((n) => schema.nodes[n].isInline)
+    expect(inline).toContain('hardBreak') // non-vacuity: the inline branch is exercised
+    for (const n of inline) expect(pyNames('_INLINE_LEAF_TYPES'), n).toContain(n)
+    for (const n of reading.filter((m) => !inline.includes(m))) expect(schema.nodes[n].isBlock, n).toBe(true)
+  })
+
+  it('hardBreak reads as ONE space under the app schema, and is one position', () => {
+    const br = schema.nodes.hardBreak.create()
+    expect(citationLeafText(br)).toBe(' ')
+    expect(br.nodeSize).toBe(1)
   })
 
   it('every atom identity kind reads as text, and every one is pinned by the ground truth (fix round 2)', () => {

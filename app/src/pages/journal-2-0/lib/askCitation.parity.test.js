@@ -772,3 +772,35 @@ function notOpenedAtom(out) {
   expect(out.state).toBe(VALID_NOTE_ONLY)
   expect(out.from).toBeUndefined()
 }
+
+// ── Wave 4: a hardBreak reads as ONE space ─────────────────────────────────
+
+describe('a hardBreak reads as one space and stays one position (Wave 4)', () => {
+  it('the words either side of a break stay two words', () => {
+    // Asserted as a literal, not against the fixture, which this same
+    // function produced: the Python rail is what pins the fixture.
+    const doc = docOf('hardBreakInline')
+    expect(citationText(doc, 0, doc.content.size)).toBe('line one line two')
+  })
+
+  it('a phrase across a break is cited exactly, in place and re-found', () => {
+    const doc = docOf('hardBreaks')
+    const full = citationText(doc, 0, doc.content.size)
+    const phrase = 'raised  again' // two breaks between the words
+    const i = full.indexOf(phrase)
+    const range = flatToPmRange(doc, i, i + phrase.length)
+    expect(range).toEqual({ from: 10, to: 23 })
+    expect(resolveNoteCitation(doc, range, phrase)).toEqual({ state: VALID_EXACT, ...range })
+    const moved = Node.fromJSON(schema, { type: 'doc',
+      content: [{ type: 'paragraph', content: [{ type: 'text', text: 'Above.' }] }, ...FIXTURES.hardBreaks.json.content] })
+    expect(resolveNoteCitation(moved, range, phrase)).toEqual({ state: RERESOLVED_EXACT, from: 18, to: 31 })
+  })
+
+  it('each break is one position: a word after N breaks maps N positions on, never more', () => {
+    const doc = docOf('hardBreaks')
+    const full = citationText(doc, 0, doc.content.size)
+    const i = full.indexOf('again')
+    expect(flatToPmRange(doc, i, i + 5)).toEqual({ from: 18, to: 23 })
+    expect(citationText(doc, 18, 23)).toBe('again')
+  })
+})

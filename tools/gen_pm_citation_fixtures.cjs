@@ -13,7 +13,7 @@
 //   - `leafSpans`: every leaf that reads as text, so the Python rail pins atom
 //     positions too, not only text-node positions -- and each one's `atom`
 //     identity from the client's citationAtomIdentity (null when it has none);
-//   - `passages`: for the astral cases, cited passages with the ProseMirror
+//   - `passages`: for the astral and hardBreak cases, cited passages with the ProseMirror
 //     range textBetween gives them, so both rails pin the offset mapping INSIDE
 //     a text node (positions count UTF-16 units; Python counts code points).
 //
@@ -64,6 +64,7 @@ const WIDGET = (searchText, capturedAt, embedId) => ({ type: 'widgetEmbed',
   attrs: { widgetId: 'chart', searchText: searchText ?? null, ...(capturedAt === undefined ? {} : { capturedAt }),
     ...(embedId === undefined ? {} : { embedId }) } })
 const EXCERPT = (excerptId) => ({ type: 'documentExcerpt', attrs: { excerptId } })
+const BR = { type: 'hardBreak' }
 
 const CASES = {
   // ── text, marks, blocks, lists, quotes, ask inserts ──
@@ -204,6 +205,12 @@ const CASES = {
   // ── a block longer than the 400-character snippet cap (Wave 4), with astral
   //    characters inside the first 400 so code points and UTF-16 units differ
   //    exactly where the cut falls ──
+  // ── hardBreak reads as ONE space (Wave 4): inside, doubled, first and last
+  //    in a paragraph, and beside a mark -- one position each, no separator ──
+  hardBreaks: doc(
+    p('Guidance', BR, 'raised', BR, BR, t('again', ['bold'])),
+    p(BR, 'lead'),
+    p('tail', BR)),
   longBlock: doc(p('Intro.'),
     p(`Guidance \u{1F525} raised \u{1D538}: ${'the quarter closed with margins widening across every segment. '.repeat(8)}Final word.`),
     p('After.')),
@@ -220,6 +227,7 @@ const PASSAGES = {
   astralAcrossMarks: ['Up', '\u{1F525} today', 'today \u{1D538}'],
   astralThenExcerpts: ['NVDA thesis', 'After.'],
   astralThenChip: ['hot', '[file: q3.pdf]', 'After \u{1D538}.'],
+  hardBreaks: ['Guidance raised', 'raised  again', 'lead', 'tail'],
 }
 
 function passageRange(d, passage, leafText) {
