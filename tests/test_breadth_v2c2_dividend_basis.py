@@ -120,3 +120,44 @@ def test_dotted_and_concatenated_records_merge_and_conflicts_fail_closed():
     assert same["applied"]["WSO.B"] == [("2024-02-23", pytest.approx(1 - 2.7 / 400.0))]
     diff = bdb.build_events([_div("WSO.B", "2024-02-23", 2.7), _div("WSOB", "2024-02-23", 2.5)], CAL, raw)
     assert diff["applied"]["WSO.B"] == [("2024-02-23", pytest.approx(1 - 5.2 / 400.0))]     # two distributions
+
+
+# ── v4: dividends the provider's split-adjusted series already carries ──
+def _adj(table):
+    return lambda iso, t: table.get((iso, t))
+
+
+def test_a_scrip_dividend_the_provider_absorbed_is_not_applied_twice():
+    # BP 2018-11-08 shape: raw 43.11 -> 41.27 on a $0.615 ex-date; the provider's adj/raw factor
+    # steps 0.9548 -> 0.9692 = 1/r — it already carries the distribution as a small split
+    raw = _raw({("2024-02-22", "BP"): 43.11, ("2024-02-23", "BP"): 41.27})
+    adj = _adj({("2024-02-22", "BP"): 43.11 * 0.9548, ("2024-02-23", "BP"): 41.27 * 0.9548 / (1 - 0.615 / 43.11)})
+    t = bdb.build_events([_div("BP", "2024-02-23", 0.615)], CAL, raw, adj_close=adj, splits=[])
+    assert "BP" not in t["applied"] and "BP" not in t["withheld_boundaries"]
+    assert t["absorbed_by_provider"]["BP"][0][0] == "2024-02-23" and t["counts"]["absorbed_by_provider"] == 1
+
+
+def test_an_ordinary_dividend_with_a_flat_factor_is_applied():
+    raw = _raw({("2024-02-22", "KO"): 60.0, ("2024-02-23", "KO"): 59.6})
+    adj = _adj({("2024-02-22", "KO"): 60.0, ("2024-02-23", "KO"): 59.6})
+    t = bdb.build_events([_div("KO", "2024-02-23", 0.485)], CAL, raw, adj_close=adj, splits=[])
+    assert t["applied"]["KO"] == [("2024-02-23", pytest.approx(1 - 0.485 / 60.0))]
+
+
+def test_a_small_stock_dividend_beside_cash_is_applied_units_immaterial():
+    # CBSH shape: 5 % stock dividend (a real split the provider applied: f steps by 1.05) and a
+    # 0.6 % cash dividend the same session — unit ambiguity 0.006 * (1 - 1/1.05) = 0.03 %
+    raw = _raw({("2024-02-22", "CBSH"): 55.0, ("2024-02-23", "CBSH"): 52.0})
+    adj = _adj({("2024-02-22", "CBSH"): 55.0 / 1.05, ("2024-02-23", "CBSH"): 52.0})
+    sp = [{"ticker": "CBSH", "execution_date": "2024-02-23", "split_from": 1, "split_to": 1.05}]
+    t = bdb.build_events([_div("CBSH", "2024-02-23", 0.33)], CAL, raw, adj_close=adj, splits=sp)
+    assert t["applied"]["CBSH"] == [("2024-02-23", pytest.approx(1 - 0.33 / 55.0))]
+    assert t["counts"]["split_session_units_immaterial"] == 1
+
+
+def test_a_cash_dividend_on_a_two_for_one_split_session_is_withheld():
+    raw = _raw({("2024-02-22", "CIG"): 10.0, ("2024-02-23", "CIG"): 4.9})
+    adj = _adj({("2024-02-22", "CIG"): 5.0, ("2024-02-23", "CIG"): 4.9})
+    sp = [{"ticker": "CIG", "execution_date": "2024-02-23", "split_from": 1, "split_to": 2}]
+    t = bdb.build_events([_div("CIG", "2024-02-23", 0.25)], CAL, raw, adj_close=adj, splits=sp)
+    assert "CIG" not in t["applied"] and "cash units unprovable" in t["withheld_detail"][0]["reason"]

@@ -56,6 +56,17 @@ and ex-date:
     equal payments — Yahoo measured 17 collapse vs 23 sum), or two distinct amounts of one
     type within RESTATEMENT_GAP of each other (a restated figure, e.g. ASR 3.358778/3.396091).
 
+⛔⛔ A DIVIDEND THE PROVIDER ALREADY ADJUSTED FOR (v4). Scrip / stock-dividend programmes (BP
+2015-2020, HSBC, AEG, PHG, BCS, TEF, NGG, SAN, BBVA, RDS.A) are published as a cash dividend AND
+the provider's split-adjusted series carries the same distribution as a small split on the
+ex-session (BP 2018-11-08: adj/raw 0.9548 → 0.9692 = 1/r). Applying r again counts it twice.
+When the provider's factor step f = (adj/raw)_ex / (adj/raw)_prev is significant (> 0.1 % and
+beyond one raw tick) and equals the dividend (|ln f + ln r| ≤ ¼|ln r|), the event is
+ABSORBED_BY_PROVIDER: applied once (by the provider), not twice. Any OTHER ledger split in
+(prev, ex-session] makes the declared cash's share units ambiguous; it is applied only when the
+ambiguity (1 − r)·|1 − 1/K| ≤ UNIT_AMBIGUITY (CBSH's 5 % stock dividend beside a 0.6 % cash
+dividend: 0.03 %), else WITHHELD.
+
 ⛔ FAIL CLOSED, NEVER GUESSED. An event is WITHHELD — the name gets no levels while a frame
 straddles it, exactly like an adjusted-series defect — when: the currency is not USD; the same
 currency is missing; an amount is ambiguous (above); there is no raw prior close within 5
@@ -71,18 +82,34 @@ import json
 import math
 import os
 
-DIVIDEND_BASIS_VERSION = "div-basis-v3"
+DIVIDEND_BASIS_VERSION = "div-basis-v4"
 #: two distinct amounts of one type closer than this are a RESTATEMENT signature, not two
 #: distributions (measured, common stock 2006-2026: 1,653 of 1,734 multi-amount groups are >= 10 %
 #: apart and Yahoo SUMS them; below 2 % Yahoo is split between sum and one-of)
 RESTATEMENT_GAP = 0.02
+#: an adjusted price is quoted to the cent (the guard's one-raw-tick rule)
+TICK = 0.0101
+#: a cash dividend on a split session is applied only when the unit ambiguity of its declared
+#: amount (pre- vs post-split shares) moves the level by at most this much: (1 − r)·|1 − 1/K|
+UNIT_AMBIGUITY = 0.001
 MAX_PRIOR_GAP_SESSIONS = 5
 MIN_RATIO = 0.5
 
 
 def build_events(dividends: list, calendar: list, raw_close, canon=lambda t: t,
-                 last_session: str = None) -> dict:
-    """Classify every dividend record once. `raw_close(iso, t)` reads the vintage raw file."""
+                 last_session: str = None, adj_close=None, splits=None) -> dict:
+    """Classify every dividend record once. `raw_close(iso, t)` / `adj_close(iso, t)` read the
+    vintage raw / adjusted files; `splits` is the provider split ledger (v4 interaction rules)."""
+    split_ix = collections.defaultdict(list)       # canonical price key -> [(execution_date, K)]
+    for sp in splits or ():
+        try:
+            K = float(sp["split_to"]) / float(sp["split_from"])
+        except (KeyError, TypeError, ValueError, ZeroDivisionError):
+            continue
+        b = canon(sp["ticker"])
+        for n in {b} | ({b[:-1] + "." + b[-1]} if "." not in b and len(b) >= 2 else set()):
+            split_ix[n].append((sp.get("execution_date") or "", K))
+    absorbed = collections.defaultdict(list)
     applied = collections.defaultdict(list)       # t -> [(session, ratio)]
     withheld = collections.defaultdict(list)      # t -> [session]
     log = collections.Counter()
@@ -169,6 +196,22 @@ def build_events(dividends: list, calendar: list, raw_close, canon=lambda t: t,
             r = 1.0 - cash / prev
             if r <= MIN_RATIO:
                 reason = "cash %.4f is >= %.0f%% of prior raw close %.4f" % (cash, (1 - MIN_RATIO) * 100, prev)
+        if reason is None and adj_close is not None:
+            a0, a1, r1 = adj_close(calendar[k], t), adj_close(sess, t), raw_close(sess, t)
+            if a0 and a1 and r1:
+                lf = math.log((a1 / r1) / (a0 / prev))
+                if abs(lf) > 1e-3 and abs(a1 / (a0 / prev) - r1) > TICK                         and abs(lf + math.log(r)) <= 0.25 * abs(math.log(r)):
+                    absorbed[t].append((sess, r, round(math.exp(lf), 6)))
+                    log["absorbed_by_provider"] += 1
+                    continue
+            Ks = [K for (e, K) in split_ix.get(t, ()) if calendar[k] < e <= sess and K > 0]
+            if Ks:
+                K = math.prod(Ks)
+                bound = (1.0 - r) * abs(1.0 - 1.0 / K)
+                if bound > UNIT_AMBIGUITY:
+                    reason = "dividend on a split session (K=%.4f): cash units unprovable, bound %.4f" % (K, bound)
+                else:
+                    log["split_session_units_immaterial"] += 1
         if reason:
             withheld[t].append(sess)
             log["withheld"] += 1
@@ -184,7 +227,8 @@ def build_events(dividends: list, calendar: list, raw_close, canon=lambda t: t,
         withheld[t] = sorted(set(withheld[t]))
     return {"version": DIVIDEND_BASIS_VERSION, "applied": dict(applied),
             "withheld_boundaries": dict(withheld), "counts": dict(log), "withheld_detail": detail,
-            "respelled": {"%s->%s" % k: v for k, v in sorted(respelled.items())}}
+            "respelled": {"%s->%s" % k: v for k, v in sorted(respelled.items())},
+            "absorbed_by_provider": {t: sorted(v) for t, v in absorbed.items()}}
 
 
 class DividendBasis:
@@ -218,10 +262,13 @@ class DividendBasis:
 
 
 def load_or_build(dividends_path: str, calendar: list, raw_close, canon, cache_path: str,
-                  last_session: str) -> tuple:
+                  last_session: str, adj_close=None, splits_path: str = None) -> tuple:
     h = hashlib.sha256()
-    with open(dividends_path, "rb") as f:
-        h.update(hashlib.sha256(f.read()).digest())
+    for pth in (dividends_path, splits_path):
+        if pth:
+            with open(pth, "rb") as f:
+                h.update(hashlib.sha256(f.read()).digest())
+    h.update(b"adj" if adj_close is not None else b"noadj")
     h.update(("\n".join(calendar) + DIVIDEND_BASIS_VERSION + last_session).encode())
     key = h.hexdigest()
     if os.path.exists(cache_path):
@@ -231,7 +278,11 @@ def load_or_build(dividends_path: str, calendar: list, raw_close, canon, cache_p
             return DividendBasis(t), t
     with open(dividends_path) as f:
         divs = json.load(f)["dividends"]
-    t = build_events(divs, calendar, raw_close, canon, last_session)
+    splits = None
+    if splits_path:
+        with open(splits_path) as f:
+            splits = json.load(f)["splits"]
+    t = build_events(divs, calendar, raw_close, canon, last_session, adj_close=adj_close, splits=splits)
     t["input_key"] = key
     tmp = cache_path + ".partial.%d" % os.getpid()
     with open(tmp, "w") as f:

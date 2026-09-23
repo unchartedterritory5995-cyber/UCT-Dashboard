@@ -109,7 +109,8 @@ class Inputs:
         self.last_session = cal[-1]
         self.divbasis, dt_ = bdb.load_or_build(
             self.paths["dividends"], cal, gh.raw_close, bt.canon,
-            os.path.join(inputs_dir, "dividend_basis_table.json"), cal[-1])
+            os.path.join(inputs_dir, "dividend_basis_table.json"), cal[-1],
+            adj_close=gh.adj_close, splits_path=self.paths["splits"])
         self.dividend_key = dt_["input_key"]
         self.dividend_counts = dt_["counts"]
         self.fingerprints = {k: _sha(p) for k, p in self.paths.items()}

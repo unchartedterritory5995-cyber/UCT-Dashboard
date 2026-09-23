@@ -193,6 +193,20 @@ def raw_close(iso: str, t: str):
     return e.get(t)
 
 
+_ADJ_LRU: dict = {}
+
+
+def adj_close(iso: str, t: str):
+    """One provider ADJUSTED close (canonical spelling), same vintage, small per-session LRU."""
+    e = _ADJ_LRU.get(iso)
+    if e is None:
+        e = closes_for(iso)
+        _ADJ_LRU[iso] = e
+        while len(_ADJ_LRU) > 12:
+            _ADJ_LRU.pop(next(iter(_ADJ_LRU)))
+    return e.get(t)
+
+
 def raw_closes_for(iso: str) -> dict:
     """{ticker: provider RAW (as-traded) close} for one session, canonical spelling, from
     the SAME vintage directory as the adjusted closes."""
