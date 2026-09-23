@@ -363,6 +363,20 @@ the whole thing holds together.
   confirmed the gap is real: `charts_layouts` supports naming/renaming but has no
   URL-based addressing at all (zero `?layout=`-style deep link). Building the
   addressing layer, checking `user_definitions` for the same gap.
+
+> ✅ **Agent 1 result, 2026-09-23 — CLOSED, shipped live.** Confirmed `user_definitions`
+> (screener saved screens) already has a complete, shipped share-token pattern
+> (mint/status/revoke/resolve, append-only) — mirrored it exactly rather than inventing a
+> new one, this program's own stated preference every time a sibling pattern exists.
+> Built: a new `chart_layout_shares` table + `share`/`unshare`/`share_status`/
+> `resolve_share` behind the existing ownership check; a `?openLayout=<id>` /
+> `?openShared=<token>` one-shot URL effect in `ChartsWorkspace.jsx`, same
+> apply-then-strip shape as the existing symbol/timeframe deep link, kept as a separate
+> concern rather than overloading it. 77 tests, all re-run fresh on the merge tree
+> (31 backend + 46 frontend), hygiene clean. Branched properly off `origin/master`
+> itself (`feat/charts-named-address-layer`) rather than committing into the shared
+> worktree, avoiding the exact collision risk Agent 2 had to route around. **Shipped**:
+> pushed as `ba283518c`, confirmed `SUCCESS` and an ancestor of `origin/production`.
 - **Agent 2 (dispatched):** chart keyboard-binding registry. Self-check found 32 raw
   keydown handlers via direct grep, not the roadmap's cited 87 — agent re-derives the
   real count from TD-07's own original methodology before building, rather than trusting
@@ -370,6 +384,29 @@ the whole thing holds together.
   building a second one, if that composition makes sense once it's read.
 - **Agent 3 (already closed, see above):** panel resilience — done Day 2, moved forward
   from here since S7 was blocked. No further action.
+
+> ✅ **Agent 2 result, 2026-09-23 — CLOSED, shipped live.** Re-derived count: 99 sites /
+> 92 files app-wide call `addEventListener('keydown')` directly (30 chart-scoped) — TD-07's
+> cited "87" was close but stale, not wrong in kind. Found `keyboardShortcuts.js` is
+> already a mature, single-source registry for the chart's own shortcuts — TD-07's own
+> words call it *"the right model and the wrong scope."* The genuine gap TD-07 explicitly
+> named — *"a duplicate-(code, modifier, scope) rail"* — didn't exist; built exactly that,
+> narrowly (`keyboardBindingCollisions.test.js`, 5 new tests incl. a mutation control, 74
+> pre-existing tests unaffected, zero real collisions found — a clean result, not a gap).
+> Composing the existing app-wide CommandPalette with chart shortcuts was judged a real
+> decision, correctly left unmade rather than guessed at. **Shipped**: cherry-picked from
+> an isolated worktree (the shared `s7-price-level` checkout had another agent's
+> uncommitted work in-flight — the agent itself correctly avoided touching it), tested
+> fresh on the merge tree (79/79), hygiene clean, pushed as `e2ca7407f`, confirmed
+> `SUCCESS` and an ancestor of `origin/production`.
+>
+> ⚠️ **Operational note for future waves:** two fork agents running in parallel this wave
+> both operated in the same physical `s7-price-level` worktree. Their file-level work was
+> disjoint and no collision occurred, but it was closer than it needed to be — Agent 2 had
+> to detect the other's uncommitted state itself and route around it rather than the
+> parent session preventing the overlap up front. Worth giving genuinely-parallel agents
+> their own isolated worktrees (`git worktree add`) rather than relying on each one to
+> notice and defend against the others sharing its directory.
 
 > 💭 **S8 wiring, reconsidered.** The Days 2-3 plan assumed D2 CP3 (`resolve()`) would
 > ship and then S8's provenance renderer would wire against the newly-addressable
