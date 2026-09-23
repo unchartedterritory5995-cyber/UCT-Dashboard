@@ -21,6 +21,8 @@ import { NoteLink } from './noteLinkNode'
 import { NoteLinkMenuExtension } from '../components/notebook/NoteLinkMenu'
 import { FinancialFact } from './financialFactNode'
 import { DocumentExcerpt } from './documentExcerptNode'
+import { AskInsert } from './askInsertNode'
+import { AskCitation } from './askCitationNode'
 import { fmtTime } from '../../../components/video/playerUtils'
 
 export function buildExtensions({ placeholder = 'Start writing… or type / for blocks and charts' } = {}) {
@@ -82,6 +84,11 @@ export function buildExtensions({ placeholder = 'Start writing… or type / for 
     // time.
     FinancialFact,
     DocumentExcerpt,
+    // G-064: an inserted Ask Notebook answer and its citation chips. Same
+    // "never remove" rule as WidgetEmbed above -- TipTap drops unknown node
+    // types at parse time, and the flag gates only the Insert button.
+    AskInsert,
+    AskCitation,
   ]
 }
 

@@ -129,3 +129,25 @@ export function takePendingAskInsert(noteId, now = Date.now()) {
   if (!entry.node || entry.node.type !== ASK_INSERT_TYPE) return null
   return entry
 }
+
+// ── Inserting into an open editor (spec §5.2) ──
+
+/**
+ * Append an askInsert node at the END of the note.
+ *
+ * ⛔ An explicit position, never the selection: `insertContent` REPLACES a
+ * selected node (NoteEditorPage.jsx:164-166 — the capture tray ate an embed
+ * that way). The note's own autosave persists the change: baseline check,
+ * version capture and offline outbox all unchanged.
+ */
+export function appendAskInsert(editor, node) {
+  if (!editor || editor.isDestroyed || !editor.isEditable || !node) return false
+  const at = editor.state.doc.content.size
+  const ok = editor.chain().insertContentAt(at, node).run()
+  if (!ok) return false
+  try {
+    const dom = editor.view.nodeDOM(at)
+    if (dom && typeof dom.scrollIntoView === 'function') dom.scrollIntoView({ block: 'nearest', behavior: 'smooth' })
+  } catch { /* scrolling is a courtesy */ }
+  return true
+}
