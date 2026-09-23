@@ -4704,3 +4704,39 @@ ancestor of `origin/production`'s exact tip.
 never had one that still worked. The one feature genuinely unique to the orphan (a "recent
 refusals" list sourced from `voice_tool_calls`) is not carried forward; it is a real, small,
 candidate follow-up, not scoped into this packet.
+
+## ✅ RESEARCH_GAPS.md — 12 stale status rows corrected, 2026-09-23
+
+While re-verifying Packets R/F/W/Z/S's own state before starting to build them (per this
+session's own "read everything in full before coding" discipline), discovered all five were
+already fully built, tested, signed and merged — by an earlier instance within this same overall
+session, before this conversation's own summarization boundary. Re-verified fresh rather than
+trusting the discovery: re-ran every packet's own test files (78 backend + 29 frontend, all
+green) and confirmed each shipped commit (`486fa34c6`/`35801bedb`/`a0adf6a9f`/`85557e0a3`/
+`d52fb3e99`) is an ancestor of `origin/production`, not merely of `origin/master`.
+
+The same check, widened to the eight packets from the prior L–Q/X/AC/U/Y/AA/AB/AD/AF waves,
+found `RESEARCH_GAPS.md`'s own Status column had never been updated for any of the twelve —
+R-12/21/32/33/34/35/36/37/38/39/41/42 all still read "packet drafted, awaiting signature" (or,
+for RG-32, "awaiting the owner's CHOOSE") despite being live in production for up to a full day.
+This is the exact second-authority-drift class this program's own CLAUDE.md names repeatedly:
+LEDGER.md had the true story in every case, RESEARCH_GAPS.md simply never caught up.
+
+**Fixed:** all twelve Status cells corrected in one commit, each naming its shipped SHA and
+pointing at the LEDGER.md section carrying the full record, rather than re-narrating it in two
+places. Two of the twelve note a real partial-ship: Packet AA (CP1 only; CP2 needs Ravi) and
+Packet AF (CP1/CP2/CP3/CP5; CP4 needs Ravi) — copied verbatim from this file's own entries above
+rather than re-derived. Pushed `terminal-research` → `origin/terminal-research` directly
+(`9e7e1c6c4..f22b96b6d`) — this branch is its own publish ref (`PUBLISH_REF` in
+`tools/terminal_next_env_check.py`), not cherry-picked to `master`, so no deploy verification
+applies to a docs-only branch.
+
+**Six owner-answerable questions, promised earlier this session, still owed:** GitHub
+branch-protection state on `master`; `CATALYST_OPUS_MODEL`'s intended value now that
+`claude-opus-5` ships (the env default in CLAUDE.md still reads `claude-opus-4-7`); the
+Massive/Polygon licensing tier actually purchased (RG-21's FRED/X findings were code-level; a
+data-vendor tier question was separately flagged and never asked); a production `auth.db`
+read-only query the program itself cannot run; whether the `uct_intelligence` Discord bot still
+runs anywhere; and current production volume/asset counts. Packaged as a short list for the
+owner in this session's chat response, not filed as a new RG row — none of the six names a code
+defect this program can act on without an answer first.
