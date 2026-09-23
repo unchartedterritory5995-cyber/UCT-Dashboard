@@ -4,7 +4,7 @@ import UIcon from '../../../../components/ui/UIcon'
 import useTickerResearch from '../../hooks/useTickerResearch'
 import { createNoteViaApi, createNoteFromTemplateViaApi } from '../../lib/noteCreation'
 import { notePath } from '../../../../hooks/useNoteBacklinks'
-import { excerptRevisitTarget } from '../../lib/searchNavigation'
+import { openSpanningCitation } from '../../lib/openCitation'
 import AskPanel from './AskPanel'
 import DocumentPreviewSheet from './DocumentPreviewSheet'
 import CapturedSourceSheet from './CapturedSourceSheet'
@@ -71,38 +71,15 @@ export default function TickerResearchWorkspace({ symbol, onOpenNote, showBackLi
 
   // ⛔ AN EXCERPT CITATION USED TO BE A DEAD CLICK. Its navigation is
   // `{kind:'excerpt', excerpt_id, document_id, page_number}` -- no `note_id` --
-  // and this handler only knew `note_id`. It now opens the passage the way the
-  // note editor already opens a saved excerpt (`handleOpenExcerptSource`): the
-  // single-excerpt read, which carries the document's URL and the owning note,
-  // then `excerptRevisitTarget` -- the one rule for where an excerpt may
-  // truthfully land -- into the same two sheets. A PDF passage opens at its
-  // page with the passage emphasised; a captured web passage opens as a
-  // captured passage, never in a PDF viewer over `web:<sha256>`.
-  //
-  // ⛔ AND NOTHING HERE IS SILENT. A citation that genuinely has nowhere to go
-  // says so, in words, and a failed read is not reported as a deleted passage.
-  // The sentence is RETURNED to AskPanel, which shows it inside the panel: on
-  // touch the panel is a modal Sheet, and this page's own alert line sits
-  // behind its scrim.
-  const openCitation = async (source) => {
-    const nav = source?.navigation || {}
-    if (nav.kind === 'excerpt' && nav.excerpt_id) {
-      try {
-        const res = await fetch(`/api/j2/excerpts/${encodeURIComponent(nav.excerpt_id)}`,
-                                { credentials: 'include' })
-        if (res.status === 404) return 'That passage is no longer available.'
-        const excerpt = res.ok ? (await res.json())?.excerpt : null
-        const target = excerptRevisitTarget(excerpt)
-        if (target?.kind === 'captured_source') { setCapturedSource(excerpt); return null }
-        if (target) { setPreviewDoc({ ...target, emphasizeExcerpt: excerpt }); return null }
-      } catch (e) {
-        console.error('[research] open cited excerpt failed', e)
-      }
-      return "Couldn't open that passage — try again."
-    }
-    if (nav.note_id) { openNote({ id: nav.note_id }); return null }
-    return "That source can't be opened from here."
-  }
+  // and this handler only knew `note_id`. It now goes through the ONE excerpt
+  // transport every Ask host shares (`lib/openCitation.js`): a PDF passage opens
+  // at its page with the passage emphasised, a captured web passage opens as a
+  // captured passage, and anything that cannot be opened RETURNS its sentence
+  // for AskPanel to show inside itself -- this page's own alert line sits behind
+  // the Ask Sheet's scrim on touch.
+  const openCitation = (source) => openSpanningCitation(source, {
+    openNote, openDocument: setPreviewDoc, openCapturedSource: setCapturedSource,
+  })
 
   // ⛔ These two used to be `alert(\`Could not create note: ${e.message}\`)`.
   // Two defects in one line: a raw provider/backend exception rendered to a

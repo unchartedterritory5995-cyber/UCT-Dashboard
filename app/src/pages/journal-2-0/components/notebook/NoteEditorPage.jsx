@@ -9,8 +9,10 @@ import {
 import Toast from '../Toast'
 import DocumentPreviewSheet from './DocumentPreviewSheet'
 import CapturedSourceSheet from './CapturedSourceSheet'
-import { targetFromParams, applyTargetToParams, excerptRevisitTarget, citationTarget,
+import { targetFromParams, applyTargetToParams, citationTarget,
          reviewTargetFromParams } from '../../lib/searchNavigation'
+import { openExcerptCitation, SOURCE_NOWHERE, PASSAGE_NOT_PINPOINTED, NOTE_LEVEL_SOURCE }
+  from '../../lib/openCitation'
 import useNoteDocuments from '../../hooks/useNoteDocuments'
 import DocumentTextStatus from './DocumentTextStatus'
 import useNoteExcerpts from '../../hooks/useNoteExcerpts'
@@ -42,7 +44,7 @@ import {
 import { stampChartSettings } from '../../lib/widgetEmbedCore'
 import WidgetPalette from './WidgetPalette'
 import { sharedNoteUrl } from '../../lib/noteShareLink'
-import AskPanel from './AskPanel'
+import AskPanel, { PRECISE_CITATION } from './AskPanel'
 import { PRECISE_STATES, isBlockAtomRange } from '../../lib/askCitation'
 import { appendAskInsert } from '../../lib/askInsert'
 import usePendingAskInsert from '../../hooks/usePendingAskInsert'
@@ -1116,6 +1118,23 @@ export default function NoteEditorPage({ noteId, onBack, showBack = true, onTitl
     setPreviewDoc({ href, name, documentId: doc?.id || null })
   }
 
+  // Wave J: opens the preview Sheet for a document_excerpt evidence row in
+  // ThesisSection -- the excerpt may belong to a DIFFERENT note than the
+  // one open here, so it's resolved via GET /excerpts/{id} (carries the
+  // source document's attachmentUrl directly, no second lookup) rather
+  // than assuming it's among this note's own documents/excerpts.
+  // ⛔⛔ WAVE N §9 -- a captured web source carries `web:<sha256>`, an IDENTITY
+  // string, not a file, and is revisited as a captured passage, never in a
+  // PDF viewer (`excerptRevisitTarget`, the rule Search already obeys).
+  // ⭐ The transport now lives in lib/openCitation.js, the ONE path every Ask
+  // host shares -- an Ask citation of an excerpt reaches it through
+  // `jumpToCitation` below, a thesis evidence row directly. It returns the
+  // sentence to show when nothing opened; the evidence row ignores it, as
+  // before (that row already says "source no longer available" itself).
+  const handleOpenExcerptSource = useCallback((excerptId) => openExcerptCitation(excerptId, {
+    openDocument: setPreviewDoc, openCapturedSource: setCapturedSource,
+  }), [])
+
   // Wave J: create the excerpt AND insert its node, in that order -- the
   // combined backend endpoint already does both atomically, so this is
   // just the client-side mirror (insert the returned excerptId) plus the
@@ -1132,6 +1151,10 @@ export default function NoteEditorPage({ noteId, onBack, showBack = true, onTitl
    * looks exactly like landing on the right one.
    */
   const jumpToCitation = useCallback((source, resolved) => {
+    // ⛔ NOTHING HERE IS A SILENT NO-OP. Every branch that does not navigate
+    // RETURNS the sentence AskPanel shows inside itself -- the panel is a
+    // modal Sheet on touch, and a click that changes nothing reads as broken.
+    //
     // ⭐ O6 §4: a cited REVIEW is not a passage in the note body — it lives
     // in the review panel's history, and it may belong to a different note
     // entirely (Ask My Notebook and Ask Security Research both span theses).
@@ -1142,12 +1165,18 @@ export default function NoteEditorPage({ noteId, onBack, showBack = true, onTitl
     if (source?.navigation?.kind === 'review') {
       const nid = source.navigation.note_id
       const rid = source.navigation.review_id
-      if (!nid || !rid) return
+      if (!nid || !rid) return SOURCE_NOWHERE
       setSearchParams(
         (prev) => applyTargetToParams(prev, { noteId: nid, reviewId: rid, depth: 'review' }),
         { replace: false },
       )
-      return
+      return null
+    }
+    // ⚰️ AN EXCERPT CITATION USED TO FALL THROUGH TO THE `kind !== 'note'`
+    // GUARD BELOW AND RETURN SILENTLY, while this page already knew how to open
+    // an excerpt by id for a thesis evidence row. It now takes that same path.
+    if (source?.navigation?.kind === 'excerpt') {
+      return handleOpenExcerptSource(source.navigation.excerpt_id)
     }
     // ⚰️ WAVE P3 §12 — A CITED DOCUMENT PAGE USED TO GO NOWHERE. This handler
     // knew about reviews and about the note body, and returned silently for
@@ -1164,14 +1193,21 @@ export default function NoteEditorPage({ noteId, onBack, showBack = true, onTitl
       // The decision lives in `searchNavigation`, beside the one Search uses,
       // so the two can never answer differently about the same document.
       const target = citationTarget(source, { fallbackNoteId: noteId })
-      if (!target) return
+      if (!target) return SOURCE_NOWHERE
       setSearchParams((prev) => applyTargetToParams(prev, target),
                       { replace: false })
-      return
+      return null
     }
     const ed = editorRef.current
-    if (!ed || source?.navigation?.kind !== 'note') return
-    if (!resolved || !PRECISE_STATES.has(resolved.state)) return
+    if (!ed || source?.navigation?.kind !== 'note') return SOURCE_NOWHERE
+    // NEVER JUMP TO AN UNVERIFIED POSITION -- but say why nothing moved,
+    // rather than letting the click read as a broken one. A passage the server
+    // promised exactly and the live doc can no longer verify has CHANGED; a
+    // source it only ever promised at note level (a thesis state, a note-only
+    // block) never had a passage to land on.
+    if (!resolved || !PRECISE_STATES.has(resolved.state)) {
+      return PRECISE_CITATION.has(source?.citation) ? PASSAGE_NOT_PINPOINTED : NOTE_LEVEL_SOURCE
+    }
     // A passage that is exactly one block atom (a chip, an excerpt, a chart)
     // is selected as that NODE: a TextSelection cannot sit around a block
     // leaf -- ProseMirror warns and the member sees nothing selected.
@@ -1180,7 +1216,8 @@ export default function NoteEditorPage({ noteId, onBack, showBack = true, onTitl
       ? chain.setNodeSelection(resolved.from)
       : chain.setTextSelection({ from: resolved.from, to: resolved.to })
     selected.scrollIntoView().run()
-  }, [setSearchParams, noteId])
+    return null
+  }, [setSearchParams, noteId, handleOpenExcerptSource])
 
   const handleSaveExcerpt = async ({ pageNumber, capturedText, quotePrefix, quoteSuffix, charStart, charEnd }) => {
     const ed = editorRef.current
@@ -1252,40 +1289,6 @@ export default function NoteEditorPage({ noteId, onBack, showBack = true, onTitl
     } catch (e) {
       setUploadToast({ message: "Couldn't save that excerpt. Your note is unchanged.", tone: 'error' })
     }
-  }
-
-  // Wave J: opens the preview Sheet for a document_excerpt evidence row in
-  // ThesisSection -- the excerpt may belong to a DIFFERENT note than the
-  // one open here, so it's resolved via GET /excerpts/{id} (carries the
-  // source document's attachmentUrl directly, no second lookup) rather
-  // than assuming it's among this note's own documents/excerpts.
-  const handleOpenExcerptSource = async (excerptId) => {
-    try {
-      const res = await fetch(`/api/j2/excerpts/${excerptId}`, { credentials: 'include' })
-      if (!res.ok) return
-      const { excerpt } = await res.json()
-      if (!excerpt?.attachmentUrl) return
-      // ⛔⛔ WAVE N §9. `attachmentUrl` alone does NOT mean "there is a document
-      // to open": a captured web source carries `web:<sha256>`, an IDENTITY
-      // string, not a file. This used to hand that straight to
-      // DocumentPreviewSheet, so revisiting a captured Reuters paragraph opened
-      // a FULLSCREEN PDF VIEWER over a non-URL, with "Open in new tab" and
-      // "Download" controls that could not work — a fake document viewer, which
-      // §9 forbids by name.
-      // ⭐ THE DECISION ALREADY EXISTS AND SEARCH ALREADY OBEYS IT. Wave M's
-      // depth rule answers 'note' for a web capture ("there is no viewer to
-      // scroll"); `excerptRevisitTarget` is that same rule for one excerpt, so
-      // these two surfaces cannot disagree about one object.
-      const target = excerptRevisitTarget(excerpt)
-      if (!target) return
-      if (target.kind === 'captured_source') {
-        // The deepest TRUTHFUL destination: the passage itself and where it
-        // came from. We hold one paragraph; only the publisher has the rest.
-        setCapturedSource(excerpt)
-        return
-      }
-      setPreviewDoc({ ...target, emphasizeExcerpt: excerpt })
-    } catch (e) { /* noop -- opening evidence is best-effort, never blocks the thesis view */ }
   }
 
   const previewExcerpts = useMemo(() => {

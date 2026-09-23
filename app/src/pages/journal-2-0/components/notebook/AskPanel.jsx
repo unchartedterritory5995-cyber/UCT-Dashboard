@@ -452,4 +452,4 @@ function PanelShell({ isTouch, label, onClose, children }) {
 // Mirrors ask_evidence.PRECISE_CITATIONS.
 const PRECISE_CITATION = new Set(['exact'])
 
-export { PRECISE_STATES }
+export { PRECISE_STATES, PRECISE_CITATION }
