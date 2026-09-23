@@ -152,7 +152,17 @@ export function flatToPmRange(doc, flatStart, flatEnd) {
       const len = node.text.length
       const start = flat
       const end = flat + len
-      if (from === null && flatStart >= start && flatStart <= end) {
+      // G-064: `from` is half-open [start, end) and `to` is half-open
+      // (start, end] — the same asymmetric convention as the Python
+      // `pm_range` this mirrors. A position sitting exactly on a boundary
+      // between two text nodes must resolve to the NEXT node for `from`,
+      // never the previous one: an atom (askCitation) contributes zero
+      // characters to the flat text but still occupies one ProseMirror
+      // position, so a text node ending exactly where the next one begins
+      // in flat-space are NOT adjacent in pm-space. A plain `<=` here
+      // silently attributed the boundary to the wrong side and put `from`
+      // one position before the atom instead of one position after it.
+      if (from === null && flatStart >= start && flatStart < end) {
         from = pos + (flatStart - start)
         started = true
       }

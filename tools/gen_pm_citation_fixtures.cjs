@@ -10,6 +10,8 @@ const schema = new Schema({
     text: {group:'inline'},
     attachmentChip: {group:'inline', inline:true, atom:true, attrs:{name:{default:'file'}}, toDOM:()=>['a']},
     documentExcerpt: {group:'block', atom:true, toDOM:()=>['div']},
+    askInsert: {group:'block', content:'block+', toDOM:()=>['div',0]},
+    askCitation: {group:'inline', inline:true, atom:true, attrs:{n:{default:null}}, toDOM:()=>['span']},
   },
   marks: { bold:{toDOM:()=>['strong',0]}, italic:{toDOM:()=>['em',0]}, link:{attrs:{href:{default:''}},toDOM:()=>['a',0]} },
 });
@@ -46,6 +48,18 @@ const CASES = {
   duplicatePhrase: {type:'doc',content:[
     {type:'paragraph',content:[{type:'text',text:'Revenue was strong.'}]},
     {type:'paragraph',content:[{type:'text',text:'Revenue guidance was raised.'}]}]},
+  askCitationChip: {type:'doc',content:[{type:'paragraph',content:[
+    {type:'text',text:'Margins fell '},
+    {type:'askCitation',attrs:{n:1}},
+    {type:'text',text:' in Q3.'}]}]},
+  askInsertBlock: {type:'doc',content:[
+    {type:'paragraph',content:[{type:'text',text:'My own view.'}]},
+    {type:'askInsert',content:[
+      {type:'paragraph',content:[
+        {type:'text',text:'Inserted answer '},
+        {type:'askCitation',attrs:{n:1}},
+        {type:'text',text:' here.'}]}]},
+    {type:'paragraph',content:[{type:'text',text:'After.'}]}]},
 };
 const out = {};
 for (const [name, json] of Object.entries(CASES)) {

@@ -433,5 +433,118 @@
     "text": "Revenue guidance was raised."
    }
   ]
+ },
+ "askCitationChip": {
+  "json": {
+   "type": "doc",
+   "content": [
+    {
+     "type": "paragraph",
+     "content": [
+      {
+       "type": "text",
+       "text": "Margins fell "
+      },
+      {
+       "type": "askCitation",
+       "attrs": {
+        "n": 1
+       }
+      },
+      {
+       "type": "text",
+       "text": " in Q3."
+      }
+     ]
+    }
+   ]
+  },
+  "text": "Margins fell  in Q3.",
+  "contentSize": 23,
+  "textSpans": [
+   {
+    "pm_start": 1,
+    "pm_end": 14,
+    "text": "Margins fell "
+   },
+   {
+    "pm_start": 15,
+    "pm_end": 22,
+    "text": " in Q3."
+   }
+  ]
+ },
+ "askInsertBlock": {
+  "json": {
+   "type": "doc",
+   "content": [
+    {
+     "type": "paragraph",
+     "content": [
+      {
+       "type": "text",
+       "text": "My own view."
+      }
+     ]
+    },
+    {
+     "type": "askInsert",
+     "content": [
+      {
+       "type": "paragraph",
+       "content": [
+        {
+         "type": "text",
+         "text": "Inserted answer "
+        },
+        {
+         "type": "askCitation",
+         "attrs": {
+          "n": 1
+         }
+        },
+        {
+         "type": "text",
+         "text": " here."
+        }
+       ]
+      }
+     ]
+    },
+    {
+     "type": "paragraph",
+     "content": [
+      {
+       "type": "text",
+       "text": "After."
+      }
+     ]
+    }
+   ]
+  },
+  "text": "My own view.\nInserted answer  here.\nAfter.",
+  "contentSize": 49,
+  "textSpans": [
+   {
+    "pm_start": 1,
+    "pm_end": 13,
+    "text": "My own view."
+   },
+   {
+    "pm_start": 16,
+    "pm_end": 32,
+    "text": "Inserted answer "
+   },
+   {
+    "pm_start": 33,
+    "pm_end": 39,
+    "text": " here."
+   },
+   {
+    "pm_start": 42,
+    "pm_end": 48,
+    "text": "After."
+   }
+  ]
  }
 }

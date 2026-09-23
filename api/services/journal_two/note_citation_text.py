@@ -73,7 +73,16 @@ _ATOM_TEXT = {
 _LEAF_TYPES = frozenset({
     "attachmentChip", "documentExcerpt", "widgetEmbed", "videoTimestamp",
     "horizontalRule", "image", "hardBreak", "financialFact", "noteLink",
+    # G-064: an Ask citation chip is an inline atom with no leafText, exactly
+    # like noteLink -- one position, no text. Missing here, it was walked as a
+    # container: two positions plus a block separator, shifting every later
+    # citation position in the note (spec §7.1).
+    "askCitation",
 })
+
+# G-064 (spec §7.2): a container whose text is an inserted Ask Notebook answer.
+# Its runs are FLAGGED, never removed -- the text must stay ProseMirror's own.
+ASK_INSERT_TYPE = "askInsert"
 
 BLOCK_SEPARATOR = "\n"
 
@@ -89,7 +98,7 @@ def flatten(doc: dict[str, Any] | None) -> dict[str, Any]:
     """
     parts: list[str] = []
     spans: list[dict[str, Any]] = []
-    state = {"flat": 0, "pending_sep": False}
+    state = {"flat": 0, "pending_sep": False, "ask_depth": 0}
 
     def emit(text: str, pm_start: int, pm_end: int, is_atom: bool) -> None:
         if not text:
@@ -104,6 +113,7 @@ def flatten(doc: dict[str, Any] | None) -> dict[str, Any]:
         spans.append({
             "flat_start": start, "flat_end": state["flat"],
             "pm_start": pm_start, "pm_end": pm_end, "is_atom": is_atom,
+            "in_ask_insert": state["ask_depth"] > 0,
         })
 
     def walk(node: Any, pos: int) -> int:
@@ -133,9 +143,14 @@ def flatten(doc: dict[str, Any] | None) -> dict[str, Any]:
         # Container: 1 for the open token, content, 1 for the close token.
         inner = pos + 1
         children = node.get("content") or []
+        is_ask = ntype == ASK_INSERT_TYPE
+        if is_ask:
+            state["ask_depth"] += 1
         if isinstance(children, list):
             for child in children:
                 inner = walk(child, inner)
+        if is_ask:
+            state["ask_depth"] -= 1
         after = inner + 1
         if _is_block(ntype):
             state["pending_sep"] = True
@@ -156,6 +171,40 @@ def _is_block(ntype: str | None) -> bool:
     """Block-level containers get a separator after them. Inline containers
     do not -- that distinction is the whole reason marks are invisible here."""
     return ntype not in (None, "text") and ntype not in _LEAF_TYPES
+
+
+def member_text(flat: dict[str, Any], start: int = 0, end: int | None = None) -> str:
+    """The canonical text in [start, end) with every run that sits inside an
+    inserted Ask Notebook answer cut out (G-064, spec §7.2).
+
+    For SNIPPETS only: the result is not position-bearing. Locations still come
+    from `pm_range` over the untouched canonical text.
+    """
+    text = flat.get("text") or ""
+    end = len(text) if end is None else end
+    out: list[str] = []
+    cur = start
+    for s in flat.get("spans") or []:
+        if not s.get("in_ask_insert"):
+            continue
+        a, b = max(s["flat_start"], start), min(s["flat_end"], end)
+        if a >= b:
+            continue
+        if a > cur:
+            out.append(text[cur:a])
+        cur = max(cur, b)
+    if cur < end:
+        out.append(text[cur:end])
+    return "".join(out)
+
+
+def in_ask_insert(flat: dict[str, Any], flat_start: int, flat_end: int) -> bool:
+    """True when any run overlapping [flat_start, flat_end) sits inside an
+    inserted Ask Notebook answer (G-064, spec §7.2)."""
+    for s in flat.get("spans") or []:
+        if s.get("in_ask_insert") and s["flat_start"] < flat_end and flat_start < s["flat_end"]:
+            return True
+    return False
 
 
 def pm_range(flat_start: int, flat_end: int, spans: list[dict[str, Any]]) -> dict[str, int] | None:

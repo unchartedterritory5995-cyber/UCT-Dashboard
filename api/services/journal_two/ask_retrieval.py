@@ -211,6 +211,11 @@ def _notes(conn, user_id: str, expr: str, limit: int,
         row = dict(r)
         doc = _json(row.get("body_json"))
         snippet, location, validity = _best_note_passage(doc, expr)
+        if snippet is None:
+            # G-064 (spec §7.2): the body is only inserted Ask answers.
+            # Presenting it would hand the model its own earlier output as
+            # "notes they wrote".
+            continue
         out.append(ev.from_note(row, snippet=snippet, location=location,
                                 citation_validity=validity, score=-row["score"]))
     return out
@@ -222,24 +227,35 @@ def _best_note_passage(doc, expr: str):
     Falls back honestly: if no query term can be located in the canonical
     text, the citation opens the note WITHOUT claiming a passage (§21) rather
     than pointing at a guess.
+
+    ⛔ G-064 (spec §7.2): text inside an inserted Ask Notebook answer is never a
+    passage and never part of a snippet. A body whose ONLY text is inserted
+    answers returns (None, None, None) and the caller drops the note.
     """
     flat = nct.flatten(doc)
     text = flat["text"]
     if not text:
         return "", None, ev.CITE_NOTE_ONLY
+    own = nct.member_text(flat)
+    if not own.strip():
+        return None, None, None
+    low = text.lower()
     terms = [t for t in _terms(expr) if len(t) > 2]
     for term in terms:
-        idx = text.lower().find(term.lower())
+        needle = term.lower()
+        idx = low.find(needle)
+        while idx >= 0 and nct.in_ask_insert(flat, idx, idx + len(term)):
+            idx = low.find(needle, idx + 1)
         if idx < 0:
             continue
         start = max(0, idx - 90)
         end = min(len(text), idx + len(term) + 150)
-        snippet = text[start:end].strip()
+        snippet = nct.member_text(flat, start, end).strip()
         rng = nct.pm_range(idx, idx + len(term), flat["spans"])
         if rng:
             return snippet, {**rng, "fingerprint": nct.fingerprint(doc),
                              "snippet_start": idx, "snippet_end": idx + len(term)}, ev.CITE_EXACT
-    return text[:200].strip(), None, ev.CITE_NOTE_ONLY
+    return own[:200].strip(), None, ev.CITE_NOTE_ONLY
 
 
 # Words that cannot decide whether a passage ANSWERS a question. Kept small
@@ -1142,6 +1158,10 @@ def _note_blocks(doc, q: str) -> list[dict[str, Any]]:
             continue
         rng = nct.pm_range(start, end, flat["spans"])
         if rng is None:
+            continue
+        if nct.in_ask_insert(flat, start, end):
+            # G-064 (spec §7.2): an inserted Ask answer is not the member's
+            # writing, so it is never evidence in "This note" either.
             continue
         low = body.lower()
         hits = sum(1 for t in terms if t in low)

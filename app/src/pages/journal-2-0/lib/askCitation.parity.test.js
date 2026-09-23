@@ -43,6 +43,8 @@ const schema = new Schema({
     text: { group: 'inline' },
     attachmentChip: { group: 'inline', inline: true, atom: true, attrs: { name: { default: 'file' } }, toDOM: () => ['a'] },
     documentExcerpt: { group: 'block', atom: true, toDOM: () => ['div'] },
+    askInsert: { group: 'block', content: 'block+', toDOM: () => ['div', 0] },
+    askCitation: { group: 'inline', inline: true, atom: true, attrs: { n: { default: null } }, toDOM: () => ['span'] },
   },
   marks: {
     bold: { toDOM: () => ['strong', 0] },
