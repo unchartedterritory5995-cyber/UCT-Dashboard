@@ -118,7 +118,7 @@ describe('AskCitationView', () => {
     expect(rule[adjacent]).not.toMatch(/top:/)
 
     // Moved, not removed: at the SMALLEST MEASURED chip box the target still
-    // clears the 44px floor, including a chip that has lost its left side.
+    // clears the 44px floor, case by case (the CSS comment states each one).
     // Measured by the G-064 close-out review (review-polish.md, Minor #1,
     // Playwright getBoundingClientRect): `[1]` is 30.3px wide in Segoe UI and
     // system-ui (Chromium) and 31.4px in WebKit; the box is 23.5px tall in
@@ -126,9 +126,28 @@ describe('AskCitationView', () => {
     // turns this red.
     const BOX_H = 23
     const BOX_W = 30.3
-    expect(BOX_H - top - bottom).toBeGreaterThanOrEqual(44)
-    expect(BOX_W - right).toBeGreaterThanOrEqual(44)
-    expect(BOX_W - left - right).toBeGreaterThanOrEqual(44)
+    // The ::after offsets count from the PADDING box, so each side reaches one
+    // border-width less past the chip; run-together chips sit two margins
+    // apart, and that gap belongs to the earlier chip's extension. Both are
+    // READ from AskPanel's .citationChip, the chip's own rule, never restated.
+    const chip = /(?:^|\n)\.citationChip\s*\{([^}]*)\}/.exec(
+      fs.readFileSync(path.join(HERE, 'AskPanel.module.css'), 'utf8').replace(/\/\*[\s\S]*?\*\//g, ''))?.[1] || ''
+    const BORDER = Number(/border:\s*([\d.]+)px/.exec(chip)?.[1])
+    const GAP = 2 * Number(/margin:\s*\S+\s+([\d.]+)px/.exec(chip)?.[1])
+    expect(BORDER).toBe(1) // controls: both were read, not defaulted
+    expect(GAP).toBe(2)
+    const reach = (offset) => -offset - BORDER
+
+    // Unobstructed height (top: 0, so the box's own top edge is the target's).
+    expect(BOX_H + reach(bottom)).toBeGreaterThanOrEqual(44)
+    // A lone chip.
+    expect(reach(left) + BOX_W + reach(right)).toBeGreaterThanOrEqual(44)
+    // A chip that FOLLOWS a chip: its left side is 0.
+    expect(BOX_W + reach(right)).toBeGreaterThanOrEqual(44)
+    // The FIRST of a pair (`[2]` in `[2][3]`): the later chip's own box covers
+    // its right side, so its left side and the gap must carry it. The
+    // re-review measured 40-41px here with left: -8px.
+    expect(reach(left) + BOX_W + GAP).toBeGreaterThanOrEqual(44)
   })
 
   // G-064 final fix wave — `{}['constructor']` is a truthy function; a stored
