@@ -287,6 +287,15 @@ _SOURCE_GATE = ",".join("'%s'" % s for s in _PREC)
 #: ⛔ A universe that is not in the production registry is never merged. Research series
 #: (e.g. the `uct_backtest` of a V2c2 artifact) live in an artifact, never in the store.
 _UNIVERSE_GATE = ",".join("'%s'" % u for u in _MERGEABLE_UNIVERSES)
+from api.services.breadth_universes import CANONICAL_START as _CSTART
+#: ⛔ No merge may introduce a canonical row before the universe's canonical start
+#: (active with the cutover switch, `breadth_universes.canonical_start_active`).
+def _start_gate() -> str:
+    from api.services.breadth_universes import canonical_start_active
+    if not canonical_start_active():
+        return "1=1"
+    return " AND ".join("NOT ({susrc} = '%s' AND s.date < '%s')" % (u, d)
+                        for u, d in sorted(_CSTART.items())) or "1=1"
 _MERGE_SQL = f"""
 INSERT INTO breadth_daily_ohlc(universe,date,metric,o,h,l,c,source,updated_at)
 SELECT {{susrc}},s.date,s.metric,s.o,s.h,s.l,s.c,s.source,s.updated_at
@@ -295,6 +304,7 @@ LEFT JOIN breadth_daily_ohlc l
        ON l.universe = {{susrc}} AND l.date = s.date AND l.metric = s.metric
 WHERE s.source IN ({_SOURCE_GATE})
   AND {{susrc}} IN ({_UNIVERSE_GATE})
+  AND {{start_gate}}
   AND s.o IS NOT NULL AND s.h IS NOT NULL AND s.l IS NOT NULL AND s.c IS NOT NULL
   AND s.o = s.o AND s.h = s.h AND s.l = s.l AND s.c = s.c
   AND s.h >= s.l AND s.h >= s.o AND s.h >= s.c
@@ -337,7 +347,7 @@ def _merge_from(src_db: str) -> int:
                             f"refusing to merge a snapshot carrying {extra}: the BL-028 "
                             f"compatibility index {_store.COMPAT_INDEX!r} is still in "
                             "place. Removing it is a deliberate migration step.")
-                cur = conn.execute(_MERGE_SQL.format(susrc=susrc))
+                cur = conn.execute(_MERGE_SQL.format(susrc=susrc, start_gate=_start_gate().format(susrc=susrc)))
                 adopted = cur.rowcount if cur.rowcount is not None else 0
                 # ⛔ THE ONE WRITER THAT BYPASSES `breadth_daily_ohlc`'s own API —
                 # it INSERTs directly over an ATTACHed snapshot — so the derived

@@ -518,6 +518,12 @@ SOURCE_PRECEDENCE = ("live", "intraday_recon_1m", "intraday_recon_1m_body",
 _TRUSTED_SOURCES = SOURCE_PRECEDENCE
 
 
+def _floor(universe) -> str:
+    """The canonical start for `universe` ('' = none). Applied by every serving read."""
+    from api.services.breadth_universes import canonical_start
+    return canonical_start(universe)
+
+
 def write_bulk(rows: list, source: str = "close_recon", overwrite_live: bool = False,
                universe: str = DEFAULT_UNIVERSE) -> int:
     """Bulk-write reconstructed rows in ONE transaction (a sweep does 100k+). `rows` =
@@ -634,8 +640,8 @@ def watermarks_for(c, dates) -> dict:
         dq = ",".join("?" * len(chunk))
         for (d, w) in c.execute(
             f"SELECT date, MAX(updated_at) FROM breadth_daily_ohlc "
-            f"WHERE universe=? AND date IN ({dq}) AND source IN ({qs}) GROUP BY date",
-            (DEFAULT_UNIVERSE, *chunk, *_TRUSTED_SOURCES),
+            f"WHERE universe=? AND date IN ({dq}) AND source IN ({qs}) AND date >= ? GROUP BY date",
+            (DEFAULT_UNIVERSE, *chunk, *_TRUSTED_SOURCES, _floor(DEFAULT_UNIVERSE)),
         ).fetchall():
             out[d] = w
     return out
@@ -661,8 +667,8 @@ def derive_reconstructed(c, dates) -> dict:
         dq = ",".join("?" * len(chunk))
         for (d, m, cl) in c.execute(
             f"SELECT date, metric, c FROM breadth_daily_ohlc "
-            f"WHERE universe=? AND date IN ({dq}) AND source IN ({qs})",
-            (DEFAULT_UNIVERSE, *chunk, *_TRUSTED_SOURCES),
+            f"WHERE universe=? AND date IN ({dq}) AND source IN ({qs}) AND date >= ?",
+            (DEFAULT_UNIVERSE, *chunk, *_TRUSTED_SOURCES, _floor(DEFAULT_UNIVERSE)),
         ).fetchall():
             closes.setdefault(d, {})[m] = cl
     sent = _sentiment_for(ds)
@@ -948,6 +954,7 @@ def stale_reconstructed_dates(limit: int = 0, c=None) -> list:
                 FROM breadth_daily_ohlc o
                 LEFT JOIN breadth_reconstructed_daily r ON r.date = o.date
                 WHERE o.universe = '{DEFAULT_UNIVERSE}' AND o.source IN ({qs})
+                  AND o.date >= '{_floor(DEFAULT_UNIVERSE)}'
                 GROUP BY o.date
                 HAVING r.ohlc_watermark IS NULL
                     OR r.ohlc_watermark <> MAX(o.updated_at)
@@ -1011,9 +1018,9 @@ def history(metric: str, limit: int = 6000,
         with _conn() as c:
             for (d, o, h, l, cl) in c.execute(
                 f"SELECT date, o, h, l, c FROM breadth_daily_ohlc "
-                f"WHERE universe=? AND metric=? AND source IN ({qmarks}) "
+                f"WHERE universe=? AND metric=? AND source IN ({qmarks}) AND date >= ? "
                 f"ORDER BY date DESC LIMIT ?",
-                (_uni(universe), metric, *_TRUSTED_SOURCES, int(limit)),
+                (_uni(universe), metric, *_TRUSTED_SOURCES, _floor(universe), int(limit)),
             ).fetchall():
                 out[d] = {"o": o, "h": h, "l": l, "c": cl}
     except Exception:
@@ -1041,7 +1048,7 @@ def dates_since(universe: str = DEFAULT_UNIVERSE, since: str = "") -> list:
                 f"SELECT DISTINCT date FROM breadth_daily_ohlc "
                 f"WHERE universe=? AND source IN ({qmarks}) AND date>=? "
                 f"ORDER BY date ASC",
-                (_uni(universe), *_TRUSTED_SOURCES, str(since or "")),
+                (_uni(universe), *_TRUSTED_SOURCES, max(str(since or ""), _floor(universe))),
             ).fetchall()]
     except Exception:
         return []
@@ -1057,8 +1064,8 @@ def distinct_dates_by_scan(universe: str = DEFAULT_UNIVERSE) -> list:
         with _conn() as c:
             return [r[0] for r in c.execute(
                 f"SELECT DISTINCT date FROM breadth_daily_ohlc "
-                f"WHERE universe=? AND source IN ({qmarks}) ORDER BY date ASC",
-                (_uni(universe), *_TRUSTED_SOURCES),
+                f"WHERE universe=? AND source IN ({qmarks}) AND date >= ? ORDER BY date ASC",
+                (_uni(universe), *_TRUSTED_SOURCES, _floor(universe)),
             ).fetchall()]
     except Exception:
         return []
@@ -1119,8 +1126,8 @@ def closes_for_dates(dates, universe: str = DEFAULT_UNIVERSE) -> dict:
                 dq = ",".join("?" * len(chunk))
                 for (d, m, cl) in c.execute(
                     f"SELECT date, metric, c FROM breadth_daily_ohlc "
-                    f"WHERE universe=? AND date IN ({dq}) AND source IN ({qs})",
-                    (_uni(universe), *chunk, *_TRUSTED_SOURCES),
+                    f"WHERE universe=? AND date IN ({dq}) AND source IN ({qs}) AND date >= ?",
+                    (_uni(universe), *chunk, *_TRUSTED_SOURCES, _floor(universe)),
                 ).fetchall():
                     out.setdefault(d, {})[m] = cl
     except Exception:
@@ -1141,8 +1148,8 @@ def metric_before(metric: str, before: str,
         with _conn() as c:
             return {d: cl for (d, cl) in c.execute(
                 f"SELECT date, c FROM breadth_daily_ohlc "
-                f"WHERE universe=? AND metric=? AND date < ? AND source IN ({qmarks})",
-                (_uni(universe), metric, before, *_TRUSTED_SOURCES),
+                f"WHERE universe=? AND metric=? AND date < ? AND source IN ({qmarks}) AND date >= ?",
+                (_uni(universe), metric, before, *_TRUSTED_SOURCES, _floor(universe)),
             ).fetchall()}
     except Exception:
         return {}

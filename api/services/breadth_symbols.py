@@ -733,10 +733,15 @@ def _build_breadth_series(sym: str, metric: str,
         cv = _finite(row.get("c"))
         if cv is not None:
             closes_by_date[d] = cv
+    # ⛔ CANONICAL START: the collector snapshots include a back-filled, add-only stretch
+    # (2026-01-02..03-20) that is not point-in-time membership. Nothing before the
+    # universe's canonical start is charted — the series simply begins there.
+    from api.services.breadth_universes import canonical_start as _cs
+    _floor = _cs(universe)
     for row in history:
         d = row.get("date")
         cv = _finite(row.get(metric))
-        if d and cv is not None:
+        if d and cv is not None and d >= _floor:
             closes_by_date[d] = cv
 
     seq: list[tuple[str, float]] = sorted(closes_by_date.items())  # oldest-first

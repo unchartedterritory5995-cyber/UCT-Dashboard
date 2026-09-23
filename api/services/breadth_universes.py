@@ -97,6 +97,28 @@ _ROWS = [
 #: a single stored value.
 DEFAULT_UNIVERSE = "uct"
 
+#: ⛔⛔ CANONICAL START — the first session a universe has TRUTHFUL membership for. UCT's
+#: point-in-time membership exists only from the collector's first live snapshot
+#: (2026-03-23); 2026-01-02..03-20 were back-filled on 2026-03-22 and are add-only, and
+#: everything earlier was today's list applied backward. NOTHING before this date is
+#: canonical UCT: not merged, not served, not substituted from another universe.
+CANONICAL_START = {"uct": "2026-03-23"}
+
+
+def canonical_start_active() -> bool:
+    """⚠️ THE CUTOVER SWITCH. Off = today's behaviour (legacy UCT history is still served).
+    Flipped with the cutover, TOGETHER with archiving the legacy pre-start UCT rows."""
+    import os
+    return os.environ.get("BREADTH_CANONICAL_START", "") == "1"
+
+
+def canonical_start(universe) -> str:
+    """'' when the universe has no canonical start or the switch is off."""
+    if not canonical_start_active():
+        return ""
+    u = (universe or DEFAULT_UNIVERSE).strip().lower() if isinstance(universe, str) else DEFAULT_UNIVERSE
+    return CANONICAL_START.get(u, "")
+
 UNIVERSES = {
     uid: {"id": uid, "label": label, "venues": venues, "source": source, "floor": floor}
     for (uid, label, venues, source, floor) in _ROWS

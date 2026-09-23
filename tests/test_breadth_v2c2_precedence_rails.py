@@ -13,7 +13,7 @@ from api.services import breadth_ohlc_sync as bridge
 from tests.test_breadth_v2_merge_precedence import _make_snap, _rows, fresh_store  # noqa: F401
 
 ORDER = ("live", "intraday_recon_1m", "intraday_recon_1m_body", "intraday_recon", "close_recon")
-KEY = ("2015-08-24", "pct_above_50sma")
+KEY = ("2026-05-15", "pct_above_50sma")
 
 
 def _candle(src):
