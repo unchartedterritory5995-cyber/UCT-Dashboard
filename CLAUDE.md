@@ -7,7 +7,7 @@ This file provides guidance to Claude Code when working in this repository.
 **UCT Dashboard** is a live bento-box trading dashboard for Uncharted Territory. It is a full-stack app:
 - **Frontend:** React + Vite SPA with React Router (NOT Next.js — ignore all "use client" suggestions)
 - **Backend:** FastAPI (Python) — serves the React build and all `/api/*` data endpoints
-- **Deployment:** Railway, **SIX services** (`web`, `worker`, `bars-api`, `flow-worker`, `chart-renderer`, `terminal-next-monitor`) at `https://uctintelligence.com` (Cloudflare DNS). ⛔ *"single service"* was true once and is not now — derive the roster with `railway status --json`. Which of them a push restarts, and when that is safe, is **`docs/runbooks/deploy-windows.md`**, not this line.
+- **Deployment:** Railway, **SEVEN services** (`web`, `worker`, `bars-api`, `flow-worker`, `chart-renderer`, `terminal-next-monitor`, `breadth-v2-runner`) at `https://uctintelligence.com` (Cloudflare DNS). ⚰️ This said *"SIX services"* until 2026-09-23 — `breadth-v2-runner` (a background runner for the breadth V2 methodology correction, per its own latest commit) was live and undocumented. ⛔ *"single service"* was true once and is not now — derive the roster with `railway status --json`, don't retype this line's own count next time either. Which of them a push restarts, and when that is safe, is **`docs/runbooks/deploy-windows.md`**, not this line.
 - **Domain:** `uctintelligence.com` — Cloudflare registrar + DNS, Railway custom domain
 - **Email:** Resend (verified domain), sends from `UCT Intelligence <noreply@uctintelligence.com>`
 - **Payments:** Stripe (sandbox + live), webhook at `/api/webhooks/stripe`
