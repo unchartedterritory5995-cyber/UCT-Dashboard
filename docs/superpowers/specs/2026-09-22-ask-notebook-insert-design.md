@@ -297,10 +297,11 @@ built, and it is pure, so it is tested without an editor.
   explicit position, never the selection — then scrolls the new block into view.
   The normal autosave persists it: baseline check, version capture, offline outbox,
   all unchanged. No new endpoint, no `settleNoteWrite` call, no new door.
-  `onInsert` is passed only while the editor is editable. A read-only or trashed note's
-  Ask therefore falls back to the picker (insert into a different note), never to a
-  button that cannot work. Inside the fullscreen document sheet the note is hidden,
-  so the confirmation is the button changing to "Inserted" (§3.1), not a toast.
+  `onInsert` is passed only while the editor is editable. A read-only note's Ask
+  offers no Insert (NoteEditorPage passes no onOpenNote); the page never sets the
+  editor read-only today, so this is unreachable. Inside the fullscreen document
+  sheet the note is hidden, so the button changes to "Inserted" (§3.1); the page
+  toast also fires, and may sit behind the sheet.
 - **Other note (§3.3) — a pending insert.**
   1. The picker hands `{ noteId, node, createdAt }` to two carriers: a module
      variable and `sessionStorage` under `uct.j2.askInsert.pending`. This is the
@@ -311,16 +312,25 @@ built, and it is pure, so it is tested without an editor.
      `TickerResearchWorkspace.jsx:67`, which fall back to `navigate(notePath(id))`.
   2. `NoteEditorPage` consumes it once, when all hold: `hydratedRef.current` is
      true (the consume effect is declared **after** the arming effect at
-     `NoteEditorPage.jsx:1418-1420`, because effects run in declaration order), the editor is editable, the recovered-draft decision has **finished**
-     (`decide()` at `:695-722` is async; a new `recoveryDecided` state flips when it
-     settles, either way) and no draft is pending (`pendingDraft` null — a restore
-     calls `setContent` and would erase the insert, `:793`; the insert therefore
-     waits until the member restores or discards), and the entry's `noteId` matches
-     and is under 15 minutes old.
+     `NoteEditorPage.jsx:1438-1440`, because effects run in declaration order),
+     the editor is editable, the recovered-draft decision is **finished FOR
+     THIS NOTE** (`decide()` at `:714-741` is async; `recoveryDecidedFor` is set
+     to the note's own id when it settles, either way, and is compared against
+     the CURRENT `noteId`, `:1474` — a decision made for a note this reused
+     component instance has since left, on an A->B switch, must never
+     authorize an insert into the note it now shows), no draft is pending
+     (`pendingDraft` null — a restore calls `setContent` and would erase the
+     insert, `:813`; the insert therefore waits until the member restores or
+     discards), no save is in flight (a Restore's PUT must settle first —
+     `saveStatus !== 'saving'`; `restoreDraft()` sets `saveStatus:'saving'`
+     synchronously before its own `await update(...)`, `:814,824`, closing the
+     window where the insert's own autosave could fire mid-restore and carry
+     a pre-restore `baseUpdatedAt`), and the entry's `noteId` matches and is
+     under 15 minutes old.
   3. Consume = **remove the key first, then insert** through the same transaction
      as the open-note case, so a StrictMode double effect or a reload can never
-     insert twice. A mismatched or
-     expired entry is removed without inserting.
+     insert twice. Another note's entry is left for that note; an expired or
+     malformed entry is removed without inserting.
   4. If the editor is not editable, the entry is removed and the note's toast says
      "This note can't take changes right now, so the answer wasn't inserted. Ask
      again to get it back." (The page never sets the editor read-only today, so this

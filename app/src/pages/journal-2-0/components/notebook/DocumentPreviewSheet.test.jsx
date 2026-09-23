@@ -108,4 +108,27 @@ describe('DocumentPreviewSheet — G-064 insert into the note behind the sheet',
     expect(onInsert.mock.calls[0][0].type).toBe('askInsert')
     __resetNotebookFlags()
   })
+
+  // G-064 fix round 1 (F6) — `onOpenNote` passes through too, independent of
+  // `onInsert`: the research workspace's document preview has no note open
+  // behind it to insert INTO, only a picker to open one.
+  it('passes onOpenNote through to its Ask panel -- "Insert into a note…" when only onOpenNote is given', async () => {
+    __resetNotebookFlags()
+    latchNotebookFlags({ notebook_ask_insert_on: true })
+    const enc = new TextEncoder()
+    const body = new ReadableStream({ start(c) {
+      c.enqueue(enc.encode(`data: ${JSON.stringify({ type: 'sources', scope: 'document', scopeLabel: 'This document', coverageNotice: null, sources: [{ n: 1, type: 'document_page', label: 'report.pdf p.3', citation: 'page_only', snippet: 's', navigation: { kind: 'document', document_id: 'd1', page_number: 3 }, location: {}, payload: {}, stance: null, truncated: false }] })}\n\n`))
+      c.enqueue(enc.encode(`data: ${JSON.stringify({ type: 'final', answer: 'Revenue grew [1].' })}\n\n`))
+      c.close()
+    } })
+    const onOpenNote = vi.fn()
+    render(<DocumentPreviewSheet open href={HREF} name="report.pdf" onClose={vi.fn()} documentId="d1" onOpenNote={onOpenNote} />)
+    global.fetch = vi.fn().mockResolvedValue({ ok: true, status: 200, json: async () => ({}), body })
+    fireEvent.click(screen.getByRole('button', { name: 'Ask a question about this document' }))
+    const dialog = await screen.findByRole('dialog', { name: 'Ask This document' })
+    fireEvent.change(within(dialog).getByRole('textbox'), { target: { value: 'revenue?' } })
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Ask' }))
+    expect(await within(dialog).findByRole('button', { name: 'Insert into a note…' })).toBeInTheDocument()
+    __resetNotebookFlags()
+  })
 })

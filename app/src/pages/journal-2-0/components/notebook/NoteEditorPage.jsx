@@ -118,6 +118,11 @@ const DRAFT_KEY = (noteId) => `uct.j2.notedraft.${noteId}`
 // ⛔ One authority, named, so a fifth call site cannot quietly get it wrong.
 const EMIT_NOTHING = { emitUpdate: false }
 
+// G-064 fix round 1 (F5) — ONE string, read by both the direct-click insert
+// path and the pending-hand-off path, so the two can never say something
+// different about the same outcome.
+const ASK_INSERT_SUCCESS_MSG = 'Answer inserted at the end of this note.'
+
 // Toolbar Font dropdown — the app's approved family set (each option previews in
 // its own face). Value is a full CSS font-family stack; '' clears.
 //
@@ -640,9 +645,16 @@ export default function NoteEditorPage({ noteId, onBack, showBack = true, onTitl
   // local copies could be ordered at all. ⛔ An ambiguous answer is SAID so,
   // not smoothed over: the member is the only one who can settle it.
   const [recovery, setRecovery] = useState(null)
-  // G-064: the draft-recovery decision below is ASYNC. A pending Ask insert
-  // must wait for it: a restore's setContent would erase the inserted answer.
-  const [recoveryDecided, setRecoveryDecided] = useState(false)
+  // G-064 fix round 1 (F2, controller ruling) — WHICH note the decision is
+  // for, not a bare boolean. `NoteEditorPage` is a REUSED instance across an
+  // A -> B switch: on the first render after `noteId` changes, this state
+  // has not yet been reset (that happens in an effect, one render later), so
+  // a plain `recoveryDecided` boolean would stay stale-true across the
+  // switch and gate nothing. `recoveryDecidedFor` is compared against the
+  // CURRENT `noteId` at every read, so a decision made for the note this
+  // instance just left can never authorize an insert into the note it now
+  // shows.
+  const [recoveryDecidedFor, setRecoveryDecidedFor] = useState(null)
   // Re-entrancy guard for restoreDraft (see its own comment) — a plain ref,
   // not state, since it must be checked synchronously before any render.
   const restoringDraftRef = useRef(false)
@@ -675,7 +687,7 @@ export default function NoteEditorPage({ noteId, onBack, showBack = true, onTitl
 
   useEffect(() => {
     if (!note) return undefined
-    setRecoveryDecided(false)
+    setRecoveryDecidedFor(null)
     setTitle(note.title || '')
     titleRef.current = note.title || ''
     setSubtitle(note.subtitle || '')
@@ -717,7 +729,7 @@ export default function NoteEditorPage({ noteId, onBack, showBack = true, onTitl
       if (decision && decision.unsynced) {
         setPendingDraft({ ...decision.state, savedAt: lsDraft?.savedAt ?? null })
         setRecovery(decision)
-        setRecoveryDecided(true)
+        setRecoveryDecidedFor(note.id)
         return
       }
       // Nothing local differs from the server: it saved fine (or was never
@@ -725,7 +737,7 @@ export default function NoteEditorPage({ noteId, onBack, showBack = true, onTitl
       if (raw) { try { localStorage.removeItem(DRAFT_KEY(note.id)) } catch { /* private mode */ } }
       setPendingDraft(null)
       setRecovery(null)
-      setRecoveryDecided(true)
+      setRecoveryDecidedFor(note.id)
     }
     decide()
     return () => { cancelled = true }
@@ -1431,7 +1443,7 @@ export default function NoteEditorPage({ noteId, onBack, showBack = true, onTitl
   // on the normal autosave path (spec §5.2). No endpoint, no settle, no door.
   const insertAskAnswer = useCallback((node) => {
     const ok = appendAskInsert(editorRef.current, node)
-    if (ok) setUploadToast({ message: 'Answer inserted at the end of this note.', tone: 'success' })
+    if (ok) setUploadToast({ message: ASK_INSERT_SUCCESS_MSG, tone: 'success' })
     return ok
   }, [])
 
@@ -1439,12 +1451,30 @@ export default function NoteEditorPage({ noteId, onBack, showBack = true, onTitl
   // ⛔ DECLARED AFTER the hydratedRef arming effect above: effects run in
   // declaration order, and inserting before hydration is the "document changed
   // without a person" class that effect exists to refuse.
+  //
+  // ⛔⛔ G-064 fix round 1 (F2, controller ruling) — `recoveryDecidedFor` is
+  // compared against THIS render's `noteId`, never a bare boolean: this
+  // component instance is REUSED across an A -> B switch, and a decision
+  // made for A must never authorize an insert into B. `note?.id === noteId`
+  // is the companion half — `note` can lag `noteId` by a render (the fetch
+  // hasn't resolved yet), and a stale A note object must not pass either.
+  //
+  // ⛔⛔ G-064 fix round 1 (F4, controller ruling) — `saveStatus !== 'saving'`
+  // closes the slow-restore race: `restoreDraft()` sets `saveStatus:'saving'`
+  // BEFORE its `await update(...)`, and clears `pendingDraft` in that same
+  // synchronous span. Gating on `pendingDraft` alone left a window, while the
+  // restore's own PUT was still in flight, where a pending Ask insert could
+  // fire and its OWN autosave would carry the PRE-restore `baseUpdatedAt` —
+  // racing the restore's write with a stale baseline. Waiting for
+  // `saveStatus` to leave `'saving'` means the insert's autosave always reads
+  // `lastSavedRef.current.updatedAt` AFTER the restore has updated it.
   usePendingAskInsert({
     noteId,
     editor,
-    ready: recoveryDecided && !pendingDraft && hydratedRef.current,
+    ready: recoveryDecidedFor === noteId && note?.id === noteId
+      && !pendingDraft && hydratedRef.current && saveStatus !== 'saving',
     onResult: (ok) => setUploadToast(ok
-      ? { message: 'Answer inserted at the end of this note.', tone: 'success' }
+      ? { message: ASK_INSERT_SUCCESS_MSG, tone: 'success' }
       : { message: "This note can't take changes right now, so the answer wasn't inserted. Ask again to get it back.", tone: 'error' }),
   })
 

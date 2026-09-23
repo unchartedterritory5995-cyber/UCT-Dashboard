@@ -5,7 +5,10 @@ import { Editor } from '@tiptap/core'
 import StarterKit from '@tiptap/starter-kit'
 import { AskInsert } from '../lib/askInsertNode'
 import { AskCitation } from '../lib/askCitationNode'
-import { clearPendingAskInsert, takePendingAskInsert, writePendingAskInsert } from '../lib/askInsert'
+import {
+  appendAskInsert, clearPendingAskInsert, takePendingAskInsert, writePendingAskInsert,
+  PENDING_ASK_INSERT_KEY,
+} from '../lib/askInsert'
 import usePendingAskInsert from './usePendingAskInsert'
 
 const NODE = {
@@ -65,5 +68,42 @@ describe('usePendingAskInsert', () => {
     renderHook(() => usePendingAskInsert({ noteId: 'n1', editor: ed, ready: true, onResult }))
     expect(onResult).toHaveBeenCalledWith(false)
     expect(takePendingAskInsert('n1')).toBeNull()
+  })
+
+  // G-064 fix round 1 (F1, review finding) — a `peek -> insert -> take` order
+  // reads the SAME as `take -> insert` to every test above: `onResult` is
+  // still called, the doc still ends up with exactly one insert after a
+  // StrictMode double-invoke (the second invocation's `peek` finds nothing
+  // because the FIRST invocation's `take`, run right after its own insert,
+  // already cleared it before the second invocation starts — both orders
+  // clear the entry before that second, purely-synchronous run). What
+  // neither test above can see is the instant BETWEEN insert and take: these
+  // two watch the insert's own transaction dispatch, synchronously, for a
+  // consumer that reacts to it — which is exactly where the two orders
+  // diverge.
+  it('the entry is already gone when the insert transaction dispatches', () => {
+    const ed = mk()
+    writePendingAskInsert('n1', NODE)
+    let stored = 'never-dispatched'
+    ed.on('transaction', ({ transaction }) => {
+      if (transaction.docChanged) stored = sessionStorage.getItem(PENDING_ASK_INSERT_KEY)
+    })
+    renderHook(() => usePendingAskInsert({ noteId: 'n1', editor: ed, ready: true }))
+    expect(inserts(ed)).toBe(1)
+    expect(stored).toBeNull()
+  })
+
+  it('a second consumer reacting to the insert finds nothing left (exactly one insert)', () => {
+    const ed = mk()
+    writePendingAskInsert('n1', NODE)
+    // A re-entrant consumer, wired to the SAME transaction the insert
+    // dispatches -- not a second render, a second READER of the same event.
+    ed.on('transaction', ({ transaction }) => {
+      if (!transaction.docChanged) return
+      const again = takePendingAskInsert('n1')
+      if (again) appendAskInsert(ed, again.node)
+    })
+    renderHook(() => usePendingAskInsert({ noteId: 'n1', editor: ed, ready: true }), { wrapper: StrictMode })
+    expect(inserts(ed)).toBe(1)
   })
 })
