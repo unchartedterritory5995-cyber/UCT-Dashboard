@@ -181,7 +181,14 @@ describe('⭐ the silent omission is gone', () => {
     // there, which is the difference between the fix and its appearance.
     const t = translatePine(`${head}${THREE_CELLS}table.clear(t, 0, 1, 0, 1)\n`,
       { strict: true })
-    expect((t.objects.ops || []).map((o) => o.k)).toContain('clear')
+    // ⭐ THE OP KIND IS `clearcells`, RULED 2026-09-23 in the merge that brought
+    // the two lineages together. Both had implemented `table.clear` and both
+    // converters survived as arms matching the same `op.k`, so one was silently
+    // dead by line order. Master's shape won on merit — its address fields are
+    // `col`/`row`, the SAME vocabulary the `cell` op uses.
+    // ⛔ THE ASSERTION IS UNCHANGED IN SUBSTANCE: the op has to BE there, which is
+    // still the difference between the fix and its appearance.
+    expect((t.objects.ops || []).map((o) => o.k)).toContain('clearcells')
   })
 
   it('⛔⛔ a real corpus script stops calling it unsupported', () => {

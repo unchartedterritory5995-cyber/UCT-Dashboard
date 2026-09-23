@@ -875,7 +875,11 @@ export function collectObjectOps(stmts, h) {
       ops.push({
         k: 'cellpatch', prop: CELL_SETTER_PROPS[method],
         target, col: rest[0], row: rest[1], args: rest.slice(2),
-        guards, locals: scope, at: toks[0], line: st.header[0].line,
+        // ⛔ THIS LANE'S OWN SHAPE, NOT MASTER'S VERBATIM. The sibling ops here
+        // carry `at` (already resolved) and `loopIds`, which master's version has
+        // no concept of — a ported op without them throws `toks is not defined`
+        // and, worse, would lose its loop identity if it did not.
+        guards, locals: scope, loopIds: [...loopIds], at, line: st.header[0].line,
       })
       return
     }
@@ -1030,12 +1034,22 @@ export function collectObjectOps(stmts, h) {
   }
 
   function emitCollection(method, toks, guards, inLoop, st, scope) {
-    if (inLoop) { diagnostics.loopBlocked.push(`array.${method}`); return }
     const args = argsOf(toks)
     if (!args || !args.length) return
     const collName = args[0] && args[0].value && args[0].value.type === 'name'
       ? args[0].value.name : null
     if (!collName || !decls.has(collName) || decls.get(collName).kind !== 'coll') return
+    // ⛔⛔ AFTER THE RELEVANCE CHECK, NEVER BEFORE IT — MASTER'S TASK 1, AND THIS
+    // MERGE PUT IT BACK THE WRONG WAY ROUND ONCE. `array` is Pine's one generic
+    // namespace, so a scratch `array.new_float()` calls the same method spellings
+    // as an `array.new_line()` collection. Flagging `inLoop` first counts an
+    // ordinary numeric loop body as a dropped OBJECT op: measured on
+    // `high_engagement__10-rsi-divergence-faytterro.pine`, six `array.set` calls on
+    // float scratch arrays, reported as blocked drawings.
+    // ⭐ RISK-043 STILL STANDS FOR WHAT IT PROTECTS — an object-family collection
+    // op inside a loop this reader cannot execute is still refused and still
+    // counted. This is WHEN irrelevance is noticed, not what happens after.
+    if (inLoop) { diagnostics.loopBlocked.push(`array.${method}`); return }
     emitCollectionOn(method, collName, args.slice(1), toks, guards, st, scope)
   }
 

@@ -12285,23 +12285,21 @@ function buildObjectProgram(stmts, source, env, makeResolver, bindingByStatement
       const target = targetRef(op.target)
       if (!target) { dropped('delete:target'); continue }
       ops.push({ k: 'delete', target, when, ...lastBarOnly })
-    } else if (op.k === 'clear') {
-      const target = targetRef(op.target)
-      if (!target) { dropped('clear:target'); continue }
-      const raw = namedOrPositional(op.args, CLEAR_POSITIONAL)
-      const startCol = raw.start_column ? valueRef(raw.start_column) : null
-      const startRow = raw.start_row ? valueRef(raw.start_row) : null
-      // ⛔ BOTH STARTS ARE REQUIRED. Pine has no default for them, so a call
-      // this door cannot read the address of is dropped and COUNTED — never
-      // widened to "the whole table", which would delete cells nobody named.
-      if (!startCol || !startRow) { dropped('clear:address'); continue }
-      // ⭐ THE DEFAULT IS THE START, per Pine's own signature — so an absent
-      // `end_` argument reuses the start's REFERENCE, and the rectangle
-      // collapses to the single cell the author named.
-      const endCol = raw.end_column ? valueRef(raw.end_column) : startCol
-      const endRow = raw.end_row ? valueRef(raw.end_row) : startRow
-      if (!endCol || !endRow) { dropped('clear:bounds'); continue }
-      ops.push({ k: 'clear', target, startCol, startRow, endCol, endRow, when, ...lastBarOnly })
+    // ⛔⛔ ONE CONVERTER FOR `table.clear`, AND THE MERGE HAD TWO.
+    //
+    // Both lineages implemented this call and both survived the merge as arms of
+    // THIS chain, matching the same `op.k === 'clear'`. In an if/else-if only the
+    // FIRST runs — so one was silently dead, and which one was decided by line
+    // order rather than by anyone choosing. That is the second-authority defect
+    // this repo keeps paying for, arriving through a clean automatic merge.
+    //
+    // ⭐ RULED 2026-09-23: master's `clearcells` shape wins, and the branch's
+    // `k: 'clear'` arm is deleted rather than reordered. Two reasons: its address
+    // fields are `col`/`row`, the SAME vocabulary the `cell` op uses, so one
+    // reader sees one address shape; and it is the shape production's lineage
+    // already stores. The runtime still carries a `clear` case, which is now
+    // unreachable from this converter — left in place deliberately, because
+    // deleting runtime code is a separate change with its own evidence.
     } else if (op.k === 'cell') {
       const target = targetRef(op.target)
       const col = op.col ? valueRef(op.col.value) : null
@@ -13976,6 +13974,26 @@ function translatePineResult(source, opts = {}) {
   // that the refusal says which of the two facts it means.
   if (resolved.length === 0) {
     const draws = !!(objectPass.program && (objectPass.program.ops || []).length)
+    // ⭐⭐ A CLEAN OBJECT-ONLY PROGRAM IS A HOST-LANE ACCEPT, AND THE MERGE HAD
+    // THE COMMENT SAYING SO WITHOUT THE CODE. Master deleted this early return for
+    // exactly this case — its note above says `resolved.length === 0` *"used to
+    // refuse `pine:no-output` immediately, before the object pass below ever ran
+    // — so a script that draws ONLY boxes/lines/labels/tables could never reach
+    // the object lane at all"*. This branch kept the block (and improved its
+    // message), so the merge carried a comment describing code that was still
+    // there. The verdict belongs to `objectOnlyCleanWin` below, once the object
+    // pass has actually run.
+    //
+    // ⛔ THE REFUSAL SURVIVES FOR EVERYTHING ELSE, and that is the half worth
+    // keeping from this branch: a DIRTY object program, and the screener lane in
+    // every case, still refuse — and still say WHICH of the two facts they mean
+    // (`pine:objects-only` vs `pine:no-output`), carrying `mode` and the program
+    // with the verdict so a pane is never told a refusal came from nowhere.
+    const cleanObjectOnly = draws
+      && !!(objectPass.diagnostics && objectPass.diagnostics.droppedOps === 0)
+    if (isHostLane(opts) && cleanObjectOnly) {
+      // fall through — `objectOnlyCleanWin` decides, below
+    } else {
     const guard = draws ? 'pine:objects-only' : 'pine:no-output'
     const r = refusalValue(guard, REFUSALS[guard], null)
     return {
@@ -14008,7 +14026,7 @@ function translatePineResult(source, opts = {}) {
       mode: opts.strict === true ? 'host' : 'screener',
     }
   }
-
+  }
 
   // ⭐⭐ THE OBJECT LANE, ALONE, AS A HOST-LANE VERDICT (owner-authorised,
   // 2026-09-20). `resolved.length === 0` means the value lane offered
