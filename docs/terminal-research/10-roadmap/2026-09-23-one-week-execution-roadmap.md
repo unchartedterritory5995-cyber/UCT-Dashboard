@@ -426,6 +426,31 @@ the whole thing holds together.
   join of thesis, setup, trade record and flow history that even AlphaSense and Koyfin
   concede they don't have. **The single highest-priority feature in the entire week.**
   See §4 for detail.
+
+> ✅ **Wave B result, 2026-09-23 — CLOSED, shipped live, dark.** Investigation found three
+> of the four pieces already have dedicated surfaces on `/research/:sym` — thesis/notes
+> ("My Research"), setup evidence (the Technical tab), and trade-count summary (already
+> inside My Research's payload). **The literal directive — one merged panel — was
+> correctly not built**: `ResearchPage.jsx` has an explicit, deliberate "MY RESEARCH vs
+> MARKET DATA" boundary (its own checkpoint decision 7/§33) that a forced merge would
+> violate, the same discipline this whole week has held everywhere else. The genuinely
+> missing piece — options-flow, this page had zero flow surface at all — shipped as a new
+> **Flow tab**, following the exact precedent of how the Technical tab was added: reusing
+> the existing partner-owned flow endpoint as-is (zero new flow math), deterministic, no
+> AI. Gated behind `RESEARCH_FLOW_TAB_ENABLED` (same mechanism/polarity as its sibling
+> flag, default OFF). 104 tests re-run fresh on the merge tree (59 backend + 45 frontend),
+> hygiene clean; one pre-existing, unrelated ledger-check failure confirmed genuinely
+> unrelated (two other flags' missing declarations, neither touched here — including
+> `D2_DUAL_COMPUTE_WARM_READER_ENABLED`, the flag behind today's earlier D2 finding,
+> worth a small separate cleanup someday, not blocking). **Shipped**: pushed as
+> `877dd173c`, confirmed `SUCCESS` and an ancestor of `origin/production` — fully dark,
+> zero member impact until you review the scope revision and decide on the flag.
+>
+> **A second unauthenticated route found in passing:** the reused flow endpoint
+> (`GET /api/live/massive/ticker-flow`, partner-owned) carries no auth dependency at the
+> router level — the same class of issue as OI-17 (open decision #7). Not touched (partner
+> file), not a new problem this feature created, but worth folding into that same
+> conversation whenever you get to it.
 - **Wave C:** A1 Markets and A11 Breadth & Regime — both unblock together once D2
   lands; build the persistent-context read path first (one loaded symbol, every panel),
   then the provenance receipts on top.
@@ -678,7 +703,7 @@ So there's exactly one list to answer from, not six scattered across a week of u
 | 4 | Proceed against the 10-day-old roster, or wait for Day 0's fresh re-measurement first? | Nothing — Day 0 re-measures regardless | Informational |
 | 5 | GitHub token rotation (dead as of last check) — needed if any part of this week wants CI/branch-protection visibility | Nothing this week's plan depends on directly | Whenever |
 | 6 | A read-only production usage query (member counts, which surfaces actually get used) is currently blocked by this session's own permission layer, not by policy. If prioritizing Days 4–6 on real usage data matters more than the priority order in §3, either grant it or run the one-line query directly. | Whether the app-layer build order in §3 reflects a guess or real usage | Optional |
-| 7 | **OI-17 — should `/api/live-prices`, `/api/snapshot/{sym}`, `/api/movers`, `/api/gex/data` require authentication?** Confirmed still unauthenticated as of five days ago, unchanged since 2026-09-02. This program's own standing default is "assume unintended, make no change without the owner" — nobody has built anything to fix it without a ruling from you first. | Whether A1 Markets' one real open item is something to act on this week or leave as-is | Whenever, security-adjacent |
+| 7 | **OI-17 — should `/api/live-prices`, `/api/snapshot/{sym}`, `/api/movers`, `/api/gex/data`, and (found later the same day) `/api/live/massive/ticker-flow` require authentication?** All confirmed still unauthenticated; the first four since 2026-09-02, the fifth found during A13's build. This program's own standing default is "assume unintended, make no change without the owner" — nobody has built anything to fix any of them without a ruling from you first. The fifth is partner-owned (Ravi), so any fix there needs his coordination too. | Whether this is something to act on this week or leave as-is | Whenever, security-adjacent |
 | 8 | Approve a narrow scope for registering A11's proprietary breadth/exposure metrics into D2's address book (`address_book.py`), matching the exact form its own CP1/CP2/earnings-table approvals already took — a one-line, dated scope grant, not a redesign. Without it, A11's metrics stay unaddressed and its provenance receipts stay incomplete. | A11's D2-dependent work this week | Optional, low urgency |
 
 ---
