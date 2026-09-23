@@ -2,6 +2,13 @@ import { SOURCE_BAR_FIELDS } from './defSchema'
 import { bindingKey } from './pool'
 import { semanticName } from './semanticName'
 import { FUND_MARK, parseFundamentalSource } from './fundamentalGrammar'
+import { catalogMetric } from './fundamentalSeries'
+
+function fundamentalOptionLabel(p) {
+  const m = catalogMetric(p.metric)
+  const name = (m && typeof m.name === 'string' && m.name) || p.metric
+  return p.symbol ? `${p.symbol} · ${name}` : name
+}
 
 /**
  * WHAT A CALCULATION READS — the numeric series, and nothing about where it draws.
@@ -573,7 +580,9 @@ export function sourceOptions(cs, defOf, selfInstanceId, currentValue = null) {
   if (cur && cur.kind === 'fundamental') {
     groups.push({
       label: 'Fundamental',
-      options: [{ value: currentValue, label: cur.symbol ? `${cur.symbol} · ${cur.metric}` : cur.metric }],
+      // ⭐ The catalogue's NAME (`Revenue (Quarterly)`), never the storage id;
+      // the id only while the catalogue has not loaded.
+      options: [{ value: currentValue, label: fundamentalOptionLabel(cur) }],
     })
   }
 

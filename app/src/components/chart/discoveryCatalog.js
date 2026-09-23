@@ -1216,7 +1216,13 @@ export function fundamentalResults(metrics) {
     if (!m || !m.id || !m.name || (m.status && m.status !== 'READY')) continue
     const source = fundamentalSource(m.id)
     if (!source) continue
-    const chip = m.cadence === 'quarterly' ? 'Quarterly' : 'Daily'
+    // ⭐ THE METHODOLOGY IS ON THE ROW, NOT ONLY IN A TOOLTIP (owner decision:
+    // Beta reads "1Y daily · Benchmark: SPY"). The cadence word is dropped when
+    // the subtitle already says it, so no row reads "Daily · 1Y daily".
+    const cadence = m.cadence === 'quarterly' ? 'Quarterly' : 'Daily'
+    const sub = typeof m.subtitle === 'string' ? m.subtitle.trim() : ''
+    const chip = !sub ? cadence
+      : sub.toLowerCase().includes(cadence.toLowerCase()) ? sub : `${cadence} · ${sub}`
     out.push(result({
       id: m.id,
       kind: 'fundamental',

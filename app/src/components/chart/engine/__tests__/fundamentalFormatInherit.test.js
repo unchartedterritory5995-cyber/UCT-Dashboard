@@ -36,3 +36,18 @@ describe('fundamentalFormatOfInstance -- an average of a percent is a percent', 
     expect(fundamentalFormatOfInstance(x, defOf, [x, y])).toBe(null)
   })
 })
+
+describe('the Source picker names a fundamental by its catalogue name', () => {
+  beforeEach(() => {
+    _resetFundamentalsForTests()
+    primeFundamentalsCatalog({ metrics: [{ id: 'revenue_q', name: 'Revenue (Quarterly)', series: 'revenue_q', fmt: 'compact_usd' }] })
+  })
+
+  it('never shows the storage id once the catalogue is loaded; pinned keeps its symbol', async () => {
+    const { sourceOptions } = await import('../sourceRef')
+    const labelOf = (v) => sourceOptions({ indicatorInstances: [] }, () => null, null, v)
+      .flatMap((g) => g.options).find((o) => o.value === v).label
+    expect(labelOf('fund:revenue_q')).toBe('Revenue (Quarterly)')
+    expect(labelOf('fund:MSFT:revenue_q')).toBe('MSFT · Revenue (Quarterly)')
+  })
+})
