@@ -11,7 +11,10 @@
 //     `_ATOM_TEXT` table is pinned against the client's table through these
 //     fixtures (tests/test_note_citation_text.py reads them);
 //   - `leafSpans`: every leaf that reads as text, so the Python rail pins atom
-//     positions too, not only text-node positions.
+//     positions too, not only text-node positions;
+//   - `passages`: for the astral cases, cited passages with the ProseMirror
+//     range textBetween gives them, so both rails pin the offset mapping INSIDE
+//     a text node (positions count UTF-16 units; Python counts code points).
 //
 // ⛔ THE SCHEMA BELOW IS A HAND COPY OF THE APP'S, AND IT WAS WRONG ONCE: it
 // declared attachmentChip INLINE while the app declares it a BLOCK atom (no
@@ -139,6 +142,43 @@ const CASES = {
     p(),
     WIDGET('NVDA daily chart, 50/200 SMA'),
     p('Conclusion: hold.')),
+  // ── astral characters: ProseMirror counts UTF-16 units, so an emoji is TWO
+  //    positions -- a count of code points puts everything after it early ──
+  astralBefore: doc(p('\u{1F525} Margins fell sharply.'), p('Second.')),
+  astralInside: doc(p('Revenue \u{1F525} grew \u{1D538} fast.')),
+  astralAfter: doc(p('Guidance raised \u{1F525}'), p('Next \u{1D538}')),
+  astralAcrossMarks: doc(p('Up ', t('\u{1F525}\u{1F525}', ['bold']), ' today \u{1D538}')),
+  astralThenExcerpts: doc(p('\u{1F680} NVDA thesis'),
+    { type: 'documentExcerpt', attrs: { excerptId: 'ex1' } },
+    { type: 'documentExcerpt', attrs: { excerptId: 'ex2' } },
+    p('After.')),
+  astralThenChip: doc(p('\u{1F525} hot'), CHIP('q3.pdf'), p('After \u{1D538}.')),
+}
+
+// Passages cited in the astral cases -- before, inside, across a mark, and
+// after an astral character. Each must occur ONCE in its note. `passages`
+// records the tightest range whose textBetween IS the passage, found by brute
+// force over textBetween itself -- never by the walker the rails test.
+const PASSAGES = {
+  astralBefore: ['Margins fell', 'sharply.', 'Second.'],
+  astralInside: ['Revenue', '\u{1F525} grew \u{1D538}', 'grew', 'fast.'],
+  astralAfter: ['Guidance raised', '\u{1F525}', 'Next', '\u{1D538}'],
+  astralAcrossMarks: ['Up', '\u{1F525} today', 'today \u{1D538}'],
+  astralThenExcerpts: ['NVDA thesis', 'After.'],
+  astralThenChip: ['hot', '[file: q3.pdf]', 'After \u{1D538}.'],
+}
+
+function passageRange(d, passage, leafText) {
+  const size = d.content.size
+  let best = null
+  for (let from = 0; from < size; from++) {
+    for (let to = from + 1; to <= size; to++) {
+      if (d.textBetween(from, to, '\n', leafText) !== passage) continue
+      if (!best || from > best.pm_from || (from === best.pm_from && to < best.pm_to)) best = { pm_from: from, pm_to: to }
+    }
+  }
+  if (!best) throw new Error(`passage not found: ${JSON.stringify(passage)}`)
+  return best
 }
 
 ;(async () => {
@@ -153,7 +193,12 @@ const CASES = {
       if (node.isText) textSpans.push({ pm_start: pos, pm_end: pos + node.nodeSize, text: node.text })
       else if (node.isLeaf && citationLeafText(node)) leafSpans.push({ pm_start: pos, pm_end: pos + node.nodeSize, text: citationLeafText(node) })
     })
-    out[name] = { json, text: d.textBetween(0, d.content.size, '\n', citationLeafText), contentSize: d.content.size, textSpans, leafSpans }
+    const text = d.textBetween(0, d.content.size, '\n', citationLeafText)
+    const passages = (PASSAGES[name] || []).map((passage) => {
+      if (text.split(passage).length !== 2) throw new Error(`${name}: passage must occur once: ${JSON.stringify(passage)}`)
+      return { text: passage, ...passageRange(d, passage, citationLeafText) }
+    })
+    out[name] = { json, text, contentSize: d.content.size, textSpans, leafSpans, passages }
   }
   console.log(JSON.stringify(out, null, 1))
 })()

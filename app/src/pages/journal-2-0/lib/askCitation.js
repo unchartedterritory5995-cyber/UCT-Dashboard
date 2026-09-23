@@ -147,10 +147,14 @@ export function citationText(doc, from, to) {
  * embed)? Such a range must be selected as a NodeSelection: a TextSelection
  * cannot sit around a block leaf (measured: ProseMirror warns "TextSelection
  * endpoint not pointing into a node with inline content" and selects nothing
- * a member can see).
+ * a member can see). A range outside the doc answers false: `nodeAt` throws a
+ * RangeError there, and a yes/no helper must not.
  */
 export function isBlockAtomRange(doc, from, to) {
-  const node = typeof doc?.nodeAt === 'function' ? doc.nodeAt(from) : null
+  if (typeof doc?.nodeAt !== 'function') return false
+  const size = doc.content?.size ?? 0
+  if (!Number.isInteger(from) || !Number.isInteger(to) || from < 0 || to > size || from >= to) return false
+  const node = doc.nodeAt(from)
   return Boolean(node && node.isAtom && node.isBlock && from + node.nodeSize === to)
 }
 
@@ -168,13 +172,24 @@ export function resolveNoteCitation(doc, loc, snippet) {
 
   const from = loc?.from
   const to = loc?.to
+  const full = citationText(doc, 0, doc.content?.size ?? 0)
   if (citationText(doc, from, to).trim() === needle) {
+    // ⛔ TEXT CANNOT TELL IDENTICAL ATOMS APART. A block atom is ONE position
+    // wide and many read the same ("[excerpt]", "[widget]", two chips of one
+    // file), so a range one atom off verifies on its SIBLING — measured on an
+    // unedited note (an emoji above two excerpts, before positions counted
+    // UTF-16) and on an edited one (one excerpt deleted before the click).
+    // When the atom's text occurs more than once, claim no passage: the same
+    // "never a coin flip" rule the re-resolve path applies below.
+    if (isBlockAtomRange(doc, from, to) && full.indexOf(needle) !== full.lastIndexOf(needle)) {
+      return { state: VALID_NOTE_ONLY, ambiguous: true, reason: 'identical atoms; cannot tell which was cited' }
+    }
     return { state: VALID_EXACT, from, to }
   }
 
   // The note changed under the citation. Re-find the passage — but only
-  // navigate if it is UNAMBIGUOUS.
-  const full = citationText(doc, 0, doc.content?.size ?? 0)
+  // navigate if it is UNAMBIGUOUS. (A unique hit cannot be an identical
+  // sibling atom: a sibling would be a second hit.)
   const hits = []
   let idx = full.indexOf(needle)
   while (idx !== -1 && hits.length < 3) {
@@ -188,10 +203,11 @@ export function resolveNoteCitation(doc, loc, snippet) {
     // paragraph made the old look-alike walker land on the WRONG text
     // (measured: "Second." mapped to a range reading "econd.\n"). That cause
     // is fixed -- flatToPmRange now counts separators with textBetween's own
-    // predicate (closeout-parity 2026-09-23) -- but the guard stays: it is
-    // the guarantee, not a patch. NEVER jump to the wrong passage -- the
-    // file's own contract -- so re-read the text at the computed range and
-    // refuse the claim unless it verifies.
+    // predicate (closeout-parity 2026-09-23) -- but the guard stays. It
+    // proves the TEXT, never which of two identical nodes holds it; that is
+    // why the exact branch above also refuses a duplicated atom. NEVER jump
+    // to the wrong passage -- the file's own contract -- so re-read the text
+    // at the computed range and refuse the claim unless it verifies.
     if (range && citationText(doc, range.from, range.to).trim() === needle) {
       return { state: RERESOLVED_EXACT, ...range }
     }

@@ -281,4 +281,87 @@ describe('a block atom is verifiable citation text', () => {
     expect(resolveNoteCitation(doc, { from: 11, to: 17 }, 'After.').state).toBe(VALID_EXACT)
     expect(citationText(doc, 0, doc.content.size)).toBe('Before.\n[file: q3-filing.pdf]\nAfter.')
   })
+
+  it('isBlockAtomRange answers false outside the doc instead of throwing (fix round 1, M4)', () => {
+    const doc = docOf('chipMiddle')
+    const size = doc.content.size
+    // Control: the primitive itself throws out there, so the guard is load-bearing.
+    expect(() => doc.nodeAt(size + 5)).toThrow(RangeError)
+    expect(isBlockAtomRange(doc, -1, 0)).toBe(false)
+    expect(isBlockAtomRange(doc, size + 5, size + 6)).toBe(false)
+    expect(isBlockAtomRange(doc, null, 10)).toBe(false)
+    expect(isBlockAtomRange(doc, 9, 10)).toBe(true)
+  })
+})
+
+// ── Fix round 1 (review-parity, 2026-09-23) ────────────────────────────────
+
+describe('identical block atoms never jump to the wrong one (I1)', () => {
+  // Text cannot tell two excerpts apart: both read "[excerpt]". Before this
+  // guard, a range one atom off verified on the SIBLING, and jumpToCitation
+  // node-selected it.
+  const EX = (excerptId) => ({ type: 'documentExcerpt', attrs: { excerptId } })
+  const para = (text) => ({ type: 'paragraph', content: [{ type: 'text', text }] })
+
+  it('an unedited note: an emoji above two excerpts, cited where a code-point server put the second', () => {
+    // ProseMirror counts the emoji as two positions: ex1 is at 16, ex2 at 17.
+    // The server counted code points and issued ex2 at {16, 17} -- ex1.
+    const doc = Node.fromJSON(schema, { type: 'doc', content: [
+      para('\u{1F680} NVDA thesis'), EX('ex1'), EX('ex2'), para('After.')] })
+    expect(doc.nodeAt(16).attrs.excerptId).toBe('ex1')
+    for (const loc of [{ from: 16, to: 17 }, { from: 17, to: 18 }]) {
+      const out = resolveNoteCitation(doc, loc, '[excerpt]')
+      expect(out.state).toBe(VALID_NOTE_ONLY)
+      expect(out.ambiguous).toBe(true)
+      expect(out.from).toBeUndefined()
+    }
+  })
+
+  it('an edited note: the excerpt above the cited one was deleted before the click', () => {
+    const before = Node.fromJSON(schema, { type: 'doc', content: [
+      para('Thesis'), EX('ex1'), EX('ex2'), EX('ex3'), para('After.')] })
+    let cited = null
+    before.descendants((n, pos) => { if (n.attrs?.excerptId === 'ex2') cited = { from: pos, to: pos + n.nodeSize } })
+    const edited = Node.fromJSON(schema, { type: 'doc', content: [
+      para('Thesis'), EX('ex2'), EX('ex3'), para('After.')] })
+    // The stale range now holds a SIBLING that reads identically.
+    expect(edited.nodeAt(cited.from).attrs.excerptId).toBe('ex3')
+    expect(citationText(edited, cited.from, cited.to)).toBe('[excerpt]')
+    const out = resolveNoteCitation(edited, cited, '[excerpt]')
+    expect(out.state).toBe(VALID_NOTE_ONLY)
+    expect(out.ambiguous).toBe(true)
+    expect(out.from).toBeUndefined()
+  })
+
+  it('control: a lone excerpt, and atoms that read differently, still resolve exactly', () => {
+    const one = Node.fromJSON(schema, { type: 'doc', content: [para('Thesis'), EX('ex1'), { type: 'paragraph' }] })
+    expect(resolveNoteCitation(one, { from: 8, to: 9 }, '[excerpt]')).toEqual({ state: VALID_EXACT, from: 8, to: 9 })
+    const two = docOf('twoAtomsInARow')
+    expect(FIXTURES.twoAtomsInARow.leafSpans.length).toBe(2)
+    for (const s of FIXTURES.twoAtomsInARow.leafSpans) {
+      expect(resolveNoteCitation(two, { from: s.pm_start, to: s.pm_end }, s.text))
+        .toEqual({ state: VALID_EXACT, from: s.pm_start, to: s.pm_end })
+    }
+  })
+})
+
+describe('a passage near an astral character maps to ProseMirror\'s range (M3)', () => {
+  const PASSAGES = NAMES.flatMap((name) => FIXTURES[name].passages.map((p) => [name, p]))
+
+  it('non-vacuity: the fixtures carry astral text and cited passages', () => {
+    expect(PASSAGES.length).toBeGreaterThanOrEqual(15)
+    expect(NAMES.filter((n) => /[\u{10000}-\u{10FFFF}]/u.test(FIXTURES[n].text)).length).toBeGreaterThanOrEqual(5)
+  })
+
+  it.each(PASSAGES)('%s: %j', (name, p) => {
+    const doc = docOf(name)
+    const range = { from: p.pm_from, to: p.pm_to }
+    expect(citationText(doc, range.from, range.to)).toBe(p.text)
+    expect(resolveNoteCitation(doc, range, p.text)).toEqual({ state: VALID_EXACT, ...range })
+    const full = citationText(doc, 0, doc.content.size)
+    const i = full.indexOf(p.text)
+    expect(flatToPmRange(doc, i, i + p.text.length)).toEqual(range)
+    // From a stale location, it is re-found at exactly the same range.
+    expect(resolveNoteCitation(doc, { from: 9999, to: 10000 }, p.text)).toEqual({ state: RERESOLVED_EXACT, ...range })
+  })
 })

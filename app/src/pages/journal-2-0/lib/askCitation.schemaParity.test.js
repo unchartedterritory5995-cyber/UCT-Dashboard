@@ -29,27 +29,43 @@ const FIXTURES = JSON.parse(fs.readFileSync(
 
 const schema = getSchema(buildExtensions())
 
-/** A frozenset({...}) / dict {...} literal's string names, read from the Python source. */
-function pyNames(name) {
-  const m = PY_SRC.match(new RegExp(`^${name}\\s*=\\s*(?:frozenset\\()?\\{([\\s\\S]*?)\\}\\)?\\s*$`, 'm'))
+/**
+ * A frozenset({...}) / dict {...} literal's string names, read from Python
+ * source. `#` comments are stripped FIRST, so a commented-out entry is absent
+ * here exactly as it is absent at runtime (review-parity M2: without the strip,
+ * a commented-out `_LEAF_TYPES` line still read as present). No table value
+ * contains a `#`, so stripping to end of line is exact for what this reads.
+ */
+function pyNamesFrom(src, name) {
+  const code = src.replace(/#[^\n]*/g, '')
+  const m = code.match(new RegExp(`^${name}\\s*=\\s*(?:frozenset\\()?\\{([\\s\\S]*?)\\}\\)?\\s*$`, 'm'))
   if (!m) return null
   // A dict's KEYS (a key opens its line); a set's every quoted name.
   const re = name === '_ATOM_TEXT' ? /^\s*"([A-Za-z]+)"\s*:/gm : /"([A-Za-z]+)"/g
   return new Set([...m[1].matchAll(re)].map((x) => x[1]))
 }
+const pyNames = (name) => pyNamesFrom(PY_SRC, name)
+const TABLES = ['_LEAF_TYPES', '_INLINE_LEAF_TYPES', '_TEXTBLOCK_TYPES', '_BLOCK_CONTAINER_TYPES', '_ATOM_TEXT']
 
 const real = Object.values(schema.nodes).filter((t) => t.name !== 'text')
 const sorted = (s) => [...s].sort()
 
 describe('the Python walker describes the SAME schema the editor runs', () => {
   it('reads the tables (non-vacuity: a regex that matched nothing would pass every set test)', () => {
-    for (const n of ['_LEAF_TYPES', '_INLINE_LEAF_TYPES', '_TEXTBLOCK_TYPES', '_ATOM_TEXT']) {
+    for (const n of TABLES) {
       expect(pyNames(n), n).not.toBeNull()
       expect(pyNames(n).size, n).toBeGreaterThan(0)
     }
     expect(pyNames('_LEAF_TYPES')).toContain('attachmentChip')
     expect(pyNames('_ATOM_TEXT')).toContain('attachmentChip')
     expect(real.length).toBeGreaterThan(20)
+  })
+
+  it('a commented-out entry is NOT read as present (the parser sees what Python runs)', () => {
+    const commented = PY_SRC.replace(/^(\s*)"askCitation",/m, '$1# "askCitation",')
+    expect(commented).not.toBe(PY_SRC) // the mutation applied
+    expect(pyNamesFrom(PY_SRC, '_LEAF_TYPES')).toContain('askCitation')
+    expect(pyNamesFrom(commented, '_LEAF_TYPES')).not.toContain('askCitation')
   })
 
   it('every leaf in the app schema is a leaf to the Python walker, and nothing else is', () => {
@@ -65,6 +81,16 @@ describe('the Python walker describes the SAME schema the editor runs', () => {
 
   it('the textblocks match (an EMPTY one still emits a separator)', () => {
     expect(sorted(pyNames('_TEXTBLOCK_TYPES'))).toEqual(sorted(real.filter((t) => t.isTextblock).map((t) => t.name)))
+  })
+
+  it('every other type with content is a known BLOCK container, never inferred (M1)', () => {
+    // The walker infers "textblock" from content only for an UNKNOWN type, so
+    // every real non-leaf non-textblock type must be named here. And each must
+    // be a block: an INLINE container would be walked as a block, so one
+    // appearing fails by name rather than being silently misread.
+    const containers = real.filter((t) => !t.isLeaf && !t.isTextblock)
+    expect(sorted(pyNames('_BLOCK_CONTAINER_TYPES'))).toEqual(sorted(containers.map((t) => t.name)))
+    for (const t of containers) expect(t.isBlock, `${t.name} is an inline container`).toBe(true)
   })
 
   it('the leaves that read as text are exactly the Python placeholders, and all are BLOCK atoms', () => {

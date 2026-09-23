@@ -374,3 +374,80 @@ class TestBlockAtomsAreTheirOwnLine:
         blocks = ar._note_blocks(_FIXTURES["chipMiddle"]["json"], "")
         assert [(b["text"], b["location"]["from"], b["location"]["to"]) for b in blocks] == [
             ("Before.", 1, 8), ("[file: q3-filing.pdf]", 9, 10), ("After.", 11, 17)]
+
+
+# ── Positions count UTF-16 units (fix round 1, M3) ──────────────────────────
+
+_PASSAGES = [(case, p) for case in sorted(_FIXTURES) for p in _FIXTURES[case]["passages"]]
+
+
+def test_the_fixtures_hold_astral_characters_and_cited_passages():
+    # Non-vacuity: without an astral character in the ground truth, code
+    # points and UTF-16 units agree and every rail below passes vacuously.
+    astral = [c for c, fx in _FIXTURES.items() if any(ord(ch) > 0xFFFF for ch in fx["text"])]
+    assert len(astral) >= 5, astral
+    assert len(_PASSAGES) >= 15
+
+
+@pytest.mark.parametrize("case", sorted(_FIXTURES))
+def test_python_reproduces_prosemirrors_content_size(case):
+    # The fingerprint's size component. An emoji is two positions.
+    assert flatten(_FIXTURES[case]["json"])["content_size"] == _FIXTURES[case]["contentSize"]
+
+
+@pytest.mark.parametrize("case,passage", _PASSAGES,
+                         ids=[f"{c}:{ascii(p['text'])}" for c, p in _PASSAGES])
+def test_a_passage_near_an_astral_character_maps_to_prosemirrors_range(case, passage):
+    """Before, inside, across a mark and after an emoji: the range the server
+    issues is the one textBetween gives the passage, and the server's own
+    verify reads the passage back from it."""
+    doc = _FIXTURES[case]["json"]
+    want = (passage["pm_from"], passage["pm_to"])
+    assert [(h["from"], h["to"]) for h in locate(doc, passage["text"])] == [want]
+    got = resolve_note_citation(doc, *want, passage["text"], fingerprint(doc))
+    assert got["state"] in PRECISE_STATES and (got["from"], got["to"]) == want
+    if want not in {(s["pm_start"], s["pm_end"]) for s in _FIXTURES[case]["leafSpans"]}:
+        # `verify` reads TEXT runs only; an atom-only range is re-found by
+        # `locate` above instead (RERESOLVED_EXACT), never verified in place.
+        assert verify(doc, *want, passage["text"])
+        assert got["state"] == VALID_EXACT
+
+
+def test_verify_refuses_a_position_between_the_halves_of_an_emoji():
+    # "🔥 Margins..." -- position 2 is INSIDE the emoji's surrogate pair. No
+    # code-point offset names it, so it can never verify.
+    doc = _FIXTURES["astralBefore"]["json"]
+    assert not verify(doc, 2, 4, " ")
+    assert verify(doc, 1, 3, "\U0001F525")
+
+
+def test_ask_consumers_issue_utf16_ranges():
+    from api.services.journal_two import ask_retrieval as ar
+    # Ask Current Note: one block per line, each at ProseMirror's range.
+    blocks = ar._note_blocks(_FIXTURES["astralThenChip"]["json"], "")
+    assert [(b["location"]["from"], b["location"]["to"]) for b in blocks] == [(1, 7), (8, 9), (10, 19)]
+    # Ask My Notebook's passage picker, a word after the emoji.
+    doc = _FIXTURES["astralBefore"]["json"]
+    _snippet, loc, _validity = ar._best_note_passage(doc, '"margins"')
+    assert (loc["from"], loc["to"]) == (4, 11)
+    assert verify(doc, loc["from"], loc["to"], "Margins")
+
+
+# ── A KNOWN type answers by type (fix round 1, M1) ──────────────────────────
+
+class TestTextblockInference:
+    """`isTextblock` is a property of the node TYPE in ProseMirror. Loadable
+    but malformed JSON -- a container holding text directly -- must not grow a
+    separator textBetween never emits."""
+
+    def test_a_known_container_holding_text_directly_gets_no_separator(self):
+        doc = {"type": "doc", "content": [
+            {"type": "paragraph", "content": [{"type": "text", "text": "A"}]},
+            {"type": "blockquote", "content": [{"type": "text", "text": "B"}]}]}
+        assert flatten(doc)["text"] == "AB"
+
+    def test_an_unknown_type_holding_inline_content_is_still_inferred(self):
+        doc = {"type": "doc", "content": [
+            {"type": "paragraph", "content": [{"type": "text", "text": "A"}]},
+            {"type": "futureTextblock", "content": [{"type": "text", "text": "B"}]}]}
+        assert flatten(doc)["text"] == "A\nB"

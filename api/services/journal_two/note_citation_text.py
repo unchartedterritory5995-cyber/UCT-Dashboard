@@ -56,6 +56,16 @@ position. A citation therefore addresses `{from, to}` in ProseMirror
 coordinates, which the editor can select and scroll to directly, and which
 are immune to mark boundaries by construction.
 
+POSITIONS COUNT UTF-16 UNITS; THE TEXT STAYS A PYTHON STR
+---------------------------------------------------------
+ProseMirror sizes a text node by JavaScript string length -- UTF-16 code
+units -- so an astral character (most emoji, U+1F525) is TWO positions where
+Python sees ONE character. Every span's `pm_start`/`pm_end` and
+`content_size` are in UTF-16 units; `flat_start`/`flat_end` stay code-point
+offsets into `text`; and an offset INSIDE a text node crosses between the two
+through that node's own characters (`_pm_at`, `_flat_at`). Counting code
+points put every position after an emoji one short per emoji.
+
 TWO REPRESENTATIONS, ON PURPOSE
 -------------------------------
 `body_plain` finds CANDIDATE NOTES (tokenized, whitespace-insensitive).
@@ -116,6 +126,19 @@ _INLINE_LEAF_TYPES = frozenset({"hardBreak", "noteLink", "askCitation", "videoTi
 # askCitation.schemaParity.test.js, which reads these literals.
 _TEXTBLOCK_TYPES = frozenset({"paragraph", "heading", "codeBlock", "toggleSummary"})
 
+# Every OTHER type with content -- lists, quotes, tables, toggles, callouts,
+# askInsert, the doc itself. `isTextblock` is a TYPE property in ProseMirror,
+# so a known container is never a textblock whatever its JSON holds: a
+# malformed-but-loadable tableCell holding text directly gets no separator
+# from textBetween, and must get none here. Only a genuinely UNKNOWN type is
+# inferred from its content (`_is_textblock`). Pinned against the real schema
+# by askCitation.schemaParity.test.js, which reads these literals.
+_BLOCK_CONTAINER_TYPES = frozenset({
+    "doc", "blockquote", "bulletList", "orderedList", "listItem", "taskList",
+    "taskItem", "table", "tableRow", "tableHeader", "tableCell", "callout",
+    "toggle", "toggleContent", "askInsert",
+})
+
 # G-064 (spec §7.2): a container whose text is an inserted Ask Notebook answer.
 # Its runs are FLAGGED, never removed -- the text must stay ProseMirror's own.
 ASK_INSERT_TYPE = "askInsert"
@@ -123,12 +146,44 @@ ASK_INSERT_TYPE = "askInsert"
 BLOCK_SEPARATOR = "\n"
 
 
+def _u16(s: str) -> int:
+    """`s.length` in JavaScript: UTF-16 code units, the unit ProseMirror
+    positions count. `surrogatepass` so a lone surrogate from JSON counts as
+    the one unit it is in the browser instead of raising."""
+    return len(s.encode("utf-16-le", "surrogatepass")) // 2
+
+
+def _pm_at(s: dict[str, Any], flat_offset: int) -> int:
+    """ProseMirror position of a flat (code-point) offset inside text span `s`."""
+    return s["pm_start"] + _u16(s["text"][: flat_offset - s["flat_start"]])
+
+
+def _flat_at(s: dict[str, Any], pm: int) -> int | None:
+    """Flat (code-point) offset of ProseMirror position `pm` inside text span
+    `s` -- or None when `pm` falls BETWEEN the two halves of an astral
+    character, a position no code-point offset can name."""
+    want = pm - s["pm_start"]
+    units = 0
+    for i, ch in enumerate(s["text"]):
+        if units == want:
+            return s["flat_start"] + i
+        if units > want:
+            return None
+        units += 2 if ord(ch) > 0xFFFF else 1
+    return s["flat_end"] if units == want else None
+
+
 def _is_textblock(node: dict[str, Any]) -> bool:
-    """R1's `node.isTextblock`, from JSON. A known textblock type answers even
-    when EMPTY (no `content` to look at); an unknown type holding inline
-    content is treated as one, since only a textblock can hold inline nodes."""
-    if node.get("type") in _TEXTBLOCK_TYPES:
+    """R1's `node.isTextblock`, from JSON. A known type answers by TYPE, as
+    ProseMirror does -- a textblock even when EMPTY (no `content` to look at),
+    a container never, even holding inline content. Only a type in neither
+    table is inferred: holding inline content, it is treated as a textblock,
+    since in a valid doc only a textblock can hold inline nodes."""
+    ntype = node.get("type")
+    if ntype in _TEXTBLOCK_TYPES:
         return True
+    if ntype in _BLOCK_CONTAINER_TYPES:
+        return False
     children = node.get("content")
     return isinstance(children, list) and any(
         isinstance(c, dict) and (c.get("type") == "text" or c.get("type") in _INLINE_LEAF_TYPES)
@@ -139,10 +194,13 @@ def flatten(doc: dict[str, Any] | None) -> dict[str, Any]:
     """Canonical citation text + ProseMirror span map for a TipTap doc.
 
     Returns ``{"text": str, "spans": [{"flat_start", "flat_end", "pm_start",
-    "pm_end", "is_atom"}]}``. Spans are in document order and cover every
-    addressable run of text; the block separators between them are part of
-    ``text`` but belong to no span, which is exactly why the two coordinate
-    systems need an explicit map rather than a constant offset.
+    "pm_end", "is_atom", "in_ask_insert", "text"}], "content_size": int}``.
+    Spans are in document order and cover every addressable run of text; the
+    block separators between them are part of ``text`` but belong to no span,
+    which is exactly why the two coordinate systems need an explicit map
+    rather than a constant offset. ``flat_*`` are code-point offsets into
+    ``text``; ``pm_*`` and ``content_size`` are ProseMirror positions (UTF-16
+    units); a span's own ``text`` is what maps one to the other inside it.
     """
     parts: list[str] = []
     spans: list[dict[str, Any]] = []
@@ -165,7 +223,7 @@ def flatten(doc: dict[str, Any] | None) -> dict[str, Any]:
         spans.append({
             "flat_start": start, "flat_end": state["flat"],
             "pm_start": pm_start, "pm_end": pm_end, "is_atom": is_atom,
-            "in_ask_insert": state["ask_depth"] > 0,
+            "in_ask_insert": state["ask_depth"] > 0, "text": text,
         })
 
     def walk(node: Any, pos: int) -> int:
@@ -180,8 +238,10 @@ def flatten(doc: dict[str, Any] | None) -> dict[str, Any]:
         if ntype == "text":
             t = node.get("text")
             if isinstance(t, str) and t:
-                emit(t, pos, pos + len(t), False)
-                return pos + len(t)
+                # UTF-16 units, as ProseMirror sizes the node -- NOT len(t).
+                end = pos + _u16(t)
+                emit(t, pos, end, False)
+                return end
             return pos
 
         if ntype in _LEAF_TYPES:
@@ -268,15 +328,9 @@ def pm_range(flat_start: int, flat_end: int, spans: list[dict[str, Any]]) -> dic
     pm_from = pm_to = None
     for s in spans:
         if pm_from is None and s["flat_start"] <= flat_start < s["flat_end"]:
-            if s["is_atom"]:
-                pm_from = s["pm_start"]
-            else:
-                pm_from = s["pm_start"] + (flat_start - s["flat_start"])
+            pm_from = s["pm_start"] if s["is_atom"] else _pm_at(s, flat_start)
         if s["flat_start"] < flat_end <= s["flat_end"]:
-            if s["is_atom"]:
-                pm_to = s["pm_end"]
-            else:
-                pm_to = s["pm_start"] + (flat_end - s["flat_start"])
+            pm_to = s["pm_end"] if s["is_atom"] else _pm_at(s, flat_end)
     if pm_from is None or pm_to is None or pm_to <= pm_from:
         return None
     return {"from": pm_from, "to": pm_to}
@@ -299,7 +353,7 @@ def fingerprint(doc: dict[str, Any] | None) -> str:
                                         the mark split
 
     Both runtimes compute it cheaply: the backend from `flatten`, the frontend
-    from `doc.textBetween(0, size, '\n')` and `doc.content.size` -- the very
+    from `citationText(doc, 0, size)` and `doc.content.size` -- the very
     primitives the cross-runtime equivalence rail already pins together.
 
     This is the FAST PATH, not the guarantee. `verify` is the guarantee.
@@ -328,9 +382,9 @@ def verify(doc: dict[str, Any] | None, pm_from: int, pm_to: int, snippet: str) -
         if s["is_atom"]:
             continue
         if s["pm_start"] <= pm_from < s["pm_end"]:
-            lo = s["flat_start"] + (pm_from - s["pm_start"])
+            lo = _flat_at(s, pm_from)
         if s["pm_start"] < pm_to <= s["pm_end"]:
-            hi = s["flat_start"] + (pm_to - s["pm_start"])
+            hi = _flat_at(s, pm_to)
     if lo is None or hi is None or hi <= lo:
         return False
     return flat["text"][lo:hi] == snippet
