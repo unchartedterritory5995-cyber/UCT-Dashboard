@@ -92,7 +92,7 @@ def identity_allowed_fn():
                 frm = s0 if cont(t, ins[0], cur.get("list_date"), s0) else ins[0]
             elif cp:
                 frm = s0 if cont(t, cp, cur.get("list_date"), s0) else cp
-            elif s1 >= "2026-09-11" and not contra and cur.get("list_date"):
+            elif s1 >= CAL[-1] and not contra and cur.get("list_date"):
                 frm = max(s0, cur["list_date"])
             else:
                 frm = None
@@ -116,7 +116,7 @@ class Oracle2:
         self.pit = json.load(open(IN + "/pit_uct_ledger.json"))
         self.pinned = [canon(t) for t in json.load(open(IN + "/uct_identity_ledger.json"))["identity"]]
         self.allowed = identity_allowed_fn()
-        gb = json.load(open("/data/_audit/validation/v2c_final/out/guard_oracle_boundaries.json"))
+        gb = json.load(open(os.environ.get("GUARD_BOUNDARIES", "/data/_audit/validation/v2c_final/out/guard_oracle_boundaries.json")))
         self.bound = {t: sorted(v) for t, v in gb.items()}
         self.closes = {}                                  # (u, date) -> {metric: c}
         self.s3 = O.s3()

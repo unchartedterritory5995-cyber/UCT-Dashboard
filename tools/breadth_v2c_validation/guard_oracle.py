@@ -12,8 +12,10 @@ Withhold boundary = D of every non-REAL event.
 import collections, json, math, os
 from common import write
 
-G = "/data/grouped_closes_v20260923"
-IN = "/data/_audit/v2cc/inputs"
+import sys
+TAG = sys.argv[1] if len(sys.argv) > 1 else os.environ.get("V2C2_TAG", "")
+G = "/data/grouped_closes_" + (TAG or "v20260923")
+IN = "/data/_audit/v2cc/inputs" + ("_" + TAG if TAG else "")
 man = json.load(open(IN + "/grouped_vintage_manifest.json"))["manifest"]
 spl = json.load(open(IN + "/splits_ledger.json"))["splits"]
 canon = lambda t: t.replace("-", ".")
@@ -56,7 +58,7 @@ mine = collections.defaultdict(list)
 for t, p, d, k, *_ in ev:
     if k != "REAL_ACTION":
         mine[t].append(d)
-theirs = json.load(open(IN + "/adjusted_guard_table.json"))["withhold_boundaries"]
+theirs = json.load(open(IN + "/adjusted_guard_table.json"))["withhold_boundaries"] if os.path.exists(IN + "/adjusted_guard_table.json") else {}
 same = {t: sorted(v) for t, v in mine.items()} == {t: sorted(v) for t, v in theirs.items()}
 R = {"events": len(ev), "classes": dict(collections.Counter(e[3] for e in ev)),
      "classes_2008_2026": dict(collections.Counter(e[3] for e in ev if "2008-01-02" <= e[2] <= "2026-09-11")),
@@ -87,9 +89,9 @@ gold = {}
 for t in ("BCPC", "TPC", "WHLR", "VWAV", "UZX", "COHR", "AAPL", "TSLA", "AMZN", "GOOGL", "GOOG", "NVDA"):
     gold[t] = [e for e in byname.get(t, []) if e[2] >= "2008-01-02"]
 R["golden_cases"] = gold
-print(write("guard_oracle.json", R))
+print(write("guard_oracle%s.json" % ("_" + TAG if TAG else ""), R))
 print(json.dumps({k: v for k, v in R.items() if k not in ("old_190_detail", "golden_cases")}, indent=1))
 for t, v in gold.items():
     print("GOLD", t, v[:8])
-with open("/data/_audit/validation/v2c_final/out/guard_oracle_boundaries.json", "w") as f:
+with open("/data/_audit/validation/v2c_final/out/guard_oracle_boundaries%s.json" % ("_" + TAG if TAG else ""), "w") as f:
     json.dump({t: sorted(v) for t, v in mine.items()}, f)
