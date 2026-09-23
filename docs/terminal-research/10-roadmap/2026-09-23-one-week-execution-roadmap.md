@@ -444,6 +444,21 @@ the whole thing holds together.
 > the roster's own summary — all three of this wave's slots are now in use (A13, A1, A11),
 > at the 3-agent cap.
 
+> ✅ **A1 result, 2026-09-23 — no code, three real findings instead.** This is a
+> genuinely different, good outcome from "already done": the agent correctly declined to
+> manufacture work. (1) **OI-17 is real and still open** — `/api/live-prices`,
+> `/api/snapshot/{sym}`, `/api/movers`, `/api/gex/data` remain unauthenticated,
+> reconfirmed as recently as five days ago in `OWNER_INPUTS_REQUESTED.md`, and the
+> program's own standing instruction is "assume unintended, make no change without the
+> owner" — logged in §7 below rather than acted on. (2) **Movers already correctly
+> propagates the shared symbol context** (`TickerPopup.jsx` already calls
+> `useAppFocus().setSymbol` on click) — verified, not a gap. (3) **"The quote panel" the
+> architecture doc says A1 "owns" doesn't exist as a built component today** — deciding
+> what it should even be is a product-scope question, not a propagation bug, and building
+> something to fill it would be guessing at a decision rather than fixing a defect.
+> **A1 is lower-priority for this week than the roster's "Extend" language suggested** —
+> nothing here is a same-day engineering task.
+
 ### Day 6 — the two conditional systems, and integration
 
 - **Agent 1:** A10 Options & Flow polish — UI-only work that never touches the
@@ -644,6 +659,7 @@ So there's exactly one list to answer from, not six scattered across a week of u
 | 4 | Proceed against the 10-day-old roster, or wait for Day 0's fresh re-measurement first? | Nothing — Day 0 re-measures regardless | Informational |
 | 5 | GitHub token rotation (dead as of last check) — needed if any part of this week wants CI/branch-protection visibility | Nothing this week's plan depends on directly | Whenever |
 | 6 | A read-only production usage query (member counts, which surfaces actually get used) is currently blocked by this session's own permission layer, not by policy. If prioritizing Days 4–6 on real usage data matters more than the priority order in §3, either grant it or run the one-line query directly. | Whether the app-layer build order in §3 reflects a guess or real usage | Optional |
+| 7 | **OI-17 — should `/api/live-prices`, `/api/snapshot/{sym}`, `/api/movers`, `/api/gex/data` require authentication?** Confirmed still unauthenticated as of five days ago, unchanged since 2026-09-02. This program's own standing default is "assume unintended, make no change without the owner" — nobody has built anything to fix it without a ruling from you first. | Whether A1 Markets' one real open item is something to act on this week or leave as-is | Whenever, security-adjacent |
 
 ---
 
