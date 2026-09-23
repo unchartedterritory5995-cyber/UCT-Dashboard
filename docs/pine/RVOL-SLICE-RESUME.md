@@ -473,7 +473,26 @@ case. Compare failing test NAMES.
 
 ## NEXT, IN ORDER
 
-> ### ⭐⭐ 2026-09-22 — THE QUEUE, RE-SIZED BY READING THE CALL SITES
+> ### ⭐⭐ 2026-09-23 — THE QUEUE, RE-MEASURED AFTER `pine:block` CLOSED
+>
+> `runtime/pine:block` **13 → 4** and `runtime:statement` **17 → 16**. The
+> table below is the census AFTER those, read with `guardProbe.measure.test.js`
+> rather than taken from counts.
+>
+> | scripts | row | what it actually is |
+> |---|---|---|
+> | 10 | `runtime/pine:undefined` | ⭐⭐ **THE BIGGEST REAL CAPABILITY LEFT — and it is not what the guard says.** "this Pine name was never given a value" is reported for `_ma`, `_src`, `_len` — which are **FUNCTION PARAMETERS**. These are user-defined function bodies lowered without their params in scope. It is the `runtime:function` capability ("no call frames yet") wearing a different guard, and sizing it from the sentence would send someone hunting a scoping bug that is not there. |
+> | 14 | `runtime/pine:builtin` | 7 unknown builtin names (a grab-bag), plus `barstate.isnew` ×2, `syminfo.mintick`, `timeframe.change`, `syminfo.basecurrency`, `syminfo.timezone` |
+> | 12 | `runtime/pine:function` | 6 unknown functions · 3 tuple destructuring `[a,b,c] = ta.bb(…)` · 3 `time('W')` / 2 `time(session)` — the FUNCTION forms RC-F did not serve |
+> | 12 | `runtime/pine:input-kind` | `input.color` 4 · `input.timeframe` 4 · `input.symbol` 2 — ⛔ the last six feed `request.security`, which has no feed here |
+> | 16 | `runtime/runtime:statement` | ⛔ **TEN distinct shapes — do not treat as one row.** The tractable singles: `math.round(x, precision)` ×2 · `ta.highest(len)` / `ta.lowest(len)` one-arg overload ×2 · `for … in` ×1. The rest is `request.security` tuple destructuring (×3) and symbol settling (×2). |
+> | 9 | `objects/pine:block` | `for` loops inside user functions — the OTHER half of the old `pine:block` row, and a different job from the one just closed |
+>
+> ⛔ **35 `runtime:declaration` + 13 `objects/pine:declaration-strategy` are
+> `strategy()` scripts, OUT OF SCOPE by design**, and 13 more are
+> `objects:no-objects-in-source` — scripts that correctly draw nothing.
+>
+> ### ⭐⭐ 2026-09-22 — THE QUEUE AS IT WAS SIZED THEN
 >
 > Run `guardProbe.measure.test.js` before committing to any row below; each of
 > these was measured that way rather than taken from the census count.
