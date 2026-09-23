@@ -20,6 +20,34 @@
  * must not reach into it (proseEmbedIsolation.test.js explains the incident).
  */
 
+/* ── Headings H4–H6 ───────────────────────────────────────────────────────────
+   Each surface sizes H1–H3 in its own stylesheet; H4–H6 arrived in Wave 5 and
+   are sized HERE, once, for every surface, in em so they follow each
+   surface's own body size (17px in the editor, 0.9em in the Charts widget).
+   ⛔ The widget-embed guard (see the header) is load-bearing: a scanner or
+   calendar widget has its own h4s. */
+.ProseMirror h4:not(:where([data-widget-embed-view] *)) {
+  font-size: 1.12em;
+  font-weight: 700;
+  line-height: 1.3;
+  margin: 18px 0 8px;
+}
+.ProseMirror h5:not(:where([data-widget-embed-view] *)) {
+  font-size: 1em;
+  font-weight: 700;
+  line-height: 1.35;
+  margin: 16px 0 6px;
+}
+.ProseMirror h6:not(:where([data-widget-embed-view] *)) {
+  font-size: 0.8em;
+  font-weight: 700;
+  line-height: 1.4;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+  margin: 14px 0 6px;
+}
+
 /* ── Code blocks: the language picker ─────────────────────────────────────── */
 .ProseMirror .uctCodeBlock { margin: 14px 0; }
 .ProseMirror .uctCodeBlock > pre { margin: 0; }

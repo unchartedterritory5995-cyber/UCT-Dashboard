@@ -36,7 +36,10 @@ import './noteContent.css'
 export function buildExtensions({ placeholder = 'Start writing… or type / for blocks and charts' } = {}) {
   return [
     StarterKit.configure({
-      heading: { levels: [1, 2, 3] },
+      // Wave 5: H4–H6. ⛔ With [1, 2, 3], TipTap renders a stored level-4
+      // heading as <h1> (renderHTML falls back to levels[0]) and an imported
+      // or pasted <h4>–<h6> parses as a plain paragraph -- the level is lost.
+      heading: { levels: [1, 2, 3, 4, 5, 6] },
       // Wave 5: replaced by NotebookCodeBlock below (same node name, same
       // `language` attr, same HTML) — lowlight highlighting + a language
       // picker. Two `codeBlock` extensions would register two node types of

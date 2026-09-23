@@ -1612,3 +1612,11 @@ def test_text_colour_exports_its_words_and_no_html():
     ]}))
     assert md == "Margins ==**widened**=="
     assert "<span" not in md and "color" not in md
+
+
+# ── Wave 5: headings H4-H6 export at their own level ────────────────────────
+@pytest.mark.parametrize("level", [4, 5, 6])
+def test_h4_to_h6_export_at_their_own_level(level):
+    md = tiptap_to_markdown(_doc({"type": "heading", "attrs": {"level": level},
+                                  "content": [{"type": "text", "text": "Risks"}]}))
+    assert md == f"{'#' * level} Risks"

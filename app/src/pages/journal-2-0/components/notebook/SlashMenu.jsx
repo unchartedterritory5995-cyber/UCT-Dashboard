@@ -37,6 +37,21 @@ export const ITEMS = [
     command: ({ editor, range }) => editor.chain().focus().deleteRange(range).setNode('heading', { level: 3 }).run(),
   },
   {
+    title: 'Heading 4',
+    description: 'Sub-section heading — or type #### and a space',
+    command: ({ editor, range }) => editor.chain().focus().deleteRange(range).setNode('heading', { level: 4 }).run(),
+  },
+  {
+    title: 'Heading 5',
+    description: 'Minor heading — or type ##### and a space',
+    command: ({ editor, range }) => editor.chain().focus().deleteRange(range).setNode('heading', { level: 5 }).run(),
+  },
+  {
+    title: 'Heading 6',
+    description: 'Smallest heading, a label — or type ###### and a space',
+    command: ({ editor, range }) => editor.chain().focus().deleteRange(range).setNode('heading', { level: 6 }).run(),
+  },
+  {
     title: 'Bullet list',
     description: 'Unordered list',
     command: ({ editor, range }) => editor.chain().focus().deleteRange(range).toggleBulletList().run(),
