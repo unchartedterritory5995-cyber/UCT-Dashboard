@@ -129,6 +129,12 @@ const HAND_TYPED_BASELINE = [
   // takes index.html as its single input, railed by
   // testing/scan/scanHarnessAbsent.test.js.
   'testing/scan/scanHarness.jsx',
+  // The dev-only historical-fundamentals harness (`fundamentals-harness.html`),
+  // for the same reason: `?sym=&tf=&seed=&control=&ma=` choose which fixture to
+  // mount and which instances to seed, in page state only. Not a member deep
+  // link, nothing to strip, and it cannot ship — railed by
+  // testing/fundamentals/fundamentalsHarnessAbsent.test.js.
+  'testing/fundamentals/fundamentalsHarness.jsx',
 ]
 
 describe('S4 CP2 — the deep-link ruling has a derived rail behind it', () => {

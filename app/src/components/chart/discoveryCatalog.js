@@ -37,6 +37,7 @@ import { isOverlayRemoved } from './chartDefaults'
 import { symbolSource, canonicalSymbol, derivedSourceName, paneOfTarget } from './engine/sourceRef'
 import { addInstance, setInstanceInput, findInstance, setInstanceDisplayTarget } from './engine/instanceControls'
 import { cachedBars, SOURCE_STATUS } from './engine/secondaryBars'
+import { fundamentalSource } from './engine/fundamentalGrammar'
 
 // ─── the vocabulary ─────────────────────────────────────────────────────────
 
@@ -582,6 +583,12 @@ export function securityResults(rows, { tf, bars } = {}) {
 export function semanticNamesFor(res) {
   if (!res) return { full: '', compact: '' }
   const id = str(res.id, '')
+  // ⭐ A FUNDAMENTAL NAMES ITSELF BY ITS METRIC ("Net Margin"); its chip
+  // (`shortName`, e.g. "Quarterly") is a list cue, never the series' name.
+  if (res.kind === 'fundamental') {
+    const n = str(res.name, '') || id
+    return { full: n, compact: n }
+  }
   if (res.kind !== 'breadth') {
     // A security names itself: `QQQ` is the thing, and `res.name` is the gloss.
     const t = str(res.shortName, '') || id
@@ -1171,31 +1178,70 @@ export const POPULAR_DEF_IDS = Object.freeze([
 ])
 
 /**
- * ⛔⛔ FUNDAMENTALS: AUDITED, AND THERE IS NOTHING SAFE TO PLOT.
+ * ⭐ FUNDAMENTALS: POINT-IN-TIME, FROM THE CATALOGUE THE SERVER PUBLISHES.
  *
- * The chart engine's source grammar (`sourceRef.parseSource`) admits three kinds
- * — a BAR FIELD, a SYMBOL and another INSTANCE's output. There is no fundamental
- * source, so no fundamental can become a series through canonical infrastructure.
+ * The Fundamentals tab lists what `/api/fundamentals/pit/catalog` says is
+ * historically available AND point-in-time safe (`fundamentalResults`). Every
+ * row creates an ordinary `dataSeries` over a `fund:` source; each value on the
+ * chart takes effect when its SEC filing became public -- never earlier, and
+ * never today's snapshot painted backward.
  *
- * And the one fundamental the product DOES hold is a snapshot, not a history:
- * `ast/pcf.js` exposes `CAPITALIZATION` / `MARKETCAP` as a NIGHTLY SCALAR off
- * `table.scalars.market_cap`, and refuses `Capitalization.1` in its own words —
- * *"a nightly scalar has no bar to be offset FROM... answering it with today's
- * value would be a fabricated history."* Drawing today's market cap back across
- * 400 bars is exactly that fabrication.
- *
- * ⭐ SO THE TAB IS HONEST RATHER THAN EMPTY OR ABSENT. Removing it would hide a
- * direction the product is committed to; filling it would lie about history that
- * does not exist. It states the reason and offers nothing.
+ * ⛔ WHEN THE CATALOGUE IS UNAVAILABLE (feature dark, not entitled, offline) the
+ * tab says so plainly and offers nothing. It never falls back to Screener
+ * snapshots, which have no history behind them.
  */
 export const FUNDAMENTALS_STATUS = Object.freeze({
   available: false,
-  lede: 'Historical fundamentals are not chartable yet.',
-  why: 'Fundamental data is held as a current snapshot per symbol, with no '
-    + 'point-in-time filing dates behind it — so a line drawn across past bars '
-    + 'would show today\u2019s value as though it had always been true. Market cap, '
-    + 'revenue, EPS and the rest arrive here once that history is real.',
+  lede: 'Historical fundamentals are not available right now.',
+  why: 'Fundamentals here are point-in-time: each value is charted from the moment its '
+    + 'SEC filing became public, never earlier, and never today’s value drawn backward. '
+    + 'They will appear in this tab when that history is available to your chart.',
 })
+
+/**
+ * CATALOGUE ROWS -> discovery results (the Fundamentals tab).
+ *
+ * ⭐ NO NEW CREATE DOOR. A row creates an ordinary `dataSeries` whose source is
+ * `fund:<metric>` -- the metric OF THE CHARTED SYMBOL, so it follows the chart
+ * like Volume does. Quarterly metrics default to a STEP line (the value really
+ * does change only when a filing lands); daily price-derived ones and Beta to a
+ * line. The member owns the style afterwards.
+ *
+ * ⛔ ONLY WHAT THE SERVER MARKED READY ARRIVES HERE; blocked and deferred metrics
+ * are never shown as though they worked.
+ */
+export function fundamentalResults(metrics) {
+  const out = []
+  for (const m of Array.isArray(metrics) ? metrics : []) {
+    if (!m || !m.id || !m.name || (m.status && m.status !== 'READY')) continue
+    const source = fundamentalSource(m.id)
+    if (!source) continue
+    // ⭐ THE METHODOLOGY IS ON THE ROW, NOT ONLY IN A TOOLTIP (owner decision:
+    // Beta reads "1Y daily · Benchmark: SPY"). The cadence word is dropped when
+    // the subtitle already says it, so no row reads "Daily · 1Y daily".
+    const cadence = m.cadence === 'quarterly' ? 'Quarterly' : 'Daily'
+    const sub = typeof m.subtitle === 'string' ? m.subtitle.trim() : ''
+    const chip = !sub ? cadence
+      : sub.toLowerCase().includes(cadence.toLowerCase()) ? sub : `${cadence} · ${sub}`
+    out.push(result({
+      id: m.id,
+      kind: 'fundamental',
+      name: m.name,
+      shortName: chip,
+      lead: m.name,
+      sub: m.subtitle || '',
+      category: m.category || 'Fundamentals',
+      description: [m.subtitle, m.methodology, m.limitations].filter(Boolean).join(' — '),
+      tags: ['fundamental', ...(Array.isArray(m.aliases) ? m.aliases : [])],
+      create: {
+        via: CREATE_VIA.DATA_SERIES,
+        source,
+        ...(m.presentation === 'step' ? { presentation: { plotStyle: 'step' } } : {}),
+      },
+    }))
+  }
+  return out
+}
 
 /**
  * Which tab does one result belong to? Canonical fields only.
@@ -1208,6 +1254,7 @@ export function tabOf(res) {
   if (!res) return null
   if (res.userDefined === true || res.kind === 'formula') return 'formulas'
   if (res.kind === 'breadth') return 'breadth'
+  if (res.kind === 'fundamental') return 'fundamentals'
   if (res.kind === 'security') {
     const t = String(res.category || '').toLowerCase()
     if (t === 'etf') return 'etfs'
@@ -1301,6 +1348,7 @@ export function glyphFamilyOf(res) {
   if (ownKey(FAMILY_BY_ID, res.id)) return FAMILY_BY_ID[res.id]
   const tab = tabOf(res)
   if (tab === 'breadth') return 'breadth'
+  if (tab === 'fundamentals') return 'fundamental'
   if (tab === 'formulas') return 'formula'
   if (tab === 'symbols' || tab === 'indexes' || tab === 'etfs') return 'security'
   const cat = String(res.category || '').toLowerCase()
@@ -1336,7 +1384,6 @@ export function resultsForTab(results, tab) {
     const byId = new Map(list.filter(isPopular).map((r) => [r.id, r]))
     return POPULAR_DEF_IDS.map((id) => byId.get(id)).filter(Boolean)
   }
-  if (tab === 'fundamentals') return []
   return list.filter((r) => tabOf(r) === tab)
 }
 

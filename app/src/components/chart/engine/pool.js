@@ -553,7 +553,10 @@ export function seriesOptionsForPlot(plot, ctx) {
       && !!(plot && plot.legend && plot.legend.hide !== true),
     visible: c.indicatorsHidden !== true,
     priceScaleId: (typeof c.scaleId === 'string' && c.scaleId) ? c.scaleId : MAIN_PRICE_SCALE_ID,
-    priceFormat: { type: 'price', precision: precisionFor(plot) },
+    // ⭐ A historical fundamental reads in ITS unit on the axis (`$365.0B`, `24.3%`,
+    // `28.40x`) -- the binder resolves the catalogue format and hands a frozen
+    // priceFormat; every other plot keeps the declared precision, unchanged.
+    priceFormat: c.priceFormat || { type: 'price', precision: precisionFor(plot) },
     // B3 carry #1. A price overlay is a GUEST on the candles' axis and must not
     // stretch it; anything owning its own band must. Always emitted, because a
     // key that can be set must be set on every bind or a re-purpose inherits it —

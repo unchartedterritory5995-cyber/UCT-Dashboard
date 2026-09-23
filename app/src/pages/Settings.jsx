@@ -775,9 +775,15 @@ function ChartSettingsSection({ prefs, setPref }) {
   )
 }
 
-function ReferralSection() {
+// PACKET-AC CP1 (fingerprint 1839b8c60): exported so it can be tested in
+// isolation -- ReferralSection is still only ever mounted from Settings.jsx
+// (card('referral', <ReferralSection />) below).
+export function ReferralSection() {
   const [referral, setReferral] = useState(null)
   const [copied, setCopied] = useState(false)
+  const [applyCode, setApplyCode] = useState('')
+  const [applyBusy, setApplyBusy] = useState(false)
+  const [applyMsg, setApplyMsg] = useState(null) // { kind: 'success'|'error', text }
 
   useEffect(() => {
     fetch('/api/auth/my-referral')
@@ -791,6 +797,35 @@ function ReferralSection() {
     navigator.clipboard.writeText(`https://uctintelligence.com/signup?ref=${referral.code}`).catch(() => {})
     setCopied(true)
     setTimeout(() => setCopied(false), 2000)
+  }
+
+  async function handleApply() {
+    const code = applyCode.trim()
+    if (!code || applyBusy) return
+    setApplyBusy(true)
+    setApplyMsg(null)
+    try {
+      const res = await fetch('/api/auth/apply-referral', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ code }),
+      })
+      if (res.ok) {
+        setApplyCode('')
+        setApplyMsg({ kind: 'success', text: 'Code applied.' })
+      } else {
+        let detail = 'Invalid referral code'
+        try {
+          const d = await res.json()
+          detail = d?.detail || detail
+        } catch { /* keep default */ }
+        setApplyMsg({ kind: 'error', text: detail })
+      }
+    } catch {
+      setApplyMsg({ kind: 'error', text: 'Could not apply the code — try again.' })
+    } finally {
+      setApplyBusy(false)
+    }
   }
 
   if (!referral) return null
@@ -815,6 +850,31 @@ function ReferralSection() {
             {referral.successful_referrals || 0}
           </span>
         </div>
+        <p className={styles.hint} style={{ marginTop: 12, marginBottom: 8 }}>
+          Have a referral code? Enter it here.
+        </p>
+        <div className={styles.referralLinkBox}>
+          <input
+            type="text"
+            value={applyCode}
+            onChange={e => setApplyCode(e.target.value.toUpperCase())}
+            placeholder="ENTER CODE"
+            disabled={applyBusy}
+            className={styles.referralLink}
+            style={{ background: 'transparent', border: 'none', outline: 'none', width: '100%' }}
+          />
+          <button className={styles.copyBtn} onClick={handleApply} disabled={applyBusy || !applyCode.trim()}>
+            {applyBusy ? 'Applying…' : 'Apply'}
+          </button>
+        </div>
+        {applyMsg && (
+          <p
+            className={styles.hint}
+            style={{ marginTop: 6, color: applyMsg.kind === 'success' ? 'var(--profit, #3cb868)' : 'var(--loss, #ef4444)' }}
+          >
+            {applyMsg.text}
+          </p>
+        )}
       </div>
     </TileCard>
   )

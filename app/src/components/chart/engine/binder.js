@@ -72,6 +72,8 @@ import {
   sourceInputsOf, parseSource, barFieldSeries, orderByDependency,
 } from './sourceRef'
 import { projectionFor, clippedBarsFor } from './symbolProjection'
+import { fundamentalColumn } from './fundamentalSource'
+import { fundamentalFormatOfInstance, fundamentalPriceFormat } from './fundamentalFormat'
 import { ohlcCapabilityOf, barHasOhlc, outputIsSource } from './ohlcCapability'
 import { sourceCapabilityOf } from './sourceCapability'
 import { resolvePlotStyle, resolveCandleColors } from './presentation'
@@ -918,6 +920,23 @@ export function createBinder({ chart, LWC }) {
           // a GAP. A hole is the truth; a carried-forward value is a price that
           // never traded.
           series = secBars ? projectionFor(secBars, parsed.field, bars) : null
+        } else if (parsed && parsed.kind === 'fundamental') {
+          // ⭐⭐ A HISTORICAL FUNDAMENTAL — AS-OF, NOT EXACT-t. Each bar takes the
+          // value that was PUBLIC by that bar's close (`fundamentalAsOf.js`); the
+          // series arrived already resolved in `ctx.fundamentals`, exactly as
+          // `secondary` does. Price-composed metrics (Market Cap, P/E...) read the
+          // chart's OWN close, or the pinned symbol's close through the SAME
+          // exact-t projection a `sym:` source uses. Not-yet-loaded is `null`:
+          // not computable, never a guess.
+          series = fundamentalColumn(parsed, {
+            bars, tf: ctx.tf, sym: ctx.sym, fundamentals: ctx.fundamentals || null,
+            closeOf: (sym) => {
+              if (sym === String(ctx.sym || '').toUpperCase()) return barFieldSeries(bars, 'close')
+              const e = secondary ? secondary.get(sym) : null
+              const sb = e && Array.isArray(e.bars) && e.bars.length ? e.bars : null
+              return sb ? projectionFor(sb, 'close', bars) : null
+            },
+          })
         }
         sourceCols = sourceCols || {}
         sourceCols[key] = series
@@ -1202,6 +1221,9 @@ export function createBinder({ chart, LWC }) {
         // option set, so without this the engine would re-show a hidden series on
         // the next paint — roughly once a second in extended hours.
         indicatorsHidden: ctx.indicatorsHidden === true,
+        // ⭐ A `fund:` source's unit, from the catalogue -- null for everything else.
+        // An MA of a fundamental inherits its unit (`domainBehavior: 'inherit'`).
+        priceFormat: fundamentalPriceFormat(fundamentalFormatOfInstance(b.inst, (id) => registry.getDefinition(id), instances)),
         // ⭐ ONLY A CANDLE READS THESE, and resolving them HERE is what keeps the
         // chart's own palette the default: `cs.candles` is the member's candle
         // colour, so a secondary instrument wears it until they override it on

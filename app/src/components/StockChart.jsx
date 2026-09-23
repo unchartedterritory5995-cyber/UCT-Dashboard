@@ -132,6 +132,7 @@ import {
 // from. `legendChips` walks the INSTANCE list and calls `engineChips` for the
 // valued half, so there is still exactly one formatting pipeline.
 import { legendChips, siblingSuffixes, paneReadoutLabel, chipValueText } from './chart/engine/readout'
+import { rendererPaneIndexOf } from './chart/engine/paneReadoutPlacement'
 import * as engineRegistry from './chart/engine/nativeRegistry'
 import IndicatorChip from './chart/legend/IndicatorChip'
 // ⭐ THE LEGEND ROW FOR THE THINGS THAT ARE NOT ENGINE INSTANCES — the MA
@@ -811,6 +812,7 @@ import { parsePaneOfTarget, parseSource, sourceInputsOf } from './chart/engine/s
 import { chromePlan, capturedPriceRange, viewLockFractions } from './chart/chromeGeometry'
 import { LIBRARY_HIDDEN_IDS } from './chart/discoveryCatalog'
 import { useSecondarySources } from './chart/engine/useSecondarySources'
+import { useFundamentalSources } from './chart/engine/useFundamentalSources'
 import { useServerColumns } from './chart/engine/useServerColumns'
 import { loadBreadthSymbols, breadthRecord } from '../hooks/useBreadthSymbols'
 import useMarketIndicators, { canonicalFamily, canonicalPresentation, canonicalSourceCapability, canonicalProduct, loadMarketIndicators } from '../hooks/useMarketIndicators'
@@ -6373,6 +6375,9 @@ export default function StockChart({
     if (target === 'volume') return volumeOwnsItsPaneRef.current ? VOLUME_PANE : null
     return parsePaneOfTarget(target)
   }, [cs])
+  // Read by `pinPaneLegend`, which runs every frame from a `[]`-deps callback.
+  const chipPaneHostRef = useRef(chipPaneHost)
+  chipPaneHostRef.current = chipPaneHost
   /**
    * The LONG name a pane readout prints for one chip.
    *
@@ -6418,6 +6423,10 @@ export default function StockChart({
   // repainting continuously.
   const secondarySources = useSecondarySources(
     _storedInstances, _defOf, resolvedTf, barCount, instFetcher, cs)
+  // ⭐ THE FOURTH SOURCE FAMILY'S DATA — historical point-in-time fundamentals
+  // (`fund:`). Same seam, same stable-identity discipline as the line above; a
+  // chart with no `fund:` source makes no request at all.
+  const fundamentalSources = useFundamentalSources(_storedInstances, _defOf, sym, cs)
 
   // ⭐ THE SERVER LANE'S REPAINT SIGNAL (the RS line). `computeFor` reads the
   // column cache synchronously and the fetch lands later; this is what tells
@@ -10437,6 +10446,17 @@ export default function StockChart({
           visibleRange: () => {
             try { return chartRef.current?.timeScale().getVisibleLogicalRange() || null } catch { return null }
           },
+          // Read-only: what each ENGINE series actually handed the renderer
+          // (the fundamentals acceptance harness reads plotted values from here).
+          engineSeries: () => {
+            try {
+              return (engineRef.current?.binder?.bindings() || []).map((b) => ({
+                instanceId: b.instanceId, plotKey: b.plotKey,
+                priceFormat: b.series?.options?.()?.priceFormat?.type || null,
+                data: b.series?.data?.() || [],
+              }))
+            } catch { return null }
+          },
           // ⭐ THE TWO READINGS THIS FIX IS ACCEPTED ON, and they have to be
           // separate. The daily regression was "Origin frames the 600-bar window
           // instead of the true origin", and a chart holding 20 years while
@@ -12277,6 +12297,8 @@ export default function StockChart({
         // instances name, already fetched and cached above. Absent is not an
         // error: it is a chart with no symbol sources, and every lookup misses.
         secondary: secondarySources,
+        // ⭐ Historical fundamentals, already resolved (see `useFundamentalSources`).
+        fundamentals: fundamentalSources,
         // ⭐⭐ WHICH PROVIDER FAMILY A CANONICAL SYMBOL BELONGS TO — the SEMANTIC
         // half of `ohlcCapability`. The breadth registry is the same authority
         // `api/routers/bars.py` routes on, read synchronously because the binder
@@ -13337,7 +13359,7 @@ export default function StockChart({
     // (mutation M3 SURVIVED): something else in this list is already unstable per
     // render. Kept as the one declaration that names this dependency; the full
     // reasoning is at the `useInstalledUserDefinitions` call site above.
-  }, [filteredBars, displayBars, ohlcData, closeData, volData, overlayData, comparisonData, sym, showVolume, mergedMarkers, mergedPriceLines, allPriceLines, dpZones, sessionShadeBands, _shadeOn, watermark, watermarkOpacity, cs, adjustTime, resolvedTf, tickerMeta, watermarkMeta, vwapOverride, hideWatermark, hidePriceLine, leftBarPad, modelBookLook, frozen, candleFrameFade, fadeCutoff, fitPriceToCandles, dailyDefaultBars, visibleBarsOverride, canvasTheme, sessionPreviewLastBar, sessionCandleActive, sessionExtReady, userDefsGeneration, sessionAppliedBars, _extendOverlaysLive, liveUpdates, replayMode, secondarySources, serverColumnsGeneration])
+  }, [filteredBars, displayBars, ohlcData, closeData, volData, overlayData, comparisonData, sym, showVolume, mergedMarkers, mergedPriceLines, allPriceLines, dpZones, sessionShadeBands, _shadeOn, watermark, watermarkOpacity, cs, adjustTime, resolvedTf, tickerMeta, watermarkMeta, vwapOverride, hideWatermark, hidePriceLine, leftBarPad, modelBookLook, frozen, candleFrameFade, fadeCutoff, fitPriceToCandles, dailyDefaultBars, visibleBarsOverride, canvasTheme, sessionPreviewLastBar, sessionCandleActive, sessionExtReady, userDefsGeneration, sessionAppliedBars, _extendOverlaysLive, liveUpdates, replayMode, fundamentalSources, secondarySources, serverColumnsGeneration])
 
   // Effect: update chart when data or settings change (NO cleanup — chart persists)
   useEffect(() => {
@@ -16215,11 +16237,25 @@ export default function StockChart({
       // readout kept the CSS default and painted in the MIDDLE of the candles.
       // 0 is a real pane now; a negative or non-integer index is still refused.
       if (!row || !Number.isInteger(row.index) || row.index < 0) return
+      // ⛔⛔ THE LAYOUT SLOT IS NOT WHERE THE SERIES DREW when an own-pane host
+      // above this one computed nothing: the layout reserved it a slot, the pool
+      // gave it no series, and the renderer never made that pane. Pinned by slot,
+      // a Net Margin line was captioned "Gross Margin". So ask the renderer, by
+      // identity -- see `engine/paneReadoutPlacement.js`. `null` = nothing of this
+      // key drew, so there is no pane to label; `undefined` = cannot tell, keep
+      // the slot.
+      const drawnAt = rendererPaneIndexOf(key,
+        engineRef.current && engineRef.current.binder ? engineRef.current.binder.bindings() : null,
+        chipPaneHostRef.current)
+      const hide = drawnAt === null
+      if ((el.style.display === 'none') !== hide) el.style.display = hide ? 'none' : ''
+      if (hide) return
+      const index = drawnAt === undefined ? row.index : drawnAt
       const panes = chart.panes ? chart.panes() : null
-      if (!panes || panes.length <= row.index) return
+      if (!panes || panes.length <= index) return
       // The top pane starts at 0 — the loop below sums nothing, which is right.
       let top = 0
-      for (let i = 0; i < row.index; i++) {
+      for (let i = 0; i < index; i++) {
         const h = panes[i] && panes[i].getHeight ? panes[i].getHeight() : 0
         top += (Number.isFinite(h) ? h : 0) + SEPARATOR_PX
       }
