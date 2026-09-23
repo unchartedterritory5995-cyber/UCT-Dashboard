@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { act, render, screen, fireEvent } from '@testing-library/react'
+import { act, createEvent, render, screen, fireEvent } from '@testing-library/react'
 import { test, expect, vi } from 'vitest'
 import Sheet from './Sheet'
 
@@ -274,4 +274,61 @@ test('drag-to-dismiss calls the LATEST onClose too', async () => {
   fireEvent.pointerMove(grip, { clientY: 300, pointerId: 1 })
   fireEvent.pointerUp(grip, { clientY: 300, pointerId: 1 })
   expect(onClosed).toHaveBeenCalledWith('dr')
+})
+
+// ⛔ A drag-dismiss calls onClose ONCE, from the pointerup handler, never from
+// inside a state updater. It used to decide inside `setDragY((d) => ...)`. When
+// a pointermove's update is still pending as pointerup lands (the moves and
+// the release in one task, outside act -- the G-064 close-out re-review's
+// reproduction), React cannot run that updater eagerly: it runs during
+// Sheet's RENDER, twice (update rebasing), so the caller's onClose ran twice,
+// inside a render, with React's "Cannot update a component while rendering a
+// different component" warning. No StrictMode is involved.
+test('a fast drag-dismiss calls onClose exactly once, outside any render, with no React warning', async () => {
+  const calls = []
+  const errors = []
+  const spy = vi.spyOn(console, 'error').mockImplementation((...args) => { errors.push(String(args[0])) })
+  function Host() {
+    const [open, setOpen] = useState(true)
+    return (
+      <Sheet
+        open={open}
+        variant="bottom-sheet"
+        title="T"
+        onClose={() => {
+          calls.push(new Error().stack.includes('renderWithHooks') ? 'in-render' : 'in-handler')
+          setOpen(false)
+        }}
+      >
+        body
+      </Sheet>
+    )
+  }
+  render(<Host />)
+  const grip = document.querySelector('[class*="grip"]')
+  const prev = globalThis.IS_REACT_ACT_ENVIRONMENT
+  globalThis.IS_REACT_ACT_ENVIRONMENT = false
+  try {
+    grip.dispatchEvent(createEvent.pointerDown(grip, { clientY: 100, pointerId: 1 }))
+    grip.dispatchEvent(createEvent.pointerMove(grip, { clientY: 300, pointerId: 1 }))
+    grip.dispatchEvent(createEvent.pointerUp(grip, { clientY: 300, pointerId: 1 }))
+    await new Promise((resolve) => setTimeout(resolve, 50))
+  } finally {
+    globalThis.IS_REACT_ACT_ENVIRONMENT = prev
+    spy.mockRestore()
+  }
+  expect(calls).toEqual(['in-handler'])
+  expect(errors.filter((e) => /Cannot update a component/.test(e))).toEqual([])
+  expect(document.querySelector('[data-sheet-panel]')).toBeNull() // it did close
+})
+
+test('a short drag springs back and does not close', () => {
+  const onClose = vi.fn()
+  render(<Sheet open variant="bottom-sheet" onClose={onClose} title="T">body</Sheet>)
+  const grip = document.querySelector('[class*="grip"]')
+  fireEvent.pointerDown(grip, { clientY: 100, pointerId: 1 })
+  fireEvent.pointerMove(grip, { clientY: 180, pointerId: 1 })
+  fireEvent.pointerUp(grip, { clientY: 180, pointerId: 1 })
+  expect(onClose).not.toHaveBeenCalled()
+  expect(document.querySelector('[data-sheet-panel]').style.transform).toBe('')
 })

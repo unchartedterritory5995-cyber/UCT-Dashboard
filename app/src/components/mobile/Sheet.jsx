@@ -61,6 +61,9 @@ export default function Sheet({
   const startY = useRef(0)
   const draggingRef = useRef(false)
   const [dragY, setDragY] = useState(0)
+  // The live drag offset, beside the state that paints it: pointerup decides
+  // the dismissal from THIS, never inside a state updater (see below).
+  const dragYRef = useRef(0)
 
   // ⛔⛔ THE LATEST onClose LIVES IN A REF, AND NOTHING THAT MOVES FOCUS DEPENDS
   // ON ITS IDENTITY. Callers pass `onClose` inline, so it is a new function on
@@ -149,29 +152,38 @@ export default function Sheet({
   }, [open])
 
   // Reset drag offset whenever opened
-  useEffect(() => { if (open) setDragY(0) }, [open])
+  useEffect(() => { if (open) { dragYRef.current = 0; setDragY(0) } }, [open])
 
   // Drag-to-dismiss for bottom sheet (dampened, reuses PullToRefresh math)
   const onHandlePointerDown = useCallback((e) => {
     if (!isBottomSheet) return
     draggingRef.current = true
     startY.current = e.clientY
+    dragYRef.current = 0
     e.currentTarget.setPointerCapture?.(e.pointerId)
   }, [isBottomSheet])
 
   const onHandlePointerMove = useCallback((e) => {
     if (!draggingRef.current) return
     const diff = e.clientY - startY.current
-    setDragY(diff > 0 ? diff : diff * 0.25) // resist upward
+    const next = diff > 0 ? diff : diff * 0.25 // resist upward
+    dragYRef.current = next
+    setDragY(next)
   }, [])
 
+  // ⛔ onClose is called HERE, once, and never inside a state updater. It used
+  // to be decided in `setDragY((d) => ...)`; when a pointermove's update was
+  // still pending as pointerup landed, React ran that updater during Sheet's
+  // RENDER, twice (update rebasing), so the caller's onClose ran twice inside
+  // a render with a "Cannot update a component while rendering a different
+  // component" warning (G-064 close-out re-review; railed in Sheet.test.jsx).
   const onHandlePointerUp = useCallback(() => {
     if (!draggingRef.current) return
     draggingRef.current = false
-    setDragY((d) => {
-      if (d > 110) { onCloseRef.current?.(); return 0 }
-      return 0
-    })
+    const dismiss = dragYRef.current > 110
+    dragYRef.current = 0
+    setDragY(0)
+    if (dismiss) onCloseRef.current?.()
   }, [])
 
   if (!open) return null
