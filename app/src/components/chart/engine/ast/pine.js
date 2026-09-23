@@ -5129,12 +5129,21 @@ export class Resolver {
    *  Offering the whole vocabulary would put `close` and a hundred strangers at
    *  the same edit distance. */
   undefinedName(name, tok) {
-    return new PineRefusal('pine:undefined',
+    // ⭐ THE NAME RIDES THE REFUSAL AS A FIELD, not only inside the sentence.
+    // A consumer that has to ask "which name?" otherwise reads it back out of
+    // `at.token` (the raw token text) or parses the message — both of which are
+    // true today and coupled to spelling. The runtime lane asks exactly that
+    // question: a name the frozen resolver cannot see may still be BOUND (a
+    // parameter, a reassigned slot, a loop counter), and the answer decides
+    // which of two sentences a member reads. See `foldConstNode`.
+    const refusal = new PineRefusal('pine:undefined',
       `${REFUSALS['pine:undefined']} — \`${name}\`${didYouMean(name, [
         ...this.env.keys(),
         ...Object.keys(this.table.series || {}),
         ...Object.keys(this.table.clock || {}),
       ])}`, locate(tok))
+    refusal.pineName = name
+    return refusal
   }
 
   resolveBinding(bound, tok, name) {

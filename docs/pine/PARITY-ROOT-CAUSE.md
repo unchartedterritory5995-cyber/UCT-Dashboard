@@ -384,6 +384,80 @@ the lane you measured it in* — and the vendor is what found the other one.
 
 ---
 
+## RC-G — the engine was telling members their script never defined a name it plainly defines
+
+A member pastes `artemis-oscillator-pro` and is told:
+
+> this Pine name was never given a value in the pasted script — `len`
+
+`len` is a declared parameter. The sentence is not a hedge or an approximation; it is
+false, and it sends the member to look for a typo that is not there.
+
+**The mechanism.** A window length and a history offset are sized BEFORE BAR 0 — the ring
+is allocated before any data arrives — so the number has to fold to a compile-time
+constant. `foldConstNode` asks `makeFrozenResolver()` for it, and that resolver sees only
+the **top-level environment**. A function PARAMETER, a REASSIGNED name and a LOOP COUNTER
+are all bound somewhere else, so all three come back `pine:undefined`, whose sentence says
+the name was never given a value.
+
+`foldConstNode` then re-threw that refusal verbatim, deliberately and with its reason
+written beside it: *"re-dressing a `pine:undefined` as a dynamic offset would send an
+engineer to build ring machinery for a typo."* **That rule is right for a typo and wrong
+for everything else on the row**, and the row is mostly everything else.
+
+⭐ **The discriminator is the SCOPE, which knows what the resolver does not.** A name this
+lane holds a slot for IS bound; what it lacks is a value known when the formula is built.
+A name no slot holds is still a typo and still gets the sentence that says so.
+
+**Measured over the committed corpus**, same instrument before and after, sources restored
+by captured bytes with the sha re-verified:
+
+| row | at HEAD | with the fix |
+|---|---|---|
+| `pine:undefined` | 22 | **11** |
+| `runtime:history-dynamic-offset` | 0 | **11** |
+
+⛔ **ZERO scripts start building.** Eleven of twenty-two stop being told something false and
+start being told the truth; the other eleven are names this lane genuinely does not hold.
+This changes which sentence a member reads and nothing else — serving these needs
+monomorphisation (a parameter's value is known per CALL SITE) and a dynamic ring read (a
+loop counter's, per ITERATION), which are capabilities, not sentences.
+
+⭐⭐ **THE CONTROL THAT LOOKED RIGHT COULD NOT FAIL.** The obvious guard for a change like
+this is *"a real typo still gets the real sentence"*, written the obvious way:
+
+```pine
+plot(ta.sma(close, zzNope))
+```
+
+It is green whatever this code does. A **top-level** length never reaches this fold at
+all — measured by deleting the scope test entirely and watching that case answer
+`pine:undefined` exactly as before. It could not distinguish the fix from its absence
+(`lesson_a_fixture_that_cannot_distinguish_is_not_a_rail`). The case that discriminates
+puts the typo **inside a function body**, where it takes the same road as the parameter:
+
+```
+                                  scope test present   scope test removed
+  typo in a function body         pine:undefined   →   runtime:history-dynamic-offset
+```
+
+That second column is precisely the defect the re-throw rule exists to prevent, arriving
+through the branch written to narrow that rule. Only a mutation found it.
+
+⛔ **And the fix is only as wide as the lane it was measured in — inside one function.**
+`foldConstNode` is reached from five call sites: one for the FINITE-WINDOW family (`sma`,
+`wma`, `stdev`, `highest`, …) and others for the CARRIED family (`ema`, `rma`, `rising`,
+…), each with its own noun. Threading the first alone would leave every
+`ta.ema(src, len)` still reading the false sentence with every assertion green. Both
+families are now covered, and mutating either set of call sites goes red.
+
+⚠️ **One thing changed in `pine.js`:** `undefinedName` now hangs the name on the refusal as
+`pineName`. The alternatives were to read it back out of `at.token` (the raw token text) or
+to parse it out of the message — both true today and both coupled to spelling. A consumer
+that has to ask *"which name?"* should be handed the answer, not left to recover it.
+
+---
+
 ## The foreseeable problems — where this shape will bite next
 
 Each is the same substitution, at a seam we have not yet compared:

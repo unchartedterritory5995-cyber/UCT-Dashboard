@@ -2566,7 +2566,7 @@ export function buildRuntimeIr(source, opts = {}) {
    *  Splitting them would let a knob mean one thing in an offset and another in a
    *  length, which is precisely the divergence the frozen-default rule exists to
    *  prevent. */
-  const foldConstNode = (e, at, what = null) => {
+  const foldConstNode = (e, at, what = null, scope = null) => {
     // ⭐⭐ THE CONSTANT IS READ OFF THE CANONICAL TREE, NOT OFF AN EVALUATION.
     //
     // ⚰️ The first draft interpreted the expression and asked whether the result
@@ -2589,6 +2589,36 @@ export function buildRuntimeIr(source, opts = {}) {
       // ⛔ A REFUSAL FROM THE VALUE LANE KEEPS ITS OWN NAME — `columnOf`'s rule,
       // and for the same reason: re-dressing a `pine:undefined` as a dynamic
       // offset would send an engineer to build ring machinery for a typo.
+      //
+      // ⛔⛔ …EXCEPT WHEN THE NAME IS NOT UNDEFINED, AND MOSTLY IT IS NOT. The
+      // frozen resolver sees only the TOP-LEVEL environment, so a function
+      // PARAMETER, a REASSIGNED name and a LOOP COUNTER all come back as
+      // `pine:undefined` — "this Pine name was never given a value in the
+      // pasted script" — about names the script plainly gives a value to.
+      // Measured over the corpus: 15 scripts sit on that row and almost none of
+      // them has a typo. `simple int len` in a signature being reported as
+      // never defined is the `dayofweek` defect this engine already records:
+      // "it was giving the wrong one of its own two sentences."
+      //
+      // ⭐ THE DISCRIMINATOR IS THE SCOPE, WHICH KNOWS WHAT THE RESOLVER DOES
+      // NOT. A name this lane has a slot for IS bound; what it lacks is a value
+      // known when the formula is built. A name no slot holds is still a typo
+      // and still gets the sentence that says so — the control for that is in
+      // `constantLengthRefusal.test.js` and it is what keeps the rule above
+      // intact.
+      const unresolved = err && err.guard === 'pine:undefined' ? err.pineName : null
+      if (unresolved && scope && scope.lookup(unresolved) !== null) {
+        note('runtime:history-dynamic-offset')
+        // ⚠️ `what` IS DELIBERATELY NOT APPENDED HERE. Every caller's noun ends
+        // "… is only known while the bar is running, so the ring it needs cannot be
+        // sized before bar 0" — which is what this guard's own prefix already
+        // says. Appending it produced a four-clause sentence that told a member
+        // the same thing twice before reaching the part they needed. The name is
+        // the part they need.
+        throw new RuntimeRefusal('runtime:history-dynamic-offset',
+          `\`${unresolved}\` is given a value by this script, but not one the `
+          + 'engine can read before bar 0', at)
+      }
       throw err
     }
     if (!canonical || canonical.type !== 'num'
@@ -3629,7 +3659,7 @@ export function buildRuntimeIr(source, opts = {}) {
           // bar runs cannot size a ring before bar 0.
           const n = foldConstNode(given[1], at,
             `the length of \`${node.name}\` is only known while the bar is running, `
-            + 'so the ring it needs cannot be sized before bar 0')
+            + 'so the ring it needs cannot be sized before bar 0', scope)
           if (n < 1) {
             throw new RuntimeRefusal('runtime:statement',
               `\`${node.name}\` needs a length of at least 1, got ${n}`, at)
@@ -3879,7 +3909,7 @@ export function buildRuntimeIr(source, opts = {}) {
           }
           const n = foldConstNode(given[0], at,
             `the length of \`${node.name}\` is only known while the bar is running, `
-            + 'so the state it needs cannot be sized before bar 0')
+            + 'so the state it needs cannot be sized before bar 0', scope)
           if (n < 1) {
             throw new RuntimeRefusal('runtime:statement',
               `\`${node.name}\` needs a length of at least 1, got ${n}`, at)
@@ -4070,7 +4100,7 @@ export function buildRuntimeIr(source, opts = {}) {
           // symmetry would reserve memory the semantics never asked for.
           const n = foldConstNode(given[1], at,
             `the length of \`${node.name}\` is only known while the bar is running, `
-            + 'so the state it needs cannot be sized before bar 0')
+            + 'so the state it needs cannot be sized before bar 0', scope)
           if (n < 1) {
             throw new RuntimeRefusal('runtime:statement',
               `\`${node.name}\` needs a length of at least 1, got ${n}`, at)
