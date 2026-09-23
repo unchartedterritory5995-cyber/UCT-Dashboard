@@ -40,14 +40,27 @@ dual-class name. A ledger ticker X (no dot) is RESOLVED against what actually tr
 sessions before its ex-session: X traded → X; only Y = X[:-1] + "." + X[-1] traded → Y; both
 traded → AMBIGUOUS and BOTH are withheld at that session (whose dividend it is cannot be
 proven); neither → X (no series, no effect). Dotted and concatenated records for one resolved
-name on one ex-date merge (identical amounts collapse; different amounts are a conflict).
+name on one ex-date merge.
+
+⭐⭐ SEVERAL DISTRIBUTIONS ON ONE EX-DATE (v3). The ledger publishes a regular + a special /
+supplemental / variable dividend on one ex-date as SEPARATE records, usually both typed `CD`
+(LYB $0.25 + $4.50, BAH $0.10 + $1.00, VNOM base + variable, CSWC/HTGC/ARCC supplementals).
+v2 treated them as a conflict and withheld the name for a whole 380-session frame — a
+systematic bias against live, not a safe failure. The economic basis (and Yahoo, measured:
+80 sum vs 4 one-of in a split-adjusted common-stock sample) is the SUM. So, per resolved name
+and ex-date:
+  * distinct amounts are SUMMED (within and across types);
+  * the same amount published once under each of two ledger spellings (WSO.B / WSOB) is one
+    distribution and collapses;
+  * WITHHELD (unprovable): one amount published twice under ONE spelling (duplicate or two
+    equal payments — Yahoo measured 17 collapse vs 23 sum), or two distinct amounts of one
+    type within RESTATEMENT_GAP of each other (a restated figure, e.g. ASR 3.358778/3.396091).
 
 ⛔ FAIL CLOSED, NEVER GUESSED. An event is WITHHELD — the name gets no levels while a frame
 straddles it, exactly like an adjusted-series defect — when: the currency is not USD; the same
-(ticker, ex_date, type) carries two different amounts; there is no raw prior close within 5
+currency is missing; an amount is ambiguous (above); there is no raw prior close within 5
 sessions; or cash ≥ 50 % of the prior raw close (r ≤ 0.5, liquidating-size — yfinance would
-apply it, but a vendor error of that size would poison a year of levels). Identical duplicate
-records collapse to one; different dividend TYPES on one ex-date are summed.
+apply it, but a vendor error of that size would poison a year of levels).
 """
 from __future__ import annotations
 
@@ -58,7 +71,11 @@ import json
 import math
 import os
 
-DIVIDEND_BASIS_VERSION = "div-basis-v2"
+DIVIDEND_BASIS_VERSION = "div-basis-v3"
+#: two distinct amounts of one type closer than this are a RESTATEMENT signature, not two
+#: distributions (measured, common stock 2006-2026: 1,653 of 1,734 multi-amount groups are >= 10 %
+#: apart and Yahoo SUMS them; below 2 % Yahoo is split between sum and one-of)
+RESTATEMENT_GAP = 0.02
 MAX_PRIOR_GAP_SESSIONS = 5
 MIN_RATIO = 0.5
 
@@ -84,6 +101,7 @@ def build_events(dividends: list, calendar: list, raw_close, canon=lambda t: t,
         if last_session and ex > last_session:
             continue
         t = canon(t)
+        src = t
         if "." not in t and len(t) >= 2:
             key = (t, ex)
             if key not in resolved:
@@ -105,30 +123,37 @@ def build_events(dividends: list, calendar: list, raw_close, canon=lambda t: t,
             if name != t:
                 respelled[(t, name)] += 1
             t = name
-        groups[(t, ex)].append(d)
+        groups[(t, ex)].append((src, d))
     log["respelled_records"] = sum(respelled.values())
     for (t, ex), recs in sorted(groups.items(), key=lambda kv: kv[0][1]):     # ex-date order
         j = bisect.bisect_left(calendar, ex)
         if j >= len(calendar):
             continue
         sess = calendar[j]
-        cur = {(r.get("currency") or "USD").upper() for r in recs}
+        cur = {(r.get("currency") or "").upper() for _s, r in recs}
+        per_spelling = collections.Counter()           # (type, amount, spelling) -> records
         by_type = collections.defaultdict(set)
-        for r in recs:
+        for src, r in recs:
             try:
                 c = float(r["cash_amount"])
             except (TypeError, ValueError):
                 continue
             if c > 0:
-                by_type[r.get("dividend_type") or "?"].add(round(c, 10))
+                ty = r.get("dividend_type") or "?"
+                by_type[ty].add(round(c, 10))
+                per_spelling[(ty, round(c, 10), src)] += 1
         reason = None
         if cur != {"USD"}:
-            reason = "non-USD currency %s" % sorted(cur)
-        elif any(len(v) > 1 for v in by_type.values()):
-            reason = "conflicting amounts for one type"
+            reason = "non-USD or missing currency %s" % sorted(cur)
+        elif any(n > 1 for n in per_spelling.values()):
+            reason = "ambiguous: one amount published twice under one symbol"
+        elif any(b - a < RESTATEMENT_GAP * b for v in by_type.values() for a, b in zip(sorted(v), sorted(v)[1:])):
+            reason = "ambiguous: near-identical amounts (restatement signature)"
         elif not by_type:
             continue
-        cash = sum(next(iter(v)) for v in by_type.values())
+        cash = sum(sum(v) for v in by_type.values())
+        if sum(len(v) for v in by_type.values()) > len(by_type):
+            log["multi_amount_summed"] += 1
         prev = None
         if reason is None:
             k = j - 1

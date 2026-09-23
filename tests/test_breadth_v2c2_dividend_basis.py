@@ -34,16 +34,40 @@ def test_a_same_day_ex_date_is_not_applied_and_the_last_bar_stays_raw():
     assert list(F[0]) == [0.99] * 6 + [1.0]
 
 
-def test_types_on_one_ex_date_are_summed_and_identical_duplicates_collapse():
+def test_types_on_one_ex_date_are_summed():
     raw = _raw({("2024-02-22", "COST"): 700.0})
-    t = bdb.build_events([_div("COST", "2024-02-23", 1.02), _div("COST", "2024-02-23", 1.02),
-                          _div("COST", "2024-02-23", 15.0, "SC")], CAL, raw)
+    t = bdb.build_events([_div("COST", "2024-02-23", 1.02), _div("COST", "2024-02-23", 15.0, "SC")], CAL, raw)
     (_, r), = t["applied"]["COST"]
     assert r == pytest.approx(1 - 16.02 / 700.0) and t["counts"]["multi_type_summed"] == 1
 
 
+def test_several_distributions_of_one_type_are_summed():
+    # LYB 2011-11-22: $0.25 regular + $4.50 special, both published as CD (Yahoo: 4.75)
+    raw = _raw({("2024-02-22", "LYB"): 40.0})
+    t = bdb.build_events([_div("LYB", "2024-02-23", 0.25), _div("LYB", "2024-02-23", 4.50)], CAL, raw)
+    assert t["applied"]["LYB"] == [("2024-02-23", pytest.approx(1 - 4.75 / 40.0))]
+    assert t["counts"]["multi_amount_summed"] == 1
+
+
+def test_one_amount_published_twice_under_one_symbol_is_withheld():
+    # duplicate publication or two equal payments — Yahoo measured both ways (17 vs 23)
+    raw = _raw({("2024-02-22", "MAC"): 60.0})
+    t = bdb.build_events([_div("MAC", "2024-02-23", 2.0), _div("MAC", "2024-02-23", 2.0)], CAL, raw)
+    assert "MAC" not in t["applied"] and t["withheld_boundaries"]["MAC"] == ["2024-02-23"]
+    assert "twice under one symbol" in t["withheld_detail"][0]["reason"]
+
+
+def test_near_identical_amounts_are_a_restatement_and_withheld():
+    raw = _raw({("2024-02-22", "ASR"): 250.0})
+    t = bdb.build_events([_div("ASR", "2024-02-23", 3.358778), _div("ASR", "2024-02-23", 3.396091)], CAL, raw)
+    assert "ASR" not in t["applied"] and "restatement" in t["withheld_detail"][0]["reason"]
+    ok = bdb.build_events([_div("ASR", "2024-02-23", 3.30), _div("ASR", "2024-02-23", 3.40)], CAL, raw)
+    assert ok["applied"]["ASR"] == [("2024-02-23", pytest.approx(1 - 6.70 / 250.0))]     # 2.9 % apart
+
+
 @pytest.mark.parametrize("recs,why", [
-    ([_div("X", "2024-02-23", 1.0), _div("X", "2024-02-23", 1.5)], "conflicting"),
+    ([_div("X", "2024-02-23", 1.0), _div("X", "2024-02-23", 1.01)], "restatement"),
+    ([_div("X", "2024-02-23", 1.0, cur=None)], "missing currency"),
     ([_div("X", "2024-02-23", 1.0, cur="CAD")], "non-USD"),
     ([_div("X", "2024-02-23", 60.0)], ">="),
 ])
@@ -95,4 +119,4 @@ def test_dotted_and_concatenated_records_merge_and_conflicts_fail_closed():
     same = bdb.build_events([_div("WSO.B", "2024-02-23", 2.7), _div("WSOB", "2024-02-23", 2.7)], CAL, raw)
     assert same["applied"]["WSO.B"] == [("2024-02-23", pytest.approx(1 - 2.7 / 400.0))]
     diff = bdb.build_events([_div("WSO.B", "2024-02-23", 2.7), _div("WSOB", "2024-02-23", 2.5)], CAL, raw)
-    assert "WSO.B" not in diff["applied"] and diff["withheld_boundaries"]["WSO.B"] == ["2024-02-23"]
+    assert diff["applied"]["WSO.B"] == [("2024-02-23", pytest.approx(1 - 5.2 / 400.0))]     # two distributions
