@@ -400,13 +400,34 @@ describe('⭐ length, resources and what is NOT admitted', () => {
     // excluded because `pine.js` refuses the Pine spellings BY NAME: Pine's are
     // unbounded / occurrence-indexed, this table's are bounded / period-indexed.
     // Admitting them would build a runtime for a spelling no member can reach.
+    // ⭐ THE CARRIED-STATE HALF IS UNCHANGED, and it is the half this file is
+    // about: neither name is a carried member, because a carried member is a
+    // forward pass this runtime owns and these are not.
     expect(CARRIED.barssince).toBeUndefined()
     expect(CARRIED.valuewhen).toBeUndefined()
-    for (const src of ['ta.barssince(close > open)', 'ta.valuewhen(close > open, close, 0)']) {
-      const t = translatePine(`${head}plot(${src})\n`)
-      expect(t.ok, `${src} should be refused at the Pine door`).toBe(false)
-      expect(t.refusal.guard).toBe('pine:function')
-    }
+
+    // ⛔ `ta.barssince` IS STILL REFUSED AT THE PINE DOOR, for the reason above:
+    // Pine's is unbounded, this table's is bounded, and admitting it would build
+    // a runtime for a spelling no member can reach.
+    const bs = translatePine(`${head}plot(ta.barssince(close > open))\n`)
+    expect(bs.ok, 'ta.barssince should be refused at the Pine door').toBe(false)
+    expect(bs.refusal.guard).toBe('pine:function')
+
+    // ⚰️ `ta.valuewhen` IS NOT, SINCE 2026-09-23. This case's own reason said the
+    // Pine spelling is OCCURRENCE-indexed while the table's was period-indexed —
+    // true when written, and the merge of the two lineages added
+    // `valuewhenOccurrence`, which IS the occurrence-indexed one. So the spelling
+    // a member writes now reaches something, and the honest assertion is WHAT IT
+    // COMPUTES rather than that it refuses.
+    //
+    // ⛔ OCCURRENCE 0 IS THE MOST RECENT OCCURRENCE, NOT THE FIRST — the whole
+    // meaning of the index, and the half a period-indexed reading gets backwards.
+    // Verified end to end before this rail was changed: with the condition true
+    // on bars 1, 4 and 7, occurrence 0 holds each occurrence's value until the
+    // next and occurrence 1 trails it by exactly one.
+    const vw = translatePine(`${head}plot(ta.valuewhen(close > open, close, 0))\n`)
+    expect(vw.ok, JSON.stringify(vw.refusal)).toBe(true)
+    expect(String(vw.outputs[vw.selected].formula)).toMatch(/valuewhenOccurrence/)
   })
 })
 

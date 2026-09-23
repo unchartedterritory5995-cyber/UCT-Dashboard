@@ -13396,6 +13396,43 @@ function translatePineResult(source, opts = {}) {
         { line: why.line, column: why.column, index: why.index, token: why.token }, `\`${name}\``)
     }
   }
+  // ⛔⛔ A TOP-LEVEL `array.set` INVALIDATES ITS VECTOR TOO, AND UNTIL
+  // 2026-09-23 ONLY A BLOCK-LEVEL ONE DID.
+  //
+  // `mutatorTargets` has always known that `array.set(a, …)` writes `a` — its own
+  // comment records why, measured on `uncharted-clouds.pine`: *"as soon as
+  // `array.get(v, k)` folded to a slot, Clouds went from 21 honest refusals to
+  // ZERO refusals and 21 plots reading `na`"*. But both callers pass a BLOCK's
+  // body, on the path where the walk gave up on that block. A write sitting at
+  // the top level, on a statement the walk handled fine, reached neither.
+  //
+  // ⚰️ IT WAS MASKED BY A PARSE BUG, AND A FIX UNCOVERED IT. The two-argument
+  // creation `array.new_float(2, 0.0)` used to hand `size, comma, init` to
+  // `parseWholeExpression` whole, which threw — so the vector folded to ZERO
+  // slots and every read of it refused anyway, for the wrong reason. Repairing
+  // that parse gave the vector real, pre-filled slots, and this hole became a
+  // SILENT WRONG ANSWER: measured on the merge,
+  //
+  //     var a = array.new<float>(2, 0.0)
+  //     array.set(a, 0, close)
+  //     plot(array.get(a, 0))        →  folded to the literal `0`, hidden
+  //
+  // and a table cell built the same way rendered `0` instead of the close. Two
+  // correct changes, each safe alone, exposing a third thing neither had touched.
+  //
+  // ⭐ SCOPED TO A VECTOR BINDING ON PURPOSE. Scalars are already handled by the
+  // `reassigned` pass above; this only demotes a name whose slots the resolver
+  // would otherwise treat as plan-time constants.
+  for (const stmt of stmts || []) {
+    for (const name of mutatorTargets(stmt.header || [])) {
+      const bound = env.get(name)
+      if (!bound || bound.kind !== 'vector') continue
+      forceOpaque(name, 'pine:collection', locate((stmt.header || [])[0]),
+        `\`${name}\` — its slots are written while the script runs, so this lane `
+        + 'cannot read one as a value it knows before the first bar')
+    }
+  }
+
   for (const [name, why] of unfoldable) {
     const bound = env.get(name)
     if (!bound || bound.kind === 'opaque') continue
