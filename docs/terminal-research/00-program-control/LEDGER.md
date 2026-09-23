@@ -4631,11 +4631,76 @@ surface): 20/20 passed; `grep -c broker_sync api/main.py` = 10 (≥ 7, LOCKED in
 tools/flow_worker_watch_coverage.py` OK (33 changed, 24 watched, 0 red).
 
 **Pushed** `merge-run` → `master`, `c44be58a8..d4e8dc327`, pre-push guard confirmed the queue
-quiet (no deploy inside 600s). Deploy tracked via direct `/api/health` polling given the Packet X
-stuck-deploy incident earlier this session — recorded in the next checkpoint once it lands.
+quiet (no deploy inside 600s). **Deploy confirmed SUCCESS** — no repeat of the Packet X
+stuck-deploy pattern this time. Verified two ways: `railway deployment list --service web` showed
+the `d4e8dc327` record reach `SUCCESS`, and directly against the live artifact —
+`curl https://uctintelligence.com/api/health` (with a browser UA; Cloudflare 1010-blocks raw
+curl/python UAs) returned `uptime_seconds: 53` on a fresh boot, and `git merge-base --is-ancestor
+d4e8dc327 origin/production` confirmed `d4e8dc327` is `origin/production`'s exact tip — not merely
+"a deploy succeeded somewhere," but this specific commit is what `web` is serving.
 
 **Member impact:** six small, purely additive member/admin-facing surfaces (a Desk category
 manager, three admin health panels, a screener match-count badge, two voice-observability
 panels) plus one dead-route cleanup and one new ops-only lever — no schema changes, no behavior
 change to any existing member-facing path. Packet AA's actual member door (the Options Flow
 explain button) and Packet AF's fourth checkpoint remain deliberately unbuilt pending Ravi.
+
+## ✅ BUILT + DEPLOYED — Packet AE CP1, 2026-09-23
+
+**Packet AE CP1** (fingerprint `d56a02db8`) — owner chose **Option A (retire)** for RG-40:
+`GET /api/voice/risk-dashboard` had run real per-member portfolio-risk math on every hit since
+2026-05-25 with zero frontend caller since that same date (the UI it served, `RiskDashboard.jsx`,
+was dropped in the free-tier-narrowing commit that day and deleted outright 2026-08-09). The
+backend side of that retirement was never done.
+
+**Not revived**, per the packet's own recommendation the owner accepted: `portfolio_heat.py` +
+`GET /api/portfolio/heat` (A14 CP1, shipped 2026-09-21 — one day before this orphan was found)
+already covers the same ground more completely (notional exposure vs. regime ceiling, actual
+concentration-breach flags, per-position detail) **and more safely** — the deleted
+`get_risk_dashboard()`'s heat math had no placeholder-stop detection at all, so a
+broker-imported position with no real stop contributed exactly zero to its risk total, silently
+under-reporting a member's real exposure. `portfolio_heat.py` was built specifically to close
+that hole. Reviving the orphan's own math as a UI would have shipped a page with a bug the mentor
+initiative had already found and fixed elsewhere, under a different name.
+
+**What changed:** `api/routers/voice.py` — deleted `risk_dashboard_get` + its route decorator.
+`api/services/voice_position_sizing.py` — deleted `get_risk_dashboard()` only; its three private
+helpers (`_get_account_settings`, `_current_portfolio_risk`, `_sectors_for_symbol`) were
+re-checked by fresh grep per the packet's own caution and found to have real other callers
+(`portfolio_heat.py`, `watchlist_source.py`, and `validate_trade()` in the same file) — **none
+deleted**. `tests/test_risk_dashboard.py` deleted (its only subject was gone). One row added to
+`CLAUDE.md`'s DOCUMENTED-BUT-UNREACHABLE table.
+
+**Verified:** 63/63 in `test_voice_position_sizing.py` + `test_voice_router.py`; 11/11 across the
+three `portfolio_heat` test files; zero remaining references to
+`risk_dashboard`/`risk-dashboard`/`riskDashboard` anywhere in `api/` or `app/src/` (fresh grep).
+A throwaway pytest-sandboxed mutation-proof (written, run, deleted the same session — never a
+bare `python -c`, so the repo's own `C:\data` tripwire stayed armed) confirmed `api.main` imports
+cleanly with the route gone, `get_risk_dashboard` is genuinely gone, and all three shared helpers
+survive. `check_repo_hygiene.py` clean; `flow_worker_watch_coverage.py` OK (4 changed, 0 red).
+
+**Built on a fresh branch off current `origin/master`** (`feat/packet-ae-retire-risk-dashboard`,
+commit `d94ac1aea`) rather than the stale `feat/s7-price-level` branch, which had drifted far
+enough from `origin/master` (many unrelated concurrent workstreams' commits) that a straight
+merge produced conflicts in files this packet never touches. Zero divergence at push time, so
+`git push origin feat/packet-ae-retire-risk-dashboard:master` landed as a clean fast-forward —
+`d4e8dc327..d94ac1aea`. Pre-push guard confirmed the queue quiet.
+
+**A stacked push superseded this commit's own deploy** — an unrelated session pushed
+`138b6726b` ("fix(bars): a cold ticker whose fetch is already running is not 'not carried'")
+19 seconds after `d94ac1aea`'s deploy record was created, while it was still `BUILDING`. Railway
+marked `d94ac1aea`'s own deploy `REMOVED` and started building `138b6726b` instead — exactly the
+"one master merge at a time" hazard this repo's own `CLAUDE.md` documents, and not something this
+packet's push triggered (the pre-push guard read the queue as clear at push time; the other
+session's push landed inside the ~3.5-minute window Railway takes to even register a deploy
+record, per `CLAUDE.md`'s own measured note on that blind spot). **Nothing was lost**: confirmed
+`git merge-base --is-ancestor d94ac1aea origin/master` before assuming so. `138b6726b`'s own
+deploy reached `SUCCESS`; confirmed live two ways — `/api/health` (browser UA; Cloudflare
+1010-blocks raw curl/python UAs) returned `uptime_seconds: 45` on a fresh boot, and
+`git merge-base --is-ancestor d94ac1aea origin/production` confirmed Packet AE's retirement is an
+ancestor of `origin/production`'s exact tip.
+
+**Member impact:** zero for any current member — the retired route had no frontend caller and
+never had one that still worked. The one feature genuinely unique to the orphan (a "recent
+refusals" list sourced from `voice_tool_calls`) is not carried forward; it is a real, small,
+candidate follow-up, not scoped into this packet.
