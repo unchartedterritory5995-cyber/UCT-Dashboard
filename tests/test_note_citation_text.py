@@ -605,7 +605,8 @@ class TestAtomsResolveByIdentity:
 
 from api.services.journal_two.note_citation_text import atom_at  # noqa: E402
 
-_MTF = "chartsMtfThenSingle"
+_MTF = "chartsMtfThenSingleLegacy"
+_CMP = "chartsCompareLegacy"
 _MTF_SHARED = {"type": "widgetEmbed", "id": "chart|2026-09-01T14:00:00.000Z"}
 
 
@@ -623,10 +624,12 @@ def _without(case, index):
 
 class TestAnIdentityIsIssuedOnlyWhenUnique:
     """rereview2 R2-1: every chart of one /mtf or /compare insert shares
-    widgetId|capturedAt -- measured 500/500 on the real chartInsertNodes, and
-    these fixtures are pinned to that builder by askCitation.parity.test.js.
-    An identity that names several atoms let the client select a sibling
-    after one delete, so it is never issued."""
+    widgetId|capturedAt -- measured 500/500 on the real chartInsertNodes. An
+    identity that names several atoms let the client select a sibling after
+    one delete, so it is never issued. Since Wave 4 a new chart carries its
+    own embedId (TestEachChartOfOneInsertIsItsOwnCitation); these LEGACY
+    fixtures are the same inserts as stored before it existed (the parity rail
+    pins them to the new ones minus embedId), and must behave as before."""
 
     def test_the_fixture_really_holds_a_shared_identity(self):
         # Non-vacuity: the rule below is only visible on atoms that share one.
@@ -645,7 +648,7 @@ class TestAnIdentityIsIssuedOnlyWhenUnique:
         assert charts[3]["precise"] is True
 
     def test_a_compare_pair_issues_no_identity(self):
-        charts = _chart_blocks("chartsCompare")
+        charts = _chart_blocks(_CMP)
         assert len(charts) == 2
         assert all("atom" not in b["location"] and b["precise"] is False for b in charts)
 
@@ -653,7 +656,7 @@ class TestAnIdentityIsIssuedOnlyWhenUnique:
         (_MTF, 1, 1),            # reviewer case 14: the D chart ABOVE the cited 1h deleted
         (_MTF, 1, 2),            # case 15: the cited 1h deleted
         (_MTF, 0, 1),            # case 16: the cited D deleted
-        ("chartsCompare", 0, 1),  # case 19: the cited "before" chart deleted
+        (_CMP, 0, 1),            # case 19: the cited "before" chart deleted
     ], ids=["case14", "case15", "case16", "case19"])
     def test_deleting_one_chart_never_opens_a_sibling(self, case, cited, deleted):
         b = _chart_blocks(case)[cited]
@@ -678,6 +681,108 @@ class TestAnIdentityIsIssuedOnlyWhenUnique:
         rng = {"from": 9, "to": 10}
         assert atom_at(flatten(alone), rng) == {"type": "documentExcerpt", "id": "ex1"}
         assert atom_at(flatten(copied), rng) is None
+
+
+class TestEachChartOfOneInsertIsItsOwnCitation:
+    """Wave 4: every chart node carries its own embedId (widgetEmbedCore.js
+    newEmbedId), so the server can name each chart of one /mtf or /compare
+    insert -- the fixtures are the real chartInsertNodes output, pinned by
+    askCitation.parity.test.js."""
+
+    _NEW = "chartsMtfThenSingle"
+    _NEW_CMP = "chartsCompare"
+
+    def test_every_chart_is_issued_its_own_identity_and_labelled_exact(self):
+        charts = _chart_blocks(self._NEW) + _chart_blocks(self._NEW_CMP)
+        atoms = [b["location"].get("atom") for b in charts]
+        assert [a["id"] for a in atoms] == [
+            "e-mtf-d", "e-mtf-1h", "e-mtf-15m", "e-amd-d", "e-cmp-before", "e-cmp-after"]
+        assert all(a["type"] == "widgetEmbed" for a in atoms)
+        assert all(b["precise"] is True for b in charts)
+
+    def test_case14_the_cited_1h_opens_exactly_where_it_went(self):
+        b = _chart_blocks(self._NEW)[1]
+        loc = b["location"]
+        after = _without(self._NEW, 1)  # the D chart above it
+        r = resolve_note_citation(after, loc["from"], loc["to"], b["text"], loc["fingerprint"], atom=loc["atom"])
+        assert (r["state"], r["from"], r["to"]) == (RERESOLVED_EXACT, loc["from"] - 1, loc["to"] - 1)
+        lands = [s for s in flatten(after)["spans"] if s["is_atom"] and s["pm_start"] == r["from"]]
+        assert lands[0]["atom"]["id"] == "e-mtf-1h"
+
+    @pytest.mark.parametrize("case,cited,deleted", [
+        ("chartsMtfThenSingle", 1, 2),  # case 15: the cited 1h deleted
+        ("chartsMtfThenSingle", 0, 1),  # case 16: the cited D deleted
+        ("chartsCompare", 0, 1),        # case 19: the cited "before" chart deleted
+    ], ids=["case15", "case16", "case19"])
+    def test_a_deleted_chart_opens_the_note_never_a_sibling(self, case, cited, deleted):
+        b = _chart_blocks(case)[cited]
+        loc = b["location"]
+        r = resolve_note_citation(_without(case, deleted), loc["from"], loc["to"], b["text"],
+                                  loc["fingerprint"], atom=loc["atom"])
+        assert r["state"] == VALID_NOTE_ONLY and r["from"] is None
+
+    @pytest.mark.parametrize("case,cited,deleted", [
+        ("chartsMtfThenSingle", 2, 2),  # the 15m, after the 1h above it is deleted
+        ("chartsMtfThenSingle", 0, 2),  # the D, after the 1h below it is deleted
+        ("chartsCompare", 1, 1),        # "after", once "before" is deleted
+        ("chartsCompare", 0, 2),        # "before", once "after" is deleted
+    ], ids=["15m", "D", "after", "before"])
+    def test_a_surviving_sibling_is_still_cited_exactly(self, case, cited, deleted):
+        b = _chart_blocks(case)[cited]
+        loc = b["location"]
+        after = _without(case, deleted)
+        r = resolve_note_citation(after, loc["from"], loc["to"], b["text"], loc["fingerprint"], atom=loc["atom"])
+        assert r["state"] in PRECISE_STATES
+        lands = [s for s in flatten(after)["spans"] if s["is_atom"] and s["pm_start"] == r["from"]]
+        assert lands[0]["atom"] == loc["atom"] and lands[0]["text"] == b["text"]
+
+    def test_an_embed_id_wins_and_an_empty_one_falls_back(self):
+        def ident(**attrs):
+            return atom_at(flatten(_DOC({"type": "widgetEmbed", "attrs": {"widgetId": "chart", **attrs}})),
+                           {"from": 0, "to": 1})
+        assert ident(capturedAt="T", embedId="e1") == {"type": "widgetEmbed", "id": "e1"}
+        assert ident(capturedAt="T", embedId="") == {"type": "widgetEmbed", "id": "chart|T"}
+        assert ident(capturedAt="T", embedId=7) == {"type": "widgetEmbed", "id": "chart|T"}
+        assert ident(embedId="e1") == {"type": "widgetEmbed", "id": "e1"}
+
+    def test_a_pasted_copy_of_a_chart_is_no_identity_for_either(self):
+        # A copy duplicates embedId like any attr; uniqueness-at-issue holds.
+        w = {"type": "widgetEmbed", "attrs": {"widgetId": "chart", "capturedAt": "T", "embedId": "e1"}}
+        doc = _DOC(_P("Thesis."), w, w)
+        assert atom_at(flatten(doc), {"from": 9, "to": 10}) is None
+
+
+class TestEmbedIdLeavesShareAndExportUnchanged:
+    """Wave 4: embedId is an identity for citations only. Everything else that
+    reads a widget embed -- the markdown export, body_plain / search, and the
+    public share payload -- must come out byte-identical with or without it."""
+
+    @staticmethod
+    def _pair():
+        new = _FIXTURES["chartsMtfThenSingle"]["json"]
+        old = _FIXTURES["chartsMtfThenSingleLegacy"]["json"]
+        # Non-vacuity: the two differ, and ONLY by embedId.
+        assert new != old
+        assert json.dumps(new).count('"embedId"') == 4 and '"embedId"' not in json.dumps(old)
+        return new, old
+
+    def test_the_markdown_export_is_unchanged(self):
+        from api.services.journal_two.notes_export import tiptap_to_markdown
+        new, old = self._pair()
+        out = tiptap_to_markdown(new)
+        assert out == tiptap_to_markdown(old)
+        assert "[chart: NVDA 1h]" in out and "e-mtf" not in out
+
+    def test_body_plain_is_unchanged(self):
+        new, old = self._pair()
+        assert extract_plain_text(new) == extract_plain_text(old)
+        assert "e-mtf" not in extract_plain_text(new)
+
+    def test_the_share_payload_passes_the_node_through_untouched(self):
+        import copy
+        from api.services.journal_two.note_shares import _reduce_ask_citations
+        new, _old = self._pair()
+        assert _reduce_ask_citations(copy.deepcopy(new)) == new
 
 
 class TestTheMirrorTakesTheClientsAtomShape:

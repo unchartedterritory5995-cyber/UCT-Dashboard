@@ -55,7 +55,7 @@ const schema = new Schema({
     noteLink: { group: 'inline', inline: true, atom: true, attrs: { noteId: { default: null } }, toDOM: () => ['span'] },
     attachmentChip: { group: 'block', atom: true, attrs: { href: { default: null }, name: { default: 'file' }, size: { default: null } }, toDOM: () => ['a'] },
     documentExcerpt: { group: 'block', atom: true, attrs: { excerptId: { default: null } }, toDOM: () => ['div'] },
-    widgetEmbed: { group: 'block', atom: true, attrs: { widgetId: { default: null }, searchText: { default: null }, capturedAt: { default: null } }, toDOM: () => ['div'] },
+    widgetEmbed: { group: 'block', atom: true, attrs: { widgetId: { default: null }, searchText: { default: null }, capturedAt: { default: null }, embedId: { default: null } }, toDOM: () => ['div'] },
     askInsert: { group: 'block', content: 'block+', toDOM: () => ['div', 0] },
     askCitation: { group: 'inline', inline: true, atom: true, attrs: { n: { default: null } }, toDOM: () => ['span'] },
   },
@@ -435,6 +435,10 @@ describe('an atom is verified by IDENTITY, never by placeholder text (N1, N2)', 
     expect(t('attachmentChip', {})).toBeNull()
     expect(t('widgetEmbed', { widgetId: 'chart', capturedAt: 'T' })).toBe('chart|T')
     expect(t('widgetEmbed', { widgetId: 'chart' })).toBeNull() // the KIND alone names no instance
+    // Wave 4: a node's own embedId wins; an empty one falls back to the stamp.
+    expect(t('widgetEmbed', { widgetId: 'chart', capturedAt: 'T', embedId: 'e1' })).toBe('e1')
+    expect(t('widgetEmbed', { embedId: 'e1' })).toBe('e1')
+    expect(t('widgetEmbed', { widgetId: 'chart', capturedAt: 'T', embedId: '' })).toBe('chart|T')
     expect(citationAtomIdentity(null)).toBeNull()
   })
 })
@@ -469,41 +473,69 @@ describe('a passage near an astral character maps to ProseMirror\'s range (M3)',
 
 // ── Fix round 3 (rereview2-parity R2-1) ────────────────────────────────────
 
-describe('the chart fixtures are exactly what the REAL chart insert builds (R2-1)', () => {
+describe('the chart fixtures are exactly what the REAL chart insert builds (R2-1, Wave 4)', () => {
   // gen_pm_citation_fixtures.cjs cannot load widgetEmbedCore.js, so its chart
   // cases are literals. This pins them: the real chartInsertNodes, under a
-  // clock frozen at the fixture's own stamp, must build exactly those nodes,
-  // projected to the attrs citation text and identity read.
-  const project = (n) => ({ type: n.type,
-    attrs: { widgetId: n.attrs.widgetId, searchText: n.attrs.searchText, capturedAt: n.attrs.capturedAt } })
+  // clock frozen at the fixture's own stamp and a randomUUID scripted to hand
+  // out the fixture's own ids, must build exactly those nodes, projected to
+  // the attrs citation text and identity read.
+  const project = (n) => ({ type: n.type, attrs: { widgetId: n.attrs.widgetId, searchText: n.attrs.searchText,
+    capturedAt: n.attrs.capturedAt, embedId: n.attrs.embedId } })
   const charts = (name) => FIXTURES[name].json.content.filter((n) => n.type === 'widgetEmbed')
-  const build = (kind, args, at) => {
+  const build = (kind, args, at, ids) => {
     vi.useFakeTimers({ toFake: ['Date'] })
     vi.setSystemTime(new Date(at))
-    try { return chartInsertNodes(kind, args).map(project) } finally { vi.useRealTimers() }
+    const queue = [...ids]
+    vi.stubGlobal('crypto', { randomUUID: () => queue.shift() })
+    try {
+      const out = chartInsertNodes(kind, args).map(project)
+      expect(queue).toEqual([]) // one id per NODE: every scripted id was drawn
+      return out
+    } finally { vi.unstubAllGlobals(); vi.useRealTimers() }
   }
+  const idsOf = (nodes) => nodes.map((n) => n.attrs.embedId)
 
-  it('/mtf mints three charts with ONE identity; a later /chart mints its own', () => {
+  it('/mtf mints three charts, each with its OWN identity; a later /chart mints its own', () => {
     const [d, h, m, single] = charts('chartsMtfThenSingle')
-    expect(build('mtf', { symbol: 'NVDA' }, d.attrs.capturedAt)).toEqual([d, h, m])
-    expect(build('chart', { symbol: 'AMD', tf: 'D' }, single.attrs.capturedAt)).toEqual([single])
+    expect(build('mtf', { symbol: 'NVDA' }, d.attrs.capturedAt, idsOf([d, h, m]))).toEqual([d, h, m])
+    expect(build('chart', { symbol: 'AMD', tf: 'D' }, single.attrs.capturedAt, idsOf([single]))).toEqual([single])
     const ids = [d, h, m, single].map((n) => citationAtomIdentity(Node.fromJSON(schema, n)))
-    expect(new Set(ids.slice(0, 3)).size).toBe(1)
-    expect(ids[3]).not.toBe(ids[0])
+    expect(new Set(ids).size).toBe(4)
+    expect(ids).toEqual(idsOf([d, h, m, single]))
   })
 
-  it('/compare mints a pair with ONE identity and ONE text', () => {
+  it('/compare mints a pair with ONE text and TWO identities', () => {
     const [before, after] = charts('chartsCompare')
-    expect(build('compare', { symbol: 'NVDA', tf: 'D', day: 1757000000 }, before.attrs.capturedAt))
-      .toEqual([before, after])
-    expect(before).toEqual(after)
+    expect(build('compare', { symbol: 'NVDA', tf: 'D', day: 1757000000 }, before.attrs.capturedAt,
+      idsOf([before, after]))).toEqual([before, after])
+    expect(before.attrs.searchText).toBe(after.attrs.searchText)
+    expect(citationAtomIdentity(Node.fromJSON(schema, before)))
+      .not.toBe(citationAtomIdentity(Node.fromJSON(schema, after)))
+  })
+
+  it('the LEGACY fixtures are the same inserts as stored before embedId existed', () => {
+    const strip = (n) => ({ ...n, attrs: Object.fromEntries(Object.entries(n.attrs).filter(([k]) => k !== 'embedId')) })
+    for (const name of ['chartsMtfThenSingle', 'chartsCompare']) {
+      expect(FIXTURES[`${name}Legacy`].json.content)
+        .toEqual(FIXTURES[name].json.content.map((n) => (n.type === 'widgetEmbed' ? strip(n) : n)))
+    }
+  })
+
+  it('unscripted, the real builder still gives every chart of one insert a distinct id', () => {
+    for (const kind of ['mtf', 'compare']) {
+      const nodes = chartInsertNodes(kind, { symbol: 'NVDA', tf: 'D', day: 1757000000 })
+      const ids = nodes.map((n) => n.attrs.embedId)
+      expect(ids.every((id) => typeof id === 'string' && id.length > 0)).toBe(true)
+      expect(new Set(ids).size).toBe(nodes.length)
+    }
   })
 })
 
-describe('deleting one chart of a shared-identity insert never opens a sibling (R2-1)', () => {
-  // The server issues NO atom for these charts (tests/test_note_citation_text.py
-  // and test_ask_note_scope.py pin that on the same fixtures), so the client
-  // is handed {from, to} and the snippet only.
+describe('a LEGACY chart of a shared-identity insert never opens a sibling (R2-1)', () => {
+  // Embeds stored before embedId share widgetId|capturedAt, so the server
+  // issues NO atom for them (tests/test_note_citation_text.py and
+  // test_ask_note_scope.py pin that on the same fixtures), and the client is
+  // handed {from, to} and the snippet only. Exactly as before Wave 4.
   const without = (name, index) => Node.fromJSON(schema, { type: 'doc',
     content: FIXTURES[name].json.content.filter((_, i) => i !== index) })
   const cite = (name, k) => {
@@ -512,10 +544,10 @@ describe('deleting one chart of a shared-identity insert never opens a sibling (
   }
 
   it.each([
-    ['case 14: the D chart ABOVE the cited 1h deleted', 'chartsMtfThenSingle', 1, 1],
-    ['case 15: the cited 1h deleted', 'chartsMtfThenSingle', 1, 2],
-    ['case 16: the cited D deleted', 'chartsMtfThenSingle', 0, 1],
-    ['case 19: the cited "before" chart deleted', 'chartsCompare', 0, 1],
+    ['case 14: the D chart ABOVE the cited 1h deleted', 'chartsMtfThenSingleLegacy', 1, 1],
+    ['case 15: the cited 1h deleted', 'chartsMtfThenSingleLegacy', 1, 2],
+    ['case 16: the cited D deleted', 'chartsMtfThenSingleLegacy', 0, 1],
+    ['case 19: the cited "before" chart deleted', 'chartsCompareLegacy', 0, 1],
   ])('%s', (_label, name, cited, deleted) => {
     const [loc, text] = cite(name, cited)
     const out = resolveNoteCitation(without(name, deleted), loc, text)
@@ -525,18 +557,95 @@ describe('deleting one chart of a shared-identity insert never opens a sibling (
 
   it('control: handed the SHARED identity, case 15 would open the 15m chart', () => {
     // Why the server never issues it: the 15m slides into the 1h's position.
-    const [loc, text] = cite('chartsMtfThenSingle', 1)
-    const shared = FIXTURES.chartsMtfThenSingle.leafSpans[1].atom
-    const after = without('chartsMtfThenSingle', 2)
+    const [loc, text] = cite('chartsMtfThenSingleLegacy', 1)
+    const shared = FIXTURES.chartsMtfThenSingleLegacy.leafSpans[1].atom
+    const after = without('chartsMtfThenSingleLegacy', 2)
     const out = resolveNoteCitation(after, { ...loc, atom: shared }, text)
     expect(out).toEqual({ state: VALID_EXACT, ...loc })
     expect(citationText(after, out.from, out.to)).toBe('[chart: NVDA 15m]')
   })
 
   it('a unique chart is still opened by the identity the server issues for it', () => {
-    const s = FIXTURES.chartsMtfThenSingle.leafSpans[3]
-    const after = without('chartsMtfThenSingle', 1) // a chart above it deleted
+    const s = FIXTURES.chartsMtfThenSingleLegacy.leafSpans[3]
+    const after = without('chartsMtfThenSingleLegacy', 1) // a chart above it deleted
     expect(resolveNoteCitation(after, { from: s.pm_start, to: s.pm_end, atom: s.atom }, s.text))
       .toEqual({ state: RERESOLVED_EXACT, from: s.pm_start - 1, to: s.pm_end - 1 })
+  })
+})
+
+// ── Wave 4: every chart node carries its own identity ──────────────────────
+
+describe('each chart of one insert is its own citation (Wave 4, embedId)', () => {
+  // The server issues each chart's embedId (unique, so atom_at issues it --
+  // pinned in tests/test_note_citation_text.py on these fixtures), so the
+  // client is handed {from, to, atom}.
+  const MTF = 'chartsMtfThenSingle'
+  const CMP = 'chartsCompare'
+  const without = (name, index) => Node.fromJSON(schema, { type: 'doc',
+    content: FIXTURES[name].json.content.filter((_, i) => i !== index) })
+  const cite = (name, k) => {
+    const s = FIXTURES[name].leafSpans[k]
+    return [{ from: s.pm_start, to: s.pm_end, atom: s.atom }, s.text, s.atom.id]
+  }
+  const idAt = (doc, pos) => citationAtomIdentity(doc.nodeAt(pos))
+
+  it('non-vacuity: every chart carries a distinct identity the client reads', () => {
+    for (const name of [MTF, CMP]) {
+      const ids = FIXTURES[name].leafSpans.map((s) => s.atom?.id)
+      expect(ids.every(Boolean)).toBe(true)
+      expect(new Set(ids).size).toBe(ids.length)
+    }
+  })
+
+  it('unedited, every chart opens exactly in place', () => {
+    for (const name of [MTF, CMP]) {
+      const doc = Node.fromJSON(schema, FIXTURES[name].json)
+      FIXTURES[name].leafSpans.forEach((_, k) => {
+        const [loc, text] = cite(name, k)
+        expect(resolveNoteCitation(doc, loc, text)).toEqual({ state: VALID_EXACT, from: loc.from, to: loc.to })
+      })
+    }
+  })
+
+  it('case 14: the D chart ABOVE the cited 1h deleted -- the 1h opens exactly where it went', () => {
+    const [loc, text, id] = cite(MTF, 1)
+    const after = without(MTF, 1)
+    const out = resolveNoteCitation(after, loc, text)
+    expect(out).toEqual({ state: RERESOLVED_EXACT, from: loc.from - 1, to: loc.to - 1 })
+    expect(idAt(after, out.from)).toBe(id)
+    expect(citationText(after, out.from, out.to)).toBe('[chart: NVDA 1h]')
+  })
+
+  it.each([
+    ['case 15: the cited 1h deleted', MTF, 1, 2],
+    ['case 16: the cited D deleted', MTF, 0, 1],
+    ['case 19: the cited "before" chart deleted', CMP, 0, 1],
+  ])('%s -- the note opens, never a sibling', (_label, name, cited, deleted) => {
+    const [loc, text] = cite(name, cited)
+    const out = resolveNoteCitation(without(name, deleted), loc, text)
+    expect(out.state).toBe(VALID_NOTE_ONLY)
+    expect(out.from).toBeUndefined()
+  })
+
+  it.each([
+    ['the 15m, after the 1h above it is deleted', MTF, 2, 2],
+    ['the D, after the 1h below it is deleted', MTF, 0, 2],
+    ['the "after" chart, after "before" is deleted', CMP, 1, 1],
+    ['the "before" chart, after "after" is deleted', CMP, 0, 2],
+  ])('a surviving sibling is still cited exactly: %s', (_label, name, cited, deleted) => {
+    const [loc, text, id] = cite(name, cited)
+    const after = without(name, deleted)
+    const out = resolveNoteCitation(after, loc, text)
+    expect(PRECISE_STATES.has(out.state)).toBe(true)
+    expect(idAt(after, out.from)).toBe(id)
+    expect(citationText(after, out.from, out.to)).toBe(text)
+  })
+
+  it('control: the legacy twin of case 14 is NOT precise -- embedId is what changed it', () => {
+    const s = FIXTURES.chartsMtfThenSingleLegacy.leafSpans[1]
+    const after = Node.fromJSON(schema, { type: 'doc',
+      content: FIXTURES.chartsMtfThenSingleLegacy.json.content.filter((_, i) => i !== 1) })
+    const out = resolveNoteCitation(after, { from: s.pm_start, to: s.pm_end }, s.text)
+    expect(PRECISE_STATES.has(out.state)).toBe(false)
   })
 })

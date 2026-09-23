@@ -114,6 +114,9 @@ def _nonempty(v: Any) -> str | None:
 
 
 def _widget_identity(a: dict[str, Any]) -> str | None:
+    own = _nonempty(a.get("embedId"))
+    if own:
+        return own
     kind, at = _nonempty(a.get("widgetId")), _nonempty(a.get("capturedAt"))
     return f"{kind}|{at}" if kind and at else None
 
@@ -124,11 +127,15 @@ def _widget_identity(a: dict[str, Any]) -> str | None:
 # on a look-alike. These attrs survive edits and saves:
 #   documentExcerpt  excerptId            the immutable j2_note_excerpts row
 #   attachmentChip   href                 the upload URL, minted with a uuid4
-#   widgetEmbed      widgetId|capturedAt  the kind, and the instant it was
-#                                         captured -- stamped once per NODE BUILD
+#   widgetEmbed      embedId              one per NODE, stamped at build
+#                                         (widgetEmbedCore.js::newEmbedId)
+#                    else widgetId|capturedAt  for an embed stored before
+#                                         embedId existed
 # ⛔ SURVIVING IS NOT NAMING ONE ATOM (rereview2 R2-1). Every chart of one /mtf
-# or /compare insert is built in the same millisecond and shares its stamp, and
-# a copy/paste duplicates any of these attrs. So an identity is ISSUED only
+# or /compare insert is built in the same millisecond and shares its
+# capturedAt -- which is why embedId exists; an embed without one still falls
+# back to the shared stamp -- and a copy/paste duplicates any of these attrs,
+# embedId included. So an identity is ISSUED only
 # when exactly one atom of the note carries it at issue time (`atom_at`);
 # otherwise the citation carries none and opens the note only. A copy made
 # AFTER issue shares the identity: the client then finds it twice and opens

@@ -45,7 +45,7 @@ const schema = new Schema({
     noteLink: { group: 'inline', inline: true, atom: true, attrs: { noteId: { default: null } }, toDOM: () => ['span'] },
     attachmentChip: { group: 'block', atom: true, attrs: { href: { default: null }, name: { default: 'file' }, size: { default: null } }, toDOM: () => ['a'] },
     documentExcerpt: { group: 'block', atom: true, attrs: { excerptId: { default: null } }, toDOM: () => ['div'] },
-    widgetEmbed: { group: 'block', atom: true, attrs: { widgetId: { default: null }, searchText: { default: null }, capturedAt: { default: null } }, toDOM: () => ['div'] },
+    widgetEmbed: { group: 'block', atom: true, attrs: { widgetId: { default: null }, searchText: { default: null }, capturedAt: { default: null }, embedId: { default: null } }, toDOM: () => ['div'] },
     askInsert: { group: 'block', content: 'block+', toDOM: () => ['div', 0] },
     askCitation: { group: 'inline', inline: true, atom: true, attrs: { n: { default: null } }, toDOM: () => ['span'] },
   },
@@ -60,8 +60,9 @@ const doc = (...c) => ({ type: 'doc', content: c })
 // are the controls that must carry no identity on either side.
 const CHIP = (name = 'q3-filing.pdf', href) => ({ type: 'attachmentChip',
   attrs: href === undefined ? { name } : { name, href } })
-const WIDGET = (searchText, capturedAt) => ({ type: 'widgetEmbed',
-  attrs: { widgetId: 'chart', searchText: searchText ?? null, ...(capturedAt === undefined ? {} : { capturedAt }) } })
+const WIDGET = (searchText, capturedAt, embedId) => ({ type: 'widgetEmbed',
+  attrs: { widgetId: 'chart', searchText: searchText ?? null, ...(capturedAt === undefined ? {} : { capturedAt }),
+    ...(embedId === undefined ? {} : { embedId }) } })
 const EXCERPT = (excerptId) => ({ type: 'documentExcerpt', attrs: { excerptId } })
 
 const CASES = {
@@ -170,19 +171,33 @@ const CASES = {
     p('After.')),
   identityAttrsEmpty: doc(p('Before.'), CHIP('q3.pdf', ''), EXCERPT(''), WIDGET('NVDA', ''), p('After.')),
   // ── charts exactly as the REAL chartInsertNodes builds them (rereview2
-  //    R2-1): every chart of one /mtf or /compare insert shares ONE stamp, so
-  //    ONE identity; a later /chart has its own. This node module cannot load
-  //    widgetEmbedCore.js (extension-less imports), so these are literals --
-  //    askCitation.parity.test.js calls the real builder under a frozen clock
-  //    and requires it to produce exactly these nodes (projected to the attrs
-  //    citation text and identity read). ──
+  //    R2-1; Wave 4): every chart of one /mtf or /compare insert shares ONE
+  //    capturedAt, and each carries its OWN embedId. This node module cannot
+  //    load widgetEmbedCore.js (extension-less imports), so these are
+  //    literals -- askCitation.parity.test.js calls the real builder under a
+  //    frozen clock and a scripted randomUUID and requires it to produce
+  //    exactly these nodes (projected to the attrs citation text and identity
+  //    read). ──
   chartsMtfThenSingle: doc(p('NVDA thesis.'),
+    WIDGET('[chart: NVDA D]', '2026-09-01T14:00:00.000Z', 'e-mtf-d'),
+    WIDGET('[chart: NVDA 1h]', '2026-09-01T14:00:00.000Z', 'e-mtf-1h'),
+    WIDGET('[chart: NVDA 15m]', '2026-09-01T14:00:00.000Z', 'e-mtf-15m'),
+    p('Later.'),
+    WIDGET('[chart: AMD D]', '2026-09-01T14:05:00.000Z', 'e-amd-d')),
+  chartsCompare: doc(p('Before the print.'),
+    WIDGET('[chart: NVDA D]', '2026-09-02T14:00:00.000Z', 'e-cmp-before'),
+    WIDGET('[chart: NVDA D]', '2026-09-02T14:00:00.000Z', 'e-cmp-after'),
+    p('After.')),
+  // ── the same inserts as stored BEFORE embedId existed: every chart of one
+  //    insert shares widgetId|capturedAt, so ONE identity. The parity rail
+  //    requires these to be the charts above minus embedId. ──
+  chartsMtfThenSingleLegacy: doc(p('NVDA thesis.'),
     WIDGET('[chart: NVDA D]', '2026-09-01T14:00:00.000Z'),
     WIDGET('[chart: NVDA 1h]', '2026-09-01T14:00:00.000Z'),
     WIDGET('[chart: NVDA 15m]', '2026-09-01T14:00:00.000Z'),
     p('Later.'),
     WIDGET('[chart: AMD D]', '2026-09-01T14:05:00.000Z')),
-  chartsCompare: doc(p('Before the print.'),
+  chartsCompareLegacy: doc(p('Before the print.'),
     WIDGET('[chart: NVDA D]', '2026-09-02T14:00:00.000Z'),
     WIDGET('[chart: NVDA D]', '2026-09-02T14:00:00.000Z'),
     p('After.')),

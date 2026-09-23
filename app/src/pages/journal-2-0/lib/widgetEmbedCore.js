@@ -13,6 +13,38 @@ import { resolveOwnChartMergedSettings } from '../../../components/chart/pane/ow
 // later"). Every stored notebook doc carries these attrs verbatim.
 export const WIDGET_EMBED_VERSION = 1
 
+let embedSeq = 0
+
+/** A fresh identity for ONE embed node (Wave 4 chart identity).
+ *
+ *  ⛔ EVERY NODE GETS ITS OWN, AT BUILD. capturedAt is stamped per node build
+ *  too, but every chart of one /mtf or /compare insert is built in the same
+ *  millisecond, so `widgetId|capturedAt` names the whole insert, not one chart
+ *  — a citation to one of them could not be told from its siblings (rereview2
+ *  R2-1). This id is what lets Ask cite each chart exactly
+ *  (askCitation.js::citationAtomIdentity, note_citation_text.py::_widget_identity).
+ *
+ *  ⛔ NOT `crypto.randomUUID` ALONE: it exists only in a SECURE CONTEXT, and a
+ *  device reached over plain http (a LAN address, a tunnel) has no
+ *  `randomUUID` at all — a bare call throws and every insert fails. It is used
+ *  when present; otherwise time + a per-module counter + Math.random, which is
+ *  not a secret and needs not be: it only has to differ from the other embeds
+ *  of one note. The counter alone keeps two builds in one page apart. The
+ *  fallback never contains '|', so it can never equal a legacy
+ *  `widgetId|capturedAt` identity. */
+export function newEmbedId() {
+  try {
+    const c = globalThis.crypto
+    if (c && typeof c.randomUUID === 'function') {
+      const id = c.randomUUID()
+      if (typeof id === 'string' && id) return id
+    }
+  } catch { /* an insecure context can throw here too: fall through */ }
+  embedSeq = (embedSeq + 1) % 0x7fffffff
+  const r = () => Math.floor(Math.random() * 0x100000000).toString(36)
+  return `e${Date.now().toString(36)}-${embedSeq.toString(36)}-${r()}${r()}`
+}
+
 /** Build a complete widgetEmbed attr set from a widget id + a loose capture.
  *  Normalizes params through the registry schema and derives searchText from
  *  the SAME params object at the only moment they change — the server-side
@@ -32,6 +64,9 @@ export function buildWidgetEmbedAttrs(widgetId, capture = {}, extra = {}) {
     widgetId,
     params,
     capturedAt: extra.capturedAt || new Date().toISOString(),
+    // One per NODE, never carried over from a capture or another node: a
+    // placed capture, a slash insert and each chart of /mtf are all new nodes.
+    embedId: newEmbedId(),
     mode: extra.mode === 'live' ? 'live' : 'snapshot',
     fallback: extra.fallback || null,           // {url, w, h} once the archive lands
     tradeRef: extra.tradeRef || null,

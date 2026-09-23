@@ -111,14 +111,16 @@ class TestAnAtomBlockIsCitedByIdentity:
         assert public_source(1, by_text["[file: q4.pdf]"])["location"]["atom"]["id"].endswith("/q4.pdf")
 
     def test_charts_that_share_one_identity_are_labelled_note_only(self, conn):
-        # Fix round 3 (rereview2 R2-1): the charts of one /mtf insert share
-        # widgetId|capturedAt, so none is issued an identity. The fixture is
-        # the real chartInsertNodes output (pinned by askCitation.parity.test.js).
+        # Fix round 3 (rereview2 R2-1): the charts of one /mtf insert stored
+        # BEFORE embedId existed share widgetId|capturedAt, so none is issued
+        # an identity -- unchanged by Wave 4 (the LEGACY fixture is the real
+        # chartInsertNodes output minus embedId, pinned by
+        # askCitation.parity.test.js).
         import json
         from pathlib import Path
         fx = json.loads(Path(__file__).with_name("fixtures_pm_citation_text.json")
                         .read_text(encoding="utf-8"))
-        _add(conn, "n1", "u1", "NVDA", fx["chartsMtfThenSingle"]["json"])
+        _add(conn, "n1", "u1", "NVDA", fx["chartsMtfThenSingleLegacy"]["json"])
         out = ar.retrieve_note("u1", "n1", "chart", conn=conn)
         by_text = {i["text"]: i for i in out["evidence"]}
         for shared in ("[chart: NVDA D]", "[chart: NVDA 1h]", "[chart: NVDA 15m]"):
@@ -126,6 +128,26 @@ class TestAnAtomBlockIsCitedByIdentity:
             assert "atom" not in by_text[shared]["location"], shared
         assert by_text["[chart: AMD D]"]["citation_validity"] == ev.CITE_EXACT
         assert by_text["[chart: AMD D]"]["location"]["atom"]["type"] == "widgetEmbed"
+
+
+    def test_each_chart_of_one_insert_is_cited_exactly(self, conn):
+        # Wave 4: every chart node carries its own embedId, so each chart of
+        # one /mtf insert is issued its own identity and labelled exact --
+        # through the projection the browser receives.
+        import json
+        from pathlib import Path
+        from api.services.journal_two.ask_service import public_source
+        fx = json.loads(Path(__file__).with_name("fixtures_pm_citation_text.json")
+                        .read_text(encoding="utf-8"))
+        _add(conn, "n1", "u1", "NVDA", fx["chartsMtfThenSingle"]["json"])
+        out = ar.retrieve_note("u1", "n1", "chart", conn=conn)
+        by_text = {i["text"]: i for i in out["evidence"]}
+        want = {"[chart: NVDA D]": "e-mtf-d", "[chart: NVDA 1h]": "e-mtf-1h",
+                "[chart: NVDA 15m]": "e-mtf-15m", "[chart: AMD D]": "e-amd-d"}
+        for text, embed_id in want.items():
+            item = by_text[text]
+            assert item["citation_validity"] == ev.CITE_EXACT, text
+            assert public_source(1, item)["location"]["atom"] == {"type": "widgetEmbed", "id": embed_id}
 
 
 class TestTheWholeNoteIsStillShown:

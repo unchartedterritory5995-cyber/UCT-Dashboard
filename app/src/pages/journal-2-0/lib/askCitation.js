@@ -135,11 +135,15 @@ const nonEmpty = (v) => (typeof v === 'string' && v ? v : null)
  * lands on a look-alike. These attrs survive edits and saves:
  *   documentExcerpt  excerptId            the immutable j2_note_excerpts row
  *   attachmentChip   href                 the upload URL, minted with a uuid4
- *   widgetEmbed      widgetId|capturedAt  the kind, and the instant it was
- *                                         captured (stamped once per node build)
+ *   widgetEmbed      embedId              one per NODE, stamped at build
+ *                                         (widgetEmbedCore.newEmbedId)
+ *                    else widgetId|capturedAt  for an embed stored before
+ *                                         embedId existed
  * ⛔ SURVIVING IS NOT NAMING ONE ATOM (rereview2 R2-1). Every chart of one /mtf
- * or /compare insert is built in the same millisecond and shares its stamp,
- * and a copy/paste duplicates any of these attrs. So the SERVER issues
+ * or /compare insert is built in the same millisecond and shares its
+ * capturedAt — which is why embedId exists; an embed without one still falls
+ * back to the shared stamp — and a copy/paste duplicates any of these attrs,
+ * embedId included. So the SERVER issues
  * `location.atom` only when exactly one atom of the note carries it at issue
  * time (note_citation_text.py::atom_at); otherwise the citation carries none
  * and opens the note only. A copy made AFTER issue shares the identity:
@@ -156,6 +160,8 @@ export function citationAtomIdentity(node) {
     case 'documentExcerpt': return nonEmpty(attrs.excerptId)
     case 'attachmentChip': return nonEmpty(attrs.href)
     case 'widgetEmbed': {
+      const own = nonEmpty(attrs.embedId)
+      if (own) return own
       const kind = nonEmpty(attrs.widgetId)
       const at = nonEmpty(attrs.capturedAt)
       return kind && at ? `${kind}|${at}` : null
