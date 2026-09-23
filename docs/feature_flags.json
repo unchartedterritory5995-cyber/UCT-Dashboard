@@ -725,6 +725,13 @@
       ],
       "note": "Historical point-in-time fundamentals (Indicators -> Fundamentals, `fund:` chart source). Unset/0: /api/fundamentals/pit/* returns 404 and the Fundamentals tab shows a neutral notice; stored chart settings holding `fund:` instances are untouched and draw nothing. Dark until the production store, backfill and R2 publication are validated (docs/fundamentals-pit/MORNING-PLAN.md). Rollback = unset."
     },
+    "FUNDAMENTALS_PIT_INCREMENTAL_ENABLED": {
+      "status": "dark",
+      "where": [
+        "worker"
+      ],
+      "note": "Worker-only. 1 = register the fundamentals jobs (fundamentals_pit/schedule.py): EDGAR latest-filings tick every 10 min 06:00-22:59 ET weekdays, daily Beta 18:40 ET, weekly bulk reconcile Sun 06:10 ET. Registers nothing unless the store exists. Dark until the production backfill and R2 publication are validated. Rollback = unset (store and published artifacts are left as they are)."
+    },
     "FUNDAMENTALS_PIT_PUBLISH_R2": {
       "status": "dark",
       "where": [

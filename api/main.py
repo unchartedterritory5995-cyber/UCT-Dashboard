@@ -6267,6 +6267,15 @@ async def lifespan(app: FastAPI):
         except Exception as e:
             print(f"[scheduler] wisdom registration error: {e}")
 
+        # -- Historical PIT fundamentals: incremental SEC ingestion (worker only) --
+        try:
+            from api.services.fundamentals_pit.schedule import register_fundamentals_pit_jobs
+            _fpit = register_fundamentals_pit_jobs(_scheduler)
+            if _fpit:
+                print(f"[startup] fundamentals_pit jobs registered: {', '.join(_fpit)}")
+        except Exception as e:
+            print(f"[scheduler] fundamentals_pit registration error: {e}")
+
         # -- Full-market screener nightly snapshot build (spec 2026-06-19) --
         try:
             register_screener_jobs(_scheduler)

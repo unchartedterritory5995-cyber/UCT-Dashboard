@@ -196,3 +196,50 @@ def test_backfill_never_logs_request_urls(tmp_path):
         pass                                   # no source given -> argparse error; the guard already ran
     assert logging.getLogger("httpx").level >= logging.WARNING
     assert logging.getLogger("httpcore").level >= logging.WARNING
+
+
+def test_jobs_register_nothing_unless_enabled_and_the_store_exists(tmp_path, monkeypatch):
+    from api.services.fundamentals_pit import schedule as SCH
+    class Sched:
+        def __init__(self): self.ids = []
+        def add_job(self, fn, trigger, id, **kw): self.ids.append(id)
+    monkeypatch.delenv("FUNDAMENTALS_PIT_INCREMENTAL_ENABLED", raising=False)
+    s = Sched(); assert SCH.register_fundamentals_pit_jobs(s) == [] and s.ids == []
+    monkeypatch.setenv("FUNDAMENTALS_PIT_INCREMENTAL_ENABLED", "1")
+    monkeypatch.setenv("FUNDAMENTALS_PIT_DB_PATH", str(tmp_path / "missing.db"))
+    s = Sched(); assert SCH.register_fundamentals_pit_jobs(s) == []          # no store -> nothing
+    _run(tmp_path)
+    monkeypatch.setenv("FUNDAMENTALS_PIT_DB_PATH", str(tmp_path / "pit.db"))
+    s = Sched()
+    assert SCH.register_fundamentals_pit_jobs(s) == s.ids == [
+        "fundamentals_pit_tick", "fundamentals_pit_daily_beta", "fundamentals_pit_weekly_reconcile"]
+
+
+def test_drain_does_not_retry_an_exhausted_filing_forever(tmp_path, monkeypatch):
+    from api.services.fundamentals_pit import incremental as INC
+    _run(tmp_path)
+    c = S.connect(str(tmp_path / "pit.db"))
+    with S.tx(c):
+        c.execute("INSERT INTO pending_refresh VALUES (?,?,?,?,?)", (CIK, "0000000000-26-000001", 1, INC.MAX_ATTEMPTS, "gone"))
+    calls = []
+    monkeypatch.setattr(INC, "refresh_company", lambda conn, cik, **kw: calls.append(cik) or {})
+    rep = INC.drain(c)
+    assert calls == [] and rep == {"done": [], "retry": [], "failed": []}
+    assert c.execute("SELECT last_error FROM pending_refresh").fetchone()[0] == "gone"   # still visible
+
+
+def test_tick_records_status_and_publish_all_counts(tmp_path, monkeypatch):
+    import json
+    from api.services.fundamentals_pit import incremental as INC, jobs as J
+    _run(tmp_path)
+    monkeypatch.setenv("FUNDAMENTALS_PIT_DB_PATH", str(tmp_path / "pit.db"))
+    monkeypatch.setattr(J, "STATUS", str(tmp_path / "status.json"))
+    monkeypatch.setattr(J, "WORK", str(tmp_path))
+    monkeypatch.setattr(INC, "poll", lambda: [])
+    res = J.tick()
+    assert res["events"] == 0 and res["pending"] == 0
+    st = json.load(open(tmp_path / "status.json"))
+    assert st["tick"]["ok"] is True
+    c = S.connect(str(tmp_path / "pit.db"))
+    out = J.publish_all(c)                       # no R2, no local root: nothing to publish to
+    assert out["published"] == 0 and out["not_built"] == 0 and out["unchanged"] == 1
