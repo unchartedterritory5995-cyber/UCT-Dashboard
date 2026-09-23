@@ -1614,7 +1614,66 @@ export const PINE_NAMESPACED_TREE = Object.freeze({
   // rewriting the tree drags the name across a classification boundary it should
   // never have crossed. The default belongs where arity is resolved — a facility
   // this engine does not have yet. Routed in `requests.md`.
+
+  // ─── ⭐⭐ THE FORMS THE VENDOR ANSWERED AND WE REFUSED ────────────────────
+  //
+  // `groupBVendorReadings.test.js` held these at `pine:arity` and recorded, in
+  // the same case, exactly what TradingView answers. Its comment said the
+  // refusal stood on a RULING rather than on missing evidence: *"a widening
+  // that needs its own decision. Until that ruling, the ONLY acceptable
+  // behaviour is a refusal."*
+  //
+  // ⭐ THE RULING IS IN — a pasted script must behave as it does on
+  // TradingView, so a form the vendor serves and we refuse is a difference a
+  // member can see. Each is served to the CAPTURED number, never to a reading
+  // of the reference manual.
+  //
+  // ⛔ BOTH ARE TRANSFORMS, which is the test the note directly above sets for
+  // this map (`ta.highest` was reverted from it for needing only a DEFAULT
+  // ARGUMENT). And that reversion's classification hazard was checked
+  // EMPIRICALLY, not by reading: `round`, `max`, `min` and `pow` are in neither
+  // `FINITE_WINDOW` (sma, wma, stdev, sum, dev, median, highest, lowest,
+  // highestbars, lowestbars) nor `CARRIED` (ema, rma, rising, falling,
+  // barssincePine), so membership reclassifies nothing.
+  //
+  // ⛔ EACH OWNS EVERY ARITY IT ACCEPTS, including the ones that already worked
+  // — a falsy return here is a refusal, so a builder that handled only its new
+  // shape would break the old one.
+
+  // `math.round(v, n)` ≡ round(v * pow(10, n)) / pow(10, n).
+  // ⭐ `pow` is a declared column, so the exponent may be ANY value — which is
+  // why this is not a folded `10 ** n`: that would need `n` at compile time and
+  // would refuse an input-driven precision Pine accepts.
+  // Vendor: `round(0.125, 2)` = 0.13, HALF AWAY FROM ZERO.
+  'math.round': (a) => {
+    if (a.length === 1) return cCall('round', [a[0]])
+    if (a.length !== 2 || !a[0] || !a[1]) return null
+    const scale = cCall('pow', [cNum(10), a[1]])
+    return cOp('/', [cCall('round', [cOp('*', [a[0], scale])]), scale])
+  },
+
+  // `math.max(a, b, c, …)` ≡ max(max(a, b), c) … — a LEFT FOLD of the
+  // two-argument column. Vendor: max(5 args) = 5, min(5 args) = 1.
+  // ⛔ THE FOLD IS LEFT-ASSOCIATIVE AND THAT IS NOT ARBITRARY: `max` and `min`
+  // are associative, so every grouping computes the same number, but only one
+  // grouping HASHES the same — and a member who typed the nested form by hand
+  // must land on the tree the imported script produced (`astHash` equality is
+  // what makes the read-back worth having). Same argument the `ta.roc` note
+  // below makes about grouping.
+  'math.max': (a) => variadicFold('max', a),
+  'math.min': (a) => variadicFold('min', a),
 })
+
+/** `f(a, b, c, …)` onto a left-folded chain of this table's two-argument `f`. */
+function variadicFold(name, args) {
+  if (!Array.isArray(args) || args.length < 2 || args.some((x) => !x)) {
+    return {
+      refusal: `\`math.${name}\` compares two or more values, and this call gives `
+        + `${Array.isArray(args) ? args.length : 0}`,
+    }
+  }
+  return args.slice(1).reduce((acc, next) => cCall(name, [acc, next]), args[0])
+}
 
 /** `-<bars-fn>(src, n)` — Pine's non-positive offset from our positive distance.
  *
@@ -1641,7 +1700,13 @@ function pivotAtConfirmation(name, args) {
   const right = three ? args[2] : args[1]
   if (!right || right.type !== 'num' || !Number.isInteger(Number(right.value))
       || Number(right.value) < 0) {
-    return null
+    // ⭐ THE SENTENCE TRAVELS WITH THE BUILDER THAT NEEDS IT. It used to live at
+    // the single call site, so EVERY entry in `PINE_NAMESPACED_TREE` inherited a
+    // refusal about pivot bars — a one-argument `math.max` would have been told
+    // to "write `rightbars` as a plain whole number".
+    return { refusal: `\`${name}\` returns its value \`rightbars\` after the pivot, so this `
+      + 'engine has to know that number when it builds the formula — write it '
+      + 'as a plain whole number' }
   }
   const call = cCall(name, [src, left, right])
   return Number(right.value) === 0
@@ -8281,11 +8346,19 @@ export class Resolver {
       // than reached for, so the two cannot quietly become different lists.
       const resolved = args.map((a) => this.resolve(a.value !== undefined ? a.value : a))
       const shifted = PINE_NAMESPACED_TREE[namespacedName](resolved)
+      // ⛔⛔ A BUILDER MAY REFUSE IN ITS OWN WORDS, and one that does not gets a
+      // sentence about ARITY rather than about pivots. ⚰️ This site used to
+      // throw the pivot message for every falsy return, so the wording was
+      // correct for exactly two of the map's entries and misleading for any
+      // that came later (`lesson_rail_the_sentence_not_just_the_guard`).
+      if (shifted && shifted.refusal) {
+        throw new PineRefusal('pine:arity', shifted.refusal, locate(tok))
+      }
       if (shifted) return shifted
       throw new PineRefusal('pine:arity',
-        `\`${pineName}\` returns its value \`rightbars\` after the pivot, so this `
-        + 'engine has to know that number when it builds the formula — write it '
-        + 'as a plain whole number', locate(tok))
+        `\`${pineName}\` was given ${resolved.length} argument`
+        + `${resolved.length === 1 ? '' : 's'}, and this engine has no reading of `
+        + 'it in that shape', locate(tok))
     }
     // ⛔ THE HOST EXEMPTION IS NARROW BY CONSTRUCTION AND EVERY CLAUSE EARNS ITS
     // PLACE: `this.strict` (host mode only — a screen never gets it), `key` (the

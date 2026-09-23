@@ -101,7 +101,21 @@ describe('⛔⛔ a bare builtin in a v1–v4 script means PINE, not the house ta
       'ta.pivothigh': 'high, 2, 2', 'ta.pivotlow': 'low, 2, 2',
       'ta.highestbars': 'high, 5', 'ta.lowestbars': 'low, 5',
     }
-    for (const full of Object.keys(PINE_NAMESPACED_TREE)) {
+    // ⛔⛔ SCOPED TO `ta.`, AND THE SCOPE IS THE RULE ITSELF — not a filter to
+    // make a failure go away. This case is about the LEGACY BARE SPELLING: Pine
+    // v1–v4 wrote `ta.` builtins without their namespace, so a bare name in
+    // such a script means the `ta.` one. That rule has never applied to any
+    // other namespace — there has never been a bare `round` that meant
+    // `math.round` with a precision, nor a bare `max` that meant `math.max`.
+    //
+    // ⚰️ IT WAS IMPLICIT BEFORE, IN `full.slice(3)`, WHICH ASSUMES A THREE-
+    // CHARACTER PREFIX. `math.round` was the first key that is not `ta.`, and
+    // the assumption surfaced as "math.round has no probe arguments" — a
+    // sentence about this table, for a name the rule does not cover.
+    const taKeys = Object.keys(PINE_NAMESPACED_TREE).filter((k) => k.startsWith('ta.'))
+    expect(taKeys.length, 'no `ta.` transforms at all — this case would pass vacuously')
+      .toBeGreaterThan(3)
+    for (const full of taKeys) {
       const bare = full.slice(3)
       const args = ARGS[full]
       expect(args, `${full} has no probe arguments — add one rather than skipping it`).toBeTruthy()

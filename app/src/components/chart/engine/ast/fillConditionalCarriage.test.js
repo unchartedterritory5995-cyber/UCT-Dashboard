@@ -199,8 +199,17 @@ describe('(j) j.3b — the conditional-fill carrier', () => {
     // ⛔ THE COUNT IS KEPT AS A COUNT rather than relaxed to a floor: a fill that
     // silently stopped resolving is exactly what this number is here to catch, and
     // `toBeGreaterThan` would have accepted 7 forever.
+    //
+    // ⚰️ AND IT MOVED AGAIN, 10 -> 12 ON 2026-09-23, FOR THE SAME REASON IN A
+    // DIFFERENT FAMILY. This script's line 28 is
+    // `formula = math.round(2 + per / 25 - 6 / per, 1)`, and the two-argument
+    // `math.round` refused at `pine:arity` until the vendor ruling landed — so
+    // two more of its fills never reached `presentation.fills`. ⭐ The claim is
+    // unchanged once more: `carried` is still 0, and 0 is what this case is
+    // about. A head-count that moves when a REFUSAL is lifted is this number
+    // working, not drifting.
     expect(measured['keltner-center-of-gravity-channel__e4a81d76f6.pine'])
-      .toEqual({ fills: 10, carried: 0 })
+      .toEqual({ fills: 12, carried: 0 })
 
     // …and the whole corpus delta is ONE fill. Stated as a number so a later change
     // that quietly widens the carrier has something to fail against.

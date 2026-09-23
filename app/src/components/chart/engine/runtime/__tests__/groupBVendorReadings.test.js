@@ -142,24 +142,36 @@ describe('⭐⭐ the group-B vendor readings, finally pinned', () => {
     expect(lastOf('plot(math.round(3.5))')).toBe(ev['round(3.5)'])
   })
 
-  it('⛔⛔ THE GAPS REFUSE — they do not answer wrongly', () => {
-    // ⭐ The capture's `_notPinned` names these as owner decisions: "table-shape
-    // changes carrying the corpus-case price, and `math.max`'s variadic arity is
-    // a widening that needs its own decision." Until that ruling, the ONLY
-    // acceptable behaviour is a refusal — "we do not serve this" and "we serve
-    // it wrongly" are different facts and only the first is shippable.
-    // ⛔ If any of these starts silently answering, this goes red and somebody
-    // has shipped a semantics nobody ruled on.
-    expect(lastOf('plot(math.round(0.125, 2))')).toBe('pine:arity')
-    expect(lastOf('plot(math.max(1, 2, 3))')).toBe('pine:arity')
-    expect(lastOf('plot(math.max(1, 2, 3, 4, 5))')).toBe('pine:arity')
-    expect(lastOf('plot(math.min(5, 4, 3, 2, 1))')).toBe('pine:arity')
-    expect(lastOf('plot(ta.vwap - ta.vwap(hlc3))')).toBe('pine:arity')
+  it('⭐⭐ THE RULING LANDED — `math.round(v,n)` and variadic max/min are SERVED', () => {
+    // ⚰️ THIS CASE ASSERTED A REFUSAL, and it was right to: the capture's
+    // `_notPinned` named these as owner decisions — "table-shape changes
+    // carrying the corpus-case price, and `math.max`'s variadic arity is a
+    // widening that needs its own decision." Until that ruling the only
+    // acceptable behaviour WAS a refusal, and this case is what stopped one
+    // being shipped on a reading of the reference manual.
+    //
+    // ⭐ THE RULING IS IN (owner, 2026-09-23): a pasted script must behave as
+    // it does on TradingView, so a form the vendor serves and we refuse is a
+    // difference a member can see. What changes is the VERDICT, not the
+    // standard of evidence — each number below is the capture's own, and the
+    // case now fails if we answer anything else.
+    expect(lastOf('plot(math.round(0.125, 2))'))
+      .toBeCloseTo(READINGS['math.round_half_rule'].evidence['round(0.125, 2)'], 10)
+    expect(lastOf('plot(math.max(1, 2, 3))')).toBe(3)
+    expect(lastOf('plot(math.max(1, 2, 3, 4, 5))'))
+      .toBe(READINGS['math_max_min_variadic'].evidence['max(5 args)'])
+    expect(lastOf('plot(math.min(5, 4, 3, 2, 1))'))
+      .toBe(READINGS['math_max_min_variadic'].evidence['min(5 args)'])
 
-    // ⭐ …and the capture records what they SHOULD do when the ruling lands, so
-    // the next engineer does not have to re-take the capture.
-    expect(READINGS['math_max_min_variadic'].evidence['max(5 args)']).toBe(5)
+    // ⛔ AND THE ONE STILL UNRULED KEEPS ITS REFUSAL, which is what keeps this
+    // case a gate rather than a rubber stamp. `ta.vwap(src)` needs a VWAP over
+    // an arbitrary source, and our `vwap()` delegates to `computeVWAP` — the
+    // same accumulator the CHART draws. A second one would be exactly the
+    // "second authority over one value" that module's own comment forbids.
+    // ⚠️ Its zero-argument form already agrees with the vendor by construction:
+    // `computeVWAP` averages `(h + l + c) / 3`, and the capture's verdict for
+    // `ta.vwap()` is `hlc3`.
+    expect(lastOf('plot(ta.vwap - ta.vwap(hlc3))')).toBe('pine:arity')
     expect(READINGS['ta.vwap_no_arg_default'].verdict).toBe('hlc3')
-    expect(READINGS['math.round_half_rule'].evidence['round(0.125, 2)']).toBe(0.13)
   })
 })
