@@ -51,7 +51,7 @@ const base = {
 }
 
 describe('ShellToolbar', () => {
-  it('shows ONLY the Overview tab — the other firm views are no longer tabs', () => {
+  it('shows ONLY the Overview tab — firm views are chosen from the Columns picker, not tabs', () => {
     render(<ShellToolbar {...base} />)
     expect(screen.getByRole('tab', { name: 'Overview' })).toBeInTheDocument()
     expect(screen.queryByRole('tab', { name: 'Momentum' })).toBeNull()

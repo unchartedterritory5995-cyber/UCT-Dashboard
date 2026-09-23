@@ -184,12 +184,11 @@ export default function ShellToolbar({ meta, view, onView, visibleColumns, allCo
   return (
     <div className={styles.toolbar}>
       <div className={styles.viewTabs} role="tablist" aria-label="Column views">
-        {/* Only the default Overview tab remains. The firm's other column
-            layouts (Technical, Valuation, …) moved into the Columns picker's
-            "Start from a layout" list — a tab only ever swapped columns, and
-            Columns + saved presets now own that (owner call, 2026-09-20).
-            Overview is "active" when the on-screen columns ARE the default set,
-            so applying a layout or preset correctly un-highlights it. */}
+        {/* Overview is the only firm tab. The curated firm view tabs were removed
+            (owner call, 2026-09-23) — every firm column layout is chosen from the
+            Columns picker's "Start from a layout" list instead. Overview is
+            "active" when the on-screen columns ARE the default set, so applying a
+            layout or a saved view correctly un-highlights it. */}
         {(meta?.views || []).filter(v => v.key === DEFAULT_VIEW).map(v => {
           const on = sameCols(visibleColumns, overviewCols)
           return (
@@ -233,6 +232,7 @@ export default function ShellToolbar({ meta, view, onView, visibleColumns, allCo
             allColumns={allColumns} visible={visibleColumns}
             onChange={onColumns} onReset={() => { onResetColumns(); setPickerOpen(false) }}
             onSavePreset={onSavePreset}
+            presets={presets} onApplyPreset={onApplyPreset} onDeletePreset={onDeletePreset}
             layouts={meta?.views} onApplyLayout={cols => onColumns(cols)} />
         </span>
         <button type="button" className={styles.toolBtn} disabled={exportState?.busy} onClick={onExport}>
