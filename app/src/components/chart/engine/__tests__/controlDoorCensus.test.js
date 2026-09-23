@@ -739,6 +739,18 @@ describe('the control-door census — how many doors, and whether an eighth exis
        + 'this repo stubs to a constant. ⛔ IT WRITES NOTHING: same three locks — '
        + 'settingsOverride, an intercepting `onSettingsPersist`, and a `fetch` '
        + 'wrapper that severs /api/auth/preferences in both directions.'],
+      ['app/src/testing/fundamentals/fundamentalsHarness.jsx',
+       '⭐ THE HISTORICAL-FUNDAMENTALS LIVE HARNESS — the third dev-only probe, '
+       + 'ledgered for the reason its siblings are. It uses door eight to seed ONE '
+       + 'thing the Fundamentals tab cannot: a Moving Average whose Source is a '
+       + 'specific fundamental instance (`addInstance` then `setInstanceInput` → '
+       + '`@inst:dataSeries:N::value`), exactly the write the MA\'s Source picker '
+       + 'makes, so "an average of a percent reads as a percent" is measured in a '
+       + 'real browser. ⚰️ IT EARNED ITS KEEP: it found the pre-existing pane-readout '
+       + 'mis-captioning (readouts pinned by LAYOUT SLOT while an all-NaN host drew no '
+       + 'pane) and a derivation that stepped back to older periods. ⛔ IT WRITES '
+       + 'NOTHING: ChartWidget opts live in page state, and its `fetch` answers every '
+       + '/api/* locally and refuses non-GET preference/layout writes.'],
       ['app/src/components/chart/discoveryCatalog.js',
        '⭐⭐ NEW AT P2.1 — the DISCOVERY FACADE, and it is a caller of door eight '
        + 'rather than a ninth door. A catalogue result becomes a chart series by '
