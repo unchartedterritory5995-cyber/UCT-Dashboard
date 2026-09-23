@@ -11,6 +11,7 @@ import {
   citationText,
   citedSources,
   flatToPmRange,
+  isBlockAtomRange,
   resolveNoteCitation,
   splitAnswer,
 } from './askCitation'
@@ -29,7 +30,9 @@ import {
 //
 // The schema below is copied from that generator on purpose: the fixtures were
 // produced under it, so parsing them under anything else would compare this
-// code against a doc the ground truth never described.
+// code against a doc the ground truth never described. (The generator's copy
+// is itself pinned to the editor's real schema by
+// askCitation.schemaParity.test.js.)
 // ─────────────────────────────────────────────────────────────────────────
 
 const schema = new Schema({
@@ -37,12 +40,19 @@ const schema = new Schema({
     doc: { content: 'block+' },
     paragraph: { group: 'block', content: 'inline*', toDOM: () => ['p', 0] },
     heading: { group: 'block', content: 'inline*', attrs: { level: { default: 1 } }, toDOM: () => ['h1', 0] },
+    codeBlock: { group: 'block', content: 'text*', marks: '', code: true, toDOM: () => ['pre', ['code', 0]] },
     blockquote: { group: 'block', content: 'block+', toDOM: () => ['blockquote', 0] },
     bulletList: { group: 'block', content: 'listItem+', toDOM: () => ['ul', 0] },
-    listItem: { content: 'paragraph+', toDOM: () => ['li', 0] },
+    listItem: { content: 'paragraph block*', toDOM: () => ['li', 0] },
+    table: { group: 'block', content: 'tableRow+', toDOM: () => ['table', ['tbody', 0]] },
+    tableRow: { content: 'tableCell*', toDOM: () => ['tr', 0] },
+    tableCell: { content: 'block+', toDOM: () => ['td', 0] },
     text: { group: 'inline' },
-    attachmentChip: { group: 'inline', inline: true, atom: true, attrs: { name: { default: 'file' } }, toDOM: () => ['a'] },
-    documentExcerpt: { group: 'block', atom: true, toDOM: () => ['div'] },
+    hardBreak: { group: 'inline', inline: true, selectable: false, toDOM: () => ['br'] },
+    noteLink: { group: 'inline', inline: true, atom: true, attrs: { noteId: { default: null } }, toDOM: () => ['span'] },
+    attachmentChip: { group: 'block', atom: true, attrs: { href: { default: null }, name: { default: 'file' }, size: { default: null } }, toDOM: () => ['a'] },
+    documentExcerpt: { group: 'block', atom: true, attrs: { excerptId: { default: null } }, toDOM: () => ['div'] },
+    widgetEmbed: { group: 'block', atom: true, attrs: { widgetId: { default: null }, searchText: { default: null } }, toDOM: () => ['div'] },
     askInsert: { group: 'block', content: 'block+', toDOM: () => ['div', 0] },
     askCitation: { group: 'inline', inline: true, atom: true, attrs: { n: { default: null } }, toDOM: () => ['span'] },
   },
@@ -154,17 +164,16 @@ describe('a citation only navigates when it can be verified', () => {
     expect(resolveNoteCitation(docOf('simple'), { from: 1, to: 2 }, '').state).toBe(DEGRADED)
   })
 
-  it('a re-resolved single-hit range never navigates unless it verifies (fix round 1, Finding 4)', () => {
-    // ⛔ An EMPTY paragraph makes textBetween emit an extra separator that
-    // flatToPmRange's own walker does not count the same way, so a re-resolved
-    // range can land on the WRONG text. Measured against the doc below, before
-    // the guard (this test is the reproduction): "Second." re-resolves to pm
-    // range {from:12, to:20}, and citationText(doc, 12, 20) reads "econd.\n" --
-    // one character short at the front, one block separator long at the back,
-    // because the paragraph AFTER "Second." gives flatToPmRange's `to` check a
-    // later text node to (wrongly) match against. NEVER jump to the wrong
-    // passage -- the file's own contract -- so a range that does not verify
-    // must fall back to VALID_NOTE_ONLY rather than claim RERESOLVED_EXACT.
+  it('a re-resolved single-hit range after an empty paragraph lands EXACTLY (fix round 1, Finding 4)', () => {
+    // ⛔ An EMPTY paragraph made textBetween emit an extra separator that
+    // flatToPmRange's old look-alike walker did not count, so a re-resolved
+    // range landed on the WRONG text. Measured against the doc below, before
+    // the verify guard: "Second." re-resolved to pm range {from:12, to:20},
+    // and citationText(doc, 12, 20) read "econd.\n". The guard made that
+    // decline (VALID_NOTE_ONLY) instead of mis-navigating, and this test used
+    // to accept either answer. TIGHTENED (closeout-parity 2026-09-23): the
+    // walker now counts separators with textBetween's own predicate, so this
+    // must re-resolve exactly, onto exactly the cited text.
     const doc = Node.fromJSON(schema, { type: 'doc', content: [
       { type: 'paragraph', content: [{ type: 'text', text: 'First.' }] },
       { type: 'paragraph' },
@@ -172,10 +181,8 @@ describe('a citation only navigates when it can be verified', () => {
       { type: 'paragraph', content: [{ type: 'text', text: 'Third.' }] },
     ] })
     const out = resolveNoteCitation(doc, { from: 999, to: 1000 }, 'Second.')
-    if (out.state === RERESOLVED_EXACT) {
-      expect(citationText(doc, out.from, out.to)).toBe('Second.')
-    }
-    expect([RERESOLVED_EXACT, VALID_NOTE_ONLY]).toContain(out.state)
+    expect(out.state).toBe(RERESOLVED_EXACT)
+    expect(citationText(doc, out.from, out.to)).toBe('Second.')
   })
 })
 
@@ -210,5 +217,68 @@ describe('handles resolve against the packet, never against punctuation', () => 
   it('an answer with no handles round-trips unchanged', () => {
     const text = "I couldn't find that in this note."
     expect(splitAnswer(text, sources).map((p) => p.text).join('')).toBe(text)
+  })
+})
+
+// ── Empty textblocks and block atoms (closeout-parity 2026-09-23) ──────────
+
+/** Where a span starts in the flat text, as textBetween itself counts it: the
+ * text through the END of the span, minus the span. (Reading up to the START
+ * would miss the separator a block leaf emits when textBetween visits it.) */
+const flatStartOf = (doc, span) => citationText(doc, 0, span.pm_end).length - span.text.length
+
+describe('the walker IS textBetween (offsets derived, never searched for)', () => {
+  it('non-vacuity: the fixtures hold text-reading leaves', () => {
+    expect(NAMES.filter((n) => FIXTURES[n].leafSpans?.length).length).toBeGreaterThanOrEqual(8)
+  })
+
+  it.each(NAMES)('%s: every text node and every leaf that reads as text maps back exactly', (name) => {
+    const doc = docOf(name)
+    const flat = citationText(doc, 0, doc.content.size)
+    for (const span of [...FIXTURES[name].textSpans, ...FIXTURES[name].leafSpans]) {
+      const start = flatStartOf(doc, span)
+      expect(flat.slice(start, start + span.text.length), `${name}: offset`).toBe(span.text)
+      expect(flatToPmRange(doc, start, start + span.text.length), `${name}: ${span.text}`)
+        .toEqual({ from: span.pm_start, to: span.pm_end })
+    }
+  })
+})
+
+describe('re-resolution after an edit above never lands on the wrong text', () => {
+  it.each(NAMES)('%s: every passage re-resolves exactly, or declines', (name) => {
+    const json = FIXTURES[name].json
+    const edited = Node.fromJSON(schema, { ...json, content: [
+      { type: 'paragraph', content: [{ type: 'text', text: 'Inserted above.' }] }, ...json.content] })
+    const full = citationText(edited, 0, edited.content.size)
+    for (const span of [...FIXTURES[name].textSpans, ...FIXTURES[name].leafSpans]) {
+      const out = resolveNoteCitation(edited, { from: span.pm_start, to: span.pm_end }, span.text)
+      // Whatever it claims, it never claims a range holding different text.
+      if (out.from != null) expect(citationText(edited, out.from, out.to).trim()).toBe(span.text.trim())
+      // And a passage that occurs exactly once is always found again.
+      const unique = full.split(span.text.trim()).length === 2
+      if (unique && span.text.trim()) expect([VALID_EXACT, RERESOLVED_EXACT], `${name}: ${span.text}`).toContain(out.state)
+    }
+  })
+})
+
+describe('a block atom is verifiable citation text', () => {
+  it('a block-atom range is selected as a node, an inline or text range is not', () => {
+    const doc = docOf('chipMiddle')
+    expect(isBlockAtomRange(doc, 9, 10)).toBe(true)
+    expect(isBlockAtomRange(doc, 11, 17)).toBe(false)
+    // An inline atom (the askCitation chip at 14) is never a block range.
+    expect(isBlockAtomRange(docOf('askCitationChip'), 14, 15)).toBe(false)
+  })
+
+  it('the placeholder-only line of a chip is VALID_EXACT at the atom', () => {
+    const doc = docOf('chipMiddle')
+    const out = resolveNoteCitation(doc, { from: 9, to: 10 }, '[file: q3-filing.pdf]')
+    expect(out.state).toBe(VALID_EXACT)
+  })
+
+  it('the paragraph AFTER the chip is its own passage (no longer glued)', () => {
+    const doc = docOf('chipMiddle')
+    expect(resolveNoteCitation(doc, { from: 11, to: 17 }, 'After.').state).toBe(VALID_EXACT)
+    expect(citationText(doc, 0, doc.content.size)).toBe('Before.\n[file: q3-filing.pdf]\nAfter.')
   })
 })

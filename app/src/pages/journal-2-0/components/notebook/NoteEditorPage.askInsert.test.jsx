@@ -333,3 +333,56 @@ describe('NoteEditorPage — G-064 Ask insert', () => {
     expect(takePendingAskInsert('n1')).toBeNull()
   })
 })
+
+// closeout-parity 2026-09-23 — the jump, driven through the real page: a
+// verified Ask Current Note citation whose passage is exactly one BLOCK atom
+// (an attachment chip reads as "[file: q3.pdf]") must select that chip as a
+// NODE. A TextSelection around a block leaf is invalid -- ProseMirror warns
+// and nothing a member can see is selected. Hosted here because this file
+// already mounts the real editor and the real Ask panel over a mocked stream.
+describe('NoteEditorPage — an Ask citation that is exactly one block atom', () => {
+  const CHIP_BODY = { type: 'doc', content: [
+    { type: 'paragraph', content: [{ type: 'text', text: 'Before.' }] },
+    { type: 'attachmentChip', attrs: { href: '/files/q3.pdf', name: 'q3.pdf', size: null } },
+    { type: 'paragraph', content: [{ type: 'text', text: 'After.' }] },
+  ] }
+  // p("Before.") spans 0..9, so the chip is the single position 9..10.
+  const CHIP_SOURCE = {
+    n: 1, type: 'note', label: 'This note', citation: 'exact', snippet: '[file: q3.pdf]',
+    navigation: { kind: 'note', note_id: 'n1' }, location: { from: 9, to: 10 },
+    payload: {}, stance: null, truncated: false,
+  }
+
+  it('selects the chip as a node, so the member sees it selected', async () => {
+    noteStore.n1 = { ...NOTE, bodyJson: CHIP_BODY }
+    global.fetch = vi.fn((url) => {
+      if (typeof url === 'string' && url.includes('/api/j2/ask/stream')) {
+        return Promise.resolve({
+          ok: true, status: 200, json: async () => ({}),
+          body: sse([
+            { type: 'sources', scope: 'note', scopeLabel: 'This note', coverageNotice: null, sources: [CHIP_SOURCE] },
+            { type: 'final', answer: 'The filing is attached [1].' },
+          ]),
+        })
+      }
+      return Promise.resolve({ ok: true, json: () => Promise.resolve({}) })
+    })
+    await renderEditor()
+    const chip = await waitFor(() => {
+      const el = document.querySelector('a[data-type="attachmentChip"]')
+      expect(el).toBeTruthy()
+      return el
+    })
+    // Control: nothing has selected the chip before the citation is clicked.
+    expect(chip).not.toHaveClass('ProseMirror-selectednode')
+
+    fireEvent.click(screen.getByRole('button', { name: 'Ask a question about this note' }))
+    const dialog = await screen.findByRole('dialog', { name: 'Ask This note' })
+    fireEvent.change(within(dialog).getByRole('textbox'), { target: { value: 'which filing?' } })
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Ask' }))
+    fireEvent.click(await within(dialog).findByRole('button', { name: 'Source 1: This note' }))
+
+    await waitFor(() => expect(document.querySelector('a[data-type="attachmentChip"]'))
+      .toHaveClass('ProseMirror-selectednode'))
+  })
+})

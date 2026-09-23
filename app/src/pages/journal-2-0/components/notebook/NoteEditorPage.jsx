@@ -43,7 +43,7 @@ import { stampChartSettings } from '../../lib/widgetEmbedCore'
 import WidgetPalette from './WidgetPalette'
 import { sharedNoteUrl } from '../../lib/noteShareLink'
 import AskPanel from './AskPanel'
-import { PRECISE_STATES } from '../../lib/askCitation'
+import { PRECISE_STATES, isBlockAtomRange } from '../../lib/askCitation'
 import { appendAskInsert } from '../../lib/askInsert'
 import usePendingAskInsert from '../../hooks/usePendingAskInsert'
 import NoteFindBar from './NoteFindBar'
@@ -1172,10 +1172,14 @@ export default function NoteEditorPage({ noteId, onBack, showBack = true, onTitl
     const ed = editorRef.current
     if (!ed || source?.navigation?.kind !== 'note') return
     if (!resolved || !PRECISE_STATES.has(resolved.state)) return
-    ed.chain().focus()
-      .setTextSelection({ from: resolved.from, to: resolved.to })
-      .scrollIntoView()
-      .run()
+    // A passage that is exactly one block atom (a chip, an excerpt, a chart)
+    // is selected as that NODE: a TextSelection cannot sit around a block
+    // leaf -- ProseMirror warns and the member sees nothing selected.
+    const chain = ed.chain().focus()
+    const selected = isBlockAtomRange(ed.state.doc, resolved.from, resolved.to)
+      ? chain.setNodeSelection(resolved.from)
+      : chain.setTextSelection({ from: resolved.from, to: resolved.to })
+    selected.scrollIntoView().run()
   }, [setSearchParams, noteId])
 
   const handleSaveExcerpt = async ({ pageNumber, capturedText, quotePrefix, quoteSuffix, charStart, charEnd }) => {

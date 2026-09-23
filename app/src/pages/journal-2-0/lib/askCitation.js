@@ -99,21 +99,59 @@ export function citedSources(answer, sources) {
 }
 
 /**
+ * What a LEAF node reads as in citation text.
+ *
+ * ⛔ ONE TABLE IN TWO RUNTIMES: this mirrors `_ATOM_TEXT` in
+ * api/services/journal_two/note_citation_text.py, and the two are pinned
+ * together through tests/fixtures_pm_citation_text.json, which
+ * tools/gen_pm_citation_fixtures.cjs computes by calling THIS function.
+ *
+ * Passed as textBetween's own `leafText` ARGUMENT, never set as a schema
+ * `leafText`: the argument changes citation text and nothing else, while a
+ * schema leafText would also change `doc.textContent` and the plain-text
+ * clipboard of a selected chip (measured, closeout-parity 2026-09-23).
+ */
+export function citationLeafText(node) {
+  const attrs = node?.attrs || {}
+  switch (node?.type?.name) {
+    case 'attachmentChip': return `[file: ${attrs.name || 'file'}]`
+    case 'documentExcerpt': return '[excerpt]'
+    case 'widgetEmbed':
+      return typeof attrs.searchText === 'string' && attrs.searchText ? attrs.searchText : '[widget]'
+    default: return ''
+  }
+}
+
+/**
  * Canonical citation text for a live ProseMirror doc.
  *
- * `textBetween(from, to, '\n')` is the same contract the Python side flattens
- * to: marks contribute nothing, block boundaries become a newline. Keeping the
- * two in one shape is what lets a server-computed range mean anything here.
+ * `textBetween(from, to, '\n', citationLeafText)` is the same contract the
+ * Python side flattens to: marks contribute nothing, and every textblock (an
+ * EMPTY one included) and every block leaf that reads as text is preceded by
+ * a newline, except the first such node. Keeping the two in one shape is what
+ * lets a server-computed range mean anything here.
  */
 export function citationText(doc, from, to) {
   if (!doc || typeof doc.textBetween !== 'function') return ''
   const size = doc.content?.size ?? 0
   if (from == null || to == null || from < 0 || to > size || to < from) return ''
   try {
-    return doc.textBetween(from, to, BLOCK_SEPARATOR)
+    return doc.textBetween(from, to, BLOCK_SEPARATOR, citationLeafText)
   } catch {
     return ''
   }
+}
+
+/**
+ * Is a verified citation range exactly one BLOCK atom (a chip, an excerpt, an
+ * embed)? Such a range must be selected as a NodeSelection: a TextSelection
+ * cannot sit around a block leaf (measured: ProseMirror warns "TextSelection
+ * endpoint not pointing into a node with inline content" and selects nothing
+ * a member can see).
+ */
+export function isBlockAtomRange(doc, from, to) {
+  const node = typeof doc?.nodeAt === 'function' ? doc.nodeAt(from) : null
+  return Boolean(node && node.isAtom && node.isBlock && from + node.nodeSize === to)
 }
 
 /**
@@ -145,12 +183,15 @@ export function resolveNoteCitation(doc, loc, snippet) {
   }
   if (hits.length === 1) {
     const range = flatToPmRange(doc, hits[0], hits[0] + needle.length)
-    // ⛔ G-064 fix round 1 (Finding 4): an empty paragraph makes textBetween
-    // emit an extra separator that flatToPmRange's walker does not always
-    // count the same way, so a re-resolved range can land on the WRONG text
-    // (measured: "Second." mapped to a range reading "econd.\n"). NEVER jump
-    // to the wrong passage -- the file's own contract -- so re-read the text
-    // at the computed range and refuse the claim unless it verifies.
+    // ⛔ VERIFY BEFORE CLAIMING, even though the walker now IS textBetween.
+    // This guard was added (G-064 fix round 1, Finding 4) when an empty
+    // paragraph made the old look-alike walker land on the WRONG text
+    // (measured: "Second." mapped to a range reading "econd.\n"). That cause
+    // is fixed -- flatToPmRange now counts separators with textBetween's own
+    // predicate (closeout-parity 2026-09-23) -- but the guard stays: it is
+    // the guarantee, not a patch. NEVER jump to the wrong passage -- the
+    // file's own contract -- so re-read the text at the computed range and
+    // refuse the claim unless it verifies.
     if (range && citationText(doc, range.from, range.to).trim() === needle) {
       return { state: RERESOLVED_EXACT, ...range }
     }
@@ -163,49 +204,48 @@ export function resolveNoteCitation(doc, loc, snippet) {
 }
 
 /**
- * Map a flat-text offset range onto ProseMirror positions by walking the doc
- * exactly as citationText builds the flat string.
+ * Map a flat-text offset range onto ProseMirror positions.
+ *
+ * ⛔ THE FLAT STRING IS `citationText(doc, 0, size)`, so this walks the doc
+ * with prosemirror-model's own Fragment.textBetween predicate, verbatim —
+ *   if (node.isBlock && (node.isLeaf && nodeText || node.isTextblock)) sep
+ * — rather than a look-alike. The look-alike this replaces set one pending
+ * separator per run of blocks, so every EMPTY textblock above a passage
+ * (textBetween emits a separator for each) shifted the mapped range left by
+ * one; the resolver's verify guard caught it and the citation degraded.
+ *
+ * `from` is half-open [start, end) and `to` is (start, end] — the Python
+ * `pm_range` convention. A flat offset on the boundary between two runs
+ * resolves `from` to the NEXT run: an inline atom (askCitation) reads as zero
+ * characters yet occupies a position, so runs adjacent in flat text are not
+ * adjacent in ProseMirror. A leaf is ONE position however long it reads.
  */
 export function flatToPmRange(doc, flatStart, flatEnd) {
-  if (!doc || typeof doc.descendants !== 'function') return null
+  if (!doc || typeof doc.nodesBetween !== 'function') return null
+  const size = doc.content?.size ?? 0
   let flat = 0
-  let pendingSep = false
-  let started = false
+  let first = true
   let from = null
   let to = null
 
-  doc.descendants((node, pos) => {
-    if (node.isText) {
-      if (pendingSep && started !== null && flat > 0) {
-        flat += BLOCK_SEPARATOR.length
-        pendingSep = false
-      }
-      const len = node.text.length
-      const start = flat
-      const end = flat + len
-      // G-064: `from` is half-open [start, end) and `to` is half-open
-      // (start, end] — the same asymmetric convention as the Python
-      // `pm_range` this mirrors. A position sitting exactly on a boundary
-      // between two text nodes must resolve to the NEXT node for `from`,
-      // never the previous one: an atom (askCitation) contributes zero
-      // characters to the flat text but still occupies one ProseMirror
-      // position, so a text node ending exactly where the next one begins
-      // in flat-space are NOT adjacent in pm-space. A plain `<=` here
-      // silently attributed the boundary to the wrong side and put `from`
-      // one position before the atom instead of one position after it.
-      if (from === null && flatStart >= start && flatStart < end) {
-        from = pos + (flatStart - start)
-        started = true
-      }
-      if (to === null && flatEnd >= start && flatEnd <= end) {
-        to = pos + (flatEnd - start)
-      }
-      flat = end
-      return false
+  doc.nodesBetween(0, size, (node, pos) => {
+    const text = node.isText ? node.text : node.isLeaf ? citationLeafText(node) : ''
+    if (node.isBlock && ((node.isLeaf && text) || node.isTextblock)) {
+      if (first) first = false
+      else flat += BLOCK_SEPARATOR.length
     }
-    if (node.isBlock && flat > 0) pendingSep = true
+    if (!text) return true
+    const start = flat
+    const end = flat + text.length
+    if (from === null && flatStart >= start && flatStart < end) {
+      from = node.isText ? pos + (flatStart - start) : pos
+    }
+    if (to === null && flatEnd > start && flatEnd <= end) {
+      to = node.isText ? pos + (flatEnd - start) : pos + node.nodeSize
+    }
+    flat = end
     return true
   })
-  if (from === null || to === null || to < from) return null
+  if (from === null || to === null || to <= from) return null
   return { from, to }
 }
