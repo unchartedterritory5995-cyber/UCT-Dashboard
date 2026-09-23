@@ -13,14 +13,28 @@ from api.services.catalyst import cost_guard, store
 
 logger = logging.getLogger(__name__)
 
-# Primary synthesis model = Sonnet 4.6 (2026-06-10). History: the 2026-05-27
-# cost pass pinned Haiku because Opus 4.7 was silently failing for this key and
-# falling through to Haiku anyway. Re-tested 2026-06-10 against the live key:
-# claude-sonnet-4-6 works cleanly and produces materially sharper theses +
-# grades than Haiku (the grader decides what gets hidden, so grade quality
-# directly drives signal quality). Cost stays within the $8/day soft cap.
-# claude-opus-4-8 rejects the `temperature` param (deprecated) — _call_anthropic
-# now retries without it, so Opus is selectable via env for max quality.
+# Code-level FALLBACK if the env var is ever unset = Sonnet 4.6 (2026-06-10).
+# History: the 2026-05-27 cost pass pinned Haiku because Opus 4.7 was silently
+# failing for this key and falling through to Haiku anyway. Re-tested
+# 2026-06-10 against the live key: claude-sonnet-4-6 works cleanly and produces
+# materially sharper theses + grades than Haiku (the grader decides what gets
+# hidden, so grade quality directly drives signal quality). Cost stays within
+# the $8/day soft cap. claude-opus-4-8 rejects the `temperature` param
+# (deprecated) — _call_anthropic now retries without it, so Opus is selectable
+# via env for max quality.
+#
+# LIVE VALUE on Railway `web` since 2026-09-23: CATALYST_OPUS_MODEL=claude-opus-5.
+# The same var is also read (with its OWN, different, undocumented fallback) by
+# call_recap.py (claude-opus-4-7) and calendar_sector_read.py (claude-opus-4-8,
+# whose own comment states "owner preference: Opus for synthesis, never a
+# stale/cheaper default") — three consumers sharing one env var name with three
+# different individual intents, only one of which (this file) had a documented
+# reason to default to Sonnet. Set to Opus 5 to match the other two consumers'
+# stated intent and the owner's standing "never downgrade a model for cost"
+# preference; the 2026-05-27 reliability concern was specific to Opus 4.7/4.8's
+# now-worked-around `temperature` rejection, not to Opus generally, and the
+# $8/$15 daily caps in cost_guard.py (correctly priced for whatever this
+# resolves to, per Packet R) remain the safety net against runaway spend.
 # Revert to the cheap profile: set CATALYST_OPUS_MODEL=claude-haiku-4-5.
 OPUS_MODEL = os.environ.get("CATALYST_OPUS_MODEL", "claude-sonnet-4-6")
 HAIKU_FALLBACK = os.environ.get("CATALYST_HAIKU_FALLBACK_MODEL", "claude-haiku-4-5")
