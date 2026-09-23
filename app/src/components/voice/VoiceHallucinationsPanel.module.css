@@ -1,0 +1,148 @@
+.panel {
+  padding: 20px;
+  background: var(--color-surface, rgba(255, 255, 255, 0.02));
+  border: 1px solid var(--color-border, rgba(255, 255, 255, 0.08));
+  border-radius: var(--radius-lg);
+  margin-top: 16px;
+}
+
+.header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 6px;
+}
+.title {
+  margin: 0;
+  font-size: 16px;
+  font-weight: 600;
+}
+.headerActions {
+  display: inline-flex;
+  gap: 6px;
+}
+.refresh {
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid rgba(255, 255, 255, 0.10);
+  color: var(--text);
+  border-radius: var(--radius-sm);
+  padding: 4px 10px;
+  font-size: 12px;
+  cursor: pointer;
+}
+.refresh:disabled { opacity: 0.4; cursor: default; }
+
+.subtitle {
+  margin: 0 0 12px;
+  color: var(--text-muted);
+  font-size: 13px;
+  line-height: 1.5;
+}
+
+.error {
+  padding: 8px 12px;
+  background: rgba(239, 68, 68, 0.12);
+  border: 1px solid rgba(239, 68, 68, 0.4);
+  color: var(--loss);
+  border-radius: var(--radius-sm);
+  font-size: 12px;
+  margin-bottom: 12px;
+}
+
+.auditRow {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  margin-bottom: 10px;
+}
+.sessionSelect {
+  flex: 1;
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid rgba(255, 255, 255, 0.10);
+  color: var(--text);
+  border-radius: var(--radius-sm);
+  padding: 6px 8px;
+  font-size: 12px;
+}
+.auditBtn {
+  background: rgba(220, 187, 94, 0.18);
+  border: 1px solid rgba(220, 187, 94, 0.5);
+  color: var(--accent);
+  border-radius: var(--radius-sm);
+  padding: 6px 12px;
+  font-size: 12px;
+  cursor: pointer;
+  white-space: nowrap;
+}
+.auditBtn:disabled { opacity: 0.4; cursor: default; }
+.auditBtn:hover:not(:disabled) {
+  background: rgba(220, 187, 94, 0.30);
+}
+
+.auditResult {
+  padding: 8px 12px;
+  margin-bottom: 12px;
+  background: rgba(74, 222, 128, 0.06);
+  border: 1px solid rgba(74, 222, 128, 0.25);
+  border-radius: var(--radius-sm);
+  font-size: 12px;
+  color: var(--text);
+}
+
+.empty {
+  padding: 24px;
+  text-align: center;
+  font-size: 12px;
+  color: var(--text);
+  font-weight: 500;
+}
+
+.list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.row {
+  padding: 10px 12px;
+  background: rgba(255, 255, 255, 0.02);
+  border: 1px solid rgba(255, 255, 255, 0.05);
+  border-left: 3px solid #ef4444;
+  border-radius: var(--radius-sm);
+}
+.rowTop {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: baseline;
+  margin-bottom: 4px;
+}
+.rowSession {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  color: var(--accent);
+}
+.rowConfidence {
+  font-size: 10px;
+  color: var(--text-muted);
+}
+.rowDate {
+  font-size: 10px;
+  color: var(--text-muted);
+  margin-left: auto;
+}
+.rowTurn {
+  font-size: 13px;
+  color: var(--text-bright);
+  line-height: 1.4;
+  margin-bottom: 4px;
+}
+.rowSuspect {
+  font-size: 12px;
+  color: var(--text);
+  margin-bottom: 2px;
+}
+.rowEvidence {
+  font-size: 11px;
+  color: var(--text-muted);
+}

@@ -13,6 +13,8 @@ import VoiceTelemetryPanel from '../components/voice/VoiceTelemetryPanel'
 import VoiceSessionsPanel from '../components/voice/VoiceSessionsPanel'
 import VoiceDocumentsPanel from '../components/voice/VoiceDocumentsPanel'
 import VoiceInsightsPanel from '../components/voice/VoiceInsightsPanel'
+import VoiceHallucinationsPanel from '../components/voice/VoiceHallucinationsPanel'
+import VoiceLearningPanel from '../components/voice/VoiceLearningPanel'
 import BrokerConnectionsCard from './journal-2-0/components/BrokerConnectionsCard'
 import BrowserCaptureCard from './journal-2-0/components/BrowserCaptureCard'
 import ConnectedAppsCard from './journal-2-0/components/connectors/ConnectedAppsCard'
@@ -1631,6 +1633,8 @@ const SEARCH_INDEX = [
   { card: 'compassPanel',   section: 'compass',     title: 'Compass',                    keywords: 'voice speed wake word jarvis read aloud proactive dictate talk orb ai coach' },
   { card: 'voiceMemory',    section: 'compass',     title: 'Voice Memory',               keywords: 'memory facts compass remembers' },
   { card: 'voiceTelemetry', section: 'compass',     title: 'Voice Telemetry',            keywords: 'usage minutes latency telemetry stats' },
+  { card: 'voiceHallucinations', section: 'compass', title: 'Hallucination Audit',       keywords: 'flags mismatch numbers wrong audit re-audit' },
+  { card: 'voiceLearning',  section: 'compass',     title: 'Active Learning',            keywords: 'gaps obsessions memory consolidate learning knowledge' },
   { card: 'voiceSessions',  section: 'compass',     title: 'Voice Session History',      keywords: 'transcripts past conversations session history' },
   { card: 'voiceDocs',      section: 'compass',     title: 'Voice Documents',            keywords: 'upload pdf files knowledge documents' },
   { card: 'voiceInsights',  section: 'compass',     title: 'Voice Insights Inbox',       keywords: 'proactive insights inbox compass noticed' },
@@ -2378,6 +2382,8 @@ export default function Settings() {
       card('compassPanel', <VoicePanel />),
       card('voiceMemory', <TileCard icon="mic" title="Voice Memory"><VoiceMemoryPanel /></TileCard>),
       card('voiceTelemetry', <TileCard icon="chart" title="Voice Telemetry"><VoiceTelemetryPanel /></TileCard>),
+      card('voiceHallucinations', <TileCard icon="warning" title="Hallucination Audit"><VoiceHallucinationsPanel /></TileCard>),
+      card('voiceLearning', <TileCard icon="sparkle" title="Active Learning"><VoiceLearningPanel /></TileCard>),
       card('voiceSessions', <TileCard icon="clock" title="Voice Session History"><VoiceSessionsPanel /></TileCard>),
       card('voiceDocs', <TileCard icon="document" title="Voice Documents"><VoiceDocumentsPanel /></TileCard>),
       card('voiceInsights', <TileCard icon="sparkle" title="Voice Insights Inbox"><VoiceInsightsPanel /></TileCard>),
