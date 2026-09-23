@@ -196,3 +196,48 @@ describe('coloured and highlighted text keeps its colour through copy and paste'
     expect(marksOf(ed, 'highlight')).toEqual([['marked', null]])
   })
 })
+
+// ── Drops (pasteContainers' handleDrop; same stub as pasteContainers.test.js:
+//    jsdom has no layout, so posAtCoords is the position under test) ─────────
+describe('a DROP of the newer content onto a toggle title never splits the toggle', () => {
+  const dropEvent = () => ({ clientX: 0, clientY: 0, preventDefault() {} })
+  function dropAt(ed, pos, slice, { moved = false, node = null } = {}) {
+    ed.view.posAtCoords = () => ({ pos, inside: -1 })
+    ed.view.dragging = { slice, move: moved, node }
+    try { return ed.view.someProp('handleDrop', (f) => f(ed.view, dropEvent(), slice, moved)) } finally { ed.view.dragging = null }
+  }
+
+  it('a dragged equation dropped mid-title lands whole AFTER the toggle, the source gone; ONE undo restores both', () => {
+    const ed = mount([P('Before.'), { type: 'blockMath', attrs: { latex: 'E = mc^2' } }, TOGGLE, P('After.')])
+    const was = ed.state.doc
+    const node = NodeSelection.create(ed.state.doc, nodesOf(ed, 'blockMath')[0].pos)
+    expect(dropAt(ed, locate(ed, 'ary line'), node.content(), { moved: true, node })).toBe(true)
+    ed.state.doc.check()
+    const top = []
+    ed.state.doc.forEach((n) => top.push(n.type.name))
+    expect(top).toEqual(['paragraph', 'toggle', 'blockMath', 'paragraph'])
+    expect(nodesOf(ed, 'blockMath').map((x) => x.n.attrs.latex)).toEqual(['E = mc^2'])
+    expect(summaryText(ed)).toBe('Summary line')
+    ed.commands.undo()
+    expect(ed.state.doc.eq(was)).toBe(true)
+  })
+
+  it('highlighted words dragged onto a title join it with their highlight', () => {
+    const ed = mount([
+      { type: 'paragraph', content: [{ type: 'text', text: 'hot take', marks: [{ type: 'highlight', attrs: { color: 'red' } }] }] },
+      P('and more'),
+      TOGGLE,
+    ])
+    const from = locate(ed, 'take')
+    const to = locate(ed, 'and') + 'and'.length
+    const slice = ed.state.doc.slice(from, to, true)
+    expect(dropAt(ed, locate(ed, 'ary line'), slice)).toBe(true)
+    ed.state.doc.check()
+    expect(nodesOf(ed, 'toggle')).toHaveLength(1)
+    const inTitle = []
+    ed.state.doc.descendants((n, pos, parent) => {
+      if (n.isText && parent.type.name === 'toggleSummary') inTitle.push([n.text, n.marks.map((m) => `${m.type.name}:${m.attrs.color ?? ''}`)])
+    })
+    expect(inTitle.find(([t]) => t === 'take')?.[1]).toEqual(['highlight:red'])
+  })
+})
