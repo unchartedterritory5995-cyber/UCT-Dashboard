@@ -39,6 +39,12 @@ test('states how long deleted data can survive in backups', () => {
   expect(screen.getByText(/can remain in those\s+copies for up to 7 days/)).toBeInTheDocument()
 })
 
+test('covers the Browser Capture extension — the Chrome Web Store listing points here', () => {
+  renderWithProviders(<Privacy />)
+  expect(screen.getByRole('heading', { name: 'Browser Capture Extension' })).toBeInTheDocument()
+  expect(screen.getByText(/It does not read the rest of the page, your browsing history/)).toBeInTheDocument()
+})
+
 test('discloses the Notebook working copy kept on the device', () => {
   renderWithProviders(<Privacy />)
   expect(screen.getByText(/keeps a working copy in your browser's\s+local storage on your device/)).toBeInTheDocument()

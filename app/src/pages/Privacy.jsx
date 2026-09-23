@@ -31,6 +31,17 @@ export default function Privacy() {
           this site's data in your browser.
         </p>
 
+        <h3>Browser Capture Extension</h3>
+        <p>
+          If you install the UCT Browser Capture extension, it reads the current page's
+          address, its title, and the text you have selected, and only when you open the
+          extension to save something. It sends that, plus any note you add, to your
+          Notebook. It does not read the rest of the page, your browsing history, forms, or
+          cookies. It stores one limited capture key on your device, which can only list your
+          recent notes and save captures into them. It never holds your password or your UCT
+          login session. You can disconnect it in the extension or revoke it in Settings.
+        </p>
+
         <h3>Brokerage Data</h3>
         <p>
           If you choose to connect a brokerage account, the connection runs through
