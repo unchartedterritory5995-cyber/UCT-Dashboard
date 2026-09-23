@@ -48,3 +48,67 @@ Durable handoff ledger, updated after every coherent phase. The newest entry is 
 | Split-unverified | 386 companies locally. Expected: the local ledger fixture covers 17 tickers, so any company whose filings show a split and has no ledger row is withheld. This number must be re-measured with the Massive ledger. |
 | Tests | 97 pytest passing |
 | Production | untouched |
+
+## Phase 10–16 checkpoint (23:30 ET)
+
+- `06a736a5e` pipeline, compact store, canonical registry
+- `d61d8a055` series API, dark unless `FUNDAMENTALS_PIT_ENABLED=1`, behind `require_bars_access`, `Cache-Control: private` + ETag
+- `88f275060` `fund:` source through the ONE engine (binder branch, no second pane/legend/MA system)
+- `3ac3ddc19` Indicators → Fundamentals library + unit-aware formatting
+
+## Phase 17–20 — real ChartWidget acceptance (23:30 → 00:25 ET)
+
+**Harness.** `app/fundamentals-harness.html` (commit `c6bf86bf3`) mounts the real ChartWidget → StockChart → engine. It answers every `/api/*` from files exported, and git-ignored, from the scratch store plus a read-only `bars.db`, and refuses preference writes. Driven with headless Chrome over CDP, using an isolated profile in the scratchpad, because the Chrome extension was not connected. `__fund.audit()` is an INDEPENDENT oracle: it re-derives every plotted value from the raw artifact and raw bars without importing the engine's as-of code.
+
+**Defects found and fixed**
+
+| Commit | Defect | Evidence |
+|---|---|---|
+| `cb4fb9a67` | **Pane readouts pinned by layout slot, not by where the series drew** (PRE-EXISTING, shared). An all-NaN own-pane host gets a layout slot but no renderer pane, so every readout below it lands one pane off. JPM Net Margin was captioned "Gross Margin". | Reproduced with NO fundamentals: `sym:ZZZZ` above `sym:SPY` drew SPY under a "ZZZZ" caption. Fix asks the renderer by identity (`engine/paneReadoutPlacement.js`). Layout heights untouched. |
+| `fbcc22531` | MA of a fundamental printed `27.62`, not `27.6%` | SMA 20 of Net Margin = independent SMA at 1,581/1,581 points; the unit now follows `domainBehavior: 'inherit'` |
+| `5d881446f` | Source picker showed `revenue_q`; rows lacked methodology | Now "Revenue (Quarterly)"; Beta row reads "1Y daily · Benchmark: SPY" |
+| `8ce0fd356` | **Series stepped back to an older period** when the newest TTM stopped being computable (DERIVATION v2) | TSLA 2025-04-23 re-emitted the 2024-09-30 TTM; 31,551 points / 1,993 of 3,503 companies in v1, **0 in v2** |
+| `2a4a7446c` | Earnings-release lag undisclosed | NVDA Q2 FY24: 8-K 2023-08-23 vs 10-Q 2023-08-28. Every filing-sourced metric's `limitations` now says so, and the row tooltip shows it. |
+
+**Acceptance (all through the member's door: Chart Settings → Indicators → Fundamentals)**
+- Browse-add Revenue (Quarterly) → own pane, step, `$109.42B` legend and axis.
+- Search-add "p/e" → P/E (TTM), line, `38.87x`.
+- Search-add "beta" → Beta.
+- Catalogue off and 403 → neutral notice, no rows.
+- A symbol with no fundamentals → nothing drawn and no misplaced caption.
+- `mergeChartSettings` round-trip keeps every fund instance, presentation and MA source.
+- No preference write left the page (`__fund.blocked()` empty).
+- **Oracle:** 198/198 comparable series exact (AAPL/NVDA/JPM/TSLA × D/W/M/60/5; CAT/CAVA/CELH × D/W). 0 pre-effective values. The 10 "not plotted" are JPM gross margin and FCF yield, which JPM genuinely lacks. CAT/CAVA/CELH have no local M/60/5 bars.
+- **Temporal golden:**
+  - Accepted after 17:30 → next session: CAVA Tue 18:08 → Wed; NVDA Fri 19:36 → Mon.
+  - 60m transition at the first bar ENDING after `public_at` (AAPL 06:01 → the 06:00–07:00 bar).
+  - IPO: CAVA plots nothing from IPO 2023-06-15 until the 10-Q of 2023-08-16; TTM starts at the FY2023 10-K, with nothing synthesized.
+  - Split: NVDA EPS is already post-split before 2024-06-10 (0.371, not 3.71).
+- **Provenance:** `explain_cli` gives facts with accession, form, acceptance time and public time. `--sample 300` → **300/300 reproduce**.
+
+**Performance** (scratch store, local)
+- Serving: warm 2–6 ms. Cold, one series: ~14 ms.
+- Cold, all 25 series incl. Beta: 31–589 ms. The 589 ms is AAPL Beta over 33 years of closes.
+- Artifact per company: p50 38 KB raw / 8 KB gzip; p95 82 KB / 18 KB; max 94 KB.
+- **Beta dominates payload:** AAPL 8,267 daily points, 410 KB raw / 89 KB gzip, fetched only when Beta is charted. A `[t,v]` encoding would cut it to 61 KB gzip (follow-up).
+- Chart: as-of projection 0.3–0.6 ms per 1,600 bars (even against 8,267 Beta points), memoized per bar set.
+
+**Known, NOT fixed (documented)**
+- **Over-broad restatement invalidation.** A restated comparative first seen in a later 10-Q invalidates an older overlapping FY fact that was already on the new basis. That leaves TSLA without TTM for Q1–Q3 2025. About 2% of TTM transitions since 2020 skip ≥1 quarter (445–699 companies per metric); some of those are legitimate. This is a knowledge-layer rule change; it needs a design pass, not an overnight patch.
+- **No on-chart "no data" state for an own-pane fundamental.** The readout is correctly hidden, but the member sees nothing on the chart. The Indicators list still shows the instance.
+- `/api/ticker-logo` `<img>` requests are not fetch and go to the vite proxy (ECONNREFUSED, since nothing runs on :8000). This is harmless.
+
+## Phase 22 — final gate (00:30 ET)
+
+| Gate | Result |
+|---|---|
+| Master movement | `a0adf6a9f` → `ecdfef01e`: one Screener-shell commit, no shared files. `git merge-tree` clean. |
+| `vitest src/components src/testing` vs baseline `a0adf6a9f` | Branch 13,776 tests (+43), 33 failing. Baseline 13,733, 33 failing. **0 new failures.** The failure MESSAGES were diffed too: 32/33 identical. The one difference (`controlDoorCensus` door eight, 15 vs 14 callers) was this branch's harness, now ledgered (`abaec17f4`). The remaining gap is master's own 14-vs-13. |
+| Pre-existing failures | Missing `@codemirror/*` in a copied `node_modules` (editor suites), Layout suites, corpus-dependent census/measure suites, `dailyFirstPaintIncidental` CASE A, `reachable`, `stockChartWiring` z-order suffix, `memberPaneGate`. All fail identically on the baseline. |
+| pytest `tests/fundamentals_pit` + Screener suites | **535 passed**, 1 skipped (the `SCREEN_BACKTEST_ENABLED` flag) |
+| `import api.main` | OK. Two PIT routes mounted, dark unless enabled. |
+| `vite build` | **Passes** (19 s) after `npm ci` in THIS worktree; its copied `node_modules` lacked `@discord/embedded-app-sdk` and `@codemirror/*`. The harness is absent from `dist/`. |
+| Lint delta (22 changed frontend files) | +1: `react-refresh/only-export-components` in the new harness, the same single error `scanHarness.jsx` carries |
+| Control-byte scan | Every changed file clean at every commit |
+| TDZ | New StockChart references are read inside callbacks (`chipPaneHostRef`, `rendererPaneIndexOf`). The real StockChart rendered in the full suite and the harness. |
+| Production | **Untouched.** No push, no deploy, no env / DB / R2 write, Main Trading and Breadth untouched. |
