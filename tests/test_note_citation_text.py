@@ -828,6 +828,31 @@ class TestThePassagePickerPrefersAnExactOccurrence:
         assert validity == ev.CITE_NOTE_ONLY and (loc["from"], loc["to"]) == (0, 1)
 
 
+class TestThePassagePickerMatchesInTheOriginalText:
+    """Wave 4: `text.lower()` is not index-aligned with `text` -- 'İ' (U+0130)
+    lowercases to TWO code points -- so an offset found in the lowercased copy
+    cited characters further along the real text for every 'İ' before it."""
+
+    def test_a_dotted_capital_i_before_the_passage_does_not_shift_it(self):
+        from api.services.journal_two import ask_evidence as ev
+        from api.services.journal_two import ask_retrieval as ar
+        doc = _DOC(_P("İİİ desk notes: margins fell sharply."))
+        text = flatten(doc)["text"]
+        assert len(text.lower()) == len(text) + 3  # non-vacuity: the fold really moves offsets
+        snippet, loc, validity = ar._best_note_passage(doc, '"margins"')
+        assert validity == ev.CITE_EXACT
+        assert verify(doc, loc["from"], loc["to"], "margins")
+        assert text[loc["snippet_start"]:loc["snippet_end"]] == "margins"
+        assert "margins fell sharply." in snippet
+
+    def test_the_match_is_still_case_insensitive(self):
+        from api.services.journal_two import ask_evidence as ev
+        from api.services.journal_two import ask_retrieval as ar
+        doc = _DOC(_P("İİ Desk notes: MARGINS fell."))
+        _snippet, loc, validity = ar._best_note_passage(doc, '"margins"')
+        assert validity == ev.CITE_EXACT and verify(doc, loc["from"], loc["to"], "MARGINS")
+
+
 # ── One index per flatten (final wave, review M-1) ───────────────────────────
 
 from api.services.journal_two.note_citation_text import SpanIndex  # noqa: E402

@@ -256,26 +256,33 @@ def _best_note_passage(doc, expr: str, title: str = ""):
     own = nct.member_text(flat)
     if not own.strip():
         return None, None, None
-    low = text.lower()
     terms = [t for t in _terms(expr) if len(t) > 2]
     found_only_in_insert = False
     index = nct.SpanIndex(flat["spans"])  # one index for every occurrence's lookups
     for term in terms:
-        needle = term.lower()
-        idx = low.find(needle)
-        saw_any = idx >= 0
-        first = -1
-        while idx >= 0:
-            if not index.in_ask_insert(idx, idx + len(term)):
-                if first < 0:
-                    first = idx
-                # Review M2: an occurrence inside an atom that can carry no
-                # identity only opens the note, so a LATER occurrence that can
-                # be cited exactly is preferred; with none, the first stands.
-                occ = index.pm_range(idx, idx + len(term))
-                if occ is None or index.precise(occ):
-                    break
-            idx = low.find(needle, idx + 1)
+        # ⛔ MATCH IN THE ORIGINAL TEXT, NEVER IN `text.lower()` (Wave 4). A
+        # lowercased copy is not index-aligned with the text it came from:
+        # 'İ' (U+0130) lowercases to TWO code points, so every offset found in
+        # the copy after one pointed one character further along the real
+        # text, and the citation landed on the wrong characters. re's
+        # IGNORECASE folds one character to one character, so a match's
+        # offsets address `text` itself and it spans exactly len(term). The
+        # lookahead keeps overlapping occurrences, as the find loop did.
+        starts = [m.start() for m in re.finditer(f"(?={re.escape(term)})", text, re.IGNORECASE)]
+        saw_any = bool(starts)
+        idx = first = -1
+        for at in starts:
+            if index.in_ask_insert(at, at + len(term)):
+                continue
+            if first < 0:
+                first = at
+            # Review M2: an occurrence inside an atom that can carry no
+            # identity only opens the note, so a LATER occurrence that can
+            # be cited exactly is preferred; with none, the first stands.
+            occ = index.pm_range(at, at + len(term))
+            if occ is None or index.precise(occ):
+                idx = at
+                break
         if idx < 0:
             idx = first
         if idx < 0:
