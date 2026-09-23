@@ -4,8 +4,10 @@ Independence: no import of breadth_dividend_basis (or any module the correction 
 The dividend events are rebuilt here from the provider ledger by the documented rule:
   r_e = 1 − Σ_type cash_e / RAW_close(last session before e, within 5), ex mapped to the
   next session ≥ e; applied to frame columns strictly before sess(e) when
-  frame_first < sess(e) ≤ frame_last; events that cannot be proven (non-USD, conflicting
-  same-type amounts, no prior close, r ≤ 0.5) withhold the name while a frame contains them.
+  frame_first < sess(e) ≤ frame_last. Several distinct amounts on one ex-date are separate
+  distributions and ADD; unprovable events (non-USD / missing currency, one amount twice under
+  one symbol, same-type amounts < 2 % apart, no prior close, r ≤ 0.5) withhold the name while
+  a frame contains them. Concatenated share-class spellings (BFB) resolve to the traded one.
 Inputs are the one-vintage acquisition `inputs_<TAG>` / `grouped_closes_<TAG>`.
 """
 import bisect, collections, json, os
@@ -43,29 +45,38 @@ def build_dividends():
     for d in led["dividends"]:
         if d.get("ticker") and d.get("ex_dividend_date") and d.get("cash_amount") is not None \
                 and d["ex_dividend_date"] <= last:
-            nm = spelled(oracle2.canon(d["ticker"]), d["ex_dividend_date"])
+            orig = oracle2.canon(d["ticker"])
+            nm = spelled(orig, d["ex_dividend_date"])
             if isinstance(nm, tuple):
                 for x in nm[1:3]:
                     wh[x].append(nm[3])
                 continue
-            grp[(nm, d["ex_dividend_date"])].append(d)
+            grp[(nm, d["ex_dividend_date"])].append((orig, d))
     for (t, ex), recs in sorted(grp.items(), key=lambda kv: kv[0][1]):
         j = bisect.bisect_left(CAL, ex)
         if j >= len(CAL):
             continue
         s = CAL[j]
-        if {(r.get("currency") or "USD").upper() for r in recs} != {"USD"}:
+        if {(r.get("currency") or "").upper() for _o, r in recs} != {"USD"}:
             wh[t].append(s); continue
+        seen = collections.Counter()
         bt = collections.defaultdict(set)
-        for r in recs:
-            c = float(r["cash_amount"])
+        for o, r in recs:
+            c = round(float(r["cash_amount"]), 10)
             if c > 0:
-                bt[r.get("dividend_type") or "?"].add(round(c, 10))
+                seen[(o, r.get("dividend_type") or "?", c)] += 1
+                bt[r.get("dividend_type") or "?"].add(c)
         if not bt:
             continue
-        if any(len(v) > 1 for v in bt.values()):
+        if max(seen.values()) > 1:                       # same amount twice under one symbol
             wh[t].append(s); continue
-        cash = sum(min(v) for v in bt.values())
+        near = False
+        for v in bt.values():
+            xs = sorted(v)
+            near |= any((xs[i + 1] - xs[i]) / xs[i + 1] < 0.02 for i in range(len(xs) - 1))
+        if near:                                         # restatement signature
+            wh[t].append(s); continue
+        cash = sum(x for v in bt.values() for x in v)    # distinct distributions add
         prev = next((oracle2.gfile(CAL[k], False).get(t) for k in range(j - 1, max(-1, j - 6), -1)
                      if oracle2.gfile(CAL[k], False).get(t)), None)
         if not prev or 1 - cash / prev <= 0.5:
