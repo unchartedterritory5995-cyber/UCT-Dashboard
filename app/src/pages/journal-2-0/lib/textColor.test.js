@@ -12,6 +12,13 @@ const HERE = path.dirname(fileURLToPath(import.meta.url))
 const CONTENT_CSS = fs.readFileSync(path.join(HERE, 'noteContent.css'), 'utf8').replace(/\/\*[\s\S]*?\*\//g, '')
 const TOKENS_CSS = fs.readFileSync(path.resolve(HERE, '../../../styles/tokens.css'), 'utf8').replace(/\/\*[\s\S]*?\*\//g, '')
 
+// jsdom has no ClipboardEvent; EditorView.pasteText constructs one.
+if (typeof globalThis.ClipboardEvent === 'undefined') {
+  globalThis.ClipboardEvent = class extends Event {
+    constructor(type, opts) { super(type, opts); this.clipboardData = (opts && opts.clipboardData) || null }
+  }
+}
+
 let editor
 afterEach(() => { editor?.destroy(); editor = null; document.body.innerHTML = '' })
 function mount(content) {
@@ -24,6 +31,14 @@ const marksOf = (ed, type) => {
   const out = []
   ed.state.doc.descendants((n) => { if (n.isText) for (const m of n.marks) if (m.type.name === type) out.push([n.text, m.attrs.color]) })
   return out
+}
+// Type through the same door a keyboard uses, so input rules run.
+function typeText(ed, text) {
+  for (const ch of text) {
+    const { from, to } = ed.state.selection
+    const handled = ed.view.someProp('handleTextInput', (f) => f(ed.view, from, to, ch, () => ed.state.tr.insertText(ch, from, to)))
+    if (!handled) ed.view.dispatch(ed.state.tr.insertText(ch, from, to))
+  }
 }
 const selectWord = (ed, word) => {
   let from = null
@@ -93,12 +108,94 @@ describe('keyboard', () => {
   it('typing ==text== highlights it (the same syntax the Markdown export writes)', () => {
     const ed = mount('<p></p>')
     ed.commands.setTextSelection(1)
-    for (const ch of 'see ==this== ') {
-      const { from, to } = ed.state.selection
-      const handled = ed.view.someProp('handleTextInput', (f) => f(ed.view, from, to, ch, () => ed.state.tr.insertText(ch, from, to)))
-      if (!handled) ed.view.dispatch(ed.state.tr.insertText(ch, from, to))
-    }
+    typeText(ed, 'see ==this== and more')
     expect(marksOf(ed, 'highlight')).toEqual([['this', null]])
+    // The boundary the member typed is kept, unhighlighted, and so is what follows.
+    expect(ed.state.doc.textContent).toBe('see this and more')
+  })
+})
+
+// S1 (wave-5 review): the stock rules matched ANY `==…==` pair, so a trader's
+// comparison lost both operators and highlighted the words between them.
+describe('`==` in ordinary text arrives byte-for-byte', () => {
+  const COMPARISON = 'if rsi == 30 and macd == 0'
+
+  it('typed: a comparison is never highlighted and keeps both operators', () => {
+    const ed = mount('<p></p>')
+    ed.commands.setTextSelection(1)
+    typeText(ed, `${COMPARISON} then buy`)
+    expect(ed.state.doc.textContent).toBe(`${COMPARISON} then buy`)
+    expect(marksOf(ed, 'highlight')).toEqual([])
+  })
+
+  it('pasted: a comparison is never highlighted and keeps both operators', () => {
+    const ed = mount('<p></p>')
+    ed.commands.setTextSelection(1)
+    expect(ed.view.pasteText(COMPARISON)).toBe(true)
+    expect(ed.state.doc.textContent).toBe(COMPARISON)
+    expect(marksOf(ed, 'highlight')).toEqual([])
+  })
+
+  it('pasted: even a well-formed ==pair== stays literal text (there is no paste rule)', () => {
+    const ed = mount('<p></p>')
+    ed.commands.setTextSelection(1)
+    ed.view.pasteText('see ==this== here')
+    expect(ed.state.doc.textContent).toBe('see ==this== here')
+    expect(marksOf(ed, 'highlight')).toEqual([])
+  })
+
+  it.each([
+    ['x==y and z==1 ', 'glued to a word on the left'],
+    ['a == b == ', 'a space just inside the opening pair'],
+    ['see ==this ==. ', 'a space just inside the closing pair'],
+  ])('typed %j does not fire (%s)', (typed) => {
+    const ed = mount('<p></p>')
+    ed.commands.setTextSelection(1)
+    typeText(ed, typed)
+    expect(ed.state.doc.textContent).toBe(typed)
+    expect(marksOf(ed, 'highlight')).toEqual([])
+  })
+
+  it('fires on punctuation after the closing pair, and keeps the punctuation', () => {
+    const ed = mount('<p></p>')
+    ed.commands.setTextSelection(1)
+    typeText(ed, '(==two words==), done')
+    expect(marksOf(ed, 'highlight')).toEqual([['two words', null]])
+    expect(ed.state.doc.textContent).toBe('(two words), done')
+  })
+})
+
+// N11 (wave-5 review): every door that sets a highlight colour narrows it.
+describe('a highlight colour is narrowed to the palette at every door', () => {
+  it('setHighlight / toggleHighlight with a hex store the default highlight, a cased name its palette name', () => {
+    const ed = mount('<p>alpha beta gamma</p>')
+    selectWord(ed, 'alpha')
+    ed.commands.setHighlight({ color: '#ff0000' })
+    selectWord(ed, 'beta')
+    ed.commands.setHighlight({ color: ' Green ' })
+    selectWord(ed, 'gamma')
+    ed.commands.toggleHighlight({ color: 'rgb(1,2,3)' })
+    expect(marksOf(ed, 'highlight')).toEqual([['alpha', null], ['beta', 'green'], ['gamma', null]])
+    expect(ed.getHTML()).not.toMatch(/#ff0000|rgb\(|uct-hl-#/)
+  })
+
+  it('parse: a cased palette name in data-color is narrowed to the name', () => {
+    const ed = mount('<p><mark data-color="Green">up</mark> <span data-text-color="RED">down</span></p>')
+    expect(marksOf(ed, 'highlight')).toEqual([['up', 'green']])
+    expect(marksOf(ed, 'textColor')).toEqual([['down', 'red']])
+  })
+
+  it('JSON content (which never passes parseHTML) cannot render an off-palette colour as a class', () => {
+    const ed = mount({
+      type: 'doc',
+      content: [{ type: 'paragraph', content: [
+        { type: 'text', text: 'hex', marks: [{ type: 'highlight', attrs: { color: '#ff0000' } }] },
+        { type: 'text', text: ' tc', marks: [{ type: 'textColor', attrs: { color: 'purple' } }] },
+      ] }],
+    })
+    const html = ed.getHTML()
+    expect(html).toContain('<mark class="uct-hl">hex</mark>')
+    expect(html).not.toMatch(/#ff0000|uct-hl-#|purple/)
   })
 })
 

@@ -19,9 +19,10 @@
  * neither mark needs a row in the tables; the `colouredMarks` fixture pins
  * that both runtimes read coloured text exactly as plain text.
  * Markdown: a highlight exports as `==text==` (Obsidian's syntax, which the
- * Highlight input rule also reads back); a text colour exports as its words.
+ * input rule below also reads back); a text colour exports as its words.
  */
-import { Mark, mergeAttributes } from '@tiptap/core'
+import { InputRule, Mark, mergeAttributes } from '@tiptap/core'
+import { TextSelection } from '@tiptap/pm/state'
 import { Highlight } from '@tiptap/extension-highlight'
 
 /** The palette, in the order the picker shows it. `name` is what a note stores. */
@@ -53,9 +54,12 @@ export const TextColor = Mark.create({
       color: {
         default: null,
         parseHTML: (el) => paletteName(el.getAttribute('data-text-color')),
-        renderHTML: (attrs) => (attrs.color
-          ? { 'data-text-color': attrs.color, class: textColorClass(attrs.color) }
-          : {}),
+        // Narrowed again on the way out: JSON content never passes parseHTML,
+        // so a stored value outside the palette must not become a class.
+        renderHTML: (attrs) => {
+          const name = paletteName(attrs.color)
+          return name ? { 'data-text-color': name, class: textColorClass(name) } : {}
+        },
       },
     }
   },
@@ -81,9 +85,30 @@ export const TextColor = Mark.create({
 })
 
 /**
+ * `==text==` → a highlight, written for a trader's text.
+ *
+ * ⛔ TipTap's own rules matched ANY `==…==` pair: typing
+ * "if rsi == 30 and macd == 0" highlighted " 30 and macd " and ate both
+ * operators, and pasting it did the same. So, like `$…$` in mathNodes.js:
+ *  - the opening `==` starts the text or follows a space or an opening
+ *    bracket, and a non-space character follows it;
+ *  - the closing `==` follows a non-space character, and the rule fires only
+ *    when the member types a SPACE or punctuation right after it — so
+ *    "x==y" and "a == b" never fire;
+ *  - there is NO paste rule. Pasted text arrives exactly as it was copied.
+ * No lookbehind (the iOS 16 floor, app/src/noRegexLookbehind.test.js): the
+ * lead character is CAPTURED and the handler skips over it.
+ */
+const HIGHLIGHT_FIND = /(^|[\s([{])==([^=\s](?:[^=\n]*?[^=\s])?)==([\s.,;:!?)\]}])$/
+export const HIGHLIGHT_INPUT_PATTERN = HIGHLIGHT_FIND
+
+/** Attributes with the colour narrowed to a palette name (or null = default). */
+const narrowHighlight = (attrs) => ({ ...(attrs || {}), color: paletteName(attrs?.color) })
+
+/**
  * TipTap's Highlight, with its colour stored as a palette NAME and rendered
  * through a class. Its keyboard shortcut (Mod-Shift-H, the default highlight)
- * and its `==text==` input and paste rules are kept as they are.
+ * is kept; its `==text==` rules are replaced (see HIGHLIGHT_FIND).
  */
 export const NotebookHighlight = Highlight.extend({
   addAttributes() {
@@ -91,10 +116,56 @@ export const NotebookHighlight = Highlight.extend({
       color: {
         default: null,
         parseHTML: (el) => paletteName(el.getAttribute('data-color')),
-        renderHTML: (attrs) => (attrs.color
-          ? { 'data-color': attrs.color, class: highlightClass(attrs.color) }
-          : { class: highlightClass(null) }),
+        renderHTML: (attrs) => {
+          const name = paletteName(attrs.color)
+          return name
+            ? { 'data-color': name, class: highlightClass(name) }
+            : { class: highlightClass(null) }
+        },
       },
     }
+  },
+
+  // Every door that sets a colour narrows it: `setHighlight({ color: '#f00' })`
+  // stores the default highlight, never a hex (a stored hex cannot follow the
+  // theme — the header).
+  addCommands() {
+    const name = this.name
+    return {
+      setHighlight: (attributes) => ({ commands }) => commands.setMark(name, narrowHighlight(attributes)),
+      toggleHighlight: (attributes) => ({ commands }) => commands.toggleMark(name, narrowHighlight(attributes)),
+      unsetHighlight: () => ({ commands }) => commands.unsetMark(name),
+    }
+  },
+
+  addInputRules() {
+    const type = this.type
+    return [
+      new InputRule({
+        find: HIGHLIGHT_FIND,
+        handler: ({ state, range, match }) => {
+          const [, lead, inner, trail] = match
+          const { tr, doc, schema } = state
+          const open = range.from + lead.length
+          // The matcher read a text rendering; act only when the document
+          // holds exactly those characters (an inline atom in between would
+          // shift every position).
+          if (doc.textBetween(open, range.to, '\n', '￼') !== `==${inner}==`) return null
+          const trailMarks = (state.storedMarks || doc.resolve(range.to).marks()).filter((m) => m.type !== type)
+          tr.delete(range.to - 2, range.to)
+          tr.delete(open, open + 2)
+          const end = open + inner.length
+          tr.addMark(open, end, type.create())
+          tr.insert(end, schema.text(trail, trailMarks))
+          tr.removeStoredMark(type)
+          tr.setSelection(TextSelection.create(tr.doc, end + trail.length))
+          return undefined
+        },
+      }),
+    ]
+  },
+
+  addPasteRules() {
+    return []
   },
 }).configure({ multicolor: true })
