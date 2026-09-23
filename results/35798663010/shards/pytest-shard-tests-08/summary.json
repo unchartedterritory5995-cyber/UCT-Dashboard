@@ -1,0 +1,19 @@
+{
+  "suite": "pytest",
+  "collected": 1264,
+  "passed": 1257,
+  "failed": 7,
+  "errored": 0,
+  "skipped": 0,
+  "wall_s": 258.89,
+  "failed_files": [
+    "tests/test_mutation_check.py",
+    "tests/test_nb_foreign_commits.py",
+    "tests/test_nb_observe.py",
+    "tests/test_no_cr_in_tracked_text_blobs.py",
+    "tests/test_preference_key_validation.py"
+  ],
+  "totals_line_found": true,
+  "runner_line": "7 failed, 1257 passed, 19 warnings in 258.89s (0:04:18)",
+  "ok": true
+}

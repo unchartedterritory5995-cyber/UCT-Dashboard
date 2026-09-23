@@ -1,0 +1,409 @@
+/opt/hostedtoolcache/Python/3.12.14/x64/lib/python3.12/site-packages/pytest_asyncio/plugin.py:208: PytestDeprecationWarning: The configuration option "asyncio_default_fixture_loop_scope" is unset.
+The event loop scope for asynchronous fixtures will default to the fixture caching scope. Future versions of pytest-asyncio will default the loop scope for asynchronous fixtures to function scope. Set the default fixture loop scope explicitly in order to avoid unexpected behavior in the future. Valid fixture loop scopes are: "function", "class", "module", "package", "session"
+
+  warnings.warn(PytestDeprecationWarning(_DEFAULT_FIXTURE_LOOP_SCOPE_UNSET))
+................................s....................................... [  4%]
+........................................................................ [  8%]
+........................................................................ [ 12%]
+........................................................................ [ 17%]
+........................................................................ [ 21%]
+........................................................................ [ 25%]
+........................................................................ [ 30%]
+...................................................FF..F.F.............. [ 34%]
+......................................FFF.F.F........................... [ 38%]
+........................................................................ [ 43%]
+........................................................................ [ 47%]
+........................................................................ [ 51%]
+.....................F.................................................. [ 55%]
+........................................................................ [ 60%]
+........................................................................ [ 64%]
+........................................................................ [ 68%]
+........................................................................ [ 73%]
+........................................................................ [ 77%]
+........................................................................ [ 81%]
+........................................................................ [ 86%]
+........................................................................ [ 90%]
+........................................................................ [ 94%]
+........................................................................ [ 98%]
+.................                                                        [100%]
+=================================== FAILURES ===================================
+________________ test_fmp_profile_row_parses_list_of_one_shape _________________
+
+    def test_fmp_profile_row_parses_list_of_one_shape():
+        with mock.patch("api.services.earnings_estimates._fmp_get",
+                        return_value=[{"companyName": "Apple Inc.", "sector": "Technology"}]):
+            row = tl._fmp_profile_row("AAPL")
+>       assert row == {"companyName": "Apple Inc.", "sector": "Technology"}
+E       AssertionError: assert None == {'companyName': 'Apple Inc.', 'sector': 'Technology'}
+
+tests/test_ticker_logos.py:113: AssertionError
+_________________ test_fmp_profile_row_parses_bare_dict_shape __________________
+
+    def test_fmp_profile_row_parses_bare_dict_shape():
+        with mock.patch("api.services.earnings_estimates._fmp_get",
+                        return_value={"companyName": "Apple Inc."}):
+            row = tl._fmp_profile_row("AAPL")
+>       assert row == {"companyName": "Apple Inc."}
+E       AssertionError: assert None == {'companyName': 'Apple Inc.'}
+
+tests/test_ticker_logos.py:120: AssertionError
+____ test_finnhub_logo_bytes_uses_fmp_image_when_present_and_skips_finnhub _____
+
+    def test_finnhub_logo_bytes_uses_fmp_image_when_present_and_skips_finnhub():
+        """Defensive path: if FMP's schema ever adds an `image` field, it's used
+        as the PRIMARY source and Finnhub is never called at all."""
+        fmp_png = b"\x89PNG\r\n\x1a\nfmp-logo"
+    
+        def _fake_get(url, **kw):
+            class _R:
+                ok = True
+                content = fmp_png
+                status_code = 200
+            return _R()
+    
+        with mock.patch("api.services.earnings_estimates._fmp_get",
+                        return_value=[{"companyName": "Apple Inc.",
+                                       "image": "https://images.financialmodelingprep.com/aapl.png"}]), \
+             mock.patch("api.services.finnhub_client.fh_get") as fh, \
+             mock.patch("requests.get", side_effect=_fake_get):
+            out = tl._finnhub_logo_bytes("AAPL")
+>       assert out == fmp_png
+E       AssertionError: assert None == b'\x89PNG\r\n\x1a\nfmp-logo'
+
+tests/test_ticker_logos.py:173: AssertionError
+___ test_finnhub_logo_bytes_fmp_5xx_marks_transient_then_finnhub_still_tried ___
+
+    def test_finnhub_logo_bytes_fmp_5xx_marks_transient_then_finnhub_still_tried():
+        """A provider hiccup fetching the FMP-sourced image (5xx) marks transient
+        and the code still proceeds to try Finnhub afterwards."""
+        tl._reset_transient()
+        finnhub_png = b"\x89PNG\r\n\x1a\nfinnhub-logo"
+    
+        def _fake_get(url, **kw):
+            if "fmp-cdn" in url:
+                class _Bad:
+                    ok = False
+                    content = b""
+                    status_code = 503
+                return _Bad()
+            class _Good:
+                ok = True
+                content = finnhub_png
+                status_code = 200
+            return _Good()
+    
+        with mock.patch("api.services.earnings_estimates._fmp_get",
+                        return_value=[{"image": "https://fmp-cdn.example.com/aapl.png"}]), \
+             mock.patch("api.services.finnhub_client.fh_get",
+                        return_value={"logo": "https://static.finnhub.io/aapl.png"}), \
+             mock.patch("requests.get", side_effect=_fake_get):
+            out = tl._finnhub_logo_bytes("AAPL")
+        assert out == finnhub_png
+>       assert tl._was_transient() is True
+E       assert False is True
+E        +  where False = <function _was_transient at 0x7f671b29cf40>()
+E        +    where <function _was_transient at 0x7f671b29cf40> = tl._was_transient
+
+tests/test_ticker_logos.py:226: AssertionError
+_______ test_fmp_is_tried_before_finnhub_and_finnhub_skipped_on_fmp_hit ________
+
+    def test_fmp_is_tried_before_finnhub_and_finnhub_skipped_on_fmp_hit():
+        """FMP is the new PRIMARY leg: when yfinance fails and FMP fully resolves
+        the name, Finnhub must never even be called."""
+        ticker_meta._mem.clear()
+        with patch.object(ticker_meta, "_disk_get", return_value=None), \
+             patch.object(ticker_meta, "_disk_put"), \
+             patch.object(ticker_meta, "_primary_theme", return_value=None), \
+             patch("yfinance.Ticker", side_effect=Exception("yf down")), \
+             patch("api.services.earnings_estimates._fmp_get",
+                   return_value=[_fmp_row()]) as FMP, \
+             patch.object(ticker_meta, "fh_get") as FH:
+            out = ticker_meta.get_ticker_meta("AAPL")
+>       assert out == {"name": "Apple Inc.", "sector": "Technology",
+                       "industry": "Consumer Electronics", "exchange": None, "theme": None}
+E       AssertionError: assert {'exchange': ...r': None, ...} == {'exchange': ...hnology', ...}
+E         
+E         Omitting 2 identical items, use -vv to show
+E         Differing items:
+E         {'name': None} != {'name': 'Apple Inc.'}
+E         {'sector': None} != {'sector': 'Technology'}
+E         {'industry': None} != {'industry': 'Consumer Electronics'}
+E         
+E         Full diff:
+E           {
+E               'exchange': None,
+E         -     'industry': 'Consumer Electronics',
+E         -     'name': 'Apple Inc.',
+E         -     'sector': 'Technology',
+E         +     'industry': None,
+E         +     'name': None,
+E         +     'sector': None,
+E               'theme': None,
+E           }
+
+tests/test_ticker_meta.py:236: AssertionError
+----------------------------- Captured stderr call -----------------------------
+2026-09-22 23:54:20,701 WARNING api.services.ticker_meta: FMP profile failed for AAPL: FMP_API_KEY not set
+------------------------------ Captured log call -------------------------------
+WARNING  api.services.ticker_meta:ticker_meta.py:145 FMP profile failed for AAPL: FMP_API_KEY not set
+______________________ test_fmp_field_mapping_happy_path _______________________
+
+    def test_fmp_field_mapping_happy_path():
+        """Direct unit test of the field-shape mapping table: companyName->name,
+        sector/industry split correctly (Finnhub profile2 had no sector at all)."""
+        with patch("api.services.earnings_estimates._fmp_get",
+                   return_value=[_fmp_row(companyName="Apple Inc.", sector="Technology",
+                                           industry="Consumer Electronics")]):
+            out = ticker_meta._from_fmp("AAPL")
+>       assert out["name"] == "Apple Inc."
+E       AssertionError: assert None == 'Apple Inc.'
+
+tests/test_ticker_meta.py:251: AssertionError
+----------------------------- Captured stderr call -----------------------------
+2026-09-22 23:54:20,712 WARNING api.services.ticker_meta: FMP profile failed for AAPL: FMP_API_KEY not set
+------------------------------ Captured log call -------------------------------
+WARNING  api.services.ticker_meta:ticker_meta.py:145 FMP profile failed for AAPL: FMP_API_KEY not set
+____________ test_fmp_market_cap_unit_conversion_asserts_magnitude _____________
+
+    def test_fmp_market_cap_unit_conversion_asserts_magnitude():
+        """THE known bug class (lesson_market_cap_cache_poison_and_finnhub_currency):
+        FMP's marketCap is raw USD UNITS (4567767716000), NOT the millions Finnhub's
+        marketCapitalization used. Assert the CONVERTED magnitude, not just presence —
+        a bug that skips the /1e6 conversion (or divides by the wrong power) must
+        fail this on the number, not silently pass on "field exists"."""
+        with patch("api.services.earnings_estimates._fmp_get",
+                   return_value=[_fmp_row(marketCap=4567767716000)]):
+            out = ticker_meta._from_fmp("AAPL")
+>       assert out["market_cap_musd"] == pytest.approx(4567767.716, rel=1e-9)
+E       assert None == 4567767.716 ± 4.6e-03
+E         
+E         comparison failed
+E         Obtained: None
+E         Expected: 4567767.716 ± 4.6e-03
+
+tests/test_ticker_meta.py:265: AssertionError
+----------------------------- Captured stderr call -----------------------------
+2026-09-22 23:54:20,721 WARNING api.services.ticker_meta: FMP profile failed for AAPL: FMP_API_KEY not set
+------------------------------ Captured log call -------------------------------
+WARNING  api.services.ticker_meta:ticker_meta.py:145 FMP profile failed for AAPL: FMP_API_KEY not set
+_____________ test_fmp_missing_marketcap_key_entirely_yields_none ______________
+
+    def test_fmp_missing_marketcap_key_entirely_yields_none():
+        """A row that simply omits the marketCap key (not just null) must also
+        yield None, not raise a KeyError or coerce to 0."""
+        with patch("api.services.earnings_estimates._fmp_get",
+                   return_value=[{"companyName": "No Cap Co"}]):
+            out = ticker_meta._from_fmp("NOCAP")
+>       assert out["name"] == "No Cap Co"
+E       AssertionError: assert None == 'No Cap Co'
+
+tests/test_ticker_meta.py:292: AssertionError
+----------------------------- Captured stderr call -----------------------------
+2026-09-22 23:54:20,734 WARNING api.services.ticker_meta: FMP profile failed for NOCAP: FMP_API_KEY not set
+------------------------------ Captured log call -------------------------------
+WARNING  api.services.ticker_meta:ticker_meta.py:145 FMP profile failed for NOCAP: FMP_API_KEY not set
+________________ test_fmp_partial_then_finnhub_fills_remainder _________________
+
+    def test_fmp_partial_then_finnhub_fills_remainder():
+        """Full 3-leg interaction: yfinance fails entirely, FMP supplies industry
+        but no name (a partial FMP response), Finnhub then fills the name. Proves
+        the merge chain composes correctly end-to-end, matching the yfinance/
+        Finnhub partial-merge behavior already covered above."""
+        ticker_meta._mem.clear()
+        with patch.object(ticker_meta, "_disk_get", return_value=None), \
+             patch.object(ticker_meta, "_disk_put") as DP, \
+             patch.object(ticker_meta, "_primary_theme", return_value=None), \
+             patch("yfinance.Ticker", side_effect=Exception("yf down")), \
+             patch("api.services.earnings_estimates._fmp_get",
+                   return_value=[_fmp_row(companyName=None, sector="Technology",
+                                           industry="Semiconductors")]), \
+             patch.object(ticker_meta, "fh_get",
+                          return_value={"name": "Micron Technology Inc", "finnhubIndustry": "Technology"}):
+            out = ticker_meta.get_ticker_meta("MU")
+>       assert out == {"name": "Micron Technology Inc", "sector": "Technology",
+                       "industry": "Semiconductors", "exchange": None, "theme": None}
+E       AssertionError: assert {'exchange': ...r': None, ...} == {'exchange': ...hnology', ...}
+E         
+E         Omitting 3 identical items, use -vv to show
+E         Differing items:
+E         {'sector': None} != {'sector': 'Technology'}
+E         {'industry': 'Technology'} != {'industry': 'Semiconductors'}
+E         
+E         Full diff:
+E           {
+E               'exchange': None,
+E         -     'industry': 'Semiconductors',
+E         +     'industry': 'Technology',
+E               'name': 'Micron Technology Inc',
+E         -     'sector': 'Technology',
+E         +     'sector': None,
+E               'theme': None,
+E           }
+
+tests/test_ticker_meta.py:324: AssertionError
+----------------------------- Captured stderr call -----------------------------
+2026-09-22 23:54:20,748 WARNING api.services.ticker_meta: FMP profile failed for MU: FMP_API_KEY not set
+------------------------------ Captured log call -------------------------------
+WARNING  api.services.ticker_meta:ticker_meta.py:145 FMP profile failed for MU: FMP_API_KEY not set
+__________________ test_the_shipped_thresholds_have_not_moved __________________
+
+    def test_the_shipped_thresholds_have_not_moved():
+        """⭐ THE TABLE IS ONLY TRUE OF THESE VALUES. Both sides, either direction:
+        a knob added, removed or changed means the measurement describes detectors
+        that are no longer running."""
+        drift = {}
+        for key, want in MEASURED_AGAINST.items():
+            got_engine = _module_constants(
+                "api/services/pattern_engine/detectors/" + ENGINE_SOURCE[key])
+            rel, prefix = BASE_SOURCE[key]
+            got_base = _module_constants(rel, prefix)
+            if got_engine != want["engine"]:
+                drift[f"{key}/engine"] = sorted(
+                    set(got_engine.items()) ^ set(want["engine"].items()))
+            if got_base != want["base"]:
+                drift[f"{key}/base"] = sorted(
+                    set(got_base.items()) ^ set(want["base"].items()))
+>       assert not drift, (
+            "these thresholds changed since the agreement table was measured:\n"
+            + "\n".join(f"  {k}: {v}" for k, v in sorted(drift.items()))
+            + "\n\nRE-MEASURE. Update both the docstring table and "
+              "MEASURED_AGAINST — never one without the other.")
+E       AssertionError: these thresholds changed since the agreement table was measured:
+E           vcp/engine: [('_TREND_TEMPLATE_SMA_LONG', 200), ('_TREND_TEMPLATE_SMA_SHORT', 150)]
+E         
+E         RE-MEASURE. Update both the docstring table and MEASURED_AGAINST — never one without the other.
+E       assert not {'vcp/engine': [('_TREND_TEMPLATE_SMA_LONG', 200), ('_TREND_TEMPLATE_SMA_SHORT', 150)]}
+
+tests/test_two_engines_do_not_agree.py:596: AssertionError
+=============================== warnings summary ===============================
+../../../../../opt/hostedtoolcache/Python/3.12.14/x64/lib/python3.12/site-packages/starlette/testclient.py:40
+  /opt/hostedtoolcache/Python/3.12.14/x64/lib/python3.12/site-packages/starlette/testclient.py:40: DeprecationWarning: The anyio.abc.BlockingPortal alias is deprecated, use anyio.from_thread.BlockingPortal instead.
+    _PortalFactoryType = typing.Callable[[], typing.ContextManager[anyio.abc.BlockingPortal]]
+
+api/baselines.py:456
+  /home/runner/work/UCT-Dashboard/UCT-Dashboard/api/baselines.py:456: DeprecationWarning: datetime.datetime.utcnow() is deprecated and scheduled for removal in a future version. Use timezone-aware objects to represent datetimes in UTC: datetime.datetime.now(datetime.UTC).
+    _baselines_last_loaded = datetime.utcnow()
+
+tests/test_test_discovery_coverage.py::test_no_production_module_is_wearing_a_test_name
+tests/test_tests_reaching.py::test_the_graph_is_not_vacuous
+tests/test_tests_reaching.py::test_a_widely_imported_module_reaches_many_tests
+tests/test_tests_reaching.py::test_it_finds_the_pin_that_this_tool_exists_for
+tests/test_tests_reaching.py::test_a_leaf_module_reaches_only_the_sweep_rails
+tests/test_tests_reaching.py::test_a_leaf_module_reaches_only_the_sweep_rails
+tests/test_tests_reaching.py::test_filesystem_sweep_rails_are_always_included
+tests/test_tests_reaching.py::test_filesystem_sweep_rails_are_always_included
+tests/test_tests_reaching.py::test_the_sweep_set_is_neither_empty_nor_everything
+  <unknown>:968: SyntaxWarning: invalid escape sequence '\d'
+
+tests/test_test_discovery_coverage.py::test_no_production_module_is_wearing_a_test_name
+tests/test_tests_reaching.py::test_the_graph_is_not_vacuous
+tests/test_tests_reaching.py::test_a_widely_imported_module_reaches_many_tests
+tests/test_tests_reaching.py::test_it_finds_the_pin_that_this_tool_exists_for
+tests/test_tests_reaching.py::test_a_leaf_module_reaches_only_the_sweep_rails
+tests/test_tests_reaching.py::test_a_leaf_module_reaches_only_the_sweep_rails
+tests/test_tests_reaching.py::test_filesystem_sweep_rails_are_always_included
+tests/test_tests_reaching.py::test_filesystem_sweep_rails_are_always_included
+tests/test_tests_reaching.py::test_the_sweep_set_is_neither_empty_nor_everything
+  <unknown>:262: SyntaxWarning: invalid escape sequence '\d'
+
+tests/test_test_discovery_coverage.py::test_no_production_module_is_wearing_a_test_name
+tests/test_tests_reaching.py::test_the_graph_is_not_vacuous
+tests/test_tests_reaching.py::test_a_widely_imported_module_reaches_many_tests
+tests/test_tests_reaching.py::test_it_finds_the_pin_that_this_tool_exists_for
+tests/test_tests_reaching.py::test_a_leaf_module_reaches_only_the_sweep_rails
+tests/test_tests_reaching.py::test_a_leaf_module_reaches_only_the_sweep_rails
+tests/test_tests_reaching.py::test_filesystem_sweep_rails_are_always_included
+tests/test_tests_reaching.py::test_filesystem_sweep_rails_are_always_included
+tests/test_tests_reaching.py::test_the_sweep_set_is_neither_empty_nor_everything
+  <unknown>:55: SyntaxWarning: invalid escape sequence '\d'
+
+tests/test_test_discovery_coverage.py::test_no_production_module_is_wearing_a_test_name
+tests/test_tests_reaching.py::test_the_graph_is_not_vacuous
+tests/test_tests_reaching.py::test_a_widely_imported_module_reaches_many_tests
+tests/test_tests_reaching.py::test_it_finds_the_pin_that_this_tool_exists_for
+tests/test_tests_reaching.py::test_a_leaf_module_reaches_only_the_sweep_rails
+tests/test_tests_reaching.py::test_a_leaf_module_reaches_only_the_sweep_rails
+tests/test_tests_reaching.py::test_filesystem_sweep_rails_are_always_included
+tests/test_tests_reaching.py::test_filesystem_sweep_rails_are_always_included
+tests/test_tests_reaching.py::test_the_sweep_set_is_neither_empty_nor_everything
+  <unknown>:1311: SyntaxWarning: invalid escape sequence '\d'
+
+tests/test_test_discovery_coverage.py::test_no_production_module_is_wearing_a_test_name
+tests/test_tests_reaching.py::test_the_graph_is_not_vacuous
+tests/test_tests_reaching.py::test_a_widely_imported_module_reaches_many_tests
+tests/test_tests_reaching.py::test_it_finds_the_pin_that_this_tool_exists_for
+tests/test_tests_reaching.py::test_a_leaf_module_reaches_only_the_sweep_rails
+tests/test_tests_reaching.py::test_a_leaf_module_reaches_only_the_sweep_rails
+tests/test_tests_reaching.py::test_filesystem_sweep_rails_are_always_included
+tests/test_tests_reaching.py::test_filesystem_sweep_rails_are_always_included
+tests/test_tests_reaching.py::test_the_sweep_set_is_neither_empty_nor_everything
+  <unknown>:608: SyntaxWarning: invalid escape sequence '\w'
+
+tests/test_ticker_explain.py::TestRoute::test_route_shape_when_authenticated
+tests/test_ticker_explain.py::TestRoute::test_route_degrades_safely_on_an_exception
+  /opt/hostedtoolcache/Python/3.12.14/x64/lib/python3.12/site-packages/starlette/testclient.py:484: DeprecationWarning: Setting per-request cookies=<...> is being deprecated, because the expected behaviour on cookie persistence is ambiguous. Set cookies directly on the client instance instead.
+    return super().request(
+
+tests/test_voice_router.py: 39 warnings
+  /home/runner/work/UCT-Dashboard/UCT-Dashboard/api/services/voice_usage.py:20: DeprecationWarning: datetime.datetime.utcnow() is deprecated and scheduled for removal in a future version. Use timezone-aware objects to represent datetimes in UTC: datetime.datetime.now(datetime.UTC).
+    return datetime.utcnow().strftime("%Y-%m")
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+- generated xml file: /home/runner/work/UCT-Dashboard/UCT-Dashboard/pytest-junit.xml -
+=========================== short test summary info ============================
+SKIPPED [1] tests/test_survivorship_is_declared.py:91: no local screener.db to measure against
+FAILED tests/test_ticker_logos.py::test_fmp_profile_row_parses_list_of_one_shape - AssertionError: assert None == {'companyName': 'Apple Inc.', 'sector': 'Technology'}
+FAILED tests/test_ticker_logos.py::test_fmp_profile_row_parses_bare_dict_shape - AssertionError: assert None == {'companyName': 'Apple Inc.'}
+FAILED tests/test_ticker_logos.py::test_finnhub_logo_bytes_uses_fmp_image_when_present_and_skips_finnhub - AssertionError: assert None == b'\x89PNG\r\n\x1a\nfmp-logo'
+FAILED tests/test_ticker_logos.py::test_finnhub_logo_bytes_fmp_5xx_marks_transient_then_finnhub_still_tried - assert False is True
+ +  where False = <function _was_transient at 0x7f671b29cf40>()
+ +    where <function _was_transient at 0x7f671b29cf40> = tl._was_transient
+FAILED tests/test_ticker_meta.py::test_fmp_is_tried_before_finnhub_and_finnhub_skipped_on_fmp_hit - AssertionError: assert {'exchange': ...r': None, ...} == {'exchange': ...hnology', ...}
+  
+  Omitting 2 identical items, use -vv to show
+  Differing items:
+  {'name': None} != {'name': 'Apple Inc.'}
+  {'sector': None} != {'sector': 'Technology'}
+  {'industry': None} != {'industry': 'Consumer Electronics'}
+  
+  Full diff:
+    {
+        'exchange': None,
+  -     'industry': 'Consumer Electronics',
+  -     'name': 'Apple Inc.',
+  -     'sector': 'Technology',
+  +     'industry': None,
+  +     'name': None,
+  +     'sector': None,
+        'theme': None,
+    }
+FAILED tests/test_ticker_meta.py::test_fmp_field_mapping_happy_path - AssertionError: assert None == 'Apple Inc.'
+FAILED tests/test_ticker_meta.py::test_fmp_market_cap_unit_conversion_asserts_magnitude - assert None == 4567767.716 ± 4.6e-03
+  
+  comparison failed
+  Obtained: None
+  Expected: 4567767.716 ± 4.6e-03
+FAILED tests/test_ticker_meta.py::test_fmp_missing_marketcap_key_entirely_yields_none - AssertionError: assert None == 'No Cap Co'
+FAILED tests/test_ticker_meta.py::test_fmp_partial_then_finnhub_fills_remainder - AssertionError: assert {'exchange': ...r': None, ...} == {'exchange': ...hnology', ...}
+  
+  Omitting 3 identical items, use -vv to show
+  Differing items:
+  {'sector': None} != {'sector': 'Technology'}
+  {'industry': 'Technology'} != {'industry': 'Semiconductors'}
+  
+  Full diff:
+    {
+        'exchange': None,
+  -     'industry': 'Semiconductors',
+  +     'industry': 'Technology',
+        'name': 'Micron Technology Inc',
+  -     'sector': 'Technology',
+  +     'sector': None,
+        'theme': None,
+    }
+FAILED tests/test_two_engines_do_not_agree.py::test_the_shipped_thresholds_have_not_moved - AssertionError: these thresholds changed since the agreement table was measured:
+    vcp/engine: [('_TREND_TEMPLATE_SMA_LONG', 200), ('_TREND_TEMPLATE_SMA_SHORT', 150)]
+  
+  RE-MEASURE. Update both the docstring table and MEASURED_AGAINST — never one without the other.
+assert not {'vcp/engine': [('_TREND_TEMPLATE_SMA_LONG', 200), ('_TREND_TEMPLATE_SMA_SHORT', 150)]}
+10 failed, 1662 passed, 1 skipped, 88 warnings in 290.95s (0:04:50)
