@@ -243,7 +243,7 @@ function seedSettings(ids, controls = []) {
   })
 }
 
-function Harness({ initialSettings }) {
+export function Harness({ initialSettings }) {
   const [sym, setSym] = useState((params.get('sym') || 'AAPL').toUpperCase())
   const [opts, setOpts] = useState(() => ({ tf: params.get('tf') || 'D', settings: initialSettings }))
   const [groupTfs, setGroupTfs] = useState({ A: opts.tf, B: opts.tf, C: opts.tf, D: opts.tf })
