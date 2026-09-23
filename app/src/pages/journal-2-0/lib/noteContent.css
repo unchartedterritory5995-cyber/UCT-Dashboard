@@ -38,6 +38,11 @@
   line-height: 1.35;
   margin: 16px 0 6px;
 }
+/* An outline jump (NoteOutline.jsx) lands a heading BELOW the editor's sticky
+   chrome, whose measured height the page publishes as --uct-chrome-h. */
+.ProseMirror :is(h1, h2, h3, h4, h5, h6):not(:where([data-widget-embed-view] *)) {
+  scroll-margin-top: calc(var(--uct-chrome-h, 0px) + 12px);
+}
 .ProseMirror h6:not(:where([data-widget-embed-view] *)) {
   font-size: 0.8em;
   font-weight: 700;

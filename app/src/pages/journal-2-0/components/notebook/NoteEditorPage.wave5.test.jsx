@@ -63,6 +63,21 @@ describe('NoteEditorPage — text colour + highlight door (Wave 5)', () => {
   })
 })
 
+describe('NoteEditorPage — outline door (Wave 5)', () => {
+  it('the toolbar Outline button opens the note\'s headings, H4 included; it shares the palette\'s corner', async () => {
+    await renderEditor()
+    const toggle = screen.getByRole('button', { name: 'Outline' })
+    expect(toggle.getAttribute('aria-expanded')).toBe('false')
+    fireEvent.click(toggle)
+    const nav = screen.getByRole('navigation', { name: 'Outline' })
+    expect([...nav.querySelectorAll('button[data-outline-item]')].map((b) => [b.getAttribute('data-level'), b.textContent]))
+      .toEqual([['1', 'H1Thesis'], ['4', 'H4Risks']])
+    // Opening the widget palette closes the outline (one panel in that corner).
+    fireEvent.click(screen.getByRole('button', { name: 'Insert widget' }))
+    expect(screen.queryByRole('navigation', { name: 'Outline' })).toBe(null)
+  })
+})
+
 describe('NoteEditorPage — word count door (Wave 5)', () => {
   it('the toolbar reads the note\'s words and reading time', async () => {
     await renderEditor()

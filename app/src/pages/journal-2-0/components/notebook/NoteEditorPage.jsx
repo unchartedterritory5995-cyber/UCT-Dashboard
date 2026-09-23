@@ -52,6 +52,7 @@ import usePendingAskInsert from '../../hooks/usePendingAskInsert'
 import NoteFindBar from './NoteFindBar'
 import TextColorMenu, { TEXT_COLOR_MENU_LABEL } from './TextColorMenu'
 import NoteStats from './NoteStats'
+import NoteOutline from './NoteOutline'
 import { textColorClass } from '../../lib/textColor'
 import NoteHistoryPanel from './NoteHistoryPanel'
 import NoteBacklinksSection from './NoteBacklinksSection'
@@ -514,6 +515,9 @@ export default function NoteEditorPage({ noteId, onBack, showBack = true, onTitl
   // Wave 5: the text colour + highlight picker, toggled from the toolbar row.
   const [colorOpen, setColorOpen] = useState(false)
   const colorToggleRef = useRef(null)
+  // Wave 5: the note outline panel / sheet, toggled from the toolbar row.
+  const [outlineOpen, setOutlineOpen] = useState(false)
+  const outlineToggleRef = useRef(null)
   // The sticky chrome's MEASURED height, published as --uct-chrome-h on the
   // page root: the watch rails' sticky offset reads it (a literal there goes
   // stale the moment the header wraps — review finding).
@@ -2522,11 +2526,26 @@ export default function NoteEditorPage({ noteId, onBack, showBack = true, onTitl
           <button
             type="button"
             className={`${styles.toolBtn} ${paletteOpen ? styles.toolBtnActive : ''}`}
-            onClick={() => setPaletteOpen((o) => !o)}
+            onClick={() => { setOutlineOpen(false); setPaletteOpen((o) => !o) }}
             title="Insert a chart or preset — pick ticker and timeframe by clicking"
             aria-label="Insert widget"
           >
             ⊞ Insert
+          </button>
+          {/* Wave 5: the note's outline (every heading, click to jump) -- a
+              panel beside the note on desktop, a sheet on touch. It shares
+              the palette's corner, so opening one closes the other. */}
+          <button
+            ref={outlineToggleRef}
+            type="button"
+            className={`${styles.toolBtn} ${outlineOpen ? styles.toolBtnActive : ''}`}
+            onClick={() => { setPaletteOpen(false); setOutlineOpen((o) => !o) }}
+            aria-expanded={outlineOpen}
+            aria-label="Outline"
+            title="Outline — every heading in this note"
+          >
+            <UIcon name="rows" size={14} gold={false} style={{ verticalAlign: '-2px', marginRight: 4 }} />
+            Outline
           </button>
           <div className={styles.toolbarExports}>
             {/* Wave 5: word count + reading time (the selection's share while
@@ -2560,6 +2579,9 @@ export default function NoteEditorPage({ noteId, onBack, showBack = true, onTitl
           duplicated the chrome height by hand). */}
       {paletteOpen && editor && (
         <WidgetPalette editor={editor} onClose={() => setPaletteOpen(false)} />
+      )}
+      {outlineOpen && editor && (
+        <NoteOutline editor={editor} onClose={() => setOutlineOpen(false)} toggleRef={outlineToggleRef} />
       )}
       </div>
 
