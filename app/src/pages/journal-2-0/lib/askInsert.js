@@ -180,15 +180,16 @@ export function appendAskInsert(editor, node) {
 }
 
 /** Within the insert's own transaction: an empty paragraph directly after the
- *  answer that starts at `at` (reused if one is already there), and the
- *  selection inside it. */
+ *  answer that starts at `at`, and the selection inside it. The answer always
+ *  ends the document (it is appended, or replaces the empty last paragraph),
+ *  so nothing can already follow it and the paragraph is always new. Nothing
+ *  at `at` means the insert itself did not happen; the caret is left alone. */
 function caretAfterAnswer(tr, at) {
   const answer = tr.doc.nodeAt(at)
   const paragraph = tr.doc.type.schema.nodes.paragraph
   if (!answer || answer.type.name !== ASK_INSERT_TYPE || !paragraph) return true
   const after = at + answer.nodeSize
-  const next = tr.doc.nodeAt(after)
-  if (!(next && next.type === paragraph && next.content.size === 0)) tr.insert(after, paragraph.create())
+  tr.insert(after, paragraph.create())
   tr.setSelection(TextSelection.create(tr.doc, after + 1))
   return true
 }
