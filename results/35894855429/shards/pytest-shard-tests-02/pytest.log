@@ -1,0 +1,1346 @@
+/opt/hostedtoolcache/Python/3.12.14/x64/lib/python3.12/site-packages/pytest_asyncio/plugin.py:208: PytestDeprecationWarning: The configuration option "asyncio_default_fixture_loop_scope" is unset.
+The event loop scope for asynchronous fixtures will default to the fixture caching scope. Future versions of pytest-asyncio will default the loop scope for asynchronous fixtures to function scope. Set the default fixture loop scope explicitly in order to avoid unexpected behavior in the future. Valid fixture loop scopes are: "function", "class", "module", "package", "session"
+
+  warnings.warn(PytestDeprecationWarning(_DEFAULT_FIXTURE_LOOP_SCOPE_UNSET))
+........................................................................ [  4%]
+........................................................................ [  8%]
+........................................................................ [ 12%]
+.........................................................ss............. [ 16%]
+ss...s.................................................................. [ 21%]
+........................................................................ [ 25%]
+........................................................................ [ 29%]
+........................................................................ [ 33%]
+........................................................................ [ 38%]
+........................................................................ [ 42%]
+........................................................................ [ 46%]
+........................................................................ [ 50%]
+........................................................................ [ 55%]
+........................................................................ [ 59%]
+........................................................................ [ 63%]
+........................................................................ [ 67%]
+........................................................................ [ 72%]
+........................................................................ [ 76%]
+........F............................................................... [ 80%]
+........................................................................ [ 84%]
+........................................................................ [ 89%]
+........................................................................ [ 93%]
+........................................................................ [ 97%]
+..........................................                               [100%]
+=================================== FAILURES ===================================
+_____________ test_bars_ordinal_census_matches_a_fresh_derivation ______________
+
+    def test_bars_ordinal_census_matches_a_fresh_derivation():
+        """The checked-in `api/data/bars_ordinal_census.json` is byte-identical
+        to what `census()` derives right now. This is the rail `--check` runs in
+        CI/manually — asserted here too so a stale checked-in file fails the
+        ordinary test suite, not just a separately-remembered command.
+        """
+        fresh = boc.census()
+        checked_in = _census()
+>       assert fresh == checked_in, (
+            "the checked-in census is stale — regenerate with "
+            "`python tools/bars_ordinal_census.py`")
+E       AssertionError: the checked-in census is stale — regenerate with `python tools/bars_ordinal_census.py`
+E       assert {'bars_family...d': 1381, ...} == {'bars_family...d': 1380, ...}
+E         
+E         Omitting 6 identical items, use -vv to show
+E         Differing items:
+E         {'modules_scanned': 1381} != {'modules_scanned': 1380}
+E         
+E         Full diff:
+E           {
+E               'bars_family_functions': [
+E                   'get_bars',
+E                   'get_bars_before',
+E                   'get_bars_since',
+E               ],
+E               'generated_by': 'tools/bars_ordinal_census.py',
+E               'modules': {
+E                   'api/main.py': {
+E                       'calls': [
+E                           {
+E                               'function': 'get_bars',
+E                               'line': 392,
+E                           },
+E                           {
+E                               'function': 'get_bars',
+E                               'line': 565,
+E                           },
+E                           {
+E                               'function': 'get_bars',
+E                               'line': 583,
+E                           },
+E                           {
+E                               'function': 'get_bars',
+E                               'line': 4256,
+E                           },
+E                       ],
+E                       'classification': 'positional',
+E                       'evidence': {
+E                           'index': 0,
+E                           'line': 399,
+E                           'pattern': 'int-subscript',
+E                       },
+E                   },
+E                   'api/routers/ai_search.py': {
+E                       'calls': [
+E                           {
+E                               'function': 'get_bars_before',
+E                               'line': 1489,
+E                           },
+E                       ],
+E                       'classification': 'positional',
+E                       'evidence': {
+E                           'index': 1,
+E                           'line': 859,
+E                           'pattern': 'int-subscript',
+E                       },
+E                   },
+E                   'api/routers/backtest.py': {
+E                       'calls': [
+E                           {
+E                               'function': 'get_bars',
+E                               'line': 65,
+E                           },
+E                       ],
+E                       'classification': 'positional',
+E                       'evidence': {
+E                           'index': 0,
+E                           'line': 68,
+E                           'pattern': 'int-subscript',
+E                       },
+E                   },
+E                   'api/routers/screener_backtest.py': {
+E                       'calls': [
+E                           {
+E                               'function': 'get_bars_before',
+E                               'line': 680,
+E                           },
+E                       ],
+E                       'classification': 'positional',
+E                       'evidence': {
+E                           'delegate': '_fmt_sqlite_bars',
+E                           'line': 697,
+E                           'pattern': 'known-positional-delegate',
+E                       },
+E                   },
+E                   'api/routers/signature.py': {
+E                       'calls': [
+E                           {
+E                               'function': 'get_bars',
+E                               'line': 241,
+E                           },
+E                           {
+E                               'function': 'get_bars',
+E                               'line': 828,
+E                           },
+E                       ],
+E                       'classification': 'positional',
+E                       'evidence': {
+E                           'index': 0,
+E                           'line': 245,
+E                           'pattern': 'int-subscript',
+E                       },
+E                   },
+E                   'api/services/adjustment_basis.py': {
+E                       'calls': [
+E                           {
+E                               'function': 'get_bars',
+E                               'line': 86,
+E                           },
+E                       ],
+E                       'classification': 'positional',
+E                       'evidence': {
+E                           'index': 0,
+E                           'line': 84,
+E                           'pattern': 'int-subscript',
+E                       },
+E                   },
+E                   'api/services/audit.py': {
+E                       'calls': [
+E                           {
+E                               'function': 'get_bars',
+E                               'line': 394,
+E                           },
+E                       ],
+E                       'classification': 'positional',
+E                       'evidence': {
+E                           'index': 0,
+E                           'line': 349,
+E                           'pattern': 'int-subscript',
+E                       },
+E                   },
+E                   'api/services/bars_fetch.py': {
+E                       'calls': [
+E                           {
+E                               'function': 'get_bars_since',
+E                               'line': 220,
+E                           },
+E                           {
+E                               'function': 'get_bars',
+E                               'line': 1182,
+E                           },
+E                           {
+E                               'function': 'get_bars_since',
+E                               'line': 1514,
+E                           },
+E                           {
+E                               'function': 'get_bars',
+E                               'line': 1986,
+E                           },
+E                           {
+E                               'function': 'get_bars_before',
+E                               'line': 2064,
+E                           },
+E                           {
+E                               'function': 'get_bars_before',
+E                               'line': 2083,
+E                           },
+E                           {
+E                               'function': 'get_bars_before',
+E                               'line': 2143,
+E                           },
+E                           {
+E                               'function': 'get_bars_before',
+E                               'line': 2207,
+E                           },
+E                           {
+E                               'function': 'get_bars_since',
+E                               'line': 2328,
+E                           },
+E                           {
+E                               'function': 'get_bars',
+E                               'line': 2332,
+E                           },
+E                           {
+E                               'function': 'get_bars',
+E                               'line': 2712,
+E                           },
+E                           {
+E                               'function': 'get_bars',
+E                               'line': 2759,
+E                           },
+E                           {
+E                               'function': 'get_bars',
+E                               'line': 2844,
+E                           },
+E                           {
+E                               'function': 'get_bars',
+E                               'line': 2909,
+E                           },
+E                           {
+E                               'function': 'get_bars',
+E                               'line': 3003,
+E                           },
+E                           {
+E                               'function': 'get_bars',
+E                               'line': 3121,
+E                           },
+E                       ],
+E                       'classification': 'positional',
+E                       'evidence': {
+E                           'index': 0,
+E                           'line': 220,
+E                           'pattern': 'int-subscript',
+E                       },
+E                   },
+E                   'api/services/bars_split_repair.py': {
+E                       'calls': [
+E                           {
+E                               'function': 'get_bars',
+E                               'line': 89,
+E                           },
+E                       ],
+E                       'classification': 'positional',
+E                       'evidence': {
+E                           'index': 0,
+E                           'line': 92,
+E                           'pattern': 'int-subscript',
+E                       },
+E                   },
+E                   'api/services/barspack.py': {
+E                       'calls': [
+E                           {
+E                               'function': 'get_bars',
+E                               'line': 328,
+E                           },
+E                       ],
+E                       'classification': 'positional',
+E                       'evidence': {
+E                           'delegate': '_fmt_sqlite_bars',
+E                           'line': 340,
+E                           'pattern': 'known-positional-delegate',
+E                       },
+E                   },
+E                   'api/services/desk_article_anchors.py': {
+E                       'calls': [
+E                           {
+E                               'function': 'get_bars_before',
+E                               'line': 48,
+E                           },
+E                       ],
+E                       'classification': 'positional',
+E                       'evidence': {
+E                           'index': 4,
+E                           'line': 52,
+E                           'pattern': 'int-subscript',
+E                       },
+E                   },
+E                   'api/services/discord_render/symbols.py': {
+E                       'calls': [
+E                           {
+E                               'function': 'get_bars',
+E                               'line': 55,
+E                           },
+E                       ],
+E                       'classification': 'positional',
+E                       'evidence': {
+E                           'index': 1,
+E                           'line': 151,
+E                           'pattern': 'int-subscript',
+E                       },
+E                   },
+E                   'api/services/indicator_alert_evaluator.py': {
+E                       'calls': [
+E                           {
+E                               'function': 'get_bars',
+E                               'line': 1104,
+E                           },
+E                       ],
+E                       'classification': 'positional',
+E                       'evidence': {
+E                           'index': 0,
+E                           'line': 838,
+E                           'pattern': 'int-subscript',
+E                       },
+E                   },
+E                   'api/services/journal_two/excursion_engine.py': {
+E                       'calls': [
+E                           {
+E                               'function': 'get_bars',
+E                               'line': 170,
+E                           },
+E                       ],
+E                       'classification': 'positional',
+E                       'evidence': {
+E                           'index': 4,
+E                           'line': 85,
+E                           'pattern': 'int-subscript',
+E                       },
+E                   },
+E                   'api/services/pattern_engine/memory.py': {
+E                       'calls': [
+E                           {
+E                               'function': 'get_bars_since',
+E                               'line': 328,
+E                           },
+E                       ],
+E                       'classification': 'positional',
+E                       'evidence': {
+E                           'line': 346,
+E                           'pattern': 'assign-unpack',
+E                           'size': 6,
+E                       },
+E                   },
+E                   'api/services/pattern_vision/modelbook_examples.py': {
+E                       'calls': [
+E                           {
+E                               'function': 'get_bars',
+E                               'line': 79,
+E                           },
+E                       ],
+E                       'classification': 'positional',
+E                       'evidence': {
+E                           'index': 0,
+E                           'line': 85,
+E                           'pattern': 'int-subscript',
+E                       },
+E                   },
+E                   'api/services/pattern_vision/orchestrator.py': {
+E                       'calls': [
+E                           {
+E                               'function': 'get_bars',
+E                               'line': 53,
+E                           },
+E                       ],
+E                       'classification': 'positional',
+E                       'evidence': {
+E                           'index': 0,
+E                           'line': 60,
+E                           'pattern': 'int-subscript',
+E                       },
+E                   },
+E                   'api/services/research/ratings_universe.py': {
+E                       'calls': [
+E                           {
+E                               'function': 'get_bars',
+E                               'line': 68,
+E                           },
+E                       ],
+E                       'classification': 'positional',
+E                       'evidence': {
+E                           'index': 4,
+E                           'line': 70,
+E                           'pattern': 'int-subscript',
+E                       },
+E                   },
+E                   'api/services/scan_gainers.py': {
+E                       'calls': [
+E                           {
+E                               'function': 'get_bars',
+E                               'line': 72,
+E                           },
+E                       ],
+E                       'classification': 'positional',
+E                       'evidence': {
+E                           'delegate': '_fmt_sqlite_bars',
+E                           'line': 75,
+E                           'pattern': 'known-positional-delegate',
+E                       },
+E                   },
+E                   'api/services/scan_ipo.py': {
+E                       'calls': [
+E                           {
+E                               'function': 'get_bars',
+E                               'line': 49,
+E                           },
+E                       ],
+E                       'classification': 'positional',
+E                       'evidence': {
+E                           'delegate': '_fmt_sqlite_bars',
+E                           'line': 52,
+E                           'pattern': 'known-positional-delegate',
+E                       },
+E                   },
+E                   'api/services/scan_volume.py': {
+E                       'calls': [
+E                           {
+E                               'function': 'get_bars',
+E                               'line': 125,
+E                           },
+E                       ],
+E                       'classification': 'positional',
+E                       'evidence': {
+E                           'index': 0,
+E                           'line': 133,
+E                           'pattern': 'int-subscript',
+E                       },
+E                   },
+E                   'api/services/screener/scan_evaluator.py': {
+E                       'calls': [
+E                           {
+E                               'function': 'get_bars',
+E                               'line': 969,
+E                           },
+E                       ],
+E                       'classification': 'positional',
+E                       'evidence': {
+E                           'index': 0,
+E                           'line': 645,
+E                           'pattern': 'int-subscript',
+E                       },
+E                   },
+E                   'api/services/screener/snapshot_builder.py': {
+E                       'calls': [
+E                           {
+E                               'function': 'get_bars',
+E                               'line': 587,
+E                           },
+E                           {
+E                               'function': 'get_bars',
+E                               'line': 614,
+E                           },
+E                       ],
+E                       'classification': 'positional',
+E                       'evidence': {
+E                           'index': 0,
+E                           'line': 591,
+E                           'pattern': 'int-subscript',
+E                       },
+E                   },
+E                   'api/services/single_stock_etfs.py': {
+E                       'calls': [
+E                           {
+E                               'function': 'get_bars',
+E                               'line': 312,
+E                           },
+E                       ],
+E                       'classification': 'positional',
+E                       'evidence': {
+E                           'index': 0,
+E                           'line': 215,
+E                           'pattern': 'int-subscript',
+E                       },
+E                   },
+E                   'api/services/theme_engine/comovement.py': {
+E                       'calls': [
+E                           {
+E                               'function': 'get_bars',
+E                               'line': 13,
+E                           },
+E                       ],
+E                       'classification': 'positional',
+E                       'evidence': {
+E                           'index': 4,
+E                           'line': 14,
+E                           'pattern': 'int-subscript',
+E                       },
+E                   },
+E                   'api/services/theme_index.py': {
+E                       'calls': [
+E                           {
+E                               'function': 'get_bars',
+E                               'line': 65,
+E                           },
+E                       ],
+E                       'classification': 'positional',
+E                       'evidence': {
+E                           'index': 0,
+E                           'line': 69,
+E                           'pattern': 'int-subscript',
+E                       },
+E                   },
+E                   'api/services/ticker_returns.py': {
+E                       'calls': [
+E                           {
+E                               'function': 'get_bars_before',
+E                               'line': 78,
+E                           },
+E                           {
+E                               'function': 'get_bars_since',
+E                               'line': 84,
+E                           },
+E                       ],
+E                       'classification': 'named_access',
+E                       'evidence': {
+E                           'line': 65,
+E                           'pattern': 'row_position',
+E                       },
+E                   },
+E                   'api/services/voice_deep_data_tools.py': {
+E                       'calls': [
+E                           {
+E                               'function': 'get_bars',
+E                               'line': 79,
+E                           },
+E                       ],
+E                       'classification': 'positional',
+E                       'evidence': {
+E                           'index': 4,
+E                           'line': 90,
+E                           'pattern': 'int-subscript',
+E                       },
+E                   },
+E                   'api/services/wisdom/core/stt.py': {
+E                       'calls': [
+E                           {
+E                               'function': 'get_bars_before',
+E                               'line': 104,
+E                           },
+E                       ],
+E                       'classification': 'positional',
+E                       'evidence': {
+E                           'index': 2,
+E                           'line': 88,
+E                           'pattern': 'int-subscript',
+E                       },
+E                   },
+E                   'api/services/wisdom/evals/bars_asof.py': {
+E                       'calls': [
+E                           {
+E                               'function': 'get_bars_before',
+E                               'line': 59,
+E                           },
+E                           {
+E                               'function': 'get_bars_since',
+E                               'line': 64,
+E                           },
+E                       ],
+E                       'classification': 'positional',
+E                       'evidence': {
+E                           'index': 1,
+E                           'line': 103,
+E                           'pattern': 'int-subscript',
+E                       },
+E                   },
+E                   'api/services/wisdom/publish/level_alerts.py': {
+E                       'calls': [
+E                           {
+E                               'function': 'get_bars_before',
+E                               'line': 38,
+E                           },
+E                       ],
+E                       'classification': 'positional',
+E                       'evidence': {
+E                           'index': 0,
+E                           'line': 119,
+E                           'pattern': 'int-subscript',
+E                       },
+E                   },
+E                   'api/services/wisdom/publish/lookalike.py': {
+E                       'calls': [
+E                           {
+E                               'function': 'get_bars_before',
+E                               'line': 51,
+E                           },
+E                       ],
+E                       'classification': 'positional',
+E                       'evidence': {
+E                           'index': 4,
+E                           'line': 62,
+E                           'pattern': 'int-subscript',
+E                       },
+E                   },
+E               },
+E         -     'modules_scanned': 1380,
+E         ?                           ^
+E         +     'modules_scanned': 1381,
+E         ?                           ^
+E               'schema_version': 1,
+E               'summary': {
+E                   'named_access': [
+E                       'api/services/ticker_returns.py',
+E                   ],
+E                   'named_access_count': 1,
+E                   'positional': [
+E                       'api/main.py',
+E                       'api/routers/ai_search.py',
+E                       'api/routers/backtest.py',
+E                       'api/routers/screener_backtest.py',
+E                       'api/routers/signature.py',
+E                       'api/services/adjustment_basis.py',
+E                       'api/services/audit.py',
+E                       'api/services/bars_fetch.py',
+E                       'api/services/bars_split_repair.py',
+E                       'api/services/barspack.py',
+E                       'api/services/desk_article_anchors.py',
+E                       'api/services/discord_render/symbols.py',
+E                       'api/services/indicator_alert_evaluator.py',
+E                       'api/services/journal_two/excursion_engine.py',
+E                       'api/services/pattern_engine/memory.py',
+E                       'api/services/pattern_vision/modelbook_examples.py',
+E                       'api/services/pattern_vision/orchestrator.py',
+E                       'api/services/research/ratings_universe.py',
+E                       'api/services/scan_gainers.py',
+E                       'api/services/scan_ipo.py',
+E                       'api/services/scan_volume.py',
+E                       'api/services/screener/scan_evaluator.py',
+E                       'api/services/screener/snapshot_builder.py',
+E                       'api/services/single_stock_etfs.py',
+E                       'api/services/theme_engine/comovement.py',
+E                       'api/services/theme_index.py',
+E                       'api/services/voice_deep_data_tools.py',
+E                       'api/services/wisdom/core/stt.py',
+E                       'api/services/wisdom/evals/bars_asof.py',
+E                       'api/services/wisdom/publish/level_alerts.py',
+E                       'api/services/wisdom/publish/lookalike.py',
+E                   ],
+E                   'positional_count': 31,
+E               },
+E               'what_this_is': 'D2 CP5 (closes F-D2-3) — a MODULE-LEVEL census of every api/** module '
+E               'that calls bars_sqlite.get_bars/get_bars_before/get_bars_since, '
+E               'classified as named_access (goes through address_book.row_position) or '
+E               'positional (a fixed-ordinal tuple unpack or integer-literal subscript '
+E               'found anywhere in the module). Detection only — no reader listed here was '
+E               'migrated or modified by this checkpoint.',
+E           }
+
+tests/test_bars_ordinal_census.py:88: AssertionError
+=============================== warnings summary ===============================
+../../../../../opt/hostedtoolcache/Python/3.12.14/x64/lib/python3.12/site-packages/starlette/testclient.py:40
+  /opt/hostedtoolcache/Python/3.12.14/x64/lib/python3.12/site-packages/starlette/testclient.py:40: DeprecationWarning: The anyio.abc.BlockingPortal alias is deprecated, use anyio.from_thread.BlockingPortal instead.
+    _PortalFactoryType = typing.Callable[[], typing.ContextManager[anyio.abc.BlockingPortal]]
+
+api/baselines.py:456
+  /home/runner/work/UCT-Dashboard/UCT-Dashboard/api/baselines.py:456: DeprecationWarning: datetime.datetime.utcnow() is deprecated and scheduled for removal in a future version. Use timezone-aware objects to represent datetimes in UTC: datetime.datetime.now(datetime.UTC).
+    _baselines_last_loaded = datetime.utcnow()
+
+tests/test_ast_tf_sym.py: 15 warnings
+  /home/runner/work/UCT-Dashboard/UCT-Dashboard/api/services/ast_interpret.py:312: DeprecationWarning: datetime.datetime.utcfromtimestamp() is deprecated and scheduled for removal in a future version. Use timezone-aware objects to represent datetimes in UTC: datetime.datetime.fromtimestamp(timestamp, datetime.UTC).
+    return datetime.datetime.utcfromtimestamp(n).strftime("%Y-%m-%d")
+
+tests/test_bars_cold_delta_window.py::test_a_cold_ticker_does_not_reach_back_to_1969
+tests/test_bars_cold_delta_window.py::test_a_cold_window_is_small_enough_that_the_vendor_accepts_it
+tests/test_bars_cold_delta_window.py::test_a_WARM_ticker_still_gets_its_full_heal_window
+tests/test_bars_delta_gapfill.py::test_delta_intraday_restores_interior_hole_but_not_stored_bars
+tests/test_bars_delta_gapfill.py::test_delta_intraday_clean_data_only_reemits_trailing_window
+tests/test_bars_delta_gapfill.py::test_delta_intraday_killswitch_disables_gapfill
+  /home/runner/work/UCT-Dashboard/UCT-Dashboard/api/services/bars_fetch.py:1504: DeprecationWarning: datetime.datetime.utcnow() is deprecated and scheduled for removal in a future version. Use timezone-aware objects to represent datetimes in UTC: datetime.datetime.now(datetime.UTC).
+    from_date = (datetime.utcnow() - timedelta(days=gap_days)).strftime("%Y-%m-%d")
+
+tests/test_bars_cold_delta_window.py::test_a_cold_ticker_does_not_reach_back_to_1969
+tests/test_bars_cold_delta_window.py::test_a_cold_window_is_small_enough_that_the_vendor_accepts_it
+tests/test_bars_cold_delta_window.py::test_a_WARM_ticker_still_gets_its_full_heal_window
+tests/test_bars_delta_gapfill.py::test_delta_intraday_restores_interior_hole_but_not_stored_bars
+tests/test_bars_delta_gapfill.py::test_delta_intraday_clean_data_only_reemits_trailing_window
+tests/test_bars_delta_gapfill.py::test_delta_intraday_killswitch_disables_gapfill
+  /home/runner/work/UCT-Dashboard/UCT-Dashboard/api/services/bars_fetch.py:1505: DeprecationWarning: datetime.datetime.utcnow() is deprecated and scheduled for removal in a future version. Use timezone-aware objects to represent datetimes in UTC: datetime.datetime.now(datetime.UTC).
+    to_date   = datetime.utcnow().strftime("%Y-%m-%d")
+
+tests/test_bars_cold_delta_window.py::test_a_cold_ticker_does_not_reach_back_to_1969
+  /home/runner/work/UCT-Dashboard/UCT-Dashboard/tests/test_bars_cold_delta_window.py:62: DeprecationWarning: datetime.datetime.utcnow() is deprecated and scheduled for removal in a future version. Use timezone-aware objects to represent datetimes in UTC: datetime.datetime.now(datetime.UTC).
+    assert year >= _dt.datetime.utcnow().year - 1, f"from_date {d} is unbounded"
+
+tests/test_bars_cold_delta_window.py::test_a_cold_window_is_small_enough_that_the_vendor_accepts_it
+  /home/runner/work/UCT-Dashboard/UCT-Dashboard/tests/test_bars_cold_delta_window.py:72: DeprecationWarning: datetime.datetime.utcnow() is deprecated and scheduled for removal in a future version. Use timezone-aware objects to represent datetimes in UTC: datetime.datetime.now(datetime.UTC).
+    span_days = (_dt.datetime.utcnow() - start).days
+
+tests/test_bars_cold_delta_window.py::test_a_WARM_ticker_still_gets_its_full_heal_window
+  /home/runner/work/UCT-Dashboard/UCT-Dashboard/tests/test_bars_cold_delta_window.py:79: DeprecationWarning: datetime.datetime.utcnow() is deprecated and scheduled for removal in a future version. Use timezone-aware objects to represent datetimes in UTC: datetime.datetime.now(datetime.UTC).
+    eight_days_ago = int(_dt.datetime.utcnow().timestamp()) - 8 * 86400
+
+tests/test_bars_cold_delta_window.py::test_a_WARM_ticker_still_gets_its_full_heal_window
+  /home/runner/work/UCT-Dashboard/UCT-Dashboard/tests/test_bars_cold_delta_window.py:83: DeprecationWarning: datetime.datetime.utcnow() is deprecated and scheduled for removal in a future version. Use timezone-aware objects to represent datetimes in UTC: datetime.datetime.now(datetime.UTC).
+    span_days = (_dt.datetime.utcnow() - start).days
+
+tests/test_bars_coverage.py::test_coverage_stats_probes_freshness_by_list
+tests/test_bars_data_auth.py::test_the_tier_admits_the_SERVICE_TOKEN_on_the_gated_route
+  /home/runner/work/UCT-Dashboard/UCT-Dashboard/api/services/bars_sqlite.py:320: DeprecationWarning: datetime.datetime.utcnow() is deprecated and scheduled for removal in a future version. Use timezone-aware objects to represent datetimes in UTC: datetime.datetime.now(datetime.UTC).
+    cutoff = int((datetime.utcnow() - timedelta(days=fresh_within_days)).strftime("%Y%m%d"))
+
+tests/test_bars_data_auth.py: 50 warnings
+  /opt/hostedtoolcache/Python/3.12.14/x64/lib/python3.12/site-packages/starlette/testclient.py:484: DeprecationWarning: Setting per-request cookies=<...> is being deprecated, because the expected behaviour on cookie persistence is ambiguous. Set cookies directly on the client instance instead.
+    return super().request(
+
+tests/test_bars_data_auth.py::test_every_ENTITLED_class_reaches_the_data[AAPL-admin]
+tests/test_bars_data_auth.py::test_every_ENTITLED_class_reaches_the_data[QQQ-admin]
+  /home/runner/work/UCT-Dashboard/UCT-Dashboard/api/services/bars_fetch.py:1742: DeprecationWarning: datetime.datetime.utcnow() is deprecated and scheduled for removal in a future version. Use timezone-aware objects to represent datetimes in UTC: datetime.datetime.now(datetime.UTC).
+    to_date = datetime.utcnow().strftime("%Y-%m-%d")
+
+tests/test_bars_data_auth.py::test_every_ENTITLED_class_reaches_the_data[AAPL-admin]
+tests/test_bars_data_auth.py::test_every_ENTITLED_class_reaches_the_data[QQQ-admin]
+  /home/runner/work/UCT-Dashboard/UCT-Dashboard/api/services/bars_fetch.py:1745: DeprecationWarning: datetime.datetime.utcnow() is deprecated and scheduled for removal in a future version. Use timezone-aware objects to represent datetimes in UTC: datetime.datetime.now(datetime.UTC).
+    from_date = (datetime.utcnow() - timedelta(days=lookback)).strftime("%Y-%m-%d")
+
+tests/test_bars_fetch_validation_wired.py::test_production_inner_invokes_fetch_with_validation_on_cold_fetch
+tests/test_bars_fetch_validation_wired.py::test_production_path_returns_empty_when_all_sources_corrupt
+tests/test_bars_fetch_validation_wired.py::test_production_path_returns_empty_when_all_sources_corrupt_tf60
+  /home/runner/work/UCT-Dashboard/UCT-Dashboard/api/services/bars_fetch.py:1155: DeprecationWarning: datetime.datetime.utcnow() is deprecated and scheduled for removal in a future version. Use timezone-aware objects to represent datetimes in UTC: datetime.datetime.now(datetime.UTC).
+    age_days = (datetime.utcnow().timestamp() - last_ts) / 86400
+
+tests/test_bars_server_timing.py::test_layer_stale_swr_on_daily_rows
+tests/test_bars_server_timing.py::test_layer_stale_swr_on_daily_rows
+  /home/runner/work/UCT-Dashboard/UCT-Dashboard/api/services/bars_fetch.py:366: DeprecationWarning: datetime.datetime.utcnow() is deprecated and scheduled for removal in a future version. Use timezone-aware objects to represent datetimes in UTC: datetime.datetime.now(datetime.UTC).
+    d = datetime.utcnow()
+
+tests/test_bars_server_timing.py::test_layer_stale_swr_on_daily_rows
+  /home/runner/work/UCT-Dashboard/UCT-Dashboard/api/services/bars_fetch.py:1332: DeprecationWarning: datetime.datetime.utcnow() is deprecated and scheduled for removal in a future version. Use timezone-aware objects to represent datetimes in UTC: datetime.datetime.now(datetime.UTC).
+    from_date = (datetime.utcnow() - timedelta(days=days)).strftime("%Y-%m-%d")
+
+tests/test_bars_server_timing.py::test_layer_stale_swr_on_daily_rows
+  /home/runner/work/UCT-Dashboard/UCT-Dashboard/api/services/bars_fetch.py:1333: DeprecationWarning: datetime.datetime.utcnow() is deprecated and scheduled for removal in a future version. Use timezone-aware objects to represent datetimes in UTC: datetime.datetime.now(datetime.UTC).
+    to_date   = datetime.utcnow().strftime("%Y-%m-%d")
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+- generated xml file: /home/runner/work/UCT-Dashboard/UCT-Dashboard/pytest-junit.xml -
+=========================== short test summary info ============================
+SKIPPED [1] tests/test_ast_conformance.py:663: Task 4 has landed; this rail is superseded by --check
+SKIPPED [1] tests/test_ast_conformance.py:670: Task 5 has landed; this rail is superseded by --check
+SKIPPED [1] tests/test_ast_conformance.py:785: both lanes exist; Task 5 owns --record from here
+SKIPPED [1] tests/test_ast_conformance.py:791: the conformance log exists; --check is the real gate now
+SKIPPED [1] tests/test_ast_conformance.py:898: a guarded interpreter exists; Task 6 owns this exit code
+FAILED tests/test_bars_ordinal_census.py::test_bars_ordinal_census_matches_a_fresh_derivation - AssertionError: the checked-in census is stale — regenerate with `python tools/bars_ordinal_census.py`
+assert {'bars_family...d': 1381, ...} == {'bars_family...d': 1380, ...}
+  
+  Omitting 6 identical items, use -vv to show
+  Differing items:
+  {'modules_scanned': 1381} != {'modules_scanned': 1380}
+  
+  Full diff:
+    {
+        'bars_family_functions': [
+            'get_bars',
+            'get_bars_before',
+            'get_bars_since',
+        ],
+        'generated_by': 'tools/bars_ordinal_census.py',
+        'modules': {
+            'api/main.py': {
+                'calls': [
+                    {
+                        'function': 'get_bars',
+                        'line': 392,
+                    },
+                    {
+                        'function': 'get_bars',
+                        'line': 565,
+                    },
+                    {
+                        'function': 'get_bars',
+                        'line': 583,
+                    },
+                    {
+                        'function': 'get_bars',
+                        'line': 4256,
+                    },
+                ],
+                'classification': 'positional',
+                'evidence': {
+                    'index': 0,
+                    'line': 399,
+                    'pattern': 'int-subscript',
+                },
+            },
+            'api/routers/ai_search.py': {
+                'calls': [
+                    {
+                        'function': 'get_bars_before',
+                        'line': 1489,
+                    },
+                ],
+                'classification': 'positional',
+                'evidence': {
+                    'index': 1,
+                    'line': 859,
+                    'pattern': 'int-subscript',
+                },
+            },
+            'api/routers/backtest.py': {
+                'calls': [
+                    {
+                        'function': 'get_bars',
+                        'line': 65,
+                    },
+                ],
+                'classification': 'positional',
+                'evidence': {
+                    'index': 0,
+                    'line': 68,
+                    'pattern': 'int-subscript',
+                },
+            },
+            'api/routers/screener_backtest.py': {
+                'calls': [
+                    {
+                        'function': 'get_bars_before',
+                        'line': 680,
+                    },
+                ],
+                'classification': 'positional',
+                'evidence': {
+                    'delegate': '_fmt_sqlite_bars',
+                    'line': 697,
+                    'pattern': 'known-positional-delegate',
+                },
+            },
+            'api/routers/signature.py': {
+                'calls': [
+                    {
+                        'function': 'get_bars',
+                        'line': 241,
+                    },
+                    {
+                        'function': 'get_bars',
+                        'line': 828,
+                    },
+                ],
+                'classification': 'positional',
+                'evidence': {
+                    'index': 0,
+                    'line': 245,
+                    'pattern': 'int-subscript',
+                },
+            },
+            'api/services/adjustment_basis.py': {
+                'calls': [
+                    {
+                        'function': 'get_bars',
+                        'line': 86,
+                    },
+                ],
+                'classification': 'positional',
+                'evidence': {
+                    'index': 0,
+                    'line': 84,
+                    'pattern': 'int-subscript',
+                },
+            },
+            'api/services/audit.py': {
+                'calls': [
+                    {
+                        'function': 'get_bars',
+                        'line': 394,
+                    },
+                ],
+                'classification': 'positional',
+                'evidence': {
+                    'index': 0,
+                    'line': 349,
+                    'pattern': 'int-subscript',
+                },
+            },
+            'api/services/bars_fetch.py': {
+                'calls': [
+                    {
+                        'function': 'get_bars_since',
+                        'line': 220,
+                    },
+                    {
+                        'function': 'get_bars',
+                        'line': 1182,
+                    },
+                    {
+                        'function': 'get_bars_since',
+                        'line': 1514,
+                    },
+                    {
+                        'function': 'get_bars',
+                        'line': 1986,
+                    },
+                    {
+                        'function': 'get_bars_before',
+                        'line': 2064,
+                    },
+                    {
+                        'function': 'get_bars_before',
+                        'line': 2083,
+                    },
+                    {
+                        'function': 'get_bars_before',
+                        'line': 2143,
+                    },
+                    {
+                        'function': 'get_bars_before',
+                        'line': 2207,
+                    },
+                    {
+                        'function': 'get_bars_since',
+                        'line': 2328,
+                    },
+                    {
+                        'function': 'get_bars',
+                        'line': 2332,
+                    },
+                    {
+                        'function': 'get_bars',
+                        'line': 2712,
+                    },
+                    {
+                        'function': 'get_bars',
+                        'line': 2759,
+                    },
+                    {
+                        'function': 'get_bars',
+                        'line': 2844,
+                    },
+                    {
+                        'function': 'get_bars',
+                        'line': 2909,
+                    },
+                    {
+                        'function': 'get_bars',
+                        'line': 3003,
+                    },
+                    {
+                        'function': 'get_bars',
+                        'line': 3121,
+                    },
+                ],
+                'classification': 'positional',
+                'evidence': {
+                    'index': 0,
+                    'line': 220,
+                    'pattern': 'int-subscript',
+                },
+            },
+            'api/services/bars_split_repair.py': {
+                'calls': [
+                    {
+                        'function': 'get_bars',
+                        'line': 89,
+                    },
+                ],
+                'classification': 'positional',
+                'evidence': {
+                    'index': 0,
+                    'line': 92,
+                    'pattern': 'int-subscript',
+                },
+            },
+            'api/services/barspack.py': {
+                'calls': [
+                    {
+                        'function': 'get_bars',
+                        'line': 328,
+                    },
+                ],
+                'classification': 'positional',
+                'evidence': {
+                    'delegate': '_fmt_sqlite_bars',
+                    'line': 340,
+                    'pattern': 'known-positional-delegate',
+                },
+            },
+            'api/services/desk_article_anchors.py': {
+                'calls': [
+                    {
+                        'function': 'get_bars_before',
+                        'line': 48,
+                    },
+                ],
+                'classification': 'positional',
+                'evidence': {
+                    'index': 4,
+                    'line': 52,
+                    'pattern': 'int-subscript',
+                },
+            },
+            'api/services/discord_render/symbols.py': {
+                'calls': [
+                    {
+                        'function': 'get_bars',
+                        'line': 55,
+                    },
+                ],
+                'classification': 'positional',
+                'evidence': {
+                    'index': 1,
+                    'line': 151,
+                    'pattern': 'int-subscript',
+                },
+            },
+            'api/services/indicator_alert_evaluator.py': {
+                'calls': [
+                    {
+                        'function': 'get_bars',
+                        'line': 1104,
+                    },
+                ],
+                'classification': 'positional',
+                'evidence': {
+                    'index': 0,
+                    'line': 838,
+                    'pattern': 'int-subscript',
+                },
+            },
+            'api/services/journal_two/excursion_engine.py': {
+                'calls': [
+                    {
+                        'function': 'get_bars',
+                        'line': 170,
+                    },
+                ],
+                'classification': 'positional',
+                'evidence': {
+                    'index': 4,
+                    'line': 85,
+                    'pattern': 'int-subscript',
+                },
+            },
+            'api/services/pattern_engine/memory.py': {
+                'calls': [
+                    {
+                        'function': 'get_bars_since',
+                        'line': 328,
+                    },
+                ],
+                'classification': 'positional',
+                'evidence': {
+                    'line': 346,
+                    'pattern': 'assign-unpack',
+                    'size': 6,
+                },
+            },
+            'api/services/pattern_vision/modelbook_examples.py': {
+                'calls': [
+                    {
+                        'function': 'get_bars',
+                        'line': 79,
+                    },
+                ],
+                'classification': 'positional',
+                'evidence': {
+                    'index': 0,
+                    'line': 85,
+                    'pattern': 'int-subscript',
+                },
+            },
+            'api/services/pattern_vision/orchestrator.py': {
+                'calls': [
+                    {
+                        'function': 'get_bars',
+                        'line': 53,
+                    },
+                ],
+                'classification': 'positional',
+                'evidence': {
+                    'index': 0,
+                    'line': 60,
+                    'pattern': 'int-subscript',
+                },
+            },
+            'api/services/research/ratings_universe.py': {
+                'calls': [
+                    {
+                        'function': 'get_bars',
+                        'line': 68,
+                    },
+                ],
+                'classification': 'positional',
+                'evidence': {
+                    'index': 4,
+                    'line': 70,
+                    'pattern': 'int-subscript',
+                },
+            },
+            'api/services/scan_gainers.py': {
+                'calls': [
+                    {
+                        'function': 'get_bars',
+                        'line': 72,
+                    },
+                ],
+                'classification': 'positional',
+                'evidence': {
+                    'delegate': '_fmt_sqlite_bars',
+                    'line': 75,
+                    'pattern': 'known-positional-delegate',
+                },
+            },
+            'api/services/scan_ipo.py': {
+                'calls': [
+                    {
+                        'function': 'get_bars',
+                        'line': 49,
+                    },
+                ],
+                'classification': 'positional',
+                'evidence': {
+                    'delegate': '_fmt_sqlite_bars',
+                    'line': 52,
+                    'pattern': 'known-positional-delegate',
+                },
+            },
+            'api/services/scan_volume.py': {
+                'calls': [
+                    {
+                        'function': 'get_bars',
+                        'line': 125,
+                    },
+                ],
+                'classification': 'positional',
+                'evidence': {
+                    'index': 0,
+                    'line': 133,
+                    'pattern': 'int-subscript',
+                },
+            },
+            'api/services/screener/scan_evaluator.py': {
+                'calls': [
+                    {
+                        'function': 'get_bars',
+                        'line': 969,
+                    },
+                ],
+                'classification': 'positional',
+                'evidence': {
+                    'index': 0,
+                    'line': 645,
+                    'pattern': 'int-subscript',
+                },
+            },
+            'api/services/screener/snapshot_builder.py': {
+                'calls': [
+                    {
+                        'function': 'get_bars',
+                        'line': 587,
+                    },
+                    {
+                        'function': 'get_bars',
+                        'line': 614,
+                    },
+                ],
+                'classification': 'positional',
+                'evidence': {
+                    'index': 0,
+                    'line': 591,
+                    'pattern': 'int-subscript',
+                },
+            },
+            'api/services/single_stock_etfs.py': {
+                'calls': [
+                    {
+                        'function': 'get_bars',
+                        'line': 312,
+                    },
+                ],
+                'classification': 'positional',
+                'evidence': {
+                    'index': 0,
+                    'line': 215,
+                    'pattern': 'int-subscript',
+                },
+            },
+            'api/services/theme_engine/comovement.py': {
+                'calls': [
+                    {
+                        'function': 'get_bars',
+                        'line': 13,
+                    },
+                ],
+                'classification': 'positional',
+                'evidence': {
+                    'index': 4,
+                    'line': 14,
+                    'pattern': 'int-subscript',
+                },
+            },
+            'api/services/theme_index.py': {
+                'calls': [
+                    {
+                        'function': 'get_bars',
+                        'line': 65,
+                    },
+                ],
+                'classification': 'positional',
+                'evidence': {
+                    'index': 0,
+                    'line': 69,
+                    'pattern': 'int-subscript',
+                },
+            },
+            'api/services/ticker_returns.py': {
+                'calls': [
+                    {
+                        'function': 'get_bars_before',
+                        'line': 78,
+                    },
+                    {
+                        'function': 'get_bars_since',
+                        'line': 84,
+                    },
+                ],
+                'classification': 'named_access',
+                'evidence': {
+                    'line': 65,
+                    'pattern': 'row_position',
+                },
+            },
+            'api/services/voice_deep_data_tools.py': {
+                'calls': [
+                    {
+                        'function': 'get_bars',
+                        'line': 79,
+                    },
+                ],
+                'classification': 'positional',
+                'evidence': {
+                    'index': 4,
+                    'line': 90,
+                    'pattern': 'int-subscript',
+                },
+            },
+            'api/services/wisdom/core/stt.py': {
+                'calls': [
+                    {
+                        'function': 'get_bars_before',
+                        'line': 104,
+                    },
+                ],
+                'classification': 'positional',
+                'evidence': {
+                    'index': 2,
+                    'line': 88,
+                    'pattern': 'int-subscript',
+                },
+            },
+            'api/services/wisdom/evals/bars_asof.py': {
+                'calls': [
+                    {
+                        'function': 'get_bars_before',
+                        'line': 59,
+                    },
+                    {
+                        'function': 'get_bars_since',
+                        'line': 64,
+                    },
+                ],
+                'classification': 'positional',
+                'evidence': {
+                    'index': 1,
+                    'line': 103,
+                    'pattern': 'int-subscript',
+                },
+            },
+            'api/services/wisdom/publish/level_alerts.py': {
+                'calls': [
+                    {
+                        'function': 'get_bars_before',
+                        'line': 38,
+                    },
+                ],
+                'classification': 'positional',
+                'evidence': {
+                    'index': 0,
+                    'line': 119,
+                    'pattern': 'int-subscript',
+                },
+            },
+            'api/services/wisdom/publish/lookalike.py': {
+                'calls': [
+                    {
+                        'function': 'get_bars_before',
+                        'line': 51,
+                    },
+                ],
+                'classification': 'positional',
+                'evidence': {
+                    'index': 4,
+                    'line': 62,
+                    'pattern': 'int-subscript',
+                },
+            },
+        },
+  -     'modules_scanned': 1380,
+  ?                           ^
+  +     'modules_scanned': 1381,
+  ?                           ^
+        'schema_version': 1,
+        'summary': {
+            'named_access': [
+                'api/services/ticker_returns.py',
+            ],
+            'named_access_count': 1,
+            'positional': [
+                'api/main.py',
+                'api/routers/ai_search.py',
+                'api/routers/backtest.py',
+                'api/routers/screener_backtest.py',
+                'api/routers/signature.py',
+                'api/services/adjustment_basis.py',
+                'api/services/audit.py',
+                'api/services/bars_fetch.py',
+                'api/services/bars_split_repair.py',
+                'api/services/barspack.py',
+                'api/services/desk_article_anchors.py',
+                'api/services/discord_render/symbols.py',
+                'api/services/indicator_alert_evaluator.py',
+                'api/services/journal_two/excursion_engine.py',
+                'api/services/pattern_engine/memory.py',
+                'api/services/pattern_vision/modelbook_examples.py',
+                'api/services/pattern_vision/orchestrator.py',
+                'api/services/research/ratings_universe.py',
+                'api/services/scan_gainers.py',
+                'api/services/scan_ipo.py',
+                'api/services/scan_volume.py',
+                'api/services/screener/scan_evaluator.py',
+                'api/services/screener/snapshot_builder.py',
+                'api/services/single_stock_etfs.py',
+                'api/services/theme_engine/comovement.py',
+                'api/services/theme_index.py',
+                'api/services/voice_deep_data_tools.py',
+                'api/services/wisdom/core/stt.py',
+                'api/services/wisdom/evals/bars_asof.py',
+                'api/services/wisdom/publish/level_alerts.py',
+                'api/services/wisdom/publish/lookalike.py',
+            ],
+            'positional_count': 31,
+        },
+        'what_this_is': 'D2 CP5 (closes F-D2-3) — a MODULE-LEVEL census of every api/** module '
+        'that calls bars_sqlite.get_bars/get_bars_before/get_bars_since, '
+        'classified as named_access (goes through address_book.row_position) or '
+        'positional (a fixed-ordinal tuple unpack or integer-literal subscript '
+        'found anywhere in the module). Detection only — no reader listed here was '
+        'migrated or modified by this checkpoint.',
+    }
+1 failed, 1692 passed, 5 skipped, 96 warnings in 124.40s (0:02:04)

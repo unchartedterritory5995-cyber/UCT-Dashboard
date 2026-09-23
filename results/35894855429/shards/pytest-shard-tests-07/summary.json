@@ -1,0 +1,17 @@
+{
+  "suite": "pytest",
+  "collected": 1987,
+  "passed": 1968,
+  "failed": 18,
+  "errored": 0,
+  "skipped": 1,
+  "wall_s": 588.03,
+  "failed_files": [
+    "tests/test_fundamentals_snapshot_store.py",
+    "tests/test_implied_backfill.py",
+    "tests/test_launch_hardening.py"
+  ],
+  "totals_line_found": true,
+  "runner_line": "18 failed, 1968 passed, 1 skipped, 14 warnings in 588.03s (0:09:48)",
+  "ok": true
+}
