@@ -133,24 +133,47 @@ describe('⛔⛔ Trendlines — KNOWN DIVERGENCE, root cause located', () => {
   // vendor's LEFT anchor, on every line. A vaguer "the dates differ" would pass
   // for any wrong answer; this one passes only for THIS wrong answer, so the
   // day the runtime lane gets the transform, it fails and says so.
-  it('⛔ our RIGHT anchor is exactly the vendor\'s LEFT anchor, on every line', () => {
+  it('⭐⭐ EVERY LINE MATCHES — same two dates and both prices, 5 of 5', () => {
     const { st } = runScript('corpus/committed/trendlines__43QQg9nDN0.pine', DEEP)
-    const ourRights = new Set((st.lines || []).map((l) => dateOf(l.x2)))
-    expect(ourRights.size, 'we drew no trendlines at all').toBeGreaterThan(0)
+    const ours = (st.lines || []).map((l) => ({
+      left: dateOf(l.x1), right: dateOf(l.x2), y1: l.y1, y2: l.y2,
+    }))
+    expect(ours.length, 'we drew no trendlines at all').toBeGreaterThan(0)
 
-    const vendorLefts = V.scripts.trendlines.lines.map((l) => l[0])
-    expect(vendorLefts.length).toBe(5)
+    // ⛔ THE TOLERANCE IS DERIVED FROM THE CAPTURE, NEVER TYPED. The vendor
+    // transported 4 decimal places (696.2546); our y2 is 696.2545714…, and the
+    // difference is the ROUNDING IN THE CAPTURE, not a disagreement. A typed
+    // `0.001` would survive a ten-fold loosening and prove nothing.
+    const places = Math.max(...V.scripts.trendlines.lines
+      .flatMap((l) => [l[2], l[3]])
+      .map((p) => (String(p).split('.')[1] || '').length))
+    expect(places, 'the capture carries no decimals — the tolerance below is '
+      + 'derived from them').toBeGreaterThan(0)
+    const tol = (10 ** -places) / 2
 
-    const matched = vendorLefts.filter((d) => ourRights.has(d))
-    expect(matched, 'the anchor offset changed shape — re-measure rather than '
-      + 'adjusting this rail').toEqual(vendorLefts)
+    const byLeft = new Map(ours.map((o) => [o.left, o]))
+    for (const [left, right, y1, y2] of V.scripts.trendlines.lines) {
+      const o = byLeft.get(left)
+      expect(o, `no line of ours starts at ${left}`).toBeTruthy()
+      expect(o.right, `${left}: right anchor`).toBe(right)
+      expect(Math.abs(o.y1 - y1), `${left}: y1 ${o.y1} vs ${y1}`).toBeLessThanOrEqual(tol)
+      expect(Math.abs(o.y2 - y2), `${left}: y2 ${o.y2} vs ${y2}`).toBeLessThanOrEqual(tol)
+    }
 
-    // ⛔ AND WE DO NOT ALREADY AGREE: if any of our right anchors equalled a
-    // vendor RIGHT anchor, the divergence would be partly closed and this case
-    // would be describing a chart that no longer exists.
-    const vendorRights = new Set(V.scripts.trendlines.lines.map((l) => l[1]))
-    expect([...ourRights].filter((d) => vendorRights.has(d)),
-      'some anchors now agree with the vendor — this divergence is closing, '
-      + 'update it instead of leaving a stale description').toEqual([])
+    // ⛔ AND THE TOLERANCE CANNOT HIDE A REAL ERROR — one pivot span is 15
+    // sessions of price, thousands of times this bound.
+    expect(tol).toBeLessThan(0.001)
+
+    // ⚠️ WE DRAW ONE MORE LINE THAN THEY DO, AND THAT IS THE WINDOW, NOT A
+    // DEFECT. This case runs 600 bars so every pivot can form; the vendor
+    // transported 300, starting 2025-07-15. Our extra line is older than their
+    // first bar. Asserting equal COUNTS would be asserting they captured a
+    // window they did not.
+    const earliest = V.scripts.trendlines.lines[0][0]
+    for (const o of ours) {
+      if (byLeft.get(o.left) === o && V.scripts.trendlines.lines.some((l) => l[0] === o.left)) continue
+      expect(o.left < earliest, `we drew an unmatched line at ${o.left}, inside `
+        + 'the vendor\'s window — that is a real extra, not a deeper history').toBe(true)
+    }
   })
 })

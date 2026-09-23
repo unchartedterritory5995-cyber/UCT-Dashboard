@@ -5100,6 +5100,10 @@ export class Resolver {
       // is not a name the member failed to define.
       const clockKey = engineClockKeyFor(name)
       if (clockKey) {
+        // ⭐ AN EXACT RECONCILIATION BEATS THE REFUSAL, and only for a source
+        // that declares a `//@version` — see `clockTransformFor`.
+        const reconciled = clockTransformFor(name, this.pineVersion)
+        if (reconciled) return reconciled
         if (own(PINE_CLOCK_MISMATCH, name)) {
           throw new PineRefusal('pine:builtin',
             `\`${name}\` is ${PINE_CLOCK_MISMATCH[name]}`, locate(tok))
@@ -6974,6 +6978,14 @@ export class Resolver {
     // for a column we compute).
     const clockKey = engineClockKeyFor(name)
     if (clockKey) {
+      // ⭐ THE SAME RECONCILIATION, AT THE SECOND DOOR — and it is the SAME
+      // FUNCTION, not a second copy of the rule. Both sites resolve a clock
+      // name and both must answer identically; a transform applied at one of
+      // two resolution paths is the `lesson_rail_the_mirror_not_just_the_lane`
+      // shape, and RC-E in `PARITY-ROOT-CAUSE.md` is this programme paying for
+      // exactly that (RC-A reached one lane of two).
+      const reconciled = clockTransformFor(name, this.pineVersion)
+      if (reconciled) return reconciled
       if (own(PINE_CLOCK_MISMATCH, name)) {
         throw new PineRefusal('pine:builtin',
           `\`${name}\` is ${PINE_CLOCK_MISMATCH[name]}`, locate(node.tok))
@@ -9080,6 +9092,50 @@ const PINE_CLOCK_MISMATCH = Object.freeze({
     + '`time` is SECONDS — a thousand-fold difference that would compare true '
     + 'against no literal a member wrote, on every bar, without ever looking wrong',
 })
+
+/** ⭐⭐ A MISMATCH THAT IS EXACTLY RECONCILABLE, FOR A SCRIPT SPEAKING PINE.
+ *
+ *  ⛔ THE REFUSAL ABOVE STAYS RIGHT, AND THIS DOES NOT SOFTEN IT. Binding a
+ *  Pine name to an engine column on SPELLING alone is a silent mistranslation —
+ *  the one outcome worse than refusing. What this adds is the case where the
+ *  difference is not merely known but *closed*: our `clock.time` is whole
+ *  SECONDS, so `time * 1000` IS Pine's millisecond value with nothing lost and
+ *  nothing assumed. A conversion that is exact is a translation; a conversion
+ *  that is approximate would be this map's first bug, so nothing approximate
+ *  belongs here.
+ *
+ *  ⛔⛔ AND IT IS GATED ON THE SCRIPT SPEAKING PINE AT ALL. `time` is a name in
+ *  BOTH vocabularies: in the formula box it is OUR column and means seconds, so
+ *  applying the factor there would multiply a member's own data by a thousand
+ *  under their own name. The discriminator is the `//@version` pragma — exactly
+ *  the one `LEGACY_BARE_NAMESPACE` uses for bare `pivothigh`, and for the same
+ *  reason: ONE NAME TABLE SERVING TWO LANGUAGES. A versionless source keeps the
+ *  refusal untouched; widening it to the box is a decision about the box, and
+ *  the measurement that motivated this (5 corpus scripts, all Pine) says
+ *  nothing about the box.
+ *
+ *  ⚠️ UNLIKE THE BARE-NAMESPACE RULE, THIS IS NOT VERSION-RANGED. Pine's `time`
+ *  has been milliseconds since v1, so the test is "is this Pine" and not "which
+ *  Pine" — writing `<= 4` here would silently drop v5 and v6 scripts back onto
+ *  the refusal. */
+const PINE_CLOCK_TRANSFORM = Object.freeze({
+  time: () => cOp('*', [cSeries('time'), cNum(1000)]),
+})
+
+/** The reconciliation decision, in ONE place because there are TWO doors.
+ *
+ *  ⛔⛔ IT WAS WRITTEN TWICE FIRST, AND THE MUTATION RUN CAUGHT IT. Deleting
+ *  the `pineVersion !== null` guard from one copy left every test GREEN: the
+ *  versionless case only ever reaches the other door, so half the gate was
+ *  unproved and would have stayed that way. `lesson_a_guard_repeated_is_a_
+ *  guard_unproved` — delete every copy but one, because three cannot be
+ *  mutation-proved and two could not be either.
+ *
+ *  @returns the reconciled tree, or `null` to leave the caller's own path alone. */
+const clockTransformFor = (name, pineVersion) => (
+  pineVersion !== null && own(PINE_CLOCK_TRANSFORM, name)
+    ? PINE_CLOCK_TRANSFORM[name]()
+    : null)
 
 function engineClockKeyFor(name) {
   const clock = (TABLE && TABLE.clock) || {}

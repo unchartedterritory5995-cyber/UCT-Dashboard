@@ -20,16 +20,19 @@ Captures: `tests/fixtures/vendor/visual/fvg-boxes-spy-1d-2026-09-22.json`,
 ⭐ **That table is the 2026-09-23 MEASUREMENT and is left as measured.** All five have
 since been **re-measured against the same pinned captures** — no browser needed, because
 the vendor's side does not change when ours does, so re-running our engine against a
-stored capture is a real comparison and not a re-render of our own work. Rails:
-`fvgVendorParity.test.js`, `twoVendorParity.test.js`.
+stored capture is a real comparison and not a re-render of our own work. Rails: `fvgVendorParity.test.js`, `twoVendorParity.test.js`.
 
-| indicator | after RC-A → RC-D |
+⭐⭐ **Every indicator that CAN be compared now agrees with TradingView.** The one
+remaining row is `request.security`, which is a missing data feed rather than a
+translation defect.
+
+| indicator | after RC-A → RC-F |
 |---|---|
 | Market Structure | ⭐⭐ was already exact |
 | Fair Value Gaps | ⭐⭐ **both divergences closed** — same bars, same prices, same live box count, same forward edges |
 | Inside Bar Range | ⭐ was already exact on both rails |
 | Liquidity Pools | ⭐⭐ **zero overlap → 86 lines / 43 labels against the vendor's 90 / 45, same window.** The 4-and-2 shortfall is our bar fixture ending 2026-09-13 against their 2026-09-22 — nine sessions, two more pools, exactly 4 lines and 2 labels |
-| Trendlines | ⛔ **STILL ONE PIVOT SPAN EARLY** — root cause located below, not yet fixed |
+| Trendlines | ⭐⭐ **EXACT** — all 5 lines, same dates, both prices to the capture's own precision (RC-E) |
 | 4C NYSE Breadth | ⚠️ unchanged — `request.security` has no feed here |
 
 ---
@@ -285,7 +288,77 @@ lines and 2 labels.
 
 ## RC-E — RC-A was applied to one lane of two
 
-**Status: LOCATED, NOT FIXED.** This is why Trendlines is still wrong.
+**Status: FIXED.** ⭐⭐ **And the fix was ONE ARGUMENT.**
+
+`pineRuntimeFrontend.js` built both of its resolvers as
+
+```js
+new Resolver(env, TABLE, new Map(), {})     // ← an EMPTY options object
+```
+
+so `pineVersion` was `null` in the lane that draws, and **every
+version-conditional rule in `pine.js` silently answered "this is not Pine"**.
+Not a wrong answer to a hard question — no question asked at all.
+
+⛔ **The cost was a look-ahead defect on a live chart.** Bare `pivothigh` in a
+`//@version=4` script kept resolving to the house column, which emits ON the
+pivot bar instead of at the confirmation bar `right` bars later, so every
+trendline sat one pivot span early against TradingView — with RC-A's own rail
+green, one lane over.
+
+⭐ **The version is read from the lex, not re-detected.** `lexed.version` is the
+pragma the source actually carries; a second scan would be a second authority
+over one value.
+
+**Measured result — Trendlines is EXACT:** all five of TradingView's lines, same
+left date, same right date, both prices agreeing to the capture's own four
+decimal places. We draw one additional line, older than the vendor's first
+captured bar, because this comparison runs 600 bars so every pivot can form.
+
+⚰️ **The lesson is the one this document keeps re-learning, now in its sharpest
+form:** RC-A was verified through `translatePine`, which is a real verification
+of a real lane, and it was not a verification of the product. *A fix is only as
+wide as the lane you measured it in* — and the same omission then swallowed the
+`time` reconciliation below on its first run, with the corpus census moving by
+exactly zero.
+
+---
+
+## RC-F — a unit that differs is not a name that is missing
+
+**Status: FIXED.**
+
+Pine's `time` is **milliseconds** since 1970; `closedTable.json::clock.time` is
+**seconds**. The engine held the column, under the same spelling, and refused to
+bind it — with a refusal that named the difference precisely:
+
+> "a thousand-fold difference that would compare true against no literal a
+> member wrote, on every bar, without ever looking wrong"
+
+⭐⭐ **That refusal was right and is not softened.** Binding on SPELLING alone
+would have been a silent mistranslation, which is worse than refusing. What
+changed is that the difference is **exactly reconcilable**: our seconds are
+whole seconds, so `time * 1000` is Pine's value with nothing lost and nothing
+assumed. An exact conversion is a translation; an approximate one would be this
+map's first bug, so nothing approximate belongs in it.
+
+⛔ **Gated on the source speaking Pine at all.** `time` is a name in BOTH
+vocabularies — in the formula box it is OUR column, in seconds — so the
+discriminator is the `//@version` pragma, exactly as for bare `pivothigh`. A
+versionless source keeps the refusal untouched. ⚠️ Binding it there as seconds
+would probably be right and is **deliberately not done**: that is a change to
+the formula box, with the screener downstream of it, and the measurement that
+motivated this (5 corpus scripts, all Pine) says nothing about the box.
+
+⛔ **The gate is ONE function, because it was written twice first and the
+mutation run caught it.** Deleting the version check from one of the two
+resolution doors left every test green — the versionless case only ever reaches
+the other door, so half the gate was unproved
+(`lesson_a_guard_repeated_is_a_guard_unproved`).
+
+**Corpus movement: `runtime/pine:builtin` 16 → 12.** Four scripts past that
+blocker, all to their next one. The drawing count did not change, which is the
+pattern this programme has measured repeatedly and should expect.
 
 RC-A resolves a bare `pivothigh` in a `//@version=4` script to Pine's shifted column,
 and it works: `translatePine` on this script's own construct returns

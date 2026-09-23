@@ -864,8 +864,26 @@ export function buildRuntimeIr(source, opts = {}) {
   //
   // ⭐ Setting it also restores the AUTHOR'S BOUNDS, which live on the same
   // path: an out-of-range member value is refused by name rather than used.
+  // ⚰️⚰️ AND UNTIL 2026-09-22 THIS LANE DID NOT KNOW WHICH LANGUAGE IT WAS
+  // READING. Both resolvers here were built as `new Resolver(env, TABLE, new
+  // Map(), {})` — an EMPTY options object — so `pineVersion` was null and every
+  // version-conditional rule in `pine.js` silently answered "this is not Pine".
+  //
+  // ⛔⛔ THAT IS RC-E IN `docs/pine/PARITY-ROOT-CAUSE.md`, AND IT COST A
+  // MEASURED PARITY DEFECT. RC-A taught the resolver that a bare `pivothigh` in
+  // a `//@version=4` script is Pine's CONFIRMATION-SHIFTED column rather than
+  // this table's unshifted one, verified it through `translatePine`, and
+  // shipped. The lane that actually DRAWS never got it, so every trendline in
+  // `trendlines__43QQg9nDN0` sat one pivot span early against TradingView —
+  // look-ahead, surviving in the drawing lane, with a green rail one lane over.
+  //
+  // ⭐ THE VERSION IS READ FROM THE LEX, NOT RE-DETECTED. `lexed.version` is the
+  // pragma this source actually carries; a second scan here would be a second
+  // authority over one value and would drift the first time the pragma grammar
+  // moved.
+  const pineVersion = Number.isFinite(lexed && lexed.version) ? lexed.version : null
   const makeResolver = () => {
-    const r = new Resolver(env, TABLE, new Map(), {})
+    const r = new Resolver(env, TABLE, new Map(), { pineVersion })
     if (inputs && typeof inputs === 'object') r.inputValues = inputs
     return r
   }
@@ -886,7 +904,12 @@ export function buildRuntimeIr(source, opts = {}) {
    *  value cannot reach it without changing what a SAVED definition means.
    *  The two folds are genuinely different questions and now have two
    *  resolvers, rather than one that is wrong for one of them. */
-  const makeFrozenResolver = () => new Resolver(env, TABLE, new Map(), {})
+  //  ⛔ THE VERSION GOES HERE TOO. What this resolver withholds is the MEMBER'S
+  //  INPUT VALUES, deliberately; the script's own language is not a member
+  //  setting, and a frozen fold that read `pivothigh` as the house column while
+  //  the live one read Pine's would put two meanings on one name inside a
+  //  single script (`lesson_rail_the_mirror_not_just_the_lane`).
+  const makeFrozenResolver = () => new Resolver(env, TABLE, new Map(), { pineVersion })
 
   // ─── ⭐⭐ THE BIND-TIME FOLD, ON THE SAME ASSEMBLY THE OTHER TWO LANES USE ──
   //
