@@ -451,7 +451,8 @@ def _ask_insert_markdown(attrs: dict[str, Any], kids, resolver=None) -> str:
         if not isinstance(n, dict):
             return
         if n.get("type") == "askCitation":
-            a = n.get("attrs") or {}
+            a = n.get("attrs")
+            a = a if isinstance(a, dict) else {}  # null/list/string attrs read as empty, never raise
             num = a.get("n")
             if num is not None and num not in sources:
                 sources[num] = str(a.get("label") or "source")
@@ -462,10 +463,12 @@ def _ask_insert_markdown(attrs: dict[str, Any], kids, resolver=None) -> str:
         collect(c)
 
     body = "\n\n".join(b for b in (_block(c, resolver) for c in (kids or [])) if b != "")
-    lines = [f"> {head}", ">"]
-    lines += [f"> {ln}" if ln else ">" for ln in body.split("\n")]
+    # Every quoted line, a blank one included, is `> ` + text -- the blockquote
+    # writer's form in _block (the test reads that writer's output to check).
+    lines = [f"> {head}", "> "]
+    lines += [f"> {ln}" for ln in body.split("\n")]
     if sources:
-        lines.append(">")
+        lines.append("> ")
         lines.append("> Sources as of insertion: "
                      + " · ".join(f"[{k}] {v}" for k, v in sources.items()))
     return "\n".join(lines)
@@ -549,9 +552,10 @@ def _block(node: dict[str, Any], resolver=None) -> str:
             lines.append(f"*{annotation}*")
         return "\n".join(lines)
     if ntype == "askInsert":
-        return _ask_insert_markdown(attrs, kids, resolver)
+        # null/list/string attrs read as empty, never raise (G-064 close-out).
+        return _ask_insert_markdown(attrs if isinstance(attrs, dict) else {}, kids, resolver)
     if ntype == "askCitation":
-        n = attrs.get("n")
+        n = (attrs if isinstance(attrs, dict) else {}).get("n")  # same: never raise
         return f"[{n}]" if n is not None else ""
     if ntype == "widgetEmbed":
         # A live widget cannot exist in markdown. Exporting nothing would make
