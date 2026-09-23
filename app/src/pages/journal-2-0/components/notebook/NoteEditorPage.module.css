@@ -183,6 +183,15 @@
   font-size: 13px;
 }
 .toolBtn:hover { background: var(--bg-hover); }
+/* Wave 5: the colour picker hangs off its own toolbar button. */
+.colorAnchor { position: relative; display: inline-flex; }
+.colorGlyph {
+  font-family: Georgia, 'Times New Roman', serif;
+  font-weight: 700;
+  text-decoration: underline;
+  text-decoration-thickness: 3px;
+  text-underline-offset: 2px;
+}
 .toolBtnActive {
   background: rgba(220, 187, 94, 0.15);
   color: var(--accent);

@@ -26,6 +26,7 @@ import { AskCitation } from './askCitationNode'
 import { PasteContainers } from './pasteContainers'
 import { NotebookCodeBlock } from './codeBlockNode'
 import { Mathematics } from './mathNodes'
+import { TextColor, NotebookHighlight } from './textColor'
 import { fmtTime } from '../../../components/video/playerUtils'
 // Wave 5: how the newer content reads on EVERY surface that renders a note
 // body — imported here because every one of them builds from this roster.
@@ -57,6 +58,10 @@ export function buildExtensions({ placeholder = 'Start writing… or type / for 
     TextStyle,
     FontFamily,
     FontSize,
+    // Wave 5: text colour + highlight, stored as a palette NAME and rendered
+    // through classes (textColor.js), so a colour follows the member's theme.
+    TextColor,
+    NotebookHighlight,
     ResizableImage.configure({ inline: false, allowBase64: false }),
     Link.configure({
       openOnClick: false,

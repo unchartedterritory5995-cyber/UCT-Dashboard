@@ -52,7 +52,10 @@ const schema = new Schema({
     inlineMath: { group: 'inline', inline: true, atom: true, attrs: { latex: { default: '' } }, toDOM: () => ['span'] },
     blockMath: { group: 'block', atom: true, attrs: { latex: { default: '' } }, toDOM: () => ['div'] },
   },
-  marks: { bold: { toDOM: () => ['strong', 0] }, italic: { toDOM: () => ['em', 0] }, link: { attrs: { href: { default: '' } }, toDOM: () => ['a', 0] } },
+  marks: { bold: { toDOM: () => ['strong', 0] }, italic: { toDOM: () => ['em', 0] }, link: { attrs: { href: { default: '' } }, toDOM: () => ['a', 0] },
+    // Wave 5 (textColor.js): a palette NAME, never a colour value.
+    highlight: { attrs: { color: { default: null } }, toDOM: () => ['mark', 0] },
+    textColor: { attrs: { color: { default: null } }, toDOM: () => ['span', 0] } },
 })
 
 const t = (text, marks) => (marks ? { type: 'text', text, marks: marks.map((m) => ({ type: m })) } : { type: 'text', text })
@@ -227,6 +230,13 @@ const CASES = {
   mathBlock: doc(p('Before.'), BMATH('E = mc^2'), p('After.')),
   mathAstral: doc(p('Set ', MATH('\u{1D538} \\subset \\mathbb{R}'), ' holds.'), BMATH('\\sum_{i=1}^{n} x_i')),
   mathEmpty: doc(p('A', MATH(''), 'B'), BMATH(''), p('C')),
+  // ── colour and highlight are MARKS (Wave 5): they split text nodes and add
+  //    nothing -- a passage across them reads and maps exactly as plain text ──
+  colouredMarks: doc(p('Guidance ',
+    { type: 'text', text: 'raised', marks: [{ type: 'highlight', attrs: { color: 'yellow' } }] },
+    ' and ',
+    { type: 'text', text: 'margins', marks: [{ type: 'textColor', attrs: { color: 'red' } }, { type: 'bold' }] },
+    ' widened', { type: 'text', text: ' sharply', marks: [{ type: 'highlight', attrs: { color: null } }] }, '.')),
 }
 
 // Passages cited in the astral cases -- before, inside, across a mark, and
@@ -247,6 +257,7 @@ const PASSAGES = {
   // A formula is ONE position, so a passage holds a whole formula or none of
   // it -- never half its LaTeX.
   mathAstral: ['Set \u{1D538} \\subset \\mathbb{R} holds.', 'holds.', '\\sum_{i=1}^{n} x_i'],
+  colouredMarks: ['raised and margins widened sharply', 'margins'],
 }
 
 function passageRange(d, passage, leafText) {

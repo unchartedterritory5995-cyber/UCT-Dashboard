@@ -128,6 +128,38 @@
 }
 .ProseMirror .uctMathPreview { margin-top: 8px; }
 
+/* ── Text colour + highlight (textColor.js): a palette NAME -> a theme token ──
+   ⛔ THE ONE MAPPING from a palette name to a colour. The picker's swatches
+   render through these same classes (TextColorMenu.jsx), so they are not
+   scoped to `.ProseMirror`; the `uct-tc-` / `uct-hl` prefixes are the scope.
+   Every token here already carries a [data-theme="light"] value, which is what
+   keeps a colour picked on one theme readable on the other. */
+.uct-tc-gray { color: var(--text-muted); }
+.uct-tc-red { color: var(--loss); }
+.uct-tc-orange { color: var(--ind-warn); }
+.uct-tc-yellow { color: var(--ut-gold); }
+.uct-tc-green { color: var(--gain); }
+.uct-tc-blue { color: var(--info); }
+mark.uct-hl {
+  color: inherit;
+  /* no colour stored = the default highlight, yellow */
+  background-color: var(--warn-border);
+  border-radius: 2px;
+  padding: 0 1px;
+  /* a highlight is content: it prints */
+  -webkit-print-color-adjust: exact;
+  print-color-adjust: exact;
+}
+mark.uct-hl-gray {
+  background-color: var(--bg-hover);
+  background-color: color-mix(in srgb, var(--text-muted) 22%, transparent);
+}
+mark.uct-hl-red { background-color: var(--loss-border); }
+mark.uct-hl-orange { background-color: var(--ind-warn-border); }
+mark.uct-hl-yellow { background-color: var(--warn-border); }
+mark.uct-hl-green { background-color: var(--gain-border); }
+mark.uct-hl-blue { background-color: var(--info-border); }
+
 /* ── Touch tier: the 44px floor, and 16px so iOS does not zoom on focus ───── */
 @media (max-width: 1024px) {
   .ProseMirror .uctCodeLang {

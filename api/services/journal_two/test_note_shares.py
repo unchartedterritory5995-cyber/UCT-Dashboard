@@ -166,6 +166,10 @@ def test_wave5_newer_editor_content_survives_the_public_copy_verbatim(conn):
         {"type": "blockMath", "attrs": {"latex": "E = mc^2"}},
         {"type": "codeBlock", "attrs": {"language": "python"},
          "content": [{"type": "text", "text": "def f():\n    return 1"}]},
+        {"type": "paragraph", "content": [
+            {"type": "text", "text": "red", "marks": [{"type": "textColor", "attrs": {"color": "red"}}]},
+            {"type": "text", "text": " and "},
+            {"type": "text", "text": "marked", "marks": [{"type": "highlight", "attrs": {"color": "blue"}}]}]},
     ]}
     notes_svc.update_note("u1", n["id"], {"bodyJson": body}, conn=conn)
     share = note_shares.create_share("u1", n["id"], conn=conn)

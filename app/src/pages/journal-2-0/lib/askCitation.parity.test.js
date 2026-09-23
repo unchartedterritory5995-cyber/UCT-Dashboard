@@ -66,6 +66,8 @@ const schema = new Schema({
     bold: { toDOM: () => ['strong', 0] },
     italic: { toDOM: () => ['em', 0] },
     link: { attrs: { href: { default: '' } }, toDOM: () => ['a', 0] },
+    highlight: { attrs: { color: { default: null } }, toDOM: () => ['mark', 0] },
+    textColor: { attrs: { color: { default: null } }, toDOM: () => ['span', 0] },
   },
 })
 

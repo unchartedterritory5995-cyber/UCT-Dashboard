@@ -69,6 +69,12 @@ _INLINE_MARKS = {
     "italic": ("*", "*"),
     "strike": ("~~", "~~"),
     "code": ("`", "`"),
+    # Wave 5: Obsidian's highlight syntax (Typora and markdown-it-mark read it
+    # too). The palette colour does not travel -- Markdown has no colour -- but
+    # the emphasis does. A TEXT colour (`textColor`) is deliberately absent:
+    # its words export, and an inline `<span style>` would be a raw HTML
+    # island fixed to one theme in every app that renders it.
+    "highlight": ("==", "=="),
 }
 
 

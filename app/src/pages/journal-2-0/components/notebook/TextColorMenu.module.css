@@ -1,0 +1,66 @@
+/* Wave 5 — text colour + highlight picker (TextColorMenu.jsx).
+   The swatch SAMPLES take their colour from the note's own classes
+   (lib/noteContent.css: .uct-tc-*, mark.uct-hl-*); nothing here maps a
+   palette name to a colour. */
+.popover {
+  position: absolute;
+  top: calc(100% + 6px);
+  left: 0;
+  z-index: 45;
+  background: var(--bg-surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-popover);
+  padding: 10px;
+}
+.menu {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  font-family: var(--font-sans);
+}
+.groupLabel {
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.4px;
+  text-transform: uppercase;
+  color: var(--text-muted);
+}
+.swatches {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+}
+.swatch {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  padding: 0;
+  background: transparent;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  color: var(--text-bright);
+  cursor: pointer;
+}
+.swatch:hover { border-color: var(--ut-gold); }
+.swatch:focus-visible { outline: 2px solid var(--ut-gold); outline-offset: 1px; }
+.swatch[aria-pressed="true"] { border-color: var(--ut-gold); background: var(--bg-hover); }
+.sample {
+  font-family: Georgia, 'Times New Roman', serif;
+  font-size: 16px;
+  font-weight: 700;
+  line-height: 1;
+  padding: 2px 4px;
+}
+.none { text-decoration: line-through; color: var(--text-muted); }
+
+/* Touch tier: finger-sized swatches (the sheet itself is the Sheet primitive). */
+@media (max-width: 1024px) {
+  .swatch {
+    min-width: var(--tap-min);
+    min-height: var(--tap-min);
+  }
+  .swatches { gap: 8px; }
+}

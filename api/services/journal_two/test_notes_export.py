@@ -1590,3 +1590,25 @@ def test_an_empty_or_malformed_formula_exports_as_nothing_and_never_raises(attrs
         {"type": "text", "text": "A"}, {"type": "inlineMath", "attrs": attrs}, {"type": "text", "text": "B"}]},
         {"type": "blockMath", "attrs": attrs}, _para("C"))
     assert tiptap_to_markdown(doc) == "AB\n\nC"
+
+
+# ── Wave 5: highlight exports as ==text==; a text colour exports as its words ─
+def test_highlight_exports_in_obsidian_syntax_whatever_its_colour():
+    md = tiptap_to_markdown(_doc({"type": "paragraph", "content": [
+        {"type": "text", "text": "Guidance "},
+        {"type": "text", "text": "raised", "marks": [{"type": "highlight", "attrs": {"color": "green"}}]},
+        {"type": "text", "text": " and "},
+        {"type": "text", "text": "cut", "marks": [{"type": "highlight"}]},
+    ]}))
+    assert md == "Guidance ==raised== and ==cut=="
+
+
+def test_text_colour_exports_its_words_and_no_html():
+    md = tiptap_to_markdown(_doc({"type": "paragraph", "content": [
+        {"type": "text", "text": "Margins ", "marks": [{"type": "textColor", "attrs": {"color": "red"}}]},
+        {"type": "text", "text": "widened", "marks": [
+            {"type": "textColor", "attrs": {"color": "red"}}, {"type": "bold"},
+            {"type": "highlight", "attrs": {"color": "yellow"}}]},
+    ]}))
+    assert md == "Margins ==**widened**=="
+    assert "<span" not in md and "color" not in md

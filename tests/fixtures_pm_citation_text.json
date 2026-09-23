@@ -3163,5 +3163,124 @@
   ],
   "leafSpans": [],
   "passages": []
+ },
+ "colouredMarks": {
+  "json": {
+   "type": "doc",
+   "content": [
+    {
+     "type": "paragraph",
+     "content": [
+      {
+       "type": "text",
+       "text": "Guidance "
+      },
+      {
+       "type": "text",
+       "text": "raised",
+       "marks": [
+        {
+         "type": "highlight",
+         "attrs": {
+          "color": "yellow"
+         }
+        }
+       ]
+      },
+      {
+       "type": "text",
+       "text": " and "
+      },
+      {
+       "type": "text",
+       "text": "margins",
+       "marks": [
+        {
+         "type": "textColor",
+         "attrs": {
+          "color": "red"
+         }
+        },
+        {
+         "type": "bold"
+        }
+       ]
+      },
+      {
+       "type": "text",
+       "text": " widened"
+      },
+      {
+       "type": "text",
+       "text": " sharply",
+       "marks": [
+        {
+         "type": "highlight",
+         "attrs": {
+          "color": null
+         }
+        }
+       ]
+      },
+      {
+       "type": "text",
+       "text": "."
+      }
+     ]
+    }
+   ]
+  },
+  "text": "Guidance raised and margins widened sharply.",
+  "contentSize": 46,
+  "textSpans": [
+   {
+    "pm_start": 1,
+    "pm_end": 10,
+    "text": "Guidance "
+   },
+   {
+    "pm_start": 10,
+    "pm_end": 16,
+    "text": "raised"
+   },
+   {
+    "pm_start": 16,
+    "pm_end": 21,
+    "text": " and "
+   },
+   {
+    "pm_start": 21,
+    "pm_end": 28,
+    "text": "margins"
+   },
+   {
+    "pm_start": 28,
+    "pm_end": 36,
+    "text": " widened"
+   },
+   {
+    "pm_start": 36,
+    "pm_end": 44,
+    "text": " sharply"
+   },
+   {
+    "pm_start": 44,
+    "pm_end": 45,
+    "text": "."
+   }
+  ],
+  "leafSpans": [],
+  "passages": [
+   {
+    "text": "raised and margins widened sharply",
+    "pm_from": 10,
+    "pm_to": 44
+   },
+   {
+    "text": "margins",
+    "pm_from": 21,
+    "pm_to": 28
+   }
+  ]
  }
 }

@@ -50,6 +50,8 @@ import { PRECISE_STATES, isBlockAtomRange } from '../../lib/askCitation'
 import { appendAskInsert } from '../../lib/askInsert'
 import usePendingAskInsert from '../../hooks/usePendingAskInsert'
 import NoteFindBar from './NoteFindBar'
+import TextColorMenu, { TEXT_COLOR_MENU_LABEL } from './TextColorMenu'
+import { textColorClass } from '../../lib/textColor'
 import NoteHistoryPanel from './NoteHistoryPanel'
 import NoteBacklinksSection from './NoteBacklinksSection'
 import PropertiesSection from './PropertiesSection'
@@ -496,6 +498,9 @@ export default function NoteEditorPage({ noteId, onBack, showBack = true, onTitl
   const [chromeMsg, setChromeMsg] = useState(null)
   // Widget palette (point-and-click inserts) — toggled from the toolbar row.
   const [paletteOpen, setPaletteOpen] = useState(false)
+  // Wave 5: the text colour + highlight picker, toggled from the toolbar row.
+  const [colorOpen, setColorOpen] = useState(false)
+  const colorToggleRef = useRef(null)
   // The sticky chrome's MEASURED height, published as --uct-chrome-h on the
   // page root: the watch rails' sticky offset reads it (a literal there goes
   // stale the moment the header wraps — review finding).
@@ -2348,6 +2353,27 @@ export default function NoteEditorPage({ noteId, onBack, showBack = true, onTitl
               onClick={() => editor.chain().focus().toggleItalic().run()}
               label="I"
             />
+            {/* Wave 5: text colour + highlight. The glyph's underline shows the
+                colour at the caret; the picker is a popover on desktop and a
+                bottom sheet on touch (TextColorMenu). */}
+            <span className={styles.colorAnchor}>
+              <button
+                ref={colorToggleRef}
+                type="button"
+                className={`${styles.toolBtn} ${colorOpen ? styles.toolBtnActive : ''}`}
+                onMouseDown={(e) => e.preventDefault()}
+                onClick={() => setColorOpen((o) => !o)}
+                aria-haspopup="true"
+                aria-expanded={colorOpen}
+                aria-label={TEXT_COLOR_MENU_LABEL}
+                title={`${TEXT_COLOR_MENU_LABEL} — Ctrl/Cmd+Shift+H highlights`}
+              >
+                <span className={`${styles.colorGlyph} ${editor.getAttributes('textColor').color ? textColorClass(editor.getAttributes('textColor').color) : ''}`}>A</span>
+              </button>
+              {colorOpen && (
+                <TextColorMenu editor={editor} onClose={() => setColorOpen(false)} toggleRef={colorToggleRef} />
+              )}
+            </span>
             <ToolButton
               active={editor.isActive('heading', { level: 1 })}
               onClick={() => editor.chain().focus().toggleHeading({ level: 1 }).run()}

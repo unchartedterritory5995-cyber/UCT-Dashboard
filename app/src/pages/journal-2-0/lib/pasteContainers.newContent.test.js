@@ -160,3 +160,39 @@ describe('a formula survives copy and paste, everywhere pasteContainers places a
     expect(ed.state.doc.textContent).toContain('$5-$10 and $x^2$')
   })
 })
+
+// ── Text colour + highlight (marks) ──────────────────────────────────────────
+describe('coloured and highlighted text keeps its colour through copy and paste', () => {
+  const COLOURED = { type: 'paragraph', content: [
+    { type: 'text', text: 'Margins ' },
+    { type: 'text', text: 'widened', marks: [{ type: 'textColor', attrs: { color: 'red' } }] },
+    { type: 'text', text: ' sharply', marks: [{ type: 'highlight', attrs: { color: 'green' } }] },
+    { type: 'text', text: '.' },
+  ] }
+  const marksOf = (ed, type) => {
+    const out = []
+    ed.state.doc.descendants((n) => { if (n.isText) for (const m of n.marks) if (m.type.name === type) out.push([n.text.trim(), m.attrs.color]) })
+    return out
+  }
+
+  for (const [where, content, at] of TARGETS) {
+    it(`copied into ${where}, both marks arrive with their palette names`, () => {
+      const ed = mount([COLOURED, ...content()])
+      const from = locate(ed, 'widened')
+      const to = locate(ed, ' sharply') + ' sharply'.length
+      pasteAt(ed, at(ed), copyRange(ed, from, to))
+      expect(marksOf(ed, 'textColor')).toEqual([['widened', 'red'], ['widened', 'red']])
+      expect(marksOf(ed, 'highlight')).toEqual([['sharply', 'green'], ['sharply', 'green']])
+      if (where === 'a toggle title') expect(nodesOf(ed, 'toggle')).toHaveLength(1)
+    })
+  }
+
+  it('a foreign colour arrives as words only; a foreign <mark> as the default highlight', () => {
+    const ed = mount([P('Mine.'), { type: 'paragraph' }])
+    pasteAt(ed, 'Mine.'.length + 3,
+      '<p><span style="color:#ff00ff">pink</span> and <mark style="background:#ff0">marked</mark></p>')
+    expect(ed.state.doc.textContent).toContain('pink and marked')
+    expect(marksOf(ed, 'textColor')).toEqual([])
+    expect(marksOf(ed, 'highlight')).toEqual([['marked', null]])
+  })
+})

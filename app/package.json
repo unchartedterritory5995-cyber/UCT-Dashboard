@@ -31,6 +31,7 @@
     "@picovoice/web-voice-processor": "^4.0.10",
     "@tanstack/react-virtual": "^3.13.24",
     "@tiptap/extension-code-block-lowlight": "3.23.6",
+    "@tiptap/extension-highlight": "3.23.6",
     "@tiptap/extension-image": "^3.23.6",
     "@tiptap/extension-link": "^3.23.6",
     "@tiptap/extension-list": "3.23.6",
