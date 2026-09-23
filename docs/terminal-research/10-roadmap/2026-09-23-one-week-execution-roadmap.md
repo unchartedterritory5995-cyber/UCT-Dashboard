@@ -1,0 +1,497 @@
+---
+id: ROADMAP-2026-09-23
+title: UCT Terminal-Next — one-week execution roadmap
+role: the day-by-day build plan for Terminal-Next, built and reviewed with the owner across three passes before implementation start
+status: draft, owner-reviewed twice (CEO/dev/beta-tester lenses applied), not yet started — Day 0 begins on owner's "go"
+date: 2026-09-23
+saved_reason: owner asked this be a durable file, not only an artifact, specifically so a session interruption cannot lose it
+---
+
+# UCT Terminal-Next — one-week execution roadmap
+
+A specific, day-by-day plan to build as much of Terminal-Next as compute and evidence
+honestly allow in one week — built and tested locally, nothing pushed live without a
+separate go/no-go — grounded in the research and system state this program has already
+banked, not reinvented.
+
+**Status at save time:** not started. Nothing in this document has been executed. It is
+saved now, before Day 0, so that if this session or any future one is interrupted, the
+plan itself is never the thing that's lost.
+
+---
+
+## 0 · Read this first — the one fact that gates everything
+
+This isn't a nice-to-know. It's the program's own stated gate condition, and it hasn't
+been asked yet.
+
+> ⚠️ **Critical Path CP-03 — status: NOT OPEN.**
+> The research program's own gate for "product decisions begin" (Document B §27A) is
+> explicitly closed, and its own tracking says it **cannot open on research alone**. Of
+> the program's twelve gating questions, eleven are answered well enough to proceed. One
+> isn't — and it isn't a research gap, it's two facts only the owner has:
+>
+> 1. What Massive/Polygon plan tier do we actually have — **Individual**, or
+>    **Business/Enterprise**? (Individual restricts member-facing charts, analytics and
+>    research use; Business, from ~$2,499/mo, is the tier that legalizes it.)
+> 2. Does an **FMP Data Display and Licensing Agreement** exist? (Without one, FMP's own
+>    terms forbid showing FMP-sourced fields to more than one person — i.e. any
+>    multi-member product surface.)
+>
+> These two answers alone move the licensing register's **Restricted** count from 81 rows
+> down to 27, out of 118 total. Everything in §4 is tagged by what's safe to build
+> *regardless* of the answer, versus what should stay dark until this is answered.
+
+**This is more urgent than "answer this week."** Massive and FMP data are already in
+production surfaces today — breadth, screener, movers — not just in this week's new
+work. If the tier really is Individual with no DDLA, that isn't a blocker for building
+more, it's a question about what's already shipping. **Answer this first, before
+anything else on Day 0.**
+
+**If the answer comes back unfavorable** (Individual tier, no DDLA): nothing this week is
+wasted, but the week's output changes shape. A9 Screening and A13 Journal & Track Record
+are entirely first-party data and ship live regardless. A1, A11 and most of A10 stay
+flagged dark indefinitely — not "for now," genuinely indefinitely, until a tier upgrade
+or agreement is a separate business decision made on its own economics. That's a real
+fork in the plan, not a footnote, and Day 7's report says explicitly which fork we're on.
+
+> 💡 **"Live" and "launched" are two different decisions.** The site is still in
+> `COMING_SOON_MODE` — account creation is closed, and today's users are admins and
+> testers, not a public member base. This week's plan gets features to *flag-ready*. It
+> does not, and shouldn't, imply lifting that gate. Flipping a flag for the existing
+> handful of accounts is a code decision; opening public registration is a business one —
+> pricing, support readiness, marketing — and deserves its own separate process whenever
+> the owner is ready for it, never assumed on their behalf by this plan.
+>
+> Same discipline on cost: before any paid tier upgrade this plan might make possible
+> (Massive Business from ~$2,499/mo, OPRA's $1,500/mo floor), the question is simple —
+> what's the revenue path that justifies it at today's member count. Nothing in this plan
+> purchases anything; it only tells the owner what buying it would unlock.
+
+Two smaller, non-blocking asks land alongside it in §7 (a joint-ownership ruling on S7
+Alerts, and confirmation that this week's plan should proceed against the ~10-day-old
+system roster before a fresh re-measurement on Day 0).
+
+---
+
+## 1 · How the week actually works
+
+Seven rules shape every day below. None are negotiable; each exists because of a real,
+previously-measured failure on this account, or a gap found while reviewing this exact
+plan.
+
+**Rule 1 — Agent concurrency: 3 + 1 integrator, in waves.** Not "as many as possible."
+This account has a standing owner ruling from a measured incident: five concurrent
+agents once hit a session rate limit mid-flight and killed two lanes' work outright;
+thirteen concurrent agents beside one local job once OOM-crashed the machine and
+corrupted a live worktree. Every day below is structured as sequential waves of up to 3
+builders plus one integrating/verifying pass, never a single flat fan-out.
+
+**Rule 2 — Local first, always.** Every feature is built and tested on a branch,
+verified against a local backend, and behind a feature flag before it is ever a
+candidate for production. "Ship" in §3 means *merged to the research branch, tested,
+flag-gated dark* — not *live on uctintelligence.com*. §6 is the separate, explicit
+checklist for the day any of it flips on for members.
+
+**Rule 3 — "Done" has four parts, every time.**
+1. **Built** against the real, current code — not a stale snapshot of what a doc claimed
+   six days ago.
+2. **Tested** with real assertions on real numbers (a hand-typed count beside a table
+   it's supposed to describe is the single most repeated defect in this codebase's
+   history — every number gets re-derived, not retyped).
+3. **Hygiene-checked** — repo hygiene, flow-worker watch coverage, and the relevant
+   scoped test files, every time, before a merge.
+4. **Flagged**, for anything member-visible, with a named rollback lever recorded before
+   the flag ever flips.
+
+**Rule 4 — Every test run is scoped, and nothing runs against live data.** Two measured
+incidents on this exact machine, not hypothetical risk: an unscoped repo-wide backend
+test run once reached 18GB and was OOM-killed; a local script that looked sandboxed once
+wrote real rows into the production auth database because it pinned the wrong
+environment variable. Standing for every wave, every day: backend tests are
+named-file-scoped, never `pytest tests/`; nothing runs against `C:\data` or any
+production Railway service; nothing runs a heavy job on the production pod. The repo's
+own conftest tripwire catches most of this automatically — it stays on, always.
+
+**Rule 5 — Every day ends with a handoff, because a week is not one sitting.** This plan
+will very likely span more than one continuous session. Each day's integrator pass ends
+with a short, current status note — what merged, what's still open, what the next
+session needs to know — so a break between Day 3 and Day 4 costs nothing.
+
+**Rule 6 — Shared substrate has an owner, and every day ends with a real regression
+sweep.** D2, S7 and S3 are dependencies for nearly everything downstream. When two waves
+both need to touch the same platform-layer system in one day, one agent owns the file
+for that day — no two builders editing the same shared contract in parallel. And a day's
+"done" is not just each builder's own scoped tests passing: the integrator runs a full,
+bounded regression pass at the end of *every* day (chunked to respect Rule 4's memory
+limits, never skipped), so a platform-layer change that quietly breaks something
+already live gets caught the same day, not on Day 7 with no runway left to fix it.
+
+**Rule 7 — Nothing waits until Day 7 to be used.** Whichever surface ships each day gets
+a real walkthrough that same day or the next — by someone who didn't build it, clicking
+through it like a trader would, not just re-reading its own test file. Day 7 is the full
+end-to-end pass across everything together; it is never the first time any individual
+piece gets used by a human.
+
+---
+
+## 2 · The foundation — what we're building *on*, not redoing
+
+This program has already banked a serious amount of research and a working
+architecture. The plan below extends it; it doesn't restart it.
+
+### What "terminal-grade" means, already decided
+
+The accepted product architecture defines five properties, each with a named internal
+seed already in the codebase and a named competitor witness. Every feature built this
+week is checked against these five, not against a vibe:
+
+1. **One context, read everywhere, without re-entry** — a symbol loaded once should be
+   the symbol every panel already shows.
+2. **Provenance on every number and every sentence** — if the app says it, it can show
+   where it came from.
+3. **Saved things become names, and names are addresses** — a saved view, screen or
+   board is a shareable, revisitable thing, not throwaway session state.
+4. **Keyboard-fast** — a trader's hands stay on the keyboard; the mouse is the fallback.
+5. **Panels are independent, and the document survives** — one broken widget never takes
+   down the layout around it.
+
+Explicit non-goals, already ruled, that this plan respects rather than re-litigates: no
+FX, fixed income or crypto in V1; no order execution or OMS; no attempt at Bloomberg's
+chat-network effect (parked as an open product-vision question, not a build target).
+
+> ⚠️ **One tension to name before it becomes a regression.** "Keyboard-fast" is a desktop
+> idea, and this product has real, hard-won mobile investment already — a gesture-driven
+> mobile nav, a 44px tap-target floor enforced everywhere, real-device audit tooling that
+> has already caught bugs automated tests couldn't see. A Bloomberg-inspired push must
+> not quietly become a desktop-only push. Every new surface this week clears the *same*
+> mobile audit the rest of the app already holds itself to — keyboard-fast is an addition
+> for desktop hands, never a replacement for the touch patterns members on phones already
+> rely on.
+
+### The system roster (last measured, re-measured fresh on Day 0)
+
+Thirty-two named systems across four layers. The application layer is where members
+feel the product; the platform and data layers underneath decide whether it's honest
+when they see it.
+
+| Layer | System | State (last measured) | What it blocks |
+|---|---|---|---|
+| Platform | S3 Entity Master | SHIPPED | — |
+| Platform | S4 Context Bus | CP1 merged | adoption, not capability |
+| Platform | S7 Alerts | 4 of 8 types live, 4 dark | needs joint-ownership ruling — §7 |
+| Platform | S9 Entitlements | not built | A14 Portfolio & Risk |
+| Platform | S10 Presentation Primitives | SHIPPED | — |
+| Data | D1 Provider Abstraction | SHIPPED, adoption sweep open | nothing — safe to finish now |
+| Data | D2 Canonical Data Model | CP1–2 merged, the long pole | A11, A13, S8's full citations |
+| Data | D5 Reference & Corp Actions | CP1 merged, CP2–7 open | partial |
+| Intelligence | I1 Intelligence Layer | SHIPPED, 3 slices | — |
+| App | A9 Screening | gate-only, closest to clear | S7 type CP3 |
+| App | A13 Journal & Track Record | gate-only on D2 + S5 | the actual differentiator — prioritize |
+| App | A1 Markets, A11 Breadth | gate-only on D2 | — |
+| App | A2 Charts, A10 Options & Flow | gate-only / partner-owned | S1/S2 (owner-bound) / Ravi ack |
+| App | A14 Portfolio & Risk | no member door at all | S9 + D8, both owner-bound |
+
+*Last full measurement: 10 days old. Day 0 opens with a fresh, fast re-derivation of
+this exact table before any wave is dispatched — a roster inherited from a previous
+roster is this program's own most-repeated defect, so this one gets re-measured, not
+retyped.*
+
+The competitive research already banked and not being redone: 11 accepted product
+dossiers (Unusual Whales, TradingView, Koyfin, Benzinga Pro, AlphaSense, Fiscal.ai,
+Quartr, FactSet, LSEG Workspace, SpotGamma, plus a light TIKR/YCharts/CIQ note), a
+full Bloomberg deep-dive dossier, a Gödel Terminal dossier, a 178-row capability ledger,
+and a 48-row provider ledger with a full licensing register.
+
+---
+
+## 3 · Day by day
+
+Bottom-up, on purpose — the last real measurement found zero of eight application-layer
+systems buildable, because every one gates on the platform or data layer. Days 1–3 pay
+down that debt; Days 4–6 spend it on features members will actually see; Day 7 proves
+the whole thing holds together.
+
+### Day 0 · Today — re-ground, don't re-guess (~2 hours, one wave)
+
+- **Agent 1:** re-measure the 32-system roster fresh against current source (same
+  method as §2's table, re-derived, not copied).
+- **Agent 2:** re-run Critical Path CP-01 through CP-12 against current code; confirm
+  which of the 11 non-blocked questions still hold.
+- **Integrator:** reconcile both against `PROGRAM_STATUS.md` and `LEDGER.md`; publish
+  the corrected roster before Day 1 dispatch.
+- **Owner:** answer the two CP-03 questions from §0, whenever today works. Nothing in
+  Days 1–3 waits on it, but the longer it's open the more of Days 4–7 has to stay
+  flagged dark instead of going live.
+
+### Day 1 — finish what's already unblocked (nothing here waits on the owner)
+
+- **Agent 1:** D1 adoption sweep — migrate the remaining direct FMP call sites behind
+  the typed `fmp_client` adapter. Not new design; finishing a shipped pattern. Zero
+  owner dependency.
+- **Agent 2:** S3 admin ops routes — `/status` and `/reseed` for the Entity Master,
+  already authorized in its own gate, never built.
+- **Agent 3:** I1 spec, narrowed — the tool-registry contract, the grounding rule, and
+  the refusal shape the intelligence layer composes on, written as a spec so Day 4's
+  AI-surfaced features have one contract to build against instead of three.
+- **Integrator:** merge all three to the research branch; full scoped test pass +
+  hygiene + flow-worker watch coverage on each, plus Rule 6's end-of-day regression
+  sweep.
+
+### Days 2–3 — the long pole: D2 Canonical Data Model
+
+- **Agent 1:** D2 CP3 — the metric address book's sampling and coverage pass, held
+  pending a real in-pod read. This is what makes "every number has a receipt"
+  (terminal-grade property 2) actually true instead of aspirational.
+- **Agent 2:** wire S8's full `<Cited>` provenance renderer against the now-addressable
+  D2 metrics. One renderer, every surface — not a per-feature reinvention.
+- **Agent 3:** S7 Alerts — finish, not start (conditional on the joint-ownership ruling
+  in §7 landing by end of Day 1). Seven trigger types remain as extensions of a working
+  substrate; this closes most of them.
+- **Integrator:** mid-point check-in at end of Day 2 before continuing into Day 3 — D2
+  is explicitly the item most likely to reveal a real surprise once someone is inside it.
+
+> ⚠️ **Honest note:** this is the one boundary in the whole week most likely to move. If
+> D2 takes three days instead of two, every day after it shifts by the same amount —
+> that's the correct response to a real finding, not a missed deadline.
+>
+> **The fallback line, defined now rather than discovered under pressure:** D2 does not
+> need every metric addressed by end of Day 3 to unblock downstream work — it needs the
+> specific subset A9, A13 and A1 actually read from. If that subset is addressable, those
+> waves proceed on schedule while D2's remaining coverage continues in the background;
+> only a genuinely incomplete core (the address book itself unreliable, not just partial)
+> pushes the whole week.
+
+### Day 3 (parallel) — visual identity & UX system, doesn't wait on data
+
+- **Agent 1:** design system pass for Terminal-Next surfaces: density tiers, a
+  keyboard-binding registry (the existing chart has 87 raw listeners today, no shared
+  palette), and a real command palette shell.
+- **Agent 2:** named-address layer for saved objects — boards, screens, views get
+  user-minted, shareable names (terminal-grade property 3), building on
+  `charts_layouts` and `user_definitions`, which already do this partially.
+- **Agent 3:** panel resilience pass: per-widget error boundaries, versioned/atomic
+  layout persistence — closes the finding that six of seven historical workspace
+  failures were persistence bugs, not layout bugs.
+
+### Days 4–5 — application layer, in dependency order
+
+- **Wave A:** A9 Screening — the closest to clear (gated only on S7's
+  scan-membership-change type, likely done by Day 3). Live match-count feedback,
+  saved-screen addressing, keyboard-driven filter editing.
+- **Wave B:** A13 Journal & Track Record — the program's own named moat: the per-ticker
+  join of thesis, setup, trade record and flow history that even AlphaSense and Koyfin
+  concede they don't have. **The single highest-priority feature in the entire week.**
+  See §4 for detail.
+- **Wave C:** A1 Markets and A11 Breadth & Regime — both unblock together once D2
+  lands; build the persistent-context read path first (one loaded symbol, every panel),
+  then the provenance receipts on top.
+- **Integrator:** full cross-surface walkthrough at end of Day 5 — load a symbol in one
+  place, confirm it's the symbol everywhere, on every one of the three waves' surfaces,
+  in the same browser session.
+
+### Day 6 — the two conditional systems, and integration
+
+- **Agent 1:** A10 Options & Flow polish — UI-only work that never touches the
+  partner-owned files directly (additive `className` hooks, the repo's own established
+  rebase-safe pattern). Anything needing Ravi's file gets written, tested, and queued —
+  not merged without his ack.
+- **Agent 2:** A12 Watchlists — if S5/S6 (persistence/personalization) cleared during
+  Day 3's parallel work; otherwise this slips to next week, stated plainly rather than
+  forced.
+- **Agent 3:** A14 Portfolio & Risk is **not attempted this week.** No member door
+  exists at all today, and it's blocked on two owner-bound systems (S9 entitlements,
+  D8). Listing it as "in progress" would be the exact false-completion this whole plan
+  exists to avoid.
+- **Integrator:** full-repo hygiene + hardware pass on the whole week's accumulated
+  branch.
+
+### Day 7 — prove it, don't just ship it
+
+- **Morning:** full local walkthrough against real (non-production) data — every
+  terminal-grade property, checked as a user action, not as a passing test.
+- **Afternoon:** assemble the go-live packet from §6 — which flags exist, each one's
+  rollback lever, and a member-impact paragraph per surface, written honestly (some
+  will correctly say "internal/dark only, not ready for members").
+- **End of day:** one consolidated report to the owner — what's built and tested
+  locally, what's flag-ready to flip live, what's still gated on owner input, and what
+  genuinely needs another week. **Going live itself is Day 8's decision, made by the
+  owner, on evidence — not an assumption baked into this plan.**
+
+---
+
+## 4 · Feature detail, by surface
+
+For each application system: what already exists, what Bloomberg-class and prosumer
+competitors do that's worth stealing as a workflow (never as a requirement — this
+program's own rule), and the licensing flag on its data.
+
+### A13 — Journal & Track Record — the actual differentiator (PRIORITIZE)
+
+The program's own synthesis found every competitor dossier — including AlphaSense and
+Koyfin — naming the same missing thing: a joined record of what we said about a name,
+what the setup did, what the trade did, and what the flow did, all in one place, over
+time. Nobody in the researched set has this. UCT already has the four pieces separately
+(Journal 2.0, the pattern engine, broker sync, options flow) — they've just never been
+joined.
+
+- **Build this week:** the per-ticker join itself, keyed through D2's now-addressable
+  metrics; a single "history for this name" panel, callable from anywhere the symbol
+  context is loaded; provenance receipts on every joined fact, via S8.
+- **Data / licensing:** entirely first-party (own KB, journal, trades) — no vendor
+  licensing exposure. Safe to build and ship regardless of the CP-03 answer.
+
+### A1 Markets & A11 Breadth/Regime — gated on D2
+
+The one-persistent-context property lives here first — if a loaded symbol doesn't
+propagate from Markets into every other panel, nothing else in the plan matters as much
+as it should.
+
+- **Borrow as workflow, not requirement:** Bloomberg's loaded-security-across-addresses
+  model; Koyfin's dispatching rail (one symbol, many linked panels); LSEG's per-cell
+  citation on every displayed figure.
+- **Data / licensing:** Massive bars/quotes — R pending CP-03. Breadth's EOD row
+  (yfinance) — already-flagged Unsuitable source, a real, separate fix, not new.
+
+### A9 — Screening — closest to clear
+
+Already has a working evaluator and definition tree; the gap is purely the
+live-feedback UX layer.
+
+- **Build this week:** live match-count as filters change (a cheap preview endpoint
+  already exists, unwired); named, addressable saved screens (terminal-grade property
+  3); keyboard-driven filter editing.
+- **Data / licensing:** runs on already-computed screener rows — first-party derived,
+  no new vendor exposure.
+
+### A10 — Options & Flow — partner file, Ravi ack required
+
+The program's own synthesis is blunt: *"Gödel is strong exactly where UCT is weak and
+absent exactly where UCT is strong."* This is the one surface where UCT's own research
+says it's already ahead of the Bloomberg-class benchmark set, not chasing it.
+
+- **Build this week (UI-only, additive):** an "explain this print" affordance — the AI
+  explainer endpoint already exists, fully tested, with zero UI caller today; new
+  className hooks only, never touching the partner file's inline styles directly.
+- **Data / licensing:** OPRA options tape — R/U, a $1,500/mo redistribution floor, a
+  real cost decision, not a code fix.
+
+### A12 — Watchlists — conditional on S5/S6
+
+Half-live today. If Day 3's persistence/personalization work clears in time, this
+becomes a Day 6 target; if not, it's next week's first item, stated as such rather than
+quietly dropped.
+
+### A14 — Portfolio & Risk — not attempted this week
+
+No member door exists at all today, and it's blocked on two systems (entitlements, a
+portfolio-risk deferral) that are both explicitly owner-bound, not compute-bound.
+
+---
+
+## 5 · The agent wave, concretely
+
+Every wave in §3 follows the same shape.
+
+| Role | Does | Never does |
+|---|---|---|
+| Builder ×up to 3 | Owns one scoped item end to end: reads the real current source first, writes the code, writes/updates its own tests, runs them scoped | Run `git push`; touch another builder's files; widen its own scope mid-task |
+| Integrator | Runs the scoped test suite again, independently; runs repo hygiene + flow-worker watch coverage; merges; verifies the merge tree, not just each builder's claim | Trust a builder's "done" without re-running the gate itself |
+| Owner | Answers §0 and §7 questions as they come up; spot-checks whatever surface, whenever | Needs to review every commit — the daily end-of-day note is the checkpoint |
+
+### What the integrator actually checks per surface — not a vibe, a checklist
+
+"Feels terminal-grade" isn't verifiable. Each property gets one concrete action, on the
+running feature, before its wave is called done:
+
+| Property | The actual check |
+|---|---|
+| One context | Load a symbol on Surface A; open Surface B in the same session; confirm B already shows it, with no re-entry. |
+| Provenance | Click any AI-authored or computed number; confirm a citation resolves to a real, specific source — not a generic "grounded" badge. |
+| Addressable | Save a view; close the tab; open the saved view's link/name directly; confirm it's the same state, not a fresh default. |
+| Keyboard-fast | Complete the surface's one primary action without touching the mouse. |
+| Resilient panels | Force one panel's data call to fail; confirm the rest of the layout survives, with a visible error only in that one panel. |
+
+And one more, for anything that calls an LLM: every new AI-touching feature declares
+its own daily cost cap before it ships dark, following the same soft/hard-cap pattern
+the catalyst engine already uses — a feature with no named ceiling is not done, it's a
+live bill with no size on it.
+
+---
+
+## 6 · Going live — the separate checklist
+
+Nothing above assumes an automatic flip to production. This is what has to be true, per
+surface, before it does — including the actual mechanics of how a change reaches
+uctintelligence.com, not just the policy around it.
+
+1. The surface's own scoped tests pass, and the *combined* weekly branch's tests pass —
+   a green suite in isolation and a green suite after everyone else's week of changes
+   land on top of it are different facts.
+2. A named feature flag exists, defaults OFF (or to today's exact current behavior),
+   and has been read back from a live process boot — never assumed from a config file.
+3. **The OFF state is verified before the ON state is.** A kill switch nobody has
+   watched actually kill something isn't a kill switch, it's a variable. Flip it off
+   first, on a feature that's already on, and confirm the behavior actually reverts.
+4. A one-line rollback lever is written down *before* the flag ever flips on — which
+   variable, what it reverts to, and how you'd know it worked.
+5. If the surface touches any Restricted-tier data (per §0's licensing table), it stays
+   dark regardless of code readiness until CP-03 is answered.
+6. A real-device pass, not just an automated one — this codebase has already found bugs
+   on real Safari that jsdom and Chromium both missed entirely.
+7. Verified post-deploy through the existing synthetic test account, never a real
+   member's session and never the owner's own account for an automated check.
+8. A member-impact paragraph, written honestly, in plain language, naming exactly who
+   sees what changes.
+9. The owner's explicit "go," per surface — not a bundled "ship everything from this
+   week" decision.
+
+### How a change actually reaches production
+
+For anyone executing this plan: a merge to the research branch is not visible to a
+single member until it clears every one of these steps, in order.
+
+1. Cherry-pick the specific commit onto the shared staging worktree, resolving any
+   conflict by hand rather than force-merging.
+2. Run the full scoped test suite, hygiene check, and flow-worker watch-coverage check
+   *on the merge tree* — not just on the original branch, since other work may have
+   landed on master since.
+3. Run the pre-push guard; it refuses a push into an unsettled deploy window on its
+   own, and that refusal is respected, not routed around.
+4. Push, then watch the deploy record reach a genuine terminal state — a status of
+   "removed" mid-flight means a concurrent push superseded it, not that it failed;
+   confirm which commit actually reached `SUCCESS` before concluding anything.
+5. Confirm the change is live two ways: a fresh `/api/health` boot (sent with a real
+   browser user-agent — Cloudflare blocks bare script traffic) and a direct ancestry
+   check that the shipped commit is contained in what production is actually serving,
+   not merely in master.
+
+One more thing worth knowing going in: this repo runs seven separate services, and most
+of the week's work only ever restarts the member-facing one. The one exception is
+anything touching the options-flow tape's watched files — that service's data feed does
+not replay on a restart, so a real gap in the options tape is the one mistake in this
+whole plan that can't be undone by rolling back. Anything in that surface ships
+after-hours, deliberately, not on the same cadence as everything else.
+
+---
+
+## 7 · Every open decision, in one place
+
+So there's exactly one list to answer from, not six scattered across a week of updates.
+
+| # | Decision needed | Blocks | Urgency |
+|---|---|---|---|
+| 1 | Massive plan tier: Individual or Business/Enterprise? | Whether Days 4–7's data-backed features can ever go live, not just build | **Today** |
+| 2 | Does an FMP Data Display & Licensing Agreement exist? | Same as above, for every FMP-sourced field | **Today** |
+| 3 | S7 Alerts joint-ownership ruling (draft text already exists, needs only acceptance or amendment) | Day 2–3's alerts work, and A9 Screening's own unblock | By end of Day 1 |
+| 4 | Proceed against the 10-day-old roster, or wait for Day 0's fresh re-measurement first? | Nothing — Day 0 re-measures regardless | Informational |
+| 5 | GitHub token rotation (dead as of last check) — needed if any part of this week wants CI/branch-protection visibility | Nothing this week's plan depends on directly | Whenever |
+| 6 | A read-only production usage query (member counts, which surfaces actually get used) is currently blocked by this session's own permission layer, not by policy. If prioritizing Days 4–6 on real usage data matters more than the priority order in §3, either grant it or run the one-line query directly. | Whether the app-layer build order in §3 reflects a guess or real usage | Optional |
+
+---
+
+*This document is the single source of truth for the week's plan. If it drifts from
+what's actually happening (a day slips, a decision changes the fork), correct this file
+directly rather than letting a chat summary become the second authority on what the plan
+says — that exact defect (a claim in two places, only one of them updated) is this
+program's single most-repeated failure mode across its entire history.*
