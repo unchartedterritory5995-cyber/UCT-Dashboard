@@ -5,9 +5,15 @@
     "origin": "2006-08-07",
     "today": "2026-09-15"
   },
-  "steps": [
+  "scenarios": [
     {
-      "label": "t+1.5s",
+      "scenario": "S1 immediate deep, no click",
+      "verdict": "PASS",
+      "delay_ms": 0,
+      "fail_times": 0,
+      "click": null,
+      "clicked": null,
+      "preClickRendered": null,
       "rendered": {
         "n": 5247,
         "first": "2006-08-07",
@@ -17,48 +23,18 @@
         "from": "2026-03-24",
         "to": "2026-09-24"
       },
-      "idb": {
-        "n": 5247,
-        "first": "2006-08-07",
-        "last": "2026-09-15",
-        "lastT": "2026-09-15",
-        "savedAt": 1789492620933
-      },
-      "fetches": [
-        {
-          "path": "/api/bars-today-pack",
-          "tf": null,
-          "nbars": null,
-          "d": null,
-          "at": 711,
-          "rows": 0,
-          "status": 200,
-          "ms": 31
-        },
-        {
-          "path": "/api/bars/QQQ",
-          "tf": "D",
-          "nbars": "600",
-          "d": null,
-          "at": 787,
-          "rows": 600,
-          "status": 200,
-          "ms": 13
-        },
-        {
-          "path": "/api/bars-history/QQQ",
-          "tf": "D",
-          "nbars": "12500",
-          "d": "2026-09-14",
-          "at": 901,
-          "rows": 5246,
-          "status": 200,
-          "ms": 24
-        }
-      ]
+      "histCalls": 1,
+      "seriesDeep": true,
+      "viewOk": true
     },
     {
-      "label": "t+4.5s",
+      "scenario": "S2 deep delayed 4s, no click",
+      "verdict": "PASS",
+      "delay_ms": 4000,
+      "fail_times": 0,
+      "click": null,
+      "clicked": null,
+      "preClickRendered": null,
       "rendered": {
         "n": 5247,
         "first": "2006-08-07",
@@ -68,450 +44,22 @@
         "from": "2026-03-24",
         "to": "2026-09-24"
       },
-      "idb": {
-        "n": 5247,
-        "first": "2006-08-07",
-        "last": "2026-09-15",
-        "lastT": "2026-09-15",
-        "savedAt": 1789492620933
-      },
-      "fetches": [
-        {
-          "path": "/api/bars-today-pack",
-          "tf": null,
-          "nbars": null,
-          "d": null,
-          "at": 711,
-          "rows": 0,
-          "status": 200,
-          "ms": 31
-        },
-        {
-          "path": "/api/bars/QQQ",
-          "tf": "D",
-          "nbars": "600",
-          "d": null,
-          "at": 787,
-          "rows": 600,
-          "status": 200,
-          "ms": 13
-        },
-        {
-          "path": "/api/bars-history/QQQ",
-          "tf": "D",
-          "nbars": "12500",
-          "d": "2026-09-14",
-          "at": 901,
-          "rows": 5246,
-          "status": 200,
-          "ms": 24
-        },
-        {
-          "path": "/api/bars/QQQ",
-          "tf": "5",
-          "nbars": "1152",
-          "d": null,
-          "at": 2328,
-          "rows": 1152,
-          "status": 200,
-          "ms": 132
-        },
-        {
-          "path": "/api/bars/QQQ",
-          "tf": "60",
-          "nbars": "1138",
-          "d": null,
-          "at": 2462,
-          "rows": 634,
-          "status": 200,
-          "ms": 117
-        },
-        {
-          "path": "/api/bars/QQQ",
-          "tf": "30",
-          "nbars": "1120",
-          "d": null,
-          "at": 2580,
-          "rows": 1120,
-          "status": 200,
-          "ms": 121
-        },
-        {
-          "path": "/api/bars/QQQ",
-          "tf": "15",
-          "nbars": "1152",
-          "d": null,
-          "at": 2703,
-          "rows": 1152,
-          "status": 200,
-          "ms": 123
-        },
-        {
-          "path": "/api/bars/QQQ",
-          "tf": "W",
-          "nbars": "600",
-          "d": null,
-          "at": 2841,
-          "rows": 600,
-          "status": 200,
-          "ms": 132
-        },
-        {
-          "path": "/api/bars/QQQ",
-          "tf": "M",
-          "nbars": "600",
-          "d": null,
-          "at": 2974,
-          "rows": 600,
-          "status": 200,
-          "ms": 131
-        },
-        {
-          "path": "/api/bars/QQQ",
-          "tf": "1",
-          "nbars": "960",
-          "d": null,
-          "at": 3107,
-          "rows": 960,
-          "status": 200,
-          "ms": 201
-        }
-      ]
+      "histCalls": 1,
+      "seriesDeep": true,
+      "viewOk": true
     },
     {
-      "label": "t+8.5s",
-      "rendered": {
-        "n": 5247,
-        "first": "2006-08-07",
+      "scenario": "S3 Origin BEFORE deep (4s delay)",
+      "verdict": "PASS",
+      "delay_ms": 4000,
+      "fail_times": 0,
+      "click": "Origin",
+      "clicked": true,
+      "preClickRendered": {
+        "n": 600,
+        "first": "2024-05-29",
         "last": "2026-09-15"
       },
-      "visible": {
-        "from": "2026-03-24",
-        "to": "2026-09-24"
-      },
-      "idb": {
-        "n": 5247,
-        "first": "2006-08-07",
-        "last": "2026-09-15",
-        "lastT": "2026-09-15",
-        "savedAt": 1789492620933
-      },
-      "fetches": [
-        {
-          "path": "/api/bars-today-pack",
-          "tf": null,
-          "nbars": null,
-          "d": null,
-          "at": 711,
-          "rows": 0,
-          "status": 200,
-          "ms": 31
-        },
-        {
-          "path": "/api/bars/QQQ",
-          "tf": "D",
-          "nbars": "600",
-          "d": null,
-          "at": 787,
-          "rows": 600,
-          "status": 200,
-          "ms": 13
-        },
-        {
-          "path": "/api/bars-history/QQQ",
-          "tf": "D",
-          "nbars": "12500",
-          "d": "2026-09-14",
-          "at": 901,
-          "rows": 5246,
-          "status": 200,
-          "ms": 24
-        },
-        {
-          "path": "/api/bars/QQQ",
-          "tf": "5",
-          "nbars": "1152",
-          "d": null,
-          "at": 2328,
-          "rows": 1152,
-          "status": 200,
-          "ms": 132
-        },
-        {
-          "path": "/api/bars/QQQ",
-          "tf": "60",
-          "nbars": "1138",
-          "d": null,
-          "at": 2462,
-          "rows": 634,
-          "status": 200,
-          "ms": 117
-        },
-        {
-          "path": "/api/bars/QQQ",
-          "tf": "30",
-          "nbars": "1120",
-          "d": null,
-          "at": 2580,
-          "rows": 1120,
-          "status": 200,
-          "ms": 121
-        },
-        {
-          "path": "/api/bars/QQQ",
-          "tf": "15",
-          "nbars": "1152",
-          "d": null,
-          "at": 2703,
-          "rows": 1152,
-          "status": 200,
-          "ms": 123
-        },
-        {
-          "path": "/api/bars/QQQ",
-          "tf": "W",
-          "nbars": "600",
-          "d": null,
-          "at": 2841,
-          "rows": 600,
-          "status": 200,
-          "ms": 132
-        },
-        {
-          "path": "/api/bars/QQQ",
-          "tf": "M",
-          "nbars": "600",
-          "d": null,
-          "at": 2974,
-          "rows": 600,
-          "status": 200,
-          "ms": 131
-        },
-        {
-          "path": "/api/bars/QQQ",
-          "tf": "1",
-          "nbars": "960",
-          "d": null,
-          "at": 3107,
-          "rows": 960,
-          "status": 200,
-          "ms": 201
-        }
-      ]
-    },
-    {
-      "label": "warm t+2s",
-      "rendered": {
-        "n": 5247,
-        "first": "2006-08-07",
-        "last": "2026-09-15"
-      },
-      "visible": {
-        "from": "2026-03-25",
-        "to": "2026-09-25"
-      },
-      "idb": {
-        "n": 5247,
-        "first": "2006-08-07",
-        "last": "2026-09-15",
-        "lastT": "2026-09-15",
-        "savedAt": 1789492620699
-      },
-      "fetches": [
-        {
-          "path": "/api/bars-today-pack",
-          "tf": null,
-          "nbars": null,
-          "d": null,
-          "at": 492,
-          "rows": 0,
-          "status": 200,
-          "ms": 22
-        },
-        {
-          "path": "/api/bars/QQQ",
-          "tf": "D",
-          "nbars": "600",
-          "d": null,
-          "at": 562,
-          "rows": 600,
-          "status": 200,
-          "ms": 74
-        },
-        {
-          "path": "/api/bars-history/QQQ",
-          "tf": "D",
-          "nbars": "12500",
-          "d": "2026-09-14",
-          "at": 1404,
-          "rows": 5246,
-          "status": 200,
-          "ms": 12
-        },
-        {
-          "path": "/api/bars/QQQ",
-          "tf": "5",
-          "nbars": "1152",
-          "d": null,
-          "at": 2097,
-          "rows": 1152,
-          "status": 200,
-          "ms": 136
-        },
-        {
-          "path": "/api/bars/QQQ",
-          "tf": "60",
-          "nbars": "1138",
-          "d": null,
-          "at": 2235,
-          "rows": 634,
-          "status": 200,
-          "ms": 116
-        },
-        {
-          "path": "/api/bars/QQQ",
-          "tf": "30",
-          "nbars": "1120",
-          "d": null,
-          "at": 2353,
-          "rows": 1120,
-          "status": 200,
-          "ms": 118
-        },
-        {
-          "path": "/api/bars/QQQ",
-          "tf": "15",
-          "nbars": "1152",
-          "d": null,
-          "at": 2474,
-          "rows": null,
-          "status": null
-        }
-      ]
-    },
-    {
-      "label": "warm t+6s",
-      "rendered": {
-        "n": 5247,
-        "first": "2006-08-07",
-        "last": "2026-09-15"
-      },
-      "visible": {
-        "from": "2026-03-25",
-        "to": "2026-09-25"
-      },
-      "idb": {
-        "n": 5247,
-        "first": "2006-08-07",
-        "last": "2026-09-15",
-        "lastT": "2026-09-15",
-        "savedAt": 1789492620699
-      },
-      "fetches": [
-        {
-          "path": "/api/bars-today-pack",
-          "tf": null,
-          "nbars": null,
-          "d": null,
-          "at": 492,
-          "rows": 0,
-          "status": 200,
-          "ms": 22
-        },
-        {
-          "path": "/api/bars/QQQ",
-          "tf": "D",
-          "nbars": "600",
-          "d": null,
-          "at": 562,
-          "rows": 600,
-          "status": 200,
-          "ms": 74
-        },
-        {
-          "path": "/api/bars-history/QQQ",
-          "tf": "D",
-          "nbars": "12500",
-          "d": "2026-09-14",
-          "at": 1404,
-          "rows": 5246,
-          "status": 200,
-          "ms": 12
-        },
-        {
-          "path": "/api/bars/QQQ",
-          "tf": "5",
-          "nbars": "1152",
-          "d": null,
-          "at": 2097,
-          "rows": 1152,
-          "status": 200,
-          "ms": 136
-        },
-        {
-          "path": "/api/bars/QQQ",
-          "tf": "60",
-          "nbars": "1138",
-          "d": null,
-          "at": 2235,
-          "rows": 634,
-          "status": 200,
-          "ms": 116
-        },
-        {
-          "path": "/api/bars/QQQ",
-          "tf": "30",
-          "nbars": "1120",
-          "d": null,
-          "at": 2353,
-          "rows": 1120,
-          "status": 200,
-          "ms": 118
-        },
-        {
-          "path": "/api/bars/QQQ",
-          "tf": "15",
-          "nbars": "1152",
-          "d": null,
-          "at": 2474,
-          "rows": 1152,
-          "status": 200,
-          "ms": 124
-        },
-        {
-          "path": "/api/bars/QQQ",
-          "tf": "W",
-          "nbars": "600",
-          "d": null,
-          "at": 2612,
-          "rows": 600,
-          "status": 200,
-          "ms": 131
-        },
-        {
-          "path": "/api/bars/QQQ",
-          "tf": "M",
-          "nbars": "600",
-          "d": null,
-          "at": 2745,
-          "rows": 600,
-          "status": 200,
-          "ms": 130
-        },
-        {
-          "path": "/api/bars/QQQ",
-          "tf": "1",
-          "nbars": "960",
-          "d": null,
-          "at": 2877,
-          "rows": 960,
-          "status": 200,
-          "ms": 190
-        }
-      ]
-    },
-    {
-      "label": "warm after Origin",
       "rendered": {
         "n": 5247,
         "first": "2006-08-07",
@@ -521,481 +69,22 @@
         "from": "2006-08-07",
         "to": "2006-11-07"
       },
-      "idb": {
-        "n": 5247,
-        "first": "2006-08-07",
-        "last": "2026-09-15",
-        "lastT": "2026-09-15",
-        "savedAt": 1789492620699
-      },
-      "fetches": [
-        {
-          "path": "/api/bars-today-pack",
-          "tf": null,
-          "nbars": null,
-          "d": null,
-          "at": 492,
-          "rows": 0,
-          "status": 200,
-          "ms": 22
-        },
-        {
-          "path": "/api/bars/QQQ",
-          "tf": "D",
-          "nbars": "600",
-          "d": null,
-          "at": 562,
-          "rows": 600,
-          "status": 200,
-          "ms": 74
-        },
-        {
-          "path": "/api/bars-history/QQQ",
-          "tf": "D",
-          "nbars": "12500",
-          "d": "2026-09-14",
-          "at": 1404,
-          "rows": 5246,
-          "status": 200,
-          "ms": 12
-        },
-        {
-          "path": "/api/bars/QQQ",
-          "tf": "5",
-          "nbars": "1152",
-          "d": null,
-          "at": 2097,
-          "rows": 1152,
-          "status": 200,
-          "ms": 136
-        },
-        {
-          "path": "/api/bars/QQQ",
-          "tf": "60",
-          "nbars": "1138",
-          "d": null,
-          "at": 2235,
-          "rows": 634,
-          "status": 200,
-          "ms": 116
-        },
-        {
-          "path": "/api/bars/QQQ",
-          "tf": "30",
-          "nbars": "1120",
-          "d": null,
-          "at": 2353,
-          "rows": 1120,
-          "status": 200,
-          "ms": 118
-        },
-        {
-          "path": "/api/bars/QQQ",
-          "tf": "15",
-          "nbars": "1152",
-          "d": null,
-          "at": 2474,
-          "rows": 1152,
-          "status": 200,
-          "ms": 124
-        },
-        {
-          "path": "/api/bars/QQQ",
-          "tf": "W",
-          "nbars": "600",
-          "d": null,
-          "at": 2612,
-          "rows": 600,
-          "status": 200,
-          "ms": 131
-        },
-        {
-          "path": "/api/bars/QQQ",
-          "tf": "M",
-          "nbars": "600",
-          "d": null,
-          "at": 2745,
-          "rows": 600,
-          "status": 200,
-          "ms": 130
-        },
-        {
-          "path": "/api/bars/QQQ",
-          "tf": "1",
-          "nbars": "960",
-          "d": null,
-          "at": 2877,
-          "rows": 960,
-          "status": 200,
-          "ms": 190
-        }
-      ]
+      "histCalls": 1,
+      "seriesDeep": true,
+      "viewOk": true
     },
     {
-      "label": "early t+0.4s (pre-click)",
-      "rendered": {
-        "n": 5247,
-        "first": "2006-08-07",
+      "scenario": "S4 5Y BEFORE deep (4s delay)",
+      "verdict": "PASS",
+      "delay_ms": 4000,
+      "fail_times": 0,
+      "click": "5Y",
+      "clicked": true,
+      "preClickRendered": {
+        "n": 600,
+        "first": "2024-05-29",
         "last": "2026-09-15"
       },
-      "visible": {
-        "from": "2026-03-24",
-        "to": "2026-09-24"
-      },
-      "idb": {
-        "n": 5247,
-        "first": "2006-08-07",
-        "last": "2026-09-15",
-        "lastT": "2026-09-15",
-        "savedAt": 1789492620702
-      },
-      "fetches": [
-        {
-          "path": "/api/bars-today-pack",
-          "tf": null,
-          "nbars": null,
-          "d": null,
-          "at": 512,
-          "rows": 0,
-          "status": 200,
-          "ms": 22
-        },
-        {
-          "path": "/api/bars/QQQ",
-          "tf": "D",
-          "nbars": "600",
-          "d": null,
-          "at": 576,
-          "rows": 600,
-          "status": 200,
-          "ms": 15
-        },
-        {
-          "path": "/api/bars-history/QQQ",
-          "tf": "D",
-          "nbars": "12500",
-          "d": "2026-09-14",
-          "at": 688,
-          "rows": 5246,
-          "status": 200,
-          "ms": 14
-        }
-      ]
-    },
-    {
-      "label": "early +1.2s after Origin",
-      "rendered": {
-        "n": 5247,
-        "first": "2006-08-07",
-        "last": "2026-09-15"
-      },
-      "visible": {
-        "from": "2006-08-07",
-        "to": "2006-11-07"
-      },
-      "idb": {
-        "n": 5247,
-        "first": "2006-08-07",
-        "last": "2026-09-15",
-        "lastT": "2026-09-15",
-        "savedAt": 1789492620702
-      },
-      "fetches": [
-        {
-          "path": "/api/bars-today-pack",
-          "tf": null,
-          "nbars": null,
-          "d": null,
-          "at": 512,
-          "rows": 0,
-          "status": 200,
-          "ms": 22
-        },
-        {
-          "path": "/api/bars/QQQ",
-          "tf": "D",
-          "nbars": "600",
-          "d": null,
-          "at": 576,
-          "rows": 600,
-          "status": 200,
-          "ms": 15
-        },
-        {
-          "path": "/api/bars-history/QQQ",
-          "tf": "D",
-          "nbars": "12500",
-          "d": "2026-09-14",
-          "at": 688,
-          "rows": 5246,
-          "status": 200,
-          "ms": 14
-        },
-        {
-          "path": "/api/bars/QQQ",
-          "tf": "5",
-          "nbars": "1152",
-          "d": null,
-          "at": 2113,
-          "rows": 1152,
-          "status": 200,
-          "ms": 131
-        },
-        {
-          "path": "/api/bars/QQQ",
-          "tf": "60",
-          "nbars": "1138",
-          "d": null,
-          "at": 2247,
-          "rows": null,
-          "status": null
-        }
-      ]
-    },
-    {
-      "label": "early +6s after Origin",
-      "rendered": {
-        "n": 5247,
-        "first": "2006-08-07",
-        "last": "2026-09-15"
-      },
-      "visible": {
-        "from": "2006-08-07",
-        "to": "2006-11-07"
-      },
-      "idb": {
-        "n": 5247,
-        "first": "2006-08-07",
-        "last": "2026-09-15",
-        "lastT": "2026-09-15",
-        "savedAt": 1789492620702
-      },
-      "fetches": [
-        {
-          "path": "/api/bars-today-pack",
-          "tf": null,
-          "nbars": null,
-          "d": null,
-          "at": 512,
-          "rows": 0,
-          "status": 200,
-          "ms": 22
-        },
-        {
-          "path": "/api/bars/QQQ",
-          "tf": "D",
-          "nbars": "600",
-          "d": null,
-          "at": 576,
-          "rows": 600,
-          "status": 200,
-          "ms": 15
-        },
-        {
-          "path": "/api/bars-history/QQQ",
-          "tf": "D",
-          "nbars": "12500",
-          "d": "2026-09-14",
-          "at": 688,
-          "rows": 5246,
-          "status": 200,
-          "ms": 14
-        },
-        {
-          "path": "/api/bars/QQQ",
-          "tf": "5",
-          "nbars": "1152",
-          "d": null,
-          "at": 2113,
-          "rows": 1152,
-          "status": 200,
-          "ms": 131
-        },
-        {
-          "path": "/api/bars/QQQ",
-          "tf": "60",
-          "nbars": "1138",
-          "d": null,
-          "at": 2247,
-          "rows": 634,
-          "status": 200,
-          "ms": 116
-        },
-        {
-          "path": "/api/bars/QQQ",
-          "tf": "30",
-          "nbars": "1120",
-          "d": null,
-          "at": 2364,
-          "rows": 1120,
-          "status": 200,
-          "ms": 118
-        },
-        {
-          "path": "/api/bars/QQQ",
-          "tf": "15",
-          "nbars": "1152",
-          "d": null,
-          "at": 2484,
-          "rows": 1152,
-          "status": 200,
-          "ms": 121
-        },
-        {
-          "path": "/api/bars/QQQ",
-          "tf": "W",
-          "nbars": "600",
-          "d": null,
-          "at": 2619,
-          "rows": 600,
-          "status": 200,
-          "ms": 130
-        },
-        {
-          "path": "/api/bars/QQQ",
-          "tf": "M",
-          "nbars": "600",
-          "d": null,
-          "at": 2750,
-          "rows": 600,
-          "status": 200,
-          "ms": 130
-        },
-        {
-          "path": "/api/bars/QQQ",
-          "tf": "1",
-          "nbars": "960",
-          "d": null,
-          "at": 2881,
-          "rows": 960,
-          "status": 200,
-          "ms": 189
-        }
-      ]
-    },
-    {
-      "label": "after Origin",
-      "rendered": {
-        "n": 5247,
-        "first": "2006-08-07",
-        "last": "2026-09-15"
-      },
-      "visible": {
-        "from": "2006-08-07",
-        "to": "2006-11-07"
-      },
-      "idb": {
-        "n": 5247,
-        "first": "2006-08-07",
-        "last": "2026-09-15",
-        "lastT": "2026-09-15",
-        "savedAt": 1789492620702
-      },
-      "fetches": [
-        {
-          "path": "/api/bars-today-pack",
-          "tf": null,
-          "nbars": null,
-          "d": null,
-          "at": 512,
-          "rows": 0,
-          "status": 200,
-          "ms": 22
-        },
-        {
-          "path": "/api/bars/QQQ",
-          "tf": "D",
-          "nbars": "600",
-          "d": null,
-          "at": 576,
-          "rows": 600,
-          "status": 200,
-          "ms": 15
-        },
-        {
-          "path": "/api/bars-history/QQQ",
-          "tf": "D",
-          "nbars": "12500",
-          "d": "2026-09-14",
-          "at": 688,
-          "rows": 5246,
-          "status": 200,
-          "ms": 14
-        },
-        {
-          "path": "/api/bars/QQQ",
-          "tf": "5",
-          "nbars": "1152",
-          "d": null,
-          "at": 2113,
-          "rows": 1152,
-          "status": 200,
-          "ms": 131
-        },
-        {
-          "path": "/api/bars/QQQ",
-          "tf": "60",
-          "nbars": "1138",
-          "d": null,
-          "at": 2247,
-          "rows": 634,
-          "status": 200,
-          "ms": 116
-        },
-        {
-          "path": "/api/bars/QQQ",
-          "tf": "30",
-          "nbars": "1120",
-          "d": null,
-          "at": 2364,
-          "rows": 1120,
-          "status": 200,
-          "ms": 118
-        },
-        {
-          "path": "/api/bars/QQQ",
-          "tf": "15",
-          "nbars": "1152",
-          "d": null,
-          "at": 2484,
-          "rows": 1152,
-          "status": 200,
-          "ms": 121
-        },
-        {
-          "path": "/api/bars/QQQ",
-          "tf": "W",
-          "nbars": "600",
-          "d": null,
-          "at": 2619,
-          "rows": 600,
-          "status": 200,
-          "ms": 130
-        },
-        {
-          "path": "/api/bars/QQQ",
-          "tf": "M",
-          "nbars": "600",
-          "d": null,
-          "at": 2750,
-          "rows": 600,
-          "status": 200,
-          "ms": 130
-        },
-        {
-          "path": "/api/bars/QQQ",
-          "tf": "1",
-          "nbars": "960",
-          "d": null,
-          "at": 2881,
-          "rows": 960,
-          "status": 200,
-          "ms": 189
-        }
-      ]
-    },
-    {
-      "label": "after 5Y",
       "rendered": {
         "n": 5247,
         "first": "2006-08-07",
@@ -1005,115 +94,105 @@
         "from": "2021-09-14",
         "to": "2026-11-10"
       },
-      "idb": {
+      "histCalls": 1,
+      "seriesDeep": true,
+      "viewOk": true
+    },
+    {
+      "scenario": "S5 first deep FAILS, retry (25s)",
+      "verdict": "PASS",
+      "delay_ms": 0,
+      "fail_times": 1,
+      "click": "Origin",
+      "clicked": true,
+      "preClickRendered": {
+        "n": 600,
+        "first": "2024-05-29",
+        "last": "2026-09-15"
+      },
+      "rendered": {
         "n": 5247,
         "first": "2006-08-07",
-        "last": "2026-09-15",
-        "lastT": "2026-09-15",
-        "savedAt": 1789492620702
+        "last": "2026-09-15"
       },
-      "fetches": [
-        {
-          "path": "/api/bars-today-pack",
-          "tf": null,
-          "nbars": null,
-          "d": null,
-          "at": 512,
-          "rows": 0,
-          "status": 200,
-          "ms": 22
-        },
-        {
-          "path": "/api/bars/QQQ",
-          "tf": "D",
-          "nbars": "600",
-          "d": null,
-          "at": 576,
-          "rows": 600,
-          "status": 200,
-          "ms": 15
-        },
-        {
-          "path": "/api/bars-history/QQQ",
-          "tf": "D",
-          "nbars": "12500",
-          "d": "2026-09-14",
-          "at": 688,
-          "rows": 5246,
-          "status": 200,
-          "ms": 14
-        },
-        {
-          "path": "/api/bars/QQQ",
-          "tf": "5",
-          "nbars": "1152",
-          "d": null,
-          "at": 2113,
-          "rows": 1152,
-          "status": 200,
-          "ms": 131
-        },
-        {
-          "path": "/api/bars/QQQ",
-          "tf": "60",
-          "nbars": "1138",
-          "d": null,
-          "at": 2247,
-          "rows": 634,
-          "status": 200,
-          "ms": 116
-        },
-        {
-          "path": "/api/bars/QQQ",
-          "tf": "30",
-          "nbars": "1120",
-          "d": null,
-          "at": 2364,
-          "rows": 1120,
-          "status": 200,
-          "ms": 118
-        },
-        {
-          "path": "/api/bars/QQQ",
-          "tf": "15",
-          "nbars": "1152",
-          "d": null,
-          "at": 2484,
-          "rows": 1152,
-          "status": 200,
-          "ms": 121
-        },
-        {
-          "path": "/api/bars/QQQ",
-          "tf": "W",
-          "nbars": "600",
-          "d": null,
-          "at": 2619,
-          "rows": 600,
-          "status": 200,
-          "ms": 130
-        },
-        {
-          "path": "/api/bars/QQQ",
-          "tf": "M",
-          "nbars": "600",
-          "d": null,
-          "at": 2750,
-          "rows": 600,
-          "status": 200,
-          "ms": 130
-        },
-        {
-          "path": "/api/bars/QQQ",
-          "tf": "1",
-          "nbars": "960",
-          "d": null,
-          "at": 2881,
-          "rows": 960,
-          "status": 200,
-          "ms": 189
-        }
-      ]
+      "visible": {
+        "from": "2006-08-07",
+        "to": "2009-03-25"
+      },
+      "histCalls": 3,
+      "seriesDeep": true,
+      "viewOk": true
+    },
+    {
+      "scenario": "S5b deep FAILS, no click (25s)",
+      "verdict": "PASS",
+      "delay_ms": 0,
+      "fail_times": 1,
+      "click": null,
+      "clicked": null,
+      "preClickRendered": null,
+      "rendered": {
+        "n": 5247,
+        "first": "2006-08-07",
+        "last": "2026-09-15"
+      },
+      "visible": {
+        "from": "2021-09-14",
+        "to": "2026-11-10"
+      },
+      "histCalls": 2,
+      "seriesDeep": true,
+      "viewOk": true
+    },
+    {
+      "scenario": "S6 warm deep cache",
+      "verdict": "PASS",
+      "delay_ms": 0,
+      "fail_times": 0,
+      "click": "Origin",
+      "clicked": true,
+      "preClickRendered": {
+        "n": 5247,
+        "first": "2006-08-07",
+        "last": "2026-09-15"
+      },
+      "rendered": {
+        "n": 5247,
+        "first": "2006-08-07",
+        "last": "2026-09-15"
+      },
+      "visible": {
+        "from": "2006-08-07",
+        "to": "2009-03-25"
+      },
+      "histCalls": 1,
+      "seriesDeep": true,
+      "viewOk": true
+    },
+    {
+      "scenario": "S7 warm deep + stale tail",
+      "verdict": "PASS",
+      "delay_ms": 0,
+      "fail_times": 0,
+      "click": "Origin",
+      "clicked": true,
+      "preClickRendered": {
+        "n": 5247,
+        "first": "2006-08-07",
+        "last": "2026-09-15"
+      },
+      "rendered": {
+        "n": 5247,
+        "first": "2006-08-07",
+        "last": "2026-09-15"
+      },
+      "visible": {
+        "from": "2006-08-07",
+        "to": "2009-03-25"
+      },
+      "histCalls": 1,
+      "seriesDeep": true,
+      "viewOk": true
     }
   ]
 }

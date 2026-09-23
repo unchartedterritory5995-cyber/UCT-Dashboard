@@ -81,6 +81,14 @@ FULL = [_bar(d, i) for i, d in enumerate(_ALL)]
 SEALED = FULL[:-1]
 
 
+# ⛔⛔ THE RACE HAS TO BE CONTROLLABLE OR THE HARNESS ONLY EVER PROVES THE HAPPY
+# PATH. The first cut served the deep set instantly from localhost, so it landed
+# before any click and EVERY scenario passed -- including the one that is broken
+# in production. Deep history in the real world is a CDN round trip that can be
+# slow, can fail, and can lose a race with a member's click.
+CTL = {"hist_delay_ms": 0, "hist_fail_times": 0, "hist_calls": 0, "primary_calls": 0}
+
+
 def daily_router(fixture):
     """Daily-aware routes; everything else falls through to the shared fixture."""
     base = route_handler(fixture)
@@ -88,6 +96,15 @@ def daily_router(fixture):
     def handle(route, request):
         url = request.url
         if "/api/bars-history/" in url:
+            import time as _t
+            CTL["hist_calls"] += 1
+            if CTL["hist_fail_times"] > 0:
+                CTL["hist_fail_times"] -= 1
+                route.fulfill(status=500, content_type="application/json",
+                              body=json.dumps({"error": "deep history unavailable"}))
+                return
+            if CTL["hist_delay_ms"]:
+                _t.sleep(CTL["hist_delay_ms"] / 1000.0)
             from urllib.parse import urlparse, parse_qs
             q = parse_qs(urlparse(url).query)
             sym = url.split("/api/bars-history/")[1].split("?")[0]
@@ -101,6 +118,7 @@ def daily_router(fixture):
                           }))
             return
         if "/api/bars/" in url and "tf=D" in url:
+            CTL["primary_calls"] += 1
             from urllib.parse import urlparse, parse_qs
             q = parse_qs(urlparse(url).query)
             sym = url.split("/api/bars/")[1].split("?")[0]
@@ -207,14 +225,54 @@ def click_range(page, text):
         return False
 
 
+def scenario(page, base, name, *, delay_ms=0, fail_times=0, click=None,
+             click_at_ms=400, seed=None, settle_ms=9000):
+    """One deterministic race. `click` fires at `click_at_ms` -- BEFORE the deep
+    leg can land when `delay_ms` exceeds it, which is the production shape."""
+    CTL.update(hist_delay_ms=delay_ms, hist_fail_times=fail_times,
+               hist_calls=0, primary_calls=0)
+    page.goto(f"{base}/scan-harness.html?blank=1", wait_until="domcontentloaded")
+    page.evaluate(CLEAR_IDB)
+    if seed:
+        page.evaluate(SEED_JS, [SYM, "D", seed, CACHE_LOGIC_VERSION])
+    page.evaluate("() => { try { window.__probe.fetches.length = 0 } catch (e) {} }")
+    page.goto(f"{base}/scan-harness.html?tf=D&syms={SYM}", wait_until="domcontentloaded")
+    clicked = None
+    if click:
+        page.wait_for_timeout(click_at_ms)
+        pre = page.evaluate(SNAP_JS)
+        clicked = click_range(page, click)
+        pre_rendered = pre.get("rendered")
+    else:
+        pre_rendered = None
+    page.wait_for_timeout(settle_ms)
+    fin = page.evaluate(SNAP_JS)
+    r, v = fin.get("rendered"), fin.get("visible")
+    ok = bool(r and r.get("first") == FULL[0]["t"])
+    view_ok = True
+    if click == "Origin":
+        view_ok = bool(v and str(v.get("from")) <= "2007-01-01")
+    elif click == "5Y":
+        # five years back from the fixture's today
+        five = (TODAY - timedelta(days=365 * 5)).isoformat()
+        view_ok = bool(v and str(v.get("from")) <= five)
+    verdict = "PASS" if (ok and view_ok) else "FAIL"
+    print(f"  {name:<44} {verdict:<5} series={r and r['n']} earliest={r and r['first']} "
+          f"visible={v and v['from']}..{v and v['to']} histCalls={CTL['hist_calls']}", flush=True)
+    return {"scenario": name, "verdict": verdict, "delay_ms": delay_ms,
+            "fail_times": fail_times, "click": click, "clicked": clicked,
+            "preClickRendered": pre_rendered, "rendered": r, "visible": v,
+            "histCalls": CTL["hist_calls"], "seriesDeep": ok, "viewOk": view_ok}
+
+
 def main():
     with socket.socket() as s:
         s.bind(("127.0.0.1", 0)); port = s.getsockname()[1]
     print(f"[daily] dev server on :{port}", flush=True)
-    print(f"[daily] fixture: FULL={len(FULL)} rows {FULL[0]['t']}..{FULL[-1]['t']}  "
-          f"SEALED={len(SEALED)} ends {SEALED[-1]['t']}  primary depth={PRIMARY_ROWS}", flush=True)
+    print(f"[daily] fixture FULL={len(FULL)} {FULL[0]['t']}..{FULL[-1]['t']}  "
+          f"SEALED={len(SEALED)} ends {SEALED[-1]['t']}", flush=True)
     proc = start_dev_server(port)
-    steps = []
+    out = []
     try:
         with sync_playwright() as pw:
             browser = pw.chromium.launch()
@@ -226,71 +284,25 @@ def main():
             page = ctx.new_page()
             base = f"http://127.0.0.1:{port}"
 
-            # ── COLD: no usable daily cache for this fixture ──
-            page.goto(f"{base}/scan-harness.html?blank=1", wait_until="domcontentloaded")
-            page.evaluate(CLEAR_IDB)
-            page.goto(f"{base}/scan-harness.html?tf=D&syms={SYM}", wait_until="domcontentloaded")
-            print("[daily] COLD LOAD (tf=D):", flush=True)
-            for wait, label in ((1500, "t+1.5s"), (3000, "t+4.5s"), (4000, "t+8.5s")):
-                page.wait_for_timeout(wait)
-                steps.append(snap(page, label))
-
-            # ── WARM + STALE TAIL: the case the cold run cannot create ──
-            # ⛔⛔ THE CONDITION THAT MATTERS IN PRODUCTION. A member who has ever
-            # loaded this chart already holds a DEEP daily cache, and
-            # `_histFirstPaint` requires `!_idbAlreadyDeep` -- so the automatic leg
-            # that just rescued the cold run CANNOT re-fire for them. If the
-            # selector then refuses that deep cache because its TAIL needs repair
-            # (`_splitDeepPaintable = _splitDeepUsable && !idbStaleDaily`), depth and
-            # tail-freshness are conflated and 20 years collapse to the 600-row
-            # primary. Seed exactly that: deep rows, tail several sessions stale.
-            print("[daily] WARM + STALE TAIL (deep cache, tail 5 sessions old):", flush=True)
-            page.goto(f"{base}/scan-harness.html?blank=1", wait_until="domcontentloaded")
-            page.evaluate(CLEAR_IDB)
-            stale_deep = FULL[:-5]                      # deep, but ends 5 sessions ago
-            page.evaluate(SEED_JS, [SYM, "D", stale_deep, CACHE_LOGIC_VERSION])
-            page.goto(f"{base}/scan-harness.html?tf=D&syms={SYM}", wait_until="domcontentloaded")
-            print(f"      seeded idb: {len(stale_deep)} rows ending {stale_deep[-1]['t']}", flush=True)
-            for wait, label in ((2000, "warm t+2s"), (4000, "warm t+6s")):
-                page.wait_for_timeout(wait)
-                steps.append(snap(page, label))
-            print("[daily] click Origin (warm):", flush=True)
-            print(f"      clicked={click_range(page, 'Origin')}", flush=True)
-            page.wait_for_timeout(3500)
-            steps.append(snap(page, "warm after Origin"))
-
-            # ── ORIGIN CLICKED EARLY: before the deep leg can land ──
-            # ⛔ EVERY EARLIER RUN CLICKED ORIGIN AFTER THE DEEP SET HAD MERGED, so
-            # every earlier run passed. `applyRange('origin')` short-circuits on
-            # `deepLoaded = barCount === _fullTarget && ...`, and `_deepFirstPaint`
-            # forces `barCount === _fullTarget` on ANY standalone daily chart -- so
-            # that test is true from the first frame, `startNavLoad` never runs, and
-            # Origin centres on whatever happens to be loaded AT THAT INSTANT.
-            print("[daily] ORIGIN CLICKED EARLY (cold, ~400ms, before deep merge):", flush=True)
-            page.goto(f"{base}/scan-harness.html?blank=1", wait_until="domcontentloaded")
-            page.evaluate(CLEAR_IDB)
-            page.goto(f"{base}/scan-harness.html?tf=D&syms={SYM}", wait_until="domcontentloaded")
-            page.wait_for_timeout(400)
-            steps.append(snap(page, "early t+0.4s (pre-click)"))
-            print(f"      clicked Origin={click_range(page, 'Origin')}", flush=True)
-            page.wait_for_timeout(1200)
-            steps.append(snap(page, "early +1.2s after Origin"))
-            page.wait_for_timeout(5000)
-            steps.append(snap(page, "early +6s after Origin"))
-
-            # ── ORIGIN ──
-            print("[daily] click Origin:", flush=True)
-            ok = click_range(page, "Origin")
-            print(f"      clicked={ok}", flush=True)
-            page.wait_for_timeout(4000)
-            steps.append(snap(page, "after Origin"))
-
-            # ── 5Y ──
-            print("[daily] click 5Y:", flush=True)
-            ok5 = click_range(page, "5Y")
-            print(f"      clicked={ok5}", flush=True)
-            page.wait_for_timeout(3000)
-            steps.append(snap(page, "after 5Y"))
+            print("[daily] SCENARIOS (deep leg timing under control):", flush=True)
+            out.append(scenario(page, base, "S1 immediate deep, no click"))
+            out.append(scenario(page, base, "S2 deep delayed 4s, no click", delay_ms=4000))
+            out.append(scenario(page, base, "S3 Origin BEFORE deep (4s delay)",
+                                delay_ms=4000, click="Origin"))
+            out.append(scenario(page, base, "S4 5Y BEFORE deep (4s delay)",
+                                delay_ms=4000, click="5Y"))
+            # ⚠️ 25s SETTLE, NOT 9s. `barsSwrOnErrorRetry` retries 5xx on a 15s
+            # FLOOR (deliberately: cold fetches take 5-15s and 1s retries stampede).
+            # The first cut waited 9s, called this a permanent strand, and would have
+            # had me "fix" a retry that had simply not fired yet.
+            out.append(scenario(page, base, "S5 first deep FAILS, retry (25s)",
+                                fail_times=1, click="Origin", settle_ms=25000))
+            out.append(scenario(page, base, "S5b deep FAILS, no click (25s)",
+                                fail_times=1, settle_ms=25000))
+            out.append(scenario(page, base, "S6 warm deep cache",
+                                seed=FULL[:-1], click="Origin"))
+            out.append(scenario(page, base, "S7 warm deep + stale tail",
+                                seed=FULL[:-5], click="Origin"))
             browser.close()
     finally:
         try: proc.terminate()
@@ -300,8 +312,12 @@ def main():
     with open(dst, "w", encoding="utf-8") as f:
         json.dump({"fixture": {"full": len(FULL), "sealed": len(SEALED),
                                "origin": FULL[0]["t"], "today": FULL[-1]["t"]},
-                   "steps": steps}, f, indent=2, default=str)
-    print(f"\n[daily] wrote {dst}")
+                   "scenarios": out}, f, indent=2, default=str)
+    bad = [r for r in out if r["verdict"] != "PASS"]
+    print("", flush=True)
+    print(f"[daily] {len(out) - len(bad)}/{len(out)} PASS" +
+          (f"  FAILING: {[r['scenario'] for r in bad]}" if bad else ""), flush=True)
+    print(f"[daily] wrote {dst}")
     return 0
 
 
