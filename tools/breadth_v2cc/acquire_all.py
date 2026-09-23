@@ -70,7 +70,28 @@ def paged(url):
 t0 = utc(); spl = paged("/v3/reference/splits?limit=1000&order=asc&sort=execution_date")
 json.dump({"fetched": [t0, utc()], "n": len(spl), "splits": spl}, open(OUT + "/splits_ledger.json", "x"))
 print("splits", len(spl), flush=True)
-t0 = utc(); div = paged("/v3/reference/dividends?limit=1000&order=asc&sort=ex_dividend_date&ex_dividend_date.lte=" + LAST)
+# One deep cursor over ~2M records pages at ~4 s/page (2 h on 2026-09-23). Disjoint yearly
+# ex-date ranges page shallow (~0.1 s/page) and are fetched in parallel; the union is the same
+# ledger (ex_dividend_date <= LAST), de-duplicated by provider id — a duplicate id with a
+# different body fails the acquisition rather than choosing one.
+def div_year(y):
+    hi = min("%d-12-31" % y, LAST)
+    return paged("/v3/reference/dividends?limit=1000&order=asc&sort=ex_dividend_date"
+                 "&ex_dividend_date.gte=%d-01-01&ex_dividend_date.lte=%s" % (y, hi))
+t0 = utc()
+first = (get("/v3/reference/dividends?limit=1&order=asc&sort=ex_dividend_date") or {}).get("results") or []
+y0 = int(first[0]["ex_dividend_date"][:4]) if first else 2000
+div, byid = [], {}
+with cf.ThreadPoolExecutor(6) as ex:
+    for part in ex.map(div_year, range(y0, int(LAST[:4]) + 1)):
+        for r in part:
+            k = r.get("id")
+            if k is not None and k in byid:
+                assert byid[k] == r, "dividend id %s returned twice with different bodies" % k
+                continue
+            if k is not None:
+                byid[k] = r
+            div.append(r)
 json.dump({"fetched": [t0, utc()], "n": len(div), "ex_date_lte": LAST, "dividends": div}, open(OUT + "/dividends_ledger.json", "x"))
 print("dividends", len(div), flush=True)
 # identity (same rule inputs as before, from THIS grouped vintage)
