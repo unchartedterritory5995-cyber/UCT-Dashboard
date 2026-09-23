@@ -82,3 +82,35 @@
 .c_gray   { background: #7c848f; }
 .c_purple { background: #a78bfa; }
 .c_teal   { background: #2dd4bf; }
+
+/* Wave 5 bulk operations: the select column and its checkboxes. The label is
+   the target, so the finger floor applies to the label, not the 16px box. */
+.selectCol {
+  width: 40px;
+}
+.selectBox {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 28px;
+  min-height: 28px;
+  cursor: pointer;
+}
+.selectBox input {
+  width: 16px;
+  height: 16px;
+  margin: 0;
+  cursor: pointer;
+  accent-color: var(--ut-gold);
+}
+.cardTitleRow {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+@media (max-width: 1024px) {
+  .selectBox {
+    min-width: var(--tap-min);
+    min-height: var(--tap-min);
+  }
+}

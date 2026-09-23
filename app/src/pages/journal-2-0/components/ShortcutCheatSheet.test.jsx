@@ -54,6 +54,12 @@ describe('ShortcutCheatSheet', () => {
     expect(screen.getByText('Jump to any note: type part of its title, then Enter')).toBeInTheDocument()
   })
 
+  it('wave 5: documents selecting notes in bulk (Shift+click range, Esc clears)', () => {
+    render(<ShortcutCheatSheet open onClose={vi.fn()} />)
+    expect(screen.getByText('Select every note between the last one checked and this one')).toBeInTheDocument()
+    expect(screen.getByText('Clear the selected notes')).toBeInTheDocument()
+  })
+
   it('renders g-then-<key> keycaps for each navigation chord', () => {
     render(<ShortcutCheatSheet open onClose={vi.fn()} />)
     // Nine two-key nav chords → at least nine leading "g" keycaps + "then" links.

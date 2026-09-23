@@ -1,4 +1,4 @@
-import { useCallback, useContext, useEffect, useRef, useState } from 'react'
+import { useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react'
 import { useSearchParams } from 'react-router-dom'
 import { mutate as globalMutate } from 'swr'
 import useJ2Notes from '../hooks/useJ2Notes'
@@ -34,6 +34,10 @@ import ConfirmModal from '../components/ConfirmModal'
 import { SkeletonLine } from '../../../components/Skeleton'
 import styles from './NotebookTab.module.css'
 import { settleNoteWrite } from '../lib/offline/settleNoteWrite'
+import BulkActionBar from '../components/notebook/BulkActionBar'
+import { useNoteSelection } from '../lib/noteSelection'
+import { describeBatch, exportSelectedNotes, runNoteBatch } from '../lib/noteBatch'
+import useJ2NoteTags from '../hooks/useJ2NoteTags'
 
 // Folders panel resize bounds (px).
 const SB_MIN = 190
@@ -559,6 +563,137 @@ export default function NotebookTab() {
     }
   }
 
+  // ── Wave 5 bulk operations ────────────────────────────────────────────────
+  // Multi-select over the notes IN VIEW, in the two views that list notes one
+  // per row/card (list, table) and in the Trash. The board, calendar and graph
+  // keep their own gestures — a checkbox there would be a second way to write
+  // the same property the card's own control already writes.
+  const selectionOn = !noteId && !isHome && (isTrashView || viewMode === 'list' || viewMode === 'table')
+  const visibleIds = useMemo(() => (selectionOn ? notes.map((n) => n.id) : []), [selectionOn, notes])
+  const selection = useNoteSelection(visibleIds)
+  const [bulkBusy, setBulkBusy] = useState(false)
+  // ⛔ OWNED HERE, NOT BY THE BAR. The bar unmounts the moment the selection
+  // empties (a trash, a restore), so a message it owned would be destroyed in
+  // the very commit that set it. This outlives it.
+  const [bulkNotice, setBulkNotice] = useState(null) // { message, tone, undoIds? }
+  const undoRef = useRef(null)
+  const { tagCounts } = useJ2NoteTags()
+
+  // A different folder / tag / view / mode is a different set of notes: the
+  // old selection must not ride along into it.
+  const selectionContext = [
+    folderId, tag, activeView?.id, tickerFilter, viewMode, isTrashView, noteId,
+    JSON.stringify(propertyFilter || null),
+  ].join('|')
+  const clearSelection = selection.clear
+  useEffect(() => { clearSelection() }, [selectionContext, clearSelection])
+
+  // Esc clears the selection — unless something else owns Esc right now: an
+  // open dialog, the command palette (it marks its Esc handled), or a text
+  // field (Esc there means "stop typing", not "forget my selection").
+  useEffect(() => {
+    if (!selection.count) return undefined
+    const onKey = (e) => {
+      if (e.key !== 'Escape' || e.defaultPrevented) return
+      const t = e.target
+      const typing = t && (t.isContentEditable || t.tagName === 'TEXTAREA' || t.tagName === 'SELECT'
+        || (t.tagName === 'INPUT' && t.type !== 'checkbox'))
+      if (typing) return
+      if (document.querySelector('[role="dialog"][aria-modal="true"]')) return
+      clearSelection()
+    }
+    document.addEventListener('keydown', onKey)
+    return () => document.removeEventListener('keydown', onKey)
+  }, [selection.count, clearSelection])
+
+  // Keep a notice on screen long enough to read and act on, then let it go.
+  // An error stays until dismissed: it describes something the member has to do.
+  useEffect(() => {
+    if (!bulkNotice || bulkNotice.tone === 'error') return undefined
+    const t = setTimeout(() => setBulkNotice(null), bulkNotice.undoIds ? 12000 : 8000)
+    return () => clearTimeout(t)
+  }, [bulkNotice])
+  // After a trash, the bar is gone and focus with it — hand focus to Undo so a
+  // keyboard member can take it back without hunting for it.
+  useEffect(() => {
+    if (bulkNotice?.undoIds) undoRef.current?.focus()
+  }, [bulkNotice])
+
+  const titleById = useMemo(() => new Map(notes.map((n) => [n.id, n.title?.trim() || 'Untitled'])), [notes])
+  const selectedTags = useMemo(() => {
+    const seen = new Map()
+    for (const n of notes) {
+      if (!selection.isSelected(n.id)) continue
+      for (const t of n.tags || []) if (!seen.has(t.toLowerCase())) seen.set(t.toLowerCase(), t)
+    }
+    return [...seen.values()].sort((a, b) => a.localeCompare(b))
+  }, [notes, selection])
+
+  const afterBulkWrite = (op, changedIds) => {
+    if (op === 'trash' || op === 'restore') {
+      // The same target-status flip a single trash/restore makes — a noteLink
+      // chip elsewhere may still show the old Trashed/active state.
+      for (const id of changedIds) invalidateNoteLinkTarget(id)
+    }
+    refresh()
+    refreshAll()
+    refreshSidebarCounts()
+  }
+
+  const runBulk = async (op, args = {}, ctx = {}, ids = selection.selectedIds) => {
+    if (!ids.length || bulkBusy) return
+    setBulkBusy(true)
+    try {
+      const outcome = await runNoteBatch({ ids, op, args, blockedNoteIds })
+      const { message, tone } = describeBatch(outcome, { ...ctx, titleOf: (id) => titleById.get(id) || null })
+      const changedIds = outcome.results.filter((r) => r.status === 'changed').map((r) => r.id)
+      setBulkNotice({
+        message,
+        tone,
+        undoIds: op === 'trash' && changedIds.length ? changedIds : null,
+      })
+      if (op === 'trash' || op === 'restore') clearSelection()
+      afterBulkWrite(op, changedIds)
+    } catch (e) {
+      console.error('[notebook] bulk action failed', e)
+      setBulkNotice({ message: e?.message || 'That did not go through. Nothing was changed.', tone: 'error' })
+    } finally {
+      setBulkBusy(false)
+    }
+  }
+
+  const undoBulkTrash = (ids) => {
+    setBulkNotice(null)
+    runBulk('restore', {}, {}, ids)
+  }
+
+  const exportSelection = async () => {
+    const ids = selection.selectedIds
+    if (!ids.length || bulkBusy) return
+    // ⛔ A note holding unsent words would export WITHOUT them, and the member
+    // would believe the file complete. It is left out and named instead.
+    const waiting = ids.filter((id) => blockedNoteIds.has(id))
+    const send = ids.filter((id) => !blockedNoteIds.has(id))
+    setBulkBusy(true)
+    try {
+      const parts = []
+      if (send.length) {
+        const { count, skipped } = await exportSelectedNotes(send)
+        parts.push(`Exported ${count} note${count === 1 ? '' : 's'} as a Markdown zip.`)
+        if (skipped) parts.push(`${skipped} could not be exported — they are in the Trash or no longer exist.`)
+      }
+      if (waiting.length) {
+        parts.push(`${waiting.length} not included: waiting to sync (edit ${waiting.length === 1 ? 'it' : 'them'} again first).`)
+      }
+      setBulkNotice({ message: parts.join(' '), tone: waiting.length || !send.length ? 'partial' : 'ok' })
+    } catch (e) {
+      console.error('[notebook] bulk export failed', e)
+      setBulkNotice({ message: e?.message || 'The export could not be prepared.', tone: 'error' })
+    } finally {
+      setBulkBusy(false)
+    }
+  }
+
   // Create a note. Blank note passes no title/body; a template seeds both
   // (plus its preset tags and, when known, the ticker). The actual network
   // calls live in lib/noteCreation.js (Wave H) so the Ticker Research
@@ -660,6 +795,34 @@ export default function NotebookTab() {
     >
       {actionError && (
         <div className={styles.actionError} role="alert">{actionError}</div>
+      )}
+      {/* Wave 5: what a bulk action did, in words — and the way back from a
+          trash. Rendered here, above everything the action can unmount. */}
+      {bulkNotice && (
+        <div
+          className={`${styles.bulkNotice} ${bulkNotice.tone === 'error' ? styles.bulkNoticeError : ''}`}
+          role={bulkNotice.tone === 'error' ? 'alert' : 'status'}
+        >
+          <span className={styles.bulkNoticeText}>{bulkNotice.message}</span>
+          {bulkNotice.undoIds && (
+            <button
+              type="button"
+              ref={undoRef}
+              className={styles.bulkNoticeBtn}
+              onClick={() => undoBulkTrash(bulkNotice.undoIds)}
+            >
+              Undo
+            </button>
+          )}
+          <button
+            type="button"
+            className={styles.bulkNoticeClose}
+            onClick={() => setBulkNotice(null)}
+            aria-label="Dismiss this message"
+          >
+            <UIcon name="x" size={12} gold={false} />
+          </button>
+        </div>
       )}
       {/* When the panel is hidden, a single floating button brings it back. When
           open, the collapse control lives in the panel's own header toolbar. */}
@@ -907,6 +1070,28 @@ export default function NotebookTab() {
           </div>
         )}
 
+        {selectionOn && selection.count > 0 && (
+          <BulkActionBar
+            count={selection.count}
+            totalInView={visibleIds.length}
+            allSelected={selection.allSelected}
+            onSelectAll={selection.selectAll}
+            onClear={selection.clear}
+            trashView={isTrashView}
+            busy={bulkBusy}
+            selectedTags={selectedTags}
+            tagSuggestions={tagCounts.map((t) => t.tag)}
+            onMove={(folderId, folderName) => runBulk('move', { folderId }, { folderName })}
+            onAddTag={(t) => runBulk('addTag', { tag: t }, { tag: t })}
+            onRemoveTag={(t) => runBulk('removeTag', { tag: t }, { tag: t })}
+            onFavorite={() => runBulk('favorite')}
+            onUnfavorite={() => runBulk('unfavorite')}
+            onExport={exportSelection}
+            onTrash={() => runBulk('trash')}
+            onRestore={() => runBulk('restore')}
+          />
+        )}
+
         {isLoading && notes.length === 0 ? (
           // G-106 (Wave B lower-frequency sweep): a small grid of card-shaped
           // skeleton placeholders -- reusing the same `.grid` layout the real
@@ -1029,6 +1214,13 @@ export default function NotebookTab() {
                 onQuickFilter={handleQuickFilter}
                 onOpenNote={openNote}
                 blockedNoteIds={blockedNoteIds}
+                selection={selectionOn ? {
+                  isSelected: selection.isSelected,
+                  onToggle: (n, opts) => selection.toggle(n.id, opts),
+                  allSelected: selection.allSelected,
+                  someSelected: selection.count > 0,
+                  onToggleAll: () => (selection.allSelected ? selection.clear() : selection.selectAll()),
+                } : null}
               />
             ) : (
               <div className={styles.grid}>
@@ -1039,6 +1231,9 @@ export default function NotebookTab() {
                     onOpen={openNote}
                     onRestore={isTrashView ? restoreNote : undefined}
                     blocked={blockedNoteIds.has(n.id)}
+                    selectable={selectionOn}
+                    selected={selection.isSelected(n.id)}
+                    onToggleSelect={(note, opts) => selection.toggle(note.id, opts)}
                   />
                 ))}
               </div>

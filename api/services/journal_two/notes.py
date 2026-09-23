@@ -3191,6 +3191,83 @@ def switcher_search(
             conn.close()
 
 
+# ── Bulk operations: the reads a batch needs before it writes ────────────────
+#
+# ⛔ READS ONLY. The batch route (`POST /notes/batch`, journal_two.py) performs
+# every write through the ordinary single-note doors — `update_note`,
+# `delete_note`, `restore_note`, `add_favorite`, `remove_favorite` — so each
+# write keeps that door's validation, versioning and sidecar sync, and the
+# door-enumeration rail (lib/offline/doorEnumeration.test.js) derives the
+# batch route as a door from the call it can see in the router. A bulk UPDATE
+# here would be an eighth advancing function that rail does not know about.
+
+_BATCH_READ_CHUNK = 400  # stays well under SQLite's bound-parameter limit
+
+
+def note_batch_heads(
+    user_id: str,
+    note_ids: list[str],
+    conn: sqlite3.Connection | None = None,
+) -> dict[str, dict[str, Any]]:
+    """`note_id -> {folderId, tags, updatedAt, deleted}` for the ids this
+    member OWNS, active or trashed. An id that is not theirs (or does not
+    exist) is simply absent — the caller reports it as not found, which is
+    also what it must say about another member's note (never "forbidden":
+    that would confirm the id exists)."""
+    owned = conn is None
+    conn = conn or get_connection()
+    try:
+        out: dict[str, dict[str, Any]] = {}
+        ids = list(dict.fromkeys(i for i in note_ids if isinstance(i, str) and i))
+        for start in range(0, len(ids), _BATCH_READ_CHUNK):
+            chunk = ids[start:start + _BATCH_READ_CHUNK]
+            placeholders = ",".join("?" * len(chunk))
+            rows = conn.execute(
+                "SELECT id, folder_id, tags, updated_at, deleted_at FROM j2_notes"
+                f" WHERE user_id = ? AND id IN ({placeholders})",
+                [user_id, *chunk],
+            ).fetchall()
+            for r in rows:
+                out[r["id"]] = {
+                    "folderId": r["folder_id"] or None,
+                    "tags": json.loads(r["tags"] or "[]"),
+                    "updatedAt": r["updated_at"],
+                    "deleted": r["deleted_at"] is not None,
+                }
+        return out
+    finally:
+        if owned:
+            conn.close()
+
+
+def favorite_note_ids(
+    user_id: str,
+    note_ids: list[str],
+    conn: sqlite3.Connection | None = None,
+) -> set[str]:
+    """Which of `note_ids` this member has favourited — so a bulk favourite
+    can say "already a favourite" instead of reporting a write that changed
+    nothing."""
+    owned = conn is None
+    conn = conn or get_connection()
+    try:
+        out: set[str] = set()
+        ids = list(dict.fromkeys(i for i in note_ids if isinstance(i, str) and i))
+        for start in range(0, len(ids), _BATCH_READ_CHUNK):
+            chunk = ids[start:start + _BATCH_READ_CHUNK]
+            placeholders = ",".join("?" * len(chunk))
+            rows = conn.execute(
+                "SELECT note_id FROM j2_note_favorites"
+                f" WHERE user_id = ? AND note_id IN ({placeholders})",
+                [user_id, *chunk],
+            ).fetchall()
+            out.update(r["note_id"] for r in rows)
+        return out
+    finally:
+        if owned:
+            conn.close()
+
+
 # ── Folders CRUD ─────────────────────────────────────────────────────────────
 
 def list_folders(

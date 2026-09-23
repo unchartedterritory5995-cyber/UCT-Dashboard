@@ -1845,6 +1845,289 @@ def note_switcher_endpoint(
     return notes_service.switcher_search(user["id"], q, limit=limit)
 
 
+# ── Bulk operations ──────────────────────────────────────────────────────────
+#
+# One request, many notes, and a result PER NOTE. ⛔ Never all-or-nothing
+# silently: a batch of 40 where 3 are in the trash and 1 changed under the
+# member's feet answers 36 "changed", 3 "in_trash", 1 "conflict" — in the
+# order the ids were sent — and the client says so in words.
+#
+# ⛔⛔ EVERY WRITE GOES THROUGH A SINGLE-NOTE DOOR, and the calls stay in this
+# handler's body on purpose: `lib/offline/doorEnumeration.test.js` derives the
+# door routes by reading which router bodies call `update_note(` /
+# `restore_note(`. A helper module in between would hide this route from that
+# rail, and the client's `settleNoteWrites` — the line that stops an open
+# editor or the durable copy from forking on its next save — would no longer
+# be demanded of it.
+NOTE_BATCH_MAX = 500
+NOTE_BATCH_OPS = ("move", "addTag", "removeTag", "favorite", "unfavorite", "trash", "restore")
+
+
+def _parse_batch_ids(raw: Any, cap: int = NOTE_BATCH_MAX) -> list[str]:
+    if not isinstance(raw, list) or not raw:
+        raise HTTPException(status_code=400, detail="ids must be a non-empty list of note ids")
+    ids: list[str] = []
+    for i in raw:
+        if not isinstance(i, str) or not i.strip():
+            raise HTTPException(status_code=400, detail="every id must be a non-empty string")
+        ids.append(i.strip())
+    ids = list(dict.fromkeys(ids))  # a note named twice is acted on once
+    if len(ids) > cap:
+        raise HTTPException(status_code=400, detail=f"at most {cap} notes per request")
+    return ids
+
+
+@router.post("/notes/batch")
+def notes_batch_endpoint(
+    payload: dict[str, Any],
+    user: dict = Depends(get_current_user),
+) -> dict[str, Any]:
+    """Apply ONE operation to many notes: `{ids, op, args}`.
+
+    ops: `move` {folderId | null} · `addTag` {tag} · `removeTag` {tag} ·
+    `favorite` · `unfavorite` · `trash` · `restore`.
+
+    Validation that would fail EVERY note (unknown op, a folder that is not
+    the member's, a blank or over-long tag) is a 400 before anything is
+    written. Everything after that is per note, reported in `results`:
+    `changed` (with the new `updatedAt` when the note's revision advanced —
+    the client must land it) · `unchanged` (already so) · `not_found` (not
+    this member's, or gone — deliberately indistinguishable) · `in_trash` ·
+    `conflict` (edited concurrently twice in a row; nothing written) ·
+    `invalid` (with `error`, e.g. a note already at the tag cap)."""
+    uid = user["id"]
+    ids = _parse_batch_ids((payload or {}).get("ids"))
+    op = (payload or {}).get("op")
+    if op not in NOTE_BATCH_OPS:
+        raise HTTPException(status_code=400, detail=f"op must be one of {', '.join(NOTE_BATCH_OPS)}")
+    args = (payload or {}).get("args") or {}
+    if not isinstance(args, dict):
+        raise HTTPException(status_code=400, detail="args must be an object")
+
+    conn = notes_service.get_connection()
+    try:
+        target_folder = None
+        tag = None
+        if op == "move":
+            target_folder = args.get("folderId") or None
+            if target_folder is not None:
+                if not isinstance(target_folder, str):
+                    raise HTTPException(status_code=400, detail="folderId must be a string or null")
+                owned_folder = conn.execute(
+                    "SELECT 1 FROM j2_note_folders WHERE id = ? AND user_id = ?",
+                    (target_folder, uid),
+                ).fetchone()
+                if owned_folder is None:
+                    raise HTTPException(status_code=400, detail="folder not found")
+        elif op in ("addTag", "removeTag"):
+            try:
+                cleaned = notes_service._validate_tags([args.get("tag")] if isinstance(args.get("tag"), str) else None)
+            except NoteValidationError as e:
+                raise HTTPException(status_code=400, detail=str(e))
+            if not cleaned:
+                raise HTTPException(status_code=400, detail="tag is required")
+            tag = cleaned[0]
+
+        heads = notes_service.note_batch_heads(uid, ids, conn=conn)
+        favs = notes_service.favorite_note_ids(uid, ids, conn=conn) if op in ("favorite", "unfavorite") else set()
+
+        def _tag_patch(head: dict[str, Any]) -> list[str] | None:
+            """The note's new tag list, or None when it would not change."""
+            existing = list(head["tags"] or [])
+            present = any(str(t).lower() == tag.lower() for t in existing)
+            if op == "addTag":
+                return None if present else existing + [tag]
+            return [t for t in existing if str(t).lower() != tag.lower()] if present else None
+
+        results: list[dict[str, Any]] = []
+        for nid in ids:
+            head = heads.get(nid)
+            if head is None:
+                results.append({"id": nid, "status": "not_found"})
+                continue
+            if head["deleted"] and op not in ("trash", "restore", "unfavorite"):
+                results.append({"id": nid, "status": "in_trash"})
+                continue
+            try:
+                if op == "move":
+                    if head["folderId"] == target_folder:
+                        results.append({"id": nid, "status": "unchanged"})
+                        continue
+                    n = notes_service.update_note(uid, nid, {"folderId": target_folder}, conn=conn)
+                    results.append({"id": nid, "status": "changed", "updatedAt": n["updatedAt"]}
+                                   if n else {"id": nid, "status": "not_found"})
+                elif op in ("addTag", "removeTag"):
+                    # Compare-and-set against the revision this batch READ, so a
+                    # tag list edited meanwhile (the editor, another tab) is
+                    # re-read and re-merged rather than overwritten. One retry;
+                    # a note still moving under us is reported, not clobbered.
+                    outcome: dict[str, Any] | None = None
+                    for _attempt in range(2):
+                        new_tags = _tag_patch(head)
+                        if new_tags is None:
+                            outcome = {"id": nid, "status": "unchanged"}
+                            break
+                        try:
+                            n = notes_service.update_note(
+                                uid, nid, {"tags": new_tags}, conn=conn,
+                                expected_updated_at=head["updatedAt"],
+                            )
+                        except notes_service.NoteConflictError:
+                            head = notes_service.note_batch_heads(uid, [nid], conn=conn).get(nid)
+                            if head is None or head["deleted"]:
+                                outcome = {"id": nid, "status": "not_found" if head is None else "in_trash"}
+                                break
+                            continue
+                        outcome = ({"id": nid, "status": "changed", "updatedAt": n["updatedAt"]}
+                                   if n else {"id": nid, "status": "not_found"})
+                        break
+                    results.append(outcome or {"id": nid, "status": "conflict"})
+                elif op == "favorite":
+                    if nid in favs:
+                        results.append({"id": nid, "status": "unchanged"})
+                        continue
+                    notes_service.add_favorite(uid, nid, conn=conn)
+                    results.append({"id": nid, "status": "changed"})
+                elif op == "unfavorite":
+                    if nid not in favs:
+                        results.append({"id": nid, "status": "unchanged"})
+                        continue
+                    notes_service.remove_favorite(uid, nid, conn=conn)
+                    results.append({"id": nid, "status": "changed"})
+                elif op == "trash":
+                    if head["deleted"]:
+                        results.append({"id": nid, "status": "unchanged"})
+                        continue
+                    ok = notes_service.delete_note(uid, nid, conn=conn)
+                    results.append({"id": nid, "status": "changed" if ok else "not_found"})
+                elif op == "restore":
+                    if not head["deleted"]:
+                        results.append({"id": nid, "status": "unchanged"})
+                        continue
+                    n = notes_service.restore_note(uid, nid, conn=conn)
+                    results.append({"id": nid, "status": "changed", "updatedAt": n["updatedAt"]}
+                                   if n else {"id": nid, "status": "not_found"})
+            except NoteValidationError as e:
+                results.append({"id": nid, "status": "invalid", "error": str(e)})
+        conn.commit()  # add/remove_favorite leave committing to the owner of a shared conn
+    finally:
+        conn.close()
+
+    counts = {"changed": 0, "unchanged": 0, "failed": 0}
+    for r in results:
+        key = r["status"] if r["status"] in ("changed", "unchanged") else "failed"
+        counts[key] += 1
+    return {"op": op, "results": results, **counts}
+
+
+NOTE_BATCH_EXPORT_MAX = 500
+
+
+@router.post("/notes/batch/export")
+def notes_batch_export_endpoint(
+    payload: dict[str, Any],
+    user: dict = Depends(get_current_user),
+) -> StreamingResponse:
+    """The SELECTED notes as one Markdown zip — `{ids}`.
+
+    ⛔ REUSES THE EXISTING EXPORT, NEVER A SECOND MARKDOWN WRITER: each note
+    is `notes_export.build_single_note_export` (the per-note markdown, front
+    matter and attachment bundling the whole-notebook export also uses), and
+    this only gathers those into one archive, carrying the same
+    `UCT_NOTEBOOK_EXPORT.json` marker so the importer recognises it as ours.
+    Notes sit at the archive root (a selection spans folders; the member
+    chose notes, not a tree); two with the same title are told apart by id.
+
+    Guarded like the whole-notebook export: one export slot per pod (429
+    when busy), built to a temp file and streamed, never held in memory.
+    A note that is not the member's, or is in the trash, is not exported
+    and is listed in EXPORT_ISSUES.txt — and counted in `X-Export-Skipped`
+    so the client can say so without opening the zip."""
+    import re
+    import tempfile
+    import zipfile
+    from pathlib import Path
+    from api.services.journal_two.notes_export import (
+        _EXPORT_MANIFEST_NAME, _EXPORT_MANIFEST_VERSION,
+        acquire_export_slot, build_single_note_export, release_export_slot,
+        stream_export_file,
+    )
+
+    ids = _parse_batch_ids((payload or {}).get("ids"), cap=NOTE_BATCH_EXPORT_MAX)
+    if not acquire_export_slot():
+        raise HTTPException(
+            status_code=429,
+            detail="An export is already running. Please wait a moment and try again.",
+        )
+    stamp = datetime.now(UTC).strftime("%Y%m%d")
+    try:
+        fd, tmp_name = tempfile.mkstemp(suffix=".zip", prefix="j2-notes-export-")
+        os.close(fd)
+        tmp_path = Path(tmp_name)
+        exported = 0
+        skipped: list[str] = []
+        issues: list[str] = []
+        used_md: set[str] = set()
+        written: set[str] = set()
+        try:
+            with zipfile.ZipFile(tmp_path, "w", zipfile.ZIP_DEFLATED) as zf:
+                for nid in ids:
+                    built = build_single_note_export(user["id"], nid)
+                    if built is None:
+                        skipped.append(nid)
+                        continue
+                    content, fname, media_type = built
+                    entries: list[tuple[str, bytes]] = []
+                    if media_type == "application/zip":
+                        with zipfile.ZipFile(io.BytesIO(content)) as inner:
+                            entries = [(i.filename, inner.read(i)) for i in inner.infolist()]
+                    else:
+                        base = re.sub(r"-\d{8}\.md$", "", fname)
+                        entries = [(f"{base}.md", content)]
+                    for name, data in entries:
+                        if name == "EXPORT_ISSUES.txt":
+                            issues.append(data.decode("utf-8", errors="replace").strip())
+                        elif name.endswith(".md") and "/" not in name:
+                            md_name = name if name not in used_md else f"{name[:-3]}-{nid[:8]}.md"
+                            used_md.add(md_name)
+                            zf.writestr(md_name, data)
+                        elif name not in written:
+                            written.add(name)  # attachments/<user>/<note>/... never collide
+                            zf.writestr(name, data)
+                    exported += 1
+                zf.writestr(_EXPORT_MANIFEST_NAME, json.dumps({
+                    "product": "uct-notebook-export",
+                    "manifest_version": _EXPORT_MANIFEST_VERSION,
+                    "exported_at": datetime.now(UTC).isoformat(),
+                    "note_count": exported,
+                    "selection": True,
+                }))
+                if skipped:
+                    issues.append(
+                        "These notes were not exported -- they are in the Trash or no "
+                        "longer exist:\n" + "\n".join(f"- {nid}" for nid in skipped))
+                if issues:
+                    zf.writestr("EXPORT_ISSUES.txt", "\n\n".join(issues) + "\n")
+        except Exception:
+            tmp_path.unlink(missing_ok=True)
+            raise
+    except Exception:
+        release_export_slot()
+        raise
+
+    filename = f"uct-notebook-selection-{stamp}.zip"
+    return StreamingResponse(
+        stream_export_file(tmp_path),
+        media_type="application/zip",
+        headers={
+            "Content-Disposition": f'attachment; filename="{filename}"',
+            "X-Export-Count": str(exported),
+            "X-Export-Skipped": str(len(skipped)),
+            "Access-Control-Expose-Headers": "X-Export-Count, X-Export-Skipped",
+        },
+    )
+
+
 @router.get("/notes/sector-theme-facets")
 def sector_theme_facets_endpoint(
     user: dict = Depends(get_current_user),

@@ -50,6 +50,9 @@ const NOTEBOOK_SHORTCUTS = [
   { keys: ['Ctrl', 'K'], label: 'Jump to any note: type part of its title, then Enter' },
   { keys: ['Ctrl', 'F'], label: 'Find in the current note' },
   { keys: ['Esc'], label: 'Close find, or the command palette' },
+  // Wave 5 bulk operations (list and table views).
+  { keys: ['Shift', 'Click'], label: 'Select every note between the last one checked and this one' },
+  { keys: ['Esc'], label: 'Clear the selected notes' },
 ]
 
 function Kbd({ keys }) {

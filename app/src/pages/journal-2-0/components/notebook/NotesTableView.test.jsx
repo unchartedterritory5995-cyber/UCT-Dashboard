@@ -222,3 +222,54 @@ describe('NotesTableView — select/multi_select option color', () => {
     expect(onQuickFilter).toHaveBeenCalledWith('p2', ['earnings', 'macro'])
   })
 })
+
+describe('NotesTableView — wave 5 selection', () => {
+  const selectionWith = (over = {}) => ({
+    isSelected: vi.fn((id) => (over.selected || []).includes(id)),
+    onToggle: vi.fn(),
+    onToggleAll: vi.fn(),
+    allSelected: false,
+    someSelected: (over.selected || []).length > 0,
+    ...over,
+  })
+
+  it('without `selection` there are no checkboxes', () => {
+    setup()
+    expect(screen.queryAllByRole('checkbox')).toHaveLength(0)
+  })
+
+  it('one checkbox per row plus a select-all in the header', () => {
+    setup({ selection: selectionWith() })
+    expect(screen.getByRole('checkbox', { name: 'Select all notes in view' })).toBeInTheDocument()
+    expect(screen.getByRole('checkbox', { name: 'Select NVDA Thesis' })).toBeInTheDocument()
+    expect(screen.getByRole('checkbox', { name: 'Select AMD Watch' })).toBeInTheDocument()
+  })
+
+  it('a row checkbox selects WITHOUT opening the note', () => {
+    const selection = selectionWith()
+    const { onOpenNote } = setup({ selection })
+    fireEvent.click(screen.getByRole('checkbox', { name: 'Select AMD Watch' }), { shiftKey: true })
+    expect(selection.onToggle).toHaveBeenCalledWith(expect.objectContaining({ id: 'n2' }), { shift: true })
+    expect(onOpenNote).not.toHaveBeenCalled()
+  })
+
+  it('the header box selects all in view', () => {
+    const selection = selectionWith()
+    setup({ selection })
+    fireEvent.click(screen.getByRole('checkbox', { name: 'Select all notes in view' }))
+    expect(selection.onToggleAll).toHaveBeenCalled()
+  })
+
+  it('the header box is indeterminate when some — not all — are selected', () => {
+    setup({ selection: selectionWith({ selected: ['n1'] }) })
+    expect(screen.getByRole('checkbox', { name: 'Select all notes in view' }).indeterminate).toBe(true)
+    expect(screen.getByRole('checkbox', { name: 'Select NVDA Thesis' })).toBeChecked()
+  })
+
+  it('when all are selected the header offers to clear, by name', () => {
+    setup({ selection: selectionWith({ selected: ['n1', 'n2'], allSelected: true }) })
+    const box = screen.getByRole('checkbox', { name: 'Clear the selection' })
+    expect(box).toBeChecked()
+    expect(box.indeterminate).toBe(false)
+  })
+})

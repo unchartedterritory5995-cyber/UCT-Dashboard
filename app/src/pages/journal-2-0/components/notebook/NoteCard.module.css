@@ -103,3 +103,58 @@
 .restoreBtn:hover {
   background: rgba(220, 187, 94, 0.18);
 }
+
+/* Wave 5 bulk operations — the checkbox sits BESIDE the card (a checkbox
+   inside a <button> is invalid), overlaid on space the card reserves so the
+   title never jumps when a selection starts. Always visible, quieter until
+   hovered, focused or checked: a hover-only control does not exist on touch. */
+.selectWrap {
+  position: relative;
+  display: flex;
+  min-width: 0;
+}
+.selectWrap > .card {
+  flex: 1;
+  min-width: 0;
+  padding-left: 40px;
+}
+.selectBox {
+  position: absolute;
+  left: 4px;
+  top: 50%;
+  transform: translateY(-50%);
+  z-index: 1;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  cursor: pointer;
+  opacity: 0.55;
+}
+.selectBox input {
+  width: 16px;
+  height: 16px;
+  margin: 0;
+  cursor: pointer;
+  accent-color: var(--ut-gold);
+}
+.selectWrap:hover .selectBox,
+.selectBox:focus-within,
+.selectWrapOn .selectBox { opacity: 1; }
+.selectWrapOn > .card {
+  border-color: var(--ut-gold);
+  box-shadow: 0 0 0 1px var(--ut-gold);
+}
+
+/* Touch tier (phone AND tablet): the whole box is a 44px finger target and
+   it is never dimmed — there is no hover to reveal it. */
+@media (max-width: 1024px) {
+  .selectBox {
+    min-width: var(--tap-min);
+    min-height: var(--tap-min);
+    left: 0;
+    opacity: 1;
+  }
+  .selectWrap > .card { padding-left: 48px; }
+}

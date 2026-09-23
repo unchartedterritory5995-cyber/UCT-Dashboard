@@ -395,3 +395,64 @@
   font-size: 13px;
   line-height: 1.45;
 }
+
+/* Wave 5 bulk operations: what a bulk action did, and the Undo after a trash.
+   Fixed to the bottom of the viewport so it is seen wherever the member has
+   scrolled; it is NOT inside the bulk bar, which unmounts when the selection
+   empties. Only existing tokens. */
+.bulkNotice {
+  position: fixed;
+  left: 50%;
+  bottom: 24px;
+  transform: translateX(-50%);
+  z-index: 60;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  max-width: min(640px, calc(100vw - 32px));
+  padding: 10px 12px 10px 16px;
+  background: var(--bg-elevated);
+  border: 1px solid var(--ut-gold);
+  border-radius: 10px;
+  box-shadow: 0 10px 28px rgba(0, 0, 0, 0.35);
+  font-size: 13px;
+  line-height: 1.45;
+  color: var(--text-bright);
+}
+.bulkNoticeError {
+  border-color: var(--loss-border);
+  background: var(--loss-bg);
+}
+.bulkNoticeText { flex: 1; min-width: 0; }
+.bulkNoticeBtn {
+  flex: none;
+  min-height: 30px;
+  padding: 4px 12px;
+  font: inherit;
+  font-weight: 700;
+  color: var(--ut-gold);
+  background: transparent;
+  border: 1px solid var(--ut-gold);
+  border-radius: 7px;
+  cursor: pointer;
+}
+.bulkNoticeClose {
+  flex: none;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 30px;
+  min-height: 30px;
+  padding: 0;
+  color: var(--text-muted);
+  background: transparent;
+  border: none;
+  cursor: pointer;
+}
+@media (max-width: 1024px) {
+  .bulkNoticeBtn,
+  .bulkNoticeClose {
+    min-height: var(--tap-min, 44px);
+    min-width: var(--tap-min, 44px);
+  }
+}
