@@ -65,3 +65,34 @@ def test_withholding_covers_frames_containing_the_ex_session_but_not_the_ex_day_
     assert not b.withheld_in("Z", "2024-02-20", "2024-02-26")     # same-day: not in the frame
     assert b.withheld_in("Z", "2024-02-20", "2024-02-27")
     assert not b.withheld_in("Z", "2024-02-26", "2024-02-29")     # frame starts at/after it
+
+
+# ── v2: dual-class spelling (the dividend ledger concatenates, the price files dot) ──
+def test_a_concatenated_ledger_spelling_resolves_to_the_traded_dotted_class():
+    raw = _raw({("2024-02-22", "BF.B"): 50.0, ("2024-02-22", "BF.A"): 52.0})
+    t = bdb.build_events([_div("BFB", "2024-02-23", 0.2), _div("BFA", "2024-02-23", 0.2)], CAL, raw)
+    assert t["applied"]["BF.B"] == [("2024-02-23", pytest.approx(1 - 0.2 / 50.0))]
+    assert t["applied"]["BF.A"] == [("2024-02-23", pytest.approx(1 - 0.2 / 52.0))]
+    assert "BFB" not in t["applied"] and t["respelled"] == {"BFA->BF.A": 1, "BFB->BF.B": 1}
+
+
+def test_a_literal_ticker_that_trades_is_never_respelled():
+    # FOXA trades as FOXA; there is no FOX.A — nothing to resolve
+    t = bdb.build_events([_div("FOXA", "2024-02-23", 0.26)], CAL, _raw({("2024-02-22", "FOXA"): 30.0}))
+    assert list(t["applied"]) == ["FOXA"] and t["respelled"] == {}
+
+
+def test_both_spellings_trading_is_ambiguous_and_withholds_both():
+    raw = _raw({("2024-02-22", "ABCD"): 10.0, ("2024-02-22", "ABC.D"): 20.0})
+    t = bdb.build_events([_div("ABCD", "2024-02-23", 0.1)], CAL, raw)
+    assert t["applied"] == {}
+    assert t["withheld_boundaries"] == {"ABCD": ["2024-02-23"], "ABC.D": ["2024-02-23"]}
+    assert t["counts"]["ambiguous_spelling"] == 1
+
+
+def test_dotted_and_concatenated_records_merge_and_conflicts_fail_closed():
+    raw = _raw({("2024-02-22", "WSO.B"): 400.0})
+    same = bdb.build_events([_div("WSO.B", "2024-02-23", 2.7), _div("WSOB", "2024-02-23", 2.7)], CAL, raw)
+    assert same["applied"]["WSO.B"] == [("2024-02-23", pytest.approx(1 - 2.7 / 400.0))]
+    diff = bdb.build_events([_div("WSO.B", "2024-02-23", 2.7), _div("WSOB", "2024-02-23", 2.5)], CAL, raw)
+    assert "WSO.B" not in diff["applied"] and diff["withheld_boundaries"]["WSO.B"] == ["2024-02-23"]

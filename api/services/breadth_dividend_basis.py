@@ -33,6 +33,15 @@ response (yfinance `auto_adjust=True`):
     adjusted;
   * live SKIPS (fails open) an event yielding > 25 % — yfinance adjusts for it.
 
+⛔⛔ DUAL-CLASS SPELLING (v2). The provider's DIVIDEND ledger spells share classes
+CONCATENATED (`BFB`, `HEIA`, `MOGA`, `LENB`, `GEFB`, `CWENA`, `UHALB`, `STZB`, `KELYA`, `WSOB`)
+while its PRICE files spell them dotted (`BF.B`, `HEI.A` …) — v1 silently never adjusted a
+dual-class name. A ledger ticker X (no dot) is RESOLVED against what actually traded in the
+sessions before its ex-session: X traded → X; only Y = X[:-1] + "." + X[-1] traded → Y; both
+traded → AMBIGUOUS and BOTH are withheld at that session (whose dividend it is cannot be
+proven); neither → X (no series, no effect). Dotted and concatenated records for one resolved
+name on one ex-date merge (identical amounts collapse; different amounts are a conflict).
+
 ⛔ FAIL CLOSED, NEVER GUESSED. An event is WITHHELD — the name gets no levels while a frame
 straddles it, exactly like an adjusted-series defect — when: the currency is not USD; the same
 (ticker, ex_date, type) carries two different amounts; there is no raw prior close within 5
@@ -49,7 +58,7 @@ import json
 import math
 import os
 
-DIVIDEND_BASIS_VERSION = "div-basis-v1"
+DIVIDEND_BASIS_VERSION = "div-basis-v2"
 MAX_PRIOR_GAP_SESSIONS = 5
 MIN_RATIO = 0.5
 
@@ -57,18 +66,47 @@ MIN_RATIO = 0.5
 def build_events(dividends: list, calendar: list, raw_close, canon=lambda t: t,
                  last_session: str = None) -> dict:
     """Classify every dividend record once. `raw_close(iso, t)` reads the vintage raw file."""
+    applied = collections.defaultdict(list)       # t -> [(session, ratio)]
+    withheld = collections.defaultdict(list)      # t -> [session]
+    log = collections.Counter()
+    detail = []
+    respelled = collections.Counter()
+
+    def traded_before(t, j):
+        return any(raw_close(calendar[k], t) for k in range(j - 1, max(-1, j - 1 - MAX_PRIOR_GAP_SESSIONS), -1))
+
     groups = collections.defaultdict(list)
+    resolved = {}
     for d in dividends:
         t, ex, cash = d.get("ticker"), d.get("ex_dividend_date"), d.get("cash_amount")
         if not t or not ex or cash is None:
             continue
         if last_session and ex > last_session:
             continue
-        groups[(canon(t), ex)].append(d)
-    applied = collections.defaultdict(list)       # t -> [(session, ratio)]
-    withheld = collections.defaultdict(list)      # t -> [session]
-    log = collections.Counter()
-    detail = []
+        t = canon(t)
+        if "." not in t and len(t) >= 2:
+            key = (t, ex)
+            if key not in resolved:
+                j = bisect.bisect_left(calendar, ex)
+                y = t[:-1] + "." + t[-1]
+                lit = j < len(calendar) and traded_before(t, j)
+                dot = j < len(calendar) and traded_before(y, j)
+                resolved[key] = (None, y) if (lit and dot) else (y if dot else t, None)
+            name, amb = resolved[key]
+            if amb is not None:
+                j = bisect.bisect_left(calendar, ex)
+                for n in (t, amb):
+                    if calendar[j] not in withheld[n]:
+                        withheld[n].append(calendar[j])
+                        detail.append({"t": n, "ex": ex, "session": calendar[j],
+                                       "reason": "ambiguous spelling %s vs %s: both traded" % (t, amb)})
+                log["ambiguous_spelling"] += 1
+                continue
+            if name != t:
+                respelled[(t, name)] += 1
+            t = name
+        groups[(t, ex)].append(d)
+    log["respelled_records"] = sum(respelled.values())
     for (t, ex), recs in sorted(groups.items(), key=lambda kv: kv[0][1]):     # ex-date order
         j = bisect.bisect_left(calendar, ex)
         if j >= len(calendar):
@@ -118,9 +156,10 @@ def build_events(dividends: list, calendar: list, raw_close, canon=lambda t: t,
     for t in applied:
         applied[t].sort()
     for t in withheld:
-        withheld[t].sort()
+        withheld[t] = sorted(set(withheld[t]))
     return {"version": DIVIDEND_BASIS_VERSION, "applied": dict(applied),
-            "withheld_boundaries": dict(withheld), "counts": dict(log), "withheld_detail": detail}
+            "withheld_boundaries": dict(withheld), "counts": dict(log), "withheld_detail": detail,
+            "respelled": {"%s->%s" % k: v for k, v in sorted(respelled.items())}}
 
 
 class DividendBasis:
