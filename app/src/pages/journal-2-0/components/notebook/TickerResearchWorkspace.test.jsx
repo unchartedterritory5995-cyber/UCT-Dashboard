@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
-import { render, screen, fireEvent, waitFor } from '@testing-library/react'
+import { render, screen, fireEvent, waitFor, within } from '@testing-library/react'
 import { MemoryRouter } from 'react-router-dom'
 
 let hookResult
@@ -182,5 +182,40 @@ describe('TickerResearchWorkspace', () => {
       </MemoryRouter>,
     )
     expect(screen.queryByText('Notebook')).toBeNull()
+  })
+})
+
+describe('TickerResearchWorkspace — Ask citations', () => {
+  function sseBody(events) {
+    const enc = new TextEncoder()
+    return new ReadableStream({
+      start(c) {
+        for (const ev of events) c.enqueue(enc.encode(`data: ${JSON.stringify(ev)}\n\n`))
+        c.close()
+      },
+    })
+  }
+  const SOURCE = {
+    n: 1, type: 'note', label: 'NVDA thesis', citation: 'exact', snippet: 'margins',
+    navigation: { kind: 'note', note_id: 'n1' }, location: {}, payload: {},
+    stance: null, truncated: false,
+  }
+
+  it('clicking a citation opens the cited note (it used to be a dead click)', async () => {
+    const onOpenNote = vi.fn()
+    renderWorkspace({ onOpenNote })
+    global.fetch = vi.fn().mockResolvedValue({
+      ok: true, status: 200, json: async () => ({}),
+      body: sseBody([
+        { type: 'sources', scope: 'security', scopeLabel: 'NVDA research', sources: [SOURCE], coverageNotice: null },
+        { type: 'final', answer: 'Margins fell [1].' },
+      ]),
+    })
+    fireEvent.click(screen.getByRole('button', { name: 'Ask a question about this research' }))
+    const dialog = await screen.findByRole('dialog')
+    fireEvent.change(within(dialog).getByRole('textbox'), { target: { value: 'margins?' } })
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Ask' }))
+    fireEvent.click(await within(dialog).findByRole('button', { name: 'Source 1: NVDA thesis' }))
+    expect(onOpenNote).toHaveBeenCalledWith({ id: 'n1' })
   })
 })

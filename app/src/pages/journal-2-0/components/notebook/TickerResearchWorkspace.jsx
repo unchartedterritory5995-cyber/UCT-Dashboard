@@ -142,8 +142,15 @@ export default function TickerResearchWorkspace({ symbol, onOpenNote, showBackLi
           {/* The scope is PRESELECTED. The member is already inside NVDA
               Research, so they should not have to type "NVDA" or configure a
               filter to ask about it. */}
+          {/* ⛔ `onOpenNote` was never an AskPanel prop, so every citation in
+              "This research" was a dead click. Citations navigate through
+              `onNavigate`, into this workspace's own `openNote` (which falls
+              back to the router when no host handler was passed). */}
           <AskPanel scope="security" target={identity.symbol}
-                    onOpenNote={onOpenNote} />
+                    onNavigate={(s) => {
+                      const id = s?.navigation?.note_id
+                      if (id) openNote({ id })
+                    }} />
           <button type="button" className="btn btn-ghost btn-sm" onClick={handleNewNote} disabled={creating}>
             <UIcon name="plus" size={13} gold={false} /> New note
           </button>
