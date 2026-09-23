@@ -2372,6 +2372,43 @@ export function buildRuntimeIr(source, opts = {}) {
     }
     const argOf = (x) => (x && x.value !== undefined ? x.value : x)
 
+    // ⭐⭐ THIS CHART, AT THIS CHART'S PERIOD, IS NOT A REQUEST — IT IS THE
+    // EXPRESSION. `request.security(syminfo.tickerid, timeframe.period, x)` asks
+    // for the bars already in hand, so it folds to `x` and nothing below applies
+    // to it: there is no other symbol whose context a `var` would cross into,
+    // and no second timeframe to align with.
+    //
+    // ⛔⛔ WITHOUT THIS, THE CANONICAL SPELLING REFUSED WHERE THE DEPRECATED ONE
+    // WORKED. `security(…)` falls through to the columnar lane, which matches a
+    // self-request STRUCTURALLY (`pine.js::ownSymbolNameOf`); only
+    // `request.security` is dispatched here, and here the symbol argument is
+    // lowered as a VALUE — so `syminfo.tickerid` had to become a string, which
+    // this engine's value model does not have. The refusal that came back,
+    // *"this binding did not settle syminfo.tickerid"*, was correct about what
+    // it was asked and the question was wrong: a SELF request never needs the
+    // symbol's TEXT, only the knowledge that it is this chart's.
+    //
+    // Measured: 76 of 266 corpus scripts write `request.security` across 370
+    // call sites, against 26 for the bare form. It is what modern Pine writes.
+    //
+    // ⛔ NAMESPACED SPELLINGS ONLY. `pine.js` records why: `syminfo.tickerid`
+    // cannot be shadowed, while the v2/v3 bare identifiers CAN be — a script
+    // writing `tickerid = 'SPY'` means SPY, not this chart. Those keep refusing
+    // rather than being guessed at.
+    //
+    // ⛔ AND THE TIMEFRAME IS READ SYNTACTICALLY, not lowered here. Lowering it
+    // early would reorder `lowerExpr`'s column allocation against the two
+    // refusals below and change which one a member sees first.
+    const symNode = argOf(positional[0])
+    const tfNode0 = argOf(positional[1])
+    const ownSymbol = !!symNode && symNode.type === 'name'
+      && (symNode.name === 'syminfo.tickerid' || symNode.name === 'syminfo.ticker')
+    const ownPeriod = !!tfNode0 && (
+      (tfNode0.type === 'string' && String(tfNode0.value).trim() === String(lanePeriod).trim())
+      || (tfNode0.type === 'name' && OWN_TF_NAMES.has(tfNode0.name)
+          && scope.lookup(tfNode0.name) === null && !env.has(tfNode0.name)))
+    if (ownSymbol && ownPeriod) return lowerExpr(argOf(positional[2]), scope)
+
     // ⛔⛔ CHECKED BEFORE ANYTHING IS LOWERED, and the ORDER is the point. The
     // symbol argument has its own seam (a symbol-settled value refuses when the
     // binding did not supply one), and lowering it first buried this more

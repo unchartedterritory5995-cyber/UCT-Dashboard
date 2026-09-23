@@ -108,9 +108,36 @@ describe('⭐⭐ v2:249 clears when the IR lane is told the symbol', () => {
     // driven by the DEFINITION lane, which renders this script's four plots and
     // both tables today. Naming it here is what stops it being rediscovered as a
     // mystery; chasing it is not this wave's work.
-    expect(withSym.refusal.guard).toBe('runtime:request')
+    // ⚰️ 2026-09-23 — THE BLOCKER IS NOW TIMEFRAME-CONDITIONAL, AND THE WARNING
+    // ABOVE IS HONOURED RATHER THAN OVERRIDDEN. It still clears only with the
+    // MEASUREMENT, for the builds that need one.
+    //
+    // v2 BRANCHES ON THE CHART'S TIMEFRAME ITSELF — read the script at 247:
+    //     if isDaily
+    //         [a…h] = f_getDailyData()                       // direct call
+    //     else
+    //         [a…h] = request.security(…, 'D', …)            // line 261
+    // Line 261 is the NON-DAILY arm. On a daily build the requested 'D' IS this
+    // chart's period, so there is no higher-timeframe bar to be part-way through
+    // and no alignment to measure — the request folds to the expression and the
+    // lane walks on to the tuple shape behind it. On an INTRADAY build it is a
+    // genuine higher-timeframe request and the vendor fact still stops it.
+    //
+    // ⛔ SO BOTH ARE ASSERTED. Pinning only the daily case would read as
+    // "lookahead is served now", which is false; pinning only the intraday case
+    // would lose the fact that the daily build got past it.
     expect(withSym.refusal.line).toBe(261)
-    expect(withSym.refusal.message).toMatch(/lookahead/)
+    expect(withSym.refusal.guard).toBe('runtime:statement')
+    expect(withSym.refusal.message).toMatch(/f_getDailyData/)
+
+    // ⭐⭐ THE VENDOR FACT, WHERE IT GENUINELY APPLIES. `basePeriod` — NOT `tf` —
+    // is what `basePeriodOf` reads; passing `tf: '5'` leaves the lane on its
+    // default and silently builds a DAILY chart, which is the trap this file's
+    // own `lanePeriod` comment records one lane over.
+    const intraday = build({ symbol: SYMBOL, basePeriod: '60' })
+    expect(intraday.refusal.guard).toBe('runtime:request')
+    expect(intraday.refusal.line).toBe(261)
+    expect(intraday.refusal.message).toMatch(/lookahead/)
     // ⭐ AND THE FUNCTIONS BEHIND IT WERE ALREADY REPORTED, so the two facts
     // agree: nothing was swallowed on the way to the blocker.
     // ⭐ The skip list moves with the capabilities too, so this asserts the

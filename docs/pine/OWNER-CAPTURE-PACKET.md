@@ -33,19 +33,26 @@ hidden tab. Read `study._data._items`.
 
 | # | Probe | Settles | Witnesses |
 |---|---|---|---|
-| **1** | `tools/visual_conformance/probes/exchange-spelling.pine` | `syminfo.prefix`, and `tickerid` with it | **7** — SPY · AAPL · JPM · IMO · ARKK · LVMUY · ADDYY |
-| **2** | `tools/visual_conformance/probes/syminfo-roster.pine` | the 8 refused `syminfo.*` fields | **5** — SPY · AAPL · BRK.B · F · **BITSTAMP:BTCUSD** |
-| **3** | `tools/visual_conformance/probes/w4-cross-round.pine` | crosses, `rising`/`falling`, `math.sign(0)`, timeframe scalars | 1 — SPY, 1D |
+| **1** | `tools/visual_conformance/probes/syminfo-roster.pine` | the 8 refused `syminfo.*` fields | **5** — SPY · AAPL · BRK.B · F · **BITSTAMP:BTCUSD** |
+| **2** | `tools/visual_conformance/probes/w4-cross-round.pine` | crosses, `rising`/`falling`, `math.sign(0)`, timeframe scalars | 1 — SPY, 1D |
+| **3** | `tools/visual_conformance/probes/request-realtime-alignment.pine` ⚠️ **OPEN MARKET ONLY** | `lookahead` at a timeframe ABOVE the chart's | SPY, **5m**, during RTH, newest bar forming |
 
-### 1 — exchange spelling
+### ✅ ALREADY TAKEN — DO NOT RE-RUN
 
-Six distinct store spellings need one witness each (`_YF_EXCHANGE` has 11 codes
-collapsing to 6), plus ADDYY as a seventh that answers the OTC-**tier** question.
-⭐ **SPY is the row that proves the thesis:** our store says `NYSE Arca`, and if
-the vendor says `AMEX`, then a member's `syminfo.prefix == "AMEX"` is TRUE at
-TradingView and would have been FALSE had we served our own spelling.
+⚰️ **`exchange-spelling.pine` IS DONE, and this packet said it was pending.**
+Corrected 2026-09-23 after reading `symbolScope.json` rather than the sentence
+next to it. The capture is **2026-09-10**, receipt-verified
+(`tests/fixtures/vendor/exchange-spelling-seven-witnesses-2026-09-10.json`,
+`receipt.verified: true`), with **all seven** witnesses including ADDYY, and
+`confirmed` carries **6 exchange rows** — `NYSE Arca → AMEX` (witness `AMEX:SPY`)
+among them, which is the flagship divergence the probe existed to settle.
 
-### 2 — the syminfo roster
+⛔ **`pending_measurement` IS NOT A TO-DO LIST.** It holds the SENTENCE the fold
+quotes when a symbol's exchange is *not* in `confirmed` — that is why `tickerid`
+and `prefix` appear there while both are served for the six confirmed exchanges.
+Reading it as outstanding work is what produced the error above.
+
+### 1 — the syminfo roster
 
 ⛔ **BITSTAMP:BTCUSD IS NOT OPTIONAL AND IS NOT A CURIOSITY.** `basecurrency` is
 defined as the left half of a pair. On an equity, `basecurrency == ""` is
@@ -58,7 +65,7 @@ Their refusal reason is *"differs per symbol"*, so a single row cannot settle
 them — the question is whether the witnesses **agree**. (`F` is in the list in
 case mintick tiers below some price.)
 
-### 3 — W4
+### 2 — W4
 
 ⚰️ **ITS ROUNDING BLOCK IS ALREADY ANSWERED — DO NOT RE-ASK IT.** X06–X09 ask
 `math.round`'s half-rule, and
@@ -71,13 +78,27 @@ filed as OPEN whose answer was already in the repo.
 ⚠️ **X12/X13 duplicate probe 2's S17/S18.** Take them once, on whichever probe
 you run first, and note which.
 
+### 3 — the realtime alignment ⚠️ OPEN MARKET ONLY
+
+⛔ **THIS ONE CANNOT BE TAKEN AT THE WEEKEND**, which is why it is called out
+separately rather than folded into the others. `pineRuntimeFrontend`'s request
+path refuses `lookahead` by name and says why: *"Vendor packet M1 measured the
+HISTORICAL half of this alignment on a real chart; the realtime half needs an
+open market and is still owed."*
+
+⭐ **AND ITS SCOPE JUST NARROWED.** As of 2026-09-23 a request for the chart's
+OWN symbol at the chart's OWN period folds to the expression, so `lookahead` is
+inert there and needs no measurement. What is still owed is only the case where
+the requested timeframe is genuinely ABOVE the chart's — e.g. a `'D'` request on
+an intraday chart, on a forming bar. Take it on an intraday chart during regular
+hours, with the newest bar still forming.
+
 ---
 
 ## What each unblocks, measured on the committed corpus
 
 | Field | Corpus demand | What lands the day it is witnessed |
 |---|---|---|
-| `syminfo.prefix` / `tickerid` | the `confirmed` map is keyed on it | **no code change** — the fold already reads `confirmed`; it is built, railed and reachable today |
 | `syminfo.basecurrency` | **22 uses, 7 files, 6 reaching an output** | the largest single name on the unserved roster |
 | `syminfo.timezone` | **13 uses, 6 files, 4 reaching an output** | |
 | `syminfo.currency`, `type`, `session` | roster calls each "constant across our universe" | ⭐ that is a **UX** objection, not a parity one — a constant that MATCHES the vendor is identity |

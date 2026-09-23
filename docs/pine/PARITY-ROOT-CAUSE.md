@@ -696,6 +696,129 @@ arms) the capability behind it.
 
 ---
 
+## RC-K — the canonical spelling refused where the deprecated one worked
+
+Measured on a daily chart, symbol supplied:
+
+```pine
+plot(security(syminfo.tickerid, 'D', close))            ✅ compiles
+plot(request.security(syminfo.tickerid, 'D', close))    ⛔ refused
+```
+
+`request.security` is what modern Pine writes — **76 of 266 corpus scripts across 370
+call sites**, against **26** for the deprecated bare form. A member pasting a current
+script was told this engine could not do a thing it does for the old name.
+
+⛔⛔ **THE CAUSE IS A LANE, NOT A CAPABILITY.** `pineRuntimeFrontend` dispatches ONLY
+the namespaced name to its own request path; the bare name falls through to the columnar
+lane, which matches a self-request STRUCTURALLY (`pine.js::ownSymbolNameOf`). And the
+runtime path lowers the SYMBOL ARGUMENT AS A VALUE — so `syminfo.tickerid` had to become
+a string, and this engine's value model has none. What came back,
+
+> a value that a symbol settles reached the evaluator unsettled — this binding did not
+> settle `syminfo.tickerid`
+
+was correct about what it was asked. **It was asked the wrong question:** a self request
+never needs the symbol's TEXT, only the knowledge that it is this chart's.
+
+⭐ **SO THE FIX IS RC-H'S RULING REACHING THE SECOND LANE**, not a new one —
+`request.security(<own symbol>, <own period>, x)` **is** `x`. That also dissolves the
+`lookahead` refusal for this shape, because the unmeasured realtime alignment is a
+question about TWO timeframes and there is only one here. *A fix is only as wide as the
+lane you measured it in*, for the fifth time in this programme.
+
+⛔ **NAMESPACED SPELLINGS ONLY.** `pine.js` records why: `syminfo.tickerid` cannot be
+shadowed, while the v2/v3 bare identifiers can — a script writing `tickerid = 'SPY'`
+means SPY, not this chart. And the timeframe is read SYNTACTICALLY rather than lowered,
+so no `lowerExpr` side effect is reordered and no refusal changes which one a member sees
+first. A rebound `period` is railed as its own control, because `OWN_TF_NAMES` holds the
+bare name too.
+
+### Measured — and the corpus does not move
+
+| | |
+|---|---|
+| object-lane BUILDS | 7 → **7** |
+| corpus scripts moved, **no symbol** | **0** |
+| corpus scripts moved, **with a symbol** | **0** |
+| `uncharted-volume-v2` | past 261 → a new wall: *"`f_getDailyData` returns 8 values"* |
+
+⛔ **ZERO CORPUS MOVEMENT, STATED PLAINLY.** The demonstrated effect is on the member
+fixture and the unit cases. It ships on correctness — the same program in two spellings
+must not give two answers — and because 370 call sites will meet it as those scripts
+clear their other walls.
+
+⚠️ **AND THE CENSUS IS STRUCTURALLY BLIND TO THIS CLASS.** Both `peelToBuilding.js` and
+the corpus probes call `buildObjectLane` with **no `symbol`**, so every symbol-dependent
+capability is invisible to the programme's main instrument. Measured: supplying one
+changes no corpus outcome today, so the blind spot is **real but currently costless** —
+recorded now rather than discovered later.
+
+### ⚠️ The gate failed twice on the way in, and both were worth it
+
+**First failure — `irSymbolFold` — caught a WRONG DIAGNOSIS, not a wrong change.**
+That file warns, in terms: *"this blocker clears with a MEASUREMENT, not with code, and it
+is the one shape that should never be 'fixed' by making the lane go further."* Probing
+whether an intraday build still refused returned `min tf=5 -> OK (folded)` — which reads
+as a daily request being served on a 5-minute chart, a wrong number wearing a right name.
+
+⛔ **IT WAS THE PROBE.** `basePeriodOf` reads `opts.basePeriod`, **not** `opts.tf`, so
+`tf: '5'` never left the default daily build. Re-measured with `basePeriod`:
+
+| chart | v2:261 |
+|---|---|
+| `D` | folds — no alignment exists |
+| `60` / `5` | **still refuses** — the vendor measurement is intact |
+
+v2 BRANCHES on the timeframe (`if isDaily` calls the helper directly; 261 is the
+non-daily arm), so the warning is honoured rather than overridden. The pin now asserts
+BOTH halves — pinning only the daily one would read as *"lookahead is served now"*, which
+is false. ⚠️ The `basePeriod`/`tf` trap is written into both test files, because
+`lanePeriod`'s own comment one lane over records exactly this class and it was walked into
+anyway.
+
+**`pointwise` §33 was a real scope question.** Its reason is that a request's expression
+runs in ANOTHER symbol's context — but the case used `"D"` on a chart whose base period is
+also `"D"`, which is no other context at all. Narrowed to `"W"`, with the identity half
+added beside it so the narrowing is a statement rather than a silent retreat.
+
+**Second failure — `stockChartWiring > A HOVER REACHES THE RENDERER NOT AT ALL` — is a
+PRE-EXISTING FLAKE, and this is the first time it has a measured rate.**
+
+| | full-scope runs | failures |
+|---|---|---|
+| with this change | 4 | **4** |
+| at HEAD | 5 | **2** |
+
+⛔ **IT FAILS AT HEAD**, so it is not introduced here. ⚠️ It failed more often WITH the
+change and that asymmetry is recorded as UNEXPLAINED rather than explained away: at those
+counts it is around p≈0.08, and no mechanism connects a change in `request.security`
+lowering to a test that renders a mocked chart with an RSI instance and never makes a
+request. The plausible route — more builds succeeding shifts timing under a case that
+asserts mutation arrays stay EMPTY after an async hover — is a hypothesis, not a finding.
+
+⚰️ **AND ISOLATION WAS THE WRONG INSTRUMENT.** Eight isolated runs passed 8/8 on both
+sides and proved nothing; the programme doc says so for this very test — *"re-run it alone
+is not a discriminator"*. Only reverting and re-running UNDER LOAD produced the counts
+above.
+
+### ⚰️ Two corrections to this programme's own records
+
+1. **`OWNER-CAPTURE-PACKET.md` listed a capture that had already been taken.**
+   `exchange-spelling.pine` was captured **2026-09-10**, receipt-verified, all seven
+   witnesses including ADDYY, and `symbolScope.json::confirmed` carries six exchange rows
+   — `NYSE Arca → AMEX` among them. ⛔ **`pending_measurement` IS NOT A TO-DO LIST**: it
+   holds the SENTENCE the fold quotes for an exchange that is *not* confirmed, which is
+   why `tickerid` and `prefix` sit there while both are served for the six. Reading it as
+   outstanding work is what produced the error.
+2. **The realtime-alignment capture had no probe.** It does now —
+   `tools/visual_conformance/probes/request-realtime-alignment.pine` — and its scope just
+   narrowed: only a timeframe genuinely ABOVE the chart's still needs measuring, on a
+   forming bar, which makes it the one reading in this programme that **cannot be taken
+   at the weekend**.
+
+---
+
 ## The foreseeable problems — where this shape will bite next
 
 Each is the same substitution, at a seam we have not yet compared:
