@@ -1,6 +1,7 @@
-import { describe, it, expect, vi, afterEach } from 'vitest'
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { render, screen, fireEvent, within, act } from '@testing-library/react'
 import AskPanel from './AskPanel'
+import styles from './AskPanel.module.css'
 import { MQ } from '../../../../styles/breakpoints'
 
 // ⛔ A CITATION THAT CANNOT BE OPENED IS SAID INSIDE THE PANEL.
@@ -159,6 +160,74 @@ describe('AskPanel — what a tapped citation could not open', () => {
     tap(dialog, A)
     const line = await within(dialog).findByText('That passage is no longer available.')
     expect(dialog.contains(line)).toBe(true)
+  })
+})
+
+// ⛔ ON TOUCH A SENTENCE BELOW THE FOLD IS A SENTENCE NOBODY SEES. The Sheet
+// scrolls, the notice sits after the Sources list, and a tap on an inline `[1]`
+// near the top of a long answer changed nothing on screen. jsdom has no
+// `scrollIntoView`, so it is installed here and records WHICH element it was
+// asked to scroll.
+describe('AskPanel — the notice is brought into view on touch', () => {
+  const realScroll = Element.prototype.scrollIntoView
+  let scrolled
+  beforeEach(() => {
+    scrolled = []
+    Element.prototype.scrollIntoView = function scrollIntoView(opts) { scrolled.push([this, opts]) }
+  })
+  afterEach(() => { Element.prototype.scrollIntoView = realScroll })
+
+  const touch = () => {
+    window.matchMedia = (query) => ({
+      matches: query === MQ.touchDown, media: query, onchange: null,
+      addListener() {}, removeListener() {}, addEventListener() {}, removeEventListener() {},
+      dispatchEvent() { return false },
+    })
+  }
+
+  it('on TOUCH, setting a notice scrolls THAT region into view, nearest', async () => {
+    touch()
+    const dialog = await renderAndAsk(async () => 'That passage is no longer available.')
+    expect(dialog).toHaveAttribute('aria-modal', 'true')
+    tap(dialog, A)
+    await within(dialog).findByText('That passage is no longer available.')
+    expect(scrolled).toContainEqual([notice(dialog), { block: 'nearest' }])
+  })
+
+  it('a tap that opened something scrolls nothing', async () => {
+    touch()
+    const dialog = await renderAndAsk(async () => null)
+    tap(dialog, A)
+    await act(async () => {})
+    expect(scrolled.filter(([el]) => el === notice(dialog))).toEqual([])
+  })
+
+  it('on DESKTOP the popover is left alone', async () => {
+    const dialog = await renderAndAsk(async () => 'That passage is no longer available.')
+    tap(dialog, A)
+    await within(dialog).findByText('That passage is no longer available.')
+    expect(scrolled.filter(([el]) => el === notice(dialog))).toEqual([])
+  })
+})
+
+// ⛔ AN EMPTY LIVE REGION MUST NOT TAKE SPACE. It stays mounted (a region that
+// mounts WITH its text is not reliably announced), and while it holds nothing
+// it is out of the flow -- otherwise every answer gains an empty flex gap under
+// its Sources. jsdom does no layout, so the rail is the class that does it.
+describe('AskPanel — the empty notice region takes no space', () => {
+  it('is mounted and idle before any tap, live once a sentence arrives, idle again after', async () => {
+    const replies = ['That passage is no longer available.', null]
+    const dialog = await renderAndAsk(async () => replies.shift())
+    expect(styles.navNoticeIdle).toBeTruthy()
+    expect(notice(dialog)).toHaveAttribute('role', 'status')
+    expect(notice(dialog)).toHaveClass(styles.navNoticeIdle)
+    tap(dialog, A)
+    await within(dialog).findByText('That passage is no longer available.')
+    expect(notice(dialog)).not.toHaveClass(styles.navNoticeIdle)
+    tap(dialog, B)
+    await act(async () => {})
+    expect(notice(dialog)).toBeEmptyDOMElement()
+    expect(notice(dialog)).toHaveClass(styles.navNoticeIdle)
   })
 })
 

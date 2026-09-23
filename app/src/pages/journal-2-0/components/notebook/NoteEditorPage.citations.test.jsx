@@ -271,6 +271,21 @@ describe('NoteEditorPage ("This note") — a DOCUMENT citation opens by its kind
   })
 })
 
+// ⛔ N-2: the editor's OWN excerpt wiring (`handleOpenExcerptSource` →
+// `openCapturedSource`) had no rail -- pointing it at the PDF viewer stayed
+// green in every file that reached it. An Ask citation of a captured passage.
+describe('NoteEditorPage — an EXCERPT citation of a captured web passage', () => {
+  it('opens the captured-passage sheet, never the PDF viewer', async () => {
+    installNetwork({ excerpt: json(200, { excerpt: WEB_PAGE_EXCERPT }) })
+    await renderEditorAndTap()
+
+    await screen.findByRole('dialog', { name: 'Captured passage from Reuters: NVDA margins' })
+    expect(global.fetch).toHaveBeenCalledWith('/api/j2/excerpts/ex1', expect.anything())
+    await new Promise((r) => setTimeout(r, 50))
+    expect(screen.queryByTestId('pdf-viewer-stub')).toBeNull()
+  })
+})
+
 // ⛔⛔ EVERY DOOR INTO `?doc=&page=` -- A WEB CAPTURE NEVER REACHES THE PDF VIEWER.
 // The route opens whatever row of this note's document list it names, and the
 // list holds captured web pages too. Found doors: Search (page + excerpt hits),

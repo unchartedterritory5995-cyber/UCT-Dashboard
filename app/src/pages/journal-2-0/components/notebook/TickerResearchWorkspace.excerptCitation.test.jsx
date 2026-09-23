@@ -227,12 +227,6 @@ describe('TickerResearchWorkspace — an EXCERPT citation lands on the passage',
   })
 })
 
-// ⛔ ON TOUCH THE ASK PANEL IS AN aria-modal SHEET OVER A SCRIM, and it stays
-// open when a citation is tapped. The first version of this fix wrote its
-// "no longer available" line into the workspace's own alert strip -- behind
-// that scrim, where the member saw nothing. test-setup stubs matchMedia to
-// `matches:false` (desktop), so this block overrides it for the touch query
-// alone, derived from MQ rather than typed.
 // Review M-5 -- two quick taps on different excerpt citations. Whichever read
 // resolves LAST used to win, not the one tapped last, so a slow first read could
 // open its sheet over the one the member asked for second.
@@ -285,6 +279,12 @@ describe('TickerResearchWorkspace — the LAST tap wins', () => {
   })
 })
 
+// ⛔ ON TOUCH THE ASK PANEL IS AN aria-modal SHEET OVER A SCRIM, and it stays
+// open when a citation is tapped. The first version of this fix wrote its
+// "no longer available" line into the workspace's own alert strip -- behind
+// that scrim, where the member saw nothing. test-setup stubs matchMedia to
+// `matches:false` (desktop), so this block overrides it for the touch query
+// alone, derived from MQ rather than typed.
 describe('TickerResearchWorkspace — on TOUCH the notice is inside the Sheet', () => {
   const realMatchMedia = window.matchMedia
   beforeEach(() => {

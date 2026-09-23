@@ -277,6 +277,19 @@
 }
 .sheetBody .answer { max-height: none; }
 
+/* The citation notice's live region while it holds NO sentence. It stays
+   mounted (a region that mounts WITH its text is not reliably announced) and
+   in the accessibility tree, but out of the flow: an out-of-flow child takes
+   no flex gap, so an answer gains no empty 8px under its Sources. */
+.navNoticeIdle {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+
 /* G-064 — Insert an answer into a note. */
 .insertRow { display: flex; margin-top: 10px; }
 .insertBtn {

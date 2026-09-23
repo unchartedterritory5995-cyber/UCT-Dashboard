@@ -75,8 +75,9 @@ export default function AskPanel({
 }) {
   const spec = SCOPES[scope] || SCOPES.notebook
   // ⛔ THE ONE SANCTIONED USE OF useIsTouch: a CLICK-TRIGGERED choice between
-  // a Sheet and an anchored popover. It is stale at first paint, so it must
-  // never decide layout -- CSS media queries do that.
+  // a Sheet and an anchored popover (and, from a tap, whether that Sheet
+  // scrolls its notice into view -- see `noticeRef`). It is stale at first
+  // paint, so it must never decide layout -- CSS media queries do that.
   const isTouch = useIsTouch()
   const [open, setOpen] = useState(autoOpen)
   const [query, setQuery] = useState('')
@@ -100,6 +101,15 @@ export default function AskPanel({
   // notice: an earlier tap's answer arriving late is dropped, never shown.
   const [navNotice, setNavNotice] = useState('')
   const navSeqRef = useRef(0)
+  // ⛔ ON TOUCH THE NOTICE CAN BE BELOW THE FOLD. The Sheet scrolls, the notice
+  // sits after the Sources list, and a member who tapped an inline `[1]` near
+  // the top of a long answer would see nothing change. So the sentence is
+  // brought into view when it is set -- `nearest`, so a notice already on
+  // screen moves nothing. (The popover is short; desktop is left alone.)
+  const noticeRef = useRef(null)
+  useEffect(() => {
+    if (navNotice && isTouch) noticeRef.current?.scrollIntoView?.({ block: 'nearest' })
+  }, [navNotice, isTouch])
   // ⛔ THE LAST TAP WINS FOR WHAT OPENS, TOO -- not only for what is said.
   // Each tap hands `onNavigate` a fresh `signal`, and the next tap (or a new
   // question, a scope change, unmount) aborts the previous one, so a slow read
@@ -394,8 +404,11 @@ export default function AskPanel({
           {/* The live region is always mounted while the panel is open, so a
               sentence written into it is announced -- a region that mounts
               WITH its text is not reliably read. Same quiet notice as the
-              coverage line above, never an error banner. */}
-          <div role="status" data-testid="ask-nav-notice">
+              coverage line above, never an error banner. While EMPTY it is
+              taken out of the flow (still mounted, still in the
+              accessibility tree), so it adds no flex gap under the Sources. */}
+          <div role="status" data-testid="ask-nav-notice" ref={noticeRef}
+               className={navNotice ? undefined : styles.navNoticeIdle}>
             {navNotice && (
               <div className={styles.coverage}>
                 <UIcon name="info" size={12} gold={false}
