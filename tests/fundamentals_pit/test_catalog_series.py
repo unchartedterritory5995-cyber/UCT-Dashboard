@@ -1,4 +1,5 @@
 """Catalogue truthfulness + series emission semantics."""
+from datetime import timedelta
 from api.services.fundamentals_pit import catalog as C, knowledge as K, metrics as M
 from api.services.fundamentals_pit.series import build_series
 
@@ -101,3 +102,38 @@ def test_every_filing_sourced_metric_discloses_the_filing_lag():
         has = C.FILING_LAG_NOTE in served[m.id]["limitations"]
         assert has == ("sec_xbrl" in m.source.split("+")), m.id
     assert C.FILING_LAG_NOTE not in served["beta_1y_spy"]["limitations"]
+
+
+def test_an_underivable_newest_period_is_a_gap_not_a_carried_value():
+    """OWNER RULING: a quarter that cannot be trusted is a GAP. MEASURED on TSLA
+    2025: the Q1-25 10-Q made 2025-03-31 known while its TTM was underivable, and
+    v2 kept showing the FY2024 TTM as if it were current. Here the Q1-21 10-Q has
+    no prior-year comparative, so its TTM cannot be derived: the FY2020 value must
+    STOP at that filing, and nothing may appear until FY2021 is public."""
+    from api.services.fundamentals_pit.series import GAP, value_at
+    fl = [filing("K1", "2021-02-10T21:00:00", form="10-K"), filing("Q1", "2021-05-01T20:00:00"),
+          filing("K2", "2022-02-10T21:00:00", form="10-K")]
+    facts = [fact("Revenues", "2020-01-01", "2020-12-31", 400, "K1"),
+             fact("Revenues", "2021-01-01", "2021-03-31", 120, "Q1"),     # no 2020-Q1 comparative
+             fact("Revenues", "2021-01-01", "2021-12-31", 480, "K2")]
+    kb = K.build(facts, {f.accn: f for f in fl})
+    pts = build_series(kb, ["revenue_ttm"])["revenue_ttm"]
+    assert [(p.method, p.period_end.isoformat()) for p in pts] == [
+        ("fiscal_year", "2020-12-31"), (GAP, "2021-03-31"), ("fiscal_year", "2021-12-31")]
+    assert pts[1].t_eff == fl[1].public_at
+    # As-of: before Q1 the FY value; between Q1 and K2 the GAP -- never 400.
+    between = fl[1].public_at + (fl[2].public_at - fl[1].public_at) / 2
+    assert value_at(pts, between).method == GAP
+    assert value_at(pts, fl[1].public_at - timedelta(seconds=1)).v == 400
+
+
+def test_a_gap_survives_the_store_as_null(tmp_path):
+    from api.services.fundamentals_pit import store as S
+    from api.services.fundamentals_pit.series import GAP, Point
+    from datetime import date, datetime, timezone
+    c = S.connect(str(tmp_path / "g.db"))
+    t0, t1 = datetime(2021, 2, 10, tzinfo=timezone.utc), datetime(2021, 5, 1, tzinfo=timezone.utc)
+    S.replace_series(c, 1, 9, {"revenue_ttm": [Point(t0, 400.0, date(2020, 12, 31), (), "fiscal_year"),
+                                               Point(t1, float("nan"), date(2021, 3, 31), (), GAP)]}, "h", {})
+    got = S.read_series(c, 1, 9)["revenue_ttm"]
+    assert got[0][1] == 400.0 and got[1][1] is None and got[1][3] == GAP

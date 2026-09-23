@@ -22,7 +22,9 @@ from .split_ledger import PRODUCTION_SOURCES, SPLIT_SENSITIVE_METRICS, LedgerCon
 from .splits import Ledger
 
 # v2 (2026-09-23): series never regress to an older period (series.py).
-DERIVATION_VERSION = 2
+# v3 (2026-09-23): an underivable NEWEST period is an explicit GAP, never a
+#     carried-forward older value (series.GAP; owner ruling "show a gap").
+DERIVATION_VERSION = 3
 
 
 def load_knowledge(conn, cik: int):
@@ -84,7 +86,8 @@ def explain(conn, cik: int, metric: str, t_eff: int, version: int = DERIVATION_V
     with that fact's filing and acceptance time. `matches_served` proves the
     stored point is exactly what the raw facts yield (determinism)."""
     from datetime import datetime, timezone
-    from .metrics import build_book, latest
+    from .metrics import METRICS, anchor_ends, build_book, latest
+    from .series import GAP
     served = conn.execute("SELECT v, period_end, method FROM series_point WHERE cik=? AND metric=? "
                           "AND derivation_version=? AND t_eff=?", (cik, metric, version, t_eff)).fetchone()
     kb = load_knowledge(conn, cik)
@@ -104,6 +107,18 @@ def explain(conn, cik: int, metric: str, t_eff: int, version: int = DERIVATION_V
                       "form": f.form if f else None,
                       "accepted_at": f.accepted_at.isoformat() if f and f.accepted_at else None,
                       "public_at": f.public_at.isoformat() if f else None})
+    if served and served[2] == GAP:
+        # A gap reproduces when, at that instant, the newest filed anchor period is
+        # the gap's period AND the metric is not derivable for it.
+        ends = anchor_ends(book, METRICS[metric][1])
+        newest = ends[0].strftime("%Y%m%d") if ends else None
+        ok = (newest is not None and int(newest) == served[1]
+              and (val is None or int(val.period_end.strftime("%Y%m%d")) < served[1]))
+        return {"cik": cik, "metric": metric, "t_eff": t_eff, "derivation_version": version,
+                "served": {"v": None, "period_end": served[1], "method": GAP},
+                "rederived": {"newest_anchor_period": newest,
+                              "latest_derivable_period": val.period_end.isoformat() if val else None},
+                "matches_served": ok, "facts": facts}
     return {"cik": cik, "metric": metric, "t_eff": t_eff, "derivation_version": version,
             "served": None if served is None else {"v": served[0], "period_end": served[1], "method": served[2]},
             "rederived": None if val is None else {"v": val.v, "period_end": val.period_end.isoformat(),

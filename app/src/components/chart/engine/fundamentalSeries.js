@@ -122,10 +122,17 @@ export function seriesUrl(symbol, seriesIds) {
 }
 
 /** [[t, v, pe, method]] -> [{t, v, pe, m}] ONCE, so the projection memo can key
- *  on array identity. */
-function _points(raw) {
+ *  on array identity.
+ *
+ *  ⛔⛔ A GAP POINT IS KEPT. `[t, null, pe, 'gap']` means "from t, the newest
+ *  filed period is unknown". Dropping it for its null value -- which this filter
+ *  did -- silently bridges the PREVIOUS value through the gap, the one outcome the
+ *  owner ruled out ("show a gap, never wrong data"). Any other non-finite value
+ *  is malformed and is dropped as before. */
+export function _points(raw) {
   return Object.freeze((Array.isArray(raw) ? raw : [])
-    .filter((p) => Array.isArray(p) && Number.isFinite(p[0]) && Number.isFinite(p[1]))
+    .filter((p) => Array.isArray(p) && Number.isFinite(p[0])
+      && (Number.isFinite(p[1]) || (p[1] === null && p[3] === 'gap')))
     .map((p) => Object.freeze({ t: p[0], v: p[1], pe: p[2] || null, m: p[3] || null })))
 }
 

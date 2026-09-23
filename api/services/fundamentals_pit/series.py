@@ -20,7 +20,7 @@ from datetime import date, datetime, timedelta, timezone
 
 from .knowledge import Knowledge
 from .concepts import PRIMITIVES
-from .metrics import METRICS, build_book, latest
+from .metrics import METRICS, anchor_ends, build_book, latest
 from .splits import Ledger
 
 
@@ -34,6 +34,15 @@ class Point:
 
 
 WARMUP = timedelta(days=365)
+
+# ⛔ A GAP IS A POINT. When a filing makes a NEWER period known for a metric's
+# anchor but the metric cannot be derived for it (MEASURED: TSLA's Q1-25 10-Q
+# restated a 2024 comparative, which voided the FY2024 fact, so no 2025 TTM is
+# computable), the value in force before that filing is no longer the latest
+# truth -- it describes an older period. Carrying it forward would present stale
+# data as current until the staleness cap. So the series says, at that instant:
+# UNKNOWN. v is NaN in memory; the store and every artifact carry it as null.
+GAP = "gap"
 # The warm-up exists for the XBRL PHASE-IN cohort: filers whose first XBRL
 # filing predates mid-2011 had a first year in which prior periods had never been
 # tagged, so a restated comparative looked like a first disclosure (the AAPL
@@ -71,6 +80,15 @@ def build_series(kb: Knowledge, metrics: list[str] | None = None,
         for m in metrics:
             val = latest(book, m)
             pts = out[m]
+            ends = anchor_ends(book, METRICS[m][1])
+            newest = ends[0] if ends else None
+            # The newest filed period is not derivable, and a value is on the
+            # chart: close it with a gap (once per newest period).
+            if (pts and newest is not None and newest > pts[-1].period_end
+                    and (val is None or val.period_end < newest)):
+                if not (pts[-1].method == GAP and pts[-1].period_end == newest):
+                    pts.append(Point(t, float("nan"), newest, (), GAP))
+                continue
             if val is None:
                 continue
             # ⛔ A SERIES NEVER STEPS BACK TO AN OLDER PERIOD. `latest` falls back

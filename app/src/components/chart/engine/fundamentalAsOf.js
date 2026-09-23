@@ -115,7 +115,9 @@ export function projectAsOf(points, bars, tf, { nowSec = null, maxPeriodAgeDays 
     if (j < 0) continue
     const p = pts[j]
     if (p.pe && periodAgeDays(ref, p.pe) > maxPeriodAgeDays) continue
-    out[i] = p.v
+    // ⛔ A GAP POINT (`v: null`, method `gap`) says "the newest filed period is
+    // unknown" -- it ENDS the previous value; it is never bridged over.
+    out[i] = Number.isFinite(p.v) ? p.v : NaN
   }
   return out
 }

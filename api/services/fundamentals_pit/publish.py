@@ -48,7 +48,7 @@ def artifact(conn, cik: int, version: int = DERIVATION_VERSION) -> dict | None:
             "derivation_version": version, "input_hash": info["input_hash"], "built_at": info["built_at"],
             "split_status": info["detail"].get("split_verification", {}).get("status"),
             "withheld_split_sensitive": info["detail"].get("withheld_split_sensitive", False),
-            "metrics": {m: [[t, (v * 100.0 if m in PERCENT_SERIES else v), pe, meth] for t, v, pe, meth in pts]
+            "metrics": {m: [[t, (v * 100.0 if (v is not None and m in PERCENT_SERIES) else v), pe, meth] for t, v, pe, meth in pts]
                         for m, pts in series.items()}}
 
 

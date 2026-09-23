@@ -370,7 +370,11 @@ def replace_series(conn, cik: int, version: int, series: dict, input_hash: str, 
     for metric, pts in series.items():
         for p in pts:
             accns = sorted({s[3] for s in p.sources if s[3]})
-            rows.append((cik, metric, version, int(p.t_eff.timestamp()), float(p.v), ymd(p.period_end),
+            # A GAP (series.GAP) is stored as 0.0 because `v` is NOT NULL; it is
+            # decoded back to None in `read_series`, the ONE reader -- never read
+            # `v` without `method`.
+            v = 0.0 if p.method == "gap" else float(p.v)
+            rows.append((cik, metric, version, int(p.t_eff.timestamp()), v, ymd(p.period_end),
                          p.method, ",".join(accns)))
     conn.executemany("INSERT OR REPLACE INTO series_point VALUES (?,?,?,?,?,?,?,?)", rows)
     conn.execute("INSERT INTO series_build VALUES (?,?,?,?,?,?) ON CONFLICT(cik, derivation_version) DO UPDATE SET "
@@ -380,7 +384,7 @@ def replace_series(conn, cik: int, version: int, series: dict, input_hash: str, 
 
 
 def read_series(conn, cik: int, version: int, metrics: list[str] | None = None) -> dict[str, list[tuple]]:
-    """{metric: [(t_eff, v, period_end_iso, method)]} ascending by t_eff."""
+    """{metric: [(t_eff, v, period_end_iso, method)]} ascending by t_eff. A gap has v None."""
     out: dict[str, list[tuple]] = {}
     if metrics:
         q = ",".join("?" * len(metrics))
@@ -391,7 +395,7 @@ def read_series(conn, cik: int, version: int, metrics: list[str] | None = None) 
         cur = conn.execute("SELECT metric, t_eff, v, period_end, method FROM series_point WHERE cik=? "
                            "AND derivation_version=? ORDER BY metric, t_eff", (cik, version))
     for m, t, v, pe, meth in cur:
-        out.setdefault(m, []).append((t, v, from_ymd(pe).isoformat(), meth))
+        out.setdefault(m, []).append((t, None if meth == "gap" else v, from_ymd(pe).isoformat(), meth))
     return out
 
 
