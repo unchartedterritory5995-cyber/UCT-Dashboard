@@ -198,6 +198,13 @@ def _u16(s: str) -> int:
     return len(s.encode("utf-16-le", "surrogatepass")) // 2
 
 
+def utf16_length(s: str) -> int:
+    """`s.length` as the browser measures it -- the unit of a note location's
+    `text_length` (ask_retrieval._note_blocks), which the client compares with
+    the snippet it was sent (askCitation.js::isTruncatedSnippet)."""
+    return _u16(s)
+
+
 def _pm_at(s: dict[str, Any], flat_offset: int) -> int:
     """ProseMirror position of a flat (code-point) offset inside text span `s`."""
     return s["pm_start"] + _u16(s["text"][: flat_offset - s["flat_start"]])

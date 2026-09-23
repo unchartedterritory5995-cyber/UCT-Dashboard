@@ -201,6 +201,12 @@ const CASES = {
     WIDGET('[chart: NVDA D]', '2026-09-02T14:00:00.000Z'),
     WIDGET('[chart: NVDA D]', '2026-09-02T14:00:00.000Z'),
     p('After.')),
+  // ── a block longer than the 400-character snippet cap (Wave 4), with astral
+  //    characters inside the first 400 so code points and UTF-16 units differ
+  //    exactly where the cut falls ──
+  longBlock: doc(p('Intro.'),
+    p(`Guidance \u{1F525} raised \u{1D538}: ${'the quarter closed with margins widening across every segment. '.repeat(8)}Final word.`),
+    p('After.')),
 }
 
 // Passages cited in the astral cases -- before, inside, across a mark, and

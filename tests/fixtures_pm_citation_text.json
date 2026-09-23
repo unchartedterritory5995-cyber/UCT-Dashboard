@@ -2687,5 +2687,60 @@
    }
   ],
   "passages": []
+ },
+ "longBlock": {
+  "json": {
+   "type": "doc",
+   "content": [
+    {
+     "type": "paragraph",
+     "content": [
+      {
+       "type": "text",
+       "text": "Intro."
+      }
+     ]
+    },
+    {
+     "type": "paragraph",
+     "content": [
+      {
+       "type": "text",
+       "text": "Guidance 🔥 raised 𝔸: the quarter closed with margins widening across every segment. the quarter closed with margins widening across every segment. the quarter closed with margins widening across every segment. the quarter closed with margins widening across every segment. the quarter closed with margins widening across every segment. the quarter closed with margins widening across every segment. the quarter closed with margins widening across every segment. the quarter closed with margins widening across every segment. Final word."
+      }
+     ]
+    },
+    {
+     "type": "paragraph",
+     "content": [
+      {
+       "type": "text",
+       "text": "After."
+      }
+     ]
+    }
+   ]
+  },
+  "text": "Intro.\nGuidance 🔥 raised 𝔸: the quarter closed with margins widening across every segment. the quarter closed with margins widening across every segment. the quarter closed with margins widening across every segment. the quarter closed with margins widening across every segment. the quarter closed with margins widening across every segment. the quarter closed with margins widening across every segment. the quarter closed with margins widening across every segment. the quarter closed with margins widening across every segment. Final word.\nAfter.",
+  "contentSize": 556,
+  "textSpans": [
+   {
+    "pm_start": 1,
+    "pm_end": 7,
+    "text": "Intro."
+   },
+   {
+    "pm_start": 9,
+    "pm_end": 547,
+    "text": "Guidance 🔥 raised 𝔸: the quarter closed with margins widening across every segment. the quarter closed with margins widening across every segment. the quarter closed with margins widening across every segment. the quarter closed with margins widening across every segment. the quarter closed with margins widening across every segment. the quarter closed with margins widening across every segment. the quarter closed with margins widening across every segment. the quarter closed with margins widening across every segment. Final word."
+   },
+   {
+    "pm_start": 549,
+    "pm_end": 555,
+    "text": "After."
+   }
+  ],
+  "leafSpans": [],
+  "passages": []
  }
 }

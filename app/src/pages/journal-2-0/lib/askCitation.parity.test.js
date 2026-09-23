@@ -14,6 +14,7 @@ import {
   citedSources,
   flatToPmRange,
   isBlockAtomRange,
+  isTruncatedSnippet,
   resolveNoteCitation,
   splitAnswer,
 } from './askCitation'
@@ -649,3 +650,125 @@ describe('each chart of one insert is its own citation (Wave 4, embedId)', () =>
     expect(PRECISE_STATES.has(out.state)).toBe(false)
   })
 })
+
+// ── Wave 4: a block longer than the snippet cap ────────────────────────────
+
+describe('a long block is cited WHOLE although its snippet is a prefix (Wave 4)', () => {
+  // The server sends the block's text capped at 400 characters (code points,
+  // a Python slice) and the block's full length in UTF-16 units as
+  // location.text_length (tests/test_ask_note_scope.py pins both on this
+  // fixture). Emulated here exactly: the snippet is the first 400 CODE POINTS.
+  const fx = FIXTURES.longBlock
+  const span = fx.textSpans[1]
+  const LONG = span.text
+  const CAP = 400
+  const snippet = [...LONG].slice(0, CAP).join('')
+  const loc = { from: span.pm_start, to: span.pm_end, text_length: span.pm_end - span.pm_start }
+  const para = (text) => ({ type: 'paragraph', content: [{ type: 'text', text }] })
+  const build = (...content) => Node.fromJSON(schema, { type: 'doc', content })
+  const original = () => fx.json.content
+
+  it('non-vacuity: the snippet really is a strict prefix, cut after astral characters', () => {
+    expect(LONG.length).toBeGreaterThan(CAP)
+    expect(LONG.startsWith(snippet)).toBe(true)
+    expect(snippet.length).toBeGreaterThan(CAP) // UTF-16 units: the cut is past the astral pairs
+    expect(loc.text_length).toBe(LONG.length)
+  })
+
+  it('unedited, the whole block opens exactly in place', () => {
+    expect(resolveNoteCitation(docOf('longBlock'), loc, snippet)).toEqual({ state: VALID_EXACT, from: loc.from, to: loc.to })
+  })
+
+  it('edited above, the WHOLE block is re-found, not its first 400 characters', () => {
+    const after = build(para('A new opening.'), ...original())
+    const out = resolveNoteCitation(after, loc, snippet)
+    expect(out).toEqual({ state: RERESOLVED_EXACT, from: loc.from + 16, to: loc.to + 16 })
+    expect(citationText(after, out.from, out.to)).toBe(LONG)
+  })
+
+  it('edited in its tail, the block is re-found to its NEW end and no further', () => {
+    const [intro, , outro] = original()
+    const after = build(intro, para(`${LONG} Added later.`), outro)
+    const out = resolveNoteCitation(after, loc, snippet)
+    expect(out.state).toBe(RERESOLVED_EXACT)
+    expect(citationText(after, out.from, out.to)).toBe(`${LONG} Added later.`)
+  })
+
+  it('text typed before it in the same block: re-found from the prefix to the block end', () => {
+    const [intro, , outro] = original()
+    const after = build(intro, para(`Update: ${LONG}`), outro)
+    const out = resolveNoteCitation(after, loc, snippet)
+    expect(out.state).toBe(RERESOLVED_EXACT)
+    expect(citationText(after, out.from, out.to)).toBe(LONG)
+  })
+
+  it('a range left spanning two blocks by a shrink never verifies in place', () => {
+    // The block loses 6 units and the next one reads "Aft.", so the stale
+    // `to` lands exactly at the END of that next block: it starts with the
+    // prefix AND ends a block -- the one shape "ends its block" alone would
+    // accept. It reads "<block>\nAft." and must be refused, then re-found.
+    const [intro] = original()
+    const shrunk = `${LONG.slice(0, -10)}ord.`
+    const after = build(intro, para(shrunk), para('Aft.'))
+    const stale = citationText(after, loc.from, loc.to)
+    expect(stale.startsWith(snippet) && stale.endsWith('\nAft.')).toBe(true) // the trap is real
+    const out = resolveNoteCitation(after, loc, snippet)
+    expect(out.state).toBe(RERESOLVED_EXACT)
+    expect(citationText(after, out.from, out.to)).toBe(shrunk)
+  })
+
+  it('two blocks sharing the prefix open the note only', () => {
+    const [intro, block, outro] = original()
+    const out = resolveNoteCitation(build(para('New.'), intro, block, block, outro), loc, snippet)
+    expect(out).toMatchObject({ state: VALID_NOTE_ONLY, ambiguous: true })
+  })
+
+  it('control: without text_length (an older packet) the prefix alone is selected -- the bug', () => {
+    const after = build(para('A new opening.'), ...original())
+    const out = resolveNoteCitation(after, { from: loc.from, to: loc.to }, snippet)
+    expect(out.state).toBe(RERESOLVED_EXACT)
+    expect(citationText(after, out.from, out.to)).toBe(snippet)
+    expect(out.to).toBeLessThan(loc.to + 16)
+  })
+
+  it('a short block is unchanged: exact in place, re-found to exactly its own text', () => {
+    const s = fx.textSpans[2]
+    const short = { from: s.pm_start, to: s.pm_end, text_length: s.pm_end - s.pm_start }
+    expect(resolveNoteCitation(docOf('longBlock'), short, s.text)).toEqual({ state: VALID_EXACT, from: s.pm_start, to: s.pm_end })
+    const after = build(para('A new opening.'), ...original())
+    expect(resolveNoteCitation(after, short, s.text)).toEqual({ state: RERESOLVED_EXACT, from: s.pm_start + 16, to: s.pm_end + 16 })
+  })
+
+  it('a whole citation is NEVER widened: a term inside the long block stays the term', () => {
+    const doc = docOf('longBlock')
+    const i = LONG.indexOf('Guidance')
+    const term = { from: loc.from + i, to: loc.from + i + 'Guidance'.length }
+    expect(resolveNoteCitation(doc, term, 'Guidance')).toEqual({ state: VALID_EXACT, ...term })
+    // ...even when it claims a length: a snippet as long as the text is whole.
+    expect(resolveNoteCitation(doc, { ...term, text_length: 'Guidance'.length }, 'Guidance'))
+      .toEqual({ state: VALID_EXACT, ...term })
+    const after = build(para('A new opening.'), ...original())
+    const out = resolveNoteCitation(after, { ...term, text_length: 'Guidance'.length }, 'Guidance')
+    expect(citationText(after, out.from, out.to)).toBe('Guidance')
+  })
+
+  it('a prefix that is an atom\'s placeholder never opens the atom', () => {
+    const w = { type: 'widgetEmbed', attrs: { widgetId: 'chart', searchText: LONG } } // no identity
+    const doc = build(para('Intro.'), w, para('After.'))
+    notOpenedAtom(resolveNoteCitation(doc, { from: 8, to: 9, text_length: LONG.length }, snippet))
+    notOpenedAtom(resolveNoteCitation(doc, { from: 99, to: 100, text_length: LONG.length }, snippet))
+  })
+
+  it('isTruncatedSnippet reads only a real, larger integer length', () => {
+    expect(isTruncatedSnippet({ text_length: 10 }, 'abc')).toBe(true)
+    expect(isTruncatedSnippet({ text_length: 3 }, 'abc')).toBe(false)
+    expect(isTruncatedSnippet({ text_length: '10' }, 'abc')).toBe(false)
+    expect(isTruncatedSnippet({}, 'abc')).toBe(false)
+    expect(isTruncatedSnippet(null, 'abc')).toBe(false)
+  })
+})
+
+function notOpenedAtom(out) {
+  expect(out.state).toBe(VALID_NOTE_ONLY)
+  expect(out.from).toBeUndefined()
+}

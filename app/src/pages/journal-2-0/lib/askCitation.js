@@ -242,12 +242,40 @@ function resolveAtomCitation(doc, loc, atom) {
 }
 
 /**
+ * Was the snippet cut short of the cited text? True only when the packet says
+ * how long the cited text is (`loc.text_length`, UTF-16 units of the trimmed
+ * block, set by ask_retrieval._note_blocks) and the snippet is shorter.
+ *
+ * ⛔ A LONG BLOCK'S SNIPPET IS ONLY ITS PREFIX (Wave 4). The server caps a
+ * snippet at ask_service._SNIPPET_CAP (400) characters, and ranking can cut
+ * it shorter, so a longer block's snippet never equalled its range: in place
+ * it never verified, and re-found it selected the first 400 characters only.
+ * ⛔ NEVER WIDEN A WHOLE SNIPPET. A packet without `text_length` (issued
+ * before it existed, or a term-level citation) and a snippet as long as the
+ * cited text are matched exactly as before.
+ */
+export function isTruncatedSnippet(loc, needle) {
+  const n = loc?.text_length
+  return Number.isInteger(n) && typeof needle === 'string' && needle.length > 0 && needle.length < n
+}
+
+/** Does [to, …) hold nothing but whitespace before the end of its block? The
+ *  server splits a note into blocks at BLOCK_SEPARATOR in this same text, so
+ *  "the end of its block" is read in text, never guessed from positions. */
+function endsItsBlock(doc, to) {
+  const rest = citationText(doc, to, doc.content?.size ?? 0)
+  const i = rest.indexOf(BLOCK_SEPARATOR)
+  return (i === -1 ? rest : rest.slice(0, i)).trim() === ''
+}
+
+/**
  * Decide whether a note citation may navigate, and to where.
  *
  * @param {object} doc  the LIVE ProseMirror doc (unsaved edits included — it is
  *                      where the member would actually land)
  * @param {object} loc  {from, to} from the evidence packet, plus
- *                      `atom: {type, id}` when the passage is one atom
+ *                      `atom: {type, id}` when the passage is one atom, and
+ *                      `text_length` when it is a whole block
  * @param {string} snippet  the text the server cited
  */
 export function resolveNoteCitation(doc, loc, snippet) {
@@ -259,10 +287,17 @@ export function resolveNoteCitation(doc, loc, snippet) {
 
   const needle = (snippet || '').trim()
   if (!needle) return { state: DEGRADED }
+  // A prefix of a longer block is matched as a PREFIX that runs to the end of
+  // its block -- ONE block: a range that crosses a separator is two -- and
+  // anything else only as the whole text.
+  const prefix = isTruncatedSnippet(loc, needle)
+  const verifies = (text) => (prefix
+    ? text.startsWith(needle) && !text.includes(BLOCK_SEPARATOR)
+    : text === needle)
 
   const from = loc?.from
   const to = loc?.to
-  if (citationText(doc, from, to).trim() === needle) {
+  if (verifies(citationText(doc, from, to).trim()) && (!prefix || endsItsBlock(doc, to))) {
     // ⛔ TEXT CANNOT TELL IDENTICAL ATOMS APART. A block atom is ONE position
     // wide and many read the same ("[excerpt]", "[widget]", two chips of one
     // file), so a range verified by TEXT that is one atom may be its sibling
@@ -284,7 +319,14 @@ export function resolveNoteCitation(doc, loc, snippet) {
     idx = full.indexOf(needle, idx + 1)
   }
   if (hits.length === 1) {
-    const range = flatToPmRange(doc, hits[0], hits[0] + needle.length)
+    // A prefix is extended to the end of ITS block (the next separator), the
+    // unit the server cited -- never past it.
+    let end = hits[0] + needle.length
+    if (prefix) {
+      const sep = full.indexOf(BLOCK_SEPARATOR, end)
+      end = sep === -1 ? full.length : sep
+    }
+    const range = flatToPmRange(doc, hits[0], end)
     // ⛔ VERIFY BEFORE CLAIMING, even though the walker now IS textBetween.
     // This guard was added (G-064 fix round 1, Finding 4) when an empty
     // paragraph made the old look-alike walker land on the WRONG text
@@ -295,7 +337,7 @@ export function resolveNoteCitation(doc, loc, snippet) {
     // why a hit that is one atom is refused here as it is in place above.
     // NEVER jump to the wrong passage -- the file's own contract -- so re-read
     // the text at the computed range and refuse the claim unless it verifies.
-    if (range && citationText(doc, range.from, range.to).trim() === needle) {
+    if (range && verifies(citationText(doc, range.from, range.to).trim())) {
       if (isBlockAtomRange(doc, range.from, range.to)) return NO_IDENTITY
       return { state: RERESOLVED_EXACT, ...range }
     }

@@ -1213,7 +1213,17 @@ def _note_blocks(doc, q: str) -> list[dict[str, Any]]:
             continue
         low = body.lower()
         hits = sum(1 for t in terms if t in low)
-        location = {**rng, "fingerprint": fp, "snippet_start": start, "snippet_end": end}
+        # ⛔ `text_length` IS HOW THE CLIENT KNOWS IT WAS SENT A PREFIX (Wave 4).
+        # The browser receives this block's text capped at
+        # ask_service._SNIPPET_CAP (and ask_ranking may cut it shorter still),
+        # so a long block's snippet is only its first part: matched as a whole
+        # it never verified, and re-found it landed on the first 400 characters
+        # only. The block's full length -- in UTF-16 units, the browser's own
+        # measure of the trimmed text -- lets askCitation.js tell a prefix from
+        # the whole and extend it to the end of the block, never beyond, and
+        # never for a snippet that is already whole.
+        location = {**rng, "fingerprint": fp, "snippet_start": start, "snippet_end": end,
+                    "text_length": nct.utf16_length(body)}
         atom = index.atom_at(rng)
         if atom:
             # A block that IS one atom is cited by that atom's identity: its

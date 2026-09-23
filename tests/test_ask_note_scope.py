@@ -150,6 +150,53 @@ class TestAnAtomBlockIsCitedByIdentity:
             assert public_source(1, item)["location"]["atom"] == {"type": "widgetEmbed", "id": embed_id}
 
 
+class TestALongBlockCarriesItsFullLength:
+    """Wave 4: the browser is sent a block's text capped at
+    ask_service._SNIPPET_CAP, so a longer block's snippet is only a prefix.
+    `location.text_length` -- the block's full length in the browser's own
+    units -- is how askCitation.js knows to extend the prefix to the end of
+    the block (the client rails are in askCitation.parity.test.js)."""
+
+    @staticmethod
+    def _fx():
+        import json
+        from pathlib import Path
+        return json.loads(Path(__file__).with_name("fixtures_pm_citation_text.json")
+                          .read_text(encoding="utf-8"))["longBlock"]
+
+    def test_every_block_carries_its_length_in_the_browsers_units(self):
+        fx = self._fx()
+        blocks = ar._note_blocks(fx["json"], "")
+        # ProseMirror's own UTF-16 width of each text node (the generator ran
+        # real prosemirror-model), so this pins the unit across runtimes.
+        assert [b["location"]["text_length"] for b in blocks] == [
+            s["pm_end"] - s["pm_start"] for s in fx["textSpans"]]
+        long_block = blocks[1]
+        # Non-vacuity: astral text makes code points and UTF-16 units differ.
+        assert long_block["location"]["text_length"] == nct.utf16_length(long_block["text"])
+        assert long_block["location"]["text_length"] != len(long_block["text"])
+
+    def test_the_browser_gets_a_prefix_and_the_length_that_says_so(self, conn):
+        from api.services.journal_two.ask_service import _PUBLIC_FIELDS, _SNIPPET_CAP, public_source
+        _add(conn, "n1", "u1", "Guidance", self._fx()["json"])
+        out = ar.retrieve_note("u1", "n1", "guidance margins", conn=conn)
+        item = next(i for i in out["evidence"] if i["text"].startswith("Guidance"))
+        src = public_source(1, item)
+        assert src["location"] == item["location"]  # passes through untouched
+        assert "text_length" not in _PUBLIC_FIELDS  # inside location, not a new public field
+        assert len(src["snippet"]) == _SNIPPET_CAP and item["text"].startswith(src["snippet"])
+        assert src["location"]["text_length"] > nct.utf16_length(src["snippet"])
+        # A short block's snippet is the whole block: its length says so.
+        short = public_source(2, next(i for i in out["evidence"] if i["text"] == "After."))
+        assert short["snippet"] == "After." and short["location"]["text_length"] == len("After.")
+
+    def test_a_term_citation_carries_no_length_and_so_is_never_widened(self):
+        # The notebook scope cites a TERM inside a block with a window of
+        # context as its snippet: not a prefix of the range, so no length.
+        _snippet, loc, _validity = ar._best_note_passage(self._fx()["json"], '"margins"')
+        assert loc is not None and "text_length" not in loc
+
+
 class TestTheWholeNoteIsStillShown:
     def test_non_matching_blocks_are_still_sent_as_context(self, conn):
         _add(conn, "n1", "u1", "NVDA thesis", THESIS)
