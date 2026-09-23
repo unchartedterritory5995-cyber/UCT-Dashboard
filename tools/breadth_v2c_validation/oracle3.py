@@ -10,7 +10,7 @@ The dividend events are rebuilt here from the provider ledger by the documented 
   a frame contains them. Concatenated share-class spellings (BFB) resolve to the traded one.
 Inputs are the one-vintage acquisition `inputs_<TAG>` / `grouped_closes_<TAG>`.
 """
-import bisect, collections, json, os
+import bisect, collections, json, math, os
 import numpy as np
 import oracle2
 
@@ -28,6 +28,16 @@ def build_dividends():
     grp = collections.defaultdict(list)
     app, wh = collections.defaultdict(list), collections.defaultdict(list)
     memo = {}
+    # v4: the split ledger, keyed by price key (ledger spelling + dotted share-class reading)
+    sx = collections.defaultdict(list)
+    for sp in json.load(open(oracle2.IN + "/splits_ledger.json"))["splits"]:
+        try:
+            kk = float(sp["split_to"]) / float(sp["split_from"])
+        except Exception:
+            continue
+        b = oracle2.canon(sp["ticker"])
+        for n in set([b] + ([b[:-1] + "." + b[-1]] if "." not in b and len(b) >= 2 else [])):
+            sx[n].append((sp.get("execution_date") or "", kk))
 
     def spelled(t, ex):
         # the dividend ledger concatenates share classes (BFB); prices dot them (BF.B)
@@ -77,11 +87,20 @@ def build_dividends():
         if near:                                         # restatement signature
             wh[t].append(s); continue
         cash = sum(x for v in bt.values() for x in v)    # distinct distributions add
-        prev = next((oracle2.gfile(CAL[k], False).get(t) for k in range(j - 1, max(-1, j - 6), -1)
-                     if oracle2.gfile(CAL[k], False).get(t)), None)
+        pk = next((k for k in range(j - 1, max(-1, j - 6), -1) if oracle2.gfile(CAL[k], False).get(t)), None)
+        prev = oracle2.gfile(CAL[pk], False).get(t) if pk is not None else None
         if not prev or 1 - cash / prev <= 0.5:
             wh[t].append(s); continue
-        app[t].append((s, 1 - cash / prev))
+        ratio = 1 - cash / prev
+        a0, a1, r1 = oracle2.gfile(CAL[pk], True).get(t), oracle2.gfile(s, True).get(t), oracle2.gfile(s, False).get(t)
+        if a0 and a1 and r1:
+            step = math.log(a1 / r1) - math.log(a0 / prev)
+            if abs(step) > 0.001 and abs(a1 * prev / a0 - r1) > 0.0101                     and abs(step + math.log(ratio)) <= abs(math.log(ratio)) / 4:
+                continue                                  # the provider's series already carries it
+        big = [kk for e, kk in sx.get(t, ()) if CAL[pk] < e <= s and kk > 0]
+        if big and (1 - ratio) * abs(1 - 1 / math.prod(big)) > 0.001:
+            wh[t].append(s); continue                     # declared cash units unprovable
+        app[t].append((s, ratio))
     return app, {t: sorted(set(v)) for t, v in wh.items()}
 
 
