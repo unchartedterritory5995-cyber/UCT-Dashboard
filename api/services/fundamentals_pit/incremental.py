@@ -14,7 +14,7 @@ by up to a minute, longer at peak) stays PENDING and is retried; nothing is
 half-applied. `reconcile` (nightly) re-runs the bulk archives through the same
 idempotent path and repairs anything a missed poll left behind.
 
-NOT SCHEDULED by this change -- see docs/fundamentals-pit/MORNING-PLAN.md.
+Scheduled by schedule.py / jobs.py when FUNDAMENTALS_PIT_INCREMENTAL_ENABLED=1 (worker).
 """
 from __future__ import annotations
 
@@ -130,8 +130,13 @@ def drain(conn, **kw) -> dict:
     is actually in the store (companyfacts caught up); otherwise it is retried
     on the next drain, up to MAX_ATTEMPTS, and every failure is recorded."""
     report = {"done": [], "retry": [], "failed": []}
+    # ⛔ An exhausted filing is NOT retried every tick (it used to be: the SELECT had
+    # no attempts filter, so a permanently failing filing hit SEC forever). It stays
+    # in pending_refresh with its last_error -- visible, counted as `exhausted` in
+    # jobs_status.json -- and weekly_reconcile repairs it from the bulk archives.
     for cik, accn, attempts in conn.execute(
-            "SELECT cik, accn, attempts FROM pending_refresh ORDER BY first_seen_at").fetchall():
+            "SELECT cik, accn, attempts FROM pending_refresh WHERE attempts < ? ORDER BY first_seen_at",
+            (MAX_ATTEMPTS,)).fetchall():
         try:
             res = refresh_company(conn, cik, **kw)
             arrived = conn.execute("SELECT 1 FROM filing WHERE accn=?", (accn,)).fetchone() is not None

@@ -24,7 +24,10 @@ from .splits import Ledger
 # v2 (2026-09-23): series never regress to an older period (series.py).
 # v3 (2026-09-23): an underivable NEWEST period is an explicit GAP, never a
 #     carried-forward older value (series.GAP; owner ruling "show a gap").
-DERIVATION_VERSION = 3
+# v4 (2026-09-23): restatement epochs of ANY tag of a primitive apply to EVERY
+#     tag of it, instants included (metrics.build_book) -- a related tag can no
+#     longer carry the pre-restatement basis past the barrier (CELH 2022-08-09).
+DERIVATION_VERSION = 4
 
 
 def load_knowledge(conn, cik: int):

@@ -112,3 +112,46 @@ Durable handoff ledger, updated after every coherent phase. The newest entry is 
 | Control-byte scan | Every changed file clean at every commit |
 | TDZ | New StockChart references are read inside callbacks (`chipPaneHostRef`, `rendererPaneIndexOf`). The real StockChart rendered in the full suite and the harness. |
 | Production | **Untouched.** No push, no deploy, no env / DB / R2 write, Main Trading and Breadth untouched. |
+
+## 2026-09-23 — controlled production rollout: STOPPED SAFELY at Phase 13
+
+**Shipped (dark):**
+- `d4e0217b6`: 23 feature commits, fast-forwarded onto master `578d73b9e`.
+- `c7bddc046`: never log HTTP request URLs.
+
+Both went out after the Breadth V2 corrected run reported DONE (100%, 0 failed; the runner is branch-pinned, has a never-matching watch pattern and was untouched throughout). The master deploy gate and the promotion passed. Web, worker and bars-api are on `c7bddc046`. `FUNDAMENTALS_PIT_*`: 0 variables on web or worker.
+
+**Pre-merge fixes:**
+- lint → 0 attributable;
+- pane-caption StockChart rail, mutation-checked;
+- derivation v3: an underivable newest period is a GAP (and the client parser kept dropping gaps; fixed);
+- Beta precomputed on the worker (589 ms → 9–15 ms; 113 MB);
+- fair-access bulk fetch, `--listed`, fail-loud Massive ledger;
+- deploy-gate flag declarations;
+- deep-link ledger row.
+
+**Gates:** zero attributable failures against fresh master. Frontend: 24,159 tests. Backend: like-for-like subset, 229 vs 230.
+
+**Production data (worker, isolated, NOT served, NOT published):**
+
+| | |
+|---|---|
+| Store | `/data/fundamentals_pit.db`, schema v3 |
+| Golden ingest (12 companies, FS 2022Q1, Massive ledger) | **17,122/17,122 identical** to accepted golden |
+| Universe (`--listed`, 70 FS quarters) | 7,088 companies, 0 ingest/derive failures, 10.43M facts, 357,127 filings, 196,994 signals, 4.72M points (386,730 gaps), 1.16 GB, 26 min. Integrity: 0 null/non-finite/future/duplicate, 0 period regressions. Provenance 300/300. |
+
+**⛔ STOP — wrong data, not missing data.**
+- **Where:** golden re-run after the full FS history.
+- **Scale:** 17,065 identical; 44 value→gap (acceptable); 13 changed values. All changed values are reproducible with no look-ahead, BUT CELH `net_income_ttm` @2022-08-09 went 18.41M (coherent ytd_roll) → **15.23M = sum_of_4 mixing ORIGINAL Q3-2021 / 9M-2021 (`NetIncomeLossAvailableToCommonStockholdersBasic`) with the RESTATED FY2021**.
+- **Mechanism:**
+  1. The Q2-22 10-Q's own prior-year comparatives carry restatement_axis signals (FS 2022Q3), which rejects ytd_roll.
+  2. The sum_of_4 fallback takes 2021 quarters from a pooled tag.
+  3. That tag's tag-scoped signal only arrives 2022-11-09.
+- **Exposure (upper bound):** 7,359 sum_of_4 TTM points / 1,438 companies in a restated window, plus the ratios built on them.
+- **Fix direction (needs a design pass):** sum_of_4 must refuse, i.e. GAP, when any quarter tile's value predates a restatement signal covering that period on ANY tag in the primitive's pool.
+
+**Not done (by the stop):** R2 publish, flag enable, scheduler deploy. The scheduler, drain fix and flag row are local commit `6feee3530`, unpushed.
+
+**Other findings:**
+- The Massive `apiKey` is written into INFO logs by httpx. Fixed in `c7bddc046`; the one job log was redacted. The key value appeared in session output; rotation is an owner decision.
+- Web logs show earnings AI analysis failing with "credit balance too low" (unrelated).

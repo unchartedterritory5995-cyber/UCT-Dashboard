@@ -115,6 +115,11 @@ def build_book(state: dict[tuple, KnownFact], ledger: Ledger | None = None,
             cand_q: dict[date, list] = {}
             cand_y: dict[date, list] = {}
             per_tag: dict[str, tuple[dict, dict]] = {}
+            family_epochs = []
+            if kb is not None and t is not None:
+                fam_same = _per_share_same(ledger, conv) if conv is not None else None
+                family = frozenset(prim.tags)
+                family_epochs = sorted({ep for tag in prim.tags for ep in kb.restatements(tag, t, fam_same, family)})
             for tag in prim.tags:
                 durs: dict[tuple, float] = {}
                 known_at: dict[tuple, object] = {}
@@ -137,11 +142,20 @@ def build_book(state: dict[tuple, KnownFact], ledger: Ledger | None = None,
                             known_at[key] = ka[key][0]
                             book.provenance[(label, key[0], key[1])] = ka[key][1]
                             book.source_tag[(label, key[0], key[1])] = tag
-                restated = []
-                if kb is not None and t is not None:
-                    same = _per_share_same(ledger, conv) if conv is not None else None
-                    pool = frozenset(group)
-                    restated = [ep for tag in group for ep in kb.restatements(tag, t, same, pool)]
+                # ⛔⛔ RESTATEMENT UNCERTAINTY PROPAGATES ACROSS THE WHOLE FAMILY.
+                # A restatement is a fact about an ECONOMIC QUANTITY, not about one
+                # XBRL tag. The epochs used to be gathered from THIS POOL's tags
+                # only -- and pools split exactly when tags disagree, which is what
+                # a restatement or a tagging error makes them do. MEASURED on CELH
+                # at 2022-08-09: the NetIncomeLoss pool correctly dropped its
+                # original Q3/9M-2021 after the 10-K's restatement signal, but the
+                # ...AvailableToCommonStockholdersBasic tag sat in its OWN pool
+                # (its 2022 10-Qs carried a x1000 scale error), saw no epoch, and
+                # supplied the ORIGINAL Q3-2021 and a Q4 of restated-FY minus
+                # original-9M to a sum_of_4: 15.23M, a number no basis supports.
+                # Every tag of the primitive now answers to every epoch any of them
+                # carries; a pool keeps only what it can re-state after that epoch.
+                restated = family_epochs
                 # Drop stale durations BEFORE any derivation: a stale fact can
                 # then never be one half of a subtraction or one leg of a TTM.
                 for key in list(durs):
@@ -168,9 +182,19 @@ def build_book(state: dict[tuple, KnownFact], ledger: Ledger | None = None,
         else:
             lv: dict[date, tuple[float, str, str]] = {}
             cand_i: dict[date, list] = {}
+            # ⛔ Instants answer to the same family epochs: a balance-sheet value
+            # known BEFORE a restatement of that date (e.g. a restatement-axis
+            # StockholdersEquity) is stale until a later filing re-reports it.
+            inst_epochs = []
+            if kb is not None and t is not None:
+                family = frozenset(prim.tags)
+                inst_epochs = sorted({ep for tag in prim.tags for ep in kb.restatements(tag, t, None, family)})
             for rank, tag in enumerate(prim.tags):
                 for (_t, unit, s, e), k in by_tag.get(tag, {}).items():
                     if unit != prim.unit or s is not None:
+                        continue
+                    if any(k.public_at < pr and rs <= e <= re for (pr, rs, re) in inst_epochs):
+                        book.stale.append((prim.id, tag, (None, e)))
                         continue
                     v = k.fact.val
                     if prim.kind == SHARES_INSTANT:

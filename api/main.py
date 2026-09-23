@@ -7,6 +7,12 @@ from contextlib import asynccontextmanager
 from datetime import datetime
 from zoneinfo import ZoneInfo
 
+# ⛔ Credentials ride query strings (Massive apiKey=, FMP apikey=, calendar
+# ?token=) and reach logs through HTTP-client URL logging and exception text.
+# Redact at record creation, by parameter NAME, before any handler sees it.
+from api.services.log_redaction import install as _install_log_redaction
+_install_log_redaction()
+
 # APScheduler trap: a pre-built CronTrigger(...) resolves tzlocal (UTC on
 # Railway), NOT the scheduler's timezone -- every trigger below must carry
 # an explicit timezone or its "ET" schedule silently fires 4h early.
@@ -6266,6 +6272,15 @@ async def lifespan(app: FastAPI):
             print(f"[startup] wisdom jobs registered: {len(_wisdom_job_ids)} ({', '.join(_wisdom_job_ids)})")
         except Exception as e:
             print(f"[scheduler] wisdom registration error: {e}")
+
+        # -- Historical PIT fundamentals: incremental SEC ingestion (worker only) --
+        try:
+            from api.services.fundamentals_pit.schedule import register_fundamentals_pit_jobs
+            _fpit = register_fundamentals_pit_jobs(_scheduler)
+            if _fpit:
+                print(f"[startup] fundamentals_pit jobs registered: {', '.join(_fpit)}")
+        except Exception as e:
+            print(f"[scheduler] fundamentals_pit registration error: {e}")
 
         # -- Full-market screener nightly snapshot build (spec 2026-06-19) --
         try:
