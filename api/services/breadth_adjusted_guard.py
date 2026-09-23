@@ -25,6 +25,18 @@ before scaling, so on a name with a large later reverse split one raw cent is do
 The split ledger ANNOTATES (ledger_match), it never overrules the raw series: COHR's
 2011-06-27 ledger "split" is not in its raw price, so the adjusted doubling is a defect.
 
+⛔⛔ UNAPPLIED_SPLIT (v4) — the defect the step scan CANNOT see. The provider's split ledger
+spells share classes CONCATENATED (`HEIA`, `BFA`/`BFB`, `LENB`, `GEFB`, `MOGA`, `STZB`, `CWENA`)
+and its ADJUSTED series for the dotted price key (`HEI.A`) never applies them: on 2011-04-26
+(5:4) HEI.A reads adjusted = raw = 43.55 → 35.05 while HEI (spelled right) is adjusted. With
+adjusted and raw equally unadjusted, f = adj/raw does not step, so the name shows a fake −20 %
+move inside every frame across it. For every ledger split (the ledger spelling AND its dotted
+share-class reading X[:-1] + "." + X[-1]) with |ln k| > ln 1.02: if at the execution session the
+name's RAW price moved by ≈ 1/k (|ln raw_ratio + ln k| ≤ ½|ln k|) while f stayed flat
+(|ln f_step| ≤ ½|ln k|), the adjusted series did not absorb a real split → UNAPPLIED_SPLIT, a
+withhold boundary like any other non-REAL event. Never repaired: the provider's figure is not
+rescaled by us.
+
 ⛔ FAIL CLOSED, NEVER REPAIRED. A non-REAL boundary E withholds the name from every
 level-dependent metric on every session D whose frame straddles it (frame_first < E ≤ D).
 The name stays in `universe_count` at its traded price (a count does not read a level),
@@ -39,7 +51,7 @@ import math
 import os
 from collections import defaultdict
 
-GUARD_VERSION = "adj-guard-v3"
+GUARD_VERSION = "adj-guard-v4"
 #: An adjusted close is quoted to the cent: a factor step whose implied adjusted move is
 #: within one tick is price QUANTISATION (penny names: 0.10 -> 0.11 reads as a 10% "step"),
 #: not a basis break. Measured: the v1 guard classified ~1,200 such steps as events.
@@ -106,13 +118,70 @@ def build_events(grouped_dir: str, manifest: dict, splits: list, calendar: list,
                            "f_step": round(math.exp(ls), 6), "raw_ratio": round(math.exp(lraw), 6),
                            "adj_ratio": round(math.exp(ladj), 6), "ledger_match": ledger_match,
                            "ledger_splits_in_pair": lm, "class": cls})
+    events += _unapplied_splits(grouped_dir, splits, calendar, canon)
     by_t = defaultdict(list)
     for e in events:
         if e["class"] != "REAL_ACTION":
             by_t[e["t"]].append(e["to"])
     for t in by_t:
-        by_t[t].sort()
+        by_t[t] = sorted(set(by_t[t]))
     return {"version": GUARD_VERSION, "events": events, "withhold_boundaries": dict(by_t)}
+
+
+def _unapplied_splits(grouped_dir: str, splits: list, calendar: list, canon) -> list:
+    import bisect as _b
+    cache = {}
+
+    def day(iso):
+        if iso not in cache:
+            if len(cache) > 64:
+                cache.pop(next(iter(cache)))
+            adj = {canon(k): v for k, v in _read(os.path.join(grouped_dir, "%s_1.json" % iso)).items()}
+            raw = {canon(k): v for k, v in _read(os.path.join(grouped_dir, "%s_0.json" % iso)).items()}
+            cache[iso] = (adj, raw)
+        return cache[iso]
+
+    def ok(v):
+        return isinstance(v, (int, float)) and v > 0
+
+    out, seen = [], set()
+    for s in sorted(splits, key=lambda x: x.get("execution_date") or ""):
+        try:
+            k = float(s["split_to"]) / float(s["split_from"])
+        except (KeyError, TypeError, ValueError, ZeroDivisionError):
+            continue
+        E = s.get("execution_date")
+        if not E or k <= 0 or abs(math.log(k)) <= STEP_MIN:
+            continue
+        j = _b.bisect_left(calendar, E)
+        if j == 0 or j >= len(calendar):
+            continue
+        t0 = canon(s["ticker"])
+        names = {t0} | ({t0[:-1] + "." + t0[-1]} if "." not in t0 and len(t0) >= 2 else set())
+        for t in sorted(names):
+            if (t, calendar[j]) in seen:
+                continue
+            a1, r1 = day(calendar[j])[0].get(t), day(calendar[j])[1].get(t)
+            if not (ok(a1) and ok(r1)):
+                continue
+            prev = None
+            for i in range(j - 1, max(-1, j - 1 - MAX_GAP_SESSIONS), -1):
+                a0, r0 = day(calendar[i])[0].get(t), day(calendar[i])[1].get(t)
+                if ok(a0) and ok(r0):
+                    prev = (i, a0, r0)
+                    break
+            if prev is None:
+                continue
+            pi, a0, r0 = prev
+            lk, lf, lr = math.log(k), math.log((a1 / r1) / (a0 / r0)), math.log(r1 / r0)
+            if abs(lf) <= 0.5 * abs(lk) and abs(lr + lk) <= 0.5 * abs(lk):
+                seen.add((t, calendar[j]))
+                out.append({"t": t, "from": calendar[pi], "to": calendar[j], "gap": j - pi,
+                            "f_step": round(math.exp(lf), 6), "raw_ratio": round(math.exp(lr), 6),
+                            "adj_ratio": round(a1 / a0, 6), "ledger_match": True,
+                            "ledger_splits_in_pair": [k], "ledger_spelling": s["ticker"],
+                            "class": "UNAPPLIED_SPLIT"})
+    return out
 
 
 class Guard:

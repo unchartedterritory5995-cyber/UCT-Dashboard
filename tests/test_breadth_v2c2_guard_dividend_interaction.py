@@ -57,3 +57,44 @@ def test_the_guard_reads_no_dividend_input():
     import inspect
     src = inspect.getsource(bag.build_events) + inspect.getsource(bag.load_or_build)
     assert "divid" not in src.lower()
+
+
+# ── v4: UNAPPLIED_SPLIT — a ledger split the provider's adjusted series never applied ──
+def _cal_files(tmp_path, adj, raw):
+    for d in CAL:
+        (tmp_path / ("%s_1.json" % d)).write_text(json.dumps(adj[d]))
+        (tmp_path / ("%s_0.json" % d)).write_text(json.dumps(raw[d]))
+    return str(tmp_path)
+
+
+def test_hei_a_shape_unapplied_split_is_withheld(tmp_path):
+    # ledger 'HEIA' 5:4 on 03-04; the dotted price key HEI.A drops 20 % on BOTH series; HEI (spelled
+    # right in the ledger) is adjusted: its f steps, so it is a REAL_ACTION, not withheld
+    heia = {"2026-03-02": 43.6, "2026-03-03": 43.55, "2026-03-04": 35.05, "2026-03-05": 35.2, "2026-03-06": 35.1}
+    hei_raw = {"2026-03-02": 59.0, "2026-03-03": 59.08, "2026-03-04": 47.43, "2026-03-05": 47.5, "2026-03-06": 47.6}
+    hei_adj = {d: (v if d < "2026-03-04" else v * 1.25) / 1.25 for d, v in hei_raw.items()}
+    adj = {d: {"HEI.A": heia[d], "HEI": hei_adj[d]} for d in CAL}
+    raw = {d: {"HEI.A": heia[d], "HEI": hei_raw[d]} for d in CAL}
+    splits = [{"ticker": "HEIA", "execution_date": "2026-03-04", "split_from": 4, "split_to": 5},
+              {"ticker": "HEI", "execution_date": "2026-03-04", "split_from": 4, "split_to": 5}]
+    t = bag.build_events(_cal_files(tmp_path, adj, raw), {}, splits, CAL)
+    cls = {(e["t"], e["class"]) for e in t["events"]}
+    assert ("HEI.A", "UNAPPLIED_SPLIT") in cls and ("HEI", "REAL_ACTION") in cls
+    assert t["withhold_boundaries"] == {"HEI.A": ["2026-03-04"]}
+
+
+def test_a_split_the_price_never_shows_is_not_unapplied(tmp_path):
+    # ledger says 2:1 but the raw price did not halve — not an unapplied split (nothing to withhold here)
+    px = {d: {"XYZ": 20.0} for d in CAL}
+    t = bag.build_events(_cal_files(tmp_path, px, px), {}, [{"ticker": "XYZ", "execution_date": "2026-03-04",
+                                                           "split_from": 1, "split_to": 2}], CAL)
+    assert t["events"] == [] and t["withhold_boundaries"] == {}
+
+
+def test_a_small_stock_dividend_is_below_the_detection_floor(tmp_path):
+    # LENB 51:50 (2 %) cannot be told from an ordinary day's move — out of the detector by construction
+    raw = {"2026-03-02": 51.0, "2026-03-03": 51.0, "2026-03-04": 50.0, "2026-03-05": 50.0, "2026-03-06": 50.0}
+    px = {d: {"LEN.B": v} for d, v in raw.items()}
+    t = bag.build_events(_cal_files(tmp_path, px, px), {}, [{"ticker": "LENB", "execution_date": "2026-03-04",
+                                                           "split_from": 50, "split_to": 51}], CAL)
+    assert t["events"] == []
