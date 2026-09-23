@@ -75,6 +75,11 @@ import { COLOUR_FNS, producesColour, hexToPacked } from '../runtime/colours.js'
  *  Collapsing these into `pine:state` would hide the next dependency, which is
  *  the single most useful thing this wave can report. Every entry names a
  *  capability family from the completion matrix, so a refusal maps to a row. */
+/** The arithmetic half of Pine's compound assignments. `:=` is deliberately NOT
+ *  here — it is a plain reassignment and has its own arm; folding it in would
+ *  rewrite `x := e` into `x := x  (e)` and double the target. */
+const MUTATOR_OPS = Object.freeze(new Set(['+', '-', '*', '/', '%']))
+
 export const RUNTIME_REFUSALS = Object.freeze({
   'runtime:loop': 'a loop — the runtime has no iteration yet',
   'runtime:function': 'a user-defined function — the runtime has no call frames yet',
@@ -4221,12 +4226,48 @@ export function buildRuntimeIr(source, opts = {}) {
       // before the statement being lowered now.
       if (rootHoist) stmtHoistSink = out
       const st = list[i]
-      const toks = st.header || []
+      let toks = st.header || []
       if (!toks.length) continue
       diagnostics.statements += 1
       const first = toks[0]
       lastStmtTok = first
       const word = first.kind === 'ident' ? first.value : null
+
+      // ── `x += e` IS `x := x + e` — a compound assignment ──
+      //
+      // ⭐ The lexer has produced `+= -= *= /= %=` as single tokens since
+      // `MUTATORS` was written; this lane simply had no arm for them, so
+      // `_bars += 1` and `sens /= 100` refused as "a statement shape this front
+      // end does not recognise".
+      //
+      // ⛔⛔ THE RIGHT-HAND SIDE IS BRACKETED, AND THAT IS THE WHOLE JOB.
+      // `x -= a - b` is `x := x - (a - b)`, never `x := x - a - b`. Splicing the
+      // operator in without parentheses re-associates the expression and
+      // produces a number wrong in a way no type check can see.
+      //
+      // ⭐ IT REWRITES TOKENS RATHER THAN BUILDING A NODE, deliberately. The
+      // `:=` arm already handles slot writes, UDT field writes (`ob.top += 1`),
+      // handles and persistence; desugaring into it inherits all of that, where
+      // a second assignment path would be a second authority over what a write
+      // means — the defect this file records paying for repeatedly.
+      const compoundAt = findTop(toks, (t) => t.kind === 'punct'
+        && t.value.length === 2 && t.value.endsWith('=') && MUTATOR_OPS.has(t.value[0]))
+      if (compoundAt > 0) {
+        const opTok = toks[compoundAt]
+        const target = toks.slice(0, compoundAt)
+        const rhs = toks.slice(compoundAt + 1)
+        if (!rhs.length) {
+          throw new RuntimeRefusal('runtime:statement',
+            `\`${opTok.value}\` with nothing on the right`, locate(opTok))
+        }
+        // ⭐ EVERY SYNTHESISED TOKEN CARRIES THE OPERATOR'S OWN POSITION, so a
+        // refusal raised inside the rewritten statement still points at a line
+        // the member wrote rather than at column zero.
+        const at = (value) => ({
+          kind: 'punct', value, line: opTok.line, column: opTok.column, index: opTok.index,
+        })
+        toks = [...target, at(':='), ...target, at(opTok.value[0]), at('('), ...rhs, at(')')]
+      }
 
       // ── declarations of the script itself ──
       if (word === 'indicator' || word === 'study') continue
