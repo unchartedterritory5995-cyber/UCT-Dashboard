@@ -54,12 +54,54 @@ for i, d in enumerate(cal):
                     k = "UNRESOLVED"
                 ev.append((t, pd_, d, k, round(math.exp(s), 6), round(math.exp(lr), 4), round(math.exp(la), 4)))
         last[t] = (i, d, a, r)
+# ── UNAPPLIED_SPLIT (spec v4), re-derived: a ledger split (its spelling, and for an undotted
+# spelling also the dotted share-class key) with |ln k| > ln 1.02 whose RAW price moved by ~1/k
+# while adj/raw stayed flat — the adjusted series never absorbed it. Two-pass, own code.
+import bisect
+checks, need = [], collections.defaultdict(set)
+for s_ in spl:
+    try:
+        k = s_["split_to"] / s_["split_from"]
+    except Exception:
+        continue
+    if not s_.get("execution_date") or k <= 0 or abs(math.log(k)) <= math.log(1.02):
+        continue
+    j = bisect.bisect_left(cal, s_["execution_date"])
+    if j == 0 or j >= len(cal):
+        continue
+    b = canon(s_["ticker"])
+    for t in [b] + ([b[:-1] + "." + b[-1]] if "." not in b and len(b) >= 2 else []):
+        checks.append((t, j, k))
+        for q in range(max(0, j - 5), j + 1):
+            need[q].add(t)
+vals = {}
+for q in sorted(need):
+    A = {canon(x): v for x, v in json.load(open("%s/%s_1.json" % (G, cal[q]))).items()}
+    Rw = {canon(x): v for x, v in json.load(open("%s/%s_0.json" % (G, cal[q]))).items()}
+    for t in need[q]:
+        a, r = A.get(t), Rw.get(t)
+        if isinstance(a, (int, float)) and isinstance(r, (int, float)) and a > 0 and r > 0:
+            vals[(t, q)] = (a, r)
+unap = set()
+for t, j, k in checks:
+    if (t, j) not in vals:
+        continue
+    q = next((q for q in range(j - 1, max(-1, j - 6), -1) if (t, q) in vals), None)
+    if q is None:
+        continue
+    (a1, r1), (a0, r0) = vals[(t, j)], vals[(t, q)]
+    lk = abs(math.log(k))
+    if abs(math.log((a1 / r1) / (a0 / r0))) <= lk / 2 and abs(math.log(r1 / r0) + math.log(k)) <= lk / 2:
+        unap.add((t, cal[q], cal[j], round(math.log(r1 / r0), 4)))
+for t, p_, d, lr in sorted(unap):
+    ev.append((t, p_, d, "UNAPPLIED_SPLIT", 1.0, round(math.exp(lr), 4), None))
 mine = collections.defaultdict(list)
 for t, p, d, k, *_ in ev:
     if k != "REAL_ACTION":
         mine[t].append(d)
+mine = {t: sorted(set(v)) for t, v in mine.items()}
 theirs = json.load(open(IN + "/adjusted_guard_table.json"))["withhold_boundaries"] if os.path.exists(IN + "/adjusted_guard_table.json") else {}
-same = {t: sorted(v) for t, v in mine.items()} == {t: sorted(v) for t, v in theirs.items()}
+same = {t: sorted(v) for t, v in mine.items()} == {t: sorted(set(v)) for t, v in theirs.items()}
 R = {"events": len(ev), "classes": dict(collections.Counter(e[3] for e in ev)),
      "classes_2008_2026": dict(collections.Counter(e[3] for e in ev if "2008-01-02" <= e[2] <= "2026-09-11")),
      "withhold_names": len(mine), "withhold_boundaries": sum(len(v) for v in mine.values()),
@@ -86,7 +128,8 @@ for o in old:
 R["old_190_reclassified"] = dict(collections.Counter(c[3] for c in cls))
 R["old_190_detail"] = cls
 gold = {}
-for t in ("BCPC", "TPC", "WHLR", "VWAV", "UZX", "COHR", "AAPL", "TSLA", "AMZN", "GOOGL", "GOOG", "NVDA"):
+for t in ("BCPC", "TPC", "WHLR", "VWAV", "UZX", "COHR", "AAPL", "TSLA", "AMZN", "GOOGL", "GOOG", "NVDA",
+          "HEI.A", "HEI", "BF.A", "BF.B", "LEN.B", "GEF.B", "MOG.A", "MOG.B", "STZ.B", "CWEN.A"):
     gold[t] = [e for e in byname.get(t, []) if e[2] >= "2008-01-02"]
 R["golden_cases"] = gold
 print(write("guard_oracle%s.json" % ("_" + TAG if TAG else ""), R))
