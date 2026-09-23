@@ -40,17 +40,23 @@
  *       the single writer that owns the note (the editor), never by the sweep;
  *   (2) the append-merge class: a server-appended widget, fact or excerpt must
  *       never be dropped by an offline sync.
- * What moved under (2), wave 5: `settleLandedSave` (useDurableNote.js) keeps the
- * base the record's unsent words were written on instead of adopting what just
- * landed, and `discardsUnsentWork` (recoverLocalState.js) no longer reads the
- * server's own appends as a discard. Both are recorded, with the commits, the
- * reproductions and the mutation proofs, in `docs/notebook/f5-fixes-2026-09-23.md`.
+ * What moved under (2), wave 5 (f2b663d86): `settleLandedSave` (useDurableNote.js)
+ * keeps the base the record's unsent words were written on instead of adopting
+ * what just landed, and `discardsUnsentWork` (recoverLocalState.js) no longer
+ * reads the server's own appends as a discard.
+ * What moved under (1), wave 5: `recover()` hands the owning editor queued work to
+ * adopt (`queuedWorkToAdopt`) and the base any recovered copy was written on
+ * (`baseOfRecovered`); `settleOwnerFork` lets the owner settle its own fork; and
+ * `outboxDrain.js` EXPORTS its fork settle as `settleForkedNote` so that owner
+ * uses the drain's code, not a copy — the sweep's behaviour is unchanged. The
+ * editor half (E-1/E-2/E-3) is `NoteEditorPage.jsx`'s and is handed over, not
+ * landed here. All of it is recorded, with the reproductions and the mutation
+ * proofs, in `docs/notebook/f5-fixes-2026-09-23.md`.
  * ⛔ NOT moved: the append CALL SITES below, `serverChange.js`,
- * `settleNoteWrite.js`, or `outboxDrain.js` — the finding's own mechanism was
- * already closed by `ringVouchedPlan` (9a213bd45) and re-proved at HEAD, so the
- * drain's classification did not need to change. F5's table is still not all
- * GREEN-or-NAMED, so `F5_OPEN` stays true: D3 lifted the freeze for two changes,
- * it did not close F5.
+ * `settleNoteWrite.js`, and the drain's CLASSIFICATION — the finding's own
+ * mechanism was already closed by `ringVouchedPlan` (9a213bd45) and re-proved at
+ * HEAD. F5's table is still not all GREEN-or-NAMED, so `F5_OPEN` stays true: D3
+ * lifted the freeze for two changes, it did not close F5.
  *
  * ⛔ THIS RAIL EXPIRES BY CONSTRUCTION. `F5_OPEN` flips to false the day every
  * cell of the seven-family × six-ordering table is GREEN or NAMED (see the

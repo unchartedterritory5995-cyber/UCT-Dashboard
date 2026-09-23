@@ -20,7 +20,7 @@
  */
 
 import { usableBaseline } from './baseline'
-import { appendedServerNodes } from './serverChange'
+import { appendedServerNodes, lastKnownServerCopy } from './serverChange'
 
 /** A stable-enough id for "this page's editing session". */
 export function newSessionId() {
@@ -272,4 +272,81 @@ export function chooseLocalRecovery({ server, idbRecord = null, lsDraft = null }
     ambiguous: true,
     reason: 'two local copies that cannot be ordered — the member should choose',
   }
+}
+
+/**
+ * ⭐⭐ D3 / F5P-1 — QUEUED WORK IS SENT BY THE NOTE'S OWNER, NOT OFFERED.
+ *
+ * ⚰️ THE STATE THIS ENDS (`q1-product-followups.md`, F5P-1). A member queued
+ * words offline, came back to the note, and sat on it. The sweep skips the note
+ * the editor owns (`excludeNoteId` -- two writers on one note is what Wave Q1
+ * forbids), and the editor reopened on the SERVER's copy and put the member's
+ * words behind a Restore/Discard banner. Nobody sent them; measured on
+ * production, nothing left for 120 s, and nothing would have.
+ *
+ * ⭐ WHY "OFFER" WAS THE WRONG VERB FOR THIS COPY. The banner exists for a crash
+ * draft: words that never reached the queue, which silently preferring could
+ * clobber. QUEUED words are different in kind: the member already committed them
+ * to the server, the sweep sends them WITHOUT asking the moment the note closes,
+ * and compare-and-set on their own baseline makes sending them unable to clobber
+ * anything -- the server 409s and the classifier decides rebase / merge / fork.
+ * So the owner does exactly what the sweep would, through its own save.
+ *
+ * ⛔ THIS ONLY DECIDES. It is a pure answer about what the durable store holds;
+ * the editor applies it. Null means "not provably queued work -- offer it as
+ * before", never "nothing to do".
+ *
+ * @param decision  what `chooseLocalRecovery` returned
+ * @param record    the DIRTY durable record, or null
+ * @param entry     that note's queued outbox entry, or null
+ * @returns null, or { state, base }:
+ *   state  the member's queued words -- what the editor must now hold
+ *   base   the server copy those words were written ON, with its revision. ⛔ The
+ *          editor's baseline becomes THIS, never the server's current revision:
+ *          sending the queued body on the current revision would succeed without
+ *          a 409 and silently drop whatever a door appended in between.
+ */
+export function queuedWorkToAdopt({ decision, record = null, entry = null } = {}) {
+  if (!decision?.unsynced || decision.ambiguous) return null
+  if (!record?.dirty || !entry) return null
+  // ⛔ A BLOCKED entry is retired from sending on purpose; its badge asks the
+  // member to act. Auto-sending it would be the retry it was retired from.
+  if (entry.permanent || entry.noteId !== record.noteId) return null
+  // ⛔ EXACTLY what is queued. A winning copy that differs from the record (a
+  // crash draft ahead of it, two copies from different sessions) is the case the
+  // banner is for: the member chooses. The entry and the record are written in
+  // one transaction, so a disagreement between them is also a reason to ask.
+  if (!sameAuthoredContent(decision.state, record)) return null
+  if (!sameAuthoredContent(entry.patch, record)) return null
+  const base = baseOfRecovered({ decision, record })
+  if (!base) return null
+  return { state: authored(record), base }
+}
+
+/**
+ * ⭐ D3 — WHICH SERVER COPY WAS THE RECOVERED WORK WRITTEN ON? One authority,
+ * asked by `queuedWorkToAdopt` and by the banner's Restore.
+ *
+ * ⚰️ MEASURED on the real editor, 2026-09-23 (wave 5): Restore sent the recovered
+ * copy on its own baseline, the server had moved, the PUT 409'd — and the editor
+ * was left holding the recovered words on the SERVER'S CURRENT revision. The
+ * member's next keystroke autosaved them over the other device's words: 0 forks,
+ * the other copy gone. With an append door instead, the captured block is gone.
+ * The editor could not do better, because nothing told it what the recovered
+ * words were written on. This does.
+ *
+ * @returns { title, subtitle, bodyJson, updatedAt } — the last-known server copy
+ *          the winning durable record carries — or null when that cannot be
+ *          proved: no record, a winner that is not the record's words (a crash
+ *          draft ahead of it), or a copy with no revision. ⛔ Null means "not
+ *          known", and the caller must not invent one from the server's current
+ *          copy.
+ */
+export function baseOfRecovered({ decision, record = null } = {}) {
+  if (!decision?.unsynced || !record?.dirty) return null
+  if (!sameAuthoredContent(decision.state, record)) return null
+  const base = lastKnownServerCopy(record)
+  const at = usableBaseline(base?.updatedAt)
+  if (!base || !at) return null
+  return { ...authored(base), updatedAt: at }
 }

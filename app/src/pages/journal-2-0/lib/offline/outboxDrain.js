@@ -79,6 +79,20 @@ async function settleSent(db, entry, saved) {
  *  should hold what the SERVER has rather than keep claiming to be an unsent
  *  edit of it. */
 async function settleForked(db, entry, serverNote) {
+  return settleForkedNote(db, entry.noteId, serverNote)
+}
+
+/**
+ * ⭐ D3 / F5P-1 — THE SAME SETTLE, FOR THE NOTE'S OWNER. Exported so the open
+ * editor, which now sends its note's queued work itself, settles its fork with
+ * THIS code rather than a second copy of it. ⛔ No behaviour change for the
+ * sweep: `settleForked` above is this, by note id.
+ *
+ * ⚰️ Without it the owner's fork left the durable record dirty with a queued
+ * entry the sibling already preserved, and the sweep forked it AGAIN once the
+ * note closed — two `(conflicted copy)` notes for one conflict.
+ */
+export async function settleForkedNote(db, noteId, serverNote) {
   // ⛔⛔ A FORK MUST NEVER EMPTY THE WORKING COPY.
   //
   // ⚰️ Every field below falls back to `''` or `null`, so a `fork` that
@@ -94,12 +108,12 @@ async function settleForked(db, entry, serverNote) {
   // beats an empty one; the next open re-reads the server anyway.
   const usable = serverNote && (serverNote.bodyJson != null || serverNote.title != null)
   if (!usable) {
-    const rec = await getNote(db, entry.noteId)
+    const rec = await getNote(db, noteId)
     if (rec) await putNoteWithIntent(db, { ...rec, dirty: 0, serverBase: null }, null)
     return
   }
   await putNoteWithIntent(db, {
-    noteId: entry.noteId,
+    noteId,
     title: serverNote?.title ?? '',
     subtitle: serverNote?.subtitle ?? '',
     bodyJson: serverNote?.bodyJson ?? null,

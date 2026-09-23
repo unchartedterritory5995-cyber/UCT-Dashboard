@@ -37,9 +37,21 @@ should be cited as one.
 
 ### F5P-1 — sitting on the note is a state in which queued words never leave
 
+> ⚖️ **RULED 2026-09-23 — decision D3 (`NOTEBOOK-10-OF-10-PLAN.md` §3): option B,
+> release it — by the single writer that owns the note, never by the sweep.** Wave 5
+> landed the offline layer's half (`recover()` → `adopt` / `base`, `settleOwnerFork`)
+> and proved the editor's half (E-1 adopt the queued words on the copy they were written
+> on, E-2 Restore on that same base, E-3 settle the owner's fork) end to end against a
+> copy of the committed editor: 7 / 7 green, 6 / 7 red without it. **The editor half is
+> `NoteEditorPage.jsx`'s and is handed over, not landed** — until it lands, the state
+> below is still live. Also found and folded in: Restore after a moved server clobbered
+> it (measured: 0 forks, the other device's words gone). Design, measurements, mutations:
+> `docs/notebook/f5-fixes-2026-09-23.md` §B. Everything under this box is the
+> 2026-09-13 record, kept as it was.
+
 | | |
 |---|---|
-| status | 🟡 **OPEN — owner ruling required.** Not a defect; a product question |
+| status | 🟠 **RULED (D3) — offline half landed, editor half handed over** (was: 🟡 OPEN — owner ruling required) |
 | found | 2026-09-13, on **production**, with the Wave Q1 rig, while driving the F5 table |
 | found by | `tools/q1_f5_matrix.py` — as a side observation of the `--navigate-no-door` control, **not** as a cell verdict |
 | proposed owner | **Wave Q1 (the save path).** It is the drain's contract meeting the editor's save gate; both are Q1's |

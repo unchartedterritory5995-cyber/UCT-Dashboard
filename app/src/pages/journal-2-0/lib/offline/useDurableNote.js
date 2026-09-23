@@ -28,7 +28,8 @@ import {
   DEFAULT_DEBOUNCE_MS, DURABLE, FAILED, IDLE, createDurableWriter,
 } from './durableWriter'
 import {
-  getMeta, getNote, offlineStorageAvailable, openNotebookDb, putMeta, putNoteWithIntent, storagePosture,
+  getMeta, getNote, listOutbox, offlineStorageAvailable, openNotebookDb, putMeta, putNoteWithIntent,
+  storagePosture,
 } from './notebookDb'
 import {
   markerFor, holdSessionLock, markerKeyFor, landedKeyFor, withLanded,
@@ -36,8 +37,9 @@ import {
 import { offlineEnabled } from './offlineFlag'
 import {
   chooseLocalRecovery, newSessionId, sameAuthoredContent, discardsUnsentWork,
-  editorStateDiscardsUnsentWork,
+  editorStateDiscardsUnsentWork, queuedWorkToAdopt, baseOfRecovered,
 } from './recoverLocalState'
+import { settleForkedNote } from './outboxDrain'
 import { lastKnownServerCopy, snapshotOfServerCopy } from './serverChange'
 import { usableBaseline, isUsableBaseline } from './baseline'
 
@@ -377,6 +379,41 @@ export async function settleLandedSave({
 }
 
 /**
+ * ⭐ D3 / F5P-1 — THE OWNER FORKED: SETTLE THE NOTE THE WAY THE SWEEP WOULD.
+ *
+ * The open editor resolves a conflict it cannot prove safe by preserving BOTH
+ * copies: the member's words go into a `(conflicted copy)` sibling and the editor
+ * shows the server's version. Nothing told the durable store. The record stayed
+ * dirty with a queued entry the sibling had already preserved, and once the
+ * note closed the sweep sent it, 409'd and forked AGAIN — two copies for one
+ * conflict. That was rare while the editor only ever sent words the member had
+ * just typed; now the owner also sends the words queued while away (F5P-1), so a
+ * second writer's edit made during that time reaches exactly this branch.
+ *
+ * ⛔ ONLY AFTER THE SIBLING EXISTS. This clears the queue for the note, and the
+ * sibling is the only reason that is not a loss. It is the drain's own
+ * `settleForkedNote`, never a second copy of it — including its refusal to empty
+ * the record when the server note is unusable.
+ *
+ * ⛔ Store-direct and mount-independent, like `settleLandedSave`; never throws;
+ * and with the wave switched off it writes nothing (§21).
+ *
+ * @returns true when settled, null when it could not or may not write
+ */
+export async function settleOwnerFork({
+  accountId, noteId, serverNote, connect = connectNotebookDb,
+} = {}) {
+  if (!offlineEnabled()) return null
+  if (!offlineStorageAvailable()) return null
+  if (!accountId || !noteId) return null
+  try {
+    const db = await connect(accountId)
+    await settleForkedNote(db, noteId, serverNote)
+    return true
+  } catch { return null }
+}
+
+/**
  * @param accountId  ⛔ part of the DATABASE NAME. Cross-account leakage is a
  *                   release blocker, so the isolation is structural.
  * @param noteId     one writer per note: generations are a per-note order.
@@ -571,17 +608,33 @@ export function useDurableNote({
    */
   const recover = useCallback(async ({ server, lsDraft = null } = {}) => {
     let idbRecord = null
+    let queued = null
     if (supported) {
       try {
         const db = await connect(accountId)
         const rec = await getNote(db, noteId)
         // ⛔ See the header: a clean record is not a candidate.
         idbRecord = rec && rec.dirty ? rec : null
+        // ⭐ D3 / F5P-1: the queued entry is the evidence that these words were
+        // already committed to the server — see `queuedWorkToAdopt`.
+        if (idbRecord) queued = (await listOutbox(db)).find((e) => e?.noteId === noteId) || null
       } catch {
         idbRecord = null   // no durable copy is a fact, not an error to raise
+        queued = null
       }
     }
-    return chooseLocalRecovery({ server, idbRecord, lsDraft })
+    const decision = chooseLocalRecovery({ server, idbRecord, lsDraft })
+    // ⭐ `adopt` is non-null ONLY for provably queued work: the owning editor
+    // then holds those words and sends them through its own save, on the
+    // baseline they were written on. Null keeps the banner exactly as before.
+    // ⭐ `base` is what the recovered words were written on, when provable —
+    // what Restore must save against so a moved server 409s into the editor's
+    // reconcile instead of being overwritten (see `baseOfRecovered`).
+    return {
+      ...decision,
+      adopt: queuedWorkToAdopt({ decision, record: idbRecord, entry: queued }),
+      base: baseOfRecovered({ decision, record: idbRecord }),
+    }
   }, [supported, accountId, noteId, connect])
 
   return { supported, status, unsynced, error, persisted, schedule, markSynced, flush, recover }
