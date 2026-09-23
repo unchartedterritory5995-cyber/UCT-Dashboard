@@ -265,6 +265,18 @@ the whole thing holds together.
   hygiene + flow-worker watch coverage on each, plus Rule 6's end-of-day regression
   sweep.
 
+> ✅ **Agent 2 finding, 2026-09-23:** already fully built, tested, and live in
+> production — `api/routers/entity_master_admin.py`, mounted, `require_admin`-gated
+> (a deliberate, documented deviation from the gate's suggested no-auth shape). The
+> write half shipped as `POST /api/admin/entity-master/reconcile`, not literally
+> `/reseed` — also deliberate: a real `/reseed` would import `scripts/` from `api/`,
+> breaking a stated runtime boundary, and `/reconcile` is the spec's own named
+> equivalent. Committed `7f483014b`, confirmed an ancestor of `origin/production`;
+> its own test file (`tests/test_entity_master_admin.py`) re-run fresh: 26/26 passed.
+> **This roadmap's premise was stale, not the codebase.** Nothing to merge; nothing
+> to build. Agent 2's own closing note, taken seriously: verify the remaining "never
+> built" claims in this plan the same way before spending an agent-day on them.
+
 ### Days 2–3 — the long pole: D2 Canonical Data Model
 
 - **Agent 1:** D2 CP3 — the metric address book's sampling and coverage pass, held
