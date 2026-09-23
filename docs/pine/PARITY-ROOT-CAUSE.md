@@ -458,6 +458,83 @@ that has to ask *"which name?"* should be handed the answer, not left to recover
 
 ---
 
+## RC-H — a spelling Pine still compiles, refused as if the request were unservable
+
+`security(syminfo.tickerid, res, high[1], lookahead=true)` is how Pine v1–v3 wrote a
+look-ahead request, and v4 still compiles it: the migration to `barmerge.lookahead_on`
+renamed the constant, it did not retire the boolean. **16 uses across 5 corpus scripts**
+write it that way.
+
+The door read the argument only when the node was a NAME:
+
+```js
+const spelled = v && v.type === 'name' ? v.name : null
+if (spelled === 'barmerge.lookahead_on') live = true
+else if (spelled !== 'barmerge.lookahead_off') return null
+```
+
+A boolean literal has no `.name`, so `spelled` was null, the second test was true, and
+the whole call fell to `pine:request` — *"this request could not be resolved to one
+symbol and one servable timeframe"*.
+
+⛔ **That sentence is false about its own neighbour.** The identical request with
+`lookahead=barmerge.lookahead_on` resolves, and so does the identical request with no
+`lookahead` at all. The symbol was fine and the timeframe was fine; the spelling of a
+fifth argument was not, and the refusal named neither. Same shape as RC-G: *the engine
+giving the wrong one of its own sentences*.
+
+**Measured: object-lane BUILDS 6 → 7.** `fibonacci-pivot-points-cc` now translates. That
+is the first move in the product metric since `runtime:colour`, and it is the unit this
+programme actually progresses in.
+
+⭐⭐ **HOW IT WAS FOUND, AND WHY THE STANDARD INSTRUMENT SAID ZERO.**
+`guardUpperBound` returned **0** for every guard tried — `pine:undefined`,
+`runtime:colour`, `pine:function`, `pine:request`, `runtime:request`. For `pine:request`
+that zero is an ARTIFACT, and the file's own header says why: it sizes a guard by
+DELETING every line the guard refuses, and *"deleting a binding breaks its consumers, so
+the peel is stricter than an implementation."* `High = security(…)` is a binding —
+deleting it removes the name, and `pp`, `range`, `r1` all then fail. The second walls it
+printed were literally `5 runtime/pine:undefined, 4 objects/pine:undefined`: the cascade,
+not the corpus.
+
+Sizing it honestly means **preserving the binding** and substituting what a correct
+implementation would return. That probe said **+2**.
+
+⚰️ **AND ONE OF THOSE TWO WAS MY OWN INSTRUMENT MANUFACTURING A FINDING** — the third
+time this session. `sub__1xYROVYMlX` requests **eleven different foreign symbols**
+(`INDEX:SLTW`, `INDEX:SYTW`, …); substituting the expression gives all eleven sector
+series the chart's own `close`. Shape preserved, meaning destroyed — eleven wrong numbers
+wearing right names, which is the one thing this engine refuses to ship. The honest
+number was **+1**, and the only thing that caught it was reading the two candidate
+scripts rather than trusting the count.
+
+⛔ **THE ASYMMETRY THE CORPUS COULD NOT HAVE FOUND.** Pine takes `lookahead` as the fifth
+POSITIONAL argument, and the corpus writes it that way often —
+`security(sym, tf, expr, barmerge.gaps_on, barmerge.lookahead_on)` — caught by a
+heuristic on the name node (`spelled.includes('lookahead')`) that a boolean literal
+cannot satisfy. Teaching only the named form would have left `…, barmerge.gaps_on, true)`
+reading as lookahead_**off**: not a refusal a member can see, but a different number
+under the same name. **Zero corpus scripts write it**, so a census-driven stop would have
+shipped it. It is valid Pine, and the objective is every published script, not 266 of
+them.
+
+⚠️ **THE DIRECTION IS A LANGUAGE EQUIVALENCE, NOT A VENDOR MEASUREMENT**, and two things
+keep that honest. The tests assert it by DERIVATION — not *"`true` produces `tf_live`"*
+but *"`true` produces whatever `barmerge.lookahead_on` produces"* — so they follow the
+engine instead of going stale. And **the measured gain does not depend on it at all**:
+for a request at the chart's own timeframe the engine already forces `live = false`
+(*"there is no period to be part-way through"*), which is the case
+`fibonacci-pivot-points-cc` is in. The +1 stands even if the mapping were backwards.
+
+⛔ **THE TOKEN, NOT THE VALUE.** `parsePrimary` folds the keyword to `{type:'number',
+value:1}`, so at the node level `true` and `1` are the same object. Matching `value === 1`
+would have accepted `lookahead=1`, inventing a truthiness coercion Pine does not have.
+The check asks the token the same question the parser asked (`tok.value === 'true'`).
+That precision exists because a control demanded it — the mutation that swaps the token
+test for a value test fails only the numeric case.
+
+---
+
 ## The foreseeable problems — where this shape will bite next
 
 Each is the same substitution, at a seam we have not yet compared:

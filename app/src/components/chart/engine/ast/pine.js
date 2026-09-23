@@ -8028,6 +8028,7 @@ export class Resolver {
     // model. ⚠️ An UNRECOGNISED lookahead spelling still falls through to refused:
     // this admits the two declared values, never "anything that isn't off".
     let live = false
+    let sawLookahead = false
     for (const a of args) {
       if (!a) continue
       const v = a.value
@@ -8035,8 +8036,59 @@ export class Resolver {
       const isLookahead = a.name === 'lookahead'
         || (typeof spelled === 'string' && spelled.includes('lookahead'))
       if (!isLookahead) continue
-      if (spelled === 'barmerge.lookahead_on') live = true
-      else if (spelled !== 'barmerge.lookahead_off') return null
+      sawLookahead = true
+      if (spelled === 'barmerge.lookahead_on') { live = true; continue }
+      if (spelled === 'barmerge.lookahead_off') continue
+
+      // ⭐⭐ PINE'S OWN BOOLEAN SPELLING. v1–v3 wrote `lookahead=true`, and v4
+      // still compiles it — the migration RENAMED the constant, it did not
+      // retire the boolean. 16 uses across 5 corpus scripts write it that way,
+      // and every one of them was landing on `pine:request`: *"this request
+      // could not be resolved to one symbol and one servable timeframe"*, which
+      // is false about its own neighbour, since the identical call with
+      // `barmerge.lookahead_on` resolves. The symbol and the timeframe were
+      // never the problem.
+      //
+      // ⛔⛔ THE TOKEN, NOT THE VALUE, AND THE DIFFERENCE IS NOT COSMETIC.
+      // `parsePrimary` folds the keyword to a NUMBER — `{type:'number',
+      // value:1}` — so at the node level `true` and `1` are the same object.
+      // Matching `value === 1` would therefore accept `lookahead=1`, inventing a
+      // truthiness coercion Pine does not have. This asks the token the same
+      // question the parser asked (`tok.value === 'true'`), so the two cannot
+      // drift apart, and a numeric literal stays refused.
+      const keyword = v && v.tok ? v.tok.value : null
+      if (keyword === 'true') { live = true; continue }
+      if (keyword === 'false') continue
+
+      // ⛔ ANYTHING ELSE STILL DECLINES THE WHOLE CALL. This admits the two
+      // declared constants and the two keywords Pine spells them with — never
+      // "whatever is not off". A name bound elsewhere (`lookahead=ilookaehad`,
+      // six uses in the corpus) is not a lookahead value this door can read, and
+      // guessing one would be the silent mistranslation it exists against.
+      return null
+    }
+
+    // ⭐⭐ AND THE SAME KEYWORD PASSED POSITIONALLY. Pine takes `lookahead` as
+    // the FIFTH argument and the corpus writes it that way often —
+    // `security(sym, tf, expr, barmerge.gaps_on, barmerge.lookahead_on)` — which
+    // the loop above catches only through a heuristic on the NAME node
+    // (`spelled.includes('lookahead')`). A boolean literal has no name, so it
+    // cannot satisfy that, and teaching only the NAMED form would have left
+    // `…, barmerge.gaps_on, true)` reading as lookahead_OFF: not a refusal a
+    // member can see, but a different number under the same name.
+    //
+    // ⚠️ ZERO CORPUS SCRIPTS WRITE IT, measured — so the corpus could not have
+    // found this, and a census-driven stop would have shipped the asymmetry. It
+    // is valid Pine, and `positionaliseSecurityArgs` has already put it in its
+    // canonical slot, so reading that slot is both correct and free.
+    //
+    // ⛔ WIDENING ONLY. `false` already behaves as off by falling through, and
+    // a positional value this door cannot read is left exactly as it was rather
+    // than newly refused — a tightening there would change scripts nobody has
+    // measured.
+    if (!sawLookahead) {
+      const slot = placed[REQUEST_SECURITY_ARGS.indexOf('lookahead')]
+      if (slot && slot.tok && slot.tok.value === 'true') live = true
     }
 
     // ⛔ AND A LOOK-AHEAD READ OF THE CHART'S OWN TIMEFRAME IS NOTHING TO MODEL:

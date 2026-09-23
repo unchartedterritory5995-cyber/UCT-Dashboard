@@ -7,6 +7,71 @@
 > ⚠️ `docs/pine/SESSION-STATE.md` is the **closed R0/R1 wave's** resume doc, not
 > this one. Do not update it for this work.
 >
+> ### ⭐⭐ 2026-09-23 — HOW TO PICK THE NEXT LANE. READ THIS BEFORE CHOOSING WORK.
+>
+> **Object-lane BUILDS: 6 → 7.** RC-G (a truthful refusal, 0 builds by design) and
+> RC-H (`lookahead=true`, **+1**). Both in `PARITY-ROOT-CAUSE.md`.
+>
+> ⛔⛔ **STOP RANKING GUARDS BY HOW MANY SCRIPTS THEY BLOCK.** The repo measured
+> that as the losing strategy on 2026-09-22 and wrote it into
+> `nearestToWorking.measure.test.js`'s header: *"THIS FILE EXISTS BECAUSE THE
+> FIRST-BLOCKER CENSUS PICKED TEN LOSING JOBS IN A ROW."* The three largest rows
+> in the object lane — 64 scripts between them — are each worth **zero**:
+>
+> | guard | scripts blocked | best-case gain |
+> |---|---|---|
+> | `runtime:declaration` | 35 | 0 |
+> | `runtime:statement` | 15 | 0 |
+> | `pine:builtin` | 14 | 0 |
+> | `runtime:colour` | **3** | **+1** |
+>
+> A build stops at its FIRST refusal, so a script with nine walls reports one, and
+> the guard standing between it and working is invisible until the other eight go.
+> **Pick the guard that COMPLETES a script, not the one that blocks the most.**
+>
+> ⛔ **AND `guardUpperBound` RETURNS ZERO FOR EVERY GUARD WORTH BUILDING.** Tried
+> 2026-09-23: `pine:undefined`, `runtime:colour`, `pine:function`, `pine:request`,
+> `runtime:request` — all 0. For a guard whose refused lines are BINDINGS that
+> zero is an ARTIFACT, and the file says so itself: it sizes by DELETING the line,
+> which removes the NAME too, so every consumer then fails `pine:undefined`.
+> `pine:request`'s second walls came back `5 runtime/pine:undefined,
+> 4 objects/pine:undefined` — the cascade, not the corpus.
+>
+> ⭐⭐ **THE METHOD THAT WORKS, and it costs about ten minutes:**
+>
+> 1. `nearestToWorking.measure.test.js` — the shortlist of scripts at distance
+>    1–3 and **every** wall on each, plus the union.
+> 2. For a candidate, probe by **PRESERVING THE BINDING**: substitute what a
+>    correct implementation would return, never delete the line.
+> 3. **Then read the scripts it claims to gain.** This is not optional — see below.
+>
+> ⚰️ **STEP 3 CAUGHT A FALSE +1 ON ITS FIRST USE.** The faithful probe said
+> `request.security` was worth +2. One was real (`fibonacci-pivot-points-cc`:
+> self symbol, `res` folds to `"D"`, chart is D ⇒ the substitution is exactly what
+> a correct implementation returns). The other, `sub__1xYROVYMlX`, requests
+> **eleven different foreign symbols** — substituting the expression gave all
+> eleven sector series the chart's own `close`. Shape preserved, meaning
+> destroyed. **A probe that cannot tell a foreign symbol from the chart's own is
+> not a measurement of that lane.**
+>
+> ⚠️ **AND A CORPUS-ONLY STOP WOULD HAVE SHIPPED AN ASYMMETRY.** RC-H's
+> positional-boolean case has **zero** corpus uses and is valid Pine; serving only
+> the named form would have made `…, barmerge.gaps_on, true)` read as
+> lookahead_OFF — a different number under the same name, with no refusal to see
+> it by. The objective is every published script, not 266 of them.
+>
+> ⛔ **DO NOT RE-PROBE THESE — measured, zero:** `objects:iterated-tree-not-last-bar`
+> (14 scripts, 14/14 drawers, one construct — the 14 scatter behind EIGHT
+> different second walls, none drawing), and the three largest rows above.
+>
+> ⛔ **BLOCKED ON THE OWNER, NOT ON CODE:** `position-size-calc` is the nearest
+> non-building script (distance 2) and its only wall is `syminfo.basecurrency` /
+> `syminfo.root`, both **rostered deliberately** in `symbolScope.json` by a
+> 2026-09-15 ruling — *"answering it for an equity would mean choosing between
+> `\"USD\"` and the empty string, and a script that branches on that branches on our
+> guess."* No vendor capture in `tests/fixtures/vendor/` answers it (checked). It
+> needs a TradingView measurement, which is an owner action.
+>
 > ### ⭐⭐ 2026-09-22 — THE VENDOR AGREES. SIX COMMITS, FIVE ROOT CAUSES.
 >
 > **Every indicator that CAN be compared now matches TradingView.** The only
