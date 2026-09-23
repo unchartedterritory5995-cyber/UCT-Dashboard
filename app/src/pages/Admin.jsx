@@ -3,6 +3,7 @@ import styles from './Admin.module.css'
 import UIcon from '../components/ui/UIcon'
 import TwitterAccountsPanel from '../components/admin/TwitterAccountsPanel'
 import CommunityReportsPanel from '../components/admin/CommunityReportsPanel'
+import ChatModerationPanel from '../components/admin/ChatModerationPanel'
 import AiSearchInsightsPanel from '../components/admin/AiSearchInsightsPanel'
 import CatalystRulesPanel from '../components/admin/CatalystRulesPanel'
 import CompassHealthPanel from '../components/admin/CompassHealthPanel'
@@ -2023,6 +2024,9 @@ export default function Admin() {
 
       {/* ── Section 6d: Community Reports (The Floor) ── */}
       <CommunityReportsPanel />
+
+      {/* ── Section 6d-2: Chat Moderation (Packet Q, signed 2026-09-22) ── */}
+      <ChatModerationPanel />
 
       {/* ── Section 6e: Catalyst Curator learned rules (notes → durable rules) ── */}
       <CatalystRulesPanel />
