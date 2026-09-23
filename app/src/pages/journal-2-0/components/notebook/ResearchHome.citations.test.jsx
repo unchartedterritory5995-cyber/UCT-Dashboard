@@ -185,7 +185,7 @@ const N7_DOCUMENTS = { documents: [
   { id: 'dw', attachmentUrl: 'web:3f2a', name: 'Reuters: NVDA margins', status: 'ready', pageCount: 1 },
 ] }
 
-function installDocNetwork({ source, excerpt = json(500, {}) }) {
+function installDocNetwork({ source, excerpt = json(500, {}), documents = json(200, N7_DOCUMENTS) }) {
   global.fetch = vi.fn(async (url) => {
     const u = String(url)
     if (u === '/api/j2/notebook/home') return json(200, HOME)
@@ -198,7 +198,7 @@ function installDocNetwork({ source, excerpt = json(500, {}) }) {
         ]),
       }
     }
-    if (u === '/api/j2/notes/n7/documents') return json(200, N7_DOCUMENTS)
+    if (u === '/api/j2/notes/n7/documents') return documents
     if (u.startsWith('/api/j2/excerpts/')) return excerpt
     throw new Error(`unexpected fetch ${u}`)
   })
@@ -230,6 +230,27 @@ describe('Research Home ("My Notebook") — a DOCUMENT citation opens by its kin
     await screen.findByRole('dialog', { name: 'Captured passage from Reuters: NVDA margins' })
     expect(screen.queryByTestId('pdf-viewer-stub')).toBeNull()
     expect(askedFor('/api/j2/notes/n7/documents')).toBe(false)
+    expect(onOpenNote).not.toHaveBeenCalled()
+  })
+
+  it('a cited PDF its note no longer holds opens that NOTE (owner ruling), not a dead end', async () => {
+    const onOpenNote = vi.fn()
+    installDocNetwork({ source: PDF_PAGE, documents: json(200, { documents: [] }) })
+    renderHome(onOpenNote)
+    const ask = await askAndTap(PDF_PAGE.label)
+
+    await waitFor(() => expect(onOpenNote).toHaveBeenCalledWith({ id: 'n7' }))
+    expect(screen.queryByTestId('pdf-viewer-stub')).toBeNull()
+    expect(within(ask).getByTestId('ask-nav-notice')).toBeEmptyDOMElement()
+  })
+
+  it('a FAILED read of the list says try again, and opens nothing', async () => {
+    const onOpenNote = vi.fn()
+    installDocNetwork({ source: PDF_PAGE, documents: json(500, {}) })
+    renderHome(onOpenNote)
+    const ask = await askAndTap(PDF_PAGE.label)
+
+    expect(await within(ask).findByText("Couldn't open that document — try again.")).toBeInTheDocument()
     expect(onOpenNote).not.toHaveBeenCalled()
   })
 

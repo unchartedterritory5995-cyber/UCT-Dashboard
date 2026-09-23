@@ -117,7 +117,9 @@ async function settle(read, signal, land) {
  * the navigation deliberately does not carry it).
  *
  * @returns {Promise<{kind:'document', target:object}|{kind:'gone'}
- *                  |{kind:'failed', error?:unknown}>}
+ *                  |{kind:'missing'}|{kind:'failed', error?:unknown}>}
+ *          `gone`: the note itself is gone (404). `missing`: the note answered
+ *          and no longer holds this document -- two different facts.
  */
 export async function resolveDocumentPage(nav, { signal } = {}) {
   let res
@@ -137,7 +139,7 @@ export async function resolveDocumentPage(nav, { signal } = {}) {
     return { kind: 'failed', error }
   }
   const doc = documents.find((d) => d.id === nav.document_id)
-  if (!doc || !doc.attachmentUrl) return { kind: 'gone' }
+  if (!doc || !doc.attachmentUrl) return { kind: 'missing' }
   const page = Number(nav.page_number)
   return {
     kind: 'document',
@@ -148,12 +150,25 @@ export async function resolveDocumentPage(nav, { signal } = {}) {
   }
 }
 
-/** Open a cited PDF page in the host's own DocumentPreviewSheet. */
-export function openDocumentPage(nav, { signal, openDocument }) {
+/**
+ * Open a cited PDF page in the host's own DocumentPreviewSheet.
+ *
+ * A note that answered but no longer holds the document (`missing`) opens the
+ * owning NOTE when the host can (`openNote`) and that note is not the one
+ * already open (`hereNoteId`) -- the member lands somewhere useful, as they did
+ * before pages were reachable (owner ruling). Otherwise, and when the note
+ * itself is gone, it says the document is no longer available. "Try again" is
+ * kept for a read that FAILED, and only for that.
+ */
+export function openDocumentPage(nav, { signal, openDocument, openNote = null, hereNoteId = null }) {
   if (!nav?.note_id || !nav?.document_id) return Promise.resolve(SOURCE_NOWHERE)
   return settle(resolveDocumentPage(nav, { signal }), signal, (r) => {
     if (r.kind === 'document') { openDocument(r.target); return null }
-    if (r.kind === 'gone') return DOCUMENT_GONE
+    if (r.kind === 'missing' && openNote && nav.note_id !== hereNoteId) {
+      openNote({ id: nav.note_id })
+      return null
+    }
+    if (r.kind === 'gone' || r.kind === 'missing') return DOCUMENT_GONE
     if (r.error) console.error('[notebook] opening a cited document failed', r.error)
     return DOCUMENT_UNREADABLE
   })
@@ -175,8 +190,11 @@ function openOwningNote(nav, openNote) {
  * captured web passage is ALSO a document page, and a PDF viewer over its
  * `web:<sha256>` identity is Wave N §9's defect.
  *
- * ⭐ The server now sends `source_kind` (decided by `ask_evidence.is_web_capture`,
- * the same answer the excerpt read and Search key on):
+ * ⭐ The server now sends `source_kind`, decided by `ask_evidence.is_web_capture`
+ * (through `document_source_kind`) -- the ONE server rule for "is this a
+ * captured web page", which the note's document list, the excerpt read
+ * (`sourceKind`) and both Search sections also project, so no two surfaces can
+ * disagree about one row:
  *   - `attachment` -> the host's DocumentPreviewSheet, at `page_number`
  *     (`openPage` when the host already has its own page route);
  *   - `web` -> the captured passage, through the excerpt `capture_web_source`
@@ -201,7 +219,7 @@ export function openDocumentCitation(nav, {
     return openOwningNote(nav, openNote)
   }
   if (kind === SOURCE_ATTACHMENT) {
-    return openPage ? openPage(nav) : openDocumentPage(nav, { signal, openDocument })
+    return openPage ? openPage(nav) : openDocumentPage(nav, { signal, openDocument, openNote, hereNoteId })
   }
   return legacy ? legacy(nav) : openOwningNote(nav, openNote)
 }

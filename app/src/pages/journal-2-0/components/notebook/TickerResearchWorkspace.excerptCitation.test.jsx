@@ -339,8 +339,9 @@ const WEB_PAGE = {
 const OLD_PAGE = { ...PDF_PAGE, navigation: { kind: 'document', document_id: 'd9', page_number: 47, note_id: 'n7' } }
 const WEB_PAGE_EXCERPT = { ...WEB_EXCERPT, id: 'exw', documentId: 'dw', pageNumber: 1 }
 // What `GET /api/j2/notes/{id}/documents` answers for the owning note. The web
-// capture is listed too -- the list carries no kind, which is why the kind has
-// to come from the citation and never from this list.
+// capture is listed too. A spanning host decides by the CITATION's own kind
+// (`navigation.source_kind`) and reads this list only for a PDF's `href`; the
+// list's own `sourceKind` is what the note editor's doors route on.
 const N7_DOCUMENTS = { documents: [
   { id: 'd9', attachmentUrl: '/api/j2/notes/attachments/u1/n7/file/q3.pdf', name: 'Q3 10-Q', status: 'ready', pageCount: 80 },
   { id: 'dw', attachmentUrl: 'web:3f2a', name: 'Reuters: NVDA margins', status: 'ready', pageCount: 1 },
@@ -420,15 +421,17 @@ describe('TickerResearchWorkspace — a DOCUMENT citation opens by its kind', ()
     expect(within(ask).getByTestId('ask-nav-notice')).toBeEmptyDOMElement()
   })
 
-  it('a cited PDF that is gone SAYS so inside the panel', async () => {
+  it('a cited PDF its note no longer holds opens that NOTE -- somewhere useful, not a dead end', async () => {
+    // Owner ruling: the list ANSWERED (200) and the document left it -- the
+    // member lands on the note, as they did before pages were reachable.
     const onOpenNote = vi.fn()
     installDocNetwork({ sources: [PDF_PAGE], documents: jsonResponse(200, { documents: [] }) })
     renderWorkspace(onOpenNote)
     const ask = await askAndClickCitation(PDF_PAGE.label)
 
-    expect(await within(ask).findByText('That document is no longer available.')).toBeInTheDocument()
+    await waitFor(() => expect(onOpenNote).toHaveBeenCalledWith({ id: 'n7' }))
     expect(screen.queryByTestId('pdf-viewer-stub')).toBeNull()
-    expect(onOpenNote).not.toHaveBeenCalled()
+    expect(within(ask).getByTestId('ask-nav-notice')).toBeEmptyDOMElement()
   })
 
   it('a cited PDF whose NOTE is gone (the list 404s) says the document is gone', async () => {
@@ -441,13 +444,15 @@ describe('TickerResearchWorkspace — a DOCUMENT citation opens by its kind', ()
     expect(screen.queryByTestId('pdf-viewer-stub')).toBeNull()
   })
 
-  it('a failed read is NOT reported as a deleted document', async () => {
+  it('a FAILED read says try again -- and is not mistaken for a document that left its note', async () => {
+    const onOpenNote = vi.fn()
     installDocNetwork({ sources: [PDF_PAGE], documents: jsonResponse(500, {}) })
-    renderWorkspace(vi.fn())
+    renderWorkspace(onOpenNote)
     const ask = await askAndClickCitation(PDF_PAGE.label)
 
     expect(await within(ask).findByText("Couldn't open that document — try again.")).toBeInTheDocument()
     expect(screen.queryByText('That document is no longer available.')).toBeNull()
+    expect(onOpenNote).not.toHaveBeenCalled()
   })
 
   it('the LAST tap wins here too: a slow document read never opens over the second', async () => {

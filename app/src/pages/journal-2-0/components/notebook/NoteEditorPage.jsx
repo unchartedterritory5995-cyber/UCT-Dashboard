@@ -11,8 +11,8 @@ import DocumentPreviewSheet from './DocumentPreviewSheet'
 import CapturedSourceSheet from './CapturedSourceSheet'
 import { targetFromParams, applyTargetToParams, citationTarget,
          reviewTargetFromParams } from '../../lib/searchNavigation'
-import { openExcerptCitation, openDocumentCitation, SOURCE_NOWHERE,
-         PASSAGE_NOT_PINPOINTED, NOTE_LEVEL_SOURCE } from '../../lib/openCitation'
+import { openExcerptCitation, openDocumentCitation, openDocumentPage, SOURCE_NOWHERE,
+         PASSAGE_GONE, PASSAGE_NOT_PINPOINTED, NOTE_LEVEL_SOURCE } from '../../lib/openCitation'
 import { SOURCE_WEB } from '../../lib/searchResultLabel'
 import useNoteDocuments from '../../hooks/useNoteDocuments'
 import DocumentTextStatus from './DocumentTextStatus'
@@ -972,14 +972,21 @@ export default function NoteEditorPage({ noteId, onBack, showBack = true, onTitl
   // answer) opens as a captured passage through the excerpt path, the excerpt
   // `capture_web_source` wrote beside it (`capturePassages`); a page whose
   // saved passage is gone opens nothing -- this note, its honest floor, is
-  // already open. Everything else is a PDF, opened at its page as before.
-  const openNoteDocument = useCallback((doc, { page, excerptId, emphasizeExcerpt } = {}) => {
+  // already open -- and SAYS so. Everything else is a PDF, opened at its page
+  // as before.
+  //
+  // ⛔ NOTHING IS SILENT HERE EITHER. It returns what the excerpt path returns
+  // (null when something opened, else the sentence), or PASSAGE_GONE when the
+  // page has no passage left, and it forwards the caller's abort `signal`, so
+  // an Ask tap that routes through it keeps last-tap-wins. The Ask route hands
+  // the sentence to the panel; the doors outside Ask (the `?doc=` route, an
+  // excerpt card, a chip) show it in this page's own Toast (`sayIfNothingOpened`).
+  const openNoteDocument = useCallback((doc, { page, excerptId, emphasizeExcerpt, signal } = {}) => {
     if (doc.sourceKind === SOURCE_WEB) {
       const passages = doc.capturePassages || []
       const id = excerptId
         || (page ? passages.find((p) => p.pageNumber === page)?.excerptId : passages[0]?.excerptId)
-      if (id) handleOpenExcerptSource(id)
-      return
+      return id ? handleOpenExcerptSource(id, { signal }) : PASSAGE_GONE
     }
     setPreviewDoc({
       href: doc.attachmentUrl, name: doc.name, documentId: doc.id,
@@ -987,7 +994,13 @@ export default function NoteEditorPage({ noteId, onBack, showBack = true, onTitl
       emphasizeExcerptId: excerptId || undefined,
       emphasizeExcerpt: emphasizeExcerpt ?? null,
     })
+    return null
   }, [handleOpenExcerptSource])
+  // The page's single Toast is mounted at page level, so it outlives the card
+  // or chip that asked -- never a message owned by the element that fired it.
+  const sayIfNothingOpened = useCallback((outcome) => Promise.resolve(outcome).then((msg) => {
+    if (msg) setUploadToast({ message: msg, tone: 'error' })
+  }), [])
 
   // ⭐ WAVE M — SEARCH LANDS ON THE OBJECT IT NAMED. A search hit that reads
   // "NVDA 10-Q · p.47" carries `?doc=&page=` alongside `?note=`, and this opens
@@ -1017,15 +1030,16 @@ export default function NoteEditorPage({ noteId, onBack, showBack = true, onTitl
     const localExcerpt = navTarget.excerptId
       ? noteExcerpts.find((e) => e.id === navTarget.excerptId) || null
       : null
-    openNoteDocument(doc, {
+    sayIfNothingOpened(openNoteDocument(doc, {
       page: navTarget.page, excerptId: navTarget.excerptId, emphasizeExcerpt: localExcerpt,
-    })
+    }))
     setSearchParams((prev) => {
       const next = new URLSearchParams(prev)
       for (const k of ['doc', 'page', 'excerpt']) next.delete(k)
       return next
     }, { replace: true })
-  }, [navTargetKey, navTarget, noteDocuments, noteExcerpts, setSearchParams, openNoteDocument])
+  }, [navTargetKey, navTarget, noteDocuments, noteExcerpts, setSearchParams, openNoteDocument,
+      sayIfNothingOpened])
 
   // ⭐ O6 §4: the same routing contract, one param further. A review is NOT a
   // document, so it deliberately does not go through `targetFromParams` /
@@ -1121,9 +1135,9 @@ export default function NoteEditorPage({ noteId, onBack, showBack = true, onTitl
       const doc = noteDocuments.find((d) => d.id === documentId)
       const localExcerpt = noteExcerpts.find((e) => e.id === excerptId)
       if (doc) {
-        openNoteDocument(doc, { page, excerptId, emphasizeExcerpt: localExcerpt || null })
+        sayIfNothingOpened(openNoteDocument(doc, { page, excerptId, emphasizeExcerpt: localExcerpt || null }))
       } else if (localExcerpt?.sourceKind === SOURCE_WEB) {
-        handleOpenExcerptSource(excerptId)
+        sayIfNothingOpened(handleOpenExcerptSource(excerptId))
       } else if (localExcerpt?.attachmentUrl) {
         // The excerpt's own document isn't one of THIS note's attachments
         // (an excerpt saved from elsewhere but inserted here) -- the
@@ -1155,7 +1169,7 @@ export default function NoteEditorPage({ noteId, onBack, showBack = true, onTitl
     // list -- the chip's own attrs never carried an id (attachments have
     // none of their own, per Wave I's filesystem-path identity model).
     const doc = noteDocuments.find((d) => d.attachmentUrl === href)
-    if (doc?.sourceKind === SOURCE_WEB) { openNoteDocument(doc); return }
+    if (doc?.sourceKind === SOURCE_WEB) { sayIfNothingOpened(openNoteDocument(doc)); return }
     setPreviewDoc({ href, name, documentId: doc?.id || null })
   }
 
@@ -1217,6 +1231,21 @@ export default function NoteEditorPage({ noteId, onBack, showBack = true, onTitl
       // The decision lives in `searchNavigation`, beside the one Search uses,
       // so the two can never answer differently about the same document.
       const openPage = (nav) => {
+        const here = noteDocuments.find((d) => d.id === nav.document_id)
+        // A captured page of THIS note (an old packet has no kind; the list
+        // does) goes straight to the door, with the tap's abort signal, and
+        // whatever it could not open is said in the panel.
+        if (here?.sourceKind === SOURCE_WEB) {
+          const page = Number(nav.page_number)
+          return openNoteDocument(here, { page: Number.isFinite(page) && page > 0 ? page : null, signal })
+        }
+        // ⛔ A cited document of THIS note that the list no longer holds used
+        // to set `?doc=` and wait forever for a row that never came. Read the
+        // list again: a stale list still opens the page; a document that left
+        // the note says so, in the same words the spanning hosts use.
+        if (!here && (nav.note_id || noteId) === noteId) {
+          return openDocumentPage({ ...nav, note_id: noteId }, { signal, openDocument: setPreviewDoc })
+        }
         const target = citationTarget({ navigation: nav }, { fallbackNoteId: noteId })
         if (!target) return SOURCE_NOWHERE
         setSearchParams((prev) => applyTargetToParams(prev, target),
@@ -1254,7 +1283,7 @@ export default function NoteEditorPage({ noteId, onBack, showBack = true, onTitl
       : chain.setTextSelection({ from: resolved.from, to: resolved.to })
     selected.scrollIntoView().run()
     return null
-  }, [setSearchParams, noteId, handleOpenExcerptSource])
+  }, [setSearchParams, noteId, handleOpenExcerptSource, noteDocuments, openNoteDocument])
 
   const handleSaveExcerpt = async ({ pageNumber, capturedText, quotePrefix, quoteSuffix, charStart, charEnd }) => {
     const ed = editorRef.current

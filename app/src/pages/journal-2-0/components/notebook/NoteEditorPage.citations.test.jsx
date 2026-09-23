@@ -1,4 +1,4 @@
-import { render, screen, waitFor, fireEvent, within } from '@testing-library/react'
+import { render, screen, waitFor, fireEvent, within, act } from '@testing-library/react'
 import { MemoryRouter } from 'react-router-dom'
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest'
 import { __resetNotebookFlags } from '../../lib/offline/notebookFlags'
@@ -169,7 +169,7 @@ describe('NoteEditorPage ("This note") — citations', () => {
       ...EXCERPT_SOURCE, type: 'document_page', label: 'Q3 filing.pdf · p.2', citation: 'page_only',
       navigation: { kind: 'document', document_id: 'd1', page_number: 2, note_id: 'n1' }, location: {},
     }
-    installNetwork({ source: page })
+    installDocNetwork({ source: page })
     const ask = await renderEditorAndTap(page.label)
     await new Promise((r) => setTimeout(r, 50))
     expect(within(ask).getByTestId('ask-nav-notice')).toBeEmptyDOMElement()
@@ -210,21 +210,29 @@ const N1_DOCUMENTS = { documents: [
     sourceKind: 'web', capturePassages: [{ pageNumber: 1, excerptId: 'exw' }] },
 ] }
 
-function installDocNetwork({ source = PDF_PAGE, excerpt = json(500, {}), noteExcerpts = [] }) {
+/** `documents(n)` answers the n-th read of this note's list (0 = the page's
+ *  own load); `excerpt` may be a function of the URL, for a slow read. */
+function installDocNetwork({
+  source = PDF_PAGE, sources = [source], excerpt = json(500, {}), noteExcerpts = [],
+  documents = () => json(200, N1_DOCUMENTS),
+}) {
+  let listReads = 0
   global.fetch = vi.fn((url) => {
     const u = String(url)
     if (u.includes('/api/j2/ask/stream')) {
       return Promise.resolve({
         ok: true, status: 200, json: async () => ({}),
         body: sse([
-          { type: 'sources', scope: 'note', scopeLabel: 'This note', coverageNotice: null, sources: [source] },
-          { type: 'final', answer: 'Margins compressed [1].' },
+          { type: 'sources', scope: 'note', scopeLabel: 'This note', coverageNotice: null, sources },
+          { type: 'final', answer: `Margins compressed ${sources.map((_, i) => `[${i + 1}]`).join(' ')}.` },
         ]),
       })
     }
-    if (u === '/api/j2/notes/n1/documents') return Promise.resolve(json(200, N1_DOCUMENTS))
+    if (u === '/api/j2/notes/n1/documents') return Promise.resolve(documents(listReads++))
     if (u === '/api/j2/notes/n1/excerpts') return Promise.resolve(json(200, { excerpts: noteExcerpts }))
-    if (u.startsWith('/api/j2/excerpts/')) return Promise.resolve(excerpt)
+    if (u.startsWith('/api/j2/excerpts/')) {
+      return typeof excerpt === 'function' ? excerpt(u) : Promise.resolve(excerpt)
+    }
     return Promise.resolve({ ok: true, status: 200, json: () => Promise.resolve({}) })
   })
 }
@@ -318,16 +326,16 @@ describe('NoteEditorPage — the `?doc=&page=` route opens a document by ITS kin
     expect(await within(sheet).findByTestId('pdf-viewer-stub')).toHaveAttribute('data-initial-page', '47')
   })
 
-  it('a captured page with no saved passage opens NOTHING -- its note is already open', async () => {
+  it('a captured page with no saved passage opens NOTHING -- and SAYS so (its note is already open)', async () => {
     installDocNetwork({})
     await renderEditorAt('/?note=n1&doc=dw&page=2')
-    await settle()
+    expect(await screen.findByText('That passage is no longer available.')).toBeInTheDocument()
     expect(screen.queryByTestId('pdf-viewer-stub')).toBeNull()
     expect(screen.queryByRole('dialog', { name: /Captured passage/ })).toBeNull()
     expect(global.fetch).not.toHaveBeenCalledWith(expect.stringMatching(/^\/api\/j2\/excerpts\//), expect.anything())
   })
 
-  it('an OLD Ask packet (no kind) citing a captured page takes the page route -- and still never the PDF viewer', async () => {
+  it('an OLD Ask packet (no kind) citing a captured page goes to the door -- never the PDF viewer', async () => {
     const oldWeb = { ...WEB_PAGE, navigation: { kind: 'document', document_id: 'dw', page_number: 1, note_id: 'n1' } }
     installDocNetwork({ source: oldWeb, excerpt: json(200, { excerpt: WEB_PAGE_EXCERPT }) })
     await renderEditorAndTap(oldWeb.label)
@@ -372,6 +380,146 @@ describe('NoteEditorPage — the `?doc=&page=` route opens a document by ITS kin
     fireEvent.click(await screen.findByText('reuters-capture.pdf'))
     await screen.findByRole('dialog', { name: 'Captured passage from Reuters: NVDA margins' })
     expect(screen.queryByRole('dialog', { name: /Preview of/ })).toBeNull()
+  })
+})
+
+// ⛔⛔ NOTHING A DOOR COULD NOT OPEN IS SILENT (review M-1, M-3). Each of these
+// was a dead click at 96d3652bd -- the review's five probes, plus a cited
+// document that left this note. An Ask tap says it inside the panel; the doors
+// outside Ask (a deep link, an excerpt card, a chip) say it in the page's Toast.
+describe('NoteEditorPage — every door that opens nothing says why', () => {
+  const noticeOf = (ask) => within(ask).getByTestId('ask-nav-notice')
+  const nothingOpened = () => {
+    expect(screen.queryByTestId('pdf-viewer-stub')).toBeNull()
+    expect(screen.queryByRole('dialog', { name: /Captured passage/ })).toBeNull()
+  }
+
+  it('an OLD packet citing a captured page with NO passage says it in the panel', async () => {
+    const oldWeb = { ...WEB_PAGE, navigation: { kind: 'document', document_id: 'dw', page_number: 2, note_id: 'n1' } }
+    installDocNetwork({ source: oldWeb })
+    const ask = await renderEditorAndTap(oldWeb.label)
+    await waitFor(() => expect(noticeOf(ask)).toHaveTextContent('That passage is no longer available.'))
+    nothingOpened()
+  })
+
+  it('an OLD packet whose excerpt read 404s says it in the panel', async () => {
+    const oldWeb = { ...WEB_PAGE, navigation: { kind: 'document', document_id: 'dw', page_number: 1, note_id: 'n1' } }
+    installDocNetwork({ source: oldWeb, excerpt: json(404, { detail: 'Not found' }) })
+    const ask = await renderEditorAndTap(oldWeb.label)
+    await waitFor(() => expect(noticeOf(ask)).toHaveTextContent('That passage is no longer available.'))
+    nothingOpened()
+  })
+
+  it('a deep link whose excerpt read FAILS says try again, in the page Toast', async () => {
+    installDocNetwork({ excerpt: json(500, {}) })
+    await renderEditorAt('/?note=n1&doc=dw&page=1')
+    expect(await screen.findByText("Couldn't open that passage — try again.")).toBeInTheDocument()
+    nothingOpened()
+  })
+
+  it('a .pdf-named chip over a captured row with NO passage says so, in the page Toast', async () => {
+    noteStore.n1 = {
+      ...NOTE,
+      bodyJson: { type: 'doc', content: [{ type: 'paragraph', content: [
+        { type: 'attachmentChip', attrs: { href: 'web:3f2a', name: 'reuters-capture.pdf', size: 1 } }] }] },
+    }
+    installDocNetwork({
+      documents: () => json(200, { documents: [{ ...N1_DOCUMENTS.documents[1], capturePassages: [] }] }),
+    })
+    await renderEditorAt('/')
+    await settle()
+    fireEvent.click(await screen.findByText('reuters-capture.pdf'))
+    expect(await screen.findByText('That passage is no longer available.')).toBeInTheDocument()
+    nothingOpened()
+  })
+
+  it("an excerpt card whose read FAILS says try again, in the page Toast", async () => {
+    noteStore.n1 = {
+      ...NOTE,
+      bodyJson: { type: 'doc', content: [
+        { type: 'paragraph', content: [{ type: 'text', text: 'My own view.' }] },
+        { type: 'documentExcerpt', attrs: { excerptId: 'exw' } },
+      ] },
+    }
+    installDocNetwork({ excerpt: json(500, {}), noteExcerpts: [WEB_PAGE_EXCERPT] })
+    await renderEditorAt('/')
+    fireEvent.click(await screen.findByRole('button', { name: /Reuters: NVDA margins · p\.1/ }))
+    expect(await screen.findByText("Couldn't open that passage — try again.")).toBeInTheDocument()
+    nothingOpened()
+  })
+
+  it("an excerpt card for ANOTHER note's captured passage, whose read FAILS, says try again", async () => {
+    // Its document is not one of this note's rows, so the card goes straight
+    // to the excerpt path -- and that path's sentence must still be said.
+    const foreign = { ...WEB_PAGE_EXCERPT, id: 'exf', documentId: 'dx', noteId: 'n9' }
+    noteStore.n1 = {
+      ...NOTE,
+      bodyJson: { type: 'doc', content: [
+        { type: 'paragraph', content: [{ type: 'text', text: 'My own view.' }] },
+        { type: 'documentExcerpt', attrs: { excerptId: 'exf' } },
+      ] },
+    }
+    installDocNetwork({ excerpt: json(500, {}), noteExcerpts: [foreign] })
+    await renderEditorAt('/')
+    fireEvent.click(await screen.findByRole('button', { name: /Reuters: NVDA margins · p\.1/ }))
+    expect(await screen.findByText("Couldn't open that passage — try again.")).toBeInTheDocument()
+    expect(globalThis.fetch).toHaveBeenCalledWith('/api/j2/excerpts/exf', expect.anything())
+    nothingOpened()
+  })
+
+  it('M-3: a cited PDF that LEFT this note says so -- the same words the spanning hosts use', async () => {
+    const gonePdf = {
+      ...PDF_PAGE, label: 'Old deck · p.3',
+      navigation: { kind: 'document', document_id: 'dz', page_number: 3, note_id: 'n1', source_kind: 'attachment' },
+    }
+    installDocNetwork({ source: gonePdf })
+    const ask = await renderEditorAndTap(gonePdf.label)
+    await waitFor(() => expect(noticeOf(ask)).toHaveTextContent('That document is no longer available.'))
+    nothingOpened()
+    // It asked the list again rather than trusting the page's cached copy.
+    expect(globalThis.fetch.mock.calls.filter(([u]) => u === '/api/j2/notes/n1/documents').length).toBeGreaterThan(1)
+  })
+
+  it('M-3: a cited PDF the cached list had not caught up with still opens AT its page', async () => {
+    const late = {
+      id: 'dn', attachmentUrl: '/api/j2/notes/attachments/u1/n1/file/new.pdf', name: 'New deck', status: 'ready',
+      pageCount: 9, sourceKind: 'attachment', capturePassages: [],
+    }
+    const newPdf = {
+      ...PDF_PAGE, label: 'New deck · p.3',
+      navigation: { kind: 'document', document_id: 'dn', page_number: 3, note_id: 'n1', source_kind: 'attachment' },
+    }
+    installDocNetwork({
+      source: newPdf,
+      documents: (n) => json(200, n === 0 ? N1_DOCUMENTS : { documents: [...N1_DOCUMENTS.documents, late] }),
+    })
+    const ask = await renderEditorAndTap(newPdf.label)
+    const sheet = await screen.findByRole('dialog', { name: 'Preview of New deck' })
+    expect(await within(sheet).findByTestId('pdf-viewer-stub')).toHaveAttribute('data-initial-page', '3')
+    expect(noticeOf(ask)).toBeEmptyDOMElement()
+  })
+
+  it('the LAST tap wins through the door: a slow captured-page read never opens over the second tap', async () => {
+    const oldWeb = { ...WEB_PAGE, navigation: { kind: 'document', document_id: 'dw', page_number: 1, note_id: 'n1' } }
+    const pdf2 = { ...PDF_PAGE, n: 2 }
+    let releaseA
+    const seen = {}
+    installDocNetwork({
+      sources: [oldWeb, pdf2],
+      // A slow read that IGNORES its abort signal: the door must pass the tap's
+      // signal on, or this late answer opens over the page the member chose.
+      excerpt: (u) => {
+        seen.url = u
+        return new Promise((r) => { releaseA = () => r(json(200, { excerpt: WEB_PAGE_EXCERPT })) })
+      },
+    })
+    const ask = await renderEditorAndTap(oldWeb.label)
+    await waitFor(() => expect(seen.url).toBe('/api/j2/excerpts/exw'))
+    fireEvent.click(await within(ask).findByRole('button', { name: `Source 2: ${pdf2.label}` }))
+    await screen.findByRole('dialog', { name: 'Preview of Q3 10-Q' })
+    await act(async () => { releaseA() })
+    await settle()
+    expect(screen.queryByRole('dialog', { name: /Captured passage/ })).toBeNull()
   })
 })
 
