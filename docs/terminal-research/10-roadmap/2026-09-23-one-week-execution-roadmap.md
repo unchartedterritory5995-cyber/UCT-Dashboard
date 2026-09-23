@@ -314,6 +314,31 @@ the whole thing holds together.
 - **Integrator:** mid-point check-in at end of Day 2 before continuing into Day 3 — D2
   is explicitly the item most likely to reveal a real surprise once someone is inside it.
 
+> ⚠️➡️✅ **Agent 1 finding, 2026-09-23 — a real surprise, and a resolved one.** "D2 CP3"
+> names two different things inside the same signed gate document (the gate's own text
+> flags this explicitly: *"CP3 NAMES TWO DIFFERENT THINGS IN THIS FILE — READ THE
+> PREFIX"*). The genuinely-unbuilt one — `address_book.py`'s `resolve()` five-status
+> function — remains correctly unsigned and untouched. The *other* one — the top-level
+> CP3 / "LINE 5" dual-compute warm reader for `ticker_returns.py` — is real, signed
+> (`d1da6f5b7`), tested (22/22, re-run fresh), and was reported as **built but never
+> shipped to master**.
+>
+> **That report was itself wrong, and worth recording why:** the check that produced it
+> tested ancestry of the *exact original commit SHA* (`315200817`) against
+> `origin/master`, which answered "no" — the same false-negative shape Packet F fixed in
+> this program's own env-check tool two days ago. Re-checked properly (cherry-pick
+> equivalence, not raw ancestry): the identical patch already reached master and
+> production under a different SHA (`395e3f37b`), confirmed byte-identical on the two
+> files that matter and confirmed live via `git merge-base --is-ancestor 395e3f37b
+> origin/production`. **Nothing needed shipping. D2's real, unbuilt CP3 (`resolve()`) is
+> the only open item, and it's still unsigned.**
+
+> ✅ **Day 2 pattern, now four for four:** every "build" directive dispatched since Day 1
+> has turned out either already shipped or, in this one case, reported as unshipped when
+> it was actually already live. The lesson holds and is now applied proactively rather
+> than discovered after each dispatch: before Day 3's remaining wave, the parent session
+> did its own direct source/grep check first, cheaper than a full agent run — see below.
+
 > ⚠️ **Honest note:** this is the one boundary in the whole week most likely to move. If
 > D2 takes three days instead of two, every day after it shifts by the same amount —
 > that's the correct response to a real finding, not a missed deadline.
@@ -327,15 +352,33 @@ the whole thing holds together.
 
 ### Day 3 (parallel) — visual identity & UX system, doesn't wait on data
 
-- **Agent 1:** design system pass for Terminal-Next surfaces: density tiers, a
-  keyboard-binding registry (the existing chart has 87 raw listeners today, no shared
-  palette), and a real command palette shell.
-- **Agent 2:** named-address layer for saved objects — boards, screens, views get
-  user-minted, shareable names (terminal-grade property 3), building on
-  `charts_layouts` and `user_definitions`, which already do this partially.
-- **Agent 3:** panel resilience pass: per-widget error boundaries, versioned/atomic
-  layout persistence — closes the finding that six of seven historical workspace
-  failures were persistence bugs, not layout bugs.
+- ~~**Agent 1 (original):** design system pass... a real command palette shell.~~
+  **Revised before dispatch, 2026-09-23** — a self-check (parent session, direct grep,
+  no agent spent) found a command palette already exists app-wide
+  (`app/src/components/CommandPalette.jsx`, mounted in `Layout.jsx` via Ctrl/Cmd+K).
+  Building a second one would be exactly the kind of redundant work this week is trying
+  to stop paying for. Redirected to the two items below instead.
+- **Agent 1 (dispatched):** named-address layer for saved objects — boards, screens,
+  views get user-minted, shareable names (terminal-grade property 3). Self-check
+  confirmed the gap is real: `charts_layouts` supports naming/renaming but has no
+  URL-based addressing at all (zero `?layout=`-style deep link). Building the
+  addressing layer, checking `user_definitions` for the same gap.
+- **Agent 2 (dispatched):** chart keyboard-binding registry. Self-check found 32 raw
+  keydown handlers via direct grep, not the roadmap's cited 87 — agent re-derives the
+  real count from TD-07's own original methodology before building, rather than trusting
+  either number. Extends or composes with the existing CommandPalette rather than
+  building a second one, if that composition makes sense once it's read.
+- **Agent 3 (already closed, see above):** panel resilience — done Day 2, moved forward
+  from here since S7 was blocked. No further action.
+
+> 💭 **S8 wiring, reconsidered.** The Days 2-3 plan assumed D2 CP3 (`resolve()`) would
+> ship and then S8's provenance renderer would wire against the newly-addressable
+> metrics. Since `resolve()` remains genuinely unsigned and won't be built without
+> authorization (see the D2 finding above), that specific unlock doesn't exist yet.
+> Whether S8 wiring can proceed usefully against D2's existing CP2-level addressability
+> alone is a real open question, not yet answered — held rather than guessed at. Revisit
+> once Day 3's two agents report back and there's a clearer picture of what A1/A11/A13
+> actually need from it.
 
 ### Days 4–5 — application layer, in dependency order
 
