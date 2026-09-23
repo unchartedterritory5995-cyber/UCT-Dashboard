@@ -501,7 +501,21 @@ def set_ohlc(date: str, metric: str, o: float, h: float, l: float, c: float,
 # `closes_for_dates`, `metric_before`, `distinct_dates*`, the reconstructed-table
 # builders). Fixing only `_MERGE_SQL` would adopt the V2 rows and then serve none of
 # them — the charts would be unchanged and the merge would still look successful.
-_TRUSTED_SOURCES = ("live", "intraday_recon_1m", "intraday_recon", "close_recon")
+#
+# ⭐⭐ ONE ORDERED LIST, THREE CONSUMERS. `_TRUSTED_SOURCES` (serving), `_RANK` and the
+# `_MERGE_SQL` gate (breadth_ohlc_sync) are all DERIVED from `SOURCE_PRECEDENCE`, highest
+# first. The V2 cutover defect was exactly these three drifting apart: a source listed in
+# one and not the others is adopted and never served, or served and never adopted.
+#   live                    the accumulator observed the session; never overwritten
+#   intraday_recon_1m       V2 whole-session 1-minute replay (F1 basis, F2 domains, F5 close)
+#   intraday_recon_1m_body  V2 session whose PATH was withheld by the path-quality rule: the
+#                           close is the canonical daily close, the wicks are honestly absent
+#   intraday_recon          the 30-minute sweep — carries the pre-F1 split-basis defect
+#                           (median |dClose| vs V2: 86 in 2008 -> 4 in 2026)
+#   close_recon             body-only close reconstruction
+SOURCE_PRECEDENCE = ("live", "intraday_recon_1m", "intraday_recon_1m_body",
+                     "intraday_recon", "close_recon")
+_TRUSTED_SOURCES = SOURCE_PRECEDENCE
 
 
 def write_bulk(rows: list, source: str = "close_recon", overwrite_live: bool = False,

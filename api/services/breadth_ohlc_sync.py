@@ -277,16 +277,24 @@ def _remote_latest(client, bucket) -> Optional[str]:
 # reconstruction — however good — must never overwrite the day the system observed.
 # That is also what makes the post-cutover steady state safe: tomorrow's live row
 # outranks anything V2 holds for the same key.
-_RANK = ("CASE {c}.source WHEN 'live' THEN 4 "
-         "WHEN 'intraday_recon_1m' THEN 3 WHEN 'intraday_recon' THEN 2 "
-         "WHEN 'close_recon' THEN 1 ELSE 0 END")
+from api.services.breadth_daily_ohlc import SOURCE_PRECEDENCE as _PREC
+from api.services.breadth_universes import UNIVERSE_IDS as _MERGEABLE_UNIVERSES
+
+_RANK = ("CASE {c}.source "
+         + " ".join("WHEN '%s' THEN %d" % (s, len(_PREC) - i) for i, s in enumerate(_PREC))
+         + " ELSE 0 END")
+_SOURCE_GATE = ",".join("'%s'" % s for s in _PREC)
+#: ⛔ A universe that is not in the production registry is never merged. Research series
+#: (e.g. the `uct_backtest` of a V2c2 artifact) live in an artifact, never in the store.
+_UNIVERSE_GATE = ",".join("'%s'" % u for u in _MERGEABLE_UNIVERSES)
 _MERGE_SQL = f"""
 INSERT INTO breadth_daily_ohlc(universe,date,metric,o,h,l,c,source,updated_at)
 SELECT {{susrc}},s.date,s.metric,s.o,s.h,s.l,s.c,s.source,s.updated_at
 FROM snap.breadth_daily_ohlc s
 LEFT JOIN breadth_daily_ohlc l
        ON l.universe = {{susrc}} AND l.date = s.date AND l.metric = s.metric
-WHERE s.source IN ('live','intraday_recon_1m','intraday_recon','close_recon')
+WHERE s.source IN ({_SOURCE_GATE})
+  AND {{susrc}} IN ({_UNIVERSE_GATE})
   AND s.o IS NOT NULL AND s.h IS NOT NULL AND s.l IS NOT NULL AND s.c IS NOT NULL
   AND s.o = s.o AND s.h = s.h AND s.l = s.l AND s.c = s.c
   AND s.h >= s.l AND s.h >= s.o AND s.h >= s.c
