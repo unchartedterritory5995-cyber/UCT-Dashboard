@@ -26,6 +26,7 @@ import { LIVE_SORTABLE, sortRowsLive } from './liveSort'
 import ScreenerReviewOverlay from './ScreenerReviewOverlay'
 import FlaggedActions from './FlaggedActions'
 import SaveScanButton from './SaveScanButton'
+import PresetChips from './PresetChips'
 import useScreenerHubSection from '../../../hub/sections/screenerSection'
 import styles from './ScannerShell.module.css'
 
@@ -268,6 +269,9 @@ export default function ScannerShell({ embedded = false }) {
                 s.setFilter('scan', { op: 'in', value: value.length === 1 ? value[0] : value, label: name })
               }} />
           </span>
+          {/* One-click preset scans, right in the scan bar — each runs within the
+              pool chosen to its left. */}
+          <PresetChips currentSpec={s.baseSpec} onApply={s.applySpec} />
         </div>
         <ShellToolbar meta={meta} view={s.view} onView={s.setView}
           visibleColumns={visibleColumns} allColumns={allColumns}

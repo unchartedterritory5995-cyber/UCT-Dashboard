@@ -4,6 +4,17 @@ import FilterControl from './FilterControl'
 import TypeFilterControl from './TypeFilterControl'
 import styles from './ScannerShell.module.css'
 
+// A glyph per filter category — makes the collapsed rail scannable at a glance.
+// Keys are the category keys from filters.py::CATEGORIES; anything unmapped falls
+// back to a neutral tag.
+const CAT_ICON = {
+  type: 'markets', descriptive: 'info', fundamental: 'dollar', performance: 'chart',
+  technical: 'sliders', momentum: 'bolt', single_candle: 'ind-series',
+  multi_candle: 'ind-series', pattern: 'patterns', ownership: 'user',
+  events: 'calendar', context: 'globe', flow: 'flow',
+  my_lists: 'star', my_scans: 'screener',
+}
+
 const openKey = k => `uct.screener.rail.${k}`
 const readOpen = k => { try { return localStorage.getItem(openKey(k)) !== '0' } catch { return true } }
 
@@ -57,7 +68,10 @@ export default function FilterRail({ meta, activeFilters, onChange, onClear, var
           <section key={cat.key} className={styles.railGroup}>
             <button type="button" className={styles.railHead} aria-expanded={isOpen}
               onClick={() => toggle(cat.key)}>
-              <span>{cat.label}</span>
+              <span className={styles.railHeadIcon}>
+                <UIcon name={CAT_ICON[cat.key] || 'tag'} size={14} gold={false} />
+              </span>
+              <span className={styles.railHeadLabel}>{cat.label}</span>
               {n > 0 && <span className={styles.railPip}>{n}</span>}
               <span className={styles.railChev}>
                 <UIcon name={isOpen ? 'chevronDown' : 'chevronRight'} size={14} gold={false} />
