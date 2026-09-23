@@ -20,6 +20,96 @@ side-by-side. The local dev loop (`scripts/hub_sandbox_boot.py --port 8000` +
 
 ---
 
+## ⛔⛔ 2026-09-23 — WHERE THE PROGRAMME ACTUALLY STANDS, AND WHICH LANE A MEMBER REACHES
+
+> **Read this before quoting any build count in this file.** Three lanes publish
+> numbers here, and they are not the same kind of number.
+
+### 1. Only ONE of the three lanes is wired to a screen
+
+```sh
+node tools/pine_lane_reachability.mjs              # the table below, re-derived
+node tools/pine_lane_reachability.mjs --self-check # proves the walk sees a 2-hop edge
+```
+
+| lane | modules importing it | rendered components (`.jsx`) |
+|---|---|---|
+| **COLUMNAR / host** (`ast/pine.js`) | 150 | **134** — `StockChart.jsx`, `PineBox.jsx`, `BuilderSheet.jsx`, … |
+| RUNTIME frontend (`ast/pineRuntimeFrontend.js`) | 2 | **0** |
+| RUNTIME vm (`runtime/vm.js`) | 2 | **0** |
+| OBJECT lane (`runtime/objectLane.js`) | 1 | **0** |
+
+⛔⛔ **THE RUNTIME AND OBJECT LANES REACH NO RENDERED COMPONENT.** Their only
+importers are each other and `ast/peelToBuilding.js`, which is an instrument. So
+every build count this programme publishes for those two lanes describes a lane
+a member cannot open yet — *`lesson_built_tested_green_and_unreachable`*, stated
+before somebody reads a rising number as shipped product.
+
+⭐ **THIS IS NOT A CRITICISM OF THE WORK, IT IS THE SHAPE OF IT.** The columnar
+lane is what a pasted script reaches today; the runtime lane is its successor and
+is being built to the point where the door is worth opening. RC-G…RC-M are real
+engineering in that lane. **What none of them is, yet, is something a member can
+see** — and the day the door opens is a separate, deliberate piece of work that
+does not appear anywhere in this file's task lists.
+
+⚠️ **IT REPORTS, IT DOES NOT GATE**, on purpose. A rail asserting *"the runtime
+lane is unreachable"* would go red on the day somebody opens the door — failing
+on exactly the progress it exists to describe.
+
+### 2. Where the corpus stops, per lane
+
+| lane | of 266 committed scripts |
+|---|---|
+| COLUMNAR / host — **the member's lane** | **39** translate (`host_ok`), 48 in the screener form (`tools/corpus_metric.json`, measured 2026-09-23) |
+| RUNTIME | **13** build |
+| OBJECT | **7** build |
+
+### 3. The runtime lane's first walls — with the fixture STATED
+
+⛔ **A FIRST-WALL TABLE WITHOUT ITS FIXTURE IS A MEASUREMENT OF THE PROBE.** The
+first ranking taken for this section put `runtime:realtime-untold` on top at 49
+scripts, because the probe passed no `newestBarIsForming`. Told the clock
+(`runtimeClockOpts(false)`), that row vanishes entirely. Every number below is
+`buildRuntimeIr(src, {...runtimeClockOpts(false), inputs: {}})`, no symbol, no
+bars.
+
+| n | guard | what it is | classification |
+|---|---|---|---|
+| **29** | `runtime:library` | an indicator that imports a Pine library | **OUT OF SCOPE** — decision 4, below |
+| **25** | `runtime:declaration` | `strategy()` | **OUT OF SCOPE** — decision 1, below |
+| **24** | `runtime:statement` | ten-plus distinct shapes, none over 3 | heterogeneous; each is its own small job |
+| **21** | `runtime:object-op` | a drawing call | the OBJECT lane's programme, not this one |
+| **17** | `runtime:history-dynamic-offset` | a ring width only known while the bar runs | **architectural** — a ring's depth is fixed before bar 0 (RC-I's own reserved case) |
+| **17** | `pine:function` | a name the engine grammar does not declare | vocabulary — needs a vendor ruling per name |
+| **13** | `pine:input-kind` | 6 `input.timeframe` · 3 `input.color` · 2 `input.symbol` · 2 `input.time` | mixed — see the ⚠️ below |
+| **10** | `runtime:call-undeclared-builtin-state` | a builtin fed by state, undeclared in the closed table | vocabulary |
+| **8** | `pine:request` | multi-timeframe reads | **vendor-measurement gated** — `OWNER-CAPTURE-PACKET.md` |
+
+**54 of 266 — one script in five — is out of scope by ruling**, and that is the
+honest denominator correction to put beside every coverage number in this file.
+
+⚠️ **`input.color` AND `input.symbol` HAVE NO RECORDED RULING.** `RETIRED_INPUT_KIND`
+in `pine.js` carries a measured reason for `timeframe`, `session`, `time` and
+`string`; `color` and `symbol` are refused only because they are not in the
+`NUMERIC` set, with a generic sentence and no reason. ⭐ And measured, the two
+lanes disagree about `input.color`: `c = input.color(…)` is admitted by the
+runtime lane (as an `env` macro) while `var c = input.color(…)` refuses — **the
+same expression, two answers**, which is RC-K's shape. ⛔ The refusal is the more
+honest half: the runtime lane carries no colour channel at all (`plot(close,
+color = color.red)` builds and the IR's output descriptor holds no colour), and
+its own source says why — *"a colour is not a value this lane can hold … serving
+them needs a colour channel, which is a capability, not a table entry"*. Nothing
+member-facing reads that IR yet (§1), so no member sees a wrong colour today.
+**Fixing the inconsistency means building the colour channel, not widening
+`NUMERIC`.**
+
+⚰️ And one stale claim found while measuring it, recorded rather than fixed here:
+that same comment says `fill`, `bgcolor` and `barcolor` *"STAY REFUSED"*. Measured,
+all three BUILD in the runtime lane and their colour is dropped from the output
+descriptor. Harmless while §1 holds, and a live wrong answer the day it does not.
+
+---
+
 ## ⭐⭐⭐ 2026-09-23 — THE THREE OPEN DECISIONS, RULED (and a FOURTH, raised and ruled the same day)
 
 All three were delegated ("you decide and determine the best answer and decision
