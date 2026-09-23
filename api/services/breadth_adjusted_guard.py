@@ -140,7 +140,7 @@ def load_or_build(grouped_dir: str, manifest_path: str, splits_path: str, calend
             return Guard(t), t
     t = build_events(grouped_dir, _read(manifest_path), _read(splits_path)["splits"], calendar, canon)
     t["input_key"] = key
-    tmp = cache_path + ".partial"
+    tmp = cache_path + ".partial.%d" % os.getpid()
     with open(tmp, "w") as f:
         json.dump(t, f)
     os.replace(tmp, cache_path)
