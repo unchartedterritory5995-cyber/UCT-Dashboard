@@ -274,8 +274,15 @@ def _best_note_passage(doc, expr: str, title: str = ""):
         snippet = nct.member_text(flat, start, end).strip()
         rng = nct.pm_range(idx, idx + len(term), flat["spans"])
         if rng:
-            return snippet, {**rng, "fingerprint": nct.fingerprint(doc),
-                             "snippet_start": idx, "snippet_end": idx + len(term)}, ev.CITE_EXACT
+            location = {**rng, "fingerprint": nct.fingerprint(doc),
+                        "snippet_start": idx, "snippet_end": idx + len(term)}
+            atom = nct.atom_at(flat, rng)
+            if atom:
+                # The term matched inside one atom's placeholder: cite the
+                # atom by identity, never by that text (review N1).
+                location["atom"] = atom
+            return snippet, location, (ev.CITE_EXACT if nct.precise_citation(flat, rng)
+                                       else ev.CITE_NOTE_ONLY)
     if found_only_in_insert:
         low_title = (title or "").lower()
         if not any(t.lower() in low_title for t in terms):
@@ -1190,11 +1197,14 @@ def _note_blocks(doc, q: str) -> list[dict[str, Any]]:
             continue
         low = body.lower()
         hits = sum(1 for t in terms if t in low)
-        out.append({
-            "text": body, "hits": hits,
-            "location": {**rng, "fingerprint": fp,
-                         "snippet_start": start, "snippet_end": end},
-        })
+        location = {**rng, "fingerprint": fp, "snippet_start": start, "snippet_end": end}
+        atom = nct.atom_at(flat, rng)
+        if atom:
+            # A block that IS one atom is cited by that atom's identity: its
+            # placeholder text cannot tell it from a look-alike (review N1).
+            location["atom"] = atom
+        out.append({"text": body, "hits": hits, "location": location,
+                     "precise": nct.precise_citation(flat, rng)})
     return out
 
 
@@ -1236,7 +1246,8 @@ def retrieve_note(user_id: str, note_id: str, query: str, *, limit: int = 40,
         items = []
         for i, b in enumerate(blocks):
             e = ev.from_note(row, snippet=b["text"], location=b["location"],
-                             citation_validity=ev.CITE_EXACT,
+                             citation_validity=(ev.CITE_EXACT if b["precise"]
+                                                else ev.CITE_NOTE_ONLY),
                              score=float(b["hits"]))
             # Each block is its own citable passage, so identity must be per
             # block -- otherwise lineage dedupe would collapse the note to one

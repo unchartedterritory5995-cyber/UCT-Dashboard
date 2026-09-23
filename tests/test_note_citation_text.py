@@ -309,13 +309,15 @@ class TestResolveNoteCitation:
 @pytest.mark.parametrize("case", sorted(_FIXTURES))
 def test_python_reproduces_prosemirrors_own_leaf_positions(case):
     """Every leaf that READS AS TEXT (textBetween's leafText argument) sits at
-    the position prosemirror-model gives it, and slices back to its text."""
+    the position prosemirror-model gives it, slices back to its text, and
+    carries the identity the client's citationAtomIdentity gives it (None when
+    it has none) -- `_ATOM_IDENTITY` pinned the way `_ATOM_TEXT` is."""
     fx = _FIXTURES[case]
     flat = flatten(fx["json"])
-    got = [(s["pm_start"], s["pm_end"], flat["text"][s["flat_start"]:s["flat_end"]])
+    got = [(s["pm_start"], s["pm_end"], flat["text"][s["flat_start"]:s["flat_end"]], s["atom"])
            for s in flat["spans"] if s["is_atom"]]
-    want = [(s["pm_start"], s["pm_end"], s["text"]) for s in fx["leafSpans"]]
-    assert got == want, f"{case}: leaf positions/text disagree with prosemirror-model"
+    want = [(s["pm_start"], s["pm_end"], s["text"], s["atom"]) for s in fx["leafSpans"]]
+    assert got == want, f"{case}: leaf positions/text/identity disagree with the client"
 
 
 def test_the_fixtures_cover_empty_textblocks_and_block_atoms():
@@ -374,6 +376,10 @@ class TestBlockAtomsAreTheirOwnLine:
         blocks = ar._note_blocks(_FIXTURES["chipMiddle"]["json"], "")
         assert [(b["text"], b["location"]["from"], b["location"]["to"]) for b in blocks] == [
             ("Before.", 1, 8), ("[file: q3-filing.pdf]", 9, 10), ("After.", 11, 17)]
+        # This chip has no href, so no identity: its block is still listed,
+        # but never labelled a passage the client would refuse to open.
+        assert [b["precise"] for b in blocks] == [True, False, True]
+        assert all("atom" not in b["location"] for b in blocks)
 
 
 # ── Positions count UTF-16 units (fix round 1, M3) ──────────────────────────
@@ -405,10 +411,18 @@ def test_a_passage_near_an_astral_character_maps_to_prosemirrors_range(case, pas
     want = (passage["pm_from"], passage["pm_to"])
     assert [(h["from"], h["to"]) for h in locate(doc, passage["text"])] == [want]
     got = resolve_note_citation(doc, *want, passage["text"], fingerprint(doc))
-    assert got["state"] in PRECISE_STATES and (got["from"], got["to"]) == want
-    if want not in {(s["pm_start"], s["pm_end"]) for s in _FIXTURES[case]["leafSpans"]}:
-        # `verify` reads TEXT runs only; an atom-only range is re-found by
-        # `locate` above instead (RERESOLVED_EXACT), never verified in place.
+    leaves = {(s["pm_start"], s["pm_end"]): s for s in _FIXTURES[case]["leafSpans"]}
+    if want in leaves:
+        # An atom passage: its placeholder text proves nothing about WHICH
+        # atom (review-parity N1), so text alone never opens it...
+        assert got["state"] == VALID_NOTE_ONLY
+        # ...and its identity, when it has one, opens it in place.
+        if leaves[want]["atom"]:
+            by_id = resolve_note_citation(doc, *want, passage["text"], fingerprint(doc),
+                                          atom=leaves[want]["atom"])
+            assert (by_id["state"], by_id["from"], by_id["to"]) == (VALID_EXACT, *want)
+    else:
+        assert got["state"] in PRECISE_STATES and (got["from"], got["to"]) == want
         assert verify(doc, *want, passage["text"])
         assert got["state"] == VALID_EXACT
 
@@ -451,3 +465,137 @@ class TestTextblockInference:
             {"type": "paragraph", "content": [{"type": "text", "text": "A"}]},
             {"type": "futureTextblock", "content": [{"type": "text", "text": "B"}]}]}
         assert flatten(doc)["text"] == "A\nB"
+
+
+# ── An atom resolves by IDENTITY, never by its placeholder (fix round 2) ─────
+
+_EX = lambda i: {"type": "documentExcerpt", "attrs": {"excerptId": i}}  # noqa: E731
+_WIDGET = lambda at: {"type": "widgetEmbed",  # noqa: E731
+                      "attrs": {"widgetId": "chart", "capturedAt": at}}  # reads "[widget]"
+
+
+def _atom_citation(doc, atom_id):
+    """The location the SERVER issues for the atom with this id -- the real
+    issuer (`_note_blocks`), so these rails cover issuance and resolution."""
+    from api.services.journal_two import ask_retrieval as ar
+    locs = [b["location"] for b in ar._note_blocks(doc, "")
+            if (b["location"].get("atom") or {}).get("id") == atom_id]
+    assert len(locs) == 1, f"the server issued no single citation for {atom_id!r}"
+    return locs[0]
+
+
+def _resolve(doc, loc, snippet, **kw):
+    return resolve_note_citation(doc, loc["from"], loc["to"], snippet, loc["fingerprint"], **kw)
+
+
+class TestAtomsResolveByIdentity:
+    """Review-parity N1: every excerpt reads "[excerpt]", so after ONE delete a
+    text match lands on the look-alike -- in place when they were adjacent,
+    by re-resolution when text sat between them. N2: a unique atom whose
+    placeholder ALSO appears as ordinary text was refused as ambiguous."""
+
+    def test_the_server_issues_every_identity_kind_it_can_name(self):
+        from api.services.journal_two import ask_retrieval as ar
+        fx = _FIXTURES["identityAtoms"]
+        issued = [b["location"].get("atom") for b in ar._note_blocks(fx["json"], "")]
+        # Text blocks carry none; each atom carries exactly the fixture's.
+        assert issued == [None, *[s["atom"] for s in fx["leafSpans"]], None]
+        assert {a["type"] for a in issued if a} == {"attachmentChip", "documentExcerpt", "widgetEmbed"}
+
+    def test_an_empty_identity_attr_is_no_identity(self):
+        from api.services.journal_two import ask_retrieval as ar
+        blocks = ar._note_blocks(_FIXTURES["identityAttrsEmpty"]["json"], "")
+        assert all("atom" not in b["location"] for b in blocks)
+        assert [b["precise"] for b in blocks] == [True, False, False, False, True]
+
+    def test_adjacent_twin_deleted_never_lands_on_the_survivor(self):
+        # Reviewer case 7: [Thesis, ex1, ex2, After.]; ex1 cited, then deleted,
+        # so ex2 slides into ex1's exact position and reads the same.
+        before = _DOC(_P("Thesis."), _EX("ex1"), _EX("ex2"), _P("After."))
+        loc = _atom_citation(before, "ex1")
+        after = _DOC(_P("Thesis."), _EX("ex2"), _P("After."))
+        r = _resolve(after, loc, "[excerpt]", atom=loc["atom"])
+        assert r["state"] == VALID_NOTE_ONLY and r["from"] is None
+
+    def test_twin_across_a_paragraph_is_never_re_resolved_onto(self):
+        # Reviewer case 8: a paragraph between them made the survivor a UNIQUE
+        # text hit, so the text path re-resolved onto it.
+        before = _DOC(_P("Thesis."), _EX("ex1"), _P("Between."), _EX("ex2"), _P("After."))
+        loc = _atom_citation(before, "ex1")
+        after = _DOC(_P("Thesis."), _P("Between."), _EX("ex2"), _P("After."))
+        assert _resolve(after, loc, "[excerpt]", atom=loc["atom"])["state"] == VALID_NOTE_ONLY
+        # And the text path, handed no identity, refuses the unique atom hit too.
+        assert _resolve(after, loc, "[excerpt]")["state"] == VALID_NOTE_ONLY
+
+    def test_a_widget_twin_is_never_selected(self):
+        # Reviewer case 9: the same shape for "[widget]".
+        before = _DOC(_P("Thesis."), _WIDGET("2026-09-01T14:00:00.000Z"), _P("Between."),
+                      _WIDGET("2026-09-02T14:00:00.000Z"), _P("After."))
+        loc = _atom_citation(before, "chart|2026-09-01T14:00:00.000Z")
+        after = _DOC(_P("Thesis."), _P("Between."), _WIDGET("2026-09-02T14:00:00.000Z"), _P("After."))
+        assert _resolve(after, loc, "[widget]", atom=loc["atom"])["state"] == VALID_NOTE_ONLY
+
+    def test_an_atom_in_place_opens_exactly(self):
+        doc = _DOC(_P("Thesis."), _EX("ex1"), _EX("ex2"), _P("After."))
+        loc = _atom_citation(doc, "ex2")
+        r = _resolve(doc, loc, "[excerpt]", atom=loc["atom"])
+        assert (r["state"], r["from"], r["to"]) == (VALID_EXACT, loc["from"], loc["to"])
+
+    def test_a_moved_atom_re_resolves_by_identity(self):
+        before = _DOC(_P("Thesis."), _EX("ex1"), _EX("ex2"), _P("After."))
+        loc = _atom_citation(before, "ex2")
+        after = _DOC(_P("A new opening."), _P("Thesis."), _EX("ex1"), _EX("ex2"), _P("After."))
+        r = _resolve(after, loc, "[excerpt]", atom=loc["atom"])
+        assert r["state"] == RERESOLVED_EXACT
+        assert (r["from"], r["to"]) == (loc["from"] + 16, loc["to"] + 16)  # "A new opening." + 2
+
+    def test_a_unique_atom_whose_placeholder_is_also_typed_text_opens(self):
+        # N2: "[excerpt]" typed in a paragraph made the round-1 text count 2.
+        doc = _DOC(_P("I typed [excerpt] here."), _EX("ex1"))
+        loc = _atom_citation(doc, "ex1")
+        assert _resolve(doc, loc, "[excerpt]", atom=loc["atom"])["state"] == VALID_EXACT
+        moved = _DOC(_P("Above."), _P("I typed [excerpt] here."), _EX("ex1"))
+        r = _resolve(moved, loc, "[excerpt]", atom=loc["atom"])
+        assert r["state"] == RERESOLVED_EXACT and (r["from"], r["to"]) == (loc["from"] + 8, loc["to"] + 8)
+
+    def test_two_atoms_with_one_identity_off_position_open_the_note_only(self):
+        # A pasted copy duplicates the attrs; neither copy can be preferred.
+        before = _DOC(_P("Thesis."), _EX("ex1"))
+        loc = _atom_citation(before, "ex1")
+        after = _DOC(_P("Thesis, rewritten."), _EX("ex1"), _EX("ex1"))
+        assert _resolve(after, loc, "[excerpt]", atom=loc["atom"])["state"] == VALID_NOTE_ONLY
+
+    def test_a_citation_without_identity_never_opens_an_atom(self):
+        # Issued before identities existed, or to an atom with none: even on an
+        # UNCHANGED note with a unique placeholder, the text proves nothing.
+        doc = _FIXTURES["excerptMiddle"]["json"]
+        leaf = _FIXTURES["excerptMiddle"]["leafSpans"][0]
+        r = resolve_note_citation(doc, leaf["pm_start"], leaf["pm_end"], "[excerpt]", fingerprint(doc))
+        assert r["state"] == VALID_NOTE_ONLY and r["from"] is None
+
+    def test_a_text_citation_whose_only_remaining_hit_is_an_atom_is_refused(self):
+        before = _DOC(_P("Thesis."), _P("[excerpt]"), _EX("ex1"))
+        hit = locate(before, "[excerpt]")[0]  # the typed paragraph, not the atom
+        after = _DOC(_P("Thesis."), _EX("ex1"))
+        r = resolve_note_citation(after, hit["from"], hit["to"], "[excerpt]", fingerprint(before))
+        assert r["state"] == VALID_NOTE_ONLY and r["from"] is None
+
+    def test_quote_context_never_rescues_a_text_citation_onto_an_atom(self):
+        # Two "[excerpt]" hits (typed text + the atom); the suffix picks the
+        # atom's. Context proves which TEXT, never which atom -- refused too.
+        doc = _DOC(_P("Typed [excerpt] here."), _EX("ex1"), _P("After."))
+        r = resolve_note_citation(doc, 999, 1000, "[excerpt]", "stale", suffix="\nAfter.")
+        assert r["state"] == VALID_NOTE_ONLY and r["from"] is None
+        # Control: the same context on typed text still rescues it.
+        typed = _DOC(_P("[excerpt] one."), _P("[excerpt] two."))
+        r = resolve_note_citation(typed, 999, 1000, "[excerpt]", "stale", suffix=" two.")
+        assert r["state"] == RERESOLVED_EXACT and verify(typed, r["from"], r["to"], "[excerpt]")
+
+    def test_the_passage_picker_cites_an_atom_by_identity(self):
+        from api.services.journal_two import ask_evidence as ev
+        from api.services.journal_two import ask_retrieval as ar
+        _snippet, loc, validity = ar._best_note_passage(_DOC(_P("Thesis."), _EX("ex1")), '"excerpt"')
+        assert loc["atom"] == {"type": "documentExcerpt", "id": "ex1"} and validity == ev.CITE_EXACT
+        # No identity (a chip with no href): no atom, and never labelled exact.
+        _snippet, loc, validity = ar._best_note_passage(_FIXTURES["chipMiddle"]["json"], '"filing"')
+        assert "atom" not in loc and validity == ev.CITE_NOTE_ONLY

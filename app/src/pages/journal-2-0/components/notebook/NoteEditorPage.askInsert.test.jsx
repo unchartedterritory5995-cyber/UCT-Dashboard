@@ -346,10 +346,13 @@ describe('NoteEditorPage — an Ask citation that is exactly one block atom', ()
     { type: 'attachmentChip', attrs: { href: '/files/q3.pdf', name: 'q3.pdf', size: null } },
     { type: 'paragraph', content: [{ type: 'text', text: 'After.' }] },
   ] }
-  // p("Before.") spans 0..9, so the chip is the single position 9..10.
+  // p("Before.") spans 0..9, so the chip is the single position 9..10. An atom
+  // citation carries the atom's identity, as the server issues it (fix round
+  // 2): its placeholder text alone never opens it.
   const CHIP_SOURCE = {
     n: 1, type: 'note', label: 'This note', citation: 'exact', snippet: '[file: q3.pdf]',
-    navigation: { kind: 'note', note_id: 'n1' }, location: { from: 9, to: 10 },
+    navigation: { kind: 'note', note_id: 'n1' },
+    location: { from: 9, to: 10, atom: { type: 'attachmentChip', id: '/files/q3.pdf' } },
     payload: {}, stance: null, truncated: false,
   }
 

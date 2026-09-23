@@ -11,7 +11,8 @@
 //     `_ATOM_TEXT` table is pinned against the client's table through these
 //     fixtures (tests/test_note_citation_text.py reads them);
 //   - `leafSpans`: every leaf that reads as text, so the Python rail pins atom
-//     positions too, not only text-node positions;
+//     positions too, not only text-node positions -- and each one's `atom`
+//     identity from the client's citationAtomIdentity (null when it has none);
 //   - `passages`: for the astral cases, cited passages with the ProseMirror
 //     range textBetween gives them, so both rails pin the offset mapping INSIDE
 //     a text node (positions count UTF-16 units; Python counts code points).
@@ -44,7 +45,7 @@ const schema = new Schema({
     noteLink: { group: 'inline', inline: true, atom: true, attrs: { noteId: { default: null } }, toDOM: () => ['span'] },
     attachmentChip: { group: 'block', atom: true, attrs: { href: { default: null }, name: { default: 'file' }, size: { default: null } }, toDOM: () => ['a'] },
     documentExcerpt: { group: 'block', atom: true, attrs: { excerptId: { default: null } }, toDOM: () => ['div'] },
-    widgetEmbed: { group: 'block', atom: true, attrs: { widgetId: { default: null }, searchText: { default: null } }, toDOM: () => ['div'] },
+    widgetEmbed: { group: 'block', atom: true, attrs: { widgetId: { default: null }, searchText: { default: null }, capturedAt: { default: null } }, toDOM: () => ['div'] },
     askInsert: { group: 'block', content: 'block+', toDOM: () => ['div', 0] },
     askCitation: { group: 'inline', inline: true, atom: true, attrs: { n: { default: null } }, toDOM: () => ['span'] },
   },
@@ -55,8 +56,13 @@ const t = (text, marks) => (marks ? { type: 'text', text, marks: marks.map((m) =
 const inl = (c) => c.map((x) => (typeof x === 'string' ? t(x) : x))
 const p = (...c) => (c.length ? { type: 'paragraph', content: inl(c) } : { type: 'paragraph' })
 const doc = (...c) => ({ type: 'doc', content: c })
-const CHIP = (name = 'q3-filing.pdf') => ({ type: 'attachmentChip', attrs: { name } })
-const WIDGET = (searchText) => ({ type: 'widgetEmbed', attrs: { widgetId: 'chart', searchText: searchText ?? null } })
+// An atom's IDENTITY attr is optional here on purpose: the cases without one
+// are the controls that must carry no identity on either side.
+const CHIP = (name = 'q3-filing.pdf', href) => ({ type: 'attachmentChip',
+  attrs: href === undefined ? { name } : { name, href } })
+const WIDGET = (searchText, capturedAt) => ({ type: 'widgetEmbed',
+  attrs: { widgetId: 'chart', searchText: searchText ?? null, ...(capturedAt === undefined ? {} : { capturedAt }) } })
+const EXCERPT = (excerptId) => ({ type: 'documentExcerpt', attrs: { excerptId } })
 
 const CASES = {
   // ── text, marks, blocks, lists, quotes, ask inserts ──
@@ -153,6 +159,16 @@ const CASES = {
     { type: 'documentExcerpt', attrs: { excerptId: 'ex2' } },
     p('After.')),
   astralThenChip: doc(p('\u{1F525} hot'), CHIP('q3.pdf'), p('After \u{1D538}.')),
+  // ── atom IDENTITY (review-parity N1): every kind that carries one, beside
+  //    look-alikes that read the same and differ only by identity ──
+  identityAtoms: doc(p('Thesis.'),
+    CHIP('q3.pdf', '/api/j2/notes/n1/attachments/9f2c/q3.pdf'),
+    CHIP('q3.pdf', '/api/j2/notes/n1/attachments/41ab/q3.pdf'),
+    EXCERPT('ex1'), EXCERPT('ex2'),
+    WIDGET('NVDA daily chart', '2026-09-01T14:00:00.000Z'),
+    WIDGET('NVDA daily chart', '2026-09-02T14:00:00.000Z'),
+    p('After.')),
+  identityAttrsEmpty: doc(p('Before.'), CHIP('q3.pdf', ''), EXCERPT(''), WIDGET('NVDA', ''), p('After.')),
 }
 
 // Passages cited in the astral cases -- before, inside, across a mark, and
@@ -182,7 +198,7 @@ function passageRange(d, passage, leafText) {
 }
 
 ;(async () => {
-  const { citationLeafText } = await import(pathToFileURL(ASK_CITATION_MODULE).href)
+  const { citationLeafText, citationAtomIdentity } = await import(pathToFileURL(ASK_CITATION_MODULE).href)
   const out = {}
   for (const [name, json] of Object.entries(CASES)) {
     const d = Node.fromJSON(schema, json)
@@ -191,7 +207,13 @@ function passageRange(d, passage, leafText) {
     const leafSpans = []
     d.descendants((node, pos) => {
       if (node.isText) textSpans.push({ pm_start: pos, pm_end: pos + node.nodeSize, text: node.text })
-      else if (node.isLeaf && citationLeafText(node)) leafSpans.push({ pm_start: pos, pm_end: pos + node.nodeSize, text: citationLeafText(node) })
+      else if (node.isLeaf && citationLeafText(node)) {
+        // `atom` pins the Python `_ATOM_IDENTITY` table against the client's
+        // citationAtomIdentity, the way `text` pins `_ATOM_TEXT`.
+        const id = citationAtomIdentity(node)
+        leafSpans.push({ pm_start: pos, pm_end: pos + node.nodeSize, text: citationLeafText(node),
+          atom: id ? { type: node.type.name, id } : null })
+      }
     })
     const text = d.textBetween(0, d.content.size, '\n', citationLeafText)
     const passages = (PASSAGES[name] || []).map((passage) => {

@@ -20,7 +20,9 @@
 // deliberately mirrors the VERIFY half rather than the hash half: sha256 in
 // the browser is async (crypto.subtle), and a click handler that must await a
 // digest before it can decide is a worse contract than one that reads the text
-// it is about to jump to.
+// it is about to jump to. An ATOM (a chip, an excerpt, an embed) is the one
+// exception: its text is a placeholder look-alikes share, so an atom is
+// verified by an identity attr instead (citationAtomIdentity), never by text.
 //
 // NEVER JUMP TO THE WRONG PASSAGE. A failed precise citation is preferable to
 // a confident mis-navigation, so an AMBIGUOUS re-resolution opens the note
@@ -122,6 +124,37 @@ export function citationLeafText(node) {
   }
 }
 
+const nonEmpty = (v) => (typeof v === 'string' && v ? v : null)
+
+/**
+ * The attr that names ONE atom, or null when it carries none.
+ *
+ * ⛔ AN ATOM IS CITED BY IDENTITY, NEVER BY ITS PLACEHOLDER (review-parity N1).
+ * Every excerpt reads "[excerpt]" and two chips of one file read alike, so no
+ * text can say WHICH atom a citation meant — after one delete, a text match
+ * lands on a look-alike. These attrs survive edits and saves:
+ *   documentExcerpt  excerptId            the immutable j2_note_excerpts row
+ *   attachmentChip   href                 the upload URL, minted with a uuid4
+ *   widgetEmbed      widgetId|capturedAt  the kind, and the instant it was
+ *                                         captured (stamped once at insert)
+ * Mirrors `_ATOM_IDENTITY` in api/services/journal_two/note_citation_text.py;
+ * the two are pinned together through tests/fixtures_pm_citation_text.json,
+ * which tools/gen_pm_citation_fixtures.cjs computes by calling THIS function.
+ */
+export function citationAtomIdentity(node) {
+  const attrs = node?.attrs || {}
+  switch (node?.type?.name) {
+    case 'documentExcerpt': return nonEmpty(attrs.excerptId)
+    case 'attachmentChip': return nonEmpty(attrs.href)
+    case 'widgetEmbed': {
+      const kind = nonEmpty(attrs.widgetId)
+      const at = nonEmpty(attrs.capturedAt)
+      return kind && at ? `${kind}|${at}` : null
+    }
+    default: return null
+  }
+}
+
 /**
  * Canonical citation text for a live ProseMirror doc.
  *
@@ -158,38 +191,76 @@ export function isBlockAtomRange(doc, from, to) {
   return Boolean(node && node.isAtom && node.isBlock && from + node.nodeSize === to)
 }
 
+// A text-verified range that turns out to be ONE atom proves only that some
+// atom reads like the cited one — never that it IS the cited one.
+const NO_IDENTITY = Object.freeze({
+  state: VALID_NOTE_ONLY, reason: 'an atom is cited by identity, and this citation carries none',
+})
+
+/**
+ * Resolve a citation to ONE atom by its identity (`loc.atom = {type, id}`,
+ * set by the server for a single-atom passage). Placeholder text is never
+ * consulted: it is exactly what cannot tell two atoms apart.
+ *   the atom at [from,to) carries that identity -> VALID_EXACT, in place
+ *   exactly one atom elsewhere carries it       -> RERESOLVED_EXACT, there
+ *   none, or several                            -> VALID_NOTE_ONLY
+ * Mirrors step 0 of note_citation_text.py::resolve_note_citation.
+ */
+function resolveAtomCitation(doc, loc, atom) {
+  const matches = (node) => Boolean(node) && node.type?.name === atom.type
+    && citationAtomIdentity(node) === atom.id
+  const from = loc?.from
+  const to = loc?.to
+  if (isBlockAtomRange(doc, from, to) && matches(doc.nodeAt(from))) {
+    return { state: VALID_EXACT, from, to }
+  }
+  const found = []
+  doc.descendants((node, pos) => {
+    if (node.isAtom && matches(node)) found.push({ from: pos, to: pos + node.nodeSize })
+    return true
+  })
+  if (found.length === 1) return { state: RERESOLVED_EXACT, ...found[0] }
+  return found.length > 1
+    ? { state: VALID_NOTE_ONLY, ambiguous: true, reason: 'several atoms carry this identity' }
+    : { state: VALID_NOTE_ONLY, reason: 'the cited atom is no longer in this note' }
+}
+
 /**
  * Decide whether a note citation may navigate, and to where.
  *
  * @param {object} doc  the LIVE ProseMirror doc (unsaved edits included — it is
  *                      where the member would actually land)
- * @param {object} loc  {from, to} from the evidence packet
+ * @param {object} loc  {from, to} from the evidence packet, plus
+ *                      `atom: {type, id}` when the passage is one atom
  * @param {string} snippet  the text the server cited
  */
 export function resolveNoteCitation(doc, loc, snippet) {
+  if (!doc) return { state: DEGRADED }
+  const atom = loc?.atom
+  if (atom && typeof atom.type === 'string' && nonEmpty(atom.id)) {
+    return resolveAtomCitation(doc, loc, atom)
+  }
+
   const needle = (snippet || '').trim()
-  if (!doc || !needle) return { state: DEGRADED }
+  if (!needle) return { state: DEGRADED }
 
   const from = loc?.from
   const to = loc?.to
-  const full = citationText(doc, 0, doc.content?.size ?? 0)
   if (citationText(doc, from, to).trim() === needle) {
     // ⛔ TEXT CANNOT TELL IDENTICAL ATOMS APART. A block atom is ONE position
     // wide and many read the same ("[excerpt]", "[widget]", two chips of one
-    // file), so a range one atom off verifies on its SIBLING — measured on an
-    // unedited note (an emoji above two excerpts, before positions counted
-    // UTF-16) and on an edited one (one excerpt deleted before the click).
-    // When the atom's text occurs more than once, claim no passage: the same
-    // "never a coin flip" rule the re-resolve path applies below.
-    if (isBlockAtomRange(doc, from, to) && full.indexOf(needle) !== full.lastIndexOf(needle)) {
-      return { state: VALID_NOTE_ONLY, ambiguous: true, reason: 'identical atoms; cannot tell which was cited' }
-    }
+    // file), so a range verified by TEXT that is one atom may be its sibling
+    // — measured after one excerpt of two was deleted before the click. An
+    // atom citation that carries no identity (an atom without one, or a
+    // citation issued before identities existed) opens the note only.
+    if (isBlockAtomRange(doc, from, to)) return NO_IDENTITY
     return { state: VALID_EXACT, from, to }
   }
 
   // The note changed under the citation. Re-find the passage — but only
-  // navigate if it is UNAMBIGUOUS. (A unique hit cannot be an identical
-  // sibling atom: a sibling would be a second hit.)
+  // navigate if it is UNAMBIGUOUS, and never onto an atom: a unique hit on a
+  // placeholder may still be a look-alike of an atom that was deleted.
+  const full = citationText(doc, 0, doc.content?.size ?? 0)
   const hits = []
   let idx = full.indexOf(needle)
   while (idx !== -1 && hits.length < 3) {
@@ -205,10 +276,11 @@ export function resolveNoteCitation(doc, loc, snippet) {
     // is fixed -- flatToPmRange now counts separators with textBetween's own
     // predicate (closeout-parity 2026-09-23) -- but the guard stays. It
     // proves the TEXT, never which of two identical nodes holds it; that is
-    // why the exact branch above also refuses a duplicated atom. NEVER jump
-    // to the wrong passage -- the file's own contract -- so re-read the text
-    // at the computed range and refuse the claim unless it verifies.
+    // why a hit that is one atom is refused here as it is in place above.
+    // NEVER jump to the wrong passage -- the file's own contract -- so re-read
+    // the text at the computed range and refuse the claim unless it verifies.
     if (range && citationText(doc, range.from, range.to).trim() === needle) {
+      if (isBlockAtomRange(doc, range.from, range.to)) return NO_IDENTITY
       return { state: RERESOLVED_EXACT, ...range }
     }
     return { state: VALID_NOTE_ONLY }

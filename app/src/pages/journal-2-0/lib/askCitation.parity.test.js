@@ -5,9 +5,11 @@ import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 import {
   DEGRADED,
+  PRECISE_STATES,
   RERESOLVED_EXACT,
   VALID_EXACT,
   VALID_NOTE_ONLY,
+  citationAtomIdentity,
   citationText,
   citedSources,
   flatToPmRange,
@@ -52,7 +54,7 @@ const schema = new Schema({
     noteLink: { group: 'inline', inline: true, atom: true, attrs: { noteId: { default: null } }, toDOM: () => ['span'] },
     attachmentChip: { group: 'block', atom: true, attrs: { href: { default: null }, name: { default: 'file' }, size: { default: null } }, toDOM: () => ['a'] },
     documentExcerpt: { group: 'block', atom: true, attrs: { excerptId: { default: null } }, toDOM: () => ['div'] },
-    widgetEmbed: { group: 'block', atom: true, attrs: { widgetId: { default: null }, searchText: { default: null } }, toDOM: () => ['div'] },
+    widgetEmbed: { group: 'block', atom: true, attrs: { widgetId: { default: null }, searchText: { default: null }, capturedAt: { default: null } }, toDOM: () => ['div'] },
     askInsert: { group: 'block', content: 'block+', toDOM: () => ['div', 0] },
     askCitation: { group: 'inline', inline: true, atom: true, attrs: { n: { default: null } }, toDOM: () => ['span'] },
   },
@@ -249,8 +251,9 @@ describe('re-resolution after an edit above never lands on the wrong text', () =
     const json = FIXTURES[name].json
     const edited = Node.fromJSON(schema, { ...json, content: [
       { type: 'paragraph', content: [{ type: 'text', text: 'Inserted above.' }] }, ...json.content] })
+    const SHIFT = 'Inserted above.'.length + 2
     const full = citationText(edited, 0, edited.content.size)
-    for (const span of [...FIXTURES[name].textSpans, ...FIXTURES[name].leafSpans]) {
+    for (const span of FIXTURES[name].textSpans) {
       const out = resolveNoteCitation(edited, { from: span.pm_start, to: span.pm_end }, span.text)
       // Whatever it claims, it never claims a range holding different text.
       if (out.from != null) expect(citationText(edited, out.from, out.to).trim()).toBe(span.text.trim())
@@ -258,10 +261,21 @@ describe('re-resolution after an edit above never lands on the wrong text', () =
       const unique = full.split(span.text.trim()).length === 2
       if (unique && span.text.trim()) expect([VALID_EXACT, RERESOLVED_EXACT], `${name}: ${span.text}`).toContain(out.state)
     }
+    for (const span of FIXTURES[name].leafSpans) {
+      const stale = { from: span.pm_start, to: span.pm_end }
+      // An atom with an identity is found again by it, exactly where it moved...
+      if (span.atom) {
+        expect(resolveNoteCitation(edited, { ...stale, atom: span.atom }, span.text), `${name}: ${span.text}`)
+          .toEqual({ state: RERESOLVED_EXACT, from: stale.from + SHIFT, to: stale.to + SHIFT })
+      }
+      // ...and by its placeholder text alone, never: text names no ONE atom.
+      expect(PRECISE_STATES.has(resolveNoteCitation(edited, stale, span.text).state), `${name}: ${span.text}`)
+        .toBe(false)
+    }
   })
 })
 
-describe('a block atom is verifiable citation text', () => {
+describe('a block atom is its own line, and is opened by identity', () => {
   it('a block-atom range is selected as a node, an inline or text range is not', () => {
     const doc = docOf('chipMiddle')
     expect(isBlockAtomRange(doc, 9, 10)).toBe(true)
@@ -270,10 +284,16 @@ describe('a block atom is verifiable citation text', () => {
     expect(isBlockAtomRange(docOf('askCitationChip'), 14, 15)).toBe(false)
   })
 
-  it('the placeholder-only line of a chip is VALID_EXACT at the atom', () => {
-    const doc = docOf('chipMiddle')
-    const out = resolveNoteCitation(doc, { from: 9, to: 10 }, '[file: q3-filing.pdf]')
-    expect(out.state).toBe(VALID_EXACT)
+  it('a chip with no identity opens the note only, even unedited; with one it opens in place', () => {
+    const doc = docOf('chipMiddle') // this chip has no href
+    expect(resolveNoteCitation(doc, { from: 9, to: 10 }, '[file: q3-filing.pdf]').state).toBe(VALID_NOTE_ONLY)
+    const withHref = Node.fromJSON(schema, { type: 'doc', content: [
+      FIXTURES.chipMiddle.json.content[0],
+      { type: 'attachmentChip', attrs: { name: 'q3-filing.pdf', href: '/files/9f/q3-filing.pdf' } },
+      FIXTURES.chipMiddle.json.content[2]] })
+    const atom = { type: 'attachmentChip', id: '/files/9f/q3-filing.pdf' }
+    expect(resolveNoteCitation(withHref, { from: 9, to: 10, atom }, '[file: q3-filing.pdf]'))
+      .toEqual({ state: VALID_EXACT, from: 9, to: 10 })
   })
 
   it('the paragraph AFTER the chip is its own passage (no longer glued)', () => {
@@ -294,54 +314,121 @@ describe('a block atom is verifiable citation text', () => {
   })
 })
 
-// ── Fix round 1 (review-parity, 2026-09-23) ────────────────────────────────
+// ── Fix round 2 (rereview-parity, 2026-09-23) ──────────────────────────────
 
-describe('identical block atoms never jump to the wrong one (I1)', () => {
-  // Text cannot tell two excerpts apart: both read "[excerpt]". Before this
-  // guard, a range one atom off verified on the SIBLING, and jumpToCitation
-  // node-selected it.
+describe('an atom is verified by IDENTITY, never by placeholder text (N1, N2)', () => {
+  // Every excerpt reads "[excerpt]", every chip-less widget "[widget]", two
+  // chips of one file alike. Round 1 counted placeholder occurrences, which
+  // could not see a sibling that was the ONLY remaining occurrence (N1) and
+  // refused a unique atom whose placeholder was also typed as text (N2).
   const EX = (excerptId) => ({ type: 'documentExcerpt', attrs: { excerptId } })
+  const WIDGET = (capturedAt) => ({ type: 'widgetEmbed', attrs: { widgetId: 'chart', capturedAt } }) // "[widget]"
+  const CHIP = (href) => ({ type: 'attachmentChip', attrs: { name: 'q3.pdf', href } })
   const para = (text) => ({ type: 'paragraph', content: [{ type: 'text', text }] })
-
-  it('an unedited note: an emoji above two excerpts, cited where a code-point server put the second', () => {
-    // ProseMirror counts the emoji as two positions: ex1 is at 16, ex2 at 17.
-    // The server counted code points and issued ex2 at {16, 17} -- ex1.
-    const doc = Node.fromJSON(schema, { type: 'doc', content: [
-      para('\u{1F680} NVDA thesis'), EX('ex1'), EX('ex2'), para('After.')] })
-    expect(doc.nodeAt(16).attrs.excerptId).toBe('ex1')
-    for (const loc of [{ from: 16, to: 17 }, { from: 17, to: 18 }]) {
-      const out = resolveNoteCitation(doc, loc, '[excerpt]')
-      expect(out.state).toBe(VALID_NOTE_ONLY)
-      expect(out.ambiguous).toBe(true)
-      expect(out.from).toBeUndefined()
-    }
-  })
-
-  it('an edited note: the excerpt above the cited one was deleted before the click', () => {
-    const before = Node.fromJSON(schema, { type: 'doc', content: [
-      para('Thesis'), EX('ex1'), EX('ex2'), EX('ex3'), para('After.')] })
-    let cited = null
-    before.descendants((n, pos) => { if (n.attrs?.excerptId === 'ex2') cited = { from: pos, to: pos + n.nodeSize } })
-    const edited = Node.fromJSON(schema, { type: 'doc', content: [
-      para('Thesis'), EX('ex2'), EX('ex3'), para('After.')] })
-    // The stale range now holds a SIBLING that reads identically.
-    expect(edited.nodeAt(cited.from).attrs.excerptId).toBe('ex3')
-    expect(citationText(edited, cited.from, cited.to)).toBe('[excerpt]')
-    const out = resolveNoteCitation(edited, cited, '[excerpt]')
+  const build = (...content) => Node.fromJSON(schema, { type: 'doc', content })
+  /** The citation the server issues for an atom: its range plus its identity. */
+  const citeAtom = (doc, pred) => {
+    let loc = null
+    doc.descendants((n, pos) => {
+      if (n.isAtom && pred(n)) loc = { from: pos, to: pos + n.nodeSize, atom: { type: n.type.name, id: citationAtomIdentity(n) } }
+    })
+    return loc
+  }
+  const byId = (id) => (n) => citationAtomIdentity(n) === id
+  const notOpened = (out) => {
     expect(out.state).toBe(VALID_NOTE_ONLY)
-    expect(out.ambiguous).toBe(true)
     expect(out.from).toBeUndefined()
+  }
+
+  it('reviewer case 7: the adjacent twin that slid into place is never selected', () => {
+    const before = build(para('Thesis'), EX('ex1'), EX('ex2'), para('After.'))
+    const loc = citeAtom(before, byId('ex1'))
+    expect(loc).toMatchObject({ from: 8, to: 9 })
+    const after = build(para('Thesis'), EX('ex2'), para('After.'))
+    expect(citationText(after, 8, 9)).toBe('[excerpt]') // the look-alike, in place
+    notOpened(resolveNoteCitation(after, loc, '[excerpt]'))
+    notOpened(resolveNoteCitation(after, { from: 8, to: 9 }, '[excerpt]')) // an old packet, no identity
   })
 
-  it('control: a lone excerpt, and atoms that read differently, still resolve exactly', () => {
-    const one = Node.fromJSON(schema, { type: 'doc', content: [para('Thesis'), EX('ex1'), { type: 'paragraph' }] })
-    expect(resolveNoteCitation(one, { from: 8, to: 9 }, '[excerpt]')).toEqual({ state: VALID_EXACT, from: 8, to: 9 })
-    const two = docOf('twoAtomsInARow')
-    expect(FIXTURES.twoAtomsInARow.leafSpans.length).toBe(2)
-    for (const s of FIXTURES.twoAtomsInARow.leafSpans) {
-      expect(resolveNoteCitation(two, { from: s.pm_start, to: s.pm_end }, s.text))
-        .toEqual({ state: VALID_EXACT, from: s.pm_start, to: s.pm_end })
-    }
+  it('reviewer case 8: a twin across a paragraph is never re-resolved onto', () => {
+    const before = build(para('Thesis'), EX('ex1'), para('Between.'), EX('ex2'), para('After.'))
+    const loc = citeAtom(before, byId('ex1'))
+    const after = build(para('Thesis'), para('Between.'), EX('ex2'), para('After.'))
+    // The survivor is now the UNIQUE text hit -- what round 1 jumped to.
+    expect(citationText(after, 0, after.content.size).split('[excerpt]').length).toBe(2)
+    notOpened(resolveNoteCitation(after, loc, '[excerpt]'))
+    notOpened(resolveNoteCitation(after, { from: loc.from, to: loc.to }, '[excerpt]'))
+  })
+
+  it('reviewer case 9: the same for a [widget] twin', () => {
+    const before = build(para('Thesis'), WIDGET('2026-09-01T14:00:00.000Z'), para('Between.'),
+      WIDGET('2026-09-02T14:00:00.000Z'), para('After.'))
+    const loc = citeAtom(before, byId('chart|2026-09-01T14:00:00.000Z'))
+    const after = build(para('Thesis'), para('Between.'), WIDGET('2026-09-02T14:00:00.000Z'), para('After.'))
+    notOpened(resolveNoteCitation(after, loc, '[widget]'))
+    notOpened(resolveNoteCitation(after, { from: loc.from, to: loc.to }, '[widget]'))
+  })
+
+  it('N2: a unique atom opens exactly even when its placeholder is also ordinary text', () => {
+    // Typed "[excerpt]", an inserted answer quoting "[file: q3.pdf]", a
+    // widget's searchText in a paragraph: each made round 1 count two.
+    const typed = build(para('I typed [excerpt] here.'), EX('ex1'))
+    const ex = citeAtom(typed, byId('ex1'))
+    expect(resolveNoteCitation(typed, ex, '[excerpt]')).toEqual({ state: VALID_EXACT, from: ex.from, to: ex.to })
+
+    const quoted = build({ type: 'askInsert', content: [para('The filing [file: q3.pdf] says so.')] }, CHIP('/files/9f/q3.pdf'))
+    const chip = citeAtom(quoted, byId('/files/9f/q3.pdf'))
+    expect(resolveNoteCitation(quoted, chip, '[file: q3.pdf]')).toEqual({ state: VALID_EXACT, from: chip.from, to: chip.to })
+
+    const search = build(para('NVDA daily chart looked heavy.'),
+      { type: 'widgetEmbed', attrs: { widgetId: 'chart', searchText: 'NVDA daily chart', capturedAt: '2026-09-01T14:00:00.000Z' } })
+    const w = citeAtom(search, (n) => n.type.name === 'widgetEmbed')
+    expect(resolveNoteCitation(search, w, 'NVDA daily chart')).toEqual({ state: VALID_EXACT, from: w.from, to: w.to })
+  })
+
+  it('a moved atom re-resolves by identity to exactly where it went', () => {
+    const before = build(para('Thesis'), EX('ex1'), EX('ex2'), para('After.'))
+    const loc = citeAtom(before, byId('ex2'))
+    const after = build(para('A new opening.'), para('Thesis'), EX('ex1'), EX('ex2'), para('After.'))
+    const out = resolveNoteCitation(after, loc, '[excerpt]')
+    expect(out).toEqual({ state: RERESOLVED_EXACT, from: loc.from + 16, to: loc.to + 16 })
+    expect(after.nodeAt(out.from).attrs.excerptId).toBe('ex2')
+  })
+
+  it('an identity mis-positioned onto its twin is CORRECTED, not refused', () => {
+    // The round-1 emoji case: ProseMirror puts ex1 at 16 and ex2 at 17; a
+    // range naming ex2 at {16,17} holds ex1. Identity finds the real ex2.
+    const doc = build(para('\u{1F680} NVDA thesis'), EX('ex1'), EX('ex2'), para('After.'))
+    const out = resolveNoteCitation(doc, { from: 16, to: 17, atom: { type: 'documentExcerpt', id: 'ex2' } }, '[excerpt]')
+    expect(out).toEqual({ state: RERESOLVED_EXACT, from: 17, to: 18 })
+  })
+
+  it('an identity found twice off position, or under another type, opens the note only', () => {
+    const pasted = build(para('Thesis, rewritten.'), EX('ex1'), EX('ex1'))
+    const out = resolveNoteCitation(pasted, { from: 8, to: 9, atom: { type: 'documentExcerpt', id: 'ex1' } }, '[excerpt]')
+    expect(out).toMatchObject({ state: VALID_NOTE_ONLY, ambiguous: true })
+    const doc = build(para('Thesis'), EX('ex1'))
+    notOpened(resolveNoteCitation(doc, { from: 8, to: 9, atom: { type: 'attachmentChip', id: 'ex1' } }, '[excerpt]'))
+  })
+
+  it('a citation without identity never opens an atom, however unique and unchanged', () => {
+    const one = build(para('Thesis'), EX('ex1'), { type: 'paragraph' })
+    expect(isBlockAtomRange(one, 8, 9)).toBe(true)
+    notOpened(resolveNoteCitation(one, { from: 8, to: 9 }, '[excerpt]'))
+    // And a TEXT citation whose only remaining hit is an atom is refused too.
+    const typedThenGone = build(para('Thesis'), EX('ex1'))
+    notOpened(resolveNoteCitation(typedThenGone, { from: 9, to: 18 }, '[excerpt]'))
+  })
+
+  it('citationAtomIdentity: only a non-empty identity attr counts', () => {
+    const t = (type, attrs) => citationAtomIdentity(schema.nodes[type].create(attrs))
+    expect(t('documentExcerpt', { excerptId: 'ex1' })).toBe('ex1')
+    expect(t('documentExcerpt', { excerptId: '' })).toBeNull()
+    expect(t('attachmentChip', { href: '/f/a.pdf' })).toBe('/f/a.pdf')
+    expect(t('attachmentChip', {})).toBeNull()
+    expect(t('widgetEmbed', { widgetId: 'chart', capturedAt: 'T' })).toBe('chart|T')
+    expect(t('widgetEmbed', { widgetId: 'chart' })).toBeNull() // the KIND alone names no instance
+    expect(citationAtomIdentity(null)).toBeNull()
   })
 })
 
@@ -357,10 +444,17 @@ describe('a passage near an astral character maps to ProseMirror\'s range (M3)',
     const doc = docOf(name)
     const range = { from: p.pm_from, to: p.pm_to }
     expect(citationText(doc, range.from, range.to)).toBe(p.text)
-    expect(resolveNoteCitation(doc, range, p.text)).toEqual({ state: VALID_EXACT, ...range })
     const full = citationText(doc, 0, doc.content.size)
     const i = full.indexOf(p.text)
     expect(flatToPmRange(doc, i, i + p.text.length)).toEqual(range)
+    if (isBlockAtomRange(doc, range.from, range.to)) {
+      // An atom passage maps to the atom -- but its text alone never opens
+      // it, in place or re-found (fix round 2: identity, never placeholder).
+      expect(resolveNoteCitation(doc, range, p.text).state).toBe(VALID_NOTE_ONLY)
+      expect(resolveNoteCitation(doc, { from: 9999, to: 10000 }, p.text).state).toBe(VALID_NOTE_ONLY)
+      return
+    }
+    expect(resolveNoteCitation(doc, range, p.text)).toEqual({ state: VALID_EXACT, ...range })
     // From a stale location, it is re-found at exactly the same range.
     expect(resolveNoteCitation(doc, { from: 9999, to: 10000 }, p.text)).toEqual({ state: RERESOLVED_EXACT, ...range })
   })

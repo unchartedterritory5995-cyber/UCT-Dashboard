@@ -105,6 +105,33 @@ _ATOM_TEXT = {
                               and a.get("searchText") else "[widget]"),
 }
 
+
+def _nonempty(v: Any) -> str | None:
+    return v if isinstance(v, str) and v else None
+
+
+def _widget_identity(a: dict[str, Any]) -> str | None:
+    kind, at = _nonempty(a.get("widgetId")), _nonempty(a.get("capturedAt"))
+    return f"{kind}|{at}" if kind and at else None
+
+
+# ⛔ AN ATOM IS CITED BY IDENTITY, NEVER BY ITS PLACEHOLDER (review-parity N1).
+# Every excerpt reads "[excerpt]" and two chips of one file read alike, so text
+# cannot say WHICH atom a citation meant: after one delete, a text match lands
+# on a look-alike. These attrs name ONE atom and survive edits and saves:
+#   documentExcerpt  excerptId            the immutable j2_note_excerpts row
+#   attachmentChip   href                 the upload URL, minted with a uuid4
+#   widgetEmbed      widgetId|capturedAt  the kind, and the instant it was
+#                                         captured -- stamped once at insert
+# A type absent here, or an atom missing its attr, carries NO identity, and a
+# citation to it opens the note without claiming a passage. The client's copy
+# is askCitation.js::citationAtomIdentity, pinned through the fixtures.
+_ATOM_IDENTITY = {
+    "documentExcerpt": lambda a: _nonempty(a.get("excerptId")),
+    "attachmentChip": lambda a: _nonempty(a.get("href")),
+    "widgetEmbed": _widget_identity,
+}
+
 # Node types that are leaves in the schema (nodeSize 1, no content walked).
 _LEAF_TYPES = frozenset({
     "attachmentChip", "documentExcerpt", "widgetEmbed", "videoTimestamp",
@@ -194,7 +221,8 @@ def flatten(doc: dict[str, Any] | None) -> dict[str, Any]:
     """Canonical citation text + ProseMirror span map for a TipTap doc.
 
     Returns ``{"text": str, "spans": [{"flat_start", "flat_end", "pm_start",
-    "pm_end", "is_atom", "in_ask_insert", "text"}], "content_size": int}``.
+    "pm_end", "is_atom", "in_ask_insert", "text", "atom"}], "content_size": int}``
+    (``atom`` is ``{"type", "id"}`` for an atom with an identity, else None).
     Spans are in document order and cover every addressable run of text; the
     block separators between them are part of ``text`` but belong to no span,
     which is exactly why the two coordinate systems need an explicit map
@@ -214,7 +242,8 @@ def flatten(doc: dict[str, Any] | None) -> dict[str, Any]:
         parts.append(BLOCK_SEPARATOR)
         state["flat"] += len(BLOCK_SEPARATOR)
 
-    def emit(text: str, pm_start: int, pm_end: int, is_atom: bool) -> None:
+    def emit(text: str, pm_start: int, pm_end: int, is_atom: bool,
+             atom: dict[str, str] | None = None) -> None:
         if not text:
             return
         start = state["flat"]
@@ -223,7 +252,7 @@ def flatten(doc: dict[str, Any] | None) -> dict[str, Any]:
         spans.append({
             "flat_start": start, "flat_end": state["flat"],
             "pm_start": pm_start, "pm_end": pm_end, "is_atom": is_atom,
-            "in_ask_insert": state["ask_depth"] > 0, "text": text,
+            "in_ask_insert": state["ask_depth"] > 0, "text": text, "atom": atom,
         })
 
     def walk(node: Any, pos: int) -> int:
@@ -249,9 +278,11 @@ def flatten(doc: dict[str, Any] | None) -> dict[str, Any]:
             leaf = maker(attrs) if maker is not None else ""
             if leaf and ntype not in _INLINE_LEAF_TYPES:
                 separator()
+            ident = _ATOM_IDENTITY.get(ntype, lambda a: None)(attrs)
             # A leaf occupies exactly ONE ProseMirror position no matter
             # how long its placeholder reads.
-            emit(leaf, pos, pos + 1, True)
+            emit(leaf, pos, pos + 1, True,
+                 {"type": ntype, "id": ident} if ident else None)
             return pos + 1
 
         if _is_textblock(node):
@@ -334,6 +365,33 @@ def pm_range(flat_start: int, flat_end: int, spans: list[dict[str, Any]]) -> dic
     if pm_from is None or pm_to is None or pm_to <= pm_from:
         return None
     return {"from": pm_from, "to": pm_to}
+
+
+def atom_at(flat: dict[str, Any], rng: dict[str, int] | None) -> dict[str, str] | None:
+    """The identity (``{"type", "id"}``) of the ONE atom a ProseMirror range
+    covers exactly -- what a single-atom citation carries in its location.
+    None for a text range, a range over several nodes, or an atom with no
+    identity (`_ATOM_IDENTITY`); such an atom citation opens the note only."""
+    span = _atom_span_at(flat, rng.get("from"), rng.get("to")) if rng else None
+    return span.get("atom") if span else None
+
+
+def precise_citation(flat: dict[str, Any], rng: dict[str, int] | None) -> bool:
+    """Whether a citation to `rng` can ever open a precise passage: any text
+    range can (it is verified by its text), a single atom only when it carries
+    an identity (`atom_at`). The server's label must not promise a passage the
+    client will refuse to open."""
+    if not rng:
+        return False
+    return _atom_span_at(flat, rng.get("from"), rng.get("to")) is None or atom_at(flat, rng) is not None
+
+
+def _atom_span_at(flat: dict[str, Any], pm_from: Any, pm_to: Any) -> dict[str, Any] | None:
+    """The atom span whose ProseMirror range is exactly [pm_from, pm_to)."""
+    for s in flat.get("spans") or []:
+        if s["is_atom"] and (s["pm_start"], s["pm_end"]) == (pm_from, pm_to):
+            return s
+    return None
 
 
 def fingerprint(doc: dict[str, Any] | None) -> str:
@@ -422,13 +480,18 @@ PRECISE_STATES = frozenset({VALID_EXACT, RERESOLVED_EXACT})
 
 
 def resolve_note_citation(doc, pm_from, pm_to, snippet, expected_fingerprint,
-                          prefix: str = "", suffix: str = ""):
+                          prefix: str = "", suffix: str = "", atom=None):
     """Decide where a NOTE citation may navigate, given the note's CURRENT doc.
 
     The requirement is one-directional: a failed precise citation is fine, a
     confident jump to the wrong passage is not. Every path that cannot PROVE
     it is looking at the cited passage returns a non-precise state.
 
+        0. an ATOM citation (`atom` = the location's ``{type, id}``) resolves
+           by IDENTITY only, never by its placeholder text:
+           - the atom at [from,to) carries that identity -> VALID_EXACT
+           - exactly one atom elsewhere carries it       -> RERESOLVED_EXACT
+           - none, or several                            -> VALID_NOTE_ONLY
         1. fingerprint matches AND the text at [from,to) is still the snippet
            -> VALID_EXACT, original positions
         2. otherwise re-resolve the snippet against the CURRENT canonical text
@@ -437,14 +500,34 @@ def resolve_note_citation(doc, pm_from, pm_to, snippet, expected_fingerprint,
            - several and context cannot decide    -> VALID_NOTE_ONLY (never the
              first occurrence: Slice 0 recorded that silent choice as a defect)
            - none                                 -> DEGRADED
+           and a re-found range that is ONE ATOM is never precise: without an
+           identity, its placeholder cannot say which atom it was.
+
+    Mirrored by askCitation.js::resolveNoteCitation, which is what navigates.
     """
+    flat = flatten(doc)
+    if atom:
+        found = [s for s in flat["spans"] if s["is_atom"] and s.get("atom") == atom]
+        here = _atom_span_at(flat, pm_from, pm_to)
+        if here is not None and here.get("atom") == atom:
+            return {"state": VALID_EXACT, "from": pm_from, "to": pm_to}
+        if len(found) == 1:
+            return {"state": RERESOLVED_EXACT, "from": found[0]["pm_start"], "to": found[0]["pm_end"]}
+        return {"state": VALID_NOTE_ONLY, "from": None, "to": None,
+                "reason": ("several atoms carry this identity" if found
+                           else "the cited atom is no longer in this note")}
+
     if expected_fingerprint and fingerprint(doc) == expected_fingerprint:
         if verify(doc, pm_from, pm_to, snippet):
             return {"state": VALID_EXACT, "from": pm_from, "to": pm_to}
         # Fingerprint agreed but the text did not. Trust the text.
 
+    no_identity = {"state": VALID_NOTE_ONLY, "from": None, "to": None,
+                   "reason": "an atom is cited by identity, never by its placeholder"}
     hits = locate(doc, snippet)
     if len(hits) == 1:
+        if _atom_span_at(flat, hits[0]["from"], hits[0]["to"]) is not None:
+            return no_identity
         return {"state": RERESOLVED_EXACT, "from": hits[0]["from"], "to": hits[0]["to"]}
     if len(hits) > 1 and (prefix or suffix):
         ctx = locate(doc, f"{prefix}{snippet}{suffix}")
@@ -452,8 +535,10 @@ def resolve_note_citation(doc, pm_from, pm_to, snippet, expected_fingerprint,
             only = ctx[0]
             inner = pm_range(only["flat_start"] + len(prefix),
                              only["flat_end"] - len(suffix),
-                             flatten(doc)["spans"])
+                             flat["spans"])
             if inner:
+                if _atom_span_at(flat, inner["from"], inner["to"]) is not None:
+                    return no_identity
                 return {"state": RERESOLVED_EXACT, **inner}
     if hits:
         return {"state": VALID_NOTE_ONLY, "from": None, "to": None,

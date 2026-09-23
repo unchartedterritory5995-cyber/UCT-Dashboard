@@ -86,6 +86,31 @@ class TestEveryBlockIsCitable:
         assert "margins compressed" in out["evidence"][0]["text"]
 
 
+class TestAnAtomBlockIsCitedByIdentity:
+    # Fix round 2 (review-parity N1): a block that is ONE atom is cited by the
+    # atom's identity, and one with no identity is never labelled a passage --
+    # the client opens such a citation as the note only, so "exact" would lie.
+
+    def test_an_atom_block_carries_its_identity_or_is_labelled_note_only(self, conn):
+        chip = lambda name, **extra: {"type": "attachmentChip",  # noqa: E731
+                                      "attrs": {"name": name, **extra}}
+        doc = {"type": "doc", "content": [
+            {"type": "paragraph", "content": [{"type": "text", "text": "Risk: margins fell."}]},
+            chip("q3.pdf"), chip("q4.pdf", href="/api/j2/notes/n1/attachments/7c/q4.pdf")]}
+        _add(conn, "n1", "u1", "NVDA thesis", doc)
+        out = ar.retrieve_note("u1", "n1", "margins", conn=conn)
+        by_text = {i["text"]: i for i in out["evidence"]}
+        assert by_text["[file: q3.pdf]"]["citation_validity"] == ev.CITE_NOTE_ONLY
+        assert "atom" not in by_text["[file: q3.pdf]"]["location"]
+        assert by_text["[file: q4.pdf]"]["citation_validity"] == ev.CITE_EXACT
+        assert by_text["[file: q4.pdf]"]["location"]["atom"] == {
+            "type": "attachmentChip", "id": "/api/j2/notes/n1/attachments/7c/q4.pdf"}
+        assert by_text["Risk: margins fell."]["citation_validity"] == ev.CITE_EXACT
+        # ...and the identity survives the projection the browser receives.
+        from api.services.journal_two.ask_service import public_source
+        assert public_source(1, by_text["[file: q4.pdf]"])["location"]["atom"]["id"].endswith("/q4.pdf")
+
+
 class TestTheWholeNoteIsStillShown:
     def test_non_matching_blocks_are_still_sent_as_context(self, conn):
         _add(conn, "n1", "u1", "NVDA thesis", THESIS)

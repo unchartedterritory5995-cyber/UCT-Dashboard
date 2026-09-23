@@ -4,7 +4,7 @@ import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { getSchema } from '@tiptap/core'
 import { buildExtensions } from './tiptap'
-import { citationLeafText, citationText } from './askCitation'
+import { citationAtomIdentity, citationLeafText, citationText } from './askCitation'
 
 // ─────────────────────────────────────────────────────────────────────────
 // THE CITATION TEXT'S NODE TABLES, PINNED TO THE SCHEMA THE EDITOR RUNS.
@@ -41,11 +41,13 @@ function pyNamesFrom(src, name) {
   const m = code.match(new RegExp(`^${name}\\s*=\\s*(?:frozenset\\()?\\{([\\s\\S]*?)\\}\\)?\\s*$`, 'm'))
   if (!m) return null
   // A dict's KEYS (a key opens its line); a set's every quoted name.
-  const re = name === '_ATOM_TEXT' ? /^\s*"([A-Za-z]+)"\s*:/gm : /"([A-Za-z]+)"/g
+  const re = DICTS.has(name) ? /^\s*"([A-Za-z]+)"\s*:/gm : /"([A-Za-z]+)"/g
   return new Set([...m[1].matchAll(re)].map((x) => x[1]))
 }
+const DICTS = new Set(['_ATOM_TEXT', '_ATOM_IDENTITY'])
 const pyNames = (name) => pyNamesFrom(PY_SRC, name)
-const TABLES = ['_LEAF_TYPES', '_INLINE_LEAF_TYPES', '_TEXTBLOCK_TYPES', '_BLOCK_CONTAINER_TYPES', '_ATOM_TEXT']
+const TABLES = ['_LEAF_TYPES', '_INLINE_LEAF_TYPES', '_TEXTBLOCK_TYPES', '_BLOCK_CONTAINER_TYPES', '_ATOM_TEXT',
+  '_ATOM_IDENTITY']
 
 const real = Object.values(schema.nodes).filter((t) => t.name !== 'text')
 const sorted = (s) => [...s].sort()
@@ -98,6 +100,15 @@ describe('the Python walker describes the SAME schema the editor runs', () => {
     expect(sorted(pyNames('_ATOM_TEXT'))).toEqual(sorted(reading))
     for (const n of reading) expect(schema.nodes[n].isBlock, n).toBe(true)
   })
+
+  it('every atom identity kind reads as text, and every one is pinned by the ground truth (fix round 2)', () => {
+    // An identity on an atom that reads no text is never issued (no span); an
+    // identity kind no fixture carries is compared across runtimes by nothing.
+    const kinds = pyNames('_ATOM_IDENTITY')
+    for (const n of kinds) expect(pyNames('_ATOM_TEXT'), n).toContain(n)
+    const pinned = new Set(Object.values(FIXTURES).flatMap((f) => f.leafSpans.map((s) => s.atom?.type).filter(Boolean)))
+    expect(sorted(pinned)).toEqual(sorted(kinds))
+  })
 })
 
 describe('every fixture reads the same under the app schema as under the generator schema', () => {
@@ -108,5 +119,10 @@ describe('every fixture reads the same under the app schema as under the generat
     doc.check()
     expect(doc.content.size).toBe(FIXTURES[name].contentSize)
     expect(citationText(doc, 0, doc.content.size)).toBe(FIXTURES[name].text)
+    // The identity attrs survive the app's own schema (an undeclared attr is
+    // dropped or refused on load, and every atom citation would degrade).
+    for (const s of FIXTURES[name].leafSpans) {
+      expect(citationAtomIdentity(doc.nodeAt(s.pm_start)), `${name}@${s.pm_start}`).toBe(s.atom?.id ?? null)
+    }
   })
 })
