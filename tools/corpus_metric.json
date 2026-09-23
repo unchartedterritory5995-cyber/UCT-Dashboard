@@ -1,8 +1,8 @@
 {
   "measured_at": "2026-09-23",
   "scripts": 266,
-  "host_ok": 38,
-  "screener_ok": 47,
+  "host_ok": 39,
+  "screener_ok": 48,
   "threw": [
     "smart-money-breakouts-chartprime__ea79c79a67.pine"
   ],
@@ -834,14 +834,10 @@
     },
     {
       "file": "fibonacci-pivot-points-cc__p8DQ3RIR97.pine",
-      "host": false,
-      "screener": false,
-      "hostGuards": [
-        "pine:request"
-      ],
-      "screenerGuards": [
-        "pine:request"
-      ]
+      "host": true,
+      "screener": true,
+      "hostGuards": [],
+      "screenerGuards": []
     },
     {
       "file": "fibonacci-retracement-mtflog__54a8dbfa8e.pine",

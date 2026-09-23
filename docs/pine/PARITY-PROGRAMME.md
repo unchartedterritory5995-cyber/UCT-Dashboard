@@ -20,6 +20,88 @@ side-by-side. The local dev loop (`scripts/hub_sandbox_boot.py --port 8000` +
 
 ---
 
+## ⭐⭐⭐ 2026-09-23 — THE THREE OPEN DECISIONS, RULED
+
+All three were delegated ("you decide and determine the best answer and decision
+for all of those"). Each is ruled below **on a measurement taken for the ruling**,
+not on the argument that was already on file.
+
+### 1. `strategy()` — **CONFIRMED OUT OF SCOPE**
+
+⛔⛔ **AND THE COUNT THIS FILE PUBLISHED WAS WRONG BY 22 SCRIPTS.** It said *"47 of
+266 scripts, 18% of corpus"*. Measured three ways on the committed corpus:
+
+| | |
+|---|---|
+| files declaring `strategy(` anywhere | **25** |
+| files declaring it at line start | **25** |
+| files calling `strategy.entry/exit/close/order/cancel` | 26 |
+| **share of the corpus** | **9.4%**, not 18% |
+
+⭐⭐ **THE RULING RESTS ON A PROBE, NOT ON THE ARGUMENT.** The obvious hope is that
+a strategy script's VISUAL half is free — accept `strategy()` as a declaration, let
+its plots and drawings translate, refuse only the order calls. That would be parity
+for what a member SEES without building a backtester. It was measured by
+substituting `strategy(` → `indicator(` (the faithful probe: it preserves the
+declaration rather than deleting it, per the binding rule below):
+
+| | |
+|---|---|
+| strategy scripts that then BUILD | **0 of 25** |
+| that call `strategy.*` orders | **25 of 25** |
+| distinct next walls across the 25 | **10+**, nothing concentrated |
+
+**Not one of them is a strategy that merely draws.** Every one places orders, none
+builds even with the declaration accepted, and the walls scatter across ten guards
+so there is no follow-on lane either. Accepting `strategy()` buys **zero scripts and
+zero concentration** — the backtester is required for any of them, and a backtester
+is a product (position sizing, portfolio state, P&L, alert generation), not a parity
+fix.
+
+➡️ **Decision: confirmed out of scope. Revisit only if a member asks for
+backtesting by name.** The parity claim is asterisked *"indicators, not
+strategies"*, and at 9.4% that asterisk is half as expensive as this file thought.
+
+### 2. The ATR seed — **RULING CONFIRMED, HOST-LANE WORK NOT SCHEDULED NOW**
+
+The ruling on file is right and stands: **Pine gets its own seeding; Wilder's
+original stays everywhere else.** The vendor is measured
+(`seed-warmup-spy-12m-2026-09-21.json`), the request path has shipped, and the
+columnar attempt reached **delta 0** against the capture.
+
+➡️ **Decision: do NOT do the host-lane twin now.** Three reasons, in order:
+
+1. **The residual is not visible to a member.** One bar of warm-up difference,
+   **4e-12 by bar 300**, already disclosed by `closedTable.json`'s `vendorNote`.
+2. **It is not a Pine job.** It is a Python-lane + screener-contract job —
+   `api/services/ast_interpret.py` mirrors `closedTable.json` and
+   `screenerColumns.test.js` freezes those columns; the measured attempt cost
+   **23 new failures** across manifest pins, the sentence round-trip, the vendor-note
+   roster, the corpus snapshot and the formula reference.
+3. **Its blast radius includes money.** Re-seeding the SHARED column moves
+   ThinkScript's `ATR`, the native ATR and ATR-bands indicators, and the pattern
+   engine's ATR levels — which the firm trades on.
+
+A 4e-12 discrepancy competes here against capabilities that stop scripts compiling
+**at all**. Scope it as one piece when the screener contract is next open:
+`_fn_atr_pine` twin + regenerated screener-column / corpus / formula artifacts +
+the count pins.
+
+### 3. The pending vendor captures — **CONSOLIDATED INTO ONE OWNER SITTING**
+
+These cannot be decided, only taken: they need a live TradingView session, which is
+an owner action. What CAN be decided is that they stop being three separate
+blockers. **Packet: `docs/pine/OWNER-CAPTURE-PACKET.md`** — every open measurement,
+in one sitting, with the probe committed for each.
+
+⛔ **NONE OF THEM IS GUESSED AT IN THE MEANTIME.** `symbolScope.json` already says
+so in its own words — *"an unconfirmed spelling is never served"* — and the
+`pending_measurement` sentences tell a member it is a MEASUREMENT gap rather than a
+grammar gap, so a script that will work unchanged the day a witness lands is not
+rewritten by its author today.
+
+---
+
 ## ⛔⛔ 2026-09-22 — TWO NUMBERS THIS PROGRAMME PUBLISHES ARE WRONG
 
 Both are measurement defects, not engine defects, and both make the engine look
@@ -783,11 +865,11 @@ files, one agent per layer once the design is fixed).
 Deliverable: any corpus script that declares a `type` and reads a field via
 `x.f` or a method via `x.m(y)` runs end-to-end.
 
-### 3b. Strategy decision (`strategy()` — 47 of 266 scripts, 18% of corpus)
+### 3b. Strategy decision (`strategy()` — **25 of 266 scripts, 9.4%** — RULED 2026-09-23)
 
 Owner ruling to date: **out of scope by design.** Confirm or reverse:
 
-- **Confirm out-of-scope:** the census records 47 refused with `runtime:declaration`
+- **Confirm out-of-scope:** the census records 25 refused with `runtime:declaration`
   as a permanent count. `/formulas/reference` names this policy publicly. Full
   parity claim is asterisked: "indicators, not strategies."
 
