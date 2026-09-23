@@ -102,6 +102,7 @@ def _derive_one(args) -> dict:
 
 # ── orchestration ───────────────────────────────────────────────────────────
 def run(argv: list[str] | None = None) -> dict:
+    quiet_http_loggers()
     ap = argparse.ArgumentParser(prog="fundamentals_pit.backfill")
     ap.add_argument("--db", required=True)
     ap.add_argument("--bulk-companyfacts")
@@ -255,6 +256,11 @@ def run(argv: list[str] | None = None) -> dict:
     return report
 
 
+def quiet_http_loggers() -> None:
+    for name in ("httpx", "httpcore", "urllib3", "requests"):
+        logging.getLogger(name).setLevel(logging.WARNING)
+
+
 def _tally(report: dict, st: dict) -> None:
     if st.get("skipped"):
         report["skipped"] += 1
@@ -266,6 +272,10 @@ def _tally(report: dict, st: dict) -> None:
 
 if __name__ == "__main__":
     logging.basicConfig(level=logging.INFO, format="%(asctime)s %(message)s")
+    # ⛔ NEVER LOG REQUEST URLS. The Massive client carries `apiKey=` in the query
+    # string, and httpx logs every request URL at INFO -- measured: the first
+    # production run wrote the key into its job log in plain text.
+    quiet_http_loggers()
     rep = run()
     print(json.dumps({k: (v if not isinstance(v, list) else len(v)) for k, v in rep.items()}, default=str))
     sys.exit(1 if rep["failed"] or rep["derive_failed"] else 0)

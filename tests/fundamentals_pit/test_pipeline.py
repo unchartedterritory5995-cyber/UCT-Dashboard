@@ -181,3 +181,18 @@ def test_massive_ledger_fails_loudly_on_truncation_or_silence(monkeypatch):
         SL.massive_rows_chunked("2020-01-01", "2020-12-31")
     monkeypatch.setattr(SL, "massive_rows", lambda lo, hi: [("X", lo, 2.0, "1->2")])
     assert len(SL.massive_rows_chunked("2020-03-01", "2022-02-01")) == 3
+
+
+def test_backfill_never_logs_request_urls(tmp_path):
+    """MEASURED: httpx logs every request URL at INFO and the Massive client puts
+    apiKey= in the query string -- the first production run wrote the key to its
+    job log. run() must silence the HTTP loggers before any request."""
+    import logging
+    from api.services.fundamentals_pit import backfill as B
+    logging.getLogger("httpx").setLevel(logging.INFO)
+    try:
+        B.run(["--db", str(tmp_path / "x.db"), "--tickers", "X"])
+    except SystemExit:
+        pass                                   # no source given -> argparse error; the guard already ran
+    assert logging.getLogger("httpx").level >= logging.WARNING
+    assert logging.getLogger("httpcore").level >= logging.WARNING
