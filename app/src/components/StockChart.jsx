@@ -6923,13 +6923,15 @@ export default function StockChart({
   // Static within the session (sealed bars don't change intraday), so no refreshInterval —
   // the primary /api/bars tail SWR above owns freshness + the live bar. Fires only on a deep
   // pan (histUrl is null on first paint), and is edge-served (never hits the origin on a HIT).
-  const { data: histData } = useSWR(histUrl, instFetcher, {
+  const _histMutateRef = useRef(null)
+  const { data: histData, mutate: _histMutate } = useSWR(histUrl, instFetcher, {
     dedupingInterval: 60_000,
     revalidateOnFocus: false,
     refreshInterval: 0,
     refreshWhenHidden: false,
     onErrorRetry: barsSwrOnErrorRetry,
   })
+  _histMutateRef.current = _histMutate
 
   // ── Custom timeframe: fetch the NATIVE base, resample client-side ──
   // (_isCustomTf / _customBaseTf / _customSpec are declared ABOVE the native SWR so
@@ -10434,6 +10436,27 @@ export default function StockChart({
         window.__uctChartDebug[chartId || 'main'] = {
           visibleRange: () => {
             try { return chartRef.current?.timeScale().getVisibleLogicalRange() || null } catch { return null }
+          },
+          // ⭐ THE TWO READINGS THIS FIX IS ACCEPTED ON, and they have to be
+          // separate. The daily regression was "Origin frames the 600-bar window
+          // instead of the true origin", and a chart holding 20 years while
+          // FRAMING the last 600 bars is pixel-identical to one that only holds
+          // 600 — so the SERIES and the WINDOW must be observable independently
+          // or the acceptance cannot tell a data bug from a framing bug. An
+          // earlier pass scored only the series, found 5,247 rows, and would
+          // have reported the pipeline healthy while the member still saw 2024.
+          // Read-only, chartId-keyed, resolved at CALL time off the live refs.
+          visibleTimeRange: () => {
+            try { return chartRef.current?.timeScale().getVisibleRange() || null } catch { return null }
+          },
+          renderedTail: (k = 2) => {
+            try {
+              const d = candleSeriesRef.current?.data?.()
+              if (!Array.isArray(d) || !d.length) return null
+              return d.slice(Math.max(0, d.length - k)).map(b => ({
+                time: b.time, open: b.open, high: b.high, low: b.low, close: b.close,
+              }))
+            } catch { return null }
           },
           // ⭐ THE VERTICAL HALF, for the same reason the horizontal half is here.
           // "The chart pinches a little more every time I pan" is a claim about
@@ -17206,6 +17229,7 @@ export default function StockChart({
   const applyPendingNav = () => {
     const nav = pendingNavRef.current
     if (!nav) return false
+    if (nav.kind === 'range') { applyRange(nav.target); return true }
     if (nav.kind === 'date') return goToDateRightEdge(nav.target)
     if (nav.kind === 'year') return frameYear(nav.target)
     return centerFirstBar()   // 'origin'
@@ -17218,6 +17242,14 @@ export default function StockChart({
     originSawFetchRef.current = false
     setOriginLoading(true)
     if (fetchDepth !== _fullTarget) setFetchDepth(_fullTarget)
+    // ⛔ RAISING THE DEPTH IS NOT ENOUGH WHEN THE DEEP LEG ALREADY FAILED. `histUrl`
+    // is a fixed string (symbol + tf + full depth + sealed date), so after a 5xx SWR
+    // holds the error under that exact key and raising `fetchDepth` produces no new
+    // request -- measured: one failed call, `histCalls` stayed at 1, and the chart sat
+    // at 600 bars until `barsSwrOnErrorRetry`'s 15s floor elapsed (up to 60s on later
+    // attempts). A member who clicks Origin is asking for that history NOW, so ask the
+    // key to revalidate rather than waiting out a backoff they cannot see.
+    try { _histMutateRef.current?.() } catch { /* unbound mid-mount */ }
     setTimeout(() => {
       if (pendingNavRef.current) {   // stalled fetch — apply on whatever loaded so it can't trap the pill
         applyPendingNav()
@@ -17251,8 +17283,37 @@ export default function StockChart({
   const applyRange = (val) => {
     if (val === 'origin') {
       if (pendingNavRef.current) return   // already loading — ignore repeat clicks
-      // Already at full depth with settled data ⇒ centre immediately (no loading state).
-      const deepLoaded = barCount === _fullTarget && !isValidating && (filteredBars?.length || 0) > 1
+      // ⛔⛔ LOADED DEPTH, NOT DESIRED DEPTH. This read `barCount === _fullTarget`,
+      // and `barCount` is forced to `_fullTarget` by `_deepFirstPaint` -- which is
+      // `backgroundWarm && !barsOverridePending`, i.e. TRUE on every standalone
+      // daily chart from its first frame. So the test was a constant: Origin always
+      // believed deep history was loaded, never called `startNavLoad`, never armed
+      // `pendingNavRef`, and simply centred on whatever happened to be in the series
+      // at click time. With the deep leg still in flight (or failed) that is the
+      // 600-bar first-paint window, so "Origin" on QQQ framed 2024-05-01 -- the
+      // 600th session back -- and never re-framed when the real history landed.
+      //
+      // ⚠️ IT HID BEHIND `!isValidating`. While the PRIMARY was still in flight the
+      // term was false, `startNavLoad` ran, and Origin worked -- which is why a fast
+      // local harness passed this path repeatedly. It only bites once the primary has
+      // SETTLED and the deep leg has not, which is exactly the production shape.
+      //
+      // Loaded rows are the only honest evidence that deep history is actually here.
+      // A genuinely short-history symbol never exceeds the first-paint depth, so it
+      // takes the load path once, the fetch settles, and the pending-nav effect below
+      // applies on "a real fetch ran and returned no more".
+      //
+      // ⛔ SCOPED TO D/W/M ON PURPOSE. `applyRange` is NOT a daily-only path -- the
+      // range bar renders on every timeframe -- and on intraday `_fullTarget` is
+      // 20,000-32,000 bars. Flipping this constant there would turn an Origin click
+      // on a 5m chart into a 30,000-bar member-facing fetch that nothing in this
+      // repair was accepted for, on the one surface whose realtime work is HELD.
+      // Intraday keeps master's behaviour byte for byte; the same constant is wrong
+      // there too, but that is a separate change with its own acceptance.
+      const _loadedRows = filteredBars?.length || 0
+      const deepLoaded = isIntraday
+        ? (barCount === _fullTarget && !isValidating && _loadedRows > 1)
+        : (_loadedRows > _fpBars && !isValidating && _loadedRows > 1)
       if (deepLoaded) {
         pendingNavRef.current = { kind: 'origin' }
         requestAnimationFrame(() => { if (pendingNavRef.current && centerFirstBar()) pendingNavRef.current = null })
@@ -17283,6 +17344,23 @@ export default function StockChart({
       // left, instead of the whole IPO history being stretched across the pane.
       // Window width = the lookback span converted to bars via the series' own
       // bar density (timeframe-agnostic: works for D/W/M).
+      // ⛔ A LOOKBACK MUST OWN ITS HISTORY, NOT JUST FRAME BLANK SPACE. The framing
+      // below deliberately allows a NEGATIVE `from` so a short-history IPO keeps
+      // period-appropriate bar widths with empty space to its left -- correct when the
+      // symbol genuinely has no older bars, wrong when we simply have not fetched them.
+      // With only the 600-bar first paint loaded (~2.4 years of sessions) a 5Y click
+      // framed three years of emptiness and called it five years. If the window reaches
+      // past the oldest LOADED bar while deeper history is still available, fetch it
+      // first and re-apply this same range when it lands. Guarded on `fetchDepth` so a
+      // symbol whose real history is short takes this path at most once and then frames.
+      // ⛔ `!isIntraday` for the same reason as the Origin test above, and it bites
+      // harder here: on a 5m chart only ~1,199 bars are ever loaded, so `cutoffMs <
+      // firstMs` is true for EVERY pill from 3M up, and each of those ordinary clicks
+      // would newly pull 30,000 bars where before it framed blank space for free.
+      if (!isIntraday && cutoffMs < firstMs && fetchDepth !== _fullTarget && !pendingNavRef.current) {
+        startNavLoad({ kind: 'range', target: val })
+        return
+      }
       const msPerBar = (lastMs - firstMs) / lastIdx
       const windowBars = msPerBar > 0 ? (lastMs - cutoffMs) / msPerBar : lastIdx
       if (!(windowBars >= 1)) return
