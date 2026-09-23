@@ -10,6 +10,57 @@
 
 ---
 
+## ✅ G-064 build verification — 2026-09-23 (branch `feat/notebook-kill-switch`, built dark)
+
+G-064 (insert an Ask Notebook answer into a note) is **built, reviewed and verified;
+NOT merged, NOT deployed, flag NOT set.** Spec r2:
+`docs/superpowers/specs/2026-09-22-ask-notebook-insert-design.md`; plan:
+`docs/superpowers/plans/2026-09-22-ask-notebook-insert.md`. Every task went through an
+implementer + task review (Opus on the editor/host tasks), then a whole-branch Opus review
+and one scoped fix wave.
+
+**Rails vs a baseline taken at `1a5473d19` before any code:** identical.
+`reachable.test.js` lists only the two pre-existing names (`lib/context/focusDivergence.js`,
+`pages/screener/shell/FilterBand.jsx`); tapFloor, tokens.reachable, themeIslands,
+sourcesAreText, rawErrorSurface, f5Freeze, doorEnumeration, editorRawClasses green.
+Backend scoped set: 667 passed, 1 failed — `test_feature_flag_ledger` naming only master's
+undeclared `D2_DUAL_COMPUTE_WARM_READER_ENABLED` + `WISDOM_EXTRACT_PRESCREEN_ENABLED`.
+
+**Six-shard gate** on `158112fa3` (branch + master `bab3f8b5c` merged):
+`docs/notebook/gate-runs/g064/2026-09-23T04-42-22.md` — `GATE EXIT 1`, 137 "new" vs
+`gate-baseline.json` (`1216958ed`, 2026-09-14, stale). **All 137 classified on a detached
+`origin/master` `bab3f8b5c` checkout: 116 test-level failures fail identically on master,
+2 file-level errors (Layout.pageTracking/routeSuspense) error on master, 19 are table rows
+of one date-dependent chart test's message (fails on master). 0 attributable to this branch.**
+⚠️ The gate baseline needs re-measuring on master — it is 8 days and 116+ reds behind.
+
+**Live walk** — local sandbox (`hub_sandbox_boot.py --data-dir C:\data-g064 --port 8093`,
+`NOTEBOOK_ASK_INSERT_ON=1`), real Chrome, built bundle. No model key in the sandbox, so
+the Ask stream was answered by a canned SSE response injected into `fetch`; everything
+downstream of the stream was the real app.
+
+| step | result |
+|---|---|
+| In a note: Ask → "Insert into this note" | PASS — block "From Ask Notebook · Sep 23, 2026" appended at the end, chips `[1]`, `[1][2]`, button reads "Inserted" |
+| Reload | PASS — server `bodyJson` holds `askInsert` + 3 `askCitation`; block re-renders |
+| Edit the inserted paragraph | PASS — that chip reads `[1 · edited]`, name "…, text edited since inserted"; other paragraph's chips unchanged; `note only` precision word shown |
+| Research Home → "Insert into a note…" → pick "Target note" | PASS — opens the note, answer appended after the member's text, hand-off entry consumed |
+| Research Home → "Create a new note" | PASS — new note titled with the question, holding the block |
+| Markdown export (`GET /notes/{id}/export`) | PASS — labelled quote with question, date, the member's later edit, and "Sources as of insertion" |
+| Callout/Toggle styling (built CSS) | PASS — `.uctToggleChevron`/`.uctCalloutIcon` unhashed in the bundle; callout body flex/min-width, icon 18px, chevron borderless all apply; chevron **44×44** at 386px |
+| Chip line height at 386px | PASS — chip `min-height 0`, 23.5px, `::after` hit area; lines stay 28.9px |
+| `C:\data` integrity | CLEAN pre-boot / +15s / +120s (58 dbs, `docs/plans/joystick/sandbox-runs/2026-09-23T04-48-36.md`); 0 main `.db` files written through shutdown |
+| Picker focus | NOTE — the picker's search box is not auto-focused when it opens (member clicks into it) |
+
+**Open before `NOTEBOOK_ASK_INSERT_ON` is flipped (owner call):** the chip's touch hit area
+can catch a tap meant for an adjacent run-together `[2][3]` chip; the picker search box is not
+auto-focused. **Pre-existing, found by the reviews, not G-064's:** partial-copy pastes spanning a
+Toggle throw in ProseMirror's paste fitting (the paste is lost); Callout/Toggle `defining` paste
+wraps member prose in a new callout/toggle; empty-paragraph parity between the citation walkers
+and `textBetween` remains open (the new re-resolution guard makes it fail safe).
+
+---
+
 ## 🎯 2026-09-22 SESSION (later) — ledger status pass, 5 owner decisions, G-064 design
 
 > ⚰️ **Corrected 2026-09-22 (G-064 build session), three sentences below were wrong:**
