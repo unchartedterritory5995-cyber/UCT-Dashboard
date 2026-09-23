@@ -473,6 +473,51 @@ case. Compare failing test NAMES.
 
 ## NEXT, IN ORDER
 
+> ### ⭐⭐ OWNER DECISION READY: `math.round(v, n)` — EVIDENCE IS ON DISK
+>
+> ⛔ **Blocked on a RULING, not on a measurement, and the measurement already
+> exists.** `groupBVendorReadings.test.js` requires
+> `plot(math.round(0.125, 2))` to refuse `pine:arity`, and in the same case
+> records what the vendor answers: **`round(0.125, 2)` = 0.13**, with
+> `math.round_half_rule` = HALF AWAY FROM ZERO. Its own comment says why the
+> refusal stands: *"table-shape changes carrying the corpus-case price … a
+> widening that needs its own decision. Until that ruling, the ONLY acceptable
+> behaviour is a refusal."*
+>
+> ⭐ **It was implemented, it agreed with the vendor, and it was REVERTED.** The
+> transform is `math.round(v, n) ≡ round(v * pow(10, n)) / pow(10, n)` — a
+> TRANSFORM, so `PINE_NAMESPACED_TREE` is the right door by that map's own test
+> (`ta.highest` was reverted from it for needing only a DEFAULT ARGUMENT), and
+> `round` is in neither `FINITE_WINDOW` nor `CARRIED`, so membership
+> reclassifies nothing. It produced **0.13**, the vendor's own number, and the
+> gate went red anyway — correctly. The rail exists to stop a semantics nobody
+> ruled on, and it caught one.
+>
+> **If the ruling is yes, the whole change is:** the entry in
+> `PINE_NAMESPACED_TREE` owning BOTH arities (a falsy return there reaches a
+> refusal message hard-coded for the pivot case); scoping
+> `legacyBareNamespace`'s derived roster to `ta.` keys (it does `full.slice(3)`,
+> which assumes a three-character prefix — `math.round` is the first key that is
+> not); and re-baselining the two counts this moves
+> (`fillConditionalCarriage` fills 10 → 12).
+>
+> ⚠️ **AND IT WOULD STILL CLEAR ZERO CORPUS SCRIPTS TODAY.** Both corpus uses —
+> `ict-ipda-look-back` L11, `keltner-center-of-gravity-channel` L28 — are INSIDE
+> A USER FUNCTION BODY, and a pure top-level expression goes to the COLUMNAR
+> lane while a function body goes to the RUNTIME lane, which resolves calls by
+> its own path and never consults the tree map. Measured:
+>
+> | | |
+> |---|---|
+> | `plot(math.round(close / 3, 1))` | **OK** with the entry |
+> | `p(t, b) => math.round(…, 1)` | **still refused** |
+>
+> ⛔ Wiring the runtime lane needs a DIALECT AUDIT, not a one-liner: `lowerExpr`
+> handles both `binary` and `op`, but `cNum` emits `{type:'num'}` where the
+> parser emits `{type:'number'}`, and a canonical/parse mix-up cost real time on
+> 2026-09-22 (the switch comparison, which surfaced as a catch-all
+> `pine:statement` pointing at the wrong line).
+
 > ### ⛔⛔ 2026-09-23 — TWO QUEUE ROWS RE-DIAGNOSED. BOTH WERE MIS-SIZED.
 >
 > Both were investigated to a reproducible minimal case and then **NOT built**,
