@@ -3,8 +3,8 @@
   top: 0;
   z-index: 5;
   display: flex;
-  align-items: center;
-  gap: 8px;
+  flex-direction: column;
+  gap: 6px;
   width: fit-content;
   max-width: 100%;
   margin: 0 0 12px auto;
@@ -14,6 +14,16 @@
   border-radius: var(--radius-md, 8px);
   box-shadow: 0 4px 16px rgba(0, 0, 0, 0.35);
   color: var(--text-muted);
+}
+/* Wave 5: find on the first row, replace on the second. */
+.row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.rowIndent {
+  flex: 0 0 auto;
+  width: 24px;
 }
 
 .input {
@@ -55,6 +65,31 @@
   color: var(--text-bright);
 }
 .navBtn:disabled { opacity: 0.4; cursor: default; }
+/* Match case: a text glyph, lit while on. */
+.caseBtn {
+  width: auto;
+  padding: 0 5px;
+  font-size: 12px;
+  font-weight: 700;
+  font-family: var(--font-sans);
+}
+.caseBtnOn {
+  background: var(--bg-hover);
+  color: var(--ut-gold);
+  box-shadow: inset 0 0 0 1px var(--ut-gold);
+}
+.textBtn {
+  flex: 0 0 auto;
+  background: transparent;
+  border: 1px solid var(--border);
+  border-radius: 5px;
+  color: var(--text-bright);
+  font-size: 12px;
+  padding: 3px 8px;
+  cursor: pointer;
+}
+.textBtn:hover:not(:disabled) { border-color: var(--ut-gold); }
+.textBtn:disabled { opacity: 0.4; cursor: default; }
 
 /* Touch-target sizing at the codebase's TOUCH tier (<=1024px, NOT <=640px --
    a floor restored only at 640 leaves tablet's 641-1024px range broken; see
@@ -62,8 +97,13 @@
    layout stays a separate, narrower 640px rule below. */
 @media (max-width: 1024px) {
   .navBtn, .closeBtn { min-height: var(--tap-min, 44px); min-width: var(--tap-min, 44px); }
+  .textBtn { min-height: var(--tap-min, 44px); min-width: var(--tap-min, 44px); }
+  .rowIndent { width: var(--tap-min, 44px); }
+  /* 16px so iOS does not zoom the page when a field takes focus. */
+  .input { font-size: 16px; }
 }
 @media (max-width: 640px) {
   .bar { width: 100%; margin-left: 0; }
+  .row { flex-wrap: wrap; }
   .input { width: 100%; min-width: 0; flex: 1 1 auto; }
 }

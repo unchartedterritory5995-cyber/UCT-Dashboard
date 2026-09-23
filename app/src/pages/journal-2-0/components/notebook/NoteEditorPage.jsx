@@ -432,9 +432,20 @@ export default function NoteEditorPage({ noteId, onBack, showBack = true, onTitl
   // untouched everywhere else in the app, since this handler only exists
   // while a note is actually mounted.
   const [findOpen, setFindOpen] = useState(false)
+  // Wave 5: opened for REPLACE (Ctrl+H; Cmd+Option+F on a Mac, where Cmd+H
+  // hides the app and Ctrl+H is ProseMirror's delete-backward).
+  const [findWithReplace, setFindWithReplace] = useState(false)
   const onPageKeyDown = (e) => {
     const key = e.key.toLowerCase()
-    if ((e.metaKey || e.ctrlKey) && key === 'f') {
+    const onMac = typeof navigator !== 'undefined' && /Mac|iPhone|iPad/.test(navigator.platform || '')
+    const replaceChord = onMac
+      ? (e.metaKey && e.altKey && e.code === 'KeyF')
+      : (e.ctrlKey && !e.metaKey && !e.altKey && (key === 'h' || e.code === 'KeyH'))
+    if (replaceChord) {
+      e.preventDefault()
+      setFindWithReplace(true)
+      setFindOpen(true)
+    } else if ((e.metaKey || e.ctrlKey) && key === 'f') {
       e.preventDefault()
       setFindOpen(true)
     } else if (key === 'escape' && findOpen) {
@@ -442,6 +453,7 @@ export default function NoteEditorPage({ noteId, onBack, showBack = true, onTitl
       // handler calls stopPropagation on Escape) -- this is the fallback
       // for Escape pressed while focus is elsewhere on the page.
       setFindOpen(false)
+      setFindWithReplace(false)
       editor?.commands.noteFindClear()
     }
   }
@@ -2625,7 +2637,11 @@ export default function NoteEditorPage({ noteId, onBack, showBack = true, onTitl
         <CaptureInboxTray editor={editor} onPlaced={(id) => pendingInboxConsumeRef.current.add(id)} />
 
         {findOpen && (
-          <NoteFindBar editor={editor} onClose={() => { setFindOpen(false); editor?.commands.noteFindClear() }} />
+          <NoteFindBar
+            editor={editor}
+            initialReplace={findWithReplace}
+            onClose={() => { setFindOpen(false); setFindWithReplace(false); editor?.commands.noteFindClear() }}
+          />
         )}
 
         <div onClickCapture={handleEditorClickCapture}>

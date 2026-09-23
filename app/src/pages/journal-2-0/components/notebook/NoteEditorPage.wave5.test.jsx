@@ -62,3 +62,23 @@ describe('NoteEditorPage — text colour + highlight door (Wave 5)', () => {
     expect(screen.queryByRole('group', { name: 'Text colour and highlight' })).toBe(null)
   })
 })
+
+describe('NoteEditorPage — find AND replace door (Wave 5)', () => {
+  it('Ctrl+H opens the find bar with the replace row; a replace-all edits the note', async () => {
+    const editor = await renderEditor()
+    fireEvent.keyDown(editor.view.dom, { key: 'h', code: 'KeyH', ctrlKey: true })
+    const field = await screen.findByRole('textbox', { name: 'Replace with' })
+    fireEvent.change(screen.getByRole('searchbox', { name: 'Find in note' }), { target: { value: 'margins' } })
+    fireEvent.change(field, { target: { value: 'spreads' } })
+    fireEvent.click(screen.getByRole('button', { name: 'Replace all' }))
+    expect(editor.state.doc.textContent).not.toMatch(/margins/i)
+    expect(screen.getByText('Replaced 2 matches')).toBeInTheDocument()
+  })
+
+  it('Ctrl+F still opens find alone', async () => {
+    const editor = await renderEditor()
+    fireEvent.keyDown(editor.view.dom, { key: 'f', code: 'KeyF', ctrlKey: true })
+    await screen.findByRole('searchbox', { name: 'Find in note' })
+    expect(screen.queryByRole('textbox', { name: 'Replace with' })).toBeNull()
+  })
+})
