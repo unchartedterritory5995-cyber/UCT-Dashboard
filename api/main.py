@@ -7073,6 +7073,55 @@ async def lifespan(app: FastAPI):
             print("[startup] S7 indicator-condition DARK comparison OFF "
                   "(set ALERT_TAXONOMY_INDICATOR_CONDITION_DARK_ENABLED=1 to start the dark run)")
 
+        # GATE-D2-CANONICAL-DATA-MODEL, top-level CP3, LINE 5 (approval sha
+        # d1da6f5b7) -- the scheduled warm reader for ticker_returns' DARK
+        # dual-compute rail. It calls the EXISTING, unmodified
+        # `ticker_returns.returns_for_video()` -- the exact function
+        # `GET /api/education/videos/{id}/ticker-returns` calls -- for every
+        # Desk video carrying real ticker moments, so `_dual.observe()` fires
+        # on real traffic instead of waiting on a member opening that video.
+        # No change to `_dual.py`, `dual_sample_store.py`, the gate itself, or
+        # any other reader. See `api/services/ticker_returns_warm_reader.py`
+        # for the in-process-vs-HTTP+smoke-account decision, argued there
+        # rather than here because it is the load-bearing design call.
+        #
+        # ⛔ DEFAULT OFF. It is additive read traffic against real production
+        # data, so an unset variable must mean NOTHING RUNS -- the same
+        # contract as every dark/warm sweep above.
+        #
+        # Cadence derives from the gate's own session-span requirement
+        # (`dual_sample_store.COVER_OPEN_HHMM`/`COVER_CLOSE_HHMM` = 09:45 /
+        # 15:45 ET): one tick at :45 past every RTH hour from 9 through 15, so
+        # the FIRST tick lands at-or-before 09:45 ET and the LAST at-or-after
+        # 15:45 ET on every trading day. A dry run measured ~40x the
+        # >=200-agreed-rows bar in a SINGLE pass, so a fixed hourly cadence
+        # does not need to be adaptive to clear it -- the remaining blocker
+        # was always the session span, not the row count.
+        if os.environ.get("D2_DUAL_COMPUTE_WARM_READER_ENABLED", "0") == "1":
+            def _d2_dual_compute_warm_reader_job():
+                try:
+                    from api.services import ticker_returns_warm_reader as _wr
+                    r = _wr.run_warm_pass()
+                    print(f"[d2-warm-reader] videos_total={r['videos_total']} "
+                          f"videos_ok={r['videos_ok']} "
+                          f"symbols_returned={r['symbols_returned']} "
+                          f"errors={len(r['errors'])}")
+                except Exception as e:
+                    print(f"[d2-warm-reader] sweep failed: {e}")
+
+            _scheduler.add_job(
+                _d2_dual_compute_warm_reader_job,
+                trigger=CronTrigger(day_of_week="mon-fri", hour="9-15", minute=45,
+                                    timezone=_ET),
+                id="d2_dual_compute_warm_reader",
+                max_instances=1, replace_existing=True,
+            )
+            print("[startup] D2 dual-compute warm reader ENABLED (09:45-15:45 ET "
+                  "weekdays, hourly, in-process, no member data written)")
+        else:
+            print("[startup] D2 dual-compute warm reader OFF "
+                  "(set D2_DUAL_COMPUTE_WARM_READER_ENABLED=1 to start it)")
+
         def _compass_daily_focus_run():
             try:
                 from api.services.voice_daily_focus import run_for_all_enabled_users
