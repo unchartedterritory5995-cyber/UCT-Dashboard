@@ -4284,3 +4284,98 @@ committing that fix as its own separate, clearly-labeled commit.
 Railway `web` confirmed `SUCCESS` on `771d195a0` specifically (polled the deployment list's top
 entry by commit SHA); verified live via `/api/health` returning `uptime_seconds: 80`, a fresh
 boot. Full detail in `COMPLETION_AUDIT.md`'s F-D2-1 and F-D2-3 rows and `RESUME.md`.
+
+## ✅ BUILT + DEPLOYED — Packets L–Q, six more "computed but never surfaced" gaps + a doc correction, 2026-09-22
+
+The user's direct instruction after Packets G–J shipped: *"I want the UCT Terminal fully
+finished and complete."* Given "both 1 and 2" (a full-program audit AND keep shipping whatever
+real gaps that audit finds), a whole-app version of the same hunt that found G–J was run —
+two waves of exactly 3 parallel Explore subagents each (this repo's own concurrency cap,
+respected), then every top finding personally re-verified against live source before a packet
+was drafted. Six real, safe, narrow gaps survived that check; a real security defect (unscoped
+SQL on three `intelligence.py` endpoints) was found and correctly **not** wired — reported
+instead, since fixing it is backend schema work, not a wiring packet.
+
+All six signed by the owner in one batch (fingerprints `ddcad5b0c`/`3f28cd944`/`d411866cd`/
+`fd57fe079`/`64a4811e8`/`362cb5156`), committed together as `fa9d509ed` on
+`terminal-research`, alongside a `CLAUDE.md` correction commit (`d9b1793fe` on
+`feat/s7-price-level`) fixing three stale doc claims this session's audit surfaced along the
+way (the "ON THE TAPE"/`useTapeFeed.js` row, the Compass Brain Bridge chat-parity gap, and the
+Awareness Engine's earnings-memo backlog item — all three already closed in code, not yet
+corrected in the doc).
+
+- **Packet L — the "Open Flow" searchable board, `/open-flow`.** `api/live_massive_router.py`'s
+  `flow_board()` → `weekly_flow.board_data()` was correct, live, and had zero frontend callers.
+  New page (`OpenFlow.jsx`), 5 backend tests covering the 120s `_BOARD_CACHE`'s cross-test
+  isolation hazard (fixed with an autouse fixture clearing it), 4 frontend tests. Deliberately
+  excluded from the sidebar nav (owner scope: a searchable board, not a headline feature).
+- **Packet M — Compass Health admin panel on `/admin`.** `api/routers/journal_two.py`'s
+  `compass_health_status()` had no admin surface. New `CompassHealthPanel.jsx` modeled on
+  `AiSearchInsightsPanel.jsx`'s exact idiom.
+- **Packet N — COT's dead self-heal signal + picker drift.** `api/routers/cot.py`'s
+  `get_symbols()`/`get_status()` computed a live "data through" freshness line and a symbol
+  taxonomy (with an INDICES group) the frontend never read — `CotData.jsx` used a hardcoded
+  fallback list instead. Fixed by shadowing the module consts with component-scoped `useMemo`
+  derived values of the same name (`FALLBACK_SYMBOL_GROUPS`/`FALLBACK_SYMBOL_NAMES` fall back
+  when the fetch hasn't resolved) — zero changes to any of the ~8 existing usage sites.
+- **Packet O — the screener's composite methodology, published.** `api/services/screener/
+  methodology.py`'s `composite_method()`/`all_methods()` (weights, caveats, explicit
+  `not_claimed` lists) had no door. New `MethodologyPanel.jsx`, modeled on
+  `StructureProvenance.jsx` — including copying that file's own token-safety warning correctly
+  this time (see the CSS note below).
+- **Packet P — restore "Add to calendar" on the earnings modal.** `api/routers/calendar.py`'s
+  `export_single_report_ics()` endpoint was untouched; only a dead link was restored in
+  `EarningsResearchModal.jsx`. Deliberately did NOT touch the shared `IdentityBanner.jsx`
+  (verified single-consumer) even though an "action slot" prop there was tempting — the link
+  was added directly in the modal's own render tree instead, keeping the change local.
+- **Packet Q — chat moderation admin panel on `/admin`.** A live chat message can already be
+  reported by a member (`ChatView.jsx` → `POST /api/community/chat/reports`), but the admin
+  queue `GET`/`PATCH /api/community/chat/admin/reports` it feeds had no reader. New
+  `ChatModerationPanel.jsx`, modeled on `CommunityReportsPanel.jsx`'s exact idiom (same file,
+  older thread/post pipeline) — deliberately no "Mute author" action, since that sibling's mute
+  endpoint is thread/post-scoped and whether it applies to chat authors was not verified.
+
+**Self-caught defect, fixed same session:** `OpenFlow.module.css` used two CSS custom
+properties that don't exist (`--surface-2` with no fallback, `--gold` with a mismatched
+fallback hex) — the exact trap `StructureProvenance.module.css`'s own header comment warns
+about. Caught by re-reading that warning before copying the idiom for Packet O, then verified
+via grep that the real tokens are `--bg-surface`/`--bg-elevated`/`--ut-gold`/etc. Fixed as its
+own separate, clearly-labeled follow-up commit (`b90cacf60`) since L was already pushed.
+
+**Merge conflict, resolved correctly:** cherry-picking Packet O onto the merge tree (36 commits
+behind after L/M/N/CLAUDE.md landed) hit a real conflict in `ScannerShell.jsx` — a concurrent,
+unrelated session had refactored the same toolbar area to pass buttons as `libraryBar`/
+`reviewBar` props to `<ShellToolbar>` (adding a new "Review charts" feature in the process).
+Resolved by keeping both sessions' state (`reviewOpen` + `methodologyOpen`), verifying
+`ShellToolbar.jsx` renders `{libraryBar}` as a bare expression so a fragment with two buttons
+is safe there, and merging "Structure library" + "Methodology" into one fragment passed via
+`libraryBar` — landed as merge-run commit `55768af71`.
+
+**Verified before push:** combined backend suite (`test_flow_board_endpoint.py` +
+`test_compass_health_endpoint.py` + `test_screener_methodology_endpoint.py` +
+`test_calendar_ics.py`) — 33 passed. Combined frontend suite across all six packets'
+own test files plus `ScannerShell.test.jsx` (validating the conflict resolution) — 104 passed
+across 7 files. `check_repo_hygiene.py` and `flow_worker_watch_coverage.py` both clean.
+
+⛔⛔ **Provenance check, per this repo's own rule ("`git show <sha>:<file>`, never
+`git status`"):** an extra-caution collateral-damage pass also ran
+`ScannerShell.review.test.jsx` + `ScannerShell.metaRace.test.jsx` together and hit 4 failures
+(`getByTestId('review-charts')` — that button carries no `data-testid`). Verified via a
+detached checkout of `origin/master` **before** any of these 8 commits landed: the identical
+4 failures reproduce there too, byte-for-byte. **Pre-existing, caused by the concurrent
+session's toolbar refactor, not by Packets L–Q or this merge's conflict resolution.** Not
+fixed here — it belongs to whichever session owns that refactor.
+
+✅ **DEPLOYED TO PRODUCTION.** Pushed `merge-run` → `master` as **`96f8ea7af`**
+(`e0131604d..96f8ea7af`, 8 commits: the CLAUDE.md fix + L + M + N + the OpenFlow CSS fix + O +
+P + Q). Pre-push guard passed cleanly on the first attempt (master quiet, no settle-window
+wait needed). Railway `web` confirmed `SUCCESS` on `96f8ea7af` specifically (polled the
+deployment list tracking that exact commit SHA to a terminal state, not just any SUCCESS at
+the top of the list); verified live via `/api/health` returning `uptime_seconds: 104` on a
+fresh boot.
+
+**Member impact:** one new page (`/open-flow`, not in the sidebar), two new admin-only panels,
+one restored link, one live self-heal signal now visible on an existing chart, one new
+methodology disclosure panel on an existing page. No schema changes, no new write paths on
+five of six packets (Q's PATCH endpoint already existed and was already reachable by the
+report side — only the admin read/action side was newly wired).
