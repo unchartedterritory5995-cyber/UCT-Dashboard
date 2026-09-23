@@ -473,6 +473,66 @@ case. Compare failing test NAMES.
 
 ## NEXT, IN ORDER
 
+> ### ⛔⛔ 2026-09-23 — TWO QUEUE ROWS RE-DIAGNOSED. BOTH WERE MIS-SIZED.
+>
+> Both were investigated to a reproducible minimal case and then **NOT built**,
+> because in each the advertised fix is not the real one. Recorded so the next
+> session does not spend the same hours discovering it.
+>
+> **(1) `pine:undefined` ×10 is NOT a scoping bug, and functions ALREADY have
+> call frames.** `RUNTIME_REFUSALS['runtime:function']` still reads *"the
+> runtime has no call frames yet"* and that sentence is STALE — `fnScope`,
+> `record.frameSize`, `record.persistCount`, `callSites` and a pure/impure
+> effect classification are all live. Reduced to a minimal case:
+>
+> | | |
+> |---|---|
+> | `g(s, k) => ... s * k ...` | **OK** — a parameter in ordinary arithmetic |
+> | `g(s, len) => ta.highest(s, len)` | **REFUSED** `pine:undefined` — `len` |
+>
+> ⭐ The single gap is **a parameter used as a WINDOW LENGTH**. A ring is sized
+> before bar 0, so the length must fold to a compile-time constant;
+> `foldConstNode` folds it with `makeFrozenResolver()`, which resolves against
+> the TOP-LEVEL `env` and cannot see a parameter — so the fold throws
+> `pine:undefined` and `foldConstNode` re-throws it verbatim, deliberately
+> ("a refusal from the value lane keeps its own name").
+>
+> ⛔ **The member is therefore told their script has an undefined name, which is
+> FALSE and blames them** — the `dayofweek` defect this same file records, in a
+> different arm. A parameter IS given a value; it is given one per CALL SITE.
+>
+> ⭐ **The capability is MONOMORPHISATION, not scoping**: compile the body per
+> call site with the parameter's folded constant bound. The machinery largely
+> exists — `lowerInlineCall` already binds params as `env` macros, which is
+> exactly what makes a length foldable — but it is gated to
+> `request.security` regions today. Extending it to ordinary call sites is a
+> real compiler change and wants its own wave.
+>
+> **(2) `input.color` is NOT a one-line `producesColour` fix.** The row said
+> *"`producesColour` holds only `color.new`/`color.rgb`, so `holdsColour`
+> answers false for an `input.color` CALL"* — true, and not the blocker.
+> Measured, only ONE combination fails:
+>
+> | | |
+> |---|---|
+> | `c = input.color(…)` · `color c = input.color(…)` | **OK** |
+> | `var color c = color.new(…)` · `var color c = #FFFF00` | **OK** |
+> | `var color c = input.color(…)` | **REFUSED** |
+>
+> ⛔ Teaching `holdsColour` about `input.color` was tried and **reverted**: it
+> moves the refusal from `pine:input-kind` to `runtime:input-state` and clears
+> no script, because the runtime lane has no CONSTANT FORM for a folded colour
+> input — `input.int` folds to a number before reaching the call lowering and a
+> colour has nowhere to fold to. That is `colorInt.js` territory, which is one
+> of the primitives still parked on the (now-enforced) expiry list.
+> ⚠️ And the intermediate state is WORSE for the member: `runtime:input-state`
+> says *"an input whose DEFAULT or BOUNDS read a mutable variable"*, which is
+> false of `input.color(color.blue)`.
+>
+> ⭐ **The lesson both share:** a census row names a TOKEN; a plan row named a
+> CAUSE; neither is the fix until a minimal case reproduces it. Two rows, two
+> confident diagnoses, both wrong in the same direction — too small.
+
 > ### ⭐⭐ 2026-09-23 — THE QUEUE, RE-MEASURED AFTER `pine:block` CLOSED
 >
 > `runtime/pine:block` **13 → 4** and `runtime:statement` **17 → 16**. The
