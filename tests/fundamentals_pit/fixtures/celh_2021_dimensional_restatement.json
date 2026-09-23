@@ -1,0 +1,1430 @@
+{
+"companyfacts": {
+"cik": 1341766,
+"entityName": "CELSIUS HOLDINGS, INC.",
+"facts": {
+"us-gaap": {
+"NetIncomeLoss": {
+"units": {
+"USD": [
+{
+"start": "2020-01-01",
+"end": "2020-03-31",
+"val": 546051,
+"accn": "0001213900-20-011763",
+"fy": 2020,
+"fp": "Q1",
+"form": "10-Q",
+"filed": "2020-05-12"
+},
+{
+"start": "2020-01-01",
+"end": "2020-03-31",
+"val": 546051,
+"accn": "0001213900-20-020515",
+"fy": 2020,
+"fp": "Q2",
+"form": "10-Q",
+"filed": "2020-08-06"
+},
+{
+"start": "2020-01-01",
+"end": "2020-03-31",
+"val": 546051,
+"accn": "0001213900-20-036371",
+"fy": 2020,
+"fp": "Q3",
+"form": "10-Q",
+"filed": "2020-11-12"
+},
+{
+"start": "2020-01-01",
+"end": "2020-03-31",
+"val": 546051,
+"accn": "0001829126-21-003804",
+"fy": 2021,
+"fp": "Q1",
+"form": "10-Q",
+"filed": "2021-05-13",
+"frame": "CY2020Q1"
+},
+{
+"start": "2020-01-01",
+"end": "2020-06-30",
+"val": 2104385,
+"accn": "0001213900-20-020515",
+"fy": 2020,
+"fp": "Q2",
+"form": "10-Q",
+"filed": "2020-08-06"
+},
+{
+"start": "2020-01-01",
+"end": "2020-06-30",
+"val": 2104385,
+"accn": "0001829126-21-007909",
+"fy": 2021,
+"fp": "Q2",
+"form": "10-Q",
+"filed": "2021-08-12"
+},
+{
+"start": "2020-04-01",
+"end": "2020-06-30",
+"val": 1558334,
+"accn": "0001213900-20-020515",
+"fy": 2020,
+"fp": "Q2",
+"form": "10-Q",
+"filed": "2020-08-06"
+},
+{
+"start": "2020-04-01",
+"end": "2020-06-30",
+"val": 1558334,
+"accn": "0001213900-20-036371",
+"fy": 2020,
+"fp": "Q3",
+"form": "10-Q",
+"filed": "2020-11-12"
+},
+{
+"start": "2020-04-01",
+"end": "2020-06-30",
+"val": 1558334,
+"accn": "0001829126-21-007909",
+"fy": 2021,
+"fp": "Q2",
+"form": "10-Q",
+"filed": "2021-08-12",
+"frame": "CY2020Q2"
+},
+{
+"start": "2020-01-01",
+"end": "2020-09-30",
+"val": 6857988,
+"accn": "0001213900-20-036371",
+"fy": 2020,
+"fp": "Q3",
+"form": "10-Q",
+"filed": "2020-11-12"
+},
+{
+"start": "2020-01-01",
+"end": "2020-09-30",
+"val": 6857988,
+"accn": "0001829126-21-014180",
+"fy": 2021,
+"fp": "Q3",
+"form": "10-Q",
+"filed": "2021-11-12"
+},
+{
+"start": "2020-07-01",
+"end": "2020-09-30",
+"val": 4753603,
+"accn": "0001213900-20-036371",
+"fy": 2020,
+"fp": "Q3",
+"form": "10-Q",
+"filed": "2020-11-12"
+},
+{
+"start": "2020-07-01",
+"end": "2020-09-30",
+"val": 4753603,
+"accn": "0001829126-21-014180",
+"fy": 2021,
+"fp": "Q3",
+"form": "10-Q",
+"filed": "2021-11-12",
+"frame": "CY2020Q3"
+},
+{
+"start": "2020-01-01",
+"end": "2020-12-31",
+"val": 8523849,
+"accn": "0001829126-21-001412",
+"fy": 2020,
+"fp": "FY",
+"form": "10-K",
+"filed": "2021-03-11"
+},
+{
+"start": "2020-01-01",
+"end": "2020-12-31",
+"val": 8523849,
+"accn": "0000950170-22-003965",
+"fy": 2021,
+"fp": "FY",
+"form": "10-K",
+"filed": "2022-03-16"
+},
+{
+"start": "2020-01-01",
+"end": "2020-12-31",
+"val": 8524000,
+"accn": "0000950170-23-005612",
+"fy": 2022,
+"fp": "FY",
+"form": "10-K",
+"filed": "2023-03-01"
+},
+{
+"start": "2020-01-01",
+"end": "2020-12-31",
+"val": 8524000,
+"accn": "0001829126-23-002816",
+"fy": 2022,
+"fp": "FY",
+"form": "10-K/A",
+"filed": "2023-04-19",
+"frame": "CY2020"
+},
+{
+"start": "2021-01-01",
+"end": "2021-03-31",
+"val": 585424,
+"accn": "0001829126-21-003804",
+"fy": 2021,
+"fp": "Q1",
+"form": "10-Q",
+"filed": "2021-05-13"
+},
+{
+"start": "2021-01-01",
+"end": "2021-03-31",
+"val": 585000,
+"accn": "0000950170-22-008947",
+"fy": 2022,
+"fp": "Q1",
+"form": "10-Q",
+"filed": "2022-05-10",
+"frame": "CY2021Q1"
+},
+{
+"start": "2021-01-01",
+"end": "2021-06-30",
+"val": 4545768,
+"accn": "0001829126-21-007909",
+"fy": 2021,
+"fp": "Q2",
+"form": "10-Q",
+"filed": "2021-08-12"
+},
+{
+"start": "2021-01-01",
+"end": "2021-06-30",
+"val": 1366000,
+"accn": "0000950170-22-016034",
+"fy": 2022,
+"fp": "Q2",
+"form": "10-Q",
+"filed": "2022-08-09"
+},
+{
+"start": "2021-04-01",
+"end": "2021-06-30",
+"val": 3960344,
+"accn": "0001829126-21-007909",
+"fy": 2021,
+"fp": "Q2",
+"form": "10-Q",
+"filed": "2021-08-12"
+},
+{
+"start": "2021-04-01",
+"end": "2021-06-30",
+"val": 780000,
+"accn": "0000950170-22-016034",
+"fy": 2022,
+"fp": "Q2",
+"form": "10-Q",
+"filed": "2022-08-09",
+"frame": "CY2021Q2"
+},
+{
+"start": "2021-01-01",
+"end": "2021-09-30",
+"val": 7291559,
+"accn": "0001829126-21-014180",
+"fy": 2021,
+"fp": "Q3",
+"form": "10-Q",
+"filed": "2021-11-12"
+},
+{
+"start": "2021-01-01",
+"end": "2021-09-30",
+"val": -8005000,
+"accn": "0000950170-22-023818",
+"fy": 2022,
+"fp": "Q3",
+"form": "10-Q",
+"filed": "2022-11-09"
+},
+{
+"start": "2021-07-01",
+"end": "2021-09-30",
+"val": 2745791,
+"accn": "0001829126-21-014180",
+"fy": 2021,
+"fp": "Q3",
+"form": "10-Q",
+"filed": "2021-11-12"
+},
+{
+"start": "2021-07-01",
+"end": "2021-09-30",
+"val": -9371000,
+"accn": "0000950170-22-023818",
+"fy": 2022,
+"fp": "Q3",
+"form": "10-Q",
+"filed": "2022-11-09",
+"frame": "CY2021Q3"
+},
+{
+"start": "2021-01-01",
+"end": "2021-12-31",
+"val": 3937273,
+"accn": "0000950170-22-003965",
+"fy": 2021,
+"fp": "FY",
+"form": "10-K",
+"filed": "2022-03-16"
+},
+{
+"start": "2021-01-01",
+"end": "2021-12-31",
+"val": 3937000,
+"accn": "0000950170-23-005612",
+"fy": 2022,
+"fp": "FY",
+"form": "10-K",
+"filed": "2023-03-01"
+},
+{
+"start": "2021-01-01",
+"end": "2021-12-31",
+"val": 3937000,
+"accn": "0001829126-23-002816",
+"fy": 2022,
+"fp": "FY",
+"form": "10-K/A",
+"filed": "2023-04-19"
+},
+{
+"start": "2021-01-01",
+"end": "2021-12-31",
+"val": 3937000,
+"accn": "0001341766-24-000015",
+"fy": 2023,
+"fp": "FY",
+"form": "10-K",
+"filed": "2024-02-29"
+},
+{
+"start": "2021-01-01",
+"end": "2021-12-31",
+"val": 3937000,
+"accn": "0001193125-26-154918",
+"fy": null,
+"fp": null,
+"form": "DEF 14A",
+"filed": "2026-04-14",
+"frame": "CY2021"
+},
+{
+"start": "2022-01-01",
+"end": "2022-03-31",
+"val": 6679000,
+"accn": "0000950170-22-008947",
+"fy": 2022,
+"fp": "Q1",
+"form": "10-Q",
+"filed": "2022-05-10"
+},
+{
+"start": "2022-01-01",
+"end": "2022-03-31",
+"val": 6679000,
+"accn": "0000950170-23-019722",
+"fy": 2023,
+"fp": "Q1",
+"form": "10-Q",
+"filed": "2023-05-09",
+"frame": "CY2022Q1"
+},
+{
+"start": "2022-01-01",
+"end": "2022-06-30",
+"val": 15838000,
+"accn": "0000950170-22-016034",
+"fy": 2022,
+"fp": "Q2",
+"form": "10-Q",
+"filed": "2022-08-09"
+},
+{
+"start": "2022-01-01",
+"end": "2022-06-30",
+"val": 15838000,
+"accn": "0001341766-23-000013",
+"fy": 2023,
+"fp": "Q2",
+"form": "10-Q",
+"filed": "2023-08-08"
+},
+{
+"start": "2022-04-01",
+"end": "2022-06-30",
+"val": 9158000,
+"accn": "0000950170-22-016034",
+"fy": 2022,
+"fp": "Q2",
+"form": "10-Q",
+"filed": "2022-08-09"
+},
+{
+"start": "2022-04-01",
+"end": "2022-06-30",
+"val": 9158000,
+"accn": "0001341766-23-000013",
+"fy": 2023,
+"fp": "Q2",
+"form": "10-Q",
+"filed": "2023-08-08",
+"frame": "CY2022Q2"
+},
+{
+"start": "2022-01-01",
+"end": "2022-09-30",
+"val": -166059000,
+"accn": "0000950170-22-023818",
+"fy": 2022,
+"fp": "Q3",
+"form": "10-Q",
+"filed": "2022-11-09"
+},
+{
+"start": "2022-01-01",
+"end": "2022-09-30",
+"val": -166059000,
+"accn": "0001341766-23-000035",
+"fy": 2023,
+"fp": "Q3",
+"form": "10-Q",
+"filed": "2023-11-07"
+},
+{
+"start": "2022-07-01",
+"end": "2022-09-30",
+"val": -181896000,
+"accn": "0000950170-22-023818",
+"fy": 2022,
+"fp": "Q3",
+"form": "10-Q",
+"filed": "2022-11-09"
+},
+{
+"start": "2022-07-01",
+"end": "2022-09-30",
+"val": -181896000,
+"accn": "0001341766-23-000035",
+"fy": 2023,
+"fp": "Q3",
+"form": "10-Q",
+"filed": "2023-11-07",
+"frame": "CY2022Q3"
+},
+{
+"start": "2022-01-01",
+"end": "2022-12-31",
+"val": -187282000,
+"accn": "0000950170-23-005612",
+"fy": 2022,
+"fp": "FY",
+"form": "10-K",
+"filed": "2023-03-01"
+},
+{
+"start": "2022-01-01",
+"end": "2022-12-31",
+"val": -187282000,
+"accn": "0001829126-23-002816",
+"fy": 2022,
+"fp": "FY",
+"form": "10-K/A",
+"filed": "2023-04-19"
+},
+{
+"start": "2022-01-01",
+"end": "2022-12-31",
+"val": -187282000,
+"accn": "0001341766-24-000015",
+"fy": 2023,
+"fp": "FY",
+"form": "10-K",
+"filed": "2024-02-29"
+},
+{
+"start": "2022-01-01",
+"end": "2022-12-31",
+"val": -187282000,
+"accn": "0001341766-25-000024",
+"fy": 2024,
+"fp": "FY",
+"form": "10-K",
+"filed": "2025-03-03"
+},
+{
+"start": "2022-01-01",
+"end": "2022-12-31",
+"val": -187282000,
+"accn": "0001193125-26-154918",
+"fy": null,
+"fp": null,
+"form": "DEF 14A",
+"filed": "2026-04-14",
+"frame": "CY2022"
+}
+]
+}
+},
+"NetIncomeLossAvailableToCommonStockholdersBasic": {
+"units": {
+"USD": [
+{
+"start": "2020-01-01",
+"end": "2020-03-31",
+"val": 546051,
+"accn": "0001213900-20-011763",
+"fy": 2020,
+"fp": "Q1",
+"form": "10-Q",
+"filed": "2020-05-12",
+"frame": "CY2020Q1"
+},
+{
+"start": "2020-01-01",
+"end": "2020-06-30",
+"val": 2104385,
+"accn": "0001213900-20-020515",
+"fy": 2020,
+"fp": "Q2",
+"form": "10-Q",
+"filed": "2020-08-06"
+},
+{
+"start": "2020-04-01",
+"end": "2020-06-30",
+"val": 1558334,
+"accn": "0001213900-20-020515",
+"fy": 2020,
+"fp": "Q2",
+"form": "10-Q",
+"filed": "2020-08-06",
+"frame": "CY2020Q2"
+},
+{
+"start": "2020-01-01",
+"end": "2020-09-30",
+"val": 6857988,
+"accn": "0001213900-20-036371",
+"fy": 2020,
+"fp": "Q3",
+"form": "10-Q",
+"filed": "2020-11-12"
+},
+{
+"start": "2020-01-01",
+"end": "2020-09-30",
+"val": 6857988,
+"accn": "0001829126-21-014180",
+"fy": 2021,
+"fp": "Q3",
+"form": "10-Q",
+"filed": "2021-11-12"
+},
+{
+"start": "2020-07-01",
+"end": "2020-09-30",
+"val": 4753603,
+"accn": "0001213900-20-036371",
+"fy": 2020,
+"fp": "Q3",
+"form": "10-Q",
+"filed": "2020-11-12"
+},
+{
+"start": "2020-07-01",
+"end": "2020-09-30",
+"val": 4753603,
+"accn": "0001829126-21-014180",
+"fy": 2021,
+"fp": "Q3",
+"form": "10-Q",
+"filed": "2021-11-12",
+"frame": "CY2020Q3"
+},
+{
+"start": "2020-01-01",
+"end": "2020-12-31",
+"val": 8523849,
+"accn": "0001829126-21-001412",
+"fy": 2020,
+"fp": "FY",
+"form": "10-K",
+"filed": "2021-03-11"
+},
+{
+"start": "2020-01-01",
+"end": "2020-12-31",
+"val": 8523849,
+"accn": "0000950170-22-003965",
+"fy": 2021,
+"fp": "FY",
+"form": "10-K",
+"filed": "2022-03-16"
+},
+{
+"start": "2020-01-01",
+"end": "2020-12-31",
+"val": 8524000,
+"accn": "0000950170-23-005612",
+"fy": 2022,
+"fp": "FY",
+"form": "10-K",
+"filed": "2023-03-01"
+},
+{
+"start": "2020-01-01",
+"end": "2020-12-31",
+"val": 8524000,
+"accn": "0001829126-23-002816",
+"fy": 2022,
+"fp": "FY",
+"form": "10-K/A",
+"filed": "2023-04-19",
+"frame": "CY2020"
+},
+{
+"start": "2021-01-01",
+"end": "2021-03-31",
+"val": 585,
+"accn": "0000950170-22-008947",
+"fy": 2022,
+"fp": "Q1",
+"form": "10-Q",
+"filed": "2022-05-10",
+"frame": "CY2021Q1"
+},
+{
+"start": "2021-01-01",
+"end": "2021-06-30",
+"val": 1366000,
+"accn": "0000950170-22-016034",
+"fy": 2022,
+"fp": "Q2",
+"form": "10-Q",
+"filed": "2022-08-09"
+},
+{
+"start": "2021-04-01",
+"end": "2021-06-30",
+"val": 780000,
+"accn": "0000950170-22-016034",
+"fy": 2022,
+"fp": "Q2",
+"form": "10-Q",
+"filed": "2022-08-09",
+"frame": "CY2021Q2"
+},
+{
+"start": "2021-01-01",
+"end": "2021-09-30",
+"val": 7291559,
+"accn": "0001829126-21-014180",
+"fy": 2021,
+"fp": "Q3",
+"form": "10-Q",
+"filed": "2021-11-12"
+},
+{
+"start": "2021-01-01",
+"end": "2021-09-30",
+"val": -8005000,
+"accn": "0000950170-22-023818",
+"fy": 2022,
+"fp": "Q3",
+"form": "10-Q",
+"filed": "2022-11-09"
+},
+{
+"start": "2021-07-01",
+"end": "2021-09-30",
+"val": 2745791,
+"accn": "0001829126-21-014180",
+"fy": 2021,
+"fp": "Q3",
+"form": "10-Q",
+"filed": "2021-11-12"
+},
+{
+"start": "2021-07-01",
+"end": "2021-09-30",
+"val": -9371000,
+"accn": "0000950170-22-023818",
+"fy": 2022,
+"fp": "Q3",
+"form": "10-Q",
+"filed": "2022-11-09",
+"frame": "CY2021Q3"
+},
+{
+"start": "2021-01-01",
+"end": "2021-12-31",
+"val": 3937273,
+"accn": "0000950170-22-003965",
+"fy": 2021,
+"fp": "FY",
+"form": "10-K",
+"filed": "2022-03-16"
+},
+{
+"start": "2021-01-01",
+"end": "2021-12-31",
+"val": 3937000,
+"accn": "0000950170-23-005612",
+"fy": 2022,
+"fp": "FY",
+"form": "10-K",
+"filed": "2023-03-01"
+},
+{
+"start": "2021-01-01",
+"end": "2021-12-31",
+"val": 3937000,
+"accn": "0001829126-23-002816",
+"fy": 2022,
+"fp": "FY",
+"form": "10-K/A",
+"filed": "2023-04-19"
+},
+{
+"start": "2021-01-01",
+"end": "2021-12-31",
+"val": 3937000,
+"accn": "0001341766-24-000015",
+"fy": 2023,
+"fp": "FY",
+"form": "10-K",
+"filed": "2024-02-29",
+"frame": "CY2021"
+},
+{
+"start": "2022-01-01",
+"end": "2022-03-31",
+"val": 6679,
+"accn": "0000950170-22-008947",
+"fy": 2022,
+"fp": "Q1",
+"form": "10-Q",
+"filed": "2022-05-10"
+},
+{
+"start": "2022-01-01",
+"end": "2022-03-31",
+"val": 6679000,
+"accn": "0000950170-23-019722",
+"fy": 2023,
+"fp": "Q1",
+"form": "10-Q",
+"filed": "2023-05-09",
+"frame": "CY2022Q1"
+},
+{
+"start": "2022-01-01",
+"end": "2022-06-30",
+"val": 15838000,
+"accn": "0000950170-22-016034",
+"fy": 2022,
+"fp": "Q2",
+"form": "10-Q",
+"filed": "2022-08-09"
+},
+{
+"start": "2022-01-01",
+"end": "2022-06-30",
+"val": 15838000,
+"accn": "0001341766-23-000013",
+"fy": 2023,
+"fp": "Q2",
+"form": "10-Q",
+"filed": "2023-08-08"
+},
+{
+"start": "2022-04-01",
+"end": "2022-06-30",
+"val": 9158000,
+"accn": "0000950170-22-016034",
+"fy": 2022,
+"fp": "Q2",
+"form": "10-Q",
+"filed": "2022-08-09"
+},
+{
+"start": "2022-04-01",
+"end": "2022-06-30",
+"val": 9158000,
+"accn": "0001341766-23-000013",
+"fy": 2023,
+"fp": "Q2",
+"form": "10-Q",
+"filed": "2023-08-08",
+"frame": "CY2022Q2"
+},
+{
+"start": "2022-01-01",
+"end": "2022-09-30",
+"val": -170655000,
+"accn": "0000950170-22-023818",
+"fy": 2022,
+"fp": "Q3",
+"form": "10-Q",
+"filed": "2022-11-09"
+},
+{
+"start": "2022-01-01",
+"end": "2022-09-30",
+"val": -170655000,
+"accn": "0001341766-23-000035",
+"fy": 2023,
+"fp": "Q3",
+"form": "10-Q",
+"filed": "2023-11-07"
+},
+{
+"start": "2022-07-01",
+"end": "2022-09-30",
+"val": -186492000,
+"accn": "0000950170-22-023818",
+"fy": 2022,
+"fp": "Q3",
+"form": "10-Q",
+"filed": "2022-11-09"
+},
+{
+"start": "2022-07-01",
+"end": "2022-09-30",
+"val": -186492000,
+"accn": "0001341766-23-000035",
+"fy": 2023,
+"fp": "Q3",
+"form": "10-Q",
+"filed": "2023-11-07",
+"frame": "CY2022Q3"
+},
+{
+"start": "2022-01-01",
+"end": "2022-12-31",
+"val": -198808000,
+"accn": "0000950170-23-005612",
+"fy": 2022,
+"fp": "FY",
+"form": "10-K",
+"filed": "2023-03-01"
+},
+{
+"start": "2022-01-01",
+"end": "2022-12-31",
+"val": -198808000,
+"accn": "0001829126-23-002816",
+"fy": 2022,
+"fp": "FY",
+"form": "10-K/A",
+"filed": "2023-04-19"
+},
+{
+"start": "2022-01-01",
+"end": "2022-12-31",
+"val": -198808000,
+"accn": "0001341766-24-000015",
+"fy": 2023,
+"fp": "FY",
+"form": "10-K",
+"filed": "2024-02-29"
+},
+{
+"start": "2022-01-01",
+"end": "2022-12-31",
+"val": -198808000,
+"accn": "0001341766-25-000024",
+"fy": 2024,
+"fp": "FY",
+"form": "10-K",
+"filed": "2025-03-03",
+"frame": "CY2022"
+}
+]
+}
+},
+"Revenues": {
+"units": {
+"USD": [
+{
+"start": "2020-01-01",
+"end": "2020-03-31",
+"val": 28184889,
+"accn": "0001213900-20-011763",
+"fy": 2020,
+"fp": "Q1",
+"form": "10-Q",
+"filed": "2020-05-12"
+},
+{
+"start": "2020-01-01",
+"end": "2020-03-31",
+"val": 28184889,
+"accn": "0001829126-21-003804",
+"fy": 2021,
+"fp": "Q1",
+"form": "10-Q",
+"filed": "2021-05-13",
+"frame": "CY2020Q1"
+},
+{
+"start": "2020-01-01",
+"end": "2020-06-30",
+"val": 58222116,
+"accn": "0001213900-20-020515",
+"fy": 2020,
+"fp": "Q2",
+"form": "10-Q",
+"filed": "2020-08-06"
+},
+{
+"start": "2020-01-01",
+"end": "2020-06-30",
+"val": 58222116,
+"accn": "0001829126-21-007909",
+"fy": 2021,
+"fp": "Q2",
+"form": "10-Q",
+"filed": "2021-08-12"
+},
+{
+"start": "2020-04-01",
+"end": "2020-06-30",
+"val": 30037227,
+"accn": "0001213900-20-020515",
+"fy": 2020,
+"fp": "Q2",
+"form": "10-Q",
+"filed": "2020-08-06"
+},
+{
+"start": "2020-04-01",
+"end": "2020-06-30",
+"val": 30037227,
+"accn": "0001829126-21-007909",
+"fy": 2021,
+"fp": "Q2",
+"form": "10-Q",
+"filed": "2021-08-12",
+"frame": "CY2020Q2"
+},
+{
+"start": "2020-01-01",
+"end": "2020-09-30",
+"val": 95061265,
+"accn": "0001213900-20-036371",
+"fy": 2020,
+"fp": "Q3",
+"form": "10-Q",
+"filed": "2020-11-12"
+},
+{
+"start": "2020-01-01",
+"end": "2020-09-30",
+"val": 95061265,
+"accn": "0001829126-21-014180",
+"fy": 2021,
+"fp": "Q3",
+"form": "10-Q",
+"filed": "2021-11-12"
+},
+{
+"start": "2020-07-01",
+"end": "2020-09-30",
+"val": 36839149,
+"accn": "0001213900-20-036371",
+"fy": 2020,
+"fp": "Q3",
+"form": "10-Q",
+"filed": "2020-11-12"
+},
+{
+"start": "2020-07-01",
+"end": "2020-09-30",
+"val": 36839149,
+"accn": "0001829126-21-014180",
+"fy": 2021,
+"fp": "Q3",
+"form": "10-Q",
+"filed": "2021-11-12",
+"frame": "CY2020Q3"
+},
+{
+"start": "2020-01-01",
+"end": "2020-12-31",
+"val": 130725777,
+"accn": "0001829126-21-001412",
+"fy": 2020,
+"fp": "FY",
+"form": "10-K",
+"filed": "2021-03-11"
+},
+{
+"start": "2020-01-01",
+"end": "2020-12-31",
+"val": 130725777,
+"accn": "0000950170-22-003965",
+"fy": 2021,
+"fp": "FY",
+"form": "10-K",
+"filed": "2022-03-16"
+},
+{
+"start": "2020-01-01",
+"end": "2020-12-31",
+"val": 130726000,
+"accn": "0000950170-23-005612",
+"fy": 2022,
+"fp": "FY",
+"form": "10-K",
+"filed": "2023-03-01"
+},
+{
+"start": "2020-01-01",
+"end": "2020-12-31",
+"val": 130726000,
+"accn": "0001829126-23-002816",
+"fy": 2022,
+"fp": "FY",
+"form": "10-K/A",
+"filed": "2023-04-19",
+"frame": "CY2020"
+},
+{
+"start": "2021-01-01",
+"end": "2021-03-31",
+"val": 50034879,
+"accn": "0001829126-21-003804",
+"fy": 2021,
+"fp": "Q1",
+"form": "10-Q",
+"filed": "2021-05-13"
+},
+{
+"start": "2021-01-01",
+"end": "2021-03-31",
+"val": 50035000,
+"accn": "0000950170-22-008947",
+"fy": 2022,
+"fp": "Q1",
+"form": "10-Q",
+"filed": "2022-05-10",
+"frame": "CY2021Q1"
+},
+{
+"start": "2021-01-01",
+"end": "2021-06-30",
+"val": 115108202,
+"accn": "0001829126-21-007909",
+"fy": 2021,
+"fp": "Q2",
+"form": "10-Q",
+"filed": "2021-08-12"
+},
+{
+"start": "2021-01-01",
+"end": "2021-06-30",
+"val": 115108000,
+"accn": "0000950170-22-016034",
+"fy": 2022,
+"fp": "Q2",
+"form": "10-Q",
+"filed": "2022-08-09"
+},
+{
+"start": "2021-04-01",
+"end": "2021-06-30",
+"val": 65073323,
+"accn": "0001829126-21-007909",
+"fy": 2021,
+"fp": "Q2",
+"form": "10-Q",
+"filed": "2021-08-12"
+},
+{
+"start": "2021-04-01",
+"end": "2021-06-30",
+"val": 65073000,
+"accn": "0000950170-22-016034",
+"fy": 2022,
+"fp": "Q2",
+"form": "10-Q",
+"filed": "2022-08-09",
+"frame": "CY2021Q2"
+},
+{
+"start": "2021-01-01",
+"end": "2021-09-30",
+"val": 210017302,
+"accn": "0001829126-21-014180",
+"fy": 2021,
+"fp": "Q3",
+"form": "10-Q",
+"filed": "2021-11-12"
+},
+{
+"start": "2021-01-01",
+"end": "2021-09-30",
+"val": 210017000,
+"accn": "0000950170-22-023818",
+"fy": 2022,
+"fp": "Q3",
+"form": "10-Q",
+"filed": "2022-11-09"
+},
+{
+"start": "2021-07-01",
+"end": "2021-09-30",
+"val": 94909100,
+"accn": "0001829126-21-014180",
+"fy": 2021,
+"fp": "Q3",
+"form": "10-Q",
+"filed": "2021-11-12"
+},
+{
+"start": "2021-07-01",
+"end": "2021-09-30",
+"val": 94909000,
+"accn": "0000950170-22-023818",
+"fy": 2022,
+"fp": "Q3",
+"form": "10-Q",
+"filed": "2022-11-09",
+"frame": "CY2021Q3"
+},
+{
+"start": "2021-01-01",
+"end": "2021-12-31",
+"val": 314271559,
+"accn": "0000950170-22-003965",
+"fy": 2021,
+"fp": "FY",
+"form": "10-K",
+"filed": "2022-03-16"
+},
+{
+"start": "2021-01-01",
+"end": "2021-12-31",
+"val": 314272000,
+"accn": "0000950170-23-005612",
+"fy": 2022,
+"fp": "FY",
+"form": "10-K",
+"filed": "2023-03-01"
+},
+{
+"start": "2021-01-01",
+"end": "2021-12-31",
+"val": 314272000,
+"accn": "0001829126-23-002816",
+"fy": 2022,
+"fp": "FY",
+"form": "10-K/A",
+"filed": "2023-04-19"
+},
+{
+"start": "2021-01-01",
+"end": "2021-12-31",
+"val": 314272000,
+"accn": "0001341766-24-000015",
+"fy": 2023,
+"fp": "FY",
+"form": "10-K",
+"filed": "2024-02-29",
+"frame": "CY2021"
+},
+{
+"start": "2022-01-01",
+"end": "2022-03-31",
+"val": 133388000,
+"accn": "0000950170-22-008947",
+"fy": 2022,
+"fp": "Q1",
+"form": "10-Q",
+"filed": "2022-05-10"
+},
+{
+"start": "2022-01-01",
+"end": "2022-03-31",
+"val": 133388000,
+"accn": "0000950170-23-019722",
+"fy": 2023,
+"fp": "Q1",
+"form": "10-Q",
+"filed": "2023-05-09",
+"frame": "CY2022Q1"
+},
+{
+"start": "2022-01-01",
+"end": "2022-06-30",
+"val": 287408000,
+"accn": "0000950170-22-016034",
+"fy": 2022,
+"fp": "Q2",
+"form": "10-Q",
+"filed": "2022-08-09"
+},
+{
+"start": "2022-01-01",
+"end": "2022-06-30",
+"val": 287408000,
+"accn": "0001341766-23-000013",
+"fy": 2023,
+"fp": "Q2",
+"form": "10-Q",
+"filed": "2023-08-08"
+},
+{
+"start": "2022-04-01",
+"end": "2022-06-30",
+"val": 154020000,
+"accn": "0000950170-22-016034",
+"fy": 2022,
+"fp": "Q2",
+"form": "10-Q",
+"filed": "2022-08-09"
+},
+{
+"start": "2022-04-01",
+"end": "2022-06-30",
+"val": 154020000,
+"accn": "0001341766-23-000013",
+"fy": 2023,
+"fp": "Q2",
+"form": "10-Q",
+"filed": "2023-08-08",
+"frame": "CY2022Q2"
+},
+{
+"start": "2022-01-01",
+"end": "2022-09-30",
+"val": 475640000,
+"accn": "0000950170-22-023818",
+"fy": 2022,
+"fp": "Q3",
+"form": "10-Q",
+"filed": "2022-11-09"
+},
+{
+"start": "2022-01-01",
+"end": "2022-09-30",
+"val": 475640000,
+"accn": "0001341766-23-000035",
+"fy": 2023,
+"fp": "Q3",
+"form": "10-Q",
+"filed": "2023-11-07"
+},
+{
+"start": "2022-07-01",
+"end": "2022-09-30",
+"val": 188233000,
+"accn": "0000950170-22-023818",
+"fy": 2022,
+"fp": "Q3",
+"form": "10-Q",
+"filed": "2022-11-09"
+},
+{
+"start": "2022-07-01",
+"end": "2022-09-30",
+"val": 188233000,
+"accn": "0001341766-23-000035",
+"fy": 2023,
+"fp": "Q3",
+"form": "10-Q",
+"filed": "2023-11-07",
+"frame": "CY2022Q3"
+},
+{
+"start": "2022-01-01",
+"end": "2022-12-31",
+"val": 653604000,
+"accn": "0000950170-23-005612",
+"fy": 2022,
+"fp": "FY",
+"form": "10-K",
+"filed": "2023-03-01"
+},
+{
+"start": "2022-01-01",
+"end": "2022-12-31",
+"val": 653604000,
+"accn": "0001829126-23-002816",
+"fy": 2022,
+"fp": "FY",
+"form": "10-K/A",
+"filed": "2023-04-19"
+},
+{
+"start": "2022-01-01",
+"end": "2022-12-31",
+"val": 653604000,
+"accn": "0001341766-24-000015",
+"fy": 2023,
+"fp": "FY",
+"form": "10-K",
+"filed": "2024-02-29",
+"frame": "CY2022"
+}
+]
+}
+},
+"RevenueFromContractWithCustomerExcludingAssessedTax": {
+"units": {
+"USD": [
+{
+"start": "2022-01-01",
+"end": "2022-12-31",
+"val": 653604000,
+"accn": "0001341766-25-000024",
+"fy": 2024,
+"fp": "FY",
+"form": "10-K",
+"filed": "2025-03-03",
+"frame": "CY2022"
+}
+]
+}
+}
+}
+}
+},
+"submissions_page": {
+"accessionNumber": [
+"0001193125-26-154918",
+"0001341766-25-000024",
+"0001341766-24-000015",
+"0001341766-23-000035",
+"0001341766-23-000013",
+"0000950170-23-019722",
+"0001829126-23-002816",
+"0000950170-23-005612",
+"0000950170-22-023818",
+"0000950170-22-016034",
+"0000950170-22-008947",
+"0000950170-22-003965",
+"0001829126-21-014180",
+"0001829126-21-007909",
+"0001829126-21-003804",
+"0001829126-21-001412",
+"0001213900-20-036371",
+"0001213900-20-020515",
+"0001213900-20-011763"
+],
+"filingDate": [
+"2026-04-14",
+"2025-03-03",
+"2024-02-29",
+"2023-11-07",
+"2023-08-08",
+"2023-05-09",
+"2023-04-19",
+"2023-03-01",
+"2022-11-09",
+"2022-08-09",
+"2022-05-10",
+"2022-03-16",
+"2021-11-12",
+"2021-08-12",
+"2021-05-13",
+"2021-03-11",
+"2020-11-12",
+"2020-08-06",
+"2020-05-12"
+],
+"reportDate": [
+"2026-05-28",
+"2024-12-31",
+"2023-12-31",
+"2023-09-30",
+"2023-06-30",
+"2023-03-31",
+"2022-12-31",
+"2022-12-31",
+"2022-09-30",
+"2022-06-30",
+"2022-03-31",
+"2021-12-31",
+"2021-09-30",
+"2021-06-30",
+"2021-03-31",
+"2020-12-31",
+"2020-09-30",
+"2020-06-30",
+"2020-03-31"
+],
+"acceptanceDateTime": [
+"2026-04-14T20:15:41.000Z",
+"2025-03-03T21:02:01.000Z",
+"2024-02-29T01:59:46.000Z",
+"2023-11-07T00:14:03.000Z",
+"2023-08-08T20:07:22.000Z",
+"2023-05-09T20:22:11.000Z",
+"2023-04-19T00:39:33.000Z",
+"2023-03-01T22:16:32.000Z",
+"2022-11-09T21:01:49.000Z",
+"2022-08-09T20:06:37.000Z",
+"2022-05-10T20:03:16.000Z",
+"2022-03-16T21:16:56.000Z",
+"2021-11-12T19:57:06.000Z",
+"2021-08-12T12:17:39.000Z",
+"2021-05-13T12:15:49.000Z",
+"2021-03-11T13:40:05.000Z",
+"2020-11-12T13:27:41.000Z",
+"2020-08-06T12:30:45.000Z",
+"2020-05-12T14:47:23.000Z"
+],
+"form": [
+"DEF 14A",
+"10-K",
+"10-K",
+"10-Q",
+"10-Q",
+"10-Q",
+"10-K/A",
+"10-K",
+"10-Q",
+"10-Q",
+"10-Q",
+"10-K",
+"10-Q",
+"10-Q",
+"10-Q",
+"10-K",
+"10-Q",
+"10-Q",
+"10-Q"
+]
+},
+"fs_num_txt": "adsh\ttag\tversion\tddate\tqtrs\tuom\tsegments\tcoreg\tvalue\tfootnote\n0000950170-22-003965\tLiabilities\tus-gaap/2021\t20201231\t0\tUSD\t\t\t26962330.0000\t\n0000950170-22-003965\tDeferredTaxAssetNet\t0000950170-22-003965\t20211231\t4\tUSD\t\t\t-9019241.0000\t\n0000950170-22-003965\tAssetsCurrent\tus-gaap/2021\t20210930\t0\tUSD\tRestatement=ScenarioPreviouslyReported;\t\t252561960.0000\t\n0000950170-22-003965\tStockIssuedDuringPeriodValueStockOptionsExercised\tus-gaap/2021\t20201231\t4\tUSD\tEquityComponents=CommonStock;\t\t1316.0000\t\n0000950170-22-003965\tStockholdersEquity\tus-gaap/2021\t20191231\t0\tUSD\tEquityComponents=AccumulatedOtherComprehensiveIncome;\t\t-753520.0000\t\n0000950170-22-003965\tRevenues\tus-gaap/2021\t20201231\t4\tUSD\tGeographical=SE;IncomeStatementLocation=ForeignRevenues;\t\t23100000.0000\t\n0000950170-22-003965\tIncomeLossFromContinuingOperationsBeforeIncomeTaxesExtraordinaryItemsNoncontrollingInterest\tus-gaap/2021\t20210930\t1\tUSD\tCumulativeEffectPeriodOfAdoption=EffectsOfTheAdjustmentsOnAStandaloneQuarterBasis;Restatement=ScenarioPreviouslyReported;\t\t3579610.0000\t\n0000950170-22-003965\tIssuanceOfCommonStockPursuantToExerciseOfStockOptionsCashInShares\t0000950170-22-003965\t20211231\t4\tshares\tEquityComponents=CommonStock;\t\t972491.0000\t\n0000950170-22-003965\tGainLossOnTerminationOfLease\tus-gaap/2021\t20201231\t4\tUSD\t\t\t152112.0000\t\n0000950170-22-003965\tRevenues\tus-gaap/2021\t20201231\t4\tUSD\tGeographical=Asia;\t\t1092703.0000\t\n0000950170-22-003965\tSharesOutstanding\tus-gaap/2021\t20191231\t0\tshares\tEquityComponents=CommonStock;\t\t68941311.0000\t\n0000950170-22-003965\tPaymentsToAcquirePropertyPlantAndEquipment\tus-gaap/2021\t20211231\t4\tUSD\t\t\t3150370.0000\t\n0000950170-22-003965\tNetIncomeLoss\tus-gaap/2021\t20210630\t1\tUSD\tCumulativeEffectPeriodOfAdoption=EffectsOfTheAdjustmentsOnAStandaloneQuarterBasis;Scenario=ProForma;\t\t779991.0000\t\n0000950170-22-003965\tCostOfRevenue\tus-gaap/2021\t20201231\t4\tUSD\t\t\t69752032.0000\t\n0000950170-22-003965\tRevenues\tus-gaap/2021\t20211231\t4\tUSD\t\t\t314271559.0000\t\n0000950170-22-003965\tInventoryAllowanceForExcessAndObsoleteProducts\t0000950170-22-003965\t20201231\t4\tUSD\t\t\t-747507.0000\t\n0000950170-22-003965\tDeferredTaxLiabilitynet\t0000950170-22-003965\t20201231\t4\tUSD\t\t\t\t\n0000950170-22-003965\tIncreaseDecreaseInDeferredRevenueAndOtherCurrentLiabilities\t0000950170-22-003965\t20201231\t4\tUSD\t\t\t-96281.0000\t\n0000950170-22-003965\tStockholdersEquity\tus-gaap/2021\t20191231\t0\tUSD\tEquityComponents=AdditionalPaidInCapital;\t\t127552998.0000\t\n0000950170-22-003965\tRevenues\tus-gaap/2021\t20201231\t4\tUSD\tGeographical=Europe;\t\t33727441.0000\t\n0000950170-22-003965\tGrossProfit\tus-gaap/2021\t20201231\t4\tUSD\t\t\t60973745.0000\t\n0000950170-22-003965\tGainOnLeaseCancellations\t0000950170-22-003965\t20211231\t4\tUSD\t\t\t27917.0000\t\n0000950170-22-003965\tRetainedEarningsAccumulatedDeficit\tus-gaap/2021\t20210930\t0\tUSD\tScenario=ProForma;\t\t-63432064.0000\t\n0000950170-22-003965\tNetIncomeLoss\tus-gaap/2021\t20210630\t1\tUSD\tCumulativeEffectPeriodOfAdoption=EffectsOfTheAdjustmentsOnAYearToDateBasis;Scenario=ProForma;\t\t1365415.0000\t\n0000950170-22-003965\tGeneralAndAdministrativeExpense\tus-gaap/2021\t20210930\t1\tUSD\tCumulativeEffectPeriodOfAdoption=EffectsOfTheAdjustmentsOnAYearToDateBasis;Restatement=RestatementAdjustment;\t\t15296791.0000\t\n0000950170-22-003965\tAssets\tus-gaap/2021\t20211231\t0\tUSD\t\t\t314018428.0000\t\n0000950170-22-003965\tEarningsPerShareDiluted\tus-gaap/2021\t20210930\t1\tUSD\tCumulativeEffectPeriodOfAdoption=EffectsOfTheAdjustmentsOnAStandaloneQuarterBasis;Scenario=ProForma;\t\t-0.1200\t\n0000950170-22-003965\tOperatingIncomeLoss\tus-gaap/2021\t20210630\t1\tUSD\tCumulativeEffectPeriodOfAdoption=EffectsOfTheAdjustmentsOnAYearToDateBasis;Restatement=ScenarioPreviouslyReported;\t\t4412225.0000\t\n0000950170-22-003965\tProceedsFromStockOptionsExercised\tus-gaap/2021\t20201231\t4\tUSD\tPlanName=StockIncentivePlan2015;\t\t4126791.0000\t\n0000950170-22-003965\tOtherMiscellaneousExpense\t0000950170-22-003965\t20211231\t4\tUSD\t\t\t\t\n0000950170-22-003965\tRevenues\tus-gaap/2021\t20201231\t4\tUSD\tGeographical=NorthAmerica;\t\t95480310.0000\t\n0000950170-22-003965\tDeferredIncomeTaxAssetsNet\tus-gaap/2021\t20201231\t0\tUSD\t\t\t0.0000\t\n0000950170-22-003965\tEarningsPerShareBasic\tus-gaap/2021\t20210630\t1\tUSD\tCumulativeEffectPeriodOfAdoption=EffectsOfTheAdjustmentsOnAYearToDateBasis;Restatement=ScenarioPreviouslyReported;\t\t0.0600\t\n0000950170-22-003965\tOtherComprehensiveIncomeLossForeignCurrencyTransactionAndTranslationAdjustmentNetOfTax\tus-gaap/2021\t20201231\t4\tUSD\t\t\t551378.0000\t\n0000950170-22-003965\tGrossProfit\tus-gaap/2021\t20211231\t4\tUSD\t\t\t128168524.0000\t\n0000950170-22-003965\tInterestPaidNet\tus-gaap/2021\t20201231\t4\tUSD\t\t\t447816.0000\t\n0000950170-22-003965\tNetIncomeLoss\tus-gaap/2021\t20210930\t1\tUSD\tCumulativeEffectPeriodOfAdoption=EffectsOfTheAdjustmentsOnAStandaloneQuarterBasis;Restatement=ScenarioPreviouslyReported;\t\t2745791.0000\t\n0000950170-22-003965\tIncreaseDecreaseInPrepaidDeferredExpenseAndOtherAssets\tus-gaap/2021\t20211231\t4\tUSD\t\t\t-1071885.0000\t\n0000950170-22-003965\tIncomeLossFromContinuingOperationsBeforeIncomeTaxesExtraordinaryItemsNoncontrollingInterest\tus-gaap/2021\t20210930\t1\tUSD\tCumulativeEffectPeriodOfAdoption=EffectsOfTheAdjustmentsOnAYearToDateBasis;Scenario=ProForma;\t\t-7171413.0000\t\n0000950170-22-003965\tGainLossOnInvestments\tus-gaap/2021\t20201231\t4\tUSD\t\t\t322936.0000\t\n0000950170-22-003965\tAssetsCurrent\tus-gaap/2021\t20210630\t0\tUSD\tRestatement=ScenarioPreviouslyReported;\t\t205305787.0000\t\n0000950170-22-003965\tProfitLoss\tus-gaap/2021\t20211231\t4\tUSD\tEquityComponents=RetainedEarnings;\t\t3937273.0000\t\n0000950170-22-003965\tIncomeLossFromContinuingOperationsBeforeIncomeTaxesExtraordinaryItemsNoncontrollingInterest\tus-gaap/2021\t20210630\t1\tUSD\tCumulativeEffectPeriodOfAdoption=EffectsOfTheAdjustmentsOnAYearToDateBasis;Restatement=ScenarioPreviouslyReported;\t\t4545768.0000\t\n0000950170-22-003965\tAdjustmentsToAdditionalPaidInCapitalSharebasedCompensationRequisiteServicePeriodRecognitionValue\tus-gaap/2021\t20201231\t4\tUSD\t\t\t6340000.0000\t\n0000950170-22-003965\tStockholdersEquity\tus-gaap/2021\t20201231\t0\tUSD\tEquityComponents=AccumulatedOtherComprehensiveIncome;\t\t-202142.0000\t\n0000950170-22-003965\tAdditionalPaidInCapital\tus-gaap/2021\t20210630\t0\tUSD\tRestatement=ScenarioPreviouslyReported;\t\t237763609.0000\t\n0000950170-22-003965\tGrossProfit\tus-gaap/2021\t20210630\t1\tUSD\tCumulativeEffectPeriodOfAdoption=EffectsOfTheAdjustmentsOnAStandaloneQuarterBasis;Restatement=ScenarioPreviouslyReported;\t\t28249369.0000\t\n0000950170-22-003965\tSharesOutstanding\tus-gaap/2021\t20211231\t0\tshares\tEquityComponents=CommonStock;\t\t74908845.0000\t\n0000950170-22-003965\tCommonStockSharesAuthorized\tus-gaap/2021\t20211231\t0\tshares\t\t\t100000000.0000\t\n0000950170-22-003965\tOperatingIncomeLoss\tus-gaap/2021\t20210930\t1\tUSD\tCumulativeEffectPeriodOfAdoption=EffectsOfTheAdjustmentsOnAStandaloneQuarterBasis;Restatement=RestatementAdjustment;\t\t-12116438.0000\t\n0000950170-22-003965\tIncomeLossFromContinuingOperationsBeforeIncomeTaxesExtraordinaryItemsNoncontrollingInterest\tus-gaap/2021\t20210630\t1\tUSD\tCumulativeEffectPeriodOfAdoption=EffectsOfTheAdjustmentsOnAYearToDateBasis;Scenario=ProForma;\t\t1365415.0000\t\n0000950170-22-003965\tFinanceLeasePrincipalPayments\tus-gaap/2021\t20201231\t4\tUSD\t\t\t280208.0000\t\n0000950170-22-003965\tFinanceLeasePrincipalPayments\tus-gaap/2021\t20211231\t4\tUSD\t\t\t94102.0000\t\n0000950170-22-003965\tGrossProfit\tus-gaap/2021\t20210630\t1\tUSD\tCumulativeEffectPeriodOfAdoption=EffectsOfTheAdjustmentsOnAYearToDateBasis;Restatement=ScenarioPreviouslyReported;\t\t48828464.0000\t\n0000950170-22-003965\tNetProceedsFromCollectionOfSectionShortSwingProfit\t0000950170-22-003965\t20211231\t4\tUSD\t\t\t\t\n0000950170-22-003965\tNetCashProvidedByUsedInFinancingActivities\tus-gaap/2021\t20211231\t4\tUSD\t\t\t71395426.0000\t\n0000950170-22-003965\tAccumulatedOtherComprehensiveIncomeLossNetOfTax\tus-gaap/2021\t20201231\t0\tUSD\t\t\t-202142.0000\t\n0000950170-22-003965\tPrepaidExpenseAndOtherAssetsCurrent\tus-gaap/2021\t20211231\t0\tUSD\tBalanceSheetLocation=PrepaidExpensesAndOtherCurrentAssets;\t\t13600000.0000\t\n0000950170-22-003965\tOperatingExpenses\tus-gaap/2021\t20210630\t1\tUSD\tCumulativeEffectPeriodOfAdoption=EffectsOfTheAdjustmentsOnAYearToDateBasis;Restatement=ScenarioPreviouslyReported;\t\t44416239.0000\t\n0000950170-22-003965\tIncreaseDecreaseInAccountsReceivable\tus-gaap/2021\t20211231\t4\tUSD\t\t\t25248403.0000\t\n0000950170-22-003965\tOperatingLeaseRightOfUseAsset\tus-gaap/2021\t20211231\t0\tUSD\t\t\t1128151.0000\t\n0000950170-22-003965\tGrossProfit\tus-gaap/2021\t20210930\t1\tUSD\tCumulativeEffectPeriodOfAdoption=EffectsOfTheAdjustmentsOnAStandaloneQuarterBasis;Restatement=ScenarioPreviouslyReported;\t\t37693372.0000\t\n0000950170-22-003965\tAdditionalPaidInCapital\tus-gaap/2021\t20210930\t0\tUSD\tRestatement=ScenarioPreviouslyReported;\t\t244293710.0000\t\n0000950170-22-003965\tStockholdersEquity\tus-gaap/2021\t20211231\t0\tUSD\tEquityComponents=CommonStock;\t\t74909.0000\t\n0000950170-22-003965\tOperatingIncomeLoss\tus-gaap/2021\t20210930\t1\tUSD\tCumulativeEffectPeriodOfAdoption=EffectsOfTheAdjustmentsOnAYearToDateBasis;Scenario=ProForma;\t\t-6952286.0000\t\n0000950170-22-003965\tRetainedEarningsAccumulatedDeficit\tus-gaap/2021\t20210630\t0\tUSD\tRestatement=ScenarioPreviouslyReported;\t\t-50881064.0000\t\n0000950170-22-003965\tProceedsFromPaymentsForOtherFinancingActivities\tus-gaap/2021\t20201231\t4\tUSD\t\t\t656680.0000\t\n0000950170-22-003965\tRevenues\tus-gaap/2021\t20211231\t4\tUSD\tGeographical=NorthAmerica;\t\t273004795.0000\t\n0000950170-22-003965\tDeferredIncomeTaxAssetsNet\tus-gaap/2021\t20211231\t0\tUSD\t\t\t9019241.0000\t\n0000950170-22-003965\tAccountsPayableAndAccruedLiabilitiesCurrent\tus-gaap/2021\t20211231\t0\tUSD\t\t\t91478612.0000\t\n0000950170-22-003965\tGeneralAndAdministrativeExpense\tus-gaap/2021\t20210630\t1\tUSD\tCumulativeEffectPeriodOfAdoption=EffectsOfTheAdjustmentsOnAYearToDateBasis;Scenario=ProForma;\t\t20106551.0000\tIn order to correct previously reported share-based compensation for six- and nine- months ended June 30, 2021 and September 30, 2021, the Company is recognizing additional share-based compensation expense of $3,180,353 and $15,296,791, respectively.\n0000950170-22-003965\tIncreaseDecreaseInAccountsPayableAndAccruedLiabilities\tus-gaap/2021\t20211231\t4\tUSD\t\t\t65186015.0000\t\n0000950170-22-003965\tIncomeLossFromContinuingOperationsBeforeIncomeTaxesExtraordinaryItemsNoncontrollingInterest\tus-gaap/2021\t20210930\t1\tUSD\tCumulativeEffectPeriodOfAdoption=EffectsOfTheAdjustmentsOnAStandaloneQuarterBasis;Restatement=RestatementAdjustment;\t\t-12116438.0000\t\n0000950170-22-003965\tEarningsPerShareDiluted\tus-gaap/2021\t20210630\t1\tUSD\tCumulativeEffectPeriodOfAdoption=EffectsOfTheAdjustmentsOnAYearToDateBasis;Restatement=ScenarioPreviouslyReported;\t\t0.0600\t\n0000950170-22-003965\tSellingAndMarketingExpense\tus-gaap/2021\t20201231\t4\tUSD\t\t\t34875339.0000\t\n0000950170-22-003965\tEarningsPerShareBasic\tus-gaap/2021\t20210930\t1\tUSD\tCumulativeEffectPeriodOfAdoption=EffectsOfTheAdjustmentsOnAStandaloneQuarterBasis;Scenario=ProForma;\t\t-0.1300\t\n0000950170-22-003965\tEffectOfExchangeRateOnCashAndCashEquivalents\tus-gaap/2021\t20201231\t4\tUSD\t\t\t433507.0000\t\n0000950170-22-003965\tNetIncomeLoss\tus-gaap/2021\t20210930\t1\tUSD\tCumulativeEffectPeriodOfAdoption=EffectsOfTheAdjustmentsOnAStandaloneQuarterBasis;Scenario=ProForma;\t\t-9370647.0000\t\n0000950170-22-003965\tCashPaidForTaxesOnRestrictedStockAwards\t0000950170-22-003965\t20201231\t4\tUSD\tEquityComponents=RetainedEarnings;\t\t-541250.0000\t\n0000950170-22-003965\tEarningsPerShareDiluted\tus-gaap/2021\t20210930\t1\tUSD\tCumulativeEffectPeriodOfAdoption=EffectsOfTheAdjustmentsOnAYearToDateBasis;Restatement=ScenarioPreviouslyReported;\t\t0.0900\t\n0000950170-22-003965\tAssetsCurrent\tus-gaap/2021\t20201231\t0\tUSD\t\t\t93150665.0000\t\n0000950170-22-003965\tInventoryAllowanceForExcessAndObsoleteProducts\t0000950170-22-003965\t20211231\t4\tUSD\t\t\t-2354837.0000\t\n0000950170-22-003965\tNetIncomeLoss\tus-gaap/2021\t20201231\t4\tUSD\t\t\t8523849.0000\t\n0000950170-22-003965\tEarningsPerShareDiluted\tus-gaap/2021\t20210930\t1\tUSD\tCumulativeEffectPeriodOfAdoption=EffectsOfTheAdjustmentsOnAStandaloneQuarterBasis;Restatement=RestatementAdjustment;\t\t-0.1500\t\n0000950170-22-003965\tDeferredIncomeTaxLiabilities\tus-gaap/2021\t20201231\t0\tUSD\t\t\t\t\n0000950170-22-003965\tAssetsCurrent\tus-gaap/2021\t20210630\t0\tUSD\tScenario=ProForma;\t\t205305787.0000\t\n0000950170-22-003965\tDeferredIncomeTaxLiabilities\tus-gaap/2021\t20211231\t0\tUSD\t\t\t3146394.0000\t\n0000950170-22-003965\tEarningsPerShareBasic\tus-gaap/2021\t20210630\t1\tUSD\tCumulativeEffectPeriodOfAdoption=EffectsOfTheAdjustmentsOnAYearToDateBasis;Scenario=ProForma;\t\t0.0200\t\n0000950170-22-003965\tStockholdersEquity\tus-gaap/2021\t20191231\t0\tUSD\tEquityComponents=CommonStock;\t\t68942.0000\t\n0000950170-22-003965\tRevenues\tus-gaap/2021\t20211231\t4\tUSD\tGeographical=Asia;\t\t2538099.0000\t\n0000950170-22-003965\tProvisionForDoubtfulAccounts\tus-gaap/2021\t20211231\t4\tUSD\t\t\t1493567.0000\t\n0000950170-22-003965\tStockholdersEquity\tus-gaap/2021\t20210630\t0\tUSD\tRestatement=ScenarioPreviouslyReported;\t\t186839360.0000\t\n0000950170-22-003965\tStockholdersEquity\tus-gaap/2021\t20201231\t0\tUSD\tEquityComponents=CommonStock;\t\t72263.0000\t\n0000950170-22-003965\tFinanceLeaseLiabilityCurrent\tus-gaap/2021\t20201231\t0\tUSD\t\t\t205824.0000\t\n0000950170-22-003965\tStockholdersEquity\tus-gaap/2021\t20211231\t0\tUSD\tEquityComponents=RetainedEarnings;\t\t-51489559.0000\t\n0000950170-22-003965\tNetCashProvidedByUsedInOperatingActivities\tus-gaap/2021\t20201231\t4\tUSD\t\t\t3395084.0000\t\n0000950170-22-003965\tGoodwillImpairmentLoss\tus-gaap/2021\t20211231\t4\tUSD\t\t\t\t\n0000950170-22-003965\tStockholdersEquity\tus-gaap/2021\t20191231\t0\tUSD\tEquityComponents=RetainedEarnings;\t\t-63409431.0000\t\n0000950170-22-003965\tNonoperatingIncomeExpense\tus-gaap/2021\t20211231\t4\tUSD\t\t\t31069.0000\t\n0000950170-22-003965\tStockholdersEquity\tus-gaap/2021\t20210630\t0\tUSD\tScenario=ProForma;\t\t186839360.0000\t\n0000950170-22-003965\tLiabilitiesCurrent\tus-gaap/2021\t20210630\t0\tUSD\tScenario=ProForma;\t\t54256877.0000\t\n0000950170-22-003965\tStockholdersEquity\tus-gaap/2021\t20201231\t0\tUSD\tEquityComponents=AdditionalPaidInCapital;\t\t159884154.0000\t\n0000950170-22-003965\tDepreciation\tus-gaap/2021\t20211231\t4\tUSD\t\t\t549689.0000\t\n0000950170-22-003965\tFinanceLeaseLiabilityNoncurrent\tus-gaap/2021\t20211231\t0\tUSD\t\t\t45408.0000\t\n0000950170-22-003965\tChangeInRightToUseAndLeaseObligationnet\t0000950170-22-003965\t20201231\t4\tUSD\t\t\t150547.0000\t\n0000950170-22-003965\tOperatingExpenses\tus-gaap/2021\t20211231\t4\tUSD\t\t\t132258040.0000\t\n0000950170-22-003965\tIncomeLossFromContinuingOperationsBeforeIncomeTaxesExtraordinaryItemsNoncontrollingInterest\tus-gaap/2021\t20201231\t4\tUSD\tGeographical=ForeignCountry;\t\t529406.0000\t\n0000950170-22-003965\tInterestOnOtherObligations\t0000950170-22-003965\t20201231\t4\tUSD\t\t\t16004.0000\t\n0000950170-22-003965\tShareBasedCompensation\tus-gaap/2021\t20201231\t4\tUSD\t\t\t6340000.0000\t\n0000950170-22-003965\tIssuanceOfCommonStockFromPrivatePlacement\t0000950170-22-003965\t20201231\t4\tUSD\tEquityComponents=AdditionalPaidInCapital;\t\t21890878.0000\t\n0000950170-22-003965\tProfitLoss\tus-gaap/2021\t20201231\t4\tUSD\tEquityComponents=RetainedEarnings;\t\t8523849.0000\t\n0000950170-22-003965\tWeightedAverageNumberOfSharesOutstandingBasic\tus-gaap/2021\t20211231\t4\tshares\t\t\t73781130.0000\t\n0000950170-22-003965\tGainOnLeaseCancellations\t0000950170-22-003965\t20201231\t4\tUSD\t\t\t152112.0000\t\n0000950170-22-003965\tFinanceLeaseLiabilityNoncurrent\tus-gaap/2021\t20201231\t0\tUSD\t\t\t82290.0000\t\n0000950170-22-003965\tOperatingExpenses\tus-gaap/2021\t20210930\t1\tUSD\tCumulativeEffectPeriodOfAdoption=EffectsOfTheAdjustmentsOnAStandaloneQuarterBasis;Restatement=RestatementAdjustment;\t\t12116438.0000\t\n0000950170-22-003965\tCommonStockValue\tus-gaap/2021\t20211231\t0\tUSD\t\t\t74909.0000\t\n0000950170-22-003965\tProceedsFromPaymentsForOtherFinancingActivities\tus-gaap/2021\t20211231\t4\tUSD\t\t\t\t\n0000950170-22-003965\tEarningsPerShareDiluted\tus-gaap/2021\t20210930\t1\tUSD\tCumulativeEffectPeriodOfAdoption=EffectsOfTheAdjustmentsOnAStandaloneQuarterBasis;Restatement=ScenarioPreviouslyReported;\t\t0.0300\t\n0000950170-22-003965\tIncreaseDecreaseInAccountsPayableAndAccruedLiabilities\tus-gaap/2021\t20201231\t4\tUSD\t\t\t8120106.0000\t\n0000950170-22-003965\tLiabilities\tus-gaap/2021\t20210630\t0\tUSD\tScenario=ProForma;\t\t54708765.0000\t\n0000950170-22-003965\tAccumulatedOtherComprehensiveIncomeLossNetOfTax\tus-gaap/2021\t20211231\t0\tUSD\t\t\t613651.0000\t\n0000950170-22-003965\tLiabilitiesCurrent\tus-gaap/2021\t20210930\t0\tUSD\tRestatement=ScenarioPreviouslyReported;\t\t93421330.0000\t\n0000950170-22-003965\tStockholdersEquity\tus-gaap/2021\t20211231\t0\tUSD\tEquityComponents=AdditionalPaidInCapital;\t\t267846196.0000\t\n0000950170-22-003965\tRevenues\tus-gaap/2021\t20201231\t4\tUSD\tIncomeStatementLocation=ForeignRevenues;\t\t35200000.0000\t\n0000950170-22-003965\tCommonStockSharesOutstanding\tus-gaap/2021\t20201231\t0\tshares\t\t\t72262829.0000\t\n0000950170-22-003965\tAccountsPayableAndAccruedLiabilitiesCurrent\tus-gaap/2021\t20201231\t0\tUSD\t\t\t25412753.0000\t\n0000950170-22-003965\tOperatingExpenses\tus-gaap/2021\t20210630\t1\tUSD\tCumulativeEffectPeriodOfAdoption=EffectsOfTheAdjustmentsOnAYearToDateBasis;Restatement=RestatementAdjustment;\t\t3180353.0000\t\n0000950170-22-003965\tOperatingExpenses\tus-gaap/2021\t20210930\t1\tUSD\tCumulativeEffectPeriodOfAdoption=EffectsOfTheAdjustmentsOnAYearToDateBasis;Restatement=RestatementAdjustment;\t\t15296791.0000\t\n0000950170-22-003965\tIncomeTaxExpenseBenefit\tus-gaap/2021\t20201231\t4\tUSD\t\t\t116177.0000\t\n0000950170-22-003965\tDepositsAssets\tus-gaap/2021\t20201231\t0\tUSD\t\t\t122733.0000\t\n0000950170-22-003965\tPrepaidExpenseAndOtherAssetsCurrent\tus-gaap/2021\t20201231\t0\tUSD\tBalanceSheetLocation=PrepaidExpensesAndOtherCurrentAssets;\t\t14600000.0000\t\n0000950170-22-003965\tRetainedEarningsAccumulatedDeficit\tus-gaap/2021\t20210630\t0\tUSD\tScenario=ProForma;\t\t-54061417.0000\t\n0000950170-22-003965\tRevenues\tus-gaap/2021\t20201231\t4\tUSD\tGeographical=Other;\t\t425323.0000\t\n0000950170-22-003965\tOperatingLeaseLiabilityCurrent\tus-gaap/2021\t20201231\t0\tUSD\t\t\t321283.0000\t\n0000950170-22-003965\tEarningsPerShareDiluted\tus-gaap/2021\t20210930\t1\tUSD\tCumulativeEffectPeriodOfAdoption=EffectsOfTheAdjustmentsOnAYearToDateBasis;Restatement=RestatementAdjustment;\t\t-0.1900\t\n0000950170-22-003965\tIssuanceOfCommonStockPursuantToExerciseOfStockOptionsCashless\t0000950170-22-003965\t20211231\t4\tUSD\tEquityComponents=AdditionalPaidInCapital;\t\t-540.0000\t\n0000950170-22-003965\tAmortizationOfDiscountOnBondsPayable\t0000950170-22-003965\t20211231\t4\tUSD\t\t\t\t\n0000950170-22-003965\tLiabilities\tus-gaap/2021\t20210930\t0\tUSD\tScenario=ProForma;\t\t97579964.0000\t\n0000950170-22-003965\tGoodwillImpairmentLoss\tus-gaap/2021\t20201231\t4\tUSD\t\t\t395515.0000\t\n0000950170-22-003965\tEarningsPerShareDiluted\tus-gaap/2021\t20210630\t1\tUSD\tCumulativeEffectPeriodOfAdoption=EffectsOfTheAdjustmentsOnAStandaloneQuarterBasis;Restatement=RestatementAdjustment;\t\t-0.0400\t\n0000950170-22-003965\tIssuanceOfCommonStockPursuantToExerciseOfStockOptionsCashless\t0000950170-22-003965\t20211231\t4\tUSD\tEquityComponents=CommonStock;\t\t540.0000\t\n0000950170-22-003965\tOperatingExpenses\tus-gaap/2021\t20210930\t1\tUSD\tCumulativeEffectPeriodOfAdoption=EffectsOfTheAdjustmentsOnAStandaloneQuarterBasis;Restatement=ScenarioPreviouslyReported;\t\t33761092.0000\t\n0000950170-22-003965\tComprehensiveIncomeNetOfTax\tus-gaap/2021\t20211231\t4\tUSD\t\t\t4753066.0000\t\n0000950170-22-003965\tIncomeLossFromContinuingOperationsBeforeIncomeTaxesExtraordinaryItemsNoncontrollingInterest\tus-gaap/2021\t20211231\t4\tUSD\tGeographical=DomesticCountry;\t\t-4175915.0000\t\n0000950170-22-003965\tGainLossOnTerminationOfLease\tus-gaap/2021\t20211231\t4\tUSD\t\t\t\t\n0000950170-22-003965\tStockIssuedDuringPeriodValueStockOptionsExercised\tus-gaap/2021\t20211231\t4\tUSD\tEquityComponents=AdditionalPaidInCapital;\t\t3719168.0000\t\n0000950170-22-003965\tProceedsFromIssuanceOfCommonStock\tus-gaap/2021\t20210531\t0\tUSD\tLegalEntity=SellingStockholders;\tSellingStockholders\t375447300.0000\t\n0000950170-22-003965\tAssetsCurrent\tus-gaap/2021\t20210930\t0\tUSD\tScenario=ProForma;\t\t252561960.0000\t\n0000950170-22-003965\tGrossProfit\tus-gaap/2021\t20210630\t1\tUSD\tCumulativeEffectPeriodOfAdoption=EffectsOfTheAdjustmentsOnAStandaloneQuarterBasis;Scenario=ProForma;\t\t28249369.0000\t\n0000950170-22-003965\tForeignCurrencyTransactionGainLossBeforeTax\tus-gaap/2021\t20201231\t4\tUSD\t\t\t1375925.0000\t\n0000950170-22-003965\tDeferredTaxAssetNet\t0000950170-22-003965\t20201231\t4\tUSD\t\t\t\t\n0000950170-22-003965\tRevenues\tus-gaap/2021\t20210630\t1\tUSD\tCumulativeEffectPeriodOfAdoption=EffectsOfTheAdjustmentsOnAYearToDateBasis;Restatement=ScenarioPreviouslyReported;\t\t115108202.0000\t\n0000950170-22-003965\tOperatingExpenses\tus-gaap/2021\t20210930\t1\tUSD\tCumulativeEffectPeriodOfAdoption=EffectsOfTheAdjustmentsOnAStandaloneQuarterBasis;Scenario=ProForma;\t\t45877530.0000\t\n0000950170-22-003965\tCashPaidForTaxesOnRestrictedStockAwards\t0000950170-22-003965\t20201231\t4\tUSD\tEquityComponents=AdditionalPaidInCapital;\t\t-115430.0000\t\n0000950170-22-003965\tCommonStockParOrStatedValuePerShare\tus-gaap/2021\t20201231\t0\tUSD\t\t\t0.0010\t\n0000950170-22-003965\tAdditionalPaidInCapital\tus-gaap/2021\t20210930\t0\tUSD\tScenario=ProForma;\t\t259590501.0000\t\n0000950170-22-003965\tIncomeLossFromContinuingOperationsBeforeIncomeTaxesExtraordinaryItemsNoncontrollingInterest\tus-gaap/2021\t20210930\t1\tUSD\tCumulativeEffectPeriodOfAdoption=EffectsOfTheAdjustmentsOnAStandaloneQuarterBasis;Scenario=ProForma;\t\t-8536828.0000\t\n0000950170-22-003965\tDepositsAssets\tus-gaap/2021\t20211231\t0\tUSD\t\t\t299828.0000\t\n0000950170-22-003965\tFinanceLeaseRightOfUseAsset\tus-gaap/2021\t20211231\t0\tUSD\t\t\t85953.0000\t\n0000950170-22-003965\tProceedsFromIssuanceOfCommonStock\tus-gaap/2021\t20210531\t0\tUSD\tLegalEntity=Company;\tCompany\t67769386.0000\t\n0000950170-22-003965\tGeneralAndAdministrativeExpense\tus-gaap/2021\t20211231\t4\tUSD\t\t\t57519745.0000\t\n0000950170-22-003965\tEarningsPerShareBasic\tus-gaap/2021\t20211231\t4\tUSD\t\t\t0.0500\t\n0000950170-22-003965\tFinanceLeaseRightOfUseAsset\tus-gaap/2021\t20201231\t0\tUSD\t\t\t162119.0000\t\n0000950170-22-003965\tIssuanceOfCommonStockPursuantToExerciseOfStockOptionsCashlessInShares\t0000950170-22-003965\t20211231\t4\tshares\tEquityComponents=CommonStock;\t\t539572.0000\t\n0000950170-22-003965\tInterestOnOtherObligations\t0000950170-22-003965\t20211231\t4\tUSD\t\t\t7505.0000\t\n0000950170-22-003965\tRevenues\tus-gaap/2021\t20211231\t4\tUSD\tGeographical=SE;IncomeStatementLocation=ForeignRevenues;\t\t26900000.0000\t\n0000950170-22-003965\tNetCashProvidedByUsedInInvestingActivities\tus-gaap/2021\t20211231\t4\tUSD\t\t\t-1264646.0000\t\n0000950170-22-003965\tRevenues\tus-gaap/2021\t20211231\t4\tUSD\tGeographical=Europe;\t\t38097016.0000\t\n0000950170-22-003965\tIncomeLossFromContinuingOperationsBeforeIncomeTaxesExtraordinaryItemsNoncontrollingInterest\tus-gaap/2021\t20201231\t4\tUSD\tGeographical=DomesticCountry;\t\t8110620.0000\t\n0000950170-22-003965\tLiabilitiesAndStockholdersEquity\tus-gaap/2021\t20211231\t0\tUSD\t\t\t314018428.0000\t\n0000950170-22-003965\tEarningsPerShareDiluted\tus-gaap/2021\t20201231\t4\tUSD\t\t\t0.1100\t\n0000950170-22-003965\tEarningsPerShareBasic\tus-gaap/2021\t20210630\t1\tUSD\tCumulativeEffectPeriodOfAdoption=EffectsOfTheAdjustmentsOnAYearToDateBasis;Restatement=RestatementAdjustment;\t\t-0.0400\t\n0000950170-22-003965\tWeightedAverageNumberOfDilutedSharesOutstanding\tus-gaap/2021\t20201231\t4\tshares\t\t\t74443601.0000\t\n0000950170-22-003965\tNetIncomeLoss\tus-gaap/2021\t20210630\t1\tUSD\tCumulativeEffectPeriodOfAdoption=EffectsOfTheAdjustmentsOnAStandaloneQuarterBasis;Restatement=RestatementAdjustment;\t\t-3180353.0000\t\n0000950170-22-003965\tStockholdersEquity\tus-gaap/2021\t20201231\t0\tUSD\t\t\t104327443.0000\t\n0000950170-22-003965\tEuropeanDeferredTax\t0000950170-22-003965\t20201231\t4\tUSD\t\t\t81500.0000\t\n0000950170-22-003965\tInterestPaidNet\tus-gaap/2021\t20211231\t4\tUSD\t\t\t7431.0000\t\n0000950170-22-003965\tNotesAndLoansReceivableNetNoncurrent\tus-gaap/2021\t20211231\t0\tUSD\t\t\t7116738.0000\t\n0000950170-22-003965\tNoncashOrPartNoncashAcquisitionOtherLiabilitiesAssumed1\tus-gaap/2021\t20211231\t4\tUSD\t\t\t\t\n0000950170-22-003965\tAssets\tus-gaap/2021\t20210630\t0\tUSD\tScenario=ProForma;\t\t241548125.0000\t\n0000950170-22-003965\tShortSwingPayment\t0000950170-22-003965\t20201231\t4\tUSD\t\t\t90800.0000\t\n0000950170-22-003965\tIncreaseDecreaseInInventories\tus-gaap/2021\t20201231\t4\tUSD\t\t\t3858780.0000\t\n0000950170-22-003965\tOtherLiabilitiesCurrent\tus-gaap/2021\t20211231\t0\tUSD\t\t\t976072.0000\t\n0000950170-22-003965\tEarningsPerShareDiluted\tus-gaap/2021\t20210630\t1\tUSD\tCumulativeEffectPeriodOfAdoption=EffectsOfTheAdjustmentsOnAYearToDateBasis;Scenario=ProForma;\t\t0.0200\t\n0000950170-22-003965\tEffectOfExchangeRateOnCashAndCashEquivalents\tus-gaap/2021\t20211231\t4\tUSD\t\t\t-537769.0000\t\n0000950170-22-003965\tLiabilitiesCurrent\tus-gaap/2021\t20211231\t0\tUSD\t\t\t93123494.0000\t\n0000950170-22-003965\tCashAndCashEquivalentsAtCarryingValue\tus-gaap/2021\t20201231\t0\tUSD\t\t\t43248021.0000\t\n0000950170-22-003965\tFinanceLeaseLiabilityCurrent\tus-gaap/2021\t20211231\t0\tUSD\t\t\t157046.0000\t\n0000950170-22-003965\tIssuanceOfCommonStockPursuantToExerciseOfStockOptionsCashless\t0000950170-22-003965\t20201231\t4\tUSD\tEquityComponents=AdditionalPaidInCapital;\t\t-567.0000\t\n0000950170-22-003965\tRevenues\tus-gaap/2021\t20211231\t4\tUSD\tTypeOfArrangement=LicenseAgreement;\t\t1600000.0000\t\n0000950170-22-003965\tNetIncomeLoss\tus-gaap/2021\t20210930\t1\tUSD\tCumulativeEffectPeriodOfAdoption=EffectsOfTheAdjustmentsOnAYearToDateBasis;Restatement=ScenarioPreviouslyReported;\t\t7251559.0000\t\n0000950170-22-003965\tDeferredTaxLiabilitynet\t0000950170-22-003965\t20211231\t4\tUSD\t\t\t-182156.0000\t\n0000950170-22-003965\tIncomeLossFromContinuingOperationsBeforeIncomeTaxesExtraordinaryItemsNoncontrollingInterest\tus-gaap/2021\t20211231\t4\tUSD\tGeographical=ForeignCountry;\t\t117468.0000\t\n0000950170-22-003965\tSharesOutstanding\tus-gaap/2021\t20201231\t0\tshares\tEquityComponents=CommonStock;\t\t72262829.0000\t\n0000950170-22-003965\tOperatingIncomeLoss\tus-gaap/2021\t20210630\t1\tUSD\tCumulativeEffectPeriodOfAdoption=EffectsOfTheAdjustmentsOnAYearToDateBasis;Restatement=RestatementAdjustment;\t\t-3180353.0000\t\n0000950170-22-003965\tIncomeLossFromContinuingOperationsBeforeIncomeTaxesExtraordinaryItemsNoncontrollingInterest\tus-gaap/2021\t20210630\t1\tUSD\tCumulativeEffectPeriodOfAdoption=EffectsOfTheAdjustmentsOnAStandaloneQuarterBasis;Restatement=RestatementAdjustment;\t\t-3180353.0000\t\n0000950170-22-003965\tRevenues\tus-gaap/2021\t20211231\t4\tUSD\tIncomeStatementLocation=ForeignRevenues;\t\t41300000.0000\t\n0000950170-22-003965\tPropertyPlantAndEquipmentNet\tus-gaap/2021\t20211231\t0\tUSD\t\t\t3180058.0000\t\n0000950170-22-003965\tOtherMiscellaneousExpense\t0000950170-22-003965\t20201231\t4\tUSD\t\t\t-49100.0000\t\n0000950170-22-003965\tIncreaseDecreaseInPrepaidDeferredExpenseAndOtherAssets\tus-gaap/2021\t20201231\t4\tUSD\t\t\t10456787.0000\t\n0000950170-22-003965\tShareBasedCompensation\tus-gaap/2021\t20211231\t4\tUSD\t\t\t36475161.0000\t\n0000950170-22-003965\tStockIssuedDuringPeriodValueStockOptionsExercised\tus-gaap/2021\t20211231\t4\tUSD\tEquityComponents=CommonStock;\t\t973.0000\t\n0000950170-22-003965\tNetCashProvidedByUsedInFinancingActivities\tus-gaap/2021\t20201231\t4\tUSD\t\t\t15571488.0000\t\n0000950170-22-003965\tEarningsPerShareDiluted\tus-gaap/2021\t20210630\t1\tUSD\tCumulativeEffectPeriodOfAdoption=EffectsOfTheAdjustmentsOnAStandaloneQuarterBasis;Restatement=ScenarioPreviouslyReported;\t\t0.0500\t\n0000950170-22-003965\tRevenues\tus-gaap/2021\t20210630\t1\tUSD\tCumulativeEffectPeriodOfAdoption=EffectsOfTheAdjustmentsOnAStandaloneQuarterBasis;Restatement=ScenarioPreviouslyReported;\t\t65073323.0000\t\n0000950170-22-003965\tNetIncomeLoss\tus-gaap/2021\t20210930\t1\tUSD\tCumulativeEffectPeriodOfAdoption=EffectsOfTheAdjustmentsOnAStandaloneQuarterBasis;Restatement=RestatementAdjustment;\t\t-12116438.0000\t\n0000950170-22-003965\tShortSwingPayment\t0000950170-22-003965\t20201231\t4\tUSD\tEquityComponents=AdditionalPaidInCapital;\t\t90800.0000\t\n0000950170-22-003965\tOperatingExpenses\tus-gaap/2021\t20210930\t1\tUSD\tCumulativeEffectPeriodOfAdoption=EffectsOfTheAdjustmentsOnAYearToDateBasis;Scenario=ProForma;\t\t93474122.0000\t\n0000950170-22-003965\tOtherComprehensiveIncomeLossForeignCurrencyTransactionAndTranslationAdjustmentNetOfTax\tus-gaap/2021\t20211231\t4\tUSD\t\t\t815793.0000\t\n0000950170-22-003965\tRevenues\tus-gaap/2021\t20210930\t1\tUSD\tCumulativeEffectPeriodOfAdoption=EffectsOfTheAdjustmentsOnAStandaloneQuarterBasis;Scenario=ProForma;\t\t94909100.0000\t\n0000950170-22-003965\tCashAndCashEquivalentsAtCarryingValue\tus-gaap/2021\t20191231\t0\tUSD\t\t\t23090682.0000\t\n0000950170-22-003965\tProceedsFromSaleOfNotesReceivable\tus-gaap/2021\t20211231\t4\tUSD\t\t\t1885724.0000\t\n0000950170-22-003965\tStockholdersEquity\tus-gaap/2021\t20191231\t0\tUSD\t\t\t63458989.0000\t\n0000950170-22-003965\tEarningsPerShareBasic\tus-gaap/2021\t20210630\t1\tUSD\tCumulativeEffectPeriodOfAdoption=EffectsOfTheAdjustmentsOnAStandaloneQuarterBasis;Restatement=ScenarioPreviouslyReported;\t\t0.0500\t\n0000950170-22-003965\tEarningsPerShareBasic\tus-gaap/2021\t20210930\t1\tUSD\tCumulativeEffectPeriodOfAdoption=EffectsOfTheAdjustmentsOnAStandaloneQuarterBasis;Restatement=ScenarioPreviouslyReported;\t\t0.0400\t\n0000950170-22-003965\tOperatingIncomeLoss\tus-gaap/2021\t20210630\t1\tUSD\tCumulativeEffectPeriodOfAdoption=EffectsOfTheAdjustmentsOnAStandaloneQuarterBasis;Restatement=RestatementAdjustment;\t\t-3180353.0000\t\n0000950170-22-003965\tRevenues\tus-gaap/2021\t20210930\t1\tUSD\tCumulativeEffectPeriodOfAdoption=EffectsOfTheAdjustmentsOnAYearToDateBasis;Scenario=ProForma;\t\t210217302.0000\t\n0000950170-22-003965\tOperatingIncomeLoss\tus-gaap/2021\t20210630\t1\tUSD\tCumulativeEffectPeriodOfAdoption=EffectsOfTheAdjustmentsOnAStandaloneQuarterBasis;Restatement=ScenarioPreviouslyReported;\t\t3598849.0000\t\n0000950170-22-003965\tIncomeLossFromContinuingOperationsBeforeIncomeTaxesExtraordinaryItemsNoncontrollingInterest\tus-gaap/2021\t20210630\t1\tUSD\tCumulativeEffectPeriodOfAdoption=EffectsOfTheAdjustmentsOnAStandaloneQuarterBasis;Scenario=ProForma;\t\t779991.0000\t\n0000950170-22-003965\tProceedsFromSaleOfNotesReceivable\tus-gaap/2021\t20201231\t4\tUSD\t\t\t1331011.0000\t\n0000950170-22-003965\tRetainedEarningsAccumulatedDeficit\tus-gaap/2021\t20210930\t0\tUSD\tRestatement=ScenarioPreviouslyReported;\t\t-48135273.0000\t\n0000950170-22-003965\tAdjustmentForAmortization\tus-gaap/2021\t20201231\t4\tUSD\t\t\t1484303.0000\t\n0000950170-22-003965\tProvisionForDoubtfulAccounts\tus-gaap/2021\t20201231\t4\tUSD\t\t\t257177.0000\t\n0000950170-22-003965\tStockholdersEquity\tus-gaap/2021\t20211231\t0\tUSD\tEquityComponents=AccumulatedOtherComprehensiveIncome;\t\t613651.0000\t\n0000950170-22-003965\tGeneralAndAdministrativeExpense\tus-gaap/2021\t20201231\t4\tUSD\t\t\t18187406.0000\t\n0000950170-22-003965\tLiabilitiesAndStockholdersEquity\tus-gaap/2021\t20201231\t0\tUSD\t\t\t131289773.0000\t\n0000950170-22-003965\tNetIncomeLoss\tus-gaap/2021\t20210930\t1\tUSD\tCumulativeEffectPeriodOfAdoption=EffectsOfTheAdjustmentsOnAYearToDateBasis;Scenario=ProForma;\t\t-8005232.0000\t\n0000950170-22-003965\tAdditionalPaidInCapital\tus-gaap/2021\t20210630\t0\tUSD\tRestatement=RestatementAdjustment;\t\t3180353.0000\t\n0000950170-22-003965\tForeignCurrencyTransactionGainLossUnrealized\tus-gaap/2021\t20201231\t4\tUSD\t\t\t\t\n0000950170-22-003965\tNetIncomeLoss\tus-gaap/2021\t20210630\t1\tUSD\tCumulativeEffectPeriodOfAdoption=EffectsOfTheAdjustmentsOnAYearToDateBasis;Restatement=ScenarioPreviouslyReported;\t\t4545768.0000\t\n0000950170-22-003965\tProceedsFromStockOptionsExercised\tus-gaap/2021\t20201231\t4\tUSD\t\t\t4126791.0000\t\n0000950170-22-003965\tRevenues\tus-gaap/2021\t20201231\t4\tUSD\t\t\t130725777.0000\t\n0000950170-22-003965\tIssuanceOfCommonStockFromPrivatePlacement\t0000950170-22-003965\t20211231\t4\tUSD\tEquityComponents=CommonStock;\t\t1133.0000\t\n0000950170-22-003965\tIssuanceOfCommonStockPursuantToExerciseOfStockOptionsCashlessInShares\t0000950170-22-003965\t20201231\t4\tshares\tEquityComponents=CommonStock;\t\t567559.0000\t\n0000950170-22-003965\tProfitLoss\tus-gaap/2021\t20201231\t4\tUSD\t\t\t8523849.0000\t\n0000950170-22-003965\tCommonStockValue\tus-gaap/2021\t20201231\t0\tUSD\t\t\t72263.0000\t\n0000950170-22-003965\tGeneralAndAdministrativeExpense\tus-gaap/2021\t20210630\t1\tUSD\tCumulativeEffectPeriodOfAdoption=EffectsOfTheAdjustmentsOnAYearToDateBasis;Restatement=RestatementAdjustment;\t\t3180353.0000\t\n0000950170-22-003965\tWeightedAverageNumberOfSharesOutstandingBasic\tus-gaap/2021\t20201231\t4\tshares\t\t\t70195085.0000\t\n0000950170-22-003965\tNetIncomeLoss\tus-gaap/2021\t20210630\t1\tUSD\tCumulativeEffectPeriodOfAdoption=EffectsOfTheAdjustmentsOnAYearToDateBasis;Restatement=RestatementAdjustment;\t\t-3180353.0000\t\n0000950170-22-003965\tIssuanceOfCommonStockFromPrivatePlacement\t0000950170-22-003965\t20211231\t4\tUSD\tEquityComponents=AdditionalPaidInCapital;\t\t67768253.0000\t\n0000950170-22-003965\tEarningsPerShareBasic\tus-gaap/2021\t20210930\t1\tUSD\tCumulativeEffectPeriodOfAdoption=EffectsOfTheAdjustmentsOnAYearToDateBasis;Restatement=ScenarioPreviouslyReported;\t\t0.1000\t\n0000950170-22-003965\tStockIssuedDuringPeriodValueStockOptionsExercised\tus-gaap/2021\t20211231\t4\tUSD\t\t\t3720141.0000\t\n0000950170-22-003965\tRevenues\tus-gaap/2021\t20211231\t4\tUSD\tGeographical=Other;\t\t631649.0000\t\n0000950170-22-003965\tNoncashOrPartNoncashAcquisitionOtherLiabilitiesAssumed1\tus-gaap/2021\t20201231\t4\tUSD\t\t\t395515.0000\t\n0000950170-22-003965\tRevenues\tus-gaap/2021\t20210630\t1\tUSD\tCumulativeEffectPeriodOfAdoption=EffectsOfTheAdjustmentsOnAStandaloneQuarterBasis;Scenario=ProForma;\t\t65073323.0000\t\n0000950170-22-003965\tAmortizationOfDiscountOnBondsPayable\t0000950170-22-003965\t20201231\t4\tUSD\t\t\t-576415.0000\t\n0000950170-22-003965\tAdditionalPaidInCapital\tus-gaap/2021\t20210630\t0\tUSD\tScenario=ProForma;\t\t240943962.0000\t\n0000950170-22-003965\tOperatingIncomeLoss\tus-gaap/2021\t20210930\t1\tUSD\tCumulativeEffectPeriodOfAdoption=EffectsOfTheAdjustmentsOnAStandaloneQuarterBasis;Scenario=ProForma;\t\t-8184158.0000\t\n0000950170-22-003965\tIssuanceOfCommonStockFromPrivatePlacement\t0000950170-22-003965\t20201231\t4\tUSD\tEquityComponents=CommonStock;\t\t1438.0000\t\n0000950170-22-003965\tOperatingIncomeLoss\tus-gaap/2021\t20210630\t1\tUSD\tCumulativeEffectPeriodOfAdoption=EffectsOfTheAdjustmentsOnAStandaloneQuarterBasis;Scenario=ProForma;\t\t418496.0000\t\n0000950170-22-003965\tGainLossOnInvestments\tus-gaap/2021\t20211231\t4\tUSD\t\t\t\t\n0000950170-22-003965\tNonoperatingIncomeExpense\tus-gaap/2021\t20201231\t4\tUSD\t\t\t729026.0000\t\n0000950170-22-003965\tDepreciation\tus-gaap/2021\t20201231\t4\tUSD\t\t\t127263.0000\t\n0000950170-22-003965\tNetIncomeLoss\tus-gaap/2021\t20210930\t1\tUSD\tCumulativeEffectPeriodOfAdoption=EffectsOfTheAdjustmentsOnAYearToDateBasis;Restatement=RestatementAdjustment;\t\t-15296791.0000\t\n0000950170-22-003965\tOperatingIncomeLoss\tus-gaap/2021\t20201231\t4\tUSD\t\t\t7911000.0000\t\n0000950170-22-003965\tIssuanceOfCommonStockFromPrivatePlacementShares\t0000950170-22-003965\t20211231\t4\tshares\tEquityComponents=CommonStock;\t\t1133953.0000\t\n0000950170-22-003965\tChangeInRightToUseAndLeaseObligationnet\t0000950170-22-003965\t20211231\t4\tUSD\t\t\t28910.0000\t\n0000950170-22-003965\tNetProceedsFromCollectionOfSectionShortSwingProfit\t0000950170-22-003965\t20201231\t4\tUSD\t\t\t90800.0000\t\n0000950170-22-003965\tNotesAndLoansReceivableNetCurrent\tus-gaap/2021\t20201231\t0\tUSD\t\t\t1885887.0000\t\n0000950170-22-003965\tEarningsPerShareDiluted\tus-gaap/2021\t20211231\t4\tUSD\t\t\t0.0500\t\n0000950170-22-003965\tEarningsPerShareBasic\tus-gaap/2021\t20210930\t1\tUSD\tCumulativeEffectPeriodOfAdoption=EffectsOfTheAdjustmentsOnAYearToDateBasis;Scenario=ProForma;\t\t-0.1100\t\n0000950170-22-003965\tInterestAndDividendIncomeOperating\tus-gaap/2021\t20201231\t4\tUSD\t\t\t355821.0000\t\n0000950170-22-003965\tEarningsPerShareDiluted\tus-gaap/2021\t20210630\t1\tUSD\tCumulativeEffectPeriodOfAdoption=EffectsOfTheAdjustmentsOnAYearToDateBasis;Restatement=RestatementAdjustment;\t\t-0.0400\t\n0000950170-22-003965\tStockholdersEquity\tus-gaap/2021\t20210930\t0\tUSD\tScenario=ProForma;\t\t197398211.0000\t\n0000950170-22-003965\tCommonStockSharesIssued\tus-gaap/2021\t20201231\t0\tshares\t\t\t72262829.0000\t\n0000950170-22-003965\tOperatingIncomeLoss\tus-gaap/2021\t20210630\t1\tUSD\tCumulativeEffectPeriodOfAdoption=EffectsOfTheAdjustmentsOnAYearToDateBasis;Scenario=ProForma;\t\t1231872.0000\t\n0000950170-22-003965\tForeignCurrencyTransactionGainLossUnrealized\tus-gaap/2021\t20211231\t4\tUSD\t\t\t879846.0000\t\n0000950170-22-003965\tNetIncomeLoss\tus-gaap/2021\t20210630\t1\tUSD\tCumulativeEffectPeriodOfAdoption=EffectsOfTheAdjustmentsOnAStandaloneQuarterBasis;Restatement=ScenarioPreviouslyReported;\t\t3960344.0000\t\n0000950170-22-003965\tPrepaidExpenseAndOtherAssetsCurrent\tus-gaap/2021\t20201231\t0\tUSD\t\t\t14626922.0000\t\n0000950170-22-003965\tPaymentsToAcquirePropertyPlantAndEquipment\tus-gaap/2021\t20201231\t4\tUSD\t\t\t573751.0000\t\n0000950170-22-003965\tInventoryNet\tus-gaap/2021\t20211231\t0\tUSD\t\t\t191221851.0000\t\n0000950170-22-003965\tProfitLoss\tus-gaap/2021\t20211231\t4\tUSD\t\t\t3937273.0000\t\n0000950170-22-003965\tIssuanceOfCommonStockPursuantToExerciseOfStockOptionsCashless\t0000950170-22-003965\t20201231\t4\tUSD\tEquityComponents=CommonStock;\t\t567.0000\t\n0000950170-22-003965\tLiabilitiesCurrent\tus-gaap/2021\t20210630\t0\tUSD\tRestatement=ScenarioPreviouslyReported;\t\t54256877.0000\t\n0000950170-22-003965\tOperatingLeaseLiabilityCurrent\tus-gaap/2021\t20211231\t0\tUSD\t\t\t511764.0000\t\n0000950170-22-003965\tEarningsPerShareBasic\tus-gaap/2021\t20210930\t1\tUSD\tCumulativeEffectPeriodOfAdoption=EffectsOfTheAdjustmentsOnAStandaloneQuarterBasis;Restatement=RestatementAdjustment;\t\t-0.1700\t\n0000950170-22-003965\tRevenues\tus-gaap/2021\t20210930\t1\tUSD\tCumulativeEffectPeriodOfAdoption=EffectsOfTheAdjustmentsOnAStandaloneQuarterBasis;Restatement=ScenarioPreviouslyReported;\t\t94909100.0000\t\n0000950170-22-003965\tIncomeLossFromContinuingOperationsBeforeIncomeTaxesExtraordinaryItemsNoncontrollingInterest\tus-gaap/2021\t20201231\t4\tUSD\t\t\t8640026.0000\t\n0000950170-22-003965\tRetainedEarningsAccumulatedDeficit\tus-gaap/2021\t20210930\t0\tUSD\tRestatement=RestatementAdjustment;\t\t-15296791.0000\t\n0000950170-22-003965\tPrepaidExpenseAndOtherAssetsCurrent\tus-gaap/2021\t20211231\t0\tUSD\t\t\t13555037.0000\t\n0000950170-22-003965\tAdjustmentsToAdditionalPaidInCapitalSharebasedCompensationRequisiteServicePeriodRecognitionValue\tus-gaap/2021\t20201231\t4\tUSD\tEquityComponents=AdditionalPaidInCapital;\t\t6340000.0000\t\n0000950170-22-003965\tGrossProfit\tus-gaap/2021\t20210930\t1\tUSD\tCumulativeEffectPeriodOfAdoption=EffectsOfTheAdjustmentsOnAStandaloneQuarterBasis;Scenario=ProForma;\t\t37693372.0000\t\n0000950170-22-003965\tNotesAndLoansReceivableNetNoncurrent\tus-gaap/2021\t20201231\t0\tUSD\t\t\t9429437.0000\t\n0000950170-22-003965\tGeneralAndAdministrativeExpense\tus-gaap/2021\t20210630\t1\tUSD\tCumulativeEffectPeriodOfAdoption=EffectsOfTheAdjustmentsOnAYearToDateBasis;Restatement=ScenarioPreviouslyReported;\t\t16926198.0000\t\n0000950170-22-003965\tIssuanceOfCommonStockPursuantToExerciseOfStockOptionsCashInShares\t0000950170-22-003965\t20201231\t4\tshares\tEquityComponents=CommonStock;\t\t1316050.0000\t\n0000950170-22-003965\tGeneralAndAdministrativeExpense\tus-gaap/2021\t20210630\t1\tUSD\tCumulativeEffectPeriodOfAdoption=EffectsOfTheAdjustmentsOnAStandaloneQuarterBasis;Restatement=RestatementAdjustment;\t\t3180353.0000\tIn order to correct previously reported share-based compensation for three-months ended June 30, 2021 and September 30, 2021, the Company is recognizing additional share-based compensation expense of $3,180,353 and $12,116,438, respectively.\n0000950170-22-003965\tGeneralAndAdministrativeExpense\tus-gaap/2021\t20210630\t1\tUSD\tCumulativeEffectPeriodOfAdoption=EffectsOfTheAdjustmentsOnAStandaloneQuarterBasis;Scenario=ProForma;\t\t12299885.0000\t\n0000950170-22-003965\tOperatingLeaseLiabilityNoncurrent\tus-gaap/2021\t20201231\t0\tUSD\t\t\t514948.0000\t\n0000950170-22-003965\tComprehensiveIncomeNetOfTax\tus-gaap/2021\t20201231\t4\tUSD\t\t\t9075227.0000\t\n0000950170-22-003965\tProceedsFromIssuanceOfCommonStock\tus-gaap/2021\t20211231\t4\tUSD\t\t\t\t\n0000950170-22-003965\tOperatingExpenses\tus-gaap/2021\t20210630\t1\tUSD\tCumulativeEffectPeriodOfAdoption=EffectsOfTheAdjustmentsOnAStandaloneQuarterBasis;Restatement=RestatementAdjustment;\t\t3180353.0000\t\n0000950170-22-003965\tPaymentsOnBondsPayable\t0000950170-22-003965\t20201231\t4\tUSD\t\t\t9601531.0000\t\n0000950170-22-003965\tCommonStockSharesOutstanding\tus-gaap/2021\t20211231\t0\tshares\t\t\t74908845.0000\t\n0000950170-22-003965\tIncreaseDecreaseInInventories\tus-gaap/2021\t20211231\t4\tUSD\t\t\t175173066.0000\t\n0000950170-22-003965\tProceedsFromStockOptionsExercised\tus-gaap/2021\t20211231\t4\tUSD\t\t\t3720141.0000\t\n0000950170-22-003965\tProceedsFromStockOptionsExercised\tus-gaap/2021\t20211231\t4\tUSD\tPlanName=StockIncentivePlan2015;\t\t3700000.0000\t\n0000950170-22-003965\tAdditionalPaidInCapital\tus-gaap/2021\t20210930\t0\tUSD\tRestatement=RestatementAdjustment;\t\t15296791.0000\t\n0000950170-22-003965\tGeneralAndAdministrativeExpense\tus-gaap/2021\t20210930\t1\tUSD\tCumulativeEffectPeriodOfAdoption=EffectsOfTheAdjustmentsOnAYearToDateBasis;Scenario=ProForma;\t\t43363019.0000\t\n0000950170-22-003965\tAssetsCurrent\tus-gaap/2021\t20211231\t0\tUSD\t\t\t262360550.0000\t\n0000950170-22-003965\tAssets\tus-gaap/2021\t20210930\t0\tUSD\tScenario=ProForma;\t\t294978175.0000\t\n0000950170-22-003965\tEarningsPerShareBasic\tus-gaap/2021\t20210930\t1\tUSD\tCumulativeEffectPeriodOfAdoption=EffectsOfTheAdjustmentsOnAYearToDateBasis;Restatement=RestatementAdjustment;\t\t-0.2100\t\n0000950170-22-003965\tNetCashProvidedByUsedInOperatingActivities\tus-gaap/2021\t20211231\t4\tUSD\t\t\t-96586324.0000\t\n0000950170-22-003965\tGrossProfit\tus-gaap/2021\t20210630\t1\tUSD\tCumulativeEffectPeriodOfAdoption=EffectsOfTheAdjustmentsOnAYearToDateBasis;Scenario=ProForma;\t\t48828464.0000\t\n0000950170-22-003965\tInterestExpenseSubordinatedNotesAndDebentures\tus-gaap/2021\t20211231\t4\tUSD\t\t\t0.0000\t\n0000950170-22-003965\tCommonStockSharesIssued\tus-gaap/2021\t20211231\t0\tshares\t\t\t74908845.0000\t\n0000950170-22-003965\tEarningsPerShareDiluted\tus-gaap/2021\t20210630\t1\tUSD\tCumulativeEffectPeriodOfAdoption=EffectsOfTheAdjustmentsOnAStandaloneQuarterBasis;Scenario=ProForma;\t\t0.0100\t\n0000950170-22-003965\tOperatingIncomeLoss\tus-gaap/2021\t20210930\t1\tUSD\tCumulativeEffectPeriodOfAdoption=EffectsOfTheAdjustmentsOnAStandaloneQuarterBasis;Restatement=ScenarioPreviouslyReported;\t\t3932280.0000\t\n0000950170-22-003965\tRetainedEarningsAccumulatedDeficit\tus-gaap/2021\t20210630\t0\tUSD\tRestatement=RestatementAdjustment;\t\t-3180353.0000\t\n0000950170-22-003965\tEarningsPerShareDiluted\tus-gaap/2021\t20210930\t1\tUSD\tCumulativeEffectPeriodOfAdoption=EffectsOfTheAdjustmentsOnAYearToDateBasis;Scenario=ProForma;\t\t-0.1000\t\n0000950170-22-003965\tPaymentsOnBondsPayable\t0000950170-22-003965\t20211231\t4\tUSD\t\t\t\t\n0000950170-22-003965\tRetainedEarningsAccumulatedDeficit\tus-gaap/2021\t20201231\t0\tUSD\t\t\t-55426832.0000\t\n0000950170-22-003965\tAdditionalPaidInCapital\tus-gaap/2021\t20211231\t0\tUSD\t\t\t267846196.0000\t\n0000950170-22-003965\tLiabilitiesCurrent\tus-gaap/2021\t20210930\t0\tUSD\tScenario=ProForma;\t\t93421330.0000\t\n0000950170-22-003965\tRevenues\tus-gaap/2021\t20210630\t1\tUSD\tCumulativeEffectPeriodOfAdoption=EffectsOfTheAdjustmentsOnAYearToDateBasis;Scenario=ProForma;\t\t115108202.0000\t\n0000950170-22-003965\tAdjustmentForAmortization\tus-gaap/2021\t20211231\t4\tUSD\t\t\t713532.0000\t\n0000950170-22-003965\tIncreaseDecreaseInAccountsReceivable\tus-gaap/2021\t20201231\t4\tUSD\t\t\t7468772.0000\t\n0000950170-22-003965\tInterestAndDividendIncomeOperating\tus-gaap/2021\t20211231\t4\tUSD\t\t\t314833.0000\t\n0000950170-22-003965\tInventoryNet\tus-gaap/2021\t20201231\t0\tUSD\t\t\t18403622.0000\t\n0000950170-22-003965\tIssuanceOfCommonStockFromPrivatePlacement\t0000950170-22-003965\t20211231\t4\tUSD\t\t\t67769386.0000\t\n0000950170-22-003965\tIncomeLossFromContinuingOperationsBeforeIncomeTaxesExtraordinaryItemsNoncontrollingInterest\tus-gaap/2021\t20210630\t1\tUSD\tCumulativeEffectPeriodOfAdoption=EffectsOfTheAdjustmentsOnAStandaloneQuarterBasis;Restatement=ScenarioPreviouslyReported;\t\t3960344.0000\t\n0000950170-22-003965\tIncomeTaxExpenseBenefit\tus-gaap/2021\t20211231\t4\tUSD\t\t\t-7995720.0000\t\n0000950170-22-003965\tGoodwill\tus-gaap/2021\t20201231\t0\tUSD\t\t\t10419321.0000\t\n0000950170-22-003965\tProceedsFromIssuanceOfCommonStock\tus-gaap/2021\t20201231\t4\tUSD\t\t\t21892316.0000\t\n0000950170-22-003965\tCashPaidForTaxesOnRestrictedStockAwards\t0000950170-22-003965\t20201231\t4\tUSD\t\t\t-656680.0000\t\n0000950170-22-003965\tRetainedEarningsAccumulatedDeficit\tus-gaap/2021\t20211231\t0\tUSD\t\t\t-51489559.0000\t\n0000950170-22-003965\tNotesAndLoansReceivableNetCurrent\tus-gaap/2021\t20211231\t0\tUSD\t\t\t2587905.0000\t\n0000950170-22-003965\tGeneralAndAdministrativeExpense\tus-gaap/2021\t20210930\t1\tUSD\tCumulativeEffectPeriodOfAdoption=EffectsOfTheAdjustmentsOnAStandaloneQuarterBasis;Restatement=RestatementAdjustment;\t\t12116438.0000\t\n0000950170-22-003965\tLiabilities\tus-gaap/2021\t20211231\t0\tUSD\t\t\t96973231.0000\t\n0000950170-22-003965\tTemporaryEquityForeignCurrencyTranslationAdjustments\tus-gaap/2021\t20211231\t4\tUSD\tEquityComponents=AccumulatedOtherComprehensiveIncome;\t\t815793.0000\t\n0000950170-22-003965\tAccountsReceivableNetCurrent\tus-gaap/2021\t20211231\t0\tUSD\t\t\t38741049.0000\t\n0000950170-22-003965\tAssets\tus-gaap/2021\t20210930\t0\tUSD\tRestatement=ScenarioPreviouslyReported;\t\t294978175.0000\t\n0000950170-22-003965\tOperatingExpenses\tus-gaap/2021\t20210630\t1\tUSD\tCumulativeEffectPeriodOfAdoption=EffectsOfTheAdjustmentsOnAStandaloneQuarterBasis;Restatement=ScenarioPreviouslyReported;\t\t24650520.0000\t\n0000950170-22-003965\tPropertyPlantAndEquipmentNet\tus-gaap/2021\t20201231\t0\tUSD\t\t\t579377.0000\t\n0000950170-22-003965\tStockholdersEquity\tus-gaap/2021\t20210930\t0\tUSD\tRestatement=ScenarioPreviouslyReported;\t\t197398211.0000\t\n0000950170-22-003965\tSellingAndMarketingExpense\tus-gaap/2021\t20211231\t4\tUSD\t\t\t74738295.0000\t\n0000950170-22-003965\tGeneralAndAdministrativeExpense\tus-gaap/2021\t20210930\t1\tUSD\tCumulativeEffectPeriodOfAdoption=EffectsOfTheAdjustmentsOnAYearToDateBasis;Restatement=ScenarioPreviouslyReported;\t\t28066228.0000\t\n0000950170-22-003965\tGeneralAndAdministrativeExpense\tus-gaap/2021\t20210630\t1\tUSD\tCumulativeEffectPeriodOfAdoption=EffectsOfTheAdjustmentsOnAStandaloneQuarterBasis;Restatement=ScenarioPreviouslyReported;\t\t9119532.0000\t\n0000950170-22-003965\tIssuanceOfCommonStockFromPrivatePlacement\t0000950170-22-003965\t20201231\t4\tUSD\t\t\t21892316.0000\t\n0000950170-22-003965\tOperatingExpenses\tus-gaap/2021\t20210630\t1\tUSD\tCumulativeEffectPeriodOfAdoption=EffectsOfTheAdjustmentsOnAStandaloneQuarterBasis;Scenario=ProForma;\t\t27830873.0000\t\n0000950170-22-003965\tStockholdersEquity\tus-gaap/2021\t20201231\t0\tUSD\tEquityComponents=RetainedEarnings;\t\t-55426832.0000\t\n0000950170-22-003965\tInterestExpenseSubordinatedNotesAndDebentures\tus-gaap/2021\t20201231\t4\tUSD\t\t\t431813.0000\t\n0000950170-22-003965\tIncomeLossFromContinuingOperationsBeforeIncomeTaxesExtraordinaryItemsNoncontrollingInterest\tus-gaap/2021\t20211231\t4\tUSD\t\t\t-4058447.0000\t\n0000950170-22-003965\tTemporaryEquityForeignCurrencyTranslationAdjustments\tus-gaap/2021\t20201231\t4\tUSD\t\t\t551378.0000\t\n0000950170-22-003965\tGrossProfit\tus-gaap/2021\t20210930\t1\tUSD\tCumulativeEffectPeriodOfAdoption=EffectsOfTheAdjustmentsOnAYearToDateBasis;Restatement=ScenarioPreviouslyReported;\t\t123495466.0000\t\n0000950170-22-003965\tEarningsPerShareBasic\tus-gaap/2021\t20201231\t4\tUSD\t\t\t0.1200\t\n0000950170-22-003965\tAccountsReceivableNetCurrent\tus-gaap/2021\t20201231\t0\tUSD\t\t\t14986213.0000\t\n0000950170-22-003965\tCashAndCashEquivalentsAtCarryingValue\tus-gaap/2021\t20211231\t0\tUSD\t\t\t16254708.0000\t\n0000950170-22-003965\tOtherLiabilitiesCurrent\tus-gaap/2021\t20201231\t0\tUSD\t\t\t425232.0000\t\n0000950170-22-003965\tIncomeLossFromContinuingOperationsBeforeIncomeTaxesExtraordinaryItemsNoncontrollingInterest\tus-gaap/2021\t20210930\t1\tUSD\tCumulativeEffectPeriodOfAdoption=EffectsOfTheAdjustmentsOnAYearToDateBasis;Restatement=ScenarioPreviouslyReported;\t\t8215378.0000\t\n0000950170-22-003965\tEuropeanDeferredTax\t0000950170-22-003965\t20211231\t4\tUSD\t\t\t\t\n0000950170-22-003965\tOperatingIncomeLoss\tus-gaap/2021\t20211231\t4\tUSD\t\t\t-4089516.0000\t\n0000950170-22-003965\tLiabilitiesCurrent\tus-gaap/2021\t20201231\t0\tUSD\t\t\t26365092.0000\t\n0000950170-22-003965\tIncomeLossFromContinuingOperationsBeforeIncomeTaxesExtraordinaryItemsNoncontrollingInterest\tus-gaap/2021\t20210930\t1\tUSD\tCumulativeEffectPeriodOfAdoption=EffectsOfTheAdjustmentsOnAYearToDateBasis;Restatement=RestatementAdjustment;\t\t-15296791.0000\t\n0000950170-22-003965\tIssuanceOfCommonStockFromPrivatePlacementShares\t0000950170-22-003965\t20201231\t4\tshares\tEquityComponents=CommonStock;\t\t1437909.0000\t\n0000950170-22-003965\tOperatingExpenses\tus-gaap/2021\t20201231\t4\tUSD\t\t\t53062745.0000\t\n0000950170-22-003965\tNetCashProvidedByUsedInInvestingActivities\tus-gaap/2021\t20201231\t4\tUSD\t\t\t757260.0000\t\n0000950170-22-003965\tCommonStockSharesAuthorized\tus-gaap/2021\t20201231\t0\tshares\t\t\t100000000.0000\t\n0000950170-22-003965\tOperatingExpenses\tus-gaap/2021\t20210930\t1\tUSD\tCumulativeEffectPeriodOfAdoption=EffectsOfTheAdjustmentsOnAYearToDateBasis;Restatement=ScenarioPreviouslyReported;\t\t78177331.0000\t\n0000950170-22-003965\tCostOfRevenue\tus-gaap/2021\t20211231\t4\tUSD\t\t\t186103035.0000\t\n0000950170-22-003965\tIncreaseDecreaseInDeferredRevenueAndOtherCurrentLiabilities\t0000950170-22-003965\t20211231\t4\tUSD\t\t\t373744.0000\t\n0000950170-22-003965\tIncomeLossFromContinuingOperationsBeforeIncomeTaxesExtraordinaryItemsNoncontrollingInterest\tus-gaap/2021\t20210630\t1\tUSD\tCumulativeEffectPeriodOfAdoption=EffectsOfTheAdjustmentsOnAYearToDateBasis;Restatement=RestatementAdjustment;\t\t-3180353.0000\t\n0000950170-22-003965\tAdjustmentsToAdditionalPaidInCapitalSharebasedCompensationRequisiteServicePeriodRecognitionValue\tus-gaap/2021\t20211231\t4\tUSD\t\t\t36475161.0000\t\n0000950170-22-003965\tGeneralAndAdministrativeExpense\tus-gaap/2021\t20210930\t1\tUSD\tCumulativeEffectPeriodOfAdoption=EffectsOfTheAdjustmentsOnAStandaloneQuarterBasis;Scenario=ProForma;\t\t23256468.0000\t\n0000950170-22-003965\tIntangibleAssetsNetExcludingGoodwill\tus-gaap/2021\t20211231\t0\tUSD\t\t\t16301326.0000\t\n0000950170-22-003965\tGoodwill\tus-gaap/2021\t20211231\t0\tUSD\t\t\t14526583.0000\t\n0000950170-22-003965\tAssets\tus-gaap/2021\t20201231\t0\tUSD\t\t\t131289773.0000\t\n0000950170-22-003965\tEarningsPerShareBasic\tus-gaap/2021\t20210630\t1\tUSD\tCumulativeEffectPeriodOfAdoption=EffectsOfTheAdjustmentsOnAStandaloneQuarterBasis;Scenario=ProForma;\t\t0.0100\t\n0000950170-22-003965\tCashCashEquivalentsRestrictedCashAndRestrictedCashEquivalentsPeriodIncreaseDecreaseIncludingExchangeRateEffect\tus-gaap/2021\t20201231\t4\tUSD\t\t\t20157339.0000\t\n0000950170-22-003965\tCashCashEquivalentsRestrictedCashAndRestrictedCashEquivalentsPeriodIncreaseDecreaseIncludingExchangeRateEffect\tus-gaap/2021\t20211231\t4\tUSD\t\t\t-26993313.0000\t\n0000950170-22-003965\tTemporaryEquityForeignCurrencyTranslationAdjustments\tus-gaap/2021\t20211231\t4\tUSD\t\t\t815793.0000\t\n0000950170-22-003965\tAssets\tus-gaap/2021\t20210630\t0\tUSD\tRestatement=ScenarioPreviouslyReported;\t\t241548125.0000\t\n0000950170-22-003965\tStockholdersEquity\tus-gaap/2021\t20211231\t0\tUSD\t\t\t217045197.0000\t\n0000950170-22-003965\tRevenues\tus-gaap/2021\t20210930\t1\tUSD\tCumulativeEffectPeriodOfAdoption=EffectsOfTheAdjustmentsOnAYearToDateBasis;Restatement=ScenarioPreviouslyReported;\t\t210217302.0000\t\n0000950170-22-003965\tGrossProfit\tus-gaap/2021\t20210930\t1\tUSD\tCumulativeEffectPeriodOfAdoption=EffectsOfTheAdjustmentsOnAYearToDateBasis;Scenario=ProForma;\t\t123495466.0000\t\n0000950170-22-003965\tWeightedAverageNumberOfDilutedSharesOutstanding\tus-gaap/2021\t20211231\t4\tshares\t\t\t77688501.0000\t\n0000950170-22-003965\tEarningsPerShareBasic\tus-gaap/2021\t20210630\t1\tUSD\tCumulativeEffectPeriodOfAdoption=EffectsOfTheAdjustmentsOnAStandaloneQuarterBasis;Restatement=RestatementAdjustment;\t\t-0.0400\t\n0000950170-22-003965\tGeneralAndAdministrativeExpense\tus-gaap/2021\t20210930\t1\tUSD\tCumulativeEffectPeriodOfAdoption=EffectsOfTheAdjustmentsOnAStandaloneQuarterBasis;Restatement=ScenarioPreviouslyReported;\t\t11140030.0000\t\n0000950170-22-003965\tOperatingLeaseRightOfUseAsset\tus-gaap/2021\t20201231\t0\tUSD\t\t\t836038.0000\t\n0000950170-22-003965\tStockIssuedDuringPeriodValueStockOptionsExercised\tus-gaap/2021\t20201231\t4\tUSD\t\t\t4126791.0000\t\n0000950170-22-003965\tLiabilities\tus-gaap/2021\t20210630\t0\tUSD\tRestatement=ScenarioPreviouslyReported;\t\t54708765.0000\t\n0000950170-22-003965\tOperatingExpenses\tus-gaap/2021\t20210630\t1\tUSD\tCumulativeEffectPeriodOfAdoption=EffectsOfTheAdjustmentsOnAYearToDateBasis;Scenario=ProForma;\t\t47596592.0000\t\n0000950170-22-003965\tOperatingIncomeLoss\tus-gaap/2021\t20210930\t1\tUSD\tCumulativeEffectPeriodOfAdoption=EffectsOfTheAdjustmentsOnAYearToDateBasis;Restatement=ScenarioPreviouslyReported;\t\t8344505.0000\t\n0000950170-22-003965\tRevenues\tus-gaap/2021\t20201231\t4\tUSD\tTypeOfArrangement=LicenseAgreement;\t\t800000.0000\t\n0000950170-22-003965\tLiabilities\tus-gaap/2021\t20210930\t0\tUSD\tRestatement=ScenarioPreviouslyReported;\t\t97579964.0000\t\n0000950170-22-003965\tAdditionalPaidInCapital\tus-gaap/2021\t20201231\t0\tUSD\t\t\t159884154.0000\t\n0000950170-22-003965\tNetIncomeLoss\tus-gaap/2021\t20211231\t4\tUSD\t\t\t3937273.0000\t\n0000950170-22-003965\tIntangibleAssetsNetExcludingGoodwill\tus-gaap/2021\t20201231\t0\tUSD\t\t\t16590083.0000\t\n0000950170-22-003965\tOperatingLeaseLiabilityNoncurrent\tus-gaap/2021\t20211231\t0\tUSD\t\t\t657935.0000\t\n0000950170-22-003965\tCommonStockParOrStatedValuePerShare\tus-gaap/2021\t20211231\t0\tUSD\t\t\t0.0010\t\n0000950170-22-003965\tForeignCurrencyTransactionGainLossBeforeTax\tus-gaap/2021\t20211231\t4\tUSD\t\t\t-276259.0000\t\n0000950170-22-003965\tAdjustmentsToAdditionalPaidInCapitalSharebasedCompensationRequisiteServicePeriodRecognitionValue\tus-gaap/2021\t20211231\t4\tUSD\tEquityComponents=AdditionalPaidInCapital;\t\t36475161.0000\t\n0000950170-22-003965\tStockIssuedDuringPeriodValueStockOptionsExercised\tus-gaap/2021\t20201231\t4\tUSD\tEquityComponents=AdditionalPaidInCapital;\t\t4125475.0000\t\n0000950170-22-003965\tOperatingIncomeLoss\tus-gaap/2021\t20210930\t1\tUSD\tCumulativeEffectPeriodOfAdoption=EffectsOfTheAdjustmentsOnAYearToDateBasis;Restatement=RestatementAdjustment;\t\t-15296791.0000\t\n0000950170-22-003965\tTemporaryEquityForeignCurrencyTranslationAdjustments\tus-gaap/2021\t20201231\t4\tUSD\tEquityComponents=AccumulatedOtherComprehensiveIncome;\t\t551378.0000\t\n0000950170-22-003965\tCashPaidForTaxesOnRestrictedStockAwards\t0000950170-22-003965\t20201031\t0\tUSD\tTitleOfIndividual=ChiefExecutiveOfficer;\t\t656680.0000\t\n",
+"source": "data.sec.gov companyfacts+submissions for CELH (2026-09-22) trimmed to net income/revenue tags, periods 2020-2022; fs_num_txt = every num.txt row of the FY2021 10-K 0000950170-22-003965 from the SEC Financial Statement Data Set 2022q1"
+}

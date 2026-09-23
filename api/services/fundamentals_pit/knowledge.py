@@ -79,6 +79,20 @@ def is_material(a: float, b: float) -> bool:
     return m > 0 and abs(a - b) / m > MATERIALITY
 
 
+def is_scale_error(prev: float, new: float) -> bool:
+    """A value re-reported at 1/1,000 or 1/1,000,000 (or x1,000 / x1,000,000)
+    of the previous one, equal after rounding, is a SCALE TAGGING ERROR (the
+    filer tagged "in thousands" numbers without the scale). MEASURED: CELH's
+    May 2022 10-Q re-reported Q1 2021 net income available to common as 585.0
+    where every other filing says 585,424; taken as a restatement it opened an
+    epoch that voided the correct FY2021 value."""
+    if prev == 0 or new == 0 or (prev > 0) != (new > 0) or prev == new:
+        return False
+    big, small = max(abs(prev), abs(new)), min(abs(prev), abs(new))
+    r = big / small
+    return any(abs(r / k - 1.0) <= 0.005 for k in (1e3, 1e6))
+
+
 @dataclass(frozen=True)
 class KnownFact:
     fact: Fact
@@ -95,7 +109,8 @@ class Knowledge:
     conflicts: list[tuple] = field(default_factory=list)   # (key, accn, values)
     quarantined: list[tuple] = field(default_factory=list) # (key, accn, prev, new)
     # Restating FILINGS detected outside companyfacts (restatement_signals.py):
-    # [(public_at, start, end)] epochs that apply to EVERY tag. companyfacts
+    # [(public_at, start, end[, tag])] epochs; without a tag they apply to
+    # every tag, with one only to that concept. companyfacts
     # holds only non-dimensional facts, so a 10-K that tags its restated
     # quarters under srt:RestatementAdjustmentMember is invisible to the
     # value-change detector -- MEASURED on CELH's FY2021 10-K (2022-03-16).
@@ -138,7 +153,7 @@ class Knowledge:
             cache[ck] = out
         return cache[ck]
 
-    def restatements(self, tag: str, t: datetime, same=None) -> list[tuple]:
+    def restatements(self, tag: str, t: datetime, same=None, seed_tags: frozenset | None = None) -> list[tuple]:
         """Restatement EPOCHS of `tag` public at or before t: [(public_at, start, end)].
 
         A filing that reports a value for a key DIFFERENT from the value
@@ -159,12 +174,23 @@ class Knowledge:
         share basis, so a split re-basing is not a change at all).
         """
         cache = self.__dict__.setdefault("_epoch_cache", {})
-        ck = (tag, same, tuple(self.filing_epochs))
+        seeds_for = frozenset(seed_tags or ()) | {tag}
+        ck = (tag, same, tuple(self.filing_epochs), seeds_for)
         if ck not in cache:
             # Filing-signal epochs are epochs too: a later value change that only
             # brings a period onto the basis a restating filing already
             # established is a CATCH-UP, not a new restatement.
-            seeded = sorted(self.filing_epochs)
+            # (public_at, start, end[, tag]) -- a 4th element scopes the epoch to
+            # ONE concept: MEASURED in the SEC FS data set 2022q1, 628 of 4,862
+            # 10-Ks carried restatement-axis facts (the SPAC-warrant wave), almost
+            # all about liabilities/equity. Voiding every tag for them would
+            # withhold revenue and margins that were never restated.
+            # `seed_tags`: tags pooled with this one as ONE concept (metrics.
+            # _equivalent_pools) share their filing-signal epochs -- CELH's
+            # signal names NetIncomeLoss; its pooled twin ...AvailableToCommon...
+            # must not treat the same catch-up as a new restatement.
+            seeded = sorted((ep[0], ep[1], ep[2]) for ep in self.filing_epochs
+                            if len(ep) < 4 or ep[3] is None or ep[3] in seeds_for)
             epochs: list[tuple] = []
             for r, s, e, prev in self._changes(tag, same):
                 prior = [er for er, es, ee in seeded + epochs if er < r and es <= e and s <= ee]
@@ -238,7 +264,8 @@ def build(facts: list[Fact], filings: dict[str, Filing],
         rows.sort(key=lambda r: (r.public_at, r.fact.accn))
         kept: list[KnownFact] = []
         for r in rows:
-            if kept and is_sign_flip(kept[-1].fact.val, r.fact.val):
+            if kept and (is_sign_flip(kept[-1].fact.val, r.fact.val)
+                         or is_scale_error(kept[-1].fact.val, r.fact.val)):
                 quarantined.append((key, r.fact.accn, kept[-1].fact.val, r.fact.val))
                 continue
             if kept and _coarser_rounding(kept[-1].fact.val, r.fact.val):

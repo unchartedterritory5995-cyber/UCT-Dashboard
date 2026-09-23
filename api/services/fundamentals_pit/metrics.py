@@ -140,7 +140,8 @@ def build_book(state: dict[tuple, KnownFact], ledger: Ledger | None = None,
                 restated = []
                 if kb is not None and t is not None:
                     same = _per_share_same(ledger, conv) if conv is not None else None
-                    restated = [ep for tag in group for ep in kb.restatements(tag, t, same)]
+                    pool = frozenset(group)
+                    restated = [ep for tag in group for ep in kb.restatements(tag, t, same, pool)]
                 # Drop stale durations BEFORE any derivation: a stale fact can
                 # then never be one half of a subtraction or one leg of a TTM.
                 for key in list(durs):
