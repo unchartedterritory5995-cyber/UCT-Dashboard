@@ -1,0 +1,82 @@
+{
+  "verdict": "NEW_FAILURES",
+  "counts": {
+    "new": 1,
+    "fixed": 4,
+    "unchanged": 281,
+    "missing": 0,
+    "baseline": 285,
+    "current": 282,
+    "current_ran": 51624,
+    "new_flaky": 0,
+    "flaky_size": 5,
+    "flaky_new": 2,
+    "flaky_fixed": 0,
+    "file_level_resolved": 0,
+    "coverage_lost": 0,
+    "new_ours": 0,
+    "new_others": 0,
+    "new_unattributed": 1
+  },
+  "arithmetic": "baseline 285 = unchanged 281 + fixed 4 + missing 0  |  current 282 = unchanged 281 + new 1 + new-but-flaky 0",
+  "invalid_because": [],
+  "baseline_run_id": "35804205249",
+  "current_run_id": "35807089117",
+  "baseline_sha": "85b3a33556f23ecb1a88c44b3cfc0b599a2fb212",
+  "current_sha": "d52fb3e9952662151e7806c3a7132a94cbfab51f",
+  "commit_range": "85b3a33556f23ecb1a88c44b3cfc0b599a2fb212..d52fb3e9952662151e7806c3a7132a94cbfab51f",
+  "first_run": false,
+  "new": [
+    "pytest|tests.test_bars_ordinal_census|test_bars_ordinal_census_matches_a_fresh_derivation"
+  ],
+  "missing": [],
+  "fixed": [
+    "pytest|tests.test_mutation_check.TestRestoreGuarantee|test_the_file_is_byte_identical_after_a_detected_mutation",
+    "pytest|tests.test_mutation_check.TestVerdicts|test_expect_red_naming_the_right_test_passes",
+    "pytest|tests.test_ticker_logos_prewarm|test_run_pass_skips_warm_and_resolves_cold",
+    "vitest|src/pages/charts/widgets/IndexesWidget.test.jsx|CONTROL \u2014 the toast rail fails when the door says nothing"
+  ],
+  "new_flaky": [],
+  "flaky": [
+    "pytest|tests.test_discord_close_note|test_a_note_that_cannot_be_written_still_posts_the_charts",
+    "pytest|tests.test_mutation_check.TestRestoreGuarantee|test_the_file_is_byte_identical_after_a_detected_mutation",
+    "pytest|tests.test_mutation_check.TestVerdicts|test_a_detected_mutation_passes_the_check",
+    "pytest|tests.test_mutation_check.TestVerdicts|test_expect_red_naming_the_right_test_passes",
+    "vitest|src/components/chart/engine/__tests__/stockChartWiring.test.jsx|an engine-drawn indicator still appears in the crosshair legend > \u26d4\u26d4 A HOVER REACHES THE RENDERER NOT AT ALL"
+  ],
+  "file_level_resolved": [],
+  "coverage_lost": [],
+  "missing_buckets": {},
+  "attribution": {
+    "pytest|tests.test_bars_ordinal_census|test_bars_ordinal_census_matches_a_fresh_derivation": {
+      "class": "UNATTRIBUTED",
+      "commits": [],
+      "workstreams": [],
+      "reason": "no commit in 85b3a3355..d52fb3e99 touched tests/test_bars_ordinal_census.py or anything it imports"
+    },
+    "pytest|tests.test_mutation_check.TestRestoreGuarantee|test_the_file_is_byte_identical_after_a_detected_mutation": {
+      "class": "UNATTRIBUTED",
+      "commits": [],
+      "workstreams": [],
+      "reason": "no commit in 85b3a3355..d52fb3e99 touched tests/test_mutation_check.py or anything it imports"
+    },
+    "pytest|tests.test_mutation_check.TestVerdicts|test_expect_red_naming_the_right_test_passes": {
+      "class": "UNATTRIBUTED",
+      "commits": [],
+      "workstreams": [],
+      "reason": "no commit in 85b3a3355..d52fb3e99 touched tests/test_mutation_check.py or anything it imports"
+    },
+    "pytest|tests.test_ticker_logos_prewarm|test_run_pass_skips_warm_and_resolves_cold": {
+      "class": "UNATTRIBUTED",
+      "commits": [],
+      "workstreams": [],
+      "reason": "no commit in 85b3a3355..d52fb3e99 touched tests/test_ticker_logos_prewarm.py or anything it imports"
+    },
+    "vitest|src/pages/charts/widgets/IndexesWidget.test.jsx|CONTROL \u2014 the toast rail fails when the door says nothing": {
+      "class": "UNATTRIBUTED",
+      "commits": [],
+      "workstreams": [],
+      "reason": "no commit in 85b3a3355..d52fb3e99 touched src/pages/charts/widgets/IndexesWidget.test.jsx or anything it imports"
+    }
+  }
+}
