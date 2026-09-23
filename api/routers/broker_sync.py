@@ -493,6 +493,25 @@ def admin_stats(user: dict = Depends(require_admin)) -> dict[str, Any]:
     }
 
 
+@router.post("/admin/backfill-history")
+async def admin_backfill_history(request: Request, user_id: str) -> dict[str, Any]:
+    """PACKET-AF CP3 (fingerprint 44dfa9380). Ops lever: re-trigger a member's
+    historical-equity backfill without their session. Mirrors the member-facing
+    POST /backfill-history (same idempotent, strictly-additive replay), for the
+    case where the automatic post-reconnect trigger
+    (sync.py::maybe_backfill_after_initial_sync) missed -- e.g. a restart
+    mid-flight -- and no UI button exists to re-run it by hand.
+
+    Gated by the PUSH_SECRET bearer, like the other admin instruments.
+    """
+    expected = os.environ.get("PUSH_SECRET", "")
+    auth = request.headers.get("authorization", "")
+    if not expected or not hmac.compare_digest(auth, f"Bearer {expected}"):
+        raise HTTPException(status_code=401, detail="unauthorized")
+    from api.services.journal_two.broker import history_backfill
+    return {"results": history_backfill.backfill_all_accounts(user_id)}
+
+
 @router.get("/equity-curve")
 def equity_curve(
     days: int = 365, user: dict = Depends(get_current_user)
@@ -563,22 +582,6 @@ def performance_debug(
     if not acct:
         return {"error": "no broker account"}
     return historical_equity.debug_bundle(user["id"], acct)
-
-
-@router.get("/cash-flows")
-def cash_flows(
-    accountId: str | None = None, period: str = "ALL",
-    user: dict = Depends(get_current_user),
-) -> dict[str, Any]:
-    """The account's secondary transactions — deposits, withdrawals, dividends,
-    interest, fees — for the window. Scoped to the caller; accountId defaults to
-    their first broker account."""
-    from api.services.journal_two.broker import performance_service, cashflow_store
-    acct = accountId or _default_broker_account_j2id(user["id"])
-    if not acct:
-        return {"flows": []}
-    start = performance_service._period_start(period)
-    return {"flows": cashflow_store.list_flows(user["id"], acct, start=start)}
 
 
 @router.get("/unreviewed")
