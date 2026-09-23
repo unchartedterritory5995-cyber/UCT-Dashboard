@@ -280,6 +280,12 @@ Node.create({
     it is pasted, including inside an answer. A CLOSED block (copied as a node, or
     wholly inside a larger selection) keeps its wrapper and attributes and pastes
     as a second block.
+  - **A chart's identity** (`widgetEmbed.embedId`, cited precisely only while it is
+    unique in the note). A chart pasted or dropped into the note it came from gets a
+    fresh id when its own would collide; the one already there keeps its own. A cut,
+    a drag that moves, and a paste into another note find no collision and keep their
+    id; a legacy chart with no id stays without one. A drag's decision is made by the
+    drop, which alone knows whether it moves.
 - **Paste into a toggle title.** A toggle's title (`toggleSummary`, `inline*`)
   cannot hold a block, so `pasteIntoSummary` in the same plugin decides, in this
   order. Each outcome is one undo step, and none splits the toggle, drops a node or

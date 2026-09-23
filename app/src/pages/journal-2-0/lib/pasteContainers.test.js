@@ -8,6 +8,10 @@
 // wrapper, a one-line paste into a title is still ProseMirror's own, an empty
 // title fills with pasted text).
 //
+// EMBED IDS: a chart pasted or dropped into the note it came from gets a fresh
+// embedId when its own would collide; a cut, a moved drag, a paste into another
+// note and a legacy (id-less) embed keep what they have.
+//
 // DROPS: ProseMirror runs transformPasted on a drop but never handlePaste, so
 // the drop rails drive the plugin's handleDrop. jsdom has no layout, so
 // view.posAtCoords is STUBBED to the position under test, and handleDrop is
@@ -21,6 +25,7 @@ import { NodeSelection, TextSelection } from '@tiptap/pm/state'
 import { Fragment, Slice } from '@tiptap/pm/model'
 import { buildExtensions } from './tiptap'
 import { buildAskInsertNode } from './askInsert'
+import { buildWidgetEmbedAttrs } from './widgetEmbedCore'
 
 // jsdom has no layout: a drop ends with view.focus() (as editHandlers.drop
 // does), which puts the DOM selection in the editor, and the next scrolled
@@ -498,9 +503,11 @@ function dropAt(ed, pos, slice, { moved = false, node = null } = {}) {
   ed.view.dragging = { slice, move: moved, node }
   try { return ed.view.someProp('handleDrop', (f) => f(ed.view, dropEvent(), slice, moved)) } finally { ed.view.dragging = null }
 }
-function domDrop(ed, pos, slice, { copy = false, node = null } = {}) {
+// `startMove` is dragstart's own verdict (view.dragging.move); the drop event's
+// modifier decides the drop's, and the two can differ.
+function domDrop(ed, pos, slice, { copy = false, node = null, startMove = !copy } = {}) {
   ed.view.posAtCoords = () => ({ pos, inside: -1 })
-  ed.view.dragging = { slice, move: !copy, node }
+  ed.view.dragging = { slice, move: startMove, node }
   const ev = new Event('drop', { bubbles: true, cancelable: true })
   Object.assign(ev, { clientX: 0, clientY: 0, ctrlKey: copy, altKey: copy }) // the copy modifier, either platform
   Object.defineProperty(ev, 'dataTransfer', { value: { getData: () => '', files: [], types: [] } })
@@ -691,5 +698,118 @@ describe('the drop belt: a dropped slice ProseMirror cannot place lands as text,
     ed.state.doc.check()
     expect(ed.state.doc.textContent).toBe('Mine.After.Summary line')
     expect(warn.mock.calls.filter((c) => String(c[0]).includes('[pasteContainers] drop fell back'))).toHaveLength(1)
+  })
+})
+
+// ── A pasted or dropped chart's identity (embedId) ──────────────────────────
+// Ask cites a chart precisely only while its embedId is UNIQUE in the note, so
+// a chart copied within its own note must arrive with a fresh id -- and
+// nothing else may: not a cut, not a moved drag, not a paste into another
+// note, and never a legacy embed that has no id at all.
+const chart = (embedId) => ({ type: 'widgetEmbed', attrs: {
+  ...buildWidgetEmbedAttrs('chart', { symbol: 'AMD', tf: '15' }, { capturedAt: '2026-09-01T14:00:00.000Z' }), embedId } })
+const embedIds = (ed) => nodesOf(ed, 'widgetEmbed').map(({ n }) => n.attrs.embedId)
+// A second editor (another note, or the plugin-less baseline); the caller destroys it.
+const second = (content, { plugin = true } = {}) => {
+  const el = document.createElement('div'); document.body.appendChild(el)
+  const extensions = plugin ? buildExtensions() : buildExtensions().filter((e) => e.name !== 'pasteContainers')
+  return new Editor({ element: el, extensions, content: { type: 'doc', content } })
+}
+// The doc with every embedId blanked, so two drops that differ ONLY in the ids
+// they carry compare equal (the ids are asserted on their own).
+const shapeOf = (ed) => JSON.stringify(ed.state.doc.toJSON(), (k, v) => (k === 'embedId' && v ? 'ID' : v))
+
+describe('a chart PASTED keeps a unique embedId -- a copy gets a fresh one, the original keeps its own', () => {
+  it('copy + paste in the SAME note: two distinct ids, the original unchanged', () => {
+    const ed = mount([P('Mine.'), chart('e-orig'), P('After.')])
+    pasteAt(ed, locate(ed, 'After.') + 6, copyNode(ed, firstPos(ed, 'widgetEmbed')))
+    const ids = embedIds(ed)
+    expect(ids).toHaveLength(2)
+    expect(ids[0]).toBe('e-orig')
+    expect(typeof ids[1]).toBe('string')
+    expect(ids[1]).not.toBe('e-orig')
+  })
+
+  it('cut + paste keeps its id -- the source is gone, so nothing collides', () => {
+    const ed = mount([P('Mine.'), chart('e-orig'), P('After.')])
+    const html = copyNode(ed, firstPos(ed, 'widgetEmbed')) // leaves the chart selected
+    ed.commands.deleteSelection() // the cut's own removal
+    pasteAt(ed, locate(ed, 'After.') + 6, html)
+    expect(embedIds(ed)).toEqual(['e-orig'])
+  })
+
+  it('a paste into ANOTHER note keeps its id -- nothing there collides', () => {
+    const src = second([P('Mine.'), chart('e-orig'), P('After.')])
+    let html
+    try { html = copyNode(src, firstPos(src, 'widgetEmbed')) } finally { src.destroy() }
+    const ed = mount([P('Other note.')])
+    pasteAt(ed, locate(ed, 'note.') + 5, html)
+    expect(embedIds(ed)).toEqual(['e-orig'])
+  })
+
+  it('a LEGACY embed (no embedId) copied and pasted in its own note stays without one -- none is minted', () => {
+    const ed = mount([P('Mine.'), chart(null), P('After.')])
+    pasteAt(ed, locate(ed, 'After.') + 6, copyNode(ed, firstPos(ed, 'widgetEmbed')))
+    expect(embedIds(ed)).toEqual([null, null])
+  })
+
+  it('two embeds sharing ONE id (an old duplicate) pasted into another note come out as two ids', () => {
+    const src = second([P('Mine.'), chart('e-dup'), chart('e-dup'), P('After.')])
+    let html
+    try { html = copyRange(src, locate(src, 'ne.'), locate(src, 'Aft')) } finally { src.destroy() }
+    const ed = mount([P('Other note.')])
+    pasteAt(ed, locate(ed, 'note.') + 5, html)
+    const ids = embedIds(ed)
+    expect(ids).toHaveLength(2)
+    expect(ids).toContain('e-dup')
+    expect(new Set(ids).size).toBe(2)
+  })
+})
+
+describe('a chart DROPPED keeps a unique embedId -- decided by the drop, not by dragstart', () => {
+  it('dragged and MOVED within the note, it keeps its id', () => {
+    const ed = mount([P('Mine.'), chart('e-orig'), P('After.')])
+    const node = NodeSelection.create(ed.state.doc, firstPos(ed, 'widgetEmbed'))
+    domDrop(ed, locate(ed, 'After.') + 6, node.content(), { node })
+    ed.state.doc.check()
+    expect(embedIds(ed)).toEqual(['e-orig'])
+    expect(top(ed).slice(0, 2)).toEqual(['paragraph:Mine.', 'paragraph:After.']) // it did move
+  })
+
+  it('dragged as a COPY, it gets a fresh id -- and otherwise lands exactly as ProseMirror\'s own drop would', () => {
+    const content = [P('Mine.'), chart('e-orig'), P('After.')]
+    const ed = mount(content)
+    const base = second(content, { plugin: false })
+    try {
+      for (const e of [ed, base]) {
+        const node = NodeSelection.create(e.state.doc, firstPos(e, 'widgetEmbed'))
+        domDrop(e, locate(e, 'After.') + 3, node.content(), { copy: true, node })
+      }
+      ed.state.doc.check()
+      const ids = embedIds(ed)
+      expect(ids).toHaveLength(2)
+      expect(ids[0]).toBe('e-orig')
+      expect(ids[1]).not.toBe('e-orig')
+      expect(embedIds(base)).toEqual(['e-orig', 'e-orig']) // what the plugin-less drop produced
+      expect(shapeOf(ed)).toBe(shapeOf(base))
+      expect(ed.state.selection.toJSON()).toEqual(base.state.selection.toJSON())
+    } finally { base.destroy() }
+  })
+
+  it('a drag BEGUN as a copy but dropped as a move keeps its id -- the drop\'s verdict wins', () => {
+    const ed = mount([P('Mine.'), chart('e-orig'), P('After.')])
+    const node = NodeSelection.create(ed.state.doc, firstPos(ed, 'widgetEmbed'))
+    domDrop(ed, locate(ed, 'After.') + 6, node.content(), { node, startMove: false }) // dragstart said copy
+    expect(embedIds(ed)).toEqual(['e-orig'])
+  })
+
+  it('a chart COPIED onto a toggle title lands after the toggle with a fresh id', () => {
+    const ed = mount([P('Mine.'), chart('e-orig'), TOGGLE, P('After.')])
+    const node = NodeSelection.create(ed.state.doc, firstPos(ed, 'widgetEmbed'))
+    expect(dropAt(ed, locate(ed, 'ary line'), node.content(), { node })).toBe(true)
+    expect(top(ed).map((s) => s.split(':')[0])).toEqual(['paragraph', 'widgetEmbed', 'toggle', 'widgetEmbed', 'paragraph'])
+    const ids = embedIds(ed)
+    expect(ids[0]).toBe('e-orig')
+    expect(ids[1]).not.toBe('e-orig')
   })
 })
