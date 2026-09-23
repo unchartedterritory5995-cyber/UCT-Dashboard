@@ -124,4 +124,16 @@ describe('the pending hand-off is consumed exactly once, and only by its note', 
     writePendingAskInsert('n1', { type: 'paragraph' }, 1000)
     expect(takePendingAskInsert('n1', 2000)).toBeNull()
   })
+
+  it('a write whose storage half fails can never leave a stale entry behind for another note', () => {
+    const NODE_A = { type: ASK_INSERT_TYPE, attrs: {}, content: [{ marker: 'A' }] }
+    const NODE_B = { type: ASK_INSERT_TYPE, attrs: {}, content: [{ marker: 'B' }] }
+    writePendingAskInsert('A', NODE_A, 1000)
+    const spy = vi.spyOn(Storage.prototype, 'setItem').mockImplementation(() => { throw new Error('quota') })
+    expect(writePendingAskInsert('B', NODE_B, 1000)).toBe(false)
+    spy.mockRestore()
+    expect(sessionStorage.getItem(PENDING_ASK_INSERT_KEY)).toBeNull()
+    expect(takePendingAskInsert('A', 2000)).toBeNull()
+    expect(takePendingAskInsert('B', 2000)?.noteId).toBe('B')
+  })
 })

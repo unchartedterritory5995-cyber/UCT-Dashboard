@@ -90,6 +90,12 @@ export function writePendingAskInsert(noteId, node, now = Date.now()) {
     sessionStorage.setItem(PENDING_ASK_INSERT_KEY, JSON.stringify(entry))
     return true
   } catch {
+    // One entry at a time (spec §5.2): a newer write REPLACES the older one.
+    // A failed sessionStorage.setItem must not leave a STALE entry sitting in
+    // storage while memory has already moved on to a different note — that
+    // would let a later reload resurrect an answer that was already replaced.
+    // Storage can therefore never hold anything memory has moved past.
+    try { sessionStorage.removeItem(PENDING_ASK_INSERT_KEY) } catch { /* refused too */ }
     return false
   }
 }
