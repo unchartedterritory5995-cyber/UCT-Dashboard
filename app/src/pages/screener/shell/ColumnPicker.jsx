@@ -2,7 +2,8 @@ import { useMemo, useState } from 'react'
 import UIcon from '../../../components/ui/UIcon'
 import styles from './ScannerShell.module.css'
 
-export default function ColumnPicker({ open, onClose, allColumns, visible, onChange, onReset, onSavePreset, layouts = [], onApplyLayout }) {
+export default function ColumnPicker({ open, onClose, allColumns, visible, onChange, onReset, onSavePreset,
+  presets = [], onApplyPreset, onDeletePreset, layouts = [], onApplyLayout }) {
   const [q, setQ] = useState('')
   const [presetName, setPresetName] = useState('')
   const doSave = () => {
@@ -51,6 +52,32 @@ export default function ColumnPicker({ open, onClose, allColumns, visible, onCha
             {layouts.filter(l => Array.isArray(l.columns) && l.columns.length).map(l => (
               <button type="button" key={l.key} className={styles.pickerLayoutChip}
                 onClick={() => onApplyLayout(l.columns)}>{l.label}</button>
+            ))}
+          </div>
+        </div>
+      )}
+      {/* Your saved views: apply one, or delete it. To EDIT a view, apply it,
+          change the columns below, and re-save it under the SAME name (that
+          overwrites it). */}
+      {presets.length > 0 && (
+        <div className={styles.pickerLayouts}>
+          <span className={styles.pickerLayoutsLabel}>Your saved views
+            <span className={styles.pickerEditHint}> · re-save a name to edit it</span>
+          </span>
+          <div className={styles.pickerLayoutsRow}>
+            {presets.map(p => (
+              <span key={p.id} className={styles.pickerPresetChip}>
+                <button type="button" className={styles.pickerPresetApply}
+                  onClick={() => (onApplyPreset ? onApplyPreset(p) : onChange([...p.columns]))}>
+                  {p.name}
+                </button>
+                {onDeletePreset && (
+                  <button type="button" className={styles.pickerPresetDel}
+                    aria-label={`Delete view ${p.name}`} onClick={() => onDeletePreset(p.id)}>
+                    <UIcon name="x" size={9} />
+                  </button>
+                )}
+              </span>
             ))}
           </div>
         </div>

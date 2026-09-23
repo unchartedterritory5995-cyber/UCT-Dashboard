@@ -22,9 +22,11 @@
 .railHead { display: flex; align-items: center; gap: 6px; width: 100%; background: none; border: none;
   color: var(--text); font-size: 10.5px; font-weight: 600; text-transform: uppercase;
   letter-spacing: .06em; padding: 11px 12px; cursor: pointer; transition: background .1s; }
-.railHead span:first-child { flex: 1; text-align: left; }
+.railHeadLabel { flex: 1; text-align: left; }
+.railHeadIcon { display: inline-flex; color: var(--text-muted); flex-shrink: 0; }
 .railHead:hover { color: var(--ut-gold); background: var(--bg-hover); }
 .railHead[aria-expanded="true"] { color: var(--text-bright); }
+.railHead:hover .railHeadIcon, .railHead[aria-expanded="true"] .railHeadIcon { color: var(--ut-gold); }
 .railChev { display: inline-flex; color: var(--text-muted); }
 .railHead:hover .railChev, .railHead[aria-expanded="true"] .railChev { color: var(--ut-gold); }
 .railPip { background: var(--ut-gold); color: #141207; border-radius: 999px; padding: 1px 6px;
@@ -44,6 +46,19 @@
 .pickerLayoutsRow { display: flex; flex-wrap: wrap; gap: 6px; }
 .pickerLayoutChip { font-family: inherit; font-size: 11.5px; color: var(--text-muted); background: var(--bg-elevated); border: 1px solid var(--border); border-radius: 100px; padding: 3px 10px; cursor: pointer; }
 .pickerLayoutChip:hover { border-color: var(--border-accent); color: var(--text); }
+.pickerEditHint { text-transform: none; letter-spacing: 0; opacity: .7; font-weight: 400; }
+/* Your-saved-views chips: an apply button + an inline delete, gold-dotted so they
+   read as the member's own (vs the firm layouts above). */
+.pickerPresetChip { display: inline-flex; align-items: center; background: var(--bg-elevated);
+  border: 1px solid var(--border); border-radius: 100px; overflow: hidden; }
+.pickerPresetApply { font-family: inherit; font-size: 11.5px; color: var(--text); background: none;
+  border: none; padding: 3px 4px 3px 11px; cursor: pointer; }
+.pickerPresetApply::before { content: ""; display: inline-block; width: 6px; height: 6px;
+  border-radius: 50%; background: var(--ut-gold); margin-right: 6px; vertical-align: middle; }
+.pickerPresetChip:hover { border-color: var(--ut-gold); }
+.pickerPresetDel { background: none; border: none; color: var(--text-muted); cursor: pointer;
+  padding: 3px 7px 3px 3px; display: inline-flex; align-items: center; }
+.pickerPresetDel:hover { color: var(--color-danger, #f87171); }
 
 /* ── In-screener chart review overlay (flip through the screened charts) ── */
 .reviewOverlay { display: flex; flex-direction: column; height: 100%; min-height: 0; background: var(--bg); }
@@ -287,6 +302,27 @@
    (blanking on every keystroke/toggle was the "flashing" count). */
 .uCountStale { opacity: .45; transition: opacity .1s; }
 @media (max-width: 640px) { .uBaseHint { display: none; } }
+
+/* One-click preset-scan chips in the scan bar (PresetChips). */
+.presetChips { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
+.presetChip { font-family: inherit; font-size: 11.5px; padding: 4px 11px; border-radius: 999px;
+  border: 1px solid var(--border); background: var(--bg-elevated); color: var(--text-muted);
+  cursor: pointer; white-space: nowrap; transition: color .1s, border-color .1s, background .1s; }
+.presetChip:hover { color: var(--text); border-color: var(--ut-gold); }
+.presetChipOn { background: var(--ut-gold); color: #141207; border-color: var(--ut-gold); font-weight: 600; }
+/* "Edit" — pick which preset scans appear as chips. */
+.presetManageWrap { position: relative; display: inline-flex; }
+.presetManageBtn { display: inline-flex; align-items: center; gap: 4px; font-family: inherit;
+  font-size: 11px; color: var(--text-muted); background: none; border: 1px dashed var(--border);
+  border-radius: 999px; padding: 3px 10px; cursor: pointer; }
+.presetManageBtn:hover { color: var(--ut-gold); border-color: var(--ut-gold); }
+.presetManageMenu { position: absolute; left: 0; top: calc(100% + 6px); z-index: 40; min-width: 220px;
+  max-height: 60vh; overflow-y: auto; background: var(--bg-surface); border: 1px solid var(--border-accent);
+  border-radius: var(--radius-md, 8px); box-shadow: var(--shadow-popover, 0 8px 24px rgba(0,0,0,.4)); padding: 6px; }
+.presetManageItem { display: flex; align-items: center; gap: 9px; padding: 5px 8px; border-radius: 5px;
+  font-size: 12.5px; color: var(--text); cursor: pointer; }
+.presetManageItem:hover { background: var(--bg-hover); }
+.presetManageItem input { accent-color: var(--ut-gold); }
 
 /* The ⓘ that opens the "what each universe means" popover, and the Clear that
    resets the pool to All Market. Both sit in the Universe row. */
