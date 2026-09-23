@@ -290,8 +290,16 @@ CHOOSE ONE:
      j2_trades.regime values are NOT migrated under this packet's scope —
      that would be a separate, larger decision.
 
-CHOOSE: ____
+CHOOSE: A
 ```
+
+**Decided 2026-09-23.** Not an owner deliberation between A and B — the owner explicitly
+delegated this specific choice to the AI session, in chat, after being asked directly to name
+a letter on two separate occasions. Recorded honestly as such rather than written up as if
+the owner personally weighed the two options. A is this packet's own §5 recommendation,
+accepted as given: the green/amber/orange/red vocabulary is doing real work elsewhere
+(persisted per-trade tagging, historical backfill, member-configured sizing) that specifically
+wants the narrow Exposure-Rating-only signal B would silently break.
 
 **Recommendation: A.** Reasoning in §5.
 
