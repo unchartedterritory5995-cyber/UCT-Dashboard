@@ -153,6 +153,25 @@ describe('a citation only navigates when it can be verified', () => {
     expect(resolveNoteCitation(null, { from: 1, to: 2 }, 'x').state).toBe(DEGRADED)
     expect(resolveNoteCitation(docOf('simple'), { from: 1, to: 2 }, '').state).toBe(DEGRADED)
   })
+
+  it('a re-resolved single-hit range never navigates unless it verifies (fix round 1, Finding 4)', () => {
+    // ⛔ An EMPTY paragraph makes textBetween emit an extra separator that
+    // flatToPmRange's own walker does not count the same way, so a re-resolved
+    // range can land on the WRONG text (the reviewer's example: "Second."
+    // mapped to a range reading "econd.\n"). NEVER jump to the wrong passage --
+    // the file's own contract -- so a range that does not verify must fall
+    // back to VALID_NOTE_ONLY rather than claim RERESOLVED_EXACT.
+    const doc = Node.fromJSON(schema, { type: 'doc', content: [
+      { type: 'paragraph', content: [{ type: 'text', text: 'First.' }] },
+      { type: 'paragraph' },
+      { type: 'paragraph', content: [{ type: 'text', text: 'Second.' }] },
+    ] })
+    const out = resolveNoteCitation(doc, { from: 999, to: 1000 }, 'Second.')
+    if (out.state === RERESOLVED_EXACT) {
+      expect(citationText(doc, out.from, out.to)).toBe('Second.')
+    }
+    expect([RERESOLVED_EXACT, VALID_NOTE_ONLY]).toContain(out.state)
+  })
 })
 
 describe('handles resolve against the packet, never against punctuation', () => {

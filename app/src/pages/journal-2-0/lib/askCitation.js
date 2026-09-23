@@ -122,7 +122,15 @@ export function resolveNoteCitation(doc, loc, snippet) {
   }
   if (hits.length === 1) {
     const range = flatToPmRange(doc, hits[0], hits[0] + needle.length)
-    if (range) return { state: RERESOLVED_EXACT, ...range }
+    // ⛔ G-064 fix round 1 (Finding 4): an empty paragraph makes textBetween
+    // emit an extra separator that flatToPmRange's walker does not always
+    // count the same way, so a re-resolved range can land on the WRONG text
+    // (measured: "Second." mapped to a range reading "econd.\n"). NEVER jump
+    // to the wrong passage -- the file's own contract -- so re-read the text
+    // at the computed range and refuse the claim unless it verifies.
+    if (range && citationText(doc, range.from, range.to).trim() === needle) {
+      return { state: RERESOLVED_EXACT, ...range }
+    }
     return { state: VALID_NOTE_ONLY }
   }
   // ⛔ Two or more occurrences: choosing the first is a coin flip that LOOKS

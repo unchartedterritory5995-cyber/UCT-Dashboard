@@ -183,6 +183,14 @@ def resolve_entity(conn, user_id: str, query: str) -> dict[str, Any] | None:
 
 # ── Per-source retrieval ─────────────────────────────────────────────────────
 
+# G-064 fix round 1 (Finding 3): `_notes` drops answer-only notes AFTER the SQL
+# LIMIT, so a burst of pasted-answer notes that out-rank a real member note on
+# bm25 could fill every slot and leave the caller with nothing. Over-fetch a
+# multiple of the requested limit so dropped candidates still leave room for a
+# real one further down the ranking.
+_INSERT_OVERFETCH = 3
+
+
 def _notes(conn, user_id: str, expr: str, limit: int,
            note_ids: list[str] | None = None) -> list[dict[str, Any]]:
     """Candidate notes via FTS, then the passage LOCATED inside each.
@@ -204,13 +212,15 @@ def _notes(conn, user_id: str, expr: str, limit: int,
         sql += f" AND n.id IN ({','.join('?' * len(note_ids))})"
         params.extend(note_ids)
     sql += " ORDER BY score LIMIT ?"
-    params.append(limit)
+    params.append(limit * _INSERT_OVERFETCH)
 
     out: list[dict[str, Any]] = []
     for r in conn.execute(sql, params).fetchall():
+        if len(out) >= limit:
+            break
         row = dict(r)
         doc = _json(row.get("body_json"))
-        snippet, location, validity = _best_note_passage(doc, expr)
+        snippet, location, validity = _best_note_passage(doc, expr, row.get("title") or "")
         if snippet is None:
             # G-064 (spec §7.2): the body is only inserted Ask answers.
             # Presenting it would hand the model its own earlier output as
@@ -221,7 +231,7 @@ def _notes(conn, user_id: str, expr: str, limit: int,
     return out
 
 
-def _best_note_passage(doc, expr: str):
+def _best_note_passage(doc, expr: str, title: str = ""):
     """Pick a passage to cite and give it a real ProseMirror location.
 
     Falls back honestly: if no query term can be located in the canonical
@@ -231,6 +241,13 @@ def _best_note_passage(doc, expr: str):
     ⛔ G-064 (spec §7.2): text inside an inserted Ask Notebook answer is never a
     passage and never part of a snippet. A body whose ONLY text is inserted
     answers returns (None, None, None) and the caller drops the note.
+
+    ⛔ G-064 fix round 1 (Finding 2, spec §7.2): "A note whose only match is
+    inside an inserted answer yields no passage, so it is not cited." A term
+    every one of whose occurrences sits inside an insert is NOT the honest
+    note_only fallback below -- unless the note's own TITLE independently
+    names the term, in which case the note is genuinely about the subject and
+    still opens (without a passage claim, snippet drawn from member text only).
     """
     flat = nct.flatten(doc)
     text = flat["text"]
@@ -241,12 +258,16 @@ def _best_note_passage(doc, expr: str):
         return None, None, None
     low = text.lower()
     terms = [t for t in _terms(expr) if len(t) > 2]
+    found_only_in_insert = False
     for term in terms:
         needle = term.lower()
         idx = low.find(needle)
+        saw_any = idx >= 0
         while idx >= 0 and nct.in_ask_insert(flat, idx, idx + len(term)):
             idx = low.find(needle, idx + 1)
         if idx < 0:
+            if saw_any:
+                found_only_in_insert = True
             continue
         start = max(0, idx - 90)
         end = min(len(text), idx + len(term) + 150)
@@ -255,6 +276,10 @@ def _best_note_passage(doc, expr: str):
         if rng:
             return snippet, {**rng, "fingerprint": nct.fingerprint(doc),
                              "snippet_start": idx, "snippet_end": idx + len(term)}, ev.CITE_EXACT
+    if found_only_in_insert:
+        low_title = (title or "").lower()
+        if not any(t.lower() in low_title for t in terms):
+            return None, None, None
     return own[:200].strip(), None, ev.CITE_NOTE_ONLY
 
 

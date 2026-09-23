@@ -8,6 +8,7 @@ import sqlite3
 
 import pytest
 
+from api.services.journal_two import ask_evidence as ev
 from api.services.journal_two import ask_retrieval as ar
 from api.services.journal_two import note_citation_text as nct
 from api.services.journal_two import notes as notes_svc
@@ -100,12 +101,27 @@ class TestNotebookScopePassage:
         assert location is not None
 
     def test_a_match_only_inside_an_insert_is_not_cited_exactly(self):
+        # G-064 spec §7.2, fix round 1 (Finding 2): a note whose only match is
+        # inside an inserted answer yields NO passage -- the whole triple, not
+        # just a note_only fallback with an unrelated snippet -- unless the
+        # note's own TITLE also names the term (see the variant below).
         doc = {"type": "doc", "content": [
             _p(_t("Unrelated member text.")),
             _insert(_p(_t("compressed margins here")))]}
-        snippet, location, _validity = ar._best_note_passage(doc, "compressed")
+        assert ar._best_note_passage(doc, "compressed", title="") == (None, None, None)
+
+    def test_a_match_only_inside_an_insert_but_the_title_names_it_stays_a_candidate(self):
+        # The title independently confirms the note is ABOUT the term, so it
+        # still opens as a note_only candidate -- location None, snippet drawn
+        # from the member's own text, never from inside the insert.
+        doc = {"type": "doc", "content": [
+            _p(_t("Unrelated member text.")),
+            _insert(_p(_t("compressed margins here")))]}
+        snippet, location, validity = ar._best_note_passage(doc, "compressed", title="Notes on compressed margins")
         assert location is None
+        assert validity == ev.CITE_NOTE_ONLY
         assert "compressed" not in snippet
+        assert "Unrelated member text." in snippet
 
     def test_a_body_that_is_only_inserted_answers_is_not_a_candidate(self):
         assert ar._best_note_passage(ONLY_INSERTED, "margins") == (None, None, None)
@@ -133,3 +149,21 @@ class TestTheCandidateLoop:
         ids = {e["source_id"] for e in ar._notes(conn, "u1", "margins", 10)}
         assert mine["id"] in ids
         assert pasted["id"] not in ids
+
+    def test_over_fetch_lets_a_real_note_survive_answer_only_crowding(self, conn):
+        # G-064 fix round 1 (Finding 3): _notes drops answer-only notes AFTER
+        # the SQL LIMIT, so a burst of pasted-answer notes that all rank ahead
+        # of a real member note on bm25 (many more occurrences of the query
+        # term) could fill every slot and leave the real note out entirely.
+        mine = notes_svc.create_note("u1", {
+            "title": "Mine",
+            "bodyJson": {"type": "doc", "content": [_p(_t("margins are my real note"))]},
+        }, conn=conn)
+        for i in range(5):
+            notes_svc.create_note("u1", {
+                "title": f"Pasted {i}",
+                "bodyJson": {"type": "doc", "content": [
+                    _insert(_p(_t("margins margins margins margins margins compressed")))]},
+            }, conn=conn)
+        ids = {e["source_id"] for e in ar._notes(conn, "u1", "margins", 2)}
+        assert mine["id"] in ids
