@@ -121,6 +121,26 @@ export default function Terms() {
           Questions about these terms may be directed to{' '}
           <a href="mailto:support@uctintelligence.com">support@uctintelligence.com</a>.
         </p>
+
+        <h2>13. Third-Party Data — FRED&reg; API</h2>
+        <p>
+          This product uses the FRED&reg; API but is not endorsed or certified by the
+          Federal Reserve Bank of St. Louis.
+        </p>
+        <p>
+          Economic data displayed through the Service may be sourced from the Federal
+          Reserve Bank of St. Louis's FRED&reg; (Federal Reserve Economic Data) service,
+          subject to FRED's own{' '}
+          <a
+            href="https://fred.stlouisfed.org/docs/api/terms_of_use.html"
+            target="_blank"
+            rel="noopener noreferrer"
+          >
+            Terms of Use
+          </a>
+          . Your use of any FRED-derived feature within the Service is subject to those
+          terms in addition to this Agreement.
+        </p>
       </div>
     </div>
   )
