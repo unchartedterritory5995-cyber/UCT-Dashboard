@@ -12,6 +12,17 @@
 
 ## 🎯 2026-09-22 SESSION (later) — ledger status pass, 5 owner decisions, G-064 design
 
+> ⚰️ **Corrected 2026-09-22 (G-064 build session), three sentences below were wrong:**
+> - **G-053 is not "already honored".** No Compass chat tool reads `j2_notes`
+>   (`coach_chat_tools.py` touches only `j2_trades.notes`), and Ask Notebook is its
+>   own panel. It is an **owner decision**, not a closed constraint.
+> - **The G-064 spec commit `39bc8fa2c` IS pushed.** It is on `origin/master`. The
+>   spec is now at revision 2; see the plan
+>   `docs/superpowers/plans/2026-09-22-ask-notebook-insert.md`.
+> - **G-002's version-history UI exists.** There is a History button in
+>   `NoteEditorPage.jsx` and routes in `journal_two.py`. "The member-facing UI
+>   doesn't" was false.
+
 **Read `competitive-gap-ledger.md` alongside this section — it is the master
 G-numbered (G-001–G-128) tracking doc this session worked from.**
 

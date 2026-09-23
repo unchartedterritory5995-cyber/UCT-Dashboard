@@ -75,6 +75,10 @@ Five promises. Every section below exists to keep one of them:
   reresolved_exact}` (`askCitation.js:29-34`). Adding a `stale` value to
   `PRECISE_STATES` would have made stale citations navigate as precise
   (`NoteEditorPage.jsx:1148`).
+- Fixed in this wave: resolveNoteCitation now re-verifies a re-resolved range's
+  text before claiming RERESOLVED_EXACT (an empty paragraph could misalign the
+  walker and select the wrong passage). Full empty-block parity between the
+  walkers and ProseMirror's textBetween remains open.
 
 ### 2.3 Ask retrieval reads every block of a note
 - Notebook and security scopes select candidate notes by FTS over `body_plain`
@@ -239,7 +243,12 @@ Node.create({
 - **P1 mechanics:** `isolating` stops Backspace at the start and Delete at the end
   from lifting the body out of the block. `content: 'block+'` means deleting every
   paragraph leaves the wrapper with one empty paragraph. Removing the block is an
-  ordinary node delete: select it and delete. There is no unwrap command.
+  ordinary node delete: select it and delete. There is no unwrap command. A
+  selection that crosses the block's edge cannot be deleted or typed over: a
+  filterTransaction guard rejects any step whose deleted range has its two ends
+  under different askInsert ancestors (this also blocks lifting a paragraph out).
+  Deleting the WHOLE block, edits wholly inside it, and pure insertions are
+  allowed.
 - Not added to the slash menu. The `renderHTML` fallback (used by HTML copy/paste
   and static renders) is a plain div with a content hole, and it parses back to the
   same node.
@@ -366,8 +375,9 @@ time and in the plugin, so the two cannot disagree.
 ### 6.5 Source drift is out of scope for v1
 A chip does not detect that its source was later edited or deleted. Clicking it
 opens the source as it is now, and the destination shows its own trashed or
-unavailable state. The chip's accessible description and tooltip say "as of
-{date}". Recorded in §12.
+unavailable state. The insert date is shown once, in the block's header ("From
+Ask Notebook · <date>"); chips do not repeat it (ruled during the build: a chip
+moved out of its block is stale anyway). Recorded in §12.
 
 ### 6.6 How a chip reads
 - Normal: `[n]`, styled with AskPanel's own `.citationChip` class (imported from
@@ -398,6 +408,10 @@ containing a chip.
 **not** removed inside `flatten` itself, because `flatten` is pinned to ProseMirror's
 `textBetween` (`note_citation_text.py:24-29`) and the client mirrors it. A note whose
 only match is inside an inserted answer yields no passage, so it is not cited.
+A note whose query terms occur only inside inserted answers (and not in its
+title) is dropped from the candidates, and the FTS fetch over-fetches
+(limit × 3) so answer-only notes cannot crowd real ones out of the result
+limit.
 
 `body_plain` and the mention scan still include inserted prose, so the member's own
 Search finds their inserted answers. That is intended: Search shows the member their
@@ -580,6 +594,7 @@ because the gate cannot see new failures in them:
   but have no Ask panel.
 - **G-053** (Compass reading notes) — an owner decision. G-064 does not widen or
   narrow it.
+- A cross-edge edit is silently refused (no toast in v1).
 
 ---
 
