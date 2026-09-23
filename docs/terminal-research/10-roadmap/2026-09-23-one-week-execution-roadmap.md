@@ -433,6 +433,17 @@ the whole thing holds together.
   place, confirm it's the symbol everywhere, on every one of the three waves' surfaces,
   in the same browser session.
 
+> 🔎 **Wave C reconsidered before dispatch, 2026-09-23.** The condensed roster's
+> "gate-only on D2" grouping doesn't hold up against A1 and A11's own architecture
+> entries, read directly rather than trusted from the summary table: A1's entry says
+> "Extend" and names D3/S3 as its real boundaries, not D2 at all. A11's entry names two
+> separate things — a regime-authority boundary that may already be resolved by RG-31 and
+> today's own Packet W (worth verifying, not assuming), and a D2 "metric registration"
+> dependency that may be CP2-level (already shipped) rather than needing the genuinely
+> unsigned CP3. Dispatched both as verify-then-build agents rather than parking them on
+> the roster's own summary — all three of this wave's slots are now in use (A13, A1, A11),
+> at the 3-agent cap.
+
 ### Day 6 — the two conditional systems, and integration
 
 - **Agent 1:** A10 Options & Flow polish — UI-only work that never touches the
