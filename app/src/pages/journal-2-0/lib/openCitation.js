@@ -29,9 +29,12 @@
 // is a lie they would act on.
 
 import { excerptRevisitTarget } from './searchNavigation'
+import { SOURCE_WEB, SOURCE_ATTACHMENT } from './searchResultLabel'
 
 export const PASSAGE_GONE = 'That passage is no longer available.'
 export const PASSAGE_UNREADABLE = "Couldn't open that passage — try again."
+export const DOCUMENT_GONE = 'That document is no longer available.'
+export const DOCUMENT_UNREADABLE = "Couldn't open that document — try again."
 export const SOURCE_NOWHERE = "That source can't be opened from here."
 // The note editor ("This note"): a citation whose passage the LIVE doc can no
 // longer verify, and one the server only ever promised at note level (a thesis
@@ -85,25 +88,129 @@ export async function resolveExcerpt(excerptId, { signal } = {}) {
  * @returns {Promise<string|null>} null when something opened, else the
  *          sentence to show.
  */
-export async function openExcerptCitation(excerptId, { signal, openDocument, openCapturedSource }) {
-  if (!excerptId) return SOURCE_NOWHERE
-  const r = await resolveExcerpt(excerptId, { signal })
-  // ⛔ ONE GUARD, HERE, AFTER THE READ -- whatever it returned, an aborted
-  // AbortError included: a later tap owns the panel now, so open nothing and
-  // say nothing. (One copy, so a mutation can prove it; three would not.)
+export function openExcerptCitation(excerptId, { signal, openDocument, openCapturedSource }) {
+  if (!excerptId) return Promise.resolve(SOURCE_NOWHERE)
+  return settle(resolveExcerpt(excerptId, { signal }), signal, (r) => {
+    if (r.kind === 'document') { openDocument(r.target); return null }
+    if (r.kind === 'captured_source') { openCapturedSource(r.excerpt); return null }
+    if (r.kind === 'gone') return PASSAGE_GONE
+    if (r.kind === 'nowhere') return SOURCE_NOWHERE
+    if (r.error) console.error('[notebook] opening a saved excerpt failed', r.error)
+    return PASSAGE_UNREADABLE
+  })
+}
+
+// ⛔ ONE GUARD, HERE, AFTER EVERY READ -- whatever the read returned, an
+// aborted AbortError included: a later tap owns the panel now, so open nothing
+// and say nothing. Both reads (an excerpt, a cited document) settle through
+// this one copy, so one mutation proves it for both; a copy per opener would
+// not be provable at all.
+async function settle(read, signal, land) {
+  const r = await read
   if (signal?.aborted) return null
-  if (r.kind === 'document') { openDocument(r.target); return null }
-  if (r.kind === 'captured_source') { openCapturedSource(r.excerpt); return null }
-  if (r.kind === 'gone') return PASSAGE_GONE
-  if (r.kind === 'nowhere') return SOURCE_NOWHERE
-  if (r.error) console.error('[notebook] opening a saved excerpt failed', r.error)
-  return PASSAGE_UNREADABLE
+  return land(r)
+}
+
+/**
+ * Where one cited PDF page may land: the owning note's own document list
+ * carries the file's URL (`DocumentPreviewSheet` takes `href` from its host;
+ * the navigation deliberately does not carry it).
+ *
+ * @returns {Promise<{kind:'document', target:object}|{kind:'gone'}
+ *                  |{kind:'failed', error?:unknown}>}
+ */
+export async function resolveDocumentPage(nav, { signal } = {}) {
+  let res
+  try {
+    res = await fetch(`/api/j2/notes/${encodeURIComponent(nav.note_id)}/documents`,
+                      signal ? { credentials: 'include', signal } : { credentials: 'include' })
+  } catch (error) {
+    return { kind: 'failed', error }
+  }
+  // The note is gone (or not the member's): so is its document.
+  if (res.status === 404) return { kind: 'gone' }
+  if (!res.ok) return { kind: 'failed' }
+  let documents
+  try {
+    documents = (await res.json())?.documents || []
+  } catch (error) {
+    return { kind: 'failed', error }
+  }
+  const doc = documents.find((d) => d.id === nav.document_id)
+  if (!doc || !doc.attachmentUrl) return { kind: 'gone' }
+  const page = Number(nav.page_number)
+  return {
+    kind: 'document',
+    target: {
+      href: doc.attachmentUrl, name: doc.name || null, documentId: doc.id,
+      ...(Number.isFinite(page) && page > 0 ? { page } : {}),
+    },
+  }
+}
+
+/** Open a cited PDF page in the host's own DocumentPreviewSheet. */
+export function openDocumentPage(nav, { signal, openDocument }) {
+  if (!nav?.note_id || !nav?.document_id) return Promise.resolve(SOURCE_NOWHERE)
+  return settle(resolveDocumentPage(nav, { signal }), signal, (r) => {
+    if (r.kind === 'document') { openDocument(r.target); return null }
+    if (r.kind === 'gone') return DOCUMENT_GONE
+    if (r.error) console.error('[notebook] opening a cited document failed', r.error)
+    return DOCUMENT_UNREADABLE
+  })
+}
+
+function openOwningNote(nav, openNote) {
+  if (!nav?.note_id || !openNote) return SOURCE_NOWHERE
+  openNote({ id: nav.note_id })
+  return null
+}
+
+/**
+ * ⛔⛔ A CITED DOCUMENT PAGE OPENS WHERE ITS KIND SAYS -- AND ONLY THE SERVER
+ * SAYS WHAT KIND IT IS.
+ *
+ * ⚰️ Every Ask host opened a cited document page's owning note at the top, so
+ * "Q3 10-Q · p.47" dropped the member at a note and left them to find page 47.
+ * The navigation named the page but not whether a PDF viewer could show it: a
+ * captured web passage is ALSO a document page, and a PDF viewer over its
+ * `web:<sha256>` identity is Wave N §9's defect.
+ *
+ * ⭐ The server now sends `source_kind` (decided by `ask_evidence.is_web_capture`,
+ * the same answer the excerpt read and Search key on):
+ *   - `attachment` -> the host's DocumentPreviewSheet, at `page_number`
+ *     (`openPage` when the host already has its own page route);
+ *   - `web` -> the captured passage, through the excerpt `capture_web_source`
+ *     wrote beside it (`excerpt_id`) -- the excerpt path's CapturedSourceSheet,
+ *     never the PDF viewer; with no excerpt left, the owning note (and when
+ *     that note is the one already open, `hereNoteId`, it says so instead);
+ *   - anything else, absent included (a packet from before the server sent
+ *     it) -> the host's behaviour from before (`legacy`, else the owning note).
+ *     Never a guess: calling an unknown page a PDF is how a captured passage
+ *     reached the PDF viewer.
+ *
+ * @returns {Promise<string|null>|string|null} what AskPanel's `onNavigate`
+ *          returns -- a sentence when nothing could be opened.
+ */
+export function openDocumentCitation(nav, {
+  signal, openNote, openDocument, openCapturedSource, openPage, legacy, hereNoteId = null,
+}) {
+  const kind = nav?.source_kind
+  if (kind === SOURCE_WEB) {
+    if (nav.excerpt_id) return openExcerptCitation(nav.excerpt_id, { signal, openDocument, openCapturedSource })
+    if (hereNoteId && nav.note_id === hereNoteId) return PASSAGE_GONE
+    return openOwningNote(nav, openNote)
+  }
+  if (kind === SOURCE_ATTACHMENT) {
+    return openPage ? openPage(nav) : openDocumentPage(nav, { signal, openDocument })
+  }
+  return legacy ? legacy(nav) : openOwningNote(nav, openNote)
 }
 
 /**
  * The citation router for a scope that SPANS notes ("My Notebook", "This
- * research"): an excerpt opens in place, anything that names its note opens
- * that note, and a source with neither says so.
+ * research"): an excerpt opens in place, a document page opens by its kind,
+ * anything else that names its note opens that note, and a source with none of
+ * those says so.
  *
  * @returns {Promise<string|null>|string|null} what AskPanel's `onNavigate`
  *          returns -- a sentence when nothing could be opened.
@@ -113,9 +220,8 @@ export function openSpanningCitation(source, { signal, openNote, openDocument, o
   if (nav.kind === 'excerpt') {
     return openExcerptCitation(nav.excerpt_id, { signal, openDocument, openCapturedSource })
   }
-  if (nav.note_id) {
-    openNote({ id: nav.note_id })
-    return null
+  if (nav.kind === 'document') {
+    return openDocumentCitation(nav, { signal, openNote, openDocument, openCapturedSource })
   }
-  return SOURCE_NOWHERE
+  return openOwningNote(nav, openNote)
 }

@@ -943,9 +943,12 @@ class TestAskReceivesOcrProvenance:
         [page] = self._pages(out["evidence"], doc_id)
         assert page["source_type"] == ev.DOCUMENT_PAGE
         # ⛔ §12 — the destination names the document, the page AND the note it
-        # lives in, so a scope that spans notes can open it.
+        # lives in, so a scope that spans notes can open it -- and (document
+        # citations, 2026-09-23) its KIND, so the client opens a scanned PDF in
+        # the viewer at its page. An OCR page is still an attachment.
         assert page["navigation"] == {"kind": "document", "document_id": doc_id,
-                                      "page_number": 1, "note_id": note_id}
+                                      "page_number": 1, "note_id": note_id,
+                                      "source_kind": "attachment"}
         assert page["citation_validity"] == ev.CITE_PAGE_ONLY
         assert page["label"].startswith("q3.pdf")
         # §29 — the lineage is the PAGE, so an excerpt saved from it collides

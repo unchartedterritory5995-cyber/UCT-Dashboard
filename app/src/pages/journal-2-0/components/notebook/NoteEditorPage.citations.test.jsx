@@ -177,6 +177,95 @@ describe('NoteEditorPage ("This note") — citations', () => {
   })
 })
 
+// ⛔⛔ A DOCUMENT CITATION OPENS BY ITS KIND. This page already took a cited
+// page to `?doc=&page=` -- and its viewer opens whatever this note's document
+// list names, a captured web page included: a PDF viewer over `web:<sha256>`
+// (Wave N §9). The server now sends the kind (tests/test_ask_document_navigation.py
+// pins both shapes against the real schema), and the page routes on it through
+// lib/openCitation.js like every other host.
+const PDF_PAGE = {
+  n: 1, type: 'document_page', label: 'Q3 10-Q · p.47', citation: 'page_only',
+  snippet: 'gross margin compressed', payload: {}, stance: null, textOrigin: 'native', truncated: false,
+  navigation: { kind: 'document', document_id: 'd1', page_number: 47, note_id: 'n1', source_kind: 'attachment' },
+  location: { document_id: 'd1', page_number: 47 },
+}
+const WEB_PAGE = {
+  ...PDF_PAGE, label: 'Captured passage · Reuters: NVDA margins',
+  navigation: { kind: 'document', document_id: 'dw', page_number: 1, note_id: 'n1', source_kind: 'web', excerpt_id: 'exw' },
+  location: { document_id: 'dw', page_number: 1 },
+}
+const OLD_PAGE = { ...PDF_PAGE, navigation: { kind: 'document', document_id: 'd1', page_number: 47, note_id: 'n1' } }
+const WEB_PAGE_EXCERPT = {
+  ...PDF_EXCERPT, id: 'exw', noteId: 'n1', documentId: 'dw', documentName: 'Reuters: NVDA margins',
+  attachmentUrl: 'web:3f2a', sourceKind: 'web', sourceUrl: 'https://www.reuters.com/x', pageNumber: 1,
+}
+// THIS note's own document list -- the web capture is in it, which is exactly
+// why the kind must come from the citation and never from this list.
+const N1_DOCUMENTS = { documents: [
+  { id: 'd1', attachmentUrl: '/api/j2/notes/attachments/u1/n1/file/q3.pdf', name: 'Q3 10-Q', status: 'ready', pageCount: 80 },
+  { id: 'dw', attachmentUrl: 'web:3f2a', name: 'Reuters: NVDA margins', status: 'ready', pageCount: 1 },
+] }
+
+function installDocNetwork({ source, excerpt = json(500, {}) }) {
+  global.fetch = vi.fn((url) => {
+    const u = String(url)
+    if (u.includes('/api/j2/ask/stream')) {
+      return Promise.resolve({
+        ok: true, status: 200, json: async () => ({}),
+        body: sse([
+          { type: 'sources', scope: 'note', scopeLabel: 'This note', coverageNotice: null, sources: [source] },
+          { type: 'final', answer: 'Margins compressed [1].' },
+        ]),
+      })
+    }
+    if (u === '/api/j2/notes/n1/documents') return Promise.resolve(json(200, N1_DOCUMENTS))
+    if (u.startsWith('/api/j2/excerpts/')) return Promise.resolve(excerpt)
+    return Promise.resolve({ ok: true, status: 200, json: () => Promise.resolve({}) })
+  })
+}
+
+describe('NoteEditorPage ("This note") — a DOCUMENT citation opens by its kind', () => {
+  it('a PDF page opens in the preview AT the cited page', async () => {
+    installDocNetwork({ source: PDF_PAGE })
+    const ask = await renderEditorAndTap(PDF_PAGE.label)
+
+    const sheet = await screen.findByRole('dialog', { name: 'Preview of Q3 10-Q' })
+    expect(await within(sheet).findByTestId('pdf-viewer-stub')).toHaveAttribute('data-initial-page', '47')
+    expect(within(ask).getByTestId('ask-nav-notice')).toBeEmptyDOMElement()
+  })
+
+  it('a captured WEB page in this very note opens as a captured passage, NEVER in the PDF viewer', async () => {
+    installDocNetwork({ source: WEB_PAGE, excerpt: json(200, { excerpt: WEB_PAGE_EXCERPT }) })
+    await renderEditorAndTap(WEB_PAGE.label)
+
+    await screen.findByRole('dialog', { name: 'Captured passage from Reuters: NVDA margins' })
+    expect(global.fetch).toHaveBeenCalledWith('/api/j2/excerpts/exw', expect.anything())
+    // Give a `?doc=` route every chance to open the viewer it would have opened.
+    await new Promise((r) => setTimeout(r, 50))
+    expect(screen.queryByTestId('pdf-viewer-stub')).toBeNull()
+  })
+
+  it('a captured web page whose saved excerpt is gone says so -- the note is already open', async () => {
+    const orphan = { ...WEB_PAGE, navigation: { ...WEB_PAGE.navigation, excerpt_id: undefined } }
+    installDocNetwork({ source: orphan })
+    const ask = await renderEditorAndTap(orphan.label)
+
+    expect(await within(ask).findByText('That passage is no longer available.')).toBeInTheDocument()
+    await new Promise((r) => setTimeout(r, 50))
+    expect(screen.queryByTestId('pdf-viewer-stub')).toBeNull()
+  })
+
+  it('a packet with NO kind keeps this page\'s old page route -- never a new guess', async () => {
+    installDocNetwork({ source: OLD_PAGE })
+    const ask = await renderEditorAndTap(OLD_PAGE.label)
+
+    const sheet = await screen.findByRole('dialog', { name: 'Preview of Q3 10-Q' })
+    expect(await within(sheet).findByTestId('pdf-viewer-stub')).toHaveAttribute('data-initial-page', '47')
+    expect(global.fetch).not.toHaveBeenCalledWith(expect.stringMatching(/^\/api\/j2\/excerpts\//), expect.anything())
+    expect(within(ask).getByTestId('ask-nav-notice')).toBeEmptyDOMElement()
+  })
+})
+
 // Non-vacuity for the preview assertions above: without a tap nothing opens.
 describe('NoteEditorPage — nothing opens on its own', () => {
   it('no preview sheet exists before a citation is tapped', async () => {

@@ -11,8 +11,8 @@ import DocumentPreviewSheet from './DocumentPreviewSheet'
 import CapturedSourceSheet from './CapturedSourceSheet'
 import { targetFromParams, applyTargetToParams, citationTarget,
          reviewTargetFromParams } from '../../lib/searchNavigation'
-import { openExcerptCitation, SOURCE_NOWHERE, PASSAGE_NOT_PINPOINTED, NOTE_LEVEL_SOURCE }
-  from '../../lib/openCitation'
+import { openExcerptCitation, openDocumentCitation, SOURCE_NOWHERE,
+         PASSAGE_NOT_PINPOINTED, NOTE_LEVEL_SOURCE } from '../../lib/openCitation'
 import useNoteDocuments from '../../hooks/useNoteDocuments'
 import DocumentTextStatus from './DocumentTextStatus'
 import useNoteExcerpts from '../../hooks/useNoteExcerpts'
@@ -1192,11 +1192,24 @@ export default function NoteEditorPage({ noteId, onBack, showBack = true, onTitl
     if (source?.navigation?.kind === 'document') {
       // The decision lives in `searchNavigation`, beside the one Search uses,
       // so the two can never answer differently about the same document.
-      const target = citationTarget(source, { fallbackNoteId: noteId })
-      if (!target) return SOURCE_NOWHERE
-      setSearchParams((prev) => applyTargetToParams(prev, target),
-                      { replace: false })
-      return null
+      const openPage = (nav) => {
+        const target = citationTarget({ navigation: nav }, { fallbackNoteId: noteId })
+        if (!target) return SOURCE_NOWHERE
+        setSearchParams((prev) => applyTargetToParams(prev, target),
+                        { replace: false })
+        return null
+      }
+      // ⛔ AND IT GOES BY THE KIND THE SERVER SENT, through lib/openCitation.js
+      // like every other host: a PDF takes the page route above; a captured
+      // web passage opens as a captured passage (never `?doc=`, whose viewer
+      // would be a PDF viewer over `web:<sha256>` -- Wave N §9); a packet with
+      // no kind keeps the page route it had before the server sent one.
+      return openDocumentCitation(source.navigation, {
+        signal, openPage, legacy: openPage, hereNoteId: noteId,
+        openDocument: setPreviewDoc, openCapturedSource: setCapturedSource,
+        openNote: ({ id }) => setSearchParams(
+          (prev) => applyTargetToParams(prev, { noteId: id, depth: 'note' }), { replace: false }),
+      })
     }
     const ed = editorRef.current
     if (!ed || source?.navigation?.kind !== 'note') return SOURCE_NOWHERE

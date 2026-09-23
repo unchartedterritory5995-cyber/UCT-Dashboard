@@ -163,3 +163,84 @@ describe('Research Home ("My Notebook") — citations', () => {
     expect(within(ask).getByTestId('ask-nav-notice')).toBeEmptyDOMElement()
   })
 })
+
+// ⛔⛔ A DOCUMENT CITATION USED TO OPEN ITS NOTE AT THE TOP. The server now sends
+// the page's KIND (tests/test_ask_document_navigation.py pins both shapes
+// against the real schema): a PDF opens at its page, a captured web passage as a
+// captured passage, and a packet with no kind keeps the old behaviour.
+const PDF_PAGE = {
+  n: 1, type: 'document_page', label: 'Q3 10-Q · p.47', citation: 'page_only',
+  snippet: 'gross margin compressed', payload: {}, stance: null, textOrigin: 'native', truncated: false,
+  navigation: { kind: 'document', document_id: 'd9', page_number: 47, note_id: 'n7', source_kind: 'attachment' },
+  location: { document_id: 'd9', page_number: 47 },
+}
+const WEB_PAGE = {
+  ...PDF_PAGE, label: 'Captured passage · Reuters: NVDA margins',
+  navigation: { kind: 'document', document_id: 'dw', page_number: 1, note_id: 'n7', source_kind: 'web', excerpt_id: 'exw' },
+  location: { document_id: 'dw', page_number: 1 },
+}
+const OLD_PAGE = { ...PDF_PAGE, navigation: { kind: 'document', document_id: 'd9', page_number: 47, note_id: 'n7' } }
+const N7_DOCUMENTS = { documents: [
+  { id: 'd9', attachmentUrl: '/api/j2/notes/attachments/u1/n7/file/q3.pdf', name: 'Q3 10-Q', status: 'ready', pageCount: 80 },
+  { id: 'dw', attachmentUrl: 'web:3f2a', name: 'Reuters: NVDA margins', status: 'ready', pageCount: 1 },
+] }
+
+function installDocNetwork({ source, excerpt = json(500, {}) }) {
+  global.fetch = vi.fn(async (url) => {
+    const u = String(url)
+    if (u === '/api/j2/notebook/home') return json(200, HOME)
+    if (u === '/api/j2/ask/stream') {
+      return {
+        ok: true, status: 200, json: async () => ({}),
+        body: sseBody([
+          { type: 'sources', scope: 'notebook', scopeLabel: 'My Notebook', sources: [source], coverageNotice: null },
+          { type: 'final', answer: 'Margins compressed [1].' },
+        ]),
+      }
+    }
+    if (u === '/api/j2/notes/n7/documents') return json(200, N7_DOCUMENTS)
+    if (u.startsWith('/api/j2/excerpts/')) return excerpt
+    throw new Error(`unexpected fetch ${u}`)
+  })
+}
+const askedFor = (prefix) => global.fetch.mock.calls.some(([u]) => String(u).startsWith(prefix))
+
+describe('Research Home ("My Notebook") — a DOCUMENT citation opens by its kind', () => {
+  it('a PDF page opens in the preview AT the cited page -- not its note at the top', async () => {
+    const onOpenNote = vi.fn()
+    installDocNetwork({ source: PDF_PAGE })
+    renderHome(onOpenNote)
+    const ask = await askAndTap(PDF_PAGE.label)
+
+    const sheet = await screen.findByRole('dialog', { name: 'Preview of Q3 10-Q' })
+    expect(await within(sheet).findByTestId('pdf-viewer-stub')).toHaveAttribute('data-initial-page', '47')
+    expect(onOpenNote).not.toHaveBeenCalled()
+    expect(within(ask).getByTestId('ask-nav-notice')).toBeEmptyDOMElement()
+  })
+
+  it('a captured WEB page opens as a captured passage, NEVER in the PDF viewer', async () => {
+    const onOpenNote = vi.fn()
+    installDocNetwork({
+      source: WEB_PAGE,
+      excerpt: json(200, { excerpt: { ...WEB_EXCERPT, id: 'exw', documentId: 'dw', pageNumber: 1 } }),
+    })
+    renderHome(onOpenNote)
+    await askAndTap(WEB_PAGE.label)
+
+    await screen.findByRole('dialog', { name: 'Captured passage from Reuters: NVDA margins' })
+    expect(screen.queryByTestId('pdf-viewer-stub')).toBeNull()
+    expect(askedFor('/api/j2/notes/n7/documents')).toBe(false)
+    expect(onOpenNote).not.toHaveBeenCalled()
+  })
+
+  it('a packet with NO kind keeps the old behaviour (its note) -- never a guess', async () => {
+    const onOpenNote = vi.fn()
+    installDocNetwork({ source: OLD_PAGE })
+    renderHome(onOpenNote)
+    await askAndTap(OLD_PAGE.label)
+
+    await waitFor(() => expect(onOpenNote).toHaveBeenCalledWith({ id: 'n7' }))
+    expect(screen.queryByTestId('pdf-viewer-stub')).toBeNull()
+    expect(askedFor('/api/j2/notes/n7/documents')).toBe(false)
+  })
+})

@@ -425,14 +425,47 @@ def ask_match_expr(query: str) -> str | None:
     return " OR ".join(f'"{w}"' for w in words)
 
 
+def _link_capture_excerpts(conn, user_id: str, rows: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    """⭐ A CAPTURED WEB PASSAGE IS AN EXCERPT AS WELL AS A PAGE.
+    `web_capture_store.capture_web_source` writes the page and its excerpt in
+    one transaction, and a member revisits a captured passage THROUGH the
+    excerpt (the captured-passage sheet reads it). So a web page row carries
+    its excerpt's id to the client as `capture_excerpt_id`; a PDF page never
+    needs one. Tenant-scoped, one query per call, and a web page whose excerpt
+    was deleted simply carries none -- the client then opens its note.
+
+    ⛔ Decided by `ev.is_web_capture`, the one server answer, so a row that did
+    not select the capture columns is never linked (it is not known to be web).
+    """
+    web = [r for r in rows if ev.is_web_capture(r)]
+    if not web:
+        return rows
+    docs = sorted({r["document_id"] for r in web})
+    ph = ",".join("?" * len(docs))
+    first: dict[tuple, str] = {}
+    for e in conn.execute(
+        "SELECT id, document_id, page_number FROM j2_note_excerpts"
+        f" WHERE user_id = ? AND document_id IN ({ph})"
+        " ORDER BY created_at, id",
+        (user_id, *docs),
+    ).fetchall():
+        first.setdefault((e["document_id"], e["page_number"]), e["id"])
+    for r in web:
+        eid = first.get((r["document_id"], r["page_number"]))
+        if eid:
+            r["capture_excerpt_id"] = eid
+    return rows
+
+
 def _document_pages(conn, user_id: str, q: str, limit: int) -> list[dict[str, Any]]:
     from api.services.journal_two.document_search import search_document_pages
-    out = []
+    rows = []
     for r in search_document_pages(user_id, q, limit=limit, conn=conn):
         row = dict(r)
         row["user_id"] = user_id
-        out.append(ev.from_document_page(row, snippet=row.get("snippet") or "", score=0.5))
-    return out
+        rows.append(row)
+    return [ev.from_document_page(row, snippet=row.get("snippet") or "", score=0.5)
+            for row in _link_capture_excerpts(conn, user_id, rows)]
 
 
 def _excerpts(conn, user_id: str, q: str, limit: int) -> list[dict[str, Any]]:
@@ -780,13 +813,13 @@ def _document_pages_scoped(conn, user_id: str, document_id: str, q: str,
         " ORDER BY bm25(j2_note_document_pages_fts) LIMIT ?",
         (expr, user_id, document_id, limit),
     ).fetchall()
-    out = []
+    found = []
     for r in rows:
         row = dict(r)
         row["user_id"] = user_id
-        out.append(ev.from_document_page(row, snippet=row.get("snippet") or "",
-                                         score=0.6))
-    return out
+        found.append(row)
+    return [ev.from_document_page(row, snippet=row.get("snippet") or "", score=0.6)
+            for row in _link_capture_excerpts(conn, user_id, found)]
 
 
 def _excerpts_scoped(conn, user_id: str, document_id: str, q: str,
@@ -1016,13 +1049,13 @@ def _document_pages_in_note(conn, user_id: str, note_id: str, q: str,
         if not _no_capture_tables(e):
             raise
         return []
-    out = []
+    found = []
     for r in rows:
         row = dict(r)
         row["user_id"] = user_id
-        out.append(ev.from_document_page(row, snippet=row.get("snippet") or "",
-                                         score=0.6))
-    return out
+        found.append(row)
+    return [ev.from_document_page(row, snippet=row.get("snippet") or "", score=0.6)
+            for row in _link_capture_excerpts(conn, user_id, found)]
 
 
 def _excerpts_in_note(conn, user_id: str, note_id: str, q: str,
@@ -1472,6 +1505,7 @@ def _entity_documents(conn, user_id: str, note_ids: list[str], q: str,
         return []
     ph = ",".join("?" * len(note_ids))
     out: list[dict[str, Any]] = []
+    pages: list[dict[str, Any]] = []
     for r in conn.execute(
         "SELECT p.document_id AS document_id, p.page_number AS page_number,"
         " snippet(j2_note_document_pages_fts, 3, '', '', '...', 18) AS snippet,"
@@ -1493,7 +1527,9 @@ def _entity_documents(conn, user_id: str, note_ids: list[str], q: str,
     ).fetchall():
         row = dict(r)
         row["user_id"] = user_id
-        out.append(ev.from_document_page(row, snippet=row.get("snippet") or "", score=0.6))
+        pages.append(row)
+    out.extend(ev.from_document_page(row, snippet=row.get("snippet") or "", score=0.6)
+               for row in _link_capture_excerpts(conn, user_id, pages))
     for r in conn.execute(
         "SELECT e.*, d.name AS document_name"
         f"{_capture_cols(conn)}"
