@@ -203,7 +203,11 @@ sees exactly where the answer went. Browser Back returns to the research page.
 ### 3.4 Where it lands
 Always at the end of the note. Not cursor-aware in v1 (§12). When the note ends with
 an empty paragraph, the answer takes that paragraph's place, so no blank line sits
-above it; the empty paragraph after the answer is the editor's own trailing one.
+above it. The insert adds one empty paragraph after the answer and puts the caret
+in it, so if the editor regains focus without a click the member's next words go
+after the answer, never into it (typing inside the block would label the member's
+words "From Ask Notebook" and leave them out of Ask). The insert does not focus the
+editor: on the click path, focus stays in the Ask panel.
 
 ### 3.5 What is inserted
 Exactly what the panel showed: the answer split into paragraphs on line breaks
@@ -311,12 +315,20 @@ built, and it is pure, so it is tested without an editor.
 
 ### 5.2 Inserting
 - **Open note (§3.2).** `NoteEditorPage` passes `onInsert(node)` to `AskPanel` and,
-  through a new `onInsert` prop, to `DocumentPreviewSheet`'s `AskPanel`. It runs
-  `editor.chain().insertContentAt(editor.state.doc.content.size, node).run()` — an
-  explicit position, never the selection — or, when the note ends with an empty
-  paragraph, `insertContentAt({ from: size - last.nodeSize, to: size }, node)` over
-  that paragraph (§3.4); only an empty paragraph is ever replaced. It then scrolls
-  the new block into view.
+  through a new `onInsert` prop, to `DocumentPreviewSheet`'s `AskPanel`. It calls
+  `appendAskInsert` (`lib/askInsert.js`), which runs ONE chain:
+  `insertContentAt(size, node, { updateSelection: false })` — an explicit position,
+  never the selection — or, when the note ends with an empty paragraph,
+  `insertContentAt({ from: size - last.nodeSize, to: size }, node, …)` over that
+  paragraph (§3.4); only an empty paragraph is ever replaced. In the same
+  transaction it inserts an empty paragraph directly after the answer and sets the
+  selection inside it (`caretAfterAnswer`). That paragraph is the insert's own, not
+  StarterKit's TrailingNode's: TrailingNode appends only after a transaction, so it
+  does not exist yet when the caret is placed, and with this one in place it adds
+  nothing. `insertContentAt`'s default `updateSelection: true` would have left the
+  caret inside the answer's last paragraph. The editor is not focused. It then
+  scrolls the new block into view. One undo removes the answer and its paragraph
+  together.
   The normal autosave persists it: baseline check, version capture, offline outbox,
   all unchanged. No new endpoint, no `settleNoteWrite` call, no new door.
   `onInsert` is passed only while the editor is editable and no recovered draft is
