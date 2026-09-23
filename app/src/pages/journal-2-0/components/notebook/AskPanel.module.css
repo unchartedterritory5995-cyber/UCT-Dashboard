@@ -276,3 +276,21 @@
   padding: 4px 2px calc(4px + env(safe-area-inset-bottom, 0px));
 }
 .sheetBody .answer { max-height: none; }
+
+/* G-064 — Insert an answer into a note. */
+.insertRow { display: flex; margin-top: 10px; }
+.insertBtn {
+  display: inline-flex;
+  align-items: center;
+  padding: 6px 10px;
+  font-size: 12px;
+  color: inherit;
+  background: transparent;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  cursor: pointer;
+}
+.insertBtn:disabled { opacity: 0.6; cursor: default; }
+@media (max-width: 1024px) {
+  .insertBtn { min-height: var(--tap-min, 44px); }
+}

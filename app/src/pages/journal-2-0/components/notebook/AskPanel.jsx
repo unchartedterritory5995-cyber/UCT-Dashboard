@@ -11,6 +11,9 @@ import {
 } from '../../lib/askCitation'
 import { isScannedText, SCANNED_TEXT_LABEL, SCANNED_TEXT_HINT }
   from '../../lib/documentProvenance'
+import { buildAskInsertNode } from '../../lib/askInsert'
+import { notebookFlag } from '../../lib/offline/notebookFlags'
+import AskInsertPicker from './AskInsertPicker'
 import styles from './AskPanel.module.css'
 
 // Wave K Slice 6 — THE Ask surface. One panel, four scopes.
@@ -59,6 +62,11 @@ export default function AskPanel({
   onNavigate = null,
   autoOpen = false,
   onClose = null,
+  // G-064 (spec §5.2). `onInsert(node) -> boolean` inserts into the note that
+  // is OPEN; `onOpenNote(note)` opens a note, which enables the picker when
+  // none is. A host passes whichever it can honour.
+  onInsert = null,
+  onOpenNote = null,
 }) {
   const spec = SCOPES[scope] || SCOPES.notebook
   // ⛔ THE ONE SANCTIONED USE OF useIsTouch: a CLICK-TRIGGERED choice between
@@ -73,6 +81,10 @@ export default function AskPanel({
   const [coverageNotice, setCoverageNotice] = useState(null)
   const [status, setStatus] = useState('idle') // idle|asking|done|error|limit
   const [errorMsg, setErrorMsg] = useState('')
+  // G-064: which answer text was already inserted (so one answer cannot be
+  // inserted twice), and the block the picker is placing.
+  const [insertedAnswer, setInsertedAnswer] = useState(null)
+  const [pickNode, setPickNode] = useState(null)
   const abortRef = useRef(null)
   const historyRef = useRef([])
   const inputRef = useRef(null)
@@ -85,6 +97,7 @@ export default function AskPanel({
   useEffect(() => {
     historyRef.current = []
     setAnswer(''); setSources([]); setCoverageNotice(null); setStatus('idle')
+    setInsertedAnswer(null); setPickNode(null)
     setScopeLabel(SCOPES[scope]?.label || SCOPES.notebook.label)
   }, [scope, target])
 
@@ -107,6 +120,7 @@ export default function AskPanel({
     if (!q || status === 'asking') return
     setStatus('asking'); setAnswer(''); setSources([])
     setCoverageNotice(null); setErrorMsg('')
+    setInsertedAnswer(null); setPickNode(null)
     const controller = new AbortController()
     abortRef.current = controller
     let text = ''
@@ -186,6 +200,28 @@ export default function AskPanel({
   const parts = useMemo(() => (answer ? splitAnswer(answer, sources) : []),
                         [answer, sources])
   const cited = useMemo(() => citedSources(answer, sources), [answer, sources])
+
+  // G-064 (spec §3.1): offered only for a finished, CITED answer, with the flag
+  // latched on and a host that can actually place it. `null` (never latched)
+  // is OFF.
+  const insertAllowed = notebookFlag('notebook_ask_insert_on') === true
+    && status === 'done' && cited.length > 0 && Boolean(onInsert || onOpenNote)
+
+  const buildNode = () => buildAskInsertNode({
+    answer, sources, scope,
+    // The question that produced THIS answer, never the live input box.
+    question: historyRef.current[historyRef.current.length - 1]?.q || '',
+  })
+
+  const handleInsert = () => {
+    const node = buildNode()
+    if (!node) return
+    if (onInsert) {
+      if (onInsert(node) === true) setInsertedAnswer(answer)
+      return
+    }
+    setPickNode(node)
+  }
 
   return (
     <div className={styles.wrap}>
@@ -311,6 +347,28 @@ export default function AskPanel({
                 </button>
               ))}
             </div>
+          )}
+
+          {insertAllowed && !pickNode && (
+            <div className={styles.insertRow}>
+              <button
+                type="button"
+                className={styles.insertBtn}
+                onClick={handleInsert}
+                disabled={insertedAnswer === answer}
+              >
+                <UIcon name="plus" size={12} gold={false} style={{ verticalAlign: '-2px', marginRight: 4 }} />
+                {insertedAnswer === answer ? 'Inserted' : onInsert ? 'Insert into this note' : 'Insert into a note…'}
+              </button>
+            </div>
+          )}
+          {insertAllowed && pickNode && (
+            <AskInsertPicker
+              node={pickNode}
+              defaultTitle={(pickNode.attrs.question || '').slice(0, 80)}
+              onOpenNote={onOpenNote}
+              onCancel={() => setPickNode(null)}
+            />
           )}
         </PanelShell>
       )}
