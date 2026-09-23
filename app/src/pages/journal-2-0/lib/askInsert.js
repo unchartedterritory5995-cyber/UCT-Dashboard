@@ -7,6 +7,7 @@
  * (serverChange.js merges only three types) and skips version history. So a note
  * that is not open is OPENED first, and the answer rides the hand-off below.
  */
+import { TextSelection } from '@tiptap/pm/state'
 import { splitAnswer } from './askCitation'
 
 export const ASK_INSERT_TYPE = 'askInsert'
@@ -144,8 +145,20 @@ export function takePendingAskInsert(noteId, now = Date.now()) {
  * paragraph is replaced rather than appended after, so no blank line sits
  * above the answer. Only an EMPTY paragraph is ever replaced, and the position
  * is still derived from the document, never from the selection, so a selected
- * node with content is never replaced. The empty paragraph that follows the
- * answer is TrailingNode's (StarterKit), exactly as for a plain append.
+ * node with content is never replaced.
+ *
+ * G-064 close-out — THE CARET LANDS AFTER THE ANSWER, NEVER IN IT.
+ * `insertContentAt` puts the selection at the end of what it inserted, which
+ * is inside the answer's last paragraph: if the editor then regained focus
+ * without a click, the member's next words went INTO the answer, were
+ * labelled "From Ask Notebook" and were left out of Ask. The same transaction
+ * now ends with the caret in an empty paragraph after the block. That
+ * paragraph is added here rather than left to StarterKit's TrailingNode:
+ * TrailingNode only appends AFTER a transaction (appendTransaction), so it
+ * does not exist yet when the caret has to be placed, and a host without it
+ * would get none. With this one in place TrailingNode adds nothing, and the
+ * doc has the same shape as before. The editor is NOT focused: on the click
+ * path focus is in the Ask panel, and taking it would be wrong.
  */
 export function appendAskInsert(editor, node) {
   if (!editor || editor.isDestroyed || !editor.isEditable || !node) return false
@@ -154,11 +167,28 @@ export function appendAskInsert(editor, node) {
   const last = doc.lastChild
   const replaceEmptyLast = Boolean(last && last.type.name === 'paragraph' && last.content.size === 0)
   const at = replaceEmptyLast ? size - last.nodeSize : size
-  const ok = editor.chain().insertContentAt(replaceEmptyLast ? { from: at, to: size } : at, node).run()
+  const ok = editor.chain()
+    .insertContentAt(replaceEmptyLast ? { from: at, to: size } : at, node, { updateSelection: false })
+    .command(({ tr }) => caretAfterAnswer(tr, at))
+    .run()
   if (!ok) return false
   try {
     const dom = editor.view.nodeDOM(at)
     if (dom && typeof dom.scrollIntoView === 'function') dom.scrollIntoView({ block: 'nearest', behavior: 'smooth' })
   } catch { /* scrolling is a courtesy */ }
+  return true
+}
+
+/** Within the insert's own transaction: an empty paragraph directly after the
+ *  answer that starts at `at` (reused if one is already there), and the
+ *  selection inside it. */
+function caretAfterAnswer(tr, at) {
+  const answer = tr.doc.nodeAt(at)
+  const paragraph = tr.doc.type.schema.nodes.paragraph
+  if (!answer || answer.type.name !== ASK_INSERT_TYPE || !paragraph) return true
+  const after = at + answer.nodeSize
+  const next = tr.doc.nodeAt(after)
+  if (!(next && next.type === paragraph && next.content.size === 0)) tr.insert(after, paragraph.create())
+  tr.setSelection(TextSelection.create(tr.doc, after + 1))
   return true
 }

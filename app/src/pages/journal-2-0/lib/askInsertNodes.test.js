@@ -437,11 +437,11 @@ describe('appendAskInsert (spec §5.2)', () => {
     const ed = mount({ type: 'doc', content: [MINE] })
     ed.commands.setNodeSelection(0)
     expect(appendAskInsert(ed, INSERT)).toBe(true)
-    // G-064 fix round 1 (Finding F7): StarterKit's TrailingNode extension
-    // auto-appends exactly ONE empty paragraph after a non-paragraph last
-    // block (Callout/Toggle/embeds behave identically), never more -- so the
-    // shape is exact: the original paragraph, the askInsert, and that one
-    // trailing paragraph.
+    // G-064 fix round 1 (Finding F7): exactly ONE empty paragraph follows the
+    // answer, never more -- so the shape is exact: the original paragraph,
+    // the askInsert, and that one trailing paragraph. (Since the close-out it
+    // is appendAskInsert's own, added to carry the caret; StarterKit's
+    // TrailingNode then has nothing to add.)
     expect(ed.state.doc.childCount).toBe(3)
     expect(ed.state.doc.child(0).textContent).toBe('Mine.')
     expect(ed.state.doc.child(1).type.name).toBe('askInsert')
@@ -452,7 +452,7 @@ describe('appendAskInsert (spec §5.2)', () => {
   // G-064 final fix wave (M3) — a note that ends with an EMPTY paragraph (the
   // usual state of a note whose last line is blank) used to get the answer
   // AFTER that blank line, leaving a visible gap above it. The empty paragraph
-  // is now replaced; the one after the answer is TrailingNode's, as above.
+  // is now replaced; the one after the answer is the single one, as above.
   it('replaces a trailing EMPTY paragraph instead of leaving a blank line above the answer', () => {
     const ed = mount({ type: 'doc', content: [MINE, { type: 'paragraph' }] })
     expect(appendAskInsert(ed, INSERT)).toBe(true)
@@ -477,5 +477,95 @@ describe('appendAskInsert (spec §5.2)', () => {
     expect(appendAskInsert(ed, INSERT)).toBe(false)
     expect(appendAskInsert(null, INSERT)).toBe(false)
     expect(ed.state.doc.childCount).toBe(1)
+  })
+})
+
+// G-064 close-out — `insertContentAt` leaves the selection at the end of what
+// it inserted, INSIDE the answer's last paragraph. If the editor regained focus
+// without a click, the member's next words went into the answer, were labelled
+// "From Ask Notebook" and were left out of Ask. The caret now lands in the
+// empty paragraph after the block, in the insert's own transaction.
+describe('appendAskInsert leaves the caret after the answer, never in it (close-out)', () => {
+  function mountWith(extensions, content) {
+    const el = document.createElement('div')
+    document.body.appendChild(el)
+    editor = new Editor({ element: el, extensions, content })
+    return editor
+  }
+  const insideAnAnswer = ($pos) => {
+    for (let d = $pos.depth; d > 0; d -= 1) if ($pos.node(d).type.name === 'askInsert') return true
+    return false
+  }
+  const SHAPES = {
+    'after member prose': { type: 'doc', content: [MINE] },
+    'over a trailing empty paragraph': { type: 'doc', content: [MINE, { type: 'paragraph' }] },
+    'into an empty note': { type: 'doc', content: [{ type: 'paragraph' }] },
+    'after an earlier answer': { type: 'doc', content: [MINE, INSERT] },
+  }
+
+  // The REAL extension list: it is what a note's editor runs.
+  for (const [name, content] of Object.entries(SHAPES)) {
+    it(`${name}: the caret is in the empty paragraph after the block, and typing lands there`, () => {
+      const ed = mountWith(buildExtensions(), content)
+      ed.commands.setTextSelection(1)
+      expect(appendAskInsert(ed, INSERT)).toBe(true)
+
+      const { selection, doc } = ed.state
+      expect(selection.empty).toBe(true)
+      expect(insideAnAnswer(selection.$from)).toBe(false)
+      expect(selection.$from.parent).toBe(doc.lastChild)
+      expect(doc.lastChild.type.name).toBe('paragraph')
+      expect(doc.lastChild.content.size).toBe(0)
+      expect(doc.child(doc.childCount - 2).type.name).toBe('askInsert')
+
+      const answers = () => {
+        const out = []
+        ed.state.doc.forEach((n) => { if (n.type.name === 'askInsert') out.push(n.textContent) })
+        return out
+      }
+      const before = answers()
+      ed.commands.insertContent('x')
+      expect(answers()).toEqual(before)
+      expect(ed.state.doc.lastChild.type.name).toBe('paragraph')
+      expect(ed.state.doc.lastChild.textContent).toBe('x')
+      expect(insideAnAnswer(ed.state.selection.$from)).toBe(false)
+    })
+  }
+
+  // TrailingNode appends only AFTER a transaction, so it cannot carry the
+  // caret; the paragraph is appendAskInsert's own, and a host without
+  // TrailingNode gets it too.
+  it('without TrailingNode, the paragraph after the answer is still there and holds the caret', () => {
+    const ed = mountWith([StarterKit.configure({ trailingNode: false }), AskInsert, AskCitation],
+      { type: 'doc', content: [MINE] })
+    expect(appendAskInsert(ed, INSERT)).toBe(true)
+    expect(ed.state.doc.childCount).toBe(3)
+    expect(ed.state.doc.lastChild.type.name).toBe('paragraph')
+    expect(ed.state.doc.lastChild.content.size).toBe(0)
+    expect(ed.state.selection.$from.parent).toBe(ed.state.doc.lastChild)
+  })
+
+  it('does not take focus: on the click path focus belongs to the Ask panel', async () => {
+    const ed = mountWith(buildExtensions(), { type: 'doc', content: [MINE] })
+    const askButton = document.createElement('button')
+    document.body.appendChild(askButton)
+    askButton.focus()
+    expect(document.activeElement).toBe(askButton)
+    expect(appendAskInsert(ed, INSERT)).toBe(true)
+    // TipTap's `focus` command focuses on a later animation frame, so a
+    // synchronous check alone could not see it.
+    await new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(resolve)))
+    expect(document.activeElement).toBe(askButton)
+    expect(ed.isFocused).toBe(false)
+    askButton.remove()
+  })
+
+  it('is ONE transaction: a single undo removes the answer and its paragraph together', () => {
+    const start = { type: 'doc', content: [MINE, { type: 'paragraph' }] }
+    const ed = mountWith(buildExtensions(), start)
+    const original = JSON.stringify(ed.getJSON())
+    expect(appendAskInsert(ed, INSERT)).toBe(true)
+    ed.commands.undo()
+    expect(JSON.stringify(ed.getJSON())).toBe(original)
   })
 })
