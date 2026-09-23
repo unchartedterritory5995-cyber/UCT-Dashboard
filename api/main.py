@@ -7,6 +7,12 @@ from contextlib import asynccontextmanager
 from datetime import datetime
 from zoneinfo import ZoneInfo
 
+# ⛔ Credentials ride query strings (Massive apiKey=, FMP apikey=, calendar
+# ?token=) and reach logs through HTTP-client URL logging and exception text.
+# Redact at record creation, by parameter NAME, before any handler sees it.
+from api.services.log_redaction import install as _install_log_redaction
+_install_log_redaction()
+
 # APScheduler trap: a pre-built CronTrigger(...) resolves tzlocal (UTC on
 # Railway), NOT the scheduler's timezone -- every trigger below must carry
 # an explicit timezone or its "ET" schedule silently fires 4h early.

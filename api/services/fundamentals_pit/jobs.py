@@ -42,11 +42,12 @@ def _status(job: str, **fields) -> None:
     except Exception:
         cur = {}
     cur[job] = {"at": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()), **fields}
+    from api.services.log_redaction import redact
     tmp = STATUS + ".tmp"
     with open(tmp, "w") as f:
-        json.dump(cur, f, indent=1, default=str)
+        f.write(redact(json.dumps(cur, indent=1, default=str)))
     os.replace(tmp, STATUS)
-    print(f"[fundamentals_pit] {job}: " + json.dumps(fields, default=str)[:600], flush=True)
+    print(f"[fundamentals_pit] {job}: " + redact(json.dumps(fields, default=str))[:600], flush=True)
 
 
 def _conn():

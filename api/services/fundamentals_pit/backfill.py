@@ -251,12 +251,15 @@ def run(argv: list[str] | None = None) -> dict:
     report["elapsed_s"] = round(time.time() - t0, 1)
     conn.close()
     if a.report:
+        from api.services.log_redaction import redact
         with open(a.report, "w") as f:
-            json.dump(report, f, indent=1, default=str)
+            f.write(redact(json.dumps(report, indent=1, default=str)))
     return report
 
 
 def quiet_http_loggers() -> None:
+    from api.services.log_redaction import install
+    install()                       # and redact any credential that still reaches a record
     for name in ("httpx", "httpcore", "urllib3", "requests"):
         logging.getLogger(name).setLevel(logging.WARNING)
 
