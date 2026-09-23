@@ -41,6 +41,39 @@ from here to 212 is ~160 scripts. Nothing about choosing 212 forecloses 266 —
 known rather than estimated. Choosing 266 today buys a bigger number and no more
 scripts.
 
+### 6b. — AND THE MERGE IT DEPENDS ON IS **16 FILES, 35 HUNKS**. MEASURED, NOT ESTIMATED.
+
+⛔ **A DRY-RUN MERGE WAS ACTUALLY PERFORMED** — in a throwaway worktree at
+`origin/master`, `git merge --no-commit --no-ff feat/pine-value-model`, then
+aborted clean. This is not a guess from the diffstat.
+
+| | |
+|---|---|
+| branch ahead of the merge-base | **179 commits** |
+| master ahead of the merge-base | **311 commits** |
+| files touched by BOTH sides | 28 |
+| **files that actually CONFLICT** | **16** |
+| **total conflict hunks** | **35** |
+
+**And the shape is far kinder than the size suggests.** `pine.js` — the
+14,000-line file everyone fears — has **2 hunks**, and the first is an *import
+list* where the branch's version is a strict superset. The heaviest files are
+`objectProgram.js` (6) and `sentence.test.js` (5). Four of the sixteen are
+generated artifacts (`corpus_metric.json`, `lookback_agreement.json`,
+`closedTable.json`, `GRAMMAR.md`) whose resolution is "re-derive, never
+hand-merge" — and `closedTable.json` carries this repo's manifest rule: **edit as
+text, never round-trip through a serialiser.**
+
+⭐ **So the largest measured win available to this programme — member coverage
+26 → 52, a DOUBLING, with zero corpus regressions — is a day's careful work
+behind 35 conflict hunks, not a quarter's.** That is the single most actionable
+number in this file.
+
+⚠️ **What it still needs, and neither is mine to give:** the merge reaches
+`master`, which is production, so it needs an explicit deploy instruction and a
+member-impact paragraph; and the six-shard gate must run on the MERGED tree, not
+on either parent.
+
 ### 6. Arm `VITE_PINE_OBJECTS_ONLY_PANE_ENABLED` — **YES, AND IT IS NOT A FLAG FLIP**
 
 ⛔⛔ **THE FIRST THING THAT HAD TO BE CHECKED, AND IT MOVED THE ANSWER:
