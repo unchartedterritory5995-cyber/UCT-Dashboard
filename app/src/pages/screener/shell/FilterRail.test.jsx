@@ -48,4 +48,37 @@ describe('FilterRail', () => {
     fireEvent.click(screen.getByRole('button', { name: /clear 1/i }))
     expect(onClear).toHaveBeenCalled()
   })
+
+  // PACKET-AB CP1 (fingerprint bc19457cf) — the preview-count badge
+  describe('match-count badge', () => {
+    it('renders nothing when the count has never loaded', () => {
+      const { container } = render(<FilterRail meta={META} activeFilters={{}} onChange={() => {}} onClear={() => {}} />)
+      expect(container.querySelector('[data-testid="filter-rail"]').textContent).not.toMatch(/matches|Scanning/)
+    })
+
+    it('shows "Scanning…" while loading and no count has arrived yet', () => {
+      render(<FilterRail meta={META} activeFilters={{}} onChange={() => {}} onClear={() => {}}
+        matchCountLoading />)
+      expect(screen.getByText('Scanning…')).toBeInTheDocument()
+    })
+
+    it('renders the match count once it arrives, formatted with a thousands separator', () => {
+      render(<FilterRail meta={META} activeFilters={{}} onChange={() => {}} onClear={() => {}}
+        matchCount={1234} matchCountEmpty={false} />)
+      expect(screen.getByText('1,234 matches')).toBeInTheDocument()
+    })
+
+    it('a zero-match count is styled distinctly (visually flagged, still no aria-live)', () => {
+      render(<FilterRail meta={META} activeFilters={{}} onChange={() => {}} onClear={() => {}}
+        matchCount={0} matchCountEmpty />)
+      const el = screen.getByText('0 matches')
+      expect(el.className).toMatch(/railMatchCountEmpty/)
+    })
+
+    it('⛔ NEVER carries aria-live — that stays ShellToolbar\'s alone (screener_ui_stress.py collision)', () => {
+      const { container } = render(<FilterRail meta={META} activeFilters={{}} onChange={() => {}} onClear={() => {}}
+        matchCount={5} matchCountEmpty={false} />)
+      expect(container.querySelector('[aria-live]')).toBeNull()
+    })
+  })
 })

@@ -11,6 +11,7 @@ import UIcon from '../../../components/ui/UIcon'
 import useScreenerMeta from '../hooks/useScreenerMeta'
 import useScreenerScan from '../hooks/useScreenerScan'
 import useColumnPresets from '../hooks/useColumnPresets'
+import useScreenerCount from '../hooks/useScreenerCount'
 import FilterChips from '../FilterChips'
 import ChartsGallery from '../ChartsGallery'
 import ScreensManager from '../ScreensManager'
@@ -106,6 +107,11 @@ export default function ScannerShell({ embedded = false }) {
     [s.scanSpec, retryNonce])
   const { result, isLoading, error } = useScreenerScan(scanSpec)
   const { presets: columnPresets, save: saveColumnPreset, remove: removeColumnPreset } = useColumnPresets()
+  // PACKET-AB CP1 (fingerprint bc19457cf) -- same scanSpec, a materially cheaper
+  // and faster preview count fed into FilterRail as a fast signal ahead of the
+  // heavier scan above. Never replaces `result`/`isLoading` above.
+  const { count: matchCount, empty: matchCountEmpty, isLoading: matchCountLoading } =
+    useScreenerCount(scanSpec)
 
   const [rows, setRows] = useState([])
   // null until the first scan answers — so the count shows nothing (not a
@@ -240,7 +246,9 @@ export default function ScannerShell({ embedded = false }) {
 
   const rail = meta && (
     <FilterRail meta={meta} activeFilters={s.filters} onChange={s.setFilter}
-      onClear={s.clearFilters} variant={isPhone ? 'sheet' : 'rail'} />
+      onClear={s.clearFilters} variant={isPhone ? 'sheet' : 'rail'}
+      matchCount={matchCount} matchCountEmpty={matchCountEmpty}
+      matchCountLoading={matchCountLoading} />
   )
 
   return (
@@ -400,7 +408,9 @@ export default function ScannerShell({ embedded = false }) {
         applyLabel="Show results">
         {meta && (
           <FilterRail meta={meta} activeFilters={s.filters} onChange={s.setFilter}
-            onClear={s.clearFilters} variant="sheet" />
+            onClear={s.clearFilters} variant="sheet"
+            matchCount={matchCount} matchCountEmpty={matchCountEmpty}
+            matchCountLoading={matchCountLoading} />
         )}
       </FiltersSheet>
       {/* In-screener chart review — walks displayRows' tickers (the order shown)

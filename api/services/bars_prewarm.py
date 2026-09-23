@@ -215,6 +215,7 @@ def _last_completed_session() -> int:
 
 
 _BOOT_SETTLED_TFS = ("D", "W", "M")
+_BOOT_INTRADAY_TFS = ("1", "5", "15", "30", "60")
 
 
 def _boot_can_skip(last_ts, tf) -> bool:
@@ -234,7 +235,36 @@ def _boot_can_skip(last_ts, tf) -> bool:
     """
     if os.environ.get("PREWARM_BOOT_SKIP_SETTLED", "1") != "1":
         return False
-    if tf not in _BOOT_SETTLED_TFS or last_ts is None:
+    if last_ts is None:
+        return False
+    # ⛔ INTRADAY WAS NEVER GIVEN THIS SKIP. Scoped to D/W/M, intraday fell through to
+    # `_needs_fresh`, which re-fetches anything older than ~300 s inside the
+    # 04:00-20:00 ET window — so a DAYTIME deploy issues ~19,000 intraday provider
+    # calls (`ticker_list`x60/30/15 + 2,500x5m + 1,500x1m).
+    #
+    # ⚠️ PRECISELY WHAT THIS DOES AND DOES NOT SAVE. Those calls are NOT no-ops during
+    # RTH — they are real deltas carrying the last few minutes. Outside the data window
+    # an existing 30 h gate already skipped them. What this buys is that a series whose
+    # stored bars already cover the last COMPLETED session is not re-bought AT BOOT; the
+    # steady 5-min loop owns the hot set and re-reaches those symbols within minutes.
+    #
+    # ⭐ REUSES THE EXISTING PREDICATE, does not invent a second freshness system:
+    # `_is_cold_stale_intraday` already means "the newest stored bar is missing >=1
+    # whole completed session", which is exactly the boot pass's question. During RTH
+    # a symbol warmed at 09:35 stays skippable all day — deliberately: the boot's job
+    # is HISTORY, and today's evolving bar belongs to the refresh loop and to the
+    # tail repair at selection time.
+    #
+    # ⚠️ THIS IS WHAT MAKES BROAD TAIL COVERAGE AFFORDABLE. Without it the tail costs
+    # ~20.7k calls on every single deploy; with it a same-session redeploy costs ~0
+    # and the steady state is ONE call per symbol per SESSION, not per boot.
+    if tf in _BOOT_INTRADAY_TFS:
+        try:
+            from api.services.bars_fetch import _is_cold_stale_intraday
+            return not _is_cold_stale_intraday(tf, int(last_ts))
+        except Exception:
+            return False          # never fail closed into "skip"
+    if tf not in _BOOT_SETTLED_TFS:
         return False
     try:
         if _in_active_data_window():
@@ -254,6 +284,35 @@ def _boot_can_skip(last_ts, tf) -> bool:
         return False
 
 
+def rank_intraday_candidates(rest, dollar_volume) -> list:
+    """Order the NON-priority remainder of `ticker_list` by how likely a member is to
+    open it — highest average daily dollar volume first.
+
+    ⛔⛔ THE LINE THIS REPLACES WAS `rest = sorted(...)`, i.e. ALPHABETICAL. Priority +
+    breadth lists are placed first and are genuinely relevant; everything after them was
+    ordered by SPELLING. `_FIVEMIN_TICKERS = ticker_list[:PREWARM_5M_CAP]` then cuts that
+    list at 2,500 — so whether a stock got a fast 5-minute chart depended on its ticker's
+    first letter. An 'A' shell company outranked a heavily traded 'V' name for no reason
+    anybody chose.
+
+    ⭐ FREE. `dollar_volume` comes from `bars_sqlite.avg_dollar_volume_bulk` — ONE local
+    window-function pass over daily bars we already store. No provider call, no new
+    tracking, no per-member data. Ranking prewarm candidates must never itself cost the
+    provider capacity the ranking exists to spend well.
+
+    ⚠️ DETERMINISTIC, INCLUDING THE UNKNOWNS. Ties and symbols with no stored daily
+    history fall back to alphabetical, so the order is stable across boots and a missing
+    metric degrades to today's behaviour rather than to randomness.
+
+    ⚠️ THIS IS NOT THE BFRG FIX AND MUST NOT BE SOLD AS ONE. A better 2,500 is still
+    2,500 names out of a ~26k searchable universe; a thin microcap can rank below the cut
+    on dollar volume and still be a chart a member legitimately opens. Broad readiness is
+    `reference_tail`'s job, and correctness on a miss is the cold warming path's.
+    """
+    dv = {str(k).upper(): float(v) for k, v in (dollar_volume or {}).items()}
+    return sorted(rest, key=lambda t: (-dv.get(str(t).upper(), 0.0), str(t)))
+
+
 def shallow_5m_universe_jobs(ticker_list, deep_5m_tickers, *, enabled: bool, bars: int) -> list:
     """PHASE 2 (instant-origin) — the BOOT-ONLY jobs that warm a SHALLOW 5m window for
     the WHOLE universe, so a brand-new user's first 5m open of ANY ticker is an instant
@@ -267,7 +326,16 @@ def shallow_5m_universe_jobs(ticker_list, deep_5m_tickers, *, enabled: bool, bar
     ⛔ These are BOOT-ONLY by design: they must NEVER join the tight 5-min refresh loop's
     job list, or every cycle would re-fetch ~3,700 intraday series and re-starve on-demand
     fetches (the Massive saturation / AGI 20s hang). Shallow depth (a couple of sessions)
-    is all the default zoom needs; freshness is the async-heal + hot-set's job."""
+    is all the default zoom needs; freshness is the async-heal + hot-set's job.
+
+⛔⛔ THIS IS NOT THE VEHICLE FOR THE REFERENCE LONG TAIL, AND THAT IS A SCAR.
+    `ticker_list` is cap_universe + active ETFs; the ~22k reference tail (where BFRG
+    lives) is not in it. The obvious move — passing the tail in here — was tried in v1
+    of this initiative and ON 2026-08-19 IT THRASHED the worker's bars.db write-lock and
+    saturated the provider, starving the web pod's on-demand fetches. Bulk + four
+    concurrent boot threads is the shape that broke. `bars_universe_crawler` is the
+    purpose-built replacement (single in-flight fetch, paced, skip-fresh) and is where
+    broad coverage belongs. Do not re-add a `reference_tail` parameter here."""
     if not enabled:
         return []
     deep = set(deep_5m_tickers)
@@ -674,6 +742,30 @@ def run_prewarmer_forever():
     # them into the active set explicitly.
     _active |= priority_set | fast_path_set
     rest = sorted(tickers - priority_set - fast_path_set)
+    # ⭐ BETTER 2,500 AT ZERO PROVIDER COST. `rest` is alphabetical, and
+    # `_FIVEMIN_TICKERS = ticker_list[:PREWARM_5M_CAP]` cuts it at 2,500 — so ticker
+    # SPELLING decided which stocks got a fast 5m chart. Re-rank by average daily
+    # dollar volume read from bars.db we already hold (one local window-function pass;
+    # no provider call). Flag-off or on any failure it falls back to the alphabetical
+    # list, so this can never be the reason a boot pass fails to start.
+    if os.environ.get("PREWARM_RANK_BY_DOLLAR_VOLUME", "1") == "1":
+        try:
+            from api.services import bars_sqlite as _bsq
+            from datetime import datetime as _dt, timedelta as _td
+            from zoneinfo import ZoneInfo as _ZI
+            _before = _expected_session()
+            # 90 days of daily bars comfortably covers a 20-session window including
+            # holidays; the floor only bounds the scan for speed.
+            _floor = int((_dt.now(_ZI("America/New_York")) - _td(days=90)).strftime("%Y%m%d"))
+            _dv = _bsq.avg_dollar_volume_bulk(20, _before, _floor)
+            if _dv:
+                _ranked = rank_intraday_candidates(rest, _dv)
+                print(f"[prewarm] Ranked {len(_ranked)} long-tail candidates by 20-session "
+                      f"avg dollar volume ({len(_dv)} with a local metric); "
+                      f"top-5 {_ranked[:5]}")
+                rest = _ranked
+        except Exception as e:                       # noqa: BLE001
+            print(f"[prewarm] Dollar-volume ranking unavailable, keeping alphabetical: {e}")
     ticker_list = _PRIORITY + _FAST_PATH + rest
     # INSTANT EVERY SYMBOL: the shallow D/W/M warm for the reference long-tail
     # (stock+ETF symbols beyond the intraday-scoped `ticker_list`). `_dwm_extra` is
