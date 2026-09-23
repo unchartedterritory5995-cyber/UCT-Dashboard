@@ -1,0 +1,29 @@
+<!doctype html>
+<!--
+  HISTORICAL FUNDAMENTALS — REAL ChartWidget HARNESS (dev only).
+
+  Mounts the real ChartWidget -> StockChart -> Indicators/engine and answers every
+  /api/* from local files exported by tools/fundamentals_pit_poc/export_harness_data.py
+  (a scratch point-in-time store + the local bars.db, read-only). No request reaches the
+  backend on :8000 or SEC; preference writes are refused. Never opens /charts.
+
+  `vite build` takes index.html as its single input, so this entry never ships.
+
+  Run:  npx vite --host 127.0.0.1 --port <free>        (from app/)
+  Then: http://127.0.0.1:<port>/fundamentals-harness.html?sym=AAPL&tf=D
+-->
+<html lang="en" data-theme="dark">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Fundamentals — ChartWidget harness</title>
+    <style>
+      html, body { margin: 0; background: #0e1014; color: #e6e8ec;
+        font: 13px/1.45 ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif; }
+    </style>
+  </head>
+  <body>
+    <div id="root"></div>
+    <script type="module" src="/src/testing/fundamentals/fundamentalsHarness.jsx"></script>
+  </body>
+</html>

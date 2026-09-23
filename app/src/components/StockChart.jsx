@@ -10446,6 +10446,17 @@ export default function StockChart({
           visibleRange: () => {
             try { return chartRef.current?.timeScale().getVisibleLogicalRange() || null } catch { return null }
           },
+          // Read-only: what each ENGINE series actually handed the renderer
+          // (the fundamentals acceptance harness reads plotted values from here).
+          engineSeries: () => {
+            try {
+              return (engineRef.current?.binder?.bindings() || []).map((b) => ({
+                instanceId: b.instanceId, plotKey: b.plotKey,
+                priceFormat: b.series?.options?.()?.priceFormat?.type || null,
+                data: b.series?.data?.() || [],
+              }))
+            } catch { return null }
+          },
           // ⭐ THE TWO READINGS THIS FIX IS ACCEPTED ON, and they have to be
           // separate. The daily regression was "Origin frames the 600-bar window
           // instead of the true origin", and a chart holding 20 years while
