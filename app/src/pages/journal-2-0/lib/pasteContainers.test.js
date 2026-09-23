@@ -257,16 +257,29 @@ describe('a multi-block TEXT paste into a toggle SUMMARY joins into that summary
     expect(top(ed)).toEqual(['paragraph:Mine.', 'toggle:First para. Second para.Toggle body.', 'paragraph:After.'])
   })
 
-  it('an empty line copied as a block and pasted into a summary changes nothing -- the toggle stays whole', () => {
-    const ed = mount([P('Mine.'), { type: 'paragraph' }, TOGGLE, P('After.')])
-    const html = copyNode(ed, ed.state.doc.child(0).nodeSize) // the empty paragraph, as a node
-    ed.commands.setTextSelection(locate(ed, 'ary line'))
-    ed.view.pasteHTML(html)
-    ed.state.doc.check()
-    expect(count(ed, 'toggle')).toBe(1)
-    expect(summaryOf(ed)).toBe('Summary line')
-    expect(bodyOf(ed)).toBe('Toggle body.')
-  })
+  // Ruling (a): only empty lines change nothing at EVERY position in the title
+  // -- its START included, where rule 3 would otherwise put them above the toggle.
+  for (const [where, at] of [
+    ['START', (ed) => locate(ed, 'Summary line')],
+    ['middle', (ed) => locate(ed, 'ary line')],
+    ['end', (ed) => locate(ed, 'Summary line') + 'Summary line'.length],
+  ]) {
+    for (const [clipLabel, clip] of [
+      ['an empty line copied as a block', (ed) => copyNode(ed, ed.state.doc.child(0).nodeSize)], // the empty paragraph, as a node
+      ['<p></p><p></p>', () => '<p></p><p></p>'],
+    ]) {
+      it(`${clipLabel}, pasted at the title's ${where}, changes nothing -- the toggle stays whole`, () => {
+        const ed = mount([P('Mine.'), { type: 'paragraph' }, TOGGLE, P('After.')])
+        const html = clip(ed)
+        ed.commands.setTextSelection(at(ed))
+        const was = ed.state.doc
+        ed.view.pasteHTML(html)
+        ed.state.doc.check()
+        expect(ed.state.doc.eq(was)).toBe(true)
+        expect(top(ed)).toEqual(['paragraph:Mine.', 'paragraph:', 'toggle:Summary lineToggle body.', 'paragraph:After.'])
+      })
+    }
+  }
 
   it('CONTROL: a word pasted into a summary is still ProseMirror\'s own inline paste -- its bold survives', () => {
     const ed = mount([{ type: 'paragraph', content: [{ type: 'text', text: 'Bold', marks: [{ type: 'bold' }] }] }, TOGGLE])
@@ -376,15 +389,28 @@ describe('a paste into a toggle SUMMARY that carries STRUCTURE lands whole AFTER
     expect(top(ed)).toEqual(['paragraph:Mine.', 'toggle:Summary lineToggle body.', 'horizontalRule:', 'paragraph:After.'])
   })
 
-  it('a title SELECTION is replaced as any paste replaces it, and the blocks still land after the toggle', () => {
+  // Ruling (b): the content lands OUTSIDE the title, so deleting the member's
+  // selected title text would be a change somewhere they were not looking.
+  it('a title SELECTION is left untouched by a STRUCTURE paste -- the blocks land after the toggle', () => {
     const ed = mount([P('Mine.'), TOGGLE, P('After.')])
     const at = locate(ed, 'ary line')
     ed.commands.setTextSelection({ from: at, to: at + 3 }) // "Summ[ary] line"
     ed.view.pasteHTML('<p>Look</p><hr><p>here</p>')
     ed.state.doc.check()
     expect(count(ed, 'toggle')).toBe(1)
-    expect(summaryOf(ed)).toBe('Summ line')
-    expect(top(ed)).toEqual(['paragraph:Mine.', 'toggle:Summ lineToggle body.', 'paragraph:Look', 'horizontalRule:', 'paragraph:here', 'paragraph:After.'])
+    expect(summaryOf(ed)).toBe('Summary line')
+    expect(top(ed)).toEqual(['paragraph:Mine.', 'toggle:Summary lineToggle body.', 'paragraph:Look', 'horizontalRule:', 'paragraph:here', 'paragraph:After.'])
+  })
+
+  it('CONTROL: a TEXT-ONLY paste over a title selection still replaces it, as any inline paste does', () => {
+    const ed = mount([P('Mine.'), TOGGLE, P('After.')])
+    const at = locate(ed, 'ary line')
+    ed.commands.setTextSelection({ from: at, to: at + 3 }) // "Summ[ary] line"
+    ed.view.pasteHTML('<p>First para.</p><p>Second para.</p>')
+    ed.state.doc.check()
+    expect(count(ed, 'toggle')).toBe(1)
+    expect(summaryOf(ed)).toBe('SummFirst para. Second para. line')
+    expect(top(ed)).toEqual(['paragraph:Mine.', 'toggle:SummFirst para. Second para. lineToggle body.', 'paragraph:After.'])
   })
 
   it('CONTROL: the paste is ONE undo step -- undo restores the doc exactly', () => {

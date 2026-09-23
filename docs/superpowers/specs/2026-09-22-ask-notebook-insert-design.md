@@ -262,12 +262,39 @@ Node.create({
   block keeps its label. A copy made inside an answer carries the answer's wrapper
   as clipboard context, and because the block is `defining`, pasting it at the start
   of a member paragraph used to wrap the MEMBER'S paragraph in a new block (member
-  prose labelled "From Ask Notebook" and left out of Ask). A `transformPasted` hook
-  removes any `askInsert` that is open at an edge of the pasted slice, so partial
-  answer text lands as ordinary text wherever it is pasted, including inside an
-  answer. A whole block copied as a node is closed at both edges, keeps its wrapper
-  and attributes, and pastes as a second block. The same hook applies to a drag
-  within the editor.
+  prose labelled "From Ask Notebook" and left out of Ask).
+  - **Where the rule lives: `lib/pasteContainers.js` (`PasteContainers`), not the
+    node.** askInsert has no paste hook of its own any more. One plugin covers the
+    Notebook's three containers (askInsert, callout, toggle): the copy side
+    (`transformCopied`), the paste side (`transformPasted`), and a belt
+    (`handlePaste` pastes the text rather than lose a slice ProseMirror would throw
+    on). The same hooks apply to a drag within the editor.
+  - **The rule** (this I4 rule, generalised to all three): a container OPEN at an
+    edge of a copied or pasted slice was only partly selected, so its content
+    travels as plain content. Partial answer text lands as ordinary text wherever
+    it is pasted, including inside an answer. A CLOSED block (copied as a node, or
+    wholly inside a larger selection) keeps its wrapper and attributes and pastes
+    as a second block.
+- **Paste into a toggle title.** A toggle's title (`toggleSummary`, `inline*`)
+  cannot hold a block, so `pasteIntoSummary` in the same plugin decides, in this
+  order. Each outcome is one undo step, and none splits the toggle, drops a node or
+  flattens a closed block.
+  - A one-line paste (inline content, or one textblock open at both ends) is
+    ProseMirror's own paste into the title and keeps its marks.
+  - Nothing but empty lines is a no-op at every position in the title, its start
+    included.
+  - With the caret at the very start of a non-empty title, anything else lands
+    whole immediately BEFORE the toggle.
+  - TEXT-ONLY (every top-level node a textblock: paragraph, heading, code block):
+    the blocks' inline content joins into the title at the selection, one space
+    between blocks. Marks and inline atoms (a note link, a citation chip) are kept;
+    a hard break becomes a space. A selected range in the title is replaced, as any
+    inline paste replaces it.
+  - STRUCTURE (a block atom such as a file chip, image, rule or chart; a closed
+    callout, toggle or answer; a list, table or blockquote): lands whole
+    immediately AFTER the toggle, visible even when the toggle is collapsed. A
+    whole answer keeps its wrapper, attributes and chips. A structure paste never
+    touches the title: text selected in the title stays as it was.
 - Not added to the slash menu. The `renderHTML` fallback (used by HTML copy/paste
   and static renders) is a plain div with a content hole, and it parses back to the
   same node.
@@ -643,7 +670,8 @@ here is Wave K's `NOTEBOOK_*` keys.)
 - the Ask exclusion;
 - remove-before-insert in the consume;
 - the stale check's skip of a chip with no claim;
-- the `transformPasted` unwrap;
+- the `transformPasted` unwrap (now in `lib/pasteContainers.js`; its askInsert
+  proof removes `askInsert` from `PASTE_CONTAINERS`);
 - the undo/redo exemption from the edge guard.
 
 **Live verification** (local sandbox, `scripts/hub_sandbox_boot.py`, real browser):

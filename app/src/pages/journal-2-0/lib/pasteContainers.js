@@ -185,24 +185,23 @@ function joinedInline(slice, schema) {
 const pasteMeta = (tr) => tr.scrollIntoView().setMeta('paste', true).setMeta('uiEvent', 'paste')
 
 // Rules 2 and 3: the whole slice as blocks at `at` -- a position just outside
-// the toggle -- in ONE transaction (one undo step), with a selection inside the
-// title deleted as any paste replaces it and the caret left at the end of what
-// was inserted. The slice is tried CLOSED first (exactly the nodes that were
-// copied, a list keeping its nesting), then as it came, letting ProseMirror's
-// Fitter close whatever a cut left invalid; each result must pass `check()`.
-// If neither places, false: the belt and ProseMirror get the paste.
+// the toggle -- in ONE transaction (one undo step), with the caret left at the
+// end of what was inserted. The TITLE IS NEVER TOUCHED, even when the member
+// had text selected in it (ruling (b)): the content lands outside the title,
+// so deleting a word from it would be a change the member was not looking at.
+// The slice is tried CLOSED first (exactly the nodes that were copied, a list
+// keeping its nesting), then as it came, letting ProseMirror's Fitter close
+// whatever a cut left invalid; each result must pass `check()`. If neither
+// places, false: the belt and ProseMirror get the paste.
 function pasteBlocks(view, slice, at) {
   const { state } = view
-  const { from, to, empty } = state.selection
   for (const candidate of [new Slice(slice.content, 0, 0), slice]) {
     try {
       const tr = state.tr
-      if (!empty) tr.delete(from, to)
-      const pos = tr.mapping.map(at)
       const size = tr.doc.content.size
-      tr.replace(pos, pos, candidate)
+      tr.replace(at, at, candidate)
       tr.doc.check()
-      const end = pos + (tr.doc.content.size - size)
+      const end = at + (tr.doc.content.size - size)
       tr.setSelection(Selection.near(tr.doc.resolve(end), -1))
       view.dispatch(pasteMeta(tr))
       return true
@@ -218,23 +217,27 @@ function pasteBlocks(view, slice, at) {
 // close the summary mid-paste and split the toggle in two (measured: plain
 // two-line text left `toggle(summary "plain words", empty body)`,
 // `paragraph("second lineSummary line")`, `toggle(empty summary, original
-// body)`). The ruling (fix round 1), in the order it is applied:
+// body)`). The ruling (fix round 1 + final wave), in the order it is applied:
 //  4. An inline paste -- inline content, or ONE textblock open at both ends
 //     (a word from a paragraph, a list item, a body; mergesInline) -- is
 //     ProseMirror's own and keeps its marks: returned false, untouched.
+//  0. Nothing but EMPTY LINES (a text-only slice whose joined inline content
+//     is empty) is a no-op at EVERY position in the title, its start included
+//     (ruling (a)): the title has nowhere to put them and nothing is lost.
 //  3. Caret at the START of a non-empty title (empty selection, offset 0):
 //     every other slice goes in as blocks immediately BEFORE the toggle, where
 //     ProseMirror used to put it; now explicit.
 //  1. TEXT-ONLY (every top-level node is a textblock -- paragraph, heading,
 //     code block): the blocks' inline content joins into the title at the
-//     selection (joinedInline). Nothing but empty lines is a no-op: the title
-//     has nowhere to put them and nothing is lost.
+//     selection (joinedInline), replacing a selected range as any inline
+//     paste does.
 //  2. STRUCTURE (anything else -- a block atom such as a file chip, an image, a
 //     rule, a chart; a closed callout, toggle or Ask answer; a list, table,
 //     blockquote or task list): never flattened, never dropped, the toggle
-//     never split. The whole slice goes in as blocks immediately AFTER the
-//     toggle, visible even when it is collapsed. A whole Ask answer keeps its
-//     wrapper, attrs and chips -- the I4 closed-block rule above.
+//     never split, the title never touched -- a selection in it stays as it
+//     was (ruling (b)). The whole slice goes in as blocks immediately AFTER
+//     the toggle, visible even when it is collapsed. A whole Ask answer keeps
+//     its wrapper, attrs and chips -- the I4 closed-block rule above.
 // Ranges that start or end OUTSIDE the title (sameParent false) are left to
 // ProseMirror, as before (review M-5, out of scope).
 export function pasteIntoSummary(view, slice) {
@@ -245,15 +248,15 @@ export function pasteIntoSummary(view, slice) {
   if ($from.parent.type.name !== 'toggleSummary' || !$from.sameParent($to)) return false
   if (mergesInline(slice)) return false // rule 4
   const toggleDepth = $from.depth - 1
+  let textOnly = true
+  slice.content.forEach((node) => { if (!node.isTextblock) textOnly = false })
+  const inline = textOnly ? joinedInline(slice, state.schema) : null
+  if (textOnly && !inline.size) return true // rule 0: nothing but empty lines
   if (selection.empty && $from.parentOffset === 0 && $from.parent.content.size > 0) {
     return pasteBlocks(view, slice, $from.before(toggleDepth)) // rule 3
   }
-  let textOnly = true
-  slice.content.forEach((node) => { if (!node.isTextblock) textOnly = false })
   if (!textOnly) return pasteBlocks(view, slice, $from.after(toggleDepth)) // rule 2
-  const inline = joinedInline(slice, state.schema) // rule 1
-  if (!inline.size) return true // nothing but empty lines
-  const tr = state.tr.replaceWith($from.pos, $to.pos, inline)
+  const tr = state.tr.replaceWith($from.pos, $to.pos, inline) // rule 1
   try {
     tr.doc.check()
   } catch {
