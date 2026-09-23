@@ -58,12 +58,16 @@ import path from 'node:path'
 
 import { buildRuntimeIr } from '../../ast/pineRuntimeFrontend.js'
 import { translatePine } from '../../ast/pine.js'
+import { lowerIrProgram } from '../lowerIr.js'
+import { execute } from '../vm.js'
 
 const N = 30
 const BARS = Array.from({ length: N }, (_, i) => ({
   t: 1700000000 + i * 86400,
   o: 100 + (i % 5), h: 110 + (i % 7), l: 90 - (i % 3), c: 100 + (i % 11), v: 10 + i,
 }))
+const SERIES = ['o', 'h', 'l', 'c', 'v']
+  .map((k) => Float64Array.from(BARS.map((b) => b[k])))
 const head = '//@version=6\nindicator("t")\n'
 
 const REPO = path.resolve(process.cwd(), '..')
@@ -77,6 +81,20 @@ function runtimeGuard(body) {
     return `threw:${String(e && e.message).slice(0, 40)}`
   }
   return built.ok ? 'ok' : String((built.refusal || {}).guard || '?')
+}
+
+/** The plotted series, executed. ⭐ ADDED 2026-09-23 when two of the three names
+ *  in this file stopped being gaps: a rail that only asks WHETHER a name answers
+ *  cannot check that it answers the same thing the capture measured. */
+function seriesOf(body) {
+  const built = buildRuntimeIr(head + body, { bars: BARS, inputs: {} })
+  if (!built.ok) throw new Error(`refused ${(built.refusal || {}).guard}`)
+  const prog = lowerIrProgram(built.ir)
+  const r = execute(prog, {
+    bars: N, series: SERIES, columns: prog.columns, confirmed: true,
+    barTimes: BARS.map((b) => b.t),
+  })
+  return Array.from(r.outputs[0])
 }
 
 function hostGuard(body) {
@@ -134,9 +152,24 @@ describe('⭐⭐ two identical refusals that mean opposite things', () => {
     expect(ctrl.exactlyOneOnEveryDefinedBar).toBe(true)
     expect(ctrl.valueFromBar19).toBe(1)
 
-    // ⛔ and it is a gap, not a capability — asserted, not assumed
-    expect(runtimeGuard('plot(ta.correlation(close, open, 20))')).toBe('pine:function')
-    expect(hostGuard('plot(ta.correlation(close, open, 20))')).toBe('pine:function')
+    // ⚰️ IT WAS A GAP UNTIL 2026-09-23 AND THIS FILE RECORDED IT AS ONE. The
+    // merge of the two lineages CLOSED it — so the assertion becomes the stronger
+    // one this capture always made possible: not *"we refuse"*, but *"we answer,
+    // and we answer what the vendor answered"*.
+    expect(runtimeGuard('plot(ta.correlation(close, open, 20))')).toBe('ok')
+    const self = seriesOf('plot(ta.correlation(close, close, 20))')
+    // `na` until the window fills; first defined at length-1 — the capture's rule
+    for (let i = 0; i < c.windowLength - 1; i += 1) {
+      expect(Number.isFinite(self[i]), `bar ${i} should be na`).toBe(false)
+    }
+    expect(Number.isFinite(self[c.windowLength - 1])).toBe(true)
+    // ⭐ AND THE CAPTURE'S OWN CONTROL, RUN AGAINST US: self-correlation is exactly
+    // 1 on every defined bar. That control is what made the reading a measurement
+    // rather than a plot somebody looked at, and it is equally what makes this a
+    // verification rather than a check that the name compiles.
+    for (let i = c.windowLength - 1; i < self.length; i += 1) {
+      expect(Math.abs(self[i] - ctrl.valueFromBar19)).toBeLessThan(1e-9)
+    }
   })
 
   it('⭐⭐ `ta.percentile_linear_interpolation` — boundaries CLAMP EXACTLY', () => {
@@ -161,7 +194,26 @@ describe('⭐⭐ two identical refusals that mean opposite things', () => {
     }
     expect((p.sampleMidpoint || []).length).toBeGreaterThan(0)
 
-    expect(runtimeGuard('plot(ta.percentile_linear_interpolation(close, 20, 50))')).toBe('pine:function')
+    // ⚰️ ALSO A GAP UNTIL 2026-09-23, ALSO CLOSED BY THE MERGE. The capture's
+    // headline fact is that the BOUNDARIES CLAMP EXACTLY, so that is what is
+    // checked against us rather than mere compilation.
+    expect(runtimeGuard('plot(ta.percentile_linear_interpolation(close, 20, 50))')).toBe('ok')
+    const hundred = seriesOf('plot(ta.percentile_linear_interpolation(close, 20, 100))')
+    const zero = seriesOf('plot(ta.percentile_linear_interpolation(close, 20, 0))')
+    const high = seriesOf('plot(ta.highest(close, 20))')
+    const low = seriesOf('plot(ta.lowest(close, 20))')
+    for (let i = p.firstDefinedBarIndex; i < hundred.length; i += 1) {
+      expect(Math.abs(hundred[i] - high[i]), `bar ${i} upper`).toBeLessThan(1e-9)
+      expect(Math.abs(zero[i] - low[i]), `bar ${i} lower`).toBeLessThan(1e-9)
+    }
+    // ⛔ NON-VACUITY AGAINST OUR OWN SERIES, not only the capture's: the midpoint
+    // must sit strictly inside, or "clamps to the extremes" would be satisfied by
+    // a function that returns one number for every percentage.
+    const mid = seriesOf('plot(ta.percentile_linear_interpolation(close, 20, 50))')
+    for (let i = p.firstDefinedBarIndex; i < mid.length; i += 1) {
+      expect(mid[i]).toBeGreaterThan(low[i])
+      expect(mid[i]).toBeLessThan(high[i])
+    }
   })
 
   it('⛔ CONTROL — the probes are well-formed, so the refusals are about the NAMES', () => {

@@ -2690,7 +2690,23 @@ function windowLiteral(node, index) {
   const arg = node.args[index]
   const spec = TABLE.functions[node.name]
   const role = spec && Array.isArray(spec.argRoles) ? spec.argRoles[index] : null
-  const min = role === 'occurrence' ? 0 : 1
+  // ⭐ THE ROLES WHOSE DOMAIN INCLUDES ZERO, BY NAME. The comment above is the
+  // rule this follows — widen only for a role that says so — and `percentage`
+  // joined it on 2026-09-23 with `percentileLinearInterpolation`.
+  //
+  // ⛔ A PERCENTAGE OF 0 IS THE 0TH PERCENTILE, AND IT IS MEASURED. The vendor
+  // capture behind that function records `atZero_equals_lowest` — the lower
+  // boundary clamps EXACTLY to `ta.lowest` — so 0 is not an edge case to be
+  // tolerated, it is one of the two readings the capture was taken for. With
+  // `min` fixed at 1 the engine served the 50th and the 100th percentile and
+  // refused the 0th, which is the shape of a bug that passes every test
+  // written against the middle of a range.
+  //
+  // ⚠️ NOT CAPPED AT 100 HERE. Above-100 behaviour is unmeasured, and refusing
+  // it would be a guess wearing a guard; the manifest declares no upper bound
+  // either, so this stays a floor.
+  const ZERO_IS_IN_DOMAIN = new Set(['occurrence', 'percentage'])
+  const min = ZERO_IS_IN_DOMAIN.has(role) ? 0 : 1
   if (!arg || arg.type !== 'num' || typeof arg.value !== 'number'
       || !Number.isInteger(arg.value) || arg.value < min) {
     refuse('resolve:window',

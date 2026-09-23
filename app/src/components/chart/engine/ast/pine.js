@@ -8632,7 +8632,29 @@ export class Resolver {
         const argNode = args[0] && (args[0].value !== undefined ? args[0].value : args[0])
         const rawTf = this.timeframeLiteralOf(argNode)
         const tfCode = rawTf === null ? null : PINE_TF_SPELLING[String(rawTf).trim().toUpperCase()]
-        if (tfCode === 'D') return clockLeaf('dayopentime')
+        if (tfCode === 'D') {
+          // ⛔⛔ MILLISECONDS, BECAUSE PINE'S CLOCK IS — AND THE MERGE OF 2026-09-23
+          // CREATED THIS MISMATCH OUT OF TWO CORRECT HALVES.
+          //
+          // `dayopentime` is SECONDS; the manifest says so in its own words: *"this
+          // platform's unit everywhere a bar carries one, and not Pine's
+          // milliseconds"*. The other lineage reconciled the BARE `time` NAME to ms
+          // via `PINE_CLOCK_TRANSFORM`. Each was right alone. Together, one script's
+          // `time` was milliseconds and its `time("D")` was seconds — a 1000×
+          // disagreement between two spellings of ONE clock.
+          //
+          // ⚰️ AND THE IDIOM THAT WOULD HAVE CAUGHT IT IS THE ONE THAT STILL WORKED:
+          // `time("D") != time("D")[1]` compares like with like and is unaffected.
+          // What broke is `time > time("D")` — the anchor comparison the refusal
+          // just below this line describes in those very words.
+          //
+          // ⭐ GATED ON `pineVersion` LIKE ITS SIBLING, not on a fresh condition:
+          // `clockTransformFor` applies the bare name's ×1000 only for a script that
+          // declares a `//@version`, so anchoring to the same test is what keeps the
+          // two spellings in step for a versionless script too.
+          const leaf = clockLeaf('dayopentime')
+          return this.pineVersion !== null ? cOp('*', [leaf, cNum(1000)]) : leaf
+        }
       }
       throw new PineRefusal('pine:function',
         anchorForm

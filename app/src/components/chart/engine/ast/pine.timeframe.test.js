@@ -192,7 +192,12 @@ describe('time(timeframe) and time(timeframe, session) are different questions',
     // session-membership answers.
     const anchorOk = translatePine('//@version=5\nindicator("t")\nplot(time("D"))\n')
     expect(anchorOk.ok, JSON.stringify(anchorOk.refusal)).toBe(true)
-    expect(anchorOk.outputs[anchorOk.selected].formula).toBe('dayopentime')
+    // ⛔⛔ `* 1000` — PINE'S CLOCK IS MILLISECONDS AND THIS ENGINE'S IS SECONDS,
+    // reconciled at the Pine boundary exactly as the bare `time` NAME already was.
+    // Added 2026-09-23 in the merge: one lineage had the bare-name reconciliation,
+    // the other had `time(<tf>)` on the SECONDS-valued `dayopentime` leaf, and
+    // together `time - time("D")` came out as `time * 1000 - dayopentime`.
+    expect(anchorOk.outputs[anchorOk.selected].formula).toBe('dayopentime * 1000')
 
     // A period this engine does NOT have a node for still refuses, with the
     // anchor sentence (not the session one) and a name to go read instead.

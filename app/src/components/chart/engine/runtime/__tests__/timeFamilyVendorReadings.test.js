@@ -65,6 +65,8 @@ import path from 'node:path'
 
 import { buildRuntimeIr } from '../../ast/pineRuntimeFrontend.js'
 import { translatePine } from '../../ast/pine.js'
+import { lowerIrProgram } from '../lowerIr.js'
+import { execute } from '../vm.js'
 
 const N = 30
 const BARS = Array.from({ length: N }, (_, i) => ({
@@ -187,16 +189,74 @@ describe('⭐⭐ the `time()` family — the vendor readings, finally pinned', (
     // ⭐ This is the half that makes the file a rail rather than a note. The
     // moment any of these starts answering, this goes red and the next
     // engineer is sent to the readings above instead of guessing.
+    // ⚰️ `time("D")` LEFT THIS LIST ON 2026-09-23, AND THAT IS THIS RAIL WORKING
+    // EXACTLY AS ITS COMMENT PROMISED: *"the moment any of these starts
+    // answering, this goes red and the next engineer is sent to the readings
+    // above instead of guessing."* It went red, the readings were read, and Q4
+    // had already settled the semantics — `dayopentime` is the node, and the
+    // merge that brought the two lineages together is what made it reachable.
+    // ⛔ THE OTHER THREE STAY, because nothing has measured them: `"W"`,
+    // `timeframe.period` as a NAME, and the two-argument session form.
     const arms = [
       ['time(timeframe.period)', 'plot(time(timeframe.period) - time)'],
       ['time("W")', `plot(time(${Q}W${Q}))`],
-      ['time("D") idiom', `plot(time(${Q}D${Q}) != time(${Q}D${Q})[1] ? 1 : 0)`],
       ['time(tf, session)', `plot(na(time(timeframe.period, ${Q}0930-1600${Q})) ? 0 : 1)`],
     ]
     for (const [label, src] of arms) {
       expect(runtimeGuard(src), `${label} — runtime lane no longer refuses`).toBe('pine:function')
       expect(hostGuard(src), `${label} — host lane no longer refuses`).toBe('pine:function')
     }
+  })
+
+  it('⭐⭐ `time("D")` ANSWERS, and in the SAME UNIT as bare `time`', () => {
+    // ⛔⛔ THE MERGE OF 2026-09-23 MADE THESE TWO SPELLINGS DISAGREE BY 1000×,
+    // out of two halves that were each correct alone. `dayopentime` is SECONDS
+    // — the manifest says so in its own words — and the other lineage had
+    // reconciled the bare `time` NAME to Pine's milliseconds.
+    //
+    // ⚰️ AND THE IDIOM THAT WOULD HAVE CAUGHT IT IS THE ONE THAT KEPT WORKING:
+    // `time("D") != time("D")[1]` compares like with like. What broke is
+    // `time > time("D")` — the anchor comparison this file's own refusal text
+    // describes in those very words — wrong by three orders of magnitude.
+    //
+    // ⭐ ITS OWN INTRADAY BARS, because the shared fixture is DAILY: every bar
+    // would be its own day and "constant within the day" could not be tested.
+    const M = 8
+    const HOURLY = Array.from({ length: M }, (_, i) => ({
+      t: 1700000000 + i * 3600, o: 100, h: 101, l: 99, c: 100 + i, v: 10,
+    }))
+    const SERIES = ['o', 'h', 'l', 'c', 'v']
+      .map((k) => Float64Array.from(HOURLY.map((b) => b[k])))
+    const seriesOf = (body2) => {
+      const built = buildRuntimeIr(head + body2, { bars: HOURLY, inputs: {}, basePeriod: '60' })
+      expect(built.ok, built.ok ? '' : String((built.refusal || {}).guard)).toBe(true)
+      const prog = lowerIrProgram(built.ir)
+      const r = execute(prog, {
+        bars: M, series: SERIES, columns: prog.columns, confirmed: true,
+        barTimes: HOURLY.map((b) => b.t),
+      })
+      return Array.from(r.outputs[0])
+    }
+    const t = seriesOf('plot(time)')
+    const d = seriesOf(`plot(time(${Q}D${Q}))`)
+    expect(t.every(Number.isFinite) && d.every(Number.isFinite)).toBe(true)
+    // ⛔ THE ANCHOR IS AT OR BEFORE EVERY BAR OF ITS DAY, IN THE SAME UNIT.
+    // A ratio, never two pinned numbers: pinning either alone would pass while
+    // the other drifted, which is exactly how the defect survived being built.
+    for (let i = 0; i < M; i += 1) expect(d[i]).toBeLessThanOrEqual(t[i])
+    // and the same ORDER of magnitude — 1000× apart is the defect itself
+    expect(t[0] / d[0]).toBeLessThan(10)
+    // ⛔ BROADCAST ACROSS THE DAY — the property that makes it an ANCHOR, and the
+    // one a fold to bare `time` would destroy. These eight hourly bars cross a
+    // New York midnight, so the honest assertion is not "one value" but "FEWER
+    // values than bars, each held for a run": a fold to `time` would give M.
+    expect(new Set(d).size).toBeGreaterThan(0)
+    expect(new Set(d).size).toBeLessThan(M)
+    // and it never goes backwards — a day open is monotonic in bar order
+    for (let i = 1; i < M; i += 1) expect(d[i]).toBeGreaterThanOrEqual(d[i - 1])
+    // ⛔ NON-VACUITY: bare `time` really does take a new value on every bar, so
+    // "fewer than M" is a fact about the anchor and not about the fixture.
+    expect(new Set(t).size).toBe(M)
   })
 
   it('⛔ CONTROL — the probes are well-formed, so the refusals are about `time`', () => {
