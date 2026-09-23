@@ -60,6 +60,34 @@
 > lookahead_OFF — a different number under the same name, with no refusal to see
 > it by. The objective is every published script, not 266 of them.
 >
+> ⭐⭐ **AND THE NEXT UNIT OF WORK IS A SCRIPT, NOT A GUARD.** Measured on the
+> queue after RC-H: **no single remaining capability completes a script.**
+> `pine:undefined` stands in front of 7 near scripts and is never the last wall;
+> `runtime:colour` (4) and `pine:function` (4) likewise. Distinct walls per near
+> script: 1 (`position-size-calc`, blocked on the owner), 2, 2, then 3–5.
+>
+> So *"pick the guard that completes a script"* now resolves to **pick the
+> SCRIPT** — take the one with the fewest distinct walls that is not blocked on a
+> measurement, and build exactly what it needs end to end:
+>
+> | script | distance | what it needs |
+> |---|---|---|
+> | `fib-retracement` | 3 | dynamic history offset + `pine:undefined` |
+> | `ultimate-pivot-points` | 6 | `runtime:request` + `runtime:object-op` |
+> | `momentum-volatility-scanner` | 3 | `ta.bb` + `pine:undefined` + `runtime:colour` |
+>
+> ⭐ **RECOMMENDED LANE: DYNAMIC HISTORY OFFSETS** — `x[i]` where `i` is a series.
+> It is the capability that appears most often as a GENUINE wall (not a peel
+> artifact): `fib-retracement` line 74 writes `bar_index[-FH]` where
+> `FH = FIBS == 1 ? highestbars(high, FPeriod) : 1` — a series, so no fold can
+> ever reach it — and the same shape is the `close[i]` loop family
+> (~6 scripts) and `trend-targets-algoalpha`. Pine permits a series index in
+> `[]`; this engine sizes every ring before bar 0.
+>
+> ⚠️ RC-G named this capability and deliberately did NOT serve it — it made the
+> refusal truthful instead. Serving it means a ring sized to a bounded maximum
+> and read at a per-bar index, which is a real design, not a door fix.
+>
 > ⛔ **DO NOT RE-PROBE THESE — measured, zero:** `objects:iterated-tree-not-last-bar`
 > (14 scripts, 14/14 drawers, one construct — the 14 scatter behind EIGHT
 > different second walls, none drawing), and the three largest rows above.
