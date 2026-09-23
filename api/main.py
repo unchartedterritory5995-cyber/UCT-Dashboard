@@ -115,6 +115,7 @@ from api.routers import ai_search as ai_search_router
 from api.routers import user_playbook as user_playbook_router
 from api.routers import education as education_router
 from api.routers import fundamentals as fundamentals_router
+from api.routers import fundamentals_pit as fundamentals_pit_router
 from api.routers import analyst as analyst_router
 from api.routers import portfolio_heat as portfolio_heat_router
 from api.routers import filings as filings_router
@@ -8679,6 +8680,7 @@ app.include_router(ai_search_router.router)
 app.include_router(user_playbook_router.router)  # My Playbook /api/upb/*
 app.include_router(education_router.router)
 app.include_router(fundamentals_router.router)
+app.include_router(fundamentals_pit_router.router)  # historical PIT fundamentals; dark unless FUNDAMENTALS_PIT_ENABLED=1
 app.include_router(analyst_router.router)
 app.include_router(portfolio_heat_router.router)  # A14 CP1 -- GET /api/portfolio/heat
 app.include_router(filings_router.router)
