@@ -4452,10 +4452,49 @@ handful of long-delisted tickers stop appearing as live in ticker-search. Everyt
 redaction fixes) is either internal tooling or dark-by-default — zero other member-visible
 change, no schema changes, no new write paths.
 
-**Still open:** Packet W (RG-32, Compass's two-different-regime-words collision) — drafted,
+**Still open:** ~~Packet W (RG-32, Compass's two-different-regime-words collision) — drafted,
 signed for the *approval mechanism* but its `CHOOSE: A/B` line is deliberately still blank.
 This is a real product/vocabulary decision the packet itself frames as an owner call, and the
 session's own self-approval guardrail correctly refused an attempt to fill it in even under a
 broad "make full and total judgement calls" instruction — that delegation was read as covering
 engineering implementation choices (e.g. D2 LINE 5's in-process-vs-HTTP decision above), not a
-member-facing design decision explicitly structured as a `CHOOSE` line.
+member-facing design decision explicitly structured as a `CHOOSE` line.~~ **CLOSED 2026-09-22 —
+see the entry below.**
+
+## ✅ BUILT + DEPLOYED — Packet W CP1, the Compass regime-word collision, 2026-09-22
+
+The `CHOOSE: A/B` line above was resolved the same day: the owner gave explicit, specific
+delegation ("You decide it all my boy") on that one line — recorded transparently as
+*delegated, not deliberated* — and chose **Option A (rename)**. The owner then ran
+`sign_gate.py` themselves (fingerprint `425778f2c`, `SCOPE APPROVED: CP1 ONLY`); the platform's
+own self-approval guardrail still refused the signing act itself even after the delegation, so
+that step could not be done by the session regardless.
+
+**Built:** all five touch points named in the packet's "Option A" section — `coach_chat.py`'s
+`_current_regime_context()` ambient sentence, `pre_trade_verdict.py`'s prompt section header,
+`CompassOverview.jsx`'s header stat, `RegimeSection.jsx`'s header/help/empty-state/footnote
+copy, and `coach_chat_tools.py`'s `get_regime` tool description (corrected to describe what it
+actually returns — `voice_regime_classifier`'s independent 5-way classification — instead of
+journal_two's own vocabulary). The four-tier bucket itself, `j2_trades.regime`, every dict-key
+read (`info.get("regime")`/`regime_label`), `/api/j2/regime`'s field name and
+`regimeSizeMultipliers`' schema keys are ALL unchanged — this was a rendered/LLM-facing-text
+change only, never a data-model change.
+
+**Tested:** 6 new backend tests (`tests/test_packet_w_exposure_backdrop_wording.py`, including
+a source-level control proving the dict-key reads survived) + `RegimeSection.test.jsx` updated
+with 2 new "never renders the bare word regime" controls + a new `CompassOverview.test.jsx`
+(4 tests). All green, isolated and combined.
+
+**Deployed:** `feat/s7-price-level` commit `76ef96c06` → cherry-picked onto `merge-run` →
+pushed to `master`. First push attempt (`d52fb3e99..a0adf6a9f`, cherry-pick `5d1885576`) was
+refused mid-flight by the pre-push settle-window guard because a concurrent workstream's chart
+fix (`d2e08e04b`) landed and was still settling; after that deploy reached `SUCCESS` and settled
+its full window, the SAME cherry-pick was rebased onto the new master tip (clean, no conflicts —
+disjoint files) and re-verified (tests + hygiene + flow-worker coverage all green again) before
+the second push attempt (`d2e08e04b..a0adf6a9f`) succeeded. Railway `web` confirmed `SUCCESS` on
+`a0adf6a9f` (tracked `BUILDING` → `DEPLOYING` → `SUCCESS`); verified live via `/api/health`
+returning `uptime_seconds: 52` on a fresh boot.
+
+**Member impact:** wording-only, on a coaching surface that already existed — Compass's ambient
+market-context sentence and the Journal 2.0 Insights "regime" section now say "Exposure
+Backdrop" instead of "regime" throughout. No behavior change, no new data, no schema change.
