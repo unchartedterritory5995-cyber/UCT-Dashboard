@@ -1646,7 +1646,11 @@ export const PINE_NAMESPACED_TREE = Object.freeze({
   // would refuse an input-driven precision Pine accepts.
   // Vendor: `round(0.125, 2)` = 0.13, HALF AWAY FROM ZERO.
   'math.round': (a) => {
-    if (a.length === 1) return cCall('round', [a[0]])
+    // ⛔ ARITY 1 FALLS THROUGH — `null` means "not a shape I rewrite", and the
+    // ordinary resolution answers it exactly as it always did. Rebuilding it
+    // here as `cCall('round', …)` computed the same number and REPLACED a node
+    // the lane had already handled, which is how this broke `ta.atr` inside a
+    // request (see `math.max`).
     if (a.length !== 2 || !a[0] || !a[1]) return null
     const scale = cCall('pow', [cNum(10), a[1]])
     return cOp('/', [cCall('round', [cOp('*', [a[0], scale])]), scale])
@@ -1666,12 +1670,14 @@ export const PINE_NAMESPACED_TREE = Object.freeze({
 
 /** `f(a, b, c, …)` onto a left-folded chain of this table's two-argument `f`. */
 function variadicFold(name, args) {
-  if (!Array.isArray(args) || args.length < 2 || args.some((x) => !x)) {
-    return {
-      refusal: `\`math.${name}\` compares two or more values, and this call gives `
-        + `${Array.isArray(args) ? args.length : 0}`,
-    }
-  }
+  // ⛔⛔ TWO ARGUMENTS ARE NOT THIS FUNCTION'S BUSINESS, AND THE MEASUREMENT
+  // SAYS SO LOUDLY. `math.max(a, b)` has always resolved; folding it here
+  // produced the SAME number and a DIFFERENT node, and replacing a node the
+  // lane had already handled broke `ta.atr` inside a `request.security` and a
+  // stateful-UDF composition — three rails, none of them about `max`.
+  // ⭐ `null` is "not a shape I rewrite", so ordinary resolution answers it.
+  // Only the arity that used to REFUSE is rewritten here.
+  if (!Array.isArray(args) || args.length < 3 || args.some((x) => !x)) return null
   return args.slice(1).reduce((acc, next) => cCall(name, [acc, next]), args[0])
 }
 
@@ -8355,10 +8361,12 @@ export class Resolver {
         throw new PineRefusal('pine:arity', shifted.refusal, locate(tok))
       }
       if (shifted) return shifted
-      throw new PineRefusal('pine:arity',
-        `\`${pineName}\` was given ${resolved.length} argument`
-        + `${resolved.length === 1 ? '' : 's'}, and this engine has no reading of `
-        + 'it in that shape', locate(tok))
+      // ⛔⛔ `null` IS "NOT A SHAPE I REWRITE", NOT "REFUSE". It used to throw
+      // here, which meant a builder had to own every arity of its name or
+      // break the ones that already worked — and rebuilding a working shape is
+      // what broke `ta.atr` inside a request. Falling through gives exactly the
+      // resolution a name outside this map gets, so an unrewritten arity meets
+      // the table's own arity check and its own sentence.
     }
     // ⛔ THE HOST EXEMPTION IS NARROW BY CONSTRUCTION AND EVERY CLAUSE EARNS ITS
     // PLACE: `this.strict` (host mode only — a screen never gets it), `key` (the

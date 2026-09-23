@@ -78,6 +78,74 @@ import { COLOUR_FNS, producesColour, hexToPacked } from '../runtime/colours.js'
 /** The arithmetic half of Pine's compound assignments. `:=` is deliberately NOT
  *  here — it is a plain reassignment and has its own arm; folding it in would
  *  rewrite `x := e` into `x := x  (e)` and double the target. */
+/** CANONICAL → PARSE. The two node vocabularies of this engine, bridged in one
+ *  place because they are genuinely two.
+ *
+ *  ⛔⛔ THEY DESCRIBE THE SAME ARITHMETIC AND DO NOT SHARE A SINGLE TYPE NAME
+ *  FOR ITS LEAVES. `pine.js`'s builders (`cNum`, `cSeries`, `cOp`, `cCall`)
+ *  emit the CANONICAL shape the columnar lane consumes — `{type:'num'}`,
+ *  `{type:'series'}` — while `lowerExpr` dispatches on the PARSE shape the
+ *  reader produces: `{type:'number'}`, `{type:'name'}`. Operators and calls
+ *  happen to agree (`op`, `call`), which is exactly what makes the divergence
+ *  easy to miss: a canonical tree lowers correctly until it meets its first
+ *  literal.
+ *
+ *  ⚰️ MEASURED COST, 2026-09-22: a synthesised comparison was built in the
+ *  canonical dialect at a call site expecting the parse one. It did not fail
+ *  where it was wrong — the throw escaped as the statement walk's catch-all
+ *  `pine:statement`, "this Pine line is not a shape the translator reads",
+ *  pointing at the binding rather than at the node nobody could read.
+ *
+ *  ⭐ A PARSE NODE PASSES THROUGH UNTOUCHED, which is what lets a builder embed
+ *  the caller's own arguments (already parse nodes) inside a canonical wrapper
+ *  and have the mixture lower correctly. */
+function fromCanonical(node, tok) {
+  if (!node || typeof node !== 'object') return node
+  const at = node.tok || tok
+  switch (node.type) {
+    case 'num': return { type: 'number', value: node.value, tok: at }
+    case 'series': return { type: 'name', name: node.name, tok: at }
+    // ⛔⛔ AN OPERATOR BECOMES `binary`/`unary`, NOT A KEPT `op`, AND THE
+    // REASON IS NOT TIDINESS. A canonical `op` node carries a `name` property,
+    // and the argument convention in this lane marks a NAMED argument with
+    // exactly that property — so an `op` handed to a call as an argument is
+    // read as `a named argument \`*\` on \`round\``. Measured, first run.
+    case 'op': {
+      const parts = (node.args || []).map((a) => fromCanonical(a, at))
+      if (parts.length === 2) {
+        return { type: 'binary', op: node.name, left: parts[0], right: parts[1], tok: at }
+      }
+      if (parts.length === 1) {
+        // ⭐ Back to the SPELLING this lane's unary case reads: it takes `-`
+        // and `not`, and maps them to the VM's `u-` and `!` itself.
+        const op = node.name === 'u-' ? '-' : (node.name === '!' ? 'not' : node.name)
+        return { type: 'unary', op, arg: parts[0], tok: at }
+      }
+      return { type: 'op', name: node.name, tok: at, args: parts }
+    }
+    // ⛔⛔ A CALL'S ARGUMENTS ARE WRAPPED AS `{value}`, WHICH IS THIS LANE'S
+    // OWN CONVENTION AND NOT DECORATION. An argument list here is a list of
+    // `{name?, value}` records, and every call path tests `if (arg.name)` to
+    // catch a NAMED argument. A bare node in that position answers with its own
+    // `name` — so a nested `max(...)` handed to `max` was read as
+    // `a named argument \`max\` on \`max\``. Measured, second run.
+    case 'call': return {
+      type: 'call',
+      name: node.name,
+      tok: at,
+      args: (node.args || []).map((a) => ({ value: fromCanonical(a, at) })),
+    }
+    case 'offset': return {
+      type: 'offset', value: node.value, tok: at,
+      args: (node.args || []).map((a) => fromCanonical(a, at)),
+    }
+    // ⭐ ANYTHING ELSE IS ALREADY A PARSE NODE — a caller's own argument, which
+    // a builder embeds verbatim. Rewriting it would be this bridge inventing a
+    // translation for a dialect it was not asked about.
+    default: return node
+  }
+}
+
 const MUTATOR_OPS = Object.freeze(new Set(['+', '-', '*', '/', '%']))
 
 export const RUNTIME_REFUSALS = Object.freeze({
@@ -3293,6 +3361,40 @@ export function buildRuntimeIr(source, opts = {}) {
           throw held
         }
         const fnIndex = fnByName.get(node.name)
+        // ⭐⭐ THE NAMESPACED TRANSFORM, IN THIS LANE TOO.
+        //
+        // `PINE_NAMESPACED_TREE` rewrites a Pine call into the tree that means
+        // the same thing here. It is applied during RESOLUTION — and resolution
+        // is what a PURE subtree gets, because those go to the columnar lane. A
+        // user function body is not pure (its expressions read parameters,
+        // which are slots), so it is lowered HERE, and this arm never consulted
+        // the map. The same call meant two different things depending on where
+        // it sat:
+        //
+        //     plot(math.round(close / 3, 1))     compiled
+        //     p(t, b) => math.round(…, 1)        refused
+        //
+        // ⚰️⚰️ RC-E'S SHAPE, A THIRD TIME — a rule taught to one of the two
+        // places that lower a call. Each time the fix was correct and only as
+        // wide as the lane it was measured in.
+        //
+        // ⛔ A BUILDER'S OWN REFUSAL IS HONOURED, so a shape it will not take
+        // says why in its own words instead of arriving as "not a shape the
+        // translator reads" pointing at the statement.
+        if (typeof node.name === 'string'
+            && Object.prototype.hasOwnProperty.call(PINE_NAMESPACED_TREE, node.name)) {
+          const args = node.args.map((x) => (x && x.value !== undefined ? x.value : x))
+          const built = PINE_NAMESPACED_TREE[node.name](args)
+          if (built && built.refusal) {
+            throw new RuntimeRefusal('runtime:statement', built.refusal, locate(node.tok))
+          }
+          if (built) return lowerExpr(fromCanonical(built, node.tok), scope)
+        }
+        // ⛔⛔ PLACED HERE, NOT AT THE TOP OF THIS ARM, AND THE ORDER IS
+        // DOCUMENTED ABOVE: `Foo.new(…)` must be read before the user-function
+        // table AND before the method-form rewrite. Putting this consult first
+        // preempted both — measured, it broke `ta.atr` inside a request and a
+        // stateful UDF composition, with a refusal naming `a \`undefined\``.
         if (fnIndex !== undefined) {
           const fn = functions[fnIndex]
           // ⛔⛔ A MULTI-VALUE CALL IS ONLY A DESTRUCTURING'S RIGHT-HAND SIDE.
