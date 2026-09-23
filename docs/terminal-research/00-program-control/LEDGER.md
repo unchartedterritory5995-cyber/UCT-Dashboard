@@ -4551,3 +4551,91 @@ routes. Packet AC is a small, additive member-facing feature (apply a referral c
 signup). Separately, the ~14-minute outage during Packet X's first deploy attempt was real
 member-facing downtime, caused by Railway infrastructure behavior on this deploy rather than by
 either packet's own code change.
+
+## ✅ BUILT + MERGED — Packets U, Y, AA (CP1), AB, AD, AF (CP1/CP2/CP3/CP5), 2026-09-23
+
+The six packets owner-signed in the walkthrough session, built by concurrent agents on
+`feat/s7-price-level`, merged onto `master` in one batch via the `merge-run` staging worktree.
+
+**Packet U CP1** (fingerprint `877d092c0`) — `app/src/pages/desk/VideosSection.jsx`: an
+admin-only "Manage Categories" pill opens a sheet for renaming/reordering/removing Desk video
+categories and reordering videos within a category. Purely additive UI over the existing
+category data; no schema change. 10 new tests. Built commit `70d433f18` on
+`feat/s7-price-level`; landed on `master` as `cd6d06f3f`.
+
+**Packet Y CP1-CP3** (fingerprint `4007862bd`) — admin/ops visibility that existed as backend
+endpoints with no frontend: `PatternAdmin.jsx` gained a `/health` stat-card row (CP1); a new
+`DataPipelineHealthPanel.jsx` surfaces 12 already-computed pipeline monitors (CP2, 20 tests); a
+new `ThemeEngineHealthPanel.jsx` surfaces the Theme Membership Engine's run ledger + day cost
+(CP3, 6 tests). Both new panels mounted on `Admin.jsx`. Built commit `8ce615482`; landed as
+`085253963`.
+
+**Packet AA CP1 only** (fingerprint `f7fb7c477`) — `POST /api/flow-explain/` (an AI
+print-explainer for Options Flow) existed with zero frontend caller. `FlowExplainButton.jsx` +
+`FlowExplainModal` built as a complete, self-contained, deliberately UNMOUNTED standalone UI (9
+tests, including a mutation-proved honesty check that a `deterministic-fallback` response is
+never framed as AI-generated). **CP2 (mounting a trigger into partner-owned `OptionsFlow.jsx`) is
+explicitly deferred pending the owner's coordination with Ravi** — not built, not scheduled. The
+reachability guard's `AWAITING_A_DECISION` allowlist carries an entry for the new file with a
+"delete this entry in the same commit that lands CP2" instruction. Built commit `abf631e5a`;
+landed as `d4e8dc327`.
+
+**Packet AB CP1** (fingerprint `bc19457cf`) — a fast preview-count badge (`GET
+/api/screener/count`, already existed, uncalled) added beside FilterRail's search row, showing a
+live match count while the user is still tuning filters, well ahead of the heavier full-scan
+result. New `useScreenerCount.js` hook (debounced, seq-guarded) + 4 tests; `FilterRail.jsx` +
+`ScannerShell.jsx` wiring + 5 new FilterRail tests, one of which is mutation-proved to assert the
+badge carries **no** `aria-live` (a real collision hazard with `tools/screener_ui_stress.py`,
+which reads the first `[aria-live="polite"]` element in DOM order — that is `ShellToolbar`'s own
+status line, and giving the new badge the same attribute would have silently redirected that
+check to watch nothing). Built commit `4bc8646a0`; landed as `58e0f72b1`.
+
+**Packet AD CP1-CP3** (fingerprint `ecc04968c`) — Compass Voice observability that existed
+server-side with no member-facing surface: `VoiceTelemetryPanel.jsx` gained 7 more reward-variant
+fetches (CP1, 3 tests); new `VoiceHallucinationsPanel.jsx` (CP2, 4 tests) and
+`VoiceLearningPanel.jsx` (CP3, 4 tests, one asserting the word "compressed" never appears in the
+copy — an explicit honesty requirement against overstating what the learning loop does) mounted
+on `Settings.jsx`. Built commit `20a983d5f`; landed as `1e9b23e22`.
+
+**Packet AF CP1/CP2/CP3/CP5** (fingerprint `44dfa9380`) — dead-code cleanup + one new ops lever +
+doc corrections. CP1: deleted the dead singular `GET /api/auth/faq-vote/{faq_id}` route (the
+plural `GET /faq-votes` is what the frontend actually calls; zero test coverage referenced the
+deleted route or its now-unused `get_faq_vote_summary` import). CP2: deleted the superseded `GET
+/cash-flows` broker-sync route. CP3: added `POST /api/j2/broker/admin/backfill-history` — a
+PUSH_SECRET-bearer-gated ops lever to re-trigger a member's historical-equity backfill without
+their session, following the repo's established admin-lever pattern; 5 new tests including one
+proving it is never reachable via a logged-in member session. CP5: three `CLAUDE.md`
+corrections (OptionsFlow mobile hook list; `BrokerEquityCurve` marked live in three places after
+being wrongly documented as orphaned). **CP4 (a partner-file change) is explicitly deferred
+pending Ravi coordination** — not built. Built commit `057c085eb`; landed as `fedd7769f`.
+
+**Pre-existing findings surfaced, not caused, by this merge** — both confirmed by running the
+exact same rails against a fresh `origin/master` checkout before any of these six commits:
+- `app/src/components/screener/reachable.test.js` fails identically on bare `origin/master`
+  for two unreachable modules: `app/src/lib/context/focusDivergence.js` (already-documented
+  R-29, owned by the S4 workstream) and, newly identified here, `app/src/pages/screener/shell/
+  FilterBand.jsx` — a real "measured universe distribution band" component that lost its only
+  caller when `FilterRail.jsx` had its basis-note usage removed by owner request in PR #181, and
+  was never itself deleted. Neither is this batch's to fix; recorded so the next reader does not
+  mistake either for a regression from these packets.
+- `app/src/pages/screener/shell/ScannerShell.review.test.jsx` — all 4 tests fail identically on
+  bare `origin/master`, unrelated to any of the six packets (the review-charts door lives several
+  layers below `ScannerShell`, inside `ScreensManager`/`ScanResults`, neither touched here).
+
+**Verification, in order:** frontend — 14 test files covering every touched component across all
+six packets plus the reachability rail and all 3 existing `ScannerShell.*.test.jsx` files: 92
+passed, 5 failed, all 5 confirmed pre-existing on a clean `origin/master` baseline (zero NEW
+failures from this merge). Backend — `tests/test_broker_router.py` (Packet AF's only backend
+surface): 20/20 passed; `grep -c broker_sync api/main.py` = 10 (≥ 7, LOCKED invariant holds).
+`python tools/check_repo_hygiene.py` clean (12,372 tracked files). `python
+tools/flow_worker_watch_coverage.py` OK (33 changed, 24 watched, 0 red).
+
+**Pushed** `merge-run` → `master`, `c44be58a8..d4e8dc327`, pre-push guard confirmed the queue
+quiet (no deploy inside 600s). Deploy tracked via direct `/api/health` polling given the Packet X
+stuck-deploy incident earlier this session — recorded in the next checkpoint once it lands.
+
+**Member impact:** six small, purely additive member/admin-facing surfaces (a Desk category
+manager, three admin health panels, a screener match-count badge, two voice-observability
+panels) plus one dead-route cleanup and one new ops-only lever — no schema changes, no behavior
+change to any existing member-facing path. Packet AA's actual member door (the Options Flow
+explain button) and Packet AF's fourth checkpoint remain deliberately unbuilt pending Ravi.
