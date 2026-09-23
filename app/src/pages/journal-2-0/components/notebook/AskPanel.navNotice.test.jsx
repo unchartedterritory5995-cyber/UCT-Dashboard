@@ -118,6 +118,26 @@ describe('AskPanel — what a tapped citation could not open', () => {
     expect(within(dialog).queryByText('That passage is no longer available.')).toBeNull()
   })
 
+  it('each tap hands onNavigate a signal, and the NEXT tap aborts the previous one', async () => {
+    const signals = []
+    const dialog = await renderAndAsk((_src, _resolved, ctx) => { signals.push(ctx.signal); return null })
+    tap(dialog, A)
+    tap(dialog, B)
+    await act(async () => {})
+    expect(signals).toHaveLength(2)
+    expect(signals[0].aborted).toBe(true)
+    expect(signals[1].aborted).toBe(false)
+  })
+
+  it('a new question aborts a tap still in flight', async () => {
+    const signals = []
+    const dialog = await renderAndAsk((_src, _resolved, ctx) => { signals.push(ctx.signal); return new Promise(() => {}) })
+    tap(dialog, A)
+    global.fetch = vi.fn(async () => stream())
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Ask' }))
+    expect(signals[0].aborted).toBe(true)
+  })
+
   it('on TOUCH the notice is inside the modal Sheet, not behind it', async () => {
     window.matchMedia = (query) => ({
       matches: query === MQ.touchDown, media: query, onchange: null,

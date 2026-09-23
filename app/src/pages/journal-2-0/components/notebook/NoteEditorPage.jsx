@@ -1131,8 +1131,8 @@ export default function NoteEditorPage({ noteId, onBack, showBack = true, onTitl
   // `jumpToCitation` below, a thesis evidence row directly. It returns the
   // sentence to show when nothing opened; the evidence row ignores it, as
   // before (that row already says "source no longer available" itself).
-  const handleOpenExcerptSource = useCallback((excerptId) => openExcerptCitation(excerptId, {
-    openDocument: setPreviewDoc, openCapturedSource: setCapturedSource,
+  const handleOpenExcerptSource = useCallback((excerptId, { signal } = {}) => openExcerptCitation(excerptId, {
+    signal, openDocument: setPreviewDoc, openCapturedSource: setCapturedSource,
   }), [])
 
   // Wave J: create the excerpt AND insert its node, in that order -- the
@@ -1150,7 +1150,7 @@ export default function NoteEditorPage({ noteId, onBack, showBack = true, onTitl
    * preferable to a confident mis-navigation: landing on the wrong paragraph
    * looks exactly like landing on the right one.
    */
-  const jumpToCitation = useCallback((source, resolved) => {
+  const jumpToCitation = useCallback((source, resolved, { signal } = {}) => {
     // ⛔ NOTHING HERE IS A SILENT NO-OP. Every branch that does not navigate
     // RETURNS the sentence AskPanel shows inside itself -- the panel is a
     // modal Sheet on touch, and a click that changes nothing reads as broken.
@@ -1176,7 +1176,7 @@ export default function NoteEditorPage({ noteId, onBack, showBack = true, onTitl
     // GUARD BELOW AND RETURN SILENTLY, while this page already knew how to open
     // an excerpt by id for a thesis evidence row. It now takes that same path.
     if (source?.navigation?.kind === 'excerpt') {
-      return handleOpenExcerptSource(source.navigation.excerpt_id)
+      return handleOpenExcerptSource(source.navigation.excerpt_id, { signal })
     }
     // ⚰️ WAVE P3 §12 — A CITED DOCUMENT PAGE USED TO GO NOWHERE. This handler
     // knew about reviews and about the note body, and returned silently for

@@ -16,6 +16,11 @@
 //   captured-passage sheet for a web capture -- never a PDF viewer over a
 //   `web:<sha256>` identity.
 //
+// ⛔ THE LAST TAP WINS. Every opener takes the `signal` AskPanel hands
+// `onNavigate` and aborts when the member taps again: the read is cancelled, and
+// a result that lands after all is DROPPED rather than opening a sheet over the
+// one the member asked for second.
+//
 // ⛔ AND NOTHING IS SILENT. Every path that does not open something returns the
 // sentence AskPanel shows inside itself (the panel is the one surface the
 // member is certain to be looking at -- on touch it is a modal Sheet). A
@@ -39,13 +44,14 @@ export const NOTE_LEVEL_SOURCE = 'That source is this note as a whole, not one p
  *
  * @returns {Promise<{kind:'document', target:object, excerpt:object}
  *                  |{kind:'captured_source', excerpt:object}
- *                  |{kind:'gone'}|{kind:'failed', error?:unknown}>}
+ *                  |{kind:'gone'}|{kind:'nowhere', excerpt:object}
+ *                  |{kind:'failed', error?:unknown}>}
  */
-export async function resolveExcerpt(excerptId) {
+export async function resolveExcerpt(excerptId, { signal } = {}) {
   let res
   try {
     res = await fetch(`/api/j2/excerpts/${encodeURIComponent(excerptId)}`,
-                      { credentials: 'include' })
+                      signal ? { credentials: 'include', signal } : { credentials: 'include' })
   } catch (error) {
     return { kind: 'failed', error }
   }
@@ -60,7 +66,10 @@ export async function resolveExcerpt(excerptId) {
     return { kind: 'failed', error }
   }
   const target = excerptRevisitTarget(excerpt)
-  if (!target) return { kind: 'failed' }
+  // ⛔ A READ THAT SUCCEEDED AND NAMES NOWHERE IS NOT "TRY AGAIN". Retrying
+  // returns the same excerpt with the same missing destination, so telling the
+  // member to try again sends them round a loop that cannot close.
+  if (!target) return { kind: 'nowhere', excerpt }
   if (target.kind === 'captured_source') return { kind: 'captured_source', excerpt }
   return { kind: 'document', target: { ...target, emphasizeExcerpt: excerpt }, excerpt }
 }
@@ -76,12 +85,17 @@ export async function resolveExcerpt(excerptId) {
  * @returns {Promise<string|null>} null when something opened, else the
  *          sentence to show.
  */
-export async function openExcerptCitation(excerptId, { openDocument, openCapturedSource }) {
+export async function openExcerptCitation(excerptId, { signal, openDocument, openCapturedSource }) {
   if (!excerptId) return SOURCE_NOWHERE
-  const r = await resolveExcerpt(excerptId)
+  const r = await resolveExcerpt(excerptId, { signal })
+  // ⛔ ONE GUARD, HERE, AFTER THE READ -- whatever it returned, an aborted
+  // AbortError included: a later tap owns the panel now, so open nothing and
+  // say nothing. (One copy, so a mutation can prove it; three would not.)
+  if (signal?.aborted) return null
   if (r.kind === 'document') { openDocument(r.target); return null }
   if (r.kind === 'captured_source') { openCapturedSource(r.excerpt); return null }
   if (r.kind === 'gone') return PASSAGE_GONE
+  if (r.kind === 'nowhere') return SOURCE_NOWHERE
   if (r.error) console.error('[notebook] opening a saved excerpt failed', r.error)
   return PASSAGE_UNREADABLE
 }
@@ -94,10 +108,10 @@ export async function openExcerptCitation(excerptId, { openDocument, openCapture
  * @returns {Promise<string|null>|string|null} what AskPanel's `onNavigate`
  *          returns -- a sentence when nothing could be opened.
  */
-export function openSpanningCitation(source, { openNote, openDocument, openCapturedSource }) {
+export function openSpanningCitation(source, { signal, openNote, openDocument, openCapturedSource }) {
   const nav = source?.navigation || {}
   if (nav.kind === 'excerpt') {
-    return openExcerptCitation(nav.excerpt_id, { openDocument, openCapturedSource })
+    return openExcerptCitation(nav.excerpt_id, { signal, openDocument, openCapturedSource })
   }
   if (nav.note_id) {
     openNote({ id: nav.note_id })

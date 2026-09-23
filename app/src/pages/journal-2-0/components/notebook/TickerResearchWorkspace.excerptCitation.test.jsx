@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
-import { render, screen, fireEvent, waitFor, within } from '@testing-library/react'
+import { render, screen, fireEvent, waitFor, within, act } from '@testing-library/react'
 import { MemoryRouter } from 'react-router-dom'
 import { SWRConfig } from 'swr'
 import { MQ } from '../../../../styles/breakpoints'
@@ -115,7 +115,9 @@ function renderWorkspace(onOpenNote) {
 }
 
 const realFetch = global.fetch
-beforeEach(() => { vi.spyOn(console, 'error').mockImplementation(() => {}) })
+// ⛔ NO FILE-WIDE console.error SILENCING (review M-6). It hid every React
+// warning in this file and asserted nothing; the one case that EXPECTS a log
+// (a read that throws) spies locally and asserts the call.
 afterEach(() => { global.fetch = realFetch; vi.restoreAllMocks() })
 
 describe('TickerResearchWorkspace — an EXCERPT citation lands on the passage', () => {
@@ -132,7 +134,8 @@ describe('TickerResearchWorkspace — an EXCERPT citation lands on the passage',
     // The viewer can only emphasise an excerpt it was HANDED (it looks the id
     // up in `excerpts`), so the id alone would scroll to nothing.
     expect(viewer.getAttribute('data-excerpts').split(',')).toContain('ex1')
-    expect(global.fetch).toHaveBeenCalledWith('/api/j2/excerpts/ex1', { credentials: 'include' })
+    expect(global.fetch).toHaveBeenCalledWith('/api/j2/excerpts/ex1',
+      expect.objectContaining({ credentials: 'include', signal: expect.any(AbortSignal) }))
     expect(onOpenNote).not.toHaveBeenCalled()
   })
 
@@ -167,6 +170,29 @@ describe('TickerResearchWorkspace — an EXCERPT citation lands on the passage',
 
     expect(await within(ask).findByText("Couldn't open that passage — try again.")).toBeInTheDocument()
     expect(screen.queryByText('That passage is no longer available.')).toBeNull()
+  })
+
+  it('a read that THROWS (the network is down) says try again, and logs it', async () => {
+    // Review M-4: a 500 is a RESPONSE and never reaches the catch; only a
+    // rejected fetch does, and nothing exercised that branch.
+    const err = vi.spyOn(console, 'error').mockImplementation(() => {})
+    installNetwork({ excerpt: () => Promise.reject(new TypeError('Failed to fetch')) })
+    renderWorkspace(vi.fn())
+    const ask = await askAndClickCitation()
+
+    expect(await within(ask).findByText("Couldn't open that passage — try again.")).toBeInTheDocument()
+    expect(err).toHaveBeenCalledWith('[notebook] opening a saved excerpt failed', expect.any(TypeError))
+  })
+
+  it('a read that SUCCEEDS but names nowhere is not "try again"', async () => {
+    // Review M-7: retrying returns the same excerpt with the same missing
+    // destination, so "try again" would send the member round a loop.
+    installNetwork({ excerpt: jsonResponse(200, { excerpt: { ...PDF_EXCERPT, attachmentUrl: null } }) })
+    renderWorkspace(vi.fn())
+    const ask = await askAndClickCitation()
+
+    expect(await within(ask).findByText("That source can't be opened from here.")).toBeInTheDocument()
+    expect(screen.queryByText("Couldn't open that passage — try again.")).toBeNull()
   })
 
   it('a source with no destination at all says so instead of doing nothing', async () => {
@@ -207,6 +233,58 @@ describe('TickerResearchWorkspace — an EXCERPT citation lands on the passage',
 // that scrim, where the member saw nothing. test-setup stubs matchMedia to
 // `matches:false` (desktop), so this block overrides it for the touch query
 // alone, derived from MQ rather than typed.
+// Review M-5 -- two quick taps on different excerpt citations. Whichever read
+// resolves LAST used to win, not the one tapped last, so a slow first read could
+// open its sheet over the one the member asked for second.
+describe('TickerResearchWorkspace — the LAST tap wins', () => {
+  const A = EXCERPT_SOURCE
+  const B = {
+    ...EXCERPT_SOURCE, n: 2, label: 'Q2 filing.pdf · p.9',
+    navigation: { kind: 'excerpt', excerpt_id: 'ex2', document_id: 'd8', page_number: 9 },
+  }
+  const Q2 = {
+    ...PDF_EXCERPT, id: 'ex2', documentId: 'd8', documentName: 'Q2 filing.pdf', pageNumber: 9,
+    attachmentUrl: '/api/j2/notes/attachments/u1/n7/file/q2.pdf',
+  }
+
+  it('a slow read for the FIRST tap never opens over the second', async () => {
+    let releaseA
+    const seen = {}
+    global.fetch = vi.fn((url, init) => {
+      const u = String(url)
+      if (u.endsWith('/api/j2/notes/research/NVDA/summary')) return Promise.resolve(jsonResponse(200, SUMMARY))
+      if (u === '/api/j2/ask/stream') {
+        return Promise.resolve({
+          ok: true, status: 200, json: async () => ({}),
+          body: sseBody([
+            { type: 'sources', scope: 'security', scopeLabel: 'NVDA research', sources: [A, B], coverageNotice: null },
+            { type: 'final', answer: 'Margins compressed [1] and [2].' },
+          ]),
+        })
+      }
+      if (u === '/api/j2/excerpts/ex1') {
+        seen.ex1 = init?.signal
+        // A slow read that IGNORES its abort signal: the opener must drop the
+        // late result itself, not rely on the transport cancelling it.
+        return new Promise((r) => { releaseA = () => r(jsonResponse(200, { excerpt: PDF_EXCERPT })) })
+      }
+      if (u === '/api/j2/excerpts/ex2') return Promise.resolve(jsonResponse(200, { excerpt: Q2 }))
+      throw new Error(`unexpected fetch ${u}`)
+    })
+    renderWorkspace(vi.fn())
+    const ask = await askAndClickCitation(A.label)
+    fireEvent.click(await within(ask).findByRole('button', { name: `Source 2: ${B.label}` }))
+
+    await screen.findByRole('dialog', { name: 'Preview of Q2 filing.pdf' })
+    expect(seen.ex1.aborted).toBe(true)
+    await act(async () => { releaseA() })
+
+    expect(screen.queryByRole('dialog', { name: 'Preview of Q3 filing.pdf' })).toBeNull()
+    expect(screen.getByRole('dialog', { name: 'Preview of Q2 filing.pdf' })).toBeInTheDocument()
+    expect(within(ask).getByTestId('ask-nav-notice')).toBeEmptyDOMElement()
+  })
+})
+
 describe('TickerResearchWorkspace — on TOUCH the notice is inside the Sheet', () => {
   const realMatchMedia = window.matchMedia
   beforeEach(() => {

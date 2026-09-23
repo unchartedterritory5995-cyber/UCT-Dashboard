@@ -63,9 +63,10 @@ export default function AskPanel({
   onNavigate = null,
   autoOpen = false,
   onClose = null,
-  // `onNavigate(source, resolved)` opens a cited source. It may return (or
-  // resolve to) a short sentence -- or `{ message }` -- when the source cannot
-  // be opened, and the panel shows it (see `navNotice`).
+  // `onNavigate(source, resolved, { signal })` opens a cited source. It may
+  // return (or resolve to) a short sentence -- or `{ message }` -- when the
+  // source cannot be opened, and the panel shows it (see `navNotice`). `signal`
+  // aborts when a later tap supersedes this one.
   // G-064 (spec §5.2). `onInsert(node) -> boolean` inserts into the note that
   // is OPEN; `onOpenNote(note)` opens a note, which enables the picker when
   // none is. A host passes whichever it can honour.
@@ -99,11 +100,22 @@ export default function AskPanel({
   // notice: an earlier tap's answer arriving late is dropped, never shown.
   const [navNotice, setNavNotice] = useState('')
   const navSeqRef = useRef(0)
+  // ⛔ THE LAST TAP WINS FOR WHAT OPENS, TOO -- not only for what is said.
+  // Each tap hands `onNavigate` a fresh `signal`, and the next tap (or a new
+  // question, a scope change, unmount) aborts the previous one, so a slow read
+  // for an EARLIER tap can never open a sheet over the one asked for second.
+  const navAbortRef = useRef(null)
   const abortRef = useRef(null)
   const historyRef = useRef([])
   const inputRef = useRef(null)
 
-  useEffect(() => () => abortRef.current?.abort(), [])
+  const supersedeNavigation = useCallback(() => {
+    navSeqRef.current += 1
+    navAbortRef.current?.abort()
+    navAbortRef.current = null
+  }, [])
+
+  useEffect(() => () => { abortRef.current?.abort(); navAbortRef.current?.abort() }, [])
 
   // A scope change is a different corpus, so the thread does not carry over.
   // Keeping it would let a follow-up be answered from a corpus the member
@@ -112,9 +124,9 @@ export default function AskPanel({
     historyRef.current = []
     setAnswer(''); setSources([]); setCoverageNotice(null); setStatus('idle')
     setInsertedAnswer(null); setPickNode(null)
-    navSeqRef.current += 1; setNavNotice('')
+    supersedeNavigation(); setNavNotice('')
     setScopeLabel(SCOPES[scope]?.label || SCOPES.notebook.label)
-  }, [scope, target])
+  }, [scope, target, supersedeNavigation])
 
   // ⛔ TWO FRAMES, NOT ONE. `Sheet` claims focus for its own panel on the
   // frame after it mounts (its focus management, deliberately, so Escape and
@@ -136,7 +148,7 @@ export default function AskPanel({
     setStatus('asking'); setAnswer(''); setSources([])
     setCoverageNotice(null); setErrorMsg('')
     setInsertedAnswer(null); setPickNode(null)
-    navSeqRef.current += 1; setNavNotice('')
+    supersedeNavigation(); setNavNotice('')
     const controller = new AbortController()
     abortRef.current = controller
     let text = ''
@@ -200,10 +212,13 @@ export default function AskPanel({
         setStatus('error'); setErrorMsg('Something went wrong.')
       }
     }
-  }, [query, status, scope, target, spec.label])
+  }, [query, status, scope, target, spec.label, supersedeNavigation])
 
   const handleCitation = useCallback(async (source) => {
-    const seq = ++navSeqRef.current
+    supersedeNavigation()
+    const seq = navSeqRef.current
+    const nav = new AbortController()
+    navAbortRef.current = nav
     setNavNotice('')
     let resolved = null
     if (source?.navigation?.kind === 'note' && getEditorDoc) {
@@ -214,7 +229,7 @@ export default function AskPanel({
     }
     let outcome = null
     try {
-      outcome = await onNavigate?.(source, resolved)
+      outcome = await onNavigate?.(source, resolved, { signal: nav.signal })
     } catch (e) {
       console.error('[ask] opening a cited source failed', e)
       outcome = OPEN_FAILED_MSG
@@ -222,7 +237,7 @@ export default function AskPanel({
     if (seq !== navSeqRef.current) return
     const message = typeof outcome === 'string' ? outcome : outcome?.message
     if (message) setNavNotice(message)
-  }, [getEditorDoc, onNavigate])
+  }, [getEditorDoc, onNavigate, supersedeNavigation])
 
   const parts = useMemo(() => (answer ? splitAnswer(answer, sources) : []),
                         [answer, sources])

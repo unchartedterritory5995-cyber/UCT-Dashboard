@@ -77,8 +77,8 @@ export default function TickerResearchWorkspace({ symbol, onOpenNote, showBackLi
   // captured passage, and anything that cannot be opened RETURNS its sentence
   // for AskPanel to show inside itself -- this page's own alert line sits behind
   // the Ask Sheet's scrim on touch.
-  const openCitation = (source) => openSpanningCitation(source, {
-    openNote, openDocument: setPreviewDoc, openCapturedSource: setCapturedSource,
+  const openCitation = (source, _resolved, { signal } = {}) => openSpanningCitation(source, {
+    signal, openNote, openDocument: setPreviewDoc, openCapturedSource: setCapturedSource,
   })
 
   // ⛔ These two used to be `alert(\`Could not create note: ${e.message}\`)`.

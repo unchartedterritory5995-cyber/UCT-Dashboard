@@ -140,8 +140,8 @@ export default function ResearchHome({ onOpenNote, onCreateNote, onCreateThesis,
             carries no `note_id`, and this handler knew nothing else. The one
             shared router opens it in place, and returns a sentence for
             AskPanel to show when a source cannot be opened. */}
-        <AskPanel scope="notebook" onOpenNote={openNote} onNavigate={(s) => openSpanningCitation(s, {
-          openNote, openDocument: setPreviewDoc, openCapturedSource: setCapturedSource,
+        <AskPanel scope="notebook" onOpenNote={openNote} onNavigate={(s, _r, { signal } = {}) => openSpanningCitation(s, {
+          signal, openNote, openDocument: setPreviewDoc, openCapturedSource: setCapturedSource,
         })} />
       </div>
       <Section title="Continue working" notes={home.continueWorking} onOpen={openNote} viewAllHref="/journal/notebook?view=all" />

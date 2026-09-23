@@ -118,7 +118,8 @@ describe('NoteEditorPage ("This note") — citations', () => {
     // The excerpt belongs to ANOTHER note (n7), so it is not among this note's
     // own excerpts -- the viewer can emphasise it only because it was handed.
     expect(viewer.getAttribute('data-excerpts').split(',')).toContain('ex1')
-    expect(global.fetch).toHaveBeenCalledWith('/api/j2/excerpts/ex1', { credentials: 'include' })
+    expect(global.fetch).toHaveBeenCalledWith('/api/j2/excerpts/ex1',
+      expect.objectContaining({ credentials: 'include', signal: expect.any(AbortSignal) }))
   })
 
   it('a deleted passage is said inside the Ask panel', async () => {
