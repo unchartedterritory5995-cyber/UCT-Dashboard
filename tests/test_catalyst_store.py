@@ -1,11 +1,19 @@
+import datetime
 import json
 import os
 import tempfile
 import time
+from zoneinfo import ZoneInfo
 
 import pytest
 
 from api.services.catalyst import store
+
+_ET = ZoneInfo("America/New_York")
+
+
+def _date(days_ago: int) -> str:
+    return (datetime.datetime.now(_ET).date() - datetime.timedelta(days=days_ago)).isoformat()
 
 
 @pytest.fixture
@@ -121,3 +129,109 @@ def test_cost_log_writes(s):
     assert stats["total_cost_usd"] == pytest.approx(0.015)
     assert stats["call_count"] == 2
     assert stats["cached_count"] == 1
+
+
+# ---- redact_stale_raw_signals (PACKET-S CP5, RG-21 §1e) --------------------
+
+def _raw_signals(**overrides):
+    base = {
+        "tweets": [
+            {"id": "t1", "author_handle": "DeItaone", "text": "$AAPL beats estimates", "created_at": 1234567890},
+        ],
+        "rss": [
+            {"source": "CNBC", "title": "Apple surges on earnings", "url": "https://cnbc.com/x", "time_published": 1234567891},
+        ],
+        "earnings_meta": {"publish_time": 1234567800},
+        "scanner_setup": "pullback_ma",
+        "options_flow": {"dir": "bull", "netPremium": 500000, "bullPct": 62},
+        "brain_grade": "B",
+    }
+    base.update(overrides)
+    return base
+
+
+def test_redact_strips_tweet_text_and_rss_title_url_for_stale_rows(s):
+    s.upsert_catalyst(_row("AAPL", market_date=_date(10), raw_signals=json.dumps(_raw_signals())))
+
+    n = s.redact_stale_raw_signals(days=7)
+
+    assert n == 1
+    row = s.get_ticker_for_date("AAPL", _date(10))
+    signals = json.loads(row["raw_signals"])
+    assert "text" not in signals["tweets"][0]
+    assert "title" not in signals["rss"][0]
+    assert "url" not in signals["rss"][0]
+
+
+def test_redact_preserves_structural_fields_and_counts(s):
+    s.upsert_catalyst(_row("AAPL", market_date=_date(10), raw_signals=json.dumps(_raw_signals())))
+    s.redact_stale_raw_signals(days=7)
+    row = s.get_ticker_for_date("AAPL", _date(10))
+    signals = json.loads(row["raw_signals"])
+
+    # Counts (list lengths) survive.
+    assert len(signals["tweets"]) == 1
+    assert len(signals["rss"]) == 1
+    # Timestamps + author + source (what _compute_catalyst_at / the tile read).
+    assert signals["tweets"][0]["created_at"] == 1234567890
+    assert signals["tweets"][0]["author_handle"] == "DeItaone"
+    assert signals["rss"][0]["time_published"] == 1234567891
+    assert signals["rss"][0]["source"] == "CNBC"
+    # Non-vendor-text structured signals untouched entirely.
+    assert signals["earnings_meta"] == {"publish_time": 1234567800}
+    assert signals["scanner_setup"] == "pullback_ma"
+    assert signals["options_flow"] == {"dir": "bull", "netPremium": 500000, "bullPct": 62}
+    assert signals["brain_grade"] == "B"
+
+
+def test_redact_never_touches_thesis_score_grade_tag_ticker(s):
+    s.upsert_catalyst(_row("AAPL", market_date=_date(10), thesis="Apple beat on iPhone demand",
+                           score=42.5, tag="Earnings", raw_signals=json.dumps(_raw_signals())))
+    s.upsert_catalyst(_row("AAPL", market_date=_date(10), thesis="Apple beat on iPhone demand",
+                           score=42.5, tag="Earnings", raw_signals=json.dumps(_raw_signals())))
+    s.redact_stale_raw_signals(days=7)
+
+    row = s.get_ticker_for_date("AAPL", _date(10))
+    assert row["thesis_text"] == "Apple beat on iPhone demand"
+    assert row["score"] == 42.5
+    assert row["tag"] == "Earnings"
+    assert row["ticker"] == "AAPL"
+
+
+def test_redact_control_leaves_recent_rows_untouched(s):
+    # Control: a row inside the retention window must NOT be redacted --
+    # otherwise the "stale" gate is doing nothing and this would silently
+    # strip vendor text off catalysts still fully within their normal life.
+    recent_signals = _raw_signals()
+    s.upsert_catalyst(_row("MSFT", market_date=_date(1), raw_signals=json.dumps(recent_signals)))
+
+    n = s.redact_stale_raw_signals(days=7)
+
+    assert n == 0
+    row = s.get_ticker_for_date("MSFT", _date(1))
+    signals = json.loads(row["raw_signals"])
+    assert signals["tweets"][0]["text"] == "$AAPL beats estimates"
+    assert signals["rss"][0]["title"] == "Apple surges on earnings"
+    assert signals["rss"][0]["url"] == "https://cnbc.com/x"
+
+
+def test_redact_is_idempotent_second_pass_is_a_noop(s):
+    s.upsert_catalyst(_row("AAPL", market_date=_date(10), raw_signals=json.dumps(_raw_signals())))
+    first = s.redact_stale_raw_signals(days=7)
+    second = s.redact_stale_raw_signals(days=7)
+    assert first == 1
+    assert second == 0  # nothing left to strip
+
+
+def test_redact_skips_rows_with_no_raw_signals(s):
+    s.upsert_catalyst(_row("ZZZ", market_date=_date(10), raw_signals=None))
+    n = s.redact_stale_raw_signals(days=7)
+    assert n == 0
+
+
+def test_redact_handles_malformed_json_without_raising(s):
+    s.upsert_catalyst(_row("BADJSON", market_date=_date(10), raw_signals="not valid json{{"))
+    n = s.redact_stale_raw_signals(days=7)
+    assert n == 0
+    row = s.get_ticker_for_date("BADJSON", _date(10))
+    assert row["raw_signals"] == "not valid json{{"  # left alone, not corrupted

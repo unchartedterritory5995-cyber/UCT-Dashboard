@@ -268,7 +268,9 @@ def _llm_verdict(
         f"- Setup: {setup_name or '(unspecified)'}",
         f"- Computed risk: {risk_pct:.2f}%" if risk_pct is not None else "- Risk: (cannot compute)",
         "",
-        f"## Current regime: {regime_label or 'unknown'}",
+        # PACKET-W CP1 (fingerprint 425778f2c): displayed label only -- the
+        # dict-key read (`info.get("regime")`) is unchanged.
+        f"## Current Exposure Backdrop: {regime_label or 'unknown'}",
         "",
         f"## Setup performance over last 90 days ({setup_name or 'all'})",
         f"- Trades: {setup_agg.get('trade_count', 0)}",

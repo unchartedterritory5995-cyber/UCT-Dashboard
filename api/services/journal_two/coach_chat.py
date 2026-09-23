@@ -153,8 +153,16 @@ def _set_onboarding_state(
 
 
 def _current_regime_context() -> str:
-    """Returns a one-line system-prompt addendum describing today's market regime.
-    Returns empty string if unavailable (graceful degradation)."""
+    """Returns a one-line system-prompt addendum describing today's Exposure
+    Backdrop. Returns empty string if unavailable (graceful degradation).
+
+    PACKET-W CP1 (fingerprint 425778f2c): the WORD "regime" is retired from
+    this sentence -- journal_two's four-tier bucket (green/amber/orange/red)
+    is a pure Exposure-Rating read, not the broader, independent market
+    classification voice_regime_classifier.get_current_regime() returns via
+    the get_regime tool. The two disagreeing in one Compass conversation was
+    the whole finding (RG-32). The dict key (`info["regime"]`) is UNCHANGED --
+    only the words a member/LLM reads are."""
     try:
         from api.services.journal_two import regime as regime_service
         info = regime_service.get_current_regime() or {}
@@ -162,7 +170,7 @@ def _current_regime_context() -> str:
         exp = info.get("exposure_pct") or info.get("score")
         if not r:
             return ""
-        ctx = f"\n\n[Live market context: today's regime is {r}"
+        ctx = f"\n\n[Live market context: today's Exposure Backdrop is {r}"
         if exp is not None:
             ctx += f" (exposure score {exp})"
         ctx += ". Factor this into your coaching where relevant.]"

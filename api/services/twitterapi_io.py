@@ -17,7 +17,7 @@ import logging
 import os
 import time
 from email.utils import parsedate_to_datetime
-from typing import Optional
+from typing import Iterable, Optional
 
 import requests
 
@@ -223,6 +223,73 @@ def search_tweets(query: str, since_unix: Optional[int] = None,
             continue
         out.append(_normalize_tweet(raw, fallback_handle="search"))
     return out
+
+
+# PACKET-S CP4 (2026-09-22, RG-21 §1d): X's Developer Agreement requires
+# removing a tweet within 24h of it being deleted, made protected, or its
+# account suspended on X — the existing 7-day age sweep (tweet_cleanup.py)
+# cannot satisfy that on its own. Batch size is conservative: TwitterAPI.io's
+# own docs (docs.twitterapi.io/api-reference/endpoint/get_tweet_by_ids,
+# checked 2026-09-22) do not publish a max ids-per-call for this endpoint.
+_TWEETS_BY_IDS_BATCH = 100
+
+
+def find_deleted_tweet_ids(tweet_ids: Iterable[str]) -> set[str]:
+    """Batch-check tweet ids against TwitterAPI.io's tweet-lookup endpoint
+    and return the subset that no longer resolves — deleted, made protected,
+    or the author's account suspended.
+
+    Endpoint confirmed against TwitterAPI.io's own docs (checked 2026-09-22):
+    GET /twitter/tweets?tweet_ids=<comma-separated ids>, x-api-key header,
+    same auth as every other call in this module. It responds
+    {"tweets": [...], "status": ..., "message": ...} and simply OMITS an id
+    from `tweets` when that tweet can no longer be returned — there is no
+    separate "deleted" boolean, so "requested but not returned" IS the
+    signal. `_extract_tweets` already handles this exact top-level-array
+    shape (its "Pattern 1"), so no new response-shape handling was needed.
+
+    Same defensive per-status-code error handling and the same TwitterApi*
+    exception classes as every other function here — no new exception
+    taxonomy. Never raises for an id that is simply gone; only for a
+    transport/auth/quota failure that means the whole check could not run.
+    """
+    ids = [str(i) for i in tweet_ids if i]
+    if not ids:
+        return set()
+
+    still_resolves: set[str] = set()
+    for start in range(0, len(ids), _TWEETS_BY_IDS_BATCH):
+        batch = ids[start:start + _TWEETS_BY_IDS_BATCH]
+        try:
+            r = requests.get(
+                f"{BASE_URL}/twitter/tweets",
+                params={"tweet_ids": ",".join(batch)},
+                headers={"x-api-key": _api_key()},
+                timeout=TIMEOUT,
+            )
+        except requests.RequestException as e:
+            raise TwitterApiTransientError(f"network error: {e}") from e
+
+        if r.status_code == 401:
+            raise TwitterApiAuthError(f"auth failed: {r.text[:200]}")
+        if r.status_code == 402:
+            raise TwitterApiPaymentRequired(f"out of credits: {r.text[:200]}")
+        if r.status_code == 429:
+            raise TwitterApiRateLimited(f"rate limited: {r.text[:200]}")
+        if r.status_code >= 500:
+            raise TwitterApiTransientError(f"HTTP {r.status_code}: {r.text[:200]}")
+        if r.status_code != 200:
+            raise TwitterApiTransientError(f"HTTP {r.status_code}: {r.text[:200]}")
+
+        body = r.json()
+        for t in _extract_tweets(body):
+            if not isinstance(t, dict):
+                continue
+            tid = str(t.get("id") or t.get("id_str") or t.get("tweetId") or "")
+            if tid:
+                still_resolves.add(tid)
+
+    return set(ids) - still_resolves
 
 
 def _hi_res_avatar(url: str) -> str:

@@ -21,7 +21,13 @@ _log = logging.getLogger(__name__)
 _BASE = "https://api.stlouisfed.org/fred/series/observations"
 _TIMEOUT = 10
 _CACHE = TTLCache()
-_CACHE_TTL = 1800  # 30 min
+# PACKET-S CP2 (2026-09-22, RG-21): FRED's Terms of Use restrict how long
+# response content may be held before re-fetch. Tightened from 1800s (30 min)
+# to 300s (5 min) so the process cache holds FRED content for a materially
+# shorter window. Currently dormant — FRED_API_KEY is unset in production, so
+# get_series() short-circuits before this cache is ever populated — but the
+# fix is free and future-proofs the day the key is set.
+_CACHE_TTL = 300  # 5 min
 
 # Friendly aliases → FRED series IDs. Voice can call by either.
 _SERIES_CATALOG: dict[str, dict[str, str]] = {

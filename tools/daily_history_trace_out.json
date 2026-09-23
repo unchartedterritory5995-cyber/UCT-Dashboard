@@ -1,0 +1,198 @@
+{
+  "fixture": {
+    "full": 5247,
+    "sealed": 5246,
+    "origin": "2006-08-07",
+    "today": "2026-09-15"
+  },
+  "scenarios": [
+    {
+      "scenario": "S1 immediate deep, no click",
+      "verdict": "PASS",
+      "delay_ms": 0,
+      "fail_times": 0,
+      "click": null,
+      "clicked": null,
+      "preClickRendered": null,
+      "rendered": {
+        "n": 5247,
+        "first": "2006-08-07",
+        "last": "2026-09-15"
+      },
+      "visible": {
+        "from": "2026-03-24",
+        "to": "2026-09-24"
+      },
+      "histCalls": 1,
+      "seriesDeep": true,
+      "viewOk": true
+    },
+    {
+      "scenario": "S2 deep delayed 4s, no click",
+      "verdict": "PASS",
+      "delay_ms": 4000,
+      "fail_times": 0,
+      "click": null,
+      "clicked": null,
+      "preClickRendered": null,
+      "rendered": {
+        "n": 5247,
+        "first": "2006-08-07",
+        "last": "2026-09-15"
+      },
+      "visible": {
+        "from": "2026-03-24",
+        "to": "2026-09-24"
+      },
+      "histCalls": 1,
+      "seriesDeep": true,
+      "viewOk": true
+    },
+    {
+      "scenario": "S3 Origin BEFORE deep (4s delay)",
+      "verdict": "PASS",
+      "delay_ms": 4000,
+      "fail_times": 0,
+      "click": "Origin",
+      "clicked": true,
+      "preClickRendered": {
+        "n": 600,
+        "first": "2024-05-29",
+        "last": "2026-09-15"
+      },
+      "rendered": {
+        "n": 5247,
+        "first": "2006-08-07",
+        "last": "2026-09-15"
+      },
+      "visible": {
+        "from": "2006-08-07",
+        "to": "2006-11-07"
+      },
+      "histCalls": 1,
+      "seriesDeep": true,
+      "viewOk": true
+    },
+    {
+      "scenario": "S4 5Y BEFORE deep (4s delay)",
+      "verdict": "PASS",
+      "delay_ms": 4000,
+      "fail_times": 0,
+      "click": "5Y",
+      "clicked": true,
+      "preClickRendered": {
+        "n": 600,
+        "first": "2024-05-29",
+        "last": "2026-09-15"
+      },
+      "rendered": {
+        "n": 5247,
+        "first": "2006-08-07",
+        "last": "2026-09-15"
+      },
+      "visible": {
+        "from": "2021-09-14",
+        "to": "2026-11-10"
+      },
+      "histCalls": 1,
+      "seriesDeep": true,
+      "viewOk": true
+    },
+    {
+      "scenario": "S5 first deep FAILS, retry (25s)",
+      "verdict": "PASS",
+      "delay_ms": 0,
+      "fail_times": 1,
+      "click": "Origin",
+      "clicked": true,
+      "preClickRendered": {
+        "n": 600,
+        "first": "2024-05-29",
+        "last": "2026-09-15"
+      },
+      "rendered": {
+        "n": 5247,
+        "first": "2006-08-07",
+        "last": "2026-09-15"
+      },
+      "visible": {
+        "from": "2006-08-07",
+        "to": "2006-11-07"
+      },
+      "histCalls": 3,
+      "seriesDeep": true,
+      "viewOk": true
+    },
+    {
+      "scenario": "S5b deep FAILS, no click (25s)",
+      "verdict": "PASS",
+      "delay_ms": 0,
+      "fail_times": 1,
+      "click": null,
+      "clicked": null,
+      "preClickRendered": null,
+      "rendered": {
+        "n": 5247,
+        "first": "2006-08-07",
+        "last": "2026-09-15"
+      },
+      "visible": {
+        "from": "2026-03-24",
+        "to": "2026-09-24"
+      },
+      "histCalls": 2,
+      "seriesDeep": true,
+      "viewOk": true
+    },
+    {
+      "scenario": "S6 warm deep cache",
+      "verdict": "PASS",
+      "delay_ms": 0,
+      "fail_times": 0,
+      "click": "Origin",
+      "clicked": true,
+      "preClickRendered": {
+        "n": 5247,
+        "first": "2006-08-07",
+        "last": "2026-09-15"
+      },
+      "rendered": {
+        "n": 5247,
+        "first": "2006-08-07",
+        "last": "2026-09-15"
+      },
+      "visible": {
+        "from": "2006-08-07",
+        "to": "2006-11-07"
+      },
+      "histCalls": 1,
+      "seriesDeep": true,
+      "viewOk": true
+    },
+    {
+      "scenario": "S7 warm deep + stale tail",
+      "verdict": "PASS",
+      "delay_ms": 0,
+      "fail_times": 0,
+      "click": "Origin",
+      "clicked": true,
+      "preClickRendered": {
+        "n": 5247,
+        "first": "2006-08-07",
+        "last": "2026-09-15"
+      },
+      "rendered": {
+        "n": 5247,
+        "first": "2006-08-07",
+        "last": "2026-09-15"
+      },
+      "visible": {
+        "from": "2006-08-07",
+        "to": "2006-11-07"
+      },
+      "histCalls": 1,
+      "seriesDeep": true,
+      "viewOk": true
+    }
+  ]
+}

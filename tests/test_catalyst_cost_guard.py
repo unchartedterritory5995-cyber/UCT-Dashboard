@@ -65,8 +65,8 @@ def test_soft_cap_logs_warning_but_allows(s, monkeypatch, caplog):
 
 def test_sonnet_5_pricing_known():
     from api.services.catalyst import cost_guard
-    assert cost_guard.estimate_cost("claude-sonnet-5", 1_000_000, 0) == 3.0
-    assert cost_guard.estimate_cost("claude-sonnet-5", 0, 1_000_000) == 15.0
+    assert cost_guard.estimate_cost("claude-sonnet-5", 1_000_000, 0) == 2.0
+    assert cost_guard.estimate_cost("claude-sonnet-5", 0, 1_000_000) == 10.0
 
 
 def test_opus_5_is_priced_BY_NAME_not_by_the_fallback(caplog):
@@ -114,13 +114,13 @@ def test_cache_tokens_are_priced_not_ignored():
     instead of input_tokens. Pricing only input_tokens under-counted the
     cached lane and silently loosened the $8/$15 daily caps (2026-08-28)."""
     from api.services.catalyst import cost_guard
-    # sonnet-5 input = $3/MTok in this module's table
+    # sonnet-5 input = $2/MTok in this module's table
     assert cost_guard.estimate_cost("claude-sonnet-5", 0, 0,
-                                    cache_read_tokens=1_000_000) == 0.3
+                                    cache_read_tokens=1_000_000) == 0.2
     assert cost_guard.estimate_cost("claude-sonnet-5", 0, 0,
-                                    cache_creation_tokens=1_000_000) == 3.75
+                                    cache_creation_tokens=1_000_000) == 2.5
     # and the old positional contract is unchanged
-    assert cost_guard.estimate_cost("claude-sonnet-5", 1_000_000, 0) == 3.0
+    assert cost_guard.estimate_cost("claude-sonnet-5", 1_000_000, 0) == 2.0
 
 
 def test_hunter_reports_cache_tokens_to_the_guard():
