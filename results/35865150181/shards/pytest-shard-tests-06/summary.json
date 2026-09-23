@@ -1,0 +1,19 @@
+{
+  "suite": "pytest",
+  "collected": 1884,
+  "passed": 1859,
+  "failed": 15,
+  "errored": 0,
+  "skipped": 10,
+  "wall_s": 202.22,
+  "failed_files": [
+    "tests/test_entitlements_manifest.py",
+    "tests/test_feature_flag_ledger.py",
+    "tests/test_flow_aggregate.py",
+    "tests/test_flow_prepare.py",
+    "tests/test_flow_tape_spool.py"
+  ],
+  "totals_line_found": true,
+  "runner_line": "15 failed, 1859 passed, 10 skipped, 14624 warnings in 202.22s (0:03:22)",
+  "ok": true
+}
