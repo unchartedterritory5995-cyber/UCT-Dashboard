@@ -46,7 +46,9 @@ R = {"cs_conflict_groups_2006_2026": len(cs), "cs_tickers": len({x["t"] for x in
      "top_tickers": collections.Counter(x["t"] for x in cs).most_common(25)}
 import yfinance as yf
 random.seed(11)
-smp = random.sample(cs, min(80, len(cs)))
+near = [x for x in cs if x["min_rel_gap"] < 0.10]                    # every near-gap case
+far = [x for x in cs if x["min_rel_gap"] >= 0.10]
+smp = near + random.sample(far, min(70, len(far)))
 cls = collections.Counter(); rows = []
 for x in smp:
     try:
@@ -69,7 +71,7 @@ for x in smp:
          "one_of" if any(abs(y - v) <= tol(y) for v in a) else "other")
     cls[k] += 1; x["yahoo"] = y; x["class"] = k; rows.append(x)
 R["yahoo_cs_sample"] = dict(cls)
-R["yahoo_by_gap"] = dict(collections.Counter((("near" if r["min_rel_gap"] < .02 else "far"), r["class"]) for r in rows).items()) if rows else {}
+R["yahoo_by_gap"] = dict(collections.Counter((("lt2" if r["min_rel_gap"] < .02 else "lt10" if r["min_rel_gap"] < .1 else "ge10"), r["class"]) for r in rows).items()) if rows else {}
 R["yahoo_by_gap"] = {"%s|%s" % k: v for k, v in R["yahoo_by_gap"].items()}
 R["rows"] = rows
 p = "/data/_audit/v2cc/dividend_conflicts_cs_%s_splitadj.json" % TAG
