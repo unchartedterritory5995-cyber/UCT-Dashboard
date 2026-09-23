@@ -237,6 +237,20 @@ export function lowerIrProgram(ir) {
         throw new LoweringGap('history over an expression',
           'only a column and a variable have committed history in this runtime yet')
       }
+      case EXPR.HIST_DYN: {
+        // ⭐ THE OFFSET IS PUSHED FIRST, so the opcode pops exactly one value.
+        // `of` is a COLUMN or a SERIES by construction — `ir.js` refuses a READ
+        // here, because a ring's depth is fixed before bar 0.
+        expr(e.back)
+        if (e.of.kind === EXPR.SERIES) {
+          const si = SERIES_NAMES.indexOf(e.of.name)
+          if (si < 0) throw new LoweringGap('series', `\`${e.of.name}\``)
+          emit(OP.READ_SERIES_HIST_DYN, si)
+          return
+        }
+        emit(OP.READ_HIST_DYN, e.of.index)
+        return
+      }
       case EXPR.BINARY: {
         const op = BIN_OP[e.op]
         if (op === undefined) throw new LoweringGap('operator', `\`${e.op}\``)

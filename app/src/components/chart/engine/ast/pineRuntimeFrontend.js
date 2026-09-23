@@ -41,7 +41,7 @@ import { bindConstsFor, foldBound } from './bind.js'
 import {
   makeIrProgram, SLOT, EXPR, num, str, concat, series, column, read, hist, binary, unary, ternary,
   declare, assign, ifStmt, emit, emitIter, naValue, call as irCall, builtin as irBuiltin, histSlot,
-  windowCall, carriedCall, carried2Call, textCall, arrayCall, exprStmt,
+  histDyn, windowCall, carriedCall, carried2Call, textCall, arrayCall, exprStmt,
   forStmt, breakStmt, continueStmt, tuple, destructure, requestCall, colourCall,
   clock, session, drawing,
   // ⭐ ALIASED. `field` and `record` are ordinary English and this file already
@@ -1221,6 +1221,26 @@ export function buildRuntimeIr(source, opts = {}) {
       }
       return false
     }
+    // ⭐⭐ AN OFFSET READS ITS INDEX, AND THE INDEX IS WHERE THE SLOT IS.
+    // An offset node is `{type:'offset', arg, n, tok}`: the walk below reaches
+    // `arg` — the thing being offset — and nothing reaches `n`. So `close[i]`
+    // inside a `for` looked PURE, went to the columnar lane, and that lane
+    // refused `pine:undefined` — *"this Pine name was never given a value in
+    // the pasted script — `i`"* — about a loop counter declared two lines up.
+    //
+    // ⛔ THIS IS THE THIRD TIME THIS FUNCTION HAS HAD THIS BLIND SPOT, and the
+    // two notes above record the others: a method form's receiver glued into
+    // the call NAME, and a field path's head glued into a dotted name. Each
+    // time, a part of the node the walk could not see routed the whole
+    // expression to the wrong lane, which then refused with a sentence about
+    // something else entirely.
+    //
+    // ⚠️ `n` IS A NUMBER for a literal offset and `{expr, tok}` for anything
+    // else — `parseOffsetIndex` hands the expression over rather than refusing,
+    // *"precisely so a consumer can decide"*. A literal has no `.expr` and
+    // recurses into nothing, so a constant offset routes exactly as before.
+    if (node.type === 'offset' && node.n && typeof node.n === 'object'
+        && needsRuntime(node.n.expr, scope)) return true
     for (const k of ['left', 'right', 'test', 'yes', 'no', 'arg', 'value']) {
       if (needsRuntime(node[k], scope)) return true
     }
@@ -2547,7 +2567,7 @@ export function buildRuntimeIr(source, opts = {}) {
    *  decision, 2026-08-11). Doing the same here makes the two lanes agree; doing
    *  something else would make a knob mean one thing in a column and another in
    *  the runtime. */
-  const foldOffset = (n, at) => {
+  const foldOffset = (n, at, scope = null) => {
     if (Number.isInteger(n) && n >= 0) return n
     // `pine.js` hands a non-literal index over as `{expr, tok}` rather than
     // refusing at the parser, precisely so a consumer can decide.
@@ -2556,7 +2576,14 @@ export function buildRuntimeIr(source, opts = {}) {
       throw new RuntimeRefusal('runtime:statement',
         'a bar offset counts backwards in whole bars', at)
     }
-    return foldConstNode(e, at)
+    // ⛔ RC-G'S GAP, CLOSED. This site was not threaded when the
+    // bound-but-not-constant branch landed, so a LOOP COUNTER — the single
+    // commonest dynamic offset there is — still read *"this Pine name was never
+    // given a value in the pasted script"* about a name the `for` declares.
+    // With the scope, a name this lane holds a slot for says what is actually
+    // true of it, and a typo still says what is true of that.
+    return foldConstNode(e, at,
+      'a bar offset that is only known while the bar is running', scope)
   }
 
   /** ⭐ Fold ONE parsed expression to a compile-time whole number, or refuse.
@@ -3284,7 +3311,7 @@ export function buildRuntimeIr(source, opts = {}) {
           // parser does not have — and the refusal that came back was a
           // TypeError wearing a refusal's clothes.
           const backAt = locate(node.tok)
-          return hist(series(node.arg.name), foldOffset(node.n, backAt))
+          return hist(series(node.arg.name), foldOffset(node.n, backAt, scope))
         }
         // ⭐⭐⭐ 2F-2 — HISTORY OVER A VALUE THE RUNTIME PRODUCED.
         //
@@ -3314,7 +3341,7 @@ export function buildRuntimeIr(source, opts = {}) {
             // only known while the bar runs refuses by ITS OWN name
             // (`runtime:history-dynamic-offset`) rather than being reported as
             // the expression problem this line just solved.
-            const hb = foldOffset(node.n, at)
+            const hb = foldOffset(node.n, at, scope)
             // ⭐ `e[0]` IS `e`. Routing it through the ring would answer with
             // the PREVIOUS bar — one bar wrong in the one case nobody checks.
             if (hb === 0) return read(hoisted.slot)
@@ -3325,7 +3352,7 @@ export function buildRuntimeIr(source, opts = {}) {
             note('runtime:function-global-state')
             throw new RuntimeRefusal('runtime:function-global-state', `\`${node.arg.name}\``, at)
           }
-          const back = foldOffset(node.n, at)
+          const back = foldOffset(node.n, at, scope)
           // ⭐ `x[0]` IS `x`. Pine says so, and routing it through the ring would
           // answer with the PREVIOUS bar — one bar wrong in the one case nobody
           // would think to check.
@@ -3337,6 +3364,22 @@ export function buildRuntimeIr(source, opts = {}) {
           // sites can never share a ring.
           if (owner !== null) return histSlot(varSlot, fnHistorySlotFor(owner, varSlot, back, at), back)
           return histSlot(varSlot, historySlotFor(varSlot, back, at), back)
+        }
+        // ⭐⭐ A COLUMN'S PAST IS MATERIALISED, SO ANY OFFSET IS ANSWERABLE.
+        // The whole series was computed before the bar loop started, so `[n]`
+        // is an index into an array that already holds every bar — there is no
+        // ring to overflow, which is the constraint the reserved
+        // `READ_HIST_SLOT_DYN` opcode names and the reason a VARIABLE's
+        // dynamic offset is still refused a few lines above.
+        //
+        // ⛔ ONLY WHEN THE OFFSET GENUINELY NEEDS THE RUNTIME. An offset that
+        // folds is still folded — a constant is a better node than a computed
+        // one, and routing a foldable offset here would lose the frozen
+        // resolver's rule that a saved definition bakes the AUTHOR'S default.
+        const offAt = locate(node.tok)
+        const offExpr = node.n && typeof node.n === 'object' ? node.n.expr : null
+        if (offExpr && needsRuntime(offExpr, scope)) {
+          return histDyn(column(columnOf(node.arg, offAt)), lowerExpr(offExpr, scope))
         }
         const back = Number(node.n)
         if (!Number.isInteger(back) || back < 0) {

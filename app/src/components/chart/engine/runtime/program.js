@@ -101,6 +101,17 @@ export const OP = Object.freeze({
   // Pine answers a number: a silent wrong value, which is the one outcome this
   // runtime refuses to trade for coverage. The front end refuses it BY NAME.
   READ_HIST_SLOT_DYN: 55,
+  // ⭐⭐ THE TWO THAT ARE ADMISSIBLE TODAY, and the reason is the one written
+  // above: the constraint on 55 is about a RING. A COLUMN and a price SERIES
+  // are materialised before the bar loop starts, so `[n]` is an index into an
+  // array that already holds every bar — any offset is answerable and there is
+  // nothing to overflow. The offset arrives ON THE STACK rather than as an
+  // immediate, which is the only difference from 3 and 4.
+  //
+  // ⛔ OUT OF RANGE IS `na`, NEVER A CLAMP — the same rule READ_HIST already
+  // states: clamping to bar 0 is how a warm-up silently becomes a real number.
+  READ_HIST_DYN: 56,        // a: column index; pops the offset
+  READ_SERIES_HIST_DYN: 57, // a: series index; pops the offset
   // ── control flow (2D) ──
   JUMP: 60,
   JUMP_IF_FALSE: 61,
@@ -236,6 +247,12 @@ export const OP = Object.freeze({
  *  opcode reaching the VM is a named error rather than a silent fallthrough. */
 export const IMPLEMENTED = Object.freeze(new Set([
   OP.CONST, OP.READ_SERIES, OP.READ_COLUMN, OP.READ_HIST, OP.READ_SERIES_HIST,
+  // ⛔ THE TWO DYNAMIC READS ARE IMPLEMENTED; `READ_HIST_SLOT_DYN` IS NOT, AND
+  // THAT ASYMMETRY IS THE POINT. A column and a series are materialised, so any
+  // offset is answerable; a slot's past is a ring whose depth is fixed before
+  // bar 0, and an offset that may reach past it would answer `na` where Pine
+  // answers a number.
+  OP.READ_HIST_DYN, OP.READ_SERIES_HIST_DYN,
   OP.READ_CLOCK,
   OP.SESSION,
   OP.ADD, OP.SUB, OP.MUL, OP.DIV, OP.NEG,

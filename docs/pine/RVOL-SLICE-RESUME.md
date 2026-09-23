@@ -76,7 +76,16 @@
 > | `ultimate-pivot-points` | 6 | `runtime:request` + `runtime:object-op` |
 > | `momentum-volatility-scanner` | 3 | `ta.bb` + `pine:undefined` + `runtime:colour` |
 >
-> ⭐ **RECOMMENDED LANE: DYNAMIC HISTORY OFFSETS** — `x[i]` where `i` is a series.
+> ✅ **DONE — DYNAMIC HISTORY OFFSETS SHIPPED (RC-I).** `close[i]` in a loop and
+> `bar_index[-FH]` now compile and execute. Two opcodes added
+> (`READ_HIST_DYN` 56, `READ_SERIES_HIST_DYN` 57); `READ_HIST_SLOT_DYN` 55
+> **stays reserved** — a column and a series are materialised so any offset is
+> answerable, a slot's past is a ring whose depth is fixed before bar 0.
+> Measured: `runtime/pine:undefined` **7 → 1**, BUILDS unchanged at 7 (the six
+> scripts that moved each carry further walls). The lane below is what it was
+> BEFORE that work — kept because the reasoning is what to reuse, not the verdict.
+>
+> ⭐ **WAS: RECOMMENDED LANE — DYNAMIC HISTORY OFFSETS** — `x[i]` where `i` is a series.
 > It is the capability that appears most often as a GENUINE wall (not a peel
 > artifact): `fib-retracement` line 74 writes `bar_index[-FH]` where
 > `FH = FIBS == 1 ? highestbars(high, FPeriod) : 1` — a series, so no fold can

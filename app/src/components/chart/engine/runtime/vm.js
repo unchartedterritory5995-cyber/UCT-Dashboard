@@ -479,6 +479,27 @@ export function execute(program, ctx, limits, opts) {
           stack[sp++] = idx >= 0 ? columns[a][idx] : NaN
           break
         }
+        case OP.READ_HIST_DYN: {
+          // ⛔⛔ EVERY UNANSWERABLE OFFSET IS `na`, AND THERE ARE THREE OF THEM.
+          // A NaN offset (the value was itself `na`), a NEGATIVE one (Pine reads
+          // backwards; forwards is a bar that has not happened), and one that
+          // reaches before bar 0. None may clamp: answering with the earliest
+          // bar is how a warm-up window silently becomes a real number, which is
+          // exactly what `READ_HIST` refuses to do with a constant offset.
+          //
+          // ⚠️ `n | 0` IS NOT USED. It turns 2.7 into 2 and NaN into 0 — the
+          // second of which would read bar 0 and call it an answer.
+          const n = stack[--sp]
+          const idx = Number.isInteger(n) && n >= 0 ? bar - n : -1
+          stack[sp++] = idx >= 0 ? columns[a][idx] : NaN
+          break
+        }
+        case OP.READ_SERIES_HIST_DYN: {
+          const n = stack[--sp]
+          const idx = Number.isInteger(n) && n >= 0 ? bar - n : -1
+          stack[sp++] = idx >= 0 ? series[a][idx] : NaN
+          break
+        }
         case OP.ADD: { const y = stack[--sp]; stack[sp - 1] = ADD(stack[sp - 1], y); break }
         case OP.SUB: { const y = stack[--sp]; stack[sp - 1] = SUB(stack[sp - 1], y); break }
         case OP.MUL: { const y = stack[--sp]; stack[sp - 1] = MUL(stack[sp - 1], y); break }

@@ -73,6 +73,13 @@ export const EXPR = Object.freeze({
   COLUMN: 'column',       // a pure subtree the columnar lane evaluates — THE SEAM
   READ: 'read',           // a variable slot
   HIST: 'hist',           // `e[n]` over a COLUMN (see the lowering note)
+  // ⭐⭐ `e[n]` WHERE `n` IS ONLY KNOWN WHILE THE BAR IS RUNNING. `back` is an
+  // EXPRESSION here, not a number, and `of` may only be a COLUMN or a SERIES —
+  // both materialised before the bar loop, so any offset is answerable and
+  // there is no ring to overflow. History over a READ stays `HIST` with a
+  // constant, because a slot's past lives in a ring of bounded depth and an
+  // offset past it would answer `na` where Pine answers a number.
+  HIST_DYN: 'histDyn',
   BINARY: 'binary',
   UNARY: 'unary',
   TERNARY: 'ternary',
@@ -357,6 +364,23 @@ export function validateIr(p) {
           }
         }
         walkExpr(e.of, `${where}.of`)
+        return
+      case EXPR.HIST_DYN:
+        // ⛔⛔ THE TARGET MUST BE MATERIALISED, AND THIS IS THE WHOLE SAFETY
+        // ARGUMENT. A COLUMN and a SERIES exist in full before the bar loop, so
+        // `[n]` is an index and any `n` is answerable. A READ's past lives in a
+        // ring of bounded depth — an offset that may reach past it would answer
+        // `na` where Pine answers a number, which is the silent wrong value the
+        // reserved `READ_HIST_SLOT_DYN` opcode exists to keep refusing.
+        if (!e.of || (e.of.kind !== EXPR.COLUMN && e.of.kind !== EXPR.SERIES)) {
+          throw new IrError(
+            `${where}: a dynamic history offset reads a COLUMN or a SERIES, got `
+            + `${JSON.stringify(e.of && e.of.kind)} — a variable's past lives in a ring `
+            + 'whose depth is fixed before bar 0, so an offset only known while the bar '
+            + 'is running could reach past it')
+        }
+        walkExpr(e.of, `${where}.of`)
+        walkExpr(e.back, `${where}.back`)
         return
       case EXPR.BINARY:
         if (typeof e.op !== 'string') throw new IrError(`${where}: a binary carries an op`)
@@ -704,6 +728,8 @@ export const session = (start, end) => ({ kind: EXPR.SESSION, start, end })
 export const column = (index) => ({ kind: EXPR.COLUMN, index })
 export const read = (slot) => ({ kind: EXPR.READ, slot })
 export const hist = (of, back) => ({ kind: EXPR.HIST, of, back })
+/** `e[n]` over a MATERIALISED series, where `n` is an expression. */
+export const histDyn = (of, back) => ({ kind: EXPR.HIST_DYN, of, back })
 /** `x[n]` over a value the RUNTIME produces. `slot` is the history-slot index —
  *  a different address space from the variable slot, because only some variables
  *  bear history and allocating a ring for every one of them is the `HISTORY_VALUES`

@@ -535,6 +535,88 @@ test for a value test fails only the numeric case.
 
 ---
 
+## RC-I — a walk that could not see the offset sent the whole expression to the wrong lane
+
+Pine permits a SERIES index in `[]`, and the corpus leans on it:
+
+```pine
+for i = 0 to 3
+    total := total + close[i]
+
+FH = FIBS == 1 ? highestbars(high, FPeriod) : 1
+BB = … bar_index[-FH] …                      // fib-retracement, line 74
+```
+
+Every one of them came back **"this Pine name was never given a value in the pasted
+script — `i`"** — about a loop counter the `for` declares two lines up.
+
+⛔⛔ **THE ROUTING DEFECT.** `needsRuntime` decides which lane an expression belongs to
+by walking `['left','right','test','yes','no','arg','value']` and `args`. An offset node
+is `{type:'offset', arg, n, tok}`, so the walk reaches **what is being offset** and never
+reaches **the offset**. `close[i]` therefore looked PURE, went to the columnar lane, and
+that lane — which resolves against the frozen top-level environment — correctly reported
+that it had never heard of `i`.
+
+⭐⭐ **THIS IS THE THIRD TIME THAT FUNCTION HAS HAD THIS BLIND SPOT**, and its own
+comments record the other two: a method form's receiver glued into the call NAME
+(`a.get(0)` → the columnar lane answered *"the engine grammar does not hold `a.get`"*),
+and a field path's head glued into a dotted name (`ob.top` → *"names something the engine
+grammar does not hold — `p.tpo`"*, sending a member to look for a built-in namespace
+called `p`). **A walk that cannot see part of a node routes the whole expression to the
+wrong lane, and that lane then refuses with a sentence about something else entirely.**
+
+### The capability, and the line it does not cross
+
+The opcode table has carried the answer's shape as a RESERVED entry since 2F-2, with the
+constraint that gates it:
+
+```js
+READ_HIST_SLOT_DYN: 55,
+// It cannot be admitted until the ring depth it may reach is statically bounded,
+// because an offset past the ring would answer `na` where Pine answers a number:
+// a silent wrong value, which is the one outcome this runtime refuses to trade
+// for coverage.
+```
+
+⭐⭐ **THAT CONSTRAINT IS ABOUT A RING, AND TWO OF THE THREE HISTORY READS HAVE NO RING.**
+`READ_HIST` indexes a precomputed COLUMN and `READ_SERIES_HIST` a price SERIES — both
+materialised in full before the bar loop starts, so `columns[a][bar - n]` answers for ANY
+`n` with `bar - n >= 0` and there is nothing to overflow. Only `READ_HIST_SLOT` reads a
+ring of bounded depth.
+
+So `READ_HIST_DYN` (56) and `READ_SERIES_HIST_DYN` (57) ship and **55 stays reserved** —
+the reserved opcode's own reasoning applied, not overridden. `ir.js` refuses a
+`HIST_DYN` whose target is a `READ`, and that refusal has its own rail rather than being
+a guard nobody has watched fire.
+
+⛔ **EVERY UNANSWERABLE OFFSET IS `na`, AND THERE ARE THREE OF THEM** — a NaN offset (the
+value was itself `na`), a negative one (Pine reads backwards; forwards is a bar that has
+not happened), and one reaching before bar 0. None may clamp: answering with the earliest
+bar is how a warm-up silently becomes a real number, which is what `READ_HIST` already
+refuses to do with a constant offset. ⚠️ `n | 0` is deliberately not used — it turns 2.7
+into 2 and **NaN into 0**, and the second would read bar 0 and call it an answer.
+
+### Measured
+
+| | at HEAD | with the fix |
+|---|---|---|
+| object-lane BUILDS | 7 | **7** |
+| `runtime/pine:undefined` | 7 | **1** |
+
+⛔ **ZERO NEW BUILDS, AND THAT IS THE HONEST NUMBER.** Six scripts stop being told
+something false and move to their REAL next wall — `runtime:array`,
+`runtime:object-op`, `runtime:function-global-state`, `pine:window-dependent`,
+`pine:offset-literal`, and one to `runtime:history-dynamic-offset` (the ring case,
+correctly refused and now saying so). The near-queue already predicted this:
+`fib-retracement` carries TWO distinct walls, so serving one moves it to the other.
+
+⭐ **AND IT CLOSED RC-G'S OWN GAP.** RC-G threaded the scope into the three WINDOW-LENGTH
+fold sites and not into the OFFSET one, so a loop counter — the commonest dynamic offset
+there is — still read *"never given a value"*. The same lesson RC-G was written about,
+one site further on: **a fix is only as wide as the lane you measured it in.**
+
+---
+
 ## The foreseeable problems — where this shape will bite next
 
 Each is the same substitution, at a seam we have not yet compared:
