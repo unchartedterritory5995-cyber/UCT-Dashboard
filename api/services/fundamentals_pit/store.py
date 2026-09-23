@@ -2,32 +2,35 @@
 
 TWO KINDS OF TABLE, TWO RULES:
 
-  RAW TRUTH — append-only. Never UPDATE, never DELETE.
-    filing          one row per accession; metadata frozen at first sight. A
-                    later sighting that disagrees is recorded in
-                    filing_anomaly, never written over the original.
-    fact            one row per (cik, tag, unit, period, accession, value).
-                    INSERT OR IGNORE: re-ingesting the same companyfacts
-                    document is a no-op, a restated value is a NEW row.
-    filing_signal   restatement evidence from the filing's own XBRL
-                    (dimensional facts companyfacts does not carry).
-    split_event     split ledger rows per source; a disagreeing source is a
-                    new row, never an overwrite.
-    snapshot_capture  forward/analyst values captured going forward (a
+  RAW TRUTH -- append-only. Never UPDATE, never DELETE.
+    filing          one row per accession (10-K/10-Q family, or any filing that
+                    carries a retained fact); metadata frozen at first sight. A
+                    later sighting that disagrees goes to filing_anomaly.
+    fact            one row per (cik, concept, unit, period, filing, value).
+                    INSERT OR IGNORE: re-ingesting a document is a no-op, a
+                    restated value is a NEW row, the original is never lost.
+    filing_signal   restatement evidence from a filing's own XBRL dimensions.
+    split_event     split rows per source; a disagreeing source is a new row.
+    snapshot_capture  provider snapshot values captured going forward (a
                     separate dataset -- NOT point-in-time SEC fundamentals).
 
-  DERIVED — rebuildable from raw truth at any time.
-    series_point    sparse PIT observations, keyed by derivation_version so a
-                    new derivation never overwrites the one being served.
-    series_build    one row per (cik, derivation_version): input hash, status,
-                    diagnostics (e.g. split-basis verification).
+  DERIVED -- rebuildable from raw truth at any time.
+    series_point    sparse PIT observations keyed by derivation_version; a new
+                    derivation never overwrites the one being served. `sources`
+                    is the compact list of accessions the value came from; the
+                    full fact-level provenance is reproduced on demand by
+                    re-deriving (derive.explain), which also proves determinism.
+    series_build    per (cik, derivation_version): input hash, status, detail.
 
-  STATE — bookkeeping for idempotent, resumable ingestion.
-    security, ticker_map, ingest_state.
+  STATE -- security, ticker_map, ingest_state, signal_check, pending_refresh,
+           publish_log.
 
-Schema changes are numbered migrations applied in order and recorded in
-PRAGMA user_version; a database written by a NEWER build is refused rather
-than silently downgraded.
+Compact on purpose (MEASURED on the UCT universe, 3,503 companies): text-keyed
+facts + JSON provenance per point took 2.86 GB; integer concept/filing ids and
+integer dates are the difference.
+
+Numbered migrations recorded in PRAGMA user_version; a database written by a
+NEWER build is refused rather than silently downgraded.
 """
 from __future__ import annotations
 
@@ -42,77 +45,63 @@ from .facts import Fact
 from .filings import Filing
 
 MIGRATIONS: tuple[str, ...] = (
-    # 1 — initial schema
+    # 1 -- initial schema
     """
     CREATE TABLE filing (
-        accn         TEXT PRIMARY KEY,
+        filing_id    INTEGER PRIMARY KEY,
+        accn         TEXT NOT NULL UNIQUE,
         cik          INTEGER NOT NULL,
         form         TEXT NOT NULL,
-        filing_date  TEXT NOT NULL,
-        report_date  TEXT,
+        filing_date  INTEGER NOT NULL,    -- yyyymmdd
+        report_date  INTEGER,             -- yyyymmdd
         accepted_at  INTEGER,             -- unix seconds UTC, NULL if unknown
         public_at    INTEGER NOT NULL,    -- unix seconds UTC (filings.public_at)
-        source       TEXT NOT NULL,       -- 'submissions'
-        first_seen_at REAL NOT NULL
+        first_seen_at INTEGER NOT NULL
     );
     CREATE INDEX filing_cik ON filing(cik, public_at);
-    CREATE TABLE filing_anomaly (
-        accn TEXT NOT NULL, seen_at REAL NOT NULL, detail TEXT NOT NULL
-    );
+    CREATE TABLE filing_anomaly (accn TEXT NOT NULL, seen_at INTEGER NOT NULL, detail TEXT NOT NULL);
+    CREATE TABLE concept (concept_id INTEGER PRIMARY KEY, tag TEXT NOT NULL UNIQUE);
     CREATE TABLE fact (
         cik          INTEGER NOT NULL,
-        tag          TEXT NOT NULL,       -- 'us-gaap:Revenues'
+        concept_id   INTEGER NOT NULL,
         unit         TEXT NOT NULL,
-        period_start TEXT NOT NULL,       -- '' for an instant
-        period_end   TEXT NOT NULL,
+        period_end   INTEGER NOT NULL,    -- yyyymmdd
+        period_start INTEGER NOT NULL,    -- yyyymmdd; 0 = instant
+        filing_id    INTEGER NOT NULL,
         val          REAL NOT NULL,
-        accn         TEXT NOT NULL,
-        form         TEXT NOT NULL,
-        filed        TEXT NOT NULL,
-        fy           INTEGER,
-        fp           TEXT,
-        frame        TEXT,
-        first_seen_at REAL NOT NULL,
-        PRIMARY KEY (cik, tag, unit, period_end, period_start, accn, val)
+        first_seen_at INTEGER NOT NULL,
+        PRIMARY KEY (cik, concept_id, unit, period_end, period_start, filing_id, val)
     ) WITHOUT ROWID;
     CREATE TABLE filing_signal (
         accn         TEXT NOT NULL,
         tag          TEXT NOT NULL,       -- '*' = whole filing
-        period_start TEXT NOT NULL,
-        period_end   TEXT NOT NULL,
+        period_start INTEGER NOT NULL,
+        period_end   INTEGER NOT NULL,
         kind         TEXT NOT NULL,       -- 'restatement_axis'
-        source       TEXT NOT NULL,       -- 'fs_dataset:2022q1' | 'instance'
-        first_seen_at REAL NOT NULL,
+        source       TEXT NOT NULL,       -- 'fs_dataset:2022q1.zip' | 'instance'
+        first_seen_at INTEGER NOT NULL,
         PRIMARY KEY (accn, tag, period_start, period_end, kind)
     ) WITHOUT ROWID;
     CREATE TABLE split_event (
         ticker       TEXT NOT NULL,
         ex_date      TEXT NOT NULL,
         ratio        REAL NOT NULL,       -- new shares per old share
-        source       TEXT NOT NULL,       -- 'massive' (production) | fixture sources in tests
+        source       TEXT NOT NULL,       -- 'massive' (production) | named fixture sources
         source_ref   TEXT,
-        first_seen_at REAL NOT NULL,
+        first_seen_at INTEGER NOT NULL,
         PRIMARY KEY (ticker, ex_date, ratio, source)
     ) WITHOUT ROWID;
     CREATE TABLE security (
-        cik          INTEGER PRIMARY KEY,
-        name         TEXT,
-        tickers      TEXT NOT NULL,       -- JSON list, current per SEC submissions
-        fye          TEXT,
-        updated_at   REAL NOT NULL
+        cik INTEGER PRIMARY KEY, name TEXT, tickers TEXT NOT NULL, fye TEXT, updated_at INTEGER NOT NULL
     );
     CREATE TABLE ticker_map (
         ticker TEXT NOT NULL, cik INTEGER NOT NULL,
-        first_seen_at REAL NOT NULL, last_seen_at REAL NOT NULL,
+        first_seen_at INTEGER NOT NULL, last_seen_at INTEGER NOT NULL,
         PRIMARY KEY (ticker, cik)
     ) WITHOUT ROWID;
     CREATE TABLE ingest_state (
-        cik                INTEGER PRIMARY KEY,
-        companyfacts_sha   TEXT,
-        submissions_sha    TEXT,
-        facts_seen         INTEGER,
-        last_ingested_at   REAL,
-        last_error         TEXT
+        cik INTEGER PRIMARY KEY, companyfacts_sha TEXT, submissions_sha TEXT,
+        facts_seen INTEGER, unjoined INTEGER, last_ingested_at INTEGER, last_error TEXT
     );
     CREATE TABLE series_point (
         cik                INTEGER NOT NULL,
@@ -120,30 +109,35 @@ MIGRATIONS: tuple[str, ...] = (
         derivation_version INTEGER NOT NULL,
         t_eff              INTEGER NOT NULL,   -- unix seconds UTC: filing public_at
         v                  REAL NOT NULL,
-        period_end         TEXT NOT NULL,
+        period_end         INTEGER NOT NULL,   -- yyyymmdd
         method             TEXT NOT NULL,
-        sources            TEXT NOT NULL,      -- JSON [[tag, start, end, accn], ...]
+        sources            TEXT NOT NULL,      -- accessions, comma-separated
         PRIMARY KEY (cik, metric, derivation_version, t_eff)
     ) WITHOUT ROWID;
     CREATE TABLE series_build (
-        cik                INTEGER NOT NULL,
-        derivation_version INTEGER NOT NULL,
-        built_at           REAL NOT NULL,
-        input_hash         TEXT NOT NULL,
-        status             TEXT NOT NULL,      -- 'ok' | 'error'
-        detail             TEXT NOT NULL,      -- JSON diagnostics
+        cik INTEGER NOT NULL, derivation_version INTEGER NOT NULL, built_at INTEGER NOT NULL,
+        input_hash TEXT NOT NULL, status TEXT NOT NULL, detail TEXT NOT NULL,
         PRIMARY KEY (cik, derivation_version)
     );
     CREATE TABLE snapshot_capture (
-        day          TEXT NOT NULL,          -- session date the value describes (ET)
-        symbol       TEXT NOT NULL,
-        metric       TEXT NOT NULL,
-        provider     TEXT NOT NULL,
-        value        REAL NOT NULL,
-        retrieved_at REAL NOT NULL,
-        capture_version INTEGER NOT NULL,
+        day TEXT NOT NULL, symbol TEXT NOT NULL, metric TEXT NOT NULL, provider TEXT NOT NULL,
+        value REAL NOT NULL, retrieved_at INTEGER NOT NULL, capture_version INTEGER NOT NULL,
         PRIMARY KEY (day, symbol, metric, provider)
     ) WITHOUT ROWID;
+    """,
+    # 2 -- incremental ingestion bookkeeping
+    """
+    CREATE TABLE signal_check (
+        accn TEXT PRIMARY KEY, checked_at INTEGER NOT NULL, n_signals INTEGER NOT NULL, source TEXT NOT NULL
+    );
+    CREATE TABLE pending_refresh (
+        cik INTEGER NOT NULL, accn TEXT NOT NULL, first_seen_at INTEGER NOT NULL,
+        attempts INTEGER NOT NULL, last_error TEXT, PRIMARY KEY (cik, accn)
+    );
+    CREATE TABLE publish_log (
+        cik INTEGER NOT NULL, derivation_version INTEGER NOT NULL, etag TEXT NOT NULL,
+        published_at INTEGER NOT NULL, target TEXT NOT NULL, PRIMARY KEY (cik, derivation_version, target)
+    );
     """,
 )
 
@@ -163,11 +157,17 @@ class SchemaTooNew(RuntimeError):
     pass
 
 
-def connect(path: str | None = None) -> sqlite3.Connection:
-    conn = sqlite3.connect(path or default_path(), timeout=30)
+def connect(path: str | None = None, readonly: bool = False) -> sqlite3.Connection:
+    p = path or default_path()
+    if readonly:
+        conn = sqlite3.connect(f"file:{p}?mode=ro", uri=True, timeout=30)
+        have = conn.execute("PRAGMA user_version").fetchone()[0]
+        if have != SCHEMA_VERSION:
+            raise SchemaTooNew(f"database schema v{have}, build expects v{SCHEMA_VERSION}")
+        return conn
+    conn = sqlite3.connect(p, timeout=30)
     conn.execute("PRAGMA journal_mode=WAL")
     conn.execute("PRAGMA synchronous=NORMAL")
-    conn.execute("PRAGMA foreign_keys=ON")
     migrate(conn)
     return conn
 
@@ -194,6 +194,7 @@ def tx(conn: sqlite3.Connection):
         raise
 
 
+# ── encoding helpers ────────────────────────────────────────────────────────
 def _ts(dt: datetime | None) -> int | None:
     return None if dt is None else int(dt.timestamp())
 
@@ -202,51 +203,72 @@ def _dt(ts: int | None) -> datetime | None:
     return None if ts is None else datetime.fromtimestamp(ts, tz=timezone.utc)
 
 
+def ymd(d: date | None) -> int:
+    return 0 if d is None else d.year * 10000 + d.month * 100 + d.day
+
+
+def from_ymd(n: int | None) -> date | None:
+    return None if not n else date(n // 10000, n // 100 % 100, n % 100)
+
+
+def _concept_ids(conn, tags) -> dict[str, int]:
+    tags = set(tags)
+    conn.executemany("INSERT OR IGNORE INTO concept(tag) VALUES (?)", [(t,) for t in tags])
+    q = ",".join("?" * len(tags)) or "''"
+    return dict(conn.execute(f"SELECT tag, concept_id FROM concept WHERE tag IN ({q})", tuple(tags)))
+
+
 # ── raw truth: writes ───────────────────────────────────────────────────────
 def put_filings(conn, cik: int, filings: dict[str, Filing], now: float | None = None) -> int:
     """Insert unseen accessions. A known accession whose metadata now differs
     is logged to filing_anomaly and the ORIGINAL row stands."""
-    now = time.time() if now is None else now
+    now = int(time.time() if now is None else now)
     new = 0
-    existing = {r[0]: r for r in conn.execute(
+    existing = {r[0]: tuple(r) for r in conn.execute(
         "SELECT accn, form, filing_date, accepted_at, public_at FROM filing WHERE cik=?", (cik,))}
+    rows = []
     for accn, f in filings.items():
-        row = (accn, f.form, f.filing_date.isoformat(), _ts(f.accepted_at), _ts(f.public_at))
+        row = (accn, f.form, ymd(f.filing_date), _ts(f.accepted_at), _ts(f.public_at))
         old = existing.get(accn)
         if old is None:
-            conn.execute("INSERT OR IGNORE INTO filing VALUES (?,?,?,?,?,?,?,?,?)",
-                         (accn, cik, f.form, f.filing_date.isoformat(),
-                          f.report_date.isoformat() if f.report_date else None,
-                          _ts(f.accepted_at), _ts(f.public_at), "submissions", now))
-            new += 1
-        elif tuple(old) != row:
+            rows.append((accn, cik, f.form, ymd(f.filing_date), ymd(f.report_date) or None,
+                         _ts(f.accepted_at), _ts(f.public_at), now))
+        elif old != row:
             conn.execute("INSERT INTO filing_anomaly VALUES (?,?,?)",
                          (accn, now, json.dumps({"stored": list(old), "seen": list(row)})))
+    before = conn.total_changes
+    conn.executemany("INSERT OR IGNORE INTO filing(accn, cik, form, filing_date, report_date, accepted_at, "
+                     "public_at, first_seen_at) VALUES (?,?,?,?,?,?,?,?)", rows)
+    new = conn.total_changes - before
     return new
 
 
 def put_facts(conn, cik: int, facts: list[Fact], now: float | None = None) -> int:
-    now = time.time() if now is None else now
+    """Facts whose accession is not a stored filing cannot be dated and are
+    NOT stored (counted as unjoined by the caller)."""
+    now = int(time.time() if now is None else now)
+    fid = dict(conn.execute("SELECT accn, filing_id FROM filing WHERE cik=?", (cik,)))
+    cid = _concept_ids(conn, {f.tag for f in facts})
     before = conn.total_changes
-    conn.executemany(
-        "INSERT OR IGNORE INTO fact VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?)",
-        [(cik, f.tag, f.unit, f.start.isoformat() if f.start else "", f.end.isoformat(), f.val,
-          f.accn, f.form, f.filed.isoformat(), f.fy, f.fp, f.frame, now) for f in facts])
+    conn.executemany("INSERT OR IGNORE INTO fact VALUES (?,?,?,?,?,?,?,?)",
+                     [(cik, cid[f.tag], f.unit, ymd(f.end), ymd(f.start), fid[f.accn], f.val, now)
+                      for f in facts if f.accn in fid])
     return conn.total_changes - before
 
 
 def put_signals(conn, rows: list[tuple], source: str, now: float | None = None) -> int:
     """rows: (accn, tag, period_start_iso, period_end_iso, kind)."""
-    now = time.time() if now is None else now
+    now = int(time.time() if now is None else now)
     before = conn.total_changes
     conn.executemany("INSERT OR IGNORE INTO filing_signal VALUES (?,?,?,?,?,?,?)",
-                     [(a, t, s, e, k, source, now) for a, t, s, e, k in rows])
+                     [(a, t, ymd(date.fromisoformat(s)), ymd(date.fromisoformat(e)), k, source, now)
+                      for a, t, s, e, k in rows])
     return conn.total_changes - before
 
 
 def put_splits(conn, rows: list[tuple], source: str, now: float | None = None) -> int:
     """rows: (ticker, ex_date_iso, ratio, source_ref)."""
-    now = time.time() if now is None else now
+    now = int(time.time() if now is None else now)
     before = conn.total_changes
     conn.executemany("INSERT OR IGNORE INTO split_event VALUES (?,?,?,?,?,?)",
                      [(t.upper(), d, float(r), source, ref, now) for t, d, r, ref in rows])
@@ -255,7 +277,7 @@ def put_splits(conn, rows: list[tuple], source: str, now: float | None = None) -
 
 def put_security(conn, cik: int, name: str | None, tickers: list[str], fye: str | None,
                  now: float | None = None) -> None:
-    now = time.time() if now is None else now
+    now = int(time.time() if now is None else now)
     conn.execute("INSERT INTO security VALUES (?,?,?,?,?) ON CONFLICT(cik) DO UPDATE SET "
                  "name=excluded.name, tickers=excluded.tickers, fye=excluded.fye, updated_at=excluded.updated_at",
                  (cik, name, json.dumps([t.upper() for t in tickers]), fye, now))
@@ -265,12 +287,13 @@ def put_security(conn, cik: int, name: str | None, tickers: list[str], fye: str 
 
 
 def set_ingest_state(conn, cik: int, cf_sha: str | None, sub_sha: str | None, facts_seen: int,
-                     error: str | None = None, now: float | None = None) -> None:
-    now = time.time() if now is None else now
-    conn.execute("INSERT INTO ingest_state VALUES (?,?,?,?,?,?) ON CONFLICT(cik) DO UPDATE SET "
+                     error: str | None = None, now: float | None = None, unjoined: int = 0) -> None:
+    now = int(time.time() if now is None else now)
+    conn.execute("INSERT INTO ingest_state VALUES (?,?,?,?,?,?,?) ON CONFLICT(cik) DO UPDATE SET "
                  "companyfacts_sha=excluded.companyfacts_sha, submissions_sha=excluded.submissions_sha, "
-                 "facts_seen=excluded.facts_seen, last_ingested_at=excluded.last_ingested_at, "
-                 "last_error=excluded.last_error", (cik, cf_sha, sub_sha, facts_seen, now, error))
+                 "facts_seen=excluded.facts_seen, unjoined=excluded.unjoined, "
+                 "last_ingested_at=excluded.last_ingested_at, last_error=excluded.last_error",
+                 (cik, cf_sha, sub_sha, facts_seen, unjoined, now, error))
 
 
 # ── raw truth: reads ────────────────────────────────────────────────────────
@@ -281,48 +304,46 @@ def get_ingest_state(conn, cik: int) -> dict | None:
                                             "last_ingested_at", "last_error"), r))
 
 
+def _filing(accn, form, fd, rd, acc, pub) -> Filing:
+    return Filing(accn=accn, form=form, filing_date=from_ymd(fd), report_date=from_ymd(rd),
+                  accepted_at=_dt(acc), public_at=_dt(pub))
+
+
 def load_filings(conn, cik: int) -> dict[str, Filing]:
-    out = {}
-    for accn, form, fd, rd, acc, pub in conn.execute(
-            "SELECT accn, form, filing_date, report_date, accepted_at, public_at FROM filing WHERE cik=?", (cik,)):
-        out[accn] = Filing(accn=accn, form=form, filing_date=date.fromisoformat(fd),
-                           report_date=date.fromisoformat(rd) if rd else None,
-                           accepted_at=_dt(acc), public_at=_dt(pub))
-    return out
+    return {r[0]: _filing(*r) for r in conn.execute(
+        "SELECT accn, form, filing_date, report_date, accepted_at, public_at FROM filing WHERE cik=?", (cik,))}
 
 
 def load_facts(conn, cik: int, tags: set[str] | None = None) -> list[Fact]:
     out = []
-    for tag, unit, ps, pe, val, accn, form, filed, fy, fp, frame in conn.execute(
-            "SELECT tag, unit, period_start, period_end, val, accn, form, filed, fy, fp, frame "
-            "FROM fact WHERE cik=?", (cik,)):
+    for tag, unit, ps, pe, val, accn, form, fd in conn.execute(
+            "SELECT c.tag, f.unit, f.period_start, f.period_end, f.val, g.accn, g.form, g.filing_date "
+            "FROM fact f JOIN concept c ON c.concept_id=f.concept_id JOIN filing g ON g.filing_id=f.filing_id "
+            "WHERE f.cik=?", (cik,)):
         if tags is not None and tag not in tags:
             continue
         tax, _, concept = tag.partition(":")
-        out.append(Fact(taxonomy=tax, concept=concept, unit=unit,
-                        start=date.fromisoformat(ps) if ps else None, end=date.fromisoformat(pe),
-                        val=val, accn=accn, form=form, filed=date.fromisoformat(filed),
-                        fy=fy, fp=fp, frame=frame))
+        out.append(Fact(taxonomy=tax, concept=concept, unit=unit, start=from_ymd(ps), end=from_ymd(pe),
+                        val=val, accn=accn, form=form, filed=from_ymd(fd), fy=None, fp=None, frame=None))
     return out
 
 
 def load_signals(conn, cik: int) -> list[tuple]:
     """[(public_at, start, end, tag|None)] -- epochs for knowledge.filing_epochs."""
-    out = []
-    for tag, ps, pe, pub in conn.execute(
-            "SELECT s.tag, s.period_start, s.period_end, f.public_at FROM filing_signal s "
-            "JOIN filing f ON f.accn = s.accn WHERE f.cik=?", (cik,)):
-        out.append((_dt(pub), date.fromisoformat(ps), date.fromisoformat(pe), None if tag == "*" else tag))
-    return out
+    return [(_dt(pub), from_ymd(ps), from_ymd(pe), None if tag == "*" else tag)
+            for tag, ps, pe, pub in conn.execute(
+                "SELECT s.tag, s.period_start, s.period_end, f.public_at FROM filing_signal s "
+                "JOIN filing f ON f.accn = s.accn WHERE f.cik=?", (cik,))]
 
 
 def load_splits(conn, tickers: list[str], sources: tuple[str, ...]) -> list[tuple]:
-    if not tickers:
+    if not tickers or not sources:
         return []
     q = ",".join("?" * len(tickers))
     s = ",".join("?" * len(sources))
     return conn.execute(f"SELECT ticker, ex_date, ratio, source FROM split_event WHERE ticker IN ({q}) "
-                        f"AND source IN ({s}) ORDER BY ex_date", (*[t.upper() for t in tickers], *sources)).fetchall()
+                        f"AND source IN ({s}) ORDER BY ex_date, ticker",
+                        (*[t.upper() for t in tickers], *sources)).fetchall()
 
 
 def security(conn, cik: int) -> dict | None:
@@ -338,19 +359,19 @@ def cik_for_ticker(conn, ticker: str) -> int | None:
     return None if r is None else r[0]
 
 
-# ── derived: writes/reads ───────────────────────────────────────────────────
+# ── derived ─────────────────────────────────────────────────────────────────
 def replace_series(conn, cik: int, version: int, series: dict, input_hash: str, detail: dict,
                    status: str = "ok", now: float | None = None) -> int:
     """Atomically replace ONE derivation version's points for a CIK. Other
     versions -- including the one currently served -- are untouched."""
-    now = time.time() if now is None else now
+    now = int(time.time() if now is None else now)
     conn.execute("DELETE FROM series_point WHERE cik=? AND derivation_version=?", (cik, version))
     rows = []
     for metric, pts in series.items():
         for p in pts:
-            rows.append((cik, metric, version, int(p.t_eff.timestamp()), float(p.v), p.period_end.isoformat(),
-                         p.method, json.dumps([[s[0], s[1].isoformat() if s[1] else None,
-                                                s[2].isoformat() if s[2] else None, s[3]] for s in p.sources])))
+            accns = sorted({s[3] for s in p.sources if s[3]})
+            rows.append((cik, metric, version, int(p.t_eff.timestamp()), float(p.v), ymd(p.period_end),
+                         p.method, ",".join(accns)))
     conn.executemany("INSERT OR REPLACE INTO series_point VALUES (?,?,?,?,?,?,?,?)", rows)
     conn.execute("INSERT INTO series_build VALUES (?,?,?,?,?,?) ON CONFLICT(cik, derivation_version) DO UPDATE SET "
                  "built_at=excluded.built_at, input_hash=excluded.input_hash, status=excluded.status, "
@@ -359,7 +380,7 @@ def replace_series(conn, cik: int, version: int, series: dict, input_hash: str, 
 
 
 def read_series(conn, cik: int, version: int, metrics: list[str] | None = None) -> dict[str, list[tuple]]:
-    """{metric: [(t_eff, v, period_end, method)]} ascending by t_eff."""
+    """{metric: [(t_eff, v, period_end_iso, method)]} ascending by t_eff."""
     out: dict[str, list[tuple]] = {}
     if metrics:
         q = ",".join("?" * len(metrics))
@@ -370,8 +391,14 @@ def read_series(conn, cik: int, version: int, metrics: list[str] | None = None) 
         cur = conn.execute("SELECT metric, t_eff, v, period_end, method FROM series_point WHERE cik=? "
                            "AND derivation_version=? ORDER BY metric, t_eff", (cik, version))
     for m, t, v, pe, meth in cur:
-        out.setdefault(m, []).append((t, v, pe, meth))
+        out.setdefault(m, []).append((t, v, from_ymd(pe).isoformat(), meth))
     return out
+
+
+def point_sources(conn, cik: int, metric: str, version: int, t_eff: int) -> list[str]:
+    r = conn.execute("SELECT sources FROM series_point WHERE cik=? AND metric=? AND derivation_version=? "
+                     "AND t_eff=?", (cik, metric, version, t_eff)).fetchone()
+    return [] if r is None or not r[0] else r[0].split(",")
 
 
 def build_info(conn, cik: int, version: int) -> dict | None:

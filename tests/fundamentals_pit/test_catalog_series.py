@@ -10,16 +10,33 @@ def test_catalogue_is_truthful():
 
 
 def test_every_catalogue_series_exists():
-    derived = {"market_cap", "pe_ttm", "ps_ttm", "pb", "fcf_yield", "dividend_yield", "beta_1y"}
     for m in C.V1:
-        assert m.series in M.METRICS or m.series in derived, m.id
+        if m.compose:
+            assert all(i in M.METRICS for i in m.inputs), m.id
+        elif m.source == "sec_xbrl":
+            assert m.series in M.METRICS, m.id
+        else:
+            assert m.series == "beta_1y_spy"
+
+
+def test_beta_identity_is_explicit_and_label_is_plain():
+    b = C.by_id()["beta_1y_spy"]
+    assert b.name == "Beta" and b.subtitle == "1Y daily · Benchmark: SPY"
+
+
+def test_payload_serves_only_ready_metrics_and_search_aliases():
+    p = C.payload()
+    ids = {m["id"] for m in p["metrics"]}
+    assert "forward_pe" not in ids and "eps_ttm" in ids
+    eps = next(m for m in p["metrics"] if m["id"] == "eps_ttm")
+    assert "earnings per share" in eps["aliases"]
 
 
 def test_snapshot_only_metrics_cannot_masquerade_as_historical():
     for snap in ("forward_pe", "peg", "eps_next_5y", "analyst_targets"):
         assert snap in C.DEFERRED and snap not in {m.id for m in C.V1}
-    fake = C.MetricDef("forward_pe", "Forward P/E", "Valuation", "fmp_snapshot", "x", "ratio", "x2", "line",
-                       "daily", "", None)
+    fake = C.MetricDef("forward_pe", "Forward P/E", "Valuation", "fmp_snapshot", "ratio", "x2", "line",
+                       "daily", "", None, series="pe_fwd")
     try:
         C.V1, saved = C.V1 + (fake,), C.V1
         raised = False

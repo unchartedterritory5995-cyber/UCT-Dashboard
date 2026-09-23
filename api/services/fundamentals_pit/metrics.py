@@ -224,7 +224,10 @@ def _pick(cands: list, val):
 
 # ── metric functions: (book, q_end) -> Value | None ─────────────────────────
 def _src(book: Book, prim: str, qs: list[Quarter], tag: str) -> tuple:
-    return tuple((tag, p[0], p[1], book.provenance.get((tag, p[0], p[1]))) for q in qs for p in q.parts)
+    """(actual tag, start, end, accn) per fact used -- the POOL label resolved
+    back to the tag the filing actually used."""
+    return tuple((book.source_tag.get((tag, p[0], p[1]), tag), p[0], p[1], book.provenance.get((tag, p[0], p[1])))
+                 for q in qs for p in q.parts)
 
 
 def quarter_value(book: Book, prim: str, q_end: date) -> Value | None:
@@ -239,7 +242,8 @@ def ttm(book: Book, prim: str, q_end: date) -> Value | None:
     fy = book.fiscal_years.get(prim, {}).get(q_end)
     if fy is not None:
         v, tag, (s, e) = fy
-        return Value(v, q_end, ((tag, s, e, book.provenance.get((tag, s, e))),), "fiscal_year")
+        return Value(v, q_end, ((book.source_tag.get((tag, s, e), tag), s, e, book.provenance.get((tag, s, e))),),
+                     "fiscal_year")
     roll = ytd_roll(book, prim, q_end)
     if roll is not None:
         return roll
@@ -276,7 +280,7 @@ def ytd_roll(book: Book, prim: str, q_end: date) -> Value | None:
         if prev is None:
             continue
         e_p, v_prev = prev
-        srcs = tuple((tag, a, b, book.provenance.get((tag, a, b)))
+        srcs = tuple((book.source_tag.get((tag, a, b), tag), a, b, book.provenance.get((tag, a, b)))
                      for a, b in ((s0, e0), (s1, e1), (s0, e_p)))
         return Value(v_fy + v_cur - v_prev, q_end, srcs, "ytd_roll")
     return None
