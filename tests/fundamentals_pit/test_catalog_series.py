@@ -91,3 +91,13 @@ def test_series_never_steps_back_to_an_older_period(monkeypatch):
     pts = SER.build_series(kb, ["revenue_ttm"])["revenue_ttm"]
     assert [(p.v, p.period_end.isoformat()) for p in pts] == [
         (400, "2020-12-31"), (410, "2020-12-31"), (480, "2021-12-31")]
+
+
+def test_every_filing_sourced_metric_discloses_the_filing_lag():
+    served = {m["id"]: m for m in C.payload()["metrics"]}
+    for m in C.V1:
+        if m.status != "READY":
+            continue
+        has = C.FILING_LAG_NOTE in served[m.id]["limitations"]
+        assert has == ("sec_xbrl" in m.source.split("+")), m.id
+    assert C.FILING_LAG_NOTE not in served["beta_1y_spy"]["limitations"]

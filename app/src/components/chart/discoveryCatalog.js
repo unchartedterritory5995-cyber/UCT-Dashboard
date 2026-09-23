@@ -1231,7 +1231,7 @@ export function fundamentalResults(metrics) {
       lead: m.name,
       sub: m.subtitle || '',
       category: m.category || 'Fundamentals',
-      description: [m.subtitle, m.methodology].filter(Boolean).join(' — '),
+      description: [m.subtitle, m.methodology, m.limitations].filter(Boolean).join(' — '),
       tags: ['fundamental', ...(Array.isArray(m.aliases) ? m.aliases : [])],
       create: {
         via: CREATE_VIA.DATA_SERIES,

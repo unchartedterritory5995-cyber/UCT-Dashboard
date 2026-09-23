@@ -244,11 +244,25 @@ def stored_series_ids() -> set[str]:
     return {m.series for m in V1 if m.series} | {i for m in V1 for i in m.inputs}
 
 
+# ⭐ STATED ON EVERY FILING-SOURCED METRIC. MEASURED in the harness: NVDA's Q2
+# FY24 revenue was in its 8-K press release on 2023-08-23 but charts from the
+# 10-Q on 2023-08-28 -- earnings-release exhibits carry no XBRL. The chart is
+# conservatively LATE there, never early, and a member should be told so.
+FILING_LAG_NOTE = ("Updates when the 10-Q/10-K is filed, which can follow the earnings "
+                   "press release by days; press-release figures are not machine-readable.")
+
+
+def _served(m: MetricDef) -> dict:
+    d = {k: v for k, v in asdict(m).items() if k not in ("history",)}
+    if "sec_xbrl" in m.source.split("+"):
+        d["limitations"] = " ".join(x for x in (d.get("limitations") or "", FILING_LAG_NOTE) if x)
+    return d
+
+
 def payload() -> dict:
     """The catalogue as served to the client (member Fundamentals library)."""
     return {"version": 1, "categories": list(CATEGORIES),
-            "metrics": [{k: v for k, v in asdict(m).items() if k not in ("history",)}
-                        for m in V1 if m.status == "READY"],
+            "metrics": [_served(m) for m in V1 if m.status == "READY"],
             "deferred_count": len(DEFERRED)}
 
 
