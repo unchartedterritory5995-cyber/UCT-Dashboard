@@ -126,6 +126,41 @@ def _is_carried(ticker: str) -> bool:
         return False
 
 
+def _fetch_already_running(response) -> bool:
+    """Does this 503 say a fetch for THIS ticker/tf is ALREADY IN FLIGHT?
+
+    ⛔⛔ THE DOWNGRADE BELOW ANSWERED A COVERAGE QUESTION WITH A CAPACITY ANSWER.
+    `bars_fetch` never blocks a request on a cold provider fetch: for a ticker it
+    has never seen it kicks a bounded background fetch, marks the serve `cold-bg`,
+    and returns **503 `{"error": "warming"}` + Retry-After: 3** so the client
+    re-polls and reads the rows the moment they land. That 503 does not mean "we
+    looked everywhere and found nothing" — it means "we have started looking".
+
+    Downgrading it to `no_data:symbol_not_carried` tells the member the provider
+    does not carry the symbol AND stops the retry, so the rows the background
+    fetch is at that moment writing are never collected. The answer is destroyed
+    by the question, and it re-asks itself on every future visit.
+
+    ⭐ MEASURED ON PRODUCTION 2026-09-23, not reasoned from the tree: `SNGX` tf=5
+    returned `no_data:symbol_not_carried` with `Server-Timing: bars;desc="cold-bg"`
+    on the same response — the downgrade firing on the warming 503 by name. BFRG,
+    GRRR, CNEY and VRME each answered `symbol_not_carried`, then served 120-300
+    REAL bars from `sqlite` in ~2 ms after a single spaced re-request. Nothing was
+    missing but the second ask.
+
+    ⚠️ `transient` IS STILL DOWNGRADED, DELIBERATELY. A retired ticker (`SQ` after
+    the rename to `XYZ`) trips `bars_fetch`'s no-blank guard with the breaker open
+    and would otherwise have the frontend retry a symbol that will never answer —
+    see `tests/test_bars_dead_ticker.py`. "A fetch is running" and "we found
+    nothing anywhere" are different claims and only the first one is exempt.
+    """
+    try:
+        body = orjson.loads(bytes(getattr(response, "body", b"") or b"") or b"{}")
+    except Exception:  # noqa: BLE001 — an unreadable body proves nothing either way
+        return False
+    return body.get("warming") is True or body.get("error") == "warming"
+
+
 def _no_data_response(ticker: str, tf: str):
     """200 + an empty series + why it is empty. `no_data` is what makes this
     distinguishable from a quiet-but-live symbol without inventing a single bar."""
@@ -833,6 +868,7 @@ def serve_bars(
         # `crashed` 503 (the SQLite inode swap during force_resync) IS transient
         # for any symbol, carried or not, and keeps its Retry-After.
         if (not crashed and getattr(response, "status_code", 200) == 503
+                and not _fetch_already_running(response)
                 and not _is_carried(ticker)):
             _log.info("[bars] %s tf=%s: no data and not a carried symbol — "
                       "200 no_data instead of a transient 503", ticker, tf)
