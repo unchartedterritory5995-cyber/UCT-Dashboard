@@ -1,12 +1,55 @@
 # Pine RVOL slice — RESUME HERE
 
 > **Branch `feat/pine-value-model`. Read this before touching the Pine engine.**
-> State at **`17192d37d`**, 2026-09-21 (was `9d68ddab5`). Nothing here is merged
+> State at **`ac44defbf`**, 2026-09-22 (was `17192d37d`). Nothing here is merged
 > and nothing reaches a member.
 >
 > ⚠️ `docs/pine/SESSION-STATE.md` is the **closed R0/R1 wave's** resume doc, not
 > this one. Do not update it for this work.
 >
+> ### ⭐⭐ 2026-09-22 — THE VENDOR AGREES. SIX COMMITS, FIVE ROOT CAUSES.
+>
+> **Every indicator that CAN be compared now matches TradingView.** The only
+> remaining row is `request.security`, a missing data feed rather than a
+> translation defect. Full write-up: **`docs/pine/PARITY-ROOT-CAUSE.md`**.
+>
+> | | |
+> |---|---|
+> | `239fd83ed` | **RC-B** — the drawing quota EVICTS THE OLDEST, as Pine does. Default cap was 500 (Pine's is 50) and at the cap we `fail()`ed, which keeps the OLDEST objects. `objectPool.js` had held the correct FIFO, with green tests, unwired past its own expiry. |
+> | `e9646c396` | **RC-C** — the forward axis counts SESSIONS, not calendar days. `bar_index + 3` from a Friday landed on the weekend. The cadence is DERIVED from the series' own weekdays, so weekly and 24/7 series need no special case. |
+> | `c8b4ce0b1` | **S4** — a parking note may not outlive its own expiry. Expiries are DATA now; a lapsed one fails BY NAME. This is what let RC-B's fix sit unwired for eight days past its date. |
+> | `f9947dca3` | **RC-D** — a linefill has a LIFETIME, not a budget. It dies with its lines, and at the ceiling evicts rather than abandoning the drawing. |
+> | `ac44defbf` | **RC-E + RC-F** — the drawing lane did not know which language it was reading, and Pine's `time` is milliseconds. |
+>
+> ⛔⛔ **RC-E IS THE ONE TO CARRY FORWARD, AND IT IS A ONE-ARGUMENT BUG.**
+> `pineRuntimeFrontend.js` built both its resolvers as `new Resolver(env, TABLE,
+> new Map(), {})` — an EMPTY options object — so `pineVersion` was null in the
+> lane that DRAWS and every version-conditional rule in `pine.js` silently
+> answered *"this is not Pine"*. RC-A had taught the resolver that a bare
+> `pivothigh` in a v4 script is Pine's confirmation-shifted column, verified it
+> through `translatePine`, and shipped — while the drawing lane kept the
+> unshifted house column and every trendline sat one pivot span early against
+> TradingView. **Look-ahead, in the lane that draws, with RC-A's rail green one
+> lane over.** ⭐ *A fix is only as wide as the lane you measured it in.*
+>
+> ⚰️ **AND THE DOC WAS WRONG ABOUT LIQUIDITY POOLS.** `PARITY-ROOT-CAUSE.md`
+> said the line cap "explains Liquidity Pools completely". It explained nothing:
+> that script declares `max_lines_count=500` and never had more than 86 lines
+> live. It was REFUSING at bar 250 on a `linefill` envelope Pine does not
+> publish at all. **Found only because re-measuring after RC-B showed the
+> numbers had not moved** — a plausible mechanism that fit the symptom had been
+> allowed to stand in for the measured one.
+>
+> ⭐ **NEW INSTRUMENT: `runtime/__tests__/guardProbe.measure.test.js`.** The
+> census's companion. A census row counts a TOKEN, not a capability, and this
+> prints a row's scripts grouped by refusal SHAPE so the number of jobs hiding
+> in it is visible. It immediately re-sized `pine:input-kind` from "10 scripts,
+> one named root cause" to **three capabilities** — `input.color` 4,
+> `input.timeframe` 4, `input.symbol` 2, the last two feeding a
+> `request.security` with no feed here. Run it before sizing any row.
+>
+> **Object-lane census: BUILDS 6 of 266** (was 2 on 2026-09-21). The six are
+> exactly the six vendor-compared indicators. `runtime/pine:builtin` 16 → 12.
 > ### ⛔⛔ 2026-09-21, LATER — THE DRAWING FAMILIES, AND ONE NUMBER THAT DID NOT MOVE
 >
 > Branch **`pine/runtime-object-ops`** off `feat/pine-value-model`, at
@@ -429,6 +472,29 @@ case. Compare failing test NAMES.
 ---
 
 ## NEXT, IN ORDER
+
+> ### ⭐⭐ 2026-09-22 — THE QUEUE, RE-SIZED BY READING THE CALL SITES
+>
+> Run `guardProbe.measure.test.js` before committing to any row below; each of
+> these was measured that way rather than taken from the census count.
+>
+> | scripts | row | what it actually is |
+> |---|---|---|
+> | ~15 | `pine:block` | an `if`/`switch` BLOCK IN VALUE POSITION (`x = if cond`). The body lives on later lines the expression parser never sees, so this is a statement-level change in the PRODUCTION columnar lane. `foldIfChain` already folds statement-level chains — the work is reaching it from a declaration's initialiser. **Largest single coherent capability in the corpus.** |
+> | ~7 | `pine:block` | a `for` loop reached through a user function — same guard, different job |
+> | ~10 | `time(...)` | the FUNCTION forms: `time('W')` (opening timestamp of the enclosing period, 3) and `time("", "0830-1201", tz)` (session clock, 2), plus 5 more on `pine:function`. RC-F served only the bare VARIABLE. |
+> | 4 | `input.color` | `producesColour` (`runtime/colours.js`) holds only `color.new`/`color.rgb`, so `holdsColour` answers false for an `input.color` CALL and the binding routes to the columnar lane, which refuses the kind |
+> | 3 | tuple destructuring | `[a, b, c] = ta.bb(…)` — the plan already flagged this as the real top row behind the `history-expression` misread |
+> | 6 | `input.timeframe`/`input.symbol` | ⛔ **DO NOT SPEND A WAVE HERE.** They exist to feed `request.security`, which has no feed on this box — serving them moves six scripts to a blocker they cannot pass either. |
+>
+> ⛔ **48 of the 266 are `strategy()` scripts, OUT OF SCOPE by design**, and 13
+> more are `objects:no-objects-in-source` — scripts that correctly draw nothing.
+> The honest denominator is well under 266 and nobody has written it down.
+>
+> ⭐ **Expect movement, not clearance.** Every capability closed this week moved
+> scripts to their NEXT blocker without raising `BUILDS`. That is the measured
+> pattern (item 8 below, and RC-F's own 16 → 12), not a disappointment.
+
 
 ✅ **DONE:** objects-only scripts draw · object-pass loops · per-call-site
 lowering inside a request · the ET clock and session clock · the target
