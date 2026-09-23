@@ -63,6 +63,13 @@ describe('NoteEditorPage — text colour + highlight door (Wave 5)', () => {
   })
 })
 
+describe('NoteEditorPage — word count door (Wave 5)', () => {
+  it('the toolbar reads the note\'s words and reading time', async () => {
+    await renderEditor()
+    expect(screen.getByTestId('note-stats').textContent).toBe('11 words · 1 min read')
+  })
+})
+
 describe('NoteEditorPage — find AND replace door (Wave 5)', () => {
   it('Ctrl+H opens the find bar with the replace row; a replace-all edits the note', async () => {
     const editor = await renderEditor()

@@ -51,6 +51,7 @@ import { appendAskInsert } from '../../lib/askInsert'
 import usePendingAskInsert from '../../hooks/usePendingAskInsert'
 import NoteFindBar from './NoteFindBar'
 import TextColorMenu, { TEXT_COLOR_MENU_LABEL } from './TextColorMenu'
+import NoteStats from './NoteStats'
 import { textColorClass } from '../../lib/textColor'
 import NoteHistoryPanel from './NoteHistoryPanel'
 import NoteBacklinksSection from './NoteBacklinksSection'
@@ -2528,6 +2529,9 @@ export default function NoteEditorPage({ noteId, onBack, showBack = true, onTitl
             ⊞ Insert
           </button>
           <div className={styles.toolbarExports}>
+            {/* Wave 5: word count + reading time (the selection's share while
+                text is selected). */}
+            <NoteStats editor={editor} />
             {chromeMsg && <span className={styles.chromeMsg} role="status">{chromeMsg}</span>}
             {/* Export: PNG rasterizes the note column (charts included); Print
                 rides the browser's Save-as-PDF via the print stylesheet. */}
