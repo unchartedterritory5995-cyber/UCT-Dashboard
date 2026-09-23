@@ -17,14 +17,20 @@ Captures: `tests/fixtures/vendor/visual/fvg-boxes-spy-1d-2026-09-22.json`,
 | Liquidity Pools | ⛔ nothing we still draw is inside the vendor's window |
 | 4C NYSE Breadth | ⚠️ cannot match — `request.security` has no feed here |
 
-⭐ **That table is the 2026-09-23 MEASUREMENT and is left as measured.** Since it was
-taken, RC-A, RC-B and RC-C have shipped. What has been **re-measured against the vendor
-since** is Fair Value Gaps, which now agrees on every dimension the rail checks — bars,
-prices, live box count and forward edges, both of its known divergences closed.
-⛔ **Trendlines and Liquidity Pools have NOT been re-captured.** Their root causes are
-fixed and their mechanisms are railed, but "the vendor now agrees" is a prediction for
-those two, not a measurement, and this programme's own standing rule is that only the
-vendor's numbers can settle it.
+⭐ **That table is the 2026-09-23 MEASUREMENT and is left as measured.** All five have
+since been **re-measured against the same pinned captures** — no browser needed, because
+the vendor's side does not change when ours does, so re-running our engine against a
+stored capture is a real comparison and not a re-render of our own work. Rails:
+`fvgVendorParity.test.js`, `twoVendorParity.test.js`.
+
+| indicator | after RC-A → RC-D |
+|---|---|
+| Market Structure | ⭐⭐ was already exact |
+| Fair Value Gaps | ⭐⭐ **both divergences closed** — same bars, same prices, same live box count, same forward edges |
+| Inside Bar Range | ⭐ was already exact on both rails |
+| Liquidity Pools | ⭐⭐ **zero overlap → 86 lines / 43 labels against the vendor's 90 / 45, same window.** The 4-and-2 shortfall is our bar fixture ending 2026-09-13 against their 2026-09-22 — nine sessions, two more pools, exactly 4 lines and 2 labels |
+| Trendlines | ⛔ **STILL ONE PIVOT SPAN EARLY** — root cause located below, not yet fixed |
+| 4C NYSE Breadth | ⚠️ unchanged — `request.security` has no feed here |
 
 ---
 
@@ -120,11 +126,18 @@ case 'create': {
   }
 ```
 
-**That single branch explains Liquidity Pools completely.** We hit the cap, stopped
-creating, and kept the *oldest* 37 lines — newest 2025-04-09, against a series running
-to 2026-09-11. TradingView keeps the newest 90. Zero overlap. We are drawing a
-year-stale set. Fair Value Gaps is the same defect from the other side: the vendor kept
-50, we emitted 212 uncapped.
+⚰️⚰️ **AND THIS PARAGRAPH SAID "THAT SINGLE BRANCH EXPLAINS LIQUIDITY POOLS COMPLETELY".
+IT DID NOT EXPLAIN IT AT ALL.** The symptom was real — newest surviving line 2025-04-09
+against a series reaching 2026-09-11, zero overlap with the vendor — and the diagnosis
+was wrong. `liquidity-pools` declares `max_lines_count=500` and never had more than 86
+lines live, so the line cap was never reached and RC-B's eviction changed nothing for
+it. Re-measuring after RC-B shipped is what exposed that: the numbers did not move.
+**The real cause is RC-D below.** ⭐ The lesson is this document's own headline pointed
+back at itself — a plausible mechanism that fit the symptom was allowed to stand in for
+the measured one, and it read as settled because a fix had shipped next to it.
+
+Fair Value Gaps, however, IS this branch, from the other side: the vendor kept 50, we
+emitted 212 uncapped, and that divergence is now closed.
 
 ⚰️⚰️ **And the correct implementation already exists in this repo, with tests, and
 nothing imports it.** `app/src/components/chart/engine/objectPool.js` — its own header
@@ -231,6 +244,70 @@ invent one … drawn to the pane edge and recorded as extrapolated"*. That was n
 deliberately: nothing downstream consumes such a flag today, and adding an unread one
 would be `lesson_built_tested_green_and_unreachable` — the very defect RC-B above
 existed to undo. The residual is recorded in the code and here instead.
+
+---
+
+## RC-D — a house envelope on an object Pine does not limit
+
+**Status: FIXED.** Found by re-measuring after RC-B, when Liquidity Pools did not move.
+
+`liquidity-pools` **refused at bar 250** — `more than 500 live linefill objects` — and
+then *stopped stepping*, so every object it had drawn was older than 2025-04-15 on a
+series reaching 2026-09-11. That is the "year-stale chart" the vendor comparison found,
+and it was never the line cap.
+
+⛔ **Pine publishes no `max_linefills_count`, because a linefill has a LIFETIME rather
+than a budget:** it is bound to two lines, and deleting either destroys it. So the fill
+count can never outrun the line count and no ceiling is needed. Ours was an independent
+object with a house ceiling of 500, and a script that legitimately draws many fills hit
+it and had its drawing abandoned — which is the one behaviour we can be certain Pine
+does not have, since TradingView renders the same script across the whole window.
+
+**Fix (shipped), two parts:**
+1. **A linefill dies with its lines.** Reaping a line now reaps every fill that named
+   it, through an index so the cost stays flat rather than a walk over everything live.
+2. **At the ceiling, linefill EVICTS THE OLDEST instead of refusing.** The envelope
+   stays — a runaway is still bounded — but its behaviour becomes the FIFO Pine uses for
+   every family it does limit. ⛔ `table` deliberately keeps the hard refusal: its
+   ceiling is 8, a number no honest script approaches, so reaching it means something is
+   wrong rather than something is busy.
+
+**Mutation-proved two ways:** linefill refuses again (killed) · a reaped line leaves its
+fills alive (killed).
+
+⭐ **Measured result: zero overlap → agreement.** Over the vendor's own 300-bar window
+we now hold **86 lines and 43 labels against their 90 and 45**, in the same
+2025-07..2026-09 window, with the run completing. The shortfall is our bar fixture
+ending nine sessions earlier than their capture — two more pools, which is exactly 4
+lines and 2 labels.
+
+---
+
+## RC-E — RC-A was applied to one lane of two
+
+**Status: LOCATED, NOT FIXED.** This is why Trendlines is still wrong.
+
+RC-A resolves a bare `pivothigh` in a `//@version=4` script to Pine's shifted column,
+and it works: `translatePine` on this script's own construct returns
+`pivothigh(high, 100, 15)[15]`.
+
+⛔ **The object lane never sees that resolution.** `buildObjectLane` calls
+`translatePine` with `objectRawTrees: true`, which deliberately keeps the **raw parse
+node** so the runtime lane can lower constructs the columnar value model has no answer
+for (`array.get` — without it, a dashboard whose rows come from arrays arrives empty).
+RC-A's transform lives in the columnar resolution those trees bypass. So the lane that
+draws objects still resolves bare `pivothigh` to the house column, which emits **on the
+pivot bar** rather than at the confirmation bar `right` bars later.
+
+⛔⛔ **That is look-ahead — the same class RC-A exists to remove — surviving in the lane
+that draws.** Measured signature, on all five lines: **our RIGHT anchor is exactly
+TradingView's LEFT anchor.** Pinned in `twoVendorParity.test.js` with that precision, so
+a vaguer "the dates differ" cannot pass for it and the day the runtime lane gets the
+transform, the case fails and says so.
+
+⭐ **The general lesson, which is this document's headline one level up:** RC-A was
+verified against the lane it was written in and declared done. *A fix is only as wide as
+the lane you measured it in* — and the vendor is what found the other one.
 
 ---
 

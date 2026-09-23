@@ -162,6 +162,73 @@ export function beginObjects(program, ctx) {
    * the first time either is touched, and the half that forgets a container
    * fails silently rather than loudly.
    */
+  /**
+   * ⛔⛔ A LINEFILL IS NOT AN INDEPENDENT OBJECT — IT IS BOUND TO TWO LINES.
+   *
+   * Pine destroys a linefill when either of its lines is deleted, so the fill
+   * count can never outrun the line count and Pine publishes no
+   * `max_linefills_count` at all. This index is how that lifetime is enforced
+   * here without walking every live object on each reap.
+   *
+   * ⚰️ MEASURED ON `liquidity-pools` AGAINST THE VENDOR CAPTURE, 2026-09-22:
+   * the run REFUSED at bar 250 — "more than 500 live linefill objects" — while
+   * only 74 lines were live. Five hundred fills hanging off seventy-four lines,
+   * because reaping a line left its fills behind. The run then stopped
+   * stepping, so every object it had drawn was older than 2025-04-15 on a
+   * series running to 2026-09-11. That is the year-stale chart the vendor
+   * comparison found, and it is NOT the line-cap defect RC-B fixed: the script
+   * declares `max_lines_count=500` and never came close to it.
+   */
+  /**
+   * ⛔⛔ WHICH FAMILIES EVICT AT THE CAP, AND WHY `linefill` IS HERE.
+   *
+   * `POOL_LIMITS` is Pine's own roster — the kinds with a `max_*_count` and a
+   * documented FIFO. `linefill` is not one of them, and it is added anyway for
+   * a MEASURED reason rather than a symmetry argument.
+   *
+   * ⚰️ `liquidity-pools`, against the vendor capture on 2026-09-22: our run
+   * REFUSED at bar 250 on "more than 500 live linefill objects" and stopped
+   * stepping, so nothing after 2025-04-15 was drawn on a series reaching
+   * 2026-09-11. TradingView renders the same script across the whole window.
+   * Pine publishes NO linefill ceiling, so whatever Pine does at 500 fills, it
+   * certainly does not abandon the drawing — and abandoning it is the one
+   * behaviour we could be sure was wrong.
+   *
+   * ⭐ So the house envelope stays (a runaway is still bounded) and its
+   * behaviour at the ceiling changes from REFUSE to EVICT THE OLDEST, which is
+   * what Pine does for every drawing family that does have a limit.
+   *
+   * ⛔ `table` is deliberately NOT here. Its ceiling is 8 — a number no honest
+   * script approaches — so reaching it means something is wrong rather than
+   * something is busy, and a refusal with a named reason is the useful answer.
+   */
+  const EVICTS = new Set([...Object.keys(POOL_LIMITS), 'linefill'])
+
+  const fillsOfLine = new Map()
+  const fillRefs = (inst) => {
+    const p = inst.props || {}
+    const out = []
+    for (const k of ['line1', 'line2']) {
+      const r = p[k]
+      const id = r && typeof r === 'object' ? r.__ref : null
+      if (Number.isFinite(id)) out.push(id)
+    }
+    return out
+  }
+  const indexFill = (inst) => {
+    for (const lineId of fillRefs(inst)) {
+      let s = fillsOfLine.get(lineId)
+      if (!s) { s = new Set(); fillsOfLine.set(lineId, s) }
+      s.add(inst.id)
+    }
+  }
+  const unindexFill = (inst) => {
+    for (const lineId of fillRefs(inst)) {
+      const s = fillsOfLine.get(lineId)
+      if (s) { s.delete(inst.id); if (s.size === 0) fillsOfLine.delete(lineId) }
+    }
+  }
+
   function reap(inst) {
     live.delete(inst.id)
     cells.delete(inst.id)
@@ -170,6 +237,17 @@ export function beginObjects(program, ctx) {
     for (const [cid, arr] of colls) {
       const at = arr.indexOf(inst.id)
       if (at >= 0) arr.splice(at, 1)
+    }
+    // ⭐ A fill leaves the index and takes nothing with it; a LINE takes every
+    // fill that named it. The recursion is one level deep by construction — the
+    // branch above returns before it can nest.
+    if (inst.family === 'linefill') { unindexFill(inst); return }
+    const fills = fillsOfLine.get(inst.id)
+    if (!fills) return
+    fillsOfLine.delete(inst.id)
+    for (const fid of [...fills]) {
+      const f = live.get(fid)
+      if (f) reap(f)
     }
   }
 
@@ -452,7 +530,7 @@ export function beginObjects(program, ctx) {
           // that RESEMBLES it.
           // ⚰️ Written family-agnostic at first, which silently made TABLES
           // evict too and turned the envelope's refusal into dead code.
-          const pooled = own(POOL_LIMITS, op.family)
+          const pooled = EVICTS.has(op.family)
           while (pooled && counts[op.family] >= limits[op.family]) {
             const victim = oldestOf(op.family)
             // ⛔ NOTHING TO EVICT AND STILL OVER THE CAP is not a script error,
@@ -483,6 +561,11 @@ export function beginObjects(program, ctx) {
             family: op.family, id, site: op.site, createdBar: bar, props: resolveProps(op.props, {}),
           }
           live.set(id, inst)
+          // ⭐ A fill records which lines own it AT CREATE, because that is the
+          // only moment both refs are resolved. `linefill.set_color` is the only
+          // update Pine offers and it cannot move a fill to different lines, so
+          // there is no re-index path to keep in step.
+          if (op.family === 'linefill') indexFill(inst)
           counts[op.family] += 1
           if (counts[op.family] > peak[op.family]) peak[op.family] = counts[op.family]
           siteNow.set(op.site, id)

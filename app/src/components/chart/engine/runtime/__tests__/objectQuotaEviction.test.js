@@ -166,6 +166,62 @@ describe('⛔⛔ the drawing quota evicts the OLDEST, as Pine does', () => {
     expect(r.live.length, 'the quota stopped holding while the array grew').toBe(50)
   })
 
+  it('⛔⛔ A LINEFILL DIES WITH ITS LINES — it is not an independent object', () => {
+    // ⚰️⚰️ MEASURED AGAINST THE VENDOR CAPTURE, 2026-09-22. `liquidity-pools`
+    // REFUSED at bar 250 with "more than 500 live linefill objects" while only
+    // 74 lines were live — 500 fills hanging off 74 lines. The run then stopped
+    // stepping, so everything it had drawn was from before 2025-04-15 on a
+    // series running to 2026-09-11. That is the "year-stale chart" the vendor
+    // comparison found, and RC-B's eviction did not touch it.
+    //
+    // ⛔ THE DIAGNOSIS IN `PARITY-ROOT-CAUSE.md` WAS WRONG ABOUT WHICH CAP.
+    // It read the symptom as "we refuse at the LINE cap and keep the oldest".
+    // The script declares `max_lines_count=500`, and only 74 lines were ever
+    // live — the line cap was never reached. The envelope that fired was
+    // `linefill`, which Pine does not publish a limit for at all.
+    //
+    // ⭐ AND PINE'S RULE IS NOT A LIMIT, IT IS A LIFETIME: a linefill is bound
+    // to two lines, and deleting either destroys it. So the fill count can
+    // never outrun the line count, and no linefill budget is needed. Ours kept
+    // reaped lines' fills alive, counted them, and hit a ceiling Pine's
+    // semantics make unreachable.
+    const src = `//@version=5${LF}indicator(${Q}t${Q}, overlay = true)${LF}`
+      + `var line a = na${LF}`
+      + `var line b = na${LF}`
+      + `a := line.new(bar_index, low, bar_index, low)${LF}`
+      + `b := line.new(bar_index, high, bar_index, high)${LF}`
+      + `linefill.new(a, b, color.new(color.blue, 80))${LF}`
+    const r = run(src)
+    expect(r.status, `the run refused: ${r.reason}`).toBe(OBJECT_STATUS.OK)
+
+    const byFam = {}
+    for (const o of r.live) byFam[o.family] = (byFam[o.family] || 0) + 1
+    // ⭐ CONTROL — the fixture really does evict, or there is nothing to cascade
+    expect(byFam.line, 'the line pool never filled — this fixture proves nothing')
+      .toBe(50)
+
+    // ⛔ THE CLAIM: no fill outlives its lines. Two lines per fill, so the live
+    // fills can never exceed half the live lines.
+    expect(byFam.linefill || 0,
+      'linefills outnumber the lines that own them — reaped lines left their '
+      + 'fills alive, which is what exhausted the envelope on `liquidity-pools`')
+      .toBeLessThanOrEqual(Math.floor(byFam.line / 2))
+
+    // ⛔ AND NAMED, NOT JUST COUNTED: every surviving fill's two lines are still
+    // live. A count can be right while the fills point at reaped ids.
+    const liveIds = new Set(r.live.map((o) => o.id))
+    const orphaned = r.live
+      .filter((o) => o.family === 'linefill')
+      .filter((o) => {
+        const p = o.props || {}
+        const a = p.line1 && p.line1.__ref
+        const b = p.line2 && p.line2.__ref
+        return !liveIds.has(a) || !liveIds.has(b)
+      })
+      .map((o) => o.id)
+    expect(orphaned, 'these fills name a line that is no longer live').toEqual([])
+  })
+
   it('⭐ the count is per FAMILY, not shared', () => {
     // ⛔ A shared budget would let boxes starve lines. Pine sizes each pool
     // independently, which is why `POOL_LIMITS` is keyed by kind.
