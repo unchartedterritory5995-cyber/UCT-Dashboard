@@ -1,5 +1,4 @@
-import UIcon from '../../../../components/ui/UIcon'
-import { BLOCKED_BADGE, BLOCKED_TITLE } from '../../lib/offline/unsyncedCopy'
+import BlockedBadge from './BlockedBadge'
 import styles from './NoteCard.module.css'
 
 function relativeDate(iso) {
@@ -32,15 +31,9 @@ function cardThumb(note) {
 // Wave Q1 — the note is holding words the server does not have, and the queue
 // has stopped trying on its own. ⛔ The sentence names the ACTION, because the
 // state alone ("not synced") tells a member something is wrong and nothing
-// about what to do; a later edit is what un-blocks it.
-function BlockedBadge() {
-  return (
-    <span className={styles.unsynced} title={BLOCKED_TITLE}>
-      <UIcon name="warning" size={11} style={{ verticalAlign: '-1px', marginRight: 3 }} />
-      {BLOCKED_BADGE}
-    </span>
-  )
-}
+// about what to do; a later edit is what un-blocks it. BlockedBadge is now
+// shared across all four note-list views (UX #15, 2026-09-22) -- see
+// BlockedBadge.jsx.
 
 export default function NoteCard({ note, onOpen, onRestore, blocked = false }) {
   const title = note.title?.trim() || 'Untitled'

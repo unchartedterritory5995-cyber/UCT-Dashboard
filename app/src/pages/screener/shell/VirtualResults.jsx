@@ -2,7 +2,8 @@ import { useEffect, useRef, forwardRef, useImperativeHandle } from 'react'
 import { useVirtualizer } from '@tanstack/react-virtual'
 import TickerPopup from '../../../components/TickerPopup'
 import TickerActionsMenu, { useTickerActions } from '../../../components/TickerActions'
-import PatternFeedbackChip from '../../../components/PatternFeedbackChip'
+import UIcon from '../../../components/ui/UIcon'
+import { useFlagged } from '../../../hooks/useFlagged'
 import { COLUMN_DEFS, descFor, DESC_TRIGGER_W } from '../columnDefs'
 import ColumnDesc from './ColumnDesc'
 import styles from './ScannerShell.module.css'
@@ -21,8 +22,19 @@ const colWidth = key =>
   key === 'ticker' ? '128px'
   : key === 'company' ? 'minmax(150px, 1.4fr)'
   : ['sector', 'industry', 'theme', 'patterns'].includes(key) ? 'minmax(120px, 1fr)'
+  // The base-structure columns render a text TAG ("Pocket Pivot (Advancing)"),
+  // not a number — a NUM_W (92px) track clipped them. Give them a real text
+  // track so the structure name reads in full.
+  : ['base_render', 'base_matches', 'base_shape', 'base_shape_label'].includes(key) ? 'minmax(150px, 1.3fr)'
   : descFor(key) ? `${NUM_W + DESC_TRIGGER_W}px`
   : `${NUM_W}px`
+
+// RS/UCT (0–100 rankings) get a mini-bar whose fill colour steps with strength.
+const rsColor = n =>
+  n >= 90 ? 'var(--gain)'
+  : n >= 70 ? 'var(--ut-green, #2d8c4e)'
+  : n >= 50 ? 'var(--ut-gold, #dcbb5e)'
+  : 'var(--border-accent)'
 
 // `ref` exposes `scrollToIndex` off the `@tanstack/react-virtual` instance
 // this component already creates — the seam Phase 3's shared hub cursor binds
@@ -46,8 +58,9 @@ const colWidth = key =>
   // hub's `scrollToIndex` seam; spreading the cursor's own props onto the row it already
   // scrolls to is that seam finishing its sentence, not a second reach into the page.
 const VirtualResults = forwardRef(function VirtualResults({ rows, columns, sort, onSort, livePrices,
-  density = 'compact', view, hasMore, onLoadMore, isLoading, virtualOpts, itemProps }, ref) {
+  density = 'compact', hasMore, onLoadMore, isLoading, virtualOpts, itemProps }, ref) {
   const ta = useTickerActions()
+  const { toggle: toggleFlag, isFlagged } = useFlagged()
   const scrollRef = useRef(null)
   /* ⛔ `rows` ARE ALREADY IN DISPLAY ORDER — the live re-sort moved UP to
    * `ScannerShell` (which now owns it for every renderer) rather than living
@@ -164,18 +177,58 @@ const VirtualResults = forwardRef(function VirtualResults({ rows, columns, sort,
                         <span {...ta.longPressProps(row.ticker)}>
                           <TickerPopup sym={row.ticker}>{row.ticker}</TickerPopup>
                         </span>
-                        {/* Admin curation chip: hover-revealed on pointer
-                            devices so a scanned grid stays clean; always
-                            visible where hover doesn't exist (touch). */}
-                        <span className={styles.rowFb}>
-                          <PatternFeedbackChip ticker={row.ticker}
-                            setup={`scan:${view || 'screener'}`} source="scanner" compact />
-                        </span>
+                        {/* Flag while scrolling. Hover-revealed on pointer devices
+                            so a scanned grid stays clean; a FLAGGED row keeps its
+                            star lit even without hover, and touch shows it always.
+                            Feeds the shared "Flagged" set → moved to a watchlist
+                            from the underbar. Stops propagation so flagging never
+                            opens the ticker popup / row selection. */}
+                        <button type="button"
+                          className={`${styles.rowFlag} ${isFlagged(row.ticker) ? styles.rowFlagOn : ''}`}
+                          aria-pressed={isFlagged(row.ticker)}
+                          aria-label={isFlagged(row.ticker) ? `Unflag ${row.ticker}` : `Flag ${row.ticker}`}
+                          title={isFlagged(row.ticker) ? 'Flagged — click to remove' : 'Flag'}
+                          onClick={(e) => { e.stopPropagation(); e.preventDefault(); toggleFlag(row.ticker) }}>
+                          <UIcon name="flag" size={12} />
+                        </button>
                       </div>
                     )
                   }
                   const def = COLUMN_DEFS[c] || { fmt: v => v ?? '—' }
                   const val = cellValue(row, c)
+                  // ── Rich cell kinds (data-driven off columnDefs.cell) ──
+                  // columnDefs.js is a plain .js module (no JSX), so the tag/bar
+                  // MARKUP lives here while the DECISION to use it stays a data
+                  // field on the column. `fmt` is still the single source of the
+                  // displayed text (and what CSV export reads).
+                  if (def.cell === 'tag') {
+                    // The base-structure tag colours by the LEADING structure's
+                    // textbook bias (derived server-side; see query.py). data-bias
+                    // drives the colour in CSS and is the test seam. Other tag
+                    // columns carry no bias and stay neutral.
+                    const bias = c === 'base_render' ? row.base_bias : null
+                    return (
+                      <div role="cell" key={c} className={`${styles.cell} ${styles.tagCell}`}>
+                        {val ? <span className={styles.strutTag} data-bias={bias || undefined}>{def.fmt(val, row)}</span>
+                             : <span className={styles.cellDash}>—</span>}
+                      </div>
+                    )
+                  }
+                  if (def.cell === 'rs') {
+                    const n = typeof val === 'number' ? val : null
+                    return (
+                      <div role="cell" key={c} className={`${styles.cell} ${styles.numCell} ${styles.rsCell}`}>
+                        {n == null ? <span className={styles.cellDash}>—</span> : (
+                          <span className={styles.rsWrap}>
+                            <span className={styles.rsBar}>
+                              <i style={{ width: `${Math.max(0, Math.min(100, n))}%`, background: rsColor(n) }} />
+                            </span>
+                            <b className={styles.rsNum}>{def.fmt(val, row)}</b>
+                          </span>
+                        )}
+                      </div>
+                    )
+                  }
                   const heat = def.heat ? def.heat(val) : ''
                   const cls = heat === 'g' ? styles.heatG : heat === 'g1' ? styles.heatG1
                     : heat === 'r' ? styles.heatR : ''

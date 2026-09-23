@@ -33,4 +33,19 @@ describe('detectAdapter', () => {
     const result = await detectAdapter([vf('note.md', 'just plain text, no links here')])
     expect(result.adapter.id).toBe('file')
   })
+
+  // Competitive-audit UX #16 (2026-09-22): the drop-hint text in
+  // ImportWizard.jsx now names Craft and Roam alongside Notion/Obsidian/
+  // Evernote, on the claim that neither needs a dedicated adapter -- their
+  // Markdown export already lands on genericAdapter, same as any other
+  // Markdown/Text/HTML/Word file. A comment making that claim is not proof
+  // of it; these two cases are.
+  it('a Craft Markdown export (plain title-named .md, no vault/hex/enex marker) routes to generic', async () => {
+    const result = await detectAdapter([vf('Q3 Portfolio Review.md', '# Q3 Portfolio Review\n\nSome prose.')])
+    expect(result.adapter.id).toBe('file')
+  })
+  it('a Roam Markdown export (date-named page, bullet-outline body, no vault/hex/enex marker) routes to generic', async () => {
+    const result = await detectAdapter([vf('09-22-2026.md', '- Morning notes\n  - Watching NVDA into earnings')])
+    expect(result.adapter.id).toBe('file')
+  })
 })

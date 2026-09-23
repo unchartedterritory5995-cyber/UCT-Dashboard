@@ -62,6 +62,49 @@ test('groups noticed insights by kind and shows dismiss buttons', () => {
   expect(screen.getAllByLabelText(/Dismiss:/)).toHaveLength(2)
 })
 
+test('a symbol chip is a real link to that ticker\'s Research Workspace', () => {
+  h.data = {
+    insights: [
+      { id: 20, kind: 'stop_hit', symbol: 'NVDA', headline: 'NVDA is AT or THROUGH its stop', body: null, dismissed_at: null },
+    ],
+  }
+  renderWithProviders(<CompassTodayTile />)
+  const link = screen.getByRole('link', { name: 'NVDA' })
+  expect(link).toHaveAttribute('href', '/journal/notebook/research/NVDA')
+})
+
+test('G-074: renders the thesis-review kind with its own label and a working symbol link', () => {
+  h.data = {
+    insights: [
+      {
+        id: 21, kind: 'thesis_stop_review', symbol: 'NVDA',
+        headline: 'Your NVDA research may need a second look',
+        body: "Long NVDA just hit its stop. You've written research on this ticker.",
+        dismissed_at: null,
+      },
+    ],
+  }
+  renderWithProviders(<CompassTodayTile />)
+  expect(screen.getByText('Thesis Review')).toBeInTheDocument()
+  expect(screen.getByText('Your NVDA research may need a second look')).toBeInTheDocument()
+  expect(screen.getByRole('link', { name: 'NVDA' })).toHaveAttribute(
+    'href', '/journal/notebook/research/NVDA',
+  )
+})
+
+test('an insight with no symbol renders no link (market-wide insights, e.g. regime flips)', () => {
+  h.data = {
+    insights: [
+      { id: 22, kind: 'regime_flip', symbol: null, headline: 'Market regime flipped', body: null, dismissed_at: null },
+    ],
+  }
+  renderWithProviders(<CompassTodayTile />)
+  expect(screen.getByText('Market regime flipped')).toBeInTheDocument()
+  // Only the always-present footer "Open Compass tab" link should exist —
+  // no per-insight link when there's no symbol to point at.
+  expect(screen.getAllByRole('link')).toHaveLength(1)
+})
+
 test('excludes dismissed insights from the feed', () => {
   h.data = {
     insights: [

@@ -238,7 +238,13 @@ const SymbolSearch = forwardRef(function SymbolSearch({ sym, onSymbolChange, hid
                 <img src={uctMark} alt="Uncharted Territory" width={20} height={20} style={{ display: 'block', objectFit: 'contain' }} />
               </span>
             ) : null}
-            <span className={styles.labelText} style={fullLabel ? { overflow: 'visible', textOverflow: 'clip', whiteSpace: 'nowrap' } : undefined}>{displayLabel}</span>
+            {/* ⭐ THE SAME TEST ID THE STATIC BRANCH USES. ChartIdentityRow has
+                always CLAIMED both branches render under `sym-label` ("Same test id
+                the SymbolSearch branch renders under") — it was not true, and the
+                workspace always takes THIS branch, so any probe of the visible
+                identity silently found nothing. Making the comment true costs one
+                attribute and makes the member-visible ticker addressable. */}
+            <span data-testid="sym-label" className={styles.labelText} style={fullLabel ? { overflow: 'visible', textOverflow: 'clip', whiteSpace: 'nowrap' } : undefined}>{displayLabel}</span>
           </span>
         ) : sym}
         {!hideIcon && (

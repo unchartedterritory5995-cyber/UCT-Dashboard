@@ -98,6 +98,21 @@ const CARRIED_SHAPE = {
   avwap: 'barAvwap — the same accumulator, re-anchored',
   obvN: 'barObvN — a running level, then a fixed offset difference',
   pvtN: 'barPvtN — a running level, then a fixed offset difference',
+  // ⭐⭐ `valuewhenOccurrence` (2026-09-20) IS THE SAME CARRIED SHAPE AS
+  // `barssince`/`valuewhen` ABOVE, GENERALIZED FROM A FIXED CELL COUNT TO AN
+  // OCCURRENCE-SIZED ONE. Pine requires `occurrence` to be a compile-time
+  // literal (this table's own `int`-kind validation already refuses a
+  // non-literal or negative one, generically), so a minimal bar-by-bar
+  // runtime needs a RING of exactly `occurrence + 1` cells -- the most
+  // recent true-bar values seen, oldest evicted as new ones arrive -- not
+  // unbounded scan-backwards machinery. `interpret.js::valueWhenOccurrence`
+  // (the COLUMNAR lane's actual implementation) instead grows a plain array
+  // of true-condition indices across the whole batch, which is the natural
+  // idiom for a whole-series pass rather than a per-bar runtime and reads
+  // back only the last `occurrence + 1` entries at each bar -- so the
+  // COLUMN answers exactly what the ring would, on every bar, without this
+  // shape's own bound ever being exceeded in practice.
+  valuewhenOccurrence: 'valueWhenOccurrence — ring of occurrence+1 cells, reset on na',
 }
 
 /** Reducible to finite windows, but more than one of them — so a runtime could
@@ -106,6 +121,12 @@ const WINDOW_COMPOSITE = {
   bbw: 'sma + stdev',
   hma: 'wma of (2*wma(n/2) - wma(n))',
   percentrank: 'a rank within the window',
+  // ⭐ SAME REASON AS `percentrank` ABOVE — a single window, but its reducer
+  // closes over a THIRD constant (`percentage`) that `FINITE_WINDOW`'s bare
+  // `(s, lo, hi)` shape cannot carry, so it is a bespoke closure in `FN`
+  // rather than a `windowFn('...')` entry. See `interpret.js`'s comment right
+  // above the `percentileLinearInterpolation` entry in `FN`.
+  percentileLinearInterpolation: 'windowPercentileLinear — a window, plus percentage',
   donchianUpper: 'computeDonchian — highest/lowest',
   donchianMiddle: 'computeDonchian — highest/lowest',
   donchianLower: 'computeDonchian — highest/lowest',

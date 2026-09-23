@@ -25,10 +25,12 @@ const DEFAULT_COLS = { order: ['flag', 'sym', 'chg', 'weight', 'industry'], sort
 const DEFAULT_COLS_IDX = { order: ['flag', 'sym', 'chg', 'industry'], sort: { key: 'chg', dir: 'desc' }, widths: { flag: 18, industry: 200 } }
 
 export default function EtfHoldingsResults({ sym, color, settingsOverride = null, onSettingsPersist = null }) {
-  const { groupSyms, setGroupSym, activeWatchlistRef } = useWorkspace() || {}
+  const { groupSyms, setGroupSym, groupTfs, activeWatchlistRef } = useWorkspace() || {}
   const widgetId = useId()
   const setSym = useCallback((s) => { if (color) setGroupSym?.(color, s) }, [color, setGroupSym])
-  const scopedSymContext = useMemo(() => ({ sym: color ? groupSyms?.[color] : null, setSym }), [groupSyms, color, setSym])
+  // `tf` = the timeframe this group's chart is on, so the wrapped list warms
+  // the cache key that chart actually reads (see ThemeTrackerPage's warmTf note).
+  const scopedSymContext = useMemo(() => ({ sym: color ? groupSyms?.[color] : null, setSym, tf: color ? groupTfs?.[color] : undefined }), [groupSyms, groupTfs, color, setSym])
 
   // A thematic-index pseudo-ticker ("$IDX:<slug>") lists the THEME's holdings (its
   // merged owner+engine basket) from the theme-index endpoint; a normal symbol is an

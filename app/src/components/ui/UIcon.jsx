@@ -197,6 +197,13 @@ const ICONS = {
       <path d="M12 6.6v13.7" />
     </>
   ),
+  save: (
+    <>
+      <path d="M5 4.5h11l3 3V19.5H5z" />
+      <path d="M8.5 4.5v4.5h6.5V4.5" />
+      <path d="M8.5 19.5v-6h7v6" />
+    </>
+  ),
   library: (
     <>
       <rect x="4" y="4" width="4" height="16" rx="1" />
@@ -522,6 +529,34 @@ const ICONS = {
     </>
   ),
 
+  // A kanban board: three columns holding cards of differing height, which is
+  // what makes it read as a BOARD rather than as `columns` (three equal bars,
+  // already spoken for by the table view). The uneven fill is the whole tell at
+  // 14px -- equal blocks in equal columns is a table every time.
+  board: (
+    <>
+      <rect x="3" y="4" width="5" height="16" rx="1.2" opacity="0.45" />
+      <rect x="9.5" y="4" width="5" height="16" rx="1.2" opacity="0.45" />
+      <rect x="16" y="4" width="5" height="16" rx="1.2" opacity="0.45" />
+      <rect x="4.2" y="5.6" width="2.6" height="4" rx="0.7" fill="currentColor" stroke="none" />
+      <rect x="10.7" y="5.6" width="2.6" height="6.5" rx="0.7" fill="currentColor" stroke="none" />
+      <rect x="17.2" y="5.6" width="2.6" height="2.6" rx="0.7" fill="currentColor" stroke="none" />
+    </>
+  ),
+
+  // A linked graph: a hub with three satellites. Edges are drawn FIRST so the
+  // node circles paint over their ends -- at 14px a line meeting a circle's
+  // edge reads as a whisker if it is drawn on top.
+  graph: (
+    <>
+      <path d="M12 12L5.5 6.5M12 12l6.5-5M12 12v6" />
+      <circle cx="12" cy="12" r="2.6" />
+      <circle cx="4.5" cy="5.5" r="2" />
+      <circle cx="19.5" cy="6" r="2" />
+      <circle cx="12" cy="19.5" r="2" />
+    </>
+  ),
+
   // ── Note connectors (Microsoft Graph wave) ─────────────────────────────
   // Generic four-square "Microsoft family" mark — filled squares (not
   // outlined, unlike `dashboard` above) so it reads as a distinct glyph
@@ -572,6 +607,20 @@ const ICONS = {
       <path d="M12 12v6.5" />
       <rect x="10.3" y="13.3" width="3.4" height="3.6" rx="0.4" fill="currentColor" stroke="none" />
     </>
+  ),
+
+  // ── Third-party brand marks ─────────────────────────────────────────────
+  // X's own wordmark (PACKET-S CP3, RG-21 §1c) — required alongside tweet
+  // content per X's display guidelines. Solid fill, not stroke, since the
+  // mark itself is a solid glyph — same treatment as `star-fill`/`microsoft`.
+  // Distinct from the existing `x` name above, which is a generic close/×
+  // control, not the brand mark.
+  xWordmark: (
+    <path
+      d="M18.901 1.153h3.68l-8.04 9.19L24 22.846h-7.406l-5.8-7.584-6.638 7.584H.474l8.6-9.83L0 1.154h7.594l5.243 6.932ZM17.61 20.644h2.039L6.486 3.24H4.298Z"
+      fill="currentColor"
+      stroke="none"
+    />
   ),
 }
 

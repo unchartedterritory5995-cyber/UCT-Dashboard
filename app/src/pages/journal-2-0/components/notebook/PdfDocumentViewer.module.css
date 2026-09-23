@@ -41,7 +41,7 @@
 .errorState {
   padding: 40px;
   text-align: center;
-  color: var(--color-text-muted, #98a0aa);
+  color: var(--text-muted);
 }
 
 /* pdfjs-dist's own text-layer recipe (web/pdf_viewer.css), reduced to the
@@ -108,9 +108,9 @@
 .selectionPopover {
   position: absolute;
   transform: translate(-50%, 8px);
-  background: var(--color-bg-elevated, #1a1d24);
-  color: var(--color-text-primary, #e8eaed);
-  border: 1px solid var(--color-border, #232932);
+  background: var(--bg-elevated);
+  color: var(--text-bright);
+  border: 1px solid var(--border);
   border-radius: 6px;
   padding: 7px 12px;
   font-size: 12px;
@@ -120,8 +120,8 @@
   z-index: 5;
 }
 .selectionPopover:hover {
-  border-color: #dcbb5e;
-  color: #dcbb5e;
+  border-color: var(--ut-gold);
+  color: var(--ut-gold);
 }
 
 @media (max-width: 1024px) {

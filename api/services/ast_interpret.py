@@ -942,6 +942,38 @@ def _window_median(series: Sequence[float], lo: int, hi: int) -> float:
     return (a + b) / 2
 
 
+def _window_percentile_linear(series: Sequence[float], lo: int, hi: int,
+                               percentage: float) -> float:
+    """``ta.percentile_linear_interpolation(source, length, percentage)`` --
+    TradingView's own page: "Calculates percentile using method of linear
+    interpolation between the two nearest ranks" and "na values in the source
+    series are included in calculations and will produce an na result" --
+    PROPAGATE, not SKIP, unlike ``sma``/``stdev``/``median`` beside it.
+
+    ⭐⭐ AT ``percentage = 50`` THIS IS ``_window_median``, BY CONSTRUCTION.
+    The standard rank position is ``pos = (n-1) * percentage/100``; at 50 with
+    even ``n``, ``pos`` lands exactly halfway between the two middle ranks, so
+    ``sorted[lower] + frac*(sorted[upper]-sorted[lower])`` is exactly
+    ``(sorted[n/2-1] + sorted[n/2]) / 2`` -- ``_window_median``'s own
+    even-length answer, which that function's own docstring cites a real
+    vendor capture for. The JS twin is ``interpret.js::windowPercentileLinear``.
+    """
+    vals = []
+    for i in range(lo, hi + 1):
+        v = series[i]
+        if _isnan(v):
+            return NAN
+        vals.append(v)
+    vals.sort()
+    n = len(vals)
+    pos = (n - 1) * percentage / 100
+    lower = math.floor(pos)
+    upper = math.ceil(pos)
+    if lower == upper:
+        return vals[lower]
+    return vals[lower] + (pos - lower) * (vals[upper] - vals[lower])
+
+
 def _percentrank_at(series: Sequence[float], i: int, length: int) -> float:
     """``ta.percentrank(src, length)`` — ``100 * count(prior length bars <=
     current) / length``. NOT expressible via a running ``sum`` (each ``sum``
@@ -1253,6 +1285,45 @@ def _fn_valuewhen(cond: Sequence[float], src: Sequence[float], n: int) -> List[f
     return out
 
 
+def _fn_valuewhen_occurrence(
+    cond: Sequence[float], src: Sequence[float], occurrence: int
+) -> List[float]:
+    """Pine's ``ta.valuewhen(cond, src, occurrence)`` -- ``src`` as it stood on
+    the bar where ``cond`` was true for the ``occurrence``-from-the-end time,
+    counting backward and unbounded: occurrence 0 is the most recent true bar
+    (ever, in whatever was fetched), 1 is the second-most-recent, and so on.
+    NOT the same function as ``_fn_valuewhen`` above, which takes a BAR WINDOW
+    rather than an occurrence count -- see
+    ``closedTable.json::_functions_valuewhen_occurrence`` for the full vendor
+    citation and why ``pine.js`` routes only the NAMESPACED ``ta.valuewhen(...)``
+    here, never a bare ``valuewhen(...)`` call.
+
+    ⛔ AN NaN CONDITION BAR STOPS THE BACKWARD SCAN, exactly as it does for the
+    bounded ``_fn_valuewhen`` above and for the same reason: a not-computable
+    condition bar MIGHT have been true, so counting occurrences from before it
+    would report a distance to the wrong bar. The growing occurrence list is
+    therefore cleared rather than merely paused.
+
+    🔴 THE NaN PREFIX MEETS X23 THE SAME WAY ``_fn_valuewhen``'S DOES -- a
+    comparison over it reads as a confident FALSE and its negation as a
+    confident TRUE. Not this entry's to fix; declared at
+    ``closedTable.json::_functions_valuewhen_occurrence``.
+    """
+    out = _nan_col(len(cond))
+    true_idx: List[int] = []
+    for i in range(len(cond)):
+        c = cond[i]
+        if math.isnan(c):
+            true_idx = []
+            continue
+        if c != 0.0:
+            true_idx.append(i)
+        pos = len(true_idx) - 1 - occurrence
+        if pos >= 0:
+            out[i] = src[true_idx[pos]]
+    return out
+
+
 def _guarded_abs(x: float) -> float:
     return abs(x)
 
@@ -1275,6 +1346,24 @@ def _guarded_round(x: float) -> float:
     if math.isnan(x):
         return NAN
     return _guarded_sign(x) * math.floor(abs(x) + 0.5)
+
+
+def _guarded_floor(x: float) -> float:
+    """``math.floor`` RAISES `OverflowError` on an infinite input and
+    `ValueError` on NaN, because both must become a Python ``int``. JS's
+    ``Math.floor`` answers NaN for the first and returns the infinity
+    unchanged for the second -- `math.isfinite` catches both NaN and
+    infinities in one check, so both lanes say NaN for either."""
+    return NAN if not math.isfinite(x) else float(math.floor(x))
+
+
+def _guarded_ceil(x: float) -> float:
+    """The same finite/non-finite split as `_guarded_floor` above --
+    ``math.ceil`` RAISES on NaN and on an infinite input for the identical
+    reason (both must become a Python ``int``), while JS's ``Math.ceil``
+    answers NaN for the first and returns the infinity unchanged for the
+    second."""
+    return NAN if not math.isfinite(x) else float(math.ceil(x))
 
 
 def _guarded_na(x: float) -> float:
@@ -1462,6 +1551,8 @@ _POINTWISE: Mapping[str, Callable[..., float]] = {
     "max": _guarded_max,
     "sign": _guarded_sign,
     "round": _guarded_round,
+    "floor": _guarded_floor,
+    "ceil": _guarded_ceil,
     "na": _guarded_na,
     "nz": _guarded_nz,
     "sqrt": _guarded_sqrt,
@@ -1699,6 +1790,7 @@ FN: Dict[str, Callable[..., List[float]]] = {
     "lowestbars": _window_fn("lowestbars", lambda s, lo, hi: _window_arg_extreme(s, lo, hi, lambda v, b: v < b)),
     "barssince": _fn_barssince,
     "valuewhen": _fn_valuewhen,
+    "valuewhenOccurrence": _fn_valuewhen_occurrence,
     # ⭐ THE PIVOTS, AND THE PREDICATE IS THE WHOLE DIFFERENCE BETWEEN THEM. The
     # STRICT comparison is what makes a plateau not a pivot; `>=` here would emit
     # both bars of a tie. See `closedTable.json::_functions_pivots`.
@@ -1719,6 +1811,12 @@ FN: Dict[str, Callable[..., List[float]]] = {
     # proof, not assumed symmetry). JS twin: ``interpret.js``'s ``FN.falling``.
     "falling": lambda series, n: _monotone_col(series, n, False),
     "median": _window_fn("median", _window_median),
+    # ⭐ NOT a `_window_fn(...)` entry -- its reducer takes `percentage` too,
+    # constant across the column, not itself a series. Same shape as `bbw`
+    # below: a bespoke lambda in this table rather than a generic window
+    # helper that has no slot for a third argument.
+    "percentileLinearInterpolation": lambda series, n, percentage: _rolling(
+        series, n, lambda s, lo, hi: _window_percentile_linear(s, lo, hi, percentage), NA_PROPAGATE),
     "percentrank": lambda series, n: [
         _percentrank_at(series, i, n) if i >= n else NAN for i in range(len(series))
     ],
@@ -1755,6 +1853,8 @@ FN: Dict[str, Callable[..., List[float]]] = {
     "hma": lambda series, n: _hma_col(series, n),
     "sign": lambda series: [_guarded_sign(v) for v in series],
     "round": lambda series: [_guarded_round(v) for v in series],
+    "floor": lambda series: [_guarded_floor(v) for v in series],
+    "ceil": lambda series: [_guarded_ceil(v) for v in series],
     "na": lambda series: [_guarded_na(v) for v in series],
     "nz": lambda a, b: _elementwise2(a, b, _guarded_nz),
     "crossOver": lambda a, b: _crossing(a, b, lambda an, bn, ap, bp: an > bn and ap <= bp),
@@ -2484,14 +2584,34 @@ def _window_literal(node: dict, index: int) -> int:
     """
     args = node["args"]
     arg = args[index] if index < len(args) else None
+    # ⭐⭐ THE FLOOR IS 1 FOR A *PERIOD*, AND 0 FOR AN *OCCURRENCE* (2026-09-20)
+    # -- mirrors ``interpret.js::windowLiteral``'s own fix, see its comment for
+    # the full reasoning. Every ``int`` this table declared before
+    # ``valuewhenOccurrence`` was a bar-count window, where a period of 0 bars
+    # searches nothing, so ``< 1`` was never a real restriction beyond
+    # ``period``-shaped arguments. ``valuewhenOccurrence``'s third argument is
+    # an INDEX into the occurrences found so far ("0 = the most recent"), and 0
+    # is TradingView's own documented default. Gated on the ROLE NAME, never
+    # the function, so this can only ever widen the domain for a role that
+    # says so by name. ⚰️ THIS WAS THE ACTUAL BUG BEHIND
+    # ``test_ast_lookback_agreement.py``'s cross-lane disagreement on
+    # ``support-and-resistance__1505.pine`` — measured directly, not the
+    # ``is_boolean_tree``/role-KIND mismatch it was first mistaken for; that
+    # check (and its ``lint.js``/``ast_lint.py`` mirrors) was already correct,
+    # and THIS floor, alone, is what refused ``valuewhenOccurrence(cond, src,
+    # 0)`` here while the JS lane already accepted it.
+    spec = _fn_spec(node.get("name"))
+    roles = spec.get("argRoles") if isinstance(spec.get("argRoles"), (list, tuple)) else None
+    role = roles[index] if roles and index < len(roles) else None
+    min_value = 0 if role == "occurrence" else 1
     ok = (isinstance(arg, dict) and arg.get("type") == "num"
           and _is_number(arg.get("value"))
-          and float(arg["value"]).is_integer() and arg["value"] >= 1)
+          and float(arg["value"]).is_integer() and arg["value"] >= min_value)
     if not ok:
         shown = arg.get("value") if isinstance(arg, dict) and arg.get("type") == "num" else arg
         _refuse("resolve:window",
                 f"— {node.get('name')} argument {index} must be a whole number of "
-                f"at least 1, got {shown!r}")
+                f"at least {min_value}, got {shown!r}")
     return int(arg["value"])
 
 

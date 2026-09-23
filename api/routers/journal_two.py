@@ -1690,6 +1690,25 @@ def note_backlinks_endpoint(
     return notes_service.get_symbol_backlinks(user["id"], symbol, limit=limit)
 
 
+@router.get("/notes/graph")
+def note_graph_endpoint(
+    limit: int = 1500,
+    user: dict = Depends(get_current_user),
+) -> dict[str, Any]:
+    """The member's whole note-link graph — `{nodes, edges, truncated}`.
+
+    ⛔ MUST stay declared ABOVE `GET /notes/{note_id}`, for the same reason
+    `/notes/backlinks` and `/notes/tags` do: FastAPI matches in DECLARATION
+    order, so that route would swallow "graph" as a note id and answer 404 for
+    a note that does not exist. This repo has paid for that ordering twice (the
+    live-drill route order, then Wave D's link-targets).
+
+    ⛔ ONE REQUEST FOR THE WHOLE GRAPH, not one per node. The per-note read is
+    `/notes/backlinks`; using it to draw a graph would be an N+1 against the
+    pod, which is the defect class this file's own comments keep naming."""
+    return notes_service.get_note_graph(user["id"], limit=limit)
+
+
 @router.get("/notes/link-targets")
 def note_link_targets_endpoint(
     ids: str = "",
@@ -1803,6 +1822,20 @@ def list_recents_endpoint(
     ⛔ MUST stay declared ABOVE `GET /notes/{note_id}`, same reason as
     `/notes/favorites` immediately above."""
     return {"notes": notes_service.list_recents(user["id"], limit=limit)}
+
+
+@router.get("/notes/sector-theme-facets")
+def sector_theme_facets_endpoint(
+    user: dict = Depends(get_current_user),
+) -> dict[str, Any]:
+    """Competitive-audit UX #9: the search panel's Sector/Theme filter
+    dropdowns' option lists — see `notes_service.get_sector_theme_facets`'s
+    own docstring for why this is the member's own mentioned-symbol
+    vocabulary, never the full themes_taxonomy.json list.
+
+    ⛔ MUST stay declared ABOVE `GET /notes/{note_id}`, same reason as
+    `/notes/favorites`/`/notes/recents` immediately above."""
+    return notes_service.get_sector_theme_facets(user["id"])
 
 
 @router.post("/notes/{note_id}/embeds")
@@ -2347,18 +2380,29 @@ def get_ticker_research_summary_endpoint(
 
 
 # ── Note share links (post-v1; screener-share idiom: token IS the credential).
-# Creation/status/revoke are owner-auth'd; the PUBLIC read pair is flag-gated
-# (J2_SHARE_LINKS_ENABLED, default OFF → 404, nothing reachable).
+# ⛔ ALL FIVE endpoints are flag-gated (J2_SHARE_LINKS_ENABLED, default OFF →
+# 404, nothing reachable) — owner-side (mint/status/revoke) AND the public
+# read pair alike. Until 2026-09-22 only the public pair checked the flag;
+# the owner-side three relied entirely on the frontend's separate `isAdmin`
+# gate (NoteEditorPage.jsx) to keep the Share button from ever being clicked
+# while the mechanism is off. That was inert (an admin-minted token still
+# 404s on public resolution while the flag is off) but was the one place this
+# design leaned on a second gate doing work the backend could do on its own —
+# competitive audit finding Collaboration F2, 2026-09-22.
 from api.services.journal_two import note_shares
 
 
 @router.get("/notes/{note_id}/share")
 def get_note_share_endpoint(note_id: str, user: dict = Depends(get_current_user)) -> dict[str, Any]:
+    if not note_shares.enabled():
+        raise HTTPException(status_code=404, detail="Not found")
     return {"share": note_shares.get_share(user["id"], note_id)}
 
 
 @router.post("/notes/{note_id}/share")
 def create_note_share_endpoint(note_id: str, user: dict = Depends(get_current_user)) -> dict[str, Any]:
+    if not note_shares.enabled():
+        raise HTTPException(status_code=404, detail="Not found")
     share = note_shares.create_share(user["id"], note_id)
     if share is None:
         raise HTTPException(status_code=404, detail="note not found")
@@ -2367,6 +2411,8 @@ def create_note_share_endpoint(note_id: str, user: dict = Depends(get_current_us
 
 @router.delete("/notes/{note_id}/share")
 def revoke_note_share_endpoint(note_id: str, user: dict = Depends(get_current_user)) -> dict[str, Any]:
+    if not note_shares.enabled():
+        raise HTTPException(status_code=404, detail="Not found")
     return {"revoked": note_shares.revoke_share(user["id"], note_id)}
 
 

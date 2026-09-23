@@ -68,7 +68,12 @@ def _stub_store(monkeypatch, rows, last_ts):
     monkeypatch.setattr(bars_fetch._sqlite, "get_last_ts", lambda s, tf: last_ts)
     monkeypatch.setattr(bars_fetch._sqlite, "get_bars", lambda s, tf, n: rows)
     monkeypatch.setattr(bars_fetch, "_fmt_sqlite_bars", lambda r, tf, t=None: [{"t": 1}])
-    monkeypatch.setattr(bars_fetch, "_needs_fresh", lambda ts, tf: True)         # force stale
+    # ⚠️ THE OPTIONAL `ticker` IS PART OF THE SIGNATURE NOW (session-completeness
+    # escalation). Real callers may omit it, but a REPLACEMENT must accept it or the
+    # serve path raises TypeError and every test in this file fails for a reason that
+    # has nothing to do with async heal.
+    monkeypatch.setattr(bars_fetch, "_needs_fresh",
+                        lambda ts, tf, ticker=None: True)                    # force stale
     monkeypatch.setattr(bars_fetch, "_history_complete", lambda s, tf: True)     # not "partial"
     monkeypatch.setattr(bars_fetch, "_maybe_kick_deepfill", lambda *a, **k: None)
     monkeypatch.setattr(bars_fetch, "_record_intraday_request", lambda *a, **k: None)
@@ -101,12 +106,19 @@ def test_deblockable_intraday_does_NOT_call_provider_on_the_request_thread(monke
 
 def test_CONTROL_gapped_intraday_still_blocks(monkeypatch):
     """The safety control: a tail missing an EARLIER full session is NOT deblockable,
-    so the request path must still reach the synchronous provider fetch (Layer 4)."""
+    so the request path must still reach the Layer-4 provider fetch.
+
+    ⚠️ "SYNCHRONOUS" IS NO LONGER THE PROPERTY UNDER TEST. Layer 4's delta is now
+    bounded by `_bounded_delta` (the 16-second class — see
+    tests/test_bars_request_deadline.py), so the request thread waits at most
+    BARS_REQUEST_DEADLINE_SECONDS. What this control still guards, and what the
+    May-8 universe-freeze needs it to guard, is that a gapped tail REACHES the
+    fetcher at all instead of being served stale."""
     monkeypatch.setenv("BARS_INTRADAY_ASYNC_HEAL", "1")
     monkeypatch.setattr(bars_fetch, "_last_closed_session_yyyymmdd", lambda now=None: 20260818)
     monkeypatch.setattr(bars_fetch, "_expected_latest_session_yyyymmdd", lambda now=None: 20260819)
-    # A cold-stale tail WITH stored rows falls to Layer 4's synchronous DELTA fetch
-    # (not a full fetch) — the request thread blocks on the provider. Prove that runs.
+    # A cold-stale tail WITH stored rows falls to Layer 4's DELTA fetch (not a full
+    # fetch). Prove that runs — bounded now, but it must still run.
     hit = {"delta": 0}
     monkeypatch.setattr(bars_fetch, "_delta_intraday", lambda *a, **k: hit.__setitem__("delta", hit["delta"] + 1) or [])
     monkeypatch.setattr(bars_fetch, "_is_intraday_stale", lambda raw: False)
@@ -119,5 +131,5 @@ def test_CONTROL_gapped_intraday_still_blocks(monkeypatch):
     monkeypatch.setattr(bars_fetch, "_inflight", {})
 
     bars_fetch._get_bars_inner("AMD", "5", 240)
-    assert hit["delta"] >= 1, "a genuinely-gapped intraday tail must still fetch synchronously"
+    assert hit["delta"] >= 1, "a genuinely-gapped intraday tail must still reach the provider"
     assert bars_fetch.get_serve_layer() == "fetch", "gapped tail must reach the synchronous Layer-4 fetcher"

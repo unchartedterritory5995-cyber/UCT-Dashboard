@@ -157,8 +157,21 @@ const ACCEPTED = FILES.filter((f) => {
  *  correctly refused — this is the engine getting MORE honest, not less
  *  capable, and this program's own correctness policy ranks that above the
  *  headline count. Do not restore these two to ACCEPTED without first
- *  implementing genuine loop-carried-state execution (not authorized). */
-const ACCEPT_FLOOR = 36
+ *  implementing genuine loop-carried-state execution (not authorized).
+ *
+ *  ⭐⭐ 36 -> 37 IS `ta.valuewhen` (2026-09-20): the same raw-gain shape as
+ *  `ta.barssince`/`ta.falling` above — no assisted-edit offer involved,
+ *  since the fix is a manifest entry (`valuewhenOccurrence`) plus a
+ *  namespace-aware redirect in `resolveTableCall`, not a suggest+span.
+ *  `recency-macd-turn-recent.pine`'s only blocker was
+ *  `ta.valuewhen(cross, macdLine, 0)`; it now translates and joins
+ *  `ACCEPTED` directly. See `pineValuewhenOccurrenceAccept.test.js` and
+ *  `pine.blindCorpusDecomposition.test.js`'s own RISK-004 valuewhen section
+ *  for the full accounting. (Measured `ACCEPTED.length` at this same
+ *  commit is 38 -- one bar of slack was already present in this floor
+ *  before this change; this bump accounts only for this fix's own
+ *  contribution, not for reconciling that pre-existing gap.) */
+const ACCEPT_FLOOR = 37
 
 /** ⭐⭐ THE NAMES THIS EXAM CALLS UNSERVED — WITH A PROBE FOR EACH, so the list
  *  cannot quietly go stale.
@@ -179,11 +192,14 @@ const UNSERVED_PROBES = Object.freeze({
   // ⭐⭐ VENDOR-BACKED UNSERVED BUILTINS — BATCH 1 (2026-09-06) MOVED
   // `ta.falling` and `ta.kcw` OUT of this roster too, for the same reason —
   // see `SERVED_CONTROLS`'s own note.
+  // ⭐⭐ `ta.valuewhen` LEFT THIS ROSTER 2026-09-20 — it now translates, onto
+  // a new `valuewhenOccurrence` primitive routed via a namespace-aware
+  // special case in `resolveTableCall`. See `pineValuewhenOccurrenceAccept.
+  // test.js` and this file's own `ACCEPT_FLOOR` note above.
   'ta.cmf': 'plot(ta.cmf(21) > 0.1 ? 1 : 0)',
   'ta.obv': 'plot(ta.obv > 1000 ? 1 : 0)',
   'ta.accdist': 'plot(ta.accdist > 1000 ? 1 : 0)',
   'ta.supertrend': '[st, dir] = ta.supertrend(3.0, 10)\nplot(dir < 0 and st > 0 ? 1 : 0)',
-  'ta.valuewhen': 'plot(ta.valuewhen(close > open, close, 0) > 10 ? 1 : 0)',
   'ta.cci': 'plot(ta.cci(close, 20) > 100 ? 1 : 0)',
   // ➕ ADDENDUM 2026-09-12 (ruling 3.5, `29d64a2ef`): this probe asked for "D" and
   // "D" now TRANSLATES — a literal naming the engine's own base folds to the identity.

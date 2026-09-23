@@ -1,5 +1,6 @@
 import { useRef, useState } from 'react'
 import { settleNoteWrite } from '../../lib/offline/settleNoteWrite'
+import UIcon from '../../../../components/ui/UIcon'
 import styles from './HeroImagePicker.module.css'
 
 export default function HeroImagePicker({ noteId, value, onChange }) {
@@ -118,6 +119,7 @@ export default function HeroImagePicker({ noteId, value, onChange }) {
           className={`${styles.filled} ${dragOverCls}`}
           tabIndex={0}
           title="Click image, then paste (Ctrl+V) to replace · or drag a file here"
+          aria-label="Current hero image. Press Ctrl+V to replace it, or use the buttons below."
         >
           <img src={value} alt="" />
           <div className={styles.overlay}>
@@ -129,7 +131,7 @@ export default function HeroImagePicker({ noteId, value, onChange }) {
             <button
               type="button" className={styles.iconBtn}
               onClick={remove} title="Remove"
-            >×</button>
+            ><UIcon name="x" size={12} gold={false} /></button>
           </div>
           {dragOver && <div className={styles.dropHint}>Drop to replace hero</div>}
         </div>

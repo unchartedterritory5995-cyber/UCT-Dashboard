@@ -229,3 +229,75 @@ def test_list_notes_with_a_malformed_property_filter_json_400s(app, client):
     _login_as(app, "u1")
     r = client.get("/api/j2/notes?propertyFilter=not-json")
     assert r.status_code == 400
+
+
+# ── the two halves of "which view types are saveable" ────────────────────
+
+def test_the_server_and_client_view_type_lists_CANNOT_drift():
+    """⛔ ONE FACT, TWO FILES, PINNED AGAINST EACH OTHER.
+
+    `SAVEABLE_VIEW_TYPES` (server) decides what `create_saved_view` accepts;
+    `SAVEABLE_VIEW_MODES` (client, `lib/savedViewModes.js`) decides what the
+    Notebook offers a Save control for. If the client gains a mode the server
+    refuses, the member gets a button that 400s; if the server gains one the
+    client does not know, the capability is invisible. Either way nothing in
+    either file is wrong on its own, which is why this reads BOTH.
+
+    ⛔ The client list is PARSED, never retyped here -- a copy in this test
+    would be a third authority over the same fact.
+    """
+    import re
+    from pathlib import Path
+    from api.services.journal_two.note_properties import SAVEABLE_VIEW_TYPES
+
+    js = Path("app/src/pages/journal-2-0/lib/savedViewModes.js").read_text(encoding="utf-8")
+    # ⛔ PARSE VIEW_MODES, NOT THE SET. The client Set is now DERIVED from that
+    # ordered table (it used to be a hand-written literal, and the toolbar was
+    # quietly carrying a third copy of the same five ids). Reading the table
+    # reads the one authority; reading a derived expression would read nothing.
+    block = re.search(r"VIEW_MODES\s*=\s*\[(.*?)\n\]", js, re.S)
+    assert block, "could not find the VIEW_MODES table in savedViewModes.js"
+    client = set(re.findall(r"id:\s*'([a-z]+)'", block.group(1)))
+
+    # Non-vacuity: a parse that found nothing would make any comparison pass.
+    assert len(client) >= 2, f"parsed a suspiciously small client set: {client}"
+    assert "list" in client and "table" in client
+
+    assert client == set(SAVEABLE_VIEW_TYPES), (
+        f"client {sorted(client)} != server {sorted(SAVEABLE_VIEW_TYPES)} -- "
+        "one of them gained a view type without the other"
+    )
+
+
+def test_every_saveable_type_is_actually_accepted(app, client):
+    """The enum is not decoration: each value round-trips through the API."""
+    _login_as(app, "u1")
+    from api.services.journal_two.note_properties import SAVEABLE_VIEW_TYPES
+    for vt in SAVEABLE_VIEW_TYPES:
+        r = client.post("/api/j2/saved-views", json={"name": f"v-{vt}", "viewType": vt, "spec": {}})
+        assert r.status_code == 200, f"{vt} was refused: {r.status_code} {r.text[:200]}"
+        assert r.json()["savedView"]["viewType"] == vt
+
+
+def test_an_unknown_view_type_is_still_refused(app, client):
+    """⛔ THE CONTROL. Widening an enum is only safe if it still has an edge."""
+    _login_as(app, "u1")
+    r = client.post("/api/j2/saved-views", json={"name": "nope", "viewType": "timeline", "spec": {}})
+    assert r.status_code >= 400
+
+
+def test_a_board_view_keeps_the_property_ID_it_groups_by(app, client):
+    """⛔ IDS, NEVER NAMES -- that is what makes a saved view survive a rename.
+    The server does not resolve `groupBy` (the client applies it on restore),
+    so this pins that it is stored and returned intact rather than dropped."""
+    _login_as(app, "u1")
+    spec = {"propertyFilter": None, "propertySort": None, "groupBy": "builtin:thesis_status"}
+    r = client.post("/api/j2/saved-views", json={"name": "Active theses", "viewType": "board", "spec": spec})
+    assert r.status_code == 200
+    got = r.json()["savedView"]
+    assert got["viewType"] == "board"
+    assert got["spec"]["groupBy"] == "builtin:thesis_status"
+
+    listed = client.get("/api/j2/saved-views").json()["savedViews"]
+    mine = [v for v in listed if v["name"] == "Active theses"][0]
+    assert mine["spec"]["groupBy"] == "builtin:thesis_status"

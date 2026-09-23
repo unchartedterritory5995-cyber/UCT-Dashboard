@@ -23,7 +23,21 @@ third state, not a pass and not a failure.
 `1` for no, but it also exits non-zero when the ref does not resolve, when the object is missing,
 or when git is not on PATH. Collapsing those into "not contained" would report a broken
 measurement as unpublished work — the same shape as the cp1252 bug that reported an encoding
-failure as an auth problem. Exit codes here are three, deliberately:
+failure as an auth problem.
+
+⭐ **2026-09-22, PACKET-F (F-ENVCHECK-1).** Ancestry has its own mirror-image bug: this
+programme's code lands on `origin/master` by CHERRY-PICK (through the `_merge-master`
+worktree), so a commit authored on `feat/s7-price-level` reaches master under a DIFFERENT
+SHA carrying the same patch. `--is-ancestor` answers "no" to that shape by construction,
+every time — not intermittently — so a fully-published tree read as FAIL on every clean
+Saturday. When `--is-ancestor` says "not an ancestor" (exit `1`, nothing else), `check_tree`
+now falls through to a patch-id read, `git cherry <ref> HEAD`: every line a `-` (patch
+already applied on the ref, under another sha) still reads PASS; any `+` line (genuinely
+absent) still reads FAIL, named by short sha and subject exactly like the ancestry path.
+`git cherry` itself erroring is UNREADABLE, never silently FAIL. Ancestry stays the fast
+path for the ordinary case (a fast-forwarded or merged tree) — this only touches the one
+branch that used to conflate "not-an-ancestor" with "not published". Exit codes here are
+three, deliberately:
 
     0  PASS         every declared tree is clean and contained
     1  FAIL         measured: a tree is dirty, or holds commits its publish ref does not
@@ -94,11 +108,26 @@ def check_tree(path, *, declared=PUBLISH_REF):
     if rc != 1:
         return UNREADABLE, branch, ref, "merge-base could not answer (exit %d): %s" % (rc, out)
 
-    _, names = _git(path, "log", "--oneline", "%s..HEAD" % ref)
-    lines = [l for l in names.splitlines() if l][:10]
+    # ⛔ NOT AN ANCESTOR ⛔= NOT PUBLISHED. This programme cherry-picks HEAD's commits onto
+    # <ref> under different shas, so ancestry alone reports every clean cherry-picked tree as
+    # FAIL. Fall through to a patch-id read before concluding that — PACKET-F / F-ENVCHECK-1.
+    rc, cherry_out = _git(path, "cherry", ref, "HEAD")
+    if rc != 0:
+        return UNREADABLE, branch, ref, "git cherry could not be measured (exit %d): %s" % (
+            rc, cherry_out)
+
+    lines = [l for l in cherry_out.splitlines() if l.strip()]
+    plus_shas = [l.split()[1] for l in lines if l.startswith("+") and len(l.split()) > 1]
+    if not plus_shas:
+        return (PASS, branch, ref,
+                "HEAD is NOT an ancestor of %s but its %d commit(s) are all already there "
+                "under different shas (cherry-picked)" % (ref, len(lines)))
+
+    _, names = _git(path, "log", "--no-walk", "--oneline", *plus_shas)
+    named = [l for l in names.splitlines() if l][:10]
     return (FAIL, branch, ref,
             "HEAD is NOT contained in %s — %d unpublished commit%s: %s" % (
-                ref, len(lines), "" if len(lines) == 1 else "s", " | ".join(lines)))
+                ref, len(named), "" if len(named) == 1 else "s", " | ".join(named)))
 
 
 def main(argv=None):
@@ -153,6 +182,17 @@ def _self_check():
         state, _, _, d = check_tree(repo, declared=declared)
         print("  unpushed commit  -> %s (%s)" % (state, d))
         ok &= (state == FAIL)
+
+        # ⭐ PACKET-F / F-ENVCHECK-1: a commit that reaches the publish ref under a NEW sha
+        # (this programme's own cherry-pick shape) must read PASS, not the false FAIL above.
+        _, tree_sha = _git(repo, "rev-parse", "HEAD^{tree}")
+        _, parent_sha = _git(repo, "rev-parse", "HEAD^")
+        _, cherry_sha = _git(repo, "commit-tree", tree_sha, "-p", parent_sha,
+                              "-m", "same patch, cherry-picked under a new sha")
+        _git(repo, "update-ref", "refs/remotes/origin/master", cherry_sha)
+        state, _, _, d = check_tree(repo, declared=declared)
+        print("  cherry-picked    -> %s (%s)" % (state, d))
+        ok &= (state == PASS)
 
         state, _, _, d = check_tree(repo, declared={})
         print("  undeclared       -> %s (%s)" % (state, d))

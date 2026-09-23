@@ -29,10 +29,37 @@ import time
 import math
 import sqlite3
 import threading
-from datetime import date as date_t
+from datetime import date as date_t, datetime as datetime_t, timedelta
 from collections import defaultdict
 
 from api.darkpool_db import DB_PATH, _resolve_dates
+# Reuse the nightly module's ET zone so the compliance clock below is
+# single-sourced with everything else that timestamps a dark-pool print.
+from api.darkpool_massive_ingest import ET as _DP_ET
+
+
+# ── GATE-S9 T-31 — same-day prints must be DELAYED, not real-time ─────────
+# A same-day off-exchange print inside the exchange's 15-minute delay window
+# is real-time "Information" (fee-liable, restricted under the Massive/UTP
+# terms this row cites); past it, it is "Delayed Information" (free). This
+# is a compliance floor, not a product tuning knob — do NOT make it an
+# env-var override; a mistyped/blank env var must never be able to shorten it.
+TODAY_DELAY_MINUTES = 15
+
+
+def _today_print_dt(date_str, ts_str):
+    """Combine darkpool_today's own (date, timestamp) text columns into an
+    aware ET datetime. Returns None on any parse failure or missing ET zone —
+    a row whose age cannot be determined is EXCLUDED by the caller (fail
+    closed), never served as if it were old enough."""
+    d = parse_mdy(date_str)
+    if d is None or not ts_str or _DP_ET is None:
+        return None
+    try:
+        t = datetime_t.strptime(ts_str.strip(), "%I:%M:%S %p").time()
+    except ValueError:
+        return None
+    return datetime_t(d.year, d.month, d.day, t.hour, t.minute, t.second, tzinfo=_DP_ET)
 
 
 # ── JS-compatible rounding ──────────────────────────────────────────────
@@ -193,9 +220,14 @@ def aggregate(days=None, all_data=False, table="darkpool_trades"):
     conn.row_factory = sqlite3.Row
 
     try:
+        # T-31: darkpool_today additionally needs its own `timestamp` column
+        # to enforce the compliance delay below — darkpool_trades never does
+        # (it is always yesterday-or-older, past the delay by construction).
+        _select_ts = ", timestamp" if table == "darkpool_today" else ""
+
         if all_data or days is None:
             cursor = conn.execute(
-                f"SELECT date, ticker, price, notional, message, type, "
+                f"SELECT date{_select_ts}, ticker, price, notional, message, type, "
                 f"security_type, industry, sector, avg30day FROM {table}"
             )
         else:
@@ -204,11 +236,19 @@ def aggregate(days=None, all_data=False, table="darkpool_trades"):
                 return _empty_result()
             placeholders = ",".join(["?"] * len(selected_dates))
             cursor = conn.execute(
-                f"SELECT date, ticker, price, notional, message, type, "
+                f"SELECT date{_select_ts}, ticker, price, notional, message, type, "
                 f"security_type, industry, sector, avg30day FROM {table} "
                 f"WHERE date IN ({placeholders})",
                 selected_dates,
             )
+
+        # T-31 compliance cutoff: a darkpool_today row printed more recently
+        # than this is still real-time Information and must not be served.
+        # None on darkpool_trades (never applies) or if the ET zone failed to
+        # load (fail closed — see _today_print_dt).
+        _delay_cutoff = None
+        if table == "darkpool_today" and _DP_ET is not None:
+            _delay_cutoff = datetime_t.now(_DP_ET) - timedelta(minutes=TODAY_DELAY_MINUTES)
 
         # ── Categorize rows (mirrors DarkPool.jsx 1499-1543) ──────────
         seen_dates = {}             # date_key -> date object
@@ -220,6 +260,12 @@ def aggregate(days=None, all_data=False, table="darkpool_trades"):
         uoa_tickers = set()
 
         for row in cursor:
+            if table == "darkpool_today":
+                print_dt = _today_print_dt(row["date"], row["timestamp"])
+                # Too recent, or its age could not be determined at all —
+                # either way, do not serve it yet (fail closed).
+                if _delay_cutoff is None or print_dt is None or print_dt > _delay_cutoff:
+                    continue
             date_str = row["date"] or ""
             if not date_str:
                 continue

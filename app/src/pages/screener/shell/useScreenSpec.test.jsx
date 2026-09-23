@@ -50,6 +50,26 @@ describe('useScreenSpec', () => {
     expect(result.current.page).toBe(1)
   })
 
+  it('a scan runs WITHIN the chosen pool — applySpec preserves universe/list', () => {
+    const { result } = renderHook(() => useScreenSpec())
+    // Member picks a watchlist pool, then applies a pool-agnostic preset scan.
+    act(() => result.current.setFilter('list', { op: 'in', value: 'wl:7', label: 'Momentum plays' }))
+    act(() => result.current.applySpec({ filters: [{ key: 'rs_rank', op: 'gte', min: 90 }], view: 'overview' }))
+    expect(result.current.filters.rs_rank).toEqual({ op: 'gte', min: 90 })   // scan applied
+    expect(result.current.filters.list).toEqual({ op: 'in', value: 'wl:7', label: 'Momentum plays' })  // pool kept
+  })
+
+  it("a scan that NAMES its own pool wins over the current one", () => {
+    const { result } = renderHook(() => useScreenSpec())
+    act(() => result.current.setFilter('universe', { op: 'eq', value: 'uct' }))
+    act(() => result.current.applySpec({ filters: [
+      { key: 'rs_rank', op: 'gte', min: 80 },
+      { key: 'list', op: 'in', value: 'flagged' },
+    ] }))
+    expect(result.current.filters.list).toEqual({ op: 'in', value: 'flagged' })  // spec's pool
+    expect(result.current.filters.universe).toBeUndefined()                       // replaced, not merged
+  })
+
   it('scanSpec unions REQUIRED_COLS into custom columns', () => {
     const { result } = renderHook(() => useScreenSpec())
     act(() => result.current.setColumns(['candle_score']))
@@ -64,5 +84,18 @@ describe('useScreenSpec', () => {
     const before = result.current.scanSpec
     rerender()
     expect(result.current.scanSpec).toBe(before)
+  })
+
+  it('applySpec carries a rank into baseSpec/scanSpec; an explicit sort clears it', () => {
+    const rank = { criteria: [{ key: 'uct_composite' }], top_n: 50 }
+    const { result } = renderHook(() => useScreenSpec())
+    act(() => result.current.applySpec({ filters: [], view: 'uct_ratings', rank }))
+    expect(result.current.rank).toEqual(rank)
+    expect(result.current.baseSpec.rank).toEqual(rank)
+    expect(result.current.scanSpec.rank).toEqual(rank)
+    // A column-header sort takes over ordering, so the rank (UCT-50 cap) drops.
+    act(() => result.current.setSort({ key: 'price', dir: 'desc' }))
+    expect(result.current.rank).toBeNull()
+    expect(result.current.baseSpec.rank).toBeUndefined()
   })
 })

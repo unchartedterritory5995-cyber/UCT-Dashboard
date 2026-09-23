@@ -475,6 +475,24 @@ CREATE TABLE IF NOT EXISTS waitlist (
     created_at   TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
 );
 CREATE INDEX IF NOT EXISTS idx_waitlist_created ON waitlist(created_at DESC);
+
+-- S5 CP3 (GATE-S5-PERSISTENCE-USER-STATE, fingerprint 41ffcc91c): Tracings'
+-- dedicated store, per the S5-C ruling that it moves OFF user_preferences
+-- rather than growing that endpoint's other 70 call sites a compare-and-set
+-- they don't need. One document per member (spec A-3); `revision` is the
+-- CAS token the write endpoint compares against (A-1/A-2) -- an explicit
+-- counter rather than a reused timestamp, so there is no clock-skew
+-- ambiguity in what "unchanged since your baseline" means.
+-- ⛔ DARK AT CP3: this table and its endpoint exist and are tested, but
+-- nothing in the product calls them yet -- useTracingsSync.js still reads
+-- POST /api/auth/preferences. CP4 is the checkpoint that wires a live
+-- consumer, behind its own compiled constant, defaulting OFF.
+CREATE TABLE IF NOT EXISTS tracings_documents (
+    user_id      TEXT PRIMARY KEY REFERENCES users(id) ON DELETE CASCADE,
+    doc          TEXT NOT NULL,
+    revision     INTEGER NOT NULL DEFAULT 1,
+    updated_at   TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
+);
 """
 
 

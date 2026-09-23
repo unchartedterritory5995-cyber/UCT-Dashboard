@@ -3,9 +3,24 @@
  * (task brief item 6: "ImportWizard drop step: compact connect tiles above
  * the dropzone, configured providers only").
  *
- * Renders NOTHING while loading and nothing at all when no provider is
- * `configured` — dark providers (no env creds yet) never show a tile here;
- * that's what the Settings card's "Coming soon" tile is for. Clicking a
+ * Renders NOTHING while loading. When at least one provider is `configured`,
+ * dark providers (no env creds yet) still get no individual tile HERE — the
+ * Settings card is the full, authoritative place for that (an explicit
+ * "Coming soon" pill per provider); duplicating that per-provider detail
+ * onto this deliberately compact wizard strip would work against the one
+ * thing this component is FOR (a quick nudge above a drag-and-drop zone,
+ * not a connections-management page).
+ *
+ * ⛔⛔ THE ONE CASE THAT WAS GENUINELY SILENT, NOT JUST COMPACT: when ZERO
+ * providers are configured, this used to return null outright — a member on
+ * a deployment where nothing has been set up yet saw no evidence this
+ * capability is even a category of feature (the whole "Or connect an app —
+ * your notes stay in sync automatically" label vanished with it). That is
+ * the gap this file's own comment pointed at the Settings card for, without
+ * the Settings card actually being reachable FROM here. Competitive audit
+ * finding UX #17, 2026-09-22. One honest line, not a per-provider list.
+ *
+ * Clicking a
  * configured, not-yet-connected tile opens the same connect flow as the
  * Settings card: token modal for roam/craft, or (fix-round 1, finding #1) a
  * `ConnectConsentPanel` for notion/dropbox — OAuth never fires straight off
@@ -58,7 +73,13 @@ export default function ConnectTilesCompact() {
   // every provider key) — `.configured`/`.connected` read directly, never
   // re-derived from `.sources.length` here.
   const configured = NOTE_CONNECTOR_PROVIDERS.filter((p) => providers[p.key].configured)
-  if (configured.length === 0) return null
+  if (configured.length === 0) {
+    return (
+      <p className={styles.label}>
+        Connecting an app for automatic sync is coming soon — for now, import a file below.
+      </p>
+    )
+  }
 
   const openConnect = (p) => {
     setError(null)

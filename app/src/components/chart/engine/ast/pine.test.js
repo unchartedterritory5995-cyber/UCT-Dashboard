@@ -584,11 +584,14 @@ describe('every unsupported construct refuses BY NAME, AT ITS OWN TOKEN', () => 
     // ⚰️ WAS `bar_index` UNTIL 2026-08-27, and the swap is the point. `bar_index`
     // maps onto the closed table's `barindex`, so it now refuses with a sentence
     // saying the engine HOLDS that column — the generic reason no longer applies
-    // to it. `timenow` is a built-in this engine genuinely does NOT hold, so the
-    // generic sentence keeps a case that exercises it.
+    // to it. ⚰️ THIS USED TO NAME `timenow` FOR THE IDENTICAL REASON, AND IT
+    // MOVED FOR THE IDENTICAL ONE (2026-09-20): `timenow` now maps onto
+    // `lastbartime`. `last_bar_time` is a built-in this engine genuinely does
+    // NOT hold — `last_bar_index` (its sibling) is held, `last_bar_time` is
+    // not — so the generic sentence keeps a case that exercises it.
     ['a built-in this engine genuinely does not hold',
-      '//@version=5\nindicator("t")\nplot(timenow)\n',
-      'pine:builtin', 3, 6, 'timenow'],
+      '//@version=5\nindicator("t")\nplot(last_bar_time)\n',
+      'pine:builtin', 3, 6, 'last_bar_time'],
     ['a name the script never bound',
       '//@version=5\nindicator("t")\nplot(mystery)\n',
       'pine:undefined', 3, 6, 'mystery'],
@@ -676,21 +679,43 @@ describe('every unsupported construct refuses BY NAME, AT ITS OWN TOKEN', () => 
     // `series` node (`parseFormula('dayofweek > 3')` proves it), so binding one
     // is the resolution this door already performs for `close`, over a manifest
     // section it had simply not been told to read.
-    for (const spelling of ['dayofweek', 'year', 'bar_index', 'hour', 'month']) {
+    // ⚠️ THE TWO SPELLINGS THAT DIFFER FROM OUR KEY. `bar_index` -> `barindex`
+    // was the only one until `last_bar_index` -> `lastbarindex` joined it: the
+    // newest bar's own `barindex`, broadcast to every bar — `islast`'s ruling
+    // applied to a number, not tagged `window_dependent` for the same reason
+    // `islast` is not (see `indicators.js::CLOCK_EXTENT`).
+    const RESPELLED = { bar_index: 'barindex', last_bar_index: 'lastbarindex' }
+    for (const spelling of ['dayofweek', 'year', 'bar_index', 'hour', 'month', 'last_bar_index']) {
       it(`${spelling} RESOLVES to the clock column this engine holds`, () => {
         const out = translatePine(`//@version=5\nindicator("t")\nplot(${spelling})\n`)
         expect(out.refusal, out.refusal && out.refusal.message).toBe(null)
         const first = out.outputs.find((o) => o.refusal === null)
         expect(first, 'no output translated').toBeTruthy()
-        // ⚠️ `bar_index` is PINE's spelling of our `barindex`. The tree must carry
-        // OUR key, or the engine looks up a column it does not have and the
-        // column is NaN on every bar — a translation that reads as a quiet market.
+        // ⚠️ `bar_index`/`last_bar_index` are PINE's spellings of our
+        // `barindex`/`lastbarindex`. The tree must carry OUR key, or the engine
+        // looks up a column it does not have and the column is NaN on every
+        // bar — a translation that reads as a quiet market.
         expect(first.ast).toEqual({
           type: 'series',
-          name: spelling === 'bar_index' ? 'barindex' : spelling,
+          name: RESPELLED[spelling] || spelling,
         })
       })
     }
+
+    // ⭐ THE VENDOR-IDIOM THIS COLUMN EXISTS FOR: a geometry call guarded by
+    // distance-from-the-end, using `last_bar_index` exactly as a pasted
+    // TradingView script would. Before this column existed this refused
+    // `pine:builtin` and the guarded `label.new` never became an op at all.
+    it('last_bar_index in a distance-from-the-end guard reaches a real create op', () => {
+      const src = '//@version=6\nindicator("t", overlay=true)\n'
+        + 'if bar_index >= last_bar_index - 2\n    label.new(bar_index, close, text = "x")\n'
+        + 'plot(close)\n'
+      const out = translatePine(src, { strict: true })
+      expect(out.refusal, out.refusal && out.refusal.message).toBe(null)
+      expect(out.objectDiagnostics.droppedOps, JSON.stringify(out.objectDiagnostics)).toBe(0)
+      const ops = (out.objects && out.objects.ops) || []
+      expect(ops.some((o) => o.k === 'create' && o.family === 'label')).toBe(true)
+    })
 
     // ⛔⛔ AND THE NAMES WHOSE MEANING IS NOT OURS STILL REFUSE, NAMING THE
     // DIFFERENCE. This is the half that makes the binding above safe. Pine's

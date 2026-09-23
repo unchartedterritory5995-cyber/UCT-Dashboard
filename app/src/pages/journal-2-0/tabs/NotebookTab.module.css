@@ -19,17 +19,17 @@
   align-items: center;
   justify-content: center;
   padding: 0;
-  background: var(--color-surface, #14171c);
-  border: 1px solid var(--color-border, #232932);
+  background: var(--bg-surface);
+  border: 1px solid var(--border);
   border-radius: 7px;
-  color: var(--color-text-muted, #98a0aa);
+  color: var(--text-muted);
   cursor: pointer;
   transition: color 120ms ease, border-color 120ms ease, background 120ms ease;
 }
 .sidebarToggle:hover {
   color: var(--accent);
-  border-color: #dcbb5e;
-  background: var(--color-surface-hover, #1c2028);
+  border-color: var(--ut-gold);
+  background: var(--bg-hover);
 }
 
 /* The collapsible panel. `slot` owns the reclaimable width; `inner` holds the
@@ -66,11 +66,11 @@
   left: 50%;
   width: 1px;
   transform: translateX(-50%);
-  background: var(--color-border, #232932);
+  background: var(--border);
   transition: background 120ms ease, width 120ms ease;
 }
 .divider:hover::before,
-.wrap.dragging .divider::before { background: #dcbb5e; width: 2px; }
+.wrap.dragging .divider::before { background: var(--ut-gold); width: 2px; }
 .wrap.collapsed .divider { display: none; }
 
 /* During a drag, kill panel transitions so the width tracks the pointer 1:1. */
@@ -100,26 +100,26 @@
 .search {
   flex: 1;
   min-width: 200px;
-  background: var(--color-surface, #14171c);
-  border: 1px solid var(--color-border, #232932);
+  background: var(--bg-surface);
+  border: 1px solid var(--border);
   border-radius: var(--radius-md);
   padding: 7px 12px;
-  color: var(--color-text-primary, #e8eaed);
+  color: var(--text-bright);
   font-size: 13px;
 }
-.search:focus { outline: none; border-color: #dcbb5e; }
+.search:focus { outline: none; border-color: var(--ut-gold); }
 .sortSelect {
-  background: var(--color-surface, #14171c);
-  border: 1px solid var(--color-border, #232932);
-  color: var(--color-text-primary, #e8eaed);
+  background: var(--bg-surface);
+  border: 1px solid var(--border);
+  color: var(--text-bright);
   border-radius: var(--radius-md);
   padding: 6px 8px;
   font-size: 12px;
 }
 .clear {
   background: transparent;
-  border: 1px solid var(--color-border, #232932);
-  color: var(--color-text-muted, #98a0aa);
+  border: 1px solid var(--border);
+  color: var(--text-muted);
   padding: 6px 10px;
   border-radius: var(--radius-md);
   cursor: pointer;
@@ -131,7 +131,7 @@
    Clear-filter button. */
 .tickerFilterChip {
   font-size: 12px;
-  color: #dcbb5e;
+  color: var(--ut-gold);
   background: rgba(220, 187, 94, 0.12);
   padding: 5px 10px;
   border-radius: var(--radius-md);
@@ -139,7 +139,7 @@
 .trashLabel {
   font-size: 13px;
   font-weight: 600;
-  color: var(--color-text-muted, #98a0aa);
+  color: var(--text-muted);
   padding: 6px 2px;
 }
 .newWrap {
@@ -147,9 +147,20 @@
   display: flex;
   align-items: stretch;
   gap: 8px;
+  /* ⛔ WITHOUT THIS, "+ New note" HANGS OFF THE SCREEN ON A PHONE. Measured at
+     a real 390px viewport: Import/Export/Templates/+New need 393px of row, and
+     the last button's right edge landed at 437 — 47px past the viewport. An
+     ancestor clips rather than scrolls (documentElement overflow was 0 and this
+     row's scrollWidth equalled its clientWidth), so the page looked fine by
+     every overflow check while the notebook's primary create action was half
+     cut off. ⭐ Wrapping is the right DEFAULT for a toolbar action row, not a
+     phone special case: it costs nothing whenever the row fits, and a fifth
+     button added later cannot reintroduce this at some other width.
+     `.toolbar` above already wraps for exactly this reason. */
+  flex-wrap: wrap;
 }
 .newBtn {
-  background: #dcbb5e;
+  background: var(--ut-gold);
   color: var(--bg);
   border: none;
   padding: 7px 14px;
@@ -158,7 +169,7 @@
   font-size: 13px;
   font-weight: 600;
 }
-.newBtn:hover { background: #d8b962; }
+.newBtn:hover { background: var(--ut-gold-bright); }
 .templatesBtn {
   background: rgba(220, 187, 94, 0.08);
   color: var(--accent);
@@ -175,22 +186,22 @@
   align-items: center;
   gap: 6px;
   background: transparent;
-  color: var(--color-text-primary, #e8eaed);
-  border: 1px solid var(--color-border, #232932);
+  color: var(--text-bright);
+  border: 1px solid var(--border);
   padding: 7px 14px;
   border-radius: var(--radius-md);
   cursor: pointer;
   font-size: 13px;
   font-weight: 600;
 }
-.importBtn:hover { background: var(--color-surface, #14171c); border-color: #dcbb5e; }
+.importBtn:hover { background: var(--bg-surface); border-color: var(--ut-gold); }
 .exportBtn {
   display: inline-flex;
   align-items: center;
   gap: 6px;
   background: transparent;
-  color: var(--color-text-primary, #e8eaed);
-  border: 1px solid var(--color-border, #232932);
+  color: var(--text-bright);
+  border: 1px solid var(--border);
   padding: 7px 14px;
   border-radius: var(--radius-md);
   cursor: pointer;
@@ -201,7 +212,7 @@
      touch tier is <=1024px, not <=640px (see tapFloor.test.js). */
   min-height: var(--tap-min, 44px);
 }
-.exportBtn:hover { background: var(--color-surface, #14171c); border-color: #dcbb5e; }
+.exportBtn:hover { background: var(--bg-surface); border-color: var(--ut-gold); }
 .newBtn:disabled, .templatesBtn:disabled { opacity: 0.6; cursor: default; }
 
 /* Wave E: List/Table toggle + Save view */
@@ -209,7 +220,7 @@
   display: inline-flex;
   align-items: center;
   gap: 4px;
-  border: 1px solid var(--color-border, #232932);
+  border: 1px solid var(--border);
   border-radius: var(--radius-md);
   padding: 2px;
 }
@@ -219,28 +230,28 @@
   justify-content: center;
   background: transparent;
   border: none;
-  color: var(--color-text-muted, #98a0aa);
+  color: var(--text-muted);
   border-radius: var(--radius-sm, 4px);
   cursor: pointer;
   min-width: 32px;
   min-height: 32px;
 }
-.viewModeBtn:hover { color: var(--color-text-primary, #e8eaed); }
+.viewModeBtn:hover { color: var(--text-bright); }
 .viewModeBtn:disabled { opacity: 0.4; cursor: default; }
-.viewModeActive { background: rgba(220, 187, 94, 0.16); color: #dcbb5e; }
+.viewModeActive { background: rgba(220, 187, 94, 0.16); color: var(--ut-gold); }
 .saveViewBtn {
   display: inline-flex;
   align-items: center;
   gap: 4px;
   background: transparent;
   border: none;
-  color: var(--color-text-muted, #98a0aa);
+  color: var(--text-muted);
   font-size: 12px;
   padding: 0 8px;
   cursor: pointer;
   min-height: 32px;
 }
-.saveViewBtn:hover { color: #dcbb5e; }
+.saveViewBtn:hover { color: var(--ut-gold); }
 .emptyImportPitch {
   display: flex;
   flex-direction: column;
@@ -253,11 +264,23 @@
   color: var(--accent);
   border-color: var(--accent);
 }
-.importBtnEmphasized:hover { background: rgba(220, 187, 94, 0.16); border-color: #dcbb5e; }
+.importBtnEmphasized:hover { background: rgba(220, 187, 94, 0.16); border-color: var(--ut-gold); }
 .grid {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
   gap: 18px;
+}
+/* G-106: mirrors NoteCard.module.css's .card geometry (border/radius/padding)
+   closely enough to reserve the right box, without importing that module --
+   this is a placeholder shape, never a real card. */
+.noteCardSkeleton {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  background: var(--bg-surface);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 14px;
 }
 .loadMoreRow {
   display: flex;
@@ -269,15 +292,15 @@
 }
 .loadMoreCount {
   font-size: 12px;
-  color: var(--color-text-muted, #98a0aa);
+  color: var(--text-muted);
 }
 .loadMoreBtn {
   display: inline-flex;
   align-items: center;
   gap: 6px;
   background: transparent;
-  color: var(--color-text-primary, #e8eaed);
-  border: 1px solid var(--color-border, #232932);
+  color: var(--text-bright);
+  border: 1px solid var(--border);
   padding: 8px 16px;
   border-radius: var(--radius-md);
   cursor: pointer;
@@ -288,12 +311,12 @@
      `tapFloor.test.js` fails a finger target declared only under 640px. */
   min-height: var(--tap-min, 44px);
 }
-.loadMoreBtn:hover { background: var(--color-surface, #14171c); border-color: #dcbb5e; }
+.loadMoreBtn:hover { background: var(--bg-surface); border-color: var(--ut-gold); }
 .loadMoreBtn:disabled { opacity: 0.6; cursor: default; }
 .empty {
   text-align: center;
   padding: 60px 20px;
-  color: var(--color-text-muted, #98a0aa);
+  color: var(--text-muted);
 }
 .emptyHint { font-size: 13px; margin-top: 8px; }
 .emptyPicker {
@@ -308,6 +331,39 @@
   color: var(--loss);
   border-radius: var(--radius-md);
   margin-bottom: 14px;
+}
+
+/* ⛔⛔ THE TOUCH TIER IS <=1024, NOT <=640. This module had NO touch-tier
+ * block at all: every control in the notebook toolbar is sized by padding
+ * (7px 14px on ~14px text, so ~30px tall) and the view toggles declare a flat
+ * 32px. On a tablet that is a row of 30-32px finger targets on the notebook's
+ * primary surface — the exact shape this repo swept app-wide once already,
+ * where 28 routes measured 360 sub-44px targets at 820px against 15 at 390px.
+ *
+ * ⚠️ `tapFloor.test.js` PASSES ON THIS FILE AND ALWAYS DID. Its rule is a
+ * RELATIONSHIP — whatever a file declares at 390px it must also declare at
+ * 820px — and this file declared a floor at NEITHER width, so there was no
+ * relationship to violate. Its own header says it: necessary, not sufficient.
+ * A file that never declares a finger target is invisible to it.
+ *
+ * ⛔ min-height ONLY, never a fixed height: `.toolbar` is `flex-wrap: wrap`,
+ * so taller controls re-flow rather than overflow, and a control whose content
+ * needs more room still gets it.
+ */
+@media (max-width: 1024px) {
+  .search,
+  .sortSelect,
+  .newBtn,
+  .templatesBtn,
+  .importBtn,
+  .exportBtn,
+  .viewModeBtn,
+  .saveViewBtn {
+    min-height: var(--tap-min, 44px);
+  }
+  /* Icon-only toggles need the WIDTH too — a 44px-tall, 32px-wide target is
+     still a miss on the axis the finger is moving along. */
+  .viewModeBtn { min-width: var(--tap-min, 44px); }
 }
 
 @media (max-width: 640px) {
@@ -333,9 +389,9 @@
 .actionError {
   margin: 8px;
   padding: 8px 12px;
-  border: 1px solid var(--color-danger-border, rgba(248, 113, 113, 0.35));
+  border: 1px solid var(--loss-border);
   border-radius: 6px;
-  background: var(--color-danger-bg, rgba(248, 113, 113, 0.08));
+  background: var(--loss-bg);
   font-size: 13px;
   line-height: 1.45;
 }

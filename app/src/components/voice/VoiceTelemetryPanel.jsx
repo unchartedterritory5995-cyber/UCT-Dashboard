@@ -3,6 +3,14 @@ import { formatETDate, formatETFull } from '../../utils/timeAgo'
 import UIcon from '../ui/UIcon'
 import styles from './VoiceTelemetryPanel.module.css'
 
+// The seven contexts declared in `api/services/voice_prompt_registry.py`'s
+// VARIANTS dict — read directly from that file's own keys (Packet AD CP1),
+// not a second hand-typed list. Keep this array in exact sync with that
+// dict if a context is ever added or removed there.
+const REWARD_VARIANT_CONTEXTS = [
+  'global', 'analyst', 'risk_officer', 'coach', 'scout', 'orchestrator', 'train_me',
+]
+
 /**
  * Voice telemetry — shows the assistant's tool-call success rate, recent
  * failures, and the corrections that get injected into every future
@@ -22,6 +30,7 @@ export default function VoiceTelemetryPanel() {
   const [patterns, setPatterns] = useState([])
   const [agentStats, setAgentStats] = useState([])
   const [variantStats, setVariantStats] = useState([])
+  const [variantCatalog, setVariantCatalog] = useState({})
   const [costSummary, setCostSummary] = useState(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(null)
@@ -30,7 +39,7 @@ export default function VoiceTelemetryPanel() {
     setLoading(true)
     setError(null)
     try {
-      const [statsR, corrR, fbR, patR, agentR, rewardR, costR] = await Promise.all([
+      const [statsR, corrR, fbR, patR, agentR, rewardR, costR, ...variantRs] = await Promise.all([
         fetch('/api/voice/tool-call-stats', { credentials: 'include' }),
         fetch('/api/voice/feedback/corrections', { credentials: 'include' }),
         fetch('/api/voice/feedback', { credentials: 'include' }),
@@ -38,6 +47,9 @@ export default function VoiceTelemetryPanel() {
         fetch('/api/voice/agents/stats?days=30', { credentials: 'include' }),
         fetch('/api/voice/reward/scoreboard?days=30', { credentials: 'include' }),
         fetch('/api/voice/cost', { credentials: 'include' }),
+        ...REWARD_VARIANT_CONTEXTS.map((ctx) =>
+          fetch(`/api/voice/reward/variants?context=${encodeURIComponent(ctx)}`, { credentials: 'include' })
+        ),
       ])
       if (statsR.ok) setStats(await statsR.json())
       if (corrR.ok) {
@@ -63,6 +75,15 @@ export default function VoiceTelemetryPanel() {
       if (costR.ok) {
         setCostSummary(await costR.json())
       }
+      const catalog = {}
+      for (let i = 0; i < REWARD_VARIANT_CONTEXTS.length; i++) {
+        const r = variantRs[i]
+        if (r && r.ok) {
+          const j = await r.json()
+          catalog[REWARD_VARIANT_CONTEXTS[i]] = j.variants || []
+        }
+      }
+      setVariantCatalog(catalog)
     } catch (e) {
       setError(e?.message || 'Failed to load telemetry')
     } finally {
@@ -229,6 +250,53 @@ export default function VoiceTelemetryPanel() {
               ))}
             </tbody>
           </table>
+        </div>
+      )}
+
+      {/* Reward-variant catalog — every declared variant per context, not
+          just the ones with traffic in the scoreboard above (Packet AD CP1) */}
+      {Object.keys(variantCatalog).length > 0 && (
+        <div className={styles.section}>
+          <h4 className={styles.sectionTitle}>Prompt variant catalog</h4>
+          <p className={styles.note}>
+            Every variant declared for each agent context, including ones
+            that haven't run yet. Cross-referenced against the 30-day usage
+            scoreboard above by variant id.
+          </p>
+          {REWARD_VARIANT_CONTEXTS.map((ctx) => {
+            const variants = variantCatalog[ctx]
+            if (!variants || variants.length === 0) return null
+            return (
+              <div key={ctx} className={styles.contextGroup}>
+                <div className={styles.contextLabel}>{ctx.replace(/_/g, ' ')}</div>
+                <table className={styles.table}>
+                  <thead>
+                    <tr>
+                      <th>Variant</th>
+                      <th>Weight</th>
+                      <th>Description</th>
+                      <th>Sessions (30d)</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {variants.map((v) => {
+                      const usage = variantStats.find((r) => r.variant_id === v.id)
+                      return (
+                        <tr key={v.id}>
+                          <td className={styles.toolName}>{v.id}</td>
+                          <td>{v.weight}</td>
+                          <td>{v.description || '—'}</td>
+                          <td className={!usage ? styles.usageNote : undefined}>
+                            {usage ? usage.total_sessions : 'no sessions yet'}
+                          </td>
+                        </tr>
+                      )
+                    })}
+                  </tbody>
+                </table>
+              </div>
+            )
+          })}
         </div>
       )}
 

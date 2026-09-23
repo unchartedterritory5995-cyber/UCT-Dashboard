@@ -7,7 +7,7 @@
   margin: 0;
   font-size: 13px;
   line-height: 1.55;
-  color: var(--text-bright, #e0dac8);
+  color: var(--text-bright);
 }
 .actions {
   display: flex;
@@ -27,8 +27,8 @@
   width: 30px;
   height: 30px;
   border-radius: 50%;
-  border: 3px solid var(--border-accent, #3a3d32);
-  border-top-color: #dcbb5e;
+  border: 3px solid var(--border-accent);
+  border-top-color: var(--ut-gold);
   animation: uctExportSpin 0.9s linear infinite;
 }
 @keyframes uctExportSpin { to { transform: rotate(360deg); } }

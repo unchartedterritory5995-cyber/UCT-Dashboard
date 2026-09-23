@@ -79,7 +79,8 @@ export default function GlobalAddPositionProvider() {
       mutateLists()
       setToast({ message: `Added ${sym} to watchlist`, tone: 'success' })
     } catch (e) {
-      setToast({ message: `Could not add to list: ${e.message || e}`, tone: 'error' })
+      console.error('Failed to add to watchlist:', e)
+      setToast({ message: "Couldn't add to that list. Nothing was changed — try again.", tone: 'error' })
     }
   }, [mutateLists])
 
@@ -178,7 +179,8 @@ export default function GlobalAddPositionProvider() {
 
       window.location.href = `/journal?j2tab=notebook&note=${noteId}`
     } catch (e) {
-      setToast({ message: `Could not create note: ${e.message || e}`, tone: 'error' })
+      console.error('Failed to create note:', e)
+      setToast({ message: "Couldn't create the note. Nothing was saved — try again.", tone: 'error' })
     }
   }, [menu])
 

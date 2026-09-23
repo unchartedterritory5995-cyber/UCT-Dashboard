@@ -7,6 +7,9 @@ import useJ2SavedViews from '../hooks/useJ2SavedViews'
 import useJ2PropertyDefs from '../hooks/useJ2PropertyDefs'
 import NoteCard from '../components/notebook/NoteCard'
 import NotesTableView from '../components/notebook/NotesTableView'
+import NoteGraphView from '../components/notebook/NoteGraphView'
+import NoteBoardView from '../components/notebook/NoteBoardView'
+import NoteCalendarView from '../components/notebook/NoteCalendarView'
 import SavedViewEditor from '../components/notebook/SavedViewEditor'
 import FolderSidebar from '../components/notebook/FolderSidebar'
 import NoteEditorPage from '../components/notebook/NoteEditorPage'
@@ -26,6 +29,9 @@ import { AuthContext } from '../../../context/AuthContext'
 import { useOutboxDrain } from '../lib/offline/useOutboxDrain'
 import { useBlockedNotes } from '../lib/offline/useBlockedNotes'
 import { reportOptIn } from '../lib/offline/offlineOptInEvent'
+import { SAVEABLE_VIEW_MODES, VIEW_MODES } from '../lib/savedViewModes'
+import ConfirmModal from '../components/ConfirmModal'
+import { SkeletonLine } from '../../../components/Skeleton'
 import styles from './NotebookTab.module.css'
 import { settleNoteWrite } from '../lib/offline/settleNoteWrite'
 
@@ -151,10 +157,44 @@ export default function NotebookTab() {
   // view is active (a table-column-header click or a quick-filter chip).
   const [activeView, setActiveView] = useState(null)
   const [viewMode, setViewMode] = useState('list')
+  // What the board is grouping by / the calendar is laying out, reported up by
+  // those views so a saved view can capture it. The views keep their own
+  // "open on a property the notes actually use" default-picking; this only
+  // observes the answer.
+  const [boardGroupBy, setBoardGroupBy] = useState(null)
+  const [calendarDateProp, setCalendarDateProp] = useState(null)
   const [propertyFilter, setPropertyFilter] = useState(null)
   const [propertySort, setPropertySort] = useState(null)
   const [saveViewOpen, setSaveViewOpen] = useState(false)
-  const { savedViews, create: createSavedView } = useJ2SavedViews()
+  const { savedViews, create: createSavedView, rename: renameSavedView, remove: removeSavedView } = useJ2SavedViews()
+  // ⛔⛔ UX #1, 2026-09-22: the hook has always fully implemented rename/
+  // remove -- the UI just never imported them. Mirrors the folder
+  // rename/delete handlers in FolderSidebar.jsx exactly (same "clear the
+  // active selection if it was THIS one" rule delete already needs for
+  // folders, `onSelectFolder(null)` there / `setActiveView(null)` here),
+  // since NotebookTab is the only place `activeView` state lives.
+  const [savedViewError, setSavedViewError] = useState(null)
+  const onRenameView = async (id, name) => {
+    try {
+      await renameSavedView(id, name)
+    } catch (err) {
+      console.error('[notebook] rename saved view failed', err)
+      setSavedViewError("Couldn't rename that view. It kept its old name.")
+    }
+  }
+  const [deleteViewTarget, setDeleteViewTarget] = useState(null) // { id, name } | null
+  const onDeleteViewRequest = (id, name) => setDeleteViewTarget({ id, name })
+  const onDeleteViewConfirm = async () => {
+    if (!deleteViewTarget) return
+    const { id } = deleteViewTarget
+    try {
+      await removeSavedView(id)
+      if (activeView?.id === id) setActiveView(null)
+    } catch (err) {
+      console.error('[notebook] delete saved view failed', err)
+      setSavedViewError("Couldn't delete that view. Nothing was removed.")
+    }
+  }
   const { propertyDefs } = useJ2PropertyDefs()
   const [creating, setCreating] = useState(false)
   // App focus (= charts Group A) seeds a new entry's ticker.
@@ -314,6 +354,21 @@ export default function NotebookTab() {
   // from Home.
   const viewAll = searchParams.get('view') === 'all'
   const isHome = !noteId && !hasActiveFilters && !viewAll && !isTrashView
+  // ⛔ UX #4 (competitive audit, 2026-09-22): bare-root Home and an explicit
+  // `?view=all` on a genuinely empty notebook render two different "you have
+  // no notes" screens for the identical fact. Attempted a route-into-
+  // ResearchHome fix here and reverted it: NotebookTab.test.jsx's OWN header
+  // comment deliberately keeps `?view=all` on the grid ("these tests are
+  // about the tab's OWN template-picker/grid/toolbar wiring, NOT Home...
+  // `?view=all` is the explicit flag that keeps them landing on the grid
+  // unchanged") specifically so this file has a stable surface to test
+  // template-picking against -- the promised split-out
+  // `NotebookTab.researchHome.test.jsx` referenced by that same comment does
+  // not exist. Unifying the two screens is real and correct, but it broke
+  // 20 of this file's 37 tests, all of which need a deliberate decision
+  // about which surface re-exercises template-picking once `?view=all` no
+  // longer does -- not a drive-by two-line change. Left as a named, still-open
+  // quick win rather than a rushed test-suite rewrite.
 
   // FolderSidebar owns several of its OWN SWR hooks (the honest Trash count,
   // per-folder counts, per-expanded-folder note lists) with no handle exposed
@@ -400,7 +455,12 @@ export default function NotebookTab() {
     setPropertyFilter(null)
     setPropertySort(null)
     setActiveView(view)
-    setViewMode(view.viewType === 'table' ? 'table' : 'list')
+    // ⛔ EVERY SAVEABLE TYPE NEEDS A BRANCH HERE. This read
+    // `view.viewType === 'table' ? 'table' : 'list'`, which silently opened a
+    // board as a list the moment boards became saveable -- the failure is
+    // quiet, which is why the server's SAVEABLE_VIEW_TYPES and this set are
+    // pinned against each other by a test.
+    setViewMode(SAVEABLE_VIEW_MODES.has(view.viewType) ? view.viewType : 'list')
     clearViewAllParam()
     if (noteId) clearNoteParam()
   }
@@ -424,7 +484,13 @@ export default function NotebookTab() {
     // stored spec, never a client-reconstructed one), so a folder/tag
     // captured here would silently do nothing on activation. Keep the
     // spec's actual capability matched to what it actually restores.
+    // ⛔ A BOARD IS NOTHING WITHOUT WHAT IT GROUPS BY, and a calendar is
+    // nothing without which date it lays out. Saving the mode alone would
+    // restore a board grouped by whatever the default picker chose that day.
+    // Stored as property IDS so a rename cannot break the view.
     const spec = { propertyFilter, propertySort }
+    if (viewMode === 'board' && boardGroupBy) spec.groupBy = boardGroupBy
+    if (viewMode === 'calendar' && calendarDateProp) spec.dateProperty = calendarDateProp
     const view = await createSavedView(name, viewMode, spec)
     setActiveView(view)
     setSaveViewOpen(false)
@@ -625,6 +691,8 @@ export default function NotebookTab() {
             savedViews={savedViews}
             activeViewId={activeView?.id ?? null}
             onSelectView={handleSelectView}
+            onRenameView={onRenameView}
+            onDeleteView={onDeleteViewRequest}
             onAddStarterViews={addStarterThesisViews}
             isHome={isHome}
             onSelectAllNotes={selectAllNotes}
@@ -692,25 +760,47 @@ export default function NotebookTab() {
           )}
           {!isTrashView && (
             <div className={styles.viewModeWrap}>
-              <button
-                type="button"
-                className={`${styles.viewModeBtn} ${viewMode === 'list' ? styles.viewModeActive : ''}`}
-                onClick={() => setViewMode('list')}
-                disabled={Boolean(activeView)}
-                title="List view"
-              >
-                <UIcon name="rows" size={14} gold={false} />
-              </button>
-              <button
-                type="button"
-                className={`${styles.viewModeBtn} ${viewMode === 'table' ? styles.viewModeActive : ''}`}
-                onClick={() => setViewMode('table')}
-                disabled={Boolean(activeView)}
-                title="Table view"
-              >
-                <UIcon name="columns" size={14} gold={false} />
-              </button>
-              {!activeView && (
+              {/*
+                ⛔ ONE BUTTON, RENDERED FIVE TIMES — not five buttons. These were
+                five hand-written blocks and every one of them was missing
+                aria-pressed, so a screen reader heard five identical icon
+                buttons and could not say which view was on. The active state
+                lived only in a CSS class, which is invisible to it by
+                definition. Written once, the attribute cannot be on four of
+                them and off the fifth.
+              */}
+              {VIEW_MODES.map(({ id, icon, label }) => (
+                <button
+                  key={id}
+                  type="button"
+                  className={`${styles.viewModeBtn} ${viewMode === id ? styles.viewModeActive : ''}`}
+                  onClick={() => setViewMode(id)}
+                  disabled={Boolean(activeView)}
+                  aria-pressed={viewMode === id}
+                  aria-label={label}
+                  title={label}
+                >
+                  <UIcon name={icon} size={14} gold={false} />
+                </button>
+              ))}
+              {/*
+                ⛔ NO "Save this view" IN GRAPH MODE -- still true, for a
+                DIFFERENT reason than this comment used to give. The server's
+                SAVEABLE_VIEW_TYPES (note_properties.py) now accepts "graph",
+                and the client's SAVEABLE_VIEW_MODES mirrors it -- so a save no
+                longer 400s, it silently SUCCEEDS and produces a named view
+                that captures nothing: handleSaveCurrentView only
+                special-cases board/calendar state, graph has no
+                filter/sort/groupBy of its own to store, and NoteGraphView
+                takes no filter/sort props at all (always fetches the whole
+                notebook). Reopening that "saved" view is indistinguishable
+                from clicking Graph fresh -- a silent trap, not a loud
+                refusal. Excluding it here is still the honest choice until a
+                real design decision gives a saved graph view something to
+                actually mean (e.g. a local-graph scope) -- competitive audit
+                finding UX #18, 2026-09-22.
+              */}
+              {!activeView && viewMode !== 'graph' && (
                 <button
                   type="button"
                   className={styles.saveViewBtn}
@@ -791,6 +881,25 @@ export default function NotebookTab() {
           onSave={handleSaveCurrentView}
         />
 
+        {/* UX #1, 2026-09-22: mirrors the folder-delete ConfirmModal in
+            FolderSidebar.jsx exactly -- same reason it lives here rather
+            than there (folders own rename/remove via their OWN hook call;
+            saved views' rename/remove had to live wherever `activeView`
+            state lives, which is here, not FolderSidebar). */}
+        {deleteViewTarget && (
+          <ConfirmModal
+            title={`Delete view "${deleteViewTarget.name}"?`}
+            body="This removes the saved view. It does not delete any notes."
+            confirmLabel="Delete"
+            tone="danger"
+            onConfirm={onDeleteViewConfirm}
+            onClose={() => setDeleteViewTarget(null)}
+          />
+        )}
+        {savedViewError && (
+          <div className={styles.error} role="alert">{savedViewError}</div>
+        )}
+
         {error && (
           <div className={styles.error} role="alert">
             Couldn't load your notes — this looks like a connection problem, not lost work.{' '}
@@ -799,7 +908,19 @@ export default function NotebookTab() {
         )}
 
         {isLoading && notes.length === 0 ? (
-          <div className={styles.empty}>Loading…</div>
+          // G-106 (Wave B lower-frequency sweep): a small grid of card-shaped
+          // skeleton placeholders -- reusing the same `.grid` layout the real
+          // NoteCard grid renders into -- instead of bare text. Not
+          // view-mode-aware (this branch runs before viewMode is even
+          // consulted below), so it approximates the DEFAULT list/grid view.
+          <div className={styles.grid} role="status" aria-label="Loading…">
+            {[0, 1, 2, 3, 4, 5].map((i) => (
+              <div key={i} className={styles.noteCardSkeleton} aria-hidden="true">
+                <SkeletonLine width="70%" height={15} />
+                <SkeletonLine width="40%" height={11} />
+              </div>
+            ))}
+          </div>
         ) : notes.length === 0 && isTrashView ? (
           <div className={styles.empty}>
             <p>Trash is empty.</p>
@@ -835,7 +956,69 @@ export default function NotebookTab() {
           </div>
         ) : (
           <>
-            {viewMode === 'table' && !isTrashView ? (
+            {/*
+              ⛔ GRAPH IS TESTED BEFORE TABLE AND EXCLUDED FROM TRASH, for the
+              same reason the table is: the trash view lists deleted notes, and
+              the graph endpoint filters `deleted_at IS NULL` on BOTH ends of
+              every edge -- so a member who opened Trash in graph mode would get
+              a drawing of their LIVE notebook above a header that says Trash.
+              Falling back to the card grid keeps the surface honest.
+              ⛔ It also does NOT receive `notes`. The graph reads the whole
+              notebook from /api/j2/notes/graph; handing it this page's
+              folder/tag/property-filtered slice would draw edges to notes that
+              are not on screen and silently drop the rest.
+            */}
+            {/*
+              ⛔ BOARD IS EXCLUDED FROM TRASH for the same reason graph is, plus
+              a sharper one: every card carries a control that WRITES a property
+              to the note. Offering that on a deleted note would edit something
+              the member has already thrown away.
+              ⛔ And unlike the graph, the board IS handed `notes` — this page's
+              filtered slice. That is the opposite call, deliberately: a board is
+              a view OF THE CURRENT SELECTION (the folder/tag/property filter the
+              member already chose), whereas a graph is only honest when it draws
+              the whole notebook.
+            */}
+            {/*
+              ⛔ Calendar WRITES now (drag a note to another day), so it is
+              excluded from Trash for the same reason the board is: its chips
+              carry a control that edits a note the member has thrown away.
+              ⚰️ This comment used to justify the exclusion by saying the
+              calendar was read-only. It was, for one commit.
+            */}
+            {viewMode === 'calendar' && !isTrashView ? (
+              <NoteCalendarView
+                notes={notes}
+                propertyDefs={propertyDefs}
+                onOpenNote={openNote}
+                blockedNoteIds={blockedNoteIds}
+                onChanged={refresh}
+                initialDatePropertyId={activeView?.spec?.dateProperty || null}
+                onDatePropertyChange={setCalendarDateProp}
+              />
+            ) : viewMode === 'board' && !isTrashView ? (
+              <NoteBoardView
+                notes={notes}
+                propertyDefs={propertyDefs}
+                onOpenNote={openNote}
+                blockedNoteIds={blockedNoteIds}
+                onChanged={refresh}
+                initialGroupById={activeView?.spec?.groupBy || null}
+                onGroupByChange={setBoardGroupBy}
+              />
+            ) : viewMode === 'graph' && !isTrashView ? (
+              /*
+                ⛔ THE GRAPH EMITS AN ID; `openNote` READS `.id` OFF A NOTE
+                OBJECT. Passing `openNote` straight through type-checks fine,
+                renders fine, and opens the editor on `undefined` -- caught by
+                NotebookTab.graphView.test.jsx, never by anything structural.
+                The adapter lives HERE rather than in the graph because the
+                graph genuinely only knows ids: its nodes are {id, title,
+                degree}, not notes, and giving it a fake note object to satisfy
+                a caller would be the more dishonest of the two shapes.
+              */
+              <NoteGraphView onOpenNote={(id) => openNote({ id })} />
+            ) : viewMode === 'table' && !isTrashView ? (
               <NotesTableView
                 notes={notes}
                 propertyDefs={propertyDefs}

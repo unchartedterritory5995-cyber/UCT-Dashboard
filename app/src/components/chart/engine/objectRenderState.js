@@ -304,6 +304,13 @@ export function toRenderState(live, opts = {}) {
           text_halign: c.props.text_halign,
           text_valign: c.props.text_valign,
           bgcolor: c.props.bgcolor,
+          // ⭐ `'bold'` | `'italic'` | `'bold_italic'` | `'none'` | undefined —
+          // the translator's canonical spelling, passed through untouched. ⛔ IT
+          // IS NOT RE-DERIVED HERE. This layer is the CONTRACT an adapter reads;
+          // if it re-read the flags it would be a second authority over one
+          // value, and the two would disagree the first time the canonical
+          // ordering changed.
+          text_formatting: c.props.text_formatting,
         })),
       })
     } else if (o.family === 'linefill') {

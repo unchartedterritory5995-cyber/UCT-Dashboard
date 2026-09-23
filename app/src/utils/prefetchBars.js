@@ -13,8 +13,8 @@ import { preload } from 'swr'
 import { prefetchTickerMeta } from '../hooks/useTickerMeta'
 import { idbGet, idbPut, mergeDelta } from './barsIDB'
 import { memHas, memPut } from './barsMemCache'
-import { FIRST_PAINT_BARS, fullBarsFor } from './barsBackfill'
-import { isDailyTailStale } from './marketSession'
+import { FIRST_PAINT_BARS, firstPaintBarsFor, fullBarsFor } from './barsBackfill'
+import { isDailyTailStale, isCurrentEnoughForPaint, classifyIntradayTail } from './marketSession'
 
 const fetcher = url => fetch(url).then(r => r.json())
 
@@ -85,9 +85,18 @@ const warmFetcher = url => fetch(url).then(r =>
 // fetched lazily by StockChart's backfill when the user actually pans into it,
 // so warming need not pull 5000-8000 bars per ticker/TF. Keeps the SWR cache key
 // (bars=FIRST_PAINT_BARS) aligned with the chart's cold fetch.
+// ⛔⛔ THIS MUST TRACK `firstPaintBarsFor` EXACTLY. The alignment noted above is
+// not a nicety — `bars=` is part of the SWR cache key AND of the server's
+// `bars_{sym}_{tf}_{n}` key, so a prefetch that warms a DIFFERENT count than the
+// chart requests warms a key the chart never reads: every intraday prefetch
+// becomes pure cost (a provider fetch, a store write, browser bandwidth) and the
+// chart still opens cold. Derive it; never restate the number.
+// ⚠️ RTH mode (the default) is assumed: warming is speculative and has no user
+// session setting to read, and the RTH budget is the LARGER of the two, so an
+// extended-hours viewer reads a warm superset rather than a cold miss.
 const BAR_COUNTS = {
-  1: FIRST_PAINT_BARS, 5: FIRST_PAINT_BARS, 15: FIRST_PAINT_BARS,
-  30: FIRST_PAINT_BARS, 60: FIRST_PAINT_BARS,
+  1: firstPaintBarsFor('1'), 5: firstPaintBarsFor('5'), 15: firstPaintBarsFor('15'),
+  30: firstPaintBarsFor('30'), 60: firstPaintBarsFor('60'),
   D: FIRST_PAINT_BARS, W: FIRST_PAINT_BARS, M: FIRST_PAINT_BARS,
 }
 // Common TFs first (Daily, 5min) so those switches warm first; 5min was last-ish
@@ -152,6 +161,147 @@ function _url(sym, tf, warm = true) {
   // The hover/focus intent-warm passes warm=false so it isn't shed AND its SWR-cache key
   // matches the visible chart's (no `&warm`), letting the imminent click paint from cache.
   return `/api/bars/${encodeURIComponent(sym)}?tf=${tf}&bars=${BAR_COUNTS[tf] ?? 5000}${warm ? '&warm=1' : ''}`
+}
+
+// The native intraday codes. Declared ABOVE its first use on purpose: this file
+// has already produced one temporal-dead-zone crash class in this project, and a
+// module-scope `const` referenced from a function defined earlier is only safe
+// while nothing calls that function during module init — a property that is easy
+// to break and invisible until it throws.
+const _INTRADAY_TFS = new Set(['1', '5', '15', '30', '60'])
+
+// ── REPAIR COOLDOWN ─────────────────────────────────────────────────────────
+// ⛔⛔ WITHOUT THIS, THE FIX IS A REQUEST STORM. `prefetchBarsToIDB` deliberately
+// BYPASSES the `_idbSeen` skip when `priority` is set (`if (_idbSeen.has(key) &&
+// !priority) continue`) so an imminent click can jump the queue — which means
+// `useNeighborWarm` re-enqueues all ±6 neighbours on EVERY selection. That was
+// free while a behind cache returned early doing nothing; now each one would
+// issue a tail fetch, so a fast scan would multiply into ~12 requests per click.
+//
+// ⭐ THE INTERVAL IS THE TIMEFRAME'S OWN BUCKET, NOT A PICKED NUMBER. A repaired
+// cache cannot become stale again faster than one bar can close, so repairing a
+// given (sym, tf) more than once per bucket cannot buy a single fresher bar — it
+// is pure traffic. 60s floor so 1m does not repair every minute of a long scan.
+const _repairAt = new Map()   // `${sym}_${tf}` -> ms of last repair attempt
+function _repairCooldownOk(sym, tf) {
+  const key = `${sym}_${tf}`
+  const now = Date.now()
+  const gap = Math.max(60_000, (Number(tf) || 5) * 60_000)
+  const last = _repairAt.get(key)
+  if (last != null && now - last < gap) return false
+  _repairAt.set(key, now)
+  // Bounded: a long scanning session must not grow this map without limit.
+  if (_repairAt.size > 400) {
+    for (const [k, t] of _repairAt) { if (now - t > gap) _repairAt.delete(k) }
+  }
+  return true
+}
+
+/** @internal test seam — a fresh cooldown table per case. */
+export function _resetRepairCooldown() { _repairAt.clear() }
+
+// The TAIL-REPAIR url: every row past the cache's newest bar, nothing before it.
+// `warm=1` keeps it shed-able under load exactly like the full warm — a repair is
+// still a background nicety and must never outrank the chart the member clicked.
+function _sinceUrl(sym, tf, lastT) {
+  return `/api/bars/${encodeURIComponent(sym)}?tf=${tf}&bars=${BAR_COUNTS[tf] ?? 5000}`
+       + `&since=${encodeURIComponent(String(Math.max(0, lastT - 1)))}&warm=1`
+}
+
+// ── PREPARE ONE SYMBOL FOR DISPLAY, AND SAY WHAT HAPPENED ───────────────────
+//
+// ⛔⛔ THE BLIND TIMER THIS REPLACES WAS THE ORIGINAL DEFECT POSTPONED. The
+// handoff used to commit the new symbol after a flat 600ms whatever the state
+// of its data — so a symbol that never prepared got committed anyway, StockChart
+// received it with `bars` null, the empty-bars arm fired, and the member got
+// B's header over a black canvas. "Timed out" was being reported as success.
+//
+// ⭐⭐ AND THERE IS A CASE NEITHER "current" NOR "stale" DESCRIBES. A HALTED or
+// thinly-traded symbol legitimately has no print since 10:00. Its cache is not
+// behind the market — it IS the market for that symbol. Rejecting it forever
+// (there is no newer bar to wait for) and calling it stale are both wrong. Once
+// we have ASKED the server with `since=` and been told there is nothing newer,
+// the cache is AUTHORITATIVE and fit to display. That is a real answer, not a
+// tolerance fudge, and it is why this returns an outcome instead of a boolean.
+//
+//   'current'       repaired (or already) at the session frontier
+//   'authoritative' asked; the server has nothing newer. Correct to display.
+//   'nodata'        the symbol yielded no bars at all (dead / delisted / typo)
+//   'error'         the request failed
+//
+// ⛔ 'nodata' AND 'error' ARE NOT SUCCESS. The caller may commit on them — the
+// member clicked, and being silently pinned to the previous chart is its own
+// bug — but it must classify them as DEGRADED, never count them as a completed
+// handoff, and let the chart show its own honest loading/no-data state.
+export async function prepareForDisplay(sym, tf) {
+  if (!sym || !tf) return 'error'
+  try {
+    const have = await idbGet(sym, tf)
+    const lastT = have?.lastT
+    const hasBars = !!have?.bars?.length
+    if (hasBars && _INTRADAY_TFS.has(String(tf)) && typeof lastT === 'number'
+        && isCurrentEnoughForPaint(lastT, tf)) {
+      memPut(sym, tf, have.bars)
+      return 'current'
+    }
+    // Ask for exactly what is missing: the tail when we have a sound base to
+    // repair, the window when we have nothing. Same URLs the warmer uses, so
+    // this shares its dedupe and its shed-ability rather than opening a door.
+    const asked = (hasBars && typeof lastT === 'number'
+      && classifyIntradayTail(lastT, tf) === 'behind')
+    const url = asked ? _sinceUrl(sym, tf, lastT) : _url(sym, tf)
+    const json = _noteWarmResult(await preload(url, warmFetcher))
+
+    // ⛔⛔ VERIFY THAT WE ACTUALLY HEARD FROM THE AUTHORITY BEFORE BELIEVING
+    // "there is nothing newer". `warmFetcher` maps a 503 SHED to
+    // `{ bars: [], error: 'warming' }` — the server saying "I was too busy to
+    // look". An earlier version of this function read that as an empty answer,
+    // kept the old cache, and returned 'authoritative': an hours-stale chart
+    // committed as though it had been verified. A non-answer is not an answer.
+    const answered = _isAuthoritativeAnswer(json, sym, tf)
+    if (!answered.ok) return 'error'
+
+    const rows = json.bars
+    if (!rows.length && !hasBars) return 'nodata'
+    const next = (hasBars && json.delta) ? mergeDelta(have.bars, rows)
+      : (rows.length ? rows : have.bars)
+    if (!next?.length) return 'nodata'
+    await idbPut(sym, tf, next)
+    memPut(sym, tf, next)
+    const newestT = next[next.length - 1]?.t
+    if (!_INTRADAY_TFS.has(String(tf))) return 'current'
+    if (typeof newestT === 'number' && isCurrentEnoughForPaint(newestT, tf)) return 'current'
+    // We asked the authority for this exact symbol + timeframe and it confirmed
+    // there is nothing newer. The cache IS the frontier for this symbol.
+    return 'authoritative'
+  } catch {
+    return 'error'
+  }
+}
+
+/**
+ * Did this response genuinely come from the authority, FOR THIS REQUEST?
+ *
+ * ⛔ EVERY CLAUSE HERE EXISTS BECAUSE ITS ABSENCE WOULD MANUFACTURE A FALSE
+ * 'authoritative' — and a false 'authoritative' is worse than a stale paint,
+ * because it commits stale data while asserting it was checked.
+ */
+export function _isAuthoritativeAnswer(json, sym, tf) {
+  //   a request that never reached the source / network error / aborted
+  if (json == null) return { ok: false, why: 'no-response' }
+  //   503 shed or any transient — the server did not look
+  if (json.error) return { ok: false, why: `server-${json.error}` }
+  //   malformed body
+  if (!Array.isArray(json.bars)) return { ok: false, why: 'malformed' }
+  //   wrong symbol (a dedupe/cache collision must never answer for another name)
+  if (json.ticker && String(json.ticker).toUpperCase() !== String(sym).toUpperCase()) {
+    return { ok: false, why: 'wrong-symbol' }
+  }
+  //   wrong timeframe
+  if (json.tf != null && String(json.tf) !== String(tf)) {
+    return { ok: false, why: 'wrong-timeframe' }
+  }
+  return { ok: true, why: 'verified' }
 }
 
 // Prefetch a list of tickers for a specific timeframe (e.g. visible list rows).
@@ -237,9 +387,40 @@ async function _idbWarmOne({ sym, tf }) {
     // A DAILY entry missing recent sessions is NOT fresh: the chart's daily
     // staleness gate refuses to paint it, so leaving it here is what makes the
     // NEXT click cold-load on a black screen. Refresh it so scanning keeps the
-    // daily cache current and the click paints instantly. (Intraday is already
-    // handled: idbGet returns null for a stale-intraday entry → `have` is null.)
+    // daily cache current and the click paints instantly.
     const staleDaily = tf === 'D' && have?.bars?.length && isDailyTailStale(have.lastT)
+
+    // ⚰️⚰️ THE COMMENT THAT USED TO SIT HERE SAID "Intraday is already handled:
+    // idbGet returns null for a stale-intraday entry → `have` is null". THAT
+    // STOPPED BEING TRUE and nothing noticed. `idbGet` was correctly changed to
+    // hand BEHIND entries back (they are sound repair bases; discarding them is
+    // what forced re-downloading thousands of bars to recover today's last
+    // twenty) — and this early return, which had been leaning on that eviction as
+    // its staleness signal, silently became "an hours-stale intraday cache is
+    // already warm, do nothing". So the warmer stopped repairing exactly the
+    // caches that most needed it, and the next click painted 10:00 at 15:55.
+    //
+    // ⭐ REPAIR IT WITH THE TAIL, NOT A REFETCH. `since=` returns every row past
+    // the threshold, so one small request (production-measured 8.5 KB / 59 ms vs
+    // 81 KB / 111 ms for the full window) carries the whole gap. This is the
+    // difference between "the likely-next symbol is warm" and "the likely-next
+    // symbol is CURRENT", which is the only one the member can see.
+    const behindIntraday = _INTRADAY_TFS.has(String(tf)) && have?.bars?.length
+      && typeof have.lastT === 'number'
+      && classifyIntradayTail(have.lastT, tf) === 'behind'
+      && !isCurrentEnoughForPaint(have.lastT, tf)
+    if (behindIntraday) {
+      if (_holdBackgroundWarm()) return
+      if (!_repairCooldownOk(sym, tf)) return
+      const tail = _noteWarmResult(
+        await preload(_sinceUrl(sym, tf, have.lastT), warmFetcher))
+      if (tail?.bars?.length) {
+        const merged = mergeDelta(have.bars, tail.bars)
+        await idbPut(sym, tf, merged)
+        memPut(sym, tf, merged)
+      }
+      return
+    }
     if (have?.bars?.length && !staleDaily) return  // already durable + fresh — no fetch
     // Don't race the pack to origin, and don't pile onto a shedding server (see
     // _holdBackgroundWarm). The pack is writing these tickers into IDB; a click
@@ -340,7 +521,6 @@ export function prefetchBarsToIDB(tickers, tf = 'D', { priority = false, immedia
 // whose newest bar is older than max(6 tf-periods, 20min) is NOT promoted,
 // because the chart itself refuses to paint it (it full-refetches instead);
 // promoting it would flash an old session mid-scan. D/W/M always promote.
-const _INTRADAY_TFS = new Set(['1', '5', '15', '30', '60'])
 function _memPromoteFresh(tf, lastT) {
   // Daily: reject a tail missing recent sessions (mirrors the chart's gate — a
   // stale daily promoted to mem would just be suppressed, or flash old data).

@@ -108,6 +108,26 @@ export function breadthRecord(sym) {
 
 /** Start the fetch without mounting a component — for a non-React caller that
  *  wants the answer to become available. Safe to call repeatedly. */
+/**
+ * Test seam: install the registry synchronously. ⚠️ tests only.
+ *
+ * ⛔ A SEAM RATHER THAN `vi.mock`. Mocking this module replaces the very function
+ * under test in the rails that measure how breadth and market indicators COMPOSE,
+ * which proves the mock composes and nothing else.
+ */
+export function __setBreadthSymbolsForTest(symbols) {
+  _cache = symbols
+    ? {
+        map: new Map((symbols || []).map(r => [String(r.symbol || r).toUpperCase(),
+                                               typeof r === 'string' ? { symbol: r } : r])),
+        groups: [],
+        library: { rows: [], families: [], universes: [], metricOrder: new Map() },
+      }
+    : null
+  _promise = null
+  _subs.forEach(fn => fn(_cache))
+}
+
 export function loadBreadthSymbols() {
   return _load()
 }

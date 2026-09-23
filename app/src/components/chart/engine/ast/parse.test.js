@@ -449,7 +449,7 @@ describe('the hash that decides a rev bump', () => {
 })
 
 describe('the manifest', () => {
-  it('declares 5 series, 19 clock, 15 operators, 73 functions and 137 scalars — 249 names, one grammar', () => {
+  it('declares 5 series, 27 clock, 15 operators, 75 functions and 137 scalars — 259 names, one grammar', () => {
     expect(Object.keys(TABLE.series)).toHaveLength(5)
     // ⭐ THE FIFTH SECTION (tableVersion 2, 2026-08-26). Thirteen bar-clock
     // values — the seven ET wall-clock fields, `sessionfirst`, `barindex` and the
@@ -463,7 +463,22 @@ describe('the manifest', () => {
     // `NODE_TYPES` is again unmoved; what `interpret` gained is two more
     // arguments it did not have — the evaluating instant and the closure set —
     // both fail-closed exactly as `tf` is.
-    expect(Object.keys(TABLE.clock)).toHaveLength(19)
+    // ⭐ 19 -> 20 (2026-09-19): `lastbarindex`, the newest bar's own `barindex`
+    // broadcast to every bar -- `islast`'s ruling applied to a number rather
+    // than a flag. It rides the EXISTING `series` node and adds no argument
+    // `interpret` did not already have (it costs one more `computeClock`
+    // column, same seam as `barindex`), so `tableVersion` is unmoved at 2.
+    // ⭐⭐ 20 -> 26 (2026-09-20): `lastbartime` + its five calendar fields
+    // (`lastbaryear`/`lastbarmonth`/`lastbardayofmonth`/`lastbarhour`/
+    // `lastbarminute`) -- `lastbarindex`'s own ruling applied to a calendar
+    // instead of a bar position, and this engine's answer for Pine's
+    // `timenow` (a live wall clock a static translator has no instant for).
+    // All six ride the EXISTING `series` node and add no argument `interpret`
+    // did not already have, so `tableVersion` is unmoved at 2.
+    // ⭐ 26 -> 27 (2026-09-20): `dayopentime` -- `sessionfirst`'s own `day`
+    // key turned into a value, the anchor for Pine's `time(<timeframe>)`
+    // one-argument form when the timeframe folds to "D". Same `series` node.
+    expect(Object.keys(TABLE.clock)).toHaveLength(27)
     expect(Object.keys(TABLE.operators)).toHaveLength(15)
     // ⭐ 70 -> 71 (2026-09-09): `cum`, the running total, under owner Ruling D.
     // Its containment is on the DEFINITION (`_requirement_tags.window_dependent`),
@@ -530,16 +545,31 @@ describe('the manifest', () => {
     // reader, `reads: "bars"`, the structural mirror of `obvN` — its window is
     // `arg0`, the same declaration shape `obvN` already uses). No new node
     // type, argument kind, or lookback form. `tableVersion` is unmoved.
-    // ⭐ 71 -> 73 (2026-09-22): `ceil` and `floor`, the LAST TWO names missing
-    // from the whole `math.*` family — every other one the corpus uses (abs,
-    // max, min, round, sqrt, pow, sign, avg, log, exp, sum) already resolved in
-    // both lanes. Declared under the ruling `pine.nineNames.test.js` recorded:
-    // the vendor reading was already BANKED and says `floor(-2.5) = -3`,
-    // `ceil(-2.5) = -2`, verdict "toward -∞", so the implementation needed no
-    // hand-written correction the way `round`'s half-rule did. Ordinary
-    // pointwise entries — no new node type, argument kind or lookback form, and
-    // `tableVersion` is unmoved.
-    expect(Object.keys(TABLE.functions)).toHaveLength(73)
+    // ⭐ 71 -> 72 (2026-09-20): `floor`, Pine's `math.floor` -- the sole
+    // blocker on a real corpus script (`renko-candles-overlay__d76a18d49e.pine`).
+    // Ordinary pointwise entry, `lookback: 0`, one `series` argument -- no new
+    // node type, argument kind or lookback form. `tableVersion` is unmoved.
+    // ⭐ 72 -> 73 (2026-09-20): `percentileLinearInterpolation`, Pine's
+    // `ta.percentile_linear_interpolation` -- routed onto this camelCase
+    // manifest key via `PINE_CALL_SHAPES` (identity build, three args
+    // straight through), vetted against a real TradingView capture. Three
+    // arguments (`series, int, int`), `lookback: "arg1"` -- the same
+    // already-used lookback form every `arg1` window declares -- no new node
+    // type, argument kind or lookback form. `tableVersion` is unmoved.
+    // ⭐ 73 -> 74 (2026-09-20): `ceil`, Pine's `math.ceil` -- `floor`'s exact
+    // sibling (same shape, same guard, zero `pine.js`-specific code), and the
+    // sole blocker on a real corpus script
+    // (`chart-champions-part-1-npoc-levels-vwaps__wdeUFJ4ZD2.pine`). Ordinary
+    // pointwise entry, `lookback: 0`, one `series` argument -- no new node
+    // type, argument kind or lookback form. `tableVersion` is unmoved.
+    // ⭐⭐ 74 -> 75 (2026-09-20): `valuewhenOccurrence`, Pine's `ta.valuewhen`
+    // -- occurrence-indexed backward search, unbounded (`lookback: "series"`,
+    // structurally like `cum`'s vocabulary word but NOT `window_dependent`:
+    // widening the fetch never shifts what this answers for a fixed real
+    // bar). `ta.valuewhen` routes here via a namespace-aware special case in
+    // `resolveTableCall`; this table's own bare `valuewhen` (a bounded bar
+    // window) is untouched. No new node type or argument kind.
+    expect(Object.keys(TABLE.functions)).toHaveLength(75)
     // ⭐ THE FOURTH SECTION (Phase E Task 1). Counted SEPARATELY from the three
     // above, not folded into one total: 48 is the BAR vocabulary a corpus case
     // can exercise against 579 bars, and 54 is the per-symbol vocabulary that
@@ -634,11 +664,25 @@ describe('the manifest', () => {
     // _barstate` says why `barstate.*` is evaluated per bar on a pane and
     // still folded on a screen, and why the trading calendar stays in Python
     // rather than being restated in JS. Scalar half untouched at 137.
-    // ⭐ 110 -> 112 (2026-09-22): `ceil` and `floor`. Pointwise entries, no
-    // node type, no argument kind, no lookback form, `tableVersion` unmoved.
-    expect(bar.size).toBe(112)
+    // ⭐ 110 -> 111 IS `lastbarindex` (2026-09-19) -- see the clock-count note above.
+    // ⭐ 111 -> 112 IS `floor` (2026-09-20) -- see the functions-count note above.
+    // ⭐ 112 -> 113 IS `percentileLinearInterpolation` (2026-09-20) -- see the
+    // functions-count note above.
+    // ⭐⭐ 113 -> 119 IS `lastbartime` + its five calendar fields (2026-09-20)
+    // -- see the clock-count note above. Scalar half untouched at 137, which
+    // is what makes the total 256, not 257.
+    // ⭐ 119 -> 120 IS `ceil` (2026-09-20) -- see the functions-count note
+    // above. Scalar half untouched at 137, which is what makes the total
+    // 257, not 258.
+    // ⭐⭐ 120 -> 121 IS `valuewhenOccurrence` (2026-09-20) -- see the
+    // functions-count note above. Scalar half untouched at 137, which is
+    // what makes the total 258, not 259.
+    // ⭐ 121 -> 122 IS `dayopentime` (2026-09-20) -- see the clock-count note
+    // above. Scalar half untouched at 137, which is what makes the total
+    // 259, not 260.
+    expect(bar.size).toBe(122)
     const declared = new Set([...bar, ...Object.keys(TABLE.scalars)])
-    expect(declared.size).toBe(249)
+    expect(declared.size).toBe(259)
     // ⚠️ `tableVersion` WENT 1 -> 2 ON 2026-08-26, AND THE CRITERION IN THIS
     // COMMENT IS WHY IT TOOK UNTIL NOW. It versions what a READER must have, and
     // for Phase E that was exactly "the node types and the keys a persisted tree

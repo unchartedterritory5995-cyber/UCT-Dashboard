@@ -1,5 +1,9 @@
 import { describe, it, expect } from 'vitest'
-import { FIRST_PAINT_BARS, fullBarsFor, shouldBackfill, nextBackfillDepth } from './barsBackfill'
+import {
+  FIRST_PAINT_BARS, FIRST_PAINT_MAX, RTH_VISIBLE_FRACTION,
+  firstPaintBarsFor, firstPaintVisibleFor,
+  fullBarsFor, shouldBackfill, nextBackfillDepth,
+} from './barsBackfill'
 
 describe('nextBackfillDepth (progressive deep-pan)', () => {
   it('first step from the 600 shallow window lands a fast intermediate chunk', () => {
@@ -81,5 +85,70 @@ describe('barsBackfill', () => {
   it('respects the edge threshold boundary', () => {
     expect(shouldBackfill({ ...base, fromIndex: 50, toIndex: 250 })).toBe(true)
     expect(shouldBackfill({ ...base, fromIndex: 51, toIndex: 251 })).toBe(false)
+  })
+})
+
+describe('firstPaintBarsFor — the budget is in VISIBLE bars', () => {
+  // RTH buckets per session, per timeframe. The whole point of the budget is that
+  // THESE are the units a trader experiences, so the coverage assertions use them.
+  const PER_SESSION = { 1: 390, 5: 78, 15: 26, 30: 13, 60: 7 }
+
+  it('reaches the intended trading-day coverage on every intraday timeframe', () => {
+    const sessions = (tf) => firstPaintVisibleFor(tf) / PER_SESSION[tf]
+    expect(sessions('1')).toBeCloseTo(1, 1)
+    expect(sessions('5')).toBeCloseTo(6, 1)
+    expect(sessions('15')).toBeCloseTo(18, 1)
+    expect(sessions('30')).toBeCloseTo(35, 1)
+    expect(sessions('60')).toBeCloseTo(66, 1)
+  })
+
+  it('CONTROL — the OLD flat 600 missed those targets badly, so the test above is not vacuous', () => {
+    // 600 fetched arrived as ~244 visible. Measured on AAPL in production
+    // 2026-09-20: 234 / 242 / 247 / 246 on 5m / 15m / 30m / 60m.
+    const oldVisible = Math.round(600 * RTH_VISIBLE_FRACTION)
+    expect(oldVisible).toBeGreaterThan(230)
+    expect(oldVisible).toBeLessThan(250)
+    expect(oldVisible / PER_SESSION[60]).toBeLessThan(40)      // was ~35 sessions
+    expect(firstPaintVisibleFor('60') / PER_SESSION[60]).toBeGreaterThan(60)
+  })
+
+  it('leaves real scroll-back behind the 200-bar default zoom', () => {
+    // The defect: ~240 visible against a 200-bar zoom is ~40 bars of headroom.
+    for (const tf of ['5', '15', '30', '60']) {
+      expect(firstPaintVisibleFor(tf) - 200).toBeGreaterThan(200)
+    }
+  })
+
+  it('stays UNDER the server deep-request threshold on every timeframe', () => {
+    // bars_fetch._DEEP_REQUEST_THRESHOLD === 1200. At or above it the server takes
+    // a heavier branch, so a first paint crossing this line silently changes which
+    // server path a chart open uses.
+    for (const tf of ['1', '5', '15', '30', '60', 'D', 'W', 'M']) {
+      expect(firstPaintBarsFor(tf)).toBeLessThan(1200)
+      expect(firstPaintBarsFor(tf, true)).toBeLessThan(1200)
+    }
+    expect(FIRST_PAINT_MAX).toBeLessThan(1200)
+  })
+
+  it('extended hours makes the request SMALLER, never larger — nothing is filtered', () => {
+    for (const tf of ['1', '5', '15', '30', '60']) {
+      expect(firstPaintBarsFor(tf, true)).toBeLessThanOrEqual(firstPaintBarsFor(tf, false))
+    }
+  })
+
+  it('never returns less than the old floor, so no timeframe regresses', () => {
+    for (const tf of ['1', '5', '15', '30', '60', 'D', 'W', 'M', '2', 'bogus']) {
+      expect(firstPaintBarsFor(tf)).toBeGreaterThanOrEqual(FIRST_PAINT_BARS)
+    }
+  })
+
+  it('D/W/M and custom codes keep the flat default — this budget is intraday-only', () => {
+    for (const tf of ['D', 'W', 'M', '2', '45', undefined, null]) {
+      expect(firstPaintBarsFor(tf)).toBe(FIRST_PAINT_BARS)
+    }
+  })
+
+  it('the session fraction is derived from the clock, not typed', () => {
+    expect(RTH_VISIBLE_FRACTION).toBeCloseTo(390 / 960, 6)
   })
 })

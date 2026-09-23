@@ -7,7 +7,7 @@ This file provides guidance to Claude Code when working in this repository.
 **UCT Dashboard** is a live bento-box trading dashboard for Uncharted Territory. It is a full-stack app:
 - **Frontend:** React + Vite SPA with React Router (NOT Next.js — ignore all "use client" suggestions)
 - **Backend:** FastAPI (Python) — serves the React build and all `/api/*` data endpoints
-- **Deployment:** Railway, **SIX services** (`web`, `worker`, `bars-api`, `flow-worker`, `chart-renderer`, `terminal-next-monitor`) at `https://uctintelligence.com` (Cloudflare DNS). ⛔ *"single service"* was true once and is not now — derive the roster with `railway status --json`. Which of them a push restarts, and when that is safe, is **`docs/runbooks/deploy-windows.md`**, not this line.
+- **Deployment:** Railway, **SEVEN services** (`web`, `worker`, `bars-api`, `flow-worker`, `chart-renderer`, `terminal-next-monitor`, `breadth-v2-runner`) at `https://uctintelligence.com` (Cloudflare DNS). ⚰️ This said *"SIX services"* until 2026-09-23 — `breadth-v2-runner` (a background runner for the breadth V2 methodology correction, per its own latest commit) was live and undocumented. ⛔ *"single service"* was true once and is not now — derive the roster with `railway status --json`, don't retype this line's own count next time either. Which of them a push restarts, and when that is safe, is **`docs/runbooks/deploy-windows.md`**, not this line.
 - **Domain:** `uctintelligence.com` — Cloudflare registrar + DNS, Railway custom domain
 - **Email:** Resend (verified domain), sends from `UCT Intelligence <noreply@uctintelligence.com>`
 - **Payments:** Stripe (sandbox + live), webhook at `/api/webhooks/stripe`
@@ -37,8 +37,8 @@ node tools/nav_manifest.mjs            # this table, plus the route diff
 node tools/nav_manifest.mjs --self-check
 ```
 
-Derived by **acorn AST** from `NAV_ITEMS` in `app/src/components/NavBar.jsx:18`
-on **2026-09-18**. Regenerate after any change to that array.
+Derived by **acorn AST** from `NAV_ITEMS` in `app/src/components/NavBar.jsx:19`
+on **2026-09-21**. Regenerate after any change to that array.
 
 | label | route |
 |---|---|
@@ -58,13 +58,14 @@ on **2026-09-18**. Regenerate after any change to that array.
 | Formula Reference | `/formulas/reference` |
 | The Desk | `/desk` |
 | Journal | `/journal` |
+| Portfolio Risk | `/portfolio-heat` |
 | Community | `/community` |
 | Support | `/support` |
 
-**18 entries** (was 16 — `/catalysts/history` and `/formulas/reference` added
-2026-09-18, F-NAV-1's own default: a reachable route with real inbound links AND
-non-zero 16-day production traffic gets a sidebar entry). Every one resolves to a
-registered route (`navWithoutRoute = 0` against 88 routes in `App.jsx`) — so the
+**19 entries** (was 18 — `/portfolio-heat` added 2026-09-21, A14 CP1: a real member
+door on `portfolio_heat.py`'s already-computed risk numbers, paid-gated the normal
+way per G1's "no free tier, only paid" answer). Every one resolves to a
+registered route (`navWithoutRoute = 0` against 89 routes in `App.jsx`) — so the
 **phantom-entry defect this section used to commit is currently absent**, and the
 generator is what keeps saying so.
 
@@ -137,11 +138,20 @@ the second-authority-over-one-value defect that has caused three separate outage
 | `components/calendar/FundamentalsStrip.jsx` — the fwd-PE strip | 🗑️ **DELETED** (`d26cee0c`) — dead by inheritance; its only importer was `EarningsModal.jsx`. ⚠️ Its neighbour `calendar/SentimentGauge.jsx` was NOT dead by inheritance and stays: `components/research/sections/CallSection.jsx` reuses it. |
 | `charts/widgets/MobileChartFallback.jsx` — "mobile <640px renders a full-screen StockChart via MobileChartFallback" | 🗑️ **DELETED** with its test (`ed53f9b6`). `ChartsWorkspace.jsx` imports and renders **`MobileWorkspace`** — that is the phone branch. |
 | `journal-2-0/components/BrokerSyncStatus.jsx` | 🗑️ **DELETED** with its test (`ed53f9b6`). The bar was absorbed into `components/trust/SyncTrustCenter.jsx`, which is what renders sync freshness. |
-| `journal-2-0/components/BrokerEquityCurve.jsx` + `hooks/useBrokerEquityCurve.js` — "Open Positions leads with a real equity curve" | 🗑️ **DELETED** (`d26cee0c`). ⚠️ **The data outlived the renderer**: `j2_broker_equity_snapshots` is still written daily and nothing draws it. That is a product decision waiting to be made, not a leftover to clean up. |
-| "ON THE TAPE" section on `MoversSidebar.jsx` + `hooks/useTapeFeed.js` | 🗑️ **`useTapeFeed.js` DELETED** — superseded, not merely unmounted. `3dc5036a` moved the tape out of the sidebar; the successor is `components/tiles/TapeFeed.jsx`, mounted on `Dashboard.jsx` twice (desktop + mobile) and reading **`/api/tweets/feed`** via `hooks/useTweetFeed.js`. The *name* survived onto the new tile, which is why this read as live. ⚠️ **`GET /api/tweets/tape` is still mounted and now has zero callers** — deliberately: a browser holding the previous bundle still polls it. Retire the route a deploy cycle later, not in the same commit as its last caller. |
+| "ON THE TAPE" section on `MoversSidebar.jsx` + `hooks/useTapeFeed.js` | ⚰️ This row said `useTapeFeed.js` was DELETED — **stale, corrected 2026-09-22.** The file was restored (`06d3a6318 revert(web): restore useTapeFeed.js — it was never mine to delete`) by another session and is now **IN-FLIGHT, not orphaned**: `reachable.test.js` tracks it correctly as "a 30s poll of `/api/tweets/tape` whose docstring names its intended mount (MoversSidebar) — the wire is planned rather than lost," and explicitly warns against mounting OR deleting it as guessing at an owner's intent that has already been reverted once. **Do not touch this file** — read `reachable.test.js`'s own entry for it before acting. The successor tile this row also describes is real and unaffected: `components/tiles/TapeFeed.jsx`, mounted on `Dashboard.jsx` twice (desktop + mobile), reading **`/api/tweets/feed`** via `hooks/useTweetFeed.js`. ⚠️ **`GET /api/tweets/tape` is still mounted and now has zero *frontend* callers** — a browser holding the previous bundle still polls it; retiring the route is a separate decision from whatever happens to `useTapeFeed.js`. |
 | `components/PositionCalc.jsx` — "TickerPopup … position calculator" | 🗑️ **DELETED** (`d26cee0c`). `TickerPopup.jsx` contains no calculator. |
 | `components/tiles/NHNLModal.jsx` — "opens on click of NH or NL in MarketBreadth" | 🗑️ **DELETED** (`d26cee0c`). `MarketBreadth.jsx` never referenced it — and no longer renders NH/NL at all (see its own section below). |
 | `api/earnings_router.py` — its own docstring says *"Mount in main.py: `app.include_router(earnings_router, prefix="/api/schwab")`"* | 🔴 **STILL PRESENT, STILL UNMOUNTED — the only live row in this table.** `earnings_router` appears nowhere in `api/main.py`. It is also superseded: `api/schwab_router.py`'s Yahoo-backed `_fetch_earnings_yf` + `POST /api/schwab/earnings` is what actually serves, at the very prefix the docstring asks for. ⚠️ That instruction is in a file this doc's owner cannot edit; **do not follow it** — FastAPI answers on first match, so mounting the Finviz-scraping predecessor would put a second authority on earnings dates and silently shadow one of the two. |
+| `GET /api/voice/risk-dashboard` + `voice_position_sizing.get_risk_dashboard()` — own docstring said *"Used by the Risk Dashboard UI panel to visualize the position-sizing engine state"* | 🗑️ **RETIRED 2026-09-23 (Packet AE CP1, fingerprint `d56a02db8`).** The UI panel it names, `app/src/pages/RiskDashboard.jsx`, was deleted 2026-08-09 (`d26cee0c0`) — dead by inheritance from the 2026-05-25 free-tier narrowing (`709f4407a`) that dropped the `/risk` route. The backend was never cleaned up alongside it: the route ran real per-member risk math on every hit with zero frontend caller for four months. Deleted rather than revived because `api/services/portfolio_heat.py` + `/portfolio-heat` (A14 CP1, shipped 2026-09-21 — one day before this was found) already covers the same ground more completely (notional exposure vs. regime ceiling, actual concentration-breach flags) **and more safely**: `get_risk_dashboard`'s heat math had no placeholder-stop detection, so a broker-imported position with no real stop contributed zero to its risk total — exactly the under-reporting bug `portfolio_heat.py` was built to close. `tests/test_risk_dashboard.py` deleted with it. The one thing genuinely unique to the orphan — a "recent refusals" list from `voice_tool_calls` — has no home yet; it is a real, small, candidate follow-up, not carried forward here. |
+
+✅ **CORRECTED 2026-09-22 — `BrokerEquityCurve` is NOT orphaned; this table previously said
+🗑️ DELETED.** `journal-2-0/components/broker/BrokerEquityCurve.jsx` exists, is imported and
+rendered on both `OpenPositionsTab.jsx` (`:33,381`) and `AnalyticsTab.jsx` (`:26,164`,
+`compact`), and reads real data via `GET /api/j2/broker/equity-curve` over
+`j2_broker_equity_snapshots`. ⚠️ `hooks/useBrokerEquityCurve.js` — the hook this row also
+named — genuinely does not exist; the live component calls the shared `useMobileSWR` hook
+directly instead. The component came back (or never left where these two tabs render); the
+named hook file did not.
 
 | `journal-2-0/lib/offline/patchNote` — mentioned in Wave Q1 round-2 working notes | ⚰️ **REMOVED, NOT ORPHANED (2026-09-10).** It was ADDED by the Wave Q1 round-2 work and deleted again when the in-flight marker moved to the meta store; it is absent from `lib/offline/**`, not merely unreferenced. Recorded here so nobody files it as a dead export and goes looking for the file. Wave Q1 ruling **R-H** (`docs/notebook/wave-q1-RESUME-HERE.md`). |
 
@@ -206,6 +216,71 @@ A full side-by-side rebuild of the Journal tab lives at `/journal` → "Journal 
   - `j2_positions`, `j2_trades` — open + closed equity trades
   - `j2_day_notes` — prep/mid-day/recap reflection + attachments + rules checklist
   - `j2_notes` + `j2_note_folders` — **Notebook** (Substack-style long-form notes, TipTap WYSIWYG, folders + tags, optional ticker, hero image). Replaced Playbook 2026-05-26 via one-shot migration (gated by `.notebook_migration_v1` flag in `DATA_DIR`). **Nested folders** (`parent_id`, `.notebook_migration_v2`) + a **file-based importer** (Notion/Obsidian/Evernote/generic md·docx·txt·html; wizard lives in `NotebookTab`; bulk endpoints `POST /api/j2/notes/import/check|confirm`) shipped 2026-08-11.
+  - **Saved views cover all five modes** (`SAVEABLE_VIEW_TYPES` in
+    `note_properties.py` ⇄ `SAVEABLE_VIEW_MODES` in `lib/savedViewModes.js`).
+    ⛔⛔ **ONE FACT IN TWO FILES, PINNED AGAINST EACH OTHER** by
+    `tests/test_journal_two_properties_router.py`, which PARSES the client list
+    rather than restating it — a copy in the test would be a third authority.
+    Client gains a mode the server refuses ⇒ a button that 400s; server gains
+    one the client lacks ⇒ an invisible capability. Neither file is wrong alone,
+    which is why the rail reads both. ⛔ Adding a mode is **not enough**:
+    `handleSelectView` needs a restore branch or the view saves and then opens
+    as a list — silently, because an unknown type falls back (deliberately, so a
+    view saved by a newer client cannot break an older one). ⛔ A board stores
+    `groupBy` and a calendar `dateProperty` in its spec, as property **IDs** —
+    that is what makes a saved view survive a rename. The server does not
+    resolve those two keys; the client applies them on restore, and the views
+    REPORT their resolved property up rather than the picked one (saving the
+    picked one would store "whatever the default picker chooses next time").
+  - **Calendar view** (`NoteCalendarView.jsx`, fifth `viewMode`). Notes laid on a
+    month grid by a `date` property. ⛔ **The month grid is NOT rederived** —
+    `buildMonthGrid`/`monthLabel`/`dowLabels`/`todayET`/`monthOffset` in
+    `journal-2-0/lib/calendar.js` are what the Journal's own Calendar tab runs
+    on, and `todayET` is Intl-based so it stays right across DST. ⛔⛔ **A date
+    property is a FREE-FORM STRING** (`note_properties` checks only "non-empty
+    string"), so parsing is STRICT — a leading `YYYY-MM-DD`, with impossible
+    dates rejected. ⚰️ `new Date(value)` is the trap: it reads a bare date as
+    UTC, so an ET member sees notes on the PREVIOUS day — wrong in the evening
+    only, which is why the rail uses a `-04:00` stamp that changes day under
+    conversion (a `Z` stamp cannot distinguish the two implementations).
+    ⛔ Unparseable and undated notes appear under **Unscheduled**, never dropped,
+    and a count of dated notes in OTHER months is shown so an empty month is
+    not misread as "nothing scheduled". ⚠️ **READ-ONLY in v1 by decision** —
+    drag-to-reschedule would be another write door needing the board's
+    `settleNoteWrite` treatment, and half of that forks notes.
+  - **Board view** (`NoteBoardView.jsx`, fourth `viewMode` beside list/table/graph).
+    Notion's board over Wave E's property system — no schema change, because
+    `builtin:thesis_status` (Watching/Active/Invalidated/Closed) is already a
+    pipeline. ⛔⛔ **Every move is a note write, so every move calls
+    `settleNoteWrite`** — a board drag is door seven in that file's ledger, and
+    five of the first six shipped without recording and FORKED the note. ⛔ Only
+    a `select` property can group it (multi_select ⇒ one note in many columns
+    and an ambiguous drop; text/number/date ⇒ unbounded columns). ⛔ The **"No
+    value" column is real and droppable** — without it an untriaged note is
+    invisible on the board that exists to triage it and nothing can clear a
+    property. ⛔ Columns keep **declared order**, never sorted by count. ⛔ A move
+    MERGES one property; a failed move rolls back to where it **came from**,
+    never to "No value". ⛔ A blocked note cannot be moved — guarded twice (render
+    branch + `move()`), and the drop path reaches only the second, so it has its
+    own test. ⛔ **Drag is not the only door**: HTML5 drag never fires on touch
+    and the touch tier is ≤1024px, so every card carries a real `<select>`.
+  - **Graph view** (`GET /api/j2/notes/graph` → `notes.get_note_graph`; renderer
+    `journal-2-0/components/notebook/NoteGraphView.jsx`, third `viewMode` beside
+    list/table in `NotebookTab`). Obsidian's signature surface, over the
+    `j2_note_links` projection Wave D already maintains — a read endpoint plus a
+    renderer, never a data-model change. ⛔ **Two queries, never N+1**, and an
+    UNLINKED note is still a node (an inner join against the edges would hide
+    exactly what a member opens this view to find). ⛔ **Trash is excluded on both
+    ends of every edge AND from `degree`** — deliberately stricter than
+    `get_note_backlinks`, which does not gate its target; a test pins the
+    difference so it cannot be tidied into consistency. ⛔ The renderer is
+    **canvas with no new dependency**, its force simulation is **bounded and
+    stops** (an unsettling loop is rule H14), and **hover must never re-run it**
+    — a fresh run re-seeds every node onto the start ring, and because the
+    layout is deterministic, position equality CANNOT catch that; the rail
+    asserts a hover costs one frame (mutation-proved: the defect makes it 221).
+    ⚠️ `create_saved_view` accepts only `("list", "table")`, so the Save-view
+    control is hidden in graph mode rather than offering a button that 400s.
   - `j2_note_connectors` + `j2_note_sources` + `j2_note_sync_log` + `j2_note_remote_index` — **background note-sync connectors** (Roam/Craft graph-token connect; Notion/Dropbox OAuth; scheduled + manual sync with conflict + delete detection) shipped 2026-08-12 on branch `note-connectors`. Router `/api/j2/notes/connectors/*` (`api/routers/note_sync.py`) mounts unconditionally; syncing itself is **double-gated** — `NOTE_SYNC_ENABLED=1` (scheduler registration in `main.py`) AND per-provider config, checked in-endpoint — unset either and it's fully inert.
   - **OneNote + OneDrive** joined the connector roster shipped dark 2026-08-12, same branch — Microsoft Graph OAuth, one shared Azure app (`MSGRAPH_CLIENT_ID`/`MSGRAPH_CLIENT_SECRET`), same `note_sync.py` router and the same `NOTE_SYNC_ENABLED` + per-provider msgraph-config double-gate as above. OneNote syncs via a resumable per-tick watermark queue (bounded enumeration + paced content fetch across ticks), not a one-shot pull.
   - `j2_playbook_entries` — **deprecated** (kept as backup; manual `DROP TABLE` after ~30d of green prod). Old Playbook tab + UI + routes removed.
@@ -299,7 +374,11 @@ Full session detail: user memory `project_broker_sync_2026_06_15.md`.
 ### Key files
 - BE: `broker/{snaptrade_client,snaptrade_adapter,service,sync,reconstruct,option_reconstruct,balances,balance_resolver,connections,activities_store,dedup,rate_limit}.py`, `routers/broker_sync.py`, `services/crypto_box.py`
 - FE: `pages/journal-2-0/components/{BrokerConnectionsCard (Settings),PositionsTable,BrokerReviewNudge}.jsx` + `components/trust/SyncTrustCenter.jsx` + `tabs/{OpenPositionsTab,TradeJournalTab}.jsx` (options merged into both tables)
-  - ⚰️ This list also named **`BrokerEquityCurve`** and **`BrokerSyncStatus`**. Both are orphaned — see *⚰️ DOCUMENTED BUT UNREACHABLE* near the top. `SyncTrustCenter` is what actually renders the sync bar.
+  - ⚰️ This list also named `BrokerSyncStatus`, which **is** orphaned — see *⚰️ DOCUMENTED BUT
+    UNREACHABLE* near the top; `SyncTrustCenter` is what renders the sync bar. `BrokerEquityCurve`
+    was also named here and previously marked orphaned too — **that was wrong, corrected
+    2026-09-22**: it is live on `OpenPositionsTab.jsx` and `AnalyticsTab.jsx` (see the correction
+    below the unreachable table).
 - Diagnostics (manual, gitignored state): `tools/snaptrade_{smoke_test,shape_audit,j2_e2e}.py`
 
 ### Env vars (Railway web pod; production)
@@ -327,8 +406,8 @@ balance cols on accounts.
 Connect/disconnect in **Settings → Brokerage Connections** (`BrokerConnectionsCard`).
 Open Positions tab leads with: `BrokerAccountHero` + `SyncTrustCenter` (sync freshness
 + one-tap re-sync), "needs a setup" nudge; **options render as rows in the same table as shares**
-⚰️ *(this said "real **equity curve** (from net-liq snapshots)" — `BrokerEquityCurve`
-has zero importers and no equity curve renders on this tab; see the unreachable table.)*
+✅ *(this said `BrokerEquityCurve` had zero importers — **wrong, corrected 2026-09-22**; it
+renders on this tab today, see the correction below the unreachable table.)*
 (`CRWV Oct 16 $110C` · `LONG CALL` · Current/P&L from broker mark). Trade Journal: closed
 options merged into the closed-trades table likewise. Compass already coaches imported
 trades (`imported:true` flag + `coach_prompts.py` rule).
@@ -447,10 +526,12 @@ Plan: `docs/superpowers/plans/2026-07-02-compass-brain-bridge.md`.
 - **3 chat parity tools** (chat-only additions; voice already had them):
   `get_quote` · `get_regime` · `get_breadth`, delegated to the voice impls via
   `voice_tools.dispatch` so there is one implementation.
-- **Known-by-design parity gap:** golden-set questions **R1-06 (earnings date)
-  and R1-07 (top movers)** need `get_earnings_intel`/`get_earnings_this_week`/
-  `get_movers`, which exist voice-side only — text chat fails those two report-card
-  questions until those tools are added to chat parity.
+- ✅ **CLOSED, corrected 2026-09-22 — this said the parity gap was still open.** All three —
+  `get_earnings_intel`/`get_earnings_this_week`/`get_movers` — are already registered in
+  `coach_chat_tools.py`'s `TOOLS` dict, unconditionally (above the `BRAIN_TOOLS_ENABLED` gate),
+  each via `_voice_delegate(name)` → `voice_tools.dispatch()`. Commit `bff6022cf "feat(brain): chat
+  parity - get_movers + earnings tools delegate to the voice registry (closes exam gap
+  R1-06/R1-07)"` is an ancestor of current HEAD. R1-06/R1-07 pass on text chat today.
 
 ### Flags / env (Railway web pod; all default OFF)
 - `BRAIN_PACK_ENABLED=1` — boot pull + 6h refresh in `main.py` lifespan (also
@@ -647,10 +728,11 @@ Plan: `docs/superpowers/plans/2026-07-02-awareness-engine-m1.md`.
   7:30am, so a very active user's awareness insights can exhaust the budget and
   silently drop that day's `daily_focus`. If activated, watch for this; the fix
   (reserve a slot / sub-cap awareness) is M2.
-- **Cold earnings-calendar cache:** `_collect_earnings_window` calls Finnhub up to
-  4× per 20-min cycle when `calendar_weekly` is cold (e.g. right after a redeploy,
-  pre-market before anyone opens /calendar). Bounded + off the request path, but a
-  small per-day memo in the engine would cut Finnhub contention — M2.
+- ✅ **CLOSED, corrected 2026-09-22 — this said a per-day memo was still M2 backlog.** It already
+  exists: `api/services/awareness/engine.py` has `_EARNINGS_MEMO` (TTL `_EARNINGS_MEMO_TTL=3600`,
+  a shorter `_EARNINGS_MEMO_TTL_PARTIAL=300` for partial-failure days), shipped in
+  `13b3be90b "fix(awareness): restore per-symbol insight cooldown + memoize earnings window"`
+  (2026-09-06, S10). Finnhub contention on cold-cache cycles is bounded by this memo today.
 - **`awareness_regime_snapshots` grows unbounded** (~51 rows/weekday, no prune). Trivial
   for years; add a retention sweep eventually.
 - **Score ceiling:** a near-stop proximity warning and an actual stop breach can both
@@ -672,7 +754,7 @@ The voice orb (`voice/FloatingOrb.jsx`, paid-only, bottom-right) and the feedbac
 `hooks/useMediaQuery.js` seeds from `matchMedia(q).matches` at MOUNT and only updates on a media **`change`** event. In a fixed mobile context the viewport never changes, so a JS `useIsTouch()` read can render the desktop variant on a phone. **Use CSS `@media` queries for layout/positioning** (for inline-styled components add a CSS-module class + `!important` inside the query); reserve `useIsTouch()` for click-triggered conditional rendering (open a `Sheet` vs anchored popover on tap). Scroll listeners must use capture phase — the app scrolls the inner `.main` element, not `window` (`Layout.module.css`: `.shell` overflow:hidden, `.main` overflow-y:auto).
 
 ### OptionsFlow mobile (partner-owned, ~7k lines, all inline styles)
-Rebase-safe technique only: add `className` HOOKS to `OptionsFlow.jsx` (never edit its inline `style={{}}` objects) + ride the additive `OptionsFlow.mobile.css` layer (all `@media (max-width:640px)` + `!important`). Hooks in use: `of-mroot` (root), `of-tabs` (tab bar), `of-chiprow`/`of-chiprow-seg`/`of-chiprow-wrap` (filter strips → horizontal scroll, 44px), `of-tip` (theme-help ⓘ, tap-toggled via a `data-pin` flag so the touch mouseenter→click ordering doesn't cancel it).
+Rebase-safe technique only: add `className` HOOKS to `OptionsFlow.jsx` (never edit its inline `style={{}}` objects) + ride the additive `OptionsFlow.mobile.css` layer (all `@media (max-width:640px)` + `!important`). Hooks in use, verified against `OptionsFlow.jsx` source 2026-09-22: `of-mroot` (root), `of-tabs` (tab bar), `of-chiprow-seg`/`of-chiprow-wrap` (filter strips → horizontal scroll, 44px), plus `of-fetchpl`/`of-order`/`of-pickrow`/`of-picks`/`of-refresh` (present, not previously documented here). ⚰️ **`of-tip` and its `data-pin` tap-toggle are GONE** — the theme-help ⓘ hook this line described no longer exists in the component. `OptionsFlow.mobile.css` still declares `.of-tip` and a bare `.of-chiprow` selector that now match nothing in the JSX (dead CSS, not a live hook) — a cleanup candidate, not corrected here.
 
 ## Responsive / Mobile System (2026-06-05 — mobile-seamless initiative)
 
@@ -2803,11 +2885,25 @@ authoritative is the PROXY failure**, in the tool built to prevent it.
 - ⛔ **Nothing owed is a fact — say it.** The tool used to print "C4 is still owed" above an
   empty list on a C0 hit, which reads as *owed, contents unknown*: the worst of both.
 
-⛔⛔ **C5 IS THE WHOLE SAFETY ARGUMENT — THIS IS A DEFERRAL, NOT A SKIP.** The master gate
-runs the full suite against the **actual landed tree** before `production` advances, and
-Railway deploys from `production`. The local gate proves the branch; C1–C4 prove the
-incoming commits cannot interact with it; the master gate re-verifies merged reality.
-**Delete C5 and this becomes a skip.** A red workflow = no deploy and an immediate report.
+⛔⛔ **C5 GATES THE DEPLOY BUT DOES NOT RE-VERIFY THE SUITE — AND THIS PARAGRAPH CLAIMED
+OTHERWISE.** ⚰️ It read *"the master gate runs the full suite against the actual landed
+tree"*. Measured 2026-09-20 from `.github/workflows/master-deploy-gate.yml`: it runs
+**five fast checks** — secret scan, `test_no_shadowed_definitions.py`, VITE build-arg +
+flag-ledger tests, `test_visibility_flag_ledger.py`, `tools/check_repo_hygiene.py`. **No
+vitest, no frontend build.** The workflow's own header says exactly that, so two files in
+this repo contradicted each other and the reassuring one was the one people read.
+
+⭐ **The local six-shard gate is therefore the ONLY full-suite verification a landing
+gets.** C1–C3 still carry the real argument (the incoming commits cannot interact with the
+branch); what is gone is the net that was believed to be under it. When in doubt, re-gate.
+
+⭐ **What C5 DOES do, and it is not nothing:** its verdict decides whether `production` is
+promoted, and **`web` deploys from `production`** — so a red gate stops the member-facing
+deploy. ⚠️ The other five services (`worker`, `bars-api`, `chart-renderer`, `flow-worker`,
+`terminal-next-monitor`) deploy from **`master`** and are NOT gated by it. Measured
+2026-09-20, `railway status --json`. This also supersedes `master-deploy-gate.yml`'s own
+*"a RED gate still deploys"* line, which was true on 2026-09-14 and stopped being true for
+`web` at the cutover.
 
 ⛔ **Any of C1–C3 failing ⇒ local re-gate.** The "third supersession = STOP" rule counts
 C1–C3 failures **only** — disjoint commits that carry are not supersessions.
@@ -5454,10 +5550,14 @@ scale win is about not fanning out per-user work.
   per-instance connections (kept verbatim in `useRealtimePrices.js`). Remove the
   legacy path only after weeks of green prod.
 - **WAL** is on for auth.db / bars.db / cot.db / breadth_monitor.db. Web `busy_timeout` is
-  deliberately LOW (2s on bars; auth.db still 10s — a KNOWN remaining risk, see memory).
+  deliberately LOW (2s on bars; auth.db is **3s** — `auth_db.py:506`,
+  `sqlite3.connect(_DB_PATH, timeout=3)`, its own comment reading `# timeout=3 (was 10)`).
+  ⚰️ This line said "auth.db still 10s — a KNOWN remaining risk" for long enough that a
+  fresh competitive audit (2026-09-22) had to re-derive the correction from the code —
+  the item below was already fixed by more than 3x and nobody moved it off the backlog.
 - **Down-alert monitor** (`worker_main._down_alert_decision`): worker keep-warm pings the
   web origin + posts 🔴/🟢 to Discord (`DISCORD_WEBHOOK_URL` + `DOWN_ALERT_ENABLED=1`).
-- **Known remaining (NOT yet done — memory has the ranked list):** auth.db 10s busy_timeout,
+- **Known remaining (NOT yet done — memory has the ranked list):**
   SSE event-loop 100ms→250ms + lock-free candle snapshot, alert-check delivery offload,
   Finnhub sub cap, table virtualization (react-virtual installed/unused), 1.1MB echarts shrink,
   eventual multi-instance architecture for scale beyond a few hundred users.

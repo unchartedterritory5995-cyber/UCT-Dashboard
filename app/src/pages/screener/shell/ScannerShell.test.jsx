@@ -76,11 +76,11 @@ describe('ScannerShell', () => {
     scanMock.mockReturnValue(EMPTY)
     render(<ScannerShell />)
     expect(screen.getByText(/no stocks match the current filters/i)).toBeInTheDocument()
-    // The toolbar's view tabs are still live — not swallowed by the empty state.
+    // The toolbar's Overview tab is still live — not swallowed by the empty
+    // state. (Firm view-tabs were retired; layouts live in the column picker.)
     expect(screen.getByRole('tab', { name: 'Overview' })).toBeInTheDocument()
-    expect(screen.getByRole('tab', { name: 'Momentum' })).toBeInTheDocument()
-    fireEvent.click(screen.getByRole('tab', { name: 'Momentum' }))
-    // still renders the empty message under the new view — nothing crashed
+    fireEvent.click(screen.getByRole('tab', { name: 'Overview' }))
+    // still renders the empty message — nothing crashed
     expect(screen.getByText(/no stocks match the current filters/i)).toBeInTheDocument()
   })
 

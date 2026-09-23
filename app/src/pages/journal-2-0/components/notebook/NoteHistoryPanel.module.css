@@ -8,7 +8,7 @@
   justify-content: center;
   gap: 8px;
   padding: 40px 16px;
-  color: var(--text-muted, #999);
+  color: var(--text-muted);
   text-align: center;
 }
 .emptyHint {
@@ -39,7 +39,7 @@
   flex: 0 0 220px;
   max-height: 60vh;
   overflow-y: auto;
-  border-right: 1px solid var(--border, #333);
+  border-right: 1px solid var(--border);
 }
 .listItem {
   display: flex;
@@ -53,11 +53,11 @@
   border-radius: var(--radius-md);
   padding: 8px 10px;
   cursor: pointer;
-  color: var(--text, #cfcfcf);
+  color: var(--text);
   min-height: 44px;
 }
-.listItem:hover { background: var(--surface-hover, rgba(255,255,255,0.05)); }
-.listItemActive { background: var(--surface-hover, rgba(220,187,94,0.12)); border: 1px solid var(--ut-gold, #dcbb5e); }
+.listItem:hover { background: var(--bg-hover); }
+.listItemActive { background: rgba(220, 187, 94, 0.12); border: 1px solid var(--ut-gold); }
 .listItemTitle {
   font-size: 13px;
   font-weight: 500;
@@ -68,7 +68,7 @@
 }
 .listItemTime {
   font-size: 11px;
-  color: var(--text-muted, #999);
+  color: var(--text-muted);
 }
 
 .detail {
@@ -86,29 +86,29 @@
 .tabs { display: flex; gap: 4px; }
 .tab, .tabActive {
   background: transparent;
-  border: 1px solid var(--border, #333);
-  color: var(--text-muted, #999);
+  border: 1px solid var(--border);
+  color: var(--text-muted);
   padding: 5px 10px;
   border-radius: var(--radius-md);
   cursor: pointer;
   font-size: 12px;
   min-height: 44px;
 }
-.tabActive { color: var(--text, #e5e5e5); border-color: var(--ut-gold, #dcbb5e); }
+.tabActive { color: var(--text); border-color: var(--ut-gold); }
 
 .statusOk {
-  background: rgba(74, 222, 128, 0.1);
-  border: 1px solid rgba(74, 222, 128, 0.3);
-  color: #4ade80;
+  background: var(--gain-bg);
+  border: 1px solid var(--gain-border);
+  color: var(--gain);
   padding: 8px 10px;
   border-radius: var(--radius-md);
   font-size: 13px;
   margin-bottom: 10px;
 }
 .statusErr {
-  background: rgba(248, 113, 113, 0.1);
-  border: 1px solid rgba(248, 113, 113, 0.3);
-  color: #f87171;
+  background: var(--loss-bg);
+  border: 1px solid var(--loss-border);
+  color: var(--loss);
   padding: 8px 10px;
   border-radius: var(--radius-md);
   font-size: 13px;
@@ -120,15 +120,15 @@
   font-size: 14px;
   line-height: 1.7;
   white-space: pre-wrap;
-  color: var(--text, #d8d8d8);
+  color: var(--text);
 }
 .diffRemoved {
-  color: #f87171;
-  background: rgba(248, 113, 113, 0.12);
+  color: var(--loss);
+  background: var(--loss-bg);
   text-decoration: line-through;
 }
 .diffAdded {
-  color: #4ade80;
-  background: rgba(74, 222, 128, 0.12);
+  color: var(--gain);
+  background: var(--gain-bg);
   text-decoration: none;
 }

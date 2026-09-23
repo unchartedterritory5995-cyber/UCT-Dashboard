@@ -16,11 +16,26 @@
 .railSearchRow { display: flex; align-items: center; gap: 6px; padding: 10px; position: sticky; top: 0; background: var(--bg-surface); z-index: 2; border-bottom: 1px solid var(--border); }
 .railSearch { flex: 1; background: var(--bg-elevated); border: 1px solid var(--border); border-radius: var(--radius-sm, 6px); padding: 6px 8px; color: var(--text); font-size: 12px; min-width: 0; }
 .railClear { background: none; border: none; color: var(--ut-gold); font-size: 11px; cursor: pointer; text-decoration: underline; white-space: nowrap; }
-.railGroup { border-bottom: 1px solid var(--border); padding-bottom: 4px; }
-.railHead { display: flex; align-items: center; gap: 6px; width: 100%; background: none; border: none; color: var(--text-muted); font-size: 10px; text-transform: uppercase; letter-spacing: var(--ls-label, .5px); padding: 9px 10px 5px; cursor: pointer; }
-.railHead span:first-child { flex: 1; text-align: left; }
-.railHead:hover { color: var(--ut-gold); }
-.railPip { background: var(--ut-gold); color: var(--bg); border-radius: var(--radius-lg); padding: 0 5px; font-size: 9px; font-weight: 700; }
+.railGroup { border-bottom: 1px solid var(--border); }
+/* Group headers read as real, clickable rows now: brighter label, a hover fill,
+   and a clearly-visible chevron (the old one was a faint 11px glyph). */
+.railHead { display: flex; align-items: center; gap: 6px; width: 100%; background: none; border: none;
+  color: var(--text); font-size: 10.5px; font-weight: 600; text-transform: uppercase;
+  letter-spacing: .06em; padding: 11px 12px; cursor: pointer; transition: background .1s; }
+.railHeadLabel { flex: 1; text-align: left; }
+.railHeadIcon { display: inline-flex; color: var(--text-muted); flex-shrink: 0; }
+.railHead:hover { color: var(--ut-gold); background: var(--bg-hover); }
+.railHead[aria-expanded="true"] { color: var(--text-bright); }
+.railHead:hover .railHeadIcon, .railHead[aria-expanded="true"] .railHeadIcon { color: var(--ut-gold); }
+.railChev { display: inline-flex; color: var(--text-muted); }
+.railHead:hover .railChev, .railHead[aria-expanded="true"] .railChev { color: var(--ut-gold); }
+.railPip { background: var(--ut-gold); color: #141207; border-radius: 999px; padding: 1px 6px;
+  font-size: 9.5px; font-weight: 700; }
+/* PACKET-AB CP1 (fingerprint bc19457cf): the fast preview-count badge -- a
+   visual affordance beside the search row, never carrying aria-live (that
+   stays ShellToolbar's alone, see FilterRail.jsx's own comment). */
+.railMatchCount { padding: 4px 10px 8px; font-size: 11px; color: var(--text-muted); }
+.railMatchCountEmpty { color: var(--loss, #ef4444); font-weight: 500; }
 
 /* ColumnPicker */
 .pickerPop { position: absolute; top: calc(100% + 4px); right: 0; z-index: 20; width: 300px; max-height: 55vh; display: flex; flex-direction: column; background: var(--bg-surface); border: 1px solid var(--border-accent); border-radius: var(--radius-md, 8px); box-shadow: var(--shadow-popover, 0 8px 24px rgba(0, 0, 0, .4)); }
@@ -28,6 +43,41 @@
 .pickerReset { background: none; border: none; color: var(--ut-gold); font-size: 11px; cursor: pointer; white-space: nowrap; }
 .pickerClose { background: none; border: none; color: var(--text-muted); cursor: pointer; }
 .pickerList { overflow-y: auto; padding: 4px 0; }
+
+/* "Start from a layout" — the firm's column sets (formerly the view tabs), now
+   one-click starting points inside the column picker. */
+.pickerLayouts { padding: 8px 10px; border-bottom: 1px solid var(--border); }
+.pickerLayoutsLabel { display: block; font-size: 9.5px; letter-spacing: .09em; text-transform: uppercase; color: var(--text-muted); margin-bottom: 6px; }
+.pickerLayoutsRow { display: flex; flex-wrap: wrap; gap: 6px; }
+.pickerLayoutChip { font-family: inherit; font-size: 11.5px; color: var(--text-muted); background: var(--bg-elevated); border: 1px solid var(--border); border-radius: 100px; padding: 3px 10px; cursor: pointer; }
+.pickerLayoutChip:hover { border-color: var(--border-accent); color: var(--text); }
+.pickerEditHint { text-transform: none; letter-spacing: 0; opacity: .7; font-weight: 400; }
+/* Your-saved-views chips: an apply button + an inline delete, gold-dotted so they
+   read as the member's own (vs the firm layouts above). */
+.pickerPresetChip { display: inline-flex; align-items: center; background: var(--bg-elevated);
+  border: 1px solid var(--border); border-radius: 100px; overflow: hidden; }
+.pickerPresetApply { font-family: inherit; font-size: 11.5px; color: var(--text); background: none;
+  border: none; padding: 3px 4px 3px 11px; cursor: pointer; }
+.pickerPresetApply::before { content: ""; display: inline-block; width: 6px; height: 6px;
+  border-radius: 50%; background: var(--ut-gold); margin-right: 6px; vertical-align: middle; }
+.pickerPresetChip:hover { border-color: var(--ut-gold); }
+.pickerPresetDel { background: none; border: none; color: var(--text-muted); cursor: pointer;
+  padding: 3px 7px 3px 3px; display: inline-flex; align-items: center; }
+.pickerPresetDel:hover { color: var(--color-danger, #f87171); }
+
+/* ── In-screener chart review overlay (flip through the screened charts) ── */
+.reviewOverlay { display: flex; flex-direction: column; height: 100%; min-height: 0; background: var(--bg); }
+.reviewHead { display: flex; align-items: center; gap: 12px; padding: 10px 14px; border-bottom: 1px solid var(--border); flex-wrap: wrap; }
+.reviewSym { font-size: 16px; font-weight: 700; color: var(--ut-gold); letter-spacing: .3px; }
+.reviewCount { font-size: 12px; color: var(--text-muted); font-variant-numeric: tabular-nums; }
+.reviewNavBtns { display: inline-flex; gap: 4px; }
+.reviewNav { display: grid; place-items: center; width: 30px; height: 30px; border-radius: var(--radius-sm, 6px); background: var(--bg-surface); border: 1px solid var(--border); color: var(--text); cursor: pointer; }
+.reviewNav:hover:not(:disabled) { background: var(--bg-hover); border-color: var(--border-accent); }
+.reviewNav:disabled { opacity: .4; cursor: default; }
+.reviewHint { font-size: 11px; color: var(--text-muted); opacity: .8; }
+.reviewClose { margin-left: auto; display: grid; place-items: center; width: 30px; height: 30px; border-radius: var(--radius-sm, 6px); background: none; border: 1px solid var(--border); color: var(--text-muted); cursor: pointer; }
+.reviewClose:hover { color: var(--text); background: var(--bg-hover); }
+.reviewChart { flex: 1; min-height: 0; position: relative; }
 .pickerRow { display: flex; align-items: center; gap: 4px; padding: 2px 8px; }
 .pickerRow:hover { background: var(--bg-hover); }
 .pickerLabel { flex: 1; display: flex; align-items: center; gap: 7px; font-size: 12px; color: var(--text); cursor: pointer; min-height: 26px; }
@@ -53,6 +103,25 @@
 .viewTabs { display: flex; gap: 4px; flex-wrap: wrap; }
 .viewTab { padding: 5px 11px; border-radius: var(--radius-sm, 6px); background: var(--bg-surface); border: 1px solid var(--border); color: var(--text-muted); cursor: pointer; font-size: 12px; min-height: 30px; }
 .viewTabOn { background: var(--bg-elevated); border-color: var(--ut-gold); color: var(--ut-gold); }
+
+/* ── User-saved column-view presets (tabs after the firm views) ── */
+.presetTab { display: inline-flex; align-items: center; border: 1px solid var(--border);
+  border-radius: var(--radius-sm, 6px); background: var(--bg-surface); overflow: hidden; min-height: 30px; }
+.presetTabOn { border-color: var(--ut-gold); background: var(--bg-elevated); }
+.presetTabBtn { display: inline-flex; align-items: center; gap: 6px; padding: 5px 8px 5px 11px;
+  background: none; border: 0; color: var(--text-muted); cursor: pointer; font-size: 12px; }
+.presetTabOn .presetTabBtn { color: var(--ut-gold); }
+.presetDot { width: 5px; height: 5px; border-radius: 50%; background: var(--ut-gold); flex: 0 0 auto; }
+.presetDel { display: grid; place-items: center; padding: 0 7px; align-self: stretch; background: none;
+  border: 0; border-left: 1px solid var(--border); color: var(--text-muted); cursor: pointer; }
+.presetDel:hover { color: var(--loss); background: var(--bg-hover); }
+
+/* ── "Save as view" footer in the column picker ── */
+.pickerSave { display: flex; gap: 6px; align-items: center; padding: 8px 10px;
+  border-top: 1px solid var(--border); background: var(--bg-surface); position: sticky; bottom: 0; }
+.pickerSaveBtn { background: var(--ut-gold); color: #141207; border: 0; border-radius: var(--radius-sm, 6px);
+  padding: 6px 12px; font-size: 12px; font-weight: 600; cursor: pointer; white-space: nowrap; }
+.pickerSaveBtn:disabled { opacity: .5; cursor: default; }
 .statusLine { color: var(--text-muted); font-size: 12px; margin-left: auto; }
 .toolGroup { display: flex; gap: 6px; align-items: center; }
 .toolBtn { display: inline-flex; align-items: center; gap: 5px; background: var(--bg-elevated); border: 1px solid var(--border); border-radius: var(--radius-sm, 6px); color: var(--text); padding: 5px 10px; font-size: 12px; cursor: pointer; min-height: 30px; }
@@ -119,12 +188,191 @@
 .rowFb { visibility: hidden; }
 [role="row"]:hover .rowFb, .rowFb:focus-within { visibility: visible; }
 @media (hover: none) { .rowFb { visibility: visible; } }
+
+/* Flag-while-scrolling toggle in the sticky ticker cell. Same hover-reveal idiom
+   as .rowFb — hidden until the row is hovered — EXCEPT a flagged row keeps its
+   star lit at all times, and touch (no hover) shows it always. */
+.rowFlag { margin-left: auto; visibility: hidden; background: none; border: none;
+  color: var(--text-muted); cursor: pointer; padding: 2px 3px; display: inline-flex;
+  align-items: center; border-radius: 4px; }
+[role="row"]:hover .rowFlag, .rowFlag:focus-visible { visibility: visible; }
+.rowFlag:hover { color: var(--ut-gold); }
+.rowFlagOn { visibility: visible !important; color: var(--ut-gold); }
+@media (hover: none) { .rowFlag { visibility: visible; } }
+/* Phone card flag: always visible, full tap target. */
+.cardFlag { margin-left: auto; background: none; border: none; color: var(--text-muted);
+  cursor: pointer; display: inline-flex; align-items: center; justify-content: center;
+  min-width: var(--tap-min, 44px); min-height: var(--tap-min, 44px); }
+.cardFlag:hover { color: var(--ut-gold); }
+
+/* "Flagged N → watchlist" control in the underbar (FlaggedActions.jsx). */
+.flaggedWrap { position: relative; display: inline-flex; align-items: center; }
+.flaggedToast { margin-left: 8px; font-size: 11.5px; color: var(--ut-gold); }
+.flaggedMenu { position: absolute; left: 0; top: calc(100% + 6px); z-index: 40; min-width: 244px;
+  background: var(--bg-surface); border: 1px solid var(--border-accent);
+  border-radius: var(--radius-md, 8px); box-shadow: var(--shadow-popover, 0 8px 24px rgba(0,0,0,.4));
+  padding: 6px; max-height: 60vh; overflow-y: auto; }
+.flaggedHint { font-size: 11.5px; color: var(--text-muted); padding: 4px 8px; }
+.flaggedNewRow { display: flex; gap: 6px; padding: 8px 4px 4px; border-top: 1px solid var(--border); margin-top: 4px; }
+.flaggedInput { flex: 1; min-width: 0; background: var(--bg-elevated); border: 1px solid var(--border);
+  border-radius: 5px; padding: 6px 8px; color: var(--text); font-size: 12px; }
+.flaggedClear { width: 100%; text-align: left; background: none; border: none; color: var(--text-muted);
+  cursor: pointer; font-size: 11.5px; padding: 6px 8px; margin-top: 4px; border-radius: 5px; }
+.flaggedClear:hover { color: var(--color-danger, #f87171); background: var(--bg-hover); }
+
+/* "Save as scan" — the inline name form in the toolbar's save slot. */
+.saveScanWrap { display: inline-flex; align-items: center; }
+.saveScanForm { display: inline-flex; align-items: center; gap: 6px; }
+.saveScanInput { background: var(--bg-elevated); border: 1px solid var(--border);
+  border-radius: var(--radius-sm, 6px); padding: 5px 8px; color: var(--text);
+  font-size: 12px; min-width: 150px; }
+
+/* The Type filter's Include/Exclude multi-select (TypeFilterControl). */
+.typeCtl { padding: 4px 8px 8px; }
+.typeToggle { display: inline-flex; border: 1px solid var(--border); border-radius: 6px;
+  overflow: hidden; margin-bottom: 8px; }
+.typeToggleBtn { font-family: inherit; font-size: 11.5px; padding: 5px 12px; min-height: 28px;
+  background: var(--bg-elevated); border: none; color: var(--text-muted); cursor: pointer; }
+.typeToggleBtn + .typeToggleBtn { border-left: 1px solid var(--border); }
+.typeToggleOn { background: var(--ut-gold); color: #141207; font-weight: 600; }
+.typeOpts { display: flex; flex-direction: column; gap: 2px; }
+.typeOpt { display: flex; align-items: center; gap: 9px; font-size: 12.5px; color: var(--text);
+  cursor: pointer; padding: 4px 2px; border-radius: 5px; }
+.typeOpt:hover { background: var(--bg-hover); }
+.typeOpt input { accent-color: var(--ut-gold); width: 15px; height: 15px; }
 .dotLive, .dotStatic { width: 6px; height: 6px; border-radius: 50%; flex-shrink: 0; }
 .dotLive { background: var(--ut-gold); }
 .dotStatic { border: 1px solid var(--text-muted); background: transparent; }
 .heatG { background: var(--gain-bg); color: var(--gain); }
 .heatG1 { background: var(--gain-bg); }
 .heatR { background: var(--loss-bg); color: var(--loss); }
+
+/* ── Rich result cells (base-structure tag, RS/UCT mini-bar) ── */
+.tagCell { justify-content: flex-start; }
+.strutTag {
+  display: inline-block; max-width: 100%;
+  padding: 2px 9px; border-radius: 100px;
+  background: var(--bg-elevated); border: 1px solid var(--border);
+  color: var(--text-muted); font-size: 11px; line-height: 1.55;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.cellDash { color: var(--text-muted); opacity: .55; }
+/* Base-structure tag coloured by the leading structure's textbook bias
+   (data-bias set in VirtualResults from the server-derived base_bias). */
+.strutTag[data-bias="bullish"] { color: var(--gain); background: var(--gain-bg); border-color: var(--gain-border); }
+.strutTag[data-bias="bearish"] { color: var(--loss); background: var(--loss-bg); border-color: var(--loss-border); }
+.strutTag[data-bias="neutral"] { color: var(--ut-gold); background: var(--warn-bg); border-color: var(--warn-border); }
+.rsWrap { display: inline-flex; align-items: center; gap: 7px; min-width: 0; }
+.rsBar { width: 34px; height: 5px; border-radius: 3px; background: var(--border); overflow: hidden; flex: 0 0 auto; }
+.rsBar i { display: block; height: 100%; border-radius: 3px; }
+.rsNum { font-weight: 600; }
+
+/* ── Universe row: the pool selector + the Screener dropdown, together ── */
+.universeRow { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; margin-bottom: 10px; }
+.screenerDoor { flex: 0 0 auto; }
+/* ── Universe bar (base-pool selector) ── */
+.universeBar { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+.uEyebrow {
+  font-size: 9.5px; font-weight: 700; letter-spacing: .11em; text-transform: uppercase;
+  color: var(--text-muted); background: var(--bg-surface); border: 1px solid var(--border);
+  border-radius: 4px; padding: 4px 7px;
+}
+.uSeg { display: inline-flex; align-items: center; gap: 3px; background: var(--bg-surface);
+  border: 1px solid var(--border); border-radius: 7px; padding: 3px; }
+.uddWrap { position: relative; }
+.uBtn { display: inline-flex; align-items: center; gap: 6px; font-family: inherit; font-size: 12.5px;
+  font-weight: 500; cursor: pointer; color: var(--text-muted); background: transparent; border: 0;
+  padding: 6px 12px; border-radius: 5px; }
+.uBtn:hover { color: var(--text); background: var(--bg-hover); }
+.uBtn[aria-pressed="true"] { color: #141207; background: var(--ut-gold); font-weight: 600; }
+.uMenu { position: absolute; left: 0; top: calc(100% + 6px); z-index: 40; min-width: 220px;
+  max-height: min(60vh, 360px); overflow-y: auto; background: var(--bg-elevated);
+  border: 1px solid var(--border-accent); border-radius: 7px; box-shadow: 0 16px 40px rgba(0,0,0,.5); padding: 7px; }
+.uMenuCombo { min-width: 250px; }
+.uMenuHd { font-size: 9.5px; letter-spacing: .09em; text-transform: uppercase; color: var(--text-muted);
+  padding: 6px 8px 5px; display: flex; justify-content: space-between; }
+.uMenuSub { opacity: .7; }
+.uMenuItem { display: block; width: 100%; text-align: left; font-family: inherit; font-size: 12.5px;
+  color: var(--text); background: transparent; border: 0; padding: 7px 9px; border-radius: 5px; cursor: pointer; }
+.uMenuItem:hover { background: var(--bg-hover); }
+.uMenuItemOn { color: var(--ut-gold); font-weight: 600; }
+.uMenuCheck { display: flex; align-items: center; gap: 9px; padding: 6px 9px; border-radius: 5px;
+  cursor: pointer; font-size: 12.5px; color: var(--text); }
+.uMenuCheck:hover { background: var(--bg-hover); }
+.uMenuCheck input { accent-color: var(--ut-gold); }
+.uMenuFoot { border-top: 1px solid var(--border); margin-top: 6px; padding: 8px 2px 0; }
+.uBase { font-size: 11.5px; color: var(--text-muted); }
+.uBaseHint { opacity: .6; }
+/* The count stays on screen while a new scan loads, just dimmed — never blanked
+   (blanking on every keystroke/toggle was the "flashing" count). */
+.uCountStale { opacity: .45; transition: opacity .1s; }
+@media (max-width: 640px) { .uBaseHint { display: none; } }
+
+/* One-click preset-scan chips in the scan bar (PresetChips). */
+.presetChips { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
+.presetChip { font-family: inherit; font-size: 11.5px; padding: 4px 11px; border-radius: 999px;
+  border: 1px solid var(--border); background: var(--bg-elevated); color: var(--text-muted);
+  cursor: pointer; white-space: nowrap; transition: color .1s, border-color .1s, background .1s; }
+.presetChip:hover { color: var(--text); border-color: var(--ut-gold); }
+.presetChipOn { background: var(--ut-gold); color: #141207; border-color: var(--ut-gold); font-weight: 600; }
+/* "Edit" — pick which preset scans appear as chips. */
+.presetManageWrap { position: relative; display: inline-flex; }
+.presetManageBtn { display: inline-flex; align-items: center; gap: 4px; font-family: inherit;
+  font-size: 11px; color: var(--text-muted); background: none; border: 1px dashed var(--border);
+  border-radius: 999px; padding: 3px 10px; cursor: pointer; }
+.presetManageBtn:hover { color: var(--ut-gold); border-color: var(--ut-gold); }
+.presetManageMenu { position: absolute; left: 0; top: calc(100% + 6px); z-index: 40; min-width: 220px;
+  max-height: 60vh; overflow-y: auto; background: var(--bg-surface); border: 1px solid var(--border-accent);
+  border-radius: var(--radius-md, 8px); box-shadow: var(--shadow-popover, 0 8px 24px rgba(0,0,0,.4)); padding: 6px; }
+.presetManageItem { display: flex; align-items: center; gap: 9px; padding: 5px 8px; border-radius: 5px;
+  font-size: 12.5px; color: var(--text); cursor: pointer; }
+.presetManageItem:hover { background: var(--bg-hover); }
+.presetManageItem input { accent-color: var(--ut-gold); }
+
+/* The ⓘ that opens the "what each universe means" popover, and the Clear that
+   resets the pool to All Market. Both sit in the Universe row. */
+.uInfoBtn {
+  display: inline-flex; align-items: center; justify-content: center;
+  width: 18px; height: 18px; padding: 0; border-radius: 50%;
+  border: 1px solid var(--border); background: transparent;
+  color: var(--text-muted); cursor: pointer; font-family: inherit;
+}
+.uInfoBtn:hover { color: var(--text); border-color: var(--ut-gold); }
+.uClear {
+  font-family: inherit; font-size: 11.5px; color: var(--text-muted);
+  background: transparent; border: none; cursor: pointer; padding: 4px 6px;
+  border-radius: 5px; text-decoration: underline; text-underline-offset: 2px;
+}
+.uClear:hover { color: var(--ut-gold); background: var(--bg-hover); }
+/* Criteria popover body: each universe's name + its plain-English rule. */
+.uInfoMenu { min-width: 288px; }
+.uInfoRow { padding: 7px 9px; border-radius: 6px; }
+.uInfoRow + .uInfoRow { margin-top: 2px; }
+.uInfoName {
+  font-size: 12px; font-weight: 600; color: var(--text);
+  display: flex; align-items: baseline; gap: 8px;
+}
+.uInfoRule {
+  font-size: 10.5px; font-weight: 600; letter-spacing: .02em;
+  color: var(--ut-gold); font-variant-numeric: tabular-nums;
+}
+.uInfoBody { font-size: 11.5px; line-height: 1.5; color: var(--text-muted); margin-top: 3px; }
+/* The active pool's rule, shown inline beside the count so the criteria are
+   visible without opening the popover. */
+.uCriteria {
+  font-size: 10.5px; font-weight: 600; color: var(--text-muted);
+  border: 1px solid var(--border); border-radius: 5px; padding: 1px 6px;
+  font-variant-numeric: tabular-nums;
+}
+
+/* ── Quick-screen chips (preset scans) ── */
+.quickRow { display: flex; align-items: center; gap: 10px; margin-bottom: 10px; min-width: 0; }
+.qScroll { display: flex; gap: 7px; overflow-x: auto; scrollbar-width: none; min-width: 0; padding-bottom: 1px; }
+.qScroll::-webkit-scrollbar { display: none; }
+.qChip { flex: 0 0 auto; font-family: inherit; font-size: 12px; cursor: pointer; color: var(--text-muted);
+  background: var(--bg-surface); border: 1px solid var(--border); border-radius: 100px; padding: 5px 12px; white-space: nowrap; }
+.qChip:hover { border-color: var(--border-accent); color: var(--text); }
+.qChip[aria-pressed="true"] { background: var(--ut-gold-dim); border-color: var(--ut-gold); color: var(--ut-gold-bright); font-weight: 600; }
 .loadMoreRow { display: flex; justify-content: center; padding: 12px; }
 .loadMoreBtn { background: var(--bg-elevated); border: 1px solid var(--border-accent); border-radius: var(--radius-sm, 6px); color: var(--ut-gold); padding: 8px 18px; font-size: 12.5px; cursor: pointer; min-height: 36px; }
 .loadMoreBtn:disabled { opacity: .5; cursor: default; }

@@ -1,8 +1,8 @@
 {
   "measured_at": "2026-09-23",
   "scripts": 266,
-  "host_ok": 39,
-  "screener_ok": 48,
+  "host_ok": 41,
+  "screener_ok": 52,
   "threw": [
     "smart-money-breakouts-chartprime__ea79c79a67.pine"
   ],
@@ -770,12 +770,10 @@
       "host": false,
       "screener": true,
       "hostGuards": [
-        "pine:state",
-        "pine:function"
+        "pine:state"
       ],
       "screenerGuards": [
-        "pine:state",
-        "pine:function"
+        "pine:state"
       ]
     },
     {
@@ -842,13 +840,11 @@
     {
       "file": "fibonacci-retracement-mtflog__54a8dbfa8e.pine",
       "host": false,
-      "screener": false,
+      "screener": true,
       "hostGuards": [
-        "pine:function",
         "pine:statement"
       ],
       "screenerGuards": [
-        "pine:function",
         "pine:statement",
         "pine:window-dependent"
       ]
@@ -923,14 +919,10 @@
     },
     {
       "file": "heat-map-seasons__53acdf3223.pine",
-      "host": false,
-      "screener": false,
-      "hostGuards": [
-        "pine:function"
-      ],
-      "screenerGuards": [
-        "pine:function"
-      ]
+      "host": true,
+      "screener": true,
+      "hostGuards": [],
+      "screenerGuards": []
     },
     {
       "file": "heikin-ashi-supertrend__2fb7267210.pine",
@@ -952,17 +944,15 @@
     {
       "file": "heikin-ashi-true-strength-index-and-optimized-trend-tracker-erebor__f91c76bdec.pine",
       "host": false,
-      "screener": false,
+      "screener": true,
       "hostGuards": [
         "pine:function-def",
         "pine:cycle",
-        "pine:function",
         "pine:state"
       ],
       "screenerGuards": [
         "pine:function-def",
         "pine:cycle",
-        "pine:function",
         "pine:state"
       ]
     },
@@ -1094,10 +1084,10 @@
       "host": false,
       "screener": true,
       "hostGuards": [
-        "pine:function"
+        "pine:builtin"
       ],
       "screenerGuards": [
-        "pine:function"
+        "pine:builtin"
       ]
     },
     {
@@ -1312,14 +1302,10 @@
     },
     {
       "file": "liquidity-pools__fa7b28e733.pine",
-      "host": false,
+      "host": true,
       "screener": true,
-      "hostGuards": [
-        "pine:function"
-      ],
-      "screenerGuards": [
-        "pine:function"
-      ]
+      "hostGuards": [],
+      "screenerGuards": []
     },
     {
       "file": "macd-shortlong-strategy-for-tradingview-input-optimizer__59bb295a99.pine",
@@ -1474,10 +1460,10 @@
       "host": false,
       "screener": false,
       "hostGuards": [
-        "pine:function"
+        "pine:collection"
       ],
       "screenerGuards": [
-        "pine:function"
+        "pine:collection"
       ]
     },
     {
@@ -1836,10 +1822,10 @@
       "host": false,
       "screener": false,
       "hostGuards": [
-        "pine:function"
+        "pine:reassign"
       ],
       "screenerGuards": [
-        "pine:function"
+        "pine:reassign"
       ]
     },
     {
@@ -2025,8 +2011,7 @@
       "hostGuards": [
         "pine:module",
         "pine:builtin",
-        "pine:tuple",
-        "pine:function"
+        "pine:tuple"
       ],
       "screenerGuards": [
         "pine:module",
@@ -2089,10 +2074,10 @@
       "host": false,
       "screener": false,
       "hostGuards": [
-        "pine:collection"
+        "pine:builtin"
       ],
       "screenerGuards": [
-        "pine:collection"
+        "pine:builtin"
       ]
     },
     {
@@ -2349,10 +2334,12 @@
       "host": false,
       "screener": false,
       "hostGuards": [
-        "pine:function"
+        "pine:function",
+        "pine:offset-literal"
       ],
       "screenerGuards": [
-        "pine:function"
+        "pine:function",
+        "pine:offset-literal"
       ]
     },
     {
@@ -2563,13 +2550,11 @@
     {
       "file": "support-and-resistance__1505.pine",
       "host": false,
-      "screener": false,
+      "screener": true,
       "hostGuards": [
-        "pine:function",
         "pine:na"
       ],
       "screenerGuards": [
-        "pine:function",
         "pine:na"
       ]
     },
@@ -2828,10 +2813,10 @@
       "host": false,
       "screener": true,
       "hostGuards": [
-        "pine:function"
+        "pine:state"
       ],
       "screenerGuards": [
-        "pine:function"
+        "pine:state"
       ]
     },
     {

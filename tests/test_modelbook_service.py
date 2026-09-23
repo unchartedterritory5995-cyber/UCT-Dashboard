@@ -67,6 +67,29 @@ def test_list_years_and_stocks_for_year(s):
     assert all(x["setup_count"] == 0 for x in stocks)
 
 
+def test_get_stock_appearances_across_years_newest_first(s):
+    """Packet H CP1: the per-ticker research page's 'has this ever been in
+    the Model Book' read."""
+    s.create_stock(_stock(year=2023, symbol="NVDA", thesis="early AI leg"))
+    s.create_stock(_stock(year=2025, symbol="NVDA", thesis="AI leader"))
+    s.create_stock(_stock(year=2024, symbol="PLTR", thesis="not nvda"))
+
+    rows = s.get_stock_appearances("NVDA")
+    assert [r["year"] for r in rows] == [2025, 2023]
+    assert rows[0]["thesis"] == "AI leader"
+
+
+def test_get_stock_appearances_includes_setup_count(s):
+    stock = s.create_stock(_stock(year=2025, symbol="NVDA"))
+    s.create_setup(stock["id"], _setup())
+    rows = s.get_stock_appearances("NVDA")
+    assert rows[0]["setup_count"] == 1
+
+
+def test_get_stock_appearances_never_curated_returns_empty_not_an_error(s):
+    assert s.get_stock_appearances("ZZZZ") == []
+
+
 def test_create_stock_upserts_on_year_symbol(s):
     a = s.create_stock(_stock(symbol="NVDA", thesis="v1"))
     b = s.create_stock(_stock(symbol="NVDA", thesis="v2"))

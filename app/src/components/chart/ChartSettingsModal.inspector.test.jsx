@@ -30,6 +30,7 @@ import * as registry from './engine/nativeRegistry'
 import { createDirectSeries, lastCreatedInstance } from './discoveryCatalog'
 import { symbolSource } from './engine/sourceRef'
 import { clearSecondaryBars, primeSecondaryBars } from './engine/secondaryBars'
+import { _resetFundamentalsForTests, primeFundamentalsCatalog, setFundamentalsFetcher } from './engine/fundamentalSeries'
 import {
   addInstance, findInstance, setInstanceInput, setInstanceDisplayTarget,
 } from './engine/instanceControls'
@@ -1539,22 +1540,55 @@ describe('THE ADD INDICATOR LIBRARY — one door, five categories, and no fictio
     expect(rule, 'there is no visible focus signal left').toMatch(/border-color/)
   })
 
-  it('⛔⛔ FUNDAMENTALS TELLS THE TRUTH RATHER THAN SHOWING ROWS', () => {
-    // ⛔⛔ THE AUDIT, RAILED. The chart's source grammar admits a BAR FIELD, a
-    // SYMBOL and another INSTANCE — there is no fundamental kind — and the one
-    // fundamental the product holds is a NIGHTLY SCALAR whose own engine refuses
-    // a bar offset because *"answering it with today's value would be a
-    // fabricated history"* (`ast/pcf.js`). A row here would be that fabrication.
+  it('⛔⛔ FUNDAMENTALS TELLS THE TRUTH RATHER THAN SHOWING ROWS — without the PIT catalogue', async () => {
+    // ⛔⛔ THE AUDIT, STILL RAILED. Rows come ONLY from the point-in-time catalogue
+    // the server publishes (`/api/fundamentals/pit/catalog`). When it is not
+    // served — the feature dark (404), an unentitled member, an outage — the tab
+    // states that and offers NOTHING: Screener snapshots have no history, and a
+    // row built from one would be the fabricated history the audit forbids.
+    _resetFundamentalsForTests()
+    setFundamentalsFetcher(async () => { const e = new Error('404'); e.status = 404; throw e })
     expect(FUNDAMENTALS_STATUS.available,
-      'Fundamentals was switched on — was the PIT-safe history actually built?').toBe(false)
+      'the static status must never claim availability — the catalogue decides').toBe(false)
     show(base()); openTab()
     fireEvent.click(addBtn())
     fireEvent.click(tabNamed('Fundamentals'))
-    const notice = screen.getByTestId('fundamentals-unavailable')
-    expect(notice.textContent).toContain(FUNDAMENTALS_STATUS.lede)
-    // ⛔ AND NOT ONE ROW. Market cap, revenue and EPS are a direction, not a
-    // series — offering them would be the lie the brief forbids by name.
-    expect(resultNames(), 'a fundamental is being offered as chartable').toEqual([])
+    await waitFor(() => expect(screen.getByTestId('fundamentals-unavailable').textContent)
+      .toContain(FUNDAMENTALS_STATUS.lede))
+    expect(resultNames(), 'a fundamental is being offered without a PIT catalogue').toEqual([])
+    _resetFundamentalsForTests()
+  })
+
+  it('⭐⭐ WITH THE PIT CATALOGUE, FUNDAMENTALS ARE ORDINARY ROWS THAT CREATE A `fund:` SERIES', () => {
+    _resetFundamentalsForTests()
+    primeFundamentalsCatalog({ metrics: [
+      { id: 'net_margin', name: 'Net Margin', category: 'Profitability', series: 'net_margin_ttm', compose: null,
+        inputs: [], presentation: 'step', cadence: 'quarterly', subtitle: 'TTM', methodology: 'NI TTM / revenue TTM.',
+        aliases: ['profit margin'], status: 'READY' },
+      { id: 'eps_ttm', name: 'EPS (TTM)', category: 'Financials', series: 'eps_diluted_ttm', compose: null,
+        inputs: [], presentation: 'step', cadence: 'quarterly', subtitle: 'Diluted · GAAP', methodology: '...',
+        aliases: ['earnings per share', 'earnings'], status: 'READY' },
+    ] })
+    const seen = {}
+    show(base(), seen); openTab()
+    fireEvent.click(addBtn())
+    fireEvent.click(tabNamed('Fundamentals'))
+    expect(screen.queryByTestId('fundamentals-unavailable')).toBeNull()
+    expect(resultNames().sort()).toEqual(['EPS (TTM)', 'Net Margin'])
+    // ⭐ SEARCH BY ALIAS: "earnings" finds EPS.
+    type('earnings per share')
+    expect(resultNames()).toContain('EPS (TTM)')
+    type('')
+    fireEvent.click(tabNamed('Fundamentals'))
+    const row = [...document.body.querySelectorAll('[data-testid="add-surface"] [class*="resName"]')]
+      .find((e) => e.textContent.trim() === 'Net Margin')
+    fireEvent.click(row.closest('[tabindex]'))
+    const insts = (seen.cs?.indicatorInstances || []).filter((i) => i && !i.deleted && i.defId === 'dataSeries')
+    const made = insts.find((i) => i.inputs?.source === 'fund:net_margin')
+    expect(made, 'the click did not create a fund: dataSeries').toBeTruthy()
+    expect(made.display?.name).toBe('Net Margin')
+    expect(made.presentation?.plotStyle).toBe('step')
+    _resetFundamentalsForTests()
   })
 
   it('⛔⛔ SEARCH IS UNIVERSAL UNTIL THE MEMBER NARROWS IT', () => {

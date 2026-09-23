@@ -1,0 +1,73 @@
+/*
+ * TOKENS, NOT --color- NAMES. G-104 (2026-09-21) repointed the neighbouring
+ * modules this comment used to warn about: they wrote undefined names not
+ * declared anywhere in tokens.css and lived on their fallback literal
+ * forever, never following a theme change. The declared names are
+ * --text-muted, --border, --bg-surface and --ut-gold. This file was
+ * already correct.
+ */
+
+.wrap {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  min-height: 0;
+  flex: 1;
+}
+
+.legend {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 16px;
+  font-size: 12px;
+  color: var(--text-muted);
+}
+
+.legend b {
+  color: var(--text-bright);
+  font-variant-numeric: tabular-nums;
+}
+
+/* Unlinked notes are the finding, so the count that names them is not dimmed
+   into furniture. */
+.orphan b {
+  color: var(--ut-gold);
+}
+
+.truncated {
+  font-style: italic;
+  color: var(--text-muted);
+}
+
+.canvasWrap {
+  position: relative;
+  flex: 1;
+  min-height: 360px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md, 8px);
+  background: var(--bg-surface);
+  overflow: hidden;
+}
+
+.canvas {
+  display: block;
+  cursor: pointer;
+  /* The element is sized in JS from the measured container; these keep it from
+     forcing its parent wider on a narrow screen before the first measure. */
+  max-width: 100%;
+}
+
+.state {
+  padding: 32px 16px;
+  text-align: center;
+  font-size: 13px;
+  color: var(--text-muted);
+}
+
+.state code {
+  padding: 1px 5px;
+  border-radius: var(--radius-sm, 4px);
+  background: var(--bg-elevated);
+  color: var(--ut-gold);
+}

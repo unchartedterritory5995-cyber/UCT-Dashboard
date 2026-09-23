@@ -12,7 +12,7 @@
   font-size: 12px;
   letter-spacing: 0.06em;
   text-transform: uppercase;
-  color: var(--text-secondary, #a8a290);
+  color: var(--text-muted);
   margin-bottom: 8px;
 }
 
@@ -42,7 +42,7 @@
 }
 .chapterRowActive {
   background: rgba(220, 187, 94, 0.14);
-  box-shadow: inset 2px 0 0 #dcbb5e;
+  box-shadow: inset 2px 0 0 var(--ut-gold);
 }
 .chapterRowActive .chapterTitle {
   color: var(--text-bright);
@@ -61,7 +61,7 @@
 }
 .chapterTitle {
   font-size: 13px;
-  color: var(--text-primary, #f3efe2);
+  color: var(--text-bright);
   line-height: 1.35;
 }
 
@@ -113,7 +113,7 @@
   margin-bottom: 7px;
   font-size: 13px;
   line-height: 1.45;
-  color: var(--text-primary, #f3efe2);
+  color: var(--text-bright);
 }
 .summaryList li::before {
   content: '';
@@ -123,7 +123,7 @@
   width: 6px;
   height: 6px;
   border-radius: 50%;
-  background: #dcbb5e;
+  background: var(--ut-gold);
 }
 
 /* ── Tickers covered ── */
@@ -144,7 +144,7 @@
 }
 .tickersChevron {
   flex: none;
-  color: var(--text-secondary, #a8a290);
+  color: var(--text-muted);
   transform: rotate(-90deg); /* collapsed → points right */
   transition: transform 0.15s ease;
 }
@@ -211,7 +211,7 @@
   padding: 0;
   cursor: pointer;
   font-size: 11px;
-  color: var(--text-secondary, #a8a290);
+  color: var(--text-muted);
   font-variant-numeric: tabular-nums;
 }
 .tickerTime:hover {
@@ -251,7 +251,7 @@
 .tickerSym:focus-visible,
 .tickerTime:focus-visible,
 .posterLink:focus-visible {
-  outline: 2px solid #dcbb5e;
+  outline: 2px solid var(--ut-gold);
   outline-offset: 2px;
   border-radius: var(--radius-md);
 }

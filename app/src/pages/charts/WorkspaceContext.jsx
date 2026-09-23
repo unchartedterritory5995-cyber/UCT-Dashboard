@@ -5,6 +5,13 @@ export const WorkspaceContext = createContext(null)
 const FALLBACK = {
   groupSyms: { A: null, B: null, C: null, D: null },
   setGroupSym: () => {},
+  // The timeframe each color group's chart is CURRENTLY showing, broadcast by
+  // ChartWidget so list widgets in the same group warm the cache key the chart
+  // will actually read. ⚠️ EPHEMERAL, never persisted: `opts.tf` on the chart
+  // widget stays the one authority for what a layout restores to (a second
+  // stored copy would fight it). Seeded 'D' to match ChartWidget's own default.
+  groupTfs: { A: 'D', B: 'D', C: 'D', D: 'D' },
+  setGroupTf: () => {},
   chartsTheme: 'default',   // workspace-wide chart theme ('default' | 'sunrise')
   // Per-widget canvas maps, read by WidgetHost to publish a widget's own canvas
   // colour into its subtree. Empty (not undefined) so a host that supplies

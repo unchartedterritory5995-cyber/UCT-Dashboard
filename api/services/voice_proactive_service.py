@@ -487,6 +487,42 @@ def scan_after_hours(user_id: str) -> int:
     return queued
 
 
+def _regime_shift_already_told(user_id: str, cur_regime: str) -> bool:
+    """F-S7-RC-3: `maybe_emit_regime_shift` has no ledger, so without this check
+    it re-fires the SAME "shifted to X" insight every scan cycle for as long as
+    the user's last voice-session summary stays stale — until the shared 8/day
+    cap absorbs the rest of their insight budget for that day.
+
+    The most recent `regime_shift` row's headline is a stable, already-stored
+    proxy for "which shift did we last tell this user about" — it is built
+    from `cur_regime` at write time (`f"Regime shifted to {cur_regime...}"`),
+    so comparing it against today's `cur_regime` answers "have they already
+    heard about THIS one" without a schema change or a new table.
+
+    A later flip to a DIFFERENT regime, or a flap back to this one after an
+    intervening different regime, changes the most-recent headline and is
+    correctly allowed to fire again.
+    """
+    conn = get_connection()
+    try:
+        # `created_at` is SQLite's CURRENT_TIMESTAMP — second granularity, no
+        # microseconds — so two rows inserted in the same second (routine for a
+        # scan cycle or a fast test) tie on it. `id DESC` is the real recency
+        # order; sorting by `created_at DESC` alone picked an arbitrary row
+        # among ties and broke the flap-back case (bear -> bull -> bear).
+        row = conn.execute(
+            """SELECT headline FROM voice_proactive_insights
+                WHERE user_id = ? AND kind = 'regime_shift'
+                ORDER BY id DESC LIMIT 1""",
+            (user_id,),
+        ).fetchone()
+    finally:
+        conn.close()
+    if not row:
+        return False
+    return row[0] == f"Regime shifted to {cur_regime.replace('_', ' ')}"
+
+
 def maybe_emit_regime_shift(user_id: str) -> int:
     """
     Detect if the regime has flipped since the user's most recent session
@@ -505,6 +541,8 @@ def maybe_emit_regime_shift(user_id: str) -> int:
         last_text = (summaries[0].get("summary_text") or "").lower()
         for r in ("bull_trend", "bull_correction", "distribution", "chop", "bear_trend"):
             if r in last_text and r != cur_regime:
+                if _regime_shift_already_told(user_id, cur_regime):
+                    return 0
                 rid = add_insight(
                     user_id,
                     kind="regime_shift",

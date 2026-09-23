@@ -1,13 +1,25 @@
 import { useMemo, useState } from 'react'
 import UIcon from '../../../components/ui/UIcon'
 import FilterControl from './FilterControl'
-import bandStyles from './FilterBand.module.css'
+import TypeFilterControl from './TypeFilterControl'
 import styles from './ScannerShell.module.css'
+
+// A glyph per filter category — makes the collapsed rail scannable at a glance.
+// Keys are the category keys from filters.py::CATEGORIES; anything unmapped falls
+// back to a neutral tag.
+const CAT_ICON = {
+  type: 'markets', descriptive: 'info', fundamental: 'dollar', performance: 'chart',
+  technical: 'sliders', momentum: 'bolt', single_candle: 'ind-series',
+  multi_candle: 'ind-series', pattern: 'patterns', ownership: 'user',
+  events: 'calendar', context: 'globe', flow: 'flow',
+  my_lists: 'star', my_scans: 'screener',
+}
 
 const openKey = k => `uct.screener.rail.${k}`
 const readOpen = k => { try { return localStorage.getItem(openKey(k)) !== '0' } catch { return true } }
 
-export default function FilterRail({ meta, activeFilters, onChange, onClear, variant = 'rail' }) {
+export default function FilterRail({ meta, activeFilters, onChange, onClear, variant = 'rail',
+  matchCount, matchCountEmpty, matchCountLoading }) {
   const [q, setQ] = useState('')
   const [open, setOpen] = useState(() =>
     Object.fromEntries((meta?.categories || []).map(c => [c.key, readOpen(c.key)])))
@@ -27,7 +39,6 @@ export default function FilterRail({ meta, activeFilters, onChange, onClear, var
 
   if (!meta) return null
 
-  const basisNote = meta.distribution_basis?.note || null
   const toggle = key => setOpen(prev => {
     const next = { ...prev, [key]: !prev[key] }
     try { localStorage.setItem(openKey(key), next[key] ? '1' : '0') } catch { /* private mode */ }
@@ -47,15 +58,24 @@ export default function FilterRail({ meta, activeFilters, onChange, onClear, var
           <button type="button" className={styles.railClear} onClick={onClear}>Clear {activeTotal}</button>
         )}
       </div>
-      {/* ⛔ THE BASIS RIDES ONCE, AND IT IS THE SERVER'S SENTENCE VERBATIM.
-          `distribution.py::BASIS_NOTE` is the ONE member-facing string that
-          says what the bands under each control are and — the load-bearing
-          half — what they are NOT ("not a threshold this firm recommends").
-          Restating it here in nicer words would put a second authority on the
-          only disclaimer in the feature; stamping it under all 107 range
-          controls would be that same defect 107 times. It renders only when
-          `meta()` actually shipped a basis, which is exactly when bands exist. */}
-      {basisNote && <p className={bandStyles.basis}>{basisNote}</p>}
+      {/* The distribution basis note + per-control percentile bands were removed
+          by owner request; the rail is the search + grouped controls. */}
+      {/* PACKET-AB CP1 (fingerprint bc19457cf): a fast preview-count badge fed
+          by the cheap /api/screener/count endpoint, decoupled from and never
+          replacing ShellToolbar's own full-scan-derived status line. Same
+          wording as that line so the two can never read as disagreeing.
+          ⛔ Deliberately NO aria-live here -- tools/screener_ui_stress.py's
+          existing check reads the FIRST [aria-live="polite"] element in DOM
+          order, which is ShellToolbar's status line; giving this badge the
+          same attribute would silently redirect that check to the wrong
+          element (it would keep passing while watching nothing real). */}
+      {(matchCountLoading || matchCount != null) && (
+        <div className={`${styles.railMatchCount} ${matchCountEmpty ? styles.railMatchCountEmpty : ''}`}>
+          {matchCountLoading && matchCount == null
+            ? 'Scanning…'
+            : `${(matchCount ?? 0).toLocaleString()} matches`}
+        </div>
+      )}
       {(meta.categories || []).map(cat => {
         const list = byCat.get(cat.key) || []
         if (needle && !list.length) return null
@@ -65,15 +85,26 @@ export default function FilterRail({ meta, activeFilters, onChange, onClear, var
           <section key={cat.key} className={styles.railGroup}>
             <button type="button" className={styles.railHead} aria-expanded={isOpen}
               onClick={() => toggle(cat.key)}>
-              <span>{cat.label}</span>
+              <span className={styles.railHeadIcon}>
+                <UIcon name={CAT_ICON[cat.key] || 'tag'} size={14} gold={false} />
+              </span>
+              <span className={styles.railHeadLabel}>{cat.label}</span>
               {n > 0 && <span className={styles.railPip}>{n}</span>}
-              <UIcon name={isOpen ? 'chevronDown' : 'chevronRight'} size={11} />
+              <span className={styles.railChev}>
+                <UIcon name={isOpen ? 'chevronDown' : 'chevronRight'} size={14} gold={false} />
+              </span>
             </button>
             {isOpen && list.map(f => (
-              <FilterControl key={f.key} filter={f}
-                value={activeFilters[f.key] || null}
-                basis={meta.distribution_basis || null}
-                onChange={v => onChange(f.key, v)} />
+              f.control === 'typeset' ? (
+                <TypeFilterControl key={f.key} filter={f}
+                  value={activeFilters[f.key] || null}
+                  onChange={v => onChange(f.key, v)} />
+              ) : (
+                <FilterControl key={f.key} filter={f}
+                  value={activeFilters[f.key] || null}
+                  basis={meta.distribution_basis || null}
+                  onChange={v => onChange(f.key, v)} />
+              )
             ))}
           </section>
         )

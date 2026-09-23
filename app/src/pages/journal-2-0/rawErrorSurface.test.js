@@ -27,16 +27,18 @@ import jsx from 'acorn-jsx'
 const Parser = acorn.Parser.extend(jsx())
 const ROOT = path.resolve(__dirname)
 
-// ⛔ SCOPE — the Notebook's own member-facing UI. This is the surface the
-// integrity mini-pass owns, and the surface where the class shipped twice.
-// The rest of `journal-2-0/` (the trading tabs and their modals) carries the
-// SAME class in quantity; that is recorded as named debt in the gap ledger
-// rather than silently swept in here or silently hidden by a narrower rail.
-// Widening this list is a one-line change once that debt is scheduled.
-const IN_SCOPE = [
-  path.join(ROOT, 'components', 'notebook'),
-  path.join(ROOT, 'tabs', 'NotebookTab.jsx'),
-]
+// ⛔ SCOPE — WIDENED 2026-09-22 (G-128 closed). This used to cover only the
+// Notebook's own member-facing UI, with the rest of `journal-2-0/` (the
+// trading tabs and their modals) carrying the SAME class in quantity,
+// recorded as named debt in the gap ledger (`docs/notebook/
+// competitive-gap-ledger.md`, G-128) rather than silently swept in here.
+// That debt is now scheduled and closed: three concurrent sweeps fixed
+// every violation the AST walk below can find across the WHOLE tree (36
+// distinct sites / 22 files, zero remaining, verified by re-running this
+// exact walk after each sweep landed) plus one non-UI site in the offline
+// data layer (`lib/offline/notebookDb.js`, fixed directly, not swept).
+// ROOT now covers everything — do not narrow this back down.
+const IN_SCOPE = [ROOT]
 const inScope = (p) => IN_SCOPE.some((s) => p === s || p.startsWith(s + path.sep))
 
 function sourceFiles(dir = ROOT, out = []) {

@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
-import { render, screen, fireEvent, waitFor } from '@testing-library/react'
+import { render, screen, fireEvent, waitFor, within } from '@testing-library/react'
 import { MemoryRouter, useNavigate } from 'react-router-dom'
 
 // Heavy children + data hook are stubbed — these tests are about the tab's own
@@ -22,11 +22,15 @@ vi.mock('../components/notebook/FolderSidebar', () => ({
   // A minimal interactive stub — exposes an "onSelectFolder('__trash__')"
   // trigger the same way ImportWizard's mock exposes "fire onImported",
   // so trash-view wiring can be driven through the real prop instead of
-  // reaching into NotebookTab's internal state.
-  default: ({ onSelectFolder }) => (
+  // reaching into NotebookTab's internal state. UX #1's onSelectView/
+  // onDeleteView/onRenameView triggers follow the identical convention.
+  default: ({ onSelectFolder, onSelectView, onDeleteView, onRenameView }) => (
     <div data-testid="folder-sidebar">
       <button type="button" onClick={() => onSelectFolder('__trash__')}>go to trash</button>
       <button type="button" onClick={() => onSelectFolder(null)}>go to all notes</button>
+      <button type="button" onClick={() => onSelectView({ id: 'v1', name: 'My View', viewType: 'list' })}>select view v1</button>
+      <button type="button" onClick={() => onDeleteView('v1', 'My View')}>delete view v1</button>
+      <button type="button" onClick={() => onRenameView('v1', 'Renamed View')}>rename view v1</button>
     </div>
   ),
 }))
@@ -296,6 +300,42 @@ describe('NotebookTab — export', () => {
   })
 })
 
+// G-106 (Wave B lower-frequency sweep, competitive-gap-ledger.md): the main
+// grid's own initial-load state used to be bare "Loading…" text. Reached
+// via `?view=all` (renderTab's default entry), same as the pagination tests
+// below -- bare-root Home is a separate, already-mocked component here.
+describe('NotebookTab — initial grid loading (G-106)', () => {
+  function mockMainList({ notes, isLoading = false, total = 0 }) {
+    useJ2NotesMock.mockImplementation((opts) => {
+      if (opts?.sort === 'title') {
+        return { notes: [], isLoading: false, error: null, refresh: vi.fn(), mutate: vi.fn(), total: 0, hasMore: false, loadMore: vi.fn(), isLoadingMore: false }
+      }
+      return { notes, isLoading, error: null, refresh: mockRefresh, mutate: vi.fn(), total, hasMore: false, loadMore: mockLoadMore, isLoadingMore: false }
+    })
+  }
+
+  it('shows a Skeleton loading state, not bare text, before the first page lands', () => {
+    mockMainList({ notes: [], isLoading: true })
+    renderTab()
+    expect(screen.getByRole('status')).toHaveAccessibleName('Loading…')
+    expect(screen.queryByText('Your notebook is empty.')).not.toBeInTheDocument()
+  })
+
+  it('the loading skeleton disappears once notes land', () => {
+    mockMainList({ notes: [{ id: 'n1', title: 'A' }], total: 1 })
+    renderTab()
+    expect(screen.queryByRole('status')).not.toBeInTheDocument()
+    expect(screen.getByTestId('note-card')).toBeInTheDocument()
+  })
+
+  it('a genuinely empty (loaded) notebook shows the empty state, never the skeleton', () => {
+    mockMainList({ notes: [], isLoading: false })
+    renderTab()
+    expect(screen.queryByRole('status')).not.toBeInTheDocument()
+    expect(screen.getByText('Your notebook is empty.')).toBeInTheDocument()
+  })
+})
+
 describe('NotebookTab — pagination (Task 11: the browse path must survive a migrated library)', () => {
   // The sidebar's OWN unfiltered `sort: 'title'` fetch shares this same
   // mocked hook — route it to an empty, harmless response so these
@@ -529,5 +569,78 @@ describe('⛔ restoring from trash lands the note revision', () => {
     await waitFor(() => expect(global.fetch.mock.calls.some(([u]) => String(u).includes('/restore'))).toBe(true))
     expect(spy, 'a restore that failed has no revision to land').not.toHaveBeenCalled()
     spy.mockRestore()
+  })
+})
+
+/**
+ * ⛔⛔ GRAPH MODE OFFERS NO "Save this view" — it would silently save nothing.
+ *
+ * The server's SAVEABLE_VIEW_TYPES (note_properties.py) and the client's
+ * SAVEABLE_VIEW_MODES both now accept "graph", so a save no longer 400s — it
+ * would silently SUCCEED and produce a named view with no filter/sort/groupBy
+ * (NoteGraphView takes none of those props; it always fetches the whole
+ * notebook). Reopening that "saved" view is indistinguishable from clicking
+ * Graph fresh. Competitive audit finding UX #18, 2026-09-22.
+ */
+describe('⛔ Graph mode never offers a "Save this view" trap', () => {
+  it('the Save-view button is absent in Graph mode', () => {
+    renderTab()
+    fireEvent.click(screen.getByRole('button', { name: 'Graph view' }))
+    expect(screen.queryByRole('button', { name: 'Save view' })).toBeNull()
+  })
+
+  it('⛔ CONTROL — the same button IS present in List mode', () => {
+    renderTab()
+    fireEvent.click(screen.getByRole('button', { name: 'List view' }))
+    expect(screen.getByRole('button', { name: 'Save view' })).toBeInTheDocument()
+  })
+})
+
+/**
+ * ⛔⛔ UX #1, 2026-09-22: `useJ2SavedViews.js` has always fully implemented
+ * rename/remove -- NotebookTab never imported them. These pin the ONE piece
+ * of logic that has to live here rather than in FolderSidebar: deleting the
+ * CURRENTLY ACTIVE view must clear `activeView`, the same "clear the active
+ * selection if it was this one" rule folder-delete already applies to
+ * `activeFolderId` (FolderSidebar owns that one directly; this one can't,
+ * because `activeView` state lives in NotebookTab).
+ */
+describe('Saved view delete clears activeView when it was the active one (UX #1)', () => {
+  it('deleting the ACTIVE view drops the "Clear filter" affordance once confirmed', async () => {
+    renderTab()
+    fireEvent.click(screen.getByText('select view v1'))
+    expect(screen.getByRole('button', { name: 'Clear filter' })).toBeInTheDocument()
+
+    fireEvent.click(screen.getByText('delete view v1'))
+    const dialog = screen.getByRole('dialog')
+    expect(within(dialog).getByText('Delete view "My View"?')).toBeInTheDocument()
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Delete' }))
+
+    await waitFor(() => expect(screen.queryByRole('button', { name: 'Clear filter' })).not.toBeInTheDocument())
+    expect(global.fetch).toHaveBeenCalledWith(
+      '/api/j2/saved-views/v1',
+      expect.objectContaining({ method: 'DELETE' }),
+    )
+  })
+
+  it('cancelling the confirm leaves the view selected (no delete call)', () => {
+    renderTab()
+    fireEvent.click(screen.getByText('select view v1'))
+    fireEvent.click(screen.getByText('delete view v1'))
+    const dialog = screen.getByRole('dialog')
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Cancel' }))
+    expect(screen.getByRole('button', { name: 'Clear filter' })).toBeInTheDocument()
+    expect(global.fetch.mock.calls.some(
+      ([u, o]) => String(u) === '/api/j2/saved-views/v1' && o?.method === 'DELETE',
+    )).toBe(false)
+  })
+
+  it('renaming calls the PUT endpoint with the new name', async () => {
+    renderTab()
+    fireEvent.click(screen.getByText('rename view v1'))
+    await waitFor(() => expect(global.fetch).toHaveBeenCalledWith(
+      '/api/j2/saved-views/v1',
+      expect.objectContaining({ method: 'PUT', body: JSON.stringify({ name: 'Renamed View' }) }),
+    ))
   })
 })

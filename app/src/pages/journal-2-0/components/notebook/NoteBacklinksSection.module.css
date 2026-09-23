@@ -1,6 +1,6 @@
 .wrap {
   margin-top: 24px;
-  border-top: 1px solid var(--color-border, #232932);
+  border-top: 1px solid var(--border);
   padding-top: 8px;
 }
 .list {
@@ -18,21 +18,35 @@
   border-radius: var(--radius-md);
   padding: 8px 6px;
   cursor: pointer;
-  color: var(--color-text-primary, #e8eaed);
+  color: var(--text-bright);
   min-height: 44px;
 }
 .row:hover {
   background: rgba(220, 187, 94, 0.1);
 }
-.rowTitle {
+.rowMain {
   flex: 1;
+  display: flex;
+  flex-direction: column;
+  min-width: 0; /* required for ellipsis truncation inside a flex child */
+  gap: 2px;
+}
+.rowTitle {
   font-size: 13px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.rowContext {
+  font-size: 11px;
+  color: var(--text-muted);
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
 .rowMeta {
   font-size: 11px;
-  color: var(--color-text-muted, #98a0aa);
+  color: var(--text-muted);
   margin-left: 8px;
+  flex-shrink: 0;
 }

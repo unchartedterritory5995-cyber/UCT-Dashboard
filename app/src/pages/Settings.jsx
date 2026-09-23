@@ -13,6 +13,8 @@ import VoiceTelemetryPanel from '../components/voice/VoiceTelemetryPanel'
 import VoiceSessionsPanel from '../components/voice/VoiceSessionsPanel'
 import VoiceDocumentsPanel from '../components/voice/VoiceDocumentsPanel'
 import VoiceInsightsPanel from '../components/voice/VoiceInsightsPanel'
+import VoiceHallucinationsPanel from '../components/voice/VoiceHallucinationsPanel'
+import VoiceLearningPanel from '../components/voice/VoiceLearningPanel'
 import BrokerConnectionsCard from './journal-2-0/components/BrokerConnectionsCard'
 import BrowserCaptureCard from './journal-2-0/components/BrowserCaptureCard'
 import ConnectedAppsCard from './journal-2-0/components/connectors/ConnectedAppsCard'
@@ -775,9 +777,15 @@ function ChartSettingsSection({ prefs, setPref }) {
   )
 }
 
-function ReferralSection() {
+// PACKET-AC CP1 (fingerprint 1839b8c60): exported so it can be tested in
+// isolation -- ReferralSection is still only ever mounted from Settings.jsx
+// (card('referral', <ReferralSection />) below).
+export function ReferralSection() {
   const [referral, setReferral] = useState(null)
   const [copied, setCopied] = useState(false)
+  const [applyCode, setApplyCode] = useState('')
+  const [applyBusy, setApplyBusy] = useState(false)
+  const [applyMsg, setApplyMsg] = useState(null) // { kind: 'success'|'error', text }
 
   useEffect(() => {
     fetch('/api/auth/my-referral')
@@ -791,6 +799,35 @@ function ReferralSection() {
     navigator.clipboard.writeText(`https://uctintelligence.com/signup?ref=${referral.code}`).catch(() => {})
     setCopied(true)
     setTimeout(() => setCopied(false), 2000)
+  }
+
+  async function handleApply() {
+    const code = applyCode.trim()
+    if (!code || applyBusy) return
+    setApplyBusy(true)
+    setApplyMsg(null)
+    try {
+      const res = await fetch('/api/auth/apply-referral', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ code }),
+      })
+      if (res.ok) {
+        setApplyCode('')
+        setApplyMsg({ kind: 'success', text: 'Code applied.' })
+      } else {
+        let detail = 'Invalid referral code'
+        try {
+          const d = await res.json()
+          detail = d?.detail || detail
+        } catch { /* keep default */ }
+        setApplyMsg({ kind: 'error', text: detail })
+      }
+    } catch {
+      setApplyMsg({ kind: 'error', text: 'Could not apply the code — try again.' })
+    } finally {
+      setApplyBusy(false)
+    }
   }
 
   if (!referral) return null
@@ -815,6 +852,31 @@ function ReferralSection() {
             {referral.successful_referrals || 0}
           </span>
         </div>
+        <p className={styles.hint} style={{ marginTop: 12, marginBottom: 8 }}>
+          Have a referral code? Enter it here.
+        </p>
+        <div className={styles.referralLinkBox}>
+          <input
+            type="text"
+            value={applyCode}
+            onChange={e => setApplyCode(e.target.value.toUpperCase())}
+            placeholder="ENTER CODE"
+            disabled={applyBusy}
+            className={styles.referralLink}
+            style={{ background: 'transparent', border: 'none', outline: 'none', width: '100%' }}
+          />
+          <button className={styles.copyBtn} onClick={handleApply} disabled={applyBusy || !applyCode.trim()}>
+            {applyBusy ? 'Applying…' : 'Apply'}
+          </button>
+        </div>
+        {applyMsg && (
+          <p
+            className={styles.hint}
+            style={{ marginTop: 6, color: applyMsg.kind === 'success' ? 'var(--profit, #3cb868)' : 'var(--loss, #ef4444)' }}
+          >
+            {applyMsg.text}
+          </p>
+        )}
       </div>
     </TileCard>
   )
@@ -1571,6 +1633,8 @@ const SEARCH_INDEX = [
   { card: 'compassPanel',   section: 'compass',     title: 'Compass',                    keywords: 'voice speed wake word jarvis read aloud proactive dictate talk orb ai coach' },
   { card: 'voiceMemory',    section: 'compass',     title: 'Voice Memory',               keywords: 'memory facts compass remembers' },
   { card: 'voiceTelemetry', section: 'compass',     title: 'Voice Telemetry',            keywords: 'usage minutes latency telemetry stats' },
+  { card: 'voiceHallucinations', section: 'compass', title: 'Hallucination Audit',       keywords: 'flags mismatch numbers wrong audit re-audit' },
+  { card: 'voiceLearning',  section: 'compass',     title: 'Active Learning',            keywords: 'gaps obsessions memory consolidate learning knowledge' },
   { card: 'voiceSessions',  section: 'compass',     title: 'Voice Session History',      keywords: 'transcripts past conversations session history' },
   { card: 'voiceDocs',      section: 'compass',     title: 'Voice Documents',            keywords: 'upload pdf files knowledge documents' },
   { card: 'voiceInsights',  section: 'compass',     title: 'Voice Insights Inbox',       keywords: 'proactive insights inbox compass noticed' },
@@ -2318,6 +2382,8 @@ export default function Settings() {
       card('compassPanel', <VoicePanel />),
       card('voiceMemory', <TileCard icon="mic" title="Voice Memory"><VoiceMemoryPanel /></TileCard>),
       card('voiceTelemetry', <TileCard icon="chart" title="Voice Telemetry"><VoiceTelemetryPanel /></TileCard>),
+      card('voiceHallucinations', <TileCard icon="warning" title="Hallucination Audit"><VoiceHallucinationsPanel /></TileCard>),
+      card('voiceLearning', <TileCard icon="sparkle" title="Active Learning"><VoiceLearningPanel /></TileCard>),
       card('voiceSessions', <TileCard icon="clock" title="Voice Session History"><VoiceSessionsPanel /></TileCard>),
       card('voiceDocs', <TileCard icon="document" title="Voice Documents"><VoiceDocumentsPanel /></TileCard>),
       card('voiceInsights', <TileCard icon="sparkle" title="Voice Insights Inbox"><VoiceInsightsPanel /></TileCard>),

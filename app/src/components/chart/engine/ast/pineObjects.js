@@ -62,6 +62,26 @@ export const CELL_POSITIONAL = Object.freeze(['text', 'width', 'height', 'text_c
  *  counterpart, so `table.clear(t, 0, 2)` takes exactly the one cell. They are
  *  left ABSENT here rather than filled in, because the default is a property of
  *  the other argument and only the converter has both in hand. */
+/** ⭐⭐ `table.cell_set_*` → THE ONE CELL PROPERTY EACH ONE PATCHES.
+ *
+ *  ⛔ MASTER'S TABLE, CARRIED ACROSS THE MERGE. It is a SEPARATE roster from
+ *  `SETTER_PROPS` because a cell setter is not a `set_*` on the table — it is
+ *  addressed by (column, row), so it shares `cell`'s address shape and not its
+ *  meaning. Without this the ten `cell_set_*` names were filed as UNSUPPORTED
+ *  methods, which is how the merge's own test suite found the gap. */
+export const CELL_SETTER_PROPS = Object.freeze({
+  cell_set_text: 'text',
+  cell_set_text_color: 'text_color',
+  cell_set_bgcolor: 'bgcolor',
+  cell_set_text_size: 'text_size',
+  cell_set_text_halign: 'text_halign',
+  cell_set_text_valign: 'text_valign',
+  cell_set_text_formatting: 'text_formatting',
+  cell_set_tooltip: 'tooltip',
+  cell_set_width: 'width',
+  cell_set_height: 'height',
+})
+
 export const CLEAR_POSITIONAL = Object.freeze(['start_column', 'start_row',
   'end_column', 'end_row'])
 
@@ -843,6 +863,19 @@ export function collectObjectOps(stmts, h) {
       ops.push({
         k: 'cell', target, col: rest[0], row: rest[1], args: rest.slice(2),
         guards, locals: scope, loopIds: [...loopIds], at, line: st.header[0].line,
+      })
+      return
+    }
+    // ⭐ A CELL SETTER SHARES `cell`'s ADDRESS SHAPE AND NOT ITS MEANING — same
+    // `(column, row)` in the same two slots, exactly one property after them. The
+    // op kind stays DISTINCT so that the day `cell` becomes the true REPLACE the
+    // reference describes, a `cell_set_text` does not start wiping the colours off
+    // the row it was only asked to relabel. (Master's, kept verbatim in intent.)
+    if (ns === 'table' && CELL_SETTER_PROPS[method]) {
+      ops.push({
+        k: 'cellpatch', prop: CELL_SETTER_PROPS[method],
+        target, col: rest[0], row: rest[1], args: rest.slice(2),
+        guards, locals: scope, at: toks[0], line: st.header[0].line,
       })
       return
     }

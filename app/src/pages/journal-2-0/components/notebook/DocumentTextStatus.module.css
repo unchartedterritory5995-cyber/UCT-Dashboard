@@ -24,10 +24,10 @@
 /* ⛔ TONE IS CARRIED BY A BORDER AND BY THE SENTENCE, NEVER BY COLOUR ALONE
    (§52). A background wash is the part that disappears in forced-colors mode;
    a left rule survives it, and the words survive everything. */
-.busy   { border-left-color: #8aa0b8; color: var(--color-text-muted, #98a0aa); }
-.muted  { border-left-color: #6d7683; color: var(--color-text-muted, #98a0aa); }
-.warn   { border-left-color: #dcbb5e; color: var(--color-text-primary, #e8eaed); }
-.error  { border-left-color: #e06c6c; color: var(--color-text-primary, #e8eaed); }
+.busy   { border-left-color: #8aa0b8; color: var(--text-muted); }
+.muted  { border-left-color: #6d7683; color: var(--text-muted); }
+.warn   { border-left-color: var(--warn); color: var(--text-bright); }
+.error  { border-left-color: var(--loss); color: var(--text-bright); }
 
 /* Touch tier from the first commit (§51) — this row is not interactive today,
    but it sits in a stack that is, and a 12px line in a 44px world is what the

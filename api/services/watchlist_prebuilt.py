@@ -12,6 +12,8 @@ Runs on a startup background thread (needs the admin user to exist)."""
 import json
 import logging
 import os
+import threading
+import time
 from collections import defaultdict
 
 from api.services import auth_service
@@ -64,9 +66,87 @@ def _admin_user_id():
 _DEFAULT_CATEGORY = "UCT ETF Lists"
 
 
+# ── Config memo ──────────────────────────────────────────────────────────────
+#
+# ⛔ THE CATALOGUE IS DERIVED FROM DISK ON EVERY REQUEST, AND IT IS NOT CHEAP.
+# `GET /api/watchlists/prebuilt` calls `category_map()`, `sample_map()`,
+# `category_order()` and `issue_date_map()`, and EACH of those re-runs
+# `_load_committed()` — so one request rebuilt the whole catalogue FOUR times.
+# Each pass re-parses `api/data/prebuilt_lists.json` (27.6 KB) AND, through
+# `_theme_index_lists()`, `themes_taxonomy.json` (411 KB) — ~1.6 MB of JSON per
+# request — and each also calls `sunday_scans_specs()`, which opens a BRAND-NEW
+# SQLite connection to the desk store and runs a double unindexed
+# `LOWER(title) LIKE '%…%'` scan. `alias_map()` calls that a fifth time.
+# All of it against `/data`, a Railway NETWORK volume. Measured on prod
+# 2026-09-20: the same request ranged 172 ms warm to 9,859 ms cold.
+#
+# The underlying data changes MONTHLY (the refresh cron, 1st @ 06:00 ET) and
+# weekly for the Sunday Scans family. So: memoize, invalidated by both a TTL and
+# the config files' mtimes, so an overlay written by the refresh job or a
+# redeployed config file is picked up without a restart.
+#
+# ⚠️ Keyed on mtime AND size — a network volume's mtime resolution is coarse
+# enough that a same-second rewrite of equal length is the one case this misses,
+# and the TTL is the backstop for it.
+_MEMO_TTL_S = 300.0
+_memo_lock = threading.Lock()
+_memo: dict[str, tuple[float, tuple, object]] = {}
+
+
+def _config_stamp() -> tuple:
+    """(path, mtime, size) for every file the catalogue is derived from."""
+    stamp = []
+    for path in list(_CONFIG_PATHS) + [_OVERLAY_PATH, _taxonomy_path()]:
+        try:
+            st = os.stat(path)
+            stamp.append((path, st.st_mtime, st.st_size))
+        except Exception:
+            stamp.append((path, None, None))
+    return tuple(stamp)
+
+
+def _taxonomy_path() -> str:
+    """The themes taxonomy file `_theme_index_lists()` parses, for mtime keying."""
+    try:
+        from api.services import theme_db
+        return theme_db._find_taxonomy_file() or ""
+    except Exception:
+        return ""
+
+
+def _memoized(key: str, build):
+    """`build()`'s result, cached until the TTL lapses or a config file changes.
+
+    The cached value is SHARED, so every caller must treat it as read-only —
+    `_apply_overlay` already copies before it mutates, which is what makes this
+    safe for `_load_committed`."""
+    now = time.monotonic()
+    stamp = _config_stamp()
+    with _memo_lock:
+        hit = _memo.get(key)
+        if hit is not None and hit[1] == stamp and (now - hit[0]) < _MEMO_TTL_S:
+            return hit[2]
+    value = build()
+    with _memo_lock:
+        _memo[key] = (now, stamp, value)
+    return value
+
+
+def invalidate_prebuilt_config_cache() -> None:
+    """Drop the memo — called by the refresh job right after it writes the overlay,
+    so the next request sees the new membership without waiting out the TTL."""
+    with _memo_lock:
+        _memo.clear()
+
+
 def _load_committed():
     """[{name, desc, category, tickers[]}] from every committed config file (ETF + theme
-    lists) — the curated baseline the overlay is layered onto."""
+    lists) — the curated baseline the overlay is layered onto. MEMOIZED — see above;
+    treat the result as read-only."""
+    return _memoized("committed", _load_committed_uncached)
+
+
+def _load_committed_uncached():
     out = []
     for path in _CONFIG_PATHS:
         try:
@@ -182,11 +262,24 @@ def issue_date_map():
 def alias_map():
     """{lowercased list name: {"alias", "label"}} — the stable alias the NEWEST
     Sunday Scans issue carries (exactly one row, or none when the store is
-    unavailable), so a widget can pin "the latest issue" rather than a date."""
-    specs = sunday_scans_specs()
-    if not specs:
+    unavailable), so a widget can pin "the latest issue" rather than a date.
+
+    ⚠️ Reads the DATED rows of the memoized config rather than calling
+    `sunday_scans_specs()` again. `_load_committed()` already appends exactly those
+    specs — they ARE the rows carrying `issue_date`, which is the same set
+    `issue_date_map()` answers from — so the newest is identical either way. What
+    changes is the cost: the direct call opened a FIFTH fresh SQLite connection to
+    the desk store per request and ran a double unindexed LIKE scan, on a network
+    volume, to re-derive something the memo was already holding.
+
+    Freshness contract: a newly published issue takes over the alias within the
+    config memo's TTL, not instantly. That is the right trade for a WEEKLY source.
+    The seeder and `_reconcile_sunday_family` still call `sunday_scans_specs()`
+    directly — they are writers reconciling against the store and must see it now."""
+    dated = [l for l in _load_committed() if l.get("issue_date")]
+    if not dated:
         return {}
-    newest = max(specs, key=lambda s: s["issue_date"])
+    newest = max(dated, key=lambda s: s["issue_date"])
     return {newest["name"].strip().lower():
             {"alias": SUNDAY_SCANS_LATEST_ALIAS, "label": SUNDAY_SCANS_LATEST_LABEL}}
 
@@ -422,8 +515,16 @@ def _apply_overlay(lists):
 
 
 def _load_lists():
-    """The authoritative prebuilt set = committed config with the durable overlay applied."""
-    return _apply_overlay(_load_committed())
+    """The authoritative prebuilt set = committed config with the durable overlay applied.
+
+    ⛔ THE COPY IS LOAD-BEARING, NOT DEFENSIVE STYLE. `_apply_overlay` REBINDS
+    `l["tickers"]` on the dicts it is handed, and since `_load_committed()` became
+    memoized those dicts are the SHARED baseline. Handing them over raw would let
+    the overlay's delisted-prune and index-replacement mutate the cache in place,
+    so the second caller would see an already-overlaid "committed" config and
+    `category_map()` would start answering from overlaid rows. Copy each row, and
+    copy its ticker list, before the overlay touches it."""
+    return _apply_overlay([{**l, "tickers": list(l["tickers"])} for l in _load_committed()])
 
 
 def _create_list(admin, name, desc, tickers):

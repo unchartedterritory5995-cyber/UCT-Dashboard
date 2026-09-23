@@ -8,6 +8,7 @@ import { renderHook, act, waitFor } from '@testing-library/react'
 import { SWRConfig } from 'swr'
 import useJ2Notes, {
   useJ2Favorites, useJ2Recents, setNoteFavorite, recordNoteOpened,
+  useJ2SectorThemeFacets,
 } from './useJ2Notes'
 
 // A fresh Map-backed cache per test -- these hooks use STABLE URLs
@@ -222,6 +223,41 @@ describe('useJ2Favorites / useJ2Recents (Wave B)', () => {
     await waitFor(() => expect(result.current.isLoading).toBe(false))
     expect(global.fetch.mock.calls[0][0]).toBe('/api/j2/notes/recents')
     expect(result.current.notes).toEqual([{ id: 'n2', title: 'Recent' }])
+  })
+})
+
+describe('useJ2SectorThemeFacets (competitive-audit UX #9)', () => {
+  it('fetches /api/j2/notes/sector-theme-facets and returns the sectors/themes arrays', async () => {
+    global.fetch = vi.fn(() => Promise.resolve({
+      ok: true,
+      json: () => Promise.resolve({ sectors: ['Financials', 'Technology'], themes: ['AI Infrastructure'] }),
+    }))
+    const { result } = renderHook(() => useJ2SectorThemeFacets(), { wrapper: freshCacheWrapper })
+    await waitFor(() => expect(result.current.isLoading).toBe(false))
+    expect(global.fetch.mock.calls[0][0]).toBe('/api/j2/notes/sector-theme-facets')
+    expect(result.current.sectors).toEqual(['Financials', 'Technology'])
+    expect(result.current.themes).toEqual(['AI Infrastructure'])
+  })
+
+  it('reports sectors/themes as undefined (not []) before data resolves — unknown, not empty', () => {
+    global.fetch = vi.fn(() => new Promise(() => {})) // never resolves
+    const { result } = renderHook(() => useJ2SectorThemeFacets(), { wrapper: freshCacheWrapper })
+    // Same "unknown vs. known-empty" discipline as useJ2NoteFolderCounts —
+    // a brand-new member with zero mentioned tickers must read as a real
+    // `[]` once the server actually answers, never conflated with "still
+    // loading" by defaulting to `[]` here.
+    expect(result.current.sectors).toBeUndefined()
+    expect(result.current.themes).toBeUndefined()
+  })
+
+  it('a request disabled via `enabled:false` never fetches', () => {
+    global.fetch = vi.fn()
+    const { result } = renderHook(
+      () => useJ2SectorThemeFacets({ enabled: false }), { wrapper: freshCacheWrapper },
+    )
+    expect(global.fetch).not.toHaveBeenCalled()
+    expect(result.current.sectors).toBeUndefined()
+    expect(result.current.themes).toBeUndefined()
   })
 })
 

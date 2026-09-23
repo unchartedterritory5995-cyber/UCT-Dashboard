@@ -2,6 +2,7 @@ import { useEffect, useMemo, useRef, useState } from 'react'
 import useJ2NoteFolders from '../../hooks/useJ2NoteFolders'
 import useJ2Notes, {
   useJ2NoteFolderCounts, useJ2NotesByFolders, useJ2Favorites, useJ2Recents,
+  useJ2SectorThemeFacets,
 } from '../../hooks/useJ2Notes'
 import useJ2NoteTags from '../../hooks/useJ2NoteTags'
 import useDocumentSearch from '../../hooks/useDocumentSearch'
@@ -16,6 +17,7 @@ import { isScannedText, SCANNED_TEXT_LABEL, SCANNED_TEXT_HINT }
 import UIcon from '../../../../components/ui/UIcon'
 import ConfirmModal from '../ConfirmModal'
 import { SkeletonLine } from '../../../../components/Skeleton'
+import { VIEW_MODES } from '../../lib/savedViewModes'
 import styles from './FolderSidebar.module.css'
 
 // Debounce before the search query reaches the server (below) — short enough
@@ -149,6 +151,14 @@ function NoteIcon() {
 // system-derived and capped small enough that collapsing rarely matters;
 // Favorites can grow, so the affordance is there for a member who wants it
 // out of the way without leaving the section itself invisible).
+// ⛔⛔ D-40, 2026-09-22: both note-row buttons in this file (here, and
+// FolderNode's own inline folder-notes list below) now carry
+// `data-note-card-id`, the SAME identity NoteCard.jsx already gives the
+// joystick hub (R-18) -- never `data-note-id`, which TipTap's inline
+// note-link node already owns. The hub's cursor (notebookSection.js)
+// queries `[data-note-card-id]` against the WHOLE document, so a note row
+// with no such attribute was simply invisible to it, silently. Competitive
+// audit finding UX #11 / Accessibility QW-6.
 function RecencySection({ label, icon, notes, activeNoteId, onOpenNote }) {
   const [expanded, setExpanded] = useState(true)
   if (!notes.length) return null
@@ -177,6 +187,7 @@ function RecencySection({ label, icon, notes, activeNoteId, onOpenNote }) {
             className={`${styles.noteRow} ${activeNoteId === note.id ? styles.rowActive : ''}`}
             onClick={() => onOpenNote(note)}
             title={note.title?.trim() || 'Untitled'}
+            data-note-card-id={note.id}
           >
             <NoteIcon />
             <span className={styles.noteTitle}>{note.title?.trim() || 'Untitled'}</span>
@@ -198,9 +209,24 @@ function RecencySection({ label, icon, notes, activeNoteId, onOpenNote }) {
 // moment the member has any saved view (their own or the starter set), so
 // nothing here becomes nav clutter for someone who doesn't use thesis
 // properties at all.
-function SavedViewsSection({ views, activeViewId, onSelectView, onAddStarterViews }) {
+function SavedViewsSection({ views, activeViewId, onSelectView, onRenameView, onDeleteView, onAddStarterViews }) {
   const [expanded, setExpanded] = useState(true)
   const [addingStarters, setAddingStarters] = useState(false)
+  // ⛔⛔ UX #1, 2026-09-22: this section's own comment two paragraphs above
+  // has always claimed saved views are "fully renameable/deletable" -- the
+  // hook (useJ2SavedViews.js) always was; nothing in this component ever
+  // called it. Mirrors FolderNode's exact rename-affordance pattern
+  // (double-click OR a visible pencil icon opens an inline input; Enter/
+  // blur submits, Escape cancels) so a member learns one interaction, not
+  // two, for renaming anything in this sidebar.
+  const [editingViewId, setEditingViewId] = useState(null)
+  const [editViewName, setEditViewName] = useState('')
+  const submitViewRename = (id) => {
+    const trimmed = editViewName.trim()
+    setEditingViewId(null)
+    if (!trimmed) return // empty submit = cancel, never an empty-named view
+    onRenameView(id, trimmed)
+  }
   if (!views.length) {
     if (!onAddStarterViews) return null
     return (
@@ -242,15 +268,59 @@ function SavedViewsSection({ views, activeViewId, onSelectView, onAddStarterView
       {expanded && views.map((view) => (
         <div key={view.id} className={styles.rowWrap}>
           <span className={styles.disclosureSpacer} aria-hidden="true" />
-          <button
-            type="button"
-            className={`${styles.noteRow} ${activeViewId === view.id ? styles.rowActive : ''}`}
-            onClick={() => onSelectView(view)}
-            title={view.name}
-          >
-            <UIcon name={view.viewType === 'table' ? 'columns' : 'rows'} size={13} gold={false} />
-            <span className={styles.noteTitle}>{view.name}</span>
-          </button>
+          {editingViewId === view.id ? (
+            <input
+              className={styles.editInput}
+              autoFocus
+              value={editViewName}
+              onChange={(e) => setEditViewName(e.target.value)}
+              onBlur={() => submitViewRename(view.id)}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter') submitViewRename(view.id)
+                if (e.key === 'Escape') setEditingViewId(null)
+              }}
+            />
+          ) : (
+            <button
+              type="button"
+              className={`${styles.noteRow} ${activeViewId === view.id ? styles.rowActive : ''}`}
+              onClick={() => onSelectView(view)}
+              onDoubleClick={() => { setEditingViewId(view.id); setEditViewName(view.name) }}
+              title={view.name}
+            >
+              {/*
+                ⛔ DERIVED FROM VIEW_MODES, NEVER A LIST/TABLE BINARY -- a saved
+                Board/Calendar/Graph view used to render the same generic "rows"
+                icon as List, a hand-typed second authority over data
+                `lib/savedViewModes` already has correct. An unrecognised
+                viewType (an older view, or one saved by a newer client) falls
+                back to `rows`, matching FALLBACK_VIEW_MODE ('list'). Competitive
+                audit finding UX #6, 2026-09-22. `data-view-icon` is a test seam
+                only, not a product attribute.
+              */}
+              <UIcon
+                name={VIEW_MODES.find((m) => m.id === view.viewType)?.icon || 'rows'}
+                size={13}
+                gold={false}
+                data-view-icon={VIEW_MODES.find((m) => m.id === view.viewType)?.icon || 'rows'}
+              />
+              <span className={styles.noteTitle}>{view.name}</span>
+              <span className={styles.actions}>
+                <span
+                  className={styles.iconBtn}
+                  onClick={(e) => { e.stopPropagation(); setEditingViewId(view.id); setEditViewName(view.name) }}
+                  title="Rename view"
+                  aria-label={`Rename ${view.name}`}
+                ><UIcon name="edit" size={11} gold={false} /></span>
+                <span
+                  className={styles.iconBtn}
+                  onClick={(e) => { e.stopPropagation(); onDeleteView(view.id, view.name) }}
+                  title="Delete view"
+                  aria-label={`Delete ${view.name}`}
+                ><UIcon name="x" size={11} gold={false} /></span>
+              </span>
+            </button>
+          )}
         </div>
       ))}
     </div>
@@ -375,6 +445,19 @@ function FolderNode({
           >
             <span>{node.name}</span>
             <span className={styles.actions}>
+              {/*
+                ⛔ RENAME HAD ZERO VISUAL AFFORDANCE -- discoverable only by
+                double-clicking, a desktop-file-manager convention this
+                product never taught. Wired to the SAME setEditingId/
+                setEditName path onDoubleClick already uses, just given a
+                visible door. Competitive audit finding UX #10, 2026-09-22.
+              */}
+              <span
+                className={styles.iconBtn}
+                onClick={(e) => { e.stopPropagation(); setEditingId(node.id); setEditName(node.name) }}
+                title="Rename folder"
+                aria-label={`Rename ${node.name}`}
+              ><UIcon name="edit" size={11} gold={false} /></span>
               <span
                 className={`${styles.iconBtn} ${styles.iconBtnAdd}`}
                 onClick={(e) => { e.stopPropagation(); onStartAddChild(node.id) }}
@@ -385,7 +468,7 @@ function FolderNode({
                 className={styles.iconBtn}
                 onClick={(e) => { e.stopPropagation(); onDelete(node.id, node.name) }}
                 title="Delete folder"
-              >×</span>
+              ><UIcon name="x" size={11} gold={false} /></span>
             </span>
           </button>
         )}
@@ -429,6 +512,7 @@ function FolderNode({
                 className={`${styles.noteRow} ${activeNoteId === note.id ? styles.rowActive : ''}`}
                 onClick={() => onOpenNote(note)}
                 title={note.title?.trim() || 'Untitled'}
+                data-note-card-id={note.id}
               >
                 <NoteIcon />
                 <span className={styles.noteTitle}>{note.title?.trim() || 'Untitled'}</span>
@@ -474,6 +558,10 @@ export default function FolderSidebar({
   savedViews = [],
   activeViewId = null,
   onSelectView = () => {},
+  // UX #1, 2026-09-22: optional, default no-op so an existing caller/test
+  // that only exercises selection still renders exactly as before.
+  onRenameView = () => {},
+  onDeleteView = () => {},
   onAddStarterViews = null,
   // Wave H: Research Home is now the bare-root state (checkpoint decision
   // 32/33) -- both null, same as "All notes" with no filter, so an explicit
@@ -514,6 +602,21 @@ export default function FolderSidebar({
   const [sectorFilter, setSectorFilter] = useState('')
   const [themeFilter, setThemeFilter] = useState('')
   const hasActiveFilters = Boolean(dateFrom || dateTo || sectorFilter || themeFilter)
+
+  // Competitive-audit UX #9: the Sector/Theme fields used to be free-text
+  // against an exact match with no way to discover a valid value (see
+  // useJ2SectorThemeFacets's own comment) -- fetched only once the filter
+  // panel is actually open, matching this whole section's "collapsed by
+  // default, never fetch what nobody asked to see" discipline.
+  const { sectors: sectorOptionsRaw, themes: themeOptionsRaw, isLoading: facetsLoading } =
+    useJ2SectorThemeFacets({ enabled: showFilters })
+  // Defensive: a currently-set value that isn't (yet, or any longer) in the
+  // fetched option list must still render as the select's chosen option
+  // rather than silently blanking out from under the member.
+  const sectorOptions = sectorFilter && !(sectorOptionsRaw || []).includes(sectorFilter)
+    ? [sectorFilter, ...(sectorOptionsRaw || [])] : (sectorOptionsRaw || [])
+  const themeOptions = themeFilter && !(themeOptionsRaw || []).includes(themeFilter)
+    ? [themeFilter, ...(themeOptionsRaw || [])] : (themeOptionsRaw || [])
 
   useEffect(() => {
     if (mode === 'search') searchInputRef.current?.focus()
@@ -852,7 +955,7 @@ export default function FolderSidebar({
                 className={styles.searchClear}
                 onClick={() => { setQuery(''); searchInputRef.current?.focus() }}
                 aria-label="Clear search"
-              >×</button>
+              ><UIcon name="x" size={11} gold={false} /></button>
             )}
             {/* Wave 4 Slice 1/3: collapsed by default -- a member who just
                 wants to type-and-search never sees this. */}
@@ -882,13 +985,25 @@ export default function FolderSidebar({
               </label>
               <label className={styles.searchFilterField}>
                 <span>Sector</span>
-                <input type="text" value={sectorFilter} placeholder="e.g. Technology"
-                  onChange={(e) => setSectorFilter(e.target.value)} />
+                <select value={sectorFilter} onChange={(e) => setSectorFilter(e.target.value)}>
+                  <option value="">
+                    {facetsLoading ? 'Loading…' : sectorOptions.length ? 'Any sector' : 'No sectors yet'}
+                  </option>
+                  {sectorOptions.map((s) => (
+                    <option key={s} value={s}>{s}</option>
+                  ))}
+                </select>
               </label>
               <label className={styles.searchFilterField}>
                 <span>Theme</span>
-                <input type="text" value={themeFilter} placeholder="e.g. AI Infrastructure"
-                  onChange={(e) => setThemeFilter(e.target.value)} />
+                <select value={themeFilter} onChange={(e) => setThemeFilter(e.target.value)}>
+                  <option value="">
+                    {facetsLoading ? 'Loading…' : themeOptions.length ? 'Any theme' : 'No themes yet'}
+                  </option>
+                  {themeOptions.map((t) => (
+                    <option key={t} value={t}>{t}</option>
+                  ))}
+                </select>
               </label>
               {hasActiveFilters && (
                 <button
@@ -982,13 +1097,23 @@ export default function FolderSidebar({
               something to say (a real query in flight, or real results) so
               an empty/filters-only search doesn't grow an extra empty block. */}
           {trimmedQuery && (documentsSearching || documentResults.length > 0) && (
+            documentsSearching ? (
+              // G-106 (Wave B lower-frequency sweep): same skeleton-row idiom
+              // as the Notes search above, instead of a bare count string.
+              <div className={styles.searchResultsSkeleton} role="status" aria-label="Searching documents…">
+                {[0, 1].map((i) => (
+                  <div key={i} className={styles.searchResultSkeletonRow}>
+                    <SkeletonLine width="70%" height={12} />
+                    <SkeletonLine width="90%" height={10} />
+                  </div>
+                ))}
+              </div>
+            ) : (
             <div className={styles.searchResults}>
               <div className={styles.searchCount}>
-                {documentsSearching
-                  ? 'Searching documents…'
-                  : `${documentResults.length} document page${documentResults.length === 1 ? '' : 's'}`}
+                {`${documentResults.length} document page${documentResults.length === 1 ? '' : 's'}`}
               </div>
-              {!documentsSearching && documentResults.map((d) => (
+              {documentResults.map((d) => (
                 <button
                   key={`${d.documentId}-${d.pageNumber}`}
                   type="button"
@@ -1022,6 +1147,7 @@ export default function FolderSidebar({
                 </button>
               ))}
             </div>
+            )
           )}
 
           {/* Wave J: Evidence section — the passages this member chose to
@@ -1029,13 +1155,23 @@ export default function FolderSidebar({
               Documents, each still its own list. Same render-only-when-it-
               has-something-to-say rule as Documents above. */}
           {trimmedQuery && (excerptsSearching || excerptResults.length > 0) && (
+            excerptsSearching ? (
+              // G-106 (Wave B lower-frequency sweep): same skeleton-row idiom
+              // as the Notes search above, instead of a bare count string.
+              <div className={styles.searchResultsSkeleton} role="status" aria-label="Searching evidence…">
+                {[0, 1].map((i) => (
+                  <div key={i} className={styles.searchResultSkeletonRow}>
+                    <SkeletonLine width="70%" height={12} />
+                    <SkeletonLine width="90%" height={10} />
+                  </div>
+                ))}
+              </div>
+            ) : (
             <div className={styles.searchResults}>
               <div className={styles.searchCount}>
-                {excerptsSearching
-                  ? 'Searching evidence…'
-                  : `${excerptResults.length} saved excerpt${excerptResults.length === 1 ? '' : 's'}`}
+                {`${excerptResults.length} saved excerpt${excerptResults.length === 1 ? '' : 's'}`}
               </div>
-              {!excerptsSearching && excerptResults.map((e) => (
+              {excerptResults.map((e) => (
                 <button
                   key={e.excerptId}
                   type="button"
@@ -1054,6 +1190,7 @@ export default function FolderSidebar({
                 </button>
               ))}
             </div>
+            )
           )}
 
           {/* Wave O6: Thesis reviews — the member's own conclusions. Fourth and
@@ -1062,13 +1199,23 @@ export default function FolderSidebar({
               rendered only their prose would make "I was wrong about this" and
               "no change" look like the same finding. */}
           {trimmedQuery && (reviewsSearching || reviewResults.length > 0) && (
+            reviewsSearching ? (
+              // G-106 (Wave B lower-frequency sweep): same skeleton-row idiom
+              // as the Notes search above, instead of a bare count string.
+              <div className={styles.searchResultsSkeleton} role="status" aria-label="Searching your reviews…">
+                {[0, 1].map((i) => (
+                  <div key={i} className={styles.searchResultSkeletonRow}>
+                    <SkeletonLine width="70%" height={12} />
+                    <SkeletonLine width="90%" height={10} />
+                  </div>
+                ))}
+              </div>
+            ) : (
             <div className={styles.searchResults}>
               <div className={styles.searchCount}>
-                {reviewsSearching
-                  ? 'Searching your reviews…'
-                  : `${reviewResults.length} thesis review${reviewResults.length === 1 ? '' : 's'}`}
+                {`${reviewResults.length} thesis review${reviewResults.length === 1 ? '' : 's'}`}
               </div>
-              {!reviewsSearching && reviewResults.map((r) => (
+              {reviewResults.map((r) => (
                 <button
                   key={r.reviewId}
                   type="button"
@@ -1092,6 +1239,7 @@ export default function FolderSidebar({
                 </button>
               ))}
             </div>
+            )
           )}
         </div>
       ) : (
@@ -1114,6 +1262,8 @@ export default function FolderSidebar({
             views={savedViews}
             activeViewId={activeViewId}
             onSelectView={onSelectView}
+            onRenameView={onRenameView}
+            onDeleteView={onDeleteView}
             onAddStarterViews={onAddStarterViews}
           />
           <div className={styles.section}>

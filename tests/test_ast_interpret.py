@@ -273,7 +273,48 @@ def test_ast_table_SPELLS_NO_TABLE_NAME_so_it_cannot_be_a_hand_copy():
     # 104 -> 110 (2026-09-09): the six barstate clock columns. Named rather than
     # bumped -- islast, isfirst, isrealtime, isconfirmed, ishistory,
     # islastconfirmedhistory. See closedTable.json::_barstate.
-    assert len(ast_table.bar_names()) == 110, len(ast_table.bar_names())
+    # 110 -> 111 (2026-09-19): `lastbarindex`, the newest bar's own `barindex`
+    # broadcast to every bar -- `islast`'s ruling applied to a number instead
+    # of a flag. See closedTable.json's `lastbarindex` clock entry and
+    # `indicator_compute.py::CLOCK_EXTENT`.
+    # ⭐ 111 -> 112 (2026-09-20): `floor`, Pine's `math.floor` -- the SAME shape
+    # as `round`'s own bump into this half: a new pointwise scalar function
+    # name (`lookback: 0`, one `series` argument), no new node type, argument
+    # kind or lookback form. `math.floor` has no algebraic domain restriction
+    # (it is defined for every real input); the only cross-lane hazard is that
+    # Python's `math.floor` must return an `int` and so RAISES on NaN and on an
+    # infinite input, where JS's `Math.floor` does not -- `_guarded_floor`
+    # (`api/services/ast_interpret.py`) closes that the same way `_guarded_round`
+    # already does. The scalar half is untouched (see the sibling assertion).
+    # ⭐ 112 -> 113 (2026-09-20): `percentileLinearInterpolation`, Pine's
+    # `ta.percentile_linear_interpolation` -- routed onto this camelCase
+    # manifest key via `PINE_CALL_SHAPES`, vetted against a real TradingView
+    # capture. Three arguments (`series, int, int`), `lookback: "arg1"` -- an
+    # already-declared lookback form -- no new node type, argument kind or
+    # lookback form. The scalar half is untouched (see the sibling assertion).
+    # ⭐⭐ 113 -> 119 (2026-09-20): `lastbartime` + its five calendar fields
+    # (`lastbaryear`/`lastbarmonth`/`lastbardayofmonth`/`lastbarhour`/
+    # `lastbarminute`) -- `lastbarindex`'s own ruling applied to a calendar,
+    # and this engine's answer for Pine's `timenow` (a live wall clock a
+    # static translator has no instant for). All six ride the existing
+    # `series` node and add no argument `interpret` did not already have.
+    # The scalar half is untouched (see the sibling assertion).
+    # ⭐ 119 -> 120 (2026-09-20): `ceil`, Pine's `math.ceil` -- `floor`'s exact
+    # sibling, and the sole blocker on a real corpus script
+    # (`chart-champions-part-1-npoc-levels-vwaps__wdeUFJ4ZD2.pine`). Ordinary
+    # pointwise entry, `lookback: 0`, one `series` argument -- no new node
+    # type, argument kind or lookback form. The scalar half is untouched.
+    # ⭐ 120 -> 121 (2026-09-20): `valuewhenOccurrence`, the occurrence-indexed
+    # backward search behind `ta.valuewhen`'s namespace-aware redirect. Bound
+    # via the existing `int`-kind mechanism -- no new node type, argument kind
+    # or lookback form (`lookback: "series"` already exists for `cum`). The
+    # scalar half is untouched at 137.
+    # ⭐ 121 -> 122 (2026-09-20): `dayopentime`, `sessionfirst`'s own `day` key
+    # turned into a value -- this engine's answer for Pine's
+    # `time(<timeframe>)` one-argument form when it folds to "D". Bound via
+    # the existing `series` clock-leaf mechanism -- no new node type,
+    # argument kind or lookback form. The scalar half is untouched at 137.
+    assert len(ast_table.bar_names()) == 122, len(ast_table.bar_names())
     # ⭐ 111 -> 137 (2026-09-02): the TWENTY-SIX Wave-1 screener columns promoted
     # into the formula vocabulary (`manifest: promote 26 Wave-1 columns`). They
     # were shipped screener columns the whole time and were held out by an
@@ -301,7 +342,22 @@ def test_ast_table_SPELLS_NO_TABLE_NAME_so_it_cannot_be_a_hand_copy():
     # it has to move with them or the pair stops being a partition claim.
     # 241 -> 247 (2026-09-09): the six BARSTATE clock columns. The bar half moved
     # and the scalar half did not, which is what the two assertions above are for.
-    assert len(declared) == 247, f"the table declares {len(declared)} names, not 247"
+    # 247 -> 248 (2026-09-19): `lastbarindex`. Same shape again -- the bar half
+    # moved, the scalar half is untouched at 137.
+    # 248 -> 249 (2026-09-20): `floor`. The bar half moved 111 -> 112, the
+    # scalar half is untouched at 137; this is their sum.
+    # 249 -> 250 (2026-09-20): `percentileLinearInterpolation`. The bar half
+    # moved 112 -> 113, the scalar half is untouched at 137; this is their sum.
+    # 250 -> 256 (2026-09-20): `lastbartime` + its five calendar fields. The
+    # bar half moved 113 -> 119, the scalar half is untouched at 137; this is
+    # their sum.
+    # 256 -> 257 (2026-09-20): `ceil`. The bar half moved 119 -> 120, the
+    # scalar half is untouched at 137; this is their sum.
+    # 257 -> 258 (2026-09-20): `valuewhenOccurrence`. The bar half moved
+    # 120 -> 121, the scalar half is untouched at 137; this is their sum.
+    # 258 -> 259 (2026-09-20): `dayopentime`. The bar half moved 121 -> 122,
+    # the scalar half is untouched at 137; this is their sum.
+    assert len(declared) == 259, f"the table declares {len(declared)} names, not 259"
     leaked = sorted(_string_constants(pathlib.Path(ast_table.__file__)) & declared)
     assert not leaked, (
         f"api/services/ast_table.py spells {leaked} as string literals. This "

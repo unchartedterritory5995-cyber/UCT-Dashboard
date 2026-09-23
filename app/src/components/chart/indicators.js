@@ -1176,11 +1176,101 @@ export function timeframeFlags(tf) {
   }
 }
 
-/** The eight columns that read the bar's `t`, and therefore the eight the unit
+/** The nine columns that read the bar's `t`, and therefore the nine the unit
  *  gate below refuses together. Derived from nothing: it IS the partition, and
  *  `computeClock` reads it in both directions so the two halves cannot drift. */
 const CLOCK_TIME_DERIVED = ['time', 'year', 'month', 'dayofmonth', 'dayofweek',
-  'hour', 'minute', 'sessionfirst']
+  'hour', 'minute', 'sessionfirst', 'dayopentime']
+
+/** ⭐⭐ THE OPENING TIMESTAMP OF THE ET CALENDAR DAY CONTAINING THIS BAR,
+ *  BROADCAST TO EVERY BAR OF THAT DAY (2026-09-20) — `sessionfirst`'s own
+ *  `day` key, turned into a VALUE instead of a boundary FLAG. Pine's
+ *  `time(<timeframe>)` one-argument anchor form (`time("D")`/`time(tf)` with
+ *  `tf` folded to `"D"`) is this: "the opening UNIX timestamp of the
+ *  enclosing period", read on every bar, compared with `>`/`change()` to
+ *  detect a new period. `sessionfirst` answers "is this bar the FIRST of its
+ *  day" (a lookback-1 boundary flag); this answers "what time did THIS bar's
+ *  day open" (a value, the same on every bar of one day) — a different shape
+ *  of the identical `day` key, not a second derivation of it.
+ *
+ *  ⭐ IN UNIX **SECONDS**, matching `time`'s own unit in this table, NOT
+ *  Pine's milliseconds — the manifest's sentence says so explicitly, exactly
+ *  as `time`'s own sentence already warns a member off comparing it to a raw
+ *  number copied from a Pine script.
+ *
+ *  ⭐ COMPUTED WITHOUT ANY CALENDAR/DST ARITHMETIC: `p.h` and `minute` are
+ *  already this bar's genuine ET wall-clock hour/minute (from `etClockParts`,
+ *  DST-correct by construction), so "seconds since ET midnight" is read
+ *  straight off them and subtracted from `t` — never a fixed 24h step back,
+ *  which would be wrong on the two days a year the offset itself changes.
+ *  `t % 60` is the seconds-of-minute component, timezone-invariant for the
+ *  same reason `minute` is (every ET offset is a whole number of hours).
+ *
+ *  ⚠️ NOT THE VENDOR'S SESSION-FILTERING BEHAVIOUR: real Pine's `session`
+ *  argument (defaulted here to "no filter") can make `time()` answer `na`
+ *  outside the symbol's regular session. This column never does — a real,
+ *  narrower-than-vendor simplification, stated here rather than silently
+ *  matched only for the common case. Every real corpus script that needs
+ *  this reads it through `ta.change(...) != 0`/`t > t[1]` boundary
+ *  detection only, never the raw value, so the simplification is faithful
+ *  to what they actually ask.
+ *
+ *  ⛔ A REAL, NARROW EXCEPTION TO "THE SAME VALUE ON EVERY BAR OF ONE DAY",
+ *  FOUND BY THE PARITY FIXTURE ITSELF (it was chosen to span a DST change):
+ *  on the FALL-BACK transition day, the wall-clock hour 1:00-1:59 AM ET
+ *  occurs TWICE (once EDT, once EST) — a bar in the first pass and a bar in
+ *  the second both read the SAME calendar day and a SAME-LOOKING hour/
+ *  minute, but under DIFFERENT UTC offsets, so this column reads one real
+ *  UTC instant for the first pass and a DIFFERENT one (one hour off) for
+ *  the second, even though `sessionfirst` correctly agrees both bars are
+ *  the same day. Left as-is rather than disambiguated: NYSE never trades
+ *  1-2 AM ET (not even extended hours), so this can only ever surface on a
+ *  24/7 instrument, and no real corpus script needing `time(<timeframe>)`
+ *  is one. Measured directly in `tests/fixtures/ast/clock_parity.json`
+ *  (bars 8-11, spanning 2025-11-02's fall-back). */
+
+/** ⭐⭐ THE NEWEST BAR'S OWN CALENDAR, BROADCAST TO EVERY BAR (2026-09-20) —
+ *  `lastbarindex`'s own ruling applied to a calendar instead of a bar
+ *  position. `timenow` is Pine's LIVE wall clock, which a static translator
+ *  over an already-fetched bar array has no instant for; `lastbartime` is
+ *  this engine's ANSWER, not a look-alike: the newest bar's own `t`, the same
+ *  value on every bar, exactly the "which real bar" invariance `lastbarindex`
+ *  already has (widen the fetch and the VALUE moves — a different bar is
+ *  newest — but a member reading `lastbartime` on a stable fetch reads a
+ *  stable answer, is_today comparisons included).
+ *
+ *  ⛔⛔ THE DIVERGENCE FROM VENDOR SEMANTICS IS REAL AND NAMED HERE RATHER
+ *  THAN LEFT IMPLICIT, because unlike `lastbarindex` (purely structural, no
+ *  vendor semantics to diverge from) this one substitutes for genuine
+ *  wall-clock time and a member could notice: on a STALE fetch (a Saturday
+ *  chart whose newest bar is Friday's close), Pine's real
+ *  `year==year(timenow) and month==month(timenow) and
+ *  dayofmonth==dayofmonth(timenow)` ("is_today") reads FALSE for every bar,
+ *  because real "now" is Saturday; this engine's answer reads TRUE for the
+ *  newest bar, because its `timenow` is anchored to the fetch, not the wall.
+ *  The tradeoff is deliberate: a static translator has no live instant to
+ *  read AT ALL, so "no answer" is the only alternative to "the newest fetched
+ *  bar's own calendar" — and the six real corpus scripts measured 2026-09-20
+ *  (`chart-champions-part-1-npoc-levels-vwaps`,
+ *  `initial-balance-ib-and-previous-day-week-high-low-close`,
+ *  `mtf-key-levels-support-and-resistance`,
+ *  `swing-points-and-liquidity-by-leviathan`, three more sharing the same
+ *  `year(timenow)`/`month(timenow)`/`dayofmonth(timenow)` "is_today" idiom)
+ *  all read it as "is this the newest bar in view", which the fetch-anchored
+ *  reading answers correctly.
+ *
+ *  ⭐ THE FIVE CALENDAR FIELDS ARE THE NEWEST BAR'S OWN `year`/`month`/
+ *  `dayofmonth`/`hour`/`minute` VALUES, READ BACK RATHER THAN RECOMPUTED —
+ *  `computeClock` already derives every bar's calendar in one pass, so the
+ *  newest bar's fields are `cols.year[length-1]` etc., not a second call to
+ *  `etClockParts`. One derivation, one place it could disagree with itself:
+ *  nowhere. `dayofweek(timenow)` and `second(timenow)` are DELIBERATELY not
+ *  declared: no measured corpus script calls the former, and `second` is not
+ *  a bare clock field this table declares AT ALL yet (a `timenow`-only
+ *  variant of a value nothing else can read would be a stranger gap than the
+ *  one it closes) — build bare `second` first if a future script needs it. */
+const CLOCK_LASTBAR_TIME = ['lastbartime', 'lastbaryear', 'lastbarmonth',
+  'lastbardayofmonth', 'lastbarhour', 'lastbarminute']
 
 /** Every column `computeClock` produces.
  *
@@ -1189,17 +1279,27 @@ const CLOCK_TIME_DERIVED = ['time', 'year', 'month', 'dayofmonth', 'dayofweek',
  *  manifest's `clock` keys out of this bundle and throws BY NAME on an entry the
  *  bundle has no column for — a declared name quietly seeded NaN would be a
  *  clock that reads "not computable" forever, on every bar, silently. */
-/** The two BARSTATE columns that read only the fetch's EXTENT — which bar this
- *  is out of how many — and no clock at all.
+/** The three EXTENT columns — which bar this is out of how many — and no
+ *  clock at all.
  *
  *  ⭐ THEY ARE OUTSIDE THE UNIT GATE FOR THE SAME REASON `barindex` IS: they
  *  never touch `t`, so a series stored in `YYYYMMDD` ints gives them no reason
  *  to doubt themselves. They also can never BLANK — there is no input they
  *  could be missing. `isfirst` is nonetheless WINDOW-DEPENDENT in the
- *  requirement-tag sense and `islast` is not — widen the fetch and the oldest
- *  bar moves while the newest one does not. That distinction is the ruling, and
- *  it is the reason these two are not one column with a flag. */
-export const CLOCK_EXTENT = Object.freeze(['islast', 'isfirst'])
+ *  requirement-tag sense and `islast`/`lastbarindex` are not — widen the fetch
+ *  and the oldest bar moves while the newest one does not.
+ *
+ *  ⭐ `lastbarindex` IS `islast`'S OWN RULING, APPLIED TO A NUMBER RATHER THAN A
+ *  FLAG: it is the newest bar's `barindex`, broadcast to every bar. Widening
+ *  the fetch shifts the VALUE (`barindex` renumbers from the new oldest bar),
+ *  exactly as it shifts every `barindex` reading — but it never changes WHICH
+ *  real bar the value names, the same non-dependence `islast` already has. It
+ *  is not tagged `window_dependent` in the closed table for that reason, and it
+ *  is not `_bind_time_constants` either: unlike `timeframe.isweekly`, its value
+ *  is the SAME on every bar within one fetch, so a window length built from it
+ *  would need no per-bar re-evaluation — but admitting it into that door is a
+ *  separate, unopened question, not a consequence of adding the column. */
+export const CLOCK_EXTENT = Object.freeze(['islast', 'isfirst', 'lastbarindex'])
 
 /** The four BARSTATE columns that need to know whether the newest bar's period
  *  has finished — a fact this module is TOLD, never one it computes.
@@ -1220,7 +1320,7 @@ export const CLOCK_BARSTATE = Object.freeze([...CLOCK_EXTENT, ...CLOCK_REALTIME]
 
 export const CLOCK_COLUMNS = Object.freeze([
   ...CLOCK_TIME_DERIVED, 'barindex', 'isintraday', 'isdaily', 'isweekly', 'ismonthly',
-  ...CLOCK_EXTENT, ...CLOCK_REALTIME,
+  ...CLOCK_EXTENT, ...CLOCK_REALTIME, ...CLOCK_LASTBAR_TIME,
 ])
 
 /**
@@ -1239,7 +1339,7 @@ export const CLOCK_COLUMNS = Object.freeze([
  * ⛔ THE UNIT GATE IS `computeVWAP`'S, AND IT IS PARTIAL ON PURPOSE.
  * `bars_sqlite` stores daily/weekly/monthly `t` as `YYYYMMDD` INTS, and
  * `20250101` read as unix seconds is 1970-08-23 — so a series that is not in
- * seconds must not be answered for. It refuses the EIGHT time-derived columns
+ * seconds must not be answered for. It refuses the NINE time-derived columns
  * all-or-nothing (a per-bar skip leaves the survivors in one ET day, which is
  * the shape being refused) and it leaves `barindex` and the four timeframe
  * booleans alone: those read no `t` at all, and a guard firing on them would
@@ -1306,11 +1406,14 @@ export function computeClock(bars, tf, newestBarIsForming = null, opts = {}) {
   for (let i = 0; i < length; i++) cols.barindex[i] = i
 
   // ── barstate ─────────────────────────────────────────────────────────────
-  // ⭐ THE EXTENT PAIR reads no `t` and no clock, so it answers above the unit
+  // ⭐ THE EXTENT TRIO reads no `t` and no clock, so it answers above the unit
   // gate — the same line `barindex` sits on, for the same reason. It can never
   // blank: there is no input it could be missing.
   cols.isfirst[0] = 1
   cols.islast[length - 1] = 1
+  // `lastbarindex` is `barindex[length - 1]`, broadcast to every bar — the
+  // newest bar's own position, read from wherever a formula sits in the series.
+  cols.lastbarindex.fill(length - 1)
 
   // ⛔⛔ THE REALTIME FOUR ARE TRI-STATE AND FAIL CLOSED FIRST.
   // `newestBarIsForming` is `true | false | null`, and `null` means UNKNOWN —
@@ -1416,6 +1519,11 @@ export function computeClock(bars, tf, newestBarIsForming = null, opts = {}) {
   }
   if (!instants) {
     for (const name of CLOCK_TIME_DERIVED) cols[name].fill(NA)
+    // `lastbartime` and its calendar are read FROM `t`, exactly as the nine
+    // above are, so a fetch that fails their unit gate fails this one too —
+    // never a confident calendar broadcast from a series the gate has
+    // already condemned.
+    for (const name of CLOCK_LASTBAR_TIME) cols[name].fill(NA)
     return cols
   }
 
@@ -1450,7 +1558,21 @@ export function computeClock(bars, tf, newestBarIsForming = null, opts = {}) {
     const day = p.y * 10000 + p.m * 100 + p.d
     cols.sessionfirst[i] = prevDay < 0 ? NA : (day === prevDay ? 0 : 1)
     prevDay = day
+    // `dayopentime`: this bar's `t` minus "seconds since ET midnight" — see
+    // the column's own doc comment above for why no calendar/DST arithmetic
+    // is needed to get this exactly right.
+    cols.dayopentime[i] = t - (p.h * 3600 + cols.minute[i] * 60 + (t % 60))
   }
+  // `lastbartime`/`lastbaryear`/… are the newest bar's OWN fields, just
+  // computed above — read back, never recomputed, so this broadcast can
+  // never disagree with what `year`/`month`/… already say about that bar.
+  const lastI = length - 1
+  cols.lastbartime.fill(cols.time[lastI])
+  cols.lastbaryear.fill(cols.year[lastI])
+  cols.lastbarmonth.fill(cols.month[lastI])
+  cols.lastbardayofmonth.fill(cols.dayofmonth[lastI])
+  cols.lastbarhour.fill(cols.hour[lastI])
+  cols.lastbarminute.fill(cols.minute[lastI])
   return cols
 }
 

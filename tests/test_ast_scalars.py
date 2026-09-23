@@ -766,7 +766,47 @@ def test_the_scalar_floor_is_ITS_OWN_and_folding_it_in_ABORTS_the_recorder():
     # off the failure message: the message says only that a number moved, and
     # editing a count to match a number you did not explain is how a floor stops
     # being a claim about coverage.
-    assert len(parts["bar"]) == 110 and len(parts["scalar"]) == 137
+    # ⭐ 110 -> 111 (2026-09-19): `lastbarindex` -- the newest bar's own
+    # `barindex`, broadcast to every bar, `islast`'s ruling applied to a number
+    # instead of a flag (`closedTable.json`'s `lastbarindex` clock entry). A
+    # per-bar clock column, not a per-symbol one, so the scalar half is
+    # untouched at 137.
+    # ⭐ 111 -> 112 (2026-09-20): `floor` (Pine's `math.floor`) -- a new
+    # pointwise scalar function, the same shape as `round`'s own bump into this
+    # half. It rides the `call` node like every other pointwise entry, so no
+    # node type, argument kind or lookback form moved. New bar-corpus case:
+    # `pine_floor_rounds_toward_negative_infinity`. The scalar half is
+    # untouched at 137 -- `floor` names no per-symbol column.
+    # ⭐ 112 -> 113 (2026-09-20): `percentileLinearInterpolation`, Pine's
+    # `ta.percentile_linear_interpolation` -- a new windowed function, three
+    # arguments (`series, int, int`), `lookback: "arg1"`. New bar-corpus case:
+    # `pine_percentile_linear_interpolation_between_two_ranks`. The scalar half
+    # is untouched at 137 -- it names no per-symbol column.
+    # ⭐⭐ 113 -> 119 (2026-09-20): `lastbartime` + its five calendar fields --
+    # `lastbarindex`'s own ruling applied to a calendar, and this engine's
+    # answer for Pine's `timenow`. New bar-corpus cases, split in two because
+    # one compound formula naming all twelve series (six new, six original)
+    # exceeds `budget.test.js`'s 8-reference cap:
+    # `pine_timenow_is_today_year_month_dayofmonth` (year/month/dayofmonth)
+    # and `pine_timenow_hour_and_minute_too` (time/hour/minute). The scalar
+    # half is untouched at 137 -- none of the six names a per-symbol column.
+    # ⭐ 119 -> 120 (2026-09-20): `ceil`, Pine's `math.ceil` -- `floor`'s exact
+    # sibling. New bar-corpus case: `pine_ceil_rounds_toward_positive_infinity`.
+    # The scalar half is untouched at 137 -- `ceil` names no per-symbol column.
+    # ⭐⭐ 120 -> 121 (2026-09-20): `valuewhenOccurrence`, Pine's
+    # `ta.valuewhen(condition, source, occurrence)` -- occurrence-indexed,
+    # unbounded backward search, a DIFFERENT function from this table's own
+    # bare `valuewhen(condition, source, period)` bar-window search despite
+    # sharing a spelling; `pine.js::resolveTableCall` reaches this entry only
+    # through the NAMESPACED `ta.valuewhen(...)`, never a bare call. New
+    # bar-corpus case: `valuewhenOccurrence_the_second_most_recent_up_bar`.
+    # The scalar half is untouched at 137 -- it names no per-symbol column.
+    # ⭐ 121 -> 122 (2026-09-20): `dayopentime` -- `sessionfirst`'s own `day`
+    # key turned into a value, this engine's answer for Pine's
+    # `time(<timeframe>)` one-argument form when it folds to "D". New
+    # bar-corpus case: `clock_dayopentime`. The scalar half is untouched at
+    # 137 -- a per-bar clock column names no per-symbol column.
+    assert len(parts["bar"]) == 122 and len(parts["scalar"]) == 137
     assert not (parts["bar"] & parts["scalar"])
 
     # the control: the unmutated tool accepts the real corpus…

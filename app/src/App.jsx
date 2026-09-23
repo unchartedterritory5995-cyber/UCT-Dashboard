@@ -90,8 +90,10 @@ const FormulaLibrary = lazy(() => import('./pages/formulas/FormulaLibrary'))
 const AiSearchPage = lazyPage('/ai-search', () => import('./pages/AiSearchPage'))
 const OptionsFlow = lazyPage('/options-flow', () => import('./pages/OptionsFlow'))
 const FlowScoreboard = lazyPage('/flow-scoreboard', () => import('./pages/FlowScoreboard'))
+const OpenFlow = lazyPage('/open-flow', () => import('./pages/OpenFlow'))
 const LiveFlowMassive = lazyPage('/live-massive', () => import('./pages/LiveFlowMassive'))
 const Traders = lazyPage('/traders', () => import('./pages/Traders'))
+const PortfolioHeat = lazyPage('/portfolio-heat', () => import('./pages/PortfolioHeat'))
 const AlertTester = lazy(() => import('./pages/AlertTester'))
 const DarkPool = lazyPage('/dark-pool', () => import('./pages/DarkPool'))
 const PostMarket = lazyPage('/post-market', () => import('./pages/PostMarket'))
@@ -598,6 +600,12 @@ export default function App() {
                     landed a member on the default Stocks tab. Rail:
                     `app/src/routes/lostDoors.route.test.jsx`. */}
                 <Route path="/flow-scoreboard" element={<FlowScoreboard />} />
+                {/* Packet L (signed 2026-09-22, fingerprint ddcad5b0c) --
+                    GET /api/live/massive/flow-board had zero frontend callers
+                    despite being require_flow_user-gated (member, not admin).
+                    No NavBar entry yet, deliberately -- reachable by direct
+                    URL only, same as /traders, /dark-pool, /setup-library. */}
+                <Route path="/open-flow" element={<OpenFlow />} />
                 {/* 🔴 RESTORED 2026-08-09 — this page had NO route at all while
                     `GET /api/traders` stayed mounted and live and the voice
                     navigator's PAGE_ALIASES sent "traders" straight here, i.e.
@@ -605,6 +613,7 @@ export default function App() {
                     is `tests/test_navigation_targets_resolve.py`, which resolves
                     every voice navigation target against this route table. */}
                 <Route path="/traders" element={<Traders />} />
+                <Route path="/portfolio-heat" element={<PortfolioHeat />} />
                 <Route path="/dark-pool" element={<DarkPool />} />
                 <Route path="/post-market" element={<PostMarket />} />
                 <Route path="/model-book" element={<ModelBook />} />

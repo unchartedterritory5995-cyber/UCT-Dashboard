@@ -1,7 +1,7 @@
 .sortBtn {
   background: none;
   border: none;
-  color: var(--color-text-muted, #98a0aa);
+  color: var(--text-muted);
   font-size: 12px;
   font-weight: 600;
   text-transform: uppercase;
@@ -13,36 +13,39 @@
   min-height: 32px;
 }
 .sortBtn:hover {
-  color: #dcbb5e;
+  color: var(--ut-gold);
 }
 .titleCell {
   font-size: 13px;
-  color: var(--color-text-primary, #e8eaed);
+  color: var(--text-bright);
   font-weight: 500;
+}
+/* Same treatment as NoteCard.module.css/NoteBoardView.module.css's own
+   `.ticker` -- one visual convention for a ticker wherever it appears. */
+.tickerCell {
+  color: var(--accent);
+  font-weight: 600;
+  font-family: var(--font-mono);
+  letter-spacing: 0.5px;
+  font-size: 13px;
 }
 .emptyCell {
-  color: var(--color-text-muted, #98a0aa);
+  color: var(--text-muted);
   opacity: 0.6;
 }
-/* Wave Q1 — the same badge as the card grid, on the other list view.
-   ⛔ Same token (`--color-warning`, declared in tokens.css), same words: two
-   list views that describe one state differently teach a member they are two
-   states. */
+/* Positioning ONLY -- BlockedBadge.module.css now owns color/background/
+   border/padding/font-size (UX #15, 2026-09-22), the same visual across all
+   four note-list views instead of a per-view copy that could drift. */
 .unsynced {
   margin-left: 8px;
-  color: var(--color-warning);
-  background: rgba(234, 179, 8, 0.10);
-  border: 1px solid rgba(234, 179, 8, 0.22);
-  padding: 1px 6px;
-  border-radius: var(--radius-sm);
-  font-size: 10px;
-  font-weight: 500;
-  white-space: nowrap;
 }
 .valueChip {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
   background: rgba(220, 187, 94, 0.12);
   border: 1px solid rgba(220, 187, 94, 0.3);
-  color: #dcbb5e;
+  color: var(--ut-gold);
   font-size: 11px;
   padding: 3px 8px;
   border-radius: 999px;
@@ -52,3 +55,30 @@
 .valueChip:hover {
   background: rgba(220, 187, 94, 0.22);
 }
+/* One pill per selected option (select: always 1, multi_select: N) --
+   label + a small color dot, mirroring Board view's column-header dot
+   idiom exactly rather than inventing a second color convention.
+   Competitive audit finding UX #3, 2026-09-22. */
+.optionPill {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+}
+.optionDot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--text-muted);
+  flex: none;
+}
+/* Same 7-swatch categorical palette as NoteBoardView.module.css -- a
+   deliberate duplicate, not a token gap: this is a categorical tag/option
+   color set with no design-token equivalent, the same reasoning that kept
+   Board's own copy untouched through the G-104 token-adoption pass. */
+.c_green  { background: #4ade80; }
+.c_red    { background: #f87171; }
+.c_amber  { background: #fbbf24; }
+.c_blue   { background: #7aa2c8; }
+.c_gray   { background: #7c848f; }
+.c_purple { background: #a78bfa; }
+.c_teal   { background: #2dd4bf; }

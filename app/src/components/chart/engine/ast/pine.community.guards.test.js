@@ -131,7 +131,13 @@ const REFUSES = Object.freeze({
   // `pine.community.test.js` (18 → 19). A row removed from a refusal roster is a WIN,
   // and it is recorded rather than deleted so the next reader can see which ruling
   // moved it.
-  '25-spy-expected-move-by-vix.pine': ['pine:function', 8, 'time'],
+  // ⚰️ WAS ['pine:function', 8, 'time'] — `time(i_range_1)` now translates
+  // (`i_range_1` folds to "D" via `input.string`, onto the new `dayopentime`
+  // clock entry, 2026-09-20). The script's blocker MOVES, not resolves: a
+  // separate, unrelated, pre-existing gap this engine has always had --
+  // `is_near_since_back`'s multi-statement `for` loop, which a
+  // single-expression-per-column engine cannot store at all.
+  '25-spy-expected-move-by-vix.pine': ['pine:block', 56, 'for'],
   // ⭐ WAS `pine:named-argument` @47 ON `source`. Two walls fell in one change —
   // the named `ta.sma` at 47 and the fully-named `request.security` at 41 — and
   // the third is honest: line 40 reads another symbol built by `ticker.new(…)`.

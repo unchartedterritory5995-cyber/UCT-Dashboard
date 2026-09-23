@@ -1,4 +1,4 @@
-import { render, screen, waitFor, within } from '@testing-library/react'
+import { render, screen, waitFor, within, fireEvent } from '@testing-library/react'
 import { MemoryRouter } from 'react-router-dom'
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest'
 
@@ -94,6 +94,39 @@ describe('NoteEditorPage editor toolbar row', () => {
     expect(q.getByText('H1')).toBeInTheDocument()
     expect(q.getByTitle('Download this note as a PNG image')).toBeInTheDocument()
     expect(q.getByTitle('Print — or Save as PDF from the print dialog')).toBeInTheDocument()
+  })
+
+  /**
+   * ⛔⛔ EVERY TOOL BUTTON NEEDS AN ACCESSIBLE NAME — `ToolButton` sets
+   * `aria-label={title}`, so a button with no `title` has NO accessible name
+   * at all when its visible content is an `aria-hidden` UIcon (Link) or a
+   * bare decorative dash (Horizontal rule) with no real text meaning. The
+   * Image/Attach buttons right beside them already do this correctly.
+   * Competitive audit finding UX #7, 2026-09-22.
+   */
+  it('the Link and Horizontal-rule buttons have accessible names, matching their Image/Attach neighbors', async () => {
+    const NoteEditorPage = (await import('./NoteEditorPage')).default
+    render(<MemoryRouter><NoteEditorPage noteId="n1" onBack={() => {}} /></MemoryRouter>)
+    const row = await screen.findByRole('toolbar', { name: 'Editor toolbar' })
+    const q = within(row)
+    expect(q.getByLabelText('Insert link')).toBeInTheDocument()
+    expect(q.getByLabelText('Horizontal rule')).toBeInTheDocument()
+    // Controls — the two that already worked, so this is a real gap check, not a broken query
+    expect(q.getByLabelText('Insert image')).toBeInTheDocument()
+    expect(q.getByLabelText('Attach a file')).toBeInTheDocument()
+  })
+
+  /**
+   * ⛔⛔ FIND HAD NO VISIBLE ENTRY POINT — Cmd/Ctrl+F was the only door.
+   * History, right beside where this button now lives, has always had one.
+   * Competitive audit finding UX #5, 2026-09-22.
+   */
+  it('a visible Find button opens NoteFindBar, the same as Ctrl+F', async () => {
+    const NoteEditorPage = (await import('./NoteEditorPage')).default
+    render(<MemoryRouter><NoteEditorPage noteId="n1" onBack={() => {}} /></MemoryRouter>)
+    expect(screen.queryByRole('search', { name: 'Find in note' })).toBeNull()
+    fireEvent.click(await screen.findByRole('button', { name: 'Find in note' }))
+    expect(screen.getByRole('search', { name: 'Find in note' })).toBeInTheDocument()
   })
 })
 

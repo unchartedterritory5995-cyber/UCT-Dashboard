@@ -290,6 +290,14 @@ def all_stocks(_user: dict = Depends(require_paid)):
                        for s in svc.get_all_stocks()]}
 
 
+@router.get("/appearances/{symbol}")
+def get_appearances(symbol: str, _user: dict = Depends(require_paid)):
+    """Every curated Model Book appearance for one symbol, across all years
+    (Packet H CP1) -- the per-ticker research page's "has this ever been in
+    the Model Book" tab. An empty list is a genuine, honest answer."""
+    return {"symbol": symbol.upper(), "appearances": svc.get_stock_appearances(symbol.upper())}
+
+
 @router.get("/stock/{stock_id}")
 def get_stock(stock_id: int, _user: dict = Depends(require_paid)):
     stock = svc.get_stock_detail(stock_id)
@@ -780,8 +788,9 @@ def _parse_desc_json(text):
 
 
 @router.get("/debug-index-drawings")
-def debug_index_drawings(symbol: str = Query("^IXIC")):
-    """Diagnostic (no auth): dump the raw global index-pane annotations so we can
+def debug_index_drawings(symbol: str = Query("^IXIC"), _admin: dict = Depends(require_admin)):
+    """PACKET-X CP1 (fingerprint 314278988): admin-gated -- was zero-auth.
+    Diagnostic: dump the raw global index-pane annotations so we can
     see the stored point-time format (string / number / business-day object)."""
     import json as _json
     raw = svc.get_index_drawings(symbol)
@@ -801,8 +810,10 @@ def debug_index_drawings(symbol: str = Query("^IXIC")):
 
 
 @router.get("/debug-desc/{sym}")
-def debug_desc(sym: str, year: int = Query(default=0)):
-    """Diagnostic (no auth): show exactly what the description LLM returns for a
+def debug_desc(sym: str, year: int = Query(default=0), _admin: dict = Depends(require_admin)):
+    """PACKET-X CP1 (fingerprint 314278988): admin-gated -- was zero-auth, and
+    could fire up to 5 billed Anthropic calls per anonymous hit.
+    Diagnostic: show exactly what the description LLM returns for a
     ticker, so we can see why a summary won't generate. Reports the raw text,
     stop_reason, parse result, and the final _generate_descriptions output."""
     import os as _osd

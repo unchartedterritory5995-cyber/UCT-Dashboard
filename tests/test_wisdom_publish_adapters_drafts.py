@@ -173,6 +173,86 @@ def test_approval_publishes_only_with_the_flag_and_only_once(seeded, monkeypatch
         drafts.decide("nope", decision="reject", actor="owner@example.test")
 
 
+def test_two_concurrent_approvals_of_the_same_draft_never_double_publish(seeded, monkeypatch):
+    """⛔⛔ TOCTOU FIX (adversarial review, same class of bug as this session's extraction budget
+    race): `decide()` used to read the draft under a separate `store.read()`, with each status
+    transition committed later in its OWN `store.write()` -- an unlocked gap in which two
+    near-simultaneous `decide(draft_id, "approve", ...)` calls (a double-click on the admin
+    approve button; two admin sessions) could both pass the initial check, both see
+    `published_ref IS NULL`, and both call `modelbook_service.create_setup_example` -- producing
+    TWO rows in a `require_paid`, member-facing table with only one ever tracked by
+    `published_ref`. Real threads, no mocking of `decide()`'s own logic -- only
+    `create_setup_example` is stubbed (as the existing single-threaded test above already does)
+    so this test needs no real modelbook.db, with a small sleep inside the stub to widen the
+    window a real race would need.
+    """
+    import threading
+    import time
+
+    created: list = []
+    call_count = [0]
+    max_concurrent = [0]
+    entered: list = []
+    lock = threading.Lock()
+
+    def slow_create(payload):
+        with lock:
+            entered.append(1)
+            max_concurrent[0] = max(max_concurrent[0], len(entered))
+        try:
+            time.sleep(0.05)
+            call_count[0] += 1
+            created.append(payload)
+            return {"id": 7, **payload}
+        finally:
+            with lock:
+                entered.pop()
+
+    monkeypatch.setattr(modelbook_service, "create_setup_example", slow_create)
+    monkeypatch.setenv("WISDOM_MODELBOOK_DRAFTS_ENABLED", "1")
+    modelbook.daily(_ctx())
+    [example] = _drafts("modelbook_example")
+    draft_id = example["draft_id"]
+
+    barrier = threading.Barrier(2)
+    results: dict = {}
+    errors: list = []
+
+    def run(name):
+        try:
+            barrier.wait(timeout=5)
+            results[name] = drafts.decide(draft_id, decision="approve", actor="owner@example.test")
+        except BaseException as exc:
+            errors.append(exc)
+
+    t1 = threading.Thread(target=run, args=("a",))
+    t2 = threading.Thread(target=run, args=("b",))
+    t1.start()
+    t2.start()
+    t1.join(timeout=10)
+    t2.join(timeout=10)
+
+    assert not errors, f"a decide() thread raised: {errors}"
+    assert set(results) == {"a", "b"}
+    assert max_concurrent[0] == 1, (
+        f"two concurrent approvals were inside create_setup_example AT THE SAME TIME "
+        f"(observed {max_concurrent[0]} concurrent) -- the draft-approval TOCTOU race is open again")
+    assert call_count[0] == 1, f"create_setup_example was called {call_count[0]} times, expected exactly 1"
+    assert len(created) == 1
+
+    # Both threads see status="published" (the loser's fresh read runs only after the winner's
+    # WHOLE transaction -- including create_setup_example -- has already committed, so it never
+    # observes an intermediate "approved, not yet published" state). Exactly one of them is the
+    # one that actually did it (changed=True); the other must say so honestly (changed=False)
+    # rather than silently claiming credit for a publish it didn't perform.
+    assert all(r["status"] == "published" for r in results.values()), results
+    publishers = [r for r in results.values() if r.get("changed")]
+    assert len(publishers) == 1, f"expected exactly one winner, got {results}"
+
+    rows = _drafts("modelbook_example")
+    assert len(rows) == 1 and rows[0]["status"] == "published" and rows[0]["published_ref"] == "modelbook_setup_examples:7"
+
+
 # ── voice ────────────────────────────────────────────────────────────────────
 
 def test_the_voice_corpus_is_tsdr_only_and_in_the_archive_format(seeded):

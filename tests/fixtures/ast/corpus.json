@@ -1582,6 +1582,96 @@
       }
     },
     {
+      "id": "pine_ceil_rounds_toward_positive_infinity",
+      "source": "ceil((high - low) * 100 / 3)",
+      "why": "⛔ CEIL IS `floor`'s EXACT MIRROR, NOT ITS SYNONYM. `ceil(-2.33)` is -2 -- it rounds toward POSITIVE INFINITY for every input, the opposite convention from `floor` beside it in this corpus and still distinct from `round`'s away-from-zero rule and a truncating idiv toward zero. Scaling a bar range the same way `pine_floor_rounds_toward_negative_infinity` does puts a real fractional value in the input on every bar with a non-integer range, and Python's `math.ceil` raises on NaN/an infinite input where JS's `Math.ceil` would not -- see `_guarded_ceil`.",
+      "ast": {
+        "type": "call",
+        "name": "ceil",
+        "args": [
+          {
+            "type": "op",
+            "name": "/",
+            "args": [
+              {
+                "type": "op",
+                "name": "*",
+                "args": [
+                  {
+                    "type": "op",
+                    "name": "-",
+                    "args": [
+                      {
+                        "type": "series",
+                        "name": "high"
+                      },
+                      {
+                        "type": "series",
+                        "name": "low"
+                      }
+                    ]
+                  },
+                  {
+                    "type": "num",
+                    "value": 100
+                  }
+                ]
+              },
+              {
+                "type": "num",
+                "value": 3
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "pine_floor_rounds_toward_negative_infinity",
+      "source": "floor((close - open) * 100 / 3)",
+      "why": "⛔ FLOOR IS NOT ROUND AND NOT TRUNCATION. `floor(-2.33)` is -3 -- it rounds toward NEGATIVE INFINITY for every input, unlike `round`'s away-from-zero convention beside it in this corpus and unlike a truncating idiv toward zero. Scaling a price difference the same way `pine_round_a_half_away_from_zero` does puts real negative fractional values in the input on down bars, and Python's `math.floor` raises on NaN/an infinite input where JS's `Math.floor` would not -- see `_guarded_floor`.",
+      "ast": {
+        "type": "call",
+        "name": "floor",
+        "args": [
+          {
+            "type": "op",
+            "name": "/",
+            "args": [
+              {
+                "type": "op",
+                "name": "*",
+                "args": [
+                  {
+                    "type": "op",
+                    "name": "-",
+                    "args": [
+                      {
+                        "type": "series",
+                        "name": "close"
+                      },
+                      {
+                        "type": "series",
+                        "name": "open"
+                      }
+                    ]
+                  },
+                  {
+                    "type": "num",
+                    "value": 100
+                  }
+                ]
+              },
+              {
+                "type": "num",
+                "value": 3
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
       "id": "pine_sign_of_a_change",
       "source": "sign(change(close))",
       "why": "-1, 0 or 1, and the zero is the point: `Math.sign(-0)` is -0 in JS and `copysign(1, -0.0)` is -1.0 in Python, so both lanes write the three answers out. Composed over `change` so the first bar is a genuine hole rather than a fabricated zero",
@@ -2239,6 +2329,15 @@
       }
     },
     {
+      "id": "clock_dayopentime",
+      "source": "dayopentime",
+      "why": "⭐ `sessionfirst`'s own `day` key, turned into a VALUE instead of a boundary flag -- the opening UNIX-SECONDS timestamp of the ET calendar day this bar falls in, the same value on every bar of that day. This engine's answer for Pine's `time(<timeframe>)` one-argument anchor form when the timeframe argument folds to `\"D\"` -- `pine.js::resolveTableCall` reaches this entry only through that redirect, never a bare Pine spelling. See `closedTable.json::clock.dayopentime` for the full argument (no calendar/DST arithmetic, no session filtering).",
+      "ast": {
+        "type": "series",
+        "name": "dayopentime"
+      }
+    },
+    {
       "id": "clock_barindex",
       "source": "barindex",
       "why": "the bar's position in the series, 0 on the oldest. The one clock column that reads no timestamp at all, so it is also the control: it must still be right on a series whose `t` the unit gate refuses, and a lane that folded it into the gate would answer all-null",
@@ -2394,6 +2493,39 @@
           {
             "type": "num",
             "value": 10
+          }
+        ]
+      }
+    },
+    {
+      "id": "valuewhenOccurrence_the_second_most_recent_up_bar",
+      "source": "valuewhenOccurrence(close > open, high, 1)",
+      "why": "⭐⭐ `floor`'s SIBLING, `valuewhen`'s FALSE FRIEND. This entry answers Pine's `ta.valuewhen(condition, source, occurrence)` -- unbounded, occurrence-indexed backward search -- which shares a spelling and an arity with the case right above it (a BOUNDED bar window) and answers a different number on most bars for exactly that reason; `pine.js::resolveTableCall` reaches this entry only through the NAMESPACED `ta.valuewhen(...)`, never a bare `valuewhen(...)` call. Occurrence 1 (the SECOND most recent up-bar, 0-indexed) rather than 0 so this case is not degenerate with a plain 'most recent true bar' read. NaN before the second occurrence exists is the honest answer, the same X23 laundering risk `valuewhen` above already carries -- declared at `closedTable.json::_functions_valuewhen_occurrence`.",
+      "ast": {
+        "type": "call",
+        "name": "valuewhenOccurrence",
+        "args": [
+          {
+            "type": "op",
+            "name": ">",
+            "args": [
+              {
+                "type": "series",
+                "name": "close"
+              },
+              {
+                "type": "series",
+                "name": "open"
+              }
+            ]
+          },
+          {
+            "type": "series",
+            "name": "high"
+          },
+          {
+            "type": "num",
+            "value": 1
           }
         ]
       }
@@ -4422,6 +4554,157 @@
       }
     },
     {
+      "id": "pine_percentile_linear_interpolation_between_two_ranks",
+      "source": "percentileLinearInterpolation(high - low, 20, 90)",
+      "why": "TradingView's own page: 'Calculates percentile using method of linear interpolation between the two nearest ranks', and 'na values in the source series are included in calculations and will produce an na result' -- PROPAGATE, not SKIP, unlike `median`/`percentrank` immediately beside it in this corpus. At percentage=50 this is exactly `median` by construction (the interpolation fraction lands on the mean of the two middle ranks for an even window) -- measured across four window parities in `pinePercentileLinearAccept.test.js`, not merely asserted here.",
+      "ast": {
+        "type": "call",
+        "name": "percentileLinearInterpolation",
+        "args": [
+          {
+            "type": "op",
+            "name": "-",
+            "args": [
+              {
+                "type": "series",
+                "name": "high"
+              },
+              {
+                "type": "series",
+                "name": "low"
+              }
+            ]
+          },
+          {
+            "type": "num",
+            "value": 20
+          },
+          {
+            "type": "num",
+            "value": 90
+          }
+        ]
+      }
+    },
+    {
+      "id": "pine_timenow_is_today_year_month_dayofmonth",
+      "source": "year == lastbaryear && month == lastbarmonth && dayofmonth == lastbardayofmonth",
+      "why": "TradingView's own live-wall-clock \"is_today\" idiom, measured verbatim across four real corpus scripts (chart-champions-part-1-npoc-levels-vwaps, initial-balance-ib-and-previous-day-week-high-low-close, mtf-key-levels-support-and-resistance, swing-points-and-liquidity-by-leviathan): `year == year(timenow) and month == month(timenow) and dayofmonth == dayofmonth(timenow)`. This engine's answer for `timenow` -- a live wall clock a static translator over an already-fetched bar array has no instant for -- is `lastbartime` and its calendar fields: the newest fetched bar's own values, broadcast to every bar, exactly `lastbarindex`'s own ruling applied to a calendar instead of a bar position. The divergence from genuine wall-clock semantics is real (a stale fetch reads `true` for its newest bar where live `timenow` would read `false`) and is disclosed at the binding (`indicators.js::CLOCK_LASTBAR_TIME`), not here.",
+      "ast": {
+        "type": "op",
+        "name": "&&",
+        "args": [
+          {
+            "type": "op",
+            "name": "&&",
+            "args": [
+              {
+                "type": "op",
+                "name": "==",
+                "args": [
+                  {
+                    "type": "series",
+                    "name": "year"
+                  },
+                  {
+                    "type": "series",
+                    "name": "lastbaryear"
+                  }
+                ]
+              },
+              {
+                "type": "op",
+                "name": "==",
+                "args": [
+                  {
+                    "type": "series",
+                    "name": "month"
+                  },
+                  {
+                    "type": "series",
+                    "name": "lastbarmonth"
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "type": "op",
+            "name": "==",
+            "args": [
+              {
+                "type": "series",
+                "name": "dayofmonth"
+              },
+              {
+                "type": "series",
+                "name": "lastbardayofmonth"
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "pine_timenow_hour_and_minute_too",
+      "source": "time == lastbartime && hour == lastbarhour && minute == lastbarminute",
+      "why": "The fuller form of the same idiom, measured in `swing-points-and-liquidity-by-leviathan__919c1fd9c6.pine`, which extends the year/month/dayofmonth comparison (see `pine_timenow_is_today_year_month_dayofmonth`) down to the hour and minute -- and separately builds `timestamp(year(timenow), month(timenow), ...)` from the bare value, which is why `lastbartime` itself (not just its calendar fields) needs its own coverage.",
+      "ast": {
+        "type": "op",
+        "name": "&&",
+        "args": [
+          {
+            "type": "op",
+            "name": "&&",
+            "args": [
+              {
+                "type": "op",
+                "name": "==",
+                "args": [
+                  {
+                    "type": "series",
+                    "name": "time"
+                  },
+                  {
+                    "type": "series",
+                    "name": "lastbartime"
+                  }
+                ]
+              },
+              {
+                "type": "op",
+                "name": "==",
+                "args": [
+                  {
+                    "type": "series",
+                    "name": "hour"
+                  },
+                  {
+                    "type": "series",
+                    "name": "lastbarhour"
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "type": "op",
+            "name": "==",
+            "args": [
+              {
+                "type": "series",
+                "name": "minute"
+              },
+              {
+                "type": "series",
+                "name": "lastbarminute"
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
       "id": "falling_close_3",
       "source": "falling(close, 3)",
       "why": "Vendor-Backed Unserved Builtins, Batch 1 -- covers falling, resolved by an INDEPENDENT real TradingView capture (not assumed by symmetry with rising) to strict monotone DECREASE over length+1 samples (closedTable.json::_functions_vendor_parity_resolutions.falling_resolution).",
@@ -4491,6 +4774,19 @@
             "value": 0
           }
         ]
+      }
+    },
+    {
+      "id": "barstate_lastbarindex",
+      "source": "lastbarindex",
+      "why": "⭐ `islast`'s ruling applied to a NUMBER, and bare rather than `+0` for that reason -- it is already numeric like `clock_barindex`, not boolean like its `islast`/`isfirst` neighbours. The newest bar's own `barindex`, broadcast to every bar: not window-dependent, because widening the fetch shifts the VALUE (every `barindex` renumbers from the new oldest bar) without ever changing WHICH real bar it names.",
+      "opts": {
+        "tf": "5",
+        "newest_bar_is_forming": true
+      },
+      "ast": {
+        "type": "series",
+        "name": "lastbarindex"
       }
     },
     {

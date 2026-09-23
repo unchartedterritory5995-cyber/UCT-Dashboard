@@ -149,7 +149,8 @@ export default function RapidTagFlow({ open, onClose, onComplete }) {
       advance()
     } catch (e) {
       setSaving(false)
-      setSaveError(String(e.message || e))
+      console.error('Failed to save trade tags:', e)
+      setSaveError("Couldn't save these tags. Nothing was lost — try again.")
       // Keep the flow usable — do NOT advance past an unsaved trade.
     }
   }, [current, saving, mistakeSel, emotionSel, index, advance])
@@ -244,7 +245,7 @@ export default function RapidTagFlow({ open, onClose, onComplete }) {
         </div>
 
         {saveError && (
-          <p className={styles.saveError} role="alert">Couldn&apos;t save — {saveError}.</p>
+          <p className={styles.saveError} role="alert">{saveError}</p>
         )}
       </div>
     )

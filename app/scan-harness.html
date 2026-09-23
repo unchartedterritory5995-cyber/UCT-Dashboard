@@ -1,0 +1,44 @@
+<!doctype html>
+<!--
+  ATOMIC HANDOFF + NEIGHBOUR-WARM LIVE HARNESS.
+
+  Mounts the REAL ChartWidget behind the REAL useSymbolHandoff, driven by a list
+  surface that moves the colour-group symbol exactly as Theme Tracker does. The
+  unit rails prove the coordinator's logic; only this proves what the MEMBER
+  SEES — that identity and candles agree at every visible instant.
+
+  ⛔ The previous harness mounted StockChart via /r/chart, so it could not
+  exercise the coordinator at all and its empty-window numbers were pre-handoff
+  by construction. The ChartWidget boundary is the whole point: half the
+  identity surface (detail dock, leverage/holdings controls) lives outside
+  StockChart's tree.
+
+  ⛔ IT CANNOT WRITE A PREFERENCE OR A LAYOUT. Same three locks pane-harness.html
+  established, because this runs on the machine holding the frozen Main Trading
+  row — and lock 3 does not trust locks 1 and 2:
+    1. ChartWidget's opts live in page state.
+    2. The workspace value SPREADS the canonical WORKSPACE_FALLBACK.
+    3. window.fetch refuses every non-GET to the preference/layout routes.
+
+  Dev-server only. `vite build` takes index.html as its single input, so this
+  never ships — railed by src/testing/scan/scanHarnessAbsent.test.js.
+
+  Run:  npx vite                 (from app/)
+  Then: http://localhost:5173/scan-harness.html?tf=5&syms=MU,MP,...
+-->
+<html lang="en" data-theme="dark">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>scan harness — atomic handoff</title>
+    <style>
+      html, body { margin: 0; background: #101216; color: #e6e8ec;
+        font: 12.5px/1.45 ui-monospace, "Cascadia Mono", Menlo, Consolas, monospace; }
+      #root { height: 100vh; }
+    </style>
+  </head>
+  <body>
+    <div id="root">booting…</div>
+    <script type="module" src="/src/testing/scan/scanHarness.jsx"></script>
+  </body>
+</html>

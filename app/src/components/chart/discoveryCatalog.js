@@ -34,9 +34,10 @@
 
 import { catalogRows, userCatalogRows, BUILT_IN_ROWS } from './indicatorCatalog'
 import { isOverlayRemoved } from './chartDefaults'
-import { symbolSource, canonicalSymbol, derivedSourceName } from './engine/sourceRef'
-import { addInstance, setInstanceInput, findInstance } from './engine/instanceControls'
+import { symbolSource, canonicalSymbol, derivedSourceName, paneOfTarget } from './engine/sourceRef'
+import { addInstance, setInstanceInput, findInstance, setInstanceDisplayTarget } from './engine/instanceControls'
 import { cachedBars, SOURCE_STATUS } from './engine/secondaryBars'
+import { fundamentalSource } from './engine/fundamentalGrammar'
 
 // ─── the vocabulary ─────────────────────────────────────────────────────────
 
@@ -107,6 +108,10 @@ export const CAPABILITY = Object.freeze({
 export const CREATE_VIA = Object.freeze({
   DEFINITION: 'definition',
   DATA_SERIES: 'dataSeries',
+  // ⭐ SEVERAL CANONICAL SERIES ADDED AS ONE THING, into one pane. It is not a new
+  // KIND of series — every component is an ordinary `DATA_SERIES` — it is a
+  // statement that the member asked for all of them together.
+  PRODUCT: 'product',
 })
 
 /** The definition id every symbol result creates through. One place. */
@@ -330,6 +335,17 @@ export function breadthResults(rows, { tf, bars } = {}) {
   const out = []
   for (const row of (Array.isArray(rows) ? rows : [])) {
     if (!row) continue
+    // ⛔⛔ A PRODUCT IS ADAPTED BEFORE THE SYMBOL PATH, because it HAS no bars of
+    // its own and every question below this point assumes it does.
+    // `knownCapabilityOf` would ask the bars cache about `AAII:SURVEY`, find
+    // nothing — correctly, there is no such series — and mark the row
+    // UNSUPPORTED, which `createFromResult` refuses. The member would see the one
+    // row we went to the trouble of building and be unable to add it.
+    if (row.kind === 'product') {
+      const prod = productResult(row, { tf, bars })
+      if (prod) out.push(prod)
+      continue
+    }
     const sym = canonicalSymbol(row.symbol || row.ticker)
     if (!sym) continue
     const name = str(row.name, sym)
@@ -393,6 +409,67 @@ export function breadthResults(rows, { tf, bars } = {}) {
 }
 
 /**
+ * A PRODUCT catalogue row → one addable discovery result.
+ *
+ * ⭐⭐ ITS CAPABILITY IS ITS COMPONENTS'. A product cannot be asked whether IT has
+ * bars, so the honest question is whether anything it would create can be drawn —
+ * and the answer is the best answer among its components. One unavailable
+ * component degrades the product; all of them unavailable refuses it, which is the
+ * same rule a single series follows.
+ *
+ * ⚠️ THE MEMBER-FACING NAME IS THE PRODUCT'S, AND NO INTERNAL WORD APPEARS. Not
+ * `dataSeries`, not a provider key, not `AAII:BULLS` — the row reads
+ * "AAII Sentiment Survey" and its components are addresses the UI never prints.
+ */
+export function productResult(row, { tf, bars } = {}) {
+  if (!row) return null
+  // ⚠️ THREE SPELLINGS, BECAUSE A PRODUCT ROW ARRIVES FROM TWO ENDPOINTS. The
+  // catalogue sends `id`/`symbol`; `/api/ticker-search` sends `ticker`. Same row,
+  // two shapes, and the adapter is the place that already reconciles them.
+  const id = str(row.id || row.symbol || row.ticker, '')
+  // ⭐ THE NAMED ROWS WHEN THE SERVER SENT THEM, the bare ids otherwise. A client
+  // reading an older catalogue still gets a working product; it just labels the
+  // components from their sources.
+  const named = Array.isArray(row.component_rows || row.componentRows)
+    ? (row.component_rows || row.componentRows).filter((c) => c && c.id) : []
+  const components = named.length
+    ? named
+    : (Array.isArray(row.components) ? row.components.filter(Boolean).map((c) => ({ id: c })) : [])
+  if (!id || !components.length) return null
+  const name = str(row.name || row.display, id)
+  // ⭐ ASK THE BARS CACHE ABOUT THE THINGS THAT ACTUALLY HAVE BARS.
+  const caps = components.map((c) => knownCapabilityOf(canonicalSymbol(c.id), tf, bars))
+  const best = caps.find((c) => c && c.capability !== CAPABILITY.UNSUPPORTED) || caps[0] || {}
+  const pres = presentationFor(row)
+  return result({
+    id,
+    kind: 'breadth',
+    name,
+    shortName: str(row.short_name || row.shortName, name),
+    lead: name,
+    sub: str(row.family_label || row.familyLabel, ''),
+    metricShort: str(row.short_name || row.shortName, ''),
+    universeLabel: '',
+    category: str(row.family_label || row.familyLabel, 'Market Indicators'),
+    description: str(row.description, name),
+    tags: ['market-indicator', 'product'],
+    ...best,
+    create: {
+      via: CREATE_VIA.PRODUCT,
+      components: components.map((c) => ({
+        source: symbolSource(canonicalSymbol(c.id), 'close'),
+        // ⛔ THE MEMBER-FACING NAME, NOT THE ID. Absent, `createDirectSeries`
+        // derives the label from the source and the pane legend prints the
+        // canonical address — an internal word in the one place it must never be.
+        name: str(c.display, '') || null,
+        compact: str(c.short, '') || null,
+        presentation: pres || null,
+      })),
+    },
+  })
+}
+
+/**
  * A catalogue row's `presentation` / `domain` → the instance presentation to stamp,
  * or `null` when the defaults are right.
  *
@@ -448,6 +525,15 @@ export function securityResults(rows, { tf, bars } = {}) {
       out.push(...breadthResults([row], { tf, bars }))
       continue
     }
+    // ⛔⛔ A PRODUCT ROW IS RE-ROUTED, exactly as a breadth row is, and for the same
+    // reason: the search endpoint INJECTS it, so a caller that adapted everything
+    // here as a security would render `AAII:SURVEY` as a ticker headline and try to
+    // create a `dataSeries` over a symbol that has no bars. The `kind` a row carries
+    // is the truth about what it IS, not about which endpoint it arrived on.
+    if (row.kind === 'product') {
+      out.push(...breadthResults([row], { tf, bars }))
+      continue
+    }
     const sym = canonicalSymbol(row.ticker || row.symbol)
     if (!sym) continue
     const delisted = row.delisted === true || row.type === 'delisted'
@@ -497,6 +583,12 @@ export function securityResults(rows, { tf, bars } = {}) {
 export function semanticNamesFor(res) {
   if (!res) return { full: '', compact: '' }
   const id = str(res.id, '')
+  // ⭐ A FUNDAMENTAL NAMES ITSELF BY ITS METRIC ("Net Margin"); its chip
+  // (`shortName`, e.g. "Quarterly") is a list cue, never the series' name.
+  if (res.kind === 'fundamental') {
+    const n = str(res.name, '') || id
+    return { full: n, compact: n }
+  }
   if (res.kind !== 'breadth') {
     // A security names itself: `QQQ` is the thing, and `res.name` is the gloss.
     const t = str(res.shortName, '') || id
@@ -551,6 +643,12 @@ export function createFromResult(cs, res, registry) {
     return typeof res.create.defId === 'string' && res.create.defId
       ? addInstance(cs, res.create.defId, registry)
       : cs
+  }
+  if (res.create.via === CREATE_VIA.PRODUCT) {
+    // ⚠️ THE PRODUCT'S OWN NAME IS NOT STAMPED ON ITS COMPONENTS. Each series is
+    // named by `semanticNamesFor` from its OWN catalogue row, so the pane legend
+    // reads `Bullish / Bearish / Neutral` rather than the product name three times.
+    return createProductSeries(cs, res.create.components, registry)
   }
   if (res.create.via === CREATE_VIA.DATA_SERIES) {
     // ⭐ THE DISPLAY NAME TRAVELS WITH THE ADD (P2.2). See `createDirectSeries`.
@@ -677,6 +775,138 @@ function withDisplay(cs, instanceId, display) {
 /** The instance a `createFromResult` just minted, for a caller that needs to
  *  address it (a settings dialog, a label write, a test). `null` when the create
  *  was refused. */
+/**
+ * ADD A PRODUCT — several canonical series that a member adds, and reads, as one.
+ *
+ * ⭐⭐ IT BUILDS NOTHING NEW. Every component is an ORDINARY `dataSeries` created
+ * through the ORDINARY door, and the only extra act is pointing components 2..N at
+ * the pane the first one hosts. That is exactly what a member could do by hand with
+ * three adds and two "Display in" changes — which is the property that makes the
+ * pane, the pane-owned legend, the micro-rails, per-output styling, show/hide,
+ * scale sharing, formula addressability and saved-chart reconstruction all work
+ * with no code that knows a product exists. A bespoke multi-series renderer would
+ * have had to reimplement every one of them.
+ *
+ * ⛔ THE HOST IS THE FIRST COMPONENT THAT ACTUALLY LANDED, NOT `components[0]`.
+ * `createDirectSeries` fails closed (a refused input write creates nothing), so
+ * assuming the first one exists would point the other two at an instance that is
+ * not there — and `setInstanceDisplayTarget` would refuse, leaving three separate
+ * panes with no error anywhere. Reading the host back is the same
+ * "never predict a minted id" rule `createDirectSeries` already states.
+ *
+ * ⚠️ A PARTIAL PRODUCT IS BETTER THAN NONE, and it is not silent: a component that
+ * cannot be created is skipped and the rest still land in one pane. The alternative
+ * — abandoning the whole add because one series is unavailable — turns a degraded
+ * chart into no chart.
+ */
+/**
+ * The colours a multi-output product's series wear, in order.
+ *
+ * ⭐⭐ DECLARED PER OUTPUT, WHICH IS WHAT THIS CODEBASE ALREADY DOES FOR EVERY
+ * MULTI-OUTPUT INDICATOR. MACD ships `macdColor: '#2196F3'` and `signalColor:
+ * '#FF9800'` in `nativeRegistry`; there is no auto-cycling palette anywhere in the
+ * engine, so inventing one would be the second mechanism. This is the same idea
+ * applied to a product, drawn from the same family of hues the shipped definitions
+ * already use.
+ *
+ * ⛔ AND IT IS BY POSITION, NOT BY MEANING. Nothing here knows that the first
+ * component of one particular product is "bullish" — colouring it green would be a
+ * ticker-specific visual hack wearing a palette's clothes, and it would be wrong the
+ * moment a product's outputs are not sentiment.
+ *
+ * ⚠️ IT IS A DEFAULT, NOT A LOCK. Each component is an ordinary instance with an
+ * ordinary `color` input, so a member recolours one exactly as they would any other
+ * series, and their choice persists.
+ */
+export const PRODUCT_SERIES_COLORS = Object.freeze([
+  '#2196F3',   // the blue MACD's own line uses
+  '#FF9800',   // the amber its signal uses
+  '#9C27B0',
+  '#26C6DA',
+  '#8BC34A',
+  '#EC407A',
+])
+
+/**
+ * The rows a discovery list shows for the CURRENT query — browse and query UNIONED.
+ *
+ * ⚰️⚰️ THE PRODUCTION DEFECT THIS EXISTS TO PREVENT, stated once so both discovery
+ * surfaces can share the rule. `ChartSettingsIndicators` computed this inline as
+ * `query ? symbolRows : browsed` — so the instant a member TYPED, every browsed row
+ * was discarded and the list became whatever `/api/ticker-search` returned. Browse
+ * is the only path carrying the Market Indicators catalogue, so searching "AAII"
+ * made that catalogue irrelevant and the AAII Sentiment Survey's existence depended
+ * on one remote reply whose market-indicator injection is wrapped in
+ * `except Exception: pass` server-side.
+ *
+ * ⭐ THE ASYMMETRY IS WHY IT READ AS A DATA BUG. The AAII Bull-Bear Spread kept
+ * appearing because it ALSO arrives from `useBreadthSymbols`, which needs no network
+ * at all. One AAII row present and the other absent looks like "the Survey is
+ * missing"; it was really "the Survey had one door and that door was remote".
+ *
+ * ⛔ THE REMOTE ANSWER LEADS. It is ranked by a server that knows more than a
+ * substring test; the caller's dedupe keeps the first of any key, so a row present in
+ * both sources reads exactly as it did before this existed.
+ *
+ * @param {string} query          the member's text, '' while browsing
+ * @param {Array} queryRows       rows from the remote answer
+ * @param {Array} browsedRows     rows from the local catalogues
+ * @param {Function} matchesFn    `(row, query) => boolean` — the caller's own matcher
+ */
+export function liveDiscoveryRows(query, queryRows, browsedRows, matchesFn) {
+  const browsed = Array.isArray(browsedRows) ? browsedRows : []
+  if (!query) return browsed
+  const remote = Array.isArray(queryRows) ? queryRows : []
+  const match = typeof matchesFn === 'function' ? matchesFn : () => false
+  return [...remote, ...browsed.filter((r) => match(r, query))]
+}
+
+export function createProductSeries(cs, components, registry) {
+  if (!cs || typeof cs !== 'object') return cs
+  if (!Array.isArray(components) || !components.length) return cs
+
+  let next = cs
+  let hostId = null
+  let placed = 0
+  for (const comp of components) {
+    if (!comp || typeof comp.source !== 'string' || !comp.source) continue
+    const before = next
+    next = createDirectSeries(next, comp.source, registry, {
+      name: comp.name || null,
+      compact: comp.compact || null,
+      presentation: comp.presentation || null,
+    })
+    if (next === before) continue                    // refused — skip, do not abort
+    const minted = lastCreatedInstance(before, next)
+    if (!minted || !minted.instanceId) continue
+    // ⭐ DISTINGUISHABLE BY DEFAULT. Three outputs sharing one pane in one colour is
+    // a legend a member has to read to tell the lines apart — measured in a browser
+    // before this line existed. Written through `setInstanceInput`, the canonical
+    // writer, so it is an ordinary instance colour the member can change.
+    // ⚠️ INDEXED BY PLACED POSITION, so a skipped component does not leave a gap.
+    const hex = comp.color || PRODUCT_SERIES_COLORS[placed % PRODUCT_SERIES_COLORS.length]
+    if (hex) {
+      const painted = setInstanceInput(next, minted.instanceId, 'color', hex, registry)
+      if (painted !== next) next = painted
+    }
+    placed += 1
+    if (hostId === null) {
+      // ⭐ THE FIRST LANDED COMPONENT OWNS THE PANE and keeps its own default
+      // placement. Writing a target for it would be writing `@<self>`, which
+      // `setInstanceDisplayTarget` refuses by identity — correctly.
+      hostId = minted.instanceId
+      continue
+    }
+    const moved = setInstanceDisplayTarget(next, minted.instanceId,
+                                           paneOfTarget(hostId), registry)
+    // ⚠️ A REFUSED MOVE LEAVES THE SERIES IN ITS OWN PANE rather than dropping it.
+    // The member sees the data and can move it; they never silently lose a series
+    // because a placement write was rejected.
+    if (moved !== next) next = moved
+  }
+  return next
+}
+
 export function lastCreatedInstance(before, after) {
   if (!after || after === before) return null
   const b = new Set((Array.isArray(before?.indicatorInstances) ? before.indicatorInstances : [])
@@ -948,31 +1178,70 @@ export const POPULAR_DEF_IDS = Object.freeze([
 ])
 
 /**
- * ⛔⛔ FUNDAMENTALS: AUDITED, AND THERE IS NOTHING SAFE TO PLOT.
+ * ⭐ FUNDAMENTALS: POINT-IN-TIME, FROM THE CATALOGUE THE SERVER PUBLISHES.
  *
- * The chart engine's source grammar (`sourceRef.parseSource`) admits three kinds
- * — a BAR FIELD, a SYMBOL and another INSTANCE's output. There is no fundamental
- * source, so no fundamental can become a series through canonical infrastructure.
+ * The Fundamentals tab lists what `/api/fundamentals/pit/catalog` says is
+ * historically available AND point-in-time safe (`fundamentalResults`). Every
+ * row creates an ordinary `dataSeries` over a `fund:` source; each value on the
+ * chart takes effect when its SEC filing became public -- never earlier, and
+ * never today's snapshot painted backward.
  *
- * And the one fundamental the product DOES hold is a snapshot, not a history:
- * `ast/pcf.js` exposes `CAPITALIZATION` / `MARKETCAP` as a NIGHTLY SCALAR off
- * `table.scalars.market_cap`, and refuses `Capitalization.1` in its own words —
- * *"a nightly scalar has no bar to be offset FROM... answering it with today's
- * value would be a fabricated history."* Drawing today's market cap back across
- * 400 bars is exactly that fabrication.
- *
- * ⭐ SO THE TAB IS HONEST RATHER THAN EMPTY OR ABSENT. Removing it would hide a
- * direction the product is committed to; filling it would lie about history that
- * does not exist. It states the reason and offers nothing.
+ * ⛔ WHEN THE CATALOGUE IS UNAVAILABLE (feature dark, not entitled, offline) the
+ * tab says so plainly and offers nothing. It never falls back to Screener
+ * snapshots, which have no history behind them.
  */
 export const FUNDAMENTALS_STATUS = Object.freeze({
   available: false,
-  lede: 'Historical fundamentals are not chartable yet.',
-  why: 'Fundamental data is held as a current snapshot per symbol, with no '
-    + 'point-in-time filing dates behind it — so a line drawn across past bars '
-    + 'would show today\u2019s value as though it had always been true. Market cap, '
-    + 'revenue, EPS and the rest arrive here once that history is real.',
+  lede: 'Historical fundamentals are not available right now.',
+  why: 'Fundamentals here are point-in-time: each value is charted from the moment its '
+    + 'SEC filing became public, never earlier, and never today’s value drawn backward. '
+    + 'They will appear in this tab when that history is available to your chart.',
 })
+
+/**
+ * CATALOGUE ROWS -> discovery results (the Fundamentals tab).
+ *
+ * ⭐ NO NEW CREATE DOOR. A row creates an ordinary `dataSeries` whose source is
+ * `fund:<metric>` -- the metric OF THE CHARTED SYMBOL, so it follows the chart
+ * like Volume does. Quarterly metrics default to a STEP line (the value really
+ * does change only when a filing lands); daily price-derived ones and Beta to a
+ * line. The member owns the style afterwards.
+ *
+ * ⛔ ONLY WHAT THE SERVER MARKED READY ARRIVES HERE; blocked and deferred metrics
+ * are never shown as though they worked.
+ */
+export function fundamentalResults(metrics) {
+  const out = []
+  for (const m of Array.isArray(metrics) ? metrics : []) {
+    if (!m || !m.id || !m.name || (m.status && m.status !== 'READY')) continue
+    const source = fundamentalSource(m.id)
+    if (!source) continue
+    // ⭐ THE METHODOLOGY IS ON THE ROW, NOT ONLY IN A TOOLTIP (owner decision:
+    // Beta reads "1Y daily · Benchmark: SPY"). The cadence word is dropped when
+    // the subtitle already says it, so no row reads "Daily · 1Y daily".
+    const cadence = m.cadence === 'quarterly' ? 'Quarterly' : 'Daily'
+    const sub = typeof m.subtitle === 'string' ? m.subtitle.trim() : ''
+    const chip = !sub ? cadence
+      : sub.toLowerCase().includes(cadence.toLowerCase()) ? sub : `${cadence} · ${sub}`
+    out.push(result({
+      id: m.id,
+      kind: 'fundamental',
+      name: m.name,
+      shortName: chip,
+      lead: m.name,
+      sub: m.subtitle || '',
+      category: m.category || 'Fundamentals',
+      description: [m.subtitle, m.methodology, m.limitations].filter(Boolean).join(' — '),
+      tags: ['fundamental', ...(Array.isArray(m.aliases) ? m.aliases : [])],
+      create: {
+        via: CREATE_VIA.DATA_SERIES,
+        source,
+        ...(m.presentation === 'step' ? { presentation: { plotStyle: 'step' } } : {}),
+      },
+    }))
+  }
+  return out
+}
 
 /**
  * Which tab does one result belong to? Canonical fields only.
@@ -985,6 +1254,7 @@ export function tabOf(res) {
   if (!res) return null
   if (res.userDefined === true || res.kind === 'formula') return 'formulas'
   if (res.kind === 'breadth') return 'breadth'
+  if (res.kind === 'fundamental') return 'fundamentals'
   if (res.kind === 'security') {
     const t = String(res.category || '').toLowerCase()
     if (t === 'etf') return 'etfs'
@@ -1078,6 +1348,7 @@ export function glyphFamilyOf(res) {
   if (ownKey(FAMILY_BY_ID, res.id)) return FAMILY_BY_ID[res.id]
   const tab = tabOf(res)
   if (tab === 'breadth') return 'breadth'
+  if (tab === 'fundamentals') return 'fundamental'
   if (tab === 'formulas') return 'formula'
   if (tab === 'symbols' || tab === 'indexes' || tab === 'etfs') return 'security'
   const cat = String(res.category || '').toLowerCase()
@@ -1113,7 +1384,6 @@ export function resultsForTab(results, tab) {
     const byId = new Map(list.filter(isPopular).map((r) => [r.id, r]))
     return POPULAR_DEF_IDS.map((id) => byId.get(id)).filter(Boolean)
   }
-  if (tab === 'fundamentals') return []
   return list.filter((r) => tabOf(r) === tab)
 }
 
@@ -1164,4 +1434,68 @@ export function symbolLibraryRow(res) {
     userDefined: false, carvedOut: false, singleton: false, builtIn: null,
     sessionOnly: false, tier: null, measuredRepaint: null, repaintingPlots: [],
   }
+}
+
+/**
+ * MARKET INDICATOR ROWS → discovery results, through the shapers that already exist.
+ *
+ * ⭐⭐ NO NEW TAB, NO NEW RESULT KIND, NO NEW CREATE DOOR. The Indicators panel's
+ * five-tab strip is an accepted model with a fixed shell width — eight tabs needed
+ * 509px against 386, which is why three were removed — so a sixth would re-open a
+ * navigation decision the owner already made. A market indicator is instead filed by
+ * WHAT IT IS, using the taxonomy `tabOf` already applies:
+ *
+ *   volatility (a published Cboe index)  → `kind: 'security'`, `category: 'index'`
+ *                                          → the **Indexes** tab, where an index belongs
+ *   everything else (McClellan, breadth- → `kind: 'breadth'`
+ *   derived, survey)                       → the **Breadth** tab, the market-internals door
+ *
+ * ⛔ AND THE FAMILY LABEL IS CARRIED AS THE CATEGORY, so "McClellan" and
+ * "Sentiment & Positioning" appear as the group heading a member reads even though
+ * both live under one tab. That is the owner's family model expressed as DATA rather
+ * than as a second UI.
+ *
+ * ⚠️ DORMANT ROWS NEVER ARRIVE HERE. `/api/market-indicators` returns them in a
+ * separate `dormant` array that the hook does not index, so NYMO cannot be shaped
+ * into a result and cannot be clicked.
+ */
+export function marketIndicatorResults(rows, { tf, bars } = {}) {
+  const vol = []
+  const internals = []
+  for (const row of (Array.isArray(rows) ? rows : [])) {
+    if (!row || !row.symbol) continue
+    // ⚰️ MEASURED IN A BROWSER: the product reached `breadthResults` with its
+    // `kind`, `components` and `component_rows` STRIPPED by the projection below,
+    // so the product branch never fired and the row fell through as an ordinary
+    // symbol — the panel printed `AAII:SURVEY` as the headline with the real name
+    // demoted to the subtitle. An internal id in the one place a member reads, and
+    // unaddable besides, because a product has no bars of its own.
+    //
+    // ⛔ SO A PRODUCT PASSES THROUGH WHOLE. The projection under it exists to
+    // reshape a SERIES row into the breadth row shape; a product is already the
+    // right shape and reshaping it can only lose fields.
+    if (row.kind === 'product') {
+      internals.push(row)
+      continue
+    }
+    if (row.source_type === 'volatility') {
+      vol.push({ ticker: row.symbol, name: row.display, type: 'index', exchange: 'CBOE' })
+      continue
+    }
+    internals.push({
+      symbol: row.symbol,
+      name: row.display,
+      short_name: row.short,
+      // ⚠️ `legacy: true` SUPPRESSES THE UNIVERSE BADGE, and that is right for every
+      // row here: `US · McClellan Oscillator` already states its universe in the name
+      // the naming rules produced, so a second "US" chip beside it is noise. A breadth
+      // library row differs — its name is the metric alone.
+      legacy: true,
+      group_label: row.family_label,
+      presentation: row.presentation,
+      domain: row.domain,
+    })
+  }
+  return [...breadthResults(internals, { tf, bars }),
+          ...securityResults(vol, { tf, bars })]
 }

@@ -40,7 +40,15 @@ export default function NoteBacklinksSection({ noteId }) {
                 onClick={() => navigate(notePath(n.id))}
               >
                 <UIcon name="link" size={12} style={{ verticalAlign: '-2px', marginRight: 6, flexShrink: 0 }} />
-                <span className={styles.rowTitle}>{n.title}</span>
+                <span className={styles.rowMain}>
+                  <span className={styles.rowTitle}>{n.title}</span>
+                  {/* Obsidian's "Show more context" -- a snippet of the linking
+                      note's own prose around the reference, not just its
+                      title. Absent (not an empty string) when the link sits
+                      entirely alone in its block, or on parse failure --
+                      the row still works with title/refs alone either way. */}
+                  {n.context && <span className={styles.rowContext}>{n.context}</span>}
+                </span>
                 {n.refs > 1 && <span className={styles.rowMeta}>{n.refs}×</span>}
               </button>
             </li>

@@ -3,6 +3,8 @@ unit level, mirroring test_wave_f_facts.py's conn-fixture pattern."""
 from __future__ import annotations
 
 import sqlite3
+import uuid
+from datetime import datetime, timezone
 
 import pytest
 
@@ -35,6 +37,23 @@ def _no_real_entity_master(monkeypatch):
 
 def _create(c, user_id, title="A note", **extra):
     return create_note(user_id, {"title": title, "bodyJson": {"type": "doc", "content": []}, **extra}, conn=c)
+
+
+def _insert_verdict(c, *, user_id, symbol, label="GO", account_id="acct1", source="llm"):
+    # Mirrors test_verdict_scorecard.py's minimal-columns helper -- j2_verdicts
+    # has no note_id (G-073b: the changelog matches by ticker, not by a stored
+    # link). paragraph/factors/hard_check_failed are irrelevant to the match.
+    vid = str(uuid.uuid4())
+    c.execute(
+        """
+        INSERT INTO j2_verdicts (
+            id, user_id, account_id, symbol, side, label, paragraph, source, created_at
+        ) VALUES (?, ?, ?, ?, 'Long', ?, 'p', ?, ?)
+        """,
+        (vid, user_id, account_id, symbol, label, source, datetime.now(timezone.utc).isoformat()),
+    )
+    c.commit()
+    return vid
 
 
 # ── Evidence CRUD ────────────────────────────────────────────────────────────
@@ -261,6 +280,63 @@ def test_current_value_resolution_never_produces_a_changelog_event(conn):
     fact_current_value.resolve_current_values([fact])
     after = len(changelog.get_thesis_changelog("u1", thesis["id"], conn=conn))
     assert before == after
+
+
+# ── Changelog: Compass verdicts (G-073b) ────────────────────────────────────
+# No note_id on j2_verdicts (confirmed in db.py) -- matched by ticker at read
+# time, never stored, per the owner's "computed match, no schema change" call.
+
+def test_a_verdict_on_the_notes_ticker_produces_a_changelog_event(conn):
+    thesis = _create(conn, "u1", ticker="NVDA")
+    vid = _insert_verdict(conn, user_id="u1", symbol="NVDA", label="GO")
+    events = changelog.get_thesis_changelog("u1", thesis["id"], conn=conn)
+    matches = [e for e in events if e["type"] == "compass_verdict"]
+    assert len(matches) == 1
+    assert matches[0]["verdictId"] == vid
+    assert matches[0]["label"] == "GO"
+    assert matches[0]["symbol"] == "NVDA"
+
+
+def test_a_verdict_on_a_different_ticker_is_not_surfaced(conn):
+    thesis = _create(conn, "u1", ticker="NVDA")
+    _insert_verdict(conn, user_id="u1", symbol="AMD", label="GO")
+    events = changelog.get_thesis_changelog("u1", thesis["id"], conn=conn)
+    assert not [e for e in events if e["type"] == "compass_verdict"]
+
+
+def test_a_note_with_no_ticker_never_produces_a_verdict_event(conn):
+    thesis = _create(conn, "u1")  # no ticker
+    _insert_verdict(conn, user_id="u1", symbol="NVDA", label="GO")
+    events = changelog.get_thesis_changelog("u1", thesis["id"], conn=conn)
+    assert not [e for e in events if e["type"] == "compass_verdict"]
+
+
+def test_a_verdict_is_hidden_once_the_thesis_is_closed_or_invalidated(conn):
+    # A fresh verdict on a ticker should not attach itself to a thesis its
+    # own author has already marked done -- the ambiguity a "computed match"
+    # design has to resolve when more than one note shares a ticker.
+    for status in ("closed", "invalidated"):
+        thesis = _create(conn, "u1", ticker="NVDA")
+        update_note("u1", thesis["id"], {"properties": {"builtin:thesis_status": status}}, conn=conn)
+        _insert_verdict(conn, user_id="u1", symbol="NVDA", label="SKIP")
+        events = changelog.get_thesis_changelog("u1", thesis["id"], conn=conn)
+        assert not [e for e in events if e["type"] == "compass_verdict"], status
+
+
+def test_a_verdict_still_shows_while_the_thesis_is_watching_or_active(conn):
+    for status in ("watching", "active"):
+        thesis = _create(conn, "u1", ticker="NVDA")
+        update_note("u1", thesis["id"], {"properties": {"builtin:thesis_status": status}}, conn=conn)
+        _insert_verdict(conn, user_id="u1", symbol="NVDA", label="HOLD")
+        events = changelog.get_thesis_changelog("u1", thesis["id"], conn=conn)
+        assert [e for e in events if e["type"] == "compass_verdict"], status
+
+
+def test_a_verdict_from_another_user_never_crosses_tenants(conn):
+    thesis = _create(conn, "u1", ticker="NVDA")
+    _insert_verdict(conn, user_id="u2", symbol="NVDA", label="GO")
+    events = changelog.get_thesis_changelog("u1", thesis["id"], conn=conn)
+    assert not [e for e in events if e["type"] == "compass_verdict"]
 
 
 def test_changelog_is_empty_for_a_fresh_thesis(conn):

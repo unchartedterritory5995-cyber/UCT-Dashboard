@@ -126,6 +126,41 @@ def _is_carried(ticker: str) -> bool:
         return False
 
 
+def _fetch_already_running(response) -> bool:
+    """Does this 503 say a fetch for THIS ticker/tf is ALREADY IN FLIGHT?
+
+    ⛔⛔ THE DOWNGRADE BELOW ANSWERED A COVERAGE QUESTION WITH A CAPACITY ANSWER.
+    `bars_fetch` never blocks a request on a cold provider fetch: for a ticker it
+    has never seen it kicks a bounded background fetch, marks the serve `cold-bg`,
+    and returns **503 `{"error": "warming"}` + Retry-After: 3** so the client
+    re-polls and reads the rows the moment they land. That 503 does not mean "we
+    looked everywhere and found nothing" — it means "we have started looking".
+
+    Downgrading it to `no_data:symbol_not_carried` tells the member the provider
+    does not carry the symbol AND stops the retry, so the rows the background
+    fetch is at that moment writing are never collected. The answer is destroyed
+    by the question, and it re-asks itself on every future visit.
+
+    ⭐ MEASURED ON PRODUCTION 2026-09-23, not reasoned from the tree: `SNGX` tf=5
+    returned `no_data:symbol_not_carried` with `Server-Timing: bars;desc="cold-bg"`
+    on the same response — the downgrade firing on the warming 503 by name. BFRG,
+    GRRR, CNEY and VRME each answered `symbol_not_carried`, then served 120-300
+    REAL bars from `sqlite` in ~2 ms after a single spaced re-request. Nothing was
+    missing but the second ask.
+
+    ⚠️ `transient` IS STILL DOWNGRADED, DELIBERATELY. A retired ticker (`SQ` after
+    the rename to `XYZ`) trips `bars_fetch`'s no-blank guard with the breaker open
+    and would otherwise have the frontend retry a symbol that will never answer —
+    see `tests/test_bars_dead_ticker.py`. "A fetch is running" and "we found
+    nothing anywhere" are different claims and only the first one is exempt.
+    """
+    try:
+        body = orjson.loads(bytes(getattr(response, "body", b"") or b"") or b"{}")
+    except Exception:  # noqa: BLE001 — an unreadable body proves nothing either way
+        return False
+    return body.get("warming") is True or body.get("error") == "warming"
+
+
 def _no_data_response(ticker: str, tf: str):
     """200 + an empty series + why it is empty. `no_data` is what makes this
     distinguishable from a quiet-but-live symbol without inventing a single bar."""
@@ -368,6 +403,26 @@ async def _proxy_bars_to_tier(ticker, tf, bars, since, to, warm, origin):
     return resp
 
 
+def _is_market_indicator(ticker: str) -> bool:
+    """Is this canonical symbol served by the Market Indicators library?
+
+    ⭐⭐ ONE AUTHORITY, ASKED BY EVERY DOOR IN THIS MODULE. There are three places that
+    must agree — the proxy exclusion, `/api/bars`' serve branch and `/api/bars-history`'s
+    — and when the answer was inlined at only two of them the third silently served
+    `bars: []` from bars.db, which has no market-indicator rows. A 200 carrying nothing
+    is indistinguishable from a flat market to a chart, so every member saw a blank
+    canvas and no error.
+
+    ⚠️ DEFENSIVE BY DESIGN. If the registry cannot be imported the answer is "no", which
+    routes the symbol down the ordinary path rather than failing the request.
+    """
+    try:
+        from api.services.market_indicators import registry as _mireg
+        return _mireg.is_market_indicator(ticker)
+    except Exception:
+        return False
+
+
 def _bars_proxy_should_route(ticker: str, warm: int) -> bool:
     """Canary gate for the hot-path proxy. Routes a real read to the tier ONLY when
     BARS_PROXY_ENABLED=1 AND a per-request draw falls under BARS_PROXY_PCT (0-100).
@@ -389,6 +444,13 @@ def _bars_proxy_should_route(ticker: str, warm: int) -> bool:
             return False
     except Exception:
         pass
+    # ⛔ MARKET INDICATORS ALSO STAY LOCAL, for exactly the reason breadth does: they
+    # are served from web-pod stores (`naaim_series.db`, `cboe_indices.db`, and a
+    # derivation over `breadth_daily_ohlc`) that the bars-serving tier does not have.
+    # Proxying one returns an empty chart. Same authority `serve_bars` routes on, so
+    # the exclusion cannot drift from the routing.
+    if _is_market_indicator(ticker):
+        return False
     if os.environ.get("BARS_PROXY_ENABLED", "0") != "1":
         return False
     try:
@@ -676,15 +738,34 @@ def serve_bars(
             # any market-data provider. Checked FIRST so it never touches the live
             # fetch path (a UCT symbol has no provider and would 503). Membership
             # test — not a bare 'UCT' prefix — so a real ticker like UCTT is untouched.
+            # MARKET INDICATOR (US:MCO, NAAIM, VIX9D, …): one more locally-served
+            # family, same contract — `t` is 'YYYY-MM-DD', D/W/M only, no provider.
+            #
+            # ⛔⛔ CHECKED AFTER BREADTH AND BEFORE EVERYTHING ELSE, and the order is
+            # load-bearing in BOTH directions. After breadth, because the 44 shipped
+            # pseudo-tickers must answer exactly as they always have and no new
+            # catalogue may shadow one. Before the index and live-fetch paths, because
+            # a market indicator has no market-data provider and would 503 there.
+            #
+            # ⛔ MEMBERSHIP IS A REGISTRY LOOKUP, NEVER A SHAPE TEST. `US:MCO` is one
+            # because `market_indicators.registry` contains that identity; `US:NOPE`
+            # has the identical shape and is not. DORMANT rows (NYMO/NYSI/NAMO/NASI)
+            # resolve to None here, so a symbol whose inputs do not exist yet cannot be
+            # charted no matter what a stale client asks for.
             from api.services import breadth_symbols as _breadth_syms
             from api.services import delisted_registry as _delisted
             _is_breadth = _breadth_syms.is_breadth_symbol(ticker)
-            _drec = None if _is_breadth else _delisted.resolve(ticker)
+            _is_mkt_ind = (not _is_breadth) and _is_market_indicator(ticker)
+            _drec = None if (_is_breadth or _is_mkt_ind) else _delisted.resolve(ticker)
             if _is_breadth:
                 # Coarse label now; build_breadth_bars refines it to breadth-cache vs
                 # breadth-build once the bars-layer cache lands (Phase 2).
                 _mark_serve("breadth")
                 response = JSONResponse(content=_breadth_syms.build_breadth_bars(ticker, tf, bars))
+            elif _is_mkt_ind:
+                from api.services.market_indicators import series as _mseries
+                _mark_serve("market-indicator")
+                response = JSONResponse(content=_mseries.build_bars(ticker, tf, bars))
             elif _drec:
                 from api.services.bars_fetch import _get_delisted_bars_response
                 # serve_as=ticker keeps a bare aliased symbol (e.g. "BSC") consistent with
@@ -787,6 +868,7 @@ def serve_bars(
         # `crashed` 503 (the SQLite inode swap during force_resync) IS transient
         # for any symbol, carried or not, and keeps its Retry-After.
         if (not crashed and getattr(response, "status_code", 200) == 503
+                and not _fetch_already_running(response)
                 and not _is_carried(ticker)):
             _log.info("[bars] %s tf=%s: no data and not a carried symbol — "
                       "200 no_data instead of a transient 503", ticker, tf)
@@ -933,6 +1015,18 @@ def serve_bars_history(ticker: str, tf: str = "D", bars: int = 60000,
         from api.services import breadth_symbols as _bsym
         if _bsym.is_breadth_symbol(sym):
             all_bars = (_bsym.build_breadth_bars(sym, tfu, bars) or {}).get("bars") or []  # cache-first, no provider
+        elif _is_market_indicator(sym):
+            # ⛔⛔ THE SAME BRANCH `/api/bars` HAS, IN THE SAME PLACE, AND ITS ABSENCE
+            # HERE WAS THE WHOLE DEFECT. A market indicator has no rows in bars.db, so
+            # without this it fell through to the `else` below, read an empty SQLite
+            # result and served `bars: []` — a VALID, CACHEABLE 200 carrying nothing.
+            # Every member chart painted blank while `/api/bars` had the data all along.
+            #
+            # ⚰️ TWO ENDPOINTS SERVE CHART HISTORY AND ONLY ONE WAS TAUGHT. Breadth is
+            # branched in BOTH — which is exactly why `UCTA50` never broke — while the
+            # new catalogue was added to `/api/bars` alone.
+            from api.services.market_indicators import series as _mseries
+            all_bars = (_mseries.build_bars(sym, tfu, bars) or {}).get("bars") or []
         elif is_index(sym):
             # Cash-settled indexes carry unix-ts + aren't date-sliceable here.
             return _no_store(JSONResponse(content={
@@ -1034,7 +1128,20 @@ async def get_bars_history(
     (shallow tail) history via serve_bars_history — the unchanged, backward-compatible path.
     See docs/superpowers/specs/2026-08-31-edge-deep-history."""
     origin = os.environ.get("BARS_HISTORY_ORIGIN_URL", "").rstrip("/")
-    if origin and os.environ.get("BARS_HISTORY_PROXY_ENABLED", "0") == "1":
+    # ⛔⛔ MARKET INDICATORS ARE NEVER PROXIED, for exactly the reason the hot-path proxy
+    # excludes them (`_bars_proxy_should_route`): their stores — `cboe_indices.db`,
+    # `naaim_series.db`, and the derivation over `breadth_daily_ohlc` — live on the WEB
+    # pod, which is also where the boot refresh writes them. The bars worker has the deep
+    # `bars.db` and nothing else, so it answers `bars: []` with a 200 and the chart paints
+    # a blank canvas.
+    #
+    # ⚰️ THE THIRD SEAM OF THE SAME DEFECT, found only by asking production which ORIGIN
+    # answered. `/api/bars` and `/api/bars-history` were both taught the branch, and this
+    # proxy still sent the request somewhere the branch could not help. A capability that
+    # depends on WHICH POD serves it has to be excluded at every routing decision, not
+    # just the ones that look like routing.
+    if origin and os.environ.get("BARS_HISTORY_PROXY_ENABLED", "0") == "1" \
+            and not _is_market_indicator(ticker):
         try:
             return await _proxy_bars_history_to_worker(ticker, tf, bars, v, d, origin)
         except Exception:

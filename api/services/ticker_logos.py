@@ -26,6 +26,7 @@ docstring for why FMP is a real but currently always-empty attempt here (no
 logo field on that endpoint) rather than a replacement.
 """
 import io
+import json
 import logging
 import os
 import threading
@@ -42,6 +43,19 @@ _MISS_TRANSIENT_TTL = 1800       # a provider hiccup (timeout/429/5xx) — retry
 _MISS_TRANSIENT_MARKER = "transient"
 _HEADERS = {"User-Agent": "Mozilla/5.0"}
 _TIMEOUT = 8
+
+# D4 CP5 (GATE-D4-CP5-TICKER-LOGOS, signed 2026-09-21, fingerprint ce60908e5):
+# the ordered vocabulary `_fetch_sources`' own chain walks — shared between the
+# write side (what `failed` names in a fresh `.miss`) and the read side (what
+# `skip` may name on a retry), so the two can never drift into two
+# independently-typed lists. `_CLEARBIT_SOURCE_NAME` is deliberately NOT a
+# member of `_SOURCE_NAMES` — Clearbit is only ever attempted by the EXTENDED
+# chain (`_fetch_sources_with_clearbit`, run_miss_retry only), so it can never
+# appear in a `.miss` written by `resolve_and_cache`'s base chain, and a retry
+# therefore always still attempts it even when every base-chain provider is
+# in `skip` (§4 item 5 — the retry can never degenerate into a no-op).
+_SOURCE_NAMES = ("override", "logodev", "parqet", "fmp_image", "finnhub")
+_CLEARBIT_SOURCE_NAME = "clearbit"
 
 # ── per-call transient-failure tracker ─────────────────────────────────────
 # Thread-local because `resolve_and_cache` runs on whatever thread called it
@@ -76,10 +90,76 @@ def _miss_path(sym: str) -> str:
     return os.path.join(_CACHE_DIR, f"{_safe(sym)}.miss")
 
 
+def _source_path(sym: str) -> str:
+    """D4 CP5: the `.source` sidecar — plain text, one value, naming which
+    provider produced the winning bytes on a resolved hit. Observability only;
+    nothing in this checkpoint reads it back (the SHOULD item, `GET
+    /api/logos/status`'s per-source breakdown, is deferred to the owner's
+    judgment — §4 SHOULD, this packet's §9)."""
+    return os.path.join(_CACHE_DIR, f"{_safe(sym)}.source")
+
+
 def get_logo_path(sym: str):
     """Return the cached PNG path if present on disk, else None."""
     p = _png_path(sym)
     return p if os.path.exists(p) else None
+
+
+def _read_miss(sym: str) -> tuple:
+    """Parse a `.miss` file's content. Returns `(transient, failed)` —
+    `failed` a tuple of provider names already tried and cleanly ruled out.
+
+    D4 CP5: the `.miss` sentinel's content is now JSON
+    (`{"transient": bool, "failed": [...], "ts": epoch}`), but every `.miss`
+    file already on a production volume the moment this ships still holds the
+    OLD two-shape format (empty, or the bare 9-byte marker `"transient"`) —
+    `json.loads` raises on both, and the `except` branch below is that OLD
+    check, verbatim, unmodified, so an old file's TTL classification is
+    byte-identical to today until it is naturally re-resolved or re-misses
+    under the new writer. No backfill, no migration script.
+
+    An unreadable file reads as a genuine (non-transient, un-skippable) miss —
+    the same conservative direction `_recent_miss` has always defaulted to on
+    an unreadable `.miss`.
+    """
+    try:
+        with open(_miss_path(sym)) as f:
+            raw = f.read()
+    except OSError:
+        return False, ()
+    try:
+        data = json.loads(raw)
+        if isinstance(data, dict):
+            failed = data.get("failed") or []
+            return bool(data.get("transient")), tuple(str(x) for x in failed)
+    except (json.JSONDecodeError, ValueError, TypeError):
+        pass
+    # Legacy bare-marker format — the only bit it ever carried was "transient".
+    return raw.strip() == _MISS_TRANSIENT_MARKER, ()
+
+
+def _write_miss(sym: str, *, transient: bool, failed) -> None:
+    """The `.miss` sentinel's write side (D4 CP5). `failed` is `()` for a
+    transient miss — a hiccup, not a verdict, so a retry after the short TTL
+    must still re-try everything, exactly as today (§4 item 4) — and the full
+    set of providers `_fetch_sources` actually walked this attempt otherwise."""
+    try:
+        with open(_miss_path(sym), "w") as f:
+            json.dump({"transient": bool(transient), "failed": list(failed),
+                       "ts": time.time()}, f)
+    except OSError:
+        pass
+
+
+def _write_source(sym: str, source: str) -> None:
+    """The `.source` sidecar's write side (D4 CP5) — best-effort, mirroring
+    `.miss`'s own non-atomic write (§7 row 3: pre-existing, not introduced or
+    worsened by this checkpoint)."""
+    try:
+        with open(_source_path(sym), "w") as f:
+            f.write(source or "")
+    except OSError:
+        pass
 
 
 def _recent_miss(sym: str) -> bool:
@@ -88,16 +168,10 @@ def _recent_miss(sym: str) -> bool:
         if not os.path.exists(mp):
             return False
         age = time.time() - os.path.getmtime(mp)
-        ttl = _MISS_TTL
-        try:
-            with open(mp) as f:
-                if f.read(32).strip() == _MISS_TRANSIENT_MARKER:
-                    ttl = _MISS_TRANSIENT_TTL
-        except OSError:
-            pass  # unreadable content — fall back to the conservative 7-day TTL
-        return age < ttl
     except OSError:
         return False
+    transient, _failed = _read_miss(sym)
+    return age < (_MISS_TRANSIENT_TTL if transient else _MISS_TTL)
 
 
 def _is_ssrf_safe_url(url: str) -> bool:
@@ -342,8 +416,18 @@ def _override_logo_bytes(sym: str):
     return _logodev_domain_bytes(dom) or _url_bytes(f"https://logo.clearbit.com/{dom}")
 
 
-def _fetch_sources(sym: str):
-    """Try each source in priority order; return raw image bytes or None.
+def _fetch_sources(sym: str, skip: frozenset = frozenset()):
+    """Try each source in priority order; return `(bytes, name)` on success,
+    else `(None, tried)` where `tried` names every unskipped source this
+    attempt actually walked.
+
+    D4 CP5: `skip` bypasses a named source ENTIRELY — no call at all — which is
+    what makes a retry a real reduction in provider egress rather than merely a
+    bookkeeping change. `tried` needs no per-provider return-tracking added
+    anywhere: for a chain that returns falsy overall, `tried` is simply "every
+    unskipped name," the same fact the old bare `or` chain's short-circuit
+    semantics already guaranteed (§4 item 4) — this loop only makes that fact
+    observable.
 
     A pinned-domain OVERRIDE (recent-IPO / broken-source tail) wins first. Then
     CDN sources (Parqet, FMP) — they need no API key and tolerate concurrency,
@@ -353,27 +437,40 @@ def _fetch_sources(sym: str):
     only used by run_miss_retry() at low concurrency (≤2 workers).
     """
     s = _safe(sym)
-    return (
-        _override_logo_bytes(s)
-        or _logodev_logo_bytes(s)
-        or _url_bytes(f"https://assets.parqet.com/logos/symbol/{s}")
-        or _url_bytes(f"https://financialmodelingprep.com/image-stock/{s}.png")
-        or _finnhub_logo_bytes(s)
+    chain = (
+        ("override", lambda: _override_logo_bytes(s)),
+        ("logodev", lambda: _logodev_logo_bytes(s)),
+        ("parqet", lambda: _url_bytes(f"https://assets.parqet.com/logos/symbol/{s}")),
+        ("fmp_image", lambda: _url_bytes(f"https://financialmodelingprep.com/image-stock/{s}.png")),
+        ("finnhub", lambda: _finnhub_logo_bytes(s)),
     )
+    tried = []
+    for name, fn in chain:
+        if name in skip:
+            continue
+        tried.append(name)
+        raw = fn()
+        if raw:
+            return raw, name
+    return None, tuple(tried)
 
 
-def _fetch_sources_with_clearbit(sym: str):
-    """Extended source chain (logo.dev first, Clearbit last) used only by
-    run_miss_retry() at low concurrency."""
+def _fetch_sources_with_clearbit(sym: str, skip: frozenset = frozenset()):
+    """Extended source chain (adds Clearbit last) used only by run_miss_retry()
+    at low concurrency. Composes `_fetch_sources` rather than duplicating its
+    five-term chain, so the two can never drift apart. Clearbit is deliberately
+    NOT a member of `_SOURCE_NAMES`/`_fetch_sources`' own `tried` vocabulary
+    (§4 item 5) — passing `skip` here never suppresses it."""
     s = _safe(sym)
-    return (
-        _override_logo_bytes(s)
-        or _logodev_logo_bytes(s)
-        or _url_bytes(f"https://assets.parqet.com/logos/symbol/{s}")
-        or _url_bytes(f"https://financialmodelingprep.com/image-stock/{s}.png")
-        or _finnhub_logo_bytes(s)
-        or _clearbit_logo_bytes(s)
-    )
+    raw, tried = _fetch_sources(sym, skip=skip)
+    if raw:
+        return raw, tried
+    if _CLEARBIT_SOURCE_NAME not in skip:
+        raw = _clearbit_logo_bytes(s)
+        if raw:
+            return raw, _CLEARBIT_SOURCE_NAME
+        tried = tried + (_CLEARBIT_SOURCE_NAME,)
+    return None, tried
 
 
 def _normalize_png(raw: bytes):
@@ -412,11 +509,15 @@ def resolve_and_cache(sym: str, name: str = None, alt: str = None, force: bool =
         return None
 
     _reset_transient()
-    raw = _fetch_sources(s)
+    raw, source = _fetch_sources(s)
     if not raw and alt and _safe(alt) != s:
-        raw = _fetch_sources(_safe(alt))   # try the exchange-suffixed symbol
+        raw, alt_source = _fetch_sources(_safe(alt))   # try the exchange-suffixed symbol
+        if raw:
+            source = "alt:" + alt_source
     if not raw and name:
         raw = _name_logo_bytes(name)       # company name → domain → logo
+        if raw:
+            source = "name_domain"
     png = _normalize_png(raw) if raw else None
 
     os.makedirs(_CACHE_DIR, exist_ok=True)
@@ -426,13 +527,13 @@ def resolve_and_cache(sym: str, name: str = None, alt: str = None, force: bool =
         # short retry window instead of 7 days so it self-heals once the
         # provider recovers, rather than showing a monogram for a week while
         # the source was healthy the whole time.
+        #
+        # D4 CP5: `failed` is `()` for a transient miss (a retry must re-try
+        # everything, unchanged from today) and `_SOURCE_NAMES` in full
+        # otherwise — resolve_and_cache never passes `skip`, so every base
+        # provider was genuinely walked this attempt (§4 item 4).
         transient = _was_transient()
-        try:
-            with open(_miss_path(s), "w") as f:
-                if transient:
-                    f.write(_MISS_TRANSIENT_MARKER)
-        except OSError:
-            pass
+        _write_miss(s, transient=transient, failed=() if transient else _SOURCE_NAMES)
         return None
 
     tmp = _png_path(s) + ".tmp"
@@ -443,6 +544,7 @@ def resolve_and_cache(sym: str, name: str = None, alt: str = None, force: bool =
     except OSError as e:
         _logger.warning("logo write failed for %s: %s", s, e)
         return None
+    _write_source(s, source)
     return _png_path(s)
 
 
@@ -530,11 +632,22 @@ def run_miss_retry() -> dict:
 
         def _retry_one(sym: str) -> bool:
             """Retry a single .miss ticker with the extended source chain.
-            Returns True if resolved, False if still a miss."""
+            Returns True if resolved, False if still a miss.
+
+            D4 CP5 (§4 item 5): skips whichever providers this ticker's own
+            `.miss` already recorded as a clean failure — Clearbit is never
+            among them (§4 item 5's own guarantee, `_fetch_sources_with_
+            clearbit`'s docstring), so this can never degenerate into a
+            no-op walk. A CONTINUED failure leaves the `.miss` file exactly as
+            it was (unchanged from today) — its own age keeps counting toward
+            the 7-day TTL, at which point `resolve_and_cache` gives it a
+            completely fresh, unskipped attempt regardless (§7 row 2).
+            """
             s = _safe(sym)
             try:
                 time.sleep(_MISS_RETRY_SLEEP)
-                raw = _fetch_sources_with_clearbit(s)
+                _transient, skip = _read_miss(s)
+                raw, source = _fetch_sources_with_clearbit(s, skip=frozenset(skip))
                 png = _normalize_png(raw) if raw else None
                 if not png:
                     return False
@@ -542,6 +655,7 @@ def run_miss_retry() -> dict:
                 with open(tmp, "wb") as fh:
                     fh.write(png)
                 os.replace(tmp, _png_path(s))
+                _write_source(s, source)
                 # Remove .miss sentinel
                 try:
                     os.remove(_miss_path(s))
@@ -601,7 +715,7 @@ def run_hires_upgrade(sleep_seconds: float = _MISS_RETRY_SLEEP) -> dict:
             try:
                 if sleep_seconds:
                     time.sleep(sleep_seconds)
-                raw = _fetch_sources(s)
+                raw, source = _fetch_sources(s)
                 png = _normalize_png(raw) if raw else None
                 if not png:
                     return False
@@ -609,6 +723,7 @@ def run_hires_upgrade(sleep_seconds: float = _MISS_RETRY_SLEEP) -> dict:
                 with open(tmp, "wb") as fh:
                     fh.write(png)
                 os.replace(tmp, _png_path(s))
+                _write_source(s, source)
                 return True
             except Exception as e:
                 _logger.debug("[logo-hires] %s failed: %s", s, e)

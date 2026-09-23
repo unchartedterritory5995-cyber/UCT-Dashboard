@@ -354,6 +354,22 @@ export default function EarningsResearchModal({
         <button type="button" className={styles.btnChart} onClick={goToFullResearch}>
           <UIcon name="book" size={13} style={{ verticalAlign: '-2px', marginRight: 4 }} />Full Research
         </button>
+        {/* Packet P CP1 (signed 2026-09-22, fingerprint 64a4811e8) --
+            restores the "Add to calendar" link the old, now-deleted
+            EarningsModal.jsx carried (commit 7c63b89fd), lost in the modal
+            swap. GET /api/calendar/report.ics is untouched, no auth, no
+            token. reportDate absent (a report with no known date) has
+            nothing to schedule, so the link renders only when it's set. */}
+        {reportDate && (
+          <a
+            className={styles.btnChart}
+            href={`/api/calendar/report.ics?sym=${encodeURIComponent(sym)}&date=${reportDate}&timing=${timing || 'tbd'}`}
+            title="Downloads a calendar event — opens in Google/Apple Calendar"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <UIcon name="calendar" size={13} style={{ verticalAlign: '-2px', marginRight: 4 }} />Add to calendar
+          </a>
+        )}
       </div>
 
       <SectionTabs active={active} onSelect={onSectionChange} idPrefix="erm-rail" />

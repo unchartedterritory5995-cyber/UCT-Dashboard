@@ -1,0 +1,223 @@
+/* Declared tokens only: --text-muted / --border / --bg-surface / --ut-gold.
+   G-104 (2026-09-21) repointed the neighbouring files this comment used to
+   warn about (they referenced --color-text-etc names tokens.css never
+   defined, so they rendered their fallback literal forever, never
+   responding to theme). This file was already correct; keep new code
+   this way too. */
+
+.wrap {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  min-height: 0;
+  flex: 1;
+}
+
+.toolbar {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.nav {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.navBtn,
+.todayBtn {
+  background: var(--bg-elevated);
+  color: var(--text-bright);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm, 4px);
+  cursor: pointer;
+  min-height: var(--tap-min, 44px);
+  min-width: var(--tap-min, 44px);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0 10px;
+  font-size: 12px;
+}
+
+/* The previous-month arrow is the next-month glyph turned around — the
+   registry has one chevron and two directions is a transform, not a second
+   piece of art. */
+.navBtn:first-child svg { transform: rotate(180deg); }
+
+.monthLabel {
+  font-size: 13px;
+  font-weight: 600;
+  min-width: 132px;
+  text-align: center;
+  color: var(--text-bright);
+}
+
+.byLabel {
+  font-size: 12px;
+  color: var(--text-muted);
+  margin-left: auto;
+}
+
+.bySelect {
+  background: var(--bg-elevated);
+  color: var(--text-bright);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm, 4px);
+  font-size: 12px;
+  padding: 5px 8px;
+  min-height: var(--tap-min, 44px);
+}
+
+.elsewhere {
+  font-size: 11px;
+  font-style: italic;
+  color: var(--text-muted);
+}
+
+.grid {
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md, 8px);
+  overflow: hidden;
+  background: var(--bg-surface);
+}
+
+.dowRow,
+.week {
+  display: grid;
+  grid-template-columns: repeat(7, minmax(0, 1fr));
+}
+
+.dow {
+  padding: 6px 4px;
+  font-size: 10px;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  text-align: center;
+  color: var(--text-muted);
+  border-bottom: 1px solid var(--border);
+}
+
+.cell,
+.padCell {
+  min-height: 92px;
+  border-right: 1px solid var(--border);
+  border-bottom: 1px solid var(--border);
+  padding: 4px;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  overflow: hidden;
+}
+
+.padCell { background: rgba(255, 255, 255, 0.015); }
+
+.cell:nth-child(7n),
+.padCell:nth-child(7n) { border-right: none; }
+
+.cellToday {
+  background: rgba(201, 168, 76, 0.08);
+  box-shadow: inset 0 0 0 1px var(--ut-gold);
+}
+
+.dayNum {
+  font-size: 10px;
+  color: var(--text-muted);
+  font-variant-numeric: tabular-nums;
+}
+
+.chip {
+  display: block;
+  width: 100%;
+  text-align: left;
+  background: var(--bg-elevated);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm, 4px);
+  color: var(--text-bright);
+  font-size: 11px;
+  line-height: 1.3;
+  padding: 3px 5px;
+  cursor: pointer;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.chip:hover {
+  border-color: var(--ut-gold);
+  color: var(--ut-gold);
+}
+
+.unscheduled {
+  border: 1px dashed var(--border);
+  border-radius: var(--radius-md, 8px);
+  padding: 10px;
+}
+
+.unschedHead {
+  margin: 0 0 8px;
+  font-size: 11px;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.count {
+  color: var(--text-muted);
+  font-variant-numeric: tabular-nums;
+}
+
+.unschedList {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.unschedList .chip { width: auto; max-width: 220px; }
+
+.state {
+  padding: 32px 16px;
+  text-align: center;
+  font-size: 13px;
+  color: var(--text-muted);
+  line-height: 1.6;
+}
+
+/* Phone: a 7-column month stays a month, but the cells get shorter and the
+   whole grid scrolls sideways rather than crushing each day to nothing. */
+@media (max-width: 640px) {
+  .grid { overflow-x: auto; }
+  .dowRow, .week { min-width: 520px; }
+  .cell, .padCell { min-height: 68px; }
+}
+
+/* A day being hovered with a note in the air. Same gold as the board's column,
+   because it means the same thing. */
+.cellOver {
+  background: rgba(201, 168, 76, 0.10);
+  box-shadow: inset 0 0 0 1px var(--ut-gold);
+}
+
+.chipBusy { opacity: 0.55; }
+/* The compact BlockedBadge sits inline before the title inside a single-line,
+   nowrap chip (UX #15, 2026-09-22) -- it supplies its own icon spacing via
+   the icon's `marginRight: 0` (compact), so this is purely the gap between
+   the badge and the title text that follows it. */
+.chipBlockedIcon { margin-right: 3px; }
+
+.error {
+  font-size: 11px;
+  color: var(--loss-border);
+}
+
+.emptyUnsched {
+  margin: 0;
+  font-size: 11px;
+  font-style: italic;
+  color: var(--text-muted);
+}

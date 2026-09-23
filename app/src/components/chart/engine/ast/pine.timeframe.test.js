@@ -172,22 +172,34 @@ describe('time(timeframe) and time(timeframe, session) are different questions',
     return String(out.refusal.message)
   }
 
-  it('⛔⛔ the ONE-ARGUMENT form is the period ANCHOR, not a session read', () => {
-    // ⚰️ BOTH FORMS GOT THE SESSION SENTENCE: "`time(<session>)` answers whether a
-    // bar falls inside a session window". Pine spells the overloads
-    // `time(timeframe)` — the opening TIMESTAMP of the enclosing period — and
-    // `time(timeframe, session)`. A member who wrote the anchor was told they had
-    // written a session-window test.
+  // ⭐⭐⭐ (2026-09-20) `time("D")` NOW TRANSLATES — see `dayopentime` in
+  // `closedTable.json::clock` and `resolveTableCall`'s `anchorForm` branch.
+  // The tests below are updated to the new, real behaviour: "D" is the one
+  // period this engine has a node for; everything else the one-argument
+  // form can name still refuses with the SAME anchor sentence, now saying
+  // so explicitly.
+  it('⛔⛔ the ONE-ARGUMENT form is the period ANCHOR, not a session read — and "D" now translates', () => {
+    // ⚰️ BOTH FORMS USED TO GET THE SESSION SENTENCE: "`time(<session>)`
+    // answers whether a bar falls inside a session window". Pine spells the
+    // overloads `time(timeframe)` — the opening TIMESTAMP of the enclosing
+    // period — and `time(timeframe, session)`. A member who wrote the
+    // anchor was told they had written a session-window test.
     //
-    // ⛔ IT IS NOT A NITPICK. `25-spy-expected-move-by-vix.pine` writes
+    // ⛔ IT WAS NOT A NITPICK. `25-spy-expected-move-by-vix.pine` writes
     // `t = time(i_range_1)` and the next line is `start = na(t[1]) or t > t[1]` —
     // ordering the value with `>` to detect a new period, which is only
     // meaningful on a TIMESTAMP. You cannot detect a new day by ordering
-    // session-membership answers. The refusal described a construct that is not
-    // in the script, so the one thing it is for pointed at the wrong thing.
-    const anchor = refusalFor('time("D")')
+    // session-membership answers.
+    const anchorOk = translatePine('//@version=5\nindicator("t")\nplot(time("D"))\n')
+    expect(anchorOk.ok, JSON.stringify(anchorOk.refusal)).toBe(true)
+    expect(anchorOk.outputs[anchorOk.selected].formula).toBe('dayopentime')
+
+    // A period this engine does NOT have a node for still refuses, with the
+    // anchor sentence (not the session one) and a name to go read instead.
+    const anchor = refusalFor('time("W")')
     expect(anchor).toMatch(/OPENING TIMESTAMP/)
     expect(anchor).not.toMatch(/falls inside a session window/)
+    expect(anchor).toMatch(/time\("D"\)/)
     // …and it names what this engine DOES declare, so the member has somewhere to go.
     expect(anchor).toMatch(/sessionfirst/)
   })
@@ -204,10 +216,21 @@ describe('time(timeframe) and time(timeframe, session) are different questions',
 
   it('⛔ the two sentences are genuinely DIFFERENT, not one string reworded', () => {
     // A "split" that emitted the same text twice passes both cases above.
-    expect(refusalFor('time("D")')).not.toBe(refusalFor('time("D", "0930-1600")'))
+    // `time("D")` itself no longer refuses at all (it translates), so the
+    // one-argument side of the comparison uses "W" — still the anchor form,
+    // still refusing, for a period this engine has no node for.
+    expect(refusalFor('time("W")')).not.toBe(refusalFor('time("D", "0930-1600")'))
   })
 
-  it('⭐ and the real corpus script gets the anchor sentence', () => {
+  // ⛔⛔ THE REAL CORPUS SCRIPT NO LONGER NAMES `time` AS ITS BLOCKER AT ALL —
+  // measured, not assumed. `i_range_1` (`input.string(..., defval='D')`)
+  // folds to "D" via the same `timeframeLiteralOf` path every real corpus
+  // script uses, so `time(i_range_1)` now translates onto `dayopentime`.
+  // The script's blocker moves to a separate, unrelated, pre-existing
+  // capability gap: a multi-statement `for` loop inside `is_near_since_back`
+  // (`pine:block` — this engine stores a single expression per column, and
+  // has no `for`-loop support at all, on the unmodified codebase too).
+  it('⭐ and the real corpus script no longer refuses on time at all', () => {
     const fs = require('node:fs')
     const path = require('node:path')
     const src = fs.readFileSync(path.resolve(process.cwd(),
@@ -218,7 +241,8 @@ describe('time(timeframe) and time(timeframe, session) are different questions',
     expect(src).toMatch(/na\(t\[1\]\)\s*or\s*t\s*>\s*t\[1\]/)
     const out = translatePine(src)
     expect(out.ok).toBe(false)
-    expect(String(out.refusal.message)).toMatch(/OPENING TIMESTAMP/)
+    expect(out.refusal.guard).toBe('pine:block')
+    expect(String(out.refusal.message)).not.toMatch(/OPENING TIMESTAMP|dayopentime/)
   })
 })
 

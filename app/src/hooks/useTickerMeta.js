@@ -87,16 +87,61 @@ export async function fetcher(url) {
   }
 }
 
+// ⛔ A PER-SYMBOL ENDPOINT ON A LIST'S WARM PATH NEEDS A QUEUE.
+//
+// `prefetchBars` and `prefetchBarsToIDB` call this once per ticker. Their BARS ride
+// bounded queues (_MAX_CONCURRENT 2 / _IDB_MAX 3); this call did not — it fired an
+// immediate `preload()` per symbol, so a list warm dispatched one request per
+// ticker all at once, while `prewarmVisibleList`'s own comment promised the whole
+// thing was "bounded/deferred/backpressure-guarded".
+//
+// Measured in a real browser 2026-09-20, opening Russell 2000 against a local
+// stack: **245 concurrent `/api/ticker-meta/*` requests**, the slowest 14.5 s,
+// against a route whose backend floor is one yfinance `.info` call per symbol. They
+// saturate the browser's connection pool and starve the chart the member actually
+// clicked — the same shape as the market-open 503 flood `prewarmVisibleList`
+// already records.
+//
+// One shared queue fixes every caller at once, including any this audit missed.
+// Hover stays instant: one symbol is one job, dispatched on the spot.
+const _MAX_META_CONCURRENT = 3
+const _metaQueue = []
+const _metaSeen = new Set()
+let _metaActive = 0
+
+function _metaPump() {
+  while (_metaActive < _MAX_META_CONCURRENT && _metaQueue.length) {
+    const sym = _metaQueue.shift()
+    _metaActive += 1
+    Promise.resolve(
+      preload(`/api/ticker-meta/${encodeURIComponent(sym)}`, async (url) => {
+        const d = await fetcher(url)
+        lsPut(sym, d)
+        return d
+      }),
+    )
+      .catch(() => {})
+      .finally(() => { _metaActive -= 1; _metaPump() })
+  }
+}
+
 // Warm the cache for a ticker BEFORE its chart mounts (call on hover/selection).
 // Populates both the SWR memory cache (same key the hook reads) and localStorage
 // so a first-ever view of the ticker paints its full watermark instantly too.
 export function prefetchTickerMeta(sym) {
   if (!sym || lsGet(sym)) return // already warm
-  preload(`/api/ticker-meta/${encodeURIComponent(sym)}`, async (url) => {
-    const d = await fetcher(url)
-    lsPut(sym, d)
-    return d
-  })
+  if (_metaSeen.has(sym)) return // queued, in flight, or recently dispatched
+  _metaSeen.add(sym)
+  setTimeout(() => _metaSeen.delete(sym), 60000)
+  _metaQueue.push(sym)
+  _metaPump()
+}
+
+/** Test seam — drop the queue between cases. */
+export function _resetTickerMetaQueue() {
+  _metaQueue.length = 0
+  _metaSeen.clear()
+  _metaActive = 0
 }
 
 // Per-symbol company metadata for the chart watermark. Never throws to the

@@ -28,6 +28,7 @@ const fetcher = (url) =>
 const KIND_LABELS = {
   stop_hit: 'At Stop',
   stop_proximity: 'Nearing Stop',
+  thesis_stop_review: 'Thesis Review',
   earnings_proximity: 'Earnings',
   regime_flip: 'Regime',
   regime_shift: 'Regime',
@@ -181,7 +182,20 @@ function CompassTodayBody({ todayFocus, noticed, mutate }) {
                 <div key={ins.id} className={styles.feedItem}>
                   <div className={styles.feedItemMain}>
                     <div className={styles.feedItemHeadline}>
-                      {ins.symbol && <span className={styles.feedItemSym}>{ins.symbol}</span>}
+                      {ins.symbol && (
+                        // Every insight with a symbol links to that ticker's
+                        // Research Workspace (G-111/G-112, config-required
+                        // zero) -- it surfaces ALL of a member's research on
+                        // the symbol, not just whichever single note (if any)
+                        // an alert happened to be about, so this needed no
+                        // per-insight "which note" resolution to be useful.
+                        <Link
+                          to={`/journal/notebook/research/${encodeURIComponent(ins.symbol)}`}
+                          className={styles.feedItemSym}
+                        >
+                          {ins.symbol}
+                        </Link>
+                      )}
                       {ins.headline}
                     </div>
                     {ins.body && <div className={styles.feedItemBody}>{ins.body}</div>}

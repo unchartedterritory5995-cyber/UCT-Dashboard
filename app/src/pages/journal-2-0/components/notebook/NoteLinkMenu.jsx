@@ -10,6 +10,12 @@
  * factoring out a common core was judged not worth the risk of
  * destabilizing SlashMenu for this pass. The POSITIONING/ARIA behavior is
  * intentionally the same shape, just not literally the same code.
+ *
+ * ⛔ ONE EXCEPTION, added 2026-09-22: the combobox-role ARIA wiring
+ * (`applyComboboxWiring`, `../../lib/comboboxWiring.js`) IS shared with
+ * SlashMenu.jsx — it's a small, pure, zero-dependency DOM-attribute
+ * function with no positioning/timing/async surface to destabilize, unlike
+ * the "common core" the paragraph above declined to extract.
  */
 
 import { Extension } from '@tiptap/react'
@@ -18,12 +24,17 @@ import { PluginKey } from '@tiptap/pm/state'
 import { ReactRenderer } from '@tiptap/react'
 import { useEffect, useImperativeHandle, useState, forwardRef } from 'react'
 import UIcon from '../../../../components/ui/UIcon'
+import { applyComboboxWiring } from '../../lib/comboboxWiring'
+import { SkeletonLine } from '../../../../components/Skeleton'
 import styles from './NoteLinkMenu.module.css'
 
 const SEARCH_DEBOUNCE_MS = 150
 const SEARCH_LIMIT = 8
 
-const NoteLinkList = forwardRef((props, ref) => {
+// Exported (only) for NoteLinkMenu.test.jsx -- the real menu mounts through
+// a TipTap Suggestion's imperative render(), which has no props-driven RTL
+// entry point, so the presentational piece is tested directly instead.
+export const NoteLinkList = forwardRef((props, ref) => {
   const [selectedIndex, setSelectedIndex] = useState(0)
   const items = props.items
   const menuId = props.menuId || 'uct-note-link-menu'
@@ -55,9 +66,15 @@ const NoteLinkList = forwardRef((props, ref) => {
   }))
 
   if (props.loading && !items.length) {
+    // G-106 (Wave B lower-frequency sweep): a couple of skeleton rows
+    // standing in for result items, instead of bare text -- same idiom as
+    // FolderSidebar's search-results skeleton.
     return (
       <div className={styles.menu} role="listbox" id={menuId} aria-label="Link to a note">
-        <div className={styles.empty}>Searching…</div>
+        <div className={styles.empty} role="status" aria-label="Searching…">
+          <SkeletonLine width="80%" height={12} />
+          <SkeletonLine width="55%" height={12} />
+        </div>
       </div>
     )
   }
@@ -170,14 +187,7 @@ export const NoteLinkMenuExtension = Extension.create({
           const onViewportChange = () => position()
 
           const setActiveDescendant = (id) => {
-            if (!editorDom) return
-            if (id && !dismissed) {
-              editorDom.setAttribute('aria-controls', MENU_ID)
-              editorDom.setAttribute('aria-activedescendant', id)
-            } else {
-              editorDom.removeAttribute('aria-controls')
-              editorDom.removeAttribute('aria-activedescendant')
-            }
+            applyComboboxWiring(editorDom, { menuId: MENU_ID, activeId: id, showing: Boolean(id && !dismissed) })
           }
 
           return {

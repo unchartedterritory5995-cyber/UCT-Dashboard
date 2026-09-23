@@ -720,7 +720,7 @@ CREATE TABLE IF NOT EXISTS j2_obsidian_connect_epoch (
 
 -- ── Notebook widget-embed sidecar (Journal Widgets) ─────────────────────────
 -- One row per widgetEmbed node in a note's body_json, kept in sync on every
--- note write by notes._sync_note_embeds (create/update/import/delete). This is
+-- note write by notes._sync_note_sidecars (create/update/import/delete). This is
 -- the indexed answer to "every entry where I traded AMD" / "every entry with a
 -- breadth widget" — queryable WITHOUT walking document blobs, and the basis
 -- for derived auto-tags. The doc's attrs stay the single authority; these rows
@@ -750,7 +750,7 @@ CREATE INDEX IF NOT EXISTS idx_j2_note_embeds_user_widget
 
 -- ── Notebook prose-mention sidecar (P0-3, Wave 1 Slice 2) ───────────────────
 -- One row per (note, symbol) CASHTAG mention in a note's plain-text body —
--- kept in sync on every note write by notes._sync_note_mentions
+-- kept in sync on every note write by notes._sync_note_sidecars
 -- (create/update/append), mirroring j2_note_embeds' own "rebuildable
 -- projection, never edited directly" contract exactly.
 --
@@ -779,7 +779,7 @@ CREATE INDEX IF NOT EXISTS idx_j2_note_mentions_user_sym
 -- ── Wave D (Internal Links / Backlinks / Knowledge Relationships) ──────────
 -- One row per `noteLink` node in a note's body_json -- same "rebuildable
 -- projection, never edited directly" contract as j2_note_embeds/
--- j2_note_mentions above, kept in sync by notes._sync_note_links at the
+-- j2_note_mentions above, kept in sync by notes._sync_note_sidecars at the
 -- SAME call sites those two already use (create/update/import/restore).
 -- `target_note_id` is the ONLY durable identity a link carries (never a
 -- frozen title) -- see the noteLink node's own docstring for why renaming
@@ -921,7 +921,7 @@ CREATE INDEX IF NOT EXISTS idx_j2_fact_observations_user_entity_type
 
 -- Note-content sidecar for financialFact nodes -- same "rebuildable
 -- projection, never edited directly" contract as j2_note_embeds/
--- j2_note_links, kept in sync by notes._sync_note_fact_refs at the same
+-- j2_note_links, kept in sync by notes._sync_note_sidecars at the same
 -- call sites those two already use.
 CREATE TABLE IF NOT EXISTS j2_note_fact_refs (
     note_id   TEXT NOT NULL,
@@ -1208,8 +1208,8 @@ CREATE INDEX IF NOT EXISTS idx_j2_note_excerpts_user
 
 -- Note-content sidecar for documentExcerpt nodes -- SAME "rebuildable
 -- projection, never edited directly" contract as j2_note_fact_refs, kept
--- in sync by notes._sync_note_excerpt_refs at the same call sites
--- _sync_note_fact_refs already uses. `list_note_excerpts` reads THROUGH
+-- in sync by notes._sync_note_sidecars at the same call sites the other
+-- four sidecars already use. `list_note_excerpts` reads THROUGH
 -- this sidecar (joined to j2_note_excerpts), not by j2_note_excerpts.note_id
 -- directly -- an excerpt row's own note_id is where it was ORIGINALLY
 -- saved (ownership, for cascade-delete purposes); this sidecar is what's

@@ -70,4 +70,26 @@ describe('NoteBacklinksSection', () => {
     fireEvent.click(screen.getByText('Linked from (1)'))
     expect(screen.getByText('3×')).toBeTruthy()
   })
+
+  it('shows the context snippet beneath the title when present (Obsidian "show more context" parity)', () => {
+    hookResult = {
+      count: 1, isLoading: false, error: null,
+      notes: [{ id: 'a', title: 'Source A', refs: 1, context: 'Worth revisiting this thesis' }],
+    }
+    render(<NoteBacklinksSection noteId="n1" />)
+    fireEvent.click(screen.getByText('Linked from (1)'))
+    expect(screen.getByText('Source A')).toBeTruthy()
+    expect(screen.getByText('Worth revisiting this thesis')).toBeTruthy()
+  })
+
+  it('renders no context line when the backend sends none (link alone in its block, or a parse failure)', () => {
+    hookResult = {
+      count: 1, isLoading: false, error: null,
+      notes: [{ id: 'a', title: 'Source A', refs: 1, context: null }],
+    }
+    const { container } = render(<NoteBacklinksSection noteId="n1" />)
+    fireEvent.click(screen.getByText('Linked from (1)'))
+    expect(screen.getByText('Source A')).toBeTruthy()
+    expect(container.querySelector('[class*="rowContext"]')).toBeNull()
+  })
 })

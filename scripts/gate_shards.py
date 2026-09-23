@@ -290,6 +290,15 @@ GATE_READ_PATHS = (
     # generators the rails execute, and the artifacts they byte-compare
     "tools/hub_surface_matrix.mjs",
     "tools/chart_parity_cases.json",
+    # ⛔ THE PINE PARITY CORPUS IS READ, NOT JUST NAMED.
+    # `pineBoxCreateDrop.test.js` does a real fs.readFileSync on
+    # `mid_engagement__01-zeiierman-trend-pressure.pine`, so a change to a
+    # fixture here CAN change a suite result and a carry-over verdict must
+    # not cross it. ⚠️ Two of that fixture's three mentions are PROSE (a
+    # comment about why it left the parity set) -- classifying it from those
+    # alone would have put it in NAMED_BUT_NOT_READ and kept the hole open.
+    # ⭐ The DIRECTORY, so a fixture added later is covered the day it lands.
+    "tools/c0_parity_fixtures",
     "docs/formulas/GRAMMAR.md",
     "docs/plans/joystick/surface-matrix.md",
     "docs/plans/joystick/glass-acceptance-steps.md",
@@ -934,7 +943,7 @@ def _gate_body(args, out_dir: pathlib.Path, lock: dict) -> int:
                 f"> {e}\n\n"
                 f"Per-shard logs from the refused attempt were deleted ({removed} file(s)) so an\n"
                 f"empty log directory cannot be mistaken for a completed run.\n",
-                encoding="utf-8")
+                encoding="utf-8", newline="\n")
         say(f"\n  GATE INVALID: {e}\n", err=True)
         say(f"  (cleared {removed} partial shard log(s); wrote INVALID-{stamp}.md)\n", err=True)
         say(verdict_line(EXIT_INVALID, cause=_invalid_cause(str(e))))
@@ -951,8 +960,15 @@ def _gate_body(args, out_dir: pathlib.Path, lock: dict) -> int:
         "reclaimed": lock.get("reclaimed"),
     }
     stamp = manifest["at"].replace(":", "-")
-    (out_dir / f"{stamp}.json").write_text(json.dumps(manifest, indent=2), encoding="utf-8")
-    (out_dir / f"{stamp}.md").write_text(render(manifest), encoding="utf-8")
+    # ⛔ newline="\n" IS LOAD-BEARING ON WINDOWS. `write_text` without it
+    # uses os.linesep, so every manifest lands CRLF while this repo stores LF and
+    # `tools/check_repo_hygiene.py` refuses the untracked file. It is invisible
+    # once staged (autocrlf normalises at `git add`), which is why it kept coming
+    # back: the committed blob looks right and the working file is wrong.
+    (out_dir / f"{stamp}.json").write_text(
+        json.dumps(manifest, indent=2), encoding="utf-8", newline="\n")
+    (out_dir / f"{stamp}.md").write_text(
+        render(manifest), encoding="utf-8", newline="\n")
     say(render(manifest))
     code = verdict_exit_code(manifest, say=say)
     # ⛔ DERIVED FROM THE SAME MANIFEST AS THE EXIT CODE, in the same breath, so the line and

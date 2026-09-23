@@ -184,6 +184,23 @@ describe('🔴 the two that CANNOT be expressed, and say so by name', () => {
     cumFrom: 'ta.cumFrom is not a Pine builtin; the name Pine DOES have for this'
       + ' idea, `ta.cum`, is a DIFFERENT quantity (chart-anchored, so'
       + ' fetch-dependent) and stays refused by name',
+    // ⛔⛔ A GENUINELY DIFFERENT CLASS FROM EVERY ENTRY ABOVE (2026-09-20):
+    //   `ta.valuewhen` IS a real Pine name and it DOES open a door under
+    //   `ta.` -- but not onto the SAME-NAMED `valuewhen` table entry this
+    //   sweep would otherwise assume. `resolveTableCall` carries a narrow,
+    //   namespace-aware special case (search `valuewhenOccurrence` in
+    //   `pine.js`) that redirects ONLY `ta.valuewhen(...)` onto a SEPARATE
+    //   manifest entry, `valuewhenOccurrence`, with Pine's true
+    //   occurrence-indexed semantics -- because this table's OWN bare
+    //   `valuewhen(condition, source, period)` means a bounded BAR WINDOW,
+    //   a genuinely different function that a plain positional map would
+    //   have silently substituted. See `closedTable.json::
+    //   _functions_valuewhen_occurrence` for the full vendor citation and
+    //   `pineValuewhenOccurrenceAccept.test.js` for the dedicated coverage.
+    valuewhen: 'ta.valuewhen — DELIBERATELY REDIRECTED onto `valuewhenOccurrence`, a'
+      + ' separate manifest entry with the true occurrence-indexed semantics,'
+      + " never onto this table's own same-named, differently-meaning"
+      + ' bar-window entry',
     // — VETTED WITH AN INDEX SHIFT, which is the case this list's warning is about.
     //   Pine RETURNS a pivot at its CONFIRMATION bar, `rightbars` after the pivot;
     //   this table's `pivothigh` emits ON the pivot bar. Same values, different
@@ -213,8 +230,8 @@ describe('🔴 the two that CANNOT be expressed, and say so by name', () => {
     //   has now paid for that shape five times. The group is DERIVED below
     //   instead, off these reasons, so it cannot drift from the list it counts.
     abs: 'math.abs', sqrt: 'math.sqrt', ln: 'math.log', log10: 'math.log10',
-    exp: 'math.exp', sign: 'math.sign', round: 'math.round',
-    ceil: 'math.ceil', floor: 'math.floor',
+    exp: 'math.exp', sign: 'math.sign', round: 'math.round', floor: 'math.floor',
+    ceil: 'math.ceil',
     min: 'math.min', max: 'math.max',
     sin: 'math.sin', cos: 'math.cos', tan: 'math.tan', atan: 'math.atan',
     sinh: 'math.sinh',
@@ -282,6 +299,19 @@ describe('🔴 the two that CANNOT be expressed, and say so by name', () => {
     //   unbounded builtin, and it stays refused — see `_functions_excluded.pvt`),
     //   so nothing can be mistranslated onto it.
     pvtN: 'no Pine name collides — ta.pvt is the unbounded one and stays refused',
+    // — OURS ALONE, same reasoning as `obvN`/`pvtN` above but for a different
+    //   cause: this manifest key is camelCase, and the REAL Pine name —
+    //   `ta.percentile_linear_interpolation` — is snake_case and reaches this
+    //   entry through `PINE_CALL_SHAPES` (identity build, three args straight
+    //   through, vetted against a real TradingView capture; see `pine.js`).
+    //   That routing is a DIFFERENT door from the one this rail tests: this
+    //   rail asks whether `ta.<bare-manifest-key>` resolves, and
+    //   `ta.percentileLinearInterpolation` (camelCase) is not a spelling Pine
+    //   has or that any real pasted script could contain — nothing can be
+    //   mistranslated onto it.
+    percentileLinearInterpolation: 'no Pine name collides — the real Pine spelling is'
+      + ' snake_case (ta.percentile_linear_interpolation) and reaches this entry'
+      + ' through PINE_CALL_SHAPES, a separate, vetted route',
   })
 
   it('⛔⛔ EVERY declared name, offered under `ta.` — a door that OPENS lands RED', () => {
@@ -586,46 +616,53 @@ plot(close > anchor ? 1 : 0)
   })
 })
 
-describe('🔴 `valuewhen` refuses for the reason that is actually true', () => {
-  // ⛔⛔ THE POSITIONS LINE UP PERFECTLY, WHICH IS WHAT MAKES IT DANGEROUS. Pine's
-  // `ta.valuewhen(condition, source, occurrence)` counts OCCURRENCES — `0` is the
-  // most recent time the condition held, `2` is three occurrences ago — and looks
-  // back as far as it needs to. This table's `valuewhen(condition, source, period)`
-  // takes a BAR WINDOW. A positional map builds cleanly and answers a different
-  // number on most bars, which is the one outcome this door exists to prevent.
+describe('🔴 `valuewhen` — the reasoned refusal PAID OFF into a real capability (2026-09-20)', () => {
+  // ⛔⛔ THE POSITIONS LINE UP PERFECTLY, WHICH IS WHAT MADE THE OLD GAP
+  // DANGEROUS. Pine's `ta.valuewhen(condition, source, occurrence)` counts
+  // OCCURRENCES — `0` is the most recent time the condition held, `2` is
+  // three occurrences ago — and looks back as far as it needs to. This
+  // table's OWN `valuewhen(condition, source, period)` takes a BAR WINDOW. A
+  // positional map builds cleanly and answers a different number on most
+  // bars, which is exactly the outcome the OLD `PINE_INEXPRESSIBLE.valuewhen`
+  // refusal existed to prevent — and it refused with a REASONED, vendor-cited
+  // message (this describe block's own title, when it was written), a real
+  // improvement over the generic `pine:role-order` arm's FALSE sentence
+  // ("this table states what kind each argument is and never what role it
+  // plays" — untrue of an entry whose manifest declares `argRoles:
+  // [condition, source, period]`).
   //
-  // ⚰️ IT REFUSED ALREADY, AND ITS REASON WAS FALSE. `valuewhen` declares two
-  // `series` slots and no measured Pine order, so it fell into the generic
-  // `pine:role-order` arm — "this table states what kind each argument is and never
-  // what role it plays". The manifest declares `argRoles: [condition, source,
-  // period]` for this very entry, so that sentence was untrue of it, and it sent a
-  // reader to supply a role order that would have produced the wrong number.
+  // ⭐⭐ AND NOW IT IS BUILT, NOT JUST REASONED ABOUT. `valuewhenOccurrence` is
+  // a new, separate manifest entry with the TRUE occurrence semantics, and
+  // `ta.valuewhen(...)` routes onto it via a namespace-aware special case in
+  // `resolveTableCall` (search `valuewhenOccurrence` in `pine.js`) — see
+  // `pineValuewhenOccurrenceAccept.test.js` for the full dedicated coverage
+  // and the real-corpus result. The reasoning this block used to test for IN
+  // A REFUSAL MESSAGE now lives in `closedTable.json::
+  // _functions_valuewhen_occurrence` and in `resolveTableCall`'s own comment,
+  // because there is no refusal left to attach it to.
 
-  it('⭐⭐ the sentence names OCCURRENCES vs a WINDOW, and what to write instead', () => {
+  it('⭐⭐ ta.valuewhen(condition, source, occurrence) now TRANSLATES, onto the true occurrence function', () => {
     const out = translatePine('//@version=5\nindicator("t")\nplot(ta.valuewhen(close > open, close, 0))\n')
-    expect(out.ok).toBe(false)
-    const m = out.refusal.message
-    expect(m).toMatch(/OCCURRENCES/)
-    expect(m).toMatch(/BAR WINDOW/i)
-    // ⛔ THE REMEDY, because a refusal that only says no is a wall.
-    expect(m).toMatch(/valuewhen\(condition, source, n\)/)
+    expect(out.ok, JSON.stringify(out.refusal)).toBe(true)
+    expect(out.outputs[out.selected].formula).toBe('valuewhenOccurrence(close > open, close, 0)')
   })
 
-  it('⛔ …and it no longer claims the table states no roles — it does', () => {
-    // ⚰️ THE EXACT FALSE SENTENCE THIS REPLACED. Asserting its ABSENCE is what
-    // stops the generic arm quietly reclaiming this entry later.
+  it('⭐ and at occurrence=2 as well — not a single-value coincidence', () => {
     const out = translatePine('//@version=5\nindicator("t")\nplot(ta.valuewhen(close > open, close, 2))\n')
-    expect(out.refusal.guard).not.toBe('pine:role-order')
-    expect(out.refusal.message).not.toMatch(/never what role it plays/)
+    expect(out.ok, JSON.stringify(out.refusal)).toBe(true)
+    expect(out.outputs[out.selected].formula).toBe('valuewhenOccurrence(close > open, close, 2)')
     expect(TABLE.functions.valuewhen.argRoles,
-      'the manifest must still declare the roles this refusal used to deny')
+      'the bar-window entry keeps its own declared roles, untouched by the redirect')
       .toEqual(['condition', 'source', 'period'])
   })
 
-  it('⛔ the NATIVE form still works — the refusal is about Pine, not the function', () => {
-    // ⭐ THE HALF THAT KEEPS THIS HONEST. `valuewhen` is declared, computed and
-    // correct; a member can write it directly with the window they mean. If this
-    // ever fails, the roster entry has quietly become a capability removal.
+  it('⛔ the NATIVE bar-window form still works — the redirect is about the Pine NAMESPACE, not the function', () => {
+    // ⭐ THE HALF THAT KEEPS THIS HONEST. `valuewhen` (bar-window) is declared,
+    // computed and correct, and reachable directly in the INTERNAL formula
+    // language `parseFormula` reads (no Pine-side role-order ambiguity applies
+    // there — arguments map by AST position, not by guessing Pine's order). A
+    // member can still mean the bounded window this way. If this ever fails,
+    // the roster entry has quietly become a capability removal.
     const p = parseFormula('valuewhen(close > open, close, 20)')
     expect(p.ok, JSON.stringify(p)).toBe(true)
     expect(treeYieldsBool(p.ast)).toBe(false)

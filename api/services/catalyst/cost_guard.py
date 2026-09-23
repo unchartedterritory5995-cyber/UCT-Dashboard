@@ -4,7 +4,7 @@ Anthropic pricing (USD per million tokens, 2026):
   claude-opus-5:     $5.00  input, $25.00 output
   claude-opus-4-8:   $5.00  input, $25.00 output
   claude-opus-4-7:   $5.00  input, $25.00 output
-  claude-sonnet-5:   $3.00  input, $15.00 output
+  claude-sonnet-5:   $2.00  input, $10.00 output
   claude-sonnet-4-6: $3.00  input, $15.00 output
   claude-haiku-4-5:  $1.00  input, $5.00  output
 Server-side web search: $10 per 1,000 searches.
@@ -23,6 +23,11 @@ _HARD_CAP_TRIPPED = False
 # CONCIERGE_MODEL resolve to — estimate_cost() prices an unknown model at the
 # priciest KNOWN rate and logs it, so the caps stay enforced but the number is a
 # guess until the entry lands.
+#
+# Corrected 2026-09-22 (PACKET-R): `claude-sonnet-5` sat at Sonnet 4.6's rate
+# since before this file existed; `narrative_cost_guard.py` fixed the same
+# number 2026-08-30 and this table was never brought in line. Sonnet 5 is
+# $2.00/$10.00, not $3.00/$15.00 — the two guards had drifted apart.
 _PRICING = {
     # Opus 5 ships at Opus 4.8's list price — $5 in / $25 out per 1M (Anthropic
     # model table, cached 2026-06-24; the same figures flow_explain._PRICING
@@ -30,7 +35,7 @@ _PRICING = {
     "claude-opus-5":     {"input": 5.0,  "output": 25.0},
     "claude-opus-4-8":   {"input": 5.0,  "output": 25.0},
     "claude-opus-4-7":   {"input": 5.0,  "output": 25.0},
-    "claude-sonnet-5":   {"input": 3.0,  "output": 15.0},
+    "claude-sonnet-5":   {"input": 2.0,  "output": 10.0},
     "claude-sonnet-4-6": {"input": 3.0,  "output": 15.0},
     "claude-haiku-4-5":  {"input": 1.0,  "output": 5.0},
 }

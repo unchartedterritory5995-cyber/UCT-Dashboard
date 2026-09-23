@@ -1,6 +1,6 @@
 import ResponsiveTable from '../../../../components/mobile/ResponsiveTable'
 import UIcon from '../../../../components/ui/UIcon'
-import { BLOCKED_BADGE, BLOCKED_TITLE } from '../../lib/offline/unsyncedCopy'
+import BlockedBadge from './BlockedBadge'
 import styles from './NotesTableView.module.css'
 
 function formatCellValue(def, value) {
@@ -17,6 +17,22 @@ function formatCellValue(def, value) {
     return labels.length ? labels.join(', ') : null
   }
   return String(value)
+}
+
+/**
+ * ⛔ THE OPTION OBJECTS THEMSELVES (id/label/color), not a joined string --
+ * `note_properties.py` computes a real color per option and Board's column
+ * header already renders it (a dot); the table's value chip did not.
+ * `select` resolves to 0-or-1 entries, `multi_select` to N -- both return the
+ * same shape so the render side doesn't need to branch on type. Competitive
+ * audit finding UX #3, 2026-09-22.
+ */
+function selectedOptionsFor(def, value) {
+  const opts = def.options || []
+  const ids = def.type === 'multi_select' ? (value || []) : [value]
+  return ids
+    .map((id) => opts.find((o) => o.id === id))
+    .filter(Boolean)
 }
 
 /**
@@ -80,14 +96,22 @@ export default function NotesTableView({
       render: (n) => (
         <span className={styles.titleCell}>
           {n.title || 'Untitled'}
-          {isBlocked(n.id) && (
-            <span className={styles.unsynced} title={BLOCKED_TITLE}>
-              <UIcon name="warning" size={11} style={{ verticalAlign: '-1px', marginRight: 3 }} />
-              {BLOCKED_BADGE}
-            </span>
-          )}
+          {isBlocked(n.id) && <BlockedBadge className={styles.unsynced} />}
         </span>
       ),
+    },
+    // ⛔ TICKER IS A FIXED PSEUDO-COLUMN, SAME AS TITLE/UPDATED ABOVE — never
+    // gated on `source === 'user_set'` like the usedDefs loop below, because
+    // it isn't a user-defined property at all (note_properties.py:47-51:
+    // financial_derived, excluded outright by that filter). List and Board
+    // views both show it prominently on every card; Table -- the one view
+    // built explicitly for sorting/scanning a database -- was the single
+    // view that structurally could not. Competitive audit finding UX #2,
+    // 2026-09-22. Not sortable (yet) -- sorting by ticker is a new server
+    // capability, out of scope for surfacing the column itself.
+    {
+      key: 'ticker', header: 'Ticker', secondary: true,
+      render: (n) => (n.ticker ? <span className={styles.tickerCell}>${n.ticker}</span> : <span className={styles.emptyCell}>—</span>),
     },
     { key: 'updated', header: updatedHeader, secondary: true, render: (n) => timeAgo(n.updatedAt) },
     ...usedDefs.map((def) => ({
@@ -108,6 +132,10 @@ export default function NotesTableView({
         const formatted = formatCellValue(def, raw)
         if (!formatted) return <span className={styles.emptyCell}>—</span>
         if (def.type === 'select' || def.type === 'multi_select') {
+          // Same single button, same onClick/title (onQuickFilter is called
+          // with the exact same args as before this fix) -- ONLY the visual
+          // rendering changed, from one plain-text chip to one dot+label pill
+          // per selected option, each colored by its own `option.color`.
           return (
             <button
               type="button"
@@ -115,7 +143,16 @@ export default function NotesTableView({
               onClick={(e) => { e.stopPropagation(); onQuickFilter(def.id, raw) }}
               title={`Filter by ${def.name}: ${formatted}`}
             >
-              {formatted}
+              {selectedOptionsFor(def, raw).map((opt) => (
+                <span key={opt.id} className={styles.optionPill}>
+                  <span
+                    className={`${styles.optionDot} ${styles[`c_${opt.color}`] || ''}`}
+                    aria-hidden="true"
+                    data-option-color={opt.color || ''}
+                  />
+                  {opt.label}
+                </span>
+              ))}
             </button>
           )
         }
@@ -131,6 +168,17 @@ export default function NotesTableView({
       rowKey={(n) => n.id}
       mode="card"
       cardTitle={(n) => n.title || 'Untitled'}
+      // D-40, 2026-09-22: the joystick hub's cursor (notebookSection.js)
+      // queries `[data-note-card-id]` against the WHOLE document -- a
+      // global selector, not scoped to the List/NoteCard grid. On a touch
+      // device viewing Table (or a tablet, where the hub is active up to
+      // 1023px but ResponsiveTable's own phone threshold is 640px, so the
+      // DESKTOP <table> markup is what's actually on screen) the hub found
+      // zero notes, silently, because neither of ResponsiveTable's two row
+      // shapes carried the attribute. Same name NoteCard already uses
+      // (R-18) -- never `data-note-id`, which TipTap's inline note-link
+      // node already owns.
+      rowDataAttrs={(n) => ({ 'data-note-card-id': n.id })}
       // openNote (NotebookTab.jsx) reads note.id itself -- it wants the
       // whole note object, the same contract NoteCard's onOpen already
       // uses. Passing n.id here instead sent openNote a bare string,

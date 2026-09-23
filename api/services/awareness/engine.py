@@ -30,14 +30,28 @@ def _enabled() -> bool:
     return os.environ.get("AWARENESS_ENGINE_ENABLED", "0") == "1"
 
 
+def _thesis_review_enabled() -> bool:
+    """R6 (G-074) gets its OWN flag, deliberately -- a new INSIGHT KIND, not
+    a variation on an existing one, and this ledger row explicitly names
+    alert-fatigue as a structural risk (citing this same engine's own need
+    for cooldowns as precedent). A dedicated flag means Patrick can turn
+    R6 off alone if it proves too noisy, without touching R1/R2/R4/R5 or
+    the engine as a whole -- the "flag closes one door" pattern this repo
+    already uses for BRAIN_TOOLS_ENABLED beside BRAIN_PACK_ENABLED,
+    J2_OCR_ENABLED beside the broader document features, etc. Dark by
+    default, same as every other capability flag in this family."""
+    return os.environ.get("AWARENESS_THESIS_REVIEW_ENABLED", "0") == "1"
+
+
 def _bulk_load_user_contexts() -> dict[str, dict]:
     """One pass over auth.db builds every user's positions + watchlist
-    symbols in two queries total (not N+1 per-user) -- mirrors
-    calendar_alerts._collect_all_users_ticker_sets."""
+    symbols in two (or three, with R6 on) queries total -- not N+1
+    per-user -- mirrors calendar_alerts._collect_all_users_ticker_sets."""
     from api.services.auth_db import get_connection
 
     positions_by_user: dict[str, list[dict]] = {}
     watch_by_user: dict[str, set[str]] = {}
+    mentioned_by_user: dict[str, set[str]] = {}
 
     conn = get_connection()
     try:
@@ -66,14 +80,27 @@ def _bulk_load_user_contexts() -> dict[str, dict]:
             if not sym:
                 continue
             watch_by_user.setdefault(r["user_id"], set()).add(sym)
+
+        # ⛔ A THIRD BULK QUERY, GATED BEHIND R6'S OWN FLAG -- when
+        # AWARENESS_THESIS_REVIEW_ENABLED is off (the default), this scan
+        # touches the same two tables it always has and nothing more.
+        if _thesis_review_enabled():
+            from api.services.journal_two.notes import bulk_member_mentioned_symbols
+            mentioned_by_user = bulk_member_mentioned_symbols(conn)
     finally:
         conn.close()
 
+    # ⛔ mentioned_by_user does NOT widen all_users. It exists to give an
+    # ALREADY-scanned user (one with a position or a watchlist) extra
+    # context; a user with notes but no position/watchlist has nothing any
+    # rule acts on, and every rule already degrades to [] for one, so
+    # including them here would only add wasted iterations at scale.
     all_users = set(positions_by_user) | set(watch_by_user)
     return {
         uid: {
             "positions": positions_by_user.get(uid, []),
             "watch_syms": watch_by_user.get(uid, set()),
+            "mentioned_symbols": mentioned_by_user.get(uid, set()),
         }
         for uid in all_users
     }
@@ -262,6 +289,8 @@ def run_awareness_scan() -> dict:
     user_ctxs = _bulk_load_user_contexts()
     scan_ctx = _build_market_scan_ctx(user_ctxs)
 
+    thesis_review_on = _thesis_review_enabled()
+
     fired = 0
     for user_id, user_ctx in user_ctxs.items():
         candidates: list[InsightCandidate] = []
@@ -269,6 +298,8 @@ def run_awareness_scan() -> dict:
             candidates += rules.rule_stop_watch(scan_ctx, user_ctx)
             candidates += rules.rule_earnings_proximity(scan_ctx, user_ctx)
             candidates += rules.rule_regime_flip(scan_ctx, user_ctx)
+            if thesis_review_on:
+                candidates += rules.rule_thesis_stop_review(scan_ctx, user_ctx)
         except Exception as e:  # noqa: BLE001 — one user's bad data can't abort the rest
             _log.warning("[awareness] rules failed user=%s: %s", user_id, e)
             continue

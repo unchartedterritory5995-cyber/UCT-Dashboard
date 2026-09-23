@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import { NodeViewWrapper } from '@tiptap/react'
 import useNoteExcerpts from '../../hooks/useNoteExcerpts'
 import UIcon from '../../../../components/ui/UIcon'
+import { SkeletonLine } from '../../../../components/Skeleton'
 import styles from './ExcerptView.module.css'
 
 /**
@@ -32,10 +33,16 @@ export default function ExcerptView({ node, editor, deleteNode }) {
   const excerpt = excerpts.find((e) => e.id === excerptId)
 
   if ((isLoading || !noteId) && !excerpt) {
+    // G-106 (Wave B lower-frequency sweep): mirrors FinancialFactView's own
+    // fix exactly (this file already mirrors that one's shape and
+    // settle-window handling) -- a couple of skeleton lines inside the same
+    // small card, instead of bare italic text.
     return (
       <NodeViewWrapper as="div" className={styles.wrap} data-document-excerpt>
-        <div className={styles.card}>
-          <span className={styles.muted}>Loading excerpt…</span>
+        <div className={styles.card} role="status" aria-label="Loading excerpt…">
+          <SkeletonLine width="90%" height={12} />
+          <div style={{ height: 6 }} />
+          <SkeletonLine width="50%" height={11} />
         </div>
       </NodeViewWrapper>
     )

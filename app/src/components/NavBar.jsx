@@ -37,6 +37,7 @@ export const NAV_ITEMS = [
   // JOURNAL
   { to: '/desk',         label: 'The Desk',      icon: 'desk' },
   { to: '/journal',      label: 'Journal',       icon: 'journal' },
+  { to: '/portfolio-heat', label: 'Portfolio Risk', icon: 'shield' },
   { to: '/community',    label: 'Community',     icon: 'community' },
   { to: '/support',      label: 'Support',       icon: 'chat' },
 ]

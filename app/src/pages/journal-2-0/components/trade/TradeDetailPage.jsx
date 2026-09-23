@@ -425,7 +425,8 @@ export default function TradeDetailPage() {
         const updated = await patchJson(`/api/j2/trades/${encodeURIComponent(id)}`, patch)
         mutate((cur) => (cur ? { ...cur, trade: updated } : cur), { revalidate: false })
       } catch (e) {
-        setPatchError(String(e.message || e))
+        console.error('Failed to save trade change:', e)
+        setPatchError("That change didn't go through — nothing was lost, try again.")
         mutate()  // revalidate → server truth
       }
     },

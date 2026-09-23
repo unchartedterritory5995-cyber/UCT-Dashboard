@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react'
 import UIcon from '../../../components/ui/UIcon'
 import { COLUMN_DEFS } from '../columnDefs'
 import ColumnPicker from './ColumnPicker'
+import { DEFAULT_VIEW } from './specUrl'
 import styles from './ScannerShell.module.css'
 
 // ── THE SEAL SAYS WHICH TIER YOU ARE LOOKING AT, ALWAYS ──────────────────────
@@ -157,46 +158,94 @@ function Seal({ snapshot, snapshotDate }) {
   )
 }
 
+// A saved column preset is active when the columns on screen are exactly its
+// list (order included — a preset owns its column ORDER, not just the set).
+const sameCols = (a, b) =>
+  Array.isArray(a) && Array.isArray(b) && a.length === b.length && a.every((x, i) => x === b[i])
+
 export default function ShellToolbar({ meta, view, onView, visibleColumns, allColumns,
   onColumns, onResetColumns, density, onDensity, snapshot, snapshotDate,
-  total, shown, isLoading, onExport, exportState, saveBar, reviewBar = null }) {
+  total, shown, isLoading, onExport, exportState, saveBar, reviewBar = null,
+  libraryBar = null,
+  presets = [], onApplyPreset, onDeletePreset, onSavePreset }) {
   const [pickerOpen, setPickerOpen] = useState(false)
+  const overviewCols = (meta?.views || []).find(v => v.key === DEFAULT_VIEW)?.columns
+  // Close the column picker on a click outside its anchor (button + popover) —
+  // otherwise it stayed open until the Columns button was clicked a second time.
+  const pickerAnchorRef = useRef(null)
+  useEffect(() => {
+    if (!pickerOpen) return undefined
+    const onDoc = e => {
+      if (pickerAnchorRef.current && !pickerAnchorRef.current.contains(e.target)) setPickerOpen(false)
+    }
+    document.addEventListener('mousedown', onDoc)
+    return () => document.removeEventListener('mousedown', onDoc)
+  }, [pickerOpen])
   return (
     <div className={styles.toolbar}>
       <div className={styles.viewTabs} role="tablist" aria-label="Column views">
-        {(meta?.views || []).map(v => (
-          <button key={v.key} type="button" role="tab" aria-selected={view === v.key}
-            className={`${styles.viewTab} ${view === v.key ? styles.viewTabOn : ''}`}
-            onClick={() => onView(v.key)}>{v.label}</button>
-        ))}
+        {/* Overview is the only firm tab. The curated firm view tabs were removed
+            (owner call, 2026-09-23) — every firm column layout is chosen from the
+            Columns picker's "Start from a layout" list instead. Overview is
+            "active" when the on-screen columns ARE the default set, so applying a
+            layout or a saved view correctly un-highlights it. */}
+        {(meta?.views || []).filter(v => v.key === DEFAULT_VIEW).map(v => {
+          const on = sameCols(visibleColumns, overviewCols)
+          return (
+            <button key={v.key} type="button" role="tab" aria-selected={on}
+              className={`${styles.viewTab} ${on ? styles.viewTabOn : ''}`}
+              onClick={() => onView(v.key)}>{v.label}</button>
+          )
+        })}
+        {/* The member's own saved column views, after the firm's. Each carries a
+            gold dot + an inline delete; applying one sets the columns, so it is
+            active exactly when the columns on screen are its list. */}
+        {presets.map(p => {
+          const on = sameCols(visibleColumns, p.columns)
+          return (
+            <span key={p.id} className={`${styles.presetTab} ${on ? styles.presetTabOn : ''}`}>
+              <button type="button" role="tab" aria-selected={on} className={styles.presetTabBtn}
+                onClick={() => onApplyPreset?.(p)}>
+                <span className={styles.presetDot} aria-hidden="true" />{p.name}
+              </button>
+              {onDeletePreset && (
+                <button type="button" className={styles.presetDel} aria-label={`Delete view ${p.name}`}
+                  onClick={() => onDeletePreset(p.id)}>
+                  <UIcon name="x" size={9} />
+                </button>
+              )}
+            </span>
+          )
+        })}
       </div>
       <span className={styles.statusLine} aria-live="polite">
         {isLoading && !shown ? 'Scanning…' : `${(total ?? 0).toLocaleString()} matches`}
       </span>
       <Seal snapshot={snapshot} snapshotDate={snapshotDate} />
       <span className={styles.toolGroup}>
-        <span className={styles.pickerAnchor}>
+        <span className={styles.pickerAnchor} ref={pickerAnchorRef}>
           <button type="button" className={styles.toolBtn} aria-label="Choose columns"
             aria-expanded={pickerOpen} onClick={() => setPickerOpen(o => !o)}>
             <UIcon name="columns" size={13} /> Columns
           </button>
           <ColumnPicker open={pickerOpen} onClose={() => setPickerOpen(false)}
             allColumns={allColumns} visible={visibleColumns}
-            onChange={onColumns} onReset={() => { onResetColumns(); setPickerOpen(false) }} />
+            onChange={onColumns} onReset={() => { onResetColumns(); setPickerOpen(false) }}
+            onSavePreset={onSavePreset}
+            presets={presets} onApplyPreset={onApplyPreset} onDeletePreset={onDeletePreset}
+            layouts={meta?.views} onApplyLayout={cols => onColumns(cols)} />
         </span>
-        <button type="button" className={styles.toolBtn}
-          aria-label={`Density: ${density}`} aria-pressed={density === 'compact'}
-          onClick={() => onDensity(density === 'compact' ? 'comfortable' : 'compact')}>
-          <UIcon name="rows" size={13} />
-        </button>
         <button type="button" className={styles.toolBtn} disabled={exportState?.busy} onClick={onExport}>
           <UIcon name="download" size={13} /> {exportState?.busy ? 'Exporting…' : 'CSV'}
         </button>
-        {/* ⭐ THE REVIEW DOOR SITS WITH THE OTHER ACTIONS ON THE RESULT SET
-            (Columns, density, CSV) rather than beside the filters — it acts on
-            the answer, not on the question. A SLOT for the same reason `saveBar`
-            is one: this toolbar renders chrome and must not learn what a review
-            session is. */}
+        {/* ⭐ THESE DOORS SIT WITH THE OTHER ACTIONS ON THE RESULT SET (Columns,
+            CSV) rather than beside the filters — they act on the answer, not on
+            the question. Each is a SLOT for the same reason: this toolbar renders
+            chrome and must not learn what a review session, a saved scan or the
+            structure library is. `libraryBar` (a reference to the STRUCTURE
+            column's base structures) moved here out of the filter-chips row,
+            where it read as a stray filter. */}
+        {libraryBar}
         {reviewBar}
         {saveBar}
       </span>

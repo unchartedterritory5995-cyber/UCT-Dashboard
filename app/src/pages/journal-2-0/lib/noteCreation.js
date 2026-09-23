@@ -14,14 +14,18 @@ import { settleNoteWrite } from './offline/settleNoteWrite'
 
 /** Create a note. Mirrors NotebookTab's own `createNote` request shape
  * exactly (title/bodyJson/tags/ticker/folderId), plus the same best-effort
- * follow-up properties PATCH a template may need (e.g. Research Type). */
-export async function createNoteViaApi({ title = '', bodyJson, tags, ticker, folderId, properties } = {}) {
+ * follow-up properties PATCH a template may need (e.g. Research Type).
+ * `subtitle` is optional and additive (UX #12, the Duplicate-note action,
+ * 2026-09-22) -- every pre-existing caller omits it and gets byte-identical
+ * behavior to before. */
+export async function createNoteViaApi({ title = '', subtitle, bodyJson, tags, ticker, folderId, properties } = {}) {
   const res = await fetch('/api/j2/notes', {
     method: 'POST',
     credentials: 'include',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({
       title,
+      ...(subtitle ? { subtitle } : {}),
       ...(bodyJson ? { bodyJson } : {}),
       ...(tags && tags.length ? { tags } : {}),
       ...(ticker ? { ticker } : {}),

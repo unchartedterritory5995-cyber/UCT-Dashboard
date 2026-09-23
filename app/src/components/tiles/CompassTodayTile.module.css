@@ -98,6 +98,11 @@
   color: var(--ut-gold, #dcbb5e);
   font-weight: 700;
   margin-right: 6px;
+  text-decoration: none;
+}
+
+.feedItemSym:hover {
+  text-decoration: underline;
 }
 
 .feedItemBody {

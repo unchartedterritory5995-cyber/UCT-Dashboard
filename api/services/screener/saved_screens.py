@@ -252,30 +252,65 @@ def candle_starters():
 
 
 def starters():
-    return candle_starters() + [
-        {"id": "starter_leaders_pullback", "name": "Leaders pulling back to 20EMA",
+    # ── UCT Preset Scans — the firm's curated setups ──────────────────────────
+    # ⛔ candle_starters() is NO LONGER surfaced here (owner call, 2026-09-20):
+    # the candle-shape wall was noise as a "preset scan" list. The function is
+    # kept (tests/test_screener_builder.py exercises it directly, and it may be
+    # re-surfaced), just not included below.
+    # ⭐ THE SIX FLAGSHIP IDs + THEIR SPECS ARE PINNED by test_screener_saved.py
+    # (`test_the_six_flagship_presets_ship_as_starters` + the unit-ruling test) —
+    # keep the ids and the vol_nweek_low / dollar_vol literals exactly.
+    # More can be added later; every entry must be a runnable spec (that rail
+    # derives its check from THIS list).
+    return [
+        # UCT 50 — top 50 by composite rating (rank owns ordering; top_n caps).
+        {"id": "starter_uct_50", "name": "UCT 50",
+         "spec": {"filters": [], "view": "uct_ratings",
+                  "rank": {"criteria": [{"key": "uct_composite"}], "top_n": 50}}},
+        # ── momentum / trend setups ──
+        {"id": "starter_momentum_leaders", "name": "Leaders (RS ≥ 90)",
          "spec": {"filters": [
-             {"key": "rs_rank", "op": "gte", "min": 80},
-             {"key": "above_50sma", "op": "eq", "value": 1},
-             {"key": "pct_vs_ema20", "op": "between", "min": -2, "max": 2}],
-          "view": "technical", "sort": {"key": "rs_rank", "dir": "desc"}}},
-        {"id": "starter_high_rs_bases", "name": "High-RS tight bases",
-         "spec": {"filters": [
-             {"key": "rs_rank", "op": "gte", "min": 80},
-             {"key": "tight_consolidation", "op": "eq", "value": 1}],
-          "view": "overview", "sort": {"key": "uct_composite", "dir": "desc"}}},
-        {"id": "starter_gappers", "name": "Gappers holding gains",
-         "spec": {"filters": [
-             {"key": "gap_pct", "op": "gte", "min": 3},
+             {"key": "rs_rank", "op": "gte", "min": 90},
+             {"key": "adr_pct", "op": "gte", "min": 4},
+             {"key": "dollar_vol_30d", "op": "gte", "min": 20_000_000},
+             {"key": "price", "op": "gte", "min": 5},
              {"key": "above_50sma", "op": "eq", "value": 1}],
-          "view": "overview", "sort": {"key": "gap_pct", "dir": "desc"}}},
+          "view": "technical", "sort": {"key": "rs_rank", "dir": "desc"}}},
+        {"id": "starter_pullback_20ema", "name": "Momentum pullbacks (20EMA)",
+         "spec": {"filters": [
+             {"key": "rs_rank", "op": "gte", "min": 80},
+             {"key": "pct_vs_ema20", "op": "between", "min": -2, "max": 2},
+             {"key": "ema_stack_intact", "op": "eq", "value": 1},
+             {"key": "vol_nweek_low", "op": "gte", "min": 10}],
+          "view": "technical", "sort": {"key": "rs_rank", "dir": "desc"}}},
+        {"id": "starter_tight_base", "name": "Tight bases near highs",
+         "spec": {"filters": [
+             {"key": "dist_52w_high_pct", "op": "gte", "min": -8},
+             {"key": "close_cv_pct", "op": "lte", "max": 2.5},
+             {"key": "vol_updown_ratio", "op": "gte", "min": 1},
+             {"key": "rs_rank", "op": "gte", "min": 70}],
+          "view": "technical", "sort": {"key": "dist_52w_high_pct", "dir": "desc"}}},
+        # ── named base structures (query the delimiter-wrapped match set) ──
+        {"id": "starter_base_pocket_pivot", "name": "Pocket pivots",
+         "spec": {"filters": [{"key": "base_structure", "op": "contains", "value": ",pocket-pivot,"}],
+                  "view": "bases", "sort": {"key": "rs_rank", "dir": "desc"}}},
+        {"id": "starter_power_play", "name": "Power Plays",
+         "spec": {"filters": [{"key": "base_structure", "op": "contains", "value": ",power-play,"}],
+                  "view": "bases", "sort": {"key": "rs_rank", "dir": "desc"}}},
+        {"id": "starter_stage2_breakout", "name": "Stage-2 breakouts",
+         "spec": {"filters": [{"key": "base_structure", "op": "contains", "value": ",stage-2-breakout,"}],
+                  "view": "bases", "sort": {"key": "rs_rank", "dir": "desc"}}},
+        {"id": "starter_three_weeks_tight", "name": "Three weeks tight",
+         "spec": {"filters": [{"key": "base_structure", "op": "contains", "value": ",three-weeks-tight,"}],
+                  "view": "bases", "sort": {"key": "rs_rank", "dir": "desc"}}},
+        # ── gaps / breakouts / events / value ──
         {"id": "starter_value_quality", "name": "Cheap quality compounders",
          "spec": {"filters": [
              {"key": "pe_fwd", "op": "lte", "max": 20},
              {"key": "roe", "op": "gte", "min": 15},
              {"key": "eps_growth", "op": "gte", "min": 15}],
           "view": "valuation", "sort": {"key": "uct_composite", "dir": "desc"}}},
-        # ── the six flagship presets (spec §7, owner-confirmed 2026-08-21) ──
+        # ── flagship presets (spec §7, owner-confirmed 2026-08-21) ──
         # Registry starters are the publication surface for these numbers —
         # FILTERS[…]["presets"] deliberately gains nothing (preset-free rails
         # stay binding). Two §7 literals were unit-corrected on the way in:
@@ -286,28 +321,8 @@ def starters():
         #     price × avg_volume_30d = 3.909e10), so $20M/$10M pin as 2e7/1e7.
         # "Implied move present" = `gte 0`: SQL `>= 0` excludes NULL, which IS
         # presence — no new operator this wave (controller ruling, recorded).
-        {"id": "starter_momentum_leaders", "name": "Momentum Leaders",
-         "spec": {"filters": [
-             {"key": "rs_rank", "op": "gte", "min": 90},
-             {"key": "adr_pct", "op": "gte", "min": 4},
-             {"key": "dollar_vol_30d", "op": "gte", "min": 20_000_000},
-             {"key": "price", "op": "gte", "min": 5},
-             {"key": "above_50sma", "op": "eq", "value": 1}],
-          "view": "technical", "sort": {"key": "rs_rank", "dir": "desc"}}},
-        {"id": "starter_pullback_20ema", "name": "Pullback to the 20EMA",
-         "spec": {"filters": [
-             {"key": "rs_rank", "op": "gte", "min": 80},
-             {"key": "pct_vs_ema20", "op": "between", "min": -2, "max": 2},
-             {"key": "ema_stack_intact", "op": "eq", "value": 1},
-             {"key": "vol_nweek_low", "op": "gte", "min": 10}],
-          "view": "technical", "sort": {"key": "rs_rank", "dir": "desc"}}},
-        {"id": "starter_tight_base", "name": "Tight Base Near Highs",
-         "spec": {"filters": [
-             {"key": "dist_52w_high_pct", "op": "gte", "min": -8},
-             {"key": "close_cv_pct", "op": "lte", "max": 2.5},
-             {"key": "vol_updown_ratio", "op": "gte", "min": 1},
-             {"key": "rs_rank", "op": "gte", "min": 70}],
-          "view": "technical", "sort": {"key": "dist_52w_high_pct", "dir": "desc"}}},
+        # (momentum_leaders / pullback_20ema / tight_base moved to the top of
+        #  this list, renamed; their specs are unchanged.)
         {"id": "starter_gap_movers", "name": "Gap Movers",
          "spec": {"filters": [
              {"key": "gap_pct", "op": "gte", "min": 8},

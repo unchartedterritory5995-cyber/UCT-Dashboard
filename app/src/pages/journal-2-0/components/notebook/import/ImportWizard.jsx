@@ -2,6 +2,18 @@
 // files, zipped or not) -> auto-detect -> preview -> commit -> summary.
 // Spec: docs/superpowers/specs/2026-08-11-notebook-import-design.md (Task 14)
 //
+// ⭐ Competitive-audit UX #16 (2026-09-22): Craft and Roam are named in the
+// drop-hint text below even though `lib/importer/registry.js`'s ADAPTERS has
+// no dedicated adapter for either — both export to plain Markdown (a
+// standard, documented feature of each), which genericAdapter already
+// handles, same as any other Markdown/Text/HTML/Word export. This was a
+// gap in the HINT TEXT, not in what the importer actually accepts: a member
+// bringing Craft or Roam content in today already succeeds via the generic
+// path, but had no way to know that without trying it — the two connector
+// tiles rendered just above this dropzone (ConnectTilesCompact) already
+// name Craft/Roam as recognized providers, so the file-drop text naming
+// neither read as an inconsistency, not as "unsupported."
+//
 // Every `lib/importer/*` module is loaded via a dynamic `import()` INSIDE the
 // handlers below, on purpose: those modules pull in fflate/markdown-it/
 // mammoth/tiptap's `generateJSON`, which would otherwise ride along in the
@@ -878,8 +890,8 @@ export default function ImportWizard({ open, onClose, onImported }) {
                 <UIcon name="download" size={30} className={styles.dropIcon} />
                 <p className={styles.dropTitle}>Drop your export here</p>
                 <p className={styles.dropHint}>
-                  A zip, a folder, or individual files — Notion, Obsidian, Evernote, or plain
-                  Markdown / Text / HTML / Word.
+                  A zip, a folder, or individual files — Notion, Obsidian, Evernote, Craft,
+                  Roam, or plain Markdown / Text / HTML / Word.
                 </p>
                 <div className={styles.dropButtons}>
                   <button

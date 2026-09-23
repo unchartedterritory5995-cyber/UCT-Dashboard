@@ -33,7 +33,7 @@ import {
   recordLandedRevision, SESSION_ID,
 } from '../../lib/offline/useDurableNote'
 import { useBlockedNotes } from '../../lib/offline/useBlockedNotes'
-import { blockedLabel, unsyncedLabel } from '../../lib/offline/unsyncedCopy'
+import { blockedLabel, unsyncedLabel, OFFLINE_VIEWING_BANNER } from '../../lib/offline/unsyncedCopy'
 import { usableBaseline, isUsableBaseline } from '../../lib/offline/baseline'
 import { settleNoteWrite } from '../../lib/offline/settleNoteWrite'
 import {
@@ -233,7 +233,7 @@ export function CaptureInboxTray({ editor, onPlaced }) {
                 ? { background: 'none', border: '1px solid var(--ut-gold, #c9a84c)', borderRadius: 6, color: 'var(--ut-gold, #c9a84c)', padding: '2px 7px', cursor: 'pointer', font: 'inherit', fontSize: 11 }
                 : { background: 'none', border: 'none', color: 'var(--text-dim, #777)', cursor: 'pointer', font: 'inherit' }}
             >
-              {confirmId === cap.id ? 'Discard?' : '✕'}
+              {confirmId === cap.id ? 'Discard?' : <UIcon name="x" size={12} gold={false} />}
             </button>
           </span>
         )
@@ -351,6 +351,28 @@ export default function NoteEditorPage({ noteId, onBack, showBack = true, onTitl
   // filter yields another member's research. It degrades to `supported: false`
   // (private windows, old browsers) without taking the editor with it.
   const durable = useDurableNote({ accountId: user?.id, noteId })
+
+  // ⛔⛔ A DIFFERENT AXIS FROM `saveStatus` BELOW — a READ signal, not a write
+  // one. Wave Q1's durable working copy lets a member reopen a previously-
+  // viewed note while offline (G-083), completely silently. `navigator.onLine`
+  // read once at mount would go stale the instant connectivity changes with
+  // the tab still open, so this tracks the two DOM events reactively -- the
+  // same events `useOutboxDrain.js` already listens for for its own,
+  // different reason (retrying the queue). Competitive audit finding
+  // Accessibility QW-5, 2026-09-22.
+  const [isOffline, setIsOffline] = useState(
+    typeof navigator !== 'undefined' ? !navigator.onLine : false,
+  )
+  useEffect(() => {
+    const goOnline = () => setIsOffline(false)
+    const goOffline = () => setIsOffline(true)
+    window.addEventListener('online', goOnline)
+    window.addEventListener('offline', goOffline)
+    return () => {
+      window.removeEventListener('online', goOnline)
+      window.removeEventListener('offline', goOffline)
+    }
+  }, [])
 
   // Wave Q1 — THE OPEN NOTE CAN ALSO BE BLOCKED, and until now it said nothing.
   // The sweep never touches the open note (`excludeNoteId`), so this state can
@@ -1459,17 +1481,22 @@ export default function NoteEditorPage({ noteId, onBack, showBack = true, onTitl
     const localTitle = titleRef.current || ''
     const localSubtitle = subtitleRef.current || ''
     const localBody = editor.getJSON()
+    // ⛔⛔ THIS USED TO SILENTLY DROP THE SUBTITLE. `createNoteViaApi` took no
+    // `subtitle` param until UX #12 (Duplicate note, 2026-09-22) added one --
+    // this call sat right beside that gap the whole time, in the ONE path
+    // this file's own header calls "PRESERVE BOTH." The prior code's own
+    // comment claimed the subtitle "carries... in the body," which was never
+    // actually implemented -- nothing appended it anywhere; only a
+    // console.info (invisible to the member) recorded the loss. Found while
+    // adding the param for an unrelated reason, fixed because it sat exactly
+    // on this session's "never lose member data" conflict-handling path.
     await createNoteViaApi({
       title: `${localTitle} (conflicted copy)`.trim(),
+      subtitle: localSubtitle || undefined,
       bodyJson: localBody,
       tags: ['sync-conflict'],
       folderId: note?.folderId || undefined,
     })
-    if (localSubtitle) {
-      // The create endpoint takes no subtitle; the copy carries it in the body
-      // only if the member had one. Recorded here rather than silently dropped.
-      console.info('[note-conflict] subtitle not carried onto the conflicted copy')
-    }
 
     // The editor now shows what the SERVER has — the canonical version — so the
     // member is not typing into a document that no longer exists anywhere.
@@ -1730,6 +1757,46 @@ export default function NoteEditorPage({ noteId, onBack, showBack = true, onTitl
     await settleMetadataRevision(await update({ tags }))
   }
 
+  // ⛔⛔ DUPLICATE — no such action existed anywhere in the product (grepped
+  // this header, NoteCard.jsx, NotebookTab.jsx: zero clone/duplicate path).
+  // Notion: right-click any page -> Duplicate. Evernote: right-click ->
+  // Duplicate Note. Competitive audit finding UX #12, 2026-09-22.
+  // ⛔ Clones the SAVED note (title/subtitle/bodyJson/tags/ticker/
+  // folderId/propertiesJson), not the live unsaved editor buffer -- a
+  // member with unsaved edits duplicates what the note IS, not a draft
+  // they haven't committed to it yet. Routes through the shared
+  // `createNoteViaApi` (already used by every other creation path in
+  // NotebookTab.jsx/noteCreation.js), then opens the new note through the
+  // app's ONE routing idiom for a note (`applyTargetToParams`, same as the
+  // CapturedSourceSheet "open owning note" door above) -- never a second
+  // route shape or a full page navigation.
+  const [duplicating, setDuplicating] = useState(false)
+  const onDuplicate = async () => {
+    if (duplicating) return
+    setDuplicating(true)
+    try {
+      const created = await createNoteViaApi({
+        title: note.title ? `Copy of ${note.title}` : 'Copy of Untitled',
+        subtitle: note.subtitle || undefined,
+        bodyJson: note.bodyJson,
+        tags: note.tags,
+        ticker: note.ticker || undefined,
+        folderId: note.folderId || undefined,
+        properties: note.propertiesJson || undefined,
+      })
+      // Same predicate NotebookTab's own refreshSidebarCounts uses -- the
+      // sidebar's note lists (All notes/Recents/per-folder) are OTHER
+      // components' SWR hooks, unreachable from here except through the
+      // shared global cache.
+      globalMutate((key) => typeof key === 'string' && key.startsWith('/api/j2/notes'))
+      setSearchParams((prev) => applyTargetToParams(prev, { noteId: created.id, depth: 'note' }))
+    } catch (e) {
+      console.error('[notebook] duplicate failed', e)
+    } finally {
+      setDuplicating(false)
+    }
+  }
+
   // Wave B: native confirm() replaced with the shared ConfirmModal (G-103) —
   // request opens the modal, confirm performs the actual mutation. Wave 0
   // trash: this is a soft delete, restorable from the sidebar's Trash entry
@@ -1901,6 +1968,19 @@ export default function NoteEditorPage({ noteId, onBack, showBack = true, onTitl
             {'Conflict — this note changed elsewhere. Your version was kept as a conflicted copy.'}
           </div>
         )}
+        {/* ⛔⛔ A DIFFERENT AXIS FROM THE THREE ABOVE — connectivity, not save
+            status. Independent (never else-if'd with the blocked/unsynced/
+            conflict states): a member can be offline AND have an unrelated
+            queued-write problem at the same time, and each fact is honest on
+            its own. Auto-clears the instant `online` fires -- no dismiss
+            state to manage for something that already un-shows itself.
+            Competitive audit finding Accessibility QW-5, 2026-09-22. */}
+        {isOffline && (
+          <div className={styles.saveStatus} role="status">
+            <UIcon name="warning" size={13} style={{ verticalAlign: '-2px', marginRight: 4 }} />
+            {OFFLINE_VIEWING_BANNER}
+          </div>
+        )}
         {(saveStatus === 'error' || saveStatus === 'reconnecting') && (
           <div className={styles.saveStatus} title={saveErrorMsg || undefined}>
             {saveStatus === 'reconnecting' && 'Reconnecting…'}
@@ -1929,6 +2009,24 @@ export default function NoteEditorPage({ noteId, onBack, showBack = true, onTitl
             getEditorDoc={() => editorRef.current?.state?.doc}
             onNavigate={jumpToCitation}
           />
+          {/*
+            ⛔ FIND HAD NO VISIBLE ENTRY POINT -- Cmd/Ctrl+F was the ONLY door
+            (grepped the whole file for setFindOpen(true): one call site, the
+            keydown handler). History, two buttons over, has always had a
+            labeled button in this same row. Competitive audit finding UX #5,
+            2026-09-22. NoteFindBar's own Escape/Enter handling is untouched
+            by this -- purely a missing entry point, not new find logic.
+          */}
+          <button
+            type="button"
+            className={styles.chromeBtn}
+            onClick={() => setFindOpen(true)}
+            title="Find in this note"
+            aria-label="Find in note"
+          >
+            <UIcon name="search" size={13} style={{ verticalAlign: '-2px', marginRight: 4 }} />
+            Find
+          </button>
           <button
             type="button"
             className={styles.chromeBtn}
@@ -1977,6 +2075,17 @@ export default function NoteEditorPage({ noteId, onBack, showBack = true, onTitl
             onBlur={(e) => onTagsChange(e.target.value)}
             style={{ width: 200 }}
           />
+          <button
+            type="button"
+            className={styles.chromeBtn}
+            onClick={onDuplicate}
+            disabled={duplicating}
+            title="Create a copy of this note"
+            aria-label="Duplicate note"
+          >
+            <UIcon name="copy" size={13} style={{ verticalAlign: '-2px', marginRight: 4 }} />
+            {duplicating ? 'Duplicating…' : 'Duplicate'}
+          </button>
           <button type="button" className="btn btn-danger" onClick={onDeleteRequest}>
             Delete
           </button>
@@ -2104,6 +2213,7 @@ export default function NoteEditorPage({ noteId, onBack, showBack = true, onTitl
                 if (url) editor.chain().focus().setLink({ href: url }).run()
               }}
               label={<UIcon name="link" size={14} />}
+              title="Insert link"
             />
             <ToolButton
               onClick={() => fileInputRef.current?.click()}
@@ -2118,6 +2228,7 @@ export default function NoteEditorPage({ noteId, onBack, showBack = true, onTitl
             <ToolButton
               onClick={() => editor.chain().focus().setHorizontalRule().run()}
               label="―"
+              title="Horizontal rule"
             />
           {/* Widget palette door — point-and-click inserts for people who
               don't reach for slash commands (owner ask). */}

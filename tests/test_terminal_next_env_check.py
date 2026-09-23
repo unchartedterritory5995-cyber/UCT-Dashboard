@@ -106,6 +106,82 @@ def test_an_undeclared_branch_is_UNREADABLE_not_a_failure(repo):
     assert "UNDECLARED" in detail
 
 
+def test_a_cherry_picked_commit_under_a_new_sha_passes_not_a_false_positive(repo):
+    """PACKET-F / F-ENVCHECK-1 — the false-STOP this packet exists to fix.
+
+    HEAD carries a commit whose PATCH already exists on the publish ref, under a
+    DIFFERENT sha — exactly the shape this programme's own `_merge-master` cherry-pick
+    pipeline produces every week. Pure ancestry cannot see this (proved below as a
+    control, mirroring `test_the_old_origin_branch_rule_would_have_failed_this_exact_tree`);
+    `check_tree` must fall through to a patch-id comparison and PASS instead of FAIL.
+    """
+    (repo / "f").write_text("cherry-source", encoding="utf-8")
+    _git(repo, "add", "-A")
+    _git(repo, "commit", "-q", "-m", "authored on feat/x, lands on master by cherry-pick")
+
+    # ⭐ CONTROL — prove the false-positive precondition: pure ancestry says "not an ancestor".
+    # This is exactly the exit code the OLD (pre-packet) code treated as a bare FAIL.
+    rc = subprocess.run(
+        ["git", "-C", str(repo), "merge-base", "--is-ancestor", "HEAD", "origin/master"],
+        capture_output=True,
+    ).returncode
+    assert rc == 1, "fixture no longer reproduces a non-ancestor HEAD — test is vacuous"
+
+    # Simulate the `_merge-master` worktree: same tree, same parent, different sha/message —
+    # i.e. the same patch, already applied on the publish ref under another commit id.
+    tree = _git(repo, "rev-parse", "HEAD^{tree}")
+    parent = _git(repo, "rev-parse", "HEAD^")
+    cherry_sha = _git(repo, "commit-tree", tree, "-p", parent,
+                       "-m", "same patch, cherry-picked onto master under a new sha")
+    _git(repo, "update-ref", "refs/remotes/origin/master", cherry_sha)
+
+    state, _, _, detail = ec.check_tree(repo, declared=DECLARED)
+    assert state == ec.PASS, detail
+
+
+def test_a_genuinely_unpublished_commit_alongside_a_cherry_picked_one_still_fails(repo):
+    """The fix must not become a rail that can never fail (`lesson_a_guard_repeated_is_a_guard_unproved`
+    / a gate that cannot fail): a REAL unpublished commit sitting on top of an already
+    cherry-picked one must still be named and FAIL, distinguished from the false positive above."""
+    (repo / "f").write_text("cherry-source", encoding="utf-8")
+    _git(repo, "add", "-A")
+    _git(repo, "commit", "-q", "-m", "authored on feat/x, lands on master by cherry-pick")
+    tree = _git(repo, "rev-parse", "HEAD^{tree}")
+    parent = _git(repo, "rev-parse", "HEAD^")
+    cherry_sha = _git(repo, "commit-tree", tree, "-p", parent,
+                       "-m", "same patch, cherry-picked onto master under a new sha")
+    _git(repo, "update-ref", "refs/remotes/origin/master", cherry_sha)
+
+    # a SECOND commit that has never landed anywhere, not even as an equivalent patch
+    (repo / "f").write_text("genuinely-new", encoding="utf-8")
+    _git(repo, "add", "-A")
+    _git(repo, "commit", "-q", "-m", "not on master anywhere")
+
+    state, _, _, detail = ec.check_tree(repo, declared=DECLARED)
+    assert state == ec.FAIL, detail
+    assert "not on master anywhere" in detail
+
+
+def test_git_cherry_erroring_is_UNREADABLE_not_a_silent_FAIL(repo, monkeypatch):
+    """`git cherry` failing must read the same as every other broken measurement in this
+    tool — UNREADABLE — never silently reinterpreted as FAIL."""
+    (repo / "f").write_text("3", encoding="utf-8")
+    _git(repo, "add", "-A")
+    _git(repo, "commit", "-q", "-m", "not yet on master")
+
+    real_git = ec._git
+
+    def _boom(cwd, *args):
+        if args and args[0] == "cherry":
+            return 129, "fatal: forced failure for the test"
+        return real_git(cwd, *args)
+
+    monkeypatch.setattr(ec, "_git", _boom)
+    state, _, _, detail = ec.check_tree(repo, declared=DECLARED)
+    assert state == ec.UNREADABLE, detail
+    assert "cherry" in detail.lower()
+
+
 def test_an_unresolvable_publish_ref_is_UNREADABLE_not_a_failure(repo):
     """⛔ The third state earns its keep here.
 

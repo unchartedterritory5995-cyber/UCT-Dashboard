@@ -371,6 +371,10 @@ def build_row(ticker, bars, ratings_row, fundamentals, rs_row=None,
     """
     row = {c: None for c in snapshot_db.COLUMNS}
     row["ticker"] = (ticker or "").upper()
+    # The coarse instrument bucket (Stock / ADR / ETF) the Type filter narrows on,
+    # from the generator's type map. Cheap dict lookup; defaults to "Stock" so a
+    # name not yet in the map is never blank/unfilterable.
+    row["security_type"] = _security_types().get(row["ticker"], "Stock")
     # ⚠️ ORDER IS AUTHORITY. Later sources win, so `rs_fields` is LAST and owns
     # `rs_rank`/`rs_return` outright. `enrich.ratings_fields` no longer emits
     # either (see its docstring) — this ordering is the belt to that braces, so
@@ -841,17 +845,32 @@ def _read_market_source(label, reader, targets, failures=None) -> dict:
 
 # ── orchestration ─────────────────────────────────────────────────────────────
 
+# The generator's `{ticker: Stock|ADR|ETF}` map, loaded ONCE per build (it is
+# read per row, so a per-row file read would be thousands of opens). `run_build`
+# resets it so a regenerated map is picked up on the next build.
+_SECURITY_TYPES_CACHE = None
+
+
+def _security_types():
+    global _SECURITY_TYPES_CACHE
+    if _SECURITY_TYPES_CACHE is None:
+        try:
+            from api.services.screener import screener_universe
+            _SECURITY_TYPES_CACHE = screener_universe.types()
+        except Exception:                                  # noqa: BLE001
+            _SECURITY_TYPES_CACHE = {}
+    return _SECURITY_TYPES_CACHE
+
+
 def _load_universe():
-    import json
-    for p in ("api/data/cap_universe.json",
-              os.path.join(os.path.dirname(__file__), "..", "..", "data",
-                           "cap_universe.json")):
-        if os.path.exists(p):
-            with open(p) as fh:
-                data = json.load(fh)
-            # file is a flat list of ticker strings
-            return [t for t in data if isinstance(t, str)]
-    return []
+    # The screener has its OWN, wider universe (every US common + ADR that trades,
+    # no price/cap floor) so "All Market" can mean the whole market without
+    # bloating the app-wide `cap_universe` that the bars pre-cache / ticker search
+    # / prewarmers iterate. `screener_universe.symbols()` falls back to the cap
+    # universe when the wider file has not been generated yet, so this is a strict
+    # superset of the old behaviour and never returns fewer names than before.
+    from api.services.screener import screener_universe
+    return list(screener_universe.symbols())
 
 
 def _stalest(tickers, limit):
@@ -981,6 +1000,8 @@ def run_build(max_tickers=None) -> dict:
                 "skipped": 0, "errors": 0, "populated": {}, "empty_columns": [],
                 "sources": {}, "identity_refusals": {}}
     try:
+        global _SECURITY_TYPES_CACHE
+        _SECURITY_TYPES_CACHE = None   # reload the type map fresh for this build
         return _run_build_locked(max_tickers)
     finally:
         _BUILD_LOCK.release()

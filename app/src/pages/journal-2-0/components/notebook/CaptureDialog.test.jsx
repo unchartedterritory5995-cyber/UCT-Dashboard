@@ -3,6 +3,17 @@ import { render, screen, fireEvent, waitFor, within } from '@testing-library/rea
 import CaptureDialog from './CaptureDialog'
 import { captureDestination } from '../../lib/capture'
 
+// Competitive-audit UX #13 second half (2026-09-22): CaptureDialog is now
+// built on <Sheet>, which resolves bottom-sheet-vs-modal from useIsTouch().
+// Defaults to desktop (false) so this mock is a no-op for the 30+ tests
+// below that don't care -- only the "responsive chrome" describe block near
+// the bottom overrides it.
+const mockUseIsTouch = vi.fn(() => false)
+vi.mock('../../../../hooks/useBreakpoint', async (importOriginal) => {
+  const actual = await importOriginal()
+  return { ...actual, useIsTouch: () => mockUseIsTouch() }
+})
+
 const DEST = captureDestination({ noteId: 'n1', ticker: 'NVDA', source: 'palette' })
 const PASSAGE = 'Management expects gross margins to normalize.'
 
@@ -26,7 +37,7 @@ function openSource(props = {}) {
   return open({ initial: { url: 'https://x.com/a', ...(props.initial || {}) }, ...props })
 }
 
-beforeEach(() => { global.fetch = vi.fn() })
+beforeEach(() => { global.fetch = vi.fn(); mockUseIsTouch.mockReturnValue(false) })
 afterEach(() => { vi.restoreAllMocks() })
 
 describe('destination is obvious before saving (§4)', () => {
@@ -323,5 +334,48 @@ describe('the global destination picker (§5)', () => {
     open({ recentDestinations: RECENTS })
     fireEvent.click(screen.getByRole('button', { name: /change/i }))
     expect(screen.getByTestId('capture-destination-picker')).toBeInTheDocument()
+  })
+})
+
+// ── Responsive chrome, competitive-audit UX #13 second half (2026-09-22) ────
+// CaptureDialog is now built on <Sheet> instead of a hand-rolled backdrop+
+// dialog: drag-to-dismiss, safe-area padding and the touch-vs-desktop
+// variant switch are Sheet's own tested surface, not reimplemented here.
+// What's worth pinning AT THIS LAYER is that CaptureDialog doesn't quietly
+// override Sheet's defaults in a way that would suppress them.
+
+describe('responsive chrome delegates to Sheet, unforced', () => {
+  it('on touch, resolves to the bottom-sheet variant (drag-to-dismiss reachable) -- proves variant is NOT pinned to "modal"', () => {
+    mockUseIsTouch.mockReturnValue(true)
+    open()
+    const panel = document.querySelector('[data-sheet-panel]')
+    expect(panel).toBeTruthy()
+    expect(panel.className).toContain('panel_bottom-sheet')
+    expect(panel.className).not.toContain('panel_modal')
+  })
+
+  it('on desktop, resolves to the centered-modal variant -- proves variant is NOT pinned to "bottom-sheet"', () => {
+    mockUseIsTouch.mockReturnValue(false)
+    open()
+    const panel = document.querySelector('[data-sheet-panel]')
+    expect(panel.className).toContain('panel_modal')
+    expect(panel.className).not.toContain('panel_bottom-sheet')
+  })
+
+  it('the touch tier matches the app-wide canonical boundary (<=1024, not <=640) -- CaptureDialog used to hand-roll its own bottom-sheet CSS at only <=640, leaving tablets on the desktop layout', () => {
+    // The fix IS that CaptureDialog no longer decides this itself -- it asks
+    // useIsTouch(), the same hook every other Sheet caller uses. Asserting
+    // this call happened (rather than re-testing useIsTouch's own threshold,
+    // which is useBreakpoint's rail) is what pins "CaptureDialog delegates"
+    // rather than "CaptureDialog re-implements its own boundary".
+    mockUseIsTouch.mockReturnValue(true)
+    open()
+    expect(mockUseIsTouch).toHaveBeenCalled()
+  })
+
+  it('preserves the pre-Sheet z-index (1200) so a global hotkey capture still draws over an active toast (--z-toast, 1100)', () => {
+    open()
+    const backdrop = document.querySelector('[data-sheet-panel]').parentElement
+    expect(backdrop.style.zIndex).toBe('1200')
   })
 })

@@ -3,6 +3,7 @@ import UIcon from '../../../../components/ui/UIcon'
 import useNotebookHome from '../../hooks/useNotebookHome'
 import AskPanel from './AskPanel'
 import { notePath } from '../../../../hooks/useNoteBacklinks'
+import { SkeletonLine } from '../../../../components/Skeleton'
 import styles from './ResearchHome.module.css'
 
 const STATUS_LABEL = { watching: 'Watching', active: 'Active', invalidated: 'Invalidated', closed: 'Closed' }
@@ -72,7 +73,17 @@ export default function ResearchHome({ onOpenNote, onCreateNote, onCreateThesis,
   const openNote = (note) => (onOpenNote ? onOpenNote(note) : navigate(notePath(note.id)))
 
   if (isLoading) {
-    return <div className={styles.loading}>Loading…</div>
+    // G-106 (Wave B lower-frequency sweep): a skeleton approximating Home's
+    // own section-row layout (title, then a couple of rows) -- same idiom
+    // as NoteEditorPage's note-loading skeleton -- instead of bare text.
+    return (
+      <div className={styles.loading} role="status" aria-label="Loading…">
+        <SkeletonLine width="40%" height={18} />
+        <div style={{ height: 16 }} />
+        <SkeletonLine width="85%" height={13} />
+        <SkeletonLine width="65%" height={13} />
+      </div>
+    )
   }
 
   if (!hasAnyNotes) {

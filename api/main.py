@@ -7,6 +7,12 @@ from contextlib import asynccontextmanager
 from datetime import datetime
 from zoneinfo import ZoneInfo
 
+# ⛔ Credentials ride query strings (Massive apiKey=, FMP apikey=, calendar
+# ?token=) and reach logs through HTTP-client URL logging and exception text.
+# Redact at record creation, by parameter NAME, before any handler sees it.
+from api.services.log_redaction import install as _install_log_redaction
+_install_log_redaction()
+
 # APScheduler trap: a pre-built CronTrigger(...) resolves tzlocal (UTC on
 # Railway), NOT the scheduler's timezone -- every trigger below must carry
 # an explicit timezone or its "ET" schedule silently fires 4h early.
@@ -102,6 +108,7 @@ from api.routers import entity_master_admin as entity_master_admin_router
 from api.routers import yf_guard as yf_guard_router
 from api.routers import catalysts as catalysts_router
 from api.routers import wire_feedback as wire_feedback_router
+from api.routers import tracings as tracings_router
 from api.routers import modelbook as modelbook_router
 from api.routers import news_catalysts as news_catalysts_router
 from api.routers import stock_brief as stock_brief_router
@@ -114,7 +121,9 @@ from api.routers import ai_search as ai_search_router
 from api.routers import user_playbook as user_playbook_router
 from api.routers import education as education_router
 from api.routers import fundamentals as fundamentals_router
+from api.routers import fundamentals_pit as fundamentals_pit_router
 from api.routers import analyst as analyst_router
+from api.routers import portfolio_heat as portfolio_heat_router
 from api.routers import filings as filings_router
 from api.routers import research as research_router
 from api.routers import expected_move as expected_move_router
@@ -4736,6 +4745,73 @@ async def lifespan(app: FastAPI):
         threading.Thread(target=_breadth_sentiment_seed, daemon=True,
                          name="breadth_sentiment_seed").start()
 
+    # ⭐ THE CANONICAL NAAIM SERIES gets the same treatment, from its own CSV.
+    #
+    # ⛔⛔ WITHOUT THIS THE SERIES SHIPS EMPTY. `naaim_store` is what the CHART reads;
+    # the weekly collector push appends to it one observation at a time, so a fresh pod
+    # would serve a published indicator with nothing in it until months of pushes had
+    # accumulated. `api/data/naaim_history.csv` is version-controlled for exactly this
+    # reason — it is the history, not a convenience.
+    #
+    # ⚠️ SEPARATE FROM THE SEED ABOVE, DELIBERATELY. `breadth_sentiment_history` feeds
+    # the Monitor's sentiment block; this feeds the chartable series. They are two stores
+    # with two schemas and two accept gates, and collapsing them would make the chart's
+    # point-in-time semantics depend on a table that has none.
+    if os.environ.get("MARKET_INDICATORS_SEED", "1") != "0":
+        def _naaim_series_seed():
+            try:
+                from api.services.market_indicators import naaim_store as _ns
+                res = _ns.seed_from_bundled_csv()
+                print(f"[startup] naaim series seed: {res}")
+            except Exception as e:
+                print(f"[startup] naaim series seed error (non-fatal): {e}")
+
+        threading.Thread(target=_naaim_series_seed, daemon=True,
+                         name="naaim_series_seed").start()
+
+    # ⭐ THE CBOE VOLATILITY FAMILY, same lesson, same shape.
+    #
+    # ⛔⛔ SEVEN PUBLISHED SERIES SHIPPED WITH ZERO ROWS. `tools/build_cboe_indices.py`
+    # is a developer's door and nothing running ever opened it, so the catalogue
+    # advertised VIX9D / VIX3M / VIX6M / VVIX / VXN / RVX / SKEW while the store behind
+    # them was empty. Measured on production immediately after the first deploy.
+    #
+    # ⚠️ ON THE POD THAT SERVES IT. `cboe_store` reads `/data/cboe_indices.db` and the
+    # web pod is what answers `/api/market-indicators/{id}` — a worker-side refresh
+    # would fill a volume the reader never sees.
+    #
+    # ⚠️ SEVEN SMALL EOD CSVs, NOT A BAR WARM. A few MB once at boot and once a day, in
+    # a daemon thread, every symbol isolated — deliberately unlike the bulk bar-warming
+    # that has OOM'd this pod before.
+    # ⚠️ ONE THREAD, TWO INDEPENDENTLY GATED JOBS. The availability warm is NOT inside
+    # the Cboe flag: turning off the refresh must not silently leave the status route
+    # reporting `availability_warming` forever. A flag that disables a second, unrelated
+    # thing is a trap, and this one would only show up as permanently missing metadata.
+    if os.environ.get("MARKET_INDICATORS_BOOT_JOBS", "1") != "0":
+        def _market_indicator_jobs():
+            while True:
+                if os.environ.get("MARKET_INDICATORS_CBOE_REFRESH", "1") != "0":
+                    try:
+                        from api.services.market_indicators import cboe_store as _cs
+                        res = _cs.refresh()
+                        print(f"[startup] cboe refresh: ingested={res['ingested']} "
+                              f"errors={res['errors']}")
+                    except Exception as e:
+                        print(f"[startup] cboe refresh error (non-fatal): {e}")
+                # ⭐ WARM THE COVERAGE SNAPSHOT AFTER INGEST, off the request path. The
+                # status route is unauthenticated and only ever READS this snapshot
+                # (computing it measured 87s on production), so the first member to ask
+                # must never be the one who computes it.
+                try:
+                    from api.services.market_indicators import series as _mseries
+                    _mseries.warm_availability()
+                except Exception as e:
+                    print(f"[startup] market-indicator availability warm failed: {e}")
+                time.sleep(int(os.environ.get("CBOE_REFRESH_SECS", "86400")))
+
+        threading.Thread(target=_market_indicator_jobs, daemon=True,
+                         name="market_indicator_jobs").start()
+
     # Self-healing breadth: refuse a degraded collector push (guard is in the push
     # route) AND recompute any degraded recent day from OUR bars so the Monitor's
     # current + prior days are always accurate. Boot pass fixes any leftover bad
@@ -6197,6 +6273,15 @@ async def lifespan(app: FastAPI):
         except Exception as e:
             print(f"[scheduler] wisdom registration error: {e}")
 
+        # -- Historical PIT fundamentals: incremental SEC ingestion (worker only) --
+        try:
+            from api.services.fundamentals_pit.schedule import register_fundamentals_pit_jobs
+            _fpit = register_fundamentals_pit_jobs(_scheduler)
+            if _fpit:
+                print(f"[startup] fundamentals_pit jobs registered: {', '.join(_fpit)}")
+        except Exception as e:
+            print(f"[scheduler] fundamentals_pit registration error: {e}")
+
         # -- Full-market screener nightly snapshot build (spec 2026-06-19) --
         try:
             register_screener_jobs(_scheduler)
@@ -7269,6 +7354,55 @@ async def lifespan(app: FastAPI):
         else:
             print("[startup] S7 indicator-condition DARK comparison OFF "
                   "(set ALERT_TAXONOMY_INDICATOR_CONDITION_DARK_ENABLED=1 to start the dark run)")
+
+        # GATE-D2-CANONICAL-DATA-MODEL, top-level CP3, LINE 5 (approval sha
+        # d1da6f5b7) -- the scheduled warm reader for ticker_returns' DARK
+        # dual-compute rail. It calls the EXISTING, unmodified
+        # `ticker_returns.returns_for_video()` -- the exact function
+        # `GET /api/education/videos/{id}/ticker-returns` calls -- for every
+        # Desk video carrying real ticker moments, so `_dual.observe()` fires
+        # on real traffic instead of waiting on a member opening that video.
+        # No change to `_dual.py`, `dual_sample_store.py`, the gate itself, or
+        # any other reader. See `api/services/ticker_returns_warm_reader.py`
+        # for the in-process-vs-HTTP+smoke-account decision, argued there
+        # rather than here because it is the load-bearing design call.
+        #
+        # ⛔ DEFAULT OFF. It is additive read traffic against real production
+        # data, so an unset variable must mean NOTHING RUNS -- the same
+        # contract as every dark/warm sweep above.
+        #
+        # Cadence derives from the gate's own session-span requirement
+        # (`dual_sample_store.COVER_OPEN_HHMM`/`COVER_CLOSE_HHMM` = 09:45 /
+        # 15:45 ET): one tick at :45 past every RTH hour from 9 through 15, so
+        # the FIRST tick lands at-or-before 09:45 ET and the LAST at-or-after
+        # 15:45 ET on every trading day. A dry run measured ~40x the
+        # >=200-agreed-rows bar in a SINGLE pass, so a fixed hourly cadence
+        # does not need to be adaptive to clear it -- the remaining blocker
+        # was always the session span, not the row count.
+        if os.environ.get("D2_DUAL_COMPUTE_WARM_READER_ENABLED", "0") == "1":
+            def _d2_dual_compute_warm_reader_job():
+                try:
+                    from api.services import ticker_returns_warm_reader as _wr
+                    r = _wr.run_warm_pass()
+                    print(f"[d2-warm-reader] videos_total={r['videos_total']} "
+                          f"videos_ok={r['videos_ok']} "
+                          f"symbols_returned={r['symbols_returned']} "
+                          f"errors={len(r['errors'])}")
+                except Exception as e:
+                    print(f"[d2-warm-reader] sweep failed: {e}")
+
+            _scheduler.add_job(
+                _d2_dual_compute_warm_reader_job,
+                trigger=CronTrigger(day_of_week="mon-fri", hour="9-15", minute=45,
+                                    timezone=_ET),
+                id="d2_dual_compute_warm_reader",
+                max_instances=1, replace_existing=True,
+            )
+            print("[startup] D2 dual-compute warm reader ENABLED (09:45-15:45 ET "
+                  "weekdays, hourly, in-process, no member data written)")
+        else:
+            print("[startup] D2 dual-compute warm reader OFF "
+                  "(set D2_DUAL_COMPUTE_WARM_READER_ENABLED=1 to start it)")
 
         def _compass_daily_focus_run():
             try:
@@ -8416,6 +8550,12 @@ app.include_router(discord_interactions_router.router)
 app.include_router(bars_router.router)
 app.include_router(cot_router.router)
 app.include_router(breadth_monitor_router.router)
+# Market Indicators library — McClellan / Breadth-derived / Sentiment / Volatility.
+# ⚠️ Its `/api/market-indicators/{series_id:path}` is a greedy catch-all, so the two
+# fixed sub-paths (`/search`, `/status`) are declared BEFORE it inside that router and
+# nothing outside shares the prefix. Same trap `/live/drill/{metric_key}` hit.
+from api.routers import market_indicators as market_indicators_router  # noqa: E402
+app.include_router(market_indicators_router.router)
 app.include_router(theme_performance_router.router)
 from api.routers import theme_sets as theme_sets_router  # per-user custom theme sets
 app.include_router(theme_sets_router.router)
@@ -8539,6 +8679,7 @@ app.include_router(entity_master_admin_router.router)  # /api/admin/entity-maste
 app.include_router(yf_guard_router.router)  # /api/admin/yfinance-guard — breaker observability
 app.include_router(catalysts_router.router)
 app.include_router(wire_feedback_router.router)
+app.include_router(tracings_router.router)
 app.include_router(modelbook_router.router)
 app.include_router(news_catalysts_router.router)
 app.include_router(stock_brief_router.router)
@@ -8554,7 +8695,9 @@ app.include_router(ai_search_router.router)
 app.include_router(user_playbook_router.router)  # My Playbook /api/upb/*
 app.include_router(education_router.router)
 app.include_router(fundamentals_router.router)
+app.include_router(fundamentals_pit_router.router)  # historical PIT fundamentals; dark unless FUNDAMENTALS_PIT_ENABLED=1
 app.include_router(analyst_router.router)
+app.include_router(portfolio_heat_router.router)  # A14 CP1 -- GET /api/portfolio/heat
 app.include_router(filings_router.router)
 app.include_router(research_router.router)
 app.include_router(expected_move_router.router)

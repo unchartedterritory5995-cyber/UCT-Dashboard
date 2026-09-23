@@ -14,25 +14,25 @@
 }
 .summaryText {
   font-size: 12px;
-  color: var(--color-text-muted, #98a0aa);
+  color: var(--text-muted);
 }
 .reviewBtn {
   background: none;
-  border: 1px solid var(--color-border, #232932);
+  border: 1px solid var(--border);
   border-radius: 6px;
-  color: var(--color-text-secondary, #c3c9d1);
+  color: var(--text-muted);
   font-size: 12px;
   padding: 5px 10px;
   min-height: 28px;
   cursor: pointer;
 }
 .reviewBtn:hover {
-  border-color: var(--color-accent, #c9a84c);
-  color: var(--color-text-primary, #e8eaed);
+  border-color: var(--accent);
+  color: var(--text-bright);
 }
 
 .panel {
-  border: 1px solid var(--color-border, #232932);
+  border: 1px solid var(--border);
   border-radius: 8px;
   padding: 12px;
   display: flex;
@@ -51,51 +51,51 @@
   font-weight: 600;
   padding: 3px 8px;
   border-radius: 999px;
-  border: 1px solid var(--color-border, #232932);
+  border: 1px solid var(--border);
 }
-.supports { color: #6ee7a8; border-color: rgba(110, 231, 168, 0.35); }
-.opposes { color: #f8a5a5; border-color: rgba(248, 165, 165, 0.35); }
+.supports { color: var(--gain); border-color: var(--gain-border); }
+.opposes { color: var(--loss); border-color: var(--loss-border); }
 
 /* ⛔ UCT's OBSERVATION, visually distinct from both the sources above it and
    the member's own writing below it — the three must never blur together. */
 .sinceBlock {
-  border-left: 2px solid var(--color-border, #232932);
+  border-left: 2px solid var(--border);
   padding: 6px 0 6px 10px;
 }
 .sinceTitle {
   font-size: 10px;
   letter-spacing: 0.08em;
   text-transform: uppercase;
-  color: var(--color-text-muted, #98a0aa);
+  color: var(--text-muted);
 }
 .sinceList {
   margin: 5px 0 0;
   padding-left: 16px;
   font-size: 13px;
   line-height: 1.6;
-  color: var(--color-text-primary, #e8eaed);
+  color: var(--text-bright);
 }
 .sinceEmpty,
 .sinceFooter {
   margin: 5px 0 0;
   font-size: 12px;
-  color: var(--color-text-muted, #98a0aa);
+  color: var(--text-muted);
 }
 
 .label {
   font-size: 10px;
   letter-spacing: 0.08em;
   text-transform: uppercase;
-  color: var(--color-text-muted, #98a0aa);
+  color: var(--text-muted);
   margin-top: 4px;
 }
 .textarea {
   width: 100%;
   box-sizing: border-box;
   background: var(--color-surface-2, rgba(255, 255, 255, 0.03));
-  border: 1px solid var(--color-border, #232932);
+  border: 1px solid var(--border);
   border-radius: 6px;
-  color: var(--color-text-primary, #e8eaed);
+  color: var(--text-bright);
   font: inherit;
   font-size: 13px;
   line-height: 1.6;
@@ -105,7 +105,7 @@
 .hint {
   margin: 0;
   font-size: 11px;
-  color: var(--color-text-muted, #98a0aa);
+  color: var(--text-muted);
 }
 
 .outcomes {
@@ -115,25 +115,25 @@
 }
 .outcomeBtn {
   background: none;
-  border: 1px solid var(--color-border, #232932);
+  border: 1px solid var(--border);
   border-radius: 6px;
-  color: var(--color-text-secondary, #c3c9d1);
+  color: var(--text-muted);
   font-size: 12px;
   padding: 6px 10px;
   min-height: 30px;
   cursor: pointer;
 }
 .outcomeBtnActive {
-  border-color: var(--color-accent, #c9a84c);
-  color: #dcbb5e;
+  border-color: var(--accent);
+  color: var(--ut-gold);
   background: rgba(201, 168, 76, 0.12);
 }
 
 .dateInput {
   background: var(--color-surface-2, rgba(255, 255, 255, 0.03));
-  border: 1px solid var(--color-border, #232932);
+  border: 1px solid var(--border);
   border-radius: 6px;
-  color: var(--color-text-primary, #e8eaed);
+  color: var(--text-bright);
   font: inherit;
   font-size: 13px;
   padding: 6px 8px;
@@ -145,11 +145,11 @@
   margin: 4px 0 0;
   font-size: 11px;
   line-height: 1.5;
-  color: var(--color-text-muted, #98a0aa);
+  color: var(--text-muted);
 }
 .error {
   font-size: 12px;
-  color: var(--color-danger, #f87171);
+  color: var(--loss);
 }
 
 .actions {
@@ -161,14 +161,14 @@
 .cancelBtn {
   background: none;
   border: none;
-  color: var(--color-text-muted, #98a0aa);
+  color: var(--text-muted);
   font-size: 12px;
   padding: 6px 10px;
   min-height: 30px;
   cursor: pointer;
 }
 .completeBtn {
-  background: var(--color-accent, #c9a84c);
+  background: var(--accent);
   border: none;
   border-radius: 6px;
   color: #14181f;
@@ -205,7 +205,7 @@
    one", and with a real left rule rather than a background wash so it survives
    forced-colors mode. */
 .historyRowAnchored {
-  border-left: 2px solid #dcbb5e;
+  border-left: 2px solid var(--ut-gold);
   margin-left: -8px;
   padding-left: 6px;
 }
@@ -215,16 +215,16 @@
   .historyRowAnchored { transition: none; }
 }
 .historyDate {
-  color: var(--color-text-muted, #98a0aa);
+  color: var(--text-muted);
   min-width: 82px;
 }
 .historyOutcome {
-  color: var(--color-text-primary, #e8eaed);
+  color: var(--text-bright);
   font-weight: 600;
 }
 /* The member's own words, quoted as theirs — never styled like a source. */
 .historyNote {
-  color: var(--color-text-secondary, #c3c9d1);
+  color: var(--text-muted);
   font-style: italic;
 }
 

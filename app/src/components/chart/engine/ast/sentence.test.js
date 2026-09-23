@@ -249,6 +249,17 @@ const FORMS = [
     name: 'valuewhen',
     parts: ['the value of ', 1, ' on the most recent of the last ', 2,
             ' bars where ', 0, ' was true'] },
+  // ⭐⭐ `valuewhenOccurrence` (2026-09-20) -- hand-typed from the manifest's
+  // own sentence, like every row above. ⚠️ NOT ambiguous with `valuewhen`'s
+  // row despite sharing the "the value of {1} " opening: the literal
+  // IMMEDIATELY after that shared prefix diverges at the next character --
+  // 'on the most recent...' for `valuewhen` vs 'the {2}-from-the-end
+  // time...' for this entry -- so `matchForm`'s leading-literal anchor
+  // separates them at the very next token.
+  { kind: 'call',
+    name: 'valuewhenOccurrence',
+    parts: ['the value of ', 1, ' the ', 2, '-from-the-end time ', 0,
+            ' was true, counting occurrences backward'] },
   // ⚰️ THESE READ "most recent" UNTIL 2026-09-08, and the tie-break correction
   // moved the manifest's words to "oldest". Re-typing them here is the DESIGN
   // working, not friction: this oracle is hand-typed precisely so a wording
@@ -357,11 +368,28 @@ const FORMS = [
   { kind: 'call', name: 'wma', parts: ['the ', 1, '-bar weighted average of ', 0] },
   { kind: 'call', name: 'sign', parts: ['the sign of ', 0] },
   { kind: 'call', name: 'round', parts: [0, ' rounded to a whole number'] },
-  // ⭐ `ceil` / `floor` (2026-09-22). The two literals differ from `round`'s by
-  // an inserted word, so no form is a prefix of another and the reader stays
-  // unambiguous — which the round-trip rail below checks rather than assumes.
-  { kind: 'call', name: 'ceil', parts: [0, ' rounded UP to a whole number'] },
-  { kind: 'call', name: 'floor', parts: [0, ' rounded DOWN to a whole number'] },
+  // ⭐ `floor` (2026-09-20) -- hand-typed from the manifest's own sentence,
+  // like every row above. ⚠️ NOT ambiguous with `round`'s row: `matchForm`
+  // anchors on the literal FOLLOWING the leaf, and ' rounded down to a whole
+  // number' does not occur inside ' rounded to a whole number' (nor the other
+  // way -- 'down' is the discriminator either grammar has to consume).
+  { kind: 'call', name: 'floor', parts: [0, ' rounded down to a whole number'] },
+  // ⭐ `ceil` (2026-09-20) -- `floor`'s exact sibling, hand-typed from the
+  // manifest's own sentence. ⚠️ NOT ambiguous with `round`'s or `floor`'s
+  // rows: `matchForm` anchors on the literal FOLLOWING the leaf, and
+  // ' rounded up to a whole number' contains neither ' rounded to a whole
+  // number' nor ' rounded down to a whole number' as a substring (the
+  // inserted word breaks the run each time).
+  { kind: 'call', name: 'ceil', parts: [0, ' rounded up to a whole number'] },
+  // ⭐ `percentileLinearInterpolation` (2026-09-20) -- hand-typed from the
+  // manifest's own sentence, like every row above. ⚠️ NOT ambiguous with
+  // `percentrank`'s row: `matchForm` anchors on the literal FOLLOWING each
+  // leaf, and 'th percentile of ' does not occur inside '-bar percent rank
+  // of ' (nor the other way around).
+  { kind: 'call',
+    name: 'percentileLinearInterpolation',
+    parts: ['the ', 2, 'th percentile of ', 0, ' over the last ', 1,
+      ' bars, linearly interpolated between the two nearest ranks'] },
   { kind: 'call', name: 'na', parts: [0, ' being unknown'] },
   { kind: 'call', name: 'nz', parts: [0, ' where it is known, and ', 1, ' where it is not'] },
 
@@ -967,6 +995,7 @@ describe('totality over the closed table — derived from the manifest, never ha
       'clock:barindex',
       'clock:dayofmonth',
       'clock:dayofweek',
+      'clock:dayopentime',
       'clock:hour',
       // ⭐⭐ 104 -> 110: THE SIX BARSTATE COLUMNS (2026-09-09), NAMED rather than
       // a bumped count. They arrived under an owner ruling that UCT defines
@@ -988,6 +1017,16 @@ describe('totality over the closed table — derived from the manifest, never ha
       'clock:ismonthly',
       'clock:isrealtime',
       'clock:isweekly',
+      // ⭐⭐ `lastbartime` + its five calendar fields (2026-09-20) —
+      // `lastbarindex`'s own ruling applied to a calendar, and this engine's
+      // answer for Pine's `timenow`. Six named entries, not a bumped count.
+      'clock:lastbardayofmonth',
+      'clock:lastbarhour',
+      'clock:lastbarindex',
+      'clock:lastbarminute',
+      'clock:lastbarmonth',
+      'clock:lastbartime',
+      'clock:lastbaryear',
       'clock:minute',
       'clock:month',
       'clock:sessionfirst',
@@ -1055,6 +1094,8 @@ describe('totality over the closed table — derived from the manifest, never ha
       // `ta.pvt`'s windowed-delta bounded form, mirroring `obvN`). Two named
       // entries, not a bumped count.
       'function:falling',
+      // `floor` (2026-09-20): Pine's `math.floor`, the sole blocker on a real
+      // corpus script. One named entry, not a bumped count.
       'function:floor',
       'function:highest',
       'function:highestbars',
@@ -1079,6 +1120,10 @@ describe('totality over the closed table — derived from the manifest, never ha
       'function:na',
       'function:nz',
       'function:obvN',
+      // `percentileLinearInterpolation` (2026-09-20): Pine's
+      // `ta.percentile_linear_interpolation`, routed via `PINE_CALL_SHAPES`.
+      // One named entry, not a bumped count.
+      'function:percentileLinearInterpolation',
       'function:percentrank',
       'function:pivothigh',
       'function:pivotlow',
@@ -1099,6 +1144,7 @@ describe('totality over the closed table — derived from the manifest, never ha
       'function:sum',
       'function:tan',
       'function:valuewhen',
+      'function:valuewhenOccurrence',
       'function:vwap',
       'function:williamsR',
       'function:wma',
@@ -1109,7 +1155,15 @@ describe('totality over the closed table — derived from the manifest, never ha
     // into the CLOCK rather than into a family of their own. The count moves
     // deliberately, beside the list it describes, because the list is what the
     // rail actually asserts.
-    expect(entries.length).toBe(112)
+    // ⭐ 110 -> 111 IS `lastbarindex` (2026-09-19), an ordinary clock entry:
+    // it renders a sentence, round-trips, and is ASCII, the same as `islast`.
+    // ⭐ 111 -> 112 (2026-09-20): `floor` joined the bar vocabulary.
+    // ⭐ 112 -> 113 (2026-09-20): `percentileLinearInterpolation` joined too.
+    // ⭐⭐ 113 -> 119 (2026-09-20): `lastbartime` + its five calendar fields.
+    // ⭐ 119 -> 120 (2026-09-20): `ceil` joined the bar vocabulary.
+    // ⭐⭐ 120 -> 121 (2026-09-20): `valuewhenOccurrence` joined too.
+    // ⭐ 121 -> 122 (2026-09-20): `dayopentime` joined too.
+    expect(entries.length).toBe(122)
   })
 
   it('EVERY declared entry renders, is ASCII, and ROUND-TRIPS — by construction', () => {
@@ -1119,7 +1173,13 @@ describe('totality over the closed table — derived from the manifest, never ha
     // loop. ⛔ The count is asserted against the list above rather than retyped
     // as prose a second time.
     const subjects = treesForTheWholeTable(TABLE)
-    expect(subjects.length).toBe(112)
+    // ⭐ 111 -> 112 (2026-09-20): `floor` joined the bar vocabulary.
+    // ⭐ 112 -> 113 (2026-09-20): `percentileLinearInterpolation` joined too.
+    // ⭐⭐ 113 -> 119 (2026-09-20): `lastbartime` + its five calendar fields.
+    // ⭐ 119 -> 120 (2026-09-20): `ceil` joined the bar vocabulary.
+    // ⭐⭐ 120 -> 121 (2026-09-20): `valuewhenOccurrence` joined too.
+    // ⭐ 121 -> 122 (2026-09-20): `dayopentime` joined too.
+    expect(subjects.length).toBe(122)
     for (const { entry, ast: tree } of subjects) {
       const s = sentenceFor(tree, {})
       expect(s, `${entry} rendered an empty sentence`).not.toBe('')
@@ -2304,7 +2364,7 @@ describe('the inversion rail — a sentence round-trips to the same maths', () =
       'ichimoku_span_b', 'ichimoku_chikou', 'offset_one_bar', 'offset_zero_is_identity', 'offset_change_idiom',
       'offset_inside_a_reduction', 'offset_of_a_reduction', 'offset_of_a_condition', 'offset_two_bars_apart', 'accum_bounded_counter',
       'accum_running_max_is_highest', 'accum_sticky_flag_ternary', 'accum_over_a_windowed_column', 'accum_offset_of_a_running_value', 'pine_rma_is_wilders_average',
-      'pine_wma_weights_the_recent_bar_most', 'pine_round_a_half_away_from_zero', 'pine_sign_of_a_change', 'pine_na_detects_a_warmup_hole', 'pine_nz_replaces_a_hole_with_a_stated_value',
+      'pine_wma_weights_the_recent_bar_most', 'pine_round_a_half_away_from_zero', 'pine_ceil_rounds_toward_positive_infinity', 'pine_floor_rounds_toward_negative_infinity', 'pine_sign_of_a_change', 'pine_na_detects_a_warmup_hole', 'pine_nz_replaces_a_hole_with_a_stated_value',
       'sqrt_of_close', 'sqrt_of_a_negative', 'ln_of_close', 'ln_of_zero', 'log10_of_close',
       'exp_of_a_small_number', 'exp_overflow', 'pow_square', 'pow_fractional_of_negative', 'mod_truncated',
       'mod_by_zero', 'idiv_truncated', 'sin_of_close', 'cos_of_close', 'tan_of_close',
@@ -2321,7 +2381,7 @@ describe('the inversion rail — a sentence round-trips to the same maths', () =
       // ones where the two lanes are two readers of the IANA database rather than
       // one formula written twice.
       'clock_time', 'clock_year', 'clock_month', 'clock_dayofmonth', 'clock_dayofweek',
-      'clock_hour', 'clock_minute', 'clock_sessionfirst', 'clock_barindex', 'clock_isintraday',
+      'clock_hour', 'clock_minute', 'clock_sessionfirst', 'clock_dayopentime', 'clock_barindex', 'clock_isintraday',
       'clock_isdaily', 'clock_isweekly', 'clock_ismonthly',
       // ⭐ THE TWO BAR-READING CASES (2026-08-26). `vwap()` is the first
       // ZERO-ARGUMENT case in this corpus, which is the whole reason its entry
@@ -2337,6 +2397,7 @@ describe('the inversion rail — a sentence round-trips to the same maths', () =
       // SENTINEL means, and two of them carry the arg-extreme tie-break ruling.
       'barssince_the_last_up_bar',
       'valuewhen_the_last_up_bars_close',
+      'valuewhenOccurrence_the_second_most_recent_up_bar',
       'highestbars_the_offset_back_to_the_high',
       'lowestbars_the_offset_back_to_the_low',
       'obvN_bounded_signed_volume',
@@ -2444,6 +2505,18 @@ describe('the inversion rail — a sentence round-trips to the same maths', () =
       'median_close_4',
       'percentrank_close_10',
       'bbw_close_20_2',
+      // ⭐ `percentileLinearInterpolation` (2026-09-20) — TradingView's own
+      // published NA-PROPAGATE convention (median/percentrank beside it
+      // SKIP), and the percentage=50 identity with `median` is measured
+      // separately in `pinePercentileLinearAccept.test.js`.
+      'pine_percentile_linear_interpolation_between_two_ranks',
+      // ⭐⭐ `timenow` + its five calendar fields (2026-09-20) — the real
+      // "is_today" idiom measured across six corpus scripts, split into TWO
+      // cases (not one) because a single compound formula naming all six new
+      // clock fields plus their six originals measures 12 series references
+      // against `budget.test.js`'s cap of 8.
+      'pine_timenow_is_today_year_month_dayofmonth',
+      'pine_timenow_hour_and_minute_too',
       // ⭐⭐ VENDOR-BACKED UNSERVED BUILTINS, BATCH 1 (2026-09-06) — same
       // discipline: one corpus case per function, each resolved by a real
       // TradingView capture (`tests/fixtures/vendor/observations/
@@ -2466,7 +2539,7 @@ describe('the inversion rail — a sentence round-trips to the same maths', () =
       // true. A closed newest bar would make `islast` and
       // `islastconfirmedhistory` coincide, and a lane that confused them would
       // stay green.
-      'barstate_islast', 'barstate_isfirst', 'barstate_isrealtime',
+      'barstate_islast', 'barstate_lastbarindex', 'barstate_isfirst', 'barstate_isrealtime',
       'barstate_isconfirmed', 'barstate_ishistory', 'barstate_islastconfirmedhistory',
     ])
   })
@@ -2518,7 +2591,13 @@ describe('the inversion rail — a sentence round-trips to the same maths', () =
     // rather than one number for exactly this reason: the corpus half moves on
     // its own and the table half moves on its own, and a single literal would
     // hide which one did.
-    expect(sentences.length).toBe(CORPUS.cases.length + 112)
+    // ⭐ 111 -> 112 (2026-09-20): `floor` joined the bar vocabulary.
+    // ⭐ 112 -> 113 (2026-09-20): `percentileLinearInterpolation` joined too.
+    // ⭐⭐ 113 -> 119 (2026-09-20): `lastbartime` + its five calendar fields.
+    // ⭐ 119 -> 120 (2026-09-20): `ceil` joined the bar vocabulary.
+    // ⭐⭐ 120 -> 121 (2026-09-20): `valuewhenOccurrence` joined too.
+    // ⭐ 121 -> 122 (2026-09-20): `dayopentime` joined too.
+    expect(sentences.length).toBe(CORPUS.cases.length + 122)
     for (const s of sentences) {
       const found = readSentenceCandidates(s)
       expect(found.map((f) => f.via), `${found.length} parses of: ${s}`).toHaveLength(1)

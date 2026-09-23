@@ -41,6 +41,7 @@ import { useCallback, useEffect, useState } from 'react'
 import Sheet from '../../../../components/mobile/Sheet'
 import UIcon from '../../../../components/ui/UIcon'
 import { FOLDER_PICKER_ROOT_REMOTE_ID } from '../../hooks/useNoteConnectors'
+import { SkeletonLine } from '../../../../components/Skeleton'
 import styles from './DropboxFolderPicker.module.css'
 
 export default function DropboxFolderPicker({
@@ -184,7 +185,13 @@ export default function DropboxFolderPicker({
         )}
 
         {loading ? (
-          <p className={styles.muted}>Loading folders…</p>
+          // G-106 (Wave B lower-frequency sweep): a couple of row-shaped
+          // skeleton lines, standing in for folder rows, instead of bare
+          // text.
+          <div className={styles.list} role="status" aria-label="Loading folders…">
+            <SkeletonLine width="60%" height={13} />
+            <SkeletonLine width="45%" height={13} />
+          </div>
         ) : (
           <ul className={styles.list}>
             {folders.length === 0 && !error && <li className={styles.muted}>No subfolders here.</li>}

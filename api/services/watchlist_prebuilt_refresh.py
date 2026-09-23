@@ -170,6 +170,10 @@ def refresh_prebuilt_lists(apply=True):
         with open(tmp, "w", encoding="utf-8") as fh:
             json.dump(overlay, fh, separators=(",", ":"))
         os.replace(tmp, wp._OVERLAY_PATH)
+        # The catalogue memo keys on this file's mtime, so it would expire on its own —
+        # but this job runs right before the seeder reconciles against it, and that
+        # comparison must not read a pre-write snapshot.
+        wp.invalidate_prebuilt_config_cache()
     except Exception as e:
         _log.warning("[prebuilt-refresh] overlay write failed: %s", e)
         return {"ok": False, "reason": "write_failed"}

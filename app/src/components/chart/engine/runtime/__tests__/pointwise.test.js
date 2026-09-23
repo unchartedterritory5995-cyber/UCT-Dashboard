@@ -60,13 +60,14 @@ describe('a pointwise builtin applied to a value the runtime mutated', () => {
     expect(out).toEqual(Array.from({ length: N }, (_, i) => Math.max(i + 1, 5)))
   })
 
-  it('⭐ math.min, math.abs, math.sqrt, math.round, math.sign over state', () => {
+  it('⭐ math.min, math.abs, math.sqrt, math.round, math.sign, math.floor over state', () => {
     const mk = (call) => `${head}var x = 0.0\nx := x - 2\nplot(${call})\n`
     const st = (i) => -2 * (i + 1)
     expect(runPine(mk('math.min(x, -10)')).out).toEqual(Array.from({ length: N }, (_, i) => Math.min(st(i), -10)))
     expect(runPine(mk('math.abs(x)')).out).toEqual(Array.from({ length: N }, (_, i) => Math.abs(st(i))))
     expect(runPine(mk('math.sign(x)')).out).toEqual(Array.from({ length: N }, () => -1))
     expect(runPine(mk('math.round(x / 3)')).out).toEqual(Array.from({ length: N }, (_, i) => Math.round(st(i) / 3)))
+    expect(runPine(mk('math.floor(x / 3)')).out).toEqual(Array.from({ length: N }, (_, i) => Math.floor(st(i) / 3)))
   })
 
   it('⭐⭐ math.log RENAMES ONTO `ln` through a shape, and the rename executes', () => {
@@ -177,6 +178,7 @@ describe('⭐⭐ graph-vs-runtime differential for pointwise (§29)', () => {
     'math.abs(close - 110)',
     'math.sqrt(close)',
     'math.round(close / 7)',
+    'math.floor(close / 7)',
     'math.pow(close, 2)',
     'nz(close, 0)',
   ]

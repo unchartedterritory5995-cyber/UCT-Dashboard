@@ -20,6 +20,25 @@ _SORTABLE = set(snapshot_db.COLUMNS)
 _MAX_PAGE = 500
 _SCAN_KEY = "scan"
 _LIST_KEY = "list"
+# The base-pool selector (UniverseBar). "all" (or absent) = the full snapshot;
+# "uct" = the curated, tradeable-quality subset. Resolved server-side like the
+# other reserved keys so it never shows as a member filter chip.
+_UNIVERSE_KEY = "universe"
+UCT_MIN_PRICE = 5.0            # $
+UCT_MIN_DOLLAR_VOL = 20_000_000  # 30-day avg $-volume
+
+
+def _universe_clauses(f, clauses, params, overlay):
+    """The UCT curated universe = liquid, tradeable names inside the snapshot
+    (which is already market-cap ≥ $300M). `value: "uct"` applies the gate;
+    "all"/anything else is the full market and adds no clause. Nulls fall
+    outside `>=`, so a name with unknown liquidity is (correctly) not "UCT"."""
+    if f.get("value") != "uct":
+        return
+    clauses.append(f'{overlay.col_expr("price")} >= ?')
+    params.append(UCT_MIN_PRICE)
+    clauses.append(f'{overlay.col_expr("dollar_vol_30d")} >= ?')
+    params.append(UCT_MIN_DOLLAR_VOL)
 
 
 # ═══════════════════════════════════════════════════════════════════════════
@@ -486,6 +505,9 @@ def build_where(filter_specs, scan_joins=None, overlay=None, *,
             # member's watchlist.
             _list_clauses(f, clauses, params, list_joins, user_id)
             continue
+        if key == _UNIVERSE_KEY:
+            _universe_clauses(f, clauses, params, overlay)
+            continue
         retired = getattr(filters, "RETIRED", {}).get(key)
         if retired is not None:
             raise _retired_refusal(key, retired)
@@ -538,6 +560,17 @@ def build_where(filter_specs, scan_joins=None, overlay=None, *,
             vals = f.get("values") or []
             if vals:
                 clauses.append(f"{col} IN ({','.join('?' for _ in vals)})")
+                params.extend(vals)
+        elif op == "not_in":
+            # Exclude: keep rows whose value is none of `values`. A NULL value is
+            # NULL under `NOT IN`, so it would be dropped — but "exclude ETFs"
+            # must not silently also drop a row whose type we simply do not hold,
+            # so the NULL is kept explicitly. (Include's `IN` has the opposite,
+            # correct default: an unknown type is not one of the chosen buckets.)
+            vals = f.get("values") or []
+            if vals:
+                ph = ",".join("?" for _ in vals)
+                clauses.append(f"({col} NOT IN ({ph}) OR {col} IS NULL)")
                 params.extend(vals)
         elif op == "contains":
             clauses.append(f"{col} LIKE ?"); params.append(f"%{f['value']}%")
@@ -1017,6 +1050,24 @@ def live_screen_state(rows, tier=None) -> dict:
     }
 
 
+# A value column whose columnDefs formatter renders a rich label by reading a
+# COMPANION column (`row.<companion>`) — "Tweezer Top (Hanging Man)" from
+# candle_type reading candle_label. The companion must be FETCHED for the label
+# to render, but it is NOT a displayed column: listing it in a view showed it
+# twice (the value column already renders the label). So it is fetched here and
+# left OFF out_columns. Unlike base_matches (fetched then DROPPED because
+# base_bias is derived server-side), these are KEPT in the row — the FRONTEND
+# formatter reads them.
+_DISPLAY_COMPANIONS = {
+    "candle_type": ("candle_label",),
+    "candle_weekly": ("candle_weekly_label",),
+    "candle_monthly": ("candle_monthly_label",),
+    "candle_recent": ("candle_recent_label",),
+    "bar_character": ("bar_character_label",),
+    "base_shape": ("base_shape_label",),
+}
+
+
 def build_scan_sql(spec, overlay=None, *, user_id=None, conn=None) -> dict:
     """The EXACT statement `run_scan` executes, plus what describes its rows.
 
@@ -1133,6 +1184,24 @@ def build_scan_sql(spec, overlay=None, *, user_id=None, conn=None) -> dict:
                 seen.add(c)
                 select_cols.append(c)
         out_columns = select_cols
+        # Fetch-only extras — added to the SELECT but NOT to out_columns, so
+        # nothing renders twice (`select_cols` becomes a new list; out_columns
+        # keeps the display-only one):
+        #   • base_matches when the structure tag is shown, so run_scan can
+        #     derive base_bias — then DROPPED (base_bias is server-side);
+        #   • each displayed value column's render companion (candle_label etc.),
+        #     which its columnDefs formatter reads for the rich label — KEPT in
+        #     the row (the frontend reads it). This is what removes the duplicate
+        #     `X` / `X Label` columns the views used to list side by side.
+        extra = []
+        if "base_render" in seen and "base_matches" not in seen:
+            extra.append("base_matches")
+        for c in out_columns:
+            for d in _DISPLAY_COMPANIONS.get(c, ()):
+                if d not in seen and d not in extra:
+                    extra.append(d)
+        if extra:
+            select_cols = [*out_columns, *extra]
     elif overlay.on:
         # ⚠️ `SELECT *` CANNOT SURVIVE THE JOIN. With a second table in the FROM
         # it returns BOTH tables' columns, and `sqlite3.Row` keeps only the last
@@ -1301,6 +1370,21 @@ def run_scan(spec, user_id=None, user=None):
     # PILOT_ENABLED=1 AND the caller is an admin -- see pattern_join.py's
     # own docstring on this function for the full fail-safe/scope contract.
     out_rows = pattern_join.apply_canonical_pilot_overlay(out_rows, user)
+    # base_bias — the textbook bias of the LEADING base structure, DERIVED from
+    # `base_matches` (no stored column, no reindex; lights up for every existing
+    # row on the next request). `bases.primary_bias` reuses the render ordering,
+    # so the colour can never disagree with the name `base_render` shows.
+    # `base_matches` is fetched for this even when the client did not request it
+    # (see the SELECT above), so it is DROPPED from the row unless it is a
+    # displayed column — the requested-columns projection stays exact.
+    from api.services.screener import bases as _bases
+    _view_cols = plan.get("view_columns") or []
+    _keep_matches = "base_matches" in _view_cols
+    for _r in out_rows:
+        if "base_matches" in _r:
+            _r["base_bias"] = _bases.primary_bias(_r.get("base_matches"))
+            if not _keep_matches:
+                _r.pop("base_matches", None)
     # 🔑 THE LIVE DISCLOSURE RIDES THE PROVENANCE BLOCK, AT ONE ADDRESS.
     #
     # `snapshot` is already this response's provenance object and is already

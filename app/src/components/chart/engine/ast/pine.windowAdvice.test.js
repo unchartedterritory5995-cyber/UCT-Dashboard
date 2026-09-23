@@ -75,19 +75,18 @@ describe('🔴 the half-window the advice names is the one the manifest declares
     expect(up.worst).toBeGreaterThan(0.1)
   })
 
-  it('⚰️ `floor` IS declared now (2026-09-22) — so the advice text is STALE, not wrong', () => {
-    // ⚰️ THIS CASE ASSERTED THE OPPOSITE, and the reason it gave was true when
-    // it was written: *"advising `floor(…)` would hand a member a formula that
-    // refuses."* It no longer would. `ceil` and `floor` were declared on
-    // 2026-09-22 — the last two names missing from the whole `math.*` family.
+  it('⭐ `floor` is declared (2026-09-20), so it is the downward spelling a member is offered', () => {
+    // The advice used to offer `idiv` because advising `floor(…)` would have
+    // handed a member a formula that refuses — `floor` is declared now, so it
+    // is the mathematically obvious name the advice prefers.
     expect(Object.keys(TABLE.functions)).toContain('floor')
     expect(Object.keys(TABLE.functions)).toContain('idiv')
     expect(Object.keys(TABLE.functions)).toContain('round')
-
-    // ⭐ AND `floor` REALLY IS USABLE AS A WINDOW NOW, which is the half that
-    // makes this a gain rather than a bookkeeping change: the expression the
-    // advice exists to rescue translates on its own.
+    // …and `floor(x)` really is the value the advice prints. Derived through
+    // the engine, not asserted.
     expect(col('floor(27.5)')[199]).toBe(27)
+    // `idiv(x, 1)` still agrees for a positive x — it is the fallback spelling
+    // this advice would fall back to were `floor` ever undeclared again.
     expect(col('idiv(27.5, 1)')[199]).toBe(27)
 
     // ⛔⛔ THE ADVICE TEXT STILL SAYS `idiv`, AND IT IS LEFT ALONE ON PURPOSE.
@@ -114,7 +113,7 @@ describe('🔴 the half-window the advice names is the one the manifest declares
     expect(r.guard).toBe('pine:window')
     expect(r.message).toContain('reduces to 27.5')
     // Both spellings, both answers — the member can see that a choice exists.
-    expect(r.message).toContain('idiv(55 * 1 / 2, 1)` is 27')
+    expect(r.message).toContain('floor(55 * 1 / 2)` is 27')
     expect(r.message).toContain('round(55 * 1 / 2)` is 28')
   })
 

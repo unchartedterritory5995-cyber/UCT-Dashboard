@@ -461,6 +461,19 @@ def get_saved_view(user_id: str, view_id: str, conn: sqlite3.Connection | None =
             conn.close()
 
 
+#: The view types a saved view may carry.
+#:
+#: ⛔ THE CLIENT'S `viewMode` VALUES ARE THIS SET, and adding one here without a
+#: restore branch in `NotebookTab.handleSelectView` produces a view that saves
+#: and then opens as a list -- silently, because an unknown type falls back.
+#: `tests/test_journal_two_properties_router.py` pins both directions.
+#:
+#: ⚠️ board and calendar also store a property ID in their spec (`groupBy`,
+#: `dateProperty`). The server does not resolve those -- the client applies them
+#: on restore. Ids, never names, so a rename cannot break a saved view.
+SAVEABLE_VIEW_TYPES = ("list", "table", "board", "calendar", "graph")
+
+
 def create_saved_view(
     user_id: str, name: str, view_type: str, spec: dict[str, Any],
     conn: sqlite3.Connection | None = None,
@@ -474,7 +487,7 @@ def create_saved_view(
     name = (name or "").strip()
     if not name:
         raise PropertyValidationError("View name is required")
-    if view_type not in ("list", "table"):
+    if view_type not in SAVEABLE_VIEW_TYPES:
         raise PropertyValidationError(f"Unsupported view type: {view_type!r}")
     owned = conn is None
     conn = conn or get_connection()

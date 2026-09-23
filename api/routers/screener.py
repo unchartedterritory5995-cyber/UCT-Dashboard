@@ -118,6 +118,11 @@ class ScanSpec(BaseModel):
     sort: dict | None = None
     view: str = "overview"
     columns: list[str] | None = None
+    # A ranked scan (weighted composite + optional top_n cap, e.g. UCT 50).
+    # query.py already parses/validates this via ranking.parse and bounds the
+    # page by top_n; it just never reached the query because the model dropped
+    # the field. None = a plain sorted list, exactly as before.
+    rank: dict | None = None
     page: int = 1
     page_size: int = 50
 
@@ -321,6 +326,27 @@ def screener_refresh(max_tickers: int = 800, user=Depends(require_admin)):
         target=lambda: snapshot_builder.run_build(max_tickers=max_tickers),
         daemon=True, name="screener-refresh").start()
     return {"started": True, "max_tickers": max_tickers}
+
+
+@router.post("/api/screener/rebuild-universe")
+def screener_rebuild_universe(min_shares: float | None = None, sessions: int = 5,
+                             user=Depends(require_admin)):
+    """Admin: regenerate the screener's OWN universe from Massive reference — every
+    US common stock + ADR that trades, NO price/market-cap floor, minus dead
+    shells and the buyout exclude list. Writes `<DATA_DIR>/screener_universe.json`,
+    which `snapshot_builder._load_universe` prefers over the cap-universe fallback.
+
+    Runs on the web pod because that is where the Massive key lives, and SYNCHRONOUS
+    because it is a handful of cached reference/grouped-daily calls, not a
+    whole-universe build. It does NOT build snapshot rows — the nightly build (or
+    `POST /api/screener/refresh`) fills rows for any newly-added names afterwards.
+
+    `require_admin` (stricter than paid) for the same reason as `/refresh`: it
+    spends provider budget. Best-effort — a reference-API miss writes nothing and
+    reports `ok:false`, leaving the previous universe in place.
+    """
+    from api.services.screener import screener_universe
+    return screener_universe.build_and_save(min_shares=min_shares, sessions=sessions)
 
 
 @router.post("/api/screener/finviz-refresh")

@@ -140,6 +140,7 @@ tools/c0_out3/
 tools/c0_out4/
 tools/c0_out_oos/
 tools/c0_ctrl/
+tools/c3b_geometry_gaps_close/
 tools/c0r_out*/*.png
 tools/c1_out*/*.png
 tools/c1_keep/
@@ -224,3 +225,22 @@ docs/plans/joystick/gate-runs/INVALID-*.md
 # scratch directory a run writes before it is compared, and committing it would
 # make every capture a diff.
 docs/breadth-data-charts/shots/
+
+# harness run output (regenerated on each run)
+tools/intraday_tail_harness_out.json
+tools/intraday_scan_out.json
+
+# ⭐ `api/data/naaim_history.csv` IS VERSION-CONTROLLED, for the same reason the
+# canonical address book above is: it is DERIVED (tools/build_naaim_seed.py, from
+# NAAIM's own public embeddable table) but it is not scratch output. The web pod
+# seeds the canonical NAAIM series from it at boot, so a checkout without it starts
+# with no history — and a generated file nobody can diff in review is a second
+# authority with extra steps.
+#
+# ⚠️ IT IS TRACKED BY `git add -f`, NOT BY A NEGATION HERE. Git cannot re-include a
+# file whose PARENT DIRECTORY is excluded, and line 11's `data/` excludes
+# `api/data/`. Every committed file under there — `breadth_sentiment_history.csv`,
+# `cap_universe.json`, the voice KB — is tracked the same way. A `!api/data/...`
+# line would look like it worked and would not.
+tools/intraday_current_out.json
+tools/scan_handoff_out.json

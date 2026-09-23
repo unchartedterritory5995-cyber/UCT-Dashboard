@@ -4,9 +4,9 @@
 }
 
 .card {
-  border: 1px solid var(--color-border, #232932);
+  border: 1px solid var(--border);
   border-radius: 8px;
-  background: var(--color-bg-elevated, #12151b);
+  background: var(--bg-elevated);
   padding: 10px 12px;
   max-width: 480px;
   font-size: 13px;
@@ -15,7 +15,7 @@
 .unavailable {
   display: flex;
   align-items: center;
-  color: var(--color-text-muted, #8a8f98);
+  color: var(--text-muted);
   font-style: italic;
 }
 
@@ -27,7 +27,7 @@
 
 .quoteText {
   flex: 1;
-  color: var(--color-text-primary, #e8eaed);
+  color: var(--text-bright);
   font-style: italic;
   line-height: 1.45;
 }
@@ -35,7 +35,7 @@
 .removeBtn {
   background: transparent;
   border: none;
-  color: var(--color-text-muted, #8a8f98);
+  color: var(--text-muted);
   cursor: pointer;
   padding: 2px;
   min-width: 24px;
@@ -47,8 +47,8 @@
   flex-shrink: 0;
 }
 .removeBtn:hover {
-  background: var(--color-bg-hover, rgba(255, 255, 255, 0.06));
-  color: var(--color-text-primary, #e8eaed);
+  background: var(--bg-hover);
+  color: var(--text-bright);
 }
 
 .citation {
@@ -58,24 +58,24 @@
   padding: 0;
   background: transparent;
   border: none;
-  color: var(--color-text-muted, #8a8f98);
+  color: var(--text-muted);
   font-size: 11px;
   cursor: pointer;
 }
 .citation:hover {
-  color: #dcbb5e;
+  color: var(--ut-gold);
 }
 
 .annotation {
   margin-top: 6px;
   padding-top: 6px;
-  border-top: 1px solid var(--color-border, #232932);
-  color: var(--color-text-secondary, #b8bcc4);
+  border-top: 1px solid var(--border);
+  color: var(--text-muted);
   font-size: 12px;
 }
 
 .muted {
-  color: var(--color-text-muted, #8a8f98);
+  color: var(--text-muted);
   font-weight: 400;
   font-size: 12px;
   font-style: italic;

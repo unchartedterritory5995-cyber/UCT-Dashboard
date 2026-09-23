@@ -202,14 +202,24 @@ def test_alias_map_tags_exactly_the_newest_issue(prebuilt, monkeypatch):
     """A widget pinned to `community:alias:sunday-scans-latest` must follow each
     new issue: the alias sits on the NEWEST list only, moves with it, and is
     absent when the store is unreadable (nothing for a widget to resolve —
-    never a stale guess)."""
+    never a stale guess).
+
+    ⚠️ The invalidations below are the freshness CONTRACT, not test scaffolding.
+    `alias_map()` now reads the dated rows of the memoized config instead of opening
+    a FIFTH desk-store connection per request, so a newly published issue takes over
+    the alias within the memo's TTL rather than on the very next request. Each
+    `_fake_desk` swap here stands for "a week passed and the store changed" — the
+    memo would long since have expired on its own. What the test still pins is the
+    part that matters: WHICH list wears the alias, and that it moves."""
     _fake_desk(monkeypatch, ISSUES)
     got = prebuilt.alias_map()
     assert got == {"sunday scans — august 16, 2026": {
         "alias": prebuilt.SUNDAY_SCANS_LATEST_ALIAS, "label": "Sunday Scans — Latest issue"}}
     _fake_desk(monkeypatch, ISSUES[1:])           # Aug 16 gone → the alias moves to Aug 9
+    prebuilt.invalidate_prebuilt_config_cache()
     assert list(prebuilt.alias_map()) == ["sunday scans — august 9, 2026"]
     _fake_desk(monkeypatch, None)
+    prebuilt.invalidate_prebuilt_config_cache()
     assert prebuilt.alias_map() == {}
 
 

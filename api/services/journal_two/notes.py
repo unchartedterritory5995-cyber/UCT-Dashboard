@@ -174,15 +174,52 @@ def extract_plain_text(doc: dict[str, Any] | None) -> str:
     return " ".join(s for s in out if s)
 
 
-# ── Widget-embed sidecar (j2_note_embeds) ────────────────────────────────────
+# ── Combined note-content sidecar sync (Performance QW-2, 2026-09-22) ───────
+#
+# All FIVE of a note's content-derived sidecar projections (j2_note_embeds,
+# j2_note_mentions, j2_note_links, j2_note_fact_refs, j2_note_excerpt_refs)
+# used to be kept in sync by five separate functions, invoked back-to-back at
+# every one of this file's seven bodyJson-writing call sites. Four of those
+# five (everything except mentions) independently walked the SAME body_json
+# document tree -- once each for widgetEmbed, noteLink, financialFact and
+# documentExcerpt nodes -- to answer what is really one question asked four
+# times over: "what does this tree contain, node by node?" For a large
+# document (the audit's own named case: a big, mostly-prose or imported note)
+# that is 4x the walk cost of what the answer actually requires, paid on
+# every save that touches the body.
+#
+# ⛔ What this does NOT change, and why: the audit's literal framing was
+# "skip a full DELETE + INSERT when there's nothing to sync." That premise is
+# false for this schema -- every one of these 5 tables (db.py) declares
+# `note_id` as the LEADING column of its composite PRIMARY KEY, so SQLite
+# serves `DELETE ... WHERE note_id = ?` from that index. A delete against a
+# note with zero existing sidecar rows (the common case the audit worried
+# about) is a single index probe that deletes nothing -- there is no table
+# scan to avoid, and a SELECT EXISTS pre-check to skip it would spend a round
+# trip to save a round trip that was already nearly free. The real,
+# measurable cost was the redundant walk, and that's what this fixes: same
+# DELETE-then-conditionally-INSERT shape per table, computed from ONE walk
+# instead of four.
+def _sync_note_sidecars(
+    conn: sqlite3.Connection, user_id: str, note_id: str,
+    body_json: dict[str, Any] | None, body_plain: str | None,
+) -> None:
+    """Rebuild all 5 note-content sidecar projections inside the caller's
+    transaction (no commit here). Replaces the old _sync_note_embeds /
+    _sync_note_mentions / _sync_note_links / _sync_note_fact_refs /
+    _sync_note_excerpt_refs quintet, which every call site invoked together
+    in this exact order -- see the module comment above for why combining
+    them is a real perf win and not just tidying."""
+    embeds: list[dict[str, Any]] = []
+    link_ids: list[str] = []
+    fact_ids: list[str] = []
+    excerpt_ids: list[str] = []
 
-def _extract_embeds(doc: dict[str, Any] | None) -> list[dict[str, Any]]:
-    """Every widgetEmbed node in document order, flattened to sidecar rows."""
-    rows: list[dict[str, Any]] = []
     def walk(node: Any) -> None:
         if not isinstance(node, dict):
             return
-        if node.get("type") == "widgetEmbed":
+        ntype = node.get("type")
+        if ntype == "widgetEmbed":
             attrs = node.get("attrs")
             if not isinstance(attrs, dict):
                 attrs = {}
@@ -202,7 +239,7 @@ def _extract_embeds(doc: dict[str, Any] | None) -> list[dict[str, Any]]:
                 # save. Note save is authoritative; this projection sync is not.
                 if trade_ref_type is not None and not is_valid_trade_ref_type(trade_ref_type):
                     trade_ref_type = None
-                rows.append({
+                embeds.append({
                     "widget_id": widget_id,
                     "symbol": sym.upper() if isinstance(sym, str) and sym else None,
                     "timeframe": str(tf) if tf is not None else None,
@@ -211,69 +248,53 @@ def _extract_embeds(doc: dict[str, Any] | None) -> list[dict[str, Any]]:
                     "mode": attrs.get("mode") or None,
                     "captured_at": attrs.get("capturedAt") or None,
                 })
-        for child in node.get("content", []) or []:
-            walk(child)
-    if isinstance(doc, dict):
-        walk(doc)
-    return rows
-
-
-def _extract_note_links(doc: dict[str, Any] | None) -> list[str]:
-    """Every `noteLink` node's target id, in document order (Wave D). A note
-    linking to the same target twice keeps BOTH occurrences (position is part
-    of the sidecar's primary key) -- directive §64 wants the backlink UI to
-    show one relationship per SOURCE note, not one row per occurrence, and
-    that de-dup happens at the QUERY layer (get_note_backlinks), not here, so
-    this stays a faithful, ungrouped projection of what the document actually
-    contains."""
-    ids: list[str] = []
-    def walk(node: Any) -> None:
-        if not isinstance(node, dict):
-            return
-        if node.get("type") == "noteLink":
+        elif ntype == "noteLink":
+            # Wave D. A note linking to the same target twice keeps BOTH
+            # occurrences (position is part of the sidecar's primary key) --
+            # directive §64 wants the backlink UI to show one relationship
+            # per SOURCE note, not one row per occurrence, and that de-dup
+            # happens at the QUERY layer (get_note_backlinks), not here, so
+            # this stays a faithful, ungrouped projection of what the
+            # document actually contains.
             attrs = node.get("attrs")
             target = attrs.get("noteId") if isinstance(attrs, dict) else None
             if isinstance(target, str) and target:
-                ids.append(target)
+                link_ids.append(target)
+        elif ntype == "financialFact":
+            # Wave F.
+            attrs = node.get("attrs")
+            fid = attrs.get("factId") if isinstance(attrs, dict) else None
+            if isinstance(fid, str) and fid:
+                fact_ids.append(fid)
+        elif ntype == "documentExcerpt":
+            # Wave J. Mirrors financialFact exactly.
+            attrs = node.get("attrs")
+            eid = attrs.get("excerptId") if isinstance(attrs, dict) else None
+            if isinstance(eid, str) and eid:
+                excerpt_ids.append(eid)
         for child in node.get("content", []) or []:
             walk(child)
-    if isinstance(doc, dict):
-        walk(doc)
-    return ids
+    if isinstance(body_json, dict):
+        walk(body_json)
 
-
-def _sync_note_embeds(
-    conn: sqlite3.Connection, user_id: str, note_id: str,
-    body_json: dict[str, Any] | None,
-) -> None:
-    """Rebuild the note's j2_note_embeds projection inside the caller's
-    transaction (no commit here). Delete + insert: the row set is tiny and
-    document order (position) is the primary key."""
+    # j2_note_embeds -- delete+insert; document order (position) is the PK.
     conn.execute("DELETE FROM j2_note_embeds WHERE note_id = ?", (note_id,))
-    rows = _extract_embeds(body_json)
-    if rows:
+    if embeds:
         conn.executemany(
             "INSERT INTO j2_note_embeds (note_id, user_id, position, widget_id,"
             " symbol, timeframe, trade_ref, trade_ref_type, mode, captured_at)"
             " VALUES (?,?,?,?,?,?,?,?,?,?)",
             [(note_id, user_id, i, r["widget_id"], r["symbol"], r["timeframe"],
               r["trade_ref"], r["trade_ref_type"], r["mode"], r["captured_at"])
-             for i, r in enumerate(rows)])
+             for i, r in enumerate(embeds)])
 
-
-# ── Prose-mention sidecar (j2_note_mentions, P0-3) ───────────────────────────
-
-def _sync_note_mentions(
-    conn: sqlite3.Connection, user_id: str, note_id: str, body_plain: str | None,
-) -> None:
-    """Rebuild the note's j2_note_mentions projection inside the caller's
-    transaction (no commit here) — same delete+insert idiom as
-    _sync_note_embeds. Cashtag-tier ONLY (see the schema comment in db.py for
-    why): scans body_plain, which every caller has already computed via
-    extract_plain_text — this never re-derives note text or re-walks
-    body_json. Fast and local: buzz_extract is a pure regex/set-membership
-    matcher, no network call, so this never makes a note save depend on an
-    external provider."""
+    # j2_note_mentions -- cashtag-tier ONLY (see the schema comment in db.py
+    # for why): scans body_plain, which every caller has already computed
+    # via extract_plain_text -- this never re-derives note text or re-walks
+    # body_json, which is why it stays outside the combined walk above.
+    # Fast and local: buzz_extract is a pure regex/set-membership matcher,
+    # no network call, so this never makes a note save depend on an
+    # external provider.
     conn.execute("DELETE FROM j2_note_mentions WHERE note_id = ?", (note_id,))
     symbols = sorted({
         sym for sym, tier in buzz_extract.extract(body_plain or "")
@@ -286,104 +307,42 @@ def _sync_note_mentions(
             " VALUES (?,?,?,?)",
             [(note_id, user_id, sym, now) for sym in symbols])
 
-
-# ── Internal note-link sidecar (j2_note_links, Wave D) ───────────────────────
-
-def _sync_note_links(
-    conn: sqlite3.Connection, user_id: str, note_id: str,
-    body_json: dict[str, Any] | None,
-) -> None:
-    """Rebuild the note's j2_note_links projection inside the caller's
-    transaction (no commit here) -- same delete+insert idiom as
-    _sync_note_embeds/_sync_note_mentions. A `noteLink` node's target id is
-    NEVER validated against j2_notes here: a link to a note that doesn't
-    exist (foreign tenant, already deleted, malformed id typed via direct API
-    use) still gets a sidecar row -- resolving whether that target is real,
-    owned, trashed, or purged is the READ path's job (get_note_backlinks /
-    the node view's own title lookup), which re-verifies ownership on every
-    call. Persisting an unresolvable row here is harmless (directive §33's
-    'never silently delete source content' cuts the other way too -- this
-    sync must never REJECT a save because a link target looks wrong)."""
+    # j2_note_links -- a `noteLink` node's target id is NEVER validated
+    # against j2_notes here: a link to a note that doesn't exist (foreign
+    # tenant, already deleted, malformed id typed via direct API use) still
+    # gets a sidecar row -- resolving whether that target is real, owned,
+    # trashed, or purged is the READ path's job (get_note_backlinks / the
+    # node view's own title lookup), which re-verifies ownership on every
+    # call. Persisting an unresolvable row here is harmless (directive §33's
+    # 'never silently delete source content' cuts the other way too -- this
+    # sync must never REJECT a save because a link target looks wrong).
     conn.execute("DELETE FROM j2_note_links WHERE note_id = ?", (note_id,))
-    target_ids = _extract_note_links(body_json)
-    if target_ids:
+    if link_ids:
         conn.executemany(
             "INSERT INTO j2_note_links (note_id, user_id, position, target_note_id)"
             " VALUES (?,?,?,?)",
-            [(note_id, user_id, i, tid) for i, tid in enumerate(target_ids)])
+            [(note_id, user_id, i, tid) for i, tid in enumerate(link_ids)])
 
-
-def _extract_note_fact_refs(doc: dict[str, Any] | None) -> list[str]:
-    """Every `financialFact` node's fact id, in document order (Wave F)."""
-    ids: list[str] = []
-    def walk(node: Any) -> None:
-        if not isinstance(node, dict):
-            return
-        if node.get("type") == "financialFact":
-            attrs = node.get("attrs")
-            fid = attrs.get("factId") if isinstance(attrs, dict) else None
-            if isinstance(fid, str) and fid:
-                ids.append(fid)
-        for child in node.get("content", []) or []:
-            walk(child)
-    if isinstance(doc, dict):
-        walk(doc)
-    return ids
-
-
-def _sync_note_fact_refs(
-    conn: sqlite3.Connection, user_id: str, note_id: str,
-    body_json: dict[str, Any] | None,
-) -> None:
-    """Rebuild the note's j2_note_fact_refs projection inside the caller's
-    transaction (no commit here) -- same delete+insert idiom as
-    _sync_note_links. Facts are note-owned (Wave F checkpoint decision 24):
-    a factId this note no longer references simply drops out of the sidecar;
-    the owning j2_fact_observations row is untouched here (removal-as-deletion
-    is note_facts.delete_fact_observation's job, called explicitly by the
-    editor when a member removes a financialFact node, never inferred from a
-    save diff -- inferring it here would delete a fact the member only
-    temporarily cut mid-edit)."""
+    # j2_note_fact_refs -- facts are note-owned (Wave F checkpoint decision
+    # 24): a factId this note no longer references simply drops out of the
+    # sidecar; the owning j2_fact_observations row is untouched here
+    # (removal-as-deletion is note_facts.delete_fact_observation's job,
+    # called explicitly by the editor when a member removes a financialFact
+    # node, never inferred from a save diff -- inferring it here would
+    # delete a fact the member only temporarily cut mid-edit).
     conn.execute("DELETE FROM j2_note_fact_refs WHERE note_id = ?", (note_id,))
-    fact_ids = _extract_note_fact_refs(body_json)
     if fact_ids:
         conn.executemany(
             "INSERT INTO j2_note_fact_refs (note_id, user_id, position, fact_id)"
             " VALUES (?,?,?,?)",
             [(note_id, user_id, i, fid) for i, fid in enumerate(fact_ids)])
 
-
-def _extract_note_excerpt_refs(doc: dict[str, Any] | None) -> list[str]:
-    """Every `documentExcerpt` node's excerpt id, in document order
-    (Wave J). Mirrors `_extract_note_fact_refs` exactly."""
-    ids: list[str] = []
-    def walk(node: Any) -> None:
-        if not isinstance(node, dict):
-            return
-        if node.get("type") == "documentExcerpt":
-            attrs = node.get("attrs")
-            eid = attrs.get("excerptId") if isinstance(attrs, dict) else None
-            if isinstance(eid, str) and eid:
-                ids.append(eid)
-        for child in node.get("content", []) or []:
-            walk(child)
-    if isinstance(doc, dict):
-        walk(doc)
-    return ids
-
-
-def _sync_note_excerpt_refs(
-    conn: sqlite3.Connection, user_id: str, note_id: str,
-    body_json: dict[str, Any] | None,
-) -> None:
-    """Rebuild the note's j2_note_excerpt_refs projection inside the
-    caller's transaction (no commit here) -- mirrors `_sync_note_fact_refs`
-    exactly. An excerptId this note no longer references simply drops out
-    of the sidecar; the owning j2_note_excerpts row is untouched here
-    (removal-as-deletion is note_excerpts.delete_excerpt's job, an explicit
-    action never inferred from a save diff)."""
+    # j2_note_excerpt_refs -- mirrors j2_note_fact_refs exactly. An
+    # excerptId this note no longer references simply drops out of the
+    # sidecar; the owning j2_note_excerpts row is untouched here
+    # (removal-as-deletion is note_excerpts.delete_excerpt's job, an
+    # explicit action never inferred from a save diff).
     conn.execute("DELETE FROM j2_note_excerpt_refs WHERE note_id = ?", (note_id,))
-    excerpt_ids = _extract_note_excerpt_refs(body_json)
     if excerpt_ids:
         conn.executemany(
             "INSERT INTO j2_note_excerpt_refs (note_id, user_id, position, excerpt_id)"
@@ -432,7 +391,21 @@ def _validate_body_json(raw: Any) -> dict[str, Any]:
         raise NoteValidationError("body_json must be a TipTap doc")
     serialized = json.dumps(raw)
     if len(serialized.encode("utf-8")) > MAX_BODY_JSON_BYTES:
-        raise NoteValidationError("body_json too large (>1MB)")
+        # ⛔ THIS STRING REACHES A MEMBER VERBATIM, TWICE OVER, BY DESIGN —
+        # never re-word it at a display site. `NoteEditorPage`'s own
+        # `friendlySaveError` deliberately shows a real backend detail
+        # UNCHANGED (its own regression test: "a real backend-authored
+        # detail ... is preserved verbatim"), and the import wizard's
+        # "Needs attention" list renders `item.error` the same way
+        # (commit.js). Measured 2026-09-21 against a real note that grew
+        # past the cap while already open in the editor: the member saw
+        # "Save failed: body_json too large (>1MB)" — an internal field
+        # name, with no idea what to do about it. One raise site fixes
+        # both surfaces; a per-surface translation would fix neither for
+        # the other and would be a second authority over this sentence.
+        raise NoteValidationError(
+            "This note is too long to save as one page. "
+            "Split it into two or more notes and try again.")
     return raw
 
 
@@ -722,11 +695,7 @@ def import_confirm(user_id: str, payload: dict, conn: sqlite3.Connection | None 
                             (title, n.get("subtitle") or None, json.dumps(body_json), body_plain,
                              first_image, folder_id, ticker, json.dumps(tags), h, media_pending, now,
                              updated_at, row["id"], user_id))
-                        _sync_note_embeds(conn, user_id, row["id"], body_json)
-                        _sync_note_mentions(conn, user_id, row["id"], body_plain)
-                        _sync_note_links(conn, user_id, row["id"], body_json)
-                        _sync_note_fact_refs(conn, user_id, row["id"], body_json)
-                        _sync_note_excerpt_refs(conn, user_id, row["id"], body_json)
+                        _sync_note_sidecars(conn, user_id, row["id"], body_json, body_plain)
                         conn.execute("RELEASE j2_import_note")
                         # Wave Q1 (2026-09-12): ADDITIVE — the revision this write
                         # created travels back. `import_confirm` advances
@@ -747,11 +716,7 @@ def import_confirm(user_id: str, payload: dict, conn: sqlite3.Connection | None 
                             (new_id, user_id, folder_id, title, n.get("subtitle") or None,
                              json.dumps(body_json), body_plain, first_image, ticker, json.dumps(tags),
                              source, key, h, media_pending, now, created_at, updated_at))
-                        _sync_note_embeds(conn, user_id, new_id, body_json)
-                        _sync_note_mentions(conn, user_id, new_id, body_plain)
-                        _sync_note_links(conn, user_id, new_id, body_json)
-                        _sync_note_fact_refs(conn, user_id, new_id, body_json)
-                        _sync_note_excerpt_refs(conn, user_id, new_id, body_json)
+                        _sync_note_sidecars(conn, user_id, new_id, body_json, body_plain)
                         conn.execute("RELEASE j2_import_note")
                         item["id"] = new_id
                         # ⭐ A note created by this call has nothing queued against
@@ -1539,6 +1504,84 @@ def get_symbol_backlinks(
             conn.close()
 
 
+_LINK_CONTEXT_CHARS = 140
+
+
+def _link_context_snippets(body_json: Any, target_note_id: str) -> list[str]:
+    """The Wave D closure-pass residual debt, closed 2026-09-22: Obsidian's
+    "show more context" for a backlink -- a short piece of the SOURCE note's
+    own prose surrounding each `noteLink` reference to `target_note_id`, in
+    document order (one entry per occurrence).
+
+    `noteLink` is an ATOMIC, TITLE-LESS node by design (see
+    noteLinkNode.jsx's own docstring: it stores only an id and resolves the
+    live title elsewhere, so renaming a target never needs rewriting notes
+    that link to it) -- it carries no text of its own, so "context" can only
+    come from its SIBLINGS in the enclosing block. This walks the tree
+    tracking each node's DIRECT content array; when a `noteLink` child
+    matches, the snippet is that array's OWN flattened text (the enclosing
+    paragraph/heading/listItem's line), never the whole document.
+
+    Deliberately its own small walk, not a branch inside `extract_plain_
+    text`: that function answers "what does the whole document say," this
+    answers "what does ONE specific block say," and conflating them would
+    mean threading a target-match state through a walk built for something
+    else entirely."""
+    if not isinstance(body_json, dict) or not target_note_id:
+        return []
+    snippets: list[str] = []
+
+    def flatten_block(nodes: list, skip_index: int) -> str:
+        # `skip_index` excludes the ONE noteLink occurrence this snippet is
+        # FOR -- it should never mark itself as a quiet "…" inside its own
+        # context. A DIFFERENT noteLink sibling (a different target, or even
+        # the same one linked twice in one block) still gets marked; only
+        # the specific occurrence being reported on is silent.
+        out: list[str] = []
+        for i, n in enumerate(nodes):
+            if i == skip_index or not isinstance(n, dict):
+                continue
+            t = n.get("type")
+            if t == "text":
+                v = n.get("text")
+                if isinstance(v, str):
+                    out.append(v)
+            elif t == "noteLink":
+                out.append("…")
+            elif t in ("videoTimestamp", "attachmentChip", "documentExcerpt", "widgetEmbed"):
+                out.append("[…]")
+        # Collapsed, not just stripped: a real note commonly has a trailing
+        # space before an inline atom and a leading space after it (e.g.
+        # "second " + <atom> + " third") -- skipping the atom without
+        # collapsing would leave the double space in the reader-facing
+        # snippet, a real cosmetic artifact, not a hypothetical one.
+        text = re.sub(r"\s+", " ", "".join(out)).strip()
+        if len(text) > _LINK_CONTEXT_CHARS:
+            text = text[:_LINK_CONTEXT_CHARS].rstrip() + "…"
+        return text
+
+    def walk(node: Any) -> None:
+        if not isinstance(node, dict):
+            return
+        content = node.get("content")
+        if not isinstance(content, list):
+            return
+        for idx, child in enumerate(content):
+            if not isinstance(child, dict):
+                continue
+            if child.get("type") == "noteLink":
+                attrs = child.get("attrs")
+                if isinstance(attrs, dict) and attrs.get("noteId") == target_note_id:
+                    text = flatten_block(content, idx)
+                    if text:  # a link entirely alone in its block has no context to show
+                        snippets.append(text)
+            else:
+                walk(child)
+
+    walk(body_json)
+    return snippets
+
+
 def get_note_backlinks(
     user_id: str, note_id: str, limit: int = 50, conn: sqlite3.Connection | None = None,
 ) -> dict[str, Any]:
@@ -1571,7 +1614,7 @@ def get_note_backlinks(
         if not out["count"]:
             return out
         rows = conn.execute(
-            "SELECT n.id, n.title, n.updated_at, COUNT(*) AS refs"
+            "SELECT n.id, n.title, n.updated_at, n.body_json, COUNT(*) AS refs"
             " FROM j2_note_links l"
             " JOIN j2_notes n ON n.id = l.note_id AND n.user_id = l.user_id"
             " WHERE l.user_id = ? AND l.target_note_id = ? AND n.deleted_at IS NULL"
@@ -1580,10 +1623,139 @@ def get_note_backlinks(
             " LIMIT ?",
             (user_id, note_id, max(1, min(limit, 200))),
         ).fetchall()
-        out["notes"] = [{
-            "id": r["id"], "title": r["title"] or "Untitled",
-            "updatedAt": r["updated_at"], "refs": int(r["refs"] or 0),
+        out["notes"] = []
+        for r in rows:
+            # A context snippet is a nice-to-have on top of the count/title
+            # this row already had -- a note whose body_json fails to parse
+            # (never expected, but this projection must not 500 the whole
+            # backlinks list over one bad row) degrades to no snippet, same
+            # philosophy as _sync_note_sidecars' own "note save is
+            # authoritative, this projection is not."
+            context = None
+            try:
+                doc = json.loads(r["body_json"] or "{}")
+                found = _link_context_snippets(doc, note_id)
+                context = found[0] if found else None
+            except Exception:  # noqa: BLE001
+                context = None
+            out["notes"].append({
+                "id": r["id"], "title": r["title"] or "Untitled",
+                "updatedAt": r["updated_at"], "refs": int(r["refs"] or 0),
+                "context": context,
+            })
+        return out
+    finally:
+        if owned:
+            conn.close()
+
+
+def get_note_graph(
+    user_id: str, limit: int = 1500, conn: sqlite3.Connection | None = None,
+) -> dict[str, Any]:
+    """The whole note-link graph for one member: `{nodes: [...], edges: [...]}`.
+
+    ⛔ TWO QUERIES, NEVER N+1. `get_note_backlinks` answers "who links to THIS
+    note" and is the right shape for a note page; asking it once per note to
+    draw a graph would be one round trip per node. This reads the edge list and
+    the node list once each, which is the whole difference between a graph that
+    opens instantly and one that hammers the pod.
+
+    ⛔ A NODE IS EVERY NOTE, NOT EVERY LINKED NOTE. An unlinked note is a real
+    and interesting fact about a member's notebook — it is the thing a graph
+    view exists to make visible — so isolated nodes are returned rather than
+    filtered out by an inner join against the edges.
+
+    ⛔ TRASH IS EXCLUDED ON BOTH ENDS. `get_note_backlinks` deliberately does
+    NOT gate on the target being trashed, because "who links here" is a fact
+    about the LINKING notes. A graph is the opposite case: drawing an edge to a
+    trashed note would render a node the member cannot open, so both ends are
+    gated here. The two functions disagree on purpose.
+
+    ⛔ AND `degree` GATES TRASH THE SAME WAY THE EDGES DO — the `m` join is
+    there for exactly that. Counting a link whose far end is in the trash leaves
+    the surviving note with degree 1 and no line attached, so the renderer draws
+    it as LINKED while the member's real situation is that it has just become an
+    orphan. The two halves of one picture have to agree about what exists.
+
+    ⚠️ `degree` is deliberately NOT capped the way the edges are: a note linked
+    to a live note that fell outside `limit` still counts as linked, because it
+    IS. That can leave a node with degree 2 and one drawn line on a truncated
+    graph, which is why `truncated` is returned and said out loud on screen —
+    the alternative, reporting a real link as no link, is the worse lie.
+
+    `degree` is computed in SQL rather than by counting edges client-side, so
+    the renderer can size nodes without walking the edge list twice.
+    """
+    out: dict[str, Any] = {"nodes": [], "edges": [], "truncated": False}
+    owned = conn is None
+    conn = conn or get_connection()
+    try:
+        # ⛔⛔ 2000 IS A MEASURED CEILING, NOT A ROUND NUMBER. The renderer's
+        # layout is O(n^2) over 220 ticks on the main thread; benchmarked with
+        # its real constants: 1500 -> 5.5ms/frame, 2000 -> 10.3ms (both inside
+        # the 16ms budget), 3000 -> 24.7ms janky, 5000 -> ~80ms, which is
+        # ~18 SECONDS of blocked main thread. This used to allow 5000.
+        # ⚠️ THE CEILING IS ABOUT TWO THINGS, NOT ONE. It was first set from
+        # timings alone, and timings alone said 2000 was fine while the
+        # renderer was drawing every one of those 2000 notes onto the border of
+        # the canvas. `tools/graph_layout_bench.mjs` now prints the shape of
+        # the layout next to its cost; a future raise needs both to hold.
+        # ⚠️ Raising it is a promise about the RENDERER, not about this query --
+        # re-run the benchmark before you do, and read NoteGraphView's header.
+        cap = max(1, min(limit, 2000))
+        rows = conn.execute(
+            "SELECT n.id, n.title, n.folder_id, n.updated_at,"
+            "       (SELECT COUNT(*) FROM j2_note_links l"
+            "          JOIN j2_notes m"
+            "            ON m.user_id = l.user_id"
+            "           AND m.id = CASE WHEN l.note_id = n.id"
+            "                           THEN l.target_note_id ELSE l.note_id END"
+            "          WHERE l.user_id = n.user_id"
+            "            AND (l.note_id = n.id OR l.target_note_id = n.id)"
+            "            AND m.deleted_at IS NULL) AS degree"
+            " FROM j2_notes n"
+            " WHERE n.user_id = ? AND n.deleted_at IS NULL"
+            " ORDER BY n.updated_at DESC"
+            " LIMIT ?",
+            (user_id, cap + 1),
+        ).fetchall()
+        # ⭐ cap + 1 so "there are more" is a MEASUREMENT, not an assumption that
+        # hitting the cap exactly means truncation.
+        out["truncated"] = len(rows) > cap
+        rows = rows[:cap]
+        out["nodes"] = [{
+            "id": r["id"],
+            "title": r["title"] or "Untitled",
+            "folderId": r["folder_id"],
+            "updatedAt": r["updated_at"],
+            "degree": int(r["degree"] or 0),
         } for r in rows]
+
+        ids = {r["id"] for r in rows}
+        if not ids:
+            return out
+        # ⛔ DEDUPLICATED BY PAIR. A note linking to another five times is ONE
+        # relationship with weight 5, not five overlapping lines — the same
+        # ruling get_note_backlinks applies to its own rows (directive §64).
+        edge_rows = conn.execute(
+            "SELECT l.note_id AS s, l.target_note_id AS t, COUNT(*) AS w"
+            " FROM j2_note_links l"
+            " JOIN j2_notes a ON a.id = l.note_id        AND a.user_id = l.user_id"
+            " JOIN j2_notes b ON b.id = l.target_note_id AND b.user_id = l.user_id"
+            " WHERE l.user_id = ?"
+            "   AND a.deleted_at IS NULL AND b.deleted_at IS NULL"
+            " GROUP BY l.note_id, l.target_note_id",
+            (user_id,),
+        ).fetchall()
+        out["edges"] = [
+            {"source": e["s"], "target": e["t"], "weight": int(e["w"] or 0)}
+            for e in edge_rows
+            # ⛔ Both ends must be in the RETURNED node set. When the node list
+            # is capped, an edge to a note that did not make the cut would be a
+            # line to nothing — a renderer cannot draw it and should not have to
+            # guess what it meant.
+            if e["s"] in ids and e["t"] in ids
+        ]
         return out
     finally:
         if owned:
@@ -1628,6 +1800,60 @@ def resolve_note_link_targets(
             conn.close()
 
 
+def _member_mentioned_symbols(user_id: str, conn: sqlite3.Connection) -> list[str]:
+    """The member's own bounded, DISTINCT mentioned-symbol vocabulary
+    (widget embeds + cashtag mentions, trash excluded) — the shared query
+    behind resolve_sector_theme_symbols and get_sector_theme_facets, pulled
+    out so the two can never drift on what "mentioned" means. Same
+    trash-exclusion join shape as get_symbol_backlinks — a symbol mentioned
+    only in a trashed note must not widen the member's resolved vocabulary."""
+    rows = conn.execute(
+        "SELECT DISTINCT symbol FROM ("
+        "  SELECT e.symbol AS symbol FROM j2_note_embeds e"
+        "  JOIN j2_notes n ON n.id = e.note_id AND n.user_id = e.user_id"
+        "  WHERE e.user_id = ? AND n.deleted_at IS NULL"
+        "  UNION"
+        "  SELECT m.symbol AS symbol FROM j2_note_mentions m"
+        "  JOIN j2_notes n ON n.id = m.note_id AND n.user_id = m.user_id"
+        "  WHERE m.user_id = ? AND n.deleted_at IS NULL"
+        ")",
+        (user_id, user_id),
+    ).fetchall()
+    return [r["symbol"] for r in rows if r["symbol"]]
+
+
+def bulk_member_mentioned_symbols(conn: sqlite3.Connection) -> dict[str, set[str]]:
+    """The ALL-USERS shape of `_member_mentioned_symbols`, for a caller that
+    needs every member's vocabulary in one pass rather than one query per
+    member (the Awareness Engine's own `_bulk_load_user_contexts` — "no
+    N+1 per-user" is that module's own stated design constraint, and
+    calling the per-user query once per member would be exactly that).
+
+    Same UNION shape as `_member_mentioned_symbols`, with the `user_id`
+    predicate dropped and `user_id` added to the SELECT instead — kept as
+    a near-literal twin (not a from-scratch rewrite) specifically so the
+    two are easy to eyeball against each other; `test_bulk_member_mentioned_
+    symbols_agrees_with_the_per_user_version` is the real guarantee they
+    cannot drift on what "mentioned" means."""
+    rows = conn.execute(
+        "SELECT user_id, symbol FROM ("
+        "  SELECT e.user_id AS user_id, e.symbol AS symbol FROM j2_note_embeds e"
+        "  JOIN j2_notes n ON n.id = e.note_id AND n.user_id = e.user_id"
+        "  WHERE n.deleted_at IS NULL"
+        "  UNION"
+        "  SELECT m.user_id AS user_id, m.symbol AS symbol FROM j2_note_mentions m"
+        "  JOIN j2_notes n ON n.id = m.note_id AND n.user_id = m.user_id"
+        "  WHERE n.deleted_at IS NULL"
+        ")"
+    ).fetchall()
+    out: dict[str, set[str]] = {}
+    for r in rows:
+        if not r["symbol"]:
+            continue
+        out.setdefault(r["user_id"], set()).add(r["symbol"])
+    return out
+
+
 def resolve_sector_theme_symbols(
     user_id: str,
     *,
@@ -1658,22 +1884,7 @@ def resolve_sector_theme_symbols(
     owned = conn is None
     conn = conn or get_connection()
     try:
-        # Same trash-exclusion join shape as get_symbol_backlinks above —
-        # a symbol mentioned only in a trashed note must not widen the
-        # member's resolved vocabulary.
-        rows = conn.execute(
-            "SELECT DISTINCT symbol FROM ("
-            "  SELECT e.symbol AS symbol FROM j2_note_embeds e"
-            "  JOIN j2_notes n ON n.id = e.note_id AND n.user_id = e.user_id"
-            "  WHERE e.user_id = ? AND n.deleted_at IS NULL"
-            "  UNION"
-            "  SELECT m.symbol AS symbol FROM j2_note_mentions m"
-            "  JOIN j2_notes n ON n.id = m.note_id AND n.user_id = m.user_id"
-            "  WHERE m.user_id = ? AND n.deleted_at IS NULL"
-            ")",
-            (user_id, user_id),
-        ).fetchall()
-        symbols = [r["symbol"] for r in rows if r["symbol"]]
+        symbols = _member_mentioned_symbols(user_id, conn)
         if not symbols:
             return []
         from api.services.ticker_meta import get_ticker_meta
@@ -1694,6 +1905,56 @@ def resolve_sector_theme_symbols(
                 continue
             matched.append(sym)
         return matched
+    finally:
+        if owned:
+            conn.close()
+
+
+def get_sector_theme_facets(
+    user_id: str, conn: sqlite3.Connection | None = None,
+) -> dict[str, list[str]]:
+    """Competitive-audit UX #9 (2026-09-22): the distinct sector/theme
+    VALUES a member can actually filter by — i.e. exactly the labels
+    `resolve_sector_theme_symbols` above would accept and get at least one
+    match for. Backs the Notebook search panel's Sector/Theme filters,
+    which shipped as free-text inputs against an EXACT (if
+    case-insensitive) match with no way for a member to discover a valid
+    value — almost every typed guess matched nothing, silently, and the
+    filter read as broken rather than as "you have to know the exact
+    string."
+
+    ⛔ Deliberately NOT sourced from themes_taxonomy.json. That file lists
+    every sector/theme in the firm's whole taxonomy; offering one this
+    member has zero mentioned symbols in would be a dropdown option
+    guaranteed to return no results — worse than the free-text box it
+    replaces, which at least let a member who already knew the exact
+    string get a real answer. This reuses the SAME bounded,
+    member's-own-vocabulary scan as resolve_sector_theme_symbols (shared
+    via `_member_mentioned_symbols` so the two can never disagree about
+    what counts as a valid filter value), just inverted: instead of asking
+    which symbols match a given sector/theme, it asks which sectors/themes
+    this member's symbol set actually has."""
+    owned = conn is None
+    conn = conn or get_connection()
+    try:
+        symbols = _member_mentioned_symbols(user_id, conn)
+        if not symbols:
+            return {"sectors": [], "themes": []}
+        from api.services.ticker_meta import get_ticker_meta
+        sectors: set[str] = set()
+        themes: set[str] = set()
+        for sym in symbols:
+            try:
+                meta = get_ticker_meta(sym)
+            except Exception:
+                continue
+            sec = (meta.get("sector") or "").strip()
+            if sec:
+                sectors.add(sec)
+            th = (meta.get("theme") or "").strip()
+            if th:
+                themes.add(th)
+        return {"sectors": sorted(sectors), "themes": sorted(themes)}
     finally:
         if owned:
             conn.close()
@@ -1795,11 +2056,7 @@ def create_note(
                 json.dumps(tags), now, now,
             ),
         )
-        _sync_note_embeds(conn, user_id, new_id, body_json)
-        _sync_note_mentions(conn, user_id, new_id, body_plain)
-        _sync_note_links(conn, user_id, new_id, body_json)
-        _sync_note_fact_refs(conn, user_id, new_id, body_json)
-        _sync_note_excerpt_refs(conn, user_id, new_id, body_json)
+        _sync_note_sidecars(conn, user_id, new_id, body_json, body_plain)
         conn.commit()
         row = conn.execute(
             "SELECT * FROM j2_notes WHERE id = ?", (new_id,)
@@ -2197,11 +2454,7 @@ def update_note(
             params,
         )
         if "bodyJson" in patch:
-            _sync_note_embeds(conn, user_id, note_id, bj)
-            _sync_note_mentions(conn, user_id, note_id, bp)
-            _sync_note_links(conn, user_id, note_id, bj)
-            _sync_note_fact_refs(conn, user_id, note_id, bj)
-            _sync_note_excerpt_refs(conn, user_id, note_id, bj)
+            _sync_note_sidecars(conn, user_id, note_id, bj, bp)
         conn.commit()
         row = conn.execute(
             "SELECT * FROM j2_notes WHERE id = ?", (note_id,)
@@ -2255,11 +2508,7 @@ def append_widget_embed(
             " WHERE id = ? AND user_id = ?",
             (json.dumps(body_json), body_plain, _now_iso(), note_id, user_id),
         )
-        _sync_note_embeds(conn, user_id, note_id, body_json)
-        _sync_note_mentions(conn, user_id, note_id, body_plain)
-        _sync_note_links(conn, user_id, note_id, body_json)
-        _sync_note_fact_refs(conn, user_id, note_id, body_json)
-        _sync_note_excerpt_refs(conn, user_id, note_id, body_json)
+        _sync_note_sidecars(conn, user_id, note_id, body_json, body_plain)
         conn.commit()
         out = conn.execute(
             "SELECT * FROM j2_notes WHERE id = ?", (note_id,)
@@ -2316,11 +2565,7 @@ def append_financial_fact(
             " WHERE id = ? AND user_id = ?",
             (json.dumps(body_json), body_plain, _now_iso(), note_id, user_id),
         )
-        _sync_note_embeds(conn, user_id, note_id, body_json)
-        _sync_note_mentions(conn, user_id, note_id, body_plain)
-        _sync_note_links(conn, user_id, note_id, body_json)
-        _sync_note_fact_refs(conn, user_id, note_id, body_json)
-        _sync_note_excerpt_refs(conn, user_id, note_id, body_json)
+        _sync_note_sidecars(conn, user_id, note_id, body_json, body_plain)
         conn.commit()
         out = conn.execute(
             "SELECT * FROM j2_notes WHERE id = ?", (note_id,)
@@ -2378,11 +2623,7 @@ def append_document_excerpt(
             " WHERE id = ? AND user_id = ?",
             (json.dumps(body_json), body_plain, _now_iso(), note_id, user_id),
         )
-        _sync_note_embeds(conn, user_id, note_id, body_json)
-        _sync_note_mentions(conn, user_id, note_id, body_plain)
-        _sync_note_links(conn, user_id, note_id, body_json)
-        _sync_note_fact_refs(conn, user_id, note_id, body_json)
-        _sync_note_excerpt_refs(conn, user_id, note_id, body_json)
+        _sync_note_sidecars(conn, user_id, note_id, body_json, body_plain)
         conn.commit()
         out = conn.execute(
             "SELECT * FROM j2_notes WHERE id = ?", (note_id,)
@@ -2459,9 +2700,10 @@ def create_capture(
         raise NoteValidationError("capture too large (>256KB)")
     trade_ref = payload.get("tradeRef") or None
     trade_ref_type = payload.get("tradeRefType") or None
-    # Same degrade-not-fail philosophy as _extract_embeds: a capture must
-    # never be blocked by an unrecognized tradeRefType — it's dropped to
-    # NULL (untyped) rather than rejecting the whole capture.
+    # Same degrade-not-fail philosophy as _sync_note_sidecars' widgetEmbed
+    # branch: a capture must never be blocked by an unrecognized
+    # tradeRefType — it's dropped to NULL (untyped) rather than rejecting
+    # the whole capture.
     if trade_ref_type is not None and not is_valid_trade_ref_type(trade_ref_type):
         trade_ref_type = None
     owned = conn is None

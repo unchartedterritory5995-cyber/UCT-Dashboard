@@ -34,12 +34,20 @@ const useJ2NotesByFoldersMock = vi.fn(() => ({ byFolder: {}, isLoading: false, e
 // every other "still loading vs. genuinely empty" default above.
 const useJ2FavoritesMock = vi.fn(() => ({ notes: [], isLoading: false, error: null, refresh: vi.fn() }))
 const useJ2RecentsMock = vi.fn(() => ({ notes: [], isLoading: false, error: null, refresh: vi.fn() }))
+// Competitive-audit UX #9: the Sector/Theme filters' option lists. Default
+// (loaded, empty) so most tests exercise the "no facets yet" select state —
+// tests proving the population itself override this explicitly, same
+// "still loading vs. genuinely empty" convention as every other hook here.
+const useJ2SectorThemeFacetsMock = vi.fn(() => ({
+  sectors: [], themes: [], isLoading: false, error: null, refresh: vi.fn(),
+}))
 vi.mock('../../hooks/useJ2Notes', () => ({
   default: (...args) => useJ2NotesMock(...args),
   useJ2NoteFolderCounts: (...args) => useJ2NoteFolderCountsMock(...args),
   useJ2NotesByFolders: (...args) => useJ2NotesByFoldersMock(...args),
   useJ2Favorites: (...args) => useJ2FavoritesMock(...args),
   useJ2Recents: (...args) => useJ2RecentsMock(...args),
+  useJ2SectorThemeFacets: (...args) => useJ2SectorThemeFacetsMock(...args),
 }))
 
 // The tag cloud's honest, whole-library counts (final-review C5). Default
@@ -94,6 +102,10 @@ beforeEach(() => {
   useJ2FavoritesMock.mockImplementation(() => ({ notes: [], isLoading: false, error: null, refresh: vi.fn() }))
   useJ2RecentsMock.mockReset()
   useJ2RecentsMock.mockImplementation(() => ({ notes: [], isLoading: false, error: null, refresh: vi.fn() }))
+  useJ2SectorThemeFacetsMock.mockReset()
+  useJ2SectorThemeFacetsMock.mockImplementation(() => ({
+    sectors: [], themes: [], isLoading: false, error: null, refresh: vi.fn(),
+  }))
 })
 
 describe('folder tree', () => {
@@ -135,6 +147,23 @@ describe('folder tree', () => {
     expect(onOpenNote).toHaveBeenCalledWith(
       expect.objectContaining({ id: 'n1', folderId: 'c' }),
     )
+  })
+
+  /**
+   * ⛔⛔ D-40 — the joystick hub's cursor queries `[data-note-card-id]`
+   * against the whole document. A note listed inline under its expanded
+   * folder (this call site, distinct from Favorites/Recents' own) was
+   * invisible to it, silently. Competitive audit finding UX #11 /
+   * Accessibility QW-6, 2026-09-22.
+   */
+  it('a note listed under its expanded folder carries data-note-card-id, same as NoteCard.jsx (R-18)', () => {
+    render(<FolderSidebar
+      notes={[{ id: 'n1', title: 'Commentary', folderId: 'c', tags: [] }]}
+      activeFolderId={null} onSelectFolder={() => {}}
+      activeTag={null} onSelectTag={() => {}} onOpenNote={vi.fn()} />)
+    fireEvent.click(screen.getByLabelText('Expand Journal'))
+    expect(screen.getByText('Commentary').closest('[data-note-card-id]'))
+      .toHaveAttribute('data-note-card-id', 'n1')
   })
 })
 
@@ -831,17 +860,105 @@ describe('search panel — Wave 4 date/sector/theme filters', () => {
   })
 
   it('Clear filters resets all four fields and is only shown while a filter is active', () => {
+    useJ2SectorThemeFacetsMock.mockImplementation(() => ({
+      sectors: ['Technology'], themes: [], isLoading: false, error: null, refresh: vi.fn(),
+    }))
     render(<FolderSidebar notes={[]} activeFolderId={null} onSelectFolder={() => {}}
                           activeTag={null} onSelectTag={() => {}} />)
     openSearch()
     fireEvent.click(screen.getByLabelText('Search filters'))
     expect(screen.queryByText('Clear filters')).not.toBeInTheDocument()
-    const sectorInput = screen.getByPlaceholderText('e.g. Technology')
-    fireEvent.change(sectorInput, { target: { value: 'Technology' } })
+    const sectorSelect = screen.getByText('Sector').parentElement.querySelector('select')
+    fireEvent.change(sectorSelect, { target: { value: 'Technology' } })
     expect(screen.getByText('Clear filters')).toBeInTheDocument()
     fireEvent.click(screen.getByText('Clear filters'))
-    expect(screen.getByPlaceholderText('e.g. Technology')).toHaveValue('')
+    expect(screen.getByText('Sector').parentElement.querySelector('select')).toHaveValue('')
     expect(screen.queryByText('Clear filters')).not.toBeInTheDocument()
+  })
+
+  // ── Competitive-audit UX #9: Sector/Theme are real pickers, not free text
+  // (the exact-match filter had no way for a member to discover a valid
+  // value -- see get_sector_theme_facets's own docstring) ──────────────────
+
+  it('Sector/Theme render as real dropdowns, never free-text inputs', () => {
+    render(<FolderSidebar notes={[]} activeFolderId={null} onSelectFolder={() => {}}
+                          activeTag={null} onSelectTag={() => {}} />)
+    openSearch()
+    fireEvent.click(screen.getByLabelText('Search filters'))
+    expect(screen.getByText('Sector').parentElement.querySelector('select')).toBeInTheDocument()
+    expect(screen.getByText('Theme').parentElement.querySelector('select')).toBeInTheDocument()
+    expect(screen.queryByPlaceholderText(/e\.g\. Technology/i)).not.toBeInTheDocument()
+    expect(screen.queryByPlaceholderText(/e\.g\. AI Infrastructure/i)).not.toBeInTheDocument()
+  })
+
+  it('the dropdowns are populated from the facets hook, not a hardcoded or taxonomy-wide list', () => {
+    useJ2SectorThemeFacetsMock.mockImplementation(() => ({
+      sectors: ['Financials', 'Technology'], themes: ['AI Infrastructure'],
+      isLoading: false, error: null, refresh: vi.fn(),
+    }))
+    render(<FolderSidebar notes={[]} activeFolderId={null} onSelectFolder={() => {}}
+                          activeTag={null} onSelectTag={() => {}} />)
+    openSearch()
+    fireEvent.click(screen.getByLabelText('Search filters'))
+    const sectorSelect = screen.getByText('Sector').parentElement.querySelector('select')
+    const themeSelect = screen.getByText('Theme').parentElement.querySelector('select')
+    expect(within(sectorSelect).getAllByRole('option').map((o) => o.value))
+      .toEqual(['', 'Financials', 'Technology'])
+    expect(within(themeSelect).getAllByRole('option').map((o) => o.value))
+      .toEqual(['', 'AI Infrastructure'])
+  })
+
+  it('a member with no mentioned tickers yet sees an honest "No sectors/themes yet", not a blank dropdown', () => {
+    // Default mock (isLoading:false, sectors:[]/themes:[]) already covers
+    // this -- asserted explicitly so the honest-empty copy can't silently
+    // regress to a bare blank option.
+    render(<FolderSidebar notes={[]} activeFolderId={null} onSelectFolder={() => {}}
+                          activeTag={null} onSelectTag={() => {}} />)
+    openSearch()
+    fireEvent.click(screen.getByLabelText('Search filters'))
+    expect(within(screen.getByText('Sector').parentElement.querySelector('select'))
+      .getByText('No sectors yet')).toBeInTheDocument()
+    expect(within(screen.getByText('Theme').parentElement.querySelector('select'))
+      .getByText('No themes yet')).toBeInTheDocument()
+  })
+
+  it('while the facets are loading, the placeholder option reads "Loading…", not "No sectors yet"', () => {
+    useJ2SectorThemeFacetsMock.mockImplementation(() => ({
+      sectors: undefined, themes: undefined, isLoading: true, error: null, refresh: vi.fn(),
+    }))
+    render(<FolderSidebar notes={[]} activeFolderId={null} onSelectFolder={() => {}}
+                          activeTag={null} onSelectTag={() => {}} />)
+    openSearch()
+    fireEvent.click(screen.getByLabelText('Search filters'))
+    expect(within(screen.getByText('Sector').parentElement.querySelector('select'))
+      .getByText('Loading…')).toBeInTheDocument()
+  })
+
+  it('the facets fetch is gated on the filter panel actually being open', () => {
+    render(<FolderSidebar notes={[]} activeFolderId={null} onSelectFolder={() => {}}
+                          activeTag={null} onSelectTag={() => {}} />)
+    openSearch()
+    // Filters collapsed (default) -- the panel that renders the dropdowns
+    // isn't mounted, so the facets hook must be told not to fetch.
+    expect(useJ2SectorThemeFacetsMock.mock.calls.at(-1)[0]).toEqual({ enabled: false })
+    fireEvent.click(screen.getByLabelText('Search filters'))
+    expect(useJ2SectorThemeFacetsMock.mock.calls.at(-1)[0]).toEqual({ enabled: true })
+  })
+
+  it('picking a sector option enables the search fetch with that exact value', () => {
+    useJ2SectorThemeFacetsMock.mockImplementation(() => ({
+      sectors: ['Technology'], themes: [], isLoading: false, error: null, refresh: vi.fn(),
+    }))
+    render(<FolderSidebar notes={[]} activeFolderId={null} onSelectFolder={() => {}}
+                          activeTag={null} onSelectTag={() => {}} />)
+    openSearch()
+    fireEvent.click(screen.getByLabelText('Search filters'))
+    const sectorSelect = screen.getByText('Sector').parentElement.querySelector('select')
+    fireEvent.change(sectorSelect, { target: { value: 'Technology' } })
+    settle()
+    const call = useJ2NotesMock.mock.calls.filter(([opts]) => opts?.sector === 'Technology').at(-1)[0]
+    expect(call.enabled).toBe(true)
+    expect(call.sector).toBe('Technology')
   })
 
   it('a result with a body snippet renders the highlighted excerpt, never the old naive 120-char slice', () => {
@@ -947,14 +1064,31 @@ describe('search panel — Wave I document (PDF page) search, sectioned separate
     )
   })
 
-  it('shows an honest "Searching documents…" state while a document query is in flight', () => {
+  it('shows a Skeleton loading state (not bare text) while a document query is in flight', () => {
     useDocumentSearchMock.mockReturnValue({ results: [], isLoading: true, error: null })
     render(<FolderSidebar notes={[]} activeFolderId={null} onSelectFolder={() => {}}
                           activeTag={null} onSelectTag={() => {}} />)
     openSearch()
     fireEvent.change(screen.getByPlaceholderText(/search notes/i), { target: { value: 'x' } })
     settle()
-    expect(screen.getByText('Searching documents…')).toBeInTheDocument()
+    expect(screen.getByRole('status', { name: 'Searching documents…' })).toBeInTheDocument()
+  })
+
+  it('the document-search skeleton disappears once results land', () => {
+    useDocumentSearchMock.mockReturnValue({
+      results: [{
+        documentId: 'd1', pageNumber: 3, noteId: 'n1', noteTitle: 'NVDA notes',
+        name: 'deck.pdf', attachmentUrl: '/x.pdf', snippet: 'a <mark>match</mark>',
+      }],
+      isLoading: false, error: null,
+    })
+    render(<FolderSidebar notes={[]} activeFolderId={null} onSelectFolder={() => {}}
+                          activeTag={null} onSelectTag={() => {}} />)
+    openSearch()
+    fireEvent.change(screen.getByPlaceholderText(/search notes/i), { target: { value: 'match' } })
+    settle()
+    expect(screen.queryByRole('status', { name: 'Searching documents…' })).not.toBeInTheDocument()
+    expect(screen.getByText('deck.pdf · p.3')).toBeInTheDocument()
   })
 })
 
@@ -1053,14 +1187,31 @@ describe('FolderSidebar — Wave J saved-excerpt search', () => {
     )
   })
 
-  it('shows an honest "Searching evidence…" state while an excerpt query is in flight', () => {
+  it('shows a Skeleton loading state (not bare text) while an excerpt query is in flight', () => {
     useExcerptSearchMock.mockReturnValue({ results: [], isLoading: true, error: null })
     render(<FolderSidebar notes={[]} activeFolderId={null} onSelectFolder={() => {}}
                           activeTag={null} onSelectTag={() => {}} />)
     openSearch()
     fireEvent.change(screen.getByPlaceholderText(/search notes/i), { target: { value: 'x' } })
     settle()
-    expect(screen.getByText('Searching evidence…')).toBeInTheDocument()
+    expect(screen.getByRole('status', { name: 'Searching evidence…' })).toBeInTheDocument()
+  })
+
+  it('the evidence-search skeleton disappears once results land', () => {
+    useExcerptSearchMock.mockReturnValue({
+      results: [{
+        excerptId: 'e1', noteId: 'n1', noteTitle: 'NVDA thesis',
+        documentId: 'd1', documentName: 'q3-deck.pdf', pageNumber: 2,
+        annotation: null, snippet: 'a <mark>match</mark>',
+      }],
+      isLoading: false, error: null,
+    })
+    render(<FolderSidebar notes={[]} activeFolderId={null} onSelectFolder={() => {}}
+                          activeTag={null} onSelectTag={() => {}} />)
+    openSearch()
+    fireEvent.change(screen.getByPlaceholderText(/search notes/i), { target: { value: 'match' } })
+    settle()
+    expect(screen.queryByRole('status', { name: 'Searching evidence…' })).not.toBeInTheDocument()
   })
 })
 
@@ -1130,14 +1281,24 @@ describe('search — thesis reviews section', () => {
     )
   })
 
-  it('shows an honest "Searching your reviews…" state while the query is in flight', () => {
+  it('shows a Skeleton loading state (not bare text) while the query is in flight', () => {
     useReviewSearchMock.mockReturnValue({ results: [], isLoading: true, error: null })
     render(<FolderSidebar notes={[]} activeFolderId={null} onSelectFolder={() => {}}
                           activeTag={null} onSelectTag={() => {}} />)
     openSearch()
     fireEvent.change(screen.getByPlaceholderText(/search notes/i), { target: { value: 'x' } })
     settle()
-    expect(screen.getByText('Searching your reviews…')).toBeInTheDocument()
+    expect(screen.getByRole('status', { name: 'Searching your reviews…' })).toBeInTheDocument()
+  })
+
+  it('the review-search skeleton disappears once results land', () => {
+    useReviewSearchMock.mockReturnValue({ results: [REVIEW], isLoading: false, error: null })
+    render(<FolderSidebar notes={[]} activeFolderId={null} onSelectFolder={() => {}}
+                          activeTag={null} onSelectTag={() => {}} />)
+    openSearch()
+    fireEvent.change(screen.getByPlaceholderText(/search notes/i), { target: { value: 'datacenter' } })
+    settle()
+    expect(screen.queryByRole('status', { name: 'Searching your reviews…' })).not.toBeInTheDocument()
   })
 
   it('a search with no review hits grows no empty block', () => {
@@ -1218,6 +1379,22 @@ describe('Favorites + Recents sidebar sections (Wave B)', () => {
                           activeTag={null} onSelectTag={() => {}} />)
     expect(screen.getByText('Untitled')).toBeInTheDocument()
   })
+
+  /**
+   * ⛔⛔ D-40 — the joystick hub's cursor queries `[data-note-card-id]`
+   * against the whole document. Without this, a Favorites/Recents row was
+   * invisible to it, silently. Competitive audit finding UX #11 /
+   * Accessibility QW-6, 2026-09-22.
+   */
+  it('a Favorites row carries data-note-card-id, the same identity NoteCard.jsx gives the hub (R-18)', () => {
+    useJ2FavoritesMock.mockImplementation(() => ({
+      notes: [{ id: 'f1', title: 'Favorited Thesis' }], isLoading: false, error: null, refresh: vi.fn(),
+    }))
+    render(<FolderSidebar notes={[]} activeFolderId={null} onSelectFolder={() => {}}
+                          activeTag={null} onSelectTag={() => {}} />)
+    expect(screen.getByText('Favorited Thesis').closest('[data-note-card-id]'))
+      .toHaveAttribute('data-note-card-id', 'f1')
+  })
 })
 
 // ── Wave E — Saved Views sidebar section. A plain prop (not its own hook,
@@ -1259,6 +1436,134 @@ describe('Saved Views sidebar section (Wave E)', () => {
     fireEvent.click(screen.getByLabelText('Collapse Saved Views'))
     expect(screen.queryByText('Active Theses')).not.toBeInTheDocument()
     expect(screen.getByText('Saved Views')).toBeInTheDocument()
+  })
+})
+
+/**
+ * ⛔⛔ UX #1, 2026-09-22: `useJ2SavedViews.js` has always fully implemented
+ * `rename(id, name)`/`remove(id)` -- this section's own comment claimed
+ * saved views were "fully renameable/deletable" while nothing in the UI
+ * ever called either. Mirrors Folder rename's exact interaction (UX #10,
+ * double-click OR a visible pencil icon).
+ */
+describe('Saved View rename/delete (UX #1)', () => {
+  const view = { id: 'v1', name: 'Active Theses', viewType: 'list' }
+
+  it('a visible Rename icon enters edit mode, the same as double-click', () => {
+    render(<FolderSidebar notes={[]} activeFolderId={null} onSelectFolder={() => {}}
+                          activeTag={null} onSelectTag={() => {}} savedViews={[view]} />)
+    fireEvent.click(screen.getByLabelText('Rename Active Theses'))
+    expect(screen.getByDisplayValue('Active Theses').tagName).toBe('INPUT')
+  })
+
+  it('double-clicking the row also enters edit mode', () => {
+    render(<FolderSidebar notes={[]} activeFolderId={null} onSelectFolder={() => {}}
+                          activeTag={null} onSelectTag={() => {}} savedViews={[view]} />)
+    fireEvent.doubleClick(screen.getByText('Active Theses'))
+    expect(screen.getByDisplayValue('Active Theses').tagName).toBe('INPUT')
+  })
+
+  it('Enter submits the new name via onRenameView', () => {
+    const onRenameView = vi.fn()
+    render(<FolderSidebar notes={[]} activeFolderId={null} onSelectFolder={() => {}}
+                          activeTag={null} onSelectTag={() => {}} savedViews={[view]}
+                          onRenameView={onRenameView} />)
+    fireEvent.click(screen.getByLabelText('Rename Active Theses'))
+    const input = screen.getByDisplayValue('Active Theses')
+    fireEvent.change(input, { target: { value: 'Renamed View' } })
+    fireEvent.keyDown(input, { key: 'Enter' })
+    expect(onRenameView).toHaveBeenCalledWith('v1', 'Renamed View')
+  })
+
+  it('Escape cancels without calling onRenameView', () => {
+    const onRenameView = vi.fn()
+    render(<FolderSidebar notes={[]} activeFolderId={null} onSelectFolder={() => {}}
+                          activeTag={null} onSelectTag={() => {}} savedViews={[view]}
+                          onRenameView={onRenameView} />)
+    fireEvent.click(screen.getByLabelText('Rename Active Theses'))
+    const input = screen.getByDisplayValue('Active Theses')
+    fireEvent.change(input, { target: { value: 'Should not save' } })
+    fireEvent.keyDown(input, { key: 'Escape' })
+    expect(onRenameView).not.toHaveBeenCalled()
+    expect(screen.getByText('Active Theses')).toBeInTheDocument()
+  })
+
+  it('an empty submit is a cancel, never an empty-named view', () => {
+    const onRenameView = vi.fn()
+    render(<FolderSidebar notes={[]} activeFolderId={null} onSelectFolder={() => {}}
+                          activeTag={null} onSelectTag={() => {}} savedViews={[view]}
+                          onRenameView={onRenameView} />)
+    fireEvent.click(screen.getByLabelText('Rename Active Theses'))
+    const input = screen.getByDisplayValue('Active Theses')
+    fireEvent.change(input, { target: { value: '   ' } })
+    fireEvent.keyDown(input, { key: 'Enter' })
+    expect(onRenameView).not.toHaveBeenCalled()
+  })
+
+  it('clicking Delete calls onDeleteView with the id and name, WITHOUT selecting the view', () => {
+    const onDeleteView = vi.fn()
+    const onSelectView = vi.fn()
+    render(<FolderSidebar notes={[]} activeFolderId={null} onSelectFolder={() => {}}
+                          activeTag={null} onSelectTag={() => {}} savedViews={[view]}
+                          onDeleteView={onDeleteView} onSelectView={onSelectView} />)
+    fireEvent.click(screen.getByLabelText('Delete Active Theses'))
+    expect(onDeleteView).toHaveBeenCalledWith('v1', 'Active Theses')
+    expect(onSelectView).not.toHaveBeenCalled()
+  })
+
+  it('clicking Rename does NOT also select the view (stopPropagation)', () => {
+    const onSelectView = vi.fn()
+    render(<FolderSidebar notes={[]} activeFolderId={null} onSelectFolder={() => {}}
+                          activeTag={null} onSelectTag={() => {}} savedViews={[view]}
+                          onSelectView={onSelectView} />)
+    fireEvent.click(screen.getByLabelText('Rename Active Theses'))
+    expect(onSelectView).not.toHaveBeenCalled()
+  })
+})
+
+/**
+ * ⛔⛔ RENAME HAD ZERO VISUAL AFFORDANCE — discoverable only by
+ * double-clicking a folder row, a desktop-file-manager convention this
+ * product never taught anywhere. Competitive audit finding UX #10,
+ * 2026-09-22.
+ */
+describe('Folder rename affordance (UX #10)', () => {
+  it('a visible Rename icon enters edit mode, the same as double-click', () => {
+    render(<FolderSidebar notes={[]} activeFolderId={null} onSelectFolder={() => {}}
+                          activeTag={null} onSelectTag={() => {}} savedViews={[]} />)
+    fireEvent.click(screen.getByLabelText('Rename Trading'))
+    const input = screen.getByDisplayValue('Trading')
+    expect(input.tagName).toBe('INPUT')
+  })
+})
+
+/**
+ * ⛔⛔ THE ROW ICON MUST MATCH THE VIEW'S OWN TYPE, NOT A LIST/TABLE BINARY.
+ *
+ * This used to be `view.viewType === 'table' ? 'columns' : 'rows'` — a
+ * saved Board, Calendar or Graph view all rendered the same generic
+ * "rows" icon, a hand-typed second authority over data `lib/savedViewModes`
+ * already has correct (VIEW_MODES). Competitive audit finding UX #6,
+ * 2026-09-22.
+ */
+describe('Saved Views sidebar section — row icons', () => {
+  it('the row icon matches each saved view type, not a list/table binary', () => {
+    const views = [
+      { id: 'v1', name: 'A Board', viewType: 'board' },
+      { id: 'v2', name: 'A Calendar', viewType: 'calendar' },
+      { id: 'v3', name: 'A Graph', viewType: 'graph' },
+      { id: 'v4', name: 'A List', viewType: 'list' },
+      { id: 'v5', name: 'A Table', viewType: 'table' },
+    ]
+    render(<FolderSidebar notes={[]} activeFolderId={null} onSelectFolder={() => {}}
+                          activeTag={null} onSelectTag={() => {}} savedViews={views} />)
+    const iconFor = (name) => screen.getByText(name).closest('button')
+      .querySelector('svg[data-view-icon]').getAttribute('data-view-icon')
+    expect(iconFor('A Board')).toBe('board')
+    expect(iconFor('A Calendar')).toBe('calendar')
+    expect(iconFor('A Graph')).toBe('graph')
+    expect(iconFor('A List')).toBe('rows')
+    expect(iconFor('A Table')).toBe('columns')
   })
 })
 

@@ -143,3 +143,48 @@ describe('WidgetPalette input hardening', () => {
     expect(calls.ran).toBe(0)
   })
 })
+
+/**
+ * ⛔⛔ THIS WAS A role="dialog" WITH NO KEYBOARD ESCAPE HATCH AT ALL — a real
+ * WAI-ARIA dialog-pattern violation. Competitive audit finding UX #13,
+ * 2026-09-22.
+ */
+describe('WidgetPalette keyboard escape (UX #13)', () => {
+  it('Escape calls onClose', () => {
+    const { editor } = makeEditor()
+    const onClose = vi.fn()
+    render(<WidgetPalette editor={editor} onClose={onClose} />)
+    fireEvent.keyDown(document, { key: 'Escape' })
+    expect(onClose).toHaveBeenCalled()
+  })
+
+  it('Escape works from inside the ticker form too, not just the type list', () => {
+    const { editor } = makeEditor()
+    const onClose = vi.fn()
+    render(<WidgetPalette editor={editor} onClose={onClose} />)
+    fireEvent.click(screen.getByText('Chart'))
+    fireEvent.keyDown(document, { key: 'Escape' })
+    expect(onClose).toHaveBeenCalled()
+  })
+
+  it('⛔ CONTROL — an unrelated key does not call onClose', () => {
+    const { editor } = makeEditor()
+    const onClose = vi.fn()
+    render(<WidgetPalette editor={editor} onClose={onClose} />)
+    fireEvent.keyDown(document, { key: 'a' })
+    expect(onClose).not.toHaveBeenCalled()
+  })
+
+  it('Tab from the last focusable element wraps to the first (focus trap)', () => {
+    const { editor } = makeEditor()
+    render(<WidgetPalette editor={editor} onClose={vi.fn()} />)
+    const panel = screen.getByRole('dialog', { name: 'Insert widget' })
+    const focusables = panel.querySelectorAll(
+      'button:not([disabled]), input, textarea, select, a[href], [tabindex]:not([tabindex="-1"])')
+    const last = focusables[focusables.length - 1]
+    const first = focusables[0]
+    last.focus()
+    fireEvent.keyDown(document, { key: 'Tab' })
+    expect(document.activeElement).toBe(first)
+  })
+})

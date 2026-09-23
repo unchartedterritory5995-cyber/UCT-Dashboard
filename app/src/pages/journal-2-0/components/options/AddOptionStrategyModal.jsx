@@ -160,7 +160,8 @@ export default function AddOptionStrategyModal({
       }
       await onSave?.(payload)
     } catch (err) {
-      setErrorMsg(err?.message || String(err))
+      console.error('Failed to save option strategy:', err)
+      setErrorMsg("Couldn't save this strategy. Nothing was changed — try again.")
     } finally {
       setSaving(false)
     }

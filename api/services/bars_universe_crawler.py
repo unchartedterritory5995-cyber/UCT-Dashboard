@@ -37,7 +37,7 @@ _STATE_LOCK = threading.Lock()
 _STATE: dict = {
     "enabled": None, "last_beat_ts": None, "warmed_total": 0, "skipped_total": 0,
     "empty_total": 0, "empty_parked": 0, "passes": 0, "cursor": 0, "universe": 0,
-    "last_warm_sym": None, "last_error": None, "restarts": 0,
+    "last_warm_sym": None, "last_error": None, "restarts": 0, "tail_cohort": 0,
 }
 
 
@@ -79,6 +79,52 @@ def load_universe() -> list[str]:
             seen.add(u)
             out.append(u)
     return out
+
+
+def tail_cohort(reference_syms, base_universe, *, enabled: bool, cap: int,
+                dollar_volume=None) -> list[str]:
+    """A BOUNDED, RANKED slice of the reference long tail to append after `base_universe`.
+
+    ⛔⛔ THE TAIL IS WHY BFRG HAD NO 5m CHART, AND IT IS NOT IN ANY INTRADAY LIST.
+    `load_universe()` reads cap_universe.json (3,640). The ~22k active reference symbols
+    outside it are warmed D/W/M only — "instant every symbol" made DAILY universe-wide
+    and left intraday behind. So a member can search BFRG, open its daily, and find no
+    5m. Measured 2026-09-23: BFRG / SNGX / GRRR / CNEY / VRME are all absent from
+    cap_universe.json.
+
+    ⛔ IT BELONGS HERE AND NOT IN THE BOOT PASS. v1 of this initiative put ~3,200 shallow
+    jobs into the worker's FOUR-thread boot pass and on 2026-08-19 thrashed the bars.db
+    write-lock and saturated the provider. This crawler is single-in-flight and paced, so
+    widening WHAT it walks does not widen the RATE it walks at — the cohort costs the same
+    1-fetch-per-interval trickle, just for longer.
+
+    ⭐ RANKED, so a bounded cohort is the most useful names rather than the alphabet:
+    highest 20-session average dollar volume first, from local daily bars
+    (`avg_dollar_volume_bulk`). Ties and unmeasurable symbols fall back to alphabetical,
+    so the cohort is DETERMINISTIC across restarts — a cohort that churns re-buys itself.
+
+    ⚠️⚠️ FAIL SAFE, NOT FAIL OPEN. A missing/garbage/negative cap yields ZERO, never the
+    full ~22k: a configuration slip must not become 20,000 unplanned provider calls. The
+    caller opts in with a flag AND a bound, and both have to be right.
+    """
+    if not enabled:
+        return []
+    try:
+        n = int(cap)
+    except (TypeError, ValueError):
+        return []
+    if n <= 0:
+        return []
+    base = set(base_universe or ())
+    dv = {str(k).upper(): float(v) for k, v in (dollar_volume or {}).items()}
+    # ⚠️ INDEX ROWS ARE FILTERED HERE, NOT ONLY IN THE CALLER. `I:`-prefixed symbols
+    # have no 5m OHLC series (indices warm via `index_bars`), so crawling one spends a
+    # provider call to learn nothing. Defending it in the pure function means a second
+    # caller cannot reintroduce it.
+    cands = sorted({str(s).strip().upper() for s in (reference_syms or ()) if s} - base)
+    cands = [t for t in cands if not t.startswith("I:")]
+    cands.sort(key=lambda t: (-dv.get(t, 0.0), t))
+    return cands[:n]
 
 
 def crawl_pass(universe, cursor, *, is_stale, warm, pace, beat=lambda: None,
@@ -190,9 +236,39 @@ def run_universe_crawler_forever():
         print(f"{log_prefix} disabled (set BARS_UNIVERSE_CRAWLER_ENABLED=1 to enable)")
         return
     universe = load_universe()
+    # ── PILOT: a bounded, ranked slice of the reference long tail ──────────────
+    # Both a FLAG and a BOUND are required, and the bound fails safe to zero. Walking
+    # more symbols does not walk them faster: the pace is unchanged, so the cohort is
+    # the same trickle for longer (2,500 x BARS_CRAWLER_FETCH_INTERVAL_SEC).
+    _tail = []
+    try:
+        if os.environ.get("PREWARM_5M_REF_TAIL", "0") == "1":
+            from api.services import massive as _massive
+            from api.services import bars_sqlite as _bsq
+            from api.services.bars_fetch import _expected_latest_session_yyyymmdd
+            from datetime import datetime as _dt, timedelta as _td
+            from zoneinfo import ZoneInfo as _ZI
+            _rows = _massive.list_reference_tickers(active=True, market="stocks")
+            _ref = [(r.get("ticker") or "").strip().upper() for r in (_rows or [])]
+            _ref = [t for t in _ref if t and not t.startswith("I:")]
+            _floor = int((_dt.now(_ZI("America/New_York")) - _td(days=90)).strftime("%Y%m%d"))
+            _dv = _bsq.avg_dollar_volume_bulk(20, _expected_latest_session_yyyymmdd(), _floor)
+            _tail = tail_cohort(
+                _ref, universe, enabled=True,
+                cap=os.environ.get("PREWARM_5M_REF_TAIL_CAP", "2500"),
+                dollar_volume=_dv,
+            )
+            print(f"{log_prefix} reference-tail pilot: +{len(_tail)} ranked symbols "
+                  f"(cap={os.environ.get('PREWARM_5M_REF_TAIL_CAP', '2500')}, "
+                  f"{len(_ref)} reference, {len(_dv)} with a local dollar-volume metric)")
+            universe = universe + _tail
+    except Exception as e:                       # noqa: BLE001
+        # The pilot must never be able to stop the crawler doing its existing job.
+        print(f"{log_prefix} reference-tail pilot unavailable, crawling base universe: {e}")
     with _STATE_LOCK:
         _STATE["enabled"] = True
         _STATE["universe"] = len(universe)
+        _STATE["tail_cohort"] = len(_tail)
     if not universe:
         print(f"{log_prefix} no universe loaded — nothing to crawl")
         return

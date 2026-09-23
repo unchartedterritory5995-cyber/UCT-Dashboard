@@ -51,10 +51,38 @@ const base = {
 }
 
 describe('ShellToolbar', () => {
-  it('views come from meta and select through onView', () => {
+  it('shows ONLY the Overview tab — firm views are chosen from the Columns picker, not tabs', () => {
     render(<ShellToolbar {...base} />)
-    fireEvent.click(screen.getByRole('tab', { name: 'Momentum' }))
-    expect(base.onView).toHaveBeenCalledWith('momentum')
+    expect(screen.getByRole('tab', { name: 'Overview' })).toBeInTheDocument()
+    expect(screen.queryByRole('tab', { name: 'Momentum' })).toBeNull()
+    fireEvent.click(screen.getByRole('tab', { name: 'Overview' }))
+    expect(base.onView).toHaveBeenCalledWith('overview')
+  })
+
+  it('firm layouts moved into the column picker and apply columns on click', () => {
+    const meta = { views: [
+      { key: 'overview', label: 'Overview', columns: ['ticker', 'price'] },
+      { key: 'technical', label: 'Technical', columns: ['ticker', 'rsi14'] },
+    ] }
+    const onColumns = vi.fn()
+    render(<ShellToolbar {...base} meta={meta} onColumns={onColumns} />)
+    fireEvent.click(screen.getByRole('button', { name: /choose columns/i }))
+    fireEvent.click(screen.getByRole('button', { name: 'Technical' }))
+    expect(onColumns).toHaveBeenCalledWith(['ticker', 'rsi14'])
+  })
+
+  it('user column presets render as tabs, apply, and delete', () => {
+    const onApplyPreset = vi.fn(); const onDeletePreset = vi.fn()
+    const presets = [{ id: 'p1', name: 'My momentum', columns: ['ticker', 'rs_rank'] }]
+    render(<ShellToolbar {...base} visibleColumns={['ticker', 'rs_rank']}
+      presets={presets} onApplyPreset={onApplyPreset} onDeletePreset={onDeletePreset} />)
+    const tab = screen.getByRole('tab', { name: /My momentum/ })
+    // active because visibleColumns exactly equals the preset's columns
+    expect(tab).toHaveAttribute('aria-selected', 'true')
+    fireEvent.click(tab)
+    expect(onApplyPreset).toHaveBeenCalledWith(presets[0])
+    fireEvent.click(screen.getByRole('button', { name: 'Delete view My momentum' }))
+    expect(onDeletePreset).toHaveBeenCalledWith('p1')
   })
 
   it('the seal opens the provenance popover and says when the snapshot is mixed', () => {
@@ -64,9 +92,8 @@ describe('ShellToolbar', () => {
     expect(screen.getByText(/mixed snapshot/i)).toBeInTheDocument()
   })
 
-  it('density toggles with aria-pressed; export error is a status', () => {
+  it('export error is a status', () => {
     render(<ShellToolbar {...base} exportState={{ error: 'Export failed — nothing downloaded.' }} />)
-    expect(screen.getByRole('button', { name: /density/i })).toHaveAttribute('aria-pressed', 'true')
     expect(screen.getByRole('status')).toHaveTextContent(/nothing downloaded/i)
   })
 

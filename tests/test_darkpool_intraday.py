@@ -16,6 +16,7 @@ import os
 import io
 import csv
 import tempfile
+from datetime import datetime, timedelta
 
 # Point the DB at a temp volume BEFORE importing the darkpool modules (their
 # module-level init_db() runs on import).
@@ -137,6 +138,71 @@ def test_today_aggregate_empty_when_no_rows(dp):
     payload = darkpool_aggregator.get_today_aggregated()
     assert payload["allItems"] == []
     assert payload["meta"]["totalTickers"] == 0
+
+
+# ── T-31: same-day prints must be DELAYED, not real-time ──────────────────
+# GATE-S9's licensing register named this row's own gate "Measurable in
+# code — whether the lane runs inside or outside the 15-min interval... not
+# measured." Measured 2026-09-19: the intraday poller ran every 3 minutes
+# with no age filter, serving same-day prints in near-real-time. These pin
+# the fix (darkpool_aggregator.aggregate, table="darkpool_today").
+
+def _et_now():
+    from api.darkpool_massive_ingest import ET
+    return datetime.now(ET)
+
+
+def _ts_minutes_ago(minutes):
+    """(date_str, timestamp_str) for a print `minutes` ago, ET, BBS format.
+    Zero-padded hour (%I, not the non-portable %-I production uses) — the
+    parser under test (_today_print_dt) accepts either padding."""
+    dt = _et_now() - timedelta(minutes=minutes)
+    return f"{dt.month}/{dt.day}/{dt.year}", dt.strftime("%I:%M:%S %p")
+
+
+def test_a_print_inside_the_delay_window_is_not_served(dp):
+    """The compliance floor itself: a print from 2 minutes ago is real-time
+    Information and must not appear in the member-facing aggregate."""
+    date_str, ts_str = _ts_minutes_ago(2)
+    darkpool_db.insert_today_rows(_csv([_print_row(ticker="AAPL", date=date_str, ts=ts_str)]))
+
+    payload = darkpool_aggregator.get_today_aggregated()
+    assert "AAPL" not in {it["t"] for it in payload["allItems"]}
+
+
+def test_a_print_past_the_delay_window_is_served(dp):
+    """The CONTROL: the same shape, old enough, must pass — proving the test
+    above is asserting the delay and not something else (e.g. a broken
+    insert)."""
+    date_str, ts_str = _ts_minutes_ago(20)
+    darkpool_db.insert_today_rows(_csv([_print_row(ticker="AAPL", date=date_str, ts=ts_str)]))
+
+    payload = darkpool_aggregator.get_today_aggregated()
+    assert "AAPL" in {it["t"] for it in payload["allItems"]}
+
+
+def test_the_delay_boundary_is_at_exactly_15_minutes(dp):
+    """14 minutes old: still withheld. 16 minutes old: served. Pins the
+    constant itself, not just "some delay exists"."""
+    d14, t14 = _ts_minutes_ago(14)
+    d16, t16 = _ts_minutes_ago(16)
+    darkpool_db.insert_today_rows(_csv([
+        _print_row(ticker="AAPL", date=d14, ts=t14),
+        _print_row(ticker="NVDA", date=d16, ts=t16),
+    ]))
+
+    payload = darkpool_aggregator.get_today_aggregated()
+    tickers = {it["t"] for it in payload["allItems"]}
+    assert "AAPL" not in tickers
+    assert "NVDA" in tickers
+
+
+def test_a_row_whose_age_cannot_be_determined_is_excluded_not_served():
+    """Fail-closed control: a malformed or missing timestamp must never be
+    treated as 'old enough' by default."""
+    assert darkpool_aggregator._today_print_dt("7/27/2026", "") is None
+    assert darkpool_aggregator._today_print_dt("7/27/2026", "not a time") is None
+    assert darkpool_aggregator._today_print_dt("", "10:00:00 AM") is None
 
 
 # ── Incremental poll cycle ───────────────────────────────────────────────

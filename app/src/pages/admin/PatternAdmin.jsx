@@ -31,6 +31,13 @@ export default function PatternAdmin() {
     { refreshInterval: 60_000, revalidateOnFocus: true }
   )
 
+  // Packet Y CP1 (signed 2026-09-23, fingerprint 4007862bd) — the sibling
+  // `/health` route on this same require_admin router, previously never
+  // fetched from any frontend. Same fetcher, same 60s cadence as `/recent`.
+  const { data: health } = useSWR('/api/admin/patterns/health', fetcher, {
+    refreshInterval: 60_000,
+  })
+
   const filtered = useMemo(() => {
     let dets = data?.detections || []
     if (reviewedFilter === 'unreviewed') dets = dets.filter((d) => !d.reviewed)
@@ -96,6 +103,26 @@ export default function PatternAdmin() {
             <label>Target</label>
             <strong style={{ color: '#c9a84c' }}>&ge;85% / 5 days</strong>
           </div>
+        </div>
+      </div>
+
+      {/* Packet Y CP1 — engine health, from the sibling /health route */}
+      <div className={styles.stats} style={{ marginBottom: 20 }}>
+        <div className={styles.stat}>
+          <label>Detectors</label>
+          <strong>{health?.detector_count ?? '—'}</strong>
+        </div>
+        <div className={styles.stat}>
+          <label>Stored detections</label>
+          <strong>{health?.stored_detections_total ?? '—'}</strong>
+        </div>
+        <div className={styles.stat}>
+          <label>Last 24h</label>
+          <strong>{health?.recent_24h_count ?? '—'}</strong>
+        </div>
+        <div className={styles.stat}>
+          <label>Last detected</label>
+          <strong>{health?.last_detected_at ?? '—'}</strong>
         </div>
       </div>
 

@@ -318,7 +318,7 @@ export default function PortfolioSettingsModal({ settings, onSave, onClose, acco
       // from a user's browser without round-tripping through the team.
       // eslint-disable-next-line no-console
       console.error('[J2 Settings] save failed:', e)
-      setErrorMsg(String(e?.message || e))
+      setErrorMsg("Couldn't save your settings. Nothing was changed — try again.")
     } finally {
       setSaving(false)
     }
@@ -1177,7 +1177,7 @@ export default function PortfolioSettingsModal({ settings, onSave, onClose, acco
 
         {errorMsg && (
           <div className={styles.errorBannerSticky} role="alert" aria-live="polite">
-            <strong>Couldn't save:</strong> {errorMsg}
+            {errorMsg}
           </div>
         )}
 

@@ -1,0 +1,55 @@
+<!doctype html>
+<!--
+  MARKET INDICATORS LIBRARY — LIVE UX HARNESS.
+
+  Mounts the REAL `/api/market-indicators` catalogue, the REAL server-side search and
+  the REAL `/api/bars` route, so a browser can show what the unit suites only assert:
+  a member typing "McClellan" sees the oscillator and the summation, clicks one, and
+  gets a chart with the right shape and the right timestamps.
+
+  Dev-server only. `vite build` takes `index.html` as its single input (no
+  `rollupOptions.input` override), so this entry never ships — the same arrangement
+  `pane-harness.html`, `breadth-harness.html`, `device-harness.html` and `floor2.html`
+  rely on.
+
+  ⛔ IT CANNOT WRITE A PREFERENCE — `window.fetch` refuses any non-GET to
+  /api/auth/preferences, the same lock the pane and breadth harnesses carry. This
+  machine holds the frozen Main Trading `chart_settings` row.
+
+  ⛔ AND IT NEVER OPENS /charts. A chart canvas is created directly; no workspace, no
+  layout, no stored state.
+
+  Run:  npx vite            (from app/, with a backend on :8000)
+  Then: http://localhost:5173/market-indicators-harness.html
+-->
+<html lang="en" data-theme="dark">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Market Indicators — UX harness</title>
+    <style>
+      html, body {
+        margin: 0; background: #0e1014; color: #e6e8ec;
+        font: 13px/1.45 ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
+      }
+      code { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; }
+      .banner {
+        padding: 9px 20px; background: #16202a; border-bottom: 1px solid #242a33;
+        font-size: 12px; color: #9aa4b2;
+      }
+      .banner b { color: #4fb3c4; }
+      button:hover { background: #182229 !important; }
+    </style>
+  </head>
+  <body>
+    <div class="banner">
+      <b>Market Indicators harness</b> — live against the local backend on :8000.
+      Preference writes are blocked (<code>window.__miHarnessBlocked</code>).
+      Breadth-derived series read a LOCAL demo store seeded by
+      <code>tools/seed_local_market_indicator_demo.py</code>; NAAIM and the Cboe
+      volatility family are the real ingested history.
+    </div>
+    <div id="root"></div>
+    <script type="module" src="/src/testing/marketIndicators/marketIndicatorsHarness.jsx"></script>
+  </body>
+</html>

@@ -216,6 +216,114 @@ def test_backlinks_empty_for_an_empty_note_id():
     assert get_note_backlinks("u1", "", conn=c) == {"count": 0, "notes": []}
 
 
+# ── backlink context snippets (Wave D closure-pass residual debt, 2026-09-22) ─
+# Obsidian's "Show more context" -- a piece of the SOURCE note's own prose
+# surrounding the link, not just its title.
+
+def test_backlink_context_is_the_enclosing_paragraphs_text():
+    c = _conn()
+    target = _create(c, "u1", "Target", {"type": "doc", "content": []})
+    source = _create(c, "u1", "Source", {"type": "doc", "content": [
+        _para(_text("Before the link. "), _link_node(target["id"]), _text(" After the link.")),
+    ]})
+    out = get_note_backlinks("u1", target["id"], conn=c)
+    assert out["notes"][0]["context"] == "Before the link. After the link."
+
+
+def test_backlink_context_from_a_heading_not_just_a_paragraph():
+    c = _conn()
+    target = _create(c, "u1", "Target", {"type": "doc", "content": []})
+    heading = {"type": "heading", "attrs": {"level": 2},
+               "content": [_text("See "), _link_node(target["id"])]}
+    _create(c, "u1", "Source", {"type": "doc", "content": [heading]})
+    out = get_note_backlinks("u1", target["id"], conn=c)
+    assert out["notes"][0]["context"] == "See"  # the link itself isn't marked in its own context
+
+
+def test_backlink_context_only_the_linking_paragraph_not_the_whole_note():
+    c = _conn()
+    target = _create(c, "u1", "Target", {"type": "doc", "content": []})
+    source = _create(c, "u1", "Source", {"type": "doc", "content": [
+        _para(_text("An unrelated first paragraph, nothing to do with the link.")),
+        _para(_text("Here is the "), _link_node(target["id"])),
+        _para(_text("An unrelated third paragraph, also nothing to do with it.")),
+    ]})
+    out = get_note_backlinks("u1", target["id"], conn=c)
+    assert out["notes"][0]["context"] == "Here is the"
+
+
+def test_backlink_context_null_when_note_links_with_no_surrounding_text():
+    c = _conn()
+    target = _create(c, "u1", "Target", {"type": "doc", "content": []})
+    _create(c, "u1", "Source", {"type": "doc", "content": [_para(_link_node(target["id"]))]})
+    out = get_note_backlinks("u1", target["id"], conn=c)
+    assert out["notes"][0]["context"] is None  # honest: the link is entirely alone in its block
+
+
+def test_backlink_context_truncates_a_long_enclosing_paragraph():
+    c = _conn()
+    target = _create(c, "u1", "Target", {"type": "doc", "content": []})
+    long_text = "x" * 300
+    _create(c, "u1", "Source", {"type": "doc", "content": [
+        _para(_text(long_text), _link_node(target["id"])),
+    ]})
+    out = get_note_backlinks("u1", target["id"], conn=c)
+    ctx = out["notes"][0]["context"]
+    assert len(ctx) <= 141  # 140 + the ellipsis
+    assert ctx.endswith("…")
+
+
+def test_backlink_context_degrades_to_none_on_unparseable_body_json_never_500s():
+    """A malformed body_json in the DB (should never happen through the real
+    save path, but this read must not crash the whole backlinks list over
+    it) -- count/title/refs still come through correctly."""
+    c = _conn()
+    target = _create(c, "u1", "Target", {"type": "doc", "content": []})
+    source = _create(c, "u1", "Source", {"type": "doc", "content": [_para(_link_node(target["id"]))]})
+    c.execute("UPDATE j2_notes SET body_json = ? WHERE id = ?", ("not valid json{{{", source["id"]))
+    c.commit()
+    out = get_note_backlinks("u1", target["id"], conn=c)
+    assert out["count"] == 1
+    assert out["notes"][0]["id"] == source["id"]
+    assert out["notes"][0]["context"] is None
+
+
+def test_backlink_context_picks_the_first_occurrence_when_a_note_links_twice():
+    c = _conn()
+    target = _create(c, "u1", "Target", {"type": "doc", "content": []})
+    _create(c, "u1", "Source", {"type": "doc", "content": [
+        _para(_text("First mention "), _link_node(target["id"])),
+        _para(_text("Second mention "), _link_node(target["id"])),
+    ]})
+    out = get_note_backlinks("u1", target["id"], conn=c)
+    assert out["notes"][0]["refs"] == 2
+    assert out["notes"][0]["context"] == "First mention"
+
+
+# ── _link_context_snippets (unit-level, direct) ──────────────────────────────
+
+def test_link_context_snippets_finds_every_occurrence_in_document_order():
+    from api.services.journal_two.notes import _link_context_snippets
+    doc = {"type": "doc", "content": [
+        _para(_text("first "), _link_node("t1")),
+        _para(_text("second "), _link_node("t1"), _text(" third"), _link_node("t2")),
+    ]}
+    assert _link_context_snippets(doc, "t1") == ["first", "second third…"]
+
+
+def test_link_context_snippets_empty_for_no_match():
+    from api.services.journal_two.notes import _link_context_snippets
+    doc = {"type": "doc", "content": [_para(_text("no links here"))]}
+    assert _link_context_snippets(doc, "t1") == []
+
+
+def test_link_context_snippets_non_dict_body_degrades_to_empty_list():
+    from api.services.journal_two.notes import _link_context_snippets
+    assert _link_context_snippets(None, "t1") == []
+    assert _link_context_snippets("not a doc", "t1") == []
+    assert _link_context_snippets({"type": "doc", "content": []}, "") == []
+
+
 # ── resolve_note_link_targets ────────────────────────────────────────────────
 
 def test_resolve_targets_returns_title_and_active_status():

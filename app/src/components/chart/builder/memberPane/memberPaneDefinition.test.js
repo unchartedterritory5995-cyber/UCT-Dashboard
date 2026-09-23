@@ -14,13 +14,32 @@ import * as registry from '../../engine/nativeRegistry'
 import { addInstance } from '../../engine/instanceControls'
 import { mergeChartSettings } from '../../chartDefaults'
 import { validateDefinition } from '../../engine/defSchema'
-import { translatePine } from '../../engine/ast/pine'
+import { translatePine, REFUSALS } from '../../engine/ast/pine'
 import {
   memberPaneDefinition, memberPaneVariants,
   MEMBER_PANE_HEIGHT, MEMBER_PANE_DEF_PREFIX,
 } from './memberPaneDefinition'
 
 const REPO = path.resolve(process.cwd(), '..')
+/** A script with no plot, no alertcondition, and no drawing call of any kind
+ *  — nothing for `pine.js`'s value lane OR object lane to offer.
+ *  ⚰️ THIS USED TO BE A TABLE-ONLY DASHBOARD (`table.new` + `table.cell`
+ *  under `barstate.islast`) — exactly the shape `pineObjectOnlyHostAccept.
+ *  test.js` now accepts at the `translatePine` level (2026-09-20: a clean,
+ *  zero-drop object program is no longer `pine:no-output` there). That table
+ *  now reaches THIS door as `t.ok:true` with a real object program and zero
+ *  visible value-lane rows, which `memberPaneDefinition.js:141`'s own,
+ *  separate, pre-existing check correctly still declines ("this script
+ *  declares nothing a chart can draw" — a pane is specifically the
+ *  value-lane series surface, and that requirement is unrelated to and
+ *  unchanged by the object-lane fix). This test is about a DIFFERENT bug —
+ *  the lane-naming one, see below — so the fixture is swapped for one with
+ *  no object-lane output either, to keep exercising exactly that. */
+const NO_PLOT_SCRIPT = [
+  '//@version=6',
+  'indicator("t", overlay = true)',
+  'x = close + 1',
+  ''].join('\n')
 const V2 = fs.readFileSync(
   path.join(REPO, 'tests/fixtures/member/uncharted-volume-v2.pine'), 'utf8')
 
@@ -181,6 +200,22 @@ describe('⛔⛔ the gate is the pane gate, not a second opinion about it', () =
     expect(r.ok).toBe(false)
     expect(r.guard).toBe('pine:request')
     expect(String(r.reason).length).toBeGreaterThan(0)
+  })
+
+  it('⛔⛔ a TABLE-ONLY SCRIPT IS TOLD THE REAL REASON, not "the unknown lane"', () => {
+    // ⚰️ The member pastes a dashboard that draws no line — a perfectly good
+    // script this door cannot put on a pane — and was answered "this verdict
+    // came from the unknown lane, which answers a different question", because
+    // `translatePine`'s `pine:no-output` early return carried no `mode` and
+    // `paneGate` checks the lane before anything else. The sentence was about
+    // our internals and named nothing the member could act on.
+    const r = memberPaneDefinition({ source: NO_PLOT_SCRIPT })
+    expect(r.ok).toBe(false)
+    expect(r.reason, 'the member was told about a LANE instead of their script')
+      .toBe(REFUSALS['pine:no-output'])
+    expect(r.guard).toBe('pine:no-output')
+    expect(String(r.reason), 'the lane sentence reached a member')
+      .not.toMatch(/lane/i)
   })
 
   it('⛔ CONTROL: junk in, a reason out', () => {

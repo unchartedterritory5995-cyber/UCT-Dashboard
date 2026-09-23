@@ -105,7 +105,21 @@ export const FAMILY_PROPS = Object.freeze({
 })
 
 /** The per-cell vocabulary. Tables are the biggest reachable demand, and a cell
- *  is not a `set_*` on the table — it is addressed by (column, row). */
+ *  is not a `set_*` on the table — it is addressed by (column, row).
+ *
+ *  ⭐⭐ `text_formatting` IS HERE BECAUSE A DASHBOARD'S HEADER ROW IS BOLD.
+ *  ⚰️ It was missing, and that absence was not a refusal — `pine.js`'s cell pass
+ *  read `if (!OBJECT_CELL_PROPS.includes(k)) continue`, a bare `continue` with
+ *  no count, no name and no line number, so `text_formatting = text.format_bold`
+ *  left the member's header row indistinguishable from its data rows and left
+ *  no record anywhere that they had asked for anything. `text.format_bold` is
+ *  0.6% of the measured constant demand (`docs/pine/demand-constants.md:194`),
+ *  which for a table-shaped corpus is a header row in a great many dashboards.
+ *
+ *  ⛔ `text_font_family` IS STILL NOT HERE AND THAT IS A DECISION. A font this
+ *  renderer does not have is a font it would have to substitute, and a
+ *  substituted typeface silently changes every column width in the table. It is
+ *  named in `objectDiagnostics.unsupportedProps` instead. */
 export const CELL_PROPS = Object.freeze(['text', 'text_color', 'text_size', 'text_halign',
   'text_valign', 'bgcolor', 'width', 'height', 'tooltip', 'text_formatting'])
 
@@ -114,8 +128,38 @@ export const CELL_PROPS = Object.freeze(['text', 'text_color', 'text_size', 'tex
  *  refused structurally rather than noticed at render time. */
 export const REF_PROPS = Object.freeze({ 'linefill.line1': 'line', 'linefill.line2': 'line' })
 
+/** ⭐⭐ EVERY FIELD ON AN OP WHOSE VALUE IS A PLAIN VALUE REFERENCE — ONE LIST.
+ *
+ *  ⛔⛔ MASTER'S EXTRACTION, WITH THE BRANCH'S FIELD NAMES FOLDED IN, AND THE
+ *  MERGE IS EXACTLY WHERE THIS COULD HAVE GONE WRONG. Master unified four
+ *  hand-written enumerations into this list because *"add a field, update three
+ *  of the four, and the one you missed leaves `{v:'tree', i}` in a BOUND program:
+ *  the runtime reads `undefined`, `Number(undefined)` is `NaN`, the operation is
+ *  rejected as out of range and does nothing at all."*
+ *
+ *  ⚰️ THE TWO SIDES NAMED THE SAME IDEA DIFFERENTLY. Master's table-clear
+ *  rectangle is `col2`/`row2`; this branch's is `startCol`/`startRow`/`endCol`/
+ *  `endRow`, and the branch also carries `from`/`to` for the `loop` kind.
+ *  **The merged `pine.js` emits BOTH spellings** (measured: `startCol` ×4,
+ *  `col2` ×3), so adopting either list alone would silently unbind the other
+ *  side's ops — the precise failure the list exists to prevent, reintroduced by
+ *  the merge that was meant to preserve both.
+ *
+ *  ⚠️ A field absent from an op is skipped, so a superset costs nothing. */
+export const OP_VALUE_FIELDS = Object.freeze([
+  'when', 'col', 'row', 'index',
+  'col2', 'row2',                              // master's clear rectangle
+  'startCol', 'startRow', 'endCol', 'endRow',  // this branch's
+  'from', 'to',                                // the `loop` bounds
+])
+
 export const OBJECT_OP_KINDS = Object.freeze([
   'create', 'update', 'delete', 'cell', 'clear', 'setreg', 'push', 'collset', 'collclear', 'collremove',
+  // ⭐ MASTER'S TWO, KEPT BY THE MERGE. `cellpatch` is `table.cell_set_*` — the
+  // same `(column, row)` address as `cell` and a DIFFERENT meaning (patch one
+  // property, not replace the cell), which is why it is its own kind rather
+  // than a flag on `cell`. `clearcells` is the range form's validated name.
+  'cellpatch', 'clearcells',
   // ⭐⭐ THE TENTH KIND, AND THE FIRST ONE THAT CONTAINS OTHER OPS.
   //
   // ⚰ `pineObjects.js` refuses an object operation inside a `for`/`while` and
@@ -498,9 +542,14 @@ export function assertObjectProgram(program) {
           throw new Error(`${where}: a ${op.family} cannot be stored in register ${op.into}, which holds ${reg.family}`)
         }
       }
-    } else if (op.k === 'update' || op.k === 'delete' || op.k === 'cell' || op.k === 'clear') {
+    } else if (op.k === 'update' || op.k === 'delete' || op.k === 'cell'
+      || op.k === 'cellpatch' || op.k === 'clear' || op.k === 'clearcells') {
       const fam = resolveTargetFamily(op, where, regs, colls, siteFamily)
-      if (op.k === 'cell') {
+      // ⭐ `cell` (Pine's PUT) and `cellpatch` (its `cell_set_*` PATCH) are two
+      // operations with ONE SHAPE, so the door checks them with one rule — master's
+      // wording, kept. What separates them is what the RUNTIME does with an address
+      // that already holds something, which a validator cannot see.
+      if (op.k === 'cell' || op.k === 'cellpatch') {
         if (fam !== 'table') throw new Error(`${where}: cell targets a ${fam}, but only a table has cells`)
         assertValueRef(op.col, `${where}.col`)
         assertValueRef(op.row, `${where}.row`)
@@ -510,6 +559,17 @@ export function assertObjectProgram(program) {
       // omit — the converter fills an absent `end_` from its own start, so by
       // the time an op reaches here a missing one is a CONVERTER defect, and a
       // rectangle with an unreadable edge would delete an arbitrary block.
+      // ⛔⛔ TWO CLEAR SPELLINGS SURVIVE THE MERGE, AND THAT IS MEASURED, NOT
+      // TOLERATED. Master's converter emits `clearcells` with a `col/row/col2/row2`
+      // rectangle; this branch's emits `clear` with `startCol/startRow/endCol/endRow`.
+      // The merged `pine.js` contains BOTH conversions, so a door that knew only one
+      // would pass the other's ops unchecked — which is worse than either alone.
+      // ⚠️ Collapsing them to one spelling is a FOLLOW-UP with its own evidence,
+      // not a drive-by inside a merge.
+      if (op.k === 'clearcells') {
+        if (fam !== 'table') throw new Error(`${where}: clearcells targets a ${fam}, but only a table has cells`)
+        for (const f of ['col', 'row', 'col2', 'row2']) assertValueRef(op[f], `${where}.${f}`)
+      }
       if (op.k === 'clear') {
         if (fam !== 'table') throw new Error(`${where}: clear targets a ${fam}, but only a table has cells`)
         assertValueRef(op.startCol, `${where}.startCol`)
@@ -628,7 +688,7 @@ export function graphNodesReferenced(program) {
   for (const [, op] of walkOps(program.ops || [])) {
     walkValue(op.when); walkValue(op.from); walkValue(op.to)
     walkRef(op.target); walkRef(op.value)
-    walkValue(op.col); walkValue(op.row); walkValue(op.index)
+    for (const f of OP_VALUE_FIELDS) walkValue(op[f])
     for (const v of Object.values(op.props || {})) {
       if (isObj(v) && v.r) walkRef(v)
       else walkValue(v)
@@ -674,11 +734,8 @@ export function treeRefsOfOp(op) {
   }
   const walkRef = (r) => { if (isObj(r) && r.r === 'coll') walkValue(r.index) }
   if (!isObj(op)) return seen
-  walkValue(op.when); walkValue(op.from); walkValue(op.to)
   walkRef(op.target); walkRef(op.value)
-  walkValue(op.col); walkValue(op.row); walkValue(op.index)
-  walkValue(op.startCol); walkValue(op.startRow)
-  walkValue(op.endCol); walkValue(op.endRow)
+  for (const f of OP_VALUE_FIELDS) walkValue(op[f])
   for (const v of Object.values(op.props || {})) {
     if (isObj(v) && v.r) walkRef(v)
     else walkValue(v)
@@ -709,8 +766,7 @@ export function paramsReferenced(program) {
     if (v.v === 'op') (v.args || []).forEach(walkValue)
   }
   for (const [, op] of walkOps(program.ops || [])) {
-    walkValue(op.when); walkValue(op.from); walkValue(op.to)
-    walkValue(op.col); walkValue(op.row); walkValue(op.index)
+    for (const f of OP_VALUE_FIELDS) walkValue(op[f])
     if (isObj(op.target) && op.target.r === 'coll') walkValue(op.target.index)
     for (const v of Object.values(op.props || {})) if (isObj(v) && v.v) walkValue(v)
   }
@@ -781,21 +837,16 @@ export function bindObjectProgram(program, nodeOf) {
       out.to = bindValue(op.to)
       out.body = bindOps(op.body)
     }
-    if (op.when != null) out.when = bindValue(op.when)
     if (op.target) out.target = bindRef(op.target)
     if (op.value && op.value.r) out.value = bindRef(op.value)
-    if (op.col) out.col = bindValue(op.col)
-    if (op.row) out.row = bindValue(op.row)
+    // ⭐ ONE LIST HERE TOO — a field bound in three walkers and forgotten in the
+    // fourth is the exact defect `OP_VALUE_FIELDS` was extracted to stop.
+    for (const f of OP_VALUE_FIELDS) if (op[f] != null) out[f] = bindValue(op[f])
     // ⛔ THE CLEAR RECTANGLE BINDS TOO, for the reason the loop comment above
     // gives: an unbound `{v:'tree'}` reaching the runtime reads as an unknown
     // kind and answers `undefined`, and a bound that is not a number clears
     // NOTHING — so a forgotten bind here is a `table.clear` that silently
     // stops working rather than one that fails.
-    if (op.startCol) out.startCol = bindValue(op.startCol)
-    if (op.startRow) out.startRow = bindValue(op.startRow)
-    if (op.endCol) out.endCol = bindValue(op.endCol)
-    if (op.endRow) out.endRow = bindValue(op.endRow)
-    if (op.index) out.index = bindValue(op.index)
     if (op.props) {
       out.props = Object.fromEntries(Object.entries(op.props)
         .map(([k, v]) => [k, (isObj(v) && v.r) ? bindRef(v) : bindValue(v)]))

@@ -22,6 +22,7 @@ import NhnlPulseWidget from './widgets/NhnlPulseWidget'
 import VolumeScanWidget from './widgets/VolumeScanWidget'
 import ScatterWidget from './widgets/ScatterWidget'
 import WidgetHeader from './WidgetHeader'
+import ErrorBoundary from '../../components/ErrorBoundary'
 import { useWorkspace } from './WorkspaceContext'
 import usePlacedTheme, { PlacedThemeContext } from '../../hooks/usePlacedTheme'
 import {
@@ -76,6 +77,19 @@ export const WORKSPACE_WIDGETS = {
   scatter: { component: ScatterWidget, props: standardProps },
 }
 
+// TD-02 (S1 CP3, gate fc609961a): a widget that throws during render used to take
+// the whole /charts board down to App.jsx's RouteErrorBoundary — one bad ticker or
+// a bad opts shape in ONE panel cost every other open widget. `WidgetBody` is the
+// single render path every widget type goes through (see WORKSPACE_WIDGETS above),
+// so one boundary here isolates every widget kind without a per-type wrapper.
+function WidgetErrorFallback({ type }) {
+  return (
+    <div className={styles.unknownWidget} role="alert">
+      This {TYPE_LABEL[type] || type || 'widget'} hit an error. Remove and re-add it, or reload the page.
+    </div>
+  )
+}
+
 function WidgetBody({ groupId, type, color, opts, onOptsChange }) {
   // Color 'N' = "not linked": give the surface a UNIQUE group key so it reads/writes
   // its own ticker instead of sharing a color group with anything else (every widget
@@ -86,18 +100,27 @@ function WidgetBody({ groupId, type, color, opts, onOptsChange }) {
   if (!binding) return <div className={styles.unknownWidget}>Unknown widget type: {type}</div>
   const Widget = binding.component
   // Suspense boundary for the lazy Notebook (a no-op passthrough for the eagerly
-  // imported widgets, which never suspend).
+  // imported widgets, which never suspend). `key={groupId}` on the boundary itself
+  // resets a tripped boundary if the widget's identity changes under it (a tab
+  // swap reusing the same DOM slot), so a stale error state can't outlive its cause.
   return (
-    <Suspense fallback={<div style={{ padding: 14, fontSize: 12, color: 'var(--text-muted, #8b8674)' }}>Loading…</div>}>
-      <Widget {...binding.props({ colorKey: key, opts, onOptsChange, groupId })} />
-    </Suspense>
+    <ErrorBoundary key={groupId} fallback={<WidgetErrorFallback type={type} />}>
+      <Suspense fallback={<div style={{ padding: 14, fontSize: 12, color: 'var(--text-muted, #8b8674)' }}>Loading…</div>}>
+        <Widget {...binding.props({ colorKey: key, opts, onOptsChange, groupId })} />
+      </Suspense>
+    </ErrorBoundary>
   )
 }
 
 export default function WidgetHost({ widget, onRemove, onColorChange, onOptsChange, onReplaceWidget, onPopOut, headerAtBottom = false, merged = false,
   // In-canvas float (pop the widget onto another widget). onFloat = grid mode;
   // floating + onDock/floatTabTargets/onFloatToTab/onHeaderDragStart = while floating.
-  onFloat, floating = false, onDock, floatTabTargets = [], onFloatToTab, onHeaderDragStart }) {
+  onFloat, floating = false, onDock, floatTabTargets = [], onFloatToTab, onHeaderDragStart,
+  // S1 CP3 mount cap: defaults true so every caller that doesn't pass it (popped
+  // boards, the single popout window, every existing test) is unaffected. Only
+  // the main board's renderGrid call site passes false while this widget is
+  // still queued behind PANEL_MOUNT_CAP concurrent mounts.
+  mounted = true }) {
   // The slot can hold several widgets of different types as tabs; resolve the one
   // currently showing. A tab-less slot resolves to the base widget unchanged.
   const active = resolveActiveTab(widget)
@@ -242,13 +265,19 @@ export default function WidgetHost({ widget, onRemove, onColorChange, onOptsChan
   )
   const body = (
     <div className={styles.widgetBody}>
-      <WidgetBody
-        groupId={groupId}
-        type={active.type}
-        color={active.color}
-        opts={active.opts}
-        onOptsChange={handleActiveOptsChange}
-      />
+      {mounted
+        ? (
+          <WidgetBody
+            groupId={groupId}
+            type={active.type}
+            color={active.color}
+            opts={active.opts}
+            onOptsChange={handleActiveOptsChange}
+          />
+        )
+        // Header/chrome above still renders — RGL's geometry and the layout the
+        // member sees never jump — only the widget's own data-fetching body waits.
+        : <div style={{ padding: 14, fontSize: 12, color: 'var(--text-muted, #8b8674)' }}>Loading…</div>}
     </div>
   )
   // Merged view: no border, no header bar — the widgets blend into one seamless board

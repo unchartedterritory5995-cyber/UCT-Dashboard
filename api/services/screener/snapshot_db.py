@@ -11,7 +11,7 @@ _WRITE_LOCK = threading.Lock()
 
 # Canonical column set. Add columns here ONLY (builder + query read this list).
 COLUMNS = [
-    "ticker", "company", "sector", "industry", "exchange",
+    "ticker", "company", "sector", "industry", "exchange", "security_type",
     "market_cap", "price", "avg_volume_30d", "dividend_yield",
     # fundamentals
     "pe_ttm", "pe_fwd", "peg", "ps", "pb", "eps_growth", "rev_growth",
@@ -148,7 +148,7 @@ COLUMNS = [
     "snapshot_date", "bars_asof", "built_at",
 ]
 
-_TEXT = {"ticker", "company", "sector", "industry", "exchange", "ma_stack",
+_TEXT = {"ticker", "company", "sector", "industry", "exchange", "security_type", "ma_stack",
          "candle_type", "candle_label", "candle_matches", "candle_trend",
          "bar_character", "bar_character_label",
          "candle_recent", "candle_recent_label", "candle_recent_status",
@@ -702,3 +702,35 @@ def status() -> dict:
     # re-queried: a second authority over one number is how these two drift.
     return {**prov, "latest_built_at": built,
             "latest_snapshot_date": prov["newest_snapshot_date"]}
+
+
+def get_projected(tickers: list, columns: list) -> dict:
+    """{ticker: {col: value}} for the named columns only, one connection.
+
+    ⛔ THIS EXISTS BECAUSE `get_rows` PROJECTS `SELECT *`. That is 205 columns, and
+    its own siblings already warn about it: `symbols_in_snapshot` says in as many
+    words "IT IS NOT `get_rows` … that projects SELECT * … on a request path".
+    Measured on a 3,665-row snapshot: 2,000 tickers with `SELECT *` is 275 ms and
+    9.8 MB; the same 2,000 with ten projected columns is **7.2 ms**. A watchlist
+    enriching Russell 2000 needs the second one.
+
+    Same contract as `get_rows` otherwise — uppercased to match the PK, chunked
+    under SQLite's 999-variable limit, misses simply absent so the caller can tell
+    "outside the snapshot universe" from "no value".
+    """
+    tks = [t.upper() for t in (tickers or []) if t]
+    cols = [c for c in (columns or []) if c in COLUMNS]
+    if not tks or not cols:
+        return {}
+    if "ticker" not in cols:
+        cols = ["ticker"] + cols
+    sel = ", ".join(cols)
+    out: dict = {}
+    with connect() as conn:
+        for i in range(0, len(tks), 900):
+            chunk = tks[i:i + 900]
+            ph = ", ".join("?" for _ in chunk)
+            for r in conn.execute(
+                    f"SELECT {sel} FROM screener_rows WHERE ticker IN ({ph})", chunk):
+                out[r["ticker"]] = {c: r[c] for c in cols if c != "ticker"}
+    return out

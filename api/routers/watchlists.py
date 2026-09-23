@@ -1,6 +1,6 @@
 """Watchlist API — per-user watchlists with public sharing."""
 
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Request, Response
 from pydantic import BaseModel
 from typing import Optional
 
@@ -8,9 +8,24 @@ from api.middleware.auth_middleware import get_current_user
 from api.services import watchlist_service
 from api.services.watchlist_performance import get_batch_returns
 from api.services.auth_db import get_connection
+import hashlib
 import json
 
 router = APIRouter()
+
+# ⛔ HOW MANY SYMBOLS A LIST-OPEN MAY WARM. `warm_bars_async`'s own docstring says
+# "Caller should pass a SHORT list (≤30)" and its pool is max_workers=4 — but both
+# call sites below passed the WHOLE list. That was survivable only because nothing
+# routed a large list through them; the moment the picker fetches membership from
+# `GET /api/watchlists/{wl_id}`, opening Russell 2000 becomes 1,872 symbols × 8,000
+# daily bars queued on the web pod. See the OOM and write-lock incidents this repo
+# has already paid for. A member's own list (a few dozen names) is warmed exactly as
+# before; an index list warms its head and no more.
+#
+# This is a CEILING, not a prefetch strategy. Warming the first 30 of a $-volume-
+# sorted index list is merely harmless; warming what the member is about to click
+# is Phase 3's job, and belongs on the navigation path, not on list-open.
+_WARM_MAX = 30
 
 
 class WatchlistCreate(BaseModel):
@@ -56,7 +71,7 @@ def get_flagged(user: dict = Depends(get_current_user)):
         from api.routers.bars import warm_bars_async
         tickers = [i["sym"].upper() for i in (result.get("items") or []) if isinstance(i, dict) and i.get("sym")]
         if tickers:
-            warm_bars_async(tickers, tf="D", bars=8000)
+            warm_bars_async(tickers[:_WARM_MAX], tf="D", bars=8000)
     except Exception:
         pass
     return result
@@ -106,6 +121,95 @@ def themes_batch(body: ThemesBatchRequest, user: dict = Depends(get_current_user
             name = None
         results[sym] = name
     return {"results": results}
+
+
+# ── Bulk row enrichment (large lists) ──
+
+class BulkMetaRequest(BaseModel):
+    tickers: list[str]
+
+
+# Deliberately the SAME ceiling `scatter` already proves on the request path
+# (`scatter._MAX_TICKERS = 2500`), because this reads the same table the same way.
+_BULK_META_MAX = 2500
+
+# The watchlist's meta columns, mapped to their `screener_rows` names. `avg_volume_30d`
+# stands in for the old `avg_vol_20d` — a 30-session window rather than 20, which for an
+# RVOL denominator is a difference without a distinction, and it is already computed.
+_BULK_META_COLS = {
+    "name": "company",
+    "sector": "sector",
+    "industry": "industry",
+    "market_cap": "market_cap",
+    "composite": "uct_composite",
+    "next_earnings": "next_earnings_date",
+    "ipo_date": "ipo_date",
+    "avg_vol_20d": "avg_volume_30d",
+}
+
+# ⛔ `market_cap` CROSSES THE WIRE PRE-FORMATTED, AND THE ROW RENDERER IS WHY.
+# `renderTickerRow` prints this field VERBATIM — `{mcap || '—'}`, no formatter on
+# the client — because `snapshot-batch`, the path this endpoint replaces for large
+# lists, runs `fundamentals._fmt_billions` before returning it. `screener_rows`
+# stores the raw REAL, so returning it unchanged rendered "2981473797.96" in the
+# Market Cap column instead of "$2.98B". Caught in production acceptance 2026-09-21,
+# not by a test: every fixture asserted the KEY was present, never how it reads.
+#
+# ⭐ It reuses that same helper rather than reimplementing the thresholds — two
+# formatters for one column is how the two paths drift apart again. Sorting is
+# unaffected either way: the client's `parseMcap` already accepts both a number and
+# a "$2.98B" string, which is the only reason this defect was cosmetic.
+_BULK_META_FORMATTERS = {"market_cap": "_fmt_billions"}
+
+
+@router.post("/api/watchlists/bulk-meta")
+def bulk_meta(body: BulkMetaRequest, user: dict = Depends(get_current_user)):
+    """Row metadata for a WHOLE watchlist, in one indexed read.
+
+    ⛔ WHY THIS EXISTS RATHER THAN A BIGGER CAP ON `snapshot-batch`. That endpoint
+    is hard-capped at 100 tickers and measured **10,031 ms** for those 100 on prod
+    2026-09-20, because its floor is one yfinance `.info` HTTP call PER SYMBOL
+    (`fundamentals.get_fundamentals`) plus one SQLite query per symbol for average
+    volume. Raising 100 → 2,000 would mean 2,000 Yahoo round-trips. The cap was
+    never the defect; the per-symbol shape was. Meanwhile rows 101+ of Russell 2000
+    could never show Name, Market Cap, Rating, Earnings or Sector at all — not slow
+    hydration, a permanent truncation.
+
+    `screener_rows` already holds exactly these fields for the whole ~3,745-name
+    universe, rebuilt nightly, and `scatter.bundle()` already reads it this way on
+    the request path at a 2,500 cap. Measured: 2,000 tickers with projected columns
+    is ~7 ms of SQLite.
+
+    ⚠️ WHAT THIS IS NOT. The snapshot universe has a ~$300M market-cap floor, so a
+    few hundred Russell 2000 micro-caps have no row. Those symbols are ABSENT from
+    the response rather than present-and-null, so the client can tell "outside the
+    snapshot universe" from "no value" and fall back for just the misses instead of
+    rendering a confident blank.
+    """
+    syms = list(dict.fromkeys(
+        (t or "").upper().strip() for t in (body.tickers or []) if t and t.strip()
+    ))[:_BULK_META_MAX]
+    if not syms:
+        return {"results": {}, "missing": []}
+    try:
+        from api.services.screener import snapshot_db
+        rows = snapshot_db.get_projected(syms, list(_BULK_META_COLS.values()))
+    except Exception:
+        # The snapshot being unreadable must not take the watchlist down — every
+        # row still renders its symbol, and the caller falls back.
+        return {"results": {}, "missing": syms}
+    try:
+        from api.services.fundamentals import _fmt_billions
+    except Exception:
+        _fmt_billions = None
+    results = {}
+    for sym, row in rows.items():
+        out = {out_key: row.get(col) for out_key, col in _BULK_META_COLS.items()}
+        # See _BULK_META_FORMATTERS: the row renderer prints market_cap verbatim.
+        if _fmt_billions is not None and out.get("market_cap") is not None:
+            out["market_cap"] = _fmt_billions(out["market_cap"])
+        results[sym] = out
+    return {"results": results, "missing": [s for s in syms if s not in results]}
 
 
 # ── Performance data ──
@@ -196,26 +300,38 @@ def list_public(user: dict = Depends(get_current_user)):
 
 
 @router.get("/api/watchlists/prebuilt")
-def list_prebuilt(user: dict = Depends(get_current_user)):
+def list_prebuilt(
+    request: Request,
+    include_items: bool = True,
+    user: dict = Depends(get_current_user),
+):
     """Admin-curated UCT watchlists (the picker's Prebuilt tab). Any logged-in user.
 
     Each row is tagged with its `category` (the section it appears under in the picker),
-    resolved from the committed prebuilt config."""
-    rows = watchlist_service.list_prebuilt_watchlists(limit=1000)
+    resolved from the committed prebuilt config.
+
+    `?include_items=0` omits every list's members and returns metadata + `item_count`
+    only — what the picker actually draws. See `list_prebuilt_watchlists` for the
+    measured 607 KB / 4,704-row cost the full mode pays to render 33 names, and
+    `_WARM_MAX` above for the landmine that moving membership off this route arms.
+
+    Caching: the catalogue is derived from files that change MONTHLY (the refresh
+    cron) and weekly (Sunday Scans), so it carries an ETag over the exact bytes and
+    a short `private` max-age. `private` is mandatory, never `public` — the response
+    is cookie-authenticated and `owner_name` is per-row identity."""
+    rows = watchlist_service.list_prebuilt_watchlists(limit=1000, include_items=include_items)
     try:
         from api.services.watchlist_prebuilt import (
-            category_map, sample_map, category_order, issue_date_map, alias_map,
+            category_map, category_order, issue_date_map, alias_map,
             _DEFAULT_CATEGORY,
         )
         cats = category_map()
-        samples = sample_map()
         order = category_order()
         dated = issue_date_map()
         aliases = alias_map()
         for r in rows:
             key = (r.get("name") or "").strip().lower()
             r["category"] = cats.get(key, _DEFAULT_CATEGORY)
-            r["sample"] = samples.get(key, [])
             if dated.get(key):
                 r["issue_date"] = dated[key]     # 'YYYY-MM-DD' — only the dated archive lists
             if aliases.get(key):
@@ -236,7 +352,13 @@ def list_prebuilt(user: dict = Depends(get_current_user)):
         ))
     except Exception:
         pass
-    return rows
+
+    body = json.dumps(rows, separators=(",", ":"), default=str).encode()
+    etag = '"wlpb-%s"' % hashlib.md5(body).hexdigest()
+    headers = {"Cache-Control": "private, max-age=300", "ETag": etag}
+    if request.headers.get("if-none-match") == etag:
+        return Response(status_code=304, headers=headers)
+    return Response(content=body, media_type="application/json", headers=headers)
 
 
 @router.post("/api/watchlists")
@@ -245,7 +367,24 @@ def create_watchlist(body: WatchlistCreate, user: dict = Depends(get_current_use
 
 
 @router.get("/api/watchlists/{wl_id}")
-def get_watchlist(wl_id: str, user: dict = Depends(get_current_user)):
+def get_watchlist(
+    request: Request,
+    wl_id: str,
+    slim: bool = False,
+    user: dict = Depends(get_current_user),
+):
+    """One list and its members. This is the MEMBERSHIP endpoint the picker now calls
+    on selection, once the directory stopped carrying every list's members.
+
+    `?slim=1` trims each item to `{id, sym, notes}` — dropping `watchlist_id`
+    (repeated once per row: 1,872 times for Russell 2000), `added_at` and
+    `sort_order`, none of which any client reads. `id` stays because it is the row's
+    React key and the handle for note/delete on a list the member owns; `notes` stays
+    because the row renders it. Ordering is unchanged — `sort_order` still drives the
+    SQL, it just no longer rides the wire. Russell 2000: ~253 KB → ~85 KB.
+
+    Membership is deliberately NOT enriched here. A member gets "this list contains
+    these symbols" without waiting on a quote, a logo, or a fundamental."""
     wl = watchlist_service.get_watchlist(wl_id, user["id"])
     if not wl:
         raise HTTPException(status_code=404, detail="Watchlist not found")
@@ -253,10 +392,25 @@ def get_watchlist(wl_id: str, user: dict = Depends(get_current_user)):
         from api.routers.bars import warm_bars_async
         tickers = [i["sym"].upper() for i in (wl.get("items") or []) if isinstance(i, dict) and i.get("sym")]
         if tickers:
-            warm_bars_async(tickers, tf="D", bars=8000)
+            # ⛔ BOUNDED. See _WARM_MAX — this line used to pass the whole list, and
+            # this route is now how a 1,872-symbol index list is opened.
+            warm_bars_async(tickers[:_WARM_MAX], tf="D", bars=8000)
     except Exception:
         pass
-    return wl
+    if slim:
+        wl = {**wl, "items": [
+            {"id": i.get("id"), "sym": i.get("sym"), "notes": i.get("notes") or ""}
+            for i in (wl.get("items") or []) if isinstance(i, dict)
+        ]}
+    body = json.dumps(wl, separators=(",", ":"), default=str).encode()
+    etag = '"wlm-%s"' % hashlib.md5(body).hexdigest()
+    # Membership changes when an admin re-ranks an index (monthly) or the member edits
+    # their own list. A short private max-age plus the ETag makes a re-open free
+    # without ever pinning stale membership.
+    headers = {"Cache-Control": "private, max-age=60", "ETag": etag}
+    if request.headers.get("if-none-match") == etag:
+        return Response(status_code=304, headers=headers)
+    return Response(content=body, media_type="application/json", headers=headers)
 
 
 @router.put("/api/watchlists/{wl_id}")

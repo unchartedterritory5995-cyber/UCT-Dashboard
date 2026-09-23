@@ -1,0 +1,17 @@
+/* The ONE visual identity for "this note has unsent words, edit it again to
+   sync" -- matches what Card/Table already agreed on independently before
+   this file existed (NoteCard.module.css/NotesTableView.module.css's own
+   former `.unsynced` rules). Board's former `.blocked` (text-only, a
+   different token, no pill) and Calendar's former nothing-at-all both now
+   render this same class instead. Competitive audit finding UX #15,
+   2026-09-22. */
+.badge {
+  color: var(--color-warning);
+  background: rgba(234, 179, 8, 0.10);
+  border: 1px solid rgba(234, 179, 8, 0.22);
+  padding: 1px 6px;
+  border-radius: var(--radius-sm);
+  font-size: 10px;
+  font-weight: 500;
+  white-space: nowrap;
+}

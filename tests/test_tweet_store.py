@@ -101,6 +101,38 @@ def test_retention_sweep_deletes_old_and_cascades(store):
     assert store.count_ticker_links() == 1  # cascade
 
 
+def test_delete_tweets_by_ids_removes_only_named_rows_and_cascades(store):
+    now = int(time.time())
+    store.upsert_tweet(_tweet("keep", "DeItaone", "$AAPL", created_at=now), ["AAPL"])
+    store.upsert_tweet(_tweet("gone1", "DeItaone", "$AAPL deleted on X", created_at=now), ["AAPL"])
+    store.upsert_tweet(_tweet("gone2", "Benzinga", "$MSFT deleted on X", created_at=now), ["MSFT"])
+
+    deleted = store.delete_tweets_by_ids(["gone1", "gone2"])
+
+    assert deleted == 2
+    assert store.count_tweets() == 1
+    assert store.count_ticker_links() == 1  # cascade removed both link rows
+    remaining = store.tweets_for_ticker("AAPL", hours=24)
+    assert [r["id"] for r in remaining] == ["keep"]
+
+
+def test_delete_tweets_by_ids_control_ids_not_present_delete_nothing(store):
+    # Control: an id that isn't in the store must not be a no-op that ALSO
+    # silently deletes something else via a malformed IN(...) clause.
+    now = int(time.time())
+    store.upsert_tweet(_tweet("real", "DeItaone", "$AAPL", created_at=now), ["AAPL"])
+    deleted = store.delete_tweets_by_ids(["does-not-exist"])
+    assert deleted == 0
+    assert store.count_tweets() == 1
+
+
+def test_delete_tweets_by_ids_empty_list_is_a_noop(store):
+    now = int(time.time())
+    store.upsert_tweet(_tweet("real", "DeItaone", "$AAPL", created_at=now), ["AAPL"])
+    assert store.delete_tweets_by_ids([]) == 0
+    assert store.count_tweets() == 1
+
+
 def test_account_crud(store):
     store.add_account("DeItaone", display_name="Walter Bloomberg", added_by_user_id=1)
     accounts = store.list_accounts()

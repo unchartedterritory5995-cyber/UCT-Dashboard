@@ -31,7 +31,7 @@ maps disagreed. Each is settled here once.
 |---|---|---|---|
 | 1 | Schema authority | `docs/wisdom/contracts/wisdom-db-v0.sql` | It is the later, owner-ruled model (W1 §4.1). Manifest §4 table names are retired. |
 | 2 | Record types | `CALL · NEGATIVE_CALL · MENTION · PRINCIPLE · LEVEL · MARKET_SIGNAL` in `wisdom_records`; chart evidence lives in `wisdom_chart_images` | W1 §4.1 |
-| 3 | CALL authors | Four: `tsdr`, `bracco`, `manrav`, `chartmaster` (`docs/wisdom/authors.json`). Ravi = team, never CALL | W1 §2.1 |
+| 3 | CALL authors | **Was four; now SIX as of owner ruling 2026-09-19 (session 28)**: `tsdr`, `bracco`, `manrav`, `chartmaster`, `jersace`, `attheask` (`docs/wisdom/authors.json`; verified live via `authors.call_authors()` and `tests/test_wisdom_skeleton.py::test_exactly_six_call_authors_and_exact_alias_matching`). Ravi = team, never CALL | W1 §2.1; author-count change per `docs/wisdom/HARD-RULES.md` session 28 |
 | 4 | Stream enum | Contract enum. No `owner_trade` / `owner_note` | D16b deferred (W1 Part 10) |
 | 5 | Incomplete / deletion threshold | **TWO RULES SINCE 2026-09-14, and they are not the same rule.** `incomplete` (the audit / re-transcription list) = an internal gap over **30 s** between the first and last speech cue, or a start over 30 s late; trailing dead air after a sign-off is **not** a shortfall. `coverage_ratio` stays the span measurement and the **Zoom delete gate keeps `< 0.98`** — the gap rule cannot see an end-truncation, and a Zoom delete has no recovery. One implementation: `api/services/transcript_coverage.py`. | W1 §2.2; owner ruling 2026-09-14 (`docs/wisdom/OVERNIGHT-CHECKPOINTS.md` checkpoint 11 is the measurement) |
 | 6 | Wave scope | Everything in W1 Part 8 streams is built in W1, dark | W1 Part 8, §9.1 |

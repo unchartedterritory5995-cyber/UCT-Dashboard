@@ -10,6 +10,8 @@ import FinancialsTab from './tabs/FinancialsTab'
 import EstimatesTab from './tabs/EstimatesTab'
 import AnalystRatingsTab from './tabs/AnalystRatingsTab'
 import NewsTab from './tabs/NewsTab'
+import CatalystsTab from './tabs/CatalystsTab'
+import ModelBookTab from './tabs/ModelBookTab'
 import TechnicalTab from './tabs/TechnicalTab'
 import RatingsTab from './tabs/RatingsTab'
 import OwnershipTab from './tabs/OwnershipTab'
@@ -76,15 +78,25 @@ import styles from './ResearchPage.module.css'
 // sits right after News (its "what's happening now" grouping) and My Research
 // stays LAST (this page reads market-view-first, ending on the member's own
 // working context). Neither ordering rule constrains the other.
-const TABS = ['Overview', 'News', 'Technical', 'Financials', 'Estimates', 'Analyst Ratings', 'Ratings', 'Ownership', 'Calls & Transcript', 'Filings', 'Ask AI', 'My Research']
+//
+// Packet G CP1 (signed 2026-09-22, fingerprint 5331c90c2): "Catalysts" joins
+// the same "what's happening now" grouping as News/Technical -- what has
+// UCT's own catalyst engine ever flagged about this ticker, across every
+// date, not just today's top-20 (that's the Dashboard tile's job).
+//
+// Packet H CP1 (signed 2026-09-22, fingerprint f119617df): "Model Book"
+// joins the "what others/we have said about this name" grouping (with
+// Analyst Ratings/Calls & Transcript), ahead of the raw-document tabs
+// (Filings) -- has this ticker ever been a curated Model Book entry.
+const TABS = ['Overview', 'News', 'Catalysts', 'Technical', 'Financials', 'Estimates', 'Analyst Ratings', 'Ratings', 'Ownership', 'Calls & Transcript', 'Model Book', 'Filings', 'Ask AI', 'My Research']
 
 // P2: the earnings modal's rail LINK items deep-open /research/:sym?section=…
 // (spec §4.3). Seeding the initial tab from that param is the whole contract —
 // the tab stays local state afterwards, and P3 replaces this bar with SectionRail.
 const SECTION_TO_TAB = {
-  overview: 'Overview', news: 'News', technical: 'Technical', financials: 'Financials', estimates: 'Estimates',
+  overview: 'Overview', news: 'News', catalysts: 'Catalysts', technical: 'Technical', financials: 'Financials', estimates: 'Estimates',
   'analyst-ratings': 'Analyst Ratings',
-  ratings: 'Ratings', ownership: 'Ownership', calls: 'Calls & Transcript',
+  ratings: 'Ratings', ownership: 'Ownership', calls: 'Calls & Transcript', modelbook: 'Model Book',
   filings: 'Filings', ai: 'Ask AI', research: 'My Research',
 }
 
@@ -145,6 +157,7 @@ export default function ResearchPage() {
       </nav>
       {active === 'Overview' && <OverviewTab sym={sym} stats={data.stats} analyst={data.analyst} ai={data.ai} row={null} />}
       {active === 'News' && <NewsTab sym={sym} />}
+      {active === 'Catalysts' && <CatalystsTab sym={sym} />}
       {active === 'Technical' && <TechnicalTab sym={sym} />}
       {active === 'Financials' && <FinancialsTab sym={sym} />}
       {active === 'Estimates' && <EstimatesTab sym={sym} />}
@@ -152,6 +165,7 @@ export default function ResearchPage() {
       {active === 'Ratings' && <RatingsTab sym={sym} />}
       {active === 'Ownership' && <OwnershipTab sym={sym} />}
       {active === 'Calls & Transcript' && <CallsTab sym={sym} />}
+      {active === 'Model Book' && <ModelBookTab sym={sym} />}
       {active === 'Filings' && <FilingsTab sym={sym} />}
       {active === 'Ask AI' && <AskAiTab sym={sym} />}
       {active === 'My Research' && (

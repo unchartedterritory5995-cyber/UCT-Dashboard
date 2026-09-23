@@ -67,9 +67,10 @@ import {
 import {
   hiddenLibraryIds, libraryRowFor, symbolLibraryRow, createFromResult,
   SYMBOL_CATEGORY, BREADTH_CATEGORY, CAPABILITY,
-  securityResults, breadthResults, resultsForTab, LIBRARY_TABS, FUNDAMENTALS_STATUS,
-  glyphNameOf, glyphFamilyOf,
+  securityResults, breadthResults, marketIndicatorResults, resultsForTab, liveDiscoveryRows, LIBRARY_TABS, FUNDAMENTALS_STATUS,
+  glyphNameOf, glyphFamilyOf, fundamentalResults,
 } from './discoveryCatalog'
+import useFundamentalsCatalog from './engine/useFundamentalsCatalog'
 import UIcon from '../ui/UIcon'
 // ⛔ NOT A SECOND SEARCH. `useSymbolDiscovery` is the SAME hook `SourceField`'s
 // picker uses — same two endpoints, same debounce, same abort discipline, same
@@ -87,9 +88,15 @@ import { CLEAN } from './engine/repaintVerdict'
 import styles from './ChartSettingsModal.module.css'
 import SourceField from './SourceField'
 import { availableStyles, resolvePlotStyle, PLOT_STYLE_CHOICES, resolveSignColors } from './engine/presentation'
-import { ohlcCapabilityOf } from './engine/ohlcCapability'
+import { ohlcCapabilityOf, outputIsSource } from './engine/ohlcCapability'
 import { anyCachedBars } from './engine/secondaryBars'
-import { symbolFamily } from '../../hooks/useBreadthSymbols'
+// ⭐ THE COMPOSED CLASSIFIER — breadth AND market indicators, ONE authority.
+// ⚰️ This used to import `symbolFamily` (breadth only). Every call site here asks
+// about a symbol that may now come from either catalogue, so asking the breadth-only
+// function would classify a Cboe volatility index as a plain security and offer it
+// candles for the wrong reason. `canonicalFamily` composes both and is fail-closed
+// until both registries have landed.
+import useMarketIndicators, { canonicalFamily, canonicalSourceCapability, presentationFamily } from '../../hooks/useMarketIndicators'
 import useBreadthSymbols from '../../hooks/useBreadthSymbols'
 import { POPULAR_RESULTS, INDICES_PRESET } from './symbolSearchModel'
 import {
@@ -199,7 +206,34 @@ function ohlcCapableFor(def, inst) {
   if (!declared.length) return false
   const parsed = parseSource(declared[0][1])
   if (!parsed || parsed.kind !== 'symbol') return false
-  return ohlcCapabilityOf(def, parsed, anyCachedBars(parsed.symbol), symbolFamily).ok
+  return ohlcCapabilityOf(def, parsed, anyCachedBars(parsed.symbol), canonicalFamily).ok
+}
+
+/**
+ * The SOURCE's presentation capability for one instance — the exact answer the
+ * binder computes, from the exact same two functions.
+ *
+ * ⛔⛔ THE MENU AND THE RENDERER MUST READ ONE CONTRACT, and this is the whole
+ * reason this helper exists rather than an inline object. A dropdown that offers a
+ * style the resolver then clamps is a dropdown that lies; a dropdown that hides a
+ * style the resolver would have honoured silently removes a member's control. Both
+ * are the same bug — two implementations of one rule — and the way to not have it
+ * is for `styleCtx` here and `sourceCapabilityFor` in `binder.js` to be the same
+ * three lines over the same inputs.
+ *
+ * ⚠️ THE DEFAULT IS GATED ON `passthrough` HERE TOO, identically: only a row that
+ * IS its source takes its source's default, because `dataSeries` declares
+ * `style: 'line'` generically while an authored definition means it.
+ */
+function sourceCapabilityFor(def, inst) {
+  if (!inst || !def) return null
+  const declared = sourceInputsOf(def, inst)
+  if (!declared.length) return null
+  const parsed = parseSource(declared[0][1])
+  if (!parsed || parsed.kind !== 'symbol' || !parsed.symbol) return null
+  const cap = canonicalSourceCapability(parsed.symbol, ohlcCapableFor(def, inst))
+  if (outputIsSource(def)) return cap
+  return { defaultStyle: null, allowedStyles: cap.allowedStyles }
 }
 
 export default function ChartSettingsIndicators({
@@ -784,6 +818,12 @@ export default function ChartSettingsIndicators({
   // `/api/breadth-symbols` ONCE per module and hands back the cache — this adds
   // no request, exactly as `useSymbolDiscovery`'s own header records.
   const breadthAll = useBreadthSymbols()
+  // ⭐ THE SECOND CATALOGUE, fetched once per session exactly like the first.
+  const marketAll = useMarketIndicators()
+  // ⭐ THE THIRD CATALOGUE: historical point-in-time fundamentals, fetched once per
+  // session and only while discovery is on screen.
+  const fundCat = useFundamentalsCatalog(discovering)
+  const fundAvailable = fundCat.status === 'available'
 
   // ⭐ THE ROW A MEMBER CLICKS AND THE RESULT IT WAS BUILT FROM, KEPT TOGETHER.
   //
@@ -822,8 +862,15 @@ export default function ChartSettingsIndicators({
     const idx = securityResults(INDICES_PRESET, { tf: TF, bars: BARS })
     const brd = breadthAll && typeof breadthAll.all === 'function'
       ? breadthResults(breadthAll.all(), { tf: TF, bars: BARS }) : []
-    return [...secs, ...idx, ...brd]
-  }, [breadthAll])
+    // ⭐ THE MARKET INDICATORS BROWSE TOO, and through the SAME shapers — so a
+    // browsed row and a searched row are the same object with the same capability
+    // and the same create door, which is the invariant the browse-add no-op broke.
+    const mkt = marketIndicatorResults(marketAll.rows, { tf: TF, bars: BARS })
+    // ⭐ FUNDAMENTALS BROWSE THROUGH THE SAME DOOR — their rows are results with a
+    // `create` descriptor, so click-to-add, search and grouping need nothing new.
+    const fnd = fundAvailable ? fundamentalResults(fundCat.list) : []
+    return [...secs, ...idx, ...brd, ...mkt, ...fnd]
+  }, [breadthAll, marketAll.rows, fundAvailable, fundCat.list])
 
   // ⚰️⚰️ THE RESULT BEHIND EVERY DISCOVERY ROW ON SCREEN — AND **BROWSE** USED TO
   // BE MISSING FROM IT, WHICH KILLED THREE OF THE FIVE TABS.
@@ -868,7 +915,31 @@ export default function ChartSettingsIndicators({
     // lists every ticker — so an empty box shows the canonical popular/index
     // sets rather than an empty tab that reads as broken. A query replaces them
     // with the real answer.
-    const live = query ? symbolRows.rows : browsed
+    // ⚰️⚰️ THE PRODUCTION DEFECT THIS LINE CAUSED, AND THE ONE IT NOW PREVENTS.
+    //
+    // It read `query ? symbolRows.rows : browsed` — so the instant a member TYPED,
+    // every browsed row was DISCARDED and the list became whatever
+    // `/api/ticker-search` happened to return. `browsed` is the only path carrying
+    // `marketIndicatorResults(marketAll.rows)`, so searching "AAII" made the Market
+    // Indicators catalogue irrelevant and the AAII Sentiment Survey's existence
+    // depended entirely on one remote reply — whose market-indicator injection is
+    // wrapped in `except Exception: pass` server-side.
+    //
+    // ⭐ THE ASYMMETRY IS WHAT MADE IT LOOK LIKE A DATA BUG. The AAII Bull-Bear
+    // Spread kept appearing because it ALSO comes from `useBreadthSymbols`, which
+    // needs no network at all. One AAII row present and the other absent reads as
+    // "the Survey is missing"; it was really "the Survey has only one door and that
+    // door is remote".
+    //
+    // ⛔ SO THE QUERY UNIONS BOTH SOURCES, exactly as `resultByKey` below already
+    // does for the CLICK path. That fix — browse + query in one map — was made for
+    // this same class of bug (a browsed row the lookup had never been told about);
+    // the LIST kept the old either/or and inherited it. Same rule, both places.
+    //
+    // ⚠️ THE REMOTE ANSWER STILL LEADS. It is ranked by a server that knows more
+    // than a substring test, and the dedupe below keeps the first of any key — so a
+    // row present in both sources reads exactly as it did before.
+    const live = liveDiscoveryRows(query, symbolRows.rows, browsed, matches)
     // ⛔ DEDUPED, THE QUERY'S ANSWER WINNING. A browsed `QQQ` and a searched
     // `QQQ` are the same instrument with the same key.
     //
@@ -1772,7 +1843,12 @@ export default function ChartSettingsIndicators({
     if (def.meta.labelFrom === 'source') {
       const parsed = rawSource ? parseSource(rawSource) : null
       if (!parsed || parsed.kind !== 'symbol' || !parsed.symbol) return null
-      const fam = symbolFamily(parsed.symbol)
+      // ⛔ PRESENTATION, NOT CAPABILITY. This is the subtitle under the row's name;
+      // `canCandle` above is the gate, and it keeps the fail-closed `canonicalFamily`.
+      // Reading the gate's classifier here blanked the KIND line for ordinary
+      // securities until the market-indicator registry landed — a label paying the
+      // price of a security decision.
+      const fam = presentationFamily(parsed.symbol)
       if (fam === 'breadth') return BREADTH_CATEGORY
       if (fam === 'security') return 'Market data'
       return null
@@ -2307,7 +2383,16 @@ export default function ChartSettingsIndicators({
     const ohlcCapable = ohlcCapableFor(def, inst)
 
     const target = resolveDisplayTarget(inst, settings)
-    const styleCtx = { target, ohlcCapable }
+    // ⭐ ONE CONTRACT, TWO READERS. `availableStyles` below now offers exactly what
+    // the binder will honour, and `resolvePlotStyle` shows exactly what it will draw
+    // — including the source's own default for a row that has never been restyled.
+    const srcCap = sourceCapabilityFor(def, inst)
+    const styleCtx = {
+      target,
+      ohlcCapable,
+      sourceDefaultStyle: srcCap ? srcCap.defaultStyle : null,
+      allowedStyles: srcCap ? srcCap.allowedStyles : null,
+    }
     const plots = Array.isArray(def.plots) ? def.plots : []
     const restyleable = plots.filter((pl) => availableStyles(pl, styleCtx).length > 0)
     if (!restyleable.length) return null
@@ -2726,19 +2811,21 @@ export default function ChartSettingsIndicators({
       </div>
 
       <div className={styles.insAddBody} ref={addBodyRef} onScroll={() => { anchorRef.current = captureAnchor() }}>
-        {/* ⛔⛔ FUNDAMENTALS TELLS THE TRUTH RATHER THAN SHOWING ROWS. The audit is
-            written out at `FUNDAMENTALS_STATUS`: the chart's source grammar has no
-            fundamental kind, and the one fundamental the product holds
-            (`market_cap`) is a NIGHTLY SCALAR whose own engine refuses a bar
-            offset because *"answering it with today's value would be a fabricated
-            history."* A row here would be exactly that fabrication. */}
-        {activeTab === 'fundamentals' && !FUNDAMENTALS_STATUS.available && (
+        {/* ⛔⛔ FUNDAMENTALS SHOW ROWS ONLY FROM THE POINT-IN-TIME CATALOGUE. While
+            it is unavailable (feature dark, not entitled, offline) the tab states
+            that plainly and offers nothing -- it never falls back to Screener
+            snapshots, which have no history behind them (`FUNDAMENTALS_STATUS`). */}
+        {activeTab === 'fundamentals' && !fundAvailable && (
           <div className={styles.insUnavailable} data-testid="fundamentals-unavailable">
-            <div className={styles.insUnavailableLede}>{FUNDAMENTALS_STATUS.lede}</div>
-            <p className={styles.insUnavailableWhy}>{FUNDAMENTALS_STATUS.why}</p>
+            <div className={styles.insUnavailableLede}>
+              {fundCat.status === 'loading' ? 'Loading fundamentals…' : FUNDAMENTALS_STATUS.lede}
+            </div>
+            {fundCat.status !== 'loading' && (
+              <p className={styles.insUnavailableWhy}>{FUNDAMENTALS_STATUS.why}</p>
+            )}
           </div>
         )}
-        {activeTab !== 'fundamentals' && tabResults.length === 0 && refusals.length === 0 && (
+        {(activeTab !== 'fundamentals' || fundAvailable) && tabResults.length === 0 && refusals.length === 0 && (
           <div className={styles.indEmpty}>
             {/* ⚠️ "SEARCHING" IS NOT "NOTHING MATCHES", and the difference is a
                 network round trip. Telling a member their ticker does not exist

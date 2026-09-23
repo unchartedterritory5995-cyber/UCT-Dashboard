@@ -837,6 +837,20 @@ export const VALUE_NAMESPACES = Object.freeze(new Set(['ta', 'math']))
 export const PINE_SHORT_FORM = Object.freeze({
   highest: Object.freeze({ fills: Object.freeze(['high']) }),
   lowest: Object.freeze({ fills: Object.freeze(['low']) }),
+  // ⭐⭐ (2026-09-20) `highestbars`/`lowestbars` GET THE IDENTICAL 1-ARGUMENT
+  // DEFAULT `negatedBars` (below) ALREADY ESTABLISHED AND SHIPPED for the
+  // NAMESPACED `ta.highestbars`/`ta.lowestbars` — this entry reaches only
+  // the BARE spelling, since the namespaced one is intercepted earlier by
+  // `PINE_NAMESPACED_TREE` and never falls through this far. Unlike
+  // `pivothigh`/`pivotlow` below, no sign flip or bar-shift is needed here:
+  // this table's bare 2-argument `highestbars(source, period)` already
+  // reports the SAME positive-distance convention the 1-argument short form
+  // asks for, so filling the source is the whole fix — confirmed by the real
+  // target script's OWN `* -1` (`nubia-auto-midas-anchored-vwap`), which
+  // manually converts our positive convention to Pine's non-positive one,
+  // exactly as it would for an explicit 2-argument bare call today.
+  highestbars: Object.freeze({ fills: Object.freeze(['high']) }),
+  lowestbars: Object.freeze({ fills: Object.freeze(['low']) }),
 })
 
 export const PINE_CALL_SHAPES = Object.freeze({
@@ -863,6 +877,17 @@ export const PINE_CALL_SHAPES = Object.freeze({
   // name, so it resolves by the ordinary path and adding a shape would be a
   // second statement of the same fact.
   log: { table: 'ln', pineArity: 1, build: [{ pine: 0 }] },
+  // ⭐ `ta.percentile_linear_interpolation(source, length, percentage)` ONTO
+  // `percentileLinearInterpolation` — only the spelling differs. This table
+  // spells every entry camelCase (there is no underscored name in
+  // closedTable.json), and TradingView's own argument order — source, length,
+  // percentage — already matches the manifest's `argRoles` exactly, so the
+  // build is a pure identity, the same shape `log` above is.
+  percentile_linear_interpolation: {
+    table: 'percentileLinearInterpolation',
+    pineArity: 3,
+    build: [{ pine: 0 }, { pine: 1 }, { pine: 2 }],
+  },
   // ⭐ THE PERMUTATION. Pine (source, high, low, length) → table (high, low, close,
   // length): Pine's `source` plays the role this table calls `c`.
   stoch: { table: 'stoch', pineArity: 4, build: [{ pine: 1 }, { pine: 2 }, { pine: 0 }, { pine: 3 }] },
@@ -1720,6 +1745,27 @@ function pivotAtConfirmation(name, args) {
     : { type: 'offset', value: Number(right.value), args: [call] }
 }
 
+/** The sole argument of `year(timenow)` and its four siblings, resolved to an
+ *  AST node: `true` only when it is the bare identifier `timenow` — which
+ *  `PINE_TO_CLOCK_SPELLING` has already rewritten to `{type:'series',
+ *  name:'lastbartime'}` by the time this door sees it, since argument
+ *  resolution runs before `BUILTIN_CALL_TREE` dispatch. ⛔ NOT `time`: bare
+ *  `time` is permanently refused by `PINE_CLOCK_MISMATCH` (Pine's is
+ *  milliseconds, ours is seconds) before this door is ever reached, so
+ *  `year(time)` can never arrive here at all — checking for it would be
+ *  dead code, not a second identity. */
+const isLastBarTime = (node) => !!node && node.type === 'series' && node.name === 'lastbartime'
+
+/** The five clock fields Pine spells both as a bare global and as a
+ *  one-argument function of a timestamp, for the ONE timestamp this door
+ *  resolves — `timenow` — see `isLastBarTime` and the `BUILTIN_CALL_TREE`
+ *  entries below. Consulted a second time in `resolveTableCall` to name the
+ *  declined argument shapes specifically (`time[1]`, `time`, a computed
+ *  timestamp), rather than falling through to the generic "maps to nothing"
+ *  refusal. `dayofweek` is deliberately absent: measured against the real
+ *  committed corpus 2026-09-20, no script calls `dayofweek(timenow)`. */
+const CLOCK_IDENTITY_FIELDS = new Set(['year', 'month', 'dayofmonth', 'hour', 'minute'])
+
 const BUILTIN_CALL_TREE = Object.freeze({
   // ta.roc(src, n) = 100 * (src - src[n]) / src[n]  — TradingView's own definition.
   //
@@ -1842,6 +1888,43 @@ const BUILTIN_CALL_TREE = Object.freeze({
       cOp('*', [cOp('-', [cOp('*', [cNum(n), weighted]), total]), cNum(C)]),
     ])
   },
+  // ⭐⭐ `ta.correlation(source1, source2, length)` — THE PEARSON CORRELATION
+  // COEFFICIENT, and it costs this table ZERO NEW VOCABULARY. TradingView's own
+  // page: "Describes the degree to which two series tend to deviate from their
+  // ta.sma() values" — which is covariance-over-stdevs by definition:
+  //
+  //     correlation = (sma(x*y,n) - sma(x,n)*sma(y,n)) / (stdev(x,n) * stdev(y,n))
+  //
+  // `sma`, `stdev`, `*`, `-`, `/` are all already declared. This is the SAME
+  // formula thinkorswim's own Correlation page publishes in terms of its
+  // Covariance — `thinkscript.js::TS_EXPANSIONS.correlation` builds the identical
+  // tree from the identical citation, so the two frontends cannot drift onto two
+  // different numbers for one name.
+  //
+  // ⭐ THE na-HANDLING IS INHERITED, NOT REBUILT. TradingView's own REMARKS: "na
+  // values in the source series are ignored; the function calculates on the
+  // length quantity of non-na values" — and `sma`/`stdev` are BOTH already
+  // `NA.SKIP` in this engine (`interpret.js::FINITE_WINDOW`), so composing them
+  // reproduces that convention for free rather than approximating it.
+  //
+  // ⛔ THE LENGTH MUST BE A WHOLE NUMBER >= 2, checked here rather than left to
+  // `sma`/`stdev`: the expansion uses it FOUR times, so a bad window would
+  // produce up to four refusals pointing at functions the member never wrote —
+  // the same reasoning `vwma` above states for its own length. `stdev` of a
+  // single sample is a divide-by-zero waiting to happen, so 2 is the floor.
+  correlation: (a) => {
+    const n = a[2] && a[2].type === 'num' ? Number(a[2].value) : NaN
+    if (!Number.isFinite(n) || !Number.isInteger(n) || n < 2) return null
+    const [x, y] = a
+    const covariance = cOp('-', [
+      cCall('sma', [cOp('*', [x, y]), cNum(n)]),
+      cOp('*', [cCall('sma', [x, cNum(n)]), cCall('sma', [y, cNum(n)])]),
+    ])
+    return cOp('/', [
+      covariance,
+      cOp('*', [cCall('stdev', [x, cNum(n)]), cCall('stdev', [y, cNum(n)])]),
+    ])
+  },
   // ⭐⭐ BATCH 1 — `ta.kcw(src, length, mult, useTrueRange=true)`, Keltner
   // Channel Width. TradingView's own published `f_kcw` reference-manual
   // source, verbatim:
@@ -1883,6 +1966,25 @@ const BUILTIN_CALL_TREE = Object.freeze({
     cCall('crossOver', [a[0], a[1]]),
     cCall('crossUnder', [a[0], a[1]]),
   ]),
+  // ⭐⭐ THE `timenow` CLOCK-FIELD IDENTITY FORMS (2026-09-20). Pine spells
+  // five calendar values two ways: a bare global (`year`) reads THIS bar's
+  // own value, and a one-argument function form (`year(timestamp)`) reads
+  // the value AT a named instant. When that instant is `timenow` — already
+  // rewritten to `lastbartime` by the time this door sees it — the call is
+  // an IDENTITY onto the `lastbarYYY` clock field this table already
+  // declares (`indicators.js::CLOCK_LASTBAR_TIME`), exactly as `tr(false)`
+  // above is an identity onto `BUILTIN_SERIES_TREE.tr()`.
+  // ⛔ ANY OTHER ARGUMENT DECLINES TO `null` RATHER THAN BEING GUESSED AT —
+  // `resolveTableCall`'s own `CLOCK_IDENTITY_FIELDS` block names the
+  // declined shapes specifically, so this door never has to invent an
+  // answer for one. Measured against the real committed corpus, 2026-09-20:
+  // six scripts call one of these five as a function, and `timenow` is the
+  // argument in all six.
+  year: (a) => (a.length === 1 && isLastBarTime(a[0]) ? cSeries('lastbaryear') : null),
+  month: (a) => (a.length === 1 && isLastBarTime(a[0]) ? cSeries('lastbarmonth') : null),
+  dayofmonth: (a) => (a.length === 1 && isLastBarTime(a[0]) ? cSeries('lastbardayofmonth') : null),
+  hour: (a) => (a.length === 1 && isLastBarTime(a[0]) ? cSeries('lastbarhour') : null),
+  minute: (a) => (a.length === 1 && isLastBarTime(a[0]) ? cSeries('lastbarminute') : null),
 })
 
 /** 🔴 PINE NAMES THIS ENGINE CANNOT EXPRESS, EACH WITH THE REASON.
@@ -1948,38 +2050,22 @@ export const PINE_INEXPRESSIBLE = Object.freeze({
     + 'bars. This engine screens daily bars, where there is no inside to be in. '
     + 'TO UNBLOCK: intraday bars in the scan lane, which `scan_evaluator` refuses '
     + 'by name and for reasons of its own — not a table entry here',
-  // ⛔⛔ THE THIRD ARGUMENT MEANS A DIFFERENT THING IN EACH LANGUAGE, and the
-  // positions line up perfectly, which is what makes it dangerous. Pine's
-  // `ta.valuewhen(condition, source, occurrence)` counts OCCURRENCES — `0` is the
-  // most recent time the condition was true, `2` is three occurrences ago, and it
-  // looks back as far as it needs to. This table's `valuewhen(condition, source,
-  // period)` takes a BAR WINDOW: the most recent bar within the last `period`
-  // bars where the condition held. A positional map builds cleanly and answers a
-  // different number on most bars — `ta.valuewhen(c, src, 2)` would become "within
-  // the last 2 bars" — which is the silent mistranslation this door exists
-  // against, and exactly the trade `barssince` below is refused for.
-  //
-  // ⚰️ IT REFUSED ALREADY, BUT FOR THE WRONG REASON. `valuewhen` declares two
-  // `series` slots and no measured Pine order, so it fell into the generic
-  // `pine:role-order` arm: *"this table states what kind each argument is and
-  // never what role it plays"*. That sentence is FALSE of this entry — the
-  // manifest declares `argRoles: [condition, source, period]` — and it sends a
-  // reader to declare a role order, which would produce exactly the wrong number.
-  // The refusal was right and its reason was not.
-  valuewhen: 'the value of a source when a condition was last true. This table declares '
-    + '`valuewhen(condition, source, period)` and it is NOT the same function: the '
-    + 'Pine call counts OCCURRENCES back, while `period` here is a BAR WINDOW. '
-    + 'The two line up positionally and answer different numbers, so mapping them would '
-    + 'silently change what your script means. Write `valuewhen(condition, source, n)` '
-    + 'with the number of BARS you want searched — and note that an occurrence older '
-    + 'than the most recent one has no spelling here at all. '
-    + '⭐ THE VENDOR SAYS IT IN ITS OWN WORDS, which turns this ruling from ours '
-    + "into the field's: TradingView documents the third argument as the "
-    + 'occurrence of the condition — 0 is the most recent occurrence, 1 is the '
-    + 'second most recent and so forth. Its own example plots '
-    + '`ta.valuewhen(ta.cross(slow, fast), close, 1)` under a comment reading '
-    + '"value of close on the SECOND most recent cross". Ours would read that 1 '
-    + 'as a one-bar window.',
+  // ⚰️⚰️ `valuewhen` LEFT THIS DICT 2026-09-20 — NOT AN OVERSIGHT, A PAID
+  // PRICE. `ta.valuewhen(condition, source, occurrence)` used to refuse here
+  // PERMANENTLY because its third argument means a different thing than this
+  // table's own bare `valuewhen(condition, source, period)` (occurrences
+  // counted backward, unbounded, vs. a bounded bar window — a positional map
+  // would have answered a different number on most bars, exactly the silent
+  // mistranslation this dict exists to prevent; TradingView's own docs were
+  // quoted here as the source of the ruling). The closed-table dependency
+  // this refusal's own text once named — "the honest first dependency is the
+  // CLOSED TABLE declaring Pine's actual signatures", `interpret.js`'s
+  // `CARRIED`-family doc comment — is now paid: `valuewhenOccurrence` is a
+  // real, separate manifest entry with the true occurrence semantics, and
+  // `resolveTableCall`'s own comment (search `valuewhenOccurrence` in this
+  // file) explains the namespace-aware redirect that lets `ta.valuewhen`
+  // reach it while a member's bare `valuewhen(...)` keeps meaning the
+  // original bar-window function, untouched.
   // ⚰️⚰️ THIS SAID "this engine's ONLY accumulator re-seeds a fixed number of
   // bars back" AND THAT STOPPED BEING TRUE. `cumFrom(source, anchor, window)` is
   // declared in the manifest, implemented in BOTH lanes, carries eight
@@ -4473,18 +4559,18 @@ function fractionalWindowAdvice(node) {
   // still less that it is the one this engine's own entries use.
   const down = Math.floor(v)
   const up = Math.round(v)
-  // ⛔ `floor` IS NOT DECLARED — `idiv` IS, and it is the only spelling of the
-  // downward choice a member can actually type. Deriving the roster rather than
-  // asserting it means this sentence stops offering `idiv` on the day the
-  // manifest stops declaring it, instead of advising a name that refuses.
-  //   AND ONLY ABOVE ZERO. `idiv` is declared as "rounded toward ZERO", which
-  //   equals `floor` for a positive value and NOT for a negative one. A window is
-  //   >= 1 by the `int` kind, so the two never diverge where this sentence is
-  //   reached — but offering a spelling whose semantics only coincide inside the
-  //   range you happen to be in is how the next reader inherits a false general
-  //   claim, so the bound is written down rather than relied upon.
+  // ⭐ `floor` IS THE MATHEMATICALLY OBVIOUS DOWNWARD SPELLING, AND IT IS NOW
+  // DECLARED (2026-09-20) — advise it directly. `idiv(x, 1)` survives as the
+  // FALLBACK, for the same reason it was the only choice before: it is declared
+  // as "rounded toward ZERO", which equals `floor` for a positive value and NOT
+  // for a negative one, and a window is >= 1 by the `int` kind so the two never
+  // diverge where this sentence is reached. Deriving the roster rather than
+  // asserting it means this sentence stops offering either name on the day the
+  // manifest stops declaring it, instead of advising one that refuses.
   const has = (k) => own(TABLE.functions || {}, k)
-  const downSpell = (has('idiv') && text && v > 0) ? `\`idiv(${text}, 1)\`` : null
+  const downSpell = has('floor') && text
+    ? `\`floor(${text})\``
+    : (has('idiv') && text && v > 0) ? `\`idiv(${text}, 1)\`` : null
   const upSpell = has('round') && text ? `\`round(${text})\`` : null
 
   let choice = ''
@@ -6142,7 +6228,17 @@ export class Resolver {
         + ` this engine unrolls at most ${VEC.MAX_VECTOR_SLOTS}`,
         vec.at)
     }
-    vec.slots = new Array(n).fill(null)
+    // ⭐⭐ AN EXPLICIT INITIAL VALUE PRE-FILLS EVERY SLOT, NOT JUST THE SIZE.
+    // A slot holds a BINDING (`vec.slots[k]`'s own contract, read back via
+    // `resolveBinding` at F2's `get`/`first`/`last` sites), so the fill is the
+    // SAME `exprBinding(node, env, at)` shape `array.set`/an unrolled
+    // `array.push` already use — never a pre-resolved value, so the initial
+    // expression resolves lazily against `vec.env`, exactly like any other
+    // slot write. `null` (unwritten -> na) is unchanged when there is no
+    // second argument, which is Pine's own default.
+    vec.slots = vec.initNode
+      ? new Array(n).fill(null).map(() => exprBinding(vec.initNode, vec.env, vec.at))
+      : new Array(n).fill(null)
     vec.sizeFolded = true
     return n
   }
@@ -8231,10 +8327,39 @@ export class Resolver {
    *  many arguments it takes and what kind each one is. The only thing this
    *  module supplies is a ROLE ORDER, and only where one has been measured. */
   resolveTableCall(pineName, base, args, tok) {
-    const shape = PINE_CALL_SHAPES[normaliseName(base)] || null
+    const bare = normaliseName(base)
+    // ⛔⛔ `ta.valuewhen`'S NAMESPACED SPELLING MEANS A DIFFERENT FUNCTION THAN
+    // THIS TABLE'S OWN BARE `valuewhen`, AND THE REDIRECT BELOW MUST FIRE ONLY
+    // WHEN A NAMESPACE WAS ACTUALLY WRITTEN (2026-09-20). Pine's
+    // `ta.valuewhen(condition, source, occurrence)` counts OCCURRENCES
+    // backward, unbounded — occurrence 0 is the most recent bar (ever) where
+    // `condition` held, 1 is the second-most-recent, and so on. This table's
+    // OWN `valuewhen(condition, source, period)` — reachable BARE, unchanged,
+    // for a member who wants a bounded bar-window search — takes a BAR
+    // WINDOW: the most recent bar within the last `period` bars where the
+    // condition held. Same spelling, same arity, two functions.
+    // ⛔ `PINE_CALL_SHAPES` CANNOT CARRY THIS RENAME. Every one of its members
+    // redirects a Pine name onto whatever its OWN bare spelling already
+    // resolves to (`crossover`→`crossOver`, `percentile_linear_interpolation`
+    // →`percentileLinearInterpolation`, …), so applying a shape to a bare call
+    // is a no-op there — the shape and the ordinary resolution land on the
+    // identical table key either way. Routing `valuewhen` through that same
+    // mechanism would instead HIJACK a member's own bare `valuewhen(...)`
+    // call onto the occurrence-indexed function, silently changing what their
+    // script means — exactly the class of mistranslation this table's own
+    // refusals exist to prevent.
+    // ⭐ `pineName !== base` IS TRUE PRECISELY WHEN A NAMESPACE WAS WRITTEN
+    // (`pineName` is the spelling the member actually wrote; `base` is ALWAYS
+    // namespace-stripped — see this method's own doc comment above), so the
+    // special case below fires only for `ta.valuewhen(...)`, never for a
+    // bare `valuewhen(...)` call, which keeps meaning this table's own
+    // bar-window entry untouched.
+    const valuewhenOccurrence = bare === 'valuewhen' && pineName !== base
+    const shape = valuewhenOccurrence
+      ? { table: 'valuewhenOccurrence', pineArity: 3, build: [{ pine: 0 }, { pine: 1 }, { pine: 2 }] }
+      : PINE_CALL_SHAPES[normaliseName(base)] || null
     const candidate = shape ? shape.table : base
     const key = this.index.get(normaliseName(candidate))
-    const bare = normaliseName(base)
     // ⭐ AN EXACT EXPANSION BEATS A REFUSAL, and it is consulted only when the
     // table itself has no such name — so a future `roc` in `closedTable` wins.
     if (!key && own(BUILTIN_CALL_TREE, bare)) {
@@ -8330,6 +8455,27 @@ export class Resolver {
             `\`${pineName}\`'s offset is how many bars back on the fitted line to `
             + 'read, so it must be a plain number too', locate(tok))
         }
+      }
+      // ⛔ THE FIVE `timenow` CLOCK-FIELD IDENTITY FORMS, NAMED RATHER THAN
+      // LEFT TO THE GENERIC REFUSAL. That generic message lists
+      // `TABLE.functions` and `year` is not in it — it is a `clock` entry —
+      // so a member calling `year(time)` or `year(time[1])` would read "this
+      // table declares abs, accum, adx, …" and never learn that `timenow`
+      // now does, or that bare `time` is refused for an unrelated, permanent
+      // reason. Named here instead, matching `tr`'s own bespoke message for
+      // the identical reason: the shape is understood and declined, not
+      // merely unrecognised.
+      if (CLOCK_IDENTITY_FIELDS.has(bare) && !(built.length === 1 && isLastBarTime(built[0]))) {
+        throw new PineRefusal('pine:builtin',
+          `${REFUSALS['pine:builtin']} — \`${pineName}\` with that argument. `
+          + `\`${bare}(timenow)\` -- this engine's answer for Pine's live wall `
+          + `clock, the newest fetched bar's own value -- translates. `
+          + `The bare \`${bare}\` (this bar's own value), a different bar `
+          + `(\`${bare}(time[1])\`), and a computed timestamp are all real `
+          + 'Pine and all currently refused as a function argument. '
+          + `TO UNBLOCK: read the bare \`${bare}\` for this bar's own value, `
+          + `or \`${bare}(timenow)\` for the newest fetched bar's.`,
+          locate(tok))
       }
       return BUILTIN_CALL_TREE[bare](built)
     }
@@ -8468,16 +8614,35 @@ export class Resolver {
       // comment records that this arm was split from the bare-NAME arm so each
       // construct gets its own true sentence; it stopped one notch short.
       const anchorForm = bare === 'time' && args.length === 1
+      // ⭐⭐⭐ (2026-09-20) THE "node this engine does not have" ABOVE IS NOW
+      // ONLY TRUE FOR NON-"D" PERIODS. `dayopentime` (`indicators.js`/
+      // `indicator_compute.py::CLOCK_TIME_DERIVED`) is exactly that node for
+      // the daily case: the opening timestamp of the ET calendar day each bar
+      // falls in, broadcast to every bar of that day. `timeframeLiteralOf`
+      // resolves the argument the SAME way `request.security`'s own
+      // timeframe argument already does (a literal, a bound variable, a
+      // constant-foldable ternary, or an `input.timeframe`/`input.string`/
+      // `input` fold — recorded in `usedInputs` on the fold, same as every
+      // other site). ⛔ ONLY "D"/"1D" REDIRECTS — W/M/intraday resampling is
+      // a separate, harder capability (real weekly/monthly bucket rules, or
+      // session-open-vs-midnight bucket alignment for intraday codes — see
+      // the memory's own scoping note) nothing in the real corpus asks for
+      // today, so it stays refused rather than silently guessed at.
+      if (anchorForm) {
+        const argNode = args[0] && (args[0].value !== undefined ? args[0].value : args[0])
+        const rawTf = this.timeframeLiteralOf(argNode)
+        const tfCode = rawTf === null ? null : PINE_TF_SPELLING[String(rawTf).trim().toUpperCase()]
+        if (tfCode === 'D') return clockLeaf('dayopentime')
+      }
       throw new PineRefusal('pine:function',
         anchorForm
           ? `\`${pineName}(<timeframe>)\` is the OPENING TIMESTAMP of the enclosing `
             + 'period — the anchor Pine scripts compare with `>` to detect a new day '
-            + 'or week. This engine holds the `time` of each bar and the period it '
-            + 'sits inside is a node this engine does not have, so there is nothing '
-            + 'to compare against. The clock it '
-            + 'does declare is `dayofweek`, `dayofmonth`, `month`, `year` and '
-            + '`sessionfirst` — and `sessionfirst` is the closest to what an anchor '
-            + 'comparison is usually asking'
+            + 'or week. `time("D")` (or a timeframe argument that folds to `"D"`) '
+            + 'translates. Any OTHER period this engine does not have a node for: '
+            + 'the clock it does declare is `dayofweek`, `dayofmonth`, `month`, '
+            + '`year` and `sessionfirst` — and `sessionfirst` is the closest to what '
+            + 'an anchor comparison is usually asking'
           : `\`${pineName}\` is ${PINE_INEXPRESSIBLE[bare]}`, locate(tok))
     }
     if (!key) {
@@ -8577,6 +8742,36 @@ export class Resolver {
       }
       plan = shape.build
     } else {
+      // ⭐⭐⭐ (2026-09-20) THE BARE 2-ARGUMENT SHORT FORM OF `pivothigh`/
+      // `pivotlow` REUSES `pivotAtConfirmation` — THE SAME FUNCTION THE
+      // NAMESPACED `ta.pivothigh`/`ta.pivotlow` FORM ALREADY CALLS, not a
+      // fresh default-fill.
+      // ⛔ A PLAIN `PINE_SHORT_FORM` ENTRY WOULD BE WRONG HERE: `pivotAtConfirmation`
+      // does two things a default-fill alone does not — it fills the source
+      // AND shifts the result to the confirmation bar (an `offset` node),
+      // because this table's OWN 3-argument bare `pivothigh(source, left,
+      // right)` reports the value AT THE PIVOT BAR (unshifted — "our own
+      // vocabulary", per `PINE_NAMESPACED_TREE`'s own comment), while Pine's
+      // real `ta.pivothigh(left, right)` reports it `right` bars LATER, at
+      // confirmation. The real target script proves members write the
+      // 2-argument bare form EXPECTING that shift:
+      // `pivot-point-supertrend__HN4w1eNW3B.pine` writes
+      // `plotshape(ph, ..., offset = -prd)`, manually shifting the PLOT back
+      // by `prd` bars to undo Pine's forward confirmation delay — a
+      // fill-only fix would leave `ph` unshifted and the member's own
+      // compensation would then shift it `prd` bars too far, silently.
+      // ⭐ ARITY IS THE DISCRIMINATOR, exactly as it is for `time`'s anchor
+      // form: a 2-argument BARE call never worked before (pure `pine:arity`
+      // refusal), so giving it Pine's real, shift-inclusive meaning changes
+      // no existing script's answer — the 3-argument bare form (source
+      // written out) is untouched by this branch and keeps its own,
+      // unshifted meaning exactly as before.
+      if ((bare === 'pivothigh' || bare === 'pivotlow') && args.length === 2
+          && !args.some((a) => a && a.name)) {
+        const resolvedArgs = args.map((a) => this.resolve(a.value !== undefined ? a.value : a))
+        const shifted = pivotAtConfirmation(bare, resolvedArgs)
+        if (shifted) return shifted
+      }
       if (seriesSlots > 1) {
         // ⭐⭐ FAIL CLOSED ON AN UNMEASURED ROLE ORDER. A function the indicator
         // agent adds tomorrow with two price arguments lands HERE, refused by
@@ -9190,7 +9385,25 @@ function positionaliseSecurityArgs(args) {
  *  table's clock leaf is W3b's, deliberately. What changes here is only WHICH
  *  SENTENCE a member reads, and whether it names what would unblock it.
  */
-const PINE_TO_CLOCK_SPELLING = Object.freeze({ bar_index: 'barindex' })
+const PINE_TO_CLOCK_SPELLING = Object.freeze({
+  bar_index: 'barindex',
+  last_bar_index: 'lastbarindex',
+  // ⭐⭐ `timenow` (2026-09-20) IS A DIFFERENT KIND OF ENTRY FROM THE TWO ABOVE,
+  // AND IT IS WORTH SAYING SO. `bar_index`/`last_bar_index` are pure SPELLING:
+  // the Pine name and ours mean the identical thing under two conventions.
+  // `timenow` is Pine's LIVE wall clock, which a static translator over an
+  // already-fetched bar array has no instant for — so `lastbartime` is not a
+  // renamed IDENTITY, it is this engine's CHOSEN SUBSTITUTE: the newest
+  // fetched bar's own timestamp, exactly the `lastbarindex` precedent
+  // (`indicators.js::CLOCK_LASTBAR_TIME`) applied to a calendar instead of a
+  // bar position. The divergence from genuine "now" is real and disclosed
+  // there, not silently absorbed here — this map only decides WHICH column a
+  // member's `timenow` reaches, not whether reaching it is exact.
+  // ⚰️ `PINE_CLOCK_MISMATCH`'s own comment used to list `timenow` among the
+  // names "our clock does not declare... so this map could never be
+  // consulted" for it. It can be now.
+  timenow: 'lastbartime',
+})
 
 /** Pine clock names whose meaning is NOT ours, and the sentence that says why.
  *
@@ -9213,13 +9426,21 @@ const PINE_TO_CLOCK_SPELLING = Object.freeze({ bar_index: 'barindex' })
  *  (`lesson_rail_the_sentence_not_just_the_guard`).
  *
  *  ⚠️ ONE ENTRY, AND THAT IS THE WHOLE LIST ON PURPOSE. The first draft also
- *  carried `timenow`, `time_close`, `time_tradingday` and `last_bar_time` — none
- *  of which our clock declares, so `engineClockKeyFor` returns null for them and
- *  this map could never be consulted. Four sentences that read as protection and
- *  could not fire. They already get the correct generic refusal ("names something
- *  the engine grammar does not hold"), which is true: we do not hold them at all.
- *  `time` is the only Pine clock name we hold under the same spelling and a
- *  different meaning, so it is the only one that needs saying. */
+ *  carried `timenow`, `time_close`, `time_tradingday` and `last_bar_time` — at
+ *  the time none of which our clock declared, so `engineClockKeyFor` returned
+ *  null for them and this map could never be consulted. Three of the four
+ *  still get the correct generic refusal ("names something the engine grammar
+ *  does not hold"), which is still true of them: we do not hold `time_close`,
+ *  `time_tradingday` or `last_bar_time` at all.
+ *  ⚰️ `timenow` IS NO LONGER ONE OF THE THREE (2026-09-20) — it now BINDS,
+ *  via `PINE_TO_CLOCK_SPELLING.timenow`, to `lastbartime`. That is not a
+ *  reason to list it here: this map is for a name we hold under the SAME
+ *  spelling with a DIFFERENT meaning, and `timenow` is neither — it reaches
+ *  our clock under a DIFFERENT spelling, with its meaning-difference
+ *  disclosed at the binding (`indicators.js::CLOCK_LASTBAR_TIME`), not at a
+ *  refusal.
+ *  `time` remains the only Pine clock name we hold under the same spelling
+ *  and a different meaning, so it is the only one that needs saying here. */
 const PINE_CLOCK_MISMATCH = Object.freeze({
   // ⚰️ I APPENDED A "TO UNBLOCK: divide the millisecond literal by 1000" HERE AND
   // TOOK IT BACK OUT. `pine.test.js` asserts this message does NOT say TO UNBLOCK
@@ -10100,6 +10321,27 @@ function tupleRefusalTail(call, names, env) {
   }
   const shown = String(call.name)
   const supplied = call.args || []
+  // ⭐⭐ TASK 3 — `ta.supertrend` NAMES ITS OWN REASON, NOT THE GENERIC LIST.
+  //
+  // `closedTable.json::series.supertrend`'s own top-level note already states
+  // this in full: Supertrend carries state that depends on its OWN PREVIOUS
+  // VALUE (the band ratchet + the direction flip), which this grammar — a
+  // pure expression tree over sealed primitives, no self-reference — cannot
+  // hold without a NEW SEALED RECURRENCE PRIMITIVE, the same class of work
+  // `ema`/`rma`/`atr`/`rsi`/`adx` already needed. That is materially larger
+  // than "the tuple mechanism does not know this name," and the generic "the
+  // ones it can take apart are bb/macd/kc/dmi" list invites exactly the
+  // wrong fix: silently adding `supertrend` to `PINE_TUPLE_BUILTINS` (a table
+  // of PURE, STATELESS expansions) would drop the ratchet and the flip and
+  // serve a different series under the Supertrend name.
+  const bareForSupertrend = normaliseName(shown.split('.').pop())
+  if (bareForSupertrend === 'supertrend') {
+    return '`' + shown + '`' + ' carries state that depends on its own previous '
+      + 'value — the band only tightens while the trend holds, and the direction '
+      + 'flips only when price crosses the band it produced last bar. This engine '
+      + 'has no self-reference in its expression grammar yet, so this is not a '
+      + 'missing tuple form, it is a missing primitive'
+  }
   const callee = env.get(call.name)
   if (callee && callee.kind === 'fn') {
     const v = callee.value
@@ -10383,11 +10625,35 @@ function vectorFromRhs(rhs, nameTok, isVar, env, notes, markOpaque) {
   const closes = matchBracket(rhs, argStart)
   if (closes !== rhs.length - 1) return null
   const inner = rhs.slice(argStart + 1, rhs.length - 1)
+  // ⛔⛔ `array.new_<type>(size, initial_value)` IS PINE'S OWN TWO-ARGUMENT
+  // FORM, AND THE COMMA IS TOP-LEVEL. `inner` used to be handed to
+  // `parseWholeExpression` WHOLE — size, comma and initial-value together —
+  // which is not a single expression at all, so a comma anywhere in here threw
+  // and `sizeNode` came back null for EVERY two-argument creation, folding to
+  // 0 slots regardless of what the size argument actually said. Measured:
+  // `array.new_float(3, 5.0)` refused `pine:collection` naming "0 slots" —
+  // the same shape `renko-candles-overlay__d76a18d49e.pine` hit on
+  // `array.new_float(1, math.floor(open / boxs) * boxs)`, and unrelated to
+  // `math.floor` itself (a bare literal second argument reproduces it).
+  // `splitTopLevel` is the same depth-respecting splitter the rest of this
+  // file already uses for multi-argument calls (`positionaliseSecurityArgs`,
+  // the destructuring-tuple parser) — never a bare `.split(',')`, which would
+  // cut inside `math.floor(open / boxs)`'s own parens.
+  const parts = inner.length ? splitTopLevel(inner, ',') : []
   let sizeNode = null
   // ⭐ THE SIZE IS STORED UNRESOLVED. Folding it here would be a second
   // constant-folder over the same tokens; the Resolver already has the one this
   // engine uses, and it runs with the whole environment in hand.
-  try { sizeNode = inner.length ? parseWholeExpression(inner) : null } catch { sizeNode = null }
+  try { sizeNode = parts[0] && parts[0].length ? parseWholeExpression(parts[0]) : null } catch { sizeNode = null }
+  let initNode = null
+  // ⭐⭐ THE INITIAL-VALUE ARGUMENT. Pine's own default is `na`, which already
+  // matches this engine's "an unwritten slot reads na" convention (F2) — so a
+  // ONE-argument creation needed no change. An EXPLICIT initial value must
+  // pre-fill every slot, or `array.get` on an index nothing has `array.set`
+  // would answer na instead of the value Pine actually holds there — a
+  // plausible wrong answer, not a refusal, which is the one shape this table
+  // exists to prevent. Stored unresolved for the same reason `sizeNode` is.
+  try { initNode = parts[1] && parts[1].length ? parseWholeExpression(parts[1]) : null } catch { initNode = null }
   const at = locate(nameTok)
   // ⛔⛔ F2 — THE CREATION IS RECORDED, WHATEVER HAPPENS NEXT. Before this, a
   // `var x = array.new<float>(21)` produced NOTHING: not a refusal, not a note,
@@ -10411,6 +10677,7 @@ function vectorFromRhs(rhs, nameTok, isVar, env, notes, markOpaque) {
       env: new Map(env),
     }),
     sizeNode,
+    initNode,
     member,
     arrayName: nameTok.value,
   }
@@ -10697,6 +10964,46 @@ const OBJECT_ENUM_VALUES = Object.freeze({
   'position.bottom_left': 'bottom_left', 'position.bottom_center': 'bottom_center',
   'position.bottom_right': 'bottom_right',
 })
+
+/**
+ * ⭐⭐ `text_format` — THE ONE PINE CONSTANT FAMILY THAT DOES ARITHMETIC.
+ *
+ * Everything in `OBJECT_ENUM_VALUES` above is a `const string`: one name, one
+ * value, and the last one written wins. `text.format_*` is not. This repo's own
+ * vendor extraction says so in one line — `docs/pine/pine-v6-constants.md:187`:
+ *
+ *   > `text.align_*` / `text.wrap_*` are `const string`, but `text.format_*` is
+ *   > `const text_format` … Only `text_format` supports `+` arithmetic
+ *   > (`text.format_bold + text.format_italic`).
+ *
+ * ⛔ SO THE COMBINING OPERATOR IS `+`, NOT A BITWISE `|`. Pine v6 has no
+ * bitwise operators at all, so a reader written for `|` would have matched
+ * nothing any script can legally write — a capability that is green in a unit
+ * test and unreachable from the language, which is a shape this repo has paid
+ * for before.
+ *
+ * ⭐ AND THE FAMILY IS CLOSED AT THREE. `pine-v6-constants.md:105` enumerates
+ * `text.format_none`, `text.format_bold`, `text.format_italic` and nothing else,
+ * so an unknown `text.format_*` is a refusal rather than a value to pass along.
+ */
+const TEXT_FORMAT_FLAGS = Object.freeze({
+  'text.format_none': null,
+  'text.format_bold': 'bold',
+  'text.format_italic': 'italic',
+})
+
+/** ⭐ THE CANONICAL SPELLING IS SORTED, so `bold + italic` and `italic + bold`
+ *  are the same value and hash the same. `'none'` is written out rather than
+ *  left as `''` — a cell that explicitly asks for no formatting and a cell that
+ *  never mentioned formatting are the same PICTURE but not the same STATEMENT,
+ *  and the diagnostics have to be able to tell them apart. */
+const TEXT_FORMAT_ORDER = Object.freeze(['bold', 'italic'])
+
+export function canonicalTextFormat(flags) {
+  const set = new Set(flags)
+  const out = TEXT_FORMAT_ORDER.filter((f) => set.has(f))
+  return out.length ? out.join('_') : 'none'
+}
 
 /** Every `label.style_*` Pine names, kept as its own string. ⚠️ The RENDERER
  *  decides what a style draws; this door only has to carry what was written. */
@@ -11225,6 +11532,48 @@ function buildObjectProgram(stmts, source, env, makeResolver, bindingByStatement
   const TEXT_SLOTS = new Set(['text', 'tooltip'])
   const isColourSlot = (k) => k === 'bgcolor' || k.includes('color')
 
+  /**
+   * ⭐⭐ A `text_format` EXPRESSION — CONSTANT-ONLY, AND THAT IS THE RULING.
+   *
+   * Returns the flags a `text_formatting` argument names, or `null` when this
+   * door cannot say — `null` is what turns into a NAMED `dropProp`, never a
+   * quiet absence.
+   *
+   * ⛔ IT DOES NOT ACCEPT A TERNARY, ON PURPOSE. `text`, `bgcolor` and the enum
+   * slots each carry their own per-bar conditional vocabulary (`{t:'if'}`,
+   * `{c:'if'}`), and adding a third would mean a fourth thing `evaluateObjects`
+   * has to evaluate on every bar of every table. Nothing in the measured corpus
+   * computes a format: all eight `text_formatting` sites in `corpus/committed`
+   * are a bare `text.format_bold` on a header row. So a computed one refuses and
+   * SAYS SO, which is the honest version of "not yet" — the cell itself still
+   * draws, because formatting is styling and the number is the content.
+   *
+   * ⭐ `openName` IS IN THE WALK because a script may alias the constant
+   * (`fmtHdr = text.format_bold`) and an alias is not a computation.
+   */
+  const textFormatFlags = (node, scope, depth = 0) => {
+    if (!node || depth > 8) return null
+    if (node.type === 'name') {
+      if (Object.hasOwn(TEXT_FORMAT_FLAGS, node.name)) {
+        const f = TEXT_FORMAT_FLAGS[node.name]
+        return f === null ? [] : [f]
+      }
+      const opened = openName(node, scope, depth)
+      return opened ? textFormatFlags(opened.node, opened.env, depth + 1) : null
+    }
+    // ⭐ `+` IS PINE'S OWN COMBINATOR HERE (see `TEXT_FORMAT_FLAGS`). Both sides
+    // must be readable: half a combination is a different format from the one
+    // the author wrote, and drawing it would be worse than refusing it.
+    if (node.type === 'binary' && node.op === '+') {
+      const a = textFormatFlags(node.left, scope, depth + 1)
+      if (!a) return null
+      const b = textFormatFlags(node.right, scope, depth + 1)
+      if (!b) return null
+      return [...a, ...b]
+    }
+    return null
+  }
+
   /** ⛔⛔ ONE SLOT, AND THE NARROWNESS IS THE POINT. `position` is the only
    *  enum a reachable script COMPUTES rather than types — measured on the 27:
    *  `table.new(f_getTablePos(…), …)` and `table.set_position(t, …)`. Every
@@ -11418,6 +11767,15 @@ function buildObjectProgram(stmts, source, env, makeResolver, bindingByStatement
       const c = colorNodeOf(node, scopeEnv)
       return c ? { v: 'color', node: c } : null
     }
+    // ⛔ `text_formatting` IS INTERCEPTED BEFORE THE GENERIC PATH, and it has to
+    // be. Falling through, `text.format_bold` is an unknown NAME with no enum
+    // entry, so the last line of this function would hand it to `resolveTree`
+    // and it would become a numeric graph node — a bold flag modelled as a
+    // series, evaluated per bar, and painted as nothing.
+    if (slot === 'text_formatting') {
+      const flags = textFormatFlags(node, scopeEnv)
+      return flags ? { v: 'const', value: canonicalTextFormat(flags) } : null
+    }
     // ⭐ A COMPUTED POSITION. The literal cases below still answer first for a
     // plain `position.top_right`, so nothing that resolved before changes shape;
     // this is only reached for the name a script COMPUTED, which used to be a
@@ -11486,6 +11844,34 @@ function buildObjectProgram(stmts, source, env, makeResolver, bindingByStatement
     diagnostics.droppedPropNames = diagnostics.droppedPropNames || []
     if (!diagnostics.droppedPropNames.includes(entry)) {
       diagnostics.droppedPropNames.push(entry)
+    }
+  }
+
+  /**
+   * ⛔⛔ A PROPERTY OUTSIDE THE VOCABULARY — NAMED, NOT `continue`d.
+   *
+   * ⚰️ THIS IS WHAT HID GAP 1 FOR A WHOLE WAVE. Both prop loops below used to
+   * open with a bare `if (!ALLOWED.includes(k)) continue`, and a bare `continue`
+   * is the most complete silence a program can produce: no count, no name, no
+   * line, nothing to grep, nothing in `objectDiagnostics` for a member's support
+   * ticket to be answered from. `text_formatting` was dropped there on every
+   * single one of `strong-start-rvol-dashboard.pine`'s six header cells, and the
+   * only symptom anywhere was that the member's header row looked like a data
+   * row.
+   *
+   * ⭐ IT IS A DIFFERENT SENTENCE FROM `dropProp`, so it gets a different
+   * bucket. `dropProp` means "Pine has this property, we have it, and this
+   * particular VALUE was unreadable" — usually fixable by folding harder.
+   * `unsupportedProp` means "this door does not implement the property at all",
+   * which is a roadmap item, not a resolver bug. Merging them would make the
+   * droppedProps counter unable to answer either question.
+   */
+  const unsupportedProp = (family, k, node) => {
+    const at = node && node.tok ? locate(node.tok) : null
+    const entry = `${family}.${k}@${at ? at.line : '?'}`
+    diagnostics.unsupportedProps = diagnostics.unsupportedProps || []
+    if (!diagnostics.unsupportedProps.includes(entry)) {
+      diagnostics.unsupportedProps.push(entry)
     }
   }
 
@@ -11846,7 +12232,10 @@ function buildObjectProgram(stmts, source, env, makeResolver, bindingByStatement
       let bad = false
       const required = REQUIRED[op.family] || new Set()
       for (const [k, node] of Object.entries(raw)) {
-        if (!OBJECT_FAMILY_PROPS[op.family] || !OBJECT_FAMILY_PROPS[op.family].includes(k)) continue
+        if (!OBJECT_FAMILY_PROPS[op.family] || !OBJECT_FAMILY_PROPS[op.family].includes(k)) {
+          unsupportedProp(op.family, k, node)
+          continue
+        }
         if (op.family === 'linefill' && (k === 'line1' || k === 'line2')) {
           const r = targetRef({ value: node })
           if (!r) { bad = true; break }
@@ -11923,7 +12312,7 @@ function buildObjectProgram(stmts, source, env, makeResolver, bindingByStatement
       const props = {}
       let badCell = false
       for (const [k, node] of Object.entries(raw)) {
-        if (!OBJECT_CELL_PROPS.includes(k)) continue
+        if (!OBJECT_CELL_PROPS.includes(k)) { unsupportedProp('cell', k, node); continue }
         const v = valueRef(node, k)
         if (!v) {
           // ⛔⛔ THE TEXT *IS* THE CELL. A cell whose text this door cannot read
@@ -11938,6 +12327,45 @@ function buildObjectProgram(stmts, source, env, makeResolver, bindingByStatement
       }
       if (badCell) { dropped('cell:text'); continue }
       ops.push({ k: 'cell', target, col, row, when, ...lastBarOnly, props })
+    } else if (op.k === 'cellpatch') {
+      const target = targetRef(op.target)
+      const col = op.col ? valueRef(op.col.value) : null
+      const row = op.row ? valueRef(op.row.value) : null
+      if (!target) { dropped('cellpatch:target'); continue }
+      if (!col || !row) { dropped('cellpatch:address'); continue }
+      const node = op.args[0] && op.args[0].value
+      const v = node ? valueRef(node, op.prop) : null
+      // ⛔⛔ AN UNREADABLE PATCH DROPS THE WHOLE OP, NOT THE PROPERTY. A `cell`
+      // with an unreadable colour still draws, because the rest of that call is
+      // the cell's content; a `cell_set_bgcolor` whose colour cannot be read has
+      // NOTHING left to do, and emitting it with empty props would be an
+      // operation that runs every bar and means nothing. It is named twice on
+      // purpose — by property and line, so an engineer can find the expression,
+      // and by drop reason, so the op count still adds up.
+      if (!v) { dropProp('cell', op.prop, node); dropped(`cellpatch:${op.prop}`); continue }
+      ops.push({ k: 'cellpatch', target, col, row, when, ...lastBarOnly, props: { [op.prop]: v } })
+    } else if (op.k === 'clear') {
+      const target = targetRef(op.target)
+      if (!target) { dropped('clear:target'); continue }
+      const raw = namedOrPositional(op.args, CLEAR_POSITIONAL)
+      const col = raw.start_column ? valueRef(raw.start_column) : null
+      const row = raw.start_row ? valueRef(raw.start_row) : null
+      // ⛔ THE START IS NOT OPTIONAL AND A MISSING ONE IS NOT A ZERO. Defaulting
+      // an unreadable start to (0,0) would clear from the top-left corner of a
+      // dashboard the author never asked to touch — wiping real numbers is a
+      // strictly worse outcome than leaving stale ones, so this refuses.
+      if (!col || !row) { dropped('clear:range'); continue }
+      // ⭐⭐ PINE'S OWN DEFAULT, APPLIED ONCE, HERE. The reference
+      // (`pine-presentation-spec.md:1689`) says `end_column`/`end_row` default
+      // to "the argument used for `start_column`" / `start_row`, so
+      // `table.clear(t, 2, 3)` clears exactly cell (2,3). Re-using the SAME
+      // value reference rather than re-reading the node means a computed start
+      // is evaluated once and the rectangle cannot degenerate into two
+      // different answers for the same expression.
+      const col2 = raw.end_column ? valueRef(raw.end_column) : col
+      const row2 = raw.end_row ? valueRef(raw.end_row) : row
+      if (!col2 || !row2) { dropped('clear:range'); continue }
+      ops.push({ k: 'clearcells', target, col, row, col2, row2, when, ...lastBarOnly })
     } else if (op.k.startsWith('coll_')) {
       const id = collId.get(op.coll)
       if (!id) { dropped('coll:unknown'); continue }
@@ -12035,7 +12463,72 @@ function buildObjectProgram(stmts, source, env, makeResolver, bindingByStatement
   }
 }
 
+/**
+ * ⭐⭐ THE LANE SELECTOR, AND THE ONLY ONE. `opts.strict === true` is the single
+ * thing that chooses between this door's two contracts — not `opts.mode` (which
+ * does not exist, see `translatePine` below) and not `opts.host` (which belongs
+ * to `chooseOutput` and decides whether an alertcondition may be the first
+ * offer). Both readers — the contract the translation runs under, and the label
+ * it is stamped with — ask THIS function, so the two can never disagree.
+ */
+function isHostLane(opts) {
+  return !!opts && opts.strict === true
+}
+
+/**
+ * A member's Pine, translated — and STAMPED WITH THE LANE IT CAME FROM.
+ *
+ * ⭐⭐ THE LANE IS DERIVED ONCE, HERE, AND IT REACHES EVERY RETURN PATH.
+ * `paneGate` reads `t.mode` FIRST and refuses anything that is not `'host'`
+ * with "this verdict came from the <mode|unknown> lane" — the right rule,
+ * checked before every other one. So a result that forgets its lane is refused
+ * with a sentence about lanes whatever is actually wrong with the script.
+ *
+ * ⚰️ MEASURED 2026-09-19: only the NORMAL return carried `mode`. Every early
+ * return did not — the empty source, a lexer refusal, a statement-grouping
+ * refusal, and `pine:no-output`, which is what ANY table-only dashboard hits. A
+ * member who pasted a perfectly good script that simply draws no line was told
+ * "this verdict came from the unknown lane, which answers a different
+ * question", a sentence about our internals naming nothing they could act on,
+ * instead of "the pasted script offers no plot and no alert condition to filter
+ * on" — which this door had already computed and was carrying in `refusal`.
+ *
+ * ⛔ AND IT IS A WRAPPER, NOT A `mode` ADDED TO EACH EARLY RETURN. There are
+ * five of those today and the next one will be written by somebody who has not
+ * read this comment; a ternary copied into each is five authorities over one
+ * value, and the failure is SILENT — the result still looks like a translation
+ * result, and the only symptom is a refusal sentence about the wrong subject.
+ * Wrapping is the one shape in which a new early return cannot forget.
+ *
+ * ⚰️⚰️ AND `mode` IS AN OUTPUT, NEVER AN INPUT. **There is no `opts.mode`.**
+ * The string does not appear in this function's option handling at all, so
+ * `translatePine(src, { mode: 'host' })` is SILENTLY IGNORED and runs the
+ * LENIENT lane — and so does `{ mode: 'screener' }`.
+ *
+ * ⛔ That is not hypothetical: a session took every "both lanes agree" reading
+ * for item (a) by calling those two spellings, got perfect agreement because
+ * both calls were the same lane, and reported it as cross-lane evidence. The
+ * whole round was void. **An instrument that cannot distinguish its two inputs
+ * agrees with itself**, and this field is the thing that makes the mistake look
+ * reasonable: a reader sees `mode: 'host'` come OUT of a result and passes it
+ * back IN. The rail is `bothLanesAreTwoLanes.test.js`, whose case 4 keeps the
+ * false call verbatim rather than describing it, so the next reader who writes
+ * it again meets the test instead of the bug.
+ */
 export function translatePine(source, opts = {}) {
+  const t = translatePineResult(source, opts)
+  if (!t || typeof t !== 'object') return t
+  // ⚠️ ASSIGNED, NOT SPREAD. Every return path below builds a fresh object
+  // literal that nothing else holds, so there is nothing to protect from
+  // mutation — while a copy would re-key a result the callers pass around by
+  // identity, for one field.
+  t.mode = isHostLane(opts) ? 'host' : 'screener'
+  return t
+}
+
+/** The translation itself. ⛔ Call `translatePine`, never this: a result that
+ *  leaves here has no `mode`, and `paneGate` reads `mode` before anything else. */
+function translatePineResult(source, opts = {}) {
   const table = opts.table || TABLE
   const blank = {
     ok: false, version: null, declaration: null, title: null,
@@ -13336,6 +13829,20 @@ export function translatePine(source, opts = {}) {
     ...(helperOnlyRefusal ? [helperOnlyRefusal] : []),
   ].sort(byPosition)
 
+  // ⭐⭐ AN OBJECT-ONLY SCRIPT IS NOT DECIDED HERE ANY MORE (owner-authorised,
+  // 2026-09-20). `resolved.length === 0` used to refuse `pine:no-output`
+  // immediately, before the object pass below ever ran — so a script that
+  // draws ONLY boxes/lines/labels/tables (no `plot()`, no `alertcondition()`)
+  // could never reach the object lane at all, regardless of what it would
+  // have drawn. Measured against the real 266-script committed corpus:
+  // 48 scripts hit `pine:no-output` as their ONLY blocker, and of those, 2
+  // have a real, ZERO-DROP object program waiting behind this exact gate.
+  // The verdict for this case is now decided below, once the object pass has
+  // actually run, by `objectOnlyCleanWin` — this block only used to fire when
+  // there was NOTHING ELSE that could possibly survive, and a hard refusal
+  // still short-circuits everything the same way it always did (`blocked`,
+  // computed next, is independent of `resolved.length`).
+  //
   // ⛔ A HARD REFUSAL REFUSES THE WHOLE SCRIPT EVEN WHEN A PLOT TRANSLATED.
   // A `strategy()` script's plot is real Pine and would translate fine — but the
   // artifact is a backtest, its meaning lives in orders this engine never runs,
@@ -13503,8 +14010,31 @@ export function translatePine(source, opts = {}) {
   }
 
 
+  // ⭐⭐ THE OBJECT LANE, ALONE, AS A HOST-LANE VERDICT (owner-authorised,
+  // 2026-09-20). `resolved.length === 0` means the value lane offered
+  // NOTHING — no plot, no alertcondition — so a member's box/line/label/table
+  // drawing is otherwise unreachable no matter how well it translated.
+  //
+  // ⛔⛔ NO PARTIAL CREDIT — the exact bar `strictOk` already holds the value
+  // lane to below (`refusals.length === 0`, not "something survived"). A
+  // script whose object program dropped even one attempted op is not a clean
+  // win; it stays refused, same as it always has, with the same sentence.
+  // Measured against the real corpus: of the 48 scripts `pine:no-output`
+  // alone blocks, 2 clear this bar and 17 have real output but ALSO drops —
+  // those 17 are correctly refused by this same rule, not silently accepted.
+  //
+  // ⛔ SCREENER IS UNCHANGED AND MUST STAY SO. An object-only script has zero
+  // numeric/boolean columns — there is nothing to screen on regardless of how
+  // clean its drawing is — so this is read only where `isHostLane(opts)` is
+  // true, never folded into `usable`/`lenientOk`, which govern the screener
+  // lane and answer a different question entirely.
+  const objectOnlyCleanWin = resolved.length === 0
+    && !!(objectPass.program && Array.isArray(objectPass.program.ops) && objectPass.program.ops.length > 0)
+    && !!(objectPass.diagnostics && objectPass.diagnostics.droppedOps === 0)
+
   let noContent = null
-  if (!blocked && usable.length === 0 && refusals.length === 0) {
+  if (!blocked && usable.length === 0 && refusals.length === 0
+      && !(isHostLane(opts) && objectOnlyCleanWin)) {
     // ⛔ THE REASON IS DERIVED FROM WHY THE ROWS WERE HIDDEN, never defaulted.
     // Ordered most-specific first: a passthrough says the meaning was in
     // presentation, a constant says the column cannot move, and only an
@@ -13542,40 +14072,28 @@ export function translatePine(source, opts = {}) {
   // constant column is this engine's judgement about SCREENING, not about
   // drawing. The strict test is therefore "did anything fail to translate",
   // which is exactly `refusals.length === 0`, not "is everything usable".
-  // ⭐⭐ THIS LINE IS THE LANE. `opts.strict === true` is the ONLY thing that
-  // chooses between the two contracts — not `opts.mode` (which does not exist),
-  // and not `opts.host` (which belongs to `chooseOutput` and decides whether an
-  // alertcondition may be the first offer). See the `mode:` field below for the
-  // round of evidence that was voided by getting this wrong.
-  const strict = opts.strict === true
+  // ⭐⭐ THIS IS THE LANE, and it is READ rather than restated: `isHostLane` is
+  // the same predicate the exported `translatePine` stamps `mode` from, so the
+  // contract a translation ran under and the label it carries cannot drift
+  // apart. See that function for the round of evidence that was voided by
+  // getting this wrong.
+  const strict = isHostLane(opts)
   const lenientOk = usable.length > 0 && !blocked
-  const strictOk = resolved.length > 0 && refusals.length === 0 && !blocked
+  // ⭐⭐ THE OBJECT-ONLY CLEAN WIN JOINS THE SAME STRICT GATE, not a separate
+  // one — `objectOnlyCleanWin` already IS "every attempted object op
+  // survived", the object lane's own version of `refusals.length === 0`.
+  const strictOk = (resolved.length > 0 && refusals.length === 0 && !blocked)
+    || (objectOnlyCleanWin && !blocked)
   const ok = strict ? strictOk : lenientOk
 
   return {
     ok,
-    // ⭐ THE CALLER CAN SEE WHICH CONTRACT IT GOT. A result that travels (into a
-    // saved definition, a log, a test fixture) must not be ambiguous about which
-    // question it answered.
-    //
-    // ⚰️⚰️ AND IT IS AN OUTPUT, NEVER AN INPUT. **There is no `opts.mode`.** The
-    // string does not appear in this function's option handling at all, so
-    // `translatePine(src, { mode: 'host' })` is SILENTLY IGNORED and runs the
-    // LENIENT lane — and so does `{ mode: 'screener' }`.
-    //
-    // ⛔ That is not hypothetical: a session took every "both lanes agree"
-    // reading for item (a) by calling those two spellings, got perfect agreement
-    // because both calls were the same lane, and reported it as cross-lane
-    // evidence. The whole round was void. **An instrument that cannot
-    // distinguish its two inputs agrees with itself**, and this field is the
-    // thing that makes the mistake look reasonable: a reader sees `mode: 'host'`
-    // come OUT of a result and passes it back IN.
-    //
-    // ⭐ THE LANE SELECTOR IS `opts.strict === true`, read once, ~10 lines above.
-    // The rail is `bothLanesAreTwoLanes.test.js`, whose case 4 keeps the false
-    // call verbatim rather than describing it, so the next reader who writes it
-    // again meets the test instead of the bug.
-    mode: strict ? 'host' : 'screener',
+    // ⭐ THE CALLER CAN SEE WHICH CONTRACT IT GOT — but the field is NOT set
+    // here. `mode` is stamped by the exported `translatePine`, on this return
+    // and on every early one alike, because this was the only path that set it
+    // and every other path reached `paneGate` as "the unknown lane". Read that
+    // function for the whole story, including why `mode` is an output and never
+    // an input.
     version,
     declaration,
     title,

@@ -210,6 +210,7 @@ export const DROP = Object.freeze([
   "_functions_domain",
   "_functions_hull",
   "_functions_cumulative",
+  "_functions_valuewhen_occurrence",
   "_functions_vendor_note",
   "_booleans",
   "_yields",

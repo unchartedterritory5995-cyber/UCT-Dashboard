@@ -444,6 +444,21 @@ describe('ImportWizard — export guide surfaced on the drop step (Task 1)', () 
     fireEvent.click(screen.getByRole('button', { name: /how do i get my export file/i }))
     expect(await screen.findByRole('button', { name: /notion/i })).toBeInTheDocument()
   })
+
+  // Competitive-audit UX #16 (2026-09-22): Craft and Roam already succeed
+  // through the generic adapter (registry.test.js proves the routing) but
+  // were never NAMED as accepted sources -- this is the member-facing half
+  // of that fix. Deliberately NOT added to ExportGuide's per-platform tabs
+  // above: those carry vendor-verified, click-path-specific instructions
+  // ("checked against each vendor's OWN current help docs, not written from
+  // memory" -- ExportGuide.jsx's own header), and fabricating Craft/Roam
+  // steps without that same verification would risk sending a member
+  // hunting for a menu that isn't where we said it was.
+  it('names Craft and Roam as accepted drop sources, alongside the three with a dedicated export guide', () => {
+    render(<ImportWizard open onClose={() => {}} onImported={() => {}} />)
+    expect(screen.getByText(/Craft/)).toBeInTheDocument()
+    expect(screen.getByText(/Roam/)).toBeInTheDocument()
+  })
 })
 
 // ---------------------------------------------------------------------------

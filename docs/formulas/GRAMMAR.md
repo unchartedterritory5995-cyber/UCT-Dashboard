@@ -39,6 +39,7 @@ says which name and why — it never guesses a meaning.
 | `hour` | the hour of the bar on a 24-hour clock, 0 to 23, in New York time |
 | `minute` | the minute of the bar, 0 to 59, in New York time |
 | `sessionfirst` | 1 on the first bar of a New York calendar day, otherwise 0 (blank on the oldest bar, which has no previous day to differ from) |
+| `dayopentime` | the opening timestamp, in SECONDS since 1970, of the New York calendar day the bar falls in -- the same value on every bar of that day. This engine's answer for Pine's time(<timeframe>) one-argument anchor form when the timeframe folds to "D" -- with no session filtering (Pine's session argument, which this engine does not read here) |
 | `barindex` | the bar's position in the series, 0 on the oldest bar |
 | `isintraday` | 1 when the chart's timeframe is 1, 5, 15, 30 or 60 minutes, otherwise 0 |
 | `isdaily` | 1 when the chart's timeframe is daily, otherwise 0 |
@@ -46,6 +47,13 @@ says which name and why — it never guesses a meaning.
 | `ismonthly` | 1 when the chart's timeframe is monthly, otherwise 0 |
 | `islast` | 1 on the newest bar the fetch delivered, otherwise 0 |
 | `isfirst` | 1 on the oldest bar the fetch delivered, otherwise 0 |
+| `lastbarindex` | the newest bar's own barindex, the same value on every bar -- NOT window-dependent, exactly like islast: widen the fetch and the number moves, but it names the same real bar either way, the way islast's 1 always lands on that same bar |
+| `lastbartime` | the newest bar's own timestamp in seconds, the same value on every bar -- this engine's answer for Pine's timenow, anchored to the fetch rather than to genuine live wall-clock time |
+| `lastbaryear` | the calendar year of the newest bar's own timestamp, in New York time, the same value on every bar |
+| `lastbarmonth` | the calendar month of the newest bar's own timestamp, 1 in January through 12 in December, in New York time, the same value on every bar |
+| `lastbardayofmonth` | the day of the month of the newest bar's own timestamp, 1 to 31, in New York time, the same value on every bar |
+| `lastbarhour` | the hour of the newest bar's own timestamp on a 24-hour clock, 0 to 23, in New York time, the same value on every bar |
+| `lastbarminute` | the minute of the newest bar's own timestamp, 0 to 59, in New York time, the same value on every bar |
 | `isrealtime` | 1 on the newest bar while the instant its period is scheduled to end is still in the future, otherwise 0; BLANK (NaN/None) when the caller did not supply the tri-state -- never a guess |
 | `isconfirmed` | 1 on a bar whose period has finished, otherwise 0; BLANK (NaN/None) when the caller did not supply the tri-state -- collapsing blank onto 1 would put a confident isconfirmed on a bar that may still be open |
 | `ishistory` | 1 on a bar this engine loaded as finished history, which for a fetched series is every bar whose period has ended, otherwise 0; BLANK (NaN/None) when the caller did not supply the tri-state. This engine evaluates a static fetch, so ishistory is exactly isconfirmed -- a divergence from the vendor, recorded in `tests/fixtures/vendor/divergences.json::barstate-viewer-dependent-on-vendor` |
@@ -74,7 +82,7 @@ declare — how many operands they take and what they answer.
 | `!` | 1 | true or false |
 | `?:` | 3 | passthrough |
 
-## Functions (73)
+## Functions (75)
 
 `Needs` is how far back the function reads — the number the engine adds up to
 decide whether a formula can run at all.
@@ -93,7 +101,7 @@ decide whether a formula can run at all.
 | `bbw(source, period, mult)` | a number | whatever `period` asks for | the `period`-bar Bollinger Band Width of `source` at multiplier `mult` |
 | `bop(period)` | a number | whatever `period` asks for | the `period`-bar average of where each bar closed within its own range |
 | `cci(high, low, close, period)` | a number | whatever `period` asks for | the `period`-bar commodity channel index of `high`, `low` and `close` |
-| `ceil(source)` | a number | 0 bars | `source` rounded UP to a whole number |
+| `ceil(source)` | a number | 0 bars | `source` rounded up to a whole number |
 | `change(source)` | a number | 1 bar | the bar-over-bar change in `source` |
 | `cos(source)` | a number | 0 bars | the cosine of `source` |
 | `crossOver(left, right)` | true or false | 1 bar | `left` crossing above `right` |
@@ -107,7 +115,7 @@ decide whether a formula can run at all.
 | `ema(source, period)` | a number | whatever `period` asks for | the `period`-bar exponential average of `source` |
 | `exp(source)` | a number | 0 bars | e raised to `source` |
 | `falling(source, period)` | true or false | whatever `period` asks for | `source` falling for `period` bars |
-| `floor(source)` | a number | 0 bars | `source` rounded DOWN to a whole number |
+| `floor(source)` | a number | 0 bars | `source` rounded down to a whole number |
 | `highest(source, period)` | a number | whatever `period` asks for | the highest `source` of the last `period` bars |
 | `highestbars(source, period)` | a number | whatever `period` asks for | the number of bars back to the oldest bar holding the highest `source` of the last `period` bars |
 | `hma(source, period)` | a number | 2*arg1 | the `period`-bar Hull average of `source` |
@@ -131,6 +139,7 @@ decide whether a formula can run at all.
 | `na(source)` | true or false | 0 bars | `source` being unknown |
 | `nz(left, right)` | a number | 0 bars | `left` where it is known, and `right` where it is not |
 | `obvN(period)` | a number | whatever `period` asks for | the signed volume of the last `period` bars, which is on-balance volume's change across that window |
+| `percentileLinearInterpolation(source, period, percentage)` | a number | whatever `period` asks for | the `percentage`th percentile of `source` over the last `period` bars, linearly interpolated between the two nearest ranks |
 | `percentrank(source, period)` | a number | whatever `period` asks for | the `period`-bar percent rank of `source` |
 | `pivothigh(source, leftPeriod, rightPeriod)` | a number | whatever `leftPeriod` asks for | the `source` of a bar that is the highest in the `leftPeriod` bars before it and the `rightPeriod` bars after it |
 | `pivotlow(source, leftPeriod, rightPeriod)` | a number | whatever `leftPeriod` asks for | the `source` of a bar that is the lowest in the `leftPeriod` bars before it and the `rightPeriod` bars after it |
@@ -151,6 +160,7 @@ decide whether a formula can run at all.
 | `sum(source, period)` | a number | whatever `period` asks for | the sum of `source` over the last `period` bars |
 | `tan(source)` | a number | 0 bars | the tangent of `source` |
 | `valuewhen(condition, source, period)` | a number | whatever `period` asks for | the value of `source` on the most recent of the last `period` bars where `condition` was true |
+| `valuewhenOccurrence(condition, source, occurrence)` | a number | series | the value of `source` the `occurrence`-from-the-end time `condition` was true, counting occurrences backward |
 | `vwap()` | a number | a session (960 bars) | the volume-weighted average price so far this session |
 | `williamsR(high, low, close, period)` | a number | whatever `period` asks for | the `period`-bar Williams %R of `high`, `low` and `close` |
 | `wma(source, period)` | a number | whatever `period` asks for | the `period`-bar weighted average of `source` |

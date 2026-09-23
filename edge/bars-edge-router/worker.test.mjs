@@ -445,3 +445,32 @@ test("⚰️ KNOWN QUIRK, PRE-EXISTING: `UCTT` is a REAL ticker caught by the UC
   assert.ok(to.startsWith(WEB),
     "if UCTT now reaches the tier the prefix rule changed — re-read this note");
 });
+
+// ── Market Indicators — the bare-word series the syntax rules cannot see ─────
+
+test("⛔⛔ BARE-WORD MARKET INDICATORS GO TO WEB — the 2026-09-21 blank-chart defect", async () => {
+  // These are served from web-pod stores (`cboe_indices.db`, `naaim_series.db`, a
+  // derivation over `breadth_daily_ohlc`). The tier has none of them, and it answers
+  // `bars: []` with a 200 — valid, cacheable, and indistinguishable from a flat market
+  // to a chart. Every one of these painted a blank canvas on production.
+  for (const sym of ["VIX9D", "VIX3M", "VIX6M", "VVIX", "VXN", "RVX", "SKEW", "NAAIM"]) {
+    const to = await routeOf(`/api/bars/${sym}`);
+    assert.ok(to.startsWith(WEB), `${sym} went to ${to} — it must reach WEB`);
+  }
+});
+
+test("⭐ …and their history door routes identically", async () => {
+  for (const sym of ["VXN", "SKEW", "NAAIM"]) {
+    const to = await routeOf(`/api/bars-history/${sym}`);
+    assert.ok(to.startsWith(WEB), `${sym} history went to ${to}`);
+  }
+});
+
+test("⛔ the indicator list is EXACT — near-misses still reach the tier", async () => {
+  // `VIX` itself is NOT ours (index_bars owns it), and these are ordinary tickers.
+  // A membership set that had drifted into a prefix test would strand them on web.
+  for (const sym of ["VIX", "VIX1D", "SKEWED", "NAAI", "RV", "VX"]) {
+    const to = await routeOf(`/api/bars/${sym}`);
+    assert.ok(to.startsWith(BARS), `${sym} went to ${to} — it must reach the tier`);
+  }
+});

@@ -76,6 +76,32 @@ def _seed_position(user_id, symbol, side, entry, stop, source=None):
         conn.close()
 
 
+def _seed_note_mention(user_id, symbol, note_id=None):
+    """A minimal note + a $TICKER mention on it -- enough for
+    bulk_member_mentioned_symbols to pick the symbol up. note_id lets a
+    caller reuse the same note across two mentions if ever needed; a fresh
+    uuid otherwise."""
+    from api.services.auth_db import get_connection
+    conn = get_connection()
+    try:
+        nid = note_id or str(uuid.uuid4())
+        conn.execute(
+            "INSERT OR IGNORE INTO j2_notes (id, user_id, title, body_json, body_plain,"
+            " created_at, updated_at) VALUES (?, ?, '', '{\"type\":\"doc\",\"content\":[]}',"
+            " '', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)",
+            (nid, user_id),
+        )
+        conn.execute(
+            "INSERT INTO j2_note_mentions (note_id, user_id, symbol, created_at)"
+            " VALUES (?, ?, ?, CURRENT_TIMESTAMP)",
+            (nid, user_id, symbol),
+        )
+        conn.commit()
+        return nid
+    finally:
+        conn.close()
+
+
 def _seed_watchlist(user_id, symbols):
     from api.services.auth_db import get_connection
     conn = get_connection()
@@ -430,6 +456,117 @@ def test_run_awareness_scan_end_to_end_fires_stop_hit(db_path, monkeypatch):
     assert result["enabled"] is True
     assert result["scanned_users"] == 1
     assert result["fired"] == 1
+
+
+# ── R6 thesis_stop_review (G-074) -- flag gate, bulk load, end-to-end ────────
+
+def test_thesis_review_enabled_gate(monkeypatch):
+    from api.services.awareness import engine as eng
+    monkeypatch.delenv("AWARENESS_THESIS_REVIEW_ENABLED", raising=False)
+    assert eng._thesis_review_enabled() is False
+    monkeypatch.setenv("AWARENESS_THESIS_REVIEW_ENABLED", "1")
+    assert eng._thesis_review_enabled() is True
+
+
+def test_bulk_load_user_contexts_mentioned_symbols_empty_when_flag_off(db_path, monkeypatch):
+    from api.services.awareness import engine as eng
+    monkeypatch.delenv("AWARENESS_THESIS_REVIEW_ENABLED", raising=False)
+    _seed_user("u7", "u7@x.com")
+    _seed_position("u7", "NVDA", "Long", 100.0, 90.0)
+    _seed_note_mention("u7", "NVDA")
+
+    ctxs = eng._bulk_load_user_contexts()
+
+    # The query is gated OFF -- the field is present (rule_thesis_stop_review
+    # degrades safely either way) but empty, never silently populated.
+    assert ctxs["u7"]["mentioned_symbols"] == set()
+
+
+def test_bulk_load_user_contexts_mentioned_symbols_populated_when_flag_on(db_path, monkeypatch):
+    from api.services.awareness import engine as eng
+    monkeypatch.setenv("AWARENESS_THESIS_REVIEW_ENABLED", "1")
+    _seed_user("u8", "u8@x.com")
+    _seed_position("u8", "NVDA", "Long", 100.0, 90.0)
+    _seed_note_mention("u8", "NVDA")
+
+    ctxs = eng._bulk_load_user_contexts()
+
+    assert ctxs["u8"]["mentioned_symbols"] == {"NVDA"}
+
+
+def test_bulk_load_user_contexts_notes_alone_never_widen_the_scanned_set(db_path, monkeypatch):
+    """A user with notes but no position and no watchlist contributes
+    nothing any rule acts on -- must not appear in the scanned set at all,
+    even with R6's flag on."""
+    from api.services.awareness import engine as eng
+    monkeypatch.setenv("AWARENESS_THESIS_REVIEW_ENABLED", "1")
+    _seed_user("u9", "u9@x.com")
+    _seed_note_mention("u9", "NVDA")  # notes only -- no position, no watchlist
+
+    ctxs = eng._bulk_load_user_contexts()
+
+    assert "u9" not in ctxs
+
+
+def test_run_awareness_scan_end_to_end_fires_thesis_stop_review_when_enabled(db_path, monkeypatch):
+    from api.services.awareness import engine as eng
+    monkeypatch.setenv("AWARENESS_ENGINE_ENABLED", "1")
+    monkeypatch.setenv("AWARENESS_THESIS_REVIEW_ENABLED", "1")
+    _seed_user("u10", "u10@x.com")
+    _seed_position("u10", "NVDA", "Long", 100.0, 90.0)
+    _seed_note_mention("u10", "NVDA")
+
+    monkeypatch.setattr(
+        eng, "_build_market_scan_ctx",
+        lambda user_ctxs: {
+            "live_prices": {"NVDA": 88.0},  # below stop
+            "regime": {"label": None, "confidence": None, "prev_label": None},
+            "earnings_by_symbol": {},
+            "today": date(2026, 7, 2),
+        },
+    )
+
+    with mock.patch("api.services.watchlist_alert_service.deliver_alert_payload"):
+        result = eng.run_awareness_scan()
+
+    # Both R1 (stop_hit) AND R6 (thesis_stop_review) fire for this same
+    # position -- two independent insights, not one replacing the other.
+    assert result["fired"] == 2
+
+    from api.services.auth_db import get_connection
+    conn = get_connection()
+    try:
+        kinds = {r["kind"] for r in conn.execute(
+            "SELECT kind FROM voice_proactive_insights WHERE user_id = ?", ("u10",),
+        ).fetchall()}
+    finally:
+        conn.close()
+    assert kinds == {"stop_hit", "thesis_stop_review"}
+
+
+def test_run_awareness_scan_end_to_end_thesis_review_silent_when_flag_off(db_path, monkeypatch):
+    """Same fixture as the fires-test above, flag off -- only R1 fires."""
+    from api.services.awareness import engine as eng
+    monkeypatch.setenv("AWARENESS_ENGINE_ENABLED", "1")
+    monkeypatch.delenv("AWARENESS_THESIS_REVIEW_ENABLED", raising=False)
+    _seed_user("u11", "u11@x.com")
+    _seed_position("u11", "NVDA", "Long", 100.0, 90.0)
+    _seed_note_mention("u11", "NVDA")
+
+    monkeypatch.setattr(
+        eng, "_build_market_scan_ctx",
+        lambda user_ctxs: {
+            "live_prices": {"NVDA": 88.0},
+            "regime": {"label": None, "confidence": None, "prev_label": None},
+            "earnings_by_symbol": {},
+            "today": date(2026, 7, 2),
+        },
+    )
+
+    with mock.patch("api.services.watchlist_alert_service.deliver_alert_payload"):
+        result = eng.run_awareness_scan()
+
+    assert result["fired"] == 1  # stop_hit only
 
 
 # ── _compute_regime_component -- Seam 10 / Awareness Scan-Abort Hardening V1 ──

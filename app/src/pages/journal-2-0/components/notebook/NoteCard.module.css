@@ -2,8 +2,8 @@
   display: flex;
   align-items: center;
   gap: 12px;
-  background: var(--color-surface, #14171c);
-  border: 1px solid var(--color-border, #232932);
+  background: var(--bg-surface);
+  border: 1px solid var(--border);
   border-radius: 10px;
   cursor: pointer;
   text-align: left;
@@ -14,7 +14,7 @@
 }
 .card:hover {
   transform: translateY(-2px);
-  border-color: #dcbb5e;
+  border-color: var(--ut-gold);
   box-shadow: 0 6px 20px rgba(220, 187, 94, 0.18);
 }
 .body {
@@ -29,7 +29,7 @@
   font-size: 17px;
   font-weight: 600;
   line-height: 1.25;
-  color: var(--color-text-primary, #e8eaed);
+  color: var(--text-bright);
   display: -webkit-box;
   -webkit-line-clamp: 2;
   -webkit-box-orient: vertical;
@@ -37,7 +37,7 @@
 }
 .subtitle {
   font-size: 13px;
-  color: var(--color-text-muted, #98a0aa);
+  color: var(--text-muted);
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -50,28 +50,17 @@
   align-items: center;
   font-size: 11px;
 }
-.date { color: var(--color-text-muted, #98a0aa); }
+.date { color: var(--text-muted); }
 .ticker {
   color: var(--accent);
   font-weight: 600;
   font-family: var(--font-mono);
   letter-spacing: 0.5px;
 }
-/* Wave Q1 — "this note is holding words the server does not have".
-   ⛔ Tokens, never literals, and only tokens that EXIST: an undefined custom
-   property is a silent no-op, so the badge would render unstyled and nobody
-   would notice (`lesson_an_undefined_css_var_is_a_silent_no_op`).
-   `--color-warning` is declared in tokens.css. It is a HOLD, not a failure —
-   warning, never danger. */
-.unsynced {
-  color: var(--color-warning);
-  background: rgba(234, 179, 8, 0.10);
-  border: 1px solid rgba(234, 179, 8, 0.22);
-  padding: 1px 6px;
-  border-radius: var(--radius-sm);
-  font-size: 10px;
-  white-space: nowrap;
-}
+/* The "this note is holding words the server does not have" badge moved to
+   the shared BlockedBadge.jsx/.module.css (UX #15, 2026-09-22) -- this rule
+   is gone, not renamed; `--color-warning`'s own tokens.css declaration and
+   the hold-not-danger reasoning both live there now. */
 .tag {
   color: var(--info);
   background: rgba(147, 197, 253, 0.08);
@@ -85,8 +74,8 @@
   height: 58px;
   border-radius: var(--radius-lg);
   overflow: hidden;
-  background: #0f1218;
-  border: 1px solid var(--color-border, #232932);
+  background: var(--bg);
+  border: 1px solid var(--border);
 }
 .thumb img { width: 100%; height: 100%; object-fit: cover; display: block; }
 
@@ -96,7 +85,7 @@
 }
 .card[data-trashed='true']:hover {
   transform: none;
-  border-color: var(--color-border, #232932);
+  border-color: var(--border);
   box-shadow: none;
 }
 .restoreBtn {
@@ -105,7 +94,7 @@
   padding: 4px 10px;
   font-size: 12px;
   font-weight: 600;
-  color: var(--accent, #dcbb5e);
+  color: var(--accent);
   background: rgba(220, 187, 94, 0.1);
   border: 1px solid rgba(220, 187, 94, 0.4);
   border-radius: var(--radius-sm, 6px);

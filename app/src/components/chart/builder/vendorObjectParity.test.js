@@ -220,25 +220,27 @@ describe('C3B-CLOSE item 12 — vendor object semantics', () => {
     expect(box.props.border_color.toUpperCase()).toBe(P['4'].toUpperCase())
   })
 
-  // ── E. THE DIVERGENCE, NAMED ──────────────────────────────────────────────
-  it('⚰️ THE VENDOR DRAWS THREE LABELS AND WE DRAW NONE — and the cause is the VALUE lane, not the object model', () => {
-    // The vendor's label guard is `bar_index >= last_bar_index - 2`.
-    // `last_bar_index` is a name this engine does not hold — it is in
-    // `PINE_KNOWN_BUILTINS` so the refusal is named rather than "undefined",
-    // but there is no column behind it — so the create's GUARD cannot resolve
-    // and the object lane drops the create, fail-closed and with a reason.
-    //
-    // ⛔ THIS IS THE CLASSIFICATION THE WAVE ASKS FOR, and it is not an
-    // object-model failure: the create op is present, its family is right, and
-    // the same guarded-create shape works wherever `barstate.islast` is used
-    // (`c3b_02_label_text` draws two labels live, on a real chart). Recording
-    // it as an OBJECT gap would blame the wrong lane and send the fix to the
-    // wrong file.
+  // ── E. THE DIVERGENCE, NOW CLOSED ──────────────────────────────────────────
+  it('✅ THE VENDOR DRAWS THREE LABELS AND SO DO WE NOW — H8, closed (2026-09-19)', () => {
+    // ⚰️ THIS SAID "…AND WE DRAW NONE — and the cause is the VALUE lane, not
+    // the object model" until `last_bar_index` was given a column. The vendor's
+    // label guard is `bar_index >= last_bar_index - 2`; `last_bar_index` was in
+    // `PINE_KNOWN_BUILTINS` (a named refusal) but had no column behind it, so
+    // the create's GUARD could not resolve and the object lane dropped the
+    // create, fail-closed and with a reason. `last_bar_index` now resolves the
+    // same way `bar_index` does — through `engineClockKeyFor` -> `TABLE.clock`
+    // -> `computeClock`'s `CLOCK_EXTENT` family, a dataset-wide constant
+    // (`bars.length - 1`, broadcast to every bar) exactly like `islast`/
+    // `isfirst`'s own EXTENT columns — so the guard resolves, the create
+    // survives, and all three labels now paint. No object-lane code moved:
+    // the create op was always present with the right family, which is why
+    // this was classified as a VALUE-lane gap and not an object-model one, and
+    // why closing it needed no change in this file's own family.
     expect(V.vendor.labels).toHaveLength(3)
-    expect(live.filter((o) => o.family === 'label')).toHaveLength(0)
+    expect(live.filter((o) => o.family === 'label')).toHaveLength(3)
     const d = t.objectDiagnostics
-    expect(d.droppedOps).toBe(1)
-    expect(d.dropReasons).toEqual({ 'guard:create': 1 })
+    expect(d.droppedOps).toBe(0)
+    expect(d.dropReasons).toEqual({})
     expect(d.loopBlocked).toBe(0)
     expect(d.unsupported).toEqual([])
   })

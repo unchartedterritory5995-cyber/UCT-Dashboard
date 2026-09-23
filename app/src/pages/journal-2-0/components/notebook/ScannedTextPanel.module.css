@@ -5,8 +5,8 @@
   position: sticky;
   bottom: 0;
   z-index: 3;
-  background: var(--color-surface, #14181f);
-  border-top: 1px solid var(--color-border, #232932);
+  background: var(--bg-surface);
+  border-top: 1px solid var(--border);
 }
 
 .toggle {
@@ -19,13 +19,13 @@
   padding: 0 12px;
   background: none;
   border: 0;
-  color: var(--color-text-muted, #98a0aa);
+  color: var(--text-muted);
   font-size: 11px;
   letter-spacing: 0.3px;
   text-transform: uppercase;
   cursor: pointer;
 }
-.toggle:hover { color: var(--color-text, #e6e8ec); }
+.toggle:hover { color: var(--text); }
 
 .pageTag {
   margin-left: auto;
@@ -43,13 +43,13 @@
 .note {
   margin: 0 0 8px;
   font-size: 11px;
-  color: var(--color-text-muted, #98a0aa);
+  color: var(--text-muted);
 }
 
 .status {
   margin: 0;
   font-size: 12px;
-  color: var(--color-text-muted, #98a0aa);
+  color: var(--text-muted);
 }
 
 /* ⛔ `pre-wrap`, not a reflow. OCR line breaks are part of what was read; a
@@ -60,8 +60,8 @@
   white-space: pre-wrap;
   font-size: 12.5px;
   line-height: 1.55;
-  color: var(--color-text, #e6e8ec);
+  color: var(--text);
   user-select: text;
   cursor: text;
 }
-.body:focus-visible { outline: 1px solid var(--color-accent, #c9a84c); }
+.body:focus-visible { outline: 1px solid var(--accent); }

@@ -2,8 +2,8 @@
   pointer-events: auto;
 }
 .menu {
-  background: var(--color-surface, #14171c);
-  border: 1px solid var(--color-border, #232932);
+  background: var(--bg-surface);
+  border: 1px solid var(--border);
   border-radius: var(--radius-lg);
   padding: 4px;
   min-width: 240px;
@@ -20,7 +20,7 @@
   padding: 8px 10px;
   border-radius: var(--radius-md);
   cursor: pointer;
-  color: var(--color-text-primary, #e8eaed);
+  color: var(--text-bright);
   display: flex;
   flex-direction: column;
   gap: 2px;
@@ -35,5 +35,5 @@
 }
 .itemDesc {
   font-size: 11px;
-  color: var(--color-text-muted, #98a0aa);
+  color: var(--text-muted);
 }

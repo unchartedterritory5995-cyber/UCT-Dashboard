@@ -11,7 +11,7 @@ import useBoundDrawingAlerts from './chart/useBoundDrawingAlerts'
 // to freeze an error card or a loading skeleton as the snapshot. Inert on every
 // other surface — it is a data attribute nothing styles.
 import { RENDER_UNAVAILABLE } from '../lib/captureSafety'
-import { getTodayBar, touchTodayPack } from '../lib/todayPackClient'
+import { getTodayBar, touchTodayPack, todayPackUsable } from '../lib/todayPackClient'
 import useSWR, { mutate as globalMutate } from 'swr'
 import { createChart, CandlestickSeries, BarSeries, HistogramSeries, LineSeries, AreaSeries, BaselineSeries, ColorType, LineType, LineStyle } from 'lightweight-charts'
 import usePreferences from '../hooks/usePreferences'
@@ -132,6 +132,7 @@ import {
 // from. `legendChips` walks the INSTANCE list and calls `engineChips` for the
 // valued half, so there is still exactly one formatting pipeline.
 import { legendChips, siblingSuffixes, paneReadoutLabel, chipValueText } from './chart/engine/readout'
+import { rendererPaneIndexOf } from './chart/engine/paneReadoutPlacement'
 import * as engineRegistry from './chart/engine/nativeRegistry'
 import IndicatorChip from './chart/legend/IndicatorChip'
 // ⭐ THE LEGEND ROW FOR THE THINGS THAT ARE NOT ENGINE INSTANCES — the MA
@@ -769,8 +770,9 @@ import styles from './StockChart.module.css'
 import { streamStatus } from '../utils/streamStatus'
 import brandMark from './intro/assets/compass-mark.png'
 import { idbGet, idbPut, idbDelete, mergeDelta, _closeMismatch, _findRecentBarByT } from '../utils/barsIDB'
-import { memPeek, memPut } from '../utils/barsMemCache'
-import { isDailyTailStaleForPaint, isDailyTodayCloseProvisionalForPaint, isIntradayTailStale, isTradingSessionTodayET, isHolidayISO } from '../utils/marketSession'
+import { memPeek, memPut, memPeekSavedAt } from '../utils/barsMemCache'
+import { timingStart, timingMark, timingMarkPaint, timingMarkEmpty } from '../utils/intradayTiming'
+import { classifyIntradayTail, isCurrentEnoughForPaint, isDailyTodayCloseProvisionalForPaint, isDailyTodayBarStaleForPaint, dailyMissingSessionsForPaint, isIntradayTailStale, isTradingSessionTodayET, isHolidayISO } from '../utils/marketSession'
 import { resample, resampleForSpec } from '../utils/resampleBars'
 import { isNativeTf, fetchTf, resampleSpec, parseTf } from './chart/timeframes'
 import { barsRenderPlan } from './chart/renderPlan'
@@ -784,7 +786,7 @@ import KeyboardHelpOverlay from './chart/KeyboardHelpOverlay'
 import PositionPanel from './chart/PositionPanel'
 import { UCT_DRAW_GOLD } from './chart/drawingColors'
 import UIcon from './ui/UIcon'
-import { FIRST_PAINT_BARS, fullBarsFor, shouldBackfill, nextBackfillDepth } from '../utils/barsBackfill'
+import { FIRST_PAINT_BARS, firstPaintBarsFor, fullBarsFor, shouldBackfill, nextBackfillDepth } from '../utils/barsBackfill'
 // ⭐⭐ THE PANE-KEY HALF OF `displayTarget`. `computePaneLayout` is handed
 // INSTANCES and geometry; it has no `cs`, and the three questions below are all
 // answered FROM `cs` — who follows whom, who hosts a pane, and who still needs
@@ -810,8 +812,12 @@ import { parsePaneOfTarget, parseSource, sourceInputsOf } from './chart/engine/s
 import { chromePlan, capturedPriceRange, viewLockFractions } from './chart/chromeGeometry'
 import { LIBRARY_HIDDEN_IDS } from './chart/discoveryCatalog'
 import { useSecondarySources } from './chart/engine/useSecondarySources'
+import { useFundamentalSources } from './chart/engine/useFundamentalSources'
 import { useServerColumns } from './chart/engine/useServerColumns'
-import { symbolFamily, loadBreadthSymbols, breadthRecord } from '../hooks/useBreadthSymbols'
+import { loadBreadthSymbols, breadthRecord } from '../hooks/useBreadthSymbols'
+import useMarketIndicators, { canonicalFamily, canonicalPresentation, canonicalSourceCapability, canonicalProduct, loadMarketIndicators } from '../hooks/useMarketIndicators'
+import { primaryChartTypeFor, primaryChartTypesFor } from './chart/engine/sourceCapability'
+import { withPrimaryProduct } from './chart/engine/primaryProduct'
 
 const NOOP = () => {}
 
@@ -1604,17 +1610,54 @@ export function _intradayLoadReserve(bars, tf) {
     const gap = Math.floor((Date.now() / 1000 - lt) / tfSec)
     return gap > 0 ? Math.min(INTRADAY_RESERVE_MAX, gap) : 0
   }
-  if (tf === 'D' || tf === 'W' || tf === 'M') {
+  if (tf === 'D') {
+    // ⭐ COUNT THE SESSIONS, DON'T ASSUME ONE. This used to return a flat 1, which is
+    // right only when exactly one session is missing. A tail k sessions behind then had
+    // k bars merged in after first paint against ONE held slot, and the settling
+    // re-assert (which pins `to` to lastIdx + reserve) translated the whole frame by
+    // k-1 — the daily load-shift. The reserve now holds exactly the slots the seed
+    // fills, because both read the SAME list.
+    return _dailyReserveDates(lt).length
+  }
+  if (tf === 'W' || tf === 'M') {
+    // ⛔ NOT GENERALISED ON PURPOSE. A week/month start is not "n sessions back", so the
+    // session walk is the wrong instrument here; W/M keep the single-slot rule until
+    // their own period semantics are designed. The scope of this change is DAILY.
     if (typeof lt !== 'string' || lt.length < 10) return 0
-    // Only reserve when a developing-period bar is actually expected today — a trading session
-    // (weekday, not an NYSE holiday). On a weekend/holiday no late bar lands, so reserving would
-    // just open a phantom right gap that never fills.
     if (!isTradingSessionTodayET()) return 0
     const ps = _etPeriodStartISO(tf)
     return (ps && lt < ps) ? 1 : 0
   }
   return 0
 }
+
+// The right-edge slots a DAILY series is missing relative to the paint frontier —
+// the single list the framing reserve and the whitespace/today seed both consume.
+//
+// ⛔ BOUNDED, AND THE BOUND IS THE POINT. A generalised reserve must never become a
+// licence to paint a years-old chart "stably": 250 whitespace slots is a stable
+// picture of the wrong thing. The paint-authority gate refuses anything further behind
+// than DAILY_PAINT_MAX_GAP anyway, so this cap only ever absorbs an UNEXPECTED
+// right-edge arrival (a session boundary rolling mid-load); it can never manufacture a
+// visible phantom right edge.
+export const DAILY_RESERVE_MAX = 2
+export function _dailyReserveDates(lastISO) {
+  if (!_intradayLoadAnchorEnabled()) return []
+  if (typeof lastISO !== 'string' || lastISO.length < 10) return []
+  return dailyMissingSessionsForPaint(lastISO, DAILY_RESERVE_MAX)
+}
+
+// How far behind the paint frontier a cached DAILY set may be and still be allowed to
+// be the FIRST thing the member sees.
+//
+// ⭐ ONE, AND IT IS DERIVED FROM THE PRODUCT RULE, NOT FROM A PERFORMANCE GUESS. The
+// rule is "no historical bars are inserted at the right edge after B is visible". A set
+// missing ONE session can satisfy it, because the missing session is TODAY and today
+// can be supplied locally from the current-session seed — the frame is then final at
+// first paint. A set missing TWO or more cannot: the older missing sessions exist only
+// on the server, so painting it GUARANTEES a later right-edge insertion. Everything
+// past this threshold is REPAIR INPUT, not paint authority.
+export const DAILY_PAINT_MAX_GAP = 1
 
 // The ISO date of the CURRENT developing bar for a D/W/M tf (today / this week's Friday / first
 // of this month) — the SAME `t` the real developing bar will carry (computeBarTime), or null when
@@ -2468,10 +2511,86 @@ export default function StockChart({
 
   // ── Chart settings from user preferences ──
   const csBase = useMemo(() => mergeChartSettings(prefs.chart_settings), [prefs.chart_settings])
-  const cs = useMemo(
+  // ⭐ THE MARKET-INDICATOR CATALOGUE, SUBSCRIBED RATHER THAN MERELY FETCHED.
+  // `loadMarketIndicators()` below starts the request, but a module-level fetch
+  // landing does not re-render anyone — and the two memos under this line ASK the
+  // registry a question at memo time (is this symbol a scalar? is it a product?).
+  // Without a subscription the answer computed on the first render, before the
+  // catalogue existed, would stand for the life of the chart: a survey would open
+  // as candles and a product would draw one line instead of three.
+  //
+  // ⚠️ ONE SUBSCRIPTION, ZERO EXTRA REQUESTS — the hook shares the same module
+  // cache the search box and the discovery panel already warm.
+  const _miRegistry = useMarketIndicators()
+  const miReady = _miRegistry.ready
+
+  const csMerged = useMemo(
     () => (settingsOverride ? mergeSettingsOverride(csBase, settingsOverride) : csBase),
     [csBase, settingsOverride],
   )
+
+  // ⭐⭐ ONE SOURCE SEMANTIC TRUTH → INDICATOR PRESENTATION **AND** PRIMARY-CHART
+  // PRESENTATION. This single line is the whole of the primary-chart half of the
+  // contract, and it is here rather than at a call site because `cs` is built in
+  // exactly ONE place and read as `cs.chartType` in 29 others. Clamping the blob
+  // means every one of them inherits the answer and none of them has to learn it.
+  //
+  // ⚰️⚰️ MEASURED IN PRODUCTION: NAAIM as the PRIMARY SYMBOL rendered as CANDLES.
+  // The capability contract shipped in V1 governed the indicator/dataSeries lane
+  // only — `isOhlcType(cs.chartType)` had never asked what the SOURCE could mean.
+  // A weekly survey was drawn with an "open" that is last week's reading and a
+  // range derived from the pair: four numbers that look like an auction and
+  // describe none. The only prior mitigation was the Breadth WIDGET forcing
+  // `settingsOverride={{chartType:'line'}}` from outside — a surface hack that the
+  // /charts primary chart never received.
+  //
+  // ⛔ NO TICKER TEST. `canonicalFamily` is the same oracle the binder gates on,
+  // and it is fail-closed about `security`; `sourceCapabilityOf` turns that into
+  // the allow-list, and `primaryChartTypeFor` translates it into this vocabulary.
+  //
+  // ⚠️ THE MEMBER'S STORED TYPE IS NOT REWRITTEN. This is a reading of the setting
+  // at a source, exactly like the plot-style clamp — chart a security again and
+  // their Candles come straight back.
+  const cs = useMemo(() => {
+    const fam = canonicalFamily(sym)
+    const _primaryProduct = canonicalProduct(sym)
+    // ⛔⛔ AN UNCLASSIFIED SYMBOL IS NOT CLAMPED, AND THIS IS THE OPPOSITE DIRECTION
+    // FROM THE CANDLE GATE ON PURPOSE.
+    //
+    // `canonicalFamily` withholds `security` until BOTH registries have answered —
+    // fail-closed, because offering candles over a survey is the dangerous error for
+    // an INDICATOR output. On the PRIMARY chart the dangerous error is the mirror
+    // image: clamping an ordinary equity to a line because a catalogue had not
+    // arrived yet. ⚰️ MEASURED: building a capability from `'unknown'` turned every
+    // chart into a line until the registries landed — four StockChart suites went red
+    // with "the chart never created a candle series", which is exactly what a member
+    // would have seen as a flash of line on every load.
+    //
+    // ⚠️ SO `null` MEANS "SAY NOTHING", and `primaryChartTypeFor` returns the member's
+    // own setting untouched. The clamp applies only once the registry has actually
+    // classified the symbol — and the `miReady` dependency above is what re-runs this
+    // the moment it does.
+    // ⚠️ A PRODUCT IS ASKED BEFORE THE FAMILY. It is absent from the SERIES index by
+    // design, so `canonicalFamily` would answer `'security'` for it — the one
+    // classification that grants candles. Resolving as a product is itself proof the
+    // registry has landed, so the `unknown` guard below does not apply to it.
+    const cap = _primaryProduct
+      ? canonicalSourceCapability(sym, false)
+      : fam === 'unknown'
+        ? null
+        : canonicalSourceCapability(sym, fam === 'security' || fam === 'volatility')
+    const ct = primaryChartTypeFor(csMerged.chartType, cap)
+    const typed = ct === csMerged.chartType ? csMerged : { ...csMerged, chartType: ct }
+    // ⭐⭐ A PRODUCT IDENTITY BRINGS ITS OTHER COMPONENTS WITH IT. The price slot
+    // already holds the product's PRIMARY component (`series.build_bars` serves it
+    // under the product's own ticker); these are the rest, as ordinary `dataSeries`
+    // overlays on the price pane — no new renderer, no multi-bars contract.
+    //
+    // ⛔ DERIVED, NEVER PERSISTED. They live only in the blob the renderer reads, so
+    // charting a product does not write to a member's `chart_settings` and switching
+    // away removes them with no cleanup. Same discipline as the clamp above.
+    return withPrimaryProduct(typed, _primaryProduct)
+  }, [csMerged, sym, miReady])
 
   // ⛔⭐ B5 TASK 12 — `csPanes` STOOD HERE AND IS GONE, WITH ITS SUBJECT.
   //
@@ -3795,6 +3914,16 @@ export default function StockChart({
   const lastBarCountRef = useRef(0) // Last bar count — lets a ticker switch right-anchor the preserved view
   const lastCfgSigRef = useRef(null) // A2: render-config signature at last paint — an incremental (last-bar-only) update is only safe when the config is byte-identical to the last paint
   const prevBarsRef = useRef(null) // Previous render's bars — used to measure outgoing vertical placement
+  // ⛔ WHOSE BARS `prevBarsRef` IS HOLDING. It carries no symbol of its own, and the
+  // off-cursor readout (`computeLatestCrosshair`) reads it — so on a ticker switch the
+  // bar-info strip printed the PREVIOUS ticker's O/H/L/C and Volume under the NEW
+  // ticker's name. Confirmed against production quotes 2026-09-20: a chart headed
+  // GOOGL showed MU's candle (1015.80 / +3.92% / O 984.72 H 1016.44 L 977.83) and one
+  // headed NOW showed TRI's, exact to the volume (4,007,052).
+  //
+  // ⚠️ `lastBarSymRef` below already stamps the DEVELOPING bar for the same reason;
+  // this is the same guard for the BASE bar, which that one never covered.
+  const prevBarsSymRef = useRef(null)
   // A2: the bars actually PAINTED at the last setData (i.e. displayBars, which carries
   // the session-preview candle). Distinct from prevBarsRef (pure regular-session bars):
   // the no-op/incremental render plan must be measured against what's on screen, or a
@@ -4477,6 +4606,14 @@ export default function StockChart({
   const computeLatestCrosshair = () => {
     const bars = prevBarsRef.current
     if (!bars || !bars.length) return null
+    // ⛔ IDENTITY BEFORE VALUES. Clearing `prevBarsRef` on the empty-bars path fixes
+    // the route that produced the GOOGL-showing-MU readout; this makes the whole
+    // class unreachable. The ref is written in ONE place, so any future path that
+    // leaves bars behind on a switch cannot turn them into a readout for the wrong
+    // ticker — it just shows no readout for the frame until the new bars land.
+    // `_legendSymOk` below guards only the DEVELOPING bar and the live-price
+    // overlay; the base o/h/l/c was taken from this array unconditionally.
+    if (prevBarsSymRef.current !== symRef.current) return null
     const last = bars[bars.length - 1]
     let o = last.o, h = last.h, l = last.l
     let c = last.c
@@ -4614,6 +4751,15 @@ export default function StockChart({
   const offHoverCrosshair = () => (
     (alwaysShowLegend && !compactLegendRef.current) ? computeLatestCrosshair() : null
   )
+  /**
+   * Re-derive the off-cursor readout from the bars currently on the chart,
+   * unless a hover or a synced crosshair owns it. ONE expression for the data
+   * refresh effect and the switch-time applier, so the two cannot disagree.
+   */
+  const refreshOffCursorReadout = () => {
+    if (readoutIsOwned()) return
+    setCrosshairData(effAlwaysShow ? computeLatestCrosshair() : null)
+  }
   /**
    * Is something already OWNING the readout, so the off-hover refreshers must
    * stand down?
@@ -5359,7 +5505,22 @@ export default function StockChart({
       ? [{ id: 'priceactions', title: `At $${fmtPrice(clickPrice)}`, items: [drawLineItem, copyPriceItem] }]
       : []
     const TF_OPTS = [['1', '1m'], ['5', '5m'], ['15', '15m'], ['30', '30m'], ['60', '1h'], ['D', '1D'], ['W', '1W'], ['M', '1M']]
+    // ⛔ THE MENU OFFERS WHAT THE RESOLVER WILL HONOUR, AND NOTHING ELSE. A chart-type
+    // item the clamp above would immediately undo is a control that lies — the same
+    // rule `availableStyles` already states for an indicator output's Plot style.
+    // ⚠️ THE SAME "UNKNOWN SAYS NOTHING" RULE as the clamp — a menu that hid Candles
+    // because a catalogue had not landed would be a menu that lies the other way.
+    const _ctFam = canonicalFamily(sym)
+    const _ctProd = canonicalProduct(sym)
+    const _ctAllowed = primaryChartTypesFor(
+      _ctProd
+        ? canonicalSourceCapability(sym, false)
+        : _ctFam === 'unknown'
+          ? null
+          : canonicalSourceCapability(sym, _ctFam === 'security' || _ctFam === 'volatility'),
+    )
     const CT_OPTS = [['candles', 'Candles'], ['hollow', 'Hollow'], ['bars', 'Bars'], ['line', 'Line'], ['area', 'Area']]
+      .filter(([val]) => _ctAllowed.includes(val))
     const tfSection = typeof onTfChange === 'function' ? {
       id: 'tf', title: 'Timeframe',
       items: TF_OPTS.map(([code, label]) => ({ id: 'tf-' + code, label, kind: 'toggle', checked: resolvedTf === code, onSelect: () => onTfChange(code) })),
@@ -6054,6 +6215,9 @@ export default function StockChart({
   // instantly; the deep fills ~150ms after the chart settles.
   const [_fpDwellReady, _setFpDwellReady] = useState(false)
   const _depthKeyRef = useRef(null)
+  const _timingIdRef = useRef(null)   // T0-T4 diagnostic load id (null when off)
+  const _paintMarkedRef = useRef(false)   // first candle paint recorded for THIS switch
+  const _t2MarkedRef = useRef(false)      // T2 recorded for THIS switch (onBarsReady stays per-mount)
   const _fullTarget = fullBarsFor(resolvedTf)
   // First paint is SHALLOW (FIRST_PAINT_BARS) for an instant cold open on EVERY tf. An earlier
   // smooth-switch cut set _fpBars = INTRADAY_DEFAULT_BARS to show weeks of history in one paint,
@@ -6061,7 +6225,13 @@ export default function StockChart({
   // searching up new intraday names). The deep intraday window now loads OFF the critical path via
   // the deep-backfill SWR below (Phase 3' Part 3). _fpBars === FIRST_PAINT_BARS now, so barCount /
   // since are byte-identical to the original; kept as a named constant for its two call sites.
-  const _fpBars = FIRST_PAINT_BARS
+  // ⭐ PER-TF AND SESSION-AWARE (was a flat FIRST_PAINT_BARS). The RTH filter below
+  // discards ~59% of an intraday payload, so a flat 600 reached the screen as ~240
+  // bars against a 200-bar default zoom. `firstPaintBarsFor` budgets in VISIBLE bars
+  // and grosses up by the session fraction only when extended hours are hidden — so
+  // turning EXT on makes the request SMALLER, not larger. Clamped under the server's
+  // deep-request threshold so a first paint never crosses into the heavy branch.
+  const _fpBars = firstPaintBarsFor(resolvedTf, showExtended)
   const _overlayActive = !!(
     compareSymbol || indexPaneSymbol ||
     (cs.comparisonSymbols || []).some(c => c && c.enabled && c.sym)
@@ -6069,7 +6239,30 @@ export default function StockChart({
   const _depthKey = `${sym}_${resolvedTf}`
   if (_depthKeyRef.current !== _depthKey) {
     _depthKeyRef.current = _depthKey
-    if (fetchDepth !== FIRST_PAINT_BARS) setFetchDepth(FIRST_PAINT_BARS)
+    // T0 — a new (symbol, timeframe) load begins. Inert unless the diagnostic flag
+    // is on; see utils/intradayTiming.js.
+    // ⚠️ NOTHING FROM THE IDB STATE MAY BE READ HERE. This block runs during
+    // render, ABOVE `const [idbBars] = useState(...)`, so touching it is a temporal
+    // dead zone — `ReferenceError: Cannot access 'idbBars' before initialization`,
+    // thrown on EVERY mount. Neither `no-undef` nor the production build sees it
+    // (the identifier exists, just not yet); only a mount test does. Cache state is
+    // recorded at T1 instead, where it is genuinely in scope.
+    _timingIdRef.current = timingStart(sym, resolvedTf, {
+      session: showExtended ? 'extended' : 'rth',
+    })
+    // ⭐ PER-SWITCH, NOT PER-MOUNT. A scanning member never remounts this component;
+    // they change `sym` on a live one. Latching these once per mount measured only
+    // the first symbol and reported null for every switch after it — which is how a
+    // visible half-second black frame between stocks stayed invisible to an
+    // instrument that claimed to cover first paint.
+    // ⛔ `barsReadyFiredRef` is NOT reset here, for two independent reasons: it is
+    // declared ~1000 lines below (a temporal dead zone — the crash class from
+    // 2026-09-21), and `onBarsReady` is contractually ONCE PER MOUNT because the grid
+    // mount queue releases a concurrency slot on it. The per-switch metric gets its
+    // own latch instead.
+    _t2MarkedRef.current = false
+    _paintMarkedRef.current = false
+    if (fetchDepth !== _fpBars) setFetchDepth(_fpBars)
     if (_intradayDeepArmed) _setIntradayDeepArmed(false)   // Part 3: re-arm the deep-backfill dwell for the new sym/tf
     if (_fpDwellReady) _setFpDwellReady(false)   // Fix 2: re-arm the dwell for the new sym/tf (timer effect re-enables)
     pendingNavRef.current = null   // a pending time-nav doesn't carry to a new symbol/tf
@@ -6182,6 +6375,9 @@ export default function StockChart({
     if (target === 'volume') return volumeOwnsItsPaneRef.current ? VOLUME_PANE : null
     return parsePaneOfTarget(target)
   }, [cs])
+  // Read by `pinPaneLegend`, which runs every frame from a `[]`-deps callback.
+  const chipPaneHostRef = useRef(chipPaneHost)
+  chipPaneHostRef.current = chipPaneHost
   /**
    * The LONG name a pane readout prints for one chip.
    *
@@ -6227,6 +6423,10 @@ export default function StockChart({
   // repainting continuously.
   const secondarySources = useSecondarySources(
     _storedInstances, _defOf, resolvedTf, barCount, instFetcher, cs)
+  // ⭐ THE FOURTH SOURCE FAMILY'S DATA — historical point-in-time fundamentals
+  // (`fund:`). Same seam, same stable-identity discipline as the line above; a
+  // chart with no `fund:` source makes no request at all.
+  const fundamentalSources = useFundamentalSources(_storedInstances, _defOf, sym, cs)
 
   // ⭐ THE SERVER LANE'S REPAINT SIGNAL (the RS line). `computeFor` reads the
   // column cache synchronously and the fetch lands later; this is what tells
@@ -6235,13 +6435,21 @@ export default function StockChart({
   const serverColumnsGeneration = useServerColumns()
 
   // ⛔⛔ THE CAPABILITY ORACLE NEEDS ITS REGISTRY, AND THIS CHART MUST NOT ASSUME
-  // A SIBLING LOADED IT. `symbolFamily` answers `'unknown'` until the breadth
+  // A SIBLING LOADED IT. The family oracle answers `'unknown'` until the breadth
   // registry has landed, and the OHLC gate REFUSES `'unknown'` — fail-closed, so
   // a chart that never triggers the fetch would simply never offer candles, on
   // every surface that does not happen to mount `ChartPane` (the pane harness is
   // one). It is one module-level fetch per session, already shared with the
   // symbol search and the breadth widgets, and calling it twice is a no-op.
-  useEffect(() => { try { loadBreadthSymbols() } catch { /* offline: stays unknown */ } }, [])
+  // ⭐ BOTH REGISTRIES, for the same reason. `canonicalFamily` composes the breadth
+  // registry and the market-indicator registry, and answers `'unknown'` until BOTH
+  // have landed — so a chart that warmed only one would never offer candles on a
+  // Cboe volatility series. Two module-level fetches per session, shared with search
+  // and the discovery panel; calling either twice is a no-op.
+  useEffect(() => {
+    try { loadBreadthSymbols() } catch { /* offline: stays unknown */ }
+    try { loadMarketIndicators() } catch { /* offline: stays unknown */ }
+  }, [])
 
   // Intraday refetches more often to keep candles current during market hours
   const isIntraday = ['1', '5', '15', '30', '60'].includes(resolvedTf)
@@ -6264,6 +6472,11 @@ export default function StockChart({
   const [idbBars, setIdbBars]   = useState(null)
   const [idbLoaded, setIdbLoaded] = useState(false)
   const idbSinceRef     = useRef(null)
+  const idbSavedAtRef   = useRef(null)  // epoch ms this browser wrote the IDB entry (recency, not source time)
+  // True only while the candle series is showing a CACHED today bar that our own
+  // recency gate calls stale. The in-place repair is scoped to exactly that; see the
+  // assignment site below for why an unscoped repair is wrong.
+  const dailyRepairTodayRef = useRef(false)
   const idbReadyForRef  = useRef(null)  // string `${sym}_${tf}` once IDB load completes
   // Always-current mirror of idbBars. The SWR-merge effect keys on [data] and would
   // otherwise read a STALE closured idbBars: when the shallow full set resolves right
@@ -6291,6 +6504,7 @@ export default function StockChart({
     setIdbBars(null)
     setIdbLoaded(false)
     idbSinceRef.current = null
+    idbSavedAtRef.current = null
     idbReadyForRef.current = null  // synchronous — invalidates the gate immediately
     axisWidthRatchetRef.current = 0  // new sym/tf → let the axis column re-fit once
     const key = `${sym}_${resolvedTf}`
@@ -6322,6 +6536,11 @@ export default function StockChart({
       if (entry?.bars?.length) {
         setIdbBars(entry.bars)
         idbSinceRef.current = entry.lastT ?? null
+        // WHEN this browser received the set. The bars carry no source timestamp, so
+        // this is the strongest honest recency signal a cached daily tail has — and it
+        // errs safe (real age is always >= this). It is what lets the daily gate tell
+        // "has today" apart from "today is current".
+        idbSavedAtRef.current = Number.isFinite(entry.savedAt) ? entry.savedAt : null
         _browserHasCachedBars = true   // this browser has a pack → be patient from now on
       }
       idbReadyForRef.current = key
@@ -6381,9 +6600,35 @@ export default function StockChart({
   // the CURRENT session's recent closed bars refetches. Replaces the old flat
   // max(3*tf,180s) age gate that treated every prior-session tail as stale (which is
   // why the intraday pack could never paint as primary).
-  const idbStaleIntraday = isIntraday
-    && typeof idbSinceRef.current === 'number'
-    && isIntradayTailStale(idbSinceRef.current, resolvedTf)
+  // ⭐⭐ THREE-WAY, NOT TWO. `classifyIntradayTail` separates a cache that is merely
+  // BEHIND (sound history, short tail — the 10:00 tail at 13:17) from one that is
+  // GAPPED (missing a whole closed session, so its continuity cannot be vouched for).
+  // Only the gapped case may discard history. A behind cache keeps its bars, paints
+  // them as the PRIMARY layer, and fetches only the gap via `since=` — which is the
+  // whole point of an authoritative session tail: never re-download thousands of
+  // bars to recover today's last twenty.
+  const _intradayTail = isIntraday && typeof idbSinceRef.current === 'number'
+    ? classifyIntradayTail(idbSinceRef.current, resolvedTf)
+    : null
+  const idbStaleIntraday = _intradayTail === 'gapped'
+  // ⛔⛔ SOUND-AS-A-REPAIR-BASE IS NOT ELIGIBLE-TO-DISPLAY, AND TREATING THEM AS
+  // ONE QUESTION IS WHAT PUT 10:00 ON SCREEN AT 15:55 (owner report: MU near the
+  // close, chart rendered through ~10:00, caught up half a second later).
+  // `_intradayTail === 'behind'` correctly keeps the cache and correctly asks for
+  // only the gap via `since=` — both of those stay exactly as they are. What it
+  // must NOT also mean is "show this to the member as the present session".
+  //
+  //   repair base  → _intradayTail !== 'gapped'      (drives `since=`, untouched)
+  //   displayable  → isCurrentEnoughForPaint(...)    (drives the first frame)
+  //
+  // ⭐ MEASURED, NOT ASSERTED: with this gate absent the harness records a 23 ms
+  // first paint that is 38 five-minute buckets stale, 19/19 switches — i.e. the
+  // best-looking number in the run was the defect.
+  const _idbNotCurrent = isIntraday && typeof idbSinceRef.current === 'number'
+    && _intradayTail === 'behind'
+    && !isCurrentEnoughForPaint(idbSinceRef.current, resolvedTf, {
+      session: showExtended ? 'extended' : 'rth',
+    })
   // Daily staleness gate — the analog of idbStaleIntraday for tf='D'. Without it
   // a symbol switch during RTH paints a daily cache that's missing the last few
   // sessions (each ticker's IDB is only as fresh as the last time it was viewed),
@@ -6406,10 +6651,102 @@ export default function StockChart({
   // (isDailyTodayCloseProvisionalForPaint — the "loads a mid-session price then snaps
   // to the real close" after-hours flicker). Either way, defer to the network's
   // sealed set so the first frame is correct.
+  // ── THE CURRENT-SESSION SEED, RESOLVED ONCE ────────────────────────────────
+  // Today's developing daily bar as the freshest LOCAL source can state it, or null.
+  // Two consumers read this and they must agree: the paint-authority verdict below
+  // (which asks "can today be supplied without the network?") and the ohlcData seed
+  // (which actually places it). One function, so they cannot drift.
+  //
+  // ⛔ PROVENANCE ONLY — NOTHING IS DERIVED, EXTRAPOLATED OR HEURISTIC. Every field
+  // comes from a provider `day` aggregate that some door already serves; the live
+  // store is preferred purely because it is the FRESHEST copy of that same aggregate
+  // (a 2s poll against the pack's 90s seed ceiling), not because it knows more.
+  // ⛔ REGULAR SESSION ONLY, both doors. Outside RTH the daily candle is settled at
+  // the 4pm close and an extended print must not move it.
+  const _resolveDailyTodaySeed = () => {
+    if (resolvedTf !== 'D') return null
+    const _dev = _developingBarISO('D')
+    if (!_dev) return null
+    try {
+      const _sess = getExtSessionCached()
+      if (_sess && (_sess.session === 'pre' || _sess.session === 'post')) return null
+    } catch { /* fall through — the per-source ext guards below still hold */ }
+    // 1) Live-price store — the same `day.h`/`day.l` aggregate, at the freshest cadence
+    //    UCT has (15s server TTL behind a 2s client poll), and it carries the vendor's
+    //    own `observed_at` so the age we report is not a guess.
+    try {
+      const _snap = (typeof getLivePriceStoreSnapshot === 'function') ? getLivePriceStoreSnapshot()[sym] : null
+      const _px = _snap ? _effLivePrice(_snap) : null
+      if (_px && !_snap.ext_session && isSaneLivePrice(_px, lastBarRef.current?.close, lastServerCloseRef.current)
+          && _snap.day_open > 0 && _snap.day_high > 0 && _snap.day_low > 0) {
+        const _obs = Number(_snap.observed_at)
+        return {
+          t: _dev,
+          o: _snap.day_open,
+          h: Math.max(_snap.day_high, _px),
+          l: Math.min(_snap.day_low, _px),
+          c: _px,
+          src: 'live-store',
+          ageMs: Number.isFinite(_obs) && _obs > 0 ? Math.max(0, Date.now() - _obs * 1000) : null,
+        }
+      }
+    } catch { /* fall through to the pack */ }
+    // 2) Today-pack — the whole-market projection of the same snapshot. Its own client
+    //    enforces the seed ceiling; `todayPackUsable()` is that ceiling asked out loud.
+    try {
+      if (todayPackUsable()) {
+        const _tb = getTodayBar(sym)
+        if (_tb && isSaneLivePrice(_tb.c, lastBarRef.current?.close, lastServerCloseRef.current)) {
+          return { t: _dev, o: _tb.o, h: _tb.h, l: _tb.l, c: _tb.c, src: 'today-pack', ageMs: null }
+        }
+      }
+    } catch { /* no seed */ }
+    return null
+  }
+  const _dailyTodaySeed = _resolveDailyTodaySeed()
+
+  // ── THE DAILY PAINT AUTHORITY ──────────────────────────────────────────────
+  // ⭐ ONE VERDICT, COMPOSED OF THE PREDICATES THAT ALREADY EXIST. Whether a CACHED
+  // daily set may be the first thing the member sees is asked here and nowhere else,
+  // so no performance flag can answer it by accident (which is exactly what
+  // `_splitDeepUsable && _fpEdge` was doing).
+  //
+  //   CACHE USEFULNESS != PAINT AUTHORITY.
+  //
+  // A set that fails here is still perfectly good DEPTH and REPAIR input — it just
+  // may not be the first frame. Returns 'ok' or the reason it is refused (the reason
+  // is what the harness reads, so a refusal can never be mistaken for a missing paint).
+  const _dailyCacheVerdict = (tailISO, savedAtMs) => {
+    if (resolvedTf !== 'D' || typeof tailISO !== 'string' || tailISO.length < 10) return 'ok'
+    if (isDailyTodayCloseProvisionalForPaint(tailISO)) return 'provisional-close'
+    const gap = dailyMissingSessionsForPaint(tailISO, DAILY_PAINT_MAX_GAP + 1).length
+    // Missing MORE than the current session: the older missing sessions exist only on
+    // the server, so painting this guarantees a right-edge insertion afterwards. No
+    // reserve size makes that acceptable — a stable picture of the wrong week is still
+    // the wrong week. Repair first.
+    if (gap > DAILY_PAINT_MAX_GAP) return 'too-far-behind'
+    // Missing exactly TODAY: paintable only if we can put a REAL today bar there now.
+    // Without a seed the slot would be whitespace and would become a candle in front
+    // of the member — the transition this whole change exists to remove.
+    if (gap > 0) return _dailyTodaySeed ? 'ok' : 'no-local-today'
+    // Reaches the frontier, but the today bar itself may simply be OLD. That is
+    // repairable IN PLACE (same date, so no geometry moves) when a seed is available.
+    if (isDailyTodayBarStaleForPaint(tailISO, savedAtMs)) return _dailyTodaySeed ? 'ok' : 'today-stale'
+    return 'ok'
+  }
+
+  // Three ways a cached daily tail is not fit to be the FIRST frame:
+  //   (1) it is missing a session            — isDailyTailStaleForPaint
+  //   (2) its today CLOSE is provisional     — isDailyTodayCloseProvisionalForPaint (after the close)
+  //   (3) its today bar is simply OLD        — isDailyTodayBarStaleForPaint (during RTH)
+  // (3) is the one that was missing. A tail dated today is never "missing a session",
+  // so a bar written at 10:05 painted unchallenged at 14:00 with four-hour-old H/L/C
+  // and /api/bars corrected it in front of the member. HAS TODAY is not TODAY IS
+  // CURRENT, and this is where the difference is stated.
+  const _idbDailyVerdict = _dailyCacheVerdict(idbSinceRef.current, idbSavedAtRef.current)
   const idbStaleDaily = resolvedTf === 'D'
     && typeof idbSinceRef.current === 'string'
-    && (isDailyTailStaleForPaint(idbSinceRef.current)
-        || isDailyTodayCloseProvisionalForPaint(idbSinceRef.current))
+    && _idbDailyVerdict !== 'ok'
   // VALUE-SANITY gate for the instant daily paint (complements the timestamp gate
   // above). A cached daily bar can be internally corrupt — right DATE, wrong OHLC:
   // e.g. a stale ~$32 open persisted in IDB while the stock trades ~$21 (the 8/19
@@ -6428,13 +6765,17 @@ export default function StockChart({
       if (Math.abs(o - c) / c > 0.5) return true                               // open >50% off close = phantom
       return false
     })()
-  const _memTailStaleDaily = (arr) => {
+  const _memTailStaleDaily = (arr, savedAtMs) => {
     if (resolvedTf !== 'D' || !Array.isArray(arr) || !arr.length) return false
-    const _t = arr[arr.length - 1]?.t
-    return isDailyTailStaleForPaint(_t) || isDailyTodayCloseProvisionalForPaint(_t)
+    return _dailyCacheVerdict(arr[arr.length - 1]?.t, savedAtMs) !== 'ok'
   }
   let _sinceParam = null
-  if (isIntraday && typeof idbSinceRef.current === 'number' && !idbStaleIntraday) {
+  // ⭐ 'behind' NOW TAKES THE TAIL PATH TOO (it used to force a full refetch).
+  // `get_bars_since` returns EVERY row past the threshold, not just the newest, so
+  // one small request carries the entire 10:00 → 13:15 gap. Only 'gapped' refetches
+  // in full, because a `since=` delta says nothing about bars BEFORE the tail.
+  if (isIntraday && typeof idbSinceRef.current === 'number'
+      && (_intradayTail === 'fresh' || _intradayTail === 'behind')) {
     _sinceParam = Math.max(0, idbSinceRef.current - 1)
   }
   // Viewport-first backfill: once we've bumped PAST the shallow first-paint depth
@@ -6443,7 +6784,7 @@ export default function StockChart({
   // would never load the deep history the user panned to see — so a progressive
   // intermediate depth MUST also full-fetch or it would delta-fetch nothing. The
   // bar count grows and the existing same-ticker re-anchor holds the view steady.
-  if (fetchDepth > FIRST_PAINT_BARS || _pinnedFull) _sinceParam = null
+  if (fetchDepth > _fpBars || _pinnedFull) _sinceParam = null
   // Custom (non-native) timeframe → the native path fetches nothing; the isolated
   // custom SWR below fetches the base + resamples. Declared here so swrUrl can defer.
   const _isCustomTf = !!sym && !isNativeTf(resolvedTf)
@@ -6472,13 +6813,13 @@ export default function StockChart({
   // warm-deep browser renders full history via _splitDeepUsable (Fix 1) with no edge fetch, so
   // skip it there. _deepFirstPaint already scopes to backgroundWarm standalone D/W/M (grid cells
   // pass backgroundWarm=false → excluded → viewport-first preserved). At PCT=0 this is false.
-  const _idbAlreadyDeep = idbBars?.length > FIRST_PAINT_BARS
+  const _idbAlreadyDeep = idbBars?.length > _fpBars
   const _fpEdge = _firstPaintEdgeEnabled()
   const _histFirstPaint = _splitOn && _deepFirstPaint && !_idbAlreadyDeep && _fpDwellReady && _fpEdge
   // Deep sealed history from the edge — after the user pans PAST the first-paint tail
   // (fetchDepth grows), OR on first paint when _histFirstPaint (Fix 2) is enabled.
   const _histFire = _splitOn && idbLoaded && idbReadyForRef.current === `${sym}_${resolvedTf}`
-    && (fetchDepth > FIRST_PAINT_BARS || _histFirstPaint)
+    && (fetchDepth > _fpBars || _histFirstPaint)
   // Standardize the history URL: always the FULL sealed depth (`_fullTarget`, fixed per tf)
   // + `d=<last sealed date>` derived from the bars we already hold. Fixed URL = every user +
   // the pre-warm sweep hit the SAME cache object (globally warm via Cache Reserve); the date
@@ -6528,7 +6869,48 @@ export default function StockChart({
   // Replay mode is FROZEN historical data — polling it re-fetches the (large) window
   // every 30s and blanks/repaints the chart mid-load (the "5m replay flickers" bug), so
   // don't poll while a cutoff is set. The static `?to=` window never changes.
-  const refreshInterval = replayCutoff ? 0 : (isIntraday ? 30_000 : 300_000)
+  // ⭐⭐ A PROVISIONAL TAIL GETS A TINY, DETERMINISTIC LIFETIME — NOT 30 SECONDS.
+  // Two paths can put a behind-the-market tail on screen: `_idbProvisional` (a
+  // known-stale cache painted deliberately for an instant first frame) and a server
+  // payload shed at `_bounded_delta`'s deadline. Both are the right trade for
+  // LATENCY and both are wrong to leave sitting: at 13:00 a 10:00 tail waited a full
+  // 30 s poll to catch up, which is the reported symptom ("chart ends around 10 AM,
+  // later catches up") and the reason fast first paint must never be reported as a
+  // fast chart.
+  //
+  // ⭐ THE STALENESS TEST IS THE CLIENT'S EXISTING ONE. `isIntradayTailStale` already
+  // owns "is this tail behind its session" (weekend/holiday/half-day aware), so this
+  // reads it rather than re-deriving a second answer that could disagree with the
+  // one gating `since=` two hundred lines above.
+  //
+  // ⛔ BOUNDED, because an illiquid symbol that genuinely has not printed looks
+  // identical to one we failed to fetch. Without the cap a quiet ticker would fast-
+  // poll forever — a self-inflicted load storm on exactly the names the origin is
+  // slowest for. Five tries ≈ 7.5 s of catch-up, then back to the normal cadence;
+  // the counter resets on a fresh tail and on any symbol/timeframe change.
+  const TAIL_CATCHUP_POLL_MS = 1500
+  const TAIL_CATCHUP_MAX_TRIES = 5
+  const INTRADAY_POLL_MS = 30_000
+  const _tailCatchupRef = useRef({ key: '', tries: 0 })
+  const _intradayPollMs = useCallback((latest) => {
+    const key = `${sym}_${resolvedTf}`
+    const st = _tailCatchupRef.current
+    if (st.key !== key) { st.key = key; st.tries = 0 }
+    // The tail ACTUALLY ON SCREEN: a `since=` response carries only the delta (and
+    // is empty when nothing is new), so the merged cache tail is the honest reading.
+    const rows = latest?.bars
+    const respT = Array.isArray(rows) && rows.length ? rows[rows.length - 1]?.t : null
+    const idbT = idbSinceRef.current
+    const tailT = Math.max(
+      typeof respT === 'number' ? respT : 0,
+      typeof idbT === 'number' ? idbT : 0,
+    )
+    if (!tailT || !isIntradayTailStale(tailT, resolvedTf)) { st.tries = 0; return INTRADAY_POLL_MS }
+    if (st.tries >= TAIL_CATCHUP_MAX_TRIES) return INTRADAY_POLL_MS
+    st.tries += 1
+    return TAIL_CATCHUP_POLL_MS
+  }, [sym, resolvedTf])
+  const refreshInterval = replayCutoff ? 0 : (isIntraday ? _intradayPollMs : 300_000)
   const { data, error, mutate, isValidating } = useSWR(
     swrUrl,
     instFetcher,
@@ -6550,13 +6932,15 @@ export default function StockChart({
   // Static within the session (sealed bars don't change intraday), so no refreshInterval —
   // the primary /api/bars tail SWR above owns freshness + the live bar. Fires only on a deep
   // pan (histUrl is null on first paint), and is edge-served (never hits the origin on a HIT).
-  const { data: histData } = useSWR(histUrl, instFetcher, {
+  const _histMutateRef = useRef(null)
+  const { data: histData, mutate: _histMutate } = useSWR(histUrl, instFetcher, {
     dedupingInterval: 60_000,
     revalidateOnFocus: false,
     refreshInterval: 0,
     refreshWhenHidden: false,
     onErrorRetry: barsSwrOnErrorRetry,
   })
+  _histMutateRef.current = _histMutate
 
   // ── Custom timeframe: fetch the NATIVE base, resample client-side ──
   // (_isCustomTf / _customBaseTf / _customSpec are declared ABOVE the native SWR so
@@ -6616,6 +7000,22 @@ export default function StockChart({
   // Persist to IDB and merge delta when SWR returns.
   useEffect(() => {
     if (!data?.bars || !sym || !resolvedTf) return
+    // T1 — stable history available. T3 — the authoritative session tail has landed,
+    // recorded ONLY once the merged tail actually reaches the market: a response that
+    // arrives still behind has not delivered the tail, and marking T3 on arrival
+    // would be the exact latency-without-freshness lie this instrument exists to stop.
+    if (_timingIdRef.current) {
+      const _rows = data.bars
+      const _tail = _rows.length ? _rows[_rows.length - 1]?.t : null
+      timingMark(_timingIdRef.current, 'T1', {
+        historyEnd: _tail,
+        cache: (idbBars?.length ? 'client-warm' : 'cold'),
+      })
+      const _merged = typeof idbSinceRef.current === 'number' ? idbSinceRef.current : _tail
+      if (typeof _merged === 'number' && classifyIntradayTail(_merged, resolvedTf) === 'fresh') {
+        timingMark(_timingIdRef.current, 'T3', { tailEnd: _merged })
+      }
+    }
     // Guard against stale closure: if sym changed between fetch-start and resolve,
     // the server's `ticker` field reveals the mismatch — skip to avoid storing
     // e.g. AAPL bars under MSFT when the user switches tickers rapidly.
@@ -6656,6 +7056,11 @@ export default function StockChart({
       if (_dbg) console.log('[bars-delta]', sym, resolvedTf, `=> MERGED ${idbBars.length} -> ${merged.length}`)
       setIdbBars(merged)
       if (merged.length) idbSinceRef.current = merged[merged.length - 1].t
+      // The set was just healed FROM THE SERVER, so its recency is NOW — not whenever
+      // this browser first wrote the entry. Without this re-stamp the daily
+      // intra-session age gate would keep calling a freshly-merged set stale and the
+      // chart would drop its own deep history one commit after healing it.
+      idbSavedAtRef.current = Date.now()
       idbPut(sym, resolvedTf, merged)
       memPut(sym, resolvedTf, merged)
     } else if (!data.delta && data.bars.length) {
@@ -6669,7 +7074,14 @@ export default function StockChart({
       // Read the authoritative CURRENT idb bars from the ref, not the [data]-closured
       // state (which can lag a just-committed deep IDB paint and cause the truncation).
       const curIdb = idbBarsRef.current
-      const deeperInIdb = sameSymTf && curIdb?.length > data.bars.length
+      // `>=`, not `>`. A full daily refetch returns the most-recent N bars, so when the
+      // cache already holds N bars ending one session back the fresh set is the SAME
+      // LENGTH but SLID: replacing drops the oldest bar, which moves every logical index
+      // down by one and translates the whole chart right by a bar the instant the tail
+      // lands. The suffix guard on the next line is what makes a merge valid, and it is
+      // just as true at equal length — the server still wins every overlapping bar, we
+      // simply stop throwing away the one on the left.
+      const deeperInIdb = sameSymTf && curIdb?.length >= data.bars.length
         && data.bars[0] && curIdb[0] && data.bars[0].t >= curIdb[0].t
       const next = deeperInIdb ? mergeDelta(curIdb, data.bars) : data.bars
       if (_dbg) console.log('[bars-delta]', sym, resolvedTf,
@@ -6677,6 +7089,7 @@ export default function StockChart({
       idbBarsRef.current = next        // keep the mirror current for any same-tick re-run
       setIdbBars(next)
       idbSinceRef.current = next[next.length - 1]?.t ?? null
+      idbSavedAtRef.current = Date.now()        // healed from the server — see above
       idbPut(sym, resolvedTf, next)
       memPut(sym, resolvedTf, next)
     }
@@ -6705,6 +7118,14 @@ export default function StockChart({
     if (!cur?.length) {
       idbBarsRef.current = histData.bars
       setIdbBars(histData.bars)
+      // ⛔ STATE THE TAIL. This branch used to publish bars WITHOUT publishing what
+      // they end at, and the daily paint authority reads exactly that ref — an unset
+      // tail reads as "no daily verdict to make", which would have let this sealed
+      // set (which ends at the last SEALED day, i.e. yesterday during RTH) onto the
+      // screen unexamined. That is the stale-paint bypass reopening through a second
+      // door. The set is genuinely fresh FROM THE SERVER, so the recency stamp is now.
+      idbSinceRef.current = histData.bars[histData.bars.length - 1]?.t ?? null
+      idbSavedAtRef.current = Date.now()
       idbPut(sym, resolvedTf, histData.bars)
       memPut(sym, resolvedTf, histData.bars)
       return
@@ -6713,6 +7134,9 @@ export default function StockChart({
     if (merged.length === cur.length) return                       // no older bars added — nothing to repaint (idempotent on re-run)
     idbBarsRef.current = merged
     setIdbBars(merged)
+    // A history merge only PREPENDS, so the tail is unchanged — but state it anyway
+    // rather than leaving the ref to be right by accident.
+    idbSinceRef.current = merged[merged.length - 1]?.t ?? idbSinceRef.current
     idbPut(sym, resolvedTf, merged)
     memPut(sym, resolvedTf, merged)
   }, [histData, idbBars])  // eslint-disable-line react-hooks/exhaustive-deps
@@ -6745,6 +7169,7 @@ export default function StockChart({
       idbBarsRef.current = _intradayDeepData.bars
       setIdbBars(_intradayDeepData.bars)
       idbSinceRef.current = _intradayDeepData.bars[_intradayDeepData.bars.length - 1]?.t ?? idbSinceRef.current
+      idbSavedAtRef.current = Date.now()        // healed from the server — see above
       idbPut(sym, resolvedTf, _intradayDeepData.bars)
       memPut(sym, resolvedTf, _intradayDeepData.bars)
       return
@@ -6812,7 +7237,9 @@ export default function StockChart({
           const maxAge = (['D', 'W'].includes(tf) ? 86400 : 14400) * 1000
           if (!entryStaleIntraday && entry?.bars?.length
               && Date.now() - (entry.savedAt || 0) < maxAge) continue
-          const bc    = FIRST_PAINT_BARS  // viewport-first: warm the shallow window; backfill loads deep history on pan
+          // Per-tf first-paint budget — the SAME count the chart will request for
+          // this tf, or this warm writes a cache key the chart never reads.
+          const bc    = firstPaintBarsFor(tf)  // viewport-first; backfill loads deep history on pan
           const since = entryStaleIntraday ? null : entry?.lastT
           // &warm=1: this all-TF chain is SPECULATIVE (warming timeframes the user
           // isn't viewing), so it MUST shed under load. Without it, at MARKET OPEN
@@ -6867,7 +7294,7 @@ export default function StockChart({
   const _netClosed = (_netMatches && data.bars.length >= 2) ? data.bars[data.bars.length - 2] : null
   const _idbBasisMismatch = resolvedTf === 'D' && !!_netClosed && idbBars?.length > 0
     && _closeMismatch(_findRecentBarByT(idbBars, _netClosed.t), _netClosed)
-  const _idbFresh = idbBars?.length && idbReadyForRef.current === `${sym}_${resolvedTf}` && !idbStaleIntraday && !idbStaleDaily && !_idbDailyLastInsane && !_idbBasisMismatch
+  const _idbFresh = idbBars?.length && idbReadyForRef.current === `${sym}_${resolvedTf}` && !idbStaleIntraday && !idbStaleDaily && !_idbDailyLastInsane && !_idbBasisMismatch && !_idbNotCurrent
   // SPLIT-FETCH deep render. When split-fetch is on, `data.bars` is a fresh SHORT tail
   // (capped to FIRST_PAINT_BARS via _primaryBars) and idbBars is the DEEP sealed+tail
   // merge. The daily STALENESS gates in _idbFresh — chiefly idbStaleDaily, which flags a
@@ -6881,6 +7308,15 @@ export default function StockChart({
   const _splitDeepUsable = _splitOn && idbBars?.length > 0
     && idbReadyForRef.current === `${sym}_${resolvedTf}`
     && !_idbDailyLastInsane && !_idbBasisMismatch
+  // ⛔ AND THE PAINTABLE HALF, WHICH IS A DIFFERENT QUESTION. `_splitDeepUsable` is a
+  // USEFULNESS verdict — identity, basis, value sanity — and it says nothing about
+  // currency, because DEPTH does not go stale. It was nonetheless standing in for a
+  // freshness check at the two render arms below, with `_fpEdge` (a performance flag)
+  // as its only companion: that is how a multi-session-old tail became a member's
+  // first frame and then translated the frame when the missing sessions merged in.
+  // The optimisation flag still chooses the STRATEGY; the daily authority decides
+  // whether the data has earned the screen.
+  const _splitDeepPaintable = _splitDeepUsable && !idbStaleDaily
   // Provisional stale-intraday paint: cached bars for THE CURRENT sym+tf that are
   // too stale to trust as live (idbStaleIntraday) are normally suppressed to avoid
   // fusing a live-price spike onto an old tail — but that left an intraday sym-switch
@@ -6904,7 +7340,7 @@ export default function StockChart({
   const _memBarsRaw = (!_overrideArr && !barsOverridePending) ? memPeek(sym, resolvedTf) : null
   // Don't fall back to a stale daily mem entry either (prefetch's _memPromoteFresh
   // always promotes D/W/M, so mem can hold a multi-session-old daily just like IDB).
-  const _memBars = _memTailStaleDaily(_memBarsRaw) ? null : _memBarsRaw
+  const _memBars = _memTailStaleDaily(_memBarsRaw, memPeekSavedAt(sym, resolvedTf)) ? null : _memBarsRaw
   // Phase-A A4: optimistic same-frame TF switch. Switching to Weekly/Monthly on a
   // ticker whose Daily is already in the sync mem cache normally still costs a
   // full /api/bars round-trip (skeleton flash) for the W/M payload. Instead,
@@ -6937,17 +7373,48 @@ export default function StockChart({
             // it back to ~600 bars until the dwell-warm re-fetches deep (the "cuts off
             // pre-2024 then reloads" flicker). The merge effect still heals idbBars's
             // recent tail from data.bars (server wins on overlap), so this stays correct.
-            ? (((_idbFresh || _splitDeepUsable) && idbBars.length > data.bars.length) ? idbBars : data.bars)
-            : ((_idbFresh || (_splitDeepUsable && _fpEdge))
+            // …and only when that deeper set is itself PAINTABLE. A deep-but-stale set
+            // would otherwise win on length alone and put its old tail on screen; the
+            // merge effect heals it one commit later and the deep history then arrives
+            // as a LEFT-side prepend, which moves no right-edge geometry at all.
+            ? (((_idbFresh || _splitDeepPaintable) && idbBars.length > data.bars.length) ? idbBars : data.bars)
+            : ((_idbFresh || (_splitDeepPaintable && _fpEdge))
                 // Fix 2 cold-tail: paint the deep SEALED history the moment it arrives, even while
                 // the /api/bars tail is still pending/hung — turns a cold-ticker 20s blank into an
                 // instant full chart (today's bar fills in when the tail lands). Gated → inert at PCT=0.
                 ? idbBars
-                : (_netMatches
-                    ? data.bars
-                    : (_memBars?.length
-                        ? _memBars
-                        : (_aggBars?.length ? _aggBars : (_idbProvisional || null)))))))
+                : (_idbNotCurrent && data?.delta
+                    // ⛔ A DELTA IS NOT A CHART. With the IDB layer held back for
+                    // being stale, the next arm would hand `data.bars` to the
+                    // canvas — and under `since=` that is ONLY the gap rows (~38
+                    // of them), so suppressing a stale frame would have produced a
+                    // broken 38-bar one instead. Yield null and wait: the merge
+                    // effect below folds this delta into idbBars, refreshes
+                    // idbSinceRef, and the very next render classifies 'fresh' and
+                    // paints the COMPLETE, CURRENT series.
+                    ? null
+                    : (_netMatches
+                        ? data.bars
+                        : (_memBars?.length
+                            ? _memBars
+                            : (_aggBars?.length ? _aggBars : (_idbProvisional || null))))))))
+  // ── SCOPE OF THE STALE-TODAY REPAIR ────────────────────────────────────────
+  // ⚰️ THE REPAIR WAS UNCONDITIONAL, AND THAT WALKED THE CLOSE BACKWARDS. It rewrites
+  // today's slot from the freshest LOCAL source and runs on every evaluation of the
+  // candle memo — including after /api/bars has landed. A pack up to its 90s ceiling
+  // is then OLDER than the served bar, so re-stamping from it dragged an already
+  // authoritative close back in time (measured: served 220.5 → repainted 220.1).
+  //
+  // The repair exists for ONE situation: a CACHED today bar that our own recency gate
+  // calls stale, which the gate only admitted to the screen BECAUSE a seed could
+  // repair it. Once the server's own set is what we are painting, the served bar is
+  // by definition fresher than any local seed and must be left alone. Identity is the
+  // exact test for which arm won, and the savedAt term self-cancels the moment a
+  // server heal re-stamps the cache.
+  dailyRepairTodayRef.current = resolvedTf === 'D' && !!bars
+    && (bars === idbBars || bars === _memBars)
+    && isDailyTodayBarStaleForPaint(idbSinceRef.current, idbSavedAtRef.current)
+
   // The live-bar writers consult this to freeze until a CURRENT-session payload
   // replaces the data — BUT only when the stale tail is from a PRIOR session
   // (>8h old: overnight / weekend / multi-day), which is the "fuse a live spike
@@ -7020,6 +7487,13 @@ export default function StockChart({
   onComparisonsReadyRef.current = onComparisonsReady
   const barsReadyFiredRef = useRef(false)
   useEffect(() => {
+    if (!loading && !_t2MarkedRef.current) {
+      _t2MarkedRef.current = true
+      // T2 — the bars question SETTLED for this switch (a React decision, not a
+      // paint; `paint` above is the canvas). Per-switch latch so scanning is
+      // measurable; `onBarsReady` below keeps its once-per-mount contract.
+      timingMark(_timingIdRef.current, 'T2')
+    }
     if (!loading && !barsReadyFiredRef.current) {
       barsReadyFiredRef.current = true
       try { onBarsReadyRef.current?.() } catch {}
@@ -8245,65 +8719,71 @@ export default function StockChart({
       if (_intradayLoadAnchorEnabled() && !exactDateRange && !entryDate && !replayCutoff && arr.length && displayBars.length) {
         const _dev = _developingBarISO(resolvedTf)
         const _lastRaw = displayBars[displayBars.length - 1]?.t
-        if (_dev && typeof _lastRaw === 'string' && _lastRaw < _dev) {
-          // Default: an empty whitespace slot (reserve only). When _seedLiveEnabled(), upgrade
-          // to a REAL candle at the live price so today is VISIBLE at the tape on first paint.
-          // Same store + sane-price source as Writer D; whitespace fallback when no sane price.
+        // ── DAILY: seed EXACTLY the slots the framing reserve holds ─────────────
+        // `_dailyReserveDates` is the same list `_intradayLoadReserve` counts, so the
+        // seed and the frame cannot disagree — the off-by-(reserve − seeded) that
+        // translated the chart is now unrepresentable. The FRONTIER slot gets the real
+        // current-session bar when one is available locally; earlier slots stay
+        // whitespace (their bars exist only on the server, which is exactly why the
+        // paint authority refuses to show such a set in the first place — reaching here
+        // with more than one slot means an unexpected right-edge arrival, and holding
+        // bounded whitespace for it is strictly better than translating the frame).
+        if (resolvedTf === 'D' && typeof _lastRaw === 'string') {
+          const _slots = _dailyReserveDates(_lastRaw)
+          if (_slots.length) {
+            const _seed = _resolveDailyTodaySeed()
+            const _frontier = _slots[_slots.length - 1]
+            for (const _iso of _slots) {
+              arr.push((_iso === _frontier && _seed && _seed.t === _iso)
+                ? { time: adjustTime(_iso), open: _seed.o, high: _seed.h, low: _seed.l, close: _seed.c }
+                : { time: adjustTime(_iso) })
+            }
+          } else {
+            // ── STALE-TODAY REPAIR, IN PLACE ────────────────────────────────────
+            // The set already reaches today, so the GEOMETRY is final — but the bar
+            // itself can be hours old (a cache written at 10:05, painted at 14:00),
+            // and /api/bars' own copy is only as fresh as the store row behind it.
+            // Replacing the values at the SAME date moves nothing and removes the
+            // "body right, wick corrects a beat later" flash.
+            //
+            // ⛔ NOT FABRICATION, AND NOT EXTRAPOLATION. Close is the live price — the
+            // one genuinely real-time field UCT has. High/low come from the provider's
+            // own `day` aggregate, the same object every other door serves; reconciling
+            // the two observations with max/min is valid because a session high never
+            // falls and a session low never rises. Nothing is invented, and no value
+            // moves except toward a later observation of the same quantity.
+            const _seed = dailyRepairTodayRef.current ? _resolveDailyTodaySeed() : null
+            const _i = arr.length - 1
+            const _cur = arr[_i]
+            if (_seed && _cur && _cur.time === adjustTime(_seed.t) && _cur.open !== undefined) {
+              arr[_i] = {
+                ..._cur,
+                high: Math.max(_cur.high, _seed.h),
+                low: Math.min(_cur.low, _seed.l),
+                close: _seed.c,
+              }
+            }
+          }
+        } else if (_dev && typeof _lastRaw === 'string' && _lastRaw < _dev) {
+          // ── WEEKLY / MONTHLY ONLY (daily is handled above) ────────────────────
+          // ⛔ UNCHANGED ON PURPOSE. A week/month period start is not "n sessions
+          // back", so the daily session walk is the wrong instrument here; W/M keep
+          // the single-slot rule until their own period semantics are designed. The
+          // today-PACK arm that used to live here was daily-only and is now
+          // unreachable from this branch, so it is gone rather than left as dead code
+          // that reads like a live path.
           let _pt = null
           if (_seedLiveEnabled()) {
             try {
               const _snap = (typeof getLivePriceStoreSnapshot === 'function') ? getLivePriceStoreSnapshot()[sym] : null
               const _px = _snap ? _effLivePrice(_snap) : null
-              // ⛔ REGULAR SESSION ONLY. Outside 9:30-16:00 ET `_effLivePrice` returns the
-              // EXTENDED-hours price (`ext_price` when `ext_session`), but the DAILY candle is
-              // settled at the 4pm close (pre/post-market moves are not part of it). Seeding the
-              // post-market price here painted today's candle at e.g. 40.12 then the fetch's
-              // settled 40.26 corrected it ~0.25s later — the "wrong price then corrects" flash.
-              // In an extended session, skip the live seed → the reserved whitespace slot holds
-              // and the fetch's settled/developing close fills today's candle correctly. During
-              // RTH `ext_session` is false so `_effLivePrice` is the developing regular price.
+              // ⛔ REGULAR SESSION ONLY. Outside 09:30-16:00 ET `_effLivePrice` returns the
+              // EXTENDED-hours price, but the period candle is settled at the 4pm close.
               if (_px && !_snap.ext_session && isSaneLivePrice(_px, lastBarRef.current?.close, lastServerCloseRef.current)) {
                 const _o = (_snap.day_open && _snap.day_open > 0) ? _snap.day_open : _px
                 const _h = Math.max((_snap.day_high && _snap.day_high > 0) ? _snap.day_high : _px, _px)
                 const _l = Math.min((_snap.day_low && _snap.day_low > 0) ? _snap.day_low : _px, _px)
                 _pt = { time: adjustTime(_dev), open: _o, high: _h, low: _l, close: _px }
-              }
-            } catch { /* fall back to whitespace */ }
-          }
-          // ── COLD SYMBOL: seed today from the TODAY-PACK ────────────────────
-          // The live-price store above is EMPTY for a symbol just typed — its first
-          // poll is still in flight — so the seed missed exactly when it was needed
-          // most, and today's candle waited on /api/bars (300-500ms of pure network;
-          // server compute is 0.8ms). The today-pack is prefetched for the WHOLE
-          // market, so this symbol's bar is already here. A warm symbol never reaches
-          // this line; the live store answers first and is fresher.
-          //
-          // ⚠️ DAILY ONLY. `_dev` for W/M is the start of the WEEK/MONTH, whose open
-          // is Monday's (or the 1st's) and whose high/low span the whole period —
-          // today's OHLC is not that bar, and seeding it there would paint a visibly
-          // wrong candle that the fetch then corrects.
-          // ⛔ REGULAR SESSION ONLY — the same rule the live-price seed above obeys, and
-          // I shipped this without it. The pack's close is the snapshot's `last_price`,
-          // which in post-market is the POST-MARKET print; the daily candle is settled at
-          // the 4pm close and must not move for an extended-hours trade. Seeding it
-          // anyway paints today's candle at the post price and lets the fetch correct it
-          // a beat later — the exact "wrong price then corrects" flash the ext_session
-          // branch above exists to prevent. Pre-market needs no test here (the server
-          // sends an empty pack before the open) but the check is written for the
-          // SESSION, not for post, so it cannot rot if that ever changes.
-          //
-          // ⚰️ THIS READ `marketSession === 'regular'` FOR ONE COMMIT. The value is
-          // `'pre' | 'post' | 'rth'` — there is no `'regular'` — so the test was
-          // permanently FALSE and the whole feature silently did nothing, on every
-          // symbol, with no error and a green test suite. `_inExtWindow` is the named
-          // concept that already exists; use it rather than restating a literal.
-          if (!_pt && resolvedTf === 'D' && !_inExtWindow) {
-            try {
-              const _tb = getTodayBar(sym)
-              // Same sanity chokepoint as the live path — a bad pack row must not
-              // reach the chart just because it came from a different door.
-              if (_tb && isSaneLivePrice(_tb.c, lastBarRef.current?.close, lastServerCloseRef.current)) {
-                _pt = { time: adjustTime(_dev), open: _tb.o, high: _tb.h, low: _tb.l, close: _tb.c }
               }
             } catch { /* fall back to whitespace */ }
           }
@@ -8315,6 +8795,10 @@ export default function StockChart({
     // NOTE: livePrices is deliberately NOT a dep — the seed reads the live-price store
     // imperatively (fresh at eval), and the live writers own prices that arrive later; a
     // livePrices dep would re-run this O(n) memo every tick (churn) even when dark.
+    // `_resolveDailyTodaySeed` is omitted for the SAME reason and is the eslint warning
+    // on this line: it is a per-render closure over exactly those imperative sources, so
+    // listing it would bust this memo on every single render — the churn the note above
+    // exists to prevent. It is read, never captured.
     [displayBars, adjustTime, sym, _inExtWindow, sessionPreviewLastBar, canvasTheme, boldCandles, modelBookLook, mbUp, mbDown, userCandleColors, cs.candles.upColor, cs.candles.downColor, cs.candles.upBorder, cs.candles.downBorder, cs.candles.upWick, cs.candles.downWick, resolvedTf, exactDateRange, entryDate, replayCutoff]
   )
   // Publish the DRAWN candle count (see the `onDrawnBarCount` prop). Reported on
@@ -9136,6 +9620,10 @@ export default function StockChart({
         const lowPrice = isDailyWeekly ? Math.min((live.day_low && live.day_low > 0) ? live.day_low : openPrice, price) : price
 
         // Initialize tick-accurate tracking for this bar
+        // T4 — forming bar active (writer A, the quote-synthesised path that owns
+        // the candle while VITE_REALTIME_BARS is held at 0). Marked here too so the
+        // instrument reports what members ACTUALLY get, not only the intended path.
+        timingMark(_timingIdRef.current, 'T4', { formingAt: barTime })
         liveBarRef.current = { time: barTime, open: openPrice, high: highPrice, low: lowPrice, close: price }
         barStartVolRef.current = liveData.volume || 0
         // D/W/M: the developing bar spans the whole day, so the live cumulative DAY
@@ -9361,6 +9849,8 @@ export default function StockChart({
       // new bar even though the Finnhub writers are suppressed. Carry VOLUME on liveBarRef so the
       // post-setData re-top can restore it (else the developing bar shows ~30s-stale server
       // volume until the next AM push — a volume flicker every SWR poll, retro-audit #5).
+      // T4 — forming bar active (writer B, the authoritative push path).
+      timingMark(_timingIdRef.current, 'T4', { formingAt: tSec })
       liveBarRef.current = { time: tSec, open: _oB, high: _hB, low: _lB, close: c, volume: data.bar.v }
       lastBarRef.current = { time: tSec, open: _oB, high: _hB, low: _lB, close: c, volume: data.bar.v }
       // Drag the MA overlays out to this developing bar (see _extendOverlaysLive).
@@ -9614,6 +10104,11 @@ export default function StockChart({
     // until the new SWR fetch returns — that's the "blended data" the user
     // sees flipping between charts.
     if (!filteredBars?.length) {
+      // ⭐ COUNTED, NOT REASONED ABOUT. This arm is the black frame: every series
+      // is emptied, so whatever the member was looking at is gone and nothing has
+      // replaced it. Inferring the rate from "T4 was small" is how the stale-paint
+      // defect hid for a whole cycle.
+      timingMarkEmpty(_timingIdRef.current)
       try { candleSeriesRef.current?.setData([]) } catch {}
       try { volumeSeriesRef.current?.setData([]) } catch {}
       for (const s of overlaySeriesRefs.current) {
@@ -9621,6 +10116,19 @@ export default function StockChart({
       }
       lastCfgSigRef.current = null
       prevPaintBarsRef.current = null   // series were cleared — next paint must be full
+      // ⛔ THE READOUT'S SOURCE IS CLEARED WITH THE SERIES IT DESCRIBES. This arm
+      // emptied every series but left `prevBarsRef` holding the OUTGOING ticker's
+      // bars, and `computeLatestCrosshair` reads that ref — so the bar-info strip
+      // kept printing the old ticker's O/H/L/C and Volume under the new ticker's
+      // name, on top of an opaque skeleton. Worse, `ohlcData` recomputing to a
+      // fresh [] re-fires the readout effect, actively RE-publishing the stale
+      // payload. A chart with no bars must have no readout.
+      //
+      // ⚠️ `lastBarCountRef` is deliberately NOT reset here. It anchors the preserved
+      // view across a ticker switch (`oldBarCount`), which is separate machinery with
+      // its own feedback-loop history — this fix is about data identity, not framing.
+      prevBarsRef.current = null
+      prevBarsSymRef.current = null
       return
     }
 
@@ -9937,6 +10445,38 @@ export default function StockChart({
         window.__uctChartDebug[chartId || 'main'] = {
           visibleRange: () => {
             try { return chartRef.current?.timeScale().getVisibleLogicalRange() || null } catch { return null }
+          },
+          // Read-only: what each ENGINE series actually handed the renderer
+          // (the fundamentals acceptance harness reads plotted values from here).
+          engineSeries: () => {
+            try {
+              return (engineRef.current?.binder?.bindings() || []).map((b) => ({
+                instanceId: b.instanceId, plotKey: b.plotKey,
+                priceFormat: b.series?.options?.()?.priceFormat?.type || null,
+                data: b.series?.data?.() || [],
+              }))
+            } catch { return null }
+          },
+          // ⭐ THE TWO READINGS THIS FIX IS ACCEPTED ON, and they have to be
+          // separate. The daily regression was "Origin frames the 600-bar window
+          // instead of the true origin", and a chart holding 20 years while
+          // FRAMING the last 600 bars is pixel-identical to one that only holds
+          // 600 — so the SERIES and the WINDOW must be observable independently
+          // or the acceptance cannot tell a data bug from a framing bug. An
+          // earlier pass scored only the series, found 5,247 rows, and would
+          // have reported the pipeline healthy while the member still saw 2024.
+          // Read-only, chartId-keyed, resolved at CALL time off the live refs.
+          visibleTimeRange: () => {
+            try { return chartRef.current?.timeScale().getVisibleRange() || null } catch { return null }
+          },
+          renderedTail: (k = 2) => {
+            try {
+              const d = candleSeriesRef.current?.data?.()
+              if (!Array.isArray(d) || !d.length) return null
+              return d.slice(Math.max(0, d.length - k)).map(b => ({
+                time: b.time, open: b.open, high: b.high, low: b.low, close: b.close,
+              }))
+            } catch { return null }
           },
           // ⭐ THE VERTICAL HALF, for the same reason the horizontal half is here.
           // "The chart pinches a little more every time I pan" is a claim about
@@ -10437,6 +10977,34 @@ export default function StockChart({
     // effect's deps would re-run the whole updateChart (incl. the visible-range /
     // zoom logic) on every focus change and fight the setup focus zoom.
     _applyData(candleSeriesRef.current, isOhlcType(cs.chartType) ? ohlcData : closeData)
+    // ⭐ THE HEADLINE METRIC. Candles are now on the canvas for this (sym, tf) — the
+    // moment a scanning member stops seeing the previous chart and starts seeing this
+    // one. Marked HERE rather than at a React state change because `loading === false`
+    // is a decision, and this is the paint.
+    // ⛔⛔ RECORD WHAT WAS PAINTED, NOT ONLY WHEN. `paint` alone scored the MU
+    // stale-first-paint (a 10:00 tail shown at 15:55) as the FASTEST switch in the
+    // run. timingMarkPaint carries the newest bar's timestamp so the frontier gap
+    // is measured at the instant the member sees the frame, and TC is marked only
+    // once a CURRENT-ENOUGH frame reaches the canvas.
+    // ⚠️ Not latched on `paint` any more: a stale frame followed by the repaired
+    // one must leave BOTH marks, so the stale interval is measurable.
+    const _painted = isOhlcType(cs.chartType) ? ohlcData : closeData
+    if (_painted?.length) {
+      // ⚠️ INTRADAY ONLY. `filteredBars[].t` is unix SECONDS intraday but a
+      // 'YYYY-MM-DD' STRING on D/W/M, and the frontier math is bucket arithmetic
+      // over the former. Handing it a string would score every daily switch as
+      // Infinity-behind — a fabricated failure, which is worse than no metric.
+      // Daily keeps the plain timing mark it always had.
+      if (isIntraday) {
+        const _lastT = filteredBars[filteredBars.length - 1]?.t
+        timingMarkPaint(_timingIdRef.current, typeof _lastT === 'number' ? _lastT : null, {
+          session: showExtended ? 'extended' : 'rth',
+        })
+      } else if (!_paintMarkedRef.current) {
+        timingMark(_timingIdRef.current, 'paint')
+      }
+      _paintMarkedRef.current = true
+    }
 
     // Store the last bar for live updates
     if (filteredBars.length) {
@@ -11729,6 +12297,8 @@ export default function StockChart({
         // instances name, already fetched and cached above. Absent is not an
         // error: it is a chart with no symbol sources, and every lookup misses.
         secondary: secondarySources,
+        // ⭐ Historical fundamentals, already resolved (see `useFundamentalSources`).
+        fundamentals: fundamentalSources,
         // ⭐⭐ WHICH PROVIDER FAMILY A CANONICAL SYMBOL BELONGS TO — the SEMANTIC
         // half of `ohlcCapability`. The breadth registry is the same authority
         // `api/routers/bars.py` routes on, read synchronously because the binder
@@ -11739,7 +12309,17 @@ export default function StockChart({
         // ⚠️ IT IS A CAPABILITY ORACLE, NOT A LIST OF SYMBOLS THAT GET CANDLES.
         // No ticker, no prefix: the binder asks what KIND of thing this is, and
         // `ohlcCapability` owns what each kind may be drawn as.
-        ohlcFamilyOf: symbolFamily,
+        ohlcFamilyOf: canonicalFamily,
+        // ⭐⭐ WHAT THE SOURCE SAYS ABOUT HOW IT WANTS TO BE DRAWN — the other half
+        // of the presentation contract, and a STRICTLY DIFFERENT QUESTION from the
+        // one above. `ohlcFamilyOf` decides what a source may MEAN (and therefore
+        // whether a candle is honest); this decides what it should LOOK LIKE first,
+        // and it may never be routed into a capability gate — `canonicalPresentation`
+        // says so in its own header and the engine rail asserts it.
+        //
+        // ⚠️ IT READS METADATA THAT WAS ALREADY ON THE WIRE. Both catalogues have
+        // published `presentation` all along; until now nothing on the chart asked.
+        sourcePresentationOf: canonicalPresentation,
         registry: engineRegistry,
         // The SAME bars `indicatorData` computes from (`:3895`) — parity under
         // Flip A means the engine's column and the legacy one are the same array.
@@ -12763,6 +13343,12 @@ export default function StockChart({
     // preserved view and measure the outgoing vertical placement.
     lastBarCountRef.current = filteredBars.length
     prevBarsRef.current = filteredBars
+    // ⛔ STAMPED WITH THIS CALLBACK'S OWN `sym`, NOT `symRef.current`. `filteredBars`
+    // and `sym` come from the same render, so this is the bars' true owner. The
+    // ref lags: on a switch the pre-paint layout effect below runs this before
+    // `symRef` is mirrored, which stamped B's bars as A — the readout then saw a
+    // mismatch and printed NOTHING (the A → blank → B legend flicker).
+    prevBarsSymRef.current = sym   // whose bars these are — see the ref's note
     // Baseline for the next render plan — the bars this paint actually put on screen.
     prevPaintBarsRef.current = displayBars
     // ⚠️ `userDefsGeneration` IS A DEPENDENCY ON MODULE STATE, AND IT IS
@@ -12773,12 +13359,75 @@ export default function StockChart({
     // (mutation M3 SURVIVED): something else in this list is already unstable per
     // render. Kept as the one declaration that names this dependency; the full
     // reasoning is at the `useInstalledUserDefinitions` call site above.
-  }, [filteredBars, displayBars, ohlcData, closeData, volData, overlayData, comparisonData, sym, showVolume, mergedMarkers, mergedPriceLines, allPriceLines, dpZones, sessionShadeBands, _shadeOn, watermark, watermarkOpacity, cs, adjustTime, resolvedTf, tickerMeta, watermarkMeta, vwapOverride, hideWatermark, hidePriceLine, leftBarPad, modelBookLook, frozen, candleFrameFade, fadeCutoff, fitPriceToCandles, dailyDefaultBars, visibleBarsOverride, canvasTheme, sessionPreviewLastBar, sessionCandleActive, sessionExtReady, userDefsGeneration, sessionAppliedBars, _extendOverlaysLive, liveUpdates, replayMode, secondarySources, serverColumnsGeneration])
+  }, [filteredBars, displayBars, ohlcData, closeData, volData, overlayData, comparisonData, sym, showVolume, mergedMarkers, mergedPriceLines, allPriceLines, dpZones, sessionShadeBands, _shadeOn, watermark, watermarkOpacity, cs, adjustTime, resolvedTf, tickerMeta, watermarkMeta, vwapOverride, hideWatermark, hidePriceLine, leftBarPad, modelBookLook, frozen, candleFrameFade, fadeCutoff, fitPriceToCandles, dailyDefaultBars, visibleBarsOverride, canvasTheme, sessionPreviewLastBar, sessionCandleActive, sessionExtReady, userDefsGeneration, sessionAppliedBars, _extendOverlaysLive, liveUpdates, replayMode, fundamentalSources, secondarySources, serverColumnsGeneration])
 
   // Effect: update chart when data or settings change (NO cleanup — chart persists)
   useEffect(() => {
     updateChart()
   }, [updateChart])
+
+  // ⛔⛔ ON A SYMBOL SWITCH, APPLY BEFORE THE BROWSER PAINTS. The effect above is
+  // PASSIVE, so it runs AFTER the frame is composited. On a symbol change that
+  // orders the two halves of the member's chart one frame apart:
+  //
+  //    React commits B's DOM (the ticker now reads B)
+  //    → browser PAINTS            ← B ticker over A's candles
+  //    → passive effect → setData(B)
+  //    → browser paints again      ← B ticker over B's candles
+  //
+  // The frame-accurate harness measured that window on 24/24 switches, p50 31ms,
+  // max 47ms. It is not a cache problem and not a latency problem: the data for B
+  // was already in hand. The two halves simply committed in different frames.
+  //
+  // ⭐ A LAYOUT EFFECT RUNS AFTER THE DOM MUTATION AND BEFORE THE PAINT, so the
+  // new label and the new candles land in the SAME composited frame — which is
+  // the atomicity the contract asks for, with no second chart, no overlay, and
+  // no faked paint.
+  //
+  // ⚠️ SCOPED TO THE SWITCH, DELIBERATELY. `updateChart` is the heaviest function
+  // in this file (candles + volume + every overlay and indicator) and its deps
+  // include live data, so making the ORDINARY path synchronous would put that
+  // work inside every 30s poll's frame budget. This fires only when the applied
+  // symbol/timeframe is not the one being rendered; the passive effect continues
+  // to own every other update, and `updateChart` self-corrects (the second call
+  // plans 'noop' because the bars are already identical).
+  //
+  // Mirror rapidly-changing values into refs so processCrosshair reads them
+  // without forcing the subscription useEffect below to re-run on every change.
+  //
+  // ⭐ A LAYOUT EFFECT, DECLARED ABOVE THE SWITCH APPLIER, so these refs describe
+  // THIS render before anything paints. It was a passive effect declared far
+  // below, which left `symRef` (and the overlay data the readout prints) one
+  // phase behind the candles on every switch. Assignments only — no cost.
+  useLayoutEffect(() => {
+    overlayDataRef.current = overlayData
+    comparisonDataRef.current = comparisonData
+    livePricesRef.current = livePrices
+    resolvedOverlaysRef.current = resolvedOverlays
+    symRef.current = sym
+    resolvedTfRef.current = resolvedTf
+    onCrosshairMoveRef.current = onCrosshairMove
+    volMaDataRef.current = volMaData
+    // ⛔ `csIndicatorsRef.current = cs.indicators` stood here — the LEGACY chip
+    // lane's inputs. That lane has no producer after B5 Task 6, and the engine
+    // lane resolves inputs per INSTANCE inside `engineChips`.
+  })
+  const _appliedSymTfRef = useRef(null)
+  useLayoutEffect(() => {
+    const key = `${sym}_${resolvedTf}`
+    if (_appliedSymTfRef.current === key) return
+    _appliedSymTfRef.current = key
+    updateChart()
+    // ⭐ AND THE LEGEND CROSSES THE SAME BOUNDARY. A state write in a layout
+    // effect re-renders synchronously before the browser paints, so the new
+    // candles and the new readout land in ONE composited frame: A+A → B+B, never
+    // B candles under A's numbers (the passive readout effect below used to
+    // follow a frame later). No new generation counter — the payload is built
+    // from exactly the bars `updateChart` just stamped, and `computeLatestCrosshair`
+    // refuses bars whose stamp is not the current symbol.
+    if (chartReady) refreshOffCursorReadout()
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [sym, resolvedTf, updateChart])
 
   // ── Live session tags (Pre/Post chip + locked RTH close) ──────────────────
   // Their own applier, deliberately OUTSIDE updateChart. These tags follow the live
@@ -13980,21 +14629,8 @@ export default function StockChart({
     return () => { for (const u of unsubs) { try { u() } catch {} } }
   }, [enabledComparisons, comparisonsData, adjustTime])
 
-  // Mirror rapidly-changing values into refs so processCrosshair reads them
-  // without forcing the subscription useEffect below to re-run on every change.
-  useEffect(() => {
-    overlayDataRef.current = overlayData
-    comparisonDataRef.current = comparisonData
-    livePricesRef.current = livePrices
-    resolvedOverlaysRef.current = resolvedOverlays
-    symRef.current = sym
-    resolvedTfRef.current = resolvedTf
-    onCrosshairMoveRef.current = onCrosshairMove
-    volMaDataRef.current = volMaData
-    // ⛔ `csIndicatorsRef.current = cs.indicators` stood here — the LEGACY chip
-    // lane's inputs. That lane has no producer after B5 Task 6, and the engine
-    // lane resolves inputs per INSTANCE inside `engineChips`.
-  })
+  // (The ref mirror that stood here now runs in the LAYOUT phase, above the
+  // switch-time `updateChart` — see "Mirror rapidly-changing values".)
 
   // ── Crosshair legend: subscribe to hover events ──
   useEffect(() => {
@@ -14237,8 +14873,7 @@ export default function StockChart({
     // is retired: 'hold' mode ends the peek when the pointer is released, so it
     // needs no ownership.) Without the gate this effect replaces the owned bar with
     // the latest one on the next data tick.
-    if (readoutIsOwned()) return
-    setCrosshairData(effAlwaysShow ? computeLatestCrosshair() : null)
+    refreshOffCursorReadout()
     // ⭐ W0.1 (2026-08-25) — AND WHEN THE INSTANCE LIST MOVES. A colour (or period)
     // edit in the settings dialog re-syncs the engine through `updateChart` (its
     // deps carry `cs`; it is declared above this effect, so `engineInstancesRef`
@@ -15602,11 +16237,25 @@ export default function StockChart({
       // readout kept the CSS default and painted in the MIDDLE of the candles.
       // 0 is a real pane now; a negative or non-integer index is still refused.
       if (!row || !Number.isInteger(row.index) || row.index < 0) return
+      // ⛔⛔ THE LAYOUT SLOT IS NOT WHERE THE SERIES DREW when an own-pane host
+      // above this one computed nothing: the layout reserved it a slot, the pool
+      // gave it no series, and the renderer never made that pane. Pinned by slot,
+      // a Net Margin line was captioned "Gross Margin". So ask the renderer, by
+      // identity -- see `engine/paneReadoutPlacement.js`. `null` = nothing of this
+      // key drew, so there is no pane to label; `undefined` = cannot tell, keep
+      // the slot.
+      const drawnAt = rendererPaneIndexOf(key,
+        engineRef.current && engineRef.current.binder ? engineRef.current.binder.bindings() : null,
+        chipPaneHostRef.current)
+      const hide = drawnAt === null
+      if ((el.style.display === 'none') !== hide) el.style.display = hide ? 'none' : ''
+      if (hide) return
+      const index = drawnAt === undefined ? row.index : drawnAt
       const panes = chart.panes ? chart.panes() : null
-      if (!panes || panes.length <= row.index) return
+      if (!panes || panes.length <= index) return
       // The top pane starts at 0 — the loop below sums nothing, which is right.
       let top = 0
-      for (let i = 0; i < row.index; i++) {
+      for (let i = 0; i < index; i++) {
         const h = panes[i] && panes[i].getHeight ? panes[i].getHeight() : 0
         top += (Number.isFinite(h) ? h : 0) + SEPARATOR_PX
       }
@@ -16354,6 +17003,7 @@ export default function StockChart({
         lastDpZonesRef.current = undefined      // …and the zones must re-apply to the new one
         lastCfgSigRef.current = null
         prevBarsRef.current = null
+        prevBarsSymRef.current = null           // the stamp goes with the bars it names
         prevPaintBarsRef.current = null
         lastBarCountRef.current = 0
         zoomKeyRef.current = null
@@ -16615,6 +17265,7 @@ export default function StockChart({
   const applyPendingNav = () => {
     const nav = pendingNavRef.current
     if (!nav) return false
+    if (nav.kind === 'range') { applyRange(nav.target); return true }
     if (nav.kind === 'date') return goToDateRightEdge(nav.target)
     if (nav.kind === 'year') return frameYear(nav.target)
     return centerFirstBar()   // 'origin'
@@ -16627,6 +17278,14 @@ export default function StockChart({
     originSawFetchRef.current = false
     setOriginLoading(true)
     if (fetchDepth !== _fullTarget) setFetchDepth(_fullTarget)
+    // ⛔ RAISING THE DEPTH IS NOT ENOUGH WHEN THE DEEP LEG ALREADY FAILED. `histUrl`
+    // is a fixed string (symbol + tf + full depth + sealed date), so after a 5xx SWR
+    // holds the error under that exact key and raising `fetchDepth` produces no new
+    // request -- measured: one failed call, `histCalls` stayed at 1, and the chart sat
+    // at 600 bars until `barsSwrOnErrorRetry`'s 15s floor elapsed (up to 60s on later
+    // attempts). A member who clicks Origin is asking for that history NOW, so ask the
+    // key to revalidate rather than waiting out a backoff they cannot see.
+    try { _histMutateRef.current?.() } catch { /* unbound mid-mount */ }
     setTimeout(() => {
       if (pendingNavRef.current) {   // stalled fetch — apply on whatever loaded so it can't trap the pill
         applyPendingNav()
@@ -16660,8 +17319,37 @@ export default function StockChart({
   const applyRange = (val) => {
     if (val === 'origin') {
       if (pendingNavRef.current) return   // already loading — ignore repeat clicks
-      // Already at full depth with settled data ⇒ centre immediately (no loading state).
-      const deepLoaded = barCount === _fullTarget && !isValidating && (filteredBars?.length || 0) > 1
+      // ⛔⛔ LOADED DEPTH, NOT DESIRED DEPTH. This read `barCount === _fullTarget`,
+      // and `barCount` is forced to `_fullTarget` by `_deepFirstPaint` -- which is
+      // `backgroundWarm && !barsOverridePending`, i.e. TRUE on every standalone
+      // daily chart from its first frame. So the test was a constant: Origin always
+      // believed deep history was loaded, never called `startNavLoad`, never armed
+      // `pendingNavRef`, and simply centred on whatever happened to be in the series
+      // at click time. With the deep leg still in flight (or failed) that is the
+      // 600-bar first-paint window, so "Origin" on QQQ framed 2024-05-01 -- the
+      // 600th session back -- and never re-framed when the real history landed.
+      //
+      // ⚠️ IT HID BEHIND `!isValidating`. While the PRIMARY was still in flight the
+      // term was false, `startNavLoad` ran, and Origin worked -- which is why a fast
+      // local harness passed this path repeatedly. It only bites once the primary has
+      // SETTLED and the deep leg has not, which is exactly the production shape.
+      //
+      // Loaded rows are the only honest evidence that deep history is actually here.
+      // A genuinely short-history symbol never exceeds the first-paint depth, so it
+      // takes the load path once, the fetch settles, and the pending-nav effect below
+      // applies on "a real fetch ran and returned no more".
+      //
+      // ⛔ SCOPED TO D/W/M ON PURPOSE. `applyRange` is NOT a daily-only path -- the
+      // range bar renders on every timeframe -- and on intraday `_fullTarget` is
+      // 20,000-32,000 bars. Flipping this constant there would turn an Origin click
+      // on a 5m chart into a 30,000-bar member-facing fetch that nothing in this
+      // repair was accepted for, on the one surface whose realtime work is HELD.
+      // Intraday keeps master's behaviour byte for byte; the same constant is wrong
+      // there too, but that is a separate change with its own acceptance.
+      const _loadedRows = filteredBars?.length || 0
+      const deepLoaded = isIntraday
+        ? (barCount === _fullTarget && !isValidating && _loadedRows > 1)
+        : (_loadedRows > _fpBars && !isValidating && _loadedRows > 1)
       if (deepLoaded) {
         pendingNavRef.current = { kind: 'origin' }
         requestAnimationFrame(() => { if (pendingNavRef.current && centerFirstBar()) pendingNavRef.current = null })
@@ -16692,6 +17380,23 @@ export default function StockChart({
       // left, instead of the whole IPO history being stretched across the pane.
       // Window width = the lookback span converted to bars via the series' own
       // bar density (timeframe-agnostic: works for D/W/M).
+      // ⛔ A LOOKBACK MUST OWN ITS HISTORY, NOT JUST FRAME BLANK SPACE. The framing
+      // below deliberately allows a NEGATIVE `from` so a short-history IPO keeps
+      // period-appropriate bar widths with empty space to its left -- correct when the
+      // symbol genuinely has no older bars, wrong when we simply have not fetched them.
+      // With only the 600-bar first paint loaded (~2.4 years of sessions) a 5Y click
+      // framed three years of emptiness and called it five years. If the window reaches
+      // past the oldest LOADED bar while deeper history is still available, fetch it
+      // first and re-apply this same range when it lands. Guarded on `fetchDepth` so a
+      // symbol whose real history is short takes this path at most once and then frames.
+      // ⛔ `!isIntraday` for the same reason as the Origin test above, and it bites
+      // harder here: on a 5m chart only ~1,199 bars are ever loaded, so `cutoffMs <
+      // firstMs` is true for EVERY pill from 3M up, and each of those ordinary clicks
+      // would newly pull 30,000 bars where before it framed blank space for free.
+      if (!isIntraday && cutoffMs < firstMs && fetchDepth !== _fullTarget && !pendingNavRef.current) {
+        startNavLoad({ kind: 'range', target: val })
+        return
+      }
       const msPerBar = (lastMs - firstMs) / lastIdx
       const windowBars = msPerBar > 0 ? (lastMs - cutoffMs) / msPerBar : lastIdx
       if (!(windowBars >= 1)) return
@@ -18483,6 +19188,15 @@ export default function StockChart({
                  chip opens. One address, one surface — a member cannot tell that
                  two components are involved. */
               rowId={c.instanceId}
+              /* ⭐ TESTID PARITY WITH `IndicatorChip` — see `LegendRow.jsx`'s
+                 own doc on these three props. `c` is the identical chip object
+                 an overlay-placed instance's `IndicatorChip` would receive;
+                 passing its `instanceId`/`plotKey`/`computed` through costs
+                 nothing rendered and gives a harness the same handles either
+                 placement uses. */
+              instanceId={c.instanceId}
+              plotKey={c.plotKey}
+              computed={c.computed}
               /* ⭐⭐ THE PANE SPELLS IT OUT — `Relative Strength Index`, not
                  `RSI(14)`; `UCT Stocks Up 20%+ in 5 Days`, not `UCTU20W`. The
                  strip six pixels up keeps the abbreviation, which is the owner's

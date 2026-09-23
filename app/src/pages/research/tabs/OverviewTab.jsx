@@ -1,6 +1,8 @@
 import { lazy, Suspense } from 'react'
 import FundamentalSnapshot from '../../../components/FundamentalSnapshot'
 import DeskCoverage from '../DeskCoverage'
+import LeadershipBadge from '../LeadershipBadge'
+import ConfidenceBadge from '../ConfidenceBadge'
 import styles from '../ResearchPage.module.css'
 
 // The SAME chart the /charts workspace renders — identity row, session toggle,
@@ -23,6 +25,12 @@ export default function OverviewTab({ sym, stats, analyst, ai, row }) {
       <section className={styles.card}>
         <FundamentalSnapshot sym={sym} showResearchLink={false} />
       </section>
+      {/* Packet I: has this ticker been a UCT20 leadership pick, and for how
+          long? Renders null when it has never been one. */}
+      <LeadershipBadge sym={sym} />
+      {/* Packet J: UCT's own computed confidence score for this ticker.
+          Renders null when it has never been scored. */}
+      <ConfidenceBadge sym={sym} />
       {/* What the desk has actually written about this name. Renders null when
           the archive has never covered it. */}
       <DeskCoverage sym={sym} />

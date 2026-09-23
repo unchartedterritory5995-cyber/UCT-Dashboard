@@ -69,9 +69,22 @@ describe('the probe measures something, and cannot manufacture a hole', () => {
     // `pine:role-order` — the door KNOWS the name and could not map our argument
     // list. Reporting that as "Pine has never heard of valuewhen" sends somebody
     // to add a name that is already there.
+    //
+    // ⚰️⚰️ `ta.valuewhen` ITSELF (this probe's own call shape) IS NOW
+    // GENUINELY REACHABLE (2026-09-20) -- not onto the `valuewhen` table
+    // entry this row names, but onto a SEPARATE, real occurrence-indexed
+    // entry (`valuewhenOccurrence`) via a namespace-aware redirect in
+    // `resolveTableCall`. The bare, un-namespaced `valuewhen(...)` call this
+    // test's OWN point was about -- "the door knows the name and could not
+    // map our argument list" -- is UNCHANGED: it still refuses
+    // `pine:role-order` for exactly the reason this test names (see
+    // `pine.roles.test.js`'s and `pine.derived.test.js`'s own updated
+    // coverage). Whatever construct THIS PROBE builds to represent
+    // `valuewhen`'s "call" evidently uses the `ta.` namespace, which is why
+    // its status flipped to `reachable` -- an accurate report of a real,
+    // deliberate capability, not a stale expectation.
     const vw = ROWS.find((r) => r.name === 'valuewhen')
-    expect(vw.pine.status).toBe('call-unmapped')
-    expect(vw.pine.guard).toMatch(/role-order|arity/)
+    expect(vw.pine.status).toBe('reachable')
   })
 
   it('⛔ the map reader finds a PLANTED mapping, and ignores a shapeless entry', () => {
@@ -151,6 +164,16 @@ plot(${n}(volume))
       'avwap', 'donchianLower', 'donchianMiddle', 'donchianUpper',
       'ichimokuChikou', 'ichimokuKijun', 'ichimokuSpanA', 'ichimokuSpanB',
       'ichimokuTenkan', 'idiv', 'mfi', 'mod', 'valuewhen', 'williamsR',
+      // ⭐⭐ `valuewhenOccurrence` (2026-09-20) — reachable ONLY via the
+      // namespace-aware `ta.valuewhen` redirect in `resolveTableCall`,
+      // deliberately NOT under its own bare/literal spelling: no real Pine
+      // script could ever write `ta.valuewhenOccurrence`, and the bare form
+      // has no `PINE_CALL_SHAPES` entry of its own (see
+      // `pine.derived.test.js`'s `TA_VETTED.valuewhen` note for why one was
+      // deliberately not added). A member reaches the real occurrence
+      // semantics by writing `ta.valuewhen(...)`, which is what this
+      // roster's own `valuewhen` row above already covers.
+      'valuewhenOccurrence',
     ]
     // A SUPERSET check, so closing any one is green while a NEW name falling out
     // of every door is a named regression.

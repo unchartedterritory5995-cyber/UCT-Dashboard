@@ -143,7 +143,8 @@ export default function CloseOptionStrategyModal({
       }
       await onSave?.(payload)
     } catch (err) {
-      setErrorMsg(err?.message || String(err))
+      console.error('Failed to close option strategy:', err)
+      setErrorMsg("Couldn't close this strategy. Nothing was changed — try again.")
     } finally {
       setSaving(false)
     }

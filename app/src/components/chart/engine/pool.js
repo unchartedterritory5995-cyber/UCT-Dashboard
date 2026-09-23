@@ -553,7 +553,10 @@ export function seriesOptionsForPlot(plot, ctx) {
       && !!(plot && plot.legend && plot.legend.hide !== true),
     visible: c.indicatorsHidden !== true,
     priceScaleId: (typeof c.scaleId === 'string' && c.scaleId) ? c.scaleId : MAIN_PRICE_SCALE_ID,
-    priceFormat: { type: 'price', precision: precisionFor(plot) },
+    // ⭐ A historical fundamental reads in ITS unit on the axis (`$365.0B`, `24.3%`,
+    // `28.40x`) -- the binder resolves the catalogue format and hands a frozen
+    // priceFormat; every other plot keeps the declared precision, unchanged.
+    priceFormat: c.priceFormat || { type: 'price', precision: precisionFor(plot) },
     // B3 carry #1. A price overlay is a GUEST on the candles' axis and must not
     // stretch it; anything owning its own band must. Always emitted, because a
     // key that can be set must be set on every bind or a re-purpose inherits it —
@@ -773,6 +776,12 @@ export function planBindings(instances, registry, prevBindings, opts) {
   // histogram's default up/down. Absent is safe — `resolveSignColors` falls back
   // to its constants, which is every caller written before themes reached it.
   const candles = (opts && opts.candles && typeof opts.candles === 'object') ? opts.candles : null
+  // ⭐ `(instance) => {defaultStyle, allowedStyles} | null`. ABSENT MEANS THE SOURCE
+  // CONSTRAINS NOTHING, which is every caller written before this project — the plan
+  // then resolves exactly the styles it always did. Present, it both supplies the
+  // default a passthrough row starts at and NARROWS what the resolver will honour.
+  const sourceCapability = opts && typeof opts.sourceCapability === 'function'
+    ? opts.sourceCapability : null
 
   // ── 1. What the chart SHOULD hold ──
   const desired = []
@@ -801,8 +810,17 @@ export function planBindings(instances, registry, prevBindings, opts) {
       // SERIES TYPE from the restyled plot, so a stored `candles` the source
       // cannot mean has to be clamped HERE too — otherwise the plan would create
       // a candlestick the binder then refuses to feed.
+      const srcCap = sourceCapability ? sourceCapability(inst) : null
       const plot = presentedPlot(resolvePlotForInstance(rawPlot, inst.inputs), inst,
-        { ohlcCapable: !!(ohlcCapable && ohlcCapable(inst)), candles })
+        { ohlcCapable: !!(ohlcCapable && ohlcCapable(inst)),
+          candles,
+          // ⛔ THE SOURCE ANSWER REACHES THE PLAN, NOT ONLY THE MENU. `poolKey` picks
+          // the SERIES TYPE off the restyled plot, so a NAAIM instance persisted as
+          // `candles` by an older build has to be clamped to a line HERE or the plan
+          // creates a candlestick the binder then correctly refuses to feed — an
+          // empty series where a line belongs, which is worse than either outcome.
+          sourceDefaultStyle: srcCap ? srcCap.defaultStyle : null,
+          allowedStyles: srcCap ? srcCap.allowedStyles : null })
       const pk = poolKey(plot)
       if (!pk) continue                       // unmappable style: bind nothing
       const key = bindingKey(inst.instanceId, plot.key)

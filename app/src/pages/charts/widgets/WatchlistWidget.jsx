@@ -25,7 +25,7 @@ const SOURCE_WIDGETS = {
 }
 
 export default function WatchlistWidget({ color, opts, onOptsChange }) {
-  const { groupSyms, setGroupSym, activeWatchlistRef } = useWorkspace()
+  const { groupSyms, setGroupSym, groupTfs, activeWatchlistRef } = useWorkspace()
   // Stable id so this widget can claim "active" (owns arrow keys + its own scroll).
   const widgetId = useId()
   // Scoped context: routes the wrapped Watchlists' useChartsSym calls
@@ -33,10 +33,13 @@ export default function WatchlistWidget({ color, opts, onOptsChange }) {
   // re-created when groupSyms changes) so the memoized watchlist rows' select handler
   // stays stable across selection changes.
   const setSym = useCallback((s) => setGroupSym(color, s), [color, setGroupSym])
+  // `tf` = the timeframe this group's chart is on, so the wrapped list warms
+  // the cache key that chart actually reads (see ThemeTrackerPage's warmTf note).
   const scopedSymContext = useMemo(() => ({
     sym: groupSyms[color],
     setSym,
-  }), [groupSyms, color, setSym])
+    tf: groupTfs?.[color],
+  }), [groupSyms, groupTfs, color, setSym])
 
   const watchKey = opts?.watchKey || null
   const pick = useCallback((sel) => {

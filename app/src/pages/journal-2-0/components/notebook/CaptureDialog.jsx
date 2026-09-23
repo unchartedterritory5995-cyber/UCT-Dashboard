@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useId, useRef, useState } from 'react'
-import UIcon from '../../../../components/ui/UIcon'
+import Sheet from '../../../../components/mobile/Sheet'
 import {
   buildCaptureIntent, captureBlockers, captureConfirmation, captureDestination,
   submitCapture, TIER_PASSAGE, TIER_REFERENCE,
@@ -63,43 +63,29 @@ export default function CaptureDialog({
   const [refusal, setRefusal] = useState(null)
   const [result, setResult] = useState(null)
 
-  const dialogRef = useRef(null)
   const firstFieldRef = useRef(null)
-  const openerRef = useRef(null)
 
-  // Remember who opened us so focus can go home on close (§15).
+  // ⭐ Backdrop-click, Escape, Tab-trap and opener-focus-restore all now live
+  // in <Sheet> (competitive-audit UX #13 second half, 2026-09-22) -- this used
+  // to hand-roll all four, which is exactly the "four hand-copied focus-trap
+  // implementations had already drifted" class Sheet.jsx's own header warns
+  // about. What Sheet does NOT know to do is focus the first FIELD rather
+  // than the panel container, so that stays here, layered on top of Sheet's
+  // own (correct, but less specific) panel-focus.
+  // ⛔ MUST be requestAnimationFrame, not setTimeout(fn, 0). Sheet is the
+  // CHILD here, so its own mount effect (which focuses the panel via rAF)
+  // runs BEFORE this one -- React fires effects bottom-up. Two rAF callbacks
+  // scheduled in that order fire in that same order in the next frame, so
+  // this one reliably runs second and wins. A setTimeout(0) raced Sheet's
+  // rAF instead of following it and lost the race (caught by this file's own
+  // "takes initial focus into the first field" test going red).
   useEffect(() => {
     if (!open) return
-    openerRef.current = document.activeElement
-    const t = setTimeout(() => firstFieldRef.current?.focus(), 0)
-    return () => clearTimeout(t)
+    const id = requestAnimationFrame(() => firstFieldRef.current?.focus())
+    return () => cancelAnimationFrame(id)
   }, [open])
 
-  const close = useCallback(() => {
-    onClose?.()
-    // Focus returns to the control that opened capture — a keyboard member must
-    // not be dumped at the top of the document.
-    const opener = openerRef.current
-    if (opener && typeof opener.focus === 'function') setTimeout(() => opener.focus(), 0)
-  }, [onClose])
-
-  // Escape closes; Tab is trapped inside while open.
-  useEffect(() => {
-    if (!open) return
-    const onKey = (e) => {
-      if (e.key === 'Escape') { e.stopPropagation(); close(); return }
-      if (e.key !== 'Tab') return
-      const nodes = dialogRef.current?.querySelectorAll(
-        'button:not([disabled]), input, textarea, select, a[href], [tabindex]:not([tabindex="-1"])')
-      if (!nodes || !nodes.length) return
-      const first = nodes[0]
-      const last = nodes[nodes.length - 1]
-      if (e.shiftKey && document.activeElement === first) { e.preventDefault(); last.focus() }
-      else if (!e.shiftKey && document.activeElement === last) { e.preventDefault(); first.focus() }
-    }
-    document.addEventListener('keydown', onKey, true)
-    return () => document.removeEventListener('keydown', onKey, true)
-  }, [open, close])
+  const close = useCallback(() => { onClose?.() }, [onClose])
 
   if (!open) return null
 
@@ -163,126 +149,18 @@ export default function CaptureDialog({
   const switchToThought = () => setMode('thought')
 
   return (
-    <div className={styles.backdrop} onMouseDown={(e) => { if (e.target === e.currentTarget) close() }}>
-      <div className={styles.sheet} role="dialog" aria-modal="true" aria-labelledby={titleId} ref={dialogRef}>
-        <div className={styles.head}>
-          <h2 id={titleId} className={styles.heading}>Capture</h2>
-          <button type="button" className={styles.close} onClick={close} aria-label="Close capture">
-            <UIcon name="x" size={14} gold={false} />
-          </button>
-        </div>
-
-        {/* Destination first and always visible (§4): a fast capture to the
-            wrong place is still a bad capture. */}
-        <div className={styles.destRow}>
-          <span className={styles.destLabel} id={destId}>Save to</span>
-          {needsPicker ? (
-            /* ⛔ A globally available capture command must actually work
-               globally. With no context there is genuinely nowhere obvious to
-               put it, so we ASK -- one extra step, and only in the case that
-               earns it. This reuses the member's own recent notes rather than
-               inventing a second destination store. */
-            <select className={styles.destPicker} data-testid="capture-destination-picker"
-                    aria-labelledby={destId}
-                    value={pickedDest?.noteId || ''}
-                    onChange={(e) => {
-                      const n = recentDestinations.find((r) => r.id === e.target.value)
-                      setPickedDest(n ? captureDestination({ noteId: n.id, noteTitle: n.title }) : null)
-                    }}>
-              <option value="">Choose a note…</option>
-              {recentDestinations.map((n) => (
-                <option key={n.id} value={n.id}>{n.title?.trim() || 'Untitled'}</option>
-              ))}
-            </select>
-          ) : (
-            <>
-              <span className={styles.destValue} aria-labelledby={destId} data-testid="capture-destination">
-                {dest?.contextLabel || 'Notebook'}
-              </span>
-              {recentDestinations.length > 0 && (
-                <button type="button" className={styles.change}
-                        onClick={() => setPickedDest(captureDestination({}))}>Change</button>
-              )}
-            </>
-          )}
-        </div>
-
-        {mode === 'thought' ? (
-          <>
-            <label className={styles.label} htmlFor={thoughtId}>Quick thought</label>
-            <textarea id={thoughtId} ref={firstFieldRef} className={styles.textarea} rows={5}
-                      value={thought} onChange={(e) => setThought(e.target.value)}
-                      placeholder="What are you thinking?" />
-            <p className={styles.hint}>Your own words — saved as a note.</p>
-            {looksLikeUrl(thought) && (
-              /* Offered, never done for them. */
-              <div className={styles.offer} role="status">
-                <span>That looks like a link.</span>
-                <button type="button" className={styles.link} onClick={switchToSource}>
-                  Save it as a source instead
-                </button>
-              </div>
-            )}
-            <button type="button" className={styles.modeSwitch} onClick={switchToSource}>
-              Saving something from the web? Capture a source
-            </button>
-          </>
-        ) : (
-        <>
-        <label className={styles.label} htmlFor={urlId}>Source link</label>
-        <input id={urlId} ref={firstFieldRef} className={styles.input} type="url"
-               value={url} onChange={(e) => setUrl(e.target.value)}
-               placeholder="https://…" autoComplete="off" />
-
-        <label className={styles.label} htmlFor={titleId + 't'}>Source title</label>
-        <input id={titleId + 't'} className={styles.input} type="text"
-               value={title} onChange={(e) => setTitle(e.target.value)}
-               placeholder="Optional — we'll use the site name" autoComplete="off" />
-
-        {/* §2 — source material and member thought must LOOK different. Two
-            labelled controls, and the passage is visually quoted so nobody
-            mistakes it for something they wrote. */}
-        <label className={styles.label} htmlFor={passageId}>Selected passage</label>
-        <textarea id={passageId} className={`${styles.textarea} ${styles.quoted}`} rows={4}
-                  value={passage} onChange={(e) => setPassage(e.target.value)}
-                  placeholder="Paste the sentences you want to keep" />
-        <p className={styles.hint}>From the source, in its own words.</p>
-
-        <label className={styles.label} htmlFor={annotationId}>Your note</label>
-        <textarea id={annotationId} className={styles.textarea} rows={3}
-                  value={annotation} onChange={(e) => setAnnotation(e.target.value)}
-                  placeholder="What you make of it" />
-        <p className={styles.hint}>Your own thinking — kept separate from the source.</p>
-        <button type="button" className={styles.modeSwitch} onClick={switchToThought}>
-          Just a thought? Write a note instead
-        </button>
-        </>
-        )}
-
-        {refusal && (
-          <div className={styles.refusal} role="alert">
-            <p className={styles.refusalText}>{refusal}</p>
-            {/* ⛔ Never a silent downgrade: the member consciously chooses the
-                permitted alternative. */}
-            <button type="button" className="btn btn-ghost btn-sm" onClick={saveLinkOnly}>
-              Save the link only
-            </button>
-          </div>
-        )}
-        {status === 'error' && message && (
-          <div className={styles.error} role="alert">{message}</div>
-        )}
-        {status === 'saved' && (
-          <div className={styles.saved} role="status">
-            <span>{message}</span>
-            {result?.excerptId || result?.documentId ? (
-              <button type="button" className={styles.link} onClick={() => { onSaved?.(result, { open: true }); close() }}>
-                Open
-              </button>
-            ) : null}
-          </div>
-        )}
-
+    <Sheet
+      open={open}
+      onClose={close}
+      ariaLabel="Capture"
+      title={<h2 id={titleId} className={styles.heading}>Capture</h2>}
+      // §15's global hotkey "deliberately works while typing in the editor"
+      // -- capture can open over anything, including an active toast
+      // (--z-toast, 1100). Preserves the pre-Sheet hardcoded 1200 byte-for-
+      // byte rather than inheriting Sheet's shared --z-modal rung (1000),
+      // which every OTHER Sheet caller relies on staying put.
+      zIndex={1200}
+      footer={
         <div className={styles.foot}>
           <span className={styles.blockers} aria-live="polite">
             {status === 'saving' ? 'Saving…' : (blockers.length ? `Needs ${blockers.join(' and ')}` : '')}
@@ -297,7 +175,118 @@ export default function CaptureDialog({
             </button>
           </div>
         </div>
+      }
+    >
+      {/* Destination first and always visible (§4): a fast capture to the
+          wrong place is still a bad capture. */}
+      <div className={styles.destRow}>
+        <span className={styles.destLabel} id={destId}>Save to</span>
+        {needsPicker ? (
+          /* ⛔ A globally available capture command must actually work
+             globally. With no context there is genuinely nowhere obvious to
+             put it, so we ASK -- one extra step, and only in the case that
+             earns it. This reuses the member's own recent notes rather than
+             inventing a second destination store. */
+          <select className={styles.destPicker} data-testid="capture-destination-picker"
+                  aria-labelledby={destId}
+                  value={pickedDest?.noteId || ''}
+                  onChange={(e) => {
+                    const n = recentDestinations.find((r) => r.id === e.target.value)
+                    setPickedDest(n ? captureDestination({ noteId: n.id, noteTitle: n.title }) : null)
+                  }}>
+            <option value="">Choose a note…</option>
+            {recentDestinations.map((n) => (
+              <option key={n.id} value={n.id}>{n.title?.trim() || 'Untitled'}</option>
+            ))}
+          </select>
+        ) : (
+          <>
+            <span className={styles.destValue} aria-labelledby={destId} data-testid="capture-destination">
+              {dest?.contextLabel || 'Notebook'}
+            </span>
+            {recentDestinations.length > 0 && (
+              <button type="button" className={styles.change}
+                      onClick={() => setPickedDest(captureDestination({}))}>Change</button>
+            )}
+          </>
+        )}
       </div>
-    </div>
+
+      {mode === 'thought' ? (
+        <>
+          <label className={styles.label} htmlFor={thoughtId}>Quick thought</label>
+          <textarea id={thoughtId} ref={firstFieldRef} className={styles.textarea} rows={5}
+                    value={thought} onChange={(e) => setThought(e.target.value)}
+                    placeholder="What are you thinking?" />
+          <p className={styles.hint}>Your own words — saved as a note.</p>
+          {looksLikeUrl(thought) && (
+            /* Offered, never done for them. */
+            <div className={styles.offer} role="status">
+              <span>That looks like a link.</span>
+              <button type="button" className={styles.link} onClick={switchToSource}>
+                Save it as a source instead
+              </button>
+            </div>
+          )}
+          <button type="button" className={styles.modeSwitch} onClick={switchToSource}>
+            Saving something from the web? Capture a source
+          </button>
+        </>
+      ) : (
+        <>
+          <label className={styles.label} htmlFor={urlId}>Source link</label>
+          <input id={urlId} ref={firstFieldRef} className={styles.input} type="url"
+                 value={url} onChange={(e) => setUrl(e.target.value)}
+                 placeholder="https://…" autoComplete="off" />
+
+          <label className={styles.label} htmlFor={titleId + 't'}>Source title</label>
+          <input id={titleId + 't'} className={styles.input} type="text"
+                 value={title} onChange={(e) => setTitle(e.target.value)}
+                 placeholder="Optional — we'll use the site name" autoComplete="off" />
+
+          {/* §2 — source material and member thought must LOOK different. Two
+              labelled controls, and the passage is visually quoted so nobody
+              mistakes it for something they wrote. */}
+          <label className={styles.label} htmlFor={passageId}>Selected passage</label>
+          <textarea id={passageId} className={`${styles.textarea} ${styles.quoted}`} rows={4}
+                    value={passage} onChange={(e) => setPassage(e.target.value)}
+                    placeholder="Paste the sentences you want to keep" />
+          <p className={styles.hint}>From the source, in its own words.</p>
+
+          <label className={styles.label} htmlFor={annotationId}>Your note</label>
+          <textarea id={annotationId} className={styles.textarea} rows={3}
+                    value={annotation} onChange={(e) => setAnnotation(e.target.value)}
+                    placeholder="What you make of it" />
+          <p className={styles.hint}>Your own thinking — kept separate from the source.</p>
+          <button type="button" className={styles.modeSwitch} onClick={switchToThought}>
+            Just a thought? Write a note instead
+          </button>
+        </>
+      )}
+
+      {refusal && (
+        <div className={styles.refusal} role="alert">
+          <p className={styles.refusalText}>{refusal}</p>
+          {/* ⛔ Never a silent downgrade: the member consciously chooses the
+              permitted alternative. */}
+          <button type="button" className="btn btn-ghost btn-sm" onClick={saveLinkOnly}>
+            Save the link only
+          </button>
+        </div>
+      )}
+      {status === 'error' && message && (
+        <div className={styles.error} role="alert">{message}</div>
+      )}
+      {status === 'saved' && (
+        <div className={styles.saved} role="status">
+          <span>{message}</span>
+          {result?.excerptId || result?.documentId ? (
+            <button type="button" className={styles.link} onClick={() => { onSaved?.(result, { open: true }); close() }}>
+              Open
+            </button>
+          ) : null}
+        </div>
+      )}
+    </Sheet>
   )
 }

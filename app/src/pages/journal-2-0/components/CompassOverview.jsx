@@ -50,7 +50,9 @@ export default function CompassOverview({ overview, onScrollToProfile }) {
           <UIcon name="compass" size={12} style={{ verticalAlign: '-1px', marginRight: 5 }} />Compass overview
         </div>
         <div style={{ fontSize: 10, color: 'var(--text-muted)' }}>
-          {regime && <span>Regime: <strong>{regime}</strong> · </span>}
+          {/* PACKET-W CP1 (fingerprint 425778f2c): label only -- the `regime`
+              prop/field name is unchanged, only the displayed word is. */}
+          {regime && <span>Exposure Backdrop: <strong>{regime}</strong> · </span>}
           {active_interventions_count > 0 && (
             <span style={{ color: 'var(--loss, #ef4444)' }}>
               {active_interventions_count} alert{active_interventions_count === 1 ? '' : 's'} ·{' '}

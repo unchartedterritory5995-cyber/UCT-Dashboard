@@ -34,11 +34,13 @@ const GROUP_LABEL = { theme: 'Themes', sector: 'Sectors', industry: 'Industries'
 const GROUP_UNIT = { theme: 'theme', sector: 'sector', industry: 'industry' }
 
 export default function PeriodSortResults({ start, end, color, settingsOverride = null, onSettingsPersist = null, onExit = null, symbolsFilter = null, titlePrefix = null, group = null }) {
-  const { groupSyms, setGroupSym, activeWatchlistRef } = useWorkspace() || {}
+  const { groupSyms, setGroupSym, groupTfs, activeWatchlistRef } = useWorkspace() || {}
   const widgetId = useId()
 
   const setSym = useCallback((s) => { if (color) setGroupSym?.(color, s) }, [color, setGroupSym])
-  const scopedSymContext = useMemo(() => ({ sym: color ? groupSyms?.[color] : null, setSym }), [groupSyms, color, setSym])
+  // `tf` = the timeframe this group's chart is on, so the wrapped list warms
+  // the cache key that chart actually reads (see ThemeTrackerPage's warmTf note).
+  const scopedSymContext = useMemo(() => ({ sym: color ? groupSyms?.[color] : null, setSym, tf: color ? groupTfs?.[color] : undefined }), [groupSyms, groupTfs, color, setSym])
 
   // The whole-market stock scan (always) — for stock rows, drill-down members, AND the
   // per-stock % of a group's expanded members.

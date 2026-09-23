@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import Sheet from '../../../components/mobile/Sheet'
 import StructureProvenance from '../../../components/screener/StructureProvenance'
+import MethodologyPanel from '../../../components/screener/MethodologyPanel'
 import useRealtimePrices from '../../../hooks/useRealtimePrices'
 import { prefetchBars } from '../../../utils/prefetchBars'
 import { useIsPhone } from '../../../hooks/useBreakpoint'
@@ -9,18 +10,24 @@ import { SkeletonTable } from '../../../components/Skeleton'
 import UIcon from '../../../components/ui/UIcon'
 import useScreenerMeta from '../hooks/useScreenerMeta'
 import useScreenerScan from '../hooks/useScreenerScan'
+import useColumnPresets from '../hooks/useColumnPresets'
+import useScreenerCount from '../hooks/useScreenerCount'
 import FilterChips from '../FilterChips'
 import ChartsGallery from '../ChartsGallery'
 import ScreensManager from '../ScreensManager'
 import { COLUMN_DEFS } from '../columnDefs'
 import useScreenSpec from './useScreenSpec'
 import FilterRail from './FilterRail'
+import UniverseBar from './UniverseBar'
 import ShellToolbar from './ShellToolbar'
 import VirtualResults, { LIVE_WINDOW } from './VirtualResults'
 import ResultCards from './ResultCards'
 import { exportScreen } from './csvExport'
 import { LIVE_SORTABLE, sortRowsLive } from './liveSort'
-import ReviewChartsButton from '../../charts/review/ReviewChartsButton'
+import ScreenerReviewOverlay from './ScreenerReviewOverlay'
+import FlaggedActions from './FlaggedActions'
+import SaveScanButton from './SaveScanButton'
+import PresetChips from './PresetChips'
 import useScreenerHubSection from '../../../hub/sections/screenerSection'
 import styles from './ScannerShell.module.css'
 
@@ -99,9 +106,17 @@ export default function ScannerShell({ embedded = false }) {
     () => (retryNonce ? { ...s.scanSpec, _retry: retryNonce } : s.scanSpec),
     [s.scanSpec, retryNonce])
   const { result, isLoading, error } = useScreenerScan(scanSpec)
+  const { presets: columnPresets, save: saveColumnPreset, remove: removeColumnPreset } = useColumnPresets()
+  // PACKET-AB CP1 (fingerprint bc19457cf) -- same scanSpec, a materially cheaper
+  // and faster preview count fed into FilterRail as a fast signal ahead of the
+  // heavier scan above. Never replaces `result`/`isLoading` above.
+  const { count: matchCount, empty: matchCountEmpty, isLoading: matchCountLoading } =
+    useScreenerCount(scanSpec)
 
   const [rows, setRows] = useState([])
-  const [total, setTotal] = useState(0)
+  // null until the first scan answers — so the count shows nothing (not a
+  // flashed "0 names") before the pool size is known.
+  const [total, setTotal] = useState(null)
   useEffect(() => {
     if (!result) return
     setTotal(result.total)
@@ -119,6 +134,9 @@ export default function ScannerShell({ embedded = false }) {
   const [liveSortOn, setLiveSortOn] = useState(false)
   const [sheetOpen, setSheetOpen] = useState(false)
   const [libOpen, setLibOpen] = useState(false)
+  const [reviewOpen, setReviewOpen] = useState(false)
+  // Packet O CP1 (signed 2026-09-22, fingerprint fd57fe079)
+  const [methodologyOpen, setMethodologyOpen] = useState(false)
   const [exportState, setExportState] = useState({})
 
   // ⛔⛔ THE SERVER'S OWN ANSWER OUTRANKS A FABRICATED ONE. `s.visibleColumns` is
@@ -228,60 +246,80 @@ export default function ScannerShell({ embedded = false }) {
 
   const rail = meta && (
     <FilterRail meta={meta} activeFilters={s.filters} onChange={s.setFilter}
-      onClear={s.clearFilters} variant={isPhone ? 'sheet' : 'rail'} />
+      onClear={s.clearFilters} variant={isPhone ? 'sheet' : 'rail'}
+      matchCount={matchCount} matchCountEmpty={matchCountEmpty}
+      matchCountLoading={matchCountLoading} />
   )
 
   return (
     <div className={`${styles.shell} ${embedded ? styles.shellEmbedded : ''}`}>
       {!isPhone && <div className={styles.railSlot}>{rail}</div>}
       <div className={styles.main}>
+        {/* Universe = the base pool the scan runs against (UCT Universe / a
+            watchlist / a union combo). Emits the existing `list` filter, so it
+            needs no new endpoint; a signed-out member sees only UCT Universe. */}
+        <div className={styles.universeRow}>
+          <UniverseBar meta={meta} activeList={s.filters?.list} activeUniverse={s.filters?.universe}
+            onSetFilter={s.setFilter} total={total} isLoading={isLoading}
+            hasFilters={Object.keys(s.filters).some(k => k !== 'universe' && k !== 'list')} />
+          {/* Screener dropdown (preset scans + saved screens/scans) — moved next
+              to the Universe controls so building a scan reads left→right. The
+              wrapper is the joystick hub's scans-door seam (scansDoorRef +
+              data-hub-scans-door); here it adds a real box, not display:contents. */}
+          <span ref={scansDoorRef} data-hub-scans-door="" className={styles.screenerDoor}>
+            <ScreensManager currentSpec={s.baseSpec} onApply={s.applySpec}
+              onUseScan={(hash, name) => {
+                // useScreenSpec exposes `filters` as the raw map keyed by filter
+                // key — no hook change needed for this escape hatch.
+                const cur = s.filters?.scan
+                const have = cur ? (Array.isArray(cur.value) ? cur.value : [cur.value]) : []
+                const value = have.includes(hash) ? have : [...have, hash]
+                s.setFilter('scan', { op: 'in', value: value.length === 1 ? value[0] : value, label: name })
+              }} />
+          </span>
+          {/* One-click preset scans, right in the scan bar — each runs within the
+              pool chosen to its left. */}
+          <PresetChips currentSpec={s.baseSpec} onApply={s.applySpec} />
+        </div>
         <ShellToolbar meta={meta} view={s.view} onView={s.setView}
           visibleColumns={visibleColumns} allColumns={allColumns}
           onColumns={s.setColumns} onResetColumns={() => s.setColumns(null)}
+          presets={columnPresets}
+          onApplyPreset={p => s.setColumns(p.columns)}
+          onDeletePreset={removeColumnPreset}
+          onSavePreset={name => saveColumnPreset(name, visibleColumns)}
           density={density} onDensity={onDensity}
           snapshot={result?.snapshot} snapshotDate={result?.snapshot_date}
           total={total} shown={rows.length} isLoading={isLoading}
           onExport={handleExport} exportState={exportState}
-          reviewBar={(
+          reviewBar={displayRows.length > 0 ? (
             /* ⛔ THE LOADED PAGE, NOT `total`. The toolbar can read "3,745
              * matches" while 100 rows have arrived; a review can only walk what
              * the member can see, so the button's own count is the honest number
-             * and it deliberately differs from the match count beside it. */
-            <ReviewChartsButton
-              symbols={displayRows.map(r => r.ticker)}
-              source="screener"
-              label="Screener"
-              /* ⛔ THE ORDERING IS NAMED, INCLUDING THE LIVE FLAG. A review taken
-               * under the live re-sort walked a different list from one taken
-               * under snapshot order, and the session records which — the same
-               * distinction the "snapshot order" chip makes on screen. */
-              sort={s.sort?.key
-                ? `${s.sort.key}:${s.sort.dir || 'desc'}${liveSortOn ? ':live' : ''}`
-                : null}
-            />
+             * and it deliberately differs from the match count beside it.
+             * Opens the IN-SCREENER review overlay (below) — no navigation to
+             * /charts; the member flips through the charts here, keyboard-driven. */
+            <button type="button" className={styles.toolBtn} onClick={() => setReviewOpen(true)}>
+              <UIcon name="chart" size={13} /> Review charts <b>{displayRows.length}</b>
+            </button>
+          ) : null}
+          libraryBar={(
+            <>
+              <button type="button" className={styles.toolBtn} onClick={() => setLibOpen(true)}>
+                <UIcon name="book" size={12} /> Structure library
+              </button>
+              {/* Packet O CP1 (signed 2026-09-22, fingerprint fd57fe079) -- same
+                  toolBtn + Sheet idiom as "Structure library" above. */}
+              <button type="button" className={styles.toolBtn} onClick={() => setMethodologyOpen(true)}>
+                <UIcon name="book" size={12} /> Methodology
+              </button>
+            </>
           )}
-          /* ⛔ THE WRAPPER IS THE SEAM'S ANCHOR, and `display:contents` is load-bearing: the
-             toolbar's `.toolGroup` is a flex row and `.saveMenuWrap` positions the popover
-             against itself, so the wrapper must add a queryable node and NO box. */
-          saveBar={<span ref={scansDoorRef} data-hub-scans-door="" style={{ display: 'contents' }}>
-            <ScreensManager currentSpec={s.baseSpec} onApply={s.applySpec}
-            onUseScan={(hash, name) => {
-              // useScreenSpec already exposes `filters` as the raw map keyed
-              // by filter key (see shell/useScreenSpec.js's return object) —
-              // no hook change was needed for this escape hatch.
-              const cur = s.filters?.scan
-              const have = cur ? (Array.isArray(cur.value) ? cur.value : [cur.value]) : []
-              const value = have.includes(hash) ? have : [...have, hash]
-              s.setFilter('scan', { op: 'in', value: value.length === 1 ? value[0] : value,
-                                    label: name })
-            }} />
-          </span>} />
+          saveBar={<SaveScanButton spec={s.baseSpec}
+            hasFilters={Object.keys(s.filters).length > 0} />} />
         <div className={styles.underbar}>
           <button type="button" className={styles.railToggle} onClick={() => setSheetOpen(true)}>
             <UIcon name="gear" size={12} /> Filters{Object.keys(s.filters).length ? ` · ${Object.keys(s.filters).length}` : ''}
-          </button>
-          <button type="button" className={styles.toolBtn} onClick={() => setLibOpen(true)}>
-            <UIcon name="book" size={11} /> Structure library
           </button>
           <FilterChips meta={meta} activeFilters={s.filters}
             onRemove={key => s.setFilter(key, null)} onClear={s.clearFilters}
@@ -295,6 +333,9 @@ export default function ScannerShell({ embedded = false }) {
               </button>
             </span>
           )}
+          {/* Appears only once something is flagged; moves the flagged set into a
+              watchlist. Self-contained (owns useFlagged); safe to always mount. */}
+          <FlaggedActions />
         </div>
         {error && (
           <div className={styles.scanError} role="alert">
@@ -356,15 +397,26 @@ export default function ScannerShell({ embedded = false }) {
         title="Structure library" ariaLabel="Structure library" maxWidth={880}>
         {libOpen && <StructureProvenance />}
       </Sheet>
+      {/* Packet O CP1 (signed 2026-09-22, fingerprint fd57fe079) */}
+      <Sheet open={methodologyOpen} onClose={() => setMethodologyOpen(false)} variant="auto"
+        title="Methodology" ariaLabel="Methodology" maxWidth={880}>
+        {methodologyOpen && <MethodologyPanel />}
+      </Sheet>
       <FiltersSheet open={sheetOpen} onClose={() => setSheetOpen(false)}
         onClear={s.clearFilters} onApply={() => setSheetOpen(false)}
         title="Scan Filters" activeCount={Object.keys(s.filters).length}
         applyLabel="Show results">
         {meta && (
           <FilterRail meta={meta} activeFilters={s.filters} onChange={s.setFilter}
-            onClear={s.clearFilters} variant="sheet" />
+            onClear={s.clearFilters} variant="sheet"
+            matchCount={matchCount} matchCountEmpty={matchCountEmpty}
+            matchCountLoading={matchCountLoading} />
         )}
       </FiltersSheet>
+      {/* In-screener chart review — walks displayRows' tickers (the order shown)
+          one chart at a time, keyboard-driven, without leaving the screener. */}
+      <ScreenerReviewOverlay symbols={displayRows.map(r => r.ticker)}
+        open={reviewOpen} onClose={() => setReviewOpen(false)} />
     </div>
   )
 }

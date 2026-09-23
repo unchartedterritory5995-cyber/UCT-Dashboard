@@ -225,6 +225,40 @@ export function useJ2NoteFolderCounts() {
   }
 }
 
+/** Competitive-audit UX #9: the search panel's Sector/Theme filter option
+ * lists — the distinct values available among THIS member's own
+ * mentioned-symbol vocabulary (see
+ * api/services/journal_two/notes.py::get_sector_theme_facets). Never the
+ * full themes_taxonomy.json roster: offering a sector/theme this member has
+ * zero notes for would be a dropdown option guaranteed to return no
+ * results, worse than the free-text input it replaces.
+ *
+ * `sectors`/`themes` are `undefined` (never `[]`) until the server actually
+ * answers, matching `useJ2NoteFolderCounts`'s "unknown vs. known-empty"
+ * discipline just above — a brand-new member with no mentioned tickers yet
+ * gets a real `[]`, told apart from "still loading" via `isLoading`.
+ *
+ * `enabled` (default true) lets a caller skip the fetch via SWR's null-key
+ * convention until it's actually needed — the search panel's filters are
+ * collapsed by default (Wave 4 Slice 1/3), so FolderSidebar passes
+ * `enabled: showFilters` rather than fetching this on every search-mode
+ * mount. */
+export function useJ2SectorThemeFacets({ enabled = true } = {}) {
+  const { data, error, isLoading, mutate } = useSWR(
+    enabled ? '/api/j2/notes/sector-theme-facets' : null, fetcher, {
+      revalidateOnFocus: true,
+      shouldRetryOnError: false,
+    },
+  )
+  return {
+    sectors: data?.sectors,
+    themes: data?.themes,
+    isLoading,
+    error,
+    refresh: () => mutate(),
+  }
+}
+
 // ── Wave B (High-Frequency Notebook UX): Favorites + Recents ────────────────
 // Both use the STABLE, no-limit URL as their SWR key (server-side default
 // caps apply — FAVORITES_DEFAULT_LIMIT=50 / RECENTS_DEFAULT_LIMIT=8) so every

@@ -14,6 +14,8 @@ import { normalizeDock } from './chartDock'
 import styles from '../ChartsWorkspace.module.css'
 import ChartTabStrip from './ChartTabStrip'
 import { prefetchReplayTimeframes } from '../../../utils/prefetchBars'
+import { fetchTf } from '../../../components/chart/timeframes'
+import useSymbolHandoff from '../../../hooks/useSymbolHandoff'
 import {
   sanitizeChartTabs, chartTabList, addChartTab, closeChartTab,
   setActiveChartTab, renameChartTab, patchChartTab,
@@ -46,7 +48,7 @@ function lwcTimeToTs(t) {
 // the right-click menu and the workspace-only chrome (leverage picker, add-tab,
 // Share to the Floor).
 export default function ChartWidget({ color, opts, onOptsChange, chartId = null }) {
-  const { groupSyms, setGroupSym, crosshairBus, chartsTheme, activeChartRef, chartApiById, periodSortMode, onPeriodSelected: wsOnPeriodSelected, onPeriodCancel: wsOnPeriodCancel, replayCutoff, exitReplay, startMarker, startMarkerStyle, replayArmPick, onReplayCutoffPicked: wsOnReplayCutoffPicked, onReplayPickCancel: wsOnReplayPickCancel, floatNewWidget, applyThemeToAllCharts, applyThemeToAllWidgets } = useWorkspace()
+  const { groupSyms, setGroupSym, setGroupTf, crosshairBus, chartsTheme, activeChartRef, chartApiById, periodSortMode, onPeriodSelected: wsOnPeriodSelected, onPeriodCancel: wsOnPeriodCancel, replayCutoff, exitReplay, startMarker, startMarkerStyle, replayArmPick, onReplayCutoffPicked: wsOnReplayCutoffPicked, onReplayPickCancel: wsOnReplayPickCancel, floatNewWidget, applyThemeToAllCharts, applyThemeToAllWidgets } = useWorkspace()
   const navigate = useNavigate()
   const { createAlert } = useWatchlistAlerts()
   // Imperative handle on the pane: the right-click menu opens its settings
@@ -64,6 +66,9 @@ export default function ChartWidget({ color, opts, onOptsChange, chartId = null 
   const isMainTab = activeTabIdx === 0
   const activeExtra = isMainTab ? null : (extraTabs[activeTabIdx - 1] || null)
   const activeColor = isMainTab ? color : (activeExtra?.color || color)
+  // Declared HERE, beside the other tab-derived values, because the symbol
+  // handoff below needs it and `sym` is read only a few lines further down.
+  const tf = isMainTab ? (opts?.tf || 'D') : (activeExtra?.tf || 'D')
 
   // ⭐ PHASE C TASK 12 — THE CHART ID THIS SURFACE PUBLISHES.
   //
@@ -88,11 +93,40 @@ export default function ChartWidget({ color, opts, onOptsChange, chartId = null 
   // runs the full StockChart fetch/framing pipeline and the charts fall behind. The
   // chart settles on the ticker you land on when the scan pauses.
   const groupSym = groupSyms[activeColor] || 'SPY'
-  const [sym, setSym] = useState(groupSym)
+  // The SETTLED request: which symbol the member has landed on. (The debounce
+  // above stops a fast arrow-scan running the full pipeline per intermediate
+  // ticker.) This is still a derived view of the colour group — the group
+  // remains the one writable symbol authority.
+  const [requestedSym, setRequestedSym] = useState(groupSym)
   useEffect(() => {
-    const t = setTimeout(() => setSym(groupSym), 90)
+    const t = setTimeout(() => setRequestedSym(groupSym), 90)
     return () => clearTimeout(t)
   }, [groupSym])
+
+  // ⭐⭐ ATOMIC SYMBOL HANDOFF. `sym` is what the chart DISPLAYS, and it only
+  // advances to the request once current-enough data for it exists — so the
+  // member never sees B's identity over a blank canvas, over A's candles, or
+  // over hours-stale B candles. Everything below this line (ChartPane, the
+  // dock, the leverage/holdings controls, the capture read-out) reads `sym`,
+  // which is exactly why the lag is applied HERE: above every identity
+  // consumer, in one place, instead of inside the chart where half of them do
+  // not live.
+  //
+  // ⛔ NOT A SECOND SYMBOL AUTHORITY. Nothing writes to it, nothing persists it,
+  // and no fetch or save decision reads it; `handleSymbolChange` still writes
+  // the colour group, which still drives `requestedSym`. It is a render lag
+  // that always converges on the request (and commits at a deadline even if the
+  // data never arrives, so a dead ticker cannot pin the old chart on screen).
+  //
+  // ⚠️ `tf` IS DECLARED UP WITH THE TAB VALUES SO THIS CAN SIT HERE, ABOVE THE
+  // FIRST READER OF `sym` (isThemeIndex, a few lines down). An earlier attempt
+  // put this after `tf`'s original position and threw
+  // `ReferenceError: Cannot access 'sym' before initialization` — the third
+  // temporal-dead-zone crash in this project, and the awk word-boundary check
+  // that was supposed to catch it matched NOTHING, because POSIX awk has no
+  // word-boundary escape at all -- the pattern silently matches nothing and
+  // reads like a clean result. Verify a TDZ window with grep.
+  const sym = useSymbolHandoff(requestedSym, tf)
 
   // Thematic-ETF pseudo-ticker ("$IDX:<slug>" — see useThemeIndexBars, which the
   // pane owns): a synthetic index has no leveraged/inverse family, so that
@@ -158,13 +192,29 @@ export default function ChartWidget({ color, opts, onOptsChange, chartId = null 
     }
   }, [activeChartRef])
 
-  const tf = isMainTab ? (opts?.tf || 'D') : (activeExtra?.tf || 'D')
+
   // Ref mirrors for the capture read-out below — it lives in an effect keyed
   // on other deps, so it must read the CURRENT symbol/tf, not a stale closure.
   const symRef = useRef(sym)
   symRef.current = sym
   const tfRef = useRef(tf)
   tfRef.current = tf
+  // Broadcast the timeframe this group is on so list widgets sharing the color
+  // (Theme Tracker, Watchlists) warm bars under the key this chart will read.
+  // Publish-only: `opts.tf` above stays the authority, this is a derived mirror.
+  //
+  // ⛔ PUBLISH THE NATIVE FETCH BASE, NOT THE DISPLAY CODE. A CUSTOM timeframe
+  // (2m, 45m, 4h, 2D …) is client-resampled from a native one, so the bars cache
+  // is keyed by the BASE — warming `SYM_2` for a 2m chart is as useless as
+  // warming `SYM_D` was, and the harness measured exactly that (2m "warm" p50
+  // 409ms, i.e. no better than cold, while every native tf warmed to ~10ms).
+  //
+  // Optional-call: hosts outside ChartsWorkspace (tests, /r/chart, pop-outs)
+  // hand-build a partial workspace value, and a missing broadcast channel must
+  // never break the chart — the list just keeps its own timeframe.
+  const barsTf = fetchTf(tf)
+  useEffect(() => { setGroupTf?.(activeColor, barsTf) }, [activeColor, barsTf, setGroupTf])
+
   const setTf = useCallback((nextTf) => {
     if (nextTf === tf) return
     if (isMainTab) onOptsChange?.({ ...(opts || {}), tf: nextTf })

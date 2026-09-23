@@ -35,6 +35,19 @@
 export const OHLC_FAMILY = Object.freeze({
   SECURITY: 'security',
   BREADTH: 'breadth',
+  // ⭐ THE MARKET INDICATOR FAMILIES. `VOLATILITY` is a published Cboe index whose
+  // daily bars ARE an auction period, so it joins the allow-list below; `INDICATOR`
+  // (breadth-derived) and `SURVEY` (one scalar per week) are not, and never can be.
+  //
+  // ⛔⛔ AND `VOLATILITY` IS CLAIMED PER SERIES, NOT PER FAMILY. Cboe publish VIX as
+  // DATE,OPEN,HIGH,LOW,CLOSE but VVIX and SKEW as DATE,<SYM> — one close and nothing
+  // else. The resolver only returns this family for a series the registry marks
+  // `ohlc_capable`, so a close-only volatility index is classified `INDICATOR` and is
+  // refused candles. A family-level claim would draw a tidy candlestick over a
+  // synthesised o=h=l=c whose body and range mean nothing.
+  VOLATILITY: 'volatility',
+  INDICATOR: 'indicator',
+  SURVEY: 'survey',
   UNKNOWN: 'unknown',
 })
 
@@ -76,7 +89,8 @@ export function outputIsSource(def) {
  * quarter — is refused until somebody decides what its bars MEAN. Denying only
  * `breadth` would silently admit the next synthetic family the day it appears.
  */
-const OHLC_FAMILIES = Object.freeze(new Set([OHLC_FAMILY.SECURITY]))
+const OHLC_FAMILIES = Object.freeze(new Set([OHLC_FAMILY.SECURITY,
+                                             OHLC_FAMILY.VOLATILITY]))
 
 /** Is `v` a real number we could draw? */
 const num = (v) => typeof v === 'number' && Number.isFinite(v)

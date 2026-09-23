@@ -161,3 +161,16 @@ def test_recents_respects_limit_query_param(app, client):
         client.post(f"/api/j2/notes/{note_id}/opened")
     r = client.get("/api/j2/notes/recents", params={"limit": 2})
     assert len(r.json()["notes"]) == 2
+
+
+# ── Sector/Theme facets (competitive-audit UX #9) ───────────────────────────
+
+def test_route_declaration_order_sector_theme_facets_is_not_swallowed_as_a_note_id(app, client):
+    """Same FastAPI declaration-order trap as favorites/recents above --
+    GET /api/j2/notes/sector-theme-facets must resolve to the facets route,
+    not fall through to GET /api/j2/notes/{note_id} with
+    note_id='sector-theme-facets' (which would 404)."""
+    _login_as(app, "u1")
+    r = client.get("/api/j2/notes/sector-theme-facets")
+    assert r.status_code == 200
+    assert r.json() == {"sectors": [], "themes": []}

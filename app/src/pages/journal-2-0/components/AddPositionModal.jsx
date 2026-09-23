@@ -256,7 +256,8 @@ export default function AddPositionModal({ settings, onSave, onClose, prefill, a
       await settleNoteWrite(noteId, res)
       return null
     } catch (e) {
-      return String(e?.message || e)
+      console.error('Failed to link thesis note:', e)
+      return 'network error'
     }
   }, [])
 
@@ -374,7 +375,8 @@ export default function AddPositionModal({ settings, onSave, onClose, prefill, a
       }
       onClose?.()
     } catch (e) {
-      setErrorMsg(String(e?.message || e))
+      console.error('Failed to save position:', e)
+      setErrorMsg("Couldn't save this position. Nothing was changed — try again.")
     } finally {
       setSaving(false)
     }
