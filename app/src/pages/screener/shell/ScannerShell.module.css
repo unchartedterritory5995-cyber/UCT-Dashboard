@@ -16,6 +16,11 @@
 .railSearchRow { display: flex; align-items: center; gap: 6px; padding: 10px; position: sticky; top: 0; background: var(--bg-surface); z-index: 2; border-bottom: 1px solid var(--border); }
 .railSearch { flex: 1; background: var(--bg-elevated); border: 1px solid var(--border); border-radius: var(--radius-sm, 6px); padding: 6px 8px; color: var(--text); font-size: 12px; min-width: 0; }
 .railClear { background: none; border: none; color: var(--ut-gold); font-size: 11px; cursor: pointer; text-decoration: underline; white-space: nowrap; }
+/* PACKET-AB CP1 (fingerprint bc19457cf): the fast preview-count badge -- a
+   visual affordance beside the search row, never carrying aria-live (that
+   stays ShellToolbar's alone, see FilterRail.jsx's own comment). */
+.railMatchCount { padding: 4px 10px 8px; font-size: 11px; color: var(--text-muted); }
+.railMatchCountEmpty { color: var(--loss, #ef4444); font-weight: 500; }
 .railGroup { border-bottom: 1px solid var(--border); padding-bottom: 4px; }
 .railHead { display: flex; align-items: center; gap: 6px; width: 100%; background: none; border: none; color: var(--text-muted); font-size: 10px; text-transform: uppercase; letter-spacing: var(--ls-label, .5px); padding: 9px 10px 5px; cursor: pointer; }
 .railHead span:first-child { flex: 1; text-align: left; }

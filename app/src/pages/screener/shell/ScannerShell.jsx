@@ -10,6 +10,7 @@ import { SkeletonTable } from '../../../components/Skeleton'
 import UIcon from '../../../components/ui/UIcon'
 import useScreenerMeta from '../hooks/useScreenerMeta'
 import useScreenerScan from '../hooks/useScreenerScan'
+import useScreenerCount from '../hooks/useScreenerCount'
 import FilterChips from '../FilterChips'
 import ChartsGallery from '../ChartsGallery'
 import ScreensManager from '../ScreensManager'
@@ -100,6 +101,11 @@ export default function ScannerShell({ embedded = false }) {
     () => (retryNonce ? { ...s.scanSpec, _retry: retryNonce } : s.scanSpec),
     [s.scanSpec, retryNonce])
   const { result, isLoading, error } = useScreenerScan(scanSpec)
+  // PACKET-AB CP1 (fingerprint bc19457cf) -- same scanSpec, a materially cheaper
+  // and faster preview count fed into FilterRail as a fast signal ahead of the
+  // heavier scan above. Never replaces `result`/`isLoading` above.
+  const { count: matchCount, empty: matchCountEmpty, isLoading: matchCountLoading } =
+    useScreenerCount(scanSpec)
 
   const [rows, setRows] = useState([])
   const [total, setTotal] = useState(0)
@@ -231,7 +237,9 @@ export default function ScannerShell({ embedded = false }) {
 
   const rail = meta && (
     <FilterRail meta={meta} activeFilters={s.filters} onChange={s.setFilter}
-      onClear={s.clearFilters} variant={isPhone ? 'sheet' : 'rail'} />
+      onClear={s.clearFilters} variant={isPhone ? 'sheet' : 'rail'}
+      matchCount={matchCount} matchCountEmpty={matchCountEmpty}
+      matchCountLoading={matchCountLoading} />
   )
 
   return (
@@ -375,7 +383,9 @@ export default function ScannerShell({ embedded = false }) {
         applyLabel="Show results">
         {meta && (
           <FilterRail meta={meta} activeFilters={s.filters} onChange={s.setFilter}
-            onClear={s.clearFilters} variant="sheet" />
+            onClear={s.clearFilters} variant="sheet"
+            matchCount={matchCount} matchCountEmpty={matchCountEmpty}
+            matchCountLoading={matchCountLoading} />
         )}
       </FiltersSheet>
     </div>
