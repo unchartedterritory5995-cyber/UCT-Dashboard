@@ -44,6 +44,7 @@ from typing import Optional
 
 import numpy as np
 
+from api.services import breadth_ticker as bt
 from api.services import massive
 
 #: Sessions of history handed to `build_levels`. MUST equal `breadth_live._FRAME_SESSIONS`
@@ -65,8 +66,15 @@ _CACHE_MAX = 512                     # > FRAME_SESSIONS so a sequential pass sta
 _STATS = {"parsed": 0, "hit": 0, "miss": 0}
 
 
+#: ⭐ THE INPUT IS ONE ADJUSTMENT VINTAGE. `BREADTH_GROUPED_DIR` points the pass at a cache
+#: that was fetched in a single window with a manifest (fetch times + sha256 per file), so no
+#: two files can sit on different split bases. Unset = the product's durable cache (legacy).
+def grouped_dir() -> str:
+    return os.environ.get("BREADTH_GROUPED_DIR") or massive._GROUPED_DIR
+
+
 def _path(iso: str, adjusted: bool = True) -> str:
-    return os.path.join(massive._GROUPED_DIR, "%s_%d.json" % (iso, 1 if adjusted else 0))
+    return os.path.join(grouped_dir(), "%s_%d.json" % (iso, 1 if adjusted else 0))
 
 
 def session_calendar() -> list:
@@ -84,7 +92,7 @@ def session_calendar() -> list:
         if _CALENDAR is None:
             out = []
             try:
-                for fn in os.listdir(massive._GROUPED_DIR):
+                for fn in os.listdir(grouped_dir()):
                     if fn.endswith("_1.json"):
                         out.append(fn[:-7])
             except OSError:
@@ -99,11 +107,11 @@ def cache_identity() -> dict:
     h = hashlib.sha256(("\n".join(cal)).encode()).hexdigest()
     total = 0
     try:
-        for fn in os.listdir(massive._GROUPED_DIR):
-            total += os.path.getsize(os.path.join(massive._GROUPED_DIR, fn))
+        for fn in os.listdir(grouped_dir()):
+            total += os.path.getsize(os.path.join(grouped_dir(), fn))
     except OSError:
         pass
-    return {"dir": massive._GROUPED_DIR, "sessions": len(cal),
+    return {"dir": grouped_dir(), "sessions": len(cal),
             "first": cal[0] if cal else None, "last": cal[-1] if cal else None,
             "calendar_sha256": h, "bytes": total}
 
@@ -141,7 +149,10 @@ def _load(iso: str):
         for k, v in raw.items():
             if not isinstance(v, (int, float)) or not v > 0:
                 continue
-            t = sys.intern(k.replace(".", "-"))
+            # ⛔ CANONICAL SPELLING — the provider's own (`BRK.B`). This line used to
+            # rewrite it to `BRK-B`, which is what cut every dual-class member off from
+            # its levels and its close while the minute path still counted it.
+            t = sys.intern(bt.canon(k))
             i = _MASTER_IX.get(t)
             if i is None:
                 i = len(_MASTER)
@@ -166,6 +177,28 @@ def closes_for(iso: str) -> dict:
         return {}
     idx, val = e
     return {_MASTER[int(i)]: float(v) for i, v in zip(idx, val)}
+
+
+def raw_closes_for(iso: str) -> dict:
+    """{ticker: provider RAW (as-traded) close} for one session, canonical spelling, from
+    the SAME vintage directory as the adjusted closes."""
+    try:
+        with open(_path(iso, False)) as fh:
+            raw = json.load(fh)
+    except (OSError, ValueError):
+        return {}
+    return {bt.canon(k): float(v) for k, v in raw.items()
+            if isinstance(v, (int, float)) and v > 0}
+
+
+def session_factors(iso: str, members) -> dict:
+    """⭐ F1, from ONE vintage: {ticker: adjusted_D / raw_D}, both provider closes of the
+    same session read from the same directory. Replaces `session_basis`'s read of the
+    product cache, which could sit on a different vintage from the levels."""
+    want = members if isinstance(members, (set, frozenset)) else set(members)
+    adj = official_closes(iso, want)
+    raw = raw_closes_for(iso)
+    return {t: adj[t] / raw[t] for t in adj if t in raw and raw[t] > 0}
 
 
 def official_closes(iso: str, members) -> dict:
@@ -208,7 +241,8 @@ def _row_map(rows: list, size: int) -> np.ndarray:
     return m2r
 
 
-def levels_for_day(tickers: list, day_iso: str, n: int = FRAME_SESSIONS):
+def levels_for_day(tickers: list, day_iso: str, n: int = FRAME_SESSIONS,
+                   withhold: frozenset = frozenset()):
     """Canonical levels for `day_iso`, built from grouped history. None if too short.
 
     ⛔⛔ IT CALLS THE CANONICAL BUILDER. `breadth_live.build_levels` is the one
@@ -238,6 +272,12 @@ def levels_for_day(tickers: list, day_iso: str, n: int = FRAME_SESSIONS):
         sel = m2r[idx]
         keep = sel >= 0
         closes[sel[keep], j] = val[keep]
+    # ⛔ ADJUSTED-SERIES GUARD: a name whose frame straddles a non-REAL basis boundary gets
+    # NO levels — it is counted, never compared (see breadth_adjusted_guard).
+    if withhold:
+        for i, t in enumerate(rows):
+            if t in withhold:
+                closes[i, :] = np.nan
     prior_ts = bl._ts_int(_dt.date.fromisoformat(dates[-1]))
     lv = bl.build_levels(rows, closes, vols, prior_ts)
     lv["_source"] = "grouped_adjusted_daily"
@@ -273,7 +313,7 @@ def naive_levels_for_day(tickers: list, day_iso: str, n: int = FRAME_SESSIONS):
         for k, v in raw.items():
             if not isinstance(v, (int, float)) or not v > 0:
                 continue
-            i = ix.get(k.replace(".", "-"))
+            i = ix.get(bt.canon(k))
             if i is not None:
                 closes[i, j] = float(v)
     if seen < MIN_FRAME:

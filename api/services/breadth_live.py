@@ -546,7 +546,12 @@ def _ewm_last(arr: np.ndarray, alpha: float) -> np.ndarray:
         old_wt[step] *= (1.0 - alpha)
         upd = step & ok
         out[upd] = (old_wt[upd] * out[upd] + alpha * col[upd]) / (old_wt[upd] + alpha)
-        old_wt[upd] += alpha
+        # ⛔ adjust=False RESETS the weight to 1 after an observation. This line used to be
+        # `old_wt += alpha` — pandas' adjust=TRUE rule — identical on a gap-free series
+        # (1-a+a = 1) and divergent after ANY missing session (measured -0.0035 on a ~97
+        # price after one gap; the collector's pandas EMA disagreed on 124 of 5,874
+        # validation cells). `tests/test_breadth_v2cc_ewm.py` pins pandas equality.
+        old_wt[upd] = 1.0
     return out
 
 

@@ -24,6 +24,8 @@ from __future__ import annotations
 import math
 from typing import Optional
 
+from api.services import breadth_ticker as bt
+
 # The pct_above_* / ratio-share family: bounded [0,100], and a real intraday swing
 # is modest. This is THE anti-garbage guard — the failed shortcut produced 40-50+
 # point "swings"; genuine whole-market breadth rarely moves >~20 points intraday
@@ -142,6 +144,27 @@ def path_quality(metric: str, shape: dict, rule: Optional[dict] = None) -> tuple
     return True, "ok"
 
 
+#: ⭐ THE ROLLING UP/DOWN RATIOS (`breadth_monitor._ratio`): sum up_4pct_today / sum
+#: down_4pct_today over the last N sessions INCLUDING today, 2 dp, None when the down-sum
+#: is 0. Historical: the N-1 prior sessions' CLOSE counts come from the artifact itself;
+#: intraday: today's term is the path value at that minute. A window with fewer than N-1
+#: prior sessions is NOT computed (no short-window value wearing the N-day name).
+ROLLING_RATIOS = (("ratio_5day", 5), ("ratio_10day", 10))
+
+
+def _add_rolling(m: dict, prior) -> None:
+    up, dn = m.get("up_4pct_today"), m.get("down_4pct_today")
+    if not prior or not isinstance(up, (int, float)) or not isinstance(dn, (int, float)):
+        return
+    for key, n in ROLLING_RATIOS:
+        p = prior.get(n)
+        if not p:
+            continue
+        su, sd = p[0] + float(up), p[1] + float(dn)
+        if sd > 0:
+            m[key] = round(su / sd, 2)
+
+
 def _add_composites(m: dict) -> None:
     """Derive NETHL / PH / PL AT THIS TIMESTAMP, in place.
 
@@ -179,7 +202,8 @@ def _add_composites(m: dict) -> None:
 def aggregate_day(levels: dict, prices_by_bucket: list[dict], close_val_by_metric: dict,
                   vols_by_bucket: Optional[list[dict]] = None,
                   max_pct_delta: float = MAX_PCT_INTRADAY_DELTA,
-                  path_rule: Optional[dict] = None) -> dict:
+                  path_rule: Optional[dict] = None,
+                  rolling_prior: Optional[dict] = None) -> dict:
     """Reconstruct one past day's per-metric OHLC from intraday buckets.
 
     `levels`            — build_levels() for the day (MAs fixed from prior closes).
@@ -211,6 +235,7 @@ def aggregate_day(levels: dict, prices_by_bucket: list[dict], close_val_by_metri
         except Exception:
             continue
         _add_composites(m)
+        _add_rolling(m, rolling_prior)
         for k, v in m.items():
             if k.startswith("_"):
                 continue
@@ -447,7 +472,7 @@ def session_basis(conn, day_ts: int, tickers=None) -> dict:
     out = {}
     for t, r in raw.items():
         # provider form carries a dot (BRK.B); the frame and the flat file use a dash.
-        key = t.replace(".", "-")
+        key = bt.canon(t)
         if want is not None and key not in want:
             continue
         a = adj.get(t)
@@ -524,7 +549,9 @@ def session_ohlc(D: str, per_ticker: dict, levels: dict,
                  bucket_min: int = 1, members: Optional[set] = None,
                  basis: Optional[dict] = None,
                  eod_prices: Optional[dict] = None,
-                 path_rule: Optional[dict] = None) -> Optional[dict]:
+                 path_rule: Optional[dict] = None,
+                 calendar_window: bool = False,
+                 rolling_prior: Optional[dict] = None) -> Optional[dict]:
     """ONE universe's OHLC from an ALREADY-DOWNLOADED session. The whole math path.
 
     ⭐⭐ EXTRACTED SO THE EXPENSIVE FILE IS READ ONCE. `recon_day` below is now a thin
@@ -554,10 +581,23 @@ def session_ohlc(D: str, per_ticker: dict, levels: dict,
     from api.services.breadth_live import compute_metrics
 
     all_buckets = sorted({b["t"] for bars in per_ticker.values() for b in bars})
-    bounds = bsess.rth_bounds(per_ticker)
-    if bounds is None:
-        return None                      # cannot establish a session — refuse the date
-    buckets = bsess.rth_buckets(per_ticker, all_buckets)
+    if calendar_window:
+        # ⭐ THE SESSION IS A CALENDAR FACT (breadth_calendar): 09:30 … close-1, the same
+        # window for every universe; the closing auction is never in the path; a real halt
+        # is minutes with no prints. Participation is only a sanity refusal now.
+        from api.services import breadth_calendar as bcal
+        win = bcal.session_window(D)
+        part = bsess.participation(per_ticker)
+        busiest = max((n for mm, n in part.items() if 570 <= mm <= 960), default=0)
+        if win is None or busiest < bsess.MIN_BUSY_NAMES:
+            return None
+        bounds = win
+        buckets = [t for t in all_buckets if win[0] <= bsess.et_minute(t) <= win[1]]
+    else:
+        bounds = bsess.rth_bounds(per_ticker)
+        if bounds is None:
+            return None                      # cannot establish a session — refuse the date
+        buckets = bsess.rth_buckets(per_ticker, all_buckets)
     if not buckets:
         return None
     by_tb = {tk: {b["t"]: b["c"] for b in bars} for tk, bars in per_ticker.items()}
@@ -640,8 +680,18 @@ def session_ohlc(D: str, per_ticker: dict, levels: dict,
                     and (not lift or t in scale or t not in _lv_set)}
     close_m = compute_metrics(levels, close_px) or {}
     _add_composites(close_m)
+    _add_rolling(close_m, rolling_prior)
     close_val = {k: v for k, v in close_m.items() if not k.startswith("_")}
-    out = aggregate_day(levels, prices_by_bucket, close_val, path_rule=path_rule)
+    out = aggregate_day(levels, prices_by_bucket, close_val, path_rule=path_rule,
+                        rolling_prior=rolling_prior)
+    if out and calendar_window:
+        out["_session"] = {"open_min": bounds[0], "last_bar_min": bounds[1],
+                           "early_close": bounds[1] < 15 * 60, "buckets": len(buckets),
+                           "expected_buckets": bounds[1] - bounds[0] + 1,
+                           "all_hours_buckets": len(all_buckets), "bucket_min": bucket_min,
+                           "calendar_ok": True, "calendar": "breadth_calendar rule window",
+                           "close_basis": "calendar-rule"}
+        return out
     if out:
         ok, detail = bsess.validate_against_calendar(D, bounds[1])
         out["_session"] = {"open_min": bounds[0], "close_min": bounds[1],
