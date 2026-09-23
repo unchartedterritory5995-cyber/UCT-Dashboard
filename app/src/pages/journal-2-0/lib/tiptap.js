@@ -23,6 +23,7 @@ import { FinancialFact } from './financialFactNode'
 import { DocumentExcerpt } from './documentExcerptNode'
 import { AskInsert } from './askInsertNode'
 import { AskCitation } from './askCitationNode'
+import { PasteContainers } from './pasteContainers'
 import { fmtTime } from '../../../components/video/playerUtils'
 
 export function buildExtensions({ placeholder = 'Start writing… or type / for blocks and charts' } = {}) {
@@ -89,6 +90,12 @@ export function buildExtensions({ placeholder = 'Start writing… or type / for 
     // types at parse time, and the flag gates only the Insert button.
     AskInsert,
     AskCitation,
+    // Paste/copy for the three `defining` containers (askInsert, callout,
+    // toggle): a container OPEN at a slice edge travels as plain content, a
+    // whole one keeps its wrapper -- see pasteContainers.js. It is the ONLY
+    // transformPasted/transformCopied in this roster; add a container to its
+    // PASTE_CONTAINERS set rather than a second hook on the node.
+    PasteContainers,
   ]
 }
 

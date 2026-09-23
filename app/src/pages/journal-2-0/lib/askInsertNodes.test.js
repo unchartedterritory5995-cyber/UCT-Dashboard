@@ -3,7 +3,8 @@ import { Editor, generateHTML, generateJSON } from '@tiptap/core'
 import { NodeSelection, TextSelection } from '@tiptap/pm/state'
 import { Slice } from '@tiptap/pm/model'
 import StarterKit from '@tiptap/starter-kit'
-import { AskInsert, unwrapOpenAskInserts } from './askInsertNode'
+import { AskInsert } from './askInsertNode'
+import { PasteContainers, unwrapOpenContainers } from './pasteContainers'
 import { AskCitation, askCitationStaleKey } from './askCitationNode'
 import { appendAskInsert, buildAskInsertNode } from './askInsert'
 import { buildExtensions } from './tiptap'
@@ -20,7 +21,9 @@ if (typeof globalThis.ClipboardEvent === 'undefined') {
 // A bare Editor has no React content component, so ReactNodeViewRenderer
 // returns {} and the nodes render through renderHTML. That is exactly what we
 // want here: these rails are about the SCHEMA, the keymap and the plugin.
-const EXT = [StarterKit, AskInsert, AskCitation]
+const EXT = [StarterKit, AskInsert, AskCitation, PasteContainers]
+// A clipboard written WITHOUT the copy hook: a tab still on an older bundle.
+const OLD_EXT = [StarterKit, AskInsert, AskCitation]
 let editor
 afterEach(() => { editor?.destroy(); editor = null })
 
@@ -205,8 +208,9 @@ describe('a selection cannot delete across the block edge (P1 fix round 1)', () 
 //
 // ⚠️ Final fix wave (I4): this rail used to reach a crossing inverse through a
 // defining-paste wrap (answer text pasted at the start of a member paragraph
-// re-wrapped that paragraph). `transformPasted` now unwraps an open askInsert,
-// so that paste inserts plain text and its undo no longer crosses anything --
+// re-wrapped that paragraph). pasteContainers.js now unwraps an open askInsert
+// (on copy and on paste), so that paste inserts plain text and its undo no
+// longer crosses anything --
 // the old recipe could no longer fail. The setup is therefore the wrap itself,
 // dispatched directly: a wrap is a pure insertion (both of its deleted ranges
 // are empty), so the filter accepts it going forward, while its inverse
@@ -233,11 +237,13 @@ describe('undo of a wrap into an askInsert is never stranded (fix round 2, R2-1)
 // (`addContext`). Because askInsert is `defining`, pasting such a slice at the
 // START of a member paragraph wrapped the MEMBER'S paragraph in a NEW
 // askInsert: the member's own words then read "From Ask Notebook" and dropped
-// out of Ask (spec §7.2) — provenance lying in reverse. `transformPasted` in
-// askInsertNode.jsx unwraps any askInsert that is OPEN at a slice edge; a
-// CLOSED one (the whole block, copied as a node) is left alone, so provenance
-// still travels with a real answer. Every case goes through the real clipboard
-// path: `serializeForClipboard` for the copy, `view.pasteHTML` for the paste.
+// out of Ask (spec §7.2) — provenance lying in reverse. pasteContainers.js
+// unwraps any askInsert that is OPEN at a slice edge — `transformCopied` so the
+// clipboard never carries the open wrapper, `transformPasted` for a clipboard
+// that does (an older bundle's); a CLOSED one (the whole block, copied as a
+// node) is left alone, so provenance still travels with a real answer. Every
+// case goes through the real clipboard path: `serializeForClipboard` for the
+// copy, `view.pasteHTML` for the paste.
 describe('pasting answer text never wraps member prose (final wave, I4)', () => {
   const askInserts = (ed) => {
     const out = []
@@ -256,8 +262,15 @@ describe('pasting answer text never wraps member prose (final wave, I4)', () => 
   it('(a) a word copied from inside an answer, pasted at the start of a member paragraph, is plain text there', () => {
     const ed = mount(DOC)
     const at = locate(ed, 'ins') // interior of "Margins", inside the answer
-    const html = copyRange(ed, at, at + 3)
-    expect(html).toContain('askInsert') // the copy really carries the wrapper context
+    // Today's copy side already drops the open wrapper ...
+    expect(copyRange(ed, at, at + 3)).not.toContain('askInsert')
+    // ... so the PASTE side is proved with a clipboard from an older bundle.
+    const el = document.createElement('div')
+    document.body.appendChild(el)
+    const old = new Editor({ element: el, extensions: OLD_EXT, content: DOC })
+    const html = copyRange(old, at, at + 3)
+    old.destroy()
+    expect(html).toContain('askInsert') // the stale copy really carries the wrapper context
     ed.commands.setTextSelection(1) // the start of "Mine."
     ed.view.pasteHTML(html)
     expect(askInserts(ed)).toHaveLength(1)
@@ -305,7 +318,7 @@ describe('pasting answer text never wraps member prose (final wave, I4)', () => 
     // `includeParents` = what `selection.content()` copies.
     const cases = [[ins, ins + 3], [3, a + 4], [a + 4, a + node.nodeSize + 3], [1, 4]]
     for (const [from, to] of cases) {
-      const out = unwrapOpenAskInserts(ed.state.doc.slice(from, to, true))
+      const out = unwrapOpenContainers(ed.state.doc.slice(from, to, true))
       const max = Slice.maxOpen(out.content)
       expect(out.openStart).toBeLessThanOrEqual(max.openStart)
       expect(out.openEnd).toBeLessThanOrEqual(max.openEnd)
@@ -313,7 +326,7 @@ describe('pasting answer text never wraps member prose (final wave, I4)', () => 
       if (out.openEnd) expect(out.content.lastChild.type.name).not.toBe('askInsert')
     }
     const whole = ed.state.doc.slice(a, a + node.nodeSize, true)
-    expect(unwrapOpenAskInserts(whole)).toBe(whole)
+    expect(unwrapOpenContainers(whole)).toBe(whole)
   })
 })
 
