@@ -182,7 +182,7 @@ when they see it.
 | Platform | S7 Alerts | 4 of 8 types live, 4 dark | needs joint-ownership ruling — §7 |
 | Platform | S9 Entitlements | not built | A14 Portfolio & Risk |
 | Platform | S10 Presentation Primitives | SHIPPED | — |
-| Data | D1 Provider Abstraction | SHIPPED, adoption sweep open | nothing — safe to finish now |
+| Data | D1 Provider Abstraction | **SHIPPED, adoption sweep CLOSED 2026-09-23** (`d050f867f`, `c8c1e431f`) | nothing — fully done |
 | Data | D2 Canonical Data Model | **CP2, confirmed unchanged 2026-09-23** — still the long pole | A11, A13, S8's full citations |
 | Data | D3 Realtime Streaming | **CP4 shipped `bb312cc18`, owner-signed** (new as of 2026-09-23 — was "docs only" at last measurement) | A10, jointly with D4 |
 | Data | D5 Reference & Corp Actions | CP1 merged, CP2–7 open | partial |
@@ -256,6 +256,15 @@ the whole thing holds together.
 - **Agent 1:** D1 adoption sweep — migrate the remaining direct FMP call sites behind
   the typed `fmp_client` adapter. Not new design; finishing a shipped pattern. Zero
   owner dependency.
+
+> ✅ **Agent 1 finding, 2026-09-23:** also already complete. `tools/fmp_guard_census.py`
+> reports zero unquarantined violations; the 11 remaining entries are each individually,
+> already ruled out-of-scope. The real target this directive pointed at — PROGRAM_STATUS's
+> D1 follow-ups G1–G5 — are further along than assumed: **G1** (per-call timeout, "the one
+> that matters") shipped `d050f867f`; **G2+G4** (9 new typed endpoints, multi-symbol news)
+> shipped `c8c1e431f`; both on master, both with real tests (67 total, re-run fresh: all
+> passed). G3/G5 are deliberately deferred, not silently skipped. **D1's adoption sweep is
+> CLOSED — mark it off the roster, not reopened in a future wave.**
 - **Agent 2:** S3 admin ops routes — `/status` and `/reseed` for the Entity Master,
   already authorized in its own gate, never built.
 - **Agent 3:** I1 spec, narrowed — the tool-registry contract, the grounding rule, and
