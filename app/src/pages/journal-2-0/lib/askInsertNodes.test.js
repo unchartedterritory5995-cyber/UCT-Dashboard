@@ -91,6 +91,76 @@ describe('the provenance wrapper survives editing (P1)', () => {
   })
 })
 
+// G-064 fix round 1 (Finding F2, controller ruling) — `isolating` blocks a
+// JOIN across the edge (Backspace/Delete above) but not an explicit
+// multi-position SELECTION spanning it. Measured (probe_boundary.cjs):
+// selecting from inside "Mine." into the answer and deleting produced
+// "Miins fell." — prose moved across the wrapper. `filterTransaction` in
+// askInsertNode.jsx is the backstop.
+describe('a selection cannot delete across the block edge (P1 fix round 1)', () => {
+  it('(a) selecting from inside "Mine." into the answer, then deleting: the doc is unchanged', () => {
+    const ed = mount(DOC)
+    const before = ed.getJSON()
+    const { a } = findInsert(ed)
+    ed.chain().setTextSelection({ from: 3, to: a + 4 }).deleteSelection().run()
+    expect(ed.getJSON()).toEqual(before)
+  })
+
+  it('(b) the reverse direction, from inside the answer into "After.": unchanged', () => {
+    const ed = mount(DOC)
+    const before = ed.getJSON()
+    const { a, node } = findInsert(ed)
+    const afterStart = a + node.nodeSize
+    ed.chain().setTextSelection({ from: a + 4, to: afterStart + 3 }).deleteSelection().run()
+    expect(ed.getJSON()).toEqual(before)
+  })
+
+  it('(c) typing over a crossing selection: unchanged', () => {
+    const ed = mount(DOC)
+    const before = ed.getJSON()
+    const { a } = findInsert(ed)
+    ed.chain().setTextSelection({ from: 3, to: a + 4 }).insertContent('x').run()
+    expect(ed.getJSON()).toEqual(before)
+  })
+
+  it('(d) STILL ALLOWED: a node selection of the whole block can still delete it', () => {
+    const ed = mount(DOC)
+    const { a } = findInsert(ed)
+    ed.commands.setNodeSelection(a)
+    ed.commands.deleteSelection()
+    expect(ed.state.doc.childCount).toBe(2)
+    expect(ed.state.doc.child(0).textContent).toBe('Mine.')
+    expect(ed.state.doc.child(1).textContent).toBe('After.')
+  })
+
+  it('(d) STILL ALLOWED: select-all-and-delete still clears the whole document', () => {
+    const ed = mount(DOC)
+    ed.commands.selectAll()
+    ed.commands.deleteSelection()
+    expect(ed.state.doc.textContent).toBe('')
+    let hasAskInsert = false
+    ed.state.doc.descendants((node) => { if (node.type.name === 'askInsert') hasAskInsert = true })
+    expect(hasAskInsert).toBe(false)
+  })
+
+  it('(d) STILL ALLOWED: appendAskInsert still works when the doc already ends with an askInsert', () => {
+    const ed = mount({ type: 'doc', content: [MINE, INSERT] })
+    expect(appendAskInsert(ed, INSERT)).toBe(true)
+    let count = 0
+    ed.state.doc.forEach((node) => { if (node.type.name === 'askInsert') count += 1 })
+    expect(count).toBe(2)
+  })
+
+  it('(e) a lift out of the block is blocked; the block keeps its paragraph', () => {
+    const ed = mount(DOC)
+    const before = ed.getJSON()
+    const { a } = findInsert(ed)
+    ed.commands.setTextSelection(a + 2)
+    ed.commands.lift('askInsert')
+    expect(ed.getJSON()).toEqual(before)
+  })
+})
+
 describe('a citation says so when its paragraph was edited (P2)', () => {
   const stale = (ed) => askCitationStaleKey.getState(ed.state).find().length
 
@@ -119,11 +189,17 @@ describe('a citation says so when its paragraph was edited (P2)', () => {
   })
 
   it('the check never writes to the document', () => {
+    // G-064 fix round 1 (Finding F3): the old version only moved the
+    // selection, so it never actually exercised staleness -- an assertion
+    // over a check that never ran proves nothing. Make a chip stale first,
+    // then assert the ONE edit that did it fired exactly ONE update, and that
+    // nothing about staleness ever reached the document's own JSON.
     const ed = mount(DOC)
     let updates = 0
     ed.on('update', () => { updates += 1 })
-    ed.commands.setTextSelection(1)
-    expect(updates).toBe(0)
+    ed.chain().setTextSelection(findInsert(ed).a + 2).insertContent('X').run()
+    expect(stale(ed)).toBe(1)
+    expect(updates).toBe(1)
     expect(JSON.stringify(ed.getJSON())).not.toContain('askStale')
   })
 })
@@ -133,16 +209,16 @@ describe('appendAskInsert (spec §5.2)', () => {
     const ed = mount({ type: 'doc', content: [MINE] })
     ed.commands.setNodeSelection(0)
     expect(appendAskInsert(ed, INSERT)).toBe(true)
-    // StarterKit's TrailingNode extension auto-appends an empty paragraph
-    // after a non-paragraph last block, so assert the real append position
-    // rather than an exact childCount.
-    expect(ed.state.doc.childCount).toBeGreaterThanOrEqual(2)
+    // G-064 fix round 1 (Finding F7): StarterKit's TrailingNode extension
+    // auto-appends exactly ONE empty paragraph after a non-paragraph last
+    // block (Callout/Toggle/embeds behave identically), never more -- so the
+    // shape is exact: the original paragraph, the askInsert, and that one
+    // trailing paragraph.
+    expect(ed.state.doc.childCount).toBe(3)
     expect(ed.state.doc.child(0).textContent).toBe('Mine.')
     expect(ed.state.doc.child(1).type.name).toBe('askInsert')
-    for (let i = 2; i < ed.state.doc.childCount; i += 1) {
-      expect(ed.state.doc.child(i).type.name).toBe('paragraph')
-      expect(ed.state.doc.child(i).textContent).toBe('')
-    }
+    expect(ed.state.doc.child(2).type.name).toBe('paragraph')
+    expect(ed.state.doc.child(2).textContent).toBe('')
   })
 
   it('refuses a missing, destroyed or read-only editor', () => {

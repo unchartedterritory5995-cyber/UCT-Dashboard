@@ -1,6 +1,7 @@
 import { NodeViewWrapper } from '@tiptap/react'
 import { useNavigate } from 'react-router-dom'
 import { notePath } from '../../../../hooks/useNoteBacklinks'
+import { PRECISION_WORDS } from '../../lib/askCitation'
 import askStyles from './AskPanel.module.css'
 import styles from './AskCitationView.module.css'
 
@@ -11,14 +12,15 @@ import styles from './AskCitationView.module.css'
  * citation looks the same in the panel and in a note. Degradation is stated in
  * WORDS, never by colour alone (AskPanel.jsx:300): a stale chip reads
  * `[n · edited]`, and the insert-time precision uses AskPanel's own Sources-row
- * words (AskPanel.jsx:303-305).
+ * words — `PRECISION_WORDS` (G-064 fix round 1, Finding F5) is now the ONE
+ * export both surfaces read, in `lib/askCitation.js`.
  */
-export const PRECISION_WORDS = Object.freeze({
-  page_only: 'page only', note_only: 'note only', record_only: 'record', unavailable: 'unavailable',
-})
-
 export function citationDescription({ n, label, citation }, stale) {
-  const parts = [`Source ${n}: ${label || 'source'}`]
+  // G-064 fix round 1 (Finding F4): a shared/reduced copy of this chip can
+  // carry no `n` at all -- render `?`, matching renderHTML's `[${n ?? '?'}]`
+  // server-render fallback, never `Source null: …` / `Source undefined: …`.
+  const num = n == null ? '?' : n
+  const parts = [`Source ${num}: ${label || 'source'}`]
   if (citation && citation !== 'exact') parts.push(PRECISION_WORDS[citation] || 'unavailable')
   if (stale) parts.push('text edited since inserted')
   return parts.join(', ')
@@ -29,7 +31,8 @@ export default function AskCitationView({ node, decorations }) {
   const navigate = useNavigate()
   const stale = Array.isArray(decorations) && decorations.some((d) => d?.spec?.askStale)
   const noteId = nav && typeof nav === 'object' && typeof nav.note_id === 'string' ? nav.note_id : null
-  const text = stale ? `[${n} · edited]` : `[${n}]`
+  const num = n == null ? '?' : n
+  const text = stale ? `[${num} · edited]` : `[${num}]`
   const described = citationDescription({ n, label, citation }, stale)
   const cls = `${askStyles.citationChip} ${stale ? styles.stale : ''}`
 
@@ -48,7 +51,10 @@ export default function AskCitationView({ node, decorations }) {
         </button>
       ) : (
         <span className={cls} contentEditable={false} title={described}>
-          {text}
+          {/* G-064 fix round 1 (Finding F6): aria-hidden on the visible glyph
+              so a screen reader hears only the sr-only description once,
+              never the raw "[n]" text plus the description back to back. */}
+          <span aria-hidden="true">{text}</span>
           <span className={askStyles.srOnly}>{described}</span>
         </span>
       )}

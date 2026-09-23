@@ -4,6 +4,7 @@ import UIcon from '../../../../components/ui/UIcon'
 import { useIsTouch } from '../../../../hooks/useBreakpoint'
 import {
   PRECISE_STATES,
+  PRECISION_WORDS,
   citedSources,
   resolveNoteCitation,
   splitAnswer,
@@ -297,12 +298,14 @@ export default function AskPanel({
                       {SCANNED_TEXT_LABEL}
                     </span>
                   )}
-                  {/* Degradation is stated in WORDS, never by colour alone. */}
+                  {/* Degradation is stated in WORDS, never by colour alone.
+                      G-064 fix round 1 (Finding F5): reads the SAME export an
+                      askCitation chip reads (lib/askCitation.js) -- one fact,
+                      one place, so the panel row and a note's chip can never
+                      say something different about the same citation. */}
                   {!PRECISE_CITATION.has(s.citation) && (
                     <span className={styles.sourceApprox}>
-                      {s.citation === 'page_only' ? 'page only'
-                        : s.citation === 'note_only' ? 'note only'
-                          : s.citation === 'record_only' ? 'record' : 'unavailable'}
+                      {PRECISION_WORDS[s.citation] || 'unavailable'}
                     </span>
                   )}
                 </button>

@@ -33,6 +33,18 @@ export const DEGRADED = 'degraded'                // gone; no passage claim
 
 export const PRECISE_STATES = new Set([VALID_EXACT, RERESOLVED_EXACT])
 
+/**
+ * G-064 fix round 1 (Finding F5) — degradation is stated in WORDS, never by
+ * colour alone, and it must read the same word whether it is an askCitation
+ * chip inside a note or a Sources row inside the live AskPanel. This was
+ * defined twice (AskCitationView.jsx's own copy, and an inline ternary in
+ * AskPanel.jsx) — the second-authority-over-one-value shape this repo keeps
+ * paying for. ONE export, both surfaces read it.
+ */
+export const PRECISION_WORDS = Object.freeze({
+  page_only: 'page only', note_only: 'note only', record_only: 'record', unavailable: 'unavailable',
+})
+
 const BLOCK_SEPARATOR = '\n'
 const HANDLE_RE = /\[(\d{1,3})\]/g
 

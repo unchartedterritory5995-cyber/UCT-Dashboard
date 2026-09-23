@@ -39,7 +39,25 @@ describe('AskCitationView', () => {
   it('a source with no note is not clickable, and a shared copy (attrs reduced to n) still reads', () => {
     render(<AskCitationView node={{ attrs: { n: 2 } }} decorations={[]} />)
     expect(screen.queryByRole('button')).toBeNull()
-    expect(screen.getByText('[2]')).toBeInTheDocument()
+    // G-064 fix round 1 (Finding F6): the visible glyph is aria-hidden so a
+    // screen reader hears only the sr-only description, once.
+    expect(screen.getByText('[2]')).toHaveAttribute('aria-hidden', 'true')
     expect(screen.getByText('Source 2: source')).toBeInTheDocument()
+  })
+
+  // G-064 fix round 1 (Finding F4): a shared/reduced copy can carry no `n` at
+  // all -- render "?", matching renderHTML's `[${n ?? '?'}]` server-render
+  // fallback, never "[null]" or "Source undefined: …".
+  it('renders "?" when n is null or undefined, consistent with renderHTML', () => {
+    render(<AskCitationView node={{ attrs: { n: null } }} decorations={[]} />)
+    expect(screen.queryByRole('button')).toBeNull()
+    expect(screen.getByText('[?]')).toBeInTheDocument()
+    expect(screen.getByText('Source ?: source')).toBeInTheDocument()
+  })
+
+  it('renders "?" when n is undefined (attrs missing the key entirely)', () => {
+    render(<AskCitationView node={{ attrs: {} }} decorations={[]} />)
+    expect(screen.getByText('[?]')).toBeInTheDocument()
+    expect(screen.getByText('Source ?: source')).toBeInTheDocument()
   })
 })

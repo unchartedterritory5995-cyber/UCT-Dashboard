@@ -60,8 +60,14 @@ export const AskCitation = Node.create({
     return {
       n: {
         default: null,
+        // G-064 fix round 1 (Finding F4): a missing/empty data-n must read
+        // null, not 0 -- `Number(null)` and `Number('')` are both `0`, and
+        // `Number.isFinite(0)` is true, so the old body silently turned
+        // "no n at all" into the real value zero.
         parseHTML: (el) => {
-          const v = Number(el.getAttribute('data-n'))
+          const raw = el.getAttribute('data-n')
+          if (raw == null || raw === '') return null
+          const v = Number(raw)
           return Number.isFinite(v) ? v : null
         },
         renderHTML: (a) => (a.n != null ? { 'data-n': String(a.n) } : {}),
@@ -98,7 +104,24 @@ export const AskCitation = Node.create({
   },
 
   addNodeView() {
-    return ReactNodeViewRenderer(AskCitationView)
+    // ⛔ G-064 fix round 1 (Finding F1): `@tiptap/react`'s default
+    // ReactNodeView.update (dist/index.js ~1006-1012) stores the new
+    // decorations and returns `true` WITHOUT calling `updateProps` whenever
+    // `newNode === this.node` — editing a chip's PARAGRAPH leaves the chip
+    // node's own identity unchanged, so the default path never re-renders
+    // the React component and `[n · edited]` never reaches the screen live.
+    // `updateProps()` is called whenever the node identity changed OR the
+    // DERIVED stale boolean differs — never on raw decoration-array identity,
+    // which is a fresh array on every keystroke anywhere in the doc (see
+    // staleCitationDecorations) and would otherwise re-render every chip on
+    // every edit.
+    const staleOf = (ds) => Array.isArray(ds) && ds.some((d) => d?.spec?.askStale)
+    return ReactNodeViewRenderer(AskCitationView, {
+      update: ({ oldNode, newNode, oldDecorations, newDecorations, updateProps }) => {
+        if (oldNode !== newNode || staleOf(oldDecorations) !== staleOf(newDecorations)) updateProps()
+        return true
+      },
+    })
   },
 
   addProseMirrorPlugins() {
