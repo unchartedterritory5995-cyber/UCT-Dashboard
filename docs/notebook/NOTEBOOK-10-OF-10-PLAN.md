@@ -161,7 +161,7 @@ that warn you when they break. It is a *personal* tool that shares well, not a t
 | D12 | Relations / rollups | **IN:** a lightweight relation property with backlinks. Rollups and formulas OUT until demand is measured | Covers the common case cheaply |
 | D13 | Email-to-notebook | **IN**, as a provider-agnostic inbound webhook; activation (DNS + inbound provider) is an infrastructure step the owner runs | Evernote's core capture door |
 | D14 | Error reporting | **Our own** client-error beacon + server log + Notebook telemetry; `SENTRY_DSN` optional later | No new vendor, and it can ship now |
-| D15 | Backups | Build a restore-drill tool with integrity checks (the owner runs it with production credentials); **document the 14-day backup retention** as the deletion window rather than rewriting snapshots | Standard practice; rewriting snapshots is risky |
+| D15 | Backups | Build a restore-drill tool with integrity checks (the owner runs it with production credentials); **document the backup window** as the deletion window rather than rewriting snapshots. ⚰️ *Corrected 2026-09-23:* this said "14-day"; `authdb_backup.RETAIN` is 14 **snapshots** (every 6h + nightly ≈ 3 days), so the privacy policy states "up to 7 days" | Standard practice; rewriting snapshots is risky |
 | D16 | Gate baseline | Re-adopted from a fresh master gate at each landing; timeouts never banked | Keeps every gate readable |
 
 ## 4. The build programme (waves, three agents at a time)
