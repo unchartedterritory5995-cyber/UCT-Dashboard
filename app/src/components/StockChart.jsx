@@ -132,6 +132,7 @@ import {
 // from. `legendChips` walks the INSTANCE list and calls `engineChips` for the
 // valued half, so there is still exactly one formatting pipeline.
 import { legendChips, siblingSuffixes, paneReadoutLabel, chipValueText } from './chart/engine/readout'
+import { rendererPaneIndexOf } from './chart/engine/paneReadoutPlacement'
 import * as engineRegistry from './chart/engine/nativeRegistry'
 import IndicatorChip from './chart/legend/IndicatorChip'
 // ⭐ THE LEGEND ROW FOR THE THINGS THAT ARE NOT ENGINE INSTANCES — the MA
@@ -6374,6 +6375,9 @@ export default function StockChart({
     if (target === 'volume') return volumeOwnsItsPaneRef.current ? VOLUME_PANE : null
     return parsePaneOfTarget(target)
   }, [cs])
+  // Read by `pinPaneLegend`, which runs every frame from a `[]`-deps callback.
+  const chipPaneHostRef = useRef(chipPaneHost)
+  chipPaneHostRef.current = chipPaneHost
   /**
    * The LONG name a pane readout prints for one chip.
    *
@@ -16222,11 +16226,25 @@ export default function StockChart({
       // readout kept the CSS default and painted in the MIDDLE of the candles.
       // 0 is a real pane now; a negative or non-integer index is still refused.
       if (!row || !Number.isInteger(row.index) || row.index < 0) return
+      // ⛔⛔ THE LAYOUT SLOT IS NOT WHERE THE SERIES DREW when an own-pane host
+      // above this one computed nothing: the layout reserved it a slot, the pool
+      // gave it no series, and the renderer never made that pane. Pinned by slot,
+      // a Net Margin line was captioned "Gross Margin". So ask the renderer, by
+      // identity -- see `engine/paneReadoutPlacement.js`. `null` = nothing of this
+      // key drew, so there is no pane to label; `undefined` = cannot tell, keep
+      // the slot.
+      const drawnAt = rendererPaneIndexOf(key,
+        engineRef.current && engineRef.current.binder ? engineRef.current.binder.bindings() : null,
+        chipPaneHostRef.current)
+      const hide = drawnAt === null
+      if ((el.style.display === 'none') !== hide) el.style.display = hide ? 'none' : ''
+      if (hide) return
+      const index = drawnAt === undefined ? row.index : drawnAt
       const panes = chart.panes ? chart.panes() : null
-      if (!panes || panes.length <= row.index) return
+      if (!panes || panes.length <= index) return
       // The top pane starts at 0 — the loop below sums nothing, which is right.
       let top = 0
-      for (let i = 0; i < row.index; i++) {
+      for (let i = 0; i < index; i++) {
         const h = panes[i] && panes[i].getHeight ? panes[i].getHeight() : 0
         top += (Number.isFinite(h) ? h : 0) + SEPARATOR_PX
       }
