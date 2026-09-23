@@ -1,0 +1,70 @@
+{
+  "verdict": "NEW_FAILURES",
+  "counts": {
+    "new": 1,
+    "fixed": 2,
+    "unchanged": 280,
+    "missing": 0,
+    "baseline": 282,
+    "current": 282,
+    "current_ran": 51646,
+    "new_flaky": 1,
+    "flaky_size": 5,
+    "flaky_new": 2,
+    "flaky_fixed": 0,
+    "file_level_resolved": 0,
+    "coverage_lost": 0,
+    "new_ours": 0,
+    "new_others": 0,
+    "new_unattributed": 1
+  },
+  "arithmetic": "baseline 282 = unchanged 280 + fixed 2 + missing 0  |  current 282 = unchanged 280 + new 1 + new-but-flaky 1",
+  "invalid_because": [],
+  "baseline_run_id": "35825397754",
+  "current_run_id": "35864446910",
+  "baseline_sha": "bab3f8b5c38fafe99e395587a984999257cbbe9d",
+  "current_sha": "4d31451ad2f5cfb768dc4ca5e2bdf7c785e95eaf",
+  "commit_range": "bab3f8b5c38fafe99e395587a984999257cbbe9d..4d31451ad2f5cfb768dc4ca5e2bdf7c785e95eaf",
+  "first_run": false,
+  "new": [
+    "pytest|tests.test_massive_ws_stop|test_stop_idempotency_and_stop_before_start"
+  ],
+  "missing": [],
+  "fixed": [
+    "pytest|tests.test_bars_server_timing|test_layer_sqlite_on_fresh_stored_rows",
+    "pytest|tests.test_discord_close_note|test_a_note_that_cannot_be_written_still_posts_the_charts"
+  ],
+  "new_flaky": [
+    "pytest|tests.test_mutation_check.TestRestoreGuarantee|test_the_file_is_byte_identical_after_a_detected_mutation"
+  ],
+  "flaky": [
+    "pytest|tests.test_discord_close_note|test_a_note_that_cannot_be_written_still_posts_the_charts",
+    "pytest|tests.test_mutation_check.TestRestoreGuarantee|test_the_file_is_byte_identical_after_a_detected_mutation",
+    "pytest|tests.test_mutation_check.TestVerdicts|test_a_detected_mutation_passes_the_check",
+    "pytest|tests.test_mutation_check.TestVerdicts|test_expect_red_naming_the_right_test_passes",
+    "vitest|src/components/chart/engine/__tests__/stockChartWiring.test.jsx|an engine-drawn indicator still appears in the crosshair legend > \u26d4\u26d4 A HOVER REACHES THE RENDERER NOT AT ALL"
+  ],
+  "file_level_resolved": [],
+  "coverage_lost": [],
+  "missing_buckets": {},
+  "attribution": {
+    "pytest|tests.test_massive_ws_stop|test_stop_idempotency_and_stop_before_start": {
+      "class": "UNATTRIBUTED",
+      "commits": [],
+      "workstreams": [],
+      "reason": "no commit in bab3f8b5c..4d31451ad touched tests/test_massive_ws_stop.py or anything it imports"
+    },
+    "pytest|tests.test_bars_server_timing|test_layer_sqlite_on_fresh_stored_rows": {
+      "class": "UNATTRIBUTED",
+      "commits": [],
+      "workstreams": [],
+      "reason": "no commit in bab3f8b5c..4d31451ad touched tests/test_bars_server_timing.py or anything it imports"
+    },
+    "pytest|tests.test_discord_close_note|test_a_note_that_cannot_be_written_still_posts_the_charts": {
+      "class": "UNATTRIBUTED",
+      "commits": [],
+      "workstreams": [],
+      "reason": "no commit in bab3f8b5c..4d31451ad touched tests/test_discord_close_note.py or anything it imports"
+    }
+  }
+}

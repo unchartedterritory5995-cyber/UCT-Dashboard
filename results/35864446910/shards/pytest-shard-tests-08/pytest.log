@@ -1,0 +1,207 @@
+/opt/hostedtoolcache/Python/3.12.14/x64/lib/python3.12/site-packages/pytest_asyncio/plugin.py:208: PytestDeprecationWarning: The configuration option "asyncio_default_fixture_loop_scope" is unset.
+The event loop scope for asynchronous fixtures will default to the fixture caching scope. Future versions of pytest-asyncio will default the loop scope for asynchronous fixtures to function scope. Set the default fixture loop scope explicitly in order to avoid unexpected behavior in the future. Valid fixture loop scopes are: "function", "class", "module", "package", "session"
+
+  warnings.warn(PytestDeprecationWarning(_DEFAULT_FIXTURE_LOOP_SCOPE_UNSET))
+..............F......................................................... [  4%]
+...............................................................F........ [  9%]
+........................................................................ [ 14%]
+........................................................................ [ 19%]
+........................................................................ [ 24%]
+........................................................................ [ 29%]
+........................................................................ [ 34%]
+........................................................................ [ 39%]
+........................................................................ [ 44%]
+........................................................................ [ 49%]
+........................................................................ [ 54%]
+........................................................................ [ 59%]
+........................................................................ [ 64%]
+.................
+  -- A2.5: one definition, four surfaces --------------------
+  builder / store : sha256:223ac9251e92dbf30fc96da80b13d40de61bd18e5f4169ecc5335af390e07718
+  screener        : sha256:223ac9251e92dbf30fc96da80b13d40de61bd18e5f4169ecc5335af390e07718
+  chart           : sha256:223ac9251e92dbf30fc96da80b13d40de61bd18e5f4169ecc5335af390e07718
+  alert           : sha256:223ac9251e92dbf30fc96da80b13d40de61bd18e5f4169ecc5335af390e07718
+  store rows @ h  : 1   (indicator's own hash: 1)
+  hits            : ['NVDA', 'AMD'] of ['NVDA', 'AMD', 'INTC']
+....
+  -- A2.5 + W4a: one definition, five surfaces ----------------
+  store           : sha256:223ac9251e92dbf30fc96da80b13d40de61bd18e5f4169ecc5335af390e07718
+  nightly sweep   : sha256:223ac9251e92dbf30fc96da80b13d40de61bd18e5f4169ecc5335af390e07718
+  run-now         : sha256:223ac9251e92dbf30fc96da80b13d40de61bd18e5f4169ecc5335af390e07718   hits=['AMD', 'NVDA']
+  receipt moved?  : False
+................................................... [ 68%]
+........................................................................ [ 73%]
+..........................................F............................. [ 78%]
+........................................................................ [ 83%]
+........................................................................ [ 88%]
+........................................................................ [ 93%]
+........................................................................ [ 98%]
+......................                                                   [100%]
+=================================== FAILURES ===================================
+_________________ test_a_5xx_reading_is_SKIPPED_not_an_ANOMALY _________________
+
+    def test_a_5xx_reading_is_SKIPPED_not_an_ANOMALY():
+        """⛔ A reading that could not be TAKEN is not a finding. Production 502s on
+        every Tier 1 deploy; an ANOMALY row there makes the Sunday gate REVERT a
+        healthy product because another workstream deployed at 17:05."""
+        obs_src = (TOOLS / "nb_observe.py").read_text(encoding="utf-8")
+        gate_src = (TOOLS / "nb_gate.py").read_text(encoding="utf-8")
+        assert "production unreachable (HTTP 5xx" in obs_src
+        assert 'not a finding, and not evidence of a clean interval either' in obs_src
+        # ...and the gate must not count a SKIPPED row as a trigger, in ANY trigger.
+        # ⚰️ THIS USED TO PIN THE STRING `'"SKIPPED" not in x[-1]'`, which was the
+        # spelling inside trigger 1 — and pinning a spelling is how a rail comes to
+        # describe one caller while the property it names is missing from the other
+        # three. It WAS missing: trigger 4 counted the 20 console errors a 5xx SKIP
+        # recorded from a page that could not load, and printed REVERT
+        # (`lesson_a_guard_repeated_is_a_guard_unproved`).
+        #
+        # ⭐ So the structural claim is now ONE AUTHORITY, and every trigger reading
+        # the partition it produces. The behavioural half lives in
+        # tests/test_nb_gate_columns.py, which drives a real SKIPPED row through.
+        assert "def is_skipped(" in gate_src
+        body = gate_src[gate_src.index("    recs, gripes = parsed_rows()"):]
+        assert "observed = [x for x in recs if not is_skipped(x)]" in body
+        for trigger in ("bad = [x for x in observed", "conf = [x for x in observed",
+                        "errs = [x for x in observed"):
+>           assert trigger in body, trigger
+E           AssertionError: bad = [x for x in observed
+E           assert 'bad = [x for x in observed' in '    recs, gripes = parsed_rows()\n    r = [x[\'_cells\'] for x in recs]\n    fails = []\n    # !! A ROW THIS GATE COU...te_text(body, encoding="utf-8")\n    print(body)\n    return 0\n\n\nif __name__ == "__main__":\n    sys.exit(main())\n'
+
+tests/test_nb_observe.py:143: AssertionError
+___________ test_no_tracked_text_file_is_staged_with_cr_line_endings ___________
+
+    def test_no_tracked_text_file_is_staged_with_cr_line_endings():
+        offenders = sorted(p for eol, p in _rows() if eol not in _OK_INDEX_EOL)
+>       assert not offenders, (
+            "these tracked files would be committed with CR line endings, which makes "
+            "`git blame` attribute the whole file to one commit and turns any "
+            "concurrent edit into a whole-file conflict:\n  " + "\n  ".join(offenders)
+        )
+E       AssertionError: these tracked files would be committed with CR line endings, which makes `git blame` attribute the whole file to one commit and turns any concurrent edit into a whole-file conflict:
+E           app/src/components/chart/ChartSettingsModal.chartData.test.jsx
+E           app/src/components/chart/chartDataMap.js
+E           app/src/components/chart/engine/ast/pineObjects.js
+E           tools/wave_p_cert_corpus/manifest.json
+E       assert not ['app/src/components/chart/ChartSettingsModal.chartData.test.jsx', 'app/src/components/chart/chartDataMap.js', 'app/src/components/chart/engine/ast/pineObjects.js', 'tools/wave_p_cert_corpus/manifest.json']
+
+tests/test_no_cr_in_tracked_text_blobs.py:51: AssertionError
+----------------------------- Captured stderr call -----------------------------
+2026-09-23 13:11:54,283 WARNING api.services.finnhub_client: FINNHUB_API_KEY not set — Finnhub call skipped (/stock/profile2)
+2026-09-23 13:11:54,330 WARNING api.services.finnhub_client: FINNHUB_API_KEY not set — Finnhub call skipped (/stock/profile2)
+------------------------------ Captured log call -------------------------------
+WARNING  api.services.finnhub_client:finnhub_client.py:235 FINNHUB_API_KEY not set — Finnhub call skipped (/stock/profile2)
+WARNING  api.services.finnhub_client:finnhub_client.py:235 FINNHUB_API_KEY not set — Finnhub call skipped (/stock/profile2)
+______________ test_every_key_the_client_writes_is_still_accepted ______________
+
+client = <starlette.testclient.TestClient object at 0x7f6255091d90>
+
+    def test_every_key_the_client_writes_is_still_accepted(client):
+        """THE defect this endpoint's allow-list can cause, railed by derivation."""
+        keys, unresolved = derive_client_preference_keys()
+    
+        # Non-vacuity: the scan must have found a real, named set.
+        assert len(keys) >= 25, f"key scan found only {len(keys)} keys — the scan is broken"
+        for sentinel in ("chart_settings", "joystick_hub", "theme", "charts_workspace_layout"):
+            assert sentinel in keys, f"scan missed {sentinel!r} — the scan is broken"
+    
+        # Anything the scan could not resolve must be a known forwarded parameter,
+        # never a key quietly dropped from the check.
+>       assert unresolved <= _FORWARDED_PARAM_NAMES, (
+            f"unresolved key expressions: {sorted(unresolved - _FORWARDED_PARAM_NAMES)}"
+        )
+E       AssertionError: unresolved key expressions: ['same']
+E       assert {'key', 'same'} <= {'key'}
+E         
+E         Extra items in the left set:
+E         'same'
+
+tests/test_preference_key_validation.py:224: AssertionError
+---------------------------- Captured stdout setup -----------------------------
+[auth] Database ready at /tmp/uct_tests_authdb_nvktbpr3/auth.db
+=============================== warnings summary ===============================
+../../../../../opt/hostedtoolcache/Python/3.12.14/x64/lib/python3.12/site-packages/starlette/testclient.py:40
+  /opt/hostedtoolcache/Python/3.12.14/x64/lib/python3.12/site-packages/starlette/testclient.py:40: DeprecationWarning: The anyio.abc.BlockingPortal alias is deprecated, use anyio.from_thread.BlockingPortal instead.
+    _PortalFactoryType = typing.Callable[[], typing.ContextManager[anyio.abc.BlockingPortal]]
+
+api/baselines.py:456
+  /home/runner/work/UCT-Dashboard/UCT-Dashboard/api/baselines.py:456: DeprecationWarning: datetime.datetime.utcnow() is deprecated and scheduled for removal in a future version. Use timezone-aware objects to represent datetimes in UTC: datetime.datetime.now(datetime.UTC).
+    _baselines_last_loaded = datetime.utcnow()
+
+tests/test_no_shadowed_definitions.py::test_the_sweep_actually_reads_the_whole_repo
+tests/test_notebook_flag_table_form.py::test_waveKs_four_capabilities_are_visible_to_the_index[False-NOTEBOOK_OFFLINE_DEFAULT_ON]
+tests/test_notebook_flag_table_form.py::test_waveKs_four_capabilities_are_visible_to_the_index[True-NOTEBOOK_OFFLINE_READ_ON]
+tests/test_notebook_flag_table_form.py::test_waveKs_four_capabilities_are_visible_to_the_index[True-NOTEBOOK_CONFLICT_UX_ON]
+tests/test_notebook_flag_table_form.py::test_waveKs_four_capabilities_are_visible_to_the_index[True-NOTEBOOK_ATTACHMENTS_ON]
+  <unknown>:19: SyntaxWarning: invalid escape sequence '\d'
+
+tests/test_no_shadowed_definitions.py::test_the_sweep_actually_reads_the_whole_repo
+tests/test_notebook_flag_table_form.py::test_waveKs_four_capabilities_are_visible_to_the_index[False-NOTEBOOK_OFFLINE_DEFAULT_ON]
+tests/test_notebook_flag_table_form.py::test_waveKs_four_capabilities_are_visible_to_the_index[True-NOTEBOOK_OFFLINE_READ_ON]
+tests/test_notebook_flag_table_form.py::test_waveKs_four_capabilities_are_visible_to_the_index[True-NOTEBOOK_CONFLICT_UX_ON]
+tests/test_notebook_flag_table_form.py::test_waveKs_four_capabilities_are_visible_to_the_index[True-NOTEBOOK_ATTACHMENTS_ON]
+  <unknown>:10: SyntaxWarning: invalid escape sequence '\d'
+
+tests/test_no_shadowed_definitions.py::test_the_sweep_actually_reads_the_whole_repo
+tests/test_notebook_flag_table_form.py::test_waveKs_four_capabilities_are_visible_to_the_index[False-NOTEBOOK_OFFLINE_DEFAULT_ON]
+tests/test_notebook_flag_table_form.py::test_waveKs_four_capabilities_are_visible_to_the_index[True-NOTEBOOK_OFFLINE_READ_ON]
+tests/test_notebook_flag_table_form.py::test_waveKs_four_capabilities_are_visible_to_the_index[True-NOTEBOOK_CONFLICT_UX_ON]
+tests/test_notebook_flag_table_form.py::test_waveKs_four_capabilities_are_visible_to_the_index[True-NOTEBOOK_ATTACHMENTS_ON]
+  <unknown>:85: SyntaxWarning: invalid escape sequence '\s'
+
+tests/test_no_shadowed_definitions.py::test_the_sweep_actually_reads_the_whole_repo
+  <unknown>:968: SyntaxWarning: invalid escape sequence '\d'
+
+tests/test_no_shadowed_definitions.py::test_the_sweep_actually_reads_the_whole_repo
+  <unknown>:262: SyntaxWarning: invalid escape sequence '\d'
+
+tests/test_no_shadowed_definitions.py::test_the_sweep_actually_reads_the_whole_repo
+  <unknown>:55: SyntaxWarning: invalid escape sequence '\d'
+
+tests/test_no_shadowed_definitions.py::test_the_sweep_actually_reads_the_whole_repo
+  <unknown>:1340: SyntaxWarning: invalid escape sequence '\d'
+
+tests/test_no_shadowed_definitions.py::test_the_sweep_actually_reads_the_whole_repo
+  <unknown>:627: SyntaxWarning: invalid escape sequence '\w'
+
+tests/test_note_sync_router.py::test_start_initial_sync_never_raises_into_a_successful_connect
+  /home/runner/work/UCT-Dashboard/UCT-Dashboard/api/routers/note_sync.py:501: RuntimeWarning: coroutine '_start_initial_sync.<locals>._run' was never awaited
+    log.warning("[note_sync] no event loop; initial sync for %s deferred to the scheduler", source_id)
+  Enable tracemalloc to get traceback where the object was allocated.
+  See https://docs.pytest.org/en/stable/how-to/capture-warnings.html#resource-warnings for more info.
+
+tests/test_oi_morning.py::test_render_returns_png
+tests/test_oi_morning.py::test_render_returns_png
+  /home/runner/work/UCT-Dashboard/UCT-Dashboard/api/oi_morning.py:442: DeprecationWarning: Image.Image.getdata is deprecated and will be removed in Pillow 14 (2027-10-15). Use get_flattened_data instead.
+    for (r, g, b, a) in lg.getdata()])
+
+tests/test_paywall_gate_free_tier.py::test_a_PAID_member_is_NOT_refused_on_any_route_gated_here
+tests/test_paywall_gate_free_tier.py::test_the_paid_pass_produces_REAL_successes_not_just_absence_of_refusal
+  /home/runner/work/UCT-Dashboard/UCT-Dashboard/api/services/polygon_options.py:68: DeprecationWarning: datetime.datetime.utcnow() is deprecated and scheduled for removal in a future version. Use timezone-aware objects to represent datetimes in UTC: datetime.datetime.now(datetime.UTC).
+    today = datetime.utcnow().date().isoformat()
+
+tests/test_perf_batch_a.py::test_insider_feed_parallel_aggregates
+  /home/runner/work/UCT-Dashboard/UCT-Dashboard/api/services/insider.py:190: DeprecationWarning: datetime.datetime.utcnow() is deprecated and scheduled for removal in a future version. Use timezone-aware objects to represent datetimes in UTC: datetime.datetime.now(datetime.UTC).
+    cutoff = (datetime.utcnow() - timedelta(days=7)).strftime("%Y-%m-%d")
+
+tests/test_phase_e_acceptance.py::test_the_RUN_NOW_leg_holds_the_SAME_hash_and_leaves_the_store_UNTOUCHED
+  /home/runner/work/UCT-Dashboard/UCT-Dashboard/tests/test_scan_run.py:1340: SyntaxWarning: invalid escape sequence '\d'
+    which leaves the carriage return inside the match, so a trailing ``(\d+)$``
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+- generated xml file: /home/runner/work/UCT-Dashboard/UCT-Dashboard/pytest-junit.xml -
+=========================== short test summary info ============================
+FAILED tests/test_nb_observe.py::test_a_5xx_reading_is_SKIPPED_not_an_ANOMALY - AssertionError: bad = [x for x in observed
+assert 'bad = [x for x in observed' in '    recs, gripes = parsed_rows()\n    r = [x[\'_cells\'] for x in recs]\n    fails = []\n    # !! A ROW THIS GATE COU...te_text(body, encoding="utf-8")\n    print(body)\n    return 0\n\n\nif __name__ == "__main__":\n    sys.exit(main())\n'
+FAILED tests/test_no_cr_in_tracked_text_blobs.py::test_no_tracked_text_file_is_staged_with_cr_line_endings - AssertionError: these tracked files would be committed with CR line endings, which makes `git blame` attribute the whole file to one commit and turns any concurrent edit into a whole-file conflict:
+    app/src/components/chart/ChartSettingsModal.chartData.test.jsx
+    app/src/components/chart/chartDataMap.js
+    app/src/components/chart/engine/ast/pineObjects.js
+    tools/wave_p_cert_corpus/manifest.json
+assert not ['app/src/components/chart/ChartSettingsModal.chartData.test.jsx', 'app/src/components/chart/chartDataMap.js', 'app/src/components/chart/engine/ast/pineObjects.js', 'tools/wave_p_cert_corpus/manifest.json']
+FAILED tests/test_preference_key_validation.py::test_every_key_the_client_writes_is_still_accepted - AssertionError: unresolved key expressions: ['same']
+assert {'key', 'same'} <= {'key'}
+  
+  Extra items in the left set:
+  'same'
+3 failed, 1459 passed, 29 warnings in 287.95s (0:04:47)
