@@ -676,6 +676,144 @@ const AWAITING_A_DECISION = {
     + 'at all (same pairing rule as buildRail / DeskVideoRail).',
   }
 
+/**
+ * ─── S4 — A PARKING NOTE MAY NOT OUTLIVE ITS OWN EXPIRY ────────────────────
+ *
+ * ⚰️⚰️ THE REGISTER ABOVE IS HONEST AND WAS STILL NOT ENOUGH. Every block in it
+ * carries a date and an intent, in prose, and NOTHING READ THEM.
+ * `objectPool.js` sat here under "Wave 2 close, 2026-09-14"; that date passed
+ * and no test noticed, so the module stayed parked while the runtime it belongs
+ * to refused at its drawing cap and kept the OLDEST objects. Measured against
+ * TradingView on 2026-09-23, that is what made `liquidity-pools` draw a
+ * year-stale chart — the correct FIFO was in this repo, with its own green
+ * tests, unreachable. `lesson_built_tested_green_and_unreachable` WITH A
+ * DEADLINE ATTACHED, and the deadline was the part that failed.
+ *
+ * ⭐ SO THE DATE BECOMES DATA. Each parked block declares an ISO expiry here,
+ * and the rail below reads the register's OWN SOURCE for its block markers — so
+ * a block added without an expiry fails rather than parking itself forever, and
+ * an expiry naming no block fails too. Neither list can drift from the other,
+ * which is the only reason it is safe for them to be two lists.
+ *
+ * ⚠️ THESE DATES ARE PROPOSALS, NOT POLICY. The register already grants the
+ * owner a per-module veto and any of these can move in one line. What is not
+ * negotiable is that a lapsed date now FAILS rather than sitting quietly.
+ *
+ * ⚠️ AND YES, THIS MAKES THE SUITE DEPEND ON THE CLOCK. That is the feature: an
+ * expiry that cannot fire on its own date is the thing being fixed. It fails
+ * BY NAME, with the block and every path still parked under it, so the fix is
+ * always "decide these modules", never "find out what broke".
+ */
+const PARKING_EXPIRES = {
+  'THE PINE RUNTIME, NOT YET MOUNTED (2026-09-09)': '2026-11-30',
+  "THE RUNTIME LANE'S VALUE CHANNELS (2026-09-20)": '2026-11-30',
+  // ⚰️ THIS IS THE BLOCK THAT LAPSED, and it is renewed SHORT on purpose.
+  // `objectPool.js` has been removed from it (RC-B wired it), but five
+  // primitives remain — and three of them, `zorder.js`, `colorInt.js` and
+  // `textLayout.js`, are named in `docs/pine/PARITY-ROOT-CAUSE.md` as the next
+  // seams where a house concept stands in for a Pine one with nothing measuring
+  // the difference. They are the same shape as the defect that cost this.
+  'WAVE 2 IN FLIGHT — THE RENDERER PRIMITIVES AND TWO INSTRUMENTS': '2026-10-06',
+  'THE DASHBOARD COCKPIT RETIREMENT (2026-08-30)': '2026-10-31',
+  'SEAM 18 / COMMUNITY SURFACE — RECORDED, NOT DELETED (2026-09-11)': '2026-11-30',
+  'The Community surface itself: 15 files, one coherent feature': '2026-11-30',
+}
+
+/** ⛔ A DATE COMPARISON, NOT A DURATION. Both sides are ISO `YYYY-MM-DD`, which
+ *  compares correctly as a string and has no timezone to get wrong — the one
+ *  arithmetic in this file that must never drift by a day. */
+const hasLapsed = (expires, todayISO) => String(expires) < String(todayISO)
+
+/** The register's blocks, READ FROM ITS OWN SOURCE — never a second hand-typed
+ *  list of what is parked where. A block with no entries under it is a
+ *  historical marker (the two JOYSTICK ones are wired now) and parks nothing,
+ *  so it owes no expiry. */
+function parkedBlocks() {
+  const src = read(path.join(ROOT, 'app/src/components/screener/reachable.test.js'))
+  const lines = src.split('\n')
+  const from = lines.findIndex((l) => l.startsWith('const AWAITING_A_DECISION = {'))
+  expect(from, 'the register moved — this rail cannot find it').toBeGreaterThan(-1)
+  const to = lines.findIndex((l, i) => i > from && l === '  }')
+  expect(to, 'the register never closes — this rail cannot bound it').toBeGreaterThan(from)
+
+  const blocks = []
+  let cur = null
+  for (let i = from + 1; i < to; i += 1) {
+    const head = /^\s*\/\/ ── (.+?) ─+$/.exec(lines[i])
+    if (head) { cur = { name: head[1], paths: [] }; blocks.push(cur); continue }
+    // ⛔ MATCH THE KEY BY ITS SHAPE — a repo path — NOT by its indentation and
+    // not by "quoted string then colon". Two entries are indented four spaces
+    // rather than two, and several carry their reason INLINE after the colon
+    // instead of on the next line; an indentation rule missed the first pair
+    // and an end-of-line rule missed the second. Every key in this register is
+    // a path under `app/`, and a value never is.
+    const entry = /^\s+'(app\/[^']+)':/.exec(lines[i])
+    if (entry && cur) cur.paths.push(entry[1])
+  }
+  return blocks
+}
+
+describe('🔴 S4 — a parking note may not outlive its own expiry', () => {
+  it('⛔ CONTROL — the register is really being read, blocks and all', () => {
+    // ⭐ NON-VACUITY, and it is the whole rail. Every assertion below is over a
+    // parsed set: if the parse returned nothing, "no block has lapsed" and
+    // "every block has an expiry" are both trivially true and this file would
+    // report a clean bill of health for a register it never opened.
+    const blocks = parkedBlocks()
+    expect(blocks.length, 'no blocks parsed — the marker format changed')
+      .toBeGreaterThan(4)
+    const parked = blocks.filter((b) => b.paths.length > 0)
+    expect(parked.length).toBeGreaterThan(4)
+    // a path known to be in there, named rather than counted
+    const all = parked.flatMap((b) => b.paths)
+    expect(all).toContain('app/src/components/chart/engine/zorder.js')
+    expect(all.length).toBe(Object.keys(AWAITING_A_DECISION).length)
+  })
+
+  it('⛔⛔ every parked block declares an expiry, and every expiry names a block', () => {
+    // ⛔ BOTH DIRECTIONS, because each catches a different mistake: a new block
+    // added without a date would park itself forever, and a date left behind
+    // after its block is cleared reads as protection that no longer covers
+    // anything.
+    const parked = parkedBlocks().filter((b) => b.paths.length > 0).map((b) => b.name)
+    const declared = Object.keys(PARKING_EXPIRES)
+    expect(parked.filter((n) => !declared.includes(n)),
+      'these blocks park modules with no expiry — add one to PARKING_EXPIRES')
+      .toEqual([])
+    expect(declared.filter((n) => !parked.includes(n)),
+      'these expiries name no block that parks anything — drop them')
+      .toEqual([])
+    for (const [name, when] of Object.entries(PARKING_EXPIRES)) {
+      expect(when, `${name} has a malformed expiry`).toMatch(/^\d{4}-\d{2}-\d{2}$/)
+    }
+  })
+
+  it('⛔⛔ NO BLOCK IS PAST ITS EXPIRY — the check `objectPool` needed and did not have', () => {
+    const todayISO = new Date().toISOString().slice(0, 10)
+    const lapsed = parkedBlocks()
+      .filter((b) => b.paths.length > 0 && hasLapsed(PARKING_EXPIRES[b.name], todayISO))
+      .map((b) => `${b.name} (expired ${PARKING_EXPIRES[b.name]}, still parking `
+        + `${b.paths.length}: ${b.paths.join(', ')})`)
+    expect(lapsed, 'these parking notes have outlived their own expiry. WIRE the '
+      + 'modules, DELETE them, or renew the date deliberately — what you may not '
+      + 'do is leave them, which is exactly how objectPool.js stayed unreachable '
+      + 'for eight days past its date while the engine drew a year-stale chart.')
+      .toEqual([])
+  })
+
+  it('⛔ CONTROL — and the expiry check can actually FAIL', () => {
+    // ⚰️ A GATE NOBODY HAS SEEN FIRE IS NOT A GATE (`lesson_gate_that_cannot_
+    // fail`). The case above passes on a healthy register and would pass just
+    // as happily if `hasLapsed` always answered false.
+    expect(hasLapsed('2026-09-14', '2026-09-22')).toBe(true)
+    expect(hasLapsed('2026-11-30', '2026-09-22')).toBe(false)
+    // ⛔ and the boundary: a note expires at the END of its stated day, so the
+    // day itself is not lapsed. An off-by-one here fires a day early on every
+    // block at once, which reads as a broken rail rather than a real decision.
+    expect(hasLapsed('2026-09-22', '2026-09-22')).toBe(false)
+  })
+})
+
 describe('🔴 every module under app/src is REACHABLE from an entry point', () => {
   const reachable = reachableFrom(ROOTS)
   const modules = shippedModules()

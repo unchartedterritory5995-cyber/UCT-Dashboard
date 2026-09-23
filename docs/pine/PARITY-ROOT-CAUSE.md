@@ -279,9 +279,29 @@ vendor evidence for its semantics, and a name with no evidence should be *refuse
 rather than approximated. The programme already has the idiom — `closedTable.json`'s
 `_functions_vendor_parity_resolutions` — and it covers a fraction of the surface.
 
-**S4 — expire the allowlists loudly.** Two of the three root causes here are primitives
-that were built correctly and parked. The parking note is not the problem; the silent
-expiry is.
+**S4 — expire the allowlists loudly.** ✅ **SHIPPED.** Two of the three root causes here
+are primitives that were built correctly and parked. The parking note is not the
+problem; the silent expiry is.
+
+Every parked block in `reachable.test.js` now declares an **ISO expiry as data**, and a
+rail reads the register's own source for its block markers — so a block added without a
+date fails rather than parking itself forever, an expiry naming no block fails too, and
+**a lapsed date fails by name**, listing every path still parked under it. Neither list
+can drift from the other, which is the only reason it is safe for them to be two lists.
+
+⛔ The block that lapsed is renewed **short** (`2026-10-06`), not quietly extended:
+`objectPool.js` is out of it, but `zorder.js`, `colorInt.js` and `textLayout.js` remain
+— and those three are items 1–3 of the foreseeable problems above, the same shape as the
+defect this cost. The dates are proposals the owner can move in one line; the
+enforcement is not.
+
+**Mutation-proved three ways:** restore the expiry that actually lapsed (killed) · a
+parked block declaring no expiry (killed) · the register never actually read (killed —
+without that control, "no block has lapsed" is trivially true of a parse that returned
+nothing).
+
+⚠️ This makes the suite depend on the clock, deliberately: an expiry that cannot fire on
+its own date is precisely what was being fixed.
 
 ⛔ **And the standing rule this work earned:** a render of our own output is not
 evidence of parity. It shows we drew *something*. Only the vendor's own numbers show we
