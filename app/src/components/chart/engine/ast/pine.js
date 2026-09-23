@@ -11596,14 +11596,23 @@ function buildObjectProgram(stmts, source, env, makeResolver, bindingByStatement
     return null
   }
 
-  /** ⛔⛔ ONE SLOT, AND THE NARROWNESS IS THE POINT. `position` is the only
-   *  enum a reachable script COMPUTES rather than types — measured on the 27:
-   *  `table.new(f_getTablePos(…), …)` and `table.set_position(t, …)`. Every
-   *  other enum slot (`style`, `xloc`, `extend`, `text_halign`, …) is written as
-   *  a literal, so widening this set would buy nothing and would put a reader
-   *  that can now produce a LITERAL from a name in front of slots whose current
-   *  refusal is load-bearing. Add a slot here when a script needs it, with the
-   *  script named. */
+  /** ☠️ STRUCK 2026-09-23 — SUPERSEDED BY THE MEASUREMENT DIRECTLY BELOW, and
+   *  kept struck rather than deleted because it reads as a live argument.
+   *
+   *  ~~"ONE SLOT, AND THE NARROWNESS IS THE POINT. `position` is the only enum a
+   *  reachable script COMPUTES rather than types … widening this set would buy
+   *  nothing and would put a reader that can now produce a LITERAL from a name in
+   *  front of slots whose current refusal is load-bearing."~~
+   *
+   *  ⚰️ IT DID NOT BUY NOTHING. The other lineage widened the set and recorded
+   *  why, one comment down: with `['position']` alone every other enum slot fell
+   *  through to `resolveTree`, and a COMPUTED `text_size` became per-bar tree 9,
+   *  where the VM threw *"output 9 must carry a number, got string"* on the
+   *  acceptance dashboard. `liquidity-pools` lost every line, label and fill the
+   *  same way through `style`. The narrow set was not a guard; it was the hole.
+   *
+   *  ⭐ The instruction it ends with still stands, and is what the wider set
+   *  follows: add a slot when a script needs it, with the script named. */
   // ⭐⭐ THE SLOTS WHOSE VALUE IS A WORD, NOT A NUMBER.
   //
   // ⚰️ This was `['position']` alone, and every other enum slot fell through to
@@ -11796,7 +11805,29 @@ function buildObjectProgram(stmts, source, env, makeResolver, bindingByStatement
     // series, evaluated per bar, and painted as nothing.
     if (slot === 'text_formatting') {
       const flags = textFormatFlags(node, scopeEnv)
-      return flags ? { v: 'const', value: canonicalTextFormat(flags) } : null
+      if (flags) return { v: 'const', value: canonicalTextFormat(flags) }
+      // ⛔⛔ AND ON FAILURE IT FALLS THROUGH — IT USED TO `return null`, WHICH
+      // DROPPED A COMPUTED FORMAT SILENTLY, TWO LINES ABOVE THE READER THAT CAN
+      // HANDLE ONE.
+      //
+      // The interception above is right and stays: `textFormatFlags` is the only
+      // thing that reads Pine's `+` combinator and produces the sorted canonical
+      // spelling, and without it `text.format_bold` would reach `resolveTree` as
+      // a numeric graph node. What was wrong was the ELSE.
+      //
+      // ⚰️ ITS STATED REASON NO LONGER APPLIES HERE. That refusal was argued on
+      // cost — *"adding a third would mean a fourth thing `evaluateObjects` has to
+      // evaluate on every bar"* — but the `ENUM_SLOTS` arm below returns a
+      // `{v:'text'}` template, which its own comment says is *"what the object
+      // runtime already evaluates per bar"*. There is no third vocabulary to add;
+      // the two lineages simply built this twice and the earlier `return` won by
+      // position. Measured on the merge: `text_halign`, `text_size` and
+      // `text_color` all carried a computed value and `text_formatting` alone did
+      // not.
+      //
+      // ⭐ A FORMAT THE ENUM READER ALSO CANNOT READ STILL DROPS — but as a
+      // COUNTED drop (`enumUnreadable`) rather than a silent null, which is the
+      // difference between a visible limit and a missing feature.
     }
     // ⭐ A COMPUTED POSITION. The literal cases below still answer first for a
     // plain `position.top_right`, so nothing that resolved before changes shape;

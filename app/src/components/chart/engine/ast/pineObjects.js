@@ -53,7 +53,23 @@ export const CREATE_POSITIONAL = Object.freeze({
 /** `table.cell(table_id, column, row, text, …)` — the first three are the
  *  ADDRESS, not properties, so they are split out by the reader. */
 export const CELL_POSITIONAL = Object.freeze(['text', 'width', 'height', 'text_color',
-  'text_halign', 'text_valign', 'bgcolor', 'tooltip', 'text_size'])
+  'text_halign', 'text_valign', 'bgcolor', 'tooltip', 'text_size',
+  // ⭐⭐ SLOTS 9 AND 10, FOR `text_formatting` — PINE'S FOURTEENTH ARGUMENT.
+  // Master's, restored 2026-09-23: taking this file wholesale in the merge
+  // dropped them, and a COMPUTED `text_formatting = cond ? bold : normal`
+  // stopped reaching the program while a literal one still did.
+  //
+  // `text_formatting` cannot be reached positionally unless `text_font_family`
+  // holds the slot in front of it — the vendor signature is
+  //   table.cell(id, column, row, text, width, height, text_color,
+  //              text_halign, text_valign, text_size, bgcolor, tooltip,
+  //              text_font_family, text_formatting)
+  //
+  // ⛔ `text_font_family` IS A PLACEHOLDER, NOT A CAPABILITY, and master's own
+  // note says why: it is deliberately ABSENT from `CELL_PROPS`, so a script
+  // that writes one gets a NAMED refusal rather than a font this renderer
+  // would have had to invent.
+  'text_font_family', 'text_formatting'])
 
 /** `table.clear(table_id, start_column, start_row, end_column, end_row)` — the
  *  four bounds AFTER the handle, in Pine's own order.
