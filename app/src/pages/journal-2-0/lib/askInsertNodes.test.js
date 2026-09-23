@@ -1,10 +1,20 @@
 import { describe, it, expect, afterEach } from 'vitest'
 import { Editor, generateHTML, generateJSON } from '@tiptap/core'
+import { TextSelection } from '@tiptap/pm/state'
 import StarterKit from '@tiptap/starter-kit'
 import { AskInsert } from './askInsertNode'
 import { AskCitation, askCitationStaleKey } from './askCitationNode'
 import { appendAskInsert, buildAskInsertNode } from './askInsert'
 import { buildExtensions } from './tiptap'
+
+// G-064 fix round 2 (R2-1): jsdom has no global ClipboardEvent, and
+// `EditorView.pasteHTML` constructs one to synthesize a real paste. This
+// mirrors the reviewer's own probe scripts (`w.ClipboardEvent = ...`).
+if (typeof globalThis.ClipboardEvent === 'undefined') {
+  globalThis.ClipboardEvent = class extends Event {
+    constructor(type, opts) { super(type, opts); this.clipboardData = (opts && opts.clipboardData) || null }
+  }
+}
 
 // A bare Editor has no React content component, so ReactNodeViewRenderer
 // returns {} and the nodes render through renderHTML. That is exactly what we
@@ -24,6 +34,19 @@ function findInsert(ed) {
   let found = null
   ed.state.doc.forEach((node, offset) => { if (!found && node.type.name === 'askInsert') found = { a: offset, node } })
   return found
+}
+
+// G-064 fix round 2 (R2-1): the doc position of the first occurrence of `str`
+// inside any text node, for building a real copy selection without hand
+// counting positions.
+function locate(ed, str) {
+  let hit = null
+  ed.state.doc.descendants((node, pos) => {
+    if (hit || !node.isText) return
+    const i = node.text.indexOf(str)
+    if (i >= 0) hit = pos + i
+  })
+  return hit
 }
 
 const SRC = { n: 1, label: 'NVDA thesis', citation: 'exact', navigation: { kind: 'note', note_id: 'n1' } }
@@ -151,13 +174,90 @@ describe('a selection cannot delete across the block edge (P1 fix round 1)', () 
     expect(count).toBe(2)
   })
 
-  it('(e) a lift out of the block is blocked; the block keeps its paragraph', () => {
+  it('(e) a raw lift step out of the block is blocked; the block keeps its paragraph', () => {
+    // G-064 fix round 2 (R2-2): the `lift` COMMAND already refuses to run
+    // under `isolating` before it ever reaches the filter (`isNodeActive`'s
+    // own pre-check), so asserting the doc is unchanged after
+    // `ed.commands.lift('askInsert')` proves the command's guard, not this
+    // extension's. Dispatch the raw `Transform.lift` step directly instead --
+    // that is the only way to exercise `filterTransaction` itself.
     const ed = mount(DOC)
     const before = ed.getJSON()
     const { a } = findInsert(ed)
-    ed.commands.setTextSelection(a + 2)
-    ed.commands.lift('askInsert')
+    const insideStart = a + 2
+    const insideEnd = a + 2
+    const { state } = ed
+    const $a = state.doc.resolve(insideStart)
+    const $b = state.doc.resolve(insideEnd)
+    const range = $a.blockRange($b)
+    ed.view.dispatch(state.tr.lift(range, 0))
     expect(ed.getJSON()).toEqual(before)
+  })
+})
+
+// G-064 fix round 2 (R2-1, controller ruling) — history transactions bypass
+// the filter. Measured (reviewer's rr_probe*.cjs, reproduced independently
+// against the real repo code): copying a word from INSIDE the answer
+// paragraph and pasting it at the very START of a member paragraph triggers
+// ProseMirror's "defining-paste wrapping" (the copied slice carries a
+// `data-pm-slice` marker naming the source askInsert, so the paste re-wraps
+// the destination paragraph in a NEW askInsert of the same attrs). The
+// controller deferred that paste behaviour itself -- what this fixes is that
+// `editor.commands.undo()` on the result returned `true` while leaving the
+// document completely unchanged, permanently stranding every earlier undo
+// entry. `isHistoryTransaction` in askInsertNode.jsx's filterTransaction is
+// the fix; this reproduces the exact failing recipe and shows undo restores
+// the pre-paste document byte-for-byte.
+describe('undo after a defining-paste wrap is never stranded (fix round 2, R2-1)', () => {
+  it('pasting a copied answer fragment at the start of a member paragraph restores exactly on undo', () => {
+    const ed = mount(DOC)
+    const before = ed.getJSON()
+    const copyFrom = locate(ed, 'ins') // interior of "Margins", inside the answer paragraph
+    const copyTo = copyFrom + 3
+    ed.view.dispatch(ed.state.tr.setSelection(TextSelection.create(ed.state.doc, copyFrom, copyTo)))
+    const html = ed.view.serializeForClipboard(ed.state.selection.content()).dom.innerHTML
+    ed.commands.setTextSelection(1)
+    ed.view.pasteHTML(html)
+    // Sanity: the paste actually mutated the document (defining-paste
+    // wrapping fired) -- otherwise undo restoring "before" would be trivial.
+    expect(ed.getJSON()).not.toEqual(before)
+    expect(ed.commands.undo()).toBe(true)
+    expect(ed.getJSON()).toEqual(before)
+  })
+})
+
+// G-064 fix round 2 (R2-3) — a parse rail for the citation chip's `data-n`
+// attribute (askCitationNode.jsx's F4 fix): missing and empty both read
+// null, never the real value zero; `data-n="0"` itself must read the real 0.
+describe("a parse rail for the citation chip's data-n attribute (fix round 2, R2-3)", () => {
+  function nOf(spanAttr) {
+    const html = `<div data-type="ask-insert"><p>Hi <span data-type="ask-citation"${spanAttr}>[?]</span></p></div>`
+    const json = generateJSON(html, EXT)
+    let n
+    let found = false
+    const visit = (node) => {
+      if (found || !node || typeof node !== 'object') return
+      if (node.type === 'askCitation') { n = node.attrs.n; found = true; return }
+      if (Array.isArray(node.content)) node.content.forEach(visit)
+    }
+    visit(json)
+    return n
+  }
+
+  it('no data-n at all parses to null', () => {
+    expect(nOf('')).toBeNull()
+  })
+
+  it('an empty data-n parses to null', () => {
+    expect(nOf(' data-n=""')).toBeNull()
+  })
+
+  it('data-n="3" parses to 3', () => {
+    expect(nOf(' data-n="3"')).toBe(3)
+  })
+
+  it('data-n="0" parses to the real 0, not null', () => {
+    expect(nOf(' data-n="0"')).toBe(0)
   })
 })
 

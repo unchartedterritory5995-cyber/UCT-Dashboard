@@ -2,6 +2,7 @@ import { Node, mergeAttributes } from '@tiptap/core'
 import { ReactNodeViewRenderer } from '@tiptap/react'
 import { Plugin } from '@tiptap/pm/state'
 import { ReplaceStep, ReplaceAroundStep } from '@tiptap/pm/transform'
+import { isHistoryTransaction } from '@tiptap/pm/history'
 import AskInsertView from '../components/notebook/AskInsertView'
 
 /**
@@ -94,6 +95,12 @@ export const AskInsert = Node.create({
   addProseMirrorPlugins() {
     return [new Plugin({
       filterTransaction(tr) {
+        // G-064 fix round 2 (R2-1) — undo/redo only ever move the doc between
+        // states THIS filter already accepted going forward, so replaying one
+        // can never introduce a new cross-block deletion; rejecting it instead
+        // discards the transaction while `undo()` still reports success,
+        // permanently stranding every earlier entry on the history stack.
+        if (isHistoryTransaction(tr)) return true
         if (!tr.docChanged) return true
         for (let i = 0; i < tr.steps.length; i += 1) {
           const doc = tr.docs[i]
