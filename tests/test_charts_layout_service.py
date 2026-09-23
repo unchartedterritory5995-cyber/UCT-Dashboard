@@ -95,3 +95,86 @@ def test_two_users_may_hold_the_same_layout_name():
     mine = svc.upsert("user", UUID_USER, "Mine", {"widgets": []}, None, "T")
     renamed = svc.rename(mine["id"], "Shared Name")
     assert renamed["name"] == "Shared Name"
+
+
+# ═══ sharing (terminal-grade property 3) ═════════════════════════════════════
+
+
+def test_share_mints_a_token_that_resolves_to_the_layout():
+    row = svc.upsert("user", UUID_USER, "Swing Setup",
+                     {"widgets": [{"id": "a"}], "cols": 24}, {"A": "NVDA"}, "T")
+    out = svc.share(UUID_USER, row["id"])
+    assert out["token"].startswith("cl_")
+    resolved = svc.resolve_share(out["token"])
+    assert resolved["name"] == "Swing Setup"
+    assert resolved["groups"] == {"A": "NVDA"}
+
+
+def test_share_is_idempotent_pressing_twice_returns_the_same_token():
+    row = svc.upsert("user", UUID_USER, "L", {"widgets": []}, None, "T")
+    first = svc.share(UUID_USER, row["id"])
+    second = svc.share(UUID_USER, row["id"])
+    assert first["token"] == second["token"]
+
+
+def test_share_refuses_a_layout_you_do_not_own():
+    other_user = str(uuid.uuid4())
+    row = svc.upsert("user", other_user, "Not Yours", {"widgets": []}, None, "T")
+    assert svc.share(UUID_USER, row["id"]) is None
+
+
+def test_share_refuses_a_global_prebuilt_layout():
+    """Global layouts are already visible to everyone via list_for_user — a
+    personal share link on top of that is a different, unbuilt permission
+    model, not a natural extension of it."""
+    row = svc.upsert("global", UUID_USER, "Prebuilt", {"widgets": []}, None, "Admin")
+    assert svc.share(UUID_USER, row["id"]) is None
+
+
+def test_unshare_revokes_and_the_token_no_longer_resolves():
+    row = svc.upsert("user", UUID_USER, "L", {"widgets": []}, None, "T")
+    out = svc.share(UUID_USER, row["id"])
+    assert svc.unshare(UUID_USER, row["id"]) is True
+    assert svc.resolve_share(out["token"]) is None
+
+
+def test_unshare_when_never_shared_returns_false_not_an_error():
+    row = svc.upsert("user", UUID_USER, "L", {"widgets": []}, None, "T")
+    assert svc.unshare(UUID_USER, row["id"]) is False
+
+
+def test_share_status_is_read_only_and_never_mints():
+    """Opening a share panel must not itself publish a layout."""
+    row = svc.upsert("user", UUID_USER, "L", {"widgets": []}, None, "T")
+    assert svc.share_status(UUID_USER, row["id"]) is None
+    assert svc.resolve_share("cl_" + "0" * 32) is None  # nothing was minted
+
+
+def test_share_status_reflects_revocation_as_a_distinct_state():
+    row = svc.upsert("user", UUID_USER, "L", {"widgets": []}, None, "T")
+    svc.share(UUID_USER, row["id"])
+    svc.unshare(UUID_USER, row["id"])
+    assert svc.share_status(UUID_USER, row["id"]) is None
+
+
+def test_resolve_share_returns_none_for_an_unknown_token():
+    assert svc.resolve_share("cl_does_not_exist") is None
+
+
+def test_resharing_after_the_layout_is_edited_keeps_the_same_token():
+    """The link is the stable thing; the content behind it is not — mirrors
+    user_definitions' own re-share behavior."""
+    row = svc.upsert("user", UUID_USER, "L", {"widgets": []}, None, "T")
+    out = svc.share(UUID_USER, row["id"])
+    svc.upsert("user", UUID_USER, "L", {"widgets": [{"id": "new"}]}, None, "T")
+    resolved = svc.resolve_share(out["token"])
+    assert resolved["layout"] == {"widgets": [{"id": "new"}]}
+    # re-sharing explicitly still returns the same token
+    assert svc.share(UUID_USER, row["id"])["token"] == out["token"]
+
+
+def test_deleting_the_layout_makes_its_share_token_resolve_to_none():
+    row = svc.upsert("user", UUID_USER, "L", {"widgets": []}, None, "T")
+    out = svc.share(UUID_USER, row["id"])
+    svc.delete(row["id"])
+    assert svc.resolve_share(out["token"]) is None
