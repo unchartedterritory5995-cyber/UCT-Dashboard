@@ -24,11 +24,31 @@ def build_dividends():
     led = json.load(open(oracle2.IN + "/dividends_ledger.json"))
     last = led["ex_date_lte"]
     grp = collections.defaultdict(list)
+    app, wh = collections.defaultdict(list), collections.defaultdict(list)
+    memo = {}
+
+    def spelled(t, ex):
+        # the dividend ledger concatenates share classes (BFB); prices dot them (BF.B)
+        if "." in t or len(t) < 2:
+            return t
+        if (t, ex) not in memo:
+            j = bisect.bisect_left(CAL, ex)
+            before = CAL[max(0, j - 5):j] if j < len(CAL) else []
+            dotted = t[:-1] + "." + t[-1]
+            a = any(t in oracle2.gfile(x, False) for x in before)
+            b = any(dotted in oracle2.gfile(x, False) for x in before)
+            memo[(t, ex)] = ("AMBIGUOUS", t, dotted, CAL[j]) if (a and b) else (dotted if b else t)
+        return memo[(t, ex)]
+
     for d in led["dividends"]:
         if d.get("ticker") and d.get("ex_dividend_date") and d.get("cash_amount") is not None \
                 and d["ex_dividend_date"] <= last:
-            grp[(oracle2.canon(d["ticker"]), d["ex_dividend_date"])].append(d)
-    app, wh = collections.defaultdict(list), collections.defaultdict(list)
+            nm = spelled(oracle2.canon(d["ticker"]), d["ex_dividend_date"])
+            if isinstance(nm, tuple):
+                for x in nm[1:3]:
+                    wh[x].append(nm[3])
+                continue
+            grp[(nm, d["ex_dividend_date"])].append(d)
     for (t, ex), recs in sorted(grp.items(), key=lambda kv: kv[0][1]):
         j = bisect.bisect_left(CAL, ex)
         if j >= len(CAL):
@@ -51,7 +71,7 @@ def build_dividends():
         if not prev or 1 - cash / prev <= 0.5:
             wh[t].append(s); continue
         app[t].append((s, 1 - cash / prev))
-    return app, {t: sorted(v) for t, v in wh.items()}
+    return app, {t: sorted(set(v)) for t, v in wh.items()}
 
 
 class Oracle3(oracle2.Oracle2):
