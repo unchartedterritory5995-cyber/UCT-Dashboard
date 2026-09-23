@@ -254,7 +254,8 @@ def _boot_can_skip(last_ts, tf) -> bool:
         return False
 
 
-def shallow_5m_universe_jobs(ticker_list, deep_5m_tickers, *, enabled: bool, bars: int) -> list:
+def shallow_5m_universe_jobs(ticker_list, deep_5m_tickers, *, enabled: bool, bars: int,
+                             reference_tail=()) -> list:
     """PHASE 2 (instant-origin) — the BOOT-ONLY jobs that warm a SHALLOW 5m window for
     the WHOLE universe, so a brand-new user's first 5m open of ANY ticker is an instant
     local serve (the async-heal path then tops it up non-blocking; the hot-set refreshes
@@ -267,11 +268,33 @@ def shallow_5m_universe_jobs(ticker_list, deep_5m_tickers, *, enabled: bool, bar
     ⛔ These are BOOT-ONLY by design: they must NEVER join the tight 5-min refresh loop's
     job list, or every cycle would re-fetch ~3,700 intraday series and re-starve on-demand
     fetches (the Massive saturation / AGI 20s hang). Shallow depth (a couple of sessions)
-    is all the default zoom needs; freshness is the async-heal + hot-set's job."""
+    is all the default zoom needs; freshness is the async-heal + hot-set's job.
+
+    ⛔⛔ `ticker_list` IS NOT THE UNIVERSE A MEMBER CAN SEARCH, AND THAT IS THE BFRG GAP.
+    It is cap_universe (3,640 symbols) + active ETFs. The ~22k REFERENCE LONG TAIL
+    (`_dwm_extra`) is warmed D/W/M only — "instant every symbol" made DAILY universe-wide
+    and left intraday behind. So BFRG / SNGX / GRRR / CNEY / VRME chart on 1D and take the
+    cold path on 5m, and NO value of PREWARM_5M_UNIVERSE or PREWARM_5M_CAP reaches them:
+    both operate INSIDE `ticker_list`, which never contained them. Measured 2026-09-23 —
+    all five are absent from `cap_universe.json`.
+
+    `reference_tail` is exactly that missing population, passed separately so the caller
+    gates it on its OWN flag: it is ~22k additional boot-only fetches, which is a provider
+    THROUGHPUT decision and not a code decision. Default empty => byte-identical output.
+
+    ⭐ SHALLOW IS WHY THIS IS AFFORDABLE AT ALL. Measured on production: a 780-bar 5m
+    payload is ~56 KB against ~362 KB for the 5000-bar deep warm — 6.4x cheaper — and the
+    default zoom never needs more. Depth stays the COLD PATH's job, which the shipped
+    warming-503 fix now makes correct rather than fatal."""
     if not enabled:
         return []
     deep = set(deep_5m_tickers)
-    return [(s, '5', bars) for s in ticker_list if s not in deep]
+    out = [(s, '5', bars) for s in ticker_list if s not in deep]
+    # ⚠️ DEDUPED AGAINST BOTH PRIOR SETS. A symbol warmed twice is a wasted provider
+    # call on the one axis this design is constrained by.
+    seen = deep | set(ticker_list)
+    out += [(s, '5', bars) for s in reference_tail if s not in seen]
+    return out
 
 
 def _daily_first_boot_jobs(jobs, shallow_5m, dwm_extra) -> list:
@@ -786,10 +809,23 @@ def run_prewarmer_forever():
     # refresh loop's `jobs`), so first-open of any long-tail 5m is instant like daily.
     # Gated by PREWARM_5M_UNIVERSE (default OFF — flip on the worker to roll out + watch
     # Massive throughput); depth via PREWARM_5M_SHALLOW_BARS (default ~2 sessions).
+    # ⛔ TWO FLAGS, BECAUSE THEY BUY DIFFERENT THINGS AND COST DIFFERENT AMOUNTS.
+    #   PREWARM_5M_UNIVERSE  — shallow 5m across `ticker_list` (cap_universe + ETFs)
+    #                          beyond the deep top-N. ~+2-3k boot fetches.
+    #   PREWARM_5M_REF_TAIL  — shallow 5m across the ~22k REFERENCE LONG TAIL. This is
+    #                          the ONLY switch that reaches the BFRG class, because that
+    #                          class is not in `ticker_list` at all. ~+22k boot fetches,
+    #                          so it is deliberately a SECOND decision: turning on broad
+    #                          intraday readiness must not be a side effect of turning on
+    #                          cap_universe readiness.
+    # Both default OFF and both require the worker; the refresh loop is untouched either
+    # way (these only ever reach `boot_jobs`).
+    _ref_tail_on = _IS_WORKER and os.environ.get("PREWARM_5M_REF_TAIL", "0") == "1"
     _shallow_5m = shallow_5m_universe_jobs(
         ticker_list, _FIVEMIN_TICKERS if _IS_WORKER else [],
         enabled=(_IS_WORKER and os.environ.get("PREWARM_5M_UNIVERSE", "0") == "1"),
         bars=int(os.environ.get("PREWARM_5M_SHALLOW_BARS", "780")),
+        reference_tail=(_dwm_extra if _ref_tail_on else ()),
     )
     # INSTANT EVERY SYMBOL: boot-only D/W/M for the reference long-tail (worker
     # only; see `_dwm_extra` rationale above). Coldest symbols warmed once so any
