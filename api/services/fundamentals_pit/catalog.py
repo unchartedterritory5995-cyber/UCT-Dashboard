@@ -229,6 +229,11 @@ DEFERRED: dict[str, str] = {
 
 COMPOSERS = frozenset({"market_cap", "pe", "ps", "pb", "fcf_yield"})
 
+# Percent metrics are SERVED as percent numbers (23.45 = 23.45%) -- the convention
+# the Screener columns and formula scalars already use -- while the store keeps
+# the raw fraction the derivation produced. One set, derived from the catalogue.
+PERCENT_SERIES = frozenset(m.series for m in V1 if m.unit == "percent" and m.series)
+
 
 def by_id() -> dict[str, MetricDef]:
     return {m.id: m for m in V1}

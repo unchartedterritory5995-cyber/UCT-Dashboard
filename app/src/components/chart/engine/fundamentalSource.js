@@ -106,6 +106,9 @@ export function fundamentalColumn(parsed, ctx) {
 
   const fn = COMPOSERS[metric.compose]
   if (!fn) return null
+  // Percent metrics read as percent numbers (the API's and the Screener's
+  // convention); a composer returns a fraction, so it is scaled here, once.
+  const scale = metric.unit === 'percent' ? 100 : 1
   const close = typeof ctx.closeOf === 'function' ? ctx.closeOf(sym) : null
   if (!close || close.length !== bars.length) return null
   const cols = Object.fromEntries(ids.map((id, i) => [id, asOf(pts[i])]))
@@ -123,7 +126,7 @@ export function fundamentalColumn(parsed, ctx) {
         x[id] = v
       }
       if (!ok) continue
-      const v = fn(c, x)
+      const v = fn(c, x) * scale
       out[i] = Number.isFinite(v) ? v : NaN
     }
     return out

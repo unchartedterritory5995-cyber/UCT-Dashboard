@@ -73,6 +73,7 @@ import {
 } from './sourceRef'
 import { projectionFor, clippedBarsFor } from './symbolProjection'
 import { fundamentalColumn } from './fundamentalSource'
+import { fundamentalFormatOfInputs, fundamentalPriceFormat } from './fundamentalFormat'
 import { ohlcCapabilityOf, barHasOhlc, outputIsSource } from './ohlcCapability'
 import { sourceCapabilityOf } from './sourceCapability'
 import { resolvePlotStyle, resolveCandleColors } from './presentation'
@@ -1220,6 +1221,8 @@ export function createBinder({ chart, LWC }) {
         // option set, so without this the engine would re-show a hidden series on
         // the next paint — roughly once a second in extended hours.
         indicatorsHidden: ctx.indicatorsHidden === true,
+        // ⭐ A `fund:` source's unit, from the catalogue -- null for everything else.
+        priceFormat: fundamentalPriceFormat(fundamentalFormatOfInputs(b.inst && b.inst.inputs)),
         // ⭐ ONLY A CANDLE READS THESE, and resolving them HERE is what keeps the
         // chart's own palette the default: `cs.candles` is the member's candle
         // colour, so a secondary instrument wears it until they override it on

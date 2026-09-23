@@ -68,8 +68,9 @@ import {
   hiddenLibraryIds, libraryRowFor, symbolLibraryRow, createFromResult,
   SYMBOL_CATEGORY, BREADTH_CATEGORY, CAPABILITY,
   securityResults, breadthResults, marketIndicatorResults, resultsForTab, liveDiscoveryRows, LIBRARY_TABS, FUNDAMENTALS_STATUS,
-  glyphNameOf, glyphFamilyOf,
+  glyphNameOf, glyphFamilyOf, fundamentalResults,
 } from './discoveryCatalog'
+import useFundamentalsCatalog from './engine/useFundamentalsCatalog'
 import UIcon from '../ui/UIcon'
 // ⛔ NOT A SECOND SEARCH. `useSymbolDiscovery` is the SAME hook `SourceField`'s
 // picker uses — same two endpoints, same debounce, same abort discipline, same
@@ -819,6 +820,10 @@ export default function ChartSettingsIndicators({
   const breadthAll = useBreadthSymbols()
   // ⭐ THE SECOND CATALOGUE, fetched once per session exactly like the first.
   const marketAll = useMarketIndicators()
+  // ⭐ THE THIRD CATALOGUE: historical point-in-time fundamentals, fetched once per
+  // session and only while discovery is on screen.
+  const fundCat = useFundamentalsCatalog(discovering)
+  const fundAvailable = fundCat.status === 'available'
 
   // ⭐ THE ROW A MEMBER CLICKS AND THE RESULT IT WAS BUILT FROM, KEPT TOGETHER.
   //
@@ -861,8 +866,11 @@ export default function ChartSettingsIndicators({
     // browsed row and a searched row are the same object with the same capability
     // and the same create door, which is the invariant the browse-add no-op broke.
     const mkt = marketIndicatorResults(marketAll.rows, { tf: TF, bars: BARS })
-    return [...secs, ...idx, ...brd, ...mkt]
-  }, [breadthAll, marketAll.rows])
+    // ⭐ FUNDAMENTALS BROWSE THROUGH THE SAME DOOR — their rows are results with a
+    // `create` descriptor, so click-to-add, search and grouping need nothing new.
+    const fnd = fundAvailable ? fundamentalResults(fundCat.list) : []
+    return [...secs, ...idx, ...brd, ...mkt, ...fnd]
+  }, [breadthAll, marketAll.rows, fundAvailable, fundCat.list])
 
   // ⚰️⚰️ THE RESULT BEHIND EVERY DISCOVERY ROW ON SCREEN — AND **BROWSE** USED TO
   // BE MISSING FROM IT, WHICH KILLED THREE OF THE FIVE TABS.
@@ -2803,19 +2811,21 @@ export default function ChartSettingsIndicators({
       </div>
 
       <div className={styles.insAddBody} ref={addBodyRef} onScroll={() => { anchorRef.current = captureAnchor() }}>
-        {/* ⛔⛔ FUNDAMENTALS TELLS THE TRUTH RATHER THAN SHOWING ROWS. The audit is
-            written out at `FUNDAMENTALS_STATUS`: the chart's source grammar has no
-            fundamental kind, and the one fundamental the product holds
-            (`market_cap`) is a NIGHTLY SCALAR whose own engine refuses a bar
-            offset because *"answering it with today's value would be a fabricated
-            history."* A row here would be exactly that fabrication. */}
-        {activeTab === 'fundamentals' && !FUNDAMENTALS_STATUS.available && (
+        {/* ⛔⛔ FUNDAMENTALS SHOW ROWS ONLY FROM THE POINT-IN-TIME CATALOGUE. While
+            it is unavailable (feature dark, not entitled, offline) the tab states
+            that plainly and offers nothing -- it never falls back to Screener
+            snapshots, which have no history behind them (`FUNDAMENTALS_STATUS`). */}
+        {activeTab === 'fundamentals' && !fundAvailable && (
           <div className={styles.insUnavailable} data-testid="fundamentals-unavailable">
-            <div className={styles.insUnavailableLede}>{FUNDAMENTALS_STATUS.lede}</div>
-            <p className={styles.insUnavailableWhy}>{FUNDAMENTALS_STATUS.why}</p>
+            <div className={styles.insUnavailableLede}>
+              {fundCat.status === 'loading' ? 'Loading fundamentals…' : FUNDAMENTALS_STATUS.lede}
+            </div>
+            {fundCat.status !== 'loading' && (
+              <p className={styles.insUnavailableWhy}>{FUNDAMENTALS_STATUS.why}</p>
+            )}
           </div>
         )}
-        {activeTab !== 'fundamentals' && tabResults.length === 0 && refusals.length === 0 && (
+        {(activeTab !== 'fundamentals' || fundAvailable) && tabResults.length === 0 && refusals.length === 0 && (
           <div className={styles.indEmpty}>
             {/* ⚠️ "SEARCHING" IS NOT "NOTHING MATCHES", and the difference is a
                 network round trip. Telling a member their ticker does not exist

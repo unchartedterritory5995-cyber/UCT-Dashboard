@@ -231,3 +231,55 @@ describe('the binder resolves fund: into an ordinary column', () => {
     expect(vals.filter(Number.isFinite)).toHaveLength(9)          // the missing bar stays a gap
   })
 })
+
+// ─── formatting: from the catalogue's `fmt`, one formatter for legend + axis ──
+import { formatFundamentalValue, fundamentalPriceFormat, fundamentalFormatOfInputs } from '../fundamentalFormat'
+import { chipValueText } from '../readout'
+
+describe('formatting', () => {
+  beforeEach(() => primeFundamentalsCatalog(CATALOG))
+
+  it('⭐ each unit reads as a member expects', () => {
+    expect(formatFundamentalValue(365.04e9, 'compact_usd')).toBe('$365.04B')
+    expect(formatFundamentalValue(-2.5e9, 'compact_usd')).toBe('-$2.50B')
+    expect(formatFundamentalValue(1.845, 'usd2')).toBe('$1.84')
+    expect(formatFundamentalValue(-0.5, 'usd2')).toBe('-$0.50')
+    expect(formatFundamentalValue(24.34, 'pct1')).toBe('24.3%')
+    expect(formatFundamentalValue(28.4, 'x2')).toBe('28.40x')
+    expect(formatFundamentalValue(1.234, 'num2')).toBe('1.23')
+    expect(formatFundamentalValue(15.26e9, 'compact')).toBe('15.26B')
+    expect(formatFundamentalValue(NaN, 'pct1')).toBe('')
+  })
+
+  it('the legend chip re-formats every value it is given (crosshair-safe)', () => {
+    expect(chipValueText({ value: 24.34, format: 'pct1' })).toBe('24.3%')
+    expect(chipValueText({ value: 25.1, format: 'pct1' })).toBe('25.1%')
+    expect(chipValueText({ value: 12.345, decimals: 2 })).toBe('12.35')        // unchanged path
+  })
+
+  it('the format is resolved from the SOURCE via the catalogue, never from a label', () => {
+    expect(fundamentalFormatOfInputs({ source: 'fund:net_margin' })).toBe('pct1')
+    expect(fundamentalFormatOfInputs({ source: 'fund:AAPL:market_cap' })).toBe('compact_usd')
+    expect(fundamentalFormatOfInputs({ source: 'sym:QQQ:close' })).toBe(null)
+    expect(fundamentalFormatOfInputs({ source: 'close' })).toBe(null)
+  })
+
+  it('one frozen priceFormat per fmt — a re-bind is not an option change', () => {
+    const a = fundamentalPriceFormat('pct1')
+    expect(a).toBe(fundamentalPriceFormat('pct1'))
+    expect(a.type).toBe('custom')
+    expect(a.formatter(24.34)).toBe('24.3%')
+    expect(fundamentalPriceFormat(null)).toBe(null)
+  })
+
+  it('a percent COMPOSER (FCF Yield) is scaled to a percent number', () => {
+    primeFundamentalsCatalog({ metrics: [...CATALOG.metrics,
+      { id: 'fcf_yield', name: 'FCF Yield', series: null, compose: 'fcf_yield', inputs: ['shares_outstanding', 'fcf_ttm'],
+        presentation: 'line', cadence: 'daily', unit: 'percent', fmt: 'pct1', category: 'Valuation' }] })
+    const b = bars(2)
+    const entry = { series: { shares_outstanding: [pt('2025-02-07', 10, 0, 100)], fcf_ttm: [pt('2025-02-07', 10, 0, 500)] } }
+    const col = fundamentalColumn(parseSource('fund:fcf_yield'), {
+      bars: b, tf: 'D', sym: 'X', fundamentals: new Map([['X', entry]]), closeOf: () => [100, 50] })
+    expect(col).toEqual([5, 10])                   // 500 / (100*100) = 5%, 500 / (50*100) = 10%
+  })
+})

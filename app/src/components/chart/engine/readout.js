@@ -94,6 +94,7 @@
 // `sourceStemOf` below refuses to import and says why. See its header for why one
 // naming rule is shared and the other is deliberately spelled twice.
 import { semanticName, namesItselfSemantically } from './semanticName'
+import { formatFundamentalValue, fundamentalFormatOfInputs } from './fundamentalFormat'
 
 /** LWC's own default when a plot declares no `legend.decimals`. Two, because
  *  that is `seriesOptionsDefaults.priceFormat.precision` and a chip with no
@@ -190,6 +191,9 @@ export function chipValueText(chip) {
   // end.
   if (typeof chip.valueText === 'string') return chip.valueText
   if (chip.value == null || !Number.isFinite(chip.value)) return ''
+  // ⭐ A historical fundamental reads in its catalogue unit (`$365.0B`, `24.3%`),
+  // formatted from the VALUE each time -- so a crosshair move re-reads correctly.
+  if (typeof chip.format === 'string' && chip.format) return formatFundamentalValue(chip.value, chip.format)
   if (chip.compact === true) return compactValue(chip.value)
   return chip.value.toFixed(Number.isInteger(chip.decimals) ? chip.decimals : DEFAULT_DECIMALS)
 }
@@ -351,6 +355,7 @@ export function chipsFrom(entries, seriesData, registry, inputsFor, displayFor, 
     const decimals = Number.isInteger(plot.legend.decimals) ? plot.legend.decimals : DEFAULT_DECIMALS
     // ⭐ THE DECLARATION TRAVELS WITH THE CHIP — see `chipValueText`.
     const compact = plot.legend.compact === true
+    const format = fundamentalFormatOfInputs(inputs)
     const label = chipLabel(def, plot, inputs,
       typeof displayFor === 'function' ? displayFor(e.defId, e.instanceId) : null)
 
@@ -362,8 +367,9 @@ export function chipsFrom(entries, seriesData, registry, inputsFor, displayFor, 
       color: resolved,
       decimals,
       compact,
+      ...(format ? { format } : {}),
       value,
-      text: `${label} ${chipValueText({ value, decimals, compact })}`,
+      text: `${label} ${chipValueText({ value, decimals, compact, format })}`,
     })
     inputsByChip.set(out.length - 1, inputs)
   }

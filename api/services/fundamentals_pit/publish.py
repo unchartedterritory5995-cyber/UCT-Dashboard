@@ -4,7 +4,8 @@ Members never read the worker's database and never wait on SEC. The worker
 publishes one artifact per company per derivation version; the web tier
 serves it (api/routers/fundamentals_pit.py) with an ETag.
 
-ARTIFACT (compact on purpose -- ~3 KB per metric, gzip ~5x):
+ARTIFACT (compact on purpose -- ~3 KB per metric, gzip ~5x). Percent series are
+SERVED as percent numbers (catalog.PERCENT_SERIES); the store keeps fractions.
     {"v": 1, "cik": 320193, "tickers": ["AAPL"], "derivation_version": 1,
      "input_hash": "...", "built_at": 1790000000.0, "split_status": "verified",
      "metrics": {"net_margin_ttm": [[t_eff, value, "period_end", "method"], ...]}}
@@ -23,6 +24,7 @@ import os
 import time
 
 from . import store as S
+from .catalog import PERCENT_SERIES
 from .derive import DERIVATION_VERSION
 
 ARTIFACT_FORMAT = 1
@@ -46,7 +48,8 @@ def artifact(conn, cik: int, version: int = DERIVATION_VERSION) -> dict | None:
             "derivation_version": version, "input_hash": info["input_hash"], "built_at": info["built_at"],
             "split_status": info["detail"].get("split_verification", {}).get("status"),
             "withheld_split_sensitive": info["detail"].get("withheld_split_sensitive", False),
-            "metrics": {m: [[t, v, pe, meth] for t, v, pe, meth in pts] for m, pts in series.items()}}
+            "metrics": {m: [[t, (v * 100.0 if m in PERCENT_SERIES else v), pe, meth] for t, v, pe, meth in pts]
+                        for m, pts in series.items()}}
 
 
 def encode(doc: dict) -> tuple[bytes, str]:
