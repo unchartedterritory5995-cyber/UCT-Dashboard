@@ -8,7 +8,7 @@ import pytest
 from api.services import breadth_corrected_pass as cp
 
 
-def _inputs(tmp_path, monkeypatch, fetch=("2026-09-23T20:09:57Z", "2026-09-23T20:20:01Z"), live_from="2026-03-23"):
+def _inputs(tmp_path, monkeypatch, fetch=("2026-09-23T20:09:57Z", "2026-09-23T20:20:01Z"), live_from="2026-03-23", acq=None):
     g = tmp_path / "grouped"; g.mkdir()
     body = b'{"AAPL": 1.0}'
     (g / "2026-09-22_1.json").write_bytes(body)
@@ -19,7 +19,7 @@ def _inputs(tmp_path, monkeypatch, fetch=("2026-09-23T20:09:57Z", "2026-09-23T20
     (inp / "pit_uct_ledger.json").write_text(json.dumps({"live_from": live_from}))
     objs = {f: hashlib.sha256((inp / f).read_bytes()).hexdigest() for f in os.listdir(inp)}
     (inp / "INPUT_MANIFEST.json").write_text(json.dumps({
-        "tag": "t", "last_session": "2026-09-22", "acquisition_window": {}, "grouped_fetch_window": list(fetch),
+        "tag": "t", "last_session": "2026-09-22", "acquisition_window": acq or {"started": fetch[0], "finished": fetch[1]}, "grouped_fetch_window": list(fetch),
         "grouped_dir": str(g), "objects_sha256": objs}))
     monkeypatch.setenv("BREADTH_GROUPED_DIR", str(g))
     for v in cp.PRODUCTION_WRITING_FLAGS:
@@ -74,3 +74,14 @@ def test_refuses_a_fetch_window_spanning_an_open(tmp_path, monkeypatch):
 def test_refuses_a_wrong_canonical_uct_start(tmp_path, monkeypatch):
     inp, _ = _inputs(tmp_path, monkeypatch, live_from="2026-01-02")
     assert any("live_from" in p for p in _problems(inp))
+
+
+def test_refuses_an_acquisition_window_spanning_an_open(tmp_path, monkeypatch):
+    # grouped fetched after the close, dividends paged past the next morning's open → mixed vintage
+    inp, _ = _inputs(tmp_path, monkeypatch, acq={"started": "2026-09-23T20:09:57Z", "finished": "2026-09-24T14:05:00Z"})
+    assert any("acquisition window" in p and "spans a session open" in p for p in _problems(inp, now="2026-09-24T15:00:00+00:00"))
+
+
+def test_refuses_a_manifest_without_an_acquisition_window(tmp_path, monkeypatch):
+    inp, _ = _inputs(tmp_path, monkeypatch, acq={"started": "2026-09-23T20:09:57Z"})
+    assert any("no complete acquisition window" in p for p in _problems(inp))

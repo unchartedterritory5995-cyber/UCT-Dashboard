@@ -408,6 +408,12 @@ def preflight(inputs_dir: str, now_utc: str = None, verify_files: bool = True) -
         checks["grouped_files_verified"] = len(gm["manifest"]) - len(bad)
         if bad:
             problems.append("%d grouped files differ from the manifest (e.g. %s)" % (len(bad), bad[:3]))
+    aw = man.get("acquisition_window") or {}
+    if not (aw.get("started") and aw.get("finished")):
+        problems.append("INPUT_MANIFEST has no complete acquisition window")
+    elif _next_open_after(aw["started"]) < aw["finished"].replace("Z", "+00:00"):
+        problems.append("the acquisition window %s..%s spans a session open — splits/dividends/identity "
+                        "are not one vintage with the grouped closes" % (aw["started"], aw["finished"]))
     w0, w1 = gm["fetch_window"]
     if _next_open_after(w0) < w1.replace("Z", "+00:00"):
         problems.append("the grouped fetch window %s..%s spans a session open — not one vintage" % (w0, w1))
