@@ -155,3 +155,37 @@ Both went out after the Breadth V2 corrected run reported DONE (100%, 0 failed; 
 **Other findings:**
 - The Massive `apiKey` is written into INFO logs by httpx. Fixed in `c7bddc046`; the one job log was redacted. The key value appeared in session output; rotation is an owner decision.
 - Web logs show earnings AI analysis failing with "credit balance too low" (unrelated).
+
+## 2026-09-23 — restatement basis correction (derivation v4) + rollout resumed to R2 / private API
+
+**Root cause (CELH net_income_ttm 2022-08-09 = 15.23M).** `build_book` applied restatement epochs PER TAG POOL. Pools split when tags disagree: CELH's `...AvailableToCommonStockholdersBasic` had a ×1000 tagging error in its 2022 10-Qs. So the `NetIncomeLoss` epochs (10-K 2022-03-16: Q2/Q3-2021; Q2-22 10-Q 2022-08-09: H1/Q2-2021 comparatives) never reached it. The fallback assembled the original Q3-2021 (2,745,791) + [restated FY2021 3,937,273 − original 9M-2021 7,291,559] + Q1-22 6,679,000 + Q2-22 9,158,000.
+
+**Rule (v4):** epochs of ANY tag of a primitive apply to EVERY tag, instants included. A fact known before an overlapping epoch is stale until re-reported. If the newest filed period is underivable, it is a GAP (v3 machinery). CELH 2022-08-09 → **GAP**. 18.41M (the 10-K FY2021 + the 10-Q's restated H1) is corroborated later, but it is not provable at T: the 10-Q's own restatement signal post-dates the FY2021 fact.
+
+**Isolated (worker snapshot) v3 → v4, as-of, every difference classified:**
+- 17,121 WRONG_OLD (v3 used a fact voided by a sibling tag's epoch);
+- 48 mechanism-explained (preferred ytd_roll reachable once a stale pool drops; cross-tag scope mix; newer period);
+- 107 rounding;
+- 113 v4-compatible;
+- 5 conservative gaps.
+
+The v4 book-level invariant held with **0 violations** across all residue keys. 4,317,958 values unchanged.
+
+**Golden (accepted → v4):**
+- 17,025 identical;
+- 88 expected gaps (44 full-FS signals, 37 family-rule conservatism, 7 including CELH);
+- 6 methodology changes (full FS history; identical post-backfill; reproducible, no look-ahead);
+- 3 method-only;
+- **0 unexplained.**
+
+**Provenance:** 500/500 (300 random + 200 restatement windows): matches_served, no look-ahead, no incompatible basis.
+
+**Production:** v4 re-derived beside v3 (7,088/7,088, 0 failures, 274 s): 4,721,795 points / 400,347 gaps. Content hash **identical** to isolated v4 (`88399ecc…`). Golden identical. Integrity 0/0/0/0.
+
+**R2:** `fundamentals_pit/v4/` 7,088 artifacts + `fundamentals_pit/beta/v1/` 7,088 gzip + index v4 (9,236 tickers). 34 sampled byte-identical to the store; CELH gap present; anonymous GET refused (400). One resume after another session's deploy restarted the worker (etag-skip).
+
+**Private API (inside the web container, R2):** 200 / v4 / gaps preserved as null; invalid metric 400, invalid symbol 404; SEC and Beta computation rigged to raise and never called. Cold 260–540 ms (R2), warm < 0.2 ms.
+
+**Security:** `log_redaction` (LogRecordFactory, redaction by parameter name) is live in `c44be58a8`. No credential values in tracked files, scratch or worker job files. Railway's retained log stream and this session's transcript may still hold the exposed key. **MASSIVE KEY ROTATION REQUIRED** (provider + variable update: owner).
+
+**STOPPED at Phase 15 step 7.** Enabling `FUNDAMENTALS_PIT_ENABLED` (Railway variable write) was denied by the session's permission policy (feature-flag write). The scheduler (`FUNDAMENTALS_PIT_INCREMENTAL_ENABLED` + `FUNDAMENTALS_PIT_PUBLISH_R2` on worker) is not started. Everything before them is complete.
