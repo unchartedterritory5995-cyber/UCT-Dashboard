@@ -1448,13 +1448,16 @@ export default function NoteEditorPage({ noteId, onBack, showBack = true, onTitl
     if (ok) setUploadToast({ message: ASK_INSERT_SUCCESS_MSG, tone: 'success' })
     return ok
   }, [])
-  // G-064 final fix wave (M1) — the CLICK path is offered under the same
-  // conditions the pending path waits for (below): an editable editor, no
-  // recovered draft awaiting Restore/Discard (a Restore's setContent would
-  // erase the insert), and no save in flight (a Restore's PUT must settle so
-  // the insert's own autosave carries the restored baseline). Otherwise the
-  // hosts get `null`, and AskPanel offers no Insert at all.
-  const askInsertHere = editor && editor.isEditable && !pendingDraft && saveStatus !== 'saving'
+  // G-064 final fix wave (M1, as amended by the coordinator's ruling) — the
+  // CLICK path is offered while the editor is editable and no recovered draft
+  // awaits Restore/Discard (a Restore's setContent would erase the insert).
+  // ⛔ NOT gated on `saveStatus`: an insert during an ordinary in-flight
+  // autosave is the same as typing during one — the transaction re-arms the
+  // debounce and the next PUT carries it. Gating on 'saving' made the button
+  // blink out on every save. The PENDING path below keeps its own
+  // `saveStatus !== 'saving'` gate, which exists for a Restore's PUT
+  // specifically. Otherwise the hosts get `null`, and AskPanel offers no Insert.
+  const askInsertHere = editor && editor.isEditable && !pendingDraft
     ? insertAskAnswer
     : null
 

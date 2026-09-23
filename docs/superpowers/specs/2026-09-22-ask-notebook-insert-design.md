@@ -165,8 +165,8 @@ answer completed (`status === 'done'`), and it cites at least one real source
 (`cited.length > 0`). Not while streaming, not on an error or rate limit, not for an
 answer with no citations (an uncited answer is not grounded, and inserting it would
 put an unsourced AI paragraph into the member's record). In a note editor, also not
-while the note cannot take the insert right now: while a recovered draft is waiting
-on Restore or Discard, or while a save is in flight (§5.2).
+while a recovered draft is waiting on Restore or Discard (§5.2). An ordinary
+autosave in flight does not withdraw it.
 
 After an insert, the button reads **"Inserted"** and is disabled for that answer, so
 one answer cannot be inserted twice by a double click. A new answer re-enables it.
@@ -319,12 +319,16 @@ built, and it is pure, so it is tested without an editor.
   the new block into view.
   The normal autosave persists it: baseline check, version capture, offline outbox,
   all unchanged. No new endpoint, no `settleNoteWrite` call, no new door.
-  `onInsert` is passed only while the note can take the insert now: the editor is
-  editable, no recovered draft is pending, and no save is in flight
-  (`saveStatus !== 'saving'`) — the same conditions the pending path waits for
-  (step 2 below). Otherwise both hosts get `null` and Ask offers no Insert, because
-  NoteEditorPage passes no onOpenNote. The page never sets the editor read-only
-  today, so that one condition is unreachable; the other two are real. Inside the fullscreen document
+  `onInsert` is passed only while the editor is editable and no recovered draft is
+  pending (a Restore's `setContent` would erase the insert). It is **not** gated on
+  an ordinary save in flight: an insert during an autosave is the same as typing
+  during one, and the autosave pipeline carries it (the transaction re-arms the
+  debounce, and the next PUT holds the block). Gating it on `saveStatus` made the
+  button disappear on every save. The pending path (step 2 below) keeps its own
+  `saveStatus !== 'saving'` gate, which is for a Restore's PUT specifically.
+  Otherwise both hosts get `null` and Ask offers no Insert, because NoteEditorPage
+  passes no onOpenNote. The page never sets the editor read-only today, so that
+  condition is unreachable; the draft condition is real. Inside the fullscreen document
   sheet the note is hidden, so the button changes to "Inserted" (§3.1); the page
   toast also fires, and may sit behind the sheet.
 - **Other note (§3.3) — a pending insert.**
@@ -340,7 +344,7 @@ built, and it is pure, so it is tested without an editor.
      editable, the recovered-draft decision is **finished FOR THIS NOTE**
      (`decide()` at `:716-744` is async; `recoveryDecidedFor` is set to the
      note's own id when it settles, either way, `:734,742`, and is compared
-     against the CURRENT `noteId`, `:1499`), no draft is pending (`pendingDraft`
+     against the CURRENT `noteId`, `:1502`), no draft is pending (`pendingDraft`
      null — a restore calls `setContent` and would erase the insert, `:815`; the
      insert therefore waits until the member restores or discards), no save is
      in flight (a Restore's PUT must settle first — `saveStatus !== 'saving'`;
@@ -606,6 +610,8 @@ here is Wave K's `NOTEBOOK_*` keys.)
 - AskPanel gating:
   - flag off, streaming, error or no citations → no button;
   - in a note editor, a pending recovered draft → no button, until it is settled;
+  - in a note editor, an ordinary autosave in flight → the button stays, and a
+    click appends the answer, which a later autosave PUT carries;
   - with `onInsert` → "Insert into this note", then "Inserted";
   - without `onInsert` → the picker.
 - Picker: search, keyboard, "Create a new note".

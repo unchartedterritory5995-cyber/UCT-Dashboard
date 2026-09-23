@@ -248,11 +248,11 @@ describe('NoteEditorPage — G-064 Ask insert', () => {
     }, { timeout: 3000 })
   })
 
-  // G-064 final fix wave (M1) — the CLICK path gets the same gate the pending
-  // path has. While a recovered draft is waiting on the member's Restore or
-  // Discard, an insert would be erased by a Restore (setContent) or would ride
-  // an autosave built on the pre-restore baseline. So the page does not offer
-  // Insert at all until the draft question is settled.
+  // G-064 final fix wave (M1) — the CLICK path shares the pending path's DRAFT
+  // gate (not its save gate; see the next test). While a recovered draft is
+  // waiting on the member's Restore or Discard, an insert would be erased by a
+  // Restore (setContent). So the page does not offer Insert at all until the
+  // draft question is settled.
   it('"Insert into this note" is not offered while a recovered draft is pending, and is once it is settled', async () => {
     latchNotebookFlags({ notebook_ask_insert_on: true })
     localStorage.setItem('uct.j2.notedraft.n1', JSON.stringify({
@@ -273,6 +273,45 @@ describe('NoteEditorPage — G-064 Ask insert', () => {
 
     fireEvent.click(screen.getByRole('button', { name: 'Discard' }))
     expect(await within(dialog).findByRole('button', { name: 'Insert into this note' })).toBeEnabled()
+  })
+
+  // G-064 final fix wave (M1, coordinator ruling on concern 1) — an ordinary
+  // autosave in flight must NOT withdraw the button. A click-path insert during
+  // a save is the same as typing during a save, and the autosave pipeline
+  // already carries it: the insert re-arms the debounce and the next PUT holds
+  // it. (Gating the click path on `saveStatus` made the button blink out on
+  // every save.) Only the recovered-draft window is gated; the PENDING path
+  // keeps its own `saveStatus !== 'saving'` gate for a Restore's PUT.
+  it('"Insert into this note" stays offered while an autosave is in flight, and clicking it appends the answer', async () => {
+    latchNotebookFlags({ notebook_ask_insert_on: true })
+    let releaseSave
+    updateGate.pending = new Promise((r) => { releaseSave = r })
+    await renderEditor()
+    // A real autosave: a title edit, past the 800ms debounce, held open.
+    fireEvent.change(screen.getByPlaceholderText('Title'), { target: { value: 'Edited Title' } })
+    await waitFor(() => expect(updateSpy).toHaveBeenCalledWith('n1', expect.objectContaining({ title: 'Edited Title' })), { timeout: 3000 })
+
+    fireEvent.click(screen.getByRole('button', { name: 'Ask a question about this note' }))
+    const dialog = await screen.findByRole('dialog', { name: 'Ask This note' })
+    fireEvent.change(within(dialog).getByRole('textbox'), { target: { value: 'margins?' } })
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Ask' }))
+    const insert = await within(dialog).findByRole('button', { name: 'Insert into this note' })
+    expect(insert).toBeEnabled()
+    // Still in flight: the held PUT has not been released.
+    expect(updateSpy).toHaveBeenCalledTimes(1)
+
+    fireEvent.click(insert)
+    await waitFor(() => expect(screen.getByText('From Ask Notebook')).toBeInTheDocument())
+    expect(within(dialog).getByRole('button', { name: 'Inserted' })).toBeDisabled()
+
+    // The normal pipeline carries it: once the held save settles, a later
+    // autosave PUT holds the inserted block.
+    updateGate.pending = null
+    releaseSave()
+    await waitFor(() => {
+      const call = updateSpy.mock.calls.find(([id, patch]) => id === 'n1' && hasAskInsert(patch?.bodyJson))
+      expect(call).toBeTruthy()
+    }, { timeout: 3000 })
   })
 
   // G-064 fix round 1 (F5) — the failure toast, asserted by RENDERED TEXT.
