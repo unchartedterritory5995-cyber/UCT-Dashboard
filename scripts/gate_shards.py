@@ -99,7 +99,16 @@ def parse_totals(log_text: str) -> dict | None:
     return {"files": files, "tests": tests}
 
 
-_FAIL_RE = re.compile(r"^\s*FAIL\s+(?P<id>\S+.*?)\s*$")
+#: ⛔ AN IDENTITY STARTS WITH A TEST FILE, OR IT IS NOT AN IDENTITY. vitest names every failure by
+#: the file first — `FAIL  src/x.test.jsx > describe > test`, or `FAIL  src/x.test.jsx [ src/x.test.jsx ]`
+#: for a file that errored before its tests ran. A bare `FAIL\s+\S+` also took every stdout line a
+#: test PRINTS that happens to begin with the word: `dailyFirstPaint.probe.test.jsx` and
+#: `dailyFirstPaintAcceptance.test.jsx` log report tables whose rows read
+#: `FAIL    | NC-A missing today | … | lastT 2026-09-22->2026-09-23 | to 324.579->325.579 | …`,
+#: which carry dates and timings, differ run to run, and so read as NEW on every gate (four
+#: phantom branch-introduced rows on 2026-09-23). A row of a report is not a failing test.
+_FAIL_RE = re.compile(
+    r"^\s*FAIL\s+(?P<id>\S*\.(?:test|spec)\.(?:js|jsx|ts|tsx|mjs|cjs)(?=\s|$).*?)\s*$")
 
 BASELINE = REPO / "docs" / "plans" / "joystick" / "gate-baseline.json"
 

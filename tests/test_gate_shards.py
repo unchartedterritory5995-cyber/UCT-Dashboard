@@ -87,7 +87,8 @@ def _do_not_shell_out_to_the_real_do_not_build_sweep(monkeypatch):
                                          "output": "", "stubbed_by": __name__})
 
 from gate_shards import (  # noqa: E402
-    GateError, blob_hash, count_waived_files, parse_totals, run_gate, strip_ansi, sum_totals,
+    GateError, blob_hash, count_waived_files, parse_failures, parse_totals, run_gate, strip_ansi,
+    sum_totals,
     # ⛔ IMPORTED, NEVER RESTATED. `unexplained` lived in THIS FILE until 2026-09-15 and the
     # product never called it, so the suite enforced a contract the gate did not. It is now
     # `gate_shards.unexplained` and the rails below drive the SAME function the verdict does;
@@ -153,6 +154,93 @@ def test_the_sum_is_what_a_reader_reconciles_against(tmp_path):
     assert total["files"]["total"] == 197 + 196
     assert total["files"]["failed"] == 3
     assert total["tests"]["passed"] == 2498 + 3546
+
+
+# ── A FAILING TEST IS NAMED BY ITS FILE — a printed row that starts with FAIL is not one ────────
+# Copied verbatim (via repr) from the 2026-09-23 six-shard logs. The first three are stdout from
+# `dailyFirstPaint.probe.test.jsx` (shard 1) and `dailyFirstPaintAcceptance.test.jsx` (shard 4):
+# report-table rows whose status column says FAIL. They carry dates and a millisecond timing, so
+# they change run to run, and the old parser booked every one as a failing-test identity — four of
+# them read as branch-introduced on that day's gate. The last two are what vitest actually prints
+# for a failing test and for a file that errored before its tests ran.
+PROBE_TABLE_ROWS = (
+    "FAIL    | NC-A missing today     | TODAY_MISSING_AT_FIRST_PAINT,TIME_DOMAIN_CHANGED_AFTER_"
+    "FIRST_PAINT,VISIBLE_RANGE_CHANGED | n 319->320 | lastT 2026-09-22->2026-09-23 | to "
+    "324.579->325.579 | shift 1 | rsv 0\n"
+    "FAIL    | S8 sealed=-250         | shifts [248] |  | \n"
+    "FAIL    | NC-C stale wick        | TODAY_OHLC_CORRECTED_AFTER_PAINT               | n 260->260"
+    " | lastT 2026-09-23 | today O360 H360.6 L359.8 C360.2      | final O360 H361 L359 C360.5      "
+    "    | src cache   | ins 0 | pad 6.579->6.579      | to 265.579->265.579 | 47ms | ops update\n"
+)
+REAL_TEST_FAIL_LINE = (
+    "\x1b[41m\x1b[1m FAIL \x1b[22m\x1b[49m src/pages/Login.totp.test.jsx\x1b[2m > \x1b[22m"
+    "Login 2FA challenge step\x1b[2m > \x1b[22mnormal accounts log straight in — no code step\n"
+)
+REAL_FILE_ERROR_LINE = (
+    "\x1b[41m\x1b[1m FAIL \x1b[22m\x1b[49m src/components/Layout.pageTracking.test.jsx\x1b[2m "
+    "[ src/components/Layout.pageTracking.test.jsx ]\x1b[22m\n"
+)
+REAL_TEST_IDENT = ("src/pages/Login.totp.test.jsx > Login 2FA challenge step > "
+                   "normal accounts log straight in — no code step")
+REAL_FILE_ERROR_IDENT = ("src/components/Layout.pageTracking.test.jsx "
+                         "[ src/components/Layout.pageTracking.test.jsx ]")
+
+
+def test_the_probe_fixture_really_carries_the_hazard():
+    """⛔ NON-VACUITY. Every row must be one the PREVIOUS parser took as a failure, or the rail
+    below passes against a parser that never had the bug. The pattern is the old one, quoted as
+    a fixture control — never imported, because the product no longer carries it."""
+    old = re.compile(r"^\s*FAIL\s+(?P<id>\S+.*?)\s*$")
+    rows = [r for r in strip_ansi(PROBE_TABLE_ROWS).split("\n") if r]
+    assert len(rows) == 3
+    assert all(old.match(r) for r in rows), "a fixture row no longer starts with FAIL"
+
+
+def test_a_report_row_that_starts_with_FAIL_is_not_a_failing_test():
+    assert parse_failures(PROBE_TABLE_ROWS) == [], (
+        "a printed report row was booked as a failing-test identity; it carries dates and "
+        "timings, so it reads as NEW on every gate"
+    )
+
+
+def test_a_real_failing_test_and_a_file_level_error_still_parse():
+    """⛔ THE OTHER HALF. `return []` passes the rail above; this one names what must survive,
+    in the same log as the rows that must not."""
+    log = PROBE_TABLE_ROWS + REAL_TEST_FAIL_LINE + REAL_FILE_ERROR_LINE + REAL_ANSI_FAIL
+    assert parse_failures(log) == sorted([REAL_TEST_IDENT, REAL_FILE_ERROR_IDENT])
+
+
+@pytest.mark.parametrize("path", [
+    "src/a.test.js", "src/a.test.jsx", "src/a.test.ts", "src/a.test.tsx", "src/a.test.mjs",
+    "src/a.test.cjs", "src/a.spec.js", "src/a.spec.tsx",
+])
+def test_every_test_file_suffix_names_an_identity(path):
+    assert parse_failures(f" FAIL  {path} > d > t\n") == [f"{path} > d > t"]
+
+
+@pytest.mark.parametrize("line", [
+    "FAIL  | src/a.test.js | a row that merely MENTIONS a test file",
+    "FAIL  src/a.test.json > not a test file",
+    "FAIL  src/latest.js > not a test file either",
+])
+def test_an_identity_must_START_with_a_test_file(line):
+    assert parse_failures(line + "\n") == []
+
+
+def test_the_gate_verdict_does_not_see_the_probe_rows(tmp_path, monkeypatch):
+    """The call site, not just the helper: `run_gate` over a shard that printed the report table
+    and failed one real test reports NOTHING new against a baseline naming that test."""
+    import gate_shards
+    monkeypatch.setattr(gate_shards, "load_baseline",
+                        lambda: {"measured_at": "rail", "sha": "0" * 40,
+                                 "failures": [REAL_TEST_IDENT]})
+    manifest = run_gate(
+        1, tmp_path, tree_state_fn=lambda: ("0ffe68a14", []),
+        run_shard_fn=lambda i: PROBE_TABLE_ROWS + REAL_TEST_FAIL_LINE + REAL_ANSI_FAIL,
+        file_count_fn=lambda: 197,
+    )
+    assert manifest["failures"] == [REAL_TEST_IDENT]
+    assert manifest["vs_baseline"]["new"] == []
 
 
 # ── PROOF (b) — a shard that did not run ALARMS, by name ──────────────────────────────────────
