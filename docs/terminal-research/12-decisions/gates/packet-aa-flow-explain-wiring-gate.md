@@ -14,8 +14,17 @@ date: 2026-09-22
 APPROVED BY:      
 APPROVED ON:      
 APPROVED AT SHA:  
-SCOPE APPROVED:   CP1 AND/OR CP2 — name exactly which checkpoint(s), and nothing else in the packet.
+SCOPE APPROVED:   
 ```
+
+> ⛔ **TEMPLATE FIX, 2026-09-23, not a signature:** the `SCOPE APPROVED:` line above originally
+> carried instructional prose ("CP1 AND/OR CP2 — name exactly which checkpoint(s), and nothing
+> else in the packet.") instead of being genuinely blank, which does not match this repo's
+> `sign_gate.py` convention (every other packet's template leaves all four fields blank with
+> nothing after the colon) and made the tool refuse to sign it ("no BLANK `SCOPE APPROVED:`
+> line"). Restored to blank here; the guidance it carried is unchanged in substance: `SCOPE
+> APPROVED:` should name `CP1`, `CP2`, or `CP1 AND CP2` — nothing else in the packet is
+> authorized by any subset of those.
 
 > ⛔⛔ **NOT AUTHORIZED. PROPOSED** — no existing checkpoint governs `api/flow_explain.py`'s
 > frontend wiring. **⛔ LETTER CONVENTION CHANGE, recorded here per instruction:** all 26
