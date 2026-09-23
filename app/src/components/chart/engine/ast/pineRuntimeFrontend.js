@@ -4521,6 +4521,112 @@ export function buildRuntimeIr(source, opts = {}) {
     return { stmt: chain[0], next: k }
   }
 
+  /** ⭐⭐ A `switch` IN VALUE POSITION, lowered into `slot`. Returns the
+   *  statements; the caller owns where they go.
+   *
+   *  ⛔ EXTRACTED WHEN THE REASSIGNMENT FORM LANDED, not copied. A binding and
+   *  a `:=` must agree about what an arm yields, what an ARMLESS switch
+   *  refuses, and that a later case does not run once an earlier one matched.
+   *  Two copies is how those drift (`lesson_a_second_authority_over_one_value`). */
+  /** ⛔ ONE SENTENCE FOR ONE CONDITION — asked by BOTH `:=` paths (plain and
+   *  block-valued), so neither can drift about what an unbound reassignment
+   *  means. It says what this lane KNOWS (it holds no declaration) rather than
+   *  what it would have to assume about the script. */
+  const refuseUnboundReassign = (nameTok, toks) => {
+    // ⛔⛔ A TOP-LEVEL COMMA ON THIS LINE IS THE CAUSE, AND `runtime:unbound`
+    // WOULD BE A LIE. That guard's own prose is *"a name nothing in this script
+    // binds"*, and the corpus script this reaches binds it in plain sight:
+    //
+    //     int _direction = na , _direction := switch      — 3-level-zigzag-semafor:18
+    //
+    // Pine lets ONE LINE carry several statements separated by `,`, and
+    // `pine.js::blockStatements` already splits them — but only when the line
+    // carries NO block beneath it AND every segment is a plain `name = expr`
+    // binding. This line fails both tests (the `switch` arms hang under it, and
+    // the second segment is a `:=`), so the binding never reaches this scope and
+    // the reassignment arrives orphaned.
+    //
+    // ⭐ The split itself is a SEPARATE root cause and is not attempted here —
+    // `blockStatements` explains in its own words why a line with a body does not
+    // split today. What this owes the member is the true reason, not a confident
+    // wrong one (RC-G's defect, which this programme has already paid for once).
+    if (findTop(toks, (t) => isPunct(t, ',')) >= 0) {
+      note('runtime:statement')
+      throw new RuntimeRefusal('runtime:statement',
+        'this line carries two statements separated by `,` and also opens a block, '
+        + `which this lane does not split — so \`${nameTok.value}\` arrives without the `
+        + 'binding written beside it', locate(nameTok))
+    }
+    throw new RuntimeRefusal('runtime:unbound',
+      `\`${nameTok.value}\` is reassigned before it is declared`, locate(nameTok))
+  }
+
+  const lowerSwitchInto = (armLines, subjToks, scope, slot, mkArm, label, atTok) => {
+    // ── `name = switch …` ──
+    //
+    // ⭐ THE ARM GRAMMAR IS THE COLUMNAR LANE'S, not a second reading of it:
+    // `=>` at top level splits match from value, and a BARE `=>` (at index 0)
+    // is Pine's default arm. See `switchBinding` in `pine.js`.
+    //
+    // ⛔ A SUBJECT IS OPTIONAL. `switch` with no subject takes boolean arms,
+    // which is how a switch expresses a condition ladder — and it is the
+    // case that separates a real lowering from a constant fold, because a
+    // subject that moves bar to bar cannot be folded at all.
+    const subject = subjToks.length ? parseWholeExpression(subjToks) : null
+    const cases = []
+    let fallback = null
+    for (const arm of (armLines || [])) {
+      const at = findTop(arm.header, (t) => isPunct(t, '=>'))
+      if (at < 0) {
+        throw new RuntimeRefusal('runtime:block-value',
+          `an arm of \`${label} switch …\` has no \`=>\``, locate(arm.header[0]))
+      }
+      const armRhs = arm.header.slice(at + 1)
+      // ⭐ AN INLINE `=>` VALUE IS ITS OWN SHAPE; A BLOCK ARM IS THE SHARED
+      // RULE. Routing the block case through `mkArm` is what keeps a
+      // `switch` arm and an `if` arm answering the same question the same
+      // way — it registers its own scope, so this site must not push again.
+      let body
+      if (armRhs.length) {
+        const armScope = new Scope(scope)
+        body = [assign(slot, lowerExpr(parseWholeExpression(armRhs), armScope))]
+        objectBlocks.push({ scope: armScope, body })
+      } else {
+        body = mkArm(arm.sub, arm.header[0])
+      }
+      if (at === 0) fallback = body
+      else cases.push({ matchToks: arm.header.slice(0, at), body })
+    }
+    if (!cases.length && !fallback) {
+      throw new RuntimeRefusal('runtime:block-value',
+        `\`${label} switch …\` has no arms`, locate(atTok))
+    }
+    let chain = fallback || []
+    for (let k = cases.length - 1; k >= 0; k -= 1) {
+      const match = parseWholeExpression(cases[k].matchToks)
+      // ⛔⛔ THE SYNTHESISED NODE IS A *PARSE* NODE, NOT A CANONICAL ONE,
+      // AND THE TWO VOCABULARIES ARE EASY TO CONFUSE. `lowerExpr` consumes
+      // what `parseWholeExpression` produces — `{type:'binary', op, left,
+      // right}` — while `{type:'op', name, args}` is the COLUMNAR shape
+      // `pine.js`'s `cOp` builds after resolution. They describe the same
+      // arithmetic in two dialects.
+      // ⚰️ Measured: building the columnar shape here cost the three
+      // subject-bearing switch cases, and the failure did not say so — the
+      // throw escaped as the statement walk's catch-all `pine:statement`,
+      // "this Pine line is not a shape the translator reads", pointing at
+      // the BINDING rather than at the node nobody could read. The
+      // subject-less arms passed throughout, because only this branch
+      // builds a node instead of parsing one.
+      const test = subject
+        ? lowerExpr({
+          type: 'binary', op: '==', left: subject, right: match, tok: cases[k].matchToks[0],
+        }, scope)
+        : lowerExpr(match, scope)
+      chain = [ifStmt(test, cases[k].body, chain)]
+    }
+    return chain
+  }
+
   const lowerStmts = (list, scope, rootHoist = false) => {
     const out = []
     const outerStmtSink = stmtHoistSink
@@ -4904,6 +5010,53 @@ export function buildRuntimeIr(source, opts = {}) {
         if (!nameTok || nameTok.kind !== 'ident') {
           throw new RuntimeRefusal('runtime:statement', 'a reassignment target must be a name', locate(first))
         }
+        // ⭐⭐ `x := if …` / `x := switch …` — A BLOCK IN VALUE POSITION, ON THE
+        // RIGHT OF A REASSIGNMENT. The binding path finds its RHS with
+        // `findTop(toks, isPunct('='))`, and `:=` LEXES AS ONE TOKEN — so that
+        // search returns −1 here and the block-valued branch was never reached.
+        // `parseWholeExpression` below then met `switch` and refused
+        // `pine:block`, a true statement about the COLUMNAR value model said
+        // about a lane that has statements, slots and `ifStmt`.
+        //
+        // ⛔ THE SAME HELPERS AS EVERY OTHER POSITION. Nothing about what an arm
+        // yields is decided here.
+        const blkHead = toks[walrus + 1]
+        if (blkHead && blkHead.kind === 'ident'
+            && (blkHead.value === 'if' || blkHead.value === 'switch')
+            && nameTok.value.indexOf('.') < 0) {
+          const blkSlot = scope.lookup(nameTok.value)
+          // ⛔⛔ THE SAME AUTHORITY THE PLAIN `:=` PATH ASKS, NOT A SECOND SENTENCE.
+          // The first draft of this branch invented its own wording — *"`x` is
+          // reassigned before this script GIVES IT A VALUE"* — and measured
+          // against the corpus it was FALSE of the one script it reached:
+          // `3-level-zigzag-semafor:18` reads
+          //
+          //     int _direction = na , _direction := switch
+          //
+          // which gives `_direction` a value on that very line. The script is
+          // using Pine's COMMA STATEMENT SEPARATOR, which this lane does not
+          // split — a real and separate gap. Claiming a script never defined a
+          // name it plainly defines is RC-G's defect, and one refusal per
+          // condition is what keeps the two lanes from drifting apart about it.
+          if (blkSlot === null) refuseUnboundReassign(nameTok, toks)
+          // ⛔ `na` FIRST, AND IT IS LOAD-BEARING. An `if` with no else that does
+          // not match has NO value, so the reassignment writes `na` — it does
+          // not leave the previous bar's value standing.
+          out.push(assign(blkSlot, naValue()))
+          const mkArm = armAssignerFor(blkSlot,
+            `${nameTok.value} := ${blkHead.value} …`, scope)
+          if (blkHead.value === 'if') {
+            const chain = lowerIfChainInto(list, i, toks.slice(walrus + 2), scope, mkArm)
+            i = chain.next
+            out.push(chain.stmt)
+            continue
+          }
+          const sw = lowerSwitchInto(st.sub, toks.slice(walrus + 2), scope, blkSlot, mkArm,
+            `${nameTok.value} :=`, blkHead)
+          for (const st2 of sw) out.push(st2)
+          continue
+        }
+
         const value = parseWholeExpression(toks.slice(walrus + 1))
         // ⭐⭐ `ob.top := x` — A FIELD WRITE, WHICH IS NOT A SLOT ASSIGNMENT.
         //
@@ -4970,9 +5123,7 @@ export function buildRuntimeIr(source, opts = {}) {
         noteHandle(nameTok.value, value)
         if (objectPassOwnsDrawing && holdsObjectCall(value)) continue
         const slot = scope.lookup(nameTok.value)
-        if (slot === null) {
-          throw new RuntimeRefusal('runtime:unbound', `\`${nameTok.value}\` is reassigned before it is declared`, locate(nameTok))
-        }
+        if (slot === null) refuseUnboundReassign(nameTok, toks)
         out.push(assign(slot, lowerExpr(value, scope)))
         continue
       }
@@ -4982,6 +5133,25 @@ export function buildRuntimeIr(source, opts = {}) {
         const eq = findTop(toks, (t) => isPunct(t, '='))
         const nameTok = eq > 0 ? boundName(toks, eq) : null
         if (!nameTok) throw new RuntimeRefusal('runtime:statement', 'a `var` declaration needs a name and an initialiser', locate(first))
+        // ⚠️ `var x = if …` INITIALISES ONCE, AND THAT IS NOT A SLOT SEED.
+        // Pine evaluates a `var` initialiser on the first bar and KEEPS the
+        // value. Lowering the block like a plain binding would re-evaluate it
+        // every bar and silently make `var` mean nothing — worse than refusing,
+        // because nothing would look wrong. Serving it needs the once-only
+        // guard (`JUMP_IF_INIT`) around the whole chain, not a different seed.
+        //
+        // ⛔ CHECKED BEFORE `parseWholeExpression`, which is what produced the
+        // old sentence: `pine:block`, *"this engine stores a single
+        // expression"* — false about a lane that lowers the same block for a
+        // plain binding three lines down.
+        const varBlk = toks[eq + 1]
+        if (varBlk && varBlk.kind === 'ident'
+            && (varBlk.value === 'if' || varBlk.value === 'switch')) {
+          note('runtime:block-value')
+          throw new RuntimeRefusal('runtime:block-value',
+            `\`var ${nameTok.value} = ${varBlk.value} …\` initialises ONCE, and this `
+            + 'lane has no once-only guard around a block yet', locate(first))
+        }
         const value = parseWholeExpression(toks.slice(eq + 1))
         // ⭐ THE BOUND NAME IS STAMPED ONTO AN INPUT CALL, exactly as `pine.js`
         // does, because it is the KEY a member's saved value is stored under.
@@ -5098,6 +5268,21 @@ export function buildRuntimeIr(source, opts = {}) {
           && (rhsHead.value === 'if' || rhsHead.value === 'switch')) {
         const nameTok = boundName(toks, eqBlk)
         if (!nameTok) throw new RuntimeRefusal('runtime:statement', 'a binding needs a name', locate(first))
+        // ⚠️ `var x = if …` INITIALISES ONCE, AND THAT IS NOT A SLOT SEED.
+        // Pine evaluates a `var` initialiser on the first bar and keeps the
+        // value; lowering the block like a plain binding would re-evaluate it
+        // every bar and silently make `var` mean nothing — worse than refusing,
+        // because nothing would look wrong. Serving it needs the once-only
+        // guard (`JUMP_IF_INIT`) wrapped around the whole chain.
+        // ⛔ AND IT NO LONGER SAYS `pine:block`. That sentence — "this engine
+        // stores a single expression" — is false about a lane that lowers the
+        // same block one line above.
+        if (first.kind === 'ident' && (first.value === 'var' || first.value === 'varip')) {
+          note('runtime:block-value')
+          throw new RuntimeRefusal('runtime:block-value',
+            `\`${first.value} ${nameTok.value} = ${rhsHead.value} …\` initialises ONCE, `
+            + 'and this lane has no once-only guard around a block yet', locate(first))
+        }
         const slot = scope.declare(nameTok.value, newSlot(nameTok.value, mut.persistent.has(nameTok.value)))
         // ⛔ `na` IS THE INITIAL VALUE AND IT IS LOAD-BEARING. It is what an
         // unmatched `if` with no else, and a `switch` with no default, must
@@ -5123,70 +5308,10 @@ export function buildRuntimeIr(source, opts = {}) {
           continue
         }
 
-        // ── `name = switch …` ──
-        //
-        // ⭐ THE ARM GRAMMAR IS THE COLUMNAR LANE'S, not a second reading of it:
-        // `=>` at top level splits match from value, and a BARE `=>` (at index 0)
-        // is Pine's default arm. See `switchBinding` in `pine.js`.
-        //
-        // ⛔ A SUBJECT IS OPTIONAL. `switch` with no subject takes boolean arms,
-        // which is how a switch expresses a condition ladder — and it is the
-        // case that separates a real lowering from a constant fold, because a
-        // subject that moves bar to bar cannot be folded at all.
-        const subjToks = toks.slice(eqBlk + 2)
-        const subject = subjToks.length ? parseWholeExpression(subjToks) : null
-        const cases = []
-        let fallback = null
-        for (const arm of (st.sub || [])) {
-          const at = findTop(arm.header, (t) => isPunct(t, '=>'))
-          if (at < 0) {
-            throw new RuntimeRefusal('runtime:block-value',
-              `an arm of \`${nameTok.value} = switch …\` has no \`=>\``, locate(arm.header[0]))
-          }
-          const armRhs = arm.header.slice(at + 1)
-          // ⭐ AN INLINE `=>` VALUE IS ITS OWN SHAPE; A BLOCK ARM IS THE SHARED
-          // RULE. Routing the block case through `mkArm` is what keeps a
-          // `switch` arm and an `if` arm answering the same question the same
-          // way — it registers its own scope, so this site must not push again.
-          let body
-          if (armRhs.length) {
-            const armScope = new Scope(scope)
-            body = [assign(slot, lowerExpr(parseWholeExpression(armRhs), armScope))]
-            objectBlocks.push({ scope: armScope, body })
-          } else {
-            body = mkArm(arm.sub, arm.header[0])
-          }
-          if (at === 0) fallback = body
-          else cases.push({ matchToks: arm.header.slice(0, at), body })
-        }
-        if (!cases.length && !fallback) {
-          throw new RuntimeRefusal('runtime:block-value',
-            `\`${nameTok.value} = switch …\` has no arms`, locate(rhsHead))
-        }
-        let chain = fallback || []
-        for (let k = cases.length - 1; k >= 0; k -= 1) {
-          const match = parseWholeExpression(cases[k].matchToks)
-          // ⛔⛔ THE SYNTHESISED NODE IS A *PARSE* NODE, NOT A CANONICAL ONE,
-          // AND THE TWO VOCABULARIES ARE EASY TO CONFUSE. `lowerExpr` consumes
-          // what `parseWholeExpression` produces — `{type:'binary', op, left,
-          // right}` — while `{type:'op', name, args}` is the COLUMNAR shape
-          // `pine.js`'s `cOp` builds after resolution. They describe the same
-          // arithmetic in two dialects.
-          // ⚰️ Measured: building the columnar shape here cost the three
-          // subject-bearing switch cases, and the failure did not say so — the
-          // throw escaped as the statement walk's catch-all `pine:statement`,
-          // "this Pine line is not a shape the translator reads", pointing at
-          // the BINDING rather than at the node nobody could read. The
-          // subject-less arms passed throughout, because only this branch
-          // builds a node instead of parsing one.
-          const test = subject
-            ? lowerExpr({
-              type: 'binary', op: '==', left: subject, right: match, tok: cases[k].matchToks[0],
-            }, scope)
-            : lowerExpr(match, scope)
-          chain = [ifStmt(test, cases[k].body, chain)]
-        }
-        for (const s of chain) out.push(s)
+        // ⭐ THE SWITCH IS `lowerSwitchInto`'S — shared with the `:=` form.
+        const sw = lowerSwitchInto(st.sub, toks.slice(eqBlk + 2), scope, slot, mkArm,
+          `${nameTok.value} =`, rhsHead)
+        for (const s of sw) out.push(s)
         continue
       }
 

@@ -817,6 +817,102 @@ above.
    forming bar, which makes it the one reading in this programme that **cannot be taken
    at the weekend**.
 
+## RC-L — Pine has one `if`, and this engine served it in three positions of four
+
+`if` and `switch` are EXPRESSIONS in Pine. RC-J closed the third position — a function
+whose body IS a block. The fourth was still refused:
+
+```pine
+x = if c …          ✅   the binding          (shipped)
+if c …              ✅   the statement        (shipped)
+f() => if c …       ✅   the function body    (RC-J)
+x := if c …         ⛔   the REASSIGNMENT     pine:block
+```
+
+⛔⛔ **AND THE REASON WAS A TOKEN, NOT A DECISION.** The binding path finds its
+right-hand side with `findTop(toks, isPunct('='))` — but **`:=` lexes as ONE token**, so
+that search returns −1 for every reassignment and the block-valued branch was never
+reached at all. `parseWholeExpression` then met a bare `switch` and refused. What a
+member read,
+
+> a Pine block spans several statements and this engine stores a single expression
+
+is a true sentence about the COLUMNAR value model, said about a lane that has
+statements, slots and an `ifStmt` node. *A fix is only as wide as the lane you measured
+it in* — for the sixth time in this programme, and this time the lane was the same one
+and the SPELLING was different.
+
+⭐ **ONE IMPLEMENTATION, NOT TWO.** The switch lowering was EXTRACTED to a shared helper
+(`lowerSwitchInto`) beside RC-J's `lowerIfChainInto`, so a binding and a reassignment
+cannot drift about what an arm yields, what an armless `switch` refuses, or whether a
+later case runs once an earlier one matched. The mutation proof is what makes that claim
+real: breaking the shared helper reds **both** lanes at once (7 cases across two files),
+which a copy could not do.
+
+### ⚠️ `var x = if|switch` IS STILL REFUSED, AND NOW SAYS WHY
+
+`var` initialises ONCE — Pine evaluates the initialiser on the first bar and keeps the
+value. Lowering it like a plain binding would re-evaluate the block every bar and
+**silently make `var` mean nothing**, which is worse than refusing because nothing would
+look wrong. It needs the once-only guard (`JUMP_IF_INIT`) around the whole chain, not a
+differently-seeded slot.
+
+⛔ The refusal had to move ABOVE `parseWholeExpression` to say so: the `var` branch
+parsed first, so the truthful sentence was unreachable and the member kept getting
+`pine:block` — the value-model sentence again, about a lane that lowers the same block
+three lines further down.
+
+### ⚰️ THE FIRST DRAFT SHIPPED A FALSE SENTENCE, AND THE CORPUS CAUGHT IT
+
+The new branch invented its own wording for an unbound reassignment — *"`x` is
+reassigned before this script GIVES IT A VALUE"* — and the one corpus script it reached
+makes that false in plain sight:
+
+```pine
+int _direction = na , _direction := switch        — 3-level-zigzag-semafor:18
+```
+
+`_direction` is given a value ON THAT LINE. Telling a member their script never defined a
+name it plainly defines is **RC-G's defect**, arriving through a new door within an hour
+of RC-G being written down.
+
+⭐ **THE CAUSE IS PINE'S COMMA STATEMENT SEPARATOR**, and `pine.js::blockStatements`
+already splits it — but only when the line carries **no block beneath it** and every
+segment is a plain `name = expr`. This line fails both (the `switch` arms hang under it,
+and the second segment is a `:=`), so the binding never reaches the scope and the
+reassignment arrives orphaned. That split is a **separate root cause and is not attempted
+here**; `blockStatements` explains in its own words why a line with a body does not split
+today.
+
+What the refusal owed the member was the true reason, so it now names the comma. Two
+mutations hold it in place and they kill **different** cases: remove the comma branch and
+the comma line reds; make the check depth-blind and the CONTROL reds, because
+`zzNope := nz(close, 0)` must never be read as two statements.
+
+⭐ **AND THE TWO `:=` PATHS NOW ASK ONE AUTHORITY.** `refuseUnboundReassign` is the single
+sentence for "this lane holds no declaration for the name being reassigned", asked by the
+plain path and the block-valued one alike. The first draft had two wordings and two
+guards for one condition — `lesson_a_second_authority_over_one_value`, in the commit that
+was fixing a second authority.
+
+### Measured
+
+| | |
+|---|---|
+| sized BEFORE building | `:= if` **14 sites / 3 scripts** · `:= switch` **9 / 6** · `var = switch` **6 / 4** — 11 scripts, 29 sites |
+| object-lane BUILDS | 7 → **7** |
+| runtime-lane first wall moved | **1 of 266** — `3-level-zigzag-semafor`, `pine:block` → a sentence naming the comma |
+| corpus scripts that now BUILD | 13 → **13** |
+| gate | **0 NEW** over `chart/engine` + `chart/builder`, 516 files / 9,108 tests, HEAD baseline re-measured by blob |
+
+⛔ **ZERO BUILD MOVEMENT, STATED PLAINLY — the sixth change in a row that moves no corpus
+script.** What it buys is that Pine has ONE `if` and this engine now has one too in every
+position a script can write it, and that the two shapes it still refuses (`var x = if`,
+and a comma line that opens a block) say what is actually true. The 29 measured sites
+meet it as their scripts clear their other walls.
+
+---
+
 ---
 
 ## The foreseeable problems — where this shape will bite next
