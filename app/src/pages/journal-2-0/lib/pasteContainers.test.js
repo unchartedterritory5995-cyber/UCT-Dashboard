@@ -220,6 +220,25 @@ describe('a multi-block paste into a toggle SUMMARY stays in that summary as one
     expect(bodyOf(ed)).toBe('Toggle body.')
   })
 
+  it('an empty line copied as a block and pasted into a summary changes nothing -- the toggle stays whole', () => {
+    const ed = mount([P('Mine.'), { type: 'paragraph' }, TOGGLE, P('After.')])
+    const html = copyNode(ed, ed.state.doc.child(0).nodeSize) // the empty paragraph, as a node
+    ed.commands.setTextSelection(locate(ed, 'ary line'))
+    ed.view.pasteHTML(html)
+    ed.state.doc.check()
+    expect(count(ed, 'toggle')).toBe(1)
+    expect(summaryOf(ed)).toBe('Summary line')
+    expect(bodyOf(ed)).toBe('Toggle body.')
+  })
+
+  it('CONTROL: a block with no text but real content (a rule) is never swallowed by the summary path', () => {
+    const ed = mount([P('Mine.'), TOGGLE, P('After.')])
+    ed.commands.setTextSelection(locate(ed, 'ary line'))
+    ed.view.pasteHTML('<hr>')
+    ed.state.doc.check()
+    expect(count(ed, 'horizontalRule')).toBe(1)
+  })
+
   it('CONTROL: a word pasted into a summary is still ProseMirror\'s own inline paste -- its bold survives', () => {
     const ed = mount([{ type: 'paragraph', content: [{ type: 'text', text: 'Bold', marks: [{ type: 'bold' }] }] }, TOGGLE])
     const html = copyRange(ed, 1, 5)

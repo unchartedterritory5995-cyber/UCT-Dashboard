@@ -159,9 +159,9 @@ function mergesInline(slice) {
 // body)`, `paragraph("second lineSummary line")`, `toggle(empty summary,
 // original body)`). Such a paste lands as its TEXT, one line, blocks joined by
 // a single space. A single-line paste (mergesInline) is left to ProseMirror,
-// which keeps its marks. A slice with no text at all (an image, a rule) is
-// left to ProseMirror too: a title cannot hold it, and dropping it would lose
-// it silently.
+// which keeps its marks. A slice of nothing but empty lines is taken as a
+// no-op; one with no text but real content (an image, a rule) is left to
+// ProseMirror: a title cannot hold it, and dropping it would lose it silently.
 export function pasteIntoSummary(view, slice) {
   if (!slice || !slice.size) return false
   const { $from, $to } = view.state.selection
@@ -175,7 +175,14 @@ export function pasteIntoSummary(view, slice) {
     return false
   })
   const text = parts.join(' ')
-  if (!text) return false
+  if (!text) {
+    // Nothing but empty lines: the title has nowhere to put them, and taking
+    // the paste as a no-op loses nothing (handing it on split the toggle).
+    // Anything else without text (an image, a rule) goes on to ProseMirror.
+    let content = false
+    slice.content.descendants((node) => { if (node.isLeaf && !node.isText) content = true })
+    return !content
+  }
   view.dispatch(view.state.tr.insertText(text).scrollIntoView().setMeta('paste', true).setMeta('uiEvent', 'paste'))
   return true
 }
