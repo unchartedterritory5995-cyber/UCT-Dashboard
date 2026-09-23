@@ -182,6 +182,128 @@ function Harness() {
         return true
       },
       watchResult: () => window.__scanWatch || null,
+
+      // ── TYPED ENTER: THE MEMBER'S ACTUAL DOOR, NOT A SHORTCUT ─────────────
+      // ⛔⛔ `select()` ABOVE IS THE LIST CLICK, AND IT IS NOT THIS. Both end at
+      // `setGroupSym`, so a driver that called `select()` and labelled the number
+      // "typed Enter" would be measuring the OTHER path and could never see a
+      // difference even if one existed. This drives the REAL `SymbolSearch` in the
+      // real `ChartIdentityRow`: open the label button, type into the real input,
+      // dispatch a real Enter. Everything the product does between a keystroke and
+      // `onSymbolChange` therefore happens, including the 150 ms discovery debounce
+      // and the instant-lock row that is supposed to make Enter beat the network.
+      typeEnter: async (target) => {
+        // ⚠️ OPENING IS A REACT STATE CHANGE, NOT A DOM MUTATION. The first cut
+        // clicked the label and queried for the input in the SAME tick; the input
+        // does not exist yet, so every typed measurement reported "search input did
+        // not open" and 0 requests -- no stimulus, which is not a slow path. Worse,
+        // a failed attempt left the panel TOGGLED, so the next call closed it again
+        // and the failures alternated. Poll for the input, and always start closed.
+        const q = (sel) => document.querySelector(sel)
+        const frame = () => new Promise(r => requestAnimationFrame(r))
+        const findInput = () => q('input[placeholder*="Search symbol"]')
+        for (let i = 0; i < 20 && findInput(); i++) {   // ensure CLOSED first
+          document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }))
+          await frame()
+        }
+        const label = q('[data-testid="sym-label"]')
+        const btn = label?.closest('button') || label?.parentElement
+        if (!btn) return { ok: false, why: 'no symbol label button' }
+        btn.click()
+        let input = null
+        for (let i = 0; i < 60 && !input; i++) { await frame(); input = findInput() }
+        if (!input) return { ok: false, why: 'search input did not open' }
+        const setter = Object.getOwnPropertyDescriptor(
+          window.HTMLInputElement.prototype, 'value').set
+        setter.call(input, target)                       // React-visible value set
+        input.dispatchEvent(new Event('input', { bubbles: true }))
+        await frame()                                    // let the instant-lock row land
+        const t0 = performance.now()
+        input.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true }))
+        return { ok: true, t0 }
+      },
+
+      // ── THE WATERFALL, MEASURED FROM OUTSIDE THE PRODUCT ──────────────────
+      // ⭐ NOTHING IS INSTRUMENTED INSIDE `useSymbolHandoff` OR `prepareForDisplay`.
+      // The two instants that define the metric are already observable: the DOM
+      // label IS the COMMITTED symbol (`ChartWidget` passes the handoff's output
+      // down to `SymbolSearch`), and `__uctChartTiming` reports the PAINTED one. A
+      // PerformanceObserver picks the network legs up for free. So the product runs
+      // byte-for-byte as a member's does while being measured.
+      //
+      // TC is NOT "the label changed". It is the first frame where identity and
+      // candles agree AND the painted series is current-enough/authoritative —
+      // otherwise a fast commit onto stale candles would score as a win.
+      watchFull: (target, t0) => {
+        // ⛔⛔ CLEAR THE SLOT FIRST. The result is only published when the watcher
+        // FINISHES, so a driver that waits for `__scanWatchFull` to be non-null was
+        // handed the PREVIOUS switch's record instantly and every row was off by
+        // one -- readiness said "memory/current" beside a latency actually measured
+        // on a different, colder symbol. A stale result is worse than none.
+        window.__scanWatchFull = null
+        const start = (typeof t0 === 'number') ? t0 : performance.now()
+        const out = {
+          target, t0: start,
+          tCommit: null, tCoherent: null,
+          validOldMs: 0, validNewMs: 0,
+          invalidMixedMs: 0, invalidEmptyMs: 0, invalidStaleMs: 0,
+          frames: 0, net: [], terminal: null,
+        }
+        const seen = new Set()
+        let lastTs = start
+        const painted = () => {
+          const rows = window.__uctChartTiming ? window.__uctChartTiming.report() : null
+          if (!Array.isArray(rows)) return null
+          for (let i = rows.length - 1; i >= 0; i--) {
+            if (rows[i]['T0→paint'] != null) return String(rows[i].sym || '').toUpperCase()
+          }
+          return null
+        }
+        const tick = () => {
+          const now = performance.now()
+          const dt = now - lastTs; lastTs = now
+          out.frames += 1
+          const el = document.querySelector('[data-testid="sym-label"]')
+          const dom = el ? (el.textContent || '').trim().split(/[\s(·]/)[0].toUpperCase() : null
+          const chart = painted()
+          if (out.tCommit == null && dom === target) out.tCommit = Math.round(now - start)
+
+          // Frame classification (Phase 2). A genuine no-data / error panel is a
+          // TERMINAL DEGRADED state, not an invalid empty frame — it is the chart
+          // honestly saying so, which is the behaviour Problem B restored.
+          const degraded = !!document.querySelector('[data-render-unavailable], [data-testid="chart-nodata"]')
+          if (degraded && out.terminal == null) out.terminal = Math.round(now - start)
+          if (dom && chart) {
+            if (dom !== target && dom === chart) out.validOldMs += dt
+            else if (dom === target && chart === target) out.validNewMs += dt
+            else if (dom !== chart) out.invalidMixedMs += dt
+          } else if (dom === target && !chart && !degraded) {
+            out.invalidEmptyMs += dt
+          }
+
+          if (out.tCoherent == null && dom === target && chart === target) {
+            const mem = window.__scan.memLast(target)
+            const fresh = window.__scan.freshEnough(mem)
+            if (fresh) out.tCoherent = Math.round(now - start)
+            else out.invalidStaleMs += dt
+          }
+          for (const e of performance.getEntriesByType('resource')) {
+            if (e.startTime < start || seen.has(e.name + e.startTime)) continue
+            if (!/\/api\/(bars|ticker-search)/.test(e.name)) continue
+            seen.add(e.name + e.startTime)
+            out.net.push({ url: e.name.replace(/^https?:\/\/[^/]+/, ''),
+                           start: Math.round(e.startTime - start),
+                           dur: Math.round(e.duration) })
+          }
+          if (out.tCoherent == null && now - start < 15000) requestAnimationFrame(tick)
+          else { out.total = Math.round(now - start); window.__scanWatchFull = out }
+        }
+        requestAnimationFrame(tick)
+        return true
+      },
+      watchFullResult: () => window.__scanWatchFull || null,
+      memLast: (s) => { const m = memPeek(s, TF); return m?.length ? m[m.length - 1]?.t : null },
+      freshEnough: (lastT) => (typeof lastT === 'number') && isCurrentEnoughForPaint(lastT, TF),
       requested: () => groupSyms.A,
       readiness: (s) => readiness(s, TF),
       blocked: () => BLOCKED.slice(),
