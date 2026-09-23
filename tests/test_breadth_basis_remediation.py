@@ -559,11 +559,16 @@ def test_the_factor_does_not_depend_on_bars_db_at_all(monkeypatch):
     assert a["X"] == b["X"] == c["X"] == pytest.approx(0.25)
 
 
-def test_provider_dot_form_is_mapped_to_the_frame_dash_form(monkeypatch):
-    """BRK.B provider-side is BRK-B in the frame and the flat file."""
+def test_provider_dot_form_is_the_canonical_spelling(monkeypatch):
+    """⛔ SUPERSEDED BELIEF: this test used to assert BRK.B → BRK-B "because the frame and
+    the flat file use a dash". The flat file does NOT: minute files, grouped files and the
+    reference map all spell BRK.B, and the dash re-keying is what cut every dual-class name
+    off from its factor, its levels and its close (2026-09-23 final validation, NYSE
+    universe_count closing at its low on every session). The canonical spelling is the
+    provider's (`breadth_ticker.canon`)."""
     _provider(monkeypatch, {"BRK.B": 200.0}, {"BRK.B": 100.0})
-    out = wr.session_basis(_basis_conn([("BRK-B", 100.0)]), 111, tickers=["BRK-B"])
-    assert out["BRK-B"] == pytest.approx(0.5)
+    out = wr.session_basis(_basis_conn([("BRK.B", 100.0)]), 111, tickers=["BRK.B"])
+    assert out["BRK.B"] == pytest.approx(0.5)
 
 
 # ── the LEVELS must be on that basis too (a third, pre-existing defect) ──────
