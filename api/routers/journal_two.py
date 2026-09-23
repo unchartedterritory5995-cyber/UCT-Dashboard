@@ -1824,6 +1824,27 @@ def list_recents_endpoint(
     return {"notes": notes_service.list_recents(user["id"], limit=limit)}
 
 
+@router.get("/notes/switcher")
+def note_switcher_endpoint(
+    q: str = "",
+    limit: int = notes_service.SWITCHER_DEFAULT_LIMIT,
+    user: dict = Depends(get_current_user),
+) -> dict[str, Any]:
+    """The command palette's quick switcher: notes whose TITLE matches `q`,
+    across the member's whole library, best match first — see
+    `notes_service.switcher_search` for the ranking and why this is not
+    `GET /notes?q=` (body search, bm25, a preview per row, a telemetry event
+    per keystroke).
+
+    Owner-scoped in SQL; trashed notes never appear; a blank `q` answers an
+    empty list rather than an error, because the palette fires this on every
+    debounced keystroke and "nothing typed yet" is not a mistake.
+
+    ⛔ MUST stay declared ABOVE `GET /notes/{note_id}`, same reason as
+    `/notes/favorites`/`/notes/recents` immediately above."""
+    return notes_service.switcher_search(user["id"], q, limit=limit)
+
+
 @router.get("/notes/sector-theme-facets")
 def sector_theme_facets_endpoint(
     user: dict = Depends(get_current_user),

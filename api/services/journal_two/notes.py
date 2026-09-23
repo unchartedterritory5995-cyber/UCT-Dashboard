@@ -3027,6 +3027,170 @@ def list_recents(
             conn.close()
 
 
+# ── Quick switcher (title search over the WHOLE library) ─────────────────────
+#
+# The Ctrl/Cmd+K palette used to reach only favourites and recents. This is the
+# lean read it needs to jump to ANY note by title as the member types.
+#
+# ⛔ NOT `list_notes(q=...)`. That is the FTS search over title AND body, ranked
+# by bm25, returning a 400-char body preview per row and logging a
+# `notebook_search_used` event per call. A switcher asks a different question
+# ("which note is CALLED this?"), is fired on every debounced keystroke of an
+# app-wide palette, and must rank a title that STARTS with the query above one
+# that merely mentions it in paragraph nine.
+#
+# ⛔ RANKED IN SQL, NEVER CAPPED-THEN-RANKED IN PYTHON. A one-letter query can
+# match most of a 50k-note library; fetching "the newest 2,000 matches" and
+# ranking those would silently lose an EXACT title match on an older note. The
+# tier is a CASE expression, so ORDER BY + LIMIT sees every candidate.
+#
+# ⛔ `instr`, NEVER `LIKE`, for the member's text. `LIKE` treats `%` and `_` as
+# wildcards, so a title search for "q3_plan" would match "q3Xplan". `instr` is a
+# plain substring test.
+SWITCHER_DEFAULT_LIMIT = 8
+SWITCHER_MAX_LIMIT = 50
+_SWITCHER_MAX_QUERY_CHARS = 120
+_SWITCHER_MAX_TOKENS = 6
+# A title "word" can begin after a space or after one of these. Replaced by a
+# space in BOTH the title and the query before the word-start test, so
+# "NVDA-Q3 plan" word-starts "q3" and "$NVDA thesis" word-starts "nvda".
+_SWITCHER_WORD_BREAKS = ("-", "_", "/", "(", "[", "$", ":", ".", ",", "#", "|")
+
+# Tier numbers — lower ranks first. Exported so the router's docstring and the
+# client both name the same scale rather than restating it.
+SWITCHER_TIER_EXACT = 0
+SWITCHER_TIER_PREFIX = 1
+SWITCHER_TIER_WORD_START = 2
+SWITCHER_TIER_ALL_WORDS_START = 3
+SWITCHER_TIER_SUBSTRING = 4
+SWITCHER_TIER_ALL_WORDS = 5
+
+
+def _switcher_word_text(text: str) -> str:
+    out = text
+    for ch in _SWITCHER_WORD_BREAKS:
+        out = out.replace(ch, " ")
+    return " ".join(out.split())
+
+
+def _switcher_word_title_sql() -> str:
+    """`' ' || <lower(title) with every word break turned into a space>` —
+    the SQL twin of `_switcher_word_text`, prefixed with a space so "starts a
+    word" is always `instr(<this>, ' ' || token) > 0`, including at position 1."""
+    expr = "lower(coalesce(n.title, ''))"
+    for ch in _SWITCHER_WORD_BREAKS:
+        expr = f"replace({expr}, '{ch}', ' ')"
+    return f"(' ' || {expr})"
+
+
+def _folder_paths(conn: sqlite3.Connection, user_id: str) -> dict[str, str]:
+    """folder_id -> "Parent / Child" for every folder the member owns. One
+    query; a cycle or a dangling parent stops the walk rather than looping."""
+    rows = conn.execute(
+        "SELECT id, name, parent_id FROM j2_note_folders WHERE user_id = ?",
+        (user_id,),
+    ).fetchall()
+    by_id = {r["id"]: (r["name"] or "", r["parent_id"]) for r in rows}
+    out: dict[str, str] = {}
+    for fid in by_id:
+        parts: list[str] = []
+        cur, seen = fid, set()
+        while cur and cur in by_id and cur not in seen and len(parts) <= MAX_FOLDER_DEPTH:
+            seen.add(cur)
+            name, parent = by_id[cur]
+            parts.append(name)
+            cur = parent
+        out[fid] = " / ".join(reversed(parts))
+    return out
+
+
+def switcher_search(
+    user_id: str,
+    q: str,
+    limit: int = SWITCHER_DEFAULT_LIMIT,
+    conn: sqlite3.Connection | None = None,
+) -> dict[str, Any]:
+    """Notes whose TITLE matches `q`, best first. Returns
+    `{"notes": [...], "hasMore": bool}`; a blank query is an empty answer,
+    never an error.
+
+    Ranking, in order (`matchTier`, lower first):
+      0 exact title · 1 title starts with the query · 2 a title word starts
+      with the query · 3 (several words typed) every word starts a title word
+      · 4 the query appears anywhere · 5 every typed word appears somewhere.
+    Inside a tier: the note opened most recently first (the recents boost),
+    then favourites, then the most recently edited — so among equally good
+    matches the one the member is working in wins.
+
+    Scoped like every other read here: `user_id` in SQL, active notes only
+    (a trashed note cannot be opened, so offering it would be a dead row)."""
+    text = " ".join(str(q or "").lower().split())[:_SWITCHER_MAX_QUERY_CHARS]
+    if not text:
+        return {"notes": [], "hasMore": False}
+    limit = max(1, min(int(limit or SWITCHER_DEFAULT_LIMIT), SWITCHER_MAX_LIMIT))
+    tokens = text.split()[:_SWITCHER_MAX_TOKENS]
+    word_query = _switcher_word_text(text)
+    word_tokens = [t for t in (_switcher_word_text(tok) for tok in tokens) if t]
+    word_title = _switcher_word_title_sql()
+
+    tier_params: list[Any] = [text, text]
+    word_start_clause = "0"
+    if word_query:
+        word_start_clause = f"instr({word_title}, ' ' || ?) > 0"
+        tier_params.append(word_query)
+    all_words_clause = "0"
+    if len(word_tokens) > 1:
+        all_words_clause = " AND ".join(
+            f"instr({word_title}, ' ' || ?) > 0" for _ in word_tokens)
+        tier_params.extend(word_tokens)
+    tier_params.append(text)
+    tier_sql = (
+        "CASE"
+        f" WHEN lower(coalesce(n.title, '')) = ? THEN {SWITCHER_TIER_EXACT}"
+        f" WHEN instr(lower(coalesce(n.title, '')), ?) = 1 THEN {SWITCHER_TIER_PREFIX}"
+        f" WHEN {word_start_clause} THEN {SWITCHER_TIER_WORD_START}"
+        f" WHEN {all_words_clause} THEN {SWITCHER_TIER_ALL_WORDS_START}"
+        f" WHEN instr(lower(coalesce(n.title, '')), ?) > 0 THEN {SWITCHER_TIER_SUBSTRING}"
+        f" ELSE {SWITCHER_TIER_ALL_WORDS} END"
+    )
+    where = " AND ".join("instr(lower(coalesce(n.title, '')), ?) > 0" for _ in tokens)
+
+    owned = conn is None
+    conn = conn or get_connection()
+    try:
+        rows = conn.execute(
+            f"SELECT n.id, n.title, n.folder_id, n.ticker, n.updated_at,"
+            f" r.opened_at AS opened_at, (f.note_id IS NOT NULL) AS is_favorite,"
+            f" {tier_sql} AS match_tier"
+            " FROM j2_notes n"
+            " LEFT JOIN j2_note_recents r ON r.note_id = n.id AND r.user_id = n.user_id"
+            " LEFT JOIN j2_note_favorites f ON f.note_id = n.id AND f.user_id = n.user_id"
+            f" WHERE n.user_id = ? AND n.deleted_at IS NULL AND {where}"
+            " ORDER BY match_tier ASC, (r.opened_at IS NULL) ASC, r.opened_at DESC,"
+            " is_favorite DESC, n.updated_at DESC, n.id ASC"
+            " LIMIT ?",
+            [*tier_params, user_id, *tokens, limit + 1],
+        ).fetchall()
+        has_more = len(rows) > limit
+        rows = rows[:limit]
+        paths = _folder_paths(conn, user_id) if any(r["folder_id"] for r in rows) else {}
+        notes = [{
+            "id": r["id"],
+            "title": r["title"] or "",
+            "folderId": r["folder_id"],
+            "folderPath": paths.get(r["folder_id"]) if r["folder_id"] else None,
+            "ticker": r["ticker"],
+            "updatedAt": r["updated_at"],
+            "isRecent": r["opened_at"] is not None,
+            "isFavorite": bool(r["is_favorite"]),
+            "matchTier": int(r["match_tier"]),
+        } for r in rows]
+        return {"notes": notes, "hasMore": has_more}
+    finally:
+        if owned:
+            conn.close()
+
+
 # ── Folders CRUD ─────────────────────────────────────────────────────────────
 
 def list_folders(

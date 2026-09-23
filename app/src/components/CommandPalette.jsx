@@ -6,6 +6,9 @@ import UIcon from './ui/UIcon'
 import { useJ2Favorites, useJ2Recents } from '../pages/journal-2-0/hooks/useJ2Notes'
 import { openCapture } from '../pages/journal-2-0/lib/captureBus'
 import { destinationFromLocation } from '../pages/journal-2-0/lib/captureContext'
+import {
+  noteSwitcherUrl, orderPaletteRows, splitTitleMatch, tickerLeads, toNoteRow,
+} from '../pages/journal-2-0/lib/noteSwitcher'
 import jsonFetcher from '../utils/jsonFetcher'
 import styles from './CommandPalette.module.css'
 
@@ -54,6 +57,20 @@ function notebookNoteRowsMatch(q) {
   return q.length >= 2 && RECENT_FAVORITE_KEYWORDS.some((k) => k.startsWith(q))
 }
 
+// ⛔ ONE LABEL PER KIND. This used to be a single ticker template applied to
+// every row, so a screen reader announced a note or a command as
+// "undefined. Enter for Research…" — invisible on screen, wrong out loud.
+function rowAriaLabel(r) {
+  if (r._typed) return undefined // the visible "Go to NVDA" text is the name
+  if (r.kind === 'command') return r.label
+  if (r.kind === 'note') {
+    const where = r.context ? `, in ${r.context}` : ''
+    const badge = r.badge ? ` (${r.badge})` : ''
+    return `Note: ${r.title}${where}${badge}. Enter to open.`
+  }
+  return `${r.ticker}${r.name ? ` — ${r.name}` : ''}. Enter for Research, Ctrl or Cmd Enter for Ask AI.`
+}
+
 /**
  * Global Ctrl/Cmd+K command palette — S2's first slice (security/company
  * discovery + navigation only; see the 2026-09-03 narrow-slice authorization).
@@ -79,11 +96,18 @@ const CommandPalette = forwardRef(function CommandPalette(_props, ref) {
   const [activeIdx, setActiveIdx] = useState(0)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState(false)
+  // Quick switcher: notes whose TITLE matches, across the whole library. Its
+  // own loading/error pair — a notes outage must not read as "no securities"
+  // and a ticker outage must not hide the notes that did come back.
+  const [noteMatches, setNoteMatches] = useState([])
+  const [notesLoading, setNotesLoading] = useState(false)
+  const [notesError, setNotesError] = useState(false)
 
   const inputRef = useRef(null)
   const openerRef = useRef(null)
   const openRef = useRef(false)
   const abortRef = useRef(null)
+  const noteAbortRef = useRef(null)
   const debounceRef = useRef(null)
   const reqIdRef = useRef(0)
 
@@ -127,9 +151,12 @@ const CommandPalette = forwardRef(function CommandPalette(_props, ref) {
     } else {
       setQuery('')
       setResults([])
+      setNoteMatches([])
       setActiveIdx(0)
       setError(false)
+      setNotesError(false)
       if (abortRef.current) abortRef.current.abort()
+      if (noteAbortRef.current) noteAbortRef.current.abort()
       if (debounceRef.current) clearTimeout(debounceRef.current)
       const opener = openerRef.current
       if (opener && document.contains(opener) && typeof opener.focus === 'function') {
@@ -167,12 +194,37 @@ const CommandPalette = forwardRef(function CommandPalette(_props, ref) {
     // documents itself from inside the box") — never a search query.
     if (!q || q === '?') {
       setResults([])
+      setNoteMatches([])
       setLoading(false)
+      setNotesLoading(false)
       setError(false)
+      setNotesError(false)
       return undefined
     }
     const myReqId = ++reqIdRef.current
     debounceRef.current = setTimeout(() => {
+      // Quick switcher: the SAME debounced keystroke asks the notes index for
+      // titles, in parallel with the ticker search — never a second timer, so
+      // the two lists always describe the same query.
+      if (noteAbortRef.current) noteAbortRef.current.abort()
+      const nac = new AbortController()
+      noteAbortRef.current = nac
+      setNotesLoading(true)
+      setNotesError(false)
+      jsonFetcher(noteSwitcherUrl(q), { signal: nac.signal })
+        .then((data) => {
+          if (reqIdRef.current !== myReqId) return
+          setNoteMatches(Array.isArray(data?.notes) ? data.notes.map(toNoteRow) : [])
+          setNotesLoading(false)
+        })
+        .catch((err) => {
+          if (err?.name === 'AbortError') return
+          if (reqIdRef.current !== myReqId) return
+          setNoteMatches([])
+          setNotesError(true)
+          setNotesLoading(false)
+        })
+
       if (abortRef.current) abortRef.current.abort()
       const ac = new AbortController()
       abortRef.current = ac
@@ -244,18 +296,38 @@ const CommandPalette = forwardRef(function CommandPalette(_props, ref) {
     return base.map((r) => ({ kind: 'ticker', ...r }))
   }, [results, qUpper])
 
-  // Notebook rows first — matching "trash"/"note"/"recent" etc. is a far
-  // more deliberate signal than an incidental ticker-name substring match,
-  // so a command a member clearly asked for should never be buried below
-  // ticker noise.
+  // Notebook COMMAND rows first — matching "trash"/"note"/"recent" etc. is a
+  // far more deliberate signal than an incidental ticker-name substring
+  // match, so a command a member clearly asked for should never be buried
+  // below ticker noise.
+  // ⛔ Quick-switcher note matches are placed by `orderPaletteRows`, and the
+  // rule is written there, not here: a short ticker-shaped query keeps every
+  // ticker row (incl. the zero-network "Go to NVDA") above the notes, so Enter
+  // on "nvda" still opens NVDA's research page however fast the notes answer.
+  const noteMatchRows = isHelp ? [] : noteMatches
   const displayRows = useMemo(
-    () => [...notebookCommandRows, ...notebookNoteRows, ...tickerRows],
-    [notebookCommandRows, notebookNoteRows, tickerRows],
+    () => orderPaletteRows({
+      commands: notebookCommandRows,
+      keywordNotes: notebookNoteRows,
+      tickers: tickerRows,
+      noteMatches: noteMatchRows,
+      qUpper,
+      tickerLead: tickerLeads(qUpper, TICKER_LIKE),
+    }),
+    [notebookCommandRows, notebookNoteRows, tickerRows, noteMatchRows, qUpper],
   )
 
   useEffect(() => {
     setActiveIdx(i => Math.min(i, Math.max(0, displayRows.length - 1)))
   }, [displayRows.length])
+
+  // Keyboard-first: the highlighted row is always on screen. `scrollIntoView`
+  // is optional-called because jsdom does not implement it.
+  useEffect(() => {
+    if (!open) return
+    const el = document.getElementById(`uct-cmdk-row-${activeIdx}`)
+    el?.scrollIntoView?.({ block: 'nearest' })
+  }, [activeIdx, open])
 
   const selectRow = (row) => {
     if (!row) return
@@ -357,8 +429,8 @@ const CommandPalette = forwardRef(function CommandPalette(_props, ref) {
             value={query}
             onChange={e => setQuery(e.target.value)}
             onKeyDown={onInputKeyDown}
-            placeholder="Search a security or company…"
-            aria-label="Search a security or company"
+            placeholder="Search a security, company, or note…"
+            aria-label="Search a security, company, or note"
             role="combobox"
             aria-autocomplete="list"
             aria-expanded={displayRows.length > 0}
@@ -367,17 +439,17 @@ const CommandPalette = forwardRef(function CommandPalette(_props, ref) {
             autoComplete="off"
             spellCheck={false}
           />
-          {loading && <span className={styles.searchSpinner} aria-hidden="true" />}
+          {(loading || notesLoading) && <span className={styles.searchSpinner} aria-hidden="true" />}
           <kbd className={styles.hintKey}>Esc</kbd>
         </div>
 
         <div className={styles.resultList} id={listboxId} role="listbox" aria-label="Search results">
           {isHelp && (
             <div className={styles.helpPanel}>
-              <p>UCT&apos;s global search — type a ticker or company name to jump straight to its research page. Type <strong>note</strong>, <strong>trash</strong>, <strong>recent</strong>, or <strong>favorite</strong> to reach Notebook.</p>
+              <p>UCT&apos;s global search — type a ticker or company name to jump straight to its research page, or part of a note&apos;s title to open that note. Type <strong>note</strong>, <strong>trash</strong>, <strong>recent</strong>, or <strong>favorite</strong> to reach Notebook.</p>
               <ul>
                 <li><kbd>↑</kbd><kbd>↓</kbd> navigate results</li>
-                <li><kbd>↵</kbd> open the selected or typed symbol&apos;s research page</li>
+                <li><kbd>↵</kbd> open the selected note, or the selected or typed symbol&apos;s research page</li>
                 <li><kbd>Ctrl</kbd>/<kbd>⌘</kbd><kbd>↵</kbd> ask AI about the selected or typed symbol</li>
                 <li><kbd>Esc</kbd> close</li>
                 <li><kbd>Ctrl</kbd>/<kbd>⌘</kbd><kbd>K</kbd> reopen this from anywhere in the Terminal</li>
@@ -385,9 +457,9 @@ const CommandPalette = forwardRef(function CommandPalette(_props, ref) {
             </div>
           )}
           {!isHelp && !qUpper && (
-            <div className={styles.resultEmpty}>Type a ticker or company name to jump to its research page. Type <strong>?</strong> for help.</div>
+            <div className={styles.resultEmpty}>Type a ticker or company name, or part of a note&apos;s title. Type <strong>?</strong> for help.</div>
           )}
-          {!isHelp && qUpper && displayRows.length === 0 && !loading && (
+          {!isHelp && qUpper && displayRows.length === 0 && !loading && !notesLoading && (
             <div className={styles.resultEmpty}>No matches for &quot;{query.trim()}&quot;.</div>
           )}
           {!isHelp && displayRows.map((r, i) => (
@@ -399,7 +471,7 @@ const CommandPalette = forwardRef(function CommandPalette(_props, ref) {
               className={`${styles.resultRow} ${i === activeIdx ? styles.resultActive : ''}`}
               onMouseEnter={() => setActiveIdx(i)}
               onClick={(e) => { (e.metaKey || e.ctrlKey) ? goToAskAi(r) : selectRow(r) }}
-              aria-label={r._typed ? undefined : `${r.ticker}${r.name ? ` — ${r.name}` : ''}. Enter for Research, Ctrl or Cmd Enter for Ask AI.`}
+              aria-label={rowAriaLabel(r)}
             >
               {r.kind === 'command' ? (
                 <>
@@ -411,10 +483,25 @@ const CommandPalette = forwardRef(function CommandPalette(_props, ref) {
               ) : r.kind === 'note' ? (
                 <>
                   <span className={styles.resultLogo}><UIcon name={r.icon} size={15} gold={r.badge === 'Favorite'} /></span>
-                  <span className={styles.resultMain}>
-                    <span className={styles.resultName}>{r.title}</span>
-                  </span>
-                  <span className={styles.resultExch}>{r.badge}</span>
+                  {r.context ? (
+                    // Quick-switcher row: the title with what matched in bold,
+                    // and WHERE the note lives under it (folder · $TICKER) —
+                    // two notes both called "Q3 plan" are told apart here.
+                    <span className={styles.resultNote}>
+                      <span className={styles.resultNoteTitle}>
+                        {(() => {
+                          const [before, hit, after] = splitTitleMatch(r.title, trimmedQuery)
+                          return <>{before}{hit && <strong className={styles.resultHit}>{hit}</strong>}{after}</>
+                        })()}
+                      </span>
+                      <span className={styles.resultNoteContext}>{r.context}</span>
+                    </span>
+                  ) : (
+                    <span className={styles.resultMain}>
+                      <span className={styles.resultName}>{r.title}</span>
+                    </span>
+                  )}
+                  {r.badge && <span className={styles.resultExch}>{r.badge}</span>}
                 </>
               ) : r._typed ? (
                 <span className={styles.resultTyped}>Go to <strong>{r.ticker}</strong></span>
@@ -433,6 +520,7 @@ const CommandPalette = forwardRef(function CommandPalette(_props, ref) {
             </button>
           ))}
           {error && <div className={styles.resultError}>Search is briefly unavailable — Enter still opens the typed symbol.</div>}
+          {notesError && !isHelp && <div className={styles.resultError}>Note search is briefly unavailable — your notes are safe; try again in a moment.</div>}
         </div>
 
         <div className={styles.dialogFoot}>

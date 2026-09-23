@@ -137,8 +137,15 @@ describe('CommandPalette — search + selection', () => {
     fireEvent.change(input, { target: { value: 'AA' } })
     fireEvent.change(input, { target: { value: 'AAPL' } })
 
-    await waitFor(() => expect(global.fetch).toHaveBeenCalledTimes(1))
-    expect(global.fetch.mock.calls[0][0]).toContain('q=AAPL')
+    // The debounce contract holds for BOTH searches the keystroke feeds: one
+    // ticker request and one note-title request, each for the FINAL query.
+    const urls = () => global.fetch.mock.calls.map((c) => String(c[0]))
+    await waitFor(() => expect(urls().filter((u) => u.startsWith('/api/ticker-search'))).toHaveLength(1))
+    expect(urls().filter((u) => u.startsWith('/api/ticker-search'))[0]).toContain('q=AAPL')
+    expect(urls().filter((u) => u.startsWith('/api/j2/notes/switcher'))).toEqual(
+      ['/api/j2/notes/switcher?q=AAPL&limit=8'],
+    )
+    expect(global.fetch).toHaveBeenCalledTimes(2)
     await screen.findByText('Apple Inc.')
   })
 
@@ -526,5 +533,214 @@ describe('CommandPalette — Wave B: Notebook joins the palette (§12-15)', () =
     fireEvent.keyDown(input, { key: 'ArrowDown' })
     fireEvent.keyDown(input, { key: 'Enter' })
     await waitFor(() => expect(screen.getByTestId('route-spy')).toHaveTextContent('/research/TRASH'))
+  })
+})
+
+describe('CommandPalette — quick switcher over ALL notes (Notebook 10/10 wave 5)', () => {
+  // One fetch double for both searches the palette runs, routed by URL, so a
+  // test states what EACH index answers rather than what "fetch" answers.
+  function routeFetch({ tickers = [], notes = [], notesStatus = 200 } = {}) {
+    global.fetch = vi.fn((url) => {
+      const u = String(url)
+      if (u.startsWith('/api/ticker-search')) {
+        return Promise.resolve({ ok: true, json: () => Promise.resolve({ results: tickers }) })
+      }
+      if (u.startsWith('/api/j2/notes/switcher')) {
+        return Promise.resolve({
+          ok: notesStatus < 400,
+          status: notesStatus,
+          json: () => Promise.resolve(notesStatus < 400 ? { notes, hasMore: false } : { detail: 'x' }),
+        })
+      }
+      return Promise.resolve({ ok: true, json: () => Promise.resolve({ notes: [] }) })
+    })
+  }
+  const note = (over) => ({
+    id: 'n1', title: 'Q3 NVDA thesis', folderId: 'f1', folderPath: 'Research / Semis',
+    ticker: 'NVDA', updatedAt: '2026-09-01T00:00:00Z', isRecent: false, isFavorite: false,
+    matchTier: 2, ...over,
+  })
+
+  it('finds a note by title and shows WHERE it lives (folder and ticker)', async () => {
+    routeFetch({ notes: [note()] })
+    renderPalette()
+    act(() => pressCtrlK())
+    const input = await screen.findByRole('combobox')
+    fireEvent.change(input, { target: { value: 'q3 nvda' } })
+    const option = await screen.findByRole('option', { name: /Note: Q3 NVDA thesis/ })
+    expect(option.textContent).toContain('Research / Semis · $NVDA')
+  })
+
+  it("names an unfiled note's location instead of leaving it blank", async () => {
+    routeFetch({ notes: [note({ folderId: null, folderPath: null, ticker: null })] })
+    renderPalette()
+    act(() => pressCtrlK())
+    const input = await screen.findByRole('combobox')
+    fireEvent.change(input, { target: { value: 'q3 nvda' } })
+    const option = await screen.findByRole('option', { name: /Note: Q3 NVDA thesis/ })
+    expect(option.textContent).toContain('Unfiled')
+  })
+
+  it('bolds the part of the title that matched', async () => {
+    routeFetch({ notes: [note({ title: 'Semis rotation' })] })
+    renderPalette()
+    act(() => pressCtrlK())
+    const input = await screen.findByRole('combobox')
+    fireEvent.change(input, { target: { value: 'rotation' } })
+    const option = await screen.findByRole('option', { name: /Note: Semis rotation/ })
+    expect(option.querySelector('strong')?.textContent).toBe('rotation')
+  })
+
+  it('clicking a note opens it in the Notebook', async () => {
+    routeFetch({ notes: [note({ id: 'abc' })] })
+    renderPalette()
+    act(() => pressCtrlK())
+    const input = await screen.findByRole('combobox')
+    fireEvent.change(input, { target: { value: 'q3 nvda' } })
+    fireEvent.click(await screen.findByRole('option', { name: /Note: Q3 NVDA thesis/ }))
+    await waitFor(() => expect(screen.getByTestId('route-spy')).toHaveTextContent('/journal/notebook?note=abc'))
+    expect(screen.queryByRole('dialog', { name: 'Command palette' })).toBeNull()
+  })
+
+  it('keyboard-first: a strong title match for a note-shaped query is highlighted, and Enter opens it', async () => {
+    routeFetch({ notes: [note({ id: 'k1', title: 'Earnings recap', matchTier: 1, ticker: null })] })
+    renderPalette()
+    act(() => pressCtrlK())
+    const input = await screen.findByRole('combobox')
+    fireEvent.change(input, { target: { value: 'earnings rec' } })
+    const option = await screen.findByRole('option', { name: /Note: Earnings recap/ })
+    expect(option).toHaveAttribute('aria-selected', 'true')
+    fireEvent.keyDown(input, { key: 'Enter' })
+    await waitFor(() => expect(screen.getByTestId('route-spy')).toHaveTextContent('/journal/notebook?note=k1'))
+  })
+
+  it('⛔ a note NEVER steals Enter from a ticker-shaped query — "nvda" + Enter still opens NVDA research', async () => {
+    // The palette's first job is securities. A note called "NVDA" is an EXACT
+    // title match, and it must still sit BELOW the ticker rows.
+    routeFetch({
+      tickers: [{ ticker: 'NVDA', name: 'NVIDIA Corp' }],
+      notes: [note({ id: 'n9', title: 'NVDA', matchTier: 0 })],
+    })
+    renderPalette()
+    act(() => pressCtrlK())
+    const input = await screen.findByRole('combobox')
+    fireEvent.change(input, { target: { value: 'nvda' } })
+    await screen.findByRole('option', { name: /Note: NVDA/ })
+    await screen.findByText('NVIDIA Corp')
+    const options = screen.getAllByRole('option')
+    expect(options[0].textContent).toContain('NVIDIA Corp')
+    fireEvent.keyDown(input, { key: 'Enter' })
+    await waitFor(() => expect(screen.getByTestId('route-spy')).toHaveTextContent('/research/NVDA'))
+  })
+
+  it('⛔ …and still when the NOTES answer first and the ticker search has not answered at all', async () => {
+    // The race the placement rule exists for: an exact-title note arrives
+    // while the ticker index is still thinking. The typed "Go to NVDA" row
+    // must stay on top, or Enter's destination depends on network timing.
+    global.fetch = vi.fn((url) => {
+      const u = String(url)
+      if (u.startsWith('/api/ticker-search')) return new Promise(() => {}) // never answers
+      if (u.startsWith('/api/j2/notes/switcher')) {
+        return Promise.resolve({ ok: true, json: () => Promise.resolve({ notes: [note({ id: 'n9', title: 'NVDA', matchTier: 0 })] }) })
+      }
+      return Promise.resolve({ ok: true, json: () => Promise.resolve({ notes: [] }) })
+    })
+    renderPalette()
+    act(() => pressCtrlK())
+    const input = await screen.findByRole('combobox')
+    fireEvent.change(input, { target: { value: 'nvda' } })
+    await screen.findByRole('option', { name: /Note: NVDA/ })
+    expect(screen.getAllByRole('option')[0].textContent).toContain('Go to NVDA')
+    fireEvent.keyDown(input, { key: 'Enter' })
+    await waitFor(() => expect(screen.getByTestId('route-spy')).toHaveTextContent('/research/NVDA'))
+  })
+
+  it('a note already listed as a Recent (typed "recent") is not listed twice', async () => {
+    global.fetch = vi.fn((url) => {
+      const u = String(url)
+      if (u.includes('/notes/recents')) {
+        return Promise.resolve({ ok: true, json: () => Promise.resolve({ notes: [{ id: 'r1', title: 'Recent ideas' }] }) })
+      }
+      if (u.includes('/notes/favorites')) {
+        return Promise.resolve({ ok: true, json: () => Promise.resolve({ notes: [] }) })
+      }
+      if (u.startsWith('/api/j2/notes/switcher')) {
+        return Promise.resolve({ ok: true, json: () => Promise.resolve({ notes: [note({ id: 'r1', title: 'Recent ideas', matchTier: 1 })] }) })
+      }
+      return Promise.resolve({ ok: true, json: () => Promise.resolve({ results: [] }) })
+    })
+    renderPalette()
+    act(() => pressCtrlK())
+    const input = await screen.findByRole('combobox')
+    fireEvent.change(input, { target: { value: 'recent' } })
+    await screen.findByText('Recent ideas')
+    await waitFor(() => expect(global.fetch.mock.calls.some((c) => String(c[0]).startsWith('/api/j2/notes/switcher'))).toBe(true))
+    await act(async () => { await new Promise((r) => setTimeout(r, 20)) })
+    // By OPTION, not by text: the switcher bolds the matched part, so its row's
+    // title is split across nodes and a getAllByText count cannot see it --
+    // which is exactly how this assertion first passed with the dedupe removed.
+    expect(screen.getAllByRole('option', { name: /Recent ideas/ })).toHaveLength(1)
+  })
+
+  it('a note-search outage says so, and the securities that did answer still show', async () => {
+    routeFetch({ tickers: [{ ticker: 'AAPL', name: 'Apple Inc.' }], notesStatus: 500 })
+    renderPalette()
+    act(() => pressCtrlK())
+    const input = await screen.findByRole('combobox')
+    fireEvent.change(input, { target: { value: 'AAPL' } })
+    await screen.findByText('Apple Inc.')
+    await screen.findByText(/note search is briefly unavailable/i)
+  })
+
+  it('every row kind has a real accessible name — never "undefined. Enter for Research"', async () => {
+    routeFetch({ notes: [note({ title: 'Trash talk', matchTier: 1 })] })
+    renderPalette()
+    act(() => pressCtrlK())
+    const input = await screen.findByRole('combobox')
+    fireEvent.change(input, { target: { value: 'trash' } })
+    await screen.findByRole('option', { name: /Note: Trash talk/ })
+    expect(screen.getByRole('option', { name: 'Open Trash' })).toBeInTheDocument()
+    for (const opt of screen.getAllByRole('option')) {
+      expect(opt.getAttribute('aria-label') || '').not.toMatch(/undefined/)
+    }
+  })
+
+  it('arrow keys keep the highlighted row scrolled into view', async () => {
+    const spy = vi.fn()
+    const had = Element.prototype.scrollIntoView
+    Element.prototype.scrollIntoView = spy
+    try {
+      routeFetch({ notes: [note({ id: 'a', title: 'Plan A', matchTier: 1 }), note({ id: 'b', title: 'Plan B', matchTier: 1 })] })
+      renderPalette()
+      act(() => pressCtrlK())
+      const input = await screen.findByRole('combobox')
+      fireEvent.change(input, { target: { value: 'plan ' } })
+      await screen.findByRole('option', { name: /Note: Plan B/ })
+      spy.mockClear()
+      fireEvent.keyDown(input, { key: 'ArrowDown' })
+      await waitFor(() => expect(spy).toHaveBeenCalledWith({ block: 'nearest' }))
+    } finally {
+      Element.prototype.scrollIntoView = had
+    }
+  })
+
+  it('the help screen documents that a note title opens the note', async () => {
+    renderPalette()
+    act(() => pressCtrlK())
+    const input = await screen.findByRole('combobox')
+    fireEvent.change(input, { target: { value: '?' } })
+    await screen.findByText(/part of a note.s title to open that note/i)
+    expect(global.fetch).not.toHaveBeenCalled()
+  })
+})
+
+describe('CommandPalette — touch tier', () => {
+  it('every result row is a finger target at the touch tier (<=1024px), not only on a phone', async () => {
+    const { readFileSync } = await import('node:fs')
+    const { join } = await import('node:path')
+    const css = readFileSync(join(process.cwd(), 'src/components/CommandPalette.module.css'), 'utf8')
+    const touch = /@media\s*\(max-width:\s*1024px\)\s*\{([\s\S]*?)\n\}/.exec(css.replace(/\r\n/g, '\n'))
+    expect(touch, 'a max-width:1024px block must exist').not.toBeNull()
+    expect(touch[1]).toMatch(/\.resultRow\s*\{[^}]*min-height:\s*var\(--tap-min/)
   })
 })

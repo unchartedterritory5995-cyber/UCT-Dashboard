@@ -44,6 +44,10 @@ const JOURNAL_SHORTCUTS = [
 // a bare letter would, so they're exempt from this sheet's own footnote.
 const NOTEBOOK_SHORTCUTS = [
   { keys: ['Ctrl', 'K'], label: 'Open command palette (works from anywhere, incl. Notebook)' },
+  // The quick switcher lives in that same palette — no second box, no second
+  // shortcut. Stated here because "type a title" is not discoverable from a
+  // search field whose history is tickers.
+  { keys: ['Ctrl', 'K'], label: 'Jump to any note: type part of its title, then Enter' },
   { keys: ['Ctrl', 'F'], label: 'Find in the current note' },
   { keys: ['Esc'], label: 'Close find, or the command palette' },
 ]
