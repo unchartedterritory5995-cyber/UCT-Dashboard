@@ -21,6 +21,10 @@
 }
 .row:hover { background: var(--bg-surface); }
 .row:disabled { opacity: 0.6; cursor: default; }
+/* The note rows are NoteLinkList's (shared with the `[[` menu), so they are
+   reached through the state they announce rather than a class of their own:
+   while a create is in flight they read as disabled, the same as .row. */
+.picker [role='option'][aria-disabled='true'] { opacity: 0.6; cursor: default; }
 .error { font-size: 12px; }
 /* Touch tier is <=1024px (canonical breakpoint, breakpoints.css). 16px input
    stops iOS zooming the page on focus. */

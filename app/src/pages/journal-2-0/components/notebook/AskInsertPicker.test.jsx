@@ -1,7 +1,12 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
-import { render, screen, fireEvent, waitFor } from '@testing-library/react'
+import { act, render, screen, fireEvent, waitFor } from '@testing-library/react'
+import fs from 'node:fs'
+import path from 'node:path'
+import { fileURLToPath } from 'node:url'
 import AskInsertPicker from './AskInsertPicker'
 import { clearPendingAskInsert, takePendingAskInsert } from '../../lib/askInsert'
+
+const HERE = path.dirname(fileURLToPath(import.meta.url))
 
 const NODE = {
   type: 'askInsert', attrs: { insertedAt: '2026-09-22T12:00:00.000Z', scope: 'notebook', question: 'q' },
@@ -71,6 +76,82 @@ describe('AskInsertPicker', () => {
     const p = setup()
     fireEvent.click(screen.getByRole('button', { name: 'Cancel' }))
     expect(p.onCancel).toHaveBeenCalled()
+  })
+
+  it('Escape in the search box closes it', () => {
+    const p = setup()
+    fireEvent.keyDown(input(), { key: 'Escape' })
+    expect(p.onCancel).toHaveBeenCalledTimes(1)
+    expect(p.onOpenNote).not.toHaveBeenCalled()
+  })
+
+  // A live walk found the member had to tap into the search box before
+  // typing: the picker opens in place of the Insert button, and nothing moved
+  // focus to it.
+  it('the search box has focus as soon as the picker opens', () => {
+    setup()
+    expect(document.activeElement).toBe(input())
+  })
+
+  it('while a create is in flight the note rows are disabled, and a click on one does nothing', async () => {
+    let settle
+    const p = setup({ createNote: vi.fn(() => new Promise((resolve) => { settle = resolve })) })
+    fireEvent.change(input(), { target: { value: 'nv' } })
+    expect(await screen.findByRole('option', { name: /NVDA thesis/ })).not.toHaveAttribute('aria-disabled')
+
+    fireEvent.click(screen.getByRole('button', { name: 'Create a new note titled "nv"' }))
+    await waitFor(() => expect(p.createNote).toHaveBeenCalled())
+    const rows = screen.getAllByRole('option')
+    expect(rows).toHaveLength(NOTES.length)
+    for (const row of rows) expect(row).toHaveAttribute('aria-disabled', 'true')
+
+    // The guard, not the attribute, is what keeps the answer out of a second
+    // note: a click on a disabled row neither opens it nor hands it the answer.
+    fireEvent.mouseDown(rows[0])
+    expect(p.onOpenNote).not.toHaveBeenCalled()
+    expect(takePendingAskInsert('n1')).toBeNull()
+
+    await act(async () => { settle({ id: 'new1', title: 'nv' }) })
+    expect(p.onOpenNote).toHaveBeenCalledTimes(1)
+    expect(p.onOpenNote).toHaveBeenCalledWith({ id: 'new1', title: 'nv' })
+  })
+
+  it('the disabled rows are styled as disabled, the same as a disabled button', () => {
+    const css = fs.readFileSync(path.join(HERE, 'AskInsertPicker.module.css'), 'utf8')
+      .replace(/\/\*[\s\S]*?\*\//g, '')
+    const rule = /\.picker \[role='option'\]\[aria-disabled='true'\]\s*\{([^}]*)\}/.exec(css)?.[1] || ''
+    expect(rule).toMatch(/opacity:\s*0\.6;/)
+    expect(rule).toMatch(/cursor:\s*default;/)
+  })
+
+  // The usual host unmounts the picker when a note opens, which used to hide
+  // that `busy` was never reset after a SUCCESSFUL create. A host that keeps
+  // it mounted must get a live picker back, not a disabled one.
+  it('a host that keeps the picker mounted gets it back once the create settles', async () => {
+    const p = setup()
+    fireEvent.change(input(), { target: { value: 'nv' } })
+    await screen.findByRole('option', { name: /NVDA thesis/ })
+    const create = () => screen.getByRole('button', { name: 'Create a new note titled "nv"' })
+
+    fireEvent.click(create())
+    await waitFor(() => expect(p.onOpenNote).toHaveBeenCalledWith({ id: 'new1', title: 'x' }))
+    await waitFor(() => expect(create()).not.toBeDisabled())
+    for (const row of screen.getAllByRole('option')) expect(row).not.toHaveAttribute('aria-disabled')
+
+    fireEvent.click(create())
+    await waitFor(() => expect(p.createNote).toHaveBeenCalledTimes(2))
+  })
+
+  it('a failed create also gives the picker back', async () => {
+    vi.spyOn(console, 'error').mockImplementation(() => {})
+    const p = setup({ createNote: vi.fn(async () => { throw new Error('500') }) })
+    fireEvent.change(input(), { target: { value: 'nv' } })
+    await screen.findByRole('option', { name: /NVDA thesis/ })
+    fireEvent.click(screen.getByRole('button', { name: 'Create a new note titled "nv"' }))
+    await screen.findByRole('alert')
+    expect(screen.getByRole('button', { name: 'Create a new note titled "nv"' })).not.toBeDisabled()
+    for (const row of screen.getAllByRole('option')) expect(row).not.toHaveAttribute('aria-disabled')
+    expect(p.onOpenNote).not.toHaveBeenCalled()
   })
 
   // G-064 final fix wave (M9) — two pickers on one page (a note's Ask and its

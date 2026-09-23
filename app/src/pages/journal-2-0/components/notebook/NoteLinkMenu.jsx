@@ -122,6 +122,9 @@ export const NoteLinkList = forwardRef((props, ref) => {
 
   return (
     <div className={styles.menu} role="listbox" id={menuId} aria-label={ariaLabel}>
+      {/* G-064 — `disabled` is passed only by the Ask insert picker, while a
+          create is in flight; the `[[` menu never sets it. It is semantic
+          only: the caller's `command` guard is what makes a click a no-op. */}
       {items.map((item, i) => (
         <button
           key={item.id}
@@ -129,6 +132,7 @@ export const NoteLinkList = forwardRef((props, ref) => {
           role="option"
           id={`${menuId}-opt-${i}`}
           aria-selected={i === selectedIndex}
+          aria-disabled={props.disabled ? 'true' : undefined}
           className={`${styles.item} ${i === selectedIndex ? styles.itemActive : ''}`}
           onMouseDown={(e) => { e.preventDefault(); props.command(item) }}
           onMouseEnter={() => setSelectedIndex(i)}

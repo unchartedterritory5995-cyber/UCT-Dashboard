@@ -25,6 +25,7 @@ export default function AskInsertPicker({
   const [error, setError] = useState('')
   const listRef = useRef(null)
   const searchRef = useRef(null)
+  const inputRef = useRef(null)
   // G-064 final fix wave (M9) — ids derived per instance, never fixed strings:
   // two pickers on one page (a note's Ask and a document sheet's Ask) would
   // otherwise share one id, and the label would point at whichever came first.
@@ -32,6 +33,13 @@ export default function AskInsertPicker({
   const searchId = `ask-insert-search-${uid}`
   const listId = `ask-insert-picker-list-${uid}`
   if (!searchRef.current) searchRef.current = search || makeNoteSearch()
+
+  // The search box takes focus when the picker opens (a live walk found the
+  // member had to tap into it). A plain mount focus, NoteFindBar's idiom: the
+  // picker replaces the Insert button inside a panel that is already open, so
+  // AskPanel's two-frame wait (a Sheet claiming focus as it mounts) does not
+  // apply here.
+  useEffect(() => { inputRef.current?.focus() }, [])
 
   useEffect(() => {
     const query = q.trim()
@@ -44,6 +52,9 @@ export default function AskInsertPicker({
     return () => { live = false }
   }, [q])
 
+  // While a create is in flight the rows are shown disabled (below), and this
+  // guard keeps a click on one a no-op: the answer is already going to a new
+  // note.
   const choose = (note) => {
     if (!note?.id || busy) return
     writePendingAskInsert(note.id, node)
@@ -61,6 +72,9 @@ export default function AskInsertPicker({
     } catch (e) {
       console.error('[AskInsertPicker] create failed', e)
       setError("Couldn't create the note. Your answer is still here.")
+    } finally {
+      // Settled either way. A host that unmounts the picker on open never sees
+      // this; one that keeps it mounted must not be left with a stuck picker.
       setBusy(false)
     }
   }
@@ -70,6 +84,7 @@ export default function AskInsertPicker({
     <div className={styles.picker} data-testid="ask-insert-picker">
       <label className={askStyles.srOnly} htmlFor={searchId}>Find a note to insert into</label>
       <input
+        ref={inputRef}
         id={searchId}
         className={styles.search}
         value={q}
@@ -93,6 +108,7 @@ export default function AskInsertPicker({
           command={choose}
           menuId={listId}
           ariaLabel="Insert into a note"
+          disabled={busy}
         />
       )}
       {error && <div className={styles.error} role="alert">{error}</div>}
