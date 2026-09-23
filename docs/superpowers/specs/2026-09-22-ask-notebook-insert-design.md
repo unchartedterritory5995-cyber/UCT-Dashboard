@@ -164,7 +164,9 @@ Only when all hold: the flag `notebook_ask_insert_on` is `true` for the tab, the
 answer completed (`status === 'done'`), and it cites at least one real source
 (`cited.length > 0`). Not while streaming, not on an error or rate limit, not for an
 answer with no citations (an uncited answer is not grounded, and inserting it would
-put an unsourced AI paragraph into the member's record).
+put an unsourced AI paragraph into the member's record). In a note editor, also not
+while the note cannot take the insert right now: while a recovered draft is waiting
+on Restore or Discard, or while a save is in flight (§5.2).
 
 After an insert, the button reads **"Inserted"** and is disabled for that answer, so
 one answer cannot be inserted twice by a double click. A new answer re-enables it.
@@ -199,7 +201,9 @@ only way the insert can use the note's own save path (§2.4, P4), and the member
 sees exactly where the answer went. Browser Back returns to the research page.
 
 ### 3.4 Where it lands
-Always at the end of the note. Not cursor-aware in v1 (§12).
+Always at the end of the note. Not cursor-aware in v1 (§12). When the note ends with
+an empty paragraph, the answer takes that paragraph's place, so no blank line sits
+above it; the empty paragraph after the answer is the editor's own trailing one.
 
 ### 3.5 What is inserted
 Exactly what the panel showed: the answer split into paragraphs on line breaks
@@ -248,7 +252,18 @@ Node.create({
   filterTransaction guard rejects any step whose deleted range has its two ends
   under different askInsert ancestors (this also blocks lifting a paragraph out).
   Deleting the WHOLE block, edits wholly inside it, and pure insertions are
-  allowed.
+  allowed. Undo and redo are exempt from that guard: they only move the document
+  between states it already accepted.
+- **Paste.** A partial copy from inside an answer pastes as plain content; a whole
+  block keeps its label. A copy made inside an answer carries the answer's wrapper
+  as clipboard context, and because the block is `defining`, pasting it at the start
+  of a member paragraph used to wrap the MEMBER'S paragraph in a new block (member
+  prose labelled "From Ask Notebook" and left out of Ask). A `transformPasted` hook
+  removes any `askInsert` that is open at an edge of the pasted slice, so partial
+  answer text lands as ordinary text wherever it is pasted, including inside an
+  answer. A whole block copied as a node is closed at both edges, keeps its wrapper
+  and attributes, and pastes as a second block. The same hook applies to a drag
+  within the editor.
 - Not added to the slash menu. The `renderHTML` fallback (used by HTML copy/paste
   and static renders) is a plain div with a content hole, and it parses back to the
   same node.
@@ -264,7 +279,8 @@ Node.create({
     label:    { default: '' },    // source label at insertion (e.g. a note title)
     nav:      { default: null },  // the source's `navigation` object, verbatim
     citation: { default: null },  // server precision at insertion: exact|page_only|note_only|record_only|unavailable
-    claim:    { default: '' },    // claimText of this chip's paragraph at insertion (§6)
+    claim:    { default: null },  // claimText of this chip's paragraph at insertion (§6);
+                                  // null = unknown (a share-reduced copy), never "edited"
   },
   parseHTML: [{ tag: 'span[data-type="ask-citation"]' }],   // attrs from data-*, nav as JSON
   renderHTML: ['span', { 'data-type': 'ask-citation', … }, `[${n}]`],
@@ -274,6 +290,9 @@ Node.create({
 
 - No `leafText`, the same as `noteLink`, so ProseMirror's `textBetween` gives it
   zero characters. The server's `flatten` must agree (§7.1).
+- `claim` is always written as a string at insert time (`''` for a paragraph that
+  holds only chips) and round-trips through HTML as `data-claim`, empty included. A
+  missing `data-claim` parses as `null`.
 - **Deliberately not stored:** the source `snippet` and `location`. v1 does not
   re-verify sources (§6.5), and storing another note's passage inside this note
   would copy it into this note's export, share payload and search index.
@@ -294,12 +313,18 @@ built, and it is pure, so it is tested without an editor.
 - **Open note (§3.2).** `NoteEditorPage` passes `onInsert(node)` to `AskPanel` and,
   through a new `onInsert` prop, to `DocumentPreviewSheet`'s `AskPanel`. It runs
   `editor.chain().insertContentAt(editor.state.doc.content.size, node).run()` — an
-  explicit position, never the selection — then scrolls the new block into view.
+  explicit position, never the selection — or, when the note ends with an empty
+  paragraph, `insertContentAt({ from: size - last.nodeSize, to: size }, node)` over
+  that paragraph (§3.4); only an empty paragraph is ever replaced. It then scrolls
+  the new block into view.
   The normal autosave persists it: baseline check, version capture, offline outbox,
   all unchanged. No new endpoint, no `settleNoteWrite` call, no new door.
-  `onInsert` is passed only while the editor is editable. A read-only note's Ask
-  offers no Insert (NoteEditorPage passes no onOpenNote); the page never sets the
-  editor read-only today, so this is unreachable. Inside the fullscreen document
+  `onInsert` is passed only while the note can take the insert now: the editor is
+  editable, no recovered draft is pending, and no save is in flight
+  (`saveStatus !== 'saving'`) — the same conditions the pending path waits for
+  (step 2 below). Otherwise both hosts get `null` and Ask offers no Insert, because
+  NoteEditorPage passes no onOpenNote. The page never sets the editor read-only
+  today, so that one condition is unreachable; the other two are real. Inside the fullscreen document
   sheet the note is hidden, so the button changes to "Inserted" (§3.1); the page
   toast also fires, and may sit behind the sheet.
 - **Other note (§3.3) — a pending insert.**
@@ -311,22 +336,34 @@ built, and it is pure, so it is tested without an editor.
      Then it calls the host's `onOpenNote(note)`: `ResearchHome.jsx:73`,
      `TickerResearchWorkspace.jsx:67`, which fall back to `navigate(notePath(id))`.
   2. `NoteEditorPage` consumes it once, when all hold: `hydratedRef.current` is
-     true (the consume effect is declared **after** the arming effect at
-     `NoteEditorPage.jsx:1438-1440`, because effects run in declaration order),
-     the editor is editable, the recovered-draft decision is **finished FOR
-     THIS NOTE** (`decide()` at `:714-741` is async; `recoveryDecidedFor` is set
-     to the note's own id when it settles, either way, and is compared against
-     the CURRENT `noteId`, `:1474` — a decision made for a note this reused
-     component instance has since left, on an A->B switch, must never
-     authorize an insert into the note it now shows), no draft is pending
-     (`pendingDraft` null — a restore calls `setContent` and would erase the
-     insert, `:813`; the insert therefore waits until the member restores or
-     discards), no save is in flight (a Restore's PUT must settle first —
-     `saveStatus !== 'saving'`; `restoreDraft()` sets `saveStatus:'saving'`
-     synchronously before its own `await update(...)`, `:814,824`, closing the
-     window where the insert's own autosave could fire mid-restore and carry
-     a pre-restore `baseUpdatedAt`), and the entry's `noteId` matches and is
-     under 15 minutes old.
+     true (armed by the effect at `NoteEditorPage.jsx:1440-1442`), the editor is
+     editable, the recovered-draft decision is **finished FOR THIS NOTE**
+     (`decide()` at `:716-744` is async; `recoveryDecidedFor` is set to the
+     note's own id when it settles, either way, `:734,742`, and is compared
+     against the CURRENT `noteId`, `:1499`), no draft is pending (`pendingDraft`
+     null — a restore calls `setContent` and would erase the insert, `:815`; the
+     insert therefore waits until the member restores or discards), no save is
+     in flight (a Restore's PUT must settle first — `saveStatus !== 'saving'`;
+     `restoreDraft()` sets `saveStatus:'saving'` synchronously before its own
+     `await update(...)`, `:826,836`, closing the window where the insert's own
+     autosave could fire mid-restore and carry a pre-restore `baseUpdatedAt`),
+     and the entry's `noteId` matches and is under 15 minutes old.
+     - **What keeps the insert behind hydration.** `ready` reads
+       `hydratedRef.current` during render, so the order in which the effects
+       are declared is not what protects it. The protection is the recovery
+       decision: it is always set after an `await` (`:725`), and an `await`
+       yields even on a settled value, so it resumes only once the effect flush
+       that started it has finished, the arming effect of that commit included.
+       Its setState then re-renders the page, and that render reads the ref
+       already armed. If the note's editor is committed only after the decision,
+       `ready` stays false until the page next re-renders: the answer waits, and
+       is never inserted early.
+     - **Per note, as defense in depth.** Production mounts the page as
+       `<NoteEditorPage key={noteId}>` (`tabs/NotebookTab.jsx:715`), so each
+       note gets a fresh instance. Comparing `recoveryDecidedFor` with the
+       current `noteId` (and `note?.id` with `noteId`) keeps the gate correct if
+       an instance is ever reused across notes: a decision made for another note
+       can never authorize an insert into this one.
   3. Consume = **remove the key first, then insert** through the same transaction
      as the open-note case, so a StrictMode double effect or a reload can never
      insert twice. Another note's entry is left for that note; an expired or
@@ -358,8 +395,12 @@ is no longer the text that paragraph had when the answer was inserted.
 claimText(textblock) = the block's direct text-node text, concatenated,
                        whitespace runs collapsed to one space, trimmed.
                        Chips and other inline atoms contribute nothing.
-stale(chip)          = claimText(the chip's parent textblock now) !== chip.attrs.claim
+stale(chip)          = chip.attrs.claim is a string
+                       && claimText(the chip's parent textblock now) !== chip.attrs.claim
 ```
+
+A chip with no claim (`null`) is **unknown, not edited**, and is never marked stale:
+that is what a share-reduced chip looks like (§6.3, §7.5).
 
 Consequences, all intended: chips in one paragraph go stale together; chips in other
 paragraphs are unaffected; moving a chip to another paragraph makes it stale; a typo
@@ -376,7 +417,10 @@ change and emits a node decoration `{ askStale: true }` for each stale chip.
 `AskCitationView` reads its decorations. Nothing is written to the document, so the
 check can never trigger a save (the H14 save-loop class), and there is exactly one
 authority. It needs no network and works identically in `SharedNotePage`,
-`NoteVersionPreview` and every other `buildExtensions` host.
+`NoteVersionPreview` and every other `buildExtensions` host. In `SharedNotePage`
+the share has already reduced each chip to `{ n }` (§7.5), so it carries no claim
+and reads `[n]`: the reader is told nothing about edits either way, which is the
+truth, since the share withholds the text the claim would be compared with.
 
 ### 6.4 One function, two uses
 `claimText` lives in `lib/askInsert.js` and is used both to build `claim` at insert
@@ -549,11 +593,19 @@ here is Wave K's `NOTEBOOK_*` keys.)
 - `claimText` and the stale plugin:
   - editing the chip's paragraph shows `[n · edited]`;
   - editing another paragraph leaves it unchanged;
-  - the check never dispatches a doc-changing transaction.
+  - the check never dispatches a doc-changing transaction;
+  - a share-reduced chip (`{ n }` only, no claim) reads `[n]`, never
+    `[n · edited]`, in a real `EditorContent` mount.
+- Paste, through the real clipboard path: answer text pasted at the start of a
+  member paragraph stays plain text there; a crossing copy adds no block; a whole
+  block copied as a node keeps its wrapper and attributes; answer text pasted inside
+  an answer lands there.
+- Undo of a wrap into an `askInsert` restores the exact prior document.
 - `buildAskInsertNode`: paragraphs, chips, a literal `[n]` for an invented source,
   `claim` values.
 - AskPanel gating:
   - flag off, streaming, error or no citations → no button;
+  - in a note editor, a pending recovered draft → no button, until it is settled;
   - with `onInsert` → "Insert into this note", then "Inserted";
   - without `onInsert` → the picker.
 - Picker: search, keyboard, "Create a new note".
@@ -571,7 +623,10 @@ here is Wave K's `NOTEBOOK_*` keys.)
 - the stale predicate;
 - the `_LEAF_TYPES` entry;
 - the Ask exclusion;
-- remove-before-insert in the consume.
+- remove-before-insert in the consume;
+- the stale check's skip of a chip with no claim;
+- the `transformPasted` unwrap;
+- the undo/redo exemption from the edge guard.
 
 **Live verification** (local sandbox, `scripts/hub_sandbox_boot.py`, real browser):
 - In a note: ask → Insert → reload → the block and chips render → a chip opens its
@@ -605,6 +660,10 @@ because the gate cannot see new failures in them:
 - **G-053** (Compass reading notes) — an owner decision. G-064 does not widen or
   narrow it.
 - A cross-edge edit is silently refused (no toast in v1).
+- A shared note keeps the block's question (the member's own words); chips keep only
+  their number.
+- An export → import round trip re-imports an inserted answer as a plain blockquote,
+  without the marking.
 
 ---
 
