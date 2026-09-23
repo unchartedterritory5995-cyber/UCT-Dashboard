@@ -79,10 +79,27 @@ vi.mock('./hooks/useTechnical', () => ({
   }),
 }))
 
+// A13 Wave B (2026-09-23): same idiom as Technical -- the new tab's own
+// hook resolved so ?section=flow has positive content.
+vi.mock('./hooks/useResearchFlow', () => ({
+  default: () => ({
+    data: {
+      ok: true, symbol: 'AAPL', spot: 256.5,
+      net: { bull: 500000, bear: 120000, unclassified: 0, dir: 'BULL' },
+      window: { start: '9/18/2026', end: '9/23/2026', active_days: 4, days_requested: '5' },
+      contract_count: 1,
+      contracts: [{ ticker: 'AAPL', cp: 'C', strike: 260, exp: '10/17/2026', dte: 24, premium: 500000, volume: 1200, oi: 3400, voi: 0.4, direction: 'Bull', perf: 12.5 }],
+    },
+    isLoading: false,
+  }),
+}))
+
 // Control auth: mock the whole module so test-utils' AuthProvider is a passthrough.
 // researchTechnicalTabEnabled defaults TRUE here so the pre-existing Technical
 // assertions below keep exercising the released shape; the two tests at the
-// bottom flip it off and restore it.
+// bottom flip it off and restore it. researchFlowTabEnabled defaults absent
+// (falsy) -- A13 Wave B's Flow tab ships DARK, so the baseline shape here
+// must be "not released" unless a test explicitly opts in.
 const auth = { user: { role: 'user' }, isPaid: true, researchTechnicalTabEnabled: true }
 vi.mock('../../context/AuthContext', () => ({
   useAuth: () => auth,
@@ -271,6 +288,47 @@ describe('ResearchPage', () => {
     auth.isPaid = true
     renderWithProviders(<ResearchPage />, { route: '/research/AAPL' })
     expect(screen.getByRole('button', { name: 'Technical' })).toBeInTheDocument()
+  })
+
+  it('hides the Flow tab by default (flag unset)', () => {
+    // A13 Wave B: RESEARCH_FLOW_TAB_ENABLED ships DARK, same as Technical.
+    // The shared `auth` mock never sets this flag, so the baseline behaviour
+    // (no explicit on/off around it) must already be "not released".
+    auth.isPaid = true
+    renderWithProviders(<ResearchPage />, { route: '/research/AAPL' })
+    expect(screen.queryByRole('button', { name: 'Flow' })).not.toBeInTheDocument()
+  })
+
+  it('honours ?section=flow — lands on the new Flow tab, when the flag is on', () => {
+    auth.isPaid = true
+    auth.researchFlowTabEnabled = true
+    try {
+      renderWithProviders(<ResearchPage />, { route: '/research/AAPL?section=flow' })
+      expect(screen.getByText('Net Flow')).toBeInTheDocument()
+      expect(screen.queryByText(/Key stats/i)).not.toBeInTheDocument()
+    } finally {
+      auth.researchFlowTabEnabled = false
+    }
+  })
+
+  it('renders the "Flow" tab button when the flag is on', () => {
+    auth.isPaid = true
+    auth.researchFlowTabEnabled = true
+    try {
+      renderWithProviders(<ResearchPage />, { route: '/research/AAPL' })
+      expect(screen.getByRole('button', { name: 'Flow' })).toBeInTheDocument()
+    } finally {
+      auth.researchFlowTabEnabled = false
+    }
+  })
+
+  it('falls through to Overview for ?section=flow when the flag is off', () => {
+    auth.isPaid = true
+    auth.researchFlowTabEnabled = false
+    renderWithProviders(<ResearchPage />, { route: '/research/AAPL?section=flow' })
+    expect(screen.queryByRole('button', { name: 'Flow' })).not.toBeInTheDocument()
+    expect(screen.queryByText('Net Flow')).not.toBeInTheDocument()
+    expect(screen.getByText(/Key stats/i)).toBeInTheDocument()
   })
 
   it('honours ?section=ai — lands on the new Ask AI tab', () => {
