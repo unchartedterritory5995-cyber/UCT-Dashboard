@@ -36,6 +36,8 @@ const T1 = '2026-09-23T09:05:00.000000+00:00'   // a door moved the note while t
 const BASE = { title: 'Thesis', subtitle: '', bodyJson: doc('online'), updatedAt: T0 }
 const SERVER_NOW = { title: 'Thesis', subtitle: '', bodyJson: doc('online'), updatedAt: T1 }
 const MINE = doc('online. and offline')
+/** What the sibling holds: exactly the words the editor had when it built the copy. */
+const FORKED = { title: 'Thesis', subtitle: '', bodyJson: MINE }
 
 const record = (extra = {}) => ({
   noteId: 'n1', title: 'Thesis', subtitle: '', bodyJson: MINE, dirty: 1, generation: 3,
@@ -108,6 +110,15 @@ describe('queuedWorkToAdopt — the decision, as a truth table', () => {
     expect(queuedWorkToAdopt({ decision: decide(bare), record: bare, entry: entry() })).toBeNull()
     const noRev = record({ serverBase: { ...BASE, updatedAt: '' } })
     expect(queuedWorkToAdopt({ decision: decide(noRev), record: noRev, entry: entry() })).toBeNull()
+  })
+
+  it('⛔ a base whose revision is not the entry’s is refused — a record poisoned before A-1 is never adopted (N4)', () => {
+    // The pre-A-1 settle wrote `acked@landed` as the base — a copy already
+    // holding a door's block — while the entry stayed on the older revision.
+    const poisoned = record({ serverBase: { ...BASE, bodyJson: doc('online'), updatedAt: T1 } })
+    expect(queuedWorkToAdopt({ decision: decide(poisoned), record: poisoned, entry: entry() })).toBeNull()
+    // …and the banner still gets the words: the decision itself is untouched.
+    expect(decide(poisoned).unsynced).toBe(true)
   })
 
   it('nothing to recover ⇒ nothing to adopt', () => {
@@ -195,7 +206,7 @@ describe('settleOwnerFork — the owner\'s fork settles the note the way the swe
     await putNoteWithIntent(db, record(), entry())
     await settleIdb(4)
     const serverNote = { ...SERVER_NOW, bodyJson: doc('a second writer rewrote this') }
-    expect(await settleOwnerFork({ accountId: 'a1', noteId: 'n1', serverNote, connect: connectTo(db) })).toBe(true)
+    expect(await settleOwnerFork({ accountId: 'a1', noteId: 'n1', serverNote, forked: FORKED, connect: connectTo(db) })).toBe(true)
     await settleIdb(4)
     const after = await getNote(db, 'n1')
     expect(after.dirty).toBe(0)
@@ -208,9 +219,42 @@ describe('settleOwnerFork — the owner\'s fork settles the note the way the swe
     const db = createFakeDb()
     await putNoteWithIntent(db, record(), entry())
     await settleIdb(4)
-    await settleOwnerFork({ accountId: 'a1', noteId: 'n1', serverNote: {}, connect: connectTo(db) })
+    await settleOwnerFork({ accountId: 'a1', noteId: 'n1', serverNote: {}, forked: FORKED, connect: connectTo(db) })
     await settleIdb(4)
     expect((await getNote(db, 'n1')).bodyJson).toEqual(MINE)
+  })
+
+  it('⛔⛔ words typed while the sibling was being created are NOT settled away (S1)', async () => {
+    // The member typed K during the create request: the record and the queue
+    // hold MINE+K, the sibling holds MINE. Settling would write the server copy
+    // clean over K and clear the queue — K in no layer at all.
+    const db = createFakeDb()
+    const withK = doc('online. and offline K')
+    await putNoteWithIntent(db, record({ bodyJson: withK }), entry({ patch: { title: 'Thesis', subtitle: '', bodyJson: withK } }))
+    await settleIdb(4)
+    expect(await settleOwnerFork({ accountId: 'a1', noteId: 'n1', serverNote: SERVER_NOW, forked: FORKED, connect: connectTo(db) })).toBe(false)
+    await settleIdb(4)
+    const after = await getNote(db, 'n1')
+    expect(after.dirty).toBe(1)
+    expect(after.bodyJson).toEqual(withK)
+    expect(await listOutbox(db), 'K stays queued — a later second fork preserves it').toHaveLength(1)
+  })
+
+  it('⛔ a queued entry that moved past what was forked is refused too', async () => {
+    const db = createFakeDb()
+    const withK = doc('online. and offline K')
+    await putNoteWithIntent(db, record(), entry({ patch: { title: 'Thesis', subtitle: '', bodyJson: withK } }))
+    await settleIdb(4)
+    expect(await settleOwnerFork({ accountId: 'a1', noteId: 'n1', serverNote: SERVER_NOW, forked: FORKED, connect: connectTo(db) })).toBe(false)
+    expect(await listOutbox(db)).toHaveLength(1)
+  })
+
+  it('⛔ no `forked`, no proof: refused, nothing written', async () => {
+    const db = createFakeDb()
+    await putNoteWithIntent(db, record(), entry())
+    await settleIdb(4)
+    expect(await settleOwnerFork({ accountId: 'a1', noteId: 'n1', serverNote: SERVER_NOW, connect: connectTo(db) })).toBe(false)
+    expect((await getNote(db, 'n1')).dirty).toBe(1)
   })
 
   it('⛔ with the wave switched OFF it writes nothing (§21)', async () => {
@@ -218,7 +262,7 @@ describe('settleOwnerFork — the owner\'s fork settles the note the way the swe
     const db = createFakeDb()
     await putNoteWithIntent(db, record(), entry())
     await settleIdb(4)
-    expect(await settleOwnerFork({ accountId: 'a1', noteId: 'n1', serverNote: SERVER_NOW, connect: connectTo(db) })).toBeNull()
+    expect(await settleOwnerFork({ accountId: 'a1', noteId: 'n1', serverNote: SERVER_NOW, forked: FORKED, connect: connectTo(db) })).toBeNull()
     await settleIdb(4)
     expect((await getNote(db, 'n1')).dirty).toBe(1)
     expect(await listOutbox(db)).toHaveLength(1)

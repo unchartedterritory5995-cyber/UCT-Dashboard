@@ -39,6 +39,7 @@ import { useBlockedNotes } from '../../lib/offline/useBlockedNotes'
 import { blockedLabel, unsyncedLabel, OFFLINE_VIEWING_BANNER } from '../../lib/offline/unsyncedCopy'
 import { usableBaseline, isUsableBaseline } from '../../lib/offline/baseline'
 import { settleNoteWrite } from '../../lib/offline/settleNoteWrite'
+import { sameAuthoredContent } from '../../lib/offline/recoverLocalState'
 import {
   BODY_REWRITE, appendedServerNodes, classifyServerChange, missingServerNodes, nodeKeyOf,
 } from '../../lib/offline/serverChange'
@@ -674,6 +675,17 @@ export default function NoteEditorPage({ noteId, onBack, showBack = true, onTitl
   // `recover()` as `adopt`. Held here until the editor can take them (see the
   // effect after the hydration gate).
   const [pendingAdoption, setPendingAdoption] = useState(null)
+  // ⛔ S2 (fix round 1): queued words are adopted SILENTLY only while nothing of
+  // the member's own is in play — no edit since this note hydrated, and no save
+  // pending or on the wire. Otherwise they are OFFERED (the banner) and both
+  // copies survive. Refs, because the adoption decision must read the value at
+  // the instant it runs, not the one a render captured.
+  const editedSinceHydrationRef = useRef(false)
+  const saveInFlightRef = useRef(false)
+  const saveSettledWaitersRef = useRef([])
+  // Re-runs the adoption effect when an in-flight save settles (a Restore waits
+  // for it rather than racing it).
+  const [adoptionTick, setAdoptionTick] = useState(0)
   // G-064 fix round 1 (F2, controller ruling) — WHICH note the decision is
   // for, not a bare boolean. DEFENSE IN DEPTH: production mounts this page as
   // `<NoteEditorPage key={noteId}>` (tabs/NotebookTab.jsx:715), so each note
@@ -729,6 +741,7 @@ export default function NoteEditorPage({ noteId, onBack, showBack = true, onTitl
       bodyJson: note.bodyJson,
       updatedAt: note.updatedAt || null,
     }
+    editedSinceHydrationRef.current = false
 
     // Wave 0 (P1-10) offered a draft this note's own last session never
     // successfully saved. Wave Q1 makes that a THREE-way decision — the
@@ -766,7 +779,10 @@ export default function NoteEditorPage({ noteId, onBack, showBack = true, onTitl
       if (decision?.adopt) {
         setPendingDraft(null)
         setRecovery(null)
-        setPendingAdoption(decision.adopt)
+        // `auto`: the effect below adopts silently ONLY if the member has not
+        // started on this note meanwhile (S2); otherwise it offers the banner,
+        // built from this same decision.
+        setPendingAdoption({ ...decision.adopt, auto: true, decision, savedAt: lsDraft?.savedAt ?? null })
         return
       }
       if (decision && decision.unsynced) {
@@ -851,6 +867,8 @@ export default function NoteEditorPage({ noteId, onBack, showBack = true, onTitl
     // into `reconcileConflict` like any other save. Without it (a crash draft
     // whose base was never recorded) the path below is unchanged.
     if (recovery?.base) {
+      const decision = recovery
+      const savedAt = pendingDraft.savedAt ?? null
       setPendingDraft(null)
       setRecovery(null)
       setPendingAdoption({
@@ -859,6 +877,11 @@ export default function NoteEditorPage({ noteId, onBack, showBack = true, onTitl
           bodyJson: pendingDraft.bodyJson,
         },
         base: recovery.base,
+        // The member chose these words: no banner fallback for an edit, but a
+        // save already on the wire is still waited for (S2 case B).
+        auto: false,
+        decision,
+        savedAt,
       })
       return
     }
@@ -886,6 +909,7 @@ export default function NoteEditorPage({ noteId, onBack, showBack = true, onTitl
     // going straight to the network keeps this one-shot action off that
     // shared, timing-sensitive machinery entirely.
     setSaveStatus('saving')
+    saveInFlightRef.current = true
     try {
       const patch = { title: draftTitle, subtitle: draftSubtitle || null }
       if (draftBodyJson) patch.bodyJson = draftBodyJson
@@ -929,7 +953,14 @@ export default function NoteEditorPage({ noteId, onBack, showBack = true, onTitl
       setSaveErrorMsg(friendlySaveError(e, e?.status))
     } finally {
       restoringDraftRef.current = false
+      saveSettled()
     }
+  }
+  /** A save left the wire (either way): wake whatever waited on it. */
+  function saveSettled() {
+    saveInFlightRef.current = false
+    const waiting = saveSettledWaitersRef.current.splice(0)
+    waiting.forEach((wake) => { try { wake() } catch { /* a waiter is not the save */ } })
   }
   const discardDraft = () => {
     clearDraftLocally()
@@ -953,6 +984,9 @@ export default function NoteEditorPage({ noteId, onBack, showBack = true, onTitl
     // the member's to save, and everything to lose — so this refuses BEFORE it
     // touches the status, the draft, the durable copy or the save timer.
     if (!hydratedRef.current) return
+    // S2: the member has started on this note — queued words are offered from
+    // now on, never silently put over what they are doing.
+    editedSinceHydrationRef.current = true
     setSaveStatus('dirty')
     setSaveErrorMsg('')
     // Wave 0 (P1-10): mirror to localStorage on EVERY edit, synchronously —
@@ -1591,8 +1625,47 @@ export default function NoteEditorPage({ noteId, onBack, showBack = true, onTitl
   // `reconcileConflict` decides: metadata ⇒ rebase, append ⇒ merge the block,
   // anything else ⇒ fork, never clobber.
   useEffect(() => {
-    if (!pendingAdoption || !editor || editor.isDestroyed || !note || !hydratedRef.current) return
-    const { state, base } = pendingAdoption
+    if (!pendingAdoption || !editor || editor.isDestroyed || !note || !hydratedRef.current) return undefined
+    const { state, base, auto, decision, savedAt } = pendingAdoption
+    // Offer instead of adopting: the HEAD~1 behaviour, which keeps both copies.
+    const offer = () => {
+      setPendingAdoption(null)
+      if (decision) {
+        setPendingDraft({ ...decision.state, savedAt: savedAt ?? null })
+        setRecovery(decision)
+      }
+      setRecoveryDecidedFor(note.id)
+    }
+    // ⛔⛔ S2 (fix round 1) — NEVER PUT QUEUED WORDS OVER WHAT THE MEMBER IS DOING.
+    // A: typing before `recover()` resolved — adopting would replace it on
+    //    screen, reset its timer and overwrite its draft; it would be in no layer.
+    // B: a save on the wire — when it lands it moves `lastSavedRef` to ITS
+    //    revision, and the adoption's save would then go out on that revision
+    //    with no 409, over the member's words and any door's block.
+    // ONE flag covers both, and that is derived, not assumed: after hydration a
+    // save is only ever pending or on the wire downstream of `scheduleAutosave`
+    // (its timer, the retries it leads to, the unmount flush of that timer), and
+    // `scheduleAutosave` marks the note edited BEFORE it arms anything. The one
+    // other save, the crash-draft Restore, is reachable only from the banner, so
+    // never while an automatic adoption is pending. ⚰️ A second `|| busy` term
+    // stood here and was deleted: removing it left every rail green, because it
+    // could not be true without this one — a guard that reads as protection and
+    // cannot fire. (S2-A′ isolates this flag; S2-B (Restore) the in-flight one.)
+    if (auto && editedSinceHydrationRef.current) { offer(); return undefined }
+    // A Restore is the member's own choice, so an edit does not stop it — but a
+    // save already on the wire is waited for, never raced (case B again).
+    if (!auto && saveInFlightRef.current) {
+      let cancelled = false
+      saveSettledWaitersRef.current.push(() => { if (!cancelled) setAdoptionTick((n) => n + 1) })
+      return () => { cancelled = true }
+    }
+    // ⛔ N6: the words go into the EDITOR first, because the save reads its body
+    // from the editor, not from `state`. If the view cannot take them, nothing is
+    // saved as though it had — they are offered, and the durable copy and the
+    // queue still hold them.
+    try {
+      editor.commands.setContent(state.bodyJson || { type: 'doc', content: [] }, EMIT_NOTHING)
+    } catch { offer(); return undefined }
     setPendingAdoption(null)
     const t = state.title || ''
     const s = state.subtitle || ''
@@ -1600,9 +1673,6 @@ export default function NoteEditorPage({ noteId, onBack, showBack = true, onTitl
     titleRef.current = t
     setSubtitle(s)
     subtitleRef.current = s
-    try {
-      editor.commands.setContent(state.bodyJson || { type: 'doc', content: [] }, EMIT_NOTHING)
-    } catch { /* view not mounted yet -- the save below still carries the words */ }
     lastSavedRef.current = {
       title: base.title || '', subtitle: base.subtitle || '',
       bodyJson: base.bodyJson, updatedAt: base.updatedAt || null,
@@ -1610,8 +1680,9 @@ export default function NoteEditorPage({ noteId, onBack, showBack = true, onTitl
     setRecoveryDecidedFor(note.id)
     // The ordinary autosave path: draft + durable snapshot + the debounced PUT.
     scheduleAutosaveRef.current()
+    return undefined
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [pendingAdoption, editor, note])
+  }, [pendingAdoption, editor, note, adoptionTick])
 
   // G-064 — insert an Ask Notebook answer into THIS note: an editor transaction
   // on the normal autosave path (spec §5.2). No endpoint, no settle, no door.
@@ -1740,6 +1811,9 @@ export default function NoteEditorPage({ noteId, onBack, showBack = true, onTitl
     const localTitle = titleRef.current || ''
     const localSubtitle = subtitleRef.current || ''
     const localBody = editor.getJSON()
+    // ⛔ S1 (fix round 1): EXACTLY what the sibling will hold. The create below is
+    // a network round trip, and anything typed during it is NOT in the sibling.
+    const forked = { title: localTitle, subtitle: localSubtitle, bodyJson: localBody }
     // ⛔⛔ THIS USED TO SILENTLY DROP THE SUBTITLE. `createNoteViaApi` took no
     // `subtitle` param until UX #12 (Duplicate note, 2026-09-22) added one --
     // this call sat right beside that gap the whole time, in the ONE path
@@ -1756,6 +1830,12 @@ export default function NoteEditorPage({ noteId, onBack, showBack = true, onTitl
       tags: ['sync-conflict'],
       folderId: note?.folderId || undefined,
     })
+
+    // ⛔ S1: did the member type while the sibling was being created? Read BEFORE
+    // the view is replaced below, or the answer is always "no".
+    const editorHoldsForked = sameAuthoredContent({
+      title: titleRef.current || '', subtitle: subtitleRef.current || '', bodyJson: editor.getJSON(),
+    }, forked)
 
     // The editor now shows what the SERVER has — the canonical version — so the
     // member is not typing into a document that no longer exists anywhere.
@@ -1774,10 +1854,26 @@ export default function NoteEditorPage({ noteId, onBack, showBack = true, onTitl
     // closed the sweep forked it AGAIN. `settleOwnerFork` first (it clears the
     // queue), THEN `markSynced`, so the writer's latest state is the server copy
     // too and no pending keystroke snapshot can re-dirty the record.
-    await settleOwnerFork({ accountId: user?.id, noteId, serverNote: fresh })
+    // ⛔⛔ S1 (fix round 1) — BUT ONLY WHILE THE EDITOR AND THE STORE STILL HOLD
+    // EXACTLY WHAT WAS FORKED. Words typed during the create request reach the
+    // record, the queue and the draft but NOT the sibling; settling then wrote
+    // the server copy clean over them, `markSynced` superseded their pending
+    // snapshot and the draft went with them — in no layer at all. When anything
+    // moved, keep the pre-E-3 behaviour: no settle, the queue keeps the words,
+    // and a later second fork preserves them. A duplicate beats a loss.
     const serverNow = { title: fresh.title || '', subtitle: fresh.subtitle || '', bodyJson: fresh.bodyJson ?? null }
-    durableRef.current.markSynced({ acked: serverNow, current: serverNow, updatedAt: fresh.updatedAt || null })
-    clearDraftLocally()
+    const settled = editorHoldsForked
+      && (await settleOwnerFork({ accountId: user?.id, noteId, serverNote: fresh, forked })) === true
+    if (!settled) {
+      clearDraftLocally()          // pre-E-3: the durable copy and the queue keep the words
+    } else if (sameAuthoredContent({
+      title: titleRef.current || '', subtitle: subtitleRef.current || '', bodyJson: editor.getJSON(),
+    }, serverNow)) {
+      // ⛔ Re-read AFTER the settle's await: a keystroke there is on top of the
+      // server copy, and its own snapshot, draft and autosave must survive.
+      durableRef.current.markSynced({ acked: serverNow, current: serverNow, updatedAt: fresh.updatedAt || null })
+      clearDraftLocally()
+    }
     setSaveStatus('conflict')
     setSaveErrorMsg('')
     return false
@@ -1845,6 +1941,10 @@ export default function NoteEditorPage({ noteId, onBack, showBack = true, onTitl
     // record not yet settled. On failure nothing settles, so the fallback below
     // lowers it instead. Hence the flag rather than an unconditional `finally`.
     let settleStarted = false
+    // S2: on the wire from here until the `finally` below, which lowers it on
+    // every exit. Raised immediately before the `try` so nothing can throw
+    // between the two and leave it up for the rest of the session.
+    saveInFlightRef.current = true
     try {
       const saved = await update(patch)
       lastSavedRef.current = {
@@ -1928,6 +2028,7 @@ export default function NoteEditorPage({ noteId, onBack, showBack = true, onTitl
       // ⛔ This repo has twice shipped a cleanup that lived only on the success
       // branch; the second one was found this morning, in the rig.
       if (!settleStarted) endInFlightSave({ accountId: user?.id, noteId })
+      saveSettled()
     }
   }
 

@@ -25,7 +25,7 @@
 > held the appended node, so the drain's diff read the append as "no change" and
 > re-sent the member's body over it (6 / 6 append cells RED, all metadata green).
 > Fixed under D3 in wave 5 — mechanism, fix, rails and mutation proofs in
-> **`docs/notebook/f5-fixes-2026-09-23.md` §2**.
+> **`docs/notebook/f5-fixes-2026-09-23.md` §A** (landed as `f2b663d86`).
 
 **Found 2026-09-13, at unit level, by widening the property rail to seven families —
 before the production driver was built. It is LIVE in production today.**

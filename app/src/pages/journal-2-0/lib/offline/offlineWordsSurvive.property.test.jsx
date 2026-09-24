@@ -134,6 +134,12 @@ function makeServer(startBody) {
         const e = new Error('conflict'); e.status = 409; throw e
       }
       state.body = entry.patch?.bodyJson ?? state.body
+      // ⛔ AND THE AUTHORED FIELDS A PUT CARRIES (review N9, fix round 1). The
+      // real `update_note` writes the title and subtitle it is sent; a fake that
+      // kept its own while the queued patch said otherwise is the exact
+      // unfaithfulness that once manufactured a fork in this file.
+      if (entry.patch && 'title' in entry.patch) state.title = entry.patch.title ?? ''
+      if (entry.patch && 'subtitle' in entry.patch) state.subtitle = entry.patch.subtitle ?? ''
       stamp()
       return { ...state }
     }),

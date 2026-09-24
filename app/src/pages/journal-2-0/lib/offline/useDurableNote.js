@@ -300,9 +300,17 @@ export async function settleLandedSave({
     // ⛔ THE DURABLE COPY WINS. When there is unsent work the record keeps the
     // member's body, keeps `dirty`, and keeps its own baseline, so the entry
     // still 409s and the drain runs classify-then-rebase/merge/fork — the path
-    // the one GREEN production cell actually measured. `serverBase` below hands
-    // the classifier the server's newer copy so it can tell a metadata move
-    // (rebase, keep the words) from a body rewrite (fork, never clobber).
+    // the one GREEN production cell actually measured.
+    // ⛔⛔ AND IT KEEPS THE BASE THOSE WORDS WERE WRITTEN ON (D3, wave 5, A-1):
+    // `serverBase` below is `prev`'s own last-known server copy, NOT `acked` —
+    // the classifier must diff the server against what the queued words were
+    // written on, or a door's appended block reads as "no change" and the
+    // rebase drops it. `acked@landed` is the base only when the record settles
+    // onto `landed` itself. (Frozen `serverChange.js:185-187` says `serverBase`
+    // is "moved forward every time the server tells us something newer (an ack,
+    // a successful drain send)". An ack while work is unsent is the one
+    // deliberate exception, and `docs/notebook/f5-fixes-2026-09-23.md` §A.3
+    // records it; that file cannot be edited under D3.)
     const state = unsentWork ? prev : (caughtUp ? (acked || current) : current)
     const record = {
       noteId,
@@ -395,19 +403,41 @@ export async function settleLandedSave({
  * `settleForkedNote`, never a second copy of it — including its refusal to empty
  * the record when the server note is unusable.
  *
+ * ⛔⛔ AND ONLY WHILE THE STORE STILL HOLDS EXACTLY WHAT WAS FORKED (review S1,
+ * fix round 1). The sibling holds `forked` — what the editor had when it built
+ * the copy. The create request takes a network round trip, and words typed
+ * during it reach the durable record and the queue but NOT the sibling. Settling
+ * then wrote the server copy CLEAN over them and cleared the queue: the words
+ * were in no layer at all. So the record, and the queued entry if there is one,
+ * must equal `forked`; anything else is refused and the note keeps the pre-E-3
+ * behaviour — a second fork later, which preserves the words. A duplicate
+ * beats a loss. No `forked`, no proof: refused.
+ * ⚠️ The check and the settle are two transactions. What can land between them
+ * is a durable write already scheduled before the editor's own check — content
+ * the sibling holds — or a keystroke's write, which is debounced ≥200 ms and
+ * whose draft and autosave the editor keeps whenever its view has moved.
+ *
  * ⛔ Store-direct and mount-independent, like `settleLandedSave`; never throws;
  * and with the wave switched off it writes nothing (§21).
  *
- * @returns true when settled, null when it could not or may not write
+ * @param forked  { title, subtitle, bodyJson } — exactly what the sibling holds
+ * @returns true when settled · false when refused because the store has moved on
+ *          from what was forked (or no `forked` was given) · null when it could
+ *          not or may not write
  */
 export async function settleOwnerFork({
-  accountId, noteId, serverNote, connect = connectNotebookDb,
+  accountId, noteId, serverNote, forked = null, connect = connectNotebookDb,
 } = {}) {
   if (!offlineEnabled()) return null
   if (!offlineStorageAvailable()) return null
   if (!accountId || !noteId) return null
+  if (!forked) return false
   try {
     const db = await connect(accountId)
+    const rec = await getNote(db, noteId)
+    if (rec && !sameAuthoredContent(rec, forked)) return false
+    const queued = (await listOutbox(db)).filter((e) => e?.noteId === noteId)
+    if (queued.some((e) => !sameAuthoredContent(e.patch, forked))) return false
     await settleForkedNote(db, noteId, serverNote)
     return true
   } catch { return null }

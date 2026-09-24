@@ -42,16 +42,18 @@ should be cited as one.
 > landed the offline layer's half (`recover()` → `adopt` / `base`, `settleOwnerFork`)
 > and proved the editor's half (E-1 adopt the queued words on the copy they were written
 > on, E-2 Restore on that same base, E-3 settle the owner's fork) end to end against a
-> copy of the committed editor: 7 / 7 green, 6 / 7 red without it. **The editor half is
-> `NoteEditorPage.jsx`'s and is handed over, not landed** — until it lands, the state
-> below is still live. Also found and folded in: Restore after a moved server clobbered
-> it (measured: 0 forks, the other device's words gone). Design, measurements, mutations:
-> `docs/notebook/f5-fixes-2026-09-23.md` §B. Everything under this box is the
-> 2026-09-13 record, kept as it was.
+> copy of the committed editor: 7 / 7 green, 6 / 7 red without it. The editor half
+> landed as `fe4e278bc`; review fix round 1 then closed two ways it could lose words
+> the member typed DURING an adoption or an owner's fork (S1, S2 — `f5-fixes-2026-09-23.md`
+> §C), with 7 new end-to-end cells that are red on `fe4e278bc`. Also found and folded in:
+> Restore after a moved server clobbered it (measured: 0 forks, the other device's words
+> gone) — closed for queued words, ⛔ **NOT for a crash-draft winner**, whose base is
+> unknown (§C.5). Design, measurements, mutations: `docs/notebook/f5-fixes-2026-09-23.md`
+> §B and §C. Everything under this box is the 2026-09-13 record, kept as it was.
 
 | | |
 |---|---|
-| status | 🟠 **RULED (D3) — offline half landed, editor half handed over** (was: 🟡 OPEN — owner ruling required) |
+| status | 🟠 **RULED (D3) — both halves landed on `feat/notebook-10`; not on master, not measured on production** (was: 🟡 OPEN — owner ruling required) |
 | found | 2026-09-13, on **production**, with the Wave Q1 rig, while driving the F5 table |
 | found by | `tools/q1_f5_matrix.py` — as a side observation of the `--navigate-no-door` control, **not** as a cell verdict |
 | proposed owner | **Wave Q1 (the save path).** It is the drain's contract meeting the editor's save gate; both are Q1's |

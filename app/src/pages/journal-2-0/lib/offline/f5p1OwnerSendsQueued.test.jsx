@@ -16,6 +16,12 @@
  * Lands WITH the editor change (E-1 adopt / E-3 settle the owner's fork),
  * `docs/notebook/f5-fixes-2026-09-23.md` §B. Against the editor without it, the
  * four send cells are RED: the words never leave.
+ *
+ * ⛔⛔ Fix round 1 (§C) adds the member ACTING while the owner works: typing before
+ * recovery resolves, with a save on the wire, during the fork's create request,
+ * during the settle itself, a Restore clicked mid-save — plus a view that refuses
+ * the words (N6). All seven are RED on `fe4e278bc`; each guard's own mutation is
+ * recorded in §C.4.
  */
 import { render, screen, act, waitFor, fireEvent } from '@testing-library/react'
 import { MemoryRouter } from 'react-router-dom'
@@ -52,7 +58,13 @@ function makeServer({ body, updatedAt }) {
   }
   return s
 }
+// ⭐ Fix round 1: a PUT can be HELD on the wire, and a create request too, so a
+// rail can put a member's keystroke exactly where the review said words were lost.
+let putGate = null
+let createGate = null
+let createsStarted = 0
 const update = vi.fn(async (patch) => {
+  if (putGate) await putGate
   server.puts.push(patch)
   if (patch.baseUpdatedAt && patch.baseUpdatedAt !== server.updatedAt) {
     const e = new Error('note changed — refresh and retry'); e.status = 409; throw e
@@ -71,8 +83,32 @@ vi.mock('../../hooks/useJ2Notes', () => ({
 vi.mock('../../../../context/AuthContext', () => ({ useAuth: () => ({ user: { id: 'u42', role: 'member' } }) }))
 vi.mock('../../hooks/useJ2NoteFolders', () => ({ default: () => ({ folders: [] }) }))
 vi.mock('../noteCreation', () => ({
-  createNoteViaApi: vi.fn(async (args) => { server.forks.push(args); return { id: 'fork-1', ...args } }),
+  createNoteViaApi: vi.fn(async (args) => {
+    createsStarted += 1
+    if (createGate) await createGate
+    server.forks.push(args)
+    return { id: 'fork-1', ...args }
+  }),
 }))
+
+// ⭐ Fix round 1: a gate AFTER the owner's fork has settled the STORE and before
+// the editor decides whether to `markSynced`, so a keystroke can land exactly in
+// the window the editor's post-settle re-read exists for. The real function
+// runs; only its return is held.
+let afterSettleGate = null
+let settlesReached = 0
+vi.mock('./useDurableNote', async (importOriginal) => {
+  const real = await importOriginal()
+  return {
+    ...real,
+    settleOwnerFork: async (...args) => {
+      const settled = await real.settleOwnerFork(...args)
+      settlesReached += 1
+      if (afterSettleGate) await afterSettleGate
+      return settled
+    },
+  }
+})
 
 const ACCOUNT_DB = dbNameFor('u42')
 let factory
@@ -100,6 +136,8 @@ beforeEach(() => {
   localStorage.clear()
   localStorage.setItem(OFFLINE_FLAG_KEY, '1')
   update.mockClear(); sweepSend.mockClear(); sweepFork.mockClear()
+  putGate = null; createGate = null; createsStarted = 0
+  afterSettleGate = null; settlesReached = 0
   __resetNotebookConnections()
   factory = createFakeIndexedDbFactory()
   globalThis.indexedDB = factory
@@ -144,17 +182,100 @@ function Tab({ Editor }) {
   return <Editor noteId="n1" onBack={() => {}} />
 }
 
-async function returnToTheNoteAndSit() {
+async function returnToTheNote() {
   mountedNote = server.note()
   const mod = await import('../../components/notebook/NoteEditorPage')
   render(<MemoryRouter><Tab Editor={mod.default} /></MemoryRouter>)
   await screen.findByPlaceholderText('Title')
-  // ⛔ NOBODY TYPES. Sit on the note: past the durable window, the 800ms
-  // autosave, a 409 round trip and its 50ms retry, several times over.
-  for (let i = 0; i < 12; i += 1) {
+}
+/** Past the durable window, the 800ms autosave, a 409 round trip and its 50ms
+ *  retry — `rounds` times half a second. */
+async function sit(rounds = 12) {
+  for (let i = 0; i < rounds; i += 1) {
     // eslint-disable-next-line no-await-in-loop
     await act(async () => { vi.advanceTimersByTime(500); await settleIdb(6) })
   }
+}
+async function returnToTheNoteAndSit() {
+  await returnToTheNote()
+  // ⛔ NOBODY TYPES.
+  await sit(12)
+}
+
+/** The member's own keystrokes, at the end of the body — a real editor
+ *  transaction, so the editor's own autosave and durable paths run. */
+async function typeInBody(text) {
+  const dom = await waitFor(() => {
+    const el = document.querySelector('.ProseMirror')
+    if (!el?.editor) throw new Error('editor not mounted')
+    return el
+  })
+  await act(async () => { dom.editor.chain().focus('end').insertContent(text).run(); await settleIdb(2) })
+}
+
+/** Hold the outbox READ that `recover()` makes, so the member can act before
+ *  recovery resolves. Returns the release. */
+function holdRecovery() {
+  const store = factory.databases.get(ACCOUNT_DB)
+  let release
+  const gate = new Promise((r) => { release = r })
+  const orig = store.transaction.bind(store)
+  store.transaction = (names, mode = 'readonly') => {
+    const tx = orig(names, mode)
+    if (names !== 'outbox' || mode !== 'readonly') return tx
+    const inner = tx.objectStore
+    tx.objectStore = (n) => {
+      const s = inner(n)
+      return {
+        ...s,
+        getAll: () => {
+          const req = { result: [] }
+          gate.then(() => { const r = s.getAll(); r.onsuccess = () => { req.result = r.result; req.onsuccess?.() } })
+          return req
+        },
+      }
+    }
+    return tx
+  }
+  return () => release()
+}
+function holdPuts() {
+  let release
+  putGate = new Promise((r) => { release = r })
+  return () => { putGate = null; release() }
+}
+function holdCreates() {
+  let release
+  createGate = new Promise((r) => { release = r })
+  return () => { createGate = null; release() }
+}
+
+/** The view refuses content once, as `setContent` does when the view is not
+ *  mounted. TipTap rebuilds `editor.commands` on every read, so the refusal is
+ *  planted in the raw command table it is built from. Returns the restore. */
+async function viewRefusesContent() {
+  const dom = await waitFor(() => {
+    const el = document.querySelector('.ProseMirror')
+    if (!el?.editor) throw new Error('editor not mounted')
+    return el
+  })
+  const raw = dom.editor.commandManager.rawCommands
+  const orig = raw.setContent
+  raw.setContent = () => { throw new Error('view not mounted') }
+  return () => { raw.setContent = orig }
+}
+
+/** Is `text` anywhere a member could get it back from? The server, a sibling,
+ *  the queue, the durable record, or the crash draft. */
+function survives(text) {
+  const rec = record()
+  return [
+    JSON.stringify(server.body), server.title,
+    ...server.forks.map((f) => JSON.stringify(f)),
+    ...outbox().map((e) => JSON.stringify(e.patch)),
+    JSON.stringify(rec?.bodyJson ?? null), rec?.title ?? '',
+    localStorage.getItem('uct.j2.notedraft.n1') || '',
+  ].some((b) => String(b).includes(text))
 }
 
 const outbox = () => factory.databases.get(ACCOUNT_DB)?.dump('outbox') ?? []
@@ -254,5 +375,123 @@ describe('D3 — Restore never overwrites a server that moved, and never drops i
     expect(serverText()).toContain(SENTENCE)
     expect(hasWidget(), 'the captured widget was dropped').toBe(true)
     expect(server.forks).toHaveLength(0)
+  })
+})
+
+describe('fix round 1 — adoption and the owner’s fork never lose what the member is doing', () => {
+  it('⛔⛔ S2-A: words typed BEFORE recovery resolves are not overwritten — the queued words are offered, both survive', async () => {
+    server = makeServer({ body: doc(ONLINE), updatedAt: T0 })
+    await queuedWhileAway()
+    const release = holdRecovery()
+    await returnToTheNote()
+    await typeInBody(' K0-typed-before-recovery')
+    release()
+    await sit(12)
+    expect(survives('K0-typed-before-recovery'), 'the member’s keystrokes were lost').toBe(true)
+    expect(survives(SENTENCE), 'the queued words were lost').toBe(true)
+    expect(server.forks).toHaveLength(0)
+  })
+
+  it('⛔⛔ S2-B: a save ON THE WIRE when recovery resolves is never raced — nothing is saved over it', async () => {
+    server = makeServer({ body: doc(ONLINE, WIDGET), updatedAt: T0 })
+    await queuedWhileAway()
+    const releaseRecovery = holdRecovery()
+    const releasePuts = holdPuts()
+    await returnToTheNote()
+    await typeInBody(' K0-on-the-wire')
+    await sit(2)                                            // the 800ms autosave fires; its PUT is held
+    expect(update.mock.calls.length, 'precondition: K0’s save is on the wire').toBeGreaterThanOrEqual(1)
+    releaseRecovery()
+    await act(async () => { await settleIdb(8) })           // recovery resolves while K0 is in flight
+    releasePuts()
+    await sit(12)
+    expect(serverText(), 'the member’s saved words were overwritten').toContain('K0-on-the-wire')
+    expect(hasWidget(), 'the note’s own block was dropped').toBe(true)
+    expect(survives(SENTENCE), 'the queued words were lost').toBe(true)
+  })
+
+  // ⭐ The two cells above each trip BOTH halves of the S2 gate (typing marks the
+  // note edited AND schedules a save), so neither can say which half did the
+  // work. These two can: each isolates one half.
+  it('⛔⛔ S2-A′: an edit since hydration is enough — even with its save LANDED, the queued words are offered, not adopted', async () => {
+    server = makeServer({ body: doc(ONLINE), updatedAt: T0 })
+    await queuedWhileAway()
+    const release = holdRecovery()
+    await returnToTheNote()
+    await typeInBody(' K0-saved-before-recovery')
+    await sit(4)                                            // the autosave fires and LANDS
+    expect(serverText(), 'precondition: K0’s save landed').toContain('K0-saved-before-recovery')
+    release()
+    await sit(12)
+    expect(await screen.findByRole('button', { name: 'Restore' }), 'the queued words were not offered').toBeTruthy()
+    expect(server.forks, 'the queued words were put over the member’s edit and forked').toHaveLength(0)
+    expect(document.querySelector('.ProseMirror')?.textContent).toContain('K0-saved-before-recovery')
+    expect(survives(SENTENCE), 'the queued words were lost').toBe(true)
+  })
+
+  it('⛔⛔ S2-B (Restore): a Restore clicked while the member’s own save is on the wire WAITS for it — nothing is saved over it', async () => {
+    server = makeServer({ body: doc(ONLINE, WIDGET), updatedAt: T0 })
+    await queuedWhileAway({ permanent: true })          // blocked ⇒ the banner
+    await returnToTheNoteAndSit()
+    const releasePuts = holdPuts()
+    await typeInBody(' K0-on-the-wire-at-restore')
+    await sit(2)                                            // its autosave fires; the PUT is held
+    const sent = update.mock.calls.length
+    expect(sent, 'precondition: K0’s save is on the wire').toBeGreaterThanOrEqual(1)
+    const restore = await screen.findByRole('button', { name: 'Restore' })
+    await act(async () => { fireEvent.click(restore); await settleIdb(6) })
+    releasePuts()
+    await sit(12)
+    expect(serverText(), 'the member’s own saved words were overwritten').toContain('K0-on-the-wire-at-restore')
+    expect(hasWidget(), 'the note’s own block was dropped').toBe(true)
+    expect(survives(SENTENCE), 'the restored words were lost').toBe(true)
+  })
+
+  it('⛔ N6: when the view cannot take the queued words they are OFFERED — never passed off as adopted while still queued', async () => {
+    server = makeServer({ body: doc(ONLINE), updatedAt: T0 })
+    await queuedWhileAway()
+    const release = holdRecovery()
+    await returnToTheNote()
+    const restoreView = await viewRefusesContent()
+    release()
+    await sit(4)
+    restoreView()
+    expect(await screen.findByRole('button', { name: 'Restore' }), 'the words were neither adopted nor offered').toBeTruthy()
+    expect(outbox().map((e) => JSON.stringify(e.patch)).join(''), 'the queue lost the words').toContain(SENTENCE)
+  })
+
+  it('⛔⛔ S1: words typed while the sibling is being created are never settled away', async () => {
+    server = makeServer({ body: doc(para('rewritten on another device')), updatedAt: T1 })
+    await queuedWhileAway()
+    const releaseCreates = holdCreates()
+    await returnToTheNote()
+    await sit(4)                                            // adopt → 409 → reconcile → create (held)
+    expect(createsStarted, 'precondition: the sibling is being created').toBe(1)
+    await typeInBody(' K-typed-during-the-fork')
+    releaseCreates()
+    await sit(12)
+    expect(survives('K-typed-during-the-fork'), 'the keystrokes typed during the fork were lost').toBe(true)
+    expect(serverText(), 'the other device’s words were overwritten').toContain('rewritten on another device')
+    expect(JSON.stringify(server.forks[0]?.bodyJson)).toContain(SENTENCE)
+  })
+
+  it('⛔⛔ S1′: a keystroke during the owner’s settle is on top of the server copy — its snapshot and draft survive, even offline', async () => {
+    server = makeServer({ body: doc(para('rewritten on another device')), updatedAt: T1 })
+    await queuedWhileAway()
+    let releaseSettle
+    afterSettleGate = new Promise((r) => { releaseSettle = r })
+    await returnToTheNote()
+    await sit(6)                                            // adopt → 409 → fork → the store settles; the editor waits
+    expect(settlesReached, 'precondition: the store settled, the editor has not decided').toBe(1)
+    const releasePuts = holdPuts()                          // the member's next save cannot leave
+    await typeInBody(' K2-typed-during-the-settle')
+    // Released with NO clock movement: the keystroke's snapshot is still inside
+    // the durable writer's coalescing window when the editor decides — the
+    // window its post-settle re-read exists for.
+    await act(async () => { afterSettleGate = null; releaseSettle(); await settleIdb(6) })
+    await sit(12)
+    expect(survives('K2-typed-during-the-settle'), 'the keystroke typed during the settle was lost').toBe(true)
+    releasePuts()
+    await sit(1)
   })
 })

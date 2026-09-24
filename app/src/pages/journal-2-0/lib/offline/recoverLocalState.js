@@ -20,7 +20,7 @@
  */
 
 import { usableBaseline } from './baseline'
-import { appendedServerNodes, lastKnownServerCopy } from './serverChange'
+import { APPEND_ONLY, classifyServerChange, lastKnownServerCopy } from './serverChange'
 
 /** A stable-enough id for "this page's editing session". */
 export function newSessionId() {
@@ -105,21 +105,15 @@ export function discardsUnsentWork(prev, incoming) {
   // re-sent it — a spurious `(conflicted copy)` of a note only this member
   // touched (and, before this wave's `serverBase` fix, the block was dropped).
   //
-  // ⛔ PROVEN, NEVER GUESSED — the same proof the drain's classifier demands:
-  // identical title and subtitle, every one of `prev`'s blocks still in place and
-  // byte-identical, and every extra block at the TAIL and of a type only the
-  // SERVER appends (`appendedServerNodes`). Anything else is still a discard:
+  // ⛔ PROVEN, NEVER GUESSED — and proven by the DRAIN'S OWN CLASSIFIER, asked
+  // rather than restated (review N2, fix round 1): "`incoming` is `prev` plus
+  // blocks only the server appends, at the tail, with the title and subtitle
+  // untouched" is exactly `classifyServerChange(incoming, prev) === APPEND_ONLY`.
+  // A second spelling of that rule here had already drifted (`?? ''` against the
+  // classifier's `str()`), and the day authored content gains a field the
+  // classifier learns it and this would not. Anything else is still a discard:
   // a changed paragraph, a moved block, a member-typed tail, a title edit.
-  return !holdsWithServerAppends(incoming, prev)
-}
-
-/** Does `incoming` hold `prev`'s authored content exactly, plus only blocks the
- *  server appends on its own behalf, at the end? Positional proof, or false. */
-function holdsWithServerAppends(incoming, prev) {
-  if ((incoming?.title ?? '') !== (prev?.title ?? '')) return false
-  if ((incoming?.subtitle ?? '') !== (prev?.subtitle ?? '')) return false
-  const tail = appendedServerNodes({ bodyJson: incoming?.bodyJson }, { bodyJson: prev?.bodyJson })
-  return Array.isArray(tail) && tail.length > 0
+  return classifyServerChange(incoming, prev) !== APPEND_ONLY
 }
 
 /** Flatten a record to the words a member would recognise as theirs. */
@@ -320,6 +314,15 @@ export function queuedWorkToAdopt({ decision, record = null, entry = null } = {}
   if (!sameAuthoredContent(entry.patch, record)) return null
   const base = baseOfRecovered({ decision, record })
   if (!base) return null
+  // ⛔ THE BASE AND THE ENTRY MUST NAME THE SAME REVISION (review N4, fix round
+  // 1). A record written by the settle BEFORE A-1 carries `acked@landed` as its
+  // base — a copy that already holds a door's appended block — while its entry
+  // still sits on the older revision. Adopting on that base sends the queued
+  // body at `landed`: a 200, and the block is gone. A-1 stops new records being
+  // written that way; this stops the ones already on members' disks from being
+  // adopted. Every legitimate mismatch (a rebased entry, an ack that landed
+  // while the member kept typing) falls back to the banner, which is safe.
+  if (base.updatedAt !== usableBaseline(entry.baseUpdatedAt)) return null
   return { state: authored(record), base }
 }
 

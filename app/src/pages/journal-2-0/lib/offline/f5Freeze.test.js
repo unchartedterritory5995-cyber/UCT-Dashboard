@@ -49,9 +49,19 @@
  * (`baseOfRecovered`); `settleOwnerFork` lets the owner settle its own fork; and
  * `outboxDrain.js` EXPORTS its fork settle as `settleForkedNote` so that owner
  * uses the drain's code, not a copy — the sweep's behaviour is unchanged. The
- * editor half (E-1/E-2/E-3) is `NoteEditorPage.jsx`'s and is handed over, not
- * landed here. All of it is recorded, with the reproductions and the mutation
- * proofs, in `docs/notebook/f5-fixes-2026-09-23.md`.
+ * editor half (E-1/E-2/E-3) landed as fe4e278bc (`NoteEditorPage.jsx`, applied by
+ * the editor agent from this agent's handover).
+ * Fix round 1 of the same change (review `wave5-A-review.md`), no frozen file
+ * touched: `settleOwnerFork` now takes what was FORKED and settles only while the
+ * record and every queued entry still hold exactly that (S1), and the editor
+ * asks the same of its own view before calling it and again before `markSynced`;
+ * the editor adopts queued words silently only when the member has not edited
+ * since hydration, and a Restore waits for a save already on the wire (S2);
+ * `queuedWorkToAdopt` refuses a base whose revision is not the entry's (N4); and
+ * `discardsUnsentWork` now ASKS the frozen classifier for `APPEND_ONLY` instead of
+ * restating it (N2) — calling `serverChange.js`, not editing it. All of it is
+ * recorded, with the reproductions and the mutation proofs, in
+ * `docs/notebook/f5-fixes-2026-09-23.md` (§A.3, §B.4, §C).
  * ⛔ NOT moved: the append CALL SITES below, `serverChange.js`,
  * `settleNoteWrite.js`, and the drain's CLASSIFICATION — the finding's own
  * mechanism was already closed by `ringVouchedPlan` (9a213bd45) and re-proved at
