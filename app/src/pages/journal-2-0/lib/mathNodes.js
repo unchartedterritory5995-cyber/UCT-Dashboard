@@ -45,8 +45,12 @@ export function loadKatex() {
   return katexPromise
 }
 
-const EMPTY_INLINE = 'empty math'
-const EMPTY_BLOCK = 'Empty math block — click to write LaTeX'
+// What an EMPTY formula says in an editable note. Device-neutral ("select",
+// never "click" or "tap"): a formula opens on a click, a tap, or Enter on a
+// selected one, and the words must be true for all three (wave-5 review N7).
+const EMPTY_INLINE = 'empty formula — select to edit'
+const EMPTY_BLOCK = 'Empty math block — select it to write LaTeX'
+export const MATH_EMPTY_LABELS = Object.freeze({ inline: EMPTY_INLINE, block: EMPTY_BLOCK })
 
 /**
  * Paint `latex` into `el`. Until KaTeX has loaded the SOURCE is shown, so the

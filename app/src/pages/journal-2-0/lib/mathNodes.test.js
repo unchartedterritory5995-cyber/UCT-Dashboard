@@ -9,7 +9,7 @@ import { Editor, getSchema } from '@tiptap/core'
 import { NodeSelection, TextSelection } from '@tiptap/pm/state'
 import { buildExtensions } from './tiptap'
 import { citationText } from './askCitation'
-import { BLOCK_MATH, INLINE_MATH, MATH_INPUT_PATTERNS, insertMathAndEdit, loadKatex } from './mathNodes'
+import { BLOCK_MATH, INLINE_MATH, MATH_EMPTY_LABELS, MATH_INPUT_PATTERNS, insertMathAndEdit, loadKatex } from './mathNodes'
 
 const HERE = path.dirname(fileURLToPath(import.meta.url))
 const SRC = path.resolve(HERE, '../../..')
@@ -107,6 +107,20 @@ describe('rendering: KaTeX, loaded lazily, never blank', () => {
     const staticRender = files.filter((f) => /from\s+['"][^'"]*katexRender['"]/.test(fs.readFileSync(f, 'utf8')))
     expect(staticRender).toEqual([])
     expect(fs.readFileSync(path.join(HERE, 'mathNodes.js'), 'utf8')).toContain("import('./katexRender')")
+  })
+
+  it('an EMPTY formula in an editable note says what to do, in words true for mouse, touch and keyboard (N7)', () => {
+    const ed = mount([P('a', MATH(''), 'b'), BMATH('')])
+    const inline = ed.view.dom.querySelector('.uctMathInline')
+    const block = ed.view.dom.querySelector('.uctMathBlock')
+    expect(inline.textContent).toBe(MATH_EMPTY_LABELS.inline)
+    expect(block.textContent).toContain(MATH_EMPTY_LABELS.block)
+    for (const said of [MATH_EMPTY_LABELS.inline, MATH_EMPTY_LABELS.block]) {
+      expect(said).toMatch(/select/i)
+      expect(said).not.toMatch(/click|tap/i)
+    }
+    // Clearer than the terse "empty math": it names the thing.
+    expect(MATH_EMPTY_LABELS.inline).toMatch(/formula/)
   })
 
   it('read-only renderers show an empty formula as nothing and offer no editor', () => {
