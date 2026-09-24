@@ -741,6 +741,40 @@ describe('CommandPalette — quick switcher over ALL notes (Notebook 10/10 wave 
     await waitFor(() => expect(screen.getByTestId('route-spy')).toHaveTextContent('/journal/notebook?note=p1'))
   })
 
+  // Controller item 8 (the live walk): `/api/ticker-search` answers "plan" with
+  // Anaplan's DELISTED PLAN first. A delisted exact ticker must not take Enter
+  // from the member's own note titled "Plan"; a LIVE exact ticker still does.
+  it('item 8: an exact note title beats a DELISTED exact ticker — "plan" + Enter opens the note', async () => {
+    routeFetch({
+      tickers: [{ ticker: 'PLAN', name: 'Anaplan, Inc.', type: 'delisted', delisted: true, delisted_date: '2022-06-23' }],
+      notes: [note({ id: 'p1', title: 'Plan', matchTier: 0, exact: true, ticker: null })],
+    })
+    renderPalette()
+    act(() => pressCtrlK())
+    const input = await screen.findByRole('combobox')
+    fireEvent.change(input, { target: { value: 'plan' } })
+    await screen.findByText('Anaplan, Inc.')
+    await waitFor(() => expect(screen.getAllByRole('option')[0].getAttribute('aria-label')).toMatch(/Note: Plan/))
+    fireEvent.keyDown(input, { key: 'Enter' })
+    await waitFor(() => expect(screen.getByTestId('route-spy')).toHaveTextContent('/journal/notebook?note=p1'))
+  })
+
+  it('item 8 control: a LIVE exact ticker still leads — "nvda" + Enter opens NVDA research, not the note "NVDA"', async () => {
+    routeFetch({
+      tickers: [{ ticker: 'NVDA', name: 'NVIDIA Corporation' }],
+      notes: [note({ id: 'n9', title: 'NVDA', matchTier: 0, exact: true, ticker: 'NVDA' })],
+    })
+    renderPalette()
+    act(() => pressCtrlK())
+    const input = await screen.findByRole('combobox')
+    fireEvent.change(input, { target: { value: 'nvda' } })
+    await screen.findByText('NVIDIA Corporation')
+    await screen.findByRole('option', { name: /Note: NVDA/ })
+    expect(screen.getAllByRole('option')[0].getAttribute('aria-label')).toMatch(/^NVDA — NVIDIA/)
+    fireEvent.keyDown(input, { key: 'Enter' })
+    await waitFor(() => expect(screen.getByTestId('route-spy')).toHaveTextContent('/research/NVDA'))
+  })
+
   it('N1: once the server says no note can match, typing onto that query stops asking — a backspace asks again', async () => {
     global.fetch = vi.fn((url) => {
       const u = String(url)

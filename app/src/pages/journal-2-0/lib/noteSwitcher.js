@@ -86,7 +86,14 @@ export function orderPaletteRows({
   const notes = noteMatches.filter((r) => !seen.has(r.id))
   const exact = tickers.filter((t) => !t._typed && String(t.ticker).toUpperCase() === qUpper)
   if (tickerLead) {
-    const exactNote = tickersSettled && !exact.length ? notes.find((n) => n.exact) : null
+    // ⛔ Controller item 8: a DELISTED exact ticker does not keep Enter from a
+    // note whose title IS the query ("plan" answers Anaplan's delisted PLAN
+    // first). A LIVE exact ticker still does ("nvda" opens NVDA). The flag is
+    // the search row's own `delisted`, carried onto the row unchanged.
+    // Determinism is untouched: the note still leads only once the ticker
+    // search has answered (`tickersSettled`).
+    const liveExact = exact.filter((t) => t.delisted !== true)
+    const exactNote = tickersSettled && !liveExact.length ? notes.find((n) => n.exact) : null
     if (exactNote) {
       return [...commands, ...keywordNotes, exactNote, ...tickers, ...notes.filter((n) => n !== exactNote)]
     }

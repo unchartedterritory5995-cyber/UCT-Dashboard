@@ -40,6 +40,35 @@ describe('orderPaletteRows', () => {
       .toEqual(['EARNINGS', 'strong', 'EARNS', 'typed', 'weak'])
   })
 
+  // Controller item 8: an exact note title beats a DELISTED exact ticker; a
+  // LIVE exact ticker still leads.
+  it('item 8: "plan" — a delisted exact PLAN does not take the lead from the note "Plan"', () => {
+    const rows = orderPaletteRows({
+      tickers: [tk('PLAN', { delisted: true, name: 'Anaplan, Inc.' }), tk('PLNT')],
+      noteMatches: [nt('plan-note', { strong: true, exact: true })],
+      qUpper: 'PLAN', tickerLead: true, tickersSettled: true,
+    })
+    expect(rows.map((r) => r.ticker || r.id)).toEqual(['plan-note', 'PLAN', 'PLNT'])
+  })
+
+  it('item 8 control: "nvda" — a LIVE exact NVDA keeps the lead over the note "NVDA"', () => {
+    const rows = orderPaletteRows({
+      tickers: [tk('NVDA'), tk('NVDL')],
+      noteMatches: [nt('nvda-note', { strong: true, exact: true })],
+      qUpper: 'NVDA', tickerLead: true, tickersSettled: true,
+    })
+    expect(rows.map((r) => r.ticker || r.id)).toEqual(['NVDA', 'NVDL', 'nvda-note'])
+  })
+
+  it('item 8: before the ticker search answers, the ticker rows lead whatever the notes say (unchanged)', () => {
+    const rows = orderPaletteRows({
+      tickers: [tk('PLAN', { _typed: true })],
+      noteMatches: [nt('plan-note', { strong: true, exact: true })],
+      qUpper: 'PLAN', tickerLead: true, tickersSettled: false,
+    })
+    expect(rows.map((r) => r.ticker || r.id)).toEqual(['PLAN', 'plan-note'])
+  })
+
   it('the synthetic typed row never counts as an exact ticker hit', () => {
     const rows = orderPaletteRows({
       tickers: [tk('Q3 PLAN', { _typed: true })],
