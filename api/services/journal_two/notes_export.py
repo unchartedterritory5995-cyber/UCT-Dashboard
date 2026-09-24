@@ -271,6 +271,7 @@ _DOCUMENT_EXCERPT_MARKER = "document-excerpt://"
 
 def _make_note_link_aware_resolver(
     user_id: str, conn: sqlite3.Connection, base_resolver, note_paths: dict[str, str] | None = None,
+    note_folder: str = "",
 ):
     """Wraps `base_resolver` (an attachment resolver) so the SAME resolver
     parameter `_block`'s `noteLink` case calls also answers
@@ -281,10 +282,16 @@ def _make_note_link_aware_resolver(
     excerpt export is "a major requirement"): rather than a fourth resolver
     parameter, one more marker prefix on the same mechanism.
 
-    `note_paths`, when given, maps note id -> the RELATIVE .md path that
-    note was (or will be) written to IN THIS SAME EXPORT (directive §57:
-    full export resolves a link to another bundled note as a real relative
-    path). Without it (the single-note-export case, directive §56), a
+    `note_paths`, when given, maps note id -> the archive path (no `.md`)
+    that note was (or will be) written to IN THIS SAME EXPORT (directive §57:
+    an export resolves a link to another bundled note as a real relative
+    path). ⭐ Wave 6 (item 10): the link is RELATIVE TO THE LINKING NOTE'S OWN
+    FOLDER (`note_folder`, '' = the archive root), the way every Markdown
+    reader -- and our own importer (generic.js resolves a link against the
+    doc's own directory) -- reads it. ⚰️ It used to be the target's
+    archive-ROOT path, which is right only for a note at the root: from
+    `Trading/Setups/a.md`, a link written `Research/b.md` pointed at
+    `Trading/Setups/Research/b.md`, a file that does not exist. Without it (the single-note-export case, directive §56), a
     resolved target renders as an honest, clearly-internal reference URL
     that does NOT pretend the target file is present in this archive.
 
@@ -339,7 +346,7 @@ def _make_note_link_aware_resolver(
             # what _compute_note_export_paths hands the main loop, which
             # appends ".md" itself right before zf.writestr(). The actual
             # file inside the archive is `f"{path}.md"`; the link must match.
-            return title, f"{note_paths[note_id]}.md"
+            return title, _relative_link(note_folder, f"{note_paths[note_id]}.md")
         # Not bundled in this export -- an honest, clearly-internal
         # reference, never a fabricated local file path.
         return title, f"uct-note:///notebook?note={note_id}"
@@ -1444,7 +1451,8 @@ def _compute_note_export_paths(
 
 def _write_notes_archive(
     zf: zipfile.ZipFile, user_id: str, conn: sqlite3.Connection,
-) -> None:
+    note_ids: list[str] | None = None,
+) -> dict[str, Any]:
     """Writes every note `user_id` owns -- markdown + front matter + bundled
     attachments -- into an already-open `zf`, plus the unconditional
     `_EXPORT_MANIFEST_NAME` self-identification marker and EXPORT_ISSUES.txt
@@ -1455,7 +1463,15 @@ def _write_notes_archive(
     identical either way, so it lives here once.
 
     ⛔ Scoped by user_id in SQL, never filtered in Python -- an export is the
-    highest-blast-radius place a tenancy mistake could land."""
+    highest-blast-radius place a tenancy mistake could land.
+
+    ⭐ Wave 6 (item 10): `note_ids` makes it a SELECTION export -- the same
+    writer, restricted (in SQL, still by user_id) to those notes. Each keeps its
+    folder path inside the zip, a link between two selected notes is a relative
+    `.md` path, and a link to a note NOT selected stays the honest not-bundled
+    reference. A requested id that is not an active note of this member is
+    skipped and listed in EXPORT_ISSUES.txt. Returns
+    `{"exported": n, "skipped": [ids]}`."""
     folders = {
         r["id"]: (r["name"], r["parent_id"]) for r in conn.execute(
             "SELECT id, name, parent_id FROM j2_note_folders WHERE user_id = ?",
@@ -1466,13 +1482,28 @@ def _write_notes_archive(
     # see everywhere else (list, search, tags, backlinks). The 30-day
     # retention window is the safety net for "I want it back", not the
     # export.
-    rows = conn.execute(
+    select = (
         "SELECT id, title, subtitle, body_json, tags, ticker, folder_id,"
         " hero_image_url, created_at, updated_at, import_source, import_key,"
         " imported_at FROM j2_notes"
-        " WHERE user_id = ? AND deleted_at IS NULL ORDER BY updated_at DESC",
-        (user_id,),
-    ).fetchall()
+        " WHERE user_id = ? AND deleted_at IS NULL"
+    )
+    requested: list[str] = []
+    if note_ids is None:
+        rows = conn.execute(f"{select} ORDER BY updated_at DESC", (user_id,)).fetchall()
+    else:
+        seen_ids: set[str] = set()
+        for nid in note_ids:
+            if isinstance(nid, str) and nid and nid not in seen_ids:
+                seen_ids.add(nid)
+                requested.append(nid)
+        # One JSON parameter, never one `?` per id: no variable-count ceiling.
+        rows = conn.execute(
+            f"{select} AND id IN (SELECT value FROM json_each(?)) ORDER BY updated_at DESC",
+            (user_id, json.dumps(requested)),
+        ).fetchall()
+    found_ids = {r["id"] for r in rows}
+    skipped = [nid for nid in requested if nid not in found_ids]
 
     favorites, tickers_by_note, linked_trades_by_note, properties_by_note = _resolve_note_related_data(
         conn, user_id, [r["id"] for r in rows],
@@ -1482,12 +1513,15 @@ def _write_notes_archive(
     reviews_by_note = _resolve_reviews_by_note(conn, user_id, [r["id"] for r in rows])
     note_paths = _compute_note_export_paths(rows, folders)
 
-    zf.writestr(_EXPORT_MANIFEST_NAME, json.dumps({
+    manifest = {
         "product": "uct-notebook-export",
         "manifest_version": _EXPORT_MANIFEST_VERSION,
         "exported_at": datetime.now(timezone.utc).isoformat(),
         "note_count": len(rows),
-    }))
+    }
+    if note_ids is not None:
+        manifest["selection"] = True
+    zf.writestr(_EXPORT_MANIFEST_NAME, json.dumps(manifest))
 
     failures: list[tuple[str, str]] = []
     # ONE dict shared across every note: dedup (a file ten notes reference is
@@ -1513,7 +1547,8 @@ def _write_notes_archive(
         attachment_resolver = _make_attachment_resolver(
             user_id, folder, row["id"], note_title, attach_state,
         )
-        resolver = _make_note_link_aware_resolver(user_id, conn, attachment_resolver, note_paths)
+        resolver = _make_note_link_aware_resolver(
+            user_id, conn, attachment_resolver, note_paths, note_folder=folder)
         try:
             body = tiptap_to_markdown(doc, attachment_resolver=resolver)
         except Exception as exc:  # noqa: BLE001 -- deliberately broad.
@@ -1596,8 +1631,18 @@ def _write_notes_archive(
             for url, (title, reason) in attach_state["issues"].items()
         ]
 
+    if skipped:
+        if issue_lines:
+            issue_lines.append("")
+        issue_lines += [
+            "These notes were not exported -- they are in the Trash or no "
+            "longer exist:",
+        ]
+        issue_lines += [f"- {nid}" for nid in skipped]
+
     if issue_lines:
         zf.writestr("EXPORT_ISSUES.txt", "\n".join(issue_lines) + "\n")
+    return {"exported": len(rows), "skipped": skipped}
 
 
 def build_export_zip(
@@ -1661,6 +1706,44 @@ def build_export_zip_to_tempfile(
             raise
         stamp = datetime.now(timezone.utc).strftime("%Y%m%d")
         return tmp_path, f"uct-notebook-export-{stamp}.zip"
+    finally:
+        if owned:
+            conn.close()
+
+
+def build_selection_export_to_tempfile(
+    user_id: str, note_ids: list[str], conn: sqlite3.Connection | None = None,
+) -> tuple[Path, str, int, list[str]]:
+    """The SELECTED notes as one Markdown zip, on disk (wave 6, item 10) -- the
+    same archive writer as the whole-notebook export (`_write_notes_archive`,
+    restricted to `note_ids`), so a selection keeps each note's folder path
+    and a link between two selected notes is a relative `.md` path, not the
+    not-bundled reference a stack of single-note exports gave it.
+
+    Returns `(path, filename, exported_count, skipped_ids)`; the caller owns
+    deleting `path` (the route streams it with `stream_export_file`, exactly
+    like `build_export_zip_to_tempfile`).
+
+    ⛔ NOT YET CALLED BY THE ROUTE: `POST /api/j2/notes/batch/export` lives in
+    api/routers/journal_two.py (lane E's file), which still gathers
+    `build_single_note_export` results at the archive root. Swapping its loop
+    for this call is a controller request (wave6-D-report.md)."""
+    from api.services.auth_db import get_connection
+
+    owned = conn is None
+    conn = conn or get_connection()
+    try:
+        fd, tmp_name = tempfile.mkstemp(suffix=".zip", prefix="j2-notes-export-")
+        os.close(fd)
+        tmp_path = Path(tmp_name)
+        try:
+            with zipfile.ZipFile(tmp_path, "w", zipfile.ZIP_DEFLATED) as zf:
+                result = _write_notes_archive(zf, user_id, conn, note_ids=list(note_ids or []))
+        except Exception:
+            tmp_path.unlink(missing_ok=True)
+            raise
+        stamp = datetime.now(timezone.utc).strftime("%Y%m%d")
+        return tmp_path, f"uct-notebook-selection-{stamp}.zip", result["exported"], result["skipped"]
     finally:
         if owned:
             conn.close()

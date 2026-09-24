@@ -264,3 +264,104 @@ def test_a_date_mention_without_a_valid_date_exports_nothing_and_never_raises():
         md = tiptap_to_markdown(_doc(_para("a ", {"type": "dateMention", "attrs": {"date": bad}},
                                            {"type": "text", "text": " b"})))
         assert md == "a  b", bad
+
+
+# ── item 10: a SELECTION export keeps folders and links ─────────────────────
+
+import io as _io
+import json as _json
+import sqlite3 as _sqlite3
+import zipfile as _zipfile
+
+import pytest
+
+from api.services.journal_two.db import ensure_schema
+from api.services.journal_two.notes_export import (
+    build_export_zip, build_selection_export_to_tempfile,
+)
+
+
+def _conn():
+    c = _sqlite3.connect(":memory:")
+    c.row_factory = _sqlite3.Row
+    ensure_schema(c)
+    return c
+
+
+def _folder(c, fid, name, parent="", uid="u1"):
+    c.execute("INSERT INTO j2_note_folders (id, user_id, name, parent_id, created_at) VALUES (?,?,?,?,?)",
+              (fid, uid, name, parent, "2026-09-01T00:00:00Z"))
+
+
+def _note(c, nid, title, doc, folder=None, uid="u1", updated="2026-09-01T00:00:00Z", deleted=None):
+    c.execute("INSERT INTO j2_notes (id, user_id, folder_id, title, body_json, body_plain, tags,"
+              " created_at, updated_at, deleted_at) VALUES (?,?,?,?,?,?,?,?,?,?)",
+              (nid, uid, folder, title, _json.dumps(doc), "", "[]", updated, updated, deleted))
+
+
+def _link(nid):
+    return {"type": "paragraph", "content": [{"type": "noteLink", "attrs": {"noteId": nid}}]}
+
+
+@pytest.fixture()
+def library():
+    c = _conn()
+    _folder(c, "f1", "Trading")
+    _folder(c, "f2", "Setups", parent="f1")
+    _folder(c, "f3", "Research")
+    _note(c, "a", "Cup and handle", _doc(_para("A."), _link("b"), _link("c")), folder="f2")
+    _note(c, "b", "NVDA", _doc(_para("B."), _link("a")), folder="f3")
+    _note(c, "c", "Not selected", _doc(_para("C.")), folder="f3")
+    _note(c, "d", "Root note", _doc(_link("b")))
+    _note(c, "x", "Theirs", _doc(_para("X.")), uid="u2")
+    _note(c, "t", "Trashed", _doc(_para("T.")), deleted="2026-09-02T00:00:00Z")
+    c.commit()
+    return c
+
+
+def _selection(c, ids):
+    path, fname, exported, skipped = build_selection_export_to_tempfile("u1", ids, conn=c)
+    try:
+        with _zipfile.ZipFile(path) as zf:
+            files = {n: zf.read(n).decode("utf-8") for n in zf.namelist()}
+    finally:
+        path.unlink()
+    return files, fname, exported, skipped
+
+
+def test_a_selection_keeps_each_notes_folder_path(library):
+    files, fname, exported, skipped = _selection(library, ["a", "b", "d"])
+    assert {"Trading/Setups/Cup and handle.md", "Research/NVDA.md", "Root note.md"} <= set(files)
+    assert "Research/Not selected.md" not in files
+    assert (exported, skipped) == (3, [])
+    assert fname.startswith("uct-notebook-selection-")
+    manifest = _json.loads(files["UCT_NOTEBOOK_EXPORT.json"])
+    assert manifest["selection"] is True and manifest["note_count"] == 3
+
+
+def test_links_between_selected_notes_are_relative_md_paths_from_the_linking_notes_folder(library):
+    files, *_ = _selection(library, ["a", "b", "d"])
+    assert "[NVDA](../../Research/NVDA.md)" in files["Trading/Setups/Cup and handle.md"]
+    assert "[Cup and handle](../Trading/Setups/Cup and handle.md)" in files["Research/NVDA.md"]
+    assert "[NVDA](Research/NVDA.md)" in files["Root note.md"]
+
+
+def test_a_link_to_a_note_NOT_selected_stays_the_honest_not_bundled_reference(library):
+    files, *_ = _selection(library, ["a", "b"])
+    assert "[Not selected](uct-note:///notebook?note=c)" in files["Trading/Setups/Cup and handle.md"]
+
+
+def test_a_foreign_or_trashed_or_unknown_id_is_skipped_and_named_never_exported(library):
+    files, _f, exported, skipped = _selection(library, ["a", "x", "t", "nope", "a", "nope"])
+    assert exported == 1
+    assert skipped == ["x", "t", "nope"]
+    assert not any("Theirs" in n or "Trashed" in n for n in files)
+    issues = files["EXPORT_ISSUES.txt"]
+    assert "- x" in issues and "- t" in issues and "- nope" in issues
+
+
+def test_the_whole_notebook_export_links_relatively_too(library):
+    blob, _ = build_export_zip("u1", conn=library)
+    zf = _zipfile.ZipFile(_io.BytesIO(blob))
+    assert "[NVDA](../../Research/NVDA.md)" in zf.read("Trading/Setups/Cup and handle.md").decode("utf-8")
+    assert "selection" not in _json.loads(zf.read("UCT_NOTEBOOK_EXPORT.json"))
