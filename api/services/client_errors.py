@@ -43,6 +43,21 @@ known to be stored:
      on 32k letters).
 The router runs 3–5 off the event loop (`run_in_threadpool`).
 
+One report at a time (R1-2)
+---------------------------
+A report is judged ALONE. Every step that reads its content — the caps, the
+scrub, its row — either handles any shape a client can send or drops that one
+report (counted `invalid`), and the rest of the batch is stored normally:
+  * an unpaired UTF-16 surrogate (`JSON.stringify` escapes one as `\\udXXX`,
+    and the escape parses back to a code point UTF-8 cannot encode) becomes
+    U+FFFD before the scrub, so the report is kept;
+  * a `ts` no float can hold (`1` and 400 zeros overflows; `1e400` is inf) is
+    stored as no timestamp;
+  * anything else a report can make its scrub or its INSERT raise
+    (`_REPORT_FAULTS`) drops that report. A fault of the STORE is not a fault
+    of a report and still fails the request — swallowing it would read as
+    "invalid reports" while every write failed.
+
 Storage, and the byte ceiling (S-1)
 -----------------------------------
 Its own SQLite file, `CLIENT_ERRORS_DB_PATH` (default `/data/client_errors.db`,
@@ -81,6 +96,7 @@ from __future__ import annotations
 import hashlib
 import json
 import logging
+import math
 import os
 import re
 import sqlite3
@@ -331,6 +347,16 @@ def scrub_page(page: Any) -> str:
     return scrub_url(_CONTROL.sub("", page))
 
 
+# An unpaired UTF-16 surrogate half: the one code point a Python str can hold
+# and UTF-8 cannot encode (json.loads joins a valid escaped PAIR into one
+# character, so any surrogate left in a parsed string is alone).
+_SURROGATE = re.compile("[\ud800-\udfff]")
+
+
+def _encodable(value: str) -> str:
+    return _SURROGATE.sub("\ufffd", value)
+
+
 def _cap_bytes(value: str, cap: int) -> str:
     raw = value.encode("utf-8")
     if len(raw) <= cap:
@@ -349,6 +375,26 @@ def _letters_hash(text: str) -> str:
 
 # ── The pipeline: bound → count → scrub ──────────────────────────────────────
 
+# What a REPORT's own content can make its scrub or its INSERT raise. Each one
+# drops that report alone. A sqlite3.OperationalError (a locked or broken
+# store) is deliberately NOT here: it is not the report's fault.
+_REPORT_FAULTS = (ValueError, TypeError, OverflowError, RecursionError,
+                  sqlite3.InterfaceError, sqlite3.DataError)
+
+
+def _client_ts(ts: Any) -> float | None:
+    """The page's own clock, or None. A JSON integer too large for a float
+    raises OverflowError on conversion, and `1e400` parses to inf — neither
+    is a time."""
+    if isinstance(ts, bool) or not isinstance(ts, (int, float)):
+        return None
+    try:
+        f = float(ts)
+    except OverflowError:
+        return None
+    return f if math.isfinite(f) else None
+
+
 def _bounded(raw: Any) -> dict[str, Any] | None:
     """Step 3: validate and CAP by slicing. No pattern runs here."""
     if not isinstance(raw, dict):
@@ -361,7 +407,6 @@ def _bounded(raw: Any) -> dict[str, Any] | None:
         v = raw.get(key)
         return v[:cap] if isinstance(v, str) else ""
 
-    ts = raw.get("ts")
     return {
         "kind": kind,
         "name": s("name", CAP_NAME),
@@ -370,12 +415,14 @@ def _bounded(raw: Any) -> dict[str, Any] | None:
         "stack": s("stack", CAP_STACK),
         "component_stack": s("componentStack", CAP_COMPONENT_STACK),
         "page": s("page", CAP_PAGE * 2),
-        "client_ts": float(ts) if isinstance(ts, (int, float)) and not isinstance(ts, bool) else None,
+        "client_ts": _client_ts(raw.get("ts")),
     }
 
 
 def _scrubbed(b: dict[str, Any]) -> dict[str, Any]:
-    """Step 5: the transport scrub, on capped fields, then the byte caps."""
+    """Step 5: the transport scrub, on capped fields, then the byte caps.
+    Every text field is made UTF-8-encodable first (R1-2)."""
+    b = {k: _encodable(v) if isinstance(v, str) else v for k, v in b.items()}
     message = _cap_bytes(scrub_text(b["message"]), CAP_MESSAGE)
     template = b["template"] if _TEMPLATE_ID.fullmatch(b["template"]) else "#" + _letters_hash(message)
     name = _CONTROL.sub("", b["name"])
@@ -466,7 +513,10 @@ def record_reports(
     Blocking (SQLite + the scrub): the router calls it OFF the event loop.
     ⛔ The limit is COUNTED FROM THE STORE — first as a cheap read that turns
     an over-quota request away before any scrub, then again inside the write
-    transaction, so two requests racing cannot each see room for one slot."""
+    transaction, so two requests racing cannot each see room for one slot.
+    ⛔ Each report is scrubbed and inserted ALONE (R1-2): one that its scrub
+    or its row cannot take is counted `invalid` and uses no rate-limit slot,
+    and the rest of the batch is stored normally."""
     global _last_prune
     now = time.time() if now is None else now
     if not isinstance(reports, list):
@@ -481,22 +531,30 @@ def record_reports(
     key = rate_key_for(user_id, ip)
     conn = _connect()
     keep: list[dict[str, Any]] = []
+    faults = 0
     try:
         if _room(conn, key, now) <= 0:
             return {"stored": 0, "dropped": len(bounded) + over_cap, "invalid": invalid}
         conn.execute("BEGIN IMMEDIATE")
         room = _room(conn, key, now)
-        keep = [_scrubbed(b) for b in bounded[:room]]
         ua = _cap_bytes(_CONTROL.sub("", (user_agent or "")[:CAP_USER_AGENT]), CAP_USER_AGENT)
         uid = user_id[:CAP_USER_ID] if isinstance(user_id, str) else None
-        for r in keep:
-            conn.execute(
-                "INSERT INTO client_errors (created_at, rate_key, user_id, kind, name, message,"
-                " template, stack, component_stack, page, user_agent, client_ts)"
-                " VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
-                (now, key, uid, r["kind"], r["name"], r["message"], r["template"], r["stack"],
-                 r["component_stack"], r["page"], ua, r["client_ts"]),
-            )
+        for b in bounded:
+            if len(keep) >= room:
+                break
+            try:
+                r = _scrubbed(b)
+                conn.execute(
+                    "INSERT INTO client_errors (created_at, rate_key, user_id, kind, name, message,"
+                    " template, stack, component_stack, page, user_agent, client_ts)"
+                    " VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+                    (now, key, uid, r["kind"], r["name"], r["message"], r["template"], r["stack"],
+                     r["component_stack"], r["page"], ua, r["client_ts"]),
+                )
+            except _REPORT_FAULTS:
+                faults += 1
+                continue
+            keep.append(r)
         if now - _last_prune >= _PRUNE_EVERY_S:
             _prune(conn, now)
             _last_prune = now
@@ -517,7 +575,8 @@ def record_reports(
             {"kind": kind, "route": route, "template": template, "count": count},
             ensure_ascii=True,
         ))
-    return {"stored": len(keep), "dropped": len(bounded) - len(keep) + over_cap, "invalid": invalid}
+    return {"stored": len(keep), "dropped": len(bounded) - len(keep) - faults + over_cap,
+            "invalid": invalid + faults}
 
 
 def summary(days: int = 1, limit: int = 50, now: float | None = None) -> dict[str, Any]:

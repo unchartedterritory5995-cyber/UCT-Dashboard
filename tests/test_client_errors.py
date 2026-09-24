@@ -130,6 +130,83 @@ def test_an_unknown_kind_is_not_stored(store):
     assert out == {"stored": 1, "dropped": 0, "invalid": 2}
 
 
+# ── R1-2: one report is judged alone; it never fails the batch around it ─────
+
+def _post_raw(app, body: str):
+    """The door, with a server fault surfacing as its status code (a 500), not
+    as an exception inside the test."""
+    return TestClient(app, raise_server_exceptions=False).post(
+        "/api/client-errors", content=body.encode("utf-8"),
+        headers={"content-type": "application/json"})
+
+
+def test_a_lone_surrogate_in_one_report_never_fails_the_batch(app, store):
+    """`JSON.stringify` escapes an unpaired surrogate as `\\udXXX`, and that
+    escape parses back to a code point UTF-8 cannot encode. Measured before
+    this rail: a 500 with 0 rows stored — the valid reports went with it."""
+    body = ('{"reports": ['
+            '{"kind": "error", "name": "TypeError", "message": "first is not a function"},'
+            '{"kind": "error", "name": "TypeError", "message": "a\\ud83d",'
+            ' "stack": "    at f (https://x.test/\\udc00.js:1:2)",'
+            ' "componentStack": "    at C (https://x.test/a.js:1:2)\\ud800",'
+            ' "page": "/journal/\\ud83d", "template": "\\udfff"},'
+            '{"kind": "error", "name": "TypeError", "message": "third is not a function"}]}')
+    r = _post_raw(app, body)
+    assert r.status_code == 200
+    assert r.json()["stored"] == 3 and r.json()["invalid"] == 0
+    rows = _rows(store)
+    assert [row["message"] for row in rows] == ["first is not a function", "a\ufffd",
+                                                "third is not a function"]
+    # The middle report is kept, every unencodable code point replaced — so
+    # every field of every row encodes.
+    for row in rows:
+        for v in row.values():
+            if isinstance(v, str):
+                v.encode("utf-8")
+
+
+def test_one_report_that_cannot_be_stored_is_dropped_alone(store, monkeypatch):
+    """Whatever else a report can carry that its scrub or its row cannot take,
+    the fault stays with that report: it is counted `invalid`, and the rest of
+    the batch is stored normally."""
+    real = ce._scrubbed
+
+    def flaky(b):
+        if b["message"] == "poison":
+            raise ValueError("this report cannot be sanitised")
+        return real(b)
+
+    monkeypatch.setattr(ce, "_scrubbed", flaky)
+    out = ce.record_reports([_report(message="one"), _report(message="poison"), _report(message="two")],
+                            user_id=None, ip="1.2.3.4", user_agent="UA")
+    assert out == {"stored": 2, "dropped": 0, "invalid": 1}
+    assert [r["message"] for r in _rows(store)] == ["one", "two"]
+
+
+def test_a_broken_STORE_is_not_mistaken_for_a_bad_report(store, monkeypatch):
+    """CONTROL: the per-report boundary catches what a REPORT can cause. A
+    database fault is not one — swallowing it would read as `invalid` reports
+    while every write failed."""
+    def broken(b):
+        raise sqlite3.OperationalError("disk I/O error")
+
+    monkeypatch.setattr(ce, "_scrubbed", broken)
+    with pytest.raises(sqlite3.OperationalError):
+        ce.record_reports([_report()], user_id=None, ip="1.2.3.4", user_agent="UA")
+
+
+def test_a_timestamp_no_float_can_hold_is_dropped_never_a_500(app, store):
+    """`1` and 400 zeros is a valid JSON number and an OverflowError on
+    `float()`; `1e400` parses to inf. Neither is a time, and neither may cost
+    the report — or the batch — its row."""
+    body = ('{"reports": [{"kind": "error", "message": "x is not a function", "ts": 1' + "0" * 400 + '},'
+            ' {"kind": "error", "message": "y is not a function", "ts": 1e400},'
+            ' {"kind": "error", "message": "z is not a function", "ts": 1234.5}]}')
+    r = _post_raw(app, body)
+    assert r.status_code == 200 and r.json()["stored"] == 3
+    assert [row["client_ts"] for row in _rows(store)] == [None, None, 1234.5]
+
+
 def test_the_row_holds_a_hash_never_the_raw_address(store):
     ce.record_reports([_report()], user_id=None, ip="203.0.113.77", user_agent="UA")
     raw = store.read_bytes()
