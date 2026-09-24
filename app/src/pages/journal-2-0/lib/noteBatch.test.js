@@ -15,8 +15,8 @@ import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest'
 import { setCurrentAccountId } from './offline/currentAccount'
 import { recordLandedRevision } from './offline/useDurableNote'
 import {
-  describeBatch, describeExport, exportSelectedNotes, holdsUnsentWork, notesHoldingUnsentWork, runNoteBatch,
-  undoFor,
+  UNCHECKED_SENTENCE, checkUnsentWork, describeBatch, describeExport, describeUnchecked, exportSelectedNotes,
+  holdsUnsentWork, runNoteBatch, undoFor,
 } from './noteBatch'
 import { BLOCKED_TITLE } from './offline/unsyncedCopy'
 import { __resetNotebookFlags, latchNotebookFlags } from './offline/notebookFlags'
@@ -178,7 +178,7 @@ describe('exportSelectedNotes', () => {
 /** A STORE stub answering the two reads `noteHasUnsentWork` makes, PER NOTE —
  *  the predicate itself runs (R-05: a control that restates the predicate
  *  agrees with itself and says nothing). */
-function storeWith({ queued = [], dirty = [] } = {}) {
+function storeWith({ queued = [], dirty = [], unreadable = [] } = {}) {
   const store = {
     closed: false,
     close() { store.closed = true },
@@ -188,7 +188,11 @@ function storeWith({ queued = [], dirty = [] } = {}) {
           return {
             get(noteId) {
               const req = {}
-              setTimeout(() => { req.result = dirty.includes(noteId) ? { noteId, dirty: 1 } : null; req.onsuccess?.() }, 0)
+              setTimeout(() => {
+                if (unreadable.includes(noteId)) { req.onerror?.(); return }
+                req.result = dirty.includes(noteId) ? { noteId, dirty: 1 } : null
+                req.onsuccess?.()
+              }, 0)
               return req
             },
             index() {
@@ -250,13 +254,67 @@ describe('S1 — trash and export also see words still being SENT, not only reti
     expect(out.results).toEqual([{ id: 'n2', status: 'unsent' }])
   })
 
-  it('a store that cannot be read refuses rather than guesses', async () => {
+  it('R1-S1: a store that cannot be OPENED is UNCHECKED — held back, and never called "still syncing"', async () => {
     const fetchFn = answering({})
     const out = await runNoteBatch({
       ids: ['n1'], op: 'trash', connect: async () => { throw new Error('cannot open') },
     })
+    expect(fetchFn).not.toHaveBeenCalled()                    // never a silent proceed
+    expect(out.results).toEqual([{ id: 'n1', status: 'unchecked' }])
+    // The batch's own sentence says nothing untrue about it…
+    expect(describeBatch(out, { titleOf: () => 'First note' }).message).toBe('')
+    // …and the truth, with a way through, is its own sentence.
+    const offer = describeUnchecked('trash', ['n1'], { titleOf: () => 'First note' })
+    expect(offer.message).toBe(
+      "Can't check this device for unsent words. 1 note was not moved to the Trash: \"First note\".")
+    expect(offer.message).not.toMatch(/syncing|try again/)
+    expect(offer.anyway).toMatchObject({ op: 'trash', ids: ['n1'], label: 'Trash anyway', confirmLabel: 'Yes, trash anyway' })
+  })
+
+  it('R1-S1: an open that never SETTLES (a blocked upgrade) is unchecked after the timeout — the action does not hang', async () => {
+    const fetchFn = answering({})
+    const out = await runNoteBatch({
+      ids: ['n1', 'n2'], op: 'trash', connect: () => new Promise(() => {}), timeoutMs: 20,
+    })
     expect(fetchFn).not.toHaveBeenCalled()
-    expect(out.results).toEqual([{ id: 'n1', status: 'unsent' }])
+    expect(out.results).toEqual([{ id: 'n1', status: 'unchecked' }, { id: 'n2', status: 'unchecked' }])
+  })
+
+  it('R1-S1: a note whose own read fails is unchecked; the rest of the answer still stands', async () => {
+    const got = await checkUnsentWork(['a', 'b', 'c'], {
+      connect: async () => storeWith({ unreadable: ['a'], queued: ['b'] }),
+    })
+    expect([...got.unchecked]).toEqual(['a'])
+    expect([...got.unsent]).toEqual(['b'])
+  })
+
+  it('R1-S1: the CONFIRMED "anyway" sends the unchecked note — and ONLY that: a note the re-check finds unsent is still refused', async () => {
+    const fetchFn = answering({ op: 'trash', results: [{ id: 'n1', status: 'changed' }, { id: 'n3', status: 'changed' }] })
+    const connect = async () => storeWith({ unreadable: ['n1'], queued: ['n2'] })
+    const out = await runNoteBatch({ ids: ['n1', 'n2', 'n3'], op: 'trash', connect, acceptUnchecked: true })
+    expect(JSON.parse(fetchFn.mock.calls[0][1].body).ids).toEqual(['n1', 'n3'])
+    expect(out.results).toContainEqual({ id: 'n2', status: 'unsent' })
+    expect(out.results.some((r) => r.status === 'unchecked')).toBe(false)
+  })
+
+  it('⛔ CONTROL — without the confirmation the same selection holds the unchecked note back', async () => {
+    const fetchFn = answering({ op: 'trash', results: [{ id: 'n3', status: 'changed' }] })
+    const connect = async () => storeWith({ unreadable: ['n1'], queued: ['n2'] })
+    const out = await runNoteBatch({ ids: ['n1', 'n2', 'n3'], op: 'trash', connect })
+    expect(JSON.parse(fetchFn.mock.calls[0][1].body).ids).toEqual(['n3'])
+    expect(out.results).toContainEqual({ id: 'n1', status: 'unchecked' })
+    expect(out.results).toContainEqual({ id: 'n2', status: 'unsent' })
+    expect(describeBatch(out, { titleOf: (id) => ({ n2: 'Second note' })[id] }).message).toBe(
+      'Moved 1 note to the Trash. 1 note was not changed: "Second note" is still syncing — try again in a moment.')
+  })
+
+  it('R1-S1: the export offer says "included", and its confirmation says what the file would miss', () => {
+    const offer = describeUnchecked('export', ['a', 'b', 'c', 'd'], { titleOf: (id) => id.toUpperCase() })
+    expect(offer.message).toBe(
+      `${UNCHECKED_SENTENCE} 4 notes were not included: "A"; "B"; "C" and 1 more.`)
+    expect(offer.anyway.label).toBe('Export anyway')
+    expect(offer.anyway.confirm).toMatch(/^Export 4 notes without checking this device\?/)
+    expect(describeUnchecked('export', [], {})).toBeNull()
   })
 
   it('⛔ CONTROL — move, tag and restore never ask: they rebase, and the words still arrive', async () => {
@@ -272,8 +330,9 @@ describe('S1 — trash and export also see words still being SENT, not only reti
   it('one store connection for the whole selection, closed afterwards', async () => {
     const store = storeWith({ queued: ['b'] })
     const connect = vi.fn(async () => store)
-    const held = await notesHoldingUnsentWork(['a', 'b', 'c'], { connect })
-    expect([...held]).toEqual(['b'])
+    const held = await checkUnsentWork(['a', 'b', 'c'], { connect })
+    expect([...held.unsent]).toEqual(['b'])
+    expect([...held.unchecked]).toEqual([])
     expect(connect).toHaveBeenCalledTimes(1)
     await new Promise((r) => setTimeout(r, 0))
     expect(store.closed).toBe(true)

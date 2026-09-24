@@ -397,19 +397,34 @@
 }
 
 /* Wave 5 bulk operations: what a bulk action did, and the Undo after a trash.
-   Fixed to the bottom of the viewport so it is seen wherever the member has
-   scrolled; it is NOT inside the bulk bar, which unmounts when the selection
-   empties. Only existing tokens. */
-.bulkNotice {
+   The STACK is fixed to the bottom of the viewport so it is seen wherever the
+   member has scrolled; it is NOT inside the bulk bar, which unmounts when the
+   selection empties. Each notice is an ordinary box in the stack's column —
+   ⛔ never `position: fixed` itself: two fixed notices share one spot and the
+   later one paints over the Undo (R1-S2). The column grows UP from the bottom
+   edge, so the Undo (the last child) keeps its place when a sentence arrives.
+   The stack itself lets clicks through; only the notices take them. Only
+   existing tokens. */
+.bulkNoticeStack {
   position: fixed;
   left: 50%;
   bottom: 24px;
   transform: translateX(-50%);
   z-index: 60;
   display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  width: max-content;
+  max-width: min(640px, calc(100vw - 32px));
+  pointer-events: none;
+}
+.bulkNotice {
+  pointer-events: auto;
+  display: flex;
   align-items: center;
   gap: 12px;
-  max-width: min(640px, calc(100vw - 32px));
+  max-width: 100%;
   padding: 10px 12px 10px 16px;
   background: var(--bg-elevated);
   border: 1px solid var(--ut-gold);

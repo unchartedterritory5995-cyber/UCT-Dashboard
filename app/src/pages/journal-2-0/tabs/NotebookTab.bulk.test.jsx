@@ -1,6 +1,9 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { render, screen, fireEvent, waitFor, within } from '@testing-library/react'
 import { MemoryRouter } from 'react-router-dom'
+import fs from 'node:fs'
+import path from 'node:path'
+import { fileURLToPath } from 'node:url'
 
 /**
  * Wave 5 bulk operations, WIRED: the real NoteCard, NotesTableView and
@@ -74,8 +77,9 @@ import { setCurrentAccountId } from '../lib/offline/currentAccount'
 import { __resetNotebookFlags } from '../lib/offline/notebookFlags'
 import { installKeyRange } from '../lib/offline/__fixtures__/fakeIndexedDb'
 
-/** Turn the offline wave on with a store holding unsent work for `queued`. */
-function withUnsentWork(queued) {
+/** Turn the offline wave on with a store holding unsent work for `queued`;
+ *  a note in `unreadable` fails its own read (R1-S1: it cannot be checked). */
+function withUnsentWork(queued, { unreadable = [] } = {}) {
   installKeyRange()
   localStorage.setItem('uct.notebook.offline', '1')
   vi.stubGlobal('indexedDB', { open: () => ({}) })
@@ -87,7 +91,11 @@ function withUnsentWork(queued) {
           return {
             get(noteId) {
               const req = {}
-              setTimeout(() => { req.result = { noteId, dirty: 0 }; req.onsuccess?.() }, 0)
+              setTimeout(() => {
+                if (unreadable.includes(noteId)) { req.onerror?.(); return }
+                req.result = { noteId, dirty: 0 }
+                req.onsuccess?.()
+              }, 0)
               return req
             },
             index() {
@@ -154,6 +162,14 @@ afterEach(() => {
   vi.unstubAllGlobals()
   __resetNotebookFlags()
 })
+
+/** R1-S1: the offline wave is on, and this device's store can never be opened. */
+function withUncheckableDevice() {
+  installKeyRange()
+  localStorage.setItem('uct.notebook.offline', '1')
+  vi.stubGlobal('indexedDB', { open: () => ({}) })
+  unsentStore = null   // openNotebookDb rejects: 'no store in this test'
+}
 
 function renderTab(entry = '/journal?view=all') {
   return render(
@@ -456,6 +472,55 @@ describe('NotebookTab — S4: the Undo cannot be lost', () => {
     expect(await screen.findByText('Restored 1 note.')).toBeInTheDocument()
     expect(batchCalls.map((c) => c.op)).toEqual(['trash', 'favorite', 'restore'])
   })
+
+  it('R1-S2: the Undo keeps its OWN slot — a later sentence is a sibling in the stack, never over or around it', async () => {
+    renderTab()
+    fireEvent.click(box('First note'))
+    fireEvent.click(screen.getByRole('button', { name: 'Move to Trash' }))
+    expect(await screen.findByText('Moved 1 note to the Trash.')).toBeInTheDocument()
+    fireEvent.click(box('Second note'))
+    fireEvent.click(screen.getByRole('button', { name: 'Favorite' }))
+    expect(await screen.findByText('Added 1 note to Favorites.')).toBeInTheDocument()
+
+    const stack = screen.getByTestId('bulk-notice-stack')
+    const later = screen.getByTestId('bulk-notice')
+    const undoBox = screen.getByTestId('bulk-undo-notice')
+    const undo = within(undoBox).getByRole('button', { name: 'Undo' })
+    // Both present, in their own slots, the Undo LAST (the stack grows upward,
+    // so the button does not move when a sentence arrives)…
+    expect([...stack.children]).toEqual([later, undoBox])
+    // …inside the ONE element the stylesheet fixes (the rule below is only
+    // evidence if the page actually wears it).
+    expect(stack.className).toMatch(/bulkNoticeStack/)
+    // …and neither contains the other: the later notice cannot cover the Undo.
+    expect(later.contains(undo)).toBe(false)
+    expect(undoBox.contains(later)).toBe(false)
+    expect(undo).toBeEnabled()
+    fireEvent.click(undo)
+    expect(await screen.findByText('Restored 1 note.')).toBeInTheDocument()
+    expect(batchCalls.map((c) => c.op)).toEqual(['trash', 'favorite', 'restore'])
+  })
+
+  it('R1-S2: only the STACK is fixed — a notice that is itself fixed would sit on top of its sibling', () => {
+    // jsdom performs no layout, so the stylesheet is the evidence: the two
+    // notices can only overlap if a notice positions itself out of the column.
+    const css = fs.readFileSync(
+      path.join(path.dirname(fileURLToPath(import.meta.url)), 'NotebookTab.module.css'), 'utf8')
+    const rule = (sel) => {
+      const m = css.match(new RegExp(`\\n\\${sel}\\s*\\{([^}]*)\\}`))
+      return m ? m[1] : null
+    }
+    const stackRule = rule('.bulkNoticeStack')
+    const noticeRule = rule('.bulkNotice')
+    expect(stackRule, 'the stack rule exists').not.toBeNull()
+    expect(noticeRule, 'the notice rule exists').not.toBeNull()
+    expect(stackRule).toMatch(/position:\s*fixed/)
+    expect(stackRule).toMatch(/display:\s*flex/)
+    expect(stackRule).toMatch(/flex-direction:\s*column/)
+    expect(stackRule).toMatch(/pointer-events:\s*none/)
+    expect(noticeRule).not.toMatch(/position:/)
+    expect(noticeRule).toMatch(/pointer-events:\s*auto/)   // the Undo still takes the click
+  })
 })
 
 describe('NotebookTab — S1: a note still SENDING is neither trashed nor exported', () => {
@@ -501,5 +566,98 @@ describe('NotebookTab — S1: a note still SENDING is neither trashed nor export
     await moveTo('f1')
     expect(await screen.findByText('Moved 1 note to Research.')).toBeInTheDocument()
     expect(batchCalls).toEqual([{ ids: ['n2'], op: 'move', args: { folderId: 'f1' } }])
+  })
+})
+
+describe('NotebookTab — R1-S1: a device that cannot be CHECKED is told so, and offered a confirmed way through', () => {
+  const UNCHECKED = /Can't check this device for unsent words\./
+
+  it('trash: the true sentence, nothing sent, and "Trash anyway" proceeds only after the confirmation', async () => {
+    withUncheckableDevice()
+    renderTab()
+    fireEvent.click(box('First note'))
+    fireEvent.click(screen.getByRole('button', { name: 'Move to Trash' }))
+    expect(await screen.findByText(
+      'Can\'t check this device for unsent words. 1 note was not moved to the Trash: "First note".',
+    )).toBeInTheDocument()
+    expect(screen.queryByText(/still syncing|try again/)).toBeNull()      // the untrue sentence is gone
+    expect(batchCalls).toEqual([])                                        // never a silent proceed
+    fireEvent.click(screen.getByRole('button', { name: 'Trash anyway' }))
+    expect(screen.getByText(/^Move 1 note to the Trash without checking this device\?/)).toBeInTheDocument()
+    expect(batchCalls).toEqual([])                                        // the first press is not the confirmation
+    const yes = screen.getByRole('button', { name: 'Yes, trash anyway' })
+    await waitFor(() => expect(yes).toHaveFocus())
+    fireEvent.click(yes)
+    expect(await screen.findByText('Moved 1 note to the Trash.')).toBeInTheDocument()
+    expect(batchCalls).toEqual([{ ids: ['n1'], op: 'trash', args: {} }])
+    expect(screen.getByRole('button', { name: 'Undo' })).toBeEnabled()    // and it can still be taken back
+  })
+
+  it('Cancel goes back to the sentence and sends nothing', async () => {
+    withUncheckableDevice()
+    renderTab()
+    fireEvent.click(box('First note'))
+    fireEvent.click(screen.getByRole('button', { name: 'Move to Trash' }))
+    expect(await screen.findByText(UNCHECKED)).toBeInTheDocument()
+    fireEvent.click(screen.getByRole('button', { name: 'Trash anyway' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Cancel' }))
+    expect(screen.getByText(UNCHECKED)).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Trash anyway' })).toBeInTheDocument()
+    expect(batchCalls).toEqual([])
+  })
+
+  it('a partial trash: the Undo for what moved and the offer for what could not be checked stand side by side', async () => {
+    withUnsentWork([], { unreadable: ['n1'] })
+    renderTab()
+    fireEvent.click(box('First note'))
+    fireEvent.click(box('Third note'))
+    fireEvent.click(screen.getByRole('button', { name: 'Move to Trash' }))
+    expect(await screen.findByText('Moved 1 note to the Trash.')).toBeInTheDocument()
+    expect(batchCalls).toEqual([{ ids: ['n3'], op: 'trash', args: {} }])
+    const offer = screen.getByTestId('bulk-notice')
+    expect(offer).toHaveTextContent('Can\'t check this device for unsent words. 1 note was not moved to the Trash: "First note".')
+    expect(within(screen.getByTestId('bulk-undo-notice')).getByRole('button', { name: 'Undo' })).toBeEnabled()
+    fireEvent.click(within(offer).getByRole('button', { name: 'Trash anyway' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Yes, trash anyway' }))
+    await waitFor(() => expect(batchCalls).toHaveLength(2))
+    expect(batchCalls[1]).toEqual({ ids: ['n1'], op: 'trash', args: {} })
+  })
+
+  it('export: the same truth, and "Export anyway" exports only after the confirmation', async () => {
+    withUncheckableDevice()
+    const origCreate = URL.createObjectURL
+    const origRevoke = URL.revokeObjectURL
+    URL.createObjectURL = vi.fn(() => 'blob:x')
+    URL.revokeObjectURL = vi.fn()
+    const click = vi.spyOn(HTMLAnchorElement.prototype, 'click').mockImplementation(() => {})
+    try {
+      renderTab()
+      fireEvent.click(box('Second note'))
+      fireEvent.click(screen.getByRole('button', { name: 'Export selected' }))
+      expect(await screen.findByText(
+        'Can\'t check this device for unsent words. 1 note was not included: "Second note".',
+      )).toBeInTheDocument()
+      expect(exportCalls).toEqual([])
+      fireEvent.click(screen.getByRole('button', { name: 'Export anyway' }))
+      expect(screen.getByText(/^Export 1 note without checking this device\?/)).toBeInTheDocument()
+      expect(exportCalls).toEqual([])
+      fireEvent.click(screen.getByRole('button', { name: 'Yes, export anyway' }))
+      expect(await screen.findByText('Exported 1 note as a Markdown zip.')).toBeInTheDocument()
+      expect(exportCalls).toEqual([{ ids: ['n2'] }])
+    } finally {
+      click.mockRestore()
+      URL.createObjectURL = origCreate
+      URL.revokeObjectURL = origRevoke
+    }
+  })
+
+  it('⛔ CONTROL — a device that CAN be checked is never offered "anyway"', async () => {
+    withUnsentWork(['n2'])
+    renderTab()
+    fireEvent.click(box('Second note'))
+    fireEvent.click(screen.getByRole('button', { name: 'Move to Trash' }))
+    expect(await screen.findByText(/"Second note" is still syncing/)).toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: 'Trash anyway' })).toBeNull()
+    expect(screen.queryByText(UNCHECKED)).toBeNull()
   })
 })

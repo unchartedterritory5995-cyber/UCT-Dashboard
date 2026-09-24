@@ -37,7 +37,20 @@
  *    and REBASES rather than forking. It cannot undo a batch's folder or tag
  *    change, and the member's words still arrive.
  *
- * Both are reported back, each with its own sentence, never silently dropped.
+ *  · UNCHECKED (review R1-S1) — the device could not be asked at all: the
+ *    durable store would not open or read (`why: 'unreadable'`), or the open
+ *    did not settle within UNSENT_CHECK_TIMEOUT_MS (`openNotebookDb` waits
+ *    forever while another tab blocks a version upgrade). That is NOT "still
+ *    syncing": saying so told a member whose store can never open to "try
+ *    again" forever. It is said as what it is — "Can't check this device for
+ *    unsent words." — and offered as an explicit, CONFIRMED "Trash anyway" /
+ *    "Export anyway" (`acceptUnchecked`). ⛔ Never a silent proceed: without
+ *    the member's confirmation an unchecked note is held back like an unsent
+ *    one. ⛔ And "anyway" waives only the check that could not run — a note
+ *    the re-check DOES find unsent is still refused.
+ *
+ * All three are reported back, each with its own sentence, never silently
+ * dropped.
  */
 import { settleNoteWrites } from './offline/settleNoteWrite'
 import { BLOCKED_TITLE } from './offline/unsyncedCopy'
@@ -51,6 +64,14 @@ export const NOTE_WRITING_OPS = new Set(['move', 'addTag', 'removeTag', 'trash',
 /** Ops that also refuse a note whose words are still being sent (see above). */
 export const UNSENT_REFUSED_OPS = new Set(['trash'])
 
+/** How long asking the device may take before its notes count as UNCHECKED.
+ *  `openNotebookDb` never settles while a version upgrade is blocked by
+ *  another tab, so an unbounded wait would hang the action (review R1-S1). */
+export const UNSENT_CHECK_TIMEOUT_MS = 4000
+
+/** The sentence for a device that could not be asked (review R1-S1). */
+export const UNCHECKED_SENTENCE = "Can't check this device for unsent words."
+
 export { BLOCKED_TITLE }
 
 /** The RAW "words not yet on the server" answer from a `noteHasUnsentWork`
@@ -61,24 +82,37 @@ export function holdsUnsentWork(verdict) {
 }
 
 /**
- * Which of `ids` still hold words the server does not have. One store
- * connection for the whole selection, closed afterwards. A store that cannot be
- * read answers "yes" for every note (the predicate's own rule: unknown is not
- * safe), so the caller refuses rather than guesses.
- * @returns {Promise<Set<string>>}
+ * Which of `ids` still hold words the server does not have (`unsent`), and
+ * which could not be CHECKED (`unchecked`): the store would not open or read,
+ * or the open did not settle within `timeoutMs`. One store connection for the
+ * whole selection, closed afterwards. Neither answer is a pass — the caller
+ * holds both back, and says which is which.
+ * @returns {Promise<{unsent: Set<string>, unchecked: Set<string>}>}
  */
-export async function notesHoldingUnsentWork(ids, { connect = openNotebookDb } = {}) {
+export async function checkUnsentWork(ids, { connect = openNotebookDb, timeoutMs = UNSENT_CHECK_TIMEOUT_MS } = {}) {
   const list = [...(ids || [])]
-  if (!list.length) return new Set()
+  const out = { unsent: new Set(), unchecked: new Set() }
+  if (!list.length) return out
   let opened = null
   const once = (acct) => {
     if (!opened) opened = Promise.resolve(connect(acct))
     return opened
   }
+  let timer = null
+  const timedOut = new Promise((resolve) => { timer = setTimeout(() => resolve(null), timeoutMs) })
   try {
-    const verdicts = await Promise.all(list.map((id) => noteHasUnsentWork(id, { connect: once })))
-    return new Set(list.filter((_, i) => holdsUnsentWork(verdicts[i])))
+    const verdicts = await Promise.race([
+      Promise.all(list.map((id) => noteHasUnsentWork(id, { connect: once }))),
+      timedOut,
+    ])
+    list.forEach((id, i) => {
+      const v = verdicts ? verdicts[i] : null
+      if (!v || v.why === 'unreadable') out.unchecked.add(id)
+      else if (holdsUnsentWork(v)) out.unsent.add(id)
+    })
+    return out
   } finally {
+    clearTimeout(timer)
     if (opened) opened.then((db) => db?.close?.()).catch(() => {})
   }
 }
@@ -89,17 +123,25 @@ export async function notesHoldingUnsentWork(ids, { connect = openNotebookDb } =
  * @throws Error(message) when the request itself was refused (a 400/401/5xx):
  *         nothing was written, so there is nothing to land.
  */
-export async function runNoteBatch({ ids, op, args = {}, blockedNoteIds = null, connect } = {}) {
+export async function runNoteBatch({
+  ids, op, args = {}, blockedNoteIds = null, connect, timeoutMs, acceptUnchecked = false,
+} = {}) {
   const isBlocked = (id) => NOTE_WRITING_OPS.has(op) && Boolean(blockedNoteIds?.has?.(id))
-  const holding = UNSENT_REFUSED_OPS.has(op)
-    ? await notesHoldingUnsentWork((ids || []).filter((id) => !isBlocked(id)), connect ? { connect } : undefined)
-    : new Set()
+  const checked = UNSENT_REFUSED_OPS.has(op)
+    ? await checkUnsentWork((ids || []).filter((id) => !isBlocked(id)), {
+      ...(connect ? { connect } : {}), ...(timeoutMs != null ? { timeoutMs } : {}),
+    })
+    : { unsent: new Set(), unchecked: new Set() }
   const blocked = []
   const unsent = []
+  const unchecked = []
   const send = []
   for (const id of ids || []) {
     if (isBlocked(id)) blocked.push(id)
-    else if (holding.has(id)) unsent.push(id)
+    else if (checked.unsent.has(id)) unsent.push(id)
+    // ⛔ Only a member's CONFIRMED "anyway" sends a note the device could not
+    // be asked about; otherwise it is held back and offered (R1-S1).
+    else if (checked.unchecked.has(id) && !acceptUnchecked) unchecked.push(id)
     else send.push(id)
   }
   let body = { op, results: [] }
@@ -126,6 +168,7 @@ export async function runNoteBatch({ ids, op, args = {}, blockedNoteIds = null, 
     ...(body.results || []),
     ...blocked.map((id) => ({ id, status: 'blocked', error: BLOCKED_TITLE })),
     ...unsent.map((id) => ({ id, status: 'unsent' })),
+    ...unchecked.map((id) => ({ id, status: 'unchecked' })),
   ]
   const count = (pred) => results.filter(pred).length
   return {
@@ -170,9 +213,14 @@ export function describeBatch(outcome, { folderName, tag, backToOrigin = false, 
     trash: `Moved ${n} to the Trash.`,
     restore: `Restored ${n}.`,
   }[op] || `Updated ${n}.`
+  // An UNCHECKED note is not a failure of this batch: it has its own sentence
+  // and its own "anyway" (describeUnchecked), so it is left out of this one.
+  const failures = outcome.results.filter((r) => !['changed', 'unchanged', 'unchecked'].includes(r.status))
+  const onlyUnchecked = !changed && !unchanged && !failures.length
+    && outcome.results.some((r) => r.status === 'unchecked')
+  if (onlyUnchecked) return { message: '', tone: 'ok' }
   const parts = [changed ? done : 'Nothing changed.']
   if (unchanged) parts.push(`${plural(unchanged, 'was', 'were')} already that way.`)
-  const failures = outcome.results.filter((r) => r.status !== 'changed' && r.status !== 'unchanged')
   if (failures.length) {
     const named = failures.slice(0, 3).map((r) => {
       const t = titleOf(r.id)
@@ -183,6 +231,39 @@ export function describeBatch(outcome, { folderName, tag, backToOrigin = false, 
     parts.push(`${plural(failures.length, 'note was', 'notes were')} not changed: ${named.join('; ')}${more}.`)
   }
   return { message: parts.join(' '), tone: failures.length ? (changed ? 'partial' : 'error') : 'ok' }
+}
+
+/**
+ * The sentence and the offer for notes the device could not be ASKED about
+ * (review R1-S1) — or null when there are none. The offer is two-step: the
+ * member presses `label`, reads `confirm`, and only `confirmLabel` proceeds.
+ *
+ * @param op   'trash' | 'export'
+ * @param ids  the unchecked note ids
+ */
+export function describeUnchecked(op, ids, { titleOf = () => null } = {}) {
+  const list = [...(ids || [])]
+  if (!list.length) return null
+  const what = { trash: 'moved to the Trash', export: 'included' }[op] || 'changed'
+  const named = list.slice(0, 3).map((id) => {
+    const t = titleOf(id)
+    return t ? `"${t}"` : 'a note'
+  })
+  const more = list.length > 3 ? ` and ${list.length - 3} more` : ''
+  const n = plural(list.length, 'note')
+  return {
+    message: `${UNCHECKED_SENTENCE} ${plural(list.length, 'note was', 'notes were')} not ${what}: ${named.join('; ')}${more}.`,
+    tone: 'error',
+    anyway: op === 'export'
+      ? {
+        op, ids: list, label: 'Export anyway', confirmLabel: 'Yes, export anyway',
+        confirm: `Export ${n} without checking this device? Words typed here that have not reached the server would be missing from the file.`,
+      }
+      : {
+        op, ids: list, label: 'Trash anyway', confirmLabel: 'Yes, trash anyway',
+        confirm: `Move ${n} to the Trash without checking this device? Words typed here that have not reached the server may not be kept.`,
+      },
+  }
 }
 
 /**
