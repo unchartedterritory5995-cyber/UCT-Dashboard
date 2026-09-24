@@ -2,6 +2,8 @@ import { useEffect, useState } from 'react'
 import { useParams } from 'react-router-dom'
 import { useEditor, EditorContent } from '@tiptap/react'
 import { buildExtensions } from './lib/tiptap'
+import { noteContentGuardOptions, useUnreadableNote } from './lib/noteContentGuard'
+import UnreadableNoteNotice from './lib/UnreadableNoteNotice'
 import { SHARED_NOTE_ENDPOINT } from './lib/noteShareLink'
 import { SkeletonLine } from '../../components/Skeleton'
 import styles from './SharedNotePage.module.css'
@@ -71,6 +73,8 @@ export default function SharedNotePage() {
 function ReadOnlyNote({ note }) {
   const editor = useEditor({
     extensions: buildExtensions(),
+    // S1/H14: a note this bundle cannot read says so, instead of rendering empty.
+    ...noteContentGuardOptions(),
     content: note.bodyJson || { type: 'doc', content: [] },
     editable: false,
     // BEFORE create, not onCreate: node views can mount ahead of onCreate,
@@ -80,6 +84,7 @@ function ReadOnlyNote({ note }) {
       ed.storage.uctJournalWidgets = { ...(ed.storage.uctJournalWidgets || {}), shareView: true }
     },
   }, [note])
+  const unreadable = useUnreadableNote(editor)
 
   return (
     <div className={styles.column}>
@@ -88,6 +93,7 @@ function ReadOnlyNote({ note }) {
       )}
       <h1 className={styles.title}>{note.title || 'Untitled'}</h1>
       {note.subtitle && <div className={styles.subtitle}>{note.subtitle}</div>}
+      {unreadable && <UnreadableNoteNotice />}
       <EditorContent editor={editor} />
     </div>
   )

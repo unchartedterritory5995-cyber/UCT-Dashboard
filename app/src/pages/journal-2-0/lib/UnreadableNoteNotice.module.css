@@ -1,0 +1,11 @@
+/* S1 / H14 — the one notice every editor shows when it cannot read a note.
+   Mirrors NoteEditorPage's .draftBanner: a notice, not an error page. */
+.notice {
+  margin: 0 0 10px;
+  padding: 8px 12px;
+  border-radius: var(--radius-md);
+  border: 1px solid rgba(220, 187, 94, 0.4);
+  background: rgba(220, 187, 94, 0.08);
+  color: var(--text-bright);
+  font-size: 12px;
+}

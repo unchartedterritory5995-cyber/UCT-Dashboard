@@ -64,6 +64,10 @@ import { createNoteViaApi } from '../../lib/noteCreation'
 import { refreshEvidenceCandidates } from '../../hooks/useEvidenceCandidates'
 import { invalidateNoteLinkTarget } from '../../lib/noteLinkTargetsBatch'
 import { SkeletonLine } from '../../../../components/Skeleton'
+import {
+  noteContentGuardOptions, replaceDocument, isUnreadable, useUnreadableNote,
+} from '../../lib/noteContentGuard'
+import UnreadableNoteNotice from '../../lib/UnreadableNoteNotice'
 import styles from './NoteEditorPage.module.css'
 import { FONT_OPTIONS } from '../../../../utils/fontFamilies'
 
@@ -499,7 +503,8 @@ export default function NoteEditorPage({ noteId, onBack, showBack = true, onTitl
       updatedAt: restoredNote.updatedAt || null,
     }
     try {
-      editorRef.current?.commands.setContent(restoredNote.bodyJson || { type: 'doc', content: [] }, EMIT_NOTHING)
+      // S1: a restored body this bundle cannot read LOCKS the editor rather than blanking it.
+      replaceDocument(editorRef.current, restoredNote.bodyJson || { type: 'doc', content: [] }, EMIT_NOTHING)
     } catch {
       /* editor view not mounted yet -- next note-open effect will still show it */
     }
@@ -807,7 +812,10 @@ export default function NoteEditorPage({ noteId, onBack, showBack = true, onTitl
   // could differ by a keystroke, which is exactly the disagreement the reopen
   // comparison would then have to resolve without being able to.
   const captureLocalState = () => {
-    if (!noteId || !editorRef.current) return null
+    // ⛔ S1/H14: a locked (unreadable) note has no local state worth keeping —
+    // the editor holds an EMPTY stand-in, and every layer this feeds (the draft,
+    // the durable copy, the outbox, a metadata settle) would carry it.
+    if (!noteId || !editorRef.current || isUnreadable(editorRef.current)) return null
     return {
       title: titleRef.current,
       subtitle: subtitleRef.current,
@@ -896,7 +904,10 @@ export default function NoteEditorPage({ noteId, onBack, showBack = true, onTitl
     // was fixed, this line ALSO re-armed the 800ms debounce and the durable
     // write, which is precisely what the comment below says a restore
     // deliberately does not do.
-    if (draftBodyJson) editorRef.current.commands.setContent(draftBodyJson, EMIT_NOTHING)
+    if (draftBodyJson && !replaceDocument(editorRef.current, draftBodyJson, EMIT_NOTHING)) {
+      restoringDraftRef.current = false      // S1: unreadable here -- locked, nothing sent
+      return
+    }
     setPendingDraft(null)
     setRecovery(null)
 
@@ -1487,6 +1498,10 @@ export default function NoteEditorPage({ noteId, onBack, showBack = true, onTitl
 
   const editor = useEditor({
     extensions: buildExtensions(),
+    // ⛔ S1/H14: content the schema cannot read LOCKS the editor instead of
+    // opening it empty (noteContentGuard.js) -- the empty stand-in is what the
+    // next save used to write over the note.
+    ...noteContentGuardOptions(),
     content: bodyForEditor || { type: 'doc', content: [] },
     // Node views can't take React props from the page; the widgetEmbed view
     // reads the note id off editor storage for its archive upload
@@ -1546,6 +1561,7 @@ export default function NoteEditorPage({ noteId, onBack, showBack = true, onTitl
   // Keep the ref current so the paste/drop handlers (captured at creation) always
   // reach the live editor instance.
   editorRef.current = editor
+  const unreadable = useUnreadableNote(editor)
   // TipTap v3's useEditor does NOT re-render on transactions, so toolbar state
   // read in render (font/size dropdowns, bold/italic active) goes stale. Bump a
   // counter on every selection/mark change to keep the toolbar in sync.
@@ -1595,7 +1611,7 @@ export default function NoteEditorPage({ noteId, onBack, showBack = true, onTitl
     try {
       const current = JSON.stringify(editor.getJSON())
       const fresh = JSON.stringify(bodyForEditor)
-      if (current !== fresh) editor.commands.setContent(bodyForEditor, EMIT_NOTHING)
+      if (current !== fresh) replaceDocument(editor, bodyForEditor, EMIT_NOTHING)
     } catch {
       /* editor view not mounted yet — content already loaded via useEditor */
     }
@@ -1611,9 +1627,10 @@ export default function NoteEditorPage({ noteId, onBack, showBack = true, onTitl
   // ⛔ NOT gated on `note.bodyJson` (as the sync effect above is): a note the
   // server holds with no body at all must still be editable, and gating on the
   // body would leave that member typing into a page that saves nothing.
+  // ⛔ S1/H14: and never armed for a note this bundle cannot read.
   useEffect(() => {
-    hydratedRef.current = Boolean(editor && !editor.isDestroyed && note)
-  }, [note?.id, editor, note])
+    hydratedRef.current = Boolean(editor && !editor.isDestroyed && note && !isUnreadable(editor))
+  }, [note?.id, editor, note, unreadable])
 
   // ⭐⭐ D3 / F5P-1 — TAKE THE QUEUED WORDS AND SEND THEM THROUGH OUR OWN SAVE.
   // Declared AFTER the hydration gate so it runs after it in the same commit.
@@ -1667,7 +1684,9 @@ export default function NoteEditorPage({ noteId, onBack, showBack = true, onTitl
     // saved as though it had — they are offered, and the durable copy and the
     // queue still hold them.
     try {
-      editor.commands.setContent(state.bodyJson || { type: 'doc', content: [] }, EMIT_NOTHING)
+      if (!replaceDocument(editor, state.bodyJson || { type: 'doc', content: [] }, EMIT_NOTHING)) {
+        offer(); return undefined
+      }
     } catch { offer(); return undefined }
     setPendingAdoption(null)
     const t = state.title || ''
@@ -1853,7 +1872,7 @@ export default function NoteEditorPage({ noteId, onBack, showBack = true, onTitl
     titleRef.current = fresh.title || ''
     setSubtitle(fresh.subtitle || '')
     subtitleRef.current = fresh.subtitle || ''
-    if (fresh.bodyJson) editor.commands.setContent(fresh.bodyJson, EMIT_NOTHING)
+    if (fresh.bodyJson) replaceDocument(editor, fresh.bodyJson, EMIT_NOTHING)
     lastSavedRef.current = {
       title: fresh.title || '', subtitle: fresh.subtitle || '',
       bodyJson: fresh.bodyJson, updatedAt: fresh.updatedAt || null,
@@ -1890,7 +1909,8 @@ export default function NoteEditorPage({ noteId, onBack, showBack = true, onTitl
   }
 
   const commitSave = async () => {
-    if (!editor) return
+    // ⛔ S1/H14: the last line of defence -- a locked note never reaches the wire.
+    if (!editor || isUnreadable(editor)) return
     saveTimerRef.current = null
     retryTimerRef.current = null
 
@@ -2488,7 +2508,8 @@ export default function NoteEditorPage({ noteId, onBack, showBack = true, onTitl
           session that never actually saved it to the server (tab closed,
           crashed, or offline mid-edit). Offered, never auto-applied — the
           member decides whether it's worth more than what's on screen. */}
-      {pendingDraft && (
+      {/* S1/H14: a locked note offers no Restore -- the banner is restoreDraft's only door. */}
+      {pendingDraft && !unreadable && (
         <div className={styles.draftBanner} data-export-exclude role="status">
           <span>
             {recovery?.ambiguous
@@ -2733,8 +2754,10 @@ export default function NoteEditorPage({ noteId, onBack, showBack = true, onTitl
           />
         ) : null}
 
+        {unreadable && <UnreadableNoteNotice />}
         <input
           className={styles.titleInput}
+          readOnly={unreadable}
           value={title}
           onChange={(e) => {
             const v = e.target.value
@@ -2747,6 +2770,7 @@ export default function NoteEditorPage({ noteId, onBack, showBack = true, onTitl
         />
         <input
           className={styles.subtitleInput}
+          readOnly={unreadable}
           value={subtitle}
           onChange={(e) => {
             const v = e.target.value
