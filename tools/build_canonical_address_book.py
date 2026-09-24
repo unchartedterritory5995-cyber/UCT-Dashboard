@@ -74,6 +74,11 @@ _STORE_AUTHORITY = {
     # PRD-D2 §7's vocabulary is exactly {"authoritative", "derived"}; this is
     # the second one, honestly.
     "earnings_table": "derived",
+    # Owner-delegated extension (delegated to the AI session, 2026-09-23).
+    # `breadth_live.compute_metrics` computes these from constituent scans, and
+    # there is no independent reconciliation oracle the way bars has Polygon —
+    # the same reasoning that makes earnings_table "derived", not "authoritative".
+    "breadth_snapshot_numeric": "derived",
 }
 
 
@@ -556,6 +561,141 @@ def earnings_table_store() -> tuple:
     return store_id, record
 
 
+# ─────────────────────────────────────────────────────────────────────────────
+# Owner-delegated extension (delegated to the AI session, 2026-09-23) —
+# `breadth_snapshot_numeric`, A11's proprietary breadth/exposure metrics
+#
+# ⛔ APPROVED SCOPE (owner, delegated to the AI session, 2026-09-23) — register
+# breadth/exposure metrics only.
+#
+# ⭐ WHY THIS IS ADDRESSABLE WHERE `earnings_table` WAS REFUSED. Both stores are a
+# `metrics TEXT` JSON blob with no per-field SQL column, but that shape alone is
+# not what disqualified earnings_table — it was TWO LISTS OF ROWS per snapshot
+# (annual, quarterly) with no single as-of column across the payload.
+# `breadth_snapshot_numeric` has neither problem: ONE row per session (`date` is
+# a real PRIMARY KEY, and it IS the as-of), and the blob is a FLAT dict of
+# scalars — there is nothing to pick an index into. And unlike earnings_table's
+# growing, undeclared key set, breadth's metric names are a governed catalogue:
+# `api/services/breadth_metrics.py`'s own `_ROWS` literal is the SAME authority
+# every reader and writer in this repo already treats as "which breadth metrics
+# exist" — the role `closedTable.json` plays for screener scalars. Nothing is
+# typed here: the metric keys and each one's human sentence are read off that
+# literal by AST.
+#
+# ⛔ THE "column" FIELD NAMES A JSON KEY, NOT A SQL COLUMN. `row_position()` in
+# `address_book.py` looks for a `row_projection` list on the store record; this
+# store declares none, so a breadth metric's ordinal correctly resolves to
+# `None` forever — there is no row-projection concept for a keyed JSON lookup,
+# and inventing one would misrepresent the shape the same way a flat
+# `metric.column` entry would have misrepresented earnings_table's two lists.
+# ─────────────────────────────────────────────────────────────────────────────
+
+_BREADTH_METRICS_MODULE = _ROOT / "api" / "services" / "breadth_metrics.py"
+_BREADTH_MONITOR_MODULE = _ROOT / "api" / "services" / "breadth_monitor.py"
+_BREADTH_TABLE = "breadth_snapshot_numeric"
+
+
+def _breadth_metric_rows(tree: ast.Module) -> list:
+    """[(metric_key, sentence), ...] out of `breadth_metrics.py`'s `_ROWS`.
+
+    ⛔ Only the two string-literal fields this book actually consumes (index 0,
+    the metric key; index 2, the human name) are required to be constants — the
+    later fields (`unit`/`domain`/`presentation`/`portability`) are references to
+    module-level constants (`UNIT_PERCENT`, `DOMAIN_PCT`, …), not literals, and
+    resolving those is a separate declaration this checkpoint does not need.
+    Refuses on a malformed tuple rather than silently skipping it.
+    """
+    assign = None
+    for node in tree.body:
+        if (isinstance(node, ast.Assign) and len(node.targets) == 1
+                and isinstance(node.targets[0], ast.Name) and node.targets[0].id == "_ROWS"):
+            assign = node
+            break
+    if assign is None or not isinstance(assign.value, ast.List):
+        _fail("could not find a module-level `_ROWS = [...]` literal in %s"
+              % _BREADTH_METRICS_MODULE.name)
+    rows = []
+    for elt in assign.value.elts:
+        if not isinstance(elt, ast.Tuple):
+            _fail("a `_ROWS` entry in %s is not a tuple literal" % _BREADTH_METRICS_MODULE.name)
+        key, name = elt.elts[0], elt.elts[2]
+        if not (isinstance(key, ast.Constant) and isinstance(key.value, str)):
+            _fail("a `_ROWS` tuple's metric key in %s is not a string constant — "
+                  "refusing to guess its value" % _BREADTH_METRICS_MODULE.name)
+        if not (isinstance(name, ast.Constant) and isinstance(name.value, str)):
+            _fail("a `_ROWS` tuple's name in %s is not a string constant — "
+                  "refusing to guess its value" % _BREADTH_METRICS_MODULE.name)
+        rows.append((key.value, name.value))
+    return rows
+
+
+def breadth_store() -> tuple:
+    """(store_id, store_record, metrics) for `breadth_snapshot_numeric`.
+
+    See the module comment above this function for why this store IS
+    addressable where `earnings_table` was refused, and why `column` here names
+    a JSON key rather than a SQL column. Nothing typed: the metric set comes
+    from `breadth_metrics.py`'s own `_ROWS` literal; the store's key/as-of comes
+    from `breadth_monitor.py`'s own `CREATE TABLE` literal.
+    """
+    metrics_tree = _module_source(_BREADTH_METRICS_MODULE)
+    rows = _breadth_metric_rows(metrics_tree)
+    if not rows:
+        _fail("%s's _ROWS literal is empty — an empty scan is a failed invocation"
+              % _BREADTH_METRICS_MODULE.name)
+
+    monitor_tree = _module_source(_BREADTH_MONITOR_MODULE)
+    ddls = {}
+    for s in _string_constants(monitor_tree):
+        if not re.search(r"CREATE\s+TABLE", s, re.I):
+            continue
+        table_i, columns_i, key_i = _parse_create_table(s)
+        ddls[table_i] = (columns_i, key_i)
+    if _BREADTH_TABLE not in ddls:
+        _fail("no CREATE TABLE literal for %r in %s"
+              % (_BREADTH_TABLE, _BREADTH_MONITOR_MODULE.name))
+    _columns, key = ddls[_BREADTH_TABLE]
+    if len(key) != 1:
+        _fail("%s's PRIMARY KEY is not exactly one column: %s — the book will "
+              "not guess which one is the as-of" % (_BREADTH_TABLE, key))
+    as_of = key[0]
+
+    store_id = _BREADTH_TABLE
+    if store_id not in _STORE_AUTHORITY:
+        _fail("store %r is not classified in PRD-D2 §7" % store_id)
+
+    metrics: dict = {}
+    for metric_key, sentence in rows:
+        qualified = "%s.%s" % (store_id, metric_key)
+        metrics[qualified] = {
+            "store": store_id,
+            "column": metric_key,
+            "as_of_column": as_of,
+            "grain": None,
+            "cadence": None,
+            "yields": "num",
+            "authority": _STORE_AUTHORITY[store_id],
+            "sentence": sentence,
+        }
+
+    record = {
+        "declared_in": str(_BREADTH_MONITOR_MODULE.relative_to(_ROOT)).replace("\\", "/"),
+        "metric_catalogue_declared_in":
+            str(_BREADTH_METRICS_MODULE.relative_to(_ROOT)).replace("\\", "/"),
+        "table": store_id,
+        "key": key,
+        "as_of_column": as_of,
+        "authority": _STORE_AUTHORITY[store_id],
+        "column_is": (
+            "a JSON key inside the `metrics` TEXT blob, not a SQL column -- this "
+            "store declares no row_projection, so row_position() correctly "
+            "returns None for every metric here"
+        ),
+        "undeclared_by_this_store": ["cadence", "grain"],
+    }
+    return store_id, record, metrics
+
+
 def build() -> dict:
     from api.services.ast_lint import TABLE
     from api.services.signature import ledger as _sig_ledger
@@ -620,6 +760,16 @@ def build() -> dict:
     et_id, et_record = earnings_table_store()
     stores[et_id] = dict(et_record, metric_count=0)
 
+    # ── Owner-delegated extension (delegated to the AI session, 2026-09-23):
+    # A11's breadth/exposure metrics — see breadth_store()'s own note ────────
+    breadth_id, breadth_record, breadth_metrics = breadth_store()
+    clash = sorted(set(metrics) & set(breadth_metrics))
+    if clash:
+        _fail("two stores claim the same metric name: %s" % clash)
+    metrics.update(breadth_metrics)
+    metrics = dict(sorted(metrics.items()))
+    stores[breadth_id] = dict(breadth_record, metric_count=len(breadth_metrics))
+
     def _hist(key):
         out: dict = {}
         for m in metrics.values():
@@ -647,7 +797,10 @@ def build() -> dict:
             "CP1 shipped it inert; CP2 adds the first non-screener store "
             "(bars_sqlite, derived from its own CREATE TABLE) and exactly ONE "
             "product reader, api/services/canonical/address_book.py, which is "
-            "named by the rail that used to require zero readers. "
+            "named by the rail that used to require zero readers. An "
+            "owner-delegated extension (2026-09-23) adds breadth_snapshot_numeric "
+            "(A11's breadth/exposure metrics), derived from breadth_metrics.py's "
+            "own catalogue, not typed here. "
             "See PRD-D2-CANONICAL-DATA-MODEL and SPEC-D2-CANONICAL-DATA-MODEL."
         ),
         "address_grammar": "uct://<metric>@<entity>/<timeframe>?as_of=<instant>[&provider=<vendor>]",
@@ -657,10 +810,12 @@ def build() -> dict:
                     "app/src/components/chart/engine/ast/closedTable.json"
                     " (via api.services.ast_lint.TABLE['scalars'])",
                     "api/services/bars_sqlite.py :: the ohlcv CREATE TABLE literal",
+                    "api/services/breadth_metrics.py :: the _ROWS catalogue literal",
                 ],
                 "count": len(metrics),
-                "note": "a bars metric is table-qualified (ohlcv.c) so a "
-                        "one-letter column cannot shadow a screener scalar",
+                "note": "a bars or breadth metric is table-qualified "
+                        "(ohlcv.c, breadth_snapshot_numeric.pct_above_50sma) so a "
+                        "short column/key name cannot shadow a screener scalar",
             },
             "entity": {
                 "source": "api/services/alert_taxonomy/predicates.py",
