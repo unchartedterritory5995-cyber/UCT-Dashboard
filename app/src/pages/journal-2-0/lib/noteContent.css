@@ -317,6 +317,80 @@ mark.uct-hl-blue { background-color: var(--info-border); }
   }
 }
 
+/* ── Wave 6: a pasted link's preview card and an embedded player ──────────────
+   (webLinkNodes.js). The card is a link; the player sits in a sandboxed
+   iframe whose address the node view rebuilds from the allowlist. */
+.ProseMirror .uctLinkPreview { margin: 12px 0; }
+.ProseMirror .uctLinkPreviewCard {
+  display: flex;
+  gap: 12px;
+  align-items: stretch;
+  padding: 10px 12px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  background: var(--bg-surface);
+  color: inherit;
+  text-decoration: none;
+}
+.ProseMirror a.uctLinkPreviewCard:hover { border-color: var(--ut-gold); }
+.ProseMirror .uctLinkPreviewImage {
+  flex: 0 0 auto;
+  width: 120px;
+  max-height: 84px;
+  object-fit: cover;
+  border-radius: var(--radius-sm);
+}
+.ProseMirror .uctLinkPreviewText {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  min-width: 0;
+}
+.ProseMirror .uctLinkPreviewTitle { font-weight: 600; color: var(--text-bright); }
+.ProseMirror .uctLinkPreviewDesc {
+  color: var(--text-muted);
+  font-size: 0.9em;
+  overflow: hidden;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+}
+.ProseMirror .uctLinkPreviewDomain { color: var(--text-muted); font-size: 0.8em; }
+.ProseMirror .uctWebEmbed { margin: 12px 0; }
+.ProseMirror .uctWebEmbedBar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 4px 2px;
+  color: var(--text-muted);
+  font-size: 12px;
+}
+.ProseMirror .uctWebEmbedOpen { color: var(--accent); }
+.ProseMirror .uctWebEmbedFrame {
+  position: relative;
+  aspect-ratio: 16 / 9;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  overflow: hidden;
+  background: var(--bg-surface);
+}
+.ProseMirror .uctWebEmbedFrame[data-provider="tradingview"] { aspect-ratio: 16 / 10; }
+.ProseMirror .uctWebEmbedFrame iframe {
+  display: block;
+  width: 100%;
+  height: 100%;
+  border: 0;
+}
+.ProseMirror .ProseMirror-selectednode.uctLinkPreview .uctLinkPreviewCard,
+.ProseMirror .ProseMirror-selectednode.uctWebEmbed .uctWebEmbedFrame {
+  outline: 2px solid var(--ut-gold);
+  outline-offset: 2px;
+}
+@media (max-width: 640px) {
+  .ProseMirror .uctLinkPreviewImage { width: 84px; }
+}
+
 /* ── Wave 6: the block grip and its move menu (blockHandle.js) ────────────────
    Both live on document.body (fixed, placed by the plugin), so they are NOT
    under .ProseMirror: the `uctBlock` prefix is their scope. */
@@ -383,6 +457,12 @@ mark.uct-hl-blue { background-color: var(--info-border); }
   }
   .uctBlockHandle,
   .uctBlockMoveOption {
+    min-height: var(--tap-min);
+    min-width: var(--tap-min);
+  }
+  .ProseMirror .uctWebEmbedOpen {
+    display: inline-flex;
+    align-items: center;
     min-height: var(--tap-min);
     min-width: var(--tap-min);
   }

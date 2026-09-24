@@ -161,3 +161,29 @@ describe('NoteEditorPage — columns door (wave 6 item 5)', () => {
     expect(offered()).not.toContain('3 columns')
   })
 })
+
+describe('NoteEditorPage — pasted link door (wave 6 item 6)', () => {
+  it('a lone YouTube link pasted in the page offers Link · Preview card · Embed, and Embed places the player', async () => {
+    if (typeof globalThis.ClipboardEvent === 'undefined') {
+      globalThis.ClipboardEvent = class extends Event {
+        constructor(type, opts) { super(type, opts); this.clipboardData = (opts && opts.clipboardData) || null }
+      }
+    }
+    const editor = await renderEditor()
+    let end = null
+    editor.state.doc.descendants((n, pos) => { if (end == null && n.isText && n.text === 'Intro line.') end = pos + n.nodeSize })
+    act(() => {
+      editor.view.dispatch(editor.state.tr.setSelection(TextSelection.create(editor.state.doc, end)))
+      editor.commands.splitBlock()
+      editor.view.pasteText('https://youtu.be/dQw4w9WgXcQ')
+    })
+    const bar = await screen.findByRole('toolbar', { name: 'Pasted link' })
+    expect([...bar.querySelectorAll('button')].map((b) => b.textContent.trim())).toEqual(['Link', 'Preview card', 'Embed'])
+    fireEvent.click(screen.getByRole('button', { name: 'Embed' }))
+    const names = []
+    editor.state.doc.forEach((n) => names.push(n.type.name))
+    expect(names.slice(0, 2)).toEqual(['paragraph', 'webEmbed'])
+    expect(document.querySelector('.ProseMirror .uctWebEmbed iframe').getAttribute('src'))
+      .toBe('https://www.youtube-nocookie.com/embed/dQw4w9WgXcQ?rel=0&modestbranding=1&playsinline=1')
+  })
+})

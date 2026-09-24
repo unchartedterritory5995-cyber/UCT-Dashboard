@@ -172,6 +172,9 @@ _LEAF_TYPES = frozenset({
     "askCitation",
     # Wave 5: formulas (mathNodes.js) -- atoms holding their LaTeX in attrs.
     "inlineMath", "blockMath",
+    # Wave 6: a pasted link's preview card and an allowlisted embedded player
+    # (webLinkNodes.js) -- block atoms that read as nothing (one position).
+    "linkPreview", "webEmbed",
 })
 
 # Leaves that sit INSIDE a textblock. textBetween only ever emits a separator

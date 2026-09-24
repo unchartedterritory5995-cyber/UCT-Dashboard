@@ -9,6 +9,8 @@ import { ResizableImage } from './resizableImage'
 import { ImageFigure, ImageCaption } from './imageFigureNode'
 import { BlockHandle } from './blockHandle'
 import { Columns, Column, ColumnsGuard } from './columnsNode'
+import { LinkPreview, WebEmbed } from './webLinkNodes'
+import { LinkPasteOffer } from './linkPasteOffer'
 import Link from '@tiptap/extension-link'
 import { NotebookPlaceholder } from './notebookPlaceholder'
 import { Table, TableRow, TableHeader, TableCell } from '@tiptap/extension-table'
@@ -79,6 +81,10 @@ export function buildExtensions({ placeholder = 'Start writing… or type / for 
     // the citation tables (containers), PASTE_CONTAINERS, schema 2. The guard
     // refuses any transaction that would nest columns in a column.
     Columns, Column, ColumnsGuard,
+    // Wave 6: a pasted link's preview card and an allowlisted embedded player
+    // (webLinkNodes.js). Block atoms with no text: rows in the citation
+    // tables' _LEAF_TYPES; schema 2. Same "never remove" rule as WidgetEmbed.
+    LinkPreview, WebEmbed,
     Link.configure({
       openOnClick: false,
       autolink: true,
@@ -150,6 +156,10 @@ export function buildExtensions({ placeholder = 'Start writing… or type / for 
     // placed by pasteContainers and never reaches the VS Code handler, whose
     // behaviour inside a title has never been measured. Moving it earlier in
     // this array reverses that order.
+    // Wave 6: a lone pasted link lands as a link and offers Link / Preview card
+    // / Embed (linkPasteOffer.js). Listed just BEFORE PasteContainers, so
+    // PasteContainers still sees every paste first and this one sees it next.
+    LinkPasteOffer,
     // Rail: pasteContainers.unit.test.js ("handles a paste after Link ...").
     PasteContainers,
   ]

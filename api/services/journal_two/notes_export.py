@@ -370,6 +370,12 @@ def _raw_dollars():
         _ESCAPE_PROSE_DOLLARS.reset(token)
 
 
+# Wave 6: a stored card or embed link is exported only when it is a plain web
+# link (never javascript:, never a relative path smuggled into attrs).
+_WEB_LINK = re.compile(r"^https?://[^\s<>()]+$", re.I)
+_EMBED_LABELS = {"youtube": "YouTube video", "tradingview": "TradingView chart"}
+
+
 def _text_with_marks(node: dict[str, Any], resolver=None) -> str:
     text = node.get("text") or ""
     marks = node.get("marks") or []
@@ -651,6 +657,29 @@ def _block(node: dict[str, Any], resolver=None) -> str:
             if text.strip():
                 parts.append(text)
         return "\n\n".join(parts)
+    if ntype == "linkPreview":
+        # Wave 6: a preview card exports as the link it is (its title as the
+        # text) with its description as a quoted line under it. The card's
+        # fields are the member's stored attrs -- nothing is fetched here.
+        url = attrs.get("url") if isinstance(attrs.get("url"), str) else ""
+        label = next((v.strip() for v in (attrs.get("title"), attrs.get("domain"), url)
+                      if isinstance(v, str) and v.strip()), "")
+        if not label:
+            return ""
+        line = (_text_with_marks({"text": label, "marks": [{"type": "link", "attrs": {"href": url}}]}, resolver)
+                if _WEB_LINK.match(url) else _text_with_marks({"text": label}, resolver))
+        desc = attrs.get("description")
+        if isinstance(desc, str) and desc.strip():
+            return f"{line}\n\n> {_text_with_marks({'text': ' '.join(desc.split())}, resolver)}"
+        return line
+    if ntype == "webEmbed":
+        # Wave 6: Markdown has no player, so an embed exports as a link to what
+        # it plays. The iframe address is never exported (only the page link).
+        url = attrs.get("url") if isinstance(attrs.get("url"), str) else ""
+        if not _WEB_LINK.match(url):
+            return ""
+        label = _EMBED_LABELS.get(attrs.get("provider"), "Embedded link")
+        return _text_with_marks({"text": label, "marks": [{"type": "link", "attrs": {"href": url}}]}, resolver)
     if ntype == "attachmentChip":
         href = attrs.get("href") or ""
         local = resolver(href) if resolver else None

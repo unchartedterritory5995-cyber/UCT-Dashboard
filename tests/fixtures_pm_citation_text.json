@@ -3577,5 +3577,94 @@
     "pm_to": 72
    }
   ]
+ },
+ "linkCardAndEmbed": {
+  "json": {
+   "type": "doc",
+   "content": [
+    {
+     "type": "paragraph",
+     "content": [
+      {
+       "type": "text",
+       "text": "Read this."
+      }
+     ]
+    },
+    {
+     "type": "linkPreview",
+     "attrs": {
+      "url": "https://news.example.com/a",
+      "title": "NVDA prints a record quarter",
+      "description": "Data-centre revenue beat.",
+      "domain": "news.example.com",
+      "image": null
+     }
+    },
+    {
+     "type": "paragraph",
+     "content": [
+      {
+       "type": "text",
+       "text": "And watch:"
+      }
+     ]
+    },
+    {
+     "type": "webEmbed",
+     "attrs": {
+      "provider": "youtube",
+      "ref": "dQw4w9WgXcQ",
+      "url": "https://youtu.be/dQw4w9WgXcQ"
+     }
+    },
+    {
+     "type": "paragraph",
+     "content": [
+      {
+       "type": "text",
+       "text": "After."
+      }
+     ]
+    }
+   ]
+  },
+  "text": "Read this.\nAnd watch:\nAfter.",
+  "contentSize": 34,
+  "textSpans": [
+   {
+    "pm_start": 1,
+    "pm_end": 11,
+    "text": "Read this."
+   },
+   {
+    "pm_start": 14,
+    "pm_end": 24,
+    "text": "And watch:"
+   },
+   {
+    "pm_start": 27,
+    "pm_end": 33,
+    "text": "After."
+   }
+  ],
+  "leafSpans": [],
+  "passages": [
+   {
+    "text": "Read this.",
+    "pm_from": 1,
+    "pm_to": 11
+   },
+   {
+    "text": "And watch:",
+    "pm_from": 14,
+    "pm_to": 24
+   },
+   {
+    "text": "After.",
+    "pm_from": 27,
+    "pm_to": 33
+   }
+  ]
  }
 }

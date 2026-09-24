@@ -208,3 +208,40 @@ def test_an_empty_or_malformed_column_never_raises_and_drops_no_words():
     md = tiptap_to_markdown(_doc({"type": "columns", "content": [
         _col(_para("left")), _col(_para()), _col(_para("right"))]}))
     assert md == "left\n\nright"
+
+
+# ── item 6: a preview card and an embed export as links ─────────────────────
+
+def _card(**attrs):
+    return {"type": "linkPreview", "attrs": attrs}
+
+
+def test_a_preview_card_exports_as_its_titled_link_with_its_description_quoted():
+    md = tiptap_to_markdown(_doc(_card(
+        url="https://news.example.com/a", title="NVDA prints a record quarter",
+        description="Data-centre  revenue\nbeat.", domain="news.example.com", image="https://x.example.com/i.png")))
+    assert md == "[NVDA prints a record quarter](https://news.example.com/a)\n\n> Data-centre revenue beat."
+
+
+def test_a_card_without_a_title_falls_back_to_its_domain_then_its_url():
+    assert tiptap_to_markdown(_doc(_card(url="https://example.com/p", domain="example.com"))) == \
+        "[example.com](https://example.com/p)"
+    assert tiptap_to_markdown(_doc(_card(url="https://example.com/p"))) == \
+        "[https://example.com/p](https://example.com/p)"
+
+
+def test_a_card_whose_stored_url_is_not_a_web_link_exports_its_title_as_plain_text():
+    assert tiptap_to_markdown(_doc(_card(url="javascript:alert(1)", title="Click me"))) == "Click me"
+    assert tiptap_to_markdown(_doc(_card())) == ""
+
+
+def test_an_embed_exports_as_a_link_to_what_it_plays_never_its_player_address():
+    md = tiptap_to_markdown(_doc(
+        {"type": "webEmbed", "attrs": {"provider": "youtube", "ref": "dQw4w9WgXcQ", "url": "https://youtu.be/dQw4w9WgXcQ"}},
+        {"type": "webEmbed", "attrs": {"provider": "tradingview", "ref": "NASDAQ:AAPL",
+                                       "url": "https://www.tradingview.com/symbols/NASDAQ-AAPL/"}},
+        {"type": "webEmbed", "attrs": {"provider": "youtube", "ref": "x", "url": "javascript:alert(1)"}},
+    ))
+    assert md == ("[YouTube video](https://youtu.be/dQw4w9WgXcQ)\n\n"
+                  "[TradingView chart](https://www.tradingview.com/symbols/NASDAQ-AAPL/)")
+    assert "nocookie" not in md and "widgetembed" not in md

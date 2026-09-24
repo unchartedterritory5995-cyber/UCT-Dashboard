@@ -59,6 +59,9 @@ const schema = new Schema({
     // Wave 6 (columnsNode.js): containers with no text of their own.
     columns: { group: 'block', content: 'column{2,3}', toDOM: () => ['div', 0] },
     column: { content: 'block+', toDOM: () => ['div', 0] },
+    // Wave 6 (webLinkNodes.js): block leaves that read as nothing.
+    linkPreview: { group: 'block', atom: true, attrs: { url: { default: null }, title: { default: null }, description: { default: null }, domain: { default: null }, image: { default: null } }, toDOM: () => ['div'] },
+    webEmbed: { group: 'block', atom: true, attrs: { provider: { default: null }, ref: { default: null }, url: { default: null } }, toDOM: () => ['div'] },
   },
   marks: { bold: { toDOM: () => ['strong', 0] }, italic: { toDOM: () => ['em', 0] }, link: { attrs: { href: { default: '' } }, toDOM: () => ['a', 0] },
     // Wave 5 (textColor.js): a palette NAME, never a colour value.
@@ -265,6 +268,15 @@ const CASES = {
       { type: 'column', content: [p('Bear case.'), p()] },
       { type: 'column', content: [p('Plan.')] }] },
     p('After.')),
+  // ── a preview card and an embed (wave 6) are block leaves that read as
+  //    NOTHING: one position each and no separator of their own, however much
+  //    title and description the card carries in its attrs. ──
+  linkCardAndEmbed: doc(p('Read this.'),
+    { type: 'linkPreview', attrs: { url: 'https://news.example.com/a', title: 'NVDA prints a record quarter',
+      description: 'Data-centre revenue beat.', domain: 'news.example.com', image: null } },
+    p('And watch:'),
+    { type: 'webEmbed', attrs: { provider: 'youtube', ref: 'dQw4w9WgXcQ', url: 'https://youtu.be/dQw4w9WgXcQ' } },
+    p('After.')),
 }
 
 // Passages cited in the astral cases -- before, inside, across a mark, and
@@ -288,6 +300,7 @@ const PASSAGES = {
   colouredMarks: ['raised and margins widened sharply', 'margins'],
   imageFigure: ['NVDA breakout, day 3', 'day 3', 'After.'],
   columns: ['Margins widen.', 'Bear case.', 'Plan.', 'After.'],
+  linkCardAndEmbed: ['Read this.', 'And watch:', 'After.'],
 }
 
 function passageRange(d, passage, leafText) {

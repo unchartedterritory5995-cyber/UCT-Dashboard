@@ -67,6 +67,8 @@ const schema = new Schema({
     imageCaption: { content: 'inline*', toDOM: () => ['figcaption', 0] },
     columns: { group: 'block', content: 'column{2,3}', toDOM: () => ['div', 0] },
     column: { content: 'block+', toDOM: () => ['div', 0] },
+    linkPreview: { group: 'block', atom: true, attrs: { url: { default: null }, title: { default: null }, description: { default: null }, domain: { default: null }, image: { default: null } }, toDOM: () => ['div'] },
+    webEmbed: { group: 'block', atom: true, attrs: { provider: { default: null }, ref: { default: null }, url: { default: null } }, toDOM: () => ['div'] },
   },
   marks: {
     bold: { toDOM: () => ['strong', 0] },
