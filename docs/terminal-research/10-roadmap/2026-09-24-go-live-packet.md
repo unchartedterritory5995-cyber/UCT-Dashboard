@@ -38,6 +38,15 @@ walkthrough (2026-09-23): 242/242 combined, zero file overlap, hygiene clean acr
 first five; every commit landed after it has been individually scoped-tested and
 hygiene-checked the same way before shipping (see each result callout in the roadmap).
 
+**Day 7's own "walkthrough as user actions" pass — done 2026-09-24, 5/5.** Separate from
+the test-suite walkthrough above: every §5 terminal-grade property was performed as a
+member would perform it, against a local boot of the shipped code (one context ·
+provenance · addressable · keyboard-fast · resilient panels), each with what the browser
+showed recorded. Result callout and the evidence folder
+(`evidence/2026-09-24-day7-walkthrough/`) are in the roadmap under Day 7. This does not
+change any row in §2 — it confirms the already-live surfaces behave as the properties
+demand; the flag decisions below stand on their own evidence.
+
 ---
 
 ## 2 · Dark, flag-gated, awaiting an explicit "go" — the actual decision surface

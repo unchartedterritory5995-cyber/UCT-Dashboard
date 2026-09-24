@@ -25,6 +25,15 @@ open for a real, named, external reason (an owner-bound scope call, a dated wait
 missing vendor signal, or a partner-coordination conversation) — not because anyone
 forgot to check.
 
+**Added 2026-09-24 (post-restart session): Day 7's own walkthrough pass is now executed,
+not just written.** All five §5 terminal-grade properties (one context · provenance ·
+addressable · keyboard-fast · resilient panels) were performed as user actions against a
+local boot of the shipped code and passed 5/5 with zero page errors; the result callout
+is under Day 7 in the roadmap, the raw `results.json` + the re-runnable script are in
+`docs/terminal-research/10-roadmap/evidence/2026-09-24-day7-walkthrough/`. Nothing in
+§3–§5 changed as a result. The one in-plan item the resume prompt named as "written but
+not executed" is therefore closed; what remains open is exactly the §5 table below.
+
 ---
 
 ## 2 · Where everything lives (worktrees, branches, remotes)

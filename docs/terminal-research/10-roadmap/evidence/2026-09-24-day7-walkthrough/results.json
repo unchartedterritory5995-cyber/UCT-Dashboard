@@ -1,0 +1,153 @@
+{
+  "base": "http://localhost:8077",
+  "started_at": "2026-09-24T17:20:59",
+  "checks": {
+    "one_context": {
+      "status": "PASS",
+      "surface_a": "/dashboard TickerPopup click",
+      "surface_b": "/charts via nav link click",
+      "symbol": "QQQ",
+      "groups_before": {
+        "A": "SPY",
+        "B": null,
+        "C": null,
+        "D": null
+      },
+      "groups_after": {
+        "A": "QQQ",
+        "B": null,
+        "C": null,
+        "D": null
+      },
+      "chart_sym_labels": [
+        "QQQ"
+      ]
+    },
+    "provenance": {
+      "status": "PASS",
+      "ownership": {
+        "state": "provenance-present",
+        "badge_text": "FMP Source: fmp_client.get_shares_float",
+        "detail_text": "Source: fmp_client.get_shares_float",
+        "freshness_text": "END OF DAY AFTER-HOURS"
+      },
+      "analyst_ratings": {
+        "state": "provenance-present",
+        "badge_text": "FMP Source: fmp_client.get_grades_consensus",
+        "detail_text": "Source: fmp_client.get_grades_consensus",
+        "freshness_text": "END OF DAY AFTER-HOURS"
+      }
+    },
+    "addressable": {
+      "status": "PASS",
+      "layout_id": 3,
+      "expected_widget_ids": [
+        "d7-addr-a",
+        "d7-addr-b"
+      ],
+      "open_shared": {
+        "url_after": "http://localhost:8077/charts",
+        "boxes": {
+          "d7-addr-a": {
+            "x": 72,
+            "y": 72,
+            "width": 675,
+            "height": 788
+          },
+          "d7-addr-b": {
+            "x": 753,
+            "y": 72,
+            "width": 675,
+            "height": 788
+          }
+        },
+        "ok": true,
+        "side_by_side": true
+      },
+      "open_by_id": {
+        "url_after": "http://localhost:8077/charts",
+        "boxes": {
+          "d7-addr-a": {
+            "x": 72,
+            "y": 72,
+            "width": 675,
+            "height": 788
+          },
+          "d7-addr-b": {
+            "x": 753,
+            "y": 72,
+            "width": 675,
+            "height": 788
+          }
+        },
+        "ok": true
+      }
+    },
+    "keyboard_fast": {
+      "status": "PASS",
+      "after_slash": {
+        "tag": "INPUT",
+        "ariaLabel": "Find a filter",
+        "placeholder": "Find a filter\u2026  ( / )",
+        "type": null,
+        "value": "",
+        "inRow": null
+      },
+      "arrow_steps": 1,
+      "highlighted_row": "sector",
+      "after_enter": {
+        "tag": "SELECT",
+        "ariaLabel": "Sector",
+        "placeholder": null,
+        "type": null,
+        "value": "Any",
+        "inRow": "sector"
+      },
+      "after_action": {
+        "tag": "SELECT",
+        "ariaLabel": "Sector",
+        "placeholder": null,
+        "type": null,
+        "value": "Basic Materials",
+        "inRow": "sector"
+      },
+      "value_changed": true
+    },
+    "resilient_panels": {
+      "status": "PASS",
+      "forced_failures": 1,
+      "board_widgets": [
+        "d7-addr-a",
+        "d7-addr-b"
+      ],
+      "panel_a": {
+        "sym": "NVDA",
+        "canvases": 3,
+        "shows_error": false
+      },
+      "panel_b": {
+        "visible_error": "Failed to load chart for AAPL",
+        "canvases": 3,
+        "retry_button": 1
+      }
+    }
+  },
+  "page_errors": [],
+  "flags_on_login": {
+    "hub_preview_enabled": true,
+    "research_technical_tab_enabled": true,
+    "research_flow_tab_enabled": true,
+    "s7_filing_watch_enabled": false,
+    "breadth_dc_v2_2_enabled": false,
+    "breadth_dc_v2_3_enabled": false
+  },
+  "saved_layout": {
+    "id": 3,
+    "share_token_len": 35
+  },
+  "restored": {
+    "layout_restored": true,
+    "groups_restored": true
+  },
+  "finished_at": "2026-09-24T17:21:18"
+}

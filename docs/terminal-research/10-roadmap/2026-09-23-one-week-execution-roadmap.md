@@ -738,6 +738,37 @@ the whole thing holds together.
   genuinely needs another week. **Going live itself is Day 8's decision, made by the
   owner, on evidence — not an assumption baked into this plan.**
 
+> **Day 7 walkthrough result, 2026-09-24 — executed as its own pass, 5/5 properties
+> pass as user actions.** Run against a real local boot of the shipped code on
+> `:8077` (flags matching production, heavy jobs off, never production), headless
+> Chromium at 1440×900, signed in as the local admin test account. Each §5 check was
+> performed the way a member would perform it, and what the browser SHOWED is recorded
+> in the evidence, not just a pass/fail bit:
+>
+> | Property | The action taken | What was observed |
+> |---|---|---|
+> | One context | Clicked the QQQ index cell on `/dashboard` (a TickerPopup trigger); closed the modal; clicked the sidebar's Charts link — an in-app transition, not a page load | `charts_workspace_groups.A` went `SPY → QQQ` on the server within the poll window, and the `/charts` chart's symbol button read `QQQ` with no re-entry. The control is the transition itself: the target was chosen to differ from the starting value so a no-op could not read as a pass. |
+> | Provenance | Opened `/research/AAPL` Ownership, then Analyst Ratings; clicked the S8 `<Provenance>` detail toggle on each | The panel names the vendor AND the specific call behind the number — `FMP · Source: fmp_client.get_shares_float` and `FMP · Source: fmp_client.get_grades_consensus` — and the paired `<FreshnessBadge>` read `END OF DAY · AFTER-HOURS`. A named source and a named call, not a generic "grounded" badge. |
+> | Addressable | Saved a two-chart layout via `POST /api/charts/layouts`, minted its share token, then **closed the browser context** and opened `/charts?openShared=<token>` in a fresh one; repeated by id via `/charts?openLayout=<id>` in a third | Both doors rendered exactly the two saved widget ids (`d7-addr-a`, `d7-addr-b`) side by side at the saved geometry (x=72 and x=753, 675px each) and stripped the query params from the URL afterwards. Same arrangement, not a fresh default. (By design a personal template restores the ARRANGEMENT and keeps the session's tickers — `applyTemplate`'s own comment.) |
+> | Keyboard-fast | On `/screener`: `/` → ArrowDown → Enter → ArrowDown, nothing clicked | `/` focused "Find a filter"; one ArrowDown highlighted the `sector` row; Enter focused its `<select>` (value `Any`); ArrowDown set it to `Basic Materials`, and the results table and the "Sector: Basic Materials ×" chip followed. The screen's primary action completed with hands on the keyboard. ⚠️ Instrument note, kept for the next reader: the first rows on this box are selects whose only option is `Any` (the local screener snapshot carries no exchange values), so the script arrows to the first row whose control can take a value — a value that cannot change is not a keyboard defect. |
+> | Resilient panels | Opened the same two-chart board (Group A = NVDA, Group B = AAPL) with `/api/bars/AAPL` forced to HTTP 500 by a route intercept — the panel's data call, not a render throw | Panel A rendered NVDA (3 canvases, no error); panel B showed its own `Failed to load chart for AAPL` with a working **Retry** button; both `data-widget-id`s stayed on the board, the tab strip survived, zero page errors. This exercises StockChart's own error overlay; the render-crash case (`WidgetErrorFallback`) is covered by `WidgetHost`'s unit rail and was not induced here. |
+>
+> Zero `pageerror` events across all five checks. The account's board and group prefs
+> were restored after the run (verified by read-back). **Evidence:**
+> `evidence/2026-09-24-day7-walkthrough/results.json` (every observed value above) and
+> the script that produced it, `day7_walkthrough.py`, beside it — re-runnable against
+> any local boot. Screenshots were reviewed but deliberately not committed (the dashboard
+> frames carry the local test account's journal panel; the repo is public).
+>
+> Two instrument lessons from getting to a clean run, recorded so nobody re-pays them:
+> the chart's `sym-label` shows the company NAME (`NVIDIA Corporation`), so the ticker
+> must be read from the symbol button's `aria-label`; and `/api/auth/login` is
+> rate-limited 5/min, so a multi-context run must log in once and share the cookie.
+> Neither is a product finding. One observation NOT chased, for whoever owns the
+> screener: with the Sector filter applied the header still read "215 matches" while the
+> table showed only Basic Materials rows — possibly a preview-count lag, possibly the
+> universe count; one frame cannot tell, so it is noted, not asserted.
+
 ---
 
 ## 4 · Feature detail, by surface
