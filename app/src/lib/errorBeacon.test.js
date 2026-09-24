@@ -412,6 +412,12 @@ describe('the templates keep what an engine says', () => {
     ['Failed to fetch dynamically imported module: https://x.test/assets/NoteEditorPage-abc.js',
       'Failed to fetch dynamically imported module: https://x.test/assets/NoteEditorPage-abc.js'],
     ['Loading chunk 123 failed.', 'Loading chunk # failed.'],
+    // Vite 7's own preload helper (node_modules/vite/dist/node/chunks/config.js,
+    // `preload()`): `new Error(\`Unable to preload CSS for ${dep}\`)`, where
+    // `dep` is base + asset path — root-relative on this app's default base.
+    ['Unable to preload CSS for /assets/NoteEditorPage-9f3a.css', 'Unable to preload CSS for …'],
+    ['Unable to preload CSS for https://x.test/assets/NoteEditorPage-9f3a.css',
+      'Unable to preload CSS for https://x.test/assets/NoteEditorPage-#f#a.css'],
     ['Failed to fetch', 'Failed to fetch'],
     ['Load failed', 'Load failed'],
     ['Importing a module script failed.', 'Importing a module script failed.'],
@@ -421,6 +427,11 @@ describe('the templates keep what an engine says', () => {
     ['Invalid content for node paragraph: <"Buy NVDA">', 'Invalid content for node paragraph: …'],
   ])('%s', (input, expected) => {
     expect(scrubMessage(input, 'TypeError').message).toBe(expected)
+  })
+
+  it('Vite\'s CSS preload failure groups by its own template id', () => {
+    expect(scrubMessage('Unable to preload CSS for /assets/NoteEditorPage-9f3a.css', 'Error').template)
+      .toBe('vite-preload-css')
   })
 
   it('an ErrorEvent message ("Uncaught TypeError: …") is matched without its prefix and keeps its name', () => {

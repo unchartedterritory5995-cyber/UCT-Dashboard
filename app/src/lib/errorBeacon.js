@@ -390,6 +390,10 @@ const TEMPLATE_SOURCES = [
   ['chunk-load-bare', 'Loading chunk {chunk} failed.'],
   ['css-chunk-load', 'Loading CSS chunk {chunk} failed. ({url})'],
   ['css-chunk-load-bare', 'Loading CSS chunk {chunk} failed.'],
+  // Vite 7's own preload helper, `preload()` in node_modules/vite/dist/node/
+  // chunks/config.js, emitted into this app's bundle: `dep` is base + the asset
+  // path, so on the default base '/' it is root-relative and the slot is `…`.
+  ['vite-preload-css', 'Unable to preload CSS for {url}'],
   // ── React ──
   ['react-minified', 'Minified React error #{n}; visit {url} for the full message{opt: or use the non-minified dev environment for full errors and additional helpful warnings}'],
   ['react-too-many-renders', 'Too many re-renders. React limits the number of renders to prevent an infinite loop.'],
@@ -487,8 +491,8 @@ const CASHTAG_BODY = /^[A-Za-z]{1,5}$/
 // emits "Loading chunk" at all — its dynamic-import failures are the browser's
 // own "Failed to fetch dynamically imported module" / "Importing a module
 // script failed." / "error loading dynamically imported module", and its CSS
-// preload helper throws "Unable to preload CSS for <url>"
-// (node_modules/vite/dist/node/chunks/config.js). The webpack-shaped message
+// preload helper throws "Unable to preload CSS for <url>" (templated above as
+// `vite-preload-css`). The webpack-shaped message
 // can only come from a third party, and every sample of it in this repo is a
 // number (utils/staleChunk.test.js "Loading chunk 42 failed"). So a name made
 // of words — or of hex letters, which spell words too — refuses the template.
