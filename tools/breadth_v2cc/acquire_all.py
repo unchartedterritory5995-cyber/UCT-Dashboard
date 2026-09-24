@@ -183,8 +183,8 @@ with cf.ThreadPoolExecutor(8) as ex:
 json.dump({"fetched": utc(), "segments": len(todo), "changepoints": cps}, open(OUT + "/uct_identity_changepoints.json", "x"))
 T = bi.build_table({"identity": idl}, rc, pv, LAST, changepoints=cps)
 json.dump(T, open(OUT + "/uct_identity_table_v3.json", "x"))
-shutil.copyfile(os.environ.get("PIT_UCT_LEDGER", "/data/_audit/v2cc/inputs/pit_uct_ledger.json"),
-                OUT + "/pit_uct_ledger.json")
+PIT_LEDGER = sys.argv[3] if len(sys.argv) > 3 else "/data/_audit/v2cc/inputs/pit_uct_ledger.json"
+shutil.copyfile(PIT_LEDGER, OUT + "/pit_uct_ledger.json")
 window["finished"] = utc()
 files = {f: sha(open(os.path.join(OUT, f), "rb").read()) for f in sorted(os.listdir(OUT))}
 json.dump({"tag": TAG, "last_session": LAST, "acquisition_window": window, "grouped_dir": G,
