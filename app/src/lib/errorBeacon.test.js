@@ -153,13 +153,45 @@ describe('B-2 — a message survives only as a known engine template', () => {
     }
   })
 
+  // R1-4: an identifier or chunk slot that is not code REFUSES the template,
+  // and the message goes as the hash — it never passes unchanged, and the
+  // template's own words do not travel around a blanked slot either.
   it.each([
-    ['NVDA.US is not defined', '… is not defined'],
-    ['BRK.B is not a function', '… is not a function'],
-    ['NVDA:132:140 is not defined', '… is not defined'],
-    ["Cannot read properties of undefined (reading '132.50')", "Cannot read properties of undefined (reading '…')"],
-    ["Cannot read properties of undefined (reading 'NVDA')", "Cannot read properties of undefined (reading '…')"],
-  ])('an identifier slot keeps only code: %s', (input, expected) => {
+    'NVDA.US is not defined',
+    'BRK.B is not a function',
+    'NVDA:132:140 is not defined',
+    "Cannot read properties of undefined (reading '132.50')",
+    "Cannot read properties of undefined (reading 'NVDA')",
+    '$NVDA is not defined',                                      // a cashtag
+    '$nvda is not defined',                                      // a cashtag, whatever its case
+    'NVDA1 is not defined',                                      // a ticker with trailing digits
+    'a[NVDA] is not a function',                                 // brackets
+    'a[0].b is not a function',
+    'a$b is not defined',                                        // `$` other than leading
+    '$47 is not defined',                                        // no letter
+    '_1 is not defined',
+    'short-at-the-open is not defined',                          // hyphenated words
+    'Loading chunk short-at-the-open-with-full-size failed.',    // a chunk "id" of readable words
+    'Loading CSS chunk Buy-the-dip-before-earnings failed.',
+    'Loading chunk facade failed.',                              // hex letters only, still a word
+    'Loading chunk 9f3a failed.',                                // hex-like: not what a bundler sends
+  ])('a slot that is not code refuses the template: %s', (input) => {
+    const r = scrubMessage(input, 'TypeError')
+    expect(r.message).toMatch(/^TypeError: <unrecognized #[a-p]{8}>$/)
+    expect(r.template).toMatch(/^#[a-p]{8}$/)
+  })
+
+  // Residual (1) in the header, EXACTLY: what an identifier slot can still carry.
+  it.each([
+    ['Tesla is not defined', 'Tesla is not defined'],
+    ["Cannot read properties of undefined (reading 'earnings')", "Cannot read properties of undefined (reading 'earnings')"],
+    ['Short_at_the_open is not defined', 'Short_at_the_open is not defined'],
+    ['Short.at.the.open is not defined', 'Short.at.the.open is not defined'],
+    ['JSON.parse is not a function', 'JSON.parse is not a function'],   // a code acronym is not a ticker
+    ['$emitter is not defined', '$emitter is not defined'],             // `$`-led, but not 1-5 letters: not a cashtag
+    ['(intermediate value).then is not a function', '(intermediate value).then is not a function'],
+    ['x1 is not a function', 'x# is not a function'],                   // a kept part's digits are #
+  ])('residual (1) — a single code-shaped word still passes whole: %s', (input, expected) => {
     expect(scrubMessage(input, 'TypeError').message).toBe(expected)
   })
 
@@ -314,8 +346,11 @@ describe('B-3 — the scrub is bounded: capped before any pattern runs', () => {
   })
 
   it('the matcher never sees past MAX_INPUT: a template tail beyond the cap is not recognised', () => {
-    expect(scrubMessage('a'.repeat(MAX_INPUT - 20) + ' is not defined', 'ReferenceError').template).toBe('not-defined')
-    expect(scrubMessage('a'.repeat(MAX_INPUT) + ' is not defined', 'ReferenceError').template).toMatch(/^#[a-p]{8}$/)
+    // An {any} slot: it takes input of any length (an identifier slot now
+    // refuses a 980-character "identifier" on its own, which would say nothing
+    // about the cap).
+    expect(scrubMessage('a'.repeat(MAX_INPUT - 20) + ' is not valid JSON', 'SyntaxError').template).toBe('json-not-valid')
+    expect(scrubMessage('a'.repeat(MAX_INPUT) + ' is not valid JSON', 'SyntaxError').template).toMatch(/^#[a-p]{8}$/)
   })
 
   it('an identical error thrown in a loop is built once, not once per throw', () => {

@@ -12,10 +12,10 @@
  *    input, and `throw new Error(title)` is one careless line away. So a
  *    message is sent ONLY when it fully matches one of the engines' own
  *    message TEMPLATES below ("x is not a function", "Can't find variable: x",
- *    "Failed to fetch" …). Inside a matched template, an identifier slot is
- *    kept only if it is shaped like code (an identifier or a member path, no
- *    spaces, no ticker-shaped part); every quoted-input slot is `…`. A message
- *    that matches no template is sent as `<ErrorName>: <unrecognized #hash8>` —
+ *    "Failed to fetch" …). Inside a matched template, every quoted-input slot
+ *    is `…`, and an identifier or chunk slot that is not code REFUSES the
+ *    template (exactly what counts as code: residual (1) below). A message
+ *    that no template takes is sent as `<ErrorName>: <unrecognized #hash8>` —
  *    eight letters of a hash of the (digit-masked) text, so identical errors
  *    still group and none of the text travels.
  * ⛔ EVERY DIGIT in the message and the stack becomes `#` — prices, sizes,
@@ -33,10 +33,22 @@
  *    fragment. The page is sent as its reduced pathname.
  *
  * ⚠️ RESIDUAL, stated — this is everything free text can still reach:
- *    (1) a single code-shaped token in a matched template's identifier slot:
- *        a note titled "Tesla" thrown as `Tesla is not defined` would send
- *        `Tesla is not defined`. Never a space, never a digit, never a
- *        ticker-shaped word (NVDA, BRK.B), never a sentence.
+ *    (1) one code-shaped token in a matched template's identifier slot. The
+ *        slot is kept only when it is `(intermediate value)` (V8's own text)
+ *        or a dot-separated path whose every part is ONE JS identifier —
+ *        letters, digits and `_`, `$` only as the part's single leading
+ *        character — that holds a letter, and that is neither a ticker (1-5
+ *        capitals once a leading `$` and trailing digits are removed: NVDA,
+ *        NVDA1, BRK.B's B — bar the code acronyms in CODE_CAPS, e.g. JSON)
+ *        nor a cashtag (`$` then 1-5 letters of any case: $NVDA, $nvda).
+ *        So a single mixed-case or lowercase word still passes whole: a note
+ *        titled "Tesla" thrown as `Tesla is not defined` sends `Tesla is not
+ *        defined`; `(reading 'earnings')`, `Short_at_the_open is not
+ *        defined`, `Short.at.the.open is not defined` and `$emitter is not
+ *        defined` pass too, and a kept part's digits are `#` (`x1` → `x#`).
+ *        Never a space, a quote, a bracket, a hyphen, a ticker or a cashtag
+ *        there — any of those refuses the template, and the message goes as
+ *        the hash. A chunk slot passes only a numeric chunk id, sent as `#`.
  *    (2) a URL's host, and the FINAL segment of a URL path when it is a static
  *        asset file name (`…/assets/NoteEditorPage-abc.js`) — kept so a frame
  *        still says which chunk failed. Digits in it are `#`. A token-route
@@ -218,11 +230,12 @@ export function scrubUrlsInText(text) {
 // A message is sent only when it FULLY matches one of these. They are the
 // engines' own messages (V8, JavaScriptCore, SpiderMonkey), the browser's, and
 // React's / ProseMirror's / the bundler's. Slots:
-//   {id}   an identifier the engine names — kept only if code-shaped
+//   {id}   an identifier the engine names — kept only if code-shaped; anything
+//          else REFUSES the template (see `codeShaped`)
 //   {q}    '…'-quoted input · {qq} "…"-quoted input · {any} unquoted input — never sent
 //   {url}  a URL — scrubbed (origin + reduced path); anything else is `…`
 //   {n}    a number — `#`
-//   {chunk} a bundler chunk id — `#` when numeric, kept when code-shaped
+//   {chunk} a bundler chunk id — `#` when numeric; anything else REFUSES the template
 //   {alt:a|b} / {opt:text}  a closed set of literal text — kept as matched
 // Every template also matches with one trailing full stop.
 
@@ -393,30 +406,54 @@ function compileTemplate(id, src) {
 /** The template list, compiled. Exported so a rail can read its vocabulary. */
 export const TEMPLATES = TEMPLATE_SOURCES.map(([id, src]) => compileTemplate(id, src))
 
-// An identifier or a member path — `a`, `a.b.c`, `a[0].b`, `f(...).then`,
-// `(intermediate value).then`. No spaces, no quotes, no operators.
-const CODE_SHAPE = /^(?:\(intermediate value\)|[A-Za-z_$][\w$]*(?:\(\.\.\.\))?)(?:\.[A-Za-z_$][\w$]*(?:\(\.\.\.\))?|\[[\w$]*\])*$/
-// A part that reads as a ticker (NVDA, BRK.B's B) is not code worth the risk.
+// An identifier slot is kept only when it is code (R1-4): V8's own
+// `(intermediate value)` receiver, or a dot-separated path whose every part is
+// ONE JS identifier — letters, digits and `_`, with `$` allowed only as the
+// part's single leading character. No brackets, no hyphens, no other
+// punctuation. Every part must hold a letter, and no part may read as a ticker
+// or a cashtag (below).
+const INTERMEDIATE = '(intermediate value)'
+const ID_PART = /^\$?[A-Za-z_][A-Za-z0-9_]*$/
+// With a leading `$` and trailing digits removed, 1-5 capitals read as a
+// ticker (NVDA, NVDA1, BRK.B's B) and are not code worth the risk…
 const TICKERISH = /^[A-Z]{1,5}$/
 const CODE_CAPS = new Set(['URL', 'URI', 'JSON', 'CSS', 'DOM', 'HTML', 'SVG', 'XML', 'API', 'UI', 'IDB', 'ID', 'UUID', 'RTC', 'GPU', 'NaN'])
+// …and a `$` before 1-5 letters of ANY case is a cashtag ($NVDA, $nvda).
+const CASHTAG_BODY = /^[A-Za-z]{1,5}$/
+// A chunk slot passes only a NUMERIC chunk id. This app's bundler (Vite) never
+// emits "Loading chunk" at all — its dynamic-import failures are the browser's
+// own "Failed to fetch dynamically imported module" / "Importing a module
+// script failed." / "error loading dynamically imported module", and its CSS
+// preload helper throws "Unable to preload CSS for <url>"
+// (node_modules/vite/dist/node/chunks/config.js). The webpack-shaped message
+// can only come from a third party, and every sample of it in this repo is a
+// number (utils/staleChunk.test.js "Loading chunk 42 failed"). So a name made
+// of words — or of hex letters, which spell words too — refuses the template.
+const CHUNK_ID = /^\d{1,12}$/
 
 function codeShaped(value) {
-  if (!value || value.length > 200 || !CODE_SHAPE.test(value)) return false
-  for (const part of value.split('.')) {
-    const bare = part.replace(/\(\.\.\.\)$/, '').replace(/\[[\w$]*\]/g, '')
-    if (TICKERISH.test(bare) && !CODE_CAPS.has(bare)) return false
+  if (!value || value.length > 200) return false
+  const parts = value.split('.')
+  if (parts[0] === INTERMEDIATE) parts.shift()
+  for (const part of parts) {
+    if (!ID_PART.test(part)) return false
+    const core = part.replace(/^\$/, '').replace(/\d+$/, '')
+    if (!/[A-Za-z]/.test(core)) return false
+    if (part[0] === '$' && CASHTAG_BODY.test(core)) return false
+    if (TICKERISH.test(core) && !CODE_CAPS.has(core)) return false
   }
   return true
 }
 
+/** One slot, rendered — or null, which REFUSES the whole template. */
 function renderSlot(kind, value) {
   const v = value || ''
   switch (kind) {
     case 'keep': return v
-    case 'id': return codeShaped(v) ? v : '…'
+    case 'id': return codeShaped(v) ? v : null
     case 'url': return v.includes('://') ? scrubUrl(v) : '…'
     case 'n': return '#'
-    case 'chunk': return /^\d+$/.test(v) ? '#' : (/^[A-Za-z_][\w-]{0,80}$/.test(v) && codeShaped(v.replace(/-/g, '_')) ? v : '…')
+    case 'chunk': return CHUNK_ID.test(v) ? '#' : null
     default: return v ? '…' : ''          // input: never sent (an empty slot says nothing)
   }
 }
@@ -439,14 +476,20 @@ export function scrubMessage(message, name = 'Error') {
     text = text.slice(u[0].length)
     if (u[1] && resolved === 'Error') resolved = safeName(u[1])
   }
-  for (const t of TEMPLATES) {
+  // An identifier or chunk slot that is not code refuses its template: the
+  // message is then matched against the rest, and if nothing takes it, it
+  // goes as the hash — never with a blanked slot inside the template's words.
+  templates: for (const t of TEMPLATES) {
     const m = t.re.exec(text)
     if (!m) continue
     let out = ''
     let g = 1
     for (const p of t.parts) {
-      if (p.lit !== undefined) out += p.lit
-      else { out += renderSlot(p.slot, m[g]); g += 1 }
+      if (p.lit !== undefined) { out += p.lit; continue }
+      const r = renderSlot(p.slot, m[g])
+      g += 1
+      if (r === null) continue templates
+      out += r
     }
     return { message: maskDigits(out).slice(0, MAX_MESSAGE), template: t.id, name: resolved }
   }
