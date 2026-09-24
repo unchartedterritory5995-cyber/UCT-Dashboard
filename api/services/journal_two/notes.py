@@ -3496,23 +3496,38 @@ def switcher_search(
         favs = {rid for (rid,) in cur.execute(_SWITCHER_FAVORITES_SQL, (user_id,)).fetchall()}
 
         tiers: list[list[int]] = [[] for _ in range(SWITCHER_TIER_TYPO + 1)]
-        misses: list[int] = []           # positions no exact tier matched
-        lowered: list[str] = []
+        # Recents and favourites lead their tier, so they are noted as they are
+        # placed; everything else is read lazily, in newest-edit order, only as
+        # far as the page needs.
+        specials = set(recent_at) | favs
+        special_in: dict[int, list[int]] = {}
+        special_pos: set[int] = set()
+
+        def _place(pos: int, rid: int, tier: int) -> None:
+            tiers[tier].append(pos)
+            if rid in specials:
+                special_in.setdefault(tier, []).append(pos)
+                special_pos.add(pos)
+
+        misses: list[tuple[int, str]] = []   # (position, lowered title) no exact tier matched
         needle = " " + word_query
-        for pos, (_rid, title) in enumerate(live):
+        for pos, (rid, title) in enumerate(live):
             t = (title or "").lower()
-            lowered.append(t)
             if single is not None:
                 hit = single in t
             else:
                 hit = all(tok in t for tok in tokens)
             if not hit:
-                misses.append(pos)
+                misses.append((pos, t))
                 continue
             if t == text:
                 tier = SWITCHER_TIER_EXACT
             elif t.startswith(text):
                 tier = SWITCHER_TIER_PREFIX
+            elif word_query and needle in " " + t:
+                # A word starts with it before any break is even replaced —
+                # the common case, found without building the word text.
+                tier = SWITCHER_TIER_WORD_START
             else:
                 wt = " " + t.translate(_SWITCHER_BREAK_TABLE)
                 if word_query and needle in wt:
@@ -3523,30 +3538,26 @@ def switcher_search(
                     tier = SWITCHER_TIER_SUBSTRING
                 else:
                     tier = SWITCHER_TIER_ALL_WORDS
-            tiers[tier].append(pos)
+            _place(pos, rid, tier)
 
-        def _ranked(positions: list[int]):
+        def _ranked(tier: int):
             """One tier in display order: recents (last opened first), then
             favourites, then everything else — each in newest-edit order."""
-            rec, fav, rest = [], [], []
-            for p in positions:
-                rid = live[p][0]
-                if rid in recent_at:
-                    rec.append(p)
-                elif rid in favs:
-                    fav.append(p)
-                else:
-                    rest.append(p)
+            sp = special_in.get(tier, [])
+            rec = [p for p in sp if live[p][0] in recent_at]
+            fav = [p for p in sp if live[p][0] not in recent_at]
             rec.sort(key=lambda p: (live[p][0] not in favs, p))
             rec.sort(key=lambda p: recent_at[live[p][0]], reverse=True)
             yield from rec
             yield from fav
-            yield from rest
+            for p in tiers[tier]:
+                if p not in special_pos:
+                    yield p
 
         picked: list[tuple[int, int]] = []
 
         def _take(tier: int) -> bool:
-            for p in _ranked(tiers[tier]):
+            for p in _ranked(tier):
                 picked.append((p, tier))
                 if len(picked) > limit:
                     return True
@@ -3560,15 +3571,14 @@ def switcher_search(
 
         if not full and words and misses:
             # ── the bounded fuzzy tiers ──
-            scope = [p for p in misses
+            scope = [(p, t) for p, t in misses
                      if p < SWITCHER_FUZZY_SCOPE or live[p][0] in recent_at or live[p][0] in favs]
             typo_words = [w for w in words if _typo_eligible(w)]
             slip_memo: dict[tuple[str, str], bool] = {}
-            for p in scope:
-                t = lowered[p]
+            for p, t in scope:
                 wt = " " + t.translate(_SWITCHER_BREAK_TABLE)
                 if run_fuzzy and _in_order_from_word_start(wt, letters):
-                    tiers[SWITCHER_TIER_FUZZY].append(p)
+                    _place(p, live[p][0], SWITCHER_TIER_FUZZY)
                     continue
                 title_words = None
                 ok = True
@@ -3593,7 +3603,7 @@ def switcher_search(
                         ok = False
                         break
                 if ok:
-                    tiers[SWITCHER_TIER_TYPO].append(p)
+                    _place(p, live[p][0], SWITCHER_TIER_TYPO)
             for tier in (SWITCHER_TIER_FUZZY, SWITCHER_TIER_TYPO):
                 if _take(tier):
                     break
