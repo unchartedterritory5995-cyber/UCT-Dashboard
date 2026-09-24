@@ -16,7 +16,7 @@ import { setCurrentAccountId } from './offline/currentAccount'
 import { recordLandedRevision } from './offline/useDurableNote'
 import {
   UNCHECKED_SENTENCE, checkUnsentWork, describeBatch, describeExport, describeUnchecked, exportSelectedNotes,
-  holdsUnsentWork, runNoteBatch, undoFor,
+  holdsUnsentWork, joinUndo, runNoteBatch, undoFor,
 } from './noteBatch'
 import { BLOCKED_TITLE } from './offline/unsyncedCopy'
 import { __resetNotebookFlags, latchNotebookFlags } from './offline/notebookFlags'
@@ -422,5 +422,29 @@ describe('R1-N3 — an Undo that could not put every note back says what happene
     const plain = { op: 'move', changed: 0, unchanged: 0, results: [{ id: 'd', status: 'conflict' }] }
     expect(describeBatch(plain, { folderName: 'Research', titleOf }).message)
       .toBe('Nothing changed. 1 note was not changed: "D note" changed while this ran — try again.')
+  })
+})
+
+describe('R23-N5 — joinUndo: "Trash anyway" joins the Undo of the trash it finishes', () => {
+  const restore = (ids) => ({ op: 'restore', ids, args: {} })
+
+  it('a live restore Undo takes the new notes: one Undo for the whole action', () => {
+    expect(joinUndo({ undo: restore(['n3']) }, restore(['n1']))).toEqual({ undo: restore(['n3', 'n1']), earlier: 1 })
+  })
+  it('a note in both is counted once', () => {
+    expect(joinUndo({ undo: restore(['a', 'b']) }, restore(['b', 'c']))).toEqual({ undo: restore(['a', 'b', 'c']), earlier: 1 })
+  })
+  it('never joins a QUEUED Undo (a promise about its own notes), a missing one, or a different kind', () => {
+    const mine = restore(['n1'])
+    expect(joinUndo({ undo: restore(['n3']), queued: true }, mine)).toEqual({ undo: mine, earlier: 0 })
+    expect(joinUndo(null, mine)).toEqual({ undo: mine, earlier: 0 })
+    const move = { op: 'move', ids: ['n3'], args: { folders: { n3: null } } }
+    expect(joinUndo({ undo: move }, mine)).toEqual({ undo: mine, earlier: 0 })
+    expect(joinUndo({ undo: restore(['n3']) }, null)).toEqual({ undo: null, earlier: 0 })
+  })
+  it('the sentence counts the earlier part of the action too', () => {
+    const outcome = { op: 'trash', changed: 1, unchanged: 0, results: [{ id: 'n1', status: 'changed' }] }
+    expect(describeBatch(outcome).message).toBe('Moved 1 note to the Trash.')
+    expect(describeBatch(outcome, { earlier: 1 }).message).toBe('Moved 2 notes to the Trash.')
   })
 })

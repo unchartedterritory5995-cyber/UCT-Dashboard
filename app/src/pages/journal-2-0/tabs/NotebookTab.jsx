@@ -37,8 +37,11 @@ import { settleNoteWrite } from '../lib/offline/settleNoteWrite'
 import BulkActionBar from '../components/notebook/BulkActionBar'
 import { useNoteSelection } from '../lib/noteSelection'
 import {
-  checkUnsentWork, describeBatch, describeExport, describeUnchecked, exportSelectedNotes, runNoteBatch, undoFor,
+  checkUnsentWork, describeBatch, describeExport, describeUnchecked, exportSelectedNotes, joinUndo, runNoteBatch,
+  undoFor,
 } from '../lib/noteBatch'
+import { useHubEligible } from '../../../hub/useHubActive'
+import { BOTTOM_OFFSET_PX, PAD_PX } from '../../../hub/constants'
 import useJ2NoteTags, { NOTE_TAGS_KEY } from '../hooks/useJ2NoteTags'
 import { fallbackNodes } from '../lib/tagTree'
 
@@ -592,6 +595,7 @@ export default function NotebookTab() {
   // could not be checked is offered a confirmed way through; `armed` is the
   // confirmation step.
   const [bulkNotice, setBulkNotice] = useState(null) // { message, tone, anyway?, armed? }
+  const anywayRef = useRef(null)
   const anywayConfirmRef = useRef(null)
   // ⛔ THE WAY BACK HAS ITS OWN NOTICE (review S4). With one shared notice, any
   // later action's sentence replaced the only Undo, and pressing Undo while
@@ -644,26 +648,47 @@ export default function NotebookTab() {
     return () => clearTimeout(t)
   }, [bulkNotice])
   // The Undo stays for 12 seconds — and indefinitely once queued: a queued Undo
-  // is a promise to the member that it WILL run.
+  // is a promise to the member that it WILL run. R23-N5: nor does it run out
+  // while an "anyway" offer is still on screen — confirming that offer FINISHES
+  // the same action and joins this Undo (joinUndo), so the member reading the
+  // warning must not lose the first half's way back meanwhile.
+  const anywayOffer = bulkNotice?.anyway || null
+  const anywayArmed = Boolean(bulkNotice?.armed)
   useEffect(() => {
-    if (!undoNotice || undoNotice.queued) return undefined
+    if (!undoNotice || undoNotice.queued || anywayOffer) return undefined
     const t = setTimeout(() => setUndoNotice(null), 12000)
     return () => clearTimeout(t)
-  }, [undoNotice])
+  }, [undoNotice, anywayOffer])
+  // R23-N5: the "anyway" offer holds focus through its two steps. When it
+  // appears (the bar that had focus is gone), focus goes to "Trash anyway";
+  // pressing it arms the confirmation and focus follows; Cancel disarms it and
+  // focus comes back to "Trash anyway" — never dropped on the page.
+  useEffect(() => {
+    if (!anywayOffer) return
+    const target = anywayArmed ? anywayConfirmRef : anywayRef
+    target.current?.focus()
+  }, [anywayOffer, anywayArmed])
   // After a trash or a move, the bar is gone (or the notes moved out of view)
   // and focus with it — hand focus to Undo so a keyboard member can take it back
   // without hunting for it. Keyed on the undo itself, so queueing does not steal
-  // focus a second time.
+  // focus a second time. ⛔ Not while an "anyway" offer is up: a partial trash
+  // brings both at once, and the offer is the decision still waiting on the
+  // member (this effect runs after the one above, so without the check the
+  // Undo would take the focus the offer was just given).
   const undoKey = undoNotice?.undo
   useEffect(() => {
-    if (undoKey) undoRef.current?.focus()
+    if (undoKey && !anywayOffer) undoRef.current?.focus()
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [undoKey])
-  // Pressing "Trash anyway" replaces that button with the confirmation: focus
-  // follows, so a keyboard member is not dropped on the page.
-  const anywayArmed = Boolean(bulkNotice?.armed)
-  useEffect(() => {
-    if (anywayArmed) anywayConfirmRef.current?.focus()
-  }, [anywayArmed])
+  // R23-N6: where the joystick can be, the notice column starts ABOVE the pad's
+  // resting box, as the hub's own toasts do — so the Undo and its close button
+  // are never under the pad. Derived from the hub's own geometry
+  // (hub/constants.js) and its own eligibility answer, never restated here;
+  // the gap is the existing spacing token.
+  const hubCorner = useHubEligible()
+  const noticeStackStyle = hubCorner
+    ? { bottom: `calc(env(safe-area-inset-bottom) + ${BOTTOM_OFFSET_PX + PAD_PX}px + var(--space-sm))` }
+    : undefined
 
   const titleById = useMemo(() => new Map(notes.map((n) => [n.id, n.title?.trim() || 'Untitled'])), [notes])
   const selectedTags = useMemo(() => {
@@ -702,7 +727,8 @@ export default function NotebookTab() {
   }
 
   const runBulk = async (
-    op, args = {}, ctx = {}, ids = selection.selectedIds, { isUndo = false, acceptUnchecked = false } = {},
+    op, args = {}, ctx = {}, ids = selection.selectedIds,
+    { isUndo = false, acceptUnchecked = false, continues = false } = {},
   ) => {
     if (!ids.length || !startBulk()) return
     try {
@@ -719,7 +745,14 @@ export default function NotebookTab() {
       // ⛔ A queued Undo is never replaced by a newer one: it is a promise.
       if (undo && !undoQueuedRef.current) {
         setBulkNotice(offer)
-        setUndoNotice({ message, tone, undo })
+        // R23-N5: a confirmed "anyway" FINISHES the action whose Undo is on
+        // screen — its notes join that Undo, and the sentence counts both parts.
+        setUndoNotice((prev) => {
+          const joined = continues ? joinUndo(prev, undo) : { undo, earlier: 0 }
+          return joined.earlier
+            ? { ...describeBatch(outcome, { ...ctx, titleOf, earlier: joined.earlier }), undo: joined.undo }
+            : { message, tone, undo }
+        })
       } else {
         setBulkNotice(offer
           ? { ...offer, message: [message, offer.message].filter(Boolean).join(' ') }
@@ -794,7 +827,7 @@ export default function NotebookTab() {
     if (!anyway || bulkBusyRef.current) return
     setBulkNotice(null)
     if (anyway.op === 'export') exportSelection(anyway.ids, { acceptUnchecked: true })
-    else runBulk(anyway.op, {}, {}, anyway.ids, { acceptUnchecked: true })
+    else runBulk(anyway.op, {}, {}, anyway.ids, { acceptUnchecked: true, continues: true })
   }
 
   // Create a note. Blank note passes no title/body; a template seeds both
@@ -907,7 +940,7 @@ export default function NotebookTab() {
           The Undo is the LAST child: the stack grows upward from the bottom,
           so a sentence arriving later never moves the button under a finger. */}
       {(undoNotice || bulkNotice) && (
-        <div className={styles.bulkNoticeStack} data-testid="bulk-notice-stack">
+        <div className={styles.bulkNoticeStack} style={noticeStackStyle} data-testid="bulk-notice-stack">
           {bulkNotice && (
             <div
               className={`${styles.bulkNotice} ${bulkNotice.tone === 'error' ? styles.bulkNoticeError : ''}`}
@@ -920,6 +953,7 @@ export default function NotebookTab() {
               {bulkNotice.anyway && !bulkNotice.armed && (
                 <button
                   type="button"
+                  ref={anywayRef}
                   className={styles.bulkNoticeBtn}
                   onClick={() => setBulkNotice((n) => (n ? { ...n, armed: true } : n))}
                 >

@@ -50,6 +50,19 @@ vi.mock('../components/notebook/NoteGraphView', () => ({ default: () => <div dat
 vi.mock('../components/notebook/import/ImportWizard', () => ({ default: () => null }))
 vi.mock('../components/connectors/NoteConnectorsTrustStrip', () => ({ default: () => null }))
 vi.mock('../components/notebook/ResearchHome', () => ({ default: () => <div data-testid="research-home" /> }))
+// R23-N6: the hub's own answer to "could the joystick be in the corner here?"
+let hubEligible = false
+vi.mock('../../../hub/useHubActive', async (importOriginal) => ({
+  ...(await importOriginal()),
+  useHubEligible: () => hubEligible,
+}))
+// ⭐ The pad geometry is MOVED from what the hub ships: a notice column that
+// restated the hub's numbers instead of deriving them from hub/constants.js
+// would still sit at the old height here, and the rail below would see it.
+vi.mock('../../../hub/constants', async (importOriginal) => {
+  const real = await importOriginal()
+  return { ...real, PAD_PX: real.PAD_PX + 7, BOTTOM_OFFSET_PX: real.BOTTOM_OFFSET_PX + 3 }
+})
 
 let blockedIds = new Set()
 vi.mock('../lib/offline/useBlockedNotes', () => ({
@@ -76,6 +89,8 @@ import { recordLandedRevision } from '../lib/offline/useDurableNote'
 import { setCurrentAccountId } from '../lib/offline/currentAccount'
 import { __resetNotebookFlags } from '../lib/offline/notebookFlags'
 import { installKeyRange } from '../lib/offline/__fixtures__/fakeIndexedDb'
+import { BOTTOM_OFFSET_PX, PAD_PX } from '../../../hub/constants'
+import { MQ } from '../../../styles/breakpoints'
 
 /** Turn the offline wave on with a store holding unsent work for `queued`;
  *  a note in `unreadable` fails its own read (R1-S1: it cannot be checked). */
@@ -126,6 +141,7 @@ function ok(body, extra = {}) {
 beforeEach(() => {
   vi.clearAllMocks()
   blockedIds = new Set()
+  hubEligible = false
   batchCalls = []
   exportCalls = []
   batchAnswer = (body) => ({
@@ -187,6 +203,48 @@ async function moveTo(folderId) {
   fireEvent.click(screen.getByRole('button', { name: 'Move' }))
 }
 const landed = () => recordLandedRevision.mock.calls.map(([a]) => [a.noteId, a.updatedAt])
+
+const NOTEBOOK_CSS = fs.readFileSync(
+  path.join(path.dirname(fileURLToPath(import.meta.url)), 'NotebookTab.module.css'), 'utf8')
+/** EVERY style rule of a stylesheet — top level and inside each @media block,
+ *  with the condition it sits under — so a rail reads all the rules for a
+ *  class, never the first one it meets (R23-N6). */
+function cssRules(css) {
+  const src = css.replace(/\r\n/g, '\n').replace(/\/\*[\s\S]*?\*\//g, '')
+  const out = []
+  const walk = (text, media) => {
+    let i = 0
+    for (;;) {
+      const open = text.indexOf('{', i)
+      if (open < 0) return
+      const head = text.slice(i, open).trim()
+      let depth = 1
+      let j = open + 1
+      for (; j < text.length && depth; j += 1) {
+        if (text[j] === '{') depth += 1
+        else if (text[j] === '}') depth -= 1
+      }
+      const body = text.slice(open + 1, j - 1)
+      if (head.startsWith('@media')) walk(body, head.slice('@media'.length).trim())
+      else if (!head.startsWith('@')) out.push({ media, selectors: head.split(',').map((x) => x.trim()), body })
+      i = j
+    }
+  }
+  walk(src, null)
+  return out
+}
+/** A rule whose selector list names the class exactly (not a longer class). */
+const targets = (cls) => (rule) => rule.selectors.some((sel) => new RegExp(`\\.${cls}(?![\\w-])`).test(sel))
+/** One declaration's value, split rather than matched; null when absent. */
+function declOf(body, prop) {
+  let found = null
+  for (const part of body.split(';')) {
+    const colon = part.indexOf(':')
+    if (colon < 0) continue
+    if (part.slice(0, colon).trim() === prop) found = part.slice(colon + 1).trim()
+  }
+  return found
+}
 
 describe('NotebookTab — selecting notes', () => {
   it('every card in the list view carries a checkbox; the board view carries none', () => {
@@ -529,25 +587,51 @@ describe('NotebookTab — S4: the Undo cannot be lost', () => {
     expect(batchCalls.map((c) => c.op)).toEqual(['trash', 'favorite', 'restore'])
   })
 
-  it('R1-S2: only the STACK is fixed — a notice that is itself fixed would sit on top of its sibling', () => {
+  it('R1-S2 / R23-N6: only the STACK is fixed — no notice positions itself in ANY rule, media or duplicate', () => {
     // jsdom performs no layout, so the stylesheet is the evidence: the two
     // notices can only overlap if a notice positions itself out of the column.
-    const css = fs.readFileSync(
-      path.join(path.dirname(fileURLToPath(import.meta.url)), 'NotebookTab.module.css'), 'utf8')
-    const rule = (sel) => {
-      const m = css.match(new RegExp(`\\n\\${sel}\\s*\\{([^}]*)\\}`))
-      return m ? m[1] : null
+    // ⚰️ This read the FIRST unindented `.bulkNotice {` rule only, so a
+    // `position` under @media, or in a later duplicate rule, passed it.
+    const rules = cssRules(NOTEBOOK_CSS)
+    const stack = rules.filter(targets('bulkNoticeStack'))
+    const notice = rules.filter(targets('bulkNotice'))
+    // Non-vacuity: the reader sees the top-level rules AND the touch-tier one.
+    expect(stack.some((r) => r.media === null)).toBe(true)
+    expect(notice.some((r) => r.media === null)).toBe(true)
+    expect(notice.some((r) => r.media === MQ.touchDown)).toBe(true)
+    const stackTop = stack.find((r) => r.media === null).body
+    expect(declOf(stackTop, 'position')).toBe('fixed')
+    expect(declOf(stackTop, 'display')).toBe('flex')
+    expect(declOf(stackTop, 'flex-direction')).toBe('column')
+    expect(declOf(stackTop, 'pointer-events')).toBe('none')
+    for (const r of stack) {
+      const pos = declOf(r.body, 'position')
+      expect(pos === null || pos === 'fixed', `a stack rule under ${r.media} sets position: ${pos}`).toBe(true)
     }
-    const stackRule = rule('.bulkNoticeStack')
-    const noticeRule = rule('.bulkNotice')
-    expect(stackRule, 'the stack rule exists').not.toBeNull()
-    expect(noticeRule, 'the notice rule exists').not.toBeNull()
-    expect(stackRule).toMatch(/position:\s*fixed/)
-    expect(stackRule).toMatch(/display:\s*flex/)
-    expect(stackRule).toMatch(/flex-direction:\s*column/)
-    expect(stackRule).toMatch(/pointer-events:\s*none/)
-    expect(noticeRule).not.toMatch(/position:/)
-    expect(noticeRule).toMatch(/pointer-events:\s*auto/)   // the Undo still takes the click
+    for (const r of notice) {
+      expect(declOf(r.body, 'position'), `a .bulkNotice rule under ${r.media} positions itself`).toBeNull()
+      expect(declOf(r.body, 'pointer-events'), `a .bulkNotice rule under ${r.media} lets clicks through`)
+        .not.toBe('none')
+    }
+    expect(declOf(notice.find((r) => r.media === null).body, 'pointer-events')).toBe('auto') // the Undo takes the click
+  })
+
+  it('R23-N6: at the touch tier the buttons wrap UNDER the sentence — canonical breakpoint, no new custom property', () => {
+    const rules = cssRules(NOTEBOOK_CSS)
+    const touch = rules.filter((r) => r.media === MQ.touchDown)
+    const wrap = touch.find(targets('bulkNotice'))
+    const text = touch.find(targets('bulkNoticeText'))
+    expect(wrap, 'a .bulkNotice rule at the touch tier').toBeTruthy()
+    expect(text, 'a .bulkNoticeText rule at the touch tier').toBeTruthy()
+    expect(declOf(wrap.body, 'flex-wrap')).toBe('wrap')
+    expect(declOf(text.body, 'flex-basis')).toBe('100%')   // the sentence takes its own row
+    // Every rule for the notices sits under a CANONICAL condition, and none
+    // declares a custom property of its own.
+    const canonical = new Set(Object.values(MQ))
+    for (const r of rules.filter((x) => x.selectors.some((sel) => /\.bulkNotice/.test(sel)))) {
+      if (r.media !== null) expect(canonical.has(r.media), `non-canonical @media ${r.media}`).toBe(true)
+      expect(/(^|[;{\s])--[\w-]+\s*:/.test(r.body), `a custom property declared under ${r.selectors}`).toBe(false)
+    }
   })
 })
 
@@ -728,5 +812,92 @@ describe('NotebookTab — R1-N4: a bulk action re-asks the tag counts only when 
     expect(await screen.findByText('Moved 1 note to the Trash.')).toBeInTheDocument()
     await settle()
     expect(tagAsks()).toBeGreaterThan(before)                        // and so can a trash (live notes only)
+  })
+})
+
+describe('NotebookTab — R23-N5: "Trash anyway" finishes the SAME action, and the offer holds focus', () => {
+  it('its notes JOIN the Undo on screen: one Undo restores the whole trash, and focus follows the decision', async () => {
+    withUnsentWork([], { unreadable: ['n1'] })
+    renderTab()
+    fireEvent.click(box('First note'))
+    fireEvent.click(box('Third note'))
+    fireEvent.click(screen.getByRole('button', { name: 'Move to Trash' }))
+    expect(await screen.findByText('Moved 1 note to the Trash.')).toBeInTheDocument()
+    const offer = screen.getByTestId('bulk-notice')
+    // The decision still waiting takes focus — not the Undo beside it.
+    await waitFor(() => expect(within(offer).getByRole('button', { name: 'Trash anyway' })).toHaveFocus())
+    fireEvent.click(within(offer).getByRole('button', { name: 'Trash anyway' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Yes, trash anyway' }))
+    // ONE Undo, for the whole action — not a second one for the last half.
+    await waitFor(() => expect(screen.getByTestId('bulk-undo-notice')).toHaveTextContent('Moved 2 notes to the Trash.'))
+    expect(screen.getAllByRole('button', { name: 'Undo' })).toHaveLength(1)
+    const undo = within(screen.getByTestId('bulk-undo-notice')).getByRole('button', { name: 'Undo' })
+    await waitFor(() => expect(undo).toHaveFocus())
+    fireEvent.click(undo)
+    expect(await screen.findByText('Restored 2 notes.')).toBeInTheDocument()
+    expect(batchCalls.map((c) => [c.op, c.ids])).toEqual([
+      ['trash', ['n3']], ['trash', ['n1']], ['restore', ['n3', 'n1']],
+    ])
+  })
+
+  it('the first half\'s Undo does not run out while the offer to finish the action is still open', async () => {
+    vi.useFakeTimers({ shouldAdvanceTime: true, toFake: ['setTimeout', 'clearTimeout'] })
+    try {
+      withUnsentWork([], { unreadable: ['n1'] })
+      renderTab()
+      fireEvent.click(box('First note'))
+      fireEvent.click(box('Third note'))
+      fireEvent.click(screen.getByRole('button', { name: 'Move to Trash' }))
+      expect(await screen.findByText('Moved 1 note to the Trash.')).toBeInTheDocument()
+      await act(async () => { vi.advanceTimersByTime(20000) })   // well past the Undo's 12 s
+      expect(screen.getByTestId('bulk-undo-notice')).toHaveTextContent('Moved 1 note to the Trash.')
+      // ⛔ CONTROL: with the offer dismissed, the same Undo runs out as ever.
+      fireEvent.click(within(screen.getByTestId('bulk-notice')).getByRole('button', { name: 'Dismiss this message' }))
+      await act(async () => { vi.advanceTimersByTime(13000) })
+      expect(screen.queryByTestId('bulk-undo-notice')).toBeNull()
+    } finally {
+      vi.useRealTimers()
+    }
+  })
+
+  it('when nothing moved, "Trash anyway" takes focus as it appears, and gets it back after Cancel', async () => {
+    withUncheckableDevice()
+    renderTab()
+    fireEvent.click(box('First note'))
+    fireEvent.click(screen.getByRole('button', { name: 'Move to Trash' }))
+    // The bar that had focus is gone (the selection emptied): focus is handed on.
+    await waitFor(() => expect(screen.getByRole('button', { name: 'Trash anyway' })).toHaveFocus())
+    fireEvent.click(screen.getByRole('button', { name: 'Trash anyway' }))
+    await waitFor(() => expect(screen.getByRole('button', { name: 'Yes, trash anyway' })).toHaveFocus())
+    fireEvent.click(screen.getByRole('button', { name: 'Cancel' }))
+    await waitFor(() => expect(screen.getByRole('button', { name: 'Trash anyway' })).toHaveFocus())
+    expect(batchCalls).toEqual([])
+  })
+})
+
+describe('NotebookTab — R23-N6: the notice column clears the joystick pad', () => {
+  async function trashOne() {
+    renderTab()
+    fireEvent.click(box('First note'))
+    fireEvent.click(screen.getByRole('button', { name: 'Move to Trash' }))
+    expect(await screen.findByText('Moved 1 note to the Trash.')).toBeInTheDocument()
+    return screen.getByTestId('bulk-notice-stack')
+  }
+
+  it('where the joystick can be, the column starts above its resting box — from the hub\'s OWN constants', async () => {
+    hubEligible = true
+    const stack = await trashOne()
+    // The constants are MOVED in this file (vi.mock above), so a restated
+    // 68 + 84 would not produce this: the lift is derived, not copied.
+    const bottom = stack.style.bottom
+    expect(bottom).toContain(`${BOTTOM_OFFSET_PX + PAD_PX}px`)
+    expect(bottom).toContain('env(safe-area-inset-bottom)')
+    expect(bottom).toContain('var(--space-sm)')                    // an existing token, not a new one
+  })
+
+  it('⛔ CONTROL — where the joystick cannot be, the stylesheet\'s own bottom stands', async () => {
+    hubEligible = false
+    const stack = await trashOne()
+    expect(stack.style.bottom).toBe('')
   })
 })

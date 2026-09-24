@@ -240,20 +240,32 @@ def _flat_at(s: dict[str, Any], pm: int) -> int | None:
     return s["flat_end"] if units == want else None
 
 
+def node_type(node: dict[str, Any]) -> str | None:
+    """A node's `type`, or None when it is not a string. The ONE place a stored
+    type is read before a table lookup: a set or dict lookup HASHES the key, so
+    a hand-made `{"type": ["x"]}` raised TypeError and 500'd the note's save
+    (R23-N3). A non-string type is an UNKNOWN node -- exactly what the client
+    reads it as (lib/tiptap.js::nodeTypeOf answers null for a non-string
+    name), and what the walkers here did before the tables existed."""
+    ntype = node.get("type")
+    return ntype if isinstance(ntype, str) else None
+
+
 def _is_textblock(node: dict[str, Any]) -> bool:
     """R1's `node.isTextblock`, from JSON. A known type answers by TYPE, as
     ProseMirror does -- a textblock even when EMPTY (no `content` to look at),
     a container never, even holding inline content. Only a type in neither
     table is inferred: holding inline content, it is treated as a textblock,
-    since in a valid doc only a textblock can hold inline nodes."""
-    ntype = node.get("type")
+    since in a valid doc only a textblock can hold inline nodes. A type that
+    is not a string is unknown (`node_type`), the node's and its children's."""
+    ntype = node_type(node)
     if ntype in _TEXTBLOCK_TYPES:
         return True
     if ntype in _BLOCK_CONTAINER_TYPES:
         return False
     children = node.get("content")
     return isinstance(children, list) and any(
-        isinstance(c, dict) and (c.get("type") == "text" or c.get("type") in _INLINE_LEAF_TYPES)
+        isinstance(c, dict) and (node_type(c) == "text" or node_type(c) in _INLINE_LEAF_TYPES)
         for c in children)
 
 
@@ -299,7 +311,7 @@ def flatten(doc: dict[str, Any] | None) -> dict[str, Any]:
         """Returns the position immediately AFTER `node`."""
         if not isinstance(node, dict):
             return pos
-        ntype = node.get("type")
+        ntype = node_type(node)
         attrs = node.get("attrs")
         if not isinstance(attrs, dict):
             attrs = {}

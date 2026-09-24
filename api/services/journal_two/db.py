@@ -2699,9 +2699,12 @@ def run_notebook_migration_v6(conn: sqlite3.Connection) -> None:
         pass
 
 
-# Rows per transaction, and the most wall time one boot may spend. A boot that
-# runs out of budget stops between batches; the next resumes from the recorded
-# progress. Both are module constants so a test can shrink them.
+# Rows per transaction, and the most wall time one boot may spend. The clock is
+# read after EVERY row, so a boot that runs out of budget stops within one row
+# -- not at the end of a batch: 200 near-cap notes once took 68 s in one batch
+# against a 20 s budget (R23-N1), and every boot second is member-facing. The
+# next boot resumes from the last row this one walked. Both are module
+# constants so a test can shrink them.
 _BODY_PLAIN_BACKFILL_BATCH = 200
 _BODY_PLAIN_BACKFILL_BUDGET_S = 20.0
 # v7's tables, and the extra columns each row needs beyond its body. Versions
@@ -2721,6 +2724,20 @@ def _write_flag_atomic(path: Path, data: bytes) -> None:
     os.replace(tmp, path)
 
 
+def _stored_doc(body_json: Any) -> dict[str, Any] | None:
+    """A stored body as the doc it holds, or None when it does not hold one.
+    The save's own shape rule (`notes._validate_body_json`: an object whose
+    type is "doc"). JSON that parses to anything else -- null, [], "hello" --
+    is as unreadable as JSON that does not parse, and the backfill leaves such
+    a row exactly as it is: reading it as an empty doc would ERASE a body_plain
+    nobody can re-derive (R23-N2)."""
+    try:
+        doc = json.loads(body_json)
+    except Exception:  # noqa: BLE001 — not JSON (or not text): unreadable
+        return None
+    return doc if isinstance(doc, dict) and doc.get("type") == "doc" else None
+
+
 def rederive_body_plain(
     conn: sqlite3.Connection, *, flag_name: str, tables: tuple[str, ...], count_table: str,
     extra_columns: dict[str, tuple[str, ...]] | None = None, on_changed=None,
@@ -2735,9 +2752,11 @@ def rederive_body_plain(
       · guarded per row on `body_json` still being the one it derived from;
       · idempotent: a row already matching is not written (a re-run is a
         read-only pass);
+      · a body that is not a doc (`_stored_doc`) is left exactly as it is;
       · batched (one transaction per `_BODY_PLAIN_BACKFILL_BATCH` rows),
-        budgeted per boot (`_BODY_PLAIN_BACKFILL_BUDGET_S`), resumable from
-        `<flag_name>.progress` (the last rowid per table);
+        budgeted per boot (`_BODY_PLAIN_BACKFILL_BUDGET_S`, read after every
+        ROW, so a spent budget stops within one row), resumable from
+        `<flag_name>.progress` (the last rowid walked, per table);
       · flagged only once every table is walked AND `count_table` has a row.
     `on_changed(table, row, derived)` runs INSIDE the batch's transaction for
     each row this pass actually rewrote -- so a derived sidecar and the text
@@ -2777,9 +2796,6 @@ def rederive_body_plain(
         last = progress.get(table, 0)
         last = last if isinstance(last, int) else 0
         while True:
-            if clock() - started > _BODY_PLAIN_BACKFILL_BUDGET_S:
-                print(f"[{label}] budget spent; resuming next boot ({out})")
-                return out
             rows = conn.execute(
                 f"SELECT rowid, body_json, body_plain{extra} FROM {table} "
                 "WHERE rowid > ? ORDER BY rowid LIMIT ?",
@@ -2787,30 +2803,41 @@ def rederive_body_plain(
             ).fetchall()
             if not rows:
                 break
+            spent = False
             for row in rows:
                 rowid, body_json, body_plain = row[0], row[1], row[2]
                 counts["scanned"] += 1
+                doc = _stored_doc(body_json)
                 try:
-                    derived = extract_plain_text(json.loads(body_json))
+                    derived = extract_plain_text(doc) if doc is not None else None
                 except Exception:  # noqa: BLE001 — unreadable body: leave the row as it is
-                    continue
-                if derived == (body_plain or ""):
-                    continue
-                cur = conn.execute(
-                    f"UPDATE {table} SET body_plain = ? WHERE rowid = ? AND body_json = ?",
-                    (derived, rowid, body_json),
-                )
-                if cur.rowcount:
-                    counts["updated"] += cur.rowcount
-                    if on_changed is not None:
-                        on_changed(table, tuple(row), derived)
-            last = rows[-1][0]
+                    derived = None
+                if derived is not None and derived != (body_plain or ""):
+                    cur = conn.execute(
+                        f"UPDATE {table} SET body_plain = ? WHERE rowid = ? AND body_json = ?",
+                        (derived, rowid, body_json),
+                    )
+                    if cur.rowcount:
+                        counts["updated"] += cur.rowcount
+                        if on_changed is not None:
+                            on_changed(table, tuple(row), derived)
+                last = rowid
+                # After EVERY row, never only between batches: one near-cap
+                # note's mentions rebuild alone costs ~0.3 s (R23-N1). The row
+                # just walked is finished and is the resume point, so a spent
+                # budget stops within one row and the next boot re-walks none.
+                if clock() - started > _BODY_PLAIN_BACKFILL_BUDGET_S:
+                    spent = True
+                    break
             conn.commit()
             progress[table] = last
             try:
                 _write_flag_atomic(progress_path, json.dumps(progress).encode("utf-8"))
             except Exception:  # noqa: BLE001 — progress is an optimisation; the rows are committed
                 pass
+            if spent:
+                print(f"[{label}] budget spent; resuming next boot ({out})")
+                return out
 
     out["complete"] = True
     row_count = (conn.execute(f"SELECT COUNT(*) FROM {count_table}").fetchone()[0]
@@ -2862,8 +2889,8 @@ def run_notebook_migration_v7(conn: sqlite3.Connection, *, clock=time.monotonic)
     note saved between this pass's read and its write keeps what its own save
     wrote. Idempotent: a row whose stored text already equals the derived text
     is not written, so a re-run is a read-only pass. Batched: each batch is its
-    own transaction, and a boot stops after `_BODY_PLAIN_BACKFILL_BUDGET_S`
-    between batches; progress (the last rowid per table) is kept in
+    own transaction, and a boot stops within one row of spending
+    `_BODY_PLAIN_BACKFILL_BUDGET_S`; progress (the last rowid walked, per table) is kept in
     `.notebook_migration_v7.progress` beside the flag so the next boot resumes
     rather than re-walking. The flag is written only when both tables are
     walked AND at least one note existed -- a flag over zero notes would let a

@@ -464,7 +464,20 @@
   border: none;
   cursor: pointer;
 }
+/* R23-N6: at the touch tier the buttons go UNDER the sentence. In one row, the
+   finger-sized buttons of an armed confirmation left the sentence 41px wide at
+   390px — a 399px-tall notice, and the warning the member is consenting to read
+   one word per line. The sentence takes its own row; the buttons wrap beneath
+   it. (Clear of the joystick pad: NotebookTab.jsx lifts the stack, from the
+   hub's own constants.) */
 @media (max-width: 1024px) {
+  .bulkNotice {
+    flex-wrap: wrap;
+    justify-content: flex-end;
+  }
+  .bulkNoticeText {
+    flex-basis: 100%;
+  }
   .bulkNoticeBtn,
   .bulkNoticeClose {
     min-height: var(--tap-min, 44px);

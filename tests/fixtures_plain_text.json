@@ -605,6 +605,85 @@
         "content": []
       },
       "expected": ""
+    },
+    {
+      "name": "a node whose type is not a string reads as an unknown node",
+      "pm": false,
+      "doc": {
+        "type": "doc",
+        "content": [
+          {
+            "type": [
+              "x"
+            ],
+            "content": [
+              {
+                "type": "text",
+                "text": "hi"
+              }
+            ]
+          },
+          {
+            "type": "paragraph",
+            "content": [
+              {
+                "type": "text",
+                "text": "there"
+              }
+            ]
+          }
+        ]
+      },
+      "expected": "hi there"
+    },
+    {
+      "name": "an unknown node's child whose type is not a string is unknown too",
+      "pm": false,
+      "doc": {
+        "type": "doc",
+        "content": [
+          {
+            "type": "paragraph",
+            "content": [
+              {
+                "type": "text",
+                "text": "a"
+              }
+            ]
+          },
+          {
+            "type": "mystery",
+            "content": [
+              {
+                "type": {
+                  "k": 1
+                }
+              },
+              {
+                "type": "text",
+                "text": "b"
+              }
+            ]
+          },
+          {
+            "type": "mystery",
+            "content": [
+              {
+                "type": [
+                  "y"
+                ],
+                "content": [
+                  {
+                    "type": "text",
+                    "text": "c"
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      },
+      "expected": "a b c"
     }
   ]
 }

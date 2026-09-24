@@ -212,12 +212,15 @@ function failureWords(r, { backToOrigin = false } = {}) {
  * did not and why. Never just a count — "3 failed" tells nobody what to do.
  *
  * @param outcome  runNoteBatch's return value
- * @param ctx      { folderName, tag, backToOrigin, titleOf(id) } — `backToOrigin`
- *                 marks a move that put notes back where they were (Undo).
+ * @param ctx      { folderName, tag, backToOrigin, earlier, titleOf(id) } —
+ *                 `backToOrigin` marks a move that put notes back where they
+ *                 were (Undo); `earlier` counts notes an EARLIER batch of the
+ *                 same member action already changed (R23-N5: a "Trash anyway"
+ *                 finishing a partial trash reads as the whole trash).
  */
-export function describeBatch(outcome, { folderName, tag, backToOrigin = false, titleOf = () => null } = {}) {
+export function describeBatch(outcome, { folderName, tag, backToOrigin = false, earlier = 0, titleOf = () => null } = {}) {
   const { op, changed, unchanged } = outcome
-  const n = plural(changed, 'note')
+  const n = plural(changed + earlier, 'note')
   const done = {
     move: backToOrigin
       ? `Moved ${n} back to where ${changed === 1 ? 'it was' : 'they were'}.`
@@ -304,6 +307,27 @@ export function undoFor(op, outcome, args = {}) {
     }
   }
   return null
+}
+
+/**
+ * R23-N5: the Undo after a confirmed "Trash anyway". That batch FINISHES the
+ * member's partial trash, so its notes join the Undo still on screen for the
+ * first part — one Undo restores the whole action, not the last half of it.
+ *
+ * @param prev  the Undo notice on screen ({ undo, queued }) or null
+ * @param undo  the confirmed batch's own Undo (undoFor) or null
+ * @returns     { undo, earlier } — the Undo to offer, and how many notes the
+ *              earlier part changed (describeBatch's `earlier`).
+ * Joined only when `prev` is still offered and not already queued to run (a
+ * queued Undo is a promise about ITS notes), and both restore a trash: a
+ * restore carries no per-note args, so joining is the union of the ids.
+ */
+export function joinUndo(prev, undo) {
+  if (!undo || !prev?.undo || prev.queued || prev.undo.op !== 'restore' || undo.op !== 'restore') {
+    return { undo, earlier: 0 }
+  }
+  const ids = [...new Set([...prev.undo.ids, ...undo.ids])]
+  return { undo: { ...undo, ids }, earlier: ids.length - undo.ids.length }
 }
 
 /**

@@ -81,6 +81,7 @@ from api.services.journal_two.note_citation_text import (
     _INLINE_LEAF_TYPES as _CITATION_INLINE_LEAF_TYPES,
     _LEAF_TYPES as _CITATION_LEAF_TYPES,
     _is_textblock as _citation_is_textblock,
+    node_type as _citation_node_type,
 )
 
 # ⛔ Was `<repo>/data/j2_attachments` — ephemeral container storage on Railway;
@@ -181,8 +182,10 @@ def extract_plain_text(doc: dict[str, Any] | None) -> str:
     ⚰️ Until 2026-09-23 every text node was joined with a space, so a partly
     bold word was indexed as two words and a search for it missed the note.
 
-    attrs may be any JSON shape (permissive body validator + importer round
-    trip) -- a non-dict degrades to {} and never 500s the note write."""
+    attrs and type may be any JSON shape (permissive body validator + importer
+    round trip) -- a non-dict attrs degrades to {}, a non-string type reads as
+    an unknown node (note_citation_text.node_type), and neither 500s the note
+    write."""
     if not isinstance(doc, dict):
         return ""
     parts: list[str] = []
@@ -198,7 +201,9 @@ def extract_plain_text(doc: dict[str, Any] | None) -> str:
     def walk(node: Any) -> None:
         if not isinstance(node, dict):
             return
-        ntype = node.get("type")
+        # A type that is not a string is an UNKNOWN node, never a table key:
+        # `{"type": ["x"]}` hashed here and 500'd create/update (R23-N3).
+        ntype = _citation_node_type(node)
         attrs = node.get("attrs")
         if not isinstance(attrs, dict):
             attrs = {}

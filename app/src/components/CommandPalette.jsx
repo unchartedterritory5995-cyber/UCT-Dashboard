@@ -357,13 +357,13 @@ const CommandPalette = forwardRef(function CommandPalette(_props, ref) {
     }),
     [notebookCommandRows, notebookNoteRows, tickerRows, noteMatchRows, qUpper, tickersSettled],
   )
-  // R1-N2: does an Enter on the top row have to wait for an answer first?
+  // R1-N2 / R23-N4: does an Enter on the top row have to wait for the answers
+  // first? For a ticker-led query, for BOTH of them.
   const mustWait = enterMustWait({
     hasFixedLeaders: notebookCommandRows.length > 0 || notebookNoteRows.length > 0,
     tickerLead: tickerLeads(qUpper, TICKER_LIKE),
     notesSettled,
     tickersSettled,
-    noteMatches: noteMatchRows,
   })
 
   useEffect(() => {
@@ -421,15 +421,18 @@ const CommandPalette = forwardRef(function CommandPalette(_props, ref) {
   }
 
   // R1-N2: a pending Enter lands the moment the answers it waits on are in —
-  // on `orderPaletteRows`' top row, the same row a slower Enter would take —
-  // or, at the latest, ENTER_WAIT_MS after the press, on whatever is known.
-  // A different query (the member kept typing) drops it.
+  // on the same row a slower Enter would take — or, at the latest,
+  // ENTER_WAIT_MS after the press, on whatever is known. R23-N4: that row is
+  // the one the MEMBER has highlighted when it lands: an arrow pressed during
+  // the wait is their choice, never overruled by row 0. Untouched, the
+  // highlight stays on row 0 — `orderPaletteRows`' top row once both answers
+  // are in. A different query (the member kept typing) drops it.
   useEffect(() => {
     if (!pendingEnter) return undefined
     if (pendingEnter.query !== trimmedQuery) { setPendingEnter(null); return undefined }
     const land = () => {
       setPendingEnter(null)
-      const target = displayRows[0] || (qUpper ? { kind: 'ticker', ticker: qUpper } : null)
+      const target = displayRows[activeIdx] || (qUpper ? { kind: 'ticker', ticker: qUpper } : null)
       if (!target) return
       if (pendingEnter.ask) goToAskAi(target)
       else selectRow(target)
@@ -438,7 +441,7 @@ const CommandPalette = forwardRef(function CommandPalette(_props, ref) {
     const t = setTimeout(land, Math.max(0, pendingEnter.at + ENTER_WAIT_MS - Date.now()))
     return () => clearTimeout(t)
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [pendingEnter, trimmedQuery, mustWait, displayRows, qUpper])
+  }, [pendingEnter, trimmedQuery, mustWait, displayRows, qUpper, activeIdx])
 
   const onInputKeyDown = (e) => {
     if (e.key === 'ArrowDown') {
@@ -451,7 +454,9 @@ const CommandPalette = forwardRef(function CommandPalette(_props, ref) {
       e.preventDefault()
       if (isHelp || pendingEnter) return
       // R1-N2: the top row is still a guess — say so, ask now, and land when
-      // the answer is in (bounded). An arrowed-to row is the member's choice.
+      // the answers are in (bounded). A row arrowed to BEFORE Enter is the
+      // member's choice and lands at once; one arrowed to during the wait is
+      // where the wait lands (R23-N4).
       if (activeIdx === 0 && mustWait) {
         setPendingEnter({ query: trimmedQuery, ask: e.metaKey || e.ctrlKey, at: Date.now() })
         flushRef.current?.()

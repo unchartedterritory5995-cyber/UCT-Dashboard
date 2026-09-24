@@ -102,28 +102,29 @@ export function orderPaletteRows({
 export const ENTER_WAIT_MS = 400
 
 /**
- * R1-N2: whether Enter on the TOP row must wait before it can land where a
- * slower Enter would. For a short ticker-shaped query the top row is decided
- * by two answers: whether a note title IS the query (the notes index), and
- * whether a ticker IS it (the ticker search). Until both are known, the "Go to
- * X" row on top is a guess — a fast typist on "plan" reached /research/PLAN,
- * a slower one the note called Plan.
+ * R1-N2 / R23-N4: whether an Enter must wait before it can land where a slower
+ * Enter would. For a short ticker-shaped query the rows are decided by TWO
+ * answers, and each can move the top row:
+ *   · the notes index — whether a note title IS the query ("plan": a fast
+ *     typist reached /research/PLAN, a slower one the note called Plan);
+ *   · the ticker search — which symbols START with it ("tsl": before its
+ *     answer the top row is the typed "Go to TSL", or the PREVIOUS prefix's
+ *     first result, a symbol never typed; after it, TSLA).
+ * So a ticker-led query waits for BOTH, whichever answers first — the
+ * landing may never depend on which request wins (`orderPaletteRows`' own
+ * rule). ⚰️ Round 3 waited for the notes, and for the tickers only when an
+ * exact title had arrived: "tsl" still went to /research/TSL when the notes
+ * answered first and to /research/TSLA when the tickers did.
  *   · commands or keyword rows on top: they lead whatever arrives — no wait;
- *   · a longer / note-shaped query: not decided by this race — no wait;
- *   · the notes have not answered this query: an exact title may yet arrive —
- *     wait;
- *   · they answered with an exact title and the tickers have not: wait for
- *     the ticker answer, which alone decides between the two;
- *   · otherwise the rule can be applied now.
- * The caller bounds the wait (ENTER_WAIT_MS) and shows it, then applies
- * `orderPaletteRows` — the one ordering rule — to whatever is known.
+ *   · a longer / note-shaped query: not decided by this race — no wait.
+ * The caller bounds the wait (ENTER_WAIT_MS) and shows it, then lands on the
+ * row the member has highlighted in `orderPaletteRows`' order.
  */
 export function enterMustWait({
-  hasFixedLeaders = false, tickerLead = false, notesSettled = false, tickersSettled = false, noteMatches = [],
+  hasFixedLeaders = false, tickerLead = false, notesSettled = false, tickersSettled = false,
 }) {
   if (hasFixedLeaders || !tickerLead) return false
-  if (!notesSettled) return true
-  return noteMatches.some((n) => n.exact) && !tickersSettled
+  return !notesSettled || !tickersSettled
 }
 
 /** The query as the switcher reads it: lower-cased, whitespace collapsed —

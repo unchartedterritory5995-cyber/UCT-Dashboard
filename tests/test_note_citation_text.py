@@ -1000,3 +1000,33 @@ class TestOneIndexPerFlatten:
             monkeypatch.setattr(nct, name, per_block)
         blocks = ar._note_blocks(_FIXTURES["chartsMtfThenSingle"]["json"], "chart")
         assert len(blocks) == 6 and built == [1]
+
+
+# ── R23-N3: a type that is not a string is an unknown node, never a table key ──
+
+from api.services.journal_two.note_citation_text import _is_textblock, node_type  # noqa: E402
+
+
+def test_a_node_whose_type_is_not_a_string_is_unknown_in_the_citation_walk():
+    # A set lookup hashes its key: `{"type": ["x"]}` raised TypeError here and
+    # 500'd the save (the plain text shares these tables). Unknown, it is a
+    # container whose inline content makes it a textblock -- what the client
+    # reads (lib/tiptap.js::nodeTypeOf answers null for a non-string name).
+    doc = {"type": "doc", "content": [
+        {"type": ["x"], "content": [{"type": "text", "text": "hi"}]},
+        {"type": "paragraph", "content": [{"type": "text", "text": "there"}]}]}
+    flat = flatten(doc)
+    assert flat["text"] == "hi\nthere"
+    assert [(s["text"], s["pm_start"], s["pm_end"]) for s in flat["spans"]] == [
+        ("hi", 1, 3), ("there", 5, 10)]
+    assert flat["content_size"] == 11
+    assert flat["text"].replace("\n", " ") == extract_plain_text(doc)   # one rule, two separators
+
+
+@pytest.mark.parametrize("bad", [["x"], {"k": 1}, 7, None, True])
+def test_node_type_answers_None_for_every_non_string_and_the_inference_survives_it(bad):
+    assert node_type({"type": bad}) is None
+    assert node_type({"type": "paragraph"}) == "paragraph"                # control
+    # The textblock inference reads CHILD types too, and hashed them.
+    assert _is_textblock({"type": bad, "content": [{"type": bad}, {"type": "text", "text": "b"}]}) is True
+    assert _is_textblock({"type": "mystery", "content": [{"type": bad}]}) is False

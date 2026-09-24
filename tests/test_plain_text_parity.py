@@ -100,3 +100,60 @@ def test_the_fixture_pins_the_mark_boundary_it_exists_for():
                 walk(k)
         walk(c["doc"])
     assert any("NVDA" in c["expected"] and c["name"] in pinned for c in CASES), pinned
+
+
+# ── R23-N3: a node whose type is not a string, through the REAL save path ────
+#
+# The citation tables are sets, and a set lookup HASHES its key: a hand-made
+# `{"type": ["x"]}` raised TypeError inside extract_plain_text and 500'd both
+# create and update, while the body validator had accepted it. A non-string
+# type is an UNKNOWN node on both sides (the fixture cases above pin the text);
+# this pins that the member's save answers 200 and stores that text.
+
+NON_STRING_TYPE_CASES = [c for c in CASES if "not a string" in c["name"]]
+
+
+@pytest.fixture
+def j2_client(monkeypatch):
+    import importlib
+    import os
+    import tempfile
+
+    from fastapi import FastAPI
+    from fastapi.testclient import TestClient
+
+    from api.middleware import auth_middleware as authmw
+
+    tmp = tempfile.NamedTemporaryFile(suffix=".db", delete=False)
+    tmp.close()
+    monkeypatch.setenv("AUTH_DB_PATH", tmp.name)
+    from api.services import auth_db
+    importlib.reload(auth_db)
+    auth_db.init_db()
+    from api.routers import journal_two as journal_two_router
+    app = FastAPI()
+    app.include_router(journal_two_router.router)
+    app.dependency_overrides[authmw.get_current_user] = lambda: {"id": "u-n3", "role": "member"}
+    # raise_server_exceptions=False: a 500 must read as a 500, not as a raise
+    # inside the test -- the status code is the member's answer.
+    yield TestClient(app, raise_server_exceptions=False)
+    app.dependency_overrides.clear()
+    os.unlink(tmp.name)
+
+
+def test_the_fixture_carries_the_non_string_type_cases():
+    # Non-vacuity: the router rail below iterates these.
+    assert len(NON_STRING_TYPE_CASES) == 2
+
+
+@pytest.mark.parametrize("case", NON_STRING_TYPE_CASES, ids=[c["name"] for c in NON_STRING_TYPE_CASES])
+def test_create_and_update_answer_200_and_store_the_unknown_nodes_text(j2_client, case):
+    r = j2_client.post("/api/j2/notes", json={"title": "n3", "bodyJson": case["doc"]})
+    assert r.status_code == 200, r.text
+    note = r.json()["note"]
+    assert note["bodyPlain"] == case["expected"]
+
+    other = NON_STRING_TYPE_CASES[1 - NON_STRING_TYPE_CASES.index(case)]
+    r = j2_client.put(f"/api/j2/notes/{note['id']}", json={"bodyJson": other["doc"]})
+    assert r.status_code == 200, r.text
+    assert r.json()["note"]["bodyPlain"] == other["expected"]

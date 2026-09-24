@@ -149,22 +149,21 @@ describe('row text helpers', () => {
   })
 })
 
-describe('R1-N2 — enterMustWait: Enter waits only while its target is still a guess', () => {
-  const exactNote = nt('p', { strong: true, exact: true })
-  const base = { tickerLead: true, notesSettled: true, tickersSettled: true, noteMatches: [] }
+describe('R1-N2 / R23-N4 — enterMustWait: a ticker-led Enter waits for BOTH answers', () => {
+  const base = { tickerLead: true, notesSettled: true, tickersSettled: true }
   it('waits while the notes have not answered a ticker-shaped query (an exact title may yet arrive)', () => {
     expect(enterMustWait({ ...base, notesSettled: false })).toBe(true)
   })
-  it('waits while an exact title is in and the ticker search has not answered', () => {
-    expect(enterMustWait({ ...base, tickersSettled: false, noteMatches: [exactNote] })).toBe(true)
+  it('waits while the tickers have not answered -- whatever the notes said (R23-N4: "tsl" is TSLA, not "Go to TSL")', () => {
+    expect(enterMustWait({ ...base, tickersSettled: false })).toBe(true)
+    expect(enterMustWait({ ...base, notesSettled: false, tickersSettled: false })).toBe(true)
   })
-  it('does not wait once both answered, or when the notes answered with no exact title', () => {
-    expect(enterMustWait({ ...base, noteMatches: [exactNote] })).toBe(false)
-    expect(enterMustWait({ ...base, tickersSettled: false, noteMatches: [nt('x', { strong: true })] })).toBe(false)
+  it('does not wait once both have answered', () => {
+    expect(enterMustWait(base)).toBe(false)
   })
   it('never waits when a command or keyword row leads, or for a note-shaped query', () => {
-    expect(enterMustWait({ ...base, notesSettled: false, hasFixedLeaders: true })).toBe(false)
-    expect(enterMustWait({ ...base, notesSettled: false, tickerLead: false })).toBe(false)
+    expect(enterMustWait({ ...base, notesSettled: false, tickersSettled: false, hasFixedLeaders: true })).toBe(false)
+    expect(enterMustWait({ ...base, notesSettled: false, tickersSettled: false, tickerLead: false })).toBe(false)
   })
   it('the bound is short enough to read as a pause, not a hang', () => {
     expect(ENTER_WAIT_MS).toBeGreaterThan(0)

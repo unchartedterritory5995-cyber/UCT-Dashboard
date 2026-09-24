@@ -166,22 +166,41 @@ def test_a_note_saved_between_read_and_write_keeps_its_own_save(c, monkeypatch):
     assert set(_mentions(c, "n1")) == {"AMD"}
 
 
-def test_a_spent_budget_stops_between_batches_and_the_next_boot_resumes(c, tmp_path, monkeypatch):
+def test_a_budget_spent_MID_BATCH_stops_within_one_row_and_the_next_boot_resumes_there(c, tmp_path, monkeypatch):
+    # R23-N1, as measured: 200 near-cap notes took 68 s in ONE batch against a
+    # 20 s budget, because the clock was read only between batches. Here each
+    # rewritten note costs 30 s (its mentions rebuild, as a ~1 MB note's did),
+    # and all five notes sit in ONE batch.
     _seed(c)
-    monkeypatch.setattr(dbmod, "_BODY_PLAIN_BACKFILL_BATCH", 2)
-    ticks = iter([0.0, 0.0, 1e9])  # start, first check (runs a batch), second check (spent)
-    out = dbmod.run_notebook_migration_v7(c, clock=lambda: next(ticks))
-    assert out["complete"] is False
-    assert out["j2_notes"] == {"scanned": 2, "updated": 2}  # n1, n2
-    assert not (tmp_path / ".notebook_migration_v7").exists()
-    assert json.loads((tmp_path / ".notebook_migration_v7.progress").read_text()) == {"j2_notes": 2}
+    assert dbmod._BODY_PLAIN_BACKFILL_BATCH >= 5          # the stop is MID-batch, not between batches
+    now = [0.0]
+    real = notes_mod._sync_note_mentions
 
-    resumed = dbmod.run_notebook_migration_v7(c)
+    def slow_row(conn, uid, nid, bp):
+        now[0] += 30.0
+        return real(conn, uid, nid, bp)
+
+    monkeypatch.setattr(notes_mod, "_sync_note_mentions", slow_row)
+    out = dbmod.run_notebook_migration_v7(c, clock=lambda: now[0])
+    assert out["complete"] is False
+    assert out["j2_notes"] == {"scanned": 1, "updated": 1}  # n1, and nothing after the budget went
+    assert now[0] == 30.0                                   # ONE row's cost past a 20 s budget, not five
+    assert not (tmp_path / ".notebook_migration_v7").exists()
+    # The resume point is the last row WALKED -- exact, not the batch's end.
+    assert json.loads((tmp_path / ".notebook_migration_v7.progress").read_text()) == {"j2_notes": 1}
+    assert [r["body_plain"] for r in _rows(c, "j2_notes")] == [
+        NVDA_NEW, HIGHLIGHT_OLD, "already right", NVDA_OLD, HIGHLIGHT_OLD]   # what it wrote is committed
+
+    monkeypatch.setattr(notes_mod, "_sync_note_mentions", real)
+    resumed = dbmod.run_notebook_migration_v7(c, clock=lambda: 0.0)
     assert resumed["complete"] is True
-    assert resumed["j2_notes"] == {"scanned": 3, "updated": 2}  # n3-n5 only: rows 1-2 are not walked again
+    assert resumed["j2_notes"] == {"scanned": 4, "updated": 3}  # n2-n5 only: n1 is not walked again
+    assert resumed["j2_note_versions"] == {"scanned": 2, "updated": 2}
     assert (tmp_path / ".notebook_migration_v7").exists()
     assert not (tmp_path / ".notebook_migration_v7.progress").exists()
-    assert [r["body_plain"] for r in _rows(c, "j2_notes")][0] == NVDA_NEW
+    assert [r["body_plain"] for r in _rows(c, "j2_notes")] == [
+        NVDA_NEW, "This is very important to remember", "already right", NVDA_NEW,
+        "This is very important to remember"]
 
 
 def test_an_unreadable_body_is_left_alone(c, tmp_path):
@@ -192,6 +211,22 @@ def test_an_unreadable_body_is_left_alone(c, tmp_path):
     assert out["complete"] is True
     assert c.execute("SELECT body_plain FROM j2_notes WHERE id='n3'").fetchone()[0] == "already right"
     assert (tmp_path / ".notebook_migration_v7").exists()
+
+
+@pytest.mark.parametrize("stored", ["null", "[]", '"hello"', "42", '{"type": "paragraph", "content": []}',
+                                    '{"content": [{"type": "text", "text": "x"}]}'])
+def test_a_body_that_parses_but_is_not_a_doc_is_left_alone(c, stored):
+    # R23-N2: JSON that parses to something other than a doc read as an EMPTY
+    # doc, and the row's body_plain was erased. It is as unreadable as
+    # 'not json' -- the save's own rule is an object whose type is "doc".
+    _seed(c)
+    c.execute("UPDATE j2_notes SET body_json = ? WHERE id = 'n3'", (stored,))
+    c.commit()
+    out = dbmod.run_notebook_migration_v7(c)
+    assert out["complete"] is True
+    assert c.execute("SELECT body_plain FROM j2_notes WHERE id='n3'").fetchone()[0] == "already right"
+    # ...and the pass still did its work on the readable rows (non-vacuity).
+    assert c.execute("SELECT body_plain FROM j2_notes WHERE id='n1'").fetchone()[0] == NVDA_NEW
 
 
 def test_ensure_schema_runs_it(c):
@@ -287,6 +322,26 @@ def test_playbook_entries_are_re_derived_with_updated_at_untouched(upb, tmp_path
     (tmp_path / ".upb_body_plain_v1").unlink()
     again = upb_db.run_upb_body_plain_backfill(conn)
     assert again["upb_entries"] == {"scanned": 3, "updated": 0}  # idempotent: read-only re-run
+
+
+def test_playbook_backfill_stops_within_one_row_and_resumes_there(upb, tmp_path, monkeypatch):
+    # R23-N1 for the playbook: the same engine, so the same per-row budget.
+    conn, upb_db = upb
+    _entry(conn, "e1", NVDA_DOC, NVDA_OLD, 1)
+    _entry(conn, "e2", HIGHLIGHT_DOC, HIGHLIGHT_OLD, 2)
+    _entry(conn, "e3", NVDA_DOC, NVDA_OLD, 3)
+    monkeypatch.setattr(dbmod, "_BODY_PLAIN_BACKFILL_BUDGET_S", 1.5)
+    reads = iter(range(100))                                # every read of the clock is one second later
+    out = upb_db.run_upb_body_plain_backfill(conn, clock=lambda: float(next(reads)))
+    assert out["complete"] is False
+    assert out["upb_entries"] == {"scanned": 2, "updated": 2}   # spent after e2, mid-batch
+    assert json.loads((tmp_path / ".upb_body_plain_v1.progress").read_text()) == {"upb_entries": 2}
+    assert conn.execute("SELECT body_plain FROM upb_entries WHERE id='e3'").fetchone()[0] == NVDA_OLD
+
+    again = upb_db.run_upb_body_plain_backfill(conn, clock=lambda: 0.0)
+    assert again["complete"] is True
+    assert again["upb_entries"] == {"scanned": 1, "updated": 1}  # e3 only
+    assert (tmp_path / ".upb_body_plain_v1").exists()
 
 
 def test_playbook_backfill_runs_from_its_own_ensure_schema(upb):
