@@ -20,8 +20,9 @@ const NOTE = {
 }
 
 const updateMock = vi.fn()
+const refreshMock = vi.fn()
 vi.mock('../../hooks/useJ2Notes', () => ({
-  useJ2Note: () => ({ note: NOTE, isLoading: false, error: null, update: updateMock, refresh: vi.fn() }),
+  useJ2Note: () => ({ note: NOTE, isLoading: false, error: null, update: updateMock, refresh: refreshMock }),
   recordNoteOpened: vi.fn(),
   setNoteFavorite: vi.fn(),
 }))
@@ -87,6 +88,17 @@ describe('the tag field sends DELTAS', () => {
     addTag('Bulk-Added-In-Another-Tab')
     await waitFor(() => expect(global.fetch.mock.calls.some(([u]) => u === '/api/j2/notes/n1')).toBe(true))
     await new Promise((r) => setTimeout(r, 20))
+    expect(tagPuts()).toEqual([])
+  })
+
+  // ⛔ M14 (wave 6 fix round 1): the no-op still LEARNED something -- the
+  // server's list differs from the one on screen (the member added a tag the
+  // chips did not show). The page re-reads the note so the chips show it.
+  it('…but the chips are brought up to date with the server list it just read', async () => {
+    await renderEditor()
+    refreshMock.mockClear()
+    addTag('Bulk-Added-In-Another-Tab')
+    await waitFor(() => expect(refreshMock).toHaveBeenCalled())
     expect(tagPuts()).toEqual([])
   })
 

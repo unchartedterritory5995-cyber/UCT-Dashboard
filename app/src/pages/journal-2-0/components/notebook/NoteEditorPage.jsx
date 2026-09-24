@@ -2528,7 +2528,10 @@ export default function NoteEditorPage({ noteId, onBack, showBack = true, onTitl
         return
       }
       const next = mergeTagDelta(serverTags, delta)
-      if (sameTagList(next, serverTags)) return
+      // ⛔ M14 (wave 6 fix round 1): nothing to send -- but the server's list
+      // differs from the chips on screen (they did not show the tag the member
+      // just added), so re-read the note and let the chips catch up.
+      if (sameTagList(next, serverTags)) { refresh?.(); return }
       await settleMetadataRevision(await update({ tags: next }))
       refreshTagNodes()
     } catch {
