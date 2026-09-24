@@ -23,8 +23,31 @@ function fakeFetch(response = { ok: true, enabled: true }) {
   return f
 }
 
-const sentText = (f) => f.calls.map((c) => c.body).join('\n')
 const sentReports = (f) => f.calls.flatMap((c) => JSON.parse(c.body).reports)
+
+// What a LEAK check reads (S2-2): every string field of every report sent,
+// parsed out of the bodies — never the raw body text. The raw body also holds
+// `ts`, a wall-clock number whose digits say nothing about a leak: a raw scan
+// for '500' failed on ~5% of instants. REPORT_KEYS pins a report's shape, so a
+// field added later cannot sit outside the scan — `ts` is the one field left
+// out, by name, and it must be a number.
+const REPORT_KEYS = ['componentStack', 'kind', 'message', 'name', 'page', 'stack', 'template', 'ts']
+function sentStrings(f) {
+  const out = []
+  for (const c of f.calls) {
+    const body = JSON.parse(c.body)
+    expect(Object.keys(body)).toEqual(['reports'])
+    for (const r of body.reports) {
+      expect(Object.keys(r).sort()).toEqual(REPORT_KEYS)
+      for (const [k, v] of Object.entries(r)) {
+        if (k === 'ts') { expect(typeof v).toBe('number'); continue }
+        expect(typeof v).toBe('string')
+        out.push(v)
+      }
+    }
+  }
+  return out.join('\n')
+}
 const utf8 = (s) => new TextEncoder().encode(s).length
 
 function beaconWith(opts = {}) {
@@ -40,10 +63,14 @@ function sendOne(err, { pathname = '/journal/notebook', ...extra } = {}) {
   const { b, fetchImpl } = beaconWith({ win: { location: { pathname } } })
   b.report(err, extra)
   b.flush()
-  return { text: sentText(fetchImpl), report: sentReports(fetchImpl)[0] }
+  return { text: sentStrings(fetchImpl), report: sentReports(fetchImpl)[0] }
 }
 
-beforeEach(() => { vi.useFakeTimers() })
+// S2-2: every test runs on a clock whose digits hold the planted numbers
+// ('128', '500', '132'), so a leak check that reads the report's `ts` fails on
+// EVERY run — never on the ~5% of wall-clock instants that happen to contain one.
+const HOSTILE_TS = 1_791_285_001_320
+beforeEach(() => { vi.useFakeTimers(); vi.setSystemTime(HOSTILE_TS) })
 afterEach(() => { vi.useRealTimers() })
 
 describe('scrub — a token in a URL fragment never leaves the browser', () => {
@@ -77,6 +104,22 @@ describe('scrub — a token in a URL fragment never leaves the browser', () => {
     scrubUrlsInText('ab:'.repeat(60_000))
     scrubUrlsInText('https://'.repeat(20_000))
     expect(performance.now() - t0).toBeLessThan(100)
+  })
+})
+
+describe('S2-2 — a leak check reads the report strings, never the raw body', () => {
+  it('the pinned clock WOULD trip a raw-body scan, and the string scan leaves `ts` out by name', () => {
+    const { b, fetchImpl } = beaconWith()
+    const e = new Error('x is not a function'); e.stack = '    at f (https://x.test/a.js:1:1)'
+    b.report(e)
+    b.flush()
+    const [r] = sentReports(fetchImpl)
+    expect(r.ts).toBe(HOSTILE_TS)
+    const raw = fetchImpl.calls.map((c) => c.body).join('\n')
+    for (const planted of ['128', '500', '132']) {
+      expect(raw).toContain(planted)                   // the old assertion shape fails on this clock
+      expect(sentStrings(fetchImpl)).not.toContain(planted)
+    }
   })
 })
 
@@ -422,7 +465,7 @@ describe('a note sentence never leaves the browser', () => {
     b.report(new SyntaxError(`Unexpected token 'B', "${NOTE_SENTENCE}" is not valid JSON`))
     b.report(new RangeError(`Invalid content for node paragraph: <"${NOTE_SENTENCE}">`))
     b.flush()
-    const text = sentText(fetchImpl)
+    const text = sentStrings(fetchImpl)
     for (const word of distinctive) expect(text).not.toContain(word)
   })
 
@@ -434,7 +477,7 @@ describe('a note sentence never leaves the browser', () => {
       componentStack: `\n    at NoteCard (https://x.test/a.js:1:2)\n${NOTE_SENTENCE}\n    at div`,
     })
     b.flush()
-    const text = sentText(fetchImpl)
+    const text = sentStrings(fetchImpl)
     for (const word of distinctive) expect(text).not.toContain(word)
     expect(text).toContain('NoteCard')
   })
@@ -444,7 +487,7 @@ describe('a note sentence never leaves the browser', () => {
     const { b, fetchImpl } = beaconWith()
     b.report(new TypeError('Cannot read properties of undefined'))
     b.flush()
-    expect(sentText(fetchImpl)).not.toContain('pullback')
+    expect(sentStrings(fetchImpl)).not.toContain('pullback')
     document.body.innerHTML = ''
   })
 })
@@ -586,7 +629,7 @@ describe('install — the page-level sources', () => {
     expect(r.stack).toBe('    at https://x.test/assets/a.js:#:#')
     expect(r.name).toBe('TypeError')
     expect(r.message).toBe('x is not a function')
-    expect(sentText(fetchImpl)).not.toContain(TOKEN)
+    expect(sentStrings(fetchImpl)).not.toContain(TOKEN)
     uninstall()
   })
 })
