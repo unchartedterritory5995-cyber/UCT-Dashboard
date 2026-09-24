@@ -484,3 +484,56 @@ def test_the_writer_leaves_a_connection_it_was_given_open_and_accepts_ids_in_any
     assert (exported, skipped) == (3, [])
     strip = lambda files: {k: v for k, v in files.items() if k != "UCT_NOTEBOOK_EXPORT.json"}  # noqa: E731
     assert strip(first) == strip(second)
+
+
+# ── wave 6 fix round 1: a TOC label goes through `_prose`, the ONE `$` authority ──
+
+def _toc_link_texts(md_text):
+    """The link TEXT CommonMark renders for each TOC line -- what a reader sees."""
+    import re as _re
+    from html import unescape as _unescape
+    html_out = _MarkdownIt("commonmark").render(md_text)
+    return [_unescape(t) for t in _re.findall(r'<a href="#[^"]*">(.*?)</a>', html_out)]
+
+
+@pytest.mark.parametrize("heading", [
+    r"cost \$5",          # the R2-N4 trap: the member's backslash right before a `$`
+    r"cost \\$5",         # two of them
+    "Up $5-$10",
+    "Cost [est] $5",
+    "bid ] ask [ spread",  # UNbalanced: CommonMark allows balanced brackets in link text, not these
+    r"a\b and x\[y]",
+    "ends in a backslash\\",
+    "50% (Q3) & more",
+])
+def test_a_toc_label_reads_back_as_exactly_the_heading(heading):
+    md = tiptap_to_markdown(_doc({"type": "tableOfContents"}, _h(2, heading)))
+    toc = md.split("\n\n")[0]
+    assert _toc_link_texts(toc) == [heading], toc
+
+
+def test_the_order_is_prose_first_then_link_text_proved_on_the_trap_heading():
+    # `_prose` turns `cost \$5` into `cost \\\$5`: an escaped backslash, then an
+    # escaped dollar. Link-text escaping applied AFTER it must leave that run
+    # alone -- doubling it again gives six backslashes before the `$`: three
+    # literal backslashes and a LIVE `$` a math reader pairs.
+    md = tiptap_to_markdown(_doc({"type": "tableOfContents"}, _h(2, r"cost \$5")))
+    assert md.split("\n\n")[0] == r"- [cost \\\$5](#cost-5)"
+
+
+def test_the_toc_label_is_routed_through_prose_the_one_dollar_authority(monkeypatch):
+    # ⛔ ONE authority (`lesson_a_guard_repeated_is_a_guard_unproved`): the TOC
+    # used to escape `$` itself; a fix to `_prose` would not have reached it.
+    from api.services.journal_two import notes_export as ne
+    seen = []
+    real = ne._prose
+
+    def spy(text):
+        seen.append(text)
+        return real(text)
+
+    monkeypatch.setattr(ne, "_prose", spy)
+    # The TOC alone: the heading block's own text reaches `_prose` too, so a
+    # whole-document render could not tell whether the TOC asked.
+    assert ne._toc_markdown([(2, "Plan $5")]) == r"- [Plan \$5](#plan-5)"
+    assert seen == ["Plan $5"]

@@ -476,11 +476,30 @@ def _toc_markdown(headings: list[tuple[int, str]]) -> str:
         slug = _heading_slug(txt, used)   # every heading takes its anchor, named or not
         if not txt:
             continue
-        label = txt.replace("\\", "\\\\").replace("[", "\\[").replace("]", "\\]")
-        if _ESCAPE_PROSE_DOLLARS.get():
-            label = label.replace("$", "\\$")
-        lines.append(f"{'  ' * (lvl - base)}- [{label}](#{slug})")
+        lines.append(f"{'  ' * (lvl - base)}- [{_link_label(_prose(txt))}](#{slug})")
     return "\n".join(lines)
+
+
+# A backslash run, and whether a `$` closes it.
+_BACKSLASH_RUN = re.compile(r"(\\+)(\$?)")
+
+
+def _link_label(prose: str) -> str:
+    """Link TEXT from text `_prose` has ALREADY made safe (wave 6 fix round 1).
+
+    ⛔⛔ ONE `$` AUTHORITY, AND THE ORDER IS THE WHOLE TRAP. The TOC used to
+    escape `$` itself (a second copy of `_prose`'s rule, which a later fix to
+    `_prose` would never have reached -- `lesson_a_guard_repeated_is_a_guard_unproved`).
+    It now takes `_prose`'s output and adds only what LINK text needs: `[` and
+    `]` escaped, and every backslash doubled so none of the member's escapes
+    anything -- EXCEPT a run that ends at a `$`. `_prose` already turned that
+    run into an escaped backslash per member backslash plus an escaped dollar
+    (R2-N4: `cost \\$5` -> `cost \\\\\\$5`); doubling it again would give three
+    literal backslashes and a LIVE `$` a math reader pairs. Railed on exactly
+    that heading, and on every heading reading back as itself through
+    markdown-it-py (tests/test_notes_export_wave6.py)."""
+    doubled = _BACKSLASH_RUN.sub(lambda m: m.group(0) if m.group(2) else m.group(1) * 2, prose)
+    return doubled.replace("[", "\\[").replace("]", "\\]")
 
 
 # A run of backslashes the member typed right before a `$` (R2-N4).
