@@ -29,6 +29,14 @@ import { mountUIcon } from './uiconDom'
 export const BLOCK_HANDLE_KEY = new PluginKey('uctBlockHandle')
 export const BLOCK_HANDLE_LABEL = 'Move this block'
 export const MOVE_MENU_LABEL = 'Move block'
+/**
+ * How long a press on the touch grip holds it up with the editor blurred, if
+ * no tap (click) or cancel arrives to end the press first. A tap's click
+ * follows its pointerdown within a few hundred ms; this only bounds a press
+ * that never became one (the finger slid off), so the grip does not stay up
+ * beside an unfocused editor for good.
+ */
+export const PRESS_HOLD_MS = 1000
 
 /** The top-level block at document position `pos`: `{ pos, node, index }`, or null. */
 export function topBlockAt(doc, pos) {
@@ -124,7 +132,11 @@ class BlockHandleView {
     this.onDragEnd = this.onDragEnd.bind(this)
     this.onClick = this.onClick.bind(this)
     this.onOutside = this.onOutside.bind(this)
+    this.onPress = this.onPress.bind(this)
+    this.onPressCancel = () => this.releasePress(true)
     this.onScroll = () => this.place()
+    this.pressed = false
+    this.pressTimer = null
 
     view.dom.addEventListener('mousemove', this.onMove)
     view.dom.addEventListener('mouseleave', this.onLeave)
@@ -132,6 +144,8 @@ class BlockHandleView {
     handle.addEventListener('dragstart', this.onDragStart)
     handle.addEventListener('dragend', this.onDragEnd)
     handle.addEventListener('click', this.onClick)
+    handle.addEventListener('pointerdown', this.onPress)
+    handle.addEventListener('pointercancel', this.onPressCancel)
     window.addEventListener('scroll', this.onScroll, true)
     window.addEventListener('resize', this.onScroll)
   }
@@ -215,10 +229,53 @@ class BlockHandleView {
     setTimeout(() => { if (this.view.dragging === d) this.view.dragging = null }, 50)
   }
 
+  /**
+   * ⛔⛔ I3 (wave 6 fix round 1): A PRESS ON THE TOUCH GRIP HOLDS IT UP.
+   *
+   * ⚰️ On Android Chrome a tap FOCUSES the button it lands on, at the
+   * compatibility mousedown — after pointerdown, before the click. The editor
+   * blurs, TipTap dispatches a transaction on that blur, and the touch branch of
+   * `update()` hid the grip because the editor no longer had focus: the grip
+   * went `hidden` under the finger and the click that should open "Move up /
+   * Move down" never reached it. That menu is the ONLY way to move a block on a
+   * phone.
+   *
+   * ⭐ WHY THE PRESS AND NOT THE BLUR'S `relatedTarget`: pointerdown is the
+   * first event of every tap on every platform, so it is always in hand before
+   * any focus change; a blur's `relatedTarget` names the grip only where the
+   * browser moves focus to a tapped button (iOS Safari does not), and a blur
+   * listener on the editor runs after ProseMirror's own, which is the one that
+   * dispatches the transaction. The press ends at the click (the tap landed),
+   * at pointercancel (the browser took the gesture for a scroll), or after
+   * PRESS_HOLD_MS (the finger slid off) — and when it ends without a menu open,
+   * `update()` decides again, so a blur the grip did NOT cause still hides it.
+   * Touch only: on desktop the grip never asks for focus.
+   */
+  onPress() {
+    if (!isTouch()) return
+    this.pressed = true
+    clearTimeout(this.pressTimer)
+    this.pressTimer = setTimeout(() => this.releasePress(true), PRESS_HOLD_MS)
+  }
+
+  releasePress(reconsider) {
+    clearTimeout(this.pressTimer)
+    this.pressTimer = null
+    if (!this.pressed) return
+    this.pressed = false
+    if (reconsider && !this.editor.isDestroyed) this.update(this.view)
+  }
+
   onClick() {
-    if (!this.block || !this.editable) return
-    if (this.menu) { this.closeMenu(); return }
-    this.openMenu()
+    try {
+      if (!this.block || !this.editable) return
+      if (this.menu) { this.closeMenu(); return }
+      this.openMenu()
+    } finally {
+      // After the menu is open: its own selection transaction must still see
+      // the press, or `update()` would hide the grip mid-open.
+      this.releasePress(false)
+    }
   }
 
   openMenu() {
@@ -287,7 +344,8 @@ class BlockHandleView {
     if (!this.editable) { this.hide(); return }
     if (isTouch()) {
       // Touch: the grip stands beside the block the caret is in, visibly.
-      if (!view.hasFocus() && !this.menu) { this.hide(); return }
+      // (A press on the grip holds it up through the blur the press causes: I3.)
+      if (!view.hasFocus() && !this.menu && !this.pressed) { this.hide(); return }
       const block = topBlockAt(view.state.doc, view.state.selection.from)
       if (this.menu && this.block && block && block.pos === this.block.pos) { this.place(); return }
       this.show(block)
@@ -302,6 +360,7 @@ class BlockHandleView {
   }
 
   destroy() {
+    clearTimeout(this.pressTimer)
     this.closeMenu()
     this.view.dom.removeEventListener('mousemove', this.onMove)
     this.view.dom.removeEventListener('mouseleave', this.onLeave)

@@ -236,3 +236,81 @@ describe('touch: hover never fires, so the grip is VISIBLE beside the caret\'s b
     expect(grip().dataset.pos).toBe(String(topBlockAt(ed.state.doc, at(ed, 'One.')).pos))
   })
 })
+
+// ⛔⛔ I3 (wave 6 fix round 1): THE TAP MUST LAND. The two rails above stub
+// `view.hasFocus = () => true`, so they cannot see what a real tap does to
+// focus. On Android Chrome a tap on a button FOCUSES it first (at the
+// compatibility mousedown, AFTER pointerdown), so the editor BLURS, TipTap
+// dispatches a transaction on that blur, the touch branch of `update()` asked
+// `view.hasFocus()` and hid the grip — and the click arrived at a grip that had
+// already let go of its block. These drive the REAL focus change, in the order
+// a phone sends it, on a real editor with nothing stubbed.
+//
+// ⚠️ jsdom performs the focus change and runs every handler, but it does not
+// hit-test: it delivers a click to a hidden button that a phone never would.
+// So these prove the ORDER of events is handled; that the grip survives a
+// finger on a real Android device is a device check, and it is still owed.
+describe('touch: a TAP on the grip lands — the editor blurring under the finger does not hide it', () => {
+  beforeEach(() => {
+    window.matchMedia = (q) => ({ matches: /coarse|hover: none/.test(q), media: q, addEventListener() {}, removeEventListener() {} })
+  })
+  afterEach(() => { vi.useRealTimers() })
+
+  /** A focused editor with the caret in "Two.", the grip beside it — no stubs. */
+  function focusedAtTwo() {
+    const ed = mount([P('One.'), P('Two.'), P('Three.')])
+    ed.view.focus()
+    caret(ed, at(ed, 'Two.'))
+    expect(ed.view.hasFocus(), 'jsdom must really focus the editor for this rail to mean anything').toBe(true)
+    expect(grip().hidden).toBe(false)
+    return ed
+  }
+  /** What Android Chrome sends for a tap on a button, in its order. */
+  function tapGrip() {
+    fireEvent.pointerDown(grip(), { pointerType: 'touch' })
+    fireEvent.pointerUp(grip(), { pointerType: 'touch' })
+    fireEvent.mouseDown(grip())
+    grip().focus()                      // ← the focus move: the editor blurs HERE
+    fireEvent.mouseUp(grip())
+    fireEvent.click(grip())
+  }
+
+  it('the tap opens the move menu for the caret\'s block, and Move down moves it', () => {
+    const ed = focusedAtTwo()
+    tapGrip()
+    expect(ed.view.hasFocus(), 'the focus really left the editor').toBe(false)
+    expect(grip().hidden, 'the grip vanished under the finger').toBe(false)
+    expect(menu(), 'the tap never reached the grip').not.toBeNull()
+    fireEvent.click(option('Move down'))
+    expect(top(ed)).toEqual(['One.', 'Three.', 'Two.'])
+  })
+
+  it('CONTROL — a blur the grip did not cause (focus went elsewhere) still hides it', () => {
+    const ed = focusedAtTwo()
+    const other = document.createElement('button')
+    document.body.appendChild(other)
+    other.focus()
+    expect(ed.view.hasFocus()).toBe(false)
+    expect(grip().hidden).toBe(true)
+  })
+
+  it('a press that never becomes a tap (the finger slid off) lets go: the grip hides once the press is over', () => {
+    vi.useFakeTimers()
+    const ed = focusedAtTwo()
+    fireEvent.pointerDown(grip(), { pointerType: 'touch' })
+    grip().focus()
+    expect(grip().hidden).toBe(false)
+    vi.advanceTimersByTime(2000)
+    expect(ed.view.hasFocus()).toBe(false)
+    expect(grip().hidden, 'a press that ended without a tap held the grip up for good').toBe(true)
+  })
+
+  it('a press the browser takes back (pointercancel: it became a scroll) lets go at once', () => {
+    const ed = focusedAtTwo()
+    fireEvent.pointerDown(grip(), { pointerType: 'touch' })
+    grip().focus()
+    fireEvent.pointerCancel(grip(), { pointerType: 'touch' })
+    expect(ed.view.hasFocus()).toBe(false)
+    expect(grip().hidden).toBe(true)
+  })
+})
