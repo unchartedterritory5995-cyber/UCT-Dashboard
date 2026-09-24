@@ -193,6 +193,79 @@ mark.uct-hl-yellow { background-color: var(--warn-border); }
 mark.uct-hl-green { background-color: var(--gain-border); }
 mark.uct-hl-blue { background-color: var(--info-border); }
 
+/* ── Wave 6: callout styles (calloutNode.js) ──────────────────────────────────
+   The variant tints the box and colours its UIcon; a callout with no variant
+   (an emoji callout — every Notion import) keeps the surface's own look. Each
+   pair is an existing semantic token with a light-theme value. */
+.ProseMirror [data-type="callout"][data-variant="note"] { border-left: 3px solid var(--ut-gold); }
+.ProseMirror [data-type="callout"][data-variant="info"] { background: var(--info-bg); border-color: var(--info-border); }
+.ProseMirror [data-type="callout"][data-variant="success"] { background: var(--gain-bg); border-color: var(--gain-border); }
+.ProseMirror [data-type="callout"][data-variant="warning"] { background: var(--warn-bg); border-color: var(--warn-border); }
+.ProseMirror [data-type="callout"][data-variant="danger"] { background: var(--loss-bg); border-color: var(--loss-border); }
+.ProseMirror [data-type="callout"][data-variant="note"] .uctCalloutPick { color: var(--ut-gold); }
+.ProseMirror [data-type="callout"][data-variant="info"] .uctCalloutPick { color: var(--info); }
+.ProseMirror [data-type="callout"][data-variant="success"] .uctCalloutPick { color: var(--gain); }
+.ProseMirror [data-type="callout"][data-variant="warning"] .uctCalloutPick { color: var(--warn); }
+.ProseMirror [data-type="callout"][data-variant="danger"] .uctCalloutPick { color: var(--loss); }
+.ProseMirror .uctCalloutIcon { position: relative; }
+.ProseMirror .uctCalloutPick {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 26px;
+  min-height: 26px;
+  padding: 0;
+  border: 1px solid transparent;
+  border-radius: var(--radius-sm);
+  background: none;
+  color: inherit;
+  font: inherit;
+  line-height: 1;
+  cursor: pointer;
+}
+.ProseMirror .uctCalloutPick:hover { border-color: var(--border); }
+.ProseMirror .uctCalloutPick:focus-visible { outline: 2px solid var(--ut-gold); outline-offset: 1px; }
+/* A read-only note (locked, a version preview) shows the icon, not a control. */
+.ProseMirror[contenteditable="false"] .uctCalloutPick { pointer-events: none; cursor: default; }
+.ProseMirror .uctCalloutMenu {
+  position: absolute;
+  top: calc(100% + 4px);
+  left: 0;
+  z-index: var(--z-dropdown);
+  display: flex;
+  flex-direction: column;
+  min-width: 140px;
+  padding: 4px;
+  background: var(--bg-surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-popover);
+  font-family: var(--font-sans);
+  font-size: 13px;
+}
+.ProseMirror .uctCalloutOption {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 8px;
+  border: none;
+  border-radius: var(--radius-sm);
+  background: none;
+  color: var(--text-bright);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+.ProseMirror .uctCalloutOption:hover,
+.ProseMirror .uctCalloutOption:focus-visible { background: var(--bg-hover); outline: none; }
+.ProseMirror .uctCalloutOption[aria-pressed="true"] { color: var(--accent); }
+.ProseMirror .uctCalloutOption[data-variant="info"] .uctCalloutOptionIcon { color: var(--info); }
+.ProseMirror .uctCalloutOption[data-variant="success"] .uctCalloutOptionIcon { color: var(--gain); }
+.ProseMirror .uctCalloutOption[data-variant="warning"] .uctCalloutOptionIcon { color: var(--warn); }
+.ProseMirror .uctCalloutOption[data-variant="danger"] .uctCalloutOptionIcon { color: var(--loss); }
+.ProseMirror .uctCalloutOption[data-variant="note"] .uctCalloutOptionIcon { color: var(--ut-gold); }
+.ProseMirror .uctCalloutOptionIcon { display: inline-flex; }
+
 /* ── Touch tier: the 44px floor, and 16px so iOS does not zoom on focus ───── */
 @media (max-width: 1024px) {
   .ProseMirror .uctCodeLang {
@@ -202,5 +275,10 @@ mark.uct-hl-blue { background-color: var(--info-border); }
   .ProseMirror .uctMathInput {
     min-height: var(--tap-min);
     font-size: 16px;
+  }
+  .ProseMirror .uctCalloutPick,
+  .ProseMirror .uctCalloutOption {
+    min-height: var(--tap-min);
+    min-width: var(--tap-min);
   }
 }

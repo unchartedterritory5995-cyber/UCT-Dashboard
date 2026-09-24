@@ -88,10 +88,12 @@ export const ITEMS = [
   },
   {
     title: 'Callout',
-    description: 'Highlighted box with an icon',
+    description: 'Highlighted box — note, info, success, warning or danger',
+    // Wave 6: a new callout is STYLED (its icon is the style control, a UIcon);
+    // only an imported or older callout shows an emoji.
     command: ({ editor, range }) => editor.chain().focus().deleteRange(range).insertContent({
       type: 'callout',
-      attrs: { emoji: '💡' },
+      attrs: { variant: 'note' },
       content: [{ type: 'paragraph' }],
     }).run(),
   },

@@ -453,6 +453,11 @@ def _list_items(node: dict[str, Any], bullet, depth: int = 0, resolver=None) -> 
 
 _GFM_ALIGN = {"left": ":---", "center": ":---:", "right": "---:"}
 
+# The callout styles calloutNode.js offers (CALLOUT_VARIANTS). ⛔ ONE FACT IN TWO
+# FILES: tests/test_notes_export_wave6.py PARSES the client list and asserts
+# they are equal, so a style added on one side cannot export as an emoji box.
+_CALLOUT_VARIANTS = frozenset({"note", "info", "success", "warning", "danger"})
+
 
 def _gfm_cell(cell: dict[str, Any], resolver=None) -> str:
     """One table cell as GFM: a cell is ONE line, so its blocks (and any line
@@ -690,6 +695,16 @@ def _block(node: dict[str, Any], resolver=None) -> str:
         emoji = str(attrs.get("emoji") or "\U0001F4A1")
         with _raw_dollars():  # an HTML island (N4 above)
             inner = "\n".join(b for b in (_block(c, resolver) for c in (kids or [])) if b != "")
+        # Wave 6: a STYLED callout (calloutNode.js CALLOUT_VARIANTS) carries its
+        # style as `data-variant` on the `<aside>` -- the attribute the node's
+        # own parseHTML reads back -- and no emoji: its icon is chrome, and a
+        # leading emoji would be re-imported as the member's text. An emoji
+        # callout (every Notion import) exports exactly as before.
+        raw_variant = attrs.get("variant")
+        variant = raw_variant if isinstance(raw_variant, str) and raw_variant in _CALLOUT_VARIANTS else None
+        if variant:
+            return f'<aside data-variant="{variant}">\n{inner}\n</aside>' if inner else \
+                f'<aside data-variant="{variant}">\n</aside>'
         first_line = f"{emoji} {inner}" if inner else emoji
         return f"<aside>\n{first_line}\n</aside>"
     if ntype == "toggle":

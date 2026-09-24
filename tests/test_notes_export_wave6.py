@@ -106,3 +106,32 @@ def test_an_empty_table_and_a_malformed_row_never_raise():
     assert tiptap_to_markdown(_doc(_table())) == ""
     md = tiptap_to_markdown(_doc(_table("not a row", _row("not a cell", _cell(_para("x"))))))
     assert "x" in md
+
+
+# ── item 2: callout styles round-trip ────────────────────────────────────────
+
+def _callout(attrs, *blocks):
+    return {"type": "callout", "attrs": attrs, "content": list(blocks) or [_para("x")]}
+
+
+def test_a_styled_callout_exports_its_variant_and_no_emoji():
+    md = tiptap_to_markdown(_doc(_callout({"variant": "warning", "emoji": "\U0001F4A1"},
+                                          _para("Gap fill below 120."))))
+    assert md == '<aside data-variant="warning">\nGap fill below 120.\n</aside>'
+
+
+def test_a_styled_callout_keeps_the_no_blank_line_rule_of_its_html_island():
+    md = tiptap_to_markdown(_doc(_callout({"variant": "info"}, _para("one"), _para("two"))))
+    body = md[len('<aside data-variant="info">\n'):-len("\n</aside>")]
+    assert "\n\n" not in body
+
+
+def test_an_emoji_callout_exports_exactly_as_before():
+    md = tiptap_to_markdown(_doc(_callout({"emoji": "\U0001F525"}, _para("hot"))))
+    assert md == "<aside>\n\U0001F525 hot\n</aside>"
+
+
+def test_an_unknown_or_malformed_variant_is_an_emoji_callout_and_never_raises():
+    for bad in ("purple", ["warning"], {"v": 1}, 7, None):
+        md = tiptap_to_markdown(_doc(_callout({"variant": bad, "emoji": "\u2705"}, _para("ok"))))
+        assert md == "<aside>\n\u2705 ok\n</aside>", bad

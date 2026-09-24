@@ -20,6 +20,7 @@ const baseNote = () => ({
   bodyJson: { type: 'doc', content: [
     P('Intro line.'),
     { type: 'table', content: [row(cell('Sym', 'tableHeader'), cell('R', 'tableHeader')), row(cell('NVDA'), cell('2.1'))] },
+    { type: 'callout', attrs: { variant: 'note' }, content: [P('Watch the gap.')] },
   ] },
 })
 
@@ -64,5 +65,19 @@ describe('NoteEditorPage — table toolbar door (wave 6 item 1)', () => {
     let rows = 0
     editor.state.doc.descendants((n) => { if (n.type.name === 'tableRow') rows += 1 })
     expect(rows).toBe(3)
+  })
+})
+
+describe('NoteEditorPage — callout picker door (wave 6 item 2)', () => {
+  it('the callout\'s own control restyles it in the page\'s editor', async () => {
+    const editor = await renderEditor()
+    const pick = document.querySelector('[data-type="callout"] button.uctCalloutPick')
+    expect(pick.getAttribute('aria-label')).toBe('Callout style: Note')
+    fireEvent.click(pick)
+    const warning = [...document.querySelectorAll('[aria-label="Callout style"] button')].find((b) => b.textContent === 'Warning')
+    fireEvent.click(warning)
+    let variant = null
+    editor.state.doc.descendants((n) => { if (n.type.name === 'callout') variant = n.attrs.variant })
+    expect(variant).toBe('warning')
   })
 })
