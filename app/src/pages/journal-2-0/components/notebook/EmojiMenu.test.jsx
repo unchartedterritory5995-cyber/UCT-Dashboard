@@ -4,9 +4,9 @@ import { act, render, cleanup } from '@testing-library/react'
 import { getSchema } from '@tiptap/core'
 import { EditorContent, useEditor } from '@tiptap/react'
 import { buildExtensions } from '../../lib/tiptap'
-import { EMOJI, EMOJI_QUERY_RE, emojiByName, searchEmoji } from '../../lib/emojiData'
+import { EMOJI, EMOJI_QUERY_RE, SHORTCODE_BODY, emojiByName, searchEmoji } from '../../lib/emojiData'
 import { ITEMS } from './SlashMenu'
-import { EMOJI_MENU_ID } from './EmojiMenu'
+import { EMOJI_INPUT_PATTERN, EMOJI_MENU_ID, EMOJI_MENU_MIN_QUERY } from './EmojiMenu'
 
 if (!Range.prototype.getClientRects) Range.prototype.getClientRects = () => []
 if (!Range.prototype.getBoundingClientRect) Range.prototype.getBoundingClientRect = () => ({ top: 0, left: 0, right: 0, bottom: 0, width: 0, height: 0 })
@@ -161,6 +161,68 @@ describe('a note full of colons never opens it (and never eats a key)', () => {
     ed.commands.setTextSelection(2)
     await type(ed, ' :roc')
     expect(visibleMenu()).toBe(null)
+  })
+})
+
+// S2 (wave-5 review): a one-character floor armed the menu on emoticons, so
+// "great day :D" + Enter inserted an emoji and ate the new line.
+describe('an emoticon is never an emoji: the menu opens from two characters', () => {
+  it('" :D" then Enter makes a new paragraph and leaves the text', async () => {
+    const ed = await mount('great day')
+    await type(ed, ' :D')
+    expect(visibleMenu()).toBe(null)
+    await key(ed, 'Enter')
+    expect(ed.state.doc.childCount).toBe(2)
+    expect(ed.state.doc.firstChild.textContent).toBe('great day :D')
+  })
+
+  it('" :P" then Tab is not swallowed: the editor leaves it to the browser and the text is untouched', async () => {
+    const ed = await mount('ok')
+    await type(ed, ' :P')
+    expect(visibleMenu()).toBe(null)
+    expect(await key(ed, 'Tab')).toBe(false)
+    expect(ed.state.doc.textContent).toBe('ok :P')
+  })
+
+  it.each([':O', ':x', ':v', ':1'])('%j (one character, and it would match) opens nothing', async (typed) => {
+    expect(searchEmoji(typed.slice(1)).length).toBeGreaterThan(0) // the floor, not the shape, keeps it shut
+    const ed = await mount('3')
+    await type(ed, ` ${typed}`)
+    expect(visibleMenu()).toBe(null)
+  })
+
+  it('two characters open it (the floor is exactly EMOJI_MENU_MIN_QUERY)', async () => {
+    expect(EMOJI_MENU_MIN_QUERY).toBe(2)
+    const ed = await mount('')
+    await type(ed, ' :ro')
+    expect(visibleMenu()).not.toBe(null)
+  })
+
+  it('a one-letter shortcode still converts typed whole: " :x: "', async () => {
+    const ed = await mount('')
+    await type(ed, ' :x: ')
+    expect(ed.state.doc.textContent).toBe(' ❌ ')
+  })
+})
+
+// N2 (wave-5 review): the menu read `:Rocket` but typed `:Rocket:` never
+// converted -- two hand-written copies of one shortcode shape.
+describe('the menu and the typed-whole rule read ONE shortcode shape', () => {
+  it('`:Rocket:` typed whole converts, exactly as picking `:Rocket` from the menu does', async () => {
+    const ed = await mount('')
+    await type(ed, ' :Rocket: ')
+    expect(ed.state.doc.textContent).toBe(' 🚀 ')
+    const ed2 = await mount('')
+    await type(ed2, ' :Rocket')
+    expect(await key(ed2, 'Enter')).toBe(true)
+    expect(ed2.state.doc.textContent).toBe(' 🚀')
+  })
+
+  it('both are built from SHORTCODE_BODY', () => {
+    expect(EMOJI_QUERY_RE.source).toContain(SHORTCODE_BODY)
+    expect(EMOJI_INPUT_PATTERN.source).toContain(SHORTCODE_BODY)
+    expect(EMOJI_QUERY_RE.flags).toContain('i')
+    expect(EMOJI_INPUT_PATTERN.flags).toContain('i')
   })
 })
 

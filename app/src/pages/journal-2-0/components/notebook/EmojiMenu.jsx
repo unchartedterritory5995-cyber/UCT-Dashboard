@@ -9,9 +9,15 @@
  * ⛔ A NOTE IS FULL OF COLONS. "10:30", "Note: …", "3:1", "ratio:" must never
  * open a menu or swallow a key, so the menu arms only when the `:` starts a
  * word (after a space, a bracket or at the start of a line — Suggestion's
- * `allowedPrefixes`) AND a shortcode-shaped query follows it (searchEmoji
- * answers nothing else), never inside code. With no match the menu renders
- * nothing and every key passes through (the slash menu's Enter-trap lesson).
+ * `allowedPrefixes`) AND a shortcode-shaped query of at least
+ * EMOJI_MENU_MIN_QUERY characters follows it, never inside code. With no
+ * match the menu renders nothing and every key passes through (the slash
+ * menu's Enter-trap lesson).
+ *
+ * ⛔ TWO characters, not one: every letter is the start of some shortcode, so
+ * a one-character floor armed the menu on the emoticons a trader types --
+ * "great day :D" + Enter inserted 💵 and ate the new line, "ok :P" + Tab
+ * inserted 📌. A one-letter shortcode (`:x:`) still converts typed whole.
  *
  * Keyboard: ↑/↓ move, Enter or Tab insert, Escape closes it (the Suggestion
  * plugin's own dismissal).
@@ -23,11 +29,12 @@ import { PluginKey } from '@tiptap/pm/state'
 import Suggestion from '@tiptap/suggestion'
 import { ReactRenderer } from '@tiptap/react'
 import { forwardRef, useEffect, useImperativeHandle, useState } from 'react'
-import { emojiByName, searchEmoji } from '../../lib/emojiData'
+import { SHORTCODE_BODY, emojiByName, searchEmoji } from '../../lib/emojiData'
 import { applyComboboxWiring } from '../../lib/comboboxWiring'
 import styles from './EmojiMenu.module.css'
 
 export const EMOJI_MENU_ID = 'uct-emoji-menu'
+export const EMOJI_MENU_MIN_QUERY = 2
 export const emojiMenuPluginKey = new PluginKey('emojiMenu')
 
 const inCode = (state, pos) => {
@@ -84,7 +91,10 @@ EmojiList.displayName = 'EmojiList'
 
 // `:rocket:` typed whole: converts on the closing colon. The opening colon must
 // start a word, exactly as for the menu (no lookbehind -- the lead is captured).
-const SHORTCODE_FIND = /(^|[\s([{])(:([a-z0-9_+-]{1,32}):)$/
+// Built from the one shortcode shape (lib/emojiData.js), case-insensitive like
+// the menu, so `:Rocket:` converts exactly as picking `:Rocket` would.
+const SHORTCODE_FIND = new RegExp(`(^|[\\s([{])(:(${SHORTCODE_BODY}):)$`, 'i')
+export const EMOJI_INPUT_PATTERN = SHORTCODE_FIND
 
 export const EmojiMenuExtension = Extension.create({
   name: 'emojiMenu',
@@ -110,10 +120,11 @@ export const EmojiMenuExtension = Extension.create({
       allowSpaces: false,
       allowedPrefixes: [' ', '(', '[', '{'],
       allow: ({ state, range }) => !inCode(state, range.from),
-      // ONE guard on what may match: searchEmoji answers [] for anything that
-      // is not shortcode-shaped (":)", ": ", an empty query), and an empty
+      // What may match: searchEmoji answers [] for anything that is not
+      // shortcode-shaped (":)", ": ", an empty query), and a query shorter
+      // than EMOJI_MENU_MIN_QUERY (":D", ":P") answers [] here. An empty
       // list renders nothing and passes every key through (EmojiList).
-      items: ({ query }) => searchEmoji(query),
+      items: ({ query }) => (String(query || '').length >= EMOJI_MENU_MIN_QUERY ? searchEmoji(query) : []),
       command: ({ editor, range, props }) => {
         editor.chain().focus().insertContentAt(range, props.char).run()
       },
