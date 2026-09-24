@@ -13,6 +13,10 @@ The contract these pin:
     and an invented one lands a revision the server never had;
   * partial failure is reported per note, in the order sent;
   * a tag edited concurrently is re-read and MERGED, never overwritten;
+  * (fix round 1) a move says where each note CAME FROM, and a per-note move
+    puts a selection back — refusing a note that moved again since (the bulk
+    bar's Undo, B1); tags are compared by `tag_key`, so a legacy "Q3 / Q4" is
+    found and removed (S2);
   * the selection export reuses the single-note export and says what it skipped.
 """
 from __future__ import annotations
@@ -105,6 +109,11 @@ def test_requires_a_signed_in_member(client):
     ({"ids": ["a"], "op": "addTag", "args": {"tag": "x" * 41}}, "tag exceeds"),
     ({"ids": ["a"], "op": "move", "args": "nope"}, "args must be an object"),
     ({"ids": ["a"], "op": "move", "args": {"folderId": 7}}, "folderId must be"),
+    ({"ids": ["a", "b"], "op": "move", "args": {"folders": {"a": None}}}, "for every id"),
+    ({"ids": ["a"], "op": "move", "args": {"folders": ["a"]}}, "for every id"),
+    ({"ids": ["a"], "op": "move", "args": {"folders": {"a": 7}}}, "folderId must be"),
+    ({"ids": ["a"], "op": "move", "args": {"folders": {"a": "nope"}}}, "folder not found"),
+    ({"ids": ["a"], "op": "move", "args": {"folderId": None, "expectFolderId": 7}}, "expectFolderId"),
 ])
 def test_a_request_that_would_fail_every_note_is_a_400(app, client, payload, needle):
     _login_as(app, "u1")
@@ -397,3 +406,73 @@ def test_export_releases_its_slot_so_the_next_one_runs(app, client):
     a = _note(client, "A")
     _export(client, [a["id"]])
     _export(client, [a["id"]])  # would be a 429 if the first leaked its slot
+
+
+# ── fix round 1: Undo for move (B1), legacy tags (S2) ───────────────────────
+
+def test_a_move_says_where_each_note_came_from(app, client):
+    _login_as(app, "u1")
+    f1, f2, dest = _folder(client, "One"), _folder(client, "Two"), _folder(client, "Dest")
+    a = _note(client, "A", folderId=f1)
+    b = _note(client, "B", folderId=f2)
+    c = _note(client, "C")
+    body = _batch(client, [a["id"], b["id"], c["id"]], "move", {"folderId": dest})
+    res = _by_id(body)
+    assert res[a["id"]]["fromFolderId"] == f1
+    assert res[b["id"]]["fromFolderId"] == f2
+    assert res[c["id"]]["fromFolderId"] is None and "fromFolderId" in res[c["id"]]
+
+
+def test_undo_puts_every_note_back_where_it_came_from(app, client):
+    _login_as(app, "u1")
+    f1, f2, dest = _folder(client, "One"), _folder(client, "Two"), _folder(client, "Dest")
+    a = _note(client, "A", folderId=f1)
+    b = _note(client, "B", folderId=f2)
+    c = _note(client, "C")
+    ids = [a["id"], b["id"], c["id"]]
+    moved = _by_id(_batch(client, ids, "move", {"folderId": dest}))
+    back = _batch(client, ids, "move", {
+        "folders": {i: moved[i]["fromFolderId"] for i in ids},
+        "expectFolderId": dest,
+    })
+    assert back["changed"] == 3 and back["failed"] == 0
+    assert [_get(client, i)["folderId"] for i in ids] == [f1, f2, None]
+    # The Undo advanced each revision, and says so, so the client lands it.
+    for i, r in _by_id(back).items():
+        assert r["updatedAt"] == _get(client, i)["updatedAt"]
+
+
+def test_undo_never_moves_a_note_that_was_moved_again_since(app, client):
+    _login_as(app, "u1")
+    f1, dest, elsewhere = _folder(client, "One"), _folder(client, "Dest"), _folder(client, "Elsewhere")
+    a = _note(client, "A", folderId=f1)
+    b = _note(client, "B", folderId=f1)
+    ids = [a["id"], b["id"]]
+    _batch(client, ids, "move", {"folderId": dest})
+    # Another tab files B somewhere else before the member presses Undo.
+    assert client.put(f"/api/j2/notes/{b['id']}", json={"folderId": elsewhere}).status_code == 200
+    before = _get(client, b["id"])
+    back = _by_id(_batch(client, ids, "move", {"folders": {a["id"]: f1, b["id"]: f1},
+                                               "expectFolderId": dest}))
+    assert back[a["id"]]["status"] == "changed"
+    assert back[b["id"]] == {"id": b["id"], "status": "conflict"}
+    after = _get(client, b["id"])
+    assert (after["folderId"], after["updatedAt"]) == (elsewhere, before["updatedAt"])
+
+
+def test_a_legacy_spelled_tag_is_removed_and_not_added_twice(app, client, db_path):
+    import sqlite3
+    _login_as(app, "u1")
+    n = _note(client, "Legacy", tags=["x"])
+    conn = sqlite3.connect(db_path)
+    try:
+        conn.execute("UPDATE j2_notes SET tags = ? WHERE id = ?", ('["Q3 / Q4", "x"]', n["id"]))
+        conn.commit()
+    finally:
+        conn.close()
+    # The bulk bar builds its Remove chips from the notes' own spelling.
+    added = _batch(client, [n["id"]], "addTag", {"tag": "q3/q4"})
+    assert _by_id(added)[n["id"]]["status"] == "unchanged"
+    removed = _batch(client, [n["id"]], "removeTag", {"tag": "Q3 / Q4"})
+    assert _by_id(removed)[n["id"]]["status"] == "changed"
+    assert _get(client, n["id"])["tags"] == ["x"]

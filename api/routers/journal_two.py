@@ -1895,6 +1895,13 @@ def notes_batch_endpoint(
     ops: `move` {folderId | null} · `addTag` {tag} · `removeTag` {tag} ·
     `favorite` · `unfavorite` · `trash` · `restore`.
 
+    `move` also takes `{folders: {<id>: folderId | null}}` — a folder PER
+    NOTE, for putting a selection back where each note came from (the bulk
+    bar's Undo) — and `{expectFolderId}`: a note that is no longer in that
+    folder (moved again since, in another tab) is reported `conflict` and not
+    moved. A changed `move` result carries `fromFolderId`, the folder it left,
+    which is what makes that Undo possible.
+
     Validation that would fail EVERY note (unknown op, a folder that is not
     the member's, a blank or over-long tag) is a 400 before anything is
     written. Everything after that is per note, reported in `results`:
@@ -1916,14 +1923,31 @@ def notes_batch_endpoint(
     try:
         target_folder = None
         tag = None
+        per_note_folder: dict[str, str | None] | None = None
+        expect_guard = False
+        expect_folder = None
         if op == "move":
-            target_folder = args.get("folderId") or None
-            if target_folder is not None:
-                if not isinstance(target_folder, str):
+            raw_map = args.get("folders")
+            if raw_map is not None:
+                if not isinstance(raw_map, dict) or any(i not in raw_map for i in ids):
+                    raise HTTPException(status_code=400,
+                                        detail="folders must name a folder (or null) for every id")
+                per_note_folder = {i: (raw_map[i] or None) for i in ids}
+                wanted = {f for f in per_note_folder.values() if f is not None}
+            else:
+                target_folder = args.get("folderId") or None
+                wanted = {target_folder} if target_folder is not None else set()
+            if "expectFolderId" in args:
+                expect_guard = True
+                expect_folder = args.get("expectFolderId") or None
+                if expect_folder is not None and not isinstance(expect_folder, str):
+                    raise HTTPException(status_code=400, detail="expectFolderId must be a string or null")
+            for folder in wanted:
+                if not isinstance(folder, str):
                     raise HTTPException(status_code=400, detail="folderId must be a string or null")
                 owned_folder = conn.execute(
                     "SELECT 1 FROM j2_note_folders WHERE id = ? AND user_id = ?",
-                    (target_folder, uid),
+                    (folder, uid),
                 ).fetchone()
                 if owned_folder is None:
                     raise HTTPException(status_code=400, detail="folder not found")
@@ -1940,12 +1964,17 @@ def notes_batch_endpoint(
         favs = notes_service.favorite_note_ids(uid, ids, conn=conn) if op in ("favorite", "unfavorite") else set()
 
         def _tag_patch(head: dict[str, Any]) -> list[str] | None:
-            """The note's new tag list, or None when it would not change."""
+            """The note's new tag list, or None when it would not change.
+            ⛔ Compared by `tag_key` — the identity the tree and the filter use
+            — never by the stored spelling: a legacy "Q3 / Q4" IS "Q3/Q4", and
+            a remove that compared raw text reported "already that way" and
+            left it on the note (review S2)."""
             existing = list(head["tags"] or [])
-            present = any(str(t).lower() == tag.lower() for t in existing)
+            key = notes_service.tag_key(tag)
+            present = any(notes_service.tag_key(t) == key for t in existing)
             if op == "addTag":
                 return None if present else existing + [tag]
-            return [t for t in existing if str(t).lower() != tag.lower()] if present else None
+            return [t for t in existing if notes_service.tag_key(t) != key] if present else None
 
         results: list[dict[str, Any]] = []
         for nid in ids:
@@ -1958,11 +1987,18 @@ def notes_batch_endpoint(
                 continue
             try:
                 if op == "move":
-                    if head["folderId"] == target_folder:
+                    dest = per_note_folder[nid] if per_note_folder is not None else target_folder
+                    if head["folderId"] == dest:
                         results.append({"id": nid, "status": "unchanged"})
                         continue
-                    n = notes_service.update_note(uid, nid, {"folderId": target_folder}, conn=conn)
-                    results.append({"id": nid, "status": "changed", "updatedAt": n["updatedAt"]}
+                    if expect_guard and head["folderId"] != expect_folder:
+                        # Moved again since the member last looked — putting it
+                        # "back" would undo somebody else's move. Say so instead.
+                        results.append({"id": nid, "status": "conflict"})
+                        continue
+                    n = notes_service.update_note(uid, nid, {"folderId": dest}, conn=conn)
+                    results.append({"id": nid, "status": "changed", "updatedAt": n["updatedAt"],
+                                    "fromFolderId": head["folderId"]}
                                    if n else {"id": nid, "status": "not_found"})
                 elif op in ("addTag", "removeTag"):
                     # Compare-and-set against the revision this batch READ, so a

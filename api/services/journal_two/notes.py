@@ -126,7 +126,10 @@ def extract_plain_text(doc: dict[str, Any] | None) -> str:
     """Recursively walk a TipTap ProseMirror doc and concatenate all text
     nodes (space-separated), plus the search lines of the custom atom nodes.
     This writes body_plain — the notebook search index — so it MUST stay in
-    lockstep with the client serializer (lib/tiptap.js extractPlainText).
+    lockstep with the client serializer (lib/tiptap.js extractPlainText) —
+    and it is PINNED, not promised: both read tests/fixtures_plain_text.json
+    (tests/test_plain_text_parity.py ⇄ lib/plainText.parity.test.js), and both
+    rails fail on a node type one side handles and the other does not.
 
     widgetEmbed carries its line pre-computed in attrs.searchText: the CLIENT
     derives it from the widget registry at the only moments params change
@@ -168,6 +171,15 @@ def extract_plain_text(doc: dict[str, Any] | None) -> str:
             # non-dict here must degrade, never 500 the note write.
             st = attrs.get("searchText") if isinstance(attrs, dict) else None
             out.append(st if isinstance(st, str) and st else "[widget]")
+        elif ntype in ("inlineMath", "blockMath"):
+            # Wave 5 math: a formula is searchable as its LaTeX SOURCE, the
+            # text a member typed (the same reading the citation tables give
+            # it, note_citation_text.py::_ATOM_TEXT). An empty one is nothing.
+            # Without this a LaTeX-only edit also changed no body_plain, so
+            # History showed no difference for it.
+            latex = attrs.get("latex")
+            if isinstance(latex, str):
+                out.append(latex)
         for child in node.get("content", []) or []:
             walk(child)
     walk(doc)
@@ -364,6 +376,66 @@ def _normalize_tag_path(tag: str) -> str:
     return "/".join(seg.strip() for seg in t.split("/") if seg.strip())
 
 
+def tag_key(tag: Any) -> str:
+    """A tag's IDENTITY — the one key every comparison of two tags uses: the
+    tag tree's node keys, its counts, the `tag=` filter (both halves), the
+    search box's tag match and the bulk bar's add/remove.
+
+    Nested-path normalised, then lower-cased by PYTHON, which folds Unicode
+    ("Élan" -> "élan"). ⛔ Never SQLite's `lower()` for this: it folds ASCII
+    only, so "Élan" and "élan" were two tags to SQL and one to Python.
+    ⛔ And never the STORED spelling: a tag saved before nested tags ("Q3 / Q4",
+    the old validator only stripped it) is the same tag as "Q3/Q4" — the tree
+    counted it under "q3/q4" while the filter compared the raw text and found
+    nothing (review S2)."""
+    if tag is None:
+        return ""
+    return _normalize_tag_path(str(tag)).lower()
+
+
+def _sql_tag_match(value: Any, key: str) -> int:
+    """SQL `j2_tag_match(value, key)`: 1 when a stored tag IS `key` or sits
+    below it (`key/…`) — a tag is the parent of its children (Obsidian)."""
+    if value is None or not key:
+        return 0
+    k = tag_key(value)
+    return 1 if (k == key or k.startswith(key + "/")) else 0
+
+
+def _sql_tag_is(value: Any, key: str) -> int:
+    """SQL `j2_tag_is(value, key)`: 1 when a stored tag IS `key` (no children)."""
+    if value is None or not key:
+        return 0
+    return 1 if tag_key(value) == key else 0
+
+
+def register_note_sql_functions(conn: sqlite3.Connection) -> sqlite3.Connection:
+    """Register the Python functions this module's SQL calls. Every
+    connection that runs a `_notes_filter_sql` predicate MUST pass through
+    here first — `no such function` otherwise.
+    Deterministic, per-connection and idempotent; cheap enough to call on
+    every read."""
+    conn.create_function("j2_tag_match", 2, _sql_tag_match, deterministic=True)
+    conn.create_function("j2_tag_is", 2, _sql_tag_is, deterministic=True)
+    return conn
+
+
+def _tag_prefilter(key: str) -> tuple[str, list[Any]]:
+    """A cheap SUPERSET test on the raw `tags` JSON text, run before the
+    per-tag Python match so a 50k-note library does not pay one Python call
+    per tag per note. Sound by construction:
+      · for a row whose JSON has no `\\u` escape, every character is ASCII,
+        where SQLite's `lower()` and Python's agree, and JSON escaping is per
+        character — so the JSON-escaped first segment of the key appears in
+        `lower(tags)` whenever a stored tag's key matches;
+      · a row WITH an escape (a non-ASCII tag, which the JSON text cannot
+        fold) always passes through to the exact check."""
+    first = key.split("/", 1)[0]
+    needle = json.dumps(first)[1:-1]
+    return ("(instr(lower(j2_notes.tags), ?) > 0 OR instr(j2_notes.tags, '\\u') > 0)",
+            [needle])
+
+
 def _validate_tags(raw: Any) -> list[str]:
     if raw is None:
         return []
@@ -381,7 +453,7 @@ def _validate_tags(raw: Any) -> list[str]:
             continue
         if len(t2) > MAX_TAG_LENGTH:
             raise NoteValidationError(f"tag exceeds {MAX_TAG_LENGTH} chars")
-        key = t2.lower()
+        key = tag_key(t2)
         if key in seen:
             continue
         seen.add(key)
@@ -986,20 +1058,27 @@ def _notes_filter_sql(
         else:
             sql += " AND 0"
     if tag:
-        # JSON LIKE — case-insensitive match of one whole tag value. This half
-        # is byte-for-byte what it was before nested tags: a flat tag with no
-        # children finds exactly the notes it always found.
-        # ⭐ Wave 5 nested tags: a tag is also the PARENT of every `tag/…` tag
-        # below it (the Obsidian convention), so filtering by "research" also
-        # finds notes tagged only "research/semis". That half compares decoded
-        # values with `substr`, never LIKE, so a `%` or `_` in a tag is text.
-        # ⛔ ONE predicate for the list AND its count — both build off this.
-        sql += (' AND (lower(tags) LIKE ?'
-                ' OR EXISTS (SELECT 1 FROM json_each(COALESCE(j2_notes.tags, \'[]\')) jt'
-                ' WHERE substr(lower(jt.value), 1, ?) = ?))')
-        parent_key = _normalize_tag_path(tag).lower()
-        params.append(f'%"{tag.lower()}"%')
-        params.extend([len(parent_key) + 1, parent_key + "/"])
+        # A note carries this tag, or a tag BELOW it (Wave 5 nested tags: a
+        # tag is the parent of every `tag/…` tag, the Obsidian convention, so
+        # "research" also finds notes tagged only "research/semis").
+        # ⛔ Both sides compared by `tag_key` (review S2 + N2): the tree counts
+        # by that key, so the filter must find by it too — a legacy
+        # "Q3 / Q4", an "Élan" (stored as a `\u` escape the JSON text cannot
+        # fold), a `tag=` with a stray trailing slash. Decoded values, never
+        # a LIKE on the JSON text, so `%` and `_` in a tag are text.
+        # ⛔ ONE predicate for the list AND its count — both build off this;
+        # callers run it on a connection from `register_note_sql_functions`.
+        key = tag_key(tag)
+        if key:
+            pre_sql, pre_params = _tag_prefilter(key)
+            sql += (f" AND {pre_sql} AND EXISTS (SELECT 1 FROM"
+                    " json_each(COALESCE(j2_notes.tags, '[]')) jt"
+                    " WHERE j2_tag_match(jt.value, ?))")
+            params.extend([*pre_params, key])
+        else:
+            # A tag that normalises to nothing names no tag: an honest empty
+            # result, never a silently ignored filter.
+            sql += " AND 0"
     if q:
         # FTS5 when the text yields a valid MATCH expression; the old
         # LIKE scan remains the fallback so a query FTS cannot parse
@@ -1020,7 +1099,18 @@ def _notes_filter_sql(
         # title/body text search. Deliberately NOT added as FTS columns —
         # that would touch the virtual table, its 3 triggers, and the v4
         # backfill, for a scope this OR clause already covers.
-        exact_tag_pattern = f'%"{q.strip().lower()}"%'   # same spelling as the `tag` filter above
+        # The search box finds a note whose tag IS the text typed -- the same
+        # `tag_key` identity the `tag=` filter uses (never its children: a
+        # search for "research" is not a request for the whole subtree).
+        q_key = tag_key(q)
+        if q_key:
+            q_pre_sql, q_pre_params = _tag_prefilter(q_key)
+            tag_sql = (f"({q_pre_sql} AND EXISTS (SELECT 1 FROM"
+                       " json_each(COALESCE(j2_notes.tags, '[]')) jt"
+                       " WHERE j2_tag_is(jt.value, ?)))")
+            tag_params: list[Any] = [*q_pre_params, q_key]
+        else:
+            tag_sql, tag_params = "0", []
         # Wave 4 Slice 4 fix: a leading `$` (the natural way to type a
         # cashtag) used to survive into this comparison unstripped, so
         # "$NVDA" never matched a note whose only NVDA signal was the
@@ -1033,12 +1123,12 @@ def _notes_filter_sql(
         if expr:
             sql += (" AND (id IN (SELECT note_id FROM j2_notes_fts"
                     " WHERE j2_notes_fts MATCH ? AND user_id = ?)"
-                    " OR lower(tags) LIKE ? OR ticker = ?)")
-            params.extend([expr, user_id, exact_tag_pattern, exact_ticker])
+                    f" OR {tag_sql} OR ticker = ?)")
+            params.extend([expr, user_id, *tag_params, exact_ticker])
         else:
-            sql += " AND (lower(title) LIKE ? OR lower(body_plain) LIKE ? OR lower(tags) LIKE ? OR ticker = ?)"
+            sql += f" AND (lower(title) LIKE ? OR lower(body_plain) LIKE ? OR {tag_sql} OR ticker = ?)"
             ql = f"%{q.lower()}%"
-            params.extend([ql, ql, exact_tag_pattern, exact_ticker])
+            params.extend([ql, ql, *tag_params, exact_ticker])
     return sql, params
 
 
@@ -1106,6 +1196,7 @@ def list_notes(
 ) -> list[dict[str, Any]]:
     owned = conn is None
     conn = conn or get_connection()
+    register_note_sql_functions(conn)
     try:
         where_sql, params = _notes_filter_sql(
             user_id, folder_id=folder_id, tag=tag, ticker=ticker, q=q,
@@ -1221,6 +1312,7 @@ def count_notes(
     so the two can never disagree about which notes match."""
     owned = conn is None
     conn = conn or get_connection()
+    register_note_sql_functions(conn)
     try:
         where_sql, params = _notes_filter_sql(
             user_id, folder_id=folder_id, tag=tag, ticker=ticker, q=q,
@@ -1240,6 +1332,66 @@ def count_notes(
     finally:
         if owned:
             conn.close()
+
+
+def _tag_groups(
+    conn: sqlite3.Connection, user_id: str, *, flat_only: bool = False,
+) -> dict[str, dict[str, Any]]:
+    """`tag_key -> {"tag": display spelling, "c": DISTINCT notes, "lks": [...]}`
+    over the member's active notes (flat tags only when `flat_only`).
+
+    Grouped in SQL by `LOWER(value)` — C speed, one pass — then FOLDED here by
+    `tag_key`, which is what the tree and the filter compare by. The two agree
+    for almost every tag; where they do not (a legacy "Q3 / Q4" beside
+    "Q3/Q4", or "Élan" beside "élan", which SQLite's ASCII-only LOWER keeps
+    apart) the folded group is recounted exactly, so a note carrying two
+    spellings of one tag still counts once. Measured on 50,000 notes: grouping
+    by a Python key inside SQL cost ~120 ms more per call than this."""
+    rows = conn.execute(
+        "SELECT MAX(je.value) AS tag, LOWER(je.value) AS lk,"
+        " COUNT(DISTINCT j2_notes.id) AS c"
+        " FROM j2_notes, json_each(COALESCE(j2_notes.tags, '[]')) je"
+        " WHERE j2_notes.user_id = ? AND j2_notes.deleted_at IS NULL"
+        + (" AND instr(je.value, '/') = 0" if flat_only else "")
+        + " GROUP BY LOWER(je.value)",
+        (user_id,),
+    ).fetchall()
+    groups: dict[str, dict[str, Any]] = {}
+    for r in rows:
+        key = tag_key(r["lk"])
+        if not key:
+            continue
+        g = groups.setdefault(key, {"tag": "", "c": 0, "lks": []})
+        g["tag"] = max(g["tag"], str(r["tag"] or ""))
+        g["c"] += int(r["c"] or 0)
+        g["lks"].append(r["lk"])
+    collided = [g for g in groups.values() if len(g["lks"]) > 1]
+    if collided:
+        ids = _note_ids_by_lowered_tag(conn, user_id, [lk for g in collided for lk in g["lks"]])
+        for g in collided:
+            g["c"] = len(set().union(*(ids.get(lk, set()) for lk in g["lks"])))
+    return groups
+
+
+def _note_ids_by_lowered_tag(
+    conn: sqlite3.Connection, user_id: str, lowered: list[str],
+) -> dict[str, set[str]]:
+    """`LOWER(tag) -> active note ids carrying it`, for the `lowered` values
+    asked about — ONE pass over the member's notes, never one per tag."""
+    out: dict[str, set[str]] = {}
+    wanted = list(dict.fromkeys(lowered))
+    for start in range(0, len(wanted), _BATCH_READ_CHUNK):
+        chunk = wanted[start:start + _BATCH_READ_CHUNK]
+        placeholders = ",".join("?" * len(chunk))
+        for nid, lk in conn.execute(
+            "SELECT j2_notes.id, LOWER(je.value)"
+            " FROM j2_notes, json_each(COALESCE(j2_notes.tags, '[]')) je"
+            " WHERE j2_notes.user_id = ? AND j2_notes.deleted_at IS NULL"
+            f" AND LOWER(je.value) IN ({placeholders})",
+            [user_id, *chunk],
+        ):
+            out.setdefault(lk, set()).add(nid)
+    return out
 
 
 def tag_counts(
@@ -1272,10 +1424,11 @@ def tag_counts(
     member-facing intent (a member who typed 'Trading' and 'trading' means
     one tag), so THIS query is the one that must fold to match it — never
     the reverse (that would need every stored tag re-cased, and would not
-    fix a future note written with a fresh casing anyway). `LOWER(je.value)`
-    is the ONE grouping key, mirroring `_validate_tags`'s own per-note
-    dedup key (`t2.lower()`, above) and the filter's `tag.lower()` — three
-    call sites, one normalization rule. `MAX(je.value)` picks a single
+    fix a future note written with a fresh casing anyway). `tag_key` is the
+    ONE grouping key (`_tag_groups` folds SQL's groups by it) — the same function
+    `_validate_tags` dedups by and the `tag=` filter finds by (wave 5 fix
+    round: it replaced SQLite's ASCII-only `LOWER`, which split "Élan" from
+    "élan"). Counts are DISTINCT notes. `MAX(je.value)` picks a single
     display casing per group; which variant wins is not load-bearing
     (matching is case-insensitive everywhere a tag is used), only that
     there is exactly one row per case-insensitive tag."""
@@ -1284,15 +1437,9 @@ def tag_counts(
     try:
         # Wave 0 trash: a soft-deleted note's tags must not inflate the tag
         # cloud — same "active notebook only" predicate as everywhere else.
-        rows = conn.execute(
-            "SELECT MAX(je.value) AS tag, LOWER(je.value) AS tag_key, COUNT(*) AS c"
-            " FROM j2_notes, json_each(COALESCE(j2_notes.tags, '[]')) je"
-            " WHERE j2_notes.user_id = ? AND j2_notes.deleted_at IS NULL"
-            " GROUP BY LOWER(je.value)"
-            " ORDER BY c DESC, tag_key ASC",
-            (user_id,),
-        ).fetchall()
-        return [{"tag": r["tag"], "count": int(r["c"] or 0)} for r in rows]
+        groups = _tag_groups(conn, user_id)
+        ordered = sorted(groups.items(), key=lambda kv: (-kv[1]["c"], kv[0]))
+        return [{"tag": g["tag"], "count": g["c"]} for _k, g in ordered]
     finally:
         if owned:
             conn.close()
@@ -1322,14 +1469,7 @@ def tag_tree(
     owned = conn is None
     conn = conn or get_connection()
     try:
-        flat_rows = conn.execute(
-            "SELECT MAX(je.value) AS tag, LOWER(je.value) AS k, COUNT(*) AS c"
-            " FROM j2_notes, json_each(COALESCE(j2_notes.tags, '[]')) je"
-            " WHERE j2_notes.user_id = ? AND j2_notes.deleted_at IS NULL"
-            " AND instr(je.value, '/') = 0"
-            " GROUP BY LOWER(je.value)",
-            (user_id,),
-        ).fetchall()
+        flat_groups = _tag_groups(conn, user_id, flat_only=True)
         nested_rows = conn.execute(
             "SELECT j2_notes.id AS nid, je.value AS tag"
             " FROM j2_notes, json_each(COALESCE(j2_notes.tags, '[]')) je"
@@ -1341,12 +1481,9 @@ def tag_tree(
         own: dict[str, int] = {}
         spelled: dict[str, str] = {}      # explicit spellings win
         implied: dict[str, str] = {}      # a parent named only through a child
-        for r in flat_rows:
-            key = _normalize_tag_path(r["k"] or "")
-            if not key:
-                continue
-            own[key] = own.get(key, 0) + int(r["c"] or 0)
-            spelled[key] = max(spelled.get(key, ""), _normalize_tag_path(r["tag"] or ""))
+        for key, g in flat_groups.items():
+            own[key] = own.get(key, 0) + g["c"]
+            spelled[key] = max(spelled.get(key, ""), _normalize_tag_path(g["tag"]))
 
         under: dict[str, set[str]] = {}  # key -> notes tagged it OR anything below it
         own_nested: dict[str, set[str]] = {}
@@ -1365,18 +1502,12 @@ def tag_tree(
             spelled[path.lower()] = max(spelled.get(path.lower(), ""), path)
 
         # A flat tag that is also a PARENT: its own notes join its subtree.
-        flat_parents = [k for k in under if "/" not in k and k in own]
-        for start in range(0, len(flat_parents), _BATCH_READ_CHUNK):
-            chunk = flat_parents[start:start + _BATCH_READ_CHUNK]
-            placeholders = ",".join("?" * len(chunk))
-            for r in conn.execute(
-                "SELECT j2_notes.id AS nid, LOWER(je.value) AS k"
-                " FROM j2_notes, json_each(COALESCE(j2_notes.tags, '[]')) je"
-                " WHERE j2_notes.user_id = ? AND j2_notes.deleted_at IS NULL"
-                f" AND LOWER(je.value) IN ({placeholders})",
-                [user_id, *chunk],
-            ):
-                under[_normalize_tag_path(r["k"])].add(r["nid"])
+        parents = [k for k in under if "/" not in k and k in flat_groups]
+        if parents:
+            ids = _note_ids_by_lowered_tag(conn, user_id, [lk for k in parents for lk in flat_groups[k]["lks"]])
+            for k in parents:
+                for lk in flat_groups[k]["lks"]:
+                    under[k] |= ids.get(lk, set())
 
         for k, ids in own_nested.items():
             own[k] = own.get(k, 0) + len(ids)
@@ -3160,14 +3291,23 @@ def list_recents(
 # app-wide palette, and must rank a title that STARTS with the query above one
 # that merely mentions it in paragraph nine.
 #
-# ⛔ RANKED IN SQL, NEVER CAPPED-THEN-RANKED IN PYTHON. A one-letter query can
-# match most of a 50k-note library; fetching "the newest 2,000 matches" and
-# ranking those would silently lose an EXACT title match on an older note. The
-# tier is a CASE expression, so ORDER BY + LIMIT sees every candidate.
+# ⛔ EVERY LIVE TITLE IS RANKED — never a capped sample — for the tiers that
+# ask "is the typed text IN the title" (0-5). A one-letter query can match most
+# of a 50k-note library; ranking "the newest 2,000 matches" would silently lose
+# an EXACT title on an older note. What makes that affordable on every
+# keystroke is the covering index `idx_j2_notes_switcher` (db.py): one
+# member's titles read from the index alone, newest edit first — measured on
+# 50,000 notes, ~30 ms where the same read off the table took ~150 ms — and
+# ranked HERE, in Python, which also folds case the way a member reads it
+# ("Élan" is found by "élan"; SQLite's lower() folds ASCII only — review N2).
 #
-# ⛔ `instr`, NEVER `LIKE`, for the member's text. `LIKE` treats `%` and `_` as
-# wildcards, so a title search for "q3_plan" would match "q3Xplan". `instr` is a
-# plain substring test.
+# The two FUZZY tiers (6, 7) are the one bounded exception, and they say so:
+# they read only the member's SWITCHER_FUZZY_SCOPE most recently edited notes
+# (plus every recent and favourite), because letters-in-order and one-typo
+# tests cost far more per title than a substring test — and they run only when
+# the tiers above left room on the page.
+#
+# ⛔ Substring tests, never LIKE, for the member's text: `%` and `_` are text.
 SWITCHER_DEFAULT_LIMIT = 8
 SWITCHER_MAX_LIMIT = 50
 _SWITCHER_MAX_QUERY_CHARS = 120
@@ -3176,32 +3316,105 @@ _SWITCHER_MAX_TOKENS = 6
 # space in BOTH the title and the query before the word-start test, so
 # "NVDA-Q3 plan" word-starts "q3" and "$NVDA thesis" word-starts "nvda".
 _SWITCHER_WORD_BREAKS = ("-", "_", "/", "(", "[", "$", ":", ".", ",", "#", "|")
+_SWITCHER_BREAK_TABLE = str.maketrans({ch: " " for ch in _SWITCHER_WORD_BREAKS})
 
-# Tier numbers — lower ranks first. Exported so the router's docstring and the
-# client both name the same scale rather than restating it.
+# Tier numbers — lower ranks first.
 SWITCHER_TIER_EXACT = 0
 SWITCHER_TIER_PREFIX = 1
 SWITCHER_TIER_WORD_START = 2
 SWITCHER_TIER_ALL_WORDS_START = 3
 SWITCHER_TIER_SUBSTRING = 4
 SWITCHER_TIER_ALL_WORDS = 5
+SWITCHER_TIER_FUZZY = 6   # the letters in order, the first starting a word ("nvth")
+SWITCHER_TIER_TYPO = 7    # every word present, or one slip from a title word's start
+# A row at or above this tier is a title that IS, STARTS WITH, or has a WORD
+# STARTING WITH the query — `strong: true` in the response. The palette lets a
+# strong note outrank ticker rows and a weak one never. It reads the FLAG, never
+# a tier number, so renumbering the tiers cannot silently re-place rows among
+# tickers (review S3: the client used to restate this as a constant).
+SWITCHER_STRONG_TIER_MAX = SWITCHER_TIER_WORD_START
+SWITCHER_FUZZY_MIN_CHARS = 3     # fewer letters in order is noise, not a match
+SWITCHER_TYPO_MIN_LETTERS = 4    # a slip is only forgiven in a word this long
+SWITCHER_FUZZY_SCOPE = 5000      # most recently edited notes the fuzzy tiers read
+
+
+# The three reads a keystroke costs. Module constants so a rail can ask
+# SQLite how it will run THESE statements (test_journal_two_notes_switcher_
+# router.py): the scan must be served by the covering index alone, and the
+# recents/favourites reads must start from the member's own (small) lists.
+_SWITCHER_SCAN_SQL = (
+    "SELECT rowid, title FROM j2_notes"
+    " WHERE user_id = ? AND deleted_at IS NULL"
+    " ORDER BY updated_at DESC, title ASC, rowid ASC"
+)
+# CROSS JOIN pins the recents/favourites table as the OUTER loop — left to
+# itself the planner chose to walk all 50k notes and probe each one (~115 ms).
+_SWITCHER_RECENTS_SQL = (
+    "SELECT n.rowid, r.opened_at FROM j2_note_recents r"
+    " CROSS JOIN j2_notes n ON n.id = r.note_id AND n.user_id = r.user_id"
+    " WHERE r.user_id = ? AND n.deleted_at IS NULL"
+)
+_SWITCHER_FAVORITES_SQL = (
+    "SELECT n.rowid FROM j2_note_favorites f"
+    " CROSS JOIN j2_notes n ON n.id = f.note_id AND n.user_id = f.user_id"
+    " WHERE f.user_id = ? AND n.deleted_at IS NULL"
+)
 
 
 def _switcher_word_text(text: str) -> str:
-    out = text
-    for ch in _SWITCHER_WORD_BREAKS:
-        out = out.replace(ch, " ")
-    return " ".join(out.split())
+    return " ".join(text.translate(_SWITCHER_BREAK_TABLE).split())
 
 
-def _switcher_word_title_sql() -> str:
-    """`' ' || <lower(title) with every word break turned into a space>` —
-    the SQL twin of `_switcher_word_text`, prefixed with a space so "starts a
-    word" is always `instr(<this>, ' ' || token) > 0`, including at position 1."""
-    expr = "lower(coalesce(n.title, ''))"
-    for ch in _SWITCHER_WORD_BREAKS:
-        expr = f"replace({expr}, '{ch}', ' ')"
-    return f"(' ' || {expr})"
+def _typo_eligible(word: str) -> bool:
+    """A word earns typo tolerance at SWITCHER_TYPO_MIN_LETTERS letters. Digits
+    never count: "4999" one digit off is a different number, not a slip."""
+    return sum(ch.isalpha() for ch in word) >= SWITCHER_TYPO_MIN_LETTERS
+
+
+def _one_edit_apart(a: str, b: str) -> bool:
+    """At most ONE insertion, deletion, substitution or adjacent swap turns
+    `a` into `b`. Linear time — never a general edit-distance table."""
+    if a == b:
+        return True
+    la, lb = len(a), len(b)
+    if abs(la - lb) > 1:
+        return False
+    i = 0
+    m = min(la, lb)
+    while i < m and a[i] == b[i]:
+        i += 1
+    if la == lb:
+        if a[i + 1:] == b[i + 1:]:
+            return True
+        return (i + 1 < la and a[i] == b[i + 1] and a[i + 1] == b[i]
+                and a[i + 2:] == b[i + 2:])
+    if la > lb:
+        return a[i + 1:] == b[i:]
+    return a[i:] == b[i + 1:]
+
+
+def _typo_starts_word(token: str, word: str) -> bool:
+    """`token` is one slip away from how `word` STARTS — so a half-typed word
+    with a typo still finds it ("earbin" -> "earnings")."""
+    n = len(token)
+    return any(0 < k <= len(word) and _one_edit_apart(token, word[:k])
+               for k in (n, n - 1, n + 1))
+
+
+def _in_order_from_word_start(word_title: str, letters: str) -> bool:
+    """The letters appear in order in the title, the first one starting a word.
+    Greedy from the EARLIEST word-start hit, which is optimal for an in-order
+    test — and linear, never a backtracking regex a hostile title could stall."""
+    at = word_title.find(" " + letters[0])
+    if at < 0:
+        return False
+    pos = at + 2
+    for ch in letters[1:]:
+        pos = word_title.find(ch, pos)
+        if pos < 0:
+            return False
+        pos += 1
+    return True
 
 
 def _folder_paths(conn: sqlite3.Connection, user_id: str) -> dict[str, str]:
@@ -3232,81 +3445,195 @@ def switcher_search(
     conn: sqlite3.Connection | None = None,
 ) -> dict[str, Any]:
     """Notes whose TITLE matches `q`, best first. Returns
-    `{"notes": [...], "hasMore": bool}`; a blank query is an empty answer,
-    never an error.
+    `{"notes": [...], "hasMore": bool, "prefixExhausted": bool}`; a blank query
+    is an empty answer, never an error.
 
     Ranking, in order (`matchTier`, lower first):
       0 exact title · 1 title starts with the query · 2 a title word starts
       with the query · 3 (several words typed) every word starts a title word
-      · 4 the query appears anywhere · 5 every typed word appears somewhere.
+      · 4 the query appears anywhere · 5 every typed word appears somewhere
+      · 6 the letters appear in order, the first starting a word ("nvth" finds
+      "NVDA thesis") · 7 every word is present, or one slip from the start of
+      a title word, for words of 4+ letters ("semsi" finds "Semis").
     Inside a tier: the note opened most recently first (the recents boost),
     then favourites, then the most recently edited — so among equally good
-    matches the one the member is working in wins.
+    matches the one the member is working in wins. Equal on all three: title,
+    then the order the notes were created.
+
+    Each row says `strong` (tier ≤ SWITCHER_STRONG_TIER_MAX) and `exact`
+    (tier 0) so the palette places it without knowing the tier numbers.
+
+    `prefixExhausted`: no note matches this query, AND none can match any
+    longer query that starts with it — so the palette may skip asking while
+    the member keeps typing. Only claimed when that is sound: every test above
+    only gets stricter as letters are appended, except that a word reaching
+    SWITCHER_TYPO_MIN_LETTERS starts forgiving a slip and a query reaching
+    SWITCHER_FUZZY_MIN_CHARS starts the in-order tier — so both must already
+    apply to the word being typed.
 
     Scoped like every other read here: `user_id` in SQL, active notes only
     (a trashed note cannot be opened, so offering it would be a dead row)."""
     text = " ".join(str(q or "").lower().split())[:_SWITCHER_MAX_QUERY_CHARS]
     if not text:
-        return {"notes": [], "hasMore": False}
+        return {"notes": [], "hasMore": False, "prefixExhausted": False}
     limit = max(1, min(int(limit or SWITCHER_DEFAULT_LIMIT), SWITCHER_MAX_LIMIT))
     tokens = text.split()[:_SWITCHER_MAX_TOKENS]
     word_query = _switcher_word_text(text)
     word_tokens = [t for t in (_switcher_word_text(tok) for tok in tokens) if t]
-    word_title = _switcher_word_title_sql()
-
-    tier_params: list[Any] = [text, text]
-    word_start_clause = "0"
-    if word_query:
-        word_start_clause = f"instr({word_title}, ' ' || ?) > 0"
-        tier_params.append(word_query)
-    all_words_clause = "0"
-    if len(word_tokens) > 1:
-        all_words_clause = " AND ".join(
-            f"instr({word_title}, ' ' || ?) > 0" for _ in word_tokens)
-        tier_params.extend(word_tokens)
-    tier_params.append(text)
-    tier_sql = (
-        "CASE"
-        f" WHEN lower(coalesce(n.title, '')) = ? THEN {SWITCHER_TIER_EXACT}"
-        f" WHEN instr(lower(coalesce(n.title, '')), ?) = 1 THEN {SWITCHER_TIER_PREFIX}"
-        f" WHEN {word_start_clause} THEN {SWITCHER_TIER_WORD_START}"
-        f" WHEN {all_words_clause} THEN {SWITCHER_TIER_ALL_WORDS_START}"
-        f" WHEN instr(lower(coalesce(n.title, '')), ?) > 0 THEN {SWITCHER_TIER_SUBSTRING}"
-        f" ELSE {SWITCHER_TIER_ALL_WORDS} END"
-    )
-    where = " AND ".join("instr(lower(coalesce(n.title, '')), ?) > 0" for _ in tokens)
+    words = word_query.split()          # every typed word, breaks split out
+    letters = "".join(words)
+    run_fuzzy = len(letters) >= SWITCHER_FUZZY_MIN_CHARS
+    single = tokens[0] if len(tokens) == 1 else None
 
     owned = conn is None
     conn = conn or get_connection()
     try:
-        rows = conn.execute(
-            f"SELECT n.id, n.title, n.folder_id, n.ticker, n.updated_at,"
-            f" r.opened_at AS opened_at, (f.note_id IS NOT NULL) AS is_favorite,"
-            f" {tier_sql} AS match_tier"
-            " FROM j2_notes n"
-            " LEFT JOIN j2_note_recents r ON r.note_id = n.id AND r.user_id = n.user_id"
-            " LEFT JOIN j2_note_favorites f ON f.note_id = n.id AND f.user_id = n.user_id"
-            f" WHERE n.user_id = ? AND n.deleted_at IS NULL AND {where}"
-            " ORDER BY match_tier ASC, (r.opened_at IS NULL) ASC, r.opened_at DESC,"
-            " is_favorite DESC, n.updated_at DESC, n.id ASC"
-            " LIMIT ?",
-            [*tier_params, user_id, *tokens, limit + 1],
-        ).fetchall()
-        has_more = len(rows) > limit
-        rows = rows[:limit]
-        paths = _folder_paths(conn, user_id) if any(r["folder_id"] for r in rows) else {}
-        notes = [{
-            "id": r["id"],
-            "title": r["title"] or "",
-            "folderId": r["folder_id"],
-            "folderPath": paths.get(r["folder_id"]) if r["folder_id"] else None,
-            "ticker": r["ticker"],
-            "updatedAt": r["updated_at"],
-            "isRecent": r["opened_at"] is not None,
-            "isFavorite": bool(r["is_favorite"]),
-            "matchTier": int(r["match_tier"]),
-        } for r in rows]
-        return {"notes": notes, "hasMore": has_more}
+        cur = conn.cursor()
+        cur.row_factory = None           # plain tuples: 50k Row objects cost real time
+        # Served from idx_j2_notes_switcher alone (a rail pins the plan).
+        live = cur.execute(_SWITCHER_SCAN_SQL, (user_id,)).fetchall()
+        recent_at = dict(cur.execute(_SWITCHER_RECENTS_SQL, (user_id,)).fetchall())
+        favs = {rid for (rid,) in cur.execute(_SWITCHER_FAVORITES_SQL, (user_id,)).fetchall()}
+
+        tiers: list[list[int]] = [[] for _ in range(SWITCHER_TIER_TYPO + 1)]
+        misses: list[int] = []           # positions no exact tier matched
+        lowered: list[str] = []
+        needle = " " + word_query
+        for pos, (_rid, title) in enumerate(live):
+            t = (title or "").lower()
+            lowered.append(t)
+            if single is not None:
+                hit = single in t
+            else:
+                hit = all(tok in t for tok in tokens)
+            if not hit:
+                misses.append(pos)
+                continue
+            if t == text:
+                tier = SWITCHER_TIER_EXACT
+            elif t.startswith(text):
+                tier = SWITCHER_TIER_PREFIX
+            else:
+                wt = " " + t.translate(_SWITCHER_BREAK_TABLE)
+                if word_query and needle in wt:
+                    tier = SWITCHER_TIER_WORD_START
+                elif len(word_tokens) > 1 and all((" " + w) in wt for w in word_tokens):
+                    tier = SWITCHER_TIER_ALL_WORDS_START
+                elif text in t:
+                    tier = SWITCHER_TIER_SUBSTRING
+                else:
+                    tier = SWITCHER_TIER_ALL_WORDS
+            tiers[tier].append(pos)
+
+        def _ranked(positions: list[int]):
+            """One tier in display order: recents (last opened first), then
+            favourites, then everything else — each in newest-edit order."""
+            rec, fav, rest = [], [], []
+            for p in positions:
+                rid = live[p][0]
+                if rid in recent_at:
+                    rec.append(p)
+                elif rid in favs:
+                    fav.append(p)
+                else:
+                    rest.append(p)
+            rec.sort(key=lambda p: (live[p][0] not in favs, p))
+            rec.sort(key=lambda p: recent_at[live[p][0]], reverse=True)
+            yield from rec
+            yield from fav
+            yield from rest
+
+        picked: list[tuple[int, int]] = []
+
+        def _take(tier: int) -> bool:
+            for p in _ranked(tiers[tier]):
+                picked.append((p, tier))
+                if len(picked) > limit:
+                    return True
+            return False
+
+        full = False
+        for tier in range(SWITCHER_TIER_ALL_WORDS + 1):
+            if _take(tier):
+                full = True
+                break
+
+        if not full and words and misses:
+            # ── the bounded fuzzy tiers ──
+            scope = [p for p in misses
+                     if p < SWITCHER_FUZZY_SCOPE or live[p][0] in recent_at or live[p][0] in favs]
+            typo_words = [w for w in words if _typo_eligible(w)]
+            slip_memo: dict[tuple[str, str], bool] = {}
+            for p in scope:
+                t = lowered[p]
+                wt = " " + t.translate(_SWITCHER_BREAK_TABLE)
+                if run_fuzzy and _in_order_from_word_start(wt, letters):
+                    tiers[SWITCHER_TIER_FUZZY].append(p)
+                    continue
+                title_words = None
+                ok = True
+                for w in words:
+                    if w in t:
+                        continue
+                    if w not in typo_words:
+                        ok = False
+                        break
+                    if title_words is None:
+                        title_words = wt.split()
+                    found = False
+                    for tw in title_words:
+                        key = (w, tw)
+                        hit = slip_memo.get(key)
+                        if hit is None:
+                            hit = slip_memo[key] = _typo_starts_word(w, tw)
+                        if hit:
+                            found = True
+                            break
+                    if not found:
+                        ok = False
+                        break
+                if ok:
+                    tiers[SWITCHER_TIER_TYPO].append(p)
+            for tier in (SWITCHER_TIER_FUZZY, SWITCHER_TIER_TYPO):
+                if _take(tier):
+                    break
+
+        has_more = len(picked) > limit
+        picked = picked[:limit]
+        prefix_exhausted = (not picked and run_fuzzy and bool(words)
+                            and _typo_eligible(words[-1]))
+        if not picked:
+            return {"notes": [], "hasMore": False, "prefixExhausted": prefix_exhausted}
+
+        rowids = [live[p][0] for p, _tier in picked]
+        placeholders = ",".join("?" * len(rowids))
+        detail = {r["rowid"]: r for r in conn.execute(
+            "SELECT rowid, id, title, folder_id, ticker, updated_at FROM j2_notes"
+            f" WHERE rowid IN ({placeholders}) AND user_id = ?",
+            [*rowids, user_id],
+        ).fetchall()}
+        paths = (_folder_paths(conn, user_id)
+                 if any(r["folder_id"] for r in detail.values()) else {})
+        notes = []
+        for p, tier in picked:
+            rid = live[p][0]
+            r = detail.get(rid)
+            if r is None:                # deleted between the two reads
+                continue
+            notes.append({
+                "id": r["id"],
+                "title": r["title"] or "",
+                "folderId": r["folder_id"],
+                "folderPath": paths.get(r["folder_id"]) if r["folder_id"] else None,
+                "ticker": r["ticker"],
+                "updatedAt": r["updated_at"],
+                "isRecent": rid in recent_at,
+                "isFavorite": rid in favs,
+                "matchTier": tier,
+                "strong": tier <= SWITCHER_STRONG_TIER_MAX,
+                "exact": tier == SWITCHER_TIER_EXACT,
+            })
+        return {"notes": notes, "hasMore": has_more, "prefixExhausted": False}
     finally:
         if owned:
             conn.close()

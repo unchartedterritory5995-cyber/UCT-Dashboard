@@ -1,0 +1,232 @@
+{
+  "_about": "ONE table, two readers: api/services/journal_two/notes.py::extract_plain_text (tests/test_plain_text_parity.py) and app/src/pages/journal-2-0/lib/tiptap.js::extractPlainText (lib/plainText.parity.test.js). body_plain is the notebook's search index and the text History diffs; each rail also fails on a node type one serializer reads and the other does not.",
+  "cases": [
+    {
+      "name": "text in nested blocks",
+      "doc": {
+        "type": "doc",
+        "content": [
+          {
+            "type": "heading",
+            "attrs": {
+              "level": 2
+            },
+            "content": [
+              {
+                "type": "text",
+                "text": "Plan"
+              }
+            ]
+          },
+          {
+            "type": "bulletList",
+            "content": [
+              {
+                "type": "listItem",
+                "content": [
+                  {
+                    "type": "paragraph",
+                    "content": [
+                      {
+                        "type": "text",
+                        "text": "buy "
+                      },
+                      {
+                        "type": "text",
+                        "text": "NVDA",
+                        "marks": [
+                          {
+                            "type": "bold"
+                          }
+                        ]
+                      }
+                    ]
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      },
+      "expected": "Plan buy  NVDA"
+    },
+    {
+      "name": "video timestamp beside text",
+      "doc": {
+        "type": "doc",
+        "content": [
+          {
+            "type": "paragraph",
+            "content": [
+              {
+                "type": "videoTimestamp",
+                "attrs": {
+                  "seconds": 75
+                }
+              },
+              {
+                "type": "text",
+                "text": " note"
+              }
+            ]
+          }
+        ]
+      },
+      "expected": "[1:15]  note"
+    },
+    {
+      "name": "attachment chip, named and unnamed",
+      "doc": {
+        "type": "doc",
+        "content": [
+          {
+            "type": "paragraph",
+            "content": [
+              {
+                "type": "attachmentChip",
+                "attrs": {
+                  "name": "plan.pdf"
+                }
+              },
+              {
+                "type": "attachmentChip",
+                "attrs": {}
+              }
+            ]
+          }
+        ]
+      },
+      "expected": "[file: plan.pdf] [file: file]"
+    },
+    {
+      "name": "document excerpt",
+      "doc": {
+        "type": "doc",
+        "content": [
+          {
+            "type": "documentExcerpt",
+            "attrs": {
+              "excerptId": "x1"
+            }
+          }
+        ]
+      },
+      "expected": "[excerpt]"
+    },
+    {
+      "name": "widget embed with and without its search line",
+      "doc": {
+        "type": "doc",
+        "content": [
+          {
+            "type": "widgetEmbed",
+            "attrs": {
+              "widgetId": "chart",
+              "searchText": "[chart: AMD 5m]"
+            }
+          },
+          {
+            "type": "widgetEmbed",
+            "attrs": {
+              "widgetId": "gone"
+            }
+          }
+        ]
+      },
+      "expected": "[chart: AMD 5m] [widget]"
+    },
+    {
+      "name": "inline math reads as its LaTeX",
+      "doc": {
+        "type": "doc",
+        "content": [
+          {
+            "type": "paragraph",
+            "content": [
+              {
+                "type": "text",
+                "text": "Sharpe is "
+              },
+              {
+                "type": "inlineMath",
+                "attrs": {
+                  "latex": "\\frac{\\mu}{\\sigma}"
+                }
+              },
+              {
+                "type": "text",
+                "text": " here"
+              }
+            ]
+          }
+        ]
+      },
+      "expected": "Sharpe is  \\frac{\\mu}{\\sigma}  here"
+    },
+    {
+      "name": "block math reads as its LaTeX",
+      "doc": {
+        "type": "doc",
+        "content": [
+          {
+            "type": "paragraph",
+            "content": [
+              {
+                "type": "text",
+                "text": "Kelly:"
+              }
+            ]
+          },
+          {
+            "type": "blockMath",
+            "attrs": {
+              "latex": "f^* = p - q/b"
+            }
+          }
+        ]
+      },
+      "expected": "Kelly: f^* = p - q/b"
+    },
+    {
+      "name": "an empty or malformed formula reads as nothing",
+      "doc": {
+        "type": "doc",
+        "content": [
+          {
+            "type": "blockMath",
+            "attrs": {
+              "latex": ""
+            }
+          },
+          {
+            "type": "paragraph",
+            "content": [
+              {
+                "type": "inlineMath",
+                "attrs": {
+                  "latex": 42
+                }
+              },
+              {
+                "type": "text",
+                "text": "after"
+              }
+            ]
+          },
+          {
+            "type": "inlineMath"
+          }
+        ]
+      },
+      "expected": "after"
+    },
+    {
+      "name": "an empty doc",
+      "doc": {
+        "type": "doc",
+        "content": []
+      },
+      "expected": ""
+    }
+  ]
+}

@@ -11,14 +11,29 @@
  * `tree` yet (an older server, a test); it says so where it is used.
  */
 
-/** Mirror of notes.py `_normalize_tag_path`: trim every level, drop empty
- *  levels. A flat tag comes back as `trim()` alone. */
+// Python's `str.strip()` whitespace, which is NOT JavaScript's `trim()`: trim
+// also strips U+FEFF and leaves U+001C-U+001F and U+0085. A tag the two sides
+// strip differently is a tag the sidebar cannot highlight.
+const PY_SPACE = '\t\n\v\f\r\x1c-\x1f \x85\xa0\u1680\u2000-\u200a\u2028\u2029\u202f\u205f\u3000'
+const PY_STRIP = new RegExp(`^[${PY_SPACE}]+|[${PY_SPACE}]+$`, 'g')
+const pyStrip = (s) => s.replace(PY_STRIP, '')
+
+/**
+ * notes.py `_normalize_tag_path`, in JavaScript: strip every level, drop empty
+ * levels; a flat tag comes back stripped alone.
+ * ⛔ A SECOND COPY OF A SERVER RULE, KEPT ONLY BECAUSE THE SIDEBAR MUST KEY A
+ * TAG IT WAS HANDED AS TEXT (a chip, a link) to the server's tree. It is not a
+ * promise to stay in step: tests/fixtures_tag_keys.json is ONE table both
+ * implementations must reproduce (tagKey.parity.test.js ⇄
+ * tests/test_tag_key_parity.py), exotic whitespace and non-ASCII case included.
+ */
 export function normalizeTagPath(tag) {
-  const t = String(tag ?? '').trim()
+  const t = pyStrip(String(tag ?? ''))
   if (!t.includes('/')) return t
-  return t.split('/').map((s) => s.trim()).filter(Boolean).join('/')
+  return t.split('/').map(pyStrip).filter(Boolean).join('/')
 }
 
+/** notes.py `tag_key`: a tag's identity — normalised, then lower-cased. */
 export const tagKey = (tag) => normalizeTagPath(tag).toLowerCase()
 
 /** 'a/b/c' -> ['a', 'a/b'] (keys of every level ABOVE it). */

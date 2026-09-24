@@ -190,7 +190,10 @@ export async function uploadNoteAttachment(noteId, file) {
 
 /**
  * Walk a TipTap doc and concatenate every text node, space-separated.
- * Mirrors the server's extract_plain_text in notes.py.
+ * Mirrors the server's extract_plain_text in notes.py — PINNED, not promised:
+ * both read tests/fixtures_plain_text.json (plainText.parity.test.js ⇄
+ * tests/test_plain_text_parity.py), and both fail on a node type one side
+ * reads and the other does not.
  */
 export function extractPlainText(doc) {
   if (!doc || typeof doc !== 'object') return ''
@@ -204,6 +207,11 @@ export function extractPlainText(doc) {
     // searchText is derived from the registry at the only moments params
     // change (buildWidgetEmbedAttrs) — both serializers read the stored line.
     if (node.type === 'widgetEmbed') out.push(node.attrs?.searchText || '[widget]')
+    // A formula reads as its LaTeX source (searchable, and a LaTeX-only edit
+    // shows in History); an empty one as nothing.
+    if ((node.type === 'inlineMath' || node.type === 'blockMath') && typeof node.attrs?.latex === 'string') {
+      out.push(node.attrs.latex)
+    }
     for (const child of node.content || []) walk(child)
   }
   walk(doc)

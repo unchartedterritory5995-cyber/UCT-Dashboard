@@ -4,12 +4,18 @@ What these pin:
   * a tag is also the PARENT of every `tag/...` below it — filtering by it
     returns the whole subtree, and the count agrees with the page;
   * a "parent" is a whole level, never a prefix of letters ("research" is not
-    the parent of "researcher"), and `_` in a parent is text for its children
-    (the exact-match half keeps the old JSON LIKE, wildcards and all — that is
-    the flat-tag control's point, and fixing that quirk is a separate change);
-  * ⛔ CONTROL: a FLAT tag (no `/`) returns exactly what the old predicate
-    returned — computed here by running the old SQL against the same rows,
-    not by restating what the answer should be;
+    the parent of "researcher"), and `%` / `_` in a tag are text;
+  * ⛔ CONTROL: a FLAT tag (no `/`) returns what the old predicate returned —
+    computed here by running the old SQL against the same rows, not by
+    restating what the answer should be — with every difference NAMED: a
+    parent now finds its children, and the old JSON LIKE's wildcard quirk is
+    gone (it found notes the tag tree never counted, so a count and its list
+    disagreed — fix round 1, S2);
+  * tags saved BEFORE nested tags existed ("Q3 / Q4", stored verbatim by the
+    old strip-only validator) and non-ASCII tags ("Élan", which the JSON text
+    stores as a backslash-u escape) are found by the same key the tree counts
+    them under — rows inserted without the API, because the API would
+    normalise them and hide the case;
   * saving normalises each level, so the tree has no empty or doubled levels;
   * the tree's counts are DISTINCT notes per subtree, with implied parents.
 """
@@ -96,9 +102,8 @@ def test_a_child_tag_returns_itself_and_below_not_its_parent(app, client):
 
 
 def test_an_underscore_in_a_parent_is_text_for_its_children(app, client):
-    # The CHILD half of the predicate compares decoded values, so "q_1" is the
-    # parent of "q_1/plan" and not of "qx1/plan". (The EXACT half is the old
-    # JSON LIKE, kept byte-identical on purpose — see the flat-tag control.)
+    # Decoded values compared by key, never a LIKE: "q_1" is the parent of
+    # "q_1/plan" and not of "qx1/plan".
     _login_as(app, "u1")
     _note(client, "Real child", ["q_1/plan"])
     _note(client, "Lookalike", ["qx1/plan"])
@@ -119,30 +124,44 @@ def test_flat_tags_return_exactly_what_the_old_predicate_returned(app, client, d
     _note(client, "B", ["Swing", "earnings"])
     _note(client, "C", ["swinging"])
     _note(client, "D", ["q3_plan"])
-    _note(client, "E", ["q3xplan"])          # the old LIKE treats `_` as a wildcard
-    _note(client, "I", ["50x"])              # …and `%` — a pre-existing quirk this
-                                             # wave deliberately does NOT change
+    _note(client, "E", ["q3xplan"])          # the old LIKE read `_` as a wildcard
+    _note(client, "I", ["50x"])              # …and `%`
     _note(client, "F", ["earnings/q3"])
     _note(client, "G", [])
     trashed = _note(client, "H", ["swing"])
     assert client.delete(f"/api/j2/notes/{trashed['id']}").status_code == 200
+    # Every way the new answer may differ from the old one, NAMED.
+    children = {"earnings": {"F"}}                     # a parent finds its children
+    wildcard_only = {"q3_plan": {"E"}, "50%": {"I"}}   # the quirk, now gone
     conn = sqlite3.connect(db_path)
     try:
         for flat in ["swing", "SWING", "earnings", "q3_plan", "50%", "missing"]:
-            old = sorted(r[0] for r in conn.execute(
+            old = set(r[0] for r in conn.execute(
                 "SELECT title FROM j2_notes WHERE user_id = ? AND deleted_at IS NULL"
                 " AND lower(tags) LIKE ?",
                 ("u1", f'%"{flat.lower()}"%'),
             ))
-            new = _titles_for(client, flat)
-            if flat == "earnings":
-                # The ONE intended difference: "earnings" now also parents
-                # "earnings/q3". Everything the old predicate found is still found.
-                assert set(old) <= set(new) and set(new) - set(old) == {"F"}
-            else:
-                assert new == old, flat
+            new = set(_titles_for(client, flat))
+            expected = (old - wildcard_only.get(flat, set())) | children.get(flat, set())
+            assert new == expected, flat
+        # Non-vacuity: the old predicate really did find the wildcard rows.
+        assert "E" in set(r[0] for r in conn.execute(
+            "SELECT title FROM j2_notes WHERE lower(tags) LIKE ?", ('%"q3_plan"%',)))
     finally:
         conn.close()
+
+
+def test_a_wildcard_tag_lists_exactly_what_the_tree_counts(app, client):
+    _login_as(app, "u1")
+    _note(client, "Real", ["q3_plan"])
+    _note(client, "Lookalike", ["q3xplan"])
+    _note(client, "Fifty", ["50%"])
+    _note(client, "Fifty-ish", ["50x"])
+    tree = _tree(client)
+    assert _titles_for(client, "q3_plan") == ["Real"]
+    assert tree["q3_plan"]["total"] == 1
+    assert _titles_for(client, "50%") == ["Fifty"]
+    assert tree["50%"]["total"] == 1
 
 
 # ── saving normalises each level ────────────────────────────────────────────
@@ -193,14 +212,69 @@ def test_a_parent_named_only_through_a_child_is_still_a_node(app, client):
     assert tree["macro/rates"]["own"] == 1
 
 
-def test_the_tree_total_is_what_filtering_by_that_tag_returns(app, client):
+def _raw_tags(db_path, note_id, tags):
+    """Store `tags` EXACTLY as given — the way a note saved before nested tags
+    (or by an importer/sync that bypassed the validator) holds them. Through
+    the API they would be normalised, and the case would vanish."""
+    import json
+    conn = sqlite3.connect(db_path)
+    try:
+        conn.execute("UPDATE j2_notes SET tags = ? WHERE id = ?", (json.dumps(tags), note_id))
+        conn.commit()
+    finally:
+        conn.close()
+
+
+def test_the_tree_total_is_what_filtering_by_that_tag_returns(app, client, db_path):
     _login_as(app, "u1")
     _note(client, "a", ["x"])
     _note(client, "b", ["x/y"])
     _note(client, "c", ["x", "x/y/z"])
     _note(client, "d", ["xy"])
-    for key, node in _tree(client).items():
+    # Legacy + non-ASCII rows, inserted without the API (review S2 / N2).
+    _raw_tags(db_path, _note(client, "legacy", ["t"])["id"], ["Q3 / Q4"])
+    _raw_tags(db_path, _note(client, "legacy2", ["t"])["id"], ["q3/q4", "X / Y"])
+    _raw_tags(db_path, _note(client, "accent upper", ["t"])["id"], ["ÉLAN"])
+    _raw_tags(db_path, _note(client, "accent lower", ["t"])["id"], ["élan/vital"])
+    tree = _tree(client)
+    # Non-vacuity: the legacy and non-ASCII keys really are in the tree.
+    assert {"q3", "q3/q4", "élan", "élan/vital", "x/y"} <= set(tree)
+    assert tree["q3/q4"]["total"] == 2
+    assert tree["élan"]["total"] == 2
+    for key, node in tree.items():
         assert node["total"] == len(_titles_for(client, node["path"])), key
+
+
+def test_a_legacy_spelling_is_found_by_every_spelling_of_it(app, client, db_path):
+    _login_as(app, "u1")
+    _raw_tags(db_path, _note(client, "legacy", ["t"])["id"], ["Q3 / Q4"])
+    for asked in ["Q3 / Q4", "q3/q4", "Q3/Q4/", " q3 /q4 "]:
+        assert _titles_for(client, asked) == ["legacy"], asked
+    assert _titles_for(client, "q3") == ["legacy"]
+
+
+def test_case_folds_beyond_ascii(app, client, db_path):
+    _login_as(app, "u1")
+    _note(client, "one", ["Élan"])
+    _raw_tags(db_path, _note(client, "two", ["t"])["id"], ["élan"])
+    # One note carrying two spellings of the same tag still counts ONCE.
+    _raw_tags(db_path, _note(client, "three", ["t"])["id"], ["ÉLAN", "élan"])
+    assert _titles_for(client, "élan") == ["one", "three", "two"]
+    assert _titles_for(client, "ÉLAN") == ["one", "three", "two"]
+    body = client.get("/api/j2/notes/tags").json()
+    assert [t["count"] for t in body["tags"]] == [3], "one tag, counted once per note — not two chips"
+    tree = {n["key"]: n for n in body["tree"]}
+    assert (tree["élan"]["own"], tree["élan"]["total"]) == (3, 3)
+
+
+def test_the_search_box_finds_a_legacy_or_non_ascii_tag(app, client, db_path):
+    _login_as(app, "u1")
+    _raw_tags(db_path, _note(client, "legacy", ["t"])["id"], ["Q3 / Q4"])
+    _note(client, "accent", ["Élan"])
+    for q, title in [("q3/q4", "legacy"), ("élan", "accent")]:
+        r = client.get("/api/j2/notes", params={"q": q})
+        assert r.status_code == 200, r.text
+        assert [n["title"] for n in r.json()["notes"]] == [title], q
 
 
 def test_the_tree_is_owner_scoped_and_ignores_the_trash(app, client):

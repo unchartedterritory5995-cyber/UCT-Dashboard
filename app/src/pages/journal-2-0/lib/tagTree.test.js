@@ -15,17 +15,14 @@ const NODES = [
   { path: 'hemisemi', key: 'hemisemi', own: 1, total: 1 },
 ]
 
-describe('normalizeTagPath — mirrors notes.py _normalize_tag_path', () => {
-  it.each([
-    ['Research / Semis', 'Research/Semis'],
-    ['research//semis/', 'research/semis'],
-    ['/a/b/', 'a/b'],
-    ['  swing  ', 'swing'],
-    ['///', ''],
-  ])('%s -> %s', (raw, want) => {
-    expect(normalizeTagPath(raw)).toBe(want)
-  })
-  it('keys are case-folded', () => {
+// ⛔ The KEY table lives in ONE place both languages read —
+// tests/fixtures_tag_keys.json (tagKey.parity.test.js ⇄ test_tag_key_parity.py).
+// This file used to hold a second copy of it, restated from the Python side
+// with nothing comparing the two (review S3). What stays here is only what the
+// key table cannot say: the display spelling keeps its case.
+describe('normalizeTagPath — the display spelling', () => {
+  it('keeps the case the member typed; only the key folds it', () => {
+    expect(normalizeTagPath(' Research / Semis ')).toBe('Research/Semis')
     expect(tagKey(' Research / Semis ')).toBe('research/semis')
   })
 })

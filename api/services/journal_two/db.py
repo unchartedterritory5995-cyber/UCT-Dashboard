@@ -1771,6 +1771,15 @@ _PHASE_2_ALTERS = [
     # before this column was added.
     "ALTER TABLE j2_notes ADD COLUMN deleted_at TEXT",
     "CREATE INDEX IF NOT EXISTS idx_j2_notes_user_deleted ON j2_notes(user_id, deleted_at)",
+    # Wave 5 quick switcher (Ctrl/Cmd+K over the WHOLE library): a COVERING
+    # index, so a keystroke reads one member's live titles from the index
+    # alone, newest edit first, never the wide note rows. Measured on 50,000
+    # notes (~2.4 KB of body each): the same read took ~150 ms off the table
+    # and ~30 ms off this index. Only a title change, a trash/restore or an
+    # edit (updated_at) moves an entry -- the same churn idx_j2_notes_user_updated
+    # already pays. notes.py::switcher_search is its reader.
+    "CREATE INDEX IF NOT EXISTS idx_j2_notes_switcher"
+    " ON j2_notes(user_id, deleted_at, updated_at DESC, title)",
     # Wave 1 (P1-1): a capture routed to the inbox must not silently drop the
     # member-typed comment or a trade link — the SAME two fields the "current
     # note"/"new entry" destinations already carry via the full widgetEmbed
