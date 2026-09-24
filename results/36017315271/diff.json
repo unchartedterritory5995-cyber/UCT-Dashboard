@@ -1,0 +1,89 @@
+{
+  "verdict": "NEW_FAILURES",
+  "counts": {
+    "new": 4,
+    "fixed": 2,
+    "unchanged": 279,
+    "missing": 0,
+    "baseline": 281,
+    "current": 283,
+    "current_ran": 52050,
+    "new_flaky": 0,
+    "flaky_size": 5,
+    "flaky_new": 2,
+    "flaky_fixed": 0,
+    "file_level_resolved": 0,
+    "coverage_lost": 0,
+    "new_ours": 0,
+    "new_others": 0,
+    "new_unattributed": 4
+  },
+  "arithmetic": "baseline 281 = unchanged 279 + fixed 2 + missing 0  |  current 283 = unchanged 279 + new 4 + new-but-flaky 0",
+  "invalid_because": [],
+  "baseline_run_id": "35979086872",
+  "current_run_id": "36017315271",
+  "baseline_sha": "acd230c15dc95c635e69e64248549c5edfd99605",
+  "current_sha": "5da60b2dc54f6862bc89441db6913105f8f50fe6",
+  "commit_range": "acd230c15dc95c635e69e64248549c5edfd99605..5da60b2dc54f6862bc89441db6913105f8f50fe6",
+  "first_run": false,
+  "new": [
+    "pytest|tests.test_flow_tape_spool|test_a_window_the_spool_COVERED_is_not_re_read_over_rest",
+    "pytest|tests.test_flow_tape_spool|test_a_window_with_no_spooled_frames_is_handed_to_rest",
+    "pytest|tests.test_flow_tape_spool|test_it_never_raises_when_the_qpool_is_unavailable",
+    "pytest|tests.test_massive_ws_stop|test_stop_sends_close_frame_and_joins"
+  ],
+  "missing": [],
+  "fixed": [
+    "pytest|tests.test_bars_server_include_today|test_todays_daily_bar_stamps_today_and_caches",
+    "vitest|src/components/dailyFirstPaintIncidental.test.jsx|CASE A \u2014 a live price never rewrites a sealed prior-session candle > today's own values still reach today's slot (the guard is not a mute button)"
+  ],
+  "new_flaky": [],
+  "flaky": [
+    "pytest|tests.test_discord_close_note|test_a_note_that_cannot_be_written_still_posts_the_charts",
+    "pytest|tests.test_mutation_check.TestRestoreGuarantee|test_the_file_is_byte_identical_after_a_detected_mutation",
+    "pytest|tests.test_mutation_check.TestVerdicts|test_a_detected_mutation_passes_the_check",
+    "pytest|tests.test_mutation_check.TestVerdicts|test_expect_red_naming_the_right_test_passes",
+    "vitest|src/components/chart/engine/__tests__/stockChartWiring.test.jsx|an engine-drawn indicator still appears in the crosshair legend > \u26d4\u26d4 A HOVER REACHES THE RENDERER NOT AT ALL"
+  ],
+  "file_level_resolved": [],
+  "coverage_lost": [],
+  "missing_buckets": {},
+  "attribution": {
+    "pytest|tests.test_flow_tape_spool|test_a_window_the_spool_COVERED_is_not_re_read_over_rest": {
+      "class": "UNATTRIBUTED",
+      "commits": [],
+      "workstreams": [],
+      "reason": "no commit in acd230c15..5da60b2dc touched tests/test_flow_tape_spool.py or anything it imports"
+    },
+    "pytest|tests.test_flow_tape_spool|test_a_window_with_no_spooled_frames_is_handed_to_rest": {
+      "class": "UNATTRIBUTED",
+      "commits": [],
+      "workstreams": [],
+      "reason": "no commit in acd230c15..5da60b2dc touched tests/test_flow_tape_spool.py or anything it imports"
+    },
+    "pytest|tests.test_flow_tape_spool|test_it_never_raises_when_the_qpool_is_unavailable": {
+      "class": "UNATTRIBUTED",
+      "commits": [],
+      "workstreams": [],
+      "reason": "no commit in acd230c15..5da60b2dc touched tests/test_flow_tape_spool.py or anything it imports"
+    },
+    "pytest|tests.test_massive_ws_stop|test_stop_sends_close_frame_and_joins": {
+      "class": "UNATTRIBUTED",
+      "commits": [],
+      "workstreams": [],
+      "reason": "no commit in acd230c15..5da60b2dc touched tests/test_massive_ws_stop.py or anything it imports"
+    },
+    "pytest|tests.test_bars_server_include_today|test_todays_daily_bar_stamps_today_and_caches": {
+      "class": "UNATTRIBUTED",
+      "commits": [],
+      "workstreams": [],
+      "reason": "no commit in acd230c15..5da60b2dc touched tests/test_bars_server_include_today.py or anything it imports"
+    },
+    "vitest|src/components/dailyFirstPaintIncidental.test.jsx|CASE A \u2014 a live price never rewrites a sealed prior-session candle > today's own values still reach today's slot (the guard is not a mute button)": {
+      "class": "UNATTRIBUTED",
+      "commits": [],
+      "workstreams": [],
+      "reason": "no commit in acd230c15..5da60b2dc touched src/components/dailyFirstPaintIncidental.test.jsx or anything it imports"
+    }
+  }
+}
