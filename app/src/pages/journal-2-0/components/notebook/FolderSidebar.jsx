@@ -731,6 +731,9 @@ export default function FolderSidebar({
   // Wave 0 trash: same honest-count idiom as Unfiled above, over the
   // deleted=true view.
   const { total: trashTotalFromServer } = useJ2Notes({ deleted: true, limit: 1 })
+  // Wave 6: the Archived badge is its OWN list's total — the list the entry
+  // opens — never a second count that could disagree with it (same as Trash).
+  const { total: archivedTotalFromServer } = useJ2Notes({ folderId: '__archived__', limit: 1 })
 
   // Wave B: Favorites + Recents. Both trash-aware server-side (see
   // notes_service.list_favorites/list_recents) — no client-side filtering
@@ -1393,6 +1396,21 @@ export default function FolderSidebar({
               >
                 <span>Unfiled</span>
                 <span className={styles.count}>{unfiledCount}</span>
+              </button>
+            </div>
+            <div className={styles.rowWrap}>
+              <span className={styles.disclosureSpacer} aria-hidden="true" />
+              {/* Wave 6: archived notes leave every default list but are never
+                  deleted — this is where they are, each still in its folder. */}
+              <button
+                type="button"
+                className={`${styles.row} ${activeFolderId === '__archived__' ? styles.rowActive : ''}`}
+                onClick={() => { onSelectFolder('__archived__'); onSelectTag(null) }}
+              >
+                <span>Archived</span>
+                {archivedTotalFromServer !== undefined && (
+                  <span className={styles.count}>{archivedTotalFromServer}</span>
+                )}
               </button>
             </div>
             <div className={styles.rowWrap}>

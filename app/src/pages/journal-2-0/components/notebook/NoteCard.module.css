@@ -158,3 +158,35 @@
   }
   .selectWrap > .card { padding-left: 48px; }
 }
+
+/* Wave 6 archive — an archived note still OPENS (archive is not trash), so its
+   Unarchive button sits BESIDE the card button, never inside it. */
+.shelfWrap {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 0;
+}
+.selectWrap > .shelfWrap {
+  flex: 1;
+  min-width: 0;
+  padding-left: 40px;
+}
+.shelfBtn {
+  align-self: flex-start;
+  padding: 4px 10px;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--accent);
+  background: rgba(220, 187, 94, 0.1);
+  border: 1px solid rgba(220, 187, 94, 0.4);
+  border-radius: var(--radius-sm, 6px);
+  cursor: pointer;
+}
+.shelfBtn:hover {
+  background: rgba(220, 187, 94, 0.18);
+}
+@media (max-width: 1024px) {
+  .shelfBtn { min-height: var(--tap-min); }
+  .selectWrap > .shelfWrap { padding-left: 48px; }
+}

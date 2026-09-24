@@ -764,6 +764,37 @@ describe('Wave 0 trash: a "Trash" entry in the sidebar', () => {
   })
 })
 
+describe('Wave 6 archive: an "Archived" entry in the sidebar', () => {
+  it('shows its OWN list total and routes selection through the __archived__ sentinel', () => {
+    useJ2NotesMock.mockImplementation((opts) => {
+      // ⛔ The badge is the Archived list's own total — the same hook call
+      // shape as the list the entry opens, never a separate count.
+      if (opts?.folderId === '__archived__') return { notes: [], isLoading: false, isValidating: false, error: null, total: 4 }
+      if (opts?.deleted) return { notes: [], isLoading: false, isValidating: false, error: null, total: 7 }
+      return { notes: [], isLoading: false, isValidating: false, error: null }
+    })
+    const onSelectFolder = vi.fn()
+    const onSelectTag = vi.fn()
+    render(<FolderSidebar notes={[]} activeFolderId={null} onSelectFolder={onSelectFolder}
+                          activeTag="swing" onSelectTag={onSelectTag} />)
+    const row = screen.getByText('Archived').closest('button')
+    expect(within(row).getByText('4')).toBeInTheDocument()
+    // Non-vacuity: the two shelves are two rows with two different counts.
+    expect(within(screen.getByText('Trash').closest('button')).getByText('7')).toBeInTheDocument()
+    fireEvent.click(row)
+    expect(onSelectFolder).toHaveBeenCalledWith('__archived__')
+    expect(onSelectTag).toHaveBeenCalledWith(null)
+  })
+
+  it('shows no badge while the archive total is unknown, and highlights when selected', () => {
+    render(<FolderSidebar notes={[]} activeFolderId="__archived__" onSelectFolder={() => {}}
+                          activeTag={null} onSelectTag={() => {}} />)
+    const row = screen.getByText('Archived').closest('button')
+    expect(within(row).queryByText('0')).not.toBeInTheDocument()
+    expect(row.className).toMatch(/rowActive/)
+  })
+})
+
 // ── Wave 4 (Search Evolution I) — date/sector/theme filters, relevance
 // sort, and query-aware snippet rendering. ──────────────────────────────────
 

@@ -1964,7 +1964,8 @@ def note_switcher_endpoint(
 # editor or the durable copy from forking on its next save — would no longer
 # be demanded of it.
 NOTE_BATCH_MAX = 500
-NOTE_BATCH_OPS = ("move", "addTag", "removeTag", "favorite", "unfavorite", "trash", "restore")
+NOTE_BATCH_OPS = ("move", "addTag", "removeTag", "favorite", "unfavorite", "trash", "restore",
+                  "archive", "unarchive")
 
 
 def _parse_batch_ids(raw: Any, cap: int = NOTE_BATCH_MAX) -> list[str]:
@@ -1989,7 +1990,9 @@ def notes_batch_endpoint(
     """Apply ONE operation to many notes: `{ids, op, args}`.
 
     ops: `move` {folderId | null} · `addTag` {tag} · `removeTag` {tag} ·
-    `favorite` · `unfavorite` · `trash` · `restore`.
+    `favorite` · `unfavorite` · `trash` · `restore` · `archive` · `unarchive`.
+    (Archive, like a favourite, moves no revision — its results carry no
+    `updatedAt`, and a trashed note answers `in_trash`.)
 
     `move` also takes `{folders: {<id>: folderId | null}}` — a folder PER
     NOTE, for putting a selection back where each note came from (the bulk
@@ -2193,6 +2196,14 @@ def notes_batch_endpoint(
                         continue
                     n = notes_service.restore_note(uid, nid, conn=conn)
                     results.append({"id": nid, "status": "changed", "updatedAt": n["updatedAt"]}
+                                   if n else {"id": nid, "status": "not_found"})
+                elif op in ("archive", "unarchive"):
+                    want = op == "archive"
+                    if head["archived"] == want:
+                        results.append({"id": nid, "status": "unchanged"})
+                        continue
+                    n = notes_service.set_note_archived(uid, nid, want, conn=conn)
+                    results.append({"id": nid, "status": "changed"}
                                    if n else {"id": nid, "status": "not_found"})
             except NoteValidationError as e:
                 results.append({"id": nid, "status": "invalid", "error": str(e)})
@@ -3261,6 +3272,25 @@ def delete_note_endpoint(
     if not ok:
         raise HTTPException(status_code=404, detail="Not found")
     return {"ok": True}
+
+
+@router.patch("/notes/{note_id}/archive")
+def archive_note_endpoint(
+    note_id: str,
+    payload: dict[str, Any] | None = None,
+    user: dict = Depends(get_current_user),
+) -> dict[str, Any]:
+    """Wave 6 (lane E): `{archived: true|false}` archives or unarchives the
+    note, answering with the note (its `archivedAt` says which). Archive is not
+    trash — see `notes_service.set_note_archived`, including why it moves no
+    revision. 404 for a trashed note, another member's, or none at all."""
+    archived = (payload or {}).get("archived")
+    if not isinstance(archived, bool):
+        raise HTTPException(status_code=400, detail="archived must be true or false")
+    n = notes_service.set_note_archived(user["id"], note_id, archived)
+    if n is None:
+        raise HTTPException(status_code=404, detail="Not found")
+    return {"note": n}
 
 
 @router.post("/notes/{note_id}/restore")

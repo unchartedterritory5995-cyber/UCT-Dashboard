@@ -1780,8 +1780,22 @@ _PHASE_2_ALTERS = [
     # and ~30 ms off this index. Only a title change, a trash/restore or an
     # edit (updated_at) moves an entry -- the same churn idx_j2_notes_user_updated
     # already pays. notes.py::switcher_search is its reader.
-    "CREATE INDEX IF NOT EXISTS idx_j2_notes_switcher"
-    " ON j2_notes(user_id, deleted_at, updated_at DESC, title)",
+    # Wave 6 (lane E, archive): NULL = in the library. Set (ISO time) = archived
+    # -- out of the default list, search, quick switcher, graph, folder/tag
+    # counts, favorites and recents, and listed under the sidebar's Archived
+    # entry (`folder_id=__archived__`). ⛔ ARCHIVE IS NOT TRASH: nothing is ever
+    # deleted by it, the note keeps its folder, and setting or clearing it never
+    # advances `updated_at` (notes.set_note_archived says why).
+    "ALTER TABLE j2_notes ADD COLUMN archived_at TEXT",
+    # ⛔ The switcher's keystroke scan skips archived notes too, so its covering
+    # index carries `archived_at` -- a predicate on a column the index lacks
+    # would send every keystroke back to the wide rows (the ~150 ms read the
+    # wave-5 index removed). The old index is DROPPED, not kept beside the new
+    # one: two indexes paying one churn for one reader. The column is added on
+    # the line above, so this can never index a column that does not exist.
+    "DROP INDEX IF EXISTS idx_j2_notes_switcher",
+    "CREATE INDEX IF NOT EXISTS idx_j2_notes_switcher_live"
+    " ON j2_notes(user_id, deleted_at, archived_at, updated_at DESC, title)",
     # Wave 1 (P1-1): a capture routed to the inbox must not silently drop the
     # member-typed comment or a trade link — the SAME two fields the "current
     # note"/"new entry" destinations already carry via the full widgetEmbed

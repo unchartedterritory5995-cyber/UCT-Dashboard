@@ -918,6 +918,9 @@ def _row_to_note(row: sqlite3.Row) -> dict[str, Any]:
         # normal `get_note` never returns a deleted row at all, so this key
         # is `None` on every other read.
         "deletedAt": row["deleted_at"] if "deleted_at" in row.keys() else None,
+        # Wave 6 archive: ISO time the note was archived, None while it is in
+        # the library. Archive is not trash — an archived note still opens.
+        "archivedAt": row["archived_at"] if "archived_at" in row.keys() else None,
         # Wave E: user-set property VALUES only, keyed by property_id --
         # parsed (matching bodyJson/tags' own convention) but NOT resolved
         # into display form (names/labels/derived values) here; that
@@ -940,7 +943,7 @@ _NOTE_SUMMARY_COLS = (
     "id, user_id, account_id, folder_id, title, subtitle, "
     f"substr(coalesce(body_plain, ''), 1, {_LIST_PLAIN_CHARS}) AS body_plain, "
     "hero_image_url, first_image_url, ticker, tags, created_at, updated_at, deleted_at, "
-    "properties_json"
+    "properties_json, archived_at"
 )
 
 
@@ -968,6 +971,8 @@ def _row_to_note_summary(row: sqlite3.Row) -> dict[str, Any]:
         # Wave 0 trash: present only in a trash-view list (`deleted=True`);
         # `None` on every normal (active-notes) list row.
         "deletedAt": row["deleted_at"] if "deleted_at" in row.keys() else None,
+        # Wave 6 archive: set only on a row listed under the Archived entry.
+        "archivedAt": row["archived_at"] if "archived_at" in row.keys() else None,
         # Wave E: user-set values only (parsed) -- the list card's compact
         # property-chip row reads directly off this; NOT the full resolved
         # (name/label/derived) form, which is a per-note-editor concern.
@@ -1050,6 +1055,18 @@ def _notes_filter_sql(
     silently ignored."""
     sql = " WHERE user_id = ? AND deleted_at IS " + ("NOT NULL" if deleted else "NULL")
     params: list[Any] = [user_id]
+    # Wave 6 archive. `folder_id="__archived__"` is the sidebar's Archived entry
+    # (a sentinel, exactly like `__unfiled__` below and the client's own
+    # `__trash__`): archived notes only, from every folder. Every OTHER ordinary
+    # question leaves archived notes out. The trash is the one exception: a
+    # trashed note is listed there whether or not it was archived first, because
+    # the trash answers "what can I restore", and that note can be restored.
+    # ⛔ One predicate for the list AND its count, like every clause here.
+    archived_view = folder_id == "__archived__"
+    if archived_view:
+        folder_id = None
+    if not deleted:
+        sql += " AND archived_at IS " + ("NOT NULL" if archived_view else "NULL")
     if folder_id == "__unfiled__":
         sql += " AND folder_id IS NULL"
     elif folder_id:
@@ -1417,6 +1434,7 @@ def _tag_groups(
         " COUNT(DISTINCT j2_notes.id) AS c"
         " FROM j2_notes, json_each(COALESCE(j2_notes.tags, '[]')) je"
         " WHERE j2_notes.user_id = ? AND j2_notes.deleted_at IS NULL"
+        " AND j2_notes.archived_at IS NULL"
         + (" AND instr(je.value, '/') = 0" if flat_only else "")
         + " GROUP BY LOWER(je.value)",
         (user_id,),
@@ -1452,6 +1470,7 @@ def _note_ids_by_lowered_tag(
             "SELECT j2_notes.id, LOWER(je.value)"
             " FROM j2_notes, json_each(COALESCE(j2_notes.tags, '[]')) je"
             " WHERE j2_notes.user_id = ? AND j2_notes.deleted_at IS NULL"
+            " AND j2_notes.archived_at IS NULL"
             f" AND LOWER(je.value) IN ({placeholders})",
             [user_id, *chunk],
         ):
@@ -1539,6 +1558,7 @@ def tag_tree(
             "SELECT j2_notes.id AS nid, je.value AS tag"
             " FROM j2_notes, json_each(COALESCE(j2_notes.tags, '[]')) je"
             " WHERE j2_notes.user_id = ? AND j2_notes.deleted_at IS NULL"
+            " AND j2_notes.archived_at IS NULL"
             " AND instr(je.value, '/') > 0",
             (user_id,),
         ).fetchall()
@@ -1621,7 +1641,7 @@ def folder_note_counts(
     try:
         rows = conn.execute(
             "SELECT folder_id, COUNT(*) AS c FROM j2_notes"
-            " WHERE user_id = ? AND deleted_at IS NULL"
+            " WHERE user_id = ? AND deleted_at IS NULL AND archived_at IS NULL"
             " GROUP BY folder_id",
             (user_id,),
         ).fetchall()
@@ -1669,7 +1689,8 @@ def notes_for_folders(
                 continue
             rows = conn.execute(
                 f"SELECT {_NOTE_SUMMARY_COLS} FROM j2_notes"
-                " WHERE user_id = ? AND deleted_at IS NULL AND folder_id = ?"
+                " WHERE user_id = ? AND deleted_at IS NULL AND archived_at IS NULL"
+                " AND folder_id = ?"
                 " ORDER BY title COLLATE NOCASE ASC"
                 " LIMIT ?",
                 (user_id, folder_id, max(1, min(limit_per_folder, 500))),
@@ -2029,9 +2050,9 @@ def get_note_graph(
             "                           THEN l.target_note_id ELSE l.note_id END"
             "          WHERE l.user_id = n.user_id"
             "            AND (l.note_id = n.id OR l.target_note_id = n.id)"
-            "            AND m.deleted_at IS NULL) AS degree"
+            "            AND m.deleted_at IS NULL AND m.archived_at IS NULL) AS degree"
             " FROM j2_notes n"
-            " WHERE n.user_id = ? AND n.deleted_at IS NULL"
+            " WHERE n.user_id = ? AND n.deleted_at IS NULL AND n.archived_at IS NULL"
             " ORDER BY n.updated_at DESC"
             " LIMIT ?",
             (user_id, cap + 1),
@@ -2070,7 +2091,10 @@ def get_note_graph(
             # ⛔ Both ends must be in the RETURNED node set. When the node list
             # is capped, an edge to a note that did not make the cut would be a
             # line to nothing — a renderer cannot draw it and should not have to
-            # guess what it meant.
+            # guess what it meant. ⭐ This is also the ONE place an archived
+            # note leaves the edges (wave 6): it is not a node (the query above),
+            # so no edge touches it -- a second archived_at test in the edge SQL
+            # was a copy of this rule that no rail could tell apart from it.
             if e["s"] in ids and e["t"] in ids
         ]
         return out
@@ -3150,6 +3174,52 @@ def restore_note(
             conn.close()
 
 
+def set_note_archived(
+    user_id: str,
+    note_id: str,
+    archived: bool,
+    conn: sqlite3.Connection | None = None,
+) -> dict[str, Any] | None:
+    """Wave 6 (lane E, item 1): archive or unarchive one note. Returns the note
+    (the `get_note` shape, with `archivedAt`), or None when there is no such
+    note of this member's in the library — a trashed note is not archivable
+    (restore it first), the same 404 an edit of it gets.
+
+    ⛔ ARCHIVE IS NOT TRASH. Nothing is deleted, the note keeps its folder, its
+    tags and its properties, and it still opens; it only leaves the default
+    surfaces (`_notes_filter_sql` owns that rule). Unarchive therefore restores
+    it EXACTLY where it was.
+
+    ⛔⛔ AND IT NEVER ADVANCES `updated_at`. Archive is a visibility flag, like a
+    favourite, not an edit of the note: moving the revision would turn the next
+    save of an editor that has this note open — in this tab or another — into a
+    409 against a write nobody in that editor made, and the offline layer forks
+    a note on exactly that. Keeping the revision also keeps "exactly where it
+    was" true of the list's recently-updated order. (Contrast the LOCK, which
+    DOES advance it: a lock must reach another tab's editor, and a newer
+    revision is how it gets there.) Idempotent: archiving an archived note keeps
+    its first archive time."""
+    owned = conn is None
+    conn = conn or get_connection()
+    try:
+        stamp = _now_iso() if archived else None
+        # Only a live note, and only when the flag actually changes.
+        cur = conn.execute(
+            "UPDATE j2_notes SET archived_at = ?"
+            " WHERE id = ? AND user_id = ? AND deleted_at IS NULL"
+            " AND (archived_at IS NULL) = ?",
+            (stamp, note_id, user_id, 1 if archived else 0),
+        )
+        conn.commit()
+        if cur.rowcount:
+            _log_notebook_event(
+                user_id, "notebook_note_archived" if archived else "notebook_note_unarchived")
+        return get_note(user_id, note_id, conn=conn)
+    finally:
+        if owned:
+            conn.close()
+
+
 def purge_expired_deleted_notes(
     retention_days: int = TRASH_RETENTION_DAYS,
     now: datetime | None = None,
@@ -3301,7 +3371,7 @@ def list_favorites(
         rows = conn.execute(
             "SELECT n.* FROM j2_note_favorites f "
             "JOIN j2_notes n ON n.id = f.note_id AND n.user_id = f.user_id "
-            "WHERE f.user_id = ? AND n.deleted_at IS NULL "
+            "WHERE f.user_id = ? AND n.deleted_at IS NULL AND n.archived_at IS NULL "
             "ORDER BY f.created_at DESC LIMIT ?",
             (user_id, limit),
         ).fetchall()
@@ -3345,7 +3415,7 @@ def list_recents(
         rows = conn.execute(
             "SELECT n.* FROM j2_note_recents r "
             "JOIN j2_notes n ON n.id = r.note_id AND n.user_id = r.user_id "
-            "WHERE r.user_id = ? AND n.deleted_at IS NULL "
+            "WHERE r.user_id = ? AND n.deleted_at IS NULL AND n.archived_at IS NULL "
             "ORDER BY r.opened_at DESC LIMIT ?",
             (user_id, limit),
         ).fetchall()
@@ -3420,7 +3490,7 @@ SWITCHER_FUZZY_SCOPE = 5000      # most recently edited notes the fuzzy tiers re
 # recents/favourites reads must start from the member's own (small) lists.
 _SWITCHER_SCAN_SQL = (
     "SELECT rowid, title FROM j2_notes"
-    " WHERE user_id = ? AND deleted_at IS NULL"
+    " WHERE user_id = ? AND deleted_at IS NULL AND archived_at IS NULL"
     " ORDER BY updated_at DESC, title ASC, rowid ASC"
 )
 # CROSS JOIN pins the recents/favourites table as the OUTER loop — left to
@@ -3428,12 +3498,12 @@ _SWITCHER_SCAN_SQL = (
 _SWITCHER_RECENTS_SQL = (
     "SELECT n.rowid, r.opened_at FROM j2_note_recents r"
     " CROSS JOIN j2_notes n ON n.id = r.note_id AND n.user_id = r.user_id"
-    " WHERE r.user_id = ? AND n.deleted_at IS NULL"
+    " WHERE r.user_id = ? AND n.deleted_at IS NULL AND n.archived_at IS NULL"
 )
 _SWITCHER_FAVORITES_SQL = (
     "SELECT n.rowid FROM j2_note_favorites f"
     " CROSS JOIN j2_notes n ON n.id = f.note_id AND n.user_id = f.user_id"
-    " WHERE f.user_id = ? AND n.deleted_at IS NULL"
+    " WHERE f.user_id = ? AND n.deleted_at IS NULL AND n.archived_at IS NULL"
 )
 
 
@@ -3743,7 +3813,7 @@ def note_batch_heads(
     note_ids: list[str],
     conn: sqlite3.Connection | None = None,
 ) -> dict[str, dict[str, Any]]:
-    """`note_id -> {folderId, tags, updatedAt, deleted}` for the ids this
+    """`note_id -> {folderId, tags, updatedAt, deleted, archived}` for the ids this
     member OWNS, active or trashed. An id that is not theirs (or does not
     exist) is simply absent — the caller reports it as not found, which is
     also what it must say about another member's note (never "forbidden":
@@ -3757,7 +3827,7 @@ def note_batch_heads(
             chunk = ids[start:start + _BATCH_READ_CHUNK]
             placeholders = ",".join("?" * len(chunk))
             rows = conn.execute(
-                "SELECT id, folder_id, tags, updated_at, deleted_at FROM j2_notes"
+                "SELECT id, folder_id, tags, updated_at, deleted_at, archived_at FROM j2_notes"
                 f" WHERE user_id = ? AND id IN ({placeholders})",
                 [user_id, *chunk],
             ).fetchall()
@@ -3767,6 +3837,7 @@ def note_batch_heads(
                     "tags": json.loads(r["tags"] or "[]"),
                     "updatedAt": r["updated_at"],
                     "deleted": r["deleted_at"] is not None,
+                    "archived": r["archived_at"] is not None,
                 }
         return out
     finally:

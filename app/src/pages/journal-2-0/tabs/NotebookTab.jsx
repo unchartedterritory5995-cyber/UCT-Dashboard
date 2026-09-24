@@ -35,6 +35,8 @@ import { SkeletonLine } from '../../../components/Skeleton'
 import styles from './NotebookTab.module.css'
 import { settleNoteWrite } from '../lib/offline/settleNoteWrite'
 import BulkActionBar from '../components/notebook/BulkActionBar'
+import NoteMenuActions from '../components/notebook/NoteMenuActions'
+import { ARCHIVED_FOLDER, setNoteArchived } from '../lib/noteArchive'
 import { useNoteSelection } from '../lib/noteSelection'
 import {
   checkUnsentWork, describeBatch, describeExport, describeUnchecked, exportSelectedNotes, joinUndo, runNoteBatch,
@@ -76,7 +78,9 @@ function _logNotebookVisit() {
 }
 
 /** Bulk ops that can change what GET /api/j2/notes/tags counts (R1-N4). */
-const TAG_COUNT_OPS = new Set(['addTag', 'removeTag', 'trash', 'restore'])
+// Archive moves a note out of the tag tree's counts too (it counts the notes
+// the tag filter lists, and that filter leaves archived notes out).
+const TAG_COUNT_OPS = new Set(['addTag', 'removeTag', 'trash', 'restore', 'archive', 'unarchive'])
 
 export default function NotebookTab() {
   const [searchParams, setSearchParams] = useSearchParams()
@@ -300,6 +304,11 @@ export default function NotebookTab() {
   // Wave 0 trash: the sidebar's "Trash" row selects this sentinel exactly
   // like '__unfiled__' already does for Unfiled — no new selection channel.
   const isTrashView = folderId === '__trash__'
+  // Wave 6: the Archived entry. Like the Trash it is a SHELF — notes set aside
+  // from every folder — so folder/tag/saved-view scoping does not apply and it
+  // lists as cards. Unlike the Trash its notes still open (archive is not trash).
+  const isArchiveView = folderId === ARCHIVED_FOLDER
+  const isShelfView = isTrashView || isArchiveView
 
   // `total` is the TRUE count from SQL for this filter set (folder/tag), never
   // the length of `notes` — a migrated library of thousands of notes must see
@@ -318,16 +327,16 @@ export default function NotebookTab() {
     notes, isLoading, error, refresh, total, hasMore, loadMore, isLoadingMore,
   } = useJ2Notes({
     folderId: isTrashView ? undefined : folderId,
-    tag: isTrashView ? undefined : tag,
-    ticker: isTrashView ? undefined : tickerFilter,
+    tag: isShelfView ? undefined : tag,
+    ticker: isShelfView ? undefined : tickerFilter,
     sort: isTrashView ? 'deleted' : sort,
     deleted: isTrashView,
     // Wave E: savedViewId wins exclusively (server resolves ITS OWN stored
     // spec -- directive §87); the ad-hoc propertyFilter/propertySort below
     // are only ever sent when no saved view is active.
-    savedViewId: !isTrashView ? activeView?.id : undefined,
-    propertyFilter: !isTrashView && !activeView ? propertyFilter : undefined,
-    propertySort: !isTrashView && !activeView ? propertySort : undefined,
+    savedViewId: !isShelfView ? activeView?.id : undefined,
+    propertyFilter: !isShelfView && !activeView ? propertyFilter : undefined,
+    propertySort: !isShelfView && !activeView ? propertySort : undefined,
   })
   // The folder sidebar renders every folder's notes as leaf rows AND runs its
   // own search, so it needs a note set covering every folder — not the
@@ -575,12 +584,26 @@ export default function NotebookTab() {
     }
   }
 
+  // Wave 6: bring one archived note back (the card's own Unarchive). It returns
+  // to its folder exactly where it was; nothing about the note moved.
+  const unarchiveNote = async (note) => {
+    try {
+      await setNoteArchived(note.id, false)
+      refresh()
+      refreshAll()
+      refreshSidebarCounts()
+    } catch (e) {
+      console.error('[notebook] unarchive note failed', e)
+      setActionError("Couldn't unarchive that note. It is still archived.")
+    }
+  }
+
   // ── Wave 5 bulk operations ────────────────────────────────────────────────
   // Multi-select over the notes IN VIEW, in the two views that list notes one
   // per row/card (list, table) and in the Trash. The board, calendar and graph
   // keep their own gestures — a checkbox there would be a second way to write
   // the same property the card's own control already writes.
-  const selectionOn = !noteId && !isHome && (isTrashView || viewMode === 'list' || viewMode === 'table')
+  const selectionOn = !noteId && !isHome && (isShelfView || viewMode === 'list' || viewMode === 'table')
   const visibleIds = useMemo(() => (selectionOn ? notes.map((n) => n.id) : []), [selectionOn, notes])
   const selection = useNoteSelection(visibleIds)
   const [bulkBusy, setBulkBusy] = useState(false)
@@ -758,7 +781,8 @@ export default function NotebookTab() {
           ? { ...offer, message: [message, offer.message].filter(Boolean).join(' ') }
           : { message, tone })
       }
-      if (op === 'trash' || op === 'restore') clearSelection()
+      // Each of these takes the selected notes OUT of the view they were chosen in.
+      if (['trash', 'restore', 'archive', 'unarchive'].includes(op)) clearSelection()
       afterBulkWrite(op, changedIds)
     } catch (e) {
       console.error('[notebook] bulk action failed', e)
@@ -845,7 +869,10 @@ export default function NotebookTab() {
       // should not make you retype AMD. An explicit ticker always wins; focus
       // only fills the blank.
       const seededTicker = ticker || focusSymbol || null
-      const safeFolderId = folderId && folderId !== '__unfiled__' && folderId !== '__trash__' ? folderId : undefined
+      // The sentinels are views, not folders: a note made while one is open is
+      // made unfiled (a new note is never born archived or trashed).
+      const safeFolderId = folderId && !['__unfiled__', '__trash__', ARCHIVED_FOLDER].includes(folderId)
+        ? folderId : undefined
       const created = await createNoteViaApi({ title, bodyJson, tags, ticker: seededTicker, folderId: safeFolderId, properties })
       // Instant: put it in the tree now, then reconcile from the server.
       addNoteToTree(created)
@@ -1072,7 +1099,28 @@ export default function NotebookTab() {
         {noteId ? (
           // Key by noteId so switching notes from the persistent sidebar remounts
           // the editor fresh (TipTap state + autosave), same as opening from the grid.
-          <NoteEditorPage key={noteId} noteId={noteId} onBack={closeNote} showBack={false} onTitleChange={updateTreeNoteTitle} />
+          <NoteEditorPage
+            key={noteId}
+            noteId={noteId}
+            onBack={closeNote}
+            showBack={false}
+            onTitleChange={updateTreeNoteTitle}
+            // ⛔ Wave 6 (lane E): the note menu's organisation actions. The
+            // editor is lane D's file; it renders `noteMenu?.(note, { refresh })`
+            // in its header row (requested in wave6-E-report.md). Ignored until
+            // then — this prop alone changes nothing an editor does.
+            noteMenu={(note, api) => (
+              <NoteMenuActions
+                note={note}
+                onChanged={() => {
+                  api?.refresh?.()
+                  refresh()
+                  refreshAll()
+                  refreshSidebarCounts()
+                }}
+              />
+            )}
+          />
         ) : isHome ? (
           // Wave H: bare-root Research Home (checkpoint decision 33/57) --
           // "All notes" itself is unchanged, one click away via the sidebar.
@@ -1086,6 +1134,7 @@ export default function NotebookTab() {
         ) : (
           <>
         <div className={styles.toolbar}>
+          {isArchiveView && <span className={styles.trashLabel}>Archived</span>}
           {isTrashView ? (
             // Trash view sort is fixed (most recently deleted first) — the
             // toolbar's Recently-updated/Recently-created/Title options are
@@ -1118,7 +1167,7 @@ export default function NotebookTab() {
               Clear filter
             </button>
           )}
-          {!isTrashView && (
+          {!isShelfView && (
             <div className={styles.viewModeWrap}>
               {/*
                 ⛔ ONE BUTTON, RENDERED FIVE TIMES — not five buttons. These were
@@ -1275,6 +1324,7 @@ export default function NotebookTab() {
             onSelectAll={selection.selectAll}
             onClear={selection.clear}
             trashView={isTrashView}
+            archiveView={isArchiveView}
             busy={bulkBusy}
             selectedTags={selectedTags}
             tagNodes={tagTreeNodes}
@@ -1286,6 +1336,8 @@ export default function NotebookTab() {
             onExport={() => exportSelection()}
             onTrash={() => runBulk('trash')}
             onRestore={() => runBulk('restore')}
+            onArchive={() => runBulk('archive')}
+            onUnarchive={() => runBulk('unarchive')}
           />
         )}
 
@@ -1368,7 +1420,7 @@ export default function NotebookTab() {
               ⚰️ This comment used to justify the exclusion by saying the
               calendar was read-only. It was, for one commit.
             */}
-            {viewMode === 'calendar' && !isTrashView ? (
+            {viewMode === 'calendar' && !isShelfView ? (
               <NoteCalendarView
                 notes={notes}
                 propertyDefs={propertyDefs}
@@ -1378,7 +1430,7 @@ export default function NotebookTab() {
                 initialDatePropertyId={activeView?.spec?.dateProperty || null}
                 onDatePropertyChange={setCalendarDateProp}
               />
-            ) : viewMode === 'board' && !isTrashView ? (
+            ) : viewMode === 'board' && !isShelfView ? (
               <NoteBoardView
                 notes={notes}
                 propertyDefs={propertyDefs}
@@ -1388,7 +1440,7 @@ export default function NotebookTab() {
                 initialGroupById={activeView?.spec?.groupBy || null}
                 onGroupByChange={setBoardGroupBy}
               />
-            ) : viewMode === 'graph' && !isTrashView ? (
+            ) : viewMode === 'graph' && !isShelfView ? (
               /*
                 ⛔ THE GRAPH EMITS AN ID; `openNote` READS `.id` OFF A NOTE
                 OBJECT. Passing `openNote` straight through type-checks fine,
@@ -1400,7 +1452,7 @@ export default function NotebookTab() {
                 a caller would be the more dishonest of the two shapes.
               */
               <NoteGraphView onOpenNote={(id) => openNote({ id })} />
-            ) : viewMode === 'table' && !isTrashView ? (
+            ) : viewMode === 'table' && !isShelfView ? (
               <NotesTableView
                 notes={notes}
                 propertyDefs={propertyDefs}
@@ -1427,6 +1479,7 @@ export default function NotebookTab() {
                     note={n}
                     onOpen={openNote}
                     onRestore={isTrashView ? restoreNote : undefined}
+                    onUnarchive={isArchiveView ? unarchiveNote : undefined}
                     blocked={blockedNoteIds.has(n.id)}
                     selectable={selectionOn}
                     selected={selection.isSelected(n.id)}

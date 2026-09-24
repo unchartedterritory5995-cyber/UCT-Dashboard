@@ -58,7 +58,9 @@ import { noteHasUnsentWork } from './offline/noteHasUnsentWork'
 import { openNotebookDb } from './offline/notebookDb'
 
 /** Ops that write the note row — refused for a blocked note. Favourites live
- *  in their own table and never touch the note, so they are allowed. */
+ *  in their own table and never touch the note, so they are allowed. So are
+ *  `archive` / `unarchive` (wave 6): a visibility flag that moves no revision,
+ *  so a queued offline edit still lands on the archived note, unconflicted. */
 export const NOTE_WRITING_OPS = new Set(['move', 'addTag', 'removeTag', 'trash', 'restore'])
 
 /** Ops that also refuse a note whose words are still being sent (see above). */
@@ -231,6 +233,10 @@ export function describeBatch(outcome, { folderName, tag, backToOrigin = false, 
     unfavorite: `Removed ${n} from Favorites.`,
     trash: `Moved ${n} to the Trash.`,
     restore: `Restored ${n}.`,
+    archive: `Archived ${n}. ${changed + earlier === 1 ? 'It is' : 'They are'} under Archived, in the sidebar.`,
+    unarchive: changed + earlier === 1
+      ? `Brought ${n} back to its folder.`
+      : `Brought ${n} back, each to its own folder.`,
   }[op] || `Updated ${n}.`
   // An UNCHECKED note is not a failure of this batch: it has its own sentence
   // and its own "anyway" (describeUnchecked), so it is left out of this one.
@@ -294,6 +300,10 @@ export function undoFor(op, outcome, args = {}) {
   const changed = (outcome?.results || []).filter((r) => r.status === 'changed')
   if (!changed.length) return null
   if (op === 'trash') return { op: 'restore', ids: changed.map((r) => r.id), args: {} }
+  // Wave 6: archiving moves nothing, so taking it back is the inverse flag on
+  // exactly the notes that changed — each is still in its own folder.
+  if (op === 'archive') return { op: 'unarchive', ids: changed.map((r) => r.id), args: {} }
+  if (op === 'unarchive') return { op: 'archive', ids: changed.map((r) => r.id), args: {} }
   if (op === 'move' && !args.folders) {
     const back = changed.filter((r) => 'fromFolderId' in r)
     if (!back.length) return null
