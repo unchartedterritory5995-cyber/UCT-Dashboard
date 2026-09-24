@@ -3577,6 +3577,27 @@ exactly as it did before K.
   rate, and `tools/window_check.py` now stamps that reading — reporting **absent**
   and **off** as different facts, because a pod predating K serves no keys at all.
 
+### 📓 Notebook 10/10 program — waves 5–6, IN PROGRESS, blocked on a rate limit as of 2026-09-24
+
+⭐⭐ **READ `docs/notebook/wave5-6-RESUME-HERE.md` FIRST** — but note it lives in
+the **OTHER worktree**, `C:\Users\Patrick\uct-worktrees\notebook-k`, not here.
+This checkout (`feat/notebook-w6`) is wave 6; the resume doc is the single
+checkpoint for the whole program and covers both worktrees.
+
+This worktree is **behind** `feat/notebook-10`'s tip by four commits (the B1
+safety fix and its follow-ups landed on wave 5 after wave 6 branched) — merging
+wave 5's tail onto this branch is an open item, see the resume doc.
+
+⛔ **Blocked on the weekly Opus rate limit, resets 2026-09-25 18:00 America/Chicago.**
+Lane D's stopping point here (`80adeaa7a`) was reached because of the rate
+limit, not a self-reported close-out — verify against `wave6-D-brief.md` before
+assuming it's done. Lane E needs a fresh dispatch from scratch.
+
+⛔⛔ **The SDD ledger for this program lives at
+`notebook-k/.superpowers/sdd/2026-09-23-notebook-10/` (the OTHER worktree) and
+is gitignored — local disk only, never pushed.** Do not delete either worktree
+without backing up that directory first.
+
 ### ✅ B7 / rule 12 — the rail now identifies WHOSE change set it is (CLOSED 2026-09-13)
 
 `app/src/hub/rule12Paths.test.js` asserts *"a joystick change set must not edit
