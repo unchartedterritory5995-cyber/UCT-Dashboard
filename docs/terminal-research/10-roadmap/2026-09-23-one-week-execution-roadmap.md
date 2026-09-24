@@ -177,7 +177,7 @@ when they see it.
 | Platform | S9 Entitlements | not built | A14 Portfolio & Risk |
 | Platform | S10 Presentation Primitives | SHIPPED | — |
 | Data | D1 Provider Abstraction | **SHIPPED, adoption sweep CLOSED 2026-09-23** (`d050f867f`, `c8c1e431f`) | nothing — fully done |
-| Data | D2 Canonical Data Model | **CP2, confirmed unchanged 2026-09-23** — still the long pole | A11, A13, S8's full citations |
+| Data | D2 Canonical Data Model | **CP2, confirmed unchanged 2026-09-23** — ⚰️ this said "still the long pole"; **corrected 2026-09-23, see the result note under §3 Days 2-3** — it no longer blocks A1, A11, A13, or S8's citations, all confirmed closed without it | nothing confirmed real today |
 | Data | D3 Realtime Streaming | **CP4 shipped `bb312cc18`, owner-signed** (new as of 2026-09-23 — was "docs only" at last measurement) | A10, jointly with D4 |
 | Data | D5 Reference & Corp Actions | CP1 merged, CP2–7 open | partial |
 | Intelligence | I1 Intelligence Layer | SHIPPED, 3 slices | — |
@@ -428,6 +428,51 @@ the whole thing holds together.
 > alone is a real open question, not yet answered — held rather than guessed at. Revisit
 > once Day 3's two agents report back and there's a clearer picture of what A1/A11/A13
 > actually need from it.
+
+> ✅➡️⚰️ **D2 CP3 / S8-wiring result, 2026-09-24 — both held questions answered NO, and
+> the roadmap's own framing corrected.** Dispatched once A1, A11 and A13 had all reported
+> back, exactly as this note said to. Two findings, both negative and both closed with
+> direct evidence:
+>
+> **(1) `resolve()` isn't unbuilt-and-blocking — it's unbuilt because nothing needs it.**
+> The task's own premise ("a five-status resolution function") turned out to be a false
+> premise the moment the file was read: `address_book.py:26-28` states in its own header
+> *"⛔ NOT A RESOLVER... this reads the manifest; it fetches nothing, opens no store, and
+> knows no entity."* No `resolve` symbol exists in the module at all — grepped zero hits
+> across `api/`, `tests/`, `tools/`, `scripts/` for any call to it. The signed CP2 approval
+> (the gate doc's own lines 49-73) explicitly **narrowed away** from the resolver when it
+> was built — CP2 as actually approved and shipped is "migrate exactly ONE reader
+> (`ticker_returns.py`) dark," never the five-status resolver. A11's own commit
+> (`985a3761a`) already said the same in its own scope note ("no reader migrated... D2
+> CP2's one-reader rail is untouched"); A1 shipped no code; A13's Flow tab is explicitly
+> "deterministic only — no AI" per its own file header, so it has nothing to resolve. The
+> roster's remaining genuinely-open D2 item is a *different, narrower* thing — the
+> top-level CP3/"LINE 5" dual-compute-flip for `ticker_returns.py`'s scheduled reader,
+> unrelated to the resolver and unrelated to A1/A11/A13. **No scope-approval request is
+> being raised for `resolve()`** — per this program's own discipline, a function nothing
+> needs isn't owed a build, only a corrected roster line.
+>
+> **(2) S8's renderer never needed D2 addressing, and it's already live for the one
+> surface that has AI-authored content to cite.** None of the four S8 primitives
+> (`Cited.jsx`, `CoverageLine.jsx`, `FreshnessBadge.jsx`, `Provenance.jsx`) import or
+> reference `address_book`, the canonical JSON, or any D2 concept at all — `Cited.jsx`'s
+> own header names the D2-gated recursive form as a known, non-blocking, already-deferred
+> case (SPEC-S8 §4.5/§19). The real production consumers today are I1's five
+> `/research/:sym` tabs (Ask-AI, News, Ownership, Analyst Ratings, Catalysts) —
+> `AskAiTab.jsx`'s own header explains exactly the shape decision the held question was
+> waiting on (I1's evidence shape doesn't fit `<Cited>`'s contract, so it composes
+> `<Provenance>` instead, enforced by the real running `i1S8Boundary.test.js` rail).
+> **A13's own new work sits on that same page and has nothing needing a citation** — "My
+> Research" is member-authored, the new Flow tab is non-AI deterministic passthrough. A11
+> shipped zero UI, so nothing D2-addressed renders anywhere for breadth yet, cited or
+> otherwise. **No genuine wiring gap remains for A1, A11, or A13 as of today.**
+>
+> **Bottom line, and it's the same shape as most of this week:** the literal directive —
+> "finish D2 CP3, then wire S8 against it" — doesn't apply, because both halves of the
+> need it was written to satisfy were already met a different way before this wave was
+> even dispatched. **D2 stops being "the long pole"** as of this finding; nothing on the
+> current roster is confirmed to still be waiting on it. Verify-only — nothing built,
+> nothing shipped, working tree left clean.
 
 ### Days 4–5 — application layer, in dependency order
 
