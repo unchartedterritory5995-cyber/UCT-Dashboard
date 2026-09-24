@@ -412,10 +412,16 @@ export async function settleLandedSave({
  * must equal `forked`; anything else is refused and the note keeps the pre-E-3
  * behaviour — a second fork later, which preserves the words. A duplicate
  * beats a loss. No `forked`, no proof: refused.
- * ⚠️ The check and the settle are two transactions. What can land between them
- * is a durable write already scheduled before the editor's own check — content
- * the sibling holds — or a keystroke's write, which is debounced ≥200 ms and
- * whose draft and autosave the editor keeps whenever its view has moved.
+ * ⚠️ The check and the settle are THREE IndexedDB transactions — `getNote`,
+ * `listOutbox`, then the write inside `settleForkedNote` — so the window runs
+ * from the first read to that write: milliseconds usually, hundreds on a slow
+ * store. What can land in it is a durable write scheduled before the editor's
+ * own check (content the sibling holds), or a keystroke's write made AFTER the
+ * view swap. The second loses nothing: `persist`'s fix-6 guard keeps the
+ * record's words rather than write `fresh+keystroke` over them, and the
+ * editor's post-settle RE-READ sees its view moved off the server copy and
+ * keeps that keystroke's draft and autosave (rail: `f5p1OwnerSendsQueued`,
+ * S1′). The protection is that re-read — not the writer's debounce.
  *
  * ⛔ Store-direct and mount-independent, like `settleLandedSave`; never throws;
  * and with the wave switched off it writes nothing (§21).
@@ -663,7 +669,7 @@ export function useDurableNote({
     return {
       ...decision,
       adopt: queuedWorkToAdopt({ decision, record: idbRecord, entry: queued }),
-      base: baseOfRecovered({ decision, record: idbRecord }),
+      base: baseOfRecovered({ decision, record: idbRecord, entry: queued }),
     }
   }, [supported, accountId, noteId, connect])
 

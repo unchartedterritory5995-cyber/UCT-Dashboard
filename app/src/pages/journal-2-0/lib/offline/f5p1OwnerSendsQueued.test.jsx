@@ -159,14 +159,14 @@ afterEach(() => {
 })
 
 /** The member typed offline on the note, left it, and the queue holds their words. */
-async function queuedWhileAway({ permanent = false } = {}) {
+async function queuedWhileAway({ permanent = false, serverBase = null } = {}) {
   factory.open(ACCOUNT_DB)
   await act(async () => { await settleIdb(2) })
   const store = factory.databases.get(ACCOUNT_DB)
   store.seed('notes', {
     noteId: 'n1', title: 'Thesis', subtitle: '', bodyJson: MINE, dirty: 1, generation: 5,
     sessionId: 's-away', localSavedAt: 1000, baseUpdatedAt: T0,
-    serverBase: { title: 'Thesis', subtitle: '', bodyJson: doc(ONLINE), updatedAt: T0 },
+    serverBase: serverBase || { title: 'Thesis', subtitle: '', bodyJson: doc(ONLINE), updatedAt: T0 },
   })
   store.seed('outbox', {
     mutationId: 'note:n1', noteId: 'n1', kind: 'note-update',
@@ -493,5 +493,59 @@ describe('fix round 1 — adoption and the owner’s fork never lose what the me
     expect(survives('K2-typed-during-the-settle'), 'the keystroke typed during the settle was lost').toBe(true)
     releasePuts()
     await sit(1)
+  })
+})
+
+describe('fix round 2 — the editor’s own S1 gate, and a base the queued entry disagrees with', () => {
+  it('⛔⛔ R2: a keystroke still inside the durable window when the sibling lands is NOT settled away — the editor’s gate alone', async () => {
+    // The store gate cannot see this keystroke: its durable write has not
+    // happened yet, so the record still equals what was forked. Only the
+    // editor's check of its own view stands between it and the settle.
+    server = makeServer({ body: doc(para('rewritten on another device')), updatedAt: T1 })
+    await queuedWhileAway()
+    const releaseCreates = holdCreates()
+    await returnToTheNote()
+    await sit(4)                                            // adopt → 409 → reconcile → create (held)
+    expect(createsStarted, 'precondition: the sibling is being created').toBe(1)
+    await typeInBody(' K-inside-the-durable-window')
+    // Released with NO clock movement: the keystroke's durable write is still
+    // pending when the editor decides whether to settle.
+    await act(async () => { releaseCreates(); await settleIdb(6) })
+    await sit(12)
+    expect(survives('K-inside-the-durable-window'), 'the keystroke was settled away').toBe(true)
+    expect(serverText(), 'the other device’s words were overwritten').toContain('rewritten on another device')
+  })
+
+  // A record written by the settle BEFORE A-1: its base is `acked@landed` (T1,
+  // already holding the door's widget) while its entry sits on T0, where the
+  // words were really written. Neither door may use that base.
+  const POISONED_BASE = { title: 'Thesis', subtitle: '', bodyJson: doc(ONLINE, WIDGET), updatedAt: T1 }
+
+  it('⛔⛔ N4: a poisoned record is OFFERED, never adopted — nobody types, and the widget stays on the server', async () => {
+    server = makeServer({ body: doc(ONLINE, WIDGET), updatedAt: T1 })
+    await queuedWhileAway({ serverBase: POISONED_BASE })
+    await returnToTheNoteAndSit()
+    expect(hasWidget(), 'the queued body was adopted on the poisoned base and sent over the widget').toBe(true)
+    expect(await screen.findByRole('button', { name: 'Restore' }), 'the words were not offered').toBeTruthy()
+    expect(survives(SENTENCE)).toBe(true)
+  })
+
+  it('⛔⛔ N4: Restore of a poisoned record never adopts on its base — the Restore itself does not drop the widget', async () => {
+    // Blocked, so the banner appears whatever `adopt` says, and only Restore's
+    // own use of the base is under test.
+    // ⚠️ What this does NOT pin: Restore then takes its path for a copy with no
+    // known base (a direct PUT on the words' own revision, which 409s here), and
+    // a keystroke after that can still overwrite — the crash-draft class the
+    // N5 ruling leaves open (f5-fixes §C.5). This cell pins only that Restore
+    // never sends the words on a base the entry disagrees with.
+    server = makeServer({ body: doc(ONLINE, WIDGET), updatedAt: T1 })
+    await queuedWhileAway({ permanent: true, serverBase: POISONED_BASE })
+    await returnToTheNoteAndSit()
+    const restore = await screen.findByRole('button', { name: 'Restore' })
+    await act(async () => { fireEvent.click(restore); await settleIdb(6) })
+    await sit(8)
+    expect(hasWidget(), 'Restore adopted on the poisoned base and sent over the widget').toBe(true)
+    expect(survives(SENTENCE), 'the restored words were lost').toBe(true)
+    expect(server.puts.every((p) => p.baseUpdatedAt !== T1), 'a send went out on the poisoned revision').toBe(true)
   })
 })

@@ -312,17 +312,10 @@ export function queuedWorkToAdopt({ decision, record = null, entry = null } = {}
   // one transaction, so a disagreement between them is also a reason to ask.
   if (!sameAuthoredContent(decision.state, record)) return null
   if (!sameAuthoredContent(entry.patch, record)) return null
-  const base = baseOfRecovered({ decision, record })
+  // ⛔ The base must also name the ENTRY's revision (review N4). That check lives
+  // in `baseOfRecovered`, ONE place, so Restore asks it too — see there.
+  const base = baseOfRecovered({ decision, record, entry })
   if (!base) return null
-  // ⛔ THE BASE AND THE ENTRY MUST NAME THE SAME REVISION (review N4, fix round
-  // 1). A record written by the settle BEFORE A-1 carries `acked@landed` as its
-  // base — a copy that already holds a door's appended block — while its entry
-  // still sits on the older revision. Adopting on that base sends the queued
-  // body at `landed`: a 200, and the block is gone. A-1 stops new records being
-  // written that way; this stops the ones already on members' disks from being
-  // adopted. Every legitimate mismatch (a rebased entry, an ack that landed
-  // while the member kept typing) falls back to the banner, which is safe.
-  if (base.updatedAt !== usableBaseline(entry.baseUpdatedAt)) return null
   return { state: authored(record), base }
 }
 
@@ -338,18 +331,34 @@ export function queuedWorkToAdopt({ decision, record = null, entry = null } = {}
  * The editor could not do better, because nothing told it what the recovered
  * words were written on. This does.
  *
+ * ⛔⛔ AND IT MUST NAME THE SAME REVISION AS THE QUEUED ENTRY, WHEN THERE IS ONE
+ * (review N4, fix rounds 1 and 2). A record written by the settle BEFORE A-1
+ * carries `acked@landed` as its base — a copy that already holds a door's
+ * appended block — while its entry still sits on the older revision the words
+ * were really written on. Adopting on that base sends the queued body at
+ * `landed`: a 200, and the block is gone. A-1 stops new records being written
+ * that way; this stops the ones already on members' disks from being used as a
+ * base, by EITHER caller: `queuedWorkToAdopt` then offers the banner, and the
+ * banner's Restore falls back to its path for a copy with no known base. Every
+ * legitimate mismatch (a rebased entry, an ack that landed while the member kept
+ * typing) takes that same fallback, which is the behaviour before E-2.
+ * ⚠️ Without an entry there is nothing to compare against, and the record's own
+ * base is returned as before.
+ *
+ * @param entry  that note's queued outbox entry, or null
  * @returns { title, subtitle, bodyJson, updatedAt } — the last-known server copy
  *          the winning durable record carries — or null when that cannot be
  *          proved: no record, a winner that is not the record's words (a crash
- *          draft ahead of it), or a copy with no revision. ⛔ Null means "not
- *          known", and the caller must not invent one from the server's current
- *          copy.
+ *          draft ahead of it), a copy with no revision, or a revision the queued
+ *          entry disagrees with. ⛔ Null means "not known", and the caller must
+ *          not invent one from the server's current copy.
  */
-export function baseOfRecovered({ decision, record = null } = {}) {
+export function baseOfRecovered({ decision, record = null, entry = null } = {}) {
   if (!decision?.unsynced || !record?.dirty) return null
   if (!sameAuthoredContent(decision.state, record)) return null
   const base = lastKnownServerCopy(record)
   const at = usableBaseline(base?.updatedAt)
   if (!base || !at) return null
+  if (entry && at !== usableBaseline(entry.baseUpdatedAt)) return null
   return { ...authored(base), updatedAt: at }
 }

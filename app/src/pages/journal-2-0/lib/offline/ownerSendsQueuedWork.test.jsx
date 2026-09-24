@@ -151,6 +151,20 @@ describe('baseOfRecovered — what the recovered words were written on (Restore 
     const bare = record({ serverBase: null })
     expect(baseOfRecovered({ decision: decide(bare), record: bare })).toBeNull()
   })
+
+  it('⛔⛔ a base whose revision the queued entry disagrees with is NOT a base — Restore never uses it (N4, fix round 2)', () => {
+    // The pre-A-1 settle wrote `acked@landed` (T1, already holding a door's
+    // block) while the entry stayed on T0, where the words were really written.
+    const poisoned = record({ serverBase: { ...BASE, updatedAt: T1 } })
+    expect(baseOfRecovered({ decision: decide(poisoned), record: poisoned, entry: entry() })).toBeNull()
+    // …a base and entry that agree are unchanged…
+    const rec = record()
+    expect(baseOfRecovered({ decision: decide(rec), record: rec, entry: entry() }))
+      .toEqual({ title: 'Thesis', subtitle: '', bodyJson: doc('online'), updatedAt: T0 })
+    // …and with no entry there is nothing to compare against: the record's own
+    // base, as before (stated in the function, not hidden).
+    expect(baseOfRecovered({ decision: decide(poisoned), record: poisoned }).updatedAt).toBe(T1)
+  })
 })
 
 function mount(db) {
@@ -183,6 +197,18 @@ describe('recover() — the answer reaches the editor through the call it alread
     expect(decision.adopt).toBeNull()
     // …but Restore still learns what the words were written on.
     expect(decision.base?.updatedAt).toBe(T0)
+  })
+
+  it('⛔⛔ a record poisoned before A-1 comes back with NEITHER `adopt` NOR `base` — the banner, and a Restore with no base (N4)', async () => {
+    const db = createFakeDb()
+    await putNoteWithIntent(db, record({ serverBase: { ...BASE, updatedAt: T1 } }), entry())
+    await settleIdb(4)
+    const { result } = mount(db)
+    let decision
+    await act(async () => { decision = await result.current.recover({ server: SERVER_NOW }) })
+    expect(decision.unsynced, 'the words are still offered').toBe(true)
+    expect(decision.adopt).toBeNull()
+    expect(decision.base, 'Restore must not adopt on a base the entry disagrees with').toBeNull()
   })
 
   it('⛔ with the wave switched OFF nothing is read and nothing is adopted (§21)', async () => {
