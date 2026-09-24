@@ -206,7 +206,7 @@ def _https_or_none(raw: Any, base_url: str) -> str | None:
 def _domain(url: str) -> str:
     """The host the card names, in the ASCII form the browser connects to.
 
-    ⛔ (M2) A look-alike host ("аpple.com" with a Cyrillic a) would read
+    ⛔ (M2) A look-alike host ("apple.com" typed with U+0430, a Cyrillic a) would read
     as "apple.com" on the card, and the domain line is the card's one
     trustworthy field. IDNA-encoded it reads "xn--pple-43d.com", which is what it
     is. A host that cannot be encoded names nothing rather than something it is

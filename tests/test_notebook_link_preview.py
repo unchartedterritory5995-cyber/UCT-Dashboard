@@ -272,10 +272,10 @@ def test_the_whole_fetch_has_a_ceiling_even_when_every_read_is_quick(rig, monkey
 
 def test_a_look_alike_domain_is_shown_as_what_it_really_is(rig):
     # M2: the domain line is the card's only trustworthy field. A host typed in
-    # a look-alike script ("аpple.com", Cyrillic a) is shown in the ASCII
+    # a look-alike script ("apple.com" with U+0430, a Cyrillic a) is shown in the ASCII
     # form the browser actually connects to, never as a convincing "apple.com".
     rig["rec"].routes = {"https://xn--pple-43d.com/x": html()}
-    body = get(rig, "https://аpple.com/x").json()
+    body = get(rig, "https://\u0430pple.com/x").json()   # U+0430, CYRILLIC SMALL LETTER A
     assert body["domain"] == "xn--pple-43d.com"
     assert body["domain"].isascii()
 
