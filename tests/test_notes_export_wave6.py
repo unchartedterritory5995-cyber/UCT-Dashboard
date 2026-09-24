@@ -91,6 +91,25 @@ def test_ragged_rows_are_padded_and_a_merged_cell_keeps_its_neighbours_in_their_
     assert all(ln.count(" | ") == 2 for ln in lines), md
 
 
+def test_a_cell_spanning_rows_keeps_the_cells_below_it_in_their_columns():
+    # M8 (wave 6 fix round 1): a `rowspan` cell occupies its column in the rows
+    # below too. GFM cannot merge vertically, so the covered slot is blank --
+    # and the row's own cells stay under their headers. ⚰️ They shifted left.
+    md = tiptap_to_markdown(_doc(_table(
+        _row(_cell(_para("A"), kind="tableHeader"), _cell(_para("B"), kind="tableHeader"),
+             _cell(_para("C"), kind="tableHeader")),
+        _row(_cell(_para("tall"), rowspan=2), _cell(_para("b1")), _cell(_para("c1"))),
+        _row(_cell(_para("b2")), _cell(_para("c2"))),
+        _row(_cell(_para("a3")), _cell(_para("big"), rowspan=2, colspan=2)),
+        _row(_cell(_para("a4"))),
+    )))
+    lines = md.split("\n")
+    assert lines[2] == "| tall | b1 | c1 |"
+    assert lines[3] == "|  | b2 | c2 |"
+    assert lines[4] == "| a3 | big |  |"
+    assert lines[5] == "| a4 |  |  |"
+
+
 def test_column_alignment_becomes_the_delimiter_row():
     md = tiptap_to_markdown(_doc(_table(
         _row(_cell(_para("L"), kind="tableHeader", align="left"),

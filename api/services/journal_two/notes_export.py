@@ -686,28 +686,50 @@ def _table(node: dict[str, Any], resolver=None) -> str:
     rows: list[list[str]] = []
     aligns: list[str | None] = []
     header = False
+    # M8 (wave 6 fix round 1): a `rowspan` cell occupies its columns in the rows
+    # BELOW it too. GFM cannot merge vertically, so a covered slot is written
+    # blank -- and the row's own cells stay under their headers. (They used to
+    # shift left into the covered column.) row number -> covered column indexes.
+    covered: dict[int, set[int]] = {}
+
+    def _span(attrs: dict, key: str) -> int:
+        try:
+            return max(1, min(int(attrs.get(key) or 1), 64))
+        except (TypeError, ValueError):
+            return 1
+
     for r_index, row in enumerate(node.get("content") or []):
         if not isinstance(row, dict):
             continue
+        row_no = len(rows)
+        taken = covered.pop(row_no, set())
         cells: list[str] = []
         kinds: list[str] = []
+
+        def _skip_covered() -> None:
+            while len(cells) in taken:
+                cells.append("")
+                kinds.append(kinds[-1] if kinds else "")
+
         for cell in row.get("content") or []:
             if not isinstance(cell, dict):
                 continue
+            _skip_covered()
             attrs = cell.get("attrs") if isinstance(cell.get("attrs"), dict) else {}
+            col = len(cells)
             cells.append(_gfm_cell(cell, resolver))
             kinds.append(cell.get("type") or "")
             if r_index == 0:
                 aligns.append(attrs.get("align") if attrs.get("align") in _GFM_ALIGN else None)
-            try:
-                span = int(attrs.get("colspan") or 1)
-            except (TypeError, ValueError):
-                span = 1
-            for _ in range(max(0, min(span, 64) - 1)):
+            span = _span(attrs, "colspan")
+            for _ in range(span - 1):
                 cells.append("")
                 kinds.append(kinds[-1])
                 if r_index == 0:
                     aligns.append(None)
+            for below in range(1, _span(attrs, "rowspan")):
+                covered.setdefault(row_no + below, set()).update(range(col, col + span))
+        _skip_covered()
         if r_index == 0:
             header = bool(kinds) and all(k == "tableHeader" for k in kinds)
         rows.append(cells)
