@@ -296,6 +296,35 @@ def _start_gate() -> str:
         return "1=1"
     return " AND ".join("NOT ({susrc} = '%s' AND s.date < '%s')" % (u, d)
                         for u, d in sorted(_CSTART.items())) or "1=1"
+#: ⛔⛔ ARTIFACT PROVENANCE GATE. A pass ARTIFACT (it carries `pass_meta`) may be merged only
+#: if it declares the accepted methodology AND the canonical dividend basis AND the dividend
+#: input it was built from. The frozen split-only V2c, V1 and the original V2 use the SAME
+#: `source` names as V2c2 — without this gate the precedence list would adopt them.
+#: A store-to-store sync snapshot has no `pass_meta` and is not an artifact.
+ACCEPTED_ARTIFACT_METHODOLOGY = "rth-1m-composites-v2c2-div"
+ACCEPTED_DIVIDEND_BASIS = "div-basis-v5"
+
+
+class ArtifactProvenanceRefused(RuntimeError):
+    pass
+
+
+def _check_artifact_provenance(conn) -> None:
+    has_meta = conn.execute("SELECT 1 FROM snap.sqlite_master WHERE type='table' AND name='pass_meta'").fetchone()
+    if not has_meta:
+        return
+    meta = dict(conn.execute("SELECT key, value FROM snap.pass_meta").fetchall())
+    problems = []
+    if meta.get("methodology") != ACCEPTED_ARTIFACT_METHODOLOGY:
+        problems.append("methodology %r != %r" % (meta.get("methodology"), ACCEPTED_ARTIFACT_METHODOLOGY))
+    if ("breadth_dividend_basis %s" % ACCEPTED_DIVIDEND_BASIS) not in (meta.get("price_basis") or ""):
+        problems.append("price basis %r is not the canonical %s" % (meta.get("price_basis"), ACCEPTED_DIVIDEND_BASIS))
+    if not meta.get("dividend_input_key"):
+        problems.append("no dividend_input_key provenance")
+    if problems:
+        raise ArtifactProvenanceRefused("refusing to merge artifact: " + "; ".join(problems))
+
+
 _MERGE_SQL = f"""
 INSERT INTO breadth_daily_ohlc(universe,date,metric,o,h,l,c,source,updated_at)
 SELECT {{susrc}},s.date,s.metric,s.o,s.h,s.l,s.c,s.source,s.updated_at
@@ -347,6 +376,7 @@ def _merge_from(src_db: str) -> int:
                             f"refusing to merge a snapshot carrying {extra}: the BL-028 "
                             f"compatibility index {_store.COMPAT_INDEX!r} is still in "
                             "place. Removing it is a deliberate migration step.")
+                _check_artifact_provenance(conn)
                 cur = conn.execute(_MERGE_SQL.format(susrc=susrc, start_gate=_start_gate().format(susrc=susrc)))
                 adopted = cur.rowcount if cur.rowcount is not None else 0
                 # ⛔ THE ONE WRITER THAT BYPASSES `breadth_daily_ohlc`'s own API —
