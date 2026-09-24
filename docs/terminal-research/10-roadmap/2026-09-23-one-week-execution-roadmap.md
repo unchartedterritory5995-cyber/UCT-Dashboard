@@ -524,6 +524,19 @@ the whole thing holds together.
 - **Agent 2:** A12 Watchlists — if S5/S6 (persistence/personalization) cleared during
   Day 3's parallel work; otherwise this slips to next week, stated plainly rather than
   forced.
+
+> ✅ **A12 result, 2026-09-23 — genuinely still blocked, and this is the correct answer,
+> not another stale-roster miss.** A12's real dependencies turned out to be S5 and S2
+> (not S6, an earlier mis-grouping this doc already corrected). S2's piece is fully done —
+> verified live in current source, `Watchlists.jsx` already imports and uses the S2 chord
+> table (`f8175989d`, signed 2026-09-19). **S5's signed checkpoints are real but every one
+> is Tracings-only** — the one thing that would generalize the pattern to a second
+> consumer like Watchlists (`F-S5-1`, "the extraction") is explicitly deferred behind a
+> two-part condition: a second adopter exists (satisfied) **and** Wave Q1 has been live 30
+> days. Wave Q1 went live 2026-09-12; 30 days lands **2026-10-12**; today is 11 days in.
+> Nothing here is stale — it's a deliberate, dated wait, and the agent correctly declined
+> to build around it. Working tree left clean, nothing shipped. **A12 stays next week's
+> first item, for real reasons.**
 - **Agent 3:** A14 Portfolio & Risk is **not attempted this week.** No member door
   exists at all today, and it's blocked on two owner-bound systems (S9 entitlements,
   D8). Listing it as "in progress" would be the exact false-completion this whole plan
