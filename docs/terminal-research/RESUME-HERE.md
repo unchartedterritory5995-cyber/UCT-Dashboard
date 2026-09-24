@@ -188,6 +188,19 @@ narrative doc one step behind its own subject.)
 
 ---
 
+## 6b · Loose ends checked before this restart — all clear
+
+Swept for anything that could trip up a fresh session: no local test server left
+running (port 8077 confirmed free), no open browser tabs, no dispatched agents still
+running (all four from today's waves completed and terminated cleanly), production
+confirmed healthy on the expected commit. Three harness-managed agent worktrees from
+today's dispatches still exist on disk under `C:\Users\Patrick\uct-dashboard\.claude\worktrees\`
+(`agent-a2197a3654cb2c564`, `agent-a28ec2e4d9c4905f3`, `agent-a376fef00f8edb801`) — safe
+to ignore entirely; every commit inside them is already cherry-picked into what's live
+on master (`d30c4202a`→`b9261e57b`, `551c8c444`→`acd230c15`, `5c0513b1a`→`0b42d050c`).
+Not mine to delete per this repo's own worktree-ownership rule; a future session can
+leave them alone indefinitely with no consequence.
+
 ## 7 · Gotchas discovered or re-confirmed this session — carry these forward
 
 - **Re-sync `_merge-master` to `origin/master` before EVERY cherry-pick, no
