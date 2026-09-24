@@ -57,6 +57,8 @@ import threading
 import time
 import zipfile
 from datetime import datetime, timezone
+import contextlib
+import contextvars
 from pathlib import Path
 from typing import Any
 
@@ -345,9 +347,36 @@ def _make_note_link_aware_resolver(
     return resolve
 
 
+# Wave 5 fix round 1 (N4): the exporter writes `$...$` for math, which
+# Obsidian, Pandoc and Typora all read -- so a trader's plain-text "$5-$10"
+# would render there as math. A `$` in PROSE is therefore written `\$` (a
+# CommonMark backslash escape: every reader shows a plain `$`, and our own
+# importer's markdown-it reads it back as `$`). Three places are NOT prose and
+# keep their `$` raw, because a backslash would appear literally:
+#  - text with the `code` mark (inside backticks nothing is an escape);
+#  - a code block;
+#  - the raw-HTML islands a callout (`<aside>`) and a toggle (`<details>`)
+#    export as -- a CommonMark HTML block is not parsed for escapes (or for
+#    math), and the importer passes those islands through untouched.
+_ESCAPE_PROSE_DOLLARS = contextvars.ContextVar("notes_export_escape_prose_dollars", default=True)
+
+
+@contextlib.contextmanager
+def _raw_dollars():
+    token = _ESCAPE_PROSE_DOLLARS.set(False)
+    try:
+        yield
+    finally:
+        _ESCAPE_PROSE_DOLLARS.reset(token)
+
+
 def _text_with_marks(node: dict[str, Any], resolver=None) -> str:
     text = node.get("text") or ""
-    for mark in node.get("marks") or []:
+    marks = node.get("marks") or []
+    if _ESCAPE_PROSE_DOLLARS.get() and not any(
+            isinstance(m, dict) and m.get("type") == "code" for m in marks):
+        text = text.replace("$", "\\$")
+    for mark in marks:
         mtype = mark.get("type")
         if mtype == "link":
             href = (mark.get("attrs") or {}).get("href") or ""
@@ -514,7 +543,9 @@ def _block(node: dict[str, Any], resolver=None) -> str:
         return "\n".join(f"> {ln}" for ln in inner.split("\n"))
     if ntype == "codeBlock":
         lang = attrs.get("language") or ""
-        return f"```{lang}\n{_inline(kids, resolver)}\n```"
+        with _raw_dollars():
+            code = _inline(kids, resolver)
+        return f"```{lang}\n{code}\n```"
     if ntype == "inlineMath":
         # Wave 5: `$…$`, the form Obsidian, Pandoc and Typora all read as
         # math. Stripped, because `$ x $` (space inside the dollars) is not
@@ -606,7 +637,8 @@ def _block(node: dict[str, Any], resolver=None) -> str:
         # closing `</aside>` would land outside the block and reappear as
         # literal text on re-import.
         emoji = str(attrs.get("emoji") or "\U0001F4A1")
-        inner = "\n".join(b for b in (_block(c, resolver) for c in (kids or [])) if b != "")
+        with _raw_dollars():  # an HTML island (N4 above)
+            inner = "\n".join(b for b in (_block(c, resolver) for c in (kids or [])) if b != "")
         first_line = f"{emoji} {inner}" if inner else emoji
         return f"<aside>\n{first_line}\n</aside>"
     if ntype == "toggle":
@@ -617,9 +649,10 @@ def _block(node: dict[str, Any], resolver=None) -> str:
             (c for c in (kids or []) if isinstance(c, dict) and c.get("type") == "toggleSummary"), None)
         content_node = next(
             (c for c in (kids or []) if isinstance(c, dict) and c.get("type") == "toggleContent"), None)
-        summary_text = _inline((summary_node or {}).get("content"), resolver)
         body_kids = (content_node or {}).get("content") or []
-        body = "\n".join(b for b in (_block(c, resolver) for c in body_kids) if b != "")
+        with _raw_dollars():  # an HTML island (N4 above)
+            summary_text = _inline((summary_node or {}).get("content"), resolver)
+            body = "\n".join(b for b in (_block(c, resolver) for c in body_kids) if b != "")
         # Same CommonMark type-6-HTML-block constraint as callout above:
         # `<details>`/`<summary>` are BOTH in the html-block tag list, so no
         # blank line may appear between the opening and closing tags.

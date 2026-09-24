@@ -148,6 +148,10 @@ d('our own export round-trips through our own importer', () => {
     // corruption), and the front-matter block does NOT re-render as a
     // visible heading (the generic-adapter defect this audit found).
     expect(doc.html).toContain('The thesis holds.')
+    // N4: prose dollars went out escaped (so no reader takes "$5-$10" for
+    // math) and come back as plain dollars -- never a stray backslash.
+    expect(doc.html).toContain('Range $5-$10 on $NVDA.')
+    expect(doc.html).not.toContain('\\$')
     expect(doc.html).not.toMatch(/<h[1-6]>\s*title:/i)
     expect(doc.html).not.toContain('subtitle:')
     // Hero image is real, visible content — not an orphaned blob referenced
@@ -165,6 +169,7 @@ d('our own export round-trips through our own importer', () => {
     // convert.test.js against this exact shape).
     expect(doc.html).toContain('<aside>')
     expect(doc.html).toContain('a tip worth keeping')
+    expect(doc.html).toContain('stop at $42') // an HTML island keeps its $ raw
     expect(doc.html).toContain('<details>')
     expect(doc.html).toContain('<summary>More detail</summary>')
     expect(doc.html).toContain('hidden until expanded')

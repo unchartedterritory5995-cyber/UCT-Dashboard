@@ -58,6 +58,8 @@ def main() -> None:
         "type": "doc",
         "content": [
             {"type": "paragraph", "content": [{"type": "text", "text": "The thesis holds."}]},
+            # N4: a trader's dollars in prose -- exported `\$`, read back as `$`.
+            {"type": "paragraph", "content": [{"type": "text", "text": "Range $5-$10 on $NVDA."}]},
             {"type": "image", "attrs": {
                 "src": "/api/j2/notes/attachments/u1/n1/inline/chart.png", "alt": ""}},
             {"type": "attachmentChip", "attrs": {
@@ -65,7 +67,9 @@ def main() -> None:
                 "name": "report.pdf"}},
             {"type": "callout", "attrs": {"emoji": "\U0001F4A1"},
              "content": [{"type": "paragraph", "content": [
-                 {"type": "text", "text": "a tip worth keeping"}]}]},
+                 {"type": "text", "text": "a tip worth keeping"}]},
+                 {"type": "paragraph", "content": [
+                     {"type": "text", "text": "stop at $42"}]}]},
             {"type": "toggle", "attrs": {"open": True}, "content": [
                 {"type": "toggleSummary", "content": [
                     {"type": "text", "text": "More detail"}]},

@@ -1592,6 +1592,60 @@ def test_an_empty_or_malformed_formula_exports_as_nothing_and_never_raises(attrs
     assert tiptap_to_markdown(doc) == "AB\n\nC"
 
 
+# ── Wave 5 fix round 1 (N4): a `$` in prose is escaped, so it never reads as math ─
+def test_prose_dollars_are_escaped_so_no_reader_takes_them_for_math():
+    # "$5-$10" would be a formula to Obsidian, Pandoc and Typora now that the
+    # exporter writes `$...$` for real math.
+    md = tiptap_to_markdown(_doc(_para("Range $5-$10 on $NVDA.")))
+    assert md == "Range \\$5-\\$10 on \\$NVDA."
+
+
+def test_real_math_beside_prose_dollars_still_exports_as_math():
+    md = tiptap_to_markdown(_doc({"type": "paragraph", "content": [
+        {"type": "text", "text": "At $5 the area is "}, _math("\\pi r^2"), {"type": "text", "text": "."}]}))
+    assert md == "At \\$5 the area is $\\pi r^2$."
+
+
+def test_a_literal_backslash_dollar_round_trips_exactly():
+    # One backslash is added before each `$` and nothing else: "\$" in the
+    # note becomes "\\$", which every CommonMark reader shows as "\$".
+    assert tiptap_to_markdown(_doc(_para("a \\$ b"))) == "a \\\\$ b"
+
+
+def test_dollars_in_inline_code_and_in_a_code_block_stay_raw():
+    md = tiptap_to_markdown(_doc(
+        {"type": "paragraph", "content": [
+            {"type": "text", "text": "run "},
+            {"type": "text", "text": "echo $HOME", "marks": [{"type": "code"}]}]},
+        _code("echo $PATH  # costs $5", "bash"),
+    ))
+    assert md == "run `echo $HOME`\n\n```bash\necho $PATH  # costs $5\n```"
+
+
+def test_dollars_inside_the_callout_and_toggle_html_islands_stay_raw():
+    # `<aside>` / `<details>` are CommonMark HTML blocks: no escape is read
+    # there (a `\$` would show its backslash), and no math either.
+    md = tiptap_to_markdown(_doc(
+        {"type": "callout", "attrs": {"emoji": "!"}, "content": [_para("stop at $42")]},
+        {"type": "toggle", "attrs": {"open": True}, "content": [
+            {"type": "toggleSummary", "content": [{"type": "text", "text": "Plan $50"}]},
+            {"type": "toggleContent", "content": [_para("target $60")]}]},
+        _para("after $1"),
+    ))
+    assert "<aside>\n! stop at $42\n</aside>" in md
+    assert "<summary>Plan $50</summary>" in md
+    assert "\ntarget $60\n" in md
+    # ...and prose AFTER an island is escaped again (the raw scope ended).
+    assert md.endswith("after \\$1")
+
+
+def test_link_text_dollars_are_escaped_but_the_href_is_not():
+    md = tiptap_to_markdown(_doc({"type": "paragraph", "content": [
+        {"type": "text", "text": "$NVDA", "marks": [
+            {"type": "link", "attrs": {"href": "https://example.com/q?p=$1"}}]}]}))
+    assert md == "[\\$NVDA](https://example.com/q?p=$1)"
+
+
 # ── Wave 5: highlight exports as ==text==; a text colour exports as its words ─
 def test_highlight_exports_in_obsidian_syntax_whatever_its_colour():
     md = tiptap_to_markdown(_doc({"type": "paragraph", "content": [
