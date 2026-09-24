@@ -20,9 +20,32 @@
  *
  * ⛔ NEVER REMOVE AN ENTRY. A forgotten type reads as 0 on the server — "every
  * client can read this" — which is the lie this table exists to stop.
- * Keep one `name: N,` per line: the Python rail parses that shape.
+ * ⛔ KEEP THIS FILE IMPORTABLE BY PLAIN NODE: no static imports. The Python rail
+ * reads the table (and `SCHEMA_REFUSAL_DETAIL`) by importing this module in
+ * Node, so any layout of the table is read exactly as the product reads it. A
+ * static import of a Vite-only module would turn that rail red.
+ *
+ * ⛔⛔ B1 (wave 5, final review) — THE DECLARATION DESCRIBES THE BUNDLE THAT
+ * WROTE THE BODY, NOT THE ONE THAT SENDS IT. A production tab that opened a
+ * wave-5 note as empty queued that empty body in the offline layer; a NEWER tab
+ * then sent it, declaring its own level, and the server let it through. So every
+ * capture that another page load may send later (the durable record, its outbox
+ * entry, the crash draft) carries `writtenSchema` — the level of the editor that
+ * produced it — and every door that FORWARDS a body declares
+ * `min(writtenSchema ?? 0, this bundle's level)` (`notebookSchemaHeaders(
+ * { writtenSchema })`). A capture with no stamp — everything written before
+ * stamps existed — is 0.
  */
 export const NOTEBOOK_SCHEMA_HEADER = 'X-UCT-Notebook-Schema'
+
+/**
+ * The server's refusal, verbatim — `notebook_schema.py::REFUSAL_DETAIL`. ⛔ One
+ * sentence in two files, pinned equal by `tests/test_notebook_schema_guard.py`
+ * (which reads this constant through Node). The editor tells a schema refusal
+ * from a compare-and-set conflict by it (`isSchemaRefusal`), and the locked
+ * editor shows it (`noteContentGuard.js` derives its message from this one).
+ */
+export const SCHEMA_REFUSAL_DETAIL = 'This note has content from a newer version of the app. Reload to edit it.'
 
 export const NOTEBOOK_TYPE_SCHEMA = Object.freeze({
   // ── 0: production's schema before wave 5 (origin/master 3207690b4) — nodes ──
@@ -110,7 +133,62 @@ export function declaredNotebookSchema() {
   return declaredPromise
 }
 
-/** The header every body write carries. */
-export async function notebookSchemaHeaders() {
-  return { [NOTEBOOK_SCHEMA_HEADER]: String(await declaredNotebookSchema()) }
+/**
+ * A capture's stamp, read. ⛔ A stamp that is missing, or is anything but a
+ * non-negative integer, is 0 — the OLDEST writer. Every record, entry and draft
+ * written before stamps existed has none, and each of them may hold an empty
+ * stand-in for a note its writer could not read.
+ */
+export function writtenSchemaOf(stamp) {
+  return Number.isInteger(stamp) && stamp >= 0 ? stamp : 0
+}
+
+/** The editor holds its OWN read of the server copy: nothing forwarded. */
+export const OWN_READ = null
+
+/**
+ * The stamp for a body an editor holds right now: the level `schema` can read —
+ * and never more than the level of the capture that body was restored from.
+ *
+ * @param carried  `OWN_READ` (null) when the body is this editor's read of the
+ *                 server copy; otherwise the stamp of the recovered capture it
+ *                 came from. ⛔ Only the `OWN_READ` sentinel means "own read":
+ *                 any other value — `undefined` from an unstamped record
+ *                 included — is read as a stamp, and a missing one is 0.
+ */
+export function bodyWrittenSchema(schema, carried = OWN_READ) {
+  const own = deriveDeclaredSchema(schema)
+  return carried === OWN_READ ? own : Math.min(writtenSchemaOf(carried), own)
+}
+
+/**
+ * The header every body write carries.
+ *
+ *  · no argument — a body THIS bundle produced from its own read of the note
+ *    (the importer's rewrite, the enrichment undo, the widget editor): this
+ *    bundle's derived level.
+ *  · `{ writtenSchema }` — a body FORWARDED from a capture (the outbox drain,
+ *    the editor sending recovered words): `min(writtenSchema ?? 0, derived)`.
+ *
+ * ⛔ Only OMITTING the argument means "my own read". An object without a usable
+ * stamp — an unstamped outbox entry — declares 0, and the server then refuses it
+ * on a note that holds a level its writer could not read (B1).
+ */
+export async function notebookSchemaHeaders(forwarded) {
+  const derived = await declaredNotebookSchema()
+  const level = forwarded === undefined
+    ? derived
+    : Math.min(writtenSchemaOf(forwarded?.writtenSchema), derived)
+  return { [NOTEBOOK_SCHEMA_HEADER]: String(level) }
+}
+
+/**
+ * Was this failed write the SCHEMA refusal (not a compare-and-set conflict)?
+ * Both are 409s; the refusal's detail is `SCHEMA_REFUSAL_DETAIL`, which the note
+ * PUT client (`useJ2Note.update`) and the outbox's `sendNoteUpdate` put on the
+ * thrown error's `message`. ⛔ A retry cannot fix it — the same body from the
+ * same writer is refused again — so the caller preserves both copies instead.
+ */
+export function isSchemaRefusal(err) {
+  return err?.status === 409 && err?.message === SCHEMA_REFUSAL_DETAIL
 }

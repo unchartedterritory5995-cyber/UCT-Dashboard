@@ -27,8 +27,15 @@
  * file) is `api/services/journal_two/notebook_schema.py`.
  */
 import { useLayoutEffect, useSyncExternalStore } from 'react'
+import { SCHEMA_REFUSAL_DETAIL } from './notebookSchema'
 
-export const UNREADABLE_NOTE_MESSAGE = 'This note has content from a newer version of the app. Reload to edit it.'
+/**
+ * ⛔ N2 (wave 5 final review): ONE sentence, derived — the locked editor says
+ * exactly what the server's refusal says (`notebook_schema.py::REFUSAL_DETAIL`,
+ * pinned equal to `SCHEMA_REFUSAL_DETAIL` by tests/test_notebook_schema_guard.py).
+ * It was a second hand-typed copy here, and nothing held the two together.
+ */
+export const UNREADABLE_NOTE_MESSAGE = SCHEMA_REFUSAL_DETAIL
 
 const unreadable = new WeakSet()
 const listeners = new Set()

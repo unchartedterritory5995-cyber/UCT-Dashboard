@@ -106,9 +106,14 @@ export async function sendNoteUpdate(entry) {
   const res = await fetch(`/api/j2/notes/${entry.noteId}`, {
     method: 'PUT',
     credentials: 'include',
-    // ⛔ S1/H14: declares the schema this bundle can read, so the server can
-    // refuse a queued body written by a bundle that could not read the note.
-    headers: { 'Content-Type': 'application/json', ...(await notebookSchemaHeaders()) },
+    // ⛔⛔ S1/H14 + B1: declares the level of the bundle that WROTE this queued
+    // body — `min(entry.writtenSchema ?? 0, this bundle's level)` — never this
+    // bundle's own. A production tab's empty stand-in, queued and then swept by
+    // a newer tab, used to go out declaring the newer tab's level and land. An
+    // entry with no stamp (everything written before stamps) is 0, so the
+    // server refuses it on a note its writer could not read, and the 409 path
+    // below forks it: litter, never loss, never an overwrite.
+    headers: { 'Content-Type': 'application/json', ...(await notebookSchemaHeaders({ writtenSchema: entry.writtenSchema })) },
     body: JSON.stringify(patch),
   })
   if (!res.ok) {
@@ -247,11 +252,19 @@ export function useOutboxDrain({
       const db = await connectRef.current(accountId)
       const results = await drainOutbox(db, {
         send: sendRef.current, fork: forkRef.current, excludeNoteId: excludeRef.current,
-        // ⛔ Who currently holds the sync lock, so a marker left by a tab that
-        // is GONE expires immediately instead of waiting out its TTL. `null`
-        // when the browser cannot answer — which means "the TTL decides
-        // alone", never "nobody holds it" (that would expire every live marker
-        // on the spot and hand every in-flight note straight to the drain).
+        // ⛔ Which TABS are still alive — each holds its own per-tab session
+        // lock (`inFlight.js::holdSessionLock`), NOT the sync/leader lock — so
+        // a marker left by a tab that is GONE expires immediately instead of
+        // waiting out its TTL. `null` when the browser cannot answer — which
+        // means "the TTL decides alone", never "nobody holds it" (that would
+        // expire every live marker on the spot and hand every in-flight note
+        // straight to the drain).
+        // ⚠️ It EXCLUDES NOTHING by itself (B1 review, traced): it can only
+        // demote a dead tab's in-flight marker. The one per-note exclusion is
+        // `excludeNoteId`, THIS tab's open note — so the leader drains an entry
+        // another live tab wrote for the note that tab has open whenever that
+        // tab has no save on the wire. Safe because every entry goes out at its
+        // WRITER's level (`sendNoteUpdate`); pinned by writtenSchemaDrain.test.js.
         holders: await liveSessionIds(),
         serverCopyIsOurs: serverCopyIsOursRef.current,
       })

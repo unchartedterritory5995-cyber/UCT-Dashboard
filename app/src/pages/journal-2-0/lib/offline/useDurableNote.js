@@ -348,6 +348,9 @@ export async function settleLandedSave({
         : (unsentWork
           ? (lastKnownServerCopy(prev) || snapshotOfServerCopy(acked, landed))
           : snapshotOfServerCopy(acked, landed)),
+      // ⛔⛔ B1: the stamp comes from the SAME copy as the words — prev's when
+      // the unsent work is kept, never `current`'s over an old bundle's body.
+      writtenSchema: state?.writtenSchema,
     }
     const intent = caughtUp ? null : {
       mutationId: outboxIdFor(noteId),
@@ -361,6 +364,7 @@ export async function settleLandedSave({
       generation: record.generation,
       sessionId: SESSION_ID,
       queuedAt: Date.now(),
+      writtenSchema: record.writtenSchema,
     }
     await putNoteWithIntent(db, record, intent)
     // ⛔ The save this marker was raised for has landed, so the marker comes
@@ -565,6 +569,11 @@ export function useDurableNote({
         // `byDirty` exists so a reconnect can find unsynced work without
         // reading every note.
         dirty: (state?.synced && !unsentWork) ? 0 : 1,
+        // ⛔⛔ B1: the level of the editor that WROTE these words, taken from
+        // the SAME place as the words. When fix 6 keeps `prev`, the stamp is
+        // prev's: the editor's snapshot stamp on an old bundle's words is the
+        // laundering B1 names, one layer down. Absent ⇒ read as 0 at send.
+        writtenSchema: source?.writtenSchema,
       }
       // ⛔ `null` when clean — a clean record IS the base and a second copy of
       // one value is a second authority over it.
@@ -581,6 +590,8 @@ export function useDurableNote({
           generation,
           sessionId: SESSION_ID,
           queuedAt: Date.now(),
+          // B1: the entry's words ARE the record's, so is its stamp.
+          writtenSchema: record.writtenSchema,
         }
         : null
       // ⛔⛔ ONE TRANSACTION. The working copy and what we still owe the server

@@ -67,6 +67,9 @@ import { SkeletonLine } from '../../../../components/Skeleton'
 import {
   noteContentGuardOptions, replaceDocument, isUnreadable, useUnreadableNote,
 } from '../../lib/noteContentGuard'
+import {
+  OWN_READ, bodyWrittenSchema, isSchemaRefusal, writtenSchemaOf,
+} from '../../lib/notebookSchema'
 import UnreadableNoteNotice from '../../lib/UnreadableNoteNotice'
 import styles from './NoteEditorPage.module.css'
 import { FONT_OPTIONS } from '../../../../utils/fontFamilies'
@@ -135,6 +138,12 @@ const EMIT_NOTHING = { emitUpdate: false }
 // path and the pending-hand-off path, so the two can never say something
 // different about the same outcome.
 const ASK_INSERT_SUCCESS_MSG = 'Answer inserted at the end of this note.'
+
+// ⛔⛔ B1 — what a member reads when the server refused words this device
+// recovered (an old tab's queued copy, a crash draft) because the version of the
+// app that wrote them could not read this note. The words are NOT lost: they are
+// the `(conflicted copy)` sibling, and the page shows the note as it is.
+export const REFUSED_COPY_MESSAGE = 'Unsaved changes on this device came from an older version of the app and could not safely replace this note. They were kept as a separate copy (conflicted copy).'
 
 // Toolbar Font dropdown — the app's approved family set (each option previews in
 // its own face). Value is a full CSS font-family stack; '' clears.
@@ -504,7 +513,11 @@ export default function NoteEditorPage({ noteId, onBack, showBack = true, onTitl
     }
     try {
       // S1: a restored body this bundle cannot read LOCKS the editor rather than blanking it.
-      replaceDocument(editorRef.current, restoredNote.bodyJson || { type: 'doc', content: [] }, EMIT_NOTHING)
+      // B1: a restored version is the SERVER's copy — once it is on screen the editor
+      // holds its own read again, whatever it carried before.
+      if (replaceDocument(editorRef.current, restoredNote.bodyJson || { type: 'doc', content: [] }, EMIT_NOTHING)) {
+        carriedRef.current = OWN_READ
+      }
     } catch {
       /* editor view not mounted yet -- next note-open effect will still show it */
     }
@@ -732,6 +745,36 @@ export default function NoteEditorPage({ noteId, onBack, showBack = true, onTitl
   // empty-localStorage-draft bug this predates Wave Q1.
   const hydratedRef = useRef(false)
 
+  // ⛔⛔ B1 — WHO WROTE THE BODY THIS EDITOR HOLDS.
+  //
+  // `OWN_READ` while the editor holds its own read of the server copy (a load,
+  // a reconcile's view swap, a version restore). `{ writtenSchema }` from the
+  // moment it takes words RECOVERED from a capture another page load wrote — D3
+  // adoption, a Restore — until a save of them LANDS (the server accepted them
+  // at their writer's level) or the view is swapped back to a server copy.
+  //
+  // ⚰️ THE HOLE THIS CLOSES (wave 5 final review, B1): a production tab opened a
+  // wave-5 note as empty and queued the empty stand-in; this bundle recovered it
+  // and saved it declaring ITS OWN level, and the server let it through. Every
+  // capture this editor makes (`captureLocalState`: the draft, the durable copy,
+  // the queue) and every body it sends is stamped `bodyWrittenSchema(schema,
+  // carried)`, so an older writer's words keep that writer's level through every
+  // later keystroke — a reload mid-save cannot relabel them either.
+  // An object, not a number: a save compares IDENTITY to learn whether the words
+  // it sent are still the ones on screen.
+  const carriedRef = useRef(OWN_READ)
+  const editorWrittenSchema = () => bodyWrittenSchema(
+    editorRef.current?.schema,
+    carriedRef.current === OWN_READ ? OWN_READ : carriedRef.current.writtenSchema,
+  )
+  /** The editor now holds recovered words written at `stamp` (absent ⇒ 0). */
+  const carryRecovered = (stamp) => { carriedRef.current = { writtenSchema: writtenSchemaOf(stamp) } }
+  // Two saves refused together (a keystroke while the first was on the wire)
+  // share ONE `(conflicted copy)` — see `keepRefusedWords`. `preservedRef` holds
+  // every carried body a fork has already copied into a sibling.
+  const refusalForkRef = useRef(null)
+  const preservedRef = useRef(new WeakSet())
+
   useEffect(() => {
     if (!note) return undefined
     setRecoveryDecidedFor(null)
@@ -746,6 +789,8 @@ export default function NoteEditorPage({ noteId, onBack, showBack = true, onTitl
       updatedAt: note.updatedAt || null,
     }
     editedSinceHydrationRef.current = false
+    // B1: a note just loaded is this editor's own read of the server copy.
+    carriedRef.current = OWN_READ
 
     // Wave 0 (P1-10) offered a draft this note's own last session never
     // successfully saved. Wave Q1 makes that a THREE-way decision — the
@@ -827,6 +872,11 @@ export default function NoteEditorPage({ noteId, onBack, showBack = true, onTitl
       // unsent edit as somebody else's change and fork every single time. This
       // is the only moment on this device when both are in hand.
       serverBase: { ...lastSavedRef.current },
+      // ⛔⛔ B1: the level of whoever WROTE this body — this editor's own, or
+      // the recovered words' writer's while it holds them (`carriedRef`). The
+      // draft, the durable copy and the queue all carry it, so a later page
+      // load sends these words at that level and never at its own.
+      writtenSchema: editorWrittenSchema(),
     }
   }
   const saveDraftLocally = (state) => {
@@ -846,6 +896,8 @@ export default function NoteEditorPage({ noteId, onBack, showBack = true, onTitl
         // BEFORE this synchronous line — reversing the one ordering that owns
         // the crash window.
         sessionId: SESSION_ID,
+        // B1: a Restore of this draft on a later load sends it at this level.
+        writtenSchema: snap.writtenSchema,
       }))
     } catch { /* private mode / storage full — the network autosave is still the primary path */ }
   }
@@ -889,6 +941,8 @@ export default function NoteEditorPage({ noteId, onBack, showBack = true, onTitl
         auto: false,
         decision,
         savedAt,
+        // ⛔ B1: and they are sent at THEIR writer's level (absent ⇒ 0).
+        writtenSchema: recovery.writtenSchema,
       })
       return
     }
@@ -908,6 +962,11 @@ export default function NoteEditorPage({ noteId, onBack, showBack = true, onTitl
       restoringDraftRef.current = false      // S1: unreadable here -- locked, nothing sent
       return
     }
+    // ⛔⛔ B1: the editor now holds words a recovered copy's WRITER produced. They
+    // are sent — now, and by every keystroke after — at that writer's level
+    // (absent ⇒ 0), until a save of them lands or the view returns to the server's.
+    if (draftBodyJson) carryRecovered(recovery?.writtenSchema)
+    const carriedAtSend = carriedRef.current
     setPendingDraft(null)
     setRecovery(null)
 
@@ -929,7 +988,10 @@ export default function NoteEditorPage({ noteId, onBack, showBack = true, onTitl
       // fork rather than quietly overwrite the newer copy.
       const base = usableBaseline(recovery?.baseUpdatedAt, lastSavedRef.current.updatedAt)
       if (base) patch.baseUpdatedAt = base
-      const saved = await update(patch)
+      const saved = await update(patch, { writtenSchema: editorWrittenSchema() })
+      // B1: the server accepted these words at their writer's level — they are
+      // the server's copy now, and what the member types next is this editor's.
+      if (carriedRef.current === carriedAtSend) carriedRef.current = OWN_READ
       lastSavedRef.current = {
         title: draftTitle, subtitle: draftSubtitle,
         bodyJson: draftBodyJson || lastSavedRef.current.bodyJson,
@@ -959,11 +1021,53 @@ export default function NoteEditorPage({ noteId, onBack, showBack = true, onTitl
       setSaveErrorMsg('')
       clearDraftLocally()
     } catch (e) {
+      // ⛔⛔ B1: refused because the copy's writer could not read this note.
+      // Same resolution as a refused save — preserve both, show the server's.
+      if (isSchemaRefusal(e) && await keepRefusedWords(carriedAtSend)) return
       setSaveStatus('error')
       setSaveErrorMsg(friendlySaveError(e, e?.status))
     } finally {
       restoringDraftRef.current = false
       saveSettled()
+    }
+  }
+
+  /**
+   * ⛔⛔ B1 — THE SERVER REFUSED WORDS THIS EDITOR SENT AT THEIR WRITER'S LEVEL.
+   *
+   * The same words from the same writer are refused again, so a retry is the one
+   * thing that cannot help — and "Reload to edit it." is the sentence that sent
+   * the member here. So preserve BOTH, the way the outbox resolves the same
+   * refusal: the words become a `(conflicted copy)` and the page shows the note
+   * as the server holds it (`reconcileConflict`'s fork, with every guard it
+   * already carries for words typed during the fork).
+   *
+   * ⛔ Single-flight. Two saves refused together — a keystroke while the first
+   * was on the wire — share ONE copy: the second waits for the first's fork,
+   * finds the body it was sending already PRESERVED by it (`preservedRef`), and
+   * stops. That copy was built from the editor after the second save left, so
+   * it holds the second one's words too; and when the member typed during the
+   * fork itself, the fork's own guards keep those words in the durable copy and
+   * the queue. ⛔ Only a FORK marks a body preserved — a version restore that
+   * moved the view preserved nothing, so a refusal after it still keeps a copy.
+   *
+   * @returns true when the refusal was resolved here (the caller must not show
+   *          it as an error), false when keeping a copy failed — the words then
+   *          stay in the durable copy and the queue, and the caller reports it.
+   */
+  const keepRefusedWords = async (carriedAtSend) => {
+    if (refusalForkRef.current) await refusalForkRef.current.catch(() => {})
+    if (carriedAtSend !== OWN_READ && preservedRef.current.has(carriedAtSend)) return true
+    const fork = reconcileConflict({ refused: true })
+    refusalForkRef.current = fork
+    try {
+      await fork
+      return true
+    } catch (re) {
+      console.warn('could not keep the refused words as a copy', re)
+      return false
+    } finally {
+      if (refusalForkRef.current === fork) refusalForkRef.current = null
     }
   }
   /** A save left the wire (either way): wake whatever waited on it. */
@@ -1642,7 +1746,7 @@ export default function NoteEditorPage({ noteId, onBack, showBack = true, onTitl
   // anything else ⇒ fork, never clobber.
   useEffect(() => {
     if (!pendingAdoption || !editor || editor.isDestroyed || !note || !hydratedRef.current) return undefined
-    const { state, base, auto, decision, savedAt } = pendingAdoption
+    const { state, base, auto, decision, savedAt, writtenSchema } = pendingAdoption
     // Offer instead of adopting: the HEAD~1 behaviour, which keeps both copies.
     const offer = () => {
       setPendingAdoption(null)
@@ -1688,6 +1792,13 @@ export default function NoteEditorPage({ noteId, onBack, showBack = true, onTitl
         offer(); return undefined
       }
     } catch { offer(); return undefined }
+    // ⛔⛔ B1: these words were written by ANOTHER page load, perhaps a bundle
+    // that could not read this note and held an empty stand-in. From here every
+    // capture and every send of them is at THAT writer's level (absent ⇒ 0), so
+    // the server refuses them on a note it could not read and `keepRefusedWords`
+    // keeps them as a copy — never this bundle's own level, which let them land.
+    // Set BEFORE the autosave below: its snapshot is the first capture.
+    carryRecovered(writtenSchema)
     setPendingAdoption(null)
     const t = state.title || ''
     const s = state.subtitle || ''
@@ -1798,14 +1909,18 @@ export default function NoteEditorPage({ noteId, onBack, showBack = true, onTitl
    * Returns true when the caller may retry, false when the conflict has been
    * resolved by forking (and the retry must NOT happen).
    */
-  const reconcileConflict = async () => {
+  const reconcileConflict = async ({ refused = false } = {}) => {
     const res = await fetch(`/api/j2/notes/${noteId}`, { credentials: 'include' })
     if (!res.ok) throw new Error(`${res.status}`)
     const fresh = (await res.json())?.note
     if (!fresh) throw new Error('empty note on reconcile')
     const base = lastSavedRef.current
 
-    const shape = classifyServerChange(fresh, base)
+    // ⛔⛔ B1: a SCHEMA refusal is not a conflict the diff can resolve — the
+    // server did not move; the words' writer could not read the note. A merge
+    // or rebase would retry the same words into the same refusal, so a refusal
+    // takes the preserve-both branch below, whatever the diff says.
+    const shape = refused ? BODY_REWRITE : classifyServerChange(fresh, base)
     if (shape !== BODY_REWRITE) {
       // ⛔ METADATA_ONLY appends nothing — the body never moved, so there is
       // nothing to merge and the retry carries the member's words unchanged.
@@ -1872,7 +1987,14 @@ export default function NoteEditorPage({ noteId, onBack, showBack = true, onTitl
     titleRef.current = fresh.title || ''
     setSubtitle(fresh.subtitle || '')
     subtitleRef.current = fresh.subtitle || ''
-    if (fresh.bodyJson) replaceDocument(editor, fresh.bodyJson, EMIT_NOTHING)
+    // B1: once the SERVER's copy is on screen the editor holds its own read again —
+    // whatever it carried is in the sibling (recorded, so a second refusal of the
+    // same words does not copy them twice). Only when the view really moved.
+    const carriedHere = carriedRef.current
+    if (fresh.bodyJson && replaceDocument(editor, fresh.bodyJson, EMIT_NOTHING)) {
+      if (carriedHere !== OWN_READ) preservedRef.current.add(carriedHere)
+      carriedRef.current = OWN_READ
+    }
     lastSavedRef.current = {
       title: fresh.title || '', subtitle: fresh.subtitle || '',
       bodyJson: fresh.bodyJson, updatedAt: fresh.updatedAt || null,
@@ -1903,7 +2025,7 @@ export default function NoteEditorPage({ noteId, onBack, showBack = true, onTitl
       durableRef.current.markSynced({ acked: serverNow, current: serverNow, updatedAt: fresh.updatedAt || null })
       clearDraftLocally()
     }
-    setSaveStatus('conflict')
+    setSaveStatus(refused ? 'refused' : 'conflict')
     setSaveErrorMsg('')
     return false
   }
@@ -1915,6 +2037,10 @@ export default function NoteEditorPage({ noteId, onBack, showBack = true, onTitl
     retryTimerRef.current = null
 
     const bodyJson = editor.getJSON()
+    // ⛔⛔ B1: the level of whoever WROTE these words, read in the same instant
+    // as the words — recovered words keep their writer's level.
+    const writtenSchema = editorWrittenSchema()
+    const carriedAtSend = carriedRef.current
     const last = lastSavedRef.current
     const titleChanged = title !== last.title
     const subtitleChanged = (subtitle || '') !== (last.subtitle || '')
@@ -1976,7 +2102,13 @@ export default function NoteEditorPage({ noteId, onBack, showBack = true, onTitl
     // between the two and leave it up for the rest of the session.
     saveInFlightRef.current = true
     try {
-      const saved = await update(patch)
+      const saved = await update(patch, { writtenSchema })
+      // ⛔ B1: LANDED — the server accepted these words at their writer's level,
+      // so they are the server's copy now and the next keystroke is this
+      // editor's own. Only if they are still what is on screen: a view swap or a
+      // new recovery during the PUT is a different body with its own writer.
+      // (Read BEFORE `captureLocalState` below, whose stamp this decides.)
+      if (carriedRef.current === carriedAtSend) carriedRef.current = OWN_READ
       lastSavedRef.current = {
         title, subtitle, bodyJson,
         updatedAt: usableBaseline(saved?.updatedAt, lastSavedRef.current.updatedAt),
@@ -2016,7 +2148,13 @@ export default function NoteEditorPage({ noteId, onBack, showBack = true, onTitl
       clearDraftLocally()
     } catch (e) {
       const status = e?.status
-      if (status === 409 && !conflictRetriedRef.current) {
+      // ⛔⛔ B1: THE SCHEMA REFUSAL IS NOT A CONFLICT. The same words from the same
+      // writer are refused again, so the reconcile-and-retry below would only
+      // walk the member back into "…Reload to edit it." — the sentence that sent
+      // them here. Preserve both instead; a failure to do so falls through to
+      // the error below and the words stay in the durable copy and the queue.
+      if (isSchemaRefusal(e) && await keepRefusedWords(carriedAtSend)) return
+      if (status === 409 && !conflictRetriedRef.current && !isSchemaRefusal(e)) {
         conflictRetriedRef.current = true
         try {
           const mayRetry = await reconcileConflict()
@@ -2366,6 +2504,14 @@ export default function NoteEditorPage({ noteId, onBack, showBack = true, onTitl
           <div className={styles.saveStatus} role="status">
             <UIcon name="warning" size={13} style={{ verticalAlign: '-2px', marginRight: 4 }} />
             {'Conflict — this note changed elsewhere. Your version was kept as a conflicted copy.'}
+          </div>
+        )}
+        {/* ⛔ B1: the server refused recovered words their writer could not have
+            read this note to produce — kept as a copy, never lost, never retried. */}
+        {saveStatus === 'refused' && (
+          <div className={styles.saveStatus} role="status">
+            <UIcon name="warning" size={13} style={{ verticalAlign: '-2px', marginRight: 4 }} />
+            {REFUSED_COPY_MESSAGE}
           </div>
         )}
         {/* ⛔⛔ A DIFFERENT AXIS FROM THE THREE ABOVE — connectivity, not save

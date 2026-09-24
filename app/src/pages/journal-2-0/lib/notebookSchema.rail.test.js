@@ -78,19 +78,30 @@ describe('every body-writing door sends the declaration (S1)', () => {
   const expected = async () => String(deriveDeclaredSchema(editorSchema()))
   const headerOf = (c) => c.init.headers?.[NOTEBOOK_SCHEMA_HEADER]
 
-  it('the outbox drain’s PUT', async () => {
-    await sendNoteUpdate({ noteId: 'n1', patch: { title: 't', bodyJson: { type: 'doc', content: [] } }, baseUpdatedAt: 'r1' })
-    const put = calls.find((c) => c.init.method === 'PUT')
-    expect(put.url).toBe('/api/j2/notes/n1')
-    expect(headerOf(put)).toBe(await expected())
+  // ⛔⛔ B1: the drain FORWARDS a body it never read, so it declares the level
+  // of the bundle that WROTE it — the entry's `writtenSchema`, never more than
+  // this bundle's own. ⚰️ This case used to send an UNSTAMPED entry and expect
+  // this bundle's level: it pinned the hole as correct.
+  it('the outbox drain’s PUT declares the WRITER’s level: unstamped ⇒ 0, stamped ⇒ min(stamp, this bundle)', async () => {
+    const entry = (extra) => ({ noteId: 'n1', patch: { title: 't', bodyJson: { type: 'doc', content: [] } }, baseUpdatedAt: 'r1', ...extra })
+    await sendNoteUpdate(entry({}))
+    await sendNoteUpdate(entry({ writtenSchema: Number(await expected()) }))
+    await sendNoteUpdate(entry({ writtenSchema: 99 }))
+    const puts = calls.filter((c) => c.init.method === 'PUT')
+    expect(puts.map((c) => c.url)).toEqual(['/api/j2/notes/n1', '/api/j2/notes/n1', '/api/j2/notes/n1'])
+    expect(puts.map(headerOf)).toEqual(['0', await expected(), await expected()])
   })
 
-  it('the shared note PUT when it carries a body', async () => {
+  it('the shared note PUT when it carries a body — its own read by default, a forwarded body at its stamp', async () => {
     const { result } = renderHook(() => useJ2Note('n1'))
     await act(async () => { await result.current.update({ bodyJson: { type: 'doc', content: [] } }) })
-    const put = calls.find((c) => c.init.method === 'PUT')
-    expect(put.url).toBe('/api/j2/notes/n1')
-    expect(headerOf(put)).toBe(await expected())
+    // The editor forwarding words it recovered from a capture (B1).
+    await act(async () => { await result.current.update({ bodyJson: { type: 'doc', content: [] } }, { writtenSchema: 0 }) })
+    await act(async () => { await result.current.update({ bodyJson: { type: 'doc', content: [] } }, { writtenSchema: undefined }) })
+    const puts = calls.filter((c) => c.init.method === 'PUT')
+    expect(puts.map((c) => c.url)).toEqual(['/api/j2/notes/n1', '/api/j2/notes/n1', '/api/j2/notes/n1'])
+    // ⛔ An explicit option without a usable stamp is 0 — only OMITTING it is "my own read".
+    expect(puts.map(headerOf)).toEqual([await expected(), '0', '0'])
   })
 
   it('the Model Book playbook entry’s body write', async () => {
@@ -155,9 +166,30 @@ describe('every body-writing door sends the declaration (S1)', () => {
 // A body or dynamic site must declare: its headers mention
 // notebookSchemaHeaders, or spread a variable the enclosing function
 // initialises from it.
-// ⚠️ Stated limit: a URL built by concatenation, or a PUT routed through a
-// wrapper other than upbFetch, is not recognised. The non-vacuity case pins the
-// doors that exist, so a refactor that hides one fails there instead.
+// ⚠️ STATED LIMITS — all of them known (wave 5 final review, N3: measured with
+// this file's own `bodyPutSites` against constructed cases). NOT recognised:
+//   · a URL built by concatenation, or held in a variable (`fetch(url, …)`);
+//   · anything after the id — a query string (`…/${id}?v=2`, which still routes
+//     to update_note) or a trailing slash: the matcher wants exactly two quasis;
+//   · an origin-prefixed template (`${API}/api/j2/notes/${id}`, three quasis);
+//   · `method: 'put'` in lower case (fetch normalises it; this compares 'PUT');
+//   · `window.fetch` / `globalThis.fetch` — a member-expression callee;
+//   · the options object passed as a variable (`fetch(url, init)`);
+//   · a PUT routed through any wrapper other than `upbFetch`;
+//   · `.ts`, `.tsx` and `.mjs` files (not scanned).
+//   ⚠️ And `declares` is a SUBSTRING test on the headers expression: a COMMENT
+//   naming notebookSchemaHeaders inside `headers: {…}` counts as declaring.
+// Each of those fails SAFE: an undeclared body PUT reads as the oldest client
+// and is refused on a newer note (over-refusal, the fd87271fd class) — it can
+// never blank one. ⛔ ONE LIMIT IS NOT SAFE, and no AST check here can see it:
+// this rail asks WHETHER a door declares, not WHOSE level. A door that FORWARDS
+// a body it never read (the outbox, recovered words) must declare its WRITER's
+// level — `notebookSchemaHeaders({ writtenSchema })` — and a forwarding door that
+// declares its own passes this rail. That was B1 (`sendNoteUpdate`). The two
+// forwarding doors are pinned by the behavioural cases above and by the B1 rails
+// (`offline/writtenSchemaDrain.test.js`, `NoteEditorPage.writtenSchema.test.jsx`).
+// The non-vacuity case pins the doors that exist, so a refactor that hides one
+// fails there instead.
 const SRC_ROOT = path.resolve(__dirname, '../../..')
 const JsxParser = Parser.extend(jsx())
 const ITEM_URLS = ['/api/j2/notes/', '/api/upb/entries/']

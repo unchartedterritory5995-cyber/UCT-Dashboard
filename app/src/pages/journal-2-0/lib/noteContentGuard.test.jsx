@@ -15,6 +15,7 @@ import { buildExtensions } from './tiptap'
 import {
   UNREADABLE_NOTE_MESSAGE, canReadDocument, isUnreadable, noteContentGuardOptions, replaceDocument,
 } from './noteContentGuard'
+import { SCHEMA_REFUSAL_DETAIL } from './notebookSchema'
 
 Range.prototype.getClientRects = () => []
 Range.prototype.getBoundingClientRect = () => ({ top: 0, left: 0, right: 0, bottom: 0, width: 0, height: 0 })
@@ -55,6 +56,13 @@ afterEach(() => {
 })
 
 describe('the guard itself', () => {
+  it('says the SAME sentence the server refuses with — one fact, derived (N2)', () => {
+    // ⛔ The server's REFUSAL_DETAIL is pinned to SCHEMA_REFUSAL_DETAIL by the
+    // Python rail; this pins the locked editor's copy to the same constant, so a
+    // second hand-typed sentence here cannot drift from it.
+    expect(UNREADABLE_NOTE_MESSAGE).toBe(SCHEMA_REFUSAL_DETAIL)
+    expect(UNREADABLE_NOTE_MESSAGE.length).toBeGreaterThan(20)
+  })
   it.each([['node', UNKNOWN_NODE], ['mark', UNKNOWN_MARK]])(
     'an unknown %s type LOCKS the editor, without emitting the update that is every autosave',
     (_kind, body) => {
