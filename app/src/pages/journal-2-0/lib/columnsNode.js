@@ -110,13 +110,37 @@ export function insertColumns(editor, count = 2, range = null) {
   return true
 }
 
-/** The rule itself: a transaction that would nest columns is refused. */
+/** How many `columns` nodes sit inside another `columns` node. */
+export function nestedColumnsCount(doc) {
+  let count = 0
+  const walk = (node, depth) => {
+    node.forEach((child) => {
+      const inside = child.type.name === 'columns'
+      if (inside && depth > 0) count += 1
+      walk(child, depth + (inside ? 1 : 0))
+    })
+  }
+  walk(doc, 0)
+  return count
+}
+
+/**
+ * The rule itself: a transaction that would ADD nesting is refused.
+ *
+ * ⛔ M7 (wave 6 fix round 1): ADD, not "leave any". ⚰️ The filter asked whether
+ * the resulting document had nested columns at all, so a body STORED with them
+ * (an import carrying our own `data-type` attributes, a copy from elsewhere)
+ * made every edit anywhere in the note be refused, silently: the member typed
+ * and nothing happened. Comparing the count before and after refuses exactly
+ * the transactions that would nest one level more, and lets the member keep
+ * working on a note that arrived that way.
+ */
 export const ColumnsGuard = Extension.create({
   name: 'columnsGuard',
   addProseMirrorPlugins() {
     return [new Plugin({
       key: new PluginKey('uctColumnsGuard'),
-      filterTransaction: (tr) => !tr.docChanged || !hasNestedColumns(tr.doc),
+      filterTransaction: (tr) => !tr.docChanged || nestedColumnsCount(tr.doc) <= nestedColumnsCount(tr.before),
     })]
   },
 })

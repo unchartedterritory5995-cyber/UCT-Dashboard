@@ -187,6 +187,40 @@ describe('editing inside a column', () => {
     expect(ed.state.doc.firstChild.lastChild.textContent).toBe('Right.')
   })
 
+  // ⛔ M7 (wave 6 fix round 1): the guard refuses a transaction that would
+  // ADD nesting — never one on a note that already holds some. ⚰️ It asked
+  // "is the resulting doc nested?", so a body stored with nested columns (an
+  // import carrying our own data-type attributes, an older client) made EVERY
+  // edit anywhere in the note be refused, silently.
+  it('a note that ARRIVES with nested columns can still be edited — outside them and inside them', () => {
+    const ed = mount([P('Out.'), COLS(COL(COLS(COL(P('Deep.')), COL(P('Other.')))), COL(P('Side.')))])
+    expect(hasNestedColumns(ed.state.doc)).toBe(true)
+    ed.view.dispatch(ed.state.tr.insertText('!', at(ed, 'Out.') + 4))
+    expect(ed.state.doc.firstChild.textContent, 'an edit outside the columns was refused').toBe('Out.!')
+    ed.view.dispatch(ed.state.tr.insertText('!', at(ed, 'Deep.') + 5))
+    let deep = null
+    ed.state.doc.descendants((n) => { if (n.isText && n.text.startsWith('Deep')) deep = n.text })
+    expect(deep, 'an edit inside the stored nesting was refused').toBe('Deep.!')
+  })
+
+  it('…but a transaction that would nest columns ONE LEVEL MORE on such a note is still refused', () => {
+    const ed = mount([P('Out.'), COLS(COL(COLS(COL(P('Deep.')), COL(P('Other.')))), COL(P('Side.')))])
+    const before = ed.state.doc
+    const nested = ed.schema.nodes.columns.create(null, [
+      ed.schema.nodes.column.create(null, ed.schema.nodes.paragraph.create()),
+      ed.schema.nodes.column.create(null, ed.schema.nodes.paragraph.create())])
+    const tr = ed.state.tr.insert(at(ed, 'Side.') + 5 + 1, nested)
+    // (the transaction really would nest one level more — the refusal below is the guard's)
+    let nestedBefore = 0
+    let nestedAfter = 0
+    const count = (doc) => { let c = 0; doc.descendants((n, _p, parent) => { if (n.type.name === 'columns' && parent?.type.name === 'column') c += 1 }); return c }
+    nestedBefore = count(before)
+    nestedAfter = count(tr.doc)
+    expect(nestedAfter).toBe(nestedBefore + 1)
+    ed.view.dispatch(tr)
+    expect(ed.state.doc.eq(before)).toBe(true)
+  })
+
   it('citation text reads the columns in column order, one block per line', () => {
     const ed = mount([P('Intro.'), COLS(COL(P('Bull.'), P('Wide.')), COL(P('Bear.'))), P('After.')])
     expect(citationText(ed.state.doc, 0, ed.state.doc.content.size)).toBe('Intro.\nBull.\nWide.\nBear.\nAfter.')
