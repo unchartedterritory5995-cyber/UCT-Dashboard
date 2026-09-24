@@ -1,5 +1,5 @@
-import { describe, it, expect, vi } from 'vitest'
-import { render, screen, fireEvent } from '@testing-library/react'
+import { describe, it, expect, vi, afterEach } from 'vitest'
+import { render, screen, fireEvent, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import ShortcutCheatSheet from './ShortcutCheatSheet'
 
@@ -80,5 +80,26 @@ describe('ShortcutCheatSheet', () => {
     const { container } = render(<ShortcutCheatSheet open onClose={onClose} />)
     await user.click(container.firstChild)
     expect(onClose).toHaveBeenCalled()
+  })
+})
+
+// Wave 5 fix round 1 (N8): the editor's chords are listed, for the member's
+// own keyboard.
+describe('ShortcutCheatSheet — Notebook editor chords, per platform', () => {
+  const keysOf = (label) => within(screen.getByText(label).closest('li')).getAllByText((_, el) => el.tagName === 'KBD').map((k) => k.textContent)
+  const setPlatform = (value) => Object.defineProperty(navigator, 'platform', { value, configurable: true })
+  afterEach(() => { delete navigator.platform })
+
+  it.each([
+    ['MacIntel', { replace: ['Cmd', 'Option', 'F'], hl: ['Cmd', 'Shift', 'H'], heading: ['Cmd', 'Option', '1–6'], code: ['Cmd', 'Option', 'L'], find: ['Cmd', 'F'] }],
+    ['Win32', { replace: ['Ctrl', 'H'], hl: ['Ctrl', 'Shift', 'H'], heading: ['Ctrl', 'Alt', '1–6'], code: ['Ctrl', 'Alt', 'L'], find: ['Ctrl', 'F'] }],
+  ])('on %s', (platform, want) => {
+    setPlatform(platform)
+    render(<ShortcutCheatSheet open onClose={vi.fn()} />)
+    expect(keysOf('Find and replace in the current note')).toEqual(want.replace)
+    expect(keysOf('Highlight the selection')).toEqual(want.hl)
+    expect(keysOf('Make the line a heading of that level (1–6)')).toEqual(want.heading)
+    expect(keysOf("Choose a code block's language (inside a code block)")).toEqual(want.code)
+    expect(keysOf('Find in the current note')).toEqual(want.find)
   })
 })

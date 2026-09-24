@@ -1,6 +1,7 @@
 /** Keyboard shortcut cheat sheet. Bound to `?`. */
 
 import { useEffect, useId } from 'react'
+import { altKeyLabel, modKeyLabel, replaceChordKeys } from '../lib/platform'
 import shellStyles from './ModalShell.module.css'
 import styles from './ShortcutCheatSheet.module.css'
 
@@ -42,18 +43,30 @@ const JOURNAL_SHORTCUTS = [
 // above, these ARE active while typing inside the note editor's
 // contenteditable body — Ctrl/Cmd never collides with normal typing the way
 // a bare letter would, so they're exempt from this sheet's own footnote.
-const NOTEBOOK_SHORTCUTS = [
-  { keys: ['Ctrl', 'K'], label: 'Open command palette (works from anywhere, incl. Notebook)' },
-  // The quick switcher lives in that same palette — no second box, no second
-  // shortcut. Stated here because "type a title" is not discoverable from a
-  // search field whose history is tickers.
-  { keys: ['Ctrl', 'K'], label: 'Jump to any note: type part of its title, then Enter' },
-  { keys: ['Ctrl', 'F'], label: 'Find in the current note' },
-  { keys: ['Esc'], label: 'Close find, or the command palette' },
-  // Wave 5 bulk operations (list and table views).
-  { keys: ['Shift', 'Click'], label: 'Select every note between the last one checked and this one' },
-  { keys: ['Esc'], label: 'Clear the selected notes' },
-]
+// ⛔ Built at RENDER, from lib/platform.js: a Mac member reads Cmd and Option
+// (and Cmd+Option+F for replace -- Ctrl+H deletes a character there), never
+// a chord for somebody else's keyboard (wave-5 review N8).
+function notebookShortcuts() {
+  const mod = modKeyLabel()
+  const alt = altKeyLabel()
+  return [
+    { keys: [mod, 'K'], label: 'Open command palette (works from anywhere, incl. Notebook)' },
+    // The quick switcher lives in that same palette — no second box, no second
+    // shortcut. Stated here because "type a title" is not discoverable from a
+    // search field whose history is tickers.
+    { keys: [mod, 'K'], label: 'Jump to any note: type part of its title, then Enter' },
+    { keys: [mod, 'F'], label: 'Find in the current note' },
+    // Wave 5 editor chords.
+    { keys: replaceChordKeys(), label: 'Find and replace in the current note' },
+    { keys: [mod, 'Shift', 'H'], label: 'Highlight the selection' },
+    { keys: [mod, alt, '1–6'], label: 'Make the line a heading of that level (1–6)' },
+    { keys: [mod, alt, 'L'], label: 'Choose a code block\'s language (inside a code block)' },
+    { keys: ['Esc'], label: 'Close find, or the command palette' },
+    // Wave 5 bulk operations (list and table views).
+    { keys: ['Shift', 'Click'], label: 'Select every note between the last one checked and this one' },
+    { keys: ['Esc'], label: 'Clear the selected notes' },
+  ]
+}
 
 function Kbd({ keys }) {
   return (
@@ -124,7 +137,7 @@ export default function ShortcutCheatSheet({ open, onClose }) {
           <Section title="General" shortcuts={GENERAL_SHORTCUTS} />
           <Section title="Open Positions" shortcuts={POSITIONS_SHORTCUTS} />
           <Section title="Trade Journal" shortcuts={JOURNAL_SHORTCUTS} />
-          <Section title="Notebook" shortcuts={NOTEBOOK_SHORTCUTS} />
+          <Section title="Notebook" shortcuts={notebookShortcuts()} />
           <p className={styles.footNote}>
             Shortcuts are disabled while typing in an input, textarea, or
             contenteditable element.
