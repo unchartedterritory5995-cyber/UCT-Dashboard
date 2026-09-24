@@ -993,9 +993,11 @@
       "owner": "owner"
     },
     "RESEARCH_FLOW_TAB_ENABLED": {
-      "status": "dark",
-      "where": [],
-      "note": "A13 Wave B (2026-09-23 roadmap): the Research page's new 'Flow' tab, reusing the existing, partner-owned GET /api/live/massive/ticker-flow endpoint as-is (read-only, zero new backend computation). Same request-time mechanism and ENABLEMENT polarity as RESEARCH_TECHNICAL_TAB_ENABLED: unset means not released yet, so a forgotten variable can never expose a surface nobody decided to ship. Deliberately unarmed pending owner review of the scope revision (a Flow tab, not the literally-requested merged thesis+setup+trade+flow panel -- see FlowTab.jsx's header comment for why)."
+      "status": "armed",
+      "where": [
+        "web"
+      ],
+      "note": "A13 Wave B (2026-09-23 roadmap): the Research page's new 'Flow' tab, reusing the existing, partner-owned GET /api/live/massive/ticker-flow endpoint as-is (read-only, zero new backend computation). Same request-time mechanism and ENABLEMENT polarity as RESEARCH_TECHNICAL_TAB_ENABLED: unset means not released yet, so a forgotten variable can never expose a surface nobody decided to ship. ON since 2026-09-24 ~19:24 UTC by owner ruling, after the go-live packet review + a real local mobile verification pass (docs/terminal-research/10-roadmap/2026-09-24-go-live-packet.md). Verified fully post-flip: config set (--kv), a genuine new boot (uptime reset), the flag correctly served in-process (research_flow_tab_enabled:true via a real authenticated fetch), and the tab itself exercised on live production for two tickers (AAPL, NVDA) via a real browser session -- both rendered the correct empty-state copy for zero qualifying prints, no error, no crash. One diagnostic detour worth recording: the tab appeared stuck on 'Loading options-flow evidence...' for several seconds on first click in an automated/backgrounded browser tab; traced to the backgrounded tab's own throttling (document.visibilityState stayed 'hidden' throughout), not the feature -- the underlying endpoint, the bundled client code, and the SWR fetch all confirmed correct, and the tab resolved correctly once given enough real wall-clock time. TURN OFF: set 0 (never delete -- deleting has been measured to leave the old value live in-process while --kv reports it gone) on web."
     },
     "RESEARCH_TECHNICAL_TAB_ENABLED": {
       "status": "armed",
