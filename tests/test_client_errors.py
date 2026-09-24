@@ -275,6 +275,39 @@ def test_the_server_token_routes_are_the_clients_four_constants():
     assert sorted(derived) == sorted(ce.TOKEN_ROUTES)
 
 
+# ── R1-3: the page is its route words, and nothing else ──────────────────────
+
+HOSTILE_PAGES = [
+    # [page as a caller sent it, the page stored AND logged as `route`]
+    ("/x/Buy500NVDA.html", "/x/:id"),                        # asset-shaped last segment
+    ("/journal/Short_at_the_open_500.js", "/journal/:id"),
+    ("/journal/notebook/NVDA", "/journal/notebook/:id"),
+    ("/journal/a.js:12:34", "/journal/:id"),                 # a frame's :line:col is not a page's
+    ("/journal/Ärger.js", "/journal/:id"),               # Python's \w is Unicode; no asset rule applies
+    ("https://evil.test:8443/journal/x.js:12:34?t=1#f=2", "/journal/:id"),   # no origin, no port
+    ("https://evil.test:8443/share/n/abcdefgh", "/share/n/:id"),            # the token route still lines up
+]
+
+
+@pytest.mark.parametrize("page,expected", HOSTILE_PAGES)
+def test_the_page_is_reduced_to_route_words_before_it_is_stored_or_logged(store, caplog, page, expected):
+    """Measured before this rail: `scrub_page("/x/Buy500NVDA.html")` returned
+    it unchanged and the log line printed `"route": "/x/Buy500NVDA.html"` —
+    the page went through the URL scrub, which keeps a final asset-shaped
+    segment and masks no digit. A page is a PATH: no asset exception."""
+    caplog.set_level(logging.WARNING, logger=ce.__name__)
+    ce.record_reports([_report(page=page)], user_id=None, ip="1.2.3.4", user_agent="UA")
+    [row] = _rows(store)
+    assert row["page"] == expected
+    [line] = [r.getMessage() for r in caplog.records if "[client-error]" in r.getMessage()]
+    route = json.loads(line.split("[client-error] ", 1)[1])["route"]
+    assert route == expected
+    assert not re.search(r"\d", row["page"] + route)       # (the line's own `count` is a number)
+    for text in (row["page"], line):
+        for word in ("NVDA", "Buy", "Short", "evil", "rger", "html", "8443"):
+            assert word not in text
+
+
 def test_reduce_path_keeps_route_words_only():
     assert ce.reduce_path("/journal/notebook") == "/journal/notebook"
     assert ce.reduce_path("/journal-2-0/report") == "/:id/report"

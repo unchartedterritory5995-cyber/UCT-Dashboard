@@ -17,8 +17,16 @@ What the two layers each own
   lowercase digit-free route word survives, anything else is `:id`, and the
   token position of the four share routes is `:id` whatever it looks like —
   share tokens ride in the PATH, `/share/n/<token>`), credential-shaped values
-  go, every digit becomes `#`, control characters go, every field is capped in
-  UTF-8 BYTES, and the row carries a HASH of the rate key, never a raw IP.
+  go, every digit in a text field becomes `#`, control characters go, every
+  field is capped in UTF-8 BYTES, and the row carries a HASH of the rate key,
+  never a raw IP.
+  - Inside a TEXT field (message, stack), a URL's final segment is kept when it
+    is a static-asset file name, so a frame still names its chunk; its digits
+    are `#` like any other.
+  - The PAGE has no such exception (R1-3): it is its path alone — origin,
+    query, fragment and any `:line:col` dropped — reduced segment by segment,
+    so it holds only route words and `:id`, and no digit at all. It is stored,
+    and logged as `route`, only in that form (`scrub_page`).
 
 ⛔ The template allowlist is NOT re-implemented here. Two copies of one
 redaction rule drift the moment either changes, and the copy nobody tests is
@@ -342,9 +350,24 @@ def scrub_text(text: Any) -> str:
 
 
 def scrub_page(page: Any) -> str:
+    """The page is a PATH (R1-3). Any origin, query, fragment and `:line:col`
+    go, and every segment is reduced with NO asset exception — that exception
+    is for a frame naming its chunk, and a page is not a frame. What is left is
+    route words and `:id`, so the page cannot hold a digit, a ticker or a word
+    that is not a lowercase route word. It is stored, and logged as `route`,
+    only in this form."""
     if not isinstance(page, str) or not page:
         return ""
-    return scrub_url(_CONTROL.sub("", page))
+    path = _CONTROL.sub("", page)
+    sep = path.find("://")
+    if sep != -1:
+        ends = [i for i in (path.find(ch, sep + 3) for ch in "/?#") if i != -1]
+        path = path[min(ends):] if ends else ""
+    for ch in "?#":
+        i = path.find(ch)
+        if i != -1:
+            path = path[:i]
+    return reduce_path(path)
 
 
 # An unpaired UTF-16 surrogate half: the one code point a Python str can hold
