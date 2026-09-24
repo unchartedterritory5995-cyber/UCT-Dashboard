@@ -398,6 +398,9 @@ export default function NoteEditorPage({ noteId, onBack, showBack = true, onTitl
   const [unlockedHere, setUnlockedHere] = useState(false)
   const [unlockState, setUnlockState] = useState(null) // null | 'busy' | 'failed'
   const locked = noteIsLocked(note) && !unlockedHere
+  // Read by TipTap's `onUpdate`, which is frozen at editor creation (M6).
+  const lockedRef = useRef(locked)
+  lockedRef.current = locked
   // The member's own tags, for the tag field's suggestions (hierarchy first).
   const { tagTree, tagCounts, refresh: refreshTagNodes } = useJ2NoteTags()
   const tagNodes = useMemo(() => tagTree || fallbackNodes(tagCounts), [tagTree, tagCounts])
@@ -1724,7 +1727,15 @@ export default function NoteEditorPage({ noteId, onBack, showBack = true, onTitl
         return false
       },
     },
-    onUpdate: () => scheduleAutosaveRef.current(),
+    // ⛔ M6 (wave 6 fix round 1): a LOCKED note's document can still change
+    // without the member editing it — a TOC or Outline jump opens the toggle
+    // around its heading, a toggle's chevron flips `open` — and each of those
+    // used to reach the autosave and write the note the member had locked. So
+    // while locked, the editor's own changes schedule no save. A save already
+    // scheduled (words typed before a lock arrived) still goes out; queued
+    // offline words adopted on open go through `scheduleAutosaveRef` directly
+    // and still send (the server never refuses a body write for a lock).
+    onUpdate: () => { if (!lockedRef.current) scheduleAutosaveRef.current() },
   }, [note?.id])
   // Keep the ref current so the paste/drop handlers (captured at creation) always
   // reach the live editor instance.
@@ -2011,8 +2022,10 @@ export default function NoteEditorPage({ noteId, onBack, showBack = true, onTitl
   usePendingAskInsert({
     noteId,
     editor,
+    // ⛔ M6: `!locked` — an answer for a locked note WAITS for Unlock, as a
+    // capture does. Taken while locked, it was refused and gone.
     ready: recoveryDecidedFor === noteId && note?.id === noteId
-      && !pendingDraft && hydratedRef.current && saveStatus !== 'saving',
+      && !pendingDraft && hydratedRef.current && saveStatus !== 'saving' && !locked,
     onResult: (ok) => setUploadToast(ok
       ? { message: ASK_INSERT_SUCCESS_MSG, tone: 'success' }
       : { message: "This note can't take changes right now, so the answer wasn't inserted. Ask again to get it back.", tone: 'error' }),
