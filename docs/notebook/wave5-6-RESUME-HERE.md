@@ -4,11 +4,21 @@
 > either worktree. Everything in it was verified at the timestamps given —
 > re-derive anything load-bearing with the commands in §7 before acting on it.
 
-## 0. One-sentence prompt to paste into a fresh Claude Code session
+## 0. Resuming with a full prompt
 
-> "Resume the Notebook 10/10 program (waves 5–6) — read
-> `docs/notebook/wave5-6-RESUME-HERE.md` in `C:\Users\Patrick\uct-worktrees\notebook-k`
-> first, then continue exactly where it says to."
+**`docs/notebook/RESUME-PROMPT.md`** is a complete, self-contained prompt
+covering the WHOLE program (the full plan doc's vision, all 16 scorecard
+standards, phases 0–7, the full wave-5-through-9 structure, the D1–D16
+decision ledger, standing process rules) plus this file's current-state
+summary — paste its fenced block into a fresh session to resume with full
+context, not just the immediate next step. This file (§1 onward) remains the
+authoritative, frequently-re-verified detail on exactly where waves 5–6
+stand; the prompt file points back to it rather than duplicating it.
+
+For a bare-minimum one-liner instead: "Resume the Notebook 10/10 program
+(waves 5–6) — read `docs/notebook/wave5-6-RESUME-HERE.md` in
+`C:\Users\Patrick\uct-worktrees\notebook-k` first, then continue exactly
+where it says to."
 
 ⚠️ **A separate session named "UCT NOTEBOOK" exists** (visible via `ListAgents`
 as a Remote Control session, offline as of 2026-09-24). If that session is the
