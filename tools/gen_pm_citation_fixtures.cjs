@@ -56,6 +56,9 @@ const schema = new Schema({
     image: { group: 'block', atom: true, attrs: { src: { default: null }, alt: { default: null }, align: { default: null } }, toDOM: () => ['img'] },
     imageFigure: { group: 'block', content: 'image imageCaption', toDOM: () => ['figure', 0] },
     imageCaption: { content: 'inline*', toDOM: () => ['figcaption', 0] },
+    // Wave 6 (columnsNode.js): containers with no text of their own.
+    columns: { group: 'block', content: 'column{2,3}', toDOM: () => ['div', 0] },
+    column: { content: 'block+', toDOM: () => ['div', 0] },
   },
   marks: { bold: { toDOM: () => ['strong', 0] }, italic: { toDOM: () => ['em', 0] }, link: { attrs: { href: { default: '' } }, toDOM: () => ['a', 0] },
     // Wave 5 (textColor.js): a palette NAME, never a colour value.
@@ -253,6 +256,15 @@ const CASES = {
     p('After.')),
   imageFigureEmptyCaption: doc(p('A.'),
     { type: 'imageFigure', content: [IMG('chart'), { type: 'imageCaption' }] }, p('B.')),
+  // ── columns (wave 6) read in COLUMN ORDER, each block on its own line; the
+  //    containers add nothing of their own. An empty paragraph in a column
+  //    still emits its separator. ──
+  columns: doc(p('Intro.'),
+    { type: 'columns', content: [
+      { type: 'column', content: [p('Bull case.'), p('Margins widen.')] },
+      { type: 'column', content: [p('Bear case.'), p()] },
+      { type: 'column', content: [p('Plan.')] }] },
+    p('After.')),
 }
 
 // Passages cited in the astral cases -- before, inside, across a mark, and
@@ -275,6 +287,7 @@ const PASSAGES = {
   mathAstral: ['Set \u{1D538} \\subset \\mathbb{R} holds.', 'holds.', '\\sum_{i=1}^{n} x_i'],
   colouredMarks: ['raised and margins widened sharply', 'margins'],
   imageFigure: ['NVDA breakout, day 3', 'day 3', 'After.'],
+  columns: ['Margins widen.', 'Bear case.', 'Plan.', 'After.'],
 }
 
 function passageRange(d, passage, leafText) {

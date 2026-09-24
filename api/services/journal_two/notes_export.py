@@ -638,6 +638,19 @@ def _block(node: dict[str, Any], resolver=None) -> str:
         return img
     if ntype == "imageCaption":
         return _inline(kids, resolver)
+    if ntype in ("columns", "column"):
+        # Wave 6: Markdown has no columns, so side-by-side columns export as
+        # SEQUENTIAL sections, in column order -- every block kept, each its own
+        # paragraph (blank-line separated, as the top level is). A column that
+        # is not a dict, or holds nothing, contributes nothing and never raises.
+        parts: list[str] = []
+        for child in kids or []:
+            if not isinstance(child, dict):
+                continue
+            text = _block(child, resolver)
+            if text.strip():
+                parts.append(text)
+        return "\n\n".join(parts)
     if ntype == "attachmentChip":
         href = attrs.get("href") or ""
         local = resolver(href) if resolver else None

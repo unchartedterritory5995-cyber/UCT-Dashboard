@@ -3,11 +3,13 @@ import { NodeSelection, Plugin, PluginKey, Selection, TextSelection } from '@tip
 import { Fragment, Slice } from '@tiptap/pm/model'
 import { dropPoint } from '@tiptap/pm/transform'
 import { newEmbedId } from './widgetEmbedCore'
+import { inColumn } from './columnsNode'
 
 /**
  * Paste/copy normalisation for the Notebook's own container nodes —
- * askInsert, callout, toggle, and (wave 6) imageFigure: the `defining`
- * CONTAINERS this plugin unwraps (PASTE_CONTAINERS below is the list). They are not the only `defining` nodes in the roster: blockquote,
+ * askInsert, callout, toggle, and (wave 6) imageFigure, columns and column: the
+ * `defining` CONTAINERS this plugin unwraps (PASTE_CONTAINERS below is the
+ * list). They are not the only `defining` nodes in the roster: blockquote,
  * heading, codeBlock and the list items declare `defining` too (their upstream
  * TipTap extensions), and are deliberately NOT unwrapped -- they keep
  * ProseMirror's own wrap-on-paste behaviour. ONE helper, ONE plugin, both
@@ -50,7 +52,10 @@ import { newEmbedId } from './widgetEmbedCore'
  * older bundle. prosemirror-view applies `transformPasted` to in-editor drags
  * too, and a drag's slice comes from serializeForClipboard, so both apply.
  */
-export const PASTE_CONTAINERS = new Set(['askInsert', 'callout', 'toggle', 'imageFigure'])
+export const PASTE_CONTAINERS = new Set(['askInsert', 'callout', 'toggle', 'imageFigure',
+  // Wave 6: side-by-side columns (columnsNode.js). A column cannot live outside
+  // its `columns`, so a copy open inside one travels as the blocks it holds.
+  'columns', 'column'])
 
 // ⭐ Wave 6: the one-line TITLES — a textblock that is the only text of a
 // container holding nothing else, and that cannot live outside it: a toggle's
@@ -63,6 +68,17 @@ export const TITLE_BLOCKS = new Set(['toggleSummary', 'imageCaption'])
 // depth of the first and last of them. `inner` is the container's content
 // AFTER the recursion (so a container nested inside it is already handled).
 function spill(node, inner) {
+  if (node.type.name === 'columns') {
+    // The edge columns were spilled by the recursion already (a column is a
+    // container too); a CLOSED column between them is spliced here, one level
+    // down, so no bare column is ever left outside its columns.
+    const nodes = []
+    childrenOf(inner.fragment).forEach((kid) => {
+      if (kid.type.name === 'column') nodes.push(...childrenOf(kid.content))
+      else nodes.push(kid)
+    })
+    return { nodes, head: inner.openStart, tail: inner.openEnd }
+  }
   if (node.type.name !== 'toggle' && node.type.name !== 'imageFigure') {
     return { nodes: childrenOf(inner.fragment), head: inner.openStart, tail: inner.openEnd }
   }
@@ -230,6 +246,33 @@ export function freshEmbedIds(slice, docOf) {
       }
       if (next !== node) changed = true
       out.push(next)
+    })
+    return changed ? Fragment.fromArray(out) : fragment
+  }
+  const content = walk(slice.content)
+  return content === slice.content ? slice : new Slice(content, slice.openStart, slice.openEnd)
+}
+
+// ⛔ Wave 6: COLUMNS NEVER NEST (columnsNode.js refuses the transaction). A
+// whole columns block PASTED into a column would therefore be refused and the
+// paste lost, so it arrives as the blocks it holds instead, in column order.
+// Only ever applied to a paste whose target is inside a column; a paste
+// anywhere else keeps its columns. (A DRAG into a column is simply refused:
+// its source stays whole where it was.)
+export function flattenColumnsForColumn(slice) {
+  const walk = (fragment) => {
+    let changed = false
+    const out = []
+    fragment.forEach((node) => {
+      if (node.type.name === 'columns') {
+        changed = true
+        node.forEach((col) => col.forEach((block) => out.push(block)))
+      } else if (node.childCount && !node.isTextblock) {
+        const inner = walk(node.content)
+        if (inner !== node.content) { changed = true; out.push(node.copy(inner)) } else out.push(node)
+      } else {
+        out.push(node)
+      }
     })
     return changed ? Fragment.fromArray(out) : fragment
   }
@@ -545,7 +588,8 @@ export const PasteContainers = Extension.create({
         // selected chart counted as gone), never invent one; handleDrop
         // re-judges every drop and catches it.
         transformPasted: (slice, view) => {
-          const out = unwrapOpenContainers(slice)
+          let out = unwrapOpenContainers(slice)
+          if (view && !view.dragging && inColumn(view.state.selection.$from)) out = flattenColumnsForColumn(out)
           return view && !view.dragging ? freshEmbedIds(out, () => view.state.tr.deleteSelection().doc) : out
         },
         // The title first (a paste ProseMirror would complete wrongly -- a

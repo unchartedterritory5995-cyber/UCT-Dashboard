@@ -200,6 +200,8 @@ _BLOCK_CONTAINER_TYPES = frozenset({
     "toggle", "toggleContent", "askInsert",
     # Wave 6: the figure holding an image and its caption.
     "imageFigure",
+    # Wave 6: side-by-side columns and each column.
+    "columns", "column",
 })
 
 # G-064 (spec §7.2): a container whose text is an inserted Ask Notebook answer.

@@ -8,6 +8,7 @@ import { TextStyle, FontFamily, FontSize } from '@tiptap/extension-text-style'
 import { ResizableImage } from './resizableImage'
 import { ImageFigure, ImageCaption } from './imageFigureNode'
 import { BlockHandle } from './blockHandle'
+import { Columns, Column, ColumnsGuard } from './columnsNode'
 import Link from '@tiptap/extension-link'
 import { NotebookPlaceholder } from './notebookPlaceholder'
 import { Table, TableRow, TableHeader, TableCell } from '@tiptap/extension-table'
@@ -74,6 +75,10 @@ export function buildExtensions({ placeholder = 'Start writing… or type / for 
     // both are rows in the citation tables (imageCaption a textblock,
     // imageFigure a container) and registered at schema 2.
     ImageFigure, ImageCaption,
+    // Wave 6: two or three side-by-side columns (stacked at <=640px). Rows in
+    // the citation tables (containers), PASTE_CONTAINERS, schema 2. The guard
+    // refuses any transaction that would nest columns in a column.
+    Columns, Column, ColumnsGuard,
     Link.configure({
       openOnClick: false,
       autolink: true,

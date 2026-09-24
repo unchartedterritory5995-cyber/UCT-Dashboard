@@ -113,3 +113,51 @@ describe('NoteEditorPage — moving a block door (wave 6 item 4)', () => {
     expect(document.querySelector('button[aria-label="Move this block"]')).toBeTruthy()
   })
 })
+
+describe('NoteEditorPage — columns door (wave 6 item 5)', () => {
+  it('a note with columns renders them side by side; the slash item inserts outside a column and is withheld inside one', async () => {
+    NOTE = { ...baseNote(), bodyJson: { type: 'doc', content: [
+      P('Intro line.'),
+      { type: 'columns', content: [{ type: 'column', content: [P('Bull.')] }, { type: 'column', content: [P('Bear.')] }] },
+    ] } }
+    const { ITEMS, blockItemsAvailable } = await import('./SlashMenu')
+    const editor = await renderEditor()
+    expect(document.querySelectorAll('.ProseMirror .uctColumns > .uctColumn')).toHaveLength(2)
+    caretIn(editor, 'Bull.')
+    expect(blockItemsAvailable(editor).map((i) => i.title)).not.toContain('2 columns')
+    caretIn(editor, 'Intro line.')
+    expect(blockItemsAvailable(editor).map((i) => i.title)).toContain('2 columns')
+    const from = editor.state.selection.from
+    act(() => { ITEMS.find((i) => i.title === '3 columns').command({ editor, range: { from, to: from } }) })
+    let cols = 0
+    editor.state.doc.descendants((n) => { if (n.type.name === 'column') cols += 1 })
+    expect(cols).toBe(5)
+  })
+
+  it('the LIVE slash menu: typing /c lists the columns items outside a column and never inside one', async () => {
+    NOTE = { ...baseNote(), bodyJson: { type: 'doc', content: [
+      P('Intro line.'),
+      { type: 'columns', content: [{ type: 'column', content: [P('Bull.')] }, { type: 'column', content: [P('Bear.')] }] },
+    ] } }
+    const editor = await renderEditor()
+    const typeSlashAfter = (text) => {
+      let end = null
+      editor.state.doc.descendants((n, pos) => { if (end == null && n.isText && n.text === text) end = pos + n.nodeSize })
+      act(() => {
+        editor.view.dispatch(editor.state.tr.setSelection(TextSelection.create(editor.state.doc, end)))
+        editor.view.dispatch(editor.state.tr.insertText(' /c'))
+      })
+    }
+    const offered = () => [...document.querySelectorAll('[role="listbox"][aria-label="Insert block"] [role="option"]')]
+      .map((o) => o.firstChild?.textContent)
+    typeSlashAfter('Intro line.')
+    await waitFor(() => expect(offered()).toEqual(expect.arrayContaining(['2 columns', '3 columns'])))
+    act(() => { editor.view.dispatch(editor.state.tr.insertText(' ')) })
+    typeSlashAfter('Bull.')
+    // The session inside the column is live (the menu shows its OTHER matches)…
+    await waitFor(() => expect(offered().length).toBeGreaterThan(0))
+    // …and columns are not among them.
+    expect(offered()).not.toContain('2 columns')
+    expect(offered()).not.toContain('3 columns')
+  })
+})

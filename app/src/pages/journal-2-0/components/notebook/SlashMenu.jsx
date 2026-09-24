@@ -16,6 +16,7 @@ import {
 } from '../../lib/widgetEmbedCore'
 import { applyComboboxWiring } from '../../lib/comboboxWiring'
 import { BLOCK_MATH, INLINE_MATH, insertMathAndEdit } from '../../lib/mathNodes'
+import { inColumn, insertColumns } from '../../lib/columnsNode'
 import styles from './SlashMenu.module.css'
 
 // Exported for the rails (SlashMenu.items.test.jsx): the block entries a bare
@@ -82,6 +83,20 @@ export const ITEMS = [
     command: ({ editor, range }) => editor.chain().focus().deleteRange(range).insertTable({ rows: 3, cols: 3, withHeaderRow: true }).run(),
   },
   {
+    // Wave 6: side-by-side columns (columnsNode.js). ⛔ Never offered inside a
+    // column — columns do not nest — which `available` answers per session.
+    title: '2 columns',
+    description: 'Two side-by-side columns — they stack on a phone',
+    available: ({ editor }) => !inColumn(editor?.state?.selection?.$from),
+    command: ({ editor, range }) => insertColumns(editor, 2, range),
+  },
+  {
+    title: '3 columns',
+    description: 'Three side-by-side columns — they stack on a phone',
+    available: ({ editor }) => !inColumn(editor?.state?.selection?.$from),
+    command: ({ editor, range }) => insertColumns(editor, 3, range),
+  },
+  {
     title: 'Checklist',
     description: 'Task list with checkboxes',
     command: ({ editor, range }) => editor.chain().focus().deleteRange(range).toggleTaskList().run(),
@@ -146,6 +161,14 @@ export const ITEMS = [
     },
   },
 ]
+
+/** The block items offered where the caret is now (an item's `available`). */
+export function blockItemsAvailable(editor) {
+  return ITEMS.filter((it) => {
+    if (typeof it.available !== 'function') return true
+    try { return Boolean(it.available({ editor })) } catch { return false }
+  })
+}
 
 // 'YYYY-MM-DD' → 'Mar 13, 2026' for menu previews (UTC parts — no TZ drift).
 function fmtDayTitle(iso) {
@@ -402,14 +425,17 @@ export const SlashMenuExtension = Extension.create({
         command: ({ editor, range, props }) => {
           props.command({ editor, range })
         },
-        items: ({ query }) => {
+        items: ({ query, editor }) => {
           const q = (query || '').toLowerCase()
           const widgets = widgetItems(query)
           const factCaptures = factItems(query)
-          if (!q) return [...ITEMS, ...widgets, ...factCaptures]
+          // Wave 6: an item may say where it is NOT offered (`available`) —
+          // columns inside a column, the table of contents inside one.
+          const here = blockItemsAvailable(editor)
+          if (!q) return [...here, ...widgets, ...factCaptures]
           // Widget/fact items match on their own tokenized rules (args after
           // the type name would defeat a plain substring filter).
-          return [...ITEMS.filter((it) => it.title.toLowerCase().includes(q)), ...widgets, ...factCaptures]
+          return [...here.filter((it) => it.title.toLowerCase().includes(q)), ...widgets, ...factCaptures]
         },
         render: () => {
           // One renderer object serves EVERY suggestion session, so all of

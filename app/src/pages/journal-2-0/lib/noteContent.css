@@ -290,6 +290,33 @@ mark.uct-hl-blue { background-color: var(--info-border); }
   pointer-events: none;
 }
 
+/* ── Wave 6: side-by-side columns (columnsNode.js) ────────────────────────────
+   Equal columns, however many (two or three); they STACK on a phone. */
+.ProseMirror .uctColumns {
+  display: grid;
+  grid-auto-flow: column;
+  grid-auto-columns: minmax(0, 1fr);
+  gap: 18px;
+  margin: 14px 0;
+}
+.ProseMirror .uctColumn { min-width: 0; }
+.ProseMirror .uctColumn > :first-child { margin-top: 0; }
+.ProseMirror .uctColumn > :last-child { margin-bottom: 0; }
+/* While editing, where one column ends and the next begins. */
+.ProseMirror[contenteditable="true"] .uctColumn {
+  padding: 4px 8px;
+  border-radius: var(--radius-sm);
+  outline: 1px dashed var(--border);
+  outline-offset: -1px;
+}
+@media (max-width: 640px) {
+  .ProseMirror .uctColumns {
+    grid-auto-flow: row;
+    grid-auto-columns: auto;
+    gap: 10px;
+  }
+}
+
 /* ── Wave 6: the block grip and its move menu (blockHandle.js) ────────────────
    Both live on document.body (fixed, placed by the plugin), so they are NOT
    under .ProseMirror: the `uctBlock` prefix is their scope. */

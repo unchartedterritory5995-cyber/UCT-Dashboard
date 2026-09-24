@@ -179,3 +179,32 @@ def test_a_figure_read_by_name_never_raises_on_a_missing_or_reordered_child():
         {"type": "imageCaption", "content": [{"type": "text", "text": "cap"}]}, _img()]}
     assert tiptap_to_markdown(_doc(reordered)) == "![NVDA daily](https://x.test/a.png)\n*cap*"
     assert tiptap_to_markdown(_doc({"type": "imageFigure"})) == ""
+
+
+# ── item 5: columns export as sequential sections ────────────────────────────
+
+def _col(*blocks):
+    return {"type": "column", "content": list(blocks)}
+
+
+def test_columns_export_as_sequential_sections_in_column_order_every_block_kept():
+    md = tiptap_to_markdown(_doc(
+        _para("Intro."),
+        {"type": "columns", "content": [
+            _col(_para("Bull case."), _para("Margins widen.")),
+            _col(_para("Bear case.")),
+            _col({"type": "heading", "attrs": {"level": 3}, "content": [{"type": "text", "text": "Plan"}]}),
+        ]},
+        _para("After."),
+    ))
+    assert md == "Intro.\n\nBull case.\n\nMargins widen.\n\nBear case.\n\n### Plan\n\nAfter."
+
+
+def test_an_empty_or_malformed_column_never_raises_and_drops_no_words():
+    md = tiptap_to_markdown(_doc({"type": "columns", "content": [
+        _col(_para()), "junk", _col(_para("kept")), {"type": "column"}]}))
+    assert md == "kept"
+    # An empty column BETWEEN two full ones leaves no hole in the prose.
+    md = tiptap_to_markdown(_doc({"type": "columns", "content": [
+        _col(_para("left")), _col(_para()), _col(_para("right"))]}))
+    assert md == "left\n\nright"

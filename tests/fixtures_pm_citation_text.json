@@ -3436,5 +3436,146 @@
   ],
   "leafSpans": [],
   "passages": []
+ },
+ "columns": {
+  "json": {
+   "type": "doc",
+   "content": [
+    {
+     "type": "paragraph",
+     "content": [
+      {
+       "type": "text",
+       "text": "Intro."
+      }
+     ]
+    },
+    {
+     "type": "columns",
+     "content": [
+      {
+       "type": "column",
+       "content": [
+        {
+         "type": "paragraph",
+         "content": [
+          {
+           "type": "text",
+           "text": "Bull case."
+          }
+         ]
+        },
+        {
+         "type": "paragraph",
+         "content": [
+          {
+           "type": "text",
+           "text": "Margins widen."
+          }
+         ]
+        }
+       ]
+      },
+      {
+       "type": "column",
+       "content": [
+        {
+         "type": "paragraph",
+         "content": [
+          {
+           "type": "text",
+           "text": "Bear case."
+          }
+         ]
+        },
+        {
+         "type": "paragraph"
+        }
+       ]
+      },
+      {
+       "type": "column",
+       "content": [
+        {
+         "type": "paragraph",
+         "content": [
+          {
+           "type": "text",
+           "text": "Plan."
+          }
+         ]
+        }
+       ]
+      }
+     ]
+    },
+    {
+     "type": "paragraph",
+     "content": [
+      {
+       "type": "text",
+       "text": "After."
+      }
+     ]
+    }
+   ]
+  },
+  "text": "Intro.\nBull case.\nMargins widen.\nBear case.\n\nPlan.\nAfter.",
+  "contentSize": 73,
+  "textSpans": [
+   {
+    "pm_start": 1,
+    "pm_end": 7,
+    "text": "Intro."
+   },
+   {
+    "pm_start": 11,
+    "pm_end": 21,
+    "text": "Bull case."
+   },
+   {
+    "pm_start": 23,
+    "pm_end": 37,
+    "text": "Margins widen."
+   },
+   {
+    "pm_start": 41,
+    "pm_end": 51,
+    "text": "Bear case."
+   },
+   {
+    "pm_start": 57,
+    "pm_end": 62,
+    "text": "Plan."
+   },
+   {
+    "pm_start": 66,
+    "pm_end": 72,
+    "text": "After."
+   }
+  ],
+  "leafSpans": [],
+  "passages": [
+   {
+    "text": "Margins widen.",
+    "pm_from": 23,
+    "pm_to": 37
+   },
+   {
+    "text": "Bear case.",
+    "pm_from": 41,
+    "pm_to": 51
+   },
+   {
+    "text": "Plan.",
+    "pm_from": 57,
+    "pm_to": 62
+   },
+   {
+    "text": "After.",
+    "pm_from": 66,
+    "pm_to": 72
+   }
+  ]
  }
 }

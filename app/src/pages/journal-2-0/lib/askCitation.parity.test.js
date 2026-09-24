@@ -65,6 +65,8 @@ const schema = new Schema({
     image: { group: 'block', atom: true, attrs: { src: { default: null }, alt: { default: null }, align: { default: null } }, toDOM: () => ['img'] },
     imageFigure: { group: 'block', content: 'image imageCaption', toDOM: () => ['figure', 0] },
     imageCaption: { content: 'inline*', toDOM: () => ['figcaption', 0] },
+    columns: { group: 'block', content: 'column{2,3}', toDOM: () => ['div', 0] },
+    column: { content: 'block+', toDOM: () => ['div', 0] },
   },
   marks: {
     bold: { toDOM: () => ['strong', 0] },
