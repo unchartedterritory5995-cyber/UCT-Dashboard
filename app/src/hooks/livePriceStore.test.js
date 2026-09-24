@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
-import { registerTickers, getSnapshot, subscribe, pollNow, __resetForTest } from './livePriceStore'
+import { registerTickers, getSnapshot, subscribe, pollNow, setUnauthorizedHandler, __resetForTest } from './livePriceStore'
 
 const flush = async () => { for (let i = 0; i < 6; i++) await Promise.resolve() }
 
@@ -123,6 +123,43 @@ describe('livePriceStore', () => {
     pollNow()
     await flush()
     expect(getSnapshot().T0).toEqual({ price: 5 }) // unchanged, both chunks failed
+  })
+
+  it('OI-17: a 401 (session expired mid-poll) fires the unauthorized handler exactly once per timer run', async () => {
+    const handler = vi.fn()
+    setUnauthorizedHandler(handler)
+    global.fetch = vi.fn(() => Promise.resolve({ ok: false, status: 401, json: () => Promise.resolve({}) }))
+    registerTickers(['AAPL'])
+    await flush()
+    expect(handler).toHaveBeenCalledTimes(1)
+    expect(getSnapshot()).toEqual({}) // nothing to show yet, but no crash — treated as a failed chunk
+    // A second poll's 401 must not re-fire until the timer stops and restarts
+    // (a real re-check is already in flight from the first one).
+    pollNow()
+    await flush()
+    expect(handler).toHaveBeenCalledTimes(1)
+  })
+
+  it('OI-17: an ordinary transient failure (503) never fires the unauthorized handler', async () => {
+    const handler = vi.fn()
+    setUnauthorizedHandler(handler)
+    global.fetch = vi.fn(() => Promise.resolve({ ok: false, status: 503, json: () => Promise.resolve({}) }))
+    registerTickers(['AAPL'])
+    await flush()
+    expect(handler).not.toHaveBeenCalled()
+  })
+
+  it('OI-17: unregistering and re-registering (timer restart) re-arms the once-per-run guard', async () => {
+    const handler = vi.fn()
+    setUnauthorizedHandler(handler)
+    global.fetch = vi.fn(() => Promise.resolve({ ok: false, status: 401, json: () => Promise.resolve({}) }))
+    const unregister = registerTickers(['AAPL'])
+    await flush()
+    expect(handler).toHaveBeenCalledTimes(1)
+    unregister() // refcounts -> 0, timer stops
+    registerTickers(['AAPL']) // fresh mount (e.g. after a re-login) restarts the timer
+    await flush()
+    expect(handler).toHaveBeenCalledTimes(2)
   })
 
   it('ref-counts: prices clear only when the last subscriber unregisters', async () => {
