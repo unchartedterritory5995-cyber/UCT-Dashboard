@@ -10454,6 +10454,8 @@ export default function StockChart({
                 instanceId: b.instanceId, plotKey: b.plotKey,
                 priceFormat: b.series?.options?.()?.priceFormat?.type || null,
                 data: b.series?.data?.() || [],
+                // ONE logical line may be drawn as several render series (gap runs).
+                runs: (b.runSeries || []).map((rs) => rs?.data?.() || []),
               }))
             } catch { return null }
           },
@@ -14340,7 +14342,10 @@ export default function StockChart({
     // on the current frame instead of only the next engine sync.
     try {
       const eng = engineRef.current
-      if (eng?.binder?.bindings) { for (const b of eng.binder.bindings()) setVis(b.series) }
+      // Gap-run series (`engine/gapRuns.js`) are part of ONE logical line: they hide with it.
+      if (eng?.binder?.bindings) {
+        for (const b of eng.binder.bindings()) { setVis(b.series); for (const rs of (b.runSeries || [])) setVis(rs) }
+      }
     } catch { /* binder disposed */ }
   }, [hideBase, chartReady, ohlcData, overlayData, resolvedOverlays])
 
@@ -15341,7 +15346,8 @@ export default function StockChart({
     // after the hide-all array lost its last seven entries, so it is also the
     // proof that the binding map really does carry the toggle for all fourteen.
     if (engineRef.current) {
-      try { setAll(engineRef.current.binder.bindings().map(b => b.series)) } catch { /* disposed */ }
+      // Gap-run series (`engine/gapRuns.js`) belong to their binding's ONE logical line.
+      try { setAll(engineRef.current.binder.bindings().flatMap(b => [b.series, ...(b.runSeries || [])])) } catch { /* disposed */ }
     }
   }, [indicatorsHidden, chartReady, cs.indicators, resolvedOverlays, cs.volume, resolvedTf, sym,
     // The engine re-binds when its instance list changes; without this a newly-

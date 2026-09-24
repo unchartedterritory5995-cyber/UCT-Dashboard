@@ -1,0 +1,24 @@
+<!doctype html>
+<!--
+  HISTORICAL FUNDAMENTALS — GAP PIXEL HARNESS (dev only).
+
+  The REAL engine binder on the REAL lightweight-charts (5.2.0) drawing the golden
+  v4 fixture, so tools/fundamentals_gap_pixels.py can prove from PIXELS that no
+  line crosses a canonical gap. Reads no /api/*; the data is the committed fixture.
+
+  `vite build` takes index.html as its single input, so this entry never ships.
+
+  Run:  npx vite --host 127.0.0.1 --port <free>        (from app/)
+  Then: http://127.0.0.1:<port>/fundamentals-gap-harness.html?case=tsla-eps
+-->
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <title>Fundamentals gap pixels</title>
+    <style>html, body { margin: 0; background: #000; } #chart { width: 1200px; height: 400px; }</style>
+  </head>
+  <body>
+    <div id="chart"></div>
+    <script type="module" src="/src/testing/fundamentals/gapPixelHarness.js"></script>
+  </body>
+</html>

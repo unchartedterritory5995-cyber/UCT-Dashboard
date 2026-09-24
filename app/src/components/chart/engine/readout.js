@@ -304,12 +304,25 @@ function resolvePlotColor(plot, inputs, def) {
  * @returns {{defId,plotKey,instanceId,label,color,decimals,value,text}[]} in the
  *        order the entries were given.
  */
+/** The crosshair's bar time, from any row in `seriesData` (the candles always
+ *  have one on a real bar). `undefined` when nothing is hovered. */
+function hoveredTimeOf(seriesData) {
+  if (!seriesData || typeof seriesData.values !== 'function') return undefined
+  for (const d of seriesData.values()) {
+    if (d && d.time !== undefined) return d.time
+  }
+  return undefined
+}
+
 export function chipsFrom(entries, seriesData, registry, inputsFor, displayFor, instances) {
   const get = resolveRegistry(registry)
   const out = []
   // Kept BESIDE the chips rather than on them: a consumer that enumerates a
   // chip's keys must not start seeing a resolved-inputs blob it never had.
   const inputsByChip = new Map()
+  // The hovered bar's time, read off whichever series has a row there -- only a
+  // gap-breaking binding (`valueAt`, `gapRuns.js`) asks for it.
+  const hoveredTime = hoveredTimeOf(seriesData)
 
   for (const e of (Array.isArray(entries) ? entries : [])) {
     if (!e || !e.series) continue
@@ -340,6 +353,20 @@ export function chipsFrom(entries, seriesData, registry, inputsFor, displayFor, 
     // that throws is treated as "no fallback": this runs on the rAF flush, and a
     // throw here would take the whole legend down mid-hover.
     let value = point ? point.value : undefined
+    // ⛔⛔ A FUNDAMENTAL LINE IS DRAWN AS SEVERAL RENDER SERIES (one per valid run,
+    // `gapRuns.js`), so the primary has no row on an EARLIER run and the
+    // developing-bar fallback below would print TODAY's value there -- and on a
+    // canonical GAP it would print the last known value where the value is
+    // unknown. The binding answers for its own bars instead: a number on a run,
+    // NaN on a gap (the chip is dropped and the legend row shows no value), and
+    // `undefined` only for a bar it has no row for, which keeps the fallback.
+    if (typeof e.valueAt === 'function' && hoveredTime !== undefined) {
+      const v = e.valueAt(hoveredTime)
+      if (v !== undefined) {
+        if (!Number.isFinite(v)) continue
+        value = v
+      }
+    }
     if (!Number.isFinite(value)) {
       const fb = e.lastValue
       if (typeof fb === 'function') { try { value = fb() } catch { value = undefined } }
@@ -653,7 +680,8 @@ export function engineChips(bindings, seriesData, registry, instances) {
     .map(i => [i.instanceId, i]))
   const entries = (Array.isArray(bindings) ? bindings : [])
     .filter(b => b && b.series)
-    .map(b => ({ defId: b.defId, plotKey: b.plotKey, series: b.series, lastValue: b.lastValue, instanceId: b.instanceId }))
+    .map(b => ({ defId: b.defId, plotKey: b.plotKey, series: b.series, lastValue: b.lastValue, instanceId: b.instanceId,
+      ...(typeof b.valueAt === 'function' ? { valueAt: b.valueAt } : {}) }))
   // ⛔ PER INSTANCE, NEVER PER DEFINITION. `cs.indicators[defId]` is the LEGACY
   // lane's answer and is simply wrong here: two instances of one definition are
   // two different periods and two different colours on one chart.
