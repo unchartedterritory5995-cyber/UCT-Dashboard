@@ -133,3 +133,25 @@
     min-height: var(--tap-min);
   }
 }
+.dailyPick {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 8px;
+  font-size: 12px;
+  color: var(--text-muted);
+}
+.dailyPick select {
+  padding: 2px 6px;
+  font-size: 12px;
+  color: var(--text);
+  background: transparent;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm, 6px);
+}
+@media (max-width: 1024px) {
+  .dailyPick select {
+    min-height: var(--tap-min);
+  }
+}

@@ -2228,6 +2228,24 @@ def _folder_named(conn: Any, uid: str, folder_id: str | None) -> dict[str, Any]:
     return {"stayedInFolderId": folder_id, "stayedInFolderName": row[0] if row else None}
 
 
+@router.post("/notes/daily")
+def daily_note_endpoint(
+    payload: dict[str, Any] | None = None,
+    user: dict = Depends(get_current_user),
+) -> dict[str, Any]:
+    """Wave 6 (lane E): `{date: "YYYY-MM-DD", templateId?}` — open the member's
+    daily note for that ET day (the client sends `todayET()`), creating it the
+    first time. Answers `{note, created, templateMissing}`. Exactly one per
+    member per day — see note_daily.py. ⛔ Declared above every
+    `/notes/{note_id}` route, as the other fixed `/notes/...` paths are."""
+    from api.services.journal_two import note_daily
+    body = payload or {}
+    try:
+        return note_daily.open_daily_note(user["id"], body.get("date"), body.get("templateId"))
+    except note_daily.DailyNoteError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+
+
 NOTE_BATCH_EXPORT_MAX = 500
 
 

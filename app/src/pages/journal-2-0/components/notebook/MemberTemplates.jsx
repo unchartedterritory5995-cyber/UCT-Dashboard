@@ -11,6 +11,8 @@ import { useState } from 'react'
 import {
   deleteMemberTemplate, renameMemberTemplate, useMemberTemplates,
 } from '../../lib/memberTemplates'
+import { DAILY_TEMPLATE_PREF } from '../../lib/dailyNote'
+import usePreferences from '../../../../hooks/usePreferences'
 import styles from './TemplatePicker.module.css'
 
 export default function MemberTemplates({ onPick, busy = false }) {
@@ -19,6 +21,12 @@ export default function MemberTemplates({ onPick, busy = false }) {
   const [confirmDelete, setConfirmDelete] = useState(null) // id
   const [working, setWorking] = useState(false)
   const [message, setMessage] = useState(null) // { text, tone }
+  // Wave 6 (item 4): which of these makes each new daily note (a preference).
+  // A template deleted since needs no guard here: a <select> shows its first
+  // option ("A blank page") for a value it does not have, and Today itself says
+  // the template is gone (the server's `templateMissing`).
+  const { prefs, setPref } = usePreferences()
+  const dailyChoice = prefs?.[DAILY_TEMPLATE_PREF] || ''
 
   const submitRename = async (e) => {
     e.preventDefault()
@@ -69,6 +77,17 @@ export default function MemberTemplates({ onPick, busy = false }) {
           Save any note as a template from its menu, and it appears here.
         </div>
       ) : (
+        <>
+        <label className={styles.dailyPick}>
+          <span>Daily notes start from</span>
+          <select
+            value={dailyChoice}
+            onChange={(e) => setPref(DAILY_TEMPLATE_PREF, e.target.value)}
+          >
+            <option value="">A blank page</option>
+            {templates.map((t) => <option key={t.id} value={t.id}>{t.name}</option>)}
+          </select>
+        </label>
         <div className={styles.grid}>
           {templates.map((t) => (
             <div key={t.id} className={styles.memberItem}>
@@ -124,6 +143,7 @@ export default function MemberTemplates({ onPick, busy = false }) {
             </div>
           ))}
         </div>
+        </>
       )}
     </section>
   )

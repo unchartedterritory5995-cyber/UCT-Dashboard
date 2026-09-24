@@ -925,6 +925,9 @@ def _row_to_note(row: sqlite3.Row) -> dict[str, Any]:
         # column existed reads unlocked). The server never enforces it — the
         # editor does (see the column in db.py).
         "locked": bool(row["locked"]) if "locked" in row.keys() else False,
+        # Wave 6 daily note: the ET day this note is the member's daily note
+        # for, or None. Set only at creation (note_daily.open_daily_note).
+        "dailyDate": row["daily_date"] if "daily_date" in row.keys() else None,
         # Wave E: user-set property VALUES only, keyed by property_id --
         # parsed (matching bodyJson/tags' own convention) but NOT resolved
         # into display form (names/labels/derived values) here; that
@@ -2356,7 +2359,15 @@ def create_note(
     user_id: str,
     payload: dict[str, Any] | None = None,
     conn: sqlite3.Connection | None = None,
+    *,
+    daily_date: str | None = None,
+    properties: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
+    """`daily_date` and `properties` are INTERNAL (never read from `payload`,
+    so `POST /notes` cannot set them): the daily note is made in ONE insert,
+    with its day and its template's property values, so there is no second
+    write — no revision a caller would have to land. A second note for a day
+    is refused by the database (`idx_j2_notes_daily`), as `sqlite3.IntegrityError`."""
     payload = payload or {}
     title = (payload.get("title") or "").strip()
     if len(title) > MAX_TITLE_CHARS:
@@ -2389,18 +2400,27 @@ def create_note(
             ).fetchone()
             if not ok:
                 raise NoteValidationError("folder not found")
+        properties_json = None
+        if properties:
+            from api.services.journal_two.note_properties import (
+                set_note_properties, PropertyValidationError,
+            )
+            try:
+                properties_json = set_note_properties(user_id, new_id, properties, conn, replace=True)
+            except PropertyValidationError as e:
+                raise NoteValidationError(str(e)) from e
         conn.execute(
             """
             INSERT INTO j2_notes (
                 id, user_id, account_id, folder_id, title, subtitle,
                 body_json, body_plain, hero_image_url, first_image_url, ticker, tags,
-                created_at, updated_at
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                created_at, updated_at, daily_date, properties_json
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             """,
             (
                 new_id, user_id, account_id, folder_id, title, subtitle,
                 json.dumps(body_json), body_plain, hero, first_image, ticker,
-                json.dumps(tags), now, now,
+                json.dumps(tags), now, now, daily_date, properties_json,
             ),
         )
         _sync_note_sidecars(conn, user_id, new_id, body_json, body_plain)
@@ -3236,6 +3256,28 @@ def set_note_archived(
     finally:
         if owned:
             conn.close()
+
+
+def find_daily_note_id(user_id: str, daily_date: str, conn: sqlite3.Connection) -> str | None:
+    """The member's LIVE note for this day (archived counts: it still opens)."""
+    row = conn.execute(
+        "SELECT id FROM j2_notes WHERE user_id = ? AND daily_date = ? AND deleted_at IS NULL",
+        (user_id, daily_date),
+    ).fetchone()
+    return row["id"] if row else None
+
+
+def release_trashed_daily_date(user_id: str, daily_date: str, conn: sqlite3.Connection) -> None:
+    """A TRASHED note that was this day's daily note gives the day up, so a new
+    one can be made — and restoring the old one later brings back an ordinary
+    note, never a second note for the day. A bookkeeping column on a trashed
+    row, so the revision (and so the offline layer) is untouched. No commit:
+    the caller's transaction owns it."""
+    conn.execute(
+        "UPDATE j2_notes SET daily_date = NULL"
+        " WHERE user_id = ? AND daily_date = ? AND deleted_at IS NOT NULL",
+        (user_id, daily_date),
+    )
 
 
 def purge_expired_deleted_notes(

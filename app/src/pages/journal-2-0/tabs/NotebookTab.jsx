@@ -38,6 +38,8 @@ import BulkActionBar from '../components/notebook/BulkActionBar'
 import NoteMenuActions from '../components/notebook/NoteMenuActions'
 import { ARCHIVED_FOLDER, setNoteArchived } from '../lib/noteArchive'
 import { getMemberTemplate } from '../lib/memberTemplates'
+import { DAILY_TEMPLATE_PREF, isDailyShortcut, openDailyNote } from '../lib/dailyNote'
+import usePreferences from '../../../hooks/usePreferences'
 import { useNoteSelection } from '../lib/noteSelection'
 import {
   checkUnsentWork, describeBatch, describeExport, describeUnchecked, exportSelectedNotes, joinUndo, runNoteBatch,
@@ -929,6 +931,46 @@ export default function NotebookTab() {
   const handlePick = (tplOrNull) =>
     tplOrNull ? createFromTemplate(tplOrNull) : createNote()
 
+  // Wave 6 (item 4): Today — open the member's note for today's ET date,
+  // making it the first time (the server keeps it to one per day). The daily
+  // template is the member's own preference.
+  const { prefs } = usePreferences()
+  const dailyTemplateId = prefs?.[DAILY_TEMPLATE_PREF] || ''
+  const openingTodayRef = useRef(false)
+  const openToday = async () => {
+    if (openingTodayRef.current) return
+    openingTodayRef.current = true
+    setActionError('')
+    try {
+      const { note, created, templateMissing } = await openDailyNote({ templateId: dailyTemplateId })
+      if (created) {
+        addNoteToTree(note)
+        refreshAll()
+        refreshSidebarCounts()
+      }
+      if (templateMissing) {
+        setActionError("Your daily template no longer exists, so today's note started blank.")
+      }
+      openNote(note)
+    } catch (e) {
+      console.error('[notebook] open daily note failed', e)
+      setActionError("Couldn't open today's note. Nothing was created.")
+    } finally {
+      openingTodayRef.current = false
+    }
+  }
+  const openTodayRef = useRef(openToday)
+  openTodayRef.current = openToday
+  useEffect(() => {
+    const onKey = (e) => {
+      if (!isDailyShortcut(e)) return
+      e.preventDefault()
+      openTodayRef.current()
+    }
+    window.addEventListener('keydown', onKey)
+    return () => window.removeEventListener('keydown', onKey)
+  }, [])
+
   // A successful import can create notes AND folders — refresh both. Notes
   // come back through useJ2Notes' own refresh(); folders live behind
   // FolderSidebar's own useJ2NoteFolders() hook with no exposed handle up
@@ -1259,6 +1301,16 @@ export default function NotebookTab() {
             >
               <UIcon name="download" size={16} gold={false} />
               Export
+            </button>
+            <button
+              type="button"
+              className={styles.templatesBtn}
+              onClick={openToday}
+              title="Open today's daily note (Ctrl+Alt+D)"
+              aria-keyshortcuts="Control+Alt+D Meta+Alt+D"
+            >
+              <UIcon name="sun" size={16} gold={false} />
+              Today
             </button>
             <button
               type="button"

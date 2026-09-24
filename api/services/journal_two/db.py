@@ -1795,6 +1795,15 @@ _PHASE_2_ALTERS = [
     # `PATCH /notes/{id}/lock`, which advances `updated_at` like any metadata
     # write so another tab's compare-and-set and the outbox see it.
     "ALTER TABLE j2_notes ADD COLUMN locked INTEGER NOT NULL DEFAULT 0",
+    # Wave 6 (lane E, daily note): the ET date (YYYY-MM-DD) a note is the
+    # member's daily note FOR; NULL for every other note. ⛔⛔ EXACTLY ONE PER
+    # MEMBER PER DAY IS THE INDEX'S JOB, not a check's: two tabs pressing Today
+    # at once can both pass any SELECT, and only this refuses the second
+    # INSERT. Trashed notes stay in it, so creating a new daily note first
+    # releases the day from a trashed holder (notes.release_trashed_daily_date).
+    "ALTER TABLE j2_notes ADD COLUMN daily_date TEXT",
+    "CREATE UNIQUE INDEX IF NOT EXISTS idx_j2_notes_daily"
+    " ON j2_notes(user_id, daily_date) WHERE daily_date IS NOT NULL",
     # Wave 6 (lane E, member templates): a member's own "Save as template"
     # copies -- title, body and property values of one of their notes, owned by
     # them (note_templates.py). A COPY, never a link to the note. ⛔ user-scoped:

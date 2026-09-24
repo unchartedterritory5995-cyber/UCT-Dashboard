@@ -63,7 +63,8 @@ describe('Your templates', () => {
     expect(onPickMember).toHaveBeenCalledWith(expect.objectContaining({ id: 't1', name: 'Weekly review' }))
     // The title shows under the name only when it says something the name does not.
     expect(within(section()).getByText('Week of …')).toBeInTheDocument()
-    expect(within(section()).getAllByText('Earnings prep')).toHaveLength(1)
+    // (Cards only: the daily-template <select> names each template too.)
+    expect(within(section()).getAllByText('Earnings prep', { selector: 'span' })).toHaveLength(1)
   })
 
   it('says where templates come from when there are none', async () => {
