@@ -1,0 +1,106 @@
+{
+  "verdict": "NEW_FAILURES",
+  "counts": {
+    "new": 2,
+    "fixed": 6,
+    "unchanged": 277,
+    "missing": 0,
+    "baseline": 283,
+    "current": 281,
+    "current_ran": 52026,
+    "new_flaky": 2,
+    "flaky_size": 5,
+    "flaky_new": 2,
+    "flaky_fixed": 0,
+    "file_level_resolved": 0,
+    "coverage_lost": 0,
+    "new_ours": 0,
+    "new_others": 0,
+    "new_unattributed": 2
+  },
+  "arithmetic": "baseline 283 = unchanged 277 + fixed 6 + missing 0  |  current 281 = unchanged 277 + new 2 + new-but-flaky 2",
+  "invalid_because": [],
+  "baseline_run_id": "35948950967",
+  "current_run_id": "35976661797",
+  "baseline_sha": "3207690b4a8ed267b8bb67da6efdb1ff17101469",
+  "current_sha": "0b42d050c71f21e54dc7d8fa1e8f106d73f21731",
+  "commit_range": "3207690b4a8ed267b8bb67da6efdb1ff17101469..0b42d050c71f21e54dc7d8fa1e8f106d73f21731",
+  "first_run": false,
+  "new": [
+    "pytest|tests.test_bars_server_include_today|test_todays_daily_bar_stamps_today_and_caches",
+    "vitest|src/components/dailyFirstPaintIncidental.test.jsx|CASE A \u2014 a live price never rewrites a sealed prior-session candle > today's own values still reach today's slot (the guard is not a mute button)"
+  ],
+  "missing": [],
+  "fixed": [
+    "pytest|tests.test_mutation_check.TestVerdicts|test_expect_red_naming_the_right_test_passes",
+    "pytest|tests.test_theme_index_watchlist|test_overlay_today_replaces_stale_and_appends_missing",
+    "vitest|src/components/dailyFirstPaintAcceptance.test.jsx|DAILY first-paint acceptance > NC-B late right-edge insertion",
+    "vitest|src/components/dailyFirstPaintAcceptance.test.jsx|DAILY first-paint acceptance > NC-C stale wick corrected after paint",
+    "vitest|src/components/dailyFirstPaintAcceptance.test.jsx|DAILY first-paint acceptance > NC-D camera moved after first paint",
+    "vitest|src/components/dailyFirstPaintIncidental.test.jsx|CASE B \u2014 a same-length daily refetch merges instead of dropping the oldest bar > the oldest cached bar survives and the geometry does not translate"
+  ],
+  "new_flaky": [
+    "pytest|tests.test_discord_close_note|test_a_note_that_cannot_be_written_still_posts_the_charts",
+    "pytest|tests.test_mutation_check.TestVerdicts|test_a_detected_mutation_passes_the_check"
+  ],
+  "flaky": [
+    "pytest|tests.test_discord_close_note|test_a_note_that_cannot_be_written_still_posts_the_charts",
+    "pytest|tests.test_mutation_check.TestRestoreGuarantee|test_the_file_is_byte_identical_after_a_detected_mutation",
+    "pytest|tests.test_mutation_check.TestVerdicts|test_a_detected_mutation_passes_the_check",
+    "pytest|tests.test_mutation_check.TestVerdicts|test_expect_red_naming_the_right_test_passes",
+    "vitest|src/components/chart/engine/__tests__/stockChartWiring.test.jsx|an engine-drawn indicator still appears in the crosshair legend > \u26d4\u26d4 A HOVER REACHES THE RENDERER NOT AT ALL"
+  ],
+  "file_level_resolved": [],
+  "coverage_lost": [],
+  "missing_buckets": {},
+  "attribution": {
+    "pytest|tests.test_bars_server_include_today|test_todays_daily_bar_stamps_today_and_caches": {
+      "class": "UNATTRIBUTED",
+      "commits": [],
+      "workstreams": [],
+      "reason": "no commit in 3207690b4..0b42d050c touched tests/test_bars_server_include_today.py or anything it imports"
+    },
+    "vitest|src/components/dailyFirstPaintIncidental.test.jsx|CASE A \u2014 a live price never rewrites a sealed prior-session candle > today's own values still reach today's slot (the guard is not a mute button)": {
+      "class": "UNATTRIBUTED",
+      "commits": [],
+      "workstreams": [],
+      "reason": "no commit in 3207690b4..0b42d050c touched src/components/dailyFirstPaintIncidental.test.jsx or anything it imports"
+    },
+    "pytest|tests.test_mutation_check.TestVerdicts|test_expect_red_naming_the_right_test_passes": {
+      "class": "UNATTRIBUTED",
+      "commits": [],
+      "workstreams": [],
+      "reason": "no commit in 3207690b4..0b42d050c touched tests/test_mutation_check.py or anything it imports"
+    },
+    "pytest|tests.test_theme_index_watchlist|test_overlay_today_replaces_stale_and_appends_missing": {
+      "class": "UNATTRIBUTED",
+      "commits": [],
+      "workstreams": [],
+      "reason": "no commit in 3207690b4..0b42d050c touched tests/test_theme_index_watchlist.py or anything it imports"
+    },
+    "vitest|src/components/dailyFirstPaintAcceptance.test.jsx|DAILY first-paint acceptance > NC-B late right-edge insertion": {
+      "class": "UNATTRIBUTED",
+      "commits": [],
+      "workstreams": [],
+      "reason": "no commit in 3207690b4..0b42d050c touched src/components/dailyFirstPaintAcceptance.test.jsx or anything it imports"
+    },
+    "vitest|src/components/dailyFirstPaintAcceptance.test.jsx|DAILY first-paint acceptance > NC-C stale wick corrected after paint": {
+      "class": "UNATTRIBUTED",
+      "commits": [],
+      "workstreams": [],
+      "reason": "no commit in 3207690b4..0b42d050c touched src/components/dailyFirstPaintAcceptance.test.jsx or anything it imports"
+    },
+    "vitest|src/components/dailyFirstPaintAcceptance.test.jsx|DAILY first-paint acceptance > NC-D camera moved after first paint": {
+      "class": "UNATTRIBUTED",
+      "commits": [],
+      "workstreams": [],
+      "reason": "no commit in 3207690b4..0b42d050c touched src/components/dailyFirstPaintAcceptance.test.jsx or anything it imports"
+    },
+    "vitest|src/components/dailyFirstPaintIncidental.test.jsx|CASE B \u2014 a same-length daily refetch merges instead of dropping the oldest bar > the oldest cached bar survives and the geometry does not translate": {
+      "class": "UNATTRIBUTED",
+      "commits": [],
+      "workstreams": [],
+      "reason": "no commit in 3207690b4..0b42d050c touched src/components/dailyFirstPaintIncidental.test.jsx or anything it imports"
+    }
+  }
+}
