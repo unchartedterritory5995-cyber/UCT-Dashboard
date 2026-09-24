@@ -385,6 +385,9 @@ def _raw_dollars():
 
 # A run of backslashes the member typed right before a `$` (R2-N4).
 _BACKSLASHES_BEFORE_DOLLAR = re.compile(r"(\\+)(?=\$)")
+# A rendered text run that OPENS with an escaped `$` -- our `\$`, perhaps
+# behind the member's own (doubled) backslashes -- and no mark delimiter.
+_OPENS_WITH_ESCAPED_DOLLAR = re.compile(r"\\+\$")
 
 
 def _prose(text: Any) -> str:
@@ -398,7 +401,11 @@ def _prose(text: Any) -> str:
     backslash and a LIVE `$`, which a math reader pairs. Doubled, it is
     `cost \\\\\\$5`: an escaped backslash, then an escaped dollar, and the note
     re-imports as `cost \\$5`. A backslash before anything else is left as it
-    was (a Windows path, `C:\\Users`, is untouched)."""
+    was (a Windows path, `C:\\Users`, is untouched).
+
+    This sees ONE string. A backslash ending one text run and a `$` opening
+    the next (a coloured word, then plain text) is handled where the runs are
+    joined, in `_inline` (re-review R34-N2)."""
     text = "" if text is None else str(text)
     if not _ESCAPE_PROSE_DOLLARS.get():
         return text
@@ -420,7 +427,14 @@ def _html_island(html: str) -> str:
 
     So no line inside the island may be blank: each one becomes `<br>`, which
     keeps the block open and still reads as a line break inside the HTML.
-    (CommonMark's blank line is spaces and tabs only.)"""
+    (CommonMark's blank line is spaces and tabs only.)
+
+    ⛔ CommonMark ends a line at `\\r\\n`, at a lone `\\r` AND at `\\n`
+    (re-review R34-N1). Split on `\\n` alone, text pasted with `\\r\\n\\r\\n` left
+    a line holding just `\\r` -- not blank to this rule, blank to every reader
+    -- and `\\r\\r` hid a blank line inside ONE line. Every line ending is made
+    `\\n` first, so the rule sees the lines a reader will."""
+    html = html.replace("\r\n", "\n").replace("\r", "\n")
     return "\n".join("<br>" if re.fullmatch(r"[ \t]*", line) else line for line in html.split("\n"))
 
 
@@ -445,7 +459,20 @@ def _inline(nodes: list[dict[str, Any]] | None, resolver=None) -> str:
     out = []
     for n in nodes or []:
         if n.get("type") == "text":
-            out.append(_text_with_marks(n, resolver))
+            piece = _text_with_marks(n, resolver)
+            # R2-N4 across a run boundary (re-review R34-N2). `_prose` doubles
+            # a backslash run only when its `$` is in the SAME text node. A run
+            # ending in `\` (a coloured word exports with no delimiter) and the
+            # next opening with `$` came out `\` + `\$`: an escaped backslash
+            # and a LIVE `$`. When this run opens with our escaped `$`, the
+            # backslashes the output already ends with are the member's own,
+            # undoubled -- a run's output ends in `\` only when its text does
+            # and no mark closed it (an atom ends in `]`, `)`, `*` or `$`) --
+            # so they are doubled here, exactly as `_prose` would have.
+            if _ESCAPE_PROSE_DOLLARS.get() and _OPENS_WITH_ESCAPED_DOLLAR.match(piece):
+                so_far = "".join(out)
+                out.append("\\" * (len(so_far) - len(so_far.rstrip("\\"))))
+            out.append(piece)
         elif n.get("type") == "hardBreak":
             out.append("\n")
         else:

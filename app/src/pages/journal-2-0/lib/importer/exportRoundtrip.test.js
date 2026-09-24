@@ -31,6 +31,7 @@ import fs from 'node:fs'
 import { createHash } from 'node:crypto'
 import os from 'node:os'
 import path from 'node:path'
+import process from 'node:process'
 import { spawnSync } from 'node:child_process'
 import { unzipSync } from 'fflate'
 import MarkdownIt from 'markdown-it'
@@ -220,9 +221,10 @@ d('our own export round-trips through our own importer', () => {
     expect(doc.html).toContain('Chart $NVDA 1D')
     expect(doc.html).toContain('Q: Hold above $5?')
     expect(doc.html).toContain('[1] Deck $Q3')
-    // ...the member's own `\$` (R2-N4, the next test) is the one backslash
-    // that belongs in the note; anywhere else a `\$` is our escape leaking.
-    expect(doc.html.replace('cost \\$5 and \\$6', '')).not.toContain('\\$')
+    // ...the member's own `\$` (R2-N4 and R34-N2, the next test) is the one
+    // backslash that belongs in the note; anywhere else a `\$` is our escape
+    // leaking.
+    expect(doc.html.replace('cost \\$5 and \\$6', '').replace('fee \\$3 flat', '')).not.toContain('\\$')
     expect(doc.html).not.toMatch(/<h[1-6]>\s*title:/i)
     expect(doc.html).not.toContain('subtitle:')
     // Hero image is real, visible content — not an orphaned blob referenced
@@ -263,6 +265,10 @@ d('our own export round-trips through our own importer', () => {
     }
     expect(md.split('<aside>').length - 1).toBe(2) // non-vacuity: both callouts are in the file
     expect(md).toContain('<br>') // ...and the blank lines were there to be closed
+    // R34-N1: the CR endings were made line breaks and closed, never kept
+    // (a reader ends a line at a lone \r too) and never dropped.
+    expect(md).not.toContain('\r')
+    expect(md).toContain('pasted\n<br>\nfrom Windows $8 and\n<br>\nold Mac $9')
 
     const { adapter } = await detectAdapter(vfiles)
     const { docs } = await adapter.parse(vfiles)
@@ -276,6 +282,8 @@ d('our own export round-trips through our own importer', () => {
     expect(doc.html).toContain('*stop $4 then $6*') // text inside the island, never <em>
     expect(doc.html).toContain('$5-$10 now')
     expect(doc.html).toContain('total = $7')
+    expect(doc.html).toContain('from Windows $8 and')
+    expect(doc.html).toContain('old Mac $9')
 
     // R2-N4: the member typed `\$` -- it comes back exactly, and in the file
     // every `$` of it is ESCAPED (an ODD run of backslashes before it), so a
@@ -285,6 +293,13 @@ d('our own export round-trips through our own importer', () => {
     const runs = [...line.matchAll(/(\\*)\$/g)].map((m) => m[1].length)
     expect(runs).toHaveLength(2)
     for (const n of runs) expect(n % 2, `a run of ${n} backslashes before a $`).toBe(1)
+
+    // R34-N2: the same when the backslash ends a coloured run and the `$`
+    // opens the next one.
+    expect(doc.html).toContain('fee \\$3 flat')
+    const feeLine = md.split('\n').find((l) => l.startsWith('fee '))
+    const feeRun = feeLine.match(/(\\*)\$/)[1].length
+    expect(feeRun % 2, `a run of ${feeRun} backslashes before the $`).toBe(1)
   })
 })
 

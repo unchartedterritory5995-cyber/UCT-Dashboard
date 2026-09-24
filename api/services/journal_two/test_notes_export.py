@@ -1616,6 +1616,41 @@ def test_a_backslash_the_member_typed_before_a_dollar_is_escaped_too():
     assert tiptap_to_markdown(_doc(_para("a \\\\$ b"))) == "a \\\\\\\\\\$ b"
 
 
+def _colour(text, color="red"):
+    return {"type": "text", "text": text, "marks": [{"type": "textColor", "attrs": {"color": color}}]}
+
+
+def test_a_backslash_ending_one_run_before_a_dollar_opening_the_next_is_escaped_too():
+    # Re-review R34-N2. The rule above ran per text node, so a coloured "\"
+    # (a textColor run exports with no delimiter) followed by a plain "$5"
+    # came out "\\$5" -- an escaped backslash and a LIVE "$".
+    md = tiptap_to_markdown(_doc({"type": "paragraph", "content": [
+        _colour("cost \\"), {"type": "text", "text": "$5 flat"}]}))
+    assert md == "cost \\\\\\$5 flat"
+    # The member's backslash on BOTH sides of the boundary, and one split over
+    # three runs: the whole run before the "$" is doubled, then escaped.
+    md = tiptap_to_markdown(_doc(
+        {"type": "paragraph", "content": [_colour("a \\"), {"type": "text", "text": "\\$5"}]},
+        {"type": "paragraph", "content": [
+            _colour("b \\"), _colour("\\", "blue"), {"type": "text", "text": "$6"}]}))
+    assert md == "a " + "\\" * 4 + "\\$5\n\nb " + "\\" * 4 + "\\$6"
+    for line in md.split("\n\n"):
+        run = _re.search(r"(\\+)\$", line).group(1)
+        assert len(run) % 2 == 1, line  # odd: the "$" is escaped
+
+
+def test_a_backslash_ending_a_run_is_left_alone_unless_an_escaped_dollar_opens_the_next():
+    # A path split over two runs is untouched; and inside a raw island no `$`
+    # is escaped, so no backslash before one is doubled either -- not even
+    # when the next run brings a backslash of its own.
+    md = tiptap_to_markdown(_doc(
+        {"type": "paragraph", "content": [_colour("C:\\"), {"type": "text", "text": "Users"}]},
+        {"type": "callout", "attrs": {"emoji": "!"}, "content": [
+            {"type": "paragraph", "content": [_colour("x \\"), {"type": "text", "text": "$5"}]},
+            {"type": "paragraph", "content": [_colour("y \\"), {"type": "text", "text": "\\$6"}]}]}))
+    assert md == "C:\\Users\n\n<aside>\n! x \\$5\ny \\\\$6\n</aside>"
+
+
 def test_a_backslash_before_anything_but_a_dollar_is_left_alone():
     # A Windows path, a regex someone pasted: only the backslash our own
     # escape would otherwise swallow is touched.
@@ -1744,7 +1779,9 @@ def _island(md, open_tag, close_tag):
 
 
 def _assert_one_block(island):
-    assert not _re.search(r"\n[ \t]*\n", island), island  # no blank line inside
+    # A reader ends a line at \r\n, \r or \n (R34-N1), so look at the lines it sees.
+    lines = _re.sub(r"\r\n?", "\n", island)
+    assert not _re.search(r"\n[ \t]*\n", lines), repr(island)  # no blank line inside
     assert "\\$" not in island, island  # still raw inside: no escape is read there
 
 
@@ -1785,6 +1822,24 @@ def test_a_code_block_with_a_blank_line_inside_a_toggle_stays_inside_the_island(
     island = _island(md, "<details>", "</details>")
     _assert_one_block(island)
     assert "total = $7\n<br>\nprint(total)" in island
+
+
+def test_a_carriage_return_line_ending_cannot_end_an_island_early():
+    # Re-review R34-N1. Text pasted from Windows carries \r\n\r\n, and an old
+    # Mac file \r\r: a blank line to every CommonMark reader either way.
+    md = tiptap_to_markdown(_doc(
+        {"type": "callout", "attrs": {"emoji": "!"}, "content": [
+            _para("pasted\r\n\r\nfrom Windows $8 and\r\rold Mac $9")]},
+        {"type": "toggle", "attrs": {"open": True}, "content": [
+            {"type": "toggleSummary", "content": [{"type": "text", "text": "a\r\rb"}]},
+            {"type": "toggleContent", "content": [_code("x = $1\r\n\r\ny = 2", "python")]}]}))
+    aside = _island(md, "<aside>", "</aside>")
+    _assert_one_block(aside)
+    assert aside == "<aside>\n! pasted\n<br>\nfrom Windows $8 and\n<br>\nold Mac $9\n</aside>"
+    details = _island(md, "<details>", "</details>")
+    _assert_one_block(details)
+    assert "\r" not in details
+    assert "a\n<br>\nb" in details and "x = $1\n<br>\ny = 2" in details
 
 
 def test_a_blank_line_in_a_toggle_summary_and_a_whitespace_only_line_are_both_closed():

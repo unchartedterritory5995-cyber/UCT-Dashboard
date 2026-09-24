@@ -120,6 +120,12 @@ def main() -> None:
             # R2-N4: a backslash the member typed before a `$` -- the note
             # says `cost \$5 and \$6`, and must come back saying exactly that.
             {"type": "paragraph", "content": [{"type": "text", "text": "cost \\$5 and \\$6"}]},
+            # R34-N2: the same backslash, but ending a COLOURED run, with the
+            # `$` opening the next run.
+            {"type": "paragraph", "content": [
+                {"type": "text", "text": "fee \\",
+                 "marks": [{"type": "textColor", "attrs": {"color": "red"}}]},
+                {"type": "text", "text": "$3 flat"}]},
             # R2-N1: three things that used to put a BLANK LINE inside a raw
             # HTML island, ending it early -- an excerpt with an annotation
             # (this callout), two Shift+Enters in a row (the next one) and a
@@ -130,11 +136,15 @@ def main() -> None:
                  {"type": "paragraph", "content": [
                      {"type": "text", "text": "stop at $42"}]},
                  {"type": "documentExcerpt", "attrs": {"excerptId": "ex1"}}]},
+            # R34-N1: and a CR line ending -- \r\n\r\n pasted from Windows, a
+            # lone \r\r from an old Mac file -- is a blank line to a reader.
             {"type": "callout", "attrs": {"emoji": "\U0001F4CC"},
              "content": [{"type": "paragraph", "content": [
                  {"type": "text", "text": "range"},
                  {"type": "hardBreak"}, {"type": "hardBreak"},
-                 {"type": "text", "text": "$5-$10 now"}]}]},
+                 {"type": "text", "text": "$5-$10 now"}]},
+                 {"type": "paragraph", "content": [
+                     {"type": "text", "text": "pasted\r\n\r\nfrom Windows $8 and\r\rold Mac $9"}]}]},
             {"type": "toggle", "attrs": {"open": True}, "content": [
                 {"type": "toggleSummary", "content": [
                     {"type": "text", "text": "More detail"}]},
