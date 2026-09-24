@@ -93,7 +93,39 @@ export function paneGate(t, opts = {}) {
       ? String(r.message)
       : 'the host lane refused this script', r ? r.guard || null : null)
   }
+  // ⭐⭐ A CLEAN OBJECTS-ONLY SCRIPT NOW ARRIVES HERE `ok: true`, AND THE
+  // ADMISSION ABOVE CANNOT SEE IT. The 2026-09-23 merge reconciled two lineages
+  // that disagreed about what the HOST lane returns for a script that draws and
+  // offers no column:
+  //
+  //   clean object program (zero drops) → `ok: true`,  selected -1, 0 outputs
+  //   DIRTY object program (some drops) → `ok: false`, guard `pine:objects-only`
+  //
+  // The branch that wrote the admission above only ever saw the second shape, so
+  // it keys on the refusal — and a table-only script that translates PERFECTLY
+  // fell straight past it into "this script declares nothing a chart can draw",
+  // which is the one sentence this module exists to stop being said about a
+  // script that draws a table. Measured end to end through `memberPaneDefinition`
+  // → `installUserDefinitions`; `objectsOnlyAnchorMode.test.js` is the rail.
+  //
+  // ⛔ SAME GATE, SAME DEFAULT, SAME EVIDENCE REQUIREMENT. Off, this returns
+  // exactly the refusal it always did. And the ops must really be there — a
+  // verdict alone is a claim about the script, the ops are the drawing.
+  //
+  // ⛔ IT IS DERIVED, NOT RE-CHECKED. `ok: true` on the host lane already MEANS
+  // the object program is clean (`pineObjectOnlyHostAccept`: no partial credit,
+  // every attempted op survived), so re-testing `droppedOps === 0` here would be
+  // a second authority over one value — and the two would drift the day that
+  // doctrine moves.
+  //
+  // ⚠️ IT CANNOT FIRE FOR A SCRIPT THAT HAS A ROW. `selected` is a real index
+  // whenever any output was chosen, so a plotting script that also draws objects
+  // takes the ordinary path below, unchanged.
+  const drawsObjects = !!(t.objects && Array.isArray(t.objects.ops) && t.objects.ops.length > 0)
   if (!Number.isInteger(t.selected) || t.selected < 0) {
+    if (opts.allowObjectsOnly === true && drawsObjects) {
+      return { ok: true, reason: null, guard: null }
+    }
     // Ruling D1's honest case, arriving here rather than as a blank pane.
     return no('this script declares nothing a chart can draw')
   }

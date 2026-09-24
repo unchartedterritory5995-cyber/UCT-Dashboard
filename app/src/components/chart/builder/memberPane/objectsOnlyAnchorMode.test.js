@@ -32,6 +32,8 @@ import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest'
 import { memberPaneDefinition } from './memberPaneDefinition'
 import * as engineRegistry from '../../engine/nativeRegistry'
 import { objectsOnlyPaneEnabled } from '../../engine/objectsOnlyPaneGate'
+import { paneGate } from '../../engine/ast/paneGate'
+import { translatePine } from '../../engine/ast/pine'
 
 beforeEach(() => { vi.stubEnv('VITE_PINE_OBJECTS_ONLY_PANE_ENABLED', '1') })
 afterEach(() => { vi.unstubAllEnvs() })
@@ -69,6 +71,68 @@ describe('⭐⭐ an objects-only definition installs on the flag it is gated by'
     }
     expect(installed).toHaveLength(1)
     engineRegistry.uninstallUserDefinition('u_member-pane-test')
+  })
+
+  it('⛔⛔ CONTROL — `paneGate` ITSELF is what gates the clean case, both ways', () => {
+    // ⚰️⚰️ TWO MUTATIONS WERE GREEN BEFORE THIS EXISTED, and the second is the
+    // instructive one. Deleting the flag check from `paneGate`'s new
+    // clean-objects-only admission left every case in this file and in
+    // `objectsOnlyPane.test.js` passing:
+    //
+    //   1. every pre-existing flag-off case uses the acceptance dashboard, whose
+    //      object program has DROPS, so it arrives as a REFUSAL and is gated by
+    //      the OLDER admission's flag check — a different line entirely;
+    //   2. and the door-level case below cannot see it either, because
+    //      `memberPaneDefinition` carries its OWN `allowObjectsOnly && drawsObjects`
+    //      check further down, so with `paneGate` wrongly admitting, the DOOR
+    //      still refuses and the trip looks identical from outside.
+    //
+    // ⛔ TWO GATES OVER ONE DECISION MEAN NEITHER CAN BE PROVED THROUGH THE
+    // OTHER. This one asks `paneGate` directly, which is the only place the
+    // question is answerable.
+    const t = translatePine(OBJECTS_ONLY, { strict: true })
+    // ⭐ NON-VACUITY FIRST: the fixture really is the CLEAN shape this admission
+    // is for — a host accept with no selectable row and real ops. If the host
+    // lane ever goes back to refusing it, this reads as a gate failure when it
+    // is a different change entirely.
+    expect(t.ok, 'the host lane should ACCEPT a clean object-only script').toBe(true)
+    expect(t.mode).toBe('host')
+    expect(Number.isInteger(t.selected) && t.selected >= 0).toBe(false)
+    expect(t.objects.ops.length).toBeGreaterThan(0)
+
+    expect(paneGate(t, { allowObjectsOnly: true }).ok).toBe(true)
+    const off = paneGate(t, { allowObjectsOnly: false })
+    expect(off.ok, 'the capability is DARK — off, the gate must still refuse').toBe(false)
+    expect(paneGate(t, {}).ok, 'and absent configuration is not consent').toBe(false)
+
+    // ⛔⛔ AND THE OPS ARE REQUIRED, ASKED OF THE FUNCTION DIRECTLY — because
+    // through the real trip that half is UNFALSIFIABLE. Deleting `drawsObjects`
+    // from the admission left all 85 memberPane cases green: the host lane only
+    // ever emits `ok: true` with no row WHEN there is a clean object program, so
+    // no real script can reach this line with an empty one.
+    //
+    // ⭐ `paneGate` is a pure function over a plain verdict, so the shape can
+    // simply be handed to it. A guard nobody has seen fire is not a guard, and
+    // the outcome it prevents is the one this module exists to prevent: an empty
+    // pane on screen with no sentence.
+    const noOps = { mode: t.mode, ok: true, selected: -1, outputs: [], objects: { ops: [] } }
+    expect(paneGate(noOps, { allowObjectsOnly: true }).ok,
+      'a verdict with NO ops must not be admitted — that is an empty pane').toBe(false)
+    // ⭐ CONTROL for the control: the same shape WITH an op is admitted, so the
+    // refusal above is the ops check and not some other field of this literal.
+    expect(paneGate({ ...noOps, objects: { ops: [{ k: 'create', family: 'table' }] } },
+      { allowObjectsOnly: true }).ok).toBe(true)
+  })
+
+  it('⛔ CONTROL — FLAG OFF, the whole trip refuses and builds nothing', () => {
+    // The door-level half of the case above: the member-visible outcome with the
+    // flag off is unchanged. ⚠️ It cannot stand in for the gate rail — see the
+    // second mutation recorded there.
+    vi.stubEnv('VITE_PINE_OBJECTS_ONLY_PANE_ENABLED', '')
+    expect(objectsOnlyPaneEnabled()).toBe(false)
+    const r = memberPaneDefinition({ source: OBJECTS_ONLY, id: 'u_member-pane-off' })
+    expect(r.ok).toBe(false)
+    expect(r.definition).toBeFalsy()
   })
 
   it('⛔ CONTROL — an ordinary plot script still installs (fix did not widen)', () => {
