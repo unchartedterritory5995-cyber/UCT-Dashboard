@@ -101,3 +101,34 @@ describe('Lock in the note menu (lane D owns the request; this is its menu door)
     expect(recordLandedRevision).not.toHaveBeenCalled()
   })
 })
+
+describe('Save as template in the note menu', () => {
+  beforeEach(() => {
+    answer = (body, url) => (url.endsWith('/note-templates')
+      ? { ok: true, status: 200, json: async () => ({ template: { id: 't9', name: body.name || 'Earnings prep' } }) }
+      : { ok: false, status: 500, json: async () => ({}) })
+  })
+
+  it('names it (the title by default), asks the SERVER to copy the note, and says where it went', async () => {
+    render(<NoteMenuActions note={{ id: 'n1', title: 'Earnings prep' }} />)
+    fireEvent.click(screen.getByRole('button', { name: /Save as template/ }))
+    const input = screen.getByRole('textbox', { name: 'Template name' })
+    expect(input).toHaveValue('Earnings prep')
+    fireEvent.change(input, { target: { value: 'Q3 earnings' } })
+    fireEvent.click(screen.getByRole('button', { name: 'Save template' }))
+    expect(await screen.findByText('Saved “Q3 earnings” as a template. Pick it under Your templates when you make a new note.')).toBeInTheDocument()
+    // ⛔ Only the note's id and the name travel: the server reads the body.
+    expect(calls).toEqual([{ url: '/api/j2/note-templates', method: 'POST', body: { noteId: 'n1', name: 'Q3 earnings' } }])
+    expect(screen.queryByRole('textbox', { name: 'Template name' })).not.toBeInTheDocument()
+  })
+
+  it('a refused save says nothing was saved and keeps what the member typed', async () => {
+    answer = () => ({ ok: false, status: 400, json: async () => ({ detail: 'nope' }) })
+    render(<NoteMenuActions note={{ id: 'n1', title: 'T' }} />)
+    fireEvent.click(screen.getByRole('button', { name: /Save as template/ }))
+    fireEvent.change(screen.getByRole('textbox', { name: 'Template name' }), { target: { value: 'Mine' } })
+    fireEvent.click(screen.getByRole('button', { name: 'Save template' }))
+    expect(await screen.findByRole('alert')).toHaveTextContent("Couldn't save this note as a template. Nothing was saved.")
+    expect(screen.getByRole('textbox', { name: 'Template name' })).toHaveValue('Mine')
+  })
+})

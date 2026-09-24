@@ -3278,6 +3278,77 @@ def delete_note_endpoint(
     return {"ok": True}
 
 
+# ── Wave 6 (lane E): member templates ────────────────────────────────────────
+# `/note-templates`, never `/notes/templates`: a path under `/notes/` would have
+# to be declared above `GET /notes/{note_id}` or be swallowed by it (this file
+# has paid for that ordering three times).
+
+def _template_error(e: Exception) -> HTTPException:
+    return HTTPException(status_code=400, detail=str(e))
+
+
+@router.get("/note-templates")
+def list_note_templates_endpoint(user: dict = Depends(get_current_user)) -> dict[str, Any]:
+    """The member's own templates, newest first — names only (no bodies)."""
+    from api.services.journal_two import note_templates
+    return {"templates": note_templates.list_templates(user["id"])}
+
+
+@router.post("/note-templates")
+def create_note_template_endpoint(
+    payload: dict[str, Any] | None = None,
+    user: dict = Depends(get_current_user),
+) -> dict[str, Any]:
+    """"Save as template": `{noteId, name?}`. The SERVER reads the note and
+    copies its title, body and properties — the client never supplies the body.
+    404 for a note that is not the member's, is trashed, or does not exist."""
+    from api.services.journal_two import note_templates
+    note_id = (payload or {}).get("noteId")
+    if not isinstance(note_id, str) or not note_id.strip():
+        raise HTTPException(status_code=400, detail="noteId is required")
+    try:
+        t = note_templates.create_from_note(user["id"], note_id.strip(), (payload or {}).get("name"))
+    except note_templates.TemplateValidationError as e:
+        raise _template_error(e)
+    if t is None:
+        raise HTTPException(status_code=404, detail="Not found")
+    return {"template": t}
+
+
+@router.get("/note-templates/{template_id}")
+def get_note_template_endpoint(template_id: str, user: dict = Depends(get_current_user)) -> dict[str, Any]:
+    """One template in full, ready for the client's create-from-template write."""
+    from api.services.journal_two import note_templates
+    t = note_templates.get_template(user["id"], template_id)
+    if t is None:
+        raise HTTPException(status_code=404, detail="Not found")
+    return {"template": t}
+
+
+@router.patch("/note-templates/{template_id}")
+def rename_note_template_endpoint(
+    template_id: str,
+    payload: dict[str, Any] | None = None,
+    user: dict = Depends(get_current_user),
+) -> dict[str, Any]:
+    from api.services.journal_two import note_templates
+    try:
+        t = note_templates.rename_template(user["id"], template_id, (payload or {}).get("name"))
+    except note_templates.TemplateValidationError as e:
+        raise _template_error(e)
+    if t is None:
+        raise HTTPException(status_code=404, detail="Not found")
+    return {"template": t}
+
+
+@router.delete("/note-templates/{template_id}")
+def delete_note_template_endpoint(template_id: str, user: dict = Depends(get_current_user)) -> dict[str, Any]:
+    from api.services.journal_two import note_templates
+    if not note_templates.delete_template(user["id"], template_id):
+        raise HTTPException(status_code=404, detail="Not found")
+    return {"ok": True}
+
+
 @router.patch("/notes/{note_id}/lock")
 def lock_note_endpoint(
     note_id: str,

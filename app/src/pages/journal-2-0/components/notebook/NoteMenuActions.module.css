@@ -47,3 +47,25 @@
     min-height: var(--tap-min);
   }
 }
+
+/* Wave 6 item 3 — naming a template inline, in the menu row. */
+.templateForm {
+  display: inline-flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+}
+.templateInput {
+  min-width: 160px;
+  padding: 4px 8px;
+  font-size: 12px;
+  color: var(--text);
+  background: transparent;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm, 6px);
+}
+@media (max-width: 1024px) {
+  .templateInput {
+    min-height: var(--tap-min);
+  }
+}

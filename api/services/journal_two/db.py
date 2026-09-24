@@ -1795,6 +1795,23 @@ _PHASE_2_ALTERS = [
     # `PATCH /notes/{id}/lock`, which advances `updated_at` like any metadata
     # write so another tab's compare-and-set and the outbox see it.
     "ALTER TABLE j2_notes ADD COLUMN locked INTEGER NOT NULL DEFAULT 0",
+    # Wave 6 (lane E, member templates): a member's own "Save as template"
+    # copies -- title, body and property values of one of their notes, owned by
+    # them (note_templates.py). A COPY, never a link to the note. ⛔ user-scoped:
+    # account deletion must purge it (requested in wave6-E-report.md --
+    # account_purge._DIRECT_USER_TABLES is not lane E's file).
+    """CREATE TABLE IF NOT EXISTS j2_note_templates (
+        id              TEXT PRIMARY KEY,
+        user_id         TEXT NOT NULL,
+        name            TEXT NOT NULL,
+        title           TEXT NOT NULL DEFAULT '',
+        body_json       TEXT NOT NULL,
+        properties_json TEXT,
+        created_at      TEXT NOT NULL,
+        updated_at      TEXT NOT NULL
+    )""",
+    "CREATE INDEX IF NOT EXISTS idx_j2_note_templates_user"
+    " ON j2_note_templates(user_id, created_at DESC)",
     # ⛔ The switcher's keystroke scan skips archived notes too, so its covering
     # index carries `archived_at` -- a predicate on a column the index lacks
     # would send every keystroke back to the wide rows (the ~150 ms read the

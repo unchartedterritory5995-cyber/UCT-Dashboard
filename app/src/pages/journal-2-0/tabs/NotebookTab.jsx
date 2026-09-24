@@ -37,6 +37,7 @@ import { settleNoteWrite } from '../lib/offline/settleNoteWrite'
 import BulkActionBar from '../components/notebook/BulkActionBar'
 import NoteMenuActions from '../components/notebook/NoteMenuActions'
 import { ARCHIVED_FOLDER, setNoteArchived } from '../lib/noteArchive'
+import { getMemberTemplate } from '../lib/memberTemplates'
 import { useNoteSelection } from '../lib/noteSelection'
 import {
   checkUnsentWork, describeBatch, describeExport, describeUnchecked, exportSelectedNotes, joinUndo, runNoteBatch,
@@ -907,6 +908,24 @@ export default function NotebookTab() {
     })
   }
 
+  // Wave 6: a member's OWN template (saved from one of their notes). The full
+  // template is read when picked, then made through the SAME createNote ->
+  // createNoteViaApi path as a built-in: title, body and property values.
+  const createFromMemberTemplate = async (summary) => {
+    setCreating(true)
+    setPickerOpen(false)
+    let full
+    try {
+      full = await getMemberTemplate(summary.id)
+    } catch (e) {
+      console.error('[notebook] read member template failed', e)
+      setActionError(`Couldn't open the template “${summary.name}”. Nothing was created.`)
+      setCreating(false)
+      return
+    }
+    await createNote({ title: full.title, bodyJson: full.bodyJson, properties: full.properties })
+  }
+
   const handlePick = (tplOrNull) =>
     tplOrNull ? createFromTemplate(tplOrNull) : createNote()
 
@@ -1270,7 +1289,7 @@ export default function NotebookTab() {
           variant="auto"
           maxWidth={720}
         >
-          <TemplatePicker onPick={handlePick} busy={creating} />
+          <TemplatePicker onPick={handlePick} onPickMember={createFromMemberTemplate} busy={creating} />
         </Sheet>
 
         <ImportWizard
@@ -1385,7 +1404,7 @@ export default function NotebookTab() {
               </div>
             )}
             <div className={styles.emptyPicker}>
-              <TemplatePicker onPick={handlePick} busy={creating} />
+              <TemplatePicker onPick={handlePick} onPickMember={createFromMemberTemplate} busy={creating} />
             </div>
           </div>
         ) : (

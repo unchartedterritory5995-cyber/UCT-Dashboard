@@ -27,11 +27,13 @@ import { useState } from 'react'
 import UIcon from '../../../../components/ui/UIcon'
 import { noteIsArchived, setNoteArchived } from '../../lib/noteArchive'
 import { noteIsLocked, setNoteLock } from '../../lib/lockedNote'
+import { saveNoteAsTemplate } from '../../lib/memberTemplates'
 import styles from './NoteMenuActions.module.css'
 
 export default function NoteMenuActions({ note, onChanged }) {
   const [busy, setBusy] = useState(false)
   const [status, setStatus] = useState(null) // { message, tone }
+  const [templateDraft, setTemplateDraft] = useState(null) // string while naming
   if (!note?.id) return null
   const archived = noteIsArchived(note)
   const locked = noteIsLocked(note)
@@ -44,8 +46,10 @@ export default function NoteMenuActions({ note, onChanged }) {
       const next = await write()
       setStatus({ tone: 'ok', message: done })
       onChanged?.(next)
+      return true
     } catch {
       setStatus({ tone: 'error', message: failed })
+      return false
     } finally {
       setBusy(false)
     }
@@ -62,6 +66,17 @@ export default function NoteMenuActions({ note, onChanged }) {
       failed: "Couldn't unlock this note. It is still locked." }
     : { done: 'Locked. Editing is off until you unlock it.',
       failed: "Couldn't lock this note. Nothing changed." })
+
+  // Wave 6 item 3: "Save as template" — the SERVER copies this note's title,
+  // body and property values; the name defaults to the title.
+  const submitTemplate = (e) => {
+    e.preventDefault()
+    const name = templateDraft
+    run(() => saveNoteAsTemplate(note.id, name), {
+      done: `Saved “${(name || '').trim() || note.title?.trim() || 'Untitled template'}” as a template. Pick it under Your templates when you make a new note.`,
+      failed: "Couldn't save this note as a template. Nothing was saved.",
+    }).then((ok) => { if (ok) setTemplateDraft(null) })
+  }
 
   return (
     <span className={styles.group} role="group" aria-label="Organise this note">
@@ -89,6 +104,32 @@ export default function NoteMenuActions({ note, onChanged }) {
         <UIcon name="library" size={13} gold={false} />
         {archived ? 'Unarchive' : 'Archive'}
       </button>
+      {templateDraft === null ? (
+        <button
+          type="button"
+          className={styles.btn}
+          onClick={() => { setStatus(null); setTemplateDraft(note.title || '') }}
+          disabled={busy}
+          title="Reuse this note's title, body and properties for new notes"
+        >
+          <UIcon name="copy" size={13} gold={false} />
+          Save as template
+        </button>
+      ) : (
+        <form className={styles.templateForm} onSubmit={submitTemplate}>
+          <input
+            className={styles.templateInput}
+            value={templateDraft}
+            onChange={(e) => setTemplateDraft(e.target.value)}
+            placeholder="Template name"
+            aria-label="Template name"
+            maxLength={80}
+            autoFocus
+          />
+          <button type="submit" className={styles.btn} disabled={busy}>Save template</button>
+          <button type="button" className={styles.btn} onClick={() => setTemplateDraft(null)}>Cancel</button>
+        </form>
+      )}
       {status && (
         <span
           className={status.tone === 'error' ? styles.statusError : styles.status}
