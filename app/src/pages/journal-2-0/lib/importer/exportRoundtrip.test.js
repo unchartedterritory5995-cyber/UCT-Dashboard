@@ -22,6 +22,7 @@ import os from 'node:os'
 import path from 'node:path'
 import { spawnSync } from 'node:child_process'
 import { unzipSync } from 'fflate'
+import MarkdownIt from 'markdown-it'
 import { describe, it, expect, beforeAll } from 'vitest'
 import { detectAdapter } from './registry'
 import { genericAdapter } from './adapters/generic'
@@ -161,7 +162,9 @@ d('our own export round-trips through our own importer', () => {
     expect(doc.html).toContain('Chart $NVDA 1D')
     expect(doc.html).toContain('Q: Hold above $5?')
     expect(doc.html).toContain('[1] Deck $Q3')
-    expect(doc.html).not.toContain('\\$')
+    // ...the member's own `\$` (R2-N4, the next test) is the one backslash
+    // that belongs in the note; anywhere else a `\$` is our escape leaking.
+    expect(doc.html.replace('cost \\$5 and \\$6', '')).not.toContain('\\$')
     expect(doc.html).not.toMatch(/<h[1-6]>\s*title:/i)
     expect(doc.html).not.toContain('subtitle:')
     // Hero image is real, visible content — not an orphaned blob referenced
@@ -183,5 +186,46 @@ d('our own export round-trips through our own importer', () => {
     expect(doc.html).toContain('<details>')
     expect(doc.html).toContain('<summary>More detail</summary>')
     expect(doc.html).toContain('hidden until expanded')
+  })
+
+  // Re-review R2-N1 / R2-N4. An `<aside>` / `<details>` island is a CommonMark
+  // HTML block, which ENDS AT ITS FIRST BLANK LINE; an excerpt's annotation, two
+  // Shift+Enters and a code block's empty line each used to put one inside, and
+  // everything after it was read as Markdown with its `$` raw.
+  it('a raw-HTML island stays ONE block, so nothing inside it is read as Markdown; every $ comes back', async () => {
+    const noteFile = vfiles.find((f) => f.path.endsWith('.md') && f.path.includes('AAPL'))
+    const md = new TextDecoder().decode(await noteFile.bytes())
+    // The importer's own parser and options (adapters/generic.js), token by
+    // token: each island is ONE html_block, open tag to close tag.
+    const tokens = new MarkdownIt({ html: true, linkify: true }).parse(md, {})
+    for (const [open, close] of [['<aside>', '</aside>'], ['<details>', '</details>']]) {
+      const blocks = tokens.filter((t) => t.type === 'html_block' && t.content.includes(open))
+      expect(blocks.length, `every ${open} opens a block`).toBe(md.split(open).length - 1)
+      for (const t of blocks) expect(t.content, `${open} closes in the same block`).toContain(close)
+    }
+    expect(md.split('<aside>').length - 1).toBe(2) // non-vacuity: both callouts are in the file
+    expect(md).toContain('<br>') // ...and the blank lines were there to be closed
+
+    const { adapter } = await detectAdapter(vfiles)
+    const { docs } = await adapter.parse(vfiles)
+    const [doc] = docs
+    // What came back: each island still raw HTML -- no <p>, <em>, <pre> made
+    // inside it -- and every `$` in it intact.
+    const islands = doc.html.match(/<(aside|details)>[\s\S]*?<\/\1>/g)
+    expect(islands).toHaveLength(3)
+    for (const island of islands) expect(island).not.toMatch(/<(p|em|pre|code)[\s>]/)
+    expect(doc.html).toContain('Guidance $5.2B-$6.1B for the year')
+    expect(doc.html).toContain('*stop $4 then $6*') // text inside the island, never <em>
+    expect(doc.html).toContain('$5-$10 now')
+    expect(doc.html).toContain('total = $7')
+
+    // R2-N4: the member typed `\$` -- it comes back exactly, and in the file
+    // every `$` of it is ESCAPED (an ODD run of backslashes before it), so a
+    // math reader cannot pair it.
+    expect(doc.html).toContain('cost \\$5 and \\$6')
+    const line = md.split('\n').find((l) => l.startsWith('cost '))
+    const runs = [...line.matchAll(/(\\*)\$/g)].map((m) => m[1].length)
+    expect(runs).toHaveLength(2)
+    for (const n of runs) expect(n % 2, `a run of ${n} backslashes before a $`).toBe(1)
   })
 })

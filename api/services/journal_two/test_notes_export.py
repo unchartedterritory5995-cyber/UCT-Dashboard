@@ -1606,10 +1606,20 @@ def test_real_math_beside_prose_dollars_still_exports_as_math():
     assert md == "At \\$5 the area is $\\pi r^2$."
 
 
-def test_a_literal_backslash_dollar_round_trips_exactly():
-    # One backslash is added before each `$` and nothing else: "\$" in the
-    # note becomes "\\$", which every CommonMark reader shows as "\$".
-    assert tiptap_to_markdown(_doc(_para("a \\$ b"))) == "a \\\\$ b"
+def test_a_backslash_the_member_typed_before_a_dollar_is_escaped_too():
+    # Re-review R2-N4. "\$" in the note used to export as "\\$" -- which
+    # CommonMark reads as an escaped BACKSLASH and a LIVE "$" a math reader
+    # pairs. The member's backslash is doubled before ours is added: "\\\$",
+    # an escaped backslash then an escaped dollar, which reads back as "\$".
+    assert tiptap_to_markdown(_doc(_para("a \\$ b"))) == "a \\\\\\$ b"
+    # A run of them: every one is doubled.
+    assert tiptap_to_markdown(_doc(_para("a \\\\$ b"))) == "a \\\\\\\\\\$ b"
+
+
+def test_a_backslash_before_anything_but_a_dollar_is_left_alone():
+    # A Windows path, a regex someone pasted: only the backslash our own
+    # escape would otherwise swallow is touched.
+    assert tiptap_to_markdown(_doc(_para("C:\\Users\\me and \\d+"))) == "C:\\Users\\me and \\d+"
 
 
 def test_dollars_in_inline_code_and_in_a_code_block_stay_raw():
@@ -1718,6 +1728,73 @@ def test_attribute_text_inside_a_callout_island_keeps_its_dollars_raw():
         {"type": "widgetEmbed", "attrs": {"searchText": "after $1"}}))
     assert "<aside>\n! [PnL $10.csv](a.csv)\n> [Chart $NVDA 1D]\n</aside>" in md
     assert md.endswith("> [after \\$1]")  # ...and escaped again once the island ends
+
+
+# ── Re-review R2-N1: a raw-HTML island is ONE block, blank lines and all ─────
+# `<aside>` / `<details>` end at their first blank line. Each case below
+# carried one, and everything after it was parsed as Markdown with its `$`
+# raw (the island's rule), so a math reader paired them. The island now holds
+# no blank line: each becomes `<br>`.
+import re as _re
+
+
+def _island(md, open_tag, close_tag):
+    start = md.index(open_tag)
+    return md[start:md.index(close_tag, start) + len(close_tag)]
+
+
+def _assert_one_block(island):
+    assert not _re.search(r"\n[ \t]*\n", island), island  # no blank line inside
+    assert "\\$" not in island, island  # still raw inside: no escape is read there
+
+
+def test_an_excerpt_with_an_annotation_inside_a_callout_stays_one_html_block():
+    def resolver(url):
+        if url.startswith("document-excerpt://"):
+            return "Guidance $5.2B-$6.1B", "Q3 deck.pdf, p.3", "stop $4 then $6"
+        return None
+    md = tiptap_to_markdown(_doc(
+        {"type": "callout", "attrs": {"emoji": "!"}, "content": [
+            _para("watch this"),
+            {"type": "documentExcerpt", "attrs": {"excerptId": "e1"}}]},
+        _para("after $1")), attachment_resolver=resolver)
+    island = _island(md, "<aside>", "</aside>")
+    _assert_one_block(island)
+    assert "> Guidance $5.2B-$6.1B\n> — Q3 deck.pdf, p.3\n<br>\n*stop $4 then $6*" in island
+    assert md.endswith("after \\$1")  # prose after the island is escaped again
+
+
+def test_two_shift_enters_in_a_row_inside_a_callout_stay_inside_the_island():
+    md = tiptap_to_markdown(_doc(
+        {"type": "callout", "attrs": {"emoji": "!"}, "content": [
+            {"type": "paragraph", "content": [
+                {"type": "text", "text": "range"},
+                {"type": "hardBreak"}, {"type": "hardBreak"},
+                {"type": "text", "text": "$5-$10 now"}]}]}))
+    island = _island(md, "<aside>", "</aside>")
+    _assert_one_block(island)
+    assert island == "<aside>\n! range\n<br>\n$5-$10 now\n</aside>"
+
+
+def test_a_code_block_with_a_blank_line_inside_a_toggle_stays_inside_the_island():
+    md = tiptap_to_markdown(_doc(
+        {"type": "toggle", "attrs": {"open": True}, "content": [
+            {"type": "toggleSummary", "content": [{"type": "text", "text": "The math"}]},
+            {"type": "toggleContent", "content": [
+                _code("total = $7\n\nprint(total)", "python")]}]}))
+    island = _island(md, "<details>", "</details>")
+    _assert_one_block(island)
+    assert "total = $7\n<br>\nprint(total)" in island
+
+
+def test_a_blank_line_in_a_toggle_summary_and_a_whitespace_only_line_are_both_closed():
+    md = tiptap_to_markdown(_doc(
+        {"type": "toggle", "attrs": {"open": True}, "content": [
+            {"type": "toggleSummary", "content": [
+                {"type": "text", "text": "a"}, {"type": "hardBreak"}, {"type": "hardBreak"},
+                {"type": "text", "text": "b $1"}]},
+            {"type": "toggleContent", "content": [_code("x = 1\n   \ny = $2", "python")]}]}))
+    _assert_one_block(_island(md, "<details>", "</details>"))
 
 
 # ── Wave 5: highlight exports as ==text==; a text colour exports as its words ─

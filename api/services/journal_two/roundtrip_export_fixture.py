@@ -75,16 +75,32 @@ def main() -> None:
              "content": [{"type": "paragraph", "content": [
                  {"type": "text", "text": "Yes "},
                  {"type": "askCitation", "attrs": {"n": 1, "label": "Deck $Q3"}}]}]},
+            # R2-N4: a backslash the member typed before a `$` -- the note
+            # says `cost \$5 and \$6`, and must come back saying exactly that.
+            {"type": "paragraph", "content": [{"type": "text", "text": "cost \\$5 and \\$6"}]},
+            # R2-N1: three things that used to put a BLANK LINE inside a raw
+            # HTML island, ending it early -- an excerpt with an annotation
+            # (this callout), two Shift+Enters in a row (the next one) and a
+            # code block with an empty line (the toggle).
             {"type": "callout", "attrs": {"emoji": "\U0001F4A1"},
              "content": [{"type": "paragraph", "content": [
                  {"type": "text", "text": "a tip worth keeping"}]},
                  {"type": "paragraph", "content": [
-                     {"type": "text", "text": "stop at $42"}]}]},
+                     {"type": "text", "text": "stop at $42"}]},
+                 {"type": "documentExcerpt", "attrs": {"excerptId": "ex1"}}]},
+            {"type": "callout", "attrs": {"emoji": "\U0001F4CC"},
+             "content": [{"type": "paragraph", "content": [
+                 {"type": "text", "text": "range"},
+                 {"type": "hardBreak"}, {"type": "hardBreak"},
+                 {"type": "text", "text": "$5-$10 now"}]}]},
             {"type": "toggle", "attrs": {"open": True}, "content": [
                 {"type": "toggleSummary", "content": [
                     {"type": "text", "text": "More detail"}]},
-                {"type": "toggleContent", "content": [{"type": "paragraph", "content": [
-                    {"type": "text", "text": "hidden until expanded"}]}]},
+                {"type": "toggleContent", "content": [
+                    {"type": "paragraph", "content": [
+                        {"type": "text", "text": "hidden until expanded"}]},
+                    {"type": "codeBlock", "attrs": {"language": "python"}, "content": [
+                        {"type": "text", "text": "total = $7\n\nprint(total)"}]}]},
             ]},
         ],
     }
@@ -103,6 +119,20 @@ def main() -> None:
             "/api/j2/notes/attachments/u1/n1/hero/cover.png",
             "2024-03-04T10:00:00Z", "2026-08-31T12:00:00Z",
         ),
+    )
+    # The excerpt the first callout cites: a document and one excerpt with an
+    # annotation (the annotation is what writes the blank line).
+    conn.execute(
+        "INSERT INTO j2_note_documents (id, user_id, note_id, attachment_url, name, status, created_at)"
+        " VALUES (?,?,?,?,?,?,?)",
+        ("doc1", "u1", "n1", "/api/j2/notes/attachments/u1/n1/file/report.pdf", "Q3 deck.pdf",
+         "ready", "2026-08-31T12:00:00Z"),
+    )
+    conn.execute(
+        "INSERT INTO j2_note_excerpts (id, user_id, note_id, document_id, page_number,"
+        " captured_text, annotation, created_at) VALUES (?,?,?,?,?,?,?,?)",
+        ("ex1", "u1", "n1", "doc1", 3, "Guidance $5.2B-$6.1B for the year", "stop $4 then $6",
+         "2026-08-31T12:00:00Z"),
     )
     conn.commit()
 

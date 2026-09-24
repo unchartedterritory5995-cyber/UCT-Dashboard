@@ -383,11 +383,45 @@ def _raw_dollars():
         _ESCAPE_PROSE_DOLLARS.reset(token)
 
 
+# A run of backslashes the member typed right before a `$` (R2-N4).
+_BACKSLASHES_BEFORE_DOLLAR = re.compile(r"(\\+)(?=\$)")
+
+
 def _prose(text: Any) -> str:
     """Member text written into Markdown PROSE: every `$` becomes `\\$` (N4),
-    unless this walk is inside a raw island (`_raw_dollars`)."""
+    unless this walk is inside a raw island (`_raw_dollars`).
+
+    ⛔ And a backslash the member typed right before a `$` is doubled first
+    (re-review R2-N4). Our escape puts a `\\` in front of the `$`, which is
+    ASCII punctuation, so CommonMark would read the member's own backslash as
+    ESCAPING ours -- `cost \\$5` exported as `cost \\\\$5` reads as a literal
+    backslash and a LIVE `$`, which a math reader pairs. Doubled, it is
+    `cost \\\\\\$5`: an escaped backslash, then an escaped dollar, and the note
+    re-imports as `cost \\$5`. A backslash before anything else is left as it
+    was (a Windows path, `C:\\Users`, is untouched)."""
     text = "" if text is None else str(text)
-    return text.replace("$", "\\$") if _ESCAPE_PROSE_DOLLARS.get() else text
+    if not _ESCAPE_PROSE_DOLLARS.get():
+        return text
+    text = _BACKSLASHES_BEFORE_DOLLAR.sub(lambda m: m.group(1) * 2, text)
+    return text.replace("$", "\\$")
+
+
+def _html_island(html: str) -> str:
+    """A raw-HTML island (a callout's `<aside>`, a toggle's `<details>`) as ONE
+    CommonMark HTML block (re-review R2-N1).
+
+    `<aside>` and `<details>` open a type-6 HTML block, which ENDS AT THE FIRST
+    BLANK LINE. The writers below join their children with a single newline,
+    but a child can still carry a blank line of its own: an excerpt's
+    annotation (`lines.append("")`), two Shift+Enters in a row, a code block
+    with an empty line. Everything after it was then parsed as Markdown --
+    with its `$` raw, because `_raw_dollars` had kept it raw for the island it
+    was supposed to be in -- and a math reader paired them.
+
+    So no line inside the island may be blank: each one becomes `<br>`, which
+    keeps the block open and still reads as a line break inside the HTML.
+    (CommonMark's blank line is spaces and tabs only.)"""
+    return "\n".join("<br>" if re.fullmatch(r"[ \t]*", line) else line for line in html.split("\n"))
 
 
 def _text_with_marks(node: dict[str, Any], resolver=None) -> str:
@@ -660,7 +694,7 @@ def _block(node: dict[str, Any], resolver=None) -> str:
         with _raw_dollars():  # an HTML island (N4 above)
             inner = "\n".join(b for b in (_block(c, resolver) for c in (kids or [])) if b != "")
         first_line = f"{emoji} {inner}" if inner else emoji
-        return f"<aside>\n{first_line}\n</aside>"
+        return _html_island(f"<aside>\n{first_line}\n</aside>")
     if ntype == "toggle":
         # content = [toggleSummary, toggleContent] by schema, but this reads
         # them by NAME rather than by position -- never raise on a
@@ -676,7 +710,7 @@ def _block(node: dict[str, Any], resolver=None) -> str:
         # Same CommonMark type-6-HTML-block constraint as callout above:
         # `<details>`/`<summary>` are BOTH in the html-block tag list, so no
         # blank line may appear between the opening and closing tags.
-        return f"<details>\n<summary>{summary_text}</summary>\n{body}\n</details>"
+        return _html_island(f"<details>\n<summary>{summary_text}</summary>\n{body}\n</details>")
     if ntype == "toggleSummary":
         return _inline(kids, resolver)
     if ntype == "toggleContent":
