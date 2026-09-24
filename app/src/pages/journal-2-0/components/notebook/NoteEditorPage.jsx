@@ -62,6 +62,7 @@ import UnlinkedMentions from './UnlinkedMentions'
 import { TextSelection } from '@tiptap/pm/state'
 import { taskIndexFromParams, findTaskItemPos } from '../../lib/noteTasks'
 import { NOTEBOOK_EVENTS, startNoteOpenTimer, trackNotebookEvent } from '../../lib/notebookTelemetry'
+import { noteIsLocked, setNoteLock } from '../../lib/lockedNote'
 import { textColorClass } from '../../lib/textColor'
 import NoteHistoryPanel from './NoteHistoryPanel'
 import NoteBacklinksSection from './NoteBacklinksSection'
@@ -369,6 +370,15 @@ export default function NoteEditorPage({ noteId, onBack, showBack = true, onTitl
   const { user } = useAuth()
   const [saveStatus, setSaveStatus] = useState('saved')
   const [saveErrorMsg, setSaveErrorMsg] = useState('')
+  // Wave 6 item 8 — a LOCKED note (lane E's `locked` field; lib/lockedNote.js).
+  // `unlockedHere` covers the moment between Unlock landing and the refreshed
+  // note saying so; once the server copy reads unlocked it is cleared, so a
+  // later lock (another tab, the note menu) applies again.
+  const [unlockedHere, setUnlockedHere] = useState(false)
+  const [unlockState, setUnlockState] = useState(null) // null | 'busy' | 'failed'
+  const locked = noteIsLocked(note) && !unlockedHere
+  useEffect(() => { setUnlockedHere(false); setUnlockState(null) }, [noteId])
+  useEffect(() => { if (note && !noteIsLocked(note)) setUnlockedHere(false) }, [note])
   // Wave Q1: the durable local working copy. ⛔ The account is part of the
   // DATABASE NAME, not a predicate — a wrong name yields no data, a forgotten
   // filter yields another member's research. It degrades to `supported: false`
@@ -1599,6 +1609,28 @@ export default function NoteEditorPage({ noteId, onBack, showBack = true, onTitl
     return () => { editor.off('transaction', update); editor.off('selectionUpdate', update) }
   }, [editor])
 
+  // The lock IS `editable`: every surface that edits the note asks
+  // `editor.isEditable` (lib/lockedNote.js says why it is not a filter).
+  // `false`: turning it on or off is not an edit, so no autosave.
+  useEffect(() => {
+    if (!editor || editor.isDestroyed || editor.isEditable === !locked) return
+    editor.setEditable(!locked, false)
+    bumpToolbar()
+  }, [editor, locked])
+
+  const unlockNote = async () => {
+    setUnlockState('busy')
+    try {
+      await setNoteLock(noteId, false)
+    } catch {
+      setUnlockState('failed')
+      return
+    }
+    setUnlockedHere(true)
+    setUnlockState(null)
+    refresh?.()
+  }
+
   // Push fresh body into editor when note loads (one-shot per note).
   // Depends on `editor` (not just note.id) so it re-runs once the editor
   // instance is actually ready. When a content-bearing note opens, the editor
@@ -2618,6 +2650,9 @@ export default function NoteEditorPage({ noteId, onBack, showBack = true, onTitl
           data-export-exclude keeps the row out of the PNG rasterization. */}
       {editor && (
         <div className={styles.toolbarRow} role="toolbar" aria-label="Editor toolbar" data-export-exclude>
+          {/* Wave 6: a locked note shows no editing controls at all -- a
+              control that would do nothing is hidden, never silent. */}
+          {!locked && (<>
             <select
               className={styles.fontSelect}
               value={editor.getAttributes('textStyle').fontFamily || ''}
@@ -2747,6 +2782,7 @@ export default function NoteEditorPage({ noteId, onBack, showBack = true, onTitl
           >
             ⊞ Insert
           </button>
+          </>)}
           {/* Wave 5: the note's outline (every heading, click to jump) -- a
               panel beside the note on desktop, a sheet on touch. It shares
               the palette's corner, so opening one closes the other. */}
@@ -2792,7 +2828,7 @@ export default function NoteEditorPage({ noteId, onBack, showBack = true, onTitl
           so it follows the pinned chrome regardless of how many rows the
           header wraps to (review finding: a fixed viewport offset here
           duplicated the chrome height by hand). */}
-      {paletteOpen && editor && (
+      {paletteOpen && editor && !locked && (
         <WidgetPalette editor={editor} onClose={() => setPaletteOpen(false)} />
       )}
       {outlineOpen && editor && (
@@ -2809,6 +2845,23 @@ export default function NoteEditorPage({ noteId, onBack, showBack = true, onTitl
           <div className={styles.railLeft}><NoteRailLeft insights={insights} /></div>
         )}
         <div className={styles.column} ref={columnRef} data-print-root>
+        {locked && (
+          <div className={styles.lockBanner} role="status" data-export-exclude>
+            <UIcon name="lock" size={14} gold={false} style={{ verticalAlign: '-2px' }} />
+            <span>Locked — editing is off</span>
+            {unlockState === 'failed' && (
+              <span className={styles.lockBannerError}>Couldn&apos;t unlock. Try again.</span>
+            )}
+            <button
+              type="button"
+              className={styles.lockBannerBtn}
+              onClick={unlockNote}
+              disabled={unlockState === 'busy'}
+            >
+              {unlockState === 'busy' ? 'Unlocking…' : 'Unlock'}
+            </button>
+          </div>
+        )}
         {ytId ? (
           <>
             <NoteVideoHero youtubeId={ytId} watchUrl={note.heroImageUrl} />
@@ -2845,6 +2898,7 @@ export default function NoteEditorPage({ noteId, onBack, showBack = true, onTitl
             onTitleChange?.(noteId, v)
           }}
           placeholder="Title"
+          readOnly={locked}
         />
         <input
           className={styles.subtitleInput}
@@ -2856,6 +2910,7 @@ export default function NoteEditorPage({ noteId, onBack, showBack = true, onTitl
             scheduleAutosave()
           }}
           placeholder="Subtitle (optional)"
+          readOnly={locked}
         />
 
         {/* Wave E: below title/subtitle, above the body (checkpoint §21) --
@@ -2875,7 +2930,10 @@ export default function NoteEditorPage({ noteId, onBack, showBack = true, onTitl
                        anchorReviewId={reviewAnchor?.reviewId || null}
                        onReviewAnchorConsumed={clearReviewParam} />
 
-        <CaptureInboxTray editor={editor} onPlaced={(id) => pendingInboxConsumeRef.current.add(id)} />
+        {/* A locked note takes no captures: they wait in the inbox until Unlock. */}
+        {!locked && (
+          <CaptureInboxTray editor={editor} onPlaced={(id) => pendingInboxConsumeRef.current.add(id)} />
+        )}
 
         {findOpen && (
           <NoteFindBar

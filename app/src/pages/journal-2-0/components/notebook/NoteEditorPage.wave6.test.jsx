@@ -251,3 +251,82 @@ describe('NoteEditorPage — lane F wiring (wave 6 item 7)', () => {
     expect(global.fetch.mock.calls.some(([u]) => u === '/api/j2/notes/n1/unlinked-mentions')).toBe(true)
   })
 })
+
+// Lane E's `locked` field and PATCH /api/j2/notes/{id}/lock were NOT on this
+// branch when this was built: these rails run against the contract as written
+// in wave6-E-brief.md (a `locked: true` payload; `{locked}` PATCHed).
+describe('NoteEditorPage — a locked note (wave 6 item 8)', () => {
+  const lockCalls = () => global.fetch.mock.calls.filter(([u, o]) => u === '/api/j2/notes/n1/lock' && o?.method === 'PATCH')
+
+  it('opens read-only with the banner, read-only title and no editing controls; Outline stays', async () => {
+    NOTE = { ...baseNote(), locked: true }
+    const editor = await renderEditor()
+    expect(screen.getByText('Locked — editing is off').closest('[role="status"]')).toBeTruthy()
+    expect(editor.isEditable).toBe(false)
+    expect(screen.getByPlaceholderText('Title').readOnly).toBe(true)
+    expect(screen.getByPlaceholderText('Subtitle (optional)').readOnly).toBe(true)
+    expect(screen.queryByLabelText('Font family')).toBeNull()
+    expect(screen.queryByLabelText('Insert widget')).toBeNull()
+    expect(screen.getByLabelText('Outline')).toBeTruthy()
+  })
+
+  it('Unlock PATCHes {locked:false}, and the note is editable at once', async () => {
+    NOTE = { ...baseNote(), locked: true }
+    const editor = await renderEditor()
+    fireEvent.click(screen.getByRole('button', { name: 'Unlock' }))
+    await waitFor(() => expect(screen.queryByText('Locked — editing is off')).toBeNull())
+    expect(lockCalls()).toHaveLength(1)
+    expect(JSON.parse(lockCalls()[0][1].body)).toEqual({ locked: false })
+    expect(editor.isEditable).toBe(true)
+    expect(screen.getByPlaceholderText('Title').readOnly).toBe(false)
+    expect(screen.getByLabelText('Font family')).toBeTruthy()
+  })
+
+  it('an Unlock the server refuses says so and the note STAYS locked', async () => {
+    NOTE = { ...baseNote(), locked: true }
+    global.fetch = vi.fn((url, o) => Promise.resolve(url === '/api/j2/notes/n1/lock' && o?.method === 'PATCH'
+      ? { ok: false, status: 500, json: () => Promise.resolve({}) }
+      : { ok: true, json: () => Promise.resolve({}) }))
+    const editor = await renderEditor()
+    fireEvent.click(screen.getByRole('button', { name: 'Unlock' }))
+    expect(await screen.findByText("Couldn't unlock. Try again.")).toBeTruthy()
+    expect(editor.isEditable).toBe(false)
+    expect(screen.getByText('Locked — editing is off')).toBeTruthy()
+  })
+
+  it('CONTROL: a note with no lock (or locked:false) is editable, with no banner', async () => {
+    NOTE = { ...baseNote(), locked: false }
+    const editor = await renderEditor()
+    expect(editor.isEditable).toBe(true)
+    expect(screen.queryByText('Locked — editing is off')).toBeNull()
+  })
+
+  it('after an Unlock the server confirmed, a LATER lock applies again (the local unlock does not outlive it)', async () => {
+    NOTE = { ...baseNote(), locked: true }
+    const NoteEditorPage = (await import('./NoteEditorPage')).default
+    const ui = () => <MemoryRouter><NoteEditorPage noteId="n1" onBack={vi.fn()} showBack /></MemoryRouter>
+    const { rerender } = render(ui())
+    await screen.findByPlaceholderText('Title')
+    const editor = await waitFor(() => { const el = document.querySelector('.ProseMirror'); if (!el?.editor) throw new Error('x'); return el.editor })
+    fireEvent.click(screen.getByRole('button', { name: 'Unlock' }))
+    await waitFor(() => expect(editor.isEditable).toBe(true))
+    NOTE = { ...NOTE, locked: false }
+    rerender(ui())
+    NOTE = { ...NOTE, locked: true }
+    rerender(ui())
+    await waitFor(() => expect(editor.isEditable).toBe(false))
+  })
+
+  it('a lock that arrives while the note is open (a refresh) turns editing off', async () => {
+    const NoteEditorPage = (await import('./NoteEditorPage')).default
+    const ui = () => <MemoryRouter><NoteEditorPage noteId="n1" onBack={vi.fn()} showBack /></MemoryRouter>
+    const { rerender } = render(ui())
+    await screen.findByPlaceholderText('Title')
+    const editor = await waitFor(() => { const el = document.querySelector('.ProseMirror'); if (!el?.editor) throw new Error('x'); return el.editor })
+    expect(editor.isEditable).toBe(true)
+    NOTE = { ...NOTE, locked: true }
+    rerender(ui())
+    await waitFor(() => expect(editor.isEditable).toBe(false))
+    expect(screen.getByText('Locked — editing is off')).toBeTruthy()
+  })
+})
