@@ -41,8 +41,9 @@ import { usableBaseline, isUsableBaseline } from '../../lib/offline/baseline'
 import { settleNoteWrite } from '../../lib/offline/settleNoteWrite'
 import { sameAuthoredContent } from '../../lib/offline/recoverLocalState'
 import {
-  BODY_REWRITE, appendedServerNodes, classifyServerChange, missingServerNodes, nodeKeyOf,
+  appendedServerNodes, missingServerNodes, nodeKeyOf,
 } from '../../lib/offline/serverChange'
+import { ownerReconcilePlan, LANDED, FORK } from '../../lib/offline/ownerReconcile'
 import { stampChartSettings } from '../../lib/widgetEmbedCore'
 import WidgetPalette from './WidgetPalette'
 import { sharedNoteUrl } from '../../lib/noteShareLink'
@@ -1784,17 +1785,27 @@ export default function NoteEditorPage({ noteId, onBack, showBack = true, onTitl
    * merge is safe or preserves both versions.
    *
    * Returns true when the caller may retry, false when the conflict has been
-   * resolved by forking (and the retry must NOT happen).
+   * resolved by forking (and the retry must NOT happen), and `{ landed: fresh }`
+   * when there was no conflict to resolve: the server already holds exactly what
+   * the save sent (`sent`), so the caller settles it as the landing it is.
    */
-  const reconcileConflict = async () => {
+  const reconcileConflict = async (sent) => {
     const res = await fetch(`/api/j2/notes/${noteId}`, { credentials: 'include' })
     if (!res.ok) throw new Error(`${res.status}`)
     const fresh = (await res.json())?.note
     if (!fresh) throw new Error('empty note on reconcile')
     const base = lastSavedRef.current
 
-    const shape = classifyServerChange(fresh, base)
-    if (shape !== BODY_REWRITE) {
+    // ⭐⭐ D3b fix round 1, residual (a) — ONE authority, `ownerReconcilePlan`,
+    // which the property rail's model of this function asks too. ⚰️ A sweep whose
+    // PUT was already in flight when this note opened lands the SAME queued words
+    // this editor adopted; our own send on their base then 409s, and classifying
+    // the server's copy against that base read the member's own words as the
+    // change and forked the note with nobody else writing. When the server holds
+    // exactly what we sent, nothing conflicted: it is settled as a landing.
+    const { plan } = ownerReconcilePlan({ fresh, base, sent })
+    if (plan === LANDED) return { landed: fresh }
+    if (plan !== FORK) {
       // ⛔ METADATA_ONLY appends nothing — the body never moved, so there is
       // nothing to merge and the retry carries the member's words unchanged.
       // The baseline still has to advance, or the retry 409s again for ever.
@@ -1903,8 +1914,21 @@ export default function NoteEditorPage({ noteId, onBack, showBack = true, onTitl
 
     const bodyJson = editor.getJSON()
     const last = lastSavedRef.current
-    const titleChanged = title !== last.title
-    const subtitleChanged = (subtitle || '') !== (last.subtitle || '')
+    // ⛔⛔ D3b fix round 1, residual (b) — A BASE WITH NO BODY PROVES NOTHING
+    // ABOUT THE TITLE EITHER, so the title and subtitle are sent as they stand.
+    // ⚰️ A revision-only base (`baseOfRecovered`: the revision the words were
+    // written on, content unknown) reads `''` for both, so a Restore whose copy
+    // CLEARED the title sent no title at all; with the server unmoved the PUT was
+    // a 200 and the old title stayed — the member's clear was silently dropped.
+    // ⭐ Keyed on the missing BODY, not on a flag, because the flag cannot survive
+    // the durable store: `snapshotOfServerCopy` (frozen) keeps no `bodyUnknown`,
+    // so the next session rebuilds the same base without it. And it is harmless
+    // wherever the server's body really is null: under compare-and-set, sending
+    // the fields as they stand writes nothing but what the member holds, on the
+    // revision the base names. The body is always sent against a null one anyway.
+    const baseUnknown = last.bodyJson == null
+    const titleChanged = baseUnknown || title !== last.title
+    const subtitleChanged = baseUnknown || (subtitle || '') !== (last.subtitle || '')
     const bodyChanged = JSON.stringify(bodyJson) !== JSON.stringify(last.bodyJson)
     if (!titleChanged && !subtitleChanged && !bodyChanged) {
       setSaveStatus('saved')
@@ -1963,7 +1987,33 @@ export default function NoteEditorPage({ noteId, onBack, showBack = true, onTitl
     // between the two and leave it up for the rest of the session.
     saveInFlightRef.current = true
     try {
-      const saved = await update(patch)
+      let saved
+      try {
+        saved = await update(patch)
+      } catch (e) {
+        if (e?.status !== 409 || conflictRetriedRef.current) throw e
+        conflictRetriedRef.current = true
+        let outcome
+        try {
+          outcome = await reconcileConflict({ title, subtitle, bodyJson })
+        } catch (re) {
+          console.warn('conflict reconcile failed', re)
+          throw e          // surfaces as a non-retryable save error below
+        }
+        // ⭐⭐ D3b fix round 1, residual (a) — THE SERVER ALREADY HOLDS EXACTLY
+        // WHAT THIS PUT CARRIED: it landed, one revision later (another tab's
+        // sweep sent the same queued words). Settled below by the SAME lines as a
+        // 200 — one settle for a landing, never a second copy of it.
+        if (outcome?.landed) {
+          saved = outcome.landed
+        } else {
+          // ⛔ A FORK IS A RESOLUTION, NOT A REASON TO TRY AGAIN. Retrying
+          // after one would push the local document over the server version
+          // the fork exists to protect — the exact overwrite this gate closes.
+          if (outcome) retryTimerRef.current = setTimeout(() => commitSaveRef.current(), 50)
+          return
+        }
+      }
       lastSavedRef.current = {
         title, subtitle, bodyJson,
         updatedAt: usableBaseline(saved?.updatedAt, lastSavedRef.current.updatedAt),
@@ -2003,21 +2053,9 @@ export default function NoteEditorPage({ noteId, onBack, showBack = true, onTitl
       clearDraftLocally()
     } catch (e) {
       const status = e?.status
-      if (status === 409 && !conflictRetriedRef.current) {
-        conflictRetriedRef.current = true
-        try {
-          const mayRetry = await reconcileConflict()
-          // ⛔ A FORK IS A RESOLUTION, NOT A REASON TO TRY AGAIN. Retrying
-          // after one would push the local document over the server version
-          // the fork exists to protect — the exact overwrite this gate closes.
-          if (!mayRetry) return
-          retryTimerRef.current = setTimeout(() => commitSaveRef.current(), 50)
-          return
-        } catch (re) {
-          console.warn('conflict reconcile failed', re)
-          // fall through: surfaces as a non-retryable save error below
-        }
-      }
+      // A 409 reaches here only when it was not reconciled above: a second one
+      // in this conflict budget, or a reconcile that failed — both surface as a
+      // non-retryable save error below.
       // No status = network/fetch error; 5xx = backend down or restarting.
       // Both are worth retrying. 4xx = real client/validation error — won't
       // get better on retry, so surface immediately.

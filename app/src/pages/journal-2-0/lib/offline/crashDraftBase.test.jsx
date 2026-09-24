@@ -99,6 +99,45 @@ describe('baseOfRecovered — a crash draft that won', () => {
   })
 })
 
+describe('⭐ D3b fix round 1 (review N-1) — which revision a refused record base falls back to, in every shape', () => {
+  // `oldestRevision`'s comment said a pair that cannot be ordered is "not guessed
+  // between" while the code chose. They now say the same thing, and each shape is
+  // pinned: a record with NO last-known copy, so only the revision can be offered.
+  const recordAt = (baseUpdatedAt) => ({
+    noteId: 'n1', title: 'Thesis', subtitle: '', bodyJson: doc('online', 'queued'), dirty: 1,
+    generation: 2, sessionId: 's', localSavedAt: 10, baseUpdatedAt,
+  })
+  const entryAt = (baseUpdatedAt) => ({
+    mutationId: 'note:n1', noteId: 'n1', kind: 'note-update',
+    patch: { title: 'Thesis', subtitle: '', bodyJson: doc('online', 'queued') }, baseUpdatedAt,
+  })
+  const baseFor = (recAt, entAt) => {
+    const record = recordAt(recAt)
+    return baseOfRecovered({ decision: decideFor(OTHER_DEVICE, { record, draft: null }), record, entry: entryAt(entAt) })
+  }
+
+  it('both parse ⇒ the OLDER of the two (a send on it can only 409 more often)', () => {
+    expect(baseFor(T1, T0)).toEqual(REVISION_ONLY(T0))
+    expect(baseFor(T0, T1)).toEqual(REVISION_ONLY(T0))
+  })
+
+  it('⛔ a MIXED pair — the ENTRY unparseable ⇒ the record’s own revision, the one real evidence', () => {
+    expect(baseFor(T0, 'not-a-revision')).toEqual(REVISION_ONLY(T0))
+  })
+
+  it('⛔ a MIXED pair — the RECORD unparseable ⇒ the entry’s, the revision the sweep itself would send these words on', () => {
+    expect(baseFor('garbled-revision', T1)).toEqual(REVISION_ONLY(T1))
+  })
+
+  it('a lone usable revision that does not parse ⇒ itself (what a direct PUT would have sent)', () => {
+    expect(baseFor('garbled-revision', 'garbled-revision')).toEqual(REVISION_ONLY('garbled-revision'))
+  })
+
+  it('⛔ two that do not parse ⇒ nothing to order them by ⇒ null, and Restore keeps its old path', () => {
+    expect(baseFor('garbled-one', 'garbled-two')).toBeNull()
+  })
+})
+
 describe('⭐⭐ a base known only by its revision can only FORK — through the drain’s own classifier', () => {
   // The editor's reconcile classifies the server's copy against the base it
   // saved on. Every server shape a moved note can have must read BODY_REWRITE

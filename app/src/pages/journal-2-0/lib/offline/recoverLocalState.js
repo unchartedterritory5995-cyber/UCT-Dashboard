@@ -335,11 +335,47 @@ function revisionOnlyBase(at) {
   return at ? { title: '', subtitle: '', bodyJson: null, updatedAt: at, bodyUnknown: true } : null
 }
 
+/**
+ * ⭐⭐ MAY A LAST-KNOWN SERVER COPY AT `baseAt` STAND AS THE BASE OF WORDS QUEUED
+ * AT `entryAt`? ONE authority, asked by `baseOfRecovered` (review N4, fix rounds
+ * 1-3) and — since D3b fix round 1, residual (c) — by the drain's
+ * `classifiableBase`, so recovery and the sweep cannot disagree about which base
+ * is poison.
+ *
+ * Only a copy at EXACTLY the entry's revision, or one PROVABLY older (parsed,
+ * `isSupersededBaseline(baseAt, entryAt)`), may. A NEWER copy may not: a record
+ * settled before A-1 carries `acked@landed`, a copy that already holds a door's
+ * appended block, while its entry sits on the older revision the words were
+ * written on — diffing against it reads the block as "no change". A copy with no
+ * revision, or one that cannot be ordered, may not either: unknown is never a
+ * licence to rebase. ⭐ An OLDER copy is legitimate and can only see MORE change.
+ */
+export function baseMayStandFor(baseAt, entryAt) {
+  const at = usableBaseline(baseAt)
+  const want = usableBaseline(entryAt)
+  if (!at || !want) return false
+  // "the base is older than the entry" is `isSupersededBaseline(base, entry)`.
+  return at === want || isSupersededBaseline(at, want)
+}
+
 /** The OLDEST revision among the candidates, or null. Older is the safe
  *  direction here: a send on an older revision can only 409 more often.
- *  ⛔ Ordered PARSED; a lone usable candidate that does not parse is still the
- *  only revision known (it is what a direct PUT would have sent), but two that
- *  cannot be ordered are not guessed between. */
+ *  ⛔ Ordered PARSED, through `isSupersededBaseline`. What each shape answers
+ *  (D3b fix round 1, review N-1 — this comment used to say a pair that cannot be
+ *  ordered is "not guessed between", while the code chose; now they agree):
+ *   · every candidate parses → the oldest;
+ *   · a MIXED pair (one parses, one does not) → the one that parses. ⭐ This is
+ *     the safe answer, not a convenience: the entry and the record are written
+ *     together, so a mixed pair means one of them is corrupt, and the parseable
+ *     one is either the record's own revision (never newer than its entry in any
+ *     shape the product writes) or the entry's (the revision the sweep itself
+ *     would send these words on). ⛔ Null would NOT be safer: it sends Restore
+ *     back down the no-known-base path D3b closed — a direct PUT that 409s into
+ *     an error, the server's current revision, and a keystroke that overwrites
+ *     another device;
+ *   · a lone usable candidate that does not parse → itself, the only revision
+ *     known (what a direct PUT would have sent);
+ *   · two or more that do not parse → null: nothing to order them by. */
 function oldestRevision(...candidates) {
   const usable = [...new Set(candidates.map((c) => usableBaseline(c)).filter(Boolean))]
   const parsed = usable.filter((at) => Number.isFinite(Date.parse(at)))
@@ -422,9 +458,7 @@ export function baseOfRecovered({
   if (record?.dirty && sameAuthoredContent(decision.state, record)) {
     const base = lastKnownServerCopy(record)
     const at = usableBaseline(base?.updatedAt)
-    const entryAt = entry ? usableBaseline(entry.baseUpdatedAt) : null
-    // "the base is older than the entry" is `isSupersededBaseline(base, entry)`.
-    if (base && at && (!entry || at === entryAt || isSupersededBaseline(at, entryAt))) {
+    if (base && at && (!entry || baseMayStandFor(at, entry.baseUpdatedAt))) {
       return { ...authored(base), updatedAt: at }
     }
     return revisionOnlyBase(oldestRevision(entry?.baseUpdatedAt, record.baseUpdatedAt))

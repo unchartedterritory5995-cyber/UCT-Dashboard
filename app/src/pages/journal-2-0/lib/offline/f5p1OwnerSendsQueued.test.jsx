@@ -81,6 +81,9 @@ const update = vi.fn(async (patch) => {
   }
   if (patch.bodyJson) server.body = patch.bodyJson
   if ('title' in patch) server.title = patch.title
+  // ⭐ D3b fix round 1 (b): the real `update_note` writes the subtitle it is sent,
+  // so a fake that ignored it could not tell a cleared subtitle from a dropped one.
+  if ('subtitle' in patch) server.subtitle = patch.subtitle ?? ''
   server.stamp()
   return server.note()
 })
@@ -169,18 +172,25 @@ afterEach(() => {
 })
 
 /** The member typed offline on the note, left it, and the queue holds their words. */
-async function queuedWhileAway({ permanent = false, serverBase = null, baseUpdatedAt = T0 } = {}) {
+async function queuedWhileAway({
+  permanent = false, serverBase = null, baseUpdatedAt = T0,
+  // ⭐ D3b fix round 1 (b): the words' own title/subtitle, and a record with NO
+  // last-known server copy (the shape whose Restore base is revision-only).
+  title = 'Thesis', subtitle = '', withServerBase = true,
+} = {}) {
   factory.open(ACCOUNT_DB)
   await act(async () => { await settleIdb(2) })
   const store = factory.databases.get(ACCOUNT_DB)
   store.seed('notes', {
-    noteId: 'n1', title: 'Thesis', subtitle: '', bodyJson: MINE, dirty: 1, generation: 5,
+    noteId: 'n1', title, subtitle, bodyJson: MINE, dirty: 1, generation: 5,
     sessionId: 's-away', localSavedAt: 1000, baseUpdatedAt,
-    serverBase: serverBase || { title: 'Thesis', subtitle: '', bodyJson: doc(ONLINE), updatedAt: T0 },
+    ...(withServerBase
+      ? { serverBase: serverBase || { title: 'Thesis', subtitle: '', bodyJson: doc(ONLINE), updatedAt: T0 } }
+      : {}),
   })
   store.seed('outbox', {
     mutationId: 'note:n1', noteId: 'n1', kind: 'note-update',
-    patch: { title: 'Thesis', subtitle: '', bodyJson: MINE },
+    patch: { title, subtitle, bodyJson: MINE },
     baseUpdatedAt, generation: 5, sessionId: 's-away', queuedAt: 1000,
     ...(permanent ? { permanent: true, lastError: 'gone', lastStatus: 404 } : {}),
   })
@@ -740,3 +750,98 @@ function holdNoteReads() {
   }
   return () => { store.transaction = orig; release() }
 }
+
+/**
+ * ⭐⭐ D3b FIX ROUND 1 (review `wave6-D3b-review.md`: residuals a and b), on the
+ * REAL editor. `docs/notebook/f5-fixes-2026-09-23.md` §G.
+ */
+describe('D3b fix round 1 — a sweep PUT in flight as the note opens (a); a cleared title on a revision-only Restore (b)', () => {
+  it('⛔⛔ (a) another tab’s sweep lands the SAME queued words while this editor opens: its own send 409s — no fork, the queue settles', async () => {
+    // The sweep passed its last owner check before this editor existed, so the
+    // lock could not stop it. Its PUT lands the words; the editor, which adopted
+    // those same words on the revision they were written on, then sends them too.
+    server = makeServer({ body: doc(ONLINE), updatedAt: T0 })
+    await queuedWhileAway()
+    const release = holdRecovery()
+    await returnToTheNote()
+    // …the other tab's PUT lands exactly what is queued, one revision on.
+    server.body = outbox()[0].patch.bodyJson
+    server.stamp()
+    release()
+    await sit(12)
+    expect(server.forks, 'the member’s note was forked with nobody else writing').toHaveLength(0)
+    expect(serverText()).toContain(SENTENCE)
+    expect(server.puts[0]?.baseUpdatedAt, 'precondition: the owner’s own send went out on the words’ base and 409’d').toBe(T0)
+    expect(outbox(), 'a landing leaves nothing queued').toHaveLength(0)
+    expect(record()?.dirty).toBe(0)
+    expect(screen.queryByText(/Unsaved changes from a previous session/i)).toBeNull()
+    expect(sweepSend).not.toHaveBeenCalled()
+  })
+
+  it('⭐ (a) and a keystroke typed after the landing still goes out, on the server’s revision — nothing is swallowed by “caught up”', async () => {
+    server = makeServer({ body: doc(ONLINE), updatedAt: T0 })
+    await queuedWhileAway()
+    const release = holdRecovery()
+    await returnToTheNote()
+    server.body = outbox()[0].patch.bodyJson
+    server.stamp()
+    release()
+    await sit(12)
+    expect(server.forks).toHaveLength(0)
+    await typeInBody(' K-after-the-landing')
+    await sit(6)
+    expect(serverText(), 'the keystroke after a landed 409 never left').toContain('K-after-the-landing')
+    expect(server.forks).toHaveLength(0)
+  })
+
+  it('⛔ (a) CONTROL — a server that holds DIFFERENT words still forks: “landed” is byte-identical content, nothing looser', async () => {
+    server = makeServer({ body: doc(ONLINE), updatedAt: T0 })
+    await queuedWhileAway()
+    const release = holdRecovery()
+    await returnToTheNote()
+    server.body = doc(ONLINE, para(SENTENCE), para('and one more sentence from another device'))
+    server.stamp()
+    release()
+    await sit(12)
+    expect(server.forks, 'a genuine second writer must still earn a fork').toHaveLength(1)
+    expect(serverText()).toContain('another device')
+  })
+
+  it('⛔⛔ (b) the title CLEARED offline, the tab crashed, Restore with the server unmoved: the cleared title and subtitle LAND', async () => {
+    server = makeServer({ body: doc(ONLINE), updatedAt: T0 })
+    server.subtitle = 'the old subtitle'
+    // No last-known server copy, so the Restore base is revision-only.
+    await queuedWhileAway({ title: '', subtitle: '', withServerBase: false })
+    await returnToTheNoteAndSit()
+    const restore = await screen.findByRole('button', { name: 'Restore' })
+    await act(async () => { fireEvent.click(restore); await settleIdb(6) })
+    await sit(8)
+    expect(serverText()).toContain(SENTENCE)
+    expect(server.title, 'the member’s cleared title was silently dropped — the old one would come back on the next load').toBe('')
+    expect(server.subtitle, 'the cleared subtitle was silently dropped').toBe('')
+    expect(server.forks).toHaveLength(0)
+  })
+
+  it('⛔⛔ (b) the NEXT session: a durable copy whose base has no body (as an offline Restore leaves it) still sends the cleared title', async () => {
+    // `snapshotOfServerCopy` (frozen) keeps no `bodyUnknown`, so the base the
+    // store carries into the next session is a plain copy with a null body — and
+    // `queuedWorkToAdopt` adopts it. Keyed on a flag, the fix would miss this.
+    server = makeServer({ body: doc(ONLINE), updatedAt: T0 })
+    await queuedWhileAway({
+      title: '', subtitle: '',
+      serverBase: { title: '', subtitle: '', bodyJson: null, updatedAt: T0 },
+    })
+    await returnToTheNoteAndSit()
+    expect(serverText()).toContain(SENTENCE)
+    expect(server.title, 'the cleared title was dropped by the next session’s send').toBe('')
+    expect(server.forks).toHaveLength(0)
+  })
+
+  it('⭐ (b) CONTROL — against a KNOWN base an unchanged title is still not re-sent', async () => {
+    server = makeServer({ body: doc(ONLINE), updatedAt: T0 })
+    await queuedWhileAway()
+    await returnToTheNoteAndSit()
+    expect(serverText()).toContain(SENTENCE)
+    expect(server.puts.every((p) => !('title' in p)), 'a known base now re-sends the title on every save').toBe(true)
+  })
+})

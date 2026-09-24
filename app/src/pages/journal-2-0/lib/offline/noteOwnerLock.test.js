@@ -13,14 +13,16 @@
  * `navigator.locks.query()`. The drain is the real `drainOutbox` over the real
  * adapter and an in-memory IndexedDB.
  */
-import { describe, it, expect, beforeEach, vi } from 'vitest'
+import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest'
 import { createFakeDb, settleIdb, installKeyRange } from './__fixtures__/fakeIndexedDb'
 import { createLockManager } from './__fixtures__/fakeWebLocks'
 import { putNoteWithIntent, putMeta, listOutbox } from './notebookDb'
-import { drainOutbox, SENT, SKIPPED } from './outboxDrain'
+import {
+  drainOutbox, summarize, BLOCKED, SENT, SKIPPED,
+} from './outboxDrain'
 import { markerFor, markerKeyFor, landedKeyFor, withLanded, IN_FLIGHT_TTL_MS } from './inFlight'
 import {
-  holdNoteOwnerLock, isNoteOwned, noteOwnerLockName, ownedNoteIds,
+  holdNoteOwnerLock, isNoteOwned, noteOwnerLockName, ownedNoteIds, OWNER_QUERY_TIMEOUT_MS,
 } from './noteOwnerLock'
 
 const doc = (t) => ({ type: 'doc', content: [{ type: 'paragraph', content: [{ type: 'text', text: t }] }] })
@@ -270,5 +272,181 @@ describe('⭐⭐ two tabs — the leader skips the note open in the other tab, a
     expect(noteIsOwned).toHaveBeenCalledTimes(2)
     expect(s.sent, 'sent after the note had been opened in an editor').toEqual([])
     expect(results[0].outcome).toBe(SKIPPED)
+  })
+})
+
+/**
+ * ⭐⭐ D3b FIX ROUND 1 (review `wave6-D3b-review.md`: N-2, N-3, N-5).
+ * `docs/notebook/f5-fixes-2026-09-23.md` §G.
+ */
+describe('⭐⭐ D3b fix round 1 — a frozen tab lets go (N-3); a query that never answers is unknown (N-2); a blocked entry says so (N-5)', () => {
+  afterEach(() => { vi.useRealTimers() })
+
+  /** A never-settling `query()` — the one shape `ownedNoteIds` used to wait on for ever. */
+  const hanging = () => ({ request: () => new Promise(() => {}), query: () => new Promise(() => {}) })
+
+  it('⛔⛔ N-3: a FROZEN tab releases its note — another tab reads it as not owned — and takes it again on resume', async () => {
+    const mgr = createLockManager()
+    const doc = new EventTarget()
+    const release = holdNoteOwnerLock('a1', 'n1', { locks: mgr.client('A'), target: null, doc })
+    await tick()
+    expect(await isNoteOwned('a1', 'n1', { locks: mgr.client('B') })).toBe(true)
+    doc.dispatchEvent(new Event('freeze'))
+    await tick(8)
+    expect(mgr.heldNames(), 'a frozen tab still held its note hostage').toEqual([])
+    expect(await isNoteOwned('a1', 'n1', { locks: mgr.client('B') }), 'the leader must be able to send it').toBe(false)
+    doc.dispatchEvent(new Event('resume'))
+    await tick(8)
+    expect(mgr.heldNames(), 'the resumed tab is the note’s editor again').toEqual([noteOwnerLockName('a1', 'n1')])
+    release()
+    await tick(8)
+    expect(mgr.heldNames()).toEqual([])
+    doc.dispatchEvent(new Event('resume'))          // after release, lifecycle events do nothing
+    await tick(8)
+    expect(mgr.heldNames()).toEqual([])
+  })
+
+  it('⭐ N-3: frozen WHILE QUEUED behind another tab — the queued request is withdrawn, and resume queues it again', async () => {
+    const mgr = createLockManager()
+    const docB = new EventTarget()
+    const releaseA = holdNoteOwnerLock('a1', 'n1', { locks: mgr.client('A'), target: null })
+    const releaseB = holdNoteOwnerLock('a1', 'n1', { locks: mgr.client('B'), target: null, doc: docB })
+    await tick()
+    expect(mgr.pendingNames()).toEqual([noteOwnerLockName('a1', 'n1')])
+    docB.dispatchEvent(new Event('freeze'))
+    await tick(8)
+    expect(mgr.pendingNames(), 'a frozen tab kept its place in the queue').toEqual([])
+    docB.dispatchEvent(new Event('resume'))
+    await tick(8)
+    expect(mgr.pendingNames()).toEqual([noteOwnerLockName('a1', 'n1')])
+    releaseA()
+    releaseB()
+    await tick(8)
+    expect(mgr.heldNames()).toEqual([])
+  })
+
+  it('⭐ N-3: into the back-forward cache and out (pagehide → freeze → resume → pageshow): exactly ONE claim afterwards', async () => {
+    const mgr = createLockManager()
+    const target = new EventTarget()
+    const doc = new EventTarget()
+    const release = holdNoteOwnerLock('a1', 'n1', { locks: mgr.client('A'), target, doc })
+    await tick()
+    target.dispatchEvent(new Event('pagehide'))
+    doc.dispatchEvent(new Event('freeze'))
+    await tick(8)
+    expect(mgr.heldNames()).toEqual([])
+    doc.dispatchEvent(new Event('resume'))
+    const restored = new Event('pageshow')
+    restored.persisted = true
+    target.dispatchEvent(restored)
+    await tick(8)
+    expect(mgr.heldNames(), 'resume and pageshow must not take it twice').toEqual([noteOwnerLockName('a1', 'n1')])
+    expect(mgr.pendingNames()).toEqual([])
+    release()
+    await tick(8)
+    expect(mgr.heldNames()).toEqual([])
+  })
+
+  it('⛔⛔ N-2: a `query()` that NEVER settles answers UNKNOWN (null) at the bound — not a moment before, and not never', async () => {
+    vi.useFakeTimers()
+    let settled = false
+    let answer
+    const p = ownedNoteIds('a1', { locks: hanging() }).then((v) => { settled = true; answer = v })
+    await vi.advanceTimersByTimeAsync(OWNER_QUERY_TIMEOUT_MS - 1)
+    expect(settled, 'answered before the bound — a real engine’s slow answer would be thrown away').toBe(false)
+    await vi.advanceTimersByTimeAsync(1)
+    await p
+    expect(settled, 'a query that never settles held the answer (and the drain) for ever').toBe(true)
+    expect(answer).toBeNull()
+  })
+
+  it('⭐ N-2 CONTROL: a query that answers in time is used, and leaves no timer behind', async () => {
+    vi.useFakeTimers()
+    const mgr = createLockManager()
+    holdNoteOwnerLock('a1', 'n1', { locks: mgr.client('A'), target: null })
+    await tick()
+    const owned = await ownedNoteIds('a1', { locks: mgr.client('B') })
+    expect([...owned]).toEqual(['n1'])
+    expect(vi.getTimerCount(), 'the bound’s timer outlived its question').toBe(0)
+  })
+
+  it('⭐ N-2: a late answer after the bound is not an unhandled rejection, and does not change the answer given', async () => {
+    let rejectLate
+    const lateLocks = { query: () => new Promise((_, rej) => { rejectLate = rej }) }
+    const unhandled = vi.fn()
+    const proc = globalThis.process
+    proc.on('unhandledRejection', unhandled)
+    try {
+      expect(await ownedNoteIds('a1', { locks: lateLocks, timeoutMs: 5 })).toBeNull()
+      rejectLate(new Error('the lock manager woke up and failed'))
+      await new Promise((r) => setTimeout(r, 0))
+      expect(unhandled).not.toHaveBeenCalled()
+    } finally {
+      proc.off('unhandledRejection', unhandled)
+    }
+  })
+
+  it('⛔⛔ N-2: a drain whose lock manager NEVER answers still finishes — and sends, exactly as with no Web Locks', async () => {
+    await queue('n1', 'queued while the lock manager hung')
+    await queue('n2', 'and another note')
+    const sent = []
+    const drained = drainOutbox(db, {
+      send: vi.fn(async (entry) => { sent.push(entry.noteId); return { updatedAt: T1 } }),
+      fork: vi.fn(async () => { throw new Error('nothing here should fork') }),
+      noteIsOwned: (id) => isNoteOwned('a1', id, { locks: hanging(), timeoutMs: 5 }),
+    }).then((r) => ({ r }))
+    const outcome = await Promise.race([drained, new Promise((r) => setTimeout(() => r('STALLED'), 2000))])
+    expect(outcome, 'one hung query held the WHOLE drain — every note, not just this one').not.toBe('STALLED')
+    expect(outcome.r.map((x) => x.outcome)).toEqual([SENT, SENT])
+    expect(sent).toEqual(['n1', 'n2'])
+  })
+
+  /** A queued entry the server refused for good (`permanent`), as `settleBlocked` leaves it. */
+  async function queueBlocked(noteId) {
+    await putNoteWithIntent(db, {
+      noteId, title: 'note', subtitle: '', bodyJson: doc('blocked words'), baseUpdatedAt: T0,
+      generation: 1, sessionId: 's1', localSavedAt: 5, dirty: 1,
+    }, {
+      mutationId: `note:${noteId}`, noteId, kind: 'note-update',
+      patch: { title: 'note', subtitle: '', bodyJson: doc('blocked words') },
+      baseUpdatedAt: T0, generation: 1, sessionId: 's1', queuedAt: 5,
+      permanent: true, lastError: 'gone', lastStatus: 404,
+    })
+    await settleIdb(4)
+  }
+
+  it('⛔⛔ N-5: a BLOCKED entry whose note is open in ANOTHER tab reports BLOCKED, not SKIPPED — and is counted', async () => {
+    await queueBlocked('n1')
+    const mgr = createLockManager()
+    holdNoteOwnerLock('a1', 'n1', { locks: mgr.client('A'), target: null })
+    await tick()
+    const send = vi.fn()
+    const results = await drainOutbox(db, {
+      send, fork: vi.fn(), noteIsOwned: (id) => isNoteOwned('a1', id, { locks: mgr.client('B') }),
+    })
+    expect(results[0].outcome, 'the blocked entry hid behind the owner lock').toBe(BLOCKED)
+    expect(summarize(results)).toMatchObject({ blocked: 1, skipped: 0 })
+    expect(send).not.toHaveBeenCalled()
+    expect((await listOutbox(db))[0], 'reporting it changed it').toMatchObject({ permanent: true, lastStatus: 404 })
+  })
+
+  it('⛔ N-5: the same in THIS tab (`excludeNoteId`) — whichever tab leads, the status is the entry’s own', async () => {
+    await queueBlocked('n1')
+    const results = await drainOutbox(db, { send: vi.fn(), fork: vi.fn(), excludeNoteId: 'n1' })
+    expect(results[0].outcome).toBe(BLOCKED)
+    expect(summarize(results).blocked).toBe(1)
+  })
+
+  it('⭐ N-5 CONTROL: an owned entry that is NOT blocked is still SKIPPED — the reorder took nothing from the lock', async () => {
+    await queue('n1', 'queued in tab A')
+    const mgr = createLockManager()
+    holdNoteOwnerLock('a1', 'n1', { locks: mgr.client('A'), target: null })
+    await tick()
+    const send = vi.fn()
+    const results = await drainOutbox(db, {
+      send, fork: vi.fn(), noteIsOwned: (id) => isNoteOwned('a1', id, { locks: mgr.client('B') }),
+    })
+    expect(results[0].outcome).toBe(SKIPPED)
+    expect(send).not.toHaveBeenCalled()
   })
 })

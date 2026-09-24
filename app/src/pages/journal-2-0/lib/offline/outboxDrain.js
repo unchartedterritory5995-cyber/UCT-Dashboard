@@ -20,7 +20,7 @@ import {
 } from './notebookDb'
 import { usableBaseline, isUsableBaseline, landedBaseline, isSupersededBaseline } from './baseline'
 import { isMarkerLive, markerKeyFor, landedKeyFor, IN_FLIGHT_TTL_MS } from './inFlight'
-import { sameAuthoredContent } from './recoverLocalState'
+import { baseMayStandFor, sameAuthoredContent } from './recoverLocalState'
 import {
   APPEND_ONLY, BODY_REWRITE, METADATA_ONLY, appendedServerNodes, classifyServerChange,
   lastKnownServerCopy, missingServerNodes, serverAppendedKeysIn, snapshotOfServerCopy,
@@ -215,10 +215,19 @@ async function settleBlocked(db, entry, error) {
  *
  * @returns plan 'merge'  - the server's only change was blocks it appended itself
  *               'rebase' - metadata-only, or no evidence to classify with
- *               'fork'   - the body was rewritten and appends cannot be proven
+ *               'fork'   - the body was rewritten and appends cannot be proven,
+ *                          or the only base is NEWER than the entry (D3b, residual c)
  */
-function ringVouchedPlan(mine, noteRec) {
-  const base = lastKnownServerCopy(noteRec)
+function ringVouchedPlan(mine, noteRec, entry) {
+  const { base, poisoned } = classifiableBase(entry, noteRec)
+  // ⛔⛔ D3b fix round 1, residual (c) — A POISONED BASE IS NOT "NO EVIDENCE".
+  // With no base at all the ring's vouch still stands, and the rebase below is
+  // what this code did before the classification was hoisted. A base NEWER than
+  // the entry is different in kind: it is evidence that the record moved past
+  // the revision the words were written on, and diffing against it hides exactly
+  // the change between the two (a door's appended block reads as "no change").
+  // Unknown, so preserve both: FORK.
+  if (poisoned) return { plan: 'fork', base: null, shape: BODY_REWRITE }
   // NO EVIDENCE IS NOT BODY-REWRITE *HERE*. classifyServerChange answers
   // BODY_REWRITE with no base, because for an UNVOUCHED revision "missing
   // evidence is never a licence to merge". But the ring HAS vouched: we made
@@ -230,6 +239,38 @@ function ringVouchedPlan(mine, noteRec) {
   if (shape === APPEND_ONLY) return { plan: 'merge', base, shape }
   if (shape === BODY_REWRITE) return { plan: 'fork', base, shape }
   return { plan: 'rebase', base, shape }
+}
+
+/**
+ * ⭐⭐ D3b fix round 1, residual (c) — THE ONE PLACE THE DRAIN READS THE BASE IT
+ * CLASSIFIES AGAINST (controller ruling: amendment D3b, `f5Freeze.test.js`).
+ *
+ * ⚰️ THE DEFECT, pre-existing and reached by a closed note: a record settled
+ * BEFORE A-1 carries `acked@landed` as its base — a copy that already holds a
+ * door's appended block — while its queued entry still sits on the OLDER revision
+ * the words were written on. The drain classified the server's copy against that
+ * base, read METADATA_ONLY (the block is on both sides), rebased the queued body
+ * onto the server's revision and sent it: a 200, and the block was gone. Recovery
+ * has refused such a base since review N4 (`baseOfRecovered`); the drain had not.
+ *
+ * ⛔ SO A BASE THAT MAY NOT STAND FOR THE ENTRY IS NOT CLASSIFIED AGAINST — it is
+ * UNKNOWN, and both call sites fork: the ring-vouched plan says so (`poisoned`),
+ * and the diff branch classifies against `null`, which the frozen classifier
+ * reads as BODY_REWRITE ("missing evidence is never a licence to merge").
+ * ⭐ `baseMayStandFor` decides, and it is the SAME function `baseOfRecovered`
+ * asks — so recovery and the sweep cannot disagree about which base is poison.
+ * An equal base is the ordinary shape; an OLDER one is legitimate and can only
+ * see MORE change (fix round 3, N4-b); a NEWER one, or one whose revision cannot
+ * be ordered, is refused.
+ * ⚠️ The legitimate drain-rebase shape (§E.1) is newer too and cannot be told
+ * apart by direction, so it now forks where it rebased: a spurious duplicate,
+ * never a loss — the same trade recovery made.
+ */
+function classifiableBase(entry, noteRec) {
+  const base = lastKnownServerCopy(noteRec)
+  if (!base) return { base: null, poisoned: false }
+  if (baseMayStandFor(base.updatedAt, entry?.baseUpdatedAt)) return { base, poisoned: false }
+  return { base: null, poisoned: true }
 }
 
 
@@ -354,6 +395,17 @@ export async function drainOutbox(db, {
     // ⭐ Reported, so an operator reading the drain result can tell a plain
     // rebase from a merge that carried the server's appended blocks back.
     let appendMerged = false
+    // ⭐ D3b fix round 1 (review N-5) — A BLOCKED ENTRY REPORTS BLOCKED, WHOEVER
+    // HAS ITS NOTE OPEN. This branch only REPORTS: it sends nothing, asks nothing
+    // and writes nothing, so it is safe ahead of both "the editor owns it" skips.
+    // ⚰️ Behind them, a blocked entry read SKIPPED whenever its note was open —
+    // in this tab (`excludeNoteId`) or, since D3b, in any tab (the owner lock) —
+    // so the same entry's status depended on which tab happened to lead, and
+    // `summarize().blocked` undercounted exactly while the member was looking.
+    if (entry.permanent) {
+      results.push({ mutationId: entry.mutationId, noteId: entry.noteId, outcome: BLOCKED })
+      continue
+    }
     if (excludeNoteId && entry.noteId === excludeNoteId) {
       results.push({ mutationId: entry.mutationId, noteId: entry.noteId, outcome: SKIPPED })
       continue
@@ -367,10 +419,6 @@ export async function drainOutbox(db, {
     // eslint-disable-next-line no-await-in-loop
     if (await ownedByAnEditor(noteIsOwned, entry.noteId)) {
       results.push(ownedSkip(entry))
-      continue
-    }
-    if (entry.permanent) {
-      results.push({ mutationId: entry.mutationId, noteId: entry.noteId, outcome: BLOCKED })
       continue
     }
     // ⛔⛔ A WRITE THAT CANNOT PROVE IT IS NOT CLOBBERING IS NEVER SENT.
@@ -517,7 +565,7 @@ export async function drainOutbox(db, {
           // just captured — and this path never 409s, so nothing downstream
           // could catch it. `ringVouchedPlan` is the one authority; the 409
           // handler below asks it the same question.
-          const ring = ringVouchedPlan(mine, noteRec)
+          const ring = ringVouchedPlan(mine, noteRec, entry)
           if (ring.plan === 'merge') {
             // eslint-disable-next-line no-await-in-loop
             const mergedEntry = await mergeAppends(
@@ -651,7 +699,7 @@ export async function drainOutbox(db, {
           // authority: `ringVouchedPlan`. Two copies of it is how the pre-send
           // path and this one drifted into answering it identically wrong.
           const ring = (mine?.ours && !retriedRebase)
-            ? ringVouchedPlan(mine, noteRec)
+            ? ringVouchedPlan(mine, noteRec, entry)
             : { plan: null, base: null, shape: null }
           if (mine?.serverUpdatedAt && ring.plan === 'merge') {
             // ⭐ The server appended and we still owe it the member's words.
@@ -741,7 +789,9 @@ export async function drainOutbox(db, {
           // and classifying against a stale document is how you merge into a
           // note that has moved again.
           if (!retriedRebase && mine?.serverNote && isUsableBaseline(mine.serverUpdatedAt)) {
-            const base = lastKnownServerCopy(noteRec)
+            // ⛔ D3b fix round 1, residual (c): never a base NEWER than the entry —
+            // `classifiableBase` answers null for one, and null forks.
+            const { base } = classifiableBase(entry, noteRec)
             const shape = classifyServerChange(mine.serverNote, base)
             const snapshot = snapshotOfServerCopy(mine.serverNote, mine.serverUpdatedAt)
             let merged = null
