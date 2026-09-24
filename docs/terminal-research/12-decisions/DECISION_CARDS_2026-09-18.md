@@ -223,6 +223,17 @@ question first. No code or config change; `ALERT_TAXONOMY_PRICE_LEVEL_DARK_ENABL
 stays in dark-comparison mode, legacy `watchlist_alerts` continues to be the one
 that actually fires.
 
+**RE-AFFIRMED 2026-09-23.** An unrelated session drafted a new ruling on the same
+question without first reading this card, and the owner initially accepted that
+draft in the same breath as several other quick approvals — an accept made without
+the context above. Once this card's actual reasoning was surfaced, the owner was
+given the real A/B/C/D choice again and chose **C — keep the HOLD**, agreeing with
+the recommendation to leave it exactly as ruled on 2026-09-18. Nothing about the
+underlying reasoning (persistence semantics unmade, n=10 thin/partly-synthetic
+sample, zero trendline coverage) has changed, and nothing here does either: no code
+or config change, dark-comparison mode continues, legacy `watchlist_alerts` keeps
+firing. Recorded so a third session doesn't repeat the same mistake a third time.
+
 ---
 
 ## CARD 7 — OI-06 is CLOSED (answered 2026-09-14); the broader command-palette-UI
