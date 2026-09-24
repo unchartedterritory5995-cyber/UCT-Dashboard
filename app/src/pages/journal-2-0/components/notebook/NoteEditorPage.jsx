@@ -67,6 +67,10 @@ import NoteTagsField from './NoteTagsField'
 import useJ2NoteTags from '../../hooks/useJ2NoteTags'
 import { fallbackNodes } from '../../lib/tagTree'
 import { mergeTagDelta, sameTagList } from '../../lib/tagDelta'
+import UnsentTrashDialog from './UnsentTrashDialog'
+import { noteHasUnsentWork } from '../../lib/offline/noteHasUnsentWork'
+import { openNotebookDb } from '../../lib/offline/notebookDb'
+import { holdsUnsentWork } from '../../lib/noteBatch'
 import { textColorClass } from '../../lib/textColor'
 import NoteHistoryPanel from './NoteHistoryPanel'
 import NoteBacklinksSection from './NoteBacklinksSection'
@@ -2348,7 +2352,7 @@ export default function NoteEditorPage({ noteId, onBack, showBack = true, onTitl
   // for 30 days, so the copy stays proportional rather than "permanently".
   const [confirmingDelete, setConfirmingDelete] = useState(false)
   const onDeleteRequest = () => setConfirmingDelete(true)
-  const onDeleteConfirm = async () => {
+  const trashNow = async () => {
     const res = await fetch(`/api/j2/notes/${noteId}`, {
       method: 'DELETE', credentials: 'include',
     })
@@ -2359,6 +2363,68 @@ export default function NoteEditorPage({ noteId, onBack, showBack = true, onTitl
       invalidateNoteLinkTarget(noteId)
       onBack()
     }
+  }
+
+  // ⛔ Wave 6 item 11 — A NOTE STILL HOLDING UNSENT WORDS IS NOT TRASHED UNASKED.
+  // Trashing first sent its queued PUT to a trashed note: a 404, retired as
+  // blocked, on a card that never shows the blocked badge -- words stranded.
+  // The RAW signal decides (holdsUnsentWork: the door-guard mode cannot hide a
+  // dirty or queued note), and UnsentTrashDialog names what is unsent and
+  // offers Send first or Trash anyway.
+  const [unsentTrash, setUnsentTrash] = useState(null) // null | { what, sending, still }
+  // One store connection per question, closed afterwards (noteBatch's rule).
+  const unsentVerdict = async () => {
+    let opened = null
+    const connect = (acct) => { opened = Promise.resolve(openNotebookDb(acct)); return opened }
+    try {
+      return await noteHasUnsentWork(noteId, { accountId: user?.id, connect })
+    } finally {
+      if (opened) opened.then((db) => db?.close?.()).catch(() => {})
+    }
+  }
+  const describeUnsent = (verdict) => {
+    const cur = captureLocalState()
+    const last = lastSavedRef.current
+    const parts = []
+    if (cur && last.bodyJson != null) {
+      if ((cur.title || '') !== (last.title || '')) parts.push('the title')
+      if ((cur.subtitle || '') !== (last.subtitle || '')) parts.push('the subtitle')
+      if (JSON.stringify(cur.bodyJson) !== JSON.stringify(last.bodyJson)) parts.push('the note’s text')
+    }
+    if (parts.length) return `Not on the server yet: ${parts.join(', ')}.`
+    if (verdict?.why === 'unreadable') return 'This device could not check whether every edit to this note reached the server.'
+    if (verdict?.why === 'queued') return 'Edits made to this note earlier on this device are still waiting to send.'
+    return 'Edits to this note are still waiting to send.'
+  }
+  const onDeleteConfirm = async () => {
+    const verdict = await unsentVerdict()
+    if (holdsUnsentWork(verdict)) {
+      setUnsentTrash({ what: describeUnsent(verdict), sending: false, still: false })
+      return
+    }
+    await trashNow()
+  }
+  const sendThenTrash = async () => {
+    setUnsentTrash((u) => (u ? { ...u, sending: true, still: false } : u))
+    try { await commitSaveRef.current() } catch { /* the save reports its own failure */ }
+    // The landed save settles the durable copy without being awaited, so ask
+    // again a few times before saying it is still sending.
+    let verdict = null
+    for (let i = 0; i < 5; i += 1) {
+      verdict = await unsentVerdict()
+      if (!holdsUnsentWork(verdict)) break
+      await new Promise((r) => setTimeout(r, 200))
+    }
+    if (holdsUnsentWork(verdict)) {
+      setUnsentTrash({ what: describeUnsent(verdict), sending: false, still: true })
+      return
+    }
+    setUnsentTrash(null)
+    await trashNow()
+  }
+  const trashAnyway = async () => {
+    setUnsentTrash(null)
+    await trashNow()
   }
 
   const ToolButton = ({ active, onClick, label, title }) => (
@@ -2639,6 +2705,16 @@ export default function NoteEditorPage({ noteId, onBack, showBack = true, onTitl
         </div>
       </header>
 
+      {unsentTrash && (
+        <UnsentTrashDialog
+          what={unsentTrash.what}
+          sending={unsentTrash.sending}
+          still={unsentTrash.still}
+          onSendFirst={sendThenTrash}
+          onTrashAnyway={trashAnyway}
+          onClose={() => setUnsentTrash(null)}
+        />
+      )}
       {confirmingDelete && (
         <ConfirmModal
           title="Delete this note?"
