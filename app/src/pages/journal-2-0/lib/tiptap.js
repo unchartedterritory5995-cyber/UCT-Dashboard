@@ -6,6 +6,7 @@
 import StarterKit from '@tiptap/starter-kit'
 import { TextStyle, FontFamily, FontSize } from '@tiptap/extension-text-style'
 import { ResizableImage } from './resizableImage'
+import { ImageFigure, ImageCaption } from './imageFigureNode'
 import Link from '@tiptap/extension-link'
 import { NotebookPlaceholder } from './notebookPlaceholder'
 import { Table, TableRow, TableHeader, TableCell } from '@tiptap/extension-table'
@@ -67,6 +68,11 @@ export function buildExtensions({ placeholder = 'Start writing… or type / for 
     TextColor,
     NotebookHighlight,
     ResizableImage.configure({ inline: false, allowBase64: false }),
+    // Wave 6: an image's caption (real text) and the figure holding both.
+    // Same "never remove" rule as WidgetEmbed below once notes hold captions;
+    // both are rows in the citation tables (imageCaption a textblock,
+    // imageFigure a container) and registered at schema 2.
+    ImageFigure, ImageCaption,
     Link.configure({
       openOnClick: false,
       autolink: true,

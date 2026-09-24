@@ -266,6 +266,30 @@ mark.uct-hl-blue { background-color: var(--info-border); }
 .ProseMirror .uctCalloutOption[data-variant="note"] .uctCalloutOptionIcon { color: var(--ut-gold); }
 .ProseMirror .uctCalloutOptionIcon { display: inline-flex; }
 
+/* ── Wave 6: image captions (imageFigureNode.js) ──────────────────────────────
+   The figure holds the image and its caption; the caption follows the image's
+   OWN alignment, read through :has() so there is one authority (the image's
+   `align` attr) and never a copy of it on the figure. */
+.ProseMirror figure[data-type="image-figure"] { margin: 14px 0; }
+.ProseMirror figure[data-type="image-figure"] [data-uct-image] { margin: 0; }
+.ProseMirror .uctImageCaption {
+  margin-top: 6px;
+  font-size: 0.88em;
+  font-style: italic;
+  line-height: 1.5;
+  color: var(--text-muted);
+}
+.ProseMirror figure[data-type="image-figure"]:has([data-uct-image][data-align="center"]) > .uctImageCaption { text-align: center; }
+.ProseMirror figure[data-type="image-figure"]:has([data-uct-image][data-align="right"]) > .uctImageCaption { text-align: right; }
+/* An empty caption says what it is for (the placeholder extension only
+   reaches top-level blocks). */
+.ProseMirror[contenteditable="true"] .uctImageCaption:has(> br:only-child)::before {
+  content: 'Write a caption';
+  color: var(--text-muted);
+  opacity: 0.7;
+  pointer-events: none;
+}
+
 /* ── Touch tier: the 44px floor, and 16px so iOS does not zoom on focus ───── */
 @media (max-width: 1024px) {
   .ProseMirror .uctCodeLang {

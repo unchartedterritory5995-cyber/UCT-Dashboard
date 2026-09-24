@@ -183,7 +183,9 @@ _INLINE_LEAF_TYPES = frozenset({"hardBreak", "noteLink", "askCitation", "videoTi
 # textBetween, and an empty one carries no `content` to infer that from -- so
 # the type must be known. Pinned against getSchema(buildExtensions()) by
 # askCitation.schemaParity.test.js, which reads these literals.
-_TEXTBLOCK_TYPES = frozenset({"paragraph", "heading", "codeBlock", "toggleSummary"})
+_TEXTBLOCK_TYPES = frozenset({"paragraph", "heading", "codeBlock", "toggleSummary",
+                              # Wave 6: an image's caption is the member's text.
+                              "imageCaption"})
 
 # Every OTHER type with content -- lists, quotes, tables, toggles, callouts,
 # askInsert, the doc itself. `isTextblock` is a TYPE property in ProseMirror,
@@ -196,6 +198,8 @@ _BLOCK_CONTAINER_TYPES = frozenset({
     "doc", "blockquote", "bulletList", "orderedList", "listItem", "taskList",
     "taskItem", "table", "tableRow", "tableHeader", "tableCell", "callout",
     "toggle", "toggleContent", "askInsert",
+    # Wave 6: the figure holding an image and its caption.
+    "imageFigure",
 })
 
 # G-064 (spec §7.2): a container whose text is an inserted Ask Notebook answer.

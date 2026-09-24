@@ -3282,5 +3282,159 @@
     "pm_to": 28
    }
   ]
+ },
+ "imageFigure": {
+  "json": {
+   "type": "doc",
+   "content": [
+    {
+     "type": "paragraph",
+     "content": [
+      {
+       "type": "text",
+       "text": "Before."
+      }
+     ]
+    },
+    {
+     "type": "imageFigure",
+     "content": [
+      {
+       "type": "image",
+       "attrs": {
+        "src": "/api/j2/notes/n1/images/a.png",
+        "alt": "NVDA daily",
+        "align": "center"
+       }
+      },
+      {
+       "type": "imageCaption",
+       "content": [
+        {
+         "type": "text",
+         "text": "NVDA breakout, "
+        },
+        {
+         "type": "text",
+         "text": "day 3",
+         "marks": [
+          {
+           "type": "bold"
+          }
+         ]
+        }
+       ]
+      }
+     ]
+    },
+    {
+     "type": "paragraph",
+     "content": [
+      {
+       "type": "text",
+       "text": "After."
+      }
+     ]
+    }
+   ]
+  },
+  "text": "Before.\nNVDA breakout, day 3\nAfter.",
+  "contentSize": 42,
+  "textSpans": [
+   {
+    "pm_start": 1,
+    "pm_end": 8,
+    "text": "Before."
+   },
+   {
+    "pm_start": 12,
+    "pm_end": 27,
+    "text": "NVDA breakout, "
+   },
+   {
+    "pm_start": 27,
+    "pm_end": 32,
+    "text": "day 3"
+   },
+   {
+    "pm_start": 35,
+    "pm_end": 41,
+    "text": "After."
+   }
+  ],
+  "leafSpans": [],
+  "passages": [
+   {
+    "text": "NVDA breakout, day 3",
+    "pm_from": 12,
+    "pm_to": 32
+   },
+   {
+    "text": "day 3",
+    "pm_from": 27,
+    "pm_to": 32
+   },
+   {
+    "text": "After.",
+    "pm_from": 35,
+    "pm_to": 41
+   }
+  ]
+ },
+ "imageFigureEmptyCaption": {
+  "json": {
+   "type": "doc",
+   "content": [
+    {
+     "type": "paragraph",
+     "content": [
+      {
+       "type": "text",
+       "text": "A."
+      }
+     ]
+    },
+    {
+     "type": "imageFigure",
+     "content": [
+      {
+       "type": "image",
+       "attrs": {
+        "src": "/api/j2/notes/n1/images/a.png",
+        "alt": "chart"
+       }
+      },
+      {
+       "type": "imageCaption"
+      }
+     ]
+    },
+    {
+     "type": "paragraph",
+     "content": [
+      {
+       "type": "text",
+       "text": "B."
+      }
+     ]
+    }
+   ]
+  },
+  "text": "A.\n\nB.",
+  "contentSize": 13,
+  "textSpans": [
+   {
+    "pm_start": 1,
+    "pm_end": 3,
+    "text": "A."
+   },
+   {
+    "pm_start": 10,
+    "pm_end": 12,
+    "text": "B."
+   }
+  ],
+  "leafSpans": [],
+  "passages": []
  }
 }

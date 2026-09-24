@@ -61,6 +61,10 @@ const schema = new Schema({
     askCitation: { group: 'inline', inline: true, atom: true, attrs: { n: { default: null } }, toDOM: () => ['span'] },
     inlineMath: { group: 'inline', inline: true, atom: true, attrs: { latex: { default: '' } }, toDOM: () => ['span'] },
     blockMath: { group: 'block', atom: true, attrs: { latex: { default: '' } }, toDOM: () => ['div'] },
+    // Wave 6 — copied from the generator with the rest.
+    image: { group: 'block', atom: true, attrs: { src: { default: null }, alt: { default: null }, align: { default: null } }, toDOM: () => ['img'] },
+    imageFigure: { group: 'block', content: 'image imageCaption', toDOM: () => ['figure', 0] },
+    imageCaption: { content: 'inline*', toDOM: () => ['figcaption', 0] },
   },
   marks: {
     bold: { toDOM: () => ['strong', 0] },

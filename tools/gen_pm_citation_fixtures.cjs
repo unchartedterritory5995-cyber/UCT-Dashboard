@@ -51,6 +51,11 @@ const schema = new Schema({
     // Wave 5 (mathNodes.js): formulas are leaves holding their LaTeX in `latex`.
     inlineMath: { group: 'inline', inline: true, atom: true, attrs: { latex: { default: '' } }, toDOM: () => ['span'] },
     blockMath: { group: 'block', atom: true, attrs: { latex: { default: '' } }, toDOM: () => ['div'] },
+    // Wave 6 (imageFigureNode.js): an image is a block leaf that reads as
+    // nothing; its CAPTION is a textblock inside the figure container.
+    image: { group: 'block', atom: true, attrs: { src: { default: null }, alt: { default: null }, align: { default: null } }, toDOM: () => ['img'] },
+    imageFigure: { group: 'block', content: 'image imageCaption', toDOM: () => ['figure', 0] },
+    imageCaption: { content: 'inline*', toDOM: () => ['figcaption', 0] },
   },
   marks: { bold: { toDOM: () => ['strong', 0] }, italic: { toDOM: () => ['em', 0] }, link: { attrs: { href: { default: '' } }, toDOM: () => ['a', 0] },
     // Wave 5 (textColor.js): a palette NAME, never a colour value.
@@ -73,6 +78,7 @@ const EXCERPT = (excerptId) => ({ type: 'documentExcerpt', attrs: { excerptId } 
 const BR = { type: 'hardBreak' }
 const MATH = (latex) => ({ type: 'inlineMath', attrs: { latex } })
 const BMATH = (latex) => ({ type: 'blockMath', attrs: { latex } })
+const IMG = (alt, align) => ({ type: 'image', attrs: { src: '/api/j2/notes/n1/images/a.png', alt, ...(align ? { align } : {}) } })
 
 const CASES = {
   // ── text, marks, blocks, lists, quotes, ask inserts ──
@@ -237,6 +243,16 @@ const CASES = {
     ' and ',
     { type: 'text', text: 'margins', marks: [{ type: 'textColor', attrs: { color: 'red' } }, { type: 'bold' }] },
     ' widened', { type: 'text', text: ' sharply', marks: [{ type: 'highlight', attrs: { color: null } }] }, '.')),
+  // ── an image's caption is TEXT (wave 6): its own textblock inside the figure
+  //    -- one separator before it like any textblock -- while the image beside
+  //    it reads as nothing and takes one position. An EMPTY caption still emits
+  //    its separator (it is a textblock). ──
+  imageFigure: doc(p('Before.'),
+    { type: 'imageFigure', content: [IMG('NVDA daily', 'center'),
+      { type: 'imageCaption', content: [t('NVDA breakout, '), t('day 3', ['bold'])] }] },
+    p('After.')),
+  imageFigureEmptyCaption: doc(p('A.'),
+    { type: 'imageFigure', content: [IMG('chart'), { type: 'imageCaption' }] }, p('B.')),
 }
 
 // Passages cited in the astral cases -- before, inside, across a mark, and
@@ -258,6 +274,7 @@ const PASSAGES = {
   // it -- never half its LaTeX.
   mathAstral: ['Set \u{1D538} \\subset \\mathbb{R} holds.', 'holds.', '\\sum_{i=1}^{n} x_i'],
   colouredMarks: ['raised and margins widened sharply', 'margins'],
+  imageFigure: ['NVDA breakout, day 3', 'day 3', 'After.'],
 }
 
 function passageRange(d, passage, leafText) {

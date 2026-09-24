@@ -81,3 +81,23 @@ describe('NoteEditorPage — callout picker door (wave 6 item 2)', () => {
     expect(variant).toBe('warning')
   })
 })
+
+describe('NoteEditorPage — image caption + alignment door (wave 6 item 3)', () => {
+  it('a selected image offers its bar in the page; a caption added there is text the word count reads', async () => {
+    NOTE = { ...baseNote(), bodyJson: { type: 'doc', content: [
+      P('Intro line.'),
+      { type: 'image', attrs: { src: '/api/j2/notes/n1/images/a.png', alt: 'chart' } },
+    ] } }
+    const { NodeSelection } = await import('@tiptap/pm/state')
+    const editor = await renderEditor()
+    let imgPos = null
+    editor.state.doc.descendants((n, pos) => { if (n.type.name === 'image') imgPos = pos })
+    act(() => { editor.view.dispatch(editor.state.tr.setSelection(NodeSelection.create(editor.state.doc, imgPos))) })
+    fireEvent.click(await screen.findByRole('button', { name: 'Add caption' }))
+    act(() => { editor.commands.insertContent('Breakout day three') })
+    let fig = null
+    editor.state.doc.forEach((n) => { if (n.type.name === 'imageFigure') fig = n })
+    expect(fig?.lastChild.textContent).toBe('Breakout day three')
+    await waitFor(() => expect(screen.getByTestId('note-stats').textContent).toBe('5 words · 1 min read'))
+  })
+})

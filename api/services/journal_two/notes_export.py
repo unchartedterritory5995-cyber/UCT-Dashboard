@@ -621,6 +621,23 @@ def _block(node: dict[str, Any], resolver=None) -> str:
         src = attrs.get("src") or ""
         local = resolver(src) if resolver else None
         return f"![{attrs.get('alt') or ''}]({local or src})"
+    if ntype == "imageFigure":
+        # Wave 6: an image and its caption. The caption is the member's TEXT,
+        # so it exports as an italic line straight under the image (no blank
+        # line between: one paragraph, so every reader keeps them together).
+        # Read by NAME, never by position -- a future/older client's shape
+        # must not raise or drop the image (module docstring).
+        image = next((c for c in (kids or []) if isinstance(c, dict)
+                      and c.get("type") in ("image", "resizableImage")), None)
+        caption = next((c for c in (kids or []) if isinstance(c, dict)
+                        and c.get("type") == "imageCaption"), None)
+        img = _block(image, resolver) if image else ""
+        cap = _inline((caption or {}).get("content"), resolver).replace("\n", " ").strip() if caption else ""
+        if cap:
+            return f"{img}\n*{cap}*" if img else f"*{cap}*"
+        return img
+    if ntype == "imageCaption":
+        return _inline(kids, resolver)
     if ntype == "attachmentChip":
         href = attrs.get("href") or ""
         local = resolver(href) if resolver else None

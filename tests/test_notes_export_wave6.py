@@ -135,3 +135,47 @@ def test_an_unknown_or_malformed_variant_is_an_emoji_callout_and_never_raises():
     for bad in ("purple", ["warning"], {"v": 1}, 7, None):
         md = tiptap_to_markdown(_doc(_callout({"variant": bad, "emoji": "\u2705"}, _para("ok"))))
         assert md == "<aside>\n\u2705 ok\n</aside>", bad
+
+
+# ── item 3: an image caption is text; alignment is style ─────────────────────
+
+def _img(**attrs):
+    return {"type": "image", "attrs": {"src": "https://x.test/a.png", "alt": "NVDA daily", **attrs}}
+
+
+def _figure(caption_nodes, image=None):
+    return {"type": "imageFigure",
+            "content": [image or _img(), {"type": "imageCaption", "content": caption_nodes}]}
+
+
+def test_a_captioned_image_exports_the_image_and_an_italic_caption_line():
+    md = tiptap_to_markdown(_doc(_figure([{"type": "text", "text": "Breakout day 3"}])))
+    assert md == "![NVDA daily](https://x.test/a.png)\n*Breakout day 3*"
+
+
+def test_a_caption_line_break_stays_one_line_and_its_marks_travel():
+    md = tiptap_to_markdown(_doc(_figure([
+        {"type": "text", "text": "line one"}, {"type": "hardBreak"},
+        {"type": "text", "text": "bold", "marks": [{"type": "bold"}]},
+    ])))
+    assert md.split("\n") == ["![NVDA daily](https://x.test/a.png)", "*line one **bold***"]
+
+
+def test_an_empty_caption_exports_the_bare_image():
+    md = tiptap_to_markdown(_doc(_figure([])))
+    assert md == "![NVDA daily](https://x.test/a.png)"
+
+
+def test_alignment_is_style_and_does_not_change_the_markdown():
+    md = tiptap_to_markdown(_doc(_img(align="center")))
+    assert md == "![NVDA daily](https://x.test/a.png)"
+
+
+def test_a_figure_read_by_name_never_raises_on_a_missing_or_reordered_child():
+    no_image = {"type": "imageFigure", "content": [
+        {"type": "imageCaption", "content": [{"type": "text", "text": "words kept"}]}]}
+    assert tiptap_to_markdown(_doc(no_image)) == "*words kept*"
+    reordered = {"type": "imageFigure", "content": [
+        {"type": "imageCaption", "content": [{"type": "text", "text": "cap"}]}, _img()]}
+    assert tiptap_to_markdown(_doc(reordered)) == "![NVDA daily](https://x.test/a.png)\n*cap*"
+    assert tiptap_to_markdown(_doc({"type": "imageFigure"})) == ""
