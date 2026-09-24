@@ -29,6 +29,7 @@ import { BUILDER_INPUT_SCOPE } from './builderInputs'
 import { AuthContext } from '../../../context/AuthContext'
 import { parseFormula, astHash } from '../engine/ast/parse'
 import { translatePine } from '../engine/ast/pine'
+import { USER_DEFINITIONS_KEY } from '../../../hooks/useUserDefinitions'
 
 const H = vi.hoisted(() => ({ requests: [] }))
 
@@ -207,7 +208,20 @@ describe('paste a real screener script and get a working scan', () => {
     fireEvent.click(screen.getByRole('button', { name: /^save$/i }))
     await flush()
 
-    const post = H.requests.find((r) => r.method === 'POST')
+    // ⚰️ 2026-09-24 (sweep/lane-1): THE FIRST POST IS NO LONGER THE SAVE. The
+    // paste door reports import telemetry before the member saves, and measured
+    // through this very mount the wire is:
+    //   GET  /api/user-definitions?graph=1
+    //   POST /api/indicator-telemetry/event   {event, import_id, dialect, props}
+    //   POST /api/indicator-telemetry/event   {event, import_id, dialect, props}
+    //   POST /api/user-definitions            {definition, import_id, source_dialect}
+    // `find` on the method alone returned the first telemetry event, whose body
+    // has no `definition`, so `sent.id` threw a TypeError that read as "the
+    // document changed shape" when the document had not moved at all. The URL is
+    // the hook's own constant, never restated here; the two events this drops
+    // were dumped before the clause was written. Mutation: remove the URL clause
+    // and this case reds again at `sent.id` (TypeError).
+    const post = H.requests.find((r) => r.method === 'POST' && r.url === USER_DEFINITIONS_KEY)
     expect(post, 'nothing was written').toBeTruthy()
     const sent = JSON.parse(post.body).definition
 
