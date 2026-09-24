@@ -1606,10 +1606,55 @@ def test_real_math_beside_prose_dollars_still_exports_as_math():
     assert md == "At \\$5 the area is $\\pi r^2$."
 
 
-def test_a_literal_backslash_dollar_round_trips_exactly():
-    # One backslash is added before each `$` and nothing else: "\$" in the
-    # note becomes "\\$", which every CommonMark reader shows as "\$".
-    assert tiptap_to_markdown(_doc(_para("a \\$ b"))) == "a \\\\$ b"
+def test_a_backslash_the_member_typed_before_a_dollar_is_escaped_too():
+    # Re-review R2-N4. "\$" in the note used to export as "\\$" -- which
+    # CommonMark reads as an escaped BACKSLASH and a LIVE "$" a math reader
+    # pairs. The member's backslash is doubled before ours is added: "\\\$",
+    # an escaped backslash then an escaped dollar, which reads back as "\$".
+    assert tiptap_to_markdown(_doc(_para("a \\$ b"))) == "a \\\\\\$ b"
+    # A run of them: every one is doubled.
+    assert tiptap_to_markdown(_doc(_para("a \\\\$ b"))) == "a \\\\\\\\\\$ b"
+
+
+def _colour(text, color="red"):
+    return {"type": "text", "text": text, "marks": [{"type": "textColor", "attrs": {"color": color}}]}
+
+
+def test_a_backslash_ending_one_run_before_a_dollar_opening_the_next_is_escaped_too():
+    # Re-review R34-N2. The rule above ran per text node, so a coloured "\"
+    # (a textColor run exports with no delimiter) followed by a plain "$5"
+    # came out "\\$5" -- an escaped backslash and a LIVE "$".
+    md = tiptap_to_markdown(_doc({"type": "paragraph", "content": [
+        _colour("cost \\"), {"type": "text", "text": "$5 flat"}]}))
+    assert md == "cost \\\\\\$5 flat"
+    # The member's backslash on BOTH sides of the boundary, and one split over
+    # three runs: the whole run before the "$" is doubled, then escaped.
+    md = tiptap_to_markdown(_doc(
+        {"type": "paragraph", "content": [_colour("a \\"), {"type": "text", "text": "\\$5"}]},
+        {"type": "paragraph", "content": [
+            _colour("b \\"), _colour("\\", "blue"), {"type": "text", "text": "$6"}]}))
+    assert md == "a " + "\\" * 4 + "\\$5\n\nb " + "\\" * 4 + "\\$6"
+    for line in md.split("\n\n"):
+        run = _re.search(r"(\\+)\$", line).group(1)
+        assert len(run) % 2 == 1, line  # odd: the "$" is escaped
+
+
+def test_a_backslash_ending_a_run_is_left_alone_unless_an_escaped_dollar_opens_the_next():
+    # A path split over two runs is untouched; and inside a raw island no `$`
+    # is escaped, so no backslash before one is doubled either -- not even
+    # when the next run brings a backslash of its own.
+    md = tiptap_to_markdown(_doc(
+        {"type": "paragraph", "content": [_colour("C:\\"), {"type": "text", "text": "Users"}]},
+        {"type": "callout", "attrs": {"emoji": "!"}, "content": [
+            {"type": "paragraph", "content": [_colour("x \\"), {"type": "text", "text": "$5"}]},
+            {"type": "paragraph", "content": [_colour("y \\"), {"type": "text", "text": "\\$6"}]}]}))
+    assert md == "C:\\Users\n\n<aside>\n! x \\$5\ny \\\\$6\n</aside>"
+
+
+def test_a_backslash_before_anything_but_a_dollar_is_left_alone():
+    # A Windows path, a regex someone pasted: only the backslash our own
+    # escape would otherwise swallow is touched.
+    assert tiptap_to_markdown(_doc(_para("C:\\Users\\me and \\d+"))) == "C:\\Users\\me and \\d+"
 
 
 def test_dollars_in_inline_code_and_in_a_code_block_stay_raw():
@@ -1644,6 +1689,167 @@ def test_link_text_dollars_are_escaped_but_the_href_is_not():
         {"type": "text", "text": "$NVDA", "marks": [
             {"type": "link", "attrs": {"href": "https://example.com/q?p=$1"}}]}]}))
     assert md == "[\\$NVDA](https://example.com/q?p=$1)"
+
+
+# ── Wave 5 fix round 2 (N4 remainder): member text that arrives by ATTRIBUTE ──
+# The text walk was not the only way a member's words reach the Markdown: an
+# attachment's name, a note link's title, an excerpt, a widget label and an Ask
+# answer's question and source labels are all written into prose too. Each is
+# railed on its own, so one call site losing the escape is one red test with
+# its name on it. (An image's alt is the deliberate exception, railed below.)
+def _dollar_resolver(url):
+    if url.startswith("internal-note-link://"):
+        return "Plan $5-$10", "Plan.md"
+    if url.startswith("document-excerpt://"):
+        return "Bought at $5\nsold at $10", "Deck $Q3, p.2", "stop $4"
+    return None
+
+
+def test_image_alt_keeps_its_dollars_raw_because_our_importer_drops_an_escape_there():
+    # markdown-it's renderInlineAsText skips escaped characters when it builds
+    # an image's alt, so `\$` would re-import as nothing at all -- the member's
+    # `$` lost in our own round trip (exportRoundtrip.test.js reads it back).
+    md = tiptap_to_markdown(_doc(
+        {"type": "image", "attrs": {"src": "https://x.test/a.png?v=$1", "alt": "NVDA $5 base"}}))
+    assert md == "![NVDA $5 base](https://x.test/a.png?v=$1)"
+
+
+def test_attachment_name_dollars_are_escaped_but_the_href_is_not():
+    md = tiptap_to_markdown(_doc(
+        {"type": "attachmentChip", "attrs": {"href": "https://x.test/f?v=$2", "name": "PnL $10.csv"}}))
+    assert md == "[PnL \\$10.csv](https://x.test/f?v=$2)"
+
+
+def test_note_link_title_dollars_are_escaped():
+    md = tiptap_to_markdown(_doc({"type": "paragraph", "content": [
+        {"type": "text", "text": "see "}, {"type": "noteLink", "attrs": {"noteId": "n2"}}]}),
+        attachment_resolver=_dollar_resolver)
+    assert md == "see [Plan \\$5-\\$10](Plan.md)"
+
+
+def test_excerpt_quote_citation_and_annotation_dollars_are_escaped():
+    md = tiptap_to_markdown(_doc({"type": "documentExcerpt", "attrs": {"excerptId": "e1"}}),
+                            attachment_resolver=_dollar_resolver)
+    lines = md.split("\n")
+    assert lines[:2] == ["> Bought at \\$5", "> sold at \\$10"]  # the quote, every line
+    assert lines[2] == "> — Deck \\$Q3, p.2"  # the citation
+    assert lines[3:] == ["", "*stop \\$4*"]  # the member's annotation
+
+
+def test_widget_label_dollars_are_escaped():
+    md = tiptap_to_markdown(_doc({"type": "widgetEmbed", "attrs": {"searchText": "Chart $NVDA 1D"}}))
+    assert md == "> [Chart \\$NVDA 1D]"
+
+
+def test_ask_question_and_source_label_dollars_are_escaped():
+    md = tiptap_to_markdown({"type": "doc", "content": [
+        {"type": "askInsert",
+         "attrs": {"insertedAt": "2026-09-22T14:03:00.000Z", "question": "Hold above $5?"},
+         "content": [{"type": "paragraph", "content": [
+             {"type": "text", "text": "Yes "},
+             {"type": "askCitation", "attrs": {"n": 1, "label": "Deck $Q3"}}]}]}]})
+    lines = md.split("\n")
+    assert lines[0] == "> **From Ask Notebook** · 2026-09-22 · Q: Hold above \\$5?"
+    assert lines[-1] == "> Sources as of insertion: [1] Deck \\$Q3"
+
+
+def test_attribute_text_inside_a_callout_island_keeps_its_dollars_raw():
+    # The island rule holds for attribute-borne text too: inside `<aside>` no
+    # escape is read, so a `\$` there would show its backslash.
+    md = tiptap_to_markdown(_doc(
+        {"type": "callout", "attrs": {"emoji": "!"}, "content": [
+            {"type": "attachmentChip", "attrs": {"href": "a.csv", "name": "PnL $10.csv"}},
+            {"type": "widgetEmbed", "attrs": {"searchText": "Chart $NVDA 1D"}}]},
+        {"type": "widgetEmbed", "attrs": {"searchText": "after $1"}}))
+    assert "<aside>\n! [PnL $10.csv](a.csv)\n> [Chart $NVDA 1D]\n</aside>" in md
+    assert md.endswith("> [after \\$1]")  # ...and escaped again once the island ends
+
+
+# ── Re-review R2-N1: a raw-HTML island is ONE block, blank lines and all ─────
+# `<aside>` / `<details>` end at their first blank line. Each case below
+# carried one, and everything after it was parsed as Markdown with its `$`
+# raw (the island's rule), so a math reader paired them. The island now holds
+# no blank line: each becomes `<br>`.
+import re as _re
+
+
+def _island(md, open_tag, close_tag):
+    start = md.index(open_tag)
+    return md[start:md.index(close_tag, start) + len(close_tag)]
+
+
+def _assert_one_block(island):
+    # A reader ends a line at \r\n, \r or \n (R34-N1), so look at the lines it sees.
+    lines = _re.sub(r"\r\n?", "\n", island)
+    assert not _re.search(r"\n[ \t]*\n", lines), repr(island)  # no blank line inside
+    assert "\\$" not in island, island  # still raw inside: no escape is read there
+
+
+def test_an_excerpt_with_an_annotation_inside_a_callout_stays_one_html_block():
+    def resolver(url):
+        if url.startswith("document-excerpt://"):
+            return "Guidance $5.2B-$6.1B", "Q3 deck.pdf, p.3", "stop $4 then $6"
+        return None
+    md = tiptap_to_markdown(_doc(
+        {"type": "callout", "attrs": {"emoji": "!"}, "content": [
+            _para("watch this"),
+            {"type": "documentExcerpt", "attrs": {"excerptId": "e1"}}]},
+        _para("after $1")), attachment_resolver=resolver)
+    island = _island(md, "<aside>", "</aside>")
+    _assert_one_block(island)
+    assert "> Guidance $5.2B-$6.1B\n> — Q3 deck.pdf, p.3\n<br>\n*stop $4 then $6*" in island
+    assert md.endswith("after \\$1")  # prose after the island is escaped again
+
+
+def test_two_shift_enters_in_a_row_inside_a_callout_stay_inside_the_island():
+    md = tiptap_to_markdown(_doc(
+        {"type": "callout", "attrs": {"emoji": "!"}, "content": [
+            {"type": "paragraph", "content": [
+                {"type": "text", "text": "range"},
+                {"type": "hardBreak"}, {"type": "hardBreak"},
+                {"type": "text", "text": "$5-$10 now"}]}]}))
+    island = _island(md, "<aside>", "</aside>")
+    _assert_one_block(island)
+    assert island == "<aside>\n! range\n<br>\n$5-$10 now\n</aside>"
+
+
+def test_a_code_block_with_a_blank_line_inside_a_toggle_stays_inside_the_island():
+    md = tiptap_to_markdown(_doc(
+        {"type": "toggle", "attrs": {"open": True}, "content": [
+            {"type": "toggleSummary", "content": [{"type": "text", "text": "The math"}]},
+            {"type": "toggleContent", "content": [
+                _code("total = $7\n\nprint(total)", "python")]}]}))
+    island = _island(md, "<details>", "</details>")
+    _assert_one_block(island)
+    assert "total = $7\n<br>\nprint(total)" in island
+
+
+def test_a_carriage_return_line_ending_cannot_end_an_island_early():
+    # Re-review R34-N1. Text pasted from Windows carries \r\n\r\n, and an old
+    # Mac file \r\r: a blank line to every CommonMark reader either way.
+    md = tiptap_to_markdown(_doc(
+        {"type": "callout", "attrs": {"emoji": "!"}, "content": [
+            _para("pasted\r\n\r\nfrom Windows $8 and\r\rold Mac $9")]},
+        {"type": "toggle", "attrs": {"open": True}, "content": [
+            {"type": "toggleSummary", "content": [{"type": "text", "text": "a\r\rb"}]},
+            {"type": "toggleContent", "content": [_code("x = $1\r\n\r\ny = 2", "python")]}]}))
+    aside = _island(md, "<aside>", "</aside>")
+    _assert_one_block(aside)
+    assert aside == "<aside>\n! pasted\n<br>\nfrom Windows $8 and\n<br>\nold Mac $9\n</aside>"
+    details = _island(md, "<details>", "</details>")
+    _assert_one_block(details)
+    assert "\r" not in details
+    assert "a\n<br>\nb" in details and "x = $1\n<br>\ny = 2" in details
+
+
+def test_a_blank_line_in_a_toggle_summary_and_a_whitespace_only_line_are_both_closed():
+    md = tiptap_to_markdown(_doc(
+        {"type": "toggle", "attrs": {"open": True}, "content": [
+            {"type": "toggleSummary", "content": [
+                {"type": "text", "text": "a"}, {"type": "hardBreak"}, {"type": "hardBreak"},
+                {"type": "text", "text": "b $1"}]},
+            {"type": "toggleContent", "content": [_code("x = 1\n   \ny = $2", "python")]}]}))
+    _assert_one_block(_island(md, "<details>", "</details>"))
 
 
 # ── Wave 5: highlight exports as ==text==; a text colour exports as its words ─

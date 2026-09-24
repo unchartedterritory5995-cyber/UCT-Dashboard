@@ -22,6 +22,25 @@ test('says what each AI provider receives, not just that it exists', () => {
   expect(screen.getByText(/is sent to Anthropic to produce the answer/)).toBeInTheDocument()
   expect(screen.getByText(/The audio or text involved is sent to OpenAI/)).toBeInTheDocument()
   expect(screen.getByText(/the research question is sent to Perplexity/)).toBeInTheDocument()
+  // AI Search also sends the member's question to Perplexity
+  // (ai_search_agent.py web_search -> perplexity_search.web_search).
+  expect(screen.getByText(/When you use AI Search/)).toBeInTheDocument()
+})
+
+test('community sharing names everything another member can see', () => {
+  const { container } = renderWithProviders(<Privacy />)
+  const text = container.textContent
+  // journal_two/community.py shares each trade's and position's notes, and
+  // _display_name falls back to the part of the email before the @.
+  expect(text).toMatch(/including the notes you wrote on them/)
+  expect(text).toMatch(/the part of your email address before the @/)
+})
+
+test('deleted notes: the Trash window is stated, not "until you delete it"', () => {
+  const { container } = renderWithProviders(<Privacy />)
+  const text = container.textContent
+  // notes.py TRASH_RETENTION_DAYS = 30; the editor says the same to the member.
+  expect(text).toMatch(/goes to Trash, where you can restore it for 30 days/)
 })
 
 test('never claims activity data is anonymous — page views are stored per account', () => {

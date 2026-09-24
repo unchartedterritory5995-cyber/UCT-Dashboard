@@ -130,3 +130,28 @@ def test_every_required_table_is_one_the_app_actually_creates():
         declared.update(_re.findall(r"CREATE TABLE IF NOT EXISTS\s+\"?(\w+)", src.read_text(encoding="utf-8", errors="replace")))
     assert "users" in declared and len(declared) > 50  # non-vacuity: the scan found the schema
     assert [t for t in drill.REQUIRED_TABLES if t not in declared] == []
+
+
+# ── After a REAL restore: the derived-text backfills must run again ──────────
+# Whole-branch review N3 (wave 5): the backfill flags live in DATA_DIR, not in the
+# database, so a restored pre-backfill auth.db keeps its OLD body_plain forever
+# (part-bold words stay unsearchable) unless the flag files are removed. Only the
+# IDEMPOTENT re-derive backfills may be listed: a one-shot migration flag (v1 moves
+# playbook entries into notes) must NOT be removed, or a restore would re-migrate.
+
+def test_the_restore_report_names_the_backfill_flags_to_remove(tmp_path, capsys):
+    gz = _make_backup(tmp_path, "20260923T120000Z.db.gz")
+    code = drill.run(_args(file=str(gz)), now=NOW)
+    out = capsys.readouterr().out
+    assert code == drill.PASS
+    assert "After a real restore" in out
+    for flag in (".notebook_migration_v7", ".upb_body_plain_v1"):
+        assert flag in out and f"{flag}.progress" in out
+
+
+def test_the_flag_list_is_DERIVED_from_the_backfill_call_sites_and_names_no_one_shot_migration():
+    flags = drill.rederive_backfill_flags()
+    # non-vacuity: the derivation must see both real call sites
+    assert ".notebook_migration_v7" in flags and ".upb_body_plain_v1" in flags
+    # a one-shot migration is never on the list
+    assert not any(f.startswith(".notebook_migration_v") and f != ".notebook_migration_v7" for f in flags)

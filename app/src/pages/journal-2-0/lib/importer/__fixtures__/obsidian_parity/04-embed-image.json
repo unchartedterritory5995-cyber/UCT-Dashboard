@@ -3,6 +3,7 @@
   "input_markdown": "# Embed Image\n\n![[chart.png]]\n\nAbove is today's chart.\n",
   "self_path": "a.md",
   "server": {
+    "highlights": [],
     "images": [
       "files/chart.png"
     ],

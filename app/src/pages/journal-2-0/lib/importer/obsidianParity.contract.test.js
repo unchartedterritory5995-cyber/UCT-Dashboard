@@ -131,6 +131,9 @@ function walkSemantic(node, out) {
         target: normalizeLinkHref(linkMark.attrs?.href || ''),
       })
     }
+    // N5: the highlight mark -- its run's text and colour (null = default).
+    const hlMark = (node.marks || []).find((m) => m?.type === 'highlight')
+    if (hlMark) out.highlights.push({ text: node.text || '', color: hlMark.attrs?.color ?? null })
   } else if (node.type === 'image') {
     out.images.push(normalizeImageSrc(attrs.src || ''))
   } else if (node.type === 'taskItem') {
@@ -144,7 +147,7 @@ function walkSemantic(node, out) {
 // lockstep with the server's `notes.py::extract_plain_text` for the
 // notebook search index — rather than a third hand-rolled text walker.
 function semanticSummary(doc) {
-  const out = { links: [], images: [], task_checked: [] }
+  const out = { links: [], images: [], task_checked: [], highlights: [] }
   walkSemantic(doc, out)
   return { text: extractPlainText(doc), ...out }
 }

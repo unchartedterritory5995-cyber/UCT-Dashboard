@@ -3,6 +3,16 @@
   "input_markdown": "# Comparisons\n\nIf rsi == 30 and macd == 0 then buy.\nCode-ish: close==open and high==low stays as typed.\nA real mark: the ==key level== holds, and (==risk==) too.\n",
   "self_path": "a.md",
   "server": {
+    "highlights": [
+      {
+        "color": null,
+        "text": "key level"
+      },
+      {
+        "color": null,
+        "text": "risk"
+      }
+    ],
     "images": [],
     "links": [],
     "task_checked": [],

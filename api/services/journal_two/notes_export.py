@@ -365,6 +365,19 @@ def _make_note_link_aware_resolver(
 #  - the raw-HTML islands a callout (`<aside>`) and a toggle (`<details>`)
 #    export as -- a CommonMark HTML block is not parsed for escapes (or for
 #    math), and the importer passes those islands through untouched.
+# Fix round 2: prose is not only the text walk. Member text also reaches the
+# Markdown through ATTRIBUTES -- an attachment's name, a note link's title, an
+# excerpt's quote/citation/annotation, a widget's label, an Ask answer's
+# question and source labels. All of it goes through `_prose`, the ONE place
+# this rule lives. URLs (a link's href, an image's src) are not prose and stay
+# raw. ⛔ And so, deliberately, does an image's ALT text: CommonMark flattens an
+# image description to a plain-text `alt`, and our own importer's markdown-it
+# (14.3) builds that string with `renderInlineAsText`, which SKIPS every
+# backslash-escaped character -- `![NVDA \$5](x.png)` re-imports with alt
+# "NVDA 5". Escaping there would lose the member's `$` in the one round trip
+# we own (railed in exportRoundtrip.test.js). A lone `$` cannot form math, and
+# a pair needs a reader that parses math inside an image description -- the
+# smaller risk of the two.
 _ESCAPE_PROSE_DOLLARS = contextvars.ContextVar("notes_export_escape_prose_dollars", default=True)
 
 
@@ -457,12 +470,66 @@ def _toc_markdown(headings: list[tuple[int, str]]) -> str:
     return "\n".join(lines)
 
 
+# A run of backslashes the member typed right before a `$` (R2-N4).
+_BACKSLASHES_BEFORE_DOLLAR = re.compile(r"(\\+)(?=\$)")
+# A rendered text run that OPENS with an escaped `$` -- our `\$`, perhaps
+# behind the member's own (doubled) backslashes -- and no mark delimiter.
+_OPENS_WITH_ESCAPED_DOLLAR = re.compile(r"\\+\$")
+
+
+def _prose(text: Any) -> str:
+    """Member text written into Markdown PROSE: every `$` becomes `\\$` (N4),
+    unless this walk is inside a raw island (`_raw_dollars`).
+
+    ⛔ And a backslash the member typed right before a `$` is doubled first
+    (re-review R2-N4). Our escape puts a `\\` in front of the `$`, which is
+    ASCII punctuation, so CommonMark would read the member's own backslash as
+    ESCAPING ours -- `cost \\$5` exported as `cost \\\\$5` reads as a literal
+    backslash and a LIVE `$`, which a math reader pairs. Doubled, it is
+    `cost \\\\\\$5`: an escaped backslash, then an escaped dollar, and the note
+    re-imports as `cost \\$5`. A backslash before anything else is left as it
+    was (a Windows path, `C:\\Users`, is untouched).
+
+    This sees ONE string. A backslash ending one text run and a `$` opening
+    the next (a coloured word, then plain text) is handled where the runs are
+    joined, in `_inline` (re-review R34-N2)."""
+    text = "" if text is None else str(text)
+    if not _ESCAPE_PROSE_DOLLARS.get():
+        return text
+    text = _BACKSLASHES_BEFORE_DOLLAR.sub(lambda m: m.group(1) * 2, text)
+    return text.replace("$", "\\$")
+
+
+def _html_island(html: str) -> str:
+    """A raw-HTML island (a callout's `<aside>`, a toggle's `<details>`) as ONE
+    CommonMark HTML block (re-review R2-N1).
+
+    `<aside>` and `<details>` open a type-6 HTML block, which ENDS AT THE FIRST
+    BLANK LINE. The writers below join their children with a single newline,
+    but a child can still carry a blank line of its own: an excerpt's
+    annotation (`lines.append("")`), two Shift+Enters in a row, a code block
+    with an empty line. Everything after it was then parsed as Markdown --
+    with its `$` raw, because `_raw_dollars` had kept it raw for the island it
+    was supposed to be in -- and a math reader paired them.
+
+    So no line inside the island may be blank: each one becomes `<br>`, which
+    keeps the block open and still reads as a line break inside the HTML.
+    (CommonMark's blank line is spaces and tabs only.)
+
+    ⛔ CommonMark ends a line at `\\r\\n`, at a lone `\\r` AND at `\\n`
+    (re-review R34-N1). Split on `\\n` alone, text pasted with `\\r\\n\\r\\n` left
+    a line holding just `\\r` -- not blank to this rule, blank to every reader
+    -- and `\\r\\r` hid a blank line inside ONE line. Every line ending is made
+    `\\n` first, so the rule sees the lines a reader will."""
+    html = html.replace("\r\n", "\n").replace("\r", "\n")
+    return "\n".join("<br>" if re.fullmatch(r"[ \t]*", line) else line for line in html.split("\n"))
+
+
 def _text_with_marks(node: dict[str, Any], resolver=None) -> str:
     text = node.get("text") or ""
     marks = node.get("marks") or []
-    if _ESCAPE_PROSE_DOLLARS.get() and not any(
-            isinstance(m, dict) and m.get("type") == "code" for m in marks):
-        text = text.replace("$", "\\$")
+    if not any(isinstance(m, dict) and m.get("type") == "code" for m in marks):
+        text = _prose(text)
     for mark in marks:
         mtype = mark.get("type")
         if mtype == "link":
@@ -479,7 +546,20 @@ def _inline(nodes: list[dict[str, Any]] | None, resolver=None) -> str:
     out = []
     for n in nodes or []:
         if n.get("type") == "text":
-            out.append(_text_with_marks(n, resolver))
+            piece = _text_with_marks(n, resolver)
+            # R2-N4 across a run boundary (re-review R34-N2). `_prose` doubles
+            # a backslash run only when its `$` is in the SAME text node. A run
+            # ending in `\` (a coloured word exports with no delimiter) and the
+            # next opening with `$` came out `\` + `\$`: an escaped backslash
+            # and a LIVE `$`. When this run opens with our escaped `$`, the
+            # backslashes the output already ends with are the member's own,
+            # undoubled -- a run's output ends in `\` only when its text does
+            # and no mark closed it (an atom ends in `]`, `)`, `*` or `$`) --
+            # so they are doubled here, exactly as `_prose` would have.
+            if _ESCAPE_PROSE_DOLLARS.get() and _OPENS_WITH_ESCAPED_DOLLAR.match(piece):
+                so_far = "".join(out)
+                out.append("\\" * (len(so_far) - len(so_far.rstrip("\\"))))
+            out.append(piece)
         elif n.get("type") == "hardBreak":
             out.append("\n")
         else:
@@ -631,7 +711,7 @@ def _ask_insert_markdown(attrs: dict[str, Any], kids, resolver=None) -> str:
     quote, so a member's Markdown never loses which passage was AI-assisted, and
     lists its sources as they stood when it was inserted."""
     date = str(attrs.get("insertedAt") or "")[:10]
-    question = str(attrs.get("question") or "").strip()
+    question = _prose(str(attrs.get("question") or "").strip())
     head = "**From Ask Notebook**"
     if date:
         head += f" · {date}"
@@ -646,7 +726,7 @@ def _ask_insert_markdown(attrs: dict[str, Any], kids, resolver=None) -> str:
         if n.get("type") == "askCitation":
             num = _ask_citation_n(n.get("attrs"))
             if num is not None and num not in sources:
-                sources[num] = str(n["attrs"].get("label") or "source")
+                sources[num] = _prose(n["attrs"].get("label") or "source")
         for c in n.get("content") or []:
             collect(c)
 
@@ -707,6 +787,7 @@ def _block(node: dict[str, Any], resolver=None) -> str:
     if ntype in ("image", "resizableImage"):
         src = attrs.get("src") or ""
         local = resolver(src) if resolver else None
+        # The alt stays raw -- see the N4 note above `_ESCAPE_PROSE_DOLLARS`.
         return f"![{attrs.get('alt') or ''}]({local or src})"
     if ntype == "imageFigure":
         # Wave 6: an image and its caption. The caption is the member's TEXT,
@@ -772,7 +853,7 @@ def _block(node: dict[str, Any], resolver=None) -> str:
     if ntype == "attachmentChip":
         href = attrs.get("href") or ""
         local = resolver(href) if resolver else None
-        return f"[{attrs.get('name') or 'attachment'}]({local or href})"
+        return f"[{_prose(attrs.get('name') or 'attachment')}]({local or href})"
     if ntype == "videoTimestamp":
         # Mirrors app/src/components/video/playerUtils.js::fmtTime exactly --
         # the same helper the editor's own node view renders with
@@ -797,7 +878,7 @@ def _block(node: dict[str, Any], resolver=None) -> str:
         if resolved is None:
             return "*[linked note]*"
         title, href = resolved
-        return f"[{title}]({href})"
+        return f"[{_prose(title)}]({href})"
     if ntype == "documentExcerpt":
         # Wave J. Resolves via the SAME resolver parameter noteLink uses
         # (document-excerpt://<id> marker, see
@@ -810,11 +891,11 @@ def _block(node: dict[str, Any], resolver=None) -> str:
         if resolved is None:
             return "*[excerpt source no longer available]*"
         quote, citation, annotation = resolved
-        lines = [f"> {ln}" for ln in quote.split("\n")]
-        lines.append(f"> — {citation}")
+        lines = [f"> {ln}" for ln in _prose(quote).split("\n")]
+        lines.append(f"> — {_prose(citation)}")
         if annotation:
             lines.append("")
-            lines.append(f"*{annotation}*")
+            lines.append(f"*{_prose(annotation)}*")
         return "\n".join(lines)
     if ntype == "askInsert":
         # null/list/string attrs read as empty, never raise (G-064 close-out).
@@ -827,7 +908,7 @@ def _block(node: dict[str, Any], resolver=None) -> str:
         # the note look like it lost content, so emit the widget's own
         # pre-computed search line -- the same string that feeds body_plain.
         label = attrs.get("searchText") or attrs.get("widgetId") or "widget"
-        return f"> [{label}]"
+        return f"> [{_prose(label)}]"
     if ntype == "table":
         return _table(node, resolver)
     if ntype == "callout":
@@ -854,7 +935,7 @@ def _block(node: dict[str, Any], resolver=None) -> str:
             return f'<aside data-variant="{variant}">\n{inner}\n</aside>' if inner else \
                 f'<aside data-variant="{variant}">\n</aside>'
         first_line = f"{emoji} {inner}" if inner else emoji
-        return f"<aside>\n{first_line}\n</aside>"
+        return _html_island(f"<aside>\n{first_line}\n</aside>")
     if ntype == "toggle":
         # content = [toggleSummary, toggleContent] by schema, but this reads
         # them by NAME rather than by position -- never raise on a
@@ -870,7 +951,7 @@ def _block(node: dict[str, Any], resolver=None) -> str:
         # Same CommonMark type-6-HTML-block constraint as callout above:
         # `<details>`/`<summary>` are BOTH in the html-block tag list, so no
         # blank line may appear between the opening and closing tags.
-        return f"<details>\n<summary>{summary_text}</summary>\n{body}\n</details>"
+        return _html_island(f"<details>\n<summary>{summary_text}</summary>\n{body}\n</details>")
     if ntype == "toggleSummary":
         return _inline(kids, resolver)
     if ntype == "toggleContent":
@@ -1831,6 +1912,7 @@ def build_selection_export_to_tempfile(
 
 def build_single_note_export(
     user_id: str, note_id: str, conn: sqlite3.Connection | None = None,
+    attachment_budget: dict[str, int] | None = None,
 ) -> tuple[bytes, str, str] | None:
     """ONE note as portable markdown -- the trust/portability feature for a
     member who wants to leave with a single note, not their whole notebook
@@ -1852,7 +1934,13 @@ def build_single_note_export(
     already IS a portable markdown file, no zip needed); a `.zip`
     (note.md + attachments/) when it has at least one. Both paths share this
     one function, branching only on whether anything was written into
-    `attach_state["written"]`."""
+    `attach_state["written"]`.
+
+    `attachment_budget` ({"used_bytes", "cap_bytes"}) is the SELECTION
+    export's one shared budget (review N7): pass the same dict for every note
+    of a batch and the cap bounds the whole archive, as the whole-notebook
+    export's does; it is read at the start and written back at the end.
+    Omitted, this note gets the cap to itself (the single-note export)."""
     from api.services.auth_db import get_connection
 
     owned = conn is None
@@ -1886,9 +1974,12 @@ def build_single_note_export(
         # Zip-root note -- folder='' so `_make_attachment_resolver`'s relative
         # links point at a top-level `attachments/` tree in THIS archive, not
         # the multi-note folder-nested layout the full export uses.
+        budget = attachment_budget if attachment_budget is not None else {
+            "used_bytes": 0, "cap_bytes": _attachment_cap_bytes(),
+        }
         attach_state: dict[str, Any] = {
             "zf": zf, "written": set(), "failed": set(), "issues": {},
-            "used_bytes": 0, "cap_bytes": _attachment_cap_bytes(),
+            "used_bytes": budget["used_bytes"], "cap_bytes": budget["cap_bytes"],
         }
         attachment_resolver = _make_attachment_resolver(user_id, "", note_id, note_title, attach_state)
         # No `note_paths` here -- a single-note export never bundles its
@@ -1925,6 +2016,7 @@ def build_single_note_export(
             "thesis_reviews": reviews_by_note.get(note_id, []),
         }
         md_text = f"{_front_matter(row, hero_local, extra=extra)}\n\n{body}\n"
+        budget["used_bytes"] = attach_state["used_bytes"]   # N7: the selection's shared budget
 
         if attach_state["issues"]:
             issue_lines = [
@@ -1941,12 +2033,16 @@ def build_single_note_export(
 
         base = _safe_name(row["title"], row["id"])
         stamp = datetime.now(timezone.utc).strftime("%Y%m%d")
-        if attach_state["written"]:
+        # ⛔ N7: a note whose attachments were ALL left out (the shared cap, a
+        # missing file) still ships its EXPORT_ISSUES.txt -- a bare .md would
+        # drop the list of what is missing, and a selection export could then
+        # not say that its cap was reached.
+        if attach_state["written"] or attach_state["issues"]:
             zf.writestr(f"{base}.md", md_text)
             zf.close()
             return buf.getvalue(), f"{base}-{stamp}.zip", "application/zip"
-        # Nothing bundled -- a bare .md is simpler and more directly portable
-        # than a one-entry zip. Discard the never-populated zip buffer.
+        # Nothing bundled and nothing missing -- a bare .md is simpler and more
+        # directly portable than a one-entry zip. Discard the unused buffer.
         zf.close()
         return md_text.encode("utf-8"), f"{base}-{stamp}.md", "text/markdown"
     finally:

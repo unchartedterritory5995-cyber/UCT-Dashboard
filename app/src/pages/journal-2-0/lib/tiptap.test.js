@@ -15,6 +15,7 @@ describe('tiptap config', () => {
         content: [{ type: 'videoTimestamp', attrs: { seconds: 75 } }, { type: 'text', text: ' note' }],
       }],
     }
-    expect(extractPlainText(doc)).toBe('[1:15]  note')
+    // an inline leaf emits no separator: the text node's own space is the only one
+    expect(extractPlainText(doc)).toBe('[1:15] note')
   })
 })

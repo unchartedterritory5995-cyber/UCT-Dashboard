@@ -151,21 +151,19 @@ provider-specific grammar. Two syntaxes, two decisions:
     path before comparing lanes, since the encoding is a markdown-parser
     artifact, not a semantic difference from the client lane's unencoded
     `href`.
-  - `==highlight==` — the target TipTap schema (`tiptap.js::buildExtensions`,
-    verified against the installed `@tiptap/starter-kit@3.23.6` +
-    `app/package.json`) has NO highlight/mark extension registered at all;
-    the JS adapter's own `<mark>` output is schema-invisible once it reaches
-    `generateJSON` (an unrecognized tag's children still parse, the tag
-    itself contributes no mark — text survives, styling doesn't). Injecting
-    a raw `<mark>` HTML tag into the markdown text here would be STRICTLY
-    WORSE than that: `md_to_tiptap`'s inline walker has no DOM/schema
-    forgiveness for unrecognized `html_inline` tokens — it degrades them to
-    VISIBLE LITERAL TEXT (see `_inline_nodes`'s `html_inline` branch), so
-    the note would show the literal characters `<mark>`/`</mark>`. The
-    faithful server-side port of this pre-pass's ACTUAL end-to-end effect
-    (text preserved, styling silently dropped) is therefore to strip the
-    `==...==` delimiters and keep the inner text bare — not to inject HTML
-    this converter cannot represent.
+  - `==highlight==` — a HIGHLIGHT MARK, the same as the file importer.
+    Since wave 5 the schema registers one (`NotebookHighlight`,
+    `tiptap.js`), and `adapters/obsidian.js` emits `<mark>…</mark>`, which
+    `generateJSON` parses into it. This pass emits the same `<mark>` (inner
+    text HTML-escaped exactly as the JS lane's `escapeHtml` does), and
+    `md_to_tiptap`'s inline walker turns a `<mark>`/`</mark>` `html_inline`
+    pair into the `highlight` mark (see `_inline_nodes`); any OTHER raw
+    inline HTML still degrades to visible text. ⚰️ Until 2026-09-24 this
+    stripped the delimiters to bare text, on the grounds that the schema had
+    no highlight mark -- stale since the schema gained one, so the same vault
+    read one way through sync and another through the file importer (review
+    N5). The parity rail's summary now carries the highlight runs, so the two
+    lanes cannot drift apart on it again.
 
 Both passes run only OUTSIDE fenced (```) and inline (`) code spans, mirroring
 `obsidian.js::transformOutsideCode` — code content must never be
@@ -274,9 +272,17 @@ _WIKI_RE = re.compile(r"(!)?\[\[([^\]|]+)(?:\|([^\]]+))?\]\]")
 # ⛔ A trader's prose is full of `==` COMPARISONS ("if rsi == 30 and macd == 0").
 # The old `==([^=\n]+)==` read the span between two comparisons as a highlight and
 # deleted both operators. A highlight now needs a non-space just inside each `==`,
-# and neither marker may touch a word character or another `=` on its outside --
-# the same rule the editor's typed `==` uses. The client lane
-# (`adapters/obsidian.js`) mirrors it; the parity fixture `08-comparisons` pins both.
+# and neither marker may touch a word character or another `=` on its outside.
+# ⚠️ This is NOT the editor's typed rule (`textColor.js::HIGHLIGHT_FIND`), and it
+# is looser on purpose. Typing needs start-of-text, a space or an opening bracket
+# before the `==`, and fires only when a space or punctuation is typed after the
+# closing `==`, because an input rule fires MID-keystroke and must never fire on
+# `==` a member is still typing inside a word. An import reads FINISHED text, so
+# it only has to rule out comparisons and word-internal `==`: any character that
+# is not `=` or a word character may sit outside the markers. So `"==risk=="` is
+# a highlight on import and not when typed. The client lane
+# (`adapters/obsidian.js`) mirrors THIS rule; the parity fixture `08-comparisons`
+# pins both.
 _HIGHLIGHT_RE = re.compile(r"(^|[^=\w])==(?=\S)([^=\n]*?\S)==(?![=\w])")
 _IMAGE_EXT_RE = re.compile(r"\.(png|jpe?g|gif|webp|svg|bmp|heic)$", re.IGNORECASE)
 
@@ -389,11 +395,19 @@ def _transform_wiki_and_embeds(
     return _WIKI_RE.sub(repl, segment)
 
 
+def _escape_html(text: str) -> str:
+    """`adapters/obsidian.js::escapeHtml`, character for character (`&`, `<`,
+    `>`): the inner text of a `<mark>` must reach the markdown parser exactly
+    as the client lane's does."""
+    return text.replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;")
+
+
 def _transform_highlights(segment: str) -> str:
-    """`==text==` -> bare `text` — see the module docstring's "Conversion"
-    section for why this (not an injected `<mark>`) is the faithful
-    server-side port given the installed schema has no highlight mark."""
-    return _HIGHLIGHT_RE.sub(lambda m: m.group(1) + m.group(2), segment)
+    """`==text==` -> `<mark>text</mark>`, the client lane's own output (see
+    the module docstring's "Conversion" section); `md_to_tiptap` reads the
+    pair as a `highlight` mark."""
+    return _HIGHLIGHT_RE.sub(
+        lambda m: f"{m.group(1)}<mark>{_escape_html(m.group(2))}</mark>", segment)
 
 
 def _transform_outside_code(text: str, fn: Any) -> str:

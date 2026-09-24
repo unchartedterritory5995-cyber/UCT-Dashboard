@@ -2,6 +2,10 @@ import { useEditor, EditorContent, Extension, ReactRenderer } from '@tiptap/reac
 import Suggestion from '@tiptap/suggestion'
 import { useEffect, useImperativeHandle, useMemo, useRef, useState, forwardRef } from 'react'
 import { buildExtensions, extractPlainText } from '../../journal-2-0/lib/tiptap'
+import {
+  noteContentGuardOptions, isUnreadable, replaceDocument, useUnreadableNote,
+} from '../../journal-2-0/lib/noteContentGuard'
+import UnreadableNoteNotice from '../../journal-2-0/lib/UnreadableNoteNotice'
 import slashStyles from '../../journal-2-0/components/notebook/SlashMenu.module.css'
 
 // Thin TipTap editor for My Playbook entries. Reuses the Notebook's extension
@@ -223,14 +227,22 @@ export default function UpbRichEditor({ docJson, contentKey, placeholder, onSave
 
   const editor = useEditor({
     extensions,
+    // ⛔ S1/H14: an entry this bundle cannot read LOCKS the editor instead of
+    // opening it empty. This editor used to SAVE ON OPEN: the setEditable
+    // below emits an update, the autosave compared the empty stand-in with the
+    // stored body, and wrote the empty one -- without a keystroke.
+    ...noteContentGuardOptions(),
     content: docJson || EMPTY_DOC,
     editable: !readOnly,
     onUpdate: () => scheduleAutosaveRef.current(),
   }, [contentKey])
+  const unreadable = useUnreadableNote(editor)
 
   useEffect(() => {
-    if (editor && !editor.isDestroyed) editor.setEditable(!readOnly)
-  }, [editor, readOnly])
+    // A locked editor stays locked -- and setEditable would emit the update
+    // that schedules the save.
+    if (editor && !editor.isDestroyed && !isUnreadable(editor)) editor.setEditable(!readOnly)
+  }, [editor, readOnly, unreadable])
 
   // Baseline for the no-op save check — reset per record, mirroring
   // NoteEditorPage's lastSavedRef seeding on note?.id.
@@ -252,7 +264,7 @@ export default function UpbRichEditor({ docJson, contentKey, placeholder, onSave
     try {
       const current = JSON.stringify(editor.getJSON())
       const fresh = JSON.stringify(docJson)
-      if (current !== fresh) editor.commands.setContent(docJson, false)
+      if (current !== fresh) replaceDocument(editor, docJson, false)
     } catch {
       /* editor view not mounted yet — content already loaded via useEditor */
     }
@@ -260,7 +272,7 @@ export default function UpbRichEditor({ docJson, contentKey, placeholder, onSave
   }, [contentKey, editor])
 
   const commitSave = async () => {
-    if (!editor || editor.isDestroyed || readOnly) return
+    if (!editor || editor.isDestroyed || readOnly || isUnreadable(editor)) return
     saveTimerRef.current = null
     retryTimerRef.current = null
 
@@ -313,5 +325,10 @@ export default function UpbRichEditor({ docJson, contentKey, placeholder, onSave
     }
   }, [])
 
-  return <EditorContent editor={editor} />
+  return (
+    <>
+      {unreadable && <UnreadableNoteNotice />}
+      <EditorContent editor={editor} />
+    </>
+  )
 }

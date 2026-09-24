@@ -64,6 +64,10 @@ async function settleSent(db, entry, saved) {
     // ⛔ AFTER the spread, never inside it: the record's own `serverBase` is
     // now stale — the server has just accepted these words at this revision.
     serverBase: caughtUp ? null : snapshotOfServerCopy(saved, baseUpdatedAt),
+    // ⛔⛔ B1: AFTER the spread too. The words are the record's when there is
+    // one, so the stamp is the record's — even when the record has none (an
+    // unstamped record is 0, and the entry's stamp would relabel its words).
+    writtenSchema: rec ? rec.writtenSchema : entry.writtenSchema,
   }
   // ⛔ The re-queued intent carries what the RECORD holds now, not the words
   // we just sent. Re-queuing `entry.patch` would make the next drain send the
@@ -73,6 +77,8 @@ async function settleSent(db, entry, saved) {
     patch: { title: next.title, subtitle: next.subtitle, bodyJson: next.bodyJson },
     baseUpdatedAt,
     queuedAt: Date.now(),
+    // B1: and the stamp of THOSE words, never the sent entry's.
+    writtenSchema: next.writtenSchema,
   }
   await putNoteWithIntent(db, next, intent)
 }
@@ -172,6 +178,8 @@ async function settleBlocked(db, entry, error) {
     bodyJson: entry.patch?.bodyJson ?? null,
     baseUpdatedAt: usableBaseline(entry.baseUpdatedAt),
     dirty: 1,
+    // B1: rebuilt from the entry, so it carries the entry's stamp.
+    writtenSchema: entry.writtenSchema,
   }, {
     ...entry,
     // ⛔ Kept, not deleted. Retired from retrying, so the queue does not spin on
@@ -369,9 +377,12 @@ async function askServerIfOurs(db, entry, serverCopyIsOurs) {
  */
 export async function drainOutbox(db, {
   send, fork, excludeNoteId = null,
-  // ⛔ The sessionIds currently holding the sync Web Lock, or null when the
-  // caller cannot enumerate them. null means "the TTL decides alone" — never
-  // "nobody holds it", which would expire every live marker instantly.
+  // ⛔ The sessionIds of the tabs still alive — each holds its own per-tab
+  // session lock (`liveSessionIds`), NOT the sync/leader lock — or null when
+  // the caller cannot enumerate them. null means "the TTL decides alone" —
+  // never "nobody holds it", which would expire every live marker instantly.
+  // ⚠️ Read ONLY by `isMarkerLive`, where it can only DEMOTE a gone tab's
+  // marker: it excludes no note by itself (`excludeNoteId` is the one that does).
   holders = null,
   ttlMs = IN_FLIGHT_TTL_MS,
   // async (entry) => {ours: boolean, why: string}. Asks the SERVER whether the

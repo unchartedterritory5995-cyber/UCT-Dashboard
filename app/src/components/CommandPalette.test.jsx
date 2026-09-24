@@ -199,7 +199,7 @@ describe('CommandPalette — search + selection', () => {
     await screen.findByText('Apple Inc.')
   })
 
-  it('Enter navigates to the typed value immediately, with zero network wait', async () => {
+  it('Enter on a typed symbol lands on it — asked at once, before the debounce, and landing as soon as BOTH answers are in (R1-N2, R23-N4)', async () => {
     renderPalette()
     act(() => pressCtrlK())
     const input = await screen.findByRole('combobox')
@@ -512,7 +512,7 @@ describe('CommandPalette — Wave B: Notebook joins the palette (§12-15)', () =
       .toHaveTextContent('/journal/notebook'))
   })
 
-  it('Enter still preserves zero-network-wait for a plain ticker query with no notebook match', async () => {
+  it('Enter on a plain ticker query with no notebook match still opens the typed symbol (R1-N2 / R23-N4: after both answers, bounded)', async () => {
     renderPalette()
     act(() => pressCtrlK())
     const input = await screen.findByRole('combobox')
@@ -741,6 +741,40 @@ describe('CommandPalette — quick switcher over ALL notes (Notebook 10/10 wave 
     await waitFor(() => expect(screen.getByTestId('route-spy')).toHaveTextContent('/journal/notebook?note=p1'))
   })
 
+  // Controller item 8 (the live walk): `/api/ticker-search` answers "plan" with
+  // Anaplan's DELISTED PLAN first. A delisted exact ticker must not take Enter
+  // from the member's own note titled "Plan"; a LIVE exact ticker still does.
+  it('item 8: an exact note title beats a DELISTED exact ticker — "plan" + Enter opens the note', async () => {
+    routeFetch({
+      tickers: [{ ticker: 'PLAN', name: 'Anaplan, Inc.', type: 'delisted', delisted: true, delisted_date: '2022-06-23' }],
+      notes: [note({ id: 'p1', title: 'Plan', matchTier: 0, exact: true, ticker: null })],
+    })
+    renderPalette()
+    act(() => pressCtrlK())
+    const input = await screen.findByRole('combobox')
+    fireEvent.change(input, { target: { value: 'plan' } })
+    await screen.findByText('Anaplan, Inc.')
+    await waitFor(() => expect(screen.getAllByRole('option')[0].getAttribute('aria-label')).toMatch(/Note: Plan/))
+    fireEvent.keyDown(input, { key: 'Enter' })
+    await waitFor(() => expect(screen.getByTestId('route-spy')).toHaveTextContent('/journal/notebook?note=p1'))
+  })
+
+  it('item 8 control: a LIVE exact ticker still leads — "nvda" + Enter opens NVDA research, not the note "NVDA"', async () => {
+    routeFetch({
+      tickers: [{ ticker: 'NVDA', name: 'NVIDIA Corporation' }],
+      notes: [note({ id: 'n9', title: 'NVDA', matchTier: 0, exact: true, ticker: 'NVDA' })],
+    })
+    renderPalette()
+    act(() => pressCtrlK())
+    const input = await screen.findByRole('combobox')
+    fireEvent.change(input, { target: { value: 'nvda' } })
+    await screen.findByText('NVIDIA Corporation')
+    await screen.findByRole('option', { name: /Note: NVDA/ })
+    expect(screen.getAllByRole('option')[0].getAttribute('aria-label')).toMatch(/^NVDA — NVIDIA/)
+    fireEvent.keyDown(input, { key: 'Enter' })
+    await waitFor(() => expect(screen.getByTestId('route-spy')).toHaveTextContent('/research/NVDA'))
+  })
+
   it('N1: once the server says no note can match, typing onto that query stops asking — a backspace asks again', async () => {
     global.fetch = vi.fn((url) => {
       const u = String(url)
@@ -790,5 +824,205 @@ describe('CommandPalette — touch tier', () => {
     const touch = /@media\s*\(max-width:\s*1024px\)\s*\{([\s\S]*?)\n\}/.exec(css.replace(/\r\n/g, '\n'))
     expect(touch, 'a max-width:1024px block must exist').not.toBeNull()
     expect(touch[1]).toMatch(/\.resultRow\s*\{[^}]*min-height:\s*var\(--tap-min/)
+  })
+})
+
+describe('CommandPalette — R1-N2: where Enter lands never depends on WHEN it is pressed', () => {
+  const noteRow = (over) => ({
+    id: 'p1', title: 'Plan', folderId: null, folderPath: null, ticker: null, updatedAt: '2026-09-01T00:00:00Z',
+    isRecent: false, isFavorite: false, matchTier: 0, strong: true, exact: true, ...over,
+  })
+  function routeFetch({ tickers, notes, notesGate = null, tickersGate = null }) {
+    global.fetch = vi.fn((url) => {
+      const u = String(url)
+      if (u.startsWith('/api/ticker-search')) {
+        const answer = () => ({ ok: true, json: () => Promise.resolve({ results: tickers }) })
+        return tickersGate ? tickersGate.then(answer) : Promise.resolve(answer())
+      }
+      if (u.startsWith('/api/j2/notes/switcher')) {
+        const answer = () => ({ ok: true, json: () => Promise.resolve({ notes, hasMore: false }) })
+        return notesGate ? notesGate.then(answer) : Promise.resolve(answer())
+      }
+      return Promise.resolve({ ok: true, json: () => Promise.resolve({ notes: [] }) })
+    })
+  }
+  /** Press Enter FAST (before any answer) or SLOW (after both answered and
+   *  rendered) and return where the palette went. */
+  async function landingOf(timing, query, fixture) {
+    routeFetch(fixture)
+    const { unmount } = renderPalette()
+    act(() => pressCtrlK())
+    const input = await screen.findByRole('combobox')
+    fireEvent.change(input, { target: { value: query } })
+    if (timing === 'slow') {
+      await screen.findByRole('option', { name: new RegExp(`Note: ${fixture.notes[0].title}`) })
+      await screen.findByText(fixture.tickers[0].name)
+    }
+    fireEvent.keyDown(input, { key: 'Enter' })
+    await waitFor(() => expect(screen.getByTestId('route-spy').textContent).not.toBe('/dashboard'))
+    const where = screen.getByTestId('route-spy').textContent
+    unmount()
+    return where
+  }
+
+  it('a note-only short query ("plan": no ticker IS it) — fast and slow Enter both open the note', async () => {
+    const fixture = { tickers: [{ ticker: 'PLNT', name: 'Planet Fitness' }], notes: [noteRow()] }
+    const fast = await landingOf('fast', 'plan', fixture)
+    const slow = await landingOf('slow', 'plan', fixture)
+    expect(fast).toBe('/journal/notebook?note=p1')
+    expect(slow).toBe(fast)
+  })
+
+  it('a ticker-match short query ("nvda", with a note titled NVDA) — fast and slow Enter both open the research page', async () => {
+    const fixture = {
+      tickers: [{ ticker: 'NVDA', name: 'NVIDIA Corp' }],
+      notes: [noteRow({ id: 'n9', title: 'NVDA', ticker: 'NVDA' })],
+    }
+    const fast = await landingOf('fast', 'nvda', fixture)
+    const slow = await landingOf('slow', 'nvda', fixture)
+    expect(fast).toBe('/research/NVDA')
+    expect(slow).toBe(fast)
+  })
+
+  it('the member sees it is deciding — never an early landing — and the landing follows the answer', async () => {
+    let release
+    const notesGate = new Promise((r) => { release = r })
+    routeFetch({ tickers: [], notes: [noteRow()], notesGate })
+    renderPalette()
+    act(() => pressCtrlK())
+    const input = await screen.findByRole('combobox')
+    fireEvent.change(input, { target: { value: 'plan' } })
+    fireEvent.keyDown(input, { key: 'Enter' })
+    expect(screen.getByTestId('palette-enter-pending')).toHaveTextContent('Finding the best match for "plan"')
+    expect(screen.getByRole('listbox')).toHaveAttribute('aria-busy', 'true')
+    await act(async () => { await new Promise((r) => setTimeout(r, 60)) })
+    expect(screen.getByTestId('route-spy')).toHaveTextContent('/dashboard')   // not acted early
+    await act(async () => { release() })
+    await waitFor(() => expect(screen.getByTestId('route-spy')).toHaveTextContent('/journal/notebook?note=p1'))
+  })
+
+  it('the wait is bounded: a notes index that never answers still lets Enter land on the typed symbol', async () => {
+    routeFetch({ tickers: [], notes: [noteRow()], notesGate: new Promise(() => {}) })
+    renderPalette()
+    act(() => pressCtrlK())
+    const input = await screen.findByRole('combobox')
+    fireEvent.change(input, { target: { value: 'plan' } })
+    const pressed = Date.now()
+    fireEvent.keyDown(input, { key: 'Enter' })
+    await waitFor(() => expect(screen.getByTestId('route-spy')).toHaveTextContent('/research/PLAN'), { timeout: 1500 })
+    expect(Date.now() - pressed).toBeGreaterThanOrEqual(350)
+  })
+
+  it('typing on while it decides drops the pending Enter — the old query never lands', async () => {
+    routeFetch({ tickers: [], notes: [noteRow()], notesGate: new Promise(() => {}) })
+    renderPalette()
+    act(() => pressCtrlK())
+    const input = await screen.findByRole('combobox')
+    fireEvent.change(input, { target: { value: 'plan' } })
+    fireEvent.keyDown(input, { key: 'Enter' })
+    fireEvent.change(input, { target: { value: 'planx' } })
+    await act(async () => { await new Promise((r) => setTimeout(r, 500)) })
+    expect(screen.getByTestId('route-spy')).toHaveTextContent('/dashboard')
+    expect(screen.queryByTestId('palette-enter-pending')).toBeNull()
+  })
+
+  // ── R23-N4: "tsl" is no ticker, but begins several. Its top row is decided
+  // by the TICKER answer too, so where Enter lands must not depend on which
+  // request answers first. Round 3 went to /research/TSL when the notes
+  // answered first and to /research/TSLA when the tickers did.
+  const TSL = {
+    tickers: [{ ticker: 'TSLA', name: 'Tesla Inc' }, { ticker: 'TSLL', name: 'Direxion Daily TSLA Bull' }],
+    notes: [noteRow({ id: 't1', title: 'TSL setup notes', exact: false })],
+  }
+  function gate() {
+    let release
+    const promise = new Promise((r) => { release = r })
+    return { promise, release }
+  }
+  /** Where Enter on `query` lands when the two answers arrive in `order`:
+   *  'fast' (Enter before either), 'slow' (both rendered first),
+   *  'tickers-first' / 'notes-first' (Enter after that one answered and
+   *  rendered, the other released afterwards). */
+  async function landingIn(order, query, fixture, { arrowDuringWait = 0 } = {}) {
+    const notesGate = order === 'tickers-first' ? gate() : null
+    const tickersGate = order === 'notes-first' ? gate() : null
+    routeFetch({ ...fixture, notesGate: notesGate?.promise, tickersGate: tickersGate?.promise })
+    const { unmount } = renderPalette()
+    act(() => pressCtrlK())
+    const input = await screen.findByRole('combobox')
+    fireEvent.change(input, { target: { value: query } })
+    if (order === 'slow' || order === 'tickers-first') await screen.findByText(fixture.tickers[0].name)
+    if (order === 'slow' || order === 'notes-first') {
+      await screen.findByRole('option', { name: new RegExp(`Note: ${fixture.notes[0].title}`) })
+    }
+    fireEvent.keyDown(input, { key: 'Enter' })
+    if (order === 'tickers-first' || order === 'notes-first') {
+      // It must be WAITING for the other answer -- not landed on a guess.
+      expect(screen.getByTestId('palette-enter-pending')).toBeInTheDocument()
+      expect(screen.getByTestId('route-spy')).toHaveTextContent('/dashboard')
+    }
+    for (let i = 0; i < arrowDuringWait; i += 1) fireEvent.keyDown(input, { key: 'ArrowDown' })
+    await act(async () => { notesGate?.release(); tickersGate?.release() })
+    await waitFor(() => expect(screen.getByTestId('route-spy').textContent).not.toBe('/dashboard'))
+    const where = screen.getByTestId('route-spy').textContent
+    unmount()
+    return where
+  }
+
+  it('"tsl" lands on the same row whichever answer comes first, and whenever Enter is pressed', async () => {
+    const landings = {}
+    for (const order of ['fast', 'slow', 'tickers-first', 'notes-first']) {
+      landings[order] = await landingIn(order, 'tsl', TSL)
+    }
+    expect(landings).toEqual({
+      fast: '/research/TSLA', slow: '/research/TSLA',
+      'tickers-first': '/research/TSLA', 'notes-first': '/research/TSLA',
+    })
+  })
+
+  it('R4-N1: the arrowed-to row is kept by IDENTITY — a late answer that reorders the rows cannot move the landing', async () => {
+    // Tickers first: [TSLA, TSLL, Go to TSL]. Enter waits for the notes, and
+    // ArrowDown picks TSLL (index 1). The notes then answer with a note TITLED
+    // "TSL": the rule puts it on top, so index 1 becomes TSLA — a row the member
+    // never highlighted. The landing must still be TSLL.
+    const reorders = { ...TSL, notes: [noteRow({ id: 'x1', title: 'TSL', exact: true })] }
+    expect(await landingIn('tickers-first', 'tsl', reorders, { arrowDuringWait: 1 })).toBe('/research/TSLL')
+    // The other order: notes first ([Go to TSL, the note]), ArrowDown picks the
+    // NOTE, then the tickers answer and push it to index 3.
+    expect(await landingIn('notes-first', 'tsl', TSL, { arrowDuringWait: 1 })).toBe('/journal/notebook?note=t1')
+  })
+
+  it('R4-N2: a ticker search that FAILS never lands on the previous prefix\'s symbol — Enter opens the typed one', async () => {
+    global.fetch = vi.fn((url) => {
+      const u = String(url)
+      if (u.startsWith('/api/ticker-search')) {
+        const q = new URL(u, 'http://x').searchParams.get('q')
+        if (q === 'ts') {
+          return Promise.resolve({ ok: true, json: () => Promise.resolve({
+            results: [{ ticker: 'TSLA', name: 'Tesla Inc' }, { ticker: 'TSM', name: 'Taiwan Semiconductor' }] }) })
+        }
+        return Promise.resolve({ ok: false, status: 500, json: () => Promise.resolve({ detail: 'boom' }) })
+      }
+      return Promise.resolve({ ok: true, json: () => Promise.resolve({ notes: [], hasMore: false }) })
+    })
+    renderPalette()
+    act(() => pressCtrlK())
+    const input = await screen.findByRole('combobox')
+    fireEvent.change(input, { target: { value: 'ts' } })
+    await screen.findByText('Tesla Inc')                                     // the prefix answered
+    fireEvent.change(input, { target: { value: 'tsl' } })
+    fireEvent.keyDown(input, { key: 'Enter' })
+    await screen.findByText(/Search is briefly unavailable — Enter still opens the typed symbol/)
+    expect(screen.queryByText('Tesla Inc')).toBeNull()                       // no row from "ts" under "tsl"
+    await waitFor(() => expect(screen.getByTestId('route-spy')).toHaveTextContent('/research/TSL'), { timeout: 1500 })
+    expect(screen.getByTestId('route-spy').textContent).toBe('/research/TSL')  // not TSLA
+  })
+
+  it('an arrow pressed during the wait is honoured: it lands on the highlighted row, not row 0', async () => {
+    // Enter after the tickers rendered [TSLA, TSLL, Go to TSL]; one ArrowDown
+    // while the notes answer is still out moves the highlight to TSLL.
+    expect(await landingIn('tickers-first', 'tsl', TSL, { arrowDuringWait: 1 })).toBe('/research/TSLL')
+    // Control: without the arrow the same wait lands on row 0.
+    expect(await landingIn('tickers-first', 'tsl', TSL)).toBe('/research/TSLA')
   })
 })

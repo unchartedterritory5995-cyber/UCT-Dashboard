@@ -8,6 +8,7 @@ through RAW SQL writes precisely BECAUSE that is what the importer and the
 sync engine do -- if the triggers only worked via the service functions,
 every imported note would be invisible to search.
 """
+import json
 import sqlite3
 
 from api.services.journal_two.db import ensure_schema
@@ -21,10 +22,17 @@ def _conn():
 
 
 def _insert_note(c, note_id, user_id="u1", title="", body_plain=""):
+    # body_json is the one paragraph body_plain derives from: every production
+    # writer derives body_plain from body_json, and run_notebook_migration_v7
+    # (reached through ensure_schema) re-derives it -- a row whose text came
+    # from nowhere would be a fixture no real note can be.
+    body_json = json.dumps({"type": "doc", "content": [
+        {"type": "paragraph", "content": [{"type": "text", "text": body_plain}]}]}
+        if body_plain else {"type": "doc", "content": []})
     c.execute(
         "INSERT INTO j2_notes (id, user_id, title, body_json, body_plain,"
         " tags, created_at, updated_at) VALUES (?,?,?,?,?,?,?,?)",
-        (note_id, user_id, title, '{"type":"doc","content":[]}', body_plain,
+        (note_id, user_id, title, body_json, body_plain,
          "[]", "2026-09-01T00:00:00Z", "2026-09-01T00:00:00Z"),
     )
     c.commit()

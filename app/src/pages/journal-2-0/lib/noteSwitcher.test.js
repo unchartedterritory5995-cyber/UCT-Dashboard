@@ -5,8 +5,8 @@
  */
 import { describe, it, expect } from 'vitest'
 import {
-  extendsExhausted, normalizeSwitcherQuery, noteContextLine, noteSwitcherUrl, orderPaletteRows,
-  splitTitleMatch, tickerLeads, toNoteRow,
+  ENTER_WAIT_MS, enterMustWait, extendsExhausted, normalizeSwitcherQuery, noteContextLine, noteSwitcherUrl,
+  orderPaletteRows, paletteRowKey, pendingEnterTarget, splitTitleMatch, tickerLeads, toNoteRow,
 } from './noteSwitcher'
 
 const TICKER_LIKE = /^[A-Z0-9.\-]{1,10}$/
@@ -38,6 +38,35 @@ describe('orderPaletteRows', () => {
     })
     expect(rows.map((r) => (r._typed ? 'typed' : r.ticker || r.id)))
       .toEqual(['EARNINGS', 'strong', 'EARNS', 'typed', 'weak'])
+  })
+
+  // Controller item 8: an exact note title beats a DELISTED exact ticker; a
+  // LIVE exact ticker still leads.
+  it('item 8: "plan" — a delisted exact PLAN does not take the lead from the note "Plan"', () => {
+    const rows = orderPaletteRows({
+      tickers: [tk('PLAN', { delisted: true, name: 'Anaplan, Inc.' }), tk('PLNT')],
+      noteMatches: [nt('plan-note', { strong: true, exact: true })],
+      qUpper: 'PLAN', tickerLead: true, tickersSettled: true,
+    })
+    expect(rows.map((r) => r.ticker || r.id)).toEqual(['plan-note', 'PLAN', 'PLNT'])
+  })
+
+  it('item 8 control: "nvda" — a LIVE exact NVDA keeps the lead over the note "NVDA"', () => {
+    const rows = orderPaletteRows({
+      tickers: [tk('NVDA'), tk('NVDL')],
+      noteMatches: [nt('nvda-note', { strong: true, exact: true })],
+      qUpper: 'NVDA', tickerLead: true, tickersSettled: true,
+    })
+    expect(rows.map((r) => r.ticker || r.id)).toEqual(['NVDA', 'NVDL', 'nvda-note'])
+  })
+
+  it('item 8: before the ticker search answers, the ticker rows lead whatever the notes say (unchanged)', () => {
+    const rows = orderPaletteRows({
+      tickers: [tk('PLAN', { _typed: true })],
+      noteMatches: [nt('plan-note', { strong: true, exact: true })],
+      qUpper: 'PLAN', tickerLead: true, tickersSettled: false,
+    })
+    expect(rows.map((r) => r.ticker || r.id)).toEqual(['PLAN', 'plan-note'])
   })
 
   it('the synthetic typed row never counts as an exact ticker hit', () => {
@@ -146,5 +175,50 @@ describe('row text helpers', () => {
   })
   it('noteSwitcherUrl encodes the query', () => {
     expect(noteSwitcherUrl('a&b c')).toBe('/api/j2/notes/switcher?q=a%26b%20c&limit=8')
+  })
+})
+
+describe('R1-N2 / R23-N4 — enterMustWait: a ticker-led Enter waits for BOTH answers', () => {
+  const base = { tickerLead: true, notesSettled: true, tickersSettled: true }
+  it('waits while the notes have not answered a ticker-shaped query (an exact title may yet arrive)', () => {
+    expect(enterMustWait({ ...base, notesSettled: false })).toBe(true)
+  })
+  it('waits while the tickers have not answered -- whatever the notes said (R23-N4: "tsl" is TSLA, not "Go to TSL")', () => {
+    expect(enterMustWait({ ...base, tickersSettled: false })).toBe(true)
+    expect(enterMustWait({ ...base, notesSettled: false, tickersSettled: false })).toBe(true)
+  })
+  it('does not wait once both have answered', () => {
+    expect(enterMustWait(base)).toBe(false)
+  })
+  it('never waits when a command or keyword row leads, or for a note-shaped query', () => {
+    expect(enterMustWait({ ...base, notesSettled: false, tickersSettled: false, hasFixedLeaders: true })).toBe(false)
+    expect(enterMustWait({ ...base, notesSettled: false, tickersSettled: false, tickerLead: false })).toBe(false)
+  })
+  it('the bound is short enough to read as a pause, not a hang', () => {
+    expect(ENTER_WAIT_MS).toBeGreaterThan(0)
+    expect(ENTER_WAIT_MS).toBeLessThanOrEqual(400)
+  })
+})
+
+describe('R4-N1 — a pending Enter finds the chosen row by IDENTITY', () => {
+  it('a row is where it goes: the typed "Go to X" and a result for X are one row', () => {
+    expect(paletteRowKey(tk('TSL', { _typed: true }))).toBe(paletteRowKey(tk('tsl')))
+    expect(paletteRowKey(tk('TSLA'))).not.toBe(paletteRowKey(tk('TSLL')))
+    expect(paletteRowKey(nt('a'))).toBe('note:a')
+    expect(paletteRowKey(cmd)).toBe('command:nb-trash')
+    expect(paletteRowKey(null)).toBeNull()
+  })
+  it('lands on the chosen row wherever the late answer moved it', () => {
+    const before = [tk('TSLA'), tk('TSLL'), tk('TSL', { _typed: true })]
+    const chosen = paletteRowKey(before[1])
+    const after = [nt('x'), tk('TSLA'), tk('TSLL'), tk('TSL', { _typed: true })]   // a title took the top
+    expect(pendingEnterTarget(after, chosen)).toBe(after[2])
+    expect(after[1]).not.toBe(after[2])                                          // position would be TSLA
+  })
+  it('a chosen row that is gone falls back to the TOP row of the rule, never a neighbour; no choice is the top row', () => {
+    const rows = [tk('TSLA'), tk('TSLL')]
+    expect(pendingEnterTarget(rows, 'ticker:TSM')).toBe(rows[0])
+    expect(pendingEnterTarget(rows, null)).toBe(rows[0])
+    expect(pendingEnterTarget([], 'ticker:TSLA')).toBeNull()
   })
 })

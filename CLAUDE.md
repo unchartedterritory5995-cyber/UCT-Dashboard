@@ -3579,24 +3579,34 @@ exactly as it did before K.
 
 ### 📓 Notebook 10/10 program — waves 5–6, IN PROGRESS, blocked on a rate limit as of 2026-09-24
 
-⭐⭐ **READ `docs/notebook/wave5-6-RESUME-HERE.md` FIRST** — but note it lives in
-the **OTHER worktree**, `C:\Users\Patrick\uct-worktrees\notebook-k`, not here.
-This checkout (`feat/notebook-w6`) is wave 6; the resume doc is the single
-checkpoint for the whole program and covers both worktrees.
+⭐⭐ **READ `docs/notebook/wave5-6-RESUME-HERE.md` FIRST** — it is the checkpoint
+for this program and carries exact SHAs and the next actions in order. This
+section is a pointer, not a substitute for it. `docs/notebook/RESUME-PROMPT.md`
+is a paste-ready prompt covering the whole program.
 
-This worktree is **behind** `feat/notebook-10`'s tip by four commits (the B1
-safety fix and its follow-ups landed on wave 5 after wave 6 branched) — merging
-wave 5's tail onto this branch is an open item, see the resume doc.
+Two worktrees: `C:\Users\Patrick\uct-worktrees\notebook-k` (`feat/notebook-10`,
+wave 5) and `C:\Users\Patrick\uct-worktrees\notebook-w6` (`feat/notebook-w6`,
+wave 6). Plan: `docs/notebook/NOTEBOOK-10-OF-10-PLAN.md`. Both branches are
+pushed. **All of wave 5 (lanes A/B/C and the B1 schema-guard fix `82c56dd63`)
+is merged into `feat/notebook-w6`** as of 2026-09-24, so wave 6 carries the
+schema guard — ⛔ every node/mark type wave 6 added (columns/column,
+dateMention, imageFigure, tableOfContents, the web link/embed nodes, and any
+new callout variant type) MUST be registered at schema 2 in
+`lib/notebookSchema.js` and its Python mirror before this branch ships; a type
+missing from that map reads as level 0 and is exactly how a note blanks
+(`docs/notebook/wave5-rollback.md`, "Rules that outlive this wave").
 
-⛔ **Blocked on the weekly Opus rate limit, resets 2026-09-25 18:00 America/Chicago.**
-Lane D's stopping point here (`80adeaa7a`) was reached because of the rate
-limit, not a self-reported close-out — verify against `wave6-D-brief.md` before
-assuming it's done. Lane E needs a fresh dispatch from scratch.
+The 2026-09-24 weekly Opus rate limit that stalled three agents cleared with an
+account switch the same day; dispatch resumed. Wave 6 lane D's 13 items all
+landed (`82f0a4a57`..`80adeaa7a`) but the lane never wrote its report — its
+task review and lane E's fresh dispatch are tracked in the resume doc.
 
 ⛔⛔ **The SDD ledger for this program lives at
-`notebook-k/.superpowers/sdd/2026-09-23-notebook-10/` (the OTHER worktree) and
-is gitignored — local disk only, never pushed.** Do not delete either worktree
-without backing up that directory first.
+`notebook-k/.superpowers/sdd/2026-09-23-notebook-10/` (the `notebook-k`
+worktree) and is gitignored — local disk only, never pushed.** Do not delete
+that worktree without backing it up first; the full lane-by-lane history
+(`progress.md`) and the single open-items tracker (`OPEN-ITEMS.md`) exist
+nowhere else.
 
 ### ✅ B7 / rule 12 — the rail now identifies WHOSE change set it is (CLOSED 2026-09-13)
 

@@ -4,6 +4,7 @@ import Sheet from '../../../components/mobile/Sheet'
 import { useIsPhone } from '../../../hooks/useBreakpoint'
 import { ExampleBlock, ExampleForm } from '../shared/ChartExampleKit'
 import UpbRichEditor from './UpbRichEditor'
+import { notebookSchemaHeaders } from '../../journal-2-0/lib/notebookSchema'
 import styles from './BuilderView.module.css'
 
 const fetcher = url => fetch(url, { credentials: 'include' }).then(r => r.json())
@@ -12,11 +13,11 @@ const fetcher = url => fetch(url, { credentials: 'include' }).then(r => r.json()
 // both UpbRichEditor (retry backoff keys off status) and the ChartExampleKit
 // api wrappers depend on. Small enough to live in each builder file rather
 // than force a shared-module import cycle.
-async function upbFetch(url, method = 'GET', body) {
+async function upbFetch(url, method = 'GET', body, extraHeaders = null) {
   const r = await fetch(url, {
     method,
     credentials: 'include',
-    headers: body !== undefined ? { 'Content-Type': 'application/json' } : undefined,
+    headers: body !== undefined ? { 'Content-Type': 'application/json', ...(extraHeaders || {}) } : undefined,
     body: body !== undefined ? JSON.stringify(body) : undefined,
   })
   if (!r.ok) {
@@ -147,6 +148,16 @@ function NoteLinkPicker({ open, onClose, entryId, currentIds, onSaved }) {
   )
 }
 
+/**
+ * The playbook entry's body write. ⛔ S1/H14: it declares the schema this
+ * bundle can read (`X-UCT-Notebook-Schema`), so the server refuses it over an
+ * entry this bundle opened as an EMPTY document — `UpbRichEditor` saves on
+ * open. Exported so the header has a rail (notebookSchema.rail.test.js).
+ */
+export async function saveEntryBody(entryId, bodyJson) {
+  return upbFetch(`/api/upb/entries/${entryId}`, 'PUT', { body_json: bodyJson }, await notebookSchemaHeaders())
+}
+
 // ── Entry page ────────────────────────────────────────────────────────────────
 // Title (debounced PUT) + rich write-up (UpbRichEditor autosave) on the left,
 // Charted Examples (ChartExampleKit, canEdit always true — server enforces
@@ -196,9 +207,7 @@ export default function UpbEntryPage({ entryId, onBack }) {
 
   // Body autosave target for UpbRichEditor — rejections carry err.status so
   // the editor's retry backoff can tell 5xx (retry) from 4xx (stop).
-  const saveBody = useCallback(async ({ bodyJson }) => {
-    await upbFetch(`/api/upb/entries/${entryId}`, 'PUT', { body_json: bodyJson })
-  }, [entryId])
+  const saveBody = useCallback(({ bodyJson }) => saveEntryBody(entryId, bodyJson), [entryId])
 
   // ChartExampleKit api: create carries the parent entry context; patch and
   // update both hit the same PUT (the backend PUT is a partial patch —

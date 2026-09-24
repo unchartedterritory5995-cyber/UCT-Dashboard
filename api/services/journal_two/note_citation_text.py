@@ -3,22 +3,22 @@ locate against.
 
 WHY THIS IS NOT `body_plain`
 ----------------------------
-`notes.extract_plain_text` (which writes `body_plain`, the FTS index) joins
-every text node with a SPACE. That is correct for its job -- FTS5 tokenizes
-on non-alphanumerics, so an extra space is invisible to search -- but it means
-`body_plain` is NOT the text a member sees:
+`notes.extract_plain_text` (which writes `body_plain`, the FTS index) runs
+the SAME rule -- ProseMirror's textBetween, over the same leaf/inline/textblock
+tables below -- with a SPACE for the block separator, and reads one leaf this
+text does not (a video timestamp, "[1:15]"; `notes._PLAIN_LEAF_TEXT` is
+`{**_ATOM_TEXT, "videoTimestamp": ...}`). tests/test_note_citation_text.py
+pins that the two agree, separator aside, on every library-generated fixture.
+⚰️ Until 2026-09-23 `body_plain` joined EVERY text node with a space, so it
+double-spaced at mark boundaries and split a part-bold word ("**NV**DA" read
+"NV DA"); this section used to cite that as the reason the two must differ.
 
-    <p>Management expects <strong>gross margins</strong> to normalize.</p>
-
-    body_plain : "Management expects  gross margins  to normalize."
-    rendered   : "Management expects gross margins to normalize."
-
-Two extra spaces appear at every mark boundary (the node's own trailing space
-plus the join). A character offset into `body_plain` therefore does not
-address the rendered document, so `body_plain` cannot carry a citation
-location. Slice 0 proved the consequence from the other direction: a quoted
-phrase can genuinely exist in a note and still be unresolvable by string
-search, because a mark boundary splits it across text nodes.
+What still keeps a citation off `body_plain`: it is a flat string with no
+span map (a ProseMirror position counts node open/close tokens and UTF-16
+units, neither of which a string offset carries), and it is STORED -- a row
+written before the 2026-09-23 backfill (db.run_notebook_migration_v7) or by a
+future format change reads differently until re-derived. This module computes
+from the document, every time.
 
 WHAT THIS IS INSTEAD
 --------------------
@@ -71,7 +71,7 @@ TWO REPRESENTATIONS, ON PURPOSE
 `body_plain` finds CANDIDATE NOTES (tokenized, whitespace-insensitive).
 This module locates the PASSAGE INSIDE one (offset-exact, mark-transparent).
 They are different jobs and must not be unified: collapsing them would either
-break Wave A search or reintroduce the offset error above. What §7 forbids is
+break Wave A search or lose the span map above. What §7 forbids is
 three DIFFERENT normalizations across location-creation and
 citation-resolution -- and this module is the single one both sides share.
 
@@ -91,9 +91,10 @@ from collections import Counter
 from functools import cached_property
 from typing import Any
 
-# Placeholder text for atom nodes, mirroring notes.extract_plain_text so the
-# two agree on what a non-text node "reads as". These occupy ONE ProseMirror
-# position each regardless of placeholder length -- the map records that.
+# Placeholder text for atom nodes -- what a non-text node "reads as". The
+# search text (notes._PLAIN_LEAF_TEXT) is DERIVED from this table plus one
+# extra, so the two cannot drift. These occupy ONE ProseMirror position each
+# regardless of placeholder length -- the map records that.
 # The client's copy is askCitation.js::citationLeafText; the two are pinned
 # together through tests/fixtures_pm_citation_text.json (the generator calls
 # the client function) and askCitation.schemaParity.test.js (reads these keys).
@@ -254,20 +255,32 @@ def _flat_at(s: dict[str, Any], pm: int) -> int | None:
     return s["flat_end"] if units == want else None
 
 
+def node_type(node: dict[str, Any]) -> str | None:
+    """A node's `type`, or None when it is not a string. The ONE place a stored
+    type is read before a table lookup: a set or dict lookup HASHES the key, so
+    a hand-made `{"type": ["x"]}` raised TypeError and 500'd the note's save
+    (R23-N3). A non-string type is an UNKNOWN node -- exactly what the client
+    reads it as (lib/tiptap.js::nodeTypeOf answers null for a non-string
+    name), and what the walkers here did before the tables existed."""
+    ntype = node.get("type")
+    return ntype if isinstance(ntype, str) else None
+
+
 def _is_textblock(node: dict[str, Any]) -> bool:
     """R1's `node.isTextblock`, from JSON. A known type answers by TYPE, as
     ProseMirror does -- a textblock even when EMPTY (no `content` to look at),
     a container never, even holding inline content. Only a type in neither
     table is inferred: holding inline content, it is treated as a textblock,
-    since in a valid doc only a textblock can hold inline nodes."""
-    ntype = node.get("type")
+    since in a valid doc only a textblock can hold inline nodes. A type that
+    is not a string is unknown (`node_type`), the node's and its children's."""
+    ntype = node_type(node)
     if ntype in _TEXTBLOCK_TYPES:
         return True
     if ntype in _BLOCK_CONTAINER_TYPES:
         return False
     children = node.get("content")
     return isinstance(children, list) and any(
-        isinstance(c, dict) and (c.get("type") == "text" or c.get("type") in _INLINE_LEAF_TYPES)
+        isinstance(c, dict) and (node_type(c) == "text" or node_type(c) in _INLINE_LEAF_TYPES)
         for c in children)
 
 
@@ -313,7 +326,7 @@ def flatten(doc: dict[str, Any] | None) -> dict[str, Any]:
         """Returns the position immediately AFTER `node`."""
         if not isinstance(node, dict):
             return pos
-        ntype = node.get("type")
+        ntype = node_type(node)
         attrs = node.get("attrs")
         if not isinstance(attrs, dict):
             attrs = {}

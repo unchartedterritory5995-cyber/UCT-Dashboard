@@ -86,7 +86,14 @@ export function orderPaletteRows({
   const notes = noteMatches.filter((r) => !seen.has(r.id))
   const exact = tickers.filter((t) => !t._typed && String(t.ticker).toUpperCase() === qUpper)
   if (tickerLead) {
-    const exactNote = tickersSettled && !exact.length ? notes.find((n) => n.exact) : null
+    // ⛔ Controller item 8: a DELISTED exact ticker does not keep Enter from a
+    // note whose title IS the query ("plan" answers Anaplan's delisted PLAN
+    // first). A LIVE exact ticker still does ("nvda" opens NVDA). The flag is
+    // the search row's own `delisted`, carried onto the row unchanged.
+    // Determinism is untouched: the note still leads only once the ticker
+    // search has answered (`tickersSettled`).
+    const liveExact = exact.filter((t) => t.delisted !== true)
+    const exactNote = tickersSettled && !liveExact.length ? notes.find((n) => n.exact) : null
     if (exactNote) {
       return [...commands, ...keywordNotes, exactNote, ...tickers, ...notes.filter((n) => n !== exactNote)]
     }
@@ -96,6 +103,62 @@ export function orderPaletteRows({
   const strong = notes.filter((n) => n.strong)
   const weak = notes.filter((n) => !n.strong)
   return [...commands, ...keywordNotes, ...exact, ...strong, ...restTickers, ...weak]
+}
+
+/** R1-N2: the most Enter will wait for the answers it needs (ms). */
+export const ENTER_WAIT_MS = 400
+
+/**
+ * R1-N2 / R23-N4: whether an Enter must wait before it can land where a slower
+ * Enter would. For a short ticker-shaped query the rows are decided by TWO
+ * answers, and each can move the top row:
+ *   · the notes index — whether a note title IS the query ("plan": a fast
+ *     typist reached /research/PLAN, a slower one the note called Plan);
+ *   · the ticker search — which symbols START with it ("tsl": before its
+ *     answer the top row is the typed "Go to TSL", or the PREVIOUS prefix's
+ *     first result, a symbol never typed; after it, TSLA).
+ * So a ticker-led query waits for BOTH, whichever answers first — the
+ * landing may never depend on which request wins (`orderPaletteRows`' own
+ * rule). ⚰️ Round 3 waited for the notes, and for the tickers only when an
+ * exact title had arrived: "tsl" still went to /research/TSL when the notes
+ * answered first and to /research/TSLA when the tickers did.
+ *   · commands or keyword rows on top: they lead whatever arrives — no wait;
+ *   · a longer / note-shaped query: not decided by this race — no wait.
+ * The caller bounds the wait (ENTER_WAIT_MS) and shows it, then lands on the
+ * row the member has highlighted in `orderPaletteRows`' order.
+ */
+export function enterMustWait({
+  hasFixedLeaders = false, tickerLead = false, notesSettled = false, tickersSettled = false,
+}) {
+  if (hasFixedLeaders || !tickerLead) return false
+  return !notesSettled || !tickersSettled
+}
+
+/**
+ * R4-N1: a palette row's IDENTITY — where it goes, never where it sits. A
+ * ticker row is its symbol (the typed "Go to X" row and a result for X open
+ * the same page, so they are one row); a note is its id; a command its id.
+ */
+export function paletteRowKey(row) {
+  if (!row) return null
+  if (row.kind === 'ticker') return `ticker:${String(row.ticker).toUpperCase()}`
+  return `${row.kind}:${row.id}`
+}
+
+/**
+ * R4-N1: where a pending Enter lands. A row the member arrowed to DURING the
+ * wait is found again by identity in the rows as they now stand — the late
+ * answer may have moved it — and a row that is gone falls back to the rule's
+ * top row. Never a positional neighbour: index 1 after a reorder is a row the
+ * member never highlighted.
+ */
+export function pendingEnterTarget(rows, chosenKey = null) {
+  const list = rows || []
+  if (chosenKey) {
+    const same = list.find((r) => paletteRowKey(r) === chosenKey)
+    if (same) return same
+  }
+  return list[0] || null
 }
 
 /** The query as the switcher reads it: lower-cased, whitespace collapsed —

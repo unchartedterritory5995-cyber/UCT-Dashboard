@@ -65,6 +65,12 @@
   letter-spacing: 0.5px;
 }
 
+/* Review N9: the separator of a CHORD (keys pressed together). */
+.plus {
+  font-size: 11px;
+  color: var(--text-muted);
+}
+
 .footNote {
   margin: 0;
   font-size: 11px;

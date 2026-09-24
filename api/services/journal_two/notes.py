@@ -19,6 +19,7 @@ from pathlib import Path
 from typing import Any
 
 from api.services.auth_db import get_connection
+from api.services.journal_two.notebook_schema import check_body_write
 from api.services import buzz_extract
 from api.services.journal_two.note_trade_links import is_valid_trade_ref_type
 
@@ -74,6 +75,15 @@ from api.services.journal_two.notes_quota import (
     NoteQuotaExceeded, assert_import_headroom,
 )
 from api.services.journal_two.notes_search import fts_match_expr
+# Which node types are leaves / inline leaves / textblocks: ONE table, owned by
+# the citation text and pinned against the real schema (see extract_plain_text).
+from api.services.journal_two.note_citation_text import (
+    _ATOM_TEXT as _CITATION_ATOM_TEXT,
+    _INLINE_LEAF_TYPES as _CITATION_INLINE_LEAF_TYPES,
+    _LEAF_TYPES as _CITATION_LEAF_TYPES,
+    _is_textblock as _citation_is_textblock,
+    node_type as _citation_node_type,
+)
 
 # ⛔ Was `<repo>/data/j2_attachments` — ephemeral container storage on Railway;
 # every redeploy wiped every note image. One authority now (attachment_root.py).
@@ -122,68 +132,106 @@ def _fmt_secs(secs: Any) -> str:
     return f"{h}:{m:02d}:{sec:02d}" if h else f"{m}:{sec:02d}"
 
 
-def extract_plain_text(doc: dict[str, Any] | None) -> str:
-    """Recursively walk a TipTap ProseMirror doc and concatenate all text
-    nodes (space-separated), plus the search lines of the custom atom nodes.
-    This writes body_plain — the notebook search index — so it MUST stay in
-    lockstep with the client serializer (lib/tiptap.js extractPlainText) —
-    and it is PINNED, not promised: both read tests/fixtures_plain_text.json
-    (tests/test_plain_text_parity.py ⇄ lib/plainText.parity.test.js), and both
-    rails fail on a node type one side handles and the other does not.
+# What a LEAF node reads as in body_plain: the citation text's own leaf table
+# (note_citation_text._ATOM_TEXT -- attachment chip, excerpt, widget, hard
+# break, formulas) plus the ONE leaf the search text reads and a citation does
+# not: a video timestamp, searchable as "[1:15]". Derived, never restated --
+# WHICH types are leaves, which leaves are inline and which blocks are
+# textblocks comes from the same module, pinned against the app's real
+# ProseMirror schema by askCitation.schemaParity.test.js. The client twin is
+# lib/tiptap.js::plainLeafText (citationLeafText + the same one extra), and
+# tests/fixtures_plain_text.json pins the two serializers together.
+#   · a formula reads as its LaTeX source; an empty one as nothing.
+#   · widgetEmbed carries its line pre-computed in attrs.searchText: the CLIENT
+#     derives it from the widget registry at the only moments params change
+#     (insert / toolbar edit), so this side never re-owns 13 per-widget formats.
+#   · documentExcerpt: the excerpt's durable text lives in j2_note_excerpts and
+#     is searchable through its own FTS index, so the body carries a marker.
+#   · every other leaf (image, rule, fact, noteLink, askCitation) reads as "".
+_PLAIN_LEAF_TEXT = {
+    **_CITATION_ATOM_TEXT,
+    "videoTimestamp": lambda a: f"[{_fmt_secs(a.get('seconds'))}]",
+}
 
-    widgetEmbed carries its line pre-computed in attrs.searchText: the CLIENT
-    derives it from the widget registry at the only moments params change
-    (insert / toolbar edit), so this side never re-owns 13 per-widget formats
-    it could drift on. Missing/blank searchText degrades to '[widget]'."""
+# One space between blocks: FTS5 tokenizes on non-alphanumerics, so the
+# separator only has to keep two blocks' words apart.
+PLAIN_TEXT_BLOCK_SEPARATOR = " "
+
+
+def extract_plain_text(doc: dict[str, Any] | None) -> str:
+    """The note's plain text -- ProseMirror's own
+    ``doc.textBetween(0, size, " ", leafText)``, walked over the stored JSON.
+
+    This writes body_plain -- the notebook search index and the text History
+    diffs -- so it MUST stay in lockstep with the client serializer
+    (lib/tiptap.js extractPlainText). It is PINNED, not promised: both read
+    tests/fixtures_plain_text.json (tests/test_plain_text_parity.py ⇄
+    lib/plainText.parity.test.js), and each rail fails on a leaf one side reads
+    and the other does not.
+
+    The rules are textBetween's, verbatim, and the same ones the citation text
+    uses (note_citation_text.flatten, with a newline where this has a space):
+      · text runs inside one textblock join with NOTHING -- a mark (bold,
+        highlight, link) is invisible, so "**NV**DA" reads "NVDA" and a
+        highlighted phrase mid-sentence keeps single spaces around it;
+      · every textblock (an EMPTY one included) is preceded by one separator,
+        except the first thing in the document to earn one;
+      · a container that is not a textblock (list, quote, table, toggle, ...)
+        adds nothing of its own;
+      · a BLOCK leaf is preceded by a separator only when it reads as text; an
+        INLINE leaf never is.
+    ⚰️ Until 2026-09-23 every text node was joined with a space, so a partly
+    bold word was indexed as two words and a search for it missed the note.
+
+    attrs and type may be any JSON shape (permissive body validator + importer
+    round trip) -- a non-dict attrs degrades to {}, a non-string type reads as
+    an unknown node (note_citation_text.node_type), and neither 500s the note
+    write."""
     if not isinstance(doc, dict):
         return ""
-    out: list[str] = []
+    parts: list[str] = []
+    state = {"first": True}
+
+    def separator() -> None:
+        # textBetween: `if (first) first = false; else text += blockSeparator`
+        if state["first"]:
+            state["first"] = False
+            return
+        parts.append(PLAIN_TEXT_BLOCK_SEPARATOR)
+
     def walk(node: Any) -> None:
         if not isinstance(node, dict):
             return
-        ntype = node.get("type")
-        # attrs may be any JSON shape (permissive body validator + importer
-        # round-trip) — a truthy NON-dict (list/string/number) must not reach
-        # .get() in the branches below, or every save of the note 500s. The
-        # widgetEmbed branch got this guard in the review fix pass; a non-dict
-        # on videoTimestamp/attachmentChip crashed identically.
+        # A type that is not a string is an UNKNOWN node, never a table key:
+        # `{"type": ["x"]}` hashed here and 500'd create/update (R23-N3).
+        ntype = _citation_node_type(node)
         attrs = node.get("attrs")
         if not isinstance(attrs, dict):
             attrs = {}
         if ntype == "text":
             t = node.get("text")
             if isinstance(t, str):
-                out.append(t)
-        elif ntype == "videoTimestamp":
-            out.append(f"[{_fmt_secs(attrs.get('seconds'))}]")
-        elif ntype == "attachmentChip":
-            out.append(f"[file: {attrs.get('name') or 'file'}]")
-        elif ntype == "documentExcerpt":
-            # Wave J: mirrors financialFact/noteLink's own silence -- the
-            # excerpt's real, durable text lives in j2_note_excerpts and is
-            # searchable through its own FTS index (excerpt_search.py), not
-            # duplicated into note-body search. A short bracketed marker
-            # (matching attachmentChip's own idiom) keeps SOME inline trace.
-            out.append("[excerpt]")
-        elif ntype == "widgetEmbed":
-            # attrs may be any JSON shape (the body validator is deliberately
-            # permissive and the importer round-trips arbitrary HTML) — a
-            # non-dict here must degrade, never 500 the note write.
-            st = attrs.get("searchText") if isinstance(attrs, dict) else None
-            out.append(st if isinstance(st, str) and st else "[widget]")
-        elif ntype in ("inlineMath", "blockMath"):
-            # Wave 5 math: a formula is searchable as its LaTeX SOURCE, the
-            # text a member typed (the same reading the citation tables give
-            # it, note_citation_text.py::_ATOM_TEXT). An empty one is nothing.
-            # Without this a LaTeX-only edit also changed no body_plain, so
-            # History showed no difference for it.
-            latex = attrs.get("latex")
-            if isinstance(latex, str):
-                out.append(latex)
-        for child in node.get("content", []) or []:
+                parts.append(t)
+            return
+        if ntype in _CITATION_LEAF_TYPES:
+            maker = _PLAIN_LEAF_TEXT.get(ntype)
+            leaf = maker(attrs) if maker is not None else ""
+            if leaf and ntype not in _CITATION_INLINE_LEAF_TYPES:
+                separator()
+            parts.append(leaf)
+            return
+        if _citation_is_textblock(node):
+            separator()
+        children = node.get("content")
+        if isinstance(children, list):
+            for child in children:
+                walk(child)
+
+    children = doc.get("content")
+    if isinstance(children, list):
+        for child in children:
             walk(child)
-    walk(doc)
-    return " ".join(s for s in out if s)
+    return "".join(parts)
 
 
 # ── Combined note-content sidecar sync (Performance QW-2, 2026-09-22) ───────
@@ -212,6 +260,30 @@ def extract_plain_text(doc: dict[str, Any] | None) -> str:
 # measurable cost was the redundant walk, and that's what this fixes: same
 # DELETE-then-conditionally-INSERT shape per table, computed from ONE walk
 # instead of four.
+def _sync_note_mentions(
+    conn: sqlite3.Connection, user_id: str, note_id: str, body_plain: str | None,
+) -> None:
+    """Rebuild one note's `j2_note_mentions` inside the caller's transaction.
+    Cashtag-tier ONLY (see the schema comment in db.py for why): scans
+    body_plain, which every caller has already computed via
+    extract_plain_text -- this never re-derives note text or re-walks
+    body_json. Fast and local: buzz_extract is a pure regex/set-membership
+    matcher, no network call, so this never makes a note save depend on an
+    external provider. Called by `_sync_note_sidecars` on every save, and by
+    the body_plain backfill for a note whose text it re-derived."""
+    conn.execute("DELETE FROM j2_note_mentions WHERE note_id = ?", (note_id,))
+    symbols = sorted({
+        sym for sym, tier in buzz_extract.extract(body_plain or "")
+        if tier == "cashtag"
+    })
+    if symbols:
+        now = _now_iso()
+        conn.executemany(
+            "INSERT INTO j2_note_mentions (note_id, user_id, symbol, created_at)"
+            " VALUES (?,?,?,?)",
+            [(note_id, user_id, sym, now) for sym in symbols])
+
+
 def _sync_note_sidecars(
     conn: sqlite3.Connection, user_id: str, note_id: str,
     body_json: dict[str, Any] | None, body_plain: str | None,
@@ -300,24 +372,10 @@ def _sync_note_sidecars(
               r["trade_ref"], r["trade_ref_type"], r["mode"], r["captured_at"])
              for i, r in enumerate(embeds)])
 
-    # j2_note_mentions -- cashtag-tier ONLY (see the schema comment in db.py
-    # for why): scans body_plain, which every caller has already computed
-    # via extract_plain_text -- this never re-derives note text or re-walks
-    # body_json, which is why it stays outside the combined walk above.
-    # Fast and local: buzz_extract is a pure regex/set-membership matcher,
-    # no network call, so this never makes a note save depend on an
-    # external provider.
-    conn.execute("DELETE FROM j2_note_mentions WHERE note_id = ?", (note_id,))
-    symbols = sorted({
-        sym for sym, tier in buzz_extract.extract(body_plain or "")
-        if tier == "cashtag"
-    })
-    if symbols:
-        now = _now_iso()
-        conn.executemany(
-            "INSERT INTO j2_note_mentions (note_id, user_id, symbol, created_at)"
-            " VALUES (?,?,?,?)",
-            [(note_id, user_id, sym, now) for sym in symbols])
+    # j2_note_mentions -- the one projection derived from body_plain, not
+    # body_json; its own function so the body_plain backfill
+    # (db.run_notebook_migration_v7) rebuilds it through this same code.
+    _sync_note_mentions(conn, user_id, note_id, body_plain)
 
     # j2_note_links -- a `noteLink` node's target id is NEVER validated
     # against j2_notes here: a link to a note that doesn't exist (foreign
@@ -423,16 +481,23 @@ def register_note_sql_functions(conn: sqlite3.Connection) -> sqlite3.Connection:
 def _tag_prefilter(key: str) -> tuple[str, list[Any]]:
     """A cheap SUPERSET test on the raw `tags` JSON text, run before the
     per-tag Python match so a 50k-note library does not pay one Python call
-    per tag per note. Sound by construction:
-      · for a row whose JSON has no `\\u` escape, every character is ASCII,
-        where SQLite's `lower()` and Python's agree, and JSON escaping is per
-        character — so the JSON-escaped first segment of the key appears in
-        `lower(tags)` whenever a stored tag's key matches;
-      · a row WITH an escape (a non-ASCII tag, which the JSON text cannot
-        fold) always passes through to the exact check."""
+    per tag per note. Sound WHATEVER THE WRITER, by construction:
+      · a row that is pure ASCII (no byte above 0x7F) with no `\\u`
+        escape is where SQLite's `lower()` and Python's agree, and JSON
+        escaping is per character — so the JSON-escaped first segment of
+        the key appears in `lower(tags)` whenever a stored tag's key matches;
+      · every other row passes through to the exact check: one WITH an
+        escape (`json.dumps`' default for a non-ASCII tag), AND one holding
+        raw UTF-8 (`ensure_ascii=False`, SQLite's own JSON functions, an
+        import) — `length(CAST(x AS BLOB))` counts bytes and `length(x)`
+        characters, so the two differ exactly when a byte above 0x7F is there.
+    ⚰️ Until fix round 3 only the escape passed, so soundness rested on an
+    unwritten rule that every writer escapes: a raw-UTF-8 `["Élan"]` was
+    counted by the tree and NOT found by `tag=élan` (review R1-N1)."""
     first = key.split("/", 1)[0]
     needle = json.dumps(first)[1:-1]
-    return ("(instr(lower(j2_notes.tags), ?) > 0 OR instr(j2_notes.tags, '\\u') > 0)",
+    return ("(instr(lower(j2_notes.tags), ?) > 0 OR instr(j2_notes.tags, '\\u') > 0"
+            " OR length(CAST(j2_notes.tags AS BLOB)) != length(j2_notes.tags))",
             [needle])
 
 
@@ -2578,8 +2643,17 @@ def update_note(
     expected_updated_at: str | None = None,
     force_version: bool = False,
     restored_from_version_id: str | None = None,
+    client_schema: int | None = None,
 ) -> dict[str, Any] | None:
-    """`expected_updated_at` (optional) makes the write a compare-and-set:
+    """`client_schema` is the schema the CLIENT that sent this patch can read
+    (`notebook_schema.declared_schema` of its `X-UCT-Notebook-Schema` header —
+    0 when absent). A body write from a client older than the STORED body is
+    refused with `NotebookSchemaTooOld` before anything else is checked: that
+    client may be holding the note as an EMPTY document it could not parse
+    (H14). None = not a client's body (a version restore, a server append).
+    ⛔ Never reverted with the features: see notebook_schema.py.
+
+    `expected_updated_at` (optional) makes the write a compare-and-set:
     when it no longer matches the row's updated_at, another writer (the
     'Send to Journal' server append, a second tab) got there first and a
     blind full-doc PUT would silently delete their write — the A15 clobber.
@@ -2599,6 +2673,8 @@ def update_note(
         ).fetchone()
         if existing is None:
             return None
+        if "bodyJson" in patch:
+            check_body_write(existing["body_json"], client_schema)
         if expected_updated_at is not None and existing["updated_at"] != expected_updated_at:
             raise NoteConflictError("note changed since the client's baseline")
 

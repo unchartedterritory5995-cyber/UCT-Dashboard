@@ -16,6 +16,7 @@
  * does exactly that and PUTs it back, a full write, not a client-side hide.
  */
 import { settleNoteWrite } from '../offline/settleNoteWrite'
+import { notebookSchemaHeaders } from '../notebookSchema'
 import { buildWidgetEmbedAttrs } from '../widgetEmbedCore'
 
 /**
@@ -78,7 +79,9 @@ export async function revertChartEmbed(noteId, bodyJsonAfterAppend) {
   const res = await fetch(`/api/j2/notes/${noteId}`, {
     method: 'PUT',
     credentials: 'include',
-    headers: { 'Content-Type': 'application/json' },
+    // ⛔ S1/H14: a body write declares the schema this bundle can read, or the
+    // server refuses this undo on any note carrying a wave-5 type.
+    headers: { 'Content-Type': 'application/json', ...(await notebookSchemaHeaders()) },
     body: JSON.stringify({ bodyJson: restored }),
   })
   if (!res.ok) throw new Error(`could not undo (HTTP ${res.status})`)

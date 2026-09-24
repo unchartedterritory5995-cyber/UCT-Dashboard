@@ -21,6 +21,10 @@
 
 import { usableBaseline, isSupersededBaseline } from './baseline'
 import { APPEND_ONLY, classifyServerChange, lastKnownServerCopy } from './serverChange'
+import { writtenSchemaOf } from '../notebookSchema'
+
+/** B1: two stamps describing the SAME words ⇒ the lower. Absent ⇒ 0. */
+const lowerStamp = (a, b) => Math.min(writtenSchemaOf(a), writtenSchemaOf(b))
 
 /** A stable-enough id for "this page's editing session". */
 export function newSessionId() {
@@ -193,6 +197,10 @@ export function chooseLocalRecovery({ server, idbRecord = null, lsDraft = null }
   const serverState = authored(server)
   const serverBase = usableBaseline(server?.updatedAt)
 
+  // ⛔⛔ B1: every candidate carries the stamp of the bundle that WROTE it
+  // (`writtenSchema`, absent on everything written before stamps). Whatever
+  // wins, its stamp travels with it — Restore and adoption send the words at
+  // that level, never at this bundle's.
   const candidates = []
   if (idbRecord) {
     candidates.push({
@@ -202,6 +210,7 @@ export function chooseLocalRecovery({ server, idbRecord = null, lsDraft = null }
       generation: Number.isFinite(idbRecord.generation) ? idbRecord.generation : null,
       sessionId: idbRecord.sessionId ?? null,
       at: Number.isFinite(idbRecord.localSavedAt) ? idbRecord.localSavedAt : null,
+      writtenSchema: idbRecord.writtenSchema,
     })
   }
   if (lsDraft) {
@@ -214,6 +223,7 @@ export function chooseLocalRecovery({ server, idbRecord = null, lsDraft = null }
       generation: Number.isFinite(lsDraft.generation) ? lsDraft.generation : null,
       sessionId: lsDraft.sessionId ?? null,
       at: Number.isFinite(lsDraft.savedAt) ? lsDraft.savedAt : null,
+      writtenSchema: lsDraft.writtenSchema,
     })
   }
 
@@ -242,8 +252,13 @@ export function chooseLocalRecovery({ server, idbRecord = null, lsDraft = null }
     return { ...win, unsynced: true, ambiguous: false, reason: 'newer generation in the same session' }
   }
   // Same content in both — the choice does not matter, so do not dress it up.
+  // ⛔ B1: …except for WHO wrote it. Two writers produced these words; the
+  // lower of their levels is the one both can vouch for.
   if (sameAuthoredContent(a.state, b.state)) {
-    return { ...a, unsynced: true, ambiguous: false, reason: 'both local copies agree' }
+    return {
+      ...a, writtenSchema: lowerStamp(a.writtenSchema, b.writtenSchema),
+      unsynced: true, ambiguous: false, reason: 'both local copies agree',
+    }
   }
   // ⭐ STRUCTURAL TIE-BREAK. Within a session the synchronous draft is written
   // first and the durable copy lags it, so the draft can only be equal-or-newer.
@@ -341,9 +356,14 @@ export function queuedWorkToAdopt({ decision, record = null, entry = null } = {}
   // session reads that copy back as a full base at the same revision. Keyed on the
   // flag, it was adopted and a moved server forked the note by itself. The server
   // never serves a null body (`notes.py` `_row_to_note` serves an empty doc), so a
-  // null body here is always one this browser did not know.
+  // null body here is always one this browser did not know. (A null BASE is the
+  // same answer: `baseHasNoBody` covers it.)
   if (baseHasNoBody(base)) return null
-  return { state: authored(record), base }
+  // ⛔⛔ B1: the stamp of the bundle that WROTE these words — the lower of the
+  // record's and the entry's (the same words, one transaction; the lower is the
+  // one both vouch for). The editor sends the adopted words at THIS level, so an
+  // old tab's empty stand-in is refused on a note that tab could not read.
+  return { state: authored(record), base, writtenSchema: lowerStamp(record.writtenSchema, entry.writtenSchema) }
 }
 
 /**

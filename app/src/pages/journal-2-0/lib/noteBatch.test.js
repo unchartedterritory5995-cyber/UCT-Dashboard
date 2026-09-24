@@ -15,8 +15,8 @@ import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest'
 import { setCurrentAccountId } from './offline/currentAccount'
 import { recordLandedRevision } from './offline/useDurableNote'
 import {
-  describeBatch, describeExport, exportSelectedNotes, holdsUnsentWork, notesHoldingUnsentWork, runNoteBatch,
-  undoFor,
+  UNCHECKED_SENTENCE, checkUnsentWork, describeBatch, describeExport, describeUnchecked, exportSelectedNotes,
+  holdsUnsentWork, joinUndo, runNoteBatch, undoFor,
 } from './noteBatch'
 import { BLOCKED_TITLE } from './offline/unsyncedCopy'
 import { __resetNotebookFlags, latchNotebookFlags } from './offline/notebookFlags'
@@ -178,7 +178,7 @@ describe('exportSelectedNotes', () => {
 /** A STORE stub answering the two reads `noteHasUnsentWork` makes, PER NOTE —
  *  the predicate itself runs (R-05: a control that restates the predicate
  *  agrees with itself and says nothing). */
-function storeWith({ queued = [], dirty = [] } = {}) {
+function storeWith({ queued = [], dirty = [], unreadable = [] } = {}) {
   const store = {
     closed: false,
     close() { store.closed = true },
@@ -188,7 +188,11 @@ function storeWith({ queued = [], dirty = [] } = {}) {
           return {
             get(noteId) {
               const req = {}
-              setTimeout(() => { req.result = dirty.includes(noteId) ? { noteId, dirty: 1 } : null; req.onsuccess?.() }, 0)
+              setTimeout(() => {
+                if (unreadable.includes(noteId)) { req.onerror?.(); return }
+                req.result = dirty.includes(noteId) ? { noteId, dirty: 1 } : null
+                req.onsuccess?.()
+              }, 0)
               return req
             },
             index() {
@@ -250,13 +254,67 @@ describe('S1 — trash and export also see words still being SENT, not only reti
     expect(out.results).toEqual([{ id: 'n2', status: 'unsent' }])
   })
 
-  it('a store that cannot be read refuses rather than guesses', async () => {
+  it('R1-S1: a store that cannot be OPENED is UNCHECKED — held back, and never called "still syncing"', async () => {
     const fetchFn = answering({})
     const out = await runNoteBatch({
       ids: ['n1'], op: 'trash', connect: async () => { throw new Error('cannot open') },
     })
+    expect(fetchFn).not.toHaveBeenCalled()                    // never a silent proceed
+    expect(out.results).toEqual([{ id: 'n1', status: 'unchecked' }])
+    // The batch's own sentence says nothing untrue about it…
+    expect(describeBatch(out, { titleOf: () => 'First note' }).message).toBe('')
+    // …and the truth, with a way through, is its own sentence.
+    const offer = describeUnchecked('trash', ['n1'], { titleOf: () => 'First note' })
+    expect(offer.message).toBe(
+      "Can't check this device for unsent words. 1 note was not moved to the Trash: \"First note\".")
+    expect(offer.message).not.toMatch(/syncing|try again/)
+    expect(offer.anyway).toMatchObject({ op: 'trash', ids: ['n1'], label: 'Trash anyway', confirmLabel: 'Yes, trash anyway' })
+  })
+
+  it('R1-S1: an open that never SETTLES (a blocked upgrade) is unchecked after the timeout — the action does not hang', async () => {
+    const fetchFn = answering({})
+    const out = await runNoteBatch({
+      ids: ['n1', 'n2'], op: 'trash', connect: () => new Promise(() => {}), timeoutMs: 20,
+    })
     expect(fetchFn).not.toHaveBeenCalled()
-    expect(out.results).toEqual([{ id: 'n1', status: 'unsent' }])
+    expect(out.results).toEqual([{ id: 'n1', status: 'unchecked' }, { id: 'n2', status: 'unchecked' }])
+  })
+
+  it('R1-S1: a note whose own read fails is unchecked; the rest of the answer still stands', async () => {
+    const got = await checkUnsentWork(['a', 'b', 'c'], {
+      connect: async () => storeWith({ unreadable: ['a'], queued: ['b'] }),
+    })
+    expect([...got.unchecked]).toEqual(['a'])
+    expect([...got.unsent]).toEqual(['b'])
+  })
+
+  it('R1-S1: the CONFIRMED "anyway" sends the unchecked note — and ONLY that: a note the re-check finds unsent is still refused', async () => {
+    const fetchFn = answering({ op: 'trash', results: [{ id: 'n1', status: 'changed' }, { id: 'n3', status: 'changed' }] })
+    const connect = async () => storeWith({ unreadable: ['n1'], queued: ['n2'] })
+    const out = await runNoteBatch({ ids: ['n1', 'n2', 'n3'], op: 'trash', connect, acceptUnchecked: true })
+    expect(JSON.parse(fetchFn.mock.calls[0][1].body).ids).toEqual(['n1', 'n3'])
+    expect(out.results).toContainEqual({ id: 'n2', status: 'unsent' })
+    expect(out.results.some((r) => r.status === 'unchecked')).toBe(false)
+  })
+
+  it('⛔ CONTROL — without the confirmation the same selection holds the unchecked note back', async () => {
+    const fetchFn = answering({ op: 'trash', results: [{ id: 'n3', status: 'changed' }] })
+    const connect = async () => storeWith({ unreadable: ['n1'], queued: ['n2'] })
+    const out = await runNoteBatch({ ids: ['n1', 'n2', 'n3'], op: 'trash', connect })
+    expect(JSON.parse(fetchFn.mock.calls[0][1].body).ids).toEqual(['n3'])
+    expect(out.results).toContainEqual({ id: 'n1', status: 'unchecked' })
+    expect(out.results).toContainEqual({ id: 'n2', status: 'unsent' })
+    expect(describeBatch(out, { titleOf: (id) => ({ n2: 'Second note' })[id] }).message).toBe(
+      'Moved 1 note to the Trash. 1 note was not changed: "Second note" is still syncing — try again in a moment.')
+  })
+
+  it('R1-S1: the export offer says "included", and its confirmation says what the file would miss', () => {
+    const offer = describeUnchecked('export', ['a', 'b', 'c', 'd'], { titleOf: (id) => id.toUpperCase() })
+    expect(offer.message).toBe(
+      `${UNCHECKED_SENTENCE} 4 notes were not included: "A"; "B"; "C" and 1 more.`)
+    expect(offer.anyway.label).toBe('Export anyway')
+    expect(offer.anyway.confirm).toMatch(/^Export 4 notes without checking this device\?/)
+    expect(describeUnchecked('export', [], {})).toBeNull()
   })
 
   it('⛔ CONTROL — move, tag and restore never ask: they rebase, and the words still arrive', async () => {
@@ -272,8 +330,9 @@ describe('S1 — trash and export also see words still being SENT, not only reti
   it('one store connection for the whole selection, closed afterwards', async () => {
     const store = storeWith({ queued: ['b'] })
     const connect = vi.fn(async () => store)
-    const held = await notesHoldingUnsentWork(['a', 'b', 'c'], { connect })
-    expect([...held]).toEqual(['b'])
+    const held = await checkUnsentWork(['a', 'b', 'c'], { connect })
+    expect([...held.unsent]).toEqual(['b'])
+    expect([...held.unchecked]).toEqual([])
     expect(connect).toHaveBeenCalledTimes(1)
     await new Promise((r) => setTimeout(r, 0))
     expect(store.closed).toBe(true)
@@ -329,5 +388,63 @@ describe('describeExport — every note left out is named', () => {
   it('nothing exported says so', () => {
     expect(describeExport({ count: 0, unsent: ['u'] }, { titleOf: (id) => titles[id] }).message)
       .toBe('1 note was not included: "Sending one" is still syncing — try again in a moment.')
+  })
+})
+
+describe('R1-N3 — an Undo that could not put every note back says what happened, never "try again"', () => {
+  const titleOf = (id) => ({ b: 'B note', c: 'C note', d: 'D note', e: 'E note' })[id]
+  const undoOutcome = {
+    op: 'move', changed: 1, unchanged: 0,
+    results: [
+      { id: 'a', status: 'changed', updatedAt: 't' },
+      { id: 'b', status: 'moved_since' },
+      { id: 'c', status: 'folder_gone', stayedInFolderId: 'f1', stayedInFolderName: 'Research' },
+      { id: 'd', status: 'conflict' },
+      { id: 'e', status: 'folder_gone', stayedInFolderId: null, stayedInFolderName: null },
+    ],
+  }
+  it('names each note and why it stayed', () => {
+    const { message, tone } = describeBatch(undoOutcome, { backToOrigin: true, titleOf })
+    expect(message).toBe(
+      'Moved 1 note back to where it was. 4 notes were not changed: '
+      + '"B note" was moved again after this — left where it is; '
+      + '"C note" could not go back: its folder no longer exists — it stayed in Research; '
+      + '"D note" was changed again after this — left where it is and 1 more.')
+    expect(message).not.toMatch(/try again/)
+    expect(tone).toBe('partial')
+  })
+  it('a note whose folder is gone and sits in Unfiled says Unfiled', () => {
+    const one = { op: 'move', changed: 0, unchanged: 0, results: [undoOutcome.results[4]] }
+    expect(describeBatch(one, { backToOrigin: true, titleOf }).message)
+      .toBe('Nothing changed. 1 note was not changed: "E note" could not go back: its folder no longer exists — it stayed in Unfiled.')
+  })
+  it('⛔ CONTROL — an ordinary move that raced still says "try again": it CAN be retried', () => {
+    const plain = { op: 'move', changed: 0, unchanged: 0, results: [{ id: 'd', status: 'conflict' }] }
+    expect(describeBatch(plain, { folderName: 'Research', titleOf }).message)
+      .toBe('Nothing changed. 1 note was not changed: "D note" changed while this ran — try again.')
+  })
+})
+
+describe('R23-N5 — joinUndo: "Trash anyway" joins the Undo of the trash it finishes', () => {
+  const restore = (ids) => ({ op: 'restore', ids, args: {} })
+
+  it('a live restore Undo takes the new notes: one Undo for the whole action', () => {
+    expect(joinUndo({ undo: restore(['n3']) }, restore(['n1']))).toEqual({ undo: restore(['n3', 'n1']), earlier: 1 })
+  })
+  it('a note in both is counted once', () => {
+    expect(joinUndo({ undo: restore(['a', 'b']) }, restore(['b', 'c']))).toEqual({ undo: restore(['a', 'b', 'c']), earlier: 1 })
+  })
+  it('never joins a QUEUED Undo (a promise about its own notes), a missing one, or a different kind', () => {
+    const mine = restore(['n1'])
+    expect(joinUndo({ undo: restore(['n3']), queued: true }, mine)).toEqual({ undo: mine, earlier: 0 })
+    expect(joinUndo(null, mine)).toEqual({ undo: mine, earlier: 0 })
+    const move = { op: 'move', ids: ['n3'], args: { folders: { n3: null } } }
+    expect(joinUndo({ undo: move }, mine)).toEqual({ undo: mine, earlier: 0 })
+    expect(joinUndo({ undo: restore(['n3']) }, null)).toEqual({ undo: null, earlier: 0 })
+  })
+  it('the sentence counts the earlier part of the action too', () => {
+    const outcome = { op: 'trash', changed: 1, unchanged: 0, results: [{ id: 'n1', status: 'changed' }] }
+    expect(describeBatch(outcome).message).toBe('Moved 1 note to the Trash.')
+    expect(describeBatch(outcome, { earlier: 1 }).message).toBe('Moved 2 notes to the Trash.')
   })
 })

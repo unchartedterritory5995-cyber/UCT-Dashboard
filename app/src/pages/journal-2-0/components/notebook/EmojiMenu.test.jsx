@@ -205,6 +205,40 @@ describe('an emoticon is never an emoji: the menu opens from two characters', ()
   })
 })
 
+// S2 residue (re-review): emoticons with a capital mouth or a nose matched a
+// shortcode at two characters -- ":oP" opened the menu on "open_mouth".
+describe('a two-character emoticon is never an emoji either', () => {
+  it.each([':oP', ':Oo', ':-1', ':+1', ':pP'])('%j would match, and still opens nothing; Enter makes a new line', async (typed) => {
+    expect(searchEmoji(typed.slice(1)).length).toBeGreaterThan(0) // the shape, not the roster, keeps it shut
+    const ed = await mount('fine')
+    await type(ed, ` ${typed}`)
+    expect(visibleMenu()).toBe(null)
+    await key(ed, 'Enter')
+    expect(ed.state.doc.childCount).toBe(2)
+    expect(ed.state.doc.firstChild.textContent).toBe(`fine ${typed}`)
+  })
+
+  it('the same two characters in lower case DO open it (":op")', async () => {
+    const ed = await mount('')
+    await type(ed, ' :op')
+    expect(visibleMenu()).not.toBe(null)
+  })
+
+  it('from three characters a capital is just a shortcode typed in capitals (":Roc")', async () => {
+    const ed = await mount('')
+    await type(ed, ' :Roc')
+    expect(visibleMenu()).not.toBe(null)
+    expect(await key(ed, 'Enter')).toBe(true)
+    expect(ed.state.doc.textContent).toBe(' 🚀')
+  })
+
+  it('`:-1:` and `:+1:` typed whole still convert', async () => {
+    const ed = await mount('')
+    await type(ed, ' :-1: :+1: ')
+    expect(ed.state.doc.textContent).toBe(' 👎 👍 ')
+  })
+})
+
 // N2 (wave-5 review): the menu read `:Rocket` but typed `:Rocket:` never
 // converted -- two hand-written copies of one shortcode shape.
 describe('the menu and the typed-whole rule read ONE shortcode shape', () => {

@@ -155,6 +155,17 @@ def _walk_semantic(node: Any, vault_id: str, out: dict[str, list]) -> None:
                 "text": node.get("text", ""),
                 "target": _normalize_link_href(href, vault_id),
             })
+        # N5 (wave 5 review): a `==x==` highlight is a MARK in both lanes now.
+        # The run's text AND its colour (null = the default highlight) -- so
+        # neither lane can drop the mark, or invent a colour, unseen.
+        hl_mark = next(
+            (m for m in marks if isinstance(m, dict) and m.get("type") == "highlight"), None,
+        )
+        if hl_mark is not None:
+            out["highlights"].append({
+                "text": node.get("text", ""),
+                "color": (hl_mark.get("attrs") or {}).get("color"),
+            })
     elif ntype == "image":
         out["images"].append(_normalize_image_src(attrs.get("src", "")))
     elif ntype == "taskItem":
@@ -170,7 +181,7 @@ def semantic_summary(doc: dict[str, Any], vault_id: str) -> dict[str, Any]:
     extractPlainText` for the notebook search index — rather than a fourth
     hand-rolled text walker. Mirrors `obsidianParity.contract.test.js::
     semanticSummary`."""
-    out: dict[str, list] = {"links": [], "images": [], "task_checked": []}
+    out: dict[str, list] = {"links": [], "images": [], "task_checked": [], "highlights": []}
     _walk_semantic(doc, vault_id, out)
     return {"text": extract_plain_text(doc), **out}
 

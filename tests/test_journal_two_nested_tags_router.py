@@ -212,15 +212,26 @@ def test_a_parent_named_only_through_a_child_is_still_a_node(app, client):
     assert tree["macro/rates"]["own"] == 1
 
 
-def _raw_tags(db_path, note_id, tags):
+def _raw_tags(db_path, note_id, tags, *, ensure_ascii=True):
     """Store `tags` EXACTLY as given — the way a note saved before nested tags
     (or by an importer/sync that bypassed the validator) holds them. Through
-    the API they would be normalised, and the case would vanish."""
+    the API they would be normalised, and the case would vanish.
+    `ensure_ascii=False` writes raw UTF-8 instead of backslash-u escapes, as a
+    writer using SQLite's own JSON functions would (review R1-N1)."""
     import json
     conn = sqlite3.connect(db_path)
     try:
-        conn.execute("UPDATE j2_notes SET tags = ? WHERE id = ?", (json.dumps(tags), note_id))
+        conn.execute("UPDATE j2_notes SET tags = ? WHERE id = ?",
+                     (json.dumps(tags, ensure_ascii=ensure_ascii), note_id))
         conn.commit()
+    finally:
+        conn.close()
+
+
+def _stored_tags(db_path, note_id):
+    conn = sqlite3.connect(db_path)
+    try:
+        return conn.execute("SELECT tags FROM j2_notes WHERE id = ?", (note_id,)).fetchone()[0]
     finally:
         conn.close()
 
@@ -265,6 +276,31 @@ def test_case_folds_beyond_ascii(app, client, db_path):
     assert [t["count"] for t in body["tags"]] == [3], "one tag, counted once per note — not two chips"
     tree = {n["key"]: n for n in body["tree"]}
     assert (tree["élan"]["own"], tree["élan"]["total"]) == (3, 3)
+
+
+def test_a_raw_utf8_row_counts_and_filters_identically(app, client, db_path):
+    """R1-N1: the prefilter is sound whatever the writer. A row holding raw
+    UTF-8 (no backslash-u escape) was counted by the tree and not found by
+    `tag=`; it now counts and filters exactly like an escaped one."""
+    _login_as(app, "u1")
+    raw_id = _note(client, "raw", ["t"])["id"]
+    _raw_tags(db_path, raw_id, ["Élan", "ÉLAN/vital"], ensure_ascii=False)
+    _raw_tags(db_path, _note(client, "escaped", ["t"])["id"], ["élan"])
+    _note(client, "plain ascii", ["elan"])            # NOT the same key: e != é
+    stored = _stored_tags(db_path, raw_id)
+    # Non-vacuity: the row really is raw UTF-8, with no escape to pass on.
+    assert "É" in stored and "\\u" not in stored, stored
+    tree = _tree(client)
+    assert tree["élan"]["total"] == 2
+    assert tree["élan/vital"]["total"] == 1
+    for asked in ["élan", "Élan", "ÉLAN"]:
+        assert _titles_for(client, asked) == ["escaped", "raw"], asked
+    assert _titles_for(client, "élan/vital") == ["raw"]
+    assert _titles_for(client, "elan") == ["plain ascii"]
+    for key, node in tree.items():
+        assert node["total"] == len(_titles_for(client, node["path"])), key
+    r = client.get("/api/j2/notes", params={"q": "Élan"})
+    assert sorted(n["title"] for n in r.json()["notes"]) == ["escaped", "raw"]
 
 
 def test_the_search_box_finds_a_legacy_or_non_ascii_tag(app, client, db_path):

@@ -47,6 +47,7 @@ from api.services.journal_two import (
     csv_import as csv_import_service,
     discipline as discipline_service,
     note_trade_links,
+    notebook_schema,
     nudges as nudges_service,
     options as options_service,
     playbook_stats as playbook_stats_service,
@@ -1993,9 +1994,17 @@ def notes_batch_endpoint(
     `move` also takes `{folders: {<id>: folderId | null}}` — a folder PER
     NOTE, for putting a selection back where each note came from (the bulk
     bar's Undo) — and `{expectFolderId}`: a note that is no longer in that
-    folder (moved again since, in another tab) is reported `conflict` and not
-    moved. A changed `move` result carries `fromFolderId`, the folder it left,
-    which is what makes that Undo possible.
+    folder (moved again since, in another tab) is reported `moved_since` and
+    not moved. A changed `move` result carries `fromFolderId`, the folder it
+    left, which is what makes that Undo possible.
+
+    ⛔ With `expectFolderId` the move is a real COMPARE-AND-SET (review R1-N3):
+    it writes against the revision this request READ, so a move from another
+    tab that lands while a long Undo is still looping is never overwritten —
+    the note is re-read, and put back only if it is STILL where this batch
+    put it (an edit that is not a move re-reads and proceeds). And a per-note
+    folder that no longer exists (deleted since) fails THAT note, as
+    `folder_gone` with where it stayed — never a 400 for the whole Undo.
 
     Validation that would fail EVERY note (unknown op, a folder that is not
     the member's, a blank or over-long tag) is a 400 before anything is
@@ -2019,6 +2028,7 @@ def notes_batch_endpoint(
         target_folder = None
         tag = None
         per_note_folder: dict[str, str | None] | None = None
+        gone_folders: set[str] = set()
         expect_guard = False
         expect_folder = None
         if op == "move":
@@ -2028,24 +2038,32 @@ def notes_batch_endpoint(
                     raise HTTPException(status_code=400,
                                         detail="folders must name a folder (or null) for every id")
                 per_note_folder = {i: (raw_map[i] or None) for i in ids}
-                wanted = {f for f in per_note_folder.values() if f is not None}
+                values = list(per_note_folder.values())
             else:
                 target_folder = args.get("folderId") or None
-                wanted = {target_folder} if target_folder is not None else set()
+                values = [target_folder]
+            # ⛔ N6: the TYPE check comes before anything hashes a value. A dict or
+            # a list reached the set below first and raised TypeError -- a 500
+            # where the member's malformed request deserved a 400 and a sentence.
+            if any(f is not None and not isinstance(f, str) for f in values):
+                raise HTTPException(status_code=400, detail="folderId must be a string or null")
+            wanted = {f for f in values if f is not None}
             if "expectFolderId" in args:
                 expect_guard = True
                 expect_folder = args.get("expectFolderId") or None
                 if expect_folder is not None and not isinstance(expect_folder, str):
                     raise HTTPException(status_code=400, detail="expectFolderId must be a string or null")
             for folder in wanted:
-                if not isinstance(folder, str):
-                    raise HTTPException(status_code=400, detail="folderId must be a string or null")
                 owned_folder = conn.execute(
                     "SELECT 1 FROM j2_note_folders WHERE id = ? AND user_id = ?",
                     (folder, uid),
                 ).fetchone()
                 if owned_folder is None:
-                    raise HTTPException(status_code=400, detail="folder not found")
+                    if per_note_folder is None:
+                        raise HTTPException(status_code=400, detail="folder not found")
+                    # A per-note destination (the Undo) that is gone fails only
+                    # the notes headed there, below (R1-N3).
+                    gone_folders.add(folder)
         elif op in ("addTag", "removeTag"):
             try:
                 cleaned = notes_service._validate_tags([args.get("tag")] if isinstance(args.get("tag"), str) else None)
@@ -2086,15 +2104,45 @@ def notes_batch_endpoint(
                     if head["folderId"] == dest:
                         results.append({"id": nid, "status": "unchanged"})
                         continue
-                    if expect_guard and head["folderId"] != expect_folder:
-                        # Moved again since the member last looked — putting it
-                        # "back" would undo somebody else's move. Say so instead.
-                        results.append({"id": nid, "status": "conflict"})
+                    if dest in gone_folders:
+                        # Its folder was deleted since: it stays where it is,
+                        # and the member is told where that is.
+                        results.append({"id": nid, "status": "folder_gone",
+                                        **_folder_named(conn, uid, head["folderId"])})
                         continue
-                    n = notes_service.update_note(uid, nid, {"folderId": dest}, conn=conn)
-                    results.append({"id": nid, "status": "changed", "updatedAt": n["updatedAt"],
+                    if not expect_guard:
+                        n = notes_service.update_note(uid, nid, {"folderId": dest}, conn=conn)
+                        results.append({"id": nid, "status": "changed", "updatedAt": n["updatedAt"],
+                                        "fromFolderId": head["folderId"]}
+                                       if n else {"id": nid, "status": "not_found"})
+                        continue
+                    # ⛔ COMPARE-AND-SET against the revision this batch READ
+                    # (R1-N3): heads were read once, before this loop, and a
+                    # long Undo commits note by note. One re-read on a lost
+                    # race; a note still changing under us is reported.
+                    outcome = None
+                    for _attempt in range(2):
+                        if head["folderId"] != expect_folder:
+                            # Moved again since the member last looked — putting
+                            # it "back" would undo somebody else's move.
+                            outcome = {"id": nid, "status": "moved_since"}
+                            break
+                        try:
+                            n = notes_service.update_note(
+                                uid, nid, {"folderId": dest}, conn=conn,
+                                expected_updated_at=head["updatedAt"],
+                            )
+                        except notes_service.NoteConflictError:
+                            head = notes_service.note_batch_heads(uid, [nid], conn=conn).get(nid)
+                            if head is None or head["deleted"]:
+                                outcome = {"id": nid, "status": "not_found" if head is None else "in_trash"}
+                                break
+                            continue
+                        outcome = ({"id": nid, "status": "changed", "updatedAt": n["updatedAt"],
                                     "fromFolderId": head["folderId"]}
                                    if n else {"id": nid, "status": "not_found"})
+                        break
+                    results.append(outcome or {"id": nid, "status": "conflict"})
                 elif op in ("addTag", "removeTag"):
                     # Compare-and-set against the revision this batch READ, so a
                     # tag list edited meanwhile (the editor, another tab) is
@@ -2159,6 +2207,16 @@ def notes_batch_endpoint(
     return {"op": op, "results": results, **counts}
 
 
+def _folder_named(conn: Any, uid: str, folder_id: str | None) -> dict[str, Any]:
+    """Where a note stayed, for a sentence: `{stayedInFolderId, stayedInFolderName}`
+    (both None for Unfiled)."""
+    if not folder_id:
+        return {"stayedInFolderId": None, "stayedInFolderName": None}
+    row = conn.execute("SELECT name FROM j2_note_folders WHERE id = ? AND user_id = ?",
+                       (folder_id, uid)).fetchone()
+    return {"stayedInFolderId": folder_id, "stayedInFolderName": row[0] if row else None}
+
+
 NOTE_BATCH_EXPORT_MAX = 500
 
 
@@ -2187,7 +2245,7 @@ def notes_batch_export_endpoint(
     import zipfile
     from pathlib import Path
     from api.services.journal_two.notes_export import (
-        _EXPORT_MANIFEST_NAME, _EXPORT_MANIFEST_VERSION,
+        _EXPORT_MANIFEST_NAME, _EXPORT_MANIFEST_VERSION, _attachment_cap_bytes,
         acquire_export_slot, build_single_note_export, release_export_slot,
         stream_export_file,
     )
@@ -2208,10 +2266,13 @@ def notes_batch_export_endpoint(
         issues: list[str] = []
         used_md: set[str] = set()
         written: set[str] = set()
+        # ⛔ N7: ONE attachment budget for the whole selection -- the cap that
+        # bounds the whole-notebook export, not that cap once per note.
+        budget = {"used_bytes": 0, "cap_bytes": _attachment_cap_bytes()}
         try:
             with zipfile.ZipFile(tmp_path, "w", zipfile.ZIP_DEFLATED) as zf:
                 for nid in ids:
-                    built = build_single_note_export(user["id"], nid)
+                    built = build_single_note_export(user["id"], nid, attachment_budget=budget)
                     if built is None:
                         skipped.append(nid)
                         continue
@@ -3157,6 +3218,7 @@ def create_note_endpoint(
 def update_note_endpoint(
     note_id: str,
     patch: dict[str, Any],
+    request: Request,
     user: dict = Depends(get_current_user),
 ) -> dict[str, Any]:
     # Optional compare-and-set baseline (A15): when the editor sends the
@@ -3168,7 +3230,16 @@ def update_note_endpoint(
         n = notes_service.update_note(
             user["id"], note_id, patch,
             expected_updated_at=base if isinstance(base, str) and base else None,
+            # ⛔ S1/H14 — never reverted with the features (notebook_schema.py).
+            # A missing header is 0: every bundle that predates it.
+            client_schema=notebook_schema.declared_schema(
+                request.headers.get(notebook_schema.NOTEBOOK_SCHEMA_HEADER)),
         )
+    except notebook_schema.NotebookSchemaTooOld:
+        # 409, so origin/master's editor takes its conflict path (one reconcile,
+        # one retry, then the sentence below as the save error) and its outbox
+        # forks a conflicted copy — the server note is never touched.
+        raise HTTPException(status_code=409, detail=notebook_schema.REFUSAL_DETAIL)
     except notes_service.NoteConflictError:
         raise HTTPException(status_code=409, detail="note changed — refresh and retry")
     except NoteValidationError as e:

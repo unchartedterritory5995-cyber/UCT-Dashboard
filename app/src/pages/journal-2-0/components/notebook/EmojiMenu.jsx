@@ -19,6 +19,15 @@
  * "great day :D" + Enter inserted 💵 and ate the new line, "ok :P" + Tab
  * inserted 📌. A one-letter shortcode (`:x:`) still converts typed whole.
  *
+ * ⛔ And at TWO characters, only lower case (re-review, the S2 residue): two
+ * characters are either the start of a shortcode -- every shortcode is lower
+ * case, and that is how a member types one -- or an emoticon, which wears a
+ * capital mouth (":oP", ":Oo", ":xD") or a nose (":-1", ":-P"). ":oP" opened
+ * the menu on "open_mouth". So a two-character query arms it only when it is
+ * lower-case letters, digits or `_`; from three characters any shortcode-shaped
+ * query does (`:Roc` opens it, as `:roc` does). `:-1:` and `:+1:` typed whole
+ * still convert.
+ *
  * Keyboard: ↑/↓ move, Enter or Tab insert, Escape closes it (the Suggestion
  * plugin's own dismissal).
  * Touch: a tap on a row inserts (44px rows on the touch tier). Typing a whole
@@ -35,6 +44,17 @@ import styles from './EmojiMenu.module.css'
 
 export const EMOJI_MENU_ID = 'uct-emoji-menu'
 export const EMOJI_MENU_MIN_QUERY = 2
+// How long a query can be and still be an emoticon rather than a shortcode.
+const EMOTICON_MAX_LENGTH = 2
+const SHORTCODE_START = /^[a-z0-9_]+$/
+
+/** Does what was typed after `:` open the menu? (See the ⛔ notes above.) */
+export function emojiMenuArms(query) {
+  const q = String(query || '')
+  if (q.length < EMOJI_MENU_MIN_QUERY) return false
+  if (q.length <= EMOTICON_MAX_LENGTH && !SHORTCODE_START.test(q)) return false
+  return true
+}
 export const emojiMenuPluginKey = new PluginKey('emojiMenu')
 
 const inCode = (state, pos) => {
@@ -121,10 +141,11 @@ export const EmojiMenuExtension = Extension.create({
       allowedPrefixes: [' ', '(', '[', '{'],
       allow: ({ state, range }) => !inCode(state, range.from),
       // What may match: searchEmoji answers [] for anything that is not
-      // shortcode-shaped (":)", ": ", an empty query), and a query shorter
-      // than EMOJI_MENU_MIN_QUERY (":D", ":P") answers [] here. An empty
-      // list renders nothing and passes every key through (EmojiList).
-      items: ({ query }) => (String(query || '').length >= EMOJI_MENU_MIN_QUERY ? searchEmoji(query) : []),
+      // shortcode-shaped (":)", ": ", an empty query), and emojiMenuArms
+      // answers no for a query too short (":D", ":P") or emoticon-shaped
+      // (":oP", ":-1"). An empty list renders nothing and passes every key
+      // through (EmojiList).
+      items: ({ query }) => (emojiMenuArms(query) ? searchEmoji(query) : []),
       command: ({ editor, range, props }) => {
         editor.chain().focus().insertContentAt(range, props.char).run()
       },
