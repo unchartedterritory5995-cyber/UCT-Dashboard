@@ -60,11 +60,21 @@ def main() -> None:
             {"type": "paragraph", "content": [{"type": "text", "text": "The thesis holds."}]},
             # N4: a trader's dollars in prose -- exported `\$`, read back as `$`.
             {"type": "paragraph", "content": [{"type": "text", "text": "Range $5-$10 on $NVDA."}]},
+            # N4 (fix round 2): member text that arrives by ATTRIBUTE -- an
+            # image's alt, an attachment's name -- is prose too.
             {"type": "image", "attrs": {
-                "src": "/api/j2/notes/attachments/u1/n1/inline/chart.png", "alt": ""}},
+                "src": "/api/j2/notes/attachments/u1/n1/inline/chart.png", "alt": "NVDA $5 base"}},
             {"type": "attachmentChip", "attrs": {
                 "href": "/api/j2/notes/attachments/u1/n1/file/report.pdf",
-                "name": "report.pdf"}},
+                "name": "report $Q3.pdf"}},
+            # ...and so are a widget's label and an Ask answer's question and
+            # source labels.
+            {"type": "widgetEmbed", "attrs": {"searchText": "Chart $NVDA 1D", "widgetId": "chart"}},
+            {"type": "askInsert",
+             "attrs": {"insertedAt": "2026-09-22T14:03:00.000Z", "question": "Hold above $5?"},
+             "content": [{"type": "paragraph", "content": [
+                 {"type": "text", "text": "Yes "},
+                 {"type": "askCitation", "attrs": {"n": 1, "label": "Deck $Q3"}}]}]},
             {"type": "callout", "attrs": {"emoji": "\U0001F4A1"},
              "content": [{"type": "paragraph", "content": [
                  {"type": "text", "text": "a tip worth keeping"}]},

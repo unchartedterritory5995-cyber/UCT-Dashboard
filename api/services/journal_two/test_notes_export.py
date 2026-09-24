@@ -1646,6 +1646,80 @@ def test_link_text_dollars_are_escaped_but_the_href_is_not():
     assert md == "[\\$NVDA](https://example.com/q?p=$1)"
 
 
+# ── Wave 5 fix round 2 (N4 remainder): member text that arrives by ATTRIBUTE ──
+# The text walk was not the only way a member's words reach the Markdown: an
+# attachment's name, a note link's title, an excerpt, a widget label and an Ask
+# answer's question and source labels are all written into prose too. Each is
+# railed on its own, so one call site losing the escape is one red test with
+# its name on it. (An image's alt is the deliberate exception, railed below.)
+def _dollar_resolver(url):
+    if url.startswith("internal-note-link://"):
+        return "Plan $5-$10", "Plan.md"
+    if url.startswith("document-excerpt://"):
+        return "Bought at $5\nsold at $10", "Deck $Q3, p.2", "stop $4"
+    return None
+
+
+def test_image_alt_keeps_its_dollars_raw_because_our_importer_drops_an_escape_there():
+    # markdown-it's renderInlineAsText skips escaped characters when it builds
+    # an image's alt, so `\$` would re-import as nothing at all -- the member's
+    # `$` lost in our own round trip (exportRoundtrip.test.js reads it back).
+    md = tiptap_to_markdown(_doc(
+        {"type": "image", "attrs": {"src": "https://x.test/a.png?v=$1", "alt": "NVDA $5 base"}}))
+    assert md == "![NVDA $5 base](https://x.test/a.png?v=$1)"
+
+
+def test_attachment_name_dollars_are_escaped_but_the_href_is_not():
+    md = tiptap_to_markdown(_doc(
+        {"type": "attachmentChip", "attrs": {"href": "https://x.test/f?v=$2", "name": "PnL $10.csv"}}))
+    assert md == "[PnL \\$10.csv](https://x.test/f?v=$2)"
+
+
+def test_note_link_title_dollars_are_escaped():
+    md = tiptap_to_markdown(_doc({"type": "paragraph", "content": [
+        {"type": "text", "text": "see "}, {"type": "noteLink", "attrs": {"noteId": "n2"}}]}),
+        attachment_resolver=_dollar_resolver)
+    assert md == "see [Plan \\$5-\\$10](Plan.md)"
+
+
+def test_excerpt_quote_citation_and_annotation_dollars_are_escaped():
+    md = tiptap_to_markdown(_doc({"type": "documentExcerpt", "attrs": {"excerptId": "e1"}}),
+                            attachment_resolver=_dollar_resolver)
+    lines = md.split("\n")
+    assert lines[:2] == ["> Bought at \\$5", "> sold at \\$10"]  # the quote, every line
+    assert lines[2] == "> — Deck \\$Q3, p.2"  # the citation
+    assert lines[3:] == ["", "*stop \\$4*"]  # the member's annotation
+
+
+def test_widget_label_dollars_are_escaped():
+    md = tiptap_to_markdown(_doc({"type": "widgetEmbed", "attrs": {"searchText": "Chart $NVDA 1D"}}))
+    assert md == "> [Chart \\$NVDA 1D]"
+
+
+def test_ask_question_and_source_label_dollars_are_escaped():
+    md = tiptap_to_markdown({"type": "doc", "content": [
+        {"type": "askInsert",
+         "attrs": {"insertedAt": "2026-09-22T14:03:00.000Z", "question": "Hold above $5?"},
+         "content": [{"type": "paragraph", "content": [
+             {"type": "text", "text": "Yes "},
+             {"type": "askCitation", "attrs": {"n": 1, "label": "Deck $Q3"}}]}]}]})
+    lines = md.split("\n")
+    assert lines[0] == "> **From Ask Notebook** · 2026-09-22 · Q: Hold above \\$5?"
+    assert lines[-1] == "> Sources as of insertion: [1] Deck \\$Q3"
+
+
+def test_attribute_text_inside_a_callout_island_keeps_its_dollars_raw():
+    # The island rule holds for attribute-borne text too: inside `<aside>` no
+    # escape is read, so a `\$` there would show its backslash.
+    md = tiptap_to_markdown(_doc(
+        {"type": "callout", "attrs": {"emoji": "!"}, "content": [
+            {"type": "attachmentChip", "attrs": {"href": "a.csv", "name": "PnL $10.csv"}},
+            {"type": "widgetEmbed", "attrs": {"searchText": "Chart $NVDA 1D"}}]},
+        {"type": "widgetEmbed", "attrs": {"searchText": "after $1"}}))
+    assert "<aside>\n! [PnL $10.csv](a.csv)\n> [Chart $NVDA 1D]\n</aside>" in md
+    assert md.endswith("> [after \\$1]")  # ...and escaped again once the island ends
+
+
 # ── Wave 5: highlight exports as ==text==; a text colour exports as its words ─
 def test_highlight_exports_in_obsidian_syntax_whatever_its_colour():
     md = tiptap_to_markdown(_doc({"type": "paragraph", "content": [

@@ -358,6 +358,19 @@ def _make_note_link_aware_resolver(
 #  - the raw-HTML islands a callout (`<aside>`) and a toggle (`<details>`)
 #    export as -- a CommonMark HTML block is not parsed for escapes (or for
 #    math), and the importer passes those islands through untouched.
+# Fix round 2: prose is not only the text walk. Member text also reaches the
+# Markdown through ATTRIBUTES -- an attachment's name, a note link's title, an
+# excerpt's quote/citation/annotation, a widget's label, an Ask answer's
+# question and source labels. All of it goes through `_prose`, the ONE place
+# this rule lives. URLs (a link's href, an image's src) are not prose and stay
+# raw. ⛔ And so, deliberately, does an image's ALT text: CommonMark flattens an
+# image description to a plain-text `alt`, and our own importer's markdown-it
+# (14.3) builds that string with `renderInlineAsText`, which SKIPS every
+# backslash-escaped character -- `![NVDA \$5](x.png)` re-imports with alt
+# "NVDA 5". Escaping there would lose the member's `$` in the one round trip
+# we own (railed in exportRoundtrip.test.js). A lone `$` cannot form math, and
+# a pair needs a reader that parses math inside an image description -- the
+# smaller risk of the two.
 _ESCAPE_PROSE_DOLLARS = contextvars.ContextVar("notes_export_escape_prose_dollars", default=True)
 
 
@@ -370,12 +383,18 @@ def _raw_dollars():
         _ESCAPE_PROSE_DOLLARS.reset(token)
 
 
+def _prose(text: Any) -> str:
+    """Member text written into Markdown PROSE: every `$` becomes `\\$` (N4),
+    unless this walk is inside a raw island (`_raw_dollars`)."""
+    text = "" if text is None else str(text)
+    return text.replace("$", "\\$") if _ESCAPE_PROSE_DOLLARS.get() else text
+
+
 def _text_with_marks(node: dict[str, Any], resolver=None) -> str:
     text = node.get("text") or ""
     marks = node.get("marks") or []
-    if _ESCAPE_PROSE_DOLLARS.get() and not any(
-            isinstance(m, dict) and m.get("type") == "code" for m in marks):
-        text = text.replace("$", "\\$")
+    if not any(isinstance(m, dict) and m.get("type") == "code" for m in marks):
+        text = _prose(text)
     for mark in marks:
         mtype = mark.get("type")
         if mtype == "link":
@@ -488,7 +507,7 @@ def _ask_insert_markdown(attrs: dict[str, Any], kids, resolver=None) -> str:
     quote, so a member's Markdown never loses which passage was AI-assisted, and
     lists its sources as they stood when it was inserted."""
     date = str(attrs.get("insertedAt") or "")[:10]
-    question = str(attrs.get("question") or "").strip()
+    question = _prose(str(attrs.get("question") or "").strip())
     head = "**From Ask Notebook**"
     if date:
         head += f" · {date}"
@@ -503,7 +522,7 @@ def _ask_insert_markdown(attrs: dict[str, Any], kids, resolver=None) -> str:
         if n.get("type") == "askCitation":
             num = _ask_citation_n(n.get("attrs"))
             if num is not None and num not in sources:
-                sources[num] = str(n["attrs"].get("label") or "source")
+                sources[num] = _prose(n["attrs"].get("label") or "source")
         for c in n.get("content") or []:
             collect(c)
 
@@ -564,11 +583,12 @@ def _block(node: dict[str, Any], resolver=None) -> str:
     if ntype in ("image", "resizableImage"):
         src = attrs.get("src") or ""
         local = resolver(src) if resolver else None
+        # The alt stays raw -- see the N4 note above `_ESCAPE_PROSE_DOLLARS`.
         return f"![{attrs.get('alt') or ''}]({local or src})"
     if ntype == "attachmentChip":
         href = attrs.get("href") or ""
         local = resolver(href) if resolver else None
-        return f"[{attrs.get('name') or 'attachment'}]({local or href})"
+        return f"[{_prose(attrs.get('name') or 'attachment')}]({local or href})"
     if ntype == "videoTimestamp":
         # Mirrors app/src/components/video/playerUtils.js::fmtTime exactly --
         # the same helper the editor's own node view renders with
@@ -593,7 +613,7 @@ def _block(node: dict[str, Any], resolver=None) -> str:
         if resolved is None:
             return "*[linked note]*"
         title, href = resolved
-        return f"[{title}]({href})"
+        return f"[{_prose(title)}]({href})"
     if ntype == "documentExcerpt":
         # Wave J. Resolves via the SAME resolver parameter noteLink uses
         # (document-excerpt://<id> marker, see
@@ -606,11 +626,11 @@ def _block(node: dict[str, Any], resolver=None) -> str:
         if resolved is None:
             return "*[excerpt source no longer available]*"
         quote, citation, annotation = resolved
-        lines = [f"> {ln}" for ln in quote.split("\n")]
-        lines.append(f"> — {citation}")
+        lines = [f"> {ln}" for ln in _prose(quote).split("\n")]
+        lines.append(f"> — {_prose(citation)}")
         if annotation:
             lines.append("")
-            lines.append(f"*{annotation}*")
+            lines.append(f"*{_prose(annotation)}*")
         return "\n".join(lines)
     if ntype == "askInsert":
         # null/list/string attrs read as empty, never raise (G-064 close-out).
@@ -623,7 +643,7 @@ def _block(node: dict[str, Any], resolver=None) -> str:
         # the note look like it lost content, so emit the widget's own
         # pre-computed search line -- the same string that feeds body_plain.
         label = attrs.get("searchText") or attrs.get("widgetId") or "widget"
-        return f"> [{label}]"
+        return f"> [{_prose(label)}]"
     if ntype == "table":
         return _table(node, resolver)
     if ntype == "callout":

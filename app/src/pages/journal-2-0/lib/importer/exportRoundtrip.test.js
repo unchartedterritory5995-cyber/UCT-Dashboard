@@ -151,6 +151,16 @@ d('our own export round-trips through our own importer', () => {
     // N4: prose dollars went out escaped (so no reader takes "$5-$10" for
     // math) and come back as plain dollars -- never a stray backslash.
     expect(doc.html).toContain('Range $5-$10 on $NVDA.')
+    // ...and so does member text that arrives by ATTRIBUTE (fix round 2): an
+    // attachment's name, a widget's label, an Ask answer's question and its
+    // source labels. An image's alt is exported RAW on purpose: markdown-it
+    // drops an escaped character from an alt, so `\$` would come back as
+    // nothing -- this is the assertion that caught it.
+    expect(doc.html).toContain('alt="NVDA $5 base"')
+    expect(doc.html).toContain('report $Q3.pdf')
+    expect(doc.html).toContain('Chart $NVDA 1D')
+    expect(doc.html).toContain('Q: Hold above $5?')
+    expect(doc.html).toContain('[1] Deck $Q3')
     expect(doc.html).not.toContain('\\$')
     expect(doc.html).not.toMatch(/<h[1-6]>\s*title:/i)
     expect(doc.html).not.toContain('subtitle:')
