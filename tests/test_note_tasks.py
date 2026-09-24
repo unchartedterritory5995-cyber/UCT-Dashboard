@@ -6,10 +6,13 @@ cannot disagree about which task is number N.
 """
 from __future__ import annotations
 
+import collections
 import importlib
 import json
 import os
 import tempfile
+import threading
+import time
 from datetime import datetime
 from pathlib import Path
 
@@ -267,33 +270,180 @@ def test_the_real_delivery_is_the_in_app_bell_at_info_and_never_email(svc, monke
         alerts.clear_alerts(user_id="u7")
 
 
-def test_the_reminder_job_registers_at_seven_ET_with_a_misfire_grace_and_never_raises(monkeypatch):
+class _Sched:
+    def __init__(self):
+        self.calls = []
+
+    def add_job(self, fn, trigger, **kw):
+        self.calls.append((fn, trigger, kw))
+
+    def jobs(self):
+        return {kw["id"]: (fn, trigger, kw) for fn, trigger, kw in self.calls}
+
+
+def test_the_reminder_jobs_register_at_seven_and_NINE_ET_plus_a_boot_catch_up_and_never_raise(monkeypatch):
+    """R1-6 — the ruled 09:00 ET trigger (S-2) is a real daily CronTrigger, not
+    only the boot catch-up, which fires solely on a day the process restarts."""
     from api.services.journal_two import note_tasks as nt
-    calls = []
-
-    class _Sched:
-        def add_job(self, fn, trigger, **kw):
-            calls.append((fn, trigger, kw))
-
-    assert nt.register_task_reminder_job(_Sched()) is True
-    jobs = {kw["id"]: (fn, trigger, kw) for fn, trigger, kw in calls}
-    assert set(jobs) == {"notebook_task_reminders", "notebook_task_reminders_catch_up"}
-    fn, trigger, kw = jobs["notebook_task_reminders"]
-    assert kw["max_instances"] == 1
-    assert str(trigger) == "cron[hour='7', minute='0']"
-    assert str(trigger.timezone) == "America/New_York"
-    # api/main.py's job_defaults grace is ONE SECOND: a 07:00 the check loop
-    # reaches late would be skipped outright and nothing would say so.
-    assert kw["misfire_grace_time"] == 3600
+    sched = _Sched()
+    assert nt.register_task_reminder_job(sched) is True
+    jobs = sched.jobs()
+    assert set(jobs) == {"notebook_task_reminders", "notebook_task_reminders_nine",
+                         "notebook_task_reminders_catch_up"}
+    for job_id, hour in (("notebook_task_reminders", 7), ("notebook_task_reminders_nine", 9)):
+        fn, trigger, kw = jobs[job_id]
+        assert type(trigger).__name__ == "CronTrigger"
+        assert str(trigger) == f"cron[hour='{hour}', minute='0']"
+        assert str(trigger.timezone) == "America/New_York"
+        assert kw["max_instances"] == 1
+        # api/main.py's job_defaults grace is ONE SECOND: a run the check loop
+        # reaches late would be skipped outright and nothing would say so.
+        assert kw["misfire_grace_time"] == 3600
     # The boot catch-up is a one-shot, a moment after the scheduler starts.
-    cfn, ctrigger, ckw = jobs["notebook_task_reminders_catch_up"]
-    assert type(ctrigger).__name__ == "DateTrigger"
-    # Both job bodies are the scheduler's boundary: a failing run is printed, not raised.
+    assert type(jobs["notebook_task_reminders_catch_up"][1]).__name__ == "DateTrigger"
+    # Both daily jobs run THE PASS; the boot job runs the catch-up.
+    ran = []
+    monkeypatch.setattr(nt, "run_task_reminders", lambda *a, **k: ran.append("pass") or {})
+    monkeypatch.setattr(nt, "catch_up_task_reminders", lambda *a, **k: ran.append("catch-up") or {})
+    for job_id in ("notebook_task_reminders", "notebook_task_reminders_nine", "notebook_task_reminders_catch_up"):
+        jobs[job_id][0]()
+    assert ran == ["pass", "pass", "catch-up"]
+    # Every job body is the scheduler's boundary: a failing run is printed, not raised.
     boom = lambda *a, **k: (_ for _ in ()).throw(RuntimeError("db gone"))  # noqa: E731
     monkeypatch.setattr(nt, "run_task_reminders", boom)
     monkeypatch.setattr(nt, "catch_up_task_reminders", boom)
-    fn()
-    cfn()
+    for fn, _, _ in jobs.values():
+        fn()
+
+
+def _at(nt, monkeypatch, hour, minute=0):
+    """Pin the module's clock: the registered job bodies take no arguments."""
+    monkeypatch.setattr(nt, "_now", lambda: NOW.replace(hour=hour, minute=minute))
+
+
+def test_a_boot_catch_up_on_a_day_the_nine_oclock_job_ran_cleanly_does_nothing(svc, monkeypatch):
+    ns, nt = svc
+    _note_with(ns, "u1", "Plan", _task(False, "Due today", "2026-09-23"))
+    rec = _Recorder()
+    monkeypatch.setattr(nt, "_deliver_in_app", rec)
+    jobs = _Sched()
+    nt.register_task_reminder_job(jobs)
+    jobs = jobs.jobs()
+    # The pod was down at 07:00; the 09:00 job runs the pass cleanly …
+    _at(nt, monkeypatch, 9)
+    jobs["notebook_task_reminders_nine"][0]()
+    assert [c[0] for c in rec.calls] == ["u1"]
+    # … so a boot at 11:00 finds the day done and sends nothing more.
+    _at(nt, monkeypatch, 11)
+    jobs["notebook_task_reminders_catch_up"][0]()
+    assert [c[0] for c in rec.calls] == ["u1"]
+
+
+def test_a_boot_catch_up_on_a_day_the_pod_was_down_at_nine_still_delivers(svc, monkeypatch):
+    ns, nt = svc
+    _note_with(ns, "u1", "Plan", _task(False, "Due today", "2026-09-23"))
+    rec = _Recorder()
+    monkeypatch.setattr(nt, "_deliver_in_app", rec)
+    jobs = _Sched()
+    nt.register_task_reminder_job(jobs)
+    # Down at 07:00 AND at 09:00 — neither cron job ever fired. Up at 11:00.
+    _at(nt, monkeypatch, 11)
+    jobs.jobs()["notebook_task_reminders_catch_up"][0]()
+    assert [c[0] for c in rec.calls] == ["u1"]
+
+
+def test_two_passes_racing_on_one_day_deliver_every_member_exactly_once_between_them(svc):
+    """The 09:00 pass and a boot catch-up can fire together. The per-member
+    claim is ONE atomic statement (an INSERT the primary key refuses), so no
+    interleaving lets both passes send one member's reminder."""
+    ns, nt = svc
+    members = [f"m{i:02d}" for i in range(24)]
+    for uid in members:
+        _note_with(ns, uid, "Plan", _task(False, "Due today", "2026-09-23"))
+    start = threading.Barrier(2)
+
+    class _Slow(_Recorder):
+        def __call__(self, *a):
+            time.sleep(0.002)          # yield mid-pass, so the two interleave
+            super().__call__(*a)
+
+    recs, outs = [_Slow(), _Slow()], [None, None]
+
+    def run(i):
+        start.wait(5)
+        outs[i] = nt.run_task_reminders(now=NOW.replace(hour=9), deliver=recs[i])
+
+    threads = [threading.Thread(target=run, args=(i,)) for i in (0, 1)]
+    for t in threads:
+        t.start()
+    for t in threads:
+        t.join(30)
+    sent = collections.Counter(c[0] for r in recs for c in r.calls)
+    assert set(sent) == set(members)                         # no member skipped
+    assert set(sent.values()) == {1}                         # no member twice
+    assert outs[0]["delivered"] + outs[1]["delivered"] == len(members)
+    # The later of the two sees every claim delivered, so the day is closed.
+    from api.services import auth_db
+    conn = auth_db.get_connection()
+    try:
+        assert conn.execute("SELECT 1 FROM j2_task_reminder_runs WHERE day = '2026-09-23'").fetchone()
+    finally:
+        conn.close()
+
+
+def test_a_racing_pass_cannot_close_the_day_over_a_claim_still_in_flight(svc):
+    """R1-6 (b), measured by the re-review: pass A claims u1; pass B skips u1 as
+    taken, delivers u2 and — with no failure of its OWN — marked the day done;
+    then A's delivery to u1 failed and released the claim. The next catch-up
+    saw the marker and u1 lost the day. A day is now closed only when every
+    member due holds a DELIVERED claim, read from the store."""
+    ns, nt = svc
+    _note_with(ns, "u1", "Plan", _task(False, "Due today", "2026-09-23"))
+    _note_with(ns, "u2", "Plan", _task(False, "Due today", "2026-09-23"))
+    a_claimed, b_done, a_out = threading.Event(), threading.Event(), {}
+
+    def a_deliver(user_id, title, message, data):
+        if user_id == "u1":
+            a_claimed.set()
+            b_done.wait(10)                                  # B runs its whole pass in here
+            raise RuntimeError("bell unavailable")
+
+    a = threading.Thread(target=lambda: a_out.update(nt.run_task_reminders(now=NOW, deliver=a_deliver)))
+    a.start()
+    assert a_claimed.wait(10)
+    b_rec = _Recorder()
+    b = nt.run_task_reminders(now=NOW.replace(minute=1), deliver=b_rec)
+    b_done.set()
+    a.join(10)
+    # The day is still open, so the next pass — here a boot catch-up — reaches u1.
+    rec = _Recorder()
+    out = nt.catch_up_task_reminders(now=NOW.replace(hour=11), deliver=rec)
+    assert out["ran"] is True and [c[0] for c in rec.calls] == ["u1"]
+    assert [c[0] for c in b_rec.calls] == ["u2"]
+    assert b["in_flight"] == 1 and b["marked"] is False      # B saw u1 claimed, not delivered
+    assert a_out["failed"] == 1 and a_out["marked"] is False
+    assert out["marked"] is True                             # now everyone due has been reached
+
+
+def test_a_claim_table_from_before_the_status_column_still_dedupes(svc):
+    """A `j2_task_reminder_log` written before claims carried a status: its
+    rows are DELIVERED claims (that code marked a row only by delivering or
+    crashing), so they read as sent — not as in flight, which would hold the
+    day open forever."""
+    ns, nt = svc
+    from api.services import auth_db
+    _note_with(ns, "u1", "Plan", _task(False, "Due today", "2026-09-23"))
+    conn = auth_db.get_connection()
+    conn.executescript(
+        "CREATE TABLE j2_task_reminder_log (user_id TEXT NOT NULL, day TEXT NOT NULL,"
+        " due_today INTEGER NOT NULL DEFAULT 0, overdue INTEGER NOT NULL DEFAULT 0,"
+        " created_at TEXT NOT NULL, PRIMARY KEY (user_id, day));"
+        "INSERT INTO j2_task_reminder_log VALUES ('u1', '2026-09-23', 1, 0, '2026-09-23T07:00:00');")
+    conn.commit()
+    conn.close()
+    rec = _Recorder()
+    out = nt.run_task_reminders(now=NOW.replace(hour=9), deliver=rec)
+    assert rec.calls == [] and out["already_sent"] == 1 and out["marked"] is True
 
 
 def test_the_boot_catch_up_runs_the_pass_when_seven_has_passed_and_today_has_not_run(svc):

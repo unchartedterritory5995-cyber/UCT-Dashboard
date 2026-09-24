@@ -31,31 +31,49 @@ note's editor is a second writer, and the offline layer forks it.
 
 Reminders
 ---------
-`run_task_reminders()` — scheduled by the controller for 07:00 ET. One IN-APP
-notification per member per day when they have open tasks due today or
-overdue. ⛔ NEVER EMAIL: the Resend quota is exhausted daily. It goes through
-`api.services.alerts.add_alert` at severity `info`, which is the in-app bell and
-nothing else (info is below the Discord threshold). Deduped per member per day
-in a TABLE, `j2_task_reminder_log`, claimed before delivery — a module dict
-would forget on every deploy, and this pod deploys several times a day.
-Kill switch `NOTEBOOK_TASK_REMINDERS_ENABLED`: unset = on, `0` = off, read per
-run.
+`run_task_reminders()` — THE PASS. One IN-APP notification per member per day
+when they have open tasks due today or overdue. ⛔ NEVER EMAIL: the Resend
+quota is exhausted daily. It goes through `api.services.alerts.add_alert` at
+severity `info`, which is the in-app bell and nothing else (info is below the
+Discord threshold). Deduped per member per day in a TABLE,
+`j2_task_reminder_log`, claimed before delivery — a module dict would forget on
+every deploy, and this pod deploys several times a day. Kill switch
+`NOTEBOOK_TASK_REMINDERS_ENABLED`: unset = on, `0` = off, read per run.
 
-A 07:00 that never fires (S-2)
+When the pass runs (S-2, R1-6)
 ------------------------------
-Two ways the day's pass is lost, and one fix each:
-  * the scheduler reaches 07:00 late (another job holds the executor or the
-    GIL) — api/main.py's `job_defaults` grace is ONE SECOND, and a late run is
-    skipped outright (`EVENT_JOB_MISSED`, the function never called). The job
-    carries `misfire_grace_time=3600`: a late run is harmless because the pass
-    is idempotent per ET day.
-  * a deploy spans 07:00 — the job store is in memory, so the new process
-    never SCHEDULES that fire at all, and no grace can see it.
-    `register_task_reminder_job` also registers a one-shot BOOT CATCH-UP
-    (`catch_up_task_reminders`): after 07:00 ET, if today's pass has not run,
-    it runs it. "Has run" is a durable marker, `j2_task_reminder_runs`, written
-    when a pass completes with no failed delivery — NOT the per-member claims,
-    which a pass that found nobody due never writes.
+`register_task_reminder_job` registers THREE jobs, all from one call:
+  * 07:00 ET daily — the pass. `misfire_grace_time=3600`: api/main.py's
+    `job_defaults` grace is ONE SECOND, and a run the check loop reaches late
+    is skipped outright (`EVENT_JOB_MISSED`, the function never called).
+  * 09:00 ET daily — the pass again, the ruled second trigger. The claim table
+    makes it a no-op for every member already reminded; it reaches a member
+    whose 07:00 delivery failed, and anyone 07:00 never reached (a deploy
+    spanning 07:00 never SCHEDULES that fire — the job store is in memory).
+  * a one-shot BOOT CATCH-UP (`catch_up_task_reminders`), the net for a day
+    the process never had a 09:00 tick either (down at 09:00, up at 11:00):
+    after 07:00 ET, if the day is not marked done, it runs the pass.
+
+Two passes can therefore run at once (a boot at 08:58:45 fires its catch-up
+at 09:00:15, beside the 09:00 job), and two rules make that safe:
+  * ⛔ THE CLAIM IS ONE ATOMIC STATEMENT. `INSERT OR IGNORE` on the primary key
+    (user_id, day) writes a row with status `claimed`, or is refused; rowcount
+    0 means another pass holds the member. No read decides it, so two passes
+    can never both deliver one member's reminder. A delivered claim becomes
+    `sent`; a failed one is released (deleted), so a later pass retries it.
+  * ⛔ A DAY IS MARKED DONE ONLY WHEN EVERY MEMBER THE PASS FOUND DUE HOLDS A
+    `sent` CLAIM, read from the store — never from the pass's own counters. A member another pass has claimed and not
+    yet delivered, or claimed and then released on a failed delivery, keeps
+    the day open, so the next pass reaches them. (Measured before this rule:
+    pass B skipped u1 as taken, had no failure of its own and marked the day;
+    A's delivery to u1 then failed, and the next catch-up saw the marker.)
+"Marked done" is `j2_task_reminder_runs` — NOT the claims, which a pass that
+found nobody due never writes.
+
+⚠️ Residual, stated: a process that dies between a claim and its delivery
+leaves the claim `claimed` — no later pass re-sends it (it cannot tell a dead
+claimant from a slow one) and the day stays unmarked. That member loses that
+day's reminder; the next day is a new day.
 """
 from __future__ import annotations
 
@@ -77,7 +95,8 @@ MAX_TASKS = 2000
 TASKS_VIEW_URL = "/journal/notebook?view=tasks"
 REMINDER_SOURCE = "notebook_task_reminder"
 REMINDER_HOUR_ET = 7
-MISFIRE_GRACE_S = 3600     # a late 07:00 still runs; the pass is idempotent per ET day
+SECOND_PASS_HOUR_ET = 9    # the ruled second daily trigger (S-2)
+MISFIRE_GRACE_S = 3600     # a late run still runs; the pass is idempotent per ET day
 CATCH_UP_DELAY_S = 90      # the boot catch-up waits for the process to settle
 KILL_SWITCH = "NOTEBOOK_TASK_REMINDERS_ENABLED"
 _OFF_VALUES = {"0", "false", "no", "off"}
@@ -92,6 +111,7 @@ CREATE TABLE IF NOT EXISTS j2_task_reminder_log (
     due_today   INTEGER NOT NULL DEFAULT 0,
     overdue     INTEGER NOT NULL DEFAULT 0,
     created_at  TEXT NOT NULL,
+    status      TEXT NOT NULL DEFAULT 'sent',
     PRIMARY KEY (user_id, day)
 );
 CREATE TABLE IF NOT EXISTS j2_task_reminder_runs (
@@ -114,8 +134,14 @@ def parse_due(value: Any) -> str | None:
     return value
 
 
+def _now() -> datetime:
+    """The module's clock. Looked up at CALL time, so a test can pin it and
+    drive the registered job bodies, which take no arguments."""
+    return datetime.now(tz=ET)
+
+
 def today_et(now: datetime | None = None) -> str:
-    now = now or datetime.now(tz=ET)
+    now = now or _now()
     if now.tzinfo is None:
         now = now.replace(tzinfo=ET)
     return now.astimezone(ET).date().isoformat()
@@ -312,6 +338,12 @@ def reminders_enabled() -> bool:
 
 def ensure_reminder_schema(conn: sqlite3.Connection) -> None:
     conn.executescript(_REMINDER_SCHEMA)
+    # A claim table written before claims carried a status: its rows were
+    # written only by delivering (or by crashing before the delivery), so they
+    # read as `sent` — never as `claimed`, which would hold the day open.
+    if not has_column(conn, "j2_task_reminder_log", "status"):
+        conn.execute("ALTER TABLE j2_task_reminder_log ADD COLUMN status TEXT NOT NULL DEFAULT 'sent'")
+        conn.commit()
 
 
 def reminder_copy(due_today: int, overdue: int) -> tuple[str, str]:
@@ -353,17 +385,20 @@ def _due_counts_by_member(conn: sqlite3.Connection, today: str) -> dict[str, dic
 
 def run_task_reminders(now: datetime | None = None, conn: sqlite3.Connection | None = None,
                        deliver=None) -> dict[str, Any]:
-    """One in-app reminder per member per ET day. Safe to run twice.
+    """One in-app reminder per member per ET day. Safe to run twice, and safe
+    to run twice AT ONCE (see the module docstring, "When the pass runs").
 
-    ⛔ CLAIM, THEN DELIVER. The day's row is inserted first; a member whose row
-    already exists is skipped. A delivery that raises releases its claim, so a
-    later run the same day retries that member instead of losing the day.
+    ⛔ CLAIM, THEN DELIVER. The claim is one atomic INSERT the primary key
+    refuses for a member someone already holds (`already_sent` when that claim
+    is delivered, `in_flight` when it is not). A delivery that raises releases
+    its claim, so a later run the same day retries that member instead of
+    losing the day. `marked` says whether this pass closed the day.
 
     `deliver(user_id, title, message, data)` is the seam a test replaces; the
     default is the in-app bell and nothing else."""
     today = today_et(now)
-    result = {"day": today, "enabled": reminders_enabled(), "members": 0,
-              "delivered": 0, "already_sent": 0, "failed": 0}
+    result = {"day": today, "enabled": reminders_enabled(), "members": 0, "delivered": 0,
+              "already_sent": 0, "in_flight": 0, "failed": 0, "marked": False}
     if not result["enabled"]:
         return result
     deliver = deliver or _deliver_in_app
@@ -376,50 +411,76 @@ def run_task_reminders(now: datetime | None = None, conn: sqlite3.Connection | N
         for user_id, c in sorted(counts.items()):
             cur = conn.execute(
                 "INSERT OR IGNORE INTO j2_task_reminder_log"
-                " (user_id, day, due_today, overdue, created_at) VALUES (?, ?, ?, ?, ?)",
+                " (user_id, day, due_today, overdue, created_at, status)"
+                " VALUES (?, ?, ?, ?, ?, 'claimed')",
                 (user_id, today, c["due_today"], c["overdue"],
                  datetime.now(tz=ET).isoformat(timespec="seconds")),
             )
             conn.commit()
             if cur.rowcount == 0:
-                result["already_sent"] += 1
+                # Another pass holds this member. Only the COUNTER reads the
+                # row; whether the day may close is decided from the store.
+                held = conn.execute(
+                    "SELECT status FROM j2_task_reminder_log WHERE user_id = ? AND day = ?",
+                    (user_id, today),
+                ).fetchone()
+                result["already_sent" if held and held[0] == "sent" else "in_flight"] += 1
                 continue
             title, message = reminder_copy(c["due_today"], c["overdue"])
             data = {"source": REMINDER_SOURCE, "research_url": TASKS_VIEW_URL,
                     "due_today": c["due_today"], "overdue": c["overdue"], "day": today}
             try:
                 deliver(user_id, title, message, data)
-                result["delivered"] += 1
             except Exception:  # noqa: BLE001 — one member must not stop the rest
                 conn.execute("DELETE FROM j2_task_reminder_log WHERE user_id = ? AND day = ?",
                              (user_id, today))
                 conn.commit()
                 result["failed"] += 1
-        # The day's pass is DONE only when nobody's delivery failed; a failed
-        # member's claim was released above, and an unmarked day is one the
-        # next boot's catch-up runs again.
-        if result["failed"] == 0:
-            conn.execute(
-                "INSERT OR REPLACE INTO j2_task_reminder_runs (day, ran_at, members, delivered)"
-                " VALUES (?, ?, ?, ?)",
-                (today, datetime.now(tz=ET).isoformat(timespec="seconds"),
-                 result["members"], result["delivered"]),
-            )
+                continue
+            conn.execute("UPDATE j2_task_reminder_log SET status = 'sent' WHERE user_id = ? AND day = ?",
+                         (user_id, today))
             conn.commit()
+            result["delivered"] += 1
+        result["marked"] = _close_day_if_everyone_reached(conn, today, set(counts), result)
         return result
     finally:
         if owned:
             conn.close()
 
 
+def _close_day_if_everyone_reached(conn: sqlite3.Connection, day: str, due: set[str],
+                                   result: dict[str, Any]) -> bool:
+    """⛔ Mark the day done ONLY when every member this pass found due holds a
+    `sent` claim, read from the STORE — never from this pass's own counters: a
+    member another pass holds (still in flight, or released on a failed
+    delivery) keeps the day open.
+
+    No transaction is needed between the read and the write: within a day the
+    set of `sent` claims only GROWS — a claim is changed only by the pass that
+    holds it, from `claimed` to `sent` or deleted while still `claimed` — so a
+    read that finds every due member reached stays true."""
+    sent = {r[0] for r in conn.execute(
+        "SELECT user_id FROM j2_task_reminder_log WHERE day = ? AND status = 'sent'", (day,))}
+    if not due <= sent:
+        return False
+    conn.execute(
+        "INSERT OR REPLACE INTO j2_task_reminder_runs (day, ran_at, members, delivered)"
+        " VALUES (?, ?, ?, ?)",
+        (day, datetime.now(tz=ET).isoformat(timespec="seconds"), result["members"], result["delivered"]),
+    )
+    conn.commit()
+    return True
+
+
 def catch_up_task_reminders(now: datetime | None = None, conn: sqlite3.Connection | None = None,
                             deliver=None) -> dict[str, Any]:
-    """The boot catch-up: after 07:00 ET, run today's pass if it has not run.
+    """The boot catch-up: after 07:00 ET, run today's pass if the day is not
+    marked done.
 
     Safe on any boot at any hour — before 07:00 it does nothing (the cron will
     fire), and on a day already marked in `j2_task_reminder_runs` it does
     nothing (the claims would dedupe anyway; the marker saves the scan)."""
-    when = (now or datetime.now(tz=ET)).astimezone(ET)
+    when = (now or _now()).astimezone(ET)
     day = today_et(when)
     if when.hour < REMINDER_HOUR_ET:
         return {"ran": False, "reason": "before-seven", "day": day}
@@ -439,42 +500,43 @@ def catch_up_task_reminders(now: datetime | None = None, conn: sqlite3.Connectio
 
 
 def register_task_reminder_job(scheduler) -> bool:
-    """Schedule `run_task_reminders` for 07:00 ET daily, with a one-hour
-    misfire grace, and a one-shot boot catch-up `CATCH_UP_DELAY_S` after
-    registration. For the controller to call ONCE from api/main.py's scheduler
-    block, beside `register_trash_purge_job` — that one call wires both.
+    """Schedule THE PASS for 07:00 and again for 09:00 ET daily, each with a
+    one-hour misfire grace, and a one-shot boot catch-up `CATCH_UP_DELAY_S`
+    after registration (see the module docstring, "When the pass runs"). For
+    the controller to call ONCE from api/main.py's scheduler block, beside
+    `register_trash_purge_job` — that one call wires all three.
 
     ⛔ The kill switch is NOT read here. It is read at the start of every run,
     so `NOTEBOOK_TASK_REMINDERS_ENABLED=0` stops the next reminder with no
-    restart — a switch read at registration would need a redeploy to flip."""
+    restart — a switch read at registration would need a redeploy to flip.
+    ⛔ Each job body looks `run_task_reminders` / `catch_up_task_reminders` up
+    at CALL time (a lambda over the module global), never binds it here."""
     from datetime import timezone
     from zoneinfo import ZoneInfo
     from apscheduler.triggers.cron import CronTrigger
     from apscheduler.triggers.date import DateTrigger
 
-    def _job() -> None:
-        try:
-            print(f"[notebook-task-reminders] {run_task_reminders()}")
-        except Exception as e:  # noqa: BLE001 — a failed run must never break the scheduler
-            print(f"[notebook-task-reminders] run failed: {e}")
+    def _boundary(label: str, run) -> Any:
+        def body() -> None:
+            try:
+                print(f"[notebook-task-reminders] {label}: {run()}")
+            except Exception as e:  # noqa: BLE001 — a failed run must never break the scheduler
+                print(f"[notebook-task-reminders] {label} failed: {e}")
+        return body
 
-    def _catch_up() -> None:
-        try:
-            print(f"[notebook-task-reminders] boot catch-up: {catch_up_task_reminders()}")
-        except Exception as e:  # noqa: BLE001 — same boundary as the daily job
-            print(f"[notebook-task-reminders] boot catch-up failed: {e}")
-
+    for job_id, hour in (("notebook_task_reminders", REMINDER_HOUR_ET),
+                         ("notebook_task_reminders_nine", SECOND_PASS_HOUR_ET)):
+        scheduler.add_job(
+            _boundary(f"{hour:02d}:00 pass", lambda: run_task_reminders()),
+            CronTrigger(hour=hour, minute=0, timezone=ZoneInfo("America/New_York")),
+            id=job_id,
+            max_instances=1,
+            coalesce=True,
+            misfire_grace_time=MISFIRE_GRACE_S,
+            replace_existing=True,
+        )
     scheduler.add_job(
-        _job,
-        CronTrigger(hour=REMINDER_HOUR_ET, minute=0, timezone=ZoneInfo("America/New_York")),
-        id="notebook_task_reminders",
-        max_instances=1,
-        coalesce=True,
-        misfire_grace_time=MISFIRE_GRACE_S,
-        replace_existing=True,
-    )
-    scheduler.add_job(
-        _catch_up,
+        _boundary("boot catch-up", lambda: catch_up_task_reminders()),
         DateTrigger(run_date=datetime.now(tz=timezone.utc) + timedelta(seconds=CATCH_UP_DELAY_S)),
         id="notebook_task_reminders_catch_up",
         max_instances=1,
