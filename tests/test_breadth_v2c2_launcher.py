@@ -85,3 +85,43 @@ def test_refuses_an_acquisition_window_spanning_an_open(tmp_path, monkeypatch):
 def test_refuses_a_manifest_without_an_acquisition_window(tmp_path, monkeypatch):
     inp, _ = _inputs(tmp_path, monkeypatch, acq={"started": "2026-09-23T20:09:57Z"})
     assert any("no complete acquisition window" in p for p in _problems(inp))
+
+
+# ── resume is not a second launch ──
+def _fake(monkeypatch, tmp_path, seen):
+    inp = tmp_path / "in"; inp.mkdir()
+    (inp / "INPUT_MANIFEST.json").write_text(json.dumps({"last_session": "2026-09-22"}))
+    monkeypatch.setattr(cp, "preflight", lambda d, now_utc=None: seen.append(now_utc) or {"problems": [], "checks": {}})
+    monkeypatch.setattr(cp, "run", lambda art, days, unis, inputs, progress_every=1: {"failed": 0})
+    monkeypatch.setattr(cp, "current_pins", lambda: {"p": 1})
+    return str(inp), str(tmp_path / "art.db")
+
+
+def test_a_launch_records_the_clean_preflight_and_the_manifest(tmp_path, monkeypatch):
+    seen = []
+    inp, art = _fake(monkeypatch, tmp_path, seen)
+    assert cp.main(["--artifact", art, "--inputs", inp, "--from", "2026-09-21"]) == 0
+    rec = cp.launch_record(art)
+    assert rec["launch_preflight_clean_at"] and rec["launch_input_manifest_sha256"] == cp._sha(inp + "/INPUT_MANIFEST.json")
+    assert seen == [None]                                   # a launch is judged at NOW
+
+
+def test_a_second_launch_is_refused_and_resume_is_judged_at_the_launch_instant(tmp_path, monkeypatch):
+    seen = []
+    inp, art = _fake(monkeypatch, tmp_path, seen)
+    cp.main(["--artifact", art, "--inputs", inp, "--from", "2026-09-21"])
+    with pytest.raises(cp.ArtifactRefused, match="use --resume"):
+        cp.main(["--artifact", art, "--inputs", inp, "--from", "2026-09-21"])
+    cp.main(["--artifact", art, "--inputs", inp, "--from", "2026-09-21", "--resume"])
+    assert seen[-1] == cp.launch_record(art)["launch_preflight_clean_at"]
+
+
+def test_resume_refuses_other_inputs_or_a_never_launched_artifact(tmp_path, monkeypatch):
+    seen = []
+    inp, art = _fake(monkeypatch, tmp_path, seen)
+    with pytest.raises(cp.ArtifactRefused, match="no clean launch record"):
+        cp.main(["--artifact", art, "--inputs", inp, "--resume"])
+    cp.main(["--artifact", art, "--inputs", inp, "--from", "2026-09-21"])
+    (tmp_path / "in" / "INPUT_MANIFEST.json").write_text(json.dumps({"last_session": "2026-09-23"}))
+    with pytest.raises(cp.ArtifactRefused, match="not the manifest"):
+        cp.main(["--artifact", art, "--inputs", inp, "--resume"])

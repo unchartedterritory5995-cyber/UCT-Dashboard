@@ -440,6 +440,20 @@ def preflight(inputs_dir: str, now_utc: str = None, verify_files: bool = True) -
     return {"checks": checks, "problems": problems}
 
 
+def launch_record(artifact: str) -> dict:
+    """The artifact's launch record ({} when it has none / does not exist)."""
+    import sqlite3
+    if not os.path.exists(artifact):
+        return {}
+    c = sqlite3.connect("file:%s?mode=ro" % artifact, uri=True)
+    try:
+        return dict(c.execute("SELECT key, value FROM pass_meta WHERE key LIKE 'launch_%'").fetchall())
+    except sqlite3.Error:
+        return {}
+    finally:
+        c.close()
+
+
 def main(argv=None) -> int:
     import argparse
     import datetime as dt
@@ -450,13 +464,37 @@ def main(argv=None) -> int:
     ap.add_argument("--inputs", default=os.environ.get("BREADTH_V2C2_INPUTS"))
     ap.add_argument("--from", dest="frm", default="2008-01-02")
     ap.add_argument("--to", default=None)
+    ap.add_argument("--resume", action="store_true",
+                    help="continue an artifact whose launch preflight was clean on THIS manifest")
     a = ap.parse_args(argv)
     logging.basicConfig(level=logging.INFO, stream=sys.stdout, format="%(asctime)s %(message)s")
-    pf = preflight(a.inputs)
+    man_sha = _sha(os.path.join(a.inputs, "INPUT_MANIFEST.json"))
+    launch = launch_record(a.artifact)
+    # ⛔ RESUME IS NOT A FRESH LAUNCH. A multi-hour grind crosses a market open; the vintage it
+    # was launched on does not change (every object is hashed), so staleness is judged at the
+    # recorded LAUNCH instant. Every other check — pins, digests, flags, registries, every input
+    # and grouped-file hash, PIT live_from — is re-run against the present state.
+    if a.resume:
+        if not launch.get("launch_preflight_clean_at"):
+            raise ArtifactRefused("--resume: the artifact has no clean launch record")
+        if launch.get("launch_input_manifest_sha256") != man_sha:
+            raise ArtifactRefused("--resume: the inputs are not the manifest the grind was launched on")
+        pf = preflight(a.inputs, now_utc=launch["launch_preflight_clean_at"])
+    else:
+        if launch.get("launch_preflight_clean_at"):
+            raise ArtifactRefused("artifact already launched at %s — use --resume, never a second launch"
+                                  % launch["launch_preflight_clean_at"])
+        pf = preflight(a.inputs)
     if pf["problems"]:
         for p in pf["problems"]:
             print("PREFLIGHT REFUSED:", p, flush=True)
         raise ArtifactRefused("preflight: %d problem(s)" % len(pf["problems"]))
+    if not a.resume:
+        import datetime as _dt
+        c = open_artifact(a.artifact)
+        _meta(c, launch_preflight_clean_at=_dt.datetime.now(_dt.timezone.utc).isoformat(),
+              launch_input_manifest_sha256=man_sha, launch_pins=json.dumps(current_pins(), sort_keys=True))
+        c.commit(); c.close()
     man = json.load(open(os.path.join(a.inputs, "INPUT_MANIFEST.json")))
     to = a.to or man["last_session"]
     d, days = dt.date.fromisoformat(a.frm), []
