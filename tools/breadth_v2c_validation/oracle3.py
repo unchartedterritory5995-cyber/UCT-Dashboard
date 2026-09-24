@@ -132,8 +132,9 @@ def build_dividends(ref=None):
 
 
 class Oracle3(oracle2.Oracle2):
-    def __init__(self, dividends=True):
+    def __init__(self, dividends=True, apply_factors=True):
         super().__init__()
+        self.apply_factors = apply_factors        # False: withholding kept, factors off (sensitivity rail)
         self.pit = json.load(open(oracle2.IN + "/pit_uct_ledger.json"))
         self.ref = json.load(open(oracle2.IN + "/pit_reference.json"))   # the vintage's own reference
         self.div = dividends
@@ -172,7 +173,7 @@ def _levels_with_dividends(self, names, D):
     pos = {d: k for k, d in enumerate(dates)}
     for r, t in enumerate(names):
         for s, ratio in self.dapp.get(t, ()):
-            if dates and dates[0] < s <= dates[-1]:
+            if self.apply_factors and dates and dates[0] < s <= dates[-1]:
                 C[r, :pos[s]] *= ratio
     wh = np.array([self.withheld(t, dates[0], D) for t in names])
     C[wh, :] = np.nan

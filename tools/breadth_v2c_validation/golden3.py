@@ -1,6 +1,6 @@
 """PHASES 7 + 11 — V2c2 (dividend basis) artifacts vs independent oracle v3, every cell; plus
-the EMPIRICAL dividend-sensitivity rail (the same sessions replayed on the split-only basis:
-a metric classified INSENSITIVE must never differ)."""
+the EMPIRICAL dividend-sensitivity rail (the same sessions replayed with the dividend FACTORS off but the dividend WITHHOLDING kept —
+a metric classified INSENSITIVE must never differ; a SENSITIVE one is expected to)."""
 import collections, json, os, sys
 os.environ.setdefault("V2C2_TAG", "v20260923b")
 os.environ.setdefault("GUARD_BOUNDARIES", "/data/_audit/validation/v2c_final/out/guard_oracle_boundaries_" + os.environ["V2C2_TAG"] + ".json")
@@ -20,12 +20,12 @@ for u, d, m, o, h, l, cc, s in c.execute("SELECT universe,date,metric,o,h,l,c,so
 sess = {d: json.loads(b) for d, b in c.execute("SELECT date, universe_buckets FROM pass_session_v2c2")}
 whs = {d: json.loads(b) for d, b in c.execute("SELECT date, withheld FROM pass_session_v2c2")}
 O3 = oracle3.Oracle3(dividends=True)
-O3s = oracle3.Oracle3(dividends=False)
+O3s = oracle3.Oracle3(dividends=True, apply_factors=False)
 cells, meta = [], {}
 sens = collections.defaultdict(lambda: [0, 0])          # metric -> [sessions differing, compared]
 for i, D in enumerate(dates):
     r = O3.day(D, unis) or {}
-    rs = O3s.day(D, unis) if i % sens_every == 0 else None     # split-only twin (priors kept separately)
+    rs = O3s.day(D, unis) if i % sens_every == 0 else None     # factors-off twin (priors kept separately)
     for u in unis:
         a, b = stored.get((u, D), {}), dict(r.get(u) or {})
         mm = b.pop("_meta", {})
