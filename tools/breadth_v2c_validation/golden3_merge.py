@@ -1,7 +1,7 @@
 """Merge golden3 chunk outputs into one summary (read-only)."""
 import collections, glob, json, os, sys
 from common import OUT, write
-files = sorted(glob.glob(os.path.join(OUT, sys.argv[1] + "*.json")))
+files = sorted(f for f in glob.glob(os.path.join(OUT, sys.argv[1] + "*.json")) if "MERGED" not in f)
 tot = collections.Counter(); byu = collections.defaultdict(collections.Counter); sens = collections.defaultdict(lambda: [0, 0])
 S = {"files": files, "sessions": 0, "universe_sessions": 0, "bucket_agreement": 0, "withheld_agreement": 0, "nonexact": []}
 for f in files:
