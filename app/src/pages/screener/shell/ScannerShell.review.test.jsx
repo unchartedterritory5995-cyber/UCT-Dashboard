@@ -63,9 +63,20 @@ vi.mock('./VirtualResults', () => ({
   ),
 }))
 
+// The review surface, stubbed to report the order IT was handed -- the same
+// method as the VirtualResults stub above, so the two lists can be compared
+// (see the header). Only what an OPEN overlay would walk is reported: a closed
+// overlay reports nothing, which is what lets the empty-screen case below say
+// "no review was offered" rather than "some list happened to be empty".
+vi.mock('./ScreenerReviewOverlay', () => ({
+  __esModule: true,
+  default: ({ symbols, open }) => (
+    <div data-testid="review-order">{open ? symbols.join(',') : ''}</div>
+  ),
+}))
+
 import ScannerShell from './ScannerShell'
 import { encodeSpec, SPEC_PARAM } from './specUrl'
-import { read } from '../../charts/review/reviewSession'
 
 /** Open the shell already sorted by a live-overlaid column.
  *
@@ -97,6 +108,9 @@ const EMPTY = {
 
 /** The order the results renderer was handed — what a member is looking at. */
 const rendered = () => screen.getByTestId('rendered-order').textContent.split(',').filter(Boolean)
+/** The order the review overlay was handed, once opened -- what a member will flip through. */
+const reviewed = () => screen.getByTestId('review-order').textContent.split(',').filter(Boolean)
+const reviewDoor = () => screen.queryByRole('button', { name: /review charts/i })
 
 beforeEach(() => {
   global.fetch = vi.fn(() => Promise.resolve({ ok: true, json: () => Promise.resolve({}) }))
@@ -108,58 +122,66 @@ beforeEach(() => {
 afterEach(cleanup)
 
 describe('the screener hands its order to the review', () => {
-  it('🔴 the review door is ON the toolbar, and it publishes the rendered order', () => {
+  // ⚰️ REWRITTEN FOR #163 (42d6e439c, 2026-09-20): "review charts IN the screener,
+  // keyboard-driven". The door used to publish a review SESSION and navigate to
+  // /charts; the member wanted to stay on the screener, so it now opens an
+  // in-page overlay handed `displayRows.map(r => r.ticker)` -- the order shown.
+  // The four cases below assert the SAME invariant as before, "the renderer and
+  // the review got the same list", against the door that exists. What retired
+  // with the old mechanism: `navigated` (there is none -- asserted, not assumed)
+  // and the session's `:live` sort tag, which rode the navigation that is gone.
+
+  it('🔴 the review door is ON the toolbar, and it walks the rendered order -- without navigating', () => {
     scanMock.mockReturnValue(READY)
     render(<ScannerShell />)
-    fireEvent.click(screen.getByTestId('review-charts'))
+    const door = reviewDoor()
+    expect(door).toBeInTheDocument()
+    // The button's own count is the LOADED page, the honest reviewable set.
+    expect(door).toHaveTextContent('3')
+    fireEvent.click(door)
 
-    const s = read()
-    expect(s.symbols).toEqual(rendered())
-    expect(s.symbols).toEqual(['BBB', 'CCC', 'AAA'])
-    expect(s.index).toBe(0)
-    expect(s.source).toBe('screener')
-    expect(navigated).toEqual(['/charts?sym=BBB&tf=D'])
+    expect(reviewed()).toEqual(rendered())
+    expect(reviewed()).toEqual(['BBB', 'CCC', 'AAA'])
+    // #163's own claim: the member stays on the screener.
+    expect(navigated).toEqual([])
   })
 
-  it('⛔ an EMPTY screen offers a disabled door, and publishes nothing', () => {
+  it('⛔ an EMPTY screen offers NO door, and no review is opened', () => {
+    // ⚰️ This used to assert a DISABLED door. #163 renders the reviewBar only
+    // when displayRows.length > 0, so an empty screen has no door at all -- a
+    // control a member cannot press is one they cannot mistake for a broken one.
     scanMock.mockReturnValue(EMPTY)
     render(<ScannerShell />)
-    const btn = screen.getByTestId('review-charts')
-    expect(btn).toBeDisabled()
-    fireEvent.click(btn)
-    expect(read()).toBeNull()
+    expect(reviewDoor()).toBeNull()
+    expect(reviewed()).toEqual([])
     expect(navigated).toEqual([])
   })
 
   it('⛔⛔ WITH THE LIVE RE-SORT ON, THE REVIEW WALKS THE LIVE ORDER', () => {
     // The snapshot order is BBB, CCC, AAA; the live overlay reverses it to
-    // AAA (99), CCC (50), BBB (5). Publishing the snapshot order while the
-    // member is looking at the live one is the same defect as the scan's value
-    // sort — a plausible list that is not the one on screen.
+    // AAA (99), CCC (50), BBB (5). Walking the snapshot order while the member
+    // is looking at the live one is the same defect as the scan's value sort --
+    // a plausible list that is not the one on screen.
     openSortedByPrice()
     scanMock.mockReturnValue(READY)
     render(<ScannerShell />)
     fireEvent.click(screen.getByRole('button', { name: /re-sort loaded rows live/i }))
 
     expect(rendered()).toEqual(['AAA', 'CCC', 'BBB'])
-    fireEvent.click(screen.getByTestId('review-charts'))
-    expect(read().symbols).toEqual(rendered())
-    // ⭐ AND THE LIVE FLAG IS NAMED IN THE SESSION — the same distinction the
-    // "snapshot order" chip makes on screen.
-    expect(read().sort).toMatch(/:live$/)
+    fireEvent.click(reviewDoor())
+    expect(reviewed()).toEqual(rendered())
   })
 
   it('CONTROL: with the toggle OFF the rendered order IS the snapshot one', () => {
     // Without this the case above could pass against a shell that always
-    // re-sorts — which would make the "snapshot order" chip a lie.
+    // re-sorts -- which would make the "snapshot order" chip a lie.
     openSortedByPrice()
     scanMock.mockReturnValue(READY)
     render(<ScannerShell />)
     // The toggle is OFFERED (the sort is live-overlaid) and left off.
     expect(screen.getByRole('button', { name: /re-sort loaded rows live/i })).toBeInTheDocument()
     expect(rendered()).toEqual(['BBB', 'CCC', 'AAA'])
-    fireEvent.click(screen.getByTestId('review-charts'))
-    expect(read().symbols).toEqual(['BBB', 'CCC', 'AAA'])
-    expect(/:live$/.test(read().sort || '')).toBe(false)
+    fireEvent.click(reviewDoor())
+    expect(reviewed()).toEqual(['BBB', 'CCC', 'AAA'])
   })
 })
