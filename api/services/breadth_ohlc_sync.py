@@ -302,7 +302,7 @@ def _start_gate() -> str:
 #: `source` names as V2c2 — without this gate the precedence list would adopt them.
 #: A store-to-store sync snapshot has no `pass_meta` and is not an artifact.
 ACCEPTED_ARTIFACT_METHODOLOGY = "rth-1m-composites-v2c2-div"
-ACCEPTED_DIVIDEND_BASIS = "div-basis-v5"
+ACCEPTED_DIVIDEND_BASIS = "div-basis-v6"
 
 
 class ArtifactProvenanceRefused(RuntimeError):
