@@ -36,7 +36,9 @@ import styles from './NotebookTab.module.css'
 import { settleNoteWrite } from '../lib/offline/settleNoteWrite'
 import BulkActionBar from '../components/notebook/BulkActionBar'
 import { useNoteSelection } from '../lib/noteSelection'
-import { describeBatch, exportSelectedNotes, runNoteBatch } from '../lib/noteBatch'
+import {
+  describeBatch, describeExport, exportSelectedNotes, notesHoldingUnsentWork, runNoteBatch, undoFor,
+} from '../lib/noteBatch'
 import useJ2NoteTags from '../hooks/useJ2NoteTags'
 import { fallbackNodes } from '../lib/tagTree'
 
@@ -573,10 +575,21 @@ export default function NotebookTab() {
   const visibleIds = useMemo(() => (selectionOn ? notes.map((n) => n.id) : []), [selectionOn, notes])
   const selection = useNoteSelection(visibleIds)
   const [bulkBusy, setBulkBusy] = useState(false)
+  // The state flag re-renders the bar; this ref is the guard — it is set in the
+  // same tick as the click, so a second click or a queued Undo can never start
+  // a second batch while one is in flight.
+  const bulkBusyRef = useRef(false)
   // ⛔ OWNED HERE, NOT BY THE BAR. The bar unmounts the moment the selection
   // empties (a trash, a restore), so a message it owned would be destroyed in
   // the very commit that set it. This outlives it.
-  const [bulkNotice, setBulkNotice] = useState(null) // { message, tone, undoIds? }
+  const [bulkNotice, setBulkNotice] = useState(null) // { message, tone }
+  // ⛔ THE WAY BACK HAS ITS OWN NOTICE (review S4). With one shared notice, any
+  // later action's sentence replaced the only Undo, and pressing Undo while
+  // another batch ran cleared it and did nothing. Now a later sentence goes to
+  // `bulkNotice`, and an Undo pressed mid-batch is QUEUED and runs when that
+  // batch finishes.
+  const [undoNotice, setUndoNotice] = useState(null) // { message, tone, undo: {op, ids, args}, queued? }
+  const undoQueuedRef = useRef(false)
   const undoRef = useRef(null)
   const { tagCounts, tagTree } = useJ2NoteTags()
   // Suggestions for the bulk "add a tag" field: the whole tag tree (implied
@@ -617,14 +630,24 @@ export default function NotebookTab() {
   // An error stays until dismissed: it describes something the member has to do.
   useEffect(() => {
     if (!bulkNotice || bulkNotice.tone === 'error') return undefined
-    const t = setTimeout(() => setBulkNotice(null), bulkNotice.undoIds ? 12000 : 8000)
+    const t = setTimeout(() => setBulkNotice(null), 8000)
     return () => clearTimeout(t)
   }, [bulkNotice])
-  // After a trash, the bar is gone and focus with it — hand focus to Undo so a
-  // keyboard member can take it back without hunting for it.
+  // The Undo stays for 12 seconds — and indefinitely once queued: a queued Undo
+  // is a promise to the member that it WILL run.
   useEffect(() => {
-    if (bulkNotice?.undoIds) undoRef.current?.focus()
-  }, [bulkNotice])
+    if (!undoNotice || undoNotice.queued) return undefined
+    const t = setTimeout(() => setUndoNotice(null), 12000)
+    return () => clearTimeout(t)
+  }, [undoNotice])
+  // After a trash or a move, the bar is gone (or the notes moved out of view)
+  // and focus with it — hand focus to Undo so a keyboard member can take it back
+  // without hunting for it. Keyed on the undo itself, so queueing does not steal
+  // focus a second time.
+  const undoKey = undoNotice?.undo
+  useEffect(() => {
+    if (undoKey) undoRef.current?.focus()
+  }, [undoKey])
 
   const titleById = useMemo(() => new Map(notes.map((n) => [n.id, n.title?.trim() || 'Untitled'])), [notes])
   const selectedTags = useMemo(() => {
@@ -647,57 +670,87 @@ export default function NotebookTab() {
     refreshSidebarCounts()
   }
 
-  const runBulk = async (op, args = {}, ctx = {}, ids = selection.selectedIds) => {
-    if (!ids.length || bulkBusy) return
+  const titleOf = (id) => titleById.get(id) || null
+  const startBulk = () => {
+    if (bulkBusyRef.current) return false
+    bulkBusyRef.current = true
     setBulkBusy(true)
+    return true
+  }
+  const endBulk = () => {
+    bulkBusyRef.current = false
+    setBulkBusy(false)
+  }
+
+  const runBulk = async (op, args = {}, ctx = {}, ids = selection.selectedIds, { isUndo = false } = {}) => {
+    if (!ids.length || !startBulk()) return
     try {
       const outcome = await runNoteBatch({ ids, op, args, blockedNoteIds })
-      const { message, tone } = describeBatch(outcome, { ...ctx, titleOf: (id) => titleById.get(id) || null })
+      const { message, tone } = describeBatch(outcome, { ...ctx, titleOf })
       const changedIds = outcome.results.filter((r) => r.status === 'changed').map((r) => r.id)
-      setBulkNotice({
-        message,
-        tone,
-        undoIds: op === 'trash' && changedIds.length ? changedIds : null,
-      })
+      // A trash and a move can be taken back (B1: a move said where each note
+      // came from). An Undo itself cannot — and never replaces a newer one.
+      const undo = isUndo ? null : undoFor(op, outcome, args)
+      // ⛔ A queued Undo is never replaced by a newer one: it is a promise.
+      if (undo && !undoQueuedRef.current) {
+        setBulkNotice(null)
+        setUndoNotice({ message, tone, undo })
+      } else {
+        setBulkNotice({ message, tone })
+      }
       if (op === 'trash' || op === 'restore') clearSelection()
       afterBulkWrite(op, changedIds)
     } catch (e) {
       console.error('[notebook] bulk action failed', e)
       setBulkNotice({ message: e?.message || 'That did not go through. Nothing was changed.', tone: 'error' })
     } finally {
-      setBulkBusy(false)
+      endBulk()
     }
   }
 
-  const undoBulkTrash = (ids) => {
-    setBulkNotice(null)
-    runBulk('restore', {}, {}, ids)
+  const runUndo = (undo) => {
+    if (bulkBusyRef.current) return   // still queued: the effect below retries
+    undoQueuedRef.current = false
+    setUndoNotice(null)
+    runBulk(undo.op, undo.args, undo.op === 'move' ? { backToOrigin: true } : {}, undo.ids, { isUndo: true })
   }
+  const pressUndo = () => {
+    if (!undoNotice || undoNotice.queued) return
+    if (bulkBusyRef.current) {
+      undoQueuedRef.current = true
+      setUndoNotice((n) => (n ? { ...n, queued: true } : n))
+      return
+    }
+    runUndo(undoNotice.undo)
+  }
+  // A queued Undo runs the moment the batch it waited for is done.
+  useEffect(() => {
+    if (!bulkBusy && undoNotice?.queued) runUndo(undoNotice.undo)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [bulkBusy, undoNotice])
 
   const exportSelection = async () => {
     const ids = selection.selectedIds
-    if (!ids.length || bulkBusy) return
-    // ⛔ A note holding unsent words would export WITHOUT them, and the member
-    // would believe the file complete. It is left out and named instead.
-    const waiting = ids.filter((id) => blockedNoteIds.has(id))
-    const send = ids.filter((id) => !blockedNoteIds.has(id))
-    setBulkBusy(true)
+    if (!ids.length || !startBulk()) return
     try {
-      const parts = []
-      if (send.length) {
-        const { count, skipped } = await exportSelectedNotes(send)
-        parts.push(`Exported ${count} note${count === 1 ? '' : 's'} as a Markdown zip.`)
-        if (skipped) parts.push(`${skipped} could not be exported — they are in the Trash or no longer exist.`)
-      }
-      if (waiting.length) {
-        parts.push(`${waiting.length} not included: waiting to sync (edit ${waiting.length === 1 ? 'it' : 'them'} again first).`)
-      }
-      setBulkNotice({ message: parts.join(' '), tone: waiting.length || !send.length ? 'partial' : 'ok' })
+      // ⛔ A note whose words the server does not have yet would export WITHOUT
+      // them, and the member would believe the file complete. It is left out and
+      // named instead — a drain-retired note (blocked) AND one still sending
+      // (noteHasUnsentWork's raw signal; review S1).
+      const blocked = ids.filter((id) => blockedNoteIds.has(id))
+      const rest = ids.filter((id) => !blockedNoteIds.has(id))
+      const holding = await notesHoldingUnsentWork(rest)
+      const unsent = rest.filter((id) => holding.has(id))
+      const send = rest.filter((id) => !holding.has(id))
+      let count = 0
+      let skipped = 0
+      if (send.length) ({ count, skipped } = await exportSelectedNotes(send))
+      setBulkNotice(describeExport({ count, skipped, blocked, unsent }, { titleOf }))
     } catch (e) {
       console.error('[notebook] bulk export failed', e)
       setBulkNotice({ message: e?.message || 'The export could not be prepared.', tone: 'error' })
     } finally {
-      setBulkBusy(false)
+      endBulk()
     }
   }
 
@@ -804,23 +857,43 @@ export default function NotebookTab() {
         <div className={styles.actionError} role="alert">{actionError}</div>
       )}
       {/* Wave 5: what a bulk action did, in words — and the way back from a
-          trash. Rendered here, above everything the action can unmount. */}
+          trash or a move. Rendered here, above everything the action can
+          unmount; the Undo has its own notice so no later sentence replaces it. */}
+      {undoNotice && (
+        <div
+          className={`${styles.bulkNotice} ${undoNotice.tone === 'error' ? styles.bulkNoticeError : ''}`}
+          role="status"
+          data-testid="bulk-undo-notice"
+        >
+          <span className={styles.bulkNoticeText}>
+            {undoNotice.message}
+            {undoNotice.queued ? ' Undo will run as soon as the current action finishes.' : ''}
+          </span>
+          <button
+            type="button"
+            ref={undoRef}
+            className={styles.bulkNoticeBtn}
+            onClick={pressUndo}
+            disabled={Boolean(undoNotice.queued)}
+          >
+            {undoNotice.queued ? 'Undo queued' : 'Undo'}
+          </button>
+          <button
+            type="button"
+            className={styles.bulkNoticeClose}
+            onClick={() => { undoQueuedRef.current = false; setUndoNotice(null) }}
+            aria-label="Dismiss this message"
+          >
+            <UIcon name="x" size={12} gold={false} />
+          </button>
+        </div>
+      )}
       {bulkNotice && (
         <div
           className={`${styles.bulkNotice} ${bulkNotice.tone === 'error' ? styles.bulkNoticeError : ''}`}
           role={bulkNotice.tone === 'error' ? 'alert' : 'status'}
         >
           <span className={styles.bulkNoticeText}>{bulkNotice.message}</span>
-          {bulkNotice.undoIds && (
-            <button
-              type="button"
-              ref={undoRef}
-              className={styles.bulkNoticeBtn}
-              onClick={() => undoBulkTrash(bulkNotice.undoIds)}
-            >
-              Undo
-            </button>
-          )}
           <button
             type="button"
             className={styles.bulkNoticeClose}

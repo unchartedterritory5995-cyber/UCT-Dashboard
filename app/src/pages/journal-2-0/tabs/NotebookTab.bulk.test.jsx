@@ -56,10 +56,55 @@ vi.mock('../lib/offline/useDurableNote', async (importOriginal) => ({
   ...(await importOriginal()),
   recordLandedRevision: vi.fn(async ({ updatedAt }) => updatedAt),
 }))
+// S1: the durable store, answered PER NOTE (the real noteHasUnsentWork runs over
+// it). Only reached when a test turns the offline wave on and gives the page an
+// indexedDB; every other test stays 'wave-off' and never opens it.
+let unsentStore = null
+vi.mock('../lib/offline/notebookDb', async (importOriginal) => ({
+  ...(await importOriginal()),
+  openNotebookDb: vi.fn(async () => {
+    if (!unsentStore) throw new Error('no store in this test')
+    return unsentStore
+  }),
+}))
 
 import NotebookTab from './NotebookTab'
 import { recordLandedRevision } from '../lib/offline/useDurableNote'
 import { setCurrentAccountId } from '../lib/offline/currentAccount'
+import { __resetNotebookFlags } from '../lib/offline/notebookFlags'
+import { installKeyRange } from '../lib/offline/__fixtures__/fakeIndexedDb'
+
+/** Turn the offline wave on with a store holding unsent work for `queued`. */
+function withUnsentWork(queued) {
+  installKeyRange()
+  localStorage.setItem('uct.notebook.offline', '1')
+  vi.stubGlobal('indexedDB', { open: () => ({}) })
+  unsentStore = {
+    close() {},
+    transaction() {
+      return {
+        objectStore() {
+          return {
+            get(noteId) {
+              const req = {}
+              setTimeout(() => { req.result = { noteId, dirty: 0 }; req.onsuccess?.() }, 0)
+              return req
+            },
+            index() {
+              return {
+                getKey(range) {
+                  const req = {}
+                  setTimeout(() => { req.result = queued.includes(range.__only) ? 'mut-1' : undefined; req.onsuccess?.() }, 0)
+                  return req
+                },
+              }
+            },
+          }
+        },
+      }
+    },
+  }
+}
 
 const REV = (id) => `2026-09-23T12:00:00.00000${id.slice(1)}+00:00`
 let batchCalls = []
@@ -102,7 +147,13 @@ beforeEach(() => {
     return ok({})
   })
 })
-afterEach(() => setCurrentAccountId(null))
+afterEach(() => {
+  setCurrentAccountId(null)
+  unsentStore = null
+  localStorage.removeItem('uct.notebook.offline')
+  vi.unstubAllGlobals()
+  __resetNotebookFlags()
+})
 
 function renderTab(entry = '/journal?view=all') {
   return render(
@@ -112,7 +163,13 @@ function renderTab(entry = '/journal?view=all') {
   )
 }
 const box = (title) => screen.getByRole('checkbox', { name: `Select ${title}` })
-const toolbar = () => screen.queryByRole('toolbar', { name: 'Actions for the selected notes' })
+const toolbar = () => screen.queryByRole('group', { name: 'Actions for the selected notes' })
+/** B1: choosing a folder is not moving — choose, then press Move. */
+async function moveTo(folderId) {
+  await screen.findByRole('option', { name: 'Research' })
+  fireEvent.change(screen.getByRole('combobox', { name: 'Folder to move the selected notes to' }), { target: { value: folderId } })
+  fireEvent.click(screen.getByRole('button', { name: 'Move' }))
+}
 const landed = () => recordLandedRevision.mock.calls.map(([a]) => [a.noteId, a.updatedAt])
 
 describe('NotebookTab — selecting notes', () => {
@@ -186,8 +243,7 @@ describe('NotebookTab — bulk actions', () => {
     renderTab()
     fireEvent.click(box('First note'))
     fireEvent.click(box('Second note'))
-    await screen.findByRole('option', { name: 'Research' })
-    fireEvent.change(screen.getByRole('combobox', { name: 'Move the selected notes to a folder' }), { target: { value: 'f1' } })
+    await moveTo('f1')
     expect(await screen.findByText('Moved 2 notes to Research.')).toBeInTheDocument()
     expect(batchCalls).toEqual([{ ids: ['n1', 'n2'], op: 'move', args: { folderId: 'f1' } }])
     expect(landed()).toEqual([['n1', REV('n1')], ['n2', REV('n2')]])
@@ -260,8 +316,7 @@ describe('NotebookTab — bulk actions', () => {
     renderTab()
     fireEvent.click(box('First note'))
     fireEvent.click(box('Second note'))
-    await screen.findByRole('option', { name: 'Research' })
-    fireEvent.change(screen.getByRole('combobox', { name: 'Move the selected notes to a folder' }), { target: { value: 'f1' } })
+    await moveTo('f1')
     expect(await screen.findByText(
       'Moved 1 note to Research. 1 note was not changed: "Second note" is in the Trash.',
     )).toBeInTheDocument()
@@ -282,8 +337,7 @@ describe('NotebookTab — bulk actions', () => {
     batchAnswer = () => ({ __status: 400, detail: 'folder not found' })
     renderTab()
     fireEvent.click(box('First note'))
-    await screen.findByRole('option', { name: 'Research' })
-    fireEvent.change(screen.getByRole('combobox', { name: 'Move the selected notes to a folder' }), { target: { value: 'f1' } })
+    await moveTo('f1')
     expect(await screen.findByRole('alert')).toHaveTextContent('folder not found')
     expect(landed()).toEqual([])
     expect(toolbar()).not.toBeNull()
@@ -302,7 +356,7 @@ describe('NotebookTab — bulk actions', () => {
       fireEvent.click(screen.getByRole('button', { name: 'Select all 3 shown' }))
       fireEvent.click(screen.getByRole('button', { name: 'Export selected' }))
       expect(await screen.findByText(
-        'Exported 2 notes as a Markdown zip. 1 not included: waiting to sync (edit it again first).',
+        'Exported 2 notes as a Markdown zip. 1 note was not included: "Third note" is waiting to sync (edit it again first).',
       )).toBeInTheDocument()
       expect(exportCalls).toEqual([{ ids: ['n1', 'n2'] }])
     } finally {
@@ -320,5 +374,132 @@ describe('NotebookTab — bulk actions', () => {
     fireEvent.click(within(toolbar()).getByRole('button', { name: 'Restore' }))
     expect(await screen.findByText('Restored 1 note.')).toBeInTheDocument()
     expect(batchCalls).toEqual([{ ids: ['n2'], op: 'restore', args: {} }])
+  })
+})
+
+// ── fix round 1 ─────────────────────────────────────────────────────────────
+
+const UNDO_REV = (id) => `2026-09-23T13:00:00.00000${id.slice(1)}+00:00`
+
+describe('NotebookTab — B1: a bulk move can be taken back', () => {
+  it('Undo puts every note back in the folder it LEFT, through the same door, and lands the revisions', async () => {
+    batchAnswer = (body) => (body.op === 'move' && !body.args.folders
+      ? { op: 'move', results: body.ids.map((id) => ({ id, status: 'changed', updatedAt: REV(id), fromFolderId: id === 'n1' ? null : 'f9' })) }
+      : { op: body.op, results: body.ids.map((id) => ({ id, status: 'changed', updatedAt: UNDO_REV(id) })) })
+    renderTab()
+    fireEvent.click(box('First note'))
+    fireEvent.click(box('Second note'))
+    await moveTo('f1')
+    expect(await screen.findByText('Moved 2 notes to Research.')).toBeInTheDocument()
+    const undo = screen.getByRole('button', { name: 'Undo' })
+    await waitFor(() => expect(undo).toHaveFocus())
+    fireEvent.click(undo)
+    expect(await screen.findByText('Moved 2 notes back to where they were.')).toBeInTheDocument()
+    expect(batchCalls[1]).toEqual({
+      ids: ['n1', 'n2'], op: 'move', args: { folders: { n1: null, n2: 'f9' }, expectFolderId: 'f1' },
+    })
+    expect(landed()).toEqual([
+      ['n1', REV('n1')], ['n2', REV('n2')], ['n1', UNDO_REV('n1')], ['n2', UNDO_REV('n2')],
+    ])
+    // An Undo is not itself undoable.
+    expect(screen.queryByRole('button', { name: 'Undo' })).toBeNull()
+  })
+})
+
+describe('NotebookTab — S4: the Undo cannot be lost', () => {
+  it('Undo pressed while another batch runs is QUEUED, said so, and restores when that batch ends', async () => {
+    const base = global.fetch
+    let release = null
+    global.fetch = vi.fn((url, init = {}) => {
+      if (String(url) === '/api/j2/notes/batch' && JSON.parse(init.body).op === 'favorite') {
+        batchCalls.push(JSON.parse(init.body))
+        return new Promise((resolve) => {
+          release = () => resolve({
+            ok: true, status: 200,
+            json: () => Promise.resolve({ op: 'favorite', results: [{ id: 'n2', status: 'changed' }] }),
+          })
+        })
+      }
+      return base(url, init)
+    })
+    renderTab()
+    fireEvent.click(box('First note'))
+    fireEvent.click(box('Third note'))
+    fireEvent.click(screen.getByRole('button', { name: 'Move to Trash' }))
+    expect(await screen.findByText('Moved 2 notes to the Trash.')).toBeInTheDocument()
+    fireEvent.click(box('Second note'))
+    fireEvent.click(screen.getByRole('button', { name: 'Favorite' }))
+    await waitFor(() => expect(release).not.toBeNull())
+    fireEvent.click(screen.getByRole('button', { name: 'Undo' }))
+    const notice = screen.getByTestId('bulk-undo-notice')
+    expect(notice).toHaveTextContent('Undo will run as soon as the current action finishes.')
+    expect(within(notice).getByRole('button', { name: 'Undo queued' })).toBeDisabled()
+    expect(batchCalls.map((c) => c.op)).toEqual(['trash', 'favorite'])   // nothing restored yet
+    release()
+    expect(await screen.findByText('Restored 2 notes.')).toBeInTheDocument()
+    expect(batchCalls.map((c) => [c.op, c.ids])).toEqual([
+      ['trash', ['n1', 'n3']], ['favorite', ['n2']], ['restore', ['n1', 'n3']],
+    ])
+  })
+
+  it('a later action\'s sentence appears BESIDE the Undo, never in place of it', async () => {
+    renderTab()
+    fireEvent.click(box('First note'))
+    fireEvent.click(screen.getByRole('button', { name: 'Move to Trash' }))
+    expect(await screen.findByText('Moved 1 note to the Trash.')).toBeInTheDocument()
+    fireEvent.click(box('Second note'))
+    fireEvent.click(screen.getByRole('button', { name: 'Favorite' }))
+    expect(await screen.findByText('Added 1 note to Favorites.')).toBeInTheDocument()
+    const notice = screen.getByTestId('bulk-undo-notice')
+    expect(notice).toHaveTextContent('Moved 1 note to the Trash.')
+    fireEvent.click(within(notice).getByRole('button', { name: 'Undo' }))
+    expect(await screen.findByText('Restored 1 note.')).toBeInTheDocument()
+    expect(batchCalls.map((c) => c.op)).toEqual(['trash', 'favorite', 'restore'])
+  })
+})
+
+describe('NotebookTab — S1: a note still SENDING is neither trashed nor exported', () => {
+  it('a queued note the drain has not retired is refused for trash, and named', async () => {
+    withUnsentWork(['n2'])
+    renderTab()
+    fireEvent.click(box('First note'))
+    fireEvent.click(box('Second note'))
+    fireEvent.click(screen.getByRole('button', { name: 'Move to Trash' }))
+    expect(await screen.findByText(
+      'Moved 1 note to the Trash. 1 note was not changed: "Second note" is still syncing — try again in a moment.',
+    )).toBeInTheDocument()
+    expect(batchCalls).toEqual([{ ids: ['n1'], op: 'trash', args: {} }])
+  })
+
+  it('…and left out of an export, by name', async () => {
+    withUnsentWork(['n2'])
+    const origCreate = URL.createObjectURL
+    const origRevoke = URL.revokeObjectURL
+    URL.createObjectURL = vi.fn(() => 'blob:x')
+    URL.revokeObjectURL = vi.fn()
+    const click = vi.spyOn(HTMLAnchorElement.prototype, 'click').mockImplementation(() => {})
+    try {
+      renderTab()
+      fireEvent.click(box('Second note'))
+      fireEvent.click(box('Third note'))
+      fireEvent.click(screen.getByRole('button', { name: 'Export selected' }))
+      expect(await screen.findByText(
+        'Exported 1 note as a Markdown zip. 1 note was not included: "Second note" is still syncing — try again in a moment.',
+      )).toBeInTheDocument()
+      expect(exportCalls).toEqual([{ ids: ['n3'] }])
+    } finally {
+      click.mockRestore()
+      URL.createObjectURL = origCreate
+      URL.revokeObjectURL = origRevoke
+    }
+  })
+
+  it('⛔ CONTROL — a move still goes through for that note (it rebases, the words still arrive)', async () => {
+    withUnsentWork(['n2'])
+    renderTab()
+    fireEvent.click(box('Second note'))
+    await moveTo('f1')
+    expect(await screen.findByText('Moved 1 note to Research.')).toBeInTheDocument()
+    expect(batchCalls).toEqual([{ ids: ['n2'], op: 'move', args: { folderId: 'f1' } }])
   })
 })

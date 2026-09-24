@@ -63,6 +63,11 @@
 .action:disabled { opacity: 0.5; cursor: default; }
 .danger { color: var(--color-danger); }
 .danger:hover:not(:disabled) { border-color: var(--color-danger); }
+.moveGroup {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
 .moveWrap {
   position: relative;
   display: inline-flex;

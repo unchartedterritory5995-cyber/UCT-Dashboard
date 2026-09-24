@@ -51,10 +51,12 @@ describe('folderPathOptions', () => {
 })
 
 describe('BulkActionBar', () => {
-  it('is a labelled toolbar that says how many are selected', () => {
+  it('is a labelled group that says how many are selected', () => {
     setup()
-    const bar = screen.getByRole('toolbar', { name: 'Actions for the selected notes' })
+    const bar = screen.getByRole('group', { name: 'Actions for the selected notes' })
     expect(within(bar).getByText('2 selected')).toBeInTheDocument()
+    // N4: a "toolbar" promises roving arrow-key focus this bar does not have.
+    expect(screen.queryByRole('toolbar')).toBeNull()
   })
 
   it('offers select-all-in-view only while not everything is selected', () => {
@@ -74,16 +76,51 @@ describe('BulkActionBar', () => {
     expect(p.onClear).toHaveBeenCalled()
   })
 
+  const picker = () => screen.getByRole('combobox', { name: 'Folder to move the selected notes to' })
+  const moveBtn = () => screen.getByRole('button', { name: 'Move' })
+
   it('moving to a folder passes the id AND the path the sentence will name', () => {
     const p = setup()
-    fireEvent.change(screen.getByRole('combobox', { name: 'Move the selected notes to a folder' }), { target: { value: 'f2' } })
+    fireEvent.change(picker(), { target: { value: 'f2' } })
+    fireEvent.click(moveBtn())
+    expect(p.onMove).toHaveBeenCalledTimes(1)
     expect(p.onMove).toHaveBeenCalledWith('f2', 'Research / Semis')
+    expect(picker()).toHaveValue('')           // ready for the next choice
   })
 
   it('moving to Unfiled sends null, never the sentinel', () => {
     const p = setup()
-    fireEvent.change(screen.getByRole('combobox', { name: 'Move the selected notes to a folder' }), { target: { value: UNFILED_VALUE } })
+    fireEvent.change(picker(), { target: { value: UNFILED_VALUE } })
+    fireEvent.click(moveBtn())
     expect(p.onMove).toHaveBeenCalledWith(null, 'Unfiled')
+  })
+
+  it('B1: arrow keys, Enter and type-ahead on the picker never move a note', () => {
+    // jsdom does not implement a closed <select>'s keyboard behaviour, so each
+    // key is followed by the `change` a browser fires on the spot for it:
+    // ↓ on Windows/Linux Chrome, Edge and Firefox, and type-ahead everywhere.
+    const p = setup()
+    const sel = picker()
+    sel.focus()
+    fireEvent.keyDown(sel, { key: 'ArrowDown' })
+    fireEvent.change(sel, { target: { value: UNFILED_VALUE } })   // ↓ lands on "Unfiled"
+    fireEvent.keyDown(sel, { key: 'ArrowDown' })
+    fireEvent.change(sel, { target: { value: 'f1' } })            // ↓ again: "Research"
+    fireEvent.keyDown(sel, { key: 'Enter' })
+    fireEvent.keyDown(sel, { key: 'r' })
+    fireEvent.change(sel, { target: { value: 'f2' } })            // type-ahead
+    expect(p.onMove).not.toHaveBeenCalled()
+    // The choice is kept and shown, and only the button acts on it.
+    expect(sel).toHaveValue('f2')
+    expect(moveBtn()).toBeEnabled()
+    fireEvent.click(moveBtn())
+    expect(p.onMove).toHaveBeenCalledTimes(1)
+    expect(p.onMove).toHaveBeenCalledWith('f2', 'Research / Semis')
+  })
+
+  it('Move is disabled until a folder is chosen — no dead click', () => {
+    setup()
+    expect(moveBtn()).toBeDisabled()
   })
 
   it('the Tags button opens a panel: add a trimmed tag, or remove one the selection carries', () => {
@@ -132,7 +169,8 @@ describe('BulkActionBar', () => {
     setup({ busy: true })
     expect(screen.getByRole('button', { name: 'Move to Trash' })).toBeDisabled()
     expect(screen.getByRole('button', { name: 'Export selected' })).toBeDisabled()
-    expect(screen.getByRole('combobox', { name: 'Move the selected notes to a folder' })).toBeDisabled()
+    expect(screen.getByRole('combobox', { name: 'Folder to move the selected notes to' })).toBeDisabled()
+    expect(screen.getByRole('button', { name: 'Move' })).toBeDisabled()
     expect(screen.getByRole('status')).toHaveTextContent('Working…')
   })
 })
