@@ -16,6 +16,14 @@ import { LEADER, FOLLOWER, READ_ONLY_FOR_SYNC } from './outboxLeader'
 import { OFFLINE_FLAG_KEY } from './offlineFlag'
 import { createLockManager } from './__fixtures__/fakeWebLocks'
 import { holdNoteOwnerLock } from './noteOwnerLock'
+import { trackNotebookEvent } from '../notebookTelemetry'
+
+vi.mock('../notebookTelemetry', async (importOriginal) => {
+  const actual = await importOriginal()
+  return { ...actual, trackNotebookEvent: vi.fn(actual.trackNotebookEvent) }
+})
+
+const httpError = (status) => { const e = new Error(`http ${status}`); e.status = status; return e }
 
 const doc = (t) => ({ type: 'doc', content: [{ type: 'paragraph', content: [{ type: 'text', text: t }] }] })
 
@@ -252,5 +260,43 @@ describe('⭐⭐ D3b — the leading tab leaves a note open in ANOTHER tab to th
     await waitFor(() => expect(result.current.role).toBe(LEADER))
     await act(async () => { await settleIdb(6) })
     expect(send).toHaveBeenCalledTimes(1)
+  })
+})
+
+// N-7b (wave 6 lane F review): the sweep is a silent door, so a member never sees
+// its own conflict copies happen. This is the only signal that one occurred.
+describe('⛔ a fork made by the sweep fires conflict_forked, door outbox', () => {
+  it('a 409 that forks reports the event, once, with queued:true', async () => {
+    installLocks()
+    const send = vi.fn(async () => { throw httpError(409) })
+    const fork = vi.fn(async () => ({
+      id: 'n1', title: 'edited on another device', subtitle: '', bodyJson: doc('theirs'), updatedAt: 'T9',
+    }))
+    const { result } = mount({ send, fork })
+    await waitFor(() => expect(result.current.role).toBe(LEADER))
+    await act(async () => { await settleIdb(6) })
+    await waitFor(() => expect(fork).toHaveBeenCalledTimes(1))
+    expect(trackNotebookEvent).toHaveBeenCalledTimes(1)
+    expect(trackNotebookEvent).toHaveBeenCalledWith('conflict_forked', { door: 'outbox', queued: true })
+  })
+
+  it('⭐ CONTROL — a clean send (no fork) reports nothing', async () => {
+    installLocks()
+    const send = vi.fn(async () => ({ updatedAt: 'T2' }))
+    const { result } = mount({ send })
+    await waitFor(() => expect(result.current.role).toBe(LEADER))
+    await act(async () => { await settleIdb(6) })
+    await waitFor(() => expect(send).toHaveBeenCalledTimes(1))
+    expect(trackNotebookEvent).not.toHaveBeenCalled()
+  })
+
+  it('a BLOCKED outcome (send permanently fails, no fork) reports nothing', async () => {
+    installLocks()
+    const send = vi.fn(async () => { throw httpError(404) })
+    const { result } = mount({ send, fork: vi.fn() })
+    await waitFor(() => expect(result.current.role).toBe(LEADER))
+    await act(async () => { await settleIdb(6) })
+    await waitFor(() => expect(send).toHaveBeenCalledTimes(1))
+    expect(trackNotebookEvent).not.toHaveBeenCalled()
   })
 })

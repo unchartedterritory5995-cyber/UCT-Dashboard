@@ -16,8 +16,9 @@ import { useCallback, useEffect, useRef, useState } from 'react'
 import { createNoteViaApi } from '../noteCreation'
 import { listOutbox, offlineStorageAvailable } from './notebookDb'
 import { offlineEnabled } from './offlineFlag'
-import { NO_BASELINE, drainOutbox, summarize } from './outboxDrain'
+import { FORKED, NO_BASELINE, drainOutbox, summarize } from './outboxDrain'
 import { postBlockedBaseline } from './blockedBaselineEvent'
+import { trackNotebookEvent } from '../notebookTelemetry'
 import {
   FOLLOWER, LEADER, READ_ONLY_FOR_SYNC, awaitSyncLeadership, claimSyncLeadership,
 } from './outboxLeader'
@@ -267,6 +268,15 @@ export function useOutboxDrain({
           // eslint-disable-next-line no-await-in-loop
           await reportRef.current(r.report)
         } catch { /* an instrument is not a guard */ }
+      }
+      // N-7b (wave 6 lane F review): the sweep is a silent door — a member
+      // sees no dialog, no drawer, nothing. This is the only way anyone,
+      // including us, ever learns a fork happened here rather than in the
+      // editor. One event per forked entry; a telemetry POST never changes
+      // the drain's own outcome (trackNotebookEvent swallows its own errors).
+      for (const r of results) {
+        if (r?.outcome !== FORKED) continue
+        trackNotebookEvent('conflict_forked', { door: 'outbox', queued: true })
       }
       const s = summarize(results)
       setLastSummary(s)
