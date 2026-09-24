@@ -1161,9 +1161,65 @@ describe('an engine series is inserted where its legacy twin would have been', (
     expect(engineIdxs.at(-1) - engineIdxs[0], 'the engine\'s series are no longer contiguous — '
       + 'something hand-written is being drawn in the middle of the indicator stack')
       .toBe(engineIdxs.length - 1)
-    expect(engineIdxs.at(-1), 'a series is created AFTER the engine\'s block — it will paint '
-      + 'OVER every indicator, which is the z-order inversion this rail exists for')
-      .toBe(H.addSeriesCalls.length - 1)
+    // ⚰️ WAS `toBe(H.addSeriesCalls.length - 1)` — a BARE SUFFIX, and the merge of
+    // 2026-09-23 put one more series after the engine's block: the future-axis
+    // whitespace series (`futureWsSeriesRef`, StockChart.jsx), which extends the
+    // time scale past the newest candle so upcoming dates label the axis.
+    //
+    // ⭐ IT IS NOT THE THING THIS RAIL GUARDS AGAINST, and the rail said so in its
+    // own words — "it will PAINT OVER every indicator". That series paints
+    // nothing: fully transparent colour, no last value, no price line, no
+    // crosshair marker, no point markers. So the claim is narrowed to what it
+    // always meant, and the narrowing is PROVED rather than asserted: a series is
+    // excluded only by properties that make it unable to paint, so a hand-written
+    // COLOURED series added after the sync call still reds this by name.
+    //
+    // ⛔ AND THE EXCLUSION IS NOT A NAME. Matching on `futureWsSeriesRef`, or on a
+    // literal transparent black, would pass for the next invisible-by-accident
+    // series and fail for the same one recoloured; the predicate asks what the
+    // series can DO.
+    //
+    // ⚠️ WHY IT APPEARED, measured rather than guessed: the effect that creates it,
+    // `buildFutureWhitespace`, `FUTURE_MIN`, `adjustTime`, `filteredBars` and
+    // `resolvedTf` are ALL byte-identical on the two parents. What the chart draws
+    // did not change; the effect simply reaches its create in this harness now,
+    // after master's additions to StockChart.jsx. The branch's list is 10 calls
+    // with no whitespace series; the merged one is 11 with it last.
+    //
+    // ⭐ PORTED TO MASTER (red sweep, 2026-09-24) from merge/pine-up-to-master
+    // 526b5e2aa, and re-measured HERE rather than assumed: 11 calls, engine block
+    // at [6,7,8,9], and the ONE series after it is a LineSeries with
+    // `rgba(0,0,0,0)`, lastValue/priceLine/crosshair/pointMarkers all false —
+    // the same whitespace series. Master's own 451aed688 (gap runs) does NOT
+    // change this: its extra render series are minted by the binder INSIDE its
+    // one bind pass (`binder.js`, `runSeries` right after each `b.series`), so
+    // they belong to the contiguous engine block the assertion above measures.
+    const paints = (c) => {
+      const o = (c && c.options) || {}
+      const invisible = typeof o.color === 'string'
+        && /^rgba\(\s*\d+\s*,\s*\d+\s*,\s*\d+\s*,\s*0\s*\)$/.test(o.color)
+      return !(invisible
+        && o.lastValueVisible === false
+        && o.priceLineVisible === false
+        && o.crosshairMarkerVisible === false)
+    }
+    // ⛔ NON-VACUITY FOR THE PREDICATE, first — without it a `paints` that answered
+    // false for everything would satisfy the assertion below trivially, which is
+    // the exact shape of guard this repo keeps paying for.
+    // ⚠️ NOT A HARD COUNT OF THE INVISIBLE ONES. Pinning "exactly one series
+    // does not paint" reds the day a second legitimately-hidden series appears,
+    // under a message that would then be false. The claim is only that the
+    // predicate has not swallowed the chart.
+    expect(H.addSeriesCalls.filter(paints).length,
+      'the `paints` predicate excludes real series — it is measuring itself')
+      .toBeGreaterThanOrEqual(engineIdxs.length + 1)
+    expect(engineIdxs.map((i) => paints(H.addSeriesCalls[i])),
+      'every engine series must count as painting').toEqual([true, true, true, true])
+
+    expect(H.addSeriesCalls.slice(engineIdxs.at(-1) + 1).filter(paints),
+      'a PAINTING series is created AFTER the engine block — it will paint OVER '
+      + 'every indicator, which is the z-order inversion this rail exists for')
+      .toEqual([])
     // …and the prefix really is non-empty, so "suffix" is not "the whole list".
     expect(engineIdxs[0], 'the engine drew first — there is no candle or volume series before it')
       .toBeGreaterThan(0)
