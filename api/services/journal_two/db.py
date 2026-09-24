@@ -1948,6 +1948,12 @@ def ensure_schema(conn: sqlite3.Connection) -> None:
     try:
         run_notebook_migration_v7(conn)
     except Exception as e:  # noqa: BLE001 — never crash startup over this
+        # ⛔ N1: roll the unfinished batch back. The next statement in this
+        # function commits, and without this it would keep half a batch -- a
+        # re-derived body_plain with its mentions already DELETED and never
+        # re-inserted, on a row that then matches and is never re-walked.
+        # Every earlier batch committed itself; only this one is discarded.
+        conn.rollback()
         print(f"[notebook-migration-v7] aborted: {e}")
 
     # Note Connectors additive columns (Task 8): `miss_streak` on

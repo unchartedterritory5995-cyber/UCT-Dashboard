@@ -369,3 +369,59 @@ def test_playbook_backfill_keeps_an_entry_saved_between_read_and_write(upb, monk
     upb_db.run_upb_body_plain_backfill(conn)
     assert fired
     assert conn.execute("SELECT body_plain FROM upb_entries WHERE id='e1'").fetchone()[0] == "fresh"
+
+
+# ── N1 (wave 5 whole-branch review): a throw mid-batch commits NOTHING ─────
+
+def test_a_throw_between_the_mentions_DELETE_and_INSERT_keeps_the_row_whole(c, monkeypatch):
+    """`_rebuild_note_mentions` deletes a note's mentions and re-inserts them in
+    the batch's transaction. A throw between the two used to be swallowed by
+    ensure_schema's `except` -- and ensure_schema's own later commit then kept
+    the new body_plain with the mentions DELETED. The row then matched, so the
+    next boot never re-walked it: the note's cashtags stayed missing until the
+    member saved it. The caller now rolls the batch back."""
+    _note(c, "m1", CASHTAG_DOC, CASHTAG_OLD, "2026-09-19T09:09:09.090909+00:00")
+    notes_mod._sync_note_mentions(c, "u1", "m1", CASHTAG_OLD)
+    c.commit()
+    mentions_before = _mentions(c, "m1")
+    assert mentions_before                                          # non-vacuity: there is something to lose
+
+    def boom(_text):
+        raise RuntimeError("injected between DELETE and INSERT")
+    monkeypatch.setattr(notes_mod.buzz_extract, "extract", boom)
+    ensure_schema(c)                                                # the v7 CALLER, which swallows the throw
+    c.commit()                                                      # whatever commits next (auth_db.init_db does)
+
+    assert _mentions(c, "m1") == mentions_before                    # the DELETE did not survive
+    assert c.execute("SELECT body_plain FROM j2_notes WHERE id='m1'").fetchone()[0] == CASHTAG_OLD
+
+    monkeypatch.undo()                                              # the next boot, healthy
+    out = dbmod.run_notebook_migration_v7(c)
+    assert out["j2_notes"]["updated"] == 1                          # re-walked, not skipped as "already right"
+    assert set(_mentions(c, "m1")) == {"NVDA"}
+
+
+def test_a_throw_mid_batch_in_the_playbook_backfill_commits_none_of_the_batch(upb, monkeypatch):
+    conn, upb_db = upb
+    _entry(conn, "e1", NVDA_DOC, NVDA_OLD, 1)
+    _entry(conn, "e2", HIGHLIGHT_DOC, HIGHLIGHT_OLD, 2)
+    real = dbmod._stored_doc
+    seen = []
+
+    def second_row_throws(body_json):
+        seen.append(body_json)
+        if len(seen) == 2:
+            raise RuntimeError("injected after the first row's UPDATE")
+        return real(body_json)
+    monkeypatch.setattr(dbmod, "_stored_doc", second_row_throws)
+    upb_db.ensure_schema(conn)                                      # the playbook CALLER, which swallows it
+    conn.commit()                                                   # auth_db.init_db commits after it
+
+    assert len(seen) == 2                                           # non-vacuity: row 1 WAS rewritten in-flight
+    got = dict(conn.execute("SELECT id, body_plain FROM upb_entries"))
+    assert got == {"e1": NVDA_OLD, "e2": HIGHLIGHT_OLD}             # ...and none of the batch survived
+
+    monkeypatch.undo()
+    upb_db.run_upb_body_plain_backfill(conn)
+    assert dict(conn.execute("SELECT id, body_plain FROM upb_entries")) == {
+        "e1": NVDA_NEW, "e2": "This is very important to remember"}

@@ -116,6 +116,10 @@ def ensure_schema(conn: sqlite3.Connection) -> None:
     try:
         run_upb_body_plain_backfill(conn)
     except Exception as e:  # noqa: BLE001 — never crash startup over this
+        # ⛔ N1: roll the unfinished batch back -- auth_db.init_db commits after
+        # this returns, and would otherwise keep half of it. The schema work
+        # above committed before the backfill started.
+        conn.rollback()
         print(f"[upb-body-plain-v1] aborted: {e}")
 
 
