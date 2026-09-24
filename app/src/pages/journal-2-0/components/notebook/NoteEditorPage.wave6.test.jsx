@@ -277,7 +277,10 @@ describe('NoteEditorPage — a locked note (wave 6 item 8)', () => {
     await waitFor(() => expect(screen.queryByText('Locked — editing is off')).toBeNull())
     expect(lockCalls()).toHaveLength(1)
     expect(JSON.parse(lockCalls()[0][1].body)).toEqual({ locked: false })
-    expect(editor.isEditable).toBe(true)
+    // `setEditable` runs in the page's effect, one passive-effect flush after the
+    // banner leaves the DOM: waited for, not read in the same tick (under a
+    // loaded run the synchronous read raced it — wave 6 D fix round 1).
+    await waitFor(() => expect(editor.isEditable).toBe(true))
     expect(screen.getByPlaceholderText('Title').readOnly).toBe(false)
     expect(screen.getByLabelText('Font family')).toBeTruthy()
   })
