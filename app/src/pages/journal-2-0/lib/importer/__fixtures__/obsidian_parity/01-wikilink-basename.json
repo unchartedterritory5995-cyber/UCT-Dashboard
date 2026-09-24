@@ -3,6 +3,7 @@
   "input_markdown": "# Wikilink Basename\n\nSee [[Target Note]] for the full setup writeup.\n",
   "self_path": "Notes/wikilink-basename.md",
   "server": {
+    "highlights": [],
     "images": [],
     "links": [
       {

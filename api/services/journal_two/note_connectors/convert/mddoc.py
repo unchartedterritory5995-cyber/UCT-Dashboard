@@ -11,7 +11,9 @@ node/mark vocabulary declared by `tiptap.js::buildExtensions`:
     taskList / taskItem(checked) / table / tableRow / tableHeader /
     tableCell / codeBlock(language) / blockquote / horizontalRule /
     hardBreak / image(src) / attachmentChip(href,name,size) /
-    text with marks bold / italic / strike / code / link(href)
+    text with marks bold / italic / strike / code / link(href) /
+    highlight (from an inline `<mark>`…`</mark>` pair only -- wave 5's
+    NotebookHighlight; how an Obsidian `==x==` arrives, review N5)
 
 mddoc.py never emits `attachmentChip` — deciding which non-image link targets
 are file attachments is a per-connector concern (mirroring how the wizard's
@@ -613,10 +615,19 @@ def _inline_nodes(
 
         elif child.type == "html_inline":
             # An injected task-checkbox token is stripped by the caller
-            # before we ever see it; any OTHER raw inline HTML has no home
-            # in the TipTap vocabulary here — degrade to visible literal
-            # text rather than silently dropping content.
-            push_text(child.content or "")
+            # before we ever see it. `<mark>`/`</mark>` is the ONE inline tag
+            # with a home in the vocabulary: the `highlight` mark (wave 5's
+            # NotebookHighlight), which is how an Obsidian `==x==` arrives
+            # (providers/obsidian.py) -- the same mark the file importer's
+            # generateJSON gives `<mark>`. Any OTHER raw inline HTML degrades
+            # to visible literal text rather than silently dropping content.
+            tag = (child.content or "").strip().lower()
+            if tag == "<mark>":
+                marks.append({"type": "highlight"})
+            elif tag == "</mark>":
+                _pop_mark(marks, "highlight")
+            else:
+                push_text(child.content or "")
 
         else:
             # Unknown inline construct -> degrade to its literal text
