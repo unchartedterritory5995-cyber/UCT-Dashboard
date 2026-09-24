@@ -10,19 +10,38 @@ and the importer is JS, this script is the bridge: it builds one realistic
 note (tags, a subtitle, a ticker, a hero image, an inline image, a file
 attachment, a title containing a colon, and a tag needing quoting) through
 `build_export_zip` -- the exact function `api/routers/journal_two.py`'s
-export route calls -- and prints the resulting zip, base64-encoded, on
-stdout. The JS side decodes it, unzips it, and feeds it through the real
-`detectAdapter()` + adapter `parse()` path.
+export route calls -- and hands the archive to the JS side, which unzips it
+and feeds it through the real `detectAdapter()` + adapter `parse()` path.
+
+⛔ THE ARCHIVE NEVER TRAVELS THROUGH STDOUT (wave-5 re-review, round 4). It
+used to be printed base64-encoded, so ANY other output of this process -- a
+`print()` in a module this imports, a warning, a background thread -- landed
+inside the payload and the test died on "unknown compression type 8628" in
+beforeAll, twice in seven runs while another session had notes.py half
+edited. Now the archive is written to a FILE, proved readable here first
+(`zipfile.testzip`, every member's CRC), and stdout carries only a FRAME:
+
+    UCT-EXPORT-FIXTURE-ZIP-BEGIN
+    <path of the archive>
+    <sha256 of its bytes>
+    UCT-EXPORT-FIXTURE-ZIP-END
+
+The test reads only what is inside the frame, so stray output around it is
+harmless, a broken frame is reported as exactly that, and the sha256 proves
+the file it reads is the one written here.
 
 Usage: python roundtrip_export_fixture.py <attachment-root-dir>
 """
 from __future__ import annotations
 
-import base64
+import hashlib
+import io
 import json
 import os
 import sqlite3
 import sys
+import tempfile
+import zipfile
 from pathlib import Path
 
 # Make `api.*` importable when this script is invoked directly (not as
@@ -30,6 +49,29 @@ from pathlib import Path
 _REPO_ROOT = Path(__file__).resolve().parents[3]
 if str(_REPO_ROOT) not in sys.path:
     sys.path.insert(0, str(_REPO_ROOT))
+
+
+FRAME_BEGIN = "UCT-EXPORT-FIXTURE-ZIP-BEGIN"
+FRAME_END = "UCT-EXPORT-FIXTURE-ZIP-END"
+
+
+class CorruptArchive(ValueError):
+    """The exporter's archive does not read back: never hand it to the test."""
+
+
+def write_validated_archive(blob: bytes, directory) -> tuple[str, str]:
+    """Prove `blob` is a readable zip -- every member decompresses and matches
+    its CRC -- then write it to a new file in `directory`. Returns the file's
+    path and the sha256 of its bytes. Raises CorruptArchive (or zipfile's own
+    BadZipFile) instead of writing anything unreadable."""
+    with zipfile.ZipFile(io.BytesIO(blob)) as zf:
+        bad = zf.testzip()
+    if bad is not None:
+        raise CorruptArchive(f"the export archive is corrupt: member {bad!r} fails its CRC")
+    fd, path = tempfile.mkstemp(prefix="uct-export-", suffix=".zip", dir=str(directory))
+    with os.fdopen(fd, "wb") as f:
+        f.write(blob)
+    return path, hashlib.sha256(blob).hexdigest()
 
 
 def main() -> None:
@@ -137,7 +179,11 @@ def main() -> None:
     conn.commit()
 
     blob, _filename = build_export_zip("u1", conn=conn)
-    sys.stdout.write(base64.b64encode(blob).decode("ascii"))
+    path, sha = write_validated_archive(blob, root)
+    # The leading newline starts the frame on its own line even after a stray
+    # write that did not end with one.
+    sys.stdout.write(f"\n{FRAME_BEGIN}\n{path}\n{sha}\n{FRAME_END}\n")
+    sys.stdout.flush()
 
 
 if __name__ == "__main__":

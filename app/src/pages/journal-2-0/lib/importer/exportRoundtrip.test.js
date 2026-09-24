@@ -14,10 +14,21 @@
 // `build_export_zip` — the exact function the export ROUTE calls — with
 // tags, a subtitle, a ticker, a hero image, an inline image, a file
 // attachment, a title containing a colon, and a tag needing quoting, then
-// prints the zip as base64. This test decodes it, unzips it with the SAME
-// library `intake.js` uses, and runs it through `detectAdapter` + `parse`.
+// writes the zip to a FILE and prints only a frame naming it (below). This
+// test reads that file, unzips it with the SAME library `intake.js` uses, and
+// runs it through `detectAdapter` + `parse`.
+//
+// ⛔ THE ARCHIVE NEVER TRAVELS THROUGH STDOUT (wave-5 re-review, round 4). It
+// used to be printed base64-encoded, and twice in seven runs this file died in
+// beforeAll on "unknown compression type 8628" -- anything else the Python
+// process printed (a module's print(), a warning, a background thread) had
+// landed inside the payload. The fixture now writes the file, proves it with
+// zipfile.testzip, and prints a FRAME: begin marker, path, sha256, end marker.
+// Only what is inside the frame is read; a broken frame is reported as exactly
+// that; and the sha256 proves the file read is the file written.
 
 import fs from 'node:fs'
+import { createHash } from 'node:crypto'
 import os from 'node:os'
 import path from 'node:path'
 import { spawnSync } from 'node:child_process'
@@ -47,16 +58,62 @@ function pythonAvailable() {
   }
 }
 
-function buildRealExportVfiles() {
-  const attachRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'uct-export-fixture-'))
-  const script = path.join(ROOT, 'api/services/journal_two/roundtrip_export_fixture.py')
-  const result = spawnSync('python', [script, attachRoot], { encoding: 'utf8', maxBuffer: 50 * 1024 * 1024 })
-  if (result.status !== 0) {
-    throw new Error(`roundtrip_export_fixture.py failed (exit ${result.status}): ${result.stderr}`)
+const FIXTURE = path.join(ROOT, 'api/services/journal_two/roundtrip_export_fixture.py')
+const FRAME_BEGIN = 'UCT-EXPORT-FIXTURE-ZIP-BEGIN'
+const FRAME_END = 'UCT-EXPORT-FIXTURE-ZIP-END'
+
+/**
+ * The archive the fixture wrote, read from the file its frame names. Anything
+ * the process printed outside the frame is ignored; a frame that is missing or
+ * broken, or a file whose sha256 is not the one the fixture printed, is a CLEAR
+ * error -- never a decompress error three layers down.
+ */
+function readFixtureArchive(stdout) {
+  const lines = stdout.split(/\r?\n/)
+  const at = lines.lastIndexOf(FRAME_BEGIN)
+  if (at < 0 || lines[at + 3] !== FRAME_END) {
+    throw new Error(`fixture stdout was contaminated or cut short (no intact ${FRAME_BEGIN} frame): ${JSON.stringify(stdout.slice(0, 200))}`)
   }
-  const zipBytes = new Uint8Array(Buffer.from(result.stdout.trim(), 'base64'))
-  const entries = unzipSync(zipBytes)
-  return Object.entries(entries)
+  const zipPath = lines[at + 1]
+  const sha = lines[at + 2]
+  let bytes
+  try {
+    bytes = fs.readFileSync(zipPath)
+  } catch (err) {
+    throw new Error(`the fixture's frame names an archive that cannot be read (${JSON.stringify(zipPath)}): ${err.message}`)
+  }
+  const actual = createHash('sha256').update(bytes).digest('hex')
+  if (actual !== sha) {
+    throw new Error(`the fixture archive at ${zipPath} is not the one the fixture wrote (sha256 ${actual}, expected ${sha})`)
+  }
+  return new Uint8Array(bytes)
+}
+
+// `pythonArgs(script, attachRoot)` lets a rail run the fixture under a wrapper
+// that misbehaves (prints around it, tampers with its file); by default it is
+// the fixture itself.
+function buildRealExportVfiles(pythonArgs = (script, root) => [script, root]) {
+  const attachRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'uct-export-fixture-'))
+  let result
+  let zipBytes
+  try {
+    result = spawnSync('python', pythonArgs(FIXTURE, attachRoot), { encoding: 'utf8', maxBuffer: 50 * 1024 * 1024 })
+    if (result.status !== 0) {
+      throw new Error(`roundtrip_export_fixture.py failed (exit ${result.status}): ${result.stderr}`)
+    }
+    zipBytes = readFixtureArchive(result.stdout)
+  } finally {
+    // The archive is in memory now; the planted attachments and the zip file
+    // have nothing left to say.
+    fs.rmSync(attachRoot, { recursive: true, force: true })
+  }
+  let entries
+  try {
+    entries = unzipSync(zipBytes)
+  } catch (err) {
+    throw new Error(`the fixture archive did not unzip (${err.message}) -- it passed zipfile.testzip in Python, so the bytes changed on the way`)
+  }
+  const vfiles = Object.entries(entries)
     .filter(([name]) => !name.endsWith('/'))
     .map(([name, data]) => ({
       path: name,
@@ -64,6 +121,7 @@ function buildRealExportVfiles() {
       lastModified: null,
       bytes: async () => data,
     }))
+  return Object.assign(vfiles, { stdout: result.stdout })
 }
 
 const hasPython = pythonAvailable()
@@ -227,5 +285,51 @@ d('our own export round-trips through our own importer', () => {
     const runs = [...line.matchAll(/(\\*)\$/g)].map((m) => m[1].length)
     expect(runs).toHaveLength(2)
     for (const n of runs) expect(n % 2, `a run of ${n} backslashes before a $`).toBe(1)
+  })
+})
+
+// Round 4: the transport cannot be contaminated. Each rail runs the REAL fixture
+// under a small Python wrapper that misbehaves in exactly one way.
+d('the fixture transport cannot be contaminated', () => {
+  const runsFixture = (before, after = '') => `
+import runpy, sys
+${before}
+sys.argv = [sys.argv[1], sys.argv[2]]
+try:
+    runpy.run_path(sys.argv[0], run_name='__main__')
+finally:
+    ${after || 'pass'}
+`
+  const noteMd = async (vfiles) => {
+    const f = vfiles.find((v) => v.path.endsWith('.md') && v.path.includes('AAPL'))
+    return new TextDecoder().decode(await f.bytes())
+  }
+
+  it('stray output before and after the payload changes nothing: the same archive comes back', async () => {
+    const clean = buildRealExportVfiles()
+    const noisy = buildRealExportVfiles((script, root) => ['-c', runsFixture(
+      "print('stray: a module printed at import')\nsys.stdout.write('stray: no newline, then ')",
+      "print('stray: printed after the payload')",
+    ), script, root])
+    // non-vacuity: the wrapper really did print around the payload
+    expect(noisy.stdout).toMatch(/^stray: a module printed at import/)
+    expect(noisy.stdout).toMatch(/stray: printed after the payload\s*$/)
+    expect(noisy.map((v) => v.path).sort()).toEqual(clean.map((v) => v.path).sort())
+    expect(await noteMd(noisy)).toBe(await noteMd(clean))
+  })
+
+  it('output with no intact frame is a CLEAR failure that quotes it, never a decompress error', () => {
+    expect(() => buildRealExportVfiles(() => ['-c', "print('UEsDBBQ garbage that looks like base64 and is not a frame')"]))
+      .toThrow(/fixture stdout was contaminated or cut short .*UEsDBBQ garbage/)
+  })
+
+  it('an archive changed after the fixture wrote it is refused by its sha256', () => {
+    // Run the fixture, then append a byte to the file its frame names.
+    const tamper = runsFixture(
+      'import io, contextlib\n_buf = io.StringIO()\n_ctx = contextlib.redirect_stdout(_buf)\n_ctx.__enter__()',
+      "_ctx.__exit__(None, None, None)\n    _out = _buf.getvalue()\n    _lines = _out.splitlines()\n    _p = _lines[_lines.index('UCT-EXPORT-FIXTURE-ZIP-BEGIN') + 1]\n    open(_p, 'ab').write(b'\\0')\n    sys.stdout.write(_out)",
+    )
+    expect(() => buildRealExportVfiles((script, root) => ['-c', tamper, script, root]))
+      .toThrow(/is not the one the fixture wrote/)
   })
 })
