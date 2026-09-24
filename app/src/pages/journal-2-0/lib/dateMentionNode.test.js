@@ -158,6 +158,13 @@ describe('⭐ the contract with lane F (tasks read a dateMention as the due date
     expect(Object.keys(made.attrs)).toEqual(Object.keys(inFixture[0].attrs))
   })
 
+  // ⛔ M12 (wave 6 fix round 1): a skip must say what it costs, where the
+  // default reporter prints (it shows a skipped test's count, never its name —
+  // exportRoundtrip.test.js measured that). This is lane F's contract rail.
+  if (!pythonAvailable()) {
+    console.warn('\n⛔ the @date -> task due-date contract with lane F is NOT VERIFIED in this run: `python` is '
+      + 'not on PATH, so note_tasks.extract_tasks never read the editor\'s document.\n')
+  }
   it.runIf(pythonAvailable())('a date TYPED into a task is read by note_tasks.extract_tasks as its due date', () => {
     const ed = mount([{ type: 'taskList', content: [
       { type: 'taskItem', attrs: { checked: false }, content: [P('Earnings prep')] },

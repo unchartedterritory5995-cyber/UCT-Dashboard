@@ -445,7 +445,8 @@ export const SlashMenuExtension = Extension.create({
           const widgets = widgetItems(query)
           const factCaptures = factItems(query)
           // Wave 6: an item may say where it is NOT offered (`available`) —
-          // columns inside a column, the table of contents inside one.
+          // today only columns, never inside a column (they do not nest). A
+          // table of contents is an ordinary block and is offered anywhere.
           const here = blockItemsAvailable(editor)
           if (!q) return [...here, ...widgets, ...factCaptures]
           // Widget/fact items match on their own tokenized rules (args after
