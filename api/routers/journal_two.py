@@ -125,7 +125,8 @@ _J2_TELEMETRY_EVENTS = {
 # ARRIVAL. The client helper is a convention, not a wall: any lane can post to
 # /telemetry with a raw fetch, and a free-text prop would land in activity_log
 # verbatim. Same rules as the client's `sanitizeProps`: a key not listed is
-# dropped; "num" must be a finite number (rounded as JS Math.round does);
+# dropped; "num" must be a JSON number a double can hold and finite (rounded
+# as JS Math.round does — a numeric STRING is not a number, and is dropped);
 # "bool" must be a bool; an enum (a tuple) keeps a string only if it is one of
 # its values, else 'other'. ⛔ ONE FACT IN TWO FILES: this dict and the client's
 # EVENT_SCHEMAS are pinned by tests/test_notebook_telemetry_events.py, which
@@ -183,8 +184,16 @@ def _sanitize_notebook_props(event: str, props: Any) -> dict[str, Any]:
             continue
         v = props[key]
         if spec == "num":
-            if isinstance(v, (int, float)) and not isinstance(v, bool) and math.isfinite(v):
-                out[key] = int(math.floor(v + 0.5))
+            # Through float(), as the client's JSON number is a double: an int
+            # no double can hold (`1` and 400 zeros) raises OverflowError here
+            # and is dropped like any other invalid value — never a 500 (R1-5).
+            if isinstance(v, (int, float)) and not isinstance(v, bool):
+                try:
+                    f = float(v)
+                except OverflowError:
+                    continue
+                if math.isfinite(f):
+                    out[key] = int(math.floor(f + 0.5))
         elif spec == "bool":
             if isinstance(v, bool):
                 out[key] = v

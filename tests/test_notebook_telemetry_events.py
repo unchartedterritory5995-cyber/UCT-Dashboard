@@ -140,6 +140,31 @@ def test_numbers_must_be_finite_bools_must_be_bools_and_enums_must_be_strings(te
     assert got[2] == {"inserted": True, "scope": "note"}
 
 
+def test_a_number_no_float_can_hold_is_dropped_never_a_500(telemetry_app):
+    """R1-5. `1` and 400 zeros is a valid JSON number — Python parses it to an
+    int — and `math.isfinite` on it raises OverflowError: measured, a 500 on
+    the sender's own request. It is treated like any other invalid value for
+    a `num` prop: dropped. A numeric-looking STRING is not a number either
+    (the client keeps `typeof v === 'number'` only), so it is dropped too."""
+    client, logged = telemetry_app
+    raw = TestClient(client.app, raise_server_exceptions=False)
+    huge = "1" + "0" * 400
+    r = raw.post("/api/j2/telemetry", content=(
+        '{"event": "search_used", "props": {"results": ' + huge + ', "filters": "' + huge + '",'
+        ' "ms": -' + huge + ', "mode": "text"}}'), headers={"content-type": "application/json"})
+    assert r.status_code == 200
+    [(_, action, details)] = logged.rows
+    assert action == "j2:search_used"
+    assert json.loads(details) == {"mode": "text"}
+    # CONTROL: a number a double CAN hold still converts and rounds — as the
+    # client's JSON would carry it — so the guard is not "drop every big number".
+    big = "1" + "0" * 300
+    r = raw.post("/api/j2/telemetry", content='{"event": "switcher_used", "props": {"results": ' + big + '}}',
+                 headers={"content-type": "application/json"})
+    assert r.status_code == 200
+    assert json.loads(logged.rows[1][2]) == {"results": int(float(big))}
+
+
 def test_an_event_outside_the_seven_keeps_its_own_props(telemetry_app):
     # CONTROL: the schema is applied to the Notebook events only; the older
     # instrumented events keep what their own rails pin.
