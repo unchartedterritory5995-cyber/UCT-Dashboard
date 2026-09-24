@@ -221,6 +221,49 @@ def test_cover_is_none_without_wire_context(tmp_path):
     assert calls == []
 
 
+# 2026-09-23 — a host's OWN card is never painted over. ChartMaster's plate and
+# Zen's yin-yang are owner-commissioned art; every AI-cover path (publish,
+# transcript refresh, retry queue, backfill sweep) comes through render_cover,
+# so the refusal lives here once. The 9/11 Stockbee workshop got an AI cover
+# and was the evidence that nothing stopped the same happening to ChartMaster.
+
+def _spied_cover(tmp_path, eyebrow):
+    spent = []
+
+    def llm(s, u):
+        spent.append("llm")
+        return json.dumps(GOOD_SPEC)
+
+    def imagegen(scene):
+        spent.append("image")
+        return _png_1536x1024()
+    out = dc.render_cover(
+        section="Workshops & Fireside Chats", eyebrow=eyebrow,
+        date_text="September 23, 2026", ctx=CTX, llm=llm, imagegen=imagegen,
+        history_path=str(tmp_path / "ch.json"))
+    return out, spent
+
+
+@pytest.mark.parametrize("eyebrow", [
+    "WORKSHOP WITH CHARTMASTER",       # the topic as typed on 2026-09-23
+    "WORKSHOP WITH CHART MASTER",      # _resolve_theme is space-insensitive
+    "WORKSHOP WITH ZEN",
+])
+def test_a_hosts_own_card_is_never_painted_over(tmp_path, eyebrow):
+    out, spent = _spied_cover(tmp_path, eyebrow)
+    assert out is None                                  # caller ships the host's card
+    assert spent == []                                  # declined before spending anything
+    assert not (tmp_path / "ch.json").exists()          # and recorded no style lane
+
+
+def test_an_ordinary_workshop_still_gets_a_creative_cover(tmp_path):
+    # The control: the refusal is about a HOST'S card, not the workshop shelf.
+    # Without it the test above passes for a render_cover that never paints.
+    out, spent = _spied_cover(tmp_path, "WORKSHOP WITH STOCKBEE")
+    assert out is not None
+    assert spent == ["llm", "image"]
+
+
 def test_forbidden_scene_gets_one_reask_then_gives_up(tmp_path):
     calls = []
     def llm(s, u):
