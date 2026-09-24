@@ -1641,15 +1641,19 @@ export default function NoteEditorPage({ noteId, onBack, showBack = true, onTitl
     // B: a save on the wire — when it lands it moves `lastSavedRef` to ITS
     //    revision, and the adoption's save would then go out on that revision
     //    with no 409, over the member's words and any door's block.
-    // ONE flag covers both, and that is derived, not assumed: after hydration a
-    // save is only ever pending or on the wire downstream of `scheduleAutosave`
-    // (its timer, the retries it leads to, the unmount flush of that timer), and
-    // `scheduleAutosave` marks the note edited BEFORE it arms anything. The one
-    // other save, the crash-draft Restore, is reachable only from the banner, so
-    // never while an automatic adoption is pending. ⚰️ A second `|| busy` term
-    // stood here and was deleted: removing it left every rail green, because it
-    // could not be true without this one — a guard that reads as protection and
-    // cannot fire. (S2-A′ isolates this flag; S2-B (Restore) the in-flight one.)
+    // ONE flag covers both, and that is derived, not assumed. The hazard is a
+    // save that MOVES `lastSavedRef` when it lands (case B) — not every save:
+    // the metadata and excerpt doors reach the wire without touching it, so an
+    // adoption during one still sends on its base and 409s into the reconcile.
+    // Of the saves that do move it, `commitSave` (its timer, retries and the
+    // unmount flush) is downstream of `scheduleAutosave`, which marks the note
+    // edited BEFORE it arms anything; the crash-draft Restore comes only from a
+    // banner decision, never while an automatic adoption is pending; and a
+    // version restore moves it but loses no words in either order.
+    // ⚰️ A second `|| busy` term stood here and was deleted: removing it left
+    // every rail green, because it could not be true without this one — a guard
+    // that reads as protection and cannot fire. (S2-A′ isolates this flag;
+    // S2-B (Restore) the in-flight one.)
     if (auto && editedSinceHydrationRef.current) { offer(); return undefined }
     // A Restore is the member's own choice, so an edit does not stop it — but a
     // save already on the wire is waited for, never raced (case B again).
@@ -1835,6 +1839,13 @@ export default function NoteEditorPage({ noteId, onBack, showBack = true, onTitl
     const editorHoldsForked = sameAuthoredContent({
       title: titleRef.current || '', subtitle: subtitleRef.current || '', bodyJson: editor.getJSON(),
     }, forked)
+    // ⛔⛔ R1 (fix round 2): when the member typed during the create, those words
+    // are in the durable writer's PENDING snapshot, not yet in the store — and
+    // the writer keeps only its newest snapshot, so their next keystroke on the
+    // server copy below would supersede them before they were ever written.
+    // Write them NOW, before the view is replaced: the fix-6 guard then keeps
+    // them against later keystrokes, and the queue carries them to a second fork.
+    if (!editorHoldsForked) durableRef.current.flush()
 
     // The editor now shows what the SERVER has — the canonical version — so the
     // member is not typing into a document that no longer exists anywhere.
@@ -1864,7 +1875,7 @@ export default function NoteEditorPage({ noteId, onBack, showBack = true, onTitl
     const settled = editorHoldsForked
       && (await settleOwnerFork({ accountId: user?.id, noteId, serverNote: fresh, forked })) === true
     if (!settled) {
-      clearDraftLocally()          // pre-E-3: the durable copy and the queue keep the words
+      clearDraftLocally()          // pre-E-3: the durable copy (flushed above when the view moved) and the queue keep the words
     } else if (sameAuthoredContent({
       title: titleRef.current || '', subtitle: subtitleRef.current || '', bodyJson: editor.getJSON(),
     }, serverNow)) {

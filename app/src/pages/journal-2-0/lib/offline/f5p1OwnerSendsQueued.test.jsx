@@ -22,6 +22,10 @@
  * during the settle itself, a Restore clicked mid-save — plus a view that refuses
  * the words (N6). All seven are RED on `fe4e278bc`; each guard's own mutation is
  * recorded in §C.4.
+ *
+ * ⛔⛔ Fix round 2 (§D) adds typing ACROSS the view swap (R1), the editor's own
+ * S1 gate isolated from the store's (R2), and a record poisoned before A-1 that
+ * neither adoption nor Restore may use as a base (N4).
  */
 import { render, screen, act, waitFor, fireEvent } from '@testing-library/react'
 import { MemoryRouter } from 'react-router-dom'
@@ -514,6 +518,31 @@ describe('fix round 2 — the editor’s own S1 gate, and a base the queued entr
     await sit(12)
     expect(survives('K-inside-the-durable-window'), 'the keystroke was settled away').toBe(true)
     expect(serverText(), 'the other device’s words were overwritten').toContain('rewritten on another device')
+  })
+
+  it('⛔⛔ R1: typing ACROSS the view swap — words typed during the create request survive the next keystroke on the new view', async () => {
+    // The editor gate refuses the settle (the view moved), and the sibling does
+    // not hold K. K's durable write is still inside the writer's window when the
+    // view is swapped to the server copy; the member's NEXT keystroke schedules
+    // `fresh+K2`, and the writer keeps only its newest snapshot. Without a flush
+    // before the swap, K is superseded before it is ever written — and the draft
+    // that held it is overwritten by the same keystroke.
+    server = makeServer({ body: doc(para('rewritten on another device')), updatedAt: T1 })
+    await queuedWhileAway()
+    const releaseCreates = holdCreates()
+    await returnToTheNote()
+    await sit(4)                                            // adopt → 409 → reconcile → create (held)
+    expect(createsStarted, 'precondition: the sibling is being created').toBe(1)
+    await typeInBody(' K-before-the-swap')
+    await act(async () => { releaseCreates(); await settleIdb(6) })   // no clock movement
+    const releasePuts = holdPuts()                          // what is on screen now cannot leave
+    await typeInBody(' K2-after-the-swap')                  // still inside K's durable window
+    await sit(12)
+    expect(survives('K-before-the-swap'), 'the words typed during the fork were superseded before they were written').toBe(true)
+    expect(document.querySelector('.ProseMirror')?.textContent).toContain('K2-after-the-swap')
+    expect(serverText(), 'the other device’s words were overwritten').toContain('rewritten on another device')
+    releasePuts()
+    await sit(1)
   })
 
   // A record written by the settle BEFORE A-1: its base is `acked@landed` (T1,

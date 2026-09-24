@@ -412,6 +412,12 @@ export async function settleLandedSave({
  * must equal `forked`; anything else is refused and the note keeps the pre-E-3
  * behaviour — a second fork later, which preserves the words. A duplicate
  * beats a loss. No `forked`, no proof: refused.
+ * ⚠️ "Preserves the words" holds only once those words are IN the store. A
+ * keystroke still inside the durable writer's window is not, and the writer
+ * keeps only its newest snapshot — so the editor, which refuses first when its
+ * own view has moved, FLUSHES that snapshot before it swaps the view to the
+ * server copy (re-review R1, fix round 2). Otherwise the next keystroke on the
+ * new view supersedes it before it is ever written.
  * ⚠️ The check and the settle are THREE IndexedDB transactions — `getNote`,
  * `listOutbox`, then the write inside `settleForkedNote` — so the window runs
  * from the first read to that write: milliseconds usually, hundreds on a slow
