@@ -58,6 +58,10 @@ import NoteStats from './NoteStats'
 import NoteOutline from './NoteOutline'
 import TableToolbar from './TableToolbar'
 import LinkPasteMenu from './LinkPasteMenu'
+import UnlinkedMentions from './UnlinkedMentions'
+import { TextSelection } from '@tiptap/pm/state'
+import { taskIndexFromParams, findTaskItemPos } from '../../lib/noteTasks'
+import { NOTEBOOK_EVENTS, startNoteOpenTimer, trackNotebookEvent } from '../../lib/notebookTelemetry'
 import { textColorClass } from '../../lib/textColor'
 import NoteHistoryPanel from './NoteHistoryPanel'
 import NoteBacklinksSection from './NoteBacklinksSection'
@@ -960,6 +964,7 @@ export default function NoteEditorPage({ noteId, onBack, showBack = true, onTitl
     } catch (e) {
       setSaveStatus('error')
       setSaveErrorMsg(friendlySaveError(e, e?.status))
+      reportSaveFailed(e, false)
     } finally {
       restoringDraftRef.current = false
       saveSettled()
@@ -1142,6 +1147,30 @@ export default function NoteEditorPage({ noteId, onBack, showBack = true, onTitl
     }, { replace: true })
   }, [navTargetKey, navTarget, noteDocuments, noteExcerpts, setSearchParams, openNoteDocument,
       sayIfNothingOpened])
+
+  // ── Wave 6 (lane F's services, wired in the editor) ─────────────────────────
+  // `?task=<n>` is the Tasks view's "open this note at task n". Read here so the
+  // open timer below can say where the note was opened from.
+  const taskIndex = taskIndexFromParams(searchParams)
+  const taskIndexRef = useRef(taskIndex)
+  taskIndexRef.current = taskIndex
+  // note_open_ms: from the note being asked for to its editor existing WITH the
+  // note in it (stopped in onCreate). One reading per note; the timer is inert
+  // after it has spoken.
+  const openTimerRef = useRef(null)
+  useEffect(() => {
+    openTimerRef.current = startNoteOpenTimer()
+    return () => { openTimerRef.current = null }
+  }, [noteId])
+  // save_failed: once when a save gives up, and once when a retry streak BEGINS
+  // (never per backoff attempt). No text, no ids: a status and a reason word.
+  const reportSaveFailed = (e, retrying) => {
+    const status = Number.isFinite(e?.status) ? e.status : 0
+    const offline = typeof navigator !== 'undefined' && navigator.onLine === false
+    const reason = !status ? (offline ? 'offline' : 'network')
+      : status === 409 ? 'conflict' : status === 413 ? 'too-large' : 'http'
+    trackNotebookEvent(NOTEBOOK_EVENTS.SAVE_FAILED, { status, reason, offline, retrying })
+  }
 
   // ⭐ O6 §4: the same routing contract, one param further. A review is NOT a
   // document, so it deliberately does not go through `targetFromParams` /
@@ -1503,6 +1532,8 @@ export default function NoteEditorPage({ noteId, onBack, showBack = true, onTitl
     // (see WidgetEmbedView's self-archive effect).
     onCreate: ({ editor: ed }) => {
       ed.storage.uctJournalWidgets = { ...(ed.storage.uctJournalWidgets || {}), noteId }
+      // One reading per note: the timer's own stop() speaks once.
+      if (note) openTimerRef.current?.(taskIndexRef.current != null ? { source: 'tasks' } : {})
       // "Send to Journal" from the charts page targets the LAST-ACTIVE note
       // (owner decision #9) — opening a note for editing is what makes it the
       // target. Title rides along for the capture toast.
@@ -1611,6 +1642,24 @@ export default function NoteEditorPage({ noteId, onBack, showBack = true, onTitl
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [note?.id, editor])
+
+  // Wave 6: `?task=<n>` puts the caret in the n-th task (declared AFTER the
+  // fresh-body push above: effects run in order, and that one's setContent
+  // would otherwise put the caret back), counted in the SAME
+  // pre-order the server counted (findTaskItemPos, pinned by
+  // tests/fixtures_note_tasks.json), and scrolls it into view. Once per note and
+  // task; a link naming a task the note no longer has opens the note normally.
+  const openedTaskRef = useRef(null)
+  useEffect(() => {
+    if (!editor || editor.isDestroyed || taskIndex == null || !note) return
+    const key = `${noteId}:${taskIndex}`
+    if (openedTaskRef.current === key) return
+    const pos = findTaskItemPos(editor.state.doc, taskIndex)
+    if (pos == null) return
+    openedTaskRef.current = key
+    const at = TextSelection.near(editor.state.doc.resolve(pos + 1)).from
+    editor.chain().focus().setTextSelection(at).scrollIntoView().run()
+  }, [editor, note, noteId, taskIndex])
 
   // ⛔ The arming half of `hydratedRef` — see its declaration for the defect.
   // Declared AFTER `useEditor` on purpose: effects run in the order their hooks
@@ -1859,6 +1908,9 @@ export default function NoteEditorPage({ noteId, onBack, showBack = true, onTitl
     const editorHoldsForked = sameAuthoredContent({
       title: titleRef.current || '', subtitle: subtitleRef.current || '', bodyJson: editor.getJSON(),
     }, forked)
+    // The sibling exists: count the fork (the member's words are safe in it).
+    // `queued`: words typed during the create are still in the queue.
+    trackNotebookEvent(NOTEBOOK_EVENTS.CONFLICT_FORKED, { door: 'editor', queued: !editorHoldsForked })
     // ⛔⛔ R1 (fix round 2): when the member typed during the create, those words
     // are in the durable writer's PENDING snapshot, not yet in the store — and
     // the writer keeps only its newest snapshot, so their next keystroke on the
@@ -2067,9 +2119,11 @@ export default function NoteEditorPage({ noteId, onBack, showBack = true, onTitl
         setSaveStatus('error')
         setSaveErrorMsg(friendlySaveError(e, status))
         retryAttemptsRef.current = 0
+        reportSaveFailed(e, false)
         return
       }
       const attempt = retryAttemptsRef.current
+      if (attempt === 0) reportSaveFailed(e, true)
       const delay = RETRY_BACKOFFS_MS[Math.min(attempt, RETRY_BACKOFFS_MS.length - 1)]
       retryAttemptsRef.current = attempt + 1
       console.warn(`autosave failed (retry ${attempt + 1} in ${delay}ms)`, e)
@@ -2843,6 +2897,7 @@ export default function NoteEditorPage({ noteId, onBack, showBack = true, onTitl
         {/* Wave D: "Linked from" backlinks -- renders nothing until this
             note has at least one real backlink (directive §70/§16). */}
         <NoteBacklinksSection noteId={noteId} />
+        <UnlinkedMentions noteId={noteId} />
 
         <input
           ref={fileInputRef}

@@ -62,6 +62,11 @@ const schema = new Schema({
     // Wave 6 (webLinkNodes.js): block leaves that read as nothing.
     linkPreview: { group: 'block', atom: true, attrs: { url: { default: null }, title: { default: null }, description: { default: null }, domain: { default: null }, image: { default: null } }, toDOM: () => ['div'] },
     webEmbed: { group: 'block', atom: true, attrs: { provider: { default: null }, ref: { default: null }, url: { default: null } }, toDOM: () => ['div'] },
+    // Wave 6 (dateMentionNode.js): an inline leaf that reads as its ISO date.
+    dateMention: { group: 'inline', inline: true, atom: true, attrs: { date: { default: null } }, toDOM: () => ['span'] },
+    // Task lists, where a date mention is a task's due date (lane F's contract).
+    taskList: { group: 'block', content: 'taskItem+', toDOM: () => ['ul', 0] },
+    taskItem: { content: 'paragraph block*', attrs: { checked: { default: false } }, toDOM: () => ['li', 0] },
   },
   marks: { bold: { toDOM: () => ['strong', 0] }, italic: { toDOM: () => ['em', 0] }, link: { attrs: { href: { default: '' } }, toDOM: () => ['a', 0] },
     // Wave 5 (textColor.js): a palette NAME, never a colour value.
@@ -277,6 +282,14 @@ const CASES = {
     p('And watch:'),
     { type: 'webEmbed', attrs: { provider: 'youtube', ref: 'dQw4w9WgXcQ', url: 'https://youtu.be/dQw4w9WgXcQ' } },
     p('After.')),
+  // ── a date mention (wave 6) is an INLINE leaf that reads as its ISO date --
+  //    one position, no separator -- inside a task, as lane F's tasks service
+  //    reads it; one with no date reads as nothing. ──
+  dateMention: doc(
+    { type: 'taskList', content: [{ type: 'taskItem', attrs: { checked: false }, content: [
+      p('Earnings prep ', { type: 'dateMention', attrs: { date: '2026-09-25' } }, ' before the call')] }] },
+    p('Undated ', { type: 'dateMention', attrs: { date: null } }, '.'),
+    p('After.')),
 }
 
 // Passages cited in the astral cases -- before, inside, across a mark, and
@@ -301,6 +314,8 @@ const PASSAGES = {
   imageFigure: ['NVDA breakout, day 3', 'day 3', 'After.'],
   columns: ['Margins widen.', 'Bear case.', 'Plan.', 'After.'],
   linkCardAndEmbed: ['Read this.', 'And watch:', 'After.'],
+  // A date is ONE position: a passage holds the whole ISO date or none of it.
+  dateMention: ['Earnings prep 2026-09-25 before', 'before the call', 'After.'],
 }
 
 function passageRange(d, passage, leafText) {

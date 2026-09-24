@@ -245,3 +245,22 @@ def test_an_embed_exports_as_a_link_to_what_it_plays_never_its_player_address():
     assert md == ("[YouTube video](https://youtu.be/dQw4w9WgXcQ)\n\n"
                   "[TradingView chart](https://www.tradingview.com/symbols/NASDAQ-AAPL/)")
     assert "nocookie" not in md and "widgetembed" not in md
+
+
+# ── item 7: a date mention exports as its absolute date ──────────────────────
+
+def test_a_date_mention_exports_as_its_iso_date_inside_the_sentence_and_the_task():
+    mention = {"type": "dateMention", "attrs": {"date": "2026-10-02"}}
+    md = tiptap_to_markdown(_doc(
+        _para("Earnings ", mention, {"type": "text", "text": " after the close."}),
+        {"type": "taskList", "content": [{"type": "taskItem", "attrs": {"checked": False}, "content": [
+            _para("Prep ", mention)]}]},
+    ))
+    assert md == "Earnings 2026-10-02 after the close.\n\n- [ ] Prep 2026-10-02"
+
+
+def test_a_date_mention_without_a_valid_date_exports_nothing_and_never_raises():
+    for bad in (None, "tomorrow", "2026-1-2", 20261002, ["2026-10-02"]):
+        md = tiptap_to_markdown(_doc(_para("a ", {"type": "dateMention", "attrs": {"date": bad}},
+                                           {"type": "text", "text": " b"})))
+        assert md == "a  b", bad

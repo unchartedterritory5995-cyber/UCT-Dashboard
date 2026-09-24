@@ -3666,5 +3666,126 @@
     "pm_to": 33
    }
   ]
+ },
+ "dateMention": {
+  "json": {
+   "type": "doc",
+   "content": [
+    {
+     "type": "taskList",
+     "content": [
+      {
+       "type": "taskItem",
+       "attrs": {
+        "checked": false
+       },
+       "content": [
+        {
+         "type": "paragraph",
+         "content": [
+          {
+           "type": "text",
+           "text": "Earnings prep "
+          },
+          {
+           "type": "dateMention",
+           "attrs": {
+            "date": "2026-09-25"
+           }
+          },
+          {
+           "type": "text",
+           "text": " before the call"
+          }
+         ]
+        }
+       ]
+      }
+     ]
+    },
+    {
+     "type": "paragraph",
+     "content": [
+      {
+       "type": "text",
+       "text": "Undated "
+      },
+      {
+       "type": "dateMention",
+       "attrs": {
+        "date": null
+       }
+      },
+      {
+       "type": "text",
+       "text": "."
+      }
+     ]
+    },
+    {
+     "type": "paragraph",
+     "content": [
+      {
+       "type": "text",
+       "text": "After."
+      }
+     ]
+    }
+   ]
+  },
+  "text": "Earnings prep 2026-09-25 before the call\nUndated .\nAfter.",
+  "contentSize": 57,
+  "textSpans": [
+   {
+    "pm_start": 3,
+    "pm_end": 17,
+    "text": "Earnings prep "
+   },
+   {
+    "pm_start": 18,
+    "pm_end": 34,
+    "text": " before the call"
+   },
+   {
+    "pm_start": 38,
+    "pm_end": 46,
+    "text": "Undated "
+   },
+   {
+    "pm_start": 47,
+    "pm_end": 48,
+    "text": "."
+   },
+   {
+    "pm_start": 50,
+    "pm_end": 56,
+    "text": "After."
+   }
+  ],
+  "leafSpans": [
+   {
+    "pm_start": 17,
+    "pm_end": 18,
+    "text": "2026-09-25",
+    "atom": null
+   }
+  ],
+  "passages": [
+   {
+    "text": "Earnings prep 2026-09-25 before",
+    "pm_from": 3,
+    "pm_to": 25
+   },
+   {
+    "text": "before the call",
+    "pm_from": 19,
+    "pm_to": 34
+   },
+   {
+    "text": "After.",
+    "pm_from": 50,
+    "pm_to": 56
+   }
+  ]
  }
 }

@@ -117,6 +117,8 @@ _ATOM_TEXT = {
     "hardBreak": lambda a: " ",
     "inlineMath": lambda a: a.get("latex") if isinstance(a.get("latex"), str) else "",
     "blockMath": lambda a: a.get("latex") if isinstance(a.get("latex"), str) else "",
+    # Wave 6: a date mention reads as its ISO date (inline: no separator).
+    "dateMention": lambda a: a.get("date") if isinstance(a.get("date"), str) else "",
 }
 
 
@@ -175,12 +177,14 @@ _LEAF_TYPES = frozenset({
     # Wave 6: a pasted link's preview card and an allowlisted embedded player
     # (webLinkNodes.js) -- block atoms that read as nothing (one position).
     "linkPreview", "webEmbed",
+    # Wave 6: @date mentions (dateMentionNode.js) -- an inline atom.
+    "dateMention",
 })
 
 # Leaves that sit INSIDE a textblock. textBetween only ever emits a separator
 # for a BLOCK leaf, so the walker must know which leaves are inline.
 _INLINE_LEAF_TYPES = frozenset({"hardBreak", "noteLink", "askCitation", "videoTimestamp",
-                                "inlineMath"})
+                                "inlineMath", "dateMention"})
 
 # Textblocks (content is inline). An EMPTY one still emits a separator in
 # textBetween, and an empty one carries no `content` to infer that from -- so

@@ -374,6 +374,7 @@ def _raw_dollars():
 # link (never javascript:, never a relative path smuggled into attrs).
 _WEB_LINK = re.compile(r"^https?://[^\s<>()]+$", re.I)
 _EMBED_LABELS = {"youtube": "YouTube video", "tradingview": "TradingView chart"}
+_ISO_DATE = re.compile(r"^\d{4}-\d{2}-\d{2}$")
 
 
 def _text_with_marks(node: dict[str, Any], resolver=None) -> str:
@@ -672,6 +673,11 @@ def _block(node: dict[str, Any], resolver=None) -> str:
         if isinstance(desc, str) and desc.strip():
             return f"{line}\n\n> {_text_with_marks({'text': ' '.join(desc.split())}, resolver)}"
         return line
+    if ntype == "dateMention":
+        # Wave 6: a date mention exports as its ABSOLUTE date -- the relative
+        # word the editor shows ("Tomorrow") would be wrong the day after.
+        date = attrs.get("date")
+        return date if isinstance(date, str) and _ISO_DATE.match(date) else ""
     if ntype == "webEmbed":
         # Wave 6: Markdown has no player, so an embed exports as a link to what
         # it plays. The iframe address is never exported (only the page link).

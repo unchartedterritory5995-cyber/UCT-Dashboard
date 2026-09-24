@@ -11,6 +11,7 @@ import { BlockHandle } from './blockHandle'
 import { Columns, Column, ColumnsGuard } from './columnsNode'
 import { LinkPreview, WebEmbed } from './webLinkNodes'
 import { LinkPasteOffer } from './linkPasteOffer'
+import { DateMention } from './dateMentionNode'
 import Link from '@tiptap/extension-link'
 import { NotebookPlaceholder } from './notebookPlaceholder'
 import { Table, TableRow, TableHeader, TableCell } from '@tiptap/extension-table'
@@ -85,6 +86,11 @@ export function buildExtensions({ placeholder = 'Start writing… or type / for 
     // (webLinkNodes.js). Block atoms with no text: rows in the citation
     // tables' _LEAF_TYPES; schema 2. Same "never remove" rule as WidgetEmbed.
     LinkPreview, WebEmbed,
+    // Wave 6: @today / @tomorrow / @next monday / @2026-10-02 -> an inline date
+    // (dateMentionNode.js). ⭐ Lane F's tasks service reads it as a task's due
+    // date: the name and the `date` attr are a contract. Citation leafText =
+    // the ISO date; schema 2. Same "never remove" rule as WidgetEmbed.
+    DateMention,
     Link.configure({
       openOnClick: false,
       autolink: true,

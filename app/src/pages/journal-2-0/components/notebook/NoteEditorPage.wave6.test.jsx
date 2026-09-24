@@ -1,4 +1,4 @@
-import { render, screen, waitFor, act, fireEvent } from '@testing-library/react'
+import { render, screen, waitFor, act, fireEvent, cleanup } from '@testing-library/react'
 import { MemoryRouter } from 'react-router-dom'
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest'
 import { TextSelection } from '@tiptap/pm/state'
@@ -7,6 +7,10 @@ import { TextSelection } from '@tiptap/pm/state'
 // through the REAL NoteEditorPage (real editor mount; the wave-5 file's
 // convention). Each feature's own behaviour is railed in its module's test
 // file; this file rails the DOOR: that the page wires it.
+
+// jsdom has no layout: a caret scrolled into view (?task=) measures a Range.
+if (!Range.prototype.getClientRects) Range.prototype.getClientRects = () => []
+if (!Range.prototype.getBoundingClientRect) Range.prototype.getBoundingClientRect = () => ({ top: 0, left: 0, right: 0, bottom: 0, width: 0, height: 0 })
 
 const P = (t) => ({ type: 'paragraph', content: [{ type: 'text', text: t }] })
 const cell = (t, type = 'tableCell') => ({ type, content: [P(t)] })
@@ -185,5 +189,65 @@ describe('NoteEditorPage — pasted link door (wave 6 item 6)', () => {
     expect(names.slice(0, 2)).toEqual(['paragraph', 'webEmbed'])
     expect(document.querySelector('.ProseMirror .uctWebEmbed iframe').getAttribute('src'))
       .toBe('https://www.youtube-nocookie.com/embed/dQw4w9WgXcQ?rel=0&modestbranding=1&playsinline=1')
+  })
+})
+
+describe('NoteEditorPage — lane F wiring (wave 6 item 7)', () => {
+  const TASKS = () => ({ type: 'taskList', content: ['Review NVDA thesis', 'Log the AMD trade', 'Earnings prep'].map((t) => (
+    { type: 'taskItem', attrs: { checked: false }, content: [P(t)] })) })
+
+  async function renderAt(url) {
+    const NoteEditorPage = (await import('./NoteEditorPage')).default
+    render(<MemoryRouter initialEntries={[url]}><NoteEditorPage noteId="n1" onBack={vi.fn()} showBack /></MemoryRouter>)
+    await screen.findByPlaceholderText('Title')
+    return waitFor(() => {
+      const el = document.querySelector('.ProseMirror')
+      if (!el?.editor) throw new Error('editor not mounted')
+      return el.editor
+    })
+  }
+  const taskOfCaret = (editor) => {
+    const { $from } = editor.state.selection
+    for (let d = $from.depth; d > 0; d -= 1) if ($from.node(d).type.name === 'taskItem') return $from.node(d).textContent
+    return null
+  }
+  const telemetry = () => global.fetch.mock.calls
+    .filter(([u, o]) => u === '/api/j2/telemetry' && o?.method === 'POST')
+    .map(([, o]) => JSON.parse(o.body))
+
+  it('?task=<n> opens the note with the caret in task n (the server\'s order) and says so in note_open_ms', async () => {
+    NOTE = { ...baseNote(), bodyJson: { type: 'doc', content: [P('Intro line.'), TASKS()] } }
+    // Task 1 of 3 (index 0): NOT where the page puts the caret by itself (that
+    // is the end of the note, i.e. the LAST task), so this cannot pass by luck.
+    const editor = await renderAt('/?note=n1&task=0')
+    await waitFor(() => expect(taskOfCaret(editor)).toBe('Review NVDA thesis'))
+    await waitFor(() => expect(telemetry().filter((e) => e.event === 'note_open_ms')).toHaveLength(1))
+    const open = telemetry().find((e) => e.event === 'note_open_ms')
+    expect(open.props.source).toBe('tasks')
+    expect(Number.isInteger(open.props.ms)).toBe(true)
+  })
+
+  it('a ?task= past the note\'s last task opens the note normally', async () => {
+    NOTE = { ...baseNote(), bodyJson: { type: 'doc', content: [P('Intro line.'), TASKS()] } }
+    const control = await renderAt('/?note=n1')
+    await waitFor(() => expect(telemetry().some((e) => e.event === 'note_open_ms')).toBe(true))
+    const where = control.state.selection.from
+    expect(telemetry().find((e) => e.event === 'note_open_ms').props.source).toBeUndefined()
+    cleanup()
+    const editor = await renderAt('/?note=n1&task=9')
+    await waitFor(() => expect(telemetry().filter((e) => e.event === 'note_open_ms')).toHaveLength(2))
+    expect(editor.state.selection.from).toBe(where)
+  })
+
+  it('Unlinked mentions sits under "Linked from" in the page', async () => {
+    global.fetch = vi.fn((url) => Promise.resolve({
+      ok: true,
+      json: () => Promise.resolve(String(url).includes('/unlinked-mentions')
+        ? { count: 1, title: 'Original Title', notes: [{ id: 'n9', title: 'Weekly review', occurrences: 1, snippet: null }] }
+        : {}),
+    }))
+    await renderEditor()
+    expect(await screen.findByText('Unlinked mentions (1)')).toBeTruthy()
+    expect(global.fetch.mock.calls.some(([u]) => u === '/api/j2/notes/n1/unlinked-mentions')).toBe(true)
   })
 })

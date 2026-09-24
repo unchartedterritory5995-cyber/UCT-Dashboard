@@ -40,3 +40,11 @@ export function exportMarkdown(doc) {
 export function importMarkdown(md) {
   return htmlToNote(mdToHtml(md)).bodyJson
 }
+
+/** Lane F's task extractor (note_tasks.extract_tasks) over `doc`: one entry per taskItem. */
+export function extractTasks(doc) {
+  const script = path.join(REPO_ROOT, 'tools', 'note_tasks_bridge.py')
+  const r = spawnSync('python', [script], { input: JSON.stringify(doc), encoding: 'utf8', maxBuffer: 16 * 1024 * 1024 })
+  if (r.status !== 0) throw new Error(`note_tasks_bridge.py failed (exit ${r.status}): ${r.stderr}`)
+  return JSON.parse(r.stdout).tasks
+}
