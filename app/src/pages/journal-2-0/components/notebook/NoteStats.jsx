@@ -9,9 +9,12 @@
  * keystroke. The selection count walks only the selection, on a shorter beat.
  * Not a live region: a count that changes with every word must not talk over
  * the member's screen reader; it is plain text in the toolbar's reading order.
+ * It recounts on ANY document change (lib/onDocChange.js), not only the ones
+ * that emit `update` — a restored or synced note swaps its content silently.
  */
 import { useEffect, useState } from 'react'
 import { noteStats, selectionWords, statsLabel } from '../../lib/noteStats'
+import { onDocChange } from '../../lib/onDocChange'
 import styles from './NoteStats.module.css'
 
 export const DOC_DEBOUNCE_MS = 400
@@ -26,7 +29,7 @@ export default function NoteStats({ editor }) {
     let docTimer = null
     let selTimer = null
     setStats(noteStats(editor.state.doc))
-    const onUpdate = () => {
+    const onDoc = () => {
       clearTimeout(docTimer)
       docTimer = setTimeout(() => {
         if (!editor.isDestroyed) setStats(noteStats(editor.state.doc))
@@ -38,12 +41,12 @@ export default function NoteStats({ editor }) {
         if (!editor.isDestroyed) setSelected(selectionWords(editor.state))
       }, SELECTION_DEBOUNCE_MS)
     }
-    editor.on('update', onUpdate)
+    const offDoc = onDocChange(editor, onDoc)
     editor.on('selectionUpdate', onSelection)
     return () => {
       clearTimeout(docTimer)
       clearTimeout(selTimer)
-      editor.off('update', onUpdate)
+      offDoc()
       editor.off('selectionUpdate', onSelection)
     }
   }, [editor])

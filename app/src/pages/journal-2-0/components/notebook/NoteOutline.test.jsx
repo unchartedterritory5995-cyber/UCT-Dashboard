@@ -10,6 +10,11 @@ import NoteOutline, { OUTLINE_DEBOUNCE_MS } from './NoteOutline'
 
 let touch = false
 vi.mock('../../../../hooks/useBreakpoint', async (orig) => ({ ...(await orig()), useIsTouch: () => touch }))
+// A pass-through spy, so a rail can count document walks (N3).
+vi.mock('../../lib/noteOutline', async (orig) => {
+  const real = await orig()
+  return { ...real, outlineOf: vi.fn(real.outlineOf) }
+})
 
 if (!Range.prototype.getClientRects) Range.prototype.getClientRects = () => []
 if (!Range.prototype.getBoundingClientRect) Range.prototype.getBoundingClientRect = () => ({ top: 0, left: 0, right: 0, bottom: 0, width: 0, height: 0 })
@@ -131,6 +136,70 @@ describe('<NoteOutline> (desktop panel)', () => {
     const fresh = outlineOf(ed.state.doc)[1]
     expect(ed.state.doc.nodeAt(fresh.pos).textContent).toBe('Catalysts')
     expect(ed.state.selection.from).toBe(fresh.pos + 1)
+  })
+})
+
+// Wave 5 fix round 1.
+describe('<NoteOutline> follows every change to the note, and every jump lands somewhere visible', () => {
+  it('S3: a content swap that emits no update (restore, sync, adoption) redraws the list', () => {
+    vi.useFakeTimers()
+    const ed = mount(DOC)
+    render(<NoteOutline editor={ed} onClose={() => {}} />)
+    act(() => {
+      ed.commands.setContent({ type: 'doc', content: [H(2, 'Restored thesis'), P('x'), H(3, 'Restored risks')] }, { emitUpdate: false })
+    })
+    act(() => { vi.advanceTimersByTime(OUTLINE_DEBOUNCE_MS) })
+    expect(items().map((b) => b.textContent)).toEqual(['H2Restored thesis', 'H3Restored risks'])
+    // ...and a click on the redrawn list lands (it was a dead click before).
+    fireEvent.click(items()[1])
+    expect(ed.state.selection.from).toBe(outlineOf(ed.state.doc)[1].pos + 1)
+  })
+
+  it('S4: a jump to a heading inside a CLOSED toggle opens the toggle, in the same transaction as the caret move', () => {
+    const toggle = {
+      type: 'toggle', attrs: { open: false },
+      content: [
+        { type: 'toggleSummary', content: [{ type: 'text', text: 'More detail' }] },
+        { type: 'toggleContent', content: [H(3, 'Hidden heading'), P('Hidden body.')] },
+      ],
+    }
+    const ed = mount([H(2, 'Top'), toggle])
+    const scroll = vi.fn()
+    Element.prototype.scrollIntoView = scroll
+    const txs = []
+    ed.on('transaction', ({ transaction }) => { if (transaction.docChanged || transaction.selectionSet) txs.push(transaction) })
+    render(<NoteOutline editor={ed} onClose={() => {}} />)
+    expect(items().map((b) => b.textContent)).toEqual(['H2Top', 'H3Hidden heading'])
+    fireEvent.click(items()[1])
+    let toggleNode = null
+    ed.state.doc.descendants((n) => { if (n.type.name === 'toggle') toggleNode = n })
+    expect(toggleNode.attrs.open).toBe(true)
+    expect(ed.view.dom.querySelector('details').open).toBe(true)
+    const target = outlineOf(ed.state.doc)[1]
+    expect(ed.state.doc.nodeAt(target.pos).textContent).toBe('Hidden heading')
+    expect(ed.state.selection.from).toBe(target.pos + 1)
+    expect(scroll).toHaveBeenCalled()
+    // One transaction opened the toggle AND moved the caret: undo restores both.
+    expect(txs).toHaveLength(1)
+  })
+
+  it('S4: a heading that is not inside a collapsed toggle changes nothing in the document', () => {
+    const ed = mount(DOC)
+    render(<NoteOutline editor={ed} onClose={() => {}} />)
+    const before = ed.state.doc
+    fireEvent.click(items()[2])
+    expect(ed.state.doc.eq(before)).toBe(true)
+  })
+
+  it('N3: a caret move reuses the drawn list -- it never walks the document', () => {
+    const ed = mount(DOC)
+    render(<NoteOutline editor={ed} onClose={() => {}} />)
+    const walksBefore = outlineOf.mock.calls.length
+    const positions = outlineOf.getMockImplementation()(ed.state.doc).map((h) => h.pos + 2)
+    for (const pos of positions) act(() => { ed.commands.setTextSelection(pos) })
+    expect(outlineOf.mock.calls.length).toBe(walksBefore)
+    // ...and the current location still follows the caret.
+    expect(items()[positions.length - 1].getAttribute('aria-current')).toBe('location')
   })
 })
 

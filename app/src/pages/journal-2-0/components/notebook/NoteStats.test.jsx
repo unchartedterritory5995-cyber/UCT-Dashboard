@@ -77,6 +77,15 @@ describe('<NoteStats>', () => {
     expect(screen.getByTestId('note-stats').textContent).toBe('5 words · 1 min read')
   })
 
+  it('S3: recounts after a content swap that emits no update (a restore, a sync, an adoption)', () => {
+    vi.useFakeTimers()
+    const ed = mount([P('one two three')])
+    render(<NoteStats editor={ed} />)
+    act(() => { ed.commands.setContent({ type: 'doc', content: [P('a b c d e f g h')] }, { emitUpdate: false }) })
+    act(() => { vi.advanceTimersByTime(DOC_DEBOUNCE_MS) })
+    expect(screen.getByTestId('note-stats').textContent).toBe('8 words · 1 min read')
+  })
+
   it('becomes the selection\'s share while text is selected, and returns when the caret collapses', () => {
     vi.useFakeTimers()
     const ed = mount([P('alpha beta gamma delta')])
@@ -100,6 +109,6 @@ describe('<NoteStats>', () => {
     const off = vi.spyOn(ed, 'off')
     const { unmount } = render(<NoteStats editor={ed} />)
     unmount()
-    expect(off.mock.calls.map((c) => c[0]).sort()).toEqual(['selectionUpdate', 'update'])
+    expect(off.mock.calls.map((c) => c[0]).sort()).toEqual(['selectionUpdate', 'transaction'])
   })
 })

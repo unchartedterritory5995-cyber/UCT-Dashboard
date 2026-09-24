@@ -10,15 +10,24 @@
  * Keyboard: ↑/↓ (and Home/End) move between entries, Enter or Space jumps,
  * Escape closes the panel and returns focus to the toolbar button.
  *
- * ⛔ Off the keystroke path: the list is re-read 200 ms after an edit, and a
- * click re-reads it on the spot, so a jump never lands on a position the
- * member has typed past since the list was drawn.
+ * ⛔ Off the keystroke path: the list is re-read 200 ms after ANY document
+ * change (lib/onDocChange.js — a restored or synced note swaps its content
+ * without an `update`), a caret move reuses that list, and a click re-reads it
+ * on the spot, so a jump never lands on a position the member has typed past
+ * since the list was drawn.
+ *
+ * ⛔ A heading inside a CLOSED toggle is listed (it is a heading), so a jump to
+ * it opens every collapsed toggle around it in the same transaction as the
+ * caret move — otherwise the click looks dead and the next keystrokes land in
+ * text nobody can see.
  */
 import { useEffect, useRef, useState } from 'react'
 import Sheet from '../../../../components/mobile/Sheet'
 import { useIsTouch } from '../../../../hooks/useBreakpoint'
 import UIcon from '../../../../components/ui/UIcon'
 import { currentHeadingIndex, outlineBaseLevel, outlineOf } from '../../lib/noteOutline'
+import { onDocChange } from '../../lib/onDocChange'
+import { Toggle } from '../../lib/toggleNode'
 import styles from './NoteOutline.module.css'
 
 export const OUTLINE_DEBOUNCE_MS = 200
@@ -31,6 +40,9 @@ export default function NoteOutline({ editor, onClose, toggleRef }) {
   const [outline, setOutline] = useState(() => outlineOf(editor?.state.doc))
   const [current, setCurrent] = useState(() => (editor ? currentHeadingIndex(outlineOf(editor.state.doc), editor.state.selection.from) : -1))
   const listRef = useRef(null)
+  // The list the panel last drew: a caret move reads it rather than walking
+  // the document again (N3 — the walk belongs to the debounced read).
+  const outlineRef = useRef(outline)
 
   useEffect(() => {
     if (!editor) return undefined
@@ -38,19 +50,20 @@ export default function NoteOutline({ editor, onClose, toggleRef }) {
     const read = () => {
       if (editor.isDestroyed) return
       const next = outlineOf(editor.state.doc)
+      outlineRef.current = next
       setOutline(next)
       setCurrent(currentHeadingIndex(next, editor.state.selection.from))
     }
-    const onUpdate = () => { clearTimeout(timer); timer = setTimeout(read, OUTLINE_DEBOUNCE_MS) }
+    const onDoc = () => { clearTimeout(timer); timer = setTimeout(read, OUTLINE_DEBOUNCE_MS) }
     const onSelection = () => {
       if (editor.isDestroyed) return
-      setCurrent(currentHeadingIndex(outlineOf(editor.state.doc), editor.state.selection.from))
+      setCurrent(currentHeadingIndex(outlineRef.current, editor.state.selection.from))
     }
-    editor.on('update', onUpdate)
+    const offDoc = onDocChange(editor, onDoc)
     editor.on('selectionUpdate', onSelection)
     return () => {
       clearTimeout(timer)
-      editor.off('update', onUpdate)
+      offDoc()
       editor.off('selectionUpdate', onSelection)
     }
   }, [editor])
@@ -68,8 +81,20 @@ export default function NoteOutline({ editor, onClose, toggleRef }) {
     const target = (fresh[index] && drawn && fresh[index].text === drawn.text)
       ? fresh[index]
       : fresh.find((h) => drawn && h.text === drawn.text && h.level === drawn.level)
-    if (!target) { setOutline(fresh); return }
-    editor.chain().focus().setTextSelection(target.pos + 1).run()
+    if (!target) { outlineRef.current = fresh; setOutline(fresh); return }
+    editor.chain().focus()
+      .command(({ tr }) => {
+        // Open every collapsed toggle around the heading (S4). Attribute
+        // steps move no positions, so target.pos stays valid.
+        const $pos = tr.doc.resolve(target.pos)
+        for (let d = $pos.depth; d > 0; d -= 1) {
+          const node = $pos.node(d)
+          if (node.type.name === Toggle.name && !node.attrs.open) tr.setNodeAttribute($pos.before(d), 'open', true)
+        }
+        return true
+      })
+      .setTextSelection(target.pos + 1)
+      .run()
     const dom = editor.view.nodeDOM(target.pos)
     dom?.scrollIntoView?.({ block: 'start', behavior: 'smooth' })
     if (isTouch) close(false)
