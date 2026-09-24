@@ -22,7 +22,7 @@ divs = json.load(open(IN + "/dividends_ledger.json"))
 LAST = divs["ex_date_lte"]
 cur_census = collections.Counter((d.get("currency") or "USD").upper() for d in divs["dividends"])
 type_census = collections.Counter(d.get("dividend_type") or "?" for d in divs["dividends"])
-mine_app, mine_wh = oracle3.build_dividends()
+mine_app, mine_wh = oracle3.build_dividends(json.load(open(IN + "/pit_reference.json")))
 grp = {(d.get("ticker"), d.get("ex_dividend_date")) for d in divs["dividends"] if d.get("ex_dividend_date")}
 theirs = json.load(open(IN + "/dividend_basis_table.json"))
 same_app = {t: [(s, round(r, 12)) for s, r in v] for t, v in mine_app.items()} == \
@@ -36,6 +36,7 @@ R = {"records": divs["n"], "currency_census": dict(cur_census), "type_census": d
      "identical_to_correction_applied": same_app, "identical_to_correction_withheld": same_wh,
      "applied_ticker_symdiff": diff_app, "withheld_ticker_diff": diff_wh, "correction_version": theirs["version"],
      "first_ex": min(k[1] for k in grp), "tickers": len({k[0] for k in grp})}
+R["interlisted_applied"] = {t: len(mine_app.get(t, [])) for t in ("BMO", "TD", "RY", "BNS", "CM", "ENB", "CNQ", "CP", "CNI", "SU", "BCE", "FTS", "CCJ", "DB", "AZN", "ALC")}
 R["dual_class_applied"] = {t: len(mine_app.get(t, [])) for t in ("BF.B", "BF.A", "HEI.A", "MOG.A", "MOG.B", "LEN.B", "GEF.B", "CWEN.A", "UHAL.B", "STZ.B", "KELY.A", "WSO.B", "GOOG", "GOOGL")}
 # ── Yahoo ──
 import yfinance as yf

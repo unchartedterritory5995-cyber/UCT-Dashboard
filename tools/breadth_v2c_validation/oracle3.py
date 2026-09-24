@@ -22,8 +22,26 @@ oracle2._F.clear()
 CAL = oracle2.CAL
 
 
-def build_dividends():
+def _usd_rate(fxr, cur, iso):
+    # own implementation: ECB publishes CUR per EUR; USD per CUR = (USD/EUR)/(CUR/EUR), latest
+    # ECB day <= iso, both observations no older than 5 calendar days
+    import datetime
+    floor = (datetime.date.fromisoformat(iso) - datetime.timedelta(days=5)).isoformat()
+
+    def at(c):
+        obs = fxr.get(c) or {}
+        ok = [d for d in obs if floor <= d <= iso]
+        return obs[max(ok)] if ok else None
+    u = at("USD")
+    c = 1.0 if cur == "EUR" else at(cur)
+    return (u / c) if (u and c) else None
+
+
+def build_dividends(ref=None):
     led = json.load(open(oracle2.IN + "/dividends_ledger.json"))
+    fxr = json.load(open(oracle2.IN + "/fx_ledger.json"))["rates"]
+    from api.services import breadth_pit_frame as bpf
+    kind = lambda t, iso: (bpf.resolve((ref or {}).get(t), iso) or {}).get("type")
     last = led["ex_date_lte"]
     grp = collections.defaultdict(list)
     app, wh = collections.defaultdict(list), collections.defaultdict(list)
@@ -67,7 +85,11 @@ def build_dividends():
         if j >= len(CAL):
             continue
         s = CAL[j]
-        if {(r.get("currency") or "").upper() for _o, r in recs} != {"USD"}:
+        curs = {(r.get("currency") or "").upper() for _o, r in recs}
+        if len(curs) != 1 or "" in curs:
+            wh[t].append(s); continue
+        cu = curs.pop()
+        if cu != "USD" and kind(t, s) != "CS":            # foreign cash on an ADR / other: unprovable
             wh[t].append(s); continue
         seen = collections.Counter()
         bt = collections.defaultdict(set)
@@ -89,6 +111,11 @@ def build_dividends():
         cash = sum(x for v in bt.values() for x in v)    # distinct distributions add
         pk = next((k for k in range(j - 1, max(-1, j - 6), -1) if oracle2.gfile(CAL[k], False).get(t)), None)
         prev = oracle2.gfile(CAL[pk], False).get(t) if pk is not None else None
+        if prev and cu != "USD":
+            fxv = _usd_rate(fxr, cu, CAL[pk])
+            if fxv is None:
+                wh[t].append(s); continue
+            cash = cash * fxv
         if not prev or 1 - cash / prev <= 0.5:
             wh[t].append(s); continue
         ratio = 1 - cash / prev
@@ -108,8 +135,9 @@ class Oracle3(oracle2.Oracle2):
     def __init__(self, dividends=True):
         super().__init__()
         self.pit = json.load(open(oracle2.IN + "/pit_uct_ledger.json"))
+        self.ref = json.load(open(oracle2.IN + "/pit_reference.json"))   # the vintage's own reference
         self.div = dividends
-        self.dapp, self.dwh = build_dividends() if dividends else ({}, {})
+        self.dapp, self.dwh = build_dividends(self.ref) if dividends else ({}, {})
 
     def withheld(self, t, f0, d):
         if super().withheld(t, f0, d):
