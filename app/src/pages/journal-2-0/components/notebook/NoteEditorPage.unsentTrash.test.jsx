@@ -156,6 +156,49 @@ describe('Delete with unsent words (the 404 path)', () => {
     expect(dialog.textContent).toContain('could not check')
   })
 
+  // ⛔ M9 (wave 6 fix round 1): the store is not the only witness. A keystroke
+  // inside the durable writer's debounce is in the EDITOR and nowhere else yet,
+  // so a store that answers "clean" at that instant proves nothing. ⚰️ Every
+  // rail above scripts the store's verdict; none typed through the editor, so a
+  // gate that ignored not-yet-durable words passed them all.
+  it('words TYPED a moment ago (still inside the debounce, not in the store) stop the trash too', async () => {
+    verdicts.mockResolvedValue(CLEAN)            // the store has not seen them yet
+    const editor = await renderEditor()
+    act(() => { editor.commands.insertContentAt(editor.state.doc.content.size - 1, ' and a thought') })
+    await confirmDelete()
+    const dialog = await screen.findByRole('dialog', { name: /words the server doesn.t have yet/ })
+    expect(dialog.textContent).toContain('Not on the server yet: the note’s text.')
+    expect(server.log, 'the note was trashed with the member\'s words still in the editor').not.toContain('DELETE')
+    fireEvent.click(screen.getByRole('button', { name: 'Send first' }))
+    await waitFor(() => expect(server.log).toContain('DELETE'))
+    expect(server.log.slice(0, server.log.indexOf('DELETE'))).toContain('PUT 200')
+    expect(server.body).toContain('and a thought')
+  })
+
+  // ⛔ M15: a Trash the server refused says so; it never just closes and does nothing.
+  it('a Delete the server refuses says it could not trash the note, and leaves the member where they were', async () => {
+    verdicts.mockResolvedValue(CLEAN)
+    global.fetch = vi.fn(async (url, opts = {}) => (String(url) === '/api/j2/notes/n1' && opts.method === 'DELETE'
+      ? { ok: false, status: 500, json: async () => ({ detail: 'database is locked' }) }
+      : { ok: true, json: async () => ({}) }))
+    await renderEditor()
+    await confirmDelete()
+    expect(await screen.findByText('Couldn’t move this note to the Trash — try again.')).toBeTruthy()
+    expect(document.body.textContent).not.toContain('database is locked')
+    expect(onBack).not.toHaveBeenCalled()
+  })
+
+  it('…and so does a Trash anyway that the network drops', async () => {
+    verdicts.mockResolvedValue(QUEUED)
+    const editor = await renderEditor()
+    typeUnsentWords(editor)
+    await confirmDelete()
+    global.fetch = vi.fn(async () => { throw new TypeError('Failed to fetch') })
+    fireEvent.click(await screen.findByRole('button', { name: 'Trash anyway' }))
+    expect(await screen.findByText('Couldn’t move this note to the Trash — try again.')).toBeTruthy()
+    expect(onBack).not.toHaveBeenCalled()
+  })
+
   it('CONTROL: a note with nothing unsent trashes at once, no second question', async () => {
     verdicts.mockResolvedValue(CLEAN)
     await renderEditor()

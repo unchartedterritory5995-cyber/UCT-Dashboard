@@ -2585,16 +2585,24 @@ export default function NoteEditorPage({ noteId, onBack, showBack = true, onTitl
   const [confirmingDelete, setConfirmingDelete] = useState(false)
   const onDeleteRequest = () => setConfirmingDelete(true)
   const trashNow = async () => {
-    const res = await fetch(`/api/j2/notes/${noteId}`, {
-      method: 'DELETE', credentials: 'include',
-    })
-    if (res.ok) {
+    let res = null
+    try {
+      res = await fetch(`/api/j2/notes/${noteId}`, {
+        method: 'DELETE', credentials: 'include',
+      })
+    } catch { res = null }
+    if (res?.ok) {
       // This note's target status just flipped active -> trashed -- same
       // "a noteLink chip elsewhere in this tab is now stale" class as a
       // rename (Wave D closure pass finding), so the same cache-bust applies.
       invalidateNoteLinkTarget(noteId)
       onBack()
+      return
     }
+    // ⛔ M15 (wave 6 fix round 1): a refused or dropped Delete says so -- a fixed
+    // sentence, never the server's words. It used to do nothing at all, so
+    // "Trash anyway" closed its dialog and the note simply stayed.
+    setChromeMsg('Couldn’t move this note to the Trash — try again.')
   }
 
   // ⛔ Wave 6 item 11 — A NOTE STILL HOLDING UNSENT WORDS IS NOT TRASHED UNASKED.
@@ -2614,7 +2622,17 @@ export default function NoteEditorPage({ noteId, onBack, showBack = true, onTitl
       if (opened) opened.then((db) => db?.close?.()).catch(() => {})
     }
   }
-  const describeUnsent = (verdict) => {
+  /**
+   * What the EDITOR holds that the server's last copy does not -- the one
+   * answer both the Delete gate and its dialog ask.
+   *
+   * ⛔ M9 (wave 6 fix round 1): the durable store is not the only witness. Its
+   * write is debounced (~200 ms), so a word typed a moment ago is in the editor
+   * and nowhere else; a store that answers "clean" at that instant proves
+   * nothing, the note was trashed, and the unmount autosave then PUT to a
+   * trashed note and got a 404. Unknown (a base with no body) is not "ahead".
+   */
+  const unsentInEditor = () => {
     const cur = captureLocalState()
     const last = lastSavedRef.current
     const parts = []
@@ -2623,14 +2641,22 @@ export default function NoteEditorPage({ noteId, onBack, showBack = true, onTitl
       if ((cur.subtitle || '') !== (last.subtitle || '')) parts.push('the subtitle')
       if (JSON.stringify(cur.bodyJson) !== JSON.stringify(last.bodyJson)) parts.push('the note’s text')
     }
+    return parts
+  }
+  const holdsUnsent = (verdict) => holdsUnsentWork(verdict) || unsentInEditor().length > 0
+  const describeUnsent = (verdict) => {
+    const parts = unsentInEditor()
     if (parts.length) return `Not on the server yet: ${parts.join(', ')}.`
     if (verdict?.why === 'unreadable') return 'This device could not check whether every edit to this note reached the server.'
     if (verdict?.why === 'queued') return 'Edits made to this note earlier on this device are still waiting to send.'
     return 'Edits to this note are still waiting to send.'
   }
   const onDeleteConfirm = async () => {
+    // Write what is typed to the durable copy NOW (it no longer waits out the
+    // debounce), so a "Trash anyway" can never outrun it.
+    durableRef.current.flush()
     const verdict = await unsentVerdict()
-    if (holdsUnsentWork(verdict)) {
+    if (holdsUnsent(verdict)) {
       setUnsentTrash({ what: describeUnsent(verdict), sending: false, still: false })
       return
     }
@@ -2644,10 +2670,10 @@ export default function NoteEditorPage({ noteId, onBack, showBack = true, onTitl
     let verdict = null
     for (let i = 0; i < 5; i += 1) {
       verdict = await unsentVerdict()
-      if (!holdsUnsentWork(verdict)) break
+      if (!holdsUnsent(verdict)) break
       await new Promise((r) => setTimeout(r, 200))
     }
-    if (holdsUnsentWork(verdict)) {
+    if (holdsUnsent(verdict)) {
       setUnsentTrash({ what: describeUnsent(verdict), sending: false, still: true })
       return
     }
