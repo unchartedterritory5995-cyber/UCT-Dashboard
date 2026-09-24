@@ -232,7 +232,6 @@ export default function FilterRail({ meta, activeFilters, onChange, onClear, var
                 ) : (
                   <FilterControl filter={f}
                     value={activeFilters[f.key] || null}
-                    basis={meta.distribution_basis || null}
                     onChange={v => onChange(f.key, v)} />
                 )}
               </div>
