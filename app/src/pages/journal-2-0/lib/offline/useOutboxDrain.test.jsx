@@ -14,6 +14,8 @@ import { putNoteWithIntent, listOutbox, getNote } from './notebookDb'
 import { useOutboxDrain } from './useOutboxDrain'
 import { LEADER, FOLLOWER, READ_ONLY_FOR_SYNC } from './outboxLeader'
 import { OFFLINE_FLAG_KEY } from './offlineFlag'
+import { createLockManager } from './__fixtures__/fakeWebLocks'
+import { holdNoteOwnerLock } from './noteOwnerLock'
 
 const doc = (t) => ({ type: 'doc', content: [{ type: 'paragraph', content: [{ type: 'text', text: t }] }] })
 
@@ -216,5 +218,39 @@ describe('⛔⛔ §21b — the SHIPPED default, which is a DIFFERENT branch from
     await act(async () => { out = await result.current.drainNow() })
     expect(out).toBeNull()
     expect(send).not.toHaveBeenCalled()
+  })
+})
+
+/**
+ * ⭐⭐ D3b (wave 6) — THE LEADER'S SWEEP ASKS THE OWNER LOCK. `drainOutbox`'s own
+ * rails prove the skip given an answer (`noteOwnerLock.test.js`); this proves
+ * the HOOK asks the question, from this tab's `navigator.locks`, about notes open
+ * in OTHER tabs — which `excludeNoteId` (this tab's own open note) cannot see.
+ */
+describe('⭐⭐ D3b — the leading tab leaves a note open in ANOTHER tab to that tab', () => {
+  it('⛔ the note another tab has open is not sent; once it closes, the next sweep sends it', async () => {
+    const mgr = createLockManager()
+    Object.defineProperty(globalThis.navigator, 'locks', { configurable: true, value: mgr.client('tab-B') })
+    const releaseA = holdNoteOwnerLock('acct1', 'n1', { locks: mgr.client('tab-A'), target: null })
+    const send = vi.fn(async () => ({ updatedAt: 'T2' }))
+    const { result } = mount({ send })                      // tab B: leads, has nothing open
+    await waitFor(() => expect(result.current.role).toBe(LEADER))
+    await act(async () => { await settleIdb(6) })
+    expect(send, 'tab B sent the note tab A is editing').not.toHaveBeenCalled()
+    expect(result.current.lastSummary?.skipped).toBe(1)
+    releaseA()
+    await act(async () => { await settleIdb(4); await result.current.drainNow(); await settleIdb(4) })
+    expect(send).toHaveBeenCalledTimes(1)
+    expect(send.mock.calls[0][0].noteId).toBe('n1')
+  })
+
+  it('⭐ CONTROL — the same setup with nobody holding the note sends it on the first sweep', async () => {
+    const mgr = createLockManager()
+    Object.defineProperty(globalThis.navigator, 'locks', { configurable: true, value: mgr.client('tab-B') })
+    const send = vi.fn(async () => ({ updatedAt: 'T2' }))
+    const { result } = mount({ send })
+    await waitFor(() => expect(result.current.role).toBe(LEADER))
+    await act(async () => { await settleIdb(6) })
+    expect(send).toHaveBeenCalledTimes(1)
   })
 })

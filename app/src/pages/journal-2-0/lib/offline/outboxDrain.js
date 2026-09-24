@@ -15,7 +15,9 @@
  * RETRYING, but the entry and its patch stay: unsynced member work outranks a
  * tidy queue.
  */
-import { clearOutboxEntry, getMeta, getNote, listOutbox, putNoteWithIntent } from './notebookDb'
+import {
+  clearOutboxEntry, getMeta, getNote, listOutbox, putNoteWithIntent, putNoteWithIntentIf,
+} from './notebookDb'
 import { usableBaseline, isUsableBaseline, landedBaseline, isSupersededBaseline } from './baseline'
 import { isMarkerLive, markerKeyFor, landedKeyFor, IN_FLIGHT_TTL_MS } from './inFlight'
 import { sameAuthoredContent } from './recoverLocalState'
@@ -92,7 +94,7 @@ async function settleForked(db, entry, serverNote) {
  * entry the sibling already preserved, and the sweep forked it AGAIN once the
  * note closed — two `(conflicted copy)` notes for one conflict.
  */
-export async function settleForkedNote(db, noteId, serverNote) {
+export async function settleForkedNote(db, noteId, serverNote, { forked } = {}) {
   // ⛔⛔ A FORK MUST NEVER EMPTY THE WORKING COPY.
   //
   // ⚰️ Every field below falls back to `''` or `null`, so a `fork` that
@@ -107,12 +109,20 @@ export async function settleForkedNote(db, noteId, serverNote) {
   // nobody now — but the content stays exactly as it was. An honest stale body
   // beats an empty one; the next open re-reads the server anyway.
   const usable = serverNote && (serverNote.bodyJson != null || serverNote.title != null)
+  if (forked !== undefined) return settleForkedIfUnmoved(db, noteId, serverNote, usable, forked)
   if (!usable) {
     const rec = await getNote(db, noteId)
-    if (rec) await putNoteWithIntent(db, { ...rec, dirty: 0, serverBase: null }, null)
+    if (rec) await putNoteWithIntent(db, forkSettledRecord(noteId, serverNote, usable, rec), null)
     return
   }
-  await putNoteWithIntent(db, {
+  await putNoteWithIntent(db, forkSettledRecord(noteId, serverNote, usable, null), null)
+}
+
+/** What a settled fork leaves in the durable record — ONE composition, used by
+ *  the sweep's settle and the owner's. Null when there is nothing to write. */
+function forkSettledRecord(noteId, serverNote, usable, rec) {
+  if (!usable) return rec ? { ...rec, dirty: 0, serverBase: null } : null
+  return {
     noteId,
     title: serverNote?.title ?? '',
     subtitle: serverNote?.subtitle ?? '',
@@ -125,7 +135,32 @@ export async function settleForkedNote(db, noteId, serverNote) {
     // ⛔ Clean ⇒ the record IS the base. Carrying a stale snapshot past a fork
     // would let the next conflict classify against a document nobody holds.
     serverBase: null,
-  }, null)
+  }
+}
+
+/**
+ * ⭐⭐ D3b (wave 6) — THE OWNER'S FORK SETTLE, CHECKED AND WRITTEN IN ONE
+ * TRANSACTION. Amendment D3b in `f5Freeze.test.js`; `f5-fixes-2026-09-23.md` §F.
+ *
+ * `forked` is exactly what the `(conflicted copy)` sibling holds. The settle is
+ * only safe while the record, and every queued entry for the note, still hold
+ * exactly that — anything else is a word the sibling does not have. Wave 5
+ * checked it in `settleOwnerFork` and then called the settle above: two reads
+ * and a write, three transactions, and a durable write landing after the last
+ * read was overwritten and its entry deleted. `putNoteWithIntentIf` makes the
+ * check and the write one readwrite transaction, so there is no "after the
+ * check" for a write to land in.
+ *
+ * ⛔ The sweep never passes `forked` and keeps the path above, unchanged.
+ * @returns true when settled · false when refused (the store moved on)
+ */
+function settleForkedIfUnmoved(db, noteId, serverNote, usable, forked) {
+  if (!forked) return Promise.resolve(false)
+  return putNoteWithIntentIf(db, noteId, (rec, queued) => {
+    if (rec && !sameAuthoredContent(rec, forked)) return null
+    if (queued.some((e) => !sameAuthoredContent(e?.patch, forked))) return null
+    return { record: forkSettledRecord(noteId, serverNote, usable, rec), intent: null }
+  })
 }
 
 async function settleBlocked(db, entry, error) {
@@ -263,6 +298,20 @@ async function mergeAppends(db, entry, appended, baseUpdatedAt, serverBase) {
   return next
 }
 
+/** D3b — the owner-lock answer, where "unknown" is never "owned": no predicate,
+ *  a null, or a throw all leave the decision to `excludeNoteId`, as before. */
+async function ownedByAnEditor(noteIsOwned, noteId) {
+  if (typeof noteIsOwned !== 'function') return false
+  try { return (await noteIsOwned(noteId)) === true } catch { return false }
+}
+
+const ownedSkip = (entry) => ({
+  mutationId: entry.mutationId,
+  noteId: entry.noteId,
+  outcome: SKIPPED,
+  reason: 'the note is open in an editor (its owner lock is held) — the owner sends it',
+})
+
 async function askServerIfOurs(db, entry, serverCopyIsOurs) {
   if (!serverCopyIsOurs) return null
   const landedRevisions = new Set(await getMeta(db, landedKeyFor(entry.noteId)) || [])
@@ -288,6 +337,12 @@ export async function drainOutbox(db, {
   // copy that caused a 409 is this browser's own landed save. Absent ⇒ the
   // check is skipped and a 409 forks, which is the pre-existing behaviour.
   serverCopyIsOurs = null,
+  // ⭐ D3b (wave 6) — async (noteId) => true | false | null: is this note OPEN
+  // IN AN EDITOR in any tab (its per-note owner Web Lock is held)? The owner
+  // sends its own queued work (F5P-1), so a sweep that sent it too would be the
+  // second writer. Absent, or a null / throw ⇒ unknown ⇒ `excludeNoteId` alone
+  // decides, exactly as before. Amendment D3b in `f5Freeze.test.js`.
+  noteIsOwned = null,
 } = {}) {
   const entries = await listOutbox(db)
   const results = []
@@ -301,6 +356,17 @@ export async function drainOutbox(db, {
     let appendMerged = false
     if (excludeNoteId && entry.noteId === excludeNoteId) {
       results.push({ mutationId: entry.mutationId, noteId: entry.noteId, outcome: SKIPPED })
+      continue
+    }
+    // ⛔⛔ D3b — `excludeNoteId` IS PER MOUNT, AND THE LEADER MAY BE ANOTHER TAB.
+    // A note open in tab A while tab B leads was sent by B's sweep while A's
+    // editor was still its writer: the owner's own send then 409'd against its
+    // own words and forked the member's note. The owner lock is per NOTE, so
+    // whichever tab leads can see it. SKIPPED, not blocked — nothing is wrong
+    // with the entry; it is the owner's to send, and the sweep's once it closes.
+    // eslint-disable-next-line no-await-in-loop
+    if (await ownedByAnEditor(noteIsOwned, entry.noteId)) {
+      results.push(ownedSkip(entry))
       continue
     }
     if (entry.permanent) {
@@ -519,6 +585,15 @@ export async function drainOutbox(db, {
         outcome: SUPERSEDED,
         reason: `a save this browser landed at ${landed} is newer than this entry's baseline ${entry.baseUpdatedAt}, and PROVABLY CONTAINS its content`,
       })
+      continue
+    }
+    // ⛔ D3b — ASKED AGAIN, AT THE LAST MOMENT BEFORE THE SEND. The checks above
+    // can include a network round trip (`askServerIfOurs`), and a note opened
+    // during it is the owner's now. Whatever the pre-send path rebased stays
+    // queued, as a rebased entry, for the owner to adopt.
+    // eslint-disable-next-line no-await-in-loop
+    if (await ownedByAnEditor(noteIsOwned, entry.noteId)) {
+      results.push(ownedSkip(entry))
       continue
     }
     try {

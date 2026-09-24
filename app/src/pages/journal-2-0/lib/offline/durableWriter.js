@@ -94,6 +94,9 @@ export function createDurableWriter({
   let generation = 0            // every scheduled snapshot gets the next one
   let committed = 0             // only ever increases
   let desired = null            // { state, generation } — the newest intent
+  // ⭐ D3b — snapshots a FLUSH promised to write, oldest first. A later
+  // `schedule` never replaces one of these; see `flush`.
+  const pinned = []
   let inFlight = null           // { generation }
   let timer = null
   let status = IDLE
@@ -105,9 +108,14 @@ export function createDurableWriter({
   }
 
   const startWrite = async () => {
-    if (destroyed || inFlight || !desired) return
-    const job = desired
-    desired = null
+    if (inFlight) return
+    // ⛔ A destroyed writer starts no NEW work — but a snapshot a flush already
+    // promised (the unmount flush, the fork fallback) is still written.
+    if (destroyed && !pinned.length) return
+    if (!pinned.length && !desired) return
+    const fromPin = pinned.length > 0
+    const job = fromPin ? pinned.shift() : desired
+    if (!fromPin) desired = null
     inFlight = { generation: job.generation }
     setStatus(WRITING)
     try {
@@ -118,9 +126,10 @@ export function createDurableWriter({
       // mark newer work durable — so this is a max(), not an assignment.
       committed = Math.max(committed, job.generation)
       inFlight = null
-      if (desired) {
+      if (pinned.length || desired) {
         // Edits arrived while we were writing: ONE follow-up for the newest
-        // state, not a replay of every intermediate snapshot.
+        // state, not a replay of every intermediate snapshot — after any
+        // snapshot a flush pinned, which is written first, in order.
         startWrite()
       } else {
         setStatus(DURABLE)
@@ -130,7 +139,8 @@ export function createDurableWriter({
       // ⛔ The snapshot is NOT dropped — it stays desired so a later schedule
       // or flush can retry it. Losing the intent because the write failed is
       // the failure mode this whole layer exists to prevent.
-      if (!desired || desired.generation < job.generation) desired = job
+      if (fromPin) pinned.unshift(job)
+      else if (!desired || desired.generation < job.generation) desired = job
       setStatus(FAILED, { error: e })
     }
   }
@@ -148,15 +158,38 @@ export function createDurableWriter({
     },
 
     /** Write now — used by an explicit save, or as best-effort acceleration on
-     *  a lifecycle signal. ⛔ Never the only durability mechanism. */
+     *  a lifecycle signal. ⛔ Never the only durability mechanism.
+     *
+     * ⭐⭐ D3b (wave 6) — A FLUSH WRITES THE LATEST SNAPSHOT *AS OF THE FLUSH*,
+     * EVEN WHEN A WRITE IS ALREADY IN FLIGHT.
+     *
+     * ⚰️ With a write in flight, `startWrite` returned early and the flushed
+     * snapshot simply stayed `desired` — so the next `schedule` REPLACED it
+     * before it was ever written. That is the residual the owner's refused-fork
+     * fallback carried (`wave5-A-review.md`, re-review 2 (a); `f5-fixes` §D.4,
+     * §E.3): it flushes the member's words typed during the fork, swaps the view
+     * to the server copy, and the member's next keystroke on that copy — a
+     * `schedule` — superseded the words before they reached the store. The
+     * fix-6 guard then kept the OLDER record against the new view, and the
+     * words were in no layer.
+     * ⭐ So with a write in flight the snapshot is PINNED: written right after
+     * that write, before anything scheduled later, which still follows it as
+     * the one coalesced newest state. Never an older one, never dropped.
+     */
     flush() {
       if (timer) { clearTimer(timer); timer = null }
+      if (inFlight && desired) {
+        pinned.push(desired)
+        desired = null
+        return undefined
+      }
       return startWrite()
     },
 
     /** True once the newest scheduled state is actually on disk. */
     isDurable() {
-      return !destroyed && desired === null && inFlight === null && committed === generation
+      return !destroyed && desired === null && pinned.length === 0 && inFlight === null
+        && committed === generation
     },
 
     status: () => status,

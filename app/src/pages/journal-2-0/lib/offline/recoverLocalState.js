@@ -315,8 +315,36 @@ export function queuedWorkToAdopt({ decision, record = null, entry = null } = {}
   // ⛔ The base must also not be NEWER than the entry's revision (review N4). That
   // check lives in `baseOfRecovered`, ONE place, so Restore asks it too — see there.
   const base = baseOfRecovered({ decision, record, entry })
-  if (!base) return null
+  // ⛔ D3b: a base whose BODY is unknown (the fork-safe fallback) is for a
+  // Restore the member chose, never for sending by ourselves: against it every
+  // move of the server forks, and nobody asked for that fork. Offered instead.
+  if (!base || base.bodyUnknown) return null
   return { state: authored(record), base }
+}
+
+/**
+ * ⭐ D3b — a base known only by its REVISION. Restoring on it sends the words on
+ * that revision, so a server that moved 409s; and the editor's reconcile then
+ * classifies the server's copy against a base with no body, which can only read
+ * BODY_REWRITE ("missing evidence is never a licence to merge",
+ * `classifyServerChange`) — so it FORKS. Never a merge it cannot prove, never an
+ * overwrite. The null body is what makes a Restore on it safe; `bodyUnknown` is
+ * what lets `queuedWorkToAdopt` refuse to send on it by itself.
+ */
+function revisionOnlyBase(at) {
+  return at ? { title: '', subtitle: '', bodyJson: null, updatedAt: at, bodyUnknown: true } : null
+}
+
+/** The OLDEST revision among the candidates, or null. Older is the safe
+ *  direction here: a send on an older revision can only 409 more often.
+ *  ⛔ Ordered PARSED; a lone usable candidate that does not parse is still the
+ *  only revision known (it is what a direct PUT would have sent), but two that
+ *  cannot be ordered are not guessed between. */
+function oldestRevision(...candidates) {
+  const usable = [...new Set(candidates.map((c) => usableBaseline(c)).filter(Boolean))]
+  const parsed = usable.filter((at) => Number.isFinite(Date.parse(at)))
+  if (!parsed.length) return usable.length === 1 ? usable[0] : null
+  return parsed.reduce((oldest, at) => (isSupersededBaseline(at, oldest) ? at : oldest))
 }
 
 /**
@@ -351,34 +379,63 @@ export function queuedWorkToAdopt({ decision, record = null, entry = null } = {}
  * that learned the server's copy moves the entry and the base together, and a
  * later unsent-work settle then re-derives the entry's baseline from the
  * record's older one. That shape cannot be told apart from the poisoned one by
- * direction, so it is refused too, and Restore's no-known-base path can then be
- * overwritten by a later keystroke — the crash-draft class left open by ruling
- * (`docs/notebook/f5-fixes-2026-09-23.md` §C.5; wave 6 lane D3b).
+ * direction, so its body is refused too.
+ * ⭐⭐ D3b (wave 6) — REFUSING THE BODY IS NOT REFUSING THE REVISION. Until D3b a
+ * refused base was null, Restore took its path for a copy with no known base (a
+ * direct PUT that 409s into an error, leaving the editor on the server's current
+ * revision), and the member's next keystroke overwrote the other device — the
+ * crash-draft class (`f5-fixes-2026-09-23.md` §C.5, §E.1). Now, when the body
+ * cannot be used but the revision the words were written on CAN be proved (the
+ * entry's, or the record's own — the OLDEST of them, which can only 409 more
+ * often), the answer is a REVISION-ONLY base (`revisionOnlyBase`): Restore sends
+ * on it, a moved server 409s, and the reconcile forks. Never a clobber.
+ * ⭐ D3b — AND A CRASH DRAFT THAT WON RECORDS ITS OWN BASE. The editor writes the
+ * revision it was typed on into the draft (`baseUpdatedAt`); a copy of the server
+ * at exactly that revision — the record's last-known copy, or the server's own
+ * when it has not moved — gives the full base, otherwise it is revision-only. ⛔ A
+ * draft written before D3b has no recorded base, and nothing is guessed for it:
+ * null, and Restore keeps its old path.
  * ⛔ Compared PARSED, through the same authority the drain uses
  * (`isSupersededBaseline`), never as strings. Only an equal revision or a base
- * PROVABLY older is used; newer, unparseable, or an entry with no baseline is
- * refused.
+ * PROVABLY older is used as a full base; newer, unparseable, or an entry with no
+ * baseline falls to the revision-only answer.
  * ⚠️ Without an entry there is nothing to compare against, and the record's own
  * base is returned as before.
  *
- * @param entry  that note's queued outbox entry, or null
- * @returns { title, subtitle, bodyJson, updatedAt } — the last-known server copy
- *          the winning durable record carries — or null when that cannot be
- *          proved: no record, a winner that is not the record's words (a crash
- *          draft ahead of it), a copy with no revision, or a revision that is not
- *          provably at or before the queued entry's. ⛔ Null means "not known",
- *          and the caller must not invent one from the server's current copy.
+ * @param entry   that note's queued outbox entry, or null
+ * @param draft   the crash draft as read from localStorage, or null (⛔ null
+ *                whenever the wave is off — `recover()` decides that)
+ * @param server  the server's current copy, or null — used ONLY when its
+ *                revision is exactly the draft's recorded one
+ * @returns { title, subtitle, bodyJson, updatedAt } — a server copy at the
+ *          revision the recovered words were written on; or, when only that
+ *          revision is provable, the same shape with a null body and
+ *          `bodyUnknown: true`; or null when not even that is provable (no local
+ *          winner, a record with no usable revision, a draft with no recorded
+ *          base). ⛔ Null means "not known", and the caller must not invent one
+ *          from the server's current copy.
  */
-export function baseOfRecovered({ decision, record = null, entry = null } = {}) {
-  if (!decision?.unsynced || !record?.dirty) return null
-  if (!sameAuthoredContent(decision.state, record)) return null
-  const base = lastKnownServerCopy(record)
-  const at = usableBaseline(base?.updatedAt)
-  if (!base || !at) return null
-  if (entry) {
-    const entryAt = usableBaseline(entry.baseUpdatedAt)
+export function baseOfRecovered({
+  decision, record = null, entry = null, draft = null, server = null,
+} = {}) {
+  if (!decision?.unsynced) return null
+  if (record?.dirty && sameAuthoredContent(decision.state, record)) {
+    const base = lastKnownServerCopy(record)
+    const at = usableBaseline(base?.updatedAt)
+    const entryAt = entry ? usableBaseline(entry.baseUpdatedAt) : null
     // "the base is older than the entry" is `isSupersededBaseline(base, entry)`.
-    if (at !== entryAt && !isSupersededBaseline(at, entryAt)) return null
+    if (base && at && (!entry || at === entryAt || isSupersededBaseline(at, entryAt))) {
+      return { ...authored(base), updatedAt: at }
+    }
+    return revisionOnlyBase(oldestRevision(entry?.baseUpdatedAt, record.baseUpdatedAt))
   }
-  return { ...authored(base), updatedAt: at }
+  if (draft && sameAuthoredContent(decision.state, draft)) {
+    const at = usableBaseline(draft.baseUpdatedAt)
+    if (!at) return null
+    for (const copy of [lastKnownServerCopy(record), server]) {
+      if (copy && usableBaseline(copy.updatedAt) === at) return { ...authored(copy), updatedAt: at }
+    }
+    return revisionOnlyBase(at)
+  }
+  return null
 }

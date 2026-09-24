@@ -68,6 +68,31 @@
  * HEAD. F5's table is still not all GREEN-or-NAMED, so `F5_OPEN` stays true: D3
  * lifted the freeze for two changes, it did not close F5.
  *
+ * ⚖️ AMENDED 2026-09-23 (wave 6) — DECISION D3b (the controller's ruling under the
+ * owner's delegation, `.superpowers/sdd/2026-09-23-notebook-10/wave6-D3b-brief.md`):
+ * the freeze is lifted for ONE more change, of D3's class and found by D3's own
+ * work — a note open in an editor in one tab must never be sent by ANOTHER tab's
+ * sweep (`wave5-A-report.md`, concern 2) — together with the residuals the wave-5
+ * review left scheduled for this lane. What moved in `outboxDrain.js`, and nothing
+ * else in it:
+ *   · `drainOutbox` takes `noteIsOwned` and SKIPS a note whose per-note owner Web
+ *     Lock (`uct-note-owner:<account>:<note>`, held by `useDurableNote` while the
+ *     note is open in an editor) is held or queued in any tab — asked at the top
+ *     of the loop and again right before the send. Unknown (no Web Locks, null, a
+ *     throw) ⇒ exactly the old behaviour: `excludeNoteId` alone decides.
+ *   · `settleForkedNote(…, { forked })`: the OWNER's fork settle checks that the
+ *     record and every queued entry still hold exactly what was forked, AND
+ *     writes, in ONE readwrite transaction (`putNoteWithIntentIf`). The sweep
+ *     never passes `forked` and keeps its path; the record both compose is one
+ *     function (`forkSettledRecord`). Pinned by the D3b case below.
+ * Outside the frozen files, same lane: crash drafts record the revision they were
+ * typed on and `baseOfRecovered` answers a REVISION-ONLY base wherever only the
+ * revision is provable, so Restore forks and never clobbers; the durable writer's
+ * `flush` pins the latest snapshot behind an in-flight write. All of it, with the
+ * rails and the mutation proofs: `docs/notebook/f5-fixes-2026-09-23.md` §F.
+ * ⛔ Still NOT moved by D3b: the append CALL SITES, `serverChange.js`,
+ * `settleNoteWrite.js`, and the drain's CLASSIFICATION. `F5_OPEN` stays true.
+ *
  * ⛔ THIS RAIL EXPIRES BY CONSTRUCTION. `F5_OPEN` flips to false the day every
  * cell of the seven-family × six-ordering table is GREEN or NAMED (see the
  * constant's own note — amended 2026-09-13, because "zero INCONCLUSIVE rows"
@@ -205,6 +230,20 @@ describe('⛔⛔ Q1-F5 FREEZE — the append doors do not move until they are pr
       expect(src, `${family} (${file}) must not settle with local state`)
         .not.toMatch(/settleLandedSave\s*\(/)
     }
+  })
+
+  it('⚖️ D3b — the SWEEP’s fork settle passes no `forked`; the one-transaction check is the OWNER’s alone', () => {
+    // D3b lifted the freeze for the owner's settle, not the sweep's. The sweep
+    // settling with a `forked` check would be a behaviour change the ruling did
+    // not make — so the one call site in the drain is pinned, and so is the
+    // owner's, which must pass exactly what its sibling holds.
+    const strip = (s) => s.replace(/\/\*[\s\S]*?\*\//g, ' ').replace(/\/\/[^\n]*/g, ' ')
+    const calls = (file) => [...strip(read(file)).matchAll(/(?<!function\s)settleForkedNote\(([^)]*)\)/g)]
+      .map((m) => m[1].replace(/\s+/g, ' ').trim())
+    expect(calls('app/src/pages/journal-2-0/lib/offline/outboxDrain.js'))
+      .toEqual(['db, entry.noteId, serverNote'])
+    expect(calls('app/src/pages/journal-2-0/lib/offline/useDurableNote.js'))
+      .toEqual(['db, noteId, serverNote, { forked }'])
   })
 
   it('⭐ the freeze declares WHEN it lifts, and it has not lifted', () => {

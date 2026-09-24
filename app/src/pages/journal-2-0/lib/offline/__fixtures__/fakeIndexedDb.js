@@ -23,10 +23,27 @@ const KEY_PATHS = { notes: 'noteId', outbox: 'mutationId', conflicts: 'conflictI
 /** index name → the record field it indexes (only what this wave declares). */
 const INDEXES = { outbox: { byNote: 'noteId' }, notes: { byDirty: 'dirty' } }
 
-export function createFakeDb({ failStore = null } = {}) {
+/**
+ * ⚠️ BY DEFAULT EVERY TRANSACTION SNAPSHOTS AT CREATION AND RUNS AT ONCE, AND A
+ * COMMIT REPLACES WHOLE STORES. Two readwrite transactions alive at the same
+ * time therefore LOSE one another's writes here, where IndexedDB would run the
+ * second only after the first committed. That is harmless for a rail that
+ * never overlaps two writers, and it is exactly wrong for one that does.
+ *
+ * ⭐ D3b (wave 6): `serialize: true` models the ordering IndexedDB guarantees —
+ * a readwrite transaction does not start until every readwrite transaction
+ * created before it has committed or aborted, a readonly one does not start
+ * until those have either, and a transaction takes its snapshot when it STARTS.
+ * (Simplified to one queue per database rather than per store scope, which can
+ * only serialise MORE than IndexedDB would, never less.) Opt-in, so every rail
+ * written against the default keeps exactly the timing it was written against.
+ */
+export function createFakeDb({ failStore = null, serialize = false } = {}) {
   installKeyRange()
   const data = {}
   STORE_NAMES.forEach((n) => { data[n] = new Map() })
+  // serialize: resolves once every readwrite transaction created so far is done
+  let readwriteTail = Promise.resolve()
 
   const db = {
     /** test-side view of what is actually committed */
@@ -41,20 +58,36 @@ export function createFakeDb({ failStore = null } = {}) {
     closed: false,
     transaction(names, mode = 'readonly') {
       const list = Array.isArray(names) ? names : [names]
-      const staged = new Map(list.map((n) => [n, new Map(data[n])]))
+      const snapshot = () => new Map(list.map((n) => [n, new Map(data[n])]))
+      let staged = serialize ? null : snapshot()
       const tx = { objectStore: null, oncomplete: null, onerror: null, onabort: null, error: null }
       let pending = 0
       let aborted = false
+      let finished = () => {}
+      // ⭐ serialize: start behind every earlier readwrite transaction, and take
+      // the snapshot THEN — see `createFakeDb`.
+      let started = null
+      if (serialize) {
+        started = readwriteTail.then(() => { staged = snapshot() })
+        if (mode === 'readwrite') {
+          const mine = new Promise((r) => { finished = r })
+          readwriteTail = readwriteTail.then(() => mine)
+        }
+      }
+      const later = serialize
+        ? (fn) => started.then(fn)
+        : (fn) => Promise.resolve().then(fn)
 
       const settle = () => {
         if (pending > 0) return
-        if (aborted) { tx.onabort?.(); return }
+        if (aborted) { tx.onabort?.(); finished(); return }
         if (mode === 'readwrite') list.forEach((n) => { data[n] = staged.get(n) })
         tx.oncomplete?.()
+        finished()
       }
       const queue = (fn) => {
         pending += 1
-        Promise.resolve().then(() => {
+        later(() => {
           try { fn() } catch (e) { aborted = true; tx.error = e }
           pending -= 1
           settle()
@@ -142,7 +175,7 @@ export async function settleIdb(rounds = 8) {
  * can mean anything: `uct_notebook_a` and `uct_notebook_b` are two stores here
  * exactly as they are in a browser, so a leak would show up as one.
  */
-export function createFakeIndexedDbFactory({ failStore = null } = {}) {
+export function createFakeIndexedDbFactory({ failStore = null, serialize = false } = {}) {
   installKeyRange()
   const databases = new Map()
   return {
@@ -152,7 +185,7 @@ export function createFakeIndexedDbFactory({ failStore = null } = {}) {
       setTimeout(() => {
         let db = databases.get(name)
         const fresh = !db
-        if (!db) { db = createFakeDb({ failStore }); db.name = name; databases.set(name, db) }
+        if (!db) { db = createFakeDb({ failStore, serialize }); db.name = name; databases.set(name, db) }
         req.result = db
         if (fresh) req.onupgradeneeded?.()
         req.onsuccess?.()

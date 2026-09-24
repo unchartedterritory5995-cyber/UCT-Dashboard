@@ -25,6 +25,7 @@ import { connectNotebookDb } from './useDurableNote'
 import { usableBaseline, isUsableBaseline } from './baseline'
 import { sameAuthoredContent } from './recoverLocalState'
 import { liveSessionIds } from './inFlight'
+import { isNoteOwned } from './noteOwnerLock'
 
 /** How often a leader re-tries what is still queued. ⛔ The `online` event only
  *  fires on a NETWORK transition — a server that came back up produces no event
@@ -251,6 +252,10 @@ export function useOutboxDrain({
         // on the spot and hand every in-flight note straight to the drain).
         holders: await liveSessionIds(),
         serverCopyIsOurs: serverCopyIsOursRef.current,
+        // ⭐ D3b — a note open in an editor in ANY tab is that editor's to send.
+        // Asked per entry, fresh (a note can open mid-drain). `null` where Web
+        // Locks cannot answer, and then `excludeNoteId` alone decides, as before.
+        noteIsOwned: (noteId) => isNoteOwned(accountId, noteId),
       })
       // ⭐ One event per refusal, and only for the refusal nobody can explain.
       // The drain decides; this only carries. ⛔ Awaited-but-swallowed: a

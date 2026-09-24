@@ -23,13 +23,20 @@
  * rebase-and-resend, or leave it queued. "Ours" is never, by itself, a reason
  * to delete.
  */
-import { describe, it, expect, beforeEach, vi } from 'vitest'
+import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest'
+import { renderHook, act } from '@testing-library/react'
 import { createFakeDb, settleIdb, installKeyRange } from './__fixtures__/fakeIndexedDb'
+import { createLockManager } from './__fixtures__/fakeWebLocks'
+import { injectAfterRead } from './__fixtures__/injectAfterRead'
 import { putNoteWithIntent, putMeta, listOutbox, getNote } from './notebookDb'
 import { drainOutbox } from './outboxDrain'
-import { settleLandedSave, recordLandedRevision } from './useDurableNote'
+import {
+  settleLandedSave, recordLandedRevision, settleOwnerFork, useDurableNote,
+} from './useDurableNote'
 import { markerFor, markerKeyFor, landedKeyFor, withLanded, IN_FLIGHT_TTL_MS } from './inFlight'
 import { OFFLINE_FLAG_KEY } from './offlineFlag'
+import { isNoteOwned } from './noteOwnerLock'
+import { sameAuthoredContent } from './recoverLocalState'
 import {
   BODY_REWRITE, appendedServerNodes, classifyServerChange, missingServerNodes, nodeKeyOf, serverAppendedKeysIn,
 } from './serverChange'
@@ -101,10 +108,15 @@ function makeServer(startBody) {
   // change and forks. The drain never sends a different title, so it stays put.
   const state = { body: startBody, updatedAt: T0, title: 'note', subtitle: '' }
   const notes = { count: 1 }          // forks create a SECOND note
+  // ⭐ D3b (wave 6): what each fork PRESERVED, so a family whose second writer
+  // earns a fork can ask where the member's words went. Recording only — no
+  // existing case reads it, and nothing it returns changed.
+  const forkBodies = []
   const stamp = () => { rev += 1; state.updatedAt = `2026-09-10T13:00:${String(10 + rev).padStart(2, '0')}.000000+00:00` }
   return {
     state,
     notes,
+    forkBodies,
     /** The door. A METADATA door moves the revision and carries no body; an
      *  APPEND door adds the server's own node to the body and then moves it.
      *  ⛔ Both stamp, because both are writes — the difference is the body. */
@@ -143,7 +155,11 @@ function makeServer(startBody) {
       stamp()
       return { ...state }
     }),
-    fork: vi.fn(async () => { notes.count += 1; return { ...state } }),
+    fork: vi.fn(async (entry) => {
+      notes.count += 1
+      forkBodies.push(entry?.patch?.bodyJson ?? null)
+      return { ...state }
+    }),
     /** guard 2's question, answered honestly against this server.
      *
      * ⛔⛔ IT RETURNS THE DOCUMENT, because the real one does
@@ -551,4 +567,402 @@ describe('⭐⭐ the member’s offline sentence survives every door × every or
     // draining - and a control that drains is back to depending on the product
     // it exists to check.
   })
+})
+
+// ═══════════════════════════════════════════════════════════════════════════
+// ⭐⭐ D3b (wave 6) — FOUR MORE FAMILIES. `docs/notebook/f5-fixes-2026-09-23.md` §F.
+//
+// The property above — the sentence reaches the server, the note count does not
+// change — is right wherever the member is the only writer. The first family
+// below has no other writer, so it keeps that property WHOLE: zero forks, zero
+// lost words. The other three add a GENUINE second writer (another device, or a
+// second writer of the record), and there a fork is the correct answer, so the
+// property widens the way the append families widened it: nothing the member
+// typed is lost (it is in the server body or in a fork), nothing the other
+// device wrote is overwritten (it is in the server body), and no more forks
+// than the second writer earns.
+// ═══════════════════════════════════════════════════════════════════════════
+
+const OTHER = 'rewritten on another device'
+const asJson = (b) => JSON.stringify(b ?? null)
+const docOf = (...texts) => ({
+  type: 'doc', content: texts.map((t) => ({ type: 'paragraph', content: [{ type: 'text', text: t }] })),
+})
+const inServerOrFork = (server, words) => asJson(server.state.body).includes(words)
+  || server.forkBodies.some((b) => asJson(b).includes(words))
+const copyOf = (server) => ({
+  title: server.state.title, subtitle: server.state.subtitle,
+  bodyJson: server.state.body, updatedAt: server.state.updatedAt,
+})
+const AT_T0 = { title: 'note', subtitle: '', bodyJson: doc(ONLINE), updatedAt: T0 }
+const WORDS = { title: 'note', subtitle: '', bodyJson: doc(BOTH) }
+
+/** ⭐ THE D3b ASSERTION, for a family with a genuine second writer. */
+function assertNothingLost(server, { mine, other = null, maxForks }, label) {
+  for (const words of mine) {
+    expect(inServerOrFork(server, words), `${label}: "${words}" is in neither the server body nor a fork`).toBe(true)
+  }
+  if (other) expect(asJson(server.state.body), `${label}: the other device's words were overwritten`).toContain(other)
+  expect(server.notes.count - 1, `${label}: more forks than a second writer earns`).toBeLessThanOrEqual(maxForks)
+}
+
+/**
+ * THE OWNING EDITOR, reduced to its save — modelled from `NoteEditorPage.jsx`
+ * the way `editorMergesAndSaves` above is, through the product's own helpers:
+ * `commitSave` sends what it holds on the base it holds (`lastSavedRef`); a 200
+ * settles (`settleLandedSave`); a 409 runs `reconcileConflict` —
+ * `classifyServerChange` against that base, then merge-or-rebase and ONE retry,
+ * or a fork whose sibling holds exactly what the editor had, settled with
+ * `settleOwnerFork` — and the view becomes the server's copy.
+ */
+function ownerEditor(server, { state, base }) {
+  const ed = { state, base }
+  ed.save = async ({ retried = false } = {}) => {
+    if (sameAuthoredContent(ed.state, ed.base)) return 'nothing to save'
+    try {
+      const saved = await server.send({ noteId: 'n1', baseUpdatedAt: ed.base.updatedAt, patch: { ...ed.state } })
+      await settleLandedSave({
+        accountId: 'a1', noteId: 'n1', acked: ed.state, current: ed.state, updatedAt: saved.updatedAt, connect,
+      })
+      ed.base = { ...ed.state, updatedAt: saved.updatedAt }
+      return 'saved'
+    } catch (e) {
+      if (e?.status !== 409 || retried) return 'error'
+      const fresh = copyOf(server)
+      if (classifyServerChange(fresh, ed.base) === BODY_REWRITE) {
+        const forked = { title: ed.state.title, subtitle: ed.state.subtitle, bodyJson: ed.state.bodyJson }
+        server.notes.count += 1
+        server.forkBodies.push(forked.bodyJson)
+        await settleOwnerFork({ accountId: 'a1', noteId: 'n1', serverNote: fresh, forked, connect })
+        ed.state = { title: fresh.title, subtitle: fresh.subtitle, bodyJson: fresh.bodyJson }
+        ed.base = fresh
+        return 'forked'
+      }
+      const missing = missingServerNodes(appendedServerNodes(fresh, ed.base) || [], serverAppendedKeysIn(ed.state.bodyJson))
+      if (missing.length) {
+        ed.state = { ...ed.state, bodyJson: { ...ed.state.bodyJson, content: [...ed.state.bodyJson.content, ...missing] } }
+      }
+      ed.base = { ...ed.base, updatedAt: fresh.updatedAt }
+      return ed.save({ retried: true })
+    }
+  }
+  return ed
+}
+
+/** The sweep as it runs once the note has closed and nobody owns it. */
+async function sweepUntilSettled(server, extra = {}) {
+  for (let pass = 0; pass < 2; pass += 1) {
+    // eslint-disable-next-line no-await-in-loop
+    await drainOutbox(db, {
+      send: server.send, fork: server.fork, serverCopyIsOurs: server.serverCopyIsOurs, holders: new Set(), ...extra,
+    })
+    // eslint-disable-next-line no-await-in-loop
+    await settleIdb(4)
+  }
+}
+
+const withLocks = (value) => Object.defineProperty(globalThis.navigator, 'locks', { configurable: true, value })
+
+// ── family 1 ─────────────────────────────────────────────────────────────────
+/**
+ * ⭐⭐ D3b · 1 — A SECOND TAB LEADS WHILE THE NOTE IS OPEN.
+ *
+ * Tab A is the note's editor: the REAL `useDurableNote` (its owner lock, its
+ * durable writes) and the owning editor's save. Tab B leads and sweeps, through
+ * the real `drainOutbox`, asking the owner lock from B's side of one shared lock
+ * manager. Every placement of one or two of B's sweeps among
+ * open · type offline · reconnect · the owner's save · close.
+ * ⚰️ Before D3b, B's sweep between the reconnect and the owner's save sent the
+ * words; the owner's own send then 409'd against them and FORKED the member's
+ * note — with nobody else writing at all.
+ */
+describe('⭐⭐ D3b · 1 — a second tab leads while the note is open: zero forks, zero lost words', () => {
+  afterEach(() => { withLocks(undefined) })
+
+  const SCENARIOS = {
+    'typed while open': ['open', 'type', 'reconnect', 'owner saves', 'close'],
+    'typed on an earlier visit, reopened': ['type', 'open', 'reconnect', 'owner saves', 'close'],
+  }
+  const placements = []
+  for (let i = 0; i <= 5; i += 1) placements.push([i])
+  for (let i = 0; i <= 5; i += 1) for (let j = i + 1; j <= 5; j += 1) placements.push([i, j])
+
+  async function run(order) {
+    const mgr = createLockManager()
+    const server = makeServer(doc(ONLINE))
+    let online = false
+    const net = (fn) => async (...args) => { if (!online) throw new Error('offline'); return fn(...args) }
+    const mountA = () => {
+      withLocks(mgr.client('tab-A'))
+      return renderHook(() => useDurableNote({ accountId: 'a1', noteId: 'n1', debounceMs: 60000, connect }))
+    }
+    let tabA = null
+    let ed = null
+    for (const step of order) {
+      if (step === 'open') {
+        tabA = mountA()
+        let decision = null
+        // eslint-disable-next-line no-await-in-loop
+        await act(async () => { decision = await tabA.result.current.recover({ server: copyOf(server) }); await settleIdb(4) })
+        ed = decision?.adopt
+          ? ownerEditor(server, { state: decision.adopt.state, base: decision.adopt.base })
+          : ownerEditor(server, { state: { title: 'note', subtitle: '', bodyJson: server.state.body }, base: copyOf(server) })
+      } else if (step === 'type') {
+        const writer = tabA || mountA()
+        // eslint-disable-next-line no-await-in-loop
+        await act(async () => {
+          writer.result.current.schedule({ ...WORDS, baseUpdatedAt: T0, serverBase: AT_T0 })
+          writer.result.current.flush()
+          await settleIdb(6)
+        })
+        if (ed) ed.state = WORDS
+        if (!tabA) writer.unmount()                      // an earlier visit, closed again
+      } else if (step === 'reconnect') {
+        online = true
+      } else if (step === 'owner saves') {
+        // eslint-disable-next-line no-await-in-loop
+        if (tabA && ed) { await ed.save(); await settleIdb(4) }
+      } else if (step === 'close') {
+        if (tabA) { tabA.unmount(); tabA = null }
+        // eslint-disable-next-line no-await-in-loop
+        await settleIdb(6)
+      } else if (step === 'tab B sweeps') {
+        // eslint-disable-next-line no-await-in-loop
+        await drainOutbox(db, {
+          send: net(server.send), fork: net(server.fork), serverCopyIsOurs: net(server.serverCopyIsOurs),
+          holders: new Set(),
+          noteIsOwned: (id) => isNoteOwned('a1', id, { locks: mgr.client('tab-B') }),
+        })
+        // eslint-disable-next-line no-await-in-loop
+        await settleIdb(4)
+      }
+    }
+    online = true
+    await sweepUntilSettled(server, { noteIsOwned: (id) => isNoteOwned('a1', id, { locks: mgr.client('tab-B') }) })
+    await assertWordsSurvived(server, order.join(' → '), 'folder')
+  }
+
+  for (const [scenario, events] of Object.entries(SCENARIOS)) {
+    for (const at of placements) {
+      const order = []
+      events.forEach((e, k) => {
+        at.filter((p) => p === k).forEach(() => order.push('tab B sweeps'))
+        order.push(e)
+      })
+      at.filter((p) => p === events.length).forEach(() => order.push('tab B sweeps'))
+      it(`${scenario} · ${order.join(' → ')}`, async () => { await run(order) })
+    }
+  }
+})
+
+// ── family 2 ─────────────────────────────────────────────────────────────────
+/**
+ * ⭐⭐ D3b · 2 — A CRASH DRAFT WINS AFTER ANOTHER DEVICE SAVED.
+ *
+ * The member's words are in a crash draft (written by the D3b editor, so it
+ * records the revision it was typed on) — alone, or ahead of a lagging durable
+ * copy — or in a durable record whose base the entry refuses (the legitimate
+ * drain-rebase shape). Another device saves at one of three moments. The member
+ * reopens (the REAL `recover()`), clicks Restore — the editor's path: on
+ * `recovery.base` when there is one, else the old direct PUT — and types once.
+ * ⚰️ Before D3b a crash draft had no base: the direct PUT 409'd into an error,
+ * the editor kept the words on the server's CURRENT revision, and the keystroke
+ * overwrote the other device.
+ */
+describe('⭐⭐ D3b · 2 — a crash draft wins after another device saved: Restore forks, never clobbers', () => {
+  const AHEAD = 'and the crash draft is AHEAD of the durable copy'
+  const K = 'K-typed-after-Restore'
+  const DRAFT = {
+    title: 'note', subtitle: '', bodyJson: docOf(BOTH, AHEAD), savedAt: Date.now(), sessionId: 's-crashed', baseUpdatedAt: T0,
+  }
+  const VARIANTS = {
+    'a crash draft alone': { draft: DRAFT, record: false, refused: false, mine: [OFFLINE, AHEAD, K], maxForks: 1 },
+    'a crash draft ahead of a lagging durable copy': { draft: DRAFT, record: true, refused: false, mine: [OFFLINE, AHEAD, K], maxForks: 1 },
+    // ⚠️ the one shape that forks even a METADATA-only move (it cannot be told
+    // from a poisoned base by direction — f5-fixes §E.1), so a second fork is
+    // earned when the other device then writes too.
+    'a durable record whose base the entry refuses': { draft: null, record: true, refused: true, mine: [OFFLINE, K], maxForks: 2 },
+  }
+  const WHEN = ['before the member reopens', 'after reopening, before Restore', 'after Restore, before the keystroke']
+
+  async function run({ draft, record, refused, mine, maxForks }, when, label) {
+    const server = makeServer(doc(ONLINE))
+    if (record) {
+      await offlineWorkQueued(server)                     // the durable copy: WORDS, queued on T0
+      if (refused) {
+        // the legitimate NEWER-than-entry base: a drain rebase learned the
+        // server's copy at a later revision, and an unsent-work settle then put
+        // the entry back on the record's older baseline
+        const moved = server.metadataStamp()
+        const rec = await getNote(db, 'n1')
+        await putNoteWithIntent(db, { ...rec, serverBase: { ...AT_T0, updatedAt: moved.updatedAt } }, (await listOutbox(db))[0])
+        await settleIdb(4)
+      }
+      if (draft) {
+        const rec = await getNote(db, 'n1')
+        await putNoteWithIntent(db, { ...rec, sessionId: 's-crashed' }, (await listOutbox(db))[0])
+        await settleIdb(4)
+      }
+    }
+    const otherDeviceSaves = () => { server.state.body = docOf(OTHER); server.metadataStamp() }
+    if (when === WHEN[0]) otherDeviceSaves()
+    const tab = renderHook(() => useDurableNote({ accountId: 'a1', noteId: 'n1', debounceMs: 60000, connect }))
+    const hydrated = copyOf(server)
+    let decision = null
+    await act(async () => { decision = await tab.result.current.recover({ server: hydrated, lsDraft: draft }); await settleIdb(4) })
+    expect(decision.unsynced, `${label}: nothing was offered`).toBe(true)
+    expect(decision.adopt, `${label}: these words are the member's to Restore, not ours to send`).toBeNull()
+    if (when === WHEN[1]) otherDeviceSaves()
+    const durable = async (ed) => act(async () => {
+      tab.result.current.schedule({ ...ed.state, baseUpdatedAt: ed.base.updatedAt, serverBase: ed.base })
+      tab.result.current.flush()
+      await settleIdb(6)
+    })
+    // ── Restore, exactly as `restoreDraft` does it ──
+    let ed
+    if (decision.base) {
+      ed = ownerEditor(server, { state: decision.state, base: decision.base })
+      await durable(ed)                                   // the adoption's scheduleAutosave
+      await ed.save()
+    } else {
+      ed = ownerEditor(server, { state: decision.state, base: hydrated })   // lastSavedRef stays the hydrated copy
+      try {
+        const saved = await server.send({ noteId: 'n1', baseUpdatedAt: decision.baseUpdatedAt || hydrated.updatedAt, patch: { ...decision.state } })
+        ed.base = { ...decision.state, updatedAt: saved.updatedAt }
+      } catch (e) {
+        if (e?.status !== 409) throw e                     // an error on screen; the words stay in the view
+      }
+    }
+    await settleIdb(4)
+    if (when === WHEN[2]) otherDeviceSaves()
+    // ── one keystroke ──
+    ed.state = { ...ed.state, bodyJson: { ...ed.state.bodyJson, content: [...(ed.state.bodyJson?.content || []), ...docOf(K).content] } }
+    await durable(ed)
+    await ed.save()
+    await settleIdb(4)
+    tab.unmount()
+    await settleIdb(4)
+    await sweepUntilSettled(server)
+    assertNothingLost(server, { mine, other: OTHER, maxForks }, label)
+  }
+
+  for (const [variant, spec] of Object.entries(VARIANTS)) {
+    for (const when of WHEN) {
+      it(`${variant} · the other device saves ${when}`, async () => { await run(spec, when, `${variant} · ${when}`) })
+    }
+  }
+})
+
+// ── family 3 ─────────────────────────────────────────────────────────────────
+/**
+ * ⭐⭐ D3b · 3 — A KEYSTROKE LANDS BETWEEN THE FORK CHECK AND ITS WRITE.
+ *
+ * Another device rewrote the note; the owner sends the queued words, 409s, forks,
+ * and settles its fork — while a durable write of the words PLUS a keystroke K
+ * (a second writer of the record: another tab's editor on the same note, the
+ * unmount flush) lands at each moment around the settle's reads. On the
+ * SERIALIZED store, because the question is what IndexedDB's ordering does with
+ * a write that arrives while the settle is deciding.
+ * ⚰️ Before D3b the check and the write were three transactions: a write after
+ * the last read was overwritten and its queued entry deleted.
+ */
+describe('⭐⭐ D3b · 3 — a keystroke lands between the owner’s fork check and its write', () => {
+  const K = 'K-typed-in-the-window'
+  const WITH_K = { title: 'note', subtitle: '', bodyJson: docOf(BOTH, K) }
+  const MOMENTS = ['before the check', 'after the note read', 'after the queue read', 'after the write']
+
+  for (const moment of MOMENTS) {
+    it(`the keystroke's write lands ${moment}`, async () => {
+      db = createFakeDb({ serialize: true })
+      const server = makeServer(doc(ONLINE))
+      await offlineWorkQueued(server)
+      server.state.body = docOf(OTHER)
+      server.metadataStamp()                               // another device rewrote it
+      const kWrite = () => putNoteWithIntent(db, {
+        noteId: 'n1', ...WITH_K, baseUpdatedAt: T0, generation: 2, sessionId: 's2', localSavedAt: 9, dirty: 1, serverBase: AT_T0,
+      }, {
+        mutationId: 'note:n1', noteId: 'n1', kind: 'note-update', patch: { ...WITH_K },
+        baseUpdatedAt: T0, generation: 2, sessionId: 's2', queuedAt: 9,
+      })
+      const ed = ownerEditor(server, { state: WORDS, base: AT_T0 })
+      let injected = null
+      if (moment === MOMENTS[0]) { await kWrite(); await settleIdb(4) }
+      const disarm = moment === MOMENTS[1] || moment === MOMENTS[2]
+        ? injectAfterRead(db, moment === MOMENTS[1] ? 'note' : 'queue', () => { injected = kWrite() })
+        : () => {}
+      expect(await ed.save()).toBe('forked')
+      disarm()
+      await injected
+      if (moment === MOMENTS[3]) await kWrite()
+      await settleIdb(8)
+      await sweepUntilSettled(server)
+      assertNothingLost(server, { mine: [OFFLINE, K], other: OTHER, maxForks: 2 }, `the keystroke lands ${moment}`)
+    })
+  }
+})
+
+// ── family 4 ─────────────────────────────────────────────────────────────────
+/**
+ * ⭐⭐ D3b · 4 — A KEYSTROKE QUEUED BEHIND AN IN-FLIGHT DURABLE WRITE.
+ *
+ * The owner's fork fell back (the member typed Ka during the create request):
+ * the REAL `useDurableNote` is writing words+Ka (held in flight), Kb is typed
+ * behind it, the editor FLUSHES, swaps the view to the server copy, and K3 is
+ * typed there — with the in-flight write completing at each point of that. The
+ * editor then saves its view, closes, and the sweep takes the rest.
+ * ⚰️ Before D3b the flush waited behind the in-flight write and K3's snapshot
+ * replaced Kb's before it was written; the fix-6 guard then kept words+Ka.
+ */
+describe('⭐⭐ D3b · 4 — a keystroke queued behind an in-flight durable write survives the flush and the view swap', () => {
+  const KA = 'Ka-typed-during-the-fork'
+  const KB = 'Kb-queued-behind-the-write'
+  const K3 = 'K3-typed-on-the-new-view'
+  const ORDERS = {
+    'the write lands before Kb': ['release', 'Kb', 'flush', 'K3'],
+    'the write lands before the flush': ['Kb', 'release', 'flush', 'K3'],
+    'the write lands before the new view’s keystroke': ['Kb', 'flush', 'release', 'K3'],
+    'the write lands last': ['Kb', 'flush', 'K3', 'release'],
+  }
+
+  for (const [name, order] of Object.entries(ORDERS)) {
+    it(name, async () => {
+      const server = makeServer(doc(ONLINE))
+      await offlineWorkQueued(server)                     // the words, queued on T0
+      server.state.body = docOf(OTHER)
+      server.metadataStamp()                               // another device rewrote it
+      const fresh = copyOf(server)
+      let release = () => {}
+      let gate = null
+      const gatedConnect = async () => { if (gate) await gate; return db }
+      const tab = renderHook(() => useDurableNote({ accountId: 'a1', noteId: 'n1', debounceMs: 60000, connect: gatedConnect }))
+      const onWords = (...extra) => ({
+        title: 'note', subtitle: '', bodyJson: docOf([BOTH, ...extra].join(' ')), baseUpdatedAt: T0, serverBase: AT_T0,
+      })
+      const view = { title: fresh.title, subtitle: fresh.subtitle, bodyJson: docOf(`${OTHER} ${K3}`) }
+      await act(async () => {
+        gate = new Promise((r) => { release = () => { gate = null; r() } })
+        tab.result.current.schedule(onWords(KA))
+        tab.result.current.flush()                         // words+Ka: in flight, held
+        await settleIdb(2)
+      })
+      for (const step of order) {
+        // eslint-disable-next-line no-await-in-loop
+        await act(async () => {
+          if (step === 'release') release()
+          if (step === 'Kb') tab.result.current.schedule(onWords(KA, KB))
+          if (step === 'flush') tab.result.current.flush()
+          if (step === 'K3') tab.result.current.schedule({ ...view, baseUpdatedAt: fresh.updatedAt, serverBase: fresh })
+          await settleIdb(6)
+        })
+      }
+      await act(async () => { tab.result.current.flush(); await settleIdb(8) })
+      // the editor saves its view — the server copy plus K3 — and the ack settles
+      const saved = await server.send({ noteId: 'n1', baseUpdatedAt: fresh.updatedAt, patch: { ...view } })
+      await settleLandedSave({ accountId: 'a1', noteId: 'n1', acked: view, current: view, updatedAt: saved.updatedAt, connect })
+      tab.unmount()
+      await settleIdb(6)
+      await sweepUntilSettled(server)
+      assertNothingLost(server, { mine: [OFFLINE, KA, KB, K3], other: OTHER, maxForks: 1 }, name)
+    })
+  }
 })

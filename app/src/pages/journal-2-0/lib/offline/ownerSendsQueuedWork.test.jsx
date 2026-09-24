@@ -146,17 +146,27 @@ describe('baseOfRecovered — what the recovered words were written on (Restore 
     expect(baseOfRecovered({ decision: decide(rec, lsDraft), record: rec })).toBeNull()
   })
 
-  it('⛔ unknown with no record, or a record that carries no base', () => {
+  it('⛔ unknown with no record; a record that carries no base copy gives its REVISION only (D3b)', () => {
     expect(baseOfRecovered({ decision: decide(null), record: null })).toBeNull()
+    // ⚖️ D3b (wave 6) — this was `toBeNull()`. A record with no last-known copy
+    // still proves the revision its words were written on, and Restoring on
+    // that revision with an UNKNOWN body forks on any server move instead of
+    // taking the direct PUT a later keystroke could turn into an overwrite.
     const bare = record({ serverBase: null })
-    expect(baseOfRecovered({ decision: decide(bare), record: bare })).toBeNull()
+    expect(baseOfRecovered({ decision: decide(bare), record: bare }))
+      .toEqual({ title: '', subtitle: '', bodyJson: null, updatedAt: T0, bodyUnknown: true })
   })
 
   it('⛔⛔ a base whose revision the queued entry disagrees with is NOT a base — Restore never uses it (N4, fix round 2)', () => {
     // The pre-A-1 settle wrote `acked@landed` (T1, already holding a door's
     // block) while the entry stayed on T0, where the words were really written.
     const poisoned = record({ serverBase: { ...BASE, updatedAt: T1 } })
-    expect(baseOfRecovered({ decision: decide(poisoned), record: poisoned, entry: entry() })).toBeNull()
+    // ⚖️ D3b (wave 6) — this was `toBeNull()`. The poisoned BODY is still never
+    // used, and neither is its revision T1; what Restore gets now is the ENTRY's
+    // revision with an unknown body, so the server's move 409s and forks
+    // (`f5-fixes-2026-09-23.md` §F.2) instead of a keystroke overwriting it.
+    expect(baseOfRecovered({ decision: decide(poisoned), record: poisoned, entry: entry() }))
+      .toEqual({ title: '', subtitle: '', bodyJson: null, updatedAt: T0, bodyUnknown: true })
     // …a base and entry that agree are unchanged…
     const rec = record()
     expect(baseOfRecovered({ decision: decide(rec), record: rec, entry: entry() }))
@@ -179,8 +189,12 @@ describe('baseOfRecovered — what the recovered words were written on (Restore 
 
   it('⛔ only an equal or PROVABLY older revision is used — an entry with no baseline, or one that does not parse, is refused', () => {
     const rec = record()
-    expect(baseOfRecovered({ decision: decide(rec), record: rec, entry: entry({ baseUpdatedAt: '' }) })).toBeNull()
-    expect(baseOfRecovered({ decision: decide(rec), record: rec, entry: entry({ baseUpdatedAt: 'not-a-revision' }) })).toBeNull()
+    // ⚖️ D3b (wave 6) — these were `toBeNull()`. The full base is still refused;
+    // the answer is now the record's own parseable revision with an unknown
+    // body, which forks on any server move rather than risking an overwrite.
+    const revisionOnly = { title: '', subtitle: '', bodyJson: null, updatedAt: T0, bodyUnknown: true }
+    expect(baseOfRecovered({ decision: decide(rec), record: rec, entry: entry({ baseUpdatedAt: '' }) })).toEqual(revisionOnly)
+    expect(baseOfRecovered({ decision: decide(rec), record: rec, entry: entry({ baseUpdatedAt: 'not-a-revision' }) })).toEqual(revisionOnly)
   })
 })
 
@@ -216,7 +230,7 @@ describe('recover() — the answer reaches the editor through the call it alread
     expect(decision.base?.updatedAt).toBe(T0)
   })
 
-  it('⛔⛔ a record poisoned before A-1 comes back with NEITHER `adopt` NOR `base` — the banner, and a Restore with no base (N4)', async () => {
+  it('⛔⛔ a record poisoned before A-1 comes back with NO `adopt`, and a `base` that is only the entry’s revision — the banner, and a Restore that forks (N4, D3b)', async () => {
     const db = createFakeDb()
     await putNoteWithIntent(db, record({ serverBase: { ...BASE, updatedAt: T1 } }), entry())
     await settleIdb(4)
@@ -225,7 +239,11 @@ describe('recover() — the answer reaches the editor through the call it alread
     await act(async () => { decision = await result.current.recover({ server: SERVER_NOW }) })
     expect(decision.unsynced, 'the words are still offered').toBe(true)
     expect(decision.adopt).toBeNull()
-    expect(decision.base, 'Restore must not adopt on a base the entry disagrees with').toBeNull()
+    // ⚖️ D3b (wave 6) — this was `toBeNull()`: Restore then took the direct PUT a
+    // later keystroke could turn into an overwrite. Never the poisoned base T1
+    // (neither its body nor its revision): the entry's T0, body unknown.
+    expect(decision.base, 'Restore must not adopt on a base the entry disagrees with')
+      .toEqual({ title: '', subtitle: '', bodyJson: null, updatedAt: T0, bodyUnknown: true })
   })
 
   it('⭐ a record whose base is OLDER than its entry comes back WITH `adopt` and `base`, as at fe4e278bc (N4-b)', async () => {

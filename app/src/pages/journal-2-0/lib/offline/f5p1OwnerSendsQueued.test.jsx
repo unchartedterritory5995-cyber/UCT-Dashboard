@@ -33,10 +33,13 @@ import { render, screen, act, waitFor, fireEvent } from '@testing-library/react'
 import { MemoryRouter } from 'react-router-dom'
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest'
 import { createFakeIndexedDbFactory, settleIdb } from './__fixtures__/fakeIndexedDb'
+import { createLockManager } from './__fixtures__/fakeWebLocks'
 import { __resetNotebookConnections } from './useDurableNote'
 import { useOutboxDrain } from './useOutboxDrain'
 import { OFFLINE_FLAG_KEY } from './offlineFlag'
 import { dbNameFor } from './notebookDb'
+import { drainOutbox, SKIPPED } from './outboxDrain'
+import { isNoteOwned, noteOwnerLockName } from './noteOwnerLock'
 
 Range.prototype.getClientRects = () => []
 Range.prototype.getBoundingClientRect = () => ({ top: 0, left: 0, right: 0, bottom: 0, width: 0, height: 0 })
@@ -565,11 +568,11 @@ describe('fix round 2 — the editor’s own S1 gate, and a base the queued entr
   it('⛔⛔ N4: Restore of a poisoned record never adopts on its base — the Restore itself does not drop the widget', async () => {
     // Blocked, so the banner appears whatever `adopt` says, and only Restore's
     // own use of the base is under test.
-    // ⚠️ What this does NOT pin: Restore then takes its path for a copy with no
-    // known base (a direct PUT on the words' own revision, which 409s here), and
-    // a keystroke after that can still overwrite — the crash-draft class the
-    // N5 ruling leaves open (f5-fixes §C.5). This cell pins only that Restore
-    // never sends the words on a base the entry disagrees with.
+    // ⚰️ This said Restore then took a direct PUT that a later keystroke could
+    // turn into an overwrite — true until D3b (wave 6): Restore now sends on the
+    // ENTRY's revision with an unknown body and forks (f5-fixes §F.2; the
+    // keystroke cells are in the D3b block below). This cell still pins only
+    // that Restore never sends the words on a base the entry disagrees with.
     server = makeServer({ body: doc(ONLINE, WIDGET), updatedAt: T1 })
     await queuedWhileAway({ permanent: true, serverBase: POISONED_BASE })
     await returnToTheNoteAndSit()
@@ -606,3 +609,134 @@ describe('fix round 3 — a base OLDER than the entry is used, as at fe4e278bc; 
     expect(JSON.stringify(server.forks[0].bodyJson)).toContain(SENTENCE)
   })
 })
+
+/**
+ * ⭐⭐ D3b (wave 6) — the lane's items end to end on the real editor.
+ * `docs/notebook/f5-fixes-2026-09-23.md` §F.
+ */
+describe('D3b — Restore never clobbers; the owner lock; a flush behind an in-flight write', () => {
+  const DRAFT_KEY = 'uct.j2.notedraft.n1'
+
+  it('⭐ the draft the editor writes RECORDS the revision its words were typed on (the editor half)', async () => {
+    server = makeServer({ body: doc(ONLINE), updatedAt: T0 })
+    await returnToTheNote()
+    const releasePuts = holdPuts()                          // nothing lands, so the draft is not cleared
+    await typeInBody(' K-in-the-draft')
+    const draft = JSON.parse(localStorage.getItem(DRAFT_KEY) || 'null')
+    expect(JSON.stringify(draft?.bodyJson ?? null)).toContain('K-in-the-draft')
+    expect(draft?.baseUpdatedAt, 'the crash draft carries no base, so Restore cannot know what it was typed on').toBe(T0)
+    releasePuts()
+    await sit(2)
+  })
+
+  it('⛔⛔ a CRASH DRAFT that won, another device saved since, Restore then a keystroke: ONE fork, the other device’s words kept', async () => {
+    server = makeServer({ body: doc(para('rewritten on another device')), updatedAt: T1 })
+    localStorage.setItem(DRAFT_KEY, JSON.stringify({
+      title: 'Thesis', subtitle: '', bodyJson: doc(ONLINE, para(SENTENCE), para('typed just before the tab crashed - K-crash')),
+      savedAt: Date.now() - 60000, sessionId: 's-crashed', baseUpdatedAt: T0,
+    }))
+    await returnToTheNoteAndSit()
+    await restoreThenType()
+    expect(serverText(), 'Restore of the crash draft overwrote the other device’s words').toContain('rewritten on another device')
+    expect(server.forks, 'the draft’s words must be preserved in exactly one sibling').toHaveLength(1)
+    expect(JSON.stringify(server.forks[0].bodyJson)).toContain('K-crash')
+    expect(outbox(), 'the owner’s fork settled the queue').toHaveLength(0)
+  })
+
+  it('⛔⛔ a record whose base is NEWER than its entry (the legitimate drain-rebase shape), a second writer, Restore then a keystroke: ONE fork, kept', async () => {
+    server = makeServer({ body: doc(para('rewritten on another device')), updatedAt: T2 })
+    await queuedWhileAway({
+      baseUpdatedAt: T0,
+      serverBase: { title: 'Thesis', subtitle: '', bodyJson: doc(ONLINE), updatedAt: T1 },
+    })
+    await returnToTheNoteAndSit()
+    expect(await screen.findByRole('button', { name: 'Restore' }), 'a refused base must be offered, not adopted').toBeTruthy()
+    await restoreThenType()
+    expect(serverText(), 'the other device’s words were overwritten').toContain('rewritten on another device')
+    expect(server.forks).toHaveLength(1)
+    expect(JSON.stringify(server.forks[0].bodyJson)).toContain(SENTENCE)
+  })
+
+  it('⭐⭐ the open editor HOLDS its note’s owner lock, and another tab’s leading sweep leaves the note to it', async () => {
+    server = makeServer({ body: doc(ONLINE), updatedAt: T0 })
+    await queuedWhileAway()
+    const mgr = createLockManager()
+    Object.defineProperty(globalThis.navigator, 'locks', { configurable: true, value: mgr.client('tab-A') })
+    const releasePuts = holdPuts()                          // the owner's own send is on the wire
+    await returnToTheNote()
+    await sit(2)
+    expect(mgr.heldNames(), 'the editor does not claim its note').toContain(noteOwnerLockName('u42', 'n1'))
+    // Tab B leads and sweeps: it has nothing open, so no `excludeNoteId`.
+    const tabBSend = vi.fn(async () => { throw new Error('tab B sent the note tab A is editing') })
+    const db = factory.databases.get(ACCOUNT_DB)
+    const results = await drainOutbox(db, {
+      send: tabBSend, fork: sweepFork, noteIsOwned: (id) => isNoteOwned('u42', id, { locks: mgr.client('tab-B') }),
+    })
+    expect(tabBSend).not.toHaveBeenCalled()
+    expect(results.find((r) => r.noteId === 'n1')?.outcome).toBe(SKIPPED)
+    releasePuts()
+    await sit(12)
+    expect(serverText(), 'the owner sent its own queued words').toContain(SENTENCE)
+    expect(server.forks, 'two writers on one note forked it').toHaveLength(0)
+  })
+
+  it('⛔⛔ a keystroke queued behind an IN-FLIGHT durable write survives the fork fallback’s flush and the view swap', async () => {
+    // The member types K1 during the fork's create request and its durable write
+    // STARTS (held mid-flight), types K2 (queued behind it), the create returns —
+    // the editor refuses the settle and flushes K2 — the view swaps to the server
+    // copy, and K3 is typed there. Before D3b the flush waited behind K1's write
+    // and K3's snapshot replaced K2's before it was ever written.
+    server = makeServer({ body: doc(para('rewritten on another device')), updatedAt: T1 })
+    await queuedWhileAway()
+    const releaseCreates = holdCreates()
+    await returnToTheNote()
+    await sit(4)                                            // adopt → 409 → reconcile → create (held)
+    expect(createsStarted, 'precondition: the sibling is being created').toBe(1)
+    await typeInBody(' K1-starts-a-durable-write')
+    const releaseNoteReads = holdNoteReads()                // the durable write about to start is held mid-flight
+    await act(async () => { vi.advanceTimersByTime(250); await settleIdb(4) })
+    expect(noteReadsHeld(), 'precondition: K1’s durable write is in flight').toBeGreaterThan(0)
+    await typeInBody(' K2-queued-behind-it')
+    await act(async () => { releaseCreates(); await settleIdb(6) })   // the fork resolves: flush, then swap
+    const releasePuts = holdPuts()
+    await typeInBody(' K3-on-the-new-view')
+    releaseNoteReads()
+    await sit(12)
+    expect(survives('K2-queued-behind-it'), 'the keystroke queued behind the in-flight write was superseded').toBe(true)
+    expect(serverText(), 'the other device’s words were overwritten').toContain('rewritten on another device')
+    releasePuts()
+    await sit(1)
+  })
+})
+
+/** Hold every `get` on the notes store — the read a durable write starts with —
+ *  until released, so that write is IN FLIGHT. Returns the release. */
+let heldNoteReads = 0
+const noteReadsHeld = () => heldNoteReads
+function holdNoteReads() {
+  heldNoteReads = 0
+  const store = factory.databases.get(ACCOUNT_DB)
+  let release
+  const gate = new Promise((r) => { release = r })
+  const orig = store.transaction.bind(store)
+  store.transaction = (names, mode = 'readonly') => {
+    const tx = orig(names, mode)
+    if (names !== 'notes' || mode !== 'readonly') return tx
+    const inner = tx.objectStore
+    tx.objectStore = (n) => {
+      const s = inner(n)
+      return {
+        ...s,
+        get: (key) => {
+          heldNoteReads += 1
+          const req = { result: undefined }
+          const read = s.get(key)
+          read.onsuccess = () => { gate.then(() => { req.result = read.result; req.onsuccess?.() }) }
+          return req
+        },
+      }
+    }
+    return tx
+  }
+  return () => { store.transaction = orig; release() }
+}

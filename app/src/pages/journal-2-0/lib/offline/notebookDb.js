@@ -151,8 +151,18 @@ const done = (tx) => new Promise((resolve, reject) => {
  */
 export async function putNoteWithIntent(db, noteRecord, outboxEntry) {
   const tx = db.transaction([STORE_NOTES, STORE_OUTBOX], 'readwrite')
-  const notes = tx.objectStore(STORE_NOTES)
-  const outbox = tx.objectStore(STORE_OUTBOX)
+  stageNoteWithIntent(tx.objectStore(STORE_NOTES), tx.objectStore(STORE_OUTBOX), noteRecord, outboxEntry)
+  await done(tx)
+  return noteRecord
+}
+
+/**
+ * The writes `putNoteWithIntent` makes, staged into a transaction the caller
+ * already holds. ⭐ ONE copy, so the null-intent guard below lives in one place
+ * whichever of the two entry points (`putNoteWithIntent`, `putNoteWithIntentIf`)
+ * reached it.
+ */
+function stageNoteWithIntent(notes, outbox, noteRecord, outboxEntry) {
   notes.put(noteRecord)
   if (outboxEntry) {
     outbox.put(outboxEntry)
@@ -177,8 +187,58 @@ export async function putNoteWithIntent(db, noteRecord, outboxEntry) {
       if (cur) { cur.delete(); cur.continue() }
     }
   }
-  await done(tx)
-  return noteRecord
+}
+
+/**
+ * ⭐⭐ D3b (wave 6) — READ, DECIDE AND WRITE IN ONE READWRITE TRANSACTION.
+ *
+ * ⚰️ WHY IT EXISTS. `settleOwnerFork` checked that the record and the note's
+ * queued entries still held exactly what was forked, and THEN wrote the server
+ * copy clean — a read transaction, a second read transaction, then a write
+ * transaction. A durable write landing between the last read and the write (a
+ * keystroke's snapshot, another tab's writer) was overwritten and its queued
+ * entry deleted: the check had already passed on a store that no longer
+ * existed. (`wave5-A-review.md`, re-review 1 point 2; residual S1.)
+ *
+ * ⭐ Inside ONE readwrite transaction there is no "between": IndexedDB runs any
+ * other readwrite transaction on these stores entirely before this one (then
+ * `decide` sees its write and refuses) or entirely after it (then that write
+ * lands on top of what this one settled). Either way nothing it wrote is lost.
+ *
+ * ⛔ Every request is issued from inside a request callback, never after an
+ * `await` — a transaction auto-commits the moment it has nothing pending, and an
+ * `await` on anything else would end it early.
+ *
+ * @param decide  (record|null, queuedEntriesForTheNote[]) =>
+ *                  null/undefined  REFUSED — nothing is written
+ *                  { record, intent }  written exactly as `putNoteWithIntent`
+ *                                      writes them; `record: null` accepts with
+ *                                      nothing to write
+ *                ⛔ Synchronous and pure: it runs inside the transaction.
+ * @returns true when accepted, false when refused
+ */
+export async function putNoteWithIntentIf(db, noteId, decide) {
+  const tx = db.transaction([STORE_NOTES, STORE_OUTBOX], 'readwrite')
+  const committed = done(tx)
+  const notes = tx.objectStore(STORE_NOTES)
+  const outbox = tx.objectStore(STORE_OUTBOX)
+  let accepted = false
+  const noteReq = notes.get(noteId)
+  noteReq.onsuccess = () => {
+    const record = noteReq.result || null
+    const queued = []
+    const cursorReq = outbox.index('byNote').openCursor(IDBKeyRange.only(noteId))
+    cursorReq.onsuccess = () => {
+      const cur = cursorReq.result
+      if (cur) { queued.push(cur.value); cur.continue(); return }
+      const plan = decide(record, queued)
+      if (!plan) return
+      accepted = true
+      if (plan.record) stageNoteWithIntent(notes, outbox, plan.record, plan.intent || null)
+    }
+  }
+  await committed
+  return accepted
 }
 
 export function getNote(db, noteId) {

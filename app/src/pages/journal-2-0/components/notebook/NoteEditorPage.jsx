@@ -838,6 +838,13 @@ export default function NoteEditorPage({ noteId, onBack, showBack = true, onTitl
         // BEFORE this synchronous line — reversing the one ordering that owns
         // the crash window.
         sessionId: SESSION_ID,
+        // ⭐⭐ D3b (wave 6): THE REVISION THESE WORDS WERE TYPED ON. Without it a
+        // crash draft that won recovery had no base, `chooseLocalRecovery` gave it
+        // the server's CURRENT revision, and Restore PUT it over another device's
+        // words. With it, Restore sends on this revision (`baseOfRecovered`), a
+        // server that moved 409s, and the reconcile forks — never a clobber. A
+        // draft written before this line has none, and keeps its old path.
+        baseUpdatedAt: usableBaseline(snap.baseUpdatedAt),
       }))
     } catch { /* private mode / storage full — the network autosave is still the primary path */ }
   }
