@@ -2,8 +2,9 @@
 the EMPIRICAL dividend-sensitivity rail (the same sessions replayed with the dividend FACTORS off but the dividend WITHHOLDING kept —
 a metric classified INSENSITIVE must never differ; a SENSITIVE one is expected to)."""
 import collections, json, os, sys
-os.environ.setdefault("V2C2_TAG", "v20260923b")
-os.environ.setdefault("GUARD_BOUNDARIES", "/data/_audit/validation/v2c_final/out/guard_oracle_boundaries_" + os.environ["V2C2_TAG"] + ".json")
+# argv: artifact out_tag universes sens_every VINTAGE — the vintage is explicit, never defaulted
+os.environ["V2C2_TAG"] = sys.argv[5]
+os.environ["GUARD_BOUNDARIES"] = ( "/data/_audit/validation/v2c_final/out/guard_oracle_boundaries_" + os.environ["V2C2_TAG"] + ".json")
 from common import ro, write
 import oracle3
 
