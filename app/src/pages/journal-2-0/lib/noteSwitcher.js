@@ -12,13 +12,15 @@
  * The server does the ranking (`GET /api/j2/notes/switcher`,
  * `notes.py::switcher_search`); this file never re-ranks note titles, it only
  * places them. One authority over "which note is the best match".
+ *
+ * ⛔ AND IT NEVER RESTATES A SERVER RULE (review S3). Where a row sits among
+ * tickers is read from the row's own `strong` and `exact` flags, which the
+ * server derives from its tier numbers — this file used to keep its own copy of
+ * "tier 2 and below", commented "mirrors notes.py", which is a promise and not
+ * a rail. Renumber the tiers and the flags still say the right thing.
  */
 
 export const NOTE_SWITCHER_LIMIT = 8
-
-/** Mirrors `SWITCHER_TIER_WORD_START` in notes.py: tiers at or below it are a
- *  title that IS, STARTS WITH, or has a WORD STARTING WITH the query. */
-export const STRONG_NOTE_TIER_MAX = 2
 
 export function noteSwitcherUrl(query, limit = NOTE_SWITCHER_LIMIT) {
   return `/api/j2/notes/switcher?q=${encodeURIComponent(query)}&limit=${limit}`
@@ -39,6 +41,10 @@ export function toNoteRow(n) {
     badge,
     icon: n.isFavorite ? 'star-fill' : 'document',
     matchTier: typeof n.matchTier === 'number' ? n.matchTier : null,
+    // The server's placement flags: IS / STARTS WITH / a WORD STARTS WITH the
+    // query (strong), and IS the query, case aside (exact).
+    strong: n.strong === true,
+    exact: n.exact === true,
   }
   row.context = noteContextLine(row)
   return row
@@ -47,9 +53,11 @@ export function toNoteRow(n) {
 /**
  * A short ticker-shaped query ("nvda", "amd", "brk.b") is treated as a SYMBOL
  * first: the ticker rows — including the synthetic "Go to NVDA" row that lets
- * Enter work before any request answers — stay above every note. Longer or
- * multi-word queries ("q3 thesis", "earnings recap") are treated as a note
- * search first, below only an EXACT ticker hit.
+ * Enter work before any request answers — stay above the notes, UNLESS the
+ * ticker search has answered with no ticker that IS the query and a note title
+ * IS it ("Plan", "Ideas", "Q3"): then that note is the Enter target (S5).
+ * Longer or multi-word queries ("q3 thesis", "earnings recap") are treated as
+ * a note search first, below only an EXACT ticker hit.
  */
 export function tickerLeads(qUpper, tickerLike) {
   return Boolean(qUpper) && qUpper.length <= 5 && tickerLike.test(qUpper)
@@ -59,22 +67,51 @@ export function tickerLeads(qUpper, tickerLike) {
  * Final palette order.
  *   commands  — explicit notebook commands ("new note", "trash")
  *   keyword   — favourites / recents asked for BY NAME ("recent", "favorite")
- *   then, for a ticker-shaped query: every ticker row, then notes;
+ *   then, for a ticker-shaped query: every ticker row, then notes — except
+ *   that once the ticker search has answered (`tickersSettled`) with no ticker
+ *   that IS the query, a note whose title IS the query leads;
  *   otherwise: an exact ticker hit, then strong note matches, then the other
  *   ticker rows, then the weaker note matches.
  * A note already listed as a keyword row is never listed twice.
+ *
+ * ⛔ Before the ticker search answers, the ticker rows lead whatever the notes
+ * said: the zero-network "Go to NVDA" row is what makes Enter work instantly,
+ * and "which request answered first" must never decide where Enter goes.
  */
 export function orderPaletteRows({
   commands = [], keywordNotes = [], tickers = [], noteMatches = [], qUpper = '', tickerLead = false,
+  tickersSettled = false,
 }) {
   const seen = new Set(keywordNotes.map((r) => r.id))
   const notes = noteMatches.filter((r) => !seen.has(r.id))
-  if (tickerLead) return [...commands, ...keywordNotes, ...tickers, ...notes]
   const exact = tickers.filter((t) => !t._typed && String(t.ticker).toUpperCase() === qUpper)
+  if (tickerLead) {
+    const exactNote = tickersSettled && !exact.length ? notes.find((n) => n.exact) : null
+    if (exactNote) {
+      return [...commands, ...keywordNotes, exactNote, ...tickers, ...notes.filter((n) => n !== exactNote)]
+    }
+    return [...commands, ...keywordNotes, ...tickers, ...notes]
+  }
   const restTickers = tickers.filter((t) => !exact.includes(t))
-  const strong = notes.filter((n) => n.matchTier !== null && n.matchTier <= STRONG_NOTE_TIER_MAX)
-  const weak = notes.filter((n) => !strong.includes(n))
+  const strong = notes.filter((n) => n.strong)
+  const weak = notes.filter((n) => !n.strong)
   return [...commands, ...keywordNotes, ...exact, ...strong, ...restTickers, ...weak]
+}
+
+/** The query as the switcher reads it: lower-cased, whitespace collapsed —
+ *  the same normalisation `switcher_search` applies before matching. */
+export function normalizeSwitcherQuery(q) {
+  return String(q || '').toLowerCase().split(/\s+/).filter(Boolean).join(' ')
+}
+
+/**
+ * N1: the server answered `prefixExhausted` for `exhausted` — no note matches it
+ * or ANY longer query that starts with it (the server only claims this when its
+ * own matching rules make it true). While the member keeps typing onto it there
+ * is nothing to ask; a backspace past it asks again.
+ */
+export function extendsExhausted(exhausted, query) {
+  return Boolean(exhausted) && normalizeSwitcherQuery(query).startsWith(exhausted)
 }
 
 /**

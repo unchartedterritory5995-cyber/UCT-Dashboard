@@ -555,10 +555,12 @@ describe('CommandPalette — quick switcher over ALL notes (Notebook 10/10 wave 
       return Promise.resolve({ ok: true, json: () => Promise.resolve({ notes: [] }) })
     })
   }
+  // `strong` / `exact` are the SERVER's placement flags (review S3) — the
+  // palette reads them, never the tier number, so every fixture states them.
   const note = (over) => ({
     id: 'n1', title: 'Q3 NVDA thesis', folderId: 'f1', folderPath: 'Research / Semis',
     ticker: 'NVDA', updatedAt: '2026-09-01T00:00:00Z', isRecent: false, isFavorite: false,
-    matchTier: 2, ...over,
+    matchTier: 2, strong: true, exact: false, ...over,
   })
 
   it('finds a note by title and shows WHERE it lives (folder and ticker)', async () => {
@@ -619,7 +621,7 @@ describe('CommandPalette — quick switcher over ALL notes (Notebook 10/10 wave 
     // title match, and it must still sit BELOW the ticker rows.
     routeFetch({
       tickers: [{ ticker: 'NVDA', name: 'NVIDIA Corp' }],
-      notes: [note({ id: 'n9', title: 'NVDA', matchTier: 0 })],
+      notes: [note({ id: 'n9', title: 'NVDA', matchTier: 0, exact: true })],
     })
     renderPalette()
     act(() => pressCtrlK())
@@ -641,7 +643,7 @@ describe('CommandPalette — quick switcher over ALL notes (Notebook 10/10 wave 
       const u = String(url)
       if (u.startsWith('/api/ticker-search')) return new Promise(() => {}) // never answers
       if (u.startsWith('/api/j2/notes/switcher')) {
-        return Promise.resolve({ ok: true, json: () => Promise.resolve({ notes: [note({ id: 'n9', title: 'NVDA', matchTier: 0 })] }) })
+        return Promise.resolve({ ok: true, json: () => Promise.resolve({ notes: [note({ id: 'n9', title: 'NVDA', matchTier: 0, exact: true })] }) })
       }
       return Promise.resolve({ ok: true, json: () => Promise.resolve({ notes: [] }) })
     })
@@ -722,6 +724,52 @@ describe('CommandPalette — quick switcher over ALL notes (Notebook 10/10 wave 
     } finally {
       Element.prototype.scrollIntoView = had
     }
+  })
+
+  it('S5: a short title the ticker search has NO exact ticker for — "plan" + Enter opens the note', async () => {
+    routeFetch({
+      tickers: [{ ticker: 'PLNT', name: 'Planet Fitness' }],
+      notes: [note({ id: 'p1', title: 'Plan', matchTier: 0, exact: true, ticker: null })],
+    })
+    renderPalette()
+    act(() => pressCtrlK())
+    const input = await screen.findByRole('combobox')
+    fireEvent.change(input, { target: { value: 'plan' } })
+    await screen.findByText('Planet Fitness')
+    await waitFor(() => expect(screen.getAllByRole('option')[0].getAttribute('aria-label')).toMatch(/Note: Plan/))
+    fireEvent.keyDown(input, { key: 'Enter' })
+    await waitFor(() => expect(screen.getByTestId('route-spy')).toHaveTextContent('/journal/notebook?note=p1'))
+  })
+
+  it('N1: once the server says no note can match, typing onto that query stops asking — a backspace asks again', async () => {
+    global.fetch = vi.fn((url) => {
+      const u = String(url)
+      if (u.startsWith('/api/ticker-search')) {
+        return Promise.resolve({ ok: true, json: () => Promise.resolve({ results: [] }) })
+      }
+      if (u.startsWith('/api/j2/notes/switcher')) {
+        const q = new URL(u, 'http://x').searchParams.get('q')
+        return Promise.resolve({
+          ok: true,
+          json: () => Promise.resolve({ notes: [], hasMore: false, prefixExhausted: q === 'zzzz' }),
+        })
+      }
+      return Promise.resolve({ ok: true, json: () => Promise.resolve({ notes: [] }) })
+    })
+    const asked = (prefix) => global.fetch.mock.calls.map((c) => String(c[0])).filter((u) => u.startsWith(prefix))
+    renderPalette()
+    act(() => pressCtrlK())
+    const input = await screen.findByRole('combobox')
+    fireEvent.change(input, { target: { value: 'zzzz' } })
+    await waitFor(() => expect(asked('/api/j2/notes/switcher?q=zzzz&')).toHaveLength(1))
+    await act(async () => { await new Promise((r) => setTimeout(r, 20)) })
+    fireEvent.change(input, { target: { value: 'zzzzq' } })
+    // The ticker search for the longer query DID run, so the debounce elapsed…
+    await waitFor(() => expect(asked('/api/ticker-search?q=zzzzq')).toHaveLength(1))
+    // …and the notes index was not asked.
+    expect(asked('/api/j2/notes/switcher?q=zzzzq')).toHaveLength(0)
+    fireEvent.change(input, { target: { value: 'zzz' } })
+    await waitFor(() => expect(asked('/api/j2/notes/switcher?q=zzz&')).toHaveLength(1))
   })
 
   it('the help screen documents that a note title opens the note', async () => {

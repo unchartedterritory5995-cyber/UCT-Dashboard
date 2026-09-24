@@ -7,7 +7,8 @@ import { useJ2Favorites, useJ2Recents } from '../pages/journal-2-0/hooks/useJ2No
 import { openCapture } from '../pages/journal-2-0/lib/captureBus'
 import { destinationFromLocation } from '../pages/journal-2-0/lib/captureContext'
 import {
-  noteSwitcherUrl, orderPaletteRows, splitTitleMatch, tickerLeads, toNoteRow,
+  extendsExhausted, normalizeSwitcherQuery, noteSwitcherUrl, orderPaletteRows, splitTitleMatch,
+  tickerLeads, toNoteRow,
 } from '../pages/journal-2-0/lib/noteSwitcher'
 import jsonFetcher from '../utils/jsonFetcher'
 import styles from './CommandPalette.module.css'
@@ -93,6 +94,10 @@ const CommandPalette = forwardRef(function CommandPalette(_props, ref) {
   const [open, setOpen] = useState(false)
   const [query, setQuery] = useState('')
   const [results, setResults] = useState([])
+  // The query `results` answers. Until it equals what is typed, the ticker
+  // search has not answered THIS query — and an exact note title may not take
+  // Enter from the zero-network "Go to X" row (orderPaletteRows).
+  const [resultsFor, setResultsFor] = useState(null)
   const [activeIdx, setActiveIdx] = useState(0)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState(false)
@@ -110,6 +115,9 @@ const CommandPalette = forwardRef(function CommandPalette(_props, ref) {
   const noteAbortRef = useRef(null)
   const debounceRef = useRef(null)
   const reqIdRef = useRef(0)
+  // N1: a query the server said no note can match, however it is extended.
+  // Typing onto it skips the notes request; a backspace past it asks again.
+  const exhaustedRef = useRef(null)
 
   useEffect(() => { openRef.current = open }, [open])
 
@@ -151,7 +159,9 @@ const CommandPalette = forwardRef(function CommandPalette(_props, ref) {
     } else {
       setQuery('')
       setResults([])
+      setResultsFor(null)
       setNoteMatches([])
+      exhaustedRef.current = null
       setActiveIdx(0)
       setError(false)
       setNotesError(false)
@@ -207,23 +217,32 @@ const CommandPalette = forwardRef(function CommandPalette(_props, ref) {
       // titles, in parallel with the ticker search — never a second timer, so
       // the two lists always describe the same query.
       if (noteAbortRef.current) noteAbortRef.current.abort()
-      const nac = new AbortController()
-      noteAbortRef.current = nac
-      setNotesLoading(true)
-      setNotesError(false)
-      jsonFetcher(noteSwitcherUrl(q), { signal: nac.signal })
-        .then((data) => {
-          if (reqIdRef.current !== myReqId) return
-          setNoteMatches(Array.isArray(data?.notes) ? data.notes.map(toNoteRow) : [])
-          setNotesLoading(false)
-        })
-        .catch((err) => {
-          if (err?.name === 'AbortError') return
-          if (reqIdRef.current !== myReqId) return
-          setNoteMatches([])
-          setNotesError(true)
-          setNotesLoading(false)
-        })
+      if (extendsExhausted(exhaustedRef.current, q)) {
+        // The server already said no longer query can match a note: a ticker
+        // search typed past a non-note prefix costs the notes index nothing.
+        setNoteMatches([])
+        setNotesLoading(false)
+        setNotesError(false)
+      } else {
+        const nac = new AbortController()
+        noteAbortRef.current = nac
+        setNotesLoading(true)
+        setNotesError(false)
+        jsonFetcher(noteSwitcherUrl(q), { signal: nac.signal })
+          .then((data) => {
+            if (reqIdRef.current !== myReqId) return
+            setNoteMatches(Array.isArray(data?.notes) ? data.notes.map(toNoteRow) : [])
+            if (data?.prefixExhausted === true) exhaustedRef.current = normalizeSwitcherQuery(q)
+            setNotesLoading(false)
+          })
+          .catch((err) => {
+            if (err?.name === 'AbortError') return
+            if (reqIdRef.current !== myReqId) return
+            setNoteMatches([])
+            setNotesError(true)
+            setNotesLoading(false)
+          })
+      }
 
       if (abortRef.current) abortRef.current.abort()
       const ac = new AbortController()
@@ -239,6 +258,7 @@ const CommandPalette = forwardRef(function CommandPalette(_props, ref) {
         .then(data => {
           if (reqIdRef.current !== myReqId) return
           setResults(Array.isArray(data?.results) ? data.results : [])
+          setResultsFor(q)
           setLoading(false)
         })
         .catch(err => {
@@ -313,8 +333,9 @@ const CommandPalette = forwardRef(function CommandPalette(_props, ref) {
       noteMatches: noteMatchRows,
       qUpper,
       tickerLead: tickerLeads(qUpper, TICKER_LIKE),
+      tickersSettled: !loading && resultsFor === trimmedQuery,
     }),
-    [notebookCommandRows, notebookNoteRows, tickerRows, noteMatchRows, qUpper],
+    [notebookCommandRows, notebookNoteRows, tickerRows, noteMatchRows, qUpper, loading, resultsFor, trimmedQuery],
   )
 
   useEffect(() => {
