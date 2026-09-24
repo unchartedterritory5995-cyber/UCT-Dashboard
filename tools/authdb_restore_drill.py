@@ -58,6 +58,33 @@ class Inconclusive(Exception):
     """Could not measure. Never reported as a pass."""
 
 
+# The flags of the IDEMPOTENT search-text backfills, derived from their call sites.
+# They live in DATA_DIR, not in the database, so restoring a backup taken before a
+# backfill leaves the flag behind and the restored rows keep their old body_plain for
+# good. Only calls to `rederive_body_plain` qualify: re-running one is a read-only pass
+# over rows that already match. A one-shot migration flag (e.g. v1, which moves
+# playbook entries into notes) is never listed; removing it would re-migrate.
+_BACKFILL_SOURCES = ("api/services/journal_two/db.py", "api/services/user_playbook/db.py")
+
+
+def rederive_backfill_flags() -> list[str]:
+    import ast
+    flags: list[str] = []
+    for rel in _BACKFILL_SOURCES:
+        tree = ast.parse((REPO / rel).read_text(encoding="utf-8"))
+        for node in ast.walk(tree):
+            if not isinstance(node, ast.Call):
+                continue
+            fn = node.func
+            name = fn.attr if isinstance(fn, ast.Attribute) else getattr(fn, "id", "")
+            if name != "rederive_body_plain":
+                continue
+            for kw in node.keywords:
+                if kw.arg == "flag_name" and isinstance(kw.value, ast.Constant):
+                    flags.append(kw.value.value)
+    return sorted(set(flags))
+
+
 def snapshot_time(key: str) -> dt.datetime | None:
     m = _TS_RE.search(key)
     if not m:
@@ -167,6 +194,16 @@ def render(source: str, taken, size: int, result: dict, code: int, reasons: list
         lines += ["", "## Why it failed"] + [f"- {r}" for r in reasons]
     lines += ["", "## Row counts", "", "| table | rows |", "|---|---|"]
     lines += [f"| {t} | {n:,} |" for t, n in result["counts"].items()]
+    flags = rederive_backfill_flags()
+    lines += [
+        "", "## After a real restore",
+        "",
+        "Delete these files from DATA_DIR before the next boot, so the idempotent search-text "
+        "backfills re-derive the restored rows (they otherwise keep the old text for good). "
+        "Leave every other migration flag alone: those are one-shot and would re-run.",
+        "",
+    ]
+    lines += [f"- `{f}` and `{f}.progress`" for f in flags]
     return "\n".join(lines) + "\n"
 
 
