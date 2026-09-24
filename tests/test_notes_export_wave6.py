@@ -473,3 +473,14 @@ def test_an_attachment_link_with_a_space_in_its_name_is_a_real_link_too(tmp_path
     from api.services.journal_two import notes_export as ne
     assert ne._relative_link("Trading Ideas", "attachments/u1/n1/file/my report (final).pdf") ==         "../attachments/u1/n1/file/my%20report%20%28final%29.pdf"
     assert ne._relative_link("", "Café & Research/NVDA up 50% (Q3).md") ==         "Caf%C3%A9%20%26%20Research/NVDA%20up%2050%25%20%28Q3%29.md"
+
+
+# ── item 10: the writer's contract, as a router relies on it ────────────────
+
+def test_the_writer_leaves_a_connection_it_was_given_open_and_accepts_ids_in_any_order_or_iterable(library):
+    first, *_ = _selection(library, ["d", "b", "a"])
+    # the same connection answers again: the writer did not close it
+    second, _f, exported, skipped = _selection(library, iter(["a", "b", "d"]))
+    assert (exported, skipped) == (3, [])
+    strip = lambda files: {k: v for k, v in files.items() if k != "UCT_NOTEBOOK_EXPORT.json"}  # noqa: E731
+    assert strip(first) == strip(second)

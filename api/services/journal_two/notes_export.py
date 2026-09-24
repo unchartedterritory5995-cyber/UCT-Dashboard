@@ -1894,14 +1894,46 @@ def build_selection_export_to_tempfile(
     and a link between two selected notes is a relative `.md` path, not the
     not-bundled reference a stack of single-note exports gave it.
 
-    Returns `(path, filename, exported_count, skipped_ids)`; the caller owns
-    deleting `path` (the route streams it with `stream_export_file`, exactly
-    like `build_export_zip_to_tempfile`).
+    ⭐ THE CONTRACT A ROUTER CALLS (wave 6 fix round 1 -- `POST
+    /api/j2/notes/batch/export`, lane E's file, is switching to this):
 
-    ⛔ NOT YET CALLED BY THE ROUTE: `POST /api/j2/notes/batch/export` lives in
-    api/routers/journal_two.py (lane E's file), which still gathers
-    `build_single_note_export` results at the archive root. Swapping its loop
-    for this call is a controller request (wave6-D-report.md)."""
+      * `user_id` -- the signed-in member; every note is read with
+        `user_id = ?` in SQL, never filtered in Python.
+      * `note_ids` -- any iterable of ids. Order does not matter (the archive
+        is written newest-first, as the whole-notebook export is); a repeat is
+        written once; a non-string or empty id is ignored. An id that is not an
+        ACTIVE note of this member -- another member's, trashed, unknown -- is
+        not exported, is returned in `skipped_ids` (first-seen order) and is
+        listed in `EXPORT_ISSUES.txt`. The router still validates and caps the
+        request itself (`_parse_batch_ids(..., cap=NOTE_BATCH_EXPORT_MAX)`);
+        this function adds no limit of its own.
+      * `conn` -- optional. `None` opens and closes an `auth_db` connection;
+        a connection passed in is used and NOT closed.
+      * Returns `(path, filename, exported_count, skipped_ids)`: `path` a zip
+        on disk the CALLER owns, `filename` `uct-notebook-selection-YYYYMMDD.zip`
+        (UTC). The route answers `X-Export-Count: exported_count` and
+        `X-Export-Skipped: len(skipped_ids)`, the two headers the client reads.
+      * Blocking disk and SQLite work: call it from a sync `def` route (FastAPI
+        runs those in the threadpool), never straight from an `async def`.
+      * The export slot is the CALLER's, exactly as for the whole-notebook
+        route: `acquire_export_slot()` first (429 when it answers False); if this
+        raises, `release_export_slot()` and re-raise (this function has already
+        deleted its own partial file); on success hand `path` to
+        `stream_export_file(path)`, which deletes it and releases the slot when
+        the stream ends (the lease reclaims an abandoned slot regardless).
+      * What is inside: `UCT_NOTEBOOK_EXPORT.json` with `"selection": true`;
+        each note at `<its folder path>/<title>.md` (the whole-notebook
+        export's paths, collisions told apart by id); a link between two
+        selected notes a RELATIVE, percent-encoded `.md` path from the linking
+        note's folder (I2), a link to a note not selected the honest
+        `uct-note:///notebook?note=<id>` reference; attachments under
+        `attachments/`, one byte cap for the whole selection.
+
+    Railed on the writer itself in `tests/test_notes_export_wave6.py` (a
+    foldered selection whose every cross-link CommonMark parses and resolves)
+    and across runtimes, through our own importer, in
+    `lib/selectionExport.roundtrip.test.js`; the route's rail on the wire is
+    lane E's."""
     from api.services.auth_db import get_connection
 
     owned = conn is None
