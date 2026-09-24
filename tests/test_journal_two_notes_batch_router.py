@@ -112,7 +112,7 @@ def test_requires_a_signed_in_member(client):
     ({"ids": ["a", "b"], "op": "move", "args": {"folders": {"a": None}}}, "for every id"),
     ({"ids": ["a"], "op": "move", "args": {"folders": ["a"]}}, "for every id"),
     ({"ids": ["a"], "op": "move", "args": {"folders": {"a": 7}}}, "folderId must be"),
-    ({"ids": ["a"], "op": "move", "args": {"folders": {"a": "nope"}}}, "folder not found"),
+    ({"ids": ["a"], "op": "move", "args": {"folderId": "nope"}}, "folder not found"),
     ({"ids": ["a"], "op": "move", "args": {"folderId": None, "expectFolderId": 7}}, "expectFolderId"),
 ])
 def test_a_request_that_would_fail_every_note_is_a_400(app, client, payload, needle):
@@ -455,9 +455,79 @@ def test_undo_never_moves_a_note_that_was_moved_again_since(app, client):
     back = _by_id(_batch(client, ids, "move", {"folders": {a["id"]: f1, b["id"]: f1},
                                                "expectFolderId": dest}))
     assert back[a["id"]]["status"] == "changed"
-    assert back[b["id"]] == {"id": b["id"], "status": "conflict"}
+    assert back[b["id"]] == {"id": b["id"], "status": "moved_since"}
     after = _get(client, b["id"])
     assert (after["folderId"], after["updatedAt"]) == (elsewhere, before["updatedAt"])
+
+
+# ── fix round 3: the Undo is a real compare-and-set (R1-N3) ─────────────────
+
+def _race_on(monkeypatch, note_id, concurrent_patch):
+    """Make another tab's write land on `note_id` between the batch's READ of
+    it and the Undo's write — the window a long Undo leaves open, since every
+    note commits separately after one read of all the heads."""
+    from api.services.journal_two import notes as notes_service
+    real = notes_service.update_note
+    fired = []
+
+    def racing(user_id, nid, patch, conn=None, **kw):
+        if nid == note_id and kw.get("expected_updated_at") and not fired:
+            fired.append(1)
+            real(user_id, nid, concurrent_patch)            # the other tab, no CAS
+        return real(user_id, nid, patch, conn=conn, **kw)
+
+    monkeypatch.setattr(notes_service, "update_note", racing)
+    return fired
+
+
+def test_a_move_landing_mid_undo_is_never_overwritten(app, client, monkeypatch):
+    _login_as(app, "u1")
+    f1, dest, elsewhere = _folder(client, "One"), _folder(client, "Dest"), _folder(client, "Elsewhere")
+    a = _note(client, "A", folderId=f1)
+    b = _note(client, "B", folderId=f1)
+    ids = [a["id"], b["id"]]
+    _batch(client, ids, "move", {"folderId": dest})
+    fired = _race_on(monkeypatch, b["id"], {"folderId": elsewhere})
+    back = _by_id(_batch(client, ids, "move", {"folders": {a["id"]: f1, b["id"]: f1},
+                                               "expectFolderId": dest}))
+    assert fired, "the race never ran"
+    assert back[a["id"]]["status"] == "changed"
+    assert back[b["id"]] == {"id": b["id"], "status": "moved_since"}
+    assert _get(client, a["id"])["folderId"] == f1
+    assert _get(client, b["id"])["folderId"] == elsewhere        # the other tab's move stands
+
+
+def test_an_edit_mid_undo_is_re_read_and_the_note_still_goes_back(app, client, monkeypatch):
+    _login_as(app, "u1")
+    f1, dest = _folder(client, "One"), _folder(client, "Dest")
+    b = _note(client, "B", folderId=f1)
+    _batch(client, [b["id"]], "move", {"folderId": dest})
+    fired = _race_on(monkeypatch, b["id"], {"title": "B, edited meanwhile"})
+    back = _by_id(_batch(client, [b["id"]], "move", {"folders": {b["id"]: f1}, "expectFolderId": dest}))
+    assert fired
+    assert back[b["id"]]["status"] == "changed"
+    after = _get(client, b["id"])
+    assert (after["folderId"], after["title"]) == (f1, "B, edited meanwhile")
+    assert back[b["id"]]["updatedAt"] == after["updatedAt"]
+
+
+def test_undo_to_a_deleted_folder_fails_that_note_only_and_says_where_it_stayed(app, client):
+    _login_as(app, "u1")
+    f1, f2, dest = _folder(client, "One"), _folder(client, "Two"), _folder(client, "Dest")
+    a = _note(client, "A", folderId=f1)
+    b = _note(client, "B", folderId=f2)
+    ids = [a["id"], b["id"]]
+    _batch(client, ids, "move", {"folderId": dest})
+    assert client.delete(f"/api/j2/note-folders/{f1}").status_code == 200
+    before = _get(client, a["id"])
+    back = _batch(client, ids, "move", {"folders": {a["id"]: f1, b["id"]: f2}, "expectFolderId": dest})
+    res = _by_id(back)
+    assert res[a["id"]] == {"id": a["id"], "status": "folder_gone",
+                            "stayedInFolderId": dest, "stayedInFolderName": "Dest"}
+    assert res[b["id"]]["status"] == "changed"
+    after = _get(client, a["id"])
+    assert (after["folderId"], after["updatedAt"]) == (dest, before["updatedAt"])   # untouched
+    assert _get(client, b["id"])["folderId"] == f2
 
 
 def test_a_legacy_spelled_tag_is_removed_and_not_added_twice(app, client, db_path):

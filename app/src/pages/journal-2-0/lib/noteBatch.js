@@ -189,6 +189,22 @@ export const FAILURE_WORDS = {
   in_trash: 'is in the Trash',
   conflict: 'changed while this ran — try again',
   invalid: 'could not take it',
+  // R1-N3: only an Undo of a move produces these, and an Undo cannot be
+  // retried — so neither says "try again". They say what happened instead.
+  moved_since: 'was moved again after this — left where it is',
+  folder_gone: (r) => `could not go back: its folder no longer exists — it stayed in ${r.stayedInFolderName || 'Unfiled'}`,
+}
+
+/** An Undo cannot be retried (the member has nothing to press again), so a
+ *  note that raced it is reported as left alone, never as "try again". */
+export const UNDO_CONFLICT_WORDS = 'was changed again after this — left where it is'
+
+function failureWords(r, { backToOrigin = false } = {}) {
+  if (r.status === 'invalid' && r.error) return r.error
+  if (r.status === 'conflict' && backToOrigin) return UNDO_CONFLICT_WORDS
+  const w = FAILURE_WORDS[r.status]
+  if (typeof w === 'function') return w(r)
+  return w || 'could not be changed'
 }
 
 /**
@@ -224,8 +240,7 @@ export function describeBatch(outcome, { folderName, tag, backToOrigin = false, 
   if (failures.length) {
     const named = failures.slice(0, 3).map((r) => {
       const t = titleOf(r.id)
-      const why = r.status === 'invalid' && r.error ? r.error : (FAILURE_WORDS[r.status] || 'could not be changed')
-      return `${t ? `"${t}"` : 'A note'} ${why}`
+      return `${t ? `"${t}"` : 'A note'} ${failureWords(r, { backToOrigin })}`
     })
     const more = failures.length > 3 ? ` and ${failures.length - 3} more` : ''
     parts.push(`${plural(failures.length, 'note was', 'notes were')} not changed: ${named.join('; ')}${more}.`)

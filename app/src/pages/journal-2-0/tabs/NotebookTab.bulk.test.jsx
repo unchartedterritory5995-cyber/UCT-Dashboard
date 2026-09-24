@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
-import { render, screen, fireEvent, waitFor, within } from '@testing-library/react'
+import { render, screen, fireEvent, waitFor, within, act } from '@testing-library/react'
 import { MemoryRouter } from 'react-router-dom'
 import fs from 'node:fs'
 import path from 'node:path'
@@ -422,6 +422,34 @@ describe('NotebookTab — B1: a bulk move can be taken back', () => {
   })
 })
 
+describe('NotebookTab — R1-N3: an Undo that could not put every note back', () => {
+  it('says which stayed and why — never "try again" after an Undo', async () => {
+    batchAnswer = (body) => {
+      if (body.op === 'move' && !body.args.folders) {
+        return { op: 'move', results: body.ids.map((id) => ({ id, status: 'changed', updatedAt: REV(id), fromFolderId: 'f9' })) }
+      }
+      return {
+        op: 'move',
+        results: [
+          { id: 'n1', status: 'moved_since' },
+          { id: 'n2', status: 'folder_gone', stayedInFolderId: 'f1', stayedInFolderName: 'Research' },
+        ],
+      }
+    }
+    renderTab()
+    fireEvent.click(box('First note'))
+    fireEvent.click(box('Second note'))
+    await moveTo('f1')
+    expect(await screen.findByText('Moved 2 notes to Research.')).toBeInTheDocument()
+    fireEvent.click(screen.getByRole('button', { name: 'Undo' }))
+    expect(await screen.findByText(
+      'Nothing changed. 2 notes were not changed: "First note" was moved again after this — left where it is; '
+      + '"Second note" could not go back: its folder no longer exists — it stayed in Research.',
+    )).toBeInTheDocument()
+    expect(screen.queryByText(/try again/)).toBeNull()
+  })
+})
+
 describe('NotebookTab — S4: the Undo cannot be lost', () => {
   it('Undo pressed while another batch runs is QUEUED, said so, and restores when that batch ends', async () => {
     const base = global.fetch
@@ -659,5 +687,46 @@ describe('NotebookTab — R1-S1: a device that cannot be CHECKED is told so, and
     expect(await screen.findByText(/"Second note" is still syncing/)).toBeInTheDocument()
     expect(screen.queryByRole('button', { name: 'Trash anyway' })).toBeNull()
     expect(screen.queryByText(UNCHECKED)).toBeNull()
+  })
+})
+
+describe('NotebookTab — R1-N4: a bulk action re-asks the tag counts only when it can move them', () => {
+  const tagAsks = () => global.fetch.mock.calls.filter(([u]) => String(u).startsWith('/api/j2/notes/tags')).length
+  const settle = () => act(async () => { await new Promise((r) => setTimeout(r, 30)) })
+
+  it('a move or a favourite does not; a tag edit and a trash do', async () => {
+    renderTab()
+    await waitFor(() => expect(tagAsks()).toBeGreaterThan(0))      // non-vacuity: the probe sees the key
+    await settle()
+    let before = tagAsks()
+    fireEvent.click(box('First note'))
+    await moveTo('f1')
+    expect(await screen.findByText('Moved 1 note to Research.')).toBeInTheDocument()
+    await settle()
+    expect(tagAsks()).toBe(before)                                   // a move cannot change a count
+
+    fireEvent.keyDown(document, { key: 'Escape' })                    // a fresh selection each time
+    fireEvent.click(box('Second note'))
+    fireEvent.click(screen.getByRole('button', { name: 'Favorite' }))
+    expect(await screen.findByText('Added 1 note to Favorites.')).toBeInTheDocument()
+    await settle()
+    expect(tagAsks()).toBe(before)                                   // nor a favourite
+
+    fireEvent.keyDown(document, { key: 'Escape' })
+    fireEvent.click(box('Third note'))
+    fireEvent.click(screen.getByRole('button', { name: 'Tags' }))
+    fireEvent.change(screen.getByRole('combobox', { name: 'Tag to add to the selected notes' }), { target: { value: 'fresh' } })
+    fireEvent.click(screen.getByRole('button', { name: 'Add tag' }))
+    expect(await screen.findByText('Tagged 1 note #fresh.')).toBeInTheDocument()
+    await settle()
+    expect(tagAsks()).toBeGreaterThan(before)                        // a tag edit can
+    before = tagAsks()
+
+    fireEvent.keyDown(document, { key: 'Escape' })
+    fireEvent.click(box('First note'))
+    fireEvent.click(screen.getByRole('button', { name: 'Move to Trash' }))
+    expect(await screen.findByText('Moved 1 note to the Trash.')).toBeInTheDocument()
+    await settle()
+    expect(tagAsks()).toBeGreaterThan(before)                        // and so can a trash (live notes only)
   })
 })

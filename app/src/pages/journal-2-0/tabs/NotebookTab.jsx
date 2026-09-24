@@ -39,7 +39,7 @@ import { useNoteSelection } from '../lib/noteSelection'
 import {
   checkUnsentWork, describeBatch, describeExport, describeUnchecked, exportSelectedNotes, runNoteBatch, undoFor,
 } from '../lib/noteBatch'
-import useJ2NoteTags from '../hooks/useJ2NoteTags'
+import useJ2NoteTags, { NOTE_TAGS_KEY } from '../hooks/useJ2NoteTags'
 import { fallbackNodes } from '../lib/tagTree'
 
 // Folders panel resize bounds (px).
@@ -71,6 +71,9 @@ function _logNotebookVisit() {
     body: JSON.stringify({ event: 'notebook_tab_visit' }),
   }).catch(() => {})
 }
+
+/** Bulk ops that can change what GET /api/j2/notes/tags counts (R1-N4). */
+const TAG_COUNT_OPS = new Set(['addTag', 'removeTag', 'trash', 'restore'])
 
 export default function NotebookTab() {
   const [searchParams, setSearchParams] = useSearchParams()
@@ -389,8 +392,11 @@ export default function NotebookTab() {
   // A key-predicate SWR revalidation (not a FolderSidebar remount, which
   // would also blow away its expanded-folder/search UI state) targets
   // exactly those hooks without disturbing anything else.
-  const refreshSidebarCounts = () => {
-    globalMutate((key) => typeof key === 'string' && key.startsWith('/api/j2/notes'))
+  // `tags: false` leaves GET /api/j2/notes/tags out — for a change that cannot
+  // move a tag count (review R1-N4: that endpoint costs ~1.4 s at 50k notes).
+  const refreshSidebarCounts = ({ tags = true } = {}) => {
+    globalMutate((key) => typeof key === 'string' && key.startsWith('/api/j2/notes')
+      && (tags || !key.startsWith(NOTE_TAGS_KEY)))
   }
 
   // ⭐ WAVE M: an optional `target` carries the OBJECT the caller actually
@@ -677,7 +683,10 @@ export default function NotebookTab() {
     }
     refresh()
     refreshAll()
-    refreshSidebarCounts()
+    // The tag tree counts tags on LIVE notes: only a tag edit, or a note
+    // entering or leaving the Trash, can move it. A move or a favourite
+    // cannot, so it does not re-ask the (costly) tag endpoint.
+    refreshSidebarCounts({ tags: TAG_COUNT_OPS.has(op) })
   }
 
   const titleOf = (id) => titleById.get(id) || null

@@ -390,3 +390,37 @@ describe('describeExport — every note left out is named', () => {
       .toBe('1 note was not included: "Sending one" is still syncing — try again in a moment.')
   })
 })
+
+describe('R1-N3 — an Undo that could not put every note back says what happened, never "try again"', () => {
+  const titleOf = (id) => ({ b: 'B note', c: 'C note', d: 'D note', e: 'E note' })[id]
+  const undoOutcome = {
+    op: 'move', changed: 1, unchanged: 0,
+    results: [
+      { id: 'a', status: 'changed', updatedAt: 't' },
+      { id: 'b', status: 'moved_since' },
+      { id: 'c', status: 'folder_gone', stayedInFolderId: 'f1', stayedInFolderName: 'Research' },
+      { id: 'd', status: 'conflict' },
+      { id: 'e', status: 'folder_gone', stayedInFolderId: null, stayedInFolderName: null },
+    ],
+  }
+  it('names each note and why it stayed', () => {
+    const { message, tone } = describeBatch(undoOutcome, { backToOrigin: true, titleOf })
+    expect(message).toBe(
+      'Moved 1 note back to where it was. 4 notes were not changed: '
+      + '"B note" was moved again after this — left where it is; '
+      + '"C note" could not go back: its folder no longer exists — it stayed in Research; '
+      + '"D note" was changed again after this — left where it is and 1 more.')
+    expect(message).not.toMatch(/try again/)
+    expect(tone).toBe('partial')
+  })
+  it('a note whose folder is gone and sits in Unfiled says Unfiled', () => {
+    const one = { op: 'move', changed: 0, unchanged: 0, results: [undoOutcome.results[4]] }
+    expect(describeBatch(one, { backToOrigin: true, titleOf }).message)
+      .toBe('Nothing changed. 1 note was not changed: "E note" could not go back: its folder no longer exists — it stayed in Unfiled.')
+  })
+  it('⛔ CONTROL — an ordinary move that raced still says "try again": it CAN be retried', () => {
+    const plain = { op: 'move', changed: 0, unchanged: 0, results: [{ id: 'd', status: 'conflict' }] }
+    expect(describeBatch(plain, { folderName: 'Research', titleOf }).message)
+      .toBe('Nothing changed. 1 note was not changed: "D note" changed while this ran — try again.')
+  })
+})

@@ -17,8 +17,12 @@ const fetcher = (url) =>
     return r.json()
   })
 
+/** The SWR key — exported so a caller revalidating "every notes list" can
+ *  leave this one out when its change cannot move a tag count (R1-N4). */
+export const NOTE_TAGS_KEY = '/api/j2/notes/tags'
+
 export default function useJ2NoteTags() {
-  const { data, error, isLoading, mutate } = useSWR('/api/j2/notes/tags', fetcher, {
+  const { data, error, isLoading, mutate } = useSWR(NOTE_TAGS_KEY, fetcher, {
     revalidateOnFocus: true,
     shouldRetryOnError: false,
   })

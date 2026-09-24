@@ -1898,9 +1898,17 @@ def notes_batch_endpoint(
     `move` also takes `{folders: {<id>: folderId | null}}` — a folder PER
     NOTE, for putting a selection back where each note came from (the bulk
     bar's Undo) — and `{expectFolderId}`: a note that is no longer in that
-    folder (moved again since, in another tab) is reported `conflict` and not
-    moved. A changed `move` result carries `fromFolderId`, the folder it left,
-    which is what makes that Undo possible.
+    folder (moved again since, in another tab) is reported `moved_since` and
+    not moved. A changed `move` result carries `fromFolderId`, the folder it
+    left, which is what makes that Undo possible.
+
+    ⛔ With `expectFolderId` the move is a real COMPARE-AND-SET (review R1-N3):
+    it writes against the revision this request READ, so a move from another
+    tab that lands while a long Undo is still looping is never overwritten —
+    the note is re-read, and put back only if it is STILL where this batch
+    put it (an edit that is not a move re-reads and proceeds). And a per-note
+    folder that no longer exists (deleted since) fails THAT note, as
+    `folder_gone` with where it stayed — never a 400 for the whole Undo.
 
     Validation that would fail EVERY note (unknown op, a folder that is not
     the member's, a blank or over-long tag) is a 400 before anything is
@@ -1924,6 +1932,7 @@ def notes_batch_endpoint(
         target_folder = None
         tag = None
         per_note_folder: dict[str, str | None] | None = None
+        gone_folders: set[str] = set()
         expect_guard = False
         expect_folder = None
         if op == "move":
@@ -1950,7 +1959,11 @@ def notes_batch_endpoint(
                     (folder, uid),
                 ).fetchone()
                 if owned_folder is None:
-                    raise HTTPException(status_code=400, detail="folder not found")
+                    if per_note_folder is None:
+                        raise HTTPException(status_code=400, detail="folder not found")
+                    # A per-note destination (the Undo) that is gone fails only
+                    # the notes headed there, below (R1-N3).
+                    gone_folders.add(folder)
         elif op in ("addTag", "removeTag"):
             try:
                 cleaned = notes_service._validate_tags([args.get("tag")] if isinstance(args.get("tag"), str) else None)
@@ -1991,15 +2004,45 @@ def notes_batch_endpoint(
                     if head["folderId"] == dest:
                         results.append({"id": nid, "status": "unchanged"})
                         continue
-                    if expect_guard and head["folderId"] != expect_folder:
-                        # Moved again since the member last looked — putting it
-                        # "back" would undo somebody else's move. Say so instead.
-                        results.append({"id": nid, "status": "conflict"})
+                    if dest in gone_folders:
+                        # Its folder was deleted since: it stays where it is,
+                        # and the member is told where that is.
+                        results.append({"id": nid, "status": "folder_gone",
+                                        **_folder_named(conn, uid, head["folderId"])})
                         continue
-                    n = notes_service.update_note(uid, nid, {"folderId": dest}, conn=conn)
-                    results.append({"id": nid, "status": "changed", "updatedAt": n["updatedAt"],
+                    if not expect_guard:
+                        n = notes_service.update_note(uid, nid, {"folderId": dest}, conn=conn)
+                        results.append({"id": nid, "status": "changed", "updatedAt": n["updatedAt"],
+                                        "fromFolderId": head["folderId"]}
+                                       if n else {"id": nid, "status": "not_found"})
+                        continue
+                    # ⛔ COMPARE-AND-SET against the revision this batch READ
+                    # (R1-N3): heads were read once, before this loop, and a
+                    # long Undo commits note by note. One re-read on a lost
+                    # race; a note still changing under us is reported.
+                    outcome = None
+                    for _attempt in range(2):
+                        if head["folderId"] != expect_folder:
+                            # Moved again since the member last looked — putting
+                            # it "back" would undo somebody else's move.
+                            outcome = {"id": nid, "status": "moved_since"}
+                            break
+                        try:
+                            n = notes_service.update_note(
+                                uid, nid, {"folderId": dest}, conn=conn,
+                                expected_updated_at=head["updatedAt"],
+                            )
+                        except notes_service.NoteConflictError:
+                            head = notes_service.note_batch_heads(uid, [nid], conn=conn).get(nid)
+                            if head is None or head["deleted"]:
+                                outcome = {"id": nid, "status": "not_found" if head is None else "in_trash"}
+                                break
+                            continue
+                        outcome = ({"id": nid, "status": "changed", "updatedAt": n["updatedAt"],
                                     "fromFolderId": head["folderId"]}
                                    if n else {"id": nid, "status": "not_found"})
+                        break
+                    results.append(outcome or {"id": nid, "status": "conflict"})
                 elif op in ("addTag", "removeTag"):
                     # Compare-and-set against the revision this batch READ, so a
                     # tag list edited meanwhile (the editor, another tab) is
@@ -2062,6 +2105,16 @@ def notes_batch_endpoint(
         key = r["status"] if r["status"] in ("changed", "unchanged") else "failed"
         counts[key] += 1
     return {"op": op, "results": results, **counts}
+
+
+def _folder_named(conn: Any, uid: str, folder_id: str | None) -> dict[str, Any]:
+    """Where a note stayed, for a sentence: `{stayedInFolderId, stayedInFolderName}`
+    (both None for Unfiled)."""
+    if not folder_id:
+        return {"stayedInFolderId": None, "stayedInFolderName": None}
+    row = conn.execute("SELECT name FROM j2_note_folders WHERE id = ? AND user_id = ?",
+                       (folder_id, uid)).fetchone()
+    return {"stayedInFolderId": folder_id, "stayedInFolderName": row[0] if row else None}
 
 
 NOTE_BATCH_EXPORT_MAX = 500
