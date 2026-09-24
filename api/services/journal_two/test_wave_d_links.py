@@ -519,7 +519,7 @@ def test_export_of_the_mixed_relationship_note_renders_all_three_distinctly():
     blob, _ = build_export_zip("u1", conn=c)
     zf = zipfile.ZipFile(io.BytesIO(blob))
     body = zf.read("NVDA Q3 Thesis.md").decode("utf-8")
-    assert "[Earnings Prep](Earnings Prep.md)" in body  # the note link
+    assert "[Earnings Prep](Earnings%20Prep.md)" in body  # the note link (percent-encoded: wave 6 I2)
     assert "$NVDA" in body                              # the cashtag, untouched
     assert "NVDA chart" in body                          # the widget embed's search line
     assert "linked_trades: [NVDA (equity trade)]" in body  # the trade-ref front matter

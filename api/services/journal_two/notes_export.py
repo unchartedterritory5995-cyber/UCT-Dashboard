@@ -61,6 +61,7 @@ import contextlib
 import contextvars
 from pathlib import Path
 from typing import Any
+from urllib.parse import quote
 
 import anyio
 
@@ -186,8 +187,20 @@ def _relative_link(note_folder: str, zip_rel: str) -> str:
     """A markdown link from a .md file living at `note_folder` (folder ONLY,
     no filename -- '' means the archive root) to `zip_rel`, so the exported
     archive is portable on its own (no server, no auth) rather than merely
-    accompanied by orphan binaries."""
-    return posixpath.relpath(zip_rel, note_folder or ".")
+    accompanied by orphan binaries.
+
+    ⛔⛔ PERCENT-ENCODED, ONE SEGMENT AT A TIME (wave 6 fix round 1, I2).
+    ⚰️ It returned the path as-is, and a CommonMark link destination cannot hold
+    a space: `[Cup and handle](../Trading/Setups/Cup and handle.md)` is literal
+    text to GitHub, Obsidian and our own importer's markdown-it alike -- and most
+    note titles have a space. A raw `#` read as a fragment, a `%` as the start of
+    an escape, an unbalanced `(` as the end of the link. Every character outside
+    RFC 3986's unreserved set is encoded (non-ASCII as its UTF-8 bytes); `/`
+    stays the separator and `..` stays `..`. Our importer decodes it back
+    (`lib/importer/adapters/generic.js` resolvePath: decodeURIComponent, then
+    resolve against the linking doc's own directory)."""
+    rel = posixpath.relpath(zip_rel, note_folder or ".")
+    return "/".join(quote(seg, safe="") for seg in rel.split("/"))
 
 
 def _make_attachment_resolver(user_id: str, note_folder: str, note_id: str,

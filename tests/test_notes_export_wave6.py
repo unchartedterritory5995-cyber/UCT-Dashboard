@@ -342,7 +342,11 @@ def test_a_selection_keeps_each_notes_folder_path(library):
 def test_links_between_selected_notes_are_relative_md_paths_from_the_linking_notes_folder(library):
     files, *_ = _selection(library, ["a", "b", "d"])
     assert "[NVDA](../../Research/NVDA.md)" in files["Trading/Setups/Cup and handle.md"]
-    assert "[Cup and handle](../Trading/Setups/Cup and handle.md)" in files["Research/NVDA.md"]
+    # ⛔ I2 (wave 6 fix round 1): PERCENT-ENCODED. This line pinned
+    # `(../Trading/Setups/Cup and handle.md)`, which no CommonMark reader --
+    # our own importer included -- parses as a link: a bare destination cannot
+    # hold a space, so the whole thing rendered as literal text.
+    assert "[Cup and handle](../Trading/Setups/Cup%20and%20handle.md)" in files["Research/NVDA.md"]
     assert "[NVDA](Research/NVDA.md)" in files["Root note.md"]
 
 
@@ -390,3 +394,82 @@ def test_a_toc_with_no_headings_exports_nothing_and_escapes_what_it_links():
     assert tiptap_to_markdown(_doc({"type": "tableOfContents"}, _para("text"))) == "text"
     md = tiptap_to_markdown(_doc({"type": "tableOfContents"}, _h(2, "Cost [est] $5")))
     assert md.split("\n\n")[0] == r"- [Cost \[est\] \$5](#cost-est-5)"
+
+
+# ── wave 6 fix round 1: I2 + item 10 -- every link in a foldered selection is a
+#    REAL Markdown link, and it resolves to a file in the same archive ──────────
+
+import posixpath as _posixpath
+from urllib.parse import unquote as _unquote
+
+from markdown_it import MarkdownIt as _MarkdownIt
+
+
+def _links(md_text):
+    """Every (text, href) CommonMark itself sees in `md_text` -- the reader, not a regex."""
+    out = []
+    for tok in _MarkdownIt("commonmark").parse(md_text):
+        for child in tok.children or []:
+            if child.type == "link_open":
+                out.append(child.attrGet("href"))
+    return out
+
+
+def _resolves_to(from_file, href):
+    """Where a relative href points from `from_file`, as the importer reads it
+    (lib/importer/adapters/generic.js resolvePath: decode, then resolve against
+    the linking doc's own directory)."""
+    base = _posixpath.dirname(from_file)
+    return _posixpath.normpath(_posixpath.join(base, _unquote(href.split("#")[0].split("?")[0])))
+
+
+@pytest.fixture()
+def awkward_library():
+    """Titles and folders a member really writes: spaces, a hash, a percent,
+    parentheses, a non-ASCII letter, an ampersand."""
+    c = _conn()
+    _folder(c, "f1", "Trading Ideas")
+    _folder(c, "f2", "Setups (2026)", parent="f1")
+    _folder(c, "f3", "Café & Research")
+    _note(c, "a", "Cup and handle #3", _doc(_para("A."), _link("b"), _link("c")), folder="f2")
+    _note(c, "b", "NVDA up 50% (Q3)", _doc(_para("B."), _link("a")), folder="f3")
+    _note(c, "c", "Root note", _doc(_link("a"), _link("b")))
+    c.commit()
+    return c
+
+
+def test_every_link_between_selected_notes_is_a_markdown_link_that_resolves_inside_the_archive(awkward_library):
+    files, _f, exported, skipped = _selection(awkward_library, ["a", "b", "c"])
+    assert (exported, skipped) == (3, [])
+    notes = {name for name in files if name.endswith(".md")}
+    # ⭐ Item 10: the FOLDERS are kept, nested, with the member's own names.
+    assert notes == {
+        "Trading Ideas/Setups (2026)/Cup and handle #3.md",
+        "Café & Research/NVDA up 50% (Q3).md",
+        "Root note.md",
+    }
+    expected = {
+        "Trading Ideas/Setups (2026)/Cup and handle #3.md": {"Café & Research/NVDA up 50% (Q3).md", "Root note.md"},
+        "Café & Research/NVDA up 50% (Q3).md": {"Trading Ideas/Setups (2026)/Cup and handle #3.md"},
+        "Root note.md": {"Trading Ideas/Setups (2026)/Cup and handle #3.md", "Café & Research/NVDA up 50% (Q3).md"},
+    }
+    for name, targets in expected.items():
+        hrefs = [h for h in _links(files[name]) if h.endswith(".md")]
+        # ⛔ CommonMark must SEE each one as a link: an unencoded space, a raw
+        # "#" (a fragment) or an unbalanced ")" would each lose it.
+        assert len(hrefs) == len(targets), (name, files[name])
+        assert {_resolves_to(name, h) for h in hrefs} == targets, (name, hrefs)
+        assert all(" " not in h and "#" not in h for h in hrefs)
+
+
+def test_a_link_to_a_note_not_selected_is_still_the_honest_not_bundled_reference(awkward_library):
+    files, *_ = _selection(awkward_library, ["c"])
+    hrefs = _links(files["Root note.md"])
+    assert hrefs == ["uct-note:///notebook?note=a", "uct-note:///notebook?note=b"]
+
+
+def test_an_attachment_link_with_a_space_in_its_name_is_a_real_link_too(tmp_path, monkeypatch):
+    # The same path helper writes attachment links: one fix, both kinds.
+    from api.services.journal_two import notes_export as ne
+    assert ne._relative_link("Trading Ideas", "attachments/u1/n1/file/my report (final).pdf") ==         "../attachments/u1/n1/file/my%20report%20%28final%29.pdf"
+    assert ne._relative_link("", "Café & Research/NVDA up 50% (Q3).md") ==         "Caf%C3%A9%20%26%20Research/NVDA%20up%2050%25%20%28Q3%29.md"
