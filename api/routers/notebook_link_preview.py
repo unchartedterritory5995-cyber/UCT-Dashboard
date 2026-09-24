@@ -33,9 +33,10 @@ SSRF surface, and every rule below exists for that reason:
   * CACHED by URL (success for hours, a failure for minutes), so a note full
     of the same link, or ten members pasting one article, costs one fetch.
 
-⛔ NOT MOUNTED BY THIS FILE. `api/main.py` is outside lane D's ownership; the
-controller mounts `router` (report: wave6-D-report.md). Until then the editor's
-"Preview card" answers "No preview for this link" and keeps the link.
+Mounted by the controller in `api/main.py` (7dd7f2705). The editor defends
+regardless (wave 6 D fix round 1, I4): an answer that is not JSON of the shape
+`parse_preview` returns is "no preview" and the link stays, and the member reads
+a fixed sentence per failure, never this file's `detail`.
 """
 
 from __future__ import annotations
@@ -73,6 +74,18 @@ DESCRIPTION_MAX = 400
 _cache = TTLCache(max_size=2000)
 # At most this many page fetches in flight at once (x MAX_BYTES = the memory bound).
 _SEM = asyncio.Semaphore(4)
+# ...and at most this many of them for ONE member (wave 6 D fix round 1, M3).
+# ⚰️ `_SEM` is the whole pod's: one member pasting slow links could hold every
+# slot for up to TOTAL_S each and starve everyone else's previews. The count is
+# per-process, like `_SEM` (the web pod is one process; see CLAUDE.md's
+# single-process assumptions). One event loop, and no `await` between the check
+# and the increment, so the check cannot race itself.
+PER_USER_INFLIGHT = 2
+_inflight: dict[str, int] = {}
+# The one sentence a refused link gets, whatever refused it (M1): the shared
+# guard's `reason` is ITS vocabulary ("Media reference points at a
+# private/internal network address"), written for connector logs.
+NO_PREVIEW = "No preview for this link."
 
 _USER_AGENT = "UCTIntelligence-LinkPreview/1.0 (+https://uctintelligence.com)"
 
@@ -191,7 +204,18 @@ def _https_or_none(raw: Any, base_url: str) -> str | None:
 
 
 def _domain(url: str) -> str:
+    """The host the card names, in the ASCII form the browser connects to.
+
+    ⛔ (M2) A look-alike host ("аpple.com" with a Cyrillic a) would read
+    as "apple.com" on the card, and the domain line is the card's one
+    trustworthy field. IDNA-encoded it reads "xn--pple-43d.com", which is what it
+    is. A host that cannot be encoded names nothing rather than something it is
+    not; an ordinary ASCII host is unchanged."""
     host = (urlsplit(url).hostname or "").lower()
+    try:
+        host = host.encode("idna").decode("ascii")
+    except UnicodeError:
+        return ""
     return host[4:] if host.startswith("www.") else host
 
 
@@ -237,8 +261,8 @@ async def _fetch_preview(url: str) -> dict[str, Any]:
                 )
             except asyncio.TimeoutError:
                 _refuse(504, "That page took too long to answer.")
-            except NoteConnUnsupported as exc:
-                _refuse(422, exc.reason or "No preview for this link.")
+            except NoteConnUnsupported:
+                _refuse(422, NO_PREVIEW)
             except NoteConnTransient:
                 _refuse(502, "Couldn't reach that page.")
     if response.status_code >= 300:
@@ -249,7 +273,7 @@ async def _fetch_preview(url: str) -> dict[str, Any]:
         _refuse(422, "That link is not a web page.")
     preview = parse_preview(_decode(body, content_type), url=url, final_url=str(response.url))
     if preview is None:
-        _refuse(422, "No preview for this link.")
+        _refuse(422, NO_PREVIEW)
     return preview
 
 
@@ -273,11 +297,23 @@ async def link_preview(
         if "error" in hit:
             _refuse(hit["error"][0], hit["error"][1])
         return hit
+    # M3: a cache hit above costs no slot; a fetch costs one of this member's.
+    # ⛔ The refusal is never cached -- it is about the member, not the link.
+    who = str((user or {}).get("id") or "")
+    if _inflight.get(who, 0) >= PER_USER_INFLIGHT:
+        _refuse(429, "Too many previews at once. Try again in a moment.")
+    _inflight[who] = _inflight.get(who, 0) + 1
     try:
         preview = await _fetch_preview(target)
     except HTTPException as exc:
         ttl = FAIL_TTL_S if exc.status_code in (400, 422) else TRANSIENT_TTL_S
         _cache.set(key, {"error": (exc.status_code, exc.detail)}, ttl)
         raise
+    finally:
+        left = _inflight.get(who, 1) - 1
+        if left > 0:
+            _inflight[who] = left
+        else:
+            _inflight.pop(who, None)
     _cache.set(key, preview, OK_TTL_S)
     return preview

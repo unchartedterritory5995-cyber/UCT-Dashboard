@@ -138,7 +138,8 @@ def test_plain_http_gets_no_preview_and_no_request(rig):
     assert rig["rec"].requests == []
 
 
-@pytest.mark.parametrize("bad", ["javascript:alert(1)", "file:///etc/passwd", "ftp://example.com/x", "not a url"])
+@pytest.mark.parametrize("bad", ["javascript:alert(1)", "file:///etc/passwd", "ftp://example.com/x", "not a url",
+                                 "data:text/html,<title>x</title>"])
 def test_anything_but_a_web_link_is_refused(rig, bad):
     assert get(rig, bad).status_code == 400
     assert rig["rec"].requests == []
@@ -231,3 +232,105 @@ def test_signed_out_is_401(monkeypatch):
     app.include_router(lp.router)
     r = TestClient(app).get("/api/j2/link-preview", params={"url": "https://example.com/"})
     assert r.status_code == 401
+
+
+# ── wave 6 D fix round 1: M1 (fixed words), M2 (the untested branches), M3 (one member, not every slot) ──
+
+def test_a_guard_refusal_answers_in_fixed_words_never_the_guards_own(rig):
+    # M1: the guard's `reason` ("Media reference points at a private/internal
+    # network address") is its own vocabulary; the route answers in one fixed
+    # sentence. (The editor shows a fixed sentence of its own regardless.)
+    rig["addrs"] = ["10.0.0.5"]
+    r = get(rig, "https://intranet.example.com/")
+    assert r.status_code == 422
+    assert r.json()["detail"] == "No preview for this link."
+
+
+def test_a_body_past_the_cap_answers_in_fixed_words_too(rig, monkeypatch):
+    monkeypatch.setattr(lp, "MAX_BYTES", 256)
+    big = b"<html><head><meta property='og:title' content='T'></head><body>" + b"x" * 4096 + b"</body></html>"
+    rig["rec"].routes = {"https://example.com/big": html(big)}
+    r = get(rig, "https://example.com/big")
+    assert (r.status_code, r.json()["detail"]) == (422, "No preview for this link.")
+
+
+def test_the_whole_fetch_has_a_ceiling_even_when_every_read_is_quick(rig, monkeypatch):
+    # M2: a page that keeps each read inside TIMEOUT_S but never finishes (a
+    # redirect chain, a trickle) is bounded by TOTAL_S as a whole -- a 504.
+    import asyncio
+
+    monkeypatch.setattr(lp, "TOTAL_S", 0.05)
+
+    async def slow(request):
+        await asyncio.sleep(1.0)
+        return html()
+
+    rig["rec"].routes = {"https://example.com/trickle": slow}
+    r = get(rig, "https://example.com/trickle")
+    assert r.status_code == 504
+
+
+def test_a_look_alike_domain_is_shown_as_what_it_really_is(rig):
+    # M2: the domain line is the card's only trustworthy field. A host typed in
+    # a look-alike script ("аpple.com", Cyrillic a) is shown in the ASCII
+    # form the browser actually connects to, never as a convincing "apple.com".
+    rig["rec"].routes = {"https://xn--pple-43d.com/x": html()}
+    body = get(rig, "https://аpple.com/x").json()
+    assert body["domain"] == "xn--pple-43d.com"
+    assert body["domain"].isascii()
+
+
+def test_an_ordinary_domain_is_unchanged_by_that(rig):
+    rig["rec"].routes = {"https://www.news.example.com/a": html()}
+    assert get(rig, "https://www.news.example.com/a").json()["domain"] == "news.example.com"
+
+
+def test_one_member_cannot_hold_every_fetch_slot(rig):
+    # M3: _SEM bounds the whole pod; a member pasting slow links could hold all
+    # of it. Each member gets PER_USER_INFLIGHT fetches at once; the next is a
+    # 429 (never cached -- it is about the member, not the link), and another
+    # member is not turned away.
+    import asyncio
+    from fastapi import HTTPException
+
+    gate = {}
+
+    async def slow(request):
+        await gate["open"].wait()
+        return html()
+
+    rig["rec"].routes = {f"https://example.com/{i}": slow for i in range(1, 6)}
+
+    async def main():
+        gate["open"] = asyncio.Event()
+        mine = [asyncio.create_task(lp.link_preview(url=f"https://example.com/{i}", user={"id": "u1"}))
+                for i in range(1, lp.PER_USER_INFLIGHT + 1)]
+        await asyncio.sleep(0.05)
+        try:
+            await lp.link_preview(url="https://example.com/5", user={"id": "u1"})
+            refused = None
+        except HTTPException as exc:
+            refused = exc.status_code
+        other = asyncio.create_task(lp.link_preview(url="https://example.com/4", user={"id": "u2"}))
+        await asyncio.sleep(0.05)
+        other_waiting = not other.done()
+        gate["open"].set()
+        done = await asyncio.gather(*mine, other)
+        return refused, other_waiting, done
+
+    refused, other_waiting, done = asyncio.run(main())
+    assert refused == 429
+    assert other_waiting, "another member was turned away by the first member's fetches"
+    assert all(d["title"] for d in done)
+    assert lp._cache.get("lp::https://example.com/5") is None, "a per-member refusal was cached against the link"
+    assert lp._inflight == {}, "a finished fetch left its slot held"
+
+
+def test_a_failed_fetch_gives_its_slot_back(rig):
+    import asyncio
+
+    rig["rec"].routes = {"https://example.com/gone": httpx.Response(500, text="boom")}
+    for _ in range(lp.PER_USER_INFLIGHT + 1):
+        assert get(rig, "https://example.com/gone").status_code == 502
+        lp._cache.clear()
+    assert lp._inflight == {}
