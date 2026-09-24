@@ -15,6 +15,9 @@ INSENSITIVE = {"universe_count", "advancing", "declining", "adv_decline", "up_4p
                "down_4pct_today", "ratio_5day", "ratio_10day"}
 c = ro(art)
 dates = [d for (d,) in c.execute("SELECT date FROM pass_checkpoint WHERE status='done' ORDER BY date")]
+if len(sys.argv) > 6:                  # "from:to" chunk (anchor blocks are self-contained for ratio priors)
+    lo, hi = sys.argv[6].split(":")
+    dates = [d for d in dates if lo <= d <= hi]
 stored = collections.defaultdict(dict)
 for u, d, m, o, h, l, cc, s in c.execute("SELECT universe,date,metric,o,h,l,c,source FROM breadth_daily_ohlc"):
     stored[(u, d)][m] = {"o": o, "h": h, "l": l, "c": cc, "src": "body" if s.endswith("_body") else "path"}
