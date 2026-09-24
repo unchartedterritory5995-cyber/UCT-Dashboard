@@ -70,6 +70,7 @@
  * `navigator.sendBeacon`, which outlives the page. If the server answers
  * `enabled: false` (kill switch `CLIENT_ERROR_BEACON_ENABLED=0`) the page stops
  * sending for the rest of its life.
+ * ⚠️ ACCEPTED, NOT CLOSED (R1-1): the ~64 KiB keepalive quota spans every body in flight, so a second co-incident large batch can still drop.
  *
  * It never throws into a caller, and an error inside the beacon is never
  * reported by the beacon.
