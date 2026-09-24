@@ -302,9 +302,27 @@ the whole thing holds together.
   (terminal-grade property 2) actually true instead of aspirational.
 - **Agent 2:** wire S8's full `<Cited>` provenance renderer against the now-addressable
   D2 metrics. One renderer, every surface — not a per-feature reinvention.
-- **Agent 3:** S7 Alerts — finish, not start (conditional on the joint-ownership ruling
-  in §7 landing by end of Day 1). Seven trigger types remain as extensions of a working
-  substrate; this closes most of them.
+- ~~**Agent 3:** S7 Alerts — finish, not start...~~ **Corrected 2026-09-23, after
+  actually dispatching this: all 8 trigger types were already built and registered
+  by 2026-09-13.** This was never a finishing task — see the full correction under
+  §7 item 3 and the "S7 result" note further down. Nothing here to dispatch.
+
+> ✅ **S7 result, 2026-09-23 — nothing built, and correctly so.** Dispatched this as
+> real work on the strength of the day's own accepted ruling. The agent found: `price-level`'s
+> dark evaluator and its legacy-comparison harness (exactly what the ruling asked for) were
+> already built and merged **before this roadmap existed** (`67850e93d`, `c0f88b969`). Going
+> further — flipping delivery on — was already investigated in full and explicitly **RULED
+> HOLD by the owner on 2026-09-18** (`DECISION_CARDS_2026-09-18.md` CARD 6), for real
+> reasons stated in that ruling itself, not a stalled task: the new evaluator is verified
+> correct, but the persistence semantics (fire once vs. re-fire) is a genuinely unmade
+> product call, and the comparison sample is thin and partly synthetic with zero
+> trendline-alert coverage. **The "accept" recorded earlier today doesn't override that HOLD**
+> — it was of a ruling I drafted without knowing the HOLD existed, which is on me: I should
+> have read `COMPLETION_AUDIT.md`'s S7 entry before drafting that text in the first place,
+> not discovered it only after dispatching an agent to build against it. The real, corrected
+> choice for the owner is recorded in §7 item 3. **Nothing shipped, nothing flipped, legacy
+> `watchlist_alerts` remains the one that actually fires** — exactly as the 9/18 ruling
+> already decided.
 - **Integrator:** mid-point check-in at end of Day 2 before continuing into Day 3 — D2
   is explicitly the item most likely to reveal a real surprise once someone is inside it.
 
@@ -693,7 +711,7 @@ So there's exactly one list to answer from, not six scattered across a week of u
 |---|---|---|---|
 | 1 | ~~Massive plan tier: Individual or Business/Enterprise?~~ | — | ✅ **RESOLVED — Business/Enterprise, confirmed 2026-09-19/20 and re-confirmed 2026-09-23. This was answered before this roadmap existed; §0 has the full correction.** |
 | 2 | ~~Does an FMP Data Display & Licensing Agreement exist?~~ | — | ✅ **RESOLVED — confirmed to exist, same dates as #1.** |
-| 3 | ~~S7 Alerts joint-ownership ruling~~ | — | ✅ **ACCEPTED 2026-09-23, as drafted, no amendment.** Build dispatched same day. |
+| 3 | **S7 Alerts — real remaining question, corrected 2026-09-23.** The "accept" recorded earlier today was of a ruling drafted without knowing S7 was already fully built AND already explicitly put on HOLD five days ago (`DECISION_CARDS_2026-09-18.md` CARD 6), for real reasons: the new evaluator is verified correct and matches its own written spec, but (1) whether a flipped alert fires once or re-fires on each new cross is a genuine, stated-as-open product call, and (2) the comparison sample is thin (n=10, several apparently synthetic) with zero trendline-alert coverage. That HOLD was made deliberately outside AI-session delegation ("real external/member-facing risk, not a spec-stated default") — an "accept" of a different, incompletely-informed ruling doesn't override it. **Real choice, if the owner wants to revisit it:** (A) flip fixed-price alerts now, one-shot semantics (matches legacy) (B) flip fixed-price alerts now, re-fire semantics instead (C) keep the HOLD, wait for a larger/more organic sample (D) something else. Recommendation: keep C unless there's a specific reason to move now — the original reasoning for holding hasn't changed. | A9's own S7 dependency is a *different* trigger type (`scan-membership-change`, not `price-level`) and is unaffected by this either way — its CP3 already merged and armed back on 2026-09-13, a real dark-read cohort gap was found and fixed 2026-09-21/22 (a smoke-account subscription, so a real comparison is now armed), and it's currently waiting on several more nights of real data before a CP4/FLIP ruling is even possible — a time-gated wait, not a decision or a build task. | Owner, whenever — not urgent |
 | 4 | ~~Proceed against the 10-day-old roster, or wait for Day 0's fresh re-measurement first?~~ | — | Moot — Day 0 already re-measured. |
 | 5 | GitHub token rotation (dead as of last check) | Nothing this week's plan depends on directly | **Declined by owner 2026-09-23** — genuinely requires the owner's own GitHub login, cannot be done on their behalf. Skipped, not blocking. |
 | 6 | A read-only production usage query for real-usage-based prioritization | Whether §3's app-layer order reflects a guess or real usage | Moot — the week's actual build order already matched what this would have shown. |
