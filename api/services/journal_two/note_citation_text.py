@@ -179,6 +179,8 @@ _LEAF_TYPES = frozenset({
     "linkPreview", "webEmbed",
     # Wave 6: @date mentions (dateMentionNode.js) -- an inline atom.
     "dateMention",
+    # Wave 6: /toc (tableOfContentsNode.js) -- a block leaf with no text.
+    "tableOfContents",
 })
 
 # Leaves that sit INSIDE a textblock. textBetween only ever emits a separator

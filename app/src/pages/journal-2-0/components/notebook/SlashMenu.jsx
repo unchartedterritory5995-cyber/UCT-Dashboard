@@ -17,6 +17,7 @@ import {
 import { applyComboboxWiring } from '../../lib/comboboxWiring'
 import { BLOCK_MATH, INLINE_MATH, insertMathAndEdit } from '../../lib/mathNodes'
 import { inColumn, insertColumns } from '../../lib/columnsNode'
+import { insertTableOfContents } from '../../lib/tableOfContentsNode'
 import styles from './SlashMenu.module.css'
 
 // Exported for the rails (SlashMenu.items.test.jsx): the block entries a bare
@@ -97,6 +98,13 @@ export const ITEMS = [
     command: ({ editor, range }) => insertColumns(editor, 3, range),
   },
   {
+    // Wave 6: the note's headings, live -- each one a jump (tableOfContentsNode.js).
+    title: 'Table of contents',
+    description: 'Every heading in this note — choose one to jump to it',
+    keywords: ['toc', 'contents', 'outline'],
+    command: ({ editor, range }) => insertTableOfContents(editor, range),
+  },
+  {
     title: 'Checklist',
     description: 'Task list with checkboxes',
     command: ({ editor, range }) => editor.chain().focus().deleteRange(range).toggleTaskList().run(),
@@ -161,6 +169,13 @@ export const ITEMS = [
     },
   },
 ]
+
+/** Does a block item answer the typed query (its title, or one of its keywords)? */
+export function blockItemMatches(item, q) {
+  if (!q) return true
+  return item.title.toLowerCase().includes(q)
+    || (Array.isArray(item.keywords) && item.keywords.some((k) => k.includes(q)))
+}
 
 /** The block items offered where the caret is now (an item's `available`). */
 export function blockItemsAvailable(editor) {
@@ -435,7 +450,7 @@ export const SlashMenuExtension = Extension.create({
           if (!q) return [...here, ...widgets, ...factCaptures]
           // Widget/fact items match on their own tokenized rules (args after
           // the type name would defeat a plain substring filter).
-          return [...here.filter((it) => it.title.toLowerCase().includes(q)), ...widgets, ...factCaptures]
+          return [...here.filter((it) => blockItemMatches(it, q)), ...widgets, ...factCaptures]
         },
         render: () => {
           // One renderer object serves EVERY suggestion session, so all of

@@ -12,6 +12,7 @@ import { Columns, Column, ColumnsGuard } from './columnsNode'
 import { LinkPreview, WebEmbed } from './webLinkNodes'
 import { LinkPasteOffer } from './linkPasteOffer'
 import { DateMention } from './dateMentionNode'
+import { TableOfContents } from './tableOfContentsNode'
 import Link from '@tiptap/extension-link'
 import { NotebookPlaceholder } from './notebookPlaceholder'
 import { Table, TableRow, TableHeader, TableCell } from '@tiptap/extension-table'
@@ -91,6 +92,9 @@ export function buildExtensions({ placeholder = 'Start writing… or type / for 
     // date: the name and the `date` attr are a contract. Citation leafText =
     // the ISO date; schema 2. Same "never remove" rule as WidgetEmbed.
     DateMention,
+    // Wave 6: /toc -- the note's headings, live, each a jump (tableOfContentsNode.js).
+    // A block leaf with no text (_LEAF_TYPES only); schema 2.
+    TableOfContents,
     Link.configure({
       openOnClick: false,
       autolink: true,

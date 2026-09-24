@@ -3787,5 +3787,66 @@
     "pm_to": 56
    }
   ]
+ },
+ "tableOfContents": {
+  "json": {
+   "type": "doc",
+   "content": [
+    {
+     "type": "tableOfContents"
+    },
+    {
+     "type": "heading",
+     "attrs": {
+      "level": 2
+     },
+     "content": [
+      {
+       "type": "text",
+       "text": "Plan"
+      }
+     ]
+    },
+    {
+     "type": "paragraph",
+     "content": [
+      {
+       "type": "text",
+       "text": "Buy the break."
+      }
+     ]
+    },
+    {
+     "type": "tableOfContents"
+    }
+   ]
+  },
+  "text": "Plan\nBuy the break.",
+  "contentSize": 24,
+  "textSpans": [
+   {
+    "pm_start": 2,
+    "pm_end": 6,
+    "text": "Plan"
+   },
+   {
+    "pm_start": 8,
+    "pm_end": 22,
+    "text": "Buy the break."
+   }
+  ],
+  "leafSpans": [],
+  "passages": [
+   {
+    "text": "Plan",
+    "pm_from": 2,
+    "pm_to": 6
+   },
+   {
+    "text": "Buy the break.",
+    "pm_from": 8,
+    "pm_to": 22
+   }
+  ]
  }
 }

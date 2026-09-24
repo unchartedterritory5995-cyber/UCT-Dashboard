@@ -383,6 +383,79 @@ _WEB_LINK = re.compile(r"^https?://[^\s<>()]+$", re.I)
 _EMBED_LABELS = {"youtube": "YouTube video", "tradingview": "TradingView chart"}
 _ISO_DATE = re.compile(r"^\d{4}-\d{2}-\d{2}$")
 
+# Wave 6: a table of contents lists the headings of the WHOLE note, which
+# `_block` (one node at a time) cannot see -- so `tiptap_to_markdown` reads
+# them once per document into this context variable, and the tableOfContents
+# case renders from it. Outside a document walk it is empty.
+_TOC_HEADINGS: contextvars.ContextVar[list | None] = contextvars.ContextVar(
+    "notes_export_toc_headings", default=None)
+_SLUG_DROP = re.compile(r"[^\w\- ]", re.UNICODE)
+
+
+def _heading_text(node: dict[str, Any]) -> str:
+    parts: list[str] = []
+
+    def walk(n: Any) -> None:
+        if not isinstance(n, dict):
+            return
+        if n.get("type") == "text" and isinstance(n.get("text"), str):
+            parts.append(n["text"])
+        for c in n.get("content") or []:
+            walk(c)
+
+    walk(node)
+    return " ".join("".join(parts).split())
+
+
+def _toc_headings(doc: Any) -> list[tuple[int, str]]:
+    """Every heading in document order: (level, text) -- the editor's outline."""
+    out: list[tuple[int, str]] = []
+
+    def walk(n: Any) -> None:
+        if not isinstance(n, dict):
+            return
+        if n.get("type") == "heading":
+            attrs = n.get("attrs") if isinstance(n.get("attrs"), dict) else {}
+            try:
+                level = int(attrs.get("level") or 1)
+            except (TypeError, ValueError):
+                level = 1
+            out.append((min(max(level, 1), 6), _heading_text(n)))
+            return
+        for c in n.get("content") or []:
+            walk(c)
+
+    walk(doc)
+    return out
+
+
+def _heading_slug(text: str, used: dict[str, int]) -> str:
+    """GitHub-style anchor: lower-case, punctuation dropped, spaces to hyphens,
+    a repeat numbered -1, -2 ... (what GitHub, and most Markdown renderers that
+    anchor headings, generate)."""
+    base = _SLUG_DROP.sub("", text.strip().lower()).replace(" ", "-")
+    n = used.get(base, 0)
+    used[base] = n + 1
+    return base if n == 0 else f"{base}-{n}"
+
+
+def _toc_markdown(headings: list[tuple[int, str]]) -> str:
+    named = [(lvl, txt) for lvl, txt in headings if txt]
+    if not named:
+        return ""
+    base = min(lvl for lvl, _ in named)
+    used: dict[str, int] = {}
+    lines = []
+    for lvl, txt in headings:
+        slug = _heading_slug(txt, used)   # every heading takes its anchor, named or not
+        if not txt:
+            continue
+        label = txt.replace("\\", "\\\\").replace("[", "\\[").replace("]", "\\]")
+        if _ESCAPE_PROSE_DOLLARS.get():
+            label = label.replace("$", "\\$")
+        lines.append(f"{'  ' * (lvl - base)}- [{label}](#{slug})")
+    return "\n".join(lines)
+
 
 def _text_with_marks(node: dict[str, Any], resolver=None) -> str:
     text = node.get("text") or ""
@@ -680,6 +753,9 @@ def _block(node: dict[str, Any], resolver=None) -> str:
         if isinstance(desc, str) and desc.strip():
             return f"{line}\n\n> {_text_with_marks({'text': ' '.join(desc.split())}, resolver)}"
         return line
+    if ntype == "tableOfContents":
+        # Wave 6: the note's headings as a Markdown list of anchor links.
+        return _toc_markdown(_TOC_HEADINGS.get() or [])
     if ntype == "dateMention":
         # Wave 6: a date mention exports as its ABSOLUTE date -- the relative
         # word the editor shows ("Tomorrow") would be wrong the day after.
@@ -817,7 +893,11 @@ def tiptap_to_markdown(doc: dict[str, Any] | None, *, attachment_resolver=None) 
     identical output to before attachment bundling existed."""
     if not isinstance(doc, dict):
         return ""
-    blocks = [_block(n, attachment_resolver) for n in (doc.get("content") or [])]
+    token = _TOC_HEADINGS.set(_toc_headings(doc))
+    try:
+        blocks = [_block(n, attachment_resolver) for n in (doc.get("content") or [])]
+    finally:
+        _TOC_HEADINGS.reset(token)
     return "\n\n".join(b for b in blocks if b != "").strip()
 
 

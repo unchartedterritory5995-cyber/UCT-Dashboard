@@ -70,6 +70,7 @@ const schema = new Schema({
     linkPreview: { group: 'block', atom: true, attrs: { url: { default: null }, title: { default: null }, description: { default: null }, domain: { default: null }, image: { default: null } }, toDOM: () => ['div'] },
     webEmbed: { group: 'block', atom: true, attrs: { provider: { default: null }, ref: { default: null }, url: { default: null } }, toDOM: () => ['div'] },
     dateMention: { group: 'inline', inline: true, atom: true, attrs: { date: { default: null } }, toDOM: () => ['span'] },
+    tableOfContents: { group: 'block', atom: true, toDOM: () => ['div'] },
     taskList: { group: 'block', content: 'taskItem+', toDOM: () => ['ul', 0] },
     taskItem: { content: 'paragraph block*', attrs: { checked: { default: false } }, toDOM: () => ['li', 0] },
   },

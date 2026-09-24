@@ -64,6 +64,8 @@ const schema = new Schema({
     webEmbed: { group: 'block', atom: true, attrs: { provider: { default: null }, ref: { default: null }, url: { default: null } }, toDOM: () => ['div'] },
     // Wave 6 (dateMentionNode.js): an inline leaf that reads as its ISO date.
     dateMention: { group: 'inline', inline: true, atom: true, attrs: { date: { default: null } }, toDOM: () => ['span'] },
+    // Wave 6 (tableOfContentsNode.js): a block leaf with no text of its own.
+    tableOfContents: { group: 'block', atom: true, toDOM: () => ['div'] },
     // Task lists, where a date mention is a task's due date (lane F's contract).
     taskList: { group: 'block', content: 'taskItem+', toDOM: () => ['ul', 0] },
     taskItem: { content: 'paragraph block*', attrs: { checked: { default: false } }, toDOM: () => ['li', 0] },
@@ -290,6 +292,13 @@ const CASES = {
       p('Earnings prep ', { type: 'dateMention', attrs: { date: '2026-09-25' } }, ' before the call')] }] },
     p('Undated ', { type: 'dateMention', attrs: { date: null } }, '.'),
     p('After.')),
+  // ── a table of contents (wave 6) is a block leaf that reads as NOTHING,
+  //    however many headings it lists: one position, no separator. ──
+  tableOfContents: doc(
+    { type: 'tableOfContents' },
+    { type: 'heading', attrs: { level: 2 }, content: [t('Plan')] },
+    p('Buy the break.'),
+    { type: 'tableOfContents' }),
 }
 
 // Passages cited in the astral cases -- before, inside, across a mark, and
@@ -316,6 +325,7 @@ const PASSAGES = {
   linkCardAndEmbed: ['Read this.', 'And watch:', 'After.'],
   // A date is ONE position: a passage holds the whole ISO date or none of it.
   dateMention: ['Earnings prep 2026-09-25 before', 'before the call', 'After.'],
+  tableOfContents: ['Plan', 'Buy the break.'],
 }
 
 function passageRange(d, passage, leafText) {

@@ -365,3 +365,28 @@ def test_the_whole_notebook_export_links_relatively_too(library):
     zf = _zipfile.ZipFile(_io.BytesIO(blob))
     assert "[NVDA](../../Research/NVDA.md)" in zf.read("Trading/Setups/Cup and handle.md").decode("utf-8")
     assert "selection" not in _json.loads(zf.read("UCT_NOTEBOOK_EXPORT.json"))
+
+
+# ── item 13: a table of contents exports as a list of heading links ─────────
+
+def _h(level, text):
+    return {"type": "heading", "attrs": {"level": level}, "content": [{"type": "text", "text": text}]}
+
+
+def test_a_toc_exports_as_a_nested_list_of_anchor_links_to_every_heading():
+    md = tiptap_to_markdown(_doc(
+        {"type": "tableOfContents"},
+        _h(2, "Plan"), _para("x"), _h(3, "Entry & exit"), _h(2, "Plan"),
+        {"type": "callout", "attrs": {"variant": "note"}, "content": [_h(4, "Inside a callout")]},
+    ))
+    toc = md.split("\n\n")[0]
+    assert toc == ("- [Plan](#plan)\n"
+                   "  - [Entry & exit](#entry--exit)\n"
+                   "- [Plan](#plan-1)\n"
+                   "    - [Inside a callout](#inside-a-callout)")
+
+
+def test_a_toc_with_no_headings_exports_nothing_and_escapes_what_it_links():
+    assert tiptap_to_markdown(_doc({"type": "tableOfContents"}, _para("text"))) == "text"
+    md = tiptap_to_markdown(_doc({"type": "tableOfContents"}, _h(2, "Cost [est] $5")))
+    assert md.split("\n\n")[0] == r"- [Cost \[est\] \$5](#cost-est-5)"

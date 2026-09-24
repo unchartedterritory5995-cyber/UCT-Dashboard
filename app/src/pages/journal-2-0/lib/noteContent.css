@@ -317,6 +317,38 @@ mark.uct-hl-blue { background-color: var(--info-border); }
   }
 }
 
+/* ── Wave 6: /toc -- the note's headings, live (tableOfContentsNode.js). */
+.ProseMirror .uctToc {
+  margin: 14px 0;
+  padding: 10px 14px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  background: var(--bg-surface);
+}
+.ProseMirror .uctTocTitle {
+  margin-bottom: 6px;
+  color: var(--text-muted);
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+.ProseMirror .uctTocList { margin: 0; padding: 0; list-style: none; }
+.ProseMirror .uctTocItem { margin: 2px 0; }
+.ProseMirror .uctTocLink {
+  padding: 2px 0;
+  border: none;
+  background: none;
+  color: var(--accent);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+.ProseMirror .uctTocLink:hover { text-decoration: underline; }
+.ProseMirror .uctTocLink:focus-visible { outline: 2px solid var(--ut-gold); outline-offset: 1px; }
+.ProseMirror .uctTocEmpty { margin: 0; color: var(--text-muted); font-size: 0.9em; }
+.ProseMirror .ProseMirror-selectednode.uctToc { outline: 2px solid var(--ut-gold); outline-offset: 2px; }
+
 /* ── Wave 6: an @date mention (dateMentionNode.js) — an inline chip that reads
    relative to today ("Tomorrow"); its title carries the full date. */
 .ProseMirror .uctDateMention {
@@ -482,6 +514,10 @@ mark.uct-hl-blue { background-color: var(--info-border); }
   .ProseMirror .uctWebEmbedOpen {
     display: inline-flex;
     align-items: center;
+    min-height: var(--tap-min);
+    min-width: var(--tap-min);
+  }
+  .ProseMirror .uctTocLink {
     min-height: var(--tap-min);
     min-width: var(--tap-min);
   }

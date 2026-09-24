@@ -330,3 +330,35 @@ describe('NoteEditorPage — a locked note (wave 6 item 8)', () => {
     expect(screen.getByText('Locked — editing is off')).toBeTruthy()
   })
 })
+
+describe('NoteEditorPage — /toc door (wave 6 item 13)', () => {
+  it('typing /toc offers "Table of contents"; the block it inserts lists the headings and jumps', async () => {
+    NOTE = { ...baseNote(), bodyJson: { type: 'doc', content: [
+      P('Intro line.'),
+      { type: 'heading', attrs: { level: 2 }, content: [{ type: 'text', text: 'Plan' }] },
+      P('Body.'),
+    ] } }
+    const editor = await renderEditor()
+    let end = null
+    editor.state.doc.descendants((n, pos) => { if (end == null && n.isText && n.text === 'Intro line.') end = pos + n.nodeSize })
+    act(() => {
+      editor.view.dispatch(editor.state.tr.setSelection(TextSelection.create(editor.state.doc, end)))
+      editor.view.dispatch(editor.state.tr.insertText(' /toc'))
+    })
+    const option = await waitFor(() => {
+      const o = [...document.querySelectorAll('[role="listbox"][aria-label="Insert block"] [role="option"]')]
+        .find((el) => el.firstChild?.textContent === 'Table of contents')
+      if (!o) throw new Error('no option')
+      return o
+    })
+    fireEvent.mouseDown(option)
+    const nav = await waitFor(() => {
+      const n = document.querySelector('.ProseMirror nav.uctToc')
+      if (!n) throw new Error('no toc')
+      return n
+    })
+    const link = [...nav.querySelectorAll('button.uctTocLink')].find((b) => b.textContent === 'Plan')
+    fireEvent.click(link)
+    expect(editor.state.selection.$from.parent.textContent).toBe('Plan')
+  })
+})
