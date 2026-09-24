@@ -65,6 +65,66 @@ function columns(trees, inputs, crossMemo) {
   return out
 }
 
+/** ⭐ ONE TRANSLATION PER SCRIPT, shared by every case below. The expensive
+ *  half is `columns` (400 bars of `accum`), not the translation — but the
+ *  ceiling census at the bottom of this file needs the same documents the cases
+ *  do, and translating them twice would make the two disagree the day one of
+ *  them moves. */
+const DOCS = new Map()
+const doc = (name) => {
+  if (!DOCS.has(name)) {
+    try { DOCS.set(name, document(name)) } catch { DOCS.set(name, null) }
+  }
+  return DOCS.get(name)
+}
+
+/** ⭐⭐ THE EXPANSION, OR THE BOMB GUARD'S REFUSAL — NAMED, NEVER THROWN PAST.
+ *
+ *  ⚰️ 2026-09-23, THE MERGE. `mid_engagement__22-rsi-levels-regime-map` used to
+ *  expand to a 118-node root per plot; it now refuses at 13,035 against the
+ *  2,048 per-plot ceiling — and that is a CAPABILITY GAIN arriving as a
+ *  refusal, not a regression. Measured on the two parents:
+ *
+ *      before: 10 refusals, 18 kept rows, the tail of them `EXP_*` diagnostics
+ *      after :  2 refusals, 26 kept rows — Positive/Negative reversal, Entry,
+ *               Stop and Target now translate, and those three are `accum`
+ *               recurrences wrapped around the whole RSI chain
+ *
+ *  So the document really does describe a 13k-node forest now. `expandedSizes`
+ *  calls itself THE BOMB GUARD and it is firing on exactly the shape it names:
+ *  227 shared nodes that inline to thirteen thousand.
+ *
+ *  ⛔ IT IS NOT A MEMBER-FACING BREAK, and that was checked rather than assumed:
+ *  `graphDocument.hydrateGraphDocument` catches this and returns the definition
+ *  unchanged, and `buildGraph` — which is what the chart path runs — does not
+ *  call `expandedSizes` at all and builds the 227-node graph fine.
+ *
+ *  ⚰️ 2026-09-24, PORTED TO MASTER (sweep/lane-1) FROM `merge/pine-up-to-master`
+ *  526b5e2aa — AND IT HOLDS WITHOUT THE PINE ENGINE WORK. Master's own grammar
+ *  commits after this file was born (#153..#170, "joins the engine grammar")
+ *  grew the same document: measured on master 451aed688, 28 outputs, 12 kept,
+ *  2 refused, a 227-node shared graph whose `out10` refuses at 13,009 (the
+ *  merged tree says 13,035). The other three expand to 681 / 423 / 436 nodes,
+ *  the same forests as on the merged tree, so SPECIMEN below is right here too.
+ *  The 10-commit window 877dd173c..451aed688 never touched `engine/ast/`, so
+ *  this is not a window regression. Mutation: SPECIMEN set back to
+ *  `mid_engagement__22` reds C2C.19's non-vacuity assertion ("expected
+ *  [Function] to not throw"). ⚠️ The server carries the SAME 2048 ceiling
+ *  (`api/services/compute_graph.py`), so a document over the byte budget that
+ *  reduces to this graph meets the store's refusal — the pre-existing size
+ *  refusal `reduceIfOversized` documents, reported upstream, not decided here.
+ *
+ *  ⛔ AND A CEILING IS NOT A SKIP. A case that quietly `return`s on this would
+ *  go vacuous the day the ceiling starts firing on everything; the caller below
+ *  asserts the refusal BY NAME and the census asserts how many documents really
+ *  ran the comparison. */
+const expandOrCeiling = (d) => {
+  const graph = buildGraph(d.trees)
+  try { return { graph, shared: expandGraph(graph) } } catch (e) {
+    return { graph, ceiling: String((e && e.message) || e) }
+  }
+}
+
 // ⚰⚰ `high_engagement__03-supertrend-kivancozbilgic` LEFT THIS ROSTER ON 2026-09-12
 // and it was the headline case: ten plots sharing one Supertrend band, which is what
 // made the shared memo worth measuring. R-F refused nine of its columns and ruling 1.2
@@ -82,6 +142,10 @@ const SCRIPTS = [
 
 const NO_TREES = 'high_engagement__03-supertrend-kivancozbilgic'
 
+/** The largest forest on the roster that still EXPANDS — see C2C.19's second
+ *  case for why this is not `mid_engagement__22` any more. */
+const SPECIMEN = 'mid_engagement__14-master-line-lite'
+
 describe('⚰ the script that left the roster, asserted rather than forgotten', () => {
   it(`${NO_TREES} carries no trees at all`, () => {
     // ⛔ THE POINT IS THE DAY THIS GOES RED. If the fold or the hidden rule is ever
@@ -94,12 +158,32 @@ describe('⚰ the script that left the roster, asserted rather than forgotten', 
   })
 })
 
+/** Filled by the cases below, read by the census that follows them. */
+const COMPARED = []
+const CEILED = []
+
 describe('C2C.11 — the shared memo computes the SAME numbers', () => {
   for (const name of SCRIPTS) {
     it(name, { timeout: 60000 }, () => {
-      let d
-      try { d = document(name) } catch { return }
-      const shared = expandGraph(buildGraph(d.trees))
+      const d = doc(name)
+      if (!d) return
+      const { graph, shared, ceiling } = expandOrCeiling(d)
+      if (ceiling) {
+        // ⛔⛔ THE BOMB GUARD FIRED, AND THIS SAYS SO BY NAME RATHER THAN
+        // CRASHING OR SKIPPING. Both halves are asserted, because either one
+        // alone would pass for the wrong reason: the refusal must be the
+        // PER-PLOT ceiling (not some other throw wearing the same catch), and
+        // the graph must be SMALL — which is the whole claim. A graph that had
+        // itself grown to thirteen thousand nodes would be a real regression
+        // and would look identical from the message alone.
+        expect(ceiling).toMatch(/over the \d+ per-plot ceiling/)
+        expect(graph.nodes.length,
+          'the SHARED graph must still be small — that is what sharing means')
+          .toBeLessThan(512)
+        CEILED.push(name)
+        return
+      }
+      COMPARED.push(name)
       const plain = columns(d.trees, d.inputs, null)
       const memoed = columns(shared, d.inputs, new Map())
       expect(Object.keys(memoed).sort()).toEqual(Object.keys(plain).sort())
@@ -155,13 +239,34 @@ describe('C2C.11 — the shared memo computes the SAME numbers', () => {
   })
 })
 
+describe('⛔⛔ the roster is not quietly emptying — the census of what ran', () => {
+  // ⚰️ WRITTEN WITH THE CEILING BRANCH, AND IT IS THE HALF THAT MATTERS. A
+  // per-script `return` on a refusal is how a file of four cases becomes a file
+  // of zero without a single red line. This asserts that the comparison really
+  // ran, on more than one document, and reports which ones did not.
+  //
+  // ⚠️ It reads state the cases above filled, so it must run AFTER them — which
+  // is why it is its own `describe` placed here and not a case inside theirs.
+  it('at least two documents really compared plain against memoed', () => {
+    expect(COMPARED.length,
+      `only ${COMPARED.length} of ${SCRIPTS.length} documents compared; ceiling-refused: `
+      + `${CEILED.join(', ') || 'none'}`).toBeGreaterThanOrEqual(2)
+    expect(COMPARED.length + CEILED.length,
+      'a document neither compared nor refused — it vanished').toBe(SCRIPTS.length)
+  })
+})
+
 describe('C2C.19 — what the sharing costs, and what it saves', () => {
   it('wall clock per document, with and without the shared memo', { timeout: 120000 }, () => {
     const lines = []
     for (const name of SCRIPTS) {
-      let d
-      try { d = document(name) } catch { continue }
-      const shared = expandGraph(buildGraph(d.trees))
+      const d = doc(name)
+      if (!d) continue
+      const { shared, ceiling } = expandOrCeiling(d)
+      // ⛔ A DOCUMENT THE BOMB GUARD REFUSES STILL GETS A LINE. This case is a
+      // measurement REPORT, and a report that silently drops its largest
+      // specimen reads as the cost having fallen.
+      if (ceiling) { lines.push(`  ${'ceiling-refused'.padStart(28)}  ${name}`); continue }
       // ⚠️ NO WARM PASS. These documents run for seconds, so JIT warm-up is a
       // rounding error against them and a warm pass would double the file's
       // wall clock to buy nothing.
@@ -188,8 +293,21 @@ describe('C2C.19 — what the sharing costs, and what it saves', () => {
     // ⛔ THE COST NOBODY BUDGETED FOR. A read now materialises the forest; if
     // that were expensive the storage win would be paid back on every open.
     // ⚰ the specimen moved with the roster above; this is the largest forest left.
-    const d = document('mid_engagement__22-rsi-levels-regime-map')
+    //
+    // ⚰️ AND IT MOVED AGAIN ON 2026-09-23. It was
+    // `mid_engagement__22-rsi-levels-regime-map`, which the merge pushed past the
+    // per-plot ceiling (see `expandOrCeiling` for the measurement and why that is
+    // a capability gain arriving as a refusal). A specimen that cannot be
+    // expanded cannot time an expansion. Measured over the whole roster on the
+    // merged tree, the largest forest that still expands is `master-line-lite`
+    // at 681 nodes, against 423 and 436 for the two `high_engagement__` scripts.
+    const d = doc(SPECIMEN)
     const graph = buildGraph(d.trees)
+    // ⛔ NON-VACUITY: the specimen must really expand, and to a forest worth
+    // timing. Without this the case would keep "passing" against whatever the
+    // roster degraded to — and an expansion of nothing is very fast indeed.
+    expect(() => expandGraph(graph)).not.toThrow()
+    expect(Object.keys(expandGraph(graph)).length).toBeGreaterThan(1)
     const t0 = Date.now()
     for (let i = 0; i < 20; i += 1) expandGraph(graph)
     const expandMs = (Date.now() - t0) / 20
