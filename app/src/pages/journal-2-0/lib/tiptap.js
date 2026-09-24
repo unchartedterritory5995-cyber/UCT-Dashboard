@@ -208,12 +208,19 @@ export function plainLeafText(node) {
 export const PLAIN_TEXT_BLOCK_SEPARATOR = ' '
 
 let plainSchema = null
-// The app's REAL schema answers "is this a leaf / inline / a textblock" --
-// the same classification the server's citation tables are pinned to
-// (askCitation.schemaParity.test.js). Built once, on first use.
-function nodeTypeOf(name) {
+/**
+ * The app's REAL editor schema, built once from `buildExtensions()` on first
+ * use. It answers "is this a leaf / inline / a textblock" for the plain text
+ * (the classification the server's citation tables are pinned to,
+ * askCitation.schemaParity.test.js) and "which note types can this bundle
+ * read" for the schema header (notebookSchema.js::declaredNotebookSchema).
+ */
+export function editorSchema() {
   if (!plainSchema) plainSchema = getSchema(buildExtensions())
-  return typeof name === 'string' ? plainSchema.nodes[name] || null : null
+  return plainSchema
+}
+function nodeTypeOf(name) {
+  return typeof name === 'string' ? editorSchema().nodes[name] || null : null
 }
 
 const isInlineLeafJson = (child) => {

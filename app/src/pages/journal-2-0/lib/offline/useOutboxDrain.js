@@ -14,6 +14,7 @@
  */
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { createNoteViaApi } from '../noteCreation'
+import { notebookSchemaHeaders } from '../notebookSchema'
 import { listOutbox, offlineStorageAvailable } from './notebookDb'
 import { offlineEnabled } from './offlineFlag'
 import { NO_BASELINE, drainOutbox, summarize } from './outboxDrain'
@@ -105,7 +106,9 @@ export async function sendNoteUpdate(entry) {
   const res = await fetch(`/api/j2/notes/${entry.noteId}`, {
     method: 'PUT',
     credentials: 'include',
-    headers: { 'Content-Type': 'application/json' },
+    // ⛔ S1/H14: declares the schema this bundle can read, so the server can
+    // refuse a queued body written by a bundle that could not read the note.
+    headers: { 'Content-Type': 'application/json', ...(await notebookSchemaHeaders()) },
     body: JSON.stringify(patch),
   })
   if (!res.ok) {

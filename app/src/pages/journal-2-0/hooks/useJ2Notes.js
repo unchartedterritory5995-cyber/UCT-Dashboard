@@ -3,6 +3,7 @@ import { useCallback, useState } from 'react'
 import useSWR, { mutate as globalMutate } from 'swr'
 import { invalidateNoteLinkTarget } from '../lib/noteLinkTargetsBatch'
 import { settleNoteWrite } from '../lib/offline/settleNoteWrite'
+import { notebookSchemaHeaders } from '../lib/notebookSchema'
 
 const fetcher = (url) =>
   fetch(url, { credentials: 'include' }).then((r) => {
@@ -158,10 +159,13 @@ export function useJ2Note(noteId) {
     error,
     refresh: () => mutate(),
     update: async (patch) => {
+      // ⛔ S1/H14: a BODY write declares the schema this bundle can read, so
+      // the server can refuse it over a note this bundle opened as empty.
+      const schema = patch && Object.hasOwn(patch, 'bodyJson') ? await notebookSchemaHeaders() : {}
       const res = await fetch(`/api/j2/notes/${noteId}`, {
         method: 'PUT',
         credentials: 'include',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 'Content-Type': 'application/json', ...schema },
         body: JSON.stringify(patch),
       })
       if (!res.ok) {

@@ -154,6 +154,19 @@ const ENTRIES = [
            + 'stripped. The hop is a store write, not a network one, and this rail is about '
            + 'endpoints the hub can reach. Add a fetch to any of those and re-measure.',
       },
+      {
+        // ⭐ ADDED BY THE NOTEBOOK WORKSTREAM, 2026-09-24 (wave 5 final round, S1/H14): this rail
+        // went red on the schema header and said what to do. `update` now asks for the header
+        // that declares which note schema this bundle can read, on a BODY write only.
+        name: 'notebookSchemaHeaders',
+        from: '../lib/notebookSchema',
+        inModule: 'pages/journal-2-0/lib/notebookSchema.js',
+        revalidatesVia: 'notebookSchemaHeaders',
+        why: 'it builds a request HEADER and performs no network write: notebookSchema.js holds no '
+           + '`fetch(` at all, and its one cross-module step is `import(\'./tiptap\')` for '
+           + '`editorSchema()`, which builds a ProseMirror schema. tiptap.js\'s two fetches live in '
+           + '`uploadInlineImage`/`uploadNoteAttachment`, which that path never calls.',
+      },
     ],
   },
 ]

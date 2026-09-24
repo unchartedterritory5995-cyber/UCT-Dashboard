@@ -47,6 +47,7 @@ from api.services.journal_two import (
     csv_import as csv_import_service,
     discipline as discipline_service,
     note_trade_links,
+    notebook_schema,
     nudges as nudges_service,
     options as options_service,
     playbook_stats as playbook_stats_service,
@@ -3115,6 +3116,7 @@ def create_note_endpoint(
 def update_note_endpoint(
     note_id: str,
     patch: dict[str, Any],
+    request: Request,
     user: dict = Depends(get_current_user),
 ) -> dict[str, Any]:
     # Optional compare-and-set baseline (A15): when the editor sends the
@@ -3126,7 +3128,16 @@ def update_note_endpoint(
         n = notes_service.update_note(
             user["id"], note_id, patch,
             expected_updated_at=base if isinstance(base, str) and base else None,
+            # ⛔ S1/H14 — never reverted with the features (notebook_schema.py).
+            # A missing header is 0: every bundle that predates it.
+            client_schema=notebook_schema.declared_schema(
+                request.headers.get(notebook_schema.NOTEBOOK_SCHEMA_HEADER)),
         )
+    except notebook_schema.NotebookSchemaTooOld:
+        # 409, so origin/master's editor takes its conflict path (one reconcile,
+        # one retry, then the sentence below as the save error) and its outbox
+        # forks a conflicted copy — the server note is never touched.
+        raise HTTPException(status_code=409, detail=notebook_schema.REFUSAL_DETAIL)
     except notes_service.NoteConflictError:
         raise HTTPException(status_code=409, detail="note changed — refresh and retry")
     except NoteValidationError as e:

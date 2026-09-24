@@ -19,6 +19,7 @@ from pathlib import Path
 from typing import Any
 
 from api.services.auth_db import get_connection
+from api.services.journal_two.notebook_schema import check_body_write
 from api.services import buzz_extract
 from api.services.journal_two.note_trade_links import is_valid_trade_ref_type
 
@@ -2642,8 +2643,17 @@ def update_note(
     expected_updated_at: str | None = None,
     force_version: bool = False,
     restored_from_version_id: str | None = None,
+    client_schema: int | None = None,
 ) -> dict[str, Any] | None:
-    """`expected_updated_at` (optional) makes the write a compare-and-set:
+    """`client_schema` is the schema the CLIENT that sent this patch can read
+    (`notebook_schema.declared_schema` of its `X-UCT-Notebook-Schema` header —
+    0 when absent). A body write from a client older than the STORED body is
+    refused with `NotebookSchemaTooOld` before anything else is checked: that
+    client may be holding the note as an EMPTY document it could not parse
+    (H14). None = not a client's body (a version restore, a server append).
+    ⛔ Never reverted with the features: see notebook_schema.py.
+
+    `expected_updated_at` (optional) makes the write a compare-and-set:
     when it no longer matches the row's updated_at, another writer (the
     'Send to Journal' server append, a second tab) got there first and a
     blind full-doc PUT would silently delete their write — the A15 clobber.
@@ -2663,6 +2673,8 @@ def update_note(
         ).fetchone()
         if existing is None:
             return None
+        if "bodyJson" in patch:
+            check_body_write(existing["body_json"], client_schema)
         if expected_updated_at is not None and existing["updated_at"] != expected_updated_at:
             raise NoteConflictError("note changed since the client's baseline")
 

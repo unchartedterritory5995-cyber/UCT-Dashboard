@@ -30,10 +30,11 @@ from __future__ import annotations
 
 from typing import Any, Optional
 
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Request
 from pydantic import BaseModel
 
 from api.middleware.auth_middleware import get_current_user, require_admin
+from api.services.journal_two import notebook_schema
 from api.services.user_playbook import service as upb
 from api.services.user_playbook.service import UpbValidationError
 
@@ -208,12 +209,20 @@ def get_entry_endpoint(
 def update_entry_endpoint(
     entry_id: str,
     payload: EntryPatch,
+    request: Request,
     user: dict = Depends(get_current_user),
 ) -> dict[str, Any]:
     try:
         entry = upb.update_entry(
-            user["id"], entry_id, payload.model_dump(exclude_unset=True)
+            user["id"], entry_id, payload.model_dump(exclude_unset=True),
+            # ⛔ S1/H14 — never reverted with the features. Missing header = 0.
+            client_schema=notebook_schema.declared_schema(
+                request.headers.get(notebook_schema.NOTEBOOK_SCHEMA_HEADER)),
         )
+    except notebook_schema.NotebookSchemaTooOld:
+        # origin/master's UpbRichEditor treats a 4xx as non-retryable and
+        # stops: no loop, and the entry is untouched.
+        raise HTTPException(status_code=409, detail=notebook_schema.REFUSAL_DETAIL)
     except UpbValidationError as e:
         raise HTTPException(status_code=400, detail=str(e))
     if entry is None:
