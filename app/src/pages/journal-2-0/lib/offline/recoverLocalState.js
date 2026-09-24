@@ -300,6 +300,22 @@ export function chooseLocalRecovery({ server, idbRecord = null, lsDraft = null }
  *          sending the queued body on the current revision would succeed without
  *          a 409 and silently drop whatever a door appended in between.
  */
+/**
+ * ⭐ ONE AUTHORITY for "the base has no body" (wave 6 addendum, D3b fix round 2).
+ * Two decisions key on it and must never drift apart:
+ *   · `commitSave` (NoteEditorPage, residual (b)) — with no known body, the
+ *     title and subtitle are SENT as they stand (a cleared title must land);
+ *   · `queuedWorkToAdopt` below (review NN-1) — a base with no body is OFFERED,
+ *     never sent by ourselves (against it every move of the server forks).
+ * Keyed on the missing BODY, never on the `bodyUnknown` flag: the durable store
+ * drops the flag (`snapshotOfServerCopy`), and a guard keyed on it is gone in the
+ * next session. The server never serves a null body, so a null one is always a
+ * body this browser did not know. A missing base is the same fact.
+ */
+export function baseHasNoBody(base) {
+  return !base || base.bodyJson == null
+}
+
 export function queuedWorkToAdopt({ decision, record = null, entry = null } = {}) {
   if (!decision?.unsynced || decision.ambiguous) return null
   if (!record?.dirty || !entry) return null
@@ -326,7 +342,7 @@ export function queuedWorkToAdopt({ decision, record = null, entry = null } = {}
   // flag, it was adopted and a moved server forked the note by itself. The server
   // never serves a null body (`notes.py` `_row_to_note` serves an empty doc), so a
   // null body here is always one this browser did not know.
-  if (!base || base.bodyJson == null) return null
+  if (baseHasNoBody(base)) return null
   return { state: authored(record), base }
 }
 

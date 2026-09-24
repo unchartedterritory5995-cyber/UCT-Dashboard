@@ -39,7 +39,7 @@ import { useBlockedNotes } from '../../lib/offline/useBlockedNotes'
 import { blockedLabel, unsyncedLabel, OFFLINE_VIEWING_BANNER } from '../../lib/offline/unsyncedCopy'
 import { usableBaseline, isUsableBaseline } from '../../lib/offline/baseline'
 import { settleNoteWrite } from '../../lib/offline/settleNoteWrite'
-import { sameAuthoredContent } from '../../lib/offline/recoverLocalState'
+import { baseHasNoBody, sameAuthoredContent } from '../../lib/offline/recoverLocalState'
 import {
   appendedServerNodes, missingServerNodes, nodeKeyOf,
 } from '../../lib/offline/serverChange'
@@ -2023,7 +2023,9 @@ export default function NoteEditorPage({ noteId, onBack, showBack = true, onTitl
     // wherever the server's body really is null: under compare-and-set, sending
     // the fields as they stand writes nothing but what the member holds, on the
     // revision the base names. The body is always sent against a null one anyway.
-    const baseUnknown = last.bodyJson == null
+    // ONE authority (lib/offline/recoverLocalState.baseHasNoBody), shared with
+    // `queuedWorkToAdopt`: both decisions key on the same missing body.
+    const baseUnknown = baseHasNoBody(last)
     const titleChanged = baseUnknown || title !== last.title
     const subtitleChanged = baseUnknown || (subtitle || '') !== (last.subtitle || '')
     const bodyChanged = JSON.stringify(bodyJson) !== JSON.stringify(last.bodyJson)
@@ -2386,7 +2388,7 @@ export default function NoteEditorPage({ noteId, onBack, showBack = true, onTitl
     const cur = captureLocalState()
     const last = lastSavedRef.current
     const parts = []
-    if (cur && last.bodyJson != null) {
+    if (cur && !baseHasNoBody(last)) {
       if ((cur.title || '') !== (last.title || '')) parts.push('the title')
       if ((cur.subtitle || '') !== (last.subtitle || '')) parts.push('the subtitle')
       if (JSON.stringify(cur.bodyJson) !== JSON.stringify(last.bodyJson)) parts.push('the note’s text')
