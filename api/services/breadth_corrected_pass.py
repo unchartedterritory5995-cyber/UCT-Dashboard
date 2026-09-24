@@ -430,6 +430,7 @@ def preflight(inputs_dir: str, now_utc: str = None, verify_files: bool = True) -
     if _next_open_after(w0) < w1.replace("Z", "+00:00"):
         problems.append("the grouped fetch window %s..%s spans a session open — not one vintage" % (w0, w1))
     now = now_utc or dt.datetime.now(dt.timezone.utc).isoformat()
+    checks["now_utc"] = now                      # the instant this preflight was judged at
     nxt = _next_open_after(w1)
     checks["cache_valid_until"] = nxt
     if now >= nxt:
@@ -474,11 +475,30 @@ def main(argv=None) -> int:
     # was launched on does not change (every object is hashed), so staleness is judged at the
     # recorded LAUNCH instant. Every other check — pins, digests, flags, registries, every input
     # and grouped-file hash, PIT live_from — is re-run against the present state.
+    man0 = json.load(open(os.path.join(a.inputs, "INPUT_MANIFEST.json")))
+    req_to = a.to or man0["last_session"]
+    pit_sha = _sha(os.path.join(a.inputs, "pit_uct_ledger.json")) if os.path.exists(
+        os.path.join(a.inputs, "pit_uct_ledger.json")) else None
     if a.resume:
+        # --resume = CONTINUE THIS EXACT RUN, never "use old checkpoints for a different run"
         if not launch.get("launch_preflight_clean_at"):
             raise ArtifactRefused("--resume: the artifact has no clean launch record")
         if launch.get("launch_input_manifest_sha256") != man_sha:
             raise ArtifactRefused("--resume: the inputs are not the manifest the grind was launched on")
+        if launch.get("launch_pit_ledger_sha256") != pit_sha:
+            raise ArtifactRefused("--resume: the canonical UCT ledger is not the one the grind was launched on")
+        if (launch.get("launch_from"), launch.get("launch_to")) != (a.frm, req_to):
+            raise ArtifactRefused("--resume: requested range %s..%s is not the launched range %s..%s"
+                                  % (a.frm, req_to, launch.get("launch_from"), launch.get("launch_to")))
+        if json.loads(launch.get("launch_pins") or "null") != json.loads(json.dumps(current_pins(), sort_keys=True)):
+            raise ArtifactRefused("--resume: code/methodology/registry pins differ from the launch")
+        import sqlite3 as _sq
+        _c = _sq.connect("file:%s?mode=ro" % a.artifact, uri=True)
+        stray = _c.execute("SELECT COUNT(*) FROM pass_checkpoint WHERE date < ? OR date > ?",
+                           (a.frm, req_to)).fetchone()[0]
+        _c.close()
+        if stray:
+            raise ArtifactRefused("--resume: %d checkpoints lie outside the launched range" % stray)
         pf = preflight(a.inputs, now_utc=launch["launch_preflight_clean_at"])
     else:
         if launch.get("launch_preflight_clean_at"):
@@ -490,13 +510,12 @@ def main(argv=None) -> int:
             print("PREFLIGHT REFUSED:", p, flush=True)
         raise ArtifactRefused("preflight: %d problem(s)" % len(pf["problems"]))
     if not a.resume:
-        import datetime as _dt
         c = open_artifact(a.artifact)
-        _meta(c, launch_preflight_clean_at=_dt.datetime.now(_dt.timezone.utc).isoformat(),
-              launch_input_manifest_sha256=man_sha, launch_pins=json.dumps(current_pins(), sort_keys=True))
+        _meta(c, launch_preflight_clean_at=pf["checks"]["now_utc"],
+              launch_input_manifest_sha256=man_sha, launch_pins=json.dumps(current_pins(), sort_keys=True),
+              launch_pit_ledger_sha256=pit_sha or "", launch_from=a.frm, launch_to=req_to)
         c.commit(); c.close()
-    man = json.load(open(os.path.join(a.inputs, "INPUT_MANIFEST.json")))
-    to = a.to or man["last_session"]
+    to = req_to
     d, days = dt.date.fromisoformat(a.frm), []
     while d.isoformat() <= to:
         if d.weekday() < 5:
