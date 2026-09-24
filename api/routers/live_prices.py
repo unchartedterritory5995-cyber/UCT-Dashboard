@@ -20,8 +20,9 @@ import threading
 import time
 from datetime import datetime, timedelta
 from zoneinfo import ZoneInfo
-from fastapi import APIRouter, Query
+from fastapi import APIRouter, Depends, Query
 from fastapi.responses import JSONResponse
+from api.middleware.auth_middleware import get_current_user
 from api.services.cache import TTLCache
 from api.services.massive import _get_client, _detect_session, _ext_price_for, to_polygon_symbol
 
@@ -555,6 +556,7 @@ def _fetch_snapshots(client, tickers: list[str], session: str) -> dict:
 @router.get("/api/live-prices")
 def get_live_prices(
     tickers: str = Query(..., description="Comma-separated ticker symbols (max 250)"),
+    user: dict = Depends(get_current_user),
 ):
     """Return real-time price snapshot for a batch of tickers.
 

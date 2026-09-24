@@ -1,11 +1,12 @@
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, Depends, HTTPException
+from api.middleware.auth_middleware import get_current_user
 from api.services.massive import get_movers, get_extended_movers
 
 router = APIRouter()
 
 
 @router.get("/api/movers")
-def movers():
+def movers(user: dict = Depends(get_current_user)):
     try:
         result = get_movers()
         try:
@@ -26,7 +27,7 @@ def movers():
 
 
 @router.get("/api/extended-movers")
-def extended_movers():
+def extended_movers(user: dict = Depends(get_current_user)):
     try:
         return get_extended_movers()
     except Exception as e:
