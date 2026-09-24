@@ -199,7 +199,7 @@ describe('CommandPalette — search + selection', () => {
     await screen.findByText('Apple Inc.')
   })
 
-  it('Enter navigates to the typed value immediately, with zero network wait', async () => {
+  it('Enter on a typed symbol lands on it — asked at once, before the debounce, and landing as soon as the notes say no note IS that title (R1-N2)', async () => {
     renderPalette()
     act(() => pressCtrlK())
     const input = await screen.findByRole('combobox')
@@ -512,7 +512,7 @@ describe('CommandPalette — Wave B: Notebook joins the palette (§12-15)', () =
       .toHaveTextContent('/journal/notebook'))
   })
 
-  it('Enter still preserves zero-network-wait for a plain ticker query with no notebook match', async () => {
+  it('Enter on a plain ticker query with no notebook match still opens the typed symbol (R1-N2: after the notes answer, bounded)', async () => {
     renderPalette()
     act(() => pressCtrlK())
     const input = await screen.findByRole('combobox')
@@ -790,5 +790,104 @@ describe('CommandPalette — touch tier', () => {
     const touch = /@media\s*\(max-width:\s*1024px\)\s*\{([\s\S]*?)\n\}/.exec(css.replace(/\r\n/g, '\n'))
     expect(touch, 'a max-width:1024px block must exist').not.toBeNull()
     expect(touch[1]).toMatch(/\.resultRow\s*\{[^}]*min-height:\s*var\(--tap-min/)
+  })
+})
+
+describe('CommandPalette — R1-N2: where Enter lands never depends on WHEN it is pressed', () => {
+  const noteRow = (over) => ({
+    id: 'p1', title: 'Plan', folderId: null, folderPath: null, ticker: null, updatedAt: '2026-09-01T00:00:00Z',
+    isRecent: false, isFavorite: false, matchTier: 0, strong: true, exact: true, ...over,
+  })
+  function routeFetch({ tickers, notes, notesGate = null }) {
+    global.fetch = vi.fn((url) => {
+      const u = String(url)
+      if (u.startsWith('/api/ticker-search')) {
+        return Promise.resolve({ ok: true, json: () => Promise.resolve({ results: tickers }) })
+      }
+      if (u.startsWith('/api/j2/notes/switcher')) {
+        const answer = () => ({ ok: true, json: () => Promise.resolve({ notes, hasMore: false }) })
+        return notesGate ? notesGate.then(answer) : Promise.resolve(answer())
+      }
+      return Promise.resolve({ ok: true, json: () => Promise.resolve({ notes: [] }) })
+    })
+  }
+  /** Press Enter FAST (before any answer) or SLOW (after both answered and
+   *  rendered) and return where the palette went. */
+  async function landingOf(timing, query, fixture) {
+    routeFetch(fixture)
+    const { unmount } = renderPalette()
+    act(() => pressCtrlK())
+    const input = await screen.findByRole('combobox')
+    fireEvent.change(input, { target: { value: query } })
+    if (timing === 'slow') {
+      await screen.findByRole('option', { name: new RegExp(`Note: ${fixture.notes[0].title}`) })
+      await screen.findByText(fixture.tickers[0].name)
+    }
+    fireEvent.keyDown(input, { key: 'Enter' })
+    await waitFor(() => expect(screen.getByTestId('route-spy').textContent).not.toBe('/dashboard'))
+    const where = screen.getByTestId('route-spy').textContent
+    unmount()
+    return where
+  }
+
+  it('a note-only short query ("plan": no ticker IS it) — fast and slow Enter both open the note', async () => {
+    const fixture = { tickers: [{ ticker: 'PLNT', name: 'Planet Fitness' }], notes: [noteRow()] }
+    const fast = await landingOf('fast', 'plan', fixture)
+    const slow = await landingOf('slow', 'plan', fixture)
+    expect(fast).toBe('/journal/notebook?note=p1')
+    expect(slow).toBe(fast)
+  })
+
+  it('a ticker-match short query ("nvda", with a note titled NVDA) — fast and slow Enter both open the research page', async () => {
+    const fixture = {
+      tickers: [{ ticker: 'NVDA', name: 'NVIDIA Corp' }],
+      notes: [noteRow({ id: 'n9', title: 'NVDA', ticker: 'NVDA' })],
+    }
+    const fast = await landingOf('fast', 'nvda', fixture)
+    const slow = await landingOf('slow', 'nvda', fixture)
+    expect(fast).toBe('/research/NVDA')
+    expect(slow).toBe(fast)
+  })
+
+  it('the member sees it is deciding — never an early landing — and the landing follows the answer', async () => {
+    let release
+    const notesGate = new Promise((r) => { release = r })
+    routeFetch({ tickers: [], notes: [noteRow()], notesGate })
+    renderPalette()
+    act(() => pressCtrlK())
+    const input = await screen.findByRole('combobox')
+    fireEvent.change(input, { target: { value: 'plan' } })
+    fireEvent.keyDown(input, { key: 'Enter' })
+    expect(screen.getByTestId('palette-enter-pending')).toHaveTextContent('Finding the best match for "plan"')
+    expect(screen.getByRole('listbox')).toHaveAttribute('aria-busy', 'true')
+    await act(async () => { await new Promise((r) => setTimeout(r, 60)) })
+    expect(screen.getByTestId('route-spy')).toHaveTextContent('/dashboard')   // not acted early
+    await act(async () => { release() })
+    await waitFor(() => expect(screen.getByTestId('route-spy')).toHaveTextContent('/journal/notebook?note=p1'))
+  })
+
+  it('the wait is bounded: a notes index that never answers still lets Enter land on the typed symbol', async () => {
+    routeFetch({ tickers: [], notes: [noteRow()], notesGate: new Promise(() => {}) })
+    renderPalette()
+    act(() => pressCtrlK())
+    const input = await screen.findByRole('combobox')
+    fireEvent.change(input, { target: { value: 'plan' } })
+    const pressed = Date.now()
+    fireEvent.keyDown(input, { key: 'Enter' })
+    await waitFor(() => expect(screen.getByTestId('route-spy')).toHaveTextContent('/research/PLAN'), { timeout: 1500 })
+    expect(Date.now() - pressed).toBeGreaterThanOrEqual(350)
+  })
+
+  it('typing on while it decides drops the pending Enter — the old query never lands', async () => {
+    routeFetch({ tickers: [], notes: [noteRow()], notesGate: new Promise(() => {}) })
+    renderPalette()
+    act(() => pressCtrlK())
+    const input = await screen.findByRole('combobox')
+    fireEvent.change(input, { target: { value: 'plan' } })
+    fireEvent.keyDown(input, { key: 'Enter' })
+    fireEvent.change(input, { target: { value: 'planx' } })
+    await act(async () => { await new Promise((r) => setTimeout(r, 500)) })
+    expect(screen.getByTestId('route-spy')).toHaveTextContent('/dashboard')
+    expect(screen.queryByTestId('palette-enter-pending')).toBeNull()
   })
 })

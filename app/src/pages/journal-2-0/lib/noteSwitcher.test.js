@@ -5,8 +5,8 @@
  */
 import { describe, it, expect } from 'vitest'
 import {
-  extendsExhausted, normalizeSwitcherQuery, noteContextLine, noteSwitcherUrl, orderPaletteRows,
-  splitTitleMatch, tickerLeads, toNoteRow,
+  ENTER_WAIT_MS, enterMustWait, extendsExhausted, normalizeSwitcherQuery, noteContextLine, noteSwitcherUrl,
+  orderPaletteRows, splitTitleMatch, tickerLeads, toNoteRow,
 } from './noteSwitcher'
 
 const TICKER_LIKE = /^[A-Z0-9.\-]{1,10}$/
@@ -146,5 +146,28 @@ describe('row text helpers', () => {
   })
   it('noteSwitcherUrl encodes the query', () => {
     expect(noteSwitcherUrl('a&b c')).toBe('/api/j2/notes/switcher?q=a%26b%20c&limit=8')
+  })
+})
+
+describe('R1-N2 — enterMustWait: Enter waits only while its target is still a guess', () => {
+  const exactNote = nt('p', { strong: true, exact: true })
+  const base = { tickerLead: true, notesSettled: true, tickersSettled: true, noteMatches: [] }
+  it('waits while the notes have not answered a ticker-shaped query (an exact title may yet arrive)', () => {
+    expect(enterMustWait({ ...base, notesSettled: false })).toBe(true)
+  })
+  it('waits while an exact title is in and the ticker search has not answered', () => {
+    expect(enterMustWait({ ...base, tickersSettled: false, noteMatches: [exactNote] })).toBe(true)
+  })
+  it('does not wait once both answered, or when the notes answered with no exact title', () => {
+    expect(enterMustWait({ ...base, noteMatches: [exactNote] })).toBe(false)
+    expect(enterMustWait({ ...base, tickersSettled: false, noteMatches: [nt('x', { strong: true })] })).toBe(false)
+  })
+  it('never waits when a command or keyword row leads, or for a note-shaped query', () => {
+    expect(enterMustWait({ ...base, notesSettled: false, hasFixedLeaders: true })).toBe(false)
+    expect(enterMustWait({ ...base, notesSettled: false, tickerLead: false })).toBe(false)
+  })
+  it('the bound is short enough to read as a pause, not a hang', () => {
+    expect(ENTER_WAIT_MS).toBeGreaterThan(0)
+    expect(ENTER_WAIT_MS).toBeLessThanOrEqual(400)
   })
 })

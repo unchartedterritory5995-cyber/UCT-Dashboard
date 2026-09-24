@@ -98,6 +98,34 @@ export function orderPaletteRows({
   return [...commands, ...keywordNotes, ...exact, ...strong, ...restTickers, ...weak]
 }
 
+/** R1-N2: the most Enter will wait for the answers it needs (ms). */
+export const ENTER_WAIT_MS = 400
+
+/**
+ * R1-N2: whether Enter on the TOP row must wait before it can land where a
+ * slower Enter would. For a short ticker-shaped query the top row is decided
+ * by two answers: whether a note title IS the query (the notes index), and
+ * whether a ticker IS it (the ticker search). Until both are known, the "Go to
+ * X" row on top is a guess — a fast typist on "plan" reached /research/PLAN,
+ * a slower one the note called Plan.
+ *   · commands or keyword rows on top: they lead whatever arrives — no wait;
+ *   · a longer / note-shaped query: not decided by this race — no wait;
+ *   · the notes have not answered this query: an exact title may yet arrive —
+ *     wait;
+ *   · they answered with an exact title and the tickers have not: wait for
+ *     the ticker answer, which alone decides between the two;
+ *   · otherwise the rule can be applied now.
+ * The caller bounds the wait (ENTER_WAIT_MS) and shows it, then applies
+ * `orderPaletteRows` — the one ordering rule — to whatever is known.
+ */
+export function enterMustWait({
+  hasFixedLeaders = false, tickerLead = false, notesSettled = false, tickersSettled = false, noteMatches = [],
+}) {
+  if (hasFixedLeaders || !tickerLead) return false
+  if (!notesSettled) return true
+  return noteMatches.some((n) => n.exact) && !tickersSettled
+}
+
 /** The query as the switcher reads it: lower-cased, whitespace collapsed —
  *  the same normalisation `switcher_search` applies before matching. */
 export function normalizeSwitcherQuery(q) {
