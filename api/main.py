@@ -74,6 +74,13 @@ from api.routers import avatar as avatar_router
 from api.routers import webhooks as webhooks_router
 from api.routers import alerts as alerts_router
 from api.routers import journal_two as journal_two_router
+# Wave 6 (controller wiring). notebook_insights MUST be mounted BEFORE
+# journal_two: it serves /api/j2/notes/tasks and /api/j2/notes/{id}/unlinked-mentions,
+# and journal_two's /api/j2/notes/{note_id} would otherwise answer "tasks" as a
+# note id. Pinned by tests/test_main_router_order.py.
+from api.routers import notebook_insights as notebook_insights_router
+from api.routers import client_errors as client_errors_router
+from api.routers import notebook_link_preview as notebook_link_preview_router
 from api.routers import hub_planned_trades as hub_planned_trades_router
 from api.routers import capture_auth as capture_auth_router
 from api.routers import community as community_router
@@ -8035,6 +8042,18 @@ async def lifespan(app: FastAPI):
                 print("[startup] j2 trash purge registered (03:20 ET daily)")
         except Exception as e:
             print(f"[startup] j2 trash purge registration failed (non-fatal): {e}")
+        # Wave 6 (controller wiring, lane F) — Notebook task reminders: one
+        # in-app bell per member per ET day for tasks due today/overdue. The
+        # registrar wires all three jobs itself (07:00 ET, a 09:00 ET second
+        # pass, and a one-shot boot catch-up); its kill switch
+        # NOTEBOOK_TASK_REMINDERS_ENABLED is read at every RUN, never here, so
+        # flipping it needs no restart. Never email, never Discord.
+        try:
+            from api.services.journal_two import note_tasks as _j2_note_tasks
+            if _j2_note_tasks.register_task_reminder_job(_scheduler):
+                print("[startup] notebook task reminders registered (07:00 + 09:00 ET, boot catch-up)")
+        except Exception as e:
+            print(f"[startup] notebook task reminders registration failed (non-fatal): {e}")
     else:
         print("[startup] APScheduler skipped -- lock held by another uvicorn worker (multi-worker mode)")
 
@@ -8599,6 +8618,12 @@ app.include_router(support_status_router.router)
 app.include_router(avatar_router.router)
 app.include_router(webhooks_router.router)
 app.include_router(alerts_router.router)
+# Wave 6 (controller wiring) -- ORDER IS LOAD-BEARING: notebook_insights before
+# journal_two, or /api/j2/notes/tasks is answered as a note called "tasks"
+# (lane F's report; rail tests/test_main_router_order.py).
+app.include_router(notebook_insights_router.router)
+app.include_router(client_errors_router.router)
+app.include_router(notebook_link_preview_router.router)
 app.include_router(journal_two_router.router)
 # Phase 2a — the joystick hub's planned-trades backend. No client writes to it
 # yet; the preview is navigation-only plus Voice.
