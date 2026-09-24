@@ -58,7 +58,7 @@ what's still needed before that point is satisfied.
 | 6 | Real-device pass | ⚠️ **Partial, done 2026-09-24, be precise about what it is.** Ran a real local boot (flag forced ON locally only, never touching production) + `tools/mobile_audit.py` against `/research/AAPL` at phone/phone390/tablet/touch1024/desktop — the Flow tab renders, zero horizontal overflow at any width, no new sub-44px targets introduced. Then clicked into it via a headless-Chromium Playwright session at a 390×844 phone viewport: real content rendered (Net Flow direction/premiums, top-contracts table), no error boundary, no crash. **This is NOT a BrowserStack Live / real-Safari pass** — this codebase has a documented incident (`docs/notebook`) where jsdom AND Chromium both missed a production crash that only a real old Safari caught. Judged low-risk to skip that step here specifically: this feature reuses the exact tab pattern the already-real-device-tested Technical tab uses, introduces no exotic/bleeding-edge browser API, and does no client-side math (pure data passthrough) — but that is a risk judgment, not a substitute for the real thing, and is named as such rather than rounded up to "done." |
 | 7 | Verified via the synthetic smoke account | ⚠️ **Structurally can't be done pre-flip.** §6 item 7 means a POST-deploy check against the live service — this app has no staging environment (one Railway environment, no per-branch preview, per `CLAUDE.md`), so there is nowhere to run the smoke account against this flag turned on except production itself, after the flip. The local verification above (a local admin test account, the closest available substitute) stands in for this until the flip happens; `smoke@uctintelligence.internal` visiting `/research/:sym` right after the real flip is the actual completion of this item, not a pre-condition to it. |
 | 8 | Member-impact paragraph | See below. |
-| 9 | Owner's explicit "go" | **Pending — this is the ask.** |
+| 9 | Owner's explicit "go" | Given 2026-09-24, flipped live, verified end-to-end (config set, fresh boot, in-process confirmation, and a real browser render check on two tickers on live production). See feature_flags.json's own entry for the full verification trail. |
 
 **Member-impact paragraph:** A new "Flow" tab appears on the `/research/:sym` page,
 alongside the existing "My Research" and "Technical" tabs, showing the same options-flow
@@ -77,6 +77,17 @@ true BrowserStack Live pass — judged proportionate to skip given the pattern-r
 lack of exotic browser APIs, but that's a risk call for the owner to override if they'd
 rather not take it. **Ready for the owner's "go" whenever they want it; nothing further
 is blocking on this session's side.**
+
+Flip confirmed live, 2026-09-24. RESEARCH_FLOW_TAB_ENABLED is armed on the web
+service, a fresh boot was confirmed, and the flag was verified in-process via a real
+authenticated session (research_flow_tab_enabled: true). Visited /research/AAPL and
+/research/NVDA live on production in a real browser session: both rendered the correct
+empty-state copy for the Flow tab, no errors. One resolved false alarm along the way --
+the tab looked stuck loading on first click in the automation browser tab specifically
+because that tab was backgrounded (document.visibilityState stayed "hidden" the whole
+session, which throttles Chrome's JS timers), not a product bug. Confirmed clean on
+retry and on a second ticker. Full detail in feature_flags.json's RESEARCH_FLOW_TAB_ENABLED
+entry.
 
 Historical note this recommendation leans on, per §6 item 6's own stated reason (real
 Safari has found bugs jsdom/Chromium both missed
