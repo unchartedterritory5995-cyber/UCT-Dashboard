@@ -41,7 +41,7 @@ import { usableBaseline, isUsableBaseline } from '../../lib/offline/baseline'
 import { settleNoteWrite } from '../../lib/offline/settleNoteWrite'
 import { baseHasNoBody, sameAuthoredContent } from '../../lib/offline/recoverLocalState'
 import {
-  appendedServerNodes, missingServerNodes, nodeKeyOf,
+  appendedServerNodes, missingServerNodes, nodeKeyOf, classifyServerChange, METADATA_ONLY,
 } from '../../lib/offline/serverChange'
 import { ownerReconcilePlan, LANDED, FORK } from '../../lib/offline/ownerReconcile'
 import { stampChartSettings } from '../../lib/widgetEmbedCore'
@@ -1751,13 +1751,47 @@ export default function NoteEditorPage({ noteId, onBack, showBack = true, onTitl
     bumpToolbar()
   }, [editor, locked])
 
+  /**
+   * ⛔⛔ UNLOCK IS A WRITE DOOR (wave 6 fix round 1, I1). The PATCH advances the
+   * note's `updatedAt`, and the only reason to press Unlock is to type — so the
+   * very next thing on the wire is this editor's own save.
+   *
+   * ⚰️ It used to record nothing and only `refresh()`, which never moves the save
+   * baseline (the load effect is keyed on the note id): the first autosave went
+   * out on the PRE-unlock revision and 409'd on the member's own write, and once
+   * the note closed a drain asked "is that revision ours?", found it unrecorded,
+   * and forked the note.
+   *
+   * ⭐ THREE STEPS, IN THIS ORDER, before the editor is made editable:
+   *   1. `setNoteLock` lands the revision (`settleNoteWrite`, the one way a
+   *      revision is landed) and returns the server's copy.
+   *   2. When that copy differs from what this editor last knew by metadata
+   *      ONLY (`classifyServerChange` — the reconcile's own authority), the save
+   *      baseline moves onto it, so the first save after Unlock carries the
+   *      post-unlock revision and lands. ⛔ Never otherwise: a copy whose words
+   *      this editor never saw (another device wrote them) is not a base to build
+   *      on — the next save goes out on its own base, 409s, and the reconcile
+   *      merges or forks exactly as it would for any other writer.
+   *   3. `settleMetadataRevision` — the path every metadata door in this file
+   *      takes — records the landing for this account and settles the durable
+   *      copy onto it.
+   * ⛔ A settle that fails never fails the Unlock: the write already happened.
+   */
   const unlockNote = async () => {
     setUnlockState('busy')
+    let saved
     try {
-      await setNoteLock(noteId, false)
+      saved = await setNoteLock(noteId, false)
     } catch {
       setUnlockState('failed')
       return
+    }
+    const landed = usableBaseline(saved?.updatedAt)
+    if (landed && classifyServerChange(saved, lastSavedRef.current) === METADATA_ONLY) {
+      lastSavedRef.current = { ...lastSavedRef.current, updatedAt: landed }
+      try { await settleMetadataRevision(saved) } catch { /* the unlock landed; bookkeeping never fails it */ }
+    } else if (landed) {
+      try { await recordLandedRevision({ accountId: user?.id, noteId, updatedAt: landed }) } catch { /* as above */ }
     }
     setUnlockedHere(true)
     setUnlockState(null)
