@@ -2704,12 +2704,14 @@ def run_notebook_migration_v6(conn: sqlite3.Connection) -> None:
 # progress. Both are module constants so a test can shrink them.
 _BODY_PLAIN_BACKFILL_BATCH = 200
 _BODY_PLAIN_BACKFILL_BUDGET_S = 20.0
-# (table, what a row's body_plain is derived from). Versions too: the note's
-# versioned content is compared against its latest version's
+# v7's tables, and the extra columns each row needs beyond its body. Versions
+# too: the note's versioned content is compared against its latest version's
 # (`notes._maybe_capture_version`), and History / the thesis changelog diff
 # the two -- re-deriving only the note would make every unchanged note's next
-# save look like an edit and write a spurious checkpoint.
+# save look like an edit and write a spurious checkpoint. A note row carries
+# its id and owner so its mentions sidecar can be rebuilt (fix round 3).
 _BODY_PLAIN_BACKFILL_TABLES = ("j2_notes", "j2_note_versions")
+_BODY_PLAIN_BACKFILL_EXTRA = {"j2_notes": ("id", "user_id")}
 
 
 def _write_flag_atomic(path: Path, data: bytes) -> None:
@@ -2719,6 +2721,127 @@ def _write_flag_atomic(path: Path, data: bytes) -> None:
     os.replace(tmp, path)
 
 
+def rederive_body_plain(
+    conn: sqlite3.Connection, *, flag_name: str, tables: tuple[str, ...], count_table: str,
+    extra_columns: dict[str, tuple[str, ...]] | None = None, on_changed=None,
+    clock=time.monotonic, label: str = "body-plain-backfill",
+) -> dict[str, Any]:
+    """Re-derive `body_plain` from `body_json` for every row of `tables`, with
+    `notes.extract_plain_text` -- the one rule every save uses. The ENGINE for
+    run_notebook_migration_v7 (notes + versions) and the playbook's backfill
+    (user_playbook.db); see v7's docstring for why each guard exists.
+
+      · writes `body_plain` ONLY (never `updated_at`, `body_json`, a version);
+      · guarded per row on `body_json` still being the one it derived from;
+      · idempotent: a row already matching is not written (a re-run is a
+        read-only pass);
+      · batched (one transaction per `_BODY_PLAIN_BACKFILL_BATCH` rows),
+        budgeted per boot (`_BODY_PLAIN_BACKFILL_BUDGET_S`), resumable from
+        `<flag_name>.progress` (the last rowid per table);
+      · flagged only once every table is walked AND `count_table` has a row.
+    `on_changed(table, row, derived)` runs INSIDE the batch's transaction for
+    each row this pass actually rewrote -- so a derived sidecar and the text
+    it derives from commit together, or not at all. `row` is
+    (rowid, body_json, body_plain, *extra_columns[table]).
+
+    Returns counts: {<table>: {"scanned", "updated"}, "complete": bool}.
+    """
+    from api.services.journal_two.notes import extract_plain_text
+
+    flag = _data_dir() / flag_name
+    if flag.exists():
+        return {"complete": True, "skipped": "flag"}
+    progress_path = _data_dir() / f"{flag_name}.progress"
+    try:
+        progress = json.loads(progress_path.read_text(encoding="utf-8"))
+        if not isinstance(progress, dict):
+            progress = {}
+    except Exception:  # noqa: BLE001 — missing or unreadable: start over
+        progress = {}
+
+    names = tuple(dict.fromkeys((*tables, count_table)))
+    present = {
+        r[0] for r in conn.execute(
+            f"SELECT name FROM sqlite_master WHERE type='table' AND name IN ({','.join('?' * len(names))})",
+            names,
+        )
+    }
+    extra_columns = extra_columns or {}
+    started = clock()
+    out: dict[str, Any] = {"complete": False}
+    for table in tables:
+        counts = out.setdefault(table, {"scanned": 0, "updated": 0})
+        if table not in present:
+            continue
+        extra = "".join(f", {c}" for c in extra_columns.get(table, ()))
+        last = progress.get(table, 0)
+        last = last if isinstance(last, int) else 0
+        while True:
+            if clock() - started > _BODY_PLAIN_BACKFILL_BUDGET_S:
+                print(f"[{label}] budget spent; resuming next boot ({out})")
+                return out
+            rows = conn.execute(
+                f"SELECT rowid, body_json, body_plain{extra} FROM {table} "
+                "WHERE rowid > ? ORDER BY rowid LIMIT ?",
+                (last, _BODY_PLAIN_BACKFILL_BATCH),
+            ).fetchall()
+            if not rows:
+                break
+            for row in rows:
+                rowid, body_json, body_plain = row[0], row[1], row[2]
+                counts["scanned"] += 1
+                try:
+                    derived = extract_plain_text(json.loads(body_json))
+                except Exception:  # noqa: BLE001 — unreadable body: leave the row as it is
+                    continue
+                if derived == (body_plain or ""):
+                    continue
+                cur = conn.execute(
+                    f"UPDATE {table} SET body_plain = ? WHERE rowid = ? AND body_json = ?",
+                    (derived, rowid, body_json),
+                )
+                if cur.rowcount:
+                    counts["updated"] += cur.rowcount
+                    if on_changed is not None:
+                        on_changed(table, tuple(row), derived)
+            last = rows[-1][0]
+            conn.commit()
+            progress[table] = last
+            try:
+                _write_flag_atomic(progress_path, json.dumps(progress).encode("utf-8"))
+            except Exception:  # noqa: BLE001 — progress is an optimisation; the rows are committed
+                pass
+
+    out["complete"] = True
+    row_count = (conn.execute(f"SELECT COUNT(*) FROM {count_table}").fetchone()[0]
+                 if count_table in present else 0)
+    if row_count == 0:
+        return out  # v4's rule: never mark done over zero rows
+    try:
+        _write_flag_atomic(flag, b"1")
+        progress_path.unlink(missing_ok=True)
+    except Exception:  # noqa: BLE001 — a missed flag costs one read-only re-pass, never data
+        pass
+    if any(out[t]["updated"] for t in tables):
+        print(f"[{label}] body_plain re-derived: {out}")
+    return out
+
+
+def _rebuild_note_mentions(conn: sqlite3.Connection):
+    """v7's `on_changed`: a note whose body_plain was re-derived gets its
+    `j2_note_mentions` sidecar rebuilt by `notes._sync_note_mentions` -- the
+    SAME function every save reaches through `_sync_note_sidecars`, so the
+    backfill can never compute a mention a save would not. (A part-bold
+    "$**NV**DA" was stored "$NV DA", and its mention was NV.) Only mentions:
+    the other four sidecars derive from body_json, which is unchanged."""
+    from api.services.journal_two.notes import _sync_note_mentions
+
+    def hook(table: str, row: tuple, derived: str) -> None:
+        if table == "j2_notes":
+            _sync_note_mentions(conn, row[4], row[3], derived)
+    return hook
+
+
 def run_notebook_migration_v7(conn: sqlite3.Connection, *, clock=time.monotonic) -> dict[str, Any]:
     """Re-derives `body_plain` for every note and every note version under the
     2026-09-23 plain-text rule (notes.extract_plain_text = ProseMirror's
@@ -2726,7 +2849,8 @@ def run_notebook_migration_v7(conn: sqlite3.Connection, *, clock=time.monotonic)
     Before it, every text node was joined with a space, so a partly bold word
     ("**NV**DA") was stored -- and FTS-indexed -- as two words, and a search
     for it missed the note. New saves write the new form; this fixes the rows
-    already stored.
+    already stored. A note it rewrites also gets its mentions sidecar rebuilt,
+    in the same transaction (fix round 3).
 
     ⛔ It writes `body_plain` ONLY. Never `updated_at`, never `body_json`, never
     a version row: `updated_at` is the offline store's baseline and the sync
@@ -2747,74 +2871,8 @@ def run_notebook_migration_v7(conn: sqlite3.Connection, *, clock=time.monotonic)
 
     Returns counts: {<table>: {"scanned", "updated"}, "complete": bool}.
     """
-    from api.services.journal_two.notes import extract_plain_text
-
-    flag = _data_dir() / ".notebook_migration_v7"
-    if flag.exists():
-        return {"complete": True, "skipped": "flag"}
-    progress_path = _data_dir() / ".notebook_migration_v7.progress"
-    try:
-        progress = json.loads(progress_path.read_text(encoding="utf-8"))
-        if not isinstance(progress, dict):
-            progress = {}
-    except Exception:  # noqa: BLE001 — missing or unreadable: start over
-        progress = {}
-
-    present = {
-        r[0] for r in conn.execute(
-            "SELECT name FROM sqlite_master WHERE type='table' AND name IN "
-            "('j2_notes','j2_note_versions')"
-        )
-    }
-    started = clock()
-    out: dict[str, Any] = {"complete": False}
-    for table in _BODY_PLAIN_BACKFILL_TABLES:
-        counts = out.setdefault(table, {"scanned": 0, "updated": 0})
-        if table not in present:
-            continue
-        last = progress.get(table, 0)
-        last = last if isinstance(last, int) else 0
-        while True:
-            if clock() - started > _BODY_PLAIN_BACKFILL_BUDGET_S:
-                print(f"[notebook-migration-v7] budget spent; resuming next boot ({out})")
-                return out
-            rows = conn.execute(
-                f"SELECT rowid, body_json, body_plain FROM {table} "
-                "WHERE rowid > ? ORDER BY rowid LIMIT ?",
-                (last, _BODY_PLAIN_BACKFILL_BATCH),
-            ).fetchall()
-            if not rows:
-                break
-            for rowid, body_json, body_plain in rows:
-                counts["scanned"] += 1
-                try:
-                    derived = extract_plain_text(json.loads(body_json))
-                except Exception:  # noqa: BLE001 — unreadable body: leave the row as it is
-                    continue
-                if derived == (body_plain or ""):
-                    continue
-                cur = conn.execute(
-                    f"UPDATE {table} SET body_plain = ? WHERE rowid = ? AND body_json = ?",
-                    (derived, rowid, body_json),
-                )
-                counts["updated"] += cur.rowcount
-            last = rows[-1][0]
-            conn.commit()
-            progress[table] = last
-            try:
-                _write_flag_atomic(progress_path, json.dumps(progress).encode("utf-8"))
-            except Exception:  # noqa: BLE001 — progress is an optimisation; the rows are committed
-                pass
-
-    out["complete"] = True
-    note_count = conn.execute("SELECT COUNT(*) FROM j2_notes").fetchone()[0] if "j2_notes" in present else 0
-    if note_count == 0:
-        return out  # v4's rule: never mark done over zero notes
-    try:
-        _write_flag_atomic(flag, b"1")
-        progress_path.unlink(missing_ok=True)
-    except Exception:  # noqa: BLE001 — a missed flag costs one read-only re-pass, never data
-        pass
-    if any(out[t]["updated"] for t in _BODY_PLAIN_BACKFILL_TABLES):
-        print(f"[notebook-migration-v7] body_plain re-derived: {out}")
-    return out
+    return rederive_body_plain(
+        conn, flag_name=".notebook_migration_v7", tables=_BODY_PLAIN_BACKFILL_TABLES,
+        count_table="j2_notes", extra_columns=_BODY_PLAIN_BACKFILL_EXTRA,
+        on_changed=_rebuild_note_mentions(conn), clock=clock, label="notebook-migration-v7",
+    )

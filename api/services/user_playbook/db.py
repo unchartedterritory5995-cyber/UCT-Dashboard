@@ -112,3 +112,25 @@ def ensure_schema(conn: sqlite3.Connection) -> None:
             if "duplicate column" not in msg and "already exists" not in msg:
                 raise
     conn.commit()
+
+    try:
+        run_upb_body_plain_backfill(conn)
+    except Exception as e:  # noqa: BLE001 — never crash startup over this
+        print(f"[upb-body-plain-v1] aborted: {e}")
+
+
+def run_upb_body_plain_backfill(conn: sqlite3.Connection, **kw):
+    """Re-derive `upb_entries.body_plain` under the 2026-09-23 plain-text
+    rule (the Notebook's `extract_plain_text`, which the playbook's own saves
+    use): a part-bold word was stored as two, and its 200-character snippet
+    double-spaced at every mark boundary. The SAME engine and guards as the
+    Notebook's v7 (`journal_two.db.rederive_body_plain`): body_plain ONLY --
+    never `updated_at` -- guarded on body_json, idempotent, batched, budgeted,
+    resumable, and flagged (`.upb_body_plain_v1` in DATA_DIR) only once an
+    entry exists. Runs HERE, after upb_entries exists -- inside the Notebook's
+    ensure_schema a fresh database would not have the table yet."""
+    from api.services.journal_two.db import rederive_body_plain
+    return rederive_body_plain(
+        conn, flag_name=".upb_body_plain_v1", tables=("upb_entries",), count_table="upb_entries",
+        label="upb-body-plain-v1", **kw,
+    )

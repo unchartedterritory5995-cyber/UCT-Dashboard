@@ -153,14 +153,17 @@ def test_a_note_saved_between_read_and_write_keeps_its_own_save(c, monkeypatch):
         if not fired and doc == NVDA_DOC:
             fired.append(1)  # a member's save lands after the batch was read
             c.execute("UPDATE j2_notes SET body_json = ?, body_plain = ? WHERE id = 'n1'",
-                      (json.dumps(fresh_doc), "fresh words"))
+                      (json.dumps(fresh_doc), "fresh words $AMD"))
+            notes_mod._sync_note_mentions(c, "u1", "n1", "fresh words $AMD")   # as that save does
         return real(doc)
 
     monkeypatch.setattr(notes_mod, "extract_plain_text", racing)
     dbmod.run_notebook_migration_v7(c)
     assert fired
     row = c.execute("SELECT body_json, body_plain FROM j2_notes WHERE id='n1'").fetchone()
-    assert json.loads(row[0]) == fresh_doc and row[1] == "fresh words"
+    assert json.loads(row[0]) == fresh_doc and row[1] == "fresh words $AMD"
+    # ...and its mentions are the save's, not rebuilt from text this pass did not write.
+    assert set(_mentions(c, "n1")) == {"AMD"}
 
 
 def test_a_spent_budget_stops_between_batches_and_the_next_boot_resumes(c, tmp_path, monkeypatch):
@@ -195,3 +198,119 @@ def test_ensure_schema_runs_it(c):
     _seed(c)
     ensure_schema(c)  # the startup door, not a direct call
     assert c.execute("SELECT body_plain FROM j2_notes WHERE id='n1'").fetchone()[0] == NVDA_NEW
+
+
+# ── fix round 3: the mentions sidecar follows the text it derives from ──────
+
+CASHTAG_DOC = {"type": "doc", "content": [{"type": "paragraph", "content": [
+    {"type": "text", "text": "$NV", "marks": [{"type": "bold"}]},
+    {"type": "text", "text": "DA rallies"}]}]}
+CASHTAG_OLD = "$NV DA rallies"
+
+
+def _mentions(c, nid):
+    return {r[0]: r[1] for r in c.execute(
+        "SELECT symbol, created_at FROM j2_note_mentions WHERE note_id = ?", (nid,))}
+
+
+def test_a_part_bold_cashtag_note_gains_its_mention_and_keeps_updated_at(c):
+    _seed(c)
+    _note(c, "m1", CASHTAG_DOC, CASHTAG_OLD, "2026-09-19T09:09:09.090909+00:00")
+    # As the old save left it: the mention was read off the split text.
+    notes_mod._sync_note_mentions(c, "u1", "m1", CASHTAG_OLD)
+    notes_mod._sync_note_mentions(c, "u1", "n3", "already right $AMD")   # a row v7 will NOT rewrite
+    c.commit()
+    before = _mentions(c, "m1")
+    untouched_before = _mentions(c, "n3")
+    updated_before = c.execute("SELECT updated_at FROM j2_notes WHERE id='m1'").fetchone()[0]
+    assert "NVDA" not in before                                  # the defect, as stored
+
+    dbmod.run_notebook_migration_v7(c)
+
+    assert set(_mentions(c, "m1")) == {"NVDA"}
+    assert c.execute("SELECT updated_at FROM j2_notes WHERE id='m1'").fetchone()[0] == updated_before
+    assert _mentions(c, "n3") == untouched_before                # only rewritten notes are rebuilt
+
+
+def test_the_mentions_rebuild_is_the_saves_own_function(c, monkeypatch):
+    # One authority: the backfill reaches the SAME function a save does.
+    _seed(c)
+    calls = []
+    real = notes_mod._sync_note_mentions
+    monkeypatch.setattr(notes_mod, "_sync_note_mentions",
+                        lambda conn, uid, nid, bp: (calls.append((uid, nid, bp)), real(conn, uid, nid, bp)))
+    dbmod.run_notebook_migration_v7(c)
+    assert sorted(calls) == sorted([
+        ("u1", "n1", NVDA_NEW), ("u1", "n2", "This is very important to remember"),
+        ("u2", "n4", NVDA_NEW), ("u1", "n5", "This is very important to remember"),
+    ])
+
+
+# ── fix round 3: the playbook's entries get the same backfill ───────────────
+
+@pytest.fixture
+def upb(tmp_path, monkeypatch):
+    from api.services.user_playbook import db as upb_db
+    monkeypatch.setattr(dbmod, "_data_dir", lambda: tmp_path)
+    conn = sqlite3.connect(":memory:")
+    upb_db.ensure_schema(conn)        # zero entries: the backfill runs, writes nothing, flags nothing
+    conn.execute("INSERT INTO upb_sections (id, user_id, title, created_at, updated_at) VALUES ('s1','u1','S',1,1)")
+    conn.commit()
+    yield conn, upb_db
+    conn.close()
+
+
+def _entry(conn, eid, doc, body_plain, updated_at):
+    conn.execute(
+        "INSERT INTO upb_entries (id, user_id, section_id, title, body_json, body_plain, created_at, updated_at)"
+        " VALUES (?,?,?,?,?,?,?,?)",
+        (eid, "u1", "s1", eid, json.dumps(doc) if doc is not None else "", body_plain, 1, updated_at))
+    conn.commit()
+
+
+def test_playbook_entries_are_re_derived_with_updated_at_untouched(upb, tmp_path):
+    conn, upb_db = upb
+    assert not (tmp_path / ".upb_body_plain_v1").exists()        # no flag over zero entries
+    _entry(conn, "e1", NVDA_DOC, NVDA_OLD, 1726000000123)
+    _entry(conn, "e2", HIGHLIGHT_DOC, HIGHLIGHT_OLD, 1726000000456)
+    _entry(conn, "e3", None, "", 1726000000789)                    # the schema's '' default: unreadable
+    before = {r[0]: r[1:] for r in conn.execute("SELECT id, updated_at, body_json FROM upb_entries")}
+
+    out = upb_db.run_upb_body_plain_backfill(conn)
+
+    assert out["upb_entries"] == {"scanned": 3, "updated": 2}
+    got = dict(conn.execute("SELECT id, body_plain FROM upb_entries"))
+    assert got == {"e1": NVDA_NEW, "e2": "This is very important to remember", "e3": ""}
+    assert {r[0]: r[1:] for r in conn.execute("SELECT id, updated_at, body_json FROM upb_entries")} == before
+    assert (tmp_path / ".upb_body_plain_v1").exists()
+    assert upb_db.run_upb_body_plain_backfill(conn) == {"complete": True, "skipped": "flag"}
+    (tmp_path / ".upb_body_plain_v1").unlink()
+    again = upb_db.run_upb_body_plain_backfill(conn)
+    assert again["upb_entries"] == {"scanned": 3, "updated": 0}  # idempotent: read-only re-run
+
+
+def test_playbook_backfill_runs_from_its_own_ensure_schema(upb):
+    conn, upb_db = upb
+    _entry(conn, "e1", NVDA_DOC, NVDA_OLD, 5)
+    upb_db.ensure_schema(conn)        # the startup door
+    assert conn.execute("SELECT body_plain FROM upb_entries WHERE id='e1'").fetchone()[0] == NVDA_NEW
+
+
+def test_playbook_backfill_keeps_an_entry_saved_between_read_and_write(upb, monkeypatch):
+    conn, upb_db = upb
+    _entry(conn, "e1", NVDA_DOC, NVDA_OLD, 5)
+    fresh = {"type": "doc", "content": [{"type": "paragraph", "content": [{"type": "text", "text": "fresh"}]}]}
+    real = notes_mod.extract_plain_text
+    fired = []
+
+    def racing(doc):
+        if not fired:
+            fired.append(1)
+            conn.execute("UPDATE upb_entries SET body_json = ?, body_plain = 'fresh' WHERE id = 'e1'",
+                         (json.dumps(fresh),))
+        return real(doc)
+
+    monkeypatch.setattr(notes_mod, "extract_plain_text", racing)
+    upb_db.run_upb_body_plain_backfill(conn)
+    assert fired
+    assert conn.execute("SELECT body_plain FROM upb_entries WHERE id='e1'").fetchone()[0] == "fresh"

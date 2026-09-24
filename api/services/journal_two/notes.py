@@ -254,6 +254,30 @@ def extract_plain_text(doc: dict[str, Any] | None) -> str:
 # measurable cost was the redundant walk, and that's what this fixes: same
 # DELETE-then-conditionally-INSERT shape per table, computed from ONE walk
 # instead of four.
+def _sync_note_mentions(
+    conn: sqlite3.Connection, user_id: str, note_id: str, body_plain: str | None,
+) -> None:
+    """Rebuild one note's `j2_note_mentions` inside the caller's transaction.
+    Cashtag-tier ONLY (see the schema comment in db.py for why): scans
+    body_plain, which every caller has already computed via
+    extract_plain_text -- this never re-derives note text or re-walks
+    body_json. Fast and local: buzz_extract is a pure regex/set-membership
+    matcher, no network call, so this never makes a note save depend on an
+    external provider. Called by `_sync_note_sidecars` on every save, and by
+    the body_plain backfill for a note whose text it re-derived."""
+    conn.execute("DELETE FROM j2_note_mentions WHERE note_id = ?", (note_id,))
+    symbols = sorted({
+        sym for sym, tier in buzz_extract.extract(body_plain or "")
+        if tier == "cashtag"
+    })
+    if symbols:
+        now = _now_iso()
+        conn.executemany(
+            "INSERT INTO j2_note_mentions (note_id, user_id, symbol, created_at)"
+            " VALUES (?,?,?,?)",
+            [(note_id, user_id, sym, now) for sym in symbols])
+
+
 def _sync_note_sidecars(
     conn: sqlite3.Connection, user_id: str, note_id: str,
     body_json: dict[str, Any] | None, body_plain: str | None,
@@ -342,24 +366,10 @@ def _sync_note_sidecars(
               r["trade_ref"], r["trade_ref_type"], r["mode"], r["captured_at"])
              for i, r in enumerate(embeds)])
 
-    # j2_note_mentions -- cashtag-tier ONLY (see the schema comment in db.py
-    # for why): scans body_plain, which every caller has already computed
-    # via extract_plain_text -- this never re-derives note text or re-walks
-    # body_json, which is why it stays outside the combined walk above.
-    # Fast and local: buzz_extract is a pure regex/set-membership matcher,
-    # no network call, so this never makes a note save depend on an
-    # external provider.
-    conn.execute("DELETE FROM j2_note_mentions WHERE note_id = ?", (note_id,))
-    symbols = sorted({
-        sym for sym, tier in buzz_extract.extract(body_plain or "")
-        if tier == "cashtag"
-    })
-    if symbols:
-        now = _now_iso()
-        conn.executemany(
-            "INSERT INTO j2_note_mentions (note_id, user_id, symbol, created_at)"
-            " VALUES (?,?,?,?)",
-            [(note_id, user_id, sym, now) for sym in symbols])
+    # j2_note_mentions -- the one projection derived from body_plain, not
+    # body_json; its own function so the body_plain backfill
+    # (db.run_notebook_migration_v7) rebuilds it through this same code.
+    _sync_note_mentions(conn, user_id, note_id, body_plain)
 
     # j2_note_links -- a `noteLink` node's target id is NEVER validated
     # against j2_notes here: a link to a note that doesn't exist (foreign
@@ -465,16 +475,23 @@ def register_note_sql_functions(conn: sqlite3.Connection) -> sqlite3.Connection:
 def _tag_prefilter(key: str) -> tuple[str, list[Any]]:
     """A cheap SUPERSET test on the raw `tags` JSON text, run before the
     per-tag Python match so a 50k-note library does not pay one Python call
-    per tag per note. Sound by construction:
-      · for a row whose JSON has no `\\u` escape, every character is ASCII,
-        where SQLite's `lower()` and Python's agree, and JSON escaping is per
-        character — so the JSON-escaped first segment of the key appears in
-        `lower(tags)` whenever a stored tag's key matches;
-      · a row WITH an escape (a non-ASCII tag, which the JSON text cannot
-        fold) always passes through to the exact check."""
+    per tag per note. Sound WHATEVER THE WRITER, by construction:
+      · a row that is pure ASCII (no byte above 0x7F) with no `\\u`
+        escape is where SQLite's `lower()` and Python's agree, and JSON
+        escaping is per character — so the JSON-escaped first segment of
+        the key appears in `lower(tags)` whenever a stored tag's key matches;
+      · every other row passes through to the exact check: one WITH an
+        escape (`json.dumps`' default for a non-ASCII tag), AND one holding
+        raw UTF-8 (`ensure_ascii=False`, SQLite's own JSON functions, an
+        import) — `length(CAST(x AS BLOB))` counts bytes and `length(x)`
+        characters, so the two differ exactly when a byte above 0x7F is there.
+    ⚰️ Until fix round 3 only the escape passed, so soundness rested on an
+    unwritten rule that every writer escapes: a raw-UTF-8 `["Élan"]` was
+    counted by the tree and NOT found by `tag=élan` (review R1-N1)."""
     first = key.split("/", 1)[0]
     needle = json.dumps(first)[1:-1]
-    return ("(instr(lower(j2_notes.tags), ?) > 0 OR instr(j2_notes.tags, '\\u') > 0)",
+    return ("(instr(lower(j2_notes.tags), ?) > 0 OR instr(j2_notes.tags, '\\u') > 0"
+            " OR length(CAST(j2_notes.tags AS BLOB)) != length(j2_notes.tags))",
             [needle])
 
 
