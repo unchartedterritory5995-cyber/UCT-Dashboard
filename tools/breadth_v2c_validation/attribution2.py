@@ -4,8 +4,9 @@
   S0..S6  exactly attribution.py (old vintage v20260923, split-only, oracle.py replay)
   S6'     oracle2 on the OLD vintage — implementation equivalence: S6' must equal S6
   S7 VINTAGE         oracle2 on the NEW single vintage with ITS OWN guard boundaries
-  S8 DIVIDEND BASIS  oracle3 (own dividend basis, no import of the correction's module)
-OTHER = (S0 ≠ frozen) + (S6 ≠ S6') + (S8 ≠ new artifact). ratio_5day/ratio_10day are
+  S8 DIVIDEND BASIS (withholding)  oracle3 with dividend withholding, factors off
+  S9 DIVIDEND BASIS (factors)      oracle3, full dividend basis (own code, no import of the correction)
+OTHER = (S0 ≠ frozen) + (S6 ≠ S6') + (S9 ≠ new artifact). ratio_5day/ratio_10day are
 RATIO (new metrics) and are proven cell-exact by golden3; canonical PIT `uct` rows are UCT PIT
 MEMBERSHIP (no old counterpart).
 argv: NEW_ARTIFACT TAG
@@ -42,7 +43,7 @@ STEPS = [("S0", "faithful_prodema", {}),
          ("S4 ADJUSTED-SERIES GUARD", "spec_prodema", {"gdir": OLDV, "calendar": True, "withhold": withhold}),
          ("S5 EMA FIX", "spec", {"gdir": OLDV, "calendar": True, "withhold": withhold}),
          ("S6 TICKER-REUSE", "spec", {"gdir": OLDV, "calendar": True, "withhold": withhold, "uct_filter": allowed})]
-NAMES = [s[0] for s in STEPS] + ["S7 VINTAGE", "S8 DIVIDEND BASIS"]
+NAMES = [s[0] for s in STEPS] + ["S7 VINTAGE", "S8 DIVIDEND BASIS/withholding", "S9 DIVIDEND BASIS/factors"]
 
 
 def tup(x):
@@ -88,18 +89,21 @@ del O2old
 os.environ["V2C2_TAG"] = TAG
 os.environ["GUARD_BOUNDARIES"] = OUTD + "guard_oracle_boundaries_%s.json" % TAG
 import oracle3                                                          # re-points oracle2 globals
-o7, o8 = oracle3.Oracle3(dividends=False), oracle3.Oracle3(dividends=True)
+o7 = oracle3.Oracle3(dividends=False)
+o8 = oracle3.Oracle3(dividends=True, apply_factors=False)
+o9 = oracle3.Oracle3(dividends=True)
 for D in ANCH:
     unis = ("uct", "uct_backtest", "us", "nasdaq", "nyse") if D >= "2011-01-03" else ("uct", "uct_backtest", "us")
     chain[D].append(strip(o7.day(D, unis) or {}, {}))
     chain[D].append(strip(o8.day(D, unis) or {}, {}))
+    chain[D].append(strip(o9.day(D, unis) or {}, {}))
     print("B", D, flush=True)
 
 attr = collections.Counter(); per_metric = collections.defaultdict(collections.Counter)
 mags = collections.defaultdict(list); other = []; pit = collections.Counter()
 for D in ANCH:
     outs = chain[D]
-    s = outs[:7] + outs[8:]                 # S0..S6, S7, S8 (S6' is only an equivalence check)
+    s = outs[:7] + outs[8:]                 # S0..S6, S7, S8, S9 (S6' is only an equivalence check)
     old, new = rows(FROZEN, D), rows(NEW, D)
     for u, v in old.items():
         nu = "uct_backtest" if u == "uct" else u
@@ -115,7 +119,7 @@ for D in ANCH:
             if m in RATIO:
                 continue
             if not same(new.get(u, {}).get(m), outs[-1].get(u, {}).get(m)):
-                other.append(("S8_vs_new", D, u, m, new.get(u, {}).get(m), outs[-1].get(u, {}).get(m)))
+                other.append(("S9_vs_new", D, u, m, new.get(u, {}).get(m), outs[-1].get(u, {}).get(m)))
     for u in set().union(*[set(x) for x in s]):
         if u == "uct":
             pit["canonical_pit_uct_cells"] += len(s[-1].get("uct", {}))
