@@ -794,6 +794,93 @@ test('?ensure=themes on a brand-new member (no saved layout at all) still yields
   expect(document.querySelectorAll('[data-testid="body-themes"]').length).toBe(1)
 })
 
+// ── Named-address layer (?openLayout=<id> / ?openShared=<token>) ───────────
+//
+// Terminal-grade property 3, "saved things become names, and names are
+// addresses" — Day 3 of the Terminal-Next roadmap. Same goTo()/renderWS()
+// shape as the ?ensure= tests above; the loaded layout comes from the mocked
+// useChartLayouts lists (mine/global), and the shared-token path goes through
+// a real fetch() this suite stubs.
+
+const NAMED_LAYOUT = {
+  id: 42,
+  name: 'Swing Board',
+  scope: 'user',
+  layout: { widgets: [{ id: 'w1', type: 'watchlist', color: 'A', x: 0, y: 0, w: 4, h: 8, opts: {} }], cols: 24 },
+  groups: null,
+}
+
+afterEach(() => {
+  delete global.fetch
+})
+
+test('?openLayout=<id> opens the matching layout from "mine"', () => {
+  mockPrefs = { charts_workspace_layout: JSON.stringify({ widgets: [], cols: 24 }) }
+  mockLayouts.mine = [NAMED_LAYOUT]
+  goTo('/charts?openLayout=42')
+  renderWS()
+  expect(screen.getByTestId('body-watchlist')).toBeInTheDocument()
+  mockLayouts.mine = []
+})
+
+test('?openLayout=<id> also resolves a GLOBAL (prebuilt) layout, not only the owner\'s own', () => {
+  mockPrefs = { charts_workspace_layout: JSON.stringify({ widgets: [], cols: 24 }) }
+  mockLayouts.global = [{ ...NAMED_LAYOUT, scope: 'global' }]
+  goTo('/charts?openLayout=42')
+  renderWS()
+  expect(screen.getByTestId('body-watchlist')).toBeInTheDocument()
+  mockLayouts.global = []
+})
+
+test('?openLayout=<id> for an id that matches nothing degrades — no crash, no widget added', () => {
+  mockPrefs = { charts_workspace_layout: JSON.stringify({ widgets: [], cols: 24 }) }
+  mockLayouts.mine = []
+  mockLayouts.global = []
+  goTo('/charts?openLayout=999')
+  renderWS()
+  expect(document.querySelectorAll('[data-testid^="body-"]').length).toBe(0)
+})
+
+test('no ?openLayout/?openShared param -> the named-address effect does nothing (the control)', () => {
+  mockPrefs = { charts_workspace_layout: JSON.stringify({ widgets: [], cols: 24 }) }
+  mockLayouts.mine = [NAMED_LAYOUT]
+  goTo('/charts')
+  renderWS()
+  expect(document.querySelectorAll('[data-testid^="body-"]').length).toBe(0)
+  mockLayouts.mine = []
+})
+
+test('?openShared=<token> fetches the shared layout and applies it', async () => {
+  mockPrefs = { charts_workspace_layout: JSON.stringify({ widgets: [], cols: 24 }) }
+  global.fetch = vi.fn(() => Promise.resolve({
+    ok: true,
+    json: () => Promise.resolve(NAMED_LAYOUT),
+  }))
+  goTo('/charts?openShared=cl_abc123')
+  // renderWS() alone leaves the fetch's .then() chain unflushed under this
+  // file's fake timers — this file's own established pattern (e.g. the
+  // "Save current arrangement" tests above) wraps the async-effect-triggering
+  // action in `act(async () => {...})` rather than `vi.waitFor`, which polls
+  // via a real setTimeout that fake timers never advance.
+  await act(async () => { renderWS() })
+  await act(async () => { await Promise.resolve(); await Promise.resolve() })
+  expect(global.fetch).toHaveBeenCalledWith(
+    '/api/charts/layouts/shared/cl_abc123',
+    expect.objectContaining({ credentials: 'include' }),
+  )
+  expect(screen.getByTestId('body-watchlist')).toBeInTheDocument()
+})
+
+test('?openShared=<token> for a dead link (404) degrades — no crash, no widget added', async () => {
+  mockPrefs = { charts_workspace_layout: JSON.stringify({ widgets: [], cols: 24 }) }
+  global.fetch = vi.fn(() => Promise.resolve({ ok: false }))
+  goTo('/charts?openShared=cl_dead')
+  await act(async () => { renderWS() })
+  await act(async () => { await Promise.resolve(); await Promise.resolve() })
+  expect(global.fetch).toHaveBeenCalled()
+  expect(document.querySelectorAll('[data-testid^="body-"]').length).toBe(0)
+})
+
 /** A layout button on the bottom Layout Dock (not the Open-layout menu). */
 function dockButton(name) {
   const dock = document.querySelector('[role="toolbar"][aria-label="Saved layouts"]')

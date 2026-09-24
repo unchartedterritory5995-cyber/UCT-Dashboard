@@ -327,6 +327,18 @@ def _access_payload(user: dict, plan: str) -> dict:
         "research_technical_tab_enabled": os.environ.get(
             "RESEARCH_TECHNICAL_TAB_ENABLED", "0"
         ).strip().lower() in ("1", "true", "yes", "on"),
+        # ── Research "Flow" tab (per-ticker options-flow signal, A13 Wave B) ──
+        # Same request-time mechanism and ENABLEMENT polarity as the Technical
+        # tab above: unset means "not turned on yet". Source is the EXISTING,
+        # partner-owned `GET /api/live/massive/ticker-flow` endpoint (read-only,
+        # zero new backend computation, no `Depends(...)` of its own) — this flag
+        # is the gate that decides whether a browser ever sees the tab at all,
+        # and the page's own `isPaid` check (PaywallTeaser, above this payload's
+        # `paid_equiv`) is what stops a non-paying member from reaching it even
+        # though the underlying endpoint has no auth of its own.
+        "research_flow_tab_enabled": os.environ.get(
+            "RESEARCH_FLOW_TAB_ENABLED", "0"
+        ).strip().lower() in ("1", "true", "yes", "on"),
         # ── S7 filing watch (Stage 4 creation surfaces + Stage 5 Settings) ──
         # Same request-time read and the same ENABLEMENT polarity as the
         # Technical tab above: unset means "not turned on yet", so a forgotten

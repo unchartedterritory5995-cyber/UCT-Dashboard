@@ -992,6 +992,11 @@
       "note": "The artifact cache + coalescing (2.5, 03 §3.6), built on the branch and wired to NOTHING yet - no call site in runtime.py, commands.py or bindings.py reads it. An ENABLEMENT gate, not a kill switch: unset means OFF, because it ADDS behaviour and must not turn itself on in every environment the moment it merges. In-memory and per-process by design (this pod redeploys every ~8 minutes; durability was not built and is not implied). The cache key is (command, normalised args, DATA VINTAGE) - never the wall clock, or the same closed-market input would key differently every second and §3.10 determinism would be unobservable. Bounded by DISCORD_RENDER_CACHE_MAX_ENTRIES and DISCORD_RENDER_CACHE_BYTES (64 MiB default - the web pod HEAP, deliberately not §3.6's 512 MiB, which describes an on-volume cache that was not built). Owner flips it after it is wired.",
       "owner": "owner"
     },
+    "RESEARCH_FLOW_TAB_ENABLED": {
+      "status": "dark",
+      "where": [],
+      "note": "A13 Wave B (2026-09-23 roadmap): the Research page's new 'Flow' tab, reusing the existing, partner-owned GET /api/live/massive/ticker-flow endpoint as-is (read-only, zero new backend computation). Same request-time mechanism and ENABLEMENT polarity as RESEARCH_TECHNICAL_TAB_ENABLED: unset means not released yet, so a forgotten variable can never expose a surface nobody decided to ship. Deliberately unarmed pending owner review of the scope revision (a Flow tab, not the literally-requested merged thesis+setup+trade+flow panel -- see FlowTab.jsx's header comment for why)."
+    },
     "RESEARCH_TECHNICAL_TAB_ENABLED": {
       "status": "armed",
       "where": [

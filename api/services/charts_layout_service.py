@@ -17,10 +17,11 @@ from __future__ import annotations
 import contextlib
 import json
 import os
+import secrets
 import sqlite3
 import threading
 import time
-from typing import Optional
+from typing import Any, Optional
 
 _DB_PATH = os.environ.get("CHARTS_LAYOUTS_DB_PATH", "/data/charts_layouts.db")
 _WRITE_LOCK = threading.Lock()
@@ -44,6 +45,27 @@ CREATE TABLE IF NOT EXISTS charts_layouts (
   UNIQUE(scope, user_id, name)
 );
 CREATE INDEX IF NOT EXISTS idx_charts_layouts_scope ON charts_layouts(scope, user_id, sort_order);
+
+-- Terminal-grade property 3 ("saved things become names, and names are
+-- addresses") for a USER-scoped layout. Mirrors user_definitions.py's
+-- definition_shares design exactly: APPEND-ONLY (never UPDATE/DELETE a share
+-- row — a share row records that a member published something at a moment in
+-- time; rewriting it would erase the fact rather than end it), idempotent
+-- minting (pressing Share twice must return the SAME token, since the first
+-- may already be in somebody's chat window), and "revoked" stays a different
+-- fact from "never shared" so a recipient can be told WHY their link died.
+-- No listing route and no way to walk the token space (128 bits) — the only
+-- route to somebody else's layout is a link they chose to send.
+CREATE TABLE IF NOT EXISTS chart_layout_shares (
+  id         INTEGER PRIMARY KEY AUTOINCREMENT,
+  token      TEXT    NOT NULL,
+  user_id    INTEGER NOT NULL,
+  layout_id  INTEGER NOT NULL,
+  revoked    INTEGER NOT NULL,
+  created_at INTEGER NOT NULL
+);
+CREATE INDEX IF NOT EXISTS idx_chart_layout_shares_token ON chart_layout_shares(token, id DESC);
+CREATE INDEX IF NOT EXISTS idx_chart_layout_shares_owner ON chart_layout_shares(user_id, layout_id, id DESC);
 """
 
 
@@ -172,3 +194,98 @@ def delete(layout_id: int) -> bool:
         cur = c.execute("DELETE FROM charts_layouts WHERE id=?", (layout_id,))
         c.commit()
         return cur.rowcount > 0
+
+
+# ═══ sharing (terminal-grade property 3) ═════════════════════════════════════
+#
+# Mirrors user_definitions.py's share/unshare/share_status/resolve pattern.
+# Global (prebuilt, scope='global') layouts are already visible to every user
+# via list_for_user, so sharing only ever applies to scope='user' rows —
+# callers (the router) are responsible for rejecting a share attempt on a
+# global row before calling here.
+
+
+def share_token() -> str:
+    """A fresh share token. 32 hex = 128 bits, so it cannot be guessed or walked."""
+    return "cl_" + secrets.token_hex(16)
+
+
+def _newest_share(c: sqlite3.Connection, user_id: Any, layout_id: int):
+    """The current state of one layout's link — the LAST row written."""
+    return c.execute(
+        "SELECT * FROM chart_layout_shares WHERE user_id=? AND layout_id=?"
+        " ORDER BY id DESC LIMIT 1",
+        (user_id, layout_id),
+    ).fetchone()
+
+
+def share(user_id, layout_id: int) -> Optional[dict]:
+    """Mint (or return) the share link for one of my layouts. ``None`` if the
+    layout doesn't exist or isn't owned by this user.
+
+    IDEMPOTENT ON THE TOKEN — pressing Share twice returns the SAME token
+    (same reasoning as user_definitions.share: a live link must not be broken
+    out from under whoever already has it).
+    """
+    row = get(layout_id)
+    if row is None or row["scope"] != "user" or row["user_id"] != user_id:
+        return None
+    with _WRITE_LOCK, contextlib.closing(_connect()) as c:
+        live = _newest_share(c, user_id, layout_id)
+        token = (live["token"] if live is not None and not live["revoked"]
+                 else share_token())
+        c.execute(
+            "INSERT INTO chart_layout_shares (token, user_id, layout_id, revoked, created_at)"
+            " VALUES (?,?,?,0,?)",
+            (token, user_id, layout_id, int(time.time())),
+        )
+        c.commit()
+    return {"token": token, "layout_id": layout_id}
+
+
+def unshare(user_id, layout_id: int) -> bool:
+    """Turn the link off by APPENDING a revocation row (never an UPDATE/DELETE
+    of the live one — see the schema comment on why)."""
+    with _WRITE_LOCK, contextlib.closing(_connect()) as c:
+        live = _newest_share(c, user_id, layout_id)
+        if live is None or live["revoked"]:
+            return False
+        c.execute(
+            "INSERT INTO chart_layout_shares (token, user_id, layout_id, revoked, created_at)"
+            " VALUES (?,?,?,1,?)",
+            (live["token"], user_id, layout_id, int(time.time())),
+        )
+        c.commit()
+    return True
+
+
+def share_status(user_id, layout_id: int) -> Optional[dict]:
+    """The live token for a layout, or ``None``. READ-ONLY — never mints, so
+    opening a share panel can never itself publish a layout."""
+    with contextlib.closing(_connect()) as c:
+        row = _newest_share(c, user_id, layout_id)
+    if row is None or row["revoked"]:
+        return None
+    return {"token": row["token"], "layout_id": row["layout_id"]}
+
+
+def resolve_share(token: str) -> Optional[dict]:
+    """The layout a token points at, or ``None`` if the token never existed,
+    was revoked, or the layout behind it has since been deleted.
+
+    Distinguishing "revoked" from "not found" is a caller-side decision (this
+    returns None for both, same as user_definitions' own resolve — the
+    recipient sees a 404 either way; the *owner's* share_status is where
+    "revoked vs never shared" stays visible).
+    """
+    with contextlib.closing(_connect()) as c:
+        row = c.execute(
+            "SELECT * FROM chart_layout_shares WHERE token=? ORDER BY id DESC LIMIT 1",
+            (token,),
+        ).fetchone()
+        if row is None or row["revoked"]:
+            return None
+        layout_row = c.execute(
+            "SELECT * FROM charts_layouts WHERE id=?", (row["layout_id"],)
+        ).fetchone()
+    return _row_to_dict(layout_row) if layout_row else None
