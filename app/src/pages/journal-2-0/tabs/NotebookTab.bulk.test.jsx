@@ -616,6 +616,40 @@ describe('NotebookTab — S4: the Undo cannot be lost', () => {
     expect(declOf(notice.find((r) => r.media === null).body, 'pointer-events')).toBe('auto') // the Undo takes the click
   })
 
+  it('item 9: the notice stack sits ABOVE the joystick resting layer and BELOW the open fan scrim', () => {
+    // Found on a 390x844 touch walk: the hub's first-run coach mark
+    // (hub.module.css `.coachMark`, z-index var(--z-hub-rest)) shares the
+    // stack's band, and elementFromPoint at the Undo's centre and corners hit
+    // the coach mark -- the member's Undo could not be tapped. A passive hint
+    // must never beat it, and an OPEN fan must still scrim it.
+    // ⛔ Both bounds are READ from tokens.css, never typed here.
+    const tokensCss = fs.readFileSync(path.join(path.dirname(fileURLToPath(import.meta.url)),
+      '..', '..', '..', 'styles', 'tokens.css'), 'utf8')
+    const root = cssRules(tokensCss).find((r) => r.media === null && r.selectors.includes(':root')).body
+    const token = (name) => {
+      const v = Number(declOf(root, name))
+      expect(Number.isFinite(v), `${name} is a number in tokens.css :root`).toBe(true)
+      return v
+    }
+    const rest = token('--z-hub-rest')
+    const backdrop = token('--z-backdrop')
+    expect(rest).toBeLessThan(backdrop)                         // non-vacuity: a gap to sit in
+    const resolve = (value) => {
+      const expr = value.replace(/var\((--[\w-]+)\)/g, (_, n) => String(token(n)))
+        .replace(/^calc\((.*)\)$/, '$1').replace(/\s+/g, '')
+      expect(/^\d+([+-]\d+)*$/.test(expr), `z-index "${value}" resolves to integer arithmetic`).toBe(true)
+      return expr.match(/[+-]?\d+/g).reduce((a, b) => a + Number(b), 0)
+    }
+    const zRules = cssRules(NOTEBOOK_CSS).filter(targets('bulkNoticeStack'))
+      .filter((r) => declOf(r.body, 'z-index') !== null)
+    expect(zRules.length).toBeGreaterThan(0)
+    for (const r of zRules) {
+      const z = resolve(declOf(r.body, 'z-index'))
+      expect(z, `.bulkNoticeStack under ${r.media} is ${z}, not above --z-hub-rest (${rest})`).toBeGreaterThan(rest)
+      expect(z, `.bulkNoticeStack under ${r.media} is ${z}, not below --z-backdrop (${backdrop})`).toBeLessThan(backdrop)
+    }
+  })
+
   it('R23-N6: at the touch tier the buttons wrap UNDER the sentence — canonical breakpoint, no new custom property', () => {
     const rules = cssRules(NOTEBOOK_CSS)
     const touch = rules.filter((r) => r.media === MQ.touchDown)
