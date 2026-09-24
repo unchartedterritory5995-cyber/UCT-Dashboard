@@ -55,7 +55,9 @@ for D, uni in (("2018-12-11", "nyse"), ("2018-12-12", "us")):
     for k in bit:
         t = names[k]
         f = adj.get(t, np.nan) / raw.get(t, np.nan) if raw.get(t) else np.nan
-        px = list(sub[sub["ticker"] == t]["close"].to_numpy() * f) + [adj.get(t, np.nan)]
+        # every price the path can hold: the prior close that seeds it before the first print,
+        # each minute close lifted to the adjusted basis, and the official close
+        px = [float(A_factor[k, -1])] + list(sub[sub["ticker"] == t]["close"].to_numpy() * f) + [adj.get(t, np.nan)]
         lo, hi = min(e1[k], e2[k]), max(e1[k], e2[k])
         on = [float(p) for p in px if lo <= p <= hi]
         near = sorted(px, key=lambda p: abs(p - e1[k]))[:1]
