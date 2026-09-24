@@ -1,9 +1,19 @@
 # Rolling back Notebook wave 5: keep the schema guard
 
-> ⛔⛔ **Two commits are never reverted with the features: `8167f7aa0` and
-> `fd87271fd`.** A wave-5 rollback is the moment they matter most. Revert the
-> feature merge, then re-apply both commits in that order. Or revert everything
-> except them.
+> ⛔⛔ **THREE commits are never reverted with the features: `8167f7aa0`,
+> `fd87271fd` and `82c56dd63`.** A wave-5 rollback is the moment they matter
+> most. Revert the feature merge, then re-apply all three commits in that order.
+> Or revert everything except them.
+>
+> ⚠️ `82c56dd63` was added after the simulation below ran (it closes B1, a hole
+> the whole-branch re-review found in the guard itself). Its role in a rollback
+> is REASONED, not yet re-simulated — see "Why `82c56dd63` must ride along" —
+> and its rail file names are not yet in the *Verify before pushing* commands
+> further down. Whoever runs a real rollback should add
+> `notebookSchema.rail.test.js`'s writtenSchema cases and
+> `offline/writtenSchemaDrain.test.js` / `writtenSchemaCapture.test.js` /
+> `NoteEditorPage.writtenSchema.test.jsx` to that list, and ideally re-run the
+> simulation with all three commits before relying on this document alone.
 
 ## Why a rollback needs the guard
 
@@ -64,6 +74,56 @@ rollback-safe.
   types. It now names level-0 types, because the old version went red in the
   rolled-back state (see *Measured* below).
 
+**`82c56dd63`** fixes the sender-vs-writer gap the whole-branch re-review found in
+the guard above: `8167f7aa0`+`fd87271fd` judge the bundle that SENDS a body, never
+the bundle that WROTE it, so a body captured offline by a stale bundle and sent
+later by a fresh one could slip past the refusal. It stamps `writtenSchema` on
+every capture that might be sent by a later page load and forwards it at
+`min(stamp, sender's own level)`. See *"Why `82c56dd63` must ride along too"*
+below for the full mechanism and why a rollback reopens the same hole without it.
+
+## Why `82c56dd63` must ride along too
+
+The original guard (`8167f7aa0`+`fd87271fd`) judges the **sending** bundle's
+level. `82c56dd63` fixes a hole the whole-branch re-review found: a body queued
+by one bundle can be **sent later by a different one**, and the guard must judge
+the bundle that **wrote** the body, not whichever bundle's turn it is to send it
+— tracked as a `writtenSchema` stamp on every capture (the durable record, the
+outbox entry, the crash draft), forwarded at `min(stamp, sender's own level)`.
+
+**A rollback is a bundle transition too, so the same hole reopens without it.**
+There is no service worker (see *Open tabs* below), so a rollback deploy does
+not close every tab at once — for a while, some tabs run the full wave-5 bundle
+and others run the freshly rolled-back one, on the same account. Reasoned, not
+yet measured on the wire:
+
+- A tab already on the **rolled-back** bundle opens a level-1 note. It has no
+  content-error guard (that reverted with the features) and blanks it. Its
+  save is refused (409, level 0 vs. 1) and the blank queues in the durable
+  offline layer — which is *not* part of wave 5 and does not revert.
+- A **different, still-open wave-5** tab on the same account — one that has not
+  reloaded since before the rollback — is the outbox's leader. Without
+  `82c56dd63`'s stamp, its `sendNoteUpdate` would declare **its own** level (1,
+  since its bundle is unaffected by what a *different* tab did) when it drains
+  that queued entry. The server's guard has not changed across the rollback, so
+  required = 1, declared = 1, and it would accept the blank: the exact B1
+  overwrite, now triggered by the rollback's own transition window instead of
+  wave 5's original deploy.
+- With `82c56dd63` present, the queued entry carries `writtenSchema: 0` — or,
+  if the rolled-back bundle also lacks `82c56dd63`'s capture-side code (see
+  below), simply carries no stamp at all, which `writtenSchemaOf` already reads
+  as 0. Either way the drain declares `min(0, 1) = 0`, the server refuses it
+  again, and it forks instead of landing.
+
+**The rolled-back bundle itself does not need `82c56dd63`'s code for this to
+hold.** A missing stamp is read as 0 by design, so a rolled-back tab's own
+capture — even without any of `82c56dd63`'s changes cherry-picked back — is
+already safe by the same "absent ⇒ oldest writer" rule the original guard
+established. What must be true is that **whichever bundle eventually sends the
+entry** has `82c56dd63`, so it asks for the stamp rather than assuming its own
+level. Any surviving wave-5 tab already does, since it is the current tip; a
+freshly rolled-back tab does not need to.
+
 ### Why the derived declaration keeps a rollback safe
 
 After the features are reverted, the six level-1 types are still in the table but
@@ -86,7 +146,17 @@ git revert -m 1 <wave-5 merge commit>
 git cherry-pick 8167f7aa0          # expect ONE conflict: app/src/pages/journal-2-0/lib/tiptap.js
 # resolve it as below, then:
 git add app/src/pages/journal-2-0/lib/tiptap.js && git cherry-pick --continue
-git cherry-pick fd87271fd          # applies cleanly
+git cherry-pick fd87271fd          # applies cleanly (measured)
+git cherry-pick 82c56dd63          # NOT YET MEASURED against a rolled-back tree —
+                                    # see the warning at the top of this document.
+                                    # It touches NoteEditorPage.jsx and several
+                                    # offline/*.js files wave-5 also touches, so
+                                    # expect at least one conflict and resolve by
+                                    # keeping the rolled-back side's CONTENT while
+                                    # preserving 82c56dd63's writtenSchema plumbing
+                                    # (the stamp fields and the min()-forwarding
+                                    # calls), the same principle as the tiptap.js
+                                    # resolution above.
 ```
 
 **Resolving the `tiptap.js` conflict.** Keep the rolled-back side of the hunk.
@@ -115,11 +185,32 @@ pipe:
 ```sh
 python -m pytest tests/test_notebook_schema_guard.py -q
 cd app && npx vitest run src/pages/journal-2-0/lib/notebookSchema.rail.test.js \
-  src/hub/writePathsTransitive.test.js src/hub/writePaths.test.js src/pages/journal-2-0/lib/importer
+  src/hub/writePathsTransitive.test.js src/hub/writePaths.test.js src/pages/journal-2-0/lib/importer \
+  src/pages/journal-2-0/lib/offline/writtenSchemaDrain.test.js \
+  src/pages/journal-2-0/lib/offline/writtenSchemaCapture.test.js \
+  src/pages/journal-2-0/components/notebook/NoteEditorPage.writtenSchema.test.jsx
 ```
+
+⚠️ The last three files are `82c56dd63`'s own rails (the writtenSchema stamp,
+capture, drain-forwarding and refusal-fork behaviour) and are NOT YET verified
+against a rolled-back tree — see the warning at the top of this document.
 
 ⚠️ Step 1 also reverts this file. Read it beforehand, or read it from the feature
 branch (`git show <merge>^2:docs/notebook/wave5-rollback.md`).
+
+## Before a squash merge: tag the three commits
+
+If `feat/notebook-10` lands as a squash commit (or the branch is otherwise
+deleted after merging), `8167f7aa0`, `fd87271fd` and `82c56dd63` stop being
+reachable from any ref and become eligible for garbage collection. Tag all
+three before that happens:
+
+```sh
+git tag notebook-wave5-guard-8167f7aa0 8167f7aa0
+git tag notebook-wave5-guard-fd87271fd fd87271fd
+git tag notebook-wave5-guard-82c56dd63 82c56dd63
+git push origin notebook-wave5-guard-8167f7aa0 notebook-wave5-guard-fd87271fd notebook-wave5-guard-82c56dd63
+```
 
 ## Procedure B: revert everything except the guard (not simulated)
 
@@ -192,6 +283,14 @@ adds a type should use **level 2**.
   `notebookSchema.rail.test.js` finds every `fetch` or `upbFetch` PUT to
   `/api/j2/notes/${id}` or `/api/upb/entries/${id}`. It fails on any body PUT
   that does not declare.
+- **A new door that CAPTURES a body for a later page load to send** (a durable
+  record, an outbox entry, a crash draft, anything a different bundle might
+  adopt and forward) must stamp `writtenSchema` at capture time from that
+  bundle's OWN derived level, and any door that FORWARDS a body it did not just
+  freshly read from the server must send `min(writtenSchemaOf(stamp), its own
+  derived level)`, never its own level unconditionally. This is `82c56dd63`'s
+  fix (see *"Why `82c56dd63` must ride along too"* above) — skipping it on a
+  new capture/forward door reopens the exact hole that commit closed.
 
 ## The doors, and why each one is or is not guarded
 
@@ -215,7 +314,7 @@ that failed to read the note:**
 |---|---|
 | `POST /api/j2/notes` (create) | There is no stored body to lose |
 | Version restore (`restore_note_version` → `update_note` with no declaration) | The body is the server's own stored version; the client sends only an id |
-| `import_confirm` re-import UPDATE (`notes.py`, in `import_confirm`) | It replaces the note from a file the member chose to re-import, parsed on the server |
+| `import_confirm` re-import UPDATE (`notes.py`, in `import_confirm`) | It replaces the note from a file the member chose to re-import; **the client parses it** (`generateJSON`) and sends `bodyJson`, but it loads no editor and blanks nothing — the member picked this exact file, and a parse failure fails the import, it does not silently save an empty note |
 | `append_widget_embed`, `append_financial_fact`, `append_document_excerpt` | They load the stored JSON, append one node and save; unknown types pass through untouched |
 | Connector sync `_apply_resolved_body` (`note_connectors/engine.py`) | It rewrites placeholders in a body the same sync just wrote, locked on `updated_at` |
 | Notebook migration v1 insert (`db.py`) | It is a one-time creation |
