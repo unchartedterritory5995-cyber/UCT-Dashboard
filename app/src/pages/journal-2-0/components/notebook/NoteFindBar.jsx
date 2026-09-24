@@ -15,7 +15,11 @@
  *  - how many were replaced is said in the live count region, in words, with
  *    an Undo beside it -- on a phone or a keyboardless tablet the note has no
  *    other undo control, and Replace all is the one edit that can rewrite a
- *    whole note at once.
+ *    whole note at once. Once the note has changed since the replace, that
+ *    Undo would undo the member's own edit instead, so it is withdrawn -- and
+ *    the live region SAYS so, naming the editor's own undo chord, whether the
+ *    member clicked it or the bar simply redrew (re-review R1-N4: it used to
+ *    vanish, or refuse the click, without a word).
  * Enter in either field is ignored while an IME is composing (the Enter that
  * commits a Japanese or Chinese word is not a request to replace).
  * The replace chord in the tooltip is the platform's own (lib/platform.js):
@@ -29,6 +33,10 @@ import styles from './NoteFindBar.module.css'
 
 /** True while an IME is composing: its Enter commits a word, nothing more. */
 const composing = (e) => Boolean(e.nativeEvent?.isComposing || e.isComposing || e.keyCode === 229)
+
+/** Why the Replace-all Undo is gone, and what to use instead (the platform's chord). */
+const undoWithdrawnText = () =>
+  `The note changed since — use ${chordText([modKeyLabel(), 'Z'])} to undo in the editor`
 
 export default function NoteFindBar({ editor, onClose, initialReplace = false }) {
   const [term, setTerm] = useState('')
@@ -136,7 +144,11 @@ export default function NoteFindBar({ editor, onClose, initialReplace = false })
   // every match. Refused when the note has moved on since.
   const undoReplaceAll = () => {
     if (!editor || editor.isDestroyed || !undoable) return
-    if (editor.state.doc !== undoable) { setUndoable(null); return }
+    if (editor.state.doc !== undoable) {
+      setUndoable(null)
+      setNotice(undoWithdrawnText())
+      return
+    }
     editor.commands.undo()
     setUndoable(null)
     runSearch(term, caseSensitive, wholeWord)
@@ -174,8 +186,12 @@ export default function NoteFindBar({ editor, onClose, initialReplace = false })
     }
   }
 
-  const countText = notice || (term ? `${matchCount > 0 ? activeIndex + 1 : 0}/${matchCount}` : '')
-  const showUndo = Boolean(undoable && editor && !editor.isDestroyed && editor.state.doc === undoable)
+  // The note moved on since Replace all: the Undo is withdrawn at this render,
+  // and the reason takes its place in the live region.
+  const undoWithdrawn = Boolean(undoable && editor && !editor.isDestroyed && editor.state.doc !== undoable)
+  const countText = (undoWithdrawn ? undoWithdrawnText() : notice)
+    || (term ? `${matchCount > 0 ? activeIndex + 1 : 0}/${matchCount}` : '')
+  const showUndo = Boolean(undoable && editor && !editor.isDestroyed && !undoWithdrawn)
   const replaceChord = chordText(replaceChordKeys())
 
   return (

@@ -255,6 +255,41 @@ describe('NoteFindBar — fix round 1', () => {
     expect(screen.queryByRole('button', { name: 'Undo' })).toBeNull()
   })
 
+  // R1-N4 (re-review): the refusal said nothing -- a dead click, or an Undo that
+  // just vanished. It now names why, and the editor's own undo chord.
+  it.each([
+    ['Win32', 'Ctrl+Z'],
+    ['MacIntel', 'Cmd+Z'],
+  ])('R1-N4: on %s a refused Undo says why and names %s', (platform, chord) => {
+    setPlatform(platform)
+    const ed = mountEditor('<p>x y x</p>')
+    render(<NoteFindBar editor={ed} onClose={vi.fn()} initialReplace />)
+    find('x')
+    replaceWith('z')
+    fireEvent.click(screen.getByRole('button', { name: 'Replace all' }))
+    const undoBtn = screen.getByRole('button', { name: 'Undo' })
+    ed.commands.insertContentAt(ed.state.doc.content.size - 1, ' typed')
+    fireEvent.click(undoBtn)
+    expect(ed.getText()).toBe('z y z typed') // refused: the member's typing stays
+    expect(screen.queryByRole('button', { name: 'Undo' })).toBeNull()
+    expect(screen.getByText(`The note changed since — use ${chord} to undo in the editor`)).toBeInTheDocument()
+  })
+
+  it('R1-N4: when the bar redraws after the note moved on, the reason REPLACES the Undo (never a silent vanish)', () => {
+    setPlatform('Win32')
+    const ed = mountEditor('<p>x y x</p>')
+    const view = render(<NoteFindBar editor={ed} onClose={vi.fn()} initialReplace />)
+    find('x')
+    replaceWith('z')
+    fireEvent.click(screen.getByRole('button', { name: 'Replace all' }))
+    expect(screen.getByText('Replaced 2 matches')).toBeInTheDocument()
+    ed.commands.insertContentAt(ed.state.doc.content.size - 1, ' typed')
+    view.rerender(<NoteFindBar editor={ed} onClose={vi.fn()} initialReplace />)
+    expect(screen.queryByRole('button', { name: 'Undo' })).toBeNull()
+    const live = screen.getByText('The note changed since — use Ctrl+Z to undo in the editor')
+    expect(live.getAttribute('aria-live')).toBe('polite') // said, not just shown
+  })
+
   it('S5: the touch tier sizes every textBtn to the 44px floor', async () => {
     const fs = await import('node:fs')
     const path = await import('node:path')
