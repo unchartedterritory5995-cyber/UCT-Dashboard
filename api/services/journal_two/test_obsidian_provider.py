@@ -376,6 +376,15 @@ async def test_a_highlight_marker_is_stripped_but_the_text_survives(db):
     assert "<mark>" not in joined  # never degrade to literal, visible HTML
 
 
+async def test_a_comparison_is_never_read_as_a_highlight(db):
+    body = "If rsi == 30 and macd == 0 then buy. close==open stays. The ==key level== holds."
+    _stage("user-a", "vault-1", "a.md", body, T1)
+    provider = ObsidianProvider(user_id="user-a", vault_id="vault-1")
+    note = await provider.fetch({}, RemoteRef(remote_id="a.md", updated_at=T1))
+    joined = "".join(n.get("text", "") for n in note.doc["content"][0]["content"])
+    assert joined == "If rsi == 30 and macd == 0 then buy. close==open stays. The key level holds."
+
+
 # ---------------------------------------------------------------------------
 # Code fences protect wiki-syntax inside them (mirrors the JS adapter rail)
 # ---------------------------------------------------------------------------

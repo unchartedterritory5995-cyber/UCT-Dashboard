@@ -1,0 +1,15 @@
+{
+  "id": "08-comparisons",
+  "input_markdown": "# Comparisons\n\nIf rsi == 30 and macd == 0 then buy.\nCode-ish: close==open and high==low stays as typed.\nA real mark: the ==key level== holds, and (==risk==) too.\n",
+  "self_path": "a.md",
+  "server": {
+    "images": [],
+    "links": [],
+    "task_checked": [],
+    "text": "Comparisons If rsi == 30 and macd == 0 then buy. Code-ish: close==open and high==low stays as typed. A real mark: the key level holds, and (risk) too."
+  },
+  "vault_id": "vault-1",
+  "vault_paths": [
+    "a.md"
+  ]
+}

@@ -271,7 +271,13 @@ _CODE_RE = re.compile(r"```[\s\S]*?```|`[^`\n]*`")
 # `|width` sizing suffix and is deliberately ignored (mirrors
 # `transformEmbeds`'s `rawTarget.split('|')[0]`).
 _WIKI_RE = re.compile(r"(!)?\[\[([^\]|]+)(?:\|([^\]]+))?\]\]")
-_HIGHLIGHT_RE = re.compile(r"==([^=\n]+)==")
+# ⛔ A trader's prose is full of `==` COMPARISONS ("if rsi == 30 and macd == 0").
+# The old `==([^=\n]+)==` read the span between two comparisons as a highlight and
+# deleted both operators. A highlight now needs a non-space just inside each `==`,
+# and neither marker may touch a word character or another `=` on its outside --
+# the same rule the editor's typed `==` uses. The client lane
+# (`adapters/obsidian.js`) mirrors it; the parity fixture `08-comparisons` pins both.
+_HIGHLIGHT_RE = re.compile(r"(^|[^=\w])==(?=\S)([^=\n]*?\S)==(?![=\w])")
 _IMAGE_EXT_RE = re.compile(r"\.(png|jpe?g|gif|webp|svg|bmp|heic)$", re.IGNORECASE)
 
 
@@ -387,7 +393,7 @@ def _transform_highlights(segment: str) -> str:
     """`==text==` -> bare `text` — see the module docstring's "Conversion"
     section for why this (not an injected `<mark>`) is the faithful
     server-side port given the installed schema has no highlight mark."""
-    return _HIGHLIGHT_RE.sub(lambda m: m.group(1), segment)
+    return _HIGHLIGHT_RE.sub(lambda m: m.group(1) + m.group(2), segment)
 
 
 def _transform_outside_code(text: str, fn: Any) -> str:
