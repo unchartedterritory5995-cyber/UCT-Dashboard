@@ -10,19 +10,30 @@
 > `docs/notebook/wave5-6-RESUME-HERE.md` in `C:\Users\Patrick\uct-worktrees\notebook-k`
 > first, then continue exactly where it says to."
 
+⚠️ **A separate session named "UCT NOTEBOOK" exists** (visible via `ListAgents`
+as a Remote Control session, offline as of 2026-09-24). If that session is the
+one you reconnect to, it may carry its own conversation history for this same
+program — read this file anyway before trusting recollection, since this file
+is the one place both worktrees' state was actually re-verified.
+
 ## 1. Where things stand, measured 2026-09-24
 
 **Two worktrees, both branches now pushed to origin (safety backup done this session):**
 
 | Worktree | Branch | HEAD SHA | Pushed? | Working tree |
 |---|---|---|---|---|
-| `C:\Users\Patrick\uct-worktrees\notebook-k` | `feat/notebook-10` | `9ee43bc26886abb4c23b0892db01471d49199ab2` | ✅ `origin/feat/notebook-10` | clean except 6 gitignored shard logs (harmless, never committed by convention) |
-| `C:\Users\Patrick\uct-worktrees\notebook-w6` | `feat/notebook-w6` | `80adeaa7a117c968d494b0de2563b4f6bc1385c0` | ✅ `origin/feat/notebook-w6` | clean |
+| `C:\Users\Patrick\uct-worktrees\notebook-k` | `feat/notebook-10` | `c679090fd...` (docs: CLAUDE.md pointer) | ✅ `origin/feat/notebook-10` | clean except 6 gitignored shard logs (harmless, never committed by convention) |
+| `C:\Users\Patrick\uct-worktrees\notebook-w6` | `feat/notebook-w6` | `d1f4312e3...` (docs: CLAUDE.md pointer) | ✅ `origin/feat/notebook-w6` | clean |
+
+Both worktrees' own `CLAUDE.md` now carry a short pointer section (search
+"Notebook 10/10 program") back to this file and to the SDD ledger, as
+belt-and-suspenders in case this file itself isn't the first thing read.
 
 `feat/notebook-w6` was built on top of `feat/notebook-10`'s tip as of when it
-branched — **it does NOT yet include `82c56dd63`, `1320d0f83`, `a555f99bf` or
-`9ee43bc26`** (the B1 fix + rollback-doc + gate-evidence commits landed on
-`feat/notebook-10` after `feat/notebook-w6` branched). Merging wave-5's tail
+branched — **it does NOT yet include `82c56dd63`, `1320d0f83`, `a555f99bf`,
+`9ee43bc26`, `de8aafd9d` or `c679090fd`** (all landed on `feat/notebook-10`
+after `feat/notebook-w6` branched — B1 fix, rollback doc, gate evidence, this
+resume doc, and the CLAUDE.md pointer). Merging wave-5's tail
 onto wave-6 is already a known open item (see §4).
 
 **Both branches were UNPUSHED before this session's checkpoint** — all of
