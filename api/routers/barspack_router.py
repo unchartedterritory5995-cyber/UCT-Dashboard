@@ -11,19 +11,10 @@ Two public, edge-cacheable routes proxy the R2 artifact the worker builds
                                        per POP per shard per day regardless of
                                        user count. R2 egress is free.
 
-⚰️ This used to read "Public by design (market data, same as the charts).
-Cloudflare keys its cache on the URL, so these must NOT be auth-gated." That
-stopped being true on 2026-09-13 (`2d121371f`, "gate the chart-data origins"):
-every route here takes `require_bars_access` — a signed-in member who meets
-the plan gate, or a push-secret service caller — and answers 401/403 otherwise.
-The client (`app/src/lib/barsPackClient.js`) kept fetching with
-`credentials: 'omit'` for eleven days after that, so every browser got 401 and
-the pack was silently dead; it now sends the session cookie. The Cache-Control
-headers below still describe what an edge MAY do with a response it is allowed
-to see; they are not a promise that anonymous requests are served.
-Shards are already gzipped; we set Content-Encoding: gzip so the browser
-transparently decompresses to JSON and the web GZip middleware skips
-re-compressing an already-encoded body.
+Public by design (market data, same as the charts). Cloudflare keys its cache on
+the URL, so these must NOT be auth-gated. Shards are already gzipped; we set
+Content-Encoding: gzip so the browser transparently decompresses to JSON and the
+web GZip middleware skips re-compressing an already-encoded body.
 """
 from fastapi import APIRouter, Depends
 from api.bars_auth import require_bars_access

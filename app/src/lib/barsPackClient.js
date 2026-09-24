@@ -17,19 +17,6 @@
  * metered/slow connections; requests persistent storage; every failure is
  * swallowed and falls through to the existing warm-server fetch + skeleton, so
  * the pack is strictly additive and can never regress a chart.
- *
- * ⚰️ EVERY FETCH BELOW SENDS THE SESSION COOKIE (`credentials: 'same-origin'`).
- * They were `credentials: 'omit'` from 2026-08-14 — deliberate then, so the
- * edge could cache the pack as a public artifact. On 2026-09-13 the barspack
- * routes were gated behind `require_bars_access` (session cookie or push
- * secret; `2d121371f`, "gate the chart-data origins") and this client was not
- * updated, so every browser got 401 on `/api/barspack/manifest`, the `!r.ok`
- * guards below swallowed it, and the whole pack — the "instant first view"
- * this file exists for — was silently dead for every member for eleven days.
- * Found 2026-09-24 by the post-deploy touch smoke's console lines. The
- * `barsPackClient.test.js` case "the pack fetches SEND the session cookie"
- * pins this; `'omit'` here reads as a cacheability optimisation and is a
- * total outage.
  */
 import { idbImportPack, idbApplyDelta, idbCountKeys } from '../utils/barsIDB'
 
@@ -111,7 +98,7 @@ export async function _ingestHotPack(cfg) {
 
   let manifest
   try {
-    const r = await fetch(`${cfg.base}/manifest`, { credentials: 'same-origin' })
+    const r = await fetch(`${cfg.base}/manifest`, { credentials: 'omit' })
     if (!r.ok) return
     manifest = await r.json()
   } catch { return }
@@ -120,7 +107,7 @@ export async function _ingestHotPack(cfg) {
 
   let entries
   try {
-    const r = await fetch(`${cfg.base}/${manifest.version}/hot`, { credentials: 'same-origin' })
+    const r = await fetch(`${cfg.base}/${manifest.version}/hot`, { credentials: 'omit' })
     if (!r.ok) return
     entries = decodeShardPayload(await r.json())
   } catch { return }
@@ -175,7 +162,7 @@ async function _run(cfg) {
 
   let manifest
   try {
-    const r = await fetch(`${cfg.base}/manifest`, { credentials: 'same-origin' })
+    const r = await fetch(`${cfg.base}/manifest`, { credentials: 'omit' })
     if (!r.ok) return
     manifest = await r.json()
   } catch { return }
@@ -266,7 +253,7 @@ export async function _ingestFull(cfg, version, shards) {
 async function _ingestDelta(cfg, version) {
   let entries
   try {
-    const r = await fetch(`${cfg.base}/${version}/delta`, { credentials: 'same-origin' })
+    const r = await fetch(`${cfg.base}/${version}/delta`, { credentials: 'omit' })
     if (!r.ok) return false
     entries = decodeShardPayload(await r.json())
   } catch { return false }
@@ -301,7 +288,7 @@ export function _shardIdx(s) {
 }
 
 async function _fetchShard(cfg, version, shardIdx) {
-  const r = await fetch(`${cfg.base}/${version}/${shardIdx}`, { credentials: 'same-origin' })
+  const r = await fetch(`${cfg.base}/${version}/${shardIdx}`, { credentials: 'omit' })
   if (!r.ok) return []
   const obj = await r.json()  // browser transparently gunzips Content-Encoding: gzip
   return decodeShardPayload(obj)

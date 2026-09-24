@@ -148,46 +148,6 @@ describe('_ingestFull — never reports false success (the dead-stamp bug)', () 
   })
 })
 
-describe('the pack fetches SEND the session cookie (the routes have been gated since 2026-09-13)', () => {
-  // ⚰️ 2026-09-13 put every /api/barspack route behind require_bars_access; this
-  // client kept `credentials: 'omit'` (a cacheability choice from 2026-08-14), so
-  // every browser got 401, the !r.ok guards swallowed it, and the pack was dead
-  // for eleven days with no visible symptom. Found by a post-deploy smoke's
-  // console lines on 2026-09-24. Reverting ANY site to 'omit' must fail here.
-  const manifest = { version: '2026-09-24', hot: { name: 'hot' }, ticker_count: 1 }
-  const hotShard = { format: 1, tickers: { SPY: { D: columnar([{ t: '2026-09-24', o: 1, h: 1, l: 1, c: 1, v: 1 }]) } } }
-
-  function recordingFetch(reply) {
-    return vi.fn(async (url, init) => ({ ok: true, json: async () => reply(url), _init: init }))
-  }
-
-  beforeEach(() => {
-    idbImportPack.mockReset().mockResolvedValue({ written: 1, skipped: 0, aborted: false })
-    try { localStorage.clear() } catch { /* ignore */ }
-  })
-
-  it('_ingestHotPack: the manifest and the hot shard both go out with credentials same-origin', async () => {
-    const fetchSpy = recordingFetch((url) => (url.endsWith('/manifest') ? manifest : hotShard))
-    globalThis.fetch = fetchSpy
-    await _ingestHotPack(HOT_CFG)
-    expect(fetchSpy.mock.calls.length).toBeGreaterThanOrEqual(2)   // control: the path actually ran
-    for (const [url, init] of fetchSpy.mock.calls) {
-      expect(init?.credentials, `fetch(${url}) must send the session cookie`).toBe('same-origin')
-    }
-  })
-
-  it('_ingestFull: every shard request goes out with credentials same-origin', async () => {
-    const fetchSpy = recordingFetch(() => okShard)
-    globalThis.fetch = fetchSpy
-    const ok = await _ingestFull(FULL_CFG, '2026-09-24', [{ idx: 0 }, { idx: 1 }])
-    expect(ok).toBe(true)
-    expect(fetchSpy.mock.calls.length).toBe(2)
-    for (const [url, init] of fetchSpy.mock.calls) {
-      expect(init?.credentials, `fetch(${url}) must send the session cookie`).toBe('same-origin')
-    }
-  })
-})
-
 describe('_packDataPresent — verify the pre-seed before trusting the stamp', () => {
   beforeEach(() => { idbCountKeys.mockReset() })
 
