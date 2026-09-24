@@ -97,7 +97,9 @@ export default function Privacy() {
           </li>
           <li>
             <strong>Perplexity</strong> — when you ask Compass to research a question on the
-            web, the research question is sent to Perplexity. Your notes and journal are not.
+            web, the research question is sent to Perplexity. When you use AI Search, your
+            question, or a search query built from it, is sent to Perplexity too. Your notes and
+            journal are not.
           </li>
           <li><strong>SnapTrade</strong> — brokerage connections, only if you connect a broker</li>
           <li><strong>Sentry</strong> — error monitoring, when enabled</li>
@@ -113,8 +115,10 @@ export default function Privacy() {
         <ul>
           <li>
             <strong>Community sharing</strong> — if you opt in to sharing your journal with
-            the community, other members can see your trades and open positions. Share
-            counts and dollar profit and loss are never shown.
+            the community, other members can see your trades and open positions, including the
+            notes you wrote on them. They are shown under your display name or, if you have not
+            set one, the part of your email address before the @. Share counts and dollar
+            profit and loss are never shown.
           </li>
           <li>
             <strong>Note share links</strong> — where available, if you create a share link
@@ -144,7 +148,7 @@ export default function Privacy() {
         <ul>
           <li><strong>Account data</strong> — retained as long as your account is active</li>
           <li><strong>Session tokens</strong> — expire after 30 days and are cleaned up automatically</li>
-          <li><strong>Your content</strong> (notes, trade journal, watchlists, alerts) — retained until you delete it or your account is deleted</li>
+          <li><strong>Your content</strong> (notes, trade journal, watchlists, alerts) — retained until you delete it or your account is deleted. A note you delete goes to Trash, where you can restore it for 30 days; after that it is removed permanently.</li>
           <li><strong>Activity data</strong> — retained for security and support; you can ask us to delete it</li>
           <li>
             <strong>Backups</strong> — we copy our account database about every six hours and
