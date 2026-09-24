@@ -106,6 +106,10 @@
  *     the fix-round-1 case below.
  *   · review N-5: a `permanent` (blocked) entry reports BLOCKED before either
  *     "the editor owns it" skip — it only reports, so it is safe ahead of both.
+ * ⚖️ D3b, FIX ROUND 2 (re-review of `d908de394`, notes NN-1 to NN-4): no frozen
+ * file touched. `queuedWorkToAdopt` (`recoverLocalState.js`) refuses to adopt a base
+ * with no BODY, the key residual (b) uses, instead of the `bodyUnknown` flag the
+ * durable store drops (`f5-fixes-2026-09-23.md` §H).
  * ⛔ Still NOT moved by D3b: the append CALL SITES, `serverChange.js`,
  * `settleNoteWrite.js`, and the classifier. `F5_OPEN` stays true.
  *

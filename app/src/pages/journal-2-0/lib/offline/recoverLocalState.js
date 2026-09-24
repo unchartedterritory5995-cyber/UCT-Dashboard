@@ -318,7 +318,15 @@ export function queuedWorkToAdopt({ decision, record = null, entry = null } = {}
   // ⛔ D3b: a base whose BODY is unknown (the fork-safe fallback) is for a
   // Restore the member chose, never for sending by ourselves: against it every
   // move of the server forks, and nobody asked for that fork. Offered instead.
-  if (!base || base.bodyUnknown) return null
+  // ⛔⛔ D3b fix round 2 (review NN-1): keyed on the missing BODY — the key
+  // `commitSave` uses for residual (b) — never on the `bodyUnknown` flag, because
+  // the flag does not survive a session: a Restore on a revision-only base stores
+  // `snapshotOfServerCopy(...)` (frozen), which keeps no flag, and the next
+  // session reads that copy back as a full base at the same revision. Keyed on the
+  // flag, it was adopted and a moved server forked the note by itself. The server
+  // never serves a null body (`notes.py` `_row_to_note` serves an empty doc), so a
+  // null body here is always one this browser did not know.
+  if (!base || base.bodyJson == null) return null
   return { state: authored(record), base }
 }
 
@@ -328,8 +336,11 @@ export function queuedWorkToAdopt({ decision, record = null, entry = null } = {}
  * classifies the server's copy against a base with no body, which can only read
  * BODY_REWRITE ("missing evidence is never a licence to merge",
  * `classifyServerChange`) — so it FORKS. Never a merge it cannot prove, never an
- * overwrite. The null body is what makes a Restore on it safe; `bodyUnknown` is
- * what lets `queuedWorkToAdopt` refuse to send on it by itself.
+ * overwrite. The null body is what makes a Restore on it safe, and — since D3b
+ * fix round 2 (review NN-1) — also what makes `queuedWorkToAdopt` refuse to send
+ * on it by itself. ⛔ `bodyUnknown` only DESCRIBES the answer: nothing may key on
+ * it, because `snapshotOfServerCopy` (frozen) drops it when the base is stored,
+ * and a guard keyed on it is gone in the next session.
  */
 function revisionOnlyBase(at) {
   return at ? { title: '', subtitle: '', bodyJson: null, updatedAt: at, bodyUnknown: true } : null

@@ -20,7 +20,7 @@ import { createFakeDb, settleIdb, installKeyRange } from './__fixtures__/fakeInd
 import { putNoteWithIntent } from './notebookDb'
 import { useDurableNote, __resetNotebookConnections } from './useDurableNote'
 import { baseOfRecovered, chooseLocalRecovery, queuedWorkToAdopt } from './recoverLocalState'
-import { BODY_REWRITE, classifyServerChange } from './serverChange'
+import { BODY_REWRITE, classifyServerChange, snapshotOfServerCopy } from './serverChange'
 import { OFFLINE_FLAG_KEY } from './offlineFlag'
 
 const doc = (...texts) => ({ type: 'doc', content: texts.map((t) => ({ type: 'paragraph', content: [{ type: 'text', text: t }] })) })
@@ -202,5 +202,77 @@ describe('recover() — the draft reaches the base authority, and the kill switc
     expect(decision.source).toBe('localStorage')
     expect(decision.base).toBeNull()
     expect(decision.baseUpdatedAt, 'off, a draft’s recorded base must not change the old path').toBe(T1)
+  })
+})
+
+/**
+ * ⛔⛔ D3b FIX ROUND 2 (review NN-1) — "NEVER SEND ON AN UNKNOWN BODY BY OURSELVES"
+ * MUST SURVIVE A SESSION.
+ *
+ * A Restore on a revision-only base, with no durable record before it, makes
+ * `persist` store `snapshotOfServerCopy(state.serverBase)` — and that frozen
+ * snapshot keeps no `bodyUnknown`. The next session's `baseOfRecovered` reads the
+ * copy back as a FULL base at the same revision: a null body and no flag. Keyed on
+ * the flag, `queuedWorkToAdopt` adopted it, and any server move then forked a note
+ * nobody asked to fork. Keyed on the missing BODY — the key residual (b) uses in
+ * `commitSave` — it is offered instead, and only the member's Restore sends it.
+ * The real-editor half is in `f5p1OwnerSendsQueued.test.jsx` (fix round 2).
+ */
+describe('⛔⛔ D3b fix round 2 (review NN-1) — a base with no BODY is never adopted, even after the store dropped its flag', () => {
+  const QUEUED = doc('online', 'queued')
+  const MOVED = { ...AT_T0, updatedAt: T1 }          // a door moved the note while the member was away
+  const recordOn = (serverBase) => ({
+    noteId: 'n1', title: 'Thesis', subtitle: '', bodyJson: QUEUED, dirty: 1,
+    generation: 2, sessionId: 's', localSavedAt: 10, baseUpdatedAt: T0, serverBase,
+  })
+  const entryOn = () => ({
+    mutationId: 'note:n1', noteId: 'n1', kind: 'note-update',
+    patch: { title: 'Thesis', subtitle: '', bodyJson: QUEUED }, baseUpdatedAt: T0,
+  })
+  // What the durable store holds after a Restore on a revision-only base.
+  const STORED = snapshotOfServerCopy(REVISION_ONLY(T0))
+
+  it('precondition: the durable store drops the flag — what it keeps is a plain copy with a null body', () => {
+    expect(STORED).toEqual({ title: '', subtitle: '', bodyJson: null, updatedAt: T0 })
+    expect(STORED).not.toHaveProperty('bodyUnknown')
+  })
+
+  it('⛔⛔ the next session: `baseOfRecovered` reads it back as a full base, and `queuedWorkToAdopt` REFUSES it — offered, never sent by ourselves', () => {
+    const record = recordOn(STORED)
+    const entry = entryOn()
+    const decision = decideFor(MOVED, { record, draft: null })
+    expect(baseOfRecovered({ decision, record, entry }), 'precondition: the flag-less copy stands as the base')
+      .toEqual({ title: '', subtitle: '', bodyJson: null, updatedAt: T0 })
+    expect(queuedWorkToAdopt({ decision, record, entry }),
+      'a base with no body was adopted: any server move now forks a note nobody asked to fork').toBeNull()
+  })
+
+  it('⛔⛔ through `recover()`: no `adopt` — and the base a Restore sends on is still the words’ own revision', async () => {
+    const db = createFakeDb()
+    await putNoteWithIntent(db, recordOn(STORED), entryOn())
+    await settleIdb(4)
+    const { result } = mount(db)
+    let decision
+    await act(async () => { decision = await result.current.recover({ server: MOVED }) })
+    expect(decision.unsynced, 'the words are still offered').toBe(true)
+    expect(decision.adopt, 'adopted on a base whose body is unknown').toBeNull()
+    expect(decision.base?.updatedAt, 'Restore must still know the revision the words were written on').toBe(T0)
+    expect(decision.base?.bodyJson ?? null).toBeNull()
+  })
+
+  it('⭐ CONTROL — a KNOWN base at the same revision is still adopted (the refusal is not vacuous)', () => {
+    const record = recordOn(AT_T0)
+    const adopt = queuedWorkToAdopt({ decision: decideFor(MOVED, { record, draft: null }), record, entry: entryOn() })
+    expect(adopt?.base).toEqual(AT_T0)
+    expect(adopt?.state.bodyJson).toEqual(QUEUED)
+  })
+
+  it('⭐ CONTROL — a BLANK note is a KNOWN body (the server serves an empty doc, never null) and is still adopted', () => {
+    // `notes.py` `_row_to_note` serves a NULL `body_json` as `{"type":"doc","content":[]}`,
+    // so a null body in a stored copy can only be one this browser did not know.
+    const blank = { title: 'Thesis', subtitle: '', bodyJson: { type: 'doc', content: [] }, updatedAt: T0 }
+    const record = recordOn(blank)
+    const adopt = queuedWorkToAdopt({ decision: decideFor({ ...blank, updatedAt: T1 }, { record, draft: null }), record, entry: entryOn() })
+    expect(adopt?.base.bodyJson, 'an EMPTY body was read as an UNKNOWN one').toEqual({ type: 'doc', content: [] })
   })
 })

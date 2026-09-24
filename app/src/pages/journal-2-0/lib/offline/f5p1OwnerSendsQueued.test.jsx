@@ -60,8 +60,11 @@ function makeServer({ body, updatedAt }) {
   let rev = 0
   const s = {
     title: 'Thesis', subtitle: '', body, updatedAt, puts: [], forks: [],
+    // ⭐ D3b fix round 2 (NN-2): the metadata a door can move, so a rail can say
+    // whether the editor left it alone.
+    folderId: null, tags: [],
     note: () => ({
-      id: 'n1', title: s.title, subtitle: s.subtitle, folderId: null, ticker: null, tags: [],
+      id: 'n1', title: s.title, subtitle: s.subtitle, folderId: s.folderId, ticker: null, tags: s.tags,
       heroImageUrl: null, isFavorite: false, bodyJson: s.body, updatedAt: s.updatedAt,
     }),
     stamp: () => { rev += 1; s.updatedAt = `2026-09-23T09:10:${String(10 + rev).padStart(2, '0')}.000000+00:00` },
@@ -84,6 +87,10 @@ const update = vi.fn(async (patch) => {
   // ⭐ D3b fix round 1 (b): the real `update_note` writes the subtitle it is sent,
   // so a fake that ignored it could not tell a cleared subtitle from a dropped one.
   if ('subtitle' in patch) server.subtitle = patch.subtitle ?? ''
+  // ⭐ D3b fix round 2 (NN-2): metadata is applied if a send ever carries it, so
+  // an editor that sent folder or tags would visibly move them.
+  if ('folderId' in patch) server.folderId = patch.folderId
+  if ('tags' in patch) server.tags = patch.tags
   server.stamp()
   return server.note()
 })
@@ -822,18 +829,26 @@ describe('D3b fix round 1 — a sweep PUT in flight as the note opens (a); a cle
     expect(server.forks).toHaveLength(0)
   })
 
-  it('⛔⛔ (b) the NEXT session: a durable copy whose base has no body (as an offline Restore leaves it) still sends the cleared title', async () => {
+  it('⛔⛔ (b) the NEXT session: a durable copy whose base has no body (as an offline Restore leaves it) is OFFERED, and its Restore still sends the cleared title', async () => {
     // `snapshotOfServerCopy` (frozen) keeps no `bodyUnknown`, so the base the
-    // store carries into the next session is a plain copy with a null body — and
-    // `queuedWorkToAdopt` adopts it. Keyed on a flag, the fix would miss this.
+    // store carries into the next session is a plain copy with a null body.
+    // Keyed on a flag, the fix would miss this.
+    // ⚖️ D3b fix round 2 (review NN-1): this cell sat on the ADOPTION of that base
+    // — `queuedWorkToAdopt` adopted it and sent the words by itself. Adoption now
+    // refuses a base with no body (the same key as (b)), so the words are OFFERED;
+    // the member's Restore sends them, and the clear must still land.
     server = makeServer({ body: doc(ONLINE), updatedAt: T0 })
     await queuedWhileAway({
       title: '', subtitle: '',
       serverBase: { title: '', subtitle: '', bodyJson: null, updatedAt: T0 },
     })
     await returnToTheNoteAndSit()
+    expect(server.puts, 'the words were sent by ourselves on a base with no body').toHaveLength(0)
+    const restore = await screen.findByRole('button', { name: 'Restore' })
+    await act(async () => { fireEvent.click(restore); await settleIdb(6) })
+    await sit(8)
     expect(serverText()).toContain(SENTENCE)
-    expect(server.title, 'the cleared title was dropped by the next session’s send').toBe('')
+    expect(server.title, 'the cleared title was dropped by the next session’s Restore').toBe('')
     expect(server.forks).toHaveLength(0)
   })
 
@@ -843,5 +858,80 @@ describe('D3b fix round 1 — a sweep PUT in flight as the note opens (a); a cle
     await returnToTheNoteAndSit()
     expect(serverText()).toContain(SENTENCE)
     expect(server.puts.every((p) => !('title' in p)), 'a known base now re-sends the title on every save').toBe(true)
+  })
+})
+
+/**
+ * ⭐⭐ D3b FIX ROUND 2 (re-review of `d908de394`, notes NN-1 and NN-2), on the REAL
+ * editor. `docs/notebook/f5-fixes-2026-09-23.md` §H.
+ */
+describe('D3b fix round 2 — a base with no body is offered, never sent by ourselves (NN-1); what LANDED covers (NN-2)', () => {
+  const NO_BODY = { title: '', subtitle: '', bodyJson: null, updatedAt: T0 }
+
+  it('⛔⛔ NN-1: the NEXT session, a base with no body, a door moved the note while away — nothing sent by ourselves, nothing forked; the words are OFFERED', async () => {
+    // A Restore on a revision-only base left the store holding the frozen
+    // snapshot: a null body and no flag. Adopted, the send 409'd against a base
+    // with no body, the reconcile read BODY_REWRITE, and the note forked with
+    // nobody asking.
+    server = makeServer({ body: doc(ONLINE), updatedAt: T0 })
+    server.stamp()                                          // a metadata door moved it while away
+    await queuedWhileAway({ serverBase: NO_BODY })
+    await returnToTheNoteAndSit()
+    expect(server.forks, 'a note nobody asked to fork was forked').toHaveLength(0)
+    expect(server.puts, 'queued words on a base with no body were sent by ourselves').toHaveLength(0)
+    expect(await screen.findByRole('button', { name: 'Restore' }), 'the words were not offered').toBeTruthy()
+    expect(survives(SENTENCE)).toBe(true)
+    expect(outbox(), 'the queued entry waits for the member').toHaveLength(1)
+  })
+
+  it('⭐ NN-1: …and a Restore is the member’s choice — it sends on the words’ own revision and a moved server forks: ONE sibling, both copies kept', async () => {
+    server = makeServer({ body: doc(ONLINE), updatedAt: T0 })
+    server.stamp()
+    await queuedWhileAway({ serverBase: NO_BODY })
+    await returnToTheNoteAndSit()
+    const restore = await screen.findByRole('button', { name: 'Restore' })
+    await act(async () => { fireEvent.click(restore); await settleIdb(6) })
+    await sit(8)
+    expect(server.puts[0]?.baseUpdatedAt, 'Restore did not send on the revision the words were written on').toBe(T0)
+    expect(serverText(), 'the server’s copy was overwritten').toBe(JSON.stringify(doc(ONLINE)))
+    expect(server.forks).toHaveLength(1)
+    expect(JSON.stringify(server.forks[0].bodyJson)).toContain(SENTENCE)
+    expect(outbox(), 'the owner’s fork settled the queue').toHaveLength(0)
+  })
+
+  it('⭐⭐ NN-2: a METADATA-only difference is LANDED — the sweep landed the same words and a door moved folder and tags: no fork, nothing re-sent, the server’s folder and tags left alone', async () => {
+    server = makeServer({ body: doc(ONLINE), updatedAt: T0 })
+    await queuedWhileAway()
+    const release = holdRecovery()
+    await returnToTheNote()
+    server.body = outbox()[0].patch.bodyJson                // the other tab's PUT lands the queued words…
+    server.folderId = 'folder-moved-by-a-door'              // …and a door moves the note
+    server.tags = ['moved-by-a-door']
+    server.stamp()
+    release()
+    await sit(12)
+    expect(server.puts[0]?.baseUpdatedAt, 'precondition: the owner’s own send went out on the words’ base and 409’d').toBe(T0)
+    expect(server.forks, 'metadata the editor never sends turned a landing into a fork').toHaveLength(0)
+    expect(server.puts, 'a LANDED 409 sent the words again').toHaveLength(1)
+    expect(server.puts.every((p) => !('folderId' in p) && !('tags' in p)), 'the editor sent metadata').toBe(true)
+    expect(server.folderId).toBe('folder-moved-by-a-door')
+    expect(server.tags).toEqual(['moved-by-a-door'])
+    expect(outbox(), 'a landing leaves nothing queued').toHaveLength(0)
+    expect(record()?.dirty).toBe(0)
+  })
+
+  it('⛔⛔ NN-2: a TITLE-only difference is NOT landed — the same body landed but another device renamed the note: ONE fork, the rename kept', async () => {
+    server = makeServer({ body: doc(ONLINE), updatedAt: T0 })
+    await queuedWhileAway()
+    const release = holdRecovery()
+    await returnToTheNote()
+    server.body = outbox()[0].patch.bodyJson                // the body is exactly what is queued…
+    server.title = 'Renamed on another device'             // …the title is someone else's words
+    server.stamp()
+    release()
+    await sit(12)
+    expect(server.title, 'the other device’s title was overwritten').toBe('Renamed on another device')
+    expect(server.forks, 'a title the member never wrote was taken for their landing').toHaveLength(1)
+    expect(JSON.stringify(server.forks[0].bodyJson)).toContain(SENTENCE)
   })
 })
