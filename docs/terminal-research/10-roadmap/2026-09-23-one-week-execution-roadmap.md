@@ -578,6 +578,26 @@ the whole thing holds together.
   partner-owned files directly (additive `className` hooks, the repo's own established
   rebase-safe pattern). Anything needing Ravi's file gets written, tested, and queued —
   not merged without his ack.
+
+> ✅ **A10 result, 2026-09-24 — already done under a different name, correctly not
+> merged further.** §4's named gap — "an 'explain this print' affordance for the
+> existing AI explainer backend, zero UI caller today" — was already built this same
+> week as **PACKET-AA**, just never cross-referenced back into this specific Day 6 slot.
+> **CP1** (a complete, standalone, tested "explain this print" UI —
+> `FlowExplainButton.jsx`/`FlowExplainModal`, 9/9 tests) is shipped and merged,
+> **deliberately unmounted** — it imports nothing into and is imported by nothing in
+> `OptionsFlow.jsx`, tracked with its own reason in `reachable.test.js`'s
+> `AWAITING_A_DECISION` allowlist. **CP2** (the one `className` hook that would actually
+> mount it into the partner file) is the one piece that touches `OptionsFlow.jsx` at
+> all, and its own signed gate packet explicitly holds it pending the owner's
+> coordination with Ravi — not built, not scheduled, and correctly left that way here
+> too, per this task's own absolute constraint. **Nothing new to build or queue.** One
+> small, real doc correction found and shipped: `CLAUDE.md`'s OptionsFlow hook list
+> named a 9th hook, `of-order`, that doesn't exist anywhere in the file (three
+> independent greps, zero hits outside an unrelated code comment) — corrected, and
+> PACKET-AA's CP1/CP2 status recorded there so a future session doesn't have to
+> re-derive it from `docs/terminal-research`. **Shipped**: `551c8c444` → cherry-picked
+> as `acd230c15`, pushed to `master`, deploy verified below.
 - **Agent 2:** A12 Watchlists — if S5/S6 (persistence/personalization) cleared during
   Day 3's parallel work; otherwise this slips to next week, stated plainly rather than
   forced.
