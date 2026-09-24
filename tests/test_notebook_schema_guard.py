@@ -87,15 +87,23 @@ def test_the_client_table_is_read_WHATEVER_its_layout__two_entries_on_one_line(t
     next wave's types written two to a line. The reader must see both — and the
     parity rail must then SEE the drift, because the Python half was not updated."""
     src = CLIENT_TABLE.read_text(encoding="utf-8").replace("\r\n", "\n")
-    marker = "  textColor: 1,\n})"
-    assert src.count(marker) == 1, "the table no longer ends where this reproduction expects"
-    copy = tmp_path / "notebookSchema.two-per-line.mjs"
-    copy.write_text(src.replace(marker, "  textColor: 1,\n  diagram: 2, chart3d: 2,\n})"), encoding="utf-8")
-
+    # ⛔ Anchored on the table's CLOSE, never on whichever entry happens to be
+    # last: the first version anchored on `textColor: 1,` and went red the day
+    # wave 6 added a level below it — the very edit this docstring promises
+    # never touches this test. The probe's level is the NEXT one after the
+    # table's current maximum, so it stays "the next wave's types" whatever
+    # the table holds.
+    start = src.index("NOTEBOOK_TYPE_SCHEMA = Object.freeze({")
+    close = src.index("\n})", start)
     real = _client_table()
+    next_level = max(real.values()) + 1
+    probe = f"\n  diagram: {next_level}, chart3d: {next_level},"
+    copy = tmp_path / "notebookSchema.two-per-line.mjs"
+    copy.write_text(src[:close] + probe + src[close:], encoding="utf-8")
+
     mutated = _client_table(copy)
     assert len(mutated) == len(real) + 2, f"{len(real)} -> {len(mutated)}: an entry was dropped"
-    assert mutated["diagram"] == 2 and mutated["chart3d"] == 2
+    assert mutated["diagram"] == next_level and mutated["chart3d"] == next_level
     assert mutated != nbs.NOTEBOOK_TYPE_SCHEMA, "the drift is invisible to the parity rail"
 
 

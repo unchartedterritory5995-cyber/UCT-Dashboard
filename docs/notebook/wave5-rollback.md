@@ -1,19 +1,23 @@
 # Rolling back Notebook wave 5: keep the schema guard
 
 > ⛔⛔ **THREE commits are never reverted with the features: `8167f7aa0`,
-> `fd87271fd` and `82c56dd63`.** A wave-5 rollback is the moment they matter
-> most. Revert the feature merge, then re-apply all three commits in that order.
-> Or revert everything except them.
+> `fd87271fd` and `82c56dd63`.** Revert the feature merge, then re-apply all
+> three commits in that order. Or revert everything except them.
+>
+> What each one is FOR in a rollback differs, and the difference matters when
+> resolving a conflict: `8167f7aa0` is the guard itself (the server refusal and
+> the derived declaration — the part that makes a rolled-back bundle declare 0);
+> `fd87271fd`'s **door headers do nothing once rolled back** (a bundle declaring
+> 0 sends 0 from every door) — what matters from it in a rollback is its
+> **rail fix**, without which the vitest rail is red on the rolled-back tree
+> (see *Measured*); `82c56dd63` is load-bearing in **every bundle that declares
+> level 1 or higher** (see *"Why `82c56dd63` rides along"*).
 >
 > ⚠️ `82c56dd63` was added after the simulation below ran (it closes B1, a hole
-> the whole-branch re-review found in the guard itself). Its role in a rollback
-> is REASONED, not yet re-simulated — see "Why `82c56dd63` must ride along" —
-> and its rail file names are not yet in the *Verify before pushing* commands
-> further down. Whoever runs a real rollback should add
-> `notebookSchema.rail.test.js`'s writtenSchema cases and
-> `offline/writtenSchemaDrain.test.js` / `writtenSchemaCapture.test.js` /
-> `NoteEditorPage.writtenSchema.test.jsx` to that list, and ideally re-run the
-> simulation with all three commits before relying on this document alone.
+> the whole-branch re-review found in the guard itself). Its cherry-pick onto a
+> rolled-back tree is REASONED, not yet re-simulated; its rail files ARE in the
+> *Verify before pushing* list below. Whoever runs a real rollback should re-run
+> the simulation with all three commits before relying on this document alone.
 
 ## Why a rollback needs the guard
 
@@ -79,10 +83,11 @@ the guard above: `8167f7aa0`+`fd87271fd` judge the bundle that SENDS a body, nev
 the bundle that WROTE it, so a body captured offline by a stale bundle and sent
 later by a fresh one could slip past the refusal. It stamps `writtenSchema` on
 every capture that might be sent by a later page load and forwards it at
-`min(stamp, sender's own level)`. See *"Why `82c56dd63` must ride along too"*
-below for the full mechanism and why a rollback reopens the same hole without it.
+`min(stamp, sender's own level)`. It is load-bearing in every bundle that
+declares level 1 or higher — see *"Why `82c56dd63` rides along"* below for the
+rule and what it means for a full versus a partial rollback.
 
-## Why `82c56dd63` must ride along too
+## Why `82c56dd63` rides along
 
 The original guard (`8167f7aa0`+`fd87271fd`) judges the **sending** bundle's
 level. `82c56dd63` fixes a hole the whole-branch re-review found: a body queued
@@ -90,39 +95,39 @@ by one bundle can be **sent later by a different one**, and the guard must judge
 the bundle that **wrote** the body, not whichever bundle's turn it is to send it
 — tracked as a `writtenSchema` stamp on every capture (the durable record, the
 outbox entry, the crash draft), forwarded at `min(stamp, sender's own level)`.
+An entry with no stamp reads as 0.
 
-**A rollback is a bundle transition too, so the same hole reopens without it.**
-There is no service worker (see *Open tabs* below), so a rollback deploy does
-not close every tab at once — for a while, some tabs run the full wave-5 bundle
-and others run the freshly rolled-back one, on the same account. Reasoned, not
-yet measured on the wire:
+**The rule: every bundle that declares level 1 or higher must carry
+`82c56dd63`.** The hole it closes needs exactly one thing to open — a sender
+that declares a level the *writer* of a queued body could not read. A bundle
+that declares ≥ 1 and lacks the stamp logic sends every queued entry, including
+a stale tab's blank, at its own level, and the server accepts it. A bundle that
+declares 0 cannot do that: it sends 0 from every door, stamp or no stamp, and a
+level-1 note refuses it.
 
-- A tab already on the **rolled-back** bundle opens a level-1 note. It has no
-  content-error guard (that reverted with the features) and blanks it. Its
-  save is refused (409, level 0 vs. 1) and the blank queues in the durable
-  offline layer — which is *not* part of wave 5 and does not revert.
-- A **different, still-open wave-5** tab on the same account — one that has not
-  reloaded since before the rollback — is the outbox's leader. Without
-  `82c56dd63`'s stamp, its `sendNoteUpdate` would declare **its own** level (1,
-  since its bundle is unaffected by what a *different* tab did) when it drains
-  that queued entry. The server's guard has not changed across the rollback, so
-  required = 1, declared = 1, and it would accept the blank: the exact B1
-  overwrite, now triggered by the rollback's own transition window instead of
-  wave 5's original deploy.
-- With `82c56dd63` present, the queued entry carries `writtenSchema: 0` — or,
-  if the rolled-back bundle also lacks `82c56dd63`'s capture-side code (see
-  below), simply carries no stamp at all, which `writtenSchemaOf` already reads
-  as 0. Either way the drain declares `min(0, 1) = 0`, the server refuses it
-  again, and it forks instead of landing.
+What that means for each kind of rollback:
 
-**The rolled-back bundle itself does not need `82c56dd63`'s code for this to
-hold.** A missing stamp is read as 0 by design, so a rolled-back tab's own
-capture — even without any of `82c56dd63`'s changes cherry-picked back — is
-already safe by the same "absent ⇒ oldest writer" rule the original guard
-established. What must be true is that **whichever bundle eventually sends the
-entry** has `82c56dd63`, so it asks for the stamp rather than assuming its own
-level. Any surviving wave-5 tab already does, since it is the current tip; a
-freshly rolled-back tab does not need to.
+- **A full rollback** (Procedure A: every level-1 type unregistered) derives
+  **0**, so it is safe with or without `82c56dd63`. Keeping it costs nothing
+  and keeps the never-revert set a single rule, which is why the banner says
+  three commits and not "two, plus one when…".
+- **A partial rollback** (Procedure B, or any revert that leaves the level-1
+  types registered — reverting only G-064, say, which the *Coarse levels*
+  note below covers) still derives **1**. There `82c56dd63` is load-bearing:
+  without it the exact B1 overwrite is back.
+
+⚰️ **What this section said before the fix round's re-review, and why it was
+wrong.** It argued that a rollback deploy is a bundle-transition window (no
+service worker, so tabs do not all reload at once) in which a still-open wave-5
+tab, acting as outbox leader, could drain a freshly rolled-back tab's queued
+blank at its own level 1. But every still-open wave-5 tab *already carries*
+`82c56dd63` — it is the current tip — and every rolled-back tab declares 0. So
+that story only proves wave 5 must never **ship** without the commit, which it
+does not; it says nothing about re-applying the commit in a rollback. It also
+claimed "the rolled-back bundle does not need `82c56dd63`'s code", which is
+false for the partial case above. The rule is the one in bold, and it needs no
+window story at all. Reasoned, not measured: the simulation in *Measured* ran
+before `82c56dd63` existed.
 
 ### Why the derived declaration keeps a rollback safe
 
@@ -139,7 +144,7 @@ through. That is the whole reason the declaration is derived.
 (`notebookSchema.js`, the `.catch(() => ... 0)` branch). The product stays safe.
 The vitest rail goes red, because it imports `editorSchema`.
 
-## Procedure A: revert the merge, re-apply the guard (measured)
+## Procedure A: revert the merge, re-apply the guard (measured for `8167f7aa0` + `fd87271fd`; `82c56dd63` reasoned)
 
 ```sh
 git revert -m 1 <wave-5 merge commit>
@@ -214,11 +219,20 @@ git push origin notebook-wave5-guard-8167f7aa0 notebook-wave5-guard-fd87271fd no
 
 ## Procedure B: revert everything except the guard (not simulated)
 
-Revert the feature commits newest first, and skip `8167f7aa0` and `fd87271fd`.
-Any conflicts will be between feature commits, and this path was **not**
-simulated. Procedure A is the measured path. If wave 5 landed as a squash
-commit, revert that squash commit, then run the same two cherry-picks. That
-variant was not simulated either.
+Revert the feature commits newest first, and skip **all three** guard commits:
+`8167f7aa0`, `fd87271fd` and `82c56dd63`. Any conflicts will be between feature
+commits, and this path was **not** simulated. Procedure A is the measured path.
+If wave 5 landed as a squash commit, revert that squash commit, then run the
+same **three** cherry-picks as Procedure A, in that order. That variant was not
+simulated either.
+
+⛔ This is the procedure where `82c56dd63` is most likely to be load-bearing:
+if the revert leaves any level-1 type registered (see *Coarse levels* below),
+the bundle still declares 1, and without `82c56dd63` the B1 overwrite is back.
+Do not drop it to make a conflict go away. ⚰️ This section said "skip
+`8167f7aa0` and `fd87271fd`" and "the same two cherry-picks" until the fix
+round's re-review caught it — an operator following it would have reverted
+`82c56dd63` against the three-commit rule in this file's own banner.
 
 ## Measured: the rollback simulation, 2026-09-24
 
@@ -289,8 +303,20 @@ adds a type should use **level 2**.
   bundle's OWN derived level, and any door that FORWARDS a body it did not just
   freshly read from the server must send `min(writtenSchemaOf(stamp), its own
   derived level)`, never its own level unconditionally. This is `82c56dd63`'s
-  fix (see *"Why `82c56dd63` must ride along too"* above) — skipping it on a
-  new capture/forward door reopens the exact hole that commit closed.
+  fix (see *"Why `82c56dd63` rides along"* above) — skipping it on a new
+  capture/forward door reopens the exact hole that commit closed.
+- ⚠️ **The table expresses new NODE and MARK TYPES — not a new, non-optional
+  ATTRIBUTE on an existing type.** An older bundle drops an attribute it does
+  not know (TipTap discards unknown attrs at parse time; it is a missing TYPE
+  that blanks the document), so an attribute addition needs no level bump and
+  the table cannot express one. That is fine while every new attribute is
+  optional or has a fallback: `widgetEmbed.embedId` degrades through its own
+  fallback key today (see the comment beside the attr in
+  `lib/widgetEmbedNode.jsx`). A future attribute that a NEW bundle requires and
+  an OLD bundle would silently drop — one whose absence changes what the note
+  MEANS — needs its own mechanism (a versioned attr with a reader that treats
+  absence as the old meaning, or a new node type), and this document does not
+  provide one. Decide that when the first such attribute is proposed, not after.
 
 ## The doors, and why each one is or is not guarded
 
