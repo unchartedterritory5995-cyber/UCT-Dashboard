@@ -29,6 +29,7 @@ everything below.
 | `0b42d050c` | D5: census blind-spot fix (two yfinance corp-action reads now tracked) | Dev tool only (`tools/corp_actions_census.py`), no product code path |
 | `b9261e57b` | A9: keyboard-driven filter editing (`/`, arrows, Enter, Escape) on Screener | Pure keyboard-accessibility addition to an already-live surface; mouse/touch behavior unchanged |
 | `424bf3355` (2026-09-21, pre-dates this program) | S1 CP3: per-widget `ErrorBoundary` isolation on `/charts` | Already live before this week; terminal-grade property 5 confirmed satisfied here |
+| `acd230c15` | CLAUDE.md correction: stale OptionsFlow hook removed, PACKET-AA CP1/CP2 status recorded | Docs only, zero code path |
 
 **Owner action needed: none.** These are recorded here for completeness and because
 §6 item 1 ("the *combined* weekly branch's tests pass") is the one checklist item that
@@ -111,7 +112,7 @@ meantime.
 | S7 Alerts — price-level flip | Explicitly RULED HOLD 2026-09-18, re-affirmed 2026-09-23 (`DECISION_CARDS_2026-09-18.md` CARD 6) — persistence semantics (fire-once vs re-fire) is a genuinely unmade product call, sample is thin/partly synthetic | Owner, whenever the semantics question is ready to be made — not urgent, no member exposure today |
 | A12 Watchlists | S5's real generalizing dependency (`F-S5-1`) is deliberately time-gated to 2026-10-12 (30 days of Wave Q1 stability) | Nobody's — it's a dated wait, correctly not built around |
 | A14 Portfolio & Risk | No member door exists at all; blocked on S9 Entitlements (not built) and D8 (owner-bound) | Owner — this is a "not this program" scope question, not a build item |
-| A10 Options & Flow | In progress as of this packet — a verify-then-build agent is dispatched; result will be appended to the roadmap and, if it ships, to this packet's §2 the same way | — |
+| A10 Options & Flow | Already built as PACKET-AA CP1 (`FlowExplainButton.jsx`, tested, deliberately unmounted). CP2 — the one thing that would touch the partner file `OptionsFlow.jsx` — is explicitly held pending Ravi coordination, per its own signed gate | Owner + Ravi, whenever that conversation happens — no urgency, nothing member-visible is waiting on it | — |
 | D5 CP2 (inert corp-actions ledger) | Deliberately unauthorized — nothing reads it, so nothing is waiting on it; building it would need its own scope grant the same way every `address_book.py` extension has | Owner, only if/when a real consumer need appears — not today |
 | D5 CP6 merger/relation_added | No vendor signal exists on the current Massive plan (verified live against real M&A tickers — both 404) | Would need a different provider or plan tier — a cost/licensing question, not code |
 | CP7 member-facing adjustment sentence | Deliberately deferred to S8/S10 by its own approval | A product-copy decision, not an engineering gap |
