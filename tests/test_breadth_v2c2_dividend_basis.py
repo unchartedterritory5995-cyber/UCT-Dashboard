@@ -202,3 +202,15 @@ def test_eur_uses_the_usd_per_eur_rate_and_mixed_currency_is_withheld():
     t = bdb.build_events([_div("DB", "2024-02-23", 0.45, cur="EUR"), _div("DB", "2024-02-23", 0.49, cur="USD")],
                          CAL, raw, fx=bdb.FxRates(ECB), sec_type=lambda tk, iso: "CS")
     assert "DB" not in t["applied"] and "mixed" in t["withheld_detail"][0]["reason"]
+
+
+# ── v6: a dividend before a ticker's first-ever close touches no level ──
+def test_a_dividend_before_the_first_ever_close_is_skipped_not_withheld():
+    # MPT shape: the provider series under the ticker starts later; the old dividend has no priced bar
+    t = bdb.build_events([_div("MPT", "2024-02-23", 0.08)], CAL, _raw({}), first_seen={"MPT": "2024-02-27"})
+    assert t["applied"] == {} and t["withheld_boundaries"] == {} and t["counts"]["no_series_before_ex"] == 1
+
+
+def test_a_gap_after_earlier_closes_is_still_withheld():
+    t = bdb.build_events([_div("GAP", "2024-02-29", 0.08)], CAL, _raw({}), first_seen={"GAP": "2024-02-20"})
+    assert t["withheld_boundaries"]["GAP"] == ["2024-02-29"]

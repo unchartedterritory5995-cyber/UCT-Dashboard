@@ -119,7 +119,9 @@ class Inputs:
             os.path.join(inputs_dir, "dividend_basis_table.json"), cal[-1],
             adj_close=gh.adj_close, splits_path=self.paths["splits"],
             fx_path=self.paths["fx"], reference_path=self.paths["reference"],
-            sec_type=lambda t, iso: (bpf.resolve(self.ref_map.get(t), iso) or {}).get("type"))
+            sec_type=lambda t, iso: (bpf.resolve(self.ref_map.get(t), iso) or {}).get("type"),
+            vintage_manifest_path=self.paths["vintage_manifest"],
+            first_seen=lambda: gh.first_raw_sessions(os.path.join(inputs_dir, "first_raw_session.json")))
         self.dividend_key = dt_["input_key"]
         self.dividend_counts = dt_["counts"]
         self.fingerprints = {k: _sha(p) for k, p in self.paths.items()}

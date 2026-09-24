@@ -77,6 +77,13 @@ at most FX_MAX_AGE_DAYS old — ONLY when the US listing IS the share (reference
 foreign-currency amount may be per ordinary share (ratio unprovable) and stays WITHHELD, as do a
 missing rate, a currency the ECB does not publish, and a mixed-currency ex-date.
 
+⭐ NO SERIES BEFORE THE EX-DATE (v6). A dividend on a ticker that has NO raw close on any
+session before its ex-session cannot touch a level: the frame columns it would scale are empty.
+(MPT's provider series starts 2026-02-02, ADAM's 2025-09-03; their 2025 dividends belong to
+periods with no priced bar.) Such an event is SKIPPED (counted), not withheld — v5 withheld the
+current listing for a year. A ticker WITH earlier closes but none in the last 5 sessions is a
+true gap and stays WITHHELD.
+
 ⛔ FAIL CLOSED, NEVER GUESSED. An event is WITHHELD — the name gets no levels while a frame
 straddles it, exactly like an adjusted-series defect — when: the currency is not USD; the same
 currency is missing; an amount is ambiguous (above); there is no raw prior close within 5
@@ -92,7 +99,7 @@ import json
 import math
 import os
 
-DIVIDEND_BASIS_VERSION = "div-basis-v5"
+DIVIDEND_BASIS_VERSION = "div-basis-v6"
 #: an FX observation older than this (calendar days) before the prior session is not used
 FX_MAX_AGE_DAYS = 5
 #: two distinct amounts of one type closer than this are a RESTATEMENT signature, not two
@@ -140,7 +147,7 @@ class FxRates:
 
 def build_events(dividends: list, calendar: list, raw_close, canon=lambda t: t,
                  last_session: str = None, adj_close=None, splits=None, fx=None,
-                 sec_type=None) -> dict:
+                 sec_type=None, first_seen=None) -> dict:
     """Classify every dividend record once. `raw_close(iso, t)` / `adj_close(iso, t)` read the
     vintage raw / adjusted files; `splits` is the provider split ledger (v4 interaction rules)."""
     split_ix = collections.defaultdict(list)       # canonical price key -> [(execution_date, K)]
@@ -239,6 +246,9 @@ def build_events(dividends: list, calendar: list, raw_close, canon=lambda t: t,
                     break
                 k -= 1
             if prev is None:
+                if first_seen is not None and (first_seen.get(t) is None or first_seen[t] >= sess):
+                    log["no_series_before_ex"] += 1
+                    continue
                 reason = "no raw prior close within %d sessions" % MAX_PRIOR_GAP_SESSIONS
         if reason is None and ccy != "USD":
             rate = fx.usd_per(ccy, calendar[k])
@@ -318,9 +328,10 @@ class DividendBasis:
 
 def load_or_build(dividends_path: str, calendar: list, raw_close, canon, cache_path: str,
                   last_session: str, adj_close=None, splits_path: str = None, fx_path: str = None,
-                  reference_path: str = None, sec_type=None) -> tuple:
+                  reference_path: str = None, sec_type=None, vintage_manifest_path: str = None,
+                  first_seen=None) -> tuple:
     h = hashlib.sha256()
-    for pth in (dividends_path, splits_path, fx_path, reference_path):
+    for pth in (dividends_path, splits_path, fx_path, reference_path, vintage_manifest_path):
         if pth:
             with open(pth, "rb") as f:
                 h.update(hashlib.sha256(f.read()).digest())
@@ -343,7 +354,7 @@ def load_or_build(dividends_path: str, calendar: list, raw_close, canon, cache_p
         with open(fx_path) as f:
             fx = FxRates(json.load(f)["rates"])
     t = build_events(divs, calendar, raw_close, canon, last_session, adj_close=adj_close, splits=splits,
-                     fx=fx, sec_type=sec_type)
+                     fx=fx, sec_type=sec_type, first_seen=first_seen() if callable(first_seen) else first_seen)
     t["input_key"] = key
     tmp = cache_path + ".partial.%d" % os.getpid()
     with open(tmp, "w") as f:

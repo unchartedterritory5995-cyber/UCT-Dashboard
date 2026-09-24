@@ -193,6 +193,27 @@ def raw_close(iso: str, t: str):
     return e.get(t)
 
 
+def first_raw_sessions(cache_path: str = None) -> dict:
+    """{ticker: first session with a provider RAW close} over the whole vintage calendar
+    (canonical spelling). One scan; cached beside the inputs, keyed by the vintage identity."""
+    ident = json.dumps(cache_identity(), sort_keys=True, default=str)
+    if cache_path and os.path.exists(cache_path):
+        with open(cache_path) as fh:
+            t = json.load(fh)
+        if t.get("identity") == ident:
+            return t["first"]
+    first = {}
+    for iso in session_calendar():
+        for k in raw_closes_for(iso):
+            first.setdefault(k, iso)
+    if cache_path:
+        tmp = cache_path + ".partial.%d" % os.getpid()
+        with open(tmp, "w") as fh:
+            json.dump({"identity": ident, "first": first}, fh)
+        os.replace(tmp, cache_path)
+    return first
+
+
 _ADJ_LRU: dict = {}
 
 
