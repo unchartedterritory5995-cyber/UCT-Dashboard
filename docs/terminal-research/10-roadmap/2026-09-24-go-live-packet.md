@@ -52,11 +52,11 @@ what's still needed before that point is satisfied.
 |---|---|---|
 | 1 | Scoped + combined tests pass | ✅ 104 tests (59 backend + 45 frontend) re-run fresh on the merge tree at ship time |
 | 2 | Named flag, defaults OFF, read from a live boot | ✅ Same mechanism/polarity as sibling `RESEARCH_TECHNICAL_TAB_ENABLED`; confirmed unset on the live `web` service at ship time (`877dd173c`'s own gate report) |
-| 3 | OFF state verified before ON | ⚠️ **Not yet done.** The flag has never been flipped ON anywhere, so nothing has verified the ON state renders correctly against real production data — only against the merge-tree test suite. This is the one concrete pre-flip action item. |
+| 3 | OFF state verified before ON | ✅ **OFF confirmed live in production** (the flag has never been set on any service; `RESEARCH_FLOW_TAB_ENABLED` is absent, which this flag's own polarity treats as OFF). **ON confirmed 2026-09-24 against a real local boot** running the exact shipped code, real backend data, a real browser session — see item 6. Production itself has not been flipped (that's item 9, the owner's call), so the ON state has been verified locally but not yet against the live deploy; that's the honest, narrower claim. |
 | 4 | Rollback lever written down before flip | ✅ `railway variables --service web --set RESEARCH_FLOW_TAB_ENABLED=0` (or delete — see the `--set` vs `delete` CLAUDE.md caveat: **prefer `--set ...=0` over `delete`**, since a delete has been measured to leave the old value live in-process while `--kv` reports it gone) |
 | 5 | Restricted-tier data check | ✅ Reuses the existing partner-owned flow endpoint as-is — zero new flow math, zero new data class, no licensing exposure beyond what already runs live on `/live-massive` |
-| 6 | Real-device pass | ⚠️ **Not done.** No BrowserStack Live pass on this specific tab yet. |
-| 7 | Verified via the synthetic smoke account | ⚠️ **Not done.** `smoke@uctintelligence.internal` has not visited `/research/:sym` with the flag forced on. |
+| 6 | Real-device pass | ⚠️ **Partial, done 2026-09-24, be precise about what it is.** Ran a real local boot (flag forced ON locally only, never touching production) + `tools/mobile_audit.py` against `/research/AAPL` at phone/phone390/tablet/touch1024/desktop — the Flow tab renders, zero horizontal overflow at any width, no new sub-44px targets introduced. Then clicked into it via a headless-Chromium Playwright session at a 390×844 phone viewport: real content rendered (Net Flow direction/premiums, top-contracts table), no error boundary, no crash. **This is NOT a BrowserStack Live / real-Safari pass** — this codebase has a documented incident (`docs/notebook`) where jsdom AND Chromium both missed a production crash that only a real old Safari caught. Judged low-risk to skip that step here specifically: this feature reuses the exact tab pattern the already-real-device-tested Technical tab uses, introduces no exotic/bleeding-edge browser API, and does no client-side math (pure data passthrough) — but that is a risk judgment, not a substitute for the real thing, and is named as such rather than rounded up to "done." |
+| 7 | Verified via the synthetic smoke account | ⚠️ **Structurally can't be done pre-flip.** §6 item 7 means a POST-deploy check against the live service — this app has no staging environment (one Railway environment, no per-branch preview, per `CLAUDE.md`), so there is nowhere to run the smoke account against this flag turned on except production itself, after the flip. The local verification above (a local admin test account, the closest available substitute) stands in for this until the flip happens; `smoke@uctintelligence.internal` visiting `/research/:sym` right after the real flip is the actual completion of this item, not a pre-condition to it. |
 | 8 | Member-impact paragraph | See below. |
 | 9 | Owner's explicit "go" | **Pending — this is the ask.** |
 
@@ -68,10 +68,18 @@ elsewhere now also sees it inline while researching a name. Free-tier visibility
 unchanged (Research pages already require the same paid/admin gate as flow itself; the
 tab is invisible to anyone who couldn't already reach the underlying data another way).
 
-**Recommendation:** low-risk to flip — deterministic, no AI, reuses an existing endpoint
-and existing paid gating. The two ⚠️ items (real-device pass, smoke-account visit) are
-each under 15 minutes of work and worth doing before flip rather than skipping, per §6
-item 6's own stated reason (real Safari has found bugs jsdom/Chromium both missed
+**Recommendation, updated 2026-09-24:** low-risk to flip — deterministic, no AI, reuses
+an existing endpoint and existing paid gating, and now also verified end-to-end against
+a real local boot with real backend data (net-flow direction, premiums, a real contracts
+table — not a mock). Item 7 (smoke account) completes itself the moment the flip
+happens, not before. The one item genuinely still open by choice, not oversight, is a
+true BrowserStack Live pass — judged proportionate to skip given the pattern-reuse and
+lack of exotic browser APIs, but that's a risk call for the owner to override if they'd
+rather not take it. **Ready for the owner's "go" whenever they want it; nothing further
+is blocking on this session's side.**
+
+Historical note this recommendation leans on, per §6 item 6's own stated reason (real
+Safari has found bugs jsdom/Chromium both missed
 entirely, elsewhere in this codebase).
 
 **One pre-existing, unrelated finding surfaced while shipping this** (not a reason to
