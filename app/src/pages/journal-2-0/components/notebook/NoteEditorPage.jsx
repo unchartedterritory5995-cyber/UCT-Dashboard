@@ -1711,13 +1711,29 @@ export default function NoteEditorPage({ noteId, onBack, showBack = true, onTitl
    * as both sides would read as "caught up" and DELETE the member's queued
    * work — the metadata PUT never carried their body. Server-as-acked means:
    * still ahead ⇒ REBASE onto the new revision; genuinely caught up ⇒ clear.
+   *
+   * ⛔⛔ AND ONLY WHEN THE SERVER'S COPY MOVED BY METADATA ALONE (wave 6 D fix
+   * round 1). ⚰️ This settled whatever the door's answer held. When another
+   * device had written words after this editor loaded, `acked` carried THEIR
+   * body and `current` this editor's older one, so the settle queued the older
+   * body as "unsent work" ON THE NEW REVISION — and a drain after the note
+   * closed sent it with a matching base: a 200, no 409, no fork, the other
+   * device's words gone (NoteEditorPage.metadataSettle.test.jsx, measured). A
+   * block the server appended (a Send-to-Journal capture) went the same way.
+   * The reconcile's own authority decides: METADATA_ONLY settles; anything else
+   * records the landing and stops, and the next save 409s into the reconcile,
+   * which merges an append and forks a rewrite.
    */
+  const serverMovedMetadataOnly = (saved) => (
+    classifyServerChange(saved, lastSavedRef.current) === METADATA_ONLY
+  )
   const settleMetadataRevision = async (saved) => {
     if (!saved?.updatedAt) return
     // ⛔ ALWAYS record the landing FIRST. This PUT was ours, so its revision is
     // ours, and that is true whether or not we can settle the queue. Withholding
     // it made guard 2 answer "not ours" about our own write and fork the note.
     await recordLandedRevision({ accountId: user?.id, noteId, updatedAt: saved.updatedAt })
+    if (!serverMovedMetadataOnly(saved)) return
     const current = captureLocalState()
     // ⛔⛔ NULL IS "NO EVIDENCE", NOT "CAUGHT UP" — AND THE DIFFERENCE COST A
     // MEMBER'S WORDS.
