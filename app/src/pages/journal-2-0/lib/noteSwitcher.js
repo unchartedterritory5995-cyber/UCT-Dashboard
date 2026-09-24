@@ -127,6 +127,33 @@ export function enterMustWait({
   return !notesSettled || !tickersSettled
 }
 
+/**
+ * R4-N1: a palette row's IDENTITY — where it goes, never where it sits. A
+ * ticker row is its symbol (the typed "Go to X" row and a result for X open
+ * the same page, so they are one row); a note is its id; a command its id.
+ */
+export function paletteRowKey(row) {
+  if (!row) return null
+  if (row.kind === 'ticker') return `ticker:${String(row.ticker).toUpperCase()}`
+  return `${row.kind}:${row.id}`
+}
+
+/**
+ * R4-N1: where a pending Enter lands. A row the member arrowed to DURING the
+ * wait is found again by identity in the rows as they now stand — the late
+ * answer may have moved it — and a row that is gone falls back to the rule's
+ * top row. Never a positional neighbour: index 1 after a reorder is a row the
+ * member never highlighted.
+ */
+export function pendingEnterTarget(rows, chosenKey = null) {
+  const list = rows || []
+  if (chosenKey) {
+    const same = list.find((r) => paletteRowKey(r) === chosenKey)
+    if (same) return same
+  }
+  return list[0] || null
+}
+
 /** The query as the switcher reads it: lower-cased, whitespace collapsed —
  *  the same normalisation `switcher_search` applies before matching. */
 export function normalizeSwitcherQuery(q) {

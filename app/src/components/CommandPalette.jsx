@@ -8,6 +8,7 @@ import { openCapture } from '../pages/journal-2-0/lib/captureBus'
 import { destinationFromLocation } from '../pages/journal-2-0/lib/captureContext'
 import {
   ENTER_WAIT_MS, enterMustWait, extendsExhausted, normalizeSwitcherQuery, noteSwitcherUrl, orderPaletteRows,
+  paletteRowKey, pendingEnterTarget,
   splitTitleMatch,
   tickerLeads, toNoteRow,
 } from '../pages/journal-2-0/lib/noteSwitcher'
@@ -327,12 +328,19 @@ const CommandPalette = forwardRef(function CommandPalette(_props, ref) {
     return rows.slice(0, 8)
   }, [isHelp, wantsNoteRows, favoriteNotes, recentNotes])
 
+  // R4-N2: ticker rows come ONLY from an answer to the query as typed. Until
+  // it arrives — and when it fails, which leaves the previous answer in
+  // `results` — the rows are the typed "Go to X" alone: a previous prefix's
+  // symbols ("ts" -> TSLA) are symbols this query never asked for, and Enter
+  // must not open one while the error line says it opens the typed symbol.
+  const tickersFresh = resultsFor === trimmedQuery
   const tickerRows = useMemo(() => {
     if (!qUpper) return []
-    const hasExact = results.some(r => String(r.ticker).toUpperCase() === qUpper)
-    const base = (hasExact || !TICKER_LIKE.test(qUpper)) ? results : [...results, { ticker: qUpper, name: null, _typed: true }]
+    const fresh = tickersFresh ? results : []
+    const hasExact = fresh.some(r => String(r.ticker).toUpperCase() === qUpper)
+    const base = (hasExact || !TICKER_LIKE.test(qUpper)) ? fresh : [...fresh, { ticker: qUpper, name: null, _typed: true }]
     return base.map((r) => ({ kind: 'ticker', ...r }))
-  }, [results, qUpper])
+  }, [results, qUpper, tickersFresh])
 
   // Notebook COMMAND rows first — matching "trash"/"note"/"recent" etc. is a
   // far more deliberate signal than an incidental ticker-name substring
@@ -422,17 +430,19 @@ const CommandPalette = forwardRef(function CommandPalette(_props, ref) {
 
   // R1-N2: a pending Enter lands the moment the answers it waits on are in —
   // on the same row a slower Enter would take — or, at the latest,
-  // ENTER_WAIT_MS after the press, on whatever is known. R23-N4: that row is
-  // the one the MEMBER has highlighted when it lands: an arrow pressed during
-  // the wait is their choice, never overruled by row 0. Untouched, the
-  // highlight stays on row 0 — `orderPaletteRows`' top row once both answers
-  // are in. A different query (the member kept typing) drops it.
+  // ENTER_WAIT_MS after the press, on whatever is known. R23-N4: a row the
+  // member arrows to during the wait is their choice, never overruled by the
+  // top row. R4-N1: that choice is kept by IDENTITY (`pendingEnter.chosen`),
+  // not by position: the late answer can reorder the rows, and index 1 after
+  // it is a row the member never highlighted. A chosen row that is gone falls
+  // back to the rule's top row. A different query (typing on) drops it.
   useEffect(() => {
     if (!pendingEnter) return undefined
     if (pendingEnter.query !== trimmedQuery) { setPendingEnter(null); return undefined }
     const land = () => {
       setPendingEnter(null)
-      const target = displayRows[activeIdx] || (qUpper ? { kind: 'ticker', ticker: qUpper } : null)
+      const target = pendingEnterTarget(displayRows, pendingEnter.chosen)
+        || (qUpper ? { kind: 'ticker', ticker: qUpper } : null)
       if (!target) return
       if (pendingEnter.ask) goToAskAi(target)
       else selectRow(target)
@@ -441,22 +451,32 @@ const CommandPalette = forwardRef(function CommandPalette(_props, ref) {
     const t = setTimeout(land, Math.max(0, pendingEnter.at + ENTER_WAIT_MS - Date.now()))
     return () => clearTimeout(t)
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [pendingEnter, trimmedQuery, mustWait, displayRows, qUpper, activeIdx])
+  }, [pendingEnter, trimmedQuery, mustWait, displayRows, qUpper])
+
+  // R4-N1: an arrow moves the highlight; during a pending Enter it also names
+  // the row the member chose — by identity, so the landing can find it again.
+  const moveHighlight = (next) => {
+    setActiveIdx(next)
+    if (pendingEnter && next !== activeIdx && displayRows[next]) {
+      const chosen = paletteRowKey(displayRows[next])
+      setPendingEnter((p) => (p ? { ...p, chosen } : p))
+    }
+  }
 
   const onInputKeyDown = (e) => {
     if (e.key === 'ArrowDown') {
       e.preventDefault()
-      setActiveIdx(i => Math.min(displayRows.length - 1, i + 1))
+      moveHighlight(Math.min(displayRows.length - 1, activeIdx + 1))
     } else if (e.key === 'ArrowUp') {
       e.preventDefault()
-      setActiveIdx(i => Math.max(0, i - 1))
+      moveHighlight(Math.max(0, activeIdx - 1))
     } else if (e.key === 'Enter') {
       e.preventDefault()
       if (isHelp || pendingEnter) return
       // R1-N2: the top row is still a guess — say so, ask now, and land when
       // the answers are in (bounded). A row arrowed to BEFORE Enter is the
       // member's choice and lands at once; one arrowed to during the wait is
-      // where the wait lands (R23-N4).
+      // where the wait lands, found again by identity (R23-N4, R4-N1).
       if (activeIdx === 0 && mustWait) {
         setPendingEnter({ query: trimmedQuery, ask: e.metaKey || e.ctrlKey, at: Date.now() })
         flushRef.current?.()

@@ -946,6 +946,44 @@ describe('CommandPalette — R1-N2: where Enter lands never depends on WHEN it i
     })
   })
 
+  it('R4-N1: the arrowed-to row is kept by IDENTITY — a late answer that reorders the rows cannot move the landing', async () => {
+    // Tickers first: [TSLA, TSLL, Go to TSL]. Enter waits for the notes, and
+    // ArrowDown picks TSLL (index 1). The notes then answer with a note TITLED
+    // "TSL": the rule puts it on top, so index 1 becomes TSLA — a row the member
+    // never highlighted. The landing must still be TSLL.
+    const reorders = { ...TSL, notes: [noteRow({ id: 'x1', title: 'TSL', exact: true })] }
+    expect(await landingIn('tickers-first', 'tsl', reorders, { arrowDuringWait: 1 })).toBe('/research/TSLL')
+    // The other order: notes first ([Go to TSL, the note]), ArrowDown picks the
+    // NOTE, then the tickers answer and push it to index 3.
+    expect(await landingIn('notes-first', 'tsl', TSL, { arrowDuringWait: 1 })).toBe('/journal/notebook?note=t1')
+  })
+
+  it('R4-N2: a ticker search that FAILS never lands on the previous prefix\'s symbol — Enter opens the typed one', async () => {
+    global.fetch = vi.fn((url) => {
+      const u = String(url)
+      if (u.startsWith('/api/ticker-search')) {
+        const q = new URL(u, 'http://x').searchParams.get('q')
+        if (q === 'ts') {
+          return Promise.resolve({ ok: true, json: () => Promise.resolve({
+            results: [{ ticker: 'TSLA', name: 'Tesla Inc' }, { ticker: 'TSM', name: 'Taiwan Semiconductor' }] }) })
+        }
+        return Promise.resolve({ ok: false, status: 500, json: () => Promise.resolve({ detail: 'boom' }) })
+      }
+      return Promise.resolve({ ok: true, json: () => Promise.resolve({ notes: [], hasMore: false }) })
+    })
+    renderPalette()
+    act(() => pressCtrlK())
+    const input = await screen.findByRole('combobox')
+    fireEvent.change(input, { target: { value: 'ts' } })
+    await screen.findByText('Tesla Inc')                                     // the prefix answered
+    fireEvent.change(input, { target: { value: 'tsl' } })
+    fireEvent.keyDown(input, { key: 'Enter' })
+    await screen.findByText(/Search is briefly unavailable — Enter still opens the typed symbol/)
+    expect(screen.queryByText('Tesla Inc')).toBeNull()                       // no row from "ts" under "tsl"
+    await waitFor(() => expect(screen.getByTestId('route-spy')).toHaveTextContent('/research/TSL'), { timeout: 1500 })
+    expect(screen.getByTestId('route-spy').textContent).toBe('/research/TSL')  // not TSLA
+  })
+
   it('an arrow pressed during the wait is honoured: it lands on the highlighted row, not row 0', async () => {
     // Enter after the tickers rendered [TSLA, TSLL, Go to TSL]; one ArrowDown
     // while the notes answer is still out moves the highlight to TSLL.

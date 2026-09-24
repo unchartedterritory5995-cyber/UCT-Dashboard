@@ -6,7 +6,7 @@
 import { describe, it, expect } from 'vitest'
 import {
   ENTER_WAIT_MS, enterMustWait, extendsExhausted, normalizeSwitcherQuery, noteContextLine, noteSwitcherUrl,
-  orderPaletteRows, splitTitleMatch, tickerLeads, toNoteRow,
+  orderPaletteRows, paletteRowKey, pendingEnterTarget, splitTitleMatch, tickerLeads, toNoteRow,
 } from './noteSwitcher'
 
 const TICKER_LIKE = /^[A-Z0-9.\-]{1,10}$/
@@ -168,5 +168,28 @@ describe('R1-N2 / R23-N4 — enterMustWait: a ticker-led Enter waits for BOTH an
   it('the bound is short enough to read as a pause, not a hang', () => {
     expect(ENTER_WAIT_MS).toBeGreaterThan(0)
     expect(ENTER_WAIT_MS).toBeLessThanOrEqual(400)
+  })
+})
+
+describe('R4-N1 — a pending Enter finds the chosen row by IDENTITY', () => {
+  it('a row is where it goes: the typed "Go to X" and a result for X are one row', () => {
+    expect(paletteRowKey(tk('TSL', { _typed: true }))).toBe(paletteRowKey(tk('tsl')))
+    expect(paletteRowKey(tk('TSLA'))).not.toBe(paletteRowKey(tk('TSLL')))
+    expect(paletteRowKey(nt('a'))).toBe('note:a')
+    expect(paletteRowKey(cmd)).toBe('command:nb-trash')
+    expect(paletteRowKey(null)).toBeNull()
+  })
+  it('lands on the chosen row wherever the late answer moved it', () => {
+    const before = [tk('TSLA'), tk('TSLL'), tk('TSL', { _typed: true })]
+    const chosen = paletteRowKey(before[1])
+    const after = [nt('x'), tk('TSLA'), tk('TSLL'), tk('TSL', { _typed: true })]   // a title took the top
+    expect(pendingEnterTarget(after, chosen)).toBe(after[2])
+    expect(after[1]).not.toBe(after[2])                                          // position would be TSLA
+  })
+  it('a chosen row that is gone falls back to the TOP row of the rule, never a neighbour; no choice is the top row', () => {
+    const rows = [tk('TSLA'), tk('TSLL')]
+    expect(pendingEnterTarget(rows, 'ticker:TSM')).toBe(rows[0])
+    expect(pendingEnterTarget(rows, null)).toBe(rows[0])
+    expect(pendingEnterTarget([], 'ticker:TSLA')).toBeNull()
   })
 })
