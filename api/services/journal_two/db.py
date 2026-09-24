@@ -1787,6 +1787,14 @@ _PHASE_2_ALTERS = [
     # deleted by it, the note keeps its folder, and setting or clearing it never
     # advances `updated_at` (notes.set_note_archived says why).
     "ALTER TABLE j2_notes ADD COLUMN archived_at TEXT",
+    # Wave 6 (lane E, lock): 1 = the member locked this note against ACCIDENTAL
+    # edits, as Notion's lock does. ⛔⛔ THE SERVER STORES THE FLAG AND DOES NOT
+    # REFUSE BODY WRITES: a queued offline edit must never become a conflict
+    # inside the frozen offline layer. The lock is enforced in the EDITOR
+    # (lib/lockedNote.js: `editable = false`), and nowhere else. Set only by
+    # `PATCH /notes/{id}/lock`, which advances `updated_at` like any metadata
+    # write so another tab's compare-and-set and the outbox see it.
+    "ALTER TABLE j2_notes ADD COLUMN locked INTEGER NOT NULL DEFAULT 0",
     # ⛔ The switcher's keystroke scan skips archived notes too, so its covering
     # index carries `archived_at` -- a predicate on a column the index lacks
     # would send every keystroke back to the wide rows (the ~150 ms read the

@@ -921,6 +921,10 @@ def _row_to_note(row: sqlite3.Row) -> dict[str, Any]:
         # Wave 6 archive: ISO time the note was archived, None while it is in
         # the library. Archive is not trash — an archived note still opens.
         "archivedAt": row["archived_at"] if "archived_at" in row.keys() else None,
+        # Wave 6 lock: only an explicit lock is a lock (a row from before the
+        # column existed reads unlocked). The server never enforces it — the
+        # editor does (see the column in db.py).
+        "locked": bool(row["locked"]) if "locked" in row.keys() else False,
         # Wave E: user-set property VALUES only, keyed by property_id --
         # parsed (matching bodyJson/tags' own convention) but NOT resolved
         # into display form (names/labels/derived values) here; that
@@ -943,7 +947,7 @@ _NOTE_SUMMARY_COLS = (
     "id, user_id, account_id, folder_id, title, subtitle, "
     f"substr(coalesce(body_plain, ''), 1, {_LIST_PLAIN_CHARS}) AS body_plain, "
     "hero_image_url, first_image_url, ticker, tags, created_at, updated_at, deleted_at, "
-    "properties_json, archived_at"
+    "properties_json, archived_at, locked"
 )
 
 
@@ -973,6 +977,8 @@ def _row_to_note_summary(row: sqlite3.Row) -> dict[str, Any]:
         "deletedAt": row["deleted_at"] if "deleted_at" in row.keys() else None,
         # Wave 6 archive: set only on a row listed under the Archived entry.
         "archivedAt": row["archived_at"] if "archived_at" in row.keys() else None,
+        # Wave 6: the card/row lock glyph reads this.
+        "locked": bool(row["locked"]) if "locked" in row.keys() else False,
         # Wave E: user-set values only (parsed) -- the list card's compact
         # property-chip row reads directly off this; NOT the full resolved
         # (name/label/derived) form, which is a per-note-editor concern.
@@ -2744,6 +2750,18 @@ def update_note(
             if h is not None and not isinstance(h, str):
                 raise NoteValidationError("heroImageUrl must be string or null")
             sets.append("hero_image_url = ?"); params.append(h)
+        if "locked" in patch:
+            # Wave 6 lock. ⛔ Written ONLY through `PATCH /notes/{id}/lock` (the
+            # PUT strips the key): one door for the value, so a stale PUT the
+            # outbox replays can never unlock a note behind the member's back.
+            # Only a change is a write — re-locking a locked note moves no
+            # revision. ⛔ And NOTHING here refuses a body write to a locked
+            # note: see the column in db.py.
+            want = patch["locked"]
+            if not isinstance(want, bool):
+                raise NoteValidationError("locked must be true or false")
+            if bool(existing["locked"]) != want:
+                sets.append("locked = ?"); params.append(1 if want else 0)
         if "importMediaPending" in patch:
             # audit B5: the import commit pipeline's OWN signal for whether
             # its post-confirm media-upload + link-rewrite phase actually

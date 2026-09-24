@@ -3237,6 +3237,10 @@ def update_note_endpoint(
     # (Send-to-Journal append, second tab) turns this PUT into a 409 instead
     # of a silent clobber of that write. Absent = legacy last-writer-wins.
     base = patch.pop("baseUpdatedAt", None) if isinstance(patch, dict) else None
+    # Wave 6: the lock has ONE door (`PATCH /notes/{id}/lock`). A body save —
+    # including a stale one the outbox replays — never changes it.
+    if isinstance(patch, dict):
+        patch.pop("locked", None)
     try:
         n = notes_service.update_note(
             user["id"], note_id, patch,
@@ -3272,6 +3276,35 @@ def delete_note_endpoint(
     if not ok:
         raise HTTPException(status_code=404, detail="Not found")
     return {"ok": True}
+
+
+@router.patch("/notes/{note_id}/lock")
+def lock_note_endpoint(
+    note_id: str,
+    payload: dict[str, Any] | None = None,
+    user: dict = Depends(get_current_user),
+) -> dict[str, Any]:
+    """Wave 6 (lane E): `{locked: true|false}` — the contract lane D's editor
+    (`lib/lockedNote.js::setNoteLock`) was built against.
+
+    ⛔ ANSWERS WITH THE NOTE (the `_row_to_note` shape every metadata writer
+    returns), carrying `locked` and the NEW `updatedAt`: the write advances the
+    revision like any metadata write, and the editor must land it
+    (`settleNoteWrite`) or an unlock followed by a keystroke 409s and forks the
+    note. `{ok: true}` is not enough.
+
+    ⛔⛔ The server stores the flag and does NOT refuse body writes to a locked
+    note — a queued offline edit must never become a conflict. The lock is the
+    editor's to enforce. 404 for a trashed note, another member's, or none."""
+    # The ONE check that `locked` is a boolean lives in update_note (every
+    # caller passes through it); a missing key reaches it as None and is a 400.
+    try:
+        n = notes_service.update_note(user["id"], note_id, {"locked": (payload or {}).get("locked")})
+    except NoteValidationError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+    if n is None:
+        raise HTTPException(status_code=404, detail="Not found")
+    return {"note": n}
 
 
 @router.patch("/notes/{note_id}/archive")

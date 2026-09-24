@@ -1,6 +1,7 @@
 import ResponsiveTable from '../../../../components/mobile/ResponsiveTable'
 import UIcon from '../../../../components/ui/UIcon'
 import BlockedBadge from './BlockedBadge'
+import LockedGlyph from './LockedGlyph'
 import styles from './NotesTableView.module.css'
 
 function formatCellValue(def, value) {
@@ -132,6 +133,7 @@ export default function NotesTableView({
       render: (n) => (
         <span className={styles.titleCell}>
           {n.title || 'Untitled'}
+          <LockedGlyph note={n} />
           {isBlocked(n.id) && <BlockedBadge className={styles.unsynced} />}
         </span>
       ),
@@ -204,8 +206,8 @@ export default function NotesTableView({
       rowKey={(n) => n.id}
       mode="card"
       cardTitle={(n) => (selection ? (
-        <span className={styles.cardTitleRow}>{rowCheckbox(n)}<span>{n.title || 'Untitled'}</span></span>
-      ) : (n.title || 'Untitled'))}
+        <span className={styles.cardTitleRow}>{rowCheckbox(n)}<span>{n.title || 'Untitled'}<LockedGlyph note={n} /></span></span>
+      ) : (<>{n.title || 'Untitled'}<LockedGlyph note={n} /></>))}
       // D-40, 2026-09-22: the joystick hub's cursor (notebookSection.js)
       // queries `[data-note-card-id]` against the WHOLE document -- a
       // global selector, not scoped to the List/NoteCard grid. On a touch

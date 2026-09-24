@@ -21,11 +21,16 @@ beforeEach(() => {
   vi.clearAllMocks()
   calls = []
   setCurrentAccountId('acct-A')
-  answer = (body) => ({ ok: true, status: 200, json: async () => ({ note: { id: 'n1', updatedAt: 'R1', archivedAt: body.archived ? 'T' : null } }) })
+  answer = (body, url) => ({
+    ok: true, status: 200,
+    json: async () => ({ note: url.endsWith('/lock')
+      ? { id: 'n1', updatedAt: 'R2', locked: body.locked }
+      : { id: 'n1', updatedAt: 'R1', archivedAt: body.archived ? 'T' : null } }),
+  })
   global.fetch = vi.fn(async (url, init) => {
     const body = JSON.parse(init.body)
     calls.push({ url: String(url), method: init.method, body })
-    return answer(body)
+    return answer(body, String(url))
   })
 })
 
@@ -60,5 +65,39 @@ describe('Archive in the note menu', () => {
   it('renders nothing without a note', () => {
     const { container } = render(<NoteMenuActions note={null} />)
     expect(container).toBeEmptyDOMElement()
+  })
+})
+
+describe('Lock in the note menu (lane D owns the request; this is its menu door)', () => {
+  it('locks through PATCH /lock, LANDS the revision the lock moved, and says so', async () => {
+    const onChanged = vi.fn()
+    render(<NoteMenuActions note={{ id: 'n1', locked: false }} onChanged={onChanged} />)
+    fireEvent.click(screen.getByRole('button', { name: /^Lock$/ }))
+    expect(await screen.findByText('Locked. Editing is off until you unlock it.')).toBeInTheDocument()
+    expect(calls).toEqual([{ url: '/api/j2/notes/n1/lock', method: 'PATCH', body: { locked: true } }])
+    // ⛔ The lock ADVANCES the revision; a lock nobody landed is the fork (I1).
+    expect(recordLandedRevision).toHaveBeenCalledWith(expect.objectContaining({ noteId: 'n1', updatedAt: 'R2' }))
+    expect(onChanged).toHaveBeenCalledWith(expect.objectContaining({ locked: true }))
+  })
+
+  it('offers Unlock for a locked note and lands that revision too', async () => {
+    render(<NoteMenuActions note={{ id: 'n1', locked: true }} />)
+    fireEvent.click(screen.getByRole('button', { name: /^Unlock$/ }))
+    expect(await screen.findByText('Unlocked. You can edit this note again.')).toBeInTheDocument()
+    expect(calls[0].body).toEqual({ locked: false })
+    expect(recordLandedRevision).toHaveBeenCalledWith(expect.objectContaining({ updatedAt: 'R2' }))
+  })
+
+  it("only an explicit true is a lock (lane D's noteIsLocked)", () => {
+    render(<NoteMenuActions note={{ id: 'n1', locked: 'yes' }} />)
+    expect(screen.getByRole('button', { name: /^Lock$/ })).toBeInTheDocument()
+  })
+
+  it('a refused lock says so and lands nothing', async () => {
+    answer = () => ({ ok: false, status: 404, json: async () => ({}) })
+    render(<NoteMenuActions note={{ id: 'n1', locked: false }} />)
+    fireEvent.click(screen.getByRole('button', { name: /^Lock$/ }))
+    expect(await screen.findByRole('alert')).toHaveTextContent("Couldn't lock this note. Nothing changed.")
+    expect(recordLandedRevision).not.toHaveBeenCalled()
   })
 })

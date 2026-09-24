@@ -1,0 +1,8 @@
+/* Wave 6 lock glyph — sits inline beside a note's title; decoration only. */
+.glyph {
+  display: inline-flex;
+  align-items: center;
+  margin-left: 4px;
+  color: var(--text-muted);
+  vertical-align: -1px;
+}

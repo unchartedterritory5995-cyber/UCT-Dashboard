@@ -1,4 +1,5 @@
 import BlockedBadge from './BlockedBadge'
+import LockedGlyph from './LockedGlyph'
 import styles from './NoteCard.module.css'
 
 function relativeDate(iso) {
@@ -132,6 +133,7 @@ function renderCard({ note, title, onOpen, onRestore, blocked }) {
           {(note.tags || []).slice(0, 3).map((t) => (
             <span key={t} className={styles.tag}>#{t}</span>
           ))}
+          <LockedGlyph note={note} />
           {blocked && <BlockedBadge />}
         </div>
       </div>
