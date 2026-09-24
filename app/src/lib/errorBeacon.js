@@ -15,9 +15,14 @@
  *    "Failed to fetch" …). Inside a matched template, every quoted-input slot
  *    is `…`, and an identifier or chunk slot that is not code REFUSES the
  *    template (exactly what counts as code: residual (1) below). A message
- *    that no template takes is sent as `<ErrorName>: <unrecognized #hash8>` —
- *    eight letters of a hash of the (digit-masked) text, so identical errors
- *    still group and none of the text travels.
+ *    that no template sends is sent as `<ErrorName>: <unrecognized #hash8>`.
+ * ⛔ THE HASH NEVER SEES A WORD (S2-1). It is eight letters of a hash of a
+ *    SKELETON — a refused template's id and closed-set choices with every slot
+ *    one fixed placeholder, or else the message's SHAPE with every word-bearing
+ *    span that placeholder — never of the text. A hash of text is a dictionary
+ *    oracle: this bundle ships the template list and the universe of tickers
+ *    is public, so hash every candidate and match. Over the skeleton, every
+ *    candidate a dictionary holds lands on one hash ("What a hash may see").
  * ⛔ EVERY DIGIT in the message and the stack becomes `#` — prices, sizes,
  *    times, line numbers alike.
  * ⛔ STACKS ARE FRAMES ONLY. The `Name: message` header V8 puts first is cut,
@@ -32,30 +37,57 @@
  *    token happens to look like a route word. Every URL loses its query and its
  *    fragment. The page is sent as its reduced pathname.
  *
- * ⚠️ RESIDUAL, stated — this is everything free text can still reach:
- *    (1) one code-shaped token in a matched template's identifier slot. The
- *        slot is kept only when it is `(intermediate value)` (V8's own text)
- *        or a dot-separated path whose every part is ONE JS identifier —
- *        letters, digits and `_`, `$` only as the part's single leading
- *        character — that holds a letter, and that is neither a ticker (1-5
- *        capitals once a leading `$` and trailing digits are removed: NVDA,
- *        NVDA1, BRK.B's B — bar the code acronyms in CODE_CAPS, e.g. JSON)
- *        nor a cashtag (`$` then 1-5 letters of any case: $NVDA, $nvda).
- *        So a single mixed-case or lowercase word still passes whole: a note
- *        titled "Tesla" thrown as `Tesla is not defined` sends `Tesla is not
- *        defined`; `(reading 'earnings')`, `Short_at_the_open is not
- *        defined`, `Short.at.the.open is not defined` and `$emitter is not
- *        defined` pass too, and a kept part's digits are `#` (`x1` → `x#`).
- *        Never a space, a quote, a bracket, a hyphen, a ticker or a cashtag
- *        there — any of those refuses the template, and the message goes as
- *        the hash. A chunk slot passes only a numeric chunk id, sent as `#`.
- *    (2) a URL's host, and the FINAL segment of a URL path when it is a static
- *        asset file name (`…/assets/NoteEditorPage-abc.js`) — kept so a frame
- *        still says which chunk failed. Digits in it are `#`. A token-route
- *        position is `:id` even so.
- *    (3) function names in stack frames, as the engine wrote them.
- *    (4) the 8-letter hash of an unrecognized message: a reader who already
- *        holds a candidate sentence could confirm it. It reveals nothing else.
+ * ⚠️ RESIDUAL, stated — this is everything free text can still reach,
+ *    re-derived from the code below in round 3 (2026-09-24). Every digit in
+ *    all of it is `#`.
+ *    (1) the identifier slot of a matched template: ONE token — TWO in the
+ *        three templates with two `{id}` slots (failed-to-execute,
+ *        jsc-not-a-function-in, sm-cant-access-property). A slot is kept only
+ *        when it is `(intermediate value)` (V8's own text) or a dot-separated
+ *        path whose every part is ONE JS identifier — letters, digits and `_`,
+ *        `$` only as the part's single leading character — that holds a
+ *        letter, and that is neither a ticker (1-5 capitals once a leading `$`
+ *        and trailing digits are removed: NVDA, NVDA1, BRK.B's B) nor a cashtag
+ *        (`$` then 1-5 letters of any case: $NVDA, $nvda). The code acronyms in
+ *        CODE_CAPS pass though they are 1-5 capitals, and two of them are also
+ *        tickers in the app's universe: `UI` and `URI` (api/data/
+ *        cap_universe.json, measured 2026-09-24). So a whole WORD passes, in
+ *        any case but 1-5 capitals: lowercase (`earnings` — and a lowercase
+ *        ticker, `nvda`: 3,626 of the universe's 3,640 pass that way), mixed
+ *        case (`Tesla`: a note titled "Tesla" thrown as `Tesla is not defined`
+ *        sends exactly that), and ALL CAPS of six letters or more (`EARNINGS`,
+ *        `NVIDIA` — no ticker in the universe has a part longer than five
+ *        letters, so such a word is never one of its tickers). So do words
+ *        joined by `_` or `.` (`Short_at_the_open`, `Short.at.the.open`,
+ *        `BUY_THE_DIP`), a ticker joined to anything by `_` or run into digits
+ *        (`NVDA_calls`, `_NVDA`, `$NVDA_x`, `NVDA260918C00150000` → `NVDA#C#`),
+ *        and a `$` before six letters or more (`$emitter`, `$NVIDIA`). Never a
+ *        space, a quote, a bracket, a hyphen, a bare ticker or a cashtag: any
+ *        of those refuses the template, and the message goes as the hash (6).
+ *        A chunk slot passes only a numeric chunk id, sent as `#`.
+ *    (2) a URL's ORIGIN as written — the scheme and host verbatim, i.e.
+ *        everything before the first `/`, `?` or `#` after `://`, so a scheme
+ *        can be a word (`Buy_NVDA_calls://x` is kept whole); user info goes —
+ *        and the FINAL segment of a URL path when it is a static asset file
+ *        name (`…/assets/NoteEditorPage-abc.js`), kept so a frame still says
+ *        which chunk failed. A token-route position is `:id` even so.
+ *    (3) a lowercase, digit-free path segment (a route word) in the page or in
+ *        any URL path. The app's own links name a symbol in capitals
+ *        (`/research/NVDA` → `/research/:id`), but a route param typed in
+ *        lowercase (`/research/nvda`) is a route word and passes.
+ *    (4) function and component names in stack frames, as the engine wrote them.
+ *    (5) the error NAME: `Error`, or any PascalCase name ending in `Error` or
+ *        `Exception` — `ChunkLoadError`, and so also `BuyNvdaCallsError`.
+ *    (6) the 8-letter hash of a message no template sends. It is of a SKELETON,
+ *        never of words: for a template that matched and refused a slot, that
+ *        template's id and its closed-set choices (`undefined` or `null`, the
+ *        optional full stop), every slot REDACTED; for any other message, its
+ *        shape, every run that is neither whitespace nor STRUCTURAL punctuation
+ *        REDACTED. So a dictionary finds every candidate behind every hash
+ *        (rail: the whole universe × every template → one hash per template).
+ *        All a hash tells is WHICH template refused a slot, or how many
+ *        space-separated spans a message had and where its quotes, brackets,
+ *        colons, commas and semicolons sat — never a letter of it.
  *
  * ── How much, and how fast ────────────────────────────────────────────────
  * Every field is CAPPED before any pattern runs (`MAX_INPUT`, `MAX_STACK_INPUT`),
@@ -106,7 +138,8 @@ export function maskDigits(s) {
 }
 
 /** Eight letters (a–p) of a 32-bit FNV-1a hash. Letters, so that masking the
- *  digits of a message that carries one can never alter it. */
+ *  digits of a message that carries one can never alter it. Only ever called
+ *  on a SKELETON (below) — never on a message's text. */
 export function shortHash(text) {
   let h = 0x811c9dc5
   for (let i = 0; i < text.length; i += 1) {
@@ -116,6 +149,34 @@ export function shortHash(text) {
   let out = ''
   for (let i = 0; i < 8; i += 1) out += String.fromCharCode(97 + ((h >>> (28 - 4 * i)) & 15))
   return out
+}
+
+// ── What a hash may see (S2-1) ────────────────────────────────────────────
+//
+// ⛔ A HASH OF TEXT IS A DICTIONARY ORACLE. Eight letters of FNV-1a are 32
+// bits, unsalted: anyone holding a list of candidates — every ticker in the
+// app's universe, and every template below, since the list ships in this
+// bundle — hashes each one and matches. Round 2 hashed the digit-masked TEXT,
+// and a scan of the 3,640 universe tickers through every identifier template
+// named 203,770 of 203,777 outputs uniquely: `(reading 'NVDA')` → `#lcdhlgeg`
+// → NVDA. So a hash is computed only over a SKELETON in which every span that
+// could hold a member's words is one fixed placeholder, REDACTED:
+//   * a message that matched a template but refused a slot → the template's
+//     id, its own words and its closed-set choices (`undefined|null`, the
+//     optional full stop); EVERY slot is REDACTED, kept or refused alike;
+//   * any other message → its SHAPE: every run of characters that is neither
+//     whitespace nor STRUCTURAL punctuation is REDACTED.
+// Two tickers in one shape are one hash, and a dictionary scan finds every
+// candidate behind every hash. The server's own fallback hash applies the same
+// rule; tests/test_client_errors.py pins its STRUCTURAL and REDACTED to these
+// two literals.
+export const REDACTED = "<id>"
+export const STRUCTURAL = "'\"`()[]{}<>,;:"
+const CONTENT_SPAN = new RegExp(`[^\\s${STRUCTURAL.replace(/[\\\]^-]/g, '\\$&')}]+`, 'g')
+
+/** A message no template sends: its shape, every span that could carry a word REDACTED. */
+function shapeSkeleton(text) {
+  return `shape:${text.replace(CONTENT_SPAN, REDACTED)}`
 }
 
 // ── Paths ─────────────────────────────────────────────────────────────────
@@ -401,10 +462,11 @@ function compileTemplate(id, src) {
     parts.push({ slot: 'keep' })
   }
   re += '$'
-  return { id, re: new RegExp(re), parts, words }
+  return { id, src, re: new RegExp(re), parts, words }
 }
 
-/** The template list, compiled. Exported so a rail can read its vocabulary. */
+/** The template list, compiled. Exported so a rail can read its vocabulary,
+ *  and fill each template's slots (`src`) the way an attacker would. */
 export const TEMPLATES = TEMPLATE_SOURCES.map(([id, src]) => compileTemplate(id, src))
 
 // An identifier slot is kept only when it is code (R1-4): V8's own
@@ -466,6 +528,20 @@ function safeName(name) {
 
 const UNCAUGHT = /^Uncaught (?:((?:[A-Z][A-Za-z]{0,58})?(?:Error|Exception)): )?/
 
+/** A matched template with every slot REDACTED except its closed-set choices
+ *  (an `{alt}`/`{opt}` word, the optional full stop) — the only skeleton a
+ *  refused template is hashed as (S2-1). No slot's content can reach it. */
+function templateSkeleton(t, m) {
+  let out = `template:${t.id}:`
+  let g = 1
+  for (const p of t.parts) {
+    if (p.lit !== undefined) { out += p.lit; continue }
+    out += p.slot === 'keep' ? (m[g] || '') : REDACTED
+    g += 1
+  }
+  return out
+}
+
 /** A message as it may leave the browser: a matched template, rendered, or
  *  `<Name>: <unrecognized #hash8>`. Returns `{message, template, name}`. */
 export function scrubMessage(message, name = 'Error') {
@@ -480,6 +556,9 @@ export function scrubMessage(message, name = 'Error') {
   // An identifier or chunk slot that is not code refuses its template: the
   // message is then matched against the rest, and if nothing takes it, it
   // goes as the hash — never with a blanked slot inside the template's words.
+  // ⛔ The hash is of the FIRST refused template's skeleton, or else of the
+  // message's shape — never of the text (S2-1).
+  let refused = null
   templates: for (const t of TEMPLATES) {
     const m = t.re.exec(text)
     if (!m) continue
@@ -489,12 +568,15 @@ export function scrubMessage(message, name = 'Error') {
       if (p.lit !== undefined) { out += p.lit; continue }
       const r = renderSlot(p.slot, m[g])
       g += 1
-      if (r === null) continue templates
+      if (r === null) {
+        refused = refused || templateSkeleton(t, m)
+        continue templates
+      }
       out += r
     }
     return { message: maskDigits(out).slice(0, MAX_MESSAGE), template: t.id, name: resolved }
   }
-  const hash = shortHash(maskDigits(text))
+  const hash = shortHash(refused || shapeSkeleton(text))
   return { message: `${resolved}: <unrecognized #${hash}>`, template: `#${hash}`, name: resolved }
 }
 

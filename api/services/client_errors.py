@@ -34,6 +34,9 @@ the one that leaks (`lesson_a_second_authority_over_one_value`). A client that
 skips it can only submit text it already holds, and the store is admin-only.
 That is also why the `[client-error]` log line never carries the message: it
 carries the kind, the reduced route, the template id (or hash) and a count.
+⛔ A hash this side makes itself (a report with no usable template) is of the
+message's SHAPE, never its words (S2-1, `_shape`): a hash of text is a
+dictionary oracle, and this one reaches the log line.
 
 The door's order of work (B-3)
 ------------------------------
@@ -390,6 +393,26 @@ def _cap_bytes(value: str, cap: int) -> str:
 _NAME = re.compile(r"Error|[A-Z][A-Za-z]{0,58}(?:Error|Exception)")
 _TEMPLATE_ID = re.compile(r"[a-z]+(?:-[a-z]+)*|#[a-p]{8}")
 
+# ── What the server's own hash may see (S2-1) ────────────────────────────────
+# A report whose template is missing or malformed gets a SERVER-made `#hash8`,
+# and that hash is printed in the Railway log line. ⛔ It is computed over the
+# message's SHAPE, never its words: an unsalted hash of text is a dictionary
+# oracle — hash `Could not load <t>` for every ticker in the universe and match
+# (measured before this rule: 14,574 candidates, 14,574 distinct hashes). Every
+# run of characters that is neither whitespace nor STRUCTURAL punctuation is
+# one fixed placeholder, REDACTED — the client's shape rule; the rail pins
+# these two literals to `app/src/lib/errorBeacon.js`. The two hashes never
+# need to agree (the client's is FNV-1a, this one sha256): this one only names
+# a row whose client sent no usable template.
+REDACTED = "<id>"
+STRUCTURAL = "'\"`()[]{}<>,;:"
+_CONTENT_SPAN = re.compile("[^\\s" + re.escape(STRUCTURAL) + "]+")
+
+
+def _shape(text: str) -> str:
+    """A message's shape: every span that could carry a word is REDACTED."""
+    return "shape:" + _CONTENT_SPAN.sub(REDACTED, text)
+
 
 def _letters_hash(text: str) -> str:
     digest = hashlib.sha256(text.encode("utf-8")).digest()
@@ -447,7 +470,7 @@ def _scrubbed(b: dict[str, Any]) -> dict[str, Any]:
     Every text field is made UTF-8-encodable first (R1-2)."""
     b = {k: _encodable(v) if isinstance(v, str) else v for k, v in b.items()}
     message = _cap_bytes(scrub_text(b["message"]), CAP_MESSAGE)
-    template = b["template"] if _TEMPLATE_ID.fullmatch(b["template"]) else "#" + _letters_hash(message)
+    template = b["template"] if _TEMPLATE_ID.fullmatch(b["template"]) else "#" + _letters_hash(_shape(message))
     name = _CONTROL.sub("", b["name"])
     return {
         "kind": b["kind"],

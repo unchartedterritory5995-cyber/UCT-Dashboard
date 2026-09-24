@@ -214,7 +214,7 @@ def test_the_row_holds_a_hash_never_the_raw_address(store):
     assert _rows(store)[0]["rate_key"] == ce.rate_key_for(None, "203.0.113.77")
 
 
-def test_a_template_id_is_kept_only_in_its_own_shape_else_derived_from_the_message(store):
+def test_a_template_id_is_kept_only_in_its_own_shape_else_derived_from_the_message_SHAPE(store):
     ce.record_reports([
         _report(template="not-a-function"),
         _report(template="#kfbpaocd"),
@@ -224,6 +224,62 @@ def test_a_template_id_is_kept_only_in_its_own_shape_else_derived_from_the_messa
     t = [r["template"] for r in _rows(store)]
     assert t[0] == "not-a-function" and t[1] == "#kfbpaocd"
     assert re.fullmatch(r"#[a-p]{8}", t[2]) and t[2] == t[3]
+
+
+# ── S2-1: the server's own hash names the message's SHAPE, never its words ────
+
+UNIVERSE = json.loads(Path("api/data/cap_universe.json").read_text(encoding="utf-8"))
+
+
+def _fallback_template(message: str) -> str:
+    row = ce.normalise_report(_report(template=None, message=message))
+    return row["template"]
+
+
+def test_the_fallback_hash_is_a_dictionary_oracle_for_nothing():
+    """A report with no valid template gets a SERVER-made `#hash8`, and that
+    hash is printed in the Railway log line. Over the message's words it was a
+    dictionary oracle: hash `Could not load <t>` for every ticker in the app's
+    universe and match. Over the SHAPE, every candidate lands on ONE hash."""
+    assert len(UNIVERSE) > 3000                                          # non-vacuity
+    for make in (lambda c: f"Could not load {c}", lambda c: c,
+                 lambda c: f"Cannot read properties of undefined (reading '{c}')"):
+        seen = {}
+        for t in UNIVERSE:
+            for c in (t, t.replace("-", "."), f"${t}", f"{t}1", t.lower()):
+                seen.setdefault(_fallback_template(make(c)), c)
+        assert len(seen) == 1, f"{len(seen)} distinct hashes: {list(seen.values())[:5]}"
+    # …and the hash still separates shapes: a constant would group nothing.
+    shapes = {_fallback_template(m) for m in (
+        "Could not load NVDA", "Could not load: NVDA", "Could not load the NVDA quote",
+        "(reading 'NVDA')")}
+    assert len(shapes) == 4
+
+
+def test_two_tickers_in_one_shape_are_ONE_template_in_the_store_and_the_log(store, caplog):
+    caplog.set_level(logging.WARNING, logger=ce.__name__)
+    ce.record_reports([_report(template=None, message="Could not load NVDA"),
+                       _report(template=None, message="Could not load SMCI")],
+                      user_id=None, ip="1.2.3.4", user_agent="UA")
+    rows = _rows(store)
+    assert rows[0]["template"] == rows[1]["template"]
+    lines = [r.getMessage() for r in caplog.records if "[client-error]" in r.getMessage()]
+    assert len(lines) == 1                                              # one (kind, route, template) group
+    assert json.loads(lines[0].split("[client-error] ", 1)[1])["count"] == 2
+
+
+def test_the_server_shape_rule_is_the_clients_structural_set():
+    """ONE RULE IN TWO FILES, PINNED: the characters that survive into a shape
+    hash are READ out of the client module and compared, so neither side can
+    let a character through alone."""
+    src = Path("app/src/lib/errorBeacon.js").read_text(encoding="utf-8")
+    m = re.search(r'^export const STRUCTURAL = ("(?:[^"\\]|\\.)*")', src, re.M)
+    assert m, "the client's STRUCTURAL literal is missing (non-vacuity)"
+    client = json.loads(m.group(1))
+    assert len(client) >= 8
+    assert set(client) == set(ce.STRUCTURAL) and len(client) == len(ce.STRUCTURAL)
+    assert ce.REDACTED == json.loads(
+        re.search(r'^export const REDACTED = ("(?:[^"\\]|\\.)*")', src, re.M).group(1))
 
 
 # ── B-1: paths are reduced segment by segment; a share token never lands ─────

@@ -1,3 +1,5 @@
+import fs from 'node:fs'
+import path from 'node:path'
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import {
   createErrorBeacon, buildReport, scrubMessage, scrubStack, scrubUrl, scrubUrlsInText,
@@ -291,14 +293,108 @@ describe('B-2 — a message survives only as a known engine template', () => {
     expect(buildReport(e3).name).toBe('ChunkLoadError')
   })
 
-  it('an unrecognized message groups: same text → same id, different text → different id', () => {
-    const a = scrubMessage('Could not save note Alpha', 'Error')
-    const b = scrubMessage('Could not save note Alpha', 'Error')
-    const c = scrubMessage('Could not save note Beta', 'Error')
-    expect(a.template).toBe(b.template)
-    expect(a.template).not.toBe(c.template)
-    // Digits are masked before hashing, so a counter in the text does not split a group.
-    expect(scrubMessage('Retry 1 of save', 'Error').template).toBe(scrubMessage('Retry 2 of save', 'Error').template)
+  // S2-1 REWROTE THIS RAIL. It asserted 'note Alpha' and 'note Beta' hash apart
+  // — the per-word hash that let a dictionary recover NVDA from '#lcdhlgeg'.
+  // An unrecognized message now groups by its SHAPE, so they are one group.
+  it('an unrecognized message groups by shape: same shape → same id, a different shape → a different id', () => {
+    const t = (m) => scrubMessage(m, 'Error').template
+    expect(t('Could not save note Alpha')).toBe(t('Could not save note Alpha'))
+    expect(t('Could not save note Alpha')).toBe(t('Could not save note Beta'))
+    expect(t('Retry 1 of save')).toBe(t('Retry 2 of save'))
+    expect(t('Could not save note Alpha')).not.toBe(t('Could not save: Alpha'))
+    expect(t('Could not save note Alpha')).not.toBe(t('Could not save the note Alpha'))
+  })
+})
+
+// S2-1. Eight letters of FNV-1a are 32 bits: anyone holding a list of
+// candidates — every ticker, and every template, since the list ships in this
+// bundle — hashes each one and matches. So the hash may see only a message's
+// SHAPE: which template it matched (with every slot as one fixed placeholder),
+// or, for a message no template takes, where its spaces and structural
+// punctuation sit. Never a word of it.
+describe('S2-1 — the hash names a shape, never a word: a dictionary recovers nothing', () => {
+  const UNIVERSE = JSON.parse(fs.readFileSync(path.resolve(import.meta.dirname, '../../../api/data/cap_universe.json'), 'utf8'))
+  const isHash = (r) => /^#[a-p]{8}$/.test(r.template)
+
+  it.each([
+    ["Cannot read properties of undefined (reading 'NVDA')", "Cannot read properties of undefined (reading 'AMD')"],
+    ['$PLTR is not defined', '$SMCI is not defined'],                                  // cashtags
+    ['BRK.B is not a function', 'NVDA.US is not a function'],                          // dotted
+    ["Can't find variable: TSLA", "Can't find variable: MSFT"],
+    ['NVDA1 is not defined', 'AMD22 is not defined'],                                  // digits: refused, not merely masked
+    ['can\'t access property "NVDA", x is undefined', 'can\'t access property "AMD", y is undefined'],   // a KEPT slot beside a refused one
+    ['Loading chunk short-at-the-open failed.', 'Loading chunk buy-the-dip failed.'],
+    ['Could not load NVDA', 'Could not load AMD'],                                     // no template at all
+    ['No bars for $NVDA', 'No bars for BRK.B'],
+    ['Buy NVDA at the open with full size', 'Sell TSLA into the close before the print'],   // 8 spans each
+  ])('%s  ≡  %s', (a, b) => {
+    const ra = scrubMessage(a, 'TypeError')
+    const rb = scrubMessage(b, 'TypeError')
+    expect(isHash(ra)).toBe(true)                          // both went as the hash (non-vacuity)
+    expect(rb).toEqual(ra)
+  })
+
+  it('…and still separates shapes: a hash that never varied would group nothing', () => {
+    const t = (m) => scrubMessage(m, 'TypeError').template
+    const outs = [
+      t("Cannot read properties of undefined (reading 'NVDA')"),
+      t("Cannot read properties of null (reading 'NVDA')"),       // a closed-set word the engine chose
+      t('NVDA is not defined'),                                    // another template
+      t('Could not load NVDA'),
+      t('Could not load: NVDA'),                                   // structural punctuation
+      t('Could not load the NVDA quote'),                          // another span count
+    ]
+    expect(new Set(outs).size).toBe(outs.length)
+  })
+
+  it('a dictionary scan over every template and the whole universe recovers nothing', () => {
+    // The reviewer's attack, rebuilt: every template with an identifier slot,
+    // filled with every ticker in the app's own universe in each form a member
+    // types, plus app-code shapes no template takes. For each shape, every
+    // candidate that went as a hash must have gone as the SAME hash.
+    expect(UNIVERSE.length).toBeGreaterThan(3000)                              // non-vacuity
+    const forms = (t) => [t, t.replace(/-/g, '.'), `$${t}`, `${t}1`, t.toLowerCase()]
+    const fill = (src) => (c) => src
+      .replace(/\{id\}/g, c)
+      .replace(/\{alt:([^|}]*)[^}]*\}/g, '$1')
+      .replace(/\{opt:[^}]*\}/g, '')
+      .replace(/\{(?:q|qq|any)\}/g, 'x')
+      .replace(/\{url\}/g, 'https://x.test/a.js')
+      .replace(/\{(?:n|chunk)\}/g, '1')
+    const shapes = [
+      ...TEMPLATES.filter((t) => t.src.includes('{id}')).map((t) => [t.id, fill(t.src)]),
+      ['app: could not load', (c) => `Could not load ${c}`],
+      ['app: a bare title', (c) => c],
+      ['app: a sentence', (c) => `Buy ${c} at the open with full size`],
+    ]
+    expect(shapes.length).toBeGreaterThan(25)                                   // non-vacuity
+    const byOutput = new Map()          // output → how many candidates produced it
+    for (const [name, make] of shapes) {
+      const outs = new Set()
+      let hashed = 0
+      for (const t of UNIVERSE) {
+        for (const c of forms(t)) {
+          const r = scrubMessage(make(c), 'TypeError')
+          if (!isHash(r)) continue                                           // sent in plain text: residual (1)
+          hashed += 1
+          outs.add(r.message)
+          byOutput.set(r.message, (byOutput.get(r.message) || 0) + 1)
+        }
+      }
+      expect(hashed, name).toBeGreaterThan(UNIVERSE.length)                  // the scan ran: thousands refused
+      expect([...outs], name).toHaveLength(1)                                 // …and not one is told apart
+    }
+    // The reviewer's five recoveries: each output now has thousands of preimages.
+    for (const planted of [
+      "Cannot read properties of undefined (reading 'NVDA')",
+      "Cannot read properties of undefined (reading 'SMCI')",
+      '$PLTR is not defined',
+      'BRK.B is not a function',
+      "Can't find variable: TSLA",
+    ]) {
+      const out = scrubMessage(planted, 'TypeError').message
+      expect(byOutput.get(out), planted).toBeGreaterThan(UNIVERSE.length)
+    }
   })
 })
 
