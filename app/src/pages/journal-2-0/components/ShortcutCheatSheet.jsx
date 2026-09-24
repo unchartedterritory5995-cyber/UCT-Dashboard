@@ -5,20 +5,23 @@ import { altKeyLabel, modKeyLabel, replaceChordKeys } from '../lib/platform'
 import shellStyles from './ModalShell.module.css'
 import styles from './ShortcutCheatSheet.module.css'
 
-// The `g>` chords navigate between the 5-surface shell (Task A4). Each aliases
-// the old 8-tab shortcut to the new nested route, so the label names the
-// destination surface, not the retired tab.
+// The `g>` SEQUENCES (press g, then the letter) navigate between the 5-surface
+// shell (Task A4). Each aliases the old 8-tab shortcut to the new nested route,
+// so the label names the destination surface, not the retired tab.
+// ⛔ `sequence: true` is what makes a row read "g then o". Every other row is a
+// CHORD -- keys pressed together, "Ctrl + Alt + J" -- (review N9: the renderer
+// put "then" between every key, so Mod+Shift+H read as three presses).
 const NAVIGATION_SHORTCUTS = [
   { keys: ['Ctrl', 'Alt', 'J'], label: 'Capture the hovered chart to your Notebook inbox' },
-  { keys: ['g', 'o'], label: 'Go to Today' },
-  { keys: ['g', 'p'], label: 'Go to Open Positions' },
-  { keys: ['g', 'j'], label: 'Go to Closed Trades' },
-  { keys: ['g', 'a'], label: 'Go to Calendar' },
-  { keys: ['g', 'n'], label: 'Go to Notebook' },
-  { keys: ['g', 'y'], label: 'Go to Insights' },
-  { keys: ['g', 't'], label: 'Go to Accounts' },
-  { keys: ['g', 'k'], label: 'Go to Compass' },
-  { keys: ['g', 'c'], label: 'Go to Community' },
+  { keys: ['g', 'o'], sequence: true, label: 'Go to Today' },
+  { keys: ['g', 'p'], sequence: true, label: 'Go to Open Positions' },
+  { keys: ['g', 'j'], sequence: true, label: 'Go to Closed Trades' },
+  { keys: ['g', 'a'], sequence: true, label: 'Go to Calendar' },
+  { keys: ['g', 'n'], sequence: true, label: 'Go to Notebook' },
+  { keys: ['g', 'y'], sequence: true, label: 'Go to Insights' },
+  { keys: ['g', 't'], sequence: true, label: 'Go to Accounts' },
+  { keys: ['g', 'k'], sequence: true, label: 'Go to Compass' },
+  { keys: ['g', 'c'], sequence: true, label: 'Go to Community' },
 ]
 
 const GENERAL_SHORTCUTS = [
@@ -68,13 +71,15 @@ function notebookShortcuts() {
   ]
 }
 
-function Kbd({ keys }) {
+function Kbd({ keys, sequence = false }) {
   return (
     <span className={styles.kbdGroup}>
       {keys.map((k, i) => (
         <span key={i}>
           <kbd className={styles.kbd}>{k}</kbd>
-          {i < keys.length - 1 && <span className={styles.then}>then</span>}
+          {i < keys.length - 1 && (sequence
+            ? <>{' '}<span className={styles.then}>then</span>{' '}</>
+            : <>{' '}<span className={styles.plus}>+</span>{' '}</>)}
         </span>
       ))}
     </span>
@@ -89,7 +94,7 @@ function Section({ title, shortcuts }) {
         {shortcuts.map((s, i) => (
           <li key={i} className={styles.row}>
             <span className={styles.label}>{s.label}</span>
-            <Kbd keys={s.keys} />
+            <Kbd keys={s.keys} sequence={s.sequence} />
           </li>
         ))}
       </ul>

@@ -103,3 +103,37 @@ describe('ShortcutCheatSheet — Notebook editor chords, per platform', () => {
     expect(keysOf('Find in the current note')).toEqual(want.find)
   })
 })
+
+// Wave 5 final round (review N9): keys pressed TOGETHER read "Ctrl + Shift + H";
+// "then" is kept for true SEQUENCES (g, then o). The renderer put "then"
+// between every key, so a chord read as a sequence.
+describe('ShortcutCheatSheet — a chord reads as a chord, a sequence as a sequence', () => {
+  const setPlatform = (value) => Object.defineProperty(navigator, 'platform', { value, configurable: true })
+  afterEach(() => { delete navigator.platform })
+  const keysText = (label) => {
+    const li = screen.getByText(label).closest('li')
+    return li.textContent.slice(label.length)
+  }
+
+  it('renders the rendered TEXT of chords and sequences', () => {
+    setPlatform('Win32')
+    render(<ShortcutCheatSheet open onClose={vi.fn()} />)
+    expect(keysText('Highlight the selection')).toBe('Ctrl + Shift + H')
+    expect(keysText('Capture the hovered chart to your Notebook inbox')).toBe('Ctrl + Alt + J')
+    expect(keysText('Make the line a heading of that level (1–6)')).toBe('Ctrl + Alt + 1–6')
+    expect(keysText('Find and replace in the current note')).toBe('Ctrl + H')
+    expect(keysText('Select every note between the last one checked and this one')).toBe('Shift + Click')
+    expect(keysText('Go to Today')).toBe('g then o')
+    expect(keysText('Go to Community')).toBe('g then c')
+    expect(keysText('Show this cheat sheet')).toBe('?')
+  })
+
+  it('"then" appears only between the keys of a sequence', () => {
+    setPlatform('MacIntel')
+    render(<ShortcutCheatSheet open onClose={vi.fn()} />)
+    const thenRows = screen.getAllByText('then').map((el) => el.closest('li').textContent)
+    expect(thenRows.length).toBe(9)                                   // the nine g-sequences
+    expect(thenRows.every((t) => /^Go to .+g then [a-z]$/.test(t))).toBe(true)
+    expect(keysText('Find and replace in the current note')).toBe('Cmd + Option + F')
+  })
+})
