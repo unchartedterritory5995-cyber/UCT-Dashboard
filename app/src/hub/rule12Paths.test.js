@@ -242,6 +242,14 @@ describe('rule 12 — the Notebook workstream owns these paths', () => {
   })
 
   it('⛔ the permitted file may ONLY gain the attribute — the exception is a shape, not a filename', () => {
+    // ⚰️ 2026-09-23: this clause was NOT scoped when B7 scoped its sibling above, so it fired on
+    // the NOTEBOOK's own branch (feat/notebook-10 changed NoteCard.jsx for bulk selection) --
+    // the same identity assumption B7 removed, surviving in the clause next door. Same scope,
+    // same helper, same falsifiable scope-out.
+    if (!rule12Applies({ branch: currentBranch(), changed: changedPaths() })) {
+      expectMachineryCanSee('scoped out — this change set is not joystick work')
+      return
+    }
     const { sha } = mergeBase()
     const committed = git(['diff', '-U0', `${sha}..HEAD`, '--', PERMITTED_FILE])
     const working = git(['diff', '-U0', 'HEAD', '--', PERMITTED_FILE])
