@@ -3577,6 +3577,30 @@ exactly as it did before K.
   rate, and `tools/window_check.py` now stamps that reading — reporting **absent**
   and **off** as different facts, because a pod predating K serves no keys at all.
 
+### 📓 Notebook 10/10 program — waves 5–6, IN PROGRESS, blocked on a rate limit as of 2026-09-24
+
+⭐⭐ **READ `docs/notebook/wave5-6-RESUME-HERE.md` FIRST** — it is the checkpoint
+for this program and carries exact SHAs, the exact blocker, and the next actions
+in order. This section is a pointer, not a substitute for it.
+
+Two worktrees: `C:\Users\Patrick\uct-worktrees\notebook-k` (`feat/notebook-10`,
+wave 5, pushed) and `C:\Users\Patrick\uct-worktrees\notebook-w6`
+(`feat/notebook-w6`, wave 6, built on wave 5's tip as of when it branched — it is
+now **behind** wave 5 by four commits, see the resume doc). Plan:
+`docs/notebook/NOTEBOOK-10-OF-10-PLAN.md`.
+
+⛔ **Blocked on the weekly Opus rate limit, resets 2026-09-25 18:00 America/Chicago.**
+Wave 5's B1 safety fix (the schema guard stamped the SENDER's level, not the
+WRITER's — `82c56dd63`) is committed and controller-verified, but its required
+scoped re-review has not run yet. Wave 6 lane E needs a fresh dispatch (its first
+one produced nothing before the limit hit).
+
+⛔⛔ **The SDD ledger for this program lives at
+`notebook-k/.superpowers/sdd/2026-09-23-notebook-10/` and is gitignored — local
+disk only, never pushed.** Do not delete that worktree without backing it up
+first; the full lane-by-lane history (`progress.md`) and the single open-items
+tracker (`OPEN-ITEMS.md`) exist nowhere else.
+
 ### ✅ B7 / rule 12 — the rail now identifies WHOSE change set it is (CLOSED 2026-09-13)
 
 `app/src/hub/rule12Paths.test.js` asserts *"a joystick change set must not edit
