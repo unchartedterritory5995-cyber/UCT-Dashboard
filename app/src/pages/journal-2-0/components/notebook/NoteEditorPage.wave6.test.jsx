@@ -101,3 +101,15 @@ describe('NoteEditorPage — image caption + alignment door (wave 6 item 3)', ()
     await waitFor(() => expect(screen.getByTestId('note-stats').textContent).toBe('5 words · 1 min read'))
   })
 })
+
+describe('NoteEditorPage — moving a block door (wave 6 item 4)', () => {
+  it('Alt+Shift+Down moves the caret\'s block in the page\'s editor; the grip exists for it', async () => {
+    const editor = await renderEditor()
+    caretIn(editor, 'Intro line.')
+    fireEvent.keyDown(editor.view.dom, { key: 'ArrowDown', code: 'ArrowDown', altKey: true, shiftKey: true })
+    const names = []
+    editor.state.doc.forEach((n) => names.push(n.type.name))
+    expect(names.slice(0, 2)).toEqual(['table', 'paragraph'])
+    expect(document.querySelector('button[aria-label="Move this block"]')).toBeTruthy()
+  })
+})

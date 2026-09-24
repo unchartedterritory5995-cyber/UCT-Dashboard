@@ -7,6 +7,7 @@ import StarterKit from '@tiptap/starter-kit'
 import { TextStyle, FontFamily, FontSize } from '@tiptap/extension-text-style'
 import { ResizableImage } from './resizableImage'
 import { ImageFigure, ImageCaption } from './imageFigureNode'
+import { BlockHandle } from './blockHandle'
 import Link from '@tiptap/extension-link'
 import { NotebookPlaceholder } from './notebookPlaceholder'
 import { Table, TableRow, TableHeader, TableCell } from '@tiptap/extension-table'
@@ -103,6 +104,11 @@ export function buildExtensions({ placeholder = 'Start writing… or type / for 
     // WidgetEmbed above once notes containing these exist.
     Callout,
     Toggle, ToggleSummary, ToggleContent,
+    // Wave 6: move a block -- the grip (drag on desktop, a visible grip with
+    // Move up / Move down on touch) and Alt+Shift+Up/Down. A drag it starts
+    // is prosemirror-view's own node drag, so every drop still reaches
+    // PasteContainers' handleDrop (blockHandle.js explains).
+    BlockHandle,
     // Wave B: find-in-note. Decorations only -- never touches doc content
     // (see noteFindExtension.js's own header for why that's structural, not
     // a convention).

@@ -290,6 +290,55 @@ mark.uct-hl-blue { background-color: var(--info-border); }
   pointer-events: none;
 }
 
+/* ── Wave 6: the block grip and its move menu (blockHandle.js) ────────────────
+   Both live on document.body (fixed, placed by the plugin), so they are NOT
+   under .ProseMirror: the `uctBlock` prefix is their scope. */
+.uctBlockHandle {
+  position: fixed;
+  z-index: var(--z-dropdown);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 22px;
+  height: 22px;
+  padding: 0;
+  border: 1px solid transparent;
+  border-radius: var(--radius-sm);
+  background: var(--bg-surface);
+  color: var(--text-muted);
+  cursor: grab;
+}
+.uctBlockHandle[hidden] { display: none; }
+.uctBlockHandle:hover { color: var(--text-bright); border-color: var(--border); }
+.uctBlockHandle:focus-visible { outline: 2px solid var(--ut-gold); outline-offset: 1px; }
+.uctBlockHandle:active { cursor: grabbing; }
+.uctBlockMoveMenu {
+  position: fixed;
+  z-index: var(--z-dropdown);
+  display: flex;
+  flex-direction: column;
+  padding: 4px;
+  background: var(--bg-surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-popover);
+  font-family: var(--font-sans);
+  font-size: 13px;
+}
+.uctBlockMoveOption {
+  padding: 6px 10px;
+  border: none;
+  border-radius: var(--radius-sm);
+  background: none;
+  color: var(--text-bright);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+.uctBlockMoveOption:hover:not(:disabled),
+.uctBlockMoveOption:focus-visible { background: var(--bg-hover); outline: none; }
+.uctBlockMoveOption:disabled { opacity: 0.45; cursor: default; }
+
 /* ── Touch tier: the 44px floor, and 16px so iOS does not zoom on focus ───── */
 @media (max-width: 1024px) {
   .ProseMirror .uctCodeLang {
@@ -302,6 +351,11 @@ mark.uct-hl-blue { background-color: var(--info-border); }
   }
   .ProseMirror .uctCalloutPick,
   .ProseMirror .uctCalloutOption {
+    min-height: var(--tap-min);
+    min-width: var(--tap-min);
+  }
+  .uctBlockHandle,
+  .uctBlockMoveOption {
     min-height: var(--tap-min);
     min-width: var(--tap-min);
   }
