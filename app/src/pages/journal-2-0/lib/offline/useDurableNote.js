@@ -418,6 +418,10 @@ export async function settleLandedSave({
  * own view has moved, FLUSHES that snapshot before it swaps the view to the
  * server copy (re-review R1, fix round 2). Otherwise the next keystroke on the
  * new view supersedes it before it is ever written.
+ * ⚠️ Residual, stated: a flush while a durable write is already in flight
+ * defers to that write, so a snapshot queued behind it can still be superseded
+ * by a later keystroke. The window is the rest of one durable write cycle (a
+ * read then a write — `getNote`, then `putNoteWithIntent`, in `persist`).
  * ⚠️ The check and the settle are THREE IndexedDB transactions — `getNote`,
  * `listOutbox`, then the write inside `settleForkedNote` — so the window runs
  * from the first read to that write: milliseconds usually, hundreds on a slow

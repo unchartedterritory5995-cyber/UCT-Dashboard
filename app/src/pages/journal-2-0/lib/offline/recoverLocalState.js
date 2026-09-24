@@ -19,7 +19,7 @@
  * back to timestamps and say so, rather than pretending the comparison is exact.
  */
 
-import { usableBaseline } from './baseline'
+import { usableBaseline, isSupersededBaseline } from './baseline'
 import { APPEND_ONLY, classifyServerChange, lastKnownServerCopy } from './serverChange'
 
 /** A stable-enough id for "this page's editing session". */
@@ -312,8 +312,8 @@ export function queuedWorkToAdopt({ decision, record = null, entry = null } = {}
   // one transaction, so a disagreement between them is also a reason to ask.
   if (!sameAuthoredContent(decision.state, record)) return null
   if (!sameAuthoredContent(entry.patch, record)) return null
-  // ⛔ The base must also name the ENTRY's revision (review N4). That check lives
-  // in `baseOfRecovered`, ONE place, so Restore asks it too — see there.
+  // ⛔ The base must also not be NEWER than the entry's revision (review N4). That
+  // check lives in `baseOfRecovered`, ONE place, so Restore asks it too — see there.
   const base = baseOfRecovered({ decision, record, entry })
   if (!base) return null
   return { state: authored(record), base }
@@ -331,17 +331,33 @@ export function queuedWorkToAdopt({ decision, record = null, entry = null } = {}
  * The editor could not do better, because nothing told it what the recovered
  * words were written on. This does.
  *
- * ⛔⛔ AND IT MUST NAME THE SAME REVISION AS THE QUEUED ENTRY, WHEN THERE IS ONE
- * (review N4, fix rounds 1 and 2). A record written by the settle BEFORE A-1
- * carries `acked@landed` as its base — a copy that already holds a door's
- * appended block — while its entry still sits on the older revision the words
- * were really written on. Adopting on that base sends the queued body at
- * `landed`: a 200, and the block is gone. A-1 stops new records being written
- * that way; this stops the ones already on members' disks from being used as a
- * base, by EITHER caller: `queuedWorkToAdopt` then offers the banner, and the
- * banner's Restore falls back to its path for a copy with no known base. Every
- * legitimate mismatch (a rebased entry, an ack that landed while the member kept
- * typing) takes that same fallback, which is the behaviour before E-2.
+ * ⛔⛔ AND IT MUST NOT BE NEWER THAN THE QUEUED ENTRY'S REVISION (review N4,
+ * fix rounds 1-3). A record written by the settle BEFORE A-1 carries
+ * `acked@landed` as its base — a copy that already holds a door's appended
+ * block — while its entry still sits on the OLDER revision the words were really
+ * written on. Adopting on that base sends the queued body at `landed`: a 200,
+ * and the block is gone. So a base NEWER than the entry is refused, by EITHER
+ * caller: `queuedWorkToAdopt` then offers the banner, and the banner's Restore
+ * falls back to its path for a copy with no known base.
+ * ⭐ A base OLDER than the entry is a legitimate shape and is used, exactly as
+ * `fe4e278bc` did (fix round 3, controller ruling on N4-b). Diffing the server
+ * against an OLDER copy can only see MORE change, so the 409 rebases, merges or
+ * forks — it can never hide an append. It happens without anything being wrong:
+ * the editor's 409 reconcile moves `lastSavedRef` forward and the retry does not
+ * land, so the next durable write takes the newer baseline while the record
+ * keeps its older last-known copy; and the drain's ring-vouched rebase moves the
+ * entry but never sees the server's document, so it leaves the base alone.
+ * ⚠️ A base NEWER than the entry is not always poison either: a drain rebase
+ * that learned the server's copy moves the entry and the base together, and a
+ * later unsent-work settle then re-derives the entry's baseline from the
+ * record's older one. That shape cannot be told apart from the poisoned one by
+ * direction, so it is refused too, and Restore's no-known-base path can then be
+ * overwritten by a later keystroke — the crash-draft class left open by ruling
+ * (`docs/notebook/f5-fixes-2026-09-23.md` §C.5; wave 6 lane D3b).
+ * ⛔ Compared PARSED, through the same authority the drain uses
+ * (`isSupersededBaseline`), never as strings. Only an equal revision or a base
+ * PROVABLY older is used; newer, unparseable, or an entry with no baseline is
+ * refused.
  * ⚠️ Without an entry there is nothing to compare against, and the record's own
  * base is returned as before.
  *
@@ -349,9 +365,9 @@ export function queuedWorkToAdopt({ decision, record = null, entry = null } = {}
  * @returns { title, subtitle, bodyJson, updatedAt } — the last-known server copy
  *          the winning durable record carries — or null when that cannot be
  *          proved: no record, a winner that is not the record's words (a crash
- *          draft ahead of it), a copy with no revision, or a revision the queued
- *          entry disagrees with. ⛔ Null means "not known", and the caller must
- *          not invent one from the server's current copy.
+ *          draft ahead of it), a copy with no revision, or a revision that is not
+ *          provably at or before the queued entry's. ⛔ Null means "not known",
+ *          and the caller must not invent one from the server's current copy.
  */
 export function baseOfRecovered({ decision, record = null, entry = null } = {}) {
   if (!decision?.unsynced || !record?.dirty) return null
@@ -359,6 +375,10 @@ export function baseOfRecovered({ decision, record = null, entry = null } = {}) 
   const base = lastKnownServerCopy(record)
   const at = usableBaseline(base?.updatedAt)
   if (!base || !at) return null
-  if (entry && at !== usableBaseline(entry.baseUpdatedAt)) return null
+  if (entry) {
+    const entryAt = usableBaseline(entry.baseUpdatedAt)
+    // "the base is older than the entry" is `isSupersededBaseline(base, entry)`.
+    if (at !== entryAt && !isSupersededBaseline(at, entryAt)) return null
+  }
   return { ...authored(base), updatedAt: at }
 }

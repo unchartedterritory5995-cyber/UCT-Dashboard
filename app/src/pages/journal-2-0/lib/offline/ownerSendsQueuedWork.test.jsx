@@ -165,6 +165,23 @@ describe('baseOfRecovered — what the recovered words were written on (Restore 
     // base, as before (stated in the function, not hidden).
     expect(baseOfRecovered({ decision: decide(poisoned), record: poisoned }).updatedAt).toBe(T1)
   })
+
+  it('⭐ a base OLDER than the entry is used, as at fe4e278bc — a 409 against an older copy can only see more change (N4-b, fix round 3)', () => {
+    // The editor's 409 reconcile moved its baseline to T1 and the retry never
+    // landed: the next durable write took T1 while the record kept its T0 copy.
+    const rec = record({ baseUpdatedAt: T1 })
+    const moved = entry({ baseUpdatedAt: T1 })
+    expect(baseOfRecovered({ decision: decide(rec), record: rec, entry: moved }))
+      .toEqual({ title: 'Thesis', subtitle: '', bodyJson: doc('online'), updatedAt: T0 })
+    const adopt = queuedWorkToAdopt({ decision: decide(rec), record: rec, entry: moved })
+    expect(adopt?.base.updatedAt, 'the owner adopts on the older copy, as before').toBe(T0)
+  })
+
+  it('⛔ only an equal or PROVABLY older revision is used — an entry with no baseline, or one that does not parse, is refused', () => {
+    const rec = record()
+    expect(baseOfRecovered({ decision: decide(rec), record: rec, entry: entry({ baseUpdatedAt: '' }) })).toBeNull()
+    expect(baseOfRecovered({ decision: decide(rec), record: rec, entry: entry({ baseUpdatedAt: 'not-a-revision' }) })).toBeNull()
+  })
 })
 
 function mount(db) {
@@ -209,6 +226,17 @@ describe('recover() — the answer reaches the editor through the call it alread
     expect(decision.unsynced, 'the words are still offered').toBe(true)
     expect(decision.adopt).toBeNull()
     expect(decision.base, 'Restore must not adopt on a base the entry disagrees with').toBeNull()
+  })
+
+  it('⭐ a record whose base is OLDER than its entry comes back WITH `adopt` and `base`, as at fe4e278bc (N4-b)', async () => {
+    const db = createFakeDb()
+    await putNoteWithIntent(db, record({ baseUpdatedAt: T1 }), entry({ baseUpdatedAt: T1 }))
+    await settleIdb(4)
+    const { result } = mount(db)
+    let decision
+    await act(async () => { decision = await result.current.recover({ server: SERVER_NOW }) })
+    expect(decision.adopt?.base.updatedAt).toBe(T0)
+    expect(decision.base?.updatedAt).toBe(T0)
   })
 
   it('⛔ with the wave switched OFF nothing is read and nothing is adopted (§21)', async () => {

@@ -26,6 +26,8 @@
  * ⛔⛔ Fix round 2 (§D) adds typing ACROSS the view swap (R1), the editor's own
  * S1 gate isolated from the store's (R2), and a record poisoned before A-1 that
  * neither adoption nor Restore may use as a base (N4).
+ * Fix round 3 (§E): only a base NEWER than the entry is refused. A base OLDER
+ * than the entry is adopted and Restored exactly as at `fe4e278bc`.
  */
 import { render, screen, act, waitFor, fireEvent } from '@testing-library/react'
 import { MemoryRouter } from 'react-router-dom'
@@ -41,6 +43,7 @@ Range.prototype.getBoundingClientRect = () => ({ top: 0, left: 0, right: 0, bott
 
 const T0 = '2026-09-23T09:00:00.000000+00:00'
 const T1 = '2026-09-23T09:05:00.000000+00:00'
+const T2 = '2026-09-23T09:07:00.000000+00:00'
 const para = (t) => ({ type: 'paragraph', content: [{ type: 'text', text: t }] })
 const doc = (...blocks) => ({ type: 'doc', content: blocks })
 const ONLINE = para('typed online.')
@@ -163,19 +166,19 @@ afterEach(() => {
 })
 
 /** The member typed offline on the note, left it, and the queue holds their words. */
-async function queuedWhileAway({ permanent = false, serverBase = null } = {}) {
+async function queuedWhileAway({ permanent = false, serverBase = null, baseUpdatedAt = T0 } = {}) {
   factory.open(ACCOUNT_DB)
   await act(async () => { await settleIdb(2) })
   const store = factory.databases.get(ACCOUNT_DB)
   store.seed('notes', {
     noteId: 'n1', title: 'Thesis', subtitle: '', bodyJson: MINE, dirty: 1, generation: 5,
-    sessionId: 's-away', localSavedAt: 1000, baseUpdatedAt: T0,
+    sessionId: 's-away', localSavedAt: 1000, baseUpdatedAt,
     serverBase: serverBase || { title: 'Thesis', subtitle: '', bodyJson: doc(ONLINE), updatedAt: T0 },
   })
   store.seed('outbox', {
     mutationId: 'note:n1', noteId: 'n1', kind: 'note-update',
     patch: { title: 'Thesis', subtitle: '', bodyJson: MINE },
-    baseUpdatedAt: T0, generation: 5, sessionId: 's-away', queuedAt: 1000,
+    baseUpdatedAt, generation: 5, sessionId: 's-away', queuedAt: 1000,
     ...(permanent ? { permanent: true, lastError: 'gone', lastStatus: 404 } : {}),
   })
 }
@@ -576,5 +579,30 @@ describe('fix round 2 — the editor’s own S1 gate, and a base the queued entr
     expect(hasWidget(), 'Restore adopted on the poisoned base and sent over the widget').toBe(true)
     expect(survives(SENTENCE), 'the restored words were lost').toBe(true)
     expect(server.puts.every((p) => p.baseUpdatedAt !== T1), 'a send went out on the poisoned revision').toBe(true)
+  })
+})
+
+describe('fix round 3 — a base OLDER than the entry is used, as at fe4e278bc; only a NEWER one is refused (N4-b)', () => {
+  // The legitimate shape the round-2 check refused: the editor's 409 reconcile
+  // moved its baseline to T1 and the retry never landed, so the next durable
+  // write took T1 (record and entry) while the record kept its T0 copy as base.
+  it('⭐ adopted and sent on the older copy: a metadata move rebases, the words arrive, no banner, no fork', async () => {
+    server = makeServer({ body: doc(ONLINE), updatedAt: T1 })
+    await queuedWhileAway({ baseUpdatedAt: T1 })
+    await returnToTheNoteAndSit()
+    expect(serverText(), 'the queued words were held behind the banner instead of sent').toContain(SENTENCE)
+    expect(screen.queryByText(/Unsaved changes from a previous session/i)).toBeNull()
+    expect(server.forks).toHaveLength(0)
+    expect(outbox()).toHaveLength(0)
+  })
+
+  it('⛔⛔ Restore on the older copy after a second writer, then a keystroke: ONE fork, the other device’s words kept', async () => {
+    server = makeServer({ body: doc(para('rewritten on another device')), updatedAt: T2 })
+    await queuedWhileAway({ permanent: true, baseUpdatedAt: T1 })   // blocked ⇒ the banner
+    await returnToTheNoteAndSit()
+    await restoreThenType()
+    expect(serverText(), 'the other device’s words were overwritten').toContain('rewritten on another device')
+    expect(server.forks).toHaveLength(1)
+    expect(JSON.stringify(server.forks[0].bodyJson)).toContain(SENTENCE)
   })
 })
