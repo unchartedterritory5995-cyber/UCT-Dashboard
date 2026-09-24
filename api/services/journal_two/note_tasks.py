@@ -70,10 +70,31 @@ at 09:00:15, beside the 09:00 job), and two rules make that safe:
 "Marked done" is `j2_task_reminder_runs` — NOT the claims, which a pass that
 found nobody due never writes.
 
-⚠️ Residual, stated: a process that dies between a claim and its delivery
-leaves the claim `claimed` — no later pass re-sends it (it cannot tell a dead
-claimant from a slow one) and the day stays unmarked. That member loses that
-day's reminder; the next day is a new day.
+⚠️ Residuals, stated together. Each can cost ONE member ONE day's reminder;
+neither can send anyone a second one.
+  * A pass that STOPS between a member's claim and that claim's settling —
+    the process DIES there, or a statement RAISES there, which is the same
+    thing to the claim table. The raise is a `sqlite3.OperationalError`
+    (`database is locked` after auth_db's 3 s busy timeout) from the release
+    DELETE in a failed delivery's handler, or from the `sent` UPDATE after a
+    delivery; it propagates out of the pass, which stops. The claim is left
+    `claimed`, no later pass re-sends it (it cannot tell a dead or failed
+    claimant from a slow one), and the day stays unmarked. From the DELETE,
+    that member loses that day's reminder; from the UPDATE they already have
+    it. The next day is a new day. Claims are taken one member at a time, so
+    at most ONE member is stranded per stopped pass. A raise at a CLAIM
+    (the INSERT) strands nobody: that member was never claimed, and they and
+    everyone after them wait for the next pass — 09:00, or after 09:00 only
+    the next boot's catch-up.
+  * Two overlapping passes whose due sets differ (NOTE N2-4, accepted as is).
+    Pass P reads its due set; a task then becomes due for member X; pass Q
+    reads a set that holds X and claims X; P reaches everyone IT found due
+    and marks the day; Q's delivery to X then fails and releases the claim.
+    The marker means "everyone in THIS pass's due set was reached" and is
+    never retracted, so a later boot catch-up answers `already-ran` and X
+    gets nothing that day — unless the 09:00 pass, which runs without
+    reading the marker, is still ahead. No transaction around P's close
+    could keep the day open for X: X was never in P's due set.
 """
 from __future__ import annotations
 
