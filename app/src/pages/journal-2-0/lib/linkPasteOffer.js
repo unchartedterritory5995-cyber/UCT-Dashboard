@@ -110,17 +110,57 @@ export function embedNode(schema, offer) {
   return schema.nodes.webEmbed.create({ provider: offer.embed.provider, ref: offer.embed.ref, url: offer.url })
 }
 
-/** GET /api/j2/link-preview — resolves the preview, or throws with the server's reason. */
+/**
+ * The only two ways a preview fails, as the member reads them. ⛔ A FIXED
+ * TABLE (`rawErrorSurface.test.js`): a server refusal's `detail` is the SSRF
+ * guard's own wording, an upstream status or a stack fragment, and it is never
+ * member-facing text. "No preview" is about the LINK (the page names nothing,
+ * is not a page, may not be fetched); "unavailable" is about the MOMENT (the
+ * network, a busy or broken service, a page that did not answer).
+ */
+export const PREVIEW_NONE = 'none'
+export const PREVIEW_UNAVAILABLE = 'unavailable'
+export const PREVIEW_FAILURE_TEXT = Object.freeze({
+  [PREVIEW_NONE]: 'No preview for this link.',
+  [PREVIEW_UNAVAILABLE]: "Couldn't get a preview right now.",
+})
+
+const hasText = (v) => typeof v === 'string' && v.trim() !== ''
+
+/**
+ * GET /api/j2/link-preview — `{ preview }`, or `{ failure: 'none' | 'unavailable' }`.
+ * It never throws and never passes the server's words on.
+ *
+ * ⛔⛔ I4 (wave 6 fix round 1): A 200 IS NOT A PREVIEW UNTIL IT PROVES IT IS ONE.
+ * ⚰️ This returned the body of ANY 200 — and while the router was unmounted
+ * the SPA fallback answered 200 with the app's HTML, the JSON parse failed to
+ * `null`, and "Preview card" replaced the member's link with an EMPTY card.
+ * An answer counts only when it says `application/json` AND is an object with
+ * a title or a description (what `parse_preview` guarantees, and what a card
+ * needs to be more than a bare URL). Anything else is "no preview" and the
+ * link stays.
+ */
 export async function fetchLinkPreview(url, fetchImpl = globalThis.fetch) {
-  const res = await fetchImpl(`/api/j2/link-preview?url=${encodeURIComponent(url)}`, { credentials: 'same-origin' })
+  let res
+  try {
+    res = await fetchImpl(`/api/j2/link-preview?url=${encodeURIComponent(url)}`, { credentials: 'same-origin' })
+  } catch {
+    return { failure: PREVIEW_UNAVAILABLE }
+  }
+  if (!res || !res.ok) {
+    const status = Number(res?.status) || 0
+    // The LINK was refused (not a web link, not https, not a page, names
+    // nothing, private host) — or, 404, there is no preview service to ask.
+    return { failure: [400, 404, 422].includes(status) ? PREVIEW_NONE : PREVIEW_UNAVAILABLE }
+  }
+  let type = ''
+  try { type = String(res.headers?.get?.('content-type') || '') } catch { type = '' }
+  if (type.split(';')[0].trim().toLowerCase() !== 'application/json') return { failure: PREVIEW_NONE }
   let body = null
   try { body = await res.json() } catch { body = null }
-  if (!res.ok) {
-    const err = new Error((body && typeof body.detail === 'string' && body.detail) || 'No preview for this link.')
-    err.status = res.status
-    throw err
-  }
-  return body
+  if (!body || typeof body !== 'object') return { failure: PREVIEW_NONE }
+  if (!hasText(body.title) && !hasText(body.description)) return { failure: PREVIEW_NONE }
+  return { preview: body }
 }
 
 export const LinkPasteOffer = Extension.create({

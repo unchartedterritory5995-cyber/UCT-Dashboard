@@ -9,7 +9,9 @@ import { Plugin, TextSelection } from '@tiptap/pm/state'
 import { Decoration, DecorationSet } from '@tiptap/pm/view'
 import { buildExtensions } from './tiptap'
 import { EMBED_PROVIDERS, embedFor, embedSrc, embedHref } from './webEmbeds'
-import { linkPasteKey, offerStillValid, placeLinkBlock, previewCardNode, fetchLinkPreview } from './linkPasteOffer'
+import {
+  linkPasteKey, offerStillValid, placeLinkBlock, previewCardNode, fetchLinkPreview, PREVIEW_FAILURE_TEXT,
+} from './linkPasteOffer'
 import { citationText } from './askCitation'
 import LinkPasteMenu from '../components/notebook/LinkPasteMenu'
 
@@ -35,6 +37,10 @@ const at = (ed, str) => { let hit = null; ed.state.doc.descendants((n, pos) => {
 const caret = (ed, pos) => ed.view.dispatch(ed.state.tr.setSelection(TextSelection.create(ed.state.doc, pos)))
 const offerOf = (ed) => linkPasteKey.getState(ed.state)
 const types = (ed) => { const o = []; ed.state.doc.forEach((n) => o.push(n.type.name)); return o }
+/** A fetch answer: JSON by default, with the content-type a real response carries. */
+const answer = (body, { ok = true, status = 200, type = 'application/json' } = {}) => ({
+  ok, status, headers: new Headers(type ? { 'content-type': type } : {}), json: async () => body,
+})
 const YT = 'https://www.youtube.com/watch?v=dQw4w9WgXcQ&t=42s'
 const ARTICLE = 'https://news.example.com/nvda-record-quarter'
 
@@ -342,7 +348,7 @@ describe('<LinkPasteMenu>', () => {
   })
 
   it('Preview card asks the server ONCE for this link and places the card from its answer', async () => {
-    const spy = vi.spyOn(globalThis, 'fetch').mockResolvedValue({ ok: true, status: 200, json: async () => PREVIEW })
+    const spy = vi.spyOn(globalThis, 'fetch').mockResolvedValue(answer(PREVIEW))
     const ed = pasteAndRender(ARTICLE)
     fireEvent.click(screen.getByRole('button', { name: 'Preview card' }))
     await waitFor(() => expect(types(ed)[0]).toBe('linkPreview'))
@@ -352,12 +358,61 @@ describe('<LinkPasteMenu>', () => {
     expect(screen.queryByRole('toolbar', { name: 'Pasted link' })).toBeNull()
   })
 
-  it('no preview (server refusal, offline) says so and KEEPS the link', async () => {
-    vi.spyOn(globalThis, 'fetch').mockResolvedValue({ ok: false, status: 422, json: async () => ({ detail: 'That link is not a web page.' }) })
+  it('no preview (a server refusal) says so in a FIXED sentence and KEEPS the link — never the server\'s own words', async () => {
+    // ⛔ rawErrorSurface: a refusal's detail is the SSRF guard's wording, an
+    // upstream status, a stack fragment — never member-facing text.
+    vi.spyOn(globalThis, 'fetch').mockResolvedValue(answer(
+      { detail: 'Media reference points at a private/internal network address.' }, { ok: false, status: 422 }))
     const ed = pasteAndRender(ARTICLE)
     fireEvent.click(screen.getByRole('button', { name: 'Preview card' }))
-    expect(await screen.findByText('That link is not a web page. Kept as a link.')).toBeTruthy()
+    expect(await screen.findByText('No preview for this link. Kept as a link.')).toBeTruthy()
+    expect(document.body.textContent).not.toMatch(/private|internal network/)
     expect(types(ed)[0]).toBe('paragraph')
+    expect(ed.state.doc.textContent).toBe(ARTICLE)
+  })
+
+  it('⛔ I4 — a 200 that is NOT JSON (the SPA fallback while the router is unmounted) is NO preview: the link stays, no card', async () => {
+    vi.spyOn(globalThis, 'fetch').mockResolvedValue(answer(null, { type: 'text/html; charset=utf-8' }))
+    const ed = pasteAndRender(ARTICLE)
+    fireEvent.click(screen.getByRole('button', { name: 'Preview card' }))
+    expect(await screen.findByText('No preview for this link. Kept as a link.')).toBeTruthy()
+    expect(types(ed)).not.toContain('linkPreview')
+    expect(ed.state.doc.textContent).toBe(ARTICLE)
+  })
+
+  it.each([
+    ['an array', []],
+    ['JSON null', null],
+    ['a bare string', 'NVDA prints a record quarter'],
+    ['an empty object', {}],
+    ['a title that is not text', { title: 5, description: null }],
+    ['blank strings', { title: '   ', description: '' }],
+  ])('⛔ I4 — JSON of the wrong shape (%s) is no preview either', async (_what, body) => {
+    vi.spyOn(globalThis, 'fetch').mockResolvedValue(answer(body))
+    const ed = pasteAndRender(ARTICLE)
+    fireEvent.click(screen.getByRole('button', { name: 'Preview card' }))
+    expect(await screen.findByText('No preview for this link. Kept as a link.')).toBeTruthy()
+    expect(types(ed)).not.toContain('linkPreview')
+  })
+
+  it('a preview that cannot be reached (network down, a 5xx) says so in its own fixed sentence and keeps the link', async () => {
+    vi.spyOn(globalThis, 'fetch').mockRejectedValue(new TypeError('Failed to fetch: ECONNRESET 10.0.0.5:443'))
+    const ed = pasteAndRender(ARTICLE)
+    fireEvent.click(screen.getByRole('button', { name: 'Preview card' }))
+    expect(await screen.findByText(`${PREVIEW_FAILURE_TEXT.unavailable} Kept as a link.`)).toBeTruthy()
+    expect(document.body.textContent).not.toMatch(/ECONNRESET|Failed to fetch/)
+    expect(ed.state.doc.textContent).toBe(ARTICLE)
+  })
+
+  it('⛔ M4 — choosing Link while the preview is on its way keeps the link: the late answer places nothing', async () => {
+    let arrive
+    vi.spyOn(globalThis, 'fetch').mockReturnValue(new Promise((r) => { arrive = r }))
+    const ed = pasteAndRender(ARTICLE)
+    fireEvent.click(screen.getByRole('button', { name: 'Preview card' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Link' }))
+    expect(screen.queryByRole('toolbar', { name: 'Pasted link' })).toBeNull()
+    await act(async () => { arrive(answer(PREVIEW)); await new Promise((r) => setTimeout(r, 0)) })
+    expect(types(ed)).not.toContain('linkPreview')
     expect(ed.state.doc.textContent).toBe(ARTICLE)
   })
 
@@ -384,9 +439,42 @@ describe('<LinkPasteMenu>', () => {
 })
 
 describe('fetchLinkPreview', () => {
-  it('encodes the link and surfaces the server reason', async () => {
-    const f = vi.fn().mockResolvedValue({ ok: false, status: 502, json: async () => ({ detail: "Couldn't reach that page." }) })
-    await expect(fetchLinkPreview('https://e.example/a?b=1&c=2', f)).rejects.toThrow("Couldn't reach that page.")
+  it('encodes the link, and answers a refusal with a FIXED reason — never the server\'s words, never a throw', async () => {
+    const f = vi.fn().mockResolvedValue(answer({ detail: "Couldn't reach that page." }, { ok: false, status: 502 }))
+    expect(await fetchLinkPreview('https://e.example/a?b=1&c=2', f)).toEqual({ failure: 'unavailable' })
     expect(f.mock.calls[0][0]).toBe('/api/j2/link-preview?url=https%3A%2F%2Fe.example%2Fa%3Fb%3D1%26c%3D2')
+  })
+
+  it.each([
+    [422, 'application/json', 'none'],
+    [400, 'application/json', 'none'],
+    [404, 'text/html', 'none'],
+    [429, 'application/json', 'unavailable'],
+    [504, 'application/json', 'unavailable'],
+    [401, 'application/json', 'unavailable'],
+  ])('a %i (%s) is the reason "%s"', async (status, type, reason) => {
+    const res = answer({ detail: 'x' }, { ok: false, status, type })
+    expect(await fetchLinkPreview('https://e.example/a', vi.fn().mockResolvedValue(res))).toEqual({ failure: reason })
+  })
+
+  it.each([
+    ['text/html', { title: 'T' }],
+    [null, { title: 'T' }],
+  ])('a 200 whose content-type is %s is no preview, whatever it parses to', async (type, body) => {
+    const res = answer(body, { type })
+    expect(await fetchLinkPreview('https://e.example/a', vi.fn().mockResolvedValue(res))).toEqual({ failure: 'none' })
+  })
+
+  it('a JSON answer with a title or a description IS the preview', async () => {
+    const body = { url: 'u', title: 'T', description: null, domain: 'e.example', image: null }
+    expect(await fetchLinkPreview('https://e.example/a', vi.fn().mockResolvedValue(answer(body)))).toEqual({ preview: body })
+    const desc = { title: null, description: 'D' }
+    expect(await fetchLinkPreview('https://e.example/a', vi.fn().mockResolvedValue(
+      answer(desc, { type: 'application/json; charset=utf-8' })))).toEqual({ preview: desc })
+  })
+
+  it('every failure reason has a fixed sentence, and nothing else does', () => {
+    expect(Object.keys(PREVIEW_FAILURE_TEXT).sort()).toEqual(['none', 'unavailable'])
+    for (const t of Object.values(PREVIEW_FAILURE_TEXT)) expect(t).toMatch(/^[A-Z].*\.$/)
   })
 })

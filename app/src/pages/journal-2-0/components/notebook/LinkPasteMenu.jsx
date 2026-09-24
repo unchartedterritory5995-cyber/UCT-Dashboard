@@ -18,7 +18,7 @@
 import { useCallback, useEffect, useLayoutEffect, useReducer, useRef, useState } from 'react'
 import UIcon from '../../../../components/ui/UIcon'
 import {
-  dismissLinkOffer, embedNode, fetchLinkPreview, linkPasteKey, placeLinkBlock, previewCardNode,
+  PREVIEW_FAILURE_TEXT, dismissLinkOffer, embedNode, fetchLinkPreview, linkPasteKey, placeLinkBlock, previewCardNode,
 } from '../../lib/linkPasteOffer'
 import styles from './LinkPasteMenu.module.css'
 
@@ -60,15 +60,19 @@ export default function LinkPasteMenu({ editor }) {
 
   const choosePreview = async () => {
     setStatus({ offer, busy: true, text: 'Fetching a preview…' })
-    let preview
-    try {
-      preview = await fetchLinkPreview(offer.url)
-    } catch (err) {
-      setStatus({ offer, busy: false, text: `${err?.message || 'No preview for this link.'} Kept as a link.` })
+    const answer = await fetchLinkPreview(offer.url)
+    // ⛔ M4 (wave 6 fix round 1): THE MEMBER MAY HAVE MOVED ON WHILE IT WAS OUT.
+    // "Link", Escape, typing or a caret move ends the offer; an answer arriving
+    // after that places nothing and says nothing — their "keep it as a link"
+    // stands. (`offerStillValid` alone re-reads only the TEXT, which a Link
+    // choice leaves exactly as it was.)
+    if (editor.isDestroyed || linkPasteKey.getState(editor.state) !== offer) return
+    if (answer.failure) {
+      // ⛔ A fixed sentence per reason — never the server's words (rawErrorSurface).
+      setStatus({ offer, busy: false, text: `${PREVIEW_FAILURE_TEXT[answer.failure]} Kept as a link.` })
       return
     }
-    if (editor.isDestroyed) return
-    const placed = placeLinkBlock(editor, offer, previewCardNode(editor.schema, offer.url, preview))
+    const placed = placeLinkBlock(editor, offer, previewCardNode(editor.schema, offer.url, answer.preview))
     if (!placed) setStatus({ offer, busy: false, text: "A card can't go here. Kept as a link." })
   }
 
