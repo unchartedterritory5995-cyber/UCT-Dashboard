@@ -179,9 +179,9 @@ when they see it.
 | Data | D1 Provider Abstraction | **SHIPPED, adoption sweep CLOSED 2026-09-23** (`d050f867f`, `c8c1e431f`) | nothing — fully done |
 | Data | D2 Canonical Data Model | **CP2, confirmed unchanged 2026-09-23** — ⚰️ this said "still the long pole"; **corrected 2026-09-23, see the result note under §3 Days 2-3** — it no longer blocks A1, A11, A13, or S8's citations, all confirmed closed without it | nothing confirmed real today |
 | Data | D3 Realtime Streaming | **CP4 shipped `bb312cc18`, owner-signed** (new as of 2026-09-23 — was "docs only" at last measurement) | A10, jointly with D4 |
-| Data | D5 Reference & Corp Actions | CP1 merged, CP2–7 open | partial |
+| Data | D5 Reference & Corp Actions | ⚰️ this said "CP1 merged, CP2–7 open"; **corrected 2026-09-24, see the result note under §3 Days 4-6** — CP1/CP3/CP4/CP5/CP6(renamed-only)/CP7 all merged and live; only CP2 (an inert, unread ledger) remains open, deliberately unauthorized, non-blocking | — |
 | Intelligence | I1 Intelligence Layer | SHIPPED, 3 slices | — |
-| App | A9 Screening | gate-only, closest to clear | S7 type CP3 |
+| App | A9 Screening | ⚰️ this said "gate-only, closest to clear"; **corrected 2026-09-24, see the result note under §3 Days 4-6** — S7's needed type is done, and two of three planned pieces were already shipped; the third (keyboard filter editing) is now shipped too | — |
 | App | A13 Journal & Track Record | gate-only on D2 + S5 | the actual differentiator — prioritize |
 | App | A1 Markets, A11 Breadth | gate-only on D2 | — |
 | App | A2 Charts, A10 Options & Flow | gate-only / partner-owned | S1/S2 (owner-bound) / Ravi ack |
@@ -619,6 +619,80 @@ the whole thing holds together.
 > then logs the member out only when `/api/auth/me` itself confirms the session is
 > gone). Shipped as `56f06c223` → cherry-picked as `3207690b4`, pushed to `master`;
 > deploy verification below.
+
+> ✅ **D5 Reference & Corp Actions result, 2026-09-24 — roster line stale, same pattern
+> as everywhere else this week; one small real gap found and closed.** D5 had never been
+> re-checked at all this week; the roster's "CP1 merged, CP2-7 open" line predates the
+> program's own build record. Verified against real current `master` source, CP by CP,
+> quoting the gate doc's own definitions rather than trusting the summary: **CP1, CP3,
+> CP4, CP5, CP6 (renamed-only half) and CP7 are all already merged and live** —
+> `tools/corp_actions_census.py` (CP1), `api/services/reference_corp_actions.py` (CP3),
+> `bars_sanitize.py`'s dual-compute (CP4, log-only, never changes the served value),
+> `entity_master_d5_producer.py` (CP5 — confirms S3 Entity Master's `source='d5'` column
+> was reserved for exactly this, D5 is its first writer, not new plumbing),
+> `entity_master_d5_renames.py` (CP6, renamed-only), and `adjustment_basis.py` +
+> `GET /api/bars/{ticker}/adjustment-basis` (CP7, additive, doesn't touch the hot bars
+> path). **Only CP2 remains open** — an inert, unread corporate-actions ledger,
+> deliberately left unauthorized per `COMPLETION_AUDIT.md`'s own classification ("read by
+> nothing, so nothing else in D5 is waiting on it") — a governance non-blocker, not a gap.
+> 203 pre-existing tests re-run fresh, all green.
+>
+> **One small, real, previously-unknown gap found and closed, instrument-only:** CP1's
+> own census detector for provider reads is URL-anchored, and two genuine yfinance
+> corporate-action reads use plain attribute access (`ticker_obj.dividends` /
+> `.splits` / `.calendar`) rather than a URL — invisible to the census since it shipped.
+> One of the two (`earnings_estimates.py`'s `_yf_corporate_actions`, feeding chart
+> split/dividend markers) isn't even in the gate PRD's own five-provider table — a sixth
+> feed nobody had counted. Fixed with a narrow AST detector correlated against the same
+> module also calling `.Ticker(...)` (verified as a real discriminator, not a coincidence,
+> against every `.Ticker(` call site in `api/**`), both new sites registered `OUTSTANDING`
+> the same way CP1 already classifies its other known gaps. Mutation-proved (disabling the
+> correlation gate reds the negative-control test). 205 tests green after the change,
+> hygiene clean, confirmed outside flow-worker's reachable closure. **Shipped**: cherry-picked
+> from `5c0513b1a` as `0b42d050c`, pushed to `master`, deploy verified below.
+>
+> **Genuinely still open, not this agent's to build:** CP2 (governance, as above), CP6's
+> merger/relation_added half (no vendor signal exists on the current Massive plan —
+> verified live against real M&A tickers, both 404), CP7's member-facing sentence
+> (explicitly deferred to S8/S10 by its own approval — a product-copy decision, not an
+> engineering gap).
+
+> ✅ **Wave A result, 2026-09-24 — A9 Screening, dispatched for the first time this
+> week.** Two of the three named pieces were already shipped, verified independently
+> against real current source rather than trusted from the doc: **live match-count
+> feedback** (Packet AB CP1, `58e0f72b1`, already on master before this dispatch) and
+> **saved-screen addressing** — a complete mint/publish/unpublish/copy-link/resolve
+> system on `ScreensManager.jsx`/`SharedScreen.jsx`, unconditionally routed, no feature
+> flag — which the roadmap's own §4 detail had NOT caught (it still listed this as
+> "build this week"); it's the screener's own instance of the same share-token pattern
+> Day 3's agent mirrored for chart layouts. **The third — keyboard-driven filter editing
+> — was genuinely missing** (zero `keydown`/shortcut handling anywhere under
+> `app/src/pages/screener` or `app/src/components/screener` before this), and was built:
+> `/` focuses a filter search (desktop only, suspended while any dialog/Sheet is open or
+> a text field has focus — load-bearing, since without it `/` could silently rip focus
+> out of the chart-review overlay), arrow keys move a highlight through the currently
+> visible filters (search- and collapsed-group-aware), Enter hands real focus to the
+> highlighted filter's own control, Escape clears then blurs. Mirrors `Settings.jsx`'s
+> existing `/`-search convention rather than inventing a new one. No feature flag — a
+> pure keyboard-accessibility addition to an already-live surface, no new member-visible
+> door, no new data exposure.
+>
+> **S7's `scan-membership-change` gate, re-confirmed rather than assumed:** CP1-CP3 are
+> built and merged, but CP3 is explicitly still dark (`ALERT_TAXONOMY_SCAN_MEMBERSHIP_DARK_ENABLED`
+> default OFF, no delivery armed) — unchanged from the existing record, a CP4/FLIP
+> decision correctly left time-gated on more nights of real data, not touched. Separately
+> confirmed the *member-facing* version of this alert already exists and fires today via
+> the legacy path (`screen_alerts.py`'s nightly 05:10 ET job + the bell icon in
+> `ScreensManager.jsx`) — A9's roster gate only ever needed CP3, which is done.
+>
+> 19 new tests (`FilterRail.test.jsx`), full scoped suite re-run fresh (559 tests, 529
+> passing) with the failing 30 confirmed — by the agent stashing its own change and
+> re-running, and independently re-confirmed here by diffing the commit's file list
+> against the failing files' names — to be a **pre-existing, byte-identical failure set
+> already on `origin/master`**, unrelated to this change (one of the five failing files,
+> `FilterBand.test.jsx`, tests a "Typical Range" band already removed by owner request).
+> Hygiene clean, outside flow-worker's watch list. **Shipped**: cherry-picked from
+> `d30c4202a` as `b9261e57b`, pushed to `master`, deploy verified below.
 
 ### Day 7 — prove it, don't just ship it
 
