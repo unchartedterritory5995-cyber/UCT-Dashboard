@@ -1,0 +1,579 @@
+{
+  "_readme": [
+    "ONE fixture, read by BOTH sides of the task-ordinal contract.",
+    "tests/test_note_tasks.py runs api/services/journal_two/note_tasks.extract_tasks over every doc;",
+    "app/src/pages/journal-2-0/lib/noteTasks.test.js runs taskIndexesFromJson + findTaskItemPos over the same docs.",
+    "If the server and the editor ever count taskItems differently, 'open the note at task N' lands on the wrong task.",
+    "dateMention {date: YYYY-MM-DD} is the editor lane's contract; the node is built against these fixtures."
+  ],
+  "cases": [
+    {
+      "name": "flat list with one dated task and one checked",
+      "doc": {
+        "type": "doc",
+        "content": [
+          {
+            "type": "paragraph",
+            "content": [
+              {
+                "type": "text",
+                "text": "Morning prep"
+              }
+            ]
+          },
+          {
+            "type": "taskList",
+            "content": [
+              {
+                "type": "taskItem",
+                "attrs": {
+                  "checked": false
+                },
+                "content": [
+                  {
+                    "type": "paragraph",
+                    "content": [
+                      {
+                        "type": "text",
+                        "text": "Review NVDA thesis"
+                      }
+                    ]
+                  }
+                ]
+              },
+              {
+                "type": "taskItem",
+                "attrs": {
+                  "checked": true
+                },
+                "content": [
+                  {
+                    "type": "paragraph",
+                    "content": [
+                      {
+                        "type": "text",
+                        "text": "Log the AMD trade"
+                      }
+                    ]
+                  }
+                ]
+              },
+              {
+                "type": "taskItem",
+                "attrs": {
+                  "checked": false
+                },
+                "content": [
+                  {
+                    "type": "paragraph",
+                    "content": [
+                      {
+                        "type": "text",
+                        "text": "Earnings prep "
+                      },
+                      {
+                        "type": "dateMention",
+                        "attrs": {
+                          "date": "2026-09-25"
+                        }
+                      },
+                      {
+                        "type": "text",
+                        "text": " before the call"
+                      }
+                    ]
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      },
+      "expected": [
+        {
+          "index": 0,
+          "checked": false,
+          "due": null,
+          "depth": 0,
+          "text": "Review NVDA thesis"
+        },
+        {
+          "index": 1,
+          "checked": true,
+          "due": null,
+          "depth": 0,
+          "text": "Log the AMD trade"
+        },
+        {
+          "index": 2,
+          "checked": false,
+          "due": "2026-09-25",
+          "depth": 0,
+          "text": "Earnings prep before the call"
+        }
+      ]
+    },
+    {
+      "name": "nested sub-tasks: pre-order, and a parent never inherits a child's date",
+      "doc": {
+        "type": "doc",
+        "content": [
+          {
+            "type": "taskList",
+            "content": [
+              {
+                "type": "taskItem",
+                "attrs": {
+                  "checked": false
+                },
+                "content": [
+                  {
+                    "type": "paragraph",
+                    "content": [
+                      {
+                        "type": "text",
+                        "text": "Parent task"
+                      }
+                    ]
+                  },
+                  {
+                    "type": "taskList",
+                    "content": [
+                      {
+                        "type": "taskItem",
+                        "attrs": {
+                          "checked": false
+                        },
+                        "content": [
+                          {
+                            "type": "paragraph",
+                            "content": [
+                              {
+                                "type": "text",
+                                "text": "Child with a date "
+                              },
+                              {
+                                "type": "dateMention",
+                                "attrs": {
+                                  "date": "2026-09-20"
+                                }
+                              }
+                            ]
+                          }
+                        ]
+                      },
+                      {
+                        "type": "taskItem",
+                        "attrs": {
+                          "checked": true
+                        },
+                        "content": [
+                          {
+                            "type": "paragraph",
+                            "content": [
+                              {
+                                "type": "text",
+                                "text": "Child already done"
+                              }
+                            ]
+                          }
+                        ]
+                      }
+                    ]
+                  }
+                ]
+              },
+              {
+                "type": "taskItem",
+                "attrs": {
+                  "checked": false
+                },
+                "content": [
+                  {
+                    "type": "paragraph",
+                    "content": [
+                      {
+                        "type": "text",
+                        "text": "Sibling after the parent"
+                      }
+                    ]
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      },
+      "expected": [
+        {
+          "index": 0,
+          "checked": false,
+          "due": null,
+          "depth": 0,
+          "text": "Parent task"
+        },
+        {
+          "index": 1,
+          "checked": false,
+          "due": "2026-09-20",
+          "depth": 1,
+          "text": "Child with a date"
+        },
+        {
+          "index": 2,
+          "checked": true,
+          "due": null,
+          "depth": 1,
+          "text": "Child already done"
+        },
+        {
+          "index": 3,
+          "checked": false,
+          "due": null,
+          "depth": 0,
+          "text": "Sibling after the parent"
+        }
+      ]
+    },
+    {
+      "name": "a task list inside a bullet list, after a heading",
+      "doc": {
+        "type": "doc",
+        "content": [
+          {
+            "type": "heading",
+            "attrs": {
+              "level": 2
+            },
+            "content": [
+              {
+                "type": "text",
+                "text": "Watchlist"
+              }
+            ]
+          },
+          {
+            "type": "bulletList",
+            "content": [
+              {
+                "type": "listItem",
+                "content": [
+                  {
+                    "type": "paragraph",
+                    "content": [
+                      {
+                        "type": "text",
+                        "text": "Semis"
+                      }
+                    ]
+                  },
+                  {
+                    "type": "taskList",
+                    "content": [
+                      {
+                        "type": "taskItem",
+                        "attrs": {
+                          "checked": false
+                        },
+                        "content": [
+                          {
+                            "type": "paragraph",
+                            "content": [
+                              {
+                                "type": "text",
+                                "text": "Size the SMH add "
+                              },
+                              {
+                                "type": "dateMention",
+                                "attrs": {
+                                  "date": "2026-09-22"
+                                }
+                              }
+                            ]
+                          }
+                        ]
+                      }
+                    ]
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      },
+      "expected": [
+        {
+          "index": 0,
+          "checked": false,
+          "due": "2026-09-22",
+          "depth": 0,
+          "text": "Size the SMH add"
+        }
+      ]
+    },
+    {
+      "name": "marks split a word boundary and a hard break becomes a space",
+      "doc": {
+        "type": "doc",
+        "content": [
+          {
+            "type": "taskList",
+            "content": [
+              {
+                "type": "taskItem",
+                "attrs": {
+                  "checked": false
+                },
+                "content": [
+                  {
+                    "type": "paragraph",
+                    "content": [
+                      {
+                        "type": "text",
+                        "text": "Buy "
+                      },
+                      {
+                        "type": "text",
+                        "text": "NVDA",
+                        "marks": [
+                          {
+                            "type": "bold"
+                          }
+                        ]
+                      },
+                      {
+                        "type": "hardBreak"
+                      },
+                      {
+                        "type": "text",
+                        "text": "on the pullback"
+                      }
+                    ]
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      },
+      "expected": [
+        {
+          "index": 0,
+          "checked": false,
+          "due": null,
+          "depth": 0,
+          "text": "Buy NVDA on the pullback"
+        }
+      ]
+    },
+    {
+      "name": "an impossible date is no date; the first REAL date wins",
+      "doc": {
+        "type": "doc",
+        "content": [
+          {
+            "type": "taskList",
+            "content": [
+              {
+                "type": "taskItem",
+                "attrs": {
+                  "checked": false
+                },
+                "content": [
+                  {
+                    "type": "paragraph",
+                    "content": [
+                      {
+                        "type": "text",
+                        "text": "Bad date "
+                      },
+                      {
+                        "type": "dateMention",
+                        "attrs": {
+                          "date": "2026-02-30"
+                        }
+                      }
+                    ]
+                  }
+                ]
+              },
+              {
+                "type": "taskItem",
+                "attrs": {
+                  "checked": false
+                },
+                "content": [
+                  {
+                    "type": "paragraph",
+                    "content": [
+                      {
+                        "type": "text",
+                        "text": "Word date "
+                      },
+                      {
+                        "type": "dateMention",
+                        "attrs": {
+                          "date": "tomorrow"
+                        }
+                      }
+                    ]
+                  }
+                ]
+              },
+              {
+                "type": "taskItem",
+                "attrs": {
+                  "checked": false
+                },
+                "content": [
+                  {
+                    "type": "paragraph",
+                    "content": [
+                      {
+                        "type": "text",
+                        "text": "Two dates "
+                      },
+                      {
+                        "type": "dateMention",
+                        "attrs": {
+                          "date": "2026-13-01"
+                        }
+                      },
+                      {
+                        "type": "text",
+                        "text": " then "
+                      },
+                      {
+                        "type": "dateMention",
+                        "attrs": {
+                          "date": "2026-10-01"
+                        }
+                      }
+                    ]
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      },
+      "expected": [
+        {
+          "index": 0,
+          "checked": false,
+          "due": null,
+          "depth": 0,
+          "text": "Bad date"
+        },
+        {
+          "index": 1,
+          "checked": false,
+          "due": null,
+          "depth": 0,
+          "text": "Word date"
+        },
+        {
+          "index": 2,
+          "checked": false,
+          "due": "2026-10-01",
+          "depth": 0,
+          "text": "Two dates then"
+        }
+      ]
+    },
+    {
+      "name": "an empty checklist item still counts as a task",
+      "doc": {
+        "type": "doc",
+        "content": [
+          {
+            "type": "taskList",
+            "content": [
+              {
+                "type": "taskItem",
+                "attrs": {
+                  "checked": false
+                },
+                "content": [
+                  {
+                    "type": "paragraph"
+                  }
+                ]
+              },
+              {
+                "type": "taskItem",
+                "attrs": {
+                  "checked": false
+                },
+                "content": [
+                  {
+                    "type": "paragraph",
+                    "content": [
+                      {
+                        "type": "text",
+                        "text": "Second"
+                      }
+                    ]
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      },
+      "expected": [
+        {
+          "index": 0,
+          "checked": false,
+          "due": null,
+          "depth": 0,
+          "text": ""
+        },
+        {
+          "index": 1,
+          "checked": false,
+          "due": null,
+          "depth": 0,
+          "text": "Second"
+        }
+      ]
+    },
+    {
+      "name": "a note with no tasks",
+      "doc": {
+        "type": "doc",
+        "content": [
+          {
+            "type": "paragraph",
+            "content": [
+              {
+                "type": "text",
+                "text": "Just prose about the tape."
+              }
+            ]
+          },
+          {
+            "type": "bulletList",
+            "content": [
+              {
+                "type": "listItem",
+                "content": [
+                  {
+                    "type": "paragraph",
+                    "content": [
+                      {
+                        "type": "text",
+                        "text": "A plain bullet"
+                      }
+                    ]
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      },
+      "expected": []
+    }
+  ]
+}

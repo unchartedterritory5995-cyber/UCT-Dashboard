@@ -405,6 +405,12 @@
       ],
       "note": ""
     },
+    "CLIENT_ERROR_BEACON_ENABLED": {
+      "status": "pending",
+      "since": "2026-09-23",
+      "where": [],
+      "note": "Notebook 10/10 wave 6 (D14): the client error beacon's KILL SWITCH, default ON - unset or any value but 0/false/no/off means the server accepts reports; 0 means POST /api/client-errors answers {enabled: false}, writes nothing, and every open page stops sending for the rest of its life. Read PER REQUEST in api/services/client_errors.py::enabled(), so a flip needs no redeploy. PENDING because the router (api/routers/client_errors.py) is not mounted until the controller wires it into api/main.py; until then nothing collects. The store is its own file, CLIENT_ERRORS_DB_PATH (default /data/client_errors.db), rows kept 14 days. Turning it off stops COLLECTION and never deletes a collected row. What leaves the browser is scrubbed first (app/src/lib/errorBeacon.js: message skeleton, stack frames only, no query or fragment on any URL)."
+    },
     "COMMUNITY_ASK_ENABLED": {
       "status": "armed",
       "where": [
@@ -896,6 +902,12 @@
       "status": "dark",
       "where": [],
       "note": "Wave K, 2026-09-12. Enablement gate for Q2-A, the offline READ path, which is NOT BUILT. Distinct from NOTEBOOK_OFFLINE_DEFAULT_ON, which is a KILL switch defaulting ON and therefore needs no entry here by this ledger's own doctrine. Unset means OFF."
+    },
+    "NOTEBOOK_TASK_REMINDERS_ENABLED": {
+      "status": "pending",
+      "since": "2026-09-23",
+      "where": [],
+      "note": "Notebook 10/10 wave 6 lane F: KILL SWITCH for the daily task reminder, default ON (unset = on; 0/false/no/off = off), read at the start of every run of api/services/journal_two/note_tasks.py::run_task_reminders. PENDING because nothing schedules that function until the controller registers it (07:00 ET) in api/main.py, and because the dateMention node that carries a task's due date is not built yet, so no task can be due. One IN-APP bell notification per member per ET day for open tasks due today or overdue - never email (the Resend quota is spent daily), severity info so never Discord. Deduped in the j2_task_reminder_log table. Turning it off stops reminders and never deletes a row."
     },
     "NOTE_SYNC_ENABLED": {
       "status": "armed",

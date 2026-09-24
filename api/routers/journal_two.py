@@ -108,6 +108,15 @@ _J2_TELEMETRY_EVENTS = {
     #
     # ⛔ NEVER note content: a per-session id, the flag state, a timestamp.
     "notebook_offline_opt_in",
+    # Wave 6 (D14) — Notebook core-action telemetry. The ONE client door is
+    # app/src/pages/journal-2-0/lib/notebookTelemetry.js, which drops every
+    # prop not on its per-event schema and sends strings only from closed
+    # enums, so a title or a query cannot ride along. Counted by
+    # GET /api/admin/notebook-telemetry (api/routers/client_errors.py).
+    # tests/test_notebook_telemetry_events.py reads the names out of the
+    # client source and asserts each is here — never retyped.
+    "note_open_ms", "save_failed", "conflict_forked", "ask_used",
+    "capture_used", "search_used", "switcher_used",
 }
 
 
