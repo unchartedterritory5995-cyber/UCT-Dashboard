@@ -61,9 +61,13 @@ def rows(path, D):
     return out
 
 
+UNIS = ("uct", "uct_backtest", "us", "nasdaq", "nyse")
+
+
 def strip(r, ren):
-    return {ren.get(u, u): {m: tup(v) for m, v in (r[u] or {}).items() if not m.startswith("_") and m not in RATIO}
-            for u in r if r[u]}
+    return {ren.get(u, u): {m: tup(v) for m, v in (r[u] or {}).items()
+                            if isinstance(v, dict) and not m.startswith("_") and m not in RATIO}
+            for u in r if u in UNIS and isinstance(r[u], dict) and r[u]}
 
 
 # ── phase A: old vintage (S0..S6 + S6') ──
