@@ -56,6 +56,7 @@ import TextColorMenu, { TEXT_COLOR_MENU_LABEL } from './TextColorMenu'
 import { isReplaceChord, modKeyLabel } from '../../lib/platform'
 import NoteStats from './NoteStats'
 import NoteOutline from './NoteOutline'
+import TableToolbar from './TableToolbar'
 import { textColorClass } from '../../lib/textColor'
 import NoteHistoryPanel from './NoteHistoryPanel'
 import NoteBacklinksSection from './NoteBacklinksSection'
@@ -2828,6 +2829,10 @@ export default function NoteEditorPage({ noteId, onBack, showBack = true, onTitl
             onClose={() => { setFindOpen(false); setFindWithReplace(false); editor?.commands.noteFindClear() }}
           />
         )}
+
+        {/* Wave 6: the table toolbar floats over the table the caret is in,
+            and renders nothing anywhere else (or on a read-only note). */}
+        <TableToolbar editor={editor} />
 
         <div onClickCapture={handleEditorClickCapture}>
           <EditorContent editor={editor} />

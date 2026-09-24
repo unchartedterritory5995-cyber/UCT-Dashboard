@@ -451,20 +451,71 @@ def _list_items(node: dict[str, Any], bullet, depth: int = 0, resolver=None) -> 
     return "\n".join(lines)
 
 
+_GFM_ALIGN = {"left": ":---", "center": ":---:", "right": "---:"}
+
+
+def _gfm_cell(cell: dict[str, Any], resolver=None) -> str:
+    """One table cell as GFM: a cell is ONE line, so its blocks (and any line
+    break inside them) are joined with `<br>` -- the form every GFM renderer
+    shows as a line break inside a cell -- and a literal `|` is escaped, or it
+    would split the cell in two (GFM requires the escape inside a code span
+    too, and removes the backslash when it renders)."""
+    parts = [_block(c, resolver) for c in (cell.get("content") or []) if isinstance(c, dict)]
+    text = "<br>".join(p.strip() for p in parts if p.strip() != "")
+    text = text.replace("\r\n", "\n").replace("\n", "<br>")
+    return text.replace("|", "\\|")
+
+
 def _table(node: dict[str, Any], resolver=None) -> str:
+    """A table as a GFM pipe table (wave 6).
+
+    Fidelity over prettiness (module docstring):
+      - a cell is one line (`_gfm_cell`), never a raw newline that ends the row;
+      - ragged rows are padded so every row has the same number of cells, and a
+        merged cell (`colspan`) keeps its neighbours in their columns;
+      - GFM cannot express a table WITHOUT a header row, so a table whose first
+        row is not header cells gets a BLANK header row instead of silently
+        promoting its first data row to one;
+      - a column's alignment (the cell `align` attr the table extension stores)
+        becomes the delimiter row's `:---` / `:---:` / `---:`.
+    """
     rows: list[list[str]] = []
-    for row in node.get("content") or []:
-        cells = [
-            "\n".join(_block(c, resolver) for c in (cell.get("content") or [])).strip()
-            for cell in (row.get("content") or [])
-        ]
+    aligns: list[str | None] = []
+    header = False
+    for r_index, row in enumerate(node.get("content") or []):
+        if not isinstance(row, dict):
+            continue
+        cells: list[str] = []
+        kinds: list[str] = []
+        for cell in row.get("content") or []:
+            if not isinstance(cell, dict):
+                continue
+            attrs = cell.get("attrs") if isinstance(cell.get("attrs"), dict) else {}
+            cells.append(_gfm_cell(cell, resolver))
+            kinds.append(cell.get("type") or "")
+            if r_index == 0:
+                aligns.append(attrs.get("align") if attrs.get("align") in _GFM_ALIGN else None)
+            try:
+                span = int(attrs.get("colspan") or 1)
+            except (TypeError, ValueError):
+                span = 1
+            for _ in range(max(0, min(span, 64) - 1)):
+                cells.append("")
+                kinds.append(kinds[-1])
+                if r_index == 0:
+                    aligns.append(None)
+        if r_index == 0:
+            header = bool(kinds) and all(k == "tableHeader" for k in kinds)
         rows.append(cells)
     if not rows:
         return ""
-    out = ["| " + " | ".join(rows[0]) + " |",
-           "| " + " | ".join("---" for _ in rows[0]) + " |"]
-    for r in rows[1:]:
-        out.append("| " + " | ".join(r) + " |")
+    width = max(1, max(len(r) for r in rows))
+    rows = [r + [""] * (width - len(r)) for r in rows]
+    aligns = (aligns + [None] * width)[:width]
+    head, body = (rows[0], rows[1:]) if header else ([""] * width, rows)
+    line = lambda cells: "| " + " | ".join(cells) + " |"  # noqa: E731
+    out = [line(head), line([_GFM_ALIGN.get(a or "", "---") for a in aligns])]
+    out += [line(r) for r in body]
     return "\n".join(out)
 
 

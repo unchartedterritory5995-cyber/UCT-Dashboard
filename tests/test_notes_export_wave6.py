@@ -1,0 +1,108 @@
+"""Wave 6 (editor lane D) -- Markdown export of the new editor content.
+
+One section per item, added with the item. The export is a trust artifact
+(`notes_export.py` module docstring): a member checks whether their notes
+survived, so every new block must come out as something a Markdown reader
+shows, and a member's words must never be dropped.
+"""
+from __future__ import annotations
+
+from api.services.journal_two.notes_export import tiptap_to_markdown
+
+
+def _doc(*content):
+    return {"type": "doc", "content": list(content)}
+
+
+def _para(text=None, *inline):
+    if text is None and not inline:
+        return {"type": "paragraph"}
+    kids = ([{"type": "text", "text": text}] if text else []) + list(inline)
+    return {"type": "paragraph", "content": kids}
+
+
+# ── item 1: tables export as GFM ─────────────────────────────────────────────
+
+def _cell(*blocks, kind="tableCell", **attrs):
+    node = {"type": kind, "content": list(blocks) or [_para()]}
+    if attrs:
+        node["attrs"] = attrs
+    return node
+
+
+def _row(*cells):
+    return {"type": "tableRow", "content": list(cells)}
+
+
+def _table(*rows):
+    return {"type": "table", "content": list(rows)}
+
+
+def test_a_header_row_table_is_a_plain_gfm_table():
+    md = tiptap_to_markdown(_doc(_table(
+        _row(_cell(_para("Sym"), kind="tableHeader"), _cell(_para("R"), kind="tableHeader")),
+        _row(_cell(_para("NVDA")), _cell(_para("2.1"))),
+    )))
+    assert md == "| Sym | R |\n| --- | --- |\n| NVDA | 2.1 |"
+
+
+def test_a_table_WITHOUT_a_header_row_gets_a_blank_header_never_a_promoted_data_row():
+    md = tiptap_to_markdown(_doc(_table(
+        _row(_cell(_para("NVDA")), _cell(_para("2.1"))),
+        _row(_cell(_para("AMD")), _cell(_para("1.4"))),
+    )))
+    lines = md.split("\n")
+    assert lines[0] == "|  |  |"
+    assert lines[1] == "| --- | --- |"
+    assert lines[2:] == ["| NVDA | 2.1 |", "| AMD | 1.4 |"]
+
+
+def test_a_pipe_in_a_cell_is_escaped_so_it_does_not_split_the_cell():
+    md = tiptap_to_markdown(_doc(_table(
+        _row(_cell(_para("A"), kind="tableHeader")),
+        _row(_cell(_para("long | short"))),
+    )))
+    assert md.split("\n")[2] == "| long \\| short |"
+
+
+def test_a_cell_with_two_paragraphs_or_a_line_break_stays_ONE_row():
+    br = {"type": "hardBreak"}
+    md = tiptap_to_markdown(_doc(_table(
+        _row(_cell(_para("H"), kind="tableHeader")),
+        _row(_cell(_para("first"), _para("second"))),
+        _row(_cell(_para("line one", br, {"type": "text", "text": "line two"}))),
+    )))
+    lines = md.split("\n")
+    assert len(lines) == 4, md
+    assert lines[2] == "| first<br>second |"
+    assert lines[3] == "| line one<br>line two |"
+
+
+def test_ragged_rows_are_padded_and_a_merged_cell_keeps_its_neighbours_in_their_columns():
+    md = tiptap_to_markdown(_doc(_table(
+        _row(_cell(_para("A"), kind="tableHeader"), _cell(_para("B"), kind="tableHeader"),
+             _cell(_para("C"), kind="tableHeader")),
+        _row(_cell(_para("wide"), colspan=2), _cell(_para("c"))),
+        _row(_cell(_para("only"))),
+    )))
+    lines = md.split("\n")
+    assert lines[2] == "| wide |  | c |"
+    assert lines[3] == "| only |  |  |"
+    assert all(ln.count(" | ") == 2 for ln in lines), md
+
+
+def test_column_alignment_becomes_the_delimiter_row():
+    md = tiptap_to_markdown(_doc(_table(
+        _row(_cell(_para("L"), kind="tableHeader", align="left"),
+             _cell(_para("C"), kind="tableHeader", align="center"),
+             _cell(_para("R"), kind="tableHeader", align="right"),
+             _cell(_para("N"), kind="tableHeader")),
+        _row(_cell(_para("1")), _cell(_para("2")), _cell(_para("3")), _cell(_para("4"))),
+    )))
+    assert md.split("\n")[1] == "| :--- | :---: | ---: | --- |"
+
+
+def test_an_empty_table_and_a_malformed_row_never_raise():
+    assert tiptap_to_markdown(_doc(_table())) == ""
+    md = tiptap_to_markdown(_doc(_table("not a row", _row("not a cell", _cell(_para("x"))))))
+    assert "x" in md
