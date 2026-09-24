@@ -949,6 +949,49 @@ def test_flag_off_never_queues_a_retry(edu_db, jobs_db, monkeypatch, tmp_path):
     assert not (tmp_path / "desk_cover_retry.json").exists()
 
 
+def _spy_cover_spend(monkeypatch):
+    """Spy the creative cover's two paid calls without stubbing render_cover
+    itself, so the REAL decision path runs end to end."""
+    spent = []
+    monkeypatch.setattr(desk_creative, "day_context", lambda: {"date": "2026-06-24"})
+    monkeypatch.setattr(desk_creative, "_llm", lambda s, u: spent.append("llm"))
+    monkeypatch.setattr(desk_creative, "_openai_generate", lambda scene: spent.append("image"))
+    return spent
+
+
+@pytest.mark.parametrize("topic", ["WORKSHOP WITH CHARTMASTER", "Workshop with Zen"])
+def test_a_hosts_own_card_ships_and_is_never_queued_for_an_ai_cover(
+        edu_db, jobs_db, monkeypatch, tmp_path, topic):
+    # 2026-09-23: the host's card IS the answer, not a placeholder — so it
+    # ships, nothing is spent trying to replace it, and nothing is queued to
+    # replace it later (a retry landing after API credits are reloaded would
+    # paint an AI cover over the owner's art).
+    monkeypatch.setenv("DESK_CREATIVE_THUMBS", "1")
+    monkeypatch.setenv("DESK_CREATIVE_DATA_DIR", str(tmp_path))
+    spent = _spy_cover_spend(monkeypatch)
+    yt = _ByteThumbYT()
+    out = _publish_one(jobs_db, yt, topic=topic)
+    assert len(out) == 1
+    from api.services.desk_thumbnail import render_session_thumbnail
+    assert yt.thumb_bytes == [render_session_thumbnail("June 24, 2026",
+                                                       eyebrow_label=topic.upper())]
+    assert spent == []
+    assert desk_cover_retry.pending() == []
+
+
+def test_an_ordinary_workshop_still_tries_and_queues_an_ai_cover(
+        edu_db, jobs_db, monkeypatch, tmp_path):
+    # The control for the test above: same spies, a host WITHOUT a card of
+    # their own. Proves the spies are reachable and the queue is live, so the
+    # empty assertions above cannot pass by never looking.
+    monkeypatch.setenv("DESK_CREATIVE_THUMBS", "1")
+    monkeypatch.setenv("DESK_CREATIVE_DATA_DIR", str(tmp_path))
+    spent = _spy_cover_spend(monkeypatch)
+    _publish_one(jobs_db, _ByteThumbYT(), topic="Workshop with Stockbee")
+    assert "llm" in spent
+    assert [e["youtube_id"] for e in desk_cover_retry.pending()] == ["VIDX"]
+
+
 def test_retry_queue_failure_never_breaks_a_publish(edu_db, jobs_db, monkeypatch, tmp_path):
     monkeypatch.setenv("DESK_CREATIVE_THUMBS", "1")
     monkeypatch.setenv("DESK_CREATIVE_DATA_DIR", str(tmp_path))

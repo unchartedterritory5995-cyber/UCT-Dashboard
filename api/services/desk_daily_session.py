@@ -432,12 +432,15 @@ def process_pending_jobs(*, zoom=None, youtube=None) -> list[dict]:
                         except Exception as ce:
                             print(f"[desk-sessions] creative cover failed (non-fatal): {ce}")
                     if thumb is None:
-                        from api.services.desk_thumbnail import render_session_thumbnail
+                        from api.services.desk_thumbnail import (
+                            has_bespoke_card, render_session_thumbnail)
                         thumb = render_session_thumbnail(date_text, eyebrow_label=eyebrow)
-                        if desk_creative.thumbs_enabled():
+                        if desk_creative.thumbs_enabled() and not has_bespoke_card(eyebrow):
                             # The themed card is a PLACEHOLDER, not the answer:
                             # a throttled image API at publish time (8/20: one
-                            # 429) must not decide the cover for good.
+                            # 429) must not decide the cover for good. A host's
+                            # own card IS the answer — render_cover declines to
+                            # paint over it, so a retry could only come back empty.
                             desk_cover_retry.enqueue(vid, section=section, eyebrow=eyebrow,
                                                      date_text=date_text)
                     youtube.set_thumbnail(vid, thumb)

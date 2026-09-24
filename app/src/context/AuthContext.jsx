@@ -2,6 +2,7 @@ import { createContext, useContext, useState, useEffect, useCallback, useRef } f
 import { setCurrentAccountId } from '../pages/journal-2-0/lib/offline/currentAccount'
 import { clearIntroSeen } from '../components/intro/introStorage'
 import { latchNotebookFlags, FLAG_FALLBACKS } from '../pages/journal-2-0/lib/offline/notebookFlags'
+import { setUnauthorizedHandler } from '../hooks/livePriceStore'
 
 export const AuthContext = createContext(null)
 
@@ -160,6 +161,17 @@ export function AuthProvider({ children }) {
   }, [])
 
   useEffect(() => { fetchUser() }, [fetchUser])
+
+  // OI-17 follow-up: livePriceStore's poll has no session context of its own — a
+  // 401 there means the session died mid-poll, and only AuthContext can turn that
+  // into a real definitive check. Re-running fetchUser here is exactly `retryAuth`:
+  // a genuine 401 flips `user` to null and AuthGuard redirects to /login (the
+  // visible signal that was missing); a false alarm (a momentary blip on that one
+  // endpoint) leaves the session untouched, same as any other transient failure.
+  useEffect(() => {
+    setUnauthorizedHandler(() => { fetchUser() })
+    return () => setUnauthorizedHandler(null)
+  }, [fetchUser])
 
   const login = async (email, password) => {
     const res = await fetch('/api/auth/login', {

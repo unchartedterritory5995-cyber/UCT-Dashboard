@@ -2,7 +2,8 @@
 FastAPI router for Gamma Exposure (GEX) endpoints.
 """
 
-from fastapi import APIRouter, Query
+from fastapi import APIRouter, Depends, Query
+from api.middleware.auth_middleware import get_current_user
 from api.gex_service import get_gex_data, get_gex_compare
 
 router = APIRouter(prefix="/api/gex", tags=["gex"])
@@ -13,6 +14,7 @@ async def gex_data(
     ticker: str = Query(..., description="Ticker symbol (e.g. SPY, QQQ, SPX)"),
     dte: str = Query("all", description="DTE filter: 0dte, week, month, all"),
     adjusted: bool = Query(False, description="If true, use trade-aware dealer positioning estimates"),
+    user: dict = Depends(get_current_user),
 ):
     """Get gamma exposure data for a ticker.
 

@@ -763,3 +763,190 @@ def test_row_position_returns_None_rather_than_a_plausible_default(monkeypatch):
     assert book_mod.row_position("no_such_metric") is None
     monkeypatch.setattr(book_mod, "book", lambda: {})
     assert book_mod.row_position("ohlcv.c") is None
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Owner-delegated extension (delegated to the AI session, 2026-09-23) —
+# `breadth_snapshot_numeric`, A11's breadth/exposure metrics
+#
+# ⛔ Every oracle below re-parses `breadth_metrics.py` / `breadth_monitor.py`
+# ITSELF, independently of `breadth_store()` — the same discipline the bars and
+# earnings_table oracles above use, for the same reason: importing the
+# builder's own parser would only prove the builder agrees with itself.
+# ─────────────────────────────────────────────────────────────────────────────
+
+_BREADTH_METRICS_MODULE = _REPO / "api" / "services" / "breadth_metrics.py"
+_BREADTH_MONITOR_MODULE = _REPO / "api" / "services" / "breadth_monitor.py"
+
+
+def _breadth_store() -> dict:
+    store = _book()["stores"].get("breadth_snapshot_numeric")
+    assert store, "the book carries no breadth_snapshot_numeric store record"
+    return store
+
+
+def _independent_breadth_rows() -> dict:
+    """{metric_key: sentence} re-derived DIRECTLY from `breadth_metrics.py`'s
+    `_ROWS` literal, never by calling the builder's own `breadth_store()`.
+
+    ⛔ Only the metric key (tuple index 0) and the name (index 2) are literal
+    strings in that tuple — `unit`/`domain`/`presentation`/`portability` are
+    references to module-level constants (`UNIT_PERCENT`, `DOMAIN_PCT`, …), not
+    literals, and this test does not need to resolve them.
+    """
+    tree = ast.parse(_BREADTH_METRICS_MODULE.read_text(encoding="utf-8"))
+    assign = next(n for n in tree.body
+                  if isinstance(n, ast.Assign) and len(n.targets) == 1
+                  and isinstance(n.targets[0], ast.Name) and n.targets[0].id == "_ROWS")
+    out = {}
+    for elt in assign.value.elts:
+        assert isinstance(elt, ast.Tuple) and len(elt.elts) == 9, (
+            f"a _ROWS tuple has {len(elt.elts) if isinstance(elt, ast.Tuple) else '?'} "
+            "elements, not 9 — the schema shifted under this oracle")
+        key, name = elt.elts[0], elt.elts[2]
+        assert isinstance(key, ast.Constant) and isinstance(key.value, str)
+        assert isinstance(name, ast.Constant) and isinstance(name.value, str)
+        out[key.value] = name.value
+    return out
+
+
+def _breadth_snapshot_numeric_ddl_key() -> list:
+    """The PRIMARY KEY of `breadth_snapshot_numeric`, read out of CODE — the
+    same "code, never prose" discipline `_ohlcv_ddl` uses for bars."""
+    import re as _re
+    src = ast.parse(_BREADTH_MONITOR_MODULE.read_text(encoding="utf-8"))
+    hits = [n.value for n in ast.walk(src)
+            if isinstance(n, ast.Constant) and isinstance(n.value, str)
+            and _re.search(r"CREATE\s+TABLE\s+(?:IF\s+NOT\s+EXISTS\s+)?breadth_snapshot_numeric",
+                            n.value, _re.I)]
+    assert len(hits) == 1, f"expected one breadth_snapshot_numeric DDL, found {len(hits)}"
+    body = _re.search(r"\((.*)\)", hits[0], _re.S).group(1)
+    key = []
+    for part in _re.split(r",(?![^(]*\))", body):
+        part = part.strip()
+        if part and _re.search(r"\bPRIMARY\s+KEY\b", part, _re.I):
+            key.append(part.split()[0])
+    assert key, "parsed no PRIMARY KEY out of the breadth_snapshot_numeric DDL"
+    return key
+
+
+def test_the_breadth_side_is_NON_EMPTY_and_names_a_metric_we_can_point_at():
+    """⛔ NON-VACUITY FOR THE NEW STORE. Every breadth assertion below is over
+    these; `{} == {}` would satisfy all of them."""
+    independent = _independent_breadth_rows()
+    assert "uct_exposure" in independent
+    assert "pct_above_50sma" in independent
+    metrics = {n: d for n, d in _book()["metrics"].items()
+               if d["store"] == "breadth_snapshot_numeric"}
+    assert metrics, "the book carries no breadth metrics"
+    assert "breadth_snapshot_numeric.uct_exposure" in metrics
+
+
+def test_every_breadth_METRIC_KEY_is_addressed_and_no_extras_appear():
+    """The book's breadth metric set is EXACTLY `breadth_metrics.py`'s `_ROWS`
+    keys — no fewer (a metric the catalogue declares but the book drops) and no
+    more (a metric the book invented that the catalogue does not know)."""
+    independent = set(_independent_breadth_rows())
+    got = {n.split(".", 1)[1] for n, d in _book()["metrics"].items()
+           if d["store"] == "breadth_snapshot_numeric"}
+    assert got == independent, (
+        f"breadth metric sets diverged.\n  missing: {sorted(independent - got)}\n"
+        f"  extra:   {sorted(got - independent)}")
+
+
+def test_the_book_agrees_with_breadth_metrics_py_about_each_SENTENCE():
+    """Per the same discipline as the bars per-column test — a divergence here
+    names which metric's sentence went stale, not just that "something" did."""
+    independent = _independent_breadth_rows()
+    book = _book()["metrics"]
+    bad = []
+    for key, sentence in independent.items():
+        name = "breadth_snapshot_numeric.%s" % key
+        entry = book.get(name)
+        if not entry or entry.get("sentence") != sentence:
+            bad.append((key, sentence, entry.get("sentence") if entry else None))
+    assert not bad, f"sentence diverged (key, catalogue, book): {bad[:8]}"
+
+
+def test_breadth_metrics_have_no_row_projection_and_row_position_returns_None():
+    """⛔⛔ THE STRUCTURAL DIFFERENCE FROM BARS, ASSERTED, NOT ASSUMED. A JSON
+    key inside a blob has no ordinal position — declaring one would be exactly
+    the "plausible default" `row_position()` exists to refuse."""
+    store = _breadth_store()
+    assert "row_projection" not in store, (
+        "the breadth store declares a row_projection — there is no positional "
+        "concept for a JSON-key lookup, and declaring one invents an ordinal "
+        "that answers a question this store cannot ask")
+    from api.services.canonical import address_book as book_mod
+    assert book_mod.row_position("breadth_snapshot_numeric.uct_exposure") is None
+
+
+def test_the_breadth_as_of_column_is_the_stores_OWN_primary_key():
+    """⛔ DERIVED FROM THE DDL'S PRIMARY KEY, NOT FROM A NAME THAT LOOKS
+    TEMPORAL. `date` here is a real single-column PRIMARY KEY — the same
+    property bars derives from its delta query, read a different way because a
+    JSON-blob store has no delta query to read it from."""
+    store = _breadth_store()
+    ddl_key = _breadth_snapshot_numeric_ddl_key()
+    assert len(ddl_key) == 1, f"expected a single-column PRIMARY KEY, got {ddl_key}"
+    assert store["as_of_column"] == ddl_key[0]
+    assert store["key"] == ddl_key
+    for name, d in _book()["metrics"].items():
+        if d["store"] == "breadth_snapshot_numeric":
+            assert d["as_of_column"] == ddl_key[0]
+
+
+def test_breadth_records_undeclared_fields_as_null_never_as_a_default():
+    """⛔⛔ THE SAME DISCIPLINE AS BARS' UNDECLARED FIELDS: `cadence` and
+    `grain` are not declared anywhere in `breadth_metrics.py`, so defaulting
+    them to a neighbour's value (e.g. the screener scalars' `nightly`/`date`)
+    would misstate how fresh a breadth metric actually is."""
+    store = _breadth_store()
+    undeclared = store["undeclared_by_this_store"]
+    assert undeclared == ["cadence", "grain"]
+    for name, d in _book()["metrics"].items():
+        if d["store"] != "breadth_snapshot_numeric":
+            continue
+        for field in undeclared:
+            assert d[field] is None, (
+                f"{name}.{field} is {d[field]!r}; breadth_metrics.py declares no "
+                f"{field}, so the book must say so rather than inherit a value")
+
+
+def test_breadth_metrics_are_all_TABLE_QUALIFIED_and_cannot_shadow_a_scalar():
+    """The same collision guard bars' `ohlcv.c` qualification provides: a bare
+    `pct_above_50sma` could plausibly collide with a future screener scalar of
+    the same short name; the qualified form structurally cannot."""
+    for name, d in _book()["metrics"].items():
+        if d["store"] != "breadth_snapshot_numeric":
+            continue
+        assert name.startswith("breadth_snapshot_numeric."), (
+            f"{name} is a breadth metric but is not table-qualified")
+
+
+def test_breadth_store_record_names_the_modules_it_was_derived_from():
+    store = _breadth_store()
+    assert store["declared_in"] == "api/services/breadth_monitor.py"
+    assert (_REPO / store["declared_in"]).exists()
+    assert store["metric_catalogue_declared_in"] == "api/services/breadth_metrics.py"
+    assert (_REPO / store["metric_catalogue_declared_in"]).exists()
+    assert store["authority"] == "derived", (
+        "PRD-D2 §7's vocabulary is {authoritative, derived}; breadth has no "
+        "independent reconciliation oracle the way bars has Polygon — the same "
+        "reason earnings_table is 'derived' rather than 'authoritative'")
+
+
+def test_the_breadth_rail_CAN_FAIL(tmp_path):
+    """⛔ THE MUTATION, RUN IN-PROCESS. A rail nobody has seen fail is not a
+    rail. Corrupts a copy of the book — never the real one."""
+    book = _book()
+    book["metrics"]["breadth_snapshot_numeric.uct_exposure"]["sentence"] = "renamed"
+    corrupted = tmp_path / "book.json"
+    corrupted.write_text(json.dumps(book, indent=2), encoding="utf-8")
+
+    independent = _independent_breadth_rows()
+    reloaded = json.loads(corrupted.read_text(encoding="utf-8"))["metrics"]
+    assert reloaded["breadth_snapshot_numeric.uct_exposure"]["sentence"] != (
+        independent["uct_exposure"]), (
+        "the corrupted book's sentence still matches the catalogue — then a "
+        "real drift would not be noticed either")
