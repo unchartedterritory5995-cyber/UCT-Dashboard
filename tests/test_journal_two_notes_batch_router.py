@@ -114,6 +114,12 @@ def test_requires_a_signed_in_member(client):
     ({"ids": ["a"], "op": "move", "args": {"folders": {"a": 7}}}, "folderId must be"),
     ({"ids": ["a"], "op": "move", "args": {"folderId": "nope"}}, "folder not found"),
     ({"ids": ["a"], "op": "move", "args": {"folderId": None, "expectFolderId": 7}}, "expectFolderId"),
+    # N6 (wave 5 review): an UNHASHABLE folder value used to reach a set literal
+    # before any isinstance check -- a TypeError, and a 500 where a 400 was meant.
+    ({"ids": ["a"], "op": "move", "args": {"folderId": {"x": 1}}}, "folderId must be"),
+    ({"ids": ["a"], "op": "move", "args": {"folderId": ["f1"]}}, "folderId must be"),
+    ({"ids": ["a"], "op": "move", "args": {"folders": {"a": {"x": 1}}}}, "folderId must be"),
+    ({"ids": ["a"], "op": "move", "args": {"folders": {"a": ["f1"]}}}, "folderId must be"),
 ])
 def test_a_request_that_would_fail_every_note_is_a_400(app, client, payload, needle):
     _login_as(app, "u1")

@@ -1943,18 +1943,22 @@ def notes_batch_endpoint(
                     raise HTTPException(status_code=400,
                                         detail="folders must name a folder (or null) for every id")
                 per_note_folder = {i: (raw_map[i] or None) for i in ids}
-                wanted = {f for f in per_note_folder.values() if f is not None}
+                values = list(per_note_folder.values())
             else:
                 target_folder = args.get("folderId") or None
-                wanted = {target_folder} if target_folder is not None else set()
+                values = [target_folder]
+            # ⛔ N6: the TYPE check comes before anything hashes a value. A dict or
+            # a list reached the set below first and raised TypeError -- a 500
+            # where the member's malformed request deserved a 400 and a sentence.
+            if any(f is not None and not isinstance(f, str) for f in values):
+                raise HTTPException(status_code=400, detail="folderId must be a string or null")
+            wanted = {f for f in values if f is not None}
             if "expectFolderId" in args:
                 expect_guard = True
                 expect_folder = args.get("expectFolderId") or None
                 if expect_folder is not None and not isinstance(expect_folder, str):
                     raise HTTPException(status_code=400, detail="expectFolderId must be a string or null")
             for folder in wanted:
-                if not isinstance(folder, str):
-                    raise HTTPException(status_code=400, detail="folderId must be a string or null")
                 owned_folder = conn.execute(
                     "SELECT 1 FROM j2_note_folders WHERE id = ? AND user_id = ?",
                     (folder, uid),
