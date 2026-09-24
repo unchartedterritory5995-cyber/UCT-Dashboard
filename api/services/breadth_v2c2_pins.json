@@ -8,7 +8,7 @@
   "breadth_adjusted_guard.py": "2983adbafb690944d7fe52e8fb529e15",
   "breadth_calendar.py": "06d3af7ee17897b19786f950998bb129",
   "breadth_combined_pass.py": "297c482246f7bc1243e2e416749bf07b",
-  "breadth_corrected_pass.py": "79664cfe5e37373f06b3b16f927ca6ac",
+  "breadth_corrected_pass.py": "be305271f0bd0516612f7681897c1f1b",
   "breadth_dividend_basis.py": "838a27ab838ded6b8831995edaf6314f",
   "breadth_grouped_history.py": "ed490e7e5ef7f57d25612f5dfe696d95",
   "breadth_identity.py": "a1664b29d19da6268dba6fcb83d45307",
@@ -20,8 +20,8 @@
   "breadth_universes.py": "a769cbb24f11bb98c71dcf46db47750f",
   "breadth_wick_recon.py": "7e07826cc9030fd9fd828cdd6ae7148b"
  },
- "pinned_after": "bounded PIT 127/127 + matrix 267/267 golden-exact (2 demonstrated float ties), attribution OTHER=0, oracles identical",
- "pinned_at_commit": "a04b6683e",
+ "pinned_after": "bounded proof passed at a04b6683e (methodology modules unchanged since); launcher resume semantics added at cbbde48d3",
+ "pinned_at_commit": "cbbde48d3",
  "registries": {
   "metrics": "5047cb9b77d81d2593cf579376ce5629721a5ddbba2f9410f905fdfcda3577d0",
   "universes": "205704a9a2ea882f6ce17a6afc6115bde443de398c3d71b37d639a145a8681f3"
