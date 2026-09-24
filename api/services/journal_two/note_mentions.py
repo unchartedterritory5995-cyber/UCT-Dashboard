@@ -171,22 +171,24 @@ def get_unlinked_mentions(
             " AND l.user_id = n.user_id AND l.target_note_id = ?)"
         )
         params: list[Any] = [user_id, note_id, note_id]
+        # ⛔ The LIMIT applies to the FILTERED set (live, not this note, not
+        # already linking here), newest first with a stable tiebreak — never
+        # inside the FTS subquery, where trashed and linked notes would use up
+        # the slots and the candidates would be an arbitrary 500 (N-4).
+        order = " ORDER BY n.updated_at DESC, n.id ASC LIMIT ?"
         phrase = _fts_phrase(title)
         rows: list[sqlite3.Row] = []
         if phrase:
             try:
                 rows = conn.execute(
                     base + " AND n.id IN (SELECT note_id FROM j2_notes_fts"
-                    " WHERE j2_notes_fts MATCH ? AND user_id = ? LIMIT ?)"
-                    " ORDER BY n.updated_at DESC",
+                    " WHERE j2_notes_fts MATCH ? AND user_id = ?)" + order,
                     (*params, phrase, user_id, MAX_CANDIDATES),
                 ).fetchall()
             except sqlite3.OperationalError:
                 phrase = None  # an expression FTS refuses: scan instead
         if not phrase:
-            rows = conn.execute(
-                base + " ORDER BY n.updated_at DESC LIMIT ?", (*params, MAX_CANDIDATES),
-            ).fetchall()
+            rows = conn.execute(base + order, (*params, MAX_CANDIDATES)).fetchall()
 
         found: list[dict[str, Any]] = []
         for r in rows:

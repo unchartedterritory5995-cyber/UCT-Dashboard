@@ -108,16 +108,89 @@ _J2_TELEMETRY_EVENTS = {
     #
     # ⛔ NEVER note content: a per-session id, the flag state, a timestamp.
     "notebook_offline_opt_in",
-    # Wave 6 (D14) — Notebook core-action telemetry. The ONE client door is
+    # Wave 6 (D14) — Notebook core-action telemetry. The client door is
     # app/src/pages/journal-2-0/lib/notebookTelemetry.js, which drops every
     # prop not on its per-event schema and sends strings only from closed
-    # enums, so a title or a query cannot ride along. Counted by
-    # GET /api/admin/notebook-telemetry (api/routers/client_errors.py).
-    # tests/test_notebook_telemetry_events.py reads the names out of the
-    # client source and asserts each is here — never retyped.
+    # enums; the server applies the same schema again on arrival
+    # (_NOTEBOOK_PROP_SCHEMAS, below), so a title or a query cannot ride along
+    # even on a raw fetch. Counted by GET /api/admin/notebook-telemetry
+    # (api/routers/client_errors.py). tests/test_notebook_telemetry_events.py
+    # reads the names AND the schemas out of the client source and asserts
+    # both are here — never retyped.
     "note_open_ms", "save_failed", "conflict_forked", "ask_used",
     "capture_used", "search_used", "switcher_used",
 }
+
+# Wave 6 (D14, S-3) — the seven Notebook events' prop schemas, applied on
+# ARRIVAL. The client helper is a convention, not a wall: any lane can post to
+# /telemetry with a raw fetch, and a free-text prop would land in activity_log
+# verbatim. Same rules as the client's `sanitizeProps`: a key not listed is
+# dropped; "num" must be a finite number (rounded as JS Math.round does);
+# "bool" must be a bool; an enum (a tuple) keeps a string only if it is one of
+# its values, else 'other'. ⛔ ONE FACT IN TWO FILES: this dict and the client's
+# EVENT_SCHEMAS are pinned by tests/test_notebook_telemetry_events.py, which
+# PARSES the client source — change both or neither.
+_NOTEBOOK_PROP_SCHEMAS: dict[str, dict[str, Any]] = {
+    "note_open_ms": {
+        "ms": "num",
+        "source": ("list", "switcher", "link", "search", "deeplink", "new", "tasks", "mention"),
+        "cached": "bool",
+    },
+    "save_failed": {
+        "status": "num",
+        "reason": ("network", "http", "conflict", "quota", "offline", "too-large", "unknown"),
+        "offline": "bool",
+        "retrying": "bool",
+    },
+    "conflict_forked": {
+        "door": ("editor", "outbox", "restore", "board", "capture", "import", "unknown"),
+        "queued": "bool",
+    },
+    "ask_used": {
+        "scope": ("note", "notebook", "selection"),
+        "inserted": "bool",
+        "ms": "num",
+    },
+    "capture_used": {
+        "target": ("current", "new", "inbox"),
+        "widget": ("chart", "widget", "fact", "excerpt", "web", "quote", "unknown"),
+    },
+    "search_used": {
+        "results": "num",
+        "filters": "num",
+        "mode": ("text", "tag", "ticker", "filter"),
+        "ms": "num",
+    },
+    "switcher_used": {
+        "results": "num",
+        "rank": "num",
+        "picked": "bool",
+        "mode": ("title", "recent", "favorite", "create"),
+    },
+}
+
+
+def _sanitize_notebook_props(event: str, props: Any) -> dict[str, Any]:
+    """The server twin of notebookTelemetry.js `sanitizeProps`."""
+    import math
+
+    schema = _NOTEBOOK_PROP_SCHEMAS.get(event)
+    if not schema or not isinstance(props, dict):
+        return {}
+    out: dict[str, Any] = {}
+    for key, spec in schema.items():
+        if key not in props:
+            continue
+        v = props[key]
+        if spec == "num":
+            if isinstance(v, (int, float)) and not isinstance(v, bool) and math.isfinite(v):
+                out[key] = int(math.floor(v + 0.5))
+        elif spec == "bool":
+            if isinstance(v, bool):
+                out[key] = v
+        else:
+            out[key] = v if isinstance(v, str) and v in spec else "other"
+    return out
 
 
 @router.post("/telemetry")
@@ -126,12 +199,16 @@ def j2_telemetry(payload: dict, user: dict = Depends(get_current_user)):
 
     Body: {"event": str, "props": dict|None}. Unknown event → 400. Writes via
     auth_service.log_activity(action=f"j2:{event}", details=json.dumps(props)[:500]).
+    A Notebook event's props are cleaned by `_sanitize_notebook_props` first.
     """
     event = str(payload.get("event") or "")
     if event not in _J2_TELEMETRY_EVENTS:
         raise HTTPException(status_code=400, detail="Unknown event")
+    props = payload.get("props") or {}
+    if event in _NOTEBOOK_PROP_SCHEMAS:
+        props = _sanitize_notebook_props(event, props)
     from api.services.auth_service import log_activity
-    log_activity(user["id"], f"j2:{event}", json.dumps(payload.get("props") or {})[:500])
+    log_activity(user["id"], f"j2:{event}", json.dumps(props)[:500])
     return {"ok": True}
 
 

@@ -1,5 +1,5 @@
 """The client error beacon's server half (D14): scrub, rate limit, kill
-switch, retention, the log line, and the doors.
+switch, retention, the byte ceiling, the log line, and the doors.
 
 Every test points `CLIENT_ERRORS_DB_PATH` at its own tmp file, so nothing here
 can reach the shared data root (the repo-root conftest would fail the run if
@@ -7,9 +7,13 @@ it did).
 """
 from __future__ import annotations
 
+import asyncio
 import json
 import logging
+import re
 import sqlite3
+import time
+from pathlib import Path
 
 import pytest
 from fastapi import FastAPI
@@ -42,6 +46,7 @@ def _rows(path):
 def _report(**over):
     r = {"kind": "error", "name": "TypeError",
          "message": "Cannot read properties of undefined (reading …)",
+         "template": "cannot-read-properties",
          "stack": "    at render (https://uctintelligence.com/assets/index-abc.js:12:34)",
          "page": "/journal/notebook", "ts": 1.0}
     r.update(over)
@@ -64,21 +69,31 @@ def test_a_token_in_a_url_FRAGMENT_is_never_stored(store):
     assert row["page"] == "/smoke-login"
     assert "https://uctintelligence.com/smoke-login" in row["message"]
     # The frame keeps its location — :line:col is not a secret, the query was.
-    assert row["stack"].endswith("assets/app.js:9:3)")
+    assert row["stack"].endswith("assets/app.js:#:#)")
 
 
 def test_query_strings_relative_urls_bare_fragments_and_credentials_all_go(store):
     ce.record_reports([_report(
         message=(f"GET /api/j2/notes?q=my+private+search failed; hash #access_token={TOKEN}; "
-                 f"retry with key={TOKEN}"),
+                 f"retry with key={TOKEN}; see smoke-login#t=SECRETvalue1 ok"),
         page="/journal/notebook?note=abc123&task=2",
     )], user_id=None, ip="1.2.3.4", user_agent="UA")
     [row] = _rows(store)
     assert TOKEN not in row["message"]
     assert "my+private+search" not in row["message"]
-    assert "/api/j2/notes" in row["message"]
+    assert "SECRETvalue" not in row["message"]
+    assert "/api/:id/notes" in row["message"]            # the path is REDUCED, segment by segment
     assert "key=[removed]" in row["message"]
     assert row["page"] == "/journal/notebook"
+
+
+def test_every_digit_in_a_text_field_is_masked(store):
+    """Defence in depth: a client that skips its own scrub still stores no
+    price, size or time."""
+    ce.record_reports([_report(message="Buy 500 NVDA at 132.50, stop 128.75")],
+                      user_id=None, ip="1.2.3.4", user_agent="UA")
+    [row] = _rows(store)
+    assert not re.search(r"\d", row["message"] + row["stack"] + row["component_stack"])
 
 
 def test_a_data_uri_never_carries_its_payload(store):
@@ -89,14 +104,24 @@ def test_a_data_uri_never_carries_its_payload(store):
     assert "data:[removed]" in row["message"]
 
 
-def test_fields_are_capped_and_control_characters_removed(store):
+def test_fields_are_capped_in_UTF8_BYTES_and_control_characters_removed(store):
     ce.record_reports([_report(message="x" * 5000, stack="y" * 50000, name="N\x00ame" * 100)],
                       user_id=None, ip="1.2.3.4", user_agent="U" * 9000)
-    [row] = _rows(store)
-    assert len(row["message"]) == ce.CAP_MESSAGE
-    assert len(row["stack"]) == ce.CAP_STACK
-    assert len(row["name"]) <= ce.CAP_NAME and "\x00" not in row["name"]
-    assert len(row["user_agent"]) == ce.CAP_USER_AGENT
+    ce.record_reports([_report(message="\U0001F600" * 5000, stack="\U0001F600" * 5000,
+                               componentStack="\U0001F600" * 5000)],
+                      user_id=None, ip="1.2.3.5", user_agent="\U0001F600" * 5000)
+    first, emoji = _rows(store)
+    assert len(first["message"]) == ce.CAP_MESSAGE
+    assert len(first["stack"]) == ce.CAP_STACK
+    assert first["name"] == "Error"                        # not an engine-shaped name
+    assert len(first["user_agent"]) == ce.CAP_USER_AGENT
+    # 4-byte characters: the cap is on BYTES, so a row cannot grow fourfold.
+    assert len(emoji["message"].encode("utf-8")) <= ce.CAP_MESSAGE
+    assert len(emoji["stack"].encode("utf-8")) <= ce.CAP_STACK
+    assert len(emoji["component_stack"].encode("utf-8")) <= ce.CAP_COMPONENT_STACK
+    assert len(emoji["user_agent"].encode("utf-8")) <= ce.CAP_USER_AGENT
+    total = sum(len(str(v).encode("utf-8")) for v in emoji.values() if v is not None)
+    assert total <= ce.MAX_ROW_BYTES
 
 
 def test_an_unknown_kind_is_not_stored(store):
@@ -110,6 +135,165 @@ def test_the_row_holds_a_hash_never_the_raw_address(store):
     raw = store.read_bytes()
     assert b"203.0.113.77" not in raw
     assert _rows(store)[0]["rate_key"] == ce.rate_key_for(None, "203.0.113.77")
+
+
+def test_a_template_id_is_kept_only_in_its_own_shape_else_derived_from_the_message(store):
+    ce.record_reports([
+        _report(template="not-a-function"),
+        _report(template="#kfbpaocd"),
+        _report(template="Buy NVDA at 132", message="some text"),
+        _report(template=None, message="some text"),
+    ], user_id=None, ip="1.2.3.4", user_agent="UA")
+    t = [r["template"] for r in _rows(store)]
+    assert t[0] == "not-a-function" and t[1] == "#kfbpaocd"
+    assert re.fullmatch(r"#[a-p]{8}", t[2]) and t[2] == t[3]
+
+
+# ── B-1: paths are reduced segment by segment; a share token never lands ─────
+
+SHARE_ROUTES = [
+    ("/share/n/:token", "k9Qz_Xr2-Lm4pT8vWn1Ys6uEa3Bc0Dh5"),
+    ("/track/:token", "Tq7pLm2Xz9Rw4Yb1Kc8Nd3"),
+    ("/screener/shared/:token", "qwertasdfgz"),                 # all lowercase: a route word by shape
+    ("/formulas/shared/:token", "sh_0123456789abcdef0123456789abcdef"),
+]
+
+
+@pytest.mark.parametrize("route,token", SHARE_ROUTES)
+def test_a_share_token_in_a_path_is_never_stored_or_logged(store, caplog, route, token):
+    caplog.set_level(logging.WARNING, logger=ce.__name__)
+    path = route.replace(":token", token)
+    ce.record_reports([_report(
+        page=path,
+        message=f"Failed to load https://uctintelligence.com{path}",
+        stack=f"    at f (https://uctintelligence.com{path}:1:2)",
+        componentStack=f"    at C (https://uctintelligence.com{path}:1:2)",
+    )], user_id=None, ip="1.2.3.4", user_agent="UA")
+    [row] = _rows(store)
+    assert token not in json.dumps(row)
+    assert row["page"] == route.replace(":token", ":id")
+    lines = "\n".join(r.getMessage() for r in caplog.records)
+    assert token not in lines
+    assert route.replace(":token", ":id") in lines
+
+
+def test_the_server_token_routes_are_the_clients_four_constants():
+    """ONE FACT IN TWO FILES, PINNED: the route patterns are READ out of the
+    four client modules (template literals resolved) and compared, so neither
+    side can gain or lose a route alone."""
+    sources = {
+        "app/src/pages/journal-2-0/lib/noteShareLink.js": "SHARED_NOTE_ROUTE",
+        "app/src/pages/journal-2-0/lib/trackRecordLink.js": "TRACK_RECORD_ROUTE",
+        "app/src/pages/screener/screenShareLink.js": "SHARED_SCREEN_ROUTE",
+        "app/src/pages/formulas/formulaShareLink.js": "SHARED_FORMULA_ROUTE",
+    }
+    derived = []
+    for path, const in sources.items():
+        src = Path(path).read_text(encoding="utf-8")
+        consts = dict(re.findall(r"export const (\w+) = ['`]([^'`]*)['`]", src))
+        value = consts[const]
+        value = re.sub(r"\$\{(\w+)\}", lambda m: consts[m.group(1)], value)
+        derived.append(value)
+    assert len(derived) == 4 and all(v.endswith("/:token") for v in derived)   # non-vacuity
+    assert sorted(derived) == sorted(ce.TOKEN_ROUTES)
+
+
+def test_reduce_path_keeps_route_words_only():
+    assert ce.reduce_path("/journal/notebook") == "/journal/notebook"
+    assert ce.reduce_path("/journal-2-0/report") == "/:id/report"
+    assert ce.reduce_path("/screener/shared/abcdefghij") == "/screener/shared/:id"
+    assert ce.reduce_path("/NVDA/Buy_NVDA") == "/:id/:id"
+
+
+# ── B-3: the door's order of work, off the loop, and linear ──────────────────
+
+def test_the_url_finder_is_linear():
+    """The old `_SCHEMED_URL` regex took 0.73 s on 32k letters (quadratic).
+    Stated bound: a 60,000-character run of each hostile shape in < 100 ms."""
+    for s in ("a" * 60_000, "ab:" * 20_000, "https://" * 7_500, "a" * 59_997 + "://"):
+        t0 = time.perf_counter()
+        ce.scrub_text(s)
+        assert time.perf_counter() - t0 < 0.1, s[:12]
+
+
+def test_a_60KB_single_field_body_is_recorded_in_under_50ms(store):
+    ce.record_reports([_report()], user_id=None, ip="9.9.9.1", user_agent="UA")   # warm the schema
+    body = [_report(stack="a" * 60_000)]
+    t0 = time.perf_counter()
+    ce.record_reports(body, user_id=None, ip="9.9.9.2", user_agent="UA")
+    assert time.perf_counter() - t0 < 0.05
+
+
+def test_fields_are_capped_BEFORE_any_pattern_runs(store, monkeypatch):
+    seen = []
+    real = ce.scrub_text
+    monkeypatch.setattr(ce, "scrub_text", lambda s: (seen.append(len(s)), real(s))[1])
+    ce.record_reports([_report(message="m" * 50_000, stack="s" * 60_000, componentStack="c" * 60_000)],
+                      user_id=None, ip="1.2.3.4", user_agent="UA")
+    assert seen, "the scrub never ran (non-vacuity)"
+    assert max(seen) <= ce.CAP_STACK
+
+
+def test_the_rate_limit_is_checked_BEFORE_any_pattern_runs(store, monkeypatch):
+    now = 7_000_000.0
+    for _ in range(ce.RATE_LIMIT // ce.MAX_REPORTS_PER_REQUEST):
+        ce.record_reports([_report()] * ce.MAX_REPORTS_PER_REQUEST, user_id=None, ip="4.3.2.1",
+                          user_agent="UA", now=now)
+    calls = []
+    real = ce.scrub_text
+    monkeypatch.setattr(ce, "scrub_text", lambda s: (calls.append(1), real(s))[1])
+    out = ce.record_reports([_report(stack="a" * 4000)] * 10, user_id=None, ip="4.3.2.1",
+                            user_agent="UA", now=now + 1)
+    assert out["stored"] == 0 and out["dropped"] == 10
+    assert calls == [], "an over-quota request paid for the scrub"
+    # Control: a request with room DOES scrub, so the spy can see.
+    ce.record_reports([_report()], user_id=None, ip="4.3.2.2", user_agent="UA", now=now + 1)
+    assert calls
+
+
+# ── S-1: the store is bounded in bytes ───────────────────────────────────────
+
+def test_the_stated_ceiling_holds_arithmetically():
+    """MAX_ROWS × MAX_ROW_BYTES is the stated ceiling, and every field cap sums
+    under MAX_ROW_BYTES. On disk a row is at most three 4 KiB pages."""
+    caps = (ce.CAP_NAME + ce.CAP_MESSAGE + ce.CAP_TEMPLATE + ce.CAP_STACK + ce.CAP_COMPONENT_STACK
+            + ce.CAP_PAGE + ce.CAP_USER_AGENT + ce.CAP_RATE_KEY + ce.CAP_USER_ID + ce.FIXED_ROW_BYTES)
+    assert caps <= ce.MAX_ROW_BYTES
+    assert ce.CEILING_BYTES == ce.MAX_ROWS * ce.MAX_ROW_BYTES
+    assert ce.MAX_ROWS * 3 * 4096 <= 250_000_000
+    doc = ce.__doc__ or ""
+    assert f"{ce.MAX_ROWS:,}" in doc and "250 MB" in doc
+
+
+def test_the_row_count_is_hard_capped_and_the_OLDEST_rows_go(store, monkeypatch):
+    monkeypatch.setattr(ce, "MAX_ROWS", 5)
+    for i in range(9):
+        ce.record_reports([_report(name="TypeError", message=f"m{'x' * i}")], user_id=None,
+                          ip=f"10.1.0.{i}", user_agent="UA", now=8_000_000.0 + i)
+    rows = _rows(store)
+    assert len(rows) == 5
+    assert [r["created_at"] for r in rows] == [8_000_000.0 + i for i in range(4, 9)]
+
+
+def test_the_file_stays_inside_the_stated_per_row_page_budget(store, monkeypatch):
+    """Empirical half of the ceiling: fill past MAX_ROWS with the largest rows
+    the caps allow (4-byte characters) and measure the database file."""
+    monkeypatch.setattr(ce, "MAX_ROWS", 60)
+    big = "\U0001F600" * 5000
+    for i in range(12):
+        ce.record_reports([_report(message=big, stack=big, componentStack=big, name="TypeError",
+                                   page="/" + "journal/" * 60)] * 10,
+                          user_id=f"{i:02d}" + "u" * 34, ip="10.2.0.1", user_agent=big,
+                          now=9_000_000.0 + i)
+    c = sqlite3.connect(store)
+    try:
+        c.execute("PRAGMA wal_checkpoint(TRUNCATE)")
+        pages, size = c.execute("PRAGMA page_count").fetchone()[0], c.execute("PRAGMA page_size").fetchone()[0]
+        n = c.execute("SELECT COUNT(*) FROM client_errors").fetchone()[0]
+    finally:
+        c.close()
+    assert n == 60
+    assert pages * size <= (60 + ce.MAX_REPORTS_PER_REQUEST) * 3 * 4096 + 64 * 1024
 
 
 # ── The rate limit ───────────────────────────────────────────────────────────
@@ -175,17 +359,23 @@ def test_a_write_prunes_opportunistically(store):
     assert [r["message"] for r in _rows(store)] == ["new"]
 
 
-# ── The log line ─────────────────────────────────────────────────────────────
+# ── N-1: the log line ────────────────────────────────────────────────────────
 
-def test_one_structured_log_line_per_stored_report_and_no_token_in_it(store, caplog):
+def test_the_log_line_carries_kind_route_template_and_count_NEVER_the_message(store, caplog):
     caplog.set_level(logging.WARNING, logger=ce.__name__)
-    ce.record_reports([_report(page=f"/x#token={TOKEN}"), _report()],
+    planted = "Could not save note Short at the open with full size"
+    ce.record_reports([_report(page=f"/x#token={TOKEN}", message=planted, template="#kfbpaocd"),
+                       _report(page=f"/x#token={TOKEN}", message=planted, template="#kfbpaocd"),
+                       _report()],
                       user_id="u9", ip="6.6.6.6", user_agent="UA")
     lines = [r.getMessage() for r in caplog.records if "[client-error]" in r.getMessage()]
-    assert len(lines) == 2
-    payload = json.loads(lines[0].split("[client-error] ", 1)[1])
-    assert payload["user"] == "u9" and payload["page"] == "/x"
-    assert TOKEN not in "\n".join(lines)
+    assert len(lines) == 2                                   # one line per (kind, route, template)
+    payloads = [json.loads(line.split("[client-error] ", 1)[1]) for line in lines]
+    assert {tuple(sorted(p)) for p in payloads} == {("count", "kind", "route", "template")}
+    grouped = next(p for p in payloads if p["template"] == "#kfbpaocd")
+    assert grouped == {"kind": "error", "route": "/x", "template": "#kfbpaocd", "count": 2}
+    text = "\n".join(lines)
+    assert TOKEN not in text and "Short at the open" not in text and "save note" not in text
 
 
 # ── The kill switch ──────────────────────────────────────────────────────────
@@ -239,15 +429,95 @@ def test_the_kill_switch_is_read_PER_REQUEST_and_off_writes_nothing(app, store, 
     assert on.json()["stored"] == 1
 
 
-def test_an_oversized_body_is_refused(app):
-    big = {"reports": [_report(message="x" * 70_000)]}
-    assert TestClient(app).post("/api/client-errors", json=big).status_code == 413
+class _SpyJson:
+    """Stands in for the router's `json` module: records what it was asked to parse."""
+    def __init__(self):
+        self.calls = []
+
+    def loads(self, s, *a, **k):
+        self.calls.append(len(s))
+        return json.loads(s, *a, **k)
+
+
+def test_an_oversized_body_is_a_413_BEFORE_it_is_parsed(app, monkeypatch):
+    from api.routers import client_errors as router_mod
+    spy = _SpyJson()
+    monkeypatch.setattr(router_mod, "json", spy)
+    big = json.dumps({"reports": [_report(message="x" * 70_000)]}).encode()
+    assert TestClient(app).post("/api/client-errors", content=big,
+                                headers={"content-type": "application/json"}).status_code == 413
+    assert spy.calls == []
+    # Control: a body under the limit IS parsed, so the spy can see.
+    TestClient(app).post("/api/client-errors", json={"reports": [_report()]})
+    assert spy.calls
+
+
+def test_a_declared_length_over_the_cap_is_refused_before_a_byte_is_read():
+    """The streaming cap below would ALSO stop this body — so this rail drives
+    the reader directly and proves the declared length alone refuses it, with
+    the stream never touched."""
+    from fastapi import HTTPException
+    from api.routers import client_errors as router_mod
+
+    class _Req:
+        headers = {"content-length": str(ce.MAX_BODY_BYTES + 1)}
+        read = False
+
+        async def stream(self):
+            _Req.read = True
+            yield b"{}"
+
+    with pytest.raises(HTTPException) as exc:
+        asyncio.run(router_mod._read_capped(_Req()))
+    assert exc.value.status_code == 413
+    assert _Req.read is False
+    # Control: an honest length is read.
+    _Req.headers = {"content-length": "2"}
+    assert asyncio.run(router_mod._read_capped(_Req())) == b"{}" and _Req.read is True
+
+
+def test_a_streamed_body_with_no_length_is_capped_while_it_is_read(app, monkeypatch):
+    from api.routers import client_errors as router_mod
+    spy = _SpyJson()
+    monkeypatch.setattr(router_mod, "json", spy)
+
+    def chunks():
+        yield b'{"reports": [{"kind": "error", "message": "'
+        for _ in range(80):
+            yield b"x" * 1024
+        yield b'"}]}'
+
+    r = TestClient(app).post("/api/client-errors", content=chunks(),
+                             headers={"content-type": "application/json"})
+    assert r.status_code == 413
+    assert spy.calls == []
+
+
+def test_the_store_is_never_touched_on_the_event_loop(app, monkeypatch):
+    from api.routers import client_errors as router_mod
+    seen = []
+
+    def fake_record(reports, **kw):
+        try:
+            asyncio.get_running_loop()
+            seen.append("on-loop")
+        except RuntimeError:
+            seen.append("off-loop")
+        return {"stored": len(reports), "dropped": 0, "invalid": 0}
+
+    monkeypatch.setattr(router_mod.client_errors, "record_reports", fake_record)
+    r = TestClient(app).post("/api/client-errors", json={"reports": [_report()]})
+    assert r.status_code == 200
+    assert seen == ["off-loop"]
 
 
 def test_a_non_json_body_is_a_400(app):
     r = TestClient(app).post("/api/client-errors", content=b"not json",
                              headers={"content-type": "application/json"})
     assert r.status_code == 400
+    deep = TestClient(app).post("/api/client-errors", content=b"[" * 50_000,
+                                headers={"content-type": "application/json"})
+    assert deep.status_code == 400
 
 
 def test_the_admin_read_is_admin_only_and_groups(app, store):
@@ -259,3 +529,4 @@ def test_the_admin_read_is_admin_only_and_groups(app, store):
     body = client.get("/api/admin/client-errors?days=1").json()
     assert body["total"] == 3 and body["enabled"] is True
     assert body["groups"][0]["n"] == 2
+    assert body["groups"][0]["template"] == "cannot-read-properties"

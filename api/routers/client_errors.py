@@ -7,7 +7,8 @@
                                        event over 7 and 30 days.
 
 The store, the scrub and the rate limit are `api/services/client_errors.py`;
-this file is the HTTP shape only.
+this file is the HTTP shape — and the first two steps of the door's order of
+work: the kill switch, then the body size, both before a byte is parsed.
 
 ⚠️ MOUNT: `app.include_router(client_errors_router.router)` in api/main.py —
 the controller wires it. No path here collides with another router's.
@@ -18,12 +19,33 @@ import json
 from typing import Any, Optional
 
 from fastapi import APIRouter, Depends, HTTPException, Query, Request
+from starlette.concurrency import run_in_threadpool
 
 from api.middleware.auth_middleware import get_current_user_optional, require_admin
 from api.services import client_errors
 from api.services.request_ip import client_ip
 
 router = APIRouter(tags=["client-errors"])
+
+
+async def _read_capped(request: Request) -> bytes:
+    """The body, refused with a 413 the moment it passes MAX_BODY_BYTES —
+    by its declared length before reading, or while a length-less stream is
+    read. Nothing is parsed until the whole body is known to be small."""
+    declared = request.headers.get("content-length")
+    if declared is not None:
+        try:
+            size = int(declared)
+        except ValueError:
+            raise HTTPException(status_code=400, detail="Bad Content-Length")
+        if size > client_errors.MAX_BODY_BYTES:
+            raise HTTPException(status_code=413, detail="Report too large")
+    raw = bytearray()
+    async for chunk in request.stream():
+        raw += chunk
+        if len(raw) > client_errors.MAX_BODY_BYTES:
+            raise HTTPException(status_code=413, detail="Report too large")
+    return bytes(raw)
 
 
 @router.post("/api/client-errors")
@@ -37,15 +59,18 @@ async def post_client_errors(
     (`enabled: false`, nothing written), so the page can stop sending for the
     rest of its life instead of retrying into a closed door. A rate-limited
     report is counted in `dropped`, never an error: the beacon is best-effort
-    by contract and a 429 would only teach it to retry."""
+    by contract and a 429 would only teach it to retry.
+
+    ⛔ The event loop only ever sees the size check and a JSON parse of at
+    most 64 KiB. The field caps, the rate limit, the scrub and SQLite run in
+    the threadpool — this door is anonymous, and every member's request
+    shares the one loop."""
     if not client_errors.enabled():
         return {"ok": True, "enabled": False, "stored": 0, "dropped": 0}
-    raw = await request.body()
-    if len(raw) > client_errors.MAX_BODY_BYTES:
-        raise HTTPException(status_code=413, detail="Report too large")
+    raw = await _read_capped(request)
     try:
         body = json.loads(raw.decode("utf-8") or "{}")
-    except (ValueError, UnicodeDecodeError):
+    except (ValueError, UnicodeDecodeError, RecursionError):
         raise HTTPException(status_code=400, detail="Body must be JSON")
     if isinstance(body, dict) and isinstance(body.get("reports"), list):
         reports = body["reports"]
@@ -53,7 +78,8 @@ async def post_client_errors(
         reports = [body]
     else:
         raise HTTPException(status_code=400, detail="Body must be an object")
-    result = client_errors.record_reports(
+    result = await run_in_threadpool(
+        client_errors.record_reports,
         reports,
         user_id=(user or {}).get("id"),
         ip=client_ip(request),

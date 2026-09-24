@@ -50,6 +50,104 @@ def test_the_allow_list_is_still_a_list():
     assert "anything_at_all" not in _J2_TELEMETRY_EVENTS
 
 
+def _client_schemas() -> dict[str, dict[str, object]]:
+    """EVENT_SCHEMAS, PARSED out of the client helper — never retyped."""
+    src = CLIENT.read_text(encoding="utf-8")
+    body = src.split("export const EVENT_SCHEMAS = Object.freeze({", 1)[1].split("\n})", 1)[0]
+    schemas: dict[str, dict[str, object]] = {}
+    current = None
+    for line in body.splitlines():
+        m = re.match(r"^  ([a-z_]+): \{$", line)
+        if m:
+            current = m.group(1)
+            schemas[current] = {}
+            continue
+        m = re.match(r"^    ([a-zA-Z_]+): (num|bool|oneOf\((.*)\)),?$", line)
+        if m and current:
+            if m.group(3) is not None:
+                schemas[current][m.group(1)] = frozenset(re.findall(r"'([^']*)'", m.group(3)))
+            else:
+                schemas[current][m.group(1)] = m.group(2)
+    return schemas
+
+
+def _server_schemas() -> dict[str, dict[str, object]]:
+    from api.routers.journal_two import _NOTEBOOK_PROP_SCHEMAS
+    return {ev: {k: (frozenset(v) if isinstance(v, tuple) else v) for k, v in spec.items()}
+            for ev, spec in _NOTEBOOK_PROP_SCHEMAS.items()}
+
+
+def test_the_server_prop_schema_is_the_client_schema_read_from_its_source():
+    """ONE FACT IN TWO FILES, PINNED AGAINST EACH OTHER (saved-views precedent):
+    the client sanitises before sending, the server sanitises on arrival, and
+    this reads BOTH so neither can widen alone."""
+    client = _client_schemas()
+    # Non-vacuity: every event, every key, and a real enum were read.
+    assert set(client) == set(_client_event_names())
+    assert client["search_used"]["mode"] == frozenset({"text", "tag", "ticker", "filter"})
+    assert sum(len(v) for v in client.values()) >= 20
+    assert _server_schemas() == client
+
+
+class _Logged:
+    def __init__(self):
+        self.rows = []
+
+    def __call__(self, user_id, action, details="", ip_address=""):
+        self.rows.append((user_id, action, details))
+
+
+@pytest.fixture
+def telemetry_app(monkeypatch):
+    from api.routers import journal_two
+    from api.services import auth_service
+    logged = _Logged()
+    monkeypatch.setattr(auth_service, "log_activity", logged)
+    fa = FastAPI()
+    fa.include_router(journal_two.router)
+    fa.dependency_overrides[authmw.get_current_user] = lambda: {"id": "u1", "role": "member"}
+    yield TestClient(fa), logged
+    fa.dependency_overrides.clear()
+
+
+def test_the_server_drops_free_text_from_a_notebook_event_whoever_sent_it(telemetry_app):
+    """A raw fetch that never went through the client helper: the member's
+    query, an unlisted key, a free-text enum and a non-bool bool all arrive —
+    none of the text is stored."""
+    client, logged = telemetry_app
+    r = client.post("/api/j2/telemetry", content=json.dumps({
+        "event": "search_used",
+        "props": {"q": "my private thesis on NVDA", "results": 3.5, "mode": "my private words",
+                  "filters": 2, "ms": "fast"},
+    }), headers={"content-type": "application/json"})
+    assert r.status_code == 200
+    [(uid, action, details)] = logged.rows
+    assert action == "j2:search_used"
+    assert json.loads(details) == {"results": 4, "mode": "other", "filters": 2}
+    assert "private" not in details and "NVDA" not in details
+
+
+def test_numbers_must_be_finite_bools_must_be_bools_and_enums_must_be_strings(telemetry_app):
+    client, logged = telemetry_app
+    client.post("/api/j2/telemetry", content=(
+        '{"event": "switcher_used", "props": {"results": Infinity, "rank": 2.5, '
+        '"picked": "yes", "mode": 5}}'), headers={"content-type": "application/json"})
+    client.post("/api/j2/telemetry", json={"event": "note_open_ms", "props": ["not", "a", "dict"]})
+    client.post("/api/j2/telemetry", json={"event": "ask_used", "props": {"inserted": True, "scope": "note"}})
+    got = [json.loads(d) for _, _, d in logged.rows]
+    assert got[0] == {"rank": 3, "mode": "other"}           # JS Math.round(2.5) is 3
+    assert got[1] == {}
+    assert got[2] == {"inserted": True, "scope": "note"}
+
+
+def test_an_event_outside_the_seven_keeps_its_own_props(telemetry_app):
+    # CONTROL: the schema is applied to the Notebook events only; the older
+    # instrumented events keep what their own rails pin.
+    client, logged = telemetry_app
+    client.post("/api/j2/telemetry", json={"event": "notebook_offline_opt_in", "props": {"sid": "abc"}})
+    assert json.loads(logged.rows[0][2]) == {"sid": "abc"}
+
+
 def test_the_schemas_never_name_a_content_field():
     """The schema IS the set of keys that can leave the browser. A key named
     like content would be a door for it, whatever its type."""

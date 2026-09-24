@@ -40,6 +40,22 @@ in a TABLE, `j2_task_reminder_log`, claimed before delivery — a module dict
 would forget on every deploy, and this pod deploys several times a day.
 Kill switch `NOTEBOOK_TASK_REMINDERS_ENABLED`: unset = on, `0` = off, read per
 run.
+
+A 07:00 that never fires (S-2)
+------------------------------
+Two ways the day's pass is lost, and one fix each:
+  * the scheduler reaches 07:00 late (another job holds the executor or the
+    GIL) — api/main.py's `job_defaults` grace is ONE SECOND, and a late run is
+    skipped outright (`EVENT_JOB_MISSED`, the function never called). The job
+    carries `misfire_grace_time=3600`: a late run is harmless because the pass
+    is idempotent per ET day.
+  * a deploy spans 07:00 — the job store is in memory, so the new process
+    never SCHEDULES that fire at all, and no grace can see it.
+    `register_task_reminder_job` also registers a one-shot BOOT CATCH-UP
+    (`catch_up_task_reminders`): after 07:00 ET, if today's pass has not run,
+    it runs it. "Has run" is a durable marker, `j2_task_reminder_runs`, written
+    when a pass completes with no failed delivery — NOT the per-member claims,
+    which a pass that found nobody due never writes.
 """
 from __future__ import annotations
 
@@ -60,6 +76,9 @@ WEEK_DAYS = 7          # "week" = today through the next six days
 MAX_TASKS = 2000
 TASKS_VIEW_URL = "/journal/notebook?view=tasks"
 REMINDER_SOURCE = "notebook_task_reminder"
+REMINDER_HOUR_ET = 7
+MISFIRE_GRACE_S = 3600     # a late 07:00 still runs; the pass is idempotent per ET day
+CATCH_UP_DELAY_S = 90      # the boot catch-up waits for the process to settle
 KILL_SWITCH = "NOTEBOOK_TASK_REMINDERS_ENABLED"
 _OFF_VALUES = {"0", "false", "no", "off"}
 
@@ -74,6 +93,12 @@ CREATE TABLE IF NOT EXISTS j2_task_reminder_log (
     overdue     INTEGER NOT NULL DEFAULT 0,
     created_at  TEXT NOT NULL,
     PRIMARY KEY (user_id, day)
+);
+CREATE TABLE IF NOT EXISTS j2_task_reminder_runs (
+    day         TEXT PRIMARY KEY,
+    ran_at      TEXT NOT NULL,
+    members     INTEGER NOT NULL DEFAULT 0,
+    delivered   INTEGER NOT NULL DEFAULT 0
 );
 """
 
@@ -370,21 +395,62 @@ def run_task_reminders(now: datetime | None = None, conn: sqlite3.Connection | N
                              (user_id, today))
                 conn.commit()
                 result["failed"] += 1
+        # The day's pass is DONE only when nobody's delivery failed; a failed
+        # member's claim was released above, and an unmarked day is one the
+        # next boot's catch-up runs again.
+        if result["failed"] == 0:
+            conn.execute(
+                "INSERT OR REPLACE INTO j2_task_reminder_runs (day, ran_at, members, delivered)"
+                " VALUES (?, ?, ?, ?)",
+                (today, datetime.now(tz=ET).isoformat(timespec="seconds"),
+                 result["members"], result["delivered"]),
+            )
+            conn.commit()
         return result
     finally:
         if owned:
             conn.close()
 
 
+def catch_up_task_reminders(now: datetime | None = None, conn: sqlite3.Connection | None = None,
+                            deliver=None) -> dict[str, Any]:
+    """The boot catch-up: after 07:00 ET, run today's pass if it has not run.
+
+    Safe on any boot at any hour — before 07:00 it does nothing (the cron will
+    fire), and on a day already marked in `j2_task_reminder_runs` it does
+    nothing (the claims would dedupe anyway; the marker saves the scan)."""
+    when = (now or datetime.now(tz=ET)).astimezone(ET)
+    day = today_et(when)
+    if when.hour < REMINDER_HOUR_ET:
+        return {"ran": False, "reason": "before-seven", "day": day}
+    if not reminders_enabled():
+        return {"ran": False, "reason": "disabled", "day": day}
+    owned = conn is None
+    conn = conn or auth_db.get_connection()
+    try:
+        ensure_reminder_schema(conn)
+        done = conn.execute("SELECT 1 FROM j2_task_reminder_runs WHERE day = ?", (day,)).fetchone()
+        if done:
+            return {"ran": False, "reason": "already-ran", "day": day}
+        return {"ran": True, **run_task_reminders(now=when, conn=conn, deliver=deliver)}
+    finally:
+        if owned:
+            conn.close()
+
+
 def register_task_reminder_job(scheduler) -> bool:
-    """Schedule `run_task_reminders` for 07:00 ET daily. For the controller to
-    call from api/main.py's scheduler block, beside `register_trash_purge_job`.
+    """Schedule `run_task_reminders` for 07:00 ET daily, with a one-hour
+    misfire grace, and a one-shot boot catch-up `CATCH_UP_DELAY_S` after
+    registration. For the controller to call ONCE from api/main.py's scheduler
+    block, beside `register_trash_purge_job` — that one call wires both.
 
     ⛔ The kill switch is NOT read here. It is read at the start of every run,
     so `NOTEBOOK_TASK_REMINDERS_ENABLED=0` stops the next reminder with no
     restart — a switch read at registration would need a redeploy to flip."""
+    from datetime import timezone
     from zoneinfo import ZoneInfo
     from apscheduler.triggers.cron import CronTrigger
+    from apscheduler.triggers.date import DateTrigger
 
     def _job() -> None:
         try:
@@ -392,12 +458,27 @@ def register_task_reminder_job(scheduler) -> bool:
         except Exception as e:  # noqa: BLE001 — a failed run must never break the scheduler
             print(f"[notebook-task-reminders] run failed: {e}")
 
+    def _catch_up() -> None:
+        try:
+            print(f"[notebook-task-reminders] boot catch-up: {catch_up_task_reminders()}")
+        except Exception as e:  # noqa: BLE001 — same boundary as the daily job
+            print(f"[notebook-task-reminders] boot catch-up failed: {e}")
+
     scheduler.add_job(
         _job,
-        CronTrigger(hour=7, minute=0, timezone=ZoneInfo("America/New_York")),
+        CronTrigger(hour=REMINDER_HOUR_ET, minute=0, timezone=ZoneInfo("America/New_York")),
         id="notebook_task_reminders",
         max_instances=1,
         coalesce=True,
+        misfire_grace_time=MISFIRE_GRACE_S,
+        replace_existing=True,
+    )
+    scheduler.add_job(
+        _catch_up,
+        DateTrigger(run_date=datetime.now(tz=timezone.utc) + timedelta(seconds=CATCH_UP_DELAY_S)),
+        id="notebook_task_reminders_catch_up",
+        max_instances=1,
+        misfire_grace_time=MISFIRE_GRACE_S,
         replace_existing=True,
     )
     return True

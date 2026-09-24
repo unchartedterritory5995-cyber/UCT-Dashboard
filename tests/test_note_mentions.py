@@ -190,3 +190,29 @@ def test_occurrences_are_counted_across_blocks(svc):
     target = _note(ns, "u1", "Pocket pivot")
     _note(ns, "u1", "Many", "A pocket pivot today.", "Another pocket pivot, and a POCKET PIVOT.")
     assert nm.get_unlinked_mentions("u1", target)["notes"][0]["occurrences"] == 3
+
+
+def test_the_candidate_limit_applies_AFTER_the_filters_newest_first(svc, monkeypatch):
+    """N-4: the LIMIT used to sit inside the FTS subquery, BEFORE the trash /
+    self / already-linked filters and with no order — so trashed and linked
+    notes used up the slots and the count was short. The limit now applies to
+    the filtered set, newest first, with a stable tiebreak."""
+    ns, nm = svc
+    from api.services import auth_db
+    monkeypatch.setattr(nm, "MAX_CANDIDATES", 2)
+    target = _note(ns, "u1", "Flag breakout")
+    trashed = [_note(ns, "u1", f"Old {i}", "A flag breakout that failed.") for i in range(3)]
+    for t in trashed:
+        ns.delete_note("u1", t)
+    _note(ns, "u1", "Linked", [
+        {"type": "text", "text": "Flag breakout, see "},
+        {"type": "noteLink", "attrs": {"noteId": target}},
+    ])
+    live = [_note(ns, "u1", f"Live {i}", "Another flag breakout.") for i in range(3)]
+    conn = auth_db.get_connection()
+    for i, nid in enumerate(live):
+        conn.execute("UPDATE j2_notes SET updated_at = ? WHERE id = ?", (f"2026-09-2{i} 10:00:00", nid))
+    conn.commit()
+    conn.close()
+    out = nm.get_unlinked_mentions("u1", target)
+    assert _ids(out) == [live[2], live[1]]                  # the two newest LIVE, unlinked notes

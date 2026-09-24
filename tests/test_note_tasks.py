@@ -267,7 +267,7 @@ def test_the_real_delivery_is_the_in_app_bell_at_info_and_never_email(svc, monke
         alerts.clear_alerts(user_id="u7")
 
 
-def test_the_reminder_job_registers_at_seven_ET_and_never_raises(monkeypatch):
+def test_the_reminder_job_registers_at_seven_ET_with_a_misfire_grace_and_never_raises(monkeypatch):
     from api.services.journal_two import note_tasks as nt
     calls = []
 
@@ -276,14 +276,76 @@ def test_the_reminder_job_registers_at_seven_ET_and_never_raises(monkeypatch):
             calls.append((fn, trigger, kw))
 
     assert nt.register_task_reminder_job(_Sched()) is True
-    [(fn, trigger, kw)] = calls
-    assert kw["id"] == "notebook_task_reminders"
+    jobs = {kw["id"]: (fn, trigger, kw) for fn, trigger, kw in calls}
+    assert set(jobs) == {"notebook_task_reminders", "notebook_task_reminders_catch_up"}
+    fn, trigger, kw = jobs["notebook_task_reminders"]
     assert kw["max_instances"] == 1
     assert str(trigger) == "cron[hour='7', minute='0']"
     assert str(trigger.timezone) == "America/New_York"
-    # The job body is the scheduler's boundary: a failing run is printed, not raised.
-    monkeypatch.setattr(nt, "run_task_reminders", lambda: (_ for _ in ()).throw(RuntimeError("db gone")))
+    # api/main.py's job_defaults grace is ONE SECOND: a 07:00 the check loop
+    # reaches late would be skipped outright and nothing would say so.
+    assert kw["misfire_grace_time"] == 3600
+    # The boot catch-up is a one-shot, a moment after the scheduler starts.
+    cfn, ctrigger, ckw = jobs["notebook_task_reminders_catch_up"]
+    assert type(ctrigger).__name__ == "DateTrigger"
+    # Both job bodies are the scheduler's boundary: a failing run is printed, not raised.
+    boom = lambda *a, **k: (_ for _ in ()).throw(RuntimeError("db gone"))  # noqa: E731
+    monkeypatch.setattr(nt, "run_task_reminders", boom)
+    monkeypatch.setattr(nt, "catch_up_task_reminders", boom)
     fn()
+    cfn()
+
+
+def test_the_boot_catch_up_runs_the_pass_when_seven_has_passed_and_today_has_not_run(svc):
+    ns, nt = svc
+    _note_with(ns, "u1", "Plan", _task(False, "Due today", "2026-09-23"))
+    rec = _Recorder()
+    out = nt.catch_up_task_reminders(now=NOW.replace(hour=9, minute=40), deliver=rec)
+    assert out["ran"] is True and out["delivered"] == 1
+    assert [c[0] for c in rec.calls] == ["u1"]
+
+
+def test_the_boot_catch_up_does_nothing_before_seven(svc):
+    ns, nt = svc
+    _note_with(ns, "u1", "Plan", _task(False, "Due today", "2026-09-23"))
+    rec = _Recorder()
+    out = nt.catch_up_task_reminders(now=NOW.replace(hour=6, minute=59), deliver=rec)
+    assert out == {"ran": False, "reason": "before-seven", "day": "2026-09-23"}
+    assert rec.calls == []
+
+
+def test_the_boot_catch_up_skips_a_day_whose_pass_already_ran_even_with_nobody_due(svc):
+    """The marker is the RUN, not the claims: a 07:00 pass that found nobody
+    due writes no claim row, and a catch-up keyed on claims would re-run it."""
+    ns, nt = svc
+    first = nt.run_task_reminders(now=NOW, deliver=_Recorder())
+    assert first["members"] == 0
+    _note_with(ns, "u1", "Plan", _task(False, "Due today", "2026-09-23"))
+    rec = _Recorder()
+    out = nt.catch_up_task_reminders(now=NOW.replace(hour=11), deliver=rec)
+    assert out == {"ran": False, "reason": "already-ran", "day": "2026-09-23"}
+    assert rec.calls == []
+    # The next ET day is a new day.
+    nxt = nt.catch_up_task_reminders(now=NOW.replace(day=24, hour=8), deliver=rec)
+    assert nxt["ran"] is True and [c[0] for c in rec.calls] == ["u1"]
+
+
+def test_a_pass_with_a_failed_delivery_is_not_marked_so_the_next_boot_retries(svc):
+    ns, nt = svc
+    _note_with(ns, "u1", "Plan", _task(False, "Due today", "2026-09-23"))
+    nt.run_task_reminders(now=NOW, deliver=_Recorder(fail_for={"u1"}))
+    rec = _Recorder()
+    out = nt.catch_up_task_reminders(now=NOW.replace(hour=10), deliver=rec)
+    assert out["ran"] is True and [c[0] for c in rec.calls] == ["u1"]
+
+
+def test_the_boot_catch_up_respects_the_kill_switch(svc, monkeypatch):
+    ns, nt = svc
+    _note_with(ns, "u1", "Plan", _task(False, "Due today", "2026-09-23"))
+    monkeypatch.setenv(nt.KILL_SWITCH, "0")
+    rec = _Recorder()
+    out = nt.catch_up_task_reminders(now=NOW.replace(hour=10), deliver=rec)
+    assert out["ran"] is False and rec.calls == []
 
 
 def test_reminder_copy_is_plain_and_pluralised():
