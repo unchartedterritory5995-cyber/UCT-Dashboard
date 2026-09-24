@@ -34,6 +34,16 @@ is under Day 7 in the roadmap, the raw `results.json` + the re-runnable script a
 §3–§5 changed as a result. The one in-plan item the resume prompt named as "written but
 not executed" is therefore closed; what remains open is exactly the §5 table below.
 
+**Same evening, the post-flip checks and the small cleanups the packet named:** the
+synthetic-account nav smoke PASSED on production (19 routes, 31 nav entries, every click
+moved URL and screen); R-27's rig instrument was INCONCLUSIVE because the rig carries a
+leftover opt-out key (Notebook's rig — not reset here); the flag ledger was trued up (two
+undeclared gates declared, ten drifted entries corrected to measured values — live audit
+now exit 0), the provenance-quote no-auth rationale corrected, and the R-27 tool fixed to
+honour `--profile` — all shipped as `6e7b10407` (see §3). The "215 matches" screener
+observation from the walkthrough was re-probed and is not a defect (3,721 → 215 follows
+the filter, server and screen agree).
+
 ---
 
 ## 2 · Where everything lives (worktrees, branches, remotes)
@@ -81,6 +91,7 @@ In shipping order, all confirmed `SUCCESS` + ancestor-of-`origin/production`:
 | `b9261e57b` | A9: keyboard-driven filter editing on Screener (`/`, arrows, Enter, Esc) | No flag, additive keyboard-only feature |
 | `acd230c15` | CLAUDE.md doc fix: stale `of-order` OptionsFlow hook removed | Docs only |
 | `ef0c79480` | `feature_flags.json`: `RESEARCH_FLOW_TAB_ENABLED` recorded as `armed` | Docs only — records §4's flip |
+| `6e7b10407` | Flag-ledger truth-up (2 undeclared gates declared, 10 entries corrected to measured Railway values — live audit exit 0), provenance-quote no-auth rationale corrected (router + test docstrings), R-27 smoke tool honours `--profile`/`UCT_Q1_RIG_PROFILE` and drops the stale `/catalysts/history` extra route | Docs/tests/tools only — no member-visible change, no behaviour change; web restart only |
 
 Also already live **before this week started** and re-confirmed, not re-shipped:
 - `424bf3355` (2026-09-21) — S1 CP3 per-widget `ErrorBoundary` isolation on `/charts`
@@ -139,6 +150,9 @@ alone for a stated reason:
 | D5 CP2 (inert corp-actions ledger) | Deliberately unauthorized — nothing reads it, so nothing is waiting on it; would need its own scope grant like every other `address_book.py` extension has | Owner, only if a real consumer need ever appears |
 | D5 CP6 merger/relation_added | No vendor signal exists on the current Massive plan (verified live: real M&A tickers both 404) | Would need a different provider/plan tier — a cost decision |
 | D2 CP3 `resolve()` (the five-status resolver) | **Not actually blocking anything** — verified 2026-09-24 that it was never built (only ever specified) and nothing in the current roster needs it; the roadmap's "long pole" framing for D2 has been corrected | Nobody's — closed as a non-issue |
+| Joystick hub absent on 6 non-section routes (touch smoke FAILED 2026-09-24) | `hub_nav_smoke.py --auth --touch` on production: hub root not in the DOM on `/model-book`, `/formulas/reference`, `/desk`, `/journal`, `/portfolio-heat`, `/community`; present on the other 13. The joystick programme's 9/12 touch record had it SHOWING on four of those. Not caused by this program's deploy (docs-only, no runtime reader — verified). Either the hub went section-only by design and the tool's "MOUNTS everywhere" expectation is stale, or the non-section fallback was lost. Record: `docs/plans/joystick/smoke-runs/2026-09-24T23-17Z-touch.md` | Joystick owner — decide which half is right; no rollback lever fits |
+| `/api/barspack/manifest` 401 for every browser since 2026-09-13 | Route gated by `require_bars_access` (`2d121371f`) while `barsPackClient.js` fetches with `credentials: 'omit'` by design (edge-cacheable, per the router's own docstring). Universe Bars Pack silently dead for all members — charts fall back to `/api/bars`; client swallows the failure (`if (!r.ok) return`). Confirmed live: anonymous curl → 401, 5+ console 401s per page in the smoke | Bars-pack owner — gate vs edge-cache is a design call, not a one-liner |
+| `/api/provenance/quote` + `/provenance-demo` — still public | Found 2026-09-24 while fixing a stale docstring: this quote endpoint serves Massive/FMP data with no auth, the same class OI-17 closed for four sibling endpoints. It stays open for one stated reason — its only consumer, `/provenance-demo`, is a deliberately public route ("same class as /methodology", `App.jsx`). Gating means gating the pair; nobody has decided whether that demo page should stay public. Docstrings now say exactly this (`6e7b10407`) | Owner — same decision OI-17 was, for this pair; no urgency (it is a demo page, not a member surface) |
 
 ---
 

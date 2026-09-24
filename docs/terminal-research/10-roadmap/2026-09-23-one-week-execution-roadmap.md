@@ -769,6 +769,51 @@ the whole thing holds together.
 > table showed only Basic Materials rows — possibly a preview-count lag, possibly the
 > universe count; one frame cannot tell, so it is noted, not asserted.
 
+> **Follow-ups closed the same evening, 2026-09-24.** (1) The screener count is NOT a
+> defect: a second local probe read the counts across the filter change — `3,721 matches
+> / 3,721 names` before, `215 matches` within 0.5 s after, and the server itself answered
+> `/api/screener/count` 3721 → 215 and `/api/screener/scan` total 3721 → 215. The
+> walkthrough frame simply captured the post-filter state; Basic Materials is 215 of
+> 3,721. (2) The two post-flip checks §6 items 7 and R-27 owe: `tools/hub_nav_smoke.py
+> --auth` ran against production as the synthetic smoke account — **SMOKE PASS**, 19
+> routes probed for a render loop, 31 nav entries exercised, every one moved both the URL
+> and the screen, busiest main thread `/breadth` at 4.6 % blocked (limit 60 %). R-27's own
+> instrument, `tools/postdeploy_client_smoke.py`, reached the rig and answered
+> **INCONCLUSIVE (exit 2)**: the rig browser carries `uct.j2.offline.enabled = '0'`, an
+> opt-out key a past run left behind, and the tool refuses to measure a product no member
+> has. Deliberately NOT reset from this session — the rig is the Notebook workstream's and
+> that key may be theirs on purpose; whoever owns the rig runs it with `--reset-keys`. Two
+> instrument defects found on the way and fixed in the same push: the tool never consulted
+> `--profile` / `UCT_Q1_RIG_PROFILE` (so from any worktree but the main one it STOPped with
+> a message promising those doors), and its `EXTRA_ROUTES` still listed
+> `/catalysts/history`, a sidebar entry since 2026-09-21, which had kept its own
+> `--self-check` red for three days. (3) The go-live packet's §2b cleanup grew: the ledger
+> rail was red on master for TWO undeclared gates, and the live audit exited 1 on ten
+> entries that said `dark` while Railway `web` had them set — all twelve corrected as
+> measured values (never decisions), ledger rails 219 passed, `flag_ledger_audit` exit 0
+> with every category at zero. Plus the `test_provenance_quote.py` docstring from §7 item
+> 7 (and the router's own, which had the same stale precedent). Shipped as `6e7b10407`,
+> web deploy SUCCESS (fresh boot, uptime 32 s), ancestor of `origin/production`.
+>
+> **Post-deploy smokes for `6e7b10407`, and two findings that are NOT this program's.**
+> Desktop `hub_nav_smoke.py --auth`: **PASS** (same numbers as above). The phone-class pass
+> `--auth --touch`: **FAILED, 6 problems** — the joystick hub is not in the DOM on
+> `/model-book`, `/formulas/reference`, `/desk`, `/journal`, `/portfolio-heat`,
+> `/community` (present on the other 13). Not caused by this deploy: docs/tests/tools only,
+> and every runtime reference to the ledger is a comment — so neither rollback lever applies
+> (a revert changes nothing; the hub kill switch would remove it from the 13 good routes).
+> The joystick programme's own 9/12 touch record had the hub SHOWING on four of those six;
+> today's six are exactly the routes with no registered hub section. Whether the hub went
+> section-only on purpose (then the tool's expectation is stale) or lost its non-section
+> fallback is the joystick owner's to decide. Recorded for them in
+> `docs/plans/joystick/smoke-runs/2026-09-24T23-17Z-touch.md`. **Second finding, from the
+> same console:** `GET /api/barspack/manifest` returns 401 for every browser — the route
+> was gated by `require_bars_access` on 2026-09-13 (`2d121371f`) while the client still
+> fetches it with `credentials: 'omit'` by design, so the Universe Bars Pack has been
+> silently dead for all members for eleven days (charts fall back to `/api/bars`; the
+> client swallows the failure). A lost fast path, not a crash; the fix is a gate-vs-edge-
+> cache decision for the bars owner. Both recorded in RESUME-HERE §5 as owner-bound.
+
 ---
 
 ## 4 · Feature detail, by surface
