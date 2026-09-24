@@ -13,7 +13,7 @@
 | | branch | HEAD | pushed | state |
 |---|---|---|---|---|
 | **A. Pine merge** | `merge/pine-up-to-master` | `526b5e2aa` | yes | **PR #184 OPEN — COMPLETE** |
-| **B. Master red sweep** | `fix/master-red-sweep` | `01a2ef403` | yes | **IN PROGRESS — 70 of 84 fixed, 14 left** |
+| **B. Master red sweep** | `fix/master-red-sweep` | `2a80003fc` | yes | **ALL 84 ADDRESSED — closing six-shard gate still owed** |
 
 PR #184: https://github.com/unchartedterritory5995-cyber/UCT-Dashboard/pull/184
 
@@ -63,51 +63,74 @@ C4-Python is mandatory and never short-circuited by C0. Last run: 255 passed, ex
 Branch `fix/master-red-sweep`, cut from master `451aed688`.
 Worktree: `C:/Users/Patrick/uct-dashboard/.worktrees/master-fix`
 
-### Fixed so far — 70 of 84, in three commits
+### Fixed — 84 of 84, in seven commits (every one a TEST or HARNESS artifact; zero product code)
 
 | commit | what | n |
 |---|---|---|
 | `521351f21` | TradeDetailPage + PositionDetailPage — AuthContext mock stubbed the HOOK, not the CONTEXT | 39 |
 | `2c4cf75ff` | Watchlists.virtualized (same bug) · chartDrawDoor (useBreadthSymbols partial mock) · CotData.smoke (filter counted bootstrap calls) | 12 |
 | `01a2ef403` | Screener.scanmount + Screener.door — a RENAME, and a write filter wider than its claim | 19 |
+| `6e5bd692f` | FilterBand — #178's message claimed the deletion, the diff did not; completed it (`git rm` + the one `FilterRail` prop) | 6 |
+| `9089356e3` | ScannerShell.review — the rail followed #163 to the door that exists (`ScreenerReviewOverlay`), same invariant | 4 |
+| `5ac502a38` | surfaces/manifest — two routes undeclared · jsonFetcher rail — a TEST HARNESS (`marketIndicatorsHarness.jsx`) used raw `fetch().then(r=>r.json())`; routed through `jsonFetcher` (see §4) | 2 |
+| `2a80003fc` | dailyFirstPaintAcceptance + dailyFirstPaintIncidental — WINDOW-DEPENDENT tests, not order-dependence and not a product bug (see §3b) | 1 (+2 more red on this tree) |
+| *(no commit)* | `journal-2-0/lib/iteratorGlobalFloor.test.js` — ENVIRONMENTAL: it reads the BUILT `app/dist/assets` by design; `cd app && npm run build` → 9 passed. `dist/` is gitignored, so a fresh checkout reds it until built | 1 |
 
 ⭐ **Every one so far was a TEST artifact, not a product defect — and that was
 MEASURED each time, never assumed.** Twice the wrong call would have hidden a real
 bug (a duplicate fetch, a duplicate store write), so the actual requests were
 dumped before any filter was narrowed.
 
-### Remaining — 14
+### Remaining — none of the 84. What is still OWED
 
-    cd C:/Users/Patrick/uct-dashboard/.worktrees/master-fix/app
-    npx vitest run src/pages/screener/shell/FilterBand.test.jsx       src/pages/screener/shell/ScannerShell.review.test.jsx       src/utils/jsonFetcher.test.js src/surfaces/manifest.test.js       src/pages/journal-2-0/lib/iteratorGlobalFloor.test.js       src/components/dailyFirstPaintIncidental.test.jsx
+1. **Closing gate B** — the full six-shard gate on `fix/master-red-sweep` (clean tree, one
+   gate at a time, never commit while it runs), classified BY NAME against the merged
+   failing set with `classify.sh`. Any case red here and not in the merged-failing set was
+   introduced by the sweep and must be zero. `iteratorGlobalFloor` needs `app/dist` built first.
+2. **A PR for the sweep only with the owner's say-so** — "Do not open PRs to master
+   without telling me."
+3. **The plain-language summary** the owner asked for at the end.
 
-| n | file | what is known |
-|---|---|---|
-| 6 | `screener/shell/FilterBand.test.jsx` | not yet diagnosed |
-| 4 | `screener/shell/ScannerShell.review.test.jsx` | fails on missing `[data-testid="review-charts"]` |
-| 1 | `utils/jsonFetcher.test.js` | ⛔ **LOOK HERE FIRST — see section 4** |
-| 1 | `surfaces/manifest.test.js` | likely master's new research FlowTab route needs a declaration |
-| 1 | `journal-2-0/lib/iteratorGlobalFloor.test.js` | not yet diagnosed |
-| 1 | `components/dailyFirstPaintIncidental.test.jsx` | ⭐ **ALREADY SHOWN LOAD-SENSITIVE** — passes alone, and fails a DIFFERENT case each run (CASE A vs CASE B). Do NOT "fix" it; it is order-dependence |
+### 3b. ⚰️ dailyFirstPaint — the note this file used to carry was WRONG
+
+This file said: *"ALREADY SHOWN LOAD-SENSITIVE — passes alone, and fails a DIFFERENT
+case each run (CASE A vs CASE B). Do NOT 'fix' it; it is order-dependence."* That was
+an inherited label, and on this tree it was false: NC-B, NC-C (Acceptance) and CASE B
+(Incidental) failed **identically across three solo runs**, and identically on the merge
+worktree (master through `877dd173c`) — so not load, not order, not the 10-commit window.
+
+**Measured cause — the WALL CLOCK.** Both files derive every fixture from
+`expectedDailyTailForPaintET()` and read the real clock. After the bell (weekday 16:00 ET →
+midnight, same ET day) the product DEFERS a today-dated daily cache to the network's sealed
+close **by design** (`isDailyTodayCloseProvisionalForPaint`, `a663b0d67` 2026-09-02, the
+no-flicker fix, railed with a pinned clock in `marketSession.dailypaint.test.js`). The tests
+assume the cache paints first, were committed at **14:26 ET** (inside RTH, `81b12873f`) and
+were green there — and red every day from 16:00 ET. Same tree, same code:
+
+    real clock 18:12 ET ............ NC-B, NC-C, CASE B red   (control, 3 solo runs)
+    clock pinned 14:26 ET today .... 18/18 and 5/5 green
+    clock pinned 18:12 ET on the author's own day (2026-09-22) ... the same reds
+
+**Fix (test-only):** `app/src/testing/pinnedWallClock.js` pins the clock to a STATED RTH
+instant (shifted, still advancing — a frozen clock hangs the polling harness); both files
+pin to Tue 2026-09-22 14:26 ET, each carries a by-name rail that the pin is load-bearing,
+and Acceptance gained an **AFTER THE BELL** case that asserts the deferral at the level the
+member sees it. Mutation-proved three ways (pin neutralised ×2, after-bell retarget made a
+no-op). ⚠️ Noted, not changed: the Acceptance D-rows are `report()`ed, never asserted — the
+matrix is printed, only its COUNT and the negative controls are rails. A follow-up, not a
+red-sweep change (asserting them would add latency-sensitive reds under gate load).
 
 ---
 
-## 4. ⛔ THE ONE THAT MAY BE A REAL PRODUCT BUG
+## 4. ✅ jsonFetcher — RESOLVED, and it was NOT a product bug
 
-`src/utils/jsonFetcher.test.js` fails with:
-
-> "these surfaces hand a NON-OK body to their consumer as if it were data."
-
-This is the ONLY remaining failure whose wording describes something a MEMBER
-would see — an error response rendered as content. If it is real, **the fix is in
-product code, not in the test**, and it is a decision to land rather than a
-cleanup.
-
-⛔ Do not make this pass by narrowing a filter without first reading what the
-named surfaces actually do with a non-OK response.
-
-⚠️ CLAUDE.md records `jsonFetcher` / `pollingSites` as rails that fire ONLY in
-the FULL suite, so isolation may not reproduce it.
+`src/utils/jsonFetcher.test.js` said *"these surfaces hand a NON-OK body to their consumer
+as if it were data"*. Read before touching anything: the surface it named was
+`src/testing/marketIndicators/marketIndicatorsHarness.jsx` — a TEST HARNESS, not a member
+surface — with three raw `fetch(url).then(r => r.json())` sites. Each already had a `.catch`;
+they were routed through `jsonFetcher(url)` (which throws on non-OK) in `5ac502a38`. No
+member-facing code handed an error body to a consumer. The rail was right to fire; the
+offender was ours.
 
 ---
 
