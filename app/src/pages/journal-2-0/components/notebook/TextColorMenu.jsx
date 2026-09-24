@@ -13,15 +13,22 @@
  * with (`uct-tc-*`, `uct-hl-*` in lib/noteContent.css) — one mapping from a
  * palette name to a colour, never a second copy of it here.
  */
-import { useEffect, useRef } from 'react'
+import { useEffect, useId, useRef } from 'react'
 import Sheet from '../../../../components/mobile/Sheet'
 import { useIsTouch } from '../../../../hooks/useBreakpoint'
 import { NOTE_COLORS, highlightClass, textColorClass } from '../../lib/textColor'
+import { modKeyLabel } from '../../lib/platform'
 import styles from './TextColorMenu.module.css'
 
-export const TEXT_COLOR_MENU_LABEL = 'Text colour and highlight'
+// US spelling in every member-facing string (the Journal already says
+// "Account color"; wave-5 review N7).
+export const TEXT_COLOR_MENU_LABEL = 'Text color and highlight'
 
-export default function TextColorMenu({ editor, onClose, toggleRef }) {
+export default function TextColorMenu({ id, editor, onClose, toggleRef }) {
+  // Per-instance ids: two pickers on one page must not label each other's
+  // rows (wave-5 review N6).
+  const textLabelId = useId()
+  const highlightLabelId = useId()
   // ⛔ THE ONE SANCTIONED useIsTouch: a click-triggered choice between a bottom
   // sheet and an anchored popover (CLAUDE.md, "useMediaQuery is stale at first
   // paint" — it is read here only after a tap, never for layout).
@@ -68,14 +75,14 @@ export default function TextColorMenu({ editor, onClose, toggleRef }) {
   const keep = (e) => e.preventDefault()
 
   const body = (
-    <div className={styles.menu} role="group" aria-label={TEXT_COLOR_MENU_LABEL} onKeyDown={onKeyDown}>
-      <div className={styles.groupLabel} id="uct-color-text-label">Text colour</div>
-      <div className={styles.swatches} role="group" aria-labelledby="uct-color-text-label">
+    <div id={id} className={styles.menu} role="group" aria-label={TEXT_COLOR_MENU_LABEL} onKeyDown={onKeyDown}>
+      <div className={styles.groupLabel} id={textLabelId}>Text color</div>
+      <div className={styles.swatches} role="group" aria-labelledby={textLabelId}>
         <button
           type="button"
           className={styles.swatch}
           aria-pressed={!textColor}
-          aria-label="Default text colour"
+          aria-label="Default text color"
           title="Default"
           onMouseDown={keep}
           onClick={() => apply((c) => c.unsetTextColor())}
@@ -97,8 +104,8 @@ export default function TextColorMenu({ editor, onClose, toggleRef }) {
           </button>
         ))}
       </div>
-      <div className={styles.groupLabel} id="uct-color-hl-label">Highlight</div>
-      <div className={styles.swatches} role="group" aria-labelledby="uct-color-hl-label">
+      <div className={styles.groupLabel} id={highlightLabelId}>Highlight</div>
+      <div className={styles.swatches} role="group" aria-labelledby={highlightLabelId}>
         <button
           type="button"
           className={styles.swatch}
@@ -117,7 +124,7 @@ export default function TextColorMenu({ editor, onClose, toggleRef }) {
             className={styles.swatch}
             aria-pressed={highlightColor === c.name}
             aria-label={`${c.label} highlight`}
-            title={c.name === 'yellow' ? `${c.label} (Ctrl/Cmd+Shift+H)` : c.label}
+            title={c.name === 'yellow' ? `${c.label} (${modKeyLabel()}+Shift+H)` : c.label}
             onMouseDown={keep}
             onClick={() => apply((ch) => ch.setHighlight({ color: c.name }))}
           >
@@ -130,7 +137,7 @@ export default function TextColorMenu({ editor, onClose, toggleRef }) {
 
   if (isTouch) {
     return (
-      <Sheet open onClose={() => close(false)} variant="bottom-sheet" title="Colour">
+      <Sheet open onClose={() => close(false)} variant="bottom-sheet" title="Color">
         {body}
       </Sheet>
     )

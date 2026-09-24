@@ -49,17 +49,28 @@ const selectWord = (editor, word) => {
   editor.commands.setTextSelection({ from, to: from + word.length })
 }
 
-describe('NoteEditorPage — text colour + highlight door (Wave 5)', () => {
+describe('NoteEditorPage — text color + highlight door (Wave 5)', () => {
   it('the toolbar button opens the picker; a pick colours the selection and closes it', async () => {
     const editor = await renderEditor()
     selectWord(editor, 'widened')
-    const toggle = screen.getByRole('button', { name: 'Text colour and highlight' })
+    const toggle = screen.getByRole('button', { name: 'Text color and highlight' })
     expect(toggle.getAttribute('aria-expanded')).toBe('false')
     fireEvent.click(toggle)
     expect(toggle.getAttribute('aria-expanded')).toBe('true')
     fireEvent.click(screen.getByRole('button', { name: 'Red text' }))
     expect(document.querySelector('.ProseMirror span.uct-tc-red')?.textContent).toBe('widened')
-    expect(screen.queryByRole('group', { name: 'Text colour and highlight' })).toBe(null)
+    expect(screen.queryByRole('group', { name: 'Text color and highlight' })).toBe(null)
+  })
+
+  it('N6: the toggle is a disclosure -- no menu promise (aria-haspopup), and aria-controls names the open picker', async () => {
+    await renderEditor()
+    const toggle = screen.getByRole('button', { name: 'Text color and highlight' })
+    expect(toggle.hasAttribute('aria-haspopup')).toBe(false)
+    expect(toggle.hasAttribute('aria-controls')).toBe(false)
+    fireEvent.click(toggle)
+    const id = toggle.getAttribute('aria-controls')
+    expect(id).toBeTruthy()
+    expect(document.getElementById(id)).toBe(screen.getByRole('group', { name: 'Text color and highlight' }))
   })
 })
 
@@ -95,6 +106,20 @@ describe('NoteEditorPage — find AND replace door (Wave 5)', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Replace all' }))
     expect(editor.state.doc.textContent).not.toMatch(/margins/i)
     expect(screen.getByText('Replaced 2 matches')).toBeInTheDocument()
+  })
+
+  it('N2: on a Mac the page reads the ONE platform test -- Cmd+Option+F opens replace, Ctrl+H (delete-backward there) does not', async () => {
+    Object.defineProperty(navigator, 'platform', { value: 'MacIntel', configurable: true })
+    try {
+      const editor = await renderEditor()
+      fireEvent.keyDown(editor.view.dom, { key: 'h', code: 'KeyH', ctrlKey: true })
+      expect(screen.queryByRole('searchbox', { name: 'Find in note' })).toBeNull()
+      fireEvent.keyDown(editor.view.dom, { key: 'ƒ', code: 'KeyF', metaKey: true, altKey: true })
+      await screen.findByRole('textbox', { name: 'Replace with' })
+      expect(screen.getByRole('button', { name: 'Hide replace' })).toBeInTheDocument()
+    } finally {
+      delete navigator.platform
+    }
   })
 
   it('Ctrl+F still opens find alone', async () => {

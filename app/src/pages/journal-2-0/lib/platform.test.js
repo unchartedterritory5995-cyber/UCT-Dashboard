@@ -47,3 +47,27 @@ describe('isReplaceChord answers for the platform it runs on', () => {
     expect(isReplaceChord({ metaKey: true, altKey: true, code: 'KeyF', key: 'f' })).toBe(false)
   })
 })
+
+// N2 (wave-5 review): Mac detection was written in two files. It lives in ONE
+// now, and this sweep keeps it that way for every Notebook source file.
+describe('one Mac test in the Notebook', () => {
+  it('no Notebook source file but lib/platform.js reads navigator.platform', async () => {
+    const fs = await import('node:fs')
+    const path = await import('node:path')
+    const root = path.resolve(process.cwd(), 'src/pages/journal-2-0')
+    const files = []
+    const walk = (dir) => {
+      for (const e of fs.readdirSync(dir, { withFileTypes: true })) {
+        const p = path.join(dir, e.name)
+        if (e.isDirectory()) walk(p)
+        else if (/\.(js|jsx)$/.test(e.name) && !/\.test\.(js|jsx)$/.test(e.name)) files.push(p)
+      }
+    }
+    walk(root)
+    expect(files.length).toBeGreaterThan(100) // non-vacuity: the sweep saw the tree
+    const readers = files
+      .filter((f) => fs.readFileSync(f, 'utf8').includes('navigator.platform'))
+      .map((f) => path.relative(root, f).split(path.sep).join('/'))
+    expect(readers).toEqual(['lib/platform.js'])
+  })
+})

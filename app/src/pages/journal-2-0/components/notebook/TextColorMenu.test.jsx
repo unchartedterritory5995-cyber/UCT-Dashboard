@@ -34,7 +34,7 @@ describe('TextColorMenu', () => {
     render(<TextColorMenu editor={ed} onClose={() => {}} />)
     expect(screen.getByRole('group', { name: TEXT_COLOR_MENU_LABEL })).toBeTruthy()
     expect(screen.getByRole('button', { name: 'Green text' }).getAttribute('aria-pressed')).toBe('true')
-    expect(screen.getByRole('button', { name: 'Default text colour' }).getAttribute('aria-pressed')).toBe('false')
+    expect(screen.getByRole('button', { name: 'Default text color' }).getAttribute('aria-pressed')).toBe('false')
     expect(screen.getByRole('button', { name: 'No highlight' }).getAttribute('aria-pressed')).toBe('true')
     for (const label of ['Gray', 'Red', 'Orange', 'Yellow', 'Green', 'Blue']) {
       expect(screen.getByRole('button', { name: `${label} text` })).toBeTruthy()
@@ -85,7 +85,7 @@ describe('TextColorMenu', () => {
     toggleRef.current = toggle
     const onClose = vi.fn()
     render(<TextColorMenu editor={ed} onClose={onClose} toggleRef={toggleRef} />)
-    expect(document.activeElement).toBe(screen.getByRole('button', { name: 'Default text colour' }))
+    expect(document.activeElement).toBe(screen.getByRole('button', { name: 'Default text color' }))
     fireEvent.keyDown(document.activeElement, { key: 'Escape' })
     expect(onClose).toHaveBeenCalled()
     expect(document.activeElement).toBe(toggle)
@@ -99,12 +99,55 @@ describe('TextColorMenu', () => {
     expect(onClose).toHaveBeenCalled()
   })
 
-  it('touch tier: opens as a bottom sheet titled "Colour"', () => {
+  it('touch tier: opens as a bottom sheet titled "Color"', () => {
     touch = true
     const ed = makeEditor()
     render(<TextColorMenu editor={ed} onClose={() => {}} />)
     const dialog = screen.getByRole('dialog')
-    expect(dialog.textContent).toContain('Colour')
+    expect(dialog.textContent).toContain('Color')
     expect(dialog.querySelectorAll('button[aria-pressed]').length).toBe(14)
+  })
+})
+
+// Wave 5 fix round 1.
+describe('TextColorMenu — fix round 1', () => {
+  afterEach(() => { delete navigator.platform })
+
+  it('N7: every member-facing string says "color" (the Journal\'s spelling), never "colour"', () => {
+    const ed = makeEditor()
+    render(<TextColorMenu editor={ed} onClose={() => {}} />)
+    expect(TEXT_COLOR_MENU_LABEL).toBe('Text color and highlight')
+    const group = screen.getByRole('group', { name: TEXT_COLOR_MENU_LABEL })
+    const said = [group.textContent, ...[...group.querySelectorAll('[aria-label],[title]')]
+      .flatMap((el) => [el.getAttribute('aria-label'), el.getAttribute('title')])].join(' ')
+    expect(said).toMatch(/color/i)
+    expect(said).not.toMatch(/colour/i)
+  })
+
+  it('N6: two pickers on one page label their OWN rows (per-instance ids)', () => {
+    const a = makeEditor()
+    const el = document.createElement('div')
+    document.body.appendChild(el)
+    const b = new Editor({ element: el, extensions: buildExtensions(), content: '<p>x</p>' })
+    render(<><TextColorMenu editor={a} onClose={() => {}} /><TextColorMenu editor={b} onClose={() => {}} /></>)
+    const rows = [...document.querySelectorAll('[role="group"][aria-labelledby]')]
+    expect(rows).toHaveLength(4)
+    const ids = rows.map((r) => r.getAttribute('aria-labelledby'))
+    expect(new Set(ids).size).toBe(4)
+    expect(ids.map((id) => document.getElementById(id)?.textContent)).toEqual(['Text color', 'Highlight', 'Text color', 'Highlight'])
+    b.destroy()
+  })
+
+  it('N6: the id the page passes lands on the picker\'s root group (the toggle\'s aria-controls target)', () => {
+    const ed = makeEditor()
+    render(<TextColorMenu id="picker-1" editor={ed} onClose={() => {}} />)
+    expect(document.getElementById('picker-1')).toBe(screen.getByRole('group', { name: TEXT_COLOR_MENU_LABEL }))
+  })
+
+  it.each([['MacIntel', 'Cmd+Shift+H'], ['Win32', 'Ctrl+Shift+H']])('the yellow swatch names the platform\'s chord (%s -> %s)', (platform, chord) => {
+    Object.defineProperty(navigator, 'platform', { value: platform, configurable: true })
+    const ed = makeEditor()
+    render(<TextColorMenu editor={ed} onClose={() => {}} />)
+    expect(screen.getByRole('button', { name: 'Yellow highlight' }).getAttribute('title')).toBe(`Yellow (${chord})`)
   })
 })

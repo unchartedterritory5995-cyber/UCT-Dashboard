@@ -1,5 +1,5 @@
 import { useEditor, EditorContent } from '@tiptap/react'
-import { useCallback, useEffect, useMemo, useReducer, useRef, useState } from 'react'
+import { useCallback, useEffect, useId, useMemo, useReducer, useRef, useState } from 'react'
 import { useSearchParams, useNavigate } from 'react-router-dom'
 import useSWR, { mutate as globalMutate } from 'swr'
 import {
@@ -52,6 +52,7 @@ import { appendAskInsert } from '../../lib/askInsert'
 import usePendingAskInsert from '../../hooks/usePendingAskInsert'
 import NoteFindBar from './NoteFindBar'
 import TextColorMenu, { TEXT_COLOR_MENU_LABEL } from './TextColorMenu'
+import { isReplaceChord, modKeyLabel } from '../../lib/platform'
 import NoteStats from './NoteStats'
 import NoteOutline from './NoteOutline'
 import { textColorClass } from '../../lib/textColor'
@@ -436,15 +437,12 @@ export default function NoteEditorPage({ noteId, onBack, showBack = true, onTitl
   // while a note is actually mounted.
   const [findOpen, setFindOpen] = useState(false)
   // Wave 5: opened for REPLACE (Ctrl+H; Cmd+Option+F on a Mac, where Cmd+H
-  // hides the app and Ctrl+H is ProseMirror's delete-backward).
+  // hides the app and Ctrl+H is ProseMirror's delete-backward). The platform
+  // test is lib/platform.js -- the Notebook's ONE answer to "is this a Mac?".
   const [findWithReplace, setFindWithReplace] = useState(false)
   const onPageKeyDown = (e) => {
     const key = e.key.toLowerCase()
-    const onMac = typeof navigator !== 'undefined' && /Mac|iPhone|iPad/.test(navigator.platform || '')
-    const replaceChord = onMac
-      ? (e.metaKey && e.altKey && e.code === 'KeyF')
-      : (e.ctrlKey && !e.metaKey && !e.altKey && (key === 'h' || e.code === 'KeyH'))
-    if (replaceChord) {
+    if (isReplaceChord(e)) {
       e.preventDefault()
       setFindWithReplace(true)
       setFindOpen(true)
@@ -516,6 +514,7 @@ export default function NoteEditorPage({ noteId, onBack, showBack = true, onTitl
   // Wave 5: the text colour + highlight picker, toggled from the toolbar row.
   const [colorOpen, setColorOpen] = useState(false)
   const colorToggleRef = useRef(null)
+  const colorMenuId = useId()
   // Wave 5: the note outline panel / sheet, toggled from the toolbar row.
   const [outlineOpen, setOutlineOpen] = useState(false)
   const outlineToggleRef = useRef(null)
@@ -2558,15 +2557,18 @@ export default function NoteEditorPage({ noteId, onBack, showBack = true, onTitl
                 className={`${styles.toolBtn} ${colorOpen ? styles.toolBtnActive : ''}`}
                 onMouseDown={(e) => e.preventDefault()}
                 onClick={() => setColorOpen((o) => !o)}
-                aria-haspopup="true"
+                // A disclosure, not a menu: the picker is a GROUP of pressed-state
+                // buttons, so `aria-haspopup` (which announces a menu) would
+                // promise arrow-key menu behaviour it does not have.
                 aria-expanded={colorOpen}
+                aria-controls={colorOpen ? colorMenuId : undefined}
                 aria-label={TEXT_COLOR_MENU_LABEL}
-                title={`${TEXT_COLOR_MENU_LABEL} — Ctrl/Cmd+Shift+H highlights`}
+                title={`${TEXT_COLOR_MENU_LABEL} — ${modKeyLabel()}+Shift+H highlights`}
               >
                 <span className={`${styles.colorGlyph} ${editor.getAttributes('textColor').color ? textColorClass(editor.getAttributes('textColor').color) : ''}`}>A</span>
               </button>
               {colorOpen && (
-                <TextColorMenu editor={editor} onClose={() => setColorOpen(false)} toggleRef={colorToggleRef} />
+                <TextColorMenu id={colorMenuId} editor={editor} onClose={() => setColorOpen(false)} toggleRef={colorToggleRef} />
               )}
             </span>
             <ToolButton
