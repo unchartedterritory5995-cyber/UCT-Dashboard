@@ -222,6 +222,14 @@ describe('E — the tab closes after the durable write but before the PUT', () =
     // …and the owner tries to send them itself (the server is still down).
     await tick(1000)
     await waitFor(() => expect(updateMock.mock.calls.length).toBeGreaterThan(sendsBefore))
+    // N1 (wave-5 review): and what it tried to send IS the queued words, on
+    // the words' OWN base ('T1', the revision they were typed against) --
+    // never an empty patch, and never re-based onto a revision they did not
+    // see (the ruling's second half; f5p1OwnerSendsQueued.test.jsx pins it
+    // against a fake server, this pins it through the real page).
+    const sent = updateMock.mock.calls.at(-1)[0]
+    expect(sent.title).toBe('written while the server was gone')
+    expect(sent.baseUpdatedAt).toBe('T1')
     // ⛔ And the sync intent is still queued: recovered on screen — and even
     // attempted — is not the same as sent. SAVED ON THIS DEVICE ≠ SYNCED TO UCT.
     expect(store('outbox')).toHaveLength(1)
