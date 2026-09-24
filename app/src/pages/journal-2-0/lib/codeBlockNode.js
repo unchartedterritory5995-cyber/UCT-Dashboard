@@ -19,6 +19,7 @@
 import CodeBlockLowlight from '@tiptap/extension-code-block-lowlight'
 import { TextSelection } from '@tiptap/pm/state'
 import { CODE_LANGUAGES, PLAIN_TEXT_LABEL, canonicalLanguage, languageLabel, notebookLowlight } from './codeHighlight'
+import { altKeyLabel, modKeyLabel } from './platform'
 
 export const CODE_LANGUAGE_PICKER_LABEL = 'Code block language'
 
@@ -93,7 +94,7 @@ export const NotebookCodeBlock = CodeBlockLowlight.extend({
         select = document.createElement('select')
         select.className = 'uctCodeLang'
         select.setAttribute('aria-label', CODE_LANGUAGE_PICKER_LABEL)
-        select.title = `${CODE_LANGUAGE_PICKER_LABEL} (${navigatorMod()}+Alt+L)`
+        select.title = `${CODE_LANGUAGE_PICKER_LABEL} (${modKeyLabel()}+${altKeyLabel()}+L)`
         bar.appendChild(select)
       } else {
         label = document.createElement('span')
@@ -204,7 +205,3 @@ export const NotebookCodeBlock = CodeBlockLowlight.extend({
   lowlight: notebookLowlight,
   defaultLanguage: null,
 })
-
-function navigatorMod() {
-  return typeof navigator !== 'undefined' && /Mac|iPhone|iPad/.test(navigator.platform || '') ? 'Cmd' : 'Ctrl'
-}

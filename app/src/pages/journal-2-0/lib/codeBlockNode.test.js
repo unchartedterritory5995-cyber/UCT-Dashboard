@@ -198,3 +198,13 @@ describe('read-only renderers (shared page, version preview)', () => {
     expect(hljsSpans(ed).some((s) => s.className.includes('hljs-keyword'))).toBe(true)
   })
 })
+
+// N2 (wave-5 review): the picker's chord comes from the ONE Mac test.
+describe('the picker names the platform\'s own chord', () => {
+  afterEach(() => { delete navigator.platform })
+  it.each([['MacIntel', 'Cmd+Option+L'], ['Win32', 'Ctrl+Alt+L']])('%s -> %s', (platform, chord) => {
+    Object.defineProperty(navigator, 'platform', { value: platform, configurable: true })
+    const ed = mount([CODE('x = 1', 'python')])
+    expect(picker(ed).title).toBe(`${CODE_LANGUAGE_PICKER_LABEL} (${chord})`)
+  })
+})

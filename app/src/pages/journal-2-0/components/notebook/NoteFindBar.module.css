@@ -73,6 +73,11 @@
   font-weight: 700;
   font-family: var(--font-sans);
 }
+/* Whole word: the same lit glyph, underlined like a word boundary. */
+.wordBtn {
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
 .caseBtnOn {
   background: var(--bg-hover);
   color: var(--ut-gold);

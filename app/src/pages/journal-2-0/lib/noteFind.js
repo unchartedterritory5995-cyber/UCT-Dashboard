@@ -28,7 +28,36 @@ export function normalizeFindTerm(term) {
   return (term || '').trim()
 }
 
-export function findMatchesInDoc(doc, term, { caseSensitive = false } = {}) {
+/**
+ * A letter, a digit or a combining mark: what a WORD is made of, in any
+ * script. Whole-word matching refuses a match with one of these right before
+ * or after it -- `\b` is ASCII-only and would split "café" or "市场".
+ */
+const WORD_CHAR = /[\p{L}\p{N}\p{M}]/u
+
+// The code point just before `from` / just after `to` in the document, read
+// across mark (text-node) edges. A block edge or an inline atom reads as '\n',
+// i.e. a boundary. Two code units, so an astral letter is read whole.
+const charBefore = (doc, from) => {
+  if (from <= 0) return ''
+  return [...doc.textBetween(Math.max(0, from - 2), from, '\n', '\n')].pop() || ''
+}
+const charAfter = (doc, to) => {
+  const end = doc.content.size
+  if (to >= end) return ''
+  return [...doc.textBetween(to, Math.min(end, to + 2), '\n', '\n')][0] || ''
+}
+
+/**
+ * Every match of `term` in `doc`, as `{from, to}`.
+ *  - `caseSensitive`: case must match (default: it need not).
+ *  - `wholeWord`: a match must not have a letter, digit or mark right before
+ *    or after it, so renaming the ticker `MU` leaves "much" and "community"
+ *    alone and `AMD` does not touch `AMDL`. The neighbour is read across mark
+ *    edges ("**MU**ch" is not a whole-word MU). No lookbehind anywhere (the
+ *    iOS 16 floor): the boundary is checked by hand.
+ */
+export function findMatchesInDoc(doc, term, { caseSensitive = false, wholeWord = false } = {}) {
   const needle = normalizeFindTerm(term)
   if (!needle) return []
   // `u` so case folding is Unicode's; `i` only when case does not matter.
@@ -40,7 +69,15 @@ export function findMatchesInDoc(doc, term, { caseSensitive = false } = {}) {
     let m
     while ((m = re.exec(node.text)) !== null) {
       // non-overlapping; an empty match cannot occur (the needle is non-empty)
-      matches.push({ from: pos + m.index, to: pos + m.index + m[0].length })
+      const from = pos + m.index
+      const to = from + m[0].length
+      if (wholeWord && (WORD_CHAR.test(charBefore(doc, from)) || WORD_CHAR.test(charAfter(doc, to)))) {
+        // Not a whole word here; a whole word may still START inside this
+        // candidate ("aaa aa"), so resume one character on, not past it.
+        re.lastIndex = m.index + 1
+        continue
+      }
+      matches.push({ from, to })
     }
   })
   return matches

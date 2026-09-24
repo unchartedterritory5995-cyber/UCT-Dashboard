@@ -50,11 +50,14 @@ export const NoteFind = Extension.create({
   name: 'noteFind',
 
   addStorage() {
-    return { term: '', caseSensitive: false, matches: [], activeIndex: -1, lastReplaced: 0 }
+    return { term: '', caseSensitive: false, wholeWord: false, matches: [], activeIndex: -1, lastReplaced: 0 }
   },
 
   addCommands() {
-    const search = (doc) => findMatchesInDoc(doc, this.storage.term, { caseSensitive: this.storage.caseSensitive })
+    const search = (doc) => findMatchesInDoc(doc, this.storage.term, {
+      caseSensitive: this.storage.caseSensitive,
+      wholeWord: this.storage.wholeWord,
+    })
     const publish = (tr, dispatch) => {
       if (dispatch) dispatch(tr.setMeta(noteFindPluginKey, { matches: this.storage.matches, activeIndex: this.storage.activeIndex }))
     }
@@ -62,6 +65,7 @@ export const NoteFind = Extension.create({
       noteFindSet: (term, opts = {}) => ({ editor, tr, dispatch }) => {
         this.storage.term = term
         if (typeof opts.caseSensitive === 'boolean') this.storage.caseSensitive = opts.caseSensitive
+        if (typeof opts.wholeWord === 'boolean') this.storage.wholeWord = opts.wholeWord
         const matches = search(editor.state.doc)
         this.storage.matches = matches
         this.storage.activeIndex = matches.length ? 0 : -1

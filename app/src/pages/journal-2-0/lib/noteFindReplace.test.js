@@ -42,6 +42,56 @@ describe('findMatchesInDoc (regex, not a lower-cased index)', () => {
   })
 })
 
+// S6 (wave-5 review): a ticker rename must not rewrite words that contain it.
+describe('findMatchesInDoc -- whole word', () => {
+  const at = (ed, ms) => ms.map((m) => ed.state.doc.textBetween(m.from, m.to))
+
+  it('`MU` as a whole word leaves "much", "mutual" and "community" alone', () => {
+    const ed = mount([P('MU is up much; mutual funds and the community like MU.')])
+    expect(findMatchesInDoc(ed.state.doc, 'MU')).toHaveLength(5)
+    const whole = findMatchesInDoc(ed.state.doc, 'MU', { wholeWord: true })
+    expect(at(ed, whole)).toEqual(['MU', 'MU'])
+  })
+
+  it('`AMD` as a whole word does not touch `AMDL`; punctuation and a `$` are boundaries', () => {
+    const ed = mount([P('AMD, AMDL and $AMD (AMD).')])
+    expect(findMatchesInDoc(ed.state.doc, 'AMD', { wholeWord: true })).toHaveLength(3)
+  })
+
+  it('the neighbour is read across a MARK edge: "**MU**ch" is not a whole-word MU', () => {
+    const ed = mount([P(bold('MU'), 'ch and MU')])
+    const whole = findMatchesInDoc(ed.state.doc, 'MU', { wholeWord: true })
+    expect(whole).toHaveLength(1)
+    expect(whole[0].from).toBeGreaterThan(4)
+  })
+
+  it('a block edge and an inline atom are boundaries', () => {
+    const ed = mount([P('MU'), P('x', { type: 'hardBreak' }, 'MU', { type: 'hardBreak' })])
+    expect(findMatchesInDoc(ed.state.doc, 'MU', { wholeWord: true })).toHaveLength(2)
+  })
+
+  it('any script: an accented letter or a combining mark is part of the word', () => {
+    // "cafe" + a combining acute READS as café: its "cafe" is not a whole word.
+    const ed = mount([P('café cafe\u0301 cafe caf')])
+    expect(findMatchesInDoc(ed.state.doc, 'cafe', { wholeWord: true })).toHaveLength(1)
+    expect(findMatchesInDoc(ed.state.doc, 'caf', { wholeWord: true })).toHaveLength(1)
+    expect(findMatchesInDoc(ed.state.doc, 'café', { wholeWord: true })).toHaveLength(1)
+  })
+
+  it('a whole word that starts INSIDE a rejected candidate is still found ("ab b b", "b b")', () => {
+    const ed = mount([P('ab b b')])
+    const whole = findMatchesInDoc(ed.state.doc, 'b b', { wholeWord: true })
+    expect(whole.map((m) => [m.from, m.to])).toEqual([[4, 7]])
+  })
+
+  it('whole word governs Replace all too: MU -> MRVL rewrites only the ticker', () => {
+    const ed = mount([P('MU is up much; the community likes MU.')])
+    ed.commands.noteFindSet('MU', { wholeWord: true })
+    expect(ed.commands.noteFindReplaceAll('MRVL')).toBe(true)
+    expect(texts(ed)).toEqual(['MRVL is up much; the community likes MRVL.'])
+  })
+})
+
 describe('Replace (one)', () => {
   it('replaces the ACTIVE match, keeps its marks, and moves to the next', () => {
     const ed = mount([P('Buy ', bold('NVDA'), ' and more NVDA later.')])

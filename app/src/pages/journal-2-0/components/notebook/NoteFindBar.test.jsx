@@ -4,6 +4,7 @@ import { Editor } from '@tiptap/core'
 import StarterKit from '@tiptap/starter-kit'
 import { NoteFind } from '../../lib/noteFindExtension'
 import NoteFindBar from './NoteFindBar'
+import styles from './NoteFindBar.module.css'
 
 const EXT = [StarterKit, NoteFind]
 
@@ -190,5 +191,116 @@ describe('NoteFindBar — replace', () => {
     render(<NoteFindBar editor={ed} onClose={onClose} initialReplace />)
     fireEvent.keyDown(screen.getByRole('textbox', { name: 'Replace with' }), { key: 'Escape' })
     expect(onClose).toHaveBeenCalled()
+  })
+})
+
+// ── Wave 5 fix round 1 ───────────────────────────────────────────────────────
+describe('NoteFindBar — fix round 1', () => {
+  const find = (value) => fireEvent.change(screen.getByRole('searchbox', { name: 'Find in note' }), { target: { value } })
+  const replaceWith = (value) => fireEvent.change(screen.getByRole('textbox', { name: 'Replace with' }), { target: { value } })
+  const setPlatform = (value) => Object.defineProperty(navigator, 'platform', { value, configurable: true })
+  afterEach(() => { delete navigator.platform })
+
+  it('S6: Whole word is a pressed-state toggle; MU -> MRVL then rewrites only the ticker', () => {
+    const ed = mountEditor('<p>MU is up much; the community likes MU.</p>')
+    render(<NoteFindBar editor={ed} onClose={vi.fn()} initialReplace />)
+    find('MU')
+    expect(screen.getByText('1/4')).toBeInTheDocument()
+    const word = screen.getByRole('button', { name: 'Whole word' })
+    expect(word.getAttribute('aria-pressed')).toBe('false')
+    fireEvent.click(word)
+    expect(word.getAttribute('aria-pressed')).toBe('true')
+    expect(screen.getByText('1/2')).toBeInTheDocument()
+    replaceWith('MRVL')
+    fireEvent.click(screen.getByRole('button', { name: 'Replace all' }))
+    expect(ed.getText()).toBe('MRVL is up much; the community likes MRVL.')
+  })
+
+  it('S6: AMD -> NVDA with Whole word does not touch AMDL', () => {
+    const ed = mountEditor('<p>AMD and AMDL</p>')
+    render(<NoteFindBar editor={ed} onClose={vi.fn()} initialReplace />)
+    find('AMD')
+    fireEvent.click(screen.getByRole('button', { name: 'Whole word' }))
+    replaceWith('NVDA')
+    fireEvent.click(screen.getByRole('button', { name: 'Replace all' }))
+    expect(ed.getText()).toBe('NVDA and AMDL')
+  })
+
+  it('S5: "Replaced N matches" carries an Undo that restores every match in one step', () => {
+    const ed = mountEditor('<p>a margin, a margin, a margin</p>')
+    render(<NoteFindBar editor={ed} onClose={vi.fn()} initialReplace />)
+    find('margin')
+    replaceWith('spread')
+    fireEvent.click(screen.getByRole('button', { name: 'Replace all' }))
+    expect(ed.getText()).toBe('a spread, a spread, a spread')
+    const undoBtn = screen.getByRole('button', { name: 'Undo' })
+    // The touch tier's 44px floor: the Undo is a textBtn, which that tier sizes.
+    expect(undoBtn.className).toContain(styles.textBtn)
+    fireEvent.click(undoBtn)
+    expect(ed.getText()).toBe('a margin, a margin, a margin')
+    expect(screen.getByText('Replace all undone')).toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: 'Undo' })).toBeNull()
+  })
+
+  it('S5: once the note has moved on, the Undo refuses (it would undo the member\'s own typing)', () => {
+    const ed = mountEditor('<p>x y x</p>')
+    render(<NoteFindBar editor={ed} onClose={vi.fn()} initialReplace />)
+    find('x')
+    replaceWith('z')
+    fireEvent.click(screen.getByRole('button', { name: 'Replace all' }))
+    const undoBtn = screen.getByRole('button', { name: 'Undo' })
+    ed.commands.insertContentAt(ed.state.doc.content.size - 1, ' typed')
+    fireEvent.click(undoBtn)
+    expect(ed.getText()).toBe('z y z typed')
+    expect(screen.queryByRole('button', { name: 'Undo' })).toBeNull()
+  })
+
+  it('S5: the touch tier sizes every textBtn to the 44px floor', async () => {
+    const fs = await import('node:fs')
+    const path = await import('node:path')
+    const css = fs.readFileSync(path.resolve(process.cwd(), 'src/pages/journal-2-0/components/notebook/NoteFindBar.module.css'), 'utf8')
+    const tier = css.slice(css.indexOf('@media (max-width: 1024px)'))
+    expect(tier.slice(0, tier.indexOf('\n}'))).toMatch(/\.textBtn\s*\{[^}]*min-height:\s*var\(--tap-min/)
+  })
+
+  it.each([
+    ['MacIntel', 'Replace (Cmd+Option+F)', 'Cmd+Enter'],
+    ['Win32', 'Replace (Ctrl+H)', 'Ctrl+Enter'],
+  ])('S7: on %s the tooltips name the platform\'s own chords', (platform, replaceTitle, allChord) => {
+    setPlatform(platform)
+    const ed = mountEditor('<p>buy</p>')
+    render(<NoteFindBar editor={ed} onClose={vi.fn()} />)
+    const toggle = screen.getByRole('button', { name: 'Show replace' })
+    expect(toggle.getAttribute('title')).toBe(replaceTitle)
+    fireEvent.click(toggle)
+    expect(screen.getByRole('button', { name: 'Replace all' }).getAttribute('title')).toContain(`(${allChord})`)
+  })
+
+  it.each([
+    ['isComposing', { isComposing: true }],
+    ['keyCode 229', { keyCode: 229 }],
+  ])('N5: Enter in the replace field while an IME is composing (%s) replaces nothing', (_label, extra) => {
+    const ed = mountEditor('<p>buy the dip</p>')
+    render(<NoteFindBar editor={ed} onClose={vi.fn()} initialReplace />)
+    find('buy')
+    replaceWith('sell')
+    const field = screen.getByRole('textbox', { name: 'Replace with' })
+    fireEvent.keyDown(field, { key: 'Enter', ...extra })
+    fireEvent.keyDown(field, { key: 'Enter', ctrlKey: true, ...extra })
+    expect(ed.getText()).toBe('buy the dip')
+    // ...and the same Enter without composition does replace (the control).
+    fireEvent.keyDown(field, { key: 'Enter' })
+    expect(ed.getText()).toBe('sell the dip')
+  })
+
+  it('N5: Enter in the find field while composing does not move to the next match', () => {
+    const ed = mountEditor('<p>buy buy buy</p>')
+    render(<NoteFindBar editor={ed} onClose={vi.fn()} />)
+    find('buy')
+    const input = screen.getByRole('searchbox', { name: 'Find in note' })
+    fireEvent.keyDown(input, { key: 'Enter', keyCode: 229 })
+    expect(screen.getByText('1/3')).toBeInTheDocument()
+    fireEvent.keyDown(input, { key: 'Enter' })
+    expect(screen.getByText('2/3')).toBeInTheDocument()
   })
 })
