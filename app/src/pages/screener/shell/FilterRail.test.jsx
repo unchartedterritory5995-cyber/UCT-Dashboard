@@ -1,4 +1,4 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest'
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { render, screen, fireEvent } from '@testing-library/react'
 import FilterRail from './FilterRail'
 
@@ -47,6 +47,118 @@ describe('FilterRail', () => {
     expect(screen.getByRole('button', { name: /descriptive/i })).toHaveTextContent('1')
     fireEvent.click(screen.getByRole('button', { name: /clear 1/i }))
     expect(onClear).toHaveBeenCalled()
+  })
+
+  // Wave A (A9 — Screening) — "keyboard-driven filter editing", the one piece
+  // of that wave genuinely missing (live match-count + saved-screen addressing
+  // were both already shipped separately — see the roadmap's own §4 record).
+  // Mirrors Settings.jsx's `/`-focuses-search + arrow-nav idiom exactly.
+  describe('keyboard-driven filter editing', () => {
+    // jsdom ships no scrollIntoView (see the class-wide note this repo already
+    // carries in e.g. hub/sections/wireSection.test.jsx) — stub it here rather
+    // than let the highlight-move guard skip real behaviour under test.
+    beforeEach(() => { Element.prototype.scrollIntoView = vi.fn() })
+    afterEach(() => { delete Element.prototype.scrollIntoView })
+
+    // ⛔ CSS-module classes are hashed under vitest (see this file's own
+    // `.toMatch(/railMatchCountEmpty/)` above) — never a literal `.railFilterActive`
+    // selector. Read the highlight off the `data-filter-key` wrapper instead.
+    const activeFilterKey = () => {
+      for (const el of document.querySelectorAll('[data-filter-key]')) {
+        if (/railFilterActive/.test(el.className)) return el.getAttribute('data-filter-key')
+      }
+      return null
+    }
+
+    it('"/" focuses the filter search on the desktop rail, never the sheet variant', () => {
+      render(<FilterRail meta={META} activeFilters={{}} onChange={() => {}} onClear={() => {}} />)
+      fireEvent.keyDown(window, { key: '/' })
+      expect(document.activeElement).toBe(screen.getByLabelText('Find a filter'))
+    })
+
+    it('never wires the global "/" shortcut for the sheet variant', () => {
+      render(<FilterRail meta={META} activeFilters={{}} onChange={() => {}} onClear={() => {}} variant="sheet" />)
+      fireEvent.keyDown(window, { key: '/' })
+      expect(document.activeElement).not.toBe(screen.getByLabelText('Find a filter'))
+    })
+
+    it('"/" is ignored while another field already has focus', () => {
+      render(
+        <div>
+          <input data-testid="external" />
+          <FilterRail meta={META} activeFilters={{}} onChange={() => {}} onClear={() => {}} />
+        </div>,
+      )
+      const external = screen.getByTestId('external')
+      external.focus()
+      fireEvent.keyDown(window, { key: '/' })
+      expect(document.activeElement).toBe(external)
+    })
+
+    it('"/" is suspended while any Sheet-style dialog is open on the page', () => {
+      render(
+        <div>
+          <div role="dialog">Structure library</div>
+          <FilterRail meta={META} activeFilters={{}} onChange={() => {}} onClear={() => {}} />
+        </div>,
+      )
+      fireEvent.keyDown(window, { key: '/' })
+      expect(document.activeElement).not.toBe(screen.getByLabelText('Find a filter'))
+    })
+
+    it('opens already highlighting the first visible filter, with nothing typed', () => {
+      render(<FilterRail meta={META} activeFilters={{}} onChange={() => {}} onClear={() => {}} />)
+      expect(activeFilterKey()).toBe('price')
+    })
+
+    it('arrow keys move the highlight through the visible filters, wrapping both ways', () => {
+      render(<FilterRail meta={META} activeFilters={{}} onChange={() => {}} onClear={() => {}} />)
+      const search = screen.getByLabelText('Find a filter')
+      fireEvent.keyDown(search, { key: 'ArrowDown' })
+      expect(activeFilterKey()).toBe('sector')
+      fireEvent.keyDown(search, { key: 'ArrowDown' })
+      expect(activeFilterKey()).toBe('pole_pct')
+      fireEvent.keyDown(search, { key: 'ArrowDown' })          // wraps forward
+      expect(activeFilterKey()).toBe('price')
+      fireEvent.keyDown(search, { key: 'ArrowUp' })            // wraps backward
+      expect(activeFilterKey()).toBe('pole_pct')
+    })
+
+    it('a collapsed group is never reachable by arrow key — it is not on screen', () => {
+      render(<FilterRail meta={META} activeFilters={{}} onChange={() => {}} onClear={() => {}} />)
+      fireEvent.click(screen.getByRole('button', { name: /momentum/i }))   // collapse momentum
+      const search = screen.getByLabelText('Find a filter')
+      fireEvent.keyDown(search, { key: 'ArrowDown' })
+      expect(activeFilterKey()).toBe('sector')
+      fireEvent.keyDown(search, { key: 'ArrowDown' })          // wraps straight back to price —
+      expect(activeFilterKey()).toBe('price')                  // pole_pct is collapsed, not skipped-to
+    })
+
+    it('typing a query re-anchors the highlight to the first match', () => {
+      render(<FilterRail meta={META} activeFilters={{}} onChange={() => {}} onClear={() => {}} />)
+      fireEvent.change(screen.getByLabelText('Find a filter'), { target: { value: 'pole' } })
+      expect(activeFilterKey()).toBe('pole_pct')
+    })
+
+    it('Enter moves real keyboard focus into the highlighted filter\'s own control', () => {
+      render(<FilterRail meta={META} activeFilters={{}} onChange={() => {}} onClear={() => {}} />)
+      const search = screen.getByLabelText('Find a filter')
+      fireEvent.change(search, { target: { value: 'pole' } })
+      fireEvent.keyDown(search, { key: 'Enter' })
+      expect(document.activeElement).toBe(screen.getByLabelText('Prior Run (Pole %)'))
+    })
+
+    it('Escape clears a query first; a second Escape blurs the (now empty) search', () => {
+      render(<FilterRail meta={META} activeFilters={{}} onChange={() => {}} onClear={() => {}} />)
+      const search = screen.getByLabelText('Find a filter')
+      search.focus()
+      fireEvent.change(search, { target: { value: 'pole' } })
+      fireEvent.keyDown(search, { key: 'Escape' })
+      expect(search.value).toBe('')
+      expect(document.activeElement).toBe(search)
+      fireEvent.keyDown(search, { key: 'Escape' })
+      expect(document.activeElement).not.toBe(search)
+    })
   })
 
   // PACKET-AB CP1 (fingerprint bc19457cf) — the preview-count badge

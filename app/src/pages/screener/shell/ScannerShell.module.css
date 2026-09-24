@@ -36,6 +36,12 @@
    stays ShellToolbar's alone, see FilterRail.jsx's own comment). */
 .railMatchCount { padding: 4px 10px 8px; font-size: 11px; color: var(--text-muted); }
 .railMatchCountEmpty { color: var(--loss, #ef4444); font-weight: 500; }
+/* Keyboard-driven filter editing: the arrow-key-highlighted row ahead of an
+   Enter jump. A left accent bar (never a border, which would shift layout)
+   in the same gold used by `.filterSelectActive` — one accent color for
+   "this filter has your attention," whether that attention is a value or a
+   keyboard highlight. */
+.railFilterActive { background: var(--bg-hover); box-shadow: inset 3px 0 0 var(--ut-gold); }
 
 /* ColumnPicker */
 .pickerPop { position: absolute; top: calc(100% + 4px); right: 0; z-index: 20; width: 300px; max-height: 55vh; display: flex; flex-direction: column; background: var(--bg-surface); border: 1px solid var(--border-accent); border-radius: var(--radius-md, 8px); box-shadow: var(--shadow-popover, 0 8px 24px rgba(0, 0, 0, .4)); }
