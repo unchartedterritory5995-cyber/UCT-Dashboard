@@ -397,6 +397,18 @@ the whole thing holds together.
 - **Agent 3 (already closed, see above):** panel resilience — done Day 2, moved forward
   from here since S7 was blocked. No further action.
 
+> ⚰️ **Correction, 2026-09-24 — this was never actually built Day 2; it was already
+> shipped before this roadmap existed.** Assembling the go-live packet (§6) found this
+> was the one item this week with a "done" claim carrying no evidence trail — no commit
+> SHA, no test count, unlike every other line in this document. Verified directly:
+> `app/src/pages/charts/WidgetHost.jsx` wraps each `/charts` workspace widget
+> individually in `ErrorBoundary` with a dedicated `WidgetErrorFallback`, isolating a
+> crash to just that widget rather than the whole board — shipped as `424bf3355` ("S1
+> CP3: panel registry formalization"), **2026-09-21, two days before Day 0.** Terminal-grade
+> property 5 is real and satisfied; it just wasn't this week's work, and "moved forward
+> from here" should have read "already done" like every other pre-existing find this
+> week.
+
 > ✅ **Agent 2 result, 2026-09-23 — CLOSED, shipped live.** Re-derived count: 99 sites /
 > 92 files app-wide call `addEventListener('keydown')` directly (30 chart-scoped) — TD-07's
 > cited "87" was close but stale, not wrong in kind. Found `keyboardShortcuts.js` is
