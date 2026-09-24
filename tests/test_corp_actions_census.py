@@ -58,6 +58,11 @@ def test_the_census_finds_the_sites_we_KNOW_are_there(rows):
         ("api/services/bars_sanitize.py", cac.ADJUSTMENT_APPLIED),
         ("api/services/bars_split_repair.py", cac.ADJUSTMENT_APPLIED),
         ("api/services/bars_fetch.py", cac.VENDOR_ADJUSTED),
+        # ⛔ added 2026-09-24: the yfinance-Ticker-attribute blind spot fix.
+        # Both were invisible to the detector from CP1 (2026-09-12) until
+        # this line existed — losing either one silently re-opens it.
+        ("api/services/dividends_calendar.py", cac.PROVIDER_READ),
+        ("api/services/earnings_estimates.py", cac.PROVIDER_READ),
     ):
         assert expected in found, (
             f"the census no longer sees {expected[0]} as {expected[1]}. Either "
@@ -204,6 +209,51 @@ def test_a_REAL_endpoint_and_a_REAL_kwarg_ARE_counted(tmp_path):
     assert all(r.state == "UNREGISTERED" for r in rows), (
         "a planted site came back registered — the register is matching by "
         "something other than path")
+
+
+def test_a_yfinance_TICKER_attribute_read_IS_counted(tmp_path):
+    """⛔ THE THIRD BLIND SPOT'S PLANTED POSITIVE. Neither `dividends_calendar.py`
+    nor `earnings_estimates.py` builds a URL — both read a yfinance Ticker's own
+    `.dividends` / `.splits` / `.calendar` attribute, which is invisible to
+    `_PROVIDER_URL_RX` by construction. This is the shape that was missing from
+    the census from CP1 (2026-09-12) until this detector existed."""
+    fake = tmp_path / "api" / "services"
+    fake.mkdir(parents=True)
+    (fake / "guilty_yf.py").write_text(
+        "import yfinance as yf\n"
+        "def forward_dividend(sym):\n"
+        "    t = yf.Ticker(sym)\n"
+        "    return t.dividends\n",
+        encoding="utf-8")
+    rows = cac.census(str(tmp_path))
+    assert rows, "a real yfinance Ticker attribute read produced no rows at all"
+    assert all(r.kind == cac.PROVIDER_READ for r in rows), \
+        f"a Ticker attribute read should be PROVIDER_READ, got {[r.kind for r in rows]}"
+    assert all(r.state == "UNREGISTERED" for r in rows), (
+        "a planted site came back registered — the register is matching by "
+        "something other than path")
+
+
+def test_an_UNRELATED_dot_splits_attribute_with_NO_Ticker_call_is_NOT_counted(tmp_path):
+    """⛔ THE CORRELATION GATE'S OWN CONTROL. `.splits` and `.dividends` are also
+    ordinary attribute names with no vendor behind them at all — exactly the
+    shape of `fundamentals_pit.splits.Ledger.splits` (a stored tuple of
+    already-fetched `Split` objects, no I/O) and `AdjustmentBasis.dividends` (a
+    dataclass field). Without the `.Ticker(` correlation, this planted module
+    would falsely register as a new provider read."""
+    fake = tmp_path / "api" / "services"
+    fake.mkdir(parents=True)
+    (fake / "innocent_ledger.py").write_text(
+        "class Ledger:\n"
+        "    def __init__(self, splits):\n"
+        "        self.splits = tuple(splits)\n"
+        "    def factor(self):\n"
+        "        return len(self.splits)\n",
+        encoding="utf-8")
+    rows = cac.census(str(tmp_path))
+    assert rows == [], (
+        f"an unrelated .splits attribute with no yfinance Ticker call was "
+        f"counted as a provider read: {rows}")
 
 
 def test_a_parameter_DECLARATION_named_adjusted_is_not_a_decision(tmp_path):

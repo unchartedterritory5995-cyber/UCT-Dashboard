@@ -144,6 +144,27 @@ REGISTER: dict[tuple, tuple] = {
         "change; product-architecture.md already calls it its own project. D5 "
         "makes the divergence nameable and does not get to resolve it."),
 
+    # ⛔ THE TWO THE DETECTOR MISSED UNTIL THE 2026-09-24 ROADMAP
+    # RE-VERIFICATION PASS. Neither has a URL for `_PROVIDER_URL_RX` to see —
+    # both read a yfinance Ticker's own attribute surface — so both were
+    # invisible to CP1's census from 2026-09-12 through today, a third blind
+    # spot of the exact same shape the register's own history already names
+    # twice (URL-only, then kwarg-only). `_yf_ticker_attr_sites` closes it.
+    ("api/services/dividends_calendar.py", PROVIDER_READ): (
+        OUTSTANDING,
+        "yfinance .dividends / .splits / .calendar — the Calendar page's "
+        "forward-looking dividend+split display feed. Named in the gate "
+        "PRD's own provider table (reference-corp-actions-prd.md row 5: "
+        "'REPLACE the read') but never registered here, because a Ticker "
+        "attribute access is not a URL."),
+    ("api/services/earnings_estimates.py", PROVIDER_READ): (
+        OUTSTANDING,
+        "yfinance .splits / .dividends, read by _yf_corporate_actions() to "
+        "build a chart's split/dividend markers — a SIXTH corporate-action "
+        "feed the gate PRD's own §2.1 five-provider table never enumerated "
+        "at all (same blind spot as dividends_calendar.py above, in a "
+        "different module)."),
+
     # ── ADJUSTMENT_APPLIED ───────────────────────────────────────────────────
     ("api/services/bars_sanitize.py", ADJUSTMENT_APPLIED): (
         OUTSTANDING,
@@ -309,6 +330,49 @@ def _vendor_adjusted_kwarg_sites(tree: ast.AST) -> int:
     return n
 
 
+#: A yfinance Ticker's own corporate-action surface, read as an ATTRIBUTE — no
+#: URL exists for `_PROVIDER_URL_RX` to see. ⚰️ A THIRD BLIND SPOT, same shape
+#: as the two the register's own history already names (URL-only, then
+#: kwarg-only, 2026-09-12): `dividends_calendar.py`'s forward dividend/split
+#: calendar and `earnings_estimates.py`'s chart-marker corporate actions both
+#: read a yfinance Ticker's `.dividends` / `.splits` / `.calendar`, and
+#: neither appeared in this census before this line existed (found during the
+#: 2026-09-24 D5 roadmap re-verification pass).
+_YF_TICKER_ATTRS = frozenset({"dividends", "splits", "calendar"})
+
+
+def _yf_ticker_attr_sites(tree: ast.AST) -> int:
+    """Attribute reads of `.dividends` / `.splits` / `.calendar`, counted ONLY
+    in a module that also constructs a `*.Ticker(...)` object.
+
+    ⛔ THE CORRELATION IS LOAD-BEARING, NOT DECORATION. `.splits` and
+    `.dividends` are also ordinary attribute names elsewhere in this repo with
+    no vendor behind them at all — `AdjustmentBasis.dividends` (a dataclass
+    field on CP7's own label) and `fundamentals_pit.splits.Ledger.splits` (a
+    stored tuple of already-fetched `Split` objects, no I/O). An ungated name
+    match would book both as new provider reads. Requiring the same module to
+    also call `.Ticker(...)` is what tells a yfinance read apart from an
+    unrelated attribute of the same name — verified against the whole repo
+    before this shipped: every `.Ticker(` call anywhere in `api/**` is
+    yfinance's, and every module with a `.dividends`/`.splits`/`.calendar`
+    attribute access that is NOT a yfinance read (`adjustment_basis.py`,
+    `fundamentals_pit/splits.py`, `fundamentals_pit/split_ledger.py`) never
+    calls `.Ticker(`.
+    """
+    has_yf_ticker = any(
+        isinstance(node, ast.Call)
+        and isinstance(node.func, ast.Attribute)
+        and node.func.attr == "Ticker"
+        for node in ast.walk(tree)
+    )
+    if not has_yf_ticker:
+        return 0
+    return sum(
+        1 for node in ast.walk(tree)
+        if isinstance(node, ast.Attribute) and node.attr in _YF_TICKER_ATTRS
+    )
+
+
 def _code_tree(path: str):
     """The module's AST with docstrings blanked, or None."""
     try:
@@ -389,7 +453,8 @@ def census(base: str, roots: Iterable[str] = DEFAULT_ROOTS,
 
             tree = _code_tree(path)
             counts = {
-                PROVIDER_READ: len(_PROVIDER_URL_RX.findall(code)),
+                PROVIDER_READ: (len(_PROVIDER_URL_RX.findall(code))
+                                + (_yf_ticker_attr_sites(tree) if tree else 0)),
                 VENDOR_ADJUSTED: (len(_VENDOR_ADJUSTED_RX.findall(code))
                                   + (_vendor_adjusted_kwarg_sites(tree) if tree else 0)),
                 ADJUSTMENT_APPLIED: 0,
