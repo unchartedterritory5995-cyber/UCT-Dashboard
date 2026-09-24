@@ -12,7 +12,7 @@
 
 | | branch | HEAD | pushed | state |
 |---|---|---|---|---|
-| **A. Pine merge** | `merge/pine-up-to-master` | `40c99e64f` | yes | **PR #184 OPEN — COMPLETE** |
+| **A. Pine merge** | `merge/pine-up-to-master` | `526b5e2aa` | yes | **PR #184 OPEN — COMPLETE** |
 | **B. Master red sweep** | `fix/master-red-sweep` | `01a2ef403` | yes | **IN PROGRESS — 70 of 84 fixed, 14 left** |
 
 PR #184: https://github.com/unchartedterritory5995-cyber/UCT-Dashboard/pull/184
@@ -28,6 +28,10 @@ PR #184: https://github.com/unchartedterritory5995-cyber/UCT-Dashboard/pull/184
 command that produced every number:
 
     docs/pine/MERGE-2026-09-23.md        (on branch merge/pine-up-to-master)
+
+Gate evidence beside it, so the PR's cited numbers stay reproducible:
+
+    docs/pine/gate-evidence/branch-baseline-7f091db26.{json,md}
 
 Both gates VALID, `reconciles=true`:
 
