@@ -14,6 +14,8 @@ from __future__ import annotations
 
 import json
 import re
+import shutil
+import subprocess
 from pathlib import Path
 
 import pytest
@@ -30,20 +32,49 @@ CLIENT_TABLE = Path("app/src/pages/journal-2-0/lib/notebookSchema.js")
 HEADER = nbs.NOTEBOOK_SCHEMA_HEADER
 
 
-def _parse_client_table() -> dict[str, int]:
-    js = CLIENT_TABLE.read_text(encoding="utf-8")
-    block = re.search(r"NOTEBOOK_TYPE_SCHEMA\s*=\s*Object\.freeze\(\{(.*?)\n\}\)", js, re.S)
-    assert block, "could not find NOTEBOOK_TYPE_SCHEMA in notebookSchema.js"
-    body = re.sub(r"//[^\n]*", "", block.group(1))
-    pairs = re.findall(r"^\s*([A-Za-z_]\w*)\s*:\s*(\d+)\s*,?\s*$", body, re.M)
-    return {name: int(level) for name, level in pairs}
+def _client_facts(path: Path = CLIENT_TABLE) -> dict:
+    """The client's half of the facts, read the way the BUNDLE reads them.
+
+    ⛔⛔ S1 (wave 5 final review): this used to be a regex matching one
+    `name: N` per line. Measured: `diagram: 2, chart3d: 2,` written on ONE line
+    parsed as 41 entries — the same count as before — and neither name was seen.
+    With the Python half forgotten too, client == server still held, and the
+    server would have counted `diagram` as 0: H14 for the next wave, every rail
+    green.
+
+    ⭐ So the module is IMPORTED by Node and the frozen object serialised. Any
+    layout of the table — two entries on a line, a spread of another frozen
+    object, a quoted or computed key, a trailing comment — is read exactly as the
+    product reads it; there is no shape rule left to drift from. A `key:` count
+    beside the regex was the alternative, and it only guards the shapes someone
+    thought of: a `...WAVE6_TYPES` spread is invisible to both.
+    ⚠️ The cost, accepted: notebookSchema.js must stay importable by plain Node
+    (no static imports — its own header says so), and `node` must be on PATH.
+    """
+    node = shutil.which("node")
+    assert node, ("node is not on PATH — this rail reads the client table the way the "
+                  "bundle does, and a rail that cannot run is not a gate")
+    url = path.resolve().as_uri()
+    js = (f"import({json.dumps(url)}).then((m) => process.stdout.write(JSON.stringify({{"
+          "table: m.NOTEBOOK_TYPE_SCHEMA, refusal: m.SCHEMA_REFUSAL_DETAIL, "
+          "header: m.NOTEBOOK_SCHEMA_HEADER})))")
+    r = subprocess.run([node, "--input-type=module", "-e", js], capture_output=True, timeout=120)
+    err = (r.stderr or b"").decode("utf-8", errors="replace")
+    assert r.returncode == 0, f"node could not import {path}: {err[:2000]}"
+    return json.loads((r.stdout or b"").decode("utf-8", errors="replace"))
+
+
+def _client_table(path: Path = CLIENT_TABLE) -> dict[str, int]:
+    table = _client_facts(path)["table"]
+    assert isinstance(table, dict), f"NOTEBOOK_TYPE_SCHEMA did not come back as an object: {table!r}"
+    return {k: int(v) for k, v in table.items()}
 
 
 def test_the_server_and_client_schema_tables_CANNOT_drift():
-    client = _parse_client_table()
-    # Non-vacuity: a parse that found nothing would make equality trivially true
-    # against an empty server map, and a partial parse would hide a drift.
-    assert len(client) >= 35, f"parsed a suspiciously small client table: {sorted(client)}"
+    client = _client_table()
+    # Non-vacuity: a read that found nothing would make equality trivially true
+    # against an empty server map, and a partial read would hide a drift.
+    assert len(client) >= 35, f"read a suspiciously small client table: {sorted(client)}"
     assert client.get("paragraph") == 0 and client.get("inlineMath") == 1
     assert client == nbs.NOTEBOOK_TYPE_SCHEMA, (
         f"client-only {sorted(set(client.items()) - set(nbs.NOTEBOOK_TYPE_SCHEMA.items()))} / "
@@ -51,10 +82,74 @@ def test_the_server_and_client_schema_tables_CANNOT_drift():
     )
 
 
-def test_the_wave5_and_g064_types_are_level_1_and_nothing_else_is():
-    ones = sorted(t for t, lvl in nbs.NOTEBOOK_TYPE_SCHEMA.items() if lvl == 1)
-    assert ones == ["askCitation", "askInsert", "blockMath", "highlight", "inlineMath", "textColor"]
-    assert set(nbs.NOTEBOOK_TYPE_SCHEMA.values()) == {0, 1}
+def test_the_client_table_is_read_WHATEVER_its_layout__two_entries_on_one_line(tmp_path):
+    """⛔ S1's reproduction, kept as the rail: a copy of the real module with the
+    next wave's types written two to a line. The reader must see both — and the
+    parity rail must then SEE the drift, because the Python half was not updated."""
+    src = CLIENT_TABLE.read_text(encoding="utf-8").replace("\r\n", "\n")
+    marker = "  textColor: 1,\n})"
+    assert src.count(marker) == 1, "the table no longer ends where this reproduction expects"
+    copy = tmp_path / "notebookSchema.two-per-line.mjs"
+    copy.write_text(src.replace(marker, "  textColor: 1,\n  diagram: 2, chart3d: 2,\n})"), encoding="utf-8")
+
+    real = _client_table()
+    mutated = _client_table(copy)
+    assert len(mutated) == len(real) + 2, f"{len(real)} -> {len(mutated)}: an entry was dropped"
+    assert mutated["diagram"] == 2 and mutated["chart3d"] == 2
+    assert mutated != nbs.NOTEBOOK_TYPE_SCHEMA, "the drift is invisible to the parity rail"
+
+
+# ⛔ N1: no copy of the level-1 NAMES lives here (the brief that produced this
+# guard: "no copy of the list lives in the test"). What the table must look like
+# is asserted from its own structure, so the next wave edits the table and the
+# server map — never this test.
+_SECTION = re.compile(r"^\s*//\s*──\s*(\d+)\s*:")
+_ENTRY = re.compile(r"(?:^|[^\w$])([A-Za-z_$][\w$]*)\s*:\s*(\d+)")
+
+
+def test_levels_are_contiguous_from_0_and_there_is_a_newer_level():
+    levels = sorted(set(nbs.NOTEBOOK_TYPE_SCHEMA.values()))
+    assert levels[0] == 0, "no level-0 types: production's schema is missing from the table"
+    assert levels == list(range(levels[-1] + 1)), (
+        f"levels {levels} skip one: a client declares 'every type at or below N', so a gap "
+        "is a level no bundle can ever declare")
+    assert levels[-1] >= 1, "non-vacuity: the table records at least one newer schema"
+
+
+def test_every_entry_sits_under_a_section_comment_naming_its_level():
+    """The table is organised in `// ── N: … ──` sections. An entry filed under
+    the wrong section is a type given the wrong level by whoever reads the
+    section. The walk is cross-checked against the Node-read table, so it cannot
+    silently skip an entry it failed to recognise."""
+    js = CLIENT_TABLE.read_text(encoding="utf-8").replace("\r\n", "\n")
+    start = js.index("NOTEBOOK_TYPE_SCHEMA = Object.freeze({")
+    end = js.index("\n})", start)
+    section = None
+    seen: dict[str, int] = {}
+    for line in js[start:end].split("\n")[1:]:
+        m = _SECTION.match(line)
+        if m:
+            section = int(m.group(1))
+            continue
+        code = line.split("//", 1)[0]
+        for name, level in _ENTRY.findall(code):
+            assert section is not None, f"{name} precedes every section comment"
+            assert int(level) == section, f"{name}: {level} is filed under the level-{section} section"
+            seen[name] = int(level)
+    assert len(seen) >= 35, f"non-vacuity: the walk found only {sorted(seen)}"
+    assert seen == _client_table(), "the section walk and the module disagree about what the table holds"
+
+
+# ── N2: the refusal sentence is ONE fact in two files ────────────────────────
+
+def test_the_refusal_sentence_and_the_header_name_are_the_same_on_both_sides():
+    """The editor tells a schema refusal from a compare-and-set conflict by this
+    sentence (`isSchemaRefusal`), and the locked editor shows it. A reworded
+    server detail would switch the editor's refusal handling off in silence."""
+    facts = _client_facts()
+    assert len(nbs.REFUSAL_DETAIL) > 20, "non-vacuity"
+    assert facts["refusal"] == nbs.REFUSAL_DETAIL
+    assert facts["header"] == nbs.NOTEBOOK_SCHEMA_HEADER
 
 
 # ── the rule, as a pure function ──────────────────────────────────────────────
@@ -155,6 +250,20 @@ def test_an_old_client_cannot_write_a_body_over_a_wave5_note(client):
     assert r.status_code == 409, r.text
     assert r.json()["detail"] == nbs.REFUSAL_DETAIL
     assert _stored_note_body(note["id"]) == before          # byte-identical
+
+
+def test_a_body_forwarded_at_level_0_is_refused_on_a_wave5_note(client):
+    """⛔ B1's server contract. A client FORWARDING a body it never read — the
+    outbox drain, the editor sending an old tab's queued words — declares the
+    WRITER's level, which for every capture made before stamps is an explicit
+    `0`. It must be refused exactly like a missing header, byte-identical."""
+    note = _note(client, WAVE5_BODY)
+    before = _stored_note_body(note["id"])
+    r = client.put(f"/api/j2/notes/{note['id']}", headers={HEADER: "0"}, json={
+        "bodyJson": BLANK_PLUS_TYPED, "baseUpdatedAt": note["updatedAt"]})
+    assert r.status_code == 409, r.text
+    assert r.json()["detail"] == nbs.REFUSAL_DETAIL
+    assert _stored_note_body(note["id"]) == before
 
 
 def test_an_unparseable_header_is_the_oldest_client(client):
