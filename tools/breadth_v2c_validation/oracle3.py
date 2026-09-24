@@ -42,6 +42,11 @@ def build_dividends(ref=None):
     fxr = json.load(open(oracle2.IN + "/fx_ledger.json"))["rates"]
     from api.services import breadth_pit_frame as bpf
     kind = lambda t, iso: (bpf.resolve((ref or {}).get(t), iso) or {}).get("type")
+    born = {}                                     # own scan: first session with a raw close
+    for d in CAL:
+        for x in oracle2.gfile(d, False):
+            if x not in born:
+                born[x] = d
     last = led["ex_date_lte"]
     grp = collections.defaultdict(list)
     app, wh = collections.defaultdict(list), collections.defaultdict(list)
@@ -111,6 +116,8 @@ def build_dividends(ref=None):
         cash = sum(x for v in bt.values() for x in v)    # distinct distributions add
         pk = next((k for k in range(j - 1, max(-1, j - 6), -1) if oracle2.gfile(CAL[k], False).get(t)), None)
         prev = oracle2.gfile(CAL[pk], False).get(t) if pk is not None else None
+        if not prev and (t not in born or born[t] >= s):
+            continue                                      # no priced bar before it: touches no level
         if prev and cu != "USD":
             fxv = _usd_rate(fxr, cu, CAL[pk])
             if fxv is None:
