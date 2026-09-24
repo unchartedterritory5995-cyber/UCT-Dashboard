@@ -94,6 +94,41 @@ with cf.ThreadPoolExecutor(6) as ex:
             div.append(r)
 json.dump({"fetched": [t0, utc()], "n": len(div), "ex_date_lte": LAST, "dividends": div}, open(OUT + "/dividends_ledger.json", "x"))
 print("dividends", len(div), flush=True)
+# FX — ECB reference rates, every currency, daily since 1999 (the provider plan has no forex)
+import collections, csv, io
+t0 = utc()
+for i in range(6):
+    try:
+        body = urllib.request.urlopen("https://data-api.ecb.europa.eu/service/data/EXR/D..EUR.SP00.A"
+                                      "?format=csvdata&detail=dataonly", timeout=300).read().decode()
+        break
+    except Exception:
+        time.sleep(2 ** i)
+else:
+    raise RuntimeError("ECB FX fetch failed")
+rates = collections.defaultdict(dict)
+for row in csv.DictReader(io.StringIO(body)):
+    if row.get("OBS_VALUE"):
+        rates[row["CURRENCY"]][row["TIME_PERIOD"]] = float(row["OBS_VALUE"])
+assert len(rates.get("USD", {})) > 5000 and len(rates.get("CAD", {})) > 5000, "ECB FX incomplete"
+json.dump({"source": "ECB EXR D.<CUR>.EUR.SP00.A reference rate (CUR per EUR, 14:15 CET)",
+           "fetched": [t0, utc()], "rates": rates}, open(OUT + "/fx_ledger.json", "x"))
+print("fx", len(rates), flush=True)
+# PIT reference (membership types / venues / listing windows) — snapshotted INTO the vintage
+from api.services import massive
+from api.services.breadth_pit_frame import _d10
+t0 = utc(); refm = collections.defaultdict(list); nref = 0
+for active in (True, False):
+    for r in massive.list_reference_tickers(active=active, max_pages=300):
+        sym = str(r.get("ticker") or "").upper()
+        if not sym:
+            continue
+        refm[sym].append({"type": r.get("type"), "primary_exchange": (r.get("primary_exchange") or "").upper(),
+                          "list_date": _d10(r.get("list_date")), "delisted_utc": _d10(r.get("delisted_utc"))})
+        nref += 1
+assert nref > 20000, "reference enumeration incomplete (%d)" % nref
+json.dump(dict(refm), open(OUT + "/pit_reference.json", "x"), separators=(",", ":"))
+print("reference", nref, len(refm), [t0, utc()], flush=True)
 # identity (same rule inputs as before, from THIS grouped vintage)
 pin = json.load(open("/data/_audit/validation/pinned_uct_universe.json"))["tickers"]; ps = set(pin)
 pres = {t: [] for t in pin}

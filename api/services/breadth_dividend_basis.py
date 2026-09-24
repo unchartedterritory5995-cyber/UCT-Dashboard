@@ -67,6 +67,16 @@ ABSORBED_BY_PROVIDER: applied once (by the provider), not twice. Any OTHER ledge
 ambiguity (1 − r)·|1 − 1/K| ≤ UNIT_AMBIGUITY (CBSH's 5 % stock dividend beside a 0.6 % cash
 dividend: 0.03 %), else WITHHELD.
 
+⭐⭐ NON-USD CASH (v5). Canadian interlisted majors (BMO, TD, RY, BNS, CM, ENB, CNQ, CP, CNI, SU,
+BCE, FTS, CCJ …) and directly listed foreign ordinaries (DB, AZN since 2026, ALC) declare in
+CAD/EUR/GBP/CHF; they pay every quarter, so v4's fail-closed withheld ~50 canonical-UCT names
+PERMANENTLY — while Yahoo (live) converts to USD (BMO CAD 1.71 → USD 1.218; its implied yield
+equals cash_usd / prior close exactly). A one-currency group is converted at the ECB reference
+rate (USD per unit = (USD/EUR) / (CUR/EUR)) of the latest ECB day on or before the PRIOR session,
+at most FX_MAX_AGE_DAYS old — ONLY when the US listing IS the share (reference type CS): an ADR's
+foreign-currency amount may be per ordinary share (ratio unprovable) and stays WITHHELD, as do a
+missing rate, a currency the ECB does not publish, and a mixed-currency ex-date.
+
 ⛔ FAIL CLOSED, NEVER GUESSED. An event is WITHHELD — the name gets no levels while a frame
 straddles it, exactly like an adjusted-series defect — when: the currency is not USD; the same
 currency is missing; an amount is ambiguous (above); there is no raw prior close within 5
@@ -82,7 +92,9 @@ import json
 import math
 import os
 
-DIVIDEND_BASIS_VERSION = "div-basis-v4"
+DIVIDEND_BASIS_VERSION = "div-basis-v5"
+#: an FX observation older than this (calendar days) before the prior session is not used
+FX_MAX_AGE_DAYS = 5
 #: two distinct amounts of one type closer than this are a RESTATEMENT signature, not two
 #: distributions (measured, common stock 2006-2026: 1,653 of 1,734 multi-amount groups are >= 10 %
 #: apart and Yahoo SUMS them; below 2 % Yahoo is split between sum and one-of)
@@ -96,8 +108,39 @@ MAX_PRIOR_GAP_SESSIONS = 5
 MIN_RATIO = 0.5
 
 
+class FxRates:
+    """ECB reference rates `{CUR: {date: CUR per EUR}}` → USD per one unit of CUR."""
+
+    def __init__(self, rates: dict):
+        self.r = {c: (sorted(v), v) for c, v in rates.items()}
+
+    def usd_per(self, cur: str, iso: str):
+        import datetime as _dt
+        if cur == "USD":
+            return 1.0
+
+        def last(c):
+            if c not in self.r:
+                return None, None
+            ds, v = self.r[c]
+            i = bisect.bisect_right(ds, iso) - 1
+            return (ds[i], v[ds[i]]) if i >= 0 else (None, None)
+        du, usd = last("USD")
+        if cur == "EUR":
+            dc, per = du, 1.0
+        else:
+            dc, per = last(cur)
+        if not (du and dc and usd and per):
+            return None
+        lim = (_dt.date.fromisoformat(iso) - _dt.timedelta(days=FX_MAX_AGE_DAYS)).isoformat()
+        if du < lim or dc < lim:
+            return None
+        return usd / per
+
+
 def build_events(dividends: list, calendar: list, raw_close, canon=lambda t: t,
-                 last_session: str = None, adj_close=None, splits=None) -> dict:
+                 last_session: str = None, adj_close=None, splits=None, fx=None,
+                 sec_type=None) -> dict:
     """Classify every dividend record once. `raw_close(iso, t)` / `adj_close(iso, t)` read the
     vintage raw / adjusted files; `splits` is the provider split ledger (v4 interaction rules)."""
     split_ix = collections.defaultdict(list)       # canonical price key -> [(execution_date, K)]
@@ -158,6 +201,7 @@ def build_events(dividends: list, calendar: list, raw_close, canon=lambda t: t,
             continue
         sess = calendar[j]
         cur = {(r.get("currency") or "").upper() for _s, r in recs}
+        ccy = next(iter(cur)) if len(cur) == 1 else None
         per_spelling = collections.Counter()           # (type, amount, spelling) -> records
         by_type = collections.defaultdict(set)
         for src, r in recs:
@@ -170,8 +214,12 @@ def build_events(dividends: list, calendar: list, raw_close, canon=lambda t: t,
                 by_type[ty].add(round(c, 10))
                 per_spelling[(ty, round(c, 10), src)] += 1
         reason = None
-        if cur != {"USD"}:
-            reason = "non-USD or missing currency %s" % sorted(cur)
+        if ccy is None or ccy == "":
+            reason = "mixed or missing currency %s" % sorted(cur)
+        elif ccy != "USD" and (fx is None or sec_type is None):
+            reason = "non-USD currency %s" % ccy
+        elif ccy != "USD" and sec_type(t, sess) != "CS":
+            reason = "non-USD cash on a %s listing: per-share basis unprovable" % sec_type(t, sess)
         elif any(n > 1 for n in per_spelling.values()):
             reason = "ambiguous: one amount published twice under one symbol"
         elif any(b - a < RESTATEMENT_GAP * b for v in by_type.values() for a, b in zip(sorted(v), sorted(v)[1:])):
@@ -192,6 +240,13 @@ def build_events(dividends: list, calendar: list, raw_close, canon=lambda t: t,
                 k -= 1
             if prev is None:
                 reason = "no raw prior close within %d sessions" % MAX_PRIOR_GAP_SESSIONS
+        if reason is None and ccy != "USD":
+            rate = fx.usd_per(ccy, calendar[k])
+            if rate is None:
+                reason = "no ECB %s rate within %d days of %s" % (ccy, FX_MAX_AGE_DAYS, calendar[k])
+            else:
+                cash = cash * rate
+                log["fx_converted"] += 1
         if reason is None:
             r = 1.0 - cash / prev
             if r <= MIN_RATIO:
@@ -262,9 +317,10 @@ class DividendBasis:
 
 
 def load_or_build(dividends_path: str, calendar: list, raw_close, canon, cache_path: str,
-                  last_session: str, adj_close=None, splits_path: str = None) -> tuple:
+                  last_session: str, adj_close=None, splits_path: str = None, fx_path: str = None,
+                  reference_path: str = None, sec_type=None) -> tuple:
     h = hashlib.sha256()
-    for pth in (dividends_path, splits_path):
+    for pth in (dividends_path, splits_path, fx_path, reference_path):
         if pth:
             with open(pth, "rb") as f:
                 h.update(hashlib.sha256(f.read()).digest())
@@ -282,7 +338,12 @@ def load_or_build(dividends_path: str, calendar: list, raw_close, canon, cache_p
     if splits_path:
         with open(splits_path) as f:
             splits = json.load(f)["splits"]
-    t = build_events(divs, calendar, raw_close, canon, last_session, adj_close=adj_close, splits=splits)
+    fx = None
+    if fx_path:
+        with open(fx_path) as f:
+            fx = FxRates(json.load(f)["rates"])
+    t = build_events(divs, calendar, raw_close, canon, last_session, adj_close=adj_close, splits=splits,
+                     fx=fx, sec_type=sec_type)
     t["input_key"] = key
     tmp = cache_path + ".partial.%d" % os.getpid()
     with open(tmp, "w") as f:

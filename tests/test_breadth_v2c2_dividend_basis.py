@@ -161,3 +161,44 @@ def test_a_cash_dividend_on_a_two_for_one_split_session_is_withheld():
     sp = [{"ticker": "CIG", "execution_date": "2024-02-23", "split_from": 1, "split_to": 2}]
     t = bdb.build_events([_div("CIG", "2024-02-23", 0.25)], CAL, raw, adj_close=adj, splits=sp)
     assert "CIG" not in t["applied"] and "cash units unprovable" in t["withheld_detail"][0]["reason"]
+
+
+# ── v5: non-USD cash, converted at the ECB reference rate — only where the listing IS the share ──
+ECB = {"USD": {"2024-02-21": 1.08, "2024-02-22": 1.0800}, "CAD": {"2024-02-21": 1.46, "2024-02-22": 1.4600},
+       "GBP": {"2024-02-22": 0.855}}
+
+
+def test_cad_cash_on_an_interlisted_share_is_converted_at_the_prior_session_rate():
+    # BMO shape: CAD 1.59 per share, USD-priced NYSE line — Yahoo: cash_usd / prev close
+    raw = _raw({("2024-02-22", "BMO"): 95.0})
+    fx = bdb.FxRates(ECB)
+    t = bdb.build_events([_div("BMO", "2024-02-23", 1.59, cur="CAD")], CAL, raw, fx=fx,
+                         sec_type=lambda tk, iso: "CS")
+    usd = 1.59 * 1.08 / 1.46
+    assert t["applied"]["BMO"] == [("2024-02-23", pytest.approx(1 - usd / 95.0))]
+    assert t["counts"]["fx_converted"] == 1
+
+
+def test_foreign_cash_on_an_adr_stays_withheld():
+    raw = _raw({("2024-02-22", "BP"): 35.0})
+    t = bdb.build_events([_div("BP", "2024-02-23", 0.2, cur="GBP")], CAL, raw, fx=bdb.FxRates(ECB),
+                         sec_type=lambda tk, iso: "ADRC")
+    assert "BP" not in t["applied"] and "per-share basis unprovable" in t["withheld_detail"][0]["reason"]
+
+
+def test_a_stale_or_missing_rate_is_withheld_never_carried():
+    raw = _raw({("2024-02-22", "DB"): 15.0})
+    fx = bdb.FxRates({"USD": {"2024-02-01": 1.08}, "CAD": {"2024-02-01": 1.46}})      # 21 days old
+    t = bdb.build_events([_div("DB", "2024-02-23", 0.45, cur="CAD")], CAL, raw, fx=fx, sec_type=lambda tk, iso: "CS")
+    assert "DB" not in t["applied"] and "no ECB CAD rate" in t["withheld_detail"][0]["reason"]
+    t = bdb.build_events([_div("DB", "2024-02-23", 0.45, cur="XAU")], CAL, raw, fx=bdb.FxRates(ECB), sec_type=lambda tk, iso: "CS")
+    assert "DB" not in t["applied"]
+
+
+def test_eur_uses_the_usd_per_eur_rate_and_mixed_currency_is_withheld():
+    raw = _raw({("2024-02-22", "DB"): 15.0})
+    t = bdb.build_events([_div("DB", "2024-02-23", 0.45, cur="EUR")], CAL, raw, fx=bdb.FxRates(ECB), sec_type=lambda tk, iso: "CS")
+    assert t["applied"]["DB"] == [("2024-02-23", pytest.approx(1 - 0.45 * 1.08 / 15.0))]
+    t = bdb.build_events([_div("DB", "2024-02-23", 0.45, cur="EUR"), _div("DB", "2024-02-23", 0.49, cur="USD")],
+                         CAL, raw, fx=bdb.FxRates(ECB), sec_type=lambda tk, iso: "CS")
+    assert "DB" not in t["applied"] and "mixed" in t["withheld_detail"][0]["reason"]

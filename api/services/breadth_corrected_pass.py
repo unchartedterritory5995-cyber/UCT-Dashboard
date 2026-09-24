@@ -88,7 +88,9 @@ class Inputs:
             "splits": "splits_ledger.json",
             "pit_uct": "pit_uct_ledger.json",
             "identity": "uct_identity_table_v3.json",
-            "dividends": "dividends_ledger.json"}.items()}
+            "dividends": "dividends_ledger.json",
+            "fx": "fx_ledger.json",
+            "reference": "pit_reference.json"}.items()}
         for k, p in self.paths.items():
             if not os.path.exists(p):
                 raise ArtifactRefused(f"missing input {k}: {p}")
@@ -105,12 +107,19 @@ class Inputs:
             gh.session_calendar(), bt.canon, os.path.join(inputs_dir, "adjusted_guard_table.json"))
         self.guard_key = gt["input_key"]
         from api.services import breadth_dividend_basis as bdb
+        from api.services import breadth_pit_frame as bpf
+        # ⛔ the membership reference is a VINTAGE input: the copy acquired in the window,
+        # never the volume's 7-day cache (which refreshes whenever it is read stale).
+        with open(self.paths["reference"]) as fh:
+            self.ref_map = json.load(fh)
         cal = gh.session_calendar()
         self.last_session = cal[-1]
         self.divbasis, dt_ = bdb.load_or_build(
             self.paths["dividends"], cal, gh.raw_close, bt.canon,
             os.path.join(inputs_dir, "dividend_basis_table.json"), cal[-1],
-            adj_close=gh.adj_close, splits_path=self.paths["splits"])
+            adj_close=gh.adj_close, splits_path=self.paths["splits"],
+            fx_path=self.paths["fx"], reference_path=self.paths["reference"],
+            sec_type=lambda t, iso: (bpf.resolve(self.ref_map.get(t), iso) or {}).get("type"))
         self.dividend_key = dt_["input_key"]
         self.dividend_counts = dt_["counts"]
         self.fingerprints = {k: _sha(p) for k, p in self.paths.items()}
@@ -181,7 +190,7 @@ def run(artifact: str, dates: list, universes: tuple = UNIVERSES, inputs_dir: st
     inp = Inputs(inputs_dir or os.environ["BREADTH_V2C2_INPUTS"])
     c = open_artifact(artifact)
     c.executescript(_SESSION_EXTRA)
-    ref_map = bpf.reference_map()
+    ref_map = inp.ref_map
     client = wr._s3_client()
     if client is None:
         raise ArtifactRefused("no S3 client")
