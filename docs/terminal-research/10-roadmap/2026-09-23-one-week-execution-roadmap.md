@@ -544,6 +544,37 @@ the whole thing holds together.
 - **Integrator:** full-repo hygiene + hardware pass on the whole week's accumulated
   branch.
 
+> ✅ **Cross-surface integration walkthrough result, 2026-09-23 — holds together, one
+> real finding, now fixed.** Dispatched to verify today's five live production commits
+> (`e2ca7407f`, `ba283518c`, `877dd173c`, `985a3761a`, `caebdab16`) interact correctly
+> rather than merely passing in isolation. **Verdict: no regression or interaction bug
+> across the five** — zero file overlap (checked via `git show --name-only` on each
+> SHA), A13's Flow tab mounts clean with its flag forced on (39/39 tests), A11's D2 CP2
+> "one-reader" rail still holds (49/49, including the AST non-vacuity check), full
+> combined suite (not per-commit isolation) **242/242 passing** (152 backend + 90
+> frontend), `check_repo_hygiene.py` clean across all five commits combined, and
+> `flow_worker_watch_coverage.py` OK.
+>
+> **One genuine, low-severity, newly-introduced gap, found and closed the same day.**
+> OI-17's auth gate on `/api/live-prices` means a session expiring mid-poll (30-day
+> session TTL, so rare but real — and structurally impossible before OI-17, since the
+> endpoint had no auth to expire against) produced a 401 that
+> `app/src/hooks/livePriceStore.js` treated identically to an ordinary network blip:
+> `.then((r) => r.ok ? r.json() : null)` silently froze the last-good price forever,
+> with no visible signal and no forced re-login, because nothing else in the app
+> re-checks auth state on its own (`AuthContext.fetchUser` runs once on mount). **Fixed
+> same day**: the store now fires a registered handler once per poll on a 401;
+> `AuthContext` registers itself to re-run `fetchUser()`, turning a genuine expiry into
+> the same definitive 401-from-`/api/auth/me` → `user=null` → `AuthGuard` redirect every
+> other expired session already gets. A false alarm (a transient 401 on just that one
+> endpoint) leaves the session untouched — same semantics as every other
+> transient-failure path already in `AuthContext`. 21 new tests (11 in
+> `livePriceStore.test.js`, 10 in `AuthContext.test.jsx`, including one that fires the
+> real cross-module path end-to-end: a 401 on the price poll forces the re-check, which
+> then logs the member out only when `/api/auth/me` itself confirms the session is
+> gone). Shipped as `56f06c223` → cherry-picked as `3207690b4`, pushed to `master`;
+> deploy verification below.
+
 ### Day 7 — prove it, don't just ship it
 
 - **Morning:** full local walkthrough against real (non-production) data — every
