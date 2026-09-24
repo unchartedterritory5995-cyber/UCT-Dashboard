@@ -26,7 +26,11 @@ const submitPassword = () => {
 
 describe('Login 2FA challenge step', () => {
   it('normal accounts log straight in — no code step', async () => {
-    login.mockResolvedValue({ user: { role: null }, plan: 'pro' })
+    // `paid_equiv` is what Login.jsx routes on since 307d7e2fb (S9 CP1 follow-up):
+    // the backend's own `_access_payload` answer, never re-derived from plan/role.
+    // A response without it is a FREE member and lands on /morning-wire — so the
+    // fixture says what the backend says for a pro plan, as Login.test.jsx does.
+    login.mockResolvedValue({ user: { role: null }, plan: 'pro', paid_equiv: true })
     submitPassword()
     await waitFor(() => expect(nav).toHaveBeenCalledWith('/dashboard', { replace: true }))
     expect(screen.queryByText(/two-factor check/i)).not.toBeInTheDocument()
@@ -34,7 +38,9 @@ describe('Login 2FA challenge step', () => {
 
   it('a requires_totp response swaps to the code step and verifies', async () => {
     login.mockResolvedValue({ requires_totp: true, challenge_token: 'tok123' })
-    verifyTotp.mockResolvedValue({ user: { role: 'admin' }, plan: 'free' })
+    // Same `paid_equiv` contract on the verify leg: an admin is paid-equivalent
+    // by the backend's answer, and finishLogin() reads only that field.
+    verifyTotp.mockResolvedValue({ user: { role: 'admin' }, plan: 'free', paid_equiv: true })
     submitPassword()
     await screen.findByText(/two-factor check/i)
     expect(nav).not.toHaveBeenCalled()
