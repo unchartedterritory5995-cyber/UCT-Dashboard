@@ -29,6 +29,8 @@ import { NotebookCodeBlock } from './codeBlockNode'
 import { Mathematics } from './mathNodes'
 import { TextColor, NotebookHighlight } from './textColor'
 import { fmtTime } from '../../../components/video/playerUtils'
+import { citationLeafText } from './askCitation'
+import { getSchema } from '@tiptap/core'
 // Wave 5: how the newer content reads on EVERY surface that renders a note
 // body — imported here because every one of them builds from this roster.
 import './noteContent.css'
@@ -189,31 +191,83 @@ export async function uploadNoteAttachment(noteId, file) {
 }
 
 /**
- * Walk a TipTap doc and concatenate every text node, space-separated.
- * Mirrors the server's extract_plain_text in notes.py — PINNED, not promised:
+ * What a LEAF node reads as in the plain text: the citation text's own leaf
+ * table (askCitation.js::citationLeafText -- chip, excerpt, widget, hard
+ * break, formulas) plus the ONE leaf the search text reads and a citation does
+ * not: a video timestamp, "[1:15]". Derived, never restated. The server twin
+ * is notes.py::_PLAIN_LEAF_TEXT ({**_ATOM_TEXT, videoTimestamp}); the parity
+ * rails pin that the one extra is the same on both sides.
+ */
+export function plainLeafText(node) {
+  if (node?.type?.name === 'videoTimestamp') return `[${fmtTime(node.attrs?.seconds || 0)}]`
+  return citationLeafText(node)
+}
+
+// One space between blocks: FTS5 tokenizes on non-alphanumerics, so the
+// separator only has to keep two blocks' words apart.
+export const PLAIN_TEXT_BLOCK_SEPARATOR = ' '
+
+let plainSchema = null
+// The app's REAL schema answers "is this a leaf / inline / a textblock" --
+// the same classification the server's citation tables are pinned to
+// (askCitation.schemaParity.test.js). Built once, on first use.
+function nodeTypeOf(name) {
+  if (!plainSchema) plainSchema = getSchema(buildExtensions())
+  return typeof name === 'string' ? plainSchema.nodes[name] || null : null
+}
+
+const isInlineLeafJson = (child) => {
+  if (!child || typeof child !== 'object') return false
+  if (child.type === 'text') return true
+  const t = nodeTypeOf(child.type)
+  return !!(t && t.isLeaf && t.isInline)
+}
+
+/**
+ * The note's plain text -- ProseMirror's own
+ * `doc.textBetween(0, size, ' ', plainLeafText)`, walked over the JSON so a
+ * doc the schema would refuse (an unknown node from an import) still reads.
+ * Mirrors the server's extract_plain_text in notes.py -- PINNED, not promised:
  * both read tests/fixtures_plain_text.json (plainText.parity.test.js ⇄
- * tests/test_plain_text_parity.py), and both fail on a node type one side
- * reads and the other does not.
+ * tests/test_plain_text_parity.py), and the JS rail also runs the REAL
+ * textBetween over every schema-valid fixture and asserts this equals it.
+ *
+ * textBetween's rules: text runs inside one textblock join with NOTHING (a
+ * mark is invisible, so "**NV**DA" reads "NVDA"); every textblock, an empty
+ * one included, is preceded by one separator except the first; a container
+ * adds nothing; a BLOCK leaf gets a separator only when it reads as text, an
+ * inline leaf never. A type the schema does not know is a textblock when it
+ * holds inline content -- the server's `_is_textblock` inference.
+ * ⚰️ Until 2026-09-23 every text node was joined with a space, so a partly
+ * bold word was indexed as two words and a search for it missed the note.
  */
 export function extractPlainText(doc) {
   if (!doc || typeof doc !== 'object') return ''
-  const out = []
+  let text = ''
+  let first = true
+  const separator = () => {
+    if (first) first = false
+    else text += PLAIN_TEXT_BLOCK_SEPARATOR
+  }
   const walk = (node) => {
     if (!node || typeof node !== 'object') return
-    if (node.type === 'text' && typeof node.text === 'string') out.push(node.text)
-    if (node.type === 'videoTimestamp') out.push(`[${fmtTime(node.attrs?.seconds || 0)}]`)
-    if (node.type === 'attachmentChip') out.push(`[file: ${node.attrs?.name || 'file'}]`)
-    if (node.type === 'documentExcerpt') out.push('[excerpt]')
-    // searchText is derived from the registry at the only moments params
-    // change (buildWidgetEmbedAttrs) — both serializers read the stored line.
-    if (node.type === 'widgetEmbed') out.push(node.attrs?.searchText || '[widget]')
-    // A formula reads as its LaTeX source (searchable, and a LaTeX-only edit
-    // shows in History); an empty one as nothing.
-    if ((node.type === 'inlineMath' || node.type === 'blockMath') && typeof node.attrs?.latex === 'string') {
-      out.push(node.attrs.latex)
+    if (node.type === 'text') {
+      if (typeof node.text === 'string') text += node.text
+      return
     }
-    for (const child of node.content || []) walk(child)
+    const type = nodeTypeOf(node.type)
+    const attrs = node.attrs && typeof node.attrs === 'object' && !Array.isArray(node.attrs) ? node.attrs : {}
+    if (type && type.isLeaf) {
+      const leaf = plainLeafText({ type: { name: node.type }, attrs })
+      if (leaf && !type.isInline) separator()
+      text += leaf
+      return
+    }
+    const children = Array.isArray(node.content) ? node.content : []
+    const textblock = type ? type.isTextblock : children.some(isInlineLeafJson)
+    if (textblock) separator()
+    for (const child of children) walk(child)
   }
-  walk(doc)
-  return out.filter(Boolean).join(' ')
+  for (const child of Array.isArray(doc.content) ? doc.content : []) walk(child)
+  return text
 }

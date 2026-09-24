@@ -131,27 +131,49 @@ class TestAmbiguity:
         assert locate(_FIXTURES["simple"]["json"], "") == []
 
 
-class TestDivergenceFromBodyPlain:
-    """Proves WHY this module exists, so nobody later 'unifies' the two."""
+class TestBodyPlainIsTheSameRuleWithASpace:
+    """body_plain and the citation text are ONE rule -- ProseMirror's
+    textBetween -- run with two separators: a space for the search index, a
+    newline for citations. They differ in the separator character and in the
+    one leaf only search reads (a video timestamp, "[1:15]"), never in how
+    runs join. ⚰️ Until 2026-09-23 body_plain joined EVERY text node with a
+    space, so it double-spaced at mark boundaries and split a part-bold word
+    ("**NV**DA" -> "NV DA"), and this class pinned that as the reason the two
+    must differ. It now pins that they agree, over every fixture the real
+    library generated."""
 
-    def test_body_plain_inserts_spaces_at_mark_boundaries_and_this_does_not(self):
-        doc = _FIXTURES["markBoundary"]["json"]
-        assert "  " in extract_plain_text(doc), (
-            "body_plain is expected to double-space at mark boundaries"
-        )
-        assert "  " not in flatten(doc)["text"]
+    @staticmethod
+    def _with_space_separators(doc):
+        # The block separators are exactly the characters no span covers.
+        flat = flatten(doc)
+        covered = set()
+        for s in flat["spans"]:
+            covered.update(range(s["flat_start"], s["flat_end"]))
+        out = []
+        for i, ch in enumerate(flat["text"]):
+            if i in covered:
+                out.append(ch)
+            else:
+                assert ch == "\n", (i, ch)
+                out.append(" ")
+        return "".join(out)
 
-    def test_the_canonical_text_matches_what_a_member_reads(self):
+    @pytest.mark.parametrize("name", sorted(_FIXTURES))
+    def test_body_plain_is_the_citation_text_with_a_space_for_each_separator(self, name):
+        doc = _FIXTURES[name]["json"]
+        assert extract_plain_text(doc) == self._with_space_separators(doc)
+
+    def test_a_mark_boundary_is_invisible_to_both(self):
         doc = _FIXTURES["markBoundary"]["json"]
+        assert extract_plain_text(doc) == "Management expects gross margins to normalize lower."
         assert flatten(doc)["text"] == "Management expects gross margins to normalize lower."
 
-    def test_offsets_into_body_plain_would_address_the_wrong_characters(self):
-        # The concrete consequence: same phrase, different offset in each
-        # representation. A citation built on body_plain offsets would point
-        # somewhere else in the rendered note.
-        doc = _FIXTURES["markBoundary"]["json"]
-        needle = "to normalize lower."
-        assert extract_plain_text(doc).index(needle) != flatten(doc)["text"].index(needle)
+    def test_the_fixtures_exercise_what_this_claims(self):
+        # Non-vacuity: separators are really present, and no fixture carries
+        # the one leaf the two tables read differently (it would need its own
+        # expectation, not this equality).
+        assert sum("\n" in _FIXTURES[n]["text"] for n in _FIXTURES) >= 10
+        assert all('"videoTimestamp"' not in json.dumps(_FIXTURES[n]["json"]) for n in _FIXTURES)
 
 
 class TestRobustness:

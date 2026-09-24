@@ -74,6 +74,14 @@ from api.services.journal_two.notes_quota import (
     NoteQuotaExceeded, assert_import_headroom,
 )
 from api.services.journal_two.notes_search import fts_match_expr
+# Which node types are leaves / inline leaves / textblocks: ONE table, owned by
+# the citation text and pinned against the real schema (see extract_plain_text).
+from api.services.journal_two.note_citation_text import (
+    _ATOM_TEXT as _CITATION_ATOM_TEXT,
+    _INLINE_LEAF_TYPES as _CITATION_INLINE_LEAF_TYPES,
+    _LEAF_TYPES as _CITATION_LEAF_TYPES,
+    _is_textblock as _citation_is_textblock,
+)
 
 # ⛔ Was `<repo>/data/j2_attachments` — ephemeral container storage on Railway;
 # every redeploy wiped every note image. One authority now (attachment_root.py).
@@ -122,68 +130,102 @@ def _fmt_secs(secs: Any) -> str:
     return f"{h}:{m:02d}:{sec:02d}" if h else f"{m}:{sec:02d}"
 
 
-def extract_plain_text(doc: dict[str, Any] | None) -> str:
-    """Recursively walk a TipTap ProseMirror doc and concatenate all text
-    nodes (space-separated), plus the search lines of the custom atom nodes.
-    This writes body_plain — the notebook search index — so it MUST stay in
-    lockstep with the client serializer (lib/tiptap.js extractPlainText) —
-    and it is PINNED, not promised: both read tests/fixtures_plain_text.json
-    (tests/test_plain_text_parity.py ⇄ lib/plainText.parity.test.js), and both
-    rails fail on a node type one side handles and the other does not.
+# What a LEAF node reads as in body_plain: the citation text's own leaf table
+# (note_citation_text._ATOM_TEXT -- attachment chip, excerpt, widget, hard
+# break, formulas) plus the ONE leaf the search text reads and a citation does
+# not: a video timestamp, searchable as "[1:15]". Derived, never restated --
+# WHICH types are leaves, which leaves are inline and which blocks are
+# textblocks comes from the same module, pinned against the app's real
+# ProseMirror schema by askCitation.schemaParity.test.js. The client twin is
+# lib/tiptap.js::plainLeafText (citationLeafText + the same one extra), and
+# tests/fixtures_plain_text.json pins the two serializers together.
+#   · a formula reads as its LaTeX source; an empty one as nothing.
+#   · widgetEmbed carries its line pre-computed in attrs.searchText: the CLIENT
+#     derives it from the widget registry at the only moments params change
+#     (insert / toolbar edit), so this side never re-owns 13 per-widget formats.
+#   · documentExcerpt: the excerpt's durable text lives in j2_note_excerpts and
+#     is searchable through its own FTS index, so the body carries a marker.
+#   · every other leaf (image, rule, fact, noteLink, askCitation) reads as "".
+_PLAIN_LEAF_TEXT = {
+    **_CITATION_ATOM_TEXT,
+    "videoTimestamp": lambda a: f"[{_fmt_secs(a.get('seconds'))}]",
+}
 
-    widgetEmbed carries its line pre-computed in attrs.searchText: the CLIENT
-    derives it from the widget registry at the only moments params change
-    (insert / toolbar edit), so this side never re-owns 13 per-widget formats
-    it could drift on. Missing/blank searchText degrades to '[widget]'."""
+# One space between blocks: FTS5 tokenizes on non-alphanumerics, so the
+# separator only has to keep two blocks' words apart.
+PLAIN_TEXT_BLOCK_SEPARATOR = " "
+
+
+def extract_plain_text(doc: dict[str, Any] | None) -> str:
+    """The note's plain text -- ProseMirror's own
+    ``doc.textBetween(0, size, " ", leafText)``, walked over the stored JSON.
+
+    This writes body_plain -- the notebook search index and the text History
+    diffs -- so it MUST stay in lockstep with the client serializer
+    (lib/tiptap.js extractPlainText). It is PINNED, not promised: both read
+    tests/fixtures_plain_text.json (tests/test_plain_text_parity.py ⇄
+    lib/plainText.parity.test.js), and each rail fails on a leaf one side reads
+    and the other does not.
+
+    The rules are textBetween's, verbatim, and the same ones the citation text
+    uses (note_citation_text.flatten, with a newline where this has a space):
+      · text runs inside one textblock join with NOTHING -- a mark (bold,
+        highlight, link) is invisible, so "**NV**DA" reads "NVDA" and a
+        highlighted phrase mid-sentence keeps single spaces around it;
+      · every textblock (an EMPTY one included) is preceded by one separator,
+        except the first thing in the document to earn one;
+      · a container that is not a textblock (list, quote, table, toggle, ...)
+        adds nothing of its own;
+      · a BLOCK leaf is preceded by a separator only when it reads as text; an
+        INLINE leaf never is.
+    ⚰️ Until 2026-09-23 every text node was joined with a space, so a partly
+    bold word was indexed as two words and a search for it missed the note.
+
+    attrs may be any JSON shape (permissive body validator + importer round
+    trip) -- a non-dict degrades to {} and never 500s the note write."""
     if not isinstance(doc, dict):
         return ""
-    out: list[str] = []
+    parts: list[str] = []
+    state = {"first": True}
+
+    def separator() -> None:
+        # textBetween: `if (first) first = false; else text += blockSeparator`
+        if state["first"]:
+            state["first"] = False
+            return
+        parts.append(PLAIN_TEXT_BLOCK_SEPARATOR)
+
     def walk(node: Any) -> None:
         if not isinstance(node, dict):
             return
         ntype = node.get("type")
-        # attrs may be any JSON shape (permissive body validator + importer
-        # round-trip) — a truthy NON-dict (list/string/number) must not reach
-        # .get() in the branches below, or every save of the note 500s. The
-        # widgetEmbed branch got this guard in the review fix pass; a non-dict
-        # on videoTimestamp/attachmentChip crashed identically.
         attrs = node.get("attrs")
         if not isinstance(attrs, dict):
             attrs = {}
         if ntype == "text":
             t = node.get("text")
             if isinstance(t, str):
-                out.append(t)
-        elif ntype == "videoTimestamp":
-            out.append(f"[{_fmt_secs(attrs.get('seconds'))}]")
-        elif ntype == "attachmentChip":
-            out.append(f"[file: {attrs.get('name') or 'file'}]")
-        elif ntype == "documentExcerpt":
-            # Wave J: mirrors financialFact/noteLink's own silence -- the
-            # excerpt's real, durable text lives in j2_note_excerpts and is
-            # searchable through its own FTS index (excerpt_search.py), not
-            # duplicated into note-body search. A short bracketed marker
-            # (matching attachmentChip's own idiom) keeps SOME inline trace.
-            out.append("[excerpt]")
-        elif ntype == "widgetEmbed":
-            # attrs may be any JSON shape (the body validator is deliberately
-            # permissive and the importer round-trips arbitrary HTML) — a
-            # non-dict here must degrade, never 500 the note write.
-            st = attrs.get("searchText") if isinstance(attrs, dict) else None
-            out.append(st if isinstance(st, str) and st else "[widget]")
-        elif ntype in ("inlineMath", "blockMath"):
-            # Wave 5 math: a formula is searchable as its LaTeX SOURCE, the
-            # text a member typed (the same reading the citation tables give
-            # it, note_citation_text.py::_ATOM_TEXT). An empty one is nothing.
-            # Without this a LaTeX-only edit also changed no body_plain, so
-            # History showed no difference for it.
-            latex = attrs.get("latex")
-            if isinstance(latex, str):
-                out.append(latex)
-        for child in node.get("content", []) or []:
+                parts.append(t)
+            return
+        if ntype in _CITATION_LEAF_TYPES:
+            maker = _PLAIN_LEAF_TEXT.get(ntype)
+            leaf = maker(attrs) if maker is not None else ""
+            if leaf and ntype not in _CITATION_INLINE_LEAF_TYPES:
+                separator()
+            parts.append(leaf)
+            return
+        if _citation_is_textblock(node):
+            separator()
+        children = node.get("content")
+        if isinstance(children, list):
+            for child in children:
+                walk(child)
+
+    children = doc.get("content")
+    if isinstance(children, list):
+        for child in children:
             walk(child)
-    walk(doc)
-    return " ".join(s for s in out if s)
+    return "".join(parts)
 
 
 # ── Combined note-content sidecar sync (Performance QW-2, 2026-09-22) ───────
