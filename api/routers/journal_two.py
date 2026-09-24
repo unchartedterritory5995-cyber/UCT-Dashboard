@@ -2150,7 +2150,7 @@ def notes_batch_export_endpoint(
     import zipfile
     from pathlib import Path
     from api.services.journal_two.notes_export import (
-        _EXPORT_MANIFEST_NAME, _EXPORT_MANIFEST_VERSION,
+        _EXPORT_MANIFEST_NAME, _EXPORT_MANIFEST_VERSION, _attachment_cap_bytes,
         acquire_export_slot, build_single_note_export, release_export_slot,
         stream_export_file,
     )
@@ -2171,10 +2171,13 @@ def notes_batch_export_endpoint(
         issues: list[str] = []
         used_md: set[str] = set()
         written: set[str] = set()
+        # ⛔ N7: ONE attachment budget for the whole selection -- the cap that
+        # bounds the whole-notebook export, not that cap once per note.
+        budget = {"used_bytes": 0, "cap_bytes": _attachment_cap_bytes()}
         try:
             with zipfile.ZipFile(tmp_path, "w", zipfile.ZIP_DEFLATED) as zf:
                 for nid in ids:
-                    built = build_single_note_export(user["id"], nid)
+                    built = build_single_note_export(user["id"], nid, attachment_budget=budget)
                     if built is None:
                         skipped.append(nid)
                         continue

@@ -379,9 +379,9 @@ def test_export_merges_a_notes_own_zip_attachments_and_issues(app, client, monke
     from api.services.journal_two import notes_export
     real = notes_export.build_single_note_export
 
-    def fake(user_id, note_id, conn=None):
+    def fake(user_id, note_id, conn=None, attachment_budget=None):
         if note_id != a["id"]:
-            return real(user_id, note_id, conn=conn)
+            return real(user_id, note_id, conn=conn, attachment_budget=attachment_budget)
         buf = io.BytesIO()
         with zipfile.ZipFile(buf, "w") as zf:
             zf.writestr("With image.md", "# With image\n![](attachments/u1/x/img/p.png)\n")
@@ -552,3 +552,32 @@ def test_a_legacy_spelled_tag_is_removed_and_not_added_twice(app, client, db_pat
     removed = _batch(client, [n["id"]], "removeTag", {"tag": "Q3 / Q4"})
     assert _by_id(removed)[n["id"]]["status"] == "changed"
     assert _get(client, n["id"])["tags"] == ["x"]
+
+
+def test_the_selection_export_shares_ONE_attachment_budget_across_its_notes(app, client, tmp_path, monkeypatch):
+    """N7 (wave 5 review): each note used to get its OWN attachment cap, so a
+    500-note selection could bundle 500 x the cap that bounds the whole-notebook
+    export. One budget now spans the selection."""
+    root = tmp_path / "j2_attachments"
+    monkeypatch.setenv("J2_ATTACHMENT_ROOT", str(root))
+    monkeypatch.setenv("NOTE_EXPORT_MAX_ATTACHMENT_BYTES", "60")
+    _login_as(app, "u1")
+    ids = []
+    for title in ("First", "Second"):
+        nid = _note(client, title)["id"]
+        p = root / "u1" / "notes" / nid / "inline" / "p.png"
+        p.parent.mkdir(parents=True, exist_ok=True)
+        p.write_bytes(b"x" * 50)                                   # each fits the cap ALONE
+        url = f"/api/j2/notes/attachments/u1/{nid}/inline/p.png"
+        r = client.put(f"/api/j2/notes/{nid}", json={"bodyJson": {"type": "doc", "content": [
+            {"type": "image", "attrs": {"src": url}}]}})
+        assert r.status_code == 200, r.text
+        ids.append(nid)
+
+    r = client.post("/api/j2/notes/batch/export", json={"ids": ids})
+    assert r.status_code == 200, r.text
+    zf = zipfile.ZipFile(io.BytesIO(r.content))
+    bundled = [n for n in zf.namelist() if n.startswith("attachments/")]
+    assert len(bundled) == 1                                       # 50 + 50 > 60: the second is left out
+    issues = zf.read("EXPORT_ISSUES.txt").decode("utf-8")
+    assert "cap" in issues.lower()

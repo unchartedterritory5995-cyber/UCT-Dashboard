@@ -1618,6 +1618,7 @@ def build_export_zip_to_tempfile(
 
 def build_single_note_export(
     user_id: str, note_id: str, conn: sqlite3.Connection | None = None,
+    attachment_budget: dict[str, int] | None = None,
 ) -> tuple[bytes, str, str] | None:
     """ONE note as portable markdown -- the trust/portability feature for a
     member who wants to leave with a single note, not their whole notebook
@@ -1639,7 +1640,13 @@ def build_single_note_export(
     already IS a portable markdown file, no zip needed); a `.zip`
     (note.md + attachments/) when it has at least one. Both paths share this
     one function, branching only on whether anything was written into
-    `attach_state["written"]`."""
+    `attach_state["written"]`.
+
+    `attachment_budget` ({"used_bytes", "cap_bytes"}) is the SELECTION
+    export's one shared budget (review N7): pass the same dict for every note
+    of a batch and the cap bounds the whole archive, as the whole-notebook
+    export's does; it is read at the start and written back at the end.
+    Omitted, this note gets the cap to itself (the single-note export)."""
     from api.services.auth_db import get_connection
 
     owned = conn is None
@@ -1673,9 +1680,12 @@ def build_single_note_export(
         # Zip-root note -- folder='' so `_make_attachment_resolver`'s relative
         # links point at a top-level `attachments/` tree in THIS archive, not
         # the multi-note folder-nested layout the full export uses.
+        budget = attachment_budget if attachment_budget is not None else {
+            "used_bytes": 0, "cap_bytes": _attachment_cap_bytes(),
+        }
         attach_state: dict[str, Any] = {
             "zf": zf, "written": set(), "failed": set(), "issues": {},
-            "used_bytes": 0, "cap_bytes": _attachment_cap_bytes(),
+            "used_bytes": budget["used_bytes"], "cap_bytes": budget["cap_bytes"],
         }
         attachment_resolver = _make_attachment_resolver(user_id, "", note_id, note_title, attach_state)
         # No `note_paths` here -- a single-note export never bundles its
@@ -1712,6 +1722,7 @@ def build_single_note_export(
             "thesis_reviews": reviews_by_note.get(note_id, []),
         }
         md_text = f"{_front_matter(row, hero_local, extra=extra)}\n\n{body}\n"
+        budget["used_bytes"] = attach_state["used_bytes"]   # N7: the selection's shared budget
 
         if attach_state["issues"]:
             issue_lines = [
@@ -1728,12 +1739,16 @@ def build_single_note_export(
 
         base = _safe_name(row["title"], row["id"])
         stamp = datetime.now(timezone.utc).strftime("%Y%m%d")
-        if attach_state["written"]:
+        # ⛔ N7: a note whose attachments were ALL left out (the shared cap, a
+        # missing file) still ships its EXPORT_ISSUES.txt -- a bare .md would
+        # drop the list of what is missing, and a selection export could then
+        # not say that its cap was reached.
+        if attach_state["written"] or attach_state["issues"]:
             zf.writestr(f"{base}.md", md_text)
             zf.close()
             return buf.getvalue(), f"{base}-{stamp}.zip", "application/zip"
-        # Nothing bundled -- a bare .md is simpler and more directly portable
-        # than a one-entry zip. Discard the never-populated zip buffer.
+        # Nothing bundled and nothing missing -- a bare .md is simpler and more
+        # directly portable than a one-entry zip. Discard the unused buffer.
         zf.close()
         return md_text.encode("utf-8"), f"{base}-{stamp}.md", "text/markdown"
     finally:
