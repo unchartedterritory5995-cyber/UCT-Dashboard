@@ -28,12 +28,32 @@ export function normalizeFindTerm(term) {
   return (term || '').trim()
 }
 
-/**
- * A letter, a digit or a combining mark: what a WORD is made of, in any
- * script. Whole-word matching refuses a match with one of these right before
- * or after it -- `\b` is ASCII-only and would split "café" or "市场".
+/*
+ * What a WORD is made of, in any script: a letter, a digit or a combining mark
+ * (\p{L}\p{N}\p{M}). Whole-word matching refuses a match with one of these
+ * right before or after it -- `\b` is ASCII-only and would split "café" or
+ * "市场". And what glues ONE emoji together: a zero-width joiner (the family in
+ * "👨‍👩‍👧") and a skin-tone modifier ("👍🏽"). A whole-word match never
+ * splits an emoji sequence either. (U+FE0F, the emoji presentation selector in
+ * "🛢️", is a mark, so \p{M} already covers it.)
  */
-const WORD_CHAR = /[\p{L}\p{N}\p{M}]/u
+const GLUED_BEFORE = /[\p{L}\p{N}\p{M}\u200D]/u
+const GLUED_AFTER = /[\p{L}\p{N}\p{M}\u200D\p{Emoji_Modifier}]/u
+const ATTACHES_BACKWARD = /^[\p{M}\u200D\p{Emoji_Modifier}]/u
+const ATTACHES_FORWARD = /\u200D$/u
+
+/** True when [from, to) is NOT a whole word: something glues it to a neighbour. */
+function gluedToANeighbour(doc, from, to, matched) {
+  const before = charBefore(doc, from)
+  const after = charAfter(doc, to)
+  // A joiner or modifier at the match's own edge attaches it to a neighbour
+  // only if that neighbour is something (not a space, not a block edge).
+  const hasBefore = before !== '' && !/\s/u.test(before)
+  const hasAfter = after !== '' && !/\s/u.test(after)
+  return GLUED_BEFORE.test(before) || GLUED_AFTER.test(after)
+    || (hasBefore && ATTACHES_BACKWARD.test(matched))
+    || (hasAfter && ATTACHES_FORWARD.test(matched))
+}
 
 // The code point just before `from` / just after `to` in the document, read
 // across mark (text-node) edges. A block edge or an inline atom reads as '\n',
@@ -54,8 +74,17 @@ const charAfter = (doc, to) => {
  *  - `wholeWord`: a match must not have a letter, digit or mark right before
  *    or after it, so renaming the ticker `MU` leaves "much" and "community"
  *    alone and `AMD` does not touch `AMDL`. The neighbour is read across mark
- *    edges ("**MU**ch" is not a whole-word MU). No lookbehind anywhere (the
- *    iOS 16 floor): the boundary is checked by hand.
+ *    edges ("**MU**ch" is not a whole-word MU), and an emoji sequence is never
+ *    split (see GLUED_BEFORE). No lookbehind anywhere (the iOS 16 floor): the
+ *    boundary is checked by hand.
+ *
+ * ⛔⛔ The scan must ALWAYS move forward (wave-5 re-review R1-B1). A rejected
+ * candidate resumes one CODE POINT on, never one code unit: under the `u` flag
+ * a `lastIndex` inside a surrogate pair is snapped back to the pair's start, so
+ * `m.index + 1` on "NVDA🚀" re-found the same 🚀 forever and froze the tab on
+ * every keystroke in the find field. Behind that, a progress guard: each
+ * candidate must start strictly after the previous one, and if one ever does
+ * not, this text node's scan stops (with a warning) instead of looping.
  */
 export function findMatchesInDoc(doc, term, { caseSensitive = false, wholeWord = false } = {}) {
   const needle = normalizeFindTerm(term)
@@ -66,21 +95,41 @@ export function findMatchesInDoc(doc, term, { caseSensitive = false, wholeWord =
   doc.descendants((node, pos) => {
     if (!node.isText || !node.text) return
     re.lastIndex = 0
+    let previousStart = -1
     let m
     while ((m = re.exec(node.text)) !== null) {
+      // The progress guard: candidates start at strictly increasing offsets,
+      // so this loop runs at most text.length times -- whatever the step does.
+      if (m.index <= previousStart) {
+        warnNoProgress(needle)
+        break
+      }
+      previousStart = m.index
       // non-overlapping; an empty match cannot occur (the needle is non-empty)
       const from = pos + m.index
       const to = from + m[0].length
-      if (wholeWord && (WORD_CHAR.test(charBefore(doc, from)) || WORD_CHAR.test(charAfter(doc, to)))) {
+      if (wholeWord && gluedToANeighbour(doc, from, to, m[0])) {
         // Not a whole word here; a whole word may still START inside this
-        // candidate ("aaa aa"), so resume one character on, not past it.
-        re.lastIndex = m.index + 1
+        // candidate ("aaa aa"), so resume one CODE POINT on (two units for an
+        // astral character), never past the candidate and never mid-pair.
+        re.lastIndex = m.index + codePointLength(m[0])
         continue
       }
       matches.push({ from, to })
     }
   })
   return matches
+}
+
+/** UTF-16 length of the first code point of `s`: 2 for an astral character. */
+const codePointLength = (s) => (s.codePointAt(0) > 0xFFFF ? 2 : 1)
+
+let warnedNoProgress = false
+function warnNoProgress(needle) {
+  if (warnedNoProgress) return
+  warnedNoProgress = true
+  // eslint-disable-next-line no-console
+  console.warn('[noteFind] a find scan stopped making progress and was cut short', { needle })
 }
 
 /** Wraps index math for next/previous with cyclic wraparound — pulled out
