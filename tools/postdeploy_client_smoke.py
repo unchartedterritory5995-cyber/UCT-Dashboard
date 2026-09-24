@@ -115,7 +115,10 @@ NAV_START_ALT = "/breadth"
 # covered there, and that mapping is written down instead of assumed.
 EXTRA_ROUTES = (
     ("/settings", "Settings"),
-    ("/catalysts/history", "Catalysts"),
+    # ⚰️ ("/catalysts/history", "Catalysts") lived here until 2026-09-24. It became a
+    # real sidebar entry on 2026-09-21 (NAV_ITEMS, 19 entries), so the nav sweep already
+    # clicks it and the self-check case "the extra routes name only what the nav cannot
+    # supply" was red for three days. The list is what the nav CANNOT reach — nothing else.
     ("/journal/notebook", "Notebook"),
 )
 
@@ -276,9 +279,18 @@ def main(argv=None) -> int:
                     help="clear the per-browser opt-in keys before measuring "
                          "(a past run's opt-out leaves '0' behind, which is NOT unset)")
     ap.add_argument("--self-check", action="store_true")
+    ap.add_argument("--profile", default=None,
+                    help="the ONE canonical rig profile; else UCT_Q1_RIG_PROFILE, else this "
+                         "checkout's own .worktrees/ default (a SIGNED-OUT one from any other worktree)")
     a = ap.parse_args(argv)
     if a.self_check:
         return self_check()
+
+    # ⚰️ 2026-09-24: this entry point spawned the rig on window_check's module DEFAULT
+    # and never consulted `--profile` / UCT_Q1_RIG_PROFILE — so run from any worktree
+    # but the main one it refused with a STOP whose own text promised those two doors.
+    # Same resolution as window_check's main (CLI beats env beats default).
+    wc.use_profile(wc.resolve_profile(a.profile))
 
     entries = hns.nav_items()
     say(f"nav entries derived from NavBar.jsx: {len(entries)}")
