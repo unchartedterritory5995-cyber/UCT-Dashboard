@@ -23,6 +23,7 @@ const CONFIRM_BATCH_SIZE = 200 // server caps a single batch at 500; we stay wel
 // ---------------------------------------------------------------------------
 
 import { settleNoteWrite, settleNoteWrites } from '../offline/settleNoteWrite'
+import { notebookSchemaHeaders } from '../notebookSchema'
 
 /**
  * @param {Array<{importKey: string}>} docs
@@ -429,7 +430,11 @@ export async function runImport({ source, destFolderId, docs, onProgress }) {
         const putRes = await fetch(`/api/j2/notes/${noteId}`, {
           method: 'PUT',
           credentials: 'include',
-          headers: { 'Content-Type': 'application/json' },
+          // ⛔ S1/H14: a body write declares the schema this bundle can read.
+          // Without it the server reads this PUT as the OLDEST client and
+          // refuses it on a note the importer itself just wrote with a wave-5
+          // type (the Obsidian adapter's ==x== is a highlight mark).
+          headers: { 'Content-Type': 'application/json', ...(await notebookSchemaHeaders()) },
           body: JSON.stringify({ bodyJson: rewritten, importMediaPending: droppedMedia.length > 0 }),
         })
         if (!putRes.ok) {
