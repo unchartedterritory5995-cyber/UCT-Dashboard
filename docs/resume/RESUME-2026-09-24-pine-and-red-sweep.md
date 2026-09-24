@@ -13,7 +13,7 @@
 | | branch | HEAD | pushed | state |
 |---|---|---|---|---|
 | **A. Pine merge** | `merge/pine-up-to-master` | `526b5e2aa` | yes | **PR #184 OPEN — COMPLETE** |
-| **B. Master red sweep** | `fix/master-red-sweep` | `2a80003fc` | yes | **ALL 84 ADDRESSED — closing six-shard gate still owed** |
+| **B. Master red sweep** | `fix/master-red-sweep` | `a820438cb` | yes | **84/84 held under gate B; second wave classified every remaining red — see §3c** |
 
 PR #184: https://github.com/unchartedterritory5995-cyber/UCT-Dashboard/pull/184
 
@@ -119,6 +119,43 @@ member sees it. Mutation-proved three ways (pin neutralised ×2, after-bell reta
 no-op). ⚠️ Noted, not changed: the Acceptance D-rows are `report()`ed, never asserted — the
 matrix is printed, only its COUNT and the negative controls are rails. A follow-up, not a
 red-sweep change (asserting them would add latency-sensitive reds under gate load).
+
+### 3c. Gate B and the second wave — every remaining red on the sweep tree, classified
+
+**Gate B** (`docs/plans/joystick/gate-runs/2026-09-24T18-04-13.*`, on `7e723f67a`): VALID —
+tree hash unchanged start→end, 1,722 files reconcile, 24,296 tests, **38 red cases in 30
+files**. Compared BY NAME against the merged tree's failing set (`d614a040f`, 120 cases):
+**0 of the 87 cases the sweep targeted were still red**, 8 red here and not there, 32 shared.
+⚠️ The manifest's own "NEW failures: 50" is against its stale joystick baseline
+(`1216958ed`); the master deploy gate does not judge the vitest suite at all (promotion
+control, secret scan, four scoped pytest rails, hygiene — all run locally on this branch and
+green), so that number blocks nothing.
+
+**Three lanes** (worktrees `.worktrees/sweep-lane-1..3`, branches `sweep/lane-1..3`,
+protocol: test-only, single-file runs, report product questions instead of touching them)
+took the 38; the integrator re-ran every touched file in its own tree before each merge.
+
+| verdict | cases | what it is |
+|---|---|---|
+| **FIXED** (test-only, mutation-proved, integrated) | 8 | graphRuntime ×3 (port of the merge branch's ceiling-aware re-take; holds on master — the grammar commits #153..#170 grew `mid_engagement__22` to a 13,009-node plot over the 2,048 ceiling) · Layout.routeSuspense + Layout.pageTracking (NavBar mocks dropped the real `NAV_ITEMS` that `surfaces/pageTitle.js` reads since S1 CP2 `8baca199b`) · pine.tupleBuiltins (probe moved to `ta.percentrank`, supertrend as its own CONTROL) · carriedState (`ta.valuewhen` is admitted since #166 `d67e2fddb`; assert what it computes) · reachable (R-29 recorded PENDING in `AWAITING_A_DECISION`) |
+| **NEEDS-CORPUS** (environmental, by licence) | 17 | `tests/fixtures/pine_oos` withholds **29 of 59** scripts by its own `.gitignore` ("licence does not contemplate redistribution; re-fetch from the manifest URL and verify against `sha256_source`") and `tests/fixtures/oos2_parity` withholds all ten. Every red count reconciles exactly to the absent files (paramIds 299 vs >300, oosMeasuredBaseline 30 vs >50, history/capability census 129 vs >150, recurrenceSteps/visualDemand/objectDemand 30 vs 59, documentSize/graphSize buildable 8/7 vs >10, visualParitySet 5 of 10, objectLadder ENOENT ×2). The sources are 30 `www.tradingview.com/script/...` pages; **no checkout on this box has them**, 14 of 30 have sha-verifiable copies elsewhere on the box, 16 need a browser re-fetch. ⚠️ Once present, `oos-measured-baseline.json` (pinned on a 30-file checkout) goes red with `added=29` until regenerated with `OOS_MEASURED_WRITE=1` — an owner-ruled artifact. Floors are RIGHT; do not widen them. |
+| **PRODUCT-BUG-SUSPECTED** (reported, untouched) | 4 | pineBoxSuggestVoice ×3 + ImportBox.thinkscript: since `e855f62cd` (#145) `pine.js:8048` `if (isBindFoldableLength(resolved)) { out.push(resolved); continue }` runs BEFORE the `pine:window` refusal, and `parse.js:302 bindFoldableWindow` answers `{foldable:true, max:27.5}` for a literal `num` — so `plot(ta.wma(close, 27.5))` leaves the door as "translates" with NO offer, then `evaluateFormula` refuses ("a window must be a whole-number literal … got 27.5"). The old door refusal carried `suggest hma(close, 55)` (`windowSuggestion`, still present, now unreached). Member-facing. One-line fix at 8048 (do not defer a literal that is not a usable window; `usableWindowBound` already answers null for 27.5) — **owner's call**. |
+| **PRODUCT-CONTRACT** (reported, untouched; instrument fixed) | 1 | BuilderSheet.pine "the SAVED DOCUMENT is byte-identical to the same formula typed by hand": the finder took the first POST (import telemetry, `indicatorTelemetry.js:21`) and threw a TypeError — fixed by keying on `USER_DEFINITIONS_KEY` (measured wire: GET, telemetry ×2, save). With the save found, the diff is additions-only (paramManifest, scanPlot, sources, a second `signal` plot; `compute.fn` sha identical). Its sibling case celebrates those knobs. Ruling needed: is a Pine-authored document "one object" with a typed one? Left RED on purpose rather than widening `toEqual`. |
+| **BRANCH-SHAPE** | 1 | hub/rule12Paths: fires because this change set touches `app/src/hub/sections/chartDrawDoor.test.jsx` (and the gate manifests under `docs/plans/joystick/`) AND two `journal-2-0` test files. Green on master (empty diff). A rail-scoping ruling for its owner; a PR split would not cure it while gate manifests live under the joystick prefix. |
+| **lane 2's cluster** | 7 | **FIXED 10** (all ports or stale assertions overtaken by master's own commits; each mutation-proved): stockChartWiring (port of the merge re-take's `paints()` predicate, re-measured here — the one series after the engine block is the invisible future-axis whitespace series; 451aed688's gap-run series are minted inside the binder's bind pass, so NOT a window regression) · controlDoorCensus (ledgers `testing/scan/scanHarness.jsx`, on master since `a974dd77a` 9/21) · memberPaneGate (ledger says `armed` since `c2c048653` 9/18 — the test expected `dark`; ⚠️ `memberPaneGate.js` header still says nothing renders a member's Pine, product-docs drift, reported) · ChartDrawingOverlay.surfaces (text-distance probe read the checkout's CRLF; normalised, span NOT widened) · Layout.routeSuspense + Layout.pageTracking (NavBar mocks keep the real `NAV_ITEMS` that `surfaces/pageTitle.js` reads since S1 CP2) · formulaLibrary.route (ruling holds; the READER broke when `307d7e2fb` moved `FREE_PAGES` to `constants/freePages.js` — now read at its home and AuthGuard's consumption proved) · Login.totp ×2 (`finishLogin()` routes on `paid_equiv` since `307d7e2fb`; fixtures without it were FREE members landing on `/morning-wire`, correct product behaviour) · usePreferences.additionsOnly (declares the two opaque-key call sites master added: `BreadthChartsV2.jsx` `breadth_charts_state`, `useColumnPresets.js` `screener_column_presets` — ⚠️ a NEW member-preference key with no other declaration). **OWNER-DECISION 1**: pollingSites.rail — NOT load-sensitive (red alone ×2): 13 new bare `useSWR refreshInterval` sites in 9 files landed 9/03–9/23, each needing a bare-vs-`useMobileSWR` ruling the rail forbids silencing; phone-reachable ones: `chart/useBoundDrawingAlerts.js` (60s, via StockChart), `floor2/hooks/useFloor.js` ×5 (10–30s), `hooks/useFilingWatch.js` (30s, TickerHubSheet/TickerPopup); admin-only: ChatModerationPanel, CompassHealthPanel, ThemeEngineHealthPanel, PatternAdmin ×2; plus `useWatchlistIntelligence.js` (120s), `pages/OpenFlow.jsx` (120s). 
+|
+
+### 3d. What is still owed
+
+1. **Gate C** — the closing six-shard gate on the integrated branch, once the box is quiet
+   (another session's gate ran 18:06–18:23 CT).
+2. **Your rulings**: the `pine.js:8048` fractional-window bypass (member-facing); the
+   BuilderSheet document contract; rule12's scoping; whether to re-fetch the 30 withheld
+   TradingView scripts on the rig (and regenerate the OOS baseline sidecar under
+   `OOS_MEASURED_WRITE=1`).
+3. **A PR only with your say-so.** Master moved 2 docs/flags/tools commits under the branch
+   with zero file overlap — merges clean, no rebase.
+
 
 ---
 
