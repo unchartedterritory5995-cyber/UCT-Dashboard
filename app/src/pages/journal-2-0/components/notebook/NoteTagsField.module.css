@@ -1,0 +1,55 @@
+/* Wave 6 — the note's tags in the editor header (NoteTagsField.jsx): chips
+   with their own remove buttons, and the add field. Existing tokens only. */
+.field {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+  max-width: 100%;
+}
+.chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  padding: 1px 2px 1px 8px;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  background: var(--bg-surface);
+  color: var(--text-bright);
+  font-size: 12px;
+}
+.chipText { white-space: nowrap; }
+.remove {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 20px;
+  height: 20px;
+  padding: 0;
+  border: none;
+  border-radius: 999px;
+  background: transparent;
+  color: var(--text-muted);
+  cursor: pointer;
+}
+.remove:hover:not(:disabled) { background: var(--bg-hover); color: var(--text-bright); }
+.remove:focus-visible { outline: 2px solid var(--ut-gold); outline-offset: 1px; }
+.remove:disabled { opacity: 0.4; cursor: default; }
+.add { flex: 1 1 140px; min-width: 120px; display: flex; }
+
+/* Touch tier: the remove control is a finger target. */
+@media (max-width: 1024px) {
+  .remove {
+    min-height: var(--tap-min);
+    min-width: var(--tap-min);
+  }
+}

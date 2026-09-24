@@ -240,7 +240,13 @@ async function settle(ms = 1200, n = 8) {
 const doors = {
   folder: () => fireEvent.change(screen.getByDisplayValue('Unfiled'), { target: { value: 'f1' } }),
   ticker: () => fireEvent.blur(screen.getByPlaceholderText('Ticker'), { target: { value: 'NVDA' } }),
-  tags: () => fireEvent.blur(screen.getByPlaceholderText('Tags (comma sep)'), { target: { value: 'thesis' } }),
+  // Wave 6 items 9 + 12: the tag door is an ADD (a delta applied to the
+  // server's list), through the tag field's own form.
+  tags: () => {
+    const input = screen.getByLabelText('Add a tag to this note')
+    fireEvent.change(input, { target: { value: 'thesis' } })
+    fireEvent.submit(input.closest('form'))
+  },
 }
 
 /**
@@ -369,6 +375,9 @@ describe('⛔⛔ THE INVARIANT — the offline sentence reaches the server body,
     await offlineSentenceThenDoor('tags', 3)
     expect(serverBodyHasSentence()).toBe(true)
     expect(forkCount()).toBe(0)
+    // Non-vacuity (wave 6): the tag door is now an add through a form; it
+    // must really have written, or this case proves nothing about a door.
+    expect(server.puts.some((p) => Array.isArray(p.patch.tags) && p.patch.tags.includes('thesis'))).toBe(true)
   })
 })
 

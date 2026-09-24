@@ -63,6 +63,10 @@ import { TextSelection } from '@tiptap/pm/state'
 import { taskIndexFromParams, findTaskItemPos } from '../../lib/noteTasks'
 import { NOTEBOOK_EVENTS, startNoteOpenTimer, trackNotebookEvent } from '../../lib/notebookTelemetry'
 import { noteIsLocked, setNoteLock } from '../../lib/lockedNote'
+import NoteTagsField from './NoteTagsField'
+import useJ2NoteTags from '../../hooks/useJ2NoteTags'
+import { fallbackNodes } from '../../lib/tagTree'
+import { mergeTagDelta, sameTagList } from '../../lib/tagDelta'
 import { textColorClass } from '../../lib/textColor'
 import NoteHistoryPanel from './NoteHistoryPanel'
 import NoteBacklinksSection from './NoteBacklinksSection'
@@ -377,6 +381,9 @@ export default function NoteEditorPage({ noteId, onBack, showBack = true, onTitl
   const [unlockedHere, setUnlockedHere] = useState(false)
   const [unlockState, setUnlockState] = useState(null) // null | 'busy' | 'failed'
   const locked = noteIsLocked(note) && !unlockedHere
+  // The member's own tags, for the tag field's suggestions (hierarchy first).
+  const { tagTree, tagCounts, refresh: refreshTagNodes } = useJ2NoteTags()
+  const tagNodes = useMemo(() => tagTree || fallbackNodes(tagCounts), [tagTree, tagCounts])
   useEffect(() => { setUnlockedHere(false); setUnlockState(null) }, [noteId])
   useEffect(() => { if (note && !noteIsLocked(note)) setUnlockedHere(false) }, [note])
   // Wave Q1: the durable local working copy. ⛔ The account is part of the
@@ -2264,9 +2271,35 @@ export default function NoteEditorPage({ noteId, onBack, showBack = true, onTitl
   const onTickerChange = async (ticker) => {
     await settleMetadataRevision(await update({ ticker: ticker || null }))
   }
-  const onTagsChange = async (tagsCsv) => {
-    const tags = tagsCsv.split(',').map((t) => t.trim()).filter(Boolean)
-    await settleMetadataRevision(await update({ tags }))
+  // Wave 6 items 9 + 12: a tag change is the member's DELTA, applied to the
+  // list the SERVER holds right now (read just before the write) -- never a
+  // list this page loaded earlier, which would undo a bulk change made in
+  // another tab. When that read fails nothing is sent: a list that could not
+  // be checked is never written. lib/tagDelta.js has the rule.
+  const [tagsBusy, setTagsBusy] = useState(false)
+  const applyTagDelta = async (delta) => {
+    // (One change at a time: the field is `busy` -- disabled -- until this settles.)
+    setTagsBusy(true)
+    try {
+      let serverTags
+      try {
+        const res = await fetch(`/api/j2/notes/${encodeURIComponent(noteId)}`, { credentials: 'include' })
+        if (!res.ok) throw new Error(String(res.status))
+        const body = await res.json()
+        serverTags = Array.isArray(body?.note?.tags) ? body.note.tags : []
+      } catch {
+        setChromeMsg("Couldn't update tags — try again")
+        return
+      }
+      const next = mergeTagDelta(serverTags, delta)
+      if (sameTagList(next, serverTags)) return
+      await settleMetadataRevision(await update({ tags: next }))
+      refreshTagNodes()
+    } catch {
+      setChromeMsg("Couldn't update tags — try again")
+    } finally {
+      setTagsBusy(false)
+    }
   }
 
   // ⛔⛔ DUPLICATE — no such action existed anywhere in the product (grepped
@@ -2582,12 +2615,12 @@ export default function NoteEditorPage({ noteId, onBack, showBack = true, onTitl
             onBlur={(e) => onTickerChange(e.target.value)}
             style={{ width: 84 }}
           />
-          <input
-            className={styles.headerInput}
-            placeholder="Tags (comma sep)"
-            defaultValue={(note.tags || []).join(', ')}
-            onBlur={(e) => onTagsChange(e.target.value)}
-            style={{ width: 200 }}
+          <NoteTagsField
+            tags={note.tags || []}
+            nodes={tagNodes}
+            busy={tagsBusy}
+            onAdd={(tag) => applyTagDelta({ add: [tag] })}
+            onRemove={(tag) => applyTagDelta({ remove: [tag] })}
           />
           <button
             type="button"
