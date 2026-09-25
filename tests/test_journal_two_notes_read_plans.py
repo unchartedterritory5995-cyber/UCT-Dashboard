@@ -226,4 +226,33 @@ def test_the_trash_order_breaks_deleted_at_ties_by_id(conn):
     (sql, steps), = [p for p in _plans(conn, lambda c: notes_svc.list_notes(
         U, deleted=True, sort="deleted", conn=c)) if "ORDER BY" in p[0]]
     assert "deleted_at DESC, id ASC" in sql, sql
+    # Only the LAST term (the id tiebreak) is sorted; the index still orders `deleted_at`. A whole
+    # temp-b-tree sort would read and sort every trashed note before the LIMIT (review nit, fr2).
+    # Checked BEFORE the index name, so this assertion is the one a whole-sort plan trips.
+    assert any("USE TEMP B-TREE FOR LAST TERM OF ORDER BY" in s for s in steps), steps
+    assert not any("USE TEMP B-TREE FOR ORDER BY" in s for s in steps), steps
     assert any("idx_j2_notes_user_deleted" in s for s in steps), steps
+
+
+def test_the_snippet_page_filter_keeps_the_MATCH_only_plan(conn):
+    """`_snippets_for` keeps one page's rows out of ONE pass over the MATCH, by its own `on_page`
+    marker. An outer `WHERE rid IN (...)` looks equivalent and is not: SQLite pushes it into the
+    FTS scan as a per-rowid seek (`INDEX 0:=M…`), which measured 16.6 ms p50 against 3.9 ms at
+    50k notes (docs/notebook/perf-budgets.md; review fr1 nit, fr2). The MATCH-only scan reads
+    `INDEX <n>:M…` -- no `=` (a rowid constraint) before the `M`."""
+    import re
+    conn.execute("UPDATE j2_notes SET body_plain = 'breakout over the pivot', title = 'breakout'")
+    conn.commit()
+    rec = Recorder(conn)
+    got = notes_svc.list_notes(U, q="breakout", conn=rec)
+    # non-vacuity: the page really carries snippets, so the statement below is the one that made them
+    assert len(got) == 6 and all("<mark>" in n.get("bodySnippet", "") for n in got), got
+    snip = [(s, p) for s, p in rec.statements if "snippet(j2_notes_fts" in s]
+    assert len(snip) == 1, [s for s, _ in rec.statements]
+    sql, params = snip[0]
+    steps = [r[3] for r in conn.execute("EXPLAIN QUERY PLAN " + sql, params)]
+    fts = [s for s in steps if "j2_notes_fts VIRTUAL TABLE INDEX" in s]
+    assert fts, ("non-vacuity: no full-text scan in the plan", steps)
+    for s in fts:
+        m = re.search(r"VIRTUAL TABLE INDEX \d+:(\S*)", s)
+        assert m and m.group(1).startswith("M") and "=" not in m.group(1), steps
