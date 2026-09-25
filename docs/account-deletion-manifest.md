@@ -63,6 +63,8 @@ own internal fleet-check digest, not per-user member data.
 | `j2_capture_inbox` | `user_id` | Direct | Not purged | Purged | " |
 | `j2_public_profiles` | `user_id` (PK) | Direct | Not purged | Purged | " |
 | `j2_note_shares` | `user_id` | Direct | Not purged | Purged | " |
+| `j2_note_templates` | `user_id` | Direct | n/a — new in wave 6 (a member's own "Save as template" copies, `note_templates.py`) | Purged (wave 6 fix round 1, I3) | `test_j2_note_templates_is_purged_on_account_deletion` + test matrix below |
+| `j2_task_reminder_log` | `user_id` (PK with `day`) | Direct | n/a — new in wave 6 (the daily task reminder's claim log, `note_tasks.run_task_reminders`: which member was reminded on which ET day, with their due/overdue counts); created lazily by that pass | Purged (wave 6 fix round 4, R4-4) | `test_j2_task_reminder_log_is_purged_on_account_deletion` (rows written through the real reminder pass) + test matrix below |
 | `j2_note_connectors` | `user_id` | Direct | Not purged | Purged | " |
 | `j2_note_sources` | `user_id` | Direct | Not purged | Purged | " |
 | `j2_note_sync_log` | `user_id` | Direct | Not purged | Purged | " |
@@ -88,6 +90,7 @@ own internal fleet-check digest, not per-user member data.
 | `j2_broker_live_checks` | `user_id` | Direct | **Not purged** | Purged | " |
 | `j2_broker_member_stale_notify` | `broker_account_id` → `j2_broker_accounts.user_id` | **Indirect** | **Not purged** | Purged (join delete) | " |
 | `j2_broker_digest_dedup` | none (global, `id='fleet_digest'`) | — | N/A | **Correctly not purged** — not member data | Manual schema read |
+| `j2_task_reminder_runs` | none (one row per ET `day`: `ran_at`, `members`, `delivered` counts) | — | N/A | **Correctly not purged** — a per-day run marker holding counts only, no `user_id` | Manual schema read (`note_tasks._REMINDER_SCHEMA`) |
 | On-disk attachments (`attachment_root()/<user_id>/**`, both notes and trade screenshots, plus the legacy root fallback) | top-level directory name = `user_id` | Direct (per-user directory) | Not purged | Purged (`shutil.rmtree`) | Test matrix below |
 
 External-party data: SnapTrade's own revoke is unaffected by this change — it already runs via
