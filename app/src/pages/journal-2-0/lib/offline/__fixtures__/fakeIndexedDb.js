@@ -125,6 +125,20 @@ export function createFakeDb({ failStore = null, serialize = false } = {}) {
           index(indexName) {
             const field = INDEXES[name]?.[indexName]
             return {
+              // The first matching record's key, or undefined -- what
+              // `noteHasUnsentWork` asks the outbox's `byNote` index (added
+              // wave 7 D-G5: without it every question through the REAL
+              // `openNotebookDb` threw, and the predicate read "unreadable").
+              getKey(range) {
+                const req = { result: undefined }
+                queue(() => {
+                  const wanted = range?.__only
+                  const hit = [...map().values()].find((r) => r[field] === wanted)
+                  req.result = hit ? hit[keyPath] : undefined
+                  req.onsuccess?.()
+                })
+                return req
+              },
               openCursor(range) {
                 const req = { result: null }
                 queue(() => {

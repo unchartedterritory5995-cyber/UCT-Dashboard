@@ -39,7 +39,7 @@ import {
 } from '../../lib/offline/useDurableNote'
 import { useBlockedNotes } from '../../lib/offline/useBlockedNotes'
 import { blockedLabel, unsyncedLabel, OFFLINE_VIEWING_BANNER } from '../../lib/offline/unsyncedCopy'
-import { usableBaseline, isUsableBaseline } from '../../lib/offline/baseline'
+import { usableBaseline, isUsableBaseline, isSupersededBaseline } from '../../lib/offline/baseline'
 import { settleNoteWrite } from '../../lib/offline/settleNoteWrite'
 import { baseHasNoBody, sameAuthoredContent } from '../../lib/offline/recoverLocalState'
 import {
@@ -573,7 +573,12 @@ export default function NoteEditorPage({ noteId, onBack, showBack = true, onTitl
   // (the server already has this content) instead of racing a stale
   // baseUpdatedAt into a spurious 409, or re-PUTting content that's already
   // saved.
-  const onVersionRestored = (restoredNote) => {
+  //
+  // ⭐ Wave 7 whole-branch fix, ruling D-G5: this is THE path by which the open
+  // editor adopts a server copy of the same note, so it is named for that --
+  // a version restore and the clean editor's re-read on return (below, beside
+  // the Delete gate) both go through it, never through a second copy.
+  const adoptServerCopy = (restoredNote) => {
     if (!restoredNote) return
     const t = restoredNote.title || ''
     const s = restoredNote.subtitle || ''
@@ -597,6 +602,7 @@ export default function NoteEditorPage({ noteId, onBack, showBack = true, onTitl
       /* editor view not mounted yet -- next note-open effect will still show it */
     }
   }
+  const onVersionRestored = adoptServerCopy
 
   // ── Export + share (post-v1 round 2) ──────────────────────────────────────
   const columnRef = useRef(null)
@@ -2907,6 +2913,71 @@ export default function NoteEditorPage({ noteId, onBack, showBack = true, onTitl
     }
     return false
   }
+
+  // ⭐⭐ Ruling D-G5 (wave 7 whole-branch fix, frontend review I-3) — A CLEAN OPEN EDITOR RE-READS
+  // ITS NOTE WHEN THE MEMBER COMES BACK, AND ADOPTS A NEWER SERVER COPY.
+  //
+  // ⚰️ The editor adopted a server body only when the note id changed, and the single-note SWR does
+  // not revalidate on focus. So after a personal-API or email-in append (no client, nothing told
+  // this tab), the member's next keystroke saved against the pre-append base, 409'd, and the
+  // classifier -- F5-frozen, merging only widgetEmbed / financialFact / documentExcerpt -- read the
+  // appended paragraph as a BODY_REWRITE and FORKED a note whose tab held no unsent words at all.
+  //
+  // On `visibilitychange` (to visible) or window `focus`, an editor that is CLEAN re-reads the note
+  // and, when the server's revision is NEWER than its own baseline, adopts it through
+  // `adoptServerCopy` -- the path a version restore takes. CLEAN is every witness the Delete gate
+  // asks, plus the save machinery: nothing typed since the last landed save (`unsentInEditor`), no
+  // save pending, retrying or on the wire, no recovery decision on screen, and nothing unsent for
+  // the note by the offline layer's own predicate (`noteHasUnsentWork`: not dirty, nothing queued;
+  // an unreadable store is not known to be clean). The sync half is asked again after the read, so
+  // a word typed while it was on the wire keeps today's behaviour.
+  //
+  // ⛔ An editor HOLDING unsent words is untouched: its save 409s and the note forks, never
+  // clobbered. ⛔ No F5-frozen file is involved; the revision is ANOTHER writer's, so it is not
+  // recorded as landed. Rail: NoteEditorPage.cleanReread.test.jsx.
+  const rereadInFlightRef = useRef(false)
+  const rereadCleanNoteRef = useRef(null)
+  rereadCleanNoteRef.current = async () => {
+    const ed = editorRef.current
+    const editorIsClean = () => Boolean(
+      ed && editorRef.current === ed && !ed.isDestroyed && ed.isEditable && !isUnreadable(ed)
+      && hydratedRef.current && !saveTimerRef.current && !retryTimerRef.current
+      && !saveInFlightRef.current && unsentInEditor().length === 0,
+    )
+    if (rereadInFlightRef.current || !noteId || pendingAdoption || pendingDraft || !editorIsClean()) return
+    rereadInFlightRef.current = true
+    try {
+      if (holdsUnsentWork(await unsentVerdict())) return
+      const fresh = (await refresh())?.note
+      if (!fresh || fresh.id !== noteId || !editorIsClean()) return
+      // Our baseline is older than the server's revision -- PARSED, never string-compared, and an
+      // unparseable revision on either side is not newer (lib/offline/baseline.js).
+      if (!isSupersededBaseline(lastSavedRef.current.updatedAt, fresh.updatedAt)) return
+      const { from, to } = ed.state.selection
+      adoptServerCopy(fresh)
+      // The caret stays where the member left it (clamped into the new document), so the next
+      // keystroke lands there rather than wherever a whole-document swap put it. Focus untouched.
+      try {
+        const size = ed.state.doc.content.size
+        const $at = (p) => ed.state.doc.resolve(Math.max(0, Math.min(size, p)))
+        ed.view.dispatch(ed.state.tr.setSelection(TextSelection.between($at(from), $at(to))))
+      } catch { /* a caret that cannot be placed is left where the swap put it */ }
+    } catch {
+      /* a failed re-read changes nothing: the next save reconciles exactly as it always did */
+    } finally {
+      rereadInFlightRef.current = false
+    }
+  }
+  useEffect(() => {
+    const onVisible = () => { if (document.visibilityState !== 'hidden') rereadCleanNoteRef.current?.() }
+    const onFocus = () => { rereadCleanNoteRef.current?.() }
+    document.addEventListener('visibilitychange', onVisible)
+    window.addEventListener('focus', onFocus)
+    return () => {
+      document.removeEventListener('visibilitychange', onVisible)
+      window.removeEventListener('focus', onFocus)
+    }
+  }, [])
 
   const ToolButton = ({ active, onClick, label, title }) => (
     <button
