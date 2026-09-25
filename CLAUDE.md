@@ -437,7 +437,9 @@ trades (`imported:true` flag + `coach_prompts.py` rule).
   idempotency guard against concurrent syncs of one account) · `recent_orders._last_poll`
   (SnapTrade's contractual ≤1 poll/5min/account) · `manual_refresh._last_trigger`
   (BILLED refresh calls) · `notifications._failure_pinged` + `_spike_pinged` (alert
-  dedup) · `partner_health._cache`. Durable equivalents exist where a repeat is
+  dedup) · `partner_health._cache` · `notebook_link_preview._inflight` / `_SEM` / `_cache`
+  (wave 6: the per-member link-preview cap and the preview slot valve — a second
+  instance doubles both). Durable equivalents exist where a repeat is
   genuinely costly (`j2_broker_member_stale_notify` for member email,
   `j2_broker_digest_dedup` for the owner digest) — extend that pattern rather than
   adding new module dicts if the web pod ever goes multi-instance.
@@ -3577,7 +3579,7 @@ exactly as it did before K.
   rate, and `tools/window_check.py` now stamps that reading — reporting **absent**
   and **off** as different facts, because a pod predating K serves no keys at all.
 
-### 📓 Notebook 10/10 program — waves 5–6: wave 5 COMPLETE (awaiting the owner's PR), wave 6 in build, 2026-09-24
+### 📓 Notebook 10/10 program — waves 5–6: #187 + #183 LIVE, #186 (wave 5) awaiting the owner's merge, wave 6 at its final gate, 2026-09-25
 
 ⭐⭐ **READ `docs/notebook/wave5-6-RESUME-HERE.md` FIRST** — it is the checkpoint
 for this program and carries exact SHAs and the next actions in order. This
@@ -3585,22 +3587,40 @@ section is a pointer, not a substitute for it. `docs/notebook/RESUME-PROMPT.md`
 is a paste-ready prompt covering the whole program.
 
 Two worktrees: `C:\Users\Patrick\uct-worktrees\notebook-k` (`feat/notebook-10`,
-wave 5, tip `34f3fb6d2`, pushed) and `C:\Users\Patrick\uct-worktrees\notebook-w6`
-(`feat/notebook-w6`, wave 6, carries all of wave 5's code via merge `07e1a74ae`;
-behind wave 5 only by four docs/evidence commits). Plan:
-`docs/notebook/NOTEBOOK-10-OF-10-PLAN.md`.
+wave 5, tip `145478ec1`, **PR #186 open, gated green, awaiting the owner's
+`gh pr merge 186 --squash`**) and `C:\Users\Patrick\uct-worktrees\notebook-w6`
+(`feat/notebook-w6`, wave 6, carries wave 5 + master `74beea1d2` via merges
+`07e1a74ae`/`1a4a64988`). Plan: `docs/notebook/NOTEBOOK-10-OF-10-PLAN.md`.
 
-✅ **Wave 5 is reviewed (incl. the B1 re-review), gated on its final tip
-(`8f963fefa`, 0 NEW) and walked live on that tip (`f8976a114`, all 19 checks).**
-The one open item is the OWNER opening the PR from `feat/notebook-10` — `gh` is
-unauthenticated on this box. ⛔ The three never-revert commits `8167f7aa0`,
-`fd87271fd`, `82c56dd63` and the rule for them are in `docs/notebook/wave5-rollback.md`.
+✅ **Merged and LIVE on production (2026-09-24):** #187 (the H14 metadata-settle
+hotfix, master `d4a1a13b6`) and #183 (Ask on phones / paste / citations / G-064
+insert dark, master `a3d9f5a1e`; production fast-forwarded past it to `74beea1d2`).
+⛔ The three never-revert commits `8167f7aa0`, `fd87271fd`, `82c56dd63` are tagged
+(`notebook-wave5-guard-*`) and the rule is `docs/notebook/wave5-rollback.md`.
 
-⛔ **`tools/notebook_wave5_walk.py` is the walk that produced the evidence** — its
-header names the three preconditions (a sandbox from the tip; a PAID walk account
-on that data dir, or every notebook route redirects; `app/dist` rebuilt). The walk
-failed three times on the INSTRUMENT before the product passed once; the lessons
-are in the resume doc §11.
+🔁 **Wave 6 (`feat/notebook-w6`)**: lanes D, D3b, E, F all built, task-reviewed and
+fix-rounded; the whole-branch review (0 Critical, 4 Important → fixed) and the
+combined re-review are done; the last small round, the final six-shard gate, the
+live walk (`tools/notebook_wave6_walk.py`) on the final tip and the PR are what
+remain — the resume doc §5 has the order. Wave 6 adds eight schema level-2 node
+types (both `lib/notebookSchema.js` and `notebook_schema.py`) — **never-revert**,
+same rule as wave 5's.
+
+⛔ **A gate never shares a worktree with an implementer.** A six-shard gate checks
+UNCOMMITTED files at both ends, so an agent's first new test file voids it (measured
+2026-09-25, `TREE_DRIFT`). Gate a branch under active work from a separate worktree
+of the commit under test — and give that worktree a `notebook-*` BRANCH name
+(`git checkout -B notebook-w6-gate <sha>`), because `hub/rule12Paths.test.js` scopes
+the Notebook workstream out by branch-name family and a DETACHED checkout has no
+name: two phantom NEW rows, measured the same night. A `node_modules` junction to
+`notebook-k`'s install is enough; remove it with a NON-recursive delete only.
+
+⛔ **`tools/notebook_wave5_walk.py` / `notebook_wave6_walk.py` are the walks that
+produce the evidence** — their headers name the preconditions (a sandbox from the
+tip; a PAID walk account on that data dir, or every notebook route redirects;
+`app/dist` rebuilt). ⚠️ Pass the sandbox data dir from PowerShell or single-quoted:
+`C:\data-w6walk` through the Bash tool became a drive-relative `data-w6walk/` INSIDE
+the worktree (the launcher's guard held; `C:\data` read CLEAN at every checkpoint).
 
 ⛔⛔ **The SDD ledger for this program lives at
 `notebook-k/.superpowers/sdd/2026-09-23-notebook-10/` and is gitignored — local

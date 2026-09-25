@@ -13,12 +13,27 @@
  *
  * This file stubs everything NotebookTab needs to render EXCEPT
  * `NoteEditorPage` itself, mounts two REAL locked notes side by side
- * (`?note=n1&side=n2`, desktop), and drives the menu's Unlock in each pane —
- * the mutation the brief asks for must fail on the 409/base, never on
- * `isEditable`, so `isEditable` is checked only as a precondition, and every
- * assertion that decides the test is the PUT's own body and the conflict
- * counter.
+ * (`?note=n1&side=n2`, desktop), and drives the menu's Unlock in each pane.
+ *
+ * WHAT IT PROVES, per pane: unlock from the menu → a keystroke → the autosave
+ * PUT carries the POST-unlock revision (`baseUpdatedAt === T2[id]`) and no 409
+ * happens.
+ *
+ * ⭐ WHY IT CAN TELL THE TWO DOORS APART (wave 6 fix round 4, R4-1). The note
+ * the editor sees is the harness's SERVER copy (`SERVERS[id]`), and `refresh`
+ * re-reads it — as `useJ2Note`'s SWR `mutate()` does. So a pane whose menu is
+ * NOT wired to the editor's own `unlockNote` still ends editable: the thin
+ * `setNoteLock` door lands the PATCH, the refresh shows `locked: false`, the
+ * member can type — and the first save goes out on the PRE-unlock revision
+ * and is refused as a conflict. That is the member-visible defect, and it is
+ * what reds here: cut either pane's `onUnlock` and the test fails on the
+ * PUT's `baseUpdatedAt` / the conflict counter, not on `isEditable`.
+ * ⚰️ Until round 4 the harness served a STATIC `locked: true` copy and a
+ * no-op `refresh`, so the thin door could never make the editor editable and
+ * a cut wire failed on `isEditable` — before either assertion this header
+ * claimed decided the test.
  */
+import { useCallback, useReducer } from 'react'
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest'
 import { render, screen, act, fireEvent, waitFor, within } from '@testing-library/react'
 import { MemoryRouter } from 'react-router-dom'
@@ -41,8 +56,7 @@ const baseNote = (id, label) => ({
   isFavorite: false, locked: true, bodyJson: bodyFor(label),
 })
 
-let NOTES // { n1, n2 } — the static payload useJ2Note hands the editor
-let SERVERS // { n1, n2 } — the mutable "server" state update()/fetch act on
+let SERVERS // { n1, n2 } — the "server" copy: what useJ2Note serves and what update()/fetch act on
 let REV // { n1, n2 } — a monotonic revision counter per note
 let CONFLICTS // { n1: 0, n2: 0 }
 const updateMock = vi.fn() // records [noteId, patch] for every call, either note
@@ -60,26 +74,32 @@ vi.mock('../hooks/useJ2Notes', () => ({
     notes: [], isLoading: false, error: null, refresh: vi.fn(),
     mutate: vi.fn(), total: 0, hasMore: false, loadMore: vi.fn(), isLoadingMore: false,
   }),
-  useJ2Note: (noteId) => ({
-    note: NOTES[noteId],
-    isLoading: false,
-    error: null,
-    update: async (patch) => {
-      updateMock(noteId, patch)
-      const server = SERVERS[noteId]
-      if (patch && 'baseUpdatedAt' in patch && patch.baseUpdatedAt !== server.updatedAt) {
-        CONFLICTS[noteId] += 1
-        const err = new Error('conflict')
-        err.status = 409
-        throw err
-      }
-      const { baseUpdatedAt, ...fields } = patch || {}
-      REV[noteId] += 1
-      SERVERS[noteId] = { ...server, ...fields, updatedAt: `2026-09-24T14:${10 + REV[noteId]}:00.000000+00:00` }
-      return { ...SERVERS[noteId] }
-    },
-    refresh: vi.fn(),
-  }),
+  useJ2Note: (noteId) => {
+    // `refresh` re-reads the server copy, like SWR's `mutate()`: it re-renders
+    // the editor, which then sees whatever the PATCH/PUT left in SERVERS.
+    const [, reread] = useReducer((n) => n + 1, 0)
+    const refresh = useCallback(async () => { reread() }, [])
+    return {
+      note: SERVERS[noteId],
+      isLoading: false,
+      error: null,
+      update: async (patch) => {
+        updateMock(noteId, patch)
+        const server = SERVERS[noteId]
+        if (patch && 'baseUpdatedAt' in patch && patch.baseUpdatedAt !== server.updatedAt) {
+          CONFLICTS[noteId] += 1
+          const err = new Error('conflict')
+          err.status = 409
+          throw err
+        }
+        const { baseUpdatedAt, ...fields } = patch || {}
+        REV[noteId] += 1
+        SERVERS[noteId] = { ...server, ...fields, updatedAt: `2026-09-24T14:${10 + REV[noteId]}:00.000000+00:00` }
+        return { ...SERVERS[noteId] }
+      },
+      refresh,
+    }
+  },
   recordNoteOpened: vi.fn(),
   setNoteFavorite: vi.fn(),
 }))
@@ -100,8 +120,7 @@ import NotebookTab from './NotebookTab'
 
 let factory
 beforeEach(() => {
-  NOTES = { n1: baseNote('n1', 'Main'), n2: baseNote('n2', 'Side') }
-  SERVERS = { n1: { ...NOTES.n1 }, n2: { ...NOTES.n2 } }
+  SERVERS = { n1: baseNote('n1', 'Main'), n2: baseNote('n2', 'Side') }
   REV = { n1: 0, n2: 0 }
   CONFLICTS = { n1: 0, n2: 0 }
   updateMock.mockReset()
