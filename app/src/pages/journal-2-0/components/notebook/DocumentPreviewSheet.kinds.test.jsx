@@ -119,7 +119,10 @@ describe('DocumentPreviewSheet — an image document', () => {
     unmount()
     serve({ docs: [row({ status: 'no_text', pagesWithText: 0 })], pages: { 1: '' } })
     render(<DocumentPreviewSheet open href={IMG} documentId="d1" onClose={vi.fn()} />)
-    expect(await screen.findByText('No text could be read from this image.')).toBeInTheDocument()
+    // ⛔ Fix round 1, M-9: `no_text` is also what an image never read (no
+    // engine) lands as, so the sentence must not claim a reading happened.
+    expect(await screen.findByText('This image has no searchable text.')).toBeInTheDocument()
+    expect(screen.queryByText(/could(n’t| not) be read/)).not.toBeInTheDocument()
   })
 })
 

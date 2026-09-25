@@ -2,7 +2,7 @@ import { useCallback, useState } from 'react'
 import useSWR from 'swr'
 import TileCard from '../../../components/TileCard'
 import UIcon from '../../../components/ui/UIcon'
-import styles from './PersonalApiCard.module.css'
+import styles from './InboundEmailCard.module.css'
 
 /**
  * Wave 7 lane G (G3) — Settings → Email to Notebook: the member's private

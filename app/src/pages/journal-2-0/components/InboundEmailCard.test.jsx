@@ -1,7 +1,12 @@
 import { fireEvent, render, screen, waitFor } from '@testing-library/react'
+import fs from 'node:fs'
+import path from 'node:path'
+import { fileURLToPath } from 'node:url'
 import { SWRConfig } from 'swr'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import InboundEmailCard from './InboundEmailCard'
+
+const HERE = path.dirname(fileURLToPath(import.meta.url))
 
 // Wave 7 lane G (G3) — Settings → Email to Notebook. Asserted by rendered text.
 
@@ -55,5 +60,19 @@ describe('InboundEmailCard', () => {
     renderCard()
     expect(await screen.findByText('Email to Notebook needs a paid plan.')).toBeInTheDocument()
     expect(screen.queryByRole('textbox')).not.toBeInTheDocument()
+  })
+
+  it('styles itself from its OWN stylesheet, which defines every class it uses', () => {
+    // Fix round 1, M-13: it borrowed PersonalApiCard.module.css, so a style
+    // change to one card moved the other.
+    const src = fs.readFileSync(path.join(HERE, 'InboundEmailCard.jsx'), 'utf8')
+    expect(src).toMatch(/from '\.\/InboundEmailCard\.module\.css'/)
+    expect(src).not.toMatch(/PersonalApiCard\.module\.css/)
+    const css = fs.readFileSync(path.join(HERE, 'InboundEmailCard.module.css'), 'utf8')
+      .replace(/\/\*[\s\S]*?\*\//g, '')
+    const used = [...new Set([...src.matchAll(/styles\.([A-Za-z0-9_]+)/g)].map(m => m[1]))]
+    expect(used.length).toBeGreaterThan(3)          // control: the scan found the classes
+    const missing = used.filter(c => !new RegExp(`\\.${c}\\b`).test(css))
+    expect(missing).toEqual([])
   })
 })

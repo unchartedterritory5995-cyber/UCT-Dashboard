@@ -13,7 +13,7 @@ import styles from './ImageDocumentViewer.module.css'
  * the pane is labelled as read text with the one actionable hint — check exact
  * figures against the image — and never presented as the image's own content.
  *
- * ⛔ EVERY STATE IS A SENTENCE. "Still reading", "nothing could be read", "OCR
+ * ⛔ EVERY STATE IS A SENTENCE. "Still reading", "no searchable text", "OCR
  * isn't available here" and "couldn't load" are different facts, and a blank
  * pane would make all four look like the same broken panel.
  */
@@ -89,7 +89,11 @@ const ImageDocumentViewer = forwardRef(function ImageDocumentViewer(
           </p>
         )}
         {state === 'empty' && (
-          <p className={styles.status} role="status">No text could be read from this image.</p>
+          // ⛔ NEUTRAL ON PURPOSE (fix round 1, M-9). With no OCR engine wired,
+          // an image lands `no_text` without ever being read, and the row
+          // carries no "never read" signal -- so this cannot claim an attempt
+          // ("could not be read") that may never have happened.
+          <p className={styles.status} role="status">This image has no searchable text.</p>
         )}
         {state === 'failed' && (
           <p className={styles.status} role="status">
