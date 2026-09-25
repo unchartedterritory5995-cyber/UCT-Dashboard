@@ -78,6 +78,11 @@ describe('the Timeline view mode', () => {
     })
   })
 
+  // ⚠️ A UNIT check of the restore branch: the sidebar is mocked and hands a
+  // hand-built view, so this cannot see the row a member clicks or the list the
+  // server serves. That door — the real FolderSidebar row, a server-shaped
+  // list, a fresh mount, every saveable mode — is NotebookTab.savedViewRestore
+  // .test.jsx (wave 6 fix round 5, R5-2).
   it('a saved timeline REOPENS as a timeline, with that view’s settings', () => {
     renderTab()
     fireEvent.click(screen.getByRole('button', { name: 'open saved timeline' }))
