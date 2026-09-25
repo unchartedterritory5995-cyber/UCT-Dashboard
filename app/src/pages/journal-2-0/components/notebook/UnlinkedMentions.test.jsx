@@ -6,6 +6,7 @@ const navSpy = vi.fn()
 vi.mock('react-router-dom', () => ({ useNavigate: () => navSpy }))
 
 import UnlinkedMentions from './UnlinkedMentions'
+import { SplitViewContext, NotePaneContext } from '../../lib/splitView'
 
 const PAYLOAD = {
   title: 'Cup and handle',
@@ -93,6 +94,47 @@ describe('UnlinkedMentions', () => {
     for (const [, init] of fetchSpy.mock.calls) {
       expect((init?.method || 'GET').toUpperCase()).toBe('GET')
     }
+  })
+
+  // Wave 7 carry-over M-3: "Open" follows the split view like every other
+  // note link inside a pane (NoteBacklinksSection, NoteLinkView,
+  // RelationPropertyValue) -- a bare navigate() replaced the WHOLE split with
+  // the opened note and closed the side pane the member was working in.
+  it('opens in THIS pane when the page is split, and never replaces the route', async () => {
+    respond(PAYLOAD)
+    const paneOpen = vi.fn()
+    render(
+      <SWRConfig value={{ provider: () => new Map(), dedupingInterval: 0 }}>
+        <SplitViewContext.Provider value={{ canSplit: true, openToSide: vi.fn() }}>
+          <NotePaneContext.Provider value={{ pane: 'side', open: paneOpen }}>
+            <UnlinkedMentions noteId="n1" />
+          </NotePaneContext.Provider>
+        </SplitViewContext.Provider>
+      </SWRConfig>,
+    )
+    fireEvent.click(await screen.findByText('Unlinked mentions (2)'))
+    fireEvent.click(screen.getByRole('button', { name: 'Open Setups' }))
+    expect(paneOpen).toHaveBeenCalledWith('b2')
+    expect(navSpy).not.toHaveBeenCalled()
+  })
+
+  it('opens BESIDE on Ctrl/Cmd+click where the page can split', async () => {
+    respond(PAYLOAD)
+    const openToSide = vi.fn()
+    render(
+      <SWRConfig value={{ provider: () => new Map(), dedupingInterval: 0 }}>
+        <SplitViewContext.Provider value={{ canSplit: true, openToSide }}>
+          <UnlinkedMentions noteId="n1" />
+        </SplitViewContext.Provider>
+      </SWRConfig>,
+    )
+    fireEvent.click(await screen.findByText('Unlinked mentions (2)'))
+    fireEvent.click(screen.getByRole('button', { name: 'Open Tuesday' }), { ctrlKey: true, button: 0 })
+    expect(openToSide).toHaveBeenCalledWith('a1')
+    expect(navSpy).not.toHaveBeenCalled()
+    // Control: a plain click on the same row still takes the route.
+    fireEvent.click(screen.getByRole('button', { name: 'Open Tuesday' }))
+    expect(navSpy).toHaveBeenCalledWith('/journal/notebook?note=a1')
   })
 
   it('renders nothing without a note id and never fetches', () => {

@@ -1,8 +1,7 @@
 import useSWR from 'swr'
-import { useNavigate } from 'react-router-dom'
 import CollapsibleSection from '../CollapsibleSection'
 import UIcon from '../../../../components/ui/UIcon'
-import { notePath } from '../../../../hooks/useNoteBacklinks'
+import { useNoteNavigation } from '../../lib/splitView'
 import styles from './UnlinkedMentions.module.css'
 
 /**
@@ -34,7 +33,10 @@ export default function UnlinkedMentions({ noteId }) {
     revalidateOnFocus: false,
     shouldRetryOnError: false,
   })
-  const navigate = useNavigate()
+  // Wave 7 (M-3): the one way a note link inside the Notebook opens a note --
+  // this pane when the page is split, beside on Ctrl/Cmd+click, else the route.
+  // A bare navigate() replaced the whole split and closed the side pane.
+  const go = useNoteNavigation()
   const notes = data?.notes ?? []
   const count = data?.count ?? 0
   if (!key || isLoading || error || count === 0 || notes.length === 0) return null
@@ -68,7 +70,7 @@ export default function UnlinkedMentions({ noteId }) {
               <button
                 type="button"
                 className={styles.open}
-                onClick={() => navigate(notePath(n.id))}
+                onClick={(e) => go(n.id, e)}
                 aria-label={`Open ${n.title}`}
               >
                 <UIcon name="chevronRight" size={12} gold={false} style={{ verticalAlign: '-2px', marginRight: 4 }} />
