@@ -1,0 +1,17 @@
+{
+  "suite": "pytest",
+  "collected": 2970,
+  "passed": 2965,
+  "failed": 3,
+  "errored": 0,
+  "skipped": 2,
+  "wall_s": 414.97,
+  "failed_files": [
+    "tests/test_alert_taxonomy_indicator_condition_schema.py",
+    "tests/test_alert_taxonomy_position_risk_schema.py",
+    "tests/test_ask_document_navigation.py"
+  ],
+  "totals_line_found": true,
+  "runner_line": "3 failed, 2965 passed, 2 skipped, 6 warnings in 414.97s (0:06:54)",
+  "ok": true
+}
