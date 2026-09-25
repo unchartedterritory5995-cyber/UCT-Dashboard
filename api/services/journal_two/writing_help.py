@@ -80,6 +80,9 @@ BUDGET_SENTENCE = "You've used today's writing help — it resets at midnight ET
 SHARED_CAP_SENTENCE = ("Writing help has reached today's limit for everyone — it resets "
                        "at midnight ET. Your own allowance is untouched.")
 BUSY_SENTENCE = "You already have an answer in progress — wait for it to finish."
+# A body that is not a JSON object (whole-branch review M-1): refused like
+# every other bad request, as a sentence -- never FastAPI's error list.
+BAD_BODY_SENTENCE = "Writing help couldn't read that request. Reload the page and try again."
 FAILED_SENTENCE = "Something went wrong writing that. Nothing was changed in your note."
 
 

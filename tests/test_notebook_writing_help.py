@@ -182,6 +182,38 @@ def test_DARK_gate_off_is_404_before_the_note_is_read_or_a_reservation_spent(app
     assert seen == [] and stub["client"].calls == []
 
 
+def test_DARK_a_malformed_body_is_still_404(app, client, monkeypatch, stub):
+    """Whole-branch review M-1 (backend) / tests M-1. ⚰️ The route declared the
+    body as a PARAMETER, and FastAPI decodes a declared JSON body before it
+    solves the router's gate dependency: a malformed body answered 422
+    `json_invalid` with the gate OFF -- an answer a route that does not exist
+    never gives (lane G's own words for the personal API's M-1)."""
+    monkeypatch.delenv(GATE, raising=False)
+    _as_member(app, "u1")
+    r = client.post(URL.format("n"), content=b"{", headers={"Content-Type": "application/json"})
+    assert r.status_code == 404 and r.json() == {"detail": "Not Found"}
+    assert stub["client"].calls == []
+
+
+def test_LIT_a_malformed_body_is_a_422_SENTENCE_not_fastapis_error_list(app, client, gate_on, stub, db_path):
+    """The other half: with the gate on, a body that is not JSON is refused the
+    way every other bad request here is -- one sentence, nothing charged."""
+    _as_member(app, "u1")
+    n = _note("u1")
+    for raw in (b"{", b"[1, 2]", b'"text"'):
+        r = client.post(URL.format(n["id"]), content=raw, headers={"Content-Type": "application/json"})
+        assert r.status_code == 422, raw
+        assert r.json() == {"detail": wh.BAD_BODY_SENTENCE}, raw
+    assert note_ask.writing_help_used("u1") == 0 and stub["client"].calls == []
+
+
+def test_the_body_is_read_AFTER_the_member_is_known(app, client, gate_on, stub):
+    """Auth first, body second (the personal API's order): a signed-out caller
+    is refused as signed out, whatever it sent."""
+    r = client.post(URL.format("n"), content=b"{", headers={"Content-Type": "application/json"})
+    assert r.status_code == 401
+
+
 @pytest.mark.parametrize("raw", ["0", "false", "off", "no", "", "flase"])
 def test_every_off_value_and_every_typo_is_OFF(app, client, monkeypatch, raw):
     monkeypatch.setenv(GATE, raw)

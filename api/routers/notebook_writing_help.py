@@ -30,7 +30,7 @@ import json
 import time
 from typing import Any
 
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Request
 from fastapi.responses import StreamingResponse
 from starlette.background import BackgroundTask
 from starlette.concurrency import run_in_threadpool
@@ -74,10 +74,45 @@ def _sse(event: dict[str, Any]) -> str:
     return f"data: {json.dumps(event)}\n\n"
 
 
+# Far past any body `parse_request` can accept (20,000 characters of text,
+# JSON-escaped), so a real request never meets it; it bounds what is BUFFERED.
+_MAX_BODY_BYTES = 1024 * 1024
+
+
+async def _read_payload(request: Request, _user: dict = Depends(require_paid)) -> dict[str, Any]:
+    """The JSON body, read INSIDE the dependency chain (whole-branch review M-1).
+
+    ⚰️ The route declared `payload: dict | None = None` as a body PARAMETER, and
+    FastAPI decodes a declared JSON body before it solves the router's gate
+    dependency: with the gate OFF a malformed body answered 422 `json_invalid`,
+    an answer a route that does not exist never gives (the personal API's M-1,
+    repeated here). Now the order is the gate (router level), the member
+    (`require_paid`, this dependency's own sub-dependency), then the body --
+    and a body that is not a JSON object is a 422 SENTENCE like every other
+    bad request here."""
+    chunks: list[bytes] = []
+    total = 0
+    async for chunk in request.stream():
+        total += len(chunk)
+        if total > _MAX_BODY_BYTES:
+            raise HTTPException(status_code=422, detail=wh.TOO_LONG_SENTENCE)
+        chunks.append(chunk)
+    raw = b"".join(chunks)
+    if not raw.strip():
+        return {}
+    try:
+        body = json.loads(raw)
+    except ValueError:
+        raise HTTPException(status_code=422, detail=wh.BAD_BODY_SENTENCE) from None
+    if not isinstance(body, dict):
+        raise HTTPException(status_code=422, detail=wh.BAD_BODY_SENTENCE)
+    return body
+
+
 @router.post("/notes/{note_id}/writing-help/stream")
 async def writing_help_stream(
     note_id: str,
-    payload: dict[str, Any] | None = None,
+    payload: dict[str, Any] = Depends(_read_payload),
     user: dict = Depends(require_paid),
 ):
     user_id = user["id"]
