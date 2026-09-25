@@ -45,6 +45,12 @@ appends each checkpoint to its integrity log. The harness therefore:
     `--hold-past-prewarm` also waits for +120 s.
   * reads the integrity log, prints `SANDBOX INTEGRITY: ...` first, and WITHHOLDS every
     timing when the log is missing, a checkpoint is absent, or any checkpoint is not CLEAN.
+    That holds in BOTH modes: `--base` needs pre-boot, +15 s AND shutdown CLEAN in its
+    `--integrity-log` too, so after its run it waits (`--shutdown-wait`, default 300 s) for
+    the operator to stop that sandbox and its shutdown checkpoint to land.
+  * a sign-in, comp or seed failure is not a measurement: the first line reads
+    `SANDBOX INTEGRITY: NOT RUN (<reason>)` (still followed by the sandbox's own checkpoints)
+    and the exit is 3, never 1 ("a budget breached").
 Logs go next to `--json` when given, else into a fresh temp directory (never the cwd).
 
 Accounts: it signs up the sandbox admin (the launcher's ADMIN_EMAILS default,
@@ -58,7 +64,8 @@ notes through POST /api/j2/notes. Nothing is written except through the app's ow
 
 Exit: 0 = within budget; 1 = a budget breached; 2 = INCONCLUSIVE (nothing trustworthy was
 measured, including every run whose sandbox integrity did not close CLEAN); 3 = refused
-(bad args, a data dir in the shared root, a busy port).
+or not run (bad args, a data dir in the shared root, a busy port, or the measurement could not
+start: sign-in, comp or seeding failed).
 """
 from __future__ import annotations
 
@@ -89,6 +96,12 @@ PRE_BOOT = "pre-boot (baseline)"
 POST_BOOT = "post-boot (+15s)"
 PREWARM = "post-prewarm (+120s)"
 SHUTDOWN = "shutdown"
+# How long a --boot run waits for the launcher's +15 s / +120 s checkpoints before stopping it,
+# and how long a --base run waits for its sandbox's shutdown checkpoint by default. Read at call
+# time, so a rail can shorten them.
+POST_BOOT_WAIT_S = 60.0
+PREWARM_WAIT_S = 200.0
+BASE_SHUTDOWN_WAIT_S = 300.0
 ADMIN_EMAIL, ADMIN_PW = "hubtest@local.dev", "LocalTest2026!"
 PERF_EMAIL, PERF_PW = "w7perf@local.dev", "LocalTest2026!"
 SHARED_ROOTS = ("c:\\data", "/data")
@@ -278,11 +291,14 @@ def read_integrity(path: str | os.PathLike | None, required: list[str]) -> dict:
     return {**out, "status": "CLEAN", "clean": True, "why": ""}
 
 
-def integrity_line(integ: dict, note: str = "") -> str:
-    """The harness's FIRST output line. Names every checkpoint it saw, and the ones it did not."""
+def integrity_line(integ: dict, note: str = "", not_run: str | None = None) -> str:
+    """The harness's FIRST output line. Names every checkpoint it saw, and the ones it did not.
+    `not_run` (the measurement never started) leads the line, and the sandbox's own checkpoints
+    still follow it: a sandbox that booted still owes its snapshot verdict (CLAUDE.md)."""
     seen = ", ".join(f'{c["label"]} {c["verdict"]}' for c in integ["checkpoints"]) or "no checkpoints"
     files = sorted({c["db_files"] for c in integ["checkpoints"]})
-    parts = [f"SANDBOX INTEGRITY: {integ['status']} -- {seen}"]
+    parts = [f"SANDBOX INTEGRITY: NOT RUN ({not_run}) -- the sandbox's checkpoints: "
+             f"{integ['status']} -- {seen}" if not_run else f"SANDBOX INTEGRITY: {integ['status']} -- {seen}"]
     if files:
         parts.append(f"{'/'.join(str(f) for f in files)} db files hashed")
     if integ.get("why"):
@@ -391,7 +407,22 @@ class Sandbox:
         if self.proc.poll() is not None:
             self.stop_how = f"exited-on-its-own (rc {self.proc.returncode})"
             return self.stop_how
-        self.proc.send_signal(signal.CTRL_BREAK_EVENT if os.name == "nt" else signal.SIGINT)
+        try:
+            self.proc.send_signal(signal.CTRL_BREAK_EVENT if os.name == "nt" else signal.SIGINT)
+        except (OSError, ValueError) as e:
+            # No console to deliver CTRL_BREAK to (a scheduled task, pythonw): the graceful stop
+            # cannot even be asked for. Without this the raise would leave `finally` before any
+            # kill and orphan the launcher on its port. Fall through to the last resort, said so
+            # in the verdict line; the run then has no shutdown checkpoint and is withheld.
+            self.proc.terminate()
+            try:
+                self.proc.wait(timeout=30)
+            except subprocess.TimeoutExpired:
+                self.proc.kill()
+                self.proc.wait()
+            self.stop_how = (f"FORCED: the stop signal could not be delivered "
+                             f"({type(e).__name__}: {e}); terminated")
+            return self.stop_how
         end, checkpoint_at = time.time() + grace_s, None
         while time.time() < end:
             rc = self.proc.poll()
@@ -416,12 +447,18 @@ class Sandbox:
         return self.stop_how
 
 
+class SetupFailed(Exception):
+    """The measurement could not start (sign-in, comp or seeding failed). An ordinary
+    exception, never SystemExit: main() must still stop the sandbox, print the integrity
+    line first, and exit 3 (not run), never 1 (a budget breached)."""
+
+
 def _signup_or_login(req, base: str, email: str, pw: str, name: str) -> None:
     r = req.post(base + "/api/auth/signup", data={"email": email, "password": pw, "display_name": name})
     if r.status not in (200, 201):
         r = req.post(base + "/api/auth/login", data={"email": email, "password": pw})
     if r.status not in (200, 201):
-        raise SystemExit(f"could not sign in {email}: HTTP {r.status}")
+        raise SetupFailed(f"could not sign in {email}: HTTP {r.status}")
 
 
 def _provision(admin_req, member_req, base: str) -> None:
@@ -434,7 +471,7 @@ def _provision(admin_req, member_req, base: str) -> None:
     v = admin_req.post(base + "/api/auth/admin/verify-email", data={"email": PERF_EMAIL})
     me = member_req.get(base + "/api/auth/me").json()
     if not me.get("paid_equiv"):
-        raise SystemExit(f"perf account is not paid-equivalent (comp HTTP {c.status}, verify HTTP {v.status}) "
+        raise SetupFailed(f"perf account is not paid-equivalent (comp HTTP {c.status}, verify HTTP {v.status}) "
                          "-- every notebook route would redirect and every number would be a redirect")
 
 
@@ -444,7 +481,7 @@ def _seed(req, base: str, sizes: list[int], run: str) -> dict[int, tuple[str, st
         doc, marker = paragraphs_doc(n, f"{run}-{n}")
         r = req.post(base + "/api/j2/notes", data={"title": f"perf {run} {n}", "bodyJson": doc})
         if r.status not in (200, 201):
-            raise SystemExit(f"seeding a {n}-paragraph note failed: HTTP {r.status} {r.text()[:200]}")
+            raise SetupFailed(f"seeding a {n}-paragraph note failed: HTTP {r.status} {r.text()[:200]}")
         out[n] = (r.json()["note"]["id"], marker)
     return out
 
@@ -576,6 +613,9 @@ def main(argv: list[str] | None = None) -> int:
                     help="with --base: that sandbox's own integrity log (docs/plans/joystick/sandbox-runs/*.md)")
     ap.add_argument("--hold-past-prewarm", action="store_true",
                     help="with --boot: also wait for the launcher's +120 s checkpoint before stopping it")
+    ap.add_argument("--shutdown-wait", type=float, default=None,
+                    help="with --base: seconds to wait, after the run, for that sandbox's shutdown "
+                         f"checkpoint (default {BASE_SHUTDOWN_WAIT_S:.0f}); stop the sandbox to supply it")
     ap.add_argument("--dry-run", action="store_true")
     args = ap.parse_args(argv)
     if args.dry_run:
@@ -594,7 +634,7 @@ def main(argv: list[str] | None = None) -> int:
         return 3
     home, stem = _log_home(args.json_path)
     base = args.base
-    live, failure = None, None
+    live, failure, not_run = None, None, None
     if args.boot:
         why = refuse_shared_root(args.data_dir or "")
         if why:
@@ -613,12 +653,14 @@ def main(argv: list[str] | None = None) -> int:
             else:
                 try:
                     live = run_live(base, sizes, args.opens, args.chars)
+                except SetupFailed as e:
+                    not_run = str(e)[:300]
                 except Exception as e:  # noqa: BLE001 -- recorded, and the sandbox is still stopped
                     failure = f"the live run raised {type(e).__name__}: {str(e)[:300]}"
                 # Never stop the launcher before its +15 s checkpoint: a short run waits for it.
-                box.wait_checkpoint(POST_BOOT, 60)
+                box.wait_checkpoint(POST_BOOT, POST_BOOT_WAIT_S)
                 if args.hold_past_prewarm:
-                    box.wait_checkpoint(PREWARM, 200)
+                    box.wait_checkpoint(PREWARM, PREWARM_WAIT_S)
         finally:
             box.stop()
         required = [PRE_BOOT, POST_BOOT, SHUTDOWN] + ([PREWARM] if args.hold_past_prewarm else [])
@@ -627,24 +669,44 @@ def main(argv: list[str] | None = None) -> int:
     else:
         try:
             live = run_live(base, sizes, args.opens, args.chars)
+        except SetupFailed as e:
+            not_run = str(e)[:300]
         except Exception as e:  # noqa: BLE001
             failure = f"the live run raised {type(e).__name__}: {str(e)[:300]}"
-        required = [PRE_BOOT, POST_BOOT] + ([PREWARM] if args.hold_past_prewarm else [])
+        # The same three checkpoints as --boot (review N-4): a sandbox this harness did not
+        # start has not written its shutdown line yet, so wait for its operator to stop it.
+        # Only a run with numbers to release waits; a failed or unstarted one is withheld anyway.
+        wait_s = BASE_SHUTDOWN_WAIT_S if args.shutdown_wait is None else args.shutdown_wait
+        labels = lambda: [c["label"] for c in read_integrity(args.integrity_log, [])["checkpoints"]]  # noqa: E731
+        if (live is not None and not failure and wait_s > 0 and Path(args.integrity_log).is_file()
+                and SHUTDOWN not in labels()):
+            print(f"(waiting up to {wait_s:.0f} s for the shutdown checkpoint in {args.integrity_log}: "
+                  "stop that sandbox now; no timing is reported without it)", file=sys.stderr)
+            end = time.time() + wait_s
+            while time.time() < end and SHUTDOWN not in labels():
+                time.sleep(1.0)
+        required = [PRE_BOOT, POST_BOOT, SHUTDOWN] + ([PREWARM] if args.hold_past_prewarm else [])
         integ = read_integrity(args.integrity_log, required)
-        note = ("shutdown checkpoint pending: this sandbox is still running and is not this "
-                "harness's to stop")
+        note = "--base: the sandbox was started and stopped by its operator, not by this harness"
     if integ["path"] and Path(integ["path"]).is_file():
         integ["copy"] = str(home / f"{stem}.integrity.md")
         shutil.copyfile(integ["path"], integ["copy"])
-    first = integrity_line(integ, note)
+    first = integrity_line(integ, note, not_run=not_run)
     print(first)  # ⛔ FIRST, before any number (CLAUDE.md, sandbox boots)
     sha = subprocess.run(["git", "-C", str(REPO), "rev-parse", "HEAD"], capture_output=True,
                          text=True).stdout.strip() or None
     out = {"tool": "tools/notebook_perf_harness.py", "git_head": sha, "base": base,
            "sizes": sizes, "opens": args.opens, "chars": args.chars, "integrity": integ}
+    if not_run:
+        # Not a measurement at all, so not INCONCLUSIVE (2) and never "a budget breached" (1).
+        out.update({"timings": "WITHHELD", "not_run": not_run})
+        if args.json_path:
+            Path(args.json_path).write_text(json.dumps(out, indent=1), encoding="utf-8")
+        print(f"VERDICT: NOT RUN -- the measurement could not start: {not_run}")
+        return 3
     if not integ["clean"] or failure or live is None:
-        why = (f"sandbox integrity is {integ['status']}" if not integ["clean"] else failure
-               or "nothing was measured")
+        why = "; ".join([f"sandbox integrity is {integ['status']}"] * (not integ["clean"])
+                        + [failure] * bool(failure)) or "nothing was measured"
         out["timings"] = "WITHHELD"
         out["why"] = why
         if args.json_path:

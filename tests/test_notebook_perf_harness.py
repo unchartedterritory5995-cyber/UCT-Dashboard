@@ -183,6 +183,142 @@ def test_a_dirty_checkpoint_withholds_every_timing(tmp_path, monkeypatch, capsys
     assert (tmp_path / "run" / "editor.sandbox.log").is_file()
 
 
+# ── fix round 2: every non-CLEAN integrity status withholds, in both modes (N-1, N-4) ─────────
+
+def _no_timing_rows(lines: list[str]) -> bool:
+    return not any("| note_open |" in ln or "| typing_per_char |" in ln or "p95" in ln for ln in lines)
+
+
+def _write_log(path: Path, labels: list[str]) -> str:
+    for label in labels:
+        drs.append_log(str(path), label, "FAKE", 1, [])
+    return str(path)
+
+
+def test_a_missing_post_boot_checkpoint_withholds_every_timing(tmp_path, monkeypatch, capsys):
+    """N-1, INCOMPLETE: the stand-in writes its +15 s line only after 30 s, the harness waits 1 s
+    for it, stops the launcher (whose shutdown line IS written), and must still report nothing."""
+    monkeypatch.setattr(h, "BOOT_SCRIPT", _fake_launcher(tmp_path))
+    monkeypatch.setattr(h, "run_live", _canned_live)
+    monkeypatch.setattr(h, "POST_BOOT_WAIT_S", 1.0)
+    monkeypatch.setenv("FAKE_LAUNCHER_POST_BOOT_DELAY", "30")
+    out_json = tmp_path / "run" / "editor.json"
+    rc = h.main(["--boot", "--data-dir", str(tmp_path / "data"), "--port", str(_free_port()),
+                 "--sizes", "1000", "--json", str(out_json), "--md", "-"])
+    lines = capsys.readouterr().out.splitlines()
+    assert lines[0].startswith("SANDBOX INTEGRITY: INCOMPLETE"), lines
+    assert f"{h.SHUTDOWN} CLEAN" in lines[0] and repr(h.POST_BOOT) in lines[0], lines[0]
+    assert rc == 2, lines
+    assert _no_timing_rows(lines), lines
+    rec = json.loads(out_json.read_text(encoding="utf-8"))
+    assert rec["timings"] == "WITHHELD" and "raw" not in rec and "rows" not in rec, rec
+
+
+def test_a_missing_integrity_log_withholds_every_timing(tmp_path, monkeypatch, capsys):
+    """N-1, MISSING: --base pointed at an integrity log that does not exist."""
+    monkeypatch.setattr(h, "run_live", _canned_live)
+    out_json = tmp_path / "run" / "editor.json"
+    rc = h.main(["--base", "http://127.0.0.1:1", "--integrity-log", str(tmp_path / "nope.md"),
+                 "--shutdown-wait", "0", "--sizes", "1000", "--json", str(out_json), "--md", "-"])
+    lines = capsys.readouterr().out.splitlines()
+    assert lines[0].startswith("SANDBOX INTEGRITY: MISSING"), lines
+    assert rc == 2, lines
+    assert _no_timing_rows(lines), lines
+    rec = json.loads(out_json.read_text(encoding="utf-8"))
+    assert rec["timings"] == "WITHHELD" and rec["integrity"]["status"] == "MISSING", rec
+
+
+def test_base_mode_withholds_until_its_sandbox_has_a_shutdown_checkpoint(tmp_path, monkeypatch, capsys):
+    """N-4: a --base run whose sandbox has only pre-boot and +15 s is INCOMPLETE, like --boot."""
+    monkeypatch.setattr(h, "run_live", _canned_live)
+    log = _write_log(tmp_path / "integrity.md", [h.PRE_BOOT, h.POST_BOOT])
+    rc = h.main(["--base", "http://127.0.0.1:1", "--integrity-log", log, "--shutdown-wait", "0",
+                 "--sizes", "1000", "--json", str(tmp_path / "run" / "editor.json"), "--md", "-"])
+    lines = capsys.readouterr().out.splitlines()
+    assert lines[0].startswith("SANDBOX INTEGRITY: INCOMPLETE") and "'shutdown'" in lines[0], lines
+    assert rc == 2 and _no_timing_rows(lines), lines
+
+
+def test_base_mode_waits_for_the_shutdown_checkpoint_then_reports(tmp_path, monkeypatch, capsys):
+    """N-4, the other half: the shutdown line lands WHILE the harness waits, so the run reports."""
+    import threading
+    monkeypatch.setattr(h, "run_live", _canned_live)
+    log = _write_log(tmp_path / "integrity.md", [h.PRE_BOOT, h.POST_BOOT])
+    timer = threading.Timer(1.5, lambda: drs.append_log(log, h.SHUTDOWN, "FAKE", 1, []))
+    timer.start()
+    try:
+        rc = h.main(["--base", "http://127.0.0.1:1", "--integrity-log", log, "--shutdown-wait", "30",
+                     "--sizes", "1000", "--json", str(tmp_path / "run" / "editor.json"), "--md", "-"])
+    finally:
+        timer.cancel()
+    captured = capsys.readouterr()
+    lines = captured.out.splitlines()
+    assert lines[0].startswith("SANDBOX INTEGRITY: CLEAN") and f"{h.SHUTDOWN} CLEAN" in lines[0], lines
+    assert any(ln.startswith("| note_open |") for ln in lines[1:]), lines
+    assert rc == 0, lines
+    assert "waiting up to 30 s for the shutdown checkpoint" in captured.err, captured.err
+
+
+# ── fix round 2: a run that could not start is NOT RUN, exit 3 (N-3) ────────────────────────
+
+class _RefusingRequests:
+    """A Playwright APIRequestContext stand-in whose every call answers HTTP 500."""
+
+    class _R:
+        status = 500
+
+        def text(self):
+            return "no"
+
+    def post(self, *a, **k):
+        return self._R()
+
+
+def test_a_sign_in_failure_is_not_run_and_exits_3(tmp_path, monkeypatch, capsys):
+    """The failure comes from the REAL `_signup_or_login` raise site, so a revert of that raise
+    to SystemExit escapes main() and reds this rail, as does dropping main()'s own catch."""
+    def live_that_cannot_sign_in(base, sizes, opens, chars):
+        h._signup_or_login(_RefusingRequests(), base, h.PERF_EMAIL, h.PERF_PW, "w7perf")
+        raise AssertionError("unreachable: the sign-in above must refuse")
+
+    monkeypatch.setattr(h, "BOOT_SCRIPT", _fake_launcher(tmp_path))
+    monkeypatch.setattr(h, "run_live", live_that_cannot_sign_in)
+    out_json = tmp_path / "run" / "editor.json"
+    rc = h.main(["--boot", "--data-dir", str(tmp_path / "data"), "--port", str(_free_port()),
+                 "--sizes", "1000", "--json", str(out_json), "--md", "-"])
+    lines = capsys.readouterr().out.splitlines()
+    assert lines[0].startswith("SANDBOX INTEGRITY: NOT RUN (could not sign in w7perf@local.dev"), lines
+    assert "stop: graceful" in lines[0] and f"{h.SHUTDOWN} CLEAN" in lines[0], lines[0]
+    assert rc == 3, lines
+    assert _no_timing_rows(lines), lines
+    rec = json.loads(out_json.read_text(encoding="utf-8"))
+    assert rec["timings"] == "WITHHELD" and "could not sign in" in rec["not_run"], rec
+
+
+# ── fix round 2: a stop signal that cannot be delivered still stops the launcher ──────────
+
+def test_an_undeliverable_stop_signal_falls_through_to_terminate(tmp_path, monkeypatch):
+    monkeypatch.setattr(h, "BOOT_SCRIPT", _fake_launcher(tmp_path))
+    port = _free_port()
+    box = h.Sandbox(str(tmp_path / "data"), port, tmp_path / "launcher.log")
+    box.start()
+    try:
+        assert box.wait_healthy(f"http://127.0.0.1:{port}", 60)
+
+        def no_console(sig):
+            raise OSError(6, "The handle is invalid")
+
+        monkeypatch.setattr(box.proc, "send_signal", no_console)
+        how = box.stop(grace_s=30)
+    finally:
+        if box.proc.poll() is None:  # the guard under test failed: never orphan the stand-in
+            box.proc.kill()
+            box.proc.wait()
+    assert box.proc.poll() is not None, "the launcher is still running"
+    assert how.startswith("FORCED") and "could not be delivered" in how and "OSError" in how, how
+    assert h.read_integrity(box.integrity_path(), ALL)["status"] == "INCOMPLETE"
+
+
 @pytest.mark.skipif(os.name != "nt", reason="the SIGBREAK re-raise is Windows-only")
 def test_without_the_shim_the_launcher_dies_before_its_checkpoint(tmp_path, monkeypatch):
     """Control for the shim: launched bare, CTRL_BREAK reaches uvicorn, which re-raises it onto
