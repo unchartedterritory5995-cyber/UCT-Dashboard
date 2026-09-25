@@ -8906,7 +8906,16 @@ export class Resolver {
           // through `assertUsableWindow`, which names the value AND the source
           // expression the member wrote. That is a better sentence than this one
           // could ever have been, because it can quote a number.
-          if (isBindFoldableLength(resolved)) {
+          //
+          // ⛔ BUT A LITERAL HAS NO BINDING TO WAIT FOR. `bindFoldableWindow` answers
+          // `foldable` for ANY finite `num`, so `plot(ta.wma(close, 27.5))` was deferred
+          // too — the door said "translates" with no offer, and the bind stage then
+          // refused a number that was already on the page. Nothing about a literal
+          // improves at the stage; what is lost is this refusal's `suggest` (the
+          // copyable `hma(close, 55)` a member can act on). Deferral is for lengths
+          // that DEPEND on a binding; a literal is refused here, now, with its advice.
+          // (2026-09-24, red sweep: pineBoxSuggestVoice ×3 + ImportBox.thinkscript.)
+          if (resolved.type !== 'num' && isBindFoldableLength(resolved)) {
             out.push(resolved)
             continue
           }
