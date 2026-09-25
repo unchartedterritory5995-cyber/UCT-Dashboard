@@ -59,11 +59,10 @@ Both worktrees' own `CLAUDE.md` carry a pointer section (search "Notebook
   with no 409 and no fork. Confirmed on production source (`5fd248c40`), reproduced with the real
   drain on identical source, gate proven both ways by mutation on master's own code (the first
   green was VACUOUS — a missing `METADATA_ONLY` import made the predicate throw; the CONTROL caught
-  it). **Every Notebook deploy (#183, wave 5) is HELD behind this hotfix.** Its six-shard gate ran
-  (1723 files reconcile) but against master's STALE baseline record (10 failures) — the 139 "NEW"
-  are master's own reds; a pristine detached worktree `master-baseline-73a4286d0` is measuring the
-  true baseline; then adopt it into the hotfix tree and re-run for an official manifest. PR draft:
-  `.superpowers/sdd/2026-09-23-notebook-10/hotfix-metadata-settle-PR-draft.md`.
+  it). **Every Notebook deploy (#183, wave 5) is HELD behind this hotfix.** **PR #187 is READY**: master's own baseline was measured on a pristine detached worktree at
+  `73a4286d0` (126 rows, adopted as `ac128755d`, with the two gate-parser fixes cherry-picked), and the
+  official six-shard gate on that tip is **0 NEW** (manifest `2163e5dcf`). Merge order: **#187 → #183 →
+  #186**. PR body = `.superpowers/sdd/2026-09-23-notebook-10/hotfix-metadata-settle-PR-draft.md`.
 
 ## 3. What's actually done (wave 5) — everything
 
