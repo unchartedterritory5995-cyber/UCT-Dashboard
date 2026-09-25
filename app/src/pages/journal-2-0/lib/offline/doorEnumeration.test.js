@@ -345,7 +345,9 @@ describe('⛔⛔ DOOR ENUMERATION — derived from the code, in both directions'
       'api/services/journal_two/inbound_email.py':
         'create_note, then update_note(expected_updated_at) for the attachment nodes; no client to settle',
       'api/services/journal_two/note_daily.py':
-        'wave 6: create-if-missing behind journal_two\'s /notes/daily, whose client settles the answer (rail ③ covers that route)',
+        'wave 6: create-if-missing behind journal_two\'s /notes/daily, whose client settles the answer (rail ③ covers that route); '
+        + 'since wave 7 ALSO reached from note_personal_api.append_to_daily (POST /api/j2/personal/daily), which has NO client: '
+        + 'the day\'s note is created, then appended through note_personal_api\'s own row, and nothing settles either write',
     }
     const found = []
     for (const p of [...walk(join(API, 'routers')), ...walk(join(API, 'services', 'journal_two'))]) {
@@ -360,6 +362,24 @@ describe('⛔⛔ DOOR ENUMERATION — derived from the code, in both directions'
       .toContain('api/services/journal_two/note_daily.py')
     expect(found.sort(), '⛔ a server-side note writer outside journal_two.py has no ledger row (or a row names a file that no longer writes)')
       .toEqual(Object.keys(LEDGER).sort())
+
+    // ⛔ Wave 7 whole-branch fix (backend review M-8): the rail matches FILES, not callers, so
+    // a row's settle story can go stale while the file set stays green -- note_daily's row said
+    // its only caller has a client after lane G made `append_to_daily` (no client) reach it
+    // too. Every module that imports note_daily is now named in note_daily's row.
+    const DAILY = 'api/services/journal_two/note_daily.py'
+    const dailyCallers = []
+    for (const p of walk(API)) {
+      if (!p.endsWith('.py') || isTest(p) || rel(p) === DAILY) continue
+      const src = readFileSync(p, 'utf8')
+      if (/^\s*from\s+[\w.]+\s+import\s+[^\n]*\bnote_daily\b|^\s*import\s+[\w.]*\bnote_daily\b/m.test(src)) {
+        dailyCallers.push(rel(p).split('/').pop().replace(/\.py$/, ''))
+      }
+    }
+    expect(dailyCallers, '⛔ the note_daily caller walk found nothing — the matcher is broken, not the tree')
+      .toContain('journal_two')
+    const unnamed = dailyCallers.filter((mod) => !LEDGER[DAILY].includes(mod))
+    expect(unnamed, '⛔ a module reaches note_daily and its ledger row does not say so').toEqual([])
   })
 
   it('③ CLIENT: every write to a door route lands its revision, or is a NAMED exception', () => {
