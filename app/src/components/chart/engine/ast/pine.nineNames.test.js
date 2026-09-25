@@ -133,6 +133,7 @@ describe('⭐ `math.floor` PAID THE PRICE (2026-09-20) — it is declared and pi
     expect(TABLE.functions.floor.args).toEqual(['series'])
   })
 
+
   it('⭐ but the reading is banked, and it is the discriminating one', () => {
     expect(cap.readings['math.ceil'].at_negative_2p5).toBe(-2)
     expect(cap.readings['math.floor'].at_negative_2p5).toBe(-3)

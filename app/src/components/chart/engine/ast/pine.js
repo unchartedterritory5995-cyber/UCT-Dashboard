@@ -107,11 +107,17 @@ import { memberNumber } from './memberValue.js'
 // without Pine (the Builder-future-proofing rule this wave was given).
 import {
   collectObjectOps, CREATE_POSITIONAL, CELL_POSITIONAL, CLEAR_POSITIONAL,
+  OBJECT_NAMESPACES, OUT_OF_SCOPE_NAMESPACES,
 } from './pineObjects.js'
+// ⭐ Pine's method form. Only the SPLITTER is needed here: `mutatorTargets`
+// works on tokens rather than on parse nodes, and what it has to recognise is
+// that `a.push` names a receiver `a`. One splitter, so this file and the object
+// pass cannot disagree about what a receiver is.
+import { splitMethodName } from './ufcs.js'
 import {
   OBJECT_PROGRAM_VERSION, DEFAULT_OBJECT_LIMITS,
   FAMILY_PROPS as OBJECT_FAMILY_PROPS, CELL_PROPS as OBJECT_CELL_PROPS,
-  MAX_COLLECTION_CAP as MAX_OBJECT_COLLECTION_CAP,
+  MAX_COLLECTION_CAP as MAX_OBJECT_COLLECTION_CAP, OBJECT_VALUE_OPS,
 } from './objectProgram.js'
 
 // ⭐⭐ KIND 4 — the symbol-scoped vocabulary, as DATA. Every value in
@@ -257,6 +263,19 @@ export const REFUSALS = Object.freeze({
   // describes is this repo's most repeated defect and `NODE_TYPES` already owns it.
   'pine:type':
     'a user-defined type is outside the node shapes this engine stores',
+  // ⭐⭐ THE POSTFIX MEMBER'S OWN SENTENCE, and it exists because the honest
+  // answer changed. Before the postfix rule, `arr.get(i).delete()` was refused
+  // `pine:character` — "Pine has no character like this one" — about a dot every
+  // Pine author writes, which sends a member hunting for a typo in a line that
+  // has none. The construct now lexes and parses; what stops it is the RECEIVER'S
+  // TYPE, and Pine decides which family `.delete` belongs to from that type. This
+  // engine tracks no such type, so the sentence says so and names the spelling
+  // that works today rather than implying the script is malformed.
+  'pine:member':
+    'reading a member off the result of an expression needs the type of that '
+    + 'result, and Pine decides which family the member belongs to from it — '
+    + 'a type this engine does not track. Written with the receiver as the first '
+    + 'argument instead, the same call resolves',
   'pine:function-def':
     'a Pine function definition introduces a name this engine has nowhere to keep',
   'pine:tuple':
@@ -337,6 +356,13 @@ export const REFUSALS = Object.freeze({
     'this Pine name was never given a value in the pasted script',
   'pine:no-output':
     'the pasted script offers no plot and no alert condition to filter on',
+  // ⭐ A DIFFERENT FACT FROM `pine:no-output`, and the difference is the whole
+  // point: this script DRAWS — a table, a label, a box — and simply offers no
+  // numeric column a screen could filter on. Collapsing the two told the author
+  // of a working dashboard that their script produced nothing.
+  'pine:objects-only':
+    'this script draws objects — a table, labels or boxes — and offers no plot or '
+    + 'alert condition, so there is nothing to filter a scan on',
   // ⭐⭐ THE OUTCOME OOS-2 HAD NO WAY TO SAY. Two published indicators were
   // ACCEPTED whose every offered column was the chart's own price bars:
   // `plotcandle(open, high, low, close, color = <the whole indicator>)` expands
@@ -449,7 +475,10 @@ export const PER_ROW_PROMISE_GUARDS = Object.freeze(['pine:text-value'])
  *  as a single series would offer a member a quarter of a candle under the
  *  script's title. They keep refusing at `pine:no-output` until there is a
  *  multi-column output shape to land them in. */
-const OUTPUT_CALLS = Object.freeze({
+/** ⭐ EXPORTED so the RUNTIME lane can agree with this one about which calls
+ *  are outputs, rather than keeping a second opinion. See
+ *  `presentationOutputs.test.js` — the rail that compares the two sets. */
+export const OUTPUT_CALLS = Object.freeze({
   plot: 'series',
   alertcondition: 'condition',
   plotshape: 'series',
@@ -516,6 +545,116 @@ const PINE_TF_SPELLING = Object.freeze({
   D: 'D', '1D': 'D', W: 'W', M: 'M',
 })
 
+/** Every timeframe CODE this door recognises — DERIVED from the spelling map's
+ *  values rather than retyped, so a spelling that lands tomorrow is recognised by
+ *  the `timeframe.*` family on the same day. A code outside this set is not
+ *  classified, it is REFUSED: the three readers below answer `null` for it and
+ *  every caller falls through to the refusal it already had.
+ *
+ *  ⭐ That is the rule `indicators.js::timeframeFlags` already states for the
+ *  clock — *"`null` FOR AN UNKNOWN CODE, NEVER A GUESSED DEFAULT"* — applied to
+ *  the same question one namespace over. */
+const TF_CODES = Object.freeze(new Set(Object.values(PINE_TF_SPELLING)))
+
+/** ⭐⭐ WHICH CODES ARE A PLAIN NUMBER OF MINUTES. Pine spells an intraday
+ *  timeframe as the minute count itself (`"5"`, `"60"`), which is why
+ *  `timeframe.multiplier` and `timeframe.in_seconds` are ARITHMETIC over these
+ *  and a TABLE over the other three. Asked of the code, never of its shape at a
+ *  call site — `"1"` and `"1M"` differ by one character and mean a minute and a
+ *  month. */
+const isMinuteCode = (code) => typeof code === 'string' && /^[0-9]+$/.test(code)
+
+/** ⭐⭐ WHICH CODES ARE A NUMBER OF SECONDS. Pine spells a seconds timeframe as
+ *  the count followed by `S` (`"1S"`, `"30S"`), which is a spelling
+ *  `PINE_TF_SPELLING` does not currently hold — so this answers false for every
+ *  code the engine recognises today.
+ *
+ *  ⛔ IT IS A TEST, NOT A CONSTANT `false`, AND THE DIFFERENCE IS THE WHOLE
+ *  POINT. `timeframe.isseconds` is 0 on every chart this engine can render
+ *  BECAUSE THE SPELLING MAP HOLDS NO SECONDS CODE — so the day one lands, this
+ *  answers 1 without anyone remembering the name exists. A hard-coded 0 would
+ *  keep answering "not seconds" on a seconds chart, and these predicates are
+ *  branch conditions in a member's own script: a plausible-but-wrong answer
+ *  does not degrade the output, it INVERTS the branch. That is the same
+ *  reasoning `TF_SECONDS_DAILY_AND_ABOVE` records one screen up. */
+const isSecondsCode = (code) => typeof code === 'string' && /^[0-9]+S$/.test(code)
+
+/** ⭐⭐ ONE BAR OF `D`, `W` OR `M`, IN SECONDS — PINE'S DOCUMENTED CONSTANTS.
+ *
+ *  ⛔ NOT VENDOR-WITNESSED HERE, AND SAYING SO IS THE POINT. The intraday half of
+ *  `timeframe.in_seconds` is a derivation (minutes x 60) and needs no authority;
+ *  these three are a CONVENTION TradingView publishes — a day is 86,400 seconds,
+ *  a week is 7 of those, and a MONTH IS 30 DAYS, which is a choice rather than a
+ *  fact about any calendar. They are written as that arithmetic so the convention
+ *  is visible instead of arriving as three magic numbers, and
+ *  `pineTimeframeFamily.test.js` pins the relation.
+ *
+ *  ⚠️ A code with no entry here and no minute count answers `null` and REFUSES,
+ *  which is the direction a guess would be worst in: `timeframe.in_seconds` is
+ *  compared against literal second counts (`<= 3600`) all over the corpus, so a
+ *  plausible-but-wrong number does not degrade the answer, it INVERTS the branch
+ *  a member's script takes. */
+const TF_SECONDS_DAILY_AND_ABOVE = Object.freeze({
+  D: 24 * 60 * 60,
+  W: 7 * 24 * 60 * 60,
+  M: 30 * 24 * 60 * 60,
+})
+
+/** `timeframe.multiplier` for a code, or `null` when this engine does not hold
+ *  the code at all.
+ *
+ *  ⭐ Pine's own definition: the NUMBER in front of the unit. `"5"` is five
+ *  minutes so the multiplier is 5; `"D"`, `"W"` and `"M"` carry no number, so the
+ *  multiplier is 1 — the same answer Pine gives, for the same reason. */
+export function timeframeMultiplier(code) {
+  if (!TF_CODES.has(code)) return null
+  return isMinuteCode(code) ? Number(code) : 1
+}
+
+/** `timeframe.isminutes` — 1 when the chart's own code is a minute count, 0 when
+ *  it is `D`/`W`/`M`, `null` when this engine does not hold the code at all.
+ *
+ *  ⭐ IT ASKS THE SAME TEST `timeframeMultiplier` ASKS. "Is this a minute code"
+ *  has exactly one authority in this file and both readers use it, so the two
+ *  names can never disagree about what `"60"` is
+ *  (`lesson_a_second_authority_over_one_value`). */
+export function timeframeIsMinutes(code) {
+  if (!TF_CODES.has(code)) return null
+  return isMinuteCode(code) ? 1 : 0
+}
+
+/** `timeframe.isseconds` — 1 when the chart's own code is a seconds count,
+ *  `null` when this engine does not hold the code.
+ *
+ *  ⚠️ 0 FOR EVERY CODE THE ENGINE HOLDS TODAY, and derived rather than asserted
+ *  — see `isSecondsCode` for why that distinction is load-bearing. */
+export function timeframeIsSeconds(code) {
+  if (!TF_CODES.has(code)) return null
+  return isSecondsCode(code) ? 1 : 0
+}
+
+/** `timeframe.in_seconds(<code>)`, or `null` when the code is not one this engine
+ *  holds a length for. */
+export function timeframeSeconds(code) {
+  if (!TF_CODES.has(code)) return null
+  if (isMinuteCode(code)) return Number(code) * 60
+  return own(TF_SECONDS_DAILY_AND_ABOVE, code) ? TF_SECONDS_DAILY_AND_ABOVE[code] : null
+}
+
+/** ⭐⭐ THE BARS A TRANSLATION IS FOR, READ OFF ITS OPTIONS — ONE READER, TWO
+ *  LANES. `Resolver` answers `timeframe.period` with this, and the runtime front
+ *  end lowers the same name to the same string with it; two copies of
+ *  `opts.basePeriod || BASE_TF` would let `tf == 'D'` and
+ *  `request.security(sym, tf, x)` disagree about ONE name in ONE script, which
+ *  is the second-authority-over-one-value defect this file records more than any
+ *  other.
+ *
+ *  ⚠️ The DEFAULT is `BASE_TF`, which is derived rather than typed — see
+ *  `interpret.js`. It is not a guess: it is what the ladder says this engine is
+ *  handed. */
+export const basePeriodOf = (opts) =>
+  (opts && typeof opts.basePeriod === 'string' ? opts.basePeriod : BASE_TF)
+
 /** The spellings that mean “THIS chart's symbol”, across Pine versions.
  *
  *  ⚠️ `tickerid` AND `ticker` ARE THE v2/v3 NAMES for what v5 spells
@@ -534,7 +673,7 @@ const PINE_TF_SPELLING = Object.freeze({
  *  fixed for three lines away, left standing on the timeframe side; the symbol
  *  fix even documents the ordering rule that this line then ignored. Caught by a
  *  shadowing CONTROL, not by review — for the second time. */
-const OWN_TF_NAMES = new Set(['timeframe.period', 'period'])
+export const OWN_TF_NAMES = new Set(['timeframe.period', 'period'])
 
 const OWN_SYMBOL_NAMES = new Set([
   'syminfo.tickerid', 'syminfo.ticker', 'tickerid', 'ticker',
@@ -639,13 +778,37 @@ export const VALUE_NAMESPACES = Object.freeze(new Set(['ta', 'math']))
  * each of the TABLE's argument positions: `{pine: i}` takes Pine's i-th argument,
  * `{series: 'high'}` supplies a chart series Pine leaves implicit.
  *
- * ⛔ `ta.atr` IS ABSENT ON PURPOSE AND ITS ABSENCE IS A MEASUREMENT. Pine's
- * `ta.atr` is Wilder's RMA of true range; this table's `atr(h,l,c,n)` matches
+ * ⚰⚰ THIS SAID `ta.atr` WAS ABSENT ON PURPOSE, AND BOTH HALVES WERE WRONG.
+ *
+ * It read: *"`ta.atr` IS ABSENT ON PURPOSE… this table's `atr(h,l,c,n)` matches
  * NEITHER that (max difference 0.20) NOR a plain SMA of true range (0.21), so it
- * runs a third smoothing convention and a member reading Pine's number would get
- * a different one. It refuses at `pine:arity` today because the arities also
- * differ; if the arities ever agree it must still refuse until the conventions
- * are reconciled. Same reasoning holds for `ta.cci`, whose Pine definition is
+ * runs a third smoothing convention… It refuses at `pine:arity` today."*
+ *
+ * It is NOT a third convention. `closedTable.json`'s own standing answer says so
+ * and a Python rail proves it: the shipped column IS Wilder's original, matching
+ * an independent construction to 5.4e-16 over 565 bars. The 0.20 was the WARM-UP,
+ * not a convention — `pine.vendorParity.test.js` measures that same gap decaying
+ * geometrically to 7.47e-16 by bar 385. And `ta.atr` is neither absent nor
+ * refusing: the entry below has mapped it all along.
+ *
+ * ⭐⭐ WHAT IS TRUE, MEASURED AT THE VENDOR 2026-09-21, AND IT IS THE SEED.
+ * `ta.atr(n)` is defined as `ta.rma(ta.tr(true), n)`, and `tr(true)` counts bar 0
+ * as `high - low`, so TradingView emits at bar n-1 where this column emits at
+ * bar n. Captured on a 12M chart, the only SPY timeframe whose whole series fits
+ * one loaded window: `tests/fixtures/vendor/seed-warmup-spy-12m-2026-09-21.json`.
+ *
+ * ⛔⛔ CLOSING IT IS NOT A ONE-LINE CHANGE, AND THAT IS WHY IT IS STILL OPEN.
+ * Routing Pine to a separately-seeded column means declaring a name in
+ * `closedTable.json`, which the PYTHON lane mirrors in
+ * `api/services/ast_interpret.py` and which `screenerColumns.test.js` freezes
+ * for that lane to read — so a Pine script's screener column would change name
+ * with no Python implementation behind it. Measured cost of the attempt: 23 new
+ * test failures across the manifest count pins, the sentence round-trip, the
+ * vendor-note roster, the corpus snapshot and the frozen screener columns.
+ * Re-seeding the SHARED column instead is worse — it moves ThinkScript, the
+ * native indicators and the pattern engine's ATR levels, which the firm trades on.
+ * ⚠️ `ta.cci` IS STILL ABSENT and for its own reason — its Pine definition is
+ * built on an arbitrary `source` rather than on the typical price.
  * built on an arbitrary `source` rather than on the typical price.
  */
 /** ⭐⭐ PINE SPELLINGS THAT MAY OMIT A LEADING SOURCE, AND THE SERIES THAT FILLS IT.
@@ -1139,6 +1302,66 @@ export const BUILTIN_TIMEFRAME_ALIAS = Object.freeze({
   'timeframe.isintraday': 'isintraday',
 })
 
+/** ⭐⭐ `timeframe.multiplier` — A FIFTH KIND OF DOTTED NAME: a value the BARS
+ *  THIS TRANSLATION IS FOR settle, which is neither a constant, a calendar fact,
+ *  a column nor a symbol.
+ *
+ *  ⛔⛔ AND IT READS `this.basePeriod`, WHICH IS NOT A NEW AUTHORITY. That field
+ *  is already documented as *"THE BARS THIS TRANSLATION IS FOR"*, and this door
+ *  has ALREADY equated it with "the chart's own timeframe" for months:
+ *  `ownTimeframeOf` declares `timeframe.period` to name the chart's own
+ *  timeframe, and `securityAsNode` folds `request.security(own, <basePeriod>, x)`
+ *  to the identity on exactly that basis — the two spellings of one request.
+ *  Handing the same code back as a VALUE states what that equation already
+ *  assumed; a second source for "what timeframe is this" is precisely the defect
+ *  `lesson_a_second_authority_over_one_value` records.
+ *
+ *  ⛔ THE SHAPE IS `code -> number | null`, AND `null` REFUSES. Every reader here
+ *  falls through to the namespace guard's own sentence when the code is one this
+ *  engine does not hold — never to a plausible default, because these numbers are
+ *  compared against literals in a member's own script.
+ */
+export const BUILTIN_TIMEFRAME_SCALAR = Object.freeze({
+  'timeframe.multiplier': timeframeMultiplier,
+  // ⭐ THE UNIT PREDICATES ARE KIND 5 TOO, NOT CLOCK COLUMNS. The chart's
+  // timeframe does not change bar to bar, so they settle once for a binding
+  // exactly as `multiplier` does — which is why they need no manifest column
+  // and no alias. `timeframe.change` is the name that genuinely CANNOT fold
+  // this way, and `BUILTIN_TIMEFRAME_RULED` says so in its own words.
+  'timeframe.isminutes': timeframeIsMinutes,
+  'timeframe.isseconds': timeframeIsSeconds,
+})
+
+/** The `timeframe.*` names that arrive as CALLS. Their arity and their argument
+ *  handling live in `Resolver.timeframeCallOf`; this map is only the roster the
+ *  two hooks (name path and call path) consult, so neither can serve a name the
+ *  other refuses. */
+export const BUILTIN_TIMEFRAME_CALL = Object.freeze({
+  'timeframe.in_seconds': true,
+})
+
+/** 🔴 `timeframe.<name>` RULED ON BY NAME, with the reason — the same arrangement
+ *  `BUILTIN_RULED` and `symbolScope.json::unserved` keep, and it exists for the
+ *  same reason: once `timeframe.period`, `.multiplier` and `.in_seconds` resolve,
+ *  a generic *"the engine grammar does not hold this"* about the name beside them
+ *  teaches a reader to distrust every refusal in the file.
+ *
+ *  ⛔ `timeframe.change` IS NOT "NOT BUILT YET" — it is a PER-BAR EVENT. It is
+ *  true on the first bar of each new period of the timeframe it is handed, so it
+ *  is a column decided bar by bar rather than a value one binding settles. The
+ *  three names that now resolve are all constant for a binding; this one is not,
+ *  and folding it to either constant would be a confident wrong answer on every
+ *  bar. */
+export const BUILTIN_TIMEFRAME_RULED = Object.freeze({
+  'timeframe.change': 'it is true on the FIRST BAR OF EACH NEW PERIOD, so it is decided '
+    + 'bar by bar rather than settled once for a binding — unlike its siblings '
+    + '`timeframe.period`, `timeframe.multiplier` and `timeframe.in_seconds`, which '
+    + 'this engine does hold. Serving it needs a CLOCK COLUMN for "is this the first '
+    + 'bar of a new <tf>", which the manifest does not declare; folding it to a '
+    + 'constant would answer the same thing on every bar, which is the one answer it '
+    + 'is never allowed to give.',
+})
+
 /** ⭐⭐⭐ `barstate.<name>` — SERVED AS CLOCK COLUMNS ON THE HOST CONTRACT, and
  *  the roster is READ OFF `closedTable.json::_barstate` rather than typed here.
  *
@@ -1331,6 +1554,47 @@ export const PINE_TEXT_PREDICATE = Object.freeze({
  *  bare `pivothigh(...)` still resolves to this table's own function, unshifted,
  *  because a member typing the bare name in OUR box means OUR vocabulary — the
  *  same rule `ta.barssince` established. */
+/**
+ * ⛔⛔ SOURCE WITH COMMENTS AND STRING LITERALS BLANKED, FOR A LITERAL SCAN.
+ *
+ * Any scan that hunts a literal in Pine source must run over CODE, never prose.
+ * The counter-example is concrete: `// max_lines_count = 500 would be nice` set
+ * the drawing budget for real, because the scan that reads it ran over the raw
+ * text.
+ *
+ * ⭐ IT PRESERVES LENGTH AND LINE STRUCTURE — each blanked character becomes a
+ * space and a newline stays a newline — so an offset taken from the stripped
+ * text still points at the right place in the original. A stripper that
+ * collapsed would silently move every span computed from it.
+ *
+ * ⚠️ NOT A LEXER, AND IT DOES NOT NEED TO BE. It is deliberately the same shape
+ * as the strippers the census instruments use; a Pine string cannot contain a
+ * newline-escaped quote in a way that matters to a `max_*_count` scan.
+ */
+export function strippedForScan(src) {
+  const NL = String.fromCharCode(10)
+  const DQ = String.fromCharCode(34)
+  const SQ = String.fromCharCode(39)
+  const out = []
+  let quote = null
+  for (let i = 0; i < src.length; i += 1) {
+    const c = src[i]
+    if (quote) {
+      if (c === quote) quote = null
+      out.push(c === NL ? NL : ' ')
+      continue
+    }
+    if (c === DQ || c === SQ) { quote = c; out.push(' '); continue }
+    if (c === '/' && src[i + 1] === '/') {
+      while (i < src.length && src[i] !== NL) { out.push(' '); i += 1 }
+      out.push(NL)
+      continue
+    }
+    out.push(c)
+  }
+  return out.join('')
+}
+
 export const PINE_NAMESPACED_TREE = Object.freeze({
   'ta.pivothigh': (a) => pivotAtConfirmation('pivothigh', a),
   'ta.pivotlow': (a) => pivotAtConfirmation('pivotlow', a),
@@ -1375,7 +1639,72 @@ export const PINE_NAMESPACED_TREE = Object.freeze({
   // rewriting the tree drags the name across a classification boundary it should
   // never have crossed. The default belongs where arity is resolved — a facility
   // this engine does not have yet. Routed in `requests.md`.
+
+  // ─── ⭐⭐ THE FORMS THE VENDOR ANSWERED AND WE REFUSED ────────────────────
+  //
+  // `groupBVendorReadings.test.js` held these at `pine:arity` and recorded, in
+  // the same case, exactly what TradingView answers. Its comment said the
+  // refusal stood on a RULING rather than on missing evidence: *"a widening
+  // that needs its own decision. Until that ruling, the ONLY acceptable
+  // behaviour is a refusal."*
+  //
+  // ⭐ THE RULING IS IN — a pasted script must behave as it does on
+  // TradingView, so a form the vendor serves and we refuse is a difference a
+  // member can see. Each is served to the CAPTURED number, never to a reading
+  // of the reference manual.
+  //
+  // ⛔ BOTH ARE TRANSFORMS, which is the test the note directly above sets for
+  // this map (`ta.highest` was reverted from it for needing only a DEFAULT
+  // ARGUMENT). And that reversion's classification hazard was checked
+  // EMPIRICALLY, not by reading: `round`, `max`, `min` and `pow` are in neither
+  // `FINITE_WINDOW` (sma, wma, stdev, sum, dev, median, highest, lowest,
+  // highestbars, lowestbars) nor `CARRIED` (ema, rma, rising, falling,
+  // barssincePine), so membership reclassifies nothing.
+  //
+  // ⛔ EACH OWNS EVERY ARITY IT ACCEPTS, including the ones that already worked
+  // — a falsy return here is a refusal, so a builder that handled only its new
+  // shape would break the old one.
+
+  // `math.round(v, n)` ≡ round(v * pow(10, n)) / pow(10, n).
+  // ⭐ `pow` is a declared column, so the exponent may be ANY value — which is
+  // why this is not a folded `10 ** n`: that would need `n` at compile time and
+  // would refuse an input-driven precision Pine accepts.
+  // Vendor: `round(0.125, 2)` = 0.13, HALF AWAY FROM ZERO.
+  'math.round': (a) => {
+    // ⛔ ARITY 1 FALLS THROUGH — `null` means "not a shape I rewrite", and the
+    // ordinary resolution answers it exactly as it always did. Rebuilding it
+    // here as `cCall('round', …)` computed the same number and REPLACED a node
+    // the lane had already handled, which is how this broke `ta.atr` inside a
+    // request (see `math.max`).
+    if (a.length !== 2 || !a[0] || !a[1]) return null
+    const scale = cCall('pow', [cNum(10), a[1]])
+    return cOp('/', [cCall('round', [cOp('*', [a[0], scale])]), scale])
+  },
+
+  // `math.max(a, b, c, …)` ≡ max(max(a, b), c) … — a LEFT FOLD of the
+  // two-argument column. Vendor: max(5 args) = 5, min(5 args) = 1.
+  // ⛔ THE FOLD IS LEFT-ASSOCIATIVE AND THAT IS NOT ARBITRARY: `max` and `min`
+  // are associative, so every grouping computes the same number, but only one
+  // grouping HASHES the same — and a member who typed the nested form by hand
+  // must land on the tree the imported script produced (`astHash` equality is
+  // what makes the read-back worth having). Same argument the `ta.roc` note
+  // below makes about grouping.
+  'math.max': (a) => variadicFold('max', a),
+  'math.min': (a) => variadicFold('min', a),
 })
+
+/** `f(a, b, c, …)` onto a left-folded chain of this table's two-argument `f`. */
+function variadicFold(name, args) {
+  // ⛔⛔ TWO ARGUMENTS ARE NOT THIS FUNCTION'S BUSINESS, AND THE MEASUREMENT
+  // SAYS SO LOUDLY. `math.max(a, b)` has always resolved; folding it here
+  // produced the SAME number and a DIFFERENT node, and replacing a node the
+  // lane had already handled broke `ta.atr` inside a `request.security` and a
+  // stateful-UDF composition — three rails, none of them about `max`.
+  // ⭐ `null` is "not a shape I rewrite", so ordinary resolution answers it.
+  // Only the arity that used to REFUSE is rewritten here.
+  if (!Array.isArray(args) || args.length < 3 || args.some((x) => !x)) return null
+  return args.slice(1).reduce((acc, next) => cCall(name, [acc, next]), args[0])
+}
 
 /** `-<bars-fn>(src, n)` — Pine's non-positive offset from our positive distance.
  *
@@ -1402,7 +1731,13 @@ function pivotAtConfirmation(name, args) {
   const right = three ? args[2] : args[1]
   if (!right || right.type !== 'num' || !Number.isInteger(Number(right.value))
       || Number(right.value) < 0) {
-    return null
+    // ⭐ THE SENTENCE TRAVELS WITH THE BUILDER THAT NEEDS IT. It used to live at
+    // the single call site, so EVERY entry in `PINE_NAMESPACED_TREE` inherited a
+    // refusal about pivot bars — a one-argument `math.max` would have been told
+    // to "write `rightbars` as a plain whole number".
+    return { refusal: `\`${name}\` returns its value \`rightbars\` after the pivot, so this `
+      + 'engine has to know that number when it builds the formula — write it '
+      + 'as a plain whole number' }
   }
   const call = cCall(name, [src, left, right])
   return Number(right.value) === 0
@@ -1936,6 +2271,91 @@ const DIGIT = /[0-9]/
  * BRACKET DEPTH, and both are cleaner to read off a positioned token list than
  * off a stream with separators in it.
  */
+/** The only heads that may carry a type argument.
+ *
+ *  ⛔⛔ CLOSED ON PURPOSE, AND IT IS WHAT KEEPS COMPARISONS SAFE. `a < b > c` is
+ *  a legal chain and lexes exactly like a generic apart from its head token, so
+ *  "any ident followed by `<`" would rewrite arithmetic into a call — a
+ *  mistranslation that parses, lints, saves and scans. Only Pine's three
+ *  collection constructors and its three collection type names can be followed
+ *  by a type argument, so only those six are matched. */
+const GENERIC_CALL_HEADS = Object.freeze(new Set(['array.new', 'matrix.new', 'map.new']))
+const GENERIC_TYPE_HEADS = Object.freeze(new Set(['array', 'matrix', 'map']))
+
+/**
+ * Remove `<…>` type arguments, keeping the element type on the head token.
+ *
+ * ⚰️ WHAT IT COST TO LACK THIS: `array.new<string>()` and `array<string> x = …`
+ * came back as `pine:statement` — *"this Pine line is not a shape the translator
+ * reads"* — because `<` and `>` reach every consumer as comparisons and the
+ * statement never resolves. Both acceptance scripts of the RVOL slice build
+ * their watchlist that way, and the refusal named the LINE rather than the
+ * CAPABILITY, which is the difference between a dead end and a census row.
+ *
+ * ⭐ THE TYPE IS KEPT, NOT DISCARDED. `array<string>` and `array<float>` are
+ * different types and the typed-collection wave will need to know which, so the
+ * segment leaves the token stream (this grammar has no type arguments) and
+ * reappears as `head.typeArgs`. Dropping it outright would make that wave
+ * re-parse the source to recover something we already had in hand.
+ *
+ * ⭐ WHY THE LEXER. Both lanes call `lexPine`, so one normalisation here serves
+ * the translator and the runtime front end together; a fix inside either parser
+ * would leave the other unable to see the shape of the line.
+ *
+ * ⛔ AN UNTERMINATED `<` IS LEFT ALONE. A run with no matching `>` is not a type
+ * argument, and swallowing to end-of-input would turn a typo into a vanished
+ * line.
+ *
+ * @param {object[]} tokens the lexer's tokens
+ * @returns {object[]} a NEW array; the head token is copied before `typeArgs` is
+ *   attached, so nothing already holding a token sees it change.
+ */
+function stripTypeArguments(tokens) {
+  const out = []
+  for (let i = 0; i < tokens.length; i += 1) {
+    const head = tokens[i]
+    const next = tokens[i + 1]
+    const isCall = head.kind === 'ident' && GENERIC_CALL_HEADS.has(head.value)
+    const isDecl = head.kind === 'ident' && GENERIC_TYPE_HEADS.has(head.value)
+    if (!(isCall || isDecl) || !isPunct(next, '<')) { out.push(head); continue }
+
+    // The `>` that closes this `<`, counting nested pairs — `array<float>>` ends
+    // with two separate `>` tokens, which is why this counts rather than taking
+    // the first one it meets.
+    let depth = 0
+    let close = -1
+    const parts = []
+    let part = []
+    for (let j = i + 1; j < tokens.length; j += 1) {
+      const t = tokens[j]
+      if (isPunct(t, '<')) { depth += 1; if (depth > 1) part.push('<'); continue }
+      if (isPunct(t, '>')) {
+        depth -= 1
+        if (depth === 0) { close = j; break }
+        part.push('>')
+        continue
+      }
+      if (depth === 1 && isPunct(t, ',')) { parts.push(part.join('')); part = []; continue }
+      if (t.kind === 'ident' || t.kind === 'number') { part.push(String(t.value)); continue }
+      close = -2   // anything else means this was never a type argument
+      break
+    }
+    if (close < 0) { out.push(head); continue }
+    if (part.length) parts.push(part.join(''))
+
+    // ⛔ THE SHAPE AFTER THE `>` DECIDES IT. A constructor's type argument is
+    // followed by `(`; a declaration's is followed by the name being declared.
+    // Anything else is not a generic and is left exactly as it was.
+    const after = tokens[close + 1]
+    const good = isCall ? isPunct(after, '(') : !!(after && after.kind === 'ident')
+    if (!good) { out.push(head); continue }
+
+    out.push({ ...head, typeArgs: parts })
+    i = close
+  }
+  return out
+}
+
 export function lexPine(src) {
   const raw = String(src == null ? '' : src)
   // ⭐⭐ RISK-004 FIX (2026-09-06) — THE CANONICAL RAW↔NORMALIZED OFFSET
@@ -2010,9 +2430,22 @@ export function lexPine(src) {
     if (ch === '"' || ch === "'") {
       let j = i + 1
       let out = ''
+      // ⭐⭐ A PINE STRING MAY SPAN LINES, and this lexer used to stop at the
+      // first newline and then call the result unterminated. Measured on the
+      // corpus: 3 of 266 published scripts die here, all of them on a long
+      // `tooltip =` sentence wrapped across two lines — which TradingView
+      // accepts and writes itself.
+      //
+      // ⛔ THE LINE COUNTER MUST FOLLOW THE STRING. Consuming a newline without
+      // counting it would silently shift the reported line of EVERY refusal
+      // after it — turning a fix for a rare script into wrong locations for
+      // every script, which is the more expensive defect by far.
+      let newlines = 0
+      let lastBreak = -1
+      const eat = (k) => { if (text[k] === '\n') { newlines += 1; lastBreak = k } }
       while (j < text.length && text[j] !== ch) {
-        if (text[j] === '\\' && j + 1 < text.length) { out += text[j + 1]; j += 2; continue }
-        if (text[j] === '\n') break
+        if (text[j] === '\\' && j + 1 < text.length) { eat(j + 1); out += text[j + 1]; j += 2; continue }
+        eat(j)
         out += text[j]
         j += 1
       }
@@ -2022,6 +2455,8 @@ export function lexPine(src) {
       }
       tokens.push({ kind: 'string', value: out, line, column: col, index: i })
       i = j + 1
+      // ⭐ the token carries the line the string OPENED on; the counter moves on
+      if (newlines) { line += newlines; lineStart = lastBreak + 1 }
       continue
     }
 
@@ -2045,13 +2480,87 @@ export function lexPine(src) {
     if (IDENT_START.test(ch)) {
       let j = i
       while (j < text.length && IDENT_PART.test(text[j])) j += 1
-      while (text[j] === '.' && IDENT_START.test(text[j + 1] || '')) {
-        j += 1
+      // ⭐⭐ SPACES ARE ALLOWED AROUND THE DOT. Pine accepts `id .method(x)` and
+      // `data.HLmat .get(0, i)`; this rule required the dot to touch the name on
+      // both sides, so the dot fell through to punctuation, matched nothing, and
+      // raised *"Pine has no character like this one"* — pointing at a `.` in a
+      // script whose dots are all ordinary. Measured on the corpus: 20 of 266
+      // published scripts die on exactly this, the single largest lexical gap.
+      //
+      // ⛔ HORIZONTAL WHITESPACE ONLY — NEVER A NEWLINE. Joining across a line
+      // break would glue a name to whatever a continuation line starts with and
+      // invent a dotted name the author never wrote.
+      for (;;) {
+        let k = j
+        while (text[k] === ' ' || text[k] === '\t') k += 1
+        if (text[k] !== '.') break
+        let m = k + 1
+        while (text[m] === ' ' || text[m] === '\t') m += 1
+        if (!IDENT_START.test(text[m] || '')) break
+        j = m
         while (j < text.length && IDENT_PART.test(text[j])) j += 1
       }
-      tokens.push({ kind: 'ident', value: text.slice(i, j), line, column: col, index: i })
+      // ⛔ THE NAME IS NORMALISED, because every consumer downstream resolves a
+      // namespace by string prefix. Only ident characters, dots and the spaces
+      // just skipped can be in this span, so stripping horizontal whitespace
+      // cannot remove anything else.
+      const dotted = text.slice(i, j).replace(/[ \t]+/g, '')
+      tokens.push({ kind: 'ident', value: dotted, line, column: col, index: i })
       i = j
       continue
+    }
+
+    // ⭐⭐ POSTFIX MEMBER ACCESS — A `.` ON THE RESULT OF AN EXPRESSION.
+    //
+    // Pine allows a member read or a method call on ANY expression, not only on
+    // a name: `array.new_float(1).size()`, `htfFVGs.first().area.delete()`,
+    // `(l[1]).delete()`. The dotted-name rule above can only join two IDENTS, so
+    // every one of those sent the dot to punctuation, matched nothing, and blamed
+    // the character. Measured on the corpus: 23 of 266 published scripts die on
+    // exactly this — the single largest blocker in the object lane.
+    //
+    // ⛔⛔ IT IS A POSTFIX, AND THE PRECEDING TOKEN IS THE WHOLE TEST. Lexing a
+    // bare `.` as punctuation everywhere would break the two neighbouring rules
+    // this lexer already pays for:
+    //   · `x\n.foo` MUST still refuse at the dot. A newline never joins a member
+    //     to a receiver — joining one would invent a name the author never wrote,
+    //     and `x` + `.foo` are two complete statements at the same indent.
+    //   · `math .max` is ONE dotted name, handled by the ident rule above, which
+    //     runs first and consumes it — so nothing here can change that answer.
+    // A postfix dot is therefore admitted only where a VALUE has just closed on
+    // THIS line: after `)` or `]`, or after a member segment this rule itself
+    // emitted (which is what makes `f().a.b` a chain rather than a dotted name).
+    //
+    // ⛔ THE SEGMENT IS SINGLE, NEVER DOTTED. `f().area.delete()` must lex as
+    // `. area . delete` and not as `. area.delete`: the receiver of `delete` is
+    // the FIELD, and handing the parser one glued name would lose that seam and
+    // silently address the wrong object.
+    if (ch === '.') {
+      const prev = tokens[tokens.length - 1]
+      const closes = prev && prev.line === line
+        && ((prev.kind === 'punct' && (prev.value === ')' || prev.value === ']'))
+          || (prev.kind === 'ident' && prev.member === true))
+      if (closes) {
+        let k = i + 1
+        while (text[k] === ' ' || text[k] === '\t') k += 1
+        if (IDENT_START.test(text[k] || '')) {
+          let j = k
+          while (j < text.length && IDENT_PART.test(text[j])) j += 1
+          tokens.push({ kind: 'punct', value: '.', line, column: col, index: i })
+          tokens.push({
+            kind: 'ident',
+            value: text.slice(k, j),
+            member: true,
+            line,
+            column: k - lineStart + 1,
+            index: k,
+          })
+          i = j
+          continue
+        }
+      }
+      // ⭐ ANYTHING ELSE FALLS THROUGH TO THE REFUSAL BELOW, with the dot as the
+      // token — the answer `x\n.foo` and `1 .. 2` got before this rule existed.
     }
 
     // punctuation
@@ -2065,7 +2574,10 @@ export function lexPine(src) {
     throw new PineRefusal('pine:character', REFUSALS['pine:character'], at(i, line, col, ch))
   }
 
-  return { tokens, indents, version, lines, rawOffsetMap }
+  // ⭐ ONE NORMALISATION, BEFORE ANY PARSER SEES THE TOKENS — see
+  // `stripTypeArguments` for why a type argument belongs to the lexer and not to
+  // either lane's parser.
+  return { tokens: stripTypeArguments(tokens), indents, version, lines, rawOffsetMap }
 }
 
 // --------------------------------------------------------------------------- //
@@ -3551,6 +4063,47 @@ function parsePostfix(cur) {
       node = { type: 'offset', arg: node, n: idx, tok }
       continue
     }
+    if (isPunct(tok, '.')) {
+      // ⭐⭐ POSTFIX MEMBER ACCESS ON THE RESULT OF AN EXPRESSION. The lexer only
+      // emits this `.` where a value has just closed on the same line, and it
+      // always emits exactly one ident segment after it — so `cur.next()` twice
+      // is the whole of the shape, and the member name can never be dotted.
+      cur.next()
+      const nameTok = cur.next()
+      const member = nameTok.value
+      const isCall = isPunct(cur.peek(), '(')
+      let args = null
+      let endTok = null
+      if (isCall) {
+        cur.next()
+        args = parseArguments(cur)
+        endTok = cur.toks[cur.i - 1] || null
+      }
+
+      // ⭐⭐ A NAME RECEIVER IS THE DOTTED NAME ITSELF — THE SAME PROGRAM, not
+      // merely also accepted. `(a).size()` and `a.size()` are one expression in
+      // Pine, and the lexer's spaced-dot rule already holds itself to this exact
+      // standard (`math .max` IS `math.max`, tested by statement identity rather
+      // than by both returning ok). Emitting a second shape for the second
+      // spelling would give one construct two representations and hand every
+      // downstream reader a choice it has no way to make correctly.
+      //
+      // ⛔ ONLY A BARE `name` QUALIFIES. An `offset` (`(l[1])`), a `call`
+      // (`f().m`) or another member chain has no dotted spelling at all — there
+      // is no name to append to — so those keep the receiver as a subtree.
+      if (node.type === 'name') {
+        const joined = `${node.name}.${member}`
+        node = isCall
+          ? { type: 'call', name: joined, args, tok: node.tok, endTok }
+          : { type: 'name', name: joined, tok: node.tok }
+        continue
+      }
+
+      node = isCall
+        ? { type: 'method', recv: node, name: member, args, tok: nameTok, endTok }
+        : { type: 'member', recv: node, name: member, tok: nameTok }
+      continue
+    }
     if (isPunct(tok, '(')) {
       // `f(x)(y)` and `arr.get(i)(j)` — a call of a call has no bare name.
       throw new PineRefusal('pine:statement', REFUSALS['pine:statement'], locate(tok))
@@ -4476,6 +5029,24 @@ export class Resolver {
      *  `BUILTIN_CONSTANT_TREE` lookup. Everything else about the translation is
      *  identical, which is the point: two contracts, one reading. */
     this.strict = opts.strict === true
+    /** ⭐⭐ WHICH LANGUAGE A BARE NAME IS IN.
+     *
+     *  Pine v1–v4 spelled its technical-analysis builtins without a namespace;
+     *  v5 moved them into `ta.` and left the bare spelling behind. This engine
+     *  ALSO has a function table of its own whose names a member types in the
+     *  formula box, and several collide with Pine's under different semantics.
+     *
+     *  ⛔ SO THE SAME SIX CHARACTERS MEAN TWO THINGS, AND ONLY THE VERSION CAN
+     *  SAY WHICH. `null` is the formula box — no `//@version`, so the member is
+     *  speaking OUR vocabulary and the house column is correct. A number is a
+     *  pasted script, and at 4 or below a bare `pivothigh` is PINE'S.
+     *
+     *  ⚰️ Measured against TradingView 2026-09-23: without this, every line the
+     *  `trendlines` indicator drew sat one pivot span early, because the house
+     *  `pivothigh` emits ON the pivot bar and Pine emits at the CONFIRMATION
+     *  bar. That is not an offset — it is LOOK-AHEAD, and `PINE_NAMESPACED_TREE`
+     *  says so itself: the `[R]` shift is what cancels it. */
+    this.pineVersion = Number.isFinite(opts.pineVersion) ? opts.pineVersion : null
     /** ⭐ A NOTE SINK, DEFAULTING TO A NO-OP. The walk owns `notes`; the
      *  Resolver never needed to add one before, so every other caller keeps
      *  working unchanged. ⛔ It is a FUNCTION rather than an array, so one
@@ -4485,7 +5056,7 @@ export class Resolver {
      *  `D` ends: *"what would unblock this is a BASE, not a bucketing rule"*. This is
      *  that input. Default `BASE_TF` (derived, = `'D'`), overridable so the guard
      *  below is PROVABLE rather than merely present. */
-    this.basePeriod = typeof opts.basePeriod === 'string' ? opts.basePeriod : BASE_TF
+    this.basePeriod = basePeriodOf(opts)
     /** Whether the newest bar in hand is still forming. Consulted ONLY to REFUSE an
      *  identity fold on an intraday base; never to produce a value. */
     this.newestBarIsForming = opts.newestBarIsForming === true
@@ -4644,12 +5215,21 @@ export class Resolver {
    *  Offering the whole vocabulary would put `close` and a hundred strangers at
    *  the same edit distance. */
   undefinedName(name, tok) {
-    return new PineRefusal('pine:undefined',
+    // ⭐ THE NAME RIDES THE REFUSAL AS A FIELD, not only inside the sentence.
+    // A consumer that has to ask "which name?" otherwise reads it back out of
+    // `at.token` (the raw token text) or parses the message — both of which are
+    // true today and coupled to spelling. The runtime lane asks exactly that
+    // question: a name the frozen resolver cannot see may still be BOUND (a
+    // parameter, a reassigned slot, a loop counter), and the answer decides
+    // which of two sentences a member reads. See `foldConstNode`.
+    const refusal = new PineRefusal('pine:undefined',
       `${REFUSALS['pine:undefined']} — \`${name}\`${didYouMean(name, [
         ...this.env.keys(),
         ...Object.keys(this.table.series || {}),
         ...Object.keys(this.table.clock || {}),
       ])}`, locate(tok))
+    refusal.pineName = name
+    return refusal
   }
 
   resolveBinding(bound, tok, name) {
@@ -4686,6 +5266,10 @@ export class Resolver {
       // is not a name the member failed to define.
       const clockKey = engineClockKeyFor(name)
       if (clockKey) {
+        // ⭐ AN EXACT RECONCILIATION BEATS THE REFUSAL, and only for a source
+        // that declares a `//@version` — see `clockTransformFor`.
+        const reconciled = clockTransformFor(name, this.pineVersion)
+        if (reconciled) return reconciled
         if (own(PINE_CLOCK_MISMATCH, name)) {
           throw new PineRefusal('pine:builtin',
             `\`${name}\` is ${PINE_CLOCK_MISMATCH[name]}`, locate(tok))
@@ -5372,10 +5956,44 @@ export class Resolver {
     if (node.type === 'bound') {
       return this.throughBinding(node.binding, (b) => this.stringValueOf(b.node, depth + 1))
     }
+    // ⭐⭐ A TERNARY WHOSE SELECTOR IS A CONSTANT IS THE BRANCH IT TAKES — the
+    // idiom `ownTimeframeOf` and `timeframeLiteralOf` have carried all along,
+    // asked here for the same reason. `corr_tf = tf_corr == "" ? timeframe.period
+    // : tf_corr` is how the corpus writes "this timeframe, unless the member
+    // overrode it", and BOTH arms are text, so refusing it would refuse a
+    // question that is already decided.
+    // ⛔ ONLY A CONSTANT SELECTOR. `constantBranchOf` returns null for anything
+    // that resolves per bar, so a runtime choice between two strings is still
+    // not a string this translator knows.
+    if (node.type === 'ternary') {
+      const taken = this.constantBranchOf(node)
+      return taken ? this.stringValueOf(taken, depth + 1) : null
+    }
     if (node.type === 'name') {
       if (own(this.table.series, node.name)) return null
-      return this.throughBinding(this.env.get(node.name),
-        (b) => this.stringValueOf(b.node, depth + 1))
+      const bound = this.env.get(node.name)
+      if (bound) {
+        return this.throughBinding(bound, (b) => this.stringValueOf(b.node, depth + 1))
+      }
+      // ⭐⭐ `timeframe.period` IS A STRING THIS TRANSLATION ALREADY KNOWS — the
+      // code of the bars it is being made for. `tf == 'D'`, `switch tf`,
+      // `str.contains(tf, "M")` are all the SAME question a literal answers, one
+      // step earlier, so they are answered the same way and fold to a number
+      // before anything textual can reach a tree.
+      //
+      // ⛔⛔ THE BINDING IS CONSULTED FIRST AND THAT IS THE WHOLE GUARD. This is
+      // the FIFTH place in this file where a Pine name has to yield to what the
+      // script SAID — `ownSymbolNameOf`, `ownTimeframeOf`, `resolveName` and the
+      // `request.security` carve-out each carry the same note, each after the
+      // same defect. `OWN_TF_NAMES` holds the bare v2/v3 spelling `period`, which
+      // a script may legally reassign (`period = "60"` means hourly), so reading
+      // the name before the binding would answer off whatever bars are loaded.
+      //
+      // ⛔ AND THE MAP IS THE SAME ONE `ownTimeframeOf` ASKS. A second roster of
+      // "which spellings mean the chart's own timeframe" would let this door and
+      // `securityAsNode` disagree about one script.
+      if (OWN_TF_NAMES.has(node.name)) return this.basePeriod
+      return null
     }
     if (node.type === 'call' && (node.name === 'input' || node.name.startsWith('input.'))) {
       const named = node.args.find((a) => a.name === 'defval')
@@ -6072,6 +6690,16 @@ export class Resolver {
       }
       case 'name': return this.resolveName(node)
       case 'call': return this.resolveCall(node)
+      // ⭐⭐ A POSTFIX MEMBER REACHING A COLUMN REFUSES BY ITS OWN NAME, AND
+      // WITH A POSITION. It falls to `default:` otherwise, which says "this Pine
+      // line is not a shape the translator reads" — the sentence for a line the
+      // parser could not read at all, which this one plainly could. Naming the
+      // member and pointing at it is the difference between "your script is
+      // malformed" and "this construct needs a type I do not have".
+      case 'member':
+      case 'method':
+        throw new PineRefusal('pine:member',
+          `${REFUSALS['pine:member']} — \`.${node.name}\``, locate(node.tok))
       default:
         throw new PineRefusal('pine:statement', REFUSALS['pine:statement'], locate(node.tok))
     }
@@ -6388,6 +7016,46 @@ export class Resolver {
       if (own(BUILTIN_TIMEFRAME_ALIAS, name)) {
         return { type: 'series', name: BUILTIN_TIMEFRAME_ALIAS[name] }
       }
+      // ⭐⭐ KIND 5 — SETTLED BY THE BARS THIS TRANSLATION IS FOR. A number, so it
+      // folds here; see `BUILTIN_TIMEFRAME_SCALAR` for why `this.basePeriod` is
+      // the authority rather than a new one.
+      // ⛔ `null` FALLS THROUGH, IT DOES NOT ANSWER. A code this engine holds no
+      // multiplier for keeps the namespace guard's own sentence rather than a
+      // guessed 1 — which would read as "this is a daily chart" on a timeframe
+      // nobody has classified.
+      if (own(BUILTIN_TIMEFRAME_SCALAR, name)) {
+        const v = BUILTIN_TIMEFRAME_SCALAR[name](this.basePeriod)
+        if (v !== null) return cNum(v)
+      }
+      // ⚰️ A SECOND `BUILTIN_TIMEFRAME_RULED` THROW STOOD HERE AND COULD NOT BE
+      // PROVED. Every name in that map is a CALL (`timeframe.change(tf)`), so it
+      // reaches `resolveCall` and never this arm; a mutation that deleted this
+      // copy left the whole suite green while deleting the `resolveCall` one
+      // turned it red. Two guards over one value, only one of which could be
+      // shown to matter — `lesson_a_guard_repeated_is_a_guard_unproved`, so the
+      // unprovable one is gone rather than kept "for safety".
+      // ⚠️ A ruled name that is a VARIABLE rather than a call would need an arm
+      // here, and would arrive with its own rail proving it fires.
+      // ⭐⭐ `timeframe.in_seconds(…)` ARRIVES HERE AS WELL AS AT `resolveCall`,
+      // and a hook on only one of them is a capability that works in some
+      // expressions and not others — the note `resolveVectorRead` carries six
+      // lines down, after that exact defect was measured on `array.get`.
+      // ⛔ `Array.isArray(node.args)` IS THE CALL TEST AND IT IS LOAD-BEARING.
+      // Without it the BARE name `timeframe.in_seconds`, which Pine does not
+      // have, reads as a zero-argument call and folds to the chart's own length —
+      // a number for something a member never wrote.
+      if (Array.isArray(node.args)) {
+        const asTfCall = this.timeframeCallOf(name, node)
+        if (asTfCall) return asTfCall
+      }
+      // ⭐ AND THE TEXT ONE GETS THE TEXT REFUSAL. `timeframe.period` resolves as
+      // BIND-TIME TEXT (see `stringValueOf`), so the true sentence about
+      // `plot(timeframe.period)` is the one a bare string literal already gets:
+      // text is not a value in this engine. `pine:builtin` here would say the
+      // grammar has no home for a name three lines of this file serve.
+      if (OWN_TF_NAMES.has(name) && name.includes('.')) {
+        throw new PineRefusal('pine:text-value', REFUSALS['pine:text-value'], locate(node.tok))
+      }
       // ⭐⭐ KIND 4 — SYMBOL-SCOPED, AND TEXT. This is the only place in the
       // translator that mints a `symtext` node, and it is deliberately a dead end
       // for everything except the bind-time fold: `interpret.js` has no case for
@@ -6486,6 +7154,14 @@ export class Resolver {
     // for a column we compute).
     const clockKey = engineClockKeyFor(name)
     if (clockKey) {
+      // ⭐ THE SAME RECONCILIATION, AT THE SECOND DOOR — and it is the SAME
+      // FUNCTION, not a second copy of the rule. Both sites resolve a clock
+      // name and both must answer identically; a transform applied at one of
+      // two resolution paths is the `lesson_rail_the_mirror_not_just_the_lane`
+      // shape, and RC-E in `PARITY-ROOT-CAUSE.md` is this programme paying for
+      // exactly that (RC-A reached one lane of two).
+      const reconciled = clockTransformFor(name, this.pineVersion)
+      if (reconciled) return reconciled
       if (own(PINE_CLOCK_MISMATCH, name)) {
         throw new PineRefusal('pine:builtin',
           `\`${name}\` is ${PINE_CLOCK_MISMATCH[name]}`, locate(node.tok))
@@ -6826,6 +7502,28 @@ export class Resolver {
       const folded = this.resolveVectorRead(name, node)
       if (folded) return folded
     }
+    // ⭐⭐ `timeframe.in_seconds([tf])` — TRIED BEFORE THE NAMESPACE GUARD AND
+    // FALLING THROUGH TO IT, the shape `request.security` and the text predicates
+    // both established above. A call this cannot settle is NOT a special case
+    // with a message of its own; it keeps the one sentence the namespace already
+    // publishes.
+    // ⛔ AND IT YIELDS TO A USER DEFINITION OF THE SAME NAME, for the reason
+    // recorded at the `security` carve-out: consult what the script SAID before
+    // what the table knows. This is the fourth instance of that defect in this
+    // file and the note is repeated because each one was found separately.
+    if (own(BUILTIN_TIMEFRAME_CALL, name) && !this.shadowedByDefinition(name)) {
+      const folded = this.timeframeCallOf(name, node)
+      if (folded) return folded
+    }
+    // ⛔ A RULED `timeframe.*` CALL GETS ITS RULING, not the namespace shrug —
+    // `timeframe.change(tf)` reaches the door as a CALL, so the check in
+    // `resolveName` above cannot see it.
+    if (own(BUILTIN_TIMEFRAME_RULED, name) && !this.shadowedByDefinition(name)) {
+      throw new PineRefusal('pine:builtin',
+        `\`${name}\` is a Pine built-in this engine holds no COLUMN for, though it `
+        + `holds its siblings: ${BUILTIN_TIMEFRAME_RULED[name]}`,
+        locate(node.tok))
+    }
     if (ns && own(NAMESPACE_GUARD, ns) && !VALUE_NAMESPACES.has(ns)) {
       const guard = NAMESPACE_GUARD[ns]
       // ⭐⭐ A `request.security` THAT DECLINED FOR A NAMEABLE REASON SAYS SO. Every
@@ -6936,6 +7634,59 @@ export class Resolver {
     // and is correctly not a branch anybody can name.
     if (!test || test.type !== 'num') return null
     return test.value ? node.yes : node.no
+  }
+
+  /** `timeframe.in_seconds([tf])` → a `num` node, or null for every shape this
+   *  cannot settle honestly.
+   *
+   *  ⭐⭐ THE ARGUMENT IS OPTIONAL AND THE TWO CASES ARE ONE QUESTION. With no
+   *  argument Pine means the CHART'S OWN timeframe, which is `basePeriod`; with
+   *  one it means whatever code that expression is, which `stringValueOf` already
+   *  answers for a literal, a binding and an `input.timeframe` default. So both
+   *  arms produce a CODE and the same reader turns a code into seconds.
+   *
+   *  ⛔ NULL, NEVER A REFUSAL OF ITS OWN — the contract `securityAsNode` states:
+   *  the caller falls through to `pine:builtin` and the namespace keeps ONE
+   *  sentence. A computed argument (`timeframe.in_seconds(userFn(x))`), an arity
+   *  Pine does not have, or a code this engine holds no length for all land
+   *  there.
+   *
+   *  ⚠️ THE ARGUMENT IS READ AS BIND-TIME TEXT, NOT AS A VALUE. Nothing textual
+   *  survives this call: it consumes a string and returns a number, which is the
+   *  same containment `PINE_TEXT_PREDICATE` relies on. */
+  timeframeCallOf(name, node) {
+    if (name !== 'timeframe.in_seconds') return null
+    const args = (node.args || []).filter(Boolean)
+    const positional = args.filter((a) => !a.name)
+    const named = args.filter((a) => a.name)
+    // ⛔⛔ A NAMED ARGUMENT IS READ, NOT DROPPED — and this is the defect
+    // `securityAsNode` already records one door over: *"THIS USED TO BE
+    // `args.filter((a) => !a.name)`, WHICH DROPPED EVERY NAMED ARGUMENT ON THE
+    // FLOOR."* Here the consequence is worse than a false refusal: filtering the
+    // named form away leaves ZERO positional arguments, which is the legal
+    // no-argument spelling, so `timeframe.in_seconds(timeframe = "60")` would
+    // have answered the CHART'S OWN length — a confident wrong number, silently,
+    // for a call the member wrote correctly.
+    // ⭐ Pine declares exactly one parameter and it is called `timeframe`.
+    // Anything else, or more than one argument in total, is a shape this door
+    // does not take and falls through to the namespace's own sentence.
+    if (named.some((a) => a.name !== 'timeframe')) return null
+    if (positional.length + named.length > 1) return null
+    const given = positional.length ? positional[0] : (named[0] || null)
+    let code = null
+    if (given === null) {
+      code = this.basePeriod
+    } else {
+      const raw = given.value !== undefined ? given.value : given
+      const lit = this.stringValueOf(raw)
+      // ⭐ THE SPELLING MAP IS ASKED, NOT COPIED. `'1H'`, `'1D'` and `'4H'` are
+      // Pine spellings of codes this engine already holds, and recognising them
+      // here rather than only their bare forms is free.
+      code = lit === null ? null : (PINE_TF_SPELLING[String(lit).trim().toUpperCase()] || null)
+    }
+    if (code === null) return null
+    const secs = timeframeSeconds(code)
+    return secs === null ? null : cNum(secs)
   }
 
   /** Does this node name THIS CHART'S OWN timeframe? → the spelling, or null.
@@ -7373,6 +8124,7 @@ export class Resolver {
     // model. ⚠️ An UNRECOGNISED lookahead spelling still falls through to refused:
     // this admits the two declared values, never "anything that isn't off".
     let live = false
+    let sawLookahead = false
     for (const a of args) {
       if (!a) continue
       const v = a.value
@@ -7380,8 +8132,59 @@ export class Resolver {
       const isLookahead = a.name === 'lookahead'
         || (typeof spelled === 'string' && spelled.includes('lookahead'))
       if (!isLookahead) continue
-      if (spelled === 'barmerge.lookahead_on') live = true
-      else if (spelled !== 'barmerge.lookahead_off') return null
+      sawLookahead = true
+      if (spelled === 'barmerge.lookahead_on') { live = true; continue }
+      if (spelled === 'barmerge.lookahead_off') continue
+
+      // ⭐⭐ PINE'S OWN BOOLEAN SPELLING. v1–v3 wrote `lookahead=true`, and v4
+      // still compiles it — the migration RENAMED the constant, it did not
+      // retire the boolean. 16 uses across 5 corpus scripts write it that way,
+      // and every one of them was landing on `pine:request`: *"this request
+      // could not be resolved to one symbol and one servable timeframe"*, which
+      // is false about its own neighbour, since the identical call with
+      // `barmerge.lookahead_on` resolves. The symbol and the timeframe were
+      // never the problem.
+      //
+      // ⛔⛔ THE TOKEN, NOT THE VALUE, AND THE DIFFERENCE IS NOT COSMETIC.
+      // `parsePrimary` folds the keyword to a NUMBER — `{type:'number',
+      // value:1}` — so at the node level `true` and `1` are the same object.
+      // Matching `value === 1` would therefore accept `lookahead=1`, inventing a
+      // truthiness coercion Pine does not have. This asks the token the same
+      // question the parser asked (`tok.value === 'true'`), so the two cannot
+      // drift apart, and a numeric literal stays refused.
+      const keyword = v && v.tok ? v.tok.value : null
+      if (keyword === 'true') { live = true; continue }
+      if (keyword === 'false') continue
+
+      // ⛔ ANYTHING ELSE STILL DECLINES THE WHOLE CALL. This admits the two
+      // declared constants and the two keywords Pine spells them with — never
+      // "whatever is not off". A name bound elsewhere (`lookahead=ilookaehad`,
+      // six uses in the corpus) is not a lookahead value this door can read, and
+      // guessing one would be the silent mistranslation it exists against.
+      return null
+    }
+
+    // ⭐⭐ AND THE SAME KEYWORD PASSED POSITIONALLY. Pine takes `lookahead` as
+    // the FIFTH argument and the corpus writes it that way often —
+    // `security(sym, tf, expr, barmerge.gaps_on, barmerge.lookahead_on)` — which
+    // the loop above catches only through a heuristic on the NAME node
+    // (`spelled.includes('lookahead')`). A boolean literal has no name, so it
+    // cannot satisfy that, and teaching only the NAMED form would have left
+    // `…, barmerge.gaps_on, true)` reading as lookahead_OFF: not a refusal a
+    // member can see, but a different number under the same name.
+    //
+    // ⚠️ ZERO CORPUS SCRIPTS WRITE IT, measured — so the corpus could not have
+    // found this, and a census-driven stop would have shipped the asymmetry. It
+    // is valid Pine, and `positionaliseSecurityArgs` has already put it in its
+    // canonical slot, so reading that slot is both correct and free.
+    //
+    // ⛔ WIDENING ONLY. `false` already behaves as off by falling through, and
+    // a positional value this door cannot read is left exactly as it was rather
+    // than newly refused — a tightening there would change scripts nobody has
+    // measured.
+    if (!sawLookahead) {
+      const slot = placed[REQUEST_SECURITY_ARGS.indexOf('lookahead')]
+      if (slot && slot.tok && slot.tok.value === 'true') live = true
     }
 
     // ⛔ AND A LOOK-AHEAD READ OF THE CHART'S OWN TIMEFRAME IS NOTHING TO MODEL:
@@ -7718,9 +8521,35 @@ export class Resolver {
     // may spell a `ta.` builtin bare, and that spelling is then genuinely
     // ambiguous. `LEGACY_BARE_NAMESPACE` is this file's existing mechanism for
     // that decision and it is the pine lane's to widen; nothing here guesses.
+    // ⚰️ CLOSED 2026-09-23 — the paragraph above described the gap correctly
+    // and left it open; `namespacedName` below is the widening it asked for.
     // ⭐ AN EXACT IDENTITY BEATS A REFUSAL, and this one is keyed on the SPELLING
     // the member wrote rather than on the table's name — see `PINE_NAMESPACED_TREE`.
-    if (own(PINE_NAMESPACED_TREE, pineName)) {
+    // ⭐⭐ THE LEGACY BARE SPELLING, RESOLVED BY THE SCRIPT'S OWN VERSION.
+    //
+    // ⚰️ THE NOTE ABOVE USED TO END "nothing here guesses", and that was true
+    // and not enough: the gap it names was reachable by pasting any of the 71
+    // v4 scripts in `corpus/committed`. A documented hazard is not a bounded
+    // one. Measured against TradingView, it cost `trendlines` every one of its
+    // five lines (a pivot span early — LOOK-AHEAD, not an offset) and it put
+    // bare `highestbars` back on the inverted sign this repo has already
+    // shipped once.
+    //
+    // ⛔ THE BOUND IS THE VERSION, AND IT IS THE WHOLE SAFETY OF THE CHANGE.
+    // v5 REMOVED the bare spelling, so a v5 script writing `pivothigh(...)` is
+    // not writing Pine and keeps the house column; the formula box has no
+    // version at all and is untouched. Only v1–v4 — where the bare name is
+    // unambiguously Pine's own — is re-routed.
+    // ⭐ ONE NAME, RESOLVED ONCE. The legacy spelling and the modern one reach
+    // the SAME transform through the same three lines below — a second copy of
+    // the argument walk here is `lesson_a_second_authority_over_one_value`, and
+    // the two would drift the first time either was touched.
+    const namespacedName = own(PINE_NAMESPACED_TREE, pineName)
+      ? pineName
+      : ((this.pineVersion !== null && this.pineVersion <= 4
+          && !pineName.includes('.') && own(PINE_NAMESPACED_TREE, `ta.${pineName}`))
+        ? `ta.${pineName}` : null)
+    if (namespacedName) {
       // ⛔ NAMES REFUSE BEFORE ANYTHING IS RESOLVED — see `refuseUnmeasuredNamedArgs`.
       // `ta.pivothigh(source = high, rightbars = 3, leftbars = 7)` translated to
       // `pivothigh(high, 3, 7)[7]` before this line existed.
@@ -7729,12 +8558,22 @@ export class Resolver {
       // and this gate sits outside it. Same call, same order — spelled out rather
       // than reached for, so the two cannot quietly become different lists.
       const resolved = args.map((a) => this.resolve(a.value !== undefined ? a.value : a))
-      const shifted = PINE_NAMESPACED_TREE[pineName](resolved)
+      const shifted = PINE_NAMESPACED_TREE[namespacedName](resolved)
+      // ⛔⛔ A BUILDER MAY REFUSE IN ITS OWN WORDS, and one that does not gets a
+      // sentence about ARITY rather than about pivots. ⚰️ This site used to
+      // throw the pivot message for every falsy return, so the wording was
+      // correct for exactly two of the map's entries and misleading for any
+      // that came later (`lesson_rail_the_sentence_not_just_the_guard`).
+      if (shifted && shifted.refusal) {
+        throw new PineRefusal('pine:arity', shifted.refusal, locate(tok))
+      }
       if (shifted) return shifted
-      throw new PineRefusal('pine:arity',
-        `\`${pineName}\` returns its value \`rightbars\` after the pivot, so this `
-        + 'engine has to know that number when it builds the formula — write it '
-        + 'as a plain whole number', locate(tok))
+      // ⛔⛔ `null` IS "NOT A SHAPE I REWRITE", NOT "REFUSE". It used to throw
+      // here, which meant a builder had to own every arity of its name or
+      // break the ones that already worked — and rebuilding a working shape is
+      // what broke `ta.atr` inside a request. Falling through gives exactly the
+      // resolution a name outside this map gets, so an unrewritten arity meets
+      // the table's own arity check and its own sentence.
     }
     // ⛔ THE HOST EXEMPTION IS NARROW BY CONSTRUCTION AND EVERY CLAUSE EARNS ITS
     // PLACE: `this.strict` (host mode only — a screen never gets it), `key` (the
@@ -7793,7 +8632,29 @@ export class Resolver {
         const argNode = args[0] && (args[0].value !== undefined ? args[0].value : args[0])
         const rawTf = this.timeframeLiteralOf(argNode)
         const tfCode = rawTf === null ? null : PINE_TF_SPELLING[String(rawTf).trim().toUpperCase()]
-        if (tfCode === 'D') return clockLeaf('dayopentime')
+        if (tfCode === 'D') {
+          // ⛔⛔ MILLISECONDS, BECAUSE PINE'S CLOCK IS — AND THE MERGE OF 2026-09-23
+          // CREATED THIS MISMATCH OUT OF TWO CORRECT HALVES.
+          //
+          // `dayopentime` is SECONDS; the manifest says so in its own words: *"this
+          // platform's unit everywhere a bar carries one, and not Pine's
+          // milliseconds"*. The other lineage reconciled the BARE `time` NAME to ms
+          // via `PINE_CLOCK_TRANSFORM`. Each was right alone. Together, one script's
+          // `time` was milliseconds and its `time("D")` was seconds — a 1000×
+          // disagreement between two spellings of ONE clock.
+          //
+          // ⚰️ AND THE IDIOM THAT WOULD HAVE CAUGHT IT IS THE ONE THAT STILL WORKED:
+          // `time("D") != time("D")[1]` compares like with like and is unaffected.
+          // What broke is `time > time("D")` — the anchor comparison the refusal
+          // just below this line describes in those very words.
+          //
+          // ⭐ GATED ON `pineVersion` LIKE ITS SIBLING, not on a fresh condition:
+          // `clockTransformFor` applies the bare name's ×1000 only for a script that
+          // declares a `//@version`, so anchoring to the same test is what keeps the
+          // two spellings in step for a versionless script too.
+          const leaf = clockLeaf('dayopentime')
+          return this.pineVersion !== null ? cOp('*', [leaf, cNum(1000)]) : leaf
+        }
       }
       throw new PineRefusal('pine:function',
         anchorForm
@@ -8626,6 +9487,50 @@ const PINE_CLOCK_MISMATCH = Object.freeze({
     + 'against no literal a member wrote, on every bar, without ever looking wrong',
 })
 
+/** ⭐⭐ A MISMATCH THAT IS EXACTLY RECONCILABLE, FOR A SCRIPT SPEAKING PINE.
+ *
+ *  ⛔ THE REFUSAL ABOVE STAYS RIGHT, AND THIS DOES NOT SOFTEN IT. Binding a
+ *  Pine name to an engine column on SPELLING alone is a silent mistranslation —
+ *  the one outcome worse than refusing. What this adds is the case where the
+ *  difference is not merely known but *closed*: our `clock.time` is whole
+ *  SECONDS, so `time * 1000` IS Pine's millisecond value with nothing lost and
+ *  nothing assumed. A conversion that is exact is a translation; a conversion
+ *  that is approximate would be this map's first bug, so nothing approximate
+ *  belongs here.
+ *
+ *  ⛔⛔ AND IT IS GATED ON THE SCRIPT SPEAKING PINE AT ALL. `time` is a name in
+ *  BOTH vocabularies: in the formula box it is OUR column and means seconds, so
+ *  applying the factor there would multiply a member's own data by a thousand
+ *  under their own name. The discriminator is the `//@version` pragma — exactly
+ *  the one `LEGACY_BARE_NAMESPACE` uses for bare `pivothigh`, and for the same
+ *  reason: ONE NAME TABLE SERVING TWO LANGUAGES. A versionless source keeps the
+ *  refusal untouched; widening it to the box is a decision about the box, and
+ *  the measurement that motivated this (5 corpus scripts, all Pine) says
+ *  nothing about the box.
+ *
+ *  ⚠️ UNLIKE THE BARE-NAMESPACE RULE, THIS IS NOT VERSION-RANGED. Pine's `time`
+ *  has been milliseconds since v1, so the test is "is this Pine" and not "which
+ *  Pine" — writing `<= 4` here would silently drop v5 and v6 scripts back onto
+ *  the refusal. */
+const PINE_CLOCK_TRANSFORM = Object.freeze({
+  time: () => cOp('*', [cSeries('time'), cNum(1000)]),
+})
+
+/** The reconciliation decision, in ONE place because there are TWO doors.
+ *
+ *  ⛔⛔ IT WAS WRITTEN TWICE FIRST, AND THE MUTATION RUN CAUGHT IT. Deleting
+ *  the `pineVersion !== null` guard from one copy left every test GREEN: the
+ *  versionless case only ever reaches the other door, so half the gate was
+ *  unproved and would have stayed that way. `lesson_a_guard_repeated_is_a_
+ *  guard_unproved` — delete every copy but one, because three cannot be
+ *  mutation-proved and two could not be either.
+ *
+ *  @returns the reconciled tree, or `null` to leave the caller's own path alone. */
+const clockTransformFor = (name, pineVersion) => (
+  pineVersion !== null && own(PINE_CLOCK_TRANSFORM, name)
+    ? PINE_CLOCK_TRANSFORM[name]()
+    : null)
+
 function engineClockKeyFor(name) {
   const clock = (TABLE && TABLE.clock) || {}
   const key = own(PINE_TO_CLOCK_SPELLING, name) ? PINE_TO_CLOCK_SPELLING[name] : name
@@ -9111,17 +10016,92 @@ function mutatorTargets(toks) {
         && toks[i + 2] && toks[i + 2].kind === 'ident') {
       out.add(toks[i + 2].value)
     }
+    // ⭐⭐ AND THE METHOD FORM IS THE SAME MUTATION — `a.push(x)` IS
+    // `array.push(a, x)`.
+    //
+    // ⚰️⚰️ MEASURED ON THE BRANCH POINT, AND IT WAS A SILENT WRONG NUMBER. The
+    // scan above matches the token `array.push` and the method form arrives as
+    // the token `a.push`, so it was invisible here — and the read above it
+    // folded anyway. Same program, two spellings, two plotted numbers, neither
+    // refusing:
+    //
+    //     a = array.new_float(0)
+    //     for i = 0 to 3
+    //         array.push(a, close[i])   → plot(array.size(a))  folds to 4
+    //         a.push(close[i])          → plot(array.size(a))  folds to 0
+    //
+    // That is precisely the hole the paragraph above this one was written to
+    // close, met again through the spelling it did not know. 2,570 method-form
+    // sites across 37 of the 266 committed scripts write the losing one.
+    //
+    // ⛔ OPAQUE, NOT UNROLLED, AND THE DIFFERENCE IS DELIBERATE. Marking the
+    // array opaque makes the READ refuse by name — the honest answer the block
+    // already earned. Teaching `pendingUnrollFrom` to unroll the method form
+    // would make it fold to 4 instead, which is better still, but it must first
+    // yield to a script's own `method push(…)`, and a wrong UNROLL is a wrong
+    // number where a wrong OPACITY is only a refusal. Recorded, measured, and
+    // left to the lane that can rail the shadow rule.
+    //
+    // ⛔ IT DOES NOT CHECK FOR A USER DEFINITION, ON PURPOSE. If a script
+    // defines its own `method push(…)`, this lane cannot model that either — so
+    // "the array was written by something I cannot read" is true in both cases
+    // and opacity is the right answer to both.
+    //
+    // ⛔ A PINE NAMESPACE IS NOT A RECEIVER. `array.push(a, x)` and
+    // `table.clear(t, …)` split the same way, and adding `array`/`table` to a
+    // set of MUTATED VARIABLE NAMES would be noise at best and, for a script
+    // that happens to bind one of those words, an opacity nobody asked for. The
+    // name form is the branch directly above; this one is only for the other
+    // spelling.
+    //
+    // ⚠️ THIS EXCLUSION IS NOT INDEPENDENTLY PROVABLE, AND SAYING SO IS THE
+    // POINT. A mutation deleting `PINE_MEMBER_NAMESPACES.has(...)` stays GREEN
+    // across every suite that touches this function, because nothing downstream
+    // can tell: the set is consumed by name, and a script cannot BIND one of
+    // these words for the extra entry to collide with. Measured 2026-09-22 —
+    // `table`, `matrix`, `map` and `linefill` are each refused before a binding
+    // exists, and the one that DOES bind (`str`) shares no member name with
+    // `VEC.WRITE_MEMBERS`, so the clause cannot fire for it either.
+    //
+    // ⛔ It is kept for the reason `parseForHead`'s `by`/`while` guards are
+    // kept one file over: it states the INTENT, so a future reader who widens
+    // either roster meets the rule rather than rediscovering it. It is NOT
+    // counted as a guard this file can demonstrate
+    // (`lesson_a_guard_repeated_is_a_guard_unproved`).
+    if (tok.kind === 'ident' && toks[i + 1] && isPunct(toks[i + 1], '(')) {
+      const m = splitMethodName(String(tok.value))
+      if (m && !PINE_MEMBER_NAMESPACES.has(m.recv)
+          && WRITE_LIKE_ARRAY_MEMBERS.has(m.method)) {
+        out.add(m.recv)
+      }
+    }
   }
   return out
 }
+
+/** The namespaces whose own members share names with `VEC.WRITE_MEMBERS`, so a
+ *  namespace-form call is never mistaken for a method-form one. ⭐ Derived from
+ *  the object pass's roster plus the three collection namespaces, rather than
+ *  hand-listed: a family added there is covered here the same day. */
+const PINE_MEMBER_NAMESPACES = new Set([
+  'array', 'matrix', 'map', 'str', ...OBJECT_NAMESPACES, ...OUT_OF_SCOPE_NAMESPACES,
+])
 
 /** The `array.*` members that WRITE, for `mutatorTargets`. Derived from the one
  *  set in `arrayVectors.js` so a member added there is covered here the same day
  *  — a second hand-typed list is the drift this engine keeps paying for. */
 const WRITE_LIKE_ARRAY_MEMBERS = VEC.WRITE_MEMBERS
 
-/** The parameter names of `f(a, b) =>`, or null if the header is not that shape. */
-function functionParams(toks, arrow) {
+/** The parameter names of `f(a, b) =>`, or null if the header is not that shape.
+ *
+ *  ⭐⭐ EXPORTED FOR THE RUNTIME FRONT END, which kept its own copy of this loop
+ *  until 2026-09-19. That copy pushed every `ident` token in the header, so
+ *  `f(float a)` was read as TWO parameters and the call was refused as an arity
+ *  error — in one lane, while the other accepted the same line. One grammar, one
+ *  parser; a second one is a second answer waiting to diverge, and this one
+ *  diverged on the normal v5/v6 spelling.
+ */
+export function functionParams(toks, arrow) {
   if (toks.length < 3 || toks[0].kind !== 'ident' || !isPunct(toks[1], '(')) return null
   const close = toks.findIndex((t) => isPunct(t, ')'))
   if (close < 0 || close > arrow) return null
@@ -9664,6 +10644,17 @@ function vectorFromRhs(rhs, nameTok, isVar, env, notes, markOpaque) {
     }
   }
   if (!rhs[argStart] || !isPunct(rhs[argStart], '(')) return null
+  // ⛔⛔ THE CREATION MUST BE THE WHOLE RIGHT-HAND SIDE. This reader takes the
+  // arguments as "everything between the `(` and the LAST token", which is only
+  // true when the call closes the statement. `x = array.new_float(1).size()` is
+  // a SIZE, not an array — and read this way it was registered as a plan-time
+  // vector whose binding has no node at all, so the first read of `x` crashed
+  // inside `resolve` and arrived as `pine:statement` with NO LINE AND NO COLUMN.
+  // ⚰️ That is the defect `lexerGaps.test.js`'s own header calls the expensive
+  // half: a refusal that cannot say WHERE. The postfix member rule is what made
+  // this shape reachable, so the guard lands with it.
+  const closes = matchBracket(rhs, argStart)
+  if (closes !== rhs.length - 1) return null
   const inner = rhs.slice(argStart + 1, rhs.length - 1)
   // ⛔⛔ `array.new_<type>(size, initial_value)` IS PINE'S OWN TWO-ARGUMENT
   // FORM, AND THE COMMA IS TOP-LEVEL. `inner` used to be handed to
@@ -9990,6 +10981,14 @@ const OBJECT_ENUM_VALUES = Object.freeze({
   'size.large': 'large', 'size.huge': 'huge', 'size.auto': 'auto',
   'text.align_left': 'left', 'text.align_center': 'center', 'text.align_right': 'right',
   'text.align_top': 'top', 'text.align_bottom': 'bottom',
+  // ⭐ A CLOSED THREE-NAME VOCABULARY. All 13 real usages across the corpus and
+  // the acceptance dashboard are plain `text.format_bold`; `none` and `italic`
+  // are carried because a table that knew one of three would drop the other two
+  // with no trace, which is the failure this property was added to stop.
+  // ⛔ A COMBINED `text.format_bold + text.format_italic` is NOT a name and
+  // does not resolve here — it falls to `valueRef`, which returns null, and the
+  // converter records it via `dropProp`. Counted, never half-applied.
+  'text.format_none': 'none', 'text.format_bold': 'bold', 'text.format_italic': 'italic',
   'position.top_left': 'top_left', 'position.top_center': 'top_center',
   'position.top_right': 'top_right', 'position.middle_left': 'middle_left',
   'position.middle_center': 'middle_center', 'position.middle_right': 'middle_right',
@@ -10042,16 +11041,53 @@ export function canonicalTextFormat(flags) {
 const LABEL_STYLE_RE = /^label\.style_[a-z_]+$/
 const BOX_STYLE_RE = /^box\.style_[a-z_]+$/
 
-function objectEnumValue(name) {
+export function objectEnumValue(name) {
   if (Object.hasOwn(OBJECT_ENUM_VALUES, name)) return OBJECT_ENUM_VALUES[name]
   if (LABEL_STYLE_RE.test(name)) return name.slice('label.style_'.length)
   if (BOX_STYLE_RE.test(name)) return name.slice('box.style_'.length)
   return undefined
 }
 
-function buildObjectProgram(stmts, source, env, makeResolver, bindingByStatement) {
+function buildObjectProgram(stmts, source, env, makeResolver, bindingByStatement,
+  objectOpts = {}) {
+  // ⭐⭐ RAW-TREE MODE — the trees are for the RUNTIME LANE, not the V2 graph.
+  //
+  // ⛔ WHY A MODE AND NOT A FALLBACK. `canonicalOf` resolves a value through the
+  // COLUMNAR model, whose whole premise is "what is the number on this bar".
+  // `array.get(a, 0)` has no answer in that model — not because the resolver is
+  // incomplete, but because the value depends on imperative state the graph is
+  // built to exclude. So the resolver correctly says no, `valueRef` answers
+  // null, and the cell is DROPPED with `cell:text` (measured: 8 such drops on
+  // the acceptance dashboard, 2 on a six-line reproduction).
+  //
+  // ⭐ The runtime lane CAN answer it, and it reads the same parser's nodes —
+  // `pineRuntimeFrontend` imports `lexPine`/`blockStatements`/
+  // `parseWholeExpression` from this very file. So in this mode a tree is the
+  // RAW parse node, handed on untouched for that lane to lower.
+  //
+  // ⛔ EVERY TREE, NOT JUST THE ONES THAT FAILED. A mixed array would need each
+  // consumer to ask which shape it was holding, and the one thing this seam has
+  // going for it is that `readNode` is a single callback. Uniform or nothing.
+  //
+  // ⛔ THE GETTER REFUSAL SURVIVES THE MODE. `line.get_x1(l)` reads back object
+  // state, and the runtime lane has no object state either — it is refused by
+  // name here for the same reason the graph refuses it, not as a graph quirk.
+  //
+  // ⚠️ KNOWN AND NOT HIDDEN: skipping resolution also skips the block-local
+  // INLINING that R2 added, so a tree naming something declared inside an `if`
+  // arm reaches the runtime lane as a free name and refuses there with
+  // `pine:undefined`. That is a loud refusal, which is the right direction — a
+  // silently wrong number is the one outcome this seam must not produce.
+  const rawTrees = objectOpts.rawTrees === true
+  // ⭐⭐ PER-ITERATION TREES. Off, a counter-dependent value is REFUSED (the
+  // safe answer, and what every caller without a runtime lane must get). On,
+  // it becomes a tree the caller promises to evaluate ONCE PER ITERATION — a
+  // promise only a lane with loops can keep, which is why it is opt-in.
+  const iterTrees = objectOpts.iterTrees === true
+  /** tree index → the counter it must be evaluated for. */
+  const iteratedTrees = {}
   const collected = collectObjectOps(stmts,
-    { isPunct, findTop, parseArguments, Cursor, boundName })
+    { isPunct, findTop, parseArguments, Cursor, boundName, parseWholeExpression })
   const diagnostics = {
     loopBlocked: collected.diagnostics.loopBlocked.length,
     loopBlockedCalls: [...new Set(collected.diagnostics.loopBlocked)].sort(),
@@ -10059,6 +11095,7 @@ function buildObjectProgram(stmts, source, env, makeResolver, bindingByStatement
     unsupported: [...new Set(collected.diagnostics.unsupported)].sort(),
     outOfScope: [...new Set(collected.diagnostics.outOfScope)].sort(),
     unresolvedValues: 0,
+    loopValuesUnresolved: 0,
     droppedOps: 0,
     // ⛔ A COUNT WITHOUT A REASON IS NOT A DIAGNOSTIC. "16 ops dropped" cannot
     // tell an engineer whether the guard, the handle or the content was the
@@ -10069,6 +11106,20 @@ function buildObjectProgram(stmts, source, env, makeResolver, bindingByStatement
     diagnostics.droppedOps += 1
     diagnostics.dropReasons[why] = (diagnostics.dropReasons[why] || 0) + 1
   }
+  // ⭐⭐ HOW MANY OBJECT OPERATIONS THE READER SAW AT ALL, before any of them
+  // was converted, dropped or found not to create anything.
+  //
+  // ⛔ "NO PROGRAM" IS TWO UNRELATED ANSWERS AND NOTHING ELSE TELLS THEM APART.
+  // A script that never writes `line`/`label`/`box`/`table`/`linefill` and one
+  // whose object operations were all discarded both leave here with
+  // `program: null`, and `droppedOps` cannot separate them — the second case
+  // can drop nothing at all (an `update` with no `create` anywhere is kept,
+  // then refused by `createsSomewhere` below with a clean drop ledger).
+  // Measured before this was added: `line.set_width(l, 2)` beside a `plot`
+  // reported zero drops and was therefore indistinguishable from `plot(close)`
+  // alone — so a consumer classifying the two rows had to guess, and guessed
+  // that a script naming `line` draws with plots.
+  diagnostics.collectedOps = collected.ops.length
   if (!collected.ops.length) return { program: null, diagnostics }
 
   const trees = []
@@ -10076,6 +11127,9 @@ function buildObjectProgram(stmts, source, env, makeResolver, bindingByStatement
   /** ⭐ THE SCOPE IN FORCE FOR THE OP BEING BUILT. Set per op from its own
    *  block-local bindings; `env` when there are none. */
   let scopeEnv = env
+  /** Loop counters in scope for the op being converted. ⭐ Set per op from
+   *  the reader's own stamp; empty outside every loop. */
+  let loopIds = []
   const GETTER_RE = /^(line|label|box|table|linefill)\.get_[a-z_0-9]+$/
   /** Is an object GETTER anywhere in this parse subtree?
    *
@@ -10115,6 +11169,9 @@ function buildObjectProgram(stmts, source, env, makeResolver, bindingByStatement
   const canonicalOf = (node, inline, envOverride) => {
     const getter = findGetter(node)
     if (getter) { diagnostics.getters.push(getter); return null }
+    // ⭐⭐ See `rawTrees` at the top of this function. The node goes on almost
+    // untouched — but a FRAME cannot ride a raw tree, so it is applied to it.
+    if (rawTrees) return node ? substituteFrame(node, inline) : null
     try {
       // ⭐⭐ R2 STEP 2 — INSIDE A CALL FRAME WHEN THE TEXT READER IS INSIDE ONE.
       // `inline` is `{bound, args, callerEnv}`, set only while walking a user
@@ -10153,13 +11210,82 @@ function buildObjectProgram(stmts, source, env, makeResolver, bindingByStatement
    *  LIST short, which is what the document actually carries. */
   const internTree = (ast) => {
     if (!ast) return null
-    const f = printFormula(ast)
-    if (byFormula.has(f)) return { v: 'tree', tree: byFormula.get(f) }
+    // ⛔ `printFormula` RENDERS A CANONICAL TREE, and in raw-tree mode it is
+    // handed a PARSE node instead — a shape it was never written for. A throw
+    // here would lose the whole cell to an optimisation, so an unprintable node
+    // simply does not participate in deduping. ⭐ Canonical mode is untouched:
+    // when the formula prints, the map behaves exactly as it always has.
+    let f = null
+    try { f = printFormula(ast) } catch { f = null }
+    if (f !== null && byFormula.has(f)) return { v: 'tree', tree: byFormula.get(f) }
     const i = trees.length
     trees.push(ast)
-    byFormula.set(f, i)
+    if (f !== null) byFormula.set(f, i)
+    // ⭐⭐ MARKED HERE, AT THE ONE PLACE A TREE IS MADE, so every path that
+    // interns one — a value, a text node, a colour — gets the per-row channel
+    // without asking. Doing it per call site is how one path would silently
+    // keep serving a per-BAR value for a per-ROW cell.
+    if (iterTrees && loopIds.length && mentionsLoop(ast)) {
+      iteratedTrees[i] = loopIds[loopIds.length - 1]
+    }
     return { v: 'tree', tree: i }
   }
+  /** ⭐⭐ APPLY AN INLINE FRAME TO A RAW TREE, because a raw tree cannot carry
+   *  one.
+   *
+   *  The resolved path pushes `inline` onto the Resolver's frame stack and a
+   *  parameter resolves by INDEX while that frame is live. `rawTrees` has no
+   *  resolver and no stack: the node travels to the runtime lane on its own, so
+   *  whatever the frame would have supplied has to already be IN it.
+   *
+   *  ⚰️ Without this the frame was simply dropped, and the body's own names went
+   *  with it. Measured on the acceptance dashboard: `formatPercent(value)` and
+   *  `extractSymbol(fullSymbol)` interned as their BODIES — `na(value) ? "-" :
+   *  …` and `array.size(symbolParts) > 1 ? …` — so eight trees refused
+   *  `pine:undefined` naming `value` and `symbolParts`, which are a parameter
+   *  and a function-local: names that exist only inside the frame that was
+   *  thrown away. Six table cells, blamed on a script that was correct.
+   *
+   *  ⛔ A PARAMETER BECOMES ITS ARGUMENT, not a copy of the body's idea of it,
+   *  so the substituted tree reads the CALLER's bindings — which is the whole
+   *  point of a frame, and is what the resolved path does by index.
+   *
+   *  ⛔ `tok` AND `endTok` ARE CARRIED THROUGH UNWALKED. They are lexer tokens,
+   *  not expressions; rebuilding them would cost every refusal its line number.
+   */
+  const substituteFrame = (node, inline) => {
+    if (!inline || !node || typeof node !== 'object') return node
+    const params = (inline.bound && inline.bound.params) || []
+    const args = inline.args || []
+    const bodyEnv = inline.bodyEnv
+      || (inline.bound && inline.bound.value && inline.bound.value.env) || null
+    if (!params.length && !bodyEnv) return node
+    const walk = (n, d) => {
+      if (d > 24 || !n || typeof n !== 'object') return n
+      if (Array.isArray(n)) return n.map((x) => walk(x, d + 1))
+      if (n.type === 'name') {
+        const pi = params.indexOf(n.name)
+        if (pi >= 0) {
+          const a = args[pi]
+          const v = a && a.value !== undefined ? a.value : a
+          return v || n
+        }
+        const b = bodyEnv && typeof bodyEnv.get === 'function' ? bodyEnv.get(n.name) : null
+        // ⛔ ONLY A BODY-LOCAL EXPRESSION BINDING. Anything else — a function, a
+        // tuple part — is left alone rather than half-expanded into a shape no
+        // reader downstream expects.
+        if (b && b.kind === 'expr' && b.node) return walk(b.node, d + 1)
+        return n
+      }
+      const out = {}
+      for (const k of Object.keys(n)) {
+        out[k] = (k === 'tok' || k === 'endTok') ? n[k] : walk(n[k], d + 1)
+      }
+      return out
+    }
+    return walk(node, 0)
+  }
+
   const resolveTree = (node, inline, envOverride) => internTree(canonicalOf(node, inline, envOverride))
 
   /** A bound name → the expression it holds, so `stateText` can be opened the
@@ -10200,6 +11326,29 @@ function buildObjectProgram(stmts, source, env, makeResolver, bindingByStatement
    *  `textEnumSlot.test.js`'s control asserts. */
   let enumLeaves = false
 
+  /** ⭐⭐ THE ONE PLACE A TEXT NODE BECOMES A FORMATTED NUMBER.
+   *
+   *  ⛔⛔ AND IT REFUSES UNDER AN ENUM WALK, BEFORE INTERNING. A `style`, a
+   *  `position` or a `size` is a closed vocabulary of WORDS; no number is one
+   *  of them, so `{t:'num'}` in an enum slot is a type error rather than an
+   *  approximation.
+   *
+   *  ⚰️ THE ORDER IS THE WHOLE FIX, AND THE FIRST ATTEMPT GOT IT WRONG.
+   *  Rejecting the numeric node in `enumNodeOf` — AFTER the walk — dropped the
+   *  prop and left the tree already MINTED, so it survived as an orphan output
+   *  and the script still died with *"output 3 must carry a number, got
+   *  string"*. `internTree` is what publishes an output; refusing after it has
+   *  run is not refusing.
+   *
+   *  ⭐ ONE GUARD, NOT THREE. All three numeric mint sites route through here,
+   *  so the rule is stated once and a fourth mint site cannot quietly skip it
+   *  (`lesson_a_guard_repeated_is_a_guard_unproved`). */
+  const numNode = (ast, fmt) => {
+    if (enumLeaves) return null
+    const ref = internTree(ast)
+    return ref ? { t: 'num', tree: ref.tree, ...(fmt ? { fmt } : {}) } : null
+  }
+
   const textNodeOf = (node, scope, depth = 0, inline = null, envAt = null) => {
     if (!node) return null
     // ⛔⛔ THE RECURSION GUARD, AND IT FAILED SILENTLY AT THE WRONG NUMBER.
@@ -10230,17 +11379,13 @@ function buildObjectProgram(stmts, source, env, makeResolver, bindingByStatement
       return null
     }
     if (node.type === 'string') return { t: 'lit', s: String(node.value) }
-    if (node.type === 'number') {
-      const ref = internTree({ type: 'num', value: Number(node.value) })
-      return ref ? { t: 'num', tree: ref.tree } : null
-    }
+    if (node.type === 'number') return numNode({ type: 'num', value: Number(node.value) })
     if (node.type === 'call' && (node.name === 'str.tostring' || node.name === 'tostring')) {
       const ast = canonicalOf(node.args && node.args[0] && node.args[0].value, inline, envAt)
       if (!ast) return null
-      const ref = internTree(ast)
       const fmtNode = node.args && node.args[1] && node.args[1].value
       const fmt = fmtNode && fmtNode.type === 'string' ? String(fmtNode.value) : undefined
-      return ref ? { t: 'num', tree: ref.tree, ...(fmt ? { fmt } : {}) } : null
+      return numNode(ast, fmt)
     }
     // ⭐⭐ R2 STEP 2 — A `bound` NODE IS A NAME THE FOLD HAS ALREADY RESOLVED.
     // `foldIfChain` builds its arms out of `boundNode(...)`, so the ternary that
@@ -10365,14 +11510,36 @@ function buildObjectProgram(stmts, source, env, makeResolver, bindingByStatement
     }
     const opened = openName(node, scope, depth)
     if (opened) return textNodeOf(opened.node, opened.env, depth + 1, inline, opened.env || envAt)
+    // ⭐⭐ A PER-ROW VALUE IN A TEXT SLOT IS A STRING, and is carried as one.
+    // Pine's text slot requires a string, so an expression that reaches here
+    // inside a loop — `array.get(syms, r)`, a watchlist row — IS text; and the
+    // lane that evaluates it per row has a text channel to answer with.
+    // ⛔ AFTER the `str.tostring` branch above, never before: a NUMBER with a
+    // format must keep `{t:'num', fmt}` so the object runtime formats it.
+    // ⛔⛔ ASKED OF THE SUBSTITUTED NODE, because that is the one that will be
+    // EVALUATED. Inside a frame the counter is usually reached through a
+    // PARAMETER — `extractSymbol(fullSymbol)` where the caller passes
+    // `array.get(names, dataIndex)` — and the raw body mentions no loop at all.
+    //
+    // ⚰️ Measured on the acceptance dashboard: the Symbol column's `then` arm
+    // (`array.get(symbolParts, 1)`) answered "no counter", took the numeric
+    // last resort below, and was written `{t:'num'}` — while its per-row buffer
+    // correctly held a STRING. Every row's symbol rendered as `NaN`, beside
+    // five columns of right answers. The `else` arm, which reaches the counter
+    // without a parameter, was classified correctly the whole time, which is
+    // why only half the cell was wrong.
+    const framed = inline ? substituteFrame(node, inline) : node
+    if (iterTrees && loopIds.length && mentionsLoop(framed)) {
+      const raw = internTree(canonicalOf(node, inline, envAt))
+      if (raw) return { t: 'str', tree: raw.tree }
+    }
     // ⚠️ LAST RESORT: a bare numeric expression in a text slot. Pine would have
     // required a string, so this is a value the author already stringified some
     // way this door cannot read — carrying the NUMBER is closer to the truth
     // than carrying nothing, and it is the only branch here that guesses.
     const ast = canonicalOf(node, inline, envAt)
     if (!ast) return null
-    const ref = internTree(ast)
-    return ref ? { t: 'num', tree: ref.tree } : null
+    return numNode(ast)
   }
 
   /** ⭐ A COLOUR EXPRESSION. The same shape, one branch shorter — and the
@@ -10438,27 +11605,200 @@ function buildObjectProgram(stmts, source, env, makeResolver, bindingByStatement
     return null
   }
 
-  /** ⛔⛔ ONE SLOT, AND THE NARROWNESS IS THE POINT. `position` is the only
-   *  enum a reachable script COMPUTES rather than types — measured on the 27:
-   *  `table.new(f_getTablePos(…), …)` and `table.set_position(t, …)`. Every
-   *  other enum slot (`style`, `xloc`, `extend`, `text_halign`, …) is written as
-   *  a literal, so widening this set would buy nothing and would put a reader
-   *  that can now produce a LITERAL from a name in front of slots whose current
-   *  refusal is load-bearing. Add a slot here when a script needs it, with the
-   *  script named. */
-  const ENUM_SLOTS = new Set(['position'])
+  /** ☠️ STRUCK 2026-09-23 — SUPERSEDED BY THE MEASUREMENT DIRECTLY BELOW, and
+   *  kept struck rather than deleted because it reads as a live argument.
+   *
+   *  ~~"ONE SLOT, AND THE NARROWNESS IS THE POINT. `position` is the only enum a
+   *  reachable script COMPUTES rather than types … widening this set would buy
+   *  nothing and would put a reader that can now produce a LITERAL from a name in
+   *  front of slots whose current refusal is load-bearing."~~
+   *
+   *  ⚰️ IT DID NOT BUY NOTHING. The other lineage widened the set and recorded
+   *  why, one comment down: with `['position']` alone every other enum slot fell
+   *  through to `resolveTree`, and a COMPUTED `text_size` became per-bar tree 9,
+   *  where the VM threw *"output 9 must carry a number, got string"* on the
+   *  acceptance dashboard. `liquidity-pools` lost every line, label and fill the
+   *  same way through `style`. The narrow set was not a guard; it was the hole.
+   *
+   *  ⭐ The instruction it ends with still stands, and is what the wider set
+   *  follows: add a slot when a script needs it, with the script named. */
+  // ⭐⭐ THE SLOTS WHOSE VALUE IS A WORD, NOT A NUMBER.
+  //
+  // ⚰️ This was `['position']` alone, and every other enum slot fell through to
+  // `resolveTree` — which mints a tree the runtime lane emits into a NUMERIC
+  // output. A literal `text_size = size.small` survived that (the branch above
+  // answers a bare `objectEnumValue` name before this one), so the gap only
+  // opened when a script COMPUTED the enum:
+  //
+  //     getTextSize(s) => s == "tiny" ? size.tiny : size.small
+  //     textSize = getTextSize(tableSizeInput)
+  //     table.cell(…, text_size = textSize)
+  //
+  // Measured on the acceptance dashboard: that became per-bar tree 9, and the
+  // VM threw `output 9 must carry a number, got string` — a translator defect
+  // reported at RUN time, on the one path a unit test of the object pass cannot
+  // see because the pass itself succeeded.
+  //
+  // ⭐ Every name here is a PROP the families declare (`OBJECT_FAMILY_PROPS`,
+  // `CELL_PROPS`) whose vocabulary is `objectEnumValue`'s. `width`/`height` are
+  // deliberately absent: they are numbers.
+  const ENUM_SLOTS = new Set(['position', 'text_size', 'size', 'style', 'border_style',
+    'text_halign', 'text_valign', 'text_align', 'xloc', 'yloc', 'extend', 'text_formatting'])
 
   /** An enum-valued expression, read with `textNodeOf`'s walk and enum leaves.
    *  Returns a `text` template because that is what the object runtime already
    *  evaluates per bar — and a position genuinely can vary per bar, since
    *  `table.set_position` is an ordinary op. */
+  /** ⛔⛔ AN ENUM SLOT MAY NEVER CARRY A FORMATTED NUMBER, ANYWHERE INSIDE IT.
+   *
+   *  `{t:'num'}` means "evaluate this numeric tree and format it as text",
+   *  which is exactly right for `text = str.tostring(x)` and can never be right
+   *  for a STYLE, a POSITION or a SIZE: those are closed vocabularies of WORDS,
+   *  and no number is one of them.
+   *
+   *  ⚰️ MEASURED ON `liquidity-pools`, 2026-09-22. `style = i_linestyle`, where
+   *  the script wrote `i_linestyle = input.string(defval = line.style_dotted,
+   *  …)`, produced `{v:'text', node:{t:'num', node:12}}`. That tree became a
+   *  numeric OUTPUT, the value underneath was the input's string, and the whole
+   *  script died at run time with *"output 18 must carry a number, got
+   *  string"* — every line, every label and every fill lost to one
+   *  dotted-vs-solid decision.
+   *
+   *  ⭐ THE CHECK IS RECURSIVE BECAUSE THE SHAPE IS. A concatenation or a
+   *  ternary can hold a `num` arm while its own tag says otherwise, and an enum
+   *  cannot legitimately contain a formatted number at ANY depth. */
+  const holdsFormattedNumber = (n, depth = 0) => {
+    if (!n || typeof n !== 'object' || depth > TEXT_MAX_DEPTH) return false
+    if (n.t === 'num') return true
+    for (const k of ['a', 'b', 'yes', 'no', 'then', 'other', 'left', 'right', 'node']) {
+      if (holdsFormattedNumber(n[k], depth + 1)) return true
+    }
+    if (Array.isArray(n.parts)) {
+      for (const p of n.parts) if (holdsFormattedNumber(p, depth + 1)) return true
+    }
+    return false
+  }
+
+  /** An enum-valued expression, read with `textNodeOf`'s walk and enum leaves.
+   *
+   *  ⛔ `null` DROPS THE PROP, which is the whole point: the renderer then uses
+   *  Pine's own default and the drawing survives. Serving the value is better
+   *  and is a real capability (`input.string` read as an enum word — 689 sites
+   *  across 109 drawing scripts); crashing is very much worse than either. */
   const enumNodeOf = (node, scope) => {
     enumLeaves = true
-    try { return textNodeOf(node, scope) } finally { enumLeaves = false }
+    let t = null
+    try { t = textNodeOf(node, scope) } finally { enumLeaves = false }
+    return holdsFormattedNumber(t) ? null : t
+  }
+
+  /**
+   * Does this subtree depend on a counter of a loop that is currently open —
+   * DIRECTLY, or through any block-local name it reads?
+   *
+   * ⛔⛔ THE NAME-FOLLOWING HALF IS THE WHOLE POINT, AND LEAVING IT OUT SHIPPED
+   * A WRONG TABLE. The corpus idiom binds the counter away immediately:
+   *
+   *     for r = 0 to cnt - 1
+   *         i  = array.get(idx, r)      ← `i` depends on `r`
+   *         nm = array.get(names, i)    ← and `nm` depends on `i`
+   *         table.cell(t, 0, r + 1, nm)
+   *
+   * `nm` is a NAME. A check that looked only at the immediate AST answered "no
+   * counter here", sent it down the tree path, and produced a per-BAR value for
+   * a per-ROW cell — measured on the acceptance dashboard: four cells per row,
+   * every one of them a tree, which renders FORTY IDENTICAL ROWS and reads as
+   * data. ⭐ Following the binding turns that into an honest refusal.
+   *
+   * ⚠️ `seen` is a cycle guard, not an optimisation: Pine lets a name be
+   * rebound in terms of itself and the walk would not otherwise terminate.
+   */
+  const mentionsLoop = (node, depth = 0, seen = new Set()) => {
+    if (!node || typeof node !== 'object' || depth > 24) return false
+    if (node.type === 'name') {
+      if (loopIds.includes(node.name)) return true
+      if (!seen.has(node.name)) {
+        seen.add(node.name)
+        const opened = openName(node, scopeEnv, 0)
+        if (opened && mentionsLoop(opened.node, depth + 1, seen)) return true
+      }
+    }
+    for (const k of ['left', 'right', 'test', 'yes', 'no', 'arg', 'value', 'cond']) {
+      if (mentionsLoop(node[k], depth + 1, seen)) return true
+    }
+    if (Array.isArray(node.args)) {
+      for (const a of node.args) {
+        if (mentionsLoop(a && a.value !== undefined ? a.value : a, depth + 1, seen)) return true
+      }
+    }
+    return false
+  }
+
+  /** A counter-dependent expression → a value reference, or null if this grammar
+   *  cannot say it.
+   *
+   *  ⭐ THE ONLY SHAPES IT CARRIES ARE THE COUNTER ITSELF AND SMALL ARITHMETIC
+   *  AROUND IT — `r`, `r + 1`, `2 * r`. That is what a table ADDRESS needs, and
+   *  it is measured: every data cell of the acceptance dashboard is addressed
+   *  `(const, r + 1)`.
+   *
+   *  ⛔ IT RETURNS NULL RATHER THAN A TREE FOR ANYTHING ELSE, and the difference
+   *  matters more than it looks. A tree is a value PER BAR; a counter is a value
+   *  PER ITERATION. Handing `array.get(rvs, i)` to the tree path would produce a
+   *  reference the runtime resolves once per bar and reuses for every row —
+   *  forty rows of the same number, which reads as data. Refusing it drops the
+   *  cell, which the diagnostics then count and name. */
+  const loopArgRef = (node) => {
+    if (!node) return null
+    if (node.type === 'name' && loopIds.includes(node.name)) return { v: 'loop', id: node.name }
+    // ⚰️ A `number` FAST PATH WAS WRITTEN HERE AND REMOVED. It returned
+    // `{v:'const'}` for the `1` in `r + 1` so the literal would not cost a graph
+    // node — and a mutation deleting it stayed GREEN, because the ordinary
+    // `valueRef` below already answers a literal exactly that way. Two answers
+    // to one question, one of them unprovable
+    // (`lesson_a_second_authority_over_one_value`).
+    // ⛔ A subtree with no counter in it is an ordinary value and takes the
+    // ordinary path — this also terminates the mutual recursion with `valueRef`.
+    if (!mentionsLoop(node)) return valueRef(node)
+    // ⛔ THE RAW PARSE SHAPE IS `{type:'binary', op, left, right}`, NOT the
+    // canonical `{type:'op', name, args}` the resolver emits. Written against
+    // the canonical shape first, this matched nothing and every counter
+    // arithmetic refused — with `loopValuesUnresolved` counting it, which is how
+    // it was found rather than by reading.
+    if (node.type === 'binary' && OBJECT_VALUE_OPS.includes(node.op)) {
+      const a = loopArgRef(node.left)
+      const b = loopArgRef(node.right)
+      return (a && b) ? { v: 'op', op: node.op, args: [a, b] } : null
+    }
+    return null
   }
 
   const valueRef = (node, slot) => {
     if (!node) return null
+    // ⭐⭐ ASKED BEFORE THE TEXT AND COLOUR SLOTS, DELIBERATELY. A cell whose
+    // TEXT depends on the counter (`str.tostring(array.get(rvs, i))`) cannot be
+    // served by a tree either, and letting it reach `textNodeOf` would build one
+    // — a per-bar value silently reused for every row. Refusing here drops the
+    // cell honestly, and `cell:text` already counts that.
+    if (loopIds.length && mentionsLoop(node)) {
+      const r = loopArgRef(node)
+      if (r) return r
+      // ⭐⭐ THE PER-ROW CHANNEL. The address grammar above could not say this
+      // value, so it becomes a TREE the caller evaluates once per iteration.
+      // ⛔ A COLOUR SLOT IS STILL REFUSED. A colour node is its own grammar
+      // (`{c:…}`) and a tree is not one; admitting it here would store a shape
+      // the runtime reads as “no colour” and paint every row the default.
+      // ⭐⭐ WITH THE PER-ROW CHANNEL ON, FALL THROUGH TO THE ORDINARY PATHS.
+      // ⛔ IT DELIBERATELY DOES NOT SHORT-CIRCUIT TO A TREE. `str.tostring(x,
+      // '#.0')` must still reach `textNodeOf`, which turns it into `{t:'num',
+      // tree, fmt}` — the object runtime's `formatNumber` is the ONE authority
+      // on Pine's number format, and a short-circuit here would have needed a
+      // second copy of it in the runtime lane.
+      if (!iterTrees) {
+        diagnostics.loopValuesUnresolved += 1
+        return null
+      }
+    }
     if (slot && TEXT_SLOTS.has(slot)) {
       const t = textNodeOf(node, scopeEnv)
       return t ? { v: 'text', node: t } : null
@@ -10474,7 +11814,29 @@ function buildObjectProgram(stmts, source, env, makeResolver, bindingByStatement
     // series, evaluated per bar, and painted as nothing.
     if (slot === 'text_formatting') {
       const flags = textFormatFlags(node, scopeEnv)
-      return flags ? { v: 'const', value: canonicalTextFormat(flags) } : null
+      if (flags) return { v: 'const', value: canonicalTextFormat(flags) }
+      // ⛔⛔ AND ON FAILURE IT FALLS THROUGH — IT USED TO `return null`, WHICH
+      // DROPPED A COMPUTED FORMAT SILENTLY, TWO LINES ABOVE THE READER THAT CAN
+      // HANDLE ONE.
+      //
+      // The interception above is right and stays: `textFormatFlags` is the only
+      // thing that reads Pine's `+` combinator and produces the sorted canonical
+      // spelling, and without it `text.format_bold` would reach `resolveTree` as
+      // a numeric graph node. What was wrong was the ELSE.
+      //
+      // ⚰️ ITS STATED REASON NO LONGER APPLIES HERE. That refusal was argued on
+      // cost — *"adding a third would mean a fourth thing `evaluateObjects` has to
+      // evaluate on every bar"* — but the `ENUM_SLOTS` arm below returns a
+      // `{v:'text'}` template, which its own comment says is *"what the object
+      // runtime already evaluates per bar"*. There is no third vocabulary to add;
+      // the two lineages simply built this twice and the earlier `return` won by
+      // position. Measured on the merge: `text_halign`, `text_size` and
+      // `text_color` all carried a computed value and `text_formatting` alone did
+      // not.
+      //
+      // ⭐ A FORMAT THE ENUM READER ALSO CANNOT READ STILL DROPS — but as a
+      // COUNTED drop (`enumUnreadable`) rather than a silent null, which is the
+      // difference between a visible limit and a missing feature.
     }
     // ⭐ A COMPUTED POSITION. The literal cases below still answer first for a
     // plain `position.top_right`, so nothing that resolved before changes shape;
@@ -10484,6 +11846,24 @@ function buildObjectProgram(stmts, source, env, makeResolver, bindingByStatement
     if (slot && ENUM_SLOTS.has(slot) && !(node.type === 'name' && objectEnumValue(node.name) !== undefined)) {
       const e = enumNodeOf(node, scopeEnv)
       if (e) return { v: 'text', node: e }
+      // ⛔⛔ AND IT STOPS HERE. An enum slot this reader cannot turn into a WORD
+      // is DROPPED — it must never fall through to the numeric paths below.
+      //
+      // ⚰️ MEASURED ON `liquidity-pools`, 2026-09-22, and the fall-through is
+      // the defect the `ENUM_SLOTS` note one screen up was written about — it
+      // just never closed this half. `style = i_linestyle`, from an
+      // `input.string`, fell past this arm and came back `{v:'graph'}`: a
+      // NUMERIC tree, published as an output, carrying the input's STRING at
+      // run time. The script died with *"output 3 must carry a number, got
+      // string"* — every line, label and fill in it lost to one
+      // dotted-vs-solid decision.
+      //
+      // ⭐ DROPPING COSTS ONE VISUAL DETAIL and the renderer falls back to
+      // Pine's own default. Reading it as a number costs the whole script, and
+      // `objectDiagnostics` counts the drop so it is visible rather than
+      // silent.
+      diagnostics.enumUnreadable = (diagnostics.enumUnreadable || 0) + 1
+      return null
     }
     if (node.type === 'string') return { v: 'const', value: node.value }
     if (node.type === 'colour') return { v: 'const', value: node.value }
@@ -10599,8 +11979,33 @@ function buildObjectProgram(stmts, source, env, makeResolver, bindingByStatement
     }
   }
 
+  /** ⭐⭐ SITES THE CONVERSION ACTUALLY EMITTED — not the ones the reader named.
+   *
+   *  ⛔ A `{r:'site'}` reference to a create that was DROPPED is a build error:
+   *  `assertObjectProgram` refuses *"site is referenced but never created"* and
+   *  the whole translate throws, which arrives as `objectDiagnostics.failed` and
+   *  loses every other drawing in the script. So the push that named an inline
+   *  create is dropped with it, by the ordinary `coll:push` reason — the same
+   *  answer this door gave before inline creates existed.
+   *
+   *  ⭐ A POSITIVE SET, never a "dropped" one. `emittedSites.has(id)` is false
+   *  for a site that was dropped AND for a site that has not been converted yet,
+   *  and both of those are "cannot reference it"; a dropped-set would answer
+   *  "fine" for the second case. Ordering makes the distinction unnecessary
+   *  anyway — the reader emits the create immediately before the call. */
+  const emittedSites = new Set()
+
   const targetRef = (argNode) => {
     const v = argNode && argNode.value
+    // ⭐ A CREATE WRITTEN INSIDE THE CALL refers to the object made on THIS BAR
+    // at that site, which is exactly what `{r:'site'}` means in this format.
+    // Checked BEFORE `v`, because the site is a property of the ARGUMENT and a
+    // reader that demanded a resolvable value node first would never reach it.
+    if (argNode && argNode.createSite) {
+      return emittedSites.has(argNode.createSite)
+        ? { r: 'site', id: argNode.createSite }
+        : null
+    }
     if (!v) return null
     if (v.type === 'name' && regId.has(v.name)) return { r: 'reg', id: regId.get(v.name) }
     if (v.type === 'call' && v.name === 'array.get' && v.args && v.args.length === 2) {
@@ -10693,8 +12098,60 @@ function buildObjectProgram(stmts, source, env, makeResolver, bindingByStatement
       }
       const ast = canonicalOf(node)
       if (!ast) return undefined
-      const one = g.negate ? { type: 'op', name: '!', args: [ast] } : ast
-      acc = acc === null ? one : { type: 'op', name: '&&', args: [acc, one] }
+      // ⭐⭐ SYNTHESISED IN THE PARSER'S SHAPE, NOT THE RESOLVER'S.
+      //
+      // ⚰️ These were `{type:'op', name:'!'}` and `{type:'op', name:'&&'}` —
+      // the shape `resolve` PRODUCES, handed back in as if it were a shape the
+      // parser produces. That worked only because the columnar resolver happens
+      // to accept `op` on the way in, and it broke the moment a second reader
+      // existed: under `rawTrees` these nodes go to the RUNTIME lane, which
+      // reads what the parser emits (`unary`/`not`, `binary`/`and`) and refused
+      // a guard it could have lowered with `pine:statement` — "not a shape the
+      // translator reads", about a node this file had just built.
+      //
+      // ⭐ Every reader downstream takes the parser's shape: the resolver's
+      // `case 'unary'` maps `not` to `cOp('!')`, `readNaGuard` accepts `not`,
+      // the guard reader accepts `and`, and `BIN` maps `and` to `&&`. One
+      // spelling for one meaning.
+      const tok = ast && ast.tok
+      // ⚰️⚰️ AND FOR A LONG TIME THE TWO LINES BELOW STILL EMITTED `op`
+      // UNCONDITIONALLY, directly under the paragraph that says they must not.
+      // The comment described the corrected behaviour and the code did the old
+      // thing, so every reader who checked came away reassured
+      // (`lesson_a_comment_claiming_agreement_is_not_agreement`). MEASURED cost:
+      // EVERY drawing statement inside EVERY `else` arm refused `pine:statement`
+      // — `else` appears in 1,328 lines across 141 corpus scripts, 120 of which
+      // draw.
+      //
+      // ⛔⛔ AND THE COMMENT'S OWN FIX WAS HALF RIGHT, WHICH IS WORSE THAN
+      // WRONG. Emitting the parser's shape UNCONDITIONALLY — exactly what the
+      // paragraph above prescribes — turns the `else` family green and breaks
+      // the VENDOR PARITY suite: 28 tests, including every drawn-cell comparison
+      // against the TradingView captures, with `an object tree refused — the
+      // cells below would be NaN`.
+      //
+      // ⭐⭐ BECAUSE THE INNER NODE'S SHAPE IS MODE-DEPENDENT, SO THE WRAPPER'S
+      // MUST BE TOO. `canonicalOf` hands back the RAW parse node under
+      // `rawTrees` and a RESOLVED canonical node otherwise. Wrapping a canonical
+      // node in a parser node builds a hybrid neither reader can read. There is
+      // no single correct shape here — there are two, and which one is right is
+      // decided by the same flag that decided the inner node.
+      //
+      // ⚠️ So the paragraph above is kept because its DIAGNOSIS is exactly
+      // right and its REMEDY is not: *"every reader downstream takes the
+      // parser's shape"* is false — the object reader on the canonical path
+      // takes the resolver's. Railed both ways in
+      // `runtime/__tests__/elseGuardShape.test.js`.
+      const one = g.negate
+        ? (rawTrees
+          ? { type: 'unary', op: 'not', arg: ast, tok }
+          : { type: 'op', name: '!', args: [ast] })
+        : ast
+      acc = acc === null
+        ? one
+        : (rawTrees
+          ? { type: 'binary', op: 'and', left: acc, right: one, tok }
+          : { type: 'op', name: '&&', args: [acc, one] })
     }
     const extra = {
       ...(lastBarOnly ? { lastBarOnly: true } : {}),
@@ -10783,18 +12240,53 @@ function buildObjectProgram(stmts, source, env, makeResolver, bindingByStatement
     return scoped
   }
 
-  const ops = []
+  let ops = []
   // ⭐ A NON-`var` OBJECT NAME IS FRESH EVERY BAR, and modelling it as a plain
   // register would let yesterday's object survive into a bar where Pine had `na`.
   // Clearing them first, every bar, is exactly what Pine does.
   for (const id of locals) ops.push({ k: 'setreg', reg: id, value: null, when: null })
 
-  for (const op of collected.ops) {
+  /** ⭐ A FUNCTION so a LOOP BODY converts into its own sink and nests,
+   *  rather than being flattened into the program beside its parent. */
+  const convertList = (list) => {
+  for (const op of list) {
     scopeEnv = scopeFor(op.locals)
+    loopIds = op.loopIds || []
     const g = guardOf(op.guards)
     if (g === undefined) { dropped(`guard:${op.k}`); continue }
     const when = g.when
     const lastBarOnly = g.extra
+    // ⭐⭐ A COUNTED LOOP. Its BOUNDS are resolved in the OUTER scope (the
+    // reader stamps this op with the counters open around it, not its own), and
+    // its BODY converts into a sink of its own so the ops nest.
+    if (op.k === 'loop') {
+      const from = valueRef(op.from && op.from.value)
+      const to = valueRef(op.to && op.to.value)
+      // ⛔ A BOUND THIS ENGINE CANNOT SAY IS NOT GUESSED AT. `for i = 0 to
+      // n` with an unreadable `n` would otherwise run zero times or forever,
+      // and both draw a table nobody wrote.
+      if (!from || !to) { dropped('loop:bounds'); continue }
+      const outer = ops
+      const body = []
+      ops = body
+      convertList(op.body || [])
+      ops = outer
+      scopeEnv = scopeFor(op.locals)
+      loopIds = op.loopIds || []
+      // ⛔ An empty body is refused by `assertObjectProgram` ("a loop with an
+      // empty body draws nothing"), so a loop whose every op was dropped is
+      // dropped too — named, not silently emitted as a build error.
+      if (!body.length) { dropped('loop:empty'); continue }
+      // ⭐ IN PER-ITERATION MODE THE RAW BOUNDS RIDE ALONG. The runtime lane
+      // must lower a loop over the SAME range the drawing uses, and this op is
+      // the only place that range is written down. Gated, so an ordinary
+      // program carries no parse nodes.
+      ops.push({
+        k: 'loop', id: op.id, from, to, body, when, ...lastBarOnly,
+        ...(iterTrees ? { fromNode: op.from && op.from.value, toNode: op.to && op.to.value } : {}),
+      })
+      continue
+    }
     if (op.k === 'create') {
       const order = CREATE_POSITIONAL[op.family] || []
       const raw = namedOrPositional(op.args, order)
@@ -10825,6 +12317,9 @@ function buildObjectProgram(stmts, source, env, makeResolver, bindingByStatement
       // Pine has no default there, so neither may this.
       if (!bad) for (const k of required) if (!(k in props)) { bad = true; break }
       if (bad) { dropped(`create:${op.family}`); continue }
+      // ⭐ RECORDED ONLY ONCE THE CREATE IS REALLY IN THE PROGRAM, which is what
+      // makes the `{r:'site'}` reference below safe to hand out.
+      emittedSites.add(op.site)
       ops.push({
         k: 'create',
         family: op.family,
@@ -10852,6 +12347,21 @@ function buildObjectProgram(stmts, source, env, makeResolver, bindingByStatement
       const target = targetRef(op.target)
       if (!target) { dropped('delete:target'); continue }
       ops.push({ k: 'delete', target, when, ...lastBarOnly })
+    // ⛔⛔ ONE CONVERTER FOR `table.clear`, AND THE MERGE HAD TWO.
+    //
+    // Both lineages implemented this call and both survived the merge as arms of
+    // THIS chain, matching the same `op.k === 'clear'`. In an if/else-if only the
+    // FIRST runs — so one was silently dead, and which one was decided by line
+    // order rather than by anyone choosing. That is the second-authority defect
+    // this repo keeps paying for, arriving through a clean automatic merge.
+    //
+    // ⭐ RULED 2026-09-23: master's `clearcells` shape wins, and the branch's
+    // `k: 'clear'` arm is deleted rather than reordered. Two reasons: its address
+    // fields are `col`/`row`, the SAME vocabulary the `cell` op uses, so one
+    // reader sees one address shape; and it is the shape production's lineage
+    // already stores. The runtime still carries a `clear` case, which is now
+    // unreachable from this converter — left in place deliberately, because
+    // deleting runtime code is a separate change with its own evidence.
     } else if (op.k === 'cell') {
       const target = targetRef(op.target)
       const col = op.col ? valueRef(op.col.value) : null
@@ -10943,12 +12453,23 @@ function buildObjectProgram(stmts, source, env, makeResolver, bindingByStatement
       }
     }
   }
+  }
+  convertList(collected.ops)
 
   // ⭐ THE AUTHOR'S OWN CEILINGS. 15 of the reachable 27 declare them, so the
   // envelope is read rather than invented — and clamped to ours, because a
   // script asking for 500 boxes must not be able to ask for 50,000.
+  // ⛔⛔ CODE, NEVER PROSE. This scan used to run over the RAW source, so
+  // `// max_lines_count = 500 would be nice here` in a comment SET THE DRAWING
+  // BUDGET — and a budget is not a cosmetic: at the default of 50 it decides
+  // which objects survive eviction. This repo has paid for the unstripped-scan
+  // shape six times in one session (`CLAUDE.md`: "every literal-hunting check
+  // strips comments first"), and this was a seventh.
+  //
+  // ⚠️ STRINGS TOO, not only comments: a tooltip or an `input` title quoting the
+  // parameter name is prose about the budget, not a declaration of it.
   const limits = {}
-  for (const m of String(source).matchAll(/max_([a-z]+)_count\s*=\s*(\d+)/g)) {
+  for (const m of strippedForScan(String(source)).matchAll(/max_([a-z]+)_count\s*=\s*(\d+)/g)) {
     const fam = { lines: 'line', labels: 'label', boxes: 'box' }[m[1]]
     if (fam) limits[fam] = Math.min(Number(m[2]), DEFAULT_OBJECT_LIMITS[fam])
   }
@@ -10958,17 +12479,35 @@ function buildObjectProgram(stmts, source, env, makeResolver, bindingByStatement
   // register that can never hold anything — shape without meaning.
   const usedRegs = new Set()
   const usedColls = new Set()
-  for (const o of ops) {
-    if (o.into) usedRegs.add(o.into)
-    if (o.reg) usedRegs.add(o.reg)
-    if (o.coll) usedColls.add(o.coll)
-    for (const r of [o.target, o.value, ...Object.values(o.props || {})]) {
-      if (r && r.r === 'reg') usedRegs.add(r.id)
-      if (r && r.r === 'coll') usedColls.add(r.id)
+  // ⛔⛔ IT DESCENDS INTO LOOP BODIES, and this is the THIRD flat `ops` scan that
+  // had to learn to. A `create` inside a loop stores into a register exactly as
+  // one outside it does, and a scan that could not see it pruned the register as
+  // unused — after which `assertObjectProgram` refused the whole program with
+  // "create stores into undeclared register". ⭐ The validator was right and the
+  // pruner was wrong, which is the good direction for that pair to disagree in.
+  const scanUse = (list) => {
+    for (const o of list || []) {
+      if (o.into) usedRegs.add(o.into)
+      if (o.reg) usedRegs.add(o.reg)
+      if (o.coll) usedColls.add(o.coll)
+      for (const r of [o.target, o.value, ...Object.values(o.props || {})]) {
+        if (r && r.r === 'reg') usedRegs.add(r.id)
+        if (r && r.r === 'coll') usedColls.add(r.id)
+      }
+      if (o.k === 'loop') scanUse(o.body)
     }
   }
+  scanUse(ops)
   const keptOps = ops.filter((o) => o.k !== 'setreg' || usedRegs.has(o.reg))
-  if (!keptOps.some((o) => o.k === 'create')) return { program: null, diagnostics }
+  // ⛔⛔ THE SEARCH DESCENDS INTO LOOP BODIES. `some()` over the top level was
+  // right while every op was top-level, and became wrong the day a `create`
+  // could sit inside a `loop` — a script whose ONLY constructor is in a loop
+  // (`for i = 0 to 3 \n lb := label.new(…)`) then answered "this program creates
+  // nothing" and threw the whole drawing away. Measured: every loop case in
+  // `objectLoopReader.test.js` produced `ops: []` until this descended.
+  const createsSomewhere = (list) => (list || []).some((o) => (
+    o.k === 'create' || (o.k === 'loop' && createsSomewhere(o.body))))
+  if (!createsSomewhere(keptOps)) return { program: null, diagnostics }
 
   return {
     program: {
@@ -10977,6 +12516,7 @@ function buildObjectProgram(stmts, source, env, makeResolver, bindingByStatement
       colls: colls.filter((c) => usedColls.has(c.id)),
       ops: keptOps,
       trees,
+      ...(Object.keys(iteratedTrees).length ? { iteratedTrees } : {}),
       ...(Object.keys(limits).length ? { limits } : {}),
     },
     diagnostics,
@@ -11896,6 +13436,43 @@ function translatePineResult(source, opts = {}) {
         { line: why.line, column: why.column, index: why.index, token: why.token }, `\`${name}\``)
     }
   }
+  // ⛔⛔ A TOP-LEVEL `array.set` INVALIDATES ITS VECTOR TOO, AND UNTIL
+  // 2026-09-23 ONLY A BLOCK-LEVEL ONE DID.
+  //
+  // `mutatorTargets` has always known that `array.set(a, …)` writes `a` — its own
+  // comment records why, measured on `uncharted-clouds.pine`: *"as soon as
+  // `array.get(v, k)` folded to a slot, Clouds went from 21 honest refusals to
+  // ZERO refusals and 21 plots reading `na`"*. But both callers pass a BLOCK's
+  // body, on the path where the walk gave up on that block. A write sitting at
+  // the top level, on a statement the walk handled fine, reached neither.
+  //
+  // ⚰️ IT WAS MASKED BY A PARSE BUG, AND A FIX UNCOVERED IT. The two-argument
+  // creation `array.new_float(2, 0.0)` used to hand `size, comma, init` to
+  // `parseWholeExpression` whole, which threw — so the vector folded to ZERO
+  // slots and every read of it refused anyway, for the wrong reason. Repairing
+  // that parse gave the vector real, pre-filled slots, and this hole became a
+  // SILENT WRONG ANSWER: measured on the merge,
+  //
+  //     var a = array.new<float>(2, 0.0)
+  //     array.set(a, 0, close)
+  //     plot(array.get(a, 0))        →  folded to the literal `0`, hidden
+  //
+  // and a table cell built the same way rendered `0` instead of the close. Two
+  // correct changes, each safe alone, exposing a third thing neither had touched.
+  //
+  // ⭐ SCOPED TO A VECTOR BINDING ON PURPOSE. Scalars are already handled by the
+  // `reassigned` pass above; this only demotes a name whose slots the resolver
+  // would otherwise treat as plan-time constants.
+  for (const stmt of stmts || []) {
+    for (const name of mutatorTargets(stmt.header || [])) {
+      const bound = env.get(name)
+      if (!bound || bound.kind !== 'vector') continue
+      forceOpaque(name, 'pine:collection', locate((stmt.header || [])[0]),
+        `\`${name}\` — its slots are written while the script runs, so this lane `
+        + 'cannot read one as a value it knows before the first bar')
+    }
+  }
+
   for (const [name, why] of unfoldable) {
     const bound = env.get(name)
     if (!bound || bound.kind === 'opaque') continue
@@ -11980,7 +13557,7 @@ function translatePineResult(source, opts = {}) {
   const makeResolver = () => {
     const r = new Resolver(env, table, declaredTypes,
       { finalBindings, finalLocals, mutated: reassigned, source, rawOffsetMap, paramMint,
-        strict: opts.strict === true,
+        strict: opts.strict === true, pineVersion: version,
         noteSink: (code, message, tok) => notes.push(noteOf(code, message, tok)),
         // ⭐ THE BUDGET REACHES EVERY RESOLVER OR IT PROTECTS NONE. The object
         // pass below builds its own, and a hang there is just as fatal.
@@ -12269,7 +13846,7 @@ function translatePineResult(source, opts = {}) {
       const probe = new Resolver(env, table, declaredTypes,
         { finalBindings, finalLocals, mutated: reassigned, source, rawOffsetMap,
           paramMint: null,
-          strict: opts.strict === true,
+          strict: opts.strict === true, pineVersion: version,
           basePeriod: opts.basePeriod, newestBarIsForming: opts.newestBarIsForming,
           budgetMs: opts.budgetMs, maxSteps: opts.maxSteps, maxDepth: opts.maxDepth,
           sourcePath: opts.sourcePath })
@@ -12391,6 +13968,16 @@ function translatePineResult(source, opts = {}) {
   // ⚠️ Wrapped, because a script that defeats the object reader must still get
   // its columns. A thrown object pass would otherwise cost a member the whole
   // translation for the sake of a drawing.
+  /** Build the graphical-object program.
+   *
+   *  ⭐⭐ EXTRACTED SO THE NO-OUTPUT PATH CAN RUN IT TOO, and for no other
+   *  reason — it is called from exactly two places and does the same work in
+   *  both. A second copy inside the early return would be a second authority on
+   *  what a script draws, which is the drift this file records more than any
+   *  other. It still runs AFTER the value walk at both sites, which is what its
+   *  own note below requires.
+   */
+  const runObjectPass = () => {
   let objectPass = { program: null, diagnostics: null }
   try {
     // ⛔ THE OBJECT PASS IS A SECOND ENTRY POINT AND NEEDS THE SAME BOUND. It
@@ -12403,6 +13990,8 @@ function translatePineResult(source, opts = {}) {
         + '. This is a translator defect, not a limit on the script: report it with the file.',
         null)
     }
+    // ⭐ `objectRawTrees` is set by the LANE ADAPTER (`runtime/objectLane.js`)
+    // and by nothing else. Unset, this pass behaves byte-identically to before.
     objectPass = buildObjectProgram(stmts, source, env, (scope) => {
       // ⭐⭐ R2 — THE FACTORY HONOURS THE SCOPE IT IS HANDED, AND IT NEVER DID.
       //
@@ -12421,7 +14010,7 @@ function translatePineResult(source, opts = {}) {
       // call site outside the text reader passes today.
       const r = new Resolver(scope || env, table, declaredTypes,
         { finalBindings, finalLocals, mutated: reassigned, source, rawOffsetMap, paramMint: null,
-          strict: opts.strict === true,
+          strict: opts.strict === true, pineVersion: version,
           basePeriod: opts.basePeriod, newestBarIsForming: opts.newestBarIsForming,
           budgetMs: opts.budgetMs, maxSteps: opts.maxSteps, maxDepth: opts.maxDepth, sourcePath: opts.sourcePath })
       // ⭐⭐ THE OBJECT PASS TAKES THE SAME TWO KNOB SETTINGS THE OUTPUT LOOP
@@ -12448,12 +14037,94 @@ function translatePineResult(source, opts = {}) {
         r.declareInputs = opts.declareInputs === 'all' ? 'all' : new Set(opts.declareInputs)
       }
       return r
-    }, bindingByStatement)
+    }, bindingByStatement, {
+      rawTrees: opts.objectRawTrees === true,
+      iterTrees: opts.objectIterTrees === true,
+    })
   } catch (err) {
     // ⛔ THE MESSAGE SURVIVES. A bare `{failed:true}` says a script defeated the
     // object reader and nothing about how, which is a diagnostic that cannot be
     // acted on — the exact shape this repo keeps rediscovering.
     objectPass = { program: null, diagnostics: { failed: true, error: String(err && err.message) } }
+  }
+    return objectPass
+  }
+
+  const objectPass = runObjectPass()
+
+  // ⭐⭐ NO COLUMN TO SCREEN ON IS NOT THE SAME FACT AS NOTHING TO DRAW.
+  //
+  // ⚰⚰ THIS RETURNED BEFORE THE OBJECT PASS RAN, so a script that draws a
+  // TABLE and offers no plot was refused `pine:no-output` — *"offers no plot and
+  // no alert condition to filter on"*, which is TRUE — and its object program
+  // was built never, then discarded. Measured on a published multi-symbol
+  // dashboard: the object pass understands its table perfectly (a `create` of
+  // family `table` with resolved props), and nothing downstream ever saw it,
+  // because the function had already returned forty lines earlier.
+  //
+  // ⭐ THE COMMENT TWENTY LINES ABOVE ALREADY KNEW: it records that "the
+  // `plot(0)` placeholder that table-drawing scripts conventionally carry" is
+  // how one real indicator scraped past this. A script that declines to carry
+  // the placeholder is not a different KIND of script.
+  //
+  // ⛔ THE SCREENER CONTRACT IS UNCHANGED — `ok` stays FALSE. There genuinely
+  // is no column to filter on, and saying otherwise would offer a member a scan
+  // over nothing. What changes is that the DRAWING survives the refusal, and
+  // that the refusal says which of the two facts it means.
+  if (resolved.length === 0) {
+    const draws = !!(objectPass.program && (objectPass.program.ops || []).length)
+    // ⭐⭐ A CLEAN OBJECT-ONLY PROGRAM IS A HOST-LANE ACCEPT, AND THE MERGE HAD
+    // THE COMMENT SAYING SO WITHOUT THE CODE. Master deleted this early return for
+    // exactly this case — its note above says `resolved.length === 0` *"used to
+    // refuse `pine:no-output` immediately, before the object pass below ever ran
+    // — so a script that draws ONLY boxes/lines/labels/tables could never reach
+    // the object lane at all"*. This branch kept the block (and improved its
+    // message), so the merge carried a comment describing code that was still
+    // there. The verdict belongs to `objectOnlyCleanWin` below, once the object
+    // pass has actually run.
+    //
+    // ⛔ THE REFUSAL SURVIVES FOR EVERYTHING ELSE, and that is the half worth
+    // keeping from this branch: a DIRTY object program, and the screener lane in
+    // every case, still refuse — and still say WHICH of the two facts they mean
+    // (`pine:objects-only` vs `pine:no-output`), carrying `mode` and the program
+    // with the verdict so a pane is never told a refusal came from nowhere.
+    const cleanObjectOnly = draws
+      && !!(objectPass.diagnostics && objectPass.diagnostics.droppedOps === 0)
+    if (isHostLane(opts) && cleanObjectOnly) {
+      // fall through — `objectOnlyCleanWin` decides, below
+    } else {
+    const guard = draws ? 'pine:objects-only' : 'pine:no-output'
+    const r = refusalValue(guard, REFUSALS[guard], null)
+    return {
+      ok: false, version, declaration, title, outputs: [], selected: -1,
+      presentation: { overlay, levels },
+      notes: withExcerpts(notes, lines),
+      refusal: hardRefusals[0] || r,
+      refusals: withExcerpts(hardRefusals.length ? refusals : [r, ...refusals], lines),
+      inputParams: [],
+      objects: objectPass.program,
+      objectDiagnostics: objectPass.diagnostics,
+      // ⛔⛔ THE LANE MUST TRAVEL WITH THE VERDICT, AND THIS RETURN HAD DROPPED
+      // IT. `paneGate` checks `t.mode` FIRST and explicitly — its own comment
+      // says the field "exists precisely so a verdict that travels cannot be
+      // ambiguous about which question it answered". Without it an objects-only
+      // verdict reached the pane as *"this verdict came from the unknown lane"*:
+      // a refusal that is true of the object handed over and says nothing about
+      // the script, which is the most misleading shape available.
+      //
+      // ⚠ IT WAS ABSENT BEFORE THIS CHANGE TOO — nothing had ever carried a
+      // no-output verdict to a consumer that reads `mode`, so the omission cost
+      // nothing and was invisible. It is not a regression; it is a hole this
+      // path only now reaches.
+      //
+      // ⛔ `opts.strict === true` IS READ DIRECTLY, not via the `strict` const
+      // declared ~50 lines below — which this return sits ABOVE, so naming it
+      // here is a temporal-dead-zone throw that surfaces to the member as
+      // *"the translator threw"*. The selector is the same expression the const
+      // itself uses; `bothLanesAreTwoLanes.test.js` is the rail on that reading.
+      mode: opts.strict === true ? 'host' : 'screener',
+    }
+  }
   }
 
   // ⭐⭐ THE OBJECT LANE, ALONE, AS A HOST-LANE VERDICT (owner-authorised,
@@ -12842,6 +14513,21 @@ const PINE_PLOT_STYLES = Object.freeze({
 // called `green` must not silently become a colour. The bound-name check is the
 // caller's (`staticColourOf` is handed a node the env has already been asked
 // about); here the question is only whether the SPELLING names a Pine colour.
+/** ⭐⭐ EXPORTED so the RUNTIME lane resolves a colour NAME through THIS table.
+ *
+ *  These eighteen hex values are vendor-pinned — six of the seven a real
+ *  TradingView observation reaches matched, and `color.red` was corrected from
+ *  the down-candle red to the vendor's `#FF5252` when that observation was
+ *  taken. A second copy in the runtime lane would be a second chance to carry
+ *  the wrong red, and nothing would catch it: every rail that touched a colour
+ *  would assert OUR constant.
+ *
+ *  ⚠️ Answers `null` for a name that is not a Pine colour, so the caller can
+ *  tell "not a colour" from "a colour I cannot read". */
+export const colourHexByName = (name) => (
+  Object.hasOwn(PINE_COLOURS, name) ? PINE_COLOURS[name]
+    : (Object.hasOwn(PINE_COLOURS_BARE, name) ? PINE_COLOURS_BARE[name] : null))
+
 const isColourName = (v) => !!v && v.type === 'name'
   && (Object.hasOwn(PINE_COLOURS, v.name) || Object.hasOwn(PINE_COLOURS_BARE, v.name))
 const colourHexOf = (v) => (Object.hasOwn(PINE_COLOURS, v.name)

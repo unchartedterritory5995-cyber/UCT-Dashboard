@@ -1,0 +1,240 @@
+{
+  "_": "⭐⭐ FIVE MORE PUBLISHED INDICATORS, READ OUT OF TRADINGVIEW'S OWN CHART MODEL. Companion to fvg-boxes-spy-1d-2026-09-22.json; same rig, same method, same day.",
+  "_method": "Each script pasted UNMODIFIED into the Pine editor on the UCT capture rig, added to the chart, then `graphics().dwglines()/dwglabels()/dwgboxes()/dwgtables()` read directly and mapped to bar dates through `graphics()._indexes`.",
+  "_theSentinelRule": "⛔⛔ `_indexes` HOLDS -2000000 FOR A DELETED OR UNPLACED OBJECT, AND THE PRIMITIVE STORE KEEPS THE DEAD RECORD. Counting the store without filtering reported 368 labels for Market Structure where the chart shows 14, and 117 lines where it shows 5. Every count below is LIVE ONLY; the dead tally is carried beside it so the filter is visible rather than implied.",
+  "symbol": "AMEX:SPY",
+  "interval": "1D",
+  "barCount": 300,
+  "barFirst": "2025-07-15",
+  "barLast": "2026-09-22",
+  "capturedAtUTC": "2026-09-23",
+  "scripts": {
+    "market-structure-by-leviathan": {
+      "title": "UCT PARITY MS",
+      "lines": [
+        [
+          "2025-10-10",
+          "2025-11-20",
+          652.84,
+          652.84
+        ],
+        [
+          "2025-10-29",
+          "2025-12-24",
+          689.7,
+          689.7
+        ],
+        [
+          "2025-11-21",
+          "2026-03-20",
+          650.85,
+          650.85
+        ],
+        [
+          "2026-01-28",
+          "2026-04-15",
+          697.84,
+          697.84
+        ],
+        [
+          "2026-06-02",
+          "2026-08-04",
+          760.4,
+          760.4
+        ]
+      ],
+      "labels": [
+        [
+          "2025-10-10",
+          "HL",
+          652.84
+        ],
+        [
+          "2025-10-30",
+          "BOS",
+          652.84
+        ],
+        [
+          "2025-10-29",
+          "HH",
+          689.7
+        ],
+        [
+          "2025-11-21",
+          "LL",
+          650.85
+        ],
+        [
+          "2025-11-25",
+          "BOS",
+          689.7
+        ],
+        [
+          "2026-01-28",
+          "HH",
+          697.84
+        ],
+        [
+          "2026-01-22",
+          "BOS",
+          650.85
+        ],
+        [
+          "2026-03-06",
+          "BOS",
+          697.84
+        ],
+        [
+          "2026-03-30",
+          "LL",
+          629.28
+        ],
+        [
+          "2026-06-02",
+          "HH",
+          760.4
+        ],
+        [
+          "2026-06-26",
+          "HL",
+          716.58
+        ],
+        [
+          "2026-07-02",
+          "BOS",
+          760.4
+        ],
+        [
+          "2026-07-29",
+          "HL",
+          729.1
+        ],
+        [
+          "2026-08-13",
+          "HH",
+          779.37
+        ]
+      ],
+      "dead": {
+        "lines": 112,
+        "boxes": 0,
+        "labels": 354
+      },
+      "counts": {
+        "lines": 5,
+        "boxes": 0,
+        "labels": 14
+      },
+      "_verdict": "⭐⭐ EXACT. All 5 lines and all 14 labels match this engine bar-for-bar in the shared window — same date, same label text, same price, no exceptions."
+    },
+    "trendlines": {
+      "title": "BTL",
+      "lines": [
+        [
+          "2025-10-29",
+          "2025-11-19",
+          689.7,
+          696.2546
+        ],
+        [
+          "2026-01-28",
+          "2026-02-19",
+          697.84,
+          699.8416
+        ],
+        [
+          "2026-03-30",
+          "2026-04-21",
+          629.28,
+          638.3094
+        ],
+        [
+          "2026-06-02",
+          "2026-06-24",
+          760.4,
+          771.3116
+        ],
+        [
+          "2026-08-13",
+          "2026-09-03",
+          779.37,
+          785.061
+        ]
+      ],
+      "labels": [],
+      "dead": {
+        "lines": 47,
+        "boxes": 0,
+        "labels": 0
+      },
+      "counts": {
+        "lines": 5,
+        "boxes": 0,
+        "labels": 0
+      },
+      "_verdict": "⛔ DEFECT, LOCATED. On all five lines this engine's RIGHT anchor is exactly TradingView's LEFT anchor: we draw the segment leading INTO the pivot, the vendor draws the one leading OUT of it. The pivot prices agree, so it is an anchor offset and not a maths error."
+    },
+    "inside-bar-range-mother-candle": {
+      "title": "IBRBVC",
+      "lines": [
+        [
+          "2026-09-03",
+          "2026-09-21",
+          774.03,
+          774.03
+        ],
+        [
+          "2026-09-03",
+          "2026-09-21",
+          767.45,
+          767.45
+        ]
+      ],
+      "labels": [],
+      "dead": {
+        "lines": 0,
+        "boxes": 0,
+        "labels": 0
+      },
+      "counts": {
+        "lines": 2,
+        "boxes": 0,
+        "labels": 0
+      },
+      "_verdict": "⭐ Prices and left edge EXACT (774.03 / 767.45, both on 2026-09-03). Right edge stops two sessions short — the same forward-extension defect fvg-boxes records."
+    },
+    "liquidity-pools": {
+      "title": "Liquidity Pools(SABAI SABAI FX)",
+      "counts": {
+        "lines": 90,
+        "labels": 45
+      },
+      "dead": {
+        "lines": 412,
+        "labels": 458
+      },
+      "_geometryNotCaptured": "⚠️ COUNTS ONLY. The full geometry was not transported — the verdict below turns on the DATE RANGE, which the counts and this engine's own output settle, so the missing coordinates would not change it. Say so rather than imply a comparison that was not made.",
+      "_verdict": "⛔⛔ DEFECT. TradingView holds 90 lines and 45 labels across 2025-07..2026-09. This engine's newest SURVIVING line is 2025-04-09 while its series runs to 2026-09-11 — so ZERO of our 37 lines fall in the vendor's window. Pine evicts the OLDEST object at the cap and keeps the newest; we do the reverse."
+    },
+    "4c-nyse-market-breadth-ratio": {
+      "title": "4C Breadth",
+      "table": {
+        "pos": "top_right",
+        "rows": 3,
+        "cols": 1,
+        "cells": [
+          "-1.07 NYSE",
+          "2.49 NASD",
+          "-128 ADD"
+        ]
+      },
+      "_verdict": "⭐ EXPECTED DIVERGENCE, NOT A DEFECT. The table renders on both sides. TradingView fills it from five `request.security` calls on NYSE/NASDAQ breadth symbols and shows '-1.07 NYSE' / '2.49 NASD' / '-128 ADD'; this engine has no such feed, so the cells are empty. Recorded so a future reader does not file it as a rendering bug."
+    }
+  },
+  "_findings": {
+    "evictionDirection": "⛔⛔ THE LARGEST OF THE THREE. Pine deletes the OLDEST object when a script passes `max_lines_count`/`max_boxes_count`. Liquidity Pools shows the consequence from one side (we keep only objects a year older than the vendor's window) and Fair Value Gaps from the other (the vendor kept 50, we emitted 212 uncapped).",
+    "trendlineAnchorOffset": "⛔ Trendline anchors sit one pivot span early, on 5 of 5.",
+    "forwardEdgeSessions": "⛔ An edge extended past the last bar advances CALENDAR days, not trading sessions. Seen on Fair Value Gaps (two weekend landings) and Inside Bar (two sessions short)."
+  },
+  "_bounds": "⚠️ ONE SYMBOL, ONE TIMEFRAME, 300 vendor bars against our 600, comparable window 2025-07-15..2026-09-11. Nothing here measures colour, line width, z-order or any raster property — only the objects' own coordinates and text."
+}

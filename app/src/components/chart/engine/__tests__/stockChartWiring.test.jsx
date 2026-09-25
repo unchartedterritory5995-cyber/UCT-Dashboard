@@ -1185,15 +1185,6 @@ describe('an engine series is inserted where its legacy twin would have been', (
     // did not change; the effect simply reaches its create in this harness now,
     // after master's additions to StockChart.jsx. The branch's list is 10 calls
     // with no whitespace series; the merged one is 11 with it last.
-    //
-    // ⭐ PORTED TO MASTER (red sweep, 2026-09-24) from merge/pine-up-to-master
-    // 526b5e2aa, and re-measured HERE rather than assumed: 11 calls, engine block
-    // at [6,7,8,9], and the ONE series after it is a LineSeries with
-    // `rgba(0,0,0,0)`, lastValue/priceLine/crosshair/pointMarkers all false —
-    // the same whitespace series. Master's own 451aed688 (gap runs) does NOT
-    // change this: its extra render series are minted by the binder INSIDE its
-    // one bind pass (`binder.js`, `runSeries` right after each `b.series`), so
-    // they belong to the contiguous engine block the assertion above measures.
     const paints = (c) => {
       const o = (c && c.options) || {}
       const invisible = typeof o.color === 'string'

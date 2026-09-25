@@ -1,0 +1,99 @@
+//@version=6
+indicator("UCTPROBE_P1_TOP_UNMEASURED", overlay = false)
+
+// ⭐⭐ PHASE 1, WAVE 1 — THE ENGINE'S MOST LOAD-BEARING UNMEASURED CLAIMS
+//
+// `vendorParityCoverage.measure.test.js` names 29 declared functions that real
+// corpus scripts call and no committed probe has ever measured. This probe
+// takes the top of that list by demand:
+//
+//     abs 95 scripts · nz 94 · atr 73 · change 72 · ema 65 · stdev 27 · rma 21
+//
+// ⛔⛔ EVERY READING HERE IS CHOSEN TO DISCRIMINATE, NOT TO EXERCISE.
+// `r11-nine-safe.pine` states the rule this file follows: *"The positives tell
+// you nothing: ceil(2.5)=3 and floor(2.5)=2 under every rule anyone has ever
+// shipped."* A reading both implementations agree on by construction proves
+// nothing and costs a plot slot. So each block below names the SPECIFIC
+// disagreement it can see, and several carry a control that must come back
+// EQUAL — because a probe where everything differs is as uninformative as one
+// where nothing does.
+//
+// ⚠️ RUN IT ON A LIQUID DAILY SYMBOL WITH DEEP HISTORY (SPY 1D). The seeding
+// questions below are answered in the FIRST ~20 BARS of the series and nowhere
+// else; a capture that only records the tail cannot see them.
+
+// ── 1. `nz` — WHAT DOES IT SUBSTITUTE, AND FOR WHAT? (94 scripts) ───────────
+// Two separate questions this engine currently answers without evidence:
+//   (a) the one-argument form's substitute — 0, or something else?
+//   (b) does the two-argument form take the REPLACEMENT or the VALUE when the
+//       value is present? An implementation that has them backwards passes every
+//       test written with `nz(na, x)` and fails on every real call site.
+plot(nz(na), "N01_nz_of_na_expect_0")                                        // N01
+plot(nz(na, 42.0), "N02_nz_na_with_replacement_expect_42")                   // N02
+plot(nz(7.0, 42.0), "N03_nz_PRESENT_with_replacement_expect_7_NOT_42")       // N03
+
+// ── 2. `math.abs` — THE na QUESTION, NOT THE SIGN QUESTION (95 scripts) ─────
+// ⛔ `abs(-2.5) = 2.5` is agreed by every implementation ever written and is
+// here ONLY as the control that proves the probe is reading this function at
+// all. The real question is `abs(na)`: na-propagating, or 0?
+plot(math.abs(-2.5), "N04_abs_neg2p5_CONTROL_expect_2p5")                    // N04
+plot(math.abs(na), "N05_abs_of_na_THE_QUESTION_na_or_0")                     // N05
+
+// ── 3. `ta.change` — THE VALUE ON BAR 0 (72 scripts) ────────────────────────
+// `ta.change(x)` is `x - x[1]`, and on the FIRST bar there is no `x[1]`.
+// na, or 0? Every script that sums or counts changes diverges on bar 0 if this
+// is wrong, and the divergence is invisible on every later bar.
+plot(ta.change(close), "N06_change_close_bar0_is_the_reading")               // N06
+plot(bar_index, "N07_bar_index_SO_BAR_0_IS_IDENTIFIABLE")                    // N07
+
+// ── 4. `ta.ema` — THE SEED. THIS IS THE BIG ONE (65 scripts) ────────────────
+// ⭐⭐ EMA implementations differ in exactly one place and it is not the
+// recurrence, it is what the recurrence STARTS from:
+//     (a) seed = the first source value            -> ema[n-1] != sma[n-1]
+//     (b) seed = SMA of the first n values         -> ema[n-1] == sma[n-1]
+// Plotting both and comparing them AT BAR n-1 answers it in one reading. On
+// every later bar they diverge under both rules, so the tail cannot answer it.
+// ⛔ A capture that starts after bar 5 here is WORTHLESS for this question.
+plot(ta.ema(close, 5), "N08_ema5_SEED_QUESTION_compare_to_N09_at_bar4")      // N08
+plot(ta.sma(close, 5), "N09_sma5_THE_DISCRIMINATOR_FOR_N08")                 // N09
+
+// ── 5. `ta.rma` and `ta.atr` — WILDER SMOOTHING, AND ARE THEY THE SAME? ─────
+// (atr 73 scripts, rma 21)
+// Two claims this engine makes and has never checked:
+//   (a) rma's own seed — same question as ema, different constant;
+//   (b) that `ta.atr(n)` IS `ta.rma(ta.tr(true), n)`. If those two plots ever
+//       differ by more than float noise, one of them is wrong and every ATR in
+//       the corpus is suspect.
+// ⭐ N11 vs N12 is an IDENTITY control: it must come back EQUAL. A probe where
+// every reading differs is as uninformative as one where none does.
+plot(ta.atr(5), "N10_atr5")                                                  // N10
+plot(ta.rma(ta.tr(true), 5), "N11_rma_of_tr5_MUST_EQUAL_N10")                // N11
+plot(ta.sma(ta.tr(true), 5), "N12_sma_of_tr5_SEED_DISCRIMINATOR")            // N12
+
+// ── 6. `ta.stdev` — POPULATION OR SAMPLE? (27 scripts) ──────────────────────
+// ⭐⭐ THE CLASSIC DIVERGENCE, and it is a whole-series offset rather than a
+// seeding artefact: dividing by `n` (population) or `n-1` (sample) differs on
+// EVERY bar, by a factor of sqrt(n/(n-1)) = 1.118 at n=5. Large enough to see,
+// small enough that nobody notices it by eye in a chart — which is precisely
+// how a wrong one ships.
+plot(ta.stdev(close, 5), "N13_stdev5_POPULATION_OR_SAMPLE")                  // N13
+// ⚠️ `ta.variance` IS NOT DECLARED BY THIS ENGINE, and this probe found that by
+// being run through our own translator BEFORE anyone was asked to spend a
+// TradingView session on it (`pine:function @ ta.variance`, line 80). It stays
+// OUT so that every reading here is one BOTH sides can produce — a capture of a
+// name we cannot translate yields a vendor number with nothing to compare it
+// against, which is a reading that cannot settle anything. Recorded as its own
+// vocabulary gap instead, for the Phase 2 queue.
+
+// ── 7. `math.sum` — BEFORE THE WINDOW FILLS (40 scripts) ────────────────────
+// A running sum over n bars has no defined answer until n bars exist. na, or a
+// partial sum of what there is? Scripts that divide by the sum diverge hard on
+// the early bars if this is wrong.
+plot(math.sum(close, 5), "N15_sum5_PRE_WINDOW_na_or_partial")                // N15
+
+// ⚠️ NOT IN THIS PROBE, DELIBERATELY, AND THE REASON IS ITEM 7'S SPLIT RULE:
+// `rsi`, `macd`, `stoch`, `cci`, `hma`, `wma`, `percentrank`, `mfi`, `atan`,
+// `avwap`. Each is a COMPOSITE whose answer depends on the seeding questions
+// above — measuring them before rma/ema/stdev are settled would produce
+// readings nobody can attribute. They are wave 2, after this probe's answers
+// land.

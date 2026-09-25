@@ -28,12 +28,34 @@
 /** ⭐ ONE TABLE, AND EVERY CONSUMER DERIVES FROM IT. `vm.js` switches on these,
  *  `lower.js` emits them, and `program.test.js` asserts the two agree — a hand-
  *  kept opcode list in a second file is the drift this repo pays for most. */
+// ⭐ The `str.*` table is imported rather than restated: this file VALIDATES a
+// program's text ops against it at build time, and a second copy of the name
+// list here is exactly the drift the header warns about one paragraph up.
+import { TEXT_FNS } from './text.js'
+import { ARRAY_FNS } from './collections.js'
+import { COLOUR_FNS } from './colours.js'
+import { isDrawingHandle } from './handles.js'
+
 export const OP = Object.freeze({
   // ── operands ──
   CONST: 0,          // a: const index
   READ_SERIES: 1,    // a: series index (open high low close volume)
   READ_COLUMN: 2,    // a: precomputed column index — THE HYBRID SEAM
   READ_HIST: 3,      // a: column index, b: offset in bars (na when unavailable)
+  // ⭐ `close[1]` OVER A PRICE SERIES DIRECTLY. The columnar lane normally
+  // owns price history, but a REQUEST runs over another symbol's series and
+  // has no column of them — a: series index, b: bars back.
+  READ_SERIES_HIST: 4,
+  // ⭐ AN ET CLOCK FIELD OF THE BAR BEING EVALUATED — a: `CLOCK_FIELDS` index.
+  // The columnar lane serves these as columns; a REQUEST cannot reach a column,
+  // because the columnar lane runs over THIS chart's bars and a request's value
+  // belongs to another symbol on another timeframe. This reads the region's own
+  // `barTimes`, so `hour(time, "America/New_York")` inside a request answers for
+  // the REQUESTED bar. See `indicators.js::etClockAt` — one clock, both lanes.
+  READ_CLOCK: 5,
+  // The bar's instant in MILLISECONDS when it falls inside a session, `na`
+  // otherwise — a: session start, b: session end, both minutes past ET midnight.
+  SESSION: 6,
   // ── arithmetic (NaN-propagating) ──
   ADD: 10,
   SUB: 11,
@@ -54,6 +76,7 @@ export const OP = Object.freeze({
   SELECT: 33,        // ternary: (test, a, b)
   // ── output ──
   EMIT: 40,          // a: output index
+  EMIT_ITER: 42,     // a: iteration-buffer index; pops value then index
   HALT: 41,
   // ── state (2D) ──
   LOAD_LOCAL: 50,
@@ -78,6 +101,17 @@ export const OP = Object.freeze({
   // Pine answers a number: a silent wrong value, which is the one outcome this
   // runtime refuses to trade for coverage. The front end refuses it BY NAME.
   READ_HIST_SLOT_DYN: 55,
+  // ⭐⭐ THE TWO THAT ARE ADMISSIBLE TODAY, and the reason is the one written
+  // above: the constraint on 55 is about a RING. A COLUMN and a price SERIES
+  // are materialised before the bar loop starts, so `[n]` is an index into an
+  // array that already holds every bar — any offset is answerable and there is
+  // nothing to overflow. The offset arrives ON THE STACK rather than as an
+  // immediate, which is the only difference from 3 and 4.
+  //
+  // ⛔ OUT OF RANGE IS `na`, NEVER A CLAMP — the same rule READ_HIST already
+  // states: clamping to bar 0 is how a warm-up silently becomes a real number.
+  READ_HIST_DYN: 56,        // a: column index; pops the offset
+  READ_SERIES_HIST_DYN: 57, // a: series index; pops the offset
   // ── control flow (2D) ──
   JUMP: 60,
   JUMP_IF_FALSE: 61,
@@ -128,6 +162,82 @@ export const OP = Object.freeze({
   // index DIFFERENTLY: history is chart-bar indexed and HOLDS, recurrence is
   // invocation-indexed and does not advance.
   CARRIED: 74,
+  // ⛔ NOT `ADD`, DELIBERATELY. `BINARY['+']` is `(a, b) => a + b`, which on a
+  // string and a number produces a string without a word — and Pine calls that
+  // combination a TYPE ERROR rather than a conversion. A separate opcode is
+  // what lets the VM refuse a mixed pair by name instead of accepting a script
+  // TradingView rejects and then disagreeing with it about the answer.
+  CONCAT: 75,
+  // ⭐ MIRRORS `POINTWISE`: `a` indexes `program.textOps` (a list of NAMES),
+  // `b` is the argument count. The names live in the artifact rather than in
+  // the opcode so adding a `str.*` costs no opcode and no VM branch.
+  TEXT: 76,
+  // ⭐ SAME SHAPE AS `TEXT`, and deliberately ONE opcode rather than the five
+  // reserved below. Pine's `array.` namespace has ~30 members; a table of
+  // NAMES costs one opcode for all of them, and the reserved `ARR_*` block
+  // would have cost five for the six this wave needs and another for every
+  // one after. The reserved ids stay declared so nothing renumbers, and this
+  // comment is the record that they were superseded rather than forgotten.
+  ARRAY: 77,
+  // ⭐ ONE INSTRUCTION AT THE TOP OF EVERY ITERATION, carrying the loop's
+  // static NESTING DEPTH in `a`. It exists so `LOOP_ITERATIONS` and
+  // `LOOP_NESTING` are charged from inside the loop rather than estimated
+  // from outside it — a runaway is stopped by the thing counting the passes,
+  // not by a guess about how many there will be.
+  LOOP_TICK: 78,
+  // ⭐⭐ ANOTHER SYMBOL. `a` indexes `program.requests`; `b` is how many
+  // values the request yields (1, or N for a tuple). The SYMBOL is on the
+  // stack — it is usually only known while the bar runs, because a member's
+  // watchlist is read out of a pasted string.
+  REQUEST: 79,
+  // ⭐ SAME SHAPE AS `TEXT` AGAIN: `a` indexes `program.colourOps`, `b` is
+  // the argument count. A colour is a packed integer, so it needs no new
+  // carrier on the stack — only a name table and a kind.
+  COLOUR: 85,
+  // ⭐⭐ DISCARD `a` VALUES — the one instruction a CALL-FOR-EFFECT needs.
+  // Pine's `f(x)` on a line of its own runs `f` and throws its result away, and
+  // `f` may hand back a TUPLE — so the count is an OPERAND rather than a fixed
+  // one. ARITY MATTERS: dropping one value from a two-value call leaves the
+  // other on the stack for the rest of the run, which the end-of-bar `sp !== 0`
+  // rail catches on bar 0 rather than as an overflow thousands of bars later.
+  //
+  // ⛔ NOT A `STORE_LOCAL` INTO A SCRATCH SLOT, which is the cheaper-looking
+  // alternative. A slot has an address, a lifetime and a place in the frame
+  // size; a discarded value has none of those, and giving it one would put an
+  // entry in the slot table that no READ can ever name.
+  DROP: 86,
+  // ⚰⚰ RECORD/FIELD_GET/FIELD_SET WERE 86/87/88 AT BRANCH TIME, AND ARE 87/88/89
+  // NOW. Statement-forms landed the same day and took 86 for DROP; this file's
+  // own header says appending is safe and reordering is not, so DROP kept its
+  // number and this trio moved by one. Every consumer of these three lives in
+  // files this branch owns, so the renumber is confined to them.
+  // ⭐⭐ USER-DEFINED TYPES — see `runtime/records.js`.
+  //
+  // `RECORD a b` — `a` indexes `program.recordTypes` (a `{type, fields}`
+  // descriptor); `b` is how many values are on the stack, which the build
+  // validates against that descriptor's field count. Same shape as `TEXT` and
+  // for the same reason: a type table in the artifact costs one opcode for
+  // every type a member ever declares.
+  RECORD: 87,
+  // `FIELD_GET a` / `FIELD_SET a` — `a` indexes `program.fieldNames`, ONE
+  // interned list shared by both. ⛔ TWO OPCODES OVER ONE TABLE, deliberately:
+  // a read and a write of `top` name the same field, and two tables would be
+  // two indices for one string that nothing keeps in step.
+  FIELD_GET: 88,
+  FIELD_SET: 89,
+  /** ⭐⭐ TWO-INPUT CARRIED STATE — Pine's `ta.valuewhen`, and so far only it.
+   *
+   *  ⛔ A SEPARATE OPCODE FROM `CARRIED`, not a flag on it. `CARRIED` pops ONE
+   *  value and hands its member a fixed cell count; this pops TWO and sizes its
+   *  state from the instance's `n`. Widening `CARRIED` would have changed the
+   *  `step` signature for `ema`, `rma`, `rising` and `falling` as well, and a
+   *  member reading its fourth argument as a decay where another reads it as a
+   *  source is how one driver quietly grows two meanings.
+   *
+   *  ⭐ APPENDED, NEVER INSERTED. These numbers are a wire format — two waves
+   *  on one day already collided at 86 — so a new opcode takes the next free
+   *  number and nothing renumbers. */
+  CARRIED2: 90,
   // ── RESERVED, not yet emitted or executed. Declared so the shape is settled. ──
   ARR_NEW: 80, ARR_PUSH: 81, ARR_GET: 82, ARR_SET: 83, ARR_SIZE: 84,
   OBJ_CREATE: 90, OBJ_UPDATE: 91, OBJ_DELETE: 92,
@@ -136,15 +246,26 @@ export const OP = Object.freeze({
 /** The opcodes this foundation actually executes. ⛔ DERIVED, so a reserved
  *  opcode reaching the VM is a named error rather than a silent fallthrough. */
 export const IMPLEMENTED = Object.freeze(new Set([
-  OP.CONST, OP.READ_SERIES, OP.READ_COLUMN, OP.READ_HIST,
+  OP.CONST, OP.READ_SERIES, OP.READ_COLUMN, OP.READ_HIST, OP.READ_SERIES_HIST,
+  // ⛔ THE TWO DYNAMIC READS ARE IMPLEMENTED; `READ_HIST_SLOT_DYN` IS NOT, AND
+  // THAT ASYMMETRY IS THE POINT. A column and a series are materialised, so any
+  // offset is answerable; a slot's past is a ring whose depth is fixed before
+  // bar 0, and an offset that may reach past it would answer `na` where Pine
+  // answers a number.
+  OP.READ_HIST_DYN, OP.READ_SERIES_HIST_DYN,
+  OP.READ_CLOCK,
+  OP.SESSION,
   OP.ADD, OP.SUB, OP.MUL, OP.DIV, OP.NEG,
   OP.LT, OP.GT, OP.LE, OP.GE, OP.EQ, OP.NE,
   OP.AND, OP.OR, OP.NOT, OP.SELECT,
   OP.LOAD_LOCAL, OP.STORE_LOCAL, OP.LOAD_PERSIST, OP.STORE_PERSIST,
   OP.READ_HIST_SLOT,
   OP.JUMP, OP.JUMP_IF_FALSE, OP.JUMP_IF_INIT,
-  OP.CALL, OP.RET, OP.POINTWISE, OP.WINDOW, OP.CARRIED,
-  OP.EMIT, OP.HALT,
+  OP.CALL, OP.RET, OP.POINTWISE, OP.WINDOW, OP.CARRIED, OP.CONCAT, OP.TEXT, OP.ARRAY,
+  OP.LOOP_TICK, OP.REQUEST, OP.COLOUR, OP.DROP,
+  OP.RECORD, OP.FIELD_GET, OP.FIELD_SET,
+  OP.CARRIED2,
+  OP.EMIT, OP.EMIT_ITER, OP.HALT,
 ]))
 
 export const OP_NAME = Object.freeze(
@@ -154,6 +275,22 @@ export const OP_NAME = Object.freeze(
  *  is a wire fact: it is baked into every lowered program, so appending is safe
  *  and reordering silently re-points every saved artifact. */
 export const SERIES_NAMES = Object.freeze(['open', 'high', 'low', 'close', 'volume'])
+
+/** The ET clock fields the runtime lane serves, in the order it indexes them.
+ *  ⛔ A wire fact like `SERIES_NAMES`: appending is safe, reordering re-points
+ *  every lowered program.
+ *
+ *  ⛔⛔ `time` IS DELIBERATELY ABSENT. Pine's `time` is a bar timestamp in
+ *  MILLISECONDS and every instant inside this engine is SECONDS, so exposing it
+ *  here would put a 1000× error one careless read away — and it would look like
+ *  a plausible timestamp, not like an error. The existing `pine:builtin` refusal
+ *  on bare `time` says so by name and stays.
+ *
+ *  ⚠️ `second` is absent because `etClockAt` does not produce one: bar instants
+ *  on this platform are minute-resolution at best, and a fabricated `0` would be
+ *  indistinguishable from a real zero second. Refused by name instead. */
+export const CLOCK_FIELDS = Object.freeze(
+  ['year', 'month', 'dayofmonth', 'dayofweek', 'hour', 'minute'])
 
 export class ProgramError extends Error {
   constructor(message) { super(message); this.name = 'ProgramError' }
@@ -169,23 +306,134 @@ export class ProgramError extends Error {
 export function makeProgram({
   code, consts, columns, outputs, locals = 0, persists = 0, version = null,
   functions = [], callSites = [], pointwise = [], history = [], windows = [], carried = [],
+  carried2 = [],
+  textOps = [], arrayOps = [], requests = [], colourOps = [], objectTreeOutputs = [],
+  iterOutputs = [], recordTypes = [], fieldNames = [],
 }) {
   if (!Array.isArray(code) || code.length % 3 !== 0) {
     throw new ProgramError(`code must be a flat array of [op,a,b] triples; got length ${code && code.length}`)
   }
   const p = Object.freeze({
     code: Int32Array.from(code),
-    // ⚠️ consts are Float64 and NOT frozen into an Int32Array — a const is a
-    // VALUE, and the first thing an integer array would do is truncate 0.1.
-    consts: Float64Array.from(consts || []),
+    // ⚠️ consts are NOT frozen into an Int32Array — a const is a VALUE, and the
+    // first thing an integer array would do is truncate 0.1.
+    //
+    // ⭐⭐ AND IT IS A PLAIN ARRAY, NOT A Float64Array, BECAUSE A VALUE IS NOT
+    // ALWAYS A NUMBER. `Float64Array.from(['abc'])` is `[NaN]`: a string const
+    // used to arrive as `na` with nothing raised anywhere on the way, which is
+    // the silent-coercion class this engine keeps paying for. The members are
+    // checked HERE so a bad one is named at build time rather than read as a
+    // missing number on bar 0. See `VALUE_MODEL_DECISION.md`.
+    // ⭐⭐ AND A DRAWING HANDLE IS THE THIRD, ADMITTED BY A PREDICATE RATHER
+    // THAN BY `typeof`. The rule above is *"a const is a number or a string"*,
+    // and its reason is that anything else silently coerces — `Float64Array`
+    // turning `'abc'` into `NaN` is the case it was written from. A handle is
+    // admitted because it does the OPPOSITE: `kindOf` answers `'drawing'`, so
+    // every declared-kind check in the VM refuses it BY NAME instead of
+    // coercing it. `isDrawingHandle` asks a symbol, so a member's own object
+    // can never widen this.
+    consts: Object.freeze((consts || []).map((c, i) => {
+      if (typeof c === 'number' || typeof c === 'string') return c
+      if (isDrawingHandle(c)) return c
+      throw new ProgramError(`const ${i}: a const is a number, a string or a drawing handle, got ${typeof c}`)
+    })),
     columns: Object.freeze((columns || []).slice()),
-    outputs: Object.freeze((outputs || []).slice()),
+    // ⭐⭐ AN OUTPUT IS A DESCRIPTOR, NOT A NAME. It began as a bare string
+    // and that was enough while every output was one series under one call.
+    // `fill` ended it: `fill(p1, p2, colour)` emits a colour series and has to
+    // say WHICH TWO PLOTS it fills between, and a string cannot. `plotcandle`
+    // needs the same shape for its four roles.
+    //
+    // ⛔ VALIDATED HERE so a malformed entry is a build error rather than a
+    // renderer reading `undefined` off it and drawing nothing.
+    outputs: Object.freeze((outputs || []).map((o, i) => {
+      const d = typeof o === 'string' ? { call: o } : o
+      if (!d || typeof d.call !== 'string' || !d.call) {
+        throw new ProgramError(`output ${i}: an output names the call that made it`)
+      }
+      return Object.freeze({ ...d })
+    })),
     locals, persists, version,
     // `entry` is the pc a CALL jumps to; `frameSize` is how many local slots the
     // invocation owns; `params` is how many of them are bound from the stack.
     functions: Object.freeze((functions || []).map((f) => Object.freeze({ ...f }))),
     callSites: Object.freeze((callSites || []).map((c) => Object.freeze({ ...c }))),
     pointwise: Object.freeze((pointwise || []).slice()),
+    // ⛔ NAMES, VALIDATED AGAINST THE TABLE AT BUILD TIME. A name the VM has
+    // no implementation for would otherwise surface on some bar as a runtime
+    // error, which reads as a data problem rather than a compiler one.
+    textOps: Object.freeze((textOps || []).map((name, i) => {
+      if (!Object.prototype.hasOwnProperty.call(TEXT_FNS, name)) {
+        throw new ProgramError(`textOp ${i}: no implementation for \`${name}\``)
+      }
+      return name
+    })),
+    // ⛔ Each entry is `{fn, typeArg}` — the NAME and the `<T>` the member
+    // wrote, validated here for the same reason a text op is: a name with no
+    // implementation must be a compiler error at build, not a runtime one on
+    // some bar.
+    // ⭐ tree index → output index, for a caller driving an object program
+    // from this lane. Validated as in-range: an index past the output table
+    // would read `undefined` for every cell and draw an empty table.
+    objectTreeOutputs: Object.freeze((objectTreeOutputs || []).map((n, i) => {
+      if (!Number.isInteger(n) || n < 0 || n >= (outputs || []).length) {
+        throw new ProgramError(`objectTreeOutputs[${i}]: ${n} is outside ${(outputs || []).length} outputs`)
+      }
+      return n
+    })),
+    // ⭐⭐ PER-ITERATION BUFFERS. Each is `{kind}` — `num` or `text` — and the
+    // KIND is validated here rather than discovered on a bar, for the same
+    // reason a text op's name is: a buffer whose kind nothing declared would be
+    // allocated as the wrong container and silently coerce every value it held.
+    iterOutputs: Object.freeze((iterOutputs || []).map((o, i) => {
+      const kind = o && o.kind
+      if (kind !== 'num' && kind !== 'text') {
+        throw new ProgramError(`iterOutputs[${i}]: kind must be 'num' or 'text', got ${JSON.stringify(kind)}`)
+      }
+      return Object.freeze({ kind })
+    })),
+    colourOps: Object.freeze((colourOps || []).map((name, i) => {
+      if (!Object.prototype.hasOwnProperty.call(COLOUR_FNS, name)) {
+        throw new ProgramError(`colourOp ${i}: no implementation for \`${name}\``)
+      }
+      return name
+    })),
+    arrayOps: Object.freeze((arrayOps || []).map((op, i) => {
+      const name = op && op.fn
+      if (!Object.prototype.hasOwnProperty.call(ARRAY_FNS, name)) {
+        throw new ProgramError(`arrayOp ${i}: no implementation for \`${name}\``)
+      }
+      return Object.freeze({ fn: name, typeArg: op.typeArg || null })
+    })),
+    // ⭐⭐ ONE DESCRIPTOR PER USER TYPE — `{type, fields}` — validated here for
+    // the same reason a text op's name is: a descriptor with no field list, or
+    // with a duplicated field, would surface on some bar as a record whose
+    // writes landed in the wrong place, which reads as a data problem rather
+    // than a compiler one.
+    // ⛔ DUPLICATES ARE REFUSED. `udtRecord` builds its field table with the
+    // LAST value winning, so two `top`s would silently make the first argument
+    // unreachable — a value the member passed that nothing can ever read.
+    recordTypes: Object.freeze((recordTypes || []).map((t, i) => {
+      const type = t && t.type
+      const fields = t && t.fields
+      if (typeof type !== 'string' || !type) {
+        throw new ProgramError(`recordType ${i}: a record type carries a name`)
+      }
+      if (!Array.isArray(fields) || !fields.every((f) => typeof f === 'string' && f)) {
+        throw new ProgramError(`recordType ${i}: \`${type}\` carries a list of field names`)
+      }
+      if (new Set(fields).size !== fields.length) {
+        throw new ProgramError(`recordType ${i}: \`${type}\` names a field twice`)
+      }
+      return Object.freeze({ type, fields: Object.freeze(fields.slice()) })
+    })),
+    // ⭐ The interned field names both `FIELD_GET` and `FIELD_SET` index.
+    fieldNames: Object.freeze((fieldNames || []).map((n, i) => {
+      if (typeof n !== 'string' || !n) {
+        throw new ProgramError(`fieldName ${i}: a field name is a non-empty string`)
+      }
+      return n
+    })),
     // ⭐ THE HISTORY PLAN IS PART OF THE ARTIFACT, not something the VM discovers.
     // Each entry is `{name, kind, depth, owner}` — how deep this slot's ring must
     // be, decided ONCE by the front end's static demand analysis. The runtime
@@ -201,6 +449,13 @@ export function makeProgram({
     // they are read from the table, so the artifact cannot disagree with the
     // semantics about how much state a member needs.
     carried: Object.freeze((carried || []).map((c) => Object.freeze({ ...c }))),
+    carried2: Object.freeze((carried2 || []).map((c) => Object.freeze({ ...c }))),
+    // ⭐ Each entry is `{timeframe, entry, results}` — WHICH timeframe, WHERE
+    // in this same code array the request's expression begins, and how many
+    // values it leaves. The expression is a REGION of this program rather
+    // than a program of its own, so it can call the same functions and read
+    // the same consts; only the SERIES it runs against differ.
+    requests: Object.freeze((requests || []).map((r) => Object.freeze({ ...r }))),
     instructions: code.length / 3,
   })
   validateProgram(p)
@@ -223,6 +478,9 @@ export function validateProgram(p) {
     }
     if (op === OP.CONST && (a < 0 || a >= p.consts.length)) {
       throw new ProgramError(`pc ${pc}: CONST ${a} outside ${p.consts.length} consts`)
+    }
+    if (op === OP.READ_SERIES_HIST && (a < 0 || a >= SERIES_NAMES.length)) {
+      throw new ProgramError(`pc ${pc}: READ_SERIES_HIST ${a} outside ${SERIES_NAMES.length} series`)
     }
     if (op === OP.READ_SERIES && (a < 0 || a >= SERIES_NAMES.length)) {
       throw new ProgramError(`pc ${pc}: READ_SERIES ${a} outside ${SERIES_NAMES.length} series`)
@@ -255,6 +513,19 @@ export function validateProgram(p) {
         throw new ProgramError(`pc ${pc}: CARRIED length ${c.n} — a carried builtin needs a length of at least 1`)
       }
     }
+    if (op === OP.CARRIED2) {
+      if (a < 0 || a >= p.carried2.length) {
+        throw new ProgramError(`pc ${pc}: CARRIED2 ${a} outside ${p.carried2.length} two-input carried sites`)
+      }
+      // ⛔ ZERO IS LEGAL HERE, UNLIKE `CARRIED`. A carried builtin's `n` is a
+      // LENGTH and must be at least 1; this one's is an OCCURRENCE INDEX, and
+      // occurrence 0 — the most recent firing — is the commonest call in the
+      // corpus. Copying the neighbouring check would have refused 121 sites.
+      const c = p.carried2[a]
+      if (!(c.n >= 0)) {
+        throw new ProgramError(`pc ${pc}: CARRIED2 occurrence ${c.n} — an occurrence counts firings back and cannot be negative`)
+      }
+    }
         if (op === OP.WINDOW) {
       if (a < 0 || a >= p.windows.length) {
         throw new ProgramError(`pc ${pc}: WINDOW ${a} outside ${p.windows.length} window sites`)
@@ -264,9 +535,71 @@ export function validateProgram(p) {
         throw new ProgramError(`pc ${pc}: WINDOW span ${w.span} — a window spans at least one bar`)
       }
     }
+    if (op === OP.REQUEST) {
+      if (a < 0 || a >= p.requests.length) {
+        throw new ProgramError(`pc ${pc}: REQUEST ${a} outside ${p.requests.length} requests`)
+      }
+    }
+    if (op === OP.COLOUR) {
+      if (a < 0 || a >= p.colourOps.length) {
+        throw new ProgramError(`pc ${pc}: COLOUR ${a} outside ${p.colourOps.length} colour ops`)
+      }
+      // ⛔ THE ARITY IS CHECKED AT BUILD, exactly as a text op's is. `color.rgb`
+      // takes three or four, so the bound is a RANGE rather than a single
+      // number — and a call outside it must be a compiler error here, not a
+      // wrong colour on some bar.
+      const spec = COLOUR_FNS[p.colourOps[a]]
+      const got = p.code[pc * 3 + 2]
+      const lo = spec.minArgs === undefined ? spec.args.length : spec.minArgs
+      const hi = spec.maxArgs === undefined ? spec.args.length : spec.maxArgs
+      if (got < lo || got > hi) {
+        throw new ProgramError(
+          `pc ${pc}: \`${p.colourOps[a]}\` takes ${lo === hi ? lo : `${lo} to ${hi}`} `
+          + `argument(s), the call passes ${got}`)
+      }
+    }
+    if (op === OP.TEXT) {
+      if (a < 0 || a >= p.textOps.length) {
+        throw new ProgramError(`pc ${pc}: TEXT ${a} outside ${p.textOps.length} text ops`)
+      }
+      const want = TEXT_FNS[p.textOps[a]].args.length
+      const got = p.code[pc * 3 + 2]
+      if (got !== want) {
+        throw new ProgramError(
+          `pc ${pc}: \`${p.textOps[a]}\` takes ${want} argument(s), the call passes ${got}`)
+      }
+    }
+    if (op === OP.ARRAY) {
+      if (a < 0 || a >= p.arrayOps.length) {
+        throw new ProgramError(`pc ${pc}: ARRAY ${a} outside ${p.arrayOps.length} array ops`)
+      }
+    }
     if (op === OP.POINTWISE) {
       if (a < 0 || a >= p.pointwise.length) {
         throw new ProgramError(`pc ${pc}: POINTWISE ${a} outside ${p.pointwise.length} names`)
+      }
+    }
+    // ⛔⛔ THE ARITY IS CHECKED AGAINST THE TYPE'S OWN FIELD COUNT, like `TEXT`
+    // above and for a sharper reason: `udtRecord` pairs `fields[i]` with
+    // `values[i]`, so a construction one value short would not merely fail — it
+    // would pair every field after the gap with the WRONG value, and each of
+    // them is a real number of the right kind. Nothing downstream could see it.
+    if (op === OP.RECORD) {
+      if (a < 0 || a >= p.recordTypes.length) {
+        throw new ProgramError(`pc ${pc}: RECORD ${a} outside ${p.recordTypes.length} record types`)
+      }
+      const want = p.recordTypes[a].fields.length
+      const got = p.code[pc * 3 + 2]
+      if (got !== want) {
+        throw new ProgramError(
+          `pc ${pc}: \`${p.recordTypes[a].type}\` declares ${want} field(s), `
+          + `the construction passes ${got}`)
+      }
+    }
+    if (op === OP.FIELD_GET || op === OP.FIELD_SET) {
+      if (a < 0 || a >= p.fieldNames.length) {
+        throw new ProgramError(
+          `pc ${pc}: ${OP_NAME[op]} ${a} outside ${p.fieldNames.length} field names`)
       }
     }
     if (op === OP.READ_HIST_SLOT) {

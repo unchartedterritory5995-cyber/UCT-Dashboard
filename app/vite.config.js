@@ -135,6 +135,34 @@ export default defineConfig({
   plugins: [react(), comingSoonMeta(), stripManifestProse()],
   build: {
     chunkSizeWarningLimit: 4000,
+    // ⛔⛔ THE SUPPORTED-ENGINE FLOOR, DECLARED. It was UNDECLARED before 2026-09-12, which is
+    // precisely how the Notebook route came to crash on every iOS below 18.4: Vite's default
+    // target is `'modules'` (~safari14), so a reader would reasonably believe old Safari was
+    // covered.
+    //
+    // ⭐ IT WOULD NOT HAVE HELPED, AND THAT IS THE LESSON WORTH KEEPING. `build.target` governs
+    // SYNTAX DOWNLEVELLING ONLY — esbuild rewrites `??=` and class fields, and does not add a
+    // single polyfill. `Iterator` is a GLOBAL, not syntax, so no target setting here would have
+    // caught `typeof Iterator.prototype.join` inside a dependency. Declaring the floor is worth
+    // doing so the intent is written down; the thing that actually catches this class is
+    // `iteratorGlobalFloor.test.js`, which reads the built chunks.
+    //
+    // ⚰️⚰️ THIS LIVED IN A SECOND `build:` KEY UNTIL 2026-09-20, AND A DUPLICATE KEY IN AN
+    // OBJECT LITERAL IS NOT A MERGE — THE LAST ONE WINS AND THE FIRST IS DISCARDED ENTIRELY.
+    // So `target` was live and everything above it — `chunkSizeWarningLimit` and the WHOLE
+    // `rollupOptions.manualChunks` block — was silently dead from the commit that added the
+    // iOS floor. Measured by loading the config rather than reading it: `build` resolved to
+    // `{ target }` alone, `rollupOptions` undefined.
+    //
+    // ⛔ THE DEAD HALF WAS LOAD-BEARING. `manualChunks`'s own comment says the object form
+    // exists to stop React-dependent libraries landing in `vendor-misc`, which crashes at
+    // runtime with "Cannot read properties of undefined (reading 'PureComponent')" — so the
+    // guard against that class had been absent, not merely unenforced.
+    //
+    // ⭐ esbuild had been printing `Duplicate key "build" in object literal` on every vitest
+    // run the whole time. It scrolls past above the test summary, which is exactly where a
+    // warning goes to die.
+    target: ['safari16', 'es2021'],
     rollupOptions: {
       output: {
         // Object form (NOT function form): Rollup walks the dependency
@@ -192,20 +220,6 @@ export default defineConfig({
     proxy: {
       '/api': 'http://localhost:8000'
     }
-  },
-  // ⛔⛔ THE SUPPORTED-ENGINE FLOOR, DECLARED. It was UNDECLARED before 2026-09-12, which is
-  // precisely how the Notebook route came to crash on every iOS below 18.4: Vite's default
-  // target is `'modules'` (~safari14), so a reader would reasonably believe old Safari was
-  // covered.
-  //
-  // ⭐ IT WOULD NOT HAVE HELPED, AND THAT IS THE LESSON WORTH KEEPING. `build.target` governs
-  // SYNTAX DOWNLEVELLING ONLY — esbuild rewrites `??=` and class fields, and does not add a
-  // single polyfill. `Iterator` is a GLOBAL, not syntax, so no target setting here would have
-  // caught `typeof Iterator.prototype.join` inside a dependency. Declaring the floor is worth
-  // doing so the intent is written down; the thing that actually catches this class is
-  // `iteratorGlobalFloor.test.js`, which reads the built chunks.
-  build: {
-    target: ['safari16', 'es2021'],
   },
   test: {
     environment: 'jsdom',

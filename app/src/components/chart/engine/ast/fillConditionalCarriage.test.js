@@ -162,7 +162,7 @@ describe('(j) j.3b — the conditional-fill carrier', () => {
     //   atr-trailing-stop-by-ceyhun        0 fills carried
     //   cumulative-volume-delta            0 fills carried
     //   order-block-finder                 0 fills carried
-    //   keltner-center-of-gravity-channel  7 fills, all STATIC (the 2 alpha-only
+    //   keltner-center-of-gravity-channel  10 fills, all STATIC (the alpha-only
     //                                      conditionals are not among the carried)
     //   72s-strategy-adaptive-hull         1 fill, and it GAINS its two colours
     //
@@ -188,10 +188,28 @@ describe('(j) j.3b — the conditional-fill carrier', () => {
     expect(measured['atr-trailing-stop-by-ceyhun__UMldb6tGLd.pine']).toEqual({ fills: 0, carried: 0 })
     expect(measured['cumulative-volume-delta__c772250751.pine']).toEqual({ fills: 0, carried: 0 })
     expect(measured['order-block-finder__fVSb3j0I87.pine']).toEqual({ fills: 0, carried: 0 })
-    // keltner's seven are STATIC and must stay static — the alpha-only decline and
+    // keltner's fills are STATIC and must stay static — the alpha-only decline and
     // the "a static fill is unchanged" control meeting on a real script.
+    //
+    // ⚰️ THE HEAD-COUNT MOVED 7 -> 10 ON 2026-09-22 AND THE CLAIM DID NOT. This
+    // script opens `tf = timeframe.period` and dispatches on `tf` eight arms deep;
+    // until the `timeframe.*` family landed, `timeframe.period` refused, so three
+    // of its fills never reached `presentation.fills` at all. Nothing about the
+    // CARRIER changed — `carried` is still 0, and 0 is what this case is about.
+    // ⛔ THE COUNT IS KEPT AS A COUNT rather than relaxed to a floor: a fill that
+    // silently stopped resolving is exactly what this number is here to catch, and
+    // `toBeGreaterThan` would have accepted 7 forever.
+    //
+    // ⚰️ AND IT MOVED AGAIN, 10 -> 12 ON 2026-09-23, FOR THE SAME REASON IN A
+    // DIFFERENT FAMILY. This script's line 28 is
+    // `formula = math.round(2 + per / 25 - 6 / per, 1)`, and the two-argument
+    // `math.round` refused at `pine:arity` until the vendor ruling landed — so
+    // two more of its fills never reached `presentation.fills`. ⭐ The claim is
+    // unchanged once more: `carried` is still 0, and 0 is what this case is
+    // about. A head-count that moves when a REFUSAL is lifted is this number
+    // working, not drifting.
     expect(measured['keltner-center-of-gravity-channel__e4a81d76f6.pine'])
-      .toEqual({ fills: 7, carried: 0 })
+      .toEqual({ fills: 12, carried: 0 })
 
     // …and the whole corpus delta is ONE fill. Stated as a number so a later change
     // that quietly widens the carrier has something to fail against.

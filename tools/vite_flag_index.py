@@ -28,8 +28,41 @@ from __future__ import annotations
 import os
 import re
 
-# `import.meta.env.VITE_ANYTHING`, the only way a Vite build-time flag is read.
+# `import.meta.env.VITE_ANYTHING` — the DIRECT read.
 _READ_RE = re.compile(r"import\.meta\.env\.(VITE_[A-Z0-9_]+)")
+
+# ⛔⛔ A LATE-BOUND READ IS STILL A READ, AND THE DIRECT PATTERN CANNOT SEE ONE.
+#
+# ⚰️ MEASURED 2026-09-23, and it had already cost 23 corpus scripts.
+# `objectsOnlyPaneGate.js` was refactored to resolve its source inside the body:
+#
+#     const source = env === undefined ? import.meta.env : env
+#     return source.VITE_PINE_OBJECTS_ONLY_PANE_ENABLED === '1'
+#
+# — written for a GOOD reason (its own header: a default argument binds at import,
+# so the fail-closed branch could never be entered by a test). But the literal
+# `import.meta.env.VITE_PINE_OBJECTS_ONLY_PANE_ENABLED` stopped appearing, this
+# index stopped seeing the name, `Dockerfile.web` was never held to declaring an
+# ARG for it, Railway drops an undeclared build arg in silence — and the flag
+# shipped permanently undefined. **The refactor that made the gate testable is what
+# made it unshippable**, and every rail in the chain stayed green.
+#
+# ⭐ SO THE SECOND PATTERN IS SCOPED, NOT GLOBAL: any `VITE_*` token, but only in a
+# file that mentions `import.meta.env` at all. A file that never names Vite's env
+# cannot be reading a build flag from it, and scoping this way keeps the
+# over-declaration bounded to files that really do read the env — where, as the
+# module docstring argues, an extra ARG is inert and the missing one is what costs
+# members.
+_ENV_HINT = "import.meta.env"
+_ANY_VITE_RE = re.compile(r"(VITE_[A-Z0-9_]+)")
+
+
+def _names_in(text: str) -> set[str]:
+    """Every VITE_* name this source reads, direct or late-bound."""
+    found = set(_READ_RE.findall(text))
+    if _ENV_HINT in text:
+        found |= set(_ANY_VITE_RE.findall(text))
+    return found
 
 _SOURCE_EXT = (".js", ".jsx", ".ts", ".tsx")
 
@@ -65,7 +98,7 @@ def names_read(root: str | None = None) -> set[str]:
     out: set[str] = set()
     for path in source_files(root):
         with open(path, encoding="utf-8", errors="replace") as fh:
-            out |= set(_READ_RE.findall(fh.read()))
+            out |= _names_in(fh.read())
     return out
 
 
@@ -76,7 +109,7 @@ def read_sites(root: str | None = None) -> dict[str, list[str]]:
     out: dict[str, list[str]] = {}
     for path in source_files(root):
         with open(path, encoding="utf-8", errors="replace") as fh:
-            for n in set(_READ_RE.findall(fh.read())):
+            for n in _names_in(fh.read()):
                 rel = os.path.relpath(path, base).replace(os.sep, "/")
                 out.setdefault(n, []).append(rel)
     return {k: sorted(v) for k, v in out.items()}

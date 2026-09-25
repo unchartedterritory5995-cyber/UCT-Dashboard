@@ -189,6 +189,16 @@ export function buildTable(tb, doc) {
         padding: `${Math.round(CELL_PAD_PX / 2)}px ${CELL_PAD_PX}px`,
         fontSize: `${px}px`,
         color: cell.text_color || '#D1D4DC',
+        // ⭐⭐ THE HEADER ROW'S BOLD. Pine's `text_formatting` is what tells a
+        // dashboard's headings apart from its data, and without these two lines
+        // the property could reach the render state and still change nothing —
+        // "built, tested, green and unreachable".
+        // ⛔ AN UNRECOGNISED VALUE CHANGES NOTHING rather than guessing: only
+        // the two names that mean something here are acted on, so a value this
+        // renderer has never heard of leaves the cell at its default weight
+        // instead of being coerced into one.
+        ...(cell.text_formatting === 'bold' ? { fontWeight: 'bold' } : {}),
+        ...(cell.text_formatting === 'italic' ? { fontStyle: 'italic' } : {}),
         textAlign: cell.text_halign === 'left' ? 'left'
           : cell.text_halign === 'right' ? 'right' : 'center',
         verticalAlign: cell.text_valign === 'top' ? 'top'

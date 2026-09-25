@@ -40,7 +40,13 @@ describe('⭐⭐ an object-only script (no plot, no alertcondition) with a clean
     expect(screener.ok, 'no numeric/boolean column exists to screen on').toBe(false)
     expect(screener.mode).toBe('screener')
     expect(screener.refusal, 'a screener refusal must never be silent').not.toBe(null)
-    expect(screener.refusal.guard).toBe('pine:no-output')
+    // ⭐ `pine:objects-only`, NOT `pine:no-output` — ruled in the 2026-09-23 merge.
+    // Both facts are true here and they are DIFFERENT facts: this script offers no
+    // column to screen on, AND it does draw. The narrower guard says which one it
+    // means. ⛔ The case at the bottom of this file keeps `pine:no-output` and is
+    // what proves the two are distinguished rather than renamed: that script's
+    // object lane produces NOTHING, so the wider guard is the true one there.
+    expect(screener.refusal.guard).toBe('pine:objects-only')
   })
 
   it('a second real corpus script (order blocks) also clears the host lane cleanly', () => {
@@ -55,7 +61,13 @@ describe('⭐⭐ an object-only script (no plot, no alertcondition) with a clean
     const src = fs.readFileSync(path.join(CORPUS, 'fib-retracement__8XcLscnekw.pine'), 'utf8')
     const t = translatePine(src, { strict: true })
     expect(t.ok, 'partial object output must not be reported as a full pass').toBe(false)
-    expect(t.refusal.guard).toBe('pine:no-output')
+    // ⭐ `pine:objects-only`, NOT `pine:no-output` — ruled in the 2026-09-23 merge.
+    // Both facts are true here and they are DIFFERENT facts: this script offers no
+    // column to screen on, AND it does draw. The narrower guard says which one it
+    // means. ⛔ The case at the bottom of this file keeps `pine:no-output` and is
+    // what proves the two are distinguished rather than renamed: that script's
+    // object lane produces NOTHING, so the wider guard is the true one there.
+    expect(t.refusal.guard).toBe('pine:objects-only')
   })
 
   it('⛔ CONTROL — a script where the object lane also produces nothing stays correctly refused', () => {

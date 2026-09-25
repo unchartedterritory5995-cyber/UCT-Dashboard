@@ -89,7 +89,8 @@ export function makeBarClock(bars) {
     const ms = Date.parse(String(t).length <= 10 ? `${t}T00:00:00Z` : String(t))
     epoch[i] = Number.isFinite(ms) ? Math.floor(ms / 1000) : NaN
   }
-  let step = 86400
+  const DAY = 86400
+  let step = DAY
   if (n >= 3) {
     const d = []
     for (let i = Math.max(1, n - 40); i < n; i += 1) {
@@ -97,6 +98,55 @@ export function makeBarClock(bars) {
       if (gap > 0) d.push(gap)
     }
     if (d.length) { d.sort((a, b) => a - b); step = d[Math.floor(d.length / 2)] }
+  }
+
+  // ─── RC-C — THE FUTURE IS SESSIONS, NOT CALENDAR DAYS ────────────────────
+  //
+  // ⚰️⚰️ EXTENDING BY THE MEDIAN STEP WALKS ONTO SATURDAY. `bar_index + N` means
+  // N future BARS, and a chart's future bars are trading sessions. On a weekday
+  // series four gaps in five really are one calendar day, so the median is
+  // 86,400 and `bar_index + 3` from a Friday lands on the Monday only by luck —
+  // usually it lands on the weekend. Measured against TradingView 2026-09-23:
+  // Fair Value Gaps put two box right edges on a Saturday and a Sunday, and
+  // Inside Bar Range stopped two sessions short.
+  //
+  // ⛔ THE CADENCE IS DERIVED, NEVER ASSUMED. "Skip Saturday and Sunday" would
+  // be another resemblance — wrong for crypto, wrong for a weekly series. What
+  // the bars themselves say is WHICH WEEKDAYS CARRY SESSIONS, and that single
+  // fact answers all three: five weekdays ⇒ skip the weekend; one weekday ⇒ a
+  // weekly series steps seven days with no special case; all seven ⇒ a 24/7
+  // market has nothing to skip and keeps the measured step.
+  //
+  // ⚠️ HOLIDAYS REMAIN UNKNOWABLE AND THIS DOES NOT PRETEND OTHERWISE. A future
+  // Thanksgiving is a weekday with no session, and no property of the loaded
+  // bars can reveal that — only an exchange calendar can, and we do not have
+  // one. So a projection spanning a market holiday is still one session long;
+  // that is a bounded, named residual rather than the systematic weekend error
+  // this replaces.
+  const sessionDays = new Set()
+  for (let i = Math.max(0, n - 60); i < n; i += 1) {
+    if (Number.isFinite(epoch[i])) sessionDays.add(new Date(epoch[i] * 1000).getUTCDay())
+  }
+  // ⛔ WHOLE-DAY SERIES ONLY. Session-skipping is day arithmetic; applying it to
+  // an hourly series would step every projection a day out.
+  const sessionWise = step >= DAY && step % DAY === 0
+    && sessionDays.size > 0 && sessionDays.size < 7
+
+  /** `count` sessions from an epoch, either direction, a day at a time. */
+  const advanceSessions = (fromEpoch, count) => {
+    if (!Number.isFinite(fromEpoch) || !Number.isFinite(count)) return NaN
+    const dir = count >= 0 ? 1 : -1
+    let remaining = Math.abs(count)
+    let e = fromEpoch
+    // ⭐ At least one weekday carries a session, so the next one is never more
+    // than seven day-steps away. The bound guards a corrupt set, not the walk.
+    let guard = remaining * 7 + 7
+    while (remaining > 0 && guard > 0) {
+      e += dir * DAY
+      guard -= 1
+      if (sessionDays.has(new Date(e * 1000).getUTCDay())) remaining -= 1
+    }
+    return remaining === 0 ? e : NaN
   }
   /** An extrapolated point must be the SAME SHAPE as the series' own times, or
    *  the chart cannot place it — see the note above. */
@@ -129,8 +179,12 @@ export function makeBarClock(bars) {
       // an epoch would round-trip a date through arithmetic for no reason and is
       // one DST bug away from placing an object on the wrong day.
       if (k >= 0 && k < n) return raw[k]
-      if (k >= n) return shaped(epoch[n - 1] + (k - (n - 1)) * step)
-      return shaped(epoch[0] + k * step)
+      if (k >= n) {
+        return shaped(sessionWise
+          ? advanceSessions(epoch[n - 1], k - (n - 1))
+          : epoch[n - 1] + (k - (n - 1)) * step)
+      }
+      return shaped(sessionWise ? advanceSessions(epoch[0], k) : epoch[0] + k * step)
     },
   }
 }

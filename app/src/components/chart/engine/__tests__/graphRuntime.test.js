@@ -99,21 +99,6 @@ const doc = (name) => {
  *  unchanged, and `buildGraph` — which is what the chart path runs — does not
  *  call `expandedSizes` at all and builds the 227-node graph fine.
  *
- *  ⚰️ 2026-09-24, PORTED TO MASTER (sweep/lane-1) FROM `merge/pine-up-to-master`
- *  526b5e2aa — AND IT HOLDS WITHOUT THE PINE ENGINE WORK. Master's own grammar
- *  commits after this file was born (#153..#170, "joins the engine grammar")
- *  grew the same document: measured on master 451aed688, 28 outputs, 12 kept,
- *  2 refused, a 227-node shared graph whose `out10` refuses at 13,009 (the
- *  merged tree says 13,035). The other three expand to 681 / 423 / 436 nodes,
- *  the same forests as on the merged tree, so SPECIMEN below is right here too.
- *  The 10-commit window 877dd173c..451aed688 never touched `engine/ast/`, so
- *  this is not a window regression. Mutation: SPECIMEN set back to
- *  `mid_engagement__22` reds C2C.19's non-vacuity assertion ("expected
- *  [Function] to not throw"). ⚠️ The server carries the SAME 2048 ceiling
- *  (`api/services/compute_graph.py`), so a document over the byte budget that
- *  reduces to this graph meets the store's refusal — the pre-existing size
- *  refusal `reduceIfOversized` documents, reported upstream, not decided here.
- *
  *  ⛔ AND A CEILING IS NOT A SKIP. A case that quietly `return`s on this would
  *  go vacuous the day the ceiling starts firing on everything; the caller below
  *  asserts the refusal BY NAME and the census asserts how many documents really

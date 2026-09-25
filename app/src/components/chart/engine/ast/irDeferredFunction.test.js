@@ -27,26 +27,61 @@ const V2 = fs.readFileSync(
 const HEAD = '//@version=6\nindicator("t", overlay=true)\n'
 
 describe('⭐⭐ a definition this lane cannot compile defers to its call site', () => {
-  it('⭐ an UNCALLED text helper no longer refuses the program', () => {
-    const src = `${HEAD}f_pos(_p) =>
-    _p == 'Top Left' ? 1 : 2
+  it('⭐ an UNCALLABLE helper no longer refuses the program', () => {
+    // ⚰️ A TUPLE HELPER STOOD HERE and lowered two commits later, which is the
+    // SECOND time this case's example became supported — a `for` loop was the
+    // first. The mechanism it tests (deferral: an uncompilable definition is
+    // skipped, NAMED, and re-raised at its first call site) has never changed;
+    // only the construct standing in for "uncompilable" has. `while` is the
+    // stable one: its bound is re-read every pass, a different termination
+    // argument from the counted loop's, and nothing in this wave touches it.
+    // ⚰️ THIS CASE USED TO USE A TEXT HELPER — `f_pos(_p) => _p == 'Top Left' ?
+    // 1 : 2` — and the text value model (2026-09-19) made that helper COMPILE,
+    // so it stopped being an example of "a definition this lane cannot
+    // compile". The MECHANISM under test is deferral, not text: a definition
+    // that cannot compile is skipped, NAMED with its line and guard, and
+    // re-raised at the first call site. A tuple return is a construct this lane
+    // still cannot compile, so it carries the case now.
+    const src = `${HEAD}f_spin(_x) =>
+    float s = 0.0
+    while s < _x
+        s := s + 1.0
+    s
 plot(ta.sma(close, 14))
 `
     const r = buildRuntimeIr(src, runtimeClockOpts(false))
     expect(r.ok, `refused: ${JSON.stringify(r.refusal)}`).toBe(true)
     // ⛔ AND IT IS NAMED. A helper the lane skipped is in the diagnostics with
     // its line and the guard its definition hit — never simply absent.
-    expect(r.diagnostics.skippedFunctions).toEqual(['f_pos@3 pine:text-value'])
+    expect(r.diagnostics.skippedFunctions).toEqual(['f_spin@3 runtime:loop'])
   })
 
   it('⛔ …and CALLING it still refuses — at the CALL, not the definition', () => {
+    const src = `${HEAD}f_spin(_x) =>
+    float s = 0.0
+    while s < _x
+        s := s + 1.0
+    s
+plot(f_spin(close))
+`
+    const r = buildRuntimeIr(src, runtimeClockOpts(false))
+    expect(r.ok).toBe(false)
+    expect(r.refusal.guard).toBe('runtime:loop')
+    // ⛔ AT THE CALL. The definition is on line 3; the refusal names line 5.
+    expect(r.refusal.line).toBeGreaterThan(3)
+  })
+
+  it('⭐⭐ a TEXT helper now COMPILES — the case above no longer covers text', () => {
+    // ⭐ Kept as the record of what changed, so the edit above is not read as a
+    // rail being weakened to fit. This is the exact script the two cases above
+    // used to use, and the lane now runs it.
     const src = `${HEAD}f_pos(_p) =>
     _p == 'Top Left' ? 1 : 2
 plot(f_pos('Top Left'))
 `
     const r = buildRuntimeIr(src, runtimeClockOpts(false))
-    expect(r.ok).toBe(false)
-    expect(r.refusal.guard).toBe('pine:text-value')
+    expect(r.ok, `refused: ${JSON.stringify(r.refusal)}`).toBe(true)
+    expect(r.diagnostics.skippedFunctions || []).toEqual([])
   })
 
   it('⛔⛔ A DEFINITION THAT DIES ON ITS PARAMETERS STILL REFUSES BY ITS OWN NAME', () => {
@@ -112,6 +147,24 @@ describe('⭐⭐ v2 through the IR lane — where it stops now', () => {
     // rediscovered as a mystery.
     expect(r.refusal.line).toBe(249)
     expect(r.refusal.message).toContain('syminfo.ticker')
-    expect(r.diagnostics.statements).toBe(77)
+    // ⚰️ 2026-09-23: 77 → 75, AND THE CODE WAS CHECKED BEFORE THE NUMBER WAS.
+    // `f_getVolumeUnit` (v2:161) ends in an `if`/`else if`/`else` chain. That
+    // now lowers through the VALUE path — one `lowerExpr` per arm, as the
+    // block-valued BINDING has always done — instead of `lowerStmts`, and this
+    // counter only ticks inside `lowerStmts`. Two lines the lane still
+    // processes are no longer counted.
+    //
+    // ⛔ THE LANE'S REACH IS UNCHANGED, and that was measured, not assumed:
+    // same refusal guard, same line, and a BYTE-IDENTICAL skipped-function set
+    // (names, lines, guards). Both member scripts moved by exactly 2
+    // (v2 77→75, v1 76→74), so the differential this file reasons about holds.
+    //
+    // ⛔ THIS IS NOT THE 2026-09-20 INCIDENT. That one moved the number UP
+    // because an `if`'s BODY was lowered before its TEST, so the lane stopped
+    // CHECKING and looked like it had gone further. Source order is preserved
+    // here and is now railed DIRECTLY — `functionBodyBlockValue.test.js`,
+    // "SOURCE ORDER" — with a tuple in both positions and the test's line
+    // required to win. A count could never have said which way round they ran.
+    expect(r.diagnostics.statements).toBe(75)
   })
 })

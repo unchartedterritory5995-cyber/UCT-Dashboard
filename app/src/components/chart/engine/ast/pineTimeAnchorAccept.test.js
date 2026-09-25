@@ -85,7 +85,17 @@ describe('⭐ time(<timeframe>) one-argument anchor form redirects to dayopentim
 
   it('routes onto the dayopentime clock leaf, not a new node type', () => {
     const t = translatePine(S('ta.change(time("D")) != 0 ? 1 : 0'), { strict: true })
-    expect(t.outputs[t.selected].formula).toBe('change(dayopentime) != 0 ? 1 : 0')
+    // ⛔⛔ `* 1000` — PINE'S CLOCK IS MILLISECONDS AND THIS ENGINE'S IS SECONDS.
+    // Added 2026-09-23, when the two lineages merged. One had reconciled the bare
+    // `time` NAME to ms (`PINE_CLOCK_TRANSFORM`); the other had implemented
+    // `time(<tf>)` onto the SECONDS-valued `dayopentime` leaf. Each was self-
+    // consistent alone; together one script's `time` was ms and its `time("D")`
+    // was seconds — so `time - time("D")` rendered as
+    // `time * 1000 - dayopentime`, wrong by three orders of magnitude.
+    // ⭐ THIS CASE'S INTENT IS UNTOUCHED: the leaf is still the leaf, no new node
+    // type was invented, and the reconciliation is the same one the bare name
+    // already carried.
+    expect(t.outputs[t.selected].formula).toBe('change(dayopentime * 1000) != 0 ? 1 : 0')
   })
 
   it('"1D" normalises to the same "D" code as "D" itself', () => {
@@ -106,7 +116,17 @@ describe('⭐ time(<timeframe>) one-argument anchor form redirects to dayopentim
       + 'plot(ta.change(time(tf)) != 0 ? 1 : 0)\n'
     const t = translatePine(src, { strict: true })
     expect(t.ok, JSON.stringify(t.refusal)).toBe(true)
-    expect(t.outputs[t.selected].formula).toBe('change(dayopentime) != 0 ? 1 : 0')
+    // ⛔⛔ `* 1000` — PINE'S CLOCK IS MILLISECONDS AND THIS ENGINE'S IS SECONDS.
+    // Added 2026-09-23, when the two lineages merged. One had reconciled the bare
+    // `time` NAME to ms (`PINE_CLOCK_TRANSFORM`); the other had implemented
+    // `time(<tf>)` onto the SECONDS-valued `dayopentime` leaf. Each was self-
+    // consistent alone; together one script's `time` was ms and its `time("D")`
+    // was seconds — so `time - time("D")` rendered as
+    // `time * 1000 - dayopentime`, wrong by three orders of magnitude.
+    // ⭐ THIS CASE'S INTENT IS UNTOUCHED: the leaf is still the leaf, no new node
+    // type was invented, and the reconciliation is the same one the bare name
+    // already carried.
+    expect(t.outputs[t.selected].formula).toBe('change(dayopentime * 1000) != 0 ? 1 : 0')
   })
 
   // ⭐⭐ VALUE CORRECTNESS, DIRECTLY AGAINST `computeClock` — never

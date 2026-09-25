@@ -19,6 +19,7 @@
 // not." Loops, functions, tuples, arrays and object operations have their node
 // shapes here NOW so the IR cannot need re-cutting when they land. Anything not
 // yet lowerable is refused BY NAME at lowering, never silently dropped.
+import { drawingHandle, isDrawingHandle } from './handles.js'
 
 /** Statement kinds. ⛔ DERIVED-FROM, never retyped: `lowerIr.js` switches on
  *  these and `irShape.test.js` asserts the two agree. */
@@ -27,11 +28,18 @@ export const STMT = Object.freeze({
   ASSIGN: 'assign',       // `x := e`
   IF: 'if',               // header + then[] + else[]
   EMIT: 'emit',           // `plot(e)` and friends — one named output
+  // ⭐⭐ ONE SLOT OF A PER-ITERATION BUFFER. See `iterOutputs` on the program.
+  EMIT_ITER: 'emitIter',  // { iter, index, value }
   EXPR: 'expr',           // an expression evaluated for effect
+  // ⭐ `f.field := e` — a field write. ⛔ A STATEMENT, NOT AN EXPRESSION, for
+  // the reason `array.push` is: Pine's field assignment yields nothing, and an
+  // expression form would leave a value on the stack that nothing pops.
+  FIELD_SET: 'fieldSet',
   // ── declared, not yet lowerable ──
   FOR: 'for',
   WHILE: 'while',
   BREAK: 'break',
+  DESTRUCTURE: 'destructure',   // `[a, b] = f()`
   CONTINUE: 'continue',
   FUNC: 'func',
   RETURN: 'return',
@@ -40,10 +48,38 @@ export const STMT = Object.freeze({
 /** Expression kinds. */
 export const EXPR = Object.freeze({
   NUM: 'num',
+  // ⭐⭐ A STRING IS ITS OWN KIND, NOT A `NUM` WITH A DIFFERENT PAYLOAD. Both
+  // lower to `CONST` over the same pool, so the distinction buys nothing in the
+  // BACK end — it is the FRONT end that needs it: the route decision asks "can
+  // the columnar lane hold this?", and the columnar lane refuses text at
+  // `pine:text-value`. A string that arrived wearing `NUM` would be routed into
+  // that lane and refused, which is the wall this kind exists to walk around.
+  STR: 'str',
+  CONCAT: 'concat',       // `+` between two STRINGS — never the numeric `+`
+  COLOUR: 'colour',   // a `color.*` producer — a packed 0xTTBBGGRR integer
+  // ⭐⭐ AN OPAQUE DRAWING HANDLE — the RESULT of a `<family>.new(…)` the OBJECT
+  // PASS has taken responsibility for. See `runtime/handles.js` for why it is
+  // neither a number nor `na`, and `pineRuntimeFrontend.js` for the ONE position
+  // that may build one. ⛔ It carries no arguments and no coordinates: this lane
+  // holds the handle, the object program holds the drawing.
+  DRAWING: 'drawing',
+  TEXT: 'text',           // a `str.*` builtin — see runtime/text.js
+  ARRAY: 'array',         // an `array.*` builtin — see runtime/collections.js
+  TUPLE: 'tuple',         // several values at once — only a function RESULT
+  REQUEST: 'request',     // `request.security` — another symbol's series
   SERIES: 'series',       // a price series, by name
+  CLOCK: 'clock',         // an ET clock field of the bar — see program.js
+  SESSION: 'session',     // `time(tf, "0930-1600", tz)` — in-session or `na`
   COLUMN: 'column',       // a pure subtree the columnar lane evaluates — THE SEAM
   READ: 'read',           // a variable slot
   HIST: 'hist',           // `e[n]` over a COLUMN (see the lowering note)
+  // ⭐⭐ `e[n]` WHERE `n` IS ONLY KNOWN WHILE THE BAR IS RUNNING. `back` is an
+  // EXPRESSION here, not a number, and `of` may only be a COLUMN or a SERIES —
+  // both materialised before the bar loop, so any offset is answerable and
+  // there is no ring to overflow. History over a READ stays `HIST` with a
+  // constant, because a slot's past lives in a ring of bounded depth and an
+  // offset past it would answer `na` where Pine answers a number.
+  HIST_DYN: 'histDyn',
   BINARY: 'binary',
   UNARY: 'unary',
   TERNARY: 'ternary',
@@ -51,8 +87,20 @@ export const EXPR = Object.freeze({
   BUILTIN: 'builtin',     // a POINTWISE table builtin applied to current-bar values
   WINDOW: 'window',       // a FINITE-WINDOW table builtin over a runtime series
   CARRIED: 'carried',     // a CARRIED-STATE table builtin over a runtime series
+  CARRIED2: 'carried2',   // a TWO-INPUT carried-state builtin (`ta.valuewhen`)
+  // ⭐⭐ A USER-DEFINED TYPE — see `runtime/records.js`. `RECORD` constructs one
+  // (`Foo.new(…)`), `FIELD` reads one field of one (`f.top`). A field WRITE is a
+  // statement, not an expression, and lives in `STMT.FIELD_SET`.
+  //
+  // ⛔ THE FIELD NAMES RIDE ON THE NODE, NOT IN A SIDE TABLE KEYED BY TYPE. Two
+  // `Foo.new` sites build the same shape, and a shared table would be a second
+  // authority over which fields a record has — one that `lowerIr` would have to
+  // keep in step with the front end's own type registry. The node carries what
+  // it needs and the program interns the name lists, so the artifact still holds
+  // each list once.
+  RECORD: 'record',
+  FIELD: 'field',
   // ── declared, not yet lowerable ──
-  TUPLE: 'tuple',
   ARRAY_OP: 'arrayOp',
   OBJECT_OP: 'objectOp',
 })
@@ -88,6 +136,8 @@ const isObj = (v) => v !== null && typeof v === 'object' && !Array.isArray(v)
 export function makeIrProgram({
   version = null, statements, slots, columns = [], outputs = [],
   functions = [], callSites = [], history = [], windows = [], carried = [],
+  carried2 = [],
+  requests = [], objectTreeOutputs = [], iterOutputs = [],
 }) {
   if (!Array.isArray(statements)) throw new IrError('statements must be an array')
   if (!Array.isArray(slots)) throw new IrError('slots must be an array')
@@ -113,6 +163,14 @@ export function makeIrProgram({
     version, statements, slots: normalised, columns, outputs, functions: fns, callSites,
     windows: windows || [],
     carried: carried || [],
+    carried2: carried2 || [],
+    requests: requests || [],
+    // ⭐ tree index → the OUTPUT carrying that object-program tree's value,
+    // one per bar. Empty for every ordinary script; the lane seam reads it.
+    objectTreeOutputs: objectTreeOutputs || [],
+    // ⭐ Per-ITERATION buffers — `[{ kind: 'num'|'text' }]`. Empty for every
+    // ordinary script; only an object drawing inside a loop declares one.
+    iterOutputs: iterOutputs || [],
     // ⭐⭐ WHERE A HISTORY-BEARING VARIABLE LIVES IS DERIVED HERE, FROM THE SLOT
     // TABLE THAT JUST DECIDED IT. The front end says WHICH variable bears history
     // and HOW DEEP; the frame index and the lifetime are `normaliseSlots`'s
@@ -162,6 +220,7 @@ export function validateIr(p) {
   const nSlots = p.slots.length
   const nCols = p.columns.length
   const nOut = p.outputs.length
+  const nIter = (p.iterOutputs || []).length
 
   for (const s of p.slots) {
     if (!isObj(s) || typeof s.name !== 'string' || !Object.values(SLOT).includes(s.kind)) {
@@ -173,12 +232,102 @@ export function validateIr(p) {
     if (!isObj(e) || typeof e.kind !== 'string') throw new IrError(`${where}: not an expression node — ${JSON.stringify(e)}`)
     switch (e.kind) {
       case EXPR.NUM:
-        if (typeof e.value !== 'number' || !Number.isFinite(e.value)) {
+        // ⛔ A NON-FINITE CONST IS STILL REFUSED unless it is a DECLARED `na`.
+        // See `naValue`: the marker distinguishes an author's absent value from
+        // a number that lost itself on the way here.
+        if (typeof e.value !== 'number' || (!Number.isFinite(e.value) && e.na !== true)) {
           throw new IrError(`${where}: a num carries a finite number, got ${JSON.stringify(e.value)}`)
         }
         return
+      case EXPR.STR:
+        // ⛔ CHECKED HERE FOR THE SAME REASON `num` IS. A non-string wearing
+        // this kind would reach the const pool, pass `program.js`'s number-or-
+        // string check as whatever it is, and only be noticed as a wrong value
+        // on some bar — which is the silent-coercion class the value model was
+        // changed to end.
+        if (typeof e.value !== 'string') {
+          throw new IrError(`${where}: a str carries a string, got ${JSON.stringify(e.value)}`)
+        }
+        return
+      // ⛔ THE VALUE IS CHECKED BY THE SAME ARGUMENT `NUM` AND `STR` ARE. A
+      // handle reaches the const pool, and `program.js` admits one THERE by
+      // asking `isDrawingHandle` — so a plain object wearing this kind would
+      // be rejected far from the front end that built it. Asking here names
+      // the producer instead.
+      case EXPR.DRAWING:
+        if (!isDrawingHandle(e.value)) {
+          throw new IrError(`${where}: a drawing carries a drawing handle, got ${typeof e.value}`)
+        }
+        return
+      case EXPR.CONCAT:
+        walkExpr(e.left, `${where}.left`)
+        walkExpr(e.right, `${where}.right`)
+        return
+      case EXPR.REQUEST:
+        if (!Number.isInteger(e.site) || e.site < 0) {
+          throw new IrError(`${where}: a request carries a site index`)
+        }
+        walkExpr(e.symbol, `${where}.symbol`)
+        return
+      case EXPR.TUPLE:
+        if (!Array.isArray(e.elements) || e.elements.length < 2) {
+          throw new IrError(`${where}: a tuple carries at least two elements`)
+        }
+        e.elements.forEach((x, i) => walkExpr(x, `${where}.tuple[${i}]`))
+        return
+      case EXPR.ARRAY:
+        if (typeof e.fn !== 'string') throw new IrError(`${where}: an array call carries a name`)
+        if (!Array.isArray(e.args)) throw new IrError(`${where}: an array call carries an args array`)
+        e.args.forEach((x, i) => walkExpr(x, `${where}.${e.fn}[${i}]`))
+        return
+      // ⛔⛔ THE ARITY IS CHECKED AGAINST THE FIELD LIST HERE, AND THAT IS THE
+      // POINT OF CARRYING BOTH. A `Foo.new(a, b)` that lost one of three
+      // arguments somewhere in the front end would otherwise build a record
+      // whose third field is `undefined` — which reads back as neither a number
+      // nor `na`, and would surface on some bar as a JavaScript symptom of a
+      // compiler fault. `records.js` refuses the same mismatch at run time; this
+      // is the half that names the PRODUCER.
+      case EXPR.RECORD:
+        if (typeof e.type !== 'string' || !e.type) {
+          throw new IrError(`${where}: a record carries the name of its type`)
+        }
+        if (!Array.isArray(e.fields) || !e.fields.every((f) => typeof f === 'string' && f)) {
+          throw new IrError(`${where}: \`${e.type}\` carries its field names`)
+        }
+        if (!Array.isArray(e.args) || e.args.length !== e.fields.length) {
+          throw new IrError(
+            `${where}: \`${e.type}\` declares ${e.fields.length} field(s) and the `
+            + `construction carries ${e.args && e.args.length} value(s)`)
+        }
+        e.args.forEach((a, i) => walkExpr(a, `${where}.${e.type}.${e.fields[i]}`))
+        return
+      case EXPR.FIELD:
+        if (typeof e.name !== 'string' || !e.name) {
+          throw new IrError(`${where}: a field read carries a field name`)
+        }
+        walkExpr(e.of, `${where}.of`)
+        return
+      case EXPR.COLOUR:
+      case EXPR.TEXT:
+        if (typeof e.fn !== 'string') throw new IrError(`${where}: a text call carries a name`)
+        if (!Array.isArray(e.args)) throw new IrError(`${where}: a text call carries an args array`)
+        e.args.forEach((a, i) => walkExpr(a, `${where}.${e.fn}[${i}]`))
+        return
       case EXPR.SERIES:
         if (typeof e.name !== 'string') throw new IrError(`${where}: a series carries a name`)
+        return
+      // ⭐ SHAPE ONLY, exactly as `SERIES` above. Which field names exist is a
+      // WIRE fact and `program.js::CLOCK_FIELDS` owns it; `lowerIr` fails by
+      // name on an unknown one. Checking membership here would make this file
+      // import the wire table it is deliberately independent of, and would put
+      // a second authority over the same list.
+      case EXPR.CLOCK:
+        if (typeof e.field !== 'string') throw new IrError(`${where}: a clock read carries a field`)
+        return
+      case EXPR.SESSION:
+        if (!Number.isInteger(e.start) || !Number.isInteger(e.end)) {
+          throw new IrError(`${where}: a session carries whole-minute bounds`)
+        }
         return
       case EXPR.COLUMN:
         if (!Number.isInteger(e.index) || e.index < 0 || e.index >= nCols) {
@@ -216,6 +365,23 @@ export function validateIr(p) {
         }
         walkExpr(e.of, `${where}.of`)
         return
+      case EXPR.HIST_DYN:
+        // ⛔⛔ THE TARGET MUST BE MATERIALISED, AND THIS IS THE WHOLE SAFETY
+        // ARGUMENT. A COLUMN and a SERIES exist in full before the bar loop, so
+        // `[n]` is an index and any `n` is answerable. A READ's past lives in a
+        // ring of bounded depth — an offset that may reach past it would answer
+        // `na` where Pine answers a number, which is the silent wrong value the
+        // reserved `READ_HIST_SLOT_DYN` opcode exists to keep refusing.
+        if (!e.of || (e.of.kind !== EXPR.COLUMN && e.of.kind !== EXPR.SERIES)) {
+          throw new IrError(
+            `${where}: a dynamic history offset reads a COLUMN or a SERIES, got `
+            + `${JSON.stringify(e.of && e.of.kind)} — a variable's past lives in a ring `
+            + 'whose depth is fixed before bar 0, so an offset only known while the bar '
+            + 'is running could reach past it')
+        }
+        walkExpr(e.of, `${where}.of`)
+        walkExpr(e.back, `${where}.back`)
+        return
       case EXPR.BINARY:
         if (typeof e.op !== 'string') throw new IrError(`${where}: a binary carries an op`)
         walkExpr(e.left, `${where}.left`)
@@ -251,6 +417,14 @@ export function validateIr(p) {
         if (!Number.isInteger(e.site) || e.site < 0 || e.site >= (p.carried || []).length) {
           throw new IrError(`${where}: carried site ${JSON.stringify(e.site)} outside ${(p.carried || []).length}`)
         }
+        walkExpr(e.source, `${where}.source`)
+        return
+      }
+      case EXPR.CARRIED2: {
+        if (!Number.isInteger(e.site) || e.site < 0 || e.site >= (p.carried2 || []).length) {
+          throw new IrError(`${where}: carried2 site ${JSON.stringify(e.site)} outside ${(p.carried2 || []).length}`)
+        }
+        walkExpr(e.cond, `${where}.cond`)
         walkExpr(e.source, `${where}.source`)
         return
       }
@@ -305,10 +479,57 @@ export function validateIr(p) {
           }
           walkExpr(s.value, `${at}.value`)
           return
-        case STMT.EXPR:
+        case STMT.EMIT_ITER:
+          if (!Number.isInteger(s.iter) || s.iter < 0 || s.iter >= nIter) {
+            throw new IrError(`${at}: iteration buffer ${s.iter} outside ${nIter}`)
+          }
+          walkExpr(s.index, `${at}.index`)
           walkExpr(s.value, `${at}.value`)
           return
-        case STMT.FOR: case STMT.WHILE: case STMT.BREAK: case STMT.CONTINUE:
+        case STMT.EXPR:
+          // ⛔ A NEGATIVE OR FRACTIONAL `drop` MOVES `sp` SOMEWHERE THE STACK
+          // ARITHMETIC CANNOT RECOVER FROM — below zero it hands back values
+          // another frame owns and calls them this call's result. Named here,
+          // where the artifact is checked, rather than met as nonsense at bar 0.
+          if (s.drop !== undefined
+              && (!Number.isInteger(s.drop) || s.drop < 0)) {
+            throw new IrError(`${at}: expr.drop must be a non-negative integer`)
+          }
+          walkExpr(s.value, `${at}.value`)
+          return
+        case STMT.FIELD_SET:
+          if (typeof s.name !== 'string' || !s.name) {
+            throw new IrError(`${at}: a field write carries a field name`)
+          }
+          walkExpr(s.of, `${at}.of`)
+          walkExpr(s.value, `${at}.value`)
+          return
+        case STMT.FOR:
+          for (const k of ['slot', 'toSlot', 'stepSlot']) {
+            if (!Number.isInteger(s[k]) || s[k] < 0 || s[k] >= nSlots) {
+              throw new IrError(`${at}: for.${k} ${s[k]} outside ${nSlots} slots`)
+            }
+          }
+          walkExpr(s.from, `${at}.from`)
+          walkExpr(s.to, `${at}.to`)
+          walkExpr(s.step, `${at}.step`)
+          if (!Array.isArray(s.body)) throw new IrError(`${at}: for.body must be an array`)
+          walkStmts(s.body, `${at}.body`)
+          return
+        case STMT.DESTRUCTURE:
+          if (!Array.isArray(s.slots) || s.slots.length < 2) {
+            throw new IrError(`${at}: a destructuring binds at least two names`)
+          }
+          for (const sl of s.slots) {
+            if (!Number.isInteger(sl) || sl < 0 || sl >= nSlots) {
+              throw new IrError(`${at}: slot ${sl} outside ${nSlots}`)
+            }
+          }
+          walkExpr(s.value, `${at}.value`)
+          return
+        case STMT.BREAK: case STMT.CONTINUE:
+          return
+        case STMT.WHILE:
         case STMT.FUNC: case STMT.RETURN:
           return
         default:
@@ -447,10 +668,68 @@ export function validateIr(p) {
 
 // ── small constructors, so a front end never hand-writes a literal ───────────
 export const num = (value) => ({ kind: EXPR.NUM, value })
+/** Pine's `na` — the ABSENT value, which is NaN at run time.
+ *
+ *  ⛔⛔ IT CARRIES A MARKER BECAUSE `num(NaN)` IS REFUSED, AND SHOULD BE. A
+ *  non-finite const arriving by accident is how a coordinate silently becomes
+ *  nothing, which is why the validator rejects one. But `na` is a LITERAL a
+ *  member writes — `x > 0 ? y : na` is the standard way to leave a plot blank —
+ *  so the intent has to be expressible. The marker is what separates
+ *  'the author wrote absent' from 'something lost its value on the way here'. */
+export const naValue = () => ({ kind: EXPR.NUM, value: NaN, na: true })
+export const str = (value) => ({ kind: EXPR.STR, value })
+/** ⭐⭐ THE RESULT OF A CREATE THE OBJECT PASS OWNS — an opaque handle.
+ *
+ *  ⛔ THE VALUE IS BUILT HERE, ONCE PER NODE, AND CARRIED. `lowerIr` interns
+ *  consts with `Object.is`, so two calls made from one node must be ONE pool
+ *  entry and two different creates must be two — which is a property of the
+ *  OBJECT IDENTITY, not of the fields. Rebuilding the sentinel at lowering time
+ *  would make every occurrence a fresh entry and grow the pool without bound.
+ *
+ *  ⛔ AND THERE IS NO `naValue()` EQUIVALENT FOR A HANDLE, deliberately. Pine's
+ *  null drawing handle is a real value, but `collections.js` already wrote down
+ *  why this lane must not have one: answering `na` makes the standard emptiness
+ *  test read TRUE for a drawing the object program has already made. Nothing
+ *  here mints an absent handle; a create either produces one or is refused. */
+export const drawing = (family, site) => (
+  { kind: EXPR.DRAWING, value: drawingHandle(family, site) })
+/** ⛔ CONCATENATION IS NOT `binary('+')`, and the difference is a correctness
+ *  one rather than a tidiness one. `BINARY['+']` is `(a, b) => a + b`, which on
+ *  a string and a number silently produces a string — Pine calls that a TYPE
+ *  ERROR. Routing text through its own node lets the VM refuse a mixed pair by
+ *  name instead of inventing an answer TradingView would never give. */
+export const concat = (left, right) => ({ kind: EXPR.CONCAT, left, right })
+/** A `str.*` call. `fn` is the NAME; `runtime/text.js` owns the implementation
+ *  and `program.js` validates the name when the program is built. */
+export const textCall = (fn, args) => ({ kind: EXPR.TEXT, fn, args })
+/** ⭐ A colour producer. Same shape as `textCall`: the NAME lives in the
+ *  artifact, so adding a `color.*` costs no opcode and no VM branch. */
+export const colourCall = (fn, args) => ({ kind: EXPR.COLOUR, fn, args })
+/** An `array.*` call. `typeArg` is the `<T>` the member wrote, which only
+ *  `array.new` reads — it decides the per-element default for a sized array. */
+export const arrayCall = (fn, args, typeArg = null) => (
+  { kind: EXPR.ARRAY, fn, args, typeArg })
+/** `Foo.new(…)` — one instance of a user-defined type.
+ *
+ *  ⛔ `fields` IS IN DECLARATION ORDER AND `args` MATCHES IT POSITION FOR
+ *  POSITION, ALWAYS. Pine allows named arguments and omitted trailing ones; the
+ *  FRONT END resolves both against the declaration and hands a complete,
+ *  ordered list here. Letting a partial list through would make the back end a
+ *  second place that knows a type's defaults. */
+export const record = (type, fields, args) => (
+  { kind: EXPR.RECORD, type, fields, args })
+/** `e.name` — one field of a record. ⭐ Chained access is nesting, not a path:
+ *  `a.b.c` is `field(field(read(a), 'b'), 'c')`, so every intermediate read goes
+ *  through the same one checked accessor. */
+export const field = (of, name) => ({ kind: EXPR.FIELD, of, name })
 export const series = (name) => ({ kind: EXPR.SERIES, name })
+export const clock = (field) => ({ kind: EXPR.CLOCK, field })
+export const session = (start, end) => ({ kind: EXPR.SESSION, start, end })
 export const column = (index) => ({ kind: EXPR.COLUMN, index })
 export const read = (slot) => ({ kind: EXPR.READ, slot })
 export const hist = (of, back) => ({ kind: EXPR.HIST, of, back })
+/** `e[n]` over a MATERIALISED series, where `n` is an expression. */
+export const histDyn = (of, back) => ({ kind: EXPR.HIST_DYN, of, back })
 /** `x[n]` over a value the RUNTIME produces. `slot` is the history-slot index —
  *  a different address space from the variable slot, because only some variables
  *  bear history and allocating a ring for every one of them is the `HISTORY_VALUES`
@@ -473,7 +752,62 @@ export const windowCall = (site, source) => ({ kind: EXPR.WINDOW, site, source }
  *  `persistBase` (2E) and `historyBase` (P7.2) already use. */
 export const carriedCall = (site, source) => ({ kind: EXPR.CARRIED, site, source })
 
+/** ⭐ A TWO-INPUT carried-state builtin — Pine's `ta.valuewhen(cond, src, n)`.
+ *  `site` is FRAME-RELATIVE exactly as `carriedCall`'s is, so one compiled body
+ *  serves every invocation and two call sites keep two rings. */
+export const carried2Call = (site, cond, source) => (
+  { kind: EXPR.CARRIED2, site, cond, source })
+
 export const declare = (slot, value) => ({ kind: STMT.DECLARE, slot, value })
 export const assign = (slot, value) => ({ kind: STMT.ASSIGN, slot, value })
 export const ifStmt = (test, then, els) => ({ kind: STMT.IF, test, then, else: els || [] })
 export const emit = (output, value) => ({ kind: STMT.EMIT, output, value })
+/** Write one slot of a per-iteration buffer.
+ *
+ *  ⭐⭐ AN ITERATION BUFFER IS NOT A SERIES, AND THE DIFFERENCE IS THE WHOLE
+ *  POINT. An output series is indexed BY BAR and a `Float64Array` by contract.
+ *  A drawing inside `for r = 0 to n` needs a value per ITERATION, which no
+ *  series can hold — and which the object program reads back by counter.
+ *
+ *  ⛔ IT IS OVERWRITTEN EVERY BAR, so only the bar that wrote it last can be
+ *  read. That is why the lane refuses a loop that is not last-bar-guarded
+ *  rather than handing back a stale buffer. */
+export const emitIter = (iter, index, value) => (
+  { kind: STMT.EMIT_ITER, iter, index, value })
+/** An expression evaluated for its EFFECT. Admitted only for a call that has
+ *  one — see `lowerIr.js`'s STMT.EXPR arm.
+ *
+ *  ⭐⭐ `drop` IS HOW MANY VALUES THE CALL LEAVES BEHIND, and it is carried
+ *  HERE rather than re-derived in the lowering. A void collection call leaves
+ *  NOTHING (`drop: 0`); a user function called for its effect leaves exactly
+ *  `fn.returns` values, which only the front end — the thing that compiled the
+ *  definition — knows. A lowering that counted them itself would be a second
+ *  authority over one value, and the two would disagree the first time a helper
+ *  returned a tuple (`lesson_a_second_authority_over_one_value`). */
+export const exprStmt = (value, drop = 0) => ({ kind: STMT.EXPR, value, drop })
+/** `of.name := value`. ⭐ `of` is an EXPRESSION, not a slot, which is what lets
+ *  `array.get(obs, i).top := x` and `a.b.c := x` be the same statement. */
+export const fieldSet = (of, name, value) => (
+  { kind: STMT.FIELD_SET, of, name, value })
+/** `for slot = from to to [by step]`.
+ *
+ *  ⛔ `from`, `to` AND `step` ARE EXPRESSIONS EVALUATED ONCE, at loop entry.
+ *  Pine does not re-read them per iteration, and a runtime that did would
+ *  make a body that grows the array it walks into a loop that never ends.
+ *  `toSlot` and `stepSlot` are where those once-evaluated values live. */
+export const forStmt = ({ slot, toSlot, stepSlot, from, to, step, body }) => (
+  { kind: STMT.FOR, slot, toSlot, stepSlot, from, to, step, body })
+/** Several values at once. ⛔ ONLY VALID AS A FUNCTION'S RESULT or on the
+ *  right of a destructuring — anywhere else it would leave values on the
+ *  stack that nothing pops. */
+export const tuple = (elements) => ({ kind: EXPR.TUPLE, elements })
+/** `[a, b] = expr` — the slots are filled LEFT TO RIGHT from a value that
+ *  left `slots.length` results on the stack. */
+export const destructure = (slots, value) => ({ kind: STMT.DESTRUCTURE, slots, value })
+/** `request.security(symbol, tf, value)`. `site` indexes the IR's `requests`
+ *  table, which holds the timeframe and the VALUE expression; `symbol` is an
+ *  ordinary expression because it is usually only known while the bar runs. */
+export const requestCall = (site, symbol, results) => (
+  { kind: EXPR.REQUEST, site, symbol, results })
+export const breakStmt = () => ({ kind: STMT.BREAK })
+export const continueStmt = () => ({ kind: STMT.CONTINUE })
