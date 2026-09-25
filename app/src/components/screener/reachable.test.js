@@ -763,6 +763,8 @@ const PARKING_EXPIRES = {
   'THE DASHBOARD COCKPIT RETIREMENT (2026-08-30)': '2026-10-31',
   'SEAM 18 / COMMUNITY SURFACE — RECORDED, NOT DELETED (2026-09-11)': '2026-11-30',
   'The Community surface itself: 15 files, one coherent feature': '2026-11-30',
+  'S4 CP1 DIVERGENCE DETECTOR — RECORDED, NOT MOUNTED (2026-09-25, R-29)': '2026-11-30',   // landed on master 2026-09-24/25; expiry added when this line took master (renew or resolve, never lapse)
+  'FILTER BAND — ORPHANED BY #178, RECORDED NOT DELETED (2026-09-25)': '2026-11-30',   // landed on master 2026-09-24/25; expiry added when this line took master (renew or resolve, never lapse)
   // ⭐⭐ ADDED BY THE 2026-09-23 MERGE, AND NEITHER PARENT WAS WRONG.
   // `origin/master` carries this parking block and has NO S4 rail; this branch
   // carries the S4 rail and had no such block. The rail meeting the block is
