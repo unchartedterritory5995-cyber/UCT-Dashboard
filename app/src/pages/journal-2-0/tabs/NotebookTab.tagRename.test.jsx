@@ -176,41 +176,41 @@ describe('NotebookTab — the tag-rename door refuses unsent work, named (wave 6
   })
 })
 
-describe('NotebookTab — N1 (wave 6 fix round 2): a rename the device cannot check offers "Rename the others", never "Trash anyway"', () => {
-  it('names the unchecked note, offers "Rename the others", and confirming carries {from,to} + the tag names', async () => {
+describe('NotebookTab — N1 (final, wave 6 fix round 3): a rename the device cannot check is refused with NO waiver', () => {
+  it('names the unchecked note, says it keeps the old tag, and offers nothing but Close — no re-send, ever', async () => {
     // n1 cannot be asked at all (unreadable); n2 is clean and gets renamed
-    // in the first batch — the same partial-plus-offer shape as trash's own
-    // R1-S1 test in NotebookTab.bulk.test.jsx.
+    // in the first batch — round 2's "Rename the others" waiver re-sent the
+    // UNCHECKED ids with the device check bypassed, which the controller
+    // ruled incoherent (round 1's I4 had already sent n2's own batch, so
+    // "the checked ids only" resends nothing) and unsafe (a queued offline
+    // write to n1 would put the old tag back on sync, undoing the rename).
     withUnsentWork([], { unreadable: ['n1'] })
     renderTab()
     fireEvent.click(screen.getByRole('button', { name: 'rename earnings to quarterly' }))
 
-    // The first batch renames n2 only, and the unchecked note is named —
+    // The first batch renames n2 only, and the unchecked note is NAMED —
     // never folded into a "still syncing" sentence.
     const notice = await screen.findByTestId('bulk-notice')
     expect(notice).toHaveTextContent('Renamed 1 note from #earnings to #quarterly.')
-    expect(notice).toHaveTextContent(
-      'Can\'t check this device for unsent words. 1 note was not renamed: "First note".')
+    expect(notice).toHaveTextContent('"First note"')
+    expect(notice).toHaveTextContent('keeps the old tag until it syncs')
+    expect(notice).toHaveTextContent('rename it again then')
+
+    // (a) NO waiver of any kind — never "anyway", never "others".
+    expect(screen.queryByRole('button', { name: /anyway/i })).toBeNull()
+    expect(screen.queryByRole('button', { name: /others/i })).toBeNull()
+    // The notice's own dismiss ("Close") is the only control on it.
+    expect(screen.getByRole('button', { name: 'Dismiss this message' })).toBeInTheDocument()
+
+    // (b) no second renameTag request is ever issued for the unchecked note
+    // — n1 never appears in any batch this test fires.
     expect(batchCalls).toEqual([{ ids: ['n2'], op: 'renameTag', args: { from: 'earnings', to: 'quarterly' } }])
-
-    // N1's own defect, pinned as its own absence: never "Trash anyway".
-    expect(screen.queryByRole('button', { name: 'Trash anyway' })).toBeNull()
-    const renameOthers = screen.getByRole('button', { name: 'Rename the others' })
-    fireEvent.click(renameOthers)
-
-    // The armed confirmation is a rename sentence, never a trash one.
-    const confirmText = screen.getByText(/^Rename 1 note without checking this device\?/)
-    expect(confirmText.textContent).not.toMatch(/Trash/)
-    fireEvent.click(screen.getByRole('button', { name: 'Yes, rename the others' }))
-
-    // The retried batch carries the op's own args (fixes the 400) …
-    await waitFor(() => expect(batchCalls).toHaveLength(2))
-    expect(batchCalls[1]).toEqual({ ids: ['n1'], op: 'renameTag', args: { from: 'earnings', to: 'quarterly' } })
-    // … and its OWN success sentence names the real tags, not "#undefined"
-    // (the ctx carry — without it this reads "#undefined" instead).
-    await waitFor(() => expect(screen.getByTestId('bulk-notice'))
-      .toHaveTextContent('Renamed 1 note from #earnings to #quarterly.'))
   })
+
+  // (c) CONTROL: the trash path is untouched by this ruling — its own
+  // "Trash anyway" waiver and retry are railed end to end in
+  // NotebookTab.bulk.test.jsx (re-run green as part of this round's totals);
+  // this file's job is the rename door, not re-proving trash's.
 })
 
 describe('NotebookTab — M5 (wave 6 fix round 2): a tag on more than 500 notes is chunked, not refused', () => {
@@ -238,5 +238,59 @@ describe('NotebookTab — M5 (wave 6 fix round 2): a tag on more than 500 notes 
     }
     expect(seen.size).toBe(501)
     expect([...seen.values()].every((n) => n === 1)).toBe(true)
+  })
+})
+
+describe('NotebookTab — N-b (wave 6 fix round 3): a chunked rename aggregates into ONE notice and stops on a failed chunk', () => {
+  it('a failed chunk 1 (the request itself did not go through) stops the loop — chunk 2 is never sent, and the notice names how many are left unrenamed', async () => {
+    renameIds = Array.from({ length: 501 }, (_, i) => `id-${i}`)
+    let calls = 0
+    global.fetch = vi.fn((url, init = {}) => {
+      const u = String(url)
+      if (u === '/api/j2/notes/batch') {
+        calls += 1
+        const body = JSON.parse(init.body)
+        batchCalls.push(body)
+        if (calls === 1) {
+          return Promise.resolve({ ok: false, status: 500, json: () => Promise.resolve({ detail: 'server error' }) })
+        }
+        return ok({ op: body.op, results: body.ids.map((id) => ({ id, status: 'changed', updatedAt: '2026-09-24T00:00:00Z' })) })
+      }
+      return ok({})
+    })
+    renderTab()
+    fireEvent.click(screen.getByRole('button', { name: 'rename earnings to quarterly' }))
+
+    const notice = await screen.findByTestId('bulk-notice')
+    expect(notice).toHaveTextContent('501 notes were left unrenamed')
+    expect(notice).toHaveTextContent('server error')
+
+    // Chunk 2 (the trailing 1 id) is never sent once chunk 1's REQUEST fails —
+    // only ONE request ever reaches the server for this rename.
+    expect(batchCalls).toHaveLength(1)
+  })
+
+  it('a refusal INSIDE a successful chunk 1 does not stop the loop — chunk 2 still runs, and the final notice names the refusal AND the combined renamed total', async () => {
+    renameIds = Array.from({ length: 501 }, (_, i) => `id-${i}`)
+    // one note in chunk 1 (indices 0-499) is blocked (unsent local edits) —
+    // a per-note refusal WITHIN a chunk that otherwise succeeded, never a
+    // thrown request-level failure.
+    blockedIds = new Set(['id-0'])
+    renderTab()
+    fireEvent.click(screen.getByRole('button', { name: 'rename earnings to quarterly' }))
+
+    const notice = await screen.findByTestId('bulk-notice')
+    // ONE notice, naming BOTH halves: the aggregate renamed count across
+    // both chunks, and the refused note from chunk 1 — never one chunk's
+    // sentence overwritten by the other's (the round-2 defect this fixes).
+    expect(notice).toHaveTextContent('Renamed 500 notes from #earnings to #quarterly.')
+    expect(notice).toHaveTextContent('is waiting to sync')
+
+    // Both chunks were sent (the refusal did not stop the loop), and the
+    // blocked note never reached the server in either request.
+    expect(batchCalls).toHaveLength(2)
+    expect(batchCalls[0].ids).toHaveLength(499)
+    expect(batchCalls[1].ids).toHaveLength(1)
+    expect([...batchCalls[0].ids, ...batchCalls[1].ids]).not.toContain('id-0')
   })
 })

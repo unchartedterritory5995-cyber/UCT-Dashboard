@@ -911,22 +911,72 @@ export default function NotebookTab() {
   // Wave 6 fix round 1, I4 — the tag tree's own rename door: FolderSidebar
   // already previewed who it touches (GET /notes/tag-members) before calling
   // this, so `ids` is exactly that preview's note ids, never "every note
-  // with this tag" re-derived here. Reuses `runBulk` so refusal (blocked /
-  // still-sending) is reported the SAME way every other bulk action is —
-  // rendered text in `bulkNotice`, never a second status surface.
+  // with this tag" re-derived here.
   //
   // M5 (wave 6 fix round 2): `GET /notes/tag-members` is UNCAPPED, but
   // `POST /api/j2/notes/batch` refuses more than NOTE_BATCH_MAX (500) ids in
   // one request (journal_two.py) — a tag on more than 500 notes previewed
-  // honestly and then failed outright. Chunked here, SEQUENTIALLY: each
-  // `runBulk` call is awaited to completion (its own `finally` clears the
-  // busy guard) before the next chunk's request is sent, so this is never
-  // more than one request in flight for the same rename.
+  // honestly and then failed outright. Chunked here, SEQUENTIALLY.
+  //
+  // ⛔⛔ N-b (wave 6 fix round 3). This used to route each chunk through
+  // `runBulk` — one `setBulkNotice` call per chunk, each REPLACING the
+  // last (`runBulk`'s own docstring: it owns the single-batch notice, and
+  // was never meant to be called more than once for one member action). A
+  // tag on 900 notes therefore ended on chunk 2's sentence alone: chunk 1's
+  // "refused and named" (item 8's own guarantee) and its "unchecked" offer
+  // (N1) both vanished, and a chunk 1 that failed on the REQUEST ITSELF
+  // (network/4xx/5xx) was invisible — the loop kept sending chunk 2, which
+  // could read as complete success while up to 500 notes never went out.
+  //
+  // This runs its own loop over `runNoteBatch` directly (never `runBulk`,
+  // which stays the single-batch primitive every OTHER op uses unchanged),
+  // folds every chunk's results into ONE combined outcome, and sets
+  // `bulkNotice` exactly ONCE at the end — so "refused and named" and
+  // "unchecked and named" hold for a multi-chunk rename exactly as they do
+  // for a single-batch one. It STOPS at the first chunk whose REQUEST
+  // failed (an exception from `runNoteBatch` — nothing in that chunk was
+  // written) and says how many notes were never attempted: a refusal
+  // WITHIN a successful chunk (a blocked or unchecked note) is not a stop
+  // condition, because the chunk it is in still ran and the notes after it
+  // still can.
   const onRenameTag = async (from, to, ids) => {
-    for (let i = 0; i < ids.length; i += RENAME_TAG_CHUNK_SIZE) {
-      const chunk = ids.slice(i, i + RENAME_TAG_CHUNK_SIZE)
-      // eslint-disable-next-line no-await-in-loop
-      await runBulk('renameTag', { from, to }, { tag: from, renameTo: to }, chunk)
+    if (!ids.length || !startBulk()) return
+    const args = { from, to }
+    const ctx = { tag: from, renameTo: to }
+    let combined = { op: 'renameTag', results: [], changed: 0, unchanged: 0, failed: 0 }
+    let stoppedAt = null
+    try {
+      for (let i = 0; i < ids.length; i += RENAME_TAG_CHUNK_SIZE) {
+        const chunk = ids.slice(i, i + RENAME_TAG_CHUNK_SIZE)
+        let outcome
+        try {
+          // eslint-disable-next-line no-await-in-loop
+          outcome = await runNoteBatch({ ids: chunk, op: 'renameTag', args, blockedNoteIds })
+        } catch (e) {
+          stoppedAt = { reason: e?.message, left: ids.length - i }
+          break
+        }
+        combined = {
+          op: 'renameTag',
+          results: [...combined.results, ...outcome.results],
+          changed: combined.changed + outcome.changed,
+          unchanged: combined.unchanged + outcome.unchanged,
+          failed: combined.failed + outcome.failed,
+        }
+      }
+      const { message, tone } = describeBatch(combined, { ...ctx, titleOf })
+      const offer = describeUnchecked(
+        'renameTag', combined.results.filter((r) => r.status === 'unchecked').map((r) => r.id), { titleOf, args, ctx })
+      const changedIds = combined.results.filter((r) => r.status === 'changed').map((r) => r.id)
+      const parts = [message]
+      if (offer) parts.push(offer.message)
+      if (stoppedAt) {
+        parts.push(`${stoppedAt.left} ${stoppedAt.left === 1 ? 'note was' : 'notes were'} left unrenamed — the request itself did not go through${stoppedAt.reason ? ` (${stoppedAt.reason})` : ''}.`)
+      }
+      setBulkNotice({ message: parts.filter(Boolean).join(' '), tone: stoppedAt ? 'error' : (offer ? offer.tone : tone) })
+      afterBulkWrite('renameTag', changedIds)
+    } finally {
+      endBulk()
     }
   }
 
@@ -1328,9 +1378,11 @@ export default function NotebookTab() {
                 onTitleChange={updateTreeNoteTitle}
                 // Wave 6 (lane E), I1: the note menu's organisation actions.
                 // The editor (lane D's NoteEditorPage.jsx) renders
-                // `{noteMenu?.(note, { refresh })}` in its header row, past
-                // both early returns — wired in fix round 1 (M1: this comment
-                // used to describe that render as still pending; it landed).
+                // `{noteMenu?.(note, { refresh, unlockNote })}` in its header
+                // row, past both early returns — wired in fix round 1 (M1:
+                // this comment used to describe that render as still
+                // pending; it landed). N-f (fix round 3): the object gained
+                // `unlockNote` in M2 (round 2); this comment did not, until now.
                 noteMenu={(note, api) => (
                   <NoteMenuActions
                     note={note}
@@ -1386,6 +1438,14 @@ export default function NotebookTab() {
                   noteMenu={(note, api) => (
                     <NoteMenuActions
                       note={note}
+                      // M2 (remainder, wave 6 fix round 3): the side pane's
+                      // menu took the thin `setNoteLock`-only door — the
+                      // round-2 re-review found only the MAIN pane's
+                      // `noteMenu` was wired to `api?.unlockNote`. Same fix,
+                      // same reason: the editor's own unlock is the one door
+                      // that also moves the save baseline and settles the
+                      // offline queue.
+                      onUnlock={api?.unlockNote}
                       onChanged={() => {
                         api?.refresh?.()
                         refresh()
