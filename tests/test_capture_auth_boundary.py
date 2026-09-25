@@ -142,6 +142,12 @@ class TestBlastRadius:
             "/api/j2/personal/notes": {ca.SCOPE_NOTES_CREATE},
             "/api/j2/personal/notes/{note_id}/append": {ca.SCOPE_NOTES_APPEND},
             "/api/j2/personal/daily/append": {ca.SCOPE_NOTES_APPEND},
+            # NOT in this census, BY DESIGN: `POST /api/j2/inbound-email` carries
+            # no session and no bearer dependency at all -- its credential is the
+            # HMAC over "<timestamp>.<raw body>" that the Cloudflare Email Worker
+            # signs (api/routers/notebook_inbound_email.py). Any future "every
+            # mutating route has an auth dependency" sweep must allow-list it by
+            # name rather than read its absence here as a hole.
         }, (
             "A route opted into the Browser Capture credential. That is a "
             "deliberate decision requiring a security review, not a drive-by: "
@@ -615,11 +621,49 @@ class TestLogHygiene:
             client.post("/api/j2/capture", json={"noteId": note, "tier": "reference",
                                                  "url": URL},
                         headers={"Authorization": "Bearer uctcap_bogus-value-here"})
-        emitted = caplog.text + capsys.readouterr().err + capsys.readouterr().out
+        # ⛔ ONE readouterr(): the call DRAINS the buffer, so a second call's
+        # `.out` is always empty. Written as two calls until 2026-09-25, this
+        # rail never saw stdout at all — a `print(authorization)` in the
+        # resolver passed it (mutation-measured while adding the personal-API
+        # case below). lesson_a_capture_that_only_breaks_on_failure.
+        captured = capsys.readouterr()
+        emitted = caplog.text + captured.err + captured.out
         assert token not in emitted
         assert code not in emitted
         assert "uctcap_bogus-value-here" not in emitted, \
             "a REJECTED credential is still a credential — do not log the value"
+
+    def test_no_personal_bearer_reaches_the_logs_on_a_real_personal_api_call(
+        self, client, conn, caplog, capsys, monkeypatch
+    ):
+        # Wave 7 (task review, controller item 3): a Shortcut's bearer walks the
+        # personal-API resolver, a DIFFERENT code path from the extension's, with
+        # its own refusal sentences and its own per-token limiter — so the §14
+        # promise above proves nothing about it. The gate is read per request,
+        # which is why an env patch inside the test reaches the module-scoped app.
+        import logging
+        monkeypatch.setenv("NOTEBOOK_PERSONAL_API_ENABLED", "1")
+        uid = _user(conn)
+        token = ca.mint_personal_token(uid, "test", conn=conn)["token"]
+        with caplog.at_level(logging.DEBUG):
+            accepted = client.post(
+                "/api/j2/personal/notes",
+                json={"title": "From a Shortcut", "markdown": "one line"},
+                headers={"Authorization": f"Bearer {token}"},
+            )
+            client.post(
+                "/api/j2/personal/notes",
+                json={"title": "x", "markdown": "y"},
+                headers={"Authorization": "Bearer uctcap_bogus-personal-value"},
+            )
+        # Control: the door was really walked. A 404 here would mean the gate
+        # stayed dark and no credential was ever read — a vacuous pass.
+        assert accepted.status_code == 200, accepted.text
+        captured = capsys.readouterr()          # once — see the sibling above
+        emitted = caplog.text + captured.err + captured.out
+        assert token not in emitted
+        assert "uctcap_bogus-personal-value" not in emitted, \
+            "a REJECTED personal credential is still a credential — do not log the value"
 
     def test_the_app_installs_no_middleware_that_dumps_headers(self, app):
         # Generic request logging is where an Authorization value escapes without
