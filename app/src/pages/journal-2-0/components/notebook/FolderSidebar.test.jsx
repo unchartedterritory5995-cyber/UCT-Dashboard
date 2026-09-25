@@ -404,6 +404,61 @@ describe('search panel — the true total, not the length of the loaded page (B2
   })
 })
 
+// ⛔ Wave 7 whole-branch fix, ruling D-H8 (cross-shard 1; lane H's flip precondition M-5): the
+// armed meaning search APPENDS rows past the lexical `total` with `matchKind: "meaning"`. Nothing
+// here read it: those rows showed a bare title with no reason, and the count read "Showing 7 of 2
+// notes". A meaning row now says why it is there, and the count says what the list holds.
+describe('search panel — rows related by MEANING say so, and the count is honest (D-H8)', () => {
+  const settle = () => act(() => { vi.advanceTimersByTime(300) })
+  beforeEach(() => { vi.useFakeTimers() })
+  afterEach(() => { vi.useRealTimers() })
+  function typeQuery(value) {
+    fireEvent.click(screen.getByLabelText('Search notes'))
+    fireEvent.change(screen.getByPlaceholderText(/search notes/i), { target: { value } })
+  }
+  const lexical = (id, title) => ({
+    id, title, bodyPlain: '', folderId: null, tags: [], bodySnippet: `a <mark>fear</mark> line in ${title}`,
+  })
+  const meaning = (id, title) => ({ id, title, bodyPlain: '', folderId: null, tags: [], matchKind: 'meaning' })
+  function serve(notes, total) {
+    useJ2NotesMock.mockImplementation((opts) => {
+      if (!opts?.enabled) return { notes: [], isLoading: false, isValidating: false, error: null }
+      return { notes, isLoading: false, isValidating: false, error: null, total, hasMore: false, loadMore: vi.fn(), isLoadingMore: false }
+    })
+    render(<FolderSidebar notes={[]} activeFolderId={null} onSelectFolder={() => {}}
+                          activeTag={null} onSelectTag={() => {}} />)
+    typeQuery('why did I sell out of fear')
+    settle()
+  }
+
+  it('2 matches + 5 related: the count says so, and every related row carries its reason line', () => {
+    serve([
+      lexical('l1', 'Fear log'), lexical('l2', 'Exit review'),
+      meaning('m1', 'Panic in March'), meaning('m2', 'Stops'), meaning('m3', 'Selling early'),
+      meaning('m4', 'Nerves'), meaning('m5', 'Discipline'),
+    ], 2)
+    expect(screen.getByText('7 shown: 2 matches, 5 related')).toBeInTheDocument()
+    expect(screen.queryByText(/Showing 7 of 2/)).not.toBeInTheDocument()
+    expect(screen.getAllByText('Related by meaning')).toHaveLength(5)
+    const row = screen.getByText('Panic in March').closest('button')
+    expect(within(row).getByText('Related by meaning')).toBeInTheDocument()
+    // a lexical row keeps its snippet and says nothing about meaning
+    const lex = screen.getByText('Fear log').closest('button')
+    expect(within(lex).queryByText('Related by meaning')).not.toBeInTheDocument()
+  })
+
+  it('singulars read as singulars', () => {
+    serve([lexical('l1', 'Fear log'), meaning('m1', 'Panic in March')], 1)
+    expect(screen.getByText('2 shown: 1 match, 1 related')).toBeInTheDocument()
+  })
+
+  it('CONTROL — no meaning rows: the count is the familiar "Showing N of M" and no reason line appears', () => {
+    serve([lexical('l1', 'Fear log'), lexical('l2', 'Exit review')], 2)
+    expect(screen.getByText('Showing 2 of 2 notes')).toBeInTheDocument()
+    expect(screen.queryByText('Related by meaning')).not.toBeInTheDocument()
+  })
+})
+
 describe('folder delete error surfacing', () => {
   beforeEach(() => {
     removeMock.mockReset()

@@ -92,7 +92,14 @@ export function renderSnippetMarks(snippet) {
 // instead of rendering a blank or misleading body excerpt. Mirrors the
 // same leading-separator strip as the backend's own $NVDA fix so "$NVDA"
 // and "NVDA" explain identically.
+// ⛔ Wave 7 whole-branch fix, ruling D-H8: the armed meaning search APPENDS rows past the
+// lexical list with `matchKind: "meaning"` (note_semantic.append_meaning_hits). Such a row matched
+// no word of the query, so it says why it is there -- never a bare title that reads as a match.
+export const RELATED_BY_MEANING = 'Related by meaning'
+export const isMeaningRow = (note) => note?.matchKind === 'meaning'
+
 export function matchReasonFor(note, query) {
+  if (isMeaningRow(note)) return RELATED_BY_MEANING
   const q = (query || '').trim()
   if (!q) return null
   const exactTicker = q.replace(/^[^\w]+/, '').toUpperCase()
@@ -101,6 +108,22 @@ export function matchReasonFor(note, query) {
   const tagHit = (note.tags || []).find((t) => String(t).toLowerCase() === qLower)
   if (tagHit) return `Matched tag: ${tagHit}`
   return null
+}
+
+/**
+ * The search list's count line. `total` is the LEXICAL count (count_notes); rows the meaning
+ * search appended sit past it, so "Showing 7 of 2 notes" was the naive reading (D-H8). With
+ * related rows present the line says what the list holds: "7 shown: 2 matches, 5 related".
+ */
+export function searchCountText(rows, total) {
+  const shown = rows.length
+  const related = rows.filter(isMeaningRow).length
+  const matches = total ?? (shown - related)
+  if (related) {
+    return `${shown} shown: ${matches} match${matches === 1 ? '' : 'es'}, ${related} related`
+  }
+  const all = total ?? shown
+  return `Showing ${shown} of ${all} note${all === 1 ? '' : 's'}`
 }
 
 function Chevron({ expanded }) {
@@ -1329,7 +1352,7 @@ export default function FolderSidebar({
                   response that produced it also carried `total`), mirroring
                   NotebookTab's own comment on the identical fallback. */}
               <div className={styles.searchCount}>
-                Showing {serverSearchResults.length} of {searchTotal ?? serverSearchResults.length} note{(searchTotal ?? serverSearchResults.length) === 1 ? '' : 's'}
+                {searchCountText(serverSearchResults, searchTotal)}
               </div>
               {serverSearchResults.map((n) => {
                 const title = n.title?.trim() || 'Untitled'
@@ -1342,7 +1365,9 @@ export default function FolderSidebar({
                 // never explained a match either, so this is strictly more
                 // honest, never less.
                 const hasSnippet = Boolean(n.bodySnippet || n.titleSnippet)
-                const reason = !hasSnippet ? matchReasonFor(n, trimmedQuery) : null
+                // D-H8: a meaning row always shows its reason, snippet or not.
+                const meaningRow = isMeaningRow(n)
+                const reason = (meaningRow || !hasSnippet) ? matchReasonFor(n, trimmedQuery) : null
                 return (
                   <button
                     key={n.id}
@@ -1355,7 +1380,7 @@ export default function FolderSidebar({
                       <span className={styles.searchResultTitle}>
                         {n.titleSnippet ? renderSnippetMarks(n.titleSnippet) : title}
                       </span>
-                      {n.bodySnippet ? (
+                      {n.bodySnippet && !meaningRow ? (
                         <span className={styles.searchResultSnippet}>{renderSnippetMarks(n.bodySnippet)}</span>
                       ) : reason ? (
                         <span className={styles.searchResultReason}>{reason}</span>
