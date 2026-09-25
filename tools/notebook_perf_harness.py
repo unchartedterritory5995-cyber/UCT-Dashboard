@@ -31,7 +31,21 @@ Sandbox (never C:\\data): `--boot` starts `scripts/hub_sandbox_boot.py --data-di
 data dir from PowerShell or single-quoted: a Windows path through the Bash tool loses its
 backslash and turns into a drive-relative directory (CLAUDE.md, 2026-09-12). The harness
 refuses a data dir that resolves inside C:\\data or /data. It refuses a busy port too, and
-never kills whatever holds it. `--base` measures an already-running sandbox instead.
+never kills whatever holds it. `--base` measures an already-running sandbox instead, and
+needs `--integrity-log` (that sandbox's own snapshot log) for the reason below.
+
+⛔ THE SANDBOX'S SNAPSHOT VERDICT IS THIS HARNESS'S FIRST OUTPUT LINE (CLAUDE.md: "every
+sandbox or staging boot reports the snapshot-compare result as its first line"). The
+launcher hashes the shared data root before boot, at +15 s, at +120 s and at SHUTDOWN, and
+appends each checkpoint to its integrity log. The harness therefore:
+  * stops the launcher GRACEFULLY, never by TerminateProcess first. The shutdown checkpoint
+    is written by the launcher's own `finally`, and a hard kill skips it. See `_SHIM` for
+    the one extra step Windows needs.
+  * does not stop it before the +15 s checkpoint has been written (a short run waits for it);
+    `--hold-past-prewarm` also waits for +120 s.
+  * reads the integrity log, prints `SANDBOX INTEGRITY: ...` first, and WITHHOLDS every
+    timing when the log is missing, a checkpoint is absent, or any checkpoint is not CLEAN.
+Logs go next to `--json` when given, else into a fresh temp directory (never the cwd).
 
 Accounts: it signs up the sandbox admin (the launcher's ADMIN_EMAILS default,
 hubtest@local.dev) and a perf account, comps the perf account through
@@ -43,7 +57,8 @@ notes through POST /api/j2/notes. Nothing is written except through the app's ow
     python tools/notebook_perf_harness.py --dry-run            # no browser, no sandbox
 
 Exit: 0 = within budget; 1 = a budget breached; 2 = INCONCLUSIVE (nothing trustworthy was
-measured); 3 = refused (bad args, a data dir in the shared root, a busy port).
+measured, including every run whose sandbox integrity did not close CLEAN); 3 = refused
+(bad args, a data dir in the shared root, a busy port).
 """
 from __future__ import annotations
 
@@ -51,13 +66,29 @@ import argparse
 import json
 import math
 import os
+import re
+import shutil
+import signal
 import socket
 import subprocess
 import sys
+import tempfile
 import time
 from pathlib import Path
 
 REPO = Path(__file__).resolve().parents[1]
+# Read at call time by `Sandbox.start`, never bound as a default argument, so a test can point
+# it at a stand-in launcher (CLAUDE.md: "A DEFAULT ARGUMENT IS BOUND AT IMPORT").
+BOOT_SCRIPT = REPO / "scripts" / "hub_sandbox_boot.py"
+
+# The launcher's checkpoint labels. They are the launcher's words, not this file's:
+# tests/test_notebook_perf_harness.py asserts each one is a string literal in
+# scripts/hub_sandbox_boot.py, so a rename there reds here instead of silently making every
+# run read INCOMPLETE.
+PRE_BOOT = "pre-boot (baseline)"
+POST_BOOT = "post-boot (+15s)"
+PREWARM = "post-prewarm (+120s)"
+SHUTDOWN = "shutdown"
 ADMIN_EMAIL, ADMIN_PW = "hubtest@local.dev", "LocalTest2026!"
 PERF_EMAIL, PERF_PW = "w7perf@local.dev", "LocalTest2026!"
 SHARED_ROOTS = ("c:\\data", "/data")
@@ -211,25 +242,178 @@ def markdown_rows(summary: dict, sha: str | None) -> str:
 
 # ── the live run ──────────────────────────────────────────────────────────────────────────
 
-def _boot(data_dir: str, port: int, log_path: Path) -> subprocess.Popen:
-    cmd = [sys.executable, str(REPO / "scripts" / "hub_sandbox_boot.py"), "--data-dir", data_dir,
-           "--port", str(port), "--host", "127.0.0.1"]
-    fh = open(log_path, "w", encoding="utf-8")
-    return subprocess.Popen(cmd, cwd=str(REPO), stdout=fh, stderr=subprocess.STDOUT)
+# ── the sandbox's integrity log ───────────────────────────────────────────────────────────
+
+# One checkpoint line, exactly as scripts/data_root_snapshot.py::append_log writes it:
+#   - `2026-09-25 10:00:00`  **post-boot (+15s)** — C:\data, 61 db files — CLEAN
+# The parser is railed against that writer itself (the test writes lines with append_log),
+# so the two cannot drift apart unnoticed.
+_CHECKPOINT_RE = re.compile(
+    r"^- `(?P<at>[^`]+)`\s+\*\*(?P<label>.+?)\*\* \u2014 (?P<root>.*), "
+    r"(?P<count>\d+) db files \u2014 (?P<verdict>.+?)\s*$")
+_INTEGRITY_PATH_RE = re.compile(r"\[pre-boot\] integrity log: (?P<path>.+?)\s*$")
 
 
-def _wait_health(base: str, timeout_s: float) -> bool:
-    import urllib.request
-    end = time.time() + timeout_s
-    while time.time() < end:
+def read_integrity(path: str | os.PathLike | None, required: list[str]) -> dict:
+    """Pure: the launcher's integrity log -> a verdict. CLEAN only when the file exists, every
+    `required` checkpoint is present, and EVERY checkpoint in it reads CLEAN. A missing file,
+    a missing checkpoint and a dirty one are three different statuses, never one."""
+    out = {"path": str(path) if path else None, "required": list(required), "checkpoints": []}
+    if not path or not Path(path).is_file():
+        return {**out, "status": "MISSING", "clean": False,
+                "why": "the launcher's integrity log was never found"}
+    for line in Path(path).read_text(encoding="utf-8", errors="replace").splitlines():
+        m = _CHECKPOINT_RE.match(line)
+        if m:
+            out["checkpoints"].append({"label": m["label"], "at": m["at"], "root": m["root"],
+                                       "db_files": int(m["count"]), "verdict": m["verdict"]})
+    labels = [c["label"] for c in out["checkpoints"]]
+    dirty = [f'{c["label"]}: {c["verdict"]}' for c in out["checkpoints"] if c["verdict"] != "CLEAN"]
+    missing = [r for r in required if r not in labels]
+    if dirty:
+        return {**out, "status": "NOT CLEAN", "clean": False, "why": "; ".join(dirty)}
+    if missing:
+        return {**out, "status": "INCOMPLETE", "clean": False,
+                "why": "no checkpoint " + ", ".join(repr(m) for m in missing)}
+    return {**out, "status": "CLEAN", "clean": True, "why": ""}
+
+
+def integrity_line(integ: dict, note: str = "") -> str:
+    """The harness's FIRST output line. Names every checkpoint it saw, and the ones it did not."""
+    seen = ", ".join(f'{c["label"]} {c["verdict"]}' for c in integ["checkpoints"]) or "no checkpoints"
+    files = sorted({c["db_files"] for c in integ["checkpoints"]})
+    parts = [f"SANDBOX INTEGRITY: {integ['status']} -- {seen}"]
+    if files:
+        parts.append(f"{'/'.join(str(f) for f in files)} db files hashed")
+    if integ.get("why"):
+        parts.append(integ["why"])
+    labels = {c["label"] for c in integ["checkpoints"]}
+    if integ["checkpoints"] and PREWARM not in labels and PREWARM not in integ["required"]:
+        parts.append(f"{PREWARM} not reached: the run ended before it "
+                     "(--hold-past-prewarm waits for it)")
+    if note:
+        parts.append(note)
+    parts.append(f"log: {integ['path'] or '(none)'}")
+    return "; ".join(parts)
+
+
+# ── the sandbox process ───────────────────────────────────────────────────────────────────
+
+# The launcher is started through this shim, never directly. uvicorn 0.41 captures SIGINT /
+# SIGTERM / SIGBREAK, shuts the server down gracefully, then RESTORES the original handlers and
+# RE-RAISES the signal it caught. For SIGBREAK the original handler is SIG_DFL, so the re-raise
+# kills the process (exit 3) before the launcher's `finally` writes its shutdown checkpoint.
+# Measured with a stand-in uvicorn app, 2026-09-25: without a SIGBREAK handler, rc 3 and the
+# `finally` never ran; with one, rc 0 and it did. The shim installs that handler as a no-op
+# FIRST, so the re-raise lands on it and the launcher's own `finally` runs. On POSIX the stop
+# is SIGINT, whose default handler raises KeyboardInterrupt up through that `finally`; the shim
+# swallows it at the top so the exit is clean.
+_SHIM = (
+    "import runpy, signal, sys\n"
+    "if hasattr(signal, 'SIGBREAK'):\n"
+    "    signal.signal(signal.SIGBREAK, lambda *a: None)\n"
+    "sys.argv = sys.argv[1:]\n"
+    "try:\n"
+    "    runpy.run_path(sys.argv[0], run_name='__main__')\n"
+    "except KeyboardInterrupt:\n"
+    "    pass\n"
+)
+
+
+class Sandbox:
+    """One launcher process: started through `_SHIM` in its own process group, stopped by the
+    signal the launcher already handles, and only then read for its integrity verdict."""
+
+    def __init__(self, data_dir: str, port: int, log_path: Path):
+        self.data_dir, self.port, self.log_path = data_dir, port, Path(log_path)
+        self.proc: subprocess.Popen | None = None
+        self.stop_how: str | None = None
+
+    def start(self) -> None:
+        cmd = [sys.executable, "-u", "-c", _SHIM, str(BOOT_SCRIPT), "--data-dir", self.data_dir,
+               "--port", str(self.port), "--host", "127.0.0.1"]
+        kw = ({"creationflags": subprocess.CREATE_NEW_PROCESS_GROUP} if os.name == "nt"
+              else {"start_new_session": True})
+        # The child inherits its own copy of the handle; ours is closed when the block ends.
+        with open(self.log_path, "w", encoding="utf-8") as fh:
+            self.proc = subprocess.Popen(cmd, cwd=str(REPO), stdout=fh, stderr=subprocess.STDOUT, **kw)
+
+    def alive(self) -> bool:
+        return self.proc is not None and self.proc.poll() is None
+
+    def integrity_path(self) -> str | None:
+        """The path the launcher printed, read from its own output (unbuffered via `-u`)."""
         try:
-            with urllib.request.urlopen(base + "/api/health", timeout=3) as r:
-                if r.status == 200:
-                    return True
-        except Exception:  # noqa: BLE001 -- not up yet
-            pass
-        time.sleep(2)
-    return False
+            text = self.log_path.read_text(encoding="utf-8", errors="replace")
+        except OSError:
+            return None
+        for line in text.splitlines():
+            m = _INTEGRITY_PATH_RE.search(line)
+            if m:
+                return m["path"]
+        return None
+
+    def labels(self) -> list[str]:
+        path = self.integrity_path()
+        if not path or not Path(path).is_file():
+            return []
+        return [c["label"] for c in read_integrity(path, [])["checkpoints"]]
+
+    def wait_healthy(self, base: str, timeout_s: float) -> bool:
+        import urllib.request
+        end = time.time() + timeout_s
+        while time.time() < end and self.alive():
+            try:
+                with urllib.request.urlopen(base + "/api/health", timeout=3) as r:
+                    if r.status == 200:
+                        return True
+            except Exception:  # noqa: BLE001 -- not up yet
+                pass
+            time.sleep(0.5)
+        return False
+
+    def wait_checkpoint(self, label: str, timeout_s: float) -> bool:
+        end = time.time() + timeout_s
+        while time.time() < end and self.alive():
+            if label in self.labels():
+                return True
+            time.sleep(0.5)
+        return label in self.labels()
+
+    def stop(self, grace_s: float = 120.0, exit_after_checkpoint_s: float = 30.0) -> str:
+        """Ask the launcher to stop the way it already handles, and wait for its shutdown
+        checkpoint. A hard kill is the LAST resort and is recorded as such: a run stopped that
+        way has no shutdown checkpoint, so its integrity reads INCOMPLETE and its timings are
+        withheld -- the failure direction is silence, never a clean-looking number."""
+        if self.proc is None:
+            self.stop_how = "never-started"
+            return self.stop_how
+        if self.proc.poll() is not None:
+            self.stop_how = f"exited-on-its-own (rc {self.proc.returncode})"
+            return self.stop_how
+        self.proc.send_signal(signal.CTRL_BREAK_EVENT if os.name == "nt" else signal.SIGINT)
+        end, checkpoint_at = time.time() + grace_s, None
+        while time.time() < end:
+            rc = self.proc.poll()
+            if rc is not None:
+                # rc 0 is the launcher returning through its `finally`; anything else is a
+                # process that ended some other way, and the integrity log says which.
+                self.stop_how = "graceful (rc 0)" if rc == 0 else f"exited on the stop request, rc {rc}"
+                return self.stop_how
+            if checkpoint_at is None and SHUTDOWN in self.labels():
+                checkpoint_at = time.time()
+            if checkpoint_at is not None and time.time() - checkpoint_at > exit_after_checkpoint_s:
+                # The checkpoint is on disk; something (a non-daemon thread) is holding the
+                # interpreter open after it. Nothing is lost by ending it now.
+                self.proc.kill()
+                self.proc.wait()
+                self.stop_how = "graceful to the shutdown checkpoint, then forced exit"
+                return self.stop_how
+            time.sleep(0.25)
+        self.proc.kill()
+        self.proc.wait()
+        self.stop_how = f"FORCED after {grace_s:.0f} s without a graceful exit"
+        return self.stop_how
 
 
 def _signup_or_login(req, base: str, email: str, pw: str, name: str) -> None:
@@ -347,9 +531,34 @@ def dry_run() -> int:
     assert refuse_shared_root(r"C:\data-w7perf") is None
     assert (OPEN_BUDGET_MS, OPEN_UP_TO, TYPING_BUDGET_MS, TYPING_UP_TO) == (300.0, 1000, 16.0, 2000), \
         "the editor budget in perf-budgets.json is not the brief's"
+    # the integrity reader, against lines written by the launcher's own writer
+    sys.path.insert(0, str(REPO / "scripts"))
+    import data_root_snapshot as drs
+    with tempfile.TemporaryDirectory(prefix="w7perf-dry-") as d:
+        log = os.path.join(d, "integrity.md")
+        drs.append_log(log, PRE_BOOT, r"C:\data", 3, [])
+        drs.append_log(log, POST_BOOT, r"C:\data", 3, [])
+        assert read_integrity(log, [PRE_BOOT, POST_BOOT, SHUTDOWN])["status"] == "INCOMPLETE"
+        drs.append_log(log, SHUTDOWN, r"C:\data", 3, [])
+        assert read_integrity(log, [PRE_BOOT, POST_BOOT, SHUTDOWN])["status"] == "CLEAN"
+        drs.append_log(log, SHUTDOWN, r"C:\data", 3, [("CHANGED", "auth.db", "sha differs")])
+        assert read_integrity(log, [PRE_BOOT, POST_BOOT, SHUTDOWN])["status"] == "NOT CLEAN"
+    assert read_integrity(None, [PRE_BOOT])["status"] == "MISSING"
     print(markdown_rows(ok, "dryrun"))
-    print("DRY RUN: page scripts parse, the verdict logic breaches and goes INCONCLUSIVE when it must")
+    print("DRY RUN: page scripts parse, the verdict logic breaches and goes INCONCLUSIVE when it must, "
+          "and the integrity reader tells CLEAN, INCOMPLETE, NOT CLEAN and MISSING apart")
     return 0
+
+
+def _log_home(json_path: str | None) -> tuple[Path, str]:
+    """Where this run's own files go: beside --json when given, else a fresh temp directory.
+    Never the current directory (the old default left a stray perf.sandbox.log wherever the
+    harness happened to be run from)."""
+    if json_path:
+        p = Path(json_path).resolve()
+        p.parent.mkdir(parents=True, exist_ok=True)
+        return p.parent, p.stem
+    return Path(tempfile.mkdtemp(prefix="w7perf-")), "perf"
 
 
 def main(argv: list[str] | None = None) -> int:
@@ -363,6 +572,10 @@ def main(argv: list[str] | None = None) -> int:
     ap.add_argument("--chars", type=int, default=60)
     ap.add_argument("--json", dest="json_path", default=None)
     ap.add_argument("--md", default=None, help="write the markdown rows here ('-' = stdout)")
+    ap.add_argument("--integrity-log", default=None,
+                    help="with --base: that sandbox's own integrity log (docs/plans/joystick/sandbox-runs/*.md)")
+    ap.add_argument("--hold-past-prewarm", action="store_true",
+                    help="with --boot: also wait for the launcher's +120 s checkpoint before stopping it")
     ap.add_argument("--dry-run", action="store_true")
     args = ap.parse_args(argv)
     if args.dry_run:
@@ -375,8 +588,13 @@ def main(argv: list[str] | None = None) -> int:
     if bool(args.boot) == bool(args.base):
         print("pass exactly one of --boot (with --data-dir) or --base")
         return 3
-    proc = None
+    if args.base and not args.integrity_log:
+        print("REFUSED: --base needs --integrity-log (the running sandbox's own snapshot log); "
+              "a run with no integrity verdict reports no timings")
+        return 3
+    home, stem = _log_home(args.json_path)
     base = args.base
+    live, failure = None, None
     if args.boot:
         why = refuse_shared_root(args.data_dir or "")
         if why:
@@ -386,35 +604,63 @@ def main(argv: list[str] | None = None) -> int:
             print(f"REFUSED: port {args.port} already has a listener; find it with "
                   f"`Get-NetTCPConnection -LocalPort {args.port}` -- this harness never kills it")
             return 3
-        log = Path(args.json_path or "perf").with_suffix(".sandbox.log")
-        proc = _boot(args.data_dir, args.port, log)
+        box = Sandbox(args.data_dir, args.port, home / f"{stem}.sandbox.log")
         base = f"http://127.0.0.1:{args.port}"
-        if not _wait_health(base, 240):
-            proc.terminate()
-            print(f"INCONCLUSIVE: the sandbox never answered /api/health (log: {log})")
-            return 2
+        box.start()
+        try:
+            if not box.wait_healthy(base, 240):
+                failure = "the sandbox never answered /api/health"
+            else:
+                try:
+                    live = run_live(base, sizes, args.opens, args.chars)
+                except Exception as e:  # noqa: BLE001 -- recorded, and the sandbox is still stopped
+                    failure = f"the live run raised {type(e).__name__}: {str(e)[:300]}"
+                # Never stop the launcher before its +15 s checkpoint: a short run waits for it.
+                box.wait_checkpoint(POST_BOOT, 60)
+                if args.hold_past_prewarm:
+                    box.wait_checkpoint(PREWARM, 200)
+        finally:
+            box.stop()
+        required = [PRE_BOOT, POST_BOOT, SHUTDOWN] + ([PREWARM] if args.hold_past_prewarm else [])
+        integ = read_integrity(box.integrity_path(), required)
+        note = f"stop: {box.stop_how}; launcher output: {box.log_path}"
+    else:
+        try:
+            live = run_live(base, sizes, args.opens, args.chars)
+        except Exception as e:  # noqa: BLE001
+            failure = f"the live run raised {type(e).__name__}: {str(e)[:300]}"
+        required = [PRE_BOOT, POST_BOOT] + ([PREWARM] if args.hold_past_prewarm else [])
+        integ = read_integrity(args.integrity_log, required)
+        note = ("shutdown checkpoint pending: this sandbox is still running and is not this "
+                "harness's to stop")
+    if integ["path"] and Path(integ["path"]).is_file():
+        integ["copy"] = str(home / f"{stem}.integrity.md")
+        shutil.copyfile(integ["path"], integ["copy"])
+    first = integrity_line(integ, note)
+    print(first)  # ⛔ FIRST, before any number (CLAUDE.md, sandbox boots)
     sha = subprocess.run(["git", "-C", str(REPO), "rev-parse", "HEAD"], capture_output=True,
                          text=True).stdout.strip() or None
-    try:
-        open_ms, typing_ms, typed, errors = run_live(base, sizes, args.opens, args.chars)
-    finally:
-        if proc is not None:
-            proc.terminate()
-            try:
-                proc.wait(timeout=30)
-            except subprocess.TimeoutExpired:
-                proc.kill()
-    summary = summarize(open_ms, typing_ms, typed)
     out = {"tool": "tools/notebook_perf_harness.py", "git_head": sha, "base": base,
-           "sizes": sizes, "opens": args.opens, "chars": args.chars, "page_errors": errors,
-           "raw": {"open_ms": open_ms, "typing_ms": typing_ms}, **summary}
+           "sizes": sizes, "opens": args.opens, "chars": args.chars, "integrity": integ}
+    if not integ["clean"] or failure or live is None:
+        why = (f"sandbox integrity is {integ['status']}" if not integ["clean"] else failure
+               or "nothing was measured")
+        out["timings"] = "WITHHELD"
+        out["why"] = why
+        if args.json_path:
+            Path(args.json_path).write_text(json.dumps(out, indent=1), encoding="utf-8")
+        print(f"VERDICT: INCONCLUSIVE -- timings withheld: {why}")
+        return 2
+    open_ms, typing_ms, typed, errors = live
+    summary = summarize(open_ms, typing_ms, typed)
+    out.update({"page_errors": errors, "raw": {"open_ms": open_ms, "typing_ms": typing_ms}, **summary})
     if args.json_path:
         Path(args.json_path).write_text(json.dumps(out, indent=1), encoding="utf-8")
     md = markdown_rows(summary, sha)
     if args.md == "-":
         print(md)
     elif args.md:
-        Path(args.md).write_text(md + "\n", encoding="utf-8")
+        Path(args.md).write_text(f"> {first}\n\n{md}\n", encoding="utf-8")
     if summary["inconclusive"] and not summary["rows"]:
         print("VERDICT: INCONCLUSIVE --", "; ".join(summary["inconclusive"]))
         return 2
