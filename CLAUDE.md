@@ -3639,6 +3639,20 @@ disk only, never pushed.** Do not delete that worktree without backing it up
 first; the full lane-by-lane history (`progress.md`) and the single open-items
 tracker (`OPEN-ITEMS.md`) exist nowhere else.
 
+📏 **Notebook performance budgets (wave 7, lane I) — `docs/notebook/perf-budgets.md` is the
+record; `docs/notebook/perf-budgets.json` is the budget file (edited BY HAND, never by a tool).**
+Bytes: the Notebook route's first-open static closure (`tools/notebook_perf_budgets.py --dist
+app/dist`, fail-closed on a missing manifest). Latency: the 50k local gate
+`python tools/notebook_scale_benchmark.py --tiers 50000 --thresholds docs/notebook/perf-budgets.json
+--budget search --budget reads --budget tasks` (seeds its own SQLite per tier under the census pins;
+an unmeasured op is a breach). Editor: `tools/notebook_perf_harness.py` (local Playwright over a
+sandbox boot; pass the data dir from PowerShell). `.github/workflows/notebook-budgets.yml` runs the
+1k/10k tiers + bytes and is **advisory** (`# promotion-gate: no`) — a shared runner's timing would
+flap a 100 ms line; the local 50k gate is the verdict. ⛔ Budgets are never raised to fit a reading:
+at wave-7 close typing was OVER its 16 ms/char line (17.6 at 1,000 ¶, 22.4 at 2,000, loaded box) and
+the file says so rather than moving the line. ⚠️ The measured 50k numbers were taken while a live
+trading session ran on the box (1.6–1.7× slower); re-read them on a quiet machine before citing.
+
 ### ✅ B7 / rule 12 — the rail now identifies WHOSE change set it is (CLOSED 2026-09-13)
 
 `app/src/hub/rule12Paths.test.js` asserts *"a joystick change set must not edit
