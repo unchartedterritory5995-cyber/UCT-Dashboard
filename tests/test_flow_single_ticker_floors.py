@@ -108,3 +108,97 @@ def test_the_flow_card_itself_shows_the_contract(tape):
     assert d["contracts"][0]["premium"] == 450_000
     assert d["net"]["dir"] == "BULL"
     assert d["window"]["active_days"] == 1
+
+
+# ── the widening ladder (owner ruling 2026-09-24: never a blank card) ───────────────────────
+
+def _insert_dated(db_path: str, day: str, sym: str, exp_s: str, key_prefix: str):
+    conn = sqlite3.connect(db_path)
+    for i in range(3):
+        conn.execute(
+            "INSERT INTO flow (source, CreatedDate, CreatedTime, Symbol, Type, Volume, Price, Side, "
+            "CallPut, Strike, Spot, Premium, ExpirationDate, Color, Dte, MktCap, OI, dedup_key) "
+            "VALUES ('stocks', ?, ?, ?, 'SWEEP', '100', '15.0', 'A', 'CALL', '535', '530', "
+            "'150000', ?, 'YELLOW', '30', ?, '100', ?)",
+            (day, f"10:0{i}:00", sym, exp_s, str(MEGA_CAP), f"{key_prefix}{i}"))
+    conn.commit()
+    conn.close()
+
+
+@pytest.fixture
+def quiet_today(tape, tmp_path):
+    """Today's tape holds NOTHING for a second name; three sessions back it printed the same
+    $450K contract. So `days=1` is honestly empty and `days=5` is not."""
+    sym = "QUIETX"
+    today = dt.datetime.now(lmr.ET).date()
+    back = today - dt.timedelta(days=3)
+    exp = today + dt.timedelta(days=30)
+    _insert_dated(lmr.DB_PATH, f"{back.month}/{back.day}/{back.year}", sym,
+                  f"{exp.month}/{exp.day}/{exp.year}", "q")
+    lmr._ticker_flow_cache.clear()
+    return sym
+
+
+def test_ladder_rungs_are_strictly_wider_than_the_request():
+    assert lmr._widen_ladder("1") == [5, 20, "all"]
+    assert lmr._widen_ladder("5") == [20, "all"]
+    assert lmr._widen_ladder("7") == [20, "all"]
+    assert lmr._widen_ladder("30") == ["all"]
+    assert lmr._widen_ladder("all") == []
+
+
+def test_without_widen_an_empty_window_stays_empty(quiet_today):
+    """THE CONTROL for the research tab: `widen` is opt-in, so a fixed 5-day panel with nothing
+    in it keeps saying so instead of quietly showing a 20-day window."""
+    d = lmr._compute_ticker_flow(quiet_today, "1", "stocks", 15)
+    assert d["ok"] and d["contract_count"] == 0
+    assert "widened_from" not in d["window"]
+
+
+def test_widen_climbs_to_the_first_window_with_a_contract(quiet_today):
+    d = lmr._compute_ticker_flow(quiet_today, "1", "stocks", 15, widen=True)
+    assert d["contract_count"] == 1, d
+    assert d["window"]["days_requested"] == "5", d["window"]
+    assert d["window"]["widened_from"] == "1", d["window"]
+
+
+def test_widen_leaves_a_non_empty_window_alone(tape):
+    d = lmr._compute_ticker_flow(TICKER, "1", "stocks", 15, widen=True)
+    assert d["contract_count"] == 1
+    assert d["window"]["days_requested"] == "1"
+    assert "widened_from" not in d["window"]
+
+
+def test_widen_returns_the_honest_empty_when_every_rung_is_empty(tape):
+    d = lmr._compute_ticker_flow("NEVERX", "1", "stocks", 15, widen=True)
+    assert d["ok"] and d["contract_count"] == 0
+    assert d["window"]["days_requested"] == "1" and "widened_from" not in d["window"]
+    # ...and it says which rungs it looked at, which is what licenses the reply's clause
+    assert d["window"]["widened_checked"] == ["5", "20", "all"]
+
+
+def test_the_empty_reply_vouches_for_a_wider_search_only_when_one_ran(monkeypatch):
+    """A backend that ignores `widen` (deploy skew) returns a plain empty window; the reply
+    must then say only "today", never "none in any wider window"."""
+    from api.routers import discord_interactions as router
+    sent = []
+    edit = lambda app_id, token, **kw: sent.append(kw.get("content"))
+    plain = {"ok": True, "contracts": [], "window": {"days_requested": "1"}}
+    router.run_flow_card_job("A", "T", "ZZZ", "1", fetch_fn=lambda t, d: plain, edit_fn=edit, source="stocks")
+    assert sent[-1] == "**ZZZ** — no significant options flow today."
+    checked = {"ok": True, "contracts": [], "window": {"days_requested": "1", "widened_checked": ["5", "20", "all"]}}
+    router.run_flow_card_job("A", "T", "ZZZ", "1", fetch_fn=lambda t, d: checked, edit_fn=edit, source="stocks")
+    assert sent[-1] == ("**ZZZ** — no significant options flow today — and none on record in any "
+                        "wider window (checked back through all history).")
+
+
+def test_the_reply_and_the_card_both_name_a_widened_window():
+    from api.routers.discord_interactions import _flow_window_phrase
+    from api.flow_ticker_card import _window_label
+    w = {"days_requested": "5", "widened_from": "1", "start": "9/18/2026", "end": "9/22/2026", "active_days": 3}
+    assert _flow_window_phrase(w) == "last 5 trading days (nothing significant today)"
+    assert _window_label(w).startswith("last 5 trading days (nothing today)")
+    # unwidened windows read exactly as before
+    assert _flow_window_phrase({"days_requested": "1"}) == "today"
+    assert _flow_window_phrase({"days_requested": "all"}) == "all history"
+    assert _window_label({"days_requested": "5", "active_days": 2}) == "last 5 trading days  ·  2 active days"
