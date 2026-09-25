@@ -28,7 +28,6 @@ from __future__ import annotations
 
 import json
 import os
-import re
 import sqlite3
 from datetime import datetime
 from typing import Any
@@ -108,27 +107,25 @@ def _image_marker(node: dict[str, Any]) -> str:
     return f"[image: {src}]" if src else "[image]"
 
 
-# Every character TipTap's `isAllowedUri` strips before it checks a link's
-# scheme (`ATTR_WHITESPACE` in @tiptap/extension-link): ASCII controls and
-# space, and the Unicode spaces. ⛔ A browser ignores them inside a scheme too,
-# so `java<TAB>script:` IS `javascript:` to it.
-_HREF_INVISIBLE = re.compile("[\u0000-   ᠎ -  　]")
-
-
 def _link_mark_survives(mark: Any) -> bool:
     """Keep a mark unless it is a link that must not be stored.
 
-    ⛔ The scheme allow-list is asked about the href AS A BROWSER READS IT --
-    whitespace and control characters removed first. ⚰️ Fix round 1 (M-5):
-    mddoc's `_is_allowed_link_href` checks the raw string, so
-    `<a href="java&#9;script:alert(1)">` was stored as a link to
+    ⛔ The href is read AS A BROWSER READS IT -- whitespace and control
+    characters removed -- by mddoc's `link_href_as_read`, the one normaliser
+    the allow-list itself uses (wave 7 lane J fix round 1, review M-2: this
+    file used to carry a byte-identical copy of the character class). The
+    `import-link://` refusal below and the allow-list both see that string.
+    ⚰️ Fix round 1 (M-5): mddoc's `_is_allowed_link_href` once checked the raw
+    string, so `<a href="java&#9;script:alert(1)">` was stored as a link to
     `java\\tscript:alert(1)`. TipTap blanks it when it renders today, but a
     note outlives today's renderer (a share page, an HTML export). The mark is
     dropped and the words stay."""
     if not (isinstance(mark, dict) and mark.get("type") == "link"):
         return True
-    from api.services.journal_two.note_connectors.convert.mddoc import _is_allowed_link_href
-    href = _HREF_INVISIBLE.sub("", str((mark.get("attrs") or {}).get("href") or ""))
+    from api.services.journal_two.note_connectors.convert.mddoc import (
+        _is_allowed_link_href, link_href_as_read,
+    )
+    href = link_href_as_read(str((mark.get("attrs") or {}).get("href") or ""))
     if href.startswith(_LINK_PREFIX):
         return False       # names a document of an import that does not exist here
     return _is_allowed_link_href(href)

@@ -918,6 +918,93 @@ def test_an_html_link_whose_scheme_hides_behind_a_tab_or_spaces_keeps_its_words_
     assert ok["content"][0]["marks"] == [{"type": "link", "attrs": {"href": "https://example.com"}}]
 
 
+# ---------------------------------------------------------------------------
+# Wave 7 lane J, fix round 1 -- review M-2: ONE normaliser, written in escapes.
+#
+# Lane G's personal API kept a byte-identical copy of `_LINK_URI_INVISIBLE_RE`
+# (`note_personal_api._HREF_INVISIBLE`), and BOTH copies held the characters
+# RAW -- U+2029 among them, a paragraph separator, so `str.splitlines()`
+# counted each file one line longer than `\n` did. The class now lives once,
+# as `\u` escapes, behind `mddoc.link_href_as_read`, and the personal API asks
+# that function. Three rails: one definition site, both gates answering
+# through it, and no Python source whose lines split differently.
+# ---------------------------------------------------------------------------
+
+# U+180E belongs to the class and appears in no other string under api/: as the
+# raw character (the old copies) or as the escape text (the one copy now).
+_INVISIBLE_CLASS_SIGNATURE = ("\u180e", "\\u180e")
+
+
+def test_the_invisible_character_class_is_defined_once_under_api():
+    import ast
+    from pathlib import Path
+
+    api = Path(__file__).resolve().parents[2]
+    sites, scanned = [], 0
+    for path in sorted(api.rglob("*.py")):
+        if path.name.startswith("test_"):
+            continue
+        scanned += 1
+        for node in ast.walk(ast.parse(path.read_text(encoding="utf-8"))):
+            if (isinstance(node, ast.Constant) and isinstance(node.value, str)
+                    and any(sig in node.value.lower() for sig in _INVISIBLE_CLASS_SIGNATURE)):
+                sites.append(f"{path.relative_to(api.parent).as_posix()}:{node.lineno}")
+    # Non-vacuity: the walk read the tree (1,332 modules when written), and it SEES
+    # the one copy there is -- by name, so an empty walk cannot pass.
+    assert scanned > 1000, scanned
+    assert [s.rsplit(":", 1)[0] for s in sites] == [
+        "api/services/journal_two/note_connectors/convert/mddoc.py"], sites
+
+
+def test_both_link_gates_read_the_href_through_the_one_normaliser():
+    """The personal API's mark gate and the converters' allow-list answer a hidden
+    script scheme the same way because they strip it with the SAME function."""
+    from api.services.journal_two import note_personal_api
+    from api.services.journal_two.note_connectors.convert.mddoc import (
+        _is_allowed_link_href, link_href_as_read,
+    )
+
+    def link(href):
+        return {"type": "link", "attrs": {"href": href}}
+
+    for href in ("java\u2029script:alert(1)", "\u3000javascript:alert(1)",
+                 "java\u180escript:alert(1)", "\tjavascript:alert(1)"):
+        assert link_href_as_read(href) == "javascript:alert(1)", repr(href)
+        assert _is_allowed_link_href(href) is False, repr(href)
+        assert note_personal_api._link_mark_survives(link(href)) is False, repr(href)
+    # An import link behind whitespace is refused as well. (Both halves refuse it:
+    # stripped, it names an import document; and the allow-list refuses the
+    # stripped scheme. So the personal API's own call to the normaliser is not
+    # separately observable today -- the define-once rail above is what keeps a
+    # second copy from coming back.)
+    assert note_personal_api._link_mark_survives(link("\u2003import-link://obsidian:x.md")) is False
+    # Control: an ordinary link survives both gates.
+    assert note_personal_api._link_mark_survives(link("https://example.com/a")) is True
+    assert _is_allowed_link_href("https://example.com/a") is True
+
+
+def test_no_python_source_splits_into_more_lines_than_it_has_newlines():
+    """M-2's hazard as a property of the tree: a raw U+2028/U+2029 (or any other
+    character `str.splitlines()` breaks on) inside a source file puts every rail
+    that maps `node.lineno` through `splitlines()` one line off below it."""
+    from pathlib import Path
+
+    root = Path(__file__).resolve().parents[3]
+    offenders, scanned = [], 0
+    for top in ("api", "tools", "scripts", "tests"):
+        for path in (root / top).rglob("*.py"):
+            text = path.read_bytes().decode("utf-8", errors="replace").replace("\r\n", "\n")
+            scanned += 1
+            newline_lines = text.count("\n") + (0 if (not text or text.endswith("\n")) else 1)
+            if len(text.splitlines()) != newline_lines:
+                offenders.append(path.relative_to(root).as_posix())
+    assert scanned > 2000, scanned          # 3,779 files when written
+    assert not offenders, offenders
+    # Control: the same comparison sees one raw paragraph separator.
+    sample = 'X = "a\u2029b"\n'
+    assert len(sample.splitlines()) != sample.count("\n")
+
+
 def test_media_dedup_by_ref_minor():
     # Minor: the SAME image src referenced twice must not produce two media
     # entries (JS parity, `dedupeMedia`) — both occurrences still carry the
