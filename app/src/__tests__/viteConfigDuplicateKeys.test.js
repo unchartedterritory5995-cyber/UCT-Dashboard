@@ -126,7 +126,20 @@ describe('the merged build keeps BOTH intents (evaluated config, the object Vite
     const chunks = cfg.build?.rollupOptions?.output?.manualChunks
     expect(chunks, 'manualChunks went missing — the vendor split is dead again').toBeTruthy()
     expect(Object.keys(chunks)).toEqual(
-      expect.arrayContaining(['vendor-react', 'vendor-swr', 'vendor-charts', 'vendor-echarts']),
+      expect.arrayContaining(['vendor-react', 'vendor-swr', 'vendor-charts']),
     )
+  })
+
+  it('does NOT force an echarts vendor chunk (ruling D-I1)', async () => {
+    // A forced `vendor-echarts` merged both halves of echarts into one chunk, so the routes that
+    // need only its core -- ResearchPage, Calendar (the UCT Terminal), MyStocksHub -- fetched
+    // ~580 KB more on first open. docs/notebook/perf-budgets.md section 1 has both measurements.
+    const mod = await import('../../vite.config.js')
+    const chunks = mod.default.build.rollupOptions.output.manualChunks
+    expect(Object.keys(chunks)).toContain('vendor-react') // control: the map was read
+    expect(Object.keys(chunks)).not.toContain('vendor-echarts')
+    const listed = Object.values(chunks).flat()
+    expect(listed).not.toContain('echarts')
+    expect(listed).not.toContain('echarts-for-react')
   })
 })

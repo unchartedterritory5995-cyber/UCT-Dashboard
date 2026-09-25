@@ -188,7 +188,14 @@ export default defineConfig({
           ],
           'vendor-swr': ['swr'],
           'vendor-charts': ['lightweight-charts'],
-          'vendor-echarts': ['echarts', 'echarts-for-react'],
+          // ⛔ echarts is deliberately NOT listed either (ruling D-I1, wave 7, 2026-09-25).
+          // Listed, it forced ONE chunk holding both halves of echarts, so the routes that
+          // need only its core (zrender + echarts core) fetched all of it: +580,656 B on
+          // research/ResearchPage.jsx and +580,475 B on Calendar.jsx (the UCT Terminal) and
+          // calendar/MyStocksHub.jsx -- the routes members open most -- to save 1,239-9,278 B
+          // on each of 93 others. Unlisted, Rollup splits it by use again. Measured both
+          // ways in docs/notebook/perf-budgets.md section 1; viteConfigDuplicateKeys.test.js
+          // fails if it comes back.
           // ⛔ recharts and tiptap are deliberately NOT listed.
           //
           // Naming a package here FORCES a chunk into existence, and Rollup

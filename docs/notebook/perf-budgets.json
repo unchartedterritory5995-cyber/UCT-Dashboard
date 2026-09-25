@@ -6,9 +6,9 @@
         "src/pages/journal-2-0/JournalLayout.jsx",
         "src/pages/journal-2-0/surfaces/NotebookSurface.jsx"
       ],
-      "baseline": 2145850,
-      "baseline_from": "I3, the highlighter and the opt-in views/dialogs made lazy; docs/notebook/perf-budgets.md section 4 (the I0 baseline was 2,323,886, section 1)",
-      "max": 2253142,
+      "baseline": 2153137,
+      "baseline_from": "Fix round 1, ruling D-I1 (vendor-echarts removed from manualChunks): measured with tools/notebook_perf_budgets.py --dist on a clean build of the tree of 0189bca13 plus that vite.config.js; docs/notebook/perf-budgets.md section 1, 'Decision D-I1'. The I3 baseline was 2,145,850 (section 4); +7,237 B came from the commits after I3, +50 B from D-I1 itself.",
+      "max": 2260793,
       "max_rule": "floor(baseline * 1.05)"
     }
   },

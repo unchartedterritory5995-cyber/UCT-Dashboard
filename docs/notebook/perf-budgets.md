@@ -89,7 +89,42 @@ before `5f60d5d5b`, and the provenance of that dist was inferred in the plan, no
   before by more than 375 B, and that 375 B is the legacy v8 `JournalTwoRoot`. The other
   routes give back up to ~7 KB of the merged config's gains. **This file does not choose
   between them.** The brief kept the map intact, so the map is intact here. The measurement
-  and the one-line alternative go to the controller.
+  and the one-line alternative go to the controller. ⚰️ *Superseded 2026-09-25: the
+  controller chose the one-line alternative (ruling D-I1). See "Decision D-I1" below.*
+
+### Decision D-I1 (fix round 1): `vendor-echarts` removed from `manualChunks`
+
+Ruling D-I1: the merged chunk cost ~580 KB on first open on the three routes members open
+most, to save at most ~7 KB on each of 93 others. `'vendor-echarts'` is gone from the map
+(`app/vite.config.js`, with the reason beside the list), and
+`src/__tests__/viteConfigDuplicateKeys.test.js` fails if it comes back.
+
+Measured the same way as above, on two clean builds (`git archive` of the committed tree, so no
+uncommitted file from another lane reached either one) of the tree of `0189bca13`: **with** the
+entry (that commit as it stands) and **without** it (the same tree plus the one-line change,
+which is the D-I1 commit's `vite.config.js`). `npx vite build` for each, then
+`tools/notebook_perf_budgets.py --dist` and the per-route census (scratch `w7I/fr1/`:
+`build-dI1-{before,after}.log`, `bytes-dI1-{before,after}.json`, `routes-dI1.txt`,
+`dI1_summary.log`). Raw bytes, first-open static closure:
+
+| route / figure | with `vendor-echarts` | without (D-I1) | Δ |
+|---|---:|---:|---:|
+| `research/ResearchPage.jsx` | 3,827,063 | 3,245,245 | **−581,818** |
+| `Calendar.jsx` (the UCT Terminal) | 2,610,475 | 2,028,657 | **−581,818** |
+| `calendar/MyStocksHub.jsx` | 2,557,403 | 1,975,585 | **−581,818** |
+| the other 93 lazy routes | — | — | +50 to +7,186 each (median +50, sum +61,487) |
+| **Notebook route first-open** (the budgeted figure) | 2,153,087 | **2,153,137** | **+50** |
+| echarts chunks | one, 1,142,871 | two, 561,021 (core) + 588,938 | +7,088 |
+| all JS in `dist/assets` | 11,787,679 (312 files) | 11,794,972 (313 files) | +7,293 |
+
+The +50 B on every route is the entry chunk (867,895 → 867,945). Every lazily loaded module of
+the D-I1 build (149) was imported in headless Chromium with the section-1 smoke: 149
+evaluated, 0 rejected, 0 page errors (`w7I/fr1/smoke-dI1-after.json`).
+
+The budget file's byte baseline moved in the same commit, from this measurement, never
+adjusted: **2,153,137, max 2,260,793** (floor of +5%). Against the I3 baseline (2,145,850,
+section 4) the Notebook first open is +7,287 B: +7,237 from the commits that landed after I3
+(the "with" build) and +50 from D-I1.
 
 ### Does the merged bundle still start?
 
@@ -118,6 +153,11 @@ timed runs per op, nearest-rank p50/p95. It imports the repo-root `conftest` fir
 `[]` in both reports below). The two route pairs time what the routes call
 (`list_and_count_notes`, `tag_counts_and_tree`), and the search box's own request
 (`sort=relevance, limit=100`, `FolderSidebar.jsx`) is timed as its own op.
+
+⚠️ **Single-tenant seed (review M-9): a known limitation.** Every tier seeds ONE member, while
+the full-text sets (the `q=` set and the relevance pass) match against the whole
+`j2_notes_fts` table with no user filter by design, so their cost grows with every member's
+matches and none of the figures below covers that; a multi-tenant seed is a follow-up.
 
 ⚰️ **The first baseline was void.** It timed every read inside `tracemalloc`, which hooks
 every Python allocation: `switcher_search` read 435 ms traced against 62 ms untraced
@@ -235,6 +275,17 @@ connector engine) to update it in the same transaction, and a trigger cannot cal
 `tag_key` on connections that never registered it. Covering indexes plus one grouped pass
 took `/notes/tags` from 1,160 to 91 ms p50 at 50k (A/B) with no writer touched.
 
+- **The indexes' cost on every save (review M-3): accepted.** The reviewer measured it
+  (`w7review/write_cost.log`: 10k notes, 600 interleaved autosave-shaped `UPDATE`s including
+  the FTS trigger): p50 1.16 vs 0.67 ms per save, p95 2.38 vs 1.40 ms, the file +2.4%. About
+  1.7× on the raw SQL of a save and still under a millisecond at p50, within the brief's option
+  (b); lane I had not measured it.
+- **These indexes cannot be upgraded in place (review M-7).** `db.py` creates them with
+  `CREATE INDEX IF NOT EXISTS` by name, which never touches an index that already exists, so a
+  changed definition needs a NEW name (or the DROP-then-CREATE idiom `idx_j2_notes_user_import`
+  already uses); otherwise a database holding the old shape keeps it silently, and the plan
+  rails, which build fresh databases, cannot see it.
+
 Correctness is checked, not assumed: an old-vs-new differential over the same 50k seed
 (`w7I/i1-diffcheck2.log`: 49/49 identical, tags, counts, lists, backlinks and tasks, at the
 `5bed6c3a8` state; `w7I/i1-diffcheck3.log`: 59/59 identical including the shared pairs, stopped
@@ -282,7 +333,7 @@ function rather than carrying a copy.
 | `search`: the `GET /notes` pairs, the search box's relevance request, the switcher | 50,000 | 100 ms | the brief |
 | `reads`: `/notes/tags`, folder counts, `notes_for_folders`, backlinks | 50,000 | 100 ms | lane I |
 | `tasks`: `list_tasks` | 50,000 | 150 ms | lane I, above the search line on purpose (§2) |
-| `search_ci`, `reads_ci`, `tasks_ci` | 10,000 | same lines | the CI job |
+| `search_ci`, `reads_ci`, `tasks_ci` | 10,000 | same lines (one op informational, below) | the CI job |
 | `editor`: note open (≤ 1,000 paragraphs) / typing per char (≤ 2,000) | — | 300 ms / 16 ms | the brief |
 | `bytes.notebook_first_open` | — | baseline + 5% | the brief (§4) |
 
@@ -290,6 +341,12 @@ function rather than carrying a copy.
   tiers and the byte budget after `npm run build`. The 50k tier is the local gate: seeding it
   takes minutes on a runner and a shared runner's timing would make a 100 ms line flap. At
   10k the line still catches the gross regressions (the correlated `EXISTS` was 717 ms at 10k).
+  **One op is informational there (review M-8):** `switcher_search (fuzzy, in order)`, whose
+  code this lane never touched, already read 90.5 ms p95 at 10k on this box (section 2's
+  table), inside a shared runner's noise of the 100 ms line, so enforcing it would flap the job
+  red and teach people to ignore it; `search_ci` lists it under `"informational"` (printed
+  against the same 100 ms, never a breach), no line was raised, and the local 50k `search` gate
+  still enforces it.
   `python tools/promotion_gate.py --self-check`: 9 cases, 0 failures (`w7I/i2-promotion-selfcheck.log`); the workflow classifies
   as `no`, and as unclassified (`None`) with its marker line removed (`w7I/i2-marker-control.log`).
 - **The local 50k gate:**
@@ -304,6 +361,15 @@ function rather than carrying a copy.
   (`w7I/i2-editor-cdata-mtime.log`: 0 files written after the boot). The launcher's +15 s and
   +120 s checkpoints did not log before the harness stopped it, so this mtime listing is the
   post-boot evidence.
+  ⚰️ *That was the defect review I-1 named, fixed in fix round 1 (`8531f317c`).* The harness
+  hard-killed the launcher, so its `finally` never wrote the shutdown checkpoint, and it never
+  read the integrity log at all. It now starts the launcher through a SIGBREAK shim in its own
+  process group, stops it with CTRL_BREAK (the signal uvicorn already handles), waits for the
+  +15 s checkpoint before stopping it, reads the log, prints `SANDBOX INTEGRITY: ...` as its
+  first line, and withholds every timing unless pre-boot, +15 s and shutdown all read CLEAN.
+  Proof against the real launcher: `docs/plans/joystick/sandbox-runs/2026-09-25T09-47-48.md`
+  (all three CLEAN over 61 db files). That run was a lifecycle proof (200 paragraphs, 3 opens,
+  10 keys), not a budget measurement; the numbers above were not re-taken.
 
   | measure | paragraphs | samples | p50 | p95 | budget |
   |---|---:|---:|---:|---:|---:|
@@ -351,4 +417,28 @@ function rather than carrying a copy.
   routes to every dynamic entry).
 
 The budget file's byte baseline moved to this build: 2,145,850, max 2,253,142
-(floor of +5%).
+(floor of +5%). *It moved again with ruling D-I1: 2,153,137, max 2,260,793 (section 1,
+"Decision D-I1").*
+
+## 5. Fix round 1 (the lane I task review)
+
+Each finding and where it now lives. Numbers are in the sections named, not repeated here.
+
+- **I-1** (Important): the editor harness's sandbox lifecycle. Section 3, the editor harness
+  paragraph; `tools/notebook_perf_harness.py`, `tests/test_notebook_perf_harness.py`.
+- **D-I1**: `vendor-echarts` removed. Section 1, "Decision D-I1".
+- **M-1**: the search snippets keep a matched row whose body column is NULL; the page filter
+  is its own marker column, measured on the 50k seed against two slower alternatives
+  (`api/services/journal_two/notes.py` `_snippets_for`, `tests/test_journal_two_snippet_page_filter.py`).
+- **M-2**: the Trash order breaks `deleted_at` ties by id (`deleted_at DESC, id ASC`), railed in
+  `tests/test_journal_two_notes_read_plans.py`.
+- **M-3**, **M-7**, **M-9**: recorded in section 2. **M-8**: section 3, the CI bullet.
+- **M-4**, *Ruling (b)*: the tag cloud follows the notes list's OWN refresh. The list keeps
+  revalidating on focus (stopping it would trade a stale count for a stale list); when a refresh
+  of the same query returns a page whose tags moved, `useJ2Notes` asks the tag key once. No
+  per-focus tag query: an unchanged page, or a change that moves no tag, asks nothing
+  (`hooks/useJ2Notes.tagFollow.test.jsx`).
+- **M-5**: the seven on-demand views and dialogs load through `lib/lazyChunk.js`: one in-place
+  retry of a failed fetch, then the app's existing `utils/lazyWithRetry` reload.
+- **M-6**: the harness writes its logs beside `--json` or into a temp dir (never the cwd), closes
+  its log handle, and `--dry-run` runs under a test.
