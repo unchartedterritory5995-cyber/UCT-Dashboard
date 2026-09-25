@@ -295,11 +295,17 @@ describe('⛔⛔ DOOR ENUMERATION — derived from the code, in both directions'
     ])
   })
 
-  it('① (b) and exactly one WRAPPER reaches them without SQL of its own', () => {
+  it('① (b) and exactly two WRAPPERS reach them without SQL of their own', () => {
     // ⭐ `restore_note_version` writes no SQL — it rebuilds the old content and
     // calls `update_note`, which is why a version restore is a door too and
     // why `useJ2NoteVersions.restoreNoteVersion` has to settle.
-    expect([...advancing].filter((n) => !sql.has(n)).sort()).toEqual(['restore_note_version'])
+    // ⭐ `patch_note_tags` (wave 6, `PATCH /api/j2/notes/{id}/tags`) applies a
+    // tag delta under `BEGIN IMMEDIATE` and delegates the write to
+    // `update_note` — the same shape. Its client does not exist yet (lane D's
+    // M14); when it lands it must settle the `{note}` the route answers with,
+    // and rail ③ below is what will demand that. This list is the ledger of
+    // wrappers, not permission: a third name here needs its own client settle.
+    expect([...advancing].filter((n) => !sql.has(n)).sort()).toEqual(['patch_note_tags', 'restore_note_version'])
   })
 
   it('② every OTHER server-side writer of j2_notes is a known second writer', () => {
