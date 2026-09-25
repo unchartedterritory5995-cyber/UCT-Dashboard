@@ -301,10 +301,11 @@ describe('⛔⛔ DOOR ENUMERATION — derived from the code, in both directions'
     // why `useJ2NoteVersions.restoreNoteVersion` has to settle.
     // ⭐ `patch_note_tags` (wave 6, `PATCH /api/j2/notes/{id}/tags`) applies a
     // tag delta under `BEGIN IMMEDIATE` and delegates the write to
-    // `update_note` — the same shape. Its client does not exist yet (lane D's
-    // M14); when it lands it must settle the `{note}` the route answers with,
-    // and rail ③ below is what will demand that. This list is the ledger of
-    // wrappers, not permission: a third name here needs its own client settle.
+    // `update_note` — the same shape. Its client landed in wave 7 (M14):
+    // `useJ2Note().patchTags` settles the `{note}` the route answers with —
+    // only when its own write moved the revision — and rail ③ below is what
+    // demands that. This list is the ledger of wrappers, not permission: a
+    // third name here needs its own client settle.
     expect([...advancing].filter((n) => !sql.has(n)).sort()).toEqual(['patch_note_tags', 'restore_note_version'])
   })
 

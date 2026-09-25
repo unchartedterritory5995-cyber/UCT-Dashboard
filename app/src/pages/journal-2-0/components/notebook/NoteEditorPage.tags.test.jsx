@@ -21,8 +21,11 @@ const NOTE = {
 
 const updateMock = vi.fn()
 const refreshMock = vi.fn()
+const patchTagsMock = vi.fn()
 vi.mock('../../hooks/useJ2Notes', () => ({
-  useJ2Note: () => ({ note: NOTE, isLoading: false, error: null, update: updateMock, refresh: refreshMock }),
+  useJ2Note: () => ({
+    note: NOTE, isLoading: false, error: null, update: updateMock, refresh: refreshMock, patchTags: patchTagsMock,
+  }),
   recordNoteOpened: vi.fn(),
   setNoteFavorite: vi.fn(),
 }))
@@ -36,6 +39,8 @@ beforeEach(() => {
   serverReachable = true
   updateMock.mockReset()
   updateMock.mockImplementation(async (patch) => ({ ...NOTE, ...patch, updatedAt: 'T2' }))
+  patchTagsMock.mockReset()
+  patchTagsMock.mockImplementation(async () => ({ ...NOTE, updatedAt: 'T2' }))
   global.fetch = vi.fn(async (url) => {
     const u = String(url)
     if (u === '/api/j2/notes/tags') {
@@ -61,6 +66,7 @@ const addTag = (value) => {
   fireEvent.submit(input.closest('form'))
 }
 const tagPuts = () => updateMock.mock.calls.map(([patch]) => patch).filter((p) => 'tags' in p)
+const tagPatches = () => patchTagsMock.mock.calls
 
 describe('the tag field sends DELTAS', () => {
   it('the old comma field is gone; the note\'s tags are chips', async () => {
@@ -69,18 +75,32 @@ describe('the tag field sends DELTAS', () => {
     expect(screen.getByRole('button', { name: 'Remove tag earnings' })).toBeTruthy()
   })
 
-  it('an ADD lands on the server\'s CURRENT list — a bulk change made elsewhere survives', async () => {
+  // ⛔ Wave 7 (M14): the delta itself goes to PATCH /notes/{id}/tags, which
+  // applies it to the stored list inside ONE transaction -- so a second
+  // device's tag change landing between this page's read and its write is
+  // kept, not overwritten by a list computed before it existed. A PUT of a
+  // whole list could not promise that, however fresh the read.
+  it('an ADD sends the DELTA to the tag door — never a whole list — at the revision it read', async () => {
     await renderEditor()
     addTag('mine')
-    await waitFor(() => expect(tagPuts()).toHaveLength(1))
-    expect(tagPuts()[0]).toEqual({ tags: ['earnings', 'bulk-added-in-another-tab', 'mine'] })
+    await waitFor(() => expect(tagPatches()).toHaveLength(1))
+    expect(tagPatches()[0]).toEqual([{ add: ['mine'] }, { readAt: 'T1' }])
+    expect(tagPuts()).toEqual([])
   })
 
-  it('a REMOVE takes only that tag out of the server\'s current list', async () => {
+  it('a REMOVE sends only that tag as the delta', async () => {
     await renderEditor()
     fireEvent.click(screen.getByRole('button', { name: 'Remove tag earnings' }))
-    await waitFor(() => expect(tagPuts()).toHaveLength(1))
-    expect(tagPuts()[0]).toEqual({ tags: ['bulk-added-in-another-tab'] })
+    await waitFor(() => expect(tagPatches()).toHaveLength(1))
+    expect(tagPatches()[0]).toEqual([{ remove: ['earnings'] }, { readAt: 'T1' }])
+    expect(tagPuts()).toEqual([])
+  })
+
+  it('a refused delta says so and changes nothing on the page', async () => {
+    patchTagsMock.mockImplementation(async () => { const e = new Error('400'); e.status = 400; throw e })
+    await renderEditor()
+    addTag('mine')
+    expect(await screen.findByText('Couldn\'t update tags — try again')).toBeTruthy()
   })
 
   it('a change that changes nothing sends nothing (adding a tag the server already has)', async () => {
@@ -89,6 +109,7 @@ describe('the tag field sends DELTAS', () => {
     await waitFor(() => expect(global.fetch.mock.calls.some(([u]) => u === '/api/j2/notes/n1')).toBe(true))
     await new Promise((r) => setTimeout(r, 20))
     expect(tagPuts()).toEqual([])
+    expect(tagPatches()).toEqual([])
   })
 
   // ⛔ M14 (wave 6 fix round 1): the no-op still LEARNED something -- the
@@ -100,6 +121,7 @@ describe('the tag field sends DELTAS', () => {
     addTag('Bulk-Added-In-Another-Tab')
     await waitFor(() => expect(refreshMock).toHaveBeenCalled())
     expect(tagPuts()).toEqual([])
+    expect(tagPatches()).toEqual([])
   })
 
   it('when the server\'s list cannot be read, NOTHING is written (an unchecked list is never sent)', async () => {
@@ -109,6 +131,7 @@ describe('the tag field sends DELTAS', () => {
     await waitFor(() => expect(global.fetch.mock.calls.some(([u]) => u === '/api/j2/notes/n1')).toBe(true))
     await new Promise((r) => setTimeout(r, 20))
     expect(tagPuts()).toEqual([])
+    expect(tagPatches()).toEqual([])
     expect(await screen.findByText('Couldn\'t update tags — try again')).toBeTruthy()
   })
 

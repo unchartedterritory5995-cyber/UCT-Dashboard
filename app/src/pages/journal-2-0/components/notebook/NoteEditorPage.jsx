@@ -398,7 +398,7 @@ export function NoteLinkedTradeChips({ noteId }) {
 }
 
 export default function NoteEditorPage({ noteId, onBack, showBack = true, onTitleChange = null, noteMenu = null }) {
-  const { note, isLoading, error: loadError, update, refresh } = useJ2Note(noteId)
+  const { note, isLoading, error: loadError, update, refresh, patchTags } = useJ2Note(noteId)
   // Diagnostic only -- never surfaced to the member (see the !note render
   // branch below for why raw fetch-error text doesn't belong in that UI).
   useEffect(() => {
@@ -2667,21 +2667,28 @@ export default function NoteEditorPage({ noteId, onBack, showBack = true, onTitl
     await settleMetadataRevision(await update({ ticker: ticker || null }))
   }
   // Wave 6 items 9 + 12: a tag change is the member's DELTA, applied to the
-  // list the SERVER holds right now (read just before the write) -- never a
-  // list this page loaded earlier, which would undo a bulk change made in
-  // another tab. When that read fails nothing is sent: a list that could not
-  // be checked is never written. lib/tagDelta.js has the rule.
+  // list the SERVER holds -- never a list this page loaded earlier, which would
+  // undo a bulk change made in another tab. When the read below fails nothing
+  // is sent: a change that could not be checked is never written.
+  // lib/tagDelta.js has the rule.
+  // ⭐ Wave 7 (M14): the delta itself goes to PATCH /notes/{id}/tags, which
+  // applies it inside ONE transaction -- the read no longer supplies the list
+  // that is written (a second device's change between the read and the write
+  // survives). The read still decides "nothing to send" and supplies the
+  // revision the answer is judged against (`readAt`, useJ2Note.patchTags).
   const [tagsBusy, setTagsBusy] = useState(false)
   const applyTagDelta = async (delta) => {
     // (One change at a time: the field is `busy` -- disabled -- until this settles.)
     setTagsBusy(true)
     try {
       let serverTags
+      let readAt
       try {
         const res = await fetch(`/api/j2/notes/${encodeURIComponent(noteId)}`, { credentials: 'include' })
         if (!res.ok) throw new Error(String(res.status))
         const body = await res.json()
         serverTags = Array.isArray(body?.note?.tags) ? body.note.tags : []
+        readAt = body?.note?.updatedAt ?? null
       } catch {
         setChromeMsg("Couldn't update tags — try again")
         return
@@ -2691,7 +2698,7 @@ export default function NoteEditorPage({ noteId, onBack, showBack = true, onTitl
       // differs from the chips on screen (they did not show the tag the member
       // just added), so re-read the note and let the chips catch up.
       if (sameTagList(next, serverTags)) { refresh?.(); return }
-      await settleMetadataRevision(await update({ tags: next }))
+      await settleMetadataRevision(await patchTags(delta, { readAt }))
       refreshTagNodes()
     } catch {
       setChromeMsg("Couldn't update tags — try again")

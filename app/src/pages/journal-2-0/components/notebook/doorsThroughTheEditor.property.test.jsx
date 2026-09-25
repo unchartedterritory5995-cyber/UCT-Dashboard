@@ -62,6 +62,7 @@ import { __resetNotebookConnections } from '../../lib/offline/useDurableNote'
 import { OFFLINE_FLAG_KEY } from '../../lib/offline/offlineFlag'
 import { dbNameFor } from '../../lib/offline/notebookDb'
 import { useOutboxDrain } from '../../lib/offline/useOutboxDrain'
+import { mergeTagDelta, sameTagList } from '../../lib/tagDelta'
 
 Range.prototype.getClientRects = () => []
 Range.prototype.getBoundingClientRect = () => ({ top: 0, left: 0, right: 0, bottom: 0, width: 0, height: 0 })
@@ -133,10 +134,12 @@ let factory
 
 // The doors + commitSave reach the server through this.
 const updateMock = vi.fn()
+// Wave 7 (M14): the tag door reaches the SAME server through the delta route.
+const patchTagsMock = vi.fn()
 vi.mock('../../hooks/useJ2Notes', () => ({
   useJ2Note: () => ({
     note: server.note, isLoading: false, error: null,
-    update: updateMock, refresh: vi.fn(),
+    update: updateMock, refresh: vi.fn(), patchTags: patchTagsMock,
   }),
   recordNoteOpened: vi.fn(),
   setNoteFavorite: vi.fn(),
@@ -157,6 +160,18 @@ beforeEach(() => {
     if (!server.online) throw server.offlineError()
     if (server.gate) await server.gate.promise
     return server.applyPut(patch, 'editor')
+  })
+  // `PATCH /notes/{id}/tags`: the delta applied to the list the server holds,
+  // no baseline (a metadata door), the note back when THIS write moved it --
+  // the `useJ2Note().patchTags` contract.
+  patchTagsMock.mockReset()
+  patchTagsMock.mockImplementation(async (delta, { readAt } = {}) => {
+    if (!server.online) throw server.offlineError()
+    if (server.gate) await server.gate.promise
+    const tags = mergeTagDelta(server.note.tags, delta)
+    if (sameTagList(tags, server.note.tags)) return null
+    const landed = server.applyPut({ tags }, 'editor')
+    return landed.updatedAt !== readAt ? landed : null
   })
 
   global.fetch = vi.fn(async (url, opts = {}) => {

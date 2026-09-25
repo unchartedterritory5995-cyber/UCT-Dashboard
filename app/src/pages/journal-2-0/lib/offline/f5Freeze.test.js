@@ -233,8 +233,14 @@ describe('⛔⛔ Q1-F5 FREEZE — the append doors do not move until they are pr
     // `settleNoteWrite`, which records the revision and deliberately does not
     // settle ("an editor-only optimisation that needs local state").
     const editor = read('app/src/pages/journal-2-0/components/notebook/NoteEditorPage.jsx')
-    const settles = [...editor.matchAll(/settleMetadataRevision\(await update\(\{\s*(\w+)/g)]
-      .map((m) => m[1]).sort()
+    // ⭐ Wave 7 (M14): the tags door is `PATCH /notes/{id}/tags` now -- the
+    // member's DELTA, applied by the server inside one transaction -- so its
+    // call reads `settleMetadataRevision(await patchTags(…))`, not a PUT of the
+    // list. It is still the same metadata door, and still the only three.
+    const settles = [
+      ...[...editor.matchAll(/settleMetadataRevision\(await update\(\{\s*(\w+)/g)].map((m) => m[1]),
+      ...[...editor.matchAll(/settleMetadataRevision\(await patchTags\(/g)].map(() => 'tags'),
+    ].sort()
     expect(settles, 'the settle-with-local-state path belongs to the metadata doors only')
       .toEqual(['folderId', 'tags', 'ticker'])
 
