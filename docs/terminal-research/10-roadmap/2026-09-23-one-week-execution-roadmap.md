@@ -803,11 +803,16 @@ the whole thing holds together.
 > and every runtime reference to the ledger is a comment — so neither rollback lever applies
 > (a revert changes nothing; the hub kill switch would remove it from the 13 good routes).
 > The joystick programme's own 9/12 touch record had the hub SHOWING on four of those six;
-> today's six are exactly the routes with no registered hub section. Read against the
-> code, that is a regression, not a stale expectation: `HubContext.jsx:185-189` says an
-> unrecognized route "leaves `mode` exactly as it was — the hub keeps showing whatever
-> section was last active." Finding the cause is the joystick owner's; recorded for them
-> in `docs/plans/joystick/smoke-runs/2026-09-24T23-17Z-touch.md`. **Second finding, from the
+> today's six are exactly the routes with no registered hub section. ⚰️ **The first
+> reading of this — "a regression against `HubContext.jsx:185-189`" — was WRONG, and is
+> retracted.** That touch run happened ~60 s after a deploy; the tool sampled each route at a
+> fixed 2.5 s after `domcontentloaded`, the six are the heaviest lazy routes, and while a
+> route's chunk is pending the route-level `<Suspense>` replaces the whole tree, hub
+> included. Local build: all routes show the hub. Production on a warm pod, same account
+> and order: all six show. The same tool re-run at 01:08Z: **TOUCH PASS OK 19/19**. The
+> instrument reported a property of itself; it now waits (bounded) for the hub root before
+> it may call an absence real. Corrected record:
+> `docs/plans/joystick/smoke-runs/2026-09-24T23-17Z-touch.md`. **Second finding, from the
 > same console:** `GET /api/barspack/manifest` returns 401 for every browser — the route
 > was gated by `require_bars_access` on 2026-09-13 (`2d121371f`) while the client still
 > fetches it with `credentials: 'omit'` by design, so the Universe Bars Pack has been
