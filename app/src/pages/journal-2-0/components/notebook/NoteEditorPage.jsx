@@ -380,7 +380,7 @@ export function NoteLinkedTradeChips({ noteId }) {
   )
 }
 
-export default function NoteEditorPage({ noteId, onBack, showBack = true, onTitleChange = null }) {
+export default function NoteEditorPage({ noteId, onBack, showBack = true, onTitleChange = null, noteMenu = null }) {
   const { note, isLoading, error: loadError, update, refresh } = useJ2Note(noteId)
   // Diagnostic only -- never surfaced to the member (see the !note render
   // branch below for why raw fetch-error text doesn't belong in that UI).
@@ -2971,6 +2971,12 @@ export default function NoteEditorPage({ noteId, onBack, showBack = true, onTitl
           <button type="button" className="btn btn-danger" onClick={onDeleteRequest}>
             Delete
           </button>
+          {/* Wave 6 (lane E) fix round 1, I1 — the note menu's organisation
+              actions (Lock, Archive, Save as template, Open beside). Lane E's
+              own file (NoteMenuActions.jsx) renders itself; this is the one
+              line that reads the render prop NotebookTab has passed since wave
+              6 landed. */}
+          {noteMenu?.(note, { refresh })}
         </div>
       </header>
 
