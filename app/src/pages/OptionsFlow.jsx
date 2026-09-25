@@ -52,6 +52,10 @@ import { fetchSearchProduct } from "./optionsFlow/flowSearchFetch";
 import { traceDataset, markFirstContent } from "./optionsFlow/flowKeyTrace";
 import { applyErOverlay } from "./optionsFlow/flowSearchProduct";
 import FlowIcon from "./optionsFlow/FlowIcon";
+// PACKET-AA CP2 (2026-09-25): the one mount for the AI print explainer. Additive only --
+// a new import, a new <th>, a new <td>; no existing element or inline style is touched.
+import FlowExplainButton from "./optionsFlow/FlowExplainButton";
+import { parseExpiry as _explainParseExpiry, computeDTE as _explainComputeDTE } from "./optionsFlow/flowCompute";
 import {
   P,
   gradeCluster,
@@ -3397,6 +3401,7 @@ export default function OptionsFlowDashboard() {
                     {["Day","Time","Type","Side","Color","Vol","OI","Premium","Price"].map(h=>(
                       <th key={h} style={{ padding:"3px 6px", textAlign:h==="Premium"||h==="Price"||h==="Vol"||h==="OI"?"right":"left", color:P.mt, fontSize:10, fontWeight:600 }}>{h}</th>
                     ))}
+                    <th key="explain" className="of-explain" style={{ padding:"3px 6px", textAlign:"right", color:P.mt, fontSize:10, fontWeight:600 }}>Explain</th>
                   </tr></thead>
                   <tbody>
                     {strikeTrades.map((tr,i)=>(
@@ -3411,6 +3416,7 @@ export default function OptionsFlowDashboard() {
                         <td style={{ padding:"3px 6px", textAlign:"right", color:P.dm }}>{tr.OI>0?tr.OI.toLocaleString():"—"}</td>
                         <td style={{ padding:"3px 6px", textAlign:"right", fontWeight:700, color:premC(tr.P) }}>{fmt(tr.P)}</td>
                         <td style={{ padding:"3px 6px", textAlign:"right", fontWeight:600, color:P.ac }}>{tr.price>0?"$"+tr.price.toFixed(2):"—"}</td>
+                        <td className="of-explain" style={{ padding:"3px 6px", textAlign:"right" }}>{(px?.spot||0)>0 && <FlowExplainButton size={11} print={{ ticker:sym, cp, strike:parseFloat(K), exp:expToISO(exp), dte:Math.max(0, _explainComputeDTE(_explainParseExpiry(exp))), premium:tr.P||0, volume:Math.round(tr.V||0), oi:Math.round(tr.OI||0), side:tr.Si==="AA"?"ABOVE ASK":tr.Si==="BB"?"BELOW BID":tr.Si==="B"?"BID":tr.Si==="A"?"ASK":"", spot:px?.spot||0, order_type:tr.Ty||"", color:tr.Co||"" }} />}</td>
                       </tr>
                     ))}
                   </tbody>
