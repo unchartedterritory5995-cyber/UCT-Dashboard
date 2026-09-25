@@ -896,6 +896,16 @@ address is unroutable by design.
 stops being a control — the next run cannot tell a product change from its own leftovers.
 Whatever a run creates, that run removes.
 
+⛔⛔ **THE OWNER'S OWN CHROME IS NEVER A SMOKE-ACCOUNT BROWSER.** Measured 2026-09-25: a
+Claude-in-Chrome session opened the owner's Chrome to arm real-member alert data and found it
+**signed in as `smoke@uctintelligence.internal`** — from the tab, indistinguishable from the
+owner. Five alerts created there would have been synthetic data wearing a member's label, and
+every S7 ruling that night was about real-member data. Rule: a tool that needs the smoke account
+uses its OWN profile (`window_check`'s rig, Playwright's context in `hub_nav_smoke.py`), never the
+extension-driven Chrome; and **before any action taken "as the owner" in a browser, read
+`/api/auth/me` and check the EMAIL DOMAIN** — `uctintelligence.internal` means stop and sign it
+out (`POST /api/auth/logout`), then let the owner sign in as themselves.
+
 **Credentials.** `SMOKE_EMAIL` / `SMOKE_PASSWORD` in the operator's environment via `setx`, the
 same pattern as the BrowserStack credentials. Never in the repo, never in a log, never in a commit,
 never pasted into a chat. To rotate: `POST /api/auth/admin/reset-password` while signed in as the
