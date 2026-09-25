@@ -292,8 +292,12 @@ leave them alone indefinitely with no consequence.
   traced to a line (no top-level await in the entry graph; `OptionsFlow` is lazy). ⛔ For a
   midday deploy, judge `/options-flow` by the rig's click navigation and re-run the `goto`
   smoke after the close; and an H15 rollback on this signature MUST be followed by the same
-  smoke on the reverted build before the change is blamed. Smoke B at +12 min: pending when
-  this line was written, appended below when in.
+  smoke on the reverted build before the change is blamed. **Smoke B at pod age 733 s
+  (16:49:43Z, still market hours): PASS, 19 routes / 31 nav entries.** So the usable floor
+  for this instrument during market hours is somewhere between 5.5 and 12 minutes; the tools
+  now refuse to judge a market-hours pod under 720 s (`MARKET_HOURS_FLOOR_S`, shipped with
+  the re-land), with the two data points cited in the code — two points do not make a rate,
+  which is why the floor is a refusal to judge, not a claim about the page.
 - **The owner's Chrome was signed in as the SMOKE account (2026-09-25).** A Claude-in-Chrome
   session opened it to arm real-member S7 data and `/api/auth/me` answered
   `…@uctintelligence.internal` — from the tab, indistinguishable from the owner. Caught before
