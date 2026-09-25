@@ -1,7 +1,7 @@
 # `/flow` card data source — the decision packet (2026-09-25)
 
 **Decision owner:** Patrick, with Ravi (the Options Flow page and `live_massive_router.py`
-are his surface). **Written by:** the 2026-09-24/25 flow session. **Status:** OPEN.
+are his surface). **Written by:** the 2026-09-24/25 flow session. **Status:** A is BUILT and DARK (2026-09-25 evening, `DISCORD_FLOW_CARD_SOURCE`, default `rollup`, master `54802b3c8`); the FLIP is the open decision.
 
 ## The question in one sentence
 

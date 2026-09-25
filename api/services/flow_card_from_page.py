@@ -41,8 +41,13 @@ FLAG = "DISCORD_FLOW_CARD_SOURCE"
 
 
 def enabled() -> bool:
-    """True only when the operator has opted this path in. Unset is the rollup."""
-    return str(os.environ.get(FLAG, "rollup")).strip().lower() == "page"
+    """True only when the operator has opted this path in. Unset is the rollup.
+
+    ⛔ The environment name is a LITERAL here on purpose: `api/services/feature_flag_index.py`
+    derives the flag ledger's universe by AST from `os.environ.get("<literal>")`, and a read
+    through the `FLAG` constant is invisible to it, which made the ledger's entry read as
+    "a gate the code does not read at all". `FLAG` stays for the tests' `monkeypatch.setenv`."""
+    return str(os.environ.get("DISCORD_FLOW_CARD_SOURCE", "rollup")).strip().lower() == "page"
 
 
 # ── field normalisation ─────────────────────────────────────────────────────────────────────
