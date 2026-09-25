@@ -143,6 +143,36 @@ def test_symbol_backlinks_start_from_the_symbol_set_not_from_every_note(conn):
                        for s in steps), steps
 
 
+def test_the_search_boxs_relevance_order_ranks_in_ONE_match_pass(conn):
+    # FolderSidebar asks for sort=relevance. The old ORDER BY carried a correlated
+    # `(SELECT bm25(...) ... WHERE note_id = j2_notes.id AND MATCH ?)`, which re-ran the
+    # full-text query once per candidate note: at 50k notes a common term did not
+    # finish in 300 s. The rank must come from one MATCH pass, joined.
+    conn.execute("UPDATE j2_notes SET body_plain = 'breakout over the pivot', title = 'breakout'")
+    conn.commit()
+    rec = Recorder(conn)
+    notes_svc.list_notes(U, q="breakout", sort="relevance", conn=rec)
+    main = [(s, p) for s, p in rec.statements if "bm25(" in s]
+    assert main, "the relevance read no longer calls bm25 -- update this rail with it"
+    for sql, params in main:
+        rows = conn.execute("EXPLAIN QUERY PLAN " + sql, params).fetchall()
+        parent = {r[0]: r[1] for r in rows}
+        detail = {r[0]: r[3] for r in rows}
+
+        def under_correlated(node):
+            while node in parent:
+                node = parent[node]
+                if "CORRELATED" in detail.get(node, ""):
+                    return True
+            return False
+        fts_scans = [i for i, d in detail.items() if "j2_notes_fts VIRTUAL TABLE" in d]
+        assert fts_scans, ("non-vacuity: the plan shows no full-text scan at all", list(detail.values()))
+        # no full-text scan sits inside a per-row (correlated) subquery
+        assert not [i for i in fts_scans if under_correlated(i)], list(detail.values())
+    # non-vacuity: it really ranks (and returns) the matching notes
+    assert len(notes_svc.list_notes(U, q="breakout", sort="relevance", conn=conn)) == 6
+
+
 def test_the_tasks_read_starts_from_the_task_bearing_partial_index(conn):
     now = datetime(2026, 9, 25, 12, tzinfo=note_tasks.ET)
     plans = _plans(conn, lambda c: note_tasks.list_tasks(U, now=now, conn=c))

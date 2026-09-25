@@ -523,7 +523,46 @@ def _symbol_note_ids_sql(user_id: str, symbols: list[str]) -> tuple[str, list[An
             [user_id, *symbols, user_id, *symbols])
 
 
-def _tag_clause(user_id: str, key: str) -> tuple[str, list[Any]]:
+class _RowidSets:
+    """One request's rowid sets, each computed ONCE and handed to every query of
+    that request as a bound JSON array (wave 7, lane I).
+
+    `GET /notes` asks two questions over one filter set -- the page and its true
+    total -- and each used to recompute the expensive part of the filter (the
+    search's FTS + tag + ticker match, the tag filter's per-tag match) from
+    scratch. Measured at 50k notes on a common search term: the match is ~42 ms
+    and was paid twice. With this memo the page and the total read the SAME set,
+    which also means they cannot disagree about which notes matched.
+
+    ⛔ Only for queries on ONE connection within one request: the set is a
+    snapshot of the moment it was computed. Keyed by the exact SQL and params, so
+    two different sets can never be confused."""
+
+    def __init__(self, conn: sqlite3.Connection):
+        self._conn = conn
+        self._memo: dict[tuple, str] = {}
+        self.computed = 0          # how many sets were actually run (rails read this)
+
+    def clause(self, set_sql: str, set_params: list[Any]) -> tuple[str, list[Any]]:
+        key = (set_sql, tuple(set_params))
+        js = self._memo.get(key)
+        if js is None:
+            js = json.dumps([r[0] for r in self._conn.execute(set_sql, set_params)])
+            self._memo[key] = js
+            self.computed += 1
+        return "j2_notes.rowid IN (SELECT value FROM json_each(?))", [js]
+
+
+def _rowid_in(shared: _RowidSets | None, set_sql: str, set_params: list[Any]) -> tuple[str, list[Any]]:
+    """`j2_notes.rowid IN <set>`: inline as a subquery, or -- inside a request
+    that shares its sets -- the set computed once (`_RowidSets`). ⛔ The SAME
+    `set_sql` either way, so the shared form cannot drift from the inline one."""
+    if shared is None:
+        return f"j2_notes.rowid IN ({set_sql})", list(set_params)
+    return shared.clause(set_sql, set_params)
+
+
+def _tag_clause(user_id: str, key: str, shared: _RowidSets | None = None) -> tuple[str, list[Any]]:
     """The note-carries-this-tag-or-one-below-it predicate, for a NON-EMPTY
     `tag_key`: the cheap prefilter, then the exact per-tag match. ⛔ ONE copy,
     used by the list/count predicate (`_notes_filter_sql`) and by the tag
@@ -533,7 +572,7 @@ def _tag_clause(user_id: str, key: str) -> tuple[str, list[Any]]:
     Wave 7 (lane I): phrased as a ROWID SET (`_tag_rowid_set_sql`), not a
     per-row test. See there for why."""
     set_sql, set_params = _tag_rowid_set_sql(user_id, key, "j2_tag_match")
-    return f"j2_notes.rowid IN ({set_sql})", set_params
+    return _rowid_in(shared, set_sql, set_params)
 
 
 def _tag_rowid_set_sql(user_id: str, key: str, match_fn: str) -> tuple[str, list[Any]]:
@@ -1135,6 +1174,7 @@ def _notes_filter_sql(
     date_from: str | None = None,
     date_to: str | None = None,
     symbol_in: list[str] | None = None,
+    shared: _RowidSets | None = None,
 ) -> tuple[str, list[Any]]:
     """The WHERE clause (starting at ``WHERE user_id = ?``) + its bound params
     for "which notes match this filter set". `list_notes` and `count_notes`
@@ -1249,7 +1289,7 @@ def _notes_filter_sql(
         # callers run it on a connection from `register_note_sql_functions`.
         key = tag_key(tag)
         if key:
-            tag_sql, tag_params = _tag_clause(user_id, key)
+            tag_sql, tag_params = _tag_clause(user_id, key, shared)
             sql += f" AND {tag_sql}"
             params.extend(tag_params)
         else:
@@ -1285,9 +1325,8 @@ def _notes_filter_sql(
         q_key = tag_key(q)
         if q_key:
             tag_set_sql, tag_params = _tag_rowid_set_sql(user_id, q_key, "j2_tag_is")
-            tag_sql = f"j2_notes.rowid IN ({tag_set_sql})"
         else:
-            tag_sql, tag_params = "0", []
+            tag_set_sql, tag_params = None, []
         # Wave 4 Slice 4 fix: a leading `$` (the natural way to type a
         # cashtag) used to survive into this comparison unstripped, so
         # "$NVDA" never matched a note whose only NVDA signal was the
@@ -1297,25 +1336,39 @@ def _notes_filter_sql(
         # word/non-word split) so an internal hyphen (BRK-B) is untouched.
         exact_ticker = re.sub(r"^[^\w]+", "", q.strip()).upper()
         expr = fts_match_expr(q)
-        ticker_sql = "j2_notes.rowid IN (SELECT rowid FROM j2_notes WHERE user_id = ? AND ticker = ?)"
+        ticker_set_sql = "SELECT rowid FROM j2_notes WHERE user_id = ? AND ticker = ?"
         if expr:
             # The FTS match maps to note ids through `j2_notes_fts_map` (indexed
             # both ways), never by reading `note_id` back out of each match's
             # FTS content row -- that read, not the MATCH, was the cost of a
             # dense term (~40 ms of ~46 ms for 15k hits at 50k notes).
-            # No user filter inside the set: the FTS index is one table for every
-            # member, so the set can hold another member's rowids, and the outer
-            # query's own `user_id = ?` drops them. Mapping by primary key is
-            # ~27 ms for 15k hits; filtering by user here forced a scan of the
+            # No user filter inside the FTS part: the FTS index is one table for
+            # every member, so the set can hold another member's rowids, and the
+            # outer query's own `user_id = ?` drops them. Mapping by primary key
+            # is ~27 ms for 15k hits; filtering by user here forced a scan of the
             # member's whole index instead (~44 ms).
-            sql += (" AND (j2_notes.rowid IN (SELECT n.rowid FROM j2_notes n WHERE"
-                    " n.id IN (SELECT m.note_id FROM j2_notes_fts_map m WHERE m.fts_rowid IN"
-                    " (SELECT rowid FROM j2_notes_fts WHERE j2_notes_fts MATCH ?)))"
-                    f" OR {tag_sql} OR {ticker_sql})")
-            params.extend([expr, *tag_params, user_id, exact_ticker])
+            # ONE set, the union of the three ways a search matches (text, the tag
+            # it names, the ticker it names) -- so a request that asks for the page
+            # AND its total can compute it once (`_RowidSets`).
+            q_set_sql = ("SELECT n.rowid FROM j2_notes n WHERE"
+                         " n.id IN (SELECT m.note_id FROM j2_notes_fts_map m WHERE m.fts_rowid IN"
+                         " (SELECT rowid FROM j2_notes_fts WHERE j2_notes_fts MATCH ?))")
+            q_set_params: list[Any] = [expr]
+            if tag_set_sql:
+                q_set_sql += f" UNION ALL {tag_set_sql}"
+                q_set_params.extend(tag_params)
+            q_set_sql += f" UNION ALL {ticker_set_sql}"
+            q_set_params.extend([user_id, exact_ticker])
+            q_clause, q_params = _rowid_in(shared, q_set_sql, q_set_params)
+            sql += f" AND {q_clause}"
+            params.extend(q_params)
         else:
+            # The fallback for text FTS cannot parse stays a per-row test on the
+            # already-narrowed candidates (it is rare, and as a set it would read
+            # every note's title and body).
+            tag_sql = f"j2_notes.rowid IN ({tag_set_sql})" if tag_set_sql else "0"
             sql += (f" AND (lower(title) LIKE ? OR lower(body_plain) LIKE ? OR {tag_sql}"
-                    f" OR {ticker_sql})")
+                    f" OR j2_notes.rowid IN ({ticker_set_sql}))")
             ql = f"%{q.lower()}%"
             params.extend([ql, ql, *tag_params, user_id, exact_ticker])
     return sql, params
@@ -1401,6 +1454,7 @@ def list_notes(
     property_sort: dict[str, Any] | None = None,
     property_filter_strict: bool = True,
     conn: sqlite3.Connection | None = None,
+    _shared: _RowidSets | None = None,
 ) -> list[dict[str, Any]]:
     owned = conn is None
     conn = conn or get_connection()
@@ -1410,6 +1464,7 @@ def list_notes(
             user_id, folder_id=folder_id, tag=tag, ticker=ticker, q=q,
             embed_symbol=embed_symbol, embed_widget=embed_widget, deleted=deleted,
             date_from=date_from, date_to=date_to, symbol_in=symbol_in,
+            shared=_shared,
         )
         if property_filter:
             from api.services.journal_two.note_properties import property_filter_sql
@@ -1428,20 +1483,31 @@ def list_notes(
         relevance_expr = fts_match_expr(q) if (sort == "relevance" and q) else None
         if relevance_expr:
             # bm25() is only callable within a SELECT that itself carries a
-            # MATCH on that FTS table -- this correlated scalar subquery
-            # satisfies that per outer row. A row with NO matching FTS entry
-            # (a tag/ticker-only match) gets no bm25 score at all (subquery
-            # returns no row -> NULL); COALESCE treats "matched on an exact
-            # structured field" as the BEST possible rank (a very negative
-            # sentinel -- bm25 is ascending, lower = more relevant) rather
-            # than losing that precise a match beneath every fuzzy-text hit.
-            sql += (
-                " ORDER BY COALESCE("
-                "(SELECT bm25(j2_notes_fts) FROM j2_notes_fts"
-                " WHERE note_id = j2_notes.id AND user_id = j2_notes.user_id"
-                " AND j2_notes_fts MATCH ?), -1e9) ASC, updated_at DESC"
-            )
-            params.append(relevance_expr)
+            # MATCH on that FTS table. A row with NO matching FTS entry (a
+            # tag/ticker-only match) has no bm25 score; COALESCE treats "matched
+            # on an exact structured field" as the BEST possible rank (a very
+            # negative sentinel -- bm25 is ascending, lower = more relevant)
+            # rather than losing that precise a match beneath every fuzzy-text hit.
+            #
+            # ⛔⛔ Wave 7 (lane I): ONE ranked MATCH pass, joined -- never a
+            # correlated `(SELECT bm25(...) ... WHERE note_id = j2_notes.id AND
+            # MATCH ?)` per row. That subquery re-ran the whole full-text query
+            # for EVERY candidate note, so the search box (FolderSidebar asks for
+            # sort=relevance) cost O(candidates x matches): at 50k notes a common
+            # term did not finish in 300 s (docs/notebook/perf-budgets.md §2).
+            # The ranked set is keyed by note id through `j2_notes_fts_map`, and
+            # the order is the same expression over the same scores.
+            # ⛔ TWO PHASES. The order is decided over rowids and the two sort keys
+            # only; the page's columns are read for the page alone. Sorting the
+            # full summary columns made SQLite read every candidate's body off its
+            # overflow pages to sort 15k rows it then threw away (~280 ms at 50k).
+            sql = ("SELECT j2_notes.rowid FROM j2_notes LEFT JOIN ("
+                   "SELECT m.note_id AS rank_note_id, bm25(j2_notes_fts) AS rank_score"
+                   " FROM j2_notes_fts JOIN j2_notes_fts_map m ON m.fts_rowid = j2_notes_fts.rowid"
+                   " WHERE j2_notes_fts MATCH ?) ranked ON ranked.rank_note_id = j2_notes.id"
+                   + where_sql
+                   + " ORDER BY COALESCE(ranked.rank_score, -1e9) ASC, j2_notes.updated_at DESC")
+            params = [relevance_expr, *params]
         else:
             prop_sort_result = None
             if property_sort:
@@ -1465,7 +1531,17 @@ def list_notes(
                 sql += f" ORDER BY {order_col}"
         sql += " LIMIT ? OFFSET ?"
         params = params + [max(1, min(limit, 500)), max(0, offset)]
-        rows = conn.execute(sql, params).fetchall()
+        if relevance_expr:
+            order = [r[0] for r in conn.execute(sql, params).fetchall()]
+            by_rowid = {}
+            if order:
+                marks = ",".join("?" * len(order))
+                by_rowid = {r["rid"]: r for r in conn.execute(
+                    f"SELECT j2_notes.rowid AS rid, {_NOTE_SUMMARY_COLS} FROM j2_notes"
+                    f" WHERE j2_notes.rowid IN ({marks})", order).fetchall()}
+            rows = [by_rowid[rid] for rid in order if rid in by_rowid]
+        else:
+            rows = conn.execute(sql, params).fetchall()
         results = [_row_to_note_summary(r) for r in rows]
         # Slice 2: query-aware snippets, scoped to just this page's rows.
         # `relevance_expr` above is gated on sort="relevance"; snippets are
@@ -1510,6 +1586,7 @@ def count_notes(
     property_filter: list[dict[str, Any]] | None = None,
     property_filter_strict: bool = True,
     conn: sqlite3.Connection | None = None,
+    _shared: _RowidSets | None = None,
 ) -> int:
     """The TRUE total behind `list_notes`'s same filter set — a real
     ``SELECT COUNT(*)`` over the whole match, never the length of a
@@ -1526,6 +1603,7 @@ def count_notes(
             user_id, folder_id=folder_id, tag=tag, ticker=ticker, q=q,
             embed_symbol=embed_symbol, embed_widget=embed_widget, deleted=deleted,
             date_from=date_from, date_to=date_to, symbol_in=symbol_in,
+            shared=_shared,
         )
         if property_filter:
             from api.services.journal_two.note_properties import property_filter_sql
@@ -1537,6 +1615,50 @@ def count_notes(
         sql = "SELECT COUNT(*) AS c FROM j2_notes" + where_sql
         row = conn.execute(sql, params).fetchone()
         return int(row["c"] or 0) if row else 0
+    finally:
+        if owned:
+            conn.close()
+
+
+_COUNT_FILTER_KEYS = (
+    "folder_id", "tag", "ticker", "q", "embed_symbol", "embed_widget", "deleted",
+    "date_from", "date_to", "symbol_in", "property_filter", "property_filter_strict",
+)
+
+
+def list_and_count_notes(
+    user_id: str,
+    *,
+    sort: str = "updated",
+    limit: int = 100,
+    offset: int = 0,
+    property_sort: dict[str, Any] | None = None,
+    conn: sqlite3.Connection | None = None,
+    **filters: Any,
+) -> tuple[list[dict[str, Any]], int]:
+    """`(list_notes(...), count_notes(...))` over ONE filter set, on ONE
+    connection, with each expensive match set computed ONCE: what `GET /notes`
+    returns as `notes` + `total` (wave 7, lane I).
+
+    The page and its total used to rebuild the search match (FTS + the tag it
+    names + the ticker it names) and the tag filter's match independently.
+    Measured at 50k notes: the common-term pair ~106 ms, of which the match
+    was ~42 ms paid twice. The two halves now read the same `_RowidSets`.
+    ⛔ Still the SAME `_notes_filter_sql` predicate for both halves -- only the
+    evaluation of its sets is shared -- and it must equal the two separate calls:
+    tests/test_journal_two_notes_list_and_count.py pins that."""
+    unknown = set(filters) - set(_COUNT_FILTER_KEYS)
+    if unknown:
+        raise TypeError(f"list_and_count_notes: unknown filter(s) {sorted(unknown)}")
+    owned = conn is None
+    conn = conn or get_connection()
+    register_note_sql_functions(conn)
+    try:
+        shared = _RowidSets(conn)
+        rows = list_notes(user_id, sort=sort, limit=limit, offset=offset,
+                          property_sort=property_sort, conn=conn, _shared=shared, **filters)
+        total = count_notes(user_id, conn=conn, _shared=shared, **filters)
+        return rows, total
     finally:
         if owned:
             conn.close()

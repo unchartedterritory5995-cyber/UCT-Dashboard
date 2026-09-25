@@ -1747,24 +1747,20 @@ def list_notes_endpoint(
         property_filter = _parse_property_filter_param(propertyFilter)
         property_sort = _parse_property_sort_param(propertySort)
     try:
-        rows = notes_service.list_notes(
+        # `total` is the TRUE count over the same filters (folder/tag/ticker/embed/q),
+        # never the length of `rows` — a migrated library of thousands of notes must
+        # see its real count, not "however many fit on this page". Built from the
+        # identical WHERE predicate as the page (`notes.py::_notes_filter_sql`)
+        # so the two can never disagree about which notes match.
+        # Wave 7 (lane I): one call, one connection, and the search/tag match sets
+        # computed ONCE for both halves (`list_and_count_notes`).
+        rows, total = notes_service.list_and_count_notes(
             user["id"], folder_id=folder_id, tag=tag, ticker=ticker, q=q,
             embed_symbol=embed_symbol, embed_widget=embed_widget,
             sort=sort, limit=limit, offset=offset, deleted=deleted,
             date_from=date_from, date_to=date_to, symbol_in=symbol_in,
             property_filter=property_filter, property_sort=property_sort,
             property_filter_strict=property_filter_strict,
-        )
-        # `total` is the TRUE count over the same filters (folder/tag/ticker/embed/q),
-        # never the length of `rows` — a migrated library of thousands of notes must
-        # see its real count, not "however many fit on this page". Built from the
-        # identical WHERE predicate as the list above (`notes.py::_notes_filter_sql`)
-        # so the two can never disagree about which notes match.
-        total = notes_service.count_notes(
-            user["id"], folder_id=folder_id, tag=tag, ticker=ticker, q=q,
-            embed_symbol=embed_symbol, embed_widget=embed_widget, deleted=deleted,
-            date_from=date_from, date_to=date_to, symbol_in=symbol_in,
-            property_filter=property_filter, property_filter_strict=property_filter_strict,
         )
     except note_properties.PropertyValidationError as e:
         raise HTTPException(status_code=400, detail=str(e))
