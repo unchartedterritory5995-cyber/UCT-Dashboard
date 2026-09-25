@@ -40,8 +40,8 @@ import { useNoteSelection } from '../lib/noteSelection'
 import { useIsDesktop } from '../../../hooks/useBreakpoint'
 import { NotePaneContext, SIDE_PARAM, SplitViewContext } from '../lib/splitView'
 import {
-  checkUnsentWork, describeBatch, describeExport, describeUnchecked, exportSelectedNotes, joinUndo, runNoteBatch,
-  undoFor,
+  checkUnsentWork, describeBatch, describeExport, describeUnchecked, describeUnsentRename, exportSelectedNotes,
+  joinUndo, runNoteBatch, undoFor,
 } from '../lib/noteBatch'
 import { useHubEligible } from '../../../hub/useHubActive'
 import { BOTTOM_OFFSET_PX, PAD_PX } from '../../../hub/constants'
@@ -1027,7 +1027,8 @@ export default function NotebookTab() {
           // eslint-disable-next-line no-await-in-loop
           outcome = await runNoteBatch({ ids: chunk, op: 'renameTag', args, blockedNoteIds })
         } catch (e) {
-          stoppedAt = { reason: e?.message, left: ids.length - i }
+          // J7: keep WHICH ids never went out and the error's parts, not only a count.
+          stoppedAt = { err: e, ids: ids.slice(i), left: ids.length - i }
           break
         }
         combined = {
@@ -1047,6 +1048,12 @@ export default function NotebookTab() {
       // the rest could not be renamed (M notes left unrenamed)."), and the
       // stop sentence is kept only for a rename that changed nothing, where
       // "Nothing was changed" is true.
+      //
+      // ⭐ J7 (wave 7 lane J). That lead is a COUNT; the sentence after it now
+      // says WHICH notes still carry the old tag (the titles this page holds,
+      // at most three) and WHY the request failed (the server's own words, its
+      // status, or that it never reached the server), then what finishes the
+      // job. `describeUnsentRename` owns the words for both branches.
       const renamedSome = combined.changed > 0
       const { message, tone } = describeBatch(combined, {
         ...ctx, titleOf, stoppedLeft: stoppedAt && renamedSome ? stoppedAt.left : 0,
@@ -1056,8 +1063,8 @@ export default function NotebookTab() {
       const changedIds = combined.results.filter((r) => r.status === 'changed').map((r) => r.id)
       const parts = [message]
       if (offer) parts.push(offer.message)
-      if (stoppedAt && !renamedSome) {
-        parts.push(`${stoppedAt.left} ${stoppedAt.left === 1 ? 'note was' : 'notes were'} left unrenamed — the request itself did not go through${stoppedAt.reason ? ` (${stoppedAt.reason})` : ''}.`)
+      if (stoppedAt) {
+        parts.push(describeUnsentRename(stoppedAt.ids, { tag: from, err: stoppedAt.err, renamedSome, titleOf }))
       }
       setBulkNotice({ message: parts.filter(Boolean).join(' '), tone: stoppedAt ? 'error' : (offer ? offer.tone : tone) })
       afterBulkWrite('renameTag', changedIds)
