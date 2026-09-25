@@ -4072,9 +4072,23 @@ def _build_by_contract(today: str, stock_etf: str, min_hits: int,
     have_dormant = _has_dormant_data()
     out = []
     for g in contracts.values():
-        floor = _rollup_floor(g["mkt_cap"], g["source"], thresholds)
+        # ⛔⛔ A SINGLE-TICKER LOOKUP DOES NOT CAP-SCALE ITS FLOORS. The cap bands exist to
+        # pick a handful of names out of the WHOLE MARKET: a mega cap must total $1M on one
+        # contract in one day, and every print must clear $250K, or the market-wide feed
+        # would be nothing but churn on the ten biggest names. A member asking about ONE
+        # name has already chosen it, and the question is "what printed on it", not "does it
+        # out-rank the market". ⚰️ 2026-09-24: `/flow DELL` (mega, $271B) answered "no
+        # significant options flow today" on a tape of 1,161 prints / $120M — its only two
+        # $1M+ contracts were block-only (excluded below by the 09-07 ruling) and its
+        # twenty-odd sweeps each fell under $1M. Same day, same rig: `/flow BP` 0 → 1, and
+        # `_compute_ticker_flow` had promised "Uncapped per ticker" in its docstring for two
+        # months without anything wiring it. A cap of 0 is `_cap_band_key`'s "unknown →
+        # most permissive" band ($15K/print, $100K/contract); the market-wide callers still
+        # pass the real cap. Regression rail: tests/test_flow_single_ticker_floors.py.
+        _band_cap = 0 if only_ticker else g["mkt_cap"]
+        floor = _rollup_floor(_band_cap, g["source"], thresholds)
         qual = sum(1 for p in g["prints"] if (p["premium"] or 0) >= floor)
-        total_floor = _rollup_total_floor(g["mkt_cap"], g["source"], thresholds)
+        total_floor = _rollup_total_floor(_band_cap, g["source"], thresholds)
         # Gate: enough repeated meaningful clips AND a total that clears the
         # cap-scaled bar. The hit floor is low (repetition of small clips on a
         # small name is the signal); the cap-scaling lives in the total floor.
@@ -4516,10 +4530,11 @@ def _compute_ticker_flow(symbol: str, days: str = "1", source: str = "stocks",
     """Single-ticker options-flow summary over the last N trading days (or 'all'):
     the ticker's net bull/bear premium + direction, plus its top contracts by
     premium. Reuses the By-Contract aggregation (only_ticker) so direction/premium
-    math is identical to the site's Search tab. Uncapped per ticker (small-caps'
-    low-premium prints are kept). Cached 60s. PLAIN function (no FastAPI Query
-    defaults) so in-process callers (the image preview, tests) work too — the
-    /ticker-flow route is a thin wrapper. Powers the Discord /flow command."""
+    math is identical to the site's Search tab. Uncapped per ticker: the rollup's
+    cap-scaled floors are the market-wide feed's, and `only_ticker` makes it use the
+    most-permissive band instead (see the ⛔⛔ note in `_build_by_contract`). Cached 60s.
+    PLAIN function (no FastAPI Query defaults) so in-process callers (the image
+    preview, tests) work too — the /ticker-flow route is a thin wrapper. Powers the Discord /flow command."""
     top_n = int(top_n or 15)
     sym = (symbol or "").strip().upper()
     if not sym:
