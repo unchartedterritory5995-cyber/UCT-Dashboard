@@ -426,6 +426,10 @@ IDLE_PAGE = """<!doctype html><meta charset="utf-8"><title>idle</title>
 
 TOUCH_VIEWPORT = {"width": 393, "height": 852}   # iPhone 15 Pro CSS px
 TOUCH_DPR = 3
+# How long the touch pass WAITS for the hub root to mount on a route before it may call the
+# absence real. Sized for a cold pod + cold edge cache on the heaviest lazy route (measured
+# 2026-09-24: >2.5 s, <45 s at +60 s after a deploy); a warm pod mounts it in well under 1 s.
+HUB_MOUNT_BOUND_MS = 20000
 # Landscape with a short height, which is the immersive-chart-shell condition in `hubViewport.js`
 # (`pointer:coarse` + `orientation:landscape` + `max-height:500px`, scoped to the chart shell).
 TOUCH_LANDSCAPE = {"width": 852, "height": 393}
@@ -543,7 +547,21 @@ def touch_sweep(page, base: str, routes: list[str], errors: list[dict]):
         except Exception as exc:  # noqa: BLE001
             failures.append(f"{route}: the route would not load ({type(exc).__name__})")
             continue
-        page.wait_for_timeout(2500)  # the hub mounts after auth + settings resolve.
+        # ⚰️ 2026-09-24: this was a FIXED 2.5 s sample (`wait_for_timeout(2500)`), and it
+        # manufactured a finding. Run 60 s after a deploy — cold pod, new hashed chunks, cold
+        # edge cache — the six heaviest lazy routes were still fetching their chunk at 2.5 s,
+        # and while a route's chunk is pending the app's route-level <Suspense> replaces the
+        # WHOLE <Routes> tree, Layout and hub included. `hub_state` read "present: False" and
+        # the sentence below called it "a real absence"; the same routes showed the hub on a
+        # warm pod and on a local build, every time. That is the "sampling where a waiter was
+        # available" class (CLAUDE.md). So: WAIT for the hub root, bounded, and only then judge.
+        # A hub that never appears inside HUB_MOUNT_BOUND_MS is still a failure — the bound is
+        # what keeps this from becoming "wait forever and never fail".
+        try:
+            page.wait_for_selector('[data-testid="hub-root"]', state="attached", timeout=HUB_MOUNT_BOUND_MS)
+        except Exception:  # noqa: BLE001 — absence is judged below, with the settle recorded
+            pass
+        page.wait_for_timeout(500)  # settings/session override resolve after the root mounts
         st = hub_state(page)
         new_errors = len(errors) - before
         rows.append((route, st, new_errors))
@@ -553,8 +571,10 @@ def touch_sweep(page, base: str, routes: list[str], errors: list[dict]):
             failures.append(f"{route}: mode '{mode}' declares hideOnRoute and the hub is SHOWING")
         elif not should_hide and not st["showing"]:
             failures.append(
-                f"{route}: the hub is not showing ({st}), and no mode declares hideOnRoute for it. "
-                "Eligibility is viewport+pointer, not route-shaped, so this is a real absence."
+                f"{route}: the hub is not showing ({st}) after waiting up to {HUB_MOUNT_BOUND_MS} ms "
+                "for it to mount, and no mode declares hideOnRoute for it. Eligibility is "
+                "viewport+pointer, not route-shaped, so this is a real absence — unless the pod is "
+                "under a minute old, in which case re-run on a warm pod before believing it."
             )
     return failures, rows, notes
 
