@@ -642,7 +642,7 @@ class FlowDB:
 
         `dates` (2026-09-25): an optional list of `CreatedDate` values ('M/D/YYYY', the store's
         own spelling) that restricts the stream to those sessions. The Discord `/flow` card's
-        page-derived path asks for the last N trading days of ONE symbol so the same
+        page-derived path asks for ONE symbol over the last N market sessions so the same
         `processFlowData` derivation the Options Flow page runs can be produced for a head name
         (NVDA, SPY) whose full history exceeds the search budget. `None` is every date, so every
         existing caller is untouched.

@@ -264,6 +264,53 @@ def test_the_members_search_request_still_routes_and_declines_cold_as_before(mon
     assert warmed, "the cold member request did not start a background warm"
 
 
+def test_the_window_is_the_markets_last_sessions_not_the_tickers(monkeypatch, tmp_path):
+    """The page's "Last N" is the last N MARKET sessions. DELL printed on 9/22 and 9/23; another
+    name printed on 9/24. A one-session window is 9/24 — DELL's product for it is empty and the
+    card's ladder widens — never "DELL's own last date"."""
+    fr, c = _client(monkeypatch, tmp_path, ["9/22/2026", "9/23/2026"])
+    conn = sqlite3.connect(fr.db.db_path)
+    conn.execute("INSERT INTO flow (source, CreatedDate, Symbol, Premium, dedup_key) "
+                 "VALUES ('stocks', '9/24/2026', 'NVDA', '1', 'other')")
+    conn.commit(); conn.close()
+    seen = {}
+
+    def fake_build(sym, src, key, version, st, dates=None, extra=None):
+        import gzip, json as _j
+        seen["dates"] = dates
+        body = {"ok": True, "product": {"all_directional": []}}
+        body.update(extra or {})
+        return gzip.compress(_j.dumps(body).encode()), None
+    monkeypatch.setattr(fr, "_build_search_product", fake_build)
+    r = c.get("/api/flow/ticker-product/DELL?source=stocks&window_days=1")
+    assert r.status_code == 200 and seen["dates"] == ["9/24/2026"], (r.status_code, seen)
+
+
+def test_the_windowed_path_never_scans_the_tickers_history(monkeypatch, tmp_path):
+    """⚰️ A per-symbol `SELECT DISTINCT CreatedDate ... Symbol = ?` cost 70-218 s on a cold pod.
+    The windowed path takes its dates from the cached market calendar; no SQL it runs may
+    select dates by symbol."""
+    import sqlite3 as _sq
+    from api import flow_router as fr
+    fr2, c = _client(monkeypatch, tmp_path, ["9/23/2026", "9/24/2026"])
+    seen_sql = []
+    real = _sq.connect
+
+    class _C:
+        def __init__(self, conn): self._c = conn
+        def execute(self, sql, *a):
+            seen_sql.append(" ".join(str(sql).split())); return self._c.execute(sql, *a)
+        def __getattr__(self, n): return getattr(self._c, n)
+        def __enter__(self): return self
+        def __exit__(self, *a): return self._c.__exit__(*a)
+    monkeypatch.setattr(_sq, "connect", lambda *a, **k: _C(real(*a, **k)))
+    monkeypatch.setattr(fr2, "_build_search_product", lambda *a, **k: (b"", None))
+    monkeypatch.setattr(fr2, "_search_response", lambda gz, v, how: {"how": how})
+    c.get("/api/flow/ticker-product/DELL?source=stocks&window_days=2")
+    bad = [q for q in seen_sql if "DISTINCT CreatedDate" in q and "Symbol" in q]
+    assert not bad, f"the windowed path scanned a ticker's history for its dates: {bad}"
+
+
 def test_the_windowed_request_routes_end_to_end(monkeypatch, tmp_path):
     fr, c = _client(monkeypatch, tmp_path, ["9/18/2026", "9/22/2026", "9/23/2026", "9/24/2026"])
     seen = {}

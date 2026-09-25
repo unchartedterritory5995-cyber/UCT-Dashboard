@@ -1007,27 +1007,19 @@ def _spawn_search_warm(sym: str, src: str, key: tuple, version: str) -> bool:
     return True
 
 
-def _symbol_dates(sym: str, src: str) -> list:
-    """The sessions ONE symbol has rows on, 'M/D/YYYY', oldest first. Indexed by
-    (Symbol, CreatedDate) on the pod; a few hundred distinct values at most."""
-    with db._conn() as conn:
-        raw = [r[0] for r in conn.execute(
-            "SELECT DISTINCT CreatedDate FROM flow WHERE source = ? AND Symbol = ?",
-            (src, sym)).fetchall() if r[0]]
-    dated = []
-    for d in raw:
-        parsed = db._parse_date_mdy(d)
-        if parsed:
-            dated.append((parsed, d))
-    dated.sort()
-    return [d for _, d in dated]
-
-
 def _windowed_ticker_product(sym: str, src: str, version: str, wd: int, st):
-    """The Search derivation over ONE symbol's last `wd` sessions (the Discord card's
-    page-derived path, 2026-09-25). Its own cache key beside the full product, the same
-    single-flight build lane, and `window_dates` in the body so the caller can resolve the
-    product's year-less `Dt`."""
+    """The Search derivation over ONE symbol, restricted to the last `wd` MARKET sessions (the
+    Discord card's page-derived path, 2026-09-25). Its own cache key beside the full product,
+    the same single-flight build lane, and `window_dates` in the body so the caller can resolve
+    the product's year-less `Dt`.
+
+    ⛔ THE WINDOW IS THE MARKET'S CALENDAR, NOT THE TICKER'S. The page's `_scopeAllDirectional`
+    defines "Last N" as the last N market trading days from `availableDates` (a thin name must
+    not reach past the window), and `db.get_available_dates` is that list, cached 60 s. ⚰️ The
+    first cut asked `SELECT DISTINCT CreatedDate ... WHERE source=? AND Symbol=?` instead: no
+    covering index, so it read the name's whole history from disk, and on a freshly booted pod
+    it cost 70 s for DELL, 99 s for SPY and 218 s for NVDA (the stream and the derivation after
+    it took under 0.7 s). Measured from the build's own stage log, 2026-09-25."""
     key = (sym, src, version, f"w{wd}")
     cached = _search_product_cache_get(key)
     st.mark("cache_lookup", hit=bool(cached), window=wd)
@@ -1037,7 +1029,7 @@ def _windowed_ticker_product(sym: str, src: str, version: str, wd: int, st):
     if not flow_aggregate.available():
         st.flush("NO_BUNDLE")
         return JSONResponse({"ok": False, "error": "bundle unavailable"}, status_code=503)
-    dates = _symbol_dates(sym, src)[-wd:]
+    dates = db.get_available_dates(src)[-wd:]
     if not dates:
         return JSONResponse({"ok": True, "sym": sym, "source": src, "version": version,
                              "schema": _SEARCH_PRODUCT_SCHEMA, "window_dates": [],
@@ -1071,7 +1063,7 @@ def get_flow_ticker_product(symbol: str, source: str = "stocks",
     raw-tape path, which stays semantically identical.
 
     `window_days=N` (2026-09-25, the Discord card's page-derived path): the SAME derivation
-    over the symbol's last N sessions only, cached under its own key beside the full product
+    over the last N MARKET sessions only (the page's own calendar), cached under its own key beside the full product
     and answering with `window_dates` so the caller can resolve year-less `Dt`. It never
     takes the `warm_only` short-cut (its caller is a background job, not a member waiting on
     a click) but it does take the same build lane, so it cannot run beside a member's build.
