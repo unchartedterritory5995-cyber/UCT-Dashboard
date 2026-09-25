@@ -1,0 +1,32 @@
+# 2026-09-25 ~05:55Z -- the "one human step" from DECISION_CARDS_2026-09-25 CARD 1 / CARD 2, done.
+# Actor: the owner's own account (role admin, a real s7-dark cohort member; id prefix 7a6d0299),
+# signed in by the owner in their Chrome; the agent drove the app's own doors with the owner's
+# explicit approval. The smoke account was signed OUT first (it was the active session) so that
+# none of this could land on the synthetic account.
+
+## Price alerts -- POST /api/watchlist-alerts (the endpoint the Watchlists bell popover calls), alert_type=price
+# live prices at 01:38 ET (extended hours): SPY 767.70 . QQQ 740.98 . NVDA 223.97 . AAPL 338.42
+SPY   above  775.50   (+1.0%)   id 72b7ff28
+SPY   below  760.00   (-1.0%)   id a6e2b755
+QQQ   above  750.00   (+1.2%)   id c21681ca
+NVDA  below  220.50   (-1.5%)   id b08c9841
+AAPL  above  342.50   (+1.2%)   id 01b5b35b
+# read-back GET /api/watchlist-alerts: all five active (is_active=1), account total active 10
+# dark report re-read minutes later: price-level predicate_count 13 -> 18 (see the line appended below)
+
+## Screen subscriptions -- the Screener menu's own bell buttons ("Alert me overnight when <name> changes")
+# (a page-level POST was refused by the session's tool policy; the product's UI control was used instead)
+u_8f9038b545e5  26wk HV              sha256:fd0e04f2ad0056e...  mode both  created 1790351725
+u_cd1693620534  Above 50 on volume   sha256:f8d8650d038121d...  mode both  created 1790351726
+u_2871c6aa8e63  Oops Reversal        sha256:b01b7707c88b877...  mode both  created 1790351727
+# read-back GET /api/screener/alerts: exactly these three; bells read "Stop overnight alerts for ...".
+# NOTE: Oops Reversal's hash is the SAME tree the smoke account subscribed on 09-21/22, so that
+# definition now has TWO members (one real); 26wk HV and Above 50 on volume are new definitions.
+# scan-membership dark report still shows predicate_count 1 at 06:00Z: the nightly sweep projects new
+# subscriptions, so these appear after the next 05:20 ET run.
+
+## What this buys the two S7 bars
+# price-level (CARD 1): five real-member fixed-price levels within ~1-1.5% of the market -> agreed
+#   events within days instead of a 200+-session wait on synthetic targets.
+# scan-membership (CARD 2): three distinct definitions on a real member (>= 3 definitions, >= 2 members
+#   once the nightly sweep projects them); verdict floor is 5 sessions per definition from tonight.

@@ -55,6 +55,13 @@ still zero** (`is_trendline: false` on all 13).
 **Re-open trigger:** the new bar met (agent re-reads the dark report and assembles the
 flip packet the same day), or the owner overriding scope/semantics in writing.
 
+> **The human step is DONE — 2026-09-25 ~05:55Z.** From the owner's own account (a real
+> s7-dark member, id prefix `7a6d0299`), signed in by the owner, with explicit approval:
+> five fixed-price alerts within ~1–1.5% of the market — SPY above 775.50 / below 760.00,
+> QQQ above 750.00, NVDA below 220.50, AAPL above 342.50 — all read back active. Record:
+> `evidence/2026-09-25-s7-real-member-arming/`. The smoke account was signed OUT of that
+> browser first so nothing could land on it. From here the bar is a matter of sessions.
+
 ---
 
 ## CARD 2 — S7 scan-membership-change: CP4 vs FLIP
@@ -64,6 +71,12 @@ screen (4 of 5 sessions agreed, 0 disagreements as of 09-25) is enough to **asse
 (widen the cohort via the S12 tag, still dark) once the 09-26 tick lands, and **not enough
 to FLIP** — FLIP waits for `legacy_only == 0` over ≥ 5 sessions on ≥ 3 definitions held by
 ≥ 2 real members. Same one human step as CARD 1, applied to screens instead of levels.
+
+> **DONE — 2026-09-25 ~05:55Z**, through the Screener menu's own bell buttons from the
+> owner's account: **26wk HV**, **Above 50 on volume**, **Oops Reversal** (three distinct
+> definitions; the last shares its tree with the smoke account's 09-21 subscription, so that
+> definition now has two members, one real). Read back exactly three, `mode: both`. The
+> nightly sweep projects them from tonight; five sessions per definition is the floor.
 
 ---
 
