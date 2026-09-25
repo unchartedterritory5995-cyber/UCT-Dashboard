@@ -1,0 +1,92 @@
+{
+  "verdict": "NEW_FAILURES",
+  "counts": {
+    "new": 4,
+    "fixed": 2,
+    "unchanged": 276,
+    "missing": 0,
+    "baseline": 278,
+    "current": 282,
+    "current_ran": 52095,
+    "new_flaky": 2,
+    "flaky_size": 5,
+    "flaky_new": 2,
+    "flaky_fixed": 0,
+    "file_level_resolved": 0,
+    "coverage_lost": 0,
+    "new_ours": 0,
+    "new_others": 0,
+    "new_unattributed": 4
+  },
+  "arithmetic": "baseline 278 = unchanged 276 + fixed 2 + missing 0  |  current 282 = unchanged 276 + new 4 + new-but-flaky 2",
+  "invalid_because": [],
+  "baseline_run_id": "36050943529",
+  "current_run_id": "36071629387",
+  "baseline_sha": "ef0c794802b6959bf6647640febb821c00f5ff8c",
+  "current_sha": "6e7b104074ee1430b315112004662b7400079ecf",
+  "commit_range": "ef0c794802b6959bf6647640febb821c00f5ff8c..6e7b104074ee1430b315112004662b7400079ecf",
+  "first_run": false,
+  "new": [
+    "vitest|src/components/dailyFirstPaintAcceptance.test.jsx|DAILY first-paint acceptance > NC-B late right-edge insertion",
+    "vitest|src/components/dailyFirstPaintAcceptance.test.jsx|DAILY first-paint acceptance > NC-C stale wick corrected after paint",
+    "vitest|src/components/dailyFirstPaintAcceptance.test.jsx|DAILY first-paint acceptance > NC-D camera moved after first paint",
+    "vitest|src/components/dailyFirstPaintIncidental.test.jsx|CASE B \u2014 a same-length daily refetch merges instead of dropping the oldest bar > the oldest cached bar survives and the geometry does not translate"
+  ],
+  "missing": [],
+  "fixed": [
+    "pytest|tests.test_feature_flag_ledger|test_every_off_by_default_gate_is_declared",
+    "vitest|src/pages/desk/ArticlesSection.native.test.jsx|clearing the query brings the full archive back"
+  ],
+  "new_flaky": [
+    "pytest|tests.test_mutation_check.TestVerdicts|test_a_detected_mutation_passes_the_check",
+    "pytest|tests.test_mutation_check.TestVerdicts|test_expect_red_naming_the_right_test_passes"
+  ],
+  "flaky": [
+    "pytest|tests.test_discord_close_note|test_a_note_that_cannot_be_written_still_posts_the_charts",
+    "pytest|tests.test_mutation_check.TestRestoreGuarantee|test_the_file_is_byte_identical_after_a_detected_mutation",
+    "pytest|tests.test_mutation_check.TestVerdicts|test_a_detected_mutation_passes_the_check",
+    "pytest|tests.test_mutation_check.TestVerdicts|test_expect_red_naming_the_right_test_passes",
+    "vitest|src/components/chart/engine/__tests__/stockChartWiring.test.jsx|an engine-drawn indicator still appears in the crosshair legend > \u26d4\u26d4 A HOVER REACHES THE RENDERER NOT AT ALL"
+  ],
+  "file_level_resolved": [],
+  "coverage_lost": [],
+  "missing_buckets": {},
+  "attribution": {
+    "vitest|src/components/dailyFirstPaintAcceptance.test.jsx|DAILY first-paint acceptance > NC-B late right-edge insertion": {
+      "class": "UNATTRIBUTED",
+      "commits": [],
+      "workstreams": [],
+      "reason": "no commit in ef0c79480..6e7b10407 touched src/components/dailyFirstPaintAcceptance.test.jsx or anything it imports"
+    },
+    "vitest|src/components/dailyFirstPaintAcceptance.test.jsx|DAILY first-paint acceptance > NC-C stale wick corrected after paint": {
+      "class": "UNATTRIBUTED",
+      "commits": [],
+      "workstreams": [],
+      "reason": "no commit in ef0c79480..6e7b10407 touched src/components/dailyFirstPaintAcceptance.test.jsx or anything it imports"
+    },
+    "vitest|src/components/dailyFirstPaintAcceptance.test.jsx|DAILY first-paint acceptance > NC-D camera moved after first paint": {
+      "class": "UNATTRIBUTED",
+      "commits": [],
+      "workstreams": [],
+      "reason": "no commit in ef0c79480..6e7b10407 touched src/components/dailyFirstPaintAcceptance.test.jsx or anything it imports"
+    },
+    "vitest|src/components/dailyFirstPaintIncidental.test.jsx|CASE B \u2014 a same-length daily refetch merges instead of dropping the oldest bar > the oldest cached bar survives and the geometry does not translate": {
+      "class": "UNATTRIBUTED",
+      "commits": [],
+      "workstreams": [],
+      "reason": "no commit in ef0c79480..6e7b10407 touched src/components/dailyFirstPaintIncidental.test.jsx or anything it imports"
+    },
+    "pytest|tests.test_feature_flag_ledger|test_every_off_by_default_gate_is_declared": {
+      "class": "UNATTRIBUTED",
+      "commits": [],
+      "workstreams": [],
+      "reason": "no commit in ef0c79480..6e7b10407 touched tests/test_feature_flag_ledger.py or anything it imports"
+    },
+    "vitest|src/pages/desk/ArticlesSection.native.test.jsx|clearing the query brings the full archive back": {
+      "class": "UNATTRIBUTED",
+      "commits": [],
+      "workstreams": [],
+      "reason": "no commit in ef0c79480..6e7b10407 touched src/pages/desk/ArticlesSection.native.test.jsx or anything it imports"
+    }
+  }
+}
