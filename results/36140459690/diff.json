@@ -1,0 +1,155 @@
+{
+  "verdict": "NEW_FAILURES",
+  "counts": {
+    "new": 7,
+    "fixed": 5,
+    "unchanged": 174,
+    "missing": 0,
+    "baseline": 179,
+    "current": 182,
+    "current_ran": 54113,
+    "new_flaky": 1,
+    "flaky_size": 5,
+    "flaky_new": 2,
+    "flaky_fixed": 0,
+    "file_level_resolved": 0,
+    "coverage_lost": 0,
+    "new_ours": 0,
+    "new_others": 1,
+    "new_unattributed": 6
+  },
+  "arithmetic": "baseline 179 = unchanged 174 + fixed 5 + missing 0  |  current 182 = unchanged 174 + new 7 + new-but-flaky 1",
+  "invalid_because": [],
+  "baseline_run_id": "36133621315",
+  "current_run_id": "36140459690",
+  "baseline_sha": "7fd9e19f95e7cf4edeaf0e9c11fa16313f618909",
+  "current_sha": "09a218e864ab8015025c02d6604f5d62fb28437b",
+  "commit_range": "7fd9e19f95e7cf4edeaf0e9c11fa16313f618909..09a218e864ab8015025c02d6604f5d62fb28437b",
+  "first_run": false,
+  "new": [
+    "pytest|tests.test_flow_tape_spool|test_a_window_the_spool_COVERED_is_not_re_read_over_rest",
+    "pytest|tests.test_flow_tape_spool|test_a_window_with_no_spooled_frames_is_handed_to_rest",
+    "pytest|tests.test_flow_tape_spool|test_it_never_raises_when_the_qpool_is_unavailable",
+    "pytest|tests.test_gate_shards|test_the_read_set_covers_every_root_relative_path_the_suite_reads",
+    "vitest|src/components/chart/engine/__tests__/memberPaneGate.test.js|the member-pane gate > \u26b0\ufe0f WAS VACUOUS, AND IS KEPT AS THE BEFORE-CASE: this asserted that nothing consulted the gate. T5 gave it a consumer \u2014 see the next case, which is the one that can now fail",
+    "vitest|src/components/chart/engine/ast/targetScriptReport.measure.test.js|\u2b50\u2b50 the target list \u2014 what each script actually needs > \u2b50\u2b50 reports every target: both lanes, plus the look-ahead scan",
+    "vitest|src/components/screener/reachable.test.js|\ud83d\udd34 every module under app/src is REACHABLE from an entry point > and nothing committed is connected to nothing"
+  ],
+  "missing": [],
+  "fixed": [
+    "pytest|tests.test_bars_server_include_today|test_todays_daily_bar_stamps_today_and_caches",
+    "pytest|tests.test_flow_prepare|test_a_BURST_of_bumps_collapses_to_ONE_roll",
+    "pytest|tests.test_gitattributes_eol|test_every_derived_path_is_declared_text_unset",
+    "pytest|tests.test_gitattributes_eol|test_the_declared_list_is_still_the_derived_list",
+    "vitest|src/components/chart/builder/BuilderSheet.pine.test.jsx|paste a real screener script and get a working scan > \u2b50 the SAVED DOCUMENT is byte-identical to the same formula typed by hand"
+  ],
+  "new_flaky": [
+    "pytest|tests.test_mutation_check.TestVerdicts|test_expect_red_naming_the_right_test_passes"
+  ],
+  "flaky": [
+    "pytest|tests.test_discord_close_note|test_a_note_that_cannot_be_written_still_posts_the_charts",
+    "pytest|tests.test_mutation_check.TestRestoreGuarantee|test_the_file_is_byte_identical_after_a_detected_mutation",
+    "pytest|tests.test_mutation_check.TestVerdicts|test_a_detected_mutation_passes_the_check",
+    "pytest|tests.test_mutation_check.TestVerdicts|test_expect_red_naming_the_right_test_passes",
+    "vitest|src/components/chart/engine/__tests__/stockChartWiring.test.jsx|an engine-drawn indicator still appears in the crosshair legend > \u26d4\u26d4 A HOVER REACHES THE RENDERER NOT AT ALL"
+  ],
+  "file_level_resolved": [],
+  "coverage_lost": [],
+  "missing_buckets": {},
+  "attribution": {
+    "pytest|tests.test_flow_tape_spool|test_a_window_the_spool_COVERED_is_not_re_read_over_rest": {
+      "class": "UNATTRIBUTED",
+      "commits": [],
+      "workstreams": [],
+      "reason": "no commit in 7fd9e19f9..09a218e86 touched tests/test_flow_tape_spool.py or anything it imports"
+    },
+    "pytest|tests.test_flow_tape_spool|test_a_window_with_no_spooled_frames_is_handed_to_rest": {
+      "class": "UNATTRIBUTED",
+      "commits": [],
+      "workstreams": [],
+      "reason": "no commit in 7fd9e19f9..09a218e86 touched tests/test_flow_tape_spool.py or anything it imports"
+    },
+    "pytest|tests.test_flow_tape_spool|test_it_never_raises_when_the_qpool_is_unavailable": {
+      "class": "UNATTRIBUTED",
+      "commits": [],
+      "workstreams": [],
+      "reason": "no commit in 7fd9e19f9..09a218e86 touched tests/test_flow_tape_spool.py or anything it imports"
+    },
+    "pytest|tests.test_gate_shards|test_the_read_set_covers_every_root_relative_path_the_suite_reads": {
+      "class": "imported-file-change",
+      "commits": [
+        "1cc51be5a",
+        "40c99e64f",
+        "d32992287"
+      ],
+      "workstreams": [
+        {
+          "commit": "1cc51be5a",
+          "workstream": "merge",
+          "confidence": "message-tag",
+          "ours": false
+        },
+        {
+          "commit": "40c99e64f",
+          "workstream": "gate",
+          "confidence": "message-tag",
+          "ours": false
+        },
+        {
+          "commit": "d32992287",
+          "workstream": "origin/fix/master-red-sweep",
+          "confidence": "merge",
+          "ours": false
+        }
+      ]
+    },
+    "vitest|src/components/chart/engine/__tests__/memberPaneGate.test.js|the member-pane gate > \u26b0\ufe0f WAS VACUOUS, AND IS KEPT AS THE BEFORE-CASE: this asserted that nothing consulted the gate. T5 gave it a consumer \u2014 see the next case, which is the one that can now fail": {
+      "class": "UNATTRIBUTED",
+      "commits": [],
+      "workstreams": [],
+      "reason": "no commit in 7fd9e19f9..09a218e86 touched src/components/chart/engine/__tests__/memberPaneGate.test.js or anything it imports"
+    },
+    "vitest|src/components/chart/engine/ast/targetScriptReport.measure.test.js|\u2b50\u2b50 the target list \u2014 what each script actually needs > \u2b50\u2b50 reports every target: both lanes, plus the look-ahead scan": {
+      "class": "UNATTRIBUTED",
+      "commits": [],
+      "workstreams": [],
+      "reason": "no commit in 7fd9e19f9..09a218e86 touched src/components/chart/engine/ast/targetScriptReport.measure.test.js or anything it imports"
+    },
+    "vitest|src/components/screener/reachable.test.js|\ud83d\udd34 every module under app/src is REACHABLE from an entry point > and nothing committed is connected to nothing": {
+      "class": "UNATTRIBUTED",
+      "commits": [],
+      "workstreams": [],
+      "reason": "no commit in 7fd9e19f9..09a218e86 touched src/components/screener/reachable.test.js or anything it imports"
+    },
+    "pytest|tests.test_bars_server_include_today|test_todays_daily_bar_stamps_today_and_caches": {
+      "class": "UNATTRIBUTED",
+      "commits": [],
+      "workstreams": [],
+      "reason": "no commit in 7fd9e19f9..09a218e86 touched tests/test_bars_server_include_today.py or anything it imports"
+    },
+    "pytest|tests.test_flow_prepare|test_a_BURST_of_bumps_collapses_to_ONE_roll": {
+      "class": "UNATTRIBUTED",
+      "commits": [],
+      "workstreams": [],
+      "reason": "no commit in 7fd9e19f9..09a218e86 touched tests/test_flow_prepare.py or anything it imports"
+    },
+    "pytest|tests.test_gitattributes_eol|test_every_derived_path_is_declared_text_unset": {
+      "class": "UNATTRIBUTED",
+      "commits": [],
+      "workstreams": [],
+      "reason": "no commit in 7fd9e19f9..09a218e86 touched tests/test_gitattributes_eol.py or anything it imports"
+    },
+    "pytest|tests.test_gitattributes_eol|test_the_declared_list_is_still_the_derived_list": {
+      "class": "UNATTRIBUTED",
+      "commits": [],
+      "workstreams": [],
+      "reason": "no commit in 7fd9e19f9..09a218e86 touched tests/test_gitattributes_eol.py or anything it imports"
+    },
+    "vitest|src/components/chart/builder/BuilderSheet.pine.test.jsx|paste a real screener script and get a working scan > \u2b50 the SAVED DOCUMENT is byte-identical to the same formula typed by hand": {
+      "class": "UNATTRIBUTED",
+      "commits": [],
+      "workstreams": [],
+      "reason": "no commit in 7fd9e19f9..09a218e86 touched src/components/chart/builder/BuilderSheet.pine.test.jsx or anything it imports"
+    }
+  }
+}
