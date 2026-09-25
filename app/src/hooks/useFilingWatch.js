@@ -1,4 +1,5 @@
-import useSWR, { mutate as globalMutate } from 'swr'
+import { mutate as globalMutate } from 'swr'
+import useMobileSWR from './useMobileSWR'
 import { useState, useCallback } from 'react'
 import { useAuth } from '../context/AuthContext'
 
@@ -25,7 +26,9 @@ export default function useFilingWatch() {
   const { user, s7FilingWatchEnabled } = useAuth()
   // Gating the KEY, not just the render: a dark feature must make no network
   // calls. A null key means SWR never fetches and never polls.
-  const { data, isLoading } = useSWR(
+  // ⭐ `useMobileSWR` (2026-09-24, polling-sites rail): a phone renders this surface, so the
+  // wrapper halves the tick there and stops it on a hidden tab — the saving the rail exists for.
+  const { data, isLoading } = useMobileSWR(
     user && s7FilingWatchEnabled ? LIST_KEY : null, fetcher, {
     refreshInterval: 30000,
     dedupingInterval: 10000,

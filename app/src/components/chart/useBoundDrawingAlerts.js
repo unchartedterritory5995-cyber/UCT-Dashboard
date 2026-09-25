@@ -22,7 +22,8 @@
  * silently and nothing is sent. Only a real MOVE reaches the network.
  */
 import { useEffect, useMemo } from 'react'
-import useSWR, { mutate as globalMutate } from 'swr'
+import { mutate as globalMutate } from 'swr'
+import useMobileSWR from '../../hooks/useMobileSWR'
 import { anchorsForDrawing, alertKindFor, geometrySignature, parseBoundId } from './drawingAlertAnchors'
 
 // ⛔ MODULE-LEVEL ON PURPOSE. N charts on one symbol mount N copies of this hook
@@ -53,7 +54,9 @@ export default function useBoundDrawingAlerts({ sym, drawings, getBars, tf, etOf
     [drawings],
   )
 
-  const { data } = useSWR(symU && hasLineDrawing ? '/api/watchlist-alerts' : null, fetcher, {
+  // ⭐ `useMobileSWR` (2026-09-24, polling-sites rail): a phone renders this surface, so the
+  // wrapper halves the tick there and stops it on a hidden tab — the saving the rail exists for.
+  const { data } = useMobileSWR(symU && hasLineDrawing ? '/api/watchlist-alerts' : null, fetcher, {
     refreshInterval: 60000,
     dedupingInterval: 30000,
   })

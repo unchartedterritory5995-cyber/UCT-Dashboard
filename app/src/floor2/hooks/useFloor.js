@@ -3,6 +3,9 @@
 // the shape the prototype components already consume (camelCase: votes/myVote/
 // saved/answerId/comments/reactions[{emoji,count,reacted}]/chart/createdAt-ms).
 import useSWR, { mutate as globalMutate } from 'swr'
+import useMobileSWR from '../../hooks/useMobileSWR'
+// ⭐ `useMobileSWR` (2026-09-24, polling-sites rail): a phone renders the floor, so the
+// wrapper halves the tick there and stops it on a hidden tab — the saving the rail exists for.
 import { fetcher, apiCall } from '../../pages/community/hooks/useCommunity'
 
 export { fetcher, apiCall }
@@ -116,7 +119,7 @@ const feedKey = (flair, sort, filter) => {
 
 export function useFeed(flair, sort = 'hot', filter = 'all') {
   const key = feedKey(flair, sort, filter)
-  const { data, error, isLoading, mutate } = useSWR(key, fetcher, { refreshInterval: 30_000 })
+  const { data, error, isLoading, mutate } = useMobileSWR(key, fetcher, { refreshInterval: 30_000 })
   return {
     posts: (data?.threads || []).map(adaptThread),
     error, isLoading, mutate, key,
@@ -125,12 +128,12 @@ export function useFeed(flair, sort = 'hot', filter = 'all') {
 
 export function useFloorThread(threadId) {
   const key = threadId ? `${BASE}/threads/${threadId}` : null
-  const { data, error, isLoading, mutate } = useSWR(key, fetcher, { refreshInterval: 20_000 })
+  const { data, error, isLoading, mutate } = useMobileSWR(key, fetcher, { refreshInterval: 20_000 })
   return { post: data ? adaptThreadDetail(data) : null, error, isLoading, mutate, key }
 }
 
 export function useFloorStatus() {
-  return useSWR('/api/community/status', fetcher, { refreshInterval: 30_000 })
+  return useMobileSWR('/api/community/status', fetcher, { refreshInterval: 30_000 })
 }
 
 export function useSearch(query) {
@@ -141,7 +144,7 @@ export function useSearch(query) {
 }
 
 export function useNotifications(enabled = true) {
-  const { data, error, mutate } = useSWR(
+  const { data, error, mutate } = useMobileSWR(
     enabled ? `${BASE}/notifications` : null, fetcher, { refreshInterval: 30_000 })
   return {
     notifications: (data?.notifications || []).map(adaptNotification),
@@ -151,7 +154,7 @@ export function useNotifications(enabled = true) {
 }
 
 export function useActivity(enabled = true) {
-  const { data, error, mutate } = useSWR(
+  const { data, error, mutate } = useMobileSWR(
     enabled ? `${BASE}/activity` : null, fetcher, { refreshInterval: 10_000 })
   return { activity: (data?.activity || []).map(adaptActivity), error, mutate }
 }

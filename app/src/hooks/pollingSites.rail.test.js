@@ -237,6 +237,24 @@ const BARE_POLL_SITES = {
   // while running" case measures the tick actually firing (>= 2 GETs), which is
   // what makes this a measured decision rather than a row that silences a red.
   'app/src/components/chart/builder/EvidenceTab.jsx': 1,
+  // ⭐ 2026-09-24 RULINGS (owner, under the red sweep). Thirteen bare sites landed 9/03–9/23
+  // without a decision; the rail was red in every full gate. Seven were CONVERTED
+  // (`chart/useBoundDrawingAlerts`, `floor2/hooks/useFloor` ×5, `hooks/useFilingWatch` —
+  // every one a surface a phone renders, so the wrapper's halving and hidden-tab stop are
+  // the point) and leave no row. These six stay bare, each for one of the two precedents
+  // above:
+  //   • ADMIN-ONLY panels a phone never renders; the app-global `revalidateOnFocus: false`
+  //     is the half of the trade worth keeping, and a `useMarketOpen` interval per panel buys
+  //     nothing for an operator console —
+  'app/src/components/admin/ChatModerationPanel.jsx': 1,
+  'app/src/components/admin/CompassHealthPanel.jsx': 1,
+  'app/src/components/admin/ThemeEngineHealthPanel.jsx': 1,
+  // (PatternAdmin's row lives in the census block below: 1 -> 2 on 2026-09-24, a second admin-only poll.)
+  //   • ALREADY LIGHT at 120s (the `useConfluence` reasoning): doubling to 240s buys almost
+  //     nothing, and `OpenFlow.jsx` sets `revalidateOnFocus: false` by hand, which the
+  //     wrapper would flip —
+  'app/src/hooks/useWatchlistIntelligence.js': 1,
+  'app/src/pages/OpenFlow.jsx': 1,
   // ⭐ A SECOND POST-CENSUS ROW, and the decision was already made IN THE SOURCE
   // — this only records it. `useConfluence.js` arrived with the Confluence Radar
   // board (`4849ddc2a`) and turned this rail red in the FULL suite, which is the
@@ -324,7 +342,7 @@ const BARE_POLL_SITES = {
   'app/src/pages/MorningWire.jsx': 1,
   'app/src/pages/UCT20.jsx': 4,
   'app/src/pages/Watchlists.jsx': 3,
-  'app/src/pages/admin/PatternAdmin.jsx': 1,
+  'app/src/pages/admin/PatternAdmin.jsx': 2,   // 1 -> 2 on 2026-09-24: a second admin-only poll (health), same reason as the block above
   // ⭐ ADDED AFTER THE CENSUS, AND THE DECISION WENT TO BARE `useSWR` — measured,
   // not defaulted. The Analogue Deck reads `/api/breadth-monitor/analogues`,
   // which is itself server-cached for 6 hours, and the interval here matches it
