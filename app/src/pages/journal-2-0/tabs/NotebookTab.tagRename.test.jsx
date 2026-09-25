@@ -294,3 +294,68 @@ describe('NotebookTab — N-b (wave 6 fix round 3): a chunked rename aggregates 
     expect([...batchCalls[0].ids, ...batchCalls[1].ids]).not.toContain('id-0')
   })
 })
+
+describe('NotebookTab — R4-3 (wave 6 fix round 4): a LATER chunk that fails reads as ONE true sentence', () => {
+  // ⚰️ NB-1. When chunk 1 renamed 500 notes and chunk 2's REQUEST failed with
+  // no JSON `detail` (a plain-text 500: a proxy page, a crash), the notice
+  // concatenated describeBatch's "Renamed 500 notes from #earnings to
+  // #quarterly." with runNoteBatch's single-batch fallback, which ends
+  // "…Nothing was changed." — so the member read that 500 notes were renamed
+  // and, in the same breath, that nothing was changed. The first half is the
+  // true one.
+  function failSecondChunkWithPlainText500() {
+    let calls = 0
+    global.fetch = vi.fn((url, init = {}) => {
+      const u = String(url)
+      if (u === '/api/j2/notes/batch') {
+        calls += 1
+        const body = JSON.parse(init.body)
+        batchCalls.push(body)
+        if (calls === 2) {
+          // No JSON body at all — `detail` cannot be read, so runNoteBatch
+          // throws its own fallback sentence.
+          return Promise.resolve({ ok: false, status: 500, json: () => Promise.reject(new SyntaxError('Unexpected token <')) })
+        }
+        return ok({ op: body.op, results: body.ids.map((id) => ({ id, status: 'changed', updatedAt: '2026-09-24T00:00:00Z' })) })
+      }
+      return ok({})
+    })
+  }
+
+  it('chunk 1 renames 500, chunk 2 fails with no server detail: "Renamed 500 notes; the rest could not be renamed (600 notes left unrenamed)." and nothing else', async () => {
+    // 1,100 ids = chunks of 500, 500, 100. Chunk 2 fails, so chunk 3 is
+    // never attempted and "the rest" is chunk 2 + chunk 3 = 600 notes.
+    renameIds = Array.from({ length: 1100 }, (_, i) => `id-${i}`)
+    failSecondChunkWithPlainText500()
+    renderTab()
+    fireEvent.click(screen.getByRole('button', { name: 'rename earnings to quarterly' }))
+
+    const notice = await screen.findByTestId('bulk-notice')
+    // The WHOLE rendered message is exactly this one sentence — not a
+    // substring of a longer notice that contradicts it further on.
+    expect(notice.firstElementChild.textContent,
+      'the notice is not the one true sentence').toBe(
+      'Renamed 500 notes; the rest could not be renamed (600 notes left unrenamed).')
+    expect(notice.textContent, 'a renamed count is followed by "Nothing was changed"').not.toMatch(/Nothing was changed/)
+
+    // The loop still stops at the failed chunk: chunk 3 is never sent.
+    expect(batchCalls).toHaveLength(2)
+    expect(batchCalls[0].ids).toHaveLength(500)
+    expect(batchCalls[1].ids).toHaveLength(500)
+  })
+
+  it('CONTROL: a refusal inside chunk 1 is still NAMED after the stop sentence — the fix replaces the lead, never the named failures', async () => {
+    renameIds = Array.from({ length: 1100 }, (_, i) => `id-${i}`)
+    blockedIds = new Set(['id-0'])
+    failSecondChunkWithPlainText500()
+    renderTab()
+    fireEvent.click(screen.getByRole('button', { name: 'rename earnings to quarterly' }))
+
+    const notice = await screen.findByTestId('bulk-notice')
+    const text = notice.firstElementChild.textContent
+    expect(text.startsWith('Renamed 499 notes; the rest could not be renamed (600 notes left unrenamed).'),
+      `the lead is not the stop sentence: ${text}`).toBe(true)
+    expect(text).toMatch(/is waiting to sync/)
+    expect(text).not.toMatch(/Nothing was changed/)
+  })
+})

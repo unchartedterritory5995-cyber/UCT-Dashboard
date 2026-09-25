@@ -232,10 +232,17 @@ function failureWords(r, { backToOrigin = false } = {}) {
  *                 same member action already changed (R23-N5: a "Trash anyway"
  *                 finishing a partial trash reads as the whole trash);
  *                 `renameTo` is `renameTag`'s new spelling (`tag` carries the
- *                 old one, the same slot addTag/removeTag already use).
+ *                 old one, the same slot addTag/removeTag already use);
+ *                 `stoppedLeft` (wave 6 fix round 4, R4-3) counts notes a
+ *                 CHUNKED rename never sent because a later chunk's request
+ *                 failed — when some were renamed first, the lead becomes the
+ *                 one true sentence "Renamed N notes; the rest could not be
+ *                 renamed (M notes left unrenamed)." rather than the plain
+ *                 "Renamed N notes …" followed by a failure sentence written
+ *                 for a single batch ("…Nothing was changed.").
  */
 export function describeBatch(outcome, {
-  folderName, tag, renameTo, backToOrigin = false, earlier = 0, titleOf = () => null,
+  folderName, tag, renameTo, backToOrigin = false, earlier = 0, stoppedLeft = 0, titleOf = () => null,
 } = {}) {
   const { op, changed, unchanged } = outcome
   const n = plural(changed + earlier, 'note')
@@ -245,7 +252,9 @@ export function describeBatch(outcome, {
       : `Moved ${n} to ${folderName || 'Unfiled'}.`,
     addTag: `Tagged ${n} #${tag}.`,
     removeTag: `Removed #${tag} from ${n}.`,
-    renameTag: `Renamed ${n} from #${tag} to #${renameTo}.`,
+    renameTag: stoppedLeft
+      ? `Renamed ${n}; the rest could not be renamed (${plural(stoppedLeft, 'note')} left unrenamed).`
+      : `Renamed ${n} from #${tag} to #${renameTo}.`,
     favorite: `Added ${n} to Favorites.`,
     unfavorite: `Removed ${n} from Favorites.`,
     trash: `Moved ${n} to the Trash.`,

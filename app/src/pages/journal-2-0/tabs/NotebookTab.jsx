@@ -992,13 +992,25 @@ export default function NotebookTab() {
           failed: combined.failed + outcome.failed,
         }
       }
-      const { message, tone } = describeBatch(combined, { ...ctx, titleOf })
+      // ⚰️ R4-3 (wave 6 fix round 4, NB-1). A LATER chunk failing used to
+      // append the sentence below after "Renamed 500 notes from #a to #b.",
+      // and with no server `detail` its reason is runNoteBatch's single-batch
+      // fallback, which ends "…Nothing was changed." — true of the failed
+      // chunk, false of the member's action. When anything WAS renamed, the
+      // stop is folded into describeBatch's lead instead ("Renamed N notes;
+      // the rest could not be renamed (M notes left unrenamed)."), and the
+      // stop sentence is kept only for a rename that changed nothing, where
+      // "Nothing was changed" is true.
+      const renamedSome = combined.changed > 0
+      const { message, tone } = describeBatch(combined, {
+        ...ctx, titleOf, stoppedLeft: stoppedAt && renamedSome ? stoppedAt.left : 0,
+      })
       const offer = describeUnchecked(
         'renameTag', combined.results.filter((r) => r.status === 'unchecked').map((r) => r.id), { titleOf, args, ctx })
       const changedIds = combined.results.filter((r) => r.status === 'changed').map((r) => r.id)
       const parts = [message]
       if (offer) parts.push(offer.message)
-      if (stoppedAt) {
+      if (stoppedAt && !renamedSome) {
         parts.push(`${stoppedAt.left} ${stoppedAt.left === 1 ? 'note was' : 'notes were'} left unrenamed — the request itself did not go through${stoppedAt.reason ? ` (${stoppedAt.reason})` : ''}.`)
       }
       setBulkNotice({ message: parts.filter(Boolean).join(' '), tone: stoppedAt ? 'error' : (offer ? offer.tone : tone) })
