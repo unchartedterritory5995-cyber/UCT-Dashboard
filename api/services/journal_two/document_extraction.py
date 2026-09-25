@@ -35,6 +35,7 @@ from io import BytesIO
 from typing import Any
 
 from api.services.auth_db import get_connection
+from api.services.journal_two.permit_pool import PermitPool
 
 log = logging.getLogger(__name__)
 
@@ -74,11 +75,29 @@ _DOCX_MAX_XML_BYTES = 20 * 1024 * 1024
 # small enough that a search hit lands the member near the passage, large enough
 # that a normal memo is a handful of pages.
 _DOCX_PAGE_CHARS = 3000
-# ⛔ An image OCR reads is decoded into memory in full. The upload cap is 5 MB of
-# COMPRESSED bytes, which a crafted PNG can turn into a bitmap of hundreds of
-# megapixels. Refuse anything past this rather than rely on Pillow's own
-# decompression-bomb warning threshold (~89 MP), which only WARNS.
-_MAX_IMAGE_PIXELS = 50_000_000
+# ⛔ AN IMAGE'S MEMORY IS A BUDGET IN BYTES, NOT A PIXEL COUNT. The upload cap is
+# 5 MB of COMPRESSED bytes; a 7000x7000 RGBA PNG is 199 KB on the wire and
+# 196 MB decoded. So the bound is on what the DECODE costs:
+#
+#   `_IMAGE_DECODE_BUDGET_BYTES` -- the most one image's decoded bitmap may take,
+#   charged at `_DECODED_BYTES_PER_PIXEL` = 4, the widest pixel Pillow stores for
+#   any mode PNG/JPEG/GIF/WebP decode to (RGB is held as 32-bit too). A JPEG is
+#   first `draft()`-ed toward the OCR size, so it is charged for the reduced
+#   bitmap its decoder will actually produce.
+#
+# After the decode the image is shrunk to `_OCR_LONG_EDGE` on its long side (at
+# most 4000x4000 = 64 MB), which releases the full bitmap, and only then rotated
+# upright -- so the rotation's working copy is of the SMALL image. Transient peak
+# for one image: at most the budget + 64 MB. Pillow's own decompression-bomb
+# threshold (~89 MP) only WARNS, so it is not what bounds this.
+# ⚰️ The first cap was 50 MP and the image was decoded, copied by
+# `exif_transpose`, then converted: ~440 MB transient for one image, and a
+# second full decode thrown away just to validate the file.
+_IMAGE_DECODE_BUDGET_BYTES = 100_000_000    # = 25 MP at 4 bytes a pixel
+_DECODED_BYTES_PER_PIXEL = 4
+# Long edge handed to OCR. A phone photo of a page at 4000 px is ~350 DPI on a
+# letter sheet, past what tesseract needs; more pixels are memory, not accuracy.
+_OCR_LONG_EDGE = 4000
 _IMAGE_DOC_NAME = "Image"
 
 _W = "{http://schemas.openxmlformats.org/wordprocessingml/2006/main}"
@@ -102,6 +121,10 @@ _MAX_PAGES = 500
 # (bars_prewarm's own pool-size precedent).
 _MAX_CONCURRENT_EXTRACTIONS = 2
 _EXTRACTION_SEMAPHORE = threading.Semaphore(_MAX_CONCURRENT_EXTRACTIONS)
+# The workers that run extractions. Its size IS the semaphore's permits
+# (permit_pool.py), so the semaphore stays the one number that bounds both how
+# many extractions run and how many threads exist.
+_EXTRACTION_POOL = PermitPool("j2-doc-extract", _EXTRACTION_SEMAPHORE)
 
 EXTRACTION_VERSION = 1
 
@@ -181,6 +204,10 @@ def _normalize_docx_text(text: str) -> str:
     return text.strip()
 
 
+class _DocxRefused(Exception):
+    """word/document.xml declares a DOCTYPE. Raised from inside the parser."""
+
+
 def _docx_paragraphs(xml: bytes) -> list[str]:
     """Paragraph text of word/document.xml, in document order.
 
@@ -189,60 +216,129 @@ def _docx_paragraphs(xml: bytes) -> list[str]:
     text: `w:delText` (tracked deletions) and `w:instrText` (field codes) are
     NOT the words on the page and are skipped by construction.
 
-    ⛔ STREAMING, NOT RECURSIVE. `iterparse` with a stack of open paragraphs
-    handles a paragraph nested inside a text box without recursing, so a
-    pathologically deep document cannot exhaust the interpreter stack.
-    """
-    from xml.etree import ElementTree
+    ⛔ STREAMING, NOT RECURSIVE. expat's callbacks with a stack of open
+    paragraphs handle a paragraph nested inside a text box without recursing,
+    so a pathologically deep document cannot exhaust the interpreter stack.
 
+    ⛔ A DOCTYPE IS REFUSED BY THE PARSER, NOT BY A BYTE SCAN. The handler
+    below fires on the declaration itself, AFTER expat has decoded the input,
+    so it sees a DOCTYPE in UTF-16 (or any encoding expat reads) and at any
+    offset. An entity can only be declared inside a DOCTYPE, so it is refused
+    before any entity exists and nothing can expand. A real Word document never
+    carries one. ⚰️ This was a scan of the RAW BYTES for `<!DOCTYPE` in the
+    first 4 KB: a UTF-16 document.xml walked straight past it and expanded its
+    entity, and so did a DOCTYPE placed after a 5 KB prolog comment.
+
+    Raises `_DocxRefused` for a DOCTYPE and expat's own error for anything
+    that is not well-formed XML; the caller turns both into None.
+    """
+    from xml.parsers import expat
+
+    w = _W[1:-1] + " "                      # expat's "<uri> <local>" tag form
+    p_tag, t_tag, tab_tag = w + "p", w + "t", w + "tab"
+    breaks = (w + "br", w + "cr")
     out: list[str] = []
-    stack: list[list[str]] = []
-    for event, el in ElementTree.iterparse(BytesIO(xml), events=("start", "end")):
-        tag = el.tag
-        if event == "start":
-            if tag == _W + "p":
-                stack.append([])
-            elif stack and tag == _W + "tab":
-                stack[-1].append("\t")
-            elif stack and tag in (_W + "br", _W + "cr"):
-                stack[-1].append("\n")
-            continue
-        if tag == _W + "t":
-            if stack and el.text:
-                stack[-1].append(el.text)
-        elif tag == _W + "p" and stack:
+    stack: list[list[str]] = []             # the open paragraphs' text parts
+    open_tags: list[str] = []               # every open element, innermost last
+
+    def start(tag, _attrs):
+        open_tags.append(tag)
+        if tag == p_tag:
+            stack.append([])
+        elif stack and tag == tab_tag:
+            stack[-1].append("\t")
+        elif stack and tag in breaks:
+            stack[-1].append("\n")
+
+    def end(tag):
+        open_tags.pop()
+        if tag == p_tag and stack:
             out.append("".join(stack.pop()))
-            el.clear()
+
+    def chars(data):
+        # Only a `w:t`'s own text, the same text ElementTree called `.text`.
+        if stack and open_tags and open_tags[-1] == t_tag:
+            stack[-1].append(data)
+
+    def refuse_doctype(*_args):
+        raise _DocxRefused("DOCTYPE")
+
+    parser = expat.ParserCreate(namespace_separator=" ")
+    parser.buffer_text = True
+    parser.StartElementHandler = start
+    parser.EndElementHandler = end
+    parser.CharacterDataHandler = chars
+    parser.StartDoctypeDeclHandler = refuse_doctype
+    parser.Parse(xml, True)
     return out
 
 
-def _chunk_pages(paragraphs: list[str], size: int = _DOCX_PAGE_CHARS) -> list[str]:
-    """Pack paragraphs into reading pages of about `size` characters. A page
-    breaks BETWEEN paragraphs; only a single paragraph longer than a whole page
-    is split, and then at the last whitespace before the limit where one
-    exists, so a word is never cut in half when it need not be."""
+_NON_SPACE = re.compile(r"\S")   # matches exactly what `str.lstrip()` keeps
+
+
+def _chunk_pages(
+    paragraphs: list[str], size: int = _DOCX_PAGE_CHARS, max_pages: int | None = None,
+) -> tuple[list[str], int]:
+    """Pack paragraphs into reading pages of about `size` characters.
+
+    Returns `(pages, page_count)`: the text of at most `max_pages` pages
+    (default `_MAX_PAGES`, read per call) and the REAL number of pages the
+    document makes. A page breaks BETWEEN paragraphs; only a single paragraph
+    longer than a whole page is split, and then at the last whitespace before
+    the limit where one exists, so a word is never cut in half when it need
+    not be.
+
+    ⛔ LINEAR, AND CAPPED WHILE IT RUNS. A long paragraph is walked with an
+    INDEX, never by re-slicing its remainder, and past `max_pages` no page text
+    is built at all -- only its length is counted, so `page_count` stays exact.
+    ⚰️ The first version re-sliced the remainder once per page and built every
+    page before cutting the list: a 19 MB single-character run (a few KB on the
+    wire once deflated) cost 14.2 s of GIL-holding copying on the one web
+    process, 6,641 pages built to keep 500.
+    """
+    if max_pages is None:
+        max_pages = _MAX_PAGES
     pages: list[str] = []
-    cur = ""
+    count = 0
+    cur_parts: list[str] = []   # the page being packed (text kept only while it can be stored)
+    cur_len = 0                 # its length, always; `cur_len == 0` is "no page open"
+
+    def flush(text: str | None) -> None:
+        nonlocal count
+        if count < max_pages:
+            pages.append(text if text is not None else "\n".join(cur_parts))
+        count += 1
+
     for para in paragraphs:
-        while len(para) > size:
-            cut = para.rfind(" ", 0, size)
-            if cut <= 0:
-                cut = size
-            head, para = para[:cut].rstrip(), para[cut:].lstrip()
-            if cur:
-                pages.append(cur)
-                cur = ""
-            pages.append(head)
-        if not cur:
-            cur = para
-        elif len(cur) + 1 + len(para) <= size:
-            cur = f"{cur}\n{para}"
+        n = len(para)
+        i = 0
+        while n - i > size:
+            cut = para.rfind(" ", i, i + size)
+            if cut <= i:
+                cut = i + size
+            if cur_len:
+                flush(None)
+                cur_parts, cur_len = [], 0
+            flush(para[i:cut].rstrip() if count < max_pages else "")
+            m = _NON_SPACE.search(para, cut)
+            i = m.start() if m else n
+        rest_len = n - i
+        keep = count < max_pages
+        rest = (para[i:] if i else para) if keep else ""
+        if not cur_len:
+            cur_parts, cur_len = ([rest] if keep else []), rest_len
+        elif cur_len + 1 + rest_len <= size:
+            if keep:
+                cur_parts.append(rest)
+            cur_len += 1 + rest_len
         else:
-            pages.append(cur)
-            cur = para
-    if cur or not pages:
-        pages.append(cur)
-    return pages
+            flush(None)
+            # `rest` was built above whenever this new page can still be stored
+            # (the count only grows, so "storable now" implies "storable then").
+            cur_parts, cur_len = ([rest] if count < max_pages else []), rest_len
+    if cur_len or count == 0:
+        flush(None)
+    return pages, count
 
 
 def extract_docx_pages(data: bytes) -> tuple[list[str], int] | None:
@@ -253,12 +349,12 @@ def extract_docx_pages(data: bytes) -> tuple[list[str], int] | None:
     ⛔ BOUNDED. word/document.xml is read through a size-limited read, so an
     archive that LIES about its inflated size still cannot hand us more than
     `_DOCX_MAX_XML_BYTES`; past that the whole document is refused. Text pages
-    past `_MAX_PAGES` are not stored (page_count still reports the real count,
-    exactly as it does for a long PDF).
+    past `_MAX_PAGES` are never built (page_count still reports the real count,
+    exactly as it does for a long PDF), and the paging is linear in the text.
 
-    ⛔ NO DOCTYPE. A real Word document never carries one, and refusing it is
-    the cheap, total answer to entity-expansion tricks that no parser setting
-    has to be trusted for.
+    ⛔ NO DOCTYPE, refused inside the parser whatever the encoding -- see
+    `_docx_paragraphs`. That is the guard against entity expansion; expat's
+    own amplification limit is a second line we do not lean on.
     """
     try:
         with zipfile.ZipFile(BytesIO(data)) as zf:
@@ -275,39 +371,80 @@ def extract_docx_pages(data: bytes) -> tuple[list[str], int] | None:
         if len(xml) > _DOCX_MAX_XML_BYTES:
             log.warning("[doc-extract] docx refused: document.xml inflates past the cap")
             return None
-        head = xml[:4096].upper()
-        if b"<!DOCTYPE" in head or b"<!ENTITY" in xml.upper():
-            log.warning("[doc-extract] docx refused: document.xml carries a DOCTYPE/ENTITY")
-            return None
         paragraphs = _docx_paragraphs(xml)
+    except _DocxRefused:
+        log.warning("[doc-extract] docx refused: document.xml carries a DOCTYPE")
+        return None
     except Exception as e:  # noqa: BLE001 — a malformed docx fails locally, never the thread
         log.warning("[doc-extract] docx extraction failed: %s", type(e).__name__)
         return None
-    text_pages = _chunk_pages([p.replace("\x00", "") for p in paragraphs])
-    page_count = len(text_pages)
-    pages = [_normalize_docx_text(p) for p in text_pages[:_MAX_PAGES]]
-    return pages, page_count
+    text_pages, page_count = _chunk_pages([p.replace("\x00", "") for p in paragraphs])
+    return [_normalize_docx_text(p) for p in text_pages], page_count
 
 
 # ── Images (read for OCR, never stored as text here) ─────────────────────────
 
+def _open_within_budget(data: bytes):
+    """`Image.open` (which reads the HEADER only) plus the byte budget, or None.
+
+    A JPEG is `draft()`-ed toward `_OCR_LONG_EDGE` first: that only tells the
+    decoder to decode at 1/2, 1/4 or 1/8 scale, and `size` then reports the
+    bitmap the decode will really make -- which is what the budget charges.
+    Raises on a file Pillow cannot identify; callers catch."""
+    from PIL import Image
+    im = Image.open(BytesIO(data))
+    w, h = im.size
+    if im.format == "JPEG" and max(w, h) > _OCR_LONG_EDGE:
+        # The target keeps the photo's aspect: Pillow scales only when BOTH
+        # sides are at least twice the request, so a square (4000, 4000) box
+        # would leave an 8064x6048 phone photo undrafted and over budget.
+        k = _OCR_LONG_EDGE / max(w, h)
+        im.draft(im.mode, (max(1, int(w * k)), max(1, int(h * k))))
+        w, h = im.size
+    if w <= 0 or h <= 0 or w * h * _DECODED_BYTES_PER_PIXEL > _IMAGE_DECODE_BUDGET_BYTES:
+        log.warning("[doc-extract] image refused: %sx%s decodes past the %s-byte budget",
+                    w, h, _IMAGE_DECODE_BUDGET_BYTES)
+        return None
+    return im
+
+
+def probe_image(data: bytes) -> bool:
+    """Is this an image OCR could read? Answered from the HEADER, never by
+    decoding the pixels: `Image.open` + the budget + `verify()` (which checks a
+    PNG's chunk CRCs without inflating them). Never raises.
+
+    ⛔ Extraction only needs a yes/no. ⚰️ It used to fully decode (and rotate)
+    the image to find out, throw the bitmap away, and let OCR decode it again."""
+    try:
+        im = _open_within_budget(data)
+        if im is None:
+            return False
+        im.verify()
+        return True
+    except Exception as e:  # noqa: BLE001 — an unreadable image is a no-text image
+        log.warning("[doc-extract] image could not be read: %s", type(e).__name__)
+        return False
+
+
 def load_image_for_ocr(data: bytes):
     """Decode an image attachment for the OCR adapter, or None.
 
-    ⛔ Orientation comes from EXIF first: a phone photo is usually stored
+    ⛔ Bounded before the pixels are decoded (`_open_within_budget`), shrunk to
+    `_OCR_LONG_EDGE` on its long side once decoded (`thumbnail` works in place
+    and never enlarges), and only THEN rotated upright from its EXIF tag, in
+    place -- so no full-size copy is ever made. A phone photo is usually stored
     sideways with a rotation tag, and an engine handed the raw pixels reads a
-    rotated page. ⛔ Bounded by `_MAX_IMAGE_PIXELS` before the pixels are
-    decoded, so a small file cannot become an enormous bitmap. Never raises.
+    rotated page. Never raises.
     """
     try:
-        from PIL import Image, ImageOps
-        im = Image.open(BytesIO(data))
-        w, h = im.size
-        if w <= 0 or h <= 0 or w * h > _MAX_IMAGE_PIXELS:
-            log.warning("[doc-extract] image refused: %sx%s is past the pixel cap", w, h)
+        from PIL import ImageOps
+        im = _open_within_budget(data)
+        if im is None:
             return None
         im.load()
-        return ImageOps.exif_transpose(im)
+        im.thumbnail((_OCR_LONG_EDGE, _OCR_LONG_EDGE))
+        ImageOps.exif_transpose(im, in_place=True)
+        return im
     except Exception as e:  # noqa: BLE001 — an unreadable image is a no-text image
         log.warning("[doc-extract] image could not be decoded: %s", type(e).__name__)
         return None
@@ -471,7 +608,7 @@ def process_document(document_id: str, *, conn=None) -> dict[str, Any]:
         # recovery and readiness all apply to it unchanged.
         kind = document_source_kind(doc)
         if kind == SOURCE_KIND_IMAGE:
-            result = ([""], 1) if load_image_for_ocr(data) is not None else None
+            result = ([""], 1) if probe_image(data) else None
         elif kind == SOURCE_KIND_DOCX:
             result = extract_docx_pages(data)
         else:
@@ -505,51 +642,49 @@ def process_document(document_id: str, *, conn=None) -> dict[str, Any]:
 
 
 def _process_document_bounded(document_id: str) -> None:
-    """The actual background-thread target: acquires the concurrency
-    semaphore first so at most _MAX_CONCURRENT_EXTRACTIONS run at once
-    across the whole process, then runs process_document with its own
-    connection (a background thread must never share the request's)."""
-    with _EXTRACTION_SEMAPHORE:
-        try:
-            process_document(document_id)
-        except Exception as e:  # noqa: BLE001 — a background thread must never propagate
-            log.warning("[doc-extract] background extraction crashed for %s: %s", document_id, e)
-            return
-        # ⭐ WAVE P1: classify the pages extraction could not read.
-        #
-        # ⛔ SEPARATE PASS, NOT A BRANCH INSIDE `process_document`. Extraction
-        # answers "what text does this PDF carry"; classification answers "which
-        # pages is OCR responsible for". Keeping them apart is what makes
-        # classification re-runnable on its own, which is what restart recovery
-        # needs — and it means a change to one cannot silently alter the other.
-        #
-        # ⛔ AND IT PROMISES NOTHING WHEN NO ENGINE IS WIRED. `plan_document`
-        # asks `ocr_available()` before claiming a page, so with no adapter the
-        # document keeps its honest `no_text` rather than sitting on
-        # "Processing..." forever.
-        try:
-            from api.services.journal_two import document_ocr
-            plan = document_ocr.plan_document(document_id)
-            if plan.get("ocr_required"):
-                document_ocr.queue_ocr(document_id, document_ocr.get_adapter())
-        except Exception as e:  # noqa: BLE001 — classification must never
-            # cost the extraction that already succeeded.
-            log.warning("[doc-extract] OCR planning failed for %s: %s",
-                        document_id, e)
+    """The background job: runs process_document with its own connection (a
+    background thread must never share the request's). It runs on an
+    `_EXTRACTION_POOL` worker, which already holds one of the semaphore's
+    permits -- so at most `_MAX_CONCURRENT_EXTRACTIONS` run at once, and it
+    must NOT take the semaphore again (that would deadlock the pool)."""
+    try:
+        process_document(document_id)
+    except Exception as e:  # noqa: BLE001 — a background thread must never propagate
+        log.warning("[doc-extract] background extraction crashed for %s: %s", document_id, e)
+        return
+    # ⭐ WAVE P1: classify the pages extraction could not read.
+    #
+    # ⛔ SEPARATE PASS, NOT A BRANCH INSIDE `process_document`. Extraction
+    # answers "what text does this PDF carry"; classification answers "which
+    # pages is OCR responsible for". Keeping them apart is what makes
+    # classification re-runnable on its own, which is what restart recovery
+    # needs — and it means a change to one cannot silently alter the other.
+    #
+    # ⛔ AND IT PROMISES NOTHING WHEN NO ENGINE IS WIRED. `plan_document`
+    # asks `ocr_available()` before claiming a page, so with no adapter the
+    # document keeps its honest `no_text` rather than sitting on
+    # "Processing..." forever.
+    try:
+        from api.services.journal_two import document_ocr
+        plan = document_ocr.plan_document(document_id)
+        if plan.get("ocr_required"):
+            document_ocr.queue_ocr(document_id, document_ocr.get_adapter())
+    except Exception as e:  # noqa: BLE001 — classification must never
+        # cost the extraction that already succeeded.
+        log.warning("[doc-extract] OCR planning failed for %s: %s",
+                    document_id, e)
 
 
 def queue_extraction(document_id: str) -> None:
-    """Fire-and-forget: spawns a daemon thread, same idiom as
-    j2_attachments_backup/excursion_jobs' own admin-triggered background
-    work (api/routers/journal_two.py) -- the ONLY difference here is this
-    one fires automatically right after a PDF attachment upload, not from
-    an admin action."""
-    threading.Thread(
-        target=_process_document_bounded,
-        args=(document_id,),
-        daemon=True,
-        name="j2-doc-extract",
-    ).start()
+    """Fire-and-forget: queues the document on `_EXTRACTION_POOL` and returns.
+
+    ⛔ BOUNDED IN THREADS, NOT ONLY IN CONCURRENCY. A worker thread exists only
+    while it holds one of `_EXTRACTION_SEMAPHORE`'s permits, so at most
+    `_MAX_CONCURRENT_EXTRACTIONS` threads exist however many documents arrive;
+    the rest wait as ids in the pool's queue. ⚰️ This used to start one daemon
+    thread per document that then parked on the semaphore -- unbounded, and
+    email-in can hand over 20 attachments per message."""
+    _EXTRACTION_POOL.submit(_process_document_bounded, document_id)
 
 
 # ── Seam S1 (wave 7) ─────────────────────────────────────────────────────────

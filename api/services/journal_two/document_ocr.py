@@ -50,6 +50,7 @@ from datetime import datetime, timedelta, timezone
 from typing import Any, Callable, NamedTuple
 
 from api.services.auth_db import get_connection
+from api.services.journal_two.permit_pool import PermitPool
 
 log = logging.getLogger(__name__)
 
@@ -137,6 +138,10 @@ def _max_concurrency() -> int:
 
 OCR_MAX_CONCURRENCY = _max_concurrency()
 _OCR_SEMAPHORE = threading.Semaphore(OCR_MAX_CONCURRENCY)
+# The OCR workers. Built FROM the semaphore (permit_pool.py): a worker thread
+# exists only while it holds a permit, so the semaphore above bounds both how
+# many pages are read at once and how many threads exist.
+_OCR_POOL = PermitPool("j2-doc-ocr", _OCR_SEMAPHORE)
 
 # ⚰️⚰️ WAVE P5, FOUND UNDER THE CONCURRENCY THE DIRECTIVE ASKED FOR.
 #
@@ -894,18 +899,24 @@ def requeue_awaiting(adapter: "OcrAdapter", *, now: datetime | None = None,
     return {"requeued": len(requeued), "documents": requeued}
 
 
+def _run_ocr_job(document_id: str, adapter: OcrAdapter) -> None:
+    """One queued OCR job. Runs on an `_OCR_POOL` worker, which already holds
+    one of `_OCR_SEMAPHORE`'s permits -- it must not take the semaphore again."""
+    try:
+        ocr_document(document_id, adapter)
+    except Exception as e:  # noqa: BLE001 — a background job must not propagate
+        log.warning("[doc-ocr] background job crashed for %s: %s", document_id, e)
+
+
 def queue_ocr(document_id: str, adapter: OcrAdapter) -> None:
-    """Fire-and-forget, bounded by the same discipline extraction already uses:
-    a daemon thread behind a process-wide semaphore, so one large scan cannot
-    starve every other member's upload."""
-    def _run():
-        with _OCR_SEMAPHORE:
-            try:
-                ocr_document(document_id, adapter)
-            except Exception as e:  # noqa: BLE001 — a daemon thread must not propagate
-                log.warning("[doc-ocr] background job crashed for %s: %s",
-                            document_id, e)
-    threading.Thread(target=_run, daemon=True, name="j2-doc-ocr").start()
+    """Fire-and-forget, bounded by the same discipline extraction uses: the job
+    is queued on `_OCR_POOL`, whose worker threads exist only while they hold
+    one of `_OCR_SEMAPHORE`'s permits -- so one large scan cannot starve every
+    other member's upload, and a burst of scans cannot park a thread each.
+
+    ⚰️ Wave 7 fix round 1 (I-1): this started one daemon thread per document
+    that then waited on the semaphore, so the THREAD count had no bound."""
+    _OCR_POOL.submit(_run_ocr_job, document_id, adapter)
 
 
 # ── Wave P4 §11/§14/§40/§41 · the page transcript ───────────────────────────
