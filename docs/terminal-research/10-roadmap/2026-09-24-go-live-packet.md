@@ -142,7 +142,24 @@ packet's to bring forward; will surface on its own schedule.
 > `screen_alert_subs` population is unmeasured and the s7-dark cohort is admins/staff/test
 > only by design — so "verdict_ready" tomorrow is a statement about session count, not
 > about members. A CP4 ruling packet can be assembled after that tick; whether one screen
-> from one synthetic account is enough evidence is the owner's call, not this packet's. The *member-facing*
+> from one synthetic account is enough evidence is the owner's call, not this packet's.
+>
+> **Decision, delegated by the owner 2026-09-25 ("you decide") and recorded as delegated:**
+> one synthetic screen is **NOT sufficient evidence for a FLIP**, and it **IS sufficient to
+> assemble the CP4 packet** once the 09-26 tick lands. Reasoning: the harness compares two
+> RULES over inputs it is handed, and every one of its own blind spots is about the
+> population — `screen_alert_subs` unmeasured, `MAX_PER_USER=6` unmodelled (a property of a
+> member's whole run, invisible with one screen), retention with no owner. Five agreeing
+> sessions on one definition proves the rule agrees with the legacy on that definition's hit
+> set; it says nothing about a member with six screens or about a definition whose hit set
+> churns. So: (1) CP4 (all-members cohort via the S12 tag, STILL DARK, no delivery) may be
+> signed on the 5-session read — CP4's job is exactly to widen the population; (2) the FLIP
+> line waits for the CP4 cohort to show `legacy_only == 0` over ≥ 5 sessions on ≥ 3 distinct
+> definitions held by ≥ 2 real members (the LEDGER's own CP4 shape, `legacy_only == 0` and
+> `agreed ≥ 20` over ≥ 5 sessions, applied per definition rather than pooled); (3) the smoke
+> account arms **no further subscriptions** — its one owner-authorized row is a control, and
+> the account's rule is that it holds no real alerts. A real s7-dark member (the owner's own
+> account is one) subscribing to 2–3 screens they actually use is the cheapest way to get (2). The *member-facing*
 version of "alert me when a screen's membership changes" already fires today via the
 unrelated legacy path (`screen_alerts.py`), so there is no member-facing gap in the
 meantime.
