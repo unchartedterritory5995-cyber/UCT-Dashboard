@@ -512,3 +512,86 @@ async def test_every_hop_asks_for_an_unencoded_body():
     client = httpx.AsyncClient(transport=httpx.MockTransport(handler))
     await guarded_media_stream(client, "https://8.8.8.8/a", max_bytes=1024)
     assert seen == ["identity", "identity"]
+
+
+# ---------------------------------------------------------------------------
+# ⛔ guarded_media_get HAS A BYTE BUDGET TOO (wave 7 lane J, J3).
+#
+# It used to be `client.get(...)`, which httpx buffers WHOLE before anyone can
+# look at a size -- "still unbounded (unreachable from preview)" in the wave-6
+# review, and reachable from every connector sync: five providers route a
+# content-controlled media URL through it. The budget is enforced WHILE
+# READING, so a body with no Content-Length, or a lying one, is stopped by the
+# running total -- the counting streams below show what the guard pulled.
+# ---------------------------------------------------------------------------
+
+_BUDGET = 4096
+
+
+def _exactly(n: int) -> _CountingStream:
+    return _CountingStream([(b"z" * n, n)])
+
+
+async def test_guarded_media_get_refuses_a_body_one_byte_over_its_budget():
+    def handler(request: httpx.Request) -> httpx.Response:
+        return httpx.Response(200, stream=_exactly(_BUDGET + 1))   # no Content-Length
+
+    client = httpx.AsyncClient(transport=httpx.MockTransport(handler))
+    with pytest.raises(NoteConnUnsupported):
+        await guarded_media_get(client, "https://8.8.8.8/img.png", max_bytes=_BUDGET)
+
+
+@pytest.mark.parametrize("size", [_BUDGET, _BUDGET - 1])
+async def test_guarded_media_get_reads_a_body_at_or_one_byte_under_its_budget_whole(size):
+    def handler(request: httpx.Request) -> httpx.Response:
+        return httpx.Response(200, headers={"content-type": "image/png"}, stream=_exactly(size))
+
+    client = httpx.AsyncClient(transport=httpx.MockTransport(handler))
+    response = await guarded_media_get(client, "https://8.8.8.8/img.png", max_bytes=_BUDGET)
+    assert response.status_code == 200
+    assert response.content == b"z" * size
+    assert response.headers.get("content-type") == "image/png"
+
+
+async def test_guarded_media_get_catches_a_LYING_content_length_by_the_read():
+    stream = _plain_endless()
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        # Claims 10 bytes; sends 32 MB. A header check alone would wave it through.
+        return httpx.Response(200, headers={"content-length": "10"}, stream=stream)
+
+    client = httpx.AsyncClient(transport=httpx.MockTransport(handler))
+    with pytest.raises(NoteConnUnsupported):
+        await guarded_media_get(client, "https://8.8.8.8/img.png", max_bytes=_BUDGET)
+    # ⛔ THE LOAD-BEARING ONE: stopped at the budget, not drained and then measured.
+    assert stream.sent <= _BUDGET + _CHUNK, f"the guard pulled {stream.sent:,} bytes past a {_BUDGET:,}-byte budget"
+
+
+async def test_guarded_media_get_refuses_an_honest_oversized_content_length_before_reading():
+    stream = _plain_endless()
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        return httpx.Response(200, headers={"content-length": str(_BUDGET + 1)}, stream=stream)
+
+    client = httpx.AsyncClient(transport=httpx.MockTransport(handler))
+    with pytest.raises(NoteConnUnsupported):
+        await guarded_media_get(client, "https://8.8.8.8/img.png", max_bytes=_BUDGET)
+    assert stream.sent == 0
+
+
+async def test_guarded_media_gets_default_budget_is_the_importers_attachment_cap(monkeypatch):
+    """The module default is READ, never typed: it is the largest body the
+    importer would keep (`save_note_attachment_bytes` refuses past
+    `notes._MAX_FILE_BYTES`). And it is resolved per call, so the default a
+    caller gets is the constant as it stands now -- proved by moving it."""
+    from api.services.journal_two import notes as notes_svc
+
+    assert base_module.MEDIA_MAX_BYTES == notes_svc._MAX_FILE_BYTES
+    monkeypatch.setattr(base_module, "MEDIA_MAX_BYTES", 100)
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        return httpx.Response(200, stream=_exactly(101))
+
+    client = httpx.AsyncClient(transport=httpx.MockTransport(handler))
+    with pytest.raises(NoteConnUnsupported):
+        await guarded_media_get(client, "https://8.8.8.8/img.png")      # no max_bytes: the default

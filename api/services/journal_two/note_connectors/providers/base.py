@@ -27,6 +27,7 @@ from urllib.parse import urljoin, urlsplit
 
 import httpx
 
+from ...notes import _MAX_FILE_BYTES
 from ..errors import NoteConnTransient, NoteConnUnsupported
 
 
@@ -393,8 +394,25 @@ async def _read_content_capped(response: httpx.Response, *, max_bytes: int, what
     return b"".join(pieces)
 
 
+#: The byte budget `guarded_media_get` reads a media body to when its caller
+#: names none: `notes._MAX_FILE_BYTES` (25 MiB), IMPORTED, never retyped. It is
+#: the largest body the importer would keep -- every `fetch_media` result lands
+#: in `save_note_attachment_bytes` (refuses past `_MAX_FILE_BYTES`) or
+#: `save_note_image_bytes` (refuses past `_MAX_IMAGE_BYTES`, 5 MiB, smaller) --
+#: so a byte past it is a byte the sync would throw away after holding it.
+#: `guarded_media_get` cannot know which of the two its caller saves as, so it
+#: takes the larger. Resolved per call, never bound into a default argument.
+MEDIA_MAX_BYTES = _MAX_FILE_BYTES
+
+# The hop-level headers that describe the bytes AS SENT. The buffered response
+# `guarded_media_get` returns carries the bytes as READ (decoded, whole), so
+# repeating these would make httpx decode them a second time.
+_TRANSFER_HEADERS = frozenset({"content-encoding", "content-length", "transfer-encoding"})
+
+
 async def guarded_media_get(
     client: httpx.AsyncClient, url: str, *, what: str = "media reference", max_redirects: int = 5,
+    max_bytes: int | None = None,
 ) -> httpx.Response:
     """Guarded stand-in for `client.get(url, follow_redirects=True)` on a
     content-controlled `ref`. `follow_redirects=True` alone re-validates
@@ -404,33 +422,38 @@ async def guarded_media_get(
     not each new target. This follows redirects manually instead, one hop
     at a time, running `assert_public_https` before every single request
     (the first and every subsequent hop) so no Location header ever reaches
-    `client.get` unchecked. Bounded by `max_redirects` so a malicious or
+    the client unchecked. Bounded by `max_redirects` so a malicious or
     misconfigured server chaining redirects can't hang the request.
+
+    ⛔ AND A BYTE BUDGET (wave 7 lane J, J3). This used to be `client.get`,
+    which httpx buffers WHOLE before a caller can look at a size -- five
+    providers' `fetch_media` (dropbox, obsidian, onedrive, onenote, roam) sent a
+    URL taken from note CONTENT through it on every sync. It now reads through
+    `guarded_media_stream` -- ONE implementation of the hop loop and of every
+    read budget -- with `max_bytes` (default `MEDIA_MAX_BYTES`, above, and why):
+    an honest oversized `Content-Length` is refused before any body byte, and
+    the running total over the DECODED bytes refuses the rest WHILE READING,
+    so an absent or lying header is caught by the read, never after it. A
+    refusal is `NoteConnUnsupported` -- the member this helper already raised
+    for an unsafe URL -- so no caller needs a new branch. A redirect or >= 400
+    body is a bounded diagnostic prefix, as in `guarded_media_stream`; the five
+    callers act on the status alone.
+
+    Returns a BUFFERED `httpx.Response` (status, headers, request, and
+    `.content` = the whole body as read), the shape every caller already uses.
 
     ⚠️ Inherits `assert_public_https`'s NOT-rebinding-proof caveat at every
     hop: each `assert_public_https` call resolves and checks a hostname,
-    then the very next line's `client.get` re-resolves that SAME hostname
-    itself to actually connect -- a DNS-rebinding attacker controlling the
-    answer between those two lookups is not caught. See the module-level
-    comment above this section."""
-    next_url = url
-    for _ in range(max_redirects + 1):
-        await assert_public_https(next_url, what=what)
-        try:
-            response = await client.get(next_url, follow_redirects=False)
-        except httpx.RequestError as exc:
-            raise NoteConnTransient(f"Failed to download {what}: {exc}") from exc
-        if response.status_code in _REDIRECT_STATUSES:
-            location = response.headers.get("location")
-            if not location:
-                return response
-            next_url = urljoin(next_url, location)
-            continue
-        return response
-    raise NoteConnUnsupported(
-        f"Too many redirects fetching {what}",
-        reason="Media reference redirected too many times",
+    then the very next request re-resolves that SAME hostname itself to
+    actually connect -- a DNS-rebinding attacker controlling the answer
+    between those two lookups is not caught. See the module-level comment
+    above this section."""
+    budget = MEDIA_MAX_BYTES if max_bytes is None else max_bytes
+    content, streamed = await guarded_media_stream(
+        client, url, what=what, max_redirects=max_redirects, max_bytes=budget,
     )
+    headers = [(k, v) for k, v in streamed.headers.multi_items() if k.lower() not in _TRANSFER_HEADERS]
+    return httpx.Response(streamed.status_code, headers=headers, content=content, request=streamed.request)
 
 
 async def guarded_media_stream(
