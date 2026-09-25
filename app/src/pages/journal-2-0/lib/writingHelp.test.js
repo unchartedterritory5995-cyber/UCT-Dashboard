@@ -12,7 +12,9 @@ import { Editor } from '@tiptap/core'
 import { NodeSelection, TextSelection } from '@tiptap/pm/state'
 import { buildExtensions } from './tiptap'
 import { AskInsert } from './askInsertNode'
-import { acceptWritingHelp, captureWritingHelpScope, draftParagraphs } from './writingHelp'
+import {
+  acceptWritingHelp, captureWritingHelpScope, draftParagraphs, INSIDE_ANSWER_SENTENCE,
+} from './writingHelp'
 import { WH_MESSAGES, WRITING_HELP_CHOICES, streamWritingHelp } from './writingHelpStream'
 
 const P = (t) => ({ type: 'paragraph', content: t ? [{ type: 'text', text: t }] : [] })
@@ -48,6 +50,7 @@ describe('captureWritingHelpScope', () => {
     select(from, to)
     expect(captureWritingHelpScope(editor)).toEqual({
       scope: 'selection', text: 'sold NVDA early', range: { from, to }, originalText: 'sold NVDA early',
+      insideAnswer: false,
     })
   })
 
@@ -205,6 +208,76 @@ describe('⛔ the caret lands AFTER the accepted block, never in it (I-2)', () =
     expect(editor.state.doc.childCount).toBe(3) // Alpha · the block · beta.
     typeWords('X')
     expect(inserts()[0].textContent).toBe('Summary line.')
+  })
+})
+
+// ⛔ Wave 7 whole-branch fix, ruling D-H7 (frontend review M-4): the panel's own sentence
+// promises writing help refuses inside an answer block; the probe inserted a SECOND askInsert
+// nested inside the first (askInsert holds `block+`). A nested provenance block is never produced.
+describe('⛔ D-H7 — writing help is refused inside an existing Ask answer', () => {
+  const ANSWER = {
+    type: 'askInsert',
+    attrs: { insertedAt: '2026-09-24T10:00:00.000Z', scope: 'whole', question: 'Why did I sell?' },
+    content: [P('Because the stop was hit.'), P('Second answer paragraph.')],
+  }
+  const nested = () => {
+    let n = 0
+    editor.state.doc.descendants((node, pos) => {
+      if (node.type.name !== 'askInsert') return true
+      const $p = editor.state.doc.resolve(pos)
+      for (let d = $p.depth; d > 0; d -= 1) if ($p.node(d).type.name === 'askInsert') n += 1
+      return true
+    })
+    return n
+  }
+  const summary = { draft: 'Summary line.', action: 'summarize', model: 'claude-sonnet-5', instruction: 'Summarize', now: NOW }
+
+  it('the sentence is the product\'s existing one', () => {
+    expect(INSIDE_ANSWER_SENTENCE).toBe("Couldn't add the draft here. Move the cursor outside any answer block and try again.")
+  })
+
+  it('a CARET inside an answer: captured as inside, and Accept inserts nothing', () => {
+    make([P('Mine.'), ANSWER])
+    select(at('stop'), at('stop'))
+    const req = captureWritingHelpScope(editor)
+    expect(req.insideAnswer).toBe(true)
+    const before = editor.getJSON()
+    expect(acceptWritingHelp(editor, { ...req, ...summary })).toEqual({ ok: false, reason: 'inside-answer' })
+    expect(editor.getJSON()).toEqual(before)
+    expect(nested()).toBe(0)
+  })
+
+  it('a SELECTION inside an answer: refused the same way, nothing replaced', () => {
+    make([P('Mine.'), ANSWER])
+    select(at('stop'), at('hit') + 'hit'.length)
+    const req = captureWritingHelpScope(editor)
+    expect(req.scope).toBe('selection')
+    expect(req.insideAnswer).toBe(true)
+    const before = editor.getJSON()
+    expect(acceptWritingHelp(editor, { ...req, ...summary })).toEqual({ ok: false, reason: 'inside-answer' })
+    expect(editor.getJSON()).toEqual(before)
+  })
+
+  it('the caret MOVED into an answer while the panel was open: still refused at Accept', () => {
+    make([P('Mine.'), ANSWER])
+    const end = at('Mine.') + 'Mine.'.length
+    select(end, end)
+    const req = captureWritingHelpScope(editor)
+    expect(req.insideAnswer).toBe(false)
+    select(at('Second'), at('Second'))
+    expect(acceptWritingHelp(editor, { ...req, ...summary }).reason).toBe('inside-answer')
+    expect(nested()).toBe(0)
+  })
+
+  it('CONTROL — outside any answer, the same note takes the block (not nested)', () => {
+    make([P('Mine.'), ANSWER])
+    const end = at('Mine.') + 'Mine.'.length
+    select(end, end)
+    const req = captureWritingHelpScope(editor)
+    expect(req.insideAnswer).toBe(false)
+    expect(acceptWritingHelp(editor, { ...req, ...summary }).ok).toBe(true)
+    expect(inserts()).toHaveLength(2)
+    expect(nested()).toBe(0)
   })
 })
 

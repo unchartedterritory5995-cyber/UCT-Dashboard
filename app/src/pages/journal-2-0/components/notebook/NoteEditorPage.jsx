@@ -93,7 +93,7 @@ import styles from './NoteEditorPage.module.css'
 import { FONT_OPTIONS } from '../../../../utils/fontFamilies'
 import { DICTATE_EVENT, insertDictation } from '../../lib/dictationInsert'
 import {
-  WRITING_HELP_EVENT, acceptWritingHelp, captureWritingHelpScope,
+  WRITING_HELP_EVENT, acceptWritingHelp, captureWritingHelpScope, INSIDE_ANSWER_SENTENCE,
 } from '../../lib/writingHelp'
 import { notebookFlag } from '../../lib/offline/notebookFlags'
 import lazyChunk from '../../lib/lazyChunk'
@@ -1422,7 +1422,15 @@ export default function NoteEditorPage({ noteId, onBack, showBack = true, onTitl
     const ed = editorRef.current
     if (!writingHelpOnRef.current || !ed || ed.isDestroyed || !ed.isEditable) return
     const req = captureWritingHelpScope(ed)
-    if (req) setWritingHelp(req)
+    if (!req) return
+    // ⛔ D-H7: the caret (or selection) is in an Ask answer. Refused UP FRONT, in the product's
+    // own sentence, so no panel opens and none of the member's daily writing-help allowance is
+    // spent on a draft that could never be placed. Accept refuses it again (lib/writingHelp.js).
+    if (req.insideAnswer) {
+      setUploadToast({ message: INSIDE_ANSWER_SENTENCE, tone: 'error' })
+      return
+    }
+    setWritingHelp(req)
   }, [])
   // Accept — the ONE write: an askInsert block with `action` + `model`, as one
   // undo step. Said either way; a draft that could not land keeps the panel open.

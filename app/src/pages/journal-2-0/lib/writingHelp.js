@@ -27,8 +27,30 @@ import { TextSelection } from '@tiptap/pm/state'
 export const WRITING_HELP_EVENT = 'uct:notebook-writing-help'
 
 /**
+ * ⛔ Ruling D-H7 (wave 7 whole-branch fix, frontend review M-4): writing help is REFUSED
+ * inside an existing Ask answer, in the product's own sentence -- the one the panel already
+ * showed. An `askInsert` holds `block+`, so Accept with the caret in an answer nested a
+ * second provenance block inside the first; the sentence promised a refusal the code never
+ * made. ONE constant: the editor says it up front, the panel says it at Accept.
+ */
+export const INSIDE_ANSWER_SENTENCE = "Couldn't add the draft here. Move the cursor outside any answer block and try again."
+
+const ASK_INSERT = 'askInsert'
+function insideAnswer($pos) {
+  for (let d = $pos.depth; d > 0; d -= 1) if ($pos.node(d).type.name === ASK_INSERT) return true
+  return false
+}
+/** True when either end of `from..to` sits inside an Ask answer (an `askInsert`). */
+function rangeInsideAnswer(doc, from, to) {
+  const size = doc.content.size
+  const clamp = (p) => Math.max(0, Math.min(size, p))
+  return insideAnswer(doc.resolve(clamp(from))) || insideAnswer(doc.resolve(clamp(to)))
+}
+
+/**
  * What the member is asking about, captured when the panel OPENS.
- * → `{ scope: 'selection'|'whole', text, range: {from, to}, originalText }`.
+ * → `{ scope: 'selection'|'whole', text, range: {from, to}, originalText, insideAnswer }`
+ * (`insideAnswer`: the caret or selection sits in an Ask answer -- ruling D-H7 refuses it).
  * A text selection is the passage; a caret (or a selected block node) means
  * the whole note, inserted at the caret — never replacing a selected node.
  */
@@ -39,11 +61,17 @@ export function captureWritingHelpScope(editor) {
   if (!sel.empty && !sel.node) {
     const text = state.doc.textBetween(sel.from, sel.to, '\n\n', ' ')
     if (text.trim()) {
-      return { scope: 'selection', text, range: { from: sel.from, to: sel.to }, originalText: text }
+      return {
+        scope: 'selection', text, range: { from: sel.from, to: sel.to }, originalText: text,
+        insideAnswer: rangeInsideAnswer(state.doc, sel.from, sel.to),
+      }
     }
   }
   const text = state.doc.textBetween(0, state.doc.content.size, '\n\n', ' ')
-  return { scope: 'whole', text, range: { from: sel.to, to: sel.to }, originalText: null }
+  return {
+    scope: 'whole', text, range: { from: sel.to, to: sel.to }, originalText: null,
+    insideAnswer: rangeInsideAnswer(state.doc, sel.to, sel.to),
+  }
 }
 
 /** The draft as paragraphs: blank lines separate, single newlines join. */
@@ -95,6 +123,9 @@ export function acceptWritingHelp(editor, {
     from = selection.to
     to = selection.to
   }
+  // ⛔ D-H7: never INTO an Ask answer -- read at Accept, from where the block would go, so a
+  // caret moved into an answer while the panel was open is refused too.
+  if (rangeInsideAnswer(doc, from, to)) return { ok: false, reason: 'inside-answer' }
   const before = editor.state.doc
   const ok = editor.chain()
     .command(({ tr }) => { closeHistory(tr); return true })

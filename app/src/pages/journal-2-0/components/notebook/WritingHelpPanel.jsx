@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import Sheet from '../../../../components/mobile/Sheet'
-import { draftParagraphs } from '../../lib/writingHelp'
+import { INSIDE_ANSWER_SENTENCE, draftParagraphs } from '../../lib/writingHelp'
 import {
   WRITING_HELP_CHOICES, WRITING_HELP_LANGUAGES, streamWritingHelp,
 } from '../../lib/writingHelpStream'
@@ -63,7 +63,7 @@ export default function WritingHelpPanel({ noteId, request, onAccept, onClose })
     })
     if (res?.ok) { onClose(); return }
     setStatus('error')
-    setError("Couldn't add the draft here. Move the cursor outside any answer block and try again.")
+    setError(INSIDE_ANSWER_SENTENCE)
   }
 
   const writing = status === 'writing'

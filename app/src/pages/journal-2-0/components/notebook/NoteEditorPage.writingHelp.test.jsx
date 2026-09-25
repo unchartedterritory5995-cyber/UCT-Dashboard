@@ -183,6 +183,32 @@ describe('writing help — the preview, then Accept or Discard', () => {
     expect(JSON.stringify(editor.getJSON())).toBe(before)
   })
 
+  // ⛔ Ruling D-H7: with the caret in an Ask answer, writing help is refused UP FRONT, in the
+  // product's own sentence -- no panel, no request, so no generation of the member's 60 is spent
+  // on a draft that could never be placed -- and nothing is ever nested.
+  it('D-H7 — the caret inside an Ask answer: refused in the product sentence, no panel, no request', async () => {
+    const editor = await mount()
+    const { appendAskInsert } = await import('../../lib/askInsert')
+    act(() => {
+      appendAskInsert(editor, {
+        type: 'askInsert',
+        attrs: { insertedAt: '2026-09-24T10:00:00.000Z', scope: 'whole', question: 'Why did I sell?' },
+        content: [P('Because the stop was hit.')],
+      })
+    })
+    act(() => {
+      const pos = at(editor, 'stop')
+      editor.view.dispatch(editor.state.tr.setSelection(TextSelection.create(editor.state.doc, pos)))
+    })
+    const before = JSON.stringify(editor.getJSON())
+    fireEvent.click(screen.getByRole('button', { name: 'Writing help' }))
+    expect(await screen.findByText("Couldn't add the draft here. Move the cursor outside any answer block and try again."))
+      .toBeInTheDocument()
+    expect(screen.queryByRole('dialog')).toBeNull()
+    expect(fetchMock.mock.calls.some(([u]) => String(u).endsWith('/writing-help/stream'))).toBe(false)
+    expect(JSON.stringify(editor.getJSON())).toBe(before)
+  })
+
   it('the slash item opens it on the WHOLE note, from its own editor', async () => {
     const editor = await mount()
     const { ITEMS } = await import('./SlashMenu')
