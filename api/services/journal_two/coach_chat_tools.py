@@ -1965,5 +1965,24 @@ class _GatedToolRegistry(dict):
     def items(self):
         return self._snapshot().items()
 
+    # Fix round 1 (review M-8): `repr()` and `==` read the UNFILTERED entries --
+    # measured: both showed the gated tool while its gate was off. No caller
+    # does either today, which is when a hole is cheapest to close. (`copy()`
+    # and `dict(TOOLS)` were measured NOT to leak: CPython merges a dict
+    # subclass whose `__iter__` is overridden through its own `keys()`, so no
+    # override is added for them -- test_compass_notes_tool.py pins the
+    # behaviour, so an interpreter that stops doing that goes red.)
+    def __repr__(self) -> str:
+        return repr(self._snapshot())
+
+    def __eq__(self, other) -> bool:
+        mine = self._snapshot()
+        return mine == (other._snapshot() if isinstance(other, _GatedToolRegistry) else other)
+
+    def __ne__(self, other) -> bool:
+        return not self.__eq__(other)
+
+    __hash__ = None
+
 
 TOOLS = _GatedToolRegistry(TOOLS, {"search_my_notes": notes_tool_enabled})

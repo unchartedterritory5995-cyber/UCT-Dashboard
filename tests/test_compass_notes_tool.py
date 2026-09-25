@@ -146,6 +146,23 @@ def test_the_registry_keeps_behaving_like_the_dict_its_callers_use(monkeypatch):
     assert cct.TOOLS["get_trader_profile"]["name"] == "get_trader_profile"
 
 
+def test_copy_repr_and_equality_see_ONLY_the_visible_tools(monkeypatch):
+    """Review M-8 (fix round 1): `repr()` and `==` read every stored entry and
+    showed the gated tool while dark. `copy()` and `dict()` did NOT (CPython
+    merges this subclass through its own `keys()`); pinned here all the same,
+    so an interpreter that changes that goes red instead of leaking."""
+    monkeypatch.delenv(GATE, raising=False)
+    dark = cct.TOOLS.copy()
+    assert type(dark) is dict and "search_my_notes" not in dark
+    assert "search_my_notes" not in dict(cct.TOOLS)
+    assert "search_my_notes" not in repr(cct.TOOLS)
+    assert cct.TOOLS == dark and not (cct.TOOLS != dark)
+    monkeypatch.setenv(GATE, "1")
+    lit = cct.TOOLS.copy()
+    assert "search_my_notes" in lit and "search_my_notes" in repr(cct.TOOLS)   # control
+    assert cct.TOOLS == lit and cct.TOOLS != dark
+
+
 # ── the retrieval contract ───────────────────────────────────────────────────
 
 def test_it_calls_retrieve_with_limit_8_and_never_hands_it_the_chat_connection(monkeypatch):
