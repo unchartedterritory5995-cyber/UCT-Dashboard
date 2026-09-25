@@ -351,10 +351,22 @@ leave them alone indefinitely with no consequence.
 # Confirm production is healthy and on the expected commit
 curl -s -A "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/128.0 Safari/537.36" https://uctintelligence.com/api/health
 cd /c/Users/Patrick/uct-worktrees/_merge-master && git fetch origin --quiet
-git merge-base --is-ancestor ef0c79480 origin/production && echo "confirmed live" || echo "STATE HAS CHANGED -- re-derive from git log, don't trust this file's SHAs blindly"
+git merge-base --is-ancestor 24092c91d origin/production && echo "confirmed live" || echo "STATE HAS CHANGED -- re-derive from git log, don't trust this file's SHAs blindly"
 
 # Confirm the flag is still armed the way this file says
 railway variables --service web --kv | grep RESEARCH_FLOW_TAB_ENABLED
+
+# THE DAILY S7 READ (owner delegated the alert lifecycle to the agent, 2026-09-25 -- "You do it").
+# Both scripts read as the admin smoke account (creds from env, never printed) and mask ids.
+S=C:/Users/Patrick/uct-worktrees/terminal-research/docs/terminal-research/10-roadmap/evidence
+python $S/2026-09-25-s7-price-level-dark-read/dark_dump.py price-level /tmp/pl.json
+python $S/2026-09-25-s7-price-level-dark-read/dark_dump.py scan-membership-change /tmp/smc.json
+# Compare to DECISION_CARDS_2026-09-25.md: CARD 1 bar = agreed >= 5 across >= 3 of the owner's five
+# levels (alert ids 72b7ff28 a6e2b755 c21681ca b08c9841 01b5b35b), new_only 0, legacy_only 0 beyond
+# pre-window persistence, >= 5 sessions -> assemble the FLIP packet that day. CARD 2 = after the
+# 2026-09-26 tick, assemble the CP4 packet; the owner's three screens (26wk HV, Above 50 on volume,
+# Oops Reversal) must appear as predicates after the 05:20 ET sweep. Leave the owner's alerts and
+# subscriptions in place until a bar is met; a fired one-shot alert deactivating itself is DATA.
 ```
 
 If either check disagrees with what this file says, **trust the live system over this
