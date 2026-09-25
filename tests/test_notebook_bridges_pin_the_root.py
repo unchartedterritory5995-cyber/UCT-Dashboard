@@ -38,6 +38,15 @@ Two halves, and they fail for different reasons:
 * the subprocess control runs ONE bridge (`note_tasks_bridge.py`, the one that hand-pinned).
 Low risk today (the three bridges' only non-`api` import, `tools.bridge_sandbox`, imports no
 `api`), and each is a place to widen the rail if a bridge ever grows that shape.
+
+WIDENED (wave 7 whole-branch fix, tooling review M-4): the same AST walk now also covers every
+`tools/notebook_*.py` that imports `api.` -- the review's mutation A (the benchmark's
+`import conftest` moved below its `api.*` imports) survived every rail, because the benchmark's
+own tests import it under pytest. SCOPED to the notebook family, not every `tools/*.py`: 76
+tools outside it that import `api.` fail the check, many of them operator tools meant to read
+production data on purpose, and deciding which should be sandboxed is their owners' call. The
+section before `test_the_walk_sees_what_it_claims_to` carries the measurement and the one
+exemption, `notebook_volume_report.py`, with its reason.
 """
 from __future__ import annotations
 
@@ -138,6 +147,75 @@ def test_every_bridge_applies_the_census_before_any_api_import():
     for path in _bridges():
         problems.extend(_problems(path.read_text(encoding="utf-8"), path.name))
     assert not problems, "\n".join(problems)
+
+
+# ─── wave 7 whole-branch fix, M-4: the notebook TOOLS, not only the bridges ─────────────
+#
+# Mutation A of the tooling review SURVIVED: moving `import conftest` below the `api.*` imports
+# in `tools/notebook_scale_benchmark.py` passed every rail (24/24), because the benchmark's own
+# tests import it under pytest, where conftest is already loaded -- while the CI job and the
+# local 50k gate run it as a SCRIPT, where nothing else pins a path first. So the same AST
+# walk now covers every `tools/notebook_*.py` that imports `api.`.
+#
+# ⛔ SCOPED TO THE NOTEBOOK FAMILY, ON PURPOSE, and said here rather than hidden. Measured when
+# this was written: 90 of the 356 `tools/*.py` import `api.`, and 77 of those fail this same
+# ordering check -- no module-level `import conftest`, or one after the first api import (76
+# outside the notebook family are named, with file:line, in the wave-7 whole-branch fix's
+# tooling report; the 77th is the notebook exemption below). Many are operator tools written to run AGAINST PRODUCTION data -- on the
+# Railway pod, or against a live data root on purpose (`archive_authdb_backup.py`,
+# `authdb_restore_drill.py`, the provider probes) -- where applying the census would point them
+# at an empty sandbox and make them report nothing. Which of those should be sandboxed is each
+# tool owner's call, not this rail's; widening the glob is one line once they are decided.
+
+NOTEBOOK_TOOLS_GLOB = "notebook_*.py"
+
+#: Named members, never a count: the walk must SEE the benchmark, or it is walking nothing.
+KNOWN_NOTEBOOK_API_TOOLS = ("notebook_scale_benchmark.py",)
+
+#: A notebook tool whose PURPOSE is to read the live data root -- the census would point it at an
+#: empty sandbox. Each carries its reason; `test_the_notebook_tool_walk_...` fails on a stale one.
+LIVE_ROOT_READERS = {
+    "notebook_volume_report.py": (
+        "READ-ONLY by construction (os.walk + shutil.disk_usage) and its docstring's whole point is "
+        "to measure the LIVE attachment volume before a connector opens ('safe to run against a "
+        "live data root'); pinned to a sandbox it would report an empty volume"),
+}
+
+
+def _notebook_api_tools() -> list[Path]:
+    import warnings
+    out = []
+    for path in sorted(TOOLS.glob(NOTEBOOK_TOOLS_GLOB)):
+        with warnings.catch_warnings():
+            warnings.simplefilter("ignore", SyntaxWarning)      # a walk's docstring escape, not ours
+            tree = ast.parse(path.read_text(encoding="utf-8"), path.name)
+        if _api_import_sites(tree):
+            out.append(path)
+    return out
+
+
+def test_every_notebook_tool_that_imports_api_applies_the_census_first():
+    """A notebook tool run as a script (the CI benchmark, the 50k gate, a bridge) is outside
+    pytest: only its OWN module-level `import conftest`, before its first `api` import in
+    statement order, pins every shared-root path and arms the tripwire. Scoped to
+    `tools/notebook_*.py` on purpose (the comment above says why, with the measurement)."""
+    problems = []
+    for path in _notebook_api_tools():
+        if path.name in LIVE_ROOT_READERS:
+            continue
+        problems.extend(_problems(path.read_text(encoding="utf-8"), path.name))
+    assert not problems, "\n".join(problems)
+
+
+def test_the_notebook_tool_walk_sees_the_benchmark_and_every_exemption_is_live():
+    names = [p.name for p in _notebook_api_tools()]
+    for known in KNOWN_NOTEBOOK_API_TOOLS:
+        assert known in names, f"{known} is not in {names} -- the walk is reading the wrong place"
+    for exempt, why in LIVE_ROOT_READERS.items():
+        assert exempt in names, f"stale exemption: {exempt} no longer imports api (or is gone)"
+        assert len(why) > 60, f"{exempt}: an exemption must say why"
+    checked = [n for n in names if n not in LIVE_ROOT_READERS]
+    assert checked, "every notebook tool is exempt -- the rail checks nothing"
 
 
 def test_the_walk_sees_what_it_claims_to():

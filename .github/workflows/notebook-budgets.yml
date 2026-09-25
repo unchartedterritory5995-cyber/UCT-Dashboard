@@ -84,6 +84,8 @@ jobs:
 
       # The benchmark imports the repo-root conftest before any api.* module, so every
       # /data path it could touch is pinned to a sandbox and a stray write fails the run.
+      # Railed (M-4): tests/test_notebook_bridges_pin_the_root.py walks every
+      # tools/notebook_*.py that imports api. and fails on a late or missing `import conftest`.
       - name: Benchmark the 1k and 10k tiers (50k is the local gate -- see the header)
         # --remeasure: an op over one of these budgets' lines is re-timed once before it can
         # count (I-3 in the header); tests/test_notebook_scale_benchmark.py holds every --budget
