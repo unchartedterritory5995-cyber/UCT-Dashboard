@@ -89,11 +89,13 @@ describe('NoteEditorPage — save-error sanitization (P1-1 fix)', () => {
     await renderEditor()
     await triggerAutosave()
 
-    // "Failed to fetch" is a real browser-authored message, not a bare
-    // 3-digit code -- friendlySaveError preserves it verbatim by design;
-    // the regression this guards is a BARE status code slipping through,
-    // which this asserts does not happen.
+    // "Failed to fetch" is the BROWSER's message, not the server's detail:
+    // since wave 7 fix round 1 (review M-4) friendlySaveError reads it as the
+    // network failure it is, instead of preserving it verbatim. The regression
+    // this guards is still a BARE status code slipping through.
     const status = screen.getByText('Reconnecting…').closest('[title]')
     expect(status.getAttribute('title')).not.toMatch(/^\d{3}$/)
+    expect(status.getAttribute('title')).not.toContain('Failed to fetch')
+    expect(status.getAttribute('title')).toMatch(/couldn't reach the server/i)
   })
 })

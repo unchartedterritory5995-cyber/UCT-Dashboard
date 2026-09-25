@@ -184,6 +184,26 @@ describe('NoteEditorPage — the camera "Scan" door (wave 7 G5)', () => {
     })
   })
 
+  // Review M-4 (fix round 1): a photo that never reached the server says
+  // THAT, in a sentence -- never the browser's own words -- and says the note
+  // is unchanged exactly once.
+  it.each([
+    ['Chrome', 'Failed to fetch'],
+    ['Safari', 'Load failed'],
+    ['Firefox', 'NetworkError when attempting to fetch resource.'],
+  ])('a photo upload that never reaches the server (%s) says so, not the browser\'s words', async (_b, words) => {
+    fetchMock.mockImplementation((url) => (String(url).endsWith('/images')
+      ? Promise.reject(new TypeError(words))
+      : Promise.resolve({ ok: true, json: () => Promise.resolve({}) })))
+    const { root } = await mountEditorInPane('main', 'n1')
+    const input = within(root).getByLabelText('Scan a document with the camera — photo')
+    fireEvent.change(input, { target: { files: [new File(['x'], 'page.jpg', { type: 'image/jpeg' })] } })
+    const toast = await screen.findByText(/Couldn't upload page\.jpg/)
+    expect(toast.textContent).toMatch(/Couldn't reach the server/)
+    expect(toast.textContent).not.toContain(words)
+    expect(toast.textContent.match(/unchanged/g)).toHaveLength(1)
+  })
+
   it('a refused photo (a phone\'s HEIC) says the SERVER\'s sentence in the toast', async () => {
     fetchMock.mockImplementation((url) => (String(url).endsWith('/images')
       ? Promise.resolve({ ok: false, status: 400,
@@ -197,5 +217,29 @@ describe('NoteEditorPage — the camera "Scan" door (wave 7 G5)', () => {
     const toast = await screen.findByText(/Couldn't upload IMG_0001\.HEIC/)
     expect(toast.textContent).toContain('Only PNG/JPG/GIF/WebP images allowed.')
     expect(toast.textContent).toContain('Your note is unchanged.')
+    // Review M-10 (fix round 1): refused BEFORE the upload -- a phone never
+    // ships the megabytes only to be told no.
+    expect(fetchMock.mock.calls.some(([u]) => String(u).endsWith('/images'))).toBe(false)
+  })
+
+  it('a photo over the 5 MB limit is refused before the upload, in the server\'s words', async () => {
+    const { root } = await mountEditorInPane('main', 'n1')
+    const input = within(root).getByLabelText('Scan a document with the camera — photo')
+    const big = new File(['x'], 'huge.jpg', { type: 'image/jpeg' })
+    Object.defineProperty(big, 'size', { value: 5 * 1024 * 1024 + 1 })
+    fireEvent.change(input, { target: { files: [big] } })
+    const toast = await screen.findByText(/Couldn't upload huge\.jpg/)
+    expect(toast.textContent).toContain('Image must be < 5 MB.')
+    expect(fetchMock.mock.calls.some(([u]) => String(u).endsWith('/images'))).toBe(false)
+  })
+
+  it('CONTROL: a photo with NO type is left to the server, which reads the bytes', async () => {
+    fetchMock.mockImplementation((url) => (String(url).endsWith('/images')
+      ? Promise.resolve({ ok: true, json: () => Promise.resolve({ url: '/api/j2/notes/n1/images/a.jpg' }) })
+      : Promise.resolve({ ok: true, json: () => Promise.resolve({}) })))
+    const { root } = await mountEditorInPane('main', 'n1')
+    const input = within(root).getByLabelText('Scan a document with the camera — photo')
+    fireEvent.change(input, { target: { files: [new File(['x'], 'page', { type: '' })] } })
+    await waitFor(() => expect(fetchMock.mock.calls.some(([u]) => String(u).endsWith('/images'))).toBe(true))
   })
 })

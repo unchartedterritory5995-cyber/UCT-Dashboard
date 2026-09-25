@@ -129,9 +129,19 @@ const RETRY_BACKOFFS_MS = [1000, 2000, 4000, 8000, 15000, 30000]
 // (e.g. "500") when it didn't -- which means nothing to a member and used
 // to render as-is ("Save failed: 500"). This only ever replaces the bare
 // code, never a real detail.
+//
+// ⭐ Wave 7 fix round 1 (review M-4): nor is it ever the BROWSER's words. A
+// fetch that never reached the server throws a TypeError carrying the
+// browser's own message -- Chrome "Failed to fetch", Safari "Load failed",
+// Firefox "NetworkError when attempting to fetch resource." -- which is
+// plumbing, not the server's detail this function preserves, and it reached a
+// member verbatim on Insert image / Scan / attach. It reads as the network
+// failure it is.
+const BROWSER_NETWORK_FAILURE = /^(failed to fetch|load failed|networkerror when attempting to fetch resource\.?|network request failed)$/i
 function friendlySaveError(e, status, { retrying = false } = {}) {
   const msg = e?.message
-  if (msg && !/^\d{3}$/.test(msg)) return msg
+  const browserSaid = e instanceof TypeError || (msg && BROWSER_NETWORK_FAILURE.test(msg.trim()))
+  if (msg && !browserSaid && !/^\d{3}$/.test(msg)) return msg
   if (!status || status >= 500) {
     return retrying
       ? "Couldn't reach the server — your note is unchanged, retrying automatically."
@@ -1365,8 +1375,10 @@ export default function NoteEditorPage({ noteId, onBack, showBack = true, onTitl
       // the attachment path below records why).
       const why = friendlySaveError(e, e?.status)
       const said = /[.!?]$/.test(why) ? why : `${why}.`
+      // The network sentences already say the note is unchanged; say it once.
+      const tail = /unchanged/i.test(said) ? '' : ' Your note is unchanged.'
       setUploadToast({
-        message: `Couldn't upload ${file.name || 'image'} — ${said} Your note is unchanged.`,
+        message: `Couldn't upload ${file.name || 'image'} — ${said}${tail}`,
         tone: 'error',
       })
     }
