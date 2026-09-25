@@ -81,7 +81,12 @@ export default function useJ2Notes({
   // shouldn't hit the default list on every render) pass this instead of
   // calling the hook conditionally (not allowed — same hook, every render).
   const { data, error, isLoading, isValidating, mutate } = useSWR(url, listFetcher, {
-    revalidateOnFocus: true,
+    // ⛔ Wave 7 whole-branch fix (frontend review M-6): a list that carries a search query
+    // (`q`) does NOT re-run on focus. Every return to the tab re-sent the member's 3+ word
+    // query -- one more synchronous embed per focus once the meaning search is armed. A search
+    // is refreshed by the member's own writes (the key-predicate refresh), not by focus. Lists
+    // without a query keep following focus. Rail: useJ2Notes.searchFocus.test.jsx.
+    revalidateOnFocus: !q,
     shouldRetryOnError: false,
   })
 

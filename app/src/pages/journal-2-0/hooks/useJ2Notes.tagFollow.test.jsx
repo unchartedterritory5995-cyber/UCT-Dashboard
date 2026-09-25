@@ -17,8 +17,11 @@ import { SWRConfig, useSWRConfig } from 'swr'
 import useJ2Notes from './useJ2Notes'
 import useJ2NoteTags, { NOTE_TAGS_KEY, tagSignature } from './useJ2NoteTags'
 
-function Probe({ q }) {
-  const { notes } = useJ2Notes({ q })
+// ⚠️ A FOLDER key, not a query: since the whole-branch fix M-6 a list carrying `q` no longer
+// revalidates on focus (useJ2Notes.searchFocus.test.jsx), and NotebookTab's main list sends no `q`
+// anyway -- a folder list is the shape these rails are about.
+function Probe({ folderId }) {
+  const { notes } = useJ2Notes({ folderId })
   useJ2NoteTags() // the sidebar's tag cloud, mounted beside the list the way NotebookTab mounts both
   return <div data-testid="list">{notes.map((n) => `${n.title}[${(n.tags || []).join('|')}]`).join(',')}</div>
 }
@@ -63,7 +66,7 @@ describe('useJ2Notes asks the tag counts when, and only when, its own refresh mo
     const tagFetches = () => calls.filter((u) => u === NOTE_TAGS_KEY).length
     const listFetches = () => calls.filter((u) => u.startsWith('/api/j2/notes?') || u === '/api/j2/notes').length
 
-    const view = render(harness(<Probe q="plan" />))
+    const view = render(harness(<Probe folderId="f-plan" />))
     await waitFor(() => expect(screen.getByTestId('list').textContent).toBe('Plan[setups],Recap[]'))
     expect(tagFetches()).toBe(1)
 
@@ -85,9 +88,9 @@ describe('useJ2Notes asks the tag counts when, and only when, its own refresh mo
     await waitFor(() => expect(screen.getByTestId('list').textContent).toBe('Plan v2[setups],Recap[earnings]'))
     await waitFor(() => expect(tagFetches()).toBe(2))
 
-    // 4. a different query is a filter change, not a refresh: its different tags ask nothing
+    // 4. a different folder is a filter change, not a refresh: its different tags ask nothing
     page = [{ id: 'n7', title: 'Macro', tags: ['rates'] }]
-    view.rerender(harness(<Probe q="macro" />))
+    view.rerender(harness(<Probe folderId="f-macro" />))
     await waitFor(() => expect(screen.getByTestId('list').textContent).toBe('Macro[rates]'))
     await new Promise((r) => setTimeout(r, 30))
     expect(tagFetches()).toBe(2)
@@ -114,7 +117,7 @@ describe('two notes lists, one tag cloud: one tag read per refresh', () => {
     return calls
   }
   function Notebookish() {
-    useJ2Notes({ q: 'plan' }) //     NotebookTab's main list
+    useJ2Notes({ folderId: 'f-plan' }) // NotebookTab's main list
     useJ2Notes({ sort: 'title' }) // NotebookTab's title list
     useJ2NoteTags() //               FolderSidebar's tag cloud
     const { mutate } = useSWRConfig()
@@ -171,7 +174,7 @@ describe('two notes lists, one tag cloud: one tag read per refresh', () => {
     const calls = stubServer(() => page)
     function TagsFirst() {
       useJ2NoteTags()
-      useJ2Notes({ q: 'plan' })
+      useJ2Notes({ folderId: 'f-plan' })
       useJ2Notes({ sort: 'title' })
       const { mutate } = useSWRConfig()
       useEffect(() => {
