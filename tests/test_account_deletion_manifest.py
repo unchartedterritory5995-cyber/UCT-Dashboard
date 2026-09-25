@@ -154,6 +154,65 @@ def test_every_member_table_the_schema_creates_is_purged_or_emptied_by_a_trigger
                       f"behind: {left} -- add them to account_purge._DIRECT_USER_TABLES")
 
 
+def _seed_member(conn, uid: str) -> None:
+    """One note, one document with one page, and one excerpt for `uid` -- through the base
+    tables, so the schema's own AFTER INSERT triggers fill every full-text mirror."""
+    ts = "2026-09-25T00:00:00+00:00"
+    conn.execute("INSERT INTO j2_notes (id, user_id, title, body_json, body_plain, tags, created_at, updated_at)"
+                 " VALUES (?,?,?,?,?,?,?,?)", (f"note-{uid}", uid, f"title {uid}", '{"type":"doc"}',
+                                                f"body {uid}", "[]", ts, ts))
+    conn.execute("INSERT INTO j2_note_documents (id, user_id, note_id, attachment_url, status, created_at)"
+                 " VALUES (?,?,?,?,'ready',?)", (f"doc-{uid}", uid, f"note-{uid}", f"/att/{uid}.pdf", ts))
+    conn.execute("INSERT INTO j2_note_document_pages (document_id, user_id, page_number, text)"
+                 " VALUES (?,?,1,?)", (f"doc-{uid}", uid, f"page words {uid}"))
+    conn.execute("INSERT INTO j2_note_excerpts (id, user_id, note_id, document_id, page_number, captured_text,"
+                 " created_at) VALUES (?,?,?,?,1,?,?)", (f"exc-{uid}", uid, f"note-{uid}", f"doc-{uid}",
+                                                         f"saved passage {uid}", ts))
+    conn.commit()
+
+
+def test_the_tables_only_a_trigger_empties_really_lose_the_deleted_members_rows():
+    """Fix round 1, review I-2. The schema rail above accepts a table as covered when an
+    AFTER DELETE trigger's SQL TEXT names it -- a reading. The full-text triggers key on a
+    `_fts_map` row, and a wrong or missing map entry deletes nothing while that text still
+    reads fine. So FIRE them: seed two members, purge one through the real
+    `purge_user_data`, and every `user_id` table the purge does not delete itself must go
+    from one row to none for the deleted member and stay at one for the other -- by name.
+    The set is derived (member tables minus what the purge deletes), never typed."""
+    from api.services.journal_two import account_purge
+    from api.services.journal_two import notes as notes_svc
+    from api.services.journal_two.db import ensure_schema
+
+    conn = sqlite3.connect(":memory:")
+    conn.row_factory = sqlite3.Row
+    try:
+        ensure_schema(conn)
+        notes_svc.register_note_sql_functions(conn)
+        tables = [r[0] for r in conn.execute(
+            r"SELECT name FROM sqlite_master WHERE type = 'table' AND name LIKE 'j2\_%' ESCAPE '\'")]
+        member = {t for t in tables if any(c[1] == "user_id" for c in conn.execute(f'PRAGMA table_info("{t}")'))}
+        only_by_trigger = sorted(member - _runtime_purged())
+        # Non-vacuity, by name: the three full-text mirrors are what this is about.
+        fts = {"j2_notes_fts", "j2_note_document_pages_fts", "j2_note_excerpts_fts"}
+        assert fts <= set(only_by_trigger), only_by_trigger
+        for uid in ("gone", "stays"):
+            _seed_member(conn, uid)
+
+        def count(t, uid):
+            return conn.execute(f'SELECT COUNT(*) FROM "{t}" WHERE user_id = ?', (uid,)).fetchone()[0]
+
+        before = {t: (count(t, "gone"), count(t, "stays")) for t in only_by_trigger}
+        unseeded = sorted(t for t, (g, s_) in before.items() if (g, s_) != (1, 1))
+        assert not unseeded, f"the seed did not reach these (extend _seed_member): {unseeded} {before}"
+        report = account_purge.purge_user_data("gone", conn)
+        assert report["errors"] == [], report["errors"]
+        after = {t: (count(t, "gone"), count(t, "stays")) for t in only_by_trigger}
+    finally:
+        conn.close()
+    wrong = {t: v for t, v in after.items() if v != (0, 1)}
+    assert not wrong, f"(deleted member, other member) rows left after the purge, want (0, 1): {wrong}"
+
+
 @pytest.mark.parametrize("source", [
     "X = 1\n",                                              # no tuple at all
     "_DIRECT_USER_TABLES = ()\n",                            # an empty tuple
