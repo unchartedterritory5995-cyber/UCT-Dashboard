@@ -334,3 +334,111 @@ def test_a_failed_fetch_gives_its_slot_back(rig):
         assert get(rig, "https://example.com/gone").status_code == 502
         lp._cache.clear()
     assert lp._inflight == {}
+
+
+# ── wave 6 whole-branch review I-1: a member cannot exhaust the pod ─────────
+# The shared guard read redirect and error bodies whole (and decoded), and the
+# parse ran on the one event loop. One member's host answering a 404 that never
+# ends, or a gzip bomb, or a huge headless page, was a pod-wide outage. The
+# guard's own rails (test_note_connectors_base.py) prove the byte budget at the
+# primitive; these prove the route answers through it.
+
+_CHUNK = 64 * 1024
+
+
+class _Endless(httpx.AsyncByteStream):
+    """A body that keeps coming, counting what the route pulled (finite only so
+    a regression terminates and reds instead of hanging)."""
+
+    def __init__(self, chunks):
+        self._chunks = chunks
+        self.sent = 0
+
+    async def __aiter__(self):
+        for raw in self._chunks:
+            self.sent += len(raw)
+            yield raw
+
+
+def test_a_404_that_never_ends_is_a_gateway_answer_after_a_few_kb(rig):
+    stream = _Endless(b"x" * _CHUNK for _ in range(512))       # 32 MB on offer
+    rig["rec"].routes = {"https://evil.example.com/": lambda req: httpx.Response(404, stream=stream)}
+    r = get(rig, "https://evil.example.com/")
+    assert r.status_code == 502
+    assert stream.sent <= _CHUNK, f"the route pulled {stream.sent:,} bytes of a 404 body"
+
+
+def test_a_gzip_bomb_page_is_no_preview_and_is_never_inflated_whole(rig):
+    import gzip
+
+    bomb = gzip.compress(b"<html><head><title>x</title></head><body>" + bytes(32 * 1024 * 1024), 9)
+    stream = _Endless([bomb])
+    rig["rec"].routes = {"https://evil.example.com/b": lambda req: httpx.Response(
+        200, stream=stream, headers={"content-type": "text/html", "content-encoding": "gzip"})}
+    r = get(rig, "https://evil.example.com/b")
+    assert (r.status_code, r.json()["detail"]) == (422, "No preview for this link.")
+    assert stream.sent == len(bomb), "non-vacuity: the bomb was delivered"
+
+
+def test_the_route_asks_every_page_for_an_unencoded_body(rig):
+    rig["rec"].routes = {"https://news.example.com/a": html()}
+    assert get(rig, "https://news.example.com/a").status_code == 200
+    assert [q.headers.get("accept-encoding") for q in rig["rec"].requests] == ["identity"]
+
+
+def test_a_slow_parse_does_not_block_a_concurrent_request(rig, monkeypatch):
+    # ⛔ The parse runs in a worker thread and the route AWAITS it: while one
+    # page's parse is stuck, another member's preview is fetched, parsed and
+    # answered. On the loop, the second request could not even start until the
+    # first parse gave up -- `released` below would read False.
+    import asyncio
+    import threading
+
+    started, release, outcome = threading.Event(), threading.Event(), {}
+    real_parse = lp.parse_preview
+
+    def parse(html_text, *, url, final_url):
+        if url.endswith("/slow"):
+            started.set()
+            outcome["released"] = release.wait(timeout=3)
+        return real_parse(html_text, url=url, final_url=final_url)
+
+    monkeypatch.setattr(lp, "parse_preview", parse)
+    rig["rec"].routes = {"https://example.com/slow": html(), "https://example.com/fast": html()}
+
+    async def main():
+        slow = asyncio.create_task(lp.link_preview(url="https://example.com/slow", user={"id": "u1"}))
+        for _ in range(300):                 # poll on the loop -- never block it
+            if started.is_set():
+                break
+            await asyncio.sleep(0.01)
+        fast = await asyncio.wait_for(
+            lp.link_preview(url="https://example.com/fast", user={"id": "u2"}), timeout=2)
+        slow_was_still_parsing = not slow.done()
+        release.set()
+        return fast, slow_was_still_parsing, await slow
+
+    fast, slow_was_still_parsing, slow = asyncio.run(main())
+    assert started.is_set(), "non-vacuity: the slow parse ran"
+    assert outcome.get("released") is True, (
+        "the slow parse was never released by the test: the concurrent request could not run "
+        "while it parsed -- the parse is blocking the event loop")
+    assert slow_was_still_parsing
+    assert fast["title"] == slow["title"] == "NVDA prints a record quarter"
+
+
+def test_a_parse_past_its_ceiling_is_a_gateway_answer(rig, monkeypatch):
+    import time
+
+    monkeypatch.setattr(lp, "PARSE_TIMEOUT_S", 0.05)
+    real_parse = lp.parse_preview
+
+    def slow_parse(html_text, *, url, final_url):
+        time.sleep(0.4)
+        return real_parse(html_text, url=url, final_url=final_url)
+
+    monkeypatch.setattr(lp, "parse_preview", slow_parse)
+    rig["rec"].routes = {"https://example.com/heavy": html()}
+    r = get(rig, "https://example.com/heavy")
+    assert r.status_code == 504
+    assert lp._inflight == {}, "a timed-out parse left its member slot held"

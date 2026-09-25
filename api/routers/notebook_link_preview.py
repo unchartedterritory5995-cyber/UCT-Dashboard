@@ -22,8 +22,16 @@ SSRF surface, and every rule below exists for that reason:
     rebinding-proof; base.py says why that is accepted for a fetch that
     carries no credential -- and this one carries none (below).
   * A SIZE CAP. The guard streams and refuses a body past `MAX_BYTES` (it
-    never truncates), so memory per fetch is bounded; `_SEM` bounds how many
-    run at once.
+    never truncates), counted in DECODED bytes, so memory per fetch is
+    bounded; `_SEM` bounds how many run at once. A redirect or error body is
+    never read past a few KB and never decoded (wave 6 whole-branch review
+    I-1: it used to be read whole, and one member could send the pod a 404
+    that never ends, or a gzip bomb).
+  * THE PARSE IS OFF THE EVENT LOOP. Decoding and parsing up to `MAX_BYTES`
+    of HTML (a page with no `</head>` is parsed whole) runs in a worker
+    thread, inside the same `_SEM` slot as its fetch so the memory bound
+    still counts it, under its own ceiling (`PARSE_TIMEOUT_S`). The web pod
+    is one process: a parse on the loop stalls every member's request.
   * A TIMEOUT per request (`TIMEOUT_S`) and one for the whole fetch including
     redirects (`TOTAL_S`).
   * NO COOKIES, NO CREDENTIALS. A fresh client per fetch whose cookie jar never
@@ -64,6 +72,9 @@ MAX_URL_LEN = 2048
 MAX_BYTES = 3 * 1024 * 1024
 TIMEOUT_S = 5.0
 TOTAL_S = 12.0
+# The parse gets the same ceiling as one network read. The thread cannot be
+# cancelled, but the request stops waiting for it and answers (a 504).
+PARSE_TIMEOUT_S = TIMEOUT_S
 MAX_REDIRECTS = 5
 OK_TTL_S = 6 * 3600
 FAIL_TTL_S = 10 * 60        # a refusal (not https, private host, not a page) stays refused
@@ -249,6 +260,12 @@ def _refuse(status: int, detail: str):
     raise HTTPException(status_code=status, detail=detail)
 
 
+def _preview_from_body(body: bytes, content_type: str, url: str, final_url: str) -> dict[str, Any] | None:
+    """Decode + parse: the CPU-bound half, run in a worker thread. Looks up
+    `parse_preview` at call time (a module patch reaches it)."""
+    return parse_preview(_decode(body, content_type), url=url, final_url=final_url)
+
+
 async def _fetch_preview(url: str) -> dict[str, Any]:
     async with _SEM:
         async with _make_client() as client:
@@ -265,13 +282,21 @@ async def _fetch_preview(url: str) -> dict[str, Any]:
                 _refuse(422, NO_PREVIEW)
             except NoteConnTransient:
                 _refuse(502, "Couldn't reach that page.")
-    if response.status_code >= 300:
-        _refuse(502, f"That page did not answer (HTTP {response.status_code}).")
-    content_type = response.headers.get("content-type", "")
-    kind = content_type.split(";", 1)[0].strip().lower()
-    if kind not in ("text/html", "application/xhtml+xml") and not (not kind and body.lstrip()[:1] == b"<"):
-        _refuse(422, "That link is not a web page.")
-    preview = parse_preview(_decode(body, content_type), url=url, final_url=str(response.url))
+        if response.status_code >= 300:
+            _refuse(502, f"That page did not answer (HTTP {response.status_code}).")
+        content_type = response.headers.get("content-type", "")
+        kind = content_type.split(";", 1)[0].strip().lower()
+        if kind not in ("text/html", "application/xhtml+xml") and not (not kind and body.lstrip()[:1] == b"<"):
+            _refuse(422, "That link is not a web page.")
+        # ⛔ OFF THE LOOP, and still inside this fetch's `_SEM` slot: the body
+        # it holds is counted by the same bound as the fetch that produced it.
+        try:
+            preview = await asyncio.wait_for(
+                asyncio.to_thread(_preview_from_body, body, content_type, url, str(response.url)),
+                timeout=PARSE_TIMEOUT_S,
+            )
+        except asyncio.TimeoutError:
+            _refuse(504, "That page took too long to answer.")
     if preview is None:
         _refuse(422, NO_PREVIEW)
     return preview

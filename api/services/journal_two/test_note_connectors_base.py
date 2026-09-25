@@ -323,3 +323,192 @@ async def test_guarded_media_stream_wraps_a_transport_error_as_transient():
     client = httpx.AsyncClient(transport=httpx.MockTransport(handler))
     with pytest.raises(NoteConnTransient):
         await guarded_media_stream(client, "https://8.8.8.8/img.png", max_bytes=1024)
+
+
+# ---------------------------------------------------------------------------
+# ⛔ THE BYTE BUDGET ON EVERY READ (wave 6 whole-branch review I-1).
+#
+# The redirect and error branches used to `aread()` the whole body, and httpx
+# decodes while it reads -- so a `404` that never ends, or a small gzip that
+# inflates to GBs, ran the single web pod out of memory, and wave 6's link
+# preview put that one member request away. These fake servers COUNT what they
+# were made to send: an unbounded read shows up as the counter, not as a
+# memory graph. Each stream is finite only so a regressed guard terminates
+# (and reds) instead of hanging the suite.
+# ---------------------------------------------------------------------------
+
+_CHUNK = 64 * 1024
+_ENDLESS = 32 * 1024 * 1024        # "unbounded", from the guard's point of view
+
+
+class _CountingStream(httpx.AsyncByteStream):
+    """A body that keeps coming, counting every byte the guard pulled."""
+
+    def __init__(self, chunks):
+        self._chunks = chunks
+        self.sent = 0          # raw bytes handed to httpx
+        self.decoded = 0       # what those bytes inflate to (== sent when not compressed)
+        self.closed = False
+
+    async def __aiter__(self):
+        for raw, decoded_len in self._chunks:
+            self.sent += len(raw)
+            self.decoded += decoded_len
+            yield raw
+
+    async def aclose(self):
+        self.closed = True
+
+
+def _plain_endless():
+    block = b"x" * _CHUNK
+    return _CountingStream((block, len(block)) for _ in range(_ENDLESS // _CHUNK))
+
+
+def _gzip_bomb_bytes(decoded_total=_ENDLESS):
+    """gzip of `decoded_total` zero bytes, built BEFORE any measurement starts
+    (~32 KB that inflate to 32 MB -- a real bomb's ratio)."""
+    import gzip
+
+    return gzip.compress(bytes(decoded_total), compresslevel=9)
+
+
+def _gzip_bomb(bomb: bytes, decoded_total=_ENDLESS):
+    """The whole bomb in ONE network chunk -- the case a running total over
+    httpx's own decoder cannot bound, since httpx inflates a chunk whole."""
+    return _CountingStream([(bomb, decoded_total)])
+
+
+async def test_an_unbounded_ERROR_body_is_read_only_to_the_side_cap_then_abandoned():
+    stream = _plain_endless()
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        return httpx.Response(404, stream=stream)
+
+    client = httpx.AsyncClient(transport=httpx.MockTransport(handler))
+    content, response = await guarded_media_stream(client, "https://8.8.8.8/x", max_bytes=1024 * 1024)
+    # The policy, as a bound rather than a restated number: a side body is at
+    # most "a few KB" -- raising the constant past that is a decision, not a tweak.
+    assert base_module._SIDE_BODY_MAX_BYTES <= 16 * 1024
+    assert response.status_code == 404
+    assert len(content) <= base_module._SIDE_BODY_MAX_BYTES
+    # ⛔ THE LOAD-BEARING ONE: the server was stopped after one chunk, not drained.
+    assert stream.sent <= base_module._SIDE_BODY_MAX_BYTES + _CHUNK, (
+        f"the guard pulled {stream.sent:,} bytes of a 404 body")
+
+
+async def test_a_gzip_bomb_ERROR_body_is_never_inflated():
+    stream = _gzip_bomb(_gzip_bomb_bytes())
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        return httpx.Response(404, stream=stream, headers={"content-encoding": "gzip"})
+
+    client = httpx.AsyncClient(transport=httpx.MockTransport(handler))
+    content, response = await guarded_media_stream(client, "https://8.8.8.8/x", max_bytes=1024 * 1024)
+    assert (response.status_code, content) == (404, b"")
+    assert stream.sent == 0, "an encoded error body was read"
+
+
+async def test_an_unbounded_REDIRECT_body_is_not_read_at_all():
+    stream = _plain_endless()
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        if str(request.url) == "https://8.8.8.8/a":
+            return httpx.Response(302, headers={"location": "https://8.8.8.8/b"}, stream=stream)
+        return httpx.Response(200, content=b"final")
+
+    client = httpx.AsyncClient(transport=httpx.MockTransport(handler))
+    content, response = await guarded_media_stream(client, "https://8.8.8.8/a", max_bytes=1024)
+    assert (content, response.status_code) == (b"final", 200)
+    assert stream.sent == 0, f"the guard pulled {stream.sent:,} bytes of a redirect body"
+
+
+async def test_an_unbounded_SUCCESS_body_stops_at_the_cap_with_a_bounded_read_error():
+    stream = _plain_endless()
+    cap = 256 * 1024
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        return httpx.Response(200, stream=stream)   # no Content-Length to refuse on
+
+    client = httpx.AsyncClient(transport=httpx.MockTransport(handler))
+    try:
+        await guarded_media_stream(client, "https://8.8.8.8/x", max_bytes=cap)
+        refused = False
+    except NoteConnUnsupported:
+        refused = True
+    # The counter first: an uncapped read shows as the bytes it pulled.
+    assert stream.sent <= cap + _CHUNK, f"the guard pulled {stream.sent:,} bytes past a {cap:,}-byte cap"
+    assert refused, "a body past the cap must be refused, never returned"
+
+
+async def test_a_gzip_bomb_SUCCESS_body_is_aborted_at_the_cap_counted_DECODED():
+    import tracemalloc
+
+    bomb = _gzip_bomb_bytes()
+    stream = _gzip_bomb(bomb)
+    cap = 1024 * 1024
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        return httpx.Response(200, stream=stream, headers={"content-encoding": "gzip"})
+
+    client = httpx.AsyncClient(transport=httpx.MockTransport(handler))
+    tracemalloc.start()
+    try:
+        try:
+            await guarded_media_stream(client, "https://8.8.8.8/x", max_bytes=cap)
+            refused = False
+        except NoteConnUnsupported:
+            refused = True
+        peak = tracemalloc.get_traced_memory()[1]
+    finally:
+        tracemalloc.stop()
+    assert stream.sent == len(bomb), "non-vacuity: the bomb was actually delivered"
+    # ⛔ PEAK MEMORY, not a count the guard reports about itself: the bomb is ONE
+    # network chunk that inflates to 32 MB, and inflating it whole (what httpx's
+    # own decoder does) shows here whatever the running total said afterwards.
+    assert peak < 4 * cap, f"peak {peak:,} bytes while refusing a {len(bomb):,}-byte bomb"
+    assert refused, "a body that decodes past the cap must be refused"
+
+
+async def test_a_body_in_an_encoding_it_does_not_inflate_itself_is_refused_unread():
+    # ⛔ httpx decodes `br` whenever `brotli` is installed, and a brotli bomb's
+    # ratio dwarfs gzip's -- so an encoding the guard cannot bound is refused.
+    stream = _plain_endless()
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        return httpx.Response(200, stream=stream, headers={"content-encoding": "br"})
+
+    client = httpx.AsyncClient(transport=httpx.MockTransport(handler))
+    with pytest.raises(NoteConnUnsupported):
+        await guarded_media_stream(client, "https://8.8.8.8/x", max_bytes=1024 * 1024)
+    assert stream.sent == 0
+
+
+async def test_CONTROL_an_honest_gzip_body_under_the_cap_decodes_to_its_bytes():
+    # Non-vacuity for the inflating branch: without it, a guard that refused
+    # every gzip body would pass the two bomb rails above.
+    import gzip
+
+    page = b"<html><head><title>ok</title></head></html>" * 200
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        return httpx.Response(200, headers={"content-encoding": "gzip"},
+                              stream=_CountingStream([(gzip.compress(page), len(page))]))
+
+    client = httpx.AsyncClient(transport=httpx.MockTransport(handler))
+    content, response = await guarded_media_stream(client, "https://8.8.8.8/x", max_bytes=1024 * 1024)
+    assert (content, response.status_code) == (page, 200)
+
+
+async def test_every_hop_asks_for_an_unencoded_body():
+    seen = []
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        seen.append(request.headers.get("accept-encoding"))
+        if str(request.url) == "https://8.8.8.8/a":
+            return httpx.Response(302, headers={"location": "https://8.8.8.8/b"})
+        return httpx.Response(200, content=b"ok")
+
+    client = httpx.AsyncClient(transport=httpx.MockTransport(handler))
+    await guarded_media_stream(client, "https://8.8.8.8/a", max_bytes=1024)
+    assert seen == ["identity", "identity"]
