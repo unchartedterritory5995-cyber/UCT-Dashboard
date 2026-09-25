@@ -162,16 +162,16 @@ beforeEach(() => {
     return server.applyPut(patch, 'editor')
   })
   // `PATCH /notes/{id}/tags`: the delta applied to the list the server holds,
-  // no baseline (a metadata door), the note back when THIS write moved it --
-  // the `useJ2Note().patchTags` contract.
+  // no baseline (a metadata door) -- the `useJ2Note().patchTags` contract since
+  // lane J's J9: the note back ONLY when this request wrote it (the route's
+  // `changed: true`), null for a no-op, never inferred from a revision.
   patchTagsMock.mockReset()
-  patchTagsMock.mockImplementation(async (delta, { readAt } = {}) => {
+  patchTagsMock.mockImplementation(async (delta) => {
     if (!server.online) throw server.offlineError()
     if (server.gate) await server.gate.promise
     const tags = mergeTagDelta(server.note.tags, delta)
-    if (sameTagList(tags, server.note.tags)) return null
-    const landed = server.applyPut({ tags }, 'editor')
-    return landed.updatedAt !== readAt ? landed : null
+    if (sameTagList(tags, server.note.tags)) return null            // changed: false
+    return server.applyPut({ tags }, 'editor')                       // changed: true
   })
 
   global.fetch = vi.fn(async (url, opts = {}) => {

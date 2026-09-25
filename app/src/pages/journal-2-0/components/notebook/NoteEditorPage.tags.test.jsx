@@ -30,6 +30,15 @@ vi.mock('../../hooks/useJ2Notes', () => ({
   setNoteFavorite: vi.fn(),
 }))
 vi.mock('../../../../context/AuthContext', () => ({ useAuth: () => ({ user: null }) }))
+// The page's record of which revision is ITS OWN, spied and passed through.
+const { recordLanded } = vi.hoisted(() => ({ recordLanded: vi.fn() }))
+vi.mock('../../lib/offline/useDurableNote', async (importOriginal) => {
+  const real = await importOriginal()
+  return {
+    ...real,
+    recordLandedRevision: (...args) => { recordLanded(...args); return real.recordLandedRevision(...args) },
+  }
+})
 vi.mock('../../hooks/useJ2NoteFolders', () => ({ default: () => ({ folders: [] }) }))
 
 let serverTags
@@ -80,11 +89,13 @@ describe('the tag field sends DELTAS', () => {
   // device's tag change landing between this page's read and its write is
   // kept, not overwritten by a list computed before it existed. A PUT of a
   // whole list could not promise that, however fresh the read.
-  it('an ADD sends the DELTA to the tag door — never a whole list — at the revision it read', async () => {
+  it('an ADD sends the DELTA to the tag door — never a whole list, and nothing else', async () => {
     await renderEditor()
     addTag('mine')
     await waitFor(() => expect(tagPatches()).toHaveLength(1))
-    expect(tagPatches()[0]).toEqual([{ add: ['mine'] }, { readAt: 'T1' }])
+    // The delta ALONE: whether the answer's revision is ours is the server's
+    // `changed` (J9), never a revision this page read (see the next test).
+    expect(tagPatches()[0]).toEqual([{ add: ['mine'] }])
     expect(tagPuts()).toEqual([])
   })
 
@@ -92,8 +103,27 @@ describe('the tag field sends DELTAS', () => {
     await renderEditor()
     fireEvent.click(screen.getByRole('button', { name: 'Remove tag earnings' }))
     await waitFor(() => expect(tagPatches()).toHaveLength(1))
-    expect(tagPatches()[0]).toEqual([{ remove: ['earnings'] }, { readAt: 'T1' }])
+    expect(tagPatches()[0]).toEqual([{ remove: ['earnings'] }])
     expect(tagPuts()).toEqual([])
+  })
+
+  // ⛔ Lane J's J9: the tag door answers `changed`, and `useJ2Note.patchTags`
+  // hands back the note ONLY when this request wrote it -- null for a no-op
+  // answered at the row as stored, whose revision can be ANOTHER writer's.
+  // The page records exactly what the hook hands back; recording a no-op's
+  // revision would call the other device's edit "ours" and rebase over it.
+  it('a revision is recorded ONLY when the hook hands back a note (changed: true)', async () => {
+    await renderEditor()
+    recordLanded.mockClear()
+    patchTagsMock.mockImplementationOnce(async () => null)          // changed: false
+    addTag('mine')
+    await waitFor(() => expect(tagPatches()).toHaveLength(1))
+    await new Promise((r) => setTimeout(r, 20))
+    expect(recordLanded).not.toHaveBeenCalled()
+    addTag('second')                                                 // changed: true (the default mock)
+    await waitFor(() => expect(tagPatches()).toHaveLength(2))
+    await waitFor(() => expect(recordLanded).toHaveBeenCalledWith(
+      expect.objectContaining({ noteId: 'n1', updatedAt: 'T2' })))
   })
 
   it('a refused delta says so and changes nothing on the page', async () => {

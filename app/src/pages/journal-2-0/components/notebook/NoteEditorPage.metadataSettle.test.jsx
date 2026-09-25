@@ -78,14 +78,17 @@ beforeEach(() => {
   })
   // Wave 7 (M14): the tag door is `PATCH /notes/{id}/tags` -- the DELTA applied
   // to the list the server holds, answering at a new revision when it wrote.
-  // The same contract as `useJ2Note().patchTags`: the note when THIS write
-  // moved it (its revision differs from the one the caller read), else null.
+  // The same contract as `useJ2Note().patchTags` since lane J's J9: the route
+  // answers `changed`, and the hook hands back the note ONLY when this request
+  // wrote it (`changed: true`), null for a no-op -- never judged by comparing
+  // revisions, because a no-op answers at the row as stored, which can carry
+  // another writer's revision.
   patchTagsMock.mockReset()
-  patchTagsMock.mockImplementation(async (delta, { readAt } = {}) => {
+  patchTagsMock.mockImplementation(async (delta) => {
     const tags = mergeTagDelta(server.tags, delta)
-    if (sameTagList(tags, server.tags)) return null
+    if (sameTagList(tags, server.tags)) return null                // changed: false
     server = { ...server, tags, updatedAt: T3 }
-    return server.updatedAt !== readAt ? { ...server } : null
+    return { ...server }                                            // changed: true
   })
   global.fetch = vi.fn(async (url, opts = {}) => {
     const u = String(url)

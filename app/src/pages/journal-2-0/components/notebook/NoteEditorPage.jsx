@@ -2674,21 +2674,22 @@ export default function NoteEditorPage({ noteId, onBack, showBack = true, onTitl
   // ⭐ Wave 7 (M14): the delta itself goes to PATCH /notes/{id}/tags, which
   // applies it inside ONE transaction -- the read no longer supplies the list
   // that is written (a second device's change between the read and the write
-  // survives). The read still decides "nothing to send" and supplies the
-  // revision the answer is judged against (`readAt`, useJ2Note.patchTags).
+  // survives). The read decides only "nothing to send". Whether the answer's
+  // revision is OURS is the server's to say: the route answers `changed`
+  // (lane J, J9) and `useJ2Note.patchTags` hands back the note only when THIS
+  // request wrote it, null otherwise -- so a no-op answered at another
+  // writer's revision is never recorded as ours below.
   const [tagsBusy, setTagsBusy] = useState(false)
   const applyTagDelta = async (delta) => {
     // (One change at a time: the field is `busy` -- disabled -- until this settles.)
     setTagsBusy(true)
     try {
       let serverTags
-      let readAt
       try {
         const res = await fetch(`/api/j2/notes/${encodeURIComponent(noteId)}`, { credentials: 'include' })
         if (!res.ok) throw new Error(String(res.status))
         const body = await res.json()
         serverTags = Array.isArray(body?.note?.tags) ? body.note.tags : []
-        readAt = body?.note?.updatedAt ?? null
       } catch {
         setChromeMsg("Couldn't update tags — try again")
         return
@@ -2698,7 +2699,7 @@ export default function NoteEditorPage({ noteId, onBack, showBack = true, onTitl
       // differs from the chips on screen (they did not show the tag the member
       // just added), so re-read the note and let the chips catch up.
       if (sameTagList(next, serverTags)) { refresh?.(); return }
-      await settleMetadataRevision(await patchTags(delta, { readAt }))
+      await settleMetadataRevision(await patchTags(delta))
       refreshTagNodes()
     } catch {
       setChromeMsg("Couldn't update tags — try again")
