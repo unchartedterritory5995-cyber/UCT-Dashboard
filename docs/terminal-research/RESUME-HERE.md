@@ -279,6 +279,20 @@ leave them alone indefinitely with no consequence.
   chain waits for `git merge-base --is-ancestor <sha> origin/production` AND a terminal
   Railway record whose commit CONTAINS the sha, then for the storm to settle (newest record
   SUCCESS, nothing building, pod ≥ 300 s) before it smokes.
+- **The owner's Chrome was signed in as the SMOKE account (2026-09-25).** A Claude-in-Chrome
+  session opened it to arm real-member S7 data and `/api/auth/me` answered
+  `…@uctintelligence.internal` — from the tab, indistinguishable from the owner. Caught before
+  anything was written; signed out; the owner signed in as themselves. Rule (now also in
+  CLAUDE.md's smoke-account section): tools that need the smoke account use their OWN
+  profile, never the extension-driven Chrome, and any "as the owner" browser action starts by
+  reading `/api/auth/me` and checking the email DOMAIN.
+- **`reachable.test.js` is red on master for three Pine-runtime modules that are not this
+  program's** (2026-09-25): `chart/engine/ast/peelToBuilding.js`, `chart/engine/runtime/handles.js`,
+  `chart/engine/runtime/records.js` — added 2026-09-22 by the indicator workstream, zero importers
+  on master's tip, no `AWAITING_A_DECISION` entry (their siblings have "PINE RUNTIME (C4 Phase 2) —
+  same mount, same expiry" entries; these three do not). Left for that workstream by name; the
+  master deploy gate runs no vitest, so it blocks no deploy. ⛔ A landing that runs this rail must
+  read the three names before calling a red its own.
 - **Re-sync `_merge-master` to `origin/master` before EVERY cherry-pick, no
   exceptions.** Lost a push once today (`git push` rejected as non-fast-forward)
   because another concurrent workstream landed a commit on master between syncs.

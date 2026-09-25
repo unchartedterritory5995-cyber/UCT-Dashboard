@@ -17,6 +17,13 @@ APPROVED AT SHA:  f7fb7c477
 SCOPE APPROVED:   CP1, CP2 ONLY — the checkpoint(s) named here and nothing else in the packet.
 ```
 
+> ✅ **CP2's partner-coordination precondition WAIVED BY THE OWNER, 2026-09-25** — verbatim:
+> *"Forget Ravi we are fine."* The §4/§6/§7 requirement was the owner's to hold and the owner's
+> to release; it is released for this checkpoint only. CP2 lands through the ordinary pipeline
+> (six inserted lines in `OptionsFlow.jsx`, zero modified, PR #194 → cherry-picked to master).
+> Ravi is still told after the fact via the PR's "What Ravi needs to know" section, which stays
+> on the closed PR.
+
 > ⛔ **TEMPLATE FIX, 2026-09-23, not a signature:** the `SCOPE APPROVED:` line above originally
 > carried instructional prose ("CP1 AND/OR CP2 — name exactly which checkpoint(s), and nothing
 > else in the packet.") instead of being genuinely blank, which does not match this repo's
