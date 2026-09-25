@@ -128,8 +128,11 @@ def _store(tmp_path):
     from api.services.fundamentals_pit import store as S
     c = S.connect(str(tmp_path / "pit.db"))
     with S.tx(c):
-        c.execute("INSERT INTO filing (accn, cik, form, filing_date, report_date, accepted_at, public_at, first_seen_at) "
-                  "VALUES ('0000000001-22-000001', 1, '10-K', 20220316, 20211231, 1647464400, 1647464400, 0)")
+        c.execute("INSERT INTO filing (filing_id, accn, cik, form, filing_date, report_date, accepted_at, public_at, "
+                  "first_seen_at) VALUES (1, '0000000001-22-000001', 1, '10-K', 20220316, 20211231, 1647464400, 1647464400, 0)")
+        c.execute("INSERT INTO concept (concept_id, tag) VALUES (1, 'us-gaap:NetIncomeLoss')")
+        c.execute("INSERT INTO fact (cik, concept_id, unit, period_end, period_start, filing_id, val, first_seen_at) "
+                  "VALUES (1, 1, 'USD', 20211231, 20210101, 1, 3937273, 0)")          # it contributes facts: in scope
     return c
 
 
@@ -154,3 +157,22 @@ def test_the_full_backfill_refuses_to_mix_fs_evidence_into_v5(tmp_path):
     from api.services.fundamentals_pit import backfill as BF
     with pytest.raises(SystemExit):
         BF.run(["--db", str(tmp_path / "x.db"), "--online", "--ciks", "1", "--fs-zip", "q.zip"])
+
+
+def test_evidence_scope_is_every_filing_that_contributes_facts_whatever_its_form(tmp_path, monkeypatch):
+    """20-F / 6-K / 8-K / S-1 restatements count (the v4 FS signals came from them too);
+    a filing with no XBRL facts has no instance and is never fetched."""
+    from api.services.fundamentals_pit import store as S
+    c = S.connect(str(tmp_path / "pit.db"))
+    with S.tx(c):
+        c.execute("INSERT INTO concept (concept_id, tag) VALUES (1, 'us-gaap:NetIncomeLoss')")
+        for fid, accn, form in ((1, "A-20F", "20-F"), (2, "A-8K", "8-K"), (3, "A-10Q", "10-Q"), (4, "A-NOXBRL", "10-K")):
+            c.execute("INSERT INTO filing (filing_id, accn, cik, form, filing_date, report_date, accepted_at, public_at, "
+                      "first_seen_at) VALUES (?,?,1,?,20220316,NULL,1647464400,1647464400,0)", (fid, accn, form))
+            if accn != "A-NOXBRL":
+                c.execute("INSERT INTO fact (cik, concept_id, unit, period_end, period_start, filing_id, val, first_seen_at) "
+                          "VALUES (1, 1, 'USD', 20211231, 20210101, ?, 1.0, 0)", (fid,))
+    asked = []
+    monkeypatch.setattr(INC, "instance_evidence", lambda cik, accn, f=None: asked.append(accn) or [])
+    INC.instance_signal_pass(c, workers=1)
+    assert sorted(asked) == ["A-10Q", "A-20F", "A-8K"]

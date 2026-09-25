@@ -108,14 +108,22 @@ def record_evidence(conn, accn: str, rows: list[tuple] | None, now: float) -> in
 
 
 def _unchecked(conn, ciks=None) -> list[tuple[int, str]]:
-    forms = ",".join(f"'{f}'" for f in SIGNAL_FORMS)
-    sql = (f"SELECT f.cik, f.accn FROM filing f LEFT JOIN signal_check c ON c.accn = f.accn "
-           f"WHERE c.accn IS NULL AND f.form IN ({forms})")
-    rows = conn.execute(sql).fetchall()
-    if ciks is not None:
-        keep = set(ciks)
-        rows = [r for r in rows if r[0] in keep]
-    return sorted(rows)
+    """Every filing that CONTRIBUTES XBRL FACTS and has no evidence record yet.
+
+    ⛔ SCOPE, MEASURED 2026-09-25: restricting evidence to the 10-K/10-Q family lost
+    real restatement evidence -- the v4 FS signals came from 20-F (355 filings),
+    6-K (95), 8-K (84), 40-F, S-1/F-1/POS AM too, and a filing's numbers are used
+    whatever its form. The rule is: evidence from every filing whose facts we hold;
+    a filing with no XBRL facts has no instance and costs no request."""
+    if ciks is None:
+        ciks = [r[0] for r in conn.execute("SELECT DISTINCT cik FROM filing")]
+    out = []
+    for cik in ciks:                                     # per company: the fact PK starts with cik
+        with_facts = {r[0] for r in conn.execute("SELECT DISTINCT filing_id FROM fact WHERE cik=?", (cik,))}
+        out += [(cik, accn) for fid, accn in conn.execute(
+            "SELECT f.filing_id, f.accn FROM filing f LEFT JOIN signal_check c ON c.accn = f.accn "
+            "WHERE f.cik=? AND c.accn IS NULL", (cik,)) if fid in with_facts]
+    return sorted(out)
 
 
 def check_signals(conn, cik: int, *, fetch_instance=None, now: float | None = None) -> int:
