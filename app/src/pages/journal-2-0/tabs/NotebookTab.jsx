@@ -11,6 +11,8 @@ import NoteGraphView from '../components/notebook/NoteGraphView'
 import NoteBoardView from '../components/notebook/NoteBoardView'
 import NoteCalendarView from '../components/notebook/NoteCalendarView'
 import NoteTimelineView from '../components/notebook/NoteTimelineView'
+import NoteTasksView from '../components/notebook/NoteTasksView'
+import { TASK_PARAM } from '../lib/noteTasks'
 import SavedViewEditor from '../components/notebook/SavedViewEditor'
 import FolderSidebar from '../components/notebook/FolderSidebar'
 import NoteEditorPage from '../components/notebook/NoteEditorPage'
@@ -195,7 +197,10 @@ export default function NotebookTab() {
   // `propertySort` are the AD-HOC equivalents, used only while no saved
   // view is active (a table-column-header click or a quick-filter chip).
   const [activeView, setActiveView] = useState(null)
-  const [viewMode, setViewMode] = useState('list')
+  // `?view=tasks` opens the Tasks mode on first paint (the reminder's link —
+  // TASKS_VIEW_URL in api/services/journal_two/note_tasks.py); the effect
+  // below handles it arriving on an already-mounted tab.
+  const [viewMode, setViewMode] = useState(() => (searchParams.get('view') === 'tasks' ? 'tasks' : 'list'))
   // What the board is grouping by / the calendar is laying out, reported up by
   // those views so a saved view can capture it. The views keep their own
   // "open on a property the notes actually use" default-picking; this only
@@ -399,8 +404,27 @@ export default function NotebookTab() {
   // grid. "All notes" itself stays one click away (the sidebar row), now
   // via the explicit `view=all` flag rather than being indistinguishable
   // from Home.
-  const viewAll = searchParams.get('view') === 'all'
+  // Wave 6: `?view=tasks` is the Tasks mode's door (the 07:00/09:00 ET task
+  // reminder links there). It is never Home — for the render before the effect
+  // below turns it into `?view=all`, too.
+  const viewParam = searchParams.get('view')
+  const viewAll = viewParam === 'all' || viewParam === 'tasks'
   const isHome = !noteId && !hasActiveFilters && !viewAll && !isTrashView
+  // A one-shot INSTRUCTION, applied then stripped (the same arrive-and-strip
+  // pattern as `?folder=`/`?ticker=` above): it selects the Tasks mode and
+  // becomes the explicit All-notes state, so the switcher, a reload and Back
+  // behave exactly as they do for every other mode. A saved view pins its own
+  // mode, so this door clears it.
+  useEffect(() => {
+    if (viewParam !== 'tasks') return
+    setViewMode('tasks')
+    setActiveView(null)
+    setSearchParams((prev) => {
+      const next = new URLSearchParams(prev)
+      next.set('view', 'all')
+      return next
+    }, { replace: true })
+  }, [viewParam, setSearchParams])
   // ⛔ UX #4 (competitive audit, 2026-09-22): bare-root Home and an explicit
   // `?view=all` on a genuinely empty notebook render two different "you have
   // no notes" screens for the identical fact. Attempted a route-into-
@@ -468,7 +492,9 @@ export default function NotebookTab() {
   // named — a document page or a saved excerpt — through the same `?note=`
   // routing every other opener already uses. Callers that just want the note
   // pass nothing and behave exactly as before.
-  const openNote = (note, target = null) => {
+  // Wave 6: `task` opens the note AT one of its checklist items (`?task=`, read
+  // by the editor — lib/noteTasks.js); any other open drops a stale one.
+  const openNote = (note, target = null, { task = null } = {}) => {
     // ⛔⛔ Wave 6 item 7: the note on the right is not opened a second time on
     // the left — refused, and the side pane (which has it) takes focus.
     if (sideId && note?.id === sideId) { refuseSecondPane('side'); return }
@@ -476,6 +502,8 @@ export default function NotebookTab() {
     setSearchParams((prev) => {
       const next = applyTargetToParams(prev, target)
       next.set('note', note.id)
+      next.delete(TASK_PARAM)
+      if (Number.isInteger(task) && task >= 0) next.set(TASK_PARAM, String(task))
       // Deep-link params ride along in `prev` when a template create opened
       // this note (setSearchParams' functional prev can be a render stale) —
       // drop them here so the final URL is always clean.
@@ -1547,7 +1575,8 @@ export default function NotebookTab() {
                 actually mean (e.g. a local-graph scope) -- competitive audit
                 finding UX #18, 2026-09-22.
               */}
-              {!activeView && viewMode !== 'graph' && (
+              {/* Wave 6: a mode the table marks `saveable: false` (Tasks) offers no Save either. */}
+              {!activeView && viewMode !== 'graph' && SAVEABLE_VIEW_MODES.has(viewMode) && (
                 <button
                   type="button"
                   className={styles.saveViewBtn}
@@ -1689,7 +1718,16 @@ export default function NotebookTab() {
           />
         )}
 
-        {isLoading && notes.length === 0 ? (
+        {viewMode === 'tasks' && !isShelfView ? (
+          /* Wave 6: every checklist item across the notebook. ⛔ Tested BEFORE
+             the notes list's loading/empty branches: it reads its own endpoint
+             (GET /api/j2/notes/tasks), not this page's filtered notes, so it
+             neither waits for them nor carries their "Showing N of M" row. A
+             row opens its note AT that task through `openNote`, the tab's one
+             door — so split view's one-pane rule holds here too. Excluded from
+             Trash/Archive like every other mode. */
+          <NoteTasksView onOpenTask={(id, index) => openNote({ id }, null, { task: index })} />
+        ) : isLoading && notes.length === 0 ? (
           // G-106 (Wave B lower-frequency sweep): a small grid of card-shaped
           // skeleton placeholders -- reusing the same `.grid` layout the real
           // NoteCard grid renders into -- instead of bare text. Not

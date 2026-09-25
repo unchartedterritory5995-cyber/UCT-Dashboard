@@ -28,12 +28,19 @@ export const VIEW_MODES = [
   { id: 'graph', icon: 'graph', label: 'Graph view' },
   // Wave 6: notes on a time axis, in lanes by folder or tag. Read-only in v1.
   { id: 'timeline', icon: 'clock', label: 'Timeline view' },
+  // Wave 6: every checklist item across the notebook (NoteTasksView). ⛔ NOT
+  // SAVEABLE: it lists tasks, not the notes a folder/tag/filter selects, so a
+  // saved "tasks view" would store nothing — and the server's
+  // SAVEABLE_VIEW_TYPES refuses it. `?view=tasks` (the task reminder's link) is
+  // its door; NotebookTab handles that param beside `?view=all`.
+  { id: 'tasks', icon: 'check', label: 'Tasks view', saveable: false },
 ]
 
-// ⛔ DERIVED, NOT RESTATED. A hand-written second copy of these five ids is the
+// ⛔ DERIVED, NOT RESTATED. A hand-written second copy of these ids is the
 // second-authority defect this file's own header warns about — it went in as a
 // third list once (the toolbar), which is why the toolbar now reads from here.
-export const SAVEABLE_VIEW_MODES = new Set(VIEW_MODES.map((m) => m.id))
+// A mode marked `saveable: false` is offered in the toolbar and never saved.
+export const SAVEABLE_VIEW_MODES = new Set(VIEW_MODES.filter((m) => m.saveable !== false).map((m) => m.id))
 
 /** The default a saved view opens as when its type is unrecognised. */
 export const FALLBACK_VIEW_MODE = 'list'

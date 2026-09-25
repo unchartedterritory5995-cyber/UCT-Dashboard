@@ -257,11 +257,29 @@ def test_the_server_and_client_view_type_lists_CANNOT_drift():
     # reads the one authority; reading a derived expression would read nothing.
     block = re.search(r"VIEW_MODES\s*=\s*\[(.*?)\n\]", js, re.S)
     assert block, "could not find the VIEW_MODES table in savedViewModes.js"
-    client = set(re.findall(r"id:\s*'([a-z]+)'", block.group(1)))
+    # Each row is one `{ ... }`. A row the table itself declares `saveable: false`
+    # (wave 6: the Tasks view -- a toolbar mode with nothing to save) is offered
+    # and never saved, so it is not part of THIS fact; the client derives
+    # SAVEABLE_VIEW_MODES by the same rule.
+    rows = re.findall(r"\{[^{}]*\}", block.group(1))
+    client = {
+        m.group(1) for row in rows
+        if not re.search(r"saveable:\s*false", row)
+        for m in [re.search(r"id:\s*'([a-z]+)'", row)] if m
+    }
+    unsaveable = {
+        m.group(1) for row in rows
+        if re.search(r"saveable:\s*false", row)
+        for m in [re.search(r"id:\s*'([a-z]+)'", row)] if m
+    }
 
     # Non-vacuity: a parse that found nothing would make any comparison pass.
     assert len(client) >= 2, f"parsed a suspiciously small client set: {client}"
     assert "list" in client and "table" in client
+    # ...and the exclusion is not swallowing the table: it names the one mode it
+    # is for, and the server refuses that mode.
+    assert unsaveable == {"tasks"}, f"unexpected unsaveable client modes: {unsaveable}"
+    assert not (unsaveable & set(SAVEABLE_VIEW_TYPES))
 
     assert client == set(SAVEABLE_VIEW_TYPES), (
         f"client {sorted(client)} != server {sorted(SAVEABLE_VIEW_TYPES)} -- "
