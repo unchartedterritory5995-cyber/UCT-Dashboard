@@ -1,0 +1,16 @@
+{
+  "suite": "pytest",
+  "collected": 1756,
+  "passed": 1754,
+  "failed": 2,
+  "errored": 0,
+  "skipped": 0,
+  "wall_s": 259.81,
+  "failed_files": [
+    "tests/test_nb_observe.py",
+    "tests/test_no_cr_in_tracked_text_blobs.py"
+  ],
+  "totals_line_found": true,
+  "runner_line": "2 failed, 1754 passed, 14 warnings in 259.81s (0:04:19)",
+  "ok": true
+}
