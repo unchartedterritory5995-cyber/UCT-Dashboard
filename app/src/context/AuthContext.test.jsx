@@ -10,6 +10,7 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { render, screen, waitFor, fireEvent, act } from '@testing-library/react'
 import { AuthProvider, useAuth } from './AuthContext'
+import { registerTickers, __resetForTest as resetLivePriceStore } from '../hooks/livePriceStore'
 
 const ME = {
   user: { id: 1, email: 'member@uct.dev', role: 'user', email_verified: true },
@@ -52,6 +53,7 @@ beforeEach(() => {
 
 afterEach(() => {
   vi.unstubAllGlobals()
+  resetLivePriceStore()
 })
 
 describe('AuthContext fetchUser — transient vs definitive session-check failures', () => {
@@ -154,5 +156,54 @@ describe('AuthContext fetchUser — transient vs definitive session-check failur
     expect(screen.getByTestId('user')).toHaveTextContent('member@uct.dev')
     expect(screen.getByTestId('plan')).toHaveTextContent('pro')
     expect(screen.getByTestId('transient')).toHaveTextContent('false')
+  })
+})
+
+// OI-17 follow-up: /api/live-prices started requiring a session on 2026-09-23.
+// Before this wiring, a session expiring mid-poll produced a 401 that
+// livePriceStore treated exactly like a network blip — the store never asked
+// AuthContext to re-check, so the member sat on a frozen last-good price with
+// no visible signal and no forced re-login. This proves the real, cross-module
+// path: a 401 on the live-price poll -> AuthContext.fetchUser() re-runs ->
+// a genuine 401 from /api/auth/me logs the member out (AuthGuard then redirects).
+describe('AuthContext <-> livePriceStore — a 401 on the price poll forces a definitive re-check', () => {
+  it('logs the member out when the re-check confirms the session is really gone', async () => {
+    let meCalls = 0
+    fetchMock.mockImplementation((url) => {
+      const u = String(url)
+      if (u.includes('/api/auth/me')) {
+        meCalls += 1
+        // First call (mount) is a normal logged-in session; the SECOND call is
+        // the re-check fired by livePriceStore's 401 — simulating the session
+        // having genuinely expired in between.
+        return Promise.resolve(meCalls === 1 ? okRes(ME) : errRes(401))
+      }
+      if (u.includes('/api/live-prices')) return Promise.resolve(errRes(401))
+      return Promise.resolve(errRes(404))
+    })
+    renderProvider()
+    await waitFor(() => expect(screen.getByTestId('user')).toHaveTextContent('member@uct.dev'))
+
+    const unregister = registerTickers(['AAPL'])
+    await waitFor(() => expect(screen.getByTestId('user')).toHaveTextContent('none'))
+    expect(meCalls).toBeGreaterThanOrEqual(2)
+    unregister()
+  })
+
+  it('does NOT log the member out on an ordinary transient failure of the price poll', async () => {
+    fetchMock.mockImplementation((url) => {
+      const u = String(url)
+      if (u.includes('/api/auth/me')) return Promise.resolve(okRes(ME))
+      if (u.includes('/api/live-prices')) return Promise.resolve(errRes(503))
+      return Promise.resolve(errRes(404))
+    })
+    renderProvider()
+    await waitFor(() => expect(screen.getByTestId('user')).toHaveTextContent('member@uct.dev'))
+
+    const unregister = registerTickers(['AAPL'])
+    // Give the price poll a chance to run; it must never trigger a re-check.
+    await act(async () => { for (let i = 0; i < 6; i++) await Promise.resolve() })
+    expect(screen.getByTestId('user')).toHaveTextContent('member@uct.dev')
+    unregister()
   })
 })

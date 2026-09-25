@@ -51,6 +51,15 @@ vi.mock('../../../components/TickerActions', () => ({
   useTickerActions: () => ({ longPressProps: () => ({}), menu: null, closeMenu: () => {} }),
 }))
 vi.mock('../../../components/PatternFeedbackChip', () => ({ default: () => null }))
+// ⚰️ Since #163 (2026-09-20) the review door opens the IN-SCREENER overlay, whose
+// PatternSidePanel calls useAuth(); without a provider every click-the-door case here died
+// on "useAuth must be used within AuthProvider" — a harness gap, not the property under
+// test. Same shape as IndicatorLibraryDialog.refusals.test.jsx's mock.
+vi.mock('../../../context/AuthContext', async () => {
+  const { createContext } = await import('react')
+  const value = { user: { id: 11, role: 'user' }, plan: 'premium', isPaid: true, loading: false }
+  return { AuthContext: createContext(value), useAuth: () => value, useIsPaid: () => true }
+})
 // The stub reports the order it was handed. ⚠️ `LIVE_WINDOW` is re-exported
 // because `ScannerShell` imports it from this module for its live-price window;
 // a mock that dropped it would fail on an undefined slice bound, not on the
@@ -65,7 +74,20 @@ vi.mock('./VirtualResults', () => ({
 
 import ScannerShell from './ScannerShell'
 import { encodeSpec, SPEC_PARAM } from './specUrl'
-import { read } from '../../charts/review/reviewSession'
+// ⚰️ THE MECHANISM MOVED IN #163 (2026-09-20): the door used to publish the order into
+// charts/review/reviewSession and navigate to /charts; it now opens the IN-SCREENER
+// overlay and hands it the rendered order as `symbols`. The stub below reports exactly
+// what the shell handed it, the same way the VirtualResults stub reports the rendered
+// order — so the property under test ("the review walks what the member is looking at")
+// is asserted at the new seam, not the retired one.
+vi.mock('./ScreenerReviewOverlay', () => ({
+  __esModule: true,
+  default: ({ symbols, open }) => (
+    open ? <div data-testid="review-overlay-order">{symbols.join(',')}</div> : null
+  ),
+}))
+/** The order the review overlay was handed, once the door is opened. */
+const reviewed = () => screen.getByTestId('review-overlay-order').textContent.split(',').filter(Boolean)
 
 /** Open the shell already sorted by a live-overlaid column.
  *
@@ -113,21 +135,21 @@ describe('the screener hands its order to the review', () => {
     render(<ScannerShell />)
     fireEvent.click(screen.getByTestId('review-charts'))
 
-    const s = read()
-    expect(s.symbols).toEqual(rendered())
-    expect(s.symbols).toEqual(['BBB', 'CCC', 'AAA'])
-    expect(s.index).toBe(0)
-    expect(s.source).toBe('screener')
-    expect(navigated).toEqual(['/charts?sym=BBB&tf=D'])
+    expect(reviewed()).toEqual(rendered())
+    expect(reviewed()).toEqual(['BBB', 'CCC', 'AAA'])
+    // In-screener since #163: the member is never sent to /charts for this.
+    expect(navigated).toEqual([])
   })
 
-  it('⛔ an EMPTY screen offers a disabled door, and publishes nothing', () => {
+  it('⛔ an EMPTY screen offers NO door, and publishes nothing', () => {
+    // ⚰️ This case used to expect a DISABLED door. #163 (2026-09-20, owner-merged) made the
+    // door conditional on loaded rows (`reviewBar={displayRows.length > 0 ? … : null}` in
+    // ScannerShell) — nothing to walk, nothing to offer — so the shipped behaviour is
+    // absence, and the property that matters ("publishes nothing") is asserted the same way.
     scanMock.mockReturnValue(EMPTY)
     render(<ScannerShell />)
-    const btn = screen.getByTestId('review-charts')
-    expect(btn).toBeDisabled()
-    fireEvent.click(btn)
-    expect(read()).toBeNull()
+    expect(screen.queryByTestId('review-charts')).toBeNull()
+    expect(screen.queryByTestId('review-overlay-order')).toBeNull()
     expect(navigated).toEqual([])
   })
 
@@ -143,10 +165,11 @@ describe('the screener hands its order to the review', () => {
 
     expect(rendered()).toEqual(['AAA', 'CCC', 'BBB'])
     fireEvent.click(screen.getByTestId('review-charts'))
-    expect(read().symbols).toEqual(rendered())
-    // ⭐ AND THE LIVE FLAG IS NAMED IN THE SESSION — the same distinction the
-    // "snapshot order" chip makes on screen.
-    expect(read().sort).toMatch(/:live$/)
+    expect(reviewed()).toEqual(rendered())
+    expect(reviewed()).toEqual(['AAA', 'CCC', 'BBB'])
+    // ⚰️ The retired session carried a `:live` sort tag; the overlay is handed only the
+    // symbols, so the live order itself is the assertion now — and the CONTROL below
+    // proves it is not a shell that always re-sorts.
   })
 
   it('CONTROL: with the toggle OFF the rendered order IS the snapshot one', () => {
@@ -159,7 +182,6 @@ describe('the screener hands its order to the review', () => {
     expect(screen.getByRole('button', { name: /re-sort loaded rows live/i })).toBeInTheDocument()
     expect(rendered()).toEqual(['BBB', 'CCC', 'AAA'])
     fireEvent.click(screen.getByTestId('review-charts'))
-    expect(read().symbols).toEqual(['BBB', 'CCC', 'AAA'])
-    expect(/:live$/.test(read().sort || '')).toBe(false)
+    expect(reviewed()).toEqual(['BBB', 'CCC', 'AAA'])
   })
 })

@@ -23,6 +23,13 @@ describe('the fundamentals harness is dev-only', () => {
     expect(index).not.toContain('testing/fundamentals')
   })
 
+  it('the gap PIXEL harness is dev-only too: in source, never referenced by index.html', () => {
+    expect(existsSync(resolve(appDir, 'fundamentals-gap-harness.html'))).toBe(true)
+    const index = readFileSync(resolve(appDir, 'index.html'), 'utf8')
+    expect(index).not.toContain('fundamentals-gap-harness')
+    expect(index).not.toContain('gapPixelHarness')
+  })
+
   it('the exported harness data is git-ignored', () => {
     const ignore = readFileSync(resolve(appDir, 'src/testing/fundamentals/.gitignore'), 'utf8')
     expect(ignore).toMatch(/^\.data\/?$/m)

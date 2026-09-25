@@ -1,16 +1,17 @@
 {
   "schema_version": 1,
   "generated_by": "tools/build_canonical_address_book.py",
-  "what_this_is": "D2 CP2 — the canonical address book. Every value is derived from a declaration that already exists in this repo; none is typed here. CP1 shipped it inert; CP2 adds the first non-screener store (bars_sqlite, derived from its own CREATE TABLE) and exactly ONE product reader, api/services/canonical/address_book.py, which is named by the rail that used to require zero readers. See PRD-D2-CANONICAL-DATA-MODEL and SPEC-D2-CANONICAL-DATA-MODEL.",
+  "what_this_is": "D2 CP2 — the canonical address book. Every value is derived from a declaration that already exists in this repo; none is typed here. CP1 shipped it inert; CP2 adds the first non-screener store (bars_sqlite, derived from its own CREATE TABLE) and exactly ONE product reader, api/services/canonical/address_book.py, which is named by the rail that used to require zero readers. An owner-delegated extension (2026-09-23) adds breadth_snapshot_numeric (A11's breadth/exposure metrics), derived from breadth_metrics.py's own catalogue, not typed here. See PRD-D2-CANONICAL-DATA-MODEL and SPEC-D2-CANONICAL-DATA-MODEL.",
   "address_grammar": "uct://<metric>@<entity>/<timeframe>?as_of=<instant>[&provider=<vendor>]",
   "axes": {
     "metric": {
       "sources": [
         "app/src/components/chart/engine/ast/closedTable.json (via api.services.ast_lint.TABLE['scalars'])",
-        "api/services/bars_sqlite.py :: the ohlcv CREATE TABLE literal"
+        "api/services/bars_sqlite.py :: the ohlcv CREATE TABLE literal",
+        "api/services/breadth_metrics.py :: the _ROWS catalogue literal"
       ],
-      "count": 142,
-      "note": "a bars metric is table-qualified (ohlcv.c) so a one-letter column cannot shadow a screener scalar"
+      "count": 193,
+      "note": "a bars or breadth metric is table-qualified (ohlcv.c, breadth_snapshot_numeric.pct_above_50sma) so a short column/key name cannot shadow a screener scalar"
     },
     "entity": {
       "source": "api/services/alert_taxonomy/predicates.py",
@@ -131,30 +132,48 @@
       },
       "why_no_flat_metrics": "unlike ohlcv, one snapshot is TWO LISTS OF ROWS (annual, quarterly), each with its own per-row shape and no single as-of column across the whole payload -- flat metric.column entries the way ohlcv.c is declared would misrepresent this shape rather than address it. Migrating a reader onto a per-field address is a separate, future checkpoint; this record only makes the shape checkable.",
       "metric_count": 0
+    },
+    "breadth_snapshot_numeric": {
+      "declared_in": "api/services/breadth_monitor.py",
+      "metric_catalogue_declared_in": "api/services/breadth_metrics.py",
+      "table": "breadth_snapshot_numeric",
+      "key": [
+        "date"
+      ],
+      "as_of_column": "date",
+      "authority": "derived",
+      "column_is": "a JSON key inside the `metrics` TEXT blob, not a SQL column -- this store declares no row_projection, so row_position() correctly returns None for every metric here",
+      "undeclared_by_this_store": [
+        "cadence",
+        "grain"
+      ],
+      "metric_count": 51
     }
   },
   "axis_report": {
-    "metric_count": 142,
+    "metric_count": 193,
     "stores": {
       "bars_sqlite": 5,
+      "breadth_snapshot_numeric": 51,
       "screener_rows": 137
     },
     "cadences": {
-      "(undeclared)": 5,
+      "(undeclared)": 56,
       "nightly": 137
     },
     "grains": {
-      "(undeclared)": 5,
+      "(undeclared)": 56,
       "date": 137
     },
     "as_of_columns": {
       "bars_asof": 58,
+      "date": 51,
       "snapshot_date": 79,
       "ts": 5
     },
     "yields": {
       "bool": 22,
-      "num": 120
+      "num": 171
     }
   },
   "metrics": {
@@ -287,6 +306,516 @@
       "yields": "num",
       "authority": "authoritative",
       "sentence": "the candle body as a percentage of its range"
+    },
+    "breadth_snapshot_numeric.aaii_spread": {
+      "store": "breadth_snapshot_numeric",
+      "column": "aaii_spread",
+      "as_of_column": "date",
+      "grain": null,
+      "cadence": null,
+      "yields": "num",
+      "authority": "derived",
+      "sentence": "AAII Bull-Bear Spread"
+    },
+    "breadth_snapshot_numeric.adv_decline": {
+      "store": "breadth_snapshot_numeric",
+      "column": "adv_decline",
+      "as_of_column": "date",
+      "grain": null,
+      "cadence": null,
+      "yields": "num",
+      "authority": "derived",
+      "sentence": "Net Advancers (Daily)"
+    },
+    "breadth_snapshot_numeric.adv_decline_cum": {
+      "store": "breadth_snapshot_numeric",
+      "column": "adv_decline_cum",
+      "as_of_column": "date",
+      "grain": null,
+      "cadence": null,
+      "yields": "num",
+      "authority": "derived",
+      "sentence": "Advance/Decline Line"
+    },
+    "breadth_snapshot_numeric.advancing": {
+      "store": "breadth_snapshot_numeric",
+      "column": "advancing",
+      "as_of_column": "date",
+      "grain": null,
+      "cadence": null,
+      "yields": "num",
+      "authority": "derived",
+      "sentence": "Advancing Issues"
+    },
+    "breadth_snapshot_numeric.atr_ext_7": {
+      "store": "breadth_snapshot_numeric",
+      "column": "atr_ext_7",
+      "as_of_column": "date",
+      "grain": null,
+      "cadence": null,
+      "yields": "num",
+      "authority": "derived",
+      "sentence": "Stocks >7x ATR Extended (50MA)"
+    },
+    "breadth_snapshot_numeric.breadth_score": {
+      "store": "breadth_snapshot_numeric",
+      "column": "breadth_score",
+      "as_of_column": "date",
+      "grain": null,
+      "cadence": null,
+      "yields": "num",
+      "authority": "derived",
+      "sentence": "UCT Breadth Health Score"
+    },
+    "breadth_snapshot_numeric.cboe_putcall": {
+      "store": "breadth_snapshot_numeric",
+      "column": "cboe_putcall",
+      "as_of_column": "date",
+      "grain": null,
+      "cadence": null,
+      "yields": "num",
+      "authority": "derived",
+      "sentence": "CBOE Put/Call Ratio"
+    },
+    "breadth_snapshot_numeric.cnn_fear_greed": {
+      "store": "breadth_snapshot_numeric",
+      "column": "cnn_fear_greed",
+      "as_of_column": "date",
+      "grain": null,
+      "cadence": null,
+      "yields": "num",
+      "authority": "derived",
+      "sentence": "CNN Fear & Greed Index"
+    },
+    "breadth_snapshot_numeric.declining": {
+      "store": "breadth_snapshot_numeric",
+      "column": "declining",
+      "as_of_column": "date",
+      "grain": null,
+      "cadence": null,
+      "yields": "num",
+      "authority": "derived",
+      "sentence": "Declining Issues"
+    },
+    "breadth_snapshot_numeric.down_20pct_5d": {
+      "store": "breadth_snapshot_numeric",
+      "column": "down_20pct_5d",
+      "as_of_column": "date",
+      "grain": null,
+      "cadence": null,
+      "yields": "num",
+      "authority": "derived",
+      "sentence": "Stocks Down 20%+ in 5 Days"
+    },
+    "breadth_snapshot_numeric.down_25pct_month": {
+      "store": "breadth_snapshot_numeric",
+      "column": "down_25pct_month",
+      "as_of_column": "date",
+      "grain": null,
+      "cadence": null,
+      "yields": "num",
+      "authority": "derived",
+      "sentence": "Stocks Down 25%+ in a Month"
+    },
+    "breadth_snapshot_numeric.down_25pct_quarter": {
+      "store": "breadth_snapshot_numeric",
+      "column": "down_25pct_quarter",
+      "as_of_column": "date",
+      "grain": null,
+      "cadence": null,
+      "yields": "num",
+      "authority": "derived",
+      "sentence": "Stocks Down 25%+ in a Quarter"
+    },
+    "breadth_snapshot_numeric.down_4pct_today": {
+      "store": "breadth_snapshot_numeric",
+      "column": "down_4pct_today",
+      "as_of_column": "date",
+      "grain": null,
+      "cadence": null,
+      "yields": "num",
+      "authority": "derived",
+      "sentence": "Stocks Down 4%+ Today"
+    },
+    "breadth_snapshot_numeric.down_50pct_month": {
+      "store": "breadth_snapshot_numeric",
+      "column": "down_50pct_month",
+      "as_of_column": "date",
+      "grain": null,
+      "cadence": null,
+      "yields": "num",
+      "authority": "derived",
+      "sentence": "Stocks Down 50%+ in a Month"
+    },
+    "breadth_snapshot_numeric.down_on_volume": {
+      "store": "breadth_snapshot_numeric",
+      "column": "down_on_volume",
+      "as_of_column": "date",
+      "grain": null,
+      "cadence": null,
+      "yields": "num",
+      "authority": "derived",
+      "sentence": "Down-Volume Issues"
+    },
+    "breadth_snapshot_numeric.hi_ratio": {
+      "store": "breadth_snapshot_numeric",
+      "column": "hi_ratio",
+      "as_of_column": "date",
+      "grain": null,
+      "cadence": null,
+      "yields": "num",
+      "authority": "derived",
+      "sentence": "% of Stocks at 52-Week Highs"
+    },
+    "breadth_snapshot_numeric.hvc_52w": {
+      "store": "breadth_snapshot_numeric",
+      "column": "hvc_52w",
+      "as_of_column": "date",
+      "grain": null,
+      "cadence": null,
+      "yields": "num",
+      "authority": "derived",
+      "sentence": "High-Volume Closes (52W Vol Hi)"
+    },
+    "breadth_snapshot_numeric.is_ftd": {
+      "store": "breadth_snapshot_numeric",
+      "column": "is_ftd",
+      "as_of_column": "date",
+      "grain": null,
+      "cadence": null,
+      "yields": "num",
+      "authority": "derived",
+      "sentence": "Follow-Through Day"
+    },
+    "breadth_snapshot_numeric.iwm_qqq_ratio": {
+      "store": "breadth_snapshot_numeric",
+      "column": "iwm_qqq_ratio",
+      "as_of_column": "date",
+      "grain": null,
+      "cadence": null,
+      "yields": "num",
+      "authority": "derived",
+      "sentence": "Small-Cap vs Nasdaq (IWM/QQQ)"
+    },
+    "breadth_snapshot_numeric.lo_ratio": {
+      "store": "breadth_snapshot_numeric",
+      "column": "lo_ratio",
+      "as_of_column": "date",
+      "grain": null,
+      "cadence": null,
+      "yields": "num",
+      "authority": "derived",
+      "sentence": "% of Stocks at 52-Week Lows"
+    },
+    "breadth_snapshot_numeric.magna_down": {
+      "store": "breadth_snapshot_numeric",
+      "column": "magna_down",
+      "as_of_column": "date",
+      "grain": null,
+      "cadence": null,
+      "yields": "num",
+      "authority": "derived",
+      "sentence": "Momentum Down (13% in 34 Days)"
+    },
+    "breadth_snapshot_numeric.magna_up": {
+      "store": "breadth_snapshot_numeric",
+      "column": "magna_up",
+      "as_of_column": "date",
+      "grain": null,
+      "cadence": null,
+      "yields": "num",
+      "authority": "derived",
+      "sentence": "Momentum Up (13% in 34 Days)"
+    },
+    "breadth_snapshot_numeric.mcclellan_osc": {
+      "store": "breadth_snapshot_numeric",
+      "column": "mcclellan_osc",
+      "as_of_column": "date",
+      "grain": null,
+      "cadence": null,
+      "yields": "num",
+      "authority": "derived",
+      "sentence": "McClellan Oscillator"
+    },
+    "breadth_snapshot_numeric.near_52w_high": {
+      "store": "breadth_snapshot_numeric",
+      "column": "near_52w_high",
+      "as_of_column": "date",
+      "grain": null,
+      "cadence": null,
+      "yields": "num",
+      "authority": "derived",
+      "sentence": "Stocks Within 5% of 52W High"
+    },
+    "breadth_snapshot_numeric.net_new_high_low": {
+      "store": "breadth_snapshot_numeric",
+      "column": "net_new_high_low",
+      "as_of_column": "date",
+      "grain": null,
+      "cadence": null,
+      "yields": "num",
+      "authority": "derived",
+      "sentence": "Net New 52-Week Highs-Lows"
+    },
+    "breadth_snapshot_numeric.new_20d_highs": {
+      "store": "breadth_snapshot_numeric",
+      "column": "new_20d_highs",
+      "as_of_column": "date",
+      "grain": null,
+      "cadence": null,
+      "yields": "num",
+      "authority": "derived",
+      "sentence": "New 20-Day Highs"
+    },
+    "breadth_snapshot_numeric.new_20d_lows": {
+      "store": "breadth_snapshot_numeric",
+      "column": "new_20d_lows",
+      "as_of_column": "date",
+      "grain": null,
+      "cadence": null,
+      "yields": "num",
+      "authority": "derived",
+      "sentence": "New 20-Day Lows"
+    },
+    "breadth_snapshot_numeric.new_52w_highs": {
+      "store": "breadth_snapshot_numeric",
+      "column": "new_52w_highs",
+      "as_of_column": "date",
+      "grain": null,
+      "cadence": null,
+      "yields": "num",
+      "authority": "derived",
+      "sentence": "New 52-Week Highs"
+    },
+    "breadth_snapshot_numeric.new_52w_lows": {
+      "store": "breadth_snapshot_numeric",
+      "column": "new_52w_lows",
+      "as_of_column": "date",
+      "grain": null,
+      "cadence": null,
+      "yields": "num",
+      "authority": "derived",
+      "sentence": "New 52-Week Lows"
+    },
+    "breadth_snapshot_numeric.new_ath": {
+      "store": "breadth_snapshot_numeric",
+      "column": "new_ath",
+      "as_of_column": "date",
+      "grain": null,
+      "cadence": null,
+      "yields": "num",
+      "authority": "derived",
+      "sentence": "New All-Time Highs"
+    },
+    "breadth_snapshot_numeric.pct_above_100sma": {
+      "store": "breadth_snapshot_numeric",
+      "column": "pct_above_100sma",
+      "as_of_column": "date",
+      "grain": null,
+      "cadence": null,
+      "yields": "num",
+      "authority": "derived",
+      "sentence": "% of Stocks Above 100-Day MA"
+    },
+    "breadth_snapshot_numeric.pct_above_10sma": {
+      "store": "breadth_snapshot_numeric",
+      "column": "pct_above_10sma",
+      "as_of_column": "date",
+      "grain": null,
+      "cadence": null,
+      "yields": "num",
+      "authority": "derived",
+      "sentence": "% of Stocks Above 10-Day MA"
+    },
+    "breadth_snapshot_numeric.pct_above_200sma": {
+      "store": "breadth_snapshot_numeric",
+      "column": "pct_above_200sma",
+      "as_of_column": "date",
+      "grain": null,
+      "cadence": null,
+      "yields": "num",
+      "authority": "derived",
+      "sentence": "% of Stocks Above 200-Day MA"
+    },
+    "breadth_snapshot_numeric.pct_above_20ema": {
+      "store": "breadth_snapshot_numeric",
+      "column": "pct_above_20ema",
+      "as_of_column": "date",
+      "grain": null,
+      "cadence": null,
+      "yields": "num",
+      "authority": "derived",
+      "sentence": "% of Stocks Above 20-Day EMA"
+    },
+    "breadth_snapshot_numeric.pct_above_40sma": {
+      "store": "breadth_snapshot_numeric",
+      "column": "pct_above_40sma",
+      "as_of_column": "date",
+      "grain": null,
+      "cadence": null,
+      "yields": "num",
+      "authority": "derived",
+      "sentence": "% of Stocks Above 40-Day MA"
+    },
+    "breadth_snapshot_numeric.pct_above_50sma": {
+      "store": "breadth_snapshot_numeric",
+      "column": "pct_above_50sma",
+      "as_of_column": "date",
+      "grain": null,
+      "cadence": null,
+      "yields": "num",
+      "authority": "derived",
+      "sentence": "% of Stocks Above 50-Day MA"
+    },
+    "breadth_snapshot_numeric.pct_above_5sma": {
+      "store": "breadth_snapshot_numeric",
+      "column": "pct_above_5sma",
+      "as_of_column": "date",
+      "grain": null,
+      "cadence": null,
+      "yields": "num",
+      "authority": "derived",
+      "sentence": "% of Stocks Above 5-Day MA"
+    },
+    "breadth_snapshot_numeric.ratio_10day": {
+      "store": "breadth_snapshot_numeric",
+      "column": "ratio_10day",
+      "as_of_column": "date",
+      "grain": null,
+      "cadence": null,
+      "yields": "num",
+      "authority": "derived",
+      "sentence": "10-Day Up/Down Ratio"
+    },
+    "breadth_snapshot_numeric.ratio_5day": {
+      "store": "breadth_snapshot_numeric",
+      "column": "ratio_5day",
+      "as_of_column": "date",
+      "grain": null,
+      "cadence": null,
+      "yields": "num",
+      "authority": "derived",
+      "sentence": "5-Day Up/Down Ratio"
+    },
+    "breadth_snapshot_numeric.rsp_spy_ratio": {
+      "store": "breadth_snapshot_numeric",
+      "column": "rsp_spy_ratio",
+      "as_of_column": "date",
+      "grain": null,
+      "cadence": null,
+      "yields": "num",
+      "authority": "derived",
+      "sentence": "Equal-Weight vs Cap-Weight (RSP/SPY)"
+    },
+    "breadth_snapshot_numeric.stage2_count": {
+      "store": "breadth_snapshot_numeric",
+      "column": "stage2_count",
+      "as_of_column": "date",
+      "grain": null,
+      "cadence": null,
+      "yields": "num",
+      "authority": "derived",
+      "sentence": "Stage 2 Uptrend Count"
+    },
+    "breadth_snapshot_numeric.stage4_count": {
+      "store": "breadth_snapshot_numeric",
+      "column": "stage4_count",
+      "as_of_column": "date",
+      "grain": null,
+      "cadence": null,
+      "yields": "num",
+      "authority": "derived",
+      "sentence": "Stage 4 Downtrend Count"
+    },
+    "breadth_snapshot_numeric.uct_exposure": {
+      "store": "breadth_snapshot_numeric",
+      "column": "uct_exposure",
+      "as_of_column": "date",
+      "grain": null,
+      "cadence": null,
+      "yields": "num",
+      "authority": "derived",
+      "sentence": "UCT Exposure Rating"
+    },
+    "breadth_snapshot_numeric.universe_count": {
+      "store": "breadth_snapshot_numeric",
+      "column": "universe_count",
+      "as_of_column": "date",
+      "grain": null,
+      "cadence": null,
+      "yields": "num",
+      "authority": "derived",
+      "sentence": "Universe Count"
+    },
+    "breadth_snapshot_numeric.up_20pct_5d": {
+      "store": "breadth_snapshot_numeric",
+      "column": "up_20pct_5d",
+      "as_of_column": "date",
+      "grain": null,
+      "cadence": null,
+      "yields": "num",
+      "authority": "derived",
+      "sentence": "Stocks Up 20%+ in 5 Days"
+    },
+    "breadth_snapshot_numeric.up_25pct_month": {
+      "store": "breadth_snapshot_numeric",
+      "column": "up_25pct_month",
+      "as_of_column": "date",
+      "grain": null,
+      "cadence": null,
+      "yields": "num",
+      "authority": "derived",
+      "sentence": "Stocks Up 25%+ in a Month"
+    },
+    "breadth_snapshot_numeric.up_25pct_quarter": {
+      "store": "breadth_snapshot_numeric",
+      "column": "up_25pct_quarter",
+      "as_of_column": "date",
+      "grain": null,
+      "cadence": null,
+      "yields": "num",
+      "authority": "derived",
+      "sentence": "Stocks Up 25%+ in a Quarter"
+    },
+    "breadth_snapshot_numeric.up_4pct_today": {
+      "store": "breadth_snapshot_numeric",
+      "column": "up_4pct_today",
+      "as_of_column": "date",
+      "grain": null,
+      "cadence": null,
+      "yields": "num",
+      "authority": "derived",
+      "sentence": "Stocks Up 4%+ Today"
+    },
+    "breadth_snapshot_numeric.up_50pct_month": {
+      "store": "breadth_snapshot_numeric",
+      "column": "up_50pct_month",
+      "as_of_column": "date",
+      "grain": null,
+      "cadence": null,
+      "yields": "num",
+      "authority": "derived",
+      "sentence": "Stocks Up 50%+ in a Month"
+    },
+    "breadth_snapshot_numeric.up_on_volume": {
+      "store": "breadth_snapshot_numeric",
+      "column": "up_on_volume",
+      "as_of_column": "date",
+      "grain": null,
+      "cadence": null,
+      "yields": "num",
+      "authority": "derived",
+      "sentence": "Up-Volume Issues"
+    },
+    "breadth_snapshot_numeric.up_vol_ratio": {
+      "store": "breadth_snapshot_numeric",
+      "column": "up_vol_ratio",
+      "as_of_column": "date",
+      "grain": null,
+      "cadence": null,
+      "yields": "num",
+      "authority": "derived",
+      "sentence": "Up/Down Volume Ratio"
     },
     "candle_recent_bars_ago": {
       "store": "screener_rows",

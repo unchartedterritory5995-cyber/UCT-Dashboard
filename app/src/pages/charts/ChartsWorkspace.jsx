@@ -1827,6 +1827,60 @@ export default function ChartsWorkspace() {
     flashSaved()
   }, [setPref, setChartsTheme, flashSaved, suppressAutoSave])
 
+  // Terminal-grade property 3, "saved things become names, and names are
+  // addresses" — opens a specific saved board directly from a URL, the same
+  // one-shot-then-strip shape as the sym/tf deep link above (chartDeepLink.js),
+  // kept separate from that module since it's a different concern (opening a
+  // saved BOARD, not applying a symbol/timeframe instruction to whatever board
+  // is already open).
+  //
+  // Two forms:
+  //   ?openLayout=<id>  — one of MY OWN or a GLOBAL (prebuilt) layout, looked
+  //                       up in the lists already loaded by useChartLayouts.
+  //   ?openShared=<tok> — someone else's layout, fetched by share token via
+  //                       GET /api/charts/layouts/shared/{token}.
+  // Waits on templatesLoading the same way the deep-link effect waits on
+  // prefsLoading — applying against an empty myLayouts/globalLayouts list
+  // would silently no-op the very first time this ever runs.
+  const namedAddressAppliedRef = useRef(false)
+  useEffect(() => {
+    if (namedAddressAppliedRef.current || templatesLoading) return
+    const params = new URLSearchParams(typeof window !== 'undefined' ? window.location.search : '')
+    const openLayoutId = params.get('openLayout')
+    const openSharedToken = params.get('openShared')
+    if (!openLayoutId && !openSharedToken) return
+    namedAddressAppliedRef.current = true
+
+    const strip = () => {
+      try {
+        params.delete('openLayout')
+        params.delete('openShared')
+        const q = params.toString()
+        window.history.replaceState({}, '', `${window.location.pathname}${q ? `?${q}` : ''}`)
+      } catch { /* history unavailable — lingering params are harmless */ }
+    }
+
+    if (openLayoutId) {
+      const id = Number(openLayoutId)
+      const tpl = globalLayouts.find(t => t.id === id) || myLayouts.find(t => t.id === id)
+      strip()
+      if (tpl) applyTemplate(tpl)
+      // A missing id (deleted, or belongs to someone else and isn't shared)
+      // falls through to whatever the workspace would otherwise open on —
+      // never a crash, matching this repo's own "an invalid deep link degrades,
+      // it doesn't break the page" convention.
+      return
+    }
+
+    // Share token: not in the preloaded lists by construction (it may belong
+    // to a different user), so this is a live fetch.
+    fetch(`/api/charts/layouts/shared/${encodeURIComponent(openSharedToken)}`, { credentials: 'include' })
+      .then(r => (r.ok ? r.json() : null))
+      .then(tpl => { strip(); if (tpl) applyTemplate(tpl) })
+      .catch(() => strip())
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [templatesLoading, globalLayouts, myLayouts])
+
   // Apply the LOCKED "UCT Default" template: the frozen layout shell + the frozen
   // chart_settings + the default theme. Everything is loaded FROM the in-code
   // constants and written to the working prefs; the constants are never written

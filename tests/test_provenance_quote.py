@@ -1,9 +1,14 @@
 """Tests for GET /api/provenance/quote (S8 Step 2 — live D1 -> S8 wiring).
 
-No-auth, matching /api/live-prices and /api/fundamentals/{ticker}'s existing
-no-auth convention for ordinary quote-shaped data. Mocks the HTTP layer
-inside each adapter (never the network), same pattern as
-test_fmp_client.py / test_massive_d1.py.
+No-auth, because its only consumer (`/provenance-demo` in App.jsx) is a
+deliberately public route. ⚰️ This docstring used to cite "/api/live-prices
+and /api/fundamentals/{ticker}'s existing no-auth convention" as the
+precedent - that convention ended with OI-17 (`caebdab16`, 2026-09-23), which
+gated /api/live-prices and three sibling market-data endpoints behind auth.
+See the router's own docstring for the one reason this route is still open
+and the decision that is still pending on it. Mocks the HTTP layer inside
+each adapter (never the network), same pattern as test_fmp_client.py /
+test_massive_d1.py.
 """
 import time
 from unittest.mock import MagicMock, patch

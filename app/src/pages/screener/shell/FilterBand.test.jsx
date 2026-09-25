@@ -106,105 +106,11 @@ describe('FilterBand — every refusal is answered IN WORDS', () => {
   })
 })
 
-describe('FilterRail — the wire, not the component', () => {
-  const META = {
-    categories: [{ key: 'descriptive', label: 'Descriptive' }],
-    filters: [
-      { key: 'price', label: 'Price', category: 'descriptive', type: 'range',
-        allow_custom: true, unit: '$', presets: [{ label: 'Any' }],
-        distribution: PRICE },
-      { key: 'sector', label: 'Sector', category: 'descriptive', type: 'enum',
-        unit: null, presets: [{ label: 'Any' }] },
-    ],
-    distribution_basis: BASIS,
-  }
-
-  it('mounts the band under the real control, off the real meta payload', () => {
-    render(<FilterRail meta={META} activeFilters={{}} onChange={() => {}} onClear={() => {}} />)
-    const row = screen.getByLabelText('Price').closest('div')
-    expect(within(row).getByText('32.75')).toBeInTheDocument()
-  })
-
-  it("renders the server's own disclaimer verbatim, exactly once", () => {
-    render(<FilterRail meta={META} activeFilters={{}} onChange={() => {}} onClear={() => {}} />)
-    const hits = screen.getAllByText(BASIS.note)
-    expect(hits).toHaveLength(1)
-    // ⛔ The half that matters: the caption must still say it recommends nothing.
-    expect(hits[0]).toHaveTextContent('not a threshold this firm recommends')
-  })
-
-  // ⛔ NEAR IS NOT ASSOCIATED. DOM order serves a browse-mode reader; a member
-  // moving select-to-select through the rail is in FORMS mode, where only the
-  // control's name, value and DESCRIPTION are spoken — so an unassociated band
-  // is silent at the one moment it exists for, while a threshold is chosen.
-  const describedText = el => {
-    const ids = (el.getAttribute('aria-describedby') || '').split(/\s+/).filter(Boolean)
-    return ids.map(id => document.querySelectorAll(`#${CSS.escape(id)}`))
-      .map(nodes => {
-        // A describedby pointing at nothing — or at two things — resolves to
-        // silence or to the wrong copy, and both look exactly like success.
-        expect(nodes).toHaveLength(1)
-        return nodes[0].textContent
-      }).join(' ')
-  }
-
-  it('the select is DESCRIBED BY its measured band, not merely followed by it', () => {
-    render(<FilterRail meta={META} activeFilters={{}} onChange={() => {}} onClear={() => {}} />)
-    const text = describedText(screen.getByLabelText('Price'))
-    expect(text).toContain('Typical range')
-    expect(text).toContain('32.75')          // the p50 a member is about to type against
-    expect(text).toContain('3,714 of 3,714') // and the coverage that produced it
-  })
-
-  it('a REFUSAL is what the select points at when there is no range', () => {
-    // The refusal sentence is the fact a member most needs before setting a
-    // threshold on that column — "we hold nothing here" is not a blank.
-    const refused = {
-      ...META,
-      filters: META.filters.map(f => f.key === 'price'
-        ? { ...f, distribution: { non_null: 0, usable: 0, universe: 3714, refused: 'no_data' } }
-        : f),
-    }
-    render(<FilterRail meta={refused} activeFilters={{}} onChange={() => {}} onClear={() => {}} />)
-    expect(describedText(screen.getByLabelText('Price'))).toMatch(/nothing in tonight/i)
-  })
-
-  it('a control with no band names no description — same probe, both populations', () => {
-    render(<FilterRail meta={META} activeFilters={{}} onChange={() => {}} onClear={() => {}} />)
-    // CONTROL first: absence is only evidence if the probe can see a presence.
-    expect(screen.getByLabelText('Price')).toHaveAttribute('aria-describedby')
-    expect(screen.getByLabelText('Sector')).not.toHaveAttribute('aria-describedby')
-  })
-
-  it('two rails on the page keep two separate associations', () => {
-    // ⭐ THE REASON THE ID IS `useId`-SCOPED. Below 1024px `.railSlot` is
-    // `display:none` but still IN THE DOM while FiltersSheet re-hosts the whole
-    // rail, so a `fb_${key}` id would exist twice and the association would
-    // resolve to whichever came first — quite possibly the hidden copy.
-    render(<>
-      <FilterRail meta={META} activeFilters={{}} onChange={() => {}} onClear={() => {}} />
-      <FilterRail meta={META} activeFilters={{}} onChange={() => {}} onClear={() => {}}
-        variant="sheet" />
-    </>)
-    const selects = screen.getAllByLabelText('Price')
-    expect(selects).toHaveLength(2)
-    const ids = selects.map(s => s.getAttribute('aria-describedby'))
-    expect(new Set(ids).size).toBe(2)
-    // `describedText` itself asserts each id resolves to exactly one element.
-    for (const s of selects) expect(describedText(s)).toContain('32.75')
-  })
-
-  it('shows no disclaimer and no band when the snapshot could not be read', () => {
-    // `meta()` ships `distribution_basis: null` exactly when `distributions()`
-    // failed — and then no filter carries a `distribution` either.
-    const blind = {
-      ...META,
-      filters: META.filters.map(f => { const g = { ...f }; delete g.distribution; return g }),
-      distribution_basis: null,
-    }
-    render(<FilterRail meta={blind} activeFilters={{}} onChange={() => {}} onClear={() => {}} />)
-    expect(screen.getByLabelText('Price')).toBeInTheDocument()
-    expect(screen.queryByText(/typical range/i)).toBeNull()
-    expect(screen.queryByText(BASIS.note)).toBeNull()
-  })
-})
+// ⚰️ The third describe here — "FilterRail — the wire, not the component", six cases — was
+// removed on 2026-09-25. It asserted the bands and the basis note UNDER the real FilterRail,
+// and the owner removed exactly that from the rail on 2026-09-21 (46d03d3c4, #178: "remove
+// range bands"; FilterRail.jsx says so at its own render site). The cases had been red since,
+// which muted every other rail in this directory's runs. The component cases above still
+// hold: FilterBand itself is unchanged and tests/test_screener_distribution.py still reads its
+// refusal sentences. Whether the orphaned component should follow the feature out is a
+// separate call; deleting it would also need that Python rail re-pointed.

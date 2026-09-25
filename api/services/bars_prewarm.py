@@ -313,6 +313,61 @@ def rank_intraday_candidates(rest, dollar_volume) -> list:
     return sorted(rest, key=lambda t: (-dv.get(str(t).upper(), 0.0), str(t)))
 
 
+def select_5m_deep_cohort(ranked, cap, *, has_5m, discovery_every=7):
+    """Choose the DEEP 5m cohort from an already relevance-ranked list.
+
+    ⛔⛔ RELEVANCE ALONE PICKS SLOTS THAT CANNOT BE FILLED. `rank_intraday_candidates`
+    orders by 20-session average dollar volume, which is the right question — "who would
+    we most like ready?" — but it answers only that one. Measured on production
+    2026-09-24: **IVV ranked TOP-5** and the store holds **no 5m rows for it at all**;
+    same for IJR / EWJ / AVUV / AVEM / BIV / CGGR, every one of which has DAILY data.
+    Meanwhile MU / INTC / SNDK are current. So the ranker was spending scarce deep slots
+    repeatedly re-proving that a high-volume symbol cannot produce a usable 5m series.
+
+    ⭐ THE POSITIVE EVIDENCE ALREADY EXISTS AND IS FREE. A 5m row only reaches `ohlcv`
+    after passing `fetch_with_validation`, so "this symbol has stored 5m bars" IS proof
+    of capability — durable across restarts, and readable with the INDEXED point lookup
+    `get_last_ts(sym, '5')`. No new registry, no new table, no blacklist.
+
+    ⛔ AND THE OBVIOUS FILTER WOULD BE A TRAP. Admitting only proven symbols is circular:
+    never fetched -> never proven -> never eligible -> never fetched. A brand-new listing
+    could never enter. So this is NOT a filter. Known-capable symbols take most of the
+    cohort and every `discovery_every`-th slot is RESERVED for the highest-ranked UNKNOWN,
+    so discovery keeps happening inside the deep cohort; the paced crawler remains the
+    main discovery mechanism and a successful crawl promotes a symbol here automatically
+    (it will have rows next boot).
+
+    ⚠️ NOTHING IS PERMANENT. The only negative signal used is "no rows yet", which any
+    successful acquisition erases. A symbol is never exiled, and there is no state that
+    could become a tombstone.
+
+    Pure + deterministic: same inputs, same cohort, so the 600 does not churn per boot.
+    """
+    if cap <= 0:
+        return []
+    good, unknown, out = [], [], []
+    for sym in ranked:
+        try:
+            (good if has_5m(sym) else unknown).append(sym)
+        except Exception:      # noqa: BLE001 — an unreadable store must not empty the cohort
+            good.append(sym)
+        if len(good) + len(unknown) >= cap * 4:
+            break              # bounded scan: never walk the whole universe for 600 slots
+    gi = ui = 0
+    step = max(2, int(discovery_every))
+    for i in range(cap):
+        take_unknown = ((i + 1) % step == 0) and ui < len(unknown)
+        if take_unknown:
+            out.append(unknown[ui]); ui += 1
+        elif gi < len(good):
+            out.append(good[gi]); gi += 1
+        elif ui < len(unknown):
+            out.append(unknown[ui]); ui += 1
+        else:
+            break
+    return out
+
+
 def shallow_5m_universe_jobs(ticker_list, deep_5m_tickers, *, enabled: bool, bars: int) -> list:
     """PHASE 2 (instant-origin) — the BOOT-ONLY jobs that warm a SHALLOW 5m window for
     the WHOLE universe, so a brand-new user's first 5m open of ANY ticker is an instant
@@ -841,7 +896,37 @@ def run_prewarmer_forever():
         # so it stays capped. Both env-tunable: raise PREWARM_5M_CAP toward the full
         # universe (e.g. 99999) once Massive throughput is confirmed to absorb it.
         _CORE_INTRADAY_TICKERS = ticker_list
-        _FIVEMIN_TICKERS = ticker_list[:int(os.environ.get("PREWARM_5M_CAP", "2500"))]
+        # ⭐ ELIGIBILITY APPLIES AT THIS CUT AND NOWHERE ELSE. `ticker_list` also drives
+        # D/W/M and 60/30/15, which warm ALL of it — there ordering is sequence, not
+        # membership, so perturbing it would buy nothing and risk a daily regression.
+        # `_FIVEMIN_TICKERS` is the only place a symbol is INCLUDED OR EXCLUDED, so it is
+        # the only place the "can we actually make this ready?" question belongs.
+        _5m_cap = int(os.environ.get("PREWARM_5M_CAP", "2500"))
+        _FIVEMIN_TICKERS = ticker_list[:_5m_cap]
+        if os.environ.get("PREWARM_5M_ELIGIBILITY", "1") == "1":
+            try:
+                from api.services import bars_sqlite as _bsq5
+                _known = set()
+
+                def _has5(sym, _c=_known):
+                    ok = _bsq5.get_last_ts(sym, "5") is not None
+                    if ok:
+                        _c.add(sym)
+                    return ok
+
+                _elig = select_5m_deep_cohort(
+                    ticker_list, _5m_cap, has_5m=_has5,
+                    discovery_every=int(os.environ.get("PREWARM_5M_DISCOVERY_EVERY", "7")))
+                if _elig:
+                    _disc = [t for t in _elig if t not in _known]
+                    _was = sum(1 for t in _FIVEMIN_TICKERS if t in _known)
+                    print(f"[prewarm] 5m deep cohort: {len(_elig)} slots — "
+                          f"{len(_elig) - len(_disc)} proven-capable + {len(_disc)} discovery; "
+                          f"dollar-volume-only would have been {_was} proven "
+                          f"({len(_FIVEMIN_TICKERS) - _was} with no stored 5m)")
+                    _FIVEMIN_TICKERS = _elig
+            except Exception as e:                    # noqa: BLE001
+                print(f"[prewarm] 5m eligibility unavailable, keeping rank-only cut: {e}")
         _ONEMIN_TICKERS = _active_intraday[:int(os.environ.get("PREWARM_1M_CAP", "1500"))]
         _PREWARM_WORKERS = 4
     else:
