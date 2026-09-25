@@ -161,6 +161,34 @@ took the 38; the integrator re-ran every touched file in its own tree before eac
 3. **A PR only with your say-so.** Master moved 2 docs/flags/tools commits under the branch
    with zero file overlap — merges clean, no rebase.
 
+### 3e. Owner walkthrough — what only you can do, in order
+
+1. **Say "open the PR"** (or open it yourself): base `master`, head `fix/master-red-sweep`,
+   body prepared in the session scratchpad as `PR-BODY-red-sweep.md`. `gh` is not
+   authenticated on this box and `GITHUB_PERSONAL_ACCESS_TOKEN` is invalid — either run
+   `gh auth login` in a normal terminal / replace the token at github.com/settings/tokens
+   (scopes `repo`, `read:org`) and restart Claude Code, or the agent opens it through the
+   browser as it did for #184. Merging is the usual "deploy" + member-impact call: this is
+   test-only plus the four product files above, so the member impact is nil.
+2. **Rule on the fractional-window bug** (member-facing, since #145): say "fix it" and the
+   agent changes ONE line at `pine.js:8048` (do not defer a literal `num` that is not a usable
+   window — `usableWindowBound` already answers null for `27.5`), adds a rail, and the four
+   red cases in `pineBoxSuggestVoice` / `ImportBox.thinkscript` go green. Or leave it to the
+   pine programme.
+3. **Rule on the BuilderSheet contract**: which sibling case is right — "the saved document
+   is byte-identical to the typed one" or "the author's lengths arrive as FIELDS". One of
+   the two tests changes; no product code either way unless you want the door to strip the
+   knobs.
+4. **`rule12Paths` scoping** (hub rail owner): decide whether gate manifests under
+   `docs/plans/joystick/gate-runs/` and `fix/`-family branches should count as a joystick
+   change set. Green on master regardless.
+5. **The withheld corpus** (optional): on the rig's browser, re-fetch the 30 `local-only`
+   scripts named in `tests/fixtures/pine_oos/MANIFEST.json` from their `source_url`, verify
+   each against `sha256_source`, then run the OOS baseline with `OOS_MEASURED_WRITE=1` to
+   regenerate `oos-measured-baseline.json`. 17 census cases go green on that checkout only.
+6. **13 bare polling sites**: for each row in §3c's lane-2 cell, say bare or `useMobileSWR`;
+   the agent then declares them in `pollingSites.rail.test.js` with your reason.
+
 
 ---
 
