@@ -1,330 +1,763 @@
 # Ask Notebook — insert an answer into a note (G-064)
 
-**Date:** 2026-09-22
+**Date:** 2026-09-22 — **revision 2**
 **Branch:** `feat/notebook-kill-switch`
-**Status:** design, owner-approved in chat 2026-09-22 — awaiting review of this written spec
+**Status:** Revision 2. Final pre-build version, written on the owner's instruction
+of 2026-09-22 ("do one final analysis … finalize the plan … then proceed with the
+final build"). Revision 1 (`39bc8fa2c`) was checked line by line against the code
+at `a0adf6a9f` by three independent read-only audits. It had the right intent and a
+wrong mechanism in several places. §13 lists every change and the evidence behind it.
 **Ledger:** `docs/notebook/competitive-gap-ledger.md`, G-064 ("AI-synthesis-inserted-into-a-note")
+**Owner decisions this spec implements (2026-09-22, not re-opened here):** all four
+Ask scopes · prose and citations preserved · a Callout-style bordered block ·
+permanent marking with per-citation staleness · reuse the `[[` note search.
 
 ---
 
 ## 1. Objective
 
-Ask Notebook (`app/src/pages/journal-2-0/components/notebook/AskPanel.jsx` +
-`api/services/journal_two/ask_service.py`) already lets a member ask a question
-over their own note corpus and read a citation-grounded answer, across four
-scopes: **This note**, **This document**, **This research** (a ticker's
-Research Workspace), **My Notebook**. What it cannot do today — confirmed by
-grep, zero hits — is let the member take that answer and actually place it
-into a note, so it becomes part of their permanent written record instead of
-something they read once and lose.
+Ask Notebook (`AskPanel.jsx` + `api/services/journal_two/ask_*.py`) answers a
+question over the member's own notes and shows a cited answer. Today the answer
+cannot be kept: there is no insert affordance anywhere. The objective is that a
+member can put an answer into a note from any of the four scopes, and that the
+note stays honest about it afterwards.
 
-**The objective:** a member can insert an Ask Notebook answer into a note, from
-any of the four scopes, and the note permanently and honestly shows that the
-passage came from Ask Notebook — never silently indistinguishable from the
-member's own writing, and never carrying a citation that lies about how well
-it still matches the (possibly since-edited) text around it.
+Five promises. Every section below exists to keep one of them:
 
-This is new subsystem territory, not a modification of an existing flow:
-`AskPanel.jsx` has no insert affordance, and the editor needs two new node
-types to represent this content durably. Classified **Architectural** per
-`superpowers:brainstorming`.
+| # | promise |
+|---|---|
+| **P1** | An inserted answer always shows it came from Ask Notebook. Editing the prose never removes that. |
+| **P2** | A citation whose backing text the member later edited says so, in words. |
+| **P3** | Ask Notebook never cites an inserted answer back to the member as if they wrote it. |
+| **P4** | Inserting can never fork a note, lose an edit, or bypass version history. It uses the one save path the Notebook already trusts. |
+| **P5** | Export keeps the provenance; a public share link does not leak the member's other notes through a citation. |
 
 ---
 
-## 2. Current state (what this builds on)
+## 2. What exists today (verified at `a0adf6a9f`)
 
-### 2.1 Ask Notebook today
-- `AskPanel.jsx` streams an answer via SSE (`POST /api/j2/ask/stream`),
-  splitting it into `parts` (plain text spans + citation chips) via
-  `lib/askCitation.js`'s `splitAnswer`/`citedSources`.
-- Each citation carries `{n, label, citation (validity state), navigation,
-  snippet, ...}`. Validity states (`PRECISE_STATES` in `askCitation.js`,
-  mirroring `ask_evidence.PRECISE_CITATIONS` server-side) already model
-  degradation: `exact`, `note_only`, `page_only`, `record_only`,
-  `unavailable`.
-- For Note scope specifically, `getEditorDoc` is passed in and
-  `resolveNoteCitation(doc, location, snippet)` re-verifies a citation
-  against the LIVE, possibly-edited ProseMirror doc before navigating —
-  "positions do not survive an edit, and a confident jump to the wrong
-  paragraph is worse than not jumping." **This is the exact mechanism G-064's
-  own citation-degradation reuses**, not a new one.
-- `ask_evidence.py`'s allowlist (`relevance == query_match`) and
-  `ask_prompt.py`'s injection hardening (G-124/G-125, already DONE) mean
-  everything `AskPanel` ever shows the member has already passed grounding —
-  inserting it is copying already-vetted output into storage, not a new place
-  untrusted content could act.
+### 2.1 AskPanel
+- Props are exactly `scope, target, getEditorDoc, onNavigate, autoOpen, onClose`
+  (`AskPanel.jsx:52-61`). There is no editor handle and no insert callback.
+- Scopes are `'note' | 'document' | 'security' | 'notebook'`
+  (`AskPanel.jsx:27-32`; server `ask_service.py:42-46`).
+- Mount sites:
 
-### 2.2 Precedent node types this design extends, not reinvents
-- **`documentExcerpt`** (`app/src/pages/journal-2-0/lib/documentExcerptNode.js`)
-  — a captured external passage, rendered in quotation marks with a citation
-  chip back to its source page. Same "provenance survives independently of
-  surrounding prose" idea this design needs.
-- **`noteLink`** (`lib/noteLinkNode.jsx`) — an atomic inline node storing only
-  an id, resolving its live display state at render time rather than freezing
-  a label at insert time. `askCitation` (§4.2) follows the same shape.
-- **`Callout`** (`lib/calloutNode.js`) — a `group: 'block', content: 'block+'`
-  container: a bordered, tinted box (`background: var(--bg-surface); border:
-  1px solid var(--border)`, `border-radius: var(--radius-md)`) with a leading
-  icon rendered as a non-editable decoration and an editable body holding
-  arbitrary rich content. **`askInsert` (§4.1) is structurally this node**,
-  with its own icon/label and its own attrs instead of a member-editable
-  emoji.
-- **`_sync_note_sidecars`** (`api/services/journal_two/notes.py`) — the ONE
-  tree-walk that projects every special node type's data into its own
-  sidecar table (embeds, mentions, links, fact refs, excerpt refs). New node
-  types are added as new branches in this SAME walk, never a parallel one.
-- **`extract_plain_text`** (same file) — the search-index text extractor;
-  every special node type gets a branch here too, degrading to a bracketed
-  marker (`[widget]`, `[excerpt]`) or, for `noteLink`, deliberate silence.
+| host | scope | a note editor is mounted? |
+|---|---|---|
+| `NoteEditorPage.jsx:2003-2011` | `note` | **yes** (`editorRef`) |
+| `DocumentPreviewSheet.jsx:61-67` inside `NoteEditorPage.jsx:1886` | `document` | **yes**, behind the sheet, not plumbed through |
+| `DocumentPreviewSheet.jsx:61-67` inside `TickerResearchWorkspace.jsx:266` | `document` | no |
+| `ResearchHome.jsx:131-134` | `notebook` | no |
+| `TickerResearchWorkspace.jsx:145-146` | `security` | no |
+
+### 2.2 The answer
+- Plain text rendered with `white-space: pre-wrap` and no markdown parser
+  (`AskPanel.module.css:141`). The `final` event replaces the streamed text
+  (`AskPanel.jsx:152-153`). A completed answer sets `status = 'done'` and pushes
+  `{q, a}` onto `historyRef` (`:161-163`).
+- `splitAnswer(answer, sources)` (`askCitation.js:47-60`) turns `[n]` into a chip
+  **only if** source `n` was actually sent; an invented `[9]` stays literal text.
+  `citedSources` (`:66-76`) lists the sources cited, in first-cited order.
+- A source object (`ask_service.py:98-118`) carries `n, type, label, citation,
+  snippet, navigation, location, stance, payload, textOrigin, truncated`. **No
+  source id crosses the wire except inside `navigation`.** `snippet` is the
+  *source* passage, not the answer sentence.
+- `navigation.kind` has five values (`ask_evidence.py`): `note {note_id}` ·
+  `document {document_id, page_number, note_id?}` · `excerpt {excerpt_id,
+  document_id, page_number}` (no note id) · `fact {fact_id, note_id}` ·
+  `review {note_id, review_id}`.
+- **Two different state vocabularies, which revision 1 confused.** The server's
+  per-source `citation` field is `exact | page_only | note_only | record_only |
+  unavailable` (`ask_evidence.py:174-180`; mirrored `AskPanel.jsx:351`). The
+  client's re-resolution outcomes are `valid_exact | reresolved_exact |
+  valid_note_only | degraded`, with `PRECISE_STATES = {valid_exact,
+  reresolved_exact}` (`askCitation.js:29-34`). Adding a `stale` value to
+  `PRECISE_STATES` would have made stale citations navigate as precise
+  (`NoteEditorPage.jsx:1148`).
+- Fixed in this wave: resolveNoteCitation now re-verifies a re-resolved range's
+  text before claiming RERESOLVED_EXACT (an empty paragraph could misalign the
+  walker and select the wrong passage). Full empty-block parity between the
+  walkers and ProseMirror's textBetween remains open.
+
+### 2.3 Ask retrieval reads every block of a note
+- Notebook and security scopes select candidate notes by FTS over `body_plain`
+  (`ask_retrieval.py:195-199`), then locate the passage by walking `body_json`
+  through `note_citation_text.flatten` (`_best_note_passage`, `:219-238`). Note
+  scope walks `body_json` directly (`_note_blocks`, `:1120-1152`).
+- Every block becomes evidence labelled as the member's own note, shown to the
+  model under "notes they wrote" (`ask_evidence.py:275-290`; `ask_prompt.py:84-86`).
+  **So an inserted answer would be cited back as the member's writing — P3.**
+- `flatten` treats any type not in `_LEAF_TYPES` as a container: two positions
+  plus a block separator (`note_citation_text.py:73-76, 133-142`). An
+  unregistered inline chip would shift every later server citation position by
+  one per chip and degrade citations into that note.
+
+### 2.4 How notes are written, and why a server-side insert is ruled out
+- The open editor autosaves with `baseUpdatedAt` (`NoteEditorPage.jsx:1539`).
+  A mismatch returns 409 (`notes.py:2350-2351`), and `classifyServerChange`
+  (`serverChange.js:127-142`) merges **only** server-appended tails made of
+  `widgetEmbed`, `financialFact` or `documentExcerpt` (`:56-60`). Anything else is
+  a body rewrite, which **forks** the note into a "(conflicted copy)"
+  (`NoteEditorPage.jsx:1493-1513`; offline drain `outboxDrain.js:708`).
+- The three server appends (`notes.py:2468-2637`) take no baseline, capture no
+  version, and run their read-modify-write outside a write transaction.
+- The F5 freeze is armed: `serverChange.js` and `settleNoteWrite.js` may not
+  change (`f5Freeze.test.js:10-12, 102-105`).
+- **Consequence:** a server-side "append an askInsert" endpoint would fork any
+  open or offline-queued copy of the target note, skip version history, and could
+  only be made safe by editing frozen files. It is not built. Every insert in this
+  design is an **editor transaction** that rides the normal autosave (§5).
+- Precedent for inserting into the open editor: `CaptureInboxTray.place`
+  (`NoteEditorPage.jsx:161-191`). `insertContent` replaces a selected node, so an
+  explicit position is used (`:164-166`).
+
+### 2.5 Node-type precedents
+- `Callout` (`calloutNode.js:35-75`): `content: 'block+'`, `defining`, static
+  `renderHTML`, no node view, so it cannot render a `UIcon`.
+- `NoteLink` (`noteLinkNode.jsx:25-63`): inline atom, React node view
+  (`NoteLinkView.jsx:40-53`), no `leafText`.
+- `DocumentExcerpt` (`documentExcerptNode.jsx:19-54`): block atom, React node view.
+- No journal-2-0 node uses `NodeViewContent` yet. `askInsert` is the first React
+  node view with editable content.
+- Every `buildExtensions()` consumer picks up new nodes automatically:
+  `NoteEditorPage` :1293, `NoteVersionPreview` :26, `SharedNotePage` :73 (public),
+  charts `NotebookWidget` :69, modelbook `UpbRichEditor` :205.
+
+### 2.6 Flags (Wave K mechanism)
+- `NOTEBOOK_FLAGS` (`api/routers/auth.py:132-137`), read per request, spread into
+  `_access_payload`. Payload key = env name lower-cased (`:168-174`). Naming is
+  `_ON`, not `_ENABLED`.
+- Client: `notebookFlag(key)` returns `true | false | null` from a per-tab latch
+  (`notebookFlags.js:92-128`); fallbacks in `FLAG_FALLBACKS` (`:36-42`).
+- `tests/test_notebook_flags.py:20-25, 60` pins the exact roster of keys and must
+  be edited for a fifth. `tests/test_feature_flag_ledger.py` fails by name on an
+  undeclared off-by-default gate.
+
+### 2.7 Export and share
+- `notes_export._block` keeps an unknown node's children and drops its wrapper;
+  a childless unknown node exports as `""` (`notes_export.py:555-559`). Revision
+  1's block would have exported with no label — the opposite of P5.
+- `note_shares.resolve_share` serves `bodyJson` verbatim to anonymous readers
+  (`note_shares.py:139-149`). Share links are off (`J2_SHARE_LINKS_ENABLED`).
+
+### 2.8 Two live defects found by the analysis (fixed in this wave, §10)
+- **(a) Research-workspace citations are dead.** `TickerResearchWorkspace` passes
+  `onOpenNote` to `AskPanel` (`:145-146`), which is not an AskPanel prop, so
+  `onNavigate` is null and every citation click in "This research" does nothing
+  (`AskPanel.jsx:182`).
+- **(b) Callout and Toggle styling never applies.** `NoteEditorPage.module.css:363-426`
+  styles `.uctCalloutIcon`, `.uctCalloutBody`, `.uctToggleChevron` and
+  `.uctToggleDetails` as bare classes. A CSS module hashes them — the built
+  stylesheet contains `._uctToggleChevron_1xnnk_773` and `._uctCalloutIcon_1xnnk_725`
+  — while `calloutNode.js:71` and `toggleNode.js:109` write the raw names.
+  Measured effect: the rules match nothing. Callout bodies lose their flex sizing,
+  and the Toggle chevron renders as a default browser button with no 44px touch
+  target on phones. The file's own comment at `:201-206` names this exact trap.
 
 ---
 
 ## 3. User flow
 
-### 3.1 Note scope — the common case, zero extra clicks
-The member is inside a note, asks a question (any scope reachable from
-there), gets an answer, clicks **Insert**. It lands directly in the note
-they're already in, appended at the end (see §3.3 for why append-only, here
-too). No picker, no extra dialog.
+### 3.1 When Insert is offered
+Only when all hold: the flag `notebook_ask_insert_on` is `true` for the tab, the
+answer completed (`status === 'done'`), and it cites at least one real source
+(`cited.length > 0`). Not while streaming, not on an error or rate limit, not for an
+answer with no citations (an uncited answer is not grounded, and inserting it would
+put an unsourced AI paragraph into the member's record). In a note editor, also not
+while a recovered draft is waiting on Restore or Discard (§5.2). An ordinary
+autosave in flight does not withdraw it.
 
-### 3.2 Document / Security-research / Notebook scope — no "current note" exists
-Clicking **Insert** opens the SAME search-as-you-type note picker that
-already powers `[[` note-link authoring
-(`app/src/pages/journal-2-0/components/notebook/NoteLinkMenu.jsx`'s
-`NoteLinkList` + its async search) — reused verbatim, not redesigned. Typing
-searches the member's notes; selecting one inserts there; a "+ Create new
-note titled…" option at the top handles the no-match / net-new case, using
-the note-creation path the app already has (same as `+ New note` elsewhere).
+After an insert, the button reads **"Inserted"** and is disabled for that answer, so
+one answer cannot be inserted twice by a double click. A new answer re-enables it.
 
-### 3.3 Insertion point
-Appended at the end of the target note's document — the simplest, least
-surprising rule, and consistent with "insert" reading as "add this to my
-research on the topic" rather than "splice into wherever my cursor happens to
-be in a note I'm not even looking at" (true for every scope except 3.1, where
-the member IS looking at the note but may not have a cursor position that
-makes sense for a multi-paragraph insert). Not cursor-position-aware in v1 —
-recorded as a possible future refinement, not built now (YAGNI: no signal yet
-that "insert at cursor" is worth the extra complexity of merging into
-existing content mid-document).
+### 3.2 A note is open — one click
+Hosts with a note editor: `NoteEditorPage`'s Ask ("This note"), and the document
+Ask inside a document opened from a note. Button: **"Insert into this note"**. The
+answer is appended at the end of the note by an editor transaction, and the page
+scrolls it into view. No dialog.
+
+### 3.3 No note is open — pick one
+Hosts: Research Home ("My Notebook"), the ticker research workspace ("This
+research"), and a document opened from that workspace. Button: **"Insert into a
+note…"** opens a note picker:
+- a search box using the same `GET /api/j2/notes?q=…&limit=8` search the `[[`
+  menu uses (extracted into one exported function both call);
+- results rendered with the existing `NoteLinkList` (`NoteLinkMenu.jsx:37-109`);
+- a first row **"Create a new note"**, titled with what the member typed, else the
+  question (first 80 characters).
+
+The picker renders inline, inside the Ask panel. On touch the panel is already a
+`Sheet`, so this does not stack a second modal.
+
+Choosing a note **opens that note** through the host's own `onOpenNote` (the same
+function its note list uses), and the answer is appended there when its
+editor is ready (§5.2), then scrolled into view with a toast "Answer inserted at the
+end of this note." Choosing "Create a new note" creates the note with the block as
+its body in one request, then opens it.
+
+The member leaves the research page to see the note. That is deliberate: it is the
+only way the insert can use the note's own save path (§2.4, P4), and the member
+sees exactly where the answer went. Browser Back returns to the research page.
+
+### 3.4 Where it lands
+Always at the end of the note. Not cursor-aware in v1 (§12). When the note ends with
+an empty paragraph, the answer takes that paragraph's place, so no blank line sits
+above it. The insert adds one empty paragraph after the answer and puts the caret
+in it, so if the editor regains focus without a click the member's next words go
+after the answer, never into it (typing inside the block would label the member's
+words "From Ask Notebook" and leave them out of Ask). The insert does not focus the
+editor: on the click path, focus stays in the Ask panel.
+
+### 3.5 What is inserted
+Exactly what the panel showed: the answer split into paragraphs on line breaks
+(empty lines dropped), each valid `[n]` as a citation chip, an invented `[n]` left
+as literal text. No markdown interpretation — the panel does none either.
 
 ---
 
 ## 4. Data model
 
-Two new TipTap node types, following the existing family's shape exactly.
+Both nodes are registered in `buildExtensions()` (`tiptap.js`) with the standard
+warning: **never remove** — TipTap drops unknown node types at parse time, so
+unregistering either would delete content from every note that has it. The flag
+gates only the Insert button, never the nodes.
 
 ### 4.1 `askInsert` — the container block
 
 ```js
-{
+Node.create({
   name: 'askInsert',
   group: 'block',
-  content: 'block+',        // real rich content, same as Callout
+  content: 'block+',
   defining: true,
-  attrs: {
-    insertedAt: string,      // ISO timestamp
-    scope: 'note'|'document'|'security'|'notebook',
-    query: string,           // the member's original question, for context
+  isolating: true,        // Backspace/Delete at its edges never merge the body out
+  draggable: false,
+  addAttributes: {
+    insertedAt: { default: null },   // ISO 8601, set at insert
+    scope:      { default: null },   // 'note'|'document'|'security'|'notebook'
+    question:   { default: '' },     // the member's question, for context
   },
-}
+  parseHTML: [{ tag: 'div[data-type="ask-insert"]' }],
+  renderHTML: ['div', { 'data-type': 'ask-insert', 'data-inserted-at', 'data-scope', 'data-question' }, 0],
+  addNodeView: ReactNodeViewRenderer(AskInsertView),
+})
 ```
 
-Rendered like `Callout`: a bordered/tinted box (same CSS class family,
-`border-radius: var(--radius-md)`, `background: var(--bg-surface)`, `border:
-1px solid var(--border)`), a leading `sparkle` `UIcon` (not an emoji — this
-is UI chrome the member doesn't author, unlike Callout's emoji) instead of
-`.uctCalloutIcon`, and a small "From Ask Notebook" label. The body holds real
-paragraphs (so normal editing — bold, new paragraphs, deleting a sentence —
-just works, same as inside a Callout).
+- `AskInsertView`: `NodeViewWrapper[data-type="ask-insert"]` → a header with
+  `contentEditable={false}` (sparkle `UIcon`, "From Ask Notebook", the insert date;
+  the question in its `title` and accessible description) → `NodeViewContent` as
+  the editable body.
+- **P1 mechanics:** `isolating` stops Backspace at the start and Delete at the end
+  from lifting the body out of the block. `content: 'block+'` means deleting every
+  paragraph leaves the wrapper with one empty paragraph. Removing the block is an
+  ordinary node delete: select it and delete. There is no unwrap command. A
+  selection that crosses the block's edge cannot be deleted or typed over: a
+  filterTransaction guard rejects any step whose deleted range has its two ends
+  under different askInsert ancestors (this also blocks lifting a paragraph out).
+  Deleting the WHOLE block, edits wholly inside it, and pure insertions are
+  allowed. Undo and redo are exempt from that guard: they only move the document
+  between states it already accepted.
+- **Paste.** A partial copy from inside an answer pastes as plain content; a whole
+  block keeps its label. A copy made inside an answer carries the answer's wrapper
+  as clipboard context, and because the block is `defining`, pasting it at the start
+  of a member paragraph used to wrap the MEMBER'S paragraph in a new block (member
+  prose labelled "From Ask Notebook" and left out of Ask).
+  - **Where the rule lives: `lib/pasteContainers.js` (`PasteContainers`), not the
+    node.** askInsert has no paste hook of its own any more. One plugin covers the
+    Notebook's three containers (askInsert, callout, toggle): the copy side
+    (`transformCopied`), the paste side (`transformPasted`), and a belt
+    (`handlePaste` pastes the text rather than lose a slice ProseMirror would throw
+    on). A drag within the editor runs the copy and paste TRANSFORMS (`transformCopied`,
+    `transformPasted`) but never `handlePaste`: ProseMirror's own drop handler asks
+    `handleDrop` instead, so the same plugin's `handleDrop` enters both again. A drop
+    INTO a toggle title follows the title rules below; anywhere else the drop is
+    ProseMirror's own, unchanged, unless a dry run of exactly that drop would throw,
+    and then the slice's text is dropped as plain paragraphs (the belt again). One
+    more exception: a copy-drop of a chart whose id collides (below) is placed by
+    the plugin, because ProseMirror would place its own copy with the old id; the
+    plugin's placement is ProseMirror's drop reproduced, identical apart from the id.
+  - **The rule** (this I4 rule, generalised to all three): a container OPEN at an
+    edge of a copied or pasted slice was only partly selected, so its content
+    travels as plain content. Partial answer text lands as ordinary text wherever
+    it is pasted, including inside an answer. A CLOSED block (copied as a node, or
+    wholly inside a larger selection) keeps its wrapper and attributes and pastes
+    as a second block.
+  - **A chart's identity** (`widgetEmbed.embedId`, cited precisely only while it is
+    unique in the note). A chart pasted or dropped into the note it came from gets a
+    fresh id when its own would collide; the one already there keeps its own.
+    Collisions are judged against the note as it will be once the paste or drop has
+    removed what it replaces: a cut, a drag that moves, a chart pasted over itself and
+    a select-all + paste of the note's own content all keep their ids, and so does a
+    paste into another note. An id repeated WITHIN the pasted slice (an old duplicate
+    pair) collides too, so one of the pair is re-stamped. A legacy chart with no id
+    stays without one. A drag's decision is made by the drop, which alone knows
+    whether it moves.
+- **Paste into a toggle title.** A toggle's title (`toggleSummary`, `inline*`)
+  cannot hold a block, so `pasteIntoSummary` in the same plugin decides, in this
+  order. Each outcome is one undo step, and none splits the toggle, drops a node or
+  flattens a closed block.
+  - A one-line paste (inline content, or one textblock open at both ends) is
+    ProseMirror's own paste into the title and keeps its marks.
+  - Nothing but empty lines is a no-op at every position in the title, its start
+    included.
+  - With the caret at the very start of a non-empty title, anything else lands
+    whole immediately BEFORE the toggle.
+  - TEXT-ONLY (every top-level node a textblock: paragraph, heading, code block):
+    the blocks' inline content joins into the title at the selection, one space
+    between blocks. Marks and inline atoms (a note link, a citation chip) are kept;
+    a hard break becomes a space. A selected range in the title is replaced, as any
+    inline paste replaces it.
+  - STRUCTURE (a block atom such as a file chip, image, rule or chart; a closed
+    callout, toggle or answer; a list, table or blockquote): lands whole
+    immediately AFTER the toggle, visible even when the toggle is collapsed. A
+    whole answer keeps its wrapper, attributes and chips. A structure paste never
+    touches the title: text selected in the title stays as it was.
+  - A DROP onto a title follows the same rules, decided by the same code (the plan
+    is shared), at the drop point: a drop replaces nothing, so the start-of-title
+    rule applies when it lands at the very start. A MOVED drag (not a copy) has its
+    source removed in the same transaction as the insert, so one undo restores both,
+    and the rules are judged on the document after that removal; a drop point the
+    removal itself consumes (a title's text dragged and let go on the dragged
+    content itself) is cancelled. What was dropped ends up selected, as ProseMirror's
+    own drop leaves it.
+- Not added to the slash menu. The `renderHTML` fallback (used by HTML copy/paste
+  and static renders) is a plain div with a content hole, and it parses back to the
+  same node.
 
-**⚠️ Never remove from `buildExtensions()`** once notes containing it exist —
-same rule as every other custom node type in `tiptap.js`: TipTap drops
-unknown node types at parse time.
-
-### 4.2 `askCitation` — the inline citation chip
+### 4.2 `askCitation` — the inline chip
 
 ```js
-{
+Node.create({
   name: 'askCitation',
-  group: 'inline',
-  inline: true,
-  atom: true,
-  attrs: {
-    sourceKind: 'note'|'document'|'excerpt'|'fact',  // mirrors AskPanel's existing source.navigation.kind values
-    sourceId: string,
-    label: string,           // display text at insert time (e.g. the source note's title) -- NOT frozen forever, see below
-    snippet: string,         // the text this citation was backing, for re-verification
-    state: 'exact'|'note_only'|'page_only'|'record_only'|'unavailable'|'stale',
+  group: 'inline', inline: true, atom: true, selectable: true,
+  addAttributes: {
+    n:        { default: null },  // number: shown as "[n]", named "Source n"
+    label:    { default: '' },    // source label at insertion (e.g. a note title)
+    nav:      { default: null },  // the source's `navigation` object, verbatim
+    citation: { default: null },  // server precision at insertion: exact|page_only|note_only|record_only|unavailable
+    claim:    { default: null },  // claimText of this chip's paragraph at insertion (§6);
+                                  // null = unknown (a share-reduced copy), never "edited"
   },
-}
+  parseHTML: [{ tag: 'span[data-type="ask-citation"]' }],   // attrs from data-*, nav as JSON
+  renderHTML: ['span', { 'data-type': 'ask-citation', … }, `[${n}]`],
+  addNodeView: ReactNodeViewRenderer(AskCitationView),
+})
 ```
 
-Modeled on `noteLink`: stores only what's needed to resolve itself, never a
-frozen display label treated as ground truth. `label` is a *last-known*
-display value (so the chip isn't blank before the first re-render), but
-click-through and the `state` badge resolve live, same as `noteLink`
-resolving a target's current title.
-
-**New `state: 'stale'`** — added to the existing `PRECISE_STATES` set — for
-"this citation's snippet no longer matches the text around it" (see §6).
-
----
-
-## 5. Backend integration
-
-Each extends an EXISTING single-owner mechanism; none of these are new
-subsystems.
-
-- **`_sync_note_sidecars`** (`notes.py`): a new branch for `askCitation`
-  nodes, projecting `{sourceKind, sourceId}` into a sidecar table the same
-  shape as the existing five (`note_id` leading the composite primary key,
-  same as every other sidecar — see `db.py`'s schema). This is what makes
-  "what does this note cite" / backlinks-style queries reachable later
-  without a second tree-walk.
-- **`extract_plain_text`**: `askInsert`'s prose contributes to `body_plain`
-  normally (it's real text content, walked like any paragraph). `askCitation`
-  degrades to silence in the extracted text, matching `noteLink`'s own
-  "citation chips are chrome, not searchable text" precedent — the PROSE is
-  searchable, the citation markers are not.
-- **Export (`notes_export.py`)**: an `askInsert` block exports as a labeled
-  section (mirroring `documentExcerpt`'s "attribution survives export"
-  idiom) — the prose, followed by its citations as a reference list, so a
-  member's exported Markdown doesn't silently lose which parts were
-  AI-assisted.
-- **Import**: `askInsert`/`askCitation` are never produced by any importer
-  (Notion/Obsidian/Evernote/generic) — they only exist via the insert action
-  itself. No importer changes needed.
+- No `leafText`, the same as `noteLink`, so ProseMirror's `textBetween` gives it
+  zero characters. The server's `flatten` must agree (§7.1).
+- `claim` is always written as a string at insert time (`''` for a paragraph that
+  holds only chips) and round-trips through HTML as `data-claim`, empty included. A
+  missing `data-claim` parses as `null`.
+- **Deliberately not stored:** the source `snippet` and `location`. v1 does not
+  re-verify sources (§6.5), and storing another note's passage inside this note
+  would copy it into this note's export, share payload and search index.
 
 ---
 
-## 6. Edit behavior — the permanent-marking / per-citation-staleness split
+## 5. Write path — one mechanism, the editor transaction
 
-- **The `askInsert` block's "this came from Ask Notebook" identity is
-  permanent.** No amount of editing the prose inside it removes the block
-  wrapper or its label. Provenance should never silently vanish — that's the
-  entire reason this feature exists. (A member CAN explicitly delete the
-  whole block, same as deleting any other content — that's a normal delete,
-  not a special "unwrap" action, and not built as one in v1.)
-- **Individual `askCitation` chips degrade independently.** On note save, the
-  same re-verification `resolveNoteCitation` already does for Ask Current
-  Note (§2.1) runs against each citation's stored `snippet`: if the
-  surrounding text still matches, `state` stays as it was; if it doesn't,
-  `state` becomes `'stale'` and the chip renders with the same honest,
-  non-alarming degradation treatment `AskPanel.jsx` already uses for
-  `page_only`/`note_only` (`.sourceApprox`, "quiet, not a warning banner" —
-  same words, same file, so the two surfaces can't drift per that file's own
-  documented rule).
+### 5.1 Building the node (one function)
+`buildAskInsertNode({ answer, sources, question, scope, insertedAt })` in a new
+`lib/askInsert.js` returns the `askInsert` JSON. It uses `splitAnswer` for chips and
+`claimText` (§6) for each chip's `claim`. `question` is the question that produced
+the answer on screen: the last `historyRef` entry's `q`, never the live input box,
+which the member may already have changed. It is the only place insert content is
+built, and it is pure, so it is tested without an editor.
 
----
+### 5.2 Inserting
+- **Open note (§3.2).** `NoteEditorPage` passes `onInsert(node)` to `AskPanel` and,
+  through a new `onInsert` prop, to `DocumentPreviewSheet`'s `AskPanel`. It calls
+  `appendAskInsert` (`lib/askInsert.js`), which runs ONE chain:
+  `insertContentAt(size, node, { updateSelection: false })` — an explicit position,
+  never the selection — or, when the note ends with an empty paragraph,
+  `insertContentAt({ from: size - last.nodeSize, to: size }, node, …)` over that
+  paragraph (§3.4); only an empty paragraph is ever replaced. In the same
+  transaction it inserts an empty paragraph directly after the answer and sets the
+  selection inside it (`caretAfterAnswer`). That paragraph is the insert's own, not
+  StarterKit's TrailingNode's: TrailingNode appends only after a transaction, so it
+  does not exist yet when the caret is placed, and with this one in place it adds
+  nothing. `insertContentAt`'s default `updateSelection: true` would have left the
+  caret inside the answer's last paragraph. The editor is not focused. It then
+  scrolls the new block into view. One undo removes the answer and its paragraph
+  together.
+  The normal autosave persists it: baseline check, version capture, offline outbox,
+  all unchanged. No new endpoint, no `settleNoteWrite` call, no new door.
+  `onInsert` is passed only while the editor is editable and no recovered draft is
+  pending (a Restore's `setContent` would erase the insert). It is **not** gated on
+  an ordinary save in flight: an insert during an autosave is the same as typing
+  during one, and the autosave pipeline carries it (the transaction re-arms the
+  debounce, and the next PUT holds the block). Gating it on `saveStatus` made the
+  button disappear on every save. The pending path (step 2 below) keeps its own
+  `saveStatus !== 'saving'` gate, which is for a Restore's PUT specifically.
+  Otherwise both hosts get `null` and Ask offers no Insert, because NoteEditorPage
+  passes no onOpenNote. The page never sets the editor read-only today, so that
+  condition is unreachable; the draft condition is real. Inside the fullscreen document
+  sheet the note is hidden, so the button changes to "Inserted" (§3.1); the page
+  toast also fires, and may sit behind the sheet.
+- **Other note (§3.3) — a pending insert.**
+  1. The picker hands `{ noteId, node, createdAt }` to two carriers: a module
+     variable and `sessionStorage` under `uct.j2.askInsert.pending`. This is the
+     exact `writePendingShare`/`takePendingShare` pattern (`shareTarget.js:171-205`).
+     Memory carries the in-app route change even where storage is refused;
+     `sessionStorage` carries a full reload. Only one entry is held at a time.
+     Then it calls the host's `onOpenNote(note)`: `ResearchHome.jsx:73`,
+     `TickerResearchWorkspace.jsx:67`, which fall back to `navigate(notePath(id))`.
+  2. `NoteEditorPage` consumes it once, when all hold: `hydratedRef.current` is
+     true (armed by the effect at `NoteEditorPage.jsx:1440-1442`), the editor is
+     editable, the recovered-draft decision is **finished FOR THIS NOTE**
+     (`decide()` at `:716-744` is async; `recoveryDecidedFor` is set to the
+     note's own id when it settles, either way, `:734,742`, and is compared
+     against the CURRENT `noteId`, `:1502`), no draft is pending (`pendingDraft`
+     null — a restore calls `setContent` and would erase the insert, `:815`; the
+     insert therefore waits until the member restores or discards), no save is
+     in flight (a Restore's PUT must settle first — `saveStatus !== 'saving'`;
+     `restoreDraft()` sets `saveStatus:'saving'` synchronously before its own
+     `await update(...)`, `:826,836`, closing the window where the insert's own
+     autosave could fire mid-restore and carry a pre-restore `baseUpdatedAt`),
+     and the entry's `noteId` matches and is under 15 minutes old.
+     - **What keeps the insert behind hydration.** `ready` reads
+       `hydratedRef.current` during render, so the order in which the effects
+       are declared is not what protects it. The protection is the recovery
+       decision: it is always set after an `await` (`:725`), and an `await`
+       yields even on a settled value, so it resumes only once the effect flush
+       that started it has finished, the arming effect of that commit included.
+       Its setState then re-renders the page, and that render reads the ref
+       already armed. If the note's editor is committed only after the decision,
+       `ready` stays false until the page next re-renders: the answer waits, and
+       is never inserted early.
+     - **Per note, as defense in depth.** Production mounts the page as
+       `<NoteEditorPage key={noteId}>` (`tabs/NotebookTab.jsx:715`), so each
+       note gets a fresh instance. Comparing `recoveryDecidedFor` with the
+       current `noteId` (and `note?.id` with `noteId`) keeps the gate correct if
+       an instance is ever reused across notes: a decision made for another note
+       can never authorize an insert into this one.
+  3. Consume = **remove the key first, then insert** through the same transaction
+     as the open-note case, so a StrictMode double effect or a reload can never
+     insert twice. Another note's entry is left for that note; an expired or
+     malformed entry is removed without inserting.
+  4. If the editor is not editable, the entry is removed and the note's toast says
+     "This note can't take changes right now, so the answer wasn't inserted. Ask
+     again to get it back." (The page never sets the editor read-only today, so this
+     guards a future state rather than a known one.)
+- **New note.** `createNoteViaApi({ title, bodyJson: { type: 'doc', content: [node] } })`
+  (`noteCreation.js:21`), then navigate to it. A create is not a door
+  (`doorFamilies.settle.test.jsx:146`).
 
-## 7. Visual design
-
-- `askInsert`: CSS class family parallel to `.uctCallout*`
-  (`.uctAskInsert`, `.uctAskInsertIcon`, `.uctAskInsertBody`,
-  `.uctAskInsertLabel`) — same box treatment, `sparkle` icon, a small label
-  row above the prose reading "From Ask Notebook" (+ the original query on
-  hover/tap, for context, not as the primary label — keeps it uncluttered).
-- `askCitation`: same chip styling `AskPanel.jsx`'s own citation chips
-  already use (`.citationChip` family), so a citation looks identical whether
-  you're reading it in the Ask panel or inside a note — one visual language,
-  not two.
-- Accessibility: chip `aria-label` carries the same `` `Source ${n}: ${label}` ``
-  pattern AskPanel's own citation chips use (`AskPanel.jsx:263`); a `stale`
-  citation's degradation is stated in words in the accessible name, not color
-  alone — the same rule `AskPanel.jsx` itself states in-line above its own
-  degradation span: *"Degradation is stated in WORDS, never by colour alone"*
-  (`AskPanel.jsx:300`).
-
----
-
-## 8. Error handling
-
-- **Insert fails to save** (network error, note changed underneath in
-  another tab): the answer stays visible and intact in the Ask panel; the
-  member can retry the insert or copy the text manually. Never a silent
-  failure, never a lost answer.
-- **"Create new note" abandoned partway** (picker closed before a title is
-  chosen): no note is created, nothing is inserted. No orphaned state.
-- **A cited source is deleted/trashed after insertion**: the `askCitation`
-  resolves its `sourceKind`/`sourceId` at click-time; a missing target
-  degrades to `state: 'unavailable'` (already an existing state in
-  `PRECISE_STATES`) with honest copy, not a broken navigation or a silent
-  disappearance.
-- **Prompt-injection surface**: explicitly, this introduces none. Everything
-  `AskPanel` ever renders has already passed `ask_evidence.py`'s allowlist
-  and `ask_prompt.py`'s injection hardening (G-124/G-125) before the member
-  sees it; inserting copies already-vetted, already-displayed content into
-  storage. No new untrusted-content boundary is crossed.
-
----
-
-## 9. Rollout
-
-Ships dark behind a new Notebook capability flag, riding the **same
-mechanism Wave K already established for this subsystem** — a key on the
-auth payload (`_access_payload` in `api/routers/auth.py`), read PER REQUEST,
-so a flip reaches a member on their next authenticated request or reload
-with **no rebuild**.
-
-This is deliberately **not** a `VITE_*` build flag. A build flag is compiled
-into the bundle — flipping it needs a full rebuild-and-deploy, and
-`docs/feature_flags.json`'s own `build_flags` section records a real
-incident where that wiring silently broke: nine `VITE_*` flags were set on
-the web service, mostly to `1`, and all nine were undefined in the shipped
-bundle for four days because `Dockerfile.web` declared no matching build
-ARGs — invisible to the repo because nothing was watching that half of the
-app. The auth-payload pattern has no such gap and is the one this session
-has used for every other capability today (G-074's
-`AWARENESS_THESIS_REVIEW_ENABLED`; Wave K's four `NOTEBOOK_*` keys) — it is
-the cheapest lever that can actually reach production, per this repo's own
-flag-first-rollback rule.
-
-Working name: **`NOTEBOOK_ASK_INSERT_ENABLED`**, an enablement gate (unset =
-OFF — a new, unreleased capability defaults off, the same polarity Wave K
-gave its own three enablement gates; only a kill-switch like
-`NOTEBOOK_OFFLINE_DEFAULT_ON` defaults on). Declared in
-`docs/feature_flags.json`'s AST-derived `flags` section on arrival, the same
-way `AWARENESS_THESIS_REVIEW_ENABLED` was declared earlier today —
-`tests/test_feature_flag_ledger.py` fails by name on an undeclared
-off-by-default gate, so this is not optional bookkeeping. Tested and live in
-the code, invisible to members until explicitly turned on; single-lever
-rollback (unset the key) once it is.
-
----
-
-## 10. Testing strategy
-
-- **Backend**: node-handling tests for `_sync_note_sidecars`'s new branch
-  (save → sidecar row exists, matching `test_wave_d_links.py`'s fixture
-  style), `extract_plain_text` tests (prose searchable, citation chrome
-  silent), export round-trip tests, and the staleness re-verification logic
-  (edit text under a citation's snippet → `state` flips to `stale`; edit
-  unrelated text → `state` unchanged) — TDD, with a mutation proof on the
-  staleness check specifically (the highest-value correctness property here).
-- **Frontend**: RTL tests for both new node views (renders correctly, chip
-  click-through, `stale` state renders the honest degradation copy), and an
-  insert-flow test from `AskPanel.jsx` (Note scope: lands in current note,
-  zero clicks; other scopes: picker opens, search/select/create-new all
-  reachable).
-- **Live verification**: this touches real editor content and a new save
-  path, so — same discipline as the backlink-context-preview and combobox
-  work earlier this session — a real live-browser pass before calling it
-  done: ask a real question, insert a real answer, reload, confirm the block
-  and citations render correctly and are still clickable.
+### 5.3 What this deliberately does not touch
+`serverChange.js`, `settleNoteWrite.js`, `outboxDrain.js`, every server append
+function, and the door rails. The F5 freeze stays intact.
 
 ---
 
-## 11. Explicitly out of scope (not silently missed — a deliberate v1 boundary)
+## 6. Staleness — what "per-citation staleness" means
 
-- **Cursor-position-aware insertion** (§3.3) — append-to-end only in v1.
-- **An explicit "unwrap"/"accept as my own words" action** (§6) — deleting
-  the block is the only way to remove the marking; no special conversion
-  action.
-- **Regenerating an insert** (re-running the original query and replacing the
-  block's content) — not built; a member who wants an updated answer asks
-  again and inserts a new block.
-- **Extending "Insert" to Ask Current Note's OWN note being the source of its
-  own citations** — already naturally covered by the general design (Note
-  scope citations can point back into the same note), no special handling
-  needed, but not separately tested as its own scenario beyond what §10
-  already covers.
+### 6.1 Provenance is permanent (P1)
+See §4.1. The block's identity never changes with editing.
+
+### 6.2 The definition (P2)
+A citation is **"edited since inserted"** when the text of the paragraph it sits in
+is no longer the text that paragraph had when the answer was inserted.
+
+```
+claimText(textblock) = the block's direct text-node text, concatenated,
+                       whitespace runs collapsed to one space, trimmed.
+                       Chips and other inline atoms contribute nothing.
+stale(chip)          = chip.attrs.claim is a string
+                       && claimText(the chip's parent textblock now) !== chip.attrs.claim
+```
+
+A chip with no claim (`null`) is **unknown, not edited**, and is never marked stale:
+that is what a share-reduced chip looks like (§6.3, §7.5).
+
+Consequences, all intended: chips in one paragraph go stale together; chips in other
+paragraphs are unaffected; moving a chip to another paragraph makes it stale; a typo
+fix makes that paragraph's chips stale. That is true: the text they back changed.
+The chip still names its source.
+
+This is the member-edit reading of the owner's "per-citation staleness" choice.
+Revision 1 tried to re-verify the source passage against the *host* note, which
+would have marked nearly every chip stale on first save (§13).
+
+### 6.3 Computed at render, never stored
+A ProseMirror plugin inside the `askCitation` extension recomputes on every doc
+change and emits a node decoration `{ askStale: true }` for each stale chip.
+`AskCitationView` reads its decorations. Nothing is written to the document, so the
+check can never trigger a save (the H14 save-loop class), and there is exactly one
+authority. It needs no network and works identically in `SharedNotePage`,
+`NoteVersionPreview` and every other `buildExtensions` host. In `SharedNotePage`
+the share has already reduced each chip to `{ n }` (§7.5), so it carries no claim
+and reads `[n]`: the reader is told nothing about edits either way, which is the
+truth, since the share withholds the text the claim would be compared with.
+
+### 6.4 One function, two uses
+`claimText` lives in `lib/askInsert.js` and is used both to build `claim` at insert
+time and in the plugin, so the two cannot disagree.
+
+### 6.5 Source drift is out of scope for v1
+A chip does not detect that its source was later edited or deleted. Clicking it
+opens the source as it is now, and the destination shows its own trashed or
+unavailable state. The insert date is shown once, in the block's header ("From
+Ask Notebook · <date>"); chips do not repeat it (ruled during the build: a chip
+moved out of its block is stale anyway). Recorded in §12.
+
+### 6.6 How a chip reads
+- Normal: `[n]`, styled with AskPanel's own `.citationChip` class (imported from
+  `AskPanel.module.css`, so there is one definition of how a citation looks).
+- Stale: `[n · edited]` — **the degradation is visible as a word**, not colour
+  alone, following AskPanel's rule at `AskPanel.jsx:300`.
+- Accessible name: `Source {n}: {label}`, then the insert-time precision in words
+  when it was not `exact` (`page only` · `note only` · `record` · `unavailable`,
+  the same words as `AskPanel.jsx:303-305`), then `, text edited since inserted`
+  when stale.
+- Clickable (a `<button>`) only when `nav` carries a `note_id`: it opens
+  `notePath(nav.note_id)`. Otherwise it is a non-interactive span. In
+  `SharedNotePage` the chip is never clickable.
+
+---
+
+## 7. Server changes
+
+### 7.1 Citation positions
+Add `"askCitation"` to `_LEAF_TYPES` in `note_citation_text.py` with no
+`_ATOM_TEXT` entry — exactly how `noteLink` is handled — so server positions stay
+in step with ProseMirror. The existing parity rail is extended with a doc
+containing a chip.
+
+### 7.2 Ask never cites an inserted answer (P3)
+`flatten` records which blocks sit inside an `askInsert`. `_note_blocks`
+(`ask_retrieval.py:1120`) and `_best_note_passage` (`:219`) skip those blocks. Text is
+**not** removed inside `flatten` itself, because `flatten` is pinned to ProseMirror's
+`textBetween` (`note_citation_text.py:24-29`) and the client mirrors it. A note whose
+only match is inside an inserted answer yields no passage, so it is not cited.
+A note whose query terms occur only inside inserted answers (and not in its
+title) is dropped from the candidates, and the FTS fetch over-fetches
+(limit × 3) so answer-only notes cannot crowd real ones out of the result
+limit.
+
+`body_plain` and the mention scan still include inserted prose, so the member's own
+Search finds their inserted answers. That is intended: Search shows the member their
+notes, whereas Ask presents a note to a model as the member's own writing.
+
+### 7.3 No other server walk changes
+`extract_plain_text` and `_sync_note_sidecars` recurse through unknown types
+(`notes.py:125-174, 203-350`), so prose is indexed and chips stay silent with no
+change. **No new sidecar table.** Revision 1's was speculative: nothing in v1 reads
+it, and a new table also needs account-purge wiring (`account_purge.py:31-107`).
+
+### 7.4 Export (P5)
+`notes_export.py` gains two branches:
+
+```
+> **From Ask Notebook** · 2026-09-22 · Q: What did I say about NVDA margins?
+>
+> <paragraph text, each chip written as [n]>
+>
+> Sources as of insertion: [1] <label> · [2] <label>
+```
+
+Sources are deduplicated by `n`, in first-appearance order. `askCitation` exports
+as `[n]` wherever it appears.
+
+### 7.5 Share (P5)
+`note_shares.resolve_share` reduces every `askCitation`'s attrs to `{ n }` before
+serving the body. `label`, `nav`, `citation` and `claim` carry the titles and text
+of notes the member did not share. `askInsert.question` stays: it is the member's
+own words inside the note they chose to share. Share links are off today; this
+closes the gap before they turn on.
+
+### 7.6 The flag
+`NOTEBOOK_ASK_INSERT_ON` joins `NOTEBOOK_FLAGS` with default `False` (enablement
+gate: unset means OFF). Payload key `notebook_ask_insert_on`. Client fallback
+`false`. The client offers Insert only when `notebookFlag('notebook_ask_insert_on')
+=== true`, so `null` (not yet latched) means off. It is declared `dark` in
+`docs/feature_flags.json`, and `tests/test_notebook_flags.py` gets the fifth key.
+Rollback is to unset it: the Insert button disappears on the member's next page
+load, and blocks already inserted stay readable.
+
+(Correction to revision 1: `AWARENESS_THESIS_REVIEW_ENABLED` is not an
+auth-payload key — `awareness/engine.py:43` reads it server-side. The precedent
+here is Wave K's `NOTEBOOK_*` keys.)
+
+---
+
+## 8. Visual design
+
+- **Block.** The Callout box (`border-radius: var(--radius-md)`, `background:
+  var(--bg-surface)`, `border: 1px solid var(--border)`), plus a header row: a 13px
+  sparkle `UIcon`, "From Ask Notebook", " · Sep 22" in muted text. Styles live in
+  `AskInsertView.module.css` and are applied through `className` from the React view,
+  so hashing is correct by construction. There are no raw class names, which is the
+  trap in §2.8(b).
+- **Chip.** AskPanel's `.citationChip`, imported, not copied.
+- **Touch.** The Insert button and picker rows are at least `--tap-min` (44px) at
+  ≤1024px. The picker renders inside the Ask panel, which `PanelShell` already makes
+  a `Sheet` on touch.
+- **No new CSS custom properties.** Only existing tokens are used, so the theme-island
+  rails are unaffected.
+
+---
+
+## 9. Errors
+
+- **Storage refused** (private mode, storage full): the memory carrier still hands
+  the answer over on the in-app navigation. Only a full page reload between the pick
+  and the note opening loses it, and the entry was single-use anyway.
+- **Create-new fails:** the picker shows "Couldn't create the note. Your answer is
+  still here." and logs `console.error`. The answer stays in the panel. Per the
+  raw-error rail, no raw error text is shown.
+- **Target note not editable:** see §5.2 step 4.
+- **Prompt-injection surface, corrected.** Revision 1 said everything AskPanel shows
+  had passed a relevance allowlist. It has not: every source is sent as citable, and
+  the allowlist only decides whether to answer (`ask_service.py:189-193`). The real
+  new path is the one P3 names: stored model output re-entering Ask as trusted member
+  writing. §7.2 closes it. Other readers of note bodies (Search, backlinks, the thesis
+  changelog, which reads `body_plain`) do not send note text to a model as
+  instructions. The awareness engine reads no note bodies (verified: no `body_plain`,
+  `body_json` or `j2_notes` reference under `api/services/awareness`).
+
+---
+
+## 10. Same-wave fixes (found by the analysis, ungated bug fixes)
+
+1. **Research-workspace citations** (§2.8a). `TickerResearchWorkspace` passes
+   `onNavigate={(s) => { const id = s?.navigation?.note_id; if (id) openNote({ id }) }}`,
+   using its own `openNote` (`:67`). `onOpenNote` becomes a real AskPanel prop
+   (the picker's way to open a note), and the workspace passes its own `openNote`
+   wrapper, never its raw `onOpenNote` prop, which is undefined when the workspace
+   renders standalone.
+2. **Callout and Toggle CSS** (§2.8b). Wrap the raw editor class names in `:global()`,
+   and add a rail: every raw class name that an editor node writes into the DOM
+   (string literals in `lib/*Node.js(x)` `renderHTML` and DOM node views) must appear
+   in `NoteEditorPage.module.css` only inside `:global(…)`. The rail derives the list
+   from source, never by hand, and carries a control that proves it can fail.
+3. **Doc reconciliation.**
+   - `RESUME-HERE-2026-09-20.md`:
+     - G-002: the version-history UI exists (`NoteEditorPage.jsx:2030-2039`).
+     - "Spec not pushed": it is on master.
+     - G-053 is not "already honored" — no Compass tool reads `j2_notes`; this is an
+       owner decision.
+   - `competitive-gap-ledger.md`:
+     - G-083's offline signal now exists (`NoteEditorPage.jsx:357-368`).
+     - G-040's "Screener — no entry" (a `scanner` entry exists, `registry.js:328`).
+     - G-064 → built, dark.
+
+---
+
+## 11. Testing and verification
+
+**Backend** (named files only):
+- `flatten` gives a chip one position, with parity against the client fixture.
+- Ask excludes inserted blocks in note scope and notebook scope, and still cites the
+  member's own paragraph beside an inserted block.
+- Export section.
+- Share reduction.
+- Flag roster and the ledger declaration.
+
+**Frontend:**
+- Both nodes parse, render and round-trip through HTML and JSON.
+- P1 mechanics: Backspace at the start and Delete at the end keep the wrapper;
+  deleting all body text keeps the wrapper.
+- `claimText` and the stale plugin:
+  - editing the chip's paragraph shows `[n · edited]`;
+  - editing another paragraph leaves it unchanged;
+  - the check never dispatches a doc-changing transaction;
+  - a share-reduced chip (`{ n }` only, no claim) reads `[n]`, never
+    `[n · edited]`, in a real `EditorContent` mount.
+- Paste, through the real clipboard path: answer text pasted at the start of a
+  member paragraph stays plain text there; a crossing copy adds no block; a whole
+  block copied as a node keeps its wrapper and attributes; answer text pasted inside
+  an answer lands there.
+- Undo of a wrap into an `askInsert` restores the exact prior document.
+- `buildAskInsertNode`: paragraphs, chips, a literal `[n]` for an invented source,
+  `claim` values.
+- AskPanel gating:
+  - flag off, streaming, error or no citations → no button;
+  - in a note editor, a pending recovered draft → no button, until it is settled;
+  - in a note editor, an ordinary autosave in flight → the button stays, and a
+    click appends the answer, which a later autosave PUT carries;
+  - with `onInsert` → "Insert into this note", then "Inserted";
+  - without `onInsert` → the picker.
+- Picker: search, keyboard, "Create a new note".
+- Pending insert:
+  - consume once;
+  - mismatch and expiry;
+  - StrictMode double effect;
+  - deferred while `pendingDraft` is set;
+  - not editable.
+- `NoteEditorPage` integration with a real editor.
+- `TickerResearchWorkspace` citation click opens the note.
+- The CSS rail.
+
+**Mutation proofs:**
+- the stale predicate;
+- the `_LEAF_TYPES` entry;
+- the Ask exclusion;
+- remove-before-insert in the consume;
+- the stale check's skip of a chip with no claim;
+- the `transformPasted` unwrap (now in `lib/pasteContainers.js`; its askInsert
+  proof removes `askInsert` from `PASTE_CONTAINERS`);
+- the undo/redo exemption from the edge guard.
+
+**Live verification** (local sandbox, `scripts/hub_sandbox_boot.py`, real browser):
+- In a note: ask → Insert → reload → the block and chips render → a chip opens its
+  source → edit the paragraph → the chip reads `[n · edited]`.
+- From Research Home: pick an existing note → it opens with the answer at the end.
+- Create a new note from the picker.
+- Export the note → the Markdown shows the section.
+- Callout and Toggle render with their styling, and the chevron has its 44px floor at
+  390px width.
+
+**Gate:** the six-shard gate on the branch against `gate-baseline.json`. Any new
+failure is re-run on `origin/master` before being called ours. Run these alone,
+because the gate cannot see new failures in them:
+- `components/screener/reachable.test.js` and `styles/tapFloor.test.js`, which are
+  already red in the baseline;
+- `tests/test_feature_flag_ledger.py`, which is not on the master gate.
+
+---
+
+## 12. Out of scope for v1 (a deliberate boundary)
+
+- Cursor-position insertion — append-to-end only.
+- An "unwrap" or "accept as my own words" action — deleting the block is the only way
+  to remove the marking.
+- Regenerating an insert.
+- Detecting source drift (§6.5).
+- A sources footer inside the block.
+- A sidecar table of citations.
+- Ask in the charts `NotebookWidget` or the modelbook editor: they render the nodes
+  but have no Ask panel.
+- **G-053** (Compass reading notes) — an owner decision. G-064 does not widen or
+  narrow it.
+- A cross-edge edit is silently refused (no toast in v1).
+- A shared note keeps the block's question (the member's own words); chips keep only
+  their number.
+- An export → import round trip re-imports an inserted answer as a plain blockquote,
+  without the marking.
+
+---
+
+## 13. Changes from revision 1 (`39bc8fa2c`)
+
+| # | revision 1 said | code says | now |
+|---|---|---|---|
+| 1 | staleness re-runs `resolveNoteCitation` against each chip's snippet on save | the snippet is the **source** passage (`ask_service.py:95-106`); run against the host note it fails for every non-self citation; `location` was not stored; documents and facts have no ProseMirror doc | §6: paragraph `claim`, computed at render |
+| 2 | add `'stale'` to `PRECISE_STATES` | that set is `{valid_exact, reresolved_exact}`, and adding to it makes stale citations navigate as precise | no change to it; two vocabularies documented (§2.2) |
+| 3 | `state` stored and "resolved live" | two authorities over one value | stored insert-time `citation` + render-time decoration (§6.3) |
+| 4 | picker inserts into another note "there" | only possible as a server append, which forks, skips versions, and hits frozen files (§2.4) | open the note, insert via the editor (§5.2) |
+| 5 | inserted prose is safe to index | Ask would cite it as the member's writing (§2.3) | excluded from Ask passages (§7.2) |
+| 6 | (silent) | an unregistered inline chip shifts server citation positions | `_LEAF_TYPES` entry (§7.1) |
+| 7 | new sidecar table | nothing reads it; needs purge wiring | dropped (§7.3) |
+| 8 | export "mirrors documentExcerpt" | unknown nodes lose their wrapper today | explicit export branches (§7.4) |
+| 9 | (silent) | share serves attrs verbatim to anonymous readers | chip attrs reduced to `{n}` (§7.5) |
+| 10 | flag `NOTEBOOK_ASK_INSERT_ENABLED` | Wave K keys are `_ON`; the roster test pins four | `NOTEBOOK_ASK_INSERT_ON`, roster edited (§7.6) |
+| 11 | `AWARENESS_THESIS_REVIEW_ENABLED` rides the auth payload | server-only (`awareness/engine.py:43`) | corrected (§7.6) |
+| 12 | everything shown passed `relevance == query_match` | the allowlist only drives no-answer | corrected (§9) |
+| 13 | `askInsert` "is structurally Callout" with a `UIcon` | Callout has no node view, so a `UIcon` can't render | React node view with `NodeViewContent` (§4.1) |
+| 14 | `sourceKind` mirrors navigation kinds; `sourceId` | misses `review`; no id reaches the client | store `nav` verbatim (§4.2) |
+| 15 | `NoteLinkList` + its async search, verbatim | the search is an unexported closure; no input, no create row | extract the search; new picker around `NoteLinkList` (§3.3) |
+| 16 | "zero clicks" in Note scope | AskPanel has no editor handle | new `onInsert` prop (§5.2) |
+| 17 | `documentExcerptNode.js` | `.jsx` | fixed |
+| 18 | (silent) | Research-workspace citation clicks are dead; Callout/Toggle CSS never applies | same-wave fixes (§10) |

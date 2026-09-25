@@ -99,7 +99,58 @@ def parse_totals(log_text: str) -> dict | None:
     return {"files": files, "tests": tests}
 
 
-_FAIL_RE = re.compile(r"^\s*FAIL\s+(?P<id>\S+.*?)\s*$")
+#: ⛔ AN IDENTITY STARTS WITH A TEST FILE, OR IT IS NOT AN IDENTITY. vitest names every failure by
+#: the file first — `FAIL  src/x.test.jsx > describe > test`, or `FAIL  src/x.test.jsx [ src/x.test.jsx ]`
+#: for a file that errored before its tests ran. A bare `FAIL\s+\S+` also took every stdout line a
+#: test PRINTS that happens to begin with the word: `dailyFirstPaint.probe.test.jsx` and
+#: `dailyFirstPaintAcceptance.test.jsx` log report tables whose rows read
+#: `FAIL    | NC-A missing today | … | lastT 2026-09-22->2026-09-23 | to 324.579->325.579 | …`,
+#: which carry dates and timings, differ run to run, and so read as NEW on every gate (four
+#: phantom branch-introduced rows on 2026-09-23). A row of a report is not a failing test.
+#:
+#: ⛔ AND "A TEST FILE" MEANS WHAT VITEST MEANS BY ONE. The first version hand-typed six
+#: extensions (js jsx ts tsx mjs cjs); vitest's default include also admits .mts .cts .mjsx .cjsx
+#: .mtsx .ctsx, and a failing `x.test.mts` would have been dropped from `failures` and never
+#: reached `new` -- the flattering direction. So the suffix is DERIVED from the glob vitest
+#: itself uses: `app/vite.config.js` sets no `test.include`, so its `defaultInclude` decides, and
+#: `tests/test_gate_shards.py` pins this constant to the installed vitest's own literal.
+VITEST_DEFAULT_INCLUDE = "**/*.{test,spec}.?(c|m)[jt]s?(x)"
+
+
+def glob_file_suffix_regex(glob: str) -> str:
+    """The file-name suffix of a vitest include glob -- everything after its last `*` -- as a
+    regex fragment. Knows exactly the constructs vitest's default uses (`{a,b}`, `?(a|b)`,
+    `[..]`, literals) and REFUSES anything else, so a changed glob fails loudly here instead of
+    quietly producing a pattern that means something different."""
+    tail = glob.rsplit("*", 1)[-1]
+    out, i = [], 0
+    while i < len(tail):
+        ch = tail[i]
+        if ch == "{":
+            j = tail.index("}", i)
+            out.append("(?:" + "|".join(re.escape(a) for a in tail[i + 1:j].split(",")) + ")")
+            i = j + 1
+        elif ch == "?" and tail[i + 1:i + 2] == "(":
+            j = tail.index(")", i)
+            out.append("(?:" + "|".join(re.escape(a) for a in tail[i + 2:j].split("|")) + ")?")
+            i = j + 1
+        elif ch == "[":
+            j = tail.index("]", i)
+            body = tail[i + 1:j]
+            if not body.isalnum():
+                raise ValueError(f"unsupported character class [{body}] in {glob!r}")
+            out.append(f"[{body}]")
+            i = j + 1
+        elif ch.isalnum() or ch in "._-":
+            out.append(re.escape(ch))
+            i += 1
+        else:
+            raise ValueError(f"unsupported glob construct {tail[i:]!r} in {glob!r}")
+    return "".join(out)
+
+
+_FAIL_RE = re.compile(
+    r"^\s*FAIL\s+(?P<id>\S*" + glob_file_suffix_regex(VITEST_DEFAULT_INCLUDE) + r"(?=\s|$).*?)\s*$")
 
 BASELINE = REPO / "docs" / "plans" / "joystick" / "gate-baseline.json"
 
@@ -287,6 +338,11 @@ GATE_READ_PATHS = (
     "tests/fixtures_pm_citation_text.json",
     "tests/test_ast_conformance.py",
     "tests/test_the_member_loop_end_to_end.py",
+    # ⛔ READ BY app/src/pages/journal-2-0/lib/askCitation.schemaParity.test.js, which regex-
+    # reads the Python tables (_LEAF_TYPES, _INLINE_LEAF_TYPES, _TEXTBLOCK_TYPES, _ATOM_TEXT)
+    # and pins them to the editor's real schema -- a change to this file CAN change a suite
+    # result, so a carry-over verdict must not cross it.
+    "api/services/journal_two/note_citation_text.py",
     # generators the rails execute, and the artifacts they byte-compare
     "tools/hub_surface_matrix.mjs",
     "tools/chart_parity_cases.json",
@@ -665,6 +721,7 @@ def run_gate(shards: int, out_dir: pathlib.Path, *, tree_state_fn=None,
 
     out_dir.mkdir(parents=True, exist_ok=True)
     per_shard, missing, failures = [], [], []
+    identity_mismatches: list[dict] = []
     # ⛔ RECORDED, NEVER THE ARBITER. The exit code below is DIAGNOSIS: it says WHY a shard
     # produced nothing, which "no totals line" on its own cannot. The verdict stays the
     # failing-set comparison — vitest exits 1 on an ordinary test failure, so a non-zero shard
@@ -696,7 +753,18 @@ def run_gate(shards: int, out_dir: pathlib.Path, *, tree_state_fn=None,
             missing.append(i)
         else:
             per_shard.append({"shard": i, "exit_code": exit_codes[i], **totals})
-            failures.extend(parse_failures(text))
+            shard_ids = parse_failures(text)
+            failures.extend(shard_ids)
+            # ⚠️ THE PARSER'S COUNT AGAINST VITEST'S OWN. The identity pattern can only DROP
+            # a line now (a `projects` config puts `|name|` before the path; a path with a space
+            # breaks the token), and a dropped identity never reaches `new` -- the flattering
+            # direction. vitest's `Tests N failed` counts test-level failures, so it is compared
+            # with the identities that are NOT file-level `[ … ]` errors. A WARNING, not a verdict:
+            # two tests with one full name dedupe to one identity and disagree honestly.
+            parsed = sum(1 for ident in shard_ids if " [ " not in ident)
+            if parsed != totals["tests"]["failed"]:
+                identity_mismatches.append({"shard": i, "parsed": parsed,
+                                            "vitest_failed": totals["tests"]["failed"]})
 
     if missing:
         raise GateError(
@@ -751,6 +819,9 @@ def run_gate(shards: int, out_dir: pathlib.Path, *, tree_state_fn=None,
         # ⛔ ON DISK minus WAIVED is what a run can possibly execute.
         "file_count_reconciles": summed["files"]["total"] == declared - waived,
         "failures": failures,
+        # ⚠️ A WARNING, NEVER PART OF THE VERDICT: shards whose parsed test-level identities
+        # disagree with vitest's own `Tests N failed`. Empty means every shard agreed.
+        "failures_reconcile": {"ok": not identity_mismatches, "shards": identity_mismatches},
         "baseline_sha": base.get("sha"),
         "baseline_measured_at": base.get("measured_at"),
         "vs_baseline": vs_baseline,
@@ -826,6 +897,24 @@ def render(manifest: dict) -> str:
     lines.append("")
     lines.append("✅ **The failing set matches the baseline exactly.**" if v.get("matches_baseline")
                  else "⛔ **The failing set DIFFERS from the baseline** — read the two lists above.")
+
+    # ── Did the parser see every failure vitest counted? ─────────────────────
+    # ⚠️ A SECTION THAT ALWAYS PRINTS, and a WARNING rather than a verdict. The identity pattern
+    # can only DROP a line (a `projects` badge before the path, a path with a space), and a
+    # dropped identity never reaches NEW -- so a disagreement is the one sign that the set above
+    # is short. It does not change the exit code: two tests with one full name dedupe honestly.
+    rec = manifest.get("failures_reconcile")
+    lines += ["", "## Failing identities vs vitest's own count", ""]
+    if rec is None:
+        lines.append("⚠️ Not recorded by this run.")
+    elif rec.get("ok"):
+        lines.append("✅ Every shard's parsed test-level identities equal its `Tests N failed`.")
+    else:
+        lines.append("⚠️ **WARNING — parsed identities disagree with vitest's count** "
+                     "(not a failure; read which, before trusting the NEW count above):")
+        for m in rec.get("shards") or []:
+            lines.append(f"    - shard {m['shard']}: parsed **{m['parsed']}** test-level "
+                         f"identities, vitest counted **{m['vitest_failed']}** failed")
 
     # ── C-4 — DO-NOT-BUILD, swept every gate (owner ruling 2026-09-13) ───────
     # ⛔ A SECTION THAT ALWAYS PRINTS. "The sweep did not run" and "the sweep

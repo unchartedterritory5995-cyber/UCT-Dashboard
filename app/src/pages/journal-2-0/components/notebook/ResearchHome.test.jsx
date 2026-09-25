@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
-import { render, screen, fireEvent } from '@testing-library/react'
+import { render, screen, fireEvent, waitFor, within } from '@testing-library/react'
 import { MemoryRouter } from 'react-router-dom'
 
 let hookResult
@@ -7,6 +7,7 @@ const useNotebookHomeSpy = vi.fn(() => hookResult)
 vi.mock('../../hooks/useNotebookHome', () => ({ default: () => useNotebookHomeSpy() }))
 
 import ResearchHome from './ResearchHome'
+import { __resetNotebookFlags, latchNotebookFlags } from '../../lib/offline/notebookFlags'
 
 const EMPTY = { continueWorking: [], favorites: [], activeTheses: [], openPositionResearch: [], needsReview: [] }
 
@@ -123,5 +124,62 @@ describe('ResearchHome', () => {
     renderHome()
     const link = screen.getByRole('link', { name: /view all continue working/i })
     expect(link.getAttribute('href')).toBe('/journal/notebook?view=all')
+  })
+})
+
+describe('ResearchHome — G-064 insert from "My Notebook"', () => {
+  it('offers "Insert into a note…" and opens the picker', async () => {
+    __resetNotebookFlags()
+    latchNotebookFlags({ notebook_ask_insert_on: true })
+    const enc = new TextEncoder()
+    const body = new ReadableStream({ start(c) {
+      c.enqueue(enc.encode(`data: ${JSON.stringify({ type: 'sources', scope: 'notebook', scopeLabel: 'My Notebook', coverageNotice: null, sources: [{ n: 1, type: 'note', label: 'NVDA thesis', citation: 'exact', snippet: 's', navigation: { kind: 'note', note_id: 'n1' }, location: {}, payload: {}, stance: null, truncated: false }] })}\n\n`))
+      c.enqueue(enc.encode(`data: ${JSON.stringify({ type: 'final', answer: 'Margins fell [1].' })}\n\n`))
+      c.close()
+    } })
+    // The Ask row only renders once Home has something to show (checkpoint
+    // decision 13 -- no dashboard grid of dead cards, no Ask row on the
+    // fully-quiet state either); one favorite is enough to clear that gate.
+    hookResult = {
+      home: { ...EMPTY, favorites: [{ id: 'n1', title: 'Fav note', updatedAt: '2026-09-01T00:00:00Z' }] },
+      isLoading: false, error: null, refresh: vi.fn(),
+    }
+    renderHome()
+    global.fetch = vi.fn().mockResolvedValue({ ok: true, status: 200, json: async () => ({}), body })
+    fireEvent.click(screen.getByRole('button', { name: 'Ask a question about my notebook' }))
+    const dialog = await screen.findByRole('dialog')
+    fireEvent.change(within(dialog).getByRole('textbox'), { target: { value: 'margins?' } })
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Ask' }))
+    fireEvent.click(await within(dialog).findByRole('button', { name: 'Insert into a note…' }))
+    expect(within(dialog).getByTestId('ask-insert-picker')).toBeInTheDocument()
+    __resetNotebookFlags()
+  })
+
+  // G-064 fix round 1 (F6) — pins the WRAPPER, not the raw prop: ResearchHome
+  // passes its own `openNote` (which falls back to the router when no
+  // `onOpenNote` prop was given) as AskPanel's `onOpenNote`, so the picker is
+  // offered even when this page is mounted standalone with no `onOpenNote` at
+  // all -- `openNote` is always a function, never undefined.
+  it('offers "Insert into a note…" even with no onOpenNote prop at all', async () => {
+    __resetNotebookFlags()
+    latchNotebookFlags({ notebook_ask_insert_on: true })
+    const enc = new TextEncoder()
+    const body = new ReadableStream({ start(c) {
+      c.enqueue(enc.encode(`data: ${JSON.stringify({ type: 'sources', scope: 'notebook', scopeLabel: 'My Notebook', coverageNotice: null, sources: [{ n: 1, type: 'note', label: 'NVDA thesis', citation: 'exact', snippet: 's', navigation: { kind: 'note', note_id: 'n1' }, location: {}, payload: {}, stance: null, truncated: false }] })}\n\n`))
+      c.enqueue(enc.encode(`data: ${JSON.stringify({ type: 'final', answer: 'Margins fell [1].' })}\n\n`))
+      c.close()
+    } })
+    hookResult = {
+      home: { ...EMPTY, favorites: [{ id: 'n1', title: 'Fav note', updatedAt: '2026-09-01T00:00:00Z' }] },
+      isLoading: false, error: null, refresh: vi.fn(),
+    }
+    renderHome({ onOpenNote: undefined })
+    global.fetch = vi.fn().mockResolvedValue({ ok: true, status: 200, json: async () => ({}), body })
+    fireEvent.click(screen.getByRole('button', { name: 'Ask a question about my notebook' }))
+    const dialog = await screen.findByRole('dialog')
+    fireEvent.change(within(dialog).getByRole('textbox'), { target: { value: 'margins?' } })
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Ask' }))
+    expect(await within(dialog).findByRole('button', { name: 'Insert into a note…' })).toBeInTheDocument()
+    __resetNotebookFlags()
   })
 })

@@ -220,10 +220,17 @@ def _flow_fmt_m(v) -> str:
 
 
 def _flow_window_phrase(w: dict) -> str:
-    req = str((w or {}).get("days_requested") or "").lower()
-    if req == "all":
-        return "all history"
-    return f"last {req} trading days" if req and req != "1" else "today"
+    """The window a reply names. When the backend WIDENED (`window.widened_from`, the ladder in
+    `live_massive_router.TICKER_FLOW_WIDEN_LADDER`), the phrase says both halves — the window
+    served AND the one the member asked for — so a 20-day card never reads as today's tape."""
+    w = w or {}
+    req = str(w.get("days_requested") or "").lower()
+    served = "all history" if req == "all" else (f"last {req} trading days" if req and req != "1" else "today")
+    frm = str(w.get("widened_from") or "").lower()
+    if frm and frm != req:
+        asked = "all history" if frm == "all" else (f"the last {frm} trading days" if frm != "1" else "today")
+        return f"{served} (nothing significant {asked})"
+    return served
 
 
 def _post_image_webhook(webhook: str, png: bytes, content: str, filename: str) -> tuple[bool, str]:
@@ -285,7 +292,11 @@ def run_flow_card_job(app_id: str, token: str, ticker: str, days: str,
             base = (os.environ.get("WORKER_INTERNAL_URL") or "").rstrip("/")
             if base:
                 import httpx
-                params = {"symbol": ticker, "days": days, "source": source}
+                # `widen=1`: an empty window climbs 1→5→20→all server-side and the payload says
+                # so (`window.widened_from`); the card and the sentence both name it. Owner
+                # ruling 2026-09-24: a blank card reads as an error, so the reply is the
+                # nearest window that HAS flow, never a blank one.
+                params = {"symbol": ticker, "days": days, "source": source, "widen": "1"}
                 if cid:
                     params["cid"] = cid
                 try:
@@ -301,7 +312,7 @@ def run_flow_card_job(app_id: str, token: str, ticker: str, days: str,
                 data = r.json() if r.is_success else None
             else:
                 from api import live_massive_router as lmr   # single-service fallback
-                data = lmr._compute_ticker_flow(ticker, days, source, 15)
+                data = lmr._compute_ticker_flow(ticker, days, source, 15, widen=True)
     except Exception as e:  # noqa: BLE001 — a background job must never raise
         log.warning("[flow] fetch failed %s (%s): %s", ticker, days, e)
         fail_detail = fail_detail or type(e).__name__
@@ -331,7 +342,14 @@ def run_flow_card_job(app_id: str, token: str, ticker: str, days: str,
         return
     win = _flow_window_phrase(data.get("window") or {})
     if not (data.get("contracts") or []):
-        ack(app_id, token, content=f"**{ticker}** — no significant options flow {win}.")
+        # With `widen`, this is reached only when EVERY rung of the ladder was empty, and the
+        # payload says so (`window.widened_checked`). The wider-window clause is spoken ONLY
+        # on that evidence: a backend that ignored `widen` returns a plain empty window, and
+        # the reply must not vouch for a search that never ran.
+        checked = (data.get("window") or {}).get("widened_checked") or []
+        tail = (" — and none on record in any wider window (checked back through all history)"
+                if "all" in [str(c) for c in checked] else "")
+        ack(app_id, token, content=f"**{ticker}** — no significant options flow {win}{tail}.")
         return
     try:
         png = render(data)

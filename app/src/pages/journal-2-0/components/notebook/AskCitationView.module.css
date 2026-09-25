@@ -1,0 +1,85 @@
+/* G-064 — the chip itself is AskPanel.module.css's .citationChip. */
+.wrap { display: inline; }
+.stale { opacity: 0.75; }
+
+/* G-064 final fix wave (I3) — a chip INSIDE A NOTE sits in a line of prose.
+   AskPanel's touch rule gives .citationChip `min-height: var(--tap-min)` so
+   the panel's chips are finger targets; this chip is a <button>, which lays
+   out inline-block, so that floor grew every prose line holding a chip to
+   about 44px. Here the floor comes off and the chip keeps the line's own
+   height, while the FINGER TARGET stays at least 44px through an invisible
+   ::after that extends the button's hit area without taking any layout
+   space. `.wrap .chip` outranks the single imported class, because the order
+   of two CSS modules in the bundle is not a thing to lean on. Only the
+   <button> gets the extended target: a chip with no note to open is not
+   interactive.
+
+   ⛔ A TAP ON A CHIP'S OWN BOX MUST OPEN THAT CHIP'S SOURCE -- whether the
+   chip is a <button> or a <span>. With the extension on all four sides
+   (-12px -8px), run-together chips `[2][3]` let a tap on the right ~6px of
+   `[2]` open source 3 (G-064 close-out), because `[3]`'s ::after paints over
+   `[2]`: positioned boxes paint in document order, and a tap goes to the
+   topmost. The same order is what makes the fix safe: EVERY chip is
+   positioned (`.wrap .chip`, spans included), and an extension may reach only
+   LATER chips (right along its line, and down onto the next), where a later
+   chip's own box paints above it (over TEXT an extension is allowed: text
+   paints below every chip) -- so `[2]` keeps its right side over `[3]`,
+   and no `:has()` rule is needed for the earlier chip. A span chip must be
+   positioned too: a non-positioned box paints BELOW every positioned one, so
+   an earlier button's ::after covered a later no-note span chip (review
+   Important #2 measured `[7]` losing 15 of 50 sampled points to `[6]` in
+   Chromium and Firefox, 21 in WebKit; 0 of 32 chips lose any point once every
+   chip is positioned). A tap on a span chip then lands on the span and does
+   nothing, which is right for a chip with no note to open. The two
+   directions that reach EARLIER chips are removed: UP, always (top: 0 --
+   a chip on the line below would otherwise cover the bottom of one on the
+   line above), and LEFT, when the element just before this chip is another
+   chip (the rule after this one). The height the upward extension gave now
+   sits below the chip instead.
+
+   THE 44px FLOOR, case by case. Measured smallest chip box: 30.3px wide (`[1]`
+   in Segoe UI / system-ui, Chromium) and 23px tall (WebKit), in the close-out
+   review. The ::after offsets count from the PADDING box, so each side reaches
+   1px less past the chip's 1px border than its value; run-together chips sit
+   2px apart (AskPanel's `.citationChip { margin: 0 1px }`), and that gap
+   belongs to the earlier chip's extension.
+   - A lone chip: 13 + 30.3 + 15 = 58.3px wide.
+   - A chip that FOLLOWS a chip (left: 0): 30.3 + 15 = 45.3px.
+   - The FIRST of a pair (`[2]` in `[2][3]`): the later chip's own box covers
+     its right side, so the left side carries it: 13 + 30.3 + 2 = 45.3px. The
+     re-review measured this case at 40-41px with left: -8px; the minimum left
+     is 44 - 30.3 - 2 + 1 = 12.7, so 14px leaves a pixel of headroom. Its reach
+     is earlier TEXT only: a chip after a chip has left: 0.
+   - A chip BETWEEN two chips loses both sides and is 30.3 + 2 = 32.3px wide;
+     no horizontal shape that keeps every chip's own box can widen it. Its
+     area is carried by the height: 23 + 23 = 46px, while nothing sits
+     directly below it (a later chip on the next line keeps its own box).
+
+   The adjacency rule matches TipTap's node-view element, `.node-askCitation`
+   (ReactNodeView's `node-${name}` class; the node's name can never change, or
+   every inserted answer would lose its chips). The chips' `.wrap` spans are
+   each an only child, so they are never siblings; the node-view spans are.
+   `+` skips text nodes, so a chip that follows another with only text between
+   also loses its left extension: a smaller target, never a wrong source.
+   Both facts are pinned in AskCitationView.live.test.jsx against a real
+   editor. */
+@media (max-width: 1024px) {
+  .wrap .chip {
+    position: relative;
+    min-height: 0;
+    line-height: inherit;
+    padding-top: 1px;
+    padding-bottom: 1px;
+  }
+  .wrap button.chip::after {
+    content: '';
+    position: absolute;
+    top: 0;
+    right: -16px;
+    bottom: -24px;
+    left: -14px;
+  }
+  :global(.node-askCitation) + :global(.node-askCitation) .wrap button.chip::after {
+    left: 0;
+  }
+}

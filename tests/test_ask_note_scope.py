@@ -86,6 +86,117 @@ class TestEveryBlockIsCitable:
         assert "margins compressed" in out["evidence"][0]["text"]
 
 
+class TestAnAtomBlockIsCitedByIdentity:
+    # Fix round 2 (review-parity N1): a block that is ONE atom is cited by the
+    # atom's identity, and one with no identity is never labelled a passage --
+    # the client opens such a citation as the note only, so "exact" would lie.
+
+    def test_an_atom_block_carries_its_identity_or_is_labelled_note_only(self, conn):
+        chip = lambda name, **extra: {"type": "attachmentChip",  # noqa: E731
+                                      "attrs": {"name": name, **extra}}
+        doc = {"type": "doc", "content": [
+            {"type": "paragraph", "content": [{"type": "text", "text": "Risk: margins fell."}]},
+            chip("q3.pdf"), chip("q4.pdf", href="/api/j2/notes/n1/attachments/7c/q4.pdf")]}
+        _add(conn, "n1", "u1", "NVDA thesis", doc)
+        out = ar.retrieve_note("u1", "n1", "margins", conn=conn)
+        by_text = {i["text"]: i for i in out["evidence"]}
+        assert by_text["[file: q3.pdf]"]["citation_validity"] == ev.CITE_NOTE_ONLY
+        assert "atom" not in by_text["[file: q3.pdf]"]["location"]
+        assert by_text["[file: q4.pdf]"]["citation_validity"] == ev.CITE_EXACT
+        assert by_text["[file: q4.pdf]"]["location"]["atom"] == {
+            "type": "attachmentChip", "id": "/api/j2/notes/n1/attachments/7c/q4.pdf"}
+        assert by_text["Risk: margins fell."]["citation_validity"] == ev.CITE_EXACT
+        # ...and the identity survives the projection the browser receives.
+        from api.services.journal_two.ask_service import public_source
+        assert public_source(1, by_text["[file: q4.pdf]"])["location"]["atom"]["id"].endswith("/q4.pdf")
+
+    def test_charts_that_share_one_identity_are_labelled_note_only(self, conn):
+        # Fix round 3 (rereview2 R2-1): the charts of one /mtf insert stored
+        # BEFORE embedId existed share widgetId|capturedAt, so none is issued
+        # an identity -- unchanged by Wave 4 (the LEGACY fixture is the real
+        # chartInsertNodes output minus embedId, pinned by
+        # askCitation.parity.test.js).
+        import json
+        from pathlib import Path
+        fx = json.loads(Path(__file__).with_name("fixtures_pm_citation_text.json")
+                        .read_text(encoding="utf-8"))
+        _add(conn, "n1", "u1", "NVDA", fx["chartsMtfThenSingleLegacy"]["json"])
+        out = ar.retrieve_note("u1", "n1", "chart", conn=conn)
+        by_text = {i["text"]: i for i in out["evidence"]}
+        for shared in ("[chart: NVDA D]", "[chart: NVDA 1h]", "[chart: NVDA 15m]"):
+            assert by_text[shared]["citation_validity"] == ev.CITE_NOTE_ONLY, shared
+            assert "atom" not in by_text[shared]["location"], shared
+        assert by_text["[chart: AMD D]"]["citation_validity"] == ev.CITE_EXACT
+        assert by_text["[chart: AMD D]"]["location"]["atom"]["type"] == "widgetEmbed"
+
+
+    def test_each_chart_of_one_insert_is_cited_exactly(self, conn):
+        # Wave 4: every chart node carries its own embedId, so each chart of
+        # one /mtf insert is issued its own identity and labelled exact --
+        # through the projection the browser receives.
+        import json
+        from pathlib import Path
+        from api.services.journal_two.ask_service import public_source
+        fx = json.loads(Path(__file__).with_name("fixtures_pm_citation_text.json")
+                        .read_text(encoding="utf-8"))
+        _add(conn, "n1", "u1", "NVDA", fx["chartsMtfThenSingle"]["json"])
+        out = ar.retrieve_note("u1", "n1", "chart", conn=conn)
+        by_text = {i["text"]: i for i in out["evidence"]}
+        want = {"[chart: NVDA D]": "e-mtf-d", "[chart: NVDA 1h]": "e-mtf-1h",
+                "[chart: NVDA 15m]": "e-mtf-15m", "[chart: AMD D]": "e-amd-d"}
+        for text, embed_id in want.items():
+            item = by_text[text]
+            assert item["citation_validity"] == ev.CITE_EXACT, text
+            assert public_source(1, item)["location"]["atom"] == {"type": "widgetEmbed", "id": embed_id}
+
+
+class TestALongBlockCarriesItsFullLength:
+    """Wave 4: the browser is sent a block's text capped at
+    ask_service._SNIPPET_CAP, so a longer block's snippet is only a prefix.
+    `location.text_length` -- the block's full length in the browser's own
+    units -- is how askCitation.js knows to extend the prefix to the end of
+    the block (the client rails are in askCitation.parity.test.js)."""
+
+    @staticmethod
+    def _fx():
+        import json
+        from pathlib import Path
+        return json.loads(Path(__file__).with_name("fixtures_pm_citation_text.json")
+                          .read_text(encoding="utf-8"))["longBlock"]
+
+    def test_every_block_carries_its_length_in_the_browsers_units(self):
+        fx = self._fx()
+        blocks = ar._note_blocks(fx["json"], "")
+        # ProseMirror's own UTF-16 width of each text node (the generator ran
+        # real prosemirror-model), so this pins the unit across runtimes.
+        assert [b["location"]["text_length"] for b in blocks] == [
+            s["pm_end"] - s["pm_start"] for s in fx["textSpans"]]
+        long_block = blocks[1]
+        # Non-vacuity: astral text makes code points and UTF-16 units differ.
+        assert long_block["location"]["text_length"] == nct.utf16_length(long_block["text"])
+        assert long_block["location"]["text_length"] != len(long_block["text"])
+
+    def test_the_browser_gets_a_prefix_and_the_length_that_says_so(self, conn):
+        from api.services.journal_two.ask_service import _PUBLIC_FIELDS, _SNIPPET_CAP, public_source
+        _add(conn, "n1", "u1", "Guidance", self._fx()["json"])
+        out = ar.retrieve_note("u1", "n1", "guidance margins", conn=conn)
+        item = next(i for i in out["evidence"] if i["text"].startswith("Guidance"))
+        src = public_source(1, item)
+        assert src["location"] == item["location"]  # passes through untouched
+        assert "text_length" not in _PUBLIC_FIELDS  # inside location, not a new public field
+        assert len(src["snippet"]) == _SNIPPET_CAP and item["text"].startswith(src["snippet"])
+        assert src["location"]["text_length"] > nct.utf16_length(src["snippet"])
+        # A short block's snippet is the whole block: its length says so.
+        short = public_source(2, next(i for i in out["evidence"] if i["text"] == "After."))
+        assert short["snippet"] == "After." and short["location"]["text_length"] == len("After.")
+
+    def test_a_term_citation_carries_no_length_and_so_is_never_widened(self):
+        # The notebook scope cites a TERM inside a block with a window of
+        # context as its snippet: not a prefix of the range, so no length.
+        _snippet, loc, _validity = ar._best_note_passage(self._fx()["json"], '"margins"')
+        assert loc is not None and "text_length" not in loc
+
+
 class TestTheWholeNoteIsStillShown:
     def test_non_matching_blocks_are_still_sent_as_context(self, conn):
         _add(conn, "n1", "u1", "NVDA thesis", THESIS)

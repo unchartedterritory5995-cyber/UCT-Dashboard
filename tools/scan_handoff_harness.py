@@ -82,7 +82,7 @@ SAMPLE_JS = """
 () => {
   const now = performance.now();
   const el = document.querySelector('[data-testid="sym-label"]');
-  const domSym = el ? (el.textContent || '').trim().split(/[\s(·]/)[0].toUpperCase() : null;
+  const domSym = el ? (el.textContent || '').trim().split(/[\\s(·]/)[0].toUpperCase() : null;
   const t = window.__uctChartTiming;
   const rows = t ? t.report() : null;
   let chartSym = null, chartCurrent = null, chartBehind = null;

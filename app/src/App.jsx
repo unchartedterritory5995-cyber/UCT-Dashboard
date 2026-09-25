@@ -422,13 +422,11 @@ export default function App() {
             <Route path="/terms" element={<Terms />} />
             <Route path="/privacy" element={<Privacy />} />
             <Route path="/methodology" element={<Methodology />} />
-            {/* S8 Step 2 capability demo — live D1 -> S8 provenance/freshness
-                wiring, reachable directly by URL. Deliberately NOT in
-                NavBar/MobileNav or FREE_PAGES — where it belongs in the real
-                Terminal UI is a product decision this pass does not make.
-                Public/no-gate, same class as /methodology: reads only
-                public market quote data via /api/provenance/quote. */}
-            <Route path="/provenance-demo" element={<ProvenanceDemo />} />
+            {/* ⚰️ /provenance-demo lived HERE, public/no-gate, until 2026-09-25 — it
+                was "same class as /methodology" only while /api/provenance/quote was
+                itself public. OI-17 gated the sibling market-data endpoints on
+                2026-09-23; the quote endpoint now takes the same gate and the page
+                moved inside <AuthGuard/> below, so the pair is gated together. */}
             {/* Public marketing comparison page (UCT vs. TradeZella/TraderSync/
                 Tradervue). Not in FREE_PAGES — that gates logged-in nav; this is
                 a fully public page reachable while logged out or in. */}
@@ -614,6 +612,13 @@ export default function App() {
                     every voice navigation target against this route table. */}
                 <Route path="/traders" element={<Traders />} />
                 <Route path="/portfolio-heat" element={<PortfolioHeat />} />
+                {/* S8 Step 2 capability demo — live D1 -> S8 provenance/freshness
+                    wiring, reachable directly by URL; deliberately NOT in
+                    NavBar/MobileNav. Signed-in only since 2026-09-25 (see the
+                    note where it used to sit among the public routes): it reads
+                    Massive/FMP quote data through /api/provenance/quote, which
+                    took OI-17's gate the same day. */}
+                <Route path="/provenance-demo" element={<ProvenanceDemo />} />
                 <Route path="/dark-pool" element={<DarkPool />} />
                 <Route path="/post-market" element={<PostMarket />} />
                 <Route path="/model-book" element={<ModelBook />} />

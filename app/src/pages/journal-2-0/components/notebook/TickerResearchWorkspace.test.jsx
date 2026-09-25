@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
-import { render, screen, fireEvent, waitFor } from '@testing-library/react'
+import { render, screen, fireEvent, waitFor, within } from '@testing-library/react'
 import { MemoryRouter } from 'react-router-dom'
 
 let hookResult
@@ -145,6 +145,25 @@ describe('TickerResearchWorkspace', () => {
     expect(screen.getByRole('dialog', { name: 'Preview of report.pdf' })).toBeTruthy()
   })
 
+  it('a captured WEB page in the Documents list opens its note, never the PDF viewer', () => {
+    // ⛔ Wave N §9: the research summary lists captured web pages too, and their
+    // `attachmentUrl` is a `web:<sha256>` identity, not a file. `sourceKind` is
+    // the server's `is_web_capture` answer (tests/test_document_list_kind.py).
+    hookResult = {
+      summary: {
+        ...EMPTY_SUMMARY,
+        documents: [{ id: 'dw', noteId: 'n7', attachmentUrl: 'web:3f2a', name: 'Reuters: NVDA margins', status: 'ready', pageCount: 1, createdAt: '2026-09-01T00:00:00Z', sourceKind: 'web' }],
+      },
+      isLoading: false, error: null, refresh: vi.fn(),
+    }
+    const onOpenNote = vi.fn()
+    renderWorkspace({ onOpenNote })
+    fireEvent.click(screen.getByText('Reuters: NVDA margins'))
+    expect(onOpenNote).toHaveBeenCalledWith({ id: 'n7' })
+    expect(screen.queryByRole('dialog', { name: 'Preview of Reuters: NVDA margins' })).toBeNull()
+    expect(screen.queryByTestId('pdf-viewer-stub')).toBeNull()
+  })
+
   it('a PENDING document shows "Processing…" and clicking it opens the owning note instead', () => {
     hookResult = {
       summary: {
@@ -182,5 +201,60 @@ describe('TickerResearchWorkspace', () => {
       </MemoryRouter>,
     )
     expect(screen.queryByText('Notebook')).toBeNull()
+  })
+})
+
+describe('TickerResearchWorkspace — Ask citations', () => {
+  function sseBody(events) {
+    const enc = new TextEncoder()
+    return new ReadableStream({
+      start(c) {
+        for (const ev of events) c.enqueue(enc.encode(`data: ${JSON.stringify(ev)}\n\n`))
+        c.close()
+      },
+    })
+  }
+  const SOURCE = {
+    n: 1, type: 'note', label: 'NVDA thesis', citation: 'exact', snippet: 'margins',
+    navigation: { kind: 'note', note_id: 'n1' }, location: {}, payload: {},
+    stance: null, truncated: false,
+  }
+
+  it('clicking a citation opens the cited note (it used to be a dead click)', async () => {
+    const onOpenNote = vi.fn()
+    renderWorkspace({ onOpenNote })
+    global.fetch = vi.fn().mockResolvedValue({
+      ok: true, status: 200, json: async () => ({}),
+      body: sseBody([
+        { type: 'sources', scope: 'security', scopeLabel: 'NVDA research', sources: [SOURCE], coverageNotice: null },
+        { type: 'final', answer: 'Margins fell [1].' },
+      ]),
+    })
+    fireEvent.click(screen.getByRole('button', { name: 'Ask a question about this research' }))
+    const dialog = await screen.findByRole('dialog')
+    fireEvent.change(within(dialog).getByRole('textbox'), { target: { value: 'margins?' } })
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Ask' }))
+    fireEvent.click(await within(dialog).findByRole('button', { name: 'Source 1: NVDA thesis' }))
+    expect(onOpenNote).toHaveBeenCalledWith({ id: 'n1' })
+  })
+
+  it('G-064: offers "Insert into a note…" in "This research"', async () => {
+    const { __resetNotebookFlags, latchNotebookFlags } = await import('../../lib/offline/notebookFlags')
+    __resetNotebookFlags()
+    latchNotebookFlags({ notebook_ask_insert_on: true })
+    renderWorkspace()
+    global.fetch = vi.fn().mockResolvedValue({
+      ok: true, status: 200, json: async () => ({}),
+      body: sseBody([
+        { type: 'sources', scope: 'security', scopeLabel: 'NVDA research', sources: [SOURCE], coverageNotice: null },
+        { type: 'final', answer: 'Margins fell [1].' },
+      ]),
+    })
+    fireEvent.click(screen.getByRole('button', { name: 'Ask a question about this research' }))
+    const dialog = await screen.findByRole('dialog')
+    fireEvent.change(within(dialog).getByRole('textbox'), { target: { value: 'margins?' } })
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Ask' }))
+    expect(await within(dialog).findByRole('button', { name: 'Insert into a note…' })).toBeInTheDocument()
+    __resetNotebookFlags()
   })
 })

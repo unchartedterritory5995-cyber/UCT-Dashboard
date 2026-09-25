@@ -433,6 +433,60 @@ def _table(node: dict[str, Any], resolver=None) -> str:
     return "\n".join(out)
 
 
+def _ask_citation_n(attrs: Any) -> int | str | None:
+    """G-064: a chip's citation number, or None. ONE reading, used by the chip
+    branch in `_block` and by the answer's source list, so a chip cannot print a
+    number the sources line leaves out. Non-dict `attrs`, and an `n` that is not
+    an int or a string (a list, a dict, a float, a bool), read as missing: an
+    unhashable `n` used to raise TypeError in the source list and fail the whole
+    archive."""
+    if not isinstance(attrs, dict):
+        return None
+    n = attrs.get("n")
+    if isinstance(n, bool) or not isinstance(n, (int, str)):
+        return None
+    return n
+
+
+def _ask_insert_markdown(attrs: dict[str, Any], kids, resolver=None) -> str:
+    """G-064 (spec §7.4): an inserted Ask Notebook answer exports as a LABELLED
+    quote, so a member's Markdown never loses which passage was AI-assisted, and
+    lists its sources as they stood when it was inserted."""
+    date = str(attrs.get("insertedAt") or "")[:10]
+    question = str(attrs.get("question") or "").strip()
+    head = "**From Ask Notebook**"
+    if date:
+        head += f" · {date}"
+    if question:
+        head += f" · Q: {question}"
+
+    sources: dict[Any, str] = {}
+
+    def collect(n):
+        if not isinstance(n, dict):
+            return
+        if n.get("type") == "askCitation":
+            num = _ask_citation_n(n.get("attrs"))
+            if num is not None and num not in sources:
+                sources[num] = str(n["attrs"].get("label") or "source")
+        for c in n.get("content") or []:
+            collect(c)
+
+    for c in kids or []:
+        collect(c)
+
+    body = "\n\n".join(b for b in (_block(c, resolver) for c in (kids or [])) if b != "")
+    # Every quoted line, a blank one included, is `> ` + text -- the blockquote
+    # writer's form in _block (the test reads that writer's output to check).
+    lines = [f"> {head}", "> "]
+    lines += [f"> {ln}" for ln in body.split("\n")]
+    if sources:
+        lines.append("> ")
+        lines.append("> Sources as of insertion: "
+                     + " · ".join(f"[{k}] {v}" for k, v in sources.items()))
+    return "\n".join(lines)
+
+
 def _block(node: dict[str, Any], resolver=None) -> str:
     ntype = node.get("type")
     attrs = node.get("attrs") or {}
@@ -510,6 +564,12 @@ def _block(node: dict[str, Any], resolver=None) -> str:
             lines.append("")
             lines.append(f"*{annotation}*")
         return "\n".join(lines)
+    if ntype == "askInsert":
+        # null/list/string attrs read as empty, never raise (G-064 close-out).
+        return _ask_insert_markdown(attrs if isinstance(attrs, dict) else {}, kids, resolver)
+    if ntype == "askCitation":
+        n = _ask_citation_n(node.get("attrs"))  # never raises; see _ask_citation_n
+        return f"[{n}]" if n is not None else ""
     if ntype == "widgetEmbed":
         # A live widget cannot exist in markdown. Exporting nothing would make
         # the note look like it lost content, so emit the widget's own

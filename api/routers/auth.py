@@ -133,6 +133,7 @@ NOTEBOOK_FLAGS = {
     "NOTEBOOK_OFFLINE_READ_ON": False,      # enablement   — unset means OFF
     "NOTEBOOK_CONFLICT_UX_ON": False,       # enablement   — unset means OFF
     "NOTEBOOK_ATTACHMENTS_ON": False,       # enablement   — unset means OFF
+    "NOTEBOOK_ASK_INSERT_ON": False,        # enablement   — unset means OFF (G-064)
 }
 
 # ⛔⛔ A MODE, NOT A SWITCH — so it gets its OWN table rather than a boolean with

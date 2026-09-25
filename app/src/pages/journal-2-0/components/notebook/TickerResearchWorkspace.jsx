@@ -4,8 +4,11 @@ import UIcon from '../../../../components/ui/UIcon'
 import useTickerResearch from '../../hooks/useTickerResearch'
 import { createNoteViaApi, createNoteFromTemplateViaApi } from '../../lib/noteCreation'
 import { notePath } from '../../../../hooks/useNoteBacklinks'
+import { openSpanningCitation } from '../../lib/openCitation'
+import { SOURCE_WEB } from '../../lib/searchResultLabel'
 import AskPanel from './AskPanel'
 import DocumentPreviewSheet from './DocumentPreviewSheet'
+import CapturedSourceSheet from './CapturedSourceSheet'
 import { SkeletonLine } from '../../../../components/Skeleton'
 import styles from './TickerResearchWorkspace.module.css'
 
@@ -62,9 +65,22 @@ export default function TickerResearchWorkspace({ symbol, onOpenNote, showBackLi
   const [creating, setCreating] = useState(false)
   const [showPastTheses, setShowPastTheses] = useState(false)
   const [previewDoc, setPreviewDoc] = useState(null)
+  const [capturedSource, setCapturedSource] = useState(null)
   const [actionError, setActionError] = useState('')
 
   const openNote = (note) => (onOpenNote ? onOpenNote(note) : navigate(notePath(note.id)))
+
+  // ⛔ AN EXCERPT CITATION USED TO BE A DEAD CLICK. Its navigation is
+  // `{kind:'excerpt', excerpt_id, document_id, page_number}` -- no `note_id` --
+  // and this handler only knew `note_id`. It now goes through the ONE excerpt
+  // transport every Ask host shares (`lib/openCitation.js`): a PDF passage opens
+  // at its page with the passage emphasised, a captured web passage opens as a
+  // captured passage, and anything that cannot be opened RETURNS its sentence
+  // for AskPanel to show inside itself -- this page's own alert line sits behind
+  // the Ask Sheet's scrim on touch.
+  const openCitation = (source, _resolved, { signal } = {}) => openSpanningCitation(source, {
+    signal, openNote, openDocument: setPreviewDoc, openCapturedSource: setCapturedSource,
+  })
 
   // ⛔ These two used to be `alert(\`Could not create note: ${e.message}\`)`.
   // Two defects in one line: a raw provider/backend exception rendered to a
@@ -142,8 +158,12 @@ export default function TickerResearchWorkspace({ symbol, onOpenNote, showBackLi
           {/* The scope is PRESELECTED. The member is already inside NVDA
               Research, so they should not have to type "NVDA" or configure a
               filter to ask about it. */}
+          {/* ⛔ `onOpenNote` was never an AskPanel prop, so every citation in
+              "This research" was a dead click. Citations navigate through
+              `onNavigate`, into `openCitation` above. */}
           <AskPanel scope="security" target={identity.symbol}
-                    onOpenNote={onOpenNote} />
+                    onOpenNote={openNote}
+                    onNavigate={openCitation} />
           <button type="button" className="btn btn-ghost btn-sm" onClick={handleNewNote} disabled={creating}>
             <UIcon name="plus" size={13} gold={false} /> New note
           </button>
@@ -200,13 +220,18 @@ export default function TickerResearchWorkspace({ symbol, onOpenNote, showBackLi
               <h3 className={styles.sectionTitle}>Documents</h3>
               <div className={styles.rows}>
                 {documents.map((d) => {
-                  const ready = d.status === 'ready' || d.status === 'no_text'
+                  // ⛔ WAVE N §9: a captured web page is listed here too, and
+                  // its `attachmentUrl` is a `web:<sha256>` identity, not a
+                  // file. It opens its note -- the honest floor Search uses for
+                  // a web hit -- never the PDF viewer.
+                  const viewable = (d.status === 'ready' || d.status === 'no_text')
+                    && d.sourceKind !== SOURCE_WEB
                   return (
                     <button
                       type="button"
                       key={d.id}
                       className={styles.row}
-                      onClick={() => (ready
+                      onClick={() => (viewable
                         ? setPreviewDoc({ href: d.attachmentUrl, name: d.name })
                         : openNote({ id: d.noteId }))}
                     >
@@ -267,8 +292,23 @@ export default function TickerResearchWorkspace({ symbol, onOpenNote, showBackLi
         open={!!previewDoc}
         href={previewDoc?.href}
         name={previewDoc?.name}
+        page={previewDoc?.page}
         onClose={() => setPreviewDoc(null)}
+        /* The viewer emphasises an excerpt only if it is HANDED that excerpt. */
+        excerpts={previewDoc?.emphasizeExcerpt ? [previewDoc.emphasizeExcerpt] : []}
+        emphasizeExcerptId={previewDoc?.emphasizeExcerptId}
         documentId={previewDoc?.documentId}
+        onOpenNote={openNote}
+      />
+      <CapturedSourceSheet
+        open={!!capturedSource}
+        excerpt={capturedSource}
+        onClose={() => setCapturedSource(null)}
+        onOpenOwningNote={capturedSource ? () => {
+          const id = capturedSource.noteId
+          setCapturedSource(null)
+          openNote({ id })
+        } : null}
       />
     </div>
   )

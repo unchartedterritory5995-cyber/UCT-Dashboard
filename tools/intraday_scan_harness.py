@@ -1,4 +1,4 @@
-"""Measure the SYMBOL-SWITCH experience — the ~0.5 s black frame between stocks.
+r"""Measure the SYMBOL-SWITCH experience — the ~0.5 s black frame between stocks.
 
 ⛔ THE METRIC IS T0 -> PAINT, NOT A REQUEST TIME. A member scanning a theme judges
 "click -> chart", so this drives real in-app symbol changes on a live component and

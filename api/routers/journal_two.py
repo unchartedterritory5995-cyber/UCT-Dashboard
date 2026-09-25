@@ -2881,13 +2881,30 @@ def list_note_documents_endpoint(
     if n is None:
         raise HTTPException(status_code=404, detail="Not found")
     from api.services.auth_db import get_connection
+    from api.services.journal_two import ask_evidence
+    from api.services.journal_two.web_capture import SOURCE_KIND_WEB, capture_columns
+    from api.services.journal_two.web_capture_store import capture_excerpt_ids
     conn = get_connection()
     try:
         rows = conn.execute(
-            "SELECT id, attachment_url, name, status, page_count, created_at, processed_at "
+            "SELECT id, attachment_url, name, status, page_count, created_at, processed_at"
+            + capture_columns(conn, "j2_note_documents") + " "
             "FROM j2_note_documents WHERE user_id = ? AND note_id = ? ORDER BY created_at",
             (user["id"], note_id),
         ).fetchall()
+        # ⛔⛔ WAVE N §9 -- THE LIST SAYS WHICH ROWS ARE CAPTURED WEB PAGES.
+        # A captured web source is a row here too (`attachment_url` is
+        # `web:<sha256>`, an identity, not a file), and the editor opens this
+        # list's rows through `?doc=&page=`: without the kind, a captured
+        # Reuters paragraph opened in the PDF viewer. `sourceKind` comes from
+        # `ask_evidence.document_source_kind` -- `is_web_capture`, the SAME rule
+        # a cited page's navigation carries -- and is null only on a schema
+        # without the capture columns, where no capture can exist.
+        # `capturePassages` names the excerpt beside each captured page, the
+        # one a captured passage is revisited through. Both ADDITIVE.
+        kinds = {r["id"]: ask_evidence.document_source_kind(r) for r in rows}
+        passages = capture_excerpt_ids(
+            conn, user["id"], [d for d, k in kinds.items() if k == SOURCE_KIND_WEB])
         # camelCase, matching every other Notebook response shape
         # (heroImageUrl/bodyJson/createdAt/...) — a raw dict(row) would leak
         # snake_case SQL column names into the one JSON shape in this file
@@ -2918,6 +2935,11 @@ def list_note_documents_endpoint(
                 # ⛔ THE FIELD THAT MAY NOT BE ROUNDED UP. "The job finished"
                 # and "we have the whole document" are different facts (§15).
                 "textComplete": bool(st.get("text_complete")),
+                "sourceKind": kinds[r["id"]],
+                "capturePassages": sorted(
+                    ({"pageNumber": p, "excerptId": eid}
+                     for (d, p), eid in passages.items() if d == r["id"]),
+                    key=lambda x: x["pageNumber"]),
             })
         return {"documents": out}
     finally:
@@ -2962,6 +2984,7 @@ def search_note_documents_endpoint(
     """Page-aware lexical search over this member's extracted PDF text —
     tenant-scoped, sectioned separately from note search (never blended
     into one score with j2_notes_fts results; see document_search.py)."""
+    from api.services.journal_two.ask_evidence import document_source_kind
     rows = document_search.search_document_pages(user["id"], q, limit=limit)
     return {"results": [{
         "documentId": r["document_id"], "pageNumber": r["page_number"],
@@ -2970,8 +2993,10 @@ def search_note_documents_endpoint(
         # ⛔ WAVE M: the surface cannot tell the truth about a hit it cannot
         # identify. `sourceKind` is "attachment" (a real paginated document) or
         # "web" (a captured source, whose pageNumber is a CAPTURE ORDINAL and
-        # must never be rendered as a page).
-        "sourceKind": r["source_kind"] or "attachment",
+        # must never be rendered as a page). ⛔ Decided by the ONE server rule
+        # (`document_source_kind` -> `is_web_capture`, either column), never
+        # the raw column: Search and every door into a document must agree.
+        "sourceKind": document_source_kind(r) or "attachment",
         "sourceUrl": r["source_url"],
         # ⛔ WAVE P2 §21: PROVENANCE, NOT IDENTITY. The result is still a
         # DOCUMENT at a real page — this only says how UCT came to hold that
@@ -3143,14 +3168,15 @@ def search_excerpts_endpoint(
     """Excerpt/annotation lexical search -- tenant-scoped, sectioned
     separately from both note search and document-page search (never
     blended into one score; see excerpt_search.py)."""
+    from api.services.journal_two.ask_evidence import document_source_kind
     rows = excerpt_search.search_excerpts(user["id"], q, limit=limit)
     return {"results": [{
         "excerptId": r["excerpt_id"], "snippet": r["snippet"], "noteId": r["note_id"],
         "noteTitle": r["note_title"], "documentId": r["document_id"],
         "documentName": r["document_name"], "pageNumber": r["page_number"],
         "annotation": r["annotation"],
-        # Same contract as the document-page results above.
-        "sourceKind": r["source_kind"] or "attachment",
+        # Same contract, and the same ONE rule, as the document-page results above.
+        "sourceKind": document_source_kind(r) or "attachment",
         "sourceUrl": r["source_url"],
     } for r in rows]}
 

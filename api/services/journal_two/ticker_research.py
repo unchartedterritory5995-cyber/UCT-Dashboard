@@ -141,10 +141,12 @@ def _documents_for_symbols(
     list must still surface here."""
     if not symbols:
         return []
+    from api.services.journal_two.ask_evidence import document_source_kind
+    from api.services.journal_two.web_capture import capture_columns
     ph = ",".join("?" * len(symbols))
     rows = conn.execute(
         "SELECT DISTINCT d.id, d.note_id, d.attachment_url, d.name, d.status,"
-        " d.page_count, d.created_at"
+        " d.page_count, d.created_at" + capture_columns(conn, "d") +
         " FROM j2_note_documents d"
         " JOIN j2_notes n ON n.id = d.note_id AND n.user_id = d.user_id"
         " WHERE d.user_id = ? AND n.deleted_at IS NULL"
@@ -154,10 +156,14 @@ def _documents_for_symbols(
         " ORDER BY d.created_at DESC LIMIT ?",
         (user_id, *symbols, *symbols, *symbols, limit),
     ).fetchall()
+    # ⛔ WAVE N §9: a captured web source is a row here too, and the workspace
+    # opens a row's `attachmentUrl` in the PDF viewer -- a `web:<sha256>`
+    # identity, not a file. `sourceKind` (the SAME `is_web_capture` rule a cited
+    # page's navigation and the note's document list carry) lets it refuse.
     return [{
         "id": r["id"], "noteId": r["note_id"], "attachmentUrl": r["attachment_url"],
         "name": r["name"], "status": r["status"], "pageCount": r["page_count"],
-        "createdAt": r["created_at"],
+        "createdAt": r["created_at"], "sourceKind": document_source_kind(r),
     } for r in rows]
 
 

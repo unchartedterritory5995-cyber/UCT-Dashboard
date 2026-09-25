@@ -4072,9 +4072,23 @@ def _build_by_contract(today: str, stock_etf: str, min_hits: int,
     have_dormant = _has_dormant_data()
     out = []
     for g in contracts.values():
-        floor = _rollup_floor(g["mkt_cap"], g["source"], thresholds)
+        # ⛔⛔ A SINGLE-TICKER LOOKUP DOES NOT CAP-SCALE ITS FLOORS. The cap bands exist to
+        # pick a handful of names out of the WHOLE MARKET: a mega cap must total $1M on one
+        # contract in one day, and every print must clear $250K, or the market-wide feed
+        # would be nothing but churn on the ten biggest names. A member asking about ONE
+        # name has already chosen it, and the question is "what printed on it", not "does it
+        # out-rank the market". ⚰️ 2026-09-24: `/flow DELL` (mega, $271B) answered "no
+        # significant options flow today" on a tape of 1,161 prints / $120M — its only two
+        # $1M+ contracts were block-only (excluded below by the 09-07 ruling) and its
+        # twenty-odd sweeps each fell under $1M. Same day, same rig: `/flow BP` 0 → 1, and
+        # `_compute_ticker_flow` had promised "Uncapped per ticker" in its docstring for two
+        # months without anything wiring it. A cap of 0 is `_cap_band_key`'s "unknown →
+        # most permissive" band ($15K/print, $100K/contract); the market-wide callers still
+        # pass the real cap. Regression rail: tests/test_flow_single_ticker_floors.py.
+        _band_cap = 0 if only_ticker else g["mkt_cap"]
+        floor = _rollup_floor(_band_cap, g["source"], thresholds)
         qual = sum(1 for p in g["prints"] if (p["premium"] or 0) >= floor)
-        total_floor = _rollup_total_floor(g["mkt_cap"], g["source"], thresholds)
+        total_floor = _rollup_total_floor(_band_cap, g["source"], thresholds)
         # Gate: enough repeated meaningful clips AND a total that clears the
         # cap-scaled bar. The hit floor is low (repetition of small clips on a
         # small name is the signal); the cap-scaling lives in the total floor.
@@ -4511,15 +4525,69 @@ def _contract_has_sweep_map(sym: str, dates) -> dict:
     return m
 
 
+#: The windows `/flow` climbs when the one it was asked for holds nothing (owner ruling
+#: 2026-09-24: "I always want SOMETHING to show up — a blank looks like an error"). Each rung
+#: is a window the card already knows how to label; the climb stops at the first that has a
+#: contract and reports the window it landed on plus the one it was asked for.
+TICKER_FLOW_WIDEN_LADDER = (1, 5, 20, "all")
+
+
+def _widen_ladder(days_label: str) -> list:
+    """The rungs STRICTLY WIDER than `days_label`, in order. 'all' has none."""
+    d = str(days_label or "1").strip().lower()
+    if d == "all":
+        return []
+    try:
+        n = max(1, int(float(d)))
+    except ValueError:
+        n = 1
+    return [r for r in TICKER_FLOW_WIDEN_LADDER if r == "all" or int(r) > n]
+
+
 def _compute_ticker_flow(symbol: str, days: str = "1", source: str = "stocks",
-                         top_n: int = 15) -> dict:
-    """Single-ticker options-flow summary over the last N trading days (or 'all'):
+                         top_n: int = 15, widen: bool = False) -> dict:
+    """Single-ticker options-flow summary over the last N trading days (or 'all').
+
+    `widen=True` (the Discord `/flow` path): when the requested window holds no contract, climb
+    `TICKER_FLOW_WIDEN_LADDER` to the first window that does, and say so in the payload —
+    `window.days_requested` becomes the window SERVED and `window.widened_from` carries the one
+    asked for, so the card and the reply sentence both name the substitution. ⛔ Opt-in, not the
+    default: the research tab reads this function for a fixed 5-day panel and must keep showing
+    an honest empty 5-day window rather than a silent 20-day one. Every rung is its own cached
+    `_compute_ticker_flow_window` call, so a widened answer costs at most four cheap
+    single-ticker rollups and is never a second source of truth."""
+    if not widen:
+        return _compute_ticker_flow_window(symbol, days, source, top_n)
+    first = _compute_ticker_flow_window(symbol, days, source, top_n)
+    if not first.get("ok") or first.get("contracts"):
+        return first
+    asked = str((first.get("window") or {}).get("days_requested") or days or "1")
+    ladder = _widen_ladder(asked)
+    for rung in ladder:
+        nxt = _compute_ticker_flow_window(symbol, str(rung), source, top_n)
+        if nxt.get("ok") and nxt.get("contracts"):
+            out = dict(nxt)
+            out["window"] = {**(nxt.get("window") or {}), "widened_from": asked}
+            return out
+    # Every rung empty. Say WHICH rungs were checked, so a reply can claim "none in any wider
+    # window" only when this code actually looked — an older backend that ignores `widen`
+    # returns the plain empty window, and the sentence must not vouch for a search it never ran.
+    out = dict(first)
+    out["window"] = {**(first.get("window") or {}), "widened_checked": [str(r) for r in ladder]}
+    return out
+
+
+def _compute_ticker_flow_window(symbol: str, days: str = "1", source: str = "stocks",
+                                top_n: int = 15) -> dict:
+    """ONE window of `_compute_ticker_flow` — the rollup, the filters and the 60 s cache; never
+    widens. Single-ticker options-flow summary over the last N trading days (or 'all'):
     the ticker's net bull/bear premium + direction, plus its top contracts by
     premium. Reuses the By-Contract aggregation (only_ticker) so direction/premium
-    math is identical to the site's Search tab. Uncapped per ticker (small-caps'
-    low-premium prints are kept). Cached 60s. PLAIN function (no FastAPI Query
-    defaults) so in-process callers (the image preview, tests) work too — the
-    /ticker-flow route is a thin wrapper. Powers the Discord /flow command."""
+    math is identical to the site's Search tab. Uncapped per ticker: the rollup's
+    cap-scaled floors are the market-wide feed's, and `only_ticker` makes it use the
+    most-permissive band instead (see the ⛔⛔ note in `_build_by_contract`). Cached 60s.
+    PLAIN function (no FastAPI Query defaults) so in-process callers (the image
+    preview, tests) work too — the /ticker-flow route is a thin wrapper. Powers the Discord /flow command."""
     top_n = int(top_n or 15)
     sym = (symbol or "").strip().upper()
     if not sym:
@@ -4735,9 +4803,10 @@ def ticker_flow(
     days: str = Query(default="1", description="Trailing trading-day window ending today: an integer (e.g. 60) or 'all'."),
     source: str = Query(default="stocks", description="'stocks' (single names) | 'etfs' (index/ETF options)."),
     top_n: int = Query(default=15, ge=1, le=40, description="Max contracts in the table (net uses ALL qualifying contracts)."),
+    widen: int = Query(default=0, ge=0, le=1, description="1 = when the window is empty, climb 1→5→20→all to the first window with a contract and report it in `window.widened_from`. The Discord /flow path sets it; the research tab does not."),
 ):
     """Single-ticker options-flow summary (see _compute_ticker_flow). Powers /flow."""
-    return _compute_ticker_flow(symbol, days, source, int(top_n))
+    return _compute_ticker_flow(symbol, days, source, int(top_n), widen=bool(widen))
 
 
 @router.get("/ticker-flow/image")

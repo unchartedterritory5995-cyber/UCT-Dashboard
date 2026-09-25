@@ -31,6 +31,39 @@ import styles from './NoteLinkMenu.module.css'
 const SEARCH_DEBOUNCE_MS = 150
 const SEARCH_LIMIT = 8
 
+/**
+ * The note search behind the `[[` menu, extracted so G-064's Ask insert picker
+ * searches the SAME way (spec §3.3) instead of growing a second one. One search
+ * sequence per returned function: a stale (superseded) query never fires its
+ * own request and never regresses the list to an older result.
+ */
+export function makeNoteSearch({ debounceMs = SEARCH_DEBOUNCE_MS, limit = SEARCH_LIMIT } = {}) {
+  let seq = 0
+  let lastResults = []
+  return (query) => {
+    const q = (query || '').trim()
+    const mySeq = ++seq
+    if (!q) { lastResults = []; return [] }
+    return new Promise((resolve) => {
+      setTimeout(async () => {
+        if (mySeq !== seq) { resolve(lastResults); return }
+        try {
+          const res = await fetch(
+            `/api/j2/notes?q=${encodeURIComponent(q)}&limit=${limit}`,
+            { credentials: 'include' },
+          )
+          const body = res.ok ? await res.json() : { notes: [] }
+          if (mySeq === seq) lastResults = body.notes || []
+        } catch {
+          // keep lastResults -- a transient network error should not blank a
+          // list the member was already looking at
+        }
+        resolve(lastResults)
+      }, debounceMs)
+    })
+  }
+}
+
 // Exported (only) for NoteLinkMenu.test.jsx -- the real menu mounts through
 // a TipTap Suggestion's imperative render(), which has no props-driven RTL
 // entry point, so the presentational piece is tested directly instead.
@@ -38,6 +71,7 @@ export const NoteLinkList = forwardRef((props, ref) => {
   const [selectedIndex, setSelectedIndex] = useState(0)
   const items = props.items
   const menuId = props.menuId || 'uct-note-link-menu'
+  const ariaLabel = props.ariaLabel || 'Link to a note'
 
   useEffect(() => setSelectedIndex(0), [items])
 
@@ -70,7 +104,7 @@ export const NoteLinkList = forwardRef((props, ref) => {
     // standing in for result items, instead of bare text -- same idiom as
     // FolderSidebar's search-results skeleton.
     return (
-      <div className={styles.menu} role="listbox" id={menuId} aria-label="Link to a note">
+      <div className={styles.menu} role="listbox" id={menuId} aria-label={ariaLabel}>
         <div className={styles.empty} role="status" aria-label="Searching…">
           <SkeletonLine width="80%" height={12} />
           <SkeletonLine width="55%" height={12} />
@@ -80,14 +114,17 @@ export const NoteLinkList = forwardRef((props, ref) => {
   }
   if (!items.length) {
     return (
-      <div className={styles.menu} role="listbox" id={menuId} aria-label="Link to a note">
+      <div className={styles.menu} role="listbox" id={menuId} aria-label={ariaLabel}>
         <div className={styles.empty}>No matching notes</div>
       </div>
     )
   }
 
   return (
-    <div className={styles.menu} role="listbox" id={menuId} aria-label="Link to a note">
+    <div className={styles.menu} role="listbox" id={menuId} aria-label={ariaLabel}>
+      {/* G-064 — `disabled` is passed only by the Ask insert picker, while a
+          create is in flight; the `[[` menu never sets it. It is semantic
+          only: the caller's `command` guard is what makes a click a no-op. */}
       {items.map((item, i) => (
         <button
           key={item.id}
@@ -95,6 +132,7 @@ export const NoteLinkList = forwardRef((props, ref) => {
           role="option"
           id={`${menuId}-opt-${i}`}
           aria-selected={i === selectedIndex}
+          aria-disabled={props.disabled ? 'true' : undefined}
           className={`${styles.item} ${i === selectedIndex ? styles.itemActive : ''}`}
           onMouseDown={(e) => { e.preventDefault(); props.command(item) }}
           onMouseEnter={() => setSelectedIndex(i)}
@@ -130,36 +168,10 @@ export const NoteLinkMenuExtension = Extension.create({
           editor.chain().focus().deleteRange(range).insertNoteLink(props.id).run()
         },
         items: (() => {
-          // One search sequence per plugin instance (module-scope inside
-          // the closure, not the module itself, so multiple open notes/
-          // editors never share state). A stale (superseded) query never
-          // fires its own request and never regresses the list to an
-          // older result -- see the file header for why this shape, not a
-          // plain setTimeout debounce, was chosen.
-          let seq = 0
-          let lastResults = []
-          return ({ query }) => {
-            const q = (query || '').trim()
-            const mySeq = ++seq
-            if (!q) { lastResults = []; return [] }
-            return new Promise((resolve) => {
-              setTimeout(async () => {
-                if (mySeq !== seq) { resolve(lastResults); return }
-                try {
-                  const res = await fetch(
-                    `/api/j2/notes?q=${encodeURIComponent(q)}&limit=${SEARCH_LIMIT}`,
-                    { credentials: 'include' },
-                  )
-                  const body = res.ok ? await res.json() : { notes: [] }
-                  if (mySeq === seq) lastResults = body.notes || []
-                } catch {
-                  // keep lastResults -- a transient network error should not
-                  // blank a list the member was already looking at
-                }
-                resolve(lastResults)
-              }, SEARCH_DEBOUNCE_MS)
-            })
-          }
+          // One search sequence per plugin instance (never shared between
+          // open notes/editors) -- see makeNoteSearch.
+          const search = makeNoteSearch()
+          return ({ query }) => search(query)
         })(),
         render: () => {
           let component
