@@ -367,6 +367,9 @@ function rather than carrying a copy.
   process group, stops it with CTRL_BREAK (the signal uvicorn already handles), waits for the
   +15 s checkpoint before stopping it, reads the log, prints `SANDBOX INTEGRITY: ...` as its
   first line, and withholds every timing unless pre-boot, +15 s and shutdown all read CLEAN.
+  *Since fix round 2 (N-4) that holds for `--base` too: it waits for its sandbox's shutdown
+  checkpoint (`--shutdown-wait`) and withholds without it. A run that could not start (sign-in,
+  comp or seeding failed) prints `SANDBOX INTEGRITY: NOT RUN (<reason>)` and exits 3 (N-3).*
   Proof against the real launcher: `docs/plans/joystick/sandbox-runs/2026-09-25T09-47-48.md`
   (all three CLEAN over 61 db files). That run was a lifecycle proof (200 paragraphs, 3 opens,
   10 keys), not a budget measurement; the numbers above were not re-taken.
@@ -442,3 +445,17 @@ Each finding and where it now lives. Numbers are in the sections named, not repe
   retry of a failed fetch, then the app's existing `utils/lazyWithRetry` reload.
 - **M-6**: the harness writes its logs beside `--json` or into a temp dir (never the cwd), closes
   its log handle, and `--dry-run` runs under a test.
+
+## 6. Fix round 2 (the scoped re-review)
+
+- **Where the +7,237 B went** (section 1: the commits that landed between I3 and D-I1): about
+  6,650 B is lane H's H1/H2 and about 550 B is lane I's own M-4 (+353) and M-5 (+166). M-4 put
+  `useJ2NoteTags` in the entry chunk, which costs +716 B on every route; about 363 B of that is
+  winnable by moving the shared pieces into a leaf module. Recorded, not built.
+- **N-2** (the tag ask once per refresh, not once per list) added 381 B, all of it in the entry
+  chunk, so +381 B on every route: clean builds (`git archive`) of `b14dfca1e` and `40ced192b`,
+  Notebook first open 2,154,146 → 2,154,527 B against the 2,260,793 B ceiling (scratch
+  `w7I/fr2/build/bytes-{before,after}-n2.json`).
+- **`lazyChunk`'s one in-place retry is unverified in a real browser engine.** Its rails run in
+  jsdom, and whether a real engine re-requests a module whose first fetch failed, rather than
+  replaying the cached failure, is the walk's to establish on a device.
