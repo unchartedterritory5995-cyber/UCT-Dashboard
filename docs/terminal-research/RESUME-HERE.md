@@ -228,6 +228,16 @@ leave them alone indefinitely with no consequence.
 
 ## 7 · Gotchas discovered or re-confirmed this session — carry these forward
 
+- **A post-deploy smoke on a pod under ~3 minutes old measures the BOOT, not the
+  deploy** (2026-09-24/25, three times in one night, on two different builds — one of
+  them docs-only): new hashed chunks are an edge-cache MISS on every chunk while
+  warm-on-boot is still running, so the heaviest route missed a 45 s page-load budget
+  and six heavy lazy routes read "NO HUB" at a fixed 2.5 s sample; all passed at +5 min
+  on the same pod. One such run triggered an H15 rollback of a correct fix. Both smoke
+  tools now refuse to judge below `COLD_POD_FLOOR_S = 180` (exit 2 INCONCLUSIVE, which
+  H15 does not fire on; `--allow-cold` overrides), and the touch probe waits (bounded 20 s)
+  for the hub root instead of sampling. On ANY smoke fail, compare the previous build at the
+  same timing before attributing.
 - **Re-sync `_merge-master` to `origin/master` before EVERY cherry-pick, no
   exceptions.** Lost a push once today (`git push` rejected as non-fast-forward)
   because another concurrent workstream landed a commit on master between syncs.
