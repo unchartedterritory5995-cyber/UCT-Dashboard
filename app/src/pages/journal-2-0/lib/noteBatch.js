@@ -278,27 +278,47 @@ export function describeBatch(outcome, {
  * Wave 6 fix round 2, N1 — the per-op copy/args table `describeUnchecked` and
  * `runAnyway` both consult, so a new op's "could not check this device"
  * prompt is never one `if` away from silently falling into another op's
- * shape. `trash` is ALSO the fallback for any op with no entry of its own —
- * on purpose: that is the exact shape the pre-fix code fell into for
- * `renameTag` (N1's own defect), so an op added to `UNSENT_REFUSED_OPS`
- * without a row here fails the same way it always would have, loudly enough
- * for a rail to catch it, rather than a NEW, different-looking mistake.
+ * shape.
+ *
+ * ⛔⛔ Controller correction, wave 6 fix round 3: round 2's `renameTag` row
+ * offered a waiver ("Rename the others") that resent the UNCHECKED ids with
+ * the device check bypassed — the reverse of what a waiver should ever do,
+ * and incoherent besides (the checked notes had already gone out in the
+ * FIRST batch, so "rename the checked ids only" re-sends nothing). The
+ * ruling: for `renameTag` there is **no waiver of any kind**. A device
+ * holding an unsent change to a note would put the OLD tag back the moment
+ * that queued write lands, so offering to rename it now would promise
+ * something the next sync undoes. `retry: null` is what makes that
+ * structural rather than a convention: `describeUnchecked` cannot build an
+ * `anyway` object for a row that carries it, so there is nothing for
+ * `runAnyway` to reach.
+ *
+ * N-c (wave 6 fix round 3): an op added to `UNSENT_REFUSED_OPS` without its
+ * own row here no longer silently inherits `trash`'s copy (round 2's own
+ * "loudly enough for a rail to catch it" reasoning had no rail, and it named
+ * "Trash anyway" for an op that may not be one) — `describeUnchecked` falls
+ * back to a NEUTRAL sentence, below, that offers nothing.
  */
 const UNCHECKED_OP_COPY = {
   export: {
     what: 'included',
+    retry: 'confirm',
     label: 'Export anyway',
     confirmLabel: 'Yes, export anyway',
     confirm: (n) => `Export ${n} without checking this device? Words typed here that have not reached the server would be missing from the file.`,
   },
   renameTag: {
-    what: 'renamed',
-    label: 'Rename the others',
-    confirmLabel: 'Yes, rename the others',
-    confirm: (n) => `Rename ${n} without checking this device? Only the tag would change — the notes' own words are unaffected either way.`,
+    retry: null,
+    message: (n, named, more) => {
+      const one = n === 1
+      return `${plural(n, 'note')} ${one ? 'has' : 'have'} changes this device could not check: `
+        + `${named.join('; ')}${more}. ${one ? 'It keeps' : 'They keep'} the old tag until `
+        + `${one ? 'it syncs' : 'they sync'} — rename ${one ? 'it' : 'them'} again then.`
+    },
   },
   trash: {
     what: 'moved to the Trash',
+    retry: 'confirm',
     label: 'Trash anyway',
     confirmLabel: 'Yes, trash anyway',
     confirm: (n) => `Move ${n} to the Trash without checking this device? Words typed here that have not reached the server may not be kept.`,
@@ -306,30 +326,42 @@ const UNCHECKED_OP_COPY = {
 }
 
 /**
- * The sentence and the offer for notes the device could not be ASKED about
- * (review R1-S1) — or null when there are none. The offer is two-step: the
- * member presses `label`, reads `confirm`, and only `confirmLabel` proceeds.
+ * The sentence — and, for ops whose row allows one, the offer — for notes the
+ * device could not be ASKED about (review R1-S1). Null when there are none.
+ * An offer is two-step: the member presses `label`, reads `confirm`, and
+ * only `confirmLabel` proceeds. A row with `retry: null` (wave 6 fix round
+ * 3: `renameTag`) never produces an `anyway` at all — there is nothing to
+ * press but the notice's own Close.
  *
  * @param op    the batch op ('trash' | 'export' | 'renameTag' | …)
  * @param ids   the unchecked note ids
  * @param args  N1: the op's OWN batch args (e.g. `{from, to}` for
  *              `renameTag`) — carried into `anyway.args` so confirming the
  *              offer (`runAnyway`) resends a request the server accepts,
- *              instead of the `{}` that produced N1's 400.
+ *              instead of the `{}` that produced N1's 400. (Only reaches an
+ *              op whose row still offers a retry.)
  * @param ctx   N1: the op's own `describeBatch` context (e.g.
- *              `{tag, renameTo}`) — carried into `anyway.ctx` so the RETRIED
+ *              `{tag, renameTo}`) — carried into `anyway.ctx` so a retried
  *              batch's own success sentence names the same tag, rather than
  *              "#undefined".
  */
 export function describeUnchecked(op, ids, { titleOf = () => null, args = {}, ctx = {} } = {}) {
   const list = [...(ids || [])]
   if (!list.length) return null
-  const copy = UNCHECKED_OP_COPY[op] || UNCHECKED_OP_COPY.trash
+  const copy = UNCHECKED_OP_COPY[op]
   const named = list.slice(0, 3).map((id) => {
     const t = titleOf(id)
     return t ? `"${t}"` : 'a note'
   })
   const more = list.length > 3 ? ` and ${list.length - 3} more` : ''
+  if (!copy) {
+    // N-c: neutral and offers nothing — never a stand-in for a destructive
+    // action this op may not even perform.
+    return { message: `${plural(list.length, 'note')} could not be checked on this device.`, tone: 'error' }
+  }
+  if (copy.retry === null) {
+    return { message: copy.message(list.length, named, more), tone: 'error' }
+  }
   const n = plural(list.length, 'note')
   return {
     message: `${UNCHECKED_SENTENCE} ${plural(list.length, 'note was', 'notes were')} not ${copy.what}: ${named.join('; ')}${more}.`,

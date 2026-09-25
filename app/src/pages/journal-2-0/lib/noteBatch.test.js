@@ -330,6 +330,36 @@ describe('S1 — trash and export also see words still being SENT, not only reti
     expect(describeUnchecked('export', [], {})).toBeNull()
   })
 
+  it('N1 (final, wave 6 fix round 3): a rename the device cannot check names the notes, says it keeps the old tag, and offers NOTHING', () => {
+    const offer = describeUnchecked('renameTag', ['a'], { titleOf: () => 'First note' })
+    expect(offer.message).toBe(
+      '1 note has changes this device could not check: "First note". '
+      + 'It keeps the old tag until it syncs — rename it again then.')
+    expect(offer.tone).toBe('error')
+    // No waiver of any kind — a rename is never re-sent on the strength of a
+    // confirmation, so there is nothing to build an `anyway` object for.
+    expect(offer.anyway).toBeUndefined()
+  })
+
+  it('N1 (final): the plural form reads correctly for more than one unchecked note', () => {
+    const offer = describeUnchecked('renameTag', ['a', 'b'], { titleOf: (id) => ({ a: 'First note', b: 'Second note' })[id] })
+    expect(offer.message).toBe(
+      '2 notes have changes this device could not check: "First note"; "Second note". '
+      + 'They keep the old tag until they sync — rename them again then.')
+    expect(offer.anyway).toBeUndefined()
+  })
+
+  it('N-c (wave 6 fix round 3): an op with no row of its own gets NEUTRAL copy, never trash\'s "anyway"', () => {
+    // No real op reaches this today (UNSENT_REFUSED_OPS only ever holds
+    // trash and renameTag, and both have rows) — it exists so the NEXT op
+    // added there fails loudly and safely rather than inheriting a
+    // destructive action's copy by accident.
+    const offer = describeUnchecked('someFutureOp', ['a', 'b', 'c'], { titleOf: () => 'A note' })
+    expect(offer.message).toBe('3 notes could not be checked on this device.')
+    expect(offer.tone).toBe('error')
+    expect(offer.anyway).toBeUndefined()
+  })
+
   it('⛔ CONTROL — move, tag and restore never ask: they rebase, and the words still arrive', async () => {
     const connect = vi.fn(async () => storeWith({ queued: ['n2'] }))
     for (const [op, args] of [['move', { folderId: 'f1' }], ['addTag', { tag: 'x' }], ['restore', {}]]) {
