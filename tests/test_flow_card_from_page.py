@@ -367,3 +367,20 @@ def test_the_windowed_stream_is_per_date_equality_and_returns_the_same_rows(tmp_
     code = "\n".join(l.split("#")[0] for l in body.splitlines())          # comments are not code
     assert "CreatedDate = ?" in code and " IN (" not in code, (
         "the windowed stream went back to an IN list; the planner walks the symbol's history for it")
+
+
+def test_the_ladder_shares_ONE_budget_and_yields_to_the_rollup_when_it_is_spent(monkeypatch):
+    """A stalled flow-worker must not cost 4 x the timeout before the rollup fallback starts."""
+    monkeypatch.setenv("WORKER_INTERNAL_URL", "http://flow-worker.test")
+    t = {"now": 0.0}
+    asked = []
+
+    def slow_empty(ticker, params, headers):
+        asked.append(params.get("window_days", "all"))
+        t["now"] += 8.0                               # every rung costs 8 s and finds nothing
+        return {"ok": True, "window_dates": ["9/24/2026"], "product": {"all_directional": []}}
+    out = page.page_derived_payload("THIN", "1", "stocks", timeout_s=20.0, get=slow_empty,
+                                    clock=lambda: t["now"])
+    assert out is None
+    assert asked == [1, 5, 20], asked                 # the 'all' rung never started: 24 s > 20 s budget
+    assert t["now"] <= 24.0

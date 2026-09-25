@@ -310,13 +310,24 @@ def fetch_product(ticker: str, source: str, window, timeout_s: float, *, get=Non
 
 
 def page_derived_payload(ticker: str, days: str, source: str, timeout_s: float = 20.0,
-                         top_n: int = 15, *, get=None) -> dict | None:
+                         top_n: int = 15, *, get=None, clock=None) -> dict | None:
     """The page-derived card payload for `/flow ticker days`, widened through the ladder; None
-    when no rung could be derived (the caller falls back to the rollup and LABELS it)."""
+    when no rung could be derived (the caller falls back to the rollup and LABELS it).
+
+    ⛔ `timeout_s` IS A TOTAL BUDGET ACROSS RUNGS, not a per-rung allowance. Four rungs at the
+    full timeout each would let a stalled flow-worker spend 4x the budget before the rollup
+    fallback even started; with one deadline the page path yields within `timeout_s`."""
+    import time as _time
+    now = clock or _time.monotonic
+    deadline = now() + float(timeout_s)
     asked = str(days or "1")
     first_label = "all" if asked.lower() == "all" else str(_ladder(asked)[0])
     for rung in _ladder(asked):
-        body = fetch_product(ticker, source, rung, timeout_s, get=get)
+        remaining = deadline - now()
+        if remaining < 1.0:
+            log.info("[flow-card:page] %s budget spent before rung %s; rollup fallback", ticker, rung)
+            return None
+        body = fetch_product(ticker, source, rung, remaining, get=get)
         if body is None:
             continue
         window_dates = list(body.get("window_dates") or [])
