@@ -1,5 +1,6 @@
 import { Node, Extension, mergeAttributes } from '@tiptap/core'
 import { Plugin, PluginKey, TextSelection } from '@tiptap/pm/state'
+import { WHOLE_DOCUMENT_SWAP_META } from './noteContentGuard'
 
 /**
  * Wave 6 item 5 — side-by-side columns.
@@ -140,7 +141,15 @@ export const ColumnsGuard = Extension.create({
   addProseMirrorPlugins() {
     return [new Plugin({
       key: new PluginKey('uctColumnsGuard'),
-      filterTransaction: (tr) => !tr.docChanged || nestedColumnsCount(tr.doc) <= nestedColumnsCount(tr.before),
+      // ⛔ M-4 (wave 7): a WHOLE-DOCUMENT swap (noteContentGuard.replaceDocument --
+      // a Restore, a server refresh, an adopted recovery) is the stored body
+      // arriving, never the member nesting. Refusing one whose body held more
+      // nesting than the page (only an import or the API can store such a body)
+      // left the old words on screen while the swap was believed done, and the
+      // next save could undo a Restore. Checked first: it is also the cheap test.
+      filterTransaction: (tr) => !tr.docChanged
+        || tr.getMeta(WHOLE_DOCUMENT_SWAP_META) === true
+        || nestedColumnsCount(tr.doc) <= nestedColumnsCount(tr.before),
     })]
   },
 })
