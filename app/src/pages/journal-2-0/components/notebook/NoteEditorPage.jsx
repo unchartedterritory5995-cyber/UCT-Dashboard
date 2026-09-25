@@ -3361,10 +3361,12 @@ export default function NoteEditorPage({ noteId, onBack, showBack = true, onTitl
             />
             {/* Wave 7 lane H1: dictation into THIS editor (the slash menu's
                 "Dictate" starts the same mic). Paid members only — the mic
-                renders nothing for anyone else, and is not even loaded. */}
+                renders nothing for anyone else, and is not even loaded.
+                `holdOnFailure` (review I-4): a failed transcription keeps the
+                member's recording and says why, never a silent drop. */}
             {isPaid === true && (
               <Suspense fallback={null}>
-                <VoiceInputButton ref={micRef} onTranscript={insertDictated} disabled={!editor.isEditable} />
+                <VoiceInputButton ref={micRef} onTranscript={insertDictated} disabled={!editor.isEditable} holdOnFailure />
               </Suspense>
             )}
             {/* Wave 7 lane H2: writing help — the draft opens in a PREVIEW and

@@ -37,7 +37,7 @@ vi.mock('../../hooks/useJ2NoteFolders', () => ({ default: () => ({ folders: [] }
 const STARTS = []
 vi.mock('../VoiceInputButton', async () => {
   const React = await import('react')
-  const Stub = React.forwardRef(function StubMic({ onTranscript, disabled }, ref) {
+  const Stub = React.forwardRef(function StubMic({ onTranscript, disabled, holdOnFailure }, ref) {
     const btn = React.useRef(null)
     React.useImperativeHandle(ref, () => ({
       available: true,
@@ -48,6 +48,7 @@ vi.mock('../VoiceInputButton', async () => {
     }))
     return (
       <button ref={btn} type="button" aria-label="Start voice input" data-disabled={String(Boolean(disabled))}
+              data-hold-on-failure={String(Boolean(holdOnFailure))}
               onClick={() => onTranscript('spoken words')} />
     )
   })
@@ -87,6 +88,15 @@ describe('NoteEditorPage — dictation (wave 7 H1)', () => {
     const { root } = await mountEditorInPane('main', 'n1')
     const mic = await micIn(root)
     expect(mic.closest('[role="toolbar"]')).toBeTruthy()
+  })
+
+  // Fix round 1, review I-4: the editor's mic opts into keeping a recording
+  // the server failed to transcribe (VoiceInputButton.holdOnFailure.test.jsx
+  // rails the behaviour; this rails that THIS surface asked for it).
+  it("the editor's mic keeps a failed recording and says why (holdOnFailure)", async () => {
+    await mountEditorInPane('main', 'n1')
+    const mic = await screen.findByRole('button', { name: 'Start voice input' })
+    expect(mic.getAttribute('data-hold-on-failure')).toBe('true')
   })
 
   it('an UNPAID member gets no mic and no "Dictate" slash item — nothing dead', async () => {
