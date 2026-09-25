@@ -716,11 +716,22 @@ class TestImageMemory:
             f"{self._PEAK_CEILING_MIB} MiB ceiling the comment's figure rests on")
         # and the engine is handed what it was always handed: greyscale, shrunk
         assert got["out"] == ["L", dx._OCR_LONG_EDGE, dx._OCR_LONG_EDGE], got
+        # Tests shard M-5: the child imports `api.*`, so it loads the repo-root
+        # census first, as every process that does must (J1's rule): its pins
+        # applied and its tripwire armed -- read back from the child itself.
+        assert got["census"] is True, "the probe child imported api.* with no census loaded"
 
 
 # The fresh-process probe for the rail above. argv: mode, width, height.
 _PEAK_PROBE = r'''
-import ctypes, json, struct, sys, zlib
+import ctypes, json, os, struct, sys, zlib
+# Tests shard M-5: this child imports `api.*` below, so it loads the repo-root
+# census FIRST (pins + tripwire), the rule `test_notebook_bridges_pin_the_root.py`
+# holds the bridges to -- pure today, one import away from not being. The
+# baseline below is read after every import, so the reading is unaffected.
+sys.path.insert(0, os.getcwd())
+import conftest  # noqa: F401,E402
+import sqlite3  # noqa: E402
 
 def mem():
     """(current, peak) bytes: commit on Windows, RSS on Linux."""
@@ -769,5 +780,6 @@ cur0, _ = mem()
 im = dx.load_image_for_ocr(png)
 _, peak1 = mem()
 print(json.dumps({"added": peak1 - cur0,
-                  "out": None if im is None else [im.mode, im.size[0], im.size[1]]}))
+                  "out": None if im is None else [im.mode, im.size[0], im.size[1]],
+                  "census": bool(getattr(sqlite3.connect, "_uct_guarded", False))}))
 '''
