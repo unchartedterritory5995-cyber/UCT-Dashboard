@@ -128,7 +128,21 @@ this specific reader either way.
 
 Explicitly **not ready for a go-live decision** — CP4/FLIP needs several more nights of
 real cohort data before a ruling is even possible, per the existing record. Not this
-packet's to bring forward; will surface on its own schedule. The *member-facing*
+packet's to bring forward; will surface on its own schedule.
+
+> **Dark read 2026-09-25 ~04:00Z** (`GET /api/admin/alert-taxonomy/dark-report/scan-membership-change`
+> as the admin smoke account; evidence in
+> `evidence/2026-09-25-s7-scan-membership-dark-read/`): `predicate_count` **1** (was 0 on
+> 2026-09-22 — the smoke account's own "Oops Reversal" subscription is being swept),
+> status **OBSERVED**, `observed 4 · agreed 4 · new_only 0 · legacy_only 0 ·
+> not_comparable 0`, drift 0/0, `sessions_covered` 09-22 · 09-23 · 09-24 · 09-25,
+> heartbeat 12 ticks, `verdict_ready: false`, `min_sessions_for_verdict: 5`. **One more
+> nightly tick (the 2026-09-26 session) meets the session floor.** ⚠️ It will still be
+> n = 1 predicate on the synthetic account — the report's own first blind spot says the
+> `screen_alert_subs` population is unmeasured and the s7-dark cohort is admins/staff/test
+> only by design — so "verdict_ready" tomorrow is a statement about session count, not
+> about members. A CP4 ruling packet can be assembled after that tick; whether one screen
+> from one synthetic account is enough evidence is the owner's call, not this packet's. The *member-facing*
 version of "alert me when a screen's membership changes" already fires today via the
 unrelated legacy path (`screen_alerts.py`), so there is no member-facing gap in the
 meantime.
