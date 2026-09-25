@@ -45,7 +45,7 @@ evidence, `34f3fb6d2` walk script) — merge that tail before the wave-6 PR.
 Both worktrees' own `CLAUDE.md` carry a pointer section (search "Notebook
 10/10 program") back to this file and to the SDD ledger.
 
-## 2. Blockers as of 19:50 CT — a session rate limit (resets 22:00 CT) and an H14 hotfix ahead of every Notebook deploy
+## 2. Blockers as of 21:15 CT — the H14 hotfix is LIVE (#187 merged, deployed, verified); a session rate limit (resets 22:00 CT) still gates new subagents
 
 - **Session rate limit** ("You've hit your session limit · resets 10pm America/Chicago", HTTP 429
   on Opus) killed lane E and lane D's re-review at ~19:45 CT. The controller session still runs.
@@ -59,7 +59,7 @@ Both worktrees' own `CLAUDE.md` carry a pointer section (search "Notebook
   with no 409 and no fork. Confirmed on production source (`5fd248c40`), reproduced with the real
   drain on identical source, gate proven both ways by mutation on master's own code (the first
   green was VACUOUS — a missing `METADATA_ONLY` import made the predicate throw; the CONTROL caught
-  it). **Every Notebook deploy (#183, wave 5) is HELD behind this hotfix.** **PR #187 is READY**: master's own baseline was measured on a pristine detached worktree at
+  it). **Every Notebook deploy (#183, wave 5) is HELD behind this hotfix.** **PR #187 is MERGED AND LIVE** (master `d4a1a13b6`, Railway SUCCESS 01:55Z record, fresh boot verified 20:58 CT; the deploy block is lifted). For the record: master's own baseline was measured on a pristine detached worktree at
   `73a4286d0` (126 rows, adopted as `ac128755d`, with the two gate-parser fixes cherry-picked), and the
   official six-shard gate on that tip is **0 NEW** (manifest `2163e5dcf`). Merge order: **#187 → #183 →
   #186**. PR body = `.superpowers/sdd/2026-09-23-notebook-10/hotfix-metadata-settle-PR-draft.md`.
