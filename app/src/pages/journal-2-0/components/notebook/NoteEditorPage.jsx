@@ -1756,11 +1756,15 @@ export default function NoteEditorPage({ noteId, onBack, showBack = true, onTitl
   // The lock IS `editable`: every surface that edits the note asks
   // `editor.isEditable` (lib/lockedNote.js says why it is not a filter).
   // `false`: turning it on or off is not an edit, so no autosave.
+  // ⛔ Wave 6 whole-branch review I-3: an UNREADABLE note (the schema guard,
+  // lib/noteContentGuard.js) is read-only whatever its lock says, and the guard
+  // owns that. This effect used to hand such a note `setEditable(true)` on
+  // mount and on every unlock, until the guard re-locked it a render later.
   useEffect(() => {
-    if (!editor || editor.isDestroyed || editor.isEditable === !locked) return
+    if (!editor || editor.isDestroyed || unreadable || editor.isEditable === !locked) return
     editor.setEditable(!locked, false)
     bumpToolbar()
-  }, [editor, locked])
+  }, [editor, locked, unreadable])
 
   /**
    * ⛔⛔ UNLOCK IS A WRITE DOOR (wave 6 fix round 1, I1). The PATCH advances the
@@ -3303,9 +3307,14 @@ export default function NoteEditorPage({ noteId, onBack, showBack = true, onTitl
         ) : null}
 
         {unreadable && <UnreadableNoteNotice />}
+        {/* ⛔ ONE `readOnly`, both reasons (wave 6 whole-branch review I-3). The
+            wave-5 merge left `readOnly={unreadable}` AND `readOnly={locked}` on
+            each input, and the later prop won: an unreadable, unlocked note took
+            typing that `commitSave` then dropped. Rails: lib/jsxDuplicateProps.test.js,
+            NoteEditorPage.unreadable.test.jsx. */}
         <input
           className={styles.titleInput}
-          readOnly={unreadable}
+          readOnly={locked || unreadable}
           value={title}
           onChange={(e) => {
             const v = e.target.value
@@ -3315,11 +3324,10 @@ export default function NoteEditorPage({ noteId, onBack, showBack = true, onTitl
             onTitleChange?.(noteId, v)
           }}
           placeholder="Title"
-          readOnly={locked}
         />
         <input
           className={styles.subtitleInput}
-          readOnly={unreadable}
+          readOnly={locked || unreadable}
           value={subtitle}
           onChange={(e) => {
             const v = e.target.value
@@ -3328,7 +3336,6 @@ export default function NoteEditorPage({ noteId, onBack, showBack = true, onTitl
             scheduleAutosave()
           }}
           placeholder="Subtitle (optional)"
-          readOnly={locked}
         />
 
         {/* Wave E: below title/subtitle, above the body (checkpoint §21) --
