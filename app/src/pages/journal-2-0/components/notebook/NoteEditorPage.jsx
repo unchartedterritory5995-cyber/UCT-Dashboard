@@ -1,5 +1,7 @@
 import { useEditor, EditorContent } from '@tiptap/react'
-import { useCallback, useEffect, useId, useMemo, useReducer, useRef, useState } from 'react'
+import {
+  Suspense, lazy, useCallback, useEffect, useId, useMemo, useReducer, useRef, useState,
+} from 'react'
 import { useSearchParams, useNavigate } from 'react-router-dom'
 import useSWR, { mutate as globalMutate } from 'swr'
 import {
@@ -89,6 +91,14 @@ import {
 import UnreadableNoteNotice from '../../lib/UnreadableNoteNotice'
 import styles from './NoteEditorPage.module.css'
 import { FONT_OPTIONS } from '../../../../utils/fontFamilies'
+import { DICTATE_EVENT, insertDictation } from '../../lib/dictationInsert'
+
+// Wave 7 lane H1 — the toolbar mic. LAZY: the recorder (MediaRecorder, the Web
+// Speech fallback, the Whisper upload) is not needed to open a note, and a
+// member who is not paid never downloads it at all (the mount below is gated on
+// `isPaid`). Rendered inside its own <Suspense fallback={null}>, so a note never
+// waits for it.
+const VoiceInputButton = lazy(() => import('../VoiceInputButton'))
 
 // A note can carry its source video in heroImageUrl (set by the Desk "Save
 // notes to Journal Notebook" export). When it does, we render an embedded
@@ -388,7 +398,9 @@ export default function NoteEditorPage({ noteId, onBack, showBack = true, onTitl
     if (loadError) console.warn('note load failed', loadError)
   }, [loadError])
   const { folders } = useJ2NoteFolders()
-  const { user } = useAuth()
+  // `isPaid` (wave 7 H1): the toolbar mic mounts only for a paid member, so an
+  // unpaid one never loads the recorder chunk and never sees a dead button.
+  const { user, isPaid } = useAuth()
   const [saveStatus, setSaveStatus] = useState('saved')
   const [saveErrorMsg, setSaveErrorMsg] = useState('')
   // Wave 6 item 8 — a LOCKED note (lane E's `locked` field; lib/lockedNote.js).
@@ -672,6 +684,12 @@ export default function NoteEditorPage({ noteId, onBack, showBack = true, onTitl
   const retryAttemptsRef = useRef(0)
   const fileInputRef = useRef(null)
   const attachFileInputRef = useRef(null)
+  // Wave 7 lane G5 (built by H): the touch tier's camera door — its own hidden
+  // input (`capture="environment"`), handed to the SAME image-upload path.
+  const scanInputRef = useRef(null)
+  // Wave 7 lane H1: the toolbar mic's `{ start(), available }` handle. The
+  // slash menu's "Dictate" item starts THIS editor's mic through it.
+  const micRef = useRef(null)
   const lastSavedRef = useRef({ title: '', subtitle: '', bodyJson: null, updatedAt: null })
   // One reconcile-and-retry per conflict burst (A15 compare-and-set): a 409
   // means a server-side write (Send-to-Journal append, second tab) landed
@@ -1333,9 +1351,29 @@ export default function NoteEditorPage({ noteId, onBack, showBack = true, onTitl
       const { url } = await uploadInlineImage(noteId, file)
       ed.chain().focus().setImage({ src: url, alt: '' }).run()
     } catch (e) {
-      setUploadToast({ message: `Couldn't upload ${file.name || 'image'}. Your note is unchanged.`, tone: 'error' })
+      // Wave 7 (G5, the camera "Scan" door): the server's reason is a sentence a
+      // member can act on — a phone photo in HEIC is refused with "Only
+      // PNG/JPG/GIF/WebP images allowed" — so it is said, through the ONE
+      // error-to-copy authority (`friendlySaveError`, mapped on its own line;
+      // the attachment path below records why).
+      const why = friendlySaveError(e, e?.status)
+      const said = /[.!?]$/.test(why) ? why : `${why}.`
+      setUploadToast({
+        message: `Couldn't upload ${file.name || 'image'} — ${said} Your note is unchanged.`,
+        tone: 'error',
+      })
     }
   }
+  // Wave 7 lane H1 — dictated words, at the caret, as one undo step
+  // (lib/dictationInsert.js). A dictation that cannot land says so: the words
+  // were heard and a silent drop would lose them without a trace.
+  const insertDictated = useCallback((text) => {
+    if (insertDictation(editorRef.current, text)) return
+    setUploadToast({
+      message: "Couldn't add what you said — this note can't take changes right now.",
+      tone: 'error',
+    })
+  }, [])
   // Wave I: the non-image counterpart — the backend endpoint
   // (POST /notes/{id}/attachments) has existed since before this wave; this
   // is its first live-editor caller. Inserts a real AttachmentChip node
@@ -1676,7 +1714,13 @@ export default function NoteEditorPage({ noteId, onBack, showBack = true, onTitl
     // reads the note id off editor storage for its archive upload
     // (see WidgetEmbedView's self-archive effect).
     onCreate: ({ editor: ed }) => {
-      ed.storage.uctJournalWidgets = { ...(ed.storage.uctJournalWidgets || {}), noteId }
+      // `canDictate` (wave 7 H1) is a FUNCTION over the mic's ref, read when the
+      // slash menu opens: the mic loads lazily and can mount after this editor,
+      // and a snapshot taken here would offer "Dictate" to nobody or to everybody.
+      ed.storage.uctJournalWidgets = {
+        ...(ed.storage.uctJournalWidgets || {}), noteId,
+        canDictate: () => micRef.current?.available === true,
+      }
       // One reading per note: the timer's own stop() speaks once.
       if (note) openTimerRef.current?.(taskIndexRef.current != null ? { source: 'tasks' } : {})
       // "Send to Journal" from the charts page targets the LAST-ACTIVE note
@@ -2465,9 +2509,20 @@ export default function NoteEditorPage({ noteId, onBack, showBack = true, onTitl
   useEffect(() => {
     if (!editor) return undefined
     const onOpenPicker = () => fileInputRef.current?.click()
+    // Wave 7 lane H1: the slash menu's "Dictate" item, on the SAME per-editor
+    // target and for the same reason — with two panes open, only the pane the
+    // command ran in may start listening. `start()` refuses where a click on
+    // the mic would do nothing; that is said, never silent.
+    const onDictate = () => {
+      if (micRef.current?.start?.()) return
+      setChromeMsg("Dictation isn't available right now")
+    }
     let dom = null
     const detach = () => {
-      if (dom) dom.removeEventListener('uct:notebook-open-image-picker', onOpenPicker)
+      if (dom) {
+        dom.removeEventListener('uct:notebook-open-image-picker', onOpenPicker)
+        dom.removeEventListener(DICTATE_EVENT, onDictate)
+      }
       dom = null
     }
     const attach = () => {
@@ -2477,6 +2532,7 @@ export default function NoteEditorPage({ noteId, onBack, showBack = true, onTitl
       detach()
       dom = next
       dom.addEventListener('uct:notebook-open-image-picker', onOpenPicker)
+      dom.addEventListener(DICTATE_EVENT, onDictate)
     }
     attach()
     editor.on('mount', attach)
@@ -3214,11 +3270,34 @@ export default function NoteEditorPage({ noteId, onBack, showBack = true, onTitl
               label={<UIcon name="document" size={14} />}
               title="Insert image"
             />
+            {/* Wave 7 (lane G's G5, built by H): photograph a page on a phone or
+                tablet. The touch tier only (`.scanBtn` is display:none above
+                1024px); the photo goes through the SAME image upload as Insert
+                image, so with NOTEBOOK_IMAGE_DOCX_DOCUMENTS_ENABLED and
+                J2_OCR_ENABLED on it becomes a searchable document. */}
+            <button
+              type="button"
+              className={`${styles.toolBtn} ${styles.scanBtn}`}
+              onClick={() => scanInputRef.current?.click()}
+              aria-label="Scan a document with the camera"
+              title="Scan a document with the camera"
+            >
+              <UIcon name="camera" size={14} gold={false} style={{ verticalAlign: '-2px', marginRight: 4 }} />
+              Scan
+            </button>
             <ToolButton
               onClick={() => attachFileInputRef.current?.click()}
               label={<UIcon name="paperclip" size={14} />}
               title="Attach a file"
             />
+            {/* Wave 7 lane H1: dictation into THIS editor (the slash menu's
+                "Dictate" starts the same mic). Paid members only — the mic
+                renders nothing for anyone else, and is not even loaded. */}
+            {isPaid === true && (
+              <Suspense fallback={null}>
+                <VoiceInputButton ref={micRef} onTranscript={insertDictated} disabled={!editor.isEditable} />
+              </Suspense>
+            )}
             <ToolButton
               onClick={() => editor.chain().focus().setHorizontalRule().run()}
               label="―"
@@ -3421,6 +3500,24 @@ export default function NoteEditorPage({ noteId, onBack, showBack = true, onTitl
           type="file"
           accept="image/png,image/jpeg,image/gif,image/webp"
           aria-label="Upload image"
+          style={{ display: 'none' }}
+          onChange={(e) => {
+            const f = e.target.files?.[0]
+            if (f) handleImageInsert(f)
+            e.target.value = ''
+          }}
+        />
+        {/* Wave 7 G5: the camera door. `capture="environment"` asks a phone for
+            its rear camera; everything after the pick is Insert image's path.
+            ⚠️ Whether iOS hands over a JPEG or a HEIC is NOT measured here (it
+            needs a real device); a HEIC is refused by the server and the toast
+            says so in its own words. */}
+        <input
+          ref={scanInputRef}
+          type="file"
+          accept="image/*"
+          capture="environment"
+          aria-label="Scan a document with the camera — photo"
           style={{ display: 'none' }}
           onChange={(e) => {
             const f = e.target.files?.[0]

@@ -13,8 +13,18 @@
  *                                        (filler removal, ticker fixes,
  *                                        punctuation). Default true. Only
  *                                        applies to the Whisper path.
+ *
+ * Ref (optional — wave 7 lane H1, ADDITIVE): `{ start(), available }`.
+ *   start()   — begin listening exactly as a click on the mic would. Returns
+ *               false (and does nothing) when this member cannot dictate here
+ *               (unpaid, no browser support, disabled, or already busy), so a
+ *               caller can say so instead of failing silently.
+ *   available — whether this member and browser can dictate at all.
+ * The Notebook's slash "Dictate" item has no button of its own to click; it
+ * asks the toolbar mic of ITS editor to start. Every existing caller passes no
+ * ref and renders exactly as before (VoiceInputButton.ref.test.jsx rails it).
  */
-import { useState, useRef, useEffect, useCallback } from 'react'
+import { forwardRef, useState, useRef, useEffect, useCallback, useImperativeHandle } from 'react'
 import { useIsPaid } from '../../../context/AuthContext'
 import UIcon from '../../../components/ui/UIcon'
 
@@ -42,7 +52,9 @@ function markHintSeen() {
   try { localStorage.setItem(HINT_KEY, '1') } catch { /* ignore */ }
 }
 
-export default function VoiceInputButton({ onTranscript, disabled = false, cleanup = true }) {
+const VoiceInputButton = forwardRef(function VoiceInputButton(
+  { onTranscript, disabled = false, cleanup = true }, ref,
+) {
   const isPaid = useIsPaid()
   const SR = getSpeechRecognitionCtor()
   const whisperAvailable = hasMediaRecorder()
@@ -187,6 +199,20 @@ export default function VoiceInputButton({ onTranscript, disabled = false, clean
     else startRecording()
   }, [recording, stopRecording, startRecording])
 
+  // Wave 7 lane H1 — the imperative door (see the header). ⛔ It refuses
+  // exactly where the button itself would render nothing or refuse a click, so
+  // a caller that starts dictation without a click can never start what a
+  // click could not.
+  const available = Boolean(isPaid && supported)
+  useImperativeHandle(ref, () => ({
+    available,
+    start: () => {
+      if (!available || disabled || recording || uploading) return false
+      startRecording()
+      return true
+    },
+  }), [available, disabled, recording, uploading, startRecording])
+
   // Voice dictation hits the paid Whisper transcription endpoint — hidden
   // entirely for free users (placed after all hooks to respect rules-of-hooks).
   if (!isPaid) return null
@@ -286,4 +312,6 @@ export default function VoiceInputButton({ onTranscript, disabled = false, clean
       <style>{`@keyframes compass-pulse { 0%,100% { box-shadow: 0 0 0 0 rgba(239,68,68,0.6); } 50% { box-shadow: 0 0 0 6px rgba(239,68,68,0); } }`}</style>
     </span>
   )
-}
+})
+
+export default VoiceInputButton
