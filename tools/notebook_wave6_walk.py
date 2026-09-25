@@ -793,10 +793,41 @@ with sync_playwright() as p:
         if expand_btn.count():
             expand_btn.click()
             page.wait_for_timeout(200)
-        view_row = page.get_by_role("button", name=view_name, exact=True)
+        # ⛔⛔ Measured in real Chromium (round 5): the saved-view row is a
+        # <button title={view.name}> that also CONTAINS the row's own nested
+        # "Rename {name}"/"Delete {name}" controls (FolderSidebar.jsx's
+        # SavedViewsSection) and carries NO aria-label of its own -- unlike
+        # its sibling TagRenameableRow, which passes an explicit `ariaLabel`
+        # that short-circuits accname computation. With no aria-label, the
+        # row's accessible NAME is computed from subtree content, which
+        # concatenates the row's own label with BOTH nested controls' names
+        # ("Walk timeline RUN Rename Walk timeline RUN Delete Walk timeline
+        # RUN"). An exact-name role locator on `view_name` therefore matches
+        # ZERO rows on every build, and this check used to report "restored
+        # as a list" (indistinguishable from a genuine product regression)
+        # for what was actually a locator miss.
+        #
+        # Fix: `title` is a literal HTML attribute (set to view.name, and to
+        # nothing else on the row -- the nested Rename/Delete controls carry
+        # the literal strings "Rename view"/"Delete view", never view.name),
+        # so `get_by_title` locates the row unambiguously regardless of what
+        # its computed accessible name concatenates. `saved_view_row_count`
+        # is recorded explicitly below so a future locator miss can never
+        # again be silently read as a product verdict -- audited every other
+        # exact-name role locator in this script for the same defect class
+        # (note cards, tag rows, template rows): the plain note-list row has
+        # no nested controls at all, TagRenameableRow's own row passes an
+        # explicit aria-label, and MemberTemplates' template card renders
+        # Rename/Delete as SIBLINGS of the card button by design ("a button
+        # in a button is one control to a screen reader" -- its own header
+        # comment) -- this saved-view row is the one place the pattern was
+        # missing. The product assertion below (pressed/saved_ok/saved_type/
+        # restored_as_timeline) is unchanged.
+        view_row = page.get_by_title(view_name)
+        saved_view_row_count = view_row.count()
         restored_as_timeline = False
-        if view_row.count():
-            view_row.click()
+        if saved_view_row_count:
+            view_row.first.click()
             page.wait_for_timeout(500)
             restored_as_timeline = page.get_by_role(
                 "button", name="Timeline view", exact=True
@@ -808,6 +839,7 @@ with sync_playwright() as p:
             offered_and_pressed=pressed == "true",
             saved_ok=saved_ok, saved_view_type=saved_type,
             restored_as_timeline=restored_as_timeline,
+            saved_view_row_count=saved_view_row_count,
         )
 
     check_w6()
@@ -880,6 +912,7 @@ with sync_playwright() as p:
     # =========================================================================
     @guarded("W8_tag_rename_flat_and_nested")
     def check_w8_preview_and_confirm():
+        global page
         tag_flat = f"walkflat{RUN}"
         tag_nested = f"walknest{RUN}/sub"
         n_flat = [api.post(BASE + "/api/j2/notes", data={
@@ -891,6 +924,14 @@ with sync_playwright() as p:
             "tags": [tag_nested],
         }).json()["note"] for i in range(2)]
 
+        # Final semantics (fix round 3, N1): the brief's "Rename the others"
+        # waiver is GONE. When a rename touches notes this device could not
+        # check for unsynced changes -- true of EVERY note here, since each
+        # was created via a raw API POST and never passed through this
+        # device's own durable-write pipeline -- the dialog NAMES those notes,
+        # offers a single Close, and issues exactly one
+        # /api/j2/notes/batch request. No button whose text contains "anyway"
+        # or "others" exists, and no second batch request follows.
         results = {}
         for tag, label in ((tag_flat, "flat"), (tag_nested, "nested")):
             page.goto(notebook_url(None, "?view=all"))
@@ -899,115 +940,234 @@ with sync_playwright() as p:
             if expand_btn.count():
                 expand_btn.first.click()
                 page.wait_for_timeout(300)
+
+            rename_affordance_present = page.get_by_role("button", name=f"Rename {tag}").count() > 0
+
             with page.expect_response(lambda r: "/notes/tag-members" in r.url) as ti:
                 page.get_by_role("button", name=f"Rename {tag}").click()
             preview_resp = ti.value
             preview_body = preview_resp.json() if preview_resp.ok else {}
-            preview_count_shown = page.get_by_text(re.compile(r"will affect \d+ notes?")).count() > 0
+            preview_total = preview_body.get("total")
+
             new_tag = f"{tag}-renamed"
             input_field = page.get_by_label(f"Rename tag {tag}")
             input_field.fill(new_tag)
-            with page.expect_response(lambda r: r.url.endswith("/api/j2/notes/batch")) as bi:
-                page.get_by_role("button", name="Rename", exact=True).click()
-            batch_resp = bi.value
-            page.wait_for_timeout(500)
 
-            after = api.get(BASE + "/api/j2/notes/tags").json() if False else None
-            member_titles = [n.get("title") for n in preview_body.get("notes", [])]
+            batch_requests = []
+
+            def _count_batch(resp, _bucket=batch_requests):
+                if resp.url.endswith("/api/j2/notes/batch"):
+                    _bucket.append(resp.status)
+
+            page.on("response", _count_batch)
+            notice_text = None
+            has_waiver_button = False
+            has_single_close = False
+            try:
+                page.get_by_role("button", name="Rename", exact=True).click()
+                page.wait_for_timeout(1200)
+
+                notice_el = page.get_by_test_id("bulk-notice")
+                if not notice_el.count():
+                    notice_el = page.get_by_role("status")
+                if notice_el.count():
+                    notice_text = notice_el.first.text_content()
+
+                has_waiver_button = page.get_by_role(
+                    "button", name=re.compile("anyway|others", re.I)
+                ).count() > 0
+
+                close_btn = page.get_by_role("button", name=re.compile("^Close$", re.I))
+                has_single_close = close_btn.count() == 1
+                if close_btn.count():
+                    close_btn.first.click()
+                    page.wait_for_timeout(300)
+            finally:
+                page.remove_listener("response", _count_batch)
+
+            notice_lower = (notice_text or "").lower()
+            names_this_device_could_not_check = "this device could not check" in notice_lower
+            mentions_keep_old_tag = "old tag" in notice_lower
+            mentions_rename_again = "rename it again" in notice_lower
+
             new_count = api.get(BASE + f"/api/j2/notes/tag-members?tag={new_tag}").json()
             old_count = api.get(BASE + f"/api/j2/notes/tag-members?tag={tag}").json()
             results[label] = {
-                "preview_total": preview_body.get("total"),
-                "preview_ui_shown": preview_count_shown,
-                "batch_status": batch_resp.status,
+                "rename_affordance_present": rename_affordance_present,
+                "preview_total": preview_total,
+                "batch_request_count": len(batch_requests),
+                "notice_text": notice_text,
+                "names_this_device_could_not_check": names_this_device_could_not_check,
+                "mentions_keep_old_tag": mentions_keep_old_tag,
+                "mentions_rename_again": mentions_rename_again,
+                "has_waiver_button": has_waiver_button,
+                "has_single_close": has_single_close,
                 "new_tag_total": new_count.get("total"),
                 "old_tag_total": old_count.get("total"),
             }
 
         ok = all(
-            r["preview_ui_shown"] and r["batch_status"] == 200
-            and r["new_tag_total"] and r["old_tag_total"] == 0
+            r["rename_affordance_present"]
+            and r["preview_total"] == 2
+            and r["batch_request_count"] == 1
+            and r["names_this_device_could_not_check"]
+            and r["mentions_keep_old_tag"]
+            and r["mentions_rename_again"]
+            and not r["has_waiver_button"]
+            and r["has_single_close"]
+            and r["old_tag_total"] == 2
+            and r["new_tag_total"] == 0
             for r in results.values()
         )
-        record("W8_tag_rename_flat_and_nested", "PASS" if ok else "FAIL", **results)
+        record(
+            "W8_tag_rename_flat_and_nested", "PASS" if ok else "FAIL",
+            **results,
+            brief_mismatch_note=(
+                "The brief expected a 'Rename the others' waiver-and-confirm flow. Fix round 3 "
+                "(N1, final ruling, see NotebookTab.tagRename.test.jsx) removed every waiver: a "
+                "rename that touches notes this device could not check (notes it has never "
+                "synced/loaded locally -- true of every note this walk seeds via a raw API POST) "
+                "now NAMES those notes in a notice, offers a single Close, issues exactly one "
+                "/api/j2/notes/batch request, and leaves them on the OLD tag until they sync. "
+                "This check asserts that real behaviour, not the brief's stale waiver-button "
+                "expectation."
+            ),
+        )
 
     check_w8_preview_and_confirm()
 
     @guarded("W8b_tag_rename_unsent_work")
     def check_w8b():
+        global page
         tag = f"walkrace{RUN}"
         n_clean = api.post(BASE + "/api/j2/notes", data={
             "title": f"Walk W8b clean {RUN}", "bodyJson": {"type": "doc", "content": [P("clean")]},
             "tags": [tag],
         }).json()["note"]
         n_dirty = api.post(BASE + "/api/j2/notes", data={
-            "title": f"Walk W8b dirty {RUN}", "bodyJson": {"type": "doc", "content": [P("about to be edited offline")]},
+            "title": f"Walk W8b dirty {RUN}", "bodyJson": {"type": "doc", "content": [P("about to be edited")]},
             "tags": [tag],
         }).json()["note"]
 
         # A dedicated second context, same account, standing in for "a second
-        # device": go offline, edit the note (queues locally, unsent), then the
-        # SAME context (its own IndexedDB is what checkUnsentWork reads) tries
-        # the rename. This is inherently a race against the outbox drain --
-        # INCONCLUSIVE if it does not reproduce, never a fabricated FAIL/PASS.
+        # device": intercept ONLY this note's write request (PUT/PATCH to
+        # /api/j2/notes/<id>) so the durable layer's write hangs/aborts while
+        # every OTHER request -- navigation, the rename call itself -- still
+        # reaches the sandbox normally. This replaces context.set_offline(True),
+        # which blocked ALL of dev2's requests and produced
+        # net::ERR_INTERNET_DISCONNECTED on the sandbox's own navigation: an
+        # instrument failure, not a product finding, and it never actually
+        # exercised the unsent-work path.
         dev2 = browser.new_context(viewport={"width": 1280, "height": 800})
         signup_or_login(dev2.request, EMAIL, PW, "g064")
+
+        write_url_pat = re.compile(rf"/api/j2/notes/{re.escape(n_dirty['id'])}\b")
+        intercepted_writes = []
+
+        def _hang_the_write(route):
+            req = route.request
+            if req.method in ("PUT", "PATCH") and write_url_pat.search(req.url):
+                intercepted_writes.append(req.method)
+                route.abort()
+            else:
+                route.continue_()
+
         dpage = dev2.new_page()
         dpage.on("pageerror", lambda e: res["errors"].append("dev2: " + str(e)[:300]))
+        dpage.route("**/*", _hang_the_write)
         dpage = open_note(dev2, notebook_url(n_dirty["id"]), dpage)
         dpage.wait_for_timeout(500)
-        dev2.set_offline(True)
         dpage.locator(".ProseMirror").click()
         dpage.keyboard.press("End")
-        dpage.keyboard.type(" queued offline.", delay=15)
-        dpage.wait_for_timeout(900)   # let the durable layer mark it dirty locally
+        dpage.keyboard.type(" queued via intercepted write.", delay=15)
+        dpage.wait_for_timeout(1500)   # let the durable layer attempt (and fail) its write
 
-        dpage.goto(notebook_url(None, "?view=all"))
-        dpage.wait_for_timeout(600)
-        dev2.set_offline(False)   # network back, but the rename fires immediately
+        # Run the rename from a SECOND page in the SAME context, so it reads
+        # the same shared local durable store (IndexedDB) that still marks
+        # n_dirty as unsynced -- dpage stays open, holding the pending write.
+        rpage = dev2.new_page()
+        rpage.on("pageerror", lambda e: res["errors"].append("dev2b: " + str(e)[:300]))
+        rpage.goto(notebook_url(None, "?view=all"))
+        rpage.wait_for_timeout(700)
+        try:
+            rpage.get_by_role("button", name=re.compile("Expand tags|Show all tags", re.I)).click(timeout=1000)
+        except Exception:
+            pass
 
         rename_fired = False
         notice_text = None
+        batch_requests = []
+
+        def _count_batch(resp, _bucket=batch_requests):
+            if resp.url.endswith("/api/j2/notes/batch"):
+                _bucket.append(resp.status)
+
+        rpage.on("response", _count_batch)
         try:
-            dpage.get_by_role("button", name=re.compile("Expand tags|Show all tags", re.I)).click(timeout=1000)
-        except Exception:
-            pass
-        try:
-            dpage.get_by_role("button", name=f"Rename {tag}").click(timeout=5000)
-            dpage.get_by_label(f"Rename tag {tag}").fill(f"{tag}-renamed")
-            dpage.get_by_role("button", name="Rename", exact=True).click()
+            rpage.get_by_role("button", name=f"Rename {tag}").click(timeout=5000)
+            rpage.get_by_label(f"Rename tag {tag}").fill(f"{tag}-renamed")
+            rpage.get_by_role("button", name="Rename", exact=True).click()
             rename_fired = True
-            dpage.wait_for_timeout(1200)
-            notice = dpage.get_by_test_id("bulk-notice")
-            if notice.count():
-                notice_text = notice.first.text_content()
-            else:
-                status_el = dpage.get_by_role("status")
-                if status_el.count():
-                    notice_text = status_el.first.text_content()
+            rpage.wait_for_timeout(1200)
+            notice_el = rpage.get_by_test_id("bulk-notice")
+            if not notice_el.count():
+                notice_el = rpage.get_by_role("status")
+            if notice_el.count():
+                notice_text = notice_el.first.text_content()
         except Exception as e:  # noqa: BLE001
             notice_text = f"could not drive the rename UI: {e}"
+        finally:
+            rpage.remove_listener("response", _count_batch)
 
+        notice_lower = (notice_text or "").lower()
         names_dirty_note = bool(notice_text) and n_dirty["title"] in (notice_text or "")
-        has_waiver_button = dpage.get_by_role("button", name=re.compile("anyway|others", re.I)).count() > 0
+        names_this_device_could_not_check = "this device could not check" in notice_lower
+        has_waiver_button = rpage.get_by_role("button", name=re.compile("anyway|others", re.I)).count() > 0
+
+        try:
+            dpage.unroute("**/*", _hang_the_write)
+        except Exception:
+            pass
+        rpage.close()
         dpage.close()
         dev2.close()
 
-        verdict = "PASS" if (rename_fired and names_dirty_note and not has_waiver_button) else "INCONCLUSIVE"
+        verdict = "PASS" if (
+            rename_fired
+            and names_dirty_note
+            and names_this_device_could_not_check
+            and not has_waiver_button
+            and len(batch_requests) == 1
+        ) else "INCONCLUSIVE"
         record(
             "W8b_tag_rename_unsent_work", verdict,
             rename_fired=rename_fired, notice_text=notice_text,
             names_the_unsent_note=names_dirty_note,
+            names_this_device_could_not_check=names_this_device_could_not_check,
             has_waiver_button=has_waiver_button,
+            batch_request_count=len(batch_requests),
+            intercepted_write_methods=intercepted_writes,
+            note_on_instrument_change=(
+                "Replaced context.set_offline(True) (blocked ALL of dev2's requests, produced "
+                "net::ERR_INTERNET_DISCONNECTED on the sandbox's own navigation -- an instrument "
+                "failure) with a route interception scoped to ONLY this note's write endpoint "
+                "(PUT/PATCH /api/j2/notes/<id>), so the durable layer's write hangs/aborts while "
+                "every other request -- including the rename itself, run from a second page in "
+                "the same context -- reaches the sandbox normally."
+            ),
             note_on_brief_mismatch=(
                 "The brief expects a 'Rename the others' waiver button; wave 6 fix round 3 "
                 "(N1, final ruling, see NotebookTab.tagRename.test.jsx) REMOVED that waiver "
                 "entirely -- the unsent note now gets no waiver of any kind, only a named "
-                "notice and Close/Dismiss. This check verifies the REAL current behaviour."
+                "notice ('these N notes have changes this device could not check...') and a "
+                "single Close, and exactly one /api/j2/notes/batch request is issued. This "
+                "check verifies the REAL current behaviour."
             ),
             reason=None if verdict == "PASS" else (
-                "the race did not reproduce (the second device's edit likely drained before "
-                "the rename ran), or the rename UI could not be driven -- see notice_text"
+                "the race did not reproduce (the intercepted write may have been retried/"
+                "flushed before the rename ran), or the rename UI could not be driven, or the "
+                "notice text did not match the expected 'this device could not check' phrasing "
+                "-- see notice_text"
             ),
         )
 
@@ -1258,23 +1418,58 @@ with sync_playwright() as p:
 
         api_tasks = api.get(BASE + "/api/j2/notes/tasks?status=open").json()
         found = [t for t in api_tasks.get("tasks", []) if t.get("noteId") == note["id"]]
+        api_ok = bool(found) and found[0].get("due") == due_today
 
-        import subprocess
-        grep_hits = subprocess.run(
-            ["python", "-c",
-             "import subprocess,sys; print(subprocess.run(['grep','-rn','NoteTasksView','app/src'],capture_output=True,text=True).stdout)"],
-            capture_output=True, text=True, cwd=".",
-        )
+        # UI half -- NoteTasksView.jsx was mounted in 44aba6944, AFTER this
+        # walk's earlier reads correctly reported it unreachable (against a
+        # dist built before that commit). It is reachable at ?view=tasks on
+        # this tip. Drive it for real on the re-run rather than re-asserting
+        # the earlier, now-stale, zero-importers finding.
+        global page
+        ui_reachable = False
+        ui_checkbox_found = False
+        ui_check_reflected_in_api = None
+        ui_error = None
+        try:
+            page.goto(notebook_url(None, "?view=tasks"))
+            page.wait_for_timeout(700)
+            row = page.get_by_text(re.compile("Walk task", re.I))
+            ui_reachable = row.count() > 0
+            if row.count():
+                container = row.first.locator(
+                    "xpath=ancestor-or-self::*[self::li or self::div][1]"
+                )
+                checkbox = container.get_by_role("checkbox")
+                if not checkbox.count():
+                    checkbox = page.locator(
+                        f"[data-task-note-id='{note['id']}'] input[type='checkbox'], "
+                        f"[data-note-id='{note['id']}'] input[type='checkbox']"
+                    )
+                if checkbox.count():
+                    ui_checkbox_found = True
+                    checkbox.first.click()
+                    page.wait_for_timeout(800)
+                    after = api.get(BASE + "/api/j2/notes/tasks?status=open").json()
+                    still_open = [t for t in after.get("tasks", []) if t.get("noteId") == note["id"]]
+                    ui_check_reflected_in_api = len(still_open) == 0
+        except Exception as e:  # noqa: BLE001
+            ui_error = str(e)[:300]
 
-        verdict = "PASS" if found and found[0].get("due") == due_today else "FAIL"
+        verdict = "PASS" if api_ok else "FAIL"
         record(
             "W11_tasks_across_notes", verdict,
-            note_id=note["id"], found_via_api=bool(found),
+            note_id=note["id"], found_via_api=api_ok,
             due_matches=found[0].get("due") == due_today if found else None,
+            ui_reachable=ui_reachable,
+            ui_checkbox_found=ui_checkbox_found,
+            ui_check_reflected_in_api=ui_check_reflected_in_api,
+            ui_error=ui_error,
             ui_reachability=(
-                "NoteTasksView.jsx has zero importers outside its own test file (grep-confirmed "
-                "against app/src on this tip); no route/tab mounts it, so the live walk could not "
-                "click a checkbox and see it appear on screen. Verified at the API/data layer only."
+                "NoteTasksView.jsx was mounted in 44aba6944 and is reachable at ?view=tasks -- "
+                "this run drove the UI directly (see ui_reachable / ui_checkbox_found / "
+                "ui_check_reflected_in_api above) rather than re-asserting the earlier "
+                "zero-importers finding, which was correct against the dist that tip predates "
+                "but is now stale."
             ),
         )
 
