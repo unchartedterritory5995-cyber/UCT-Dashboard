@@ -27,11 +27,13 @@ SSRF surface, and every rule below exists for that reason:
     never read past a few KB and never decoded (wave 6 whole-branch review
     I-1: it used to be read whole, and one member could send the pod a 404
     that never ends, or a gzip bomb).
-  * THE PARSE IS OFF THE EVENT LOOP. Decoding and parsing up to `MAX_BYTES`
-    of HTML (a page with no `</head>` is parsed whole) runs in a worker
-    thread, inside the same `_SEM` slot as its fetch so the memory bound
-    still counts it, under its own ceiling (`PARSE_TIMEOUT_S`). The web pod
-    is one process: a parse on the loop stalls every member's request.
+  * THE PARSE IS OFF THE EVENT LOOP, AND BOUNDED. Decoding and parsing run in
+    a worker thread, inside the same `_SEM` slot as its fetch so the memory
+    bound still counts it, under its own ceiling (`PARSE_TIMEOUT_S`). The web
+    pod is one process: a parse on the loop stalls every member's request.
+    Only the first `PARSE_MAX_CHARS` of a page are ever parsed (round 4,
+    R4-2), and a parse the route has timed out is CANCELLED at its next
+    chunk, so it cannot keep running outside `_SEM` and the member limit.
   * A TIMEOUT per request (`TIMEOUT_S`) and one for the whole fetch including
     redirects (`TOTAL_S`).
   * NO COOKIES, NO CREDENTIALS. A fresh client per fetch whose cookie jar never
@@ -51,6 +53,7 @@ from __future__ import annotations
 
 import asyncio
 import re
+import threading
 from html.parser import HTMLParser
 from http.cookiejar import CookieJar
 from typing import Any
@@ -72,9 +75,19 @@ MAX_URL_LEN = 2048
 MAX_BYTES = 3 * 1024 * 1024
 TIMEOUT_S = 5.0
 TOTAL_S = 12.0
-# The parse gets the same ceiling as one network read. The thread cannot be
-# cancelled, but the request stops waiting for it and answers (a 504).
+# The parse gets the same ceiling as one network read.
 PARSE_TIMEOUT_S = TIMEOUT_S
+# ⛔ HOW MUCH OF A PAGE IS EVER PARSED (wave 6 fix round 4, R4-2). The card needs
+# the <head>; the body cap admits 3 MB so an ordinary large page is not refused,
+# but the parser only ever sees this prefix. Sized on this box: the worst shape
+# measured (a page of bare '<') parses at ~1.8 MB/s and deeply nested tags at
+# ~3 MB/s, so a full 3 MB body cost 1-1.75 s of pure-Python CPU; this prefix
+# costs <= ~0.15 s, far inside PARSE_TIMEOUT_S even on a loaded pod.
+# ⚠️ A page whose Open Graph tags sit more than 256 KiB in gets no card.
+PARSE_MAX_CHARS = 256 * 1024
+# The prefix is fed in chunks, so a parse can stop between them: at </head> or
+# <body> (the head is all it reads), or when the request has given up on it.
+_PARSE_CHUNK = 16 * 1024
 MAX_REDIRECTS = 5
 OK_TTL_S = 6 * 3600
 FAIL_TTL_S = 10 * 60        # a refusal (not https, private host, not a page) stays refused
@@ -230,12 +243,28 @@ def _domain(url: str) -> str:
     return host[4:] if host.startswith("www.") else host
 
 
-def parse_preview(html_text: str, *, url: str, final_url: str) -> dict[str, Any] | None:
-    """The card fields from a page's head, or None when it names nothing."""
-    end = re.search(r"</head\s*>", html_text, re.I)
+def parse_preview(html_text: str, *, url: str, final_url: str,
+                  cancel: threading.Event | None = None) -> dict[str, Any] | None:
+    """The card fields from a page's head, or None when it names nothing.
+
+    ⛔ Bounded (R4-2): only the first `PARSE_MAX_CHARS` are ever parsed, fed in
+    `_PARSE_CHUNK` pieces, and feeding stops at the first of: </head> or <body>
+    (the parser's own `done`), the end of the prefix, or `cancel` being set.
+    `cancel` is how the route STOPS a parse it has stopped waiting for: the
+    worker thread notices at the next chunk boundary and returns None, so a
+    timed-out parse costs at most one more chunk, never the rest of the page."""
+    head = html_text[:PARSE_MAX_CHARS]
+    end = re.search(r"</head\s*>", head, re.I)
+    if end:
+        head = head[: end.end()]
     parser = _HeadParser()
     try:
-        parser.feed(html_text[: end.end()] if end else html_text)
+        for start in range(0, len(head), _PARSE_CHUNK):
+            if parser.done or (cancel is not None and cancel.is_set()):
+                break
+            parser.feed(head[start:start + _PARSE_CHUNK])
+        if cancel is not None and cancel.is_set():
+            return None
         parser.close()
     except Exception:  # noqa: BLE001 - a malformed page is "no preview", never a 500
         pass
@@ -260,10 +289,11 @@ def _refuse(status: int, detail: str):
     raise HTTPException(status_code=status, detail=detail)
 
 
-def _preview_from_body(body: bytes, content_type: str, url: str, final_url: str) -> dict[str, Any] | None:
+def _preview_from_body(body: bytes, content_type: str, url: str, final_url: str,
+                       cancel: threading.Event | None = None) -> dict[str, Any] | None:
     """Decode + parse: the CPU-bound half, run in a worker thread. Looks up
     `parse_preview` at call time (a module patch reaches it)."""
-    return parse_preview(_decode(body, content_type), url=url, final_url=final_url)
+    return parse_preview(_decode(body, content_type), url=url, final_url=final_url, cancel=cancel)
 
 
 async def _fetch_preview(url: str) -> dict[str, Any]:
@@ -290,12 +320,18 @@ async def _fetch_preview(url: str) -> dict[str, Any]:
             _refuse(422, "That link is not a web page.")
         # ⛔ OFF THE LOOP, and still inside this fetch's `_SEM` slot: the body
         # it holds is counted by the same bound as the fetch that produced it.
+        # ⛔ CANCEL, not drop (R4-2): a thread cannot be killed, so on timeout the
+        # route SETS `cancel` and the parse stops itself at its next chunk
+        # boundary (parse_preview). Its work is bounded twice: by
+        # PARSE_MAX_CHARS whatever happens, and by one chunk after a timeout.
+        cancel = threading.Event()
         try:
             preview = await asyncio.wait_for(
-                asyncio.to_thread(_preview_from_body, body, content_type, url, str(response.url)),
+                asyncio.to_thread(_preview_from_body, body, content_type, url, str(response.url), cancel),
                 timeout=PARSE_TIMEOUT_S,
             )
         except asyncio.TimeoutError:
+            cancel.set()
             _refuse(504, "That page took too long to answer.")
     if preview is None:
         _refuse(422, NO_PREVIEW)

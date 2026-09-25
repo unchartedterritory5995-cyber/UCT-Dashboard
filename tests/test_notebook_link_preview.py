@@ -397,11 +397,11 @@ def test_a_slow_parse_does_not_block_a_concurrent_request(rig, monkeypatch):
     started, release, outcome = threading.Event(), threading.Event(), {}
     real_parse = lp.parse_preview
 
-    def parse(html_text, *, url, final_url):
+    def parse(html_text, *, url, final_url, cancel=None):
         if url.endswith("/slow"):
             started.set()
             outcome["released"] = release.wait(timeout=3)
-        return real_parse(html_text, url=url, final_url=final_url)
+        return real_parse(html_text, url=url, final_url=final_url, cancel=cancel)
 
     monkeypatch.setattr(lp, "parse_preview", parse)
     rig["rec"].routes = {"https://example.com/slow": html(), "https://example.com/fast": html()}
@@ -427,18 +427,99 @@ def test_a_slow_parse_does_not_block_a_concurrent_request(rig, monkeypatch):
     assert fast["title"] == slow["title"] == "NVDA prints a record quarter"
 
 
-def test_a_parse_past_its_ceiling_is_a_gateway_answer(rig, monkeypatch):
+def test_a_parse_past_its_ceiling_is_a_gateway_answer_and_is_CANCELLED(rig, monkeypatch):
+    # R4-2: the route answers 504 AND tells the parse to stop. The stand-in parse
+    # runs until it is told (or 3 s pass) and records which happened -- a route
+    # that only stopped WAITING would leave it running to the 3 s limit.
+    import threading
     import time
 
     monkeypatch.setattr(lp, "PARSE_TIMEOUT_S", 0.05)
-    real_parse = lp.parse_preview
+    seen = {}
+    finished = threading.Event()
 
-    def slow_parse(html_text, *, url, final_url):
-        time.sleep(0.4)
-        return real_parse(html_text, url=url, final_url=final_url)
+    def slow_parse(html_text, *, url, final_url, cancel=None):
+        t0 = time.monotonic()
+        seen["got_cancel_event"] = cancel is not None
+        while cancel is not None and not cancel.is_set() and time.monotonic() - t0 < 3:
+            time.sleep(0.01)
+        seen["cancelled"] = bool(cancel is not None and cancel.is_set())
+        seen["ran_s"] = time.monotonic() - t0
+        finished.set()
+        return None
 
     monkeypatch.setattr(lp, "parse_preview", slow_parse)
     rig["rec"].routes = {"https://example.com/heavy": html()}
     r = get(rig, "https://example.com/heavy")
     assert r.status_code == 504
     assert lp._inflight == {}, "a timed-out parse left its member slot held"
+    assert finished.wait(timeout=5), "the parse thread never finished"
+    assert seen["got_cancel_event"], "the route handed the parse no way to be stopped"
+    assert seen["cancelled"], f"the timed-out parse was never told to stop (ran {seen['ran_s']:.2f} s)"
+    assert seen["ran_s"] < 1.5
+
+
+# ── R4-2: the parse is BOUNDED, whatever the page ─────────────────────────────
+
+def _pathological_page():
+    # Deeply nested tags, no </head>, no <body>: nothing lets the parser stop
+    # early, and it is the full body cap -- the most a fetch can hand the parse.
+    return "<html><head>" + ("<div>" * ((lp.MAX_BYTES - 12) // 5))
+
+
+def test_a_pathological_page_is_parsed_only_to_the_cap(monkeypatch):
+    import time
+    from html.parser import HTMLParser
+
+    page = _pathological_page()
+    assert len(page) > 10 * lp.PARSE_MAX_CHARS            # non-vacuity: the cap has to matter
+
+    # The control: what parsing exactly PARSE_MAX_CHARS of this page costs on
+    # this box, right now -- so the bound below moves with the machine's load
+    # instead of being a wall-clock guess.
+    ctl = lp._HeadParser()
+    t0 = time.perf_counter()
+    ctl.feed(page[: lp.PARSE_MAX_CHARS])
+    control_s = time.perf_counter() - t0
+
+    fed = []
+    real_feed = HTMLParser.feed
+    monkeypatch.setattr(lp._HeadParser, "feed", lambda self, data: (fed.append(len(data)), real_feed(self, data))[1])
+    t0 = time.perf_counter()
+    assert lp.parse_preview(page, url="https://x.test/", final_url="https://x.test/") is None
+    elapsed = time.perf_counter() - t0
+
+    # ⛔ THE TIME ASSERTION. Uncapped, this page is ~12x the control (3 MB vs 256 KiB).
+    assert elapsed < 3 * control_s + 0.05, (
+        f"parsing took {elapsed * 1000:.0f} ms against a {control_s * 1000:.0f} ms control -- "
+        "the parse is not bounded to PARSE_MAX_CHARS")
+    assert elapsed < lp.PARSE_TIMEOUT_S
+    assert sum(fed) <= lp.PARSE_MAX_CHARS, f"fed {sum(fed):,} chars past a {lp.PARSE_MAX_CHARS:,}-char cap"
+
+
+def test_a_parse_that_is_cancelled_stops_at_its_next_chunk(monkeypatch):
+    import threading
+    from html.parser import HTMLParser
+
+    cancel = threading.Event()
+    fed = []
+    real_feed = HTMLParser.feed
+
+    def feed(self, data):
+        fed.append(len(data))
+        cancel.set()                      # the route gives up while the first chunk parses
+        return real_feed(self, data)
+
+    monkeypatch.setattr(lp._HeadParser, "feed", feed)
+    out = lp.parse_preview(_pathological_page(), url="https://x.test/", final_url="https://x.test/", cancel=cancel)
+    assert out is None
+    assert len(fed) == 1, f"a cancelled parse kept going for {len(fed)} chunks"
+
+
+def test_CONTROL_a_normal_page_still_previews_through_the_chunked_bounded_parse():
+    # A head split across chunk boundaries (and a body after it) still reads whole.
+    filler = "<meta name='x' content='" + ("y" * 40_000) + "'>"
+    page = ("<html><head>" + filler + "<meta property='og:title' content='Split across chunks'>"
+            "</head><body>" + ("<p>body</p>" * 50_000) + "</body></html>")
+    out = lp.parse_preview(page, url="https://x.test/a", final_url="https://x.test/a")
+    assert out and out["title"] == "Split across chunks"
