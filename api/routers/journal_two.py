@@ -2140,6 +2140,16 @@ def notes_batch_endpoint(
                 return None if present else existing + [tag]
             return [t for t in existing if notes_service.tag_key(t) != key] if present else None
 
+        def _new_tags_for(head: dict[str, Any]) -> list[str] | None:
+            """Wave 6 fix round 1, I7 — the one per-note transform the shared
+            compare-and-set loop below is parameterized by: `addTag`/
+            `removeTag` go through `_tag_patch`, `renameTag` through
+            `notes_service.renamed_tag_list`. Folded from what was a verbatim
+            copy of the same loop, twice."""
+            if op == "renameTag":
+                return notes_service.renamed_tag_list(head["tags"], rename_from, rename_to)
+            return _tag_patch(head)
+
         results: list[dict[str, Any]] = []
         for nid in ids:
             head = heads.get(nid)
@@ -2194,40 +2204,20 @@ def notes_batch_endpoint(
                                    if n else {"id": nid, "status": "not_found"})
                         break
                     results.append(outcome or {"id": nid, "status": "conflict"})
-                elif op in ("addTag", "removeTag"):
+                elif op in ("addTag", "removeTag", "renameTag"):
                     # Compare-and-set against the revision this batch READ, so a
                     # tag list edited meanwhile (the editor, another tab) is
                     # re-read and re-merged rather than overwritten. One retry;
                     # a note still moving under us is reported, not clobbered.
+                    # ⛔ Wave 6 fix round 1, I7 — ONE loop for all three ops,
+                    # parameterized by `_new_tags_for` (the per-note transform);
+                    # `renameTag` used to be a verbatim copy of this same loop.
+                    # The `update_note(` call stays literally here, in the
+                    # handler body -- the doorEnumeration rail derives doors
+                    # from that call site.
                     outcome: dict[str, Any] | None = None
                     for _attempt in range(2):
-                        new_tags = _tag_patch(head)
-                        if new_tags is None:
-                            outcome = {"id": nid, "status": "unchanged"}
-                            break
-                        try:
-                            n = notes_service.update_note(
-                                uid, nid, {"tags": new_tags}, conn=conn,
-                                expected_updated_at=head["updatedAt"],
-                            )
-                        except notes_service.NoteConflictError:
-                            head = notes_service.note_batch_heads(uid, [nid], conn=conn).get(nid)
-                            if head is None or head["deleted"]:
-                                outcome = {"id": nid, "status": "not_found" if head is None else "in_trash"}
-                                break
-                            continue
-                        outcome = ({"id": nid, "status": "changed", "updatedAt": n["updatedAt"]}
-                                   if n else {"id": nid, "status": "not_found"})
-                        break
-                    results.append(outcome or {"id": nid, "status": "conflict"})
-                elif op == "renameTag":
-                    # Same compare-and-set + one retry shape as addTag/removeTag
-                    # above: a tag list edited meanwhile is re-read and
-                    # re-merged, never overwritten by a rename computed before
-                    # that edit existed.
-                    outcome: dict[str, Any] | None = None
-                    for _attempt in range(2):
-                        new_tags = notes_service.renamed_tag_list(head["tags"], rename_from, rename_to)
+                        new_tags = _new_tags_for(head)
                         if new_tags is None:
                             outcome = {"id": nid, "status": "unchanged"}
                             break
