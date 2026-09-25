@@ -160,15 +160,24 @@ def login(op) -> bool:
         return False
 
 
-def fetch_page_product(op, sym: str, source: str):
-    """-> (all_directional | None, note)."""
+def fetch_page_product(op, sym: str, source: str, window_days: int = 0):
+    """-> (all_directional | None, note).
+
+    `window_days=N` asks for the WINDOWED product (`?window_days=N`, option A's derivation over the
+    symbol's last N sessions) instead of the full-history one the page itself serves. Comparing
+    the two is the residual the flip decision needs: the windowed derivation sees only the
+    window's rows, so its contract-level rules can answer differently."""
     # The page names the ETF/index partition `indexes`; the card names it `etfs`. Passing the
     # card's word through made the page read the STOCKS partition for SPY and answer empty.
     page_source = "indexes" if source == "etfs" else "stocks"
+    q = "source=%s" % page_source + ("&window_days=%d" % window_days if window_days else "")
     try:
-        r = op.open("%s/api/flow/ticker-product/%s?source=%s" % (BASE, sym, page_source), timeout=180)
+        r = op.open("%s/api/flow/ticker-product/%s?%s" % (BASE, sym, q), timeout=180)
         d = json.loads(r.read().decode())
-        return (d.get("product") or {}).get("all_directional") or [], "version %s" % d.get("version")
+        note = "version %s" % d.get("version")
+        if window_days:
+            note += " windowed=%s" % (d.get("window_dates") or [])
+        return (d.get("product") or {}).get("all_directional") or [], note
     except urllib.error.HTTPError as e:
         try:
             why = json.loads(e.read().decode()).get("error")
@@ -194,14 +203,15 @@ def trading_dates_from_page(all_directional: list, days: str, end: dt.date) -> s
     return set(dates[: max(1, int(days))])
 
 
-def run(symbols: list, days: str, source: str, widen: bool, end: dt.date) -> dict:
+def run(symbols: list, days: str, source: str, widen: bool, end: dt.date, page_window: int = 0) -> dict:
     op = _opener()
     if not login(op):
         return {"ok": False, "error": "login"}
-    out = {"ok": True, "base": BASE, "days": days, "end": end.isoformat(), "results": []}
+    out = {"ok": True, "base": BASE, "days": days, "end": end.isoformat(), "page_window": page_window,
+           "results": []}
     for sym in symbols:
         row = {"symbol": sym}
-        ad, note = fetch_page_product(op, sym, source)
+        ad, note = fetch_page_product(op, sym, source, window_days=page_window)
         row["page_note"] = note
         # A card fetch that fails is that symbol's INCONCLUSIVE, never the whole run's crash: a
         # 502 during a web swap took down a six-symbol run once (2026-09-25) and left no rows.
@@ -268,6 +278,9 @@ def main() -> int:
     ap.add_argument("--widen", action="store_true",
                     help="ask the card endpoint to widen (the Discord path's flag)")
     ap.add_argument("--end", default=None, help="last trading date to include, YYYY-MM-DD (default today)")
+    ap.add_argument("--page-window", type=int, default=0,
+                    help="compare against the page's WINDOWED product (?window_days=N, option A's derivation) "
+                         "instead of its full-history one; run once with and once without to measure the residual")
     ap.add_argument("--json", action="store_true")
     ap.add_argument("--self-check", action="store_true")
     a = ap.parse_args()
@@ -275,7 +288,7 @@ def main() -> int:
         return self_check()
     end = dt.date.fromisoformat(a.end) if a.end else dt.date.today()
     syms = [s.strip().upper() for s in a.symbols.split(",") if s.strip()]
-    res = run(syms, a.days, a.source, a.widen, end)
+    res = run(syms, a.days, a.source, a.widen, end, page_window=a.page_window)
     if not res.get("ok"):
         print(res)
         return 2
