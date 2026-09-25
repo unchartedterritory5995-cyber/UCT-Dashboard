@@ -68,6 +68,10 @@ const GRID_COLS = 24
 const COLS = { lg: GRID_COLS, md: GRID_COLS, sm: GRID_COLS, xs: GRID_COLS, xxs: GRID_COLS }
 const BREAKPOINTS = { lg: 1200, md: 996, sm: 768, xs: 480, xxs: 0 }
 const FIXED_ROWS = _FIXED_ROWS   // viewport-locked row count (see ./rowHeight.js)
+// A12 CP2 (2026-09-25): the watchKey forms a Watchlist widget accepts (registry.js
+// paramsSchema: 'flagged' | user:<id> | community:<id> | tag:<color>). The ?openWatchlist=
+// door validates against this before touching the board; anything else degrades to a no-op.
+const WATCH_KEY_RE = /^(flagged|user:[A-Za-z0-9_-]+|community:[A-Za-z0-9_-]+|tag:[a-z]+)$/
 
 // S1 CP3 (gate fc609961a): the single board had no mount-count cap at all
 // (capability-ledger.md row C1 — "geometry is the implicit bound"), so opening a
@@ -1880,6 +1884,38 @@ export default function ChartsWorkspace() {
       .catch(() => strip())
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [templatesLoading, globalLayouts, myLayouts])
+
+  // ── A12 CP2 (2026-09-25): a WATCHLIST is a name, and a name is an address ──────
+  //
+  //   ?openWatchlist=<watchKey>   'flagged' | user:<id> | community:<id> | tag:<color>
+  //
+  // Terminal-grade property 3 applied to the Watchlists surface, in the same shape as
+  // the ?openLayout=/?openShared= doors above. The board's first Watchlist widget is
+  // pointed at the list through its own opts path (so the change persists exactly like
+  // a pick from the widget's menu); with no Watchlist widget on the board, one is added
+  // carrying the key. Runs once per mount, after prefs AND templates load (so it lands
+  // after the default-layout and named-address effects rather than under them), strips
+  // its own param, and an unrecognised key degrades to a no-op — never a crash.
+  const openWatchlistAppliedRef = useRef(false)
+  useEffect(() => {
+    if (openWatchlistAppliedRef.current || prefsLoading || templatesLoading) return
+    const params = new URLSearchParams(typeof window !== 'undefined' ? window.location.search : '')
+    const key = params.get('openWatchlist')
+    if (!key) return
+    openWatchlistAppliedRef.current = true
+    try {
+      params.delete('openWatchlist')
+      const q = params.toString()
+      window.history.replaceState({}, '', `${window.location.pathname}${q ? `?${q}` : ''}`)
+    } catch { /* history unavailable — a lingering param is harmless */ }
+    if (!WATCH_KEY_RE.test(key)) return
+    const existing = layoutRef.current?.widgets?.find(w => w.type === 'watchlist')
+    if (existing) {
+      handleOptsChange(existing.id, { ...(existing.opts || {}), watchKey: key, watchName: null, watchTab: null })
+    } else {
+      handleAddWidget('watchlist', { watchKey: key, watchName: null, watchTab: null }, { instant: true })
+    }
+  }, [prefsLoading, templatesLoading, handleAddWidget, handleOptsChange])
 
   // Apply the LOCKED "UCT Default" template: the frozen layout shell + the frozen
   // chart_settings + the default theme. Everything is loaded FROM the in-code
