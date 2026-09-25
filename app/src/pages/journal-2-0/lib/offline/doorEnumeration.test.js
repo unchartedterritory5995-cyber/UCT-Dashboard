@@ -326,6 +326,41 @@ describe('⛔⛔ DOOR ENUMERATION — derived from the code, in both directions'
     expect(offenders, '⛔ a NEW server-side writer of j2_notes is unaccounted for').toEqual([])
   })
 
+  it('⑤ SERVER-side doors OUTSIDE journal_two.py are a LEDGER, each with its settle story', () => {
+    // ⚰️ Wave 7 (lane G, controller ledger 2026-09-25). Two new routers — the
+    // member personal API and the inbound-email door — reach `notes.create_note`
+    // / `notes.update_note` from OUTSIDE journal_two.py, so rail ③ (which reads
+    // that one router) cannot see them, and they have NO client caller at all:
+    // a Shortcut, a curl, a Cloudflare worker. Nothing records their revision,
+    // so a tab holding unsent words when one lands FORKS (ruling D-G1(b),
+    // conflict copy, never a clobber); a locked note is refused 423 (D-G1(d));
+    // both ship dark. Derived from the code the way ② is, then pinned: a file
+    // that starts calling a note writer without a row here fails by name.
+    const LEDGER = {
+      'api/routers/notebook_personal_api.py':
+        'create_note for POST /api/j2/personal/notes; the two appends delegate to note_personal_api',
+      'api/services/journal_two/note_personal_api.py':
+        'update_note(expected_updated_at) under BEGIN IMMEDIATE, 423 on a locked note, no client to settle',
+      'api/services/journal_two/inbound_email.py':
+        'create_note, then update_note(expected_updated_at) for the attachment nodes; no client to settle',
+      'api/services/journal_two/note_daily.py':
+        'wave 6: create-if-missing behind journal_two\'s /notes/daily, whose client settles the answer (rail ③ covers that route)',
+    }
+    const found = []
+    for (const p of [...walk(join(API, 'routers')), ...walk(join(API, 'services', 'journal_two'))]) {
+      if (!p.endsWith('.py') || isTest(p) || p === NOTES_SERVICE) continue
+      if (rel(p) === 'api/routers/journal_two.py') continue            // rail ③ reads it
+      if (rel(p).includes('note_connectors/engine.py')) continue      // rail ② ledgers it
+      const src = readFileSync(p, 'utf8')
+      if (/\b(update_note|create_note)\(/.test(src)) found.push(rel(p))
+    }
+    // non-vacuity: the walk must at least see the wave-6 daily-note creator
+    expect(found, '⛔ the server-side door walk found nothing — the matcher is broken, not the tree')
+      .toContain('api/services/journal_two/note_daily.py')
+    expect(found.sort(), '⛔ a server-side note writer outside journal_two.py has no ledger row (or a row names a file that no longer writes)')
+      .toEqual(Object.keys(LEDGER).sort())
+  })
+
   it('③ CLIENT: every write to a door route lands its revision, or is a NAMED exception', () => {
     const doors = advancingRoutes(advancing)
     const unsettled = []

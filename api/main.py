@@ -83,6 +83,11 @@ from api.routers import client_errors as client_errors_router
 from api.routers import notebook_link_preview as notebook_link_preview_router
 from api.routers import hub_planned_trades as hub_planned_trades_router
 from api.routers import capture_auth as capture_auth_router
+# Wave 7 lane G (controller wiring): the member personal API and the inbound-email
+# door. Both DARK -- every route answers 404 until NOTEBOOK_PERSONAL_API_ENABLED /
+# NOTEBOOK_INBOUND_EMAIL_ENABLED is set, read per request.
+from api.routers import notebook_personal_api as notebook_personal_api_router
+from api.routers import notebook_inbound_email as notebook_inbound_email_router
 from api.routers import community as community_router
 from api.routers import watchlists as watchlists_router
 from api.routers import ticker_tags as ticker_tags_router
@@ -8632,6 +8637,13 @@ app.include_router(hub_planned_trades_router.router)
 # surfaces. Separate path space from POST /api/j2/capture, so no route
 # shadows another; mounted beside it so the family reads as one.
 app.include_router(capture_auth_router.router)
+# Wave 7 lane G: /api/j2/personal (bearer tokens with the two notebook:notes:*
+# scopes, never the capture scopes -- tests/test_capture_auth_boundary.py pins
+# the reach) and /api/j2/inbound-email (HMAC is its credential; NO session or
+# bearer dependency by design). Outside /api/j2/notes/..., so mount order does
+# not matter (tests/test_main_router_order.py). Neither streams.
+app.include_router(notebook_personal_api_router.router)
+app.include_router(notebook_inbound_email_router.router)
 app.include_router(community_router.router)
 app.include_router(dashboard_signposts_router.router)
 app.include_router(market_calendar_router.router)  # public: NYSE full closures, derived from bars_fetch

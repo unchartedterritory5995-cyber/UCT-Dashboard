@@ -439,7 +439,10 @@ trades (`imported:true` flag + `coach_prompts.py` rule).
   (BILLED refresh calls) · `notifications._failure_pinged` + `_spike_pinged` (alert
   dedup) · `partner_health._cache` · `notebook_link_preview._inflight` / `_SEM` / `_cache`
   (wave 6: the per-member link-preview cap and the preview slot valve — a second
-  instance doubles both). Durable equivalents exist where a repeat is
+  instance doubles both) · the `api/limiter.py` Limiter's in-memory storage, which
+  since wave 7 also holds the personal-API per-token limit (scope
+  `notebook-personal-api`, key `personal-api:tok:<sha256 of the bearer>`, 30/minute
+  — a second process doubles a Shortcut's budget). Durable equivalents exist where a repeat is
   genuinely costly (`j2_broker_member_stale_notify` for member email,
   `j2_broker_digest_dedup` for the owner digest) — extend that pattern rather than
   adding new module dicts if the web pod ever goes multi-instance.

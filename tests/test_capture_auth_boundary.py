@@ -133,11 +133,28 @@ class TestBlastRadius:
         assert reached == {
             "/api/j2/capture": {ca.SCOPE_CAPTURE_WRITE},
             "/api/j2/capture/destinations": {ca.SCOPE_DESTINATIONS_READ},
+            # Wave 7 lane G, security review by the controller 2026-09-25: the
+            # personal API's three note doors resolve through the SAME bearer
+            # resolver but each demands a notebook:notes:* scope, which the
+            # extension flow never grants (GRANTED_SCOPES is pinned below). So an
+            # extension token cannot reach these, and a personal token cannot
+            # reach the two above -- both directions are on the wire below.
+            "/api/j2/personal/notes": {ca.SCOPE_NOTES_CREATE},
+            "/api/j2/personal/notes/{note_id}/append": {ca.SCOPE_NOTES_APPEND},
+            "/api/j2/personal/daily/append": {ca.SCOPE_NOTES_APPEND},
         }, (
             "A route opted into the Browser Capture credential. That is a "
             "deliberate decision requiring a security review, not a drive-by: "
             f"reached={sorted(reached)}"
         )
+
+    def test_the_extension_flow_still_grants_exactly_its_two_scopes(self):
+        # The widening above is safe ONLY while the extension handshake keeps
+        # minting its two scopes and never the personal ones. Pinned as a literal
+        # tuple so a "helpful" widening of GRANTED_SCOPES fails here by name.
+        assert ca.GRANTED_SCOPES == (ca.SCOPE_CAPTURE_WRITE, ca.SCOPE_DESTINATIONS_READ)
+        assert ca.SCOPE_NOTES_CREATE not in ca.GRANTED_SCOPES
+        assert ca.SCOPE_NOTES_APPEND not in ca.GRANTED_SCOPES
 
     def test_the_probe_can_actually_SEE_a_capture_scoped_route(self, app):
         # Non-vacuity. A walker that found nothing would pass the assertion
@@ -167,6 +184,11 @@ class TestUnrelatedEndpointsRefuse:
         ("GET", "/api/j2/accounts"),
         ("GET", "/api/watchlists"),
         ("GET", "/api/j2/capture/connections"),
+        # wave 7: the personal API's doors demand the notebook:notes:* scopes the
+        # extension never holds (404 while the gate is dark, 403 once it is on;
+        # both are refusals, and neither is a note).
+        ("POST", "/api/j2/personal/notes"),
+        ("POST", "/api/j2/personal/daily/append"),
     ])
     def test_an_extension_token_is_refused_by_an_unrelated_endpoint(
         self, client, conn, method, path
@@ -177,6 +199,41 @@ class TestUnrelatedEndpointsRefuse:
             f"{method} {path} accepted a Browser Capture credential "
             f"({r.status_code}) — the token is no longer capture-only"
         )
+
+    @pytest.mark.parametrize("method,path", [
+        ("POST", "/api/j2/capture"),
+        ("GET", "/api/j2/capture/destinations"),
+        ("GET", "/api/j2/capture/connections"),
+        ("GET", "/api/j2/notes"),
+        ("GET", "/api/auth/me"),
+    ])
+    def test_a_personal_token_is_refused_by_the_capture_doors_and_everything_else(
+        self, client, conn, method, path
+    ):
+        # Wave 7: the other direction of the same ceiling. A personal-API bearer
+        # holds notebook:notes:* only, so the two extension surfaces refuse it
+        # (wrong scope), and the session-only app refuses it like any bearer.
+        token = ca.mint_personal_token(_user(conn), "test", conn=conn)["token"]
+        r = client.request(method, path, headers={"Authorization": f"Bearer {token}"})
+        assert r.status_code in (401, 403, 404), (
+            f"{method} {path} accepted a personal-API credential ({r.status_code}) "
+            "— a Shortcut's token is no longer notes-only"
+        )
+
+    def test_a_personal_token_never_appears_in_the_browser_capture_listing(self, client, conn):
+        # The Browser Capture card lists extension connections; a personal token
+        # is a different credential class (client_type personal_api) and must not
+        # surface there, or the card would offer to revoke something it did not mint.
+        uid = _user(conn)
+        _connected(conn, uid)
+        ca.mint_personal_token(uid, "shortcut", conn=conn)
+        client.cookies.set("uct_session", create_session(uid))
+        try:
+            ok = client.get("/api/j2/capture/connections")
+            assert ok.status_code == 200
+            assert len(ok.json()["connections"]) == 1, ok.json()
+        finally:
+            client.cookies.clear()
 
     def test_listing_connections_is_session_only(self, client, conn):
         # Named separately because it is the sharpest case: a capture credential
