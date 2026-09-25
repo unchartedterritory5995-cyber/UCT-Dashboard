@@ -58,9 +58,17 @@ _APPROX_COST = 0.02  # rough per-call USD estimate, used ONLY for the cost gate
 # goes multi-instance, where a second replica silently doubles this.
 _MAX_CONCURRENT = int(os.environ.get("NOTE_ASK_MAX_CONCURRENT", "2"))
 
+# Wave 7 lane H (H2, ruling D-H2): editor writing help has its OWN per-member
+# daily counter, beside Ask's -- a member who drafts all day must not spend
+# their Ask questions doing it, and the reverse. It SHARES the global dollar cap
+# above (`_synth_spend`) and the concurrent stream slots below. Same
+# PER-PROCESS caveat as every counter in this module.
+_WRITING_HELP_PERUSER_CAP = int(os.environ.get("NOTEBOOK_WRITING_HELP_PERUSER_CAP", "60"))
+
 _synth_lock = threading.Lock()
 _synth_day = ""
 _synth_by_user: dict = {}
+_writing_help_by_user: dict = {}
 _synth_spend = 0.0
 _inflight: dict = {}
 
@@ -72,17 +80,28 @@ def _et_day():
     return d()
 
 
+def _roll_day_locked() -> None:
+    """Start a new ET day for EVERY counter at once. Caller holds `_synth_lock`.
+
+    ⛔ ONE rollover for both counters: if each reserve function rolled only its
+    own, whichever ran first on a new day would clear its counter and stamp the
+    day, and the other would keep yesterday's counts for the whole of today."""
+    global _synth_day, _synth_spend
+    d = _et_day()
+    if d != _synth_day:
+        _synth_day = d
+        _synth_by_user.clear()
+        _writing_help_by_user.clear()
+        _synth_spend = 0.0
+
+
 def reserve_ask(user_id) -> bool:
     """Atomic check-AND-increment under one lock hold (mirrors
     ai_search_personal.reserve_synth). False => over cap => caller refuses
     the ask with a 429, same shape as the AI Search widget's own limit."""
-    global _synth_day, _synth_spend
+    global _synth_spend
     with _synth_lock:
-        d = _et_day()
-        if d != _synth_day:
-            _synth_day = d
-            _synth_by_user.clear()
-            _synth_spend = 0.0
+        _roll_day_locked()
         if _synth_spend + _APPROX_COST > _SYNTH_GLOBAL_HARD:
             return False
         if _synth_by_user.get(user_id, 0) + 1 > _SYNTH_PERUSER_CAP:
@@ -100,6 +119,33 @@ def refund_ask(user_id) -> None:
     with _synth_lock:
         if _synth_by_user.get(user_id):
             _synth_by_user[user_id] = max(0, _synth_by_user[user_id] - 1)
+        _synth_spend = max(0.0, _synth_spend - _APPROX_COST)
+
+
+def reserve_writing_help(user_id) -> bool:
+    """Writing help's reservation (wave 7 H2, ruling D-H2): its OWN per-member
+    daily count (`NOTEBOOK_WRITING_HELP_PERUSER_CAP`, default 60) against the
+    SHARED global dollar cap. Atomic, like `reserve_ask`. False => the caller
+    refuses with a 429 and the sentence the editor shows."""
+    global _synth_spend
+    with _synth_lock:
+        _roll_day_locked()
+        if _synth_spend + _APPROX_COST > _SYNTH_GLOBAL_HARD:
+            return False
+        if _writing_help_by_user.get(user_id, 0) + 1 > _WRITING_HELP_PERUSER_CAP:
+            return False
+        _writing_help_by_user[user_id] = _writing_help_by_user.get(user_id, 0) + 1
+        _synth_spend += _APPROX_COST
+        return True
+
+
+def refund_writing_help(user_id) -> None:
+    """Inverse of `reserve_writing_help`: a draft that failed or produced
+    nothing never costs the member one of their 60."""
+    global _synth_spend
+    with _synth_lock:
+        if _writing_help_by_user.get(user_id):
+            _writing_help_by_user[user_id] = max(0, _writing_help_by_user[user_id] - 1)
         _synth_spend = max(0.0, _synth_spend - _APPROX_COST)
 
 

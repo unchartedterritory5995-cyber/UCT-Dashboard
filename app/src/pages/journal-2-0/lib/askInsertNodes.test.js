@@ -79,8 +79,13 @@ describe('HTML round trip (copy/paste stability)', () => {
       n: 1, label: 'NVDA thesis', nav: { kind: 'note', note_id: 'n1' },
       citation: 'exact', claim: 'Margins fell .',
     })
+    // Wave 7 H2 (ruling D-H1): the node gained two OPTIONAL attrs, `action` and
+    // `model`, null on every Ask insert. ProseMirror's JSON carries every attr,
+    // so an Ask insert's JSON now shows them as null — the HTML does not
+    // (renderHTML emits nothing for null; writingHelp.test.js pins that).
     expect(json.content[1].attrs).toEqual({
       insertedAt: '2026-09-22T12:00:00.000Z', scope: 'note', question: 'q',
+      action: null, model: null,
     })
   })
 
@@ -296,7 +301,8 @@ describe('pasting answer text never wraps member prose (final wave, I4)', () => 
     ed.view.pasteHTML(html)
     const blocks = askInserts(ed)
     expect(blocks).toHaveLength(2)
-    expect(blocks[1].attrs).toEqual(INSERT.attrs)
+    // + the two optional H2 attrs, null on an Ask insert (see the round trip above)
+    expect(blocks[1].attrs).toEqual({ ...INSERT.attrs, action: null, model: null })
     expect(blocks[1].textContent).toBe('Margins fell .')
   })
 

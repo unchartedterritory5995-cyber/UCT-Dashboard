@@ -92,6 +92,10 @@ import UnreadableNoteNotice from '../../lib/UnreadableNoteNotice'
 import styles from './NoteEditorPage.module.css'
 import { FONT_OPTIONS } from '../../../../utils/fontFamilies'
 import { DICTATE_EVENT, insertDictation } from '../../lib/dictationInsert'
+import {
+  WRITING_HELP_EVENT, acceptWritingHelp, captureWritingHelpScope,
+} from '../../lib/writingHelp'
+import { notebookFlag } from '../../lib/offline/notebookFlags'
 
 // Wave 7 lane H1 — the toolbar mic. LAZY: the recorder (MediaRecorder, the Web
 // Speech fallback, the Whisper upload) is not needed to open a note, and a
@@ -99,6 +103,9 @@ import { DICTATE_EVENT, insertDictation } from '../../lib/dictationInsert'
 // `isPaid`). Rendered inside its own <Suspense fallback={null}>, so a note never
 // waits for it.
 const VoiceInputButton = lazy(() => import('../VoiceInputButton'))
+// Wave 7 lane H2 — the writing-help preview. LAZY for the same reason: it is
+// fetched the first time a member opens it, never on note open.
+const WritingHelpPanel = lazy(() => import('./WritingHelpPanel'))
 
 // A note can carry its source video in heroImageUrl (set by the Desk "Save
 // notes to Journal Notebook" export). When it does, we render an embedded
@@ -1374,6 +1381,36 @@ export default function NoteEditorPage({ noteId, onBack, showBack = true, onTitl
       tone: 'error',
     })
   }, [])
+
+  // ── Wave 7 lane H (H2): writing help ──────────────────────────────────────
+  // ⛔ DARK behind `notebook_writing_help_enabled` (NOTEBOOK_WRITING_HELP_ENABLED,
+  // latched from the auth payload) and paid-only, like the route. Off ⇒ no
+  // toolbar entry, no slash item, nothing to click.
+  const writingHelpOn = notebookFlag('notebook_writing_help_enabled') === true && isPaid === true
+  const writingHelpOnRef = useRef(writingHelpOn)
+  writingHelpOnRef.current = writingHelpOn
+  // The request captured when the panel OPENS (lib/writingHelp.js), or null.
+  const [writingHelp, setWritingHelp] = useState(null)
+  const openWritingHelp = useCallback(() => {
+    const ed = editorRef.current
+    if (!writingHelpOnRef.current || !ed || ed.isDestroyed || !ed.isEditable) return
+    const req = captureWritingHelpScope(ed)
+    if (req) setWritingHelp(req)
+  }, [])
+  // Accept — the ONE write: an askInsert block with `action` + `model`, as one
+  // undo step. Said either way; a draft that could not land keeps the panel open.
+  const acceptWritingHelpDraft = useCallback((draft) => {
+    const res = acceptWritingHelp(editorRef.current, draft)
+    if (res.ok) {
+      setUploadToast({
+        message: draft.scope === 'selection' && !res.replaced
+          ? 'Your selection changed while Compass wrote, so the draft was added after it. Nothing was replaced.'
+          : 'Added from writing help. Undo takes it back out.',
+        tone: 'success',
+      })
+    }
+    return res
+  }, [])
   // Wave I: the non-image counterpart — the backend endpoint
   // (POST /notes/{id}/attachments) has existed since before this wave; this
   // is its first live-editor caller. Inserts a real AttachmentChip node
@@ -1720,6 +1757,8 @@ export default function NoteEditorPage({ noteId, onBack, showBack = true, onTitl
       ed.storage.uctJournalWidgets = {
         ...(ed.storage.uctJournalWidgets || {}), noteId,
         canDictate: () => micRef.current?.available === true,
+        // Wave 7 H2: read when the slash menu opens, like `canDictate`.
+        canWritingHelp: () => writingHelpOnRef.current === true,
       }
       // One reading per note: the timer's own stop() speaks once.
       if (note) openTimerRef.current?.(taskIndexRef.current != null ? { source: 'tasks' } : {})
@@ -2517,11 +2556,14 @@ export default function NoteEditorPage({ noteId, onBack, showBack = true, onTitl
       if (micRef.current?.start?.()) return
       setChromeMsg("Dictation isn't available right now")
     }
+    // Wave 7 lane H2: the slash menu's "Writing help", same per-editor target.
+    const onWritingHelp = () => openWritingHelp()
     let dom = null
     const detach = () => {
       if (dom) {
         dom.removeEventListener('uct:notebook-open-image-picker', onOpenPicker)
         dom.removeEventListener(DICTATE_EVENT, onDictate)
+        dom.removeEventListener(WRITING_HELP_EVENT, onWritingHelp)
       }
       dom = null
     }
@@ -2533,6 +2575,7 @@ export default function NoteEditorPage({ noteId, onBack, showBack = true, onTitl
       dom = next
       dom.addEventListener('uct:notebook-open-image-picker', onOpenPicker)
       dom.addEventListener(DICTATE_EVENT, onDictate)
+      dom.addEventListener(WRITING_HELP_EVENT, onWritingHelp)
     }
     attach()
     editor.on('mount', attach)
@@ -3298,6 +3341,22 @@ export default function NoteEditorPage({ noteId, onBack, showBack = true, onTitl
                 <VoiceInputButton ref={micRef} onTranscript={insertDictated} disabled={!editor.isEditable} />
               </Suspense>
             )}
+            {/* Wave 7 lane H2: writing help — the draft opens in a PREVIEW and
+                reaches the note only on Accept. `onMouseDown` keeps the
+                editor's selection, which is what the member is asking about. */}
+            {writingHelpOn && editor.isEditable && (
+              <button
+                type="button"
+                className={styles.toolBtn}
+                onMouseDown={(e) => e.preventDefault()}
+                onClick={openWritingHelp}
+                aria-label="Writing help"
+                title="Writing help — summarize, rewrite, continue or translate"
+              >
+                <UIcon name="sparkle" size={14} gold={false} style={{ verticalAlign: '-2px', marginRight: 4 }} />
+                Writing help
+              </button>
+            )}
             <ToolButton
               onClick={() => editor.chain().focus().setHorizontalRule().run()}
               label="―"
@@ -3549,6 +3608,16 @@ export default function NoteEditorPage({ noteId, onBack, showBack = true, onTitl
         currentNote={note}
         onRestored={onVersionRestored}
       />
+      {writingHelp && (
+        <Suspense fallback={null}>
+          <WritingHelpPanel
+            noteId={noteId}
+            request={writingHelp}
+            onAccept={acceptWritingHelpDraft}
+            onClose={() => setWritingHelp(null)}
+          />
+        </Suspense>
+      )}
     </div>
   )
 }
