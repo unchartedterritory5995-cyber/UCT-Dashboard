@@ -270,8 +270,9 @@ export function useJ2Note(noteId) {
     // revision, and the compare called it moved. The route now says whether
     // THIS request wrote a row (`changed`, from inside its one transaction), and
     // that is the only thing that lands a revision. An answer without it lands
-    // nothing: unknown is never "ours". `readAt` is still accepted from the
-    // editor and no longer consulted. -> the note when this write moved it, else null.
+    // nothing: unknown is never "ours". The hook takes the delta and nothing
+    // else; no caller passes the revision it read, and nothing here would read
+    // it. -> the note when this write moved it, else null.
     patchTags: async (delta) => {
       const res = await fetch(`/api/j2/notes/${noteId}/tags`, {
         method: 'PATCH',

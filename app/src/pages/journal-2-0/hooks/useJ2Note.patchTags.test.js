@@ -9,8 +9,9 @@
 //     revision for a delta that changes nothing and then answers with the
 //     note AS STORED -- whose revision may belong to another writer. Recording
 //     that as ours would tell guard 2 "ours" about a second writer's edit, and
-//     the fork that protects the member would not happen. The caller passes
-//     the revision it READ; an answer at that same revision wrote nothing.
+//     the fork that protects the member would not happen. Only the route
+//     knows whether THIS request wrote a row (`changed`, wave 7 lane J, J9), so
+//     the hook lands a revision on `changed === true` and on nothing else.
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { createElement } from 'react'
 import { renderHook, act, waitFor } from '@testing-library/react'
@@ -54,7 +55,7 @@ async function mounted() {
 describe('useJ2Note().patchTags — the tag DELTA door (M14)', () => {
   it('PATCHes the delta itself to the tags route -- never a whole list', async () => {
     const { result } = await mounted()
-    await act(async () => { await result.current.patchTags({ add: ['mine'] }, { readAt: 'T1' }) })
+    await act(async () => { await result.current.patchTags({ add: ['mine'] }) })
     const patch = calls.find((c) => c.init.method === 'PATCH')
     expect(patch.url).toBe('/api/j2/notes/n1/tags')
     expect(JSON.parse(patch.init.body)).toEqual({ add: ['mine'], remove: [] })
@@ -64,7 +65,7 @@ describe('useJ2Note().patchTags — the tag DELTA door (M14)', () => {
   it('a write that MOVED the note is landed, returned, and shown', async () => {
     const { result } = await mounted()
     let landed
-    await act(async () => { landed = await result.current.patchTags({ add: ['mine'] }, { readAt: 'T1' }) })
+    await act(async () => { landed = await result.current.patchTags({ add: ['mine'] }) })
     expect(settleSpy).toHaveBeenCalledWith('n1', patchAnswer.note)
     expect(landed).toEqual(patchAnswer.note)
     await waitFor(() => expect(result.current.note.tags).toEqual(['earnings', 'mine']))
@@ -76,7 +77,7 @@ describe('useJ2Note().patchTags — the tag DELTA door (M14)', () => {
     patchAnswer = { note: { ...NOTE, tags: ['earnings', 'mine'], updatedAt: 'T1' }, changed: false }
     const { result } = await mounted()
     let landed
-    await act(async () => { landed = await result.current.patchTags({ add: ['mine'] }, { readAt: 'T1' }) })
+    await act(async () => { landed = await result.current.patchTags({ add: ['mine'] }) })
     expect(settleSpy).not.toHaveBeenCalled()
     expect(landed).toBeNull()
     await waitFor(() => expect(result.current.note.tags).toEqual(['earnings', 'mine']))
@@ -90,7 +91,7 @@ describe('useJ2Note().patchTags — the tag DELTA door (M14)', () => {
     patchAnswer = { note: { ...NOTE, tags: ['earnings', 'mine'], updatedAt: 'T3' }, changed: false }
     const { result } = await mounted()
     let landed
-    await act(async () => { landed = await result.current.patchTags({ add: ['mine'] }, { readAt: 'T1' }) })
+    await act(async () => { landed = await result.current.patchTags({ add: ['mine'] }) })
     expect(settleSpy).not.toHaveBeenCalled()
     expect(landed).toBeNull()
     await waitFor(() => expect(result.current.note.tags).toEqual(['earnings', 'mine']))
@@ -100,7 +101,7 @@ describe('useJ2Note().patchTags — the tag DELTA door (M14)', () => {
     patchAnswer = { note: { ...NOTE, tags: ['earnings', 'mine'], updatedAt: 'T2' } }
     const { result } = await mounted()
     let landed
-    await act(async () => { landed = await result.current.patchTags({ add: ['mine'] }, { readAt: 'T1' }) })
+    await act(async () => { landed = await result.current.patchTags({ add: ['mine'] }) })
     expect(settleSpy).not.toHaveBeenCalled()
     expect(landed).toBeNull()
   })
@@ -110,7 +111,7 @@ describe('useJ2Note().patchTags — the tag DELTA door (M14)', () => {
     const { result } = await mounted()
     let caught
     await act(async () => {
-      try { await result.current.patchTags({ add: ['x'], remove: ['x'] }, { readAt: 'T1' }) } catch (e) { caught = e }
+      try { await result.current.patchTags({ add: ['x'], remove: ['x'] }) } catch (e) { caught = e }
     })
     expect(caught?.status).toBe(400)
     expect(settleSpy).not.toHaveBeenCalled()
