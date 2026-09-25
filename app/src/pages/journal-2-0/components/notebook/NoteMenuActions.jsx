@@ -7,12 +7,14 @@
  * (`NoteEditorPage`) is lane D's file. This component is complete and tested on
  * its own; NotebookTab hands it to the editor as the `noteMenu` render prop:
  *
- *     <NoteEditorPage … noteMenu={(note, { refresh }) => <NoteMenuActions … />} />
+ *     <NoteEditorPage … noteMenu={(note, { refresh, unlockNote }) => <NoteMenuActions … />} />
  *
- * and the editor renders `{noteMenu?.(note, { refresh })}` in its header row,
- * past both of its early returns — wired in wave 6 fix round 1 (I1, M1: this
- * comment used to describe the mount as still pending; it landed), so this
- * component is reachable from the editor today.
+ * and the editor renders `{noteMenu?.(note, { refresh, unlockNote })}` in its
+ * header row, past both of its early returns — wired in wave 6 fix round 1
+ * (I1, M1: this comment used to describe the mount as still pending; it
+ * landed), so this component is reachable from the editor today.
+ * N-f (wave 6 fix round 3): this signature used to read `{ refresh }` alone —
+ * stale the moment M2 (round 2) added `unlockNote` to the same object.
  *
  * ⛔ Every write lands the revision the server reports (`settleNoteWrite`). For
  * the LOCK that is load-bearing: the lock ADVANCES the revision (so another
@@ -37,16 +39,20 @@ import styles from './NoteMenuActions.module.css'
  *   passes it on desktop, for the main pane): no split, no button, no dead click.
  * @param besideExclude  ids the search must not offer besides this note (the
  *   note already beside it).
- * @param onUnlock  M2 (wave 6 fix round 2): `() => Promise<void>` — the
- *   EDITOR's own unlock (NoteEditorPage's `unlockNote`, passed through the
- *   `noteMenu` render prop). Unlocking through `setNoteLock` alone lands the
- *   revision but skips the editor's save-baseline move and its
- *   `settleMetadataRevision` offline-queue settle — the menu's Unlock button
- *   used to do exactly that, costing the member's next keystroke a 409 +
- *   re-fetch. Optional: when omitted (this component's own unit tests,
- *   which never mount a real editor), Unlock falls back to `setNoteLock`
- *   exactly as before. Lock is unaffected either way — a locked note isn't
- *   about to be typed into, so there is no imminent save to protect.
+ * @param onUnlock  M2 (wave 6 fix round 2): `() => Promise<{ok:true} |
+ *   {ok:false, error}>` — the EDITOR's own unlock (NoteEditorPage's
+ *   `unlockNote`, passed through the `noteMenu` render prop). Unlocking
+ *   through `setNoteLock` alone lands the revision but skips the editor's
+ *   save-baseline move and its `settleMetadataRevision` offline-queue
+ *   settle — the menu's Unlock button used to do exactly that, costing the
+ *   member's next keystroke a 409 + re-fetch. Optional: when omitted (this
+ *   component's own unit tests, which never mount a real editor), Unlock
+ *   falls back to `setNoteLock` exactly as before. Lock is unaffected either
+ *   way — a locked note isn't about to be typed into, so there is no
+ *   imminent save to protect. N-a (wave 6 fix round 3): `onUnlock` never
+ *   rejects — it RESOLVES `{ok:false, error}` on a failed PATCH, and
+ *   `toggleLock` (below) is what turns that into a thrown error `run` can
+ *   catch, so a failed unlock never renders the success sentence.
  */
 export default function NoteMenuActions({ note, onChanged, onOpenBeside, besideExclude = [], onUnlock }) {
   const [busy, setBusy] = useState(false)
@@ -84,8 +90,22 @@ export default function NoteMenuActions({ note, onChanged, onOpenBeside, besideE
   // when it is given — the one door that also moves the save baseline and
   // settles the offline queue. Locking always uses `setNoteLock` directly:
   // a locked note is not about to be typed into.
+  //
+  // ⛔⛔ N-a (wave 6 fix round 3): `onUnlock` (the editor's `unlockNote`)
+  // never rejects — it returns `{ok:false, error}` on a failed PATCH so its
+  // OWN inline banner button (no `.catch`) never throws an unhandled
+  // rejection. `run`'s try/catch only sees a THROW, so a resolved
+  // `{ok:false}` has to be turned into one here, or a failed menu Unlock
+  // would render the success sentence (the exact defect this item fixes).
   const toggleLock = () => run(
-    () => (locked && onUnlock ? onUnlock() : setNoteLock(note.id, !locked)),
+    async () => {
+      if (locked && onUnlock) {
+        const outcome = await onUnlock()
+        if (outcome && outcome.ok === false) throw outcome.error || new Error('unlock failed')
+        return outcome
+      }
+      return setNoteLock(note.id, !locked)
+    },
     locked
       ? { done: 'Unlocked. You can edit this note again.',
         failed: "Couldn't unlock this note. It is still locked." }

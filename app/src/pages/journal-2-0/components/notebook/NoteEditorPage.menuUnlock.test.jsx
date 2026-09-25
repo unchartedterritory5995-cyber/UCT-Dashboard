@@ -170,3 +170,25 @@ describe('M2 (wave 6 fix round 2) — the MENU\'s Unlock goes through the SAME s
     expect(rec?.dirty).toBe(0)
   })
 })
+
+describe('N-a (wave 6 fix round 3, from M2) — a FAILED menu Unlock reads as failed, never as success', () => {
+  it('a PATCH …/lock that answers 500 renders "Couldn\'t unlock this note.", never "Unlocked.", and the editor stays read-only', async () => {
+    const realFetch = global.fetch
+    global.fetch = vi.fn(async (url, opts = {}) => {
+      const u = String(url)
+      const method = (opts.method || 'GET').toUpperCase()
+      if (u === '/api/j2/notes/n1/lock' && method === 'PATCH') {
+        return { ok: false, status: 500, json: async () => ({ detail: 'server error' }) }
+      }
+      return realFetch(url, opts)
+    })
+    const editor = await renderLockedEditorWithMenu()
+
+    const menu = screen.getByRole('group', { name: 'Organise this note' })
+    fireEvent.click(within(menu).getByRole('button', { name: 'Unlock' }))
+
+    expect(await within(menu).findByText("Couldn't unlock this note. It is still locked.")).toBeInTheDocument()
+    expect(within(menu).queryByText('Unlocked. You can edit this note again.')).toBeNull()
+    expect(editor.isEditable, 'a failed menu unlock made the note editable anyway').toBe(false)
+  })
+})

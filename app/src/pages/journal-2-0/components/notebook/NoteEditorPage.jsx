@@ -1787,15 +1787,27 @@ export default function NoteEditorPage({ noteId, onBack, showBack = true, onTitl
    *      takes — records the landing for this account and, under the same
    *      metadata-only condition, settles the durable copy onto it.
    * ⛔ A settle that fails never fails the Unlock: the write already happened.
+   *
+   * ⛔⛔ N-a (wave 6 fix round 3, from M2). This used to swallow a failed
+   * `setNoteLock` into `unlockState` alone and return `undefined` either
+   * way — indistinguishable from success to a caller that only checks
+   * whether the promise resolved. `NoteMenuActions.run` is exactly such a
+   * caller: it treats ANY resolved write as success, so a failed menu
+   * Unlock rendered "Unlocked. You can edit this note again." beside the
+   * banner's own "Couldn't unlock. Try again." — two contradictory
+   * sentences, the menu's one false. Returning an outcome (never rejecting:
+   * the inline banner's own `onClick={unlockNote}` has no `.catch`, and an
+   * unhandled rejection there would be a second, worse silent failure) lets
+   * every caller — the banner and the menu alike — tell the two apart.
    */
   const unlockNote = async () => {
     setUnlockState('busy')
     let saved
     try {
       saved = await setNoteLock(noteId, false)
-    } catch {
+    } catch (error) {
       setUnlockState('failed')
-      return
+      return { ok: false, error }
     }
     const landed = usableBaseline(saved?.updatedAt)
     if (landed && serverMovedMetadataOnly(saved)) {
@@ -1805,6 +1817,7 @@ export default function NoteEditorPage({ noteId, onBack, showBack = true, onTitl
     setUnlockedHere(true)
     setUnlockState(null)
     refresh?.()
+    return { ok: true }
   }
 
   // Push fresh body into editor when note loads (one-shot per note).
