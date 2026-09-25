@@ -9,21 +9,20 @@
  * one to `status: 'trashed'`. Both read "missing note", and the member can
  * still remove it.
  *
- * ⛔ The picker REUSES the quick switcher's search (`/notes/switcher`, titles
- * across the whole library, best match first) — not a second note search.
+ * ⛔ The picker is `NoteSearchPicker` — the QUICK SWITCHER's search — not a
+ * second note search.
  *
  * ⛔ The note chip and its remove (×) are two buttons side by side, never one
  * inside the other.
  */
-import { useEffect, useRef, useState } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { useEffect, useState } from 'react'
 import UIcon from '../../../../components/ui/UIcon'
 import { requestNoteLinkTarget, subscribeNoteLinkTargets } from '../../lib/noteLinkTargetsBatch'
-import { notePath } from '../../../../hooks/useNoteBacklinks'
+import { useNoteNavigation } from '../../lib/splitView'
+import NoteSearchPicker from './NoteSearchPicker'
 import styles from './RelationPropertyValue.module.css'
 
 export const MISSING_NOTE_LABEL = 'missing note'
-const SEARCH_DEBOUNCE_MS = 150
 
 function useLinkTargets(ids) {
   const [, bump] = useState(0)
@@ -34,38 +33,13 @@ function useLinkTargets(ids) {
 export default function RelationPropertyValue({ value, onChange, labelId, currentNoteId = null }) {
   const ids = Array.isArray(value) ? value : []
   const targets = useLinkTargets(ids)
-  const navigate = useNavigate()
+  // A chip opens its note the Notebook's one way (lib/splitView.js): in this
+  // pane when the page is split, beside on Ctrl/Cmd+click.
+  const go = useNoteNavigation()
   const [picking, setPicking] = useState(false)
-  const [query, setQuery] = useState('')
-  const [results, setResults] = useState([])
-  const [searchError, setSearchError] = useState(false)
-  const seq = useRef(0)
-
-  useEffect(() => {
-    if (!picking) return undefined
-    const q = query.trim()
-    if (!q) { setResults([]); return undefined }
-    const mine = ++seq.current
-    const t = setTimeout(async () => {
-      try {
-        const res = await fetch(`/api/j2/notes/switcher?q=${encodeURIComponent(q)}&limit=8`, { credentials: 'include' })
-        if (!res.ok) throw new Error(String(res.status))
-        const body = await res.json()
-        if (mine !== seq.current) return
-        setSearchError(false)
-        setResults((body.notes || []).filter((n) => n.id !== currentNoteId && !ids.includes(n.id)))
-      } catch {
-        if (mine === seq.current) { setSearchError(true); setResults([]) }
-      }
-    }, SEARCH_DEBOUNCE_MS)
-    return () => clearTimeout(t)
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [query, picking])
 
   const link = (note) => {
     onChange([...ids, note.id])
-    setQuery('')
-    setResults([])
     setPicking(false)
   }
   const unlink = (id) => {
@@ -83,7 +57,7 @@ export default function RelationPropertyValue({ value, onChange, labelId, curren
             <button
               type="button"
               className={`${styles.chipOpen} ${missing ? styles.chipMissing : ''}`}
-              onClick={() => navigate(notePath(id))}
+              onClick={(e) => go(id, e)}
               disabled={missing || target === undefined}
               title={missing ? 'This note was deleted or moved to the Trash' : `Open ${label}`}
             >
@@ -101,32 +75,13 @@ export default function RelationPropertyValue({ value, onChange, labelId, curren
         )
       })}
       {picking ? (
-        <span className={styles.picker}>
-          <input
-            className={styles.search}
-            value={query}
-            onChange={(e) => setQuery(e.target.value)}
-            onKeyDown={(e) => {
-              if (e.key === 'Escape') { setPicking(false); setQuery('') }
-              if (e.key === 'Enter' && results[0]) { e.preventDefault(); link(results[0]) }
-            }}
-            placeholder="Find a note…"
-            aria-label="Find a note to link"
-            autoFocus
-          />
-          {searchError && <span className={styles.hint} role="alert">Couldn't search your notes.</span>}
-          {results.length > 0 && (
-            <ul className={styles.results} role="listbox" aria-label="Notes to link">
-              {results.map((n) => (
-                <li key={n.id} role="option" aria-selected={false}>
-                  <button type="button" className={styles.result} onClick={() => link(n)}>
-                    {n.title || 'Untitled'}
-                  </button>
-                </li>
-              ))}
-            </ul>
-          )}
-        </span>
+        <NoteSearchPicker
+          onPick={link}
+          onCancel={() => setPicking(false)}
+          exclude={[...(currentNoteId ? [currentNoteId] : []), ...ids]}
+          inputLabel="Find a note to link"
+          listLabel="Notes to link"
+        />
       ) : (
         <button type="button" className={styles.add} onClick={() => setPicking(true)}>
           <UIcon name="plus" size={10} gold={false} />

@@ -1,7 +1,7 @@
 /**
  * Wave 6 (lane E) — the note menu's organisation actions, for the note that is
- * open: Archive / Unarchive and Lock / Unlock (and, as later items land, Save
- * as template and Open to the side).
+ * open: Lock / Unlock, Archive / Unarchive, Save as template, and — where
+ * the page can split (desktop) — Open a note beside (item 7).
  *
  * ⛔ WHERE IT RENDERS. The note menu is the editor's header row, and the editor
  * (`NoteEditorPage`) is lane D's file. This component is complete and tested on
@@ -28,12 +28,20 @@ import UIcon from '../../../../components/ui/UIcon'
 import { noteIsArchived, setNoteArchived } from '../../lib/noteArchive'
 import { noteIsLocked, setNoteLock } from '../../lib/lockedNote'
 import { saveNoteAsTemplate } from '../../lib/memberTemplates'
+import NoteSearchPicker from './NoteSearchPicker'
 import styles from './NoteMenuActions.module.css'
 
-export default function NoteMenuActions({ note, onChanged }) {
+/**
+ * @param onOpenBeside  `(note) => void` — shown only when given (NotebookTab
+ *   passes it on desktop, for the main pane): no split, no button, no dead click.
+ * @param besideExclude  ids the search must not offer besides this note (the
+ *   note already beside it).
+ */
+export default function NoteMenuActions({ note, onChanged, onOpenBeside, besideExclude = [] }) {
   const [busy, setBusy] = useState(false)
   const [status, setStatus] = useState(null) // { message, tone }
   const [templateDraft, setTemplateDraft] = useState(null) // string while naming
+  const [pickingBeside, setPickingBeside] = useState(false)
   if (!note?.id) return null
   const archived = noteIsArchived(note)
   const locked = noteIsLocked(note)
@@ -130,6 +138,28 @@ export default function NoteMenuActions({ note, onChanged }) {
           <button type="button" className={styles.btn} onClick={() => setTemplateDraft(null)}>Cancel</button>
         </form>
       )}
+      {onOpenBeside && (pickingBeside ? (
+        // The quick switcher's own search; the note itself is never offered —
+        // a note opens in one pane at a time.
+        <NoteSearchPicker
+          onPick={(picked) => { setPickingBeside(false); onOpenBeside(picked) }}
+          onCancel={() => setPickingBeside(false)}
+          exclude={[note.id, ...besideExclude]}
+          inputLabel="Find a note to open beside"
+          listLabel="Notes to open beside"
+          placeholder="Open beside…"
+        />
+      ) : (
+        <button
+          type="button"
+          className={styles.btn}
+          onClick={() => { setStatus(null); setPickingBeside(true) }}
+          title="Show another note beside this one"
+        >
+          <UIcon name="columns" size={13} gold={false} />
+          Open a note beside…
+        </button>
+      ))}
       {status && (
         <span
           className={status.tone === 'error' ? styles.statusError : styles.status}

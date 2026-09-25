@@ -42,6 +42,8 @@ import { getMemberTemplate } from '../lib/memberTemplates'
 import { DAILY_TEMPLATE_PREF, isDailyShortcut, openDailyNote } from '../lib/dailyNote'
 import usePreferences from '../../../hooks/usePreferences'
 import { useNoteSelection } from '../lib/noteSelection'
+import { useIsDesktop } from '../../../hooks/useBreakpoint'
+import { NotePaneContext, SIDE_PARAM, SplitViewContext } from '../lib/splitView'
 import {
   checkUnsentWork, describeBatch, describeExport, describeUnchecked, exportSelectedNotes, joinUndo, runNoteBatch,
   undoFor,
@@ -89,6 +91,16 @@ const TAG_COUNT_OPS = new Set(['addTag', 'removeTag', 'trash', 'restore', 'archi
 export default function NotebookTab() {
   const [searchParams, setSearchParams] = useSearchParams()
   const noteId = searchParams.get('note')
+  // Wave 6 (lane E, item 7) — split view: `?side=` is a second note beside the
+  // first, desktop only. Each pane is an ordinary editor (lib/splitView.js).
+  // ⛔⛔ `sideId` is NEVER the open note: a URL naming one note twice (a pasted
+  // link, Back into an old state, an editor that routed `?note=` to the note on
+  // the right) opens it ONCE. Two editors on one note are two writers, and the
+  // offline layer forks the note. The doors below refuse it with words; this is
+  // the line that holds whatever door the URL came through.
+  const isDesktop = useIsDesktop()
+  const sideParam = searchParams.get(SIDE_PARAM)
+  const sideId = isDesktop && noteId && sideParam && sideParam !== noteId ? sideParam : null
 
   // Wave Q1 — the reconnect. Mounted HERE, not in the editor: the queue is
   // account-wide, and a note edited offline then closed must still reach the
@@ -418,11 +430,43 @@ export default function NotebookTab() {
       && (tags || !key.startsWith(NOTE_TAGS_KEY)))
   }
 
+  // ── Wave 6 (lane E, item 7): split view ─────────────────────────────────────
+  // A side note with no main note, or the main note named again, is dropped
+  // from the URL (replace — not a step Back has to walk through). ⛔ At ≤1024px
+  // the param is only ignored, never dropped: widening the window brings the
+  // pane back.
+  useEffect(() => {
+    if (!sideParam || (noteId && sideParam !== noteId)) return
+    setSearchParams((prev) => {
+      const next = new URLSearchParams(prev)
+      next.delete(SIDE_PARAM)
+      return next
+    }, { replace: true })
+  }, [sideParam, noteId, setSearchParams])
+  const mainPaneRef = useRef(null)
+  const sidePaneRef = useRef(null)
+  // A refusal is said IN the pane it points at, and focus goes there.
+  const [paneNotice, setPaneNotice] = useState(null) // { pane: 'main'|'side', text }
+  useEffect(() => {
+    if (!paneNotice) return
+    ;(paneNotice.pane === 'side' ? sidePaneRef : mainPaneRef).current?.focus?.()
+  }, [paneNotice])
+  const refuseSecondPane = (pane) => setPaneNotice({
+    pane,
+    text: sideId
+      ? `That note is already open in the ${pane} pane. A note opens in one pane at a time.`
+      : 'That note is already open.',
+  })
+
   // ⭐ WAVE M: an optional `target` carries the OBJECT the caller actually
   // named — a document page or a saved excerpt — through the same `?note=`
   // routing every other opener already uses. Callers that just want the note
   // pass nothing and behave exactly as before.
   const openNote = (note, target = null) => {
+    // ⛔⛔ Wave 6 item 7: the note on the right is not opened a second time on
+    // the left — refused, and the side pane (which has it) takes focus.
+    if (sideId && note?.id === sideId) { refuseSecondPane('side'); return }
+    setPaneNotice(null)
     setSearchParams((prev) => {
       const next = applyTargetToParams(prev, target)
       next.set('note', note.id)
@@ -440,7 +484,11 @@ export default function NotebookTab() {
   const closeNote = () => {
     setSearchParams((prev) => {
       const next = new URLSearchParams(prev)
-      next.delete('note')
+      // Wave 6 item 7: with a note open beside it, closing this one (the
+      // editor closes itself after a delete) leaves THAT note open, alone.
+      if (sideId) next.set('note', sideId)
+      else next.delete('note')
+      next.delete(SIDE_PARAM)
       return next
     }, { replace: false })
     refresh()
@@ -453,6 +501,7 @@ export default function NotebookTab() {
   const clearNoteParam = () => setSearchParams((prev) => {
     const next = new URLSearchParams(prev)
     next.delete('note')
+    next.delete(SIDE_PARAM)
     return next
   }, { replace: false })
   // Wave H: `?view=all` is the explicit flag distinguishing "the All Notes
@@ -473,9 +522,58 @@ export default function NotebookTab() {
       const next = new URLSearchParams(prev)
       next.set('view', 'all')
       next.delete('note')
+      next.delete(SIDE_PARAM)
       return next
     }, { replace: false })
   }
+  // Wave 6 item 7 — "open to the side". ⛔⛔ The main note is refused (focus
+  // goes to it); the side note already there just takes focus. With no note
+  // open there is no "beside" yet, so the note opens as the one note.
+  const showBeside = (id) => {
+    if (!id) return
+    if (!noteId) { openNote({ id }); return }
+    if (id === noteId) { refuseSecondPane('main'); return }
+    setPaneNotice(null)
+    if (id === sideId) { sidePaneRef.current?.focus?.(); return }
+    setSearchParams((prev) => {
+      const next = new URLSearchParams(prev)
+      next.set(SIDE_PARAM, id)
+      return next
+    }, { replace: false })
+  }
+  const closeSide = () => {
+    setPaneNotice(null)
+    setSearchParams((prev) => {
+      const next = new URLSearchParams(prev)
+      next.delete(SIDE_PARAM)
+      return next
+    }, { replace: false })
+  }
+  // Both editors change notes in one commit; React runs every unmount effect
+  // before any mount effect, so neither note is ever held by two editors.
+  const swapPanes = () => {
+    if (!sideId) return
+    setPaneNotice(null)
+    setSearchParams((prev) => {
+      const next = new URLSearchParams(prev)
+      next.set('note', sideId)
+      next.set(SIDE_PARAM, noteId)
+      return next
+    }, { replace: false })
+  }
+  // ⛔ Stable context values (a ref to the latest function): a fresh object per
+  // render would re-render every consumer inside both editors on every render.
+  const showBesideRef = useRef(showBeside)
+  showBesideRef.current = showBeside
+  const openNoteRef = useRef(openNote)
+  openNoteRef.current = openNote
+  const splitView = useMemo(
+    () => ({ canSplit: isDesktop, openToSide: (id) => showBesideRef.current(id) }),
+    [isDesktop],
+  )
+  const mainPaneApi = useMemo(() => ({ pane: 'main', open: (id) => openNoteRef.current({ id }) }), [])
+  const sidePaneApi = useMemo(() => ({ pane: 'side', open: (id) => showBesideRef.current(id) }), [])
+
   const handleSelectFolder = (id) => { setFolderId(id); setActiveView(null); setTickerFilter(null); clearViewAllParam(); if (noteId) clearNoteParam() }
   const handleSelectTag = (t) => { setTag(t); setActiveView(null); setTickerFilter(null); clearViewAllParam(); if (noteId) clearNoteParam() }
   const handleSelectView = (view) => {
@@ -1017,6 +1115,9 @@ export default function NotebookTab() {
   }, [newKey])
 
   return (
+    // Wave 6 item 7: the split-view door for everything below — the sidebar's
+    // Ctrl/Cmd+click and every note link inside either editor (lib/splitView.js).
+    <SplitViewContext.Provider value={splitView}>
     <div
       ref={wrapRef}
       className={`${styles.wrap} ${sidebarOpen ? '' : styles.collapsed} ${dragging ? styles.dragging : ''}`}
@@ -1161,32 +1262,100 @@ export default function NotebookTab() {
         aria-label="Resize folders panel"
       />
 
-      <div className={`${styles.main} ${noteId ? styles.mainNote : ''}`}>
+      <div className={`${styles.main} ${noteId ? styles.mainNote : ''} ${sideId ? styles.mainSplit : ''}`}>
         {noteId ? (
-          // Key by noteId so switching notes from the persistent sidebar remounts
-          // the editor fresh (TipTap state + autosave), same as opening from the grid.
-          <NoteEditorPage
-            key={noteId}
-            noteId={noteId}
-            onBack={closeNote}
-            showBack={false}
-            onTitleChange={updateTreeNoteTitle}
-            // ⛔ Wave 6 (lane E): the note menu's organisation actions. The
-            // editor is lane D's file; it renders `noteMenu?.(note, { refresh })`
-            // in its header row (requested in wave6-E-report.md). Ignored until
-            // then — this prop alone changes nothing an editor does.
-            noteMenu={(note, api) => (
-              <NoteMenuActions
-                note={note}
-                onChanged={() => {
-                  api?.refresh?.()
-                  refresh()
-                  refreshAll()
-                  refreshSidebarCounts()
-                }}
-              />
+          <>
+          {/* ⛔ Wave 6 item 7: the main editor sits in the SAME pane element
+              whether or not a note is beside it — moving it into a new parent
+              when the side opens would remount it (a flushed save, a reloaded
+              note, under the member's cursor). */}
+          <div
+            ref={mainPaneRef}
+            tabIndex={-1}
+            className={styles.notePane}
+            data-note-pane="main"
+            role={sideId ? 'region' : undefined}
+            aria-label={sideId ? 'Main note' : undefined}
+          >
+            {paneNotice?.pane === 'main' && (
+              <p className={styles.paneNotice} role="status">{paneNotice.text}</p>
             )}
-          />
+            <NotePaneContext.Provider value={sideId ? mainPaneApi : null}>
+              {/* Key by noteId so switching notes from the persistent sidebar remounts
+                  the editor fresh (TipTap state + autosave), same as opening from the grid. */}
+              <NoteEditorPage
+                key={noteId}
+                noteId={noteId}
+                onBack={closeNote}
+                showBack={false}
+                onTitleChange={updateTreeNoteTitle}
+                // ⛔ Wave 6 (lane E): the note menu's organisation actions. The
+                // editor is lane D's file; it renders `noteMenu?.(note, { refresh })`
+                // in its header row (requested in wave6-E-report.md). Ignored until
+                // then — this prop alone changes nothing an editor does.
+                noteMenu={(note, api) => (
+                  <NoteMenuActions
+                    note={note}
+                    onOpenBeside={isDesktop ? (n) => showBeside(n.id) : undefined}
+                    besideExclude={sideId ? [sideId] : []}
+                    onChanged={() => {
+                      api?.refresh?.()
+                      refresh()
+                      refreshAll()
+                      refreshSidebarCounts()
+                    }}
+                  />
+                )}
+              />
+            </NotePaneContext.Provider>
+          </div>
+          {sideId && (
+            <div
+              ref={sidePaneRef}
+              tabIndex={-1}
+              className={`${styles.notePane} ${styles.sidePane}`}
+              data-note-pane="side"
+              role="region"
+              aria-label="Side note"
+            >
+              <div className={styles.sidePaneBar}>
+                <span className={styles.sidePaneLabel}>Beside</span>
+                <button type="button" className={styles.sidePaneBtn} onClick={swapPanes}
+                  title="Put this note on the left and the other on the right">
+                  <UIcon name="columns" size={12} gold={false} />
+                  Swap panes
+                </button>
+                <button type="button" className={styles.sidePaneClose} onClick={closeSide}
+                  aria-label="Close the side note" title="Close the side note">
+                  <UIcon name="x" size={12} gold={false} />
+                </button>
+              </div>
+              {paneNotice?.pane === 'side' && (
+                <p className={styles.paneNotice} role="status">{paneNotice.text}</p>
+              )}
+              <NotePaneContext.Provider value={sidePaneApi}>
+                <NoteEditorPage
+                  key={`side:${sideId}`}
+                  noteId={sideId}
+                  onBack={closeSide}
+                  showBack={false}
+                  onTitleChange={updateTreeNoteTitle}
+                  noteMenu={(note, api) => (
+                    <NoteMenuActions
+                      note={note}
+                      onChanged={() => {
+                        api?.refresh?.()
+                        refresh()
+                        refreshAll()
+                        refreshSidebarCounts()
+                      }}
+                    />
+                  )}
+                />
+              </NotePaneContext.Provider>
+            </div>
+          )}
+          </>
         ) : isHome ? (
           // Wave H: bare-root Research Home (checkpoint decision 33/57) --
           // "All notes" itself is unchanged, one click away via the sidebar.
@@ -1610,5 +1779,6 @@ export default function NotebookTab() {
         )}
       </div>
     </div>
+    </SplitViewContext.Provider>
   )
 }

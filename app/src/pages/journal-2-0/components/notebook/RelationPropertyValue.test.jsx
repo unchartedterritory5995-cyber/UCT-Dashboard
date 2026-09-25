@@ -25,6 +25,7 @@ import RelationPropertyValue from './RelationPropertyValue'
 import PropertiesSection from './PropertiesSection'
 import NoteBacklinksSection from './NoteBacklinksSection'
 import { _resetNoteLinkTargetsBatchForTests } from '../../lib/noteLinkTargetsBatch'
+import { NotePaneContext, SplitViewContext } from '../../lib/splitView'
 
 let switcherCalls
 beforeEach(() => {
@@ -116,5 +117,41 @@ describe('wired', () => {
   it('shows no Related from at zero', () => {
     const { container } = render(<NoteBacklinksSection noteId="t" />)
     expect(container).toBeEmptyDOMElement()
+  })
+})
+
+// Wave 6 (lane E, item 7): a chip and a "Related from" row open their note the
+// Notebook's one way — beside on Ctrl/Cmd+click, in their own pane when split.
+describe('split view', () => {
+  const inPane = (ui, split, pane) => (
+    <SplitViewContext.Provider value={split}>
+      <NotePaneContext.Provider value={pane}>{ui}</NotePaneContext.Provider>
+    </SplitViewContext.Provider>
+  )
+
+  it('a chip opens beside on Ctrl+click, and in its own pane on a plain click', async () => {
+    const openToSide = vi.fn()
+    const open = vi.fn()
+    render(inPane(<RelationPropertyValue value={['live']} onChange={vi.fn()} labelId="l" />,
+      { canSplit: true, openToSide }, { pane: 'side', open }))
+    const chip = await screen.findByRole('button', { name: 'NVDA thesis' })
+    fireEvent.click(chip, { ctrlKey: true })
+    expect(openToSide).toHaveBeenCalledWith('live')
+    fireEvent.click(chip)
+    expect(open).toHaveBeenCalledWith('live')
+    expect(navSpy).not.toHaveBeenCalled()
+  })
+
+  it('a Related from row opens in its own pane', () => {
+    // CollapsibleSection remembers open/closed in localStorage by id, and the
+    // wired test above opened this one.
+    window.localStorage.clear()
+    relatedResult = { count: 1, isLoading: false, error: null, notes: [{ id: 'b', title: 'B thesis', properties: ['Peers'] }] }
+    const open = vi.fn()
+    render(inPane(<NoteBacklinksSection noteId="t" />, { canSplit: true, openToSide: vi.fn() }, { pane: 'main', open }))
+    fireEvent.click(screen.getByText('Related from (1)'))
+    fireEvent.click(screen.getByText('B thesis'))
+    expect(open).toHaveBeenCalledWith('b')
+    expect(navSpy).not.toHaveBeenCalled()
   })
 })

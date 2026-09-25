@@ -88,6 +88,59 @@
 /* While a note is open, drop the top padding so the editor's header bar starts
    at the same y as the sidebar's header toolbar (their bottoms then line up). */
 .mainNote { padding-top: 0; }
+/* Wave 6 (lane E, item 7) — split view: two notes side by side, desktop only
+   (NotebookTab never opens a side pane at <=1024px). The main editor always
+   sits in a .notePane, split or not, so opening the side never moves it to a
+   new parent (which would remount it). Split, each pane scrolls on its own. */
+.notePane { min-width: 0; outline: none; }
+.notePane:focus-visible { box-shadow: inset 0 0 0 2px var(--ut-gold); border-radius: var(--radius-md); }
+.mainSplit { display: flex; align-items: stretch; overflow: hidden; padding-bottom: 0; }
+.mainSplit > .notePane { flex: 1 1 0; min-height: 0; overflow-y: auto; padding-bottom: 40px; }
+.sidePane { border-left: 1px solid var(--border); margin-left: 16px; padding-left: 16px; }
+.sidePaneBar {
+  position: sticky;
+  top: 0;
+  z-index: 3;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 0;
+  background: var(--bg);
+  border-bottom: 1px solid var(--border);
+}
+.sidePaneLabel {
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+  margin-right: auto;
+}
+.sidePaneBtn,
+.sidePaneClose {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 10px;
+  font-size: 12px;
+  color: var(--text-muted);
+  background: var(--bg-surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  cursor: pointer;
+}
+.sidePaneClose { padding: 4px 7px; }
+.sidePaneBtn:hover,
+.sidePaneClose:hover { color: var(--text-bright); border-color: var(--ut-gold); }
+.paneNotice {
+  margin: 10px 0 0;
+  padding: 8px 12px;
+  font-size: 13px;
+  color: var(--text-bright);
+  background: var(--bg-elevated);
+  border: 1px solid var(--ut-gold);
+  border-radius: var(--radius-md);
+}
 /* With the panel hidden, keep clear of the always-on toggle at top-left. */
 .wrap.collapsed .main { padding-left: 48px; }
 .toolbar {

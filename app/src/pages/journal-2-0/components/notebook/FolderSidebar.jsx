@@ -18,6 +18,7 @@ import UIcon from '../../../../components/ui/UIcon'
 import ConfirmModal from '../ConfirmModal'
 import { SkeletonLine } from '../../../../components/Skeleton'
 import { VIEW_MODES } from '../../lib/savedViewModes'
+import { useOpenFromList } from '../../lib/splitView'
 import {
   ancestorKeys, buildTagTree, fallbackNodes, hasNestedTags, tagKey,
 } from '../../lib/tagTree'
@@ -164,6 +165,8 @@ function NoteIcon() {
 // audit finding UX #11 / Accessibility QW-6.
 function RecencySection({ label, icon, notes, activeNoteId, onOpenNote }) {
   const [expanded, setExpanded] = useState(true)
+  // Wave 6 item 7: Ctrl/Cmd+click opens the note beside (desktop split view).
+  const openRow = useOpenFromList(onOpenNote)
   if (!notes.length) return null
   return (
     <div className={styles.section}>
@@ -188,7 +191,7 @@ function RecencySection({ label, icon, notes, activeNoteId, onOpenNote }) {
           <button
             type="button"
             className={`${styles.noteRow} ${activeNoteId === note.id ? styles.rowActive : ''}`}
-            onClick={() => onOpenNote(note)}
+            onClick={(e) => openRow(note, e)}
             title={note.title?.trim() || 'Untitled'}
             data-note-card-id={note.id}
           >
@@ -444,6 +447,7 @@ function FolderNode({
   onOpenNote,
   activeNoteId,
 }) {
+  const openRow = useOpenFromList(onOpenNote)
   const pageNotes = notesByFolder.get(node.id) || []
   // P0-2 fix: `folderCounts` is the TRUE whole-library per-folder count
   // (`undefined` while still loading — see useJ2NoteFolderCounts's own
@@ -570,7 +574,7 @@ function FolderNode({
               <button
                 type="button"
                 className={`${styles.noteRow} ${activeNoteId === note.id ? styles.rowActive : ''}`}
-                onClick={() => onOpenNote(note)}
+                onClick={(e) => openRow(note, e)}
                 title={note.title?.trim() || 'Untitled'}
                 data-note-card-id={note.id}
               >
@@ -635,6 +639,8 @@ export default function FolderSidebar({
   onSelectAllNotes = null,
 }) {
   const { folders, create, rename, remove } = useJ2NoteFolders()
+  // Wave 6 item 7: a search hit opens beside on Ctrl/Cmd+click, like a row.
+  const openSearchRow = useOpenFromList(onOpenNote)
   const [adding, setAdding] = useState(false)
   const [parentForNew, setParentForNew] = useState(null)
   const [newName, setNewName] = useState('')
@@ -1162,7 +1168,7 @@ export default function FolderSidebar({
                     key={n.id}
                     type="button"
                     className={`${styles.searchResultRow} ${activeNoteId === n.id ? styles.rowActive : ''}`}
-                    onClick={() => onOpenNote(n)}
+                    onClick={(e) => openSearchRow(n, e)}
                   >
                     <NoteIcon />
                     <span className={styles.searchResultBody}>

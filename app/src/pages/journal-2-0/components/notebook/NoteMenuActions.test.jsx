@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
-import { render, screen, fireEvent, waitFor } from '@testing-library/react'
+import { render, screen, fireEvent, waitFor, within } from '@testing-library/react'
 
 /**
  * Wave 6 (lane E) — the note menu's organisation actions, alone. The wired
@@ -130,5 +130,47 @@ describe('Save as template in the note menu', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Save template' }))
     expect(await screen.findByRole('alert')).toHaveTextContent("Couldn't save this note as a template. Nothing was saved.")
     expect(screen.getByRole('textbox', { name: 'Template name' })).toHaveValue('Mine')
+  })
+})
+
+// Wave 6 (lane E, item 7): "Open a note beside" — only where the page can split
+// (NotebookTab passes `onOpenBeside` on desktop); the search never offers the
+// note itself, nor the one already beside it.
+describe('Open a note beside, in the note menu', () => {
+  beforeEach(() => {
+    global.fetch = vi.fn(async (url) => ({
+      ok: true,
+      json: async () => ({ notes: [
+        { id: 'n1', title: 'This note' }, { id: 'n2', title: 'Already beside' }, { id: 'n3', title: 'Third' },
+      ] }),
+    }))
+  })
+
+  it('is not offered without a split to open into — no dead button', () => {
+    render(<NoteMenuActions note={{ id: 'n1' }} />)
+    expect(screen.queryByRole('button', { name: /Open a note beside/ })).toBeNull()
+  })
+
+  it('searches with the quick switcher and hands the pick over', async () => {
+    const onOpenBeside = vi.fn()
+    render(<NoteMenuActions note={{ id: 'n1' }} onOpenBeside={onOpenBeside} besideExclude={['n2']} />)
+    fireEvent.click(screen.getByRole('button', { name: /Open a note beside/ }))
+    fireEvent.change(screen.getByRole('textbox', { name: 'Find a note to open beside' }), { target: { value: 'th' } })
+    const list = await screen.findByRole('listbox', { name: 'Notes to open beside' })
+    expect(String(global.fetch.mock.calls[0][0])).toMatch(/^\/api\/j2\/notes\/switcher\?q=th/)
+    expect(within(list).queryByText('This note')).toBeNull()
+    expect(within(list).queryByText('Already beside')).toBeNull()
+    fireEvent.click(within(list).getByRole('button', { name: 'Third' }))
+    expect(onOpenBeside).toHaveBeenCalledWith({ id: 'n3', title: 'Third' })
+    expect(screen.queryByRole('textbox', { name: 'Find a note to open beside' })).toBeNull()
+  })
+
+  it('Escape puts the button back and opens nothing', () => {
+    const onOpenBeside = vi.fn()
+    render(<NoteMenuActions note={{ id: 'n1' }} onOpenBeside={onOpenBeside} />)
+    fireEvent.click(screen.getByRole('button', { name: /Open a note beside/ }))
+    fireEvent.keyDown(screen.getByRole('textbox', { name: 'Find a note to open beside' }), { key: 'Escape' })
+    expect(screen.getByRole('button', { name: /Open a note beside/ })).toBeInTheDocument()
+    expect(onOpenBeside).not.toHaveBeenCalled()
   })
 })

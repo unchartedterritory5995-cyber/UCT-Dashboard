@@ -2,6 +2,7 @@ import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { render, screen, fireEvent, within, waitFor, act } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import FolderSidebar, { buildFolderTree, renderSnippetMarks, matchReasonFor } from './FolderSidebar'
+import { SplitViewContext } from '../../lib/splitView'
 
 const removeMock = vi.fn()
 
@@ -1747,5 +1748,83 @@ describe('search panel — scanned-text provenance on a document hit', () => {
     searchWith({ textOrigin: 'ocr' })
     expect(screen.getByText(/filing\.pdf · p\.12/)).toBeInTheDocument()
     expect(screen.getByText('margin').tagName).toBe('MARK')
+  })
+})
+
+// ── Wave 6 (lane E, item 7): Ctrl/Cmd+click a note in the sidebar opens it
+// beside (desktop split view). Each of the three row kinds is its own call
+// site, so each has its own rail.
+describe('Wave 6 split view: Ctrl/Cmd+click opens a note beside', () => {
+  const renderSplit = (props, canSplit = true) => {
+    const openToSide = vi.fn()
+    const onOpenNote = vi.fn()
+    render(
+      <SplitViewContext.Provider value={{ canSplit, openToSide }}>
+        <FolderSidebar notes={[]} activeFolderId={null} onSelectFolder={() => {}}
+                       activeTag={null} onSelectTag={() => {}} onOpenNote={onOpenNote} {...props} />
+      </SplitViewContext.Provider>,
+    )
+    return { openToSide, onOpenNote }
+  }
+
+  it('a Recents row: Ctrl+click opens beside; a plain click opens it as before', () => {
+    useJ2RecentsMock.mockImplementation(() => ({
+      notes: [{ id: 'r1', title: 'Recently Opened' }], isLoading: false, error: null, refresh: vi.fn(),
+    }))
+    const { openToSide, onOpenNote } = renderSplit()
+    fireEvent.click(screen.getByText('Recently Opened'), { ctrlKey: true })
+    expect(openToSide).toHaveBeenCalledWith('r1')
+    expect(onOpenNote).not.toHaveBeenCalled()
+    fireEvent.click(screen.getByText('Recently Opened'))
+    expect(onOpenNote).toHaveBeenCalledWith({ id: 'r1', title: 'Recently Opened' })
+    expect(openToSide).toHaveBeenCalledTimes(1)
+  })
+
+  it('a note under its folder: Cmd+click opens beside', () => {
+    const { openToSide, onOpenNote } = renderSplit({
+      notes: [{ id: 'n1', title: 'Commentary', folderId: 'c', tags: [] }],
+    })
+    fireEvent.click(screen.getByLabelText('Expand Journal'))
+    fireEvent.click(screen.getByText('Commentary'), { metaKey: true })
+    expect(openToSide).toHaveBeenCalledWith('n1')
+    expect(onOpenNote).not.toHaveBeenCalled()
+  })
+
+  it('a search hit: Ctrl+click opens beside', () => {
+    vi.useFakeTimers()
+    try {
+      useJ2NotesMock.mockImplementation((opts) => (opts?.enabled
+        ? { notes: [{ id: 's1', title: 'Search Hit', folderId: null, tags: [] }], isLoading: false, isValidating: false, error: null }
+        : { notes: [], isLoading: false, isValidating: false, error: null }))
+      const { openToSide, onOpenNote } = renderSplit()
+      fireEvent.click(screen.getByLabelText('Search notes'))
+      fireEvent.change(screen.getByPlaceholderText(/search notes/i), { target: { value: 'hit' } })
+      act(() => { vi.advanceTimersByTime(300) })
+      fireEvent.click(screen.getByText('Search Hit'), { ctrlKey: true })
+      expect(openToSide).toHaveBeenCalledWith('s1')
+      expect(onOpenNote).not.toHaveBeenCalled()
+    } finally {
+      vi.useRealTimers()
+    }
+  })
+
+  it('where the page cannot split (≤1024px), Ctrl+click opens the note the ordinary way', () => {
+    useJ2RecentsMock.mockImplementation(() => ({
+      notes: [{ id: 'r1', title: 'Recently Opened' }], isLoading: false, error: null, refresh: vi.fn(),
+    }))
+    const { openToSide, onOpenNote } = renderSplit({}, false)
+    fireEvent.click(screen.getByText('Recently Opened'), { ctrlKey: true })
+    expect(onOpenNote).toHaveBeenCalledWith({ id: 'r1', title: 'Recently Opened' })
+    expect(openToSide).not.toHaveBeenCalled()
+  })
+
+  it('Ctrl+Shift+click is not the gesture — the row opens as usual', () => {
+    useJ2RecentsMock.mockImplementation(() => ({
+      notes: [{ id: 'r1', title: 'Recently Opened' }], isLoading: false, error: null, refresh: vi.fn(),
+    }))
+    const { openToSide, onOpenNote } = renderSplit()
+    fireEvent.click(screen.getByText('Recently Opened'), { ctrlKey: true, shiftKey: true })
+    expect(openToSide).not.toHaveBeenCalled()
+    expect(onOpenNote).toHaveBeenCalled()
   })
 })
