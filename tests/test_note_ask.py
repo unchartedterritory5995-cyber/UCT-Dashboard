@@ -359,6 +359,10 @@ def test_a_successful_ask_logs_the_stage_a_validation_event(client):
     r = client.post(f"/api/j2/notes/{note['id']}/ask/stream",
                     json={"query": "what happened to margins"})
     assert r.status_code == 200
+    # The row is written OFF the event loop, fire-and-forget (ruling D-H11):
+    # wait for this process's background writes before reading it.
+    from api.services import note_ask
+    note_ask.drain_background()
 
     conn = sqlite3.connect(auth_db._DB_PATH)
     conn.row_factory = sqlite3.Row

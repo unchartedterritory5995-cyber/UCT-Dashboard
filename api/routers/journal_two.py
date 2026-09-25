@@ -3171,9 +3171,11 @@ async def _ask_stream(user: dict, scope: str, target: str | None,
             headers={"Cache-Control": "no-cache", "X-Accel-Buffering": "no"})
 
     # The day's counters are durable (auth.db, ruling D-H5b): a SQLite write,
-    # so off the web pod's one event loop.
+    # so off the web pod's one event loop (ruling D-H11). The day is read ONCE:
+    # the reservation, the busy refund and the stream's refund all key to it.
     from starlette.concurrency import run_in_threadpool
-    if not await run_in_threadpool(note_ask.reserve_ask, user_id):
+    day = note_ask.charge_day()
+    if not await run_in_threadpool(note_ask.reserve_ask, user_id, day=day):
         raise HTTPException(
             status_code=429,
             detail="You've hit today's Ask limit — it resets at midnight ET.",
@@ -3182,7 +3184,7 @@ async def _ask_stream(user: dict, scope: str, target: str | None,
     # hold open at once. Claimed AFTER the reservation so the failure path has
     # exactly one thing to undo.
     if not note_ask.begin_stream(user_id):
-        await run_in_threadpool(note_ask.refund_ask, user_id)
+        await run_in_threadpool(note_ask.refund_ask, user_id, day=day)
         raise HTTPException(
             status_code=429,
             detail="You already have an answer in progress — wait for it to finish.",
@@ -3197,7 +3199,7 @@ async def _ask_stream(user: dict, scope: str, target: str | None,
     # or a stream that sent nothing refunds. ⚰️ This used to refund whenever
     # the stream had not SETTLED, so Stop just before `final` was a free answer.
     from starlette.background import BackgroundTask
-    charge = note_ask.StreamCharge(user_id, note_ask.refund_ask)
+    charge = note_ask.StreamCharge(user_id, note_ask.refund_ask, day=day)
 
     async def gen():
         settled = False
@@ -3233,11 +3235,14 @@ async def _ask_stream(user: dict, scope: str, target: str | None,
         finally:
             # RELEASE FIRST, AND ALWAYS. A disconnect, an exception and a
             # cancellation all land here; a leaked slot locks the member out
-            # until the process restarts.
+            # until the process restarts. ⛔ Neither durable write runs HERE,
+            # on the loop (ruling D-H11): `close()` hands the refund to a
+            # worker thread, and the telemetry row (an auth.db write too) rides
+            # the same fire-and-forget door.
             charge.close()
             resolved = asvc.resolve_answer(text, prepared)
-            notes_service._log_notebook_event(
-                user_id, "notebook_ask_used",
+            note_ask.run_in_background(
+                notes_service._log_notebook_event, user_id, "notebook_ask_used",
                 asvc.telemetry(scope, prepared, started=t0, settled=settled,
                                answered=bool(text.strip()), resolved=resolved))
         yield ("data: " + json.dumps({

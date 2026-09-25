@@ -133,8 +133,11 @@ async def writing_help_stream(
     # flat figure -- and the same number is what a refund gives back.
     cost = wh.estimate_cost(req, model=model)
     # The counters are durable (auth.db, ruling D-H5b): a SQLite write, so off
-    # the event loop like the note read above.
-    if not await run_in_threadpool(note_ask.reserve_writing_help, user_id, cost=cost):
+    # the event loop like the note read above (ruling D-H11). The day is read
+    # ONCE: the reservation, the busy refund and the stream's refund all key
+    # to it.
+    day = note_ask.charge_day()
+    if not await run_in_threadpool(note_ask.reserve_writing_help, user_id, cost=cost, day=day):
         # Say WHICH limit refused (review M-2): the shared dollar cap is not
         # the member's own 60, and they may have used none of it.
         shared = await run_in_threadpool(note_ask.shared_cap_reached, cost=cost)
@@ -144,7 +147,7 @@ async def writing_help_stream(
     # ⛔ The SAME slots as Ask (ruling D-H2): one member's open drafts and open
     # answers share the two a member may hold at once.
     if not note_ask.begin_stream(user_id):
-        await run_in_threadpool(note_ask.refund_writing_help, user_id, cost=cost)
+        await run_in_threadpool(note_ask.refund_writing_help, user_id, cost=cost, day=day)
         raise HTTPException(status_code=429, detail=wh.BUSY_SENTENCE)
 
     kwargs = wh.request_kwargs(req, model=model)
@@ -154,7 +157,8 @@ async def writing_help_stream(
     # ⛔ CHARGED FROM THE FIRST DELTA (review I-3, rule `note_ask.refund_due`):
     # an abort after the member has text in hand keeps the charge; only a
     # server failure or a stream that sent nothing refunds.
-    charge = note_ask.StreamCharge(user_id, functools.partial(note_ask.refund_writing_help, cost=cost))
+    charge = note_ask.StreamCharge(
+        user_id, functools.partial(note_ask.refund_writing_help, cost=cost), day=day)
 
     async def gen():
         settled = False
@@ -184,10 +188,13 @@ async def writing_help_stream(
             # cancellation all land here; a leaked slot locks the member out
             # until the process restarts. Synchronous on purpose: under
             # anyio's level-triggered cancellation an `await` in this finally
-            # would be cancelled again and skip what follows it.
+            # would be cancelled again and skip what follows it. ⛔ Neither
+            # durable write runs HERE, on the loop (ruling D-H11): `close()`
+            # hands the refund to a worker thread, and the telemetry row (an
+            # auth.db write too) rides the same fire-and-forget door.
             charge.close()
-            notes_service._log_notebook_event(
-                user_id, "notebook_writing_help_used",
+            note_ask.run_in_background(
+                notes_service._log_notebook_event, user_id, "notebook_writing_help_used",
                 wh.telemetry(req, started=t0, settled=settled, produced=bool(text.strip())))
         if settled:
             yield _sse({"type": "final", "text": text, "action": req["action"], "model": model})

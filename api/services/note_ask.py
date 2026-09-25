@@ -40,11 +40,15 @@ they bound what is open NOW, which a restart really does end.
 
 from __future__ import annotations
 
+import concurrent.futures
+import logging
 import os
 import threading
 from typing import Optional
 
 from api.services import daily_counters
+
+log = logging.getLogger(__name__)
 
 # The note-context ceiling moved to ask_retrieval.NOTE_SCOPE_MAX_CHARS when
 # Slice 6 replaced the 20k system-message blob with ranked, citable blocks.
@@ -102,11 +106,74 @@ _synth_lock = threading.Lock()
 _inflight: dict = {}
 
 
+# ── Off the event loop (ruling D-H11) ────────────────────────────────────────
+# ⚰️ D-H5b made the day's counters a SQLite write, and the stream refund ran
+# inside the async generator's `finally` -- synchronously, on the web pod's ONE
+# event loop. Measured under a held auth.db write lock: 1.17 s of stalled loop
+# for EVERY member per refund, and a provider outage makes every Ask stream
+# refund at once (the 2026-07-01 524 class). The `finally` must not `await`
+# (anyio's level-triggered cancellation would cancel the await and skip what
+# follows), so the durable write is handed to a worker thread and NOT awaited:
+# it still happens, it still fails open (the counter's own rule), and the loop
+# never waits on SQLite. The stream's telemetry write rides the same door.
+_BACKGROUND = concurrent.futures.ThreadPoolExecutor(
+    max_workers=2, thread_name_prefix="note-ask-bg")
+_pending: set = set()
+_pending_lock = threading.Lock()
+
+
+def _quietly(fn, args, kwargs) -> None:
+    try:
+        fn(*args, **kwargs)
+    except Exception as e:  # noqa: BLE001 -- a background write never raises anywhere
+        log.warning("[note-ask] background %s failed (%s)",
+                    getattr(fn, "__name__", "call"), type(e).__name__)
+
+
+def run_in_background(fn, *args, **kwargs) -> None:
+    """Run `fn(*args, **kwargs)` on a worker thread, fire-and-forget: the caller
+    (an event-loop `finally`) returns at once. Never raises. After interpreter
+    shutdown has closed the pool the call runs inline -- it must still happen."""
+    try:
+        fut = _BACKGROUND.submit(_quietly, fn, args, kwargs)
+    except RuntimeError:           # the pool is shut down (interpreter exit)
+        _quietly(fn, args, kwargs)
+        return
+    with _pending_lock:
+        _pending.add(fut)
+    fut.add_done_callback(_forget)
+
+
+def _forget(fut) -> None:
+    with _pending_lock:
+        _pending.discard(fut)
+
+
+def drain_background(timeout: float = 10.0) -> None:
+    """Wait for everything handed to `run_in_background` so far. The three
+    public read helpers below call it, so a read in this process sees this
+    process's own pending refunds (read-your-writes); tests use it for the
+    telemetry row. ⛔ No request path drains: `shared_cap_reached` reads the
+    counter directly, so one member's refusal never waits on another member's
+    refund."""
+    with _pending_lock:
+        futs = list(_pending)
+    if futs:
+        concurrent.futures.wait(futs, timeout=timeout)
+
+
 def _et_day():
     # Lazy import — avoids a module-load cycle with api.routers.ai_search,
     # mirroring ai_search_personal.py's own _et_day().
     from api.routers.ai_search import _et_day as d
     return d()
+
+
+def charge_day() -> str:
+    """The ET day a reservation made now is keyed to. A route reads it ONCE and
+    passes it to the reservation, the busy refund and its `StreamCharge`, so a
+    stream reserved at 23:59:59.999 gives back to the day it was charged to."""
+    return _et_day()
 
 
 def _charges(scope: str, user_id, cap, cost: float) -> list:
@@ -119,21 +186,23 @@ def _charges(scope: str, user_id, cap, cost: float) -> list:
     ]
 
 
-def _reserve(scope: str, user_id, cap, cost: float) -> bool:
+def _reserve(scope: str, user_id, cap, cost: float, day: Optional[str]) -> bool:
     """Atomic check-AND-increment of both counters in ONE durable transaction
     (`daily_counters.take`). False => a cap refused => nothing was counted."""
-    return daily_counters.take(_et_day(), _charges(scope, user_id, cap, cost)) is None
+    return daily_counters.take(day or _et_day(), _charges(scope, user_id, cap, cost)) is None
 
 
 def _refund(scope: str, user_id, cost: float, day: Optional[str]) -> None:
     daily_counters.give_back(day or _et_day(), _charges(scope, user_id, None, cost))
 
 
-def reserve_ask(user_id) -> bool:
+def reserve_ask(user_id, *, day: Optional[str] = None) -> bool:
     """Atomic check-AND-increment (mirrors ai_search_personal.reserve_synth,
     durable since D-H5b). False => over cap => caller refuses the ask with a
-    429, same shape as the AI Search widget's own limit."""
-    return _reserve(SCOPE_ASK, user_id, _SYNTH_PERUSER_CAP, _APPROX_COST)
+    429, same shape as the AI Search widget's own limit. `day` (default today,
+    ET) is the day charged -- the route passes the same day to its
+    `StreamCharge`, so a refund goes back to it."""
+    return _reserve(SCOPE_ASK, user_id, _SYNTH_PERUSER_CAP, _APPROX_COST, day)
 
 
 def refund_ask(user_id, *, day: Optional[str] = None) -> None:
@@ -145,7 +214,8 @@ def refund_ask(user_id, *, day: Optional[str] = None) -> None:
     _refund(SCOPE_ASK, user_id, _APPROX_COST, day)
 
 
-def reserve_writing_help(user_id, *, cost: Optional[float] = None) -> bool:
+def reserve_writing_help(user_id, *, cost: Optional[float] = None,
+                         day: Optional[str] = None) -> bool:
     """Writing help's reservation (wave 7 H2, ruling D-H2): its OWN per-member
     daily count (`writing_help_peruser_cap()`, default 60, read per call)
     against the SHARED global dollar cap, charged `cost` -- the route passes
@@ -153,7 +223,7 @@ def reserve_writing_help(user_id, *, cost: Optional[float] = None) -> bool:
     charges the flat `_APPROX_COST`. Atomic, like `reserve_ask`. False => the
     caller refuses with a 429 and the sentence the editor shows."""
     return _reserve(SCOPE_WRITING_HELP, user_id, writing_help_peruser_cap(),
-                    _APPROX_COST if cost is None else cost)
+                    _APPROX_COST if cost is None else cost, day)
 
 
 def refund_writing_help(user_id, *, cost: Optional[float] = None,
@@ -165,17 +235,29 @@ def refund_writing_help(user_id, *, cost: Optional[float] = None,
 
 
 def ask_used(user_id, *, day: Optional[str] = None) -> int:
-    """Ask questions this member has been charged for on `day` (today)."""
+    """Ask questions this member has been charged for on `day` (today). Waits
+    for this process's pending background writes first (read-your-writes)."""
+    drain_background()
     return int(daily_counters.value(day or _et_day(), SCOPE_ASK, str(user_id)))
 
 
 def writing_help_used(user_id, *, day: Optional[str] = None) -> int:
-    """Writing-help drafts this member has been charged for on `day` (today)."""
+    """Writing-help drafts this member has been charged for on `day` (today).
+    Waits for this process's pending background writes first."""
+    drain_background()
     return int(daily_counters.value(day or _et_day(), SCOPE_WRITING_HELP, str(user_id)))
 
 
 def spend_today(*, day: Optional[str] = None) -> float:
-    """The shared dollar cap's running total for `day` (today): Ask + writing help."""
+    """The shared dollar cap's running total for `day` (today): Ask + writing
+    help. Waits for this process's pending background writes first."""
+    drain_background()
+    return _spend(day)
+
+
+def _spend(day: Optional[str] = None) -> float:
+    """The shared total as the counter holds it NOW -- no wait (the request
+    path's read)."""
     return daily_counters.value(day or _et_day(), SCOPE_SPEND, daily_counters.GLOBAL)
 
 
@@ -226,7 +308,7 @@ def shared_cap_reached(*, cost: Optional[float] = None) -> bool:
     Lets a refused reservation say WHICH limit refused it: a member who used
     none of their own allowance must not read that they did (wave 7 fix round
     1, review M-2). Pass the cost the reservation was refused at."""
-    return spend_today() + (_APPROX_COST if cost is None else cost) > _SYNTH_GLOBAL_HARD
+    return _spend() + (_APPROX_COST if cost is None else cost) > _SYNTH_GLOBAL_HARD
 
 
 # ── Charging a stream (wave 7 lane H, fix round 1: review I-3) ─────────────────
@@ -265,15 +347,20 @@ class StreamCharge:
     `finally`, and the slot and the reservation would both leak until the
     process restarts. Idempotent: whichever runs first does the work.
 
-    `refund` is called as `refund(user_id, day=<the ET day at construction>)`:
-    the day the reservation was charged to, so a stream that crosses midnight
-    gives back to the right day (the counters are keyed by day since ruling
-    D-H5b)."""
+    `refund` is called as `refund(user_id, day=<the reservation's ET day>)` --
+    the day the reservation was charged to (pass `day`; it defaults to the day
+    at construction), so a stream that crosses midnight gives back to the right
+    day (the counters are keyed by day since ruling D-H5b).
 
-    def __init__(self, user_id, refund):
+    ⛔ The refund is a durable SQLite write and `close()` is called from the
+    stream's `finally` ON THE EVENT LOOP, so it is handed to
+    `run_in_background` and not awaited (ruling D-H11); the slot release stays
+    synchronous (it is memory, and the member's next request needs it now)."""
+
+    def __init__(self, user_id, refund, *, day: Optional[str] = None):
         self.user_id = user_id
         self._refund = refund
-        self.day = _et_day()
+        self.day = day or _et_day()
         self.sent = False
         self.failed = False
         self._closed = False
@@ -290,4 +377,4 @@ class StreamCharge:
             self._closed = True
         end_stream(self.user_id)
         if refund_due(sent=self.sent, failed=self.failed):
-            self._refund(self.user_id, day=self.day)
+            run_in_background(self._refund, self.user_id, day=self.day)

@@ -22,7 +22,9 @@ is called: each route's provider seam is replaced.
 """
 from __future__ import annotations
 
+import ast
 import asyncio
+import pathlib
 import sqlite3
 
 import pytest
@@ -256,3 +258,282 @@ def test_the_SHARED_cap_says_so_and_the_member_cap_says_the_member(db, monkeypat
     dc.clear()
     dc.take(DAY, [dc.Charge(note_ask.SCOPE_WRITING_HELP, UID, note_ask.writing_help_peruser_cap())])
     assert refusal() == wh.BUDGET_SENTENCE                        # control: their own 60
+
+
+# ── D-H11: a durable-counter write never waits ON the event loop ─────────────
+# Ruling D-H11 (backend re-review N3). The web pod is ONE uvicorn process with
+# ONE event loop for every member. D-H5b made the day's counters an auth.db
+# write, and the stream refund ran in the async generator's `finally` --
+# synchronously, on that loop: ~1.2 s of stalled loop for every member while
+# another writer held auth.db, and a provider outage refunds every Ask stream
+# at once. These rails hold a REAL write lock from a second connection (as
+# another writer on the pod does) and run an unrelated coroutine on the same
+# loop beside the stream: it must keep its pace while the counter write waits,
+# and the write must still land once the lock is released.
+
+HOLD_S = 0.6       # how long the other writer holds auth.db
+BOUND_S = 0.25     # the longest the loop may pause for anyone else meanwhile
+
+
+class _Writer:
+    """Another connection holding auth.db's write lock."""
+
+    def __init__(self, path):
+        self.conn = sqlite3.connect(path, timeout=0, isolation_level=None)
+        self.conn.execute("BEGIN IMMEDIATE")
+        self.held = True
+
+    def release(self):
+        if self.held:
+            self.conn.execute("ROLLBACK")
+            self.held = False
+
+    def close(self):
+        self.release()
+        self.conn.close()
+
+
+async def _unrelated_request(gaps, done):
+    """Another member's work on the same loop: a 10 ms heartbeat that records
+    how long each beat actually took."""
+    loop = asyncio.get_running_loop()
+    last = loop.time()
+    while not done.is_set():
+        await asyncio.sleep(0.01)
+        now = loop.time()
+        gaps.append(now - last)
+        last = now
+
+
+async def _drain_body(resp):
+    it = resp.body_iterator
+    try:
+        while True:
+            await it.__anext__()
+    except StopAsyncIteration:
+        pass
+    finally:
+        await it.aclose()
+
+
+def _waiting_in_background() -> int:
+    with note_ask._pending_lock:
+        return sum(not f.done() for f in note_ask._pending)
+
+
+@pytest.fixture
+def locked_db(db, monkeypatch):
+    from api.services import daily_counters as dc
+    assert dc.value(DAY, "warm", UID) == 0.0      # the file exists, in WAL mode, first
+    # Longer than HOLD_S: the write WAITS for the lock and then lands. (An
+    # on-loop write would stall the loop for this long -- the release below
+    # runs on the loop, so it cannot happen until the write gives up.)
+    monkeypatch.setattr(dc, "BUSY_TIMEOUT_MS", 2_000)
+    return db
+
+
+def test_a_REFUND_while_auth_db_is_write_locked_never_stalls_the_loop(route, locked_db):
+    route.arrange(fail_after=0)          # the provider fails at once: a refund is due
+
+    async def run():
+        loop = asyncio.get_running_loop()
+        resp = await route.open()        # the reservation, while auth.db is free
+        assert route.charged() == 1
+        writer = _Writer(locked_db)
+        gaps, done = [], asyncio.Event()
+        beat = asyncio.create_task(_unrelated_request(gaps, done))
+        await asyncio.sleep(0.05)        # the other request is already beating
+        t0 = loop.time()
+        try:
+            await _drain_body(resp)      # the error, then the refund-due `finally`
+            await asyncio.sleep(max(0.0, HOLD_S - (loop.time() - t0)))
+            waiting = _waiting_in_background()
+            writer.release()
+            await asyncio.to_thread(note_ask.drain_background)
+        finally:
+            writer.close()
+            done.set()
+            await beat
+        return gaps, waiting
+
+    gaps, waiting = asyncio.run(run())
+    assert max(gaps) < BOUND_S, (
+        f"the loop stalled {max(gaps):.3f}s for every member while a refund waited on auth.db")
+    # non-vacuity: the refund really was blocked by the held lock, so a write
+    # made ON the loop would have stalled it for as long.
+    assert waiting >= 1, "nothing waited on the lock: this rail could not see an on-loop write"
+    assert route.charged() == 0, "the refund must still HAPPEN once the lock is released"
+    assert note_ask.inflight(UID) == 0
+
+
+def test_a_CHARGE_while_auth_db_is_write_locked_never_stalls_the_loop(route, locked_db):
+    route.arrange()
+
+    async def run():
+        writer = _Writer(locked_db)
+        gaps, done = [], asyncio.Event()
+        beat = asyncio.create_task(_unrelated_request(gaps, done))
+        await asyncio.sleep(0.05)
+        try:
+            opening = asyncio.create_task(route.open())     # the reservation waits
+            await asyncio.sleep(HOLD_S)
+            waited = not opening.done()
+            writer.release()
+            resp = await opening
+            await _drain_body(resp)
+            await asyncio.to_thread(note_ask.drain_background)
+        finally:
+            writer.close()
+            done.set()
+            await beat
+        return gaps, waited
+
+    gaps, waited = asyncio.run(run())
+    assert max(gaps) < BOUND_S, (
+        f"the loop stalled {max(gaps):.3f}s for every member while a charge waited on auth.db")
+    assert waited, "non-vacuity: the reservation never waited on the lock"
+    assert route.charged() == 1, "the charge must still land once the lock is released"
+    assert note_ask.inflight(UID) == 0
+
+
+# ── D-H11, statically: no durable-counter call is made ON the loop ────────────
+
+_ROOT = pathlib.Path(__file__).resolve().parents[1]
+_MODULES = {
+    "api.services.note_ask": "api/services/note_ask.py",
+    "api.services.journal_two.note_semantic": "api/services/journal_two/note_semantic.py",
+}
+_COUNTER = "api.services.daily_counters"
+
+
+def _counter_reaching(module_path) -> set:
+    """The module's top-level functions that reach `daily_counters`, DERIVED
+    from its own AST to a fixed point -- a counter-reaching helper added later
+    is covered the day it lands, and nothing here is a typed list."""
+    tree = ast.parse((_ROOT / module_path).read_text(encoding="utf-8"))
+    funcs = {n.name: n for n in tree.body if isinstance(n, (ast.FunctionDef, ast.AsyncFunctionDef))}
+    uses = {}
+    for name, fn in funcs.items():
+        names = set()
+        for node in ast.walk(fn):
+            if isinstance(node, ast.Attribute) and isinstance(node.value, ast.Name) \
+                    and node.value.id == "daily_counters":
+                names.add("<counter>")
+            elif isinstance(node, ast.Name) and node.id in funcs:
+                names.add(node.id)
+        uses[name] = names
+    reach = {n for n, u in uses.items() if "<counter>" in u}
+    while True:
+        more = {n for n, u in uses.items() if n not in reach and u & reach}
+        if not more:
+            return reach
+        reach |= more
+
+
+def _counter_api() -> dict:
+    api = {mod: _counter_reaching(path) for mod, path in _MODULES.items()}
+    tree = ast.parse((_ROOT / "api/services/daily_counters.py").read_text(encoding="utf-8"))
+    api[_COUNTER] = {n.name for n in tree.body if isinstance(n, ast.FunctionDef)}
+    return api
+
+
+def _aliases(tree):
+    """(local module name -> module, local function name -> (module, name)),
+    from every import in the file, function-level imports included."""
+    mods, fns = {}, {}
+    for node in ast.walk(tree):
+        if isinstance(node, ast.ImportFrom) and node.module:
+            for a in node.names:
+                full = f"{node.module}.{a.name}"
+                local = a.asname or a.name
+                if full in _MODULES or full == _COUNTER:
+                    mods[local] = full
+                elif node.module in _MODULES or node.module == _COUNTER:
+                    fns[local] = (node.module, a.name)
+        elif isinstance(node, ast.Import):
+            for a in node.names:
+                if a.name in _MODULES or a.name == _COUNTER:
+                    mods[a.asname or a.name] = a.name
+    return mods, fns
+
+
+def _scan_api():
+    """Every reference to a counter-reaching function anywhere in api/, with
+    the kind of the function it sits in and whether it is CALLED there."""
+    api = _counter_api()
+    found = []
+    for path in sorted((_ROOT / "api").rglob("*.py")):
+        rel = path.relative_to(_ROOT).as_posix()
+        if rel in _MODULES.values() or rel == "api/services/daily_counters.py":
+            continue
+        src = path.read_text(encoding="utf-8", errors="replace")
+        if "note_ask" not in src and "note_semantic" not in src and "daily_counters" not in src:
+            continue
+        tree = ast.parse(src)
+        mods, fns = _aliases(tree)
+
+        def target(node, mods=mods, fns=fns):
+            if isinstance(node, ast.Attribute) and isinstance(node.value, ast.Name) \
+                    and node.value.id in mods and node.attr in api[mods[node.value.id]]:
+                return node.attr
+            if isinstance(node, ast.Name) and node.id in fns \
+                    and fns[node.id][1] in api[fns[node.id][0]]:
+                return fns[node.id][1]
+            return None
+
+        class V(ast.NodeVisitor):
+            def __init__(self):
+                self.stack = []
+
+            def _fn(self, node, kind):
+                self.stack.append((node.name, kind))
+                self.generic_visit(node)
+                self.stack.pop()
+
+            def visit_FunctionDef(self, node):
+                self._fn(node, "sync")
+
+            def visit_AsyncFunctionDef(self, node):
+                self._fn(node, "async")
+
+            def visit_Call(self, node):
+                called = target(node.func)
+                if called and self.stack:
+                    found.append((rel, *self.stack[-1], called, "call"))
+                for arg in [*node.args, *(k.value for k in node.keywords)]:
+                    ref = target(arg)
+                    if ref and self.stack:
+                        found.append((rel, *self.stack[-1], ref, "passed"))
+                self.generic_visit(node)
+
+        V().visit(tree)
+    return api, found
+
+
+def test_no_durable_counter_call_runs_inside_an_async_def():
+    """Every counter-reaching call made from an `async def` in api/ is HANDED
+    to a thread (`run_in_threadpool(fn, ...)`, `functools.partial(fn, ...)` into
+    `StreamCharge`), never called there. The refund's own door (`close()` ->
+    `run_in_background`) is railed behaviourally above; this rail covers every
+    other site, the reservations included."""
+    api, found = _scan_api()
+    # the derivation is not vacuous: it reaches the functions the routes use
+    assert {"reserve_ask", "refund_ask", "reserve_writing_help", "refund_writing_help",
+            "shared_cap_reached"} <= api["api.services.note_ask"]
+    assert "append_meaning_hits" in api["api.services.journal_two.note_semantic"]
+
+    on_loop = [f for f in found if f[2] == "async" and f[4] == "call"]
+    assert on_loop == [], f"a durable-counter call made ON the event loop: {on_loop}"
+
+    # non-vacuity: the scan SEES the handed-off sites it exists to protect
+    passed = {(f[0], f[1], f[3]) for f in found if f[2] == "async" and f[4] == "passed"}
+    wh, j2 = "api/routers/notebook_writing_help.py", "api/routers/journal_two.py"
+    assert {(wh, "writing_help_stream", "reserve_writing_help"),
+            (wh, "writing_help_stream", "shared_cap_reached"),
+            (wh, "writing_help_stream", "refund_writing_help"),
+            (j2, "_ask_stream", "reserve_ask"),
+            (j2, "_ask_stream", "refund_ask")} <= passed, passed
+    # D-H6's embed charge: its only caller is a SYNC handler (a pool worker),
+    # and the scan sees that call
+    calls = {(f[0], f[1], f[2], f[3]) for f in found if f[4] == "call"}
+    assert (j2, "list_notes_endpoint", "sync", "append_meaning_hits") in calls, calls
