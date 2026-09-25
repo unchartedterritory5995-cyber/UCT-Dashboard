@@ -803,16 +803,35 @@ the whole thing holds together.
 > and every runtime reference to the ledger is a comment — so neither rollback lever applies
 > (a revert changes nothing; the hub kill switch would remove it from the 13 good routes).
 > The joystick programme's own 9/12 touch record had the hub SHOWING on four of those six;
-> today's six are exactly the routes with no registered hub section. Whether the hub went
-> section-only on purpose (then the tool's expectation is stale) or lost its non-section
-> fallback is the joystick owner's to decide. Recorded for them in
-> `docs/plans/joystick/smoke-runs/2026-09-24T23-17Z-touch.md`. **Second finding, from the
+> today's six are exactly the routes with no registered hub section. Read against the
+> code, that is a regression, not a stale expectation: `HubContext.jsx:185-189` says an
+> unrecognized route "leaves `mode` exactly as it was — the hub keeps showing whatever
+> section was last active." Finding the cause is the joystick owner's; recorded for them
+> in `docs/plans/joystick/smoke-runs/2026-09-24T23-17Z-touch.md`. **Second finding, from the
 > same console:** `GET /api/barspack/manifest` returns 401 for every browser — the route
 > was gated by `require_bars_access` on 2026-09-13 (`2d121371f`) while the client still
 > fetches it with `credentials: 'omit'` by design, so the Universe Bars Pack has been
 > silently dead for all members for eleven days (charts fall back to `/api/bars`; the
-> client swallows the failure). A lost fast path, not a crash; the fix is a gate-vs-edge-
-> cache decision for the bars owner. Both recorded in RESUME-HERE §5 as owner-bound.
+> client swallows the failure). A lost fast path, not a crash.
+>
+> **The bars-pack outage was FIXED the same night — and the fix took an H15 detour worth
+> recording.** `credentials: 'same-origin'` at all five client sites, gate untouched, a
+> rail asserting every pack fetch carries the cookie (mutation-proved: one site back to
+> `'omit'` → exactly that case red), and browser-level proof on a local build (manifest,
+> hot shard, shards 0–3 all 200 with the cookie; anonymous 401). Shipped `68872b3e0`,
+> SUCCESS 23:35Z, and the post-deploy console showed **zero** barspack 401s (was 5+ per
+> page). That smoke, run 30 s after the fresh boot, then FAILED on one route —
+> `/options-flow` "would not load (TimeoutError)", a 45 s `domcontentloaded` budget — so per
+> H15 it was rolled back first (`5fd248c40`, 23:47Z) and diagnosed second. The diagnosis
+> was a controlled comparison on the **reverted** build: the same smoke at the same +30 s
+> FAILED identically; at +5 min it PASSED 19/19. The timeout follows boot age, not the
+> change (and the pack ingest is idle-deferred and cancelled on navigation, so it cannot
+> gate a page's DOMContentLoaded in the first place). Re-landed as `73a4286d0`, a revert of
+> the rollback: SUCCESS 00:19Z (2026-09-25), warm-pod smoke PASS 19 routes / 31 nav
+> entries, barspack 401s in the console 0, anonymous manifest still 401. Live for members.
+> Two lessons, both filed: a post-deploy smoke at +30 s measures the boot, not the deploy —
+> run it on a warm pod; and the heaviest route taking >45 s to load in the first minute
+> after every deploy is its own owner-level finding (RESUME-HERE §5).
 
 ---
 

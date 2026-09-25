@@ -30,6 +30,8 @@ everything below.
 | `b9261e57b` | A9: keyboard-driven filter editing (`/`, arrows, Enter, Escape) on Screener | Pure keyboard-accessibility addition to an already-live surface; mouse/touch behavior unchanged |
 | `424bf3355` (2026-09-21, pre-dates this program) | S1 CP3: per-widget `ErrorBoundary` isolation on `/charts` | Already live before this week; terminal-grade property 5 confirmed satisfied here |
 | `acd230c15` | CLAUDE.md correction: stale OptionsFlow hook removed, PACKET-AA CP1/CP2 status recorded | Docs only, zero code path |
+| `6e7b10407` | Flag-ledger truth-up (12 entries, live audit exit 0), provenance-quote rationale, R-27 smoke tool fixes | Docs/tests/tools only |
+| `73a4286d0` (via `68872b3e0`, rolled back `5fd248c40`, re-landed) | Bars-pack client sends the session cookie — the Universe Bars Pack had 401'd for every member since the 2026-09-13 chart-data gate | A correction to an already-live, already-gated data path; no new exposure — the gate is untouched, the client simply stopped omitting the cookie. Member-visible improvement (instant first-view charts back). Verified on a warm pod: smoke PASS, console 401s 0 |
 
 **Owner action needed: none.** These are recorded here for completeness and because
 §6 item 1 ("the *combined* weekly branch's tests pass") is the one checklist item that
