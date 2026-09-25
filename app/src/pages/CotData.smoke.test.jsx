@@ -63,7 +63,20 @@ describe('CotData — one fetch per symbol, lookback slices client-side', () => 
   })
   afterEach(() => { vi.restoreAllMocks() })
 
-  const cotCalls  = () => fetchMock.mock.calls.filter(c => String(c[0]).startsWith('/api/cot/') && !String(c[0]).includes('narrative'))
+  // ⚰️ THIS COUNTED EVERY `/api/cot/*` CALL, which is not what this file claims.
+  // The claim is ONE FETCH PER SYMBOL; `/api/cot/status` and `/api/cot/symbols`
+  // are page bootstrap, one each, and `status` is the documented self-heal the
+  // COT tab fires on every visit. Counting them made a correct page read as
+  // "expected 1, got 3".
+  //
+  // ⭐ MEASURED BEFORE NARROWING, because the alternative explanation was a real
+  // double-fetch: per-URL counts on a mount are status 1, symbols 1,
+  // `ES?weeks=520` 1, `bars/SPY` 1. Nothing is fetched twice.
+  //
+  // ⛔ SO THE FILTER NAMES THE SHAPE IT MEANS: a symbol history read, which is
+  // the only call a lookback change could wrongly re-issue. A broader filter
+  // cannot tell "the lookback refetched" from "the page booted".
+  const cotCalls  = () => fetchMock.mock.calls.filter(c => /^\/api\/cot\/[A-Z0-9]+\?weeks=/.test(String(c[0])))
   const barsCalls = () => fetchMock.mock.calls.filter(c => String(c[0]).startsWith('/api/bars/'))
 
   it('fetches the full history once, the SPY proxy once, and shows the 1Y slice with the rail', async () => {

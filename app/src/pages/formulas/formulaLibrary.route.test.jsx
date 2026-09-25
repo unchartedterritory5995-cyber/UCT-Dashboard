@@ -79,11 +79,24 @@ describe('🔴 the library is wired into the app', () => {
     //
     // ⛔ SO THE RAIL IS ON THE TWO WAYS IT COULD SILENTLY REVERSE: the path
     // joining `FREE_PAGES`, or the `<Route>` being lifted out of `AuthGuard`.
+    // ⚰️ THE READER MOVED, THE RULING DID NOT. Until 307d7e2fb (S9 CP1 follow-up,
+    // 2026-09-19) `FREE_PAGES` was hand-typed inside AuthGuard.jsx and this case
+    // read it there; that commit gave the value ONE home, `constants/freePages.js`,
+    // and the regex below went `null` against correct code. So the rail now reads
+    // the value where it lives AND proves AuthGuard still consumes THAT value —
+    // a free list that is clean but no longer wired into the guard would be the
+    // same silent reversal by a different door.
+    const freeSrc = fs.readFileSync(
+      path.resolve(process.cwd(), 'src/constants/freePages.js'), 'utf8')
+    const freeLine = /export const FREE_PAGES = \[([^\]]*)\]/.exec(freeSrc)
+    expect(freeLine, 'FREE_PAGES could not be read from constants/freePages.js').toBeTruthy()
+    expect(freeLine[1]).not.toContain('/formulas')
     const guard = fs.readFileSync(
       path.resolve(process.cwd(), 'src/components/AuthGuard.jsx'), 'utf8')
-    const freeLine = /const FREE_PAGES = \[([^\]]*)\]/.exec(guard)
-    expect(freeLine, 'FREE_PAGES could not be read').toBeTruthy()
-    expect(freeLine[1]).not.toContain('/formulas')
+    expect(guard, 'AuthGuard no longer imports the shared FREE_PAGES')
+      .toMatch(/import \{ FREE_PAGES \} from '\.\.\/constants\/freePages'/)
+    expect(guard, 'AuthGuard no longer applies FREE_PAGES to the live pathname')
+      .toContain('FREE_PAGES.some(p => location.pathname.startsWith(p))')
 
     // ⛔ AND IT IS INSIDE `AuthGuard` — the half that would otherwise go
     // unnoticed, because nobody re-reads a `<Route>`'s nesting.
