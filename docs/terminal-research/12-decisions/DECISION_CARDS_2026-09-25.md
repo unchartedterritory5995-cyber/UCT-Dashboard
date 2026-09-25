@@ -159,6 +159,8 @@ the PR stays a draft until then. Web-only; `flow-worker` imports nothing here (g
 > the reverted build failed identically at the same pod age (RESUME-HERE §3 / §7). The re-land
 > is prepared on `merge-run` (`88399772c` + `056290d37`) and its push is the owner's one command
 > (RESUME-HERE §5). PR #194 is closed with the after-the-fact notice for Ravi.
+> **The owner pushed it at 17:27:25Z; LIVE as `7878374fb` (SUCCESS 17:30:04Z), with the
+> market-hours smoke floor that stops the false H15 shipped in the same stack.** CARD 8 is done.
 
 ---
 
