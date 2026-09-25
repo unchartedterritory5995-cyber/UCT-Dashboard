@@ -115,10 +115,11 @@ Both worktrees' own `CLAUDE.md` carry a pointer section (search "Notebook
 
 ## 5. Exact next actions, in order
 
-1. **OWNER: open the wave-5 PR** — `gh auth login` on this box, or open it from
-   `feat/notebook-10` (tip `34f3fb6d2`) into master; #183 must land first. The description is
-   `wave5-PR-draft.md` (SDD workspace, local disk). Then write the deploy note with the
-   member-impact paragraph (`feedback_master_push_needs_explicit_deploy_and_member_summary`).
+1. **OWNER: merge in this order, each as its own deploy** — **#187** (`hotfix/notebook-metadata-settle`,
+   draft until its gate manifest is committed and it is marked ready) → **#183** → **#186**
+   (`feat/notebook-10`, wave 5). Both PR bodies carry the member-impact paragraph for the deploy
+   summary (`feedback_master_push_needs_explicit_deploy_and_member_summary`). `gh` is
+   authenticated on this box since 20:35 CT, so the controller opens and updates PRs itself.
 2. **Lane D fix round 1 reports** → generate the review package (BASE = the tip before the
    round) → scoped re-review against `wave6-D-R1-fix-brief.md` → close lane D.
 3. **Lane E reports** → review package → task review → fix rounds as needed → close lane E.
