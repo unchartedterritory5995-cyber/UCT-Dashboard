@@ -147,8 +147,13 @@ took the 38; the integrator re-ran every touched file in its own tree before eac
 
 ### 3d. What is still owed
 
-1. **Gate C** — the closing six-shard gate on the integrated branch, once the box is quiet
-   (another session's gate ran 18:06–18:23 CT).
+1. ✅ **Gate C ran** (`docs/plans/joystick/gate-runs/2026-09-24T18-59-50.*`, on `a25c8a77a`,
+   18:38–19:01 CT): VALID — tree hash unchanged start→end, 1,722 files reconcile, 24,304 tests,
+   **24 red cases in 17 files**. By name against gate B: **0 NEW, 16 FIXED**; the 24 that remain
+   are exactly the classified set — 17 NEEDS-CORPUS, 5 product (4 fractional-window + 1
+   contract), rule12 (branch-shape), pollingSites (owner decision). Nothing the second wave
+   touched regressed anything. Gate B → C on this branch: 38 → 24 red cases; master's own
+   reds before the sweep: 84 targeted + these.
 2. **Your rulings**: the `pine.js:8048` fractional-window bypass (member-facing); the
    BuilderSheet document contract; rule12's scoping; whether to re-fetch the 30 withheld
    TradingView scripts on the rig (and regenerate the OOS baseline sidecar under
