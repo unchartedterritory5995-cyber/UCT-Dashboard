@@ -1,0 +1,12 @@
+# run 2026-09-25T02:13:36Z against https://uctintelligence.com (credentials from env, never printed)
+library rows: 332
+  id=324 yt=vslaRnO9G3E cat='Sunday Scans' created=2026-08-17 title='Sunday Scans — August 16, 2026 (Part 1)'
+  id=353 yt=hmGZSV_axHo cat='Evening Update' created=2026-09-11 title='Evening Update — September 10, 2026'
+  id=354 yt=znjo804B_0k cat='Evening Update' created=2026-09-11 title='EVENING UPDATE — September 10, 2026'
+matched 3/3
+
+# oEmbed control (public video) vs the three ids:
+dQw4w9WgXcQ 200
+vslaRnO9G3E 404
+hmGZSV_axHo 404
+znjo804B_0k 404
