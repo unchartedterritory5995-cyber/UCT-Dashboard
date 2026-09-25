@@ -40,17 +40,33 @@ def test_spans_are_the_contexts_exact_dates_never_reconstructed():
     assert R.instance_signals("A", xml) == [("A", "us-gaap:NetIncomeLoss", "2021-04-01", "2021-06-30", R.KIND)]
 
 
-def test_a_component_on_a_standard_breakdown_axis_is_not_the_consolidated_quantity():
-    xml = _instance(_ctx("p", "2023-01-01", "2023-06-30", [("srt:ProductOrServiceAxis", "x:WidgetsMember")]),
-                    _ctx("r", "2023-01-01", "2023-06-30", [("srt:ProductOrServiceAxis", "x:WidgetsMember"),
+def test_celh_real_structure_a_second_standard_axis_is_kept_as_an_adjustment():
+    """CELH's FY2021 10-K, AS FILED: srt:RestatementAxis together with the STANDARD
+    srt:CumulativeEffectPeriodOfAdoptionAxis carrying CELH's own members. A 'drop every
+    context with another standard axis' rule threw this genuine restatement away
+    (2026-09-25) -- this fixture is the real shape, not an invented extension axis."""
+    basis = ("srt:CumulativeEffectPeriodOfAdoptionAxis", "celh:EffectsOfTheAdjustmentsOnAStandaloneQuarterBasisMember")
+    xml = _instance(
+        _ctx("adj2", "2021-04-01", "2021-06-30", [basis, ("srt:RestatementAxis", "srt:RestatementAdjustmentMember")]),
+        _ctx("prev2", "2021-04-01", "2021-06-30", [basis, ("srt:RestatementAxis", "srt:ScenarioPreviouslyReportedMember")]),
+        _ctx("adj3", "2021-07-01", "2021-09-30", [basis, ("srt:RestatementAxis", "srt:RestatementAdjustmentMember")]),
+        '<us-gaap:NetIncomeLoss contextRef="adj2" unitRef="usd">-3180353</us-gaap:NetIncomeLoss>',
+        '<us-gaap:NetIncomeLoss contextRef="prev2" unitRef="usd">3960344</us-gaap:NetIncomeLoss>',
+        '<us-gaap:NetIncomeLoss contextRef="adj3" unitRef="usd">-12116438</us-gaap:NetIncomeLoss>')
+    assert R.instance_signals("K21", xml) == [
+        ("K21", "us-gaap:NetIncomeLoss", "2021-04-01", "2021-06-30", R.KIND),
+        ("K21", "us-gaap:NetIncomeLoss", "2021-07-01", "2021-09-30", R.KIND)]
+
+
+def test_a_second_axis_with_a_zero_adjustment_is_not_a_restatement():
+    """A multi-axis context counts only through a NON-ZERO adjustment (v4 meaning, kept)."""
+    xml = _instance(_ctx("r", "2023-01-01", "2023-06-30", [("srt:ProductOrServiceAxis", "x:WidgetsMember"),
                                                           ("srt:RestatementAxis", "srt:RestatementAdjustmentMember")]),
-                    '<us-gaap:Revenues contextRef="r" unitRef="usd">-5</us-gaap:Revenues>')
+                    '<us-gaap:Revenues contextRef="r" unitRef="usd">0</us-gaap:Revenues>')
     assert R.instance_signals("A", xml) == []
-    assert R.instance_signals("A", xml, consolidated_only=False) != []        # the rule, not the parser, drops it
 
 
 def test_a_company_extension_axis_is_kept_as_an_adjustment():
-    """CELH's own 'standalone quarter / YTD basis' axis is not a breakdown."""
     xml = _instance(_ctx("r", "2021-07-01", "2021-09-30", [("celh:BasisAxis", "celh:StandaloneQuarterMember"),
                                                           ("srt:RestatementAxis", "srt:RestatementAdjustmentMember")]),
                     '<us-gaap:NetIncomeLoss contextRef="r" unitRef="usd">-12116791</us-gaap:NetIncomeLoss>')
@@ -101,6 +117,15 @@ def test_mutation_the_reconstructed_fs_span_withholds_it():
     kb, pub = _celh(("2021-03-31", "2021-06-30"))
     p = value_at(build_series(kb, ["net_income_ttm"])["net_income_ttm"], pub["Q122"])
     assert p.method == GAP
+
+
+def test_celh_q4_2021_is_never_restated_fy_minus_original_9m():
+    """THE classic mixed basis: at the 10-K, Q4 = FY(restated) - 9M(original) = -3,354,286.
+    The 10-K's Q2/Q3 restatement makes the original 9M stale; Q4 must not be built from it.
+    (A too-broad 'breakdown axis' filter re-opened exactly this on the bounded corpus.)"""
+    kb, pub = _celh(("2021-04-01", "2021-06-30"))
+    p = value_at(build_series(kb, ["net_income_q"])["net_income_q"], pub["K21"])
+    assert p is None or p.method == GAP or abs(p.v - (3937273 - 7291559)) > 1
 
 
 def test_celh_q2_2022_stays_a_gap():
