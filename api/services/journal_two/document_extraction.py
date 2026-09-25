@@ -85,11 +85,18 @@ _DOCX_PAGE_CHARS = 3000
 #   first `draft()`-ed toward the OCR size, so it is charged for the reduced
 #   bitmap its decoder will actually produce.
 #
-# After the decode the image is shrunk to `_OCR_LONG_EDGE` on its long side (at
-# most 4000x4000 = 64 MB), which releases the full bitmap, and only then rotated
-# upright -- so the rotation's working copy is of the SMALL image. Transient peak
-# for one image: at most the budget + 64 MB. Pillow's own decompression-bomb
-# threshold (~89 MP) only WARNS, so it is not what bounds this.
+# After the decode the image is converted to greyscale (1 B/px, which releases
+# the colour bitmap), shrunk to `_OCR_LONG_EDGE` on its long side, and only then
+# rotated upright -- so every working copy after the decode is a greyscale one.
+# Transient peak for one image, MEASURED 2026-09-25 at the 25 MP maximum
+# (5000x5000), one call in a fresh process, peak commit on Windows: +121 MiB for
+# RGBA and for RGB alike -- the budgeted decode plus one greyscale copy.
+# ⚰️ Before the greyscale step the same measurement read +331 MiB (RGBA) and
+# +235 MiB (RGB): Pillow's resize builds a full-width intermediate, and for RGBA
+# a premultiplied full-size copy first. This comment said "budget + 64 MB" on
+# arithmetic alone. Rail: `TestImageMemory::test_one_image_at_the_budget_...`.
+# Pillow's own decompression-bomb threshold (~89 MP) only WARNS, so it is not
+# what bounds this.
 # ⚰️ The first cap was 50 MP and the image was decoded, copied by
 # `exif_transpose`, then converted: ~440 MB transient for one image, and a
 # second full decode thrown away just to validate the file.
@@ -429,10 +436,10 @@ def probe_image(data: bytes) -> bool:
 def load_image_for_ocr(data: bytes):
     """Decode an image attachment for the OCR adapter, or None.
 
-    ⛔ Bounded before the pixels are decoded (`_open_within_budget`), shrunk to
-    `_OCR_LONG_EDGE` on its long side once decoded (`thumbnail` works in place
-    and never enlarges), and only THEN rotated upright from its EXIF tag, in
-    place -- so no full-size copy is ever made. A phone photo is usually stored
+    ⛔ Bounded before the pixels are decoded (`_open_within_budget`), made
+    greyscale, shrunk to `_OCR_LONG_EDGE` on its long side (`thumbnail` works in
+    place and never enlarges), and only THEN rotated upright from its EXIF tag,
+    in place. The result is always mode "L". A phone photo is usually stored
     sideways with a rotation tag, and an engine handed the raw pixels reads a
     rotated page. Never raises.
     """
@@ -442,6 +449,12 @@ def load_image_for_ocr(data: bytes):
         if im is None:
             return None
         im.load()
+        # ⛔ GREYSCALE BEFORE THE RESIZE (fix round 2, N-1). The engine reads
+        # greyscale anyway (the tesseract adapter converts to "L"), so this
+        # changes nothing it sees -- and it is what keeps the resize small: on
+        # a colour image Pillow's resize allocates a full-width intermediate
+        # and, for RGBA, a premultiplied full-size copy first.
+        im = im.convert("L")
         im.thumbnail((_OCR_LONG_EDGE, _OCR_LONG_EDGE))
         ImageOps.exif_transpose(im, in_place=True)
         return im

@@ -675,3 +675,99 @@ class TestImageMemory:
         assert im is not None, "a normal wide photo was refused"
         assert pixel_decodes == [(4500, 1500)], "the decoder was not asked to reduce"
         assert im.size == (dx._OCR_LONG_EDGE, 1333)
+
+    # ⛔⛔ Fix round 2, N-1. The comment above `_IMAGE_DECODE_BUDGET_BYTES`
+    # claimed "budget + 64 MB" from arithmetic; the re-review MEASURED +333 MiB
+    # (RGBA) and +238 MiB (RGB) at the 25 MP maximum. The greyscale step before
+    # the resize brought both to +121 MiB (measured 2026-09-25, this box, peak
+    # commit, 3 runs each within 0.2 MiB). This rail is that measurement.
+    #
+    # ⛔ A FRESH PROCESS, AND THE PROCESS'S OWN COUNTER. tracemalloc cannot see
+    # Pillow's pixel buffers (they are C allocations, not Python objects), so
+    # the probe reads peak commit (Windows) / peak RSS (Linux) around ONE call,
+    # in a subprocess whose PNG is built by streaming -- no bitmap exists before
+    # the baseline. The reading is peak-after minus current-before, which can
+    # only OVER-state the call's transient, never hide it.
+    _PEAK_CEILING_MIB = 150    # measured 121 + a 29 MiB margin
+    _PEAK_FLOOR_MIB = 90       # the 25 MP decode alone is 95.4 MiB: below this, the probe saw nothing
+
+    @pytest.mark.parametrize("mode", ["RGBA", "RGB"])
+    def test_one_image_at_the_budget_peaks_under_the_measured_ceiling(self, mode, tmp_path):
+        import json
+        import os
+        import pathlib
+        import subprocess
+        import sys
+        repo = pathlib.Path(__file__).resolve().parents[1]
+        env = dict(os.environ)                       # carries the conftest's sandbox pins
+        env["AUTH_DB_PATH"] = str(tmp_path / "auth.db")
+        env["PYTHONPATH"] = str(repo)
+        side = int((dx._IMAGE_DECODE_BUDGET_BYTES // dx._DECODED_BYTES_PER_PIXEL) ** 0.5)
+        out = subprocess.run([sys.executable, "-c", _PEAK_PROBE, mode, str(side), str(side)],
+                             cwd=str(repo), env=env, capture_output=True, text=True, timeout=300)
+        assert out.returncode == 0, out.stderr[-2000:]
+        lines = out.stdout.strip().splitlines()
+        assert lines, "the probe printed nothing -- a reading of nothing is not a pass"
+        got = json.loads(lines[-1])
+        added = got["added"] / 2**20
+        assert added > self._PEAK_FLOOR_MIB, f"+{added:.1f} MiB: the probe did not see the decode"
+        assert added < self._PEAK_CEILING_MIB, (
+            f"one {mode} {side}x{side} image peaked at +{added:.1f} MiB, over the "
+            f"{self._PEAK_CEILING_MIB} MiB ceiling the comment's figure rests on")
+        # and the engine is handed what it was always handed: greyscale, shrunk
+        assert got["out"] == ["L", dx._OCR_LONG_EDGE, dx._OCR_LONG_EDGE], got
+
+
+# The fresh-process probe for the rail above. argv: mode, width, height.
+_PEAK_PROBE = r'''
+import ctypes, json, struct, sys, zlib
+
+def mem():
+    """(current, peak) bytes: commit on Windows, RSS on Linux."""
+    if sys.platform == "win32":
+        from ctypes import wintypes
+        class PMC(ctypes.Structure):
+            _fields_ = [("cb", wintypes.DWORD), ("PageFaultCount", wintypes.DWORD),
+                        ("PeakWorkingSetSize", ctypes.c_size_t), ("WorkingSetSize", ctypes.c_size_t),
+                        ("QuotaPeakPagedPoolUsage", ctypes.c_size_t), ("QuotaPagedPoolUsage", ctypes.c_size_t),
+                        ("QuotaPeakNonPagedPoolUsage", ctypes.c_size_t), ("QuotaNonPagedPoolUsage", ctypes.c_size_t),
+                        ("PagefileUsage", ctypes.c_size_t), ("PeakPagefileUsage", ctypes.c_size_t)]
+        pmc = PMC(); pmc.cb = ctypes.sizeof(PMC)
+        k32 = ctypes.WinDLL("kernel32", use_last_error=True)
+        k32.GetCurrentProcess.restype = wintypes.HANDLE
+        psapi = ctypes.WinDLL("psapi", use_last_error=True)
+        psapi.GetProcessMemoryInfo.argtypes = [wintypes.HANDLE, ctypes.POINTER(PMC), wintypes.DWORD]
+        if not psapi.GetProcessMemoryInfo(k32.GetCurrentProcess(), ctypes.byref(pmc), pmc.cb):
+            raise OSError(ctypes.get_last_error())
+        return pmc.PagefileUsage, pmc.PeakPagefileUsage
+    vals = {}
+    with open("/proc/self/status") as fh:
+        for line in fh:
+            k, _, v = line.partition(":")
+            if k in ("VmRSS", "VmHWM"):
+                vals[k] = int(v.split()[0]) * 1024
+    return vals["VmRSS"], vals["VmHWM"]
+
+mode, w, h = sys.argv[1], int(sys.argv[2]), int(sys.argv[3])
+ctype, px = {"RGBA": (6, b"\x10\x20\x30\xff"), "RGB": (2, b"\x10\x20\x30")}[mode]
+
+def chunk(kind, body):
+    return (struct.pack(">I", len(body)) + kind + body
+            + struct.pack(">I", zlib.crc32(kind + body) & 0xFFFFFFFF))
+
+row = b"\x00" + px * w
+comp = zlib.compressobj(6)
+idat = b"".join(comp.compress(row) for _ in range(h)) + comp.flush()
+del row
+png = (b"\x89PNG\r\n\x1a\n" + chunk(b"IHDR", struct.pack(">IIBBBBB", w, h, 8, ctype, 0, 0, 0))
+       + chunk(b"IDAT", idat) + chunk(b"IEND", b""))
+del idat
+
+from api.services.journal_two import document_extraction as dx
+import PIL.Image  # noqa: F401
+cur0, _ = mem()
+im = dx.load_image_for_ocr(png)
+_, peak1 = mem()
+print(json.dumps({"added": peak1 - cur0,
+                  "out": None if im is None else [im.mode, im.size[0], im.size[1]]}))
+'''
