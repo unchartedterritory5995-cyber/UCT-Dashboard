@@ -1419,10 +1419,17 @@ def _snippets_for(
         # genuinely contains a <mark>, so the frontend contract stays
         # simple: titleSnippet present+non-empty means the TITLE matched.
         f" CASE WHEN rowid IN ({rph}) THEN"
-        " highlight(j2_notes_fts, 2, '<mark>', '</mark>') END AS title_highlight"
+        " highlight(j2_notes_fts, 2, '<mark>', '</mark>') END AS title_highlight,"
+        # The page filter is its OWN marker. Never `body_snippet IS NOT NULL`: FTS5's
+        # snippet() returns NULL for a matched row whose body column is NULL, and that
+        # filter then dropped the row's title highlight with it. And never `rid IN (...)`
+        # on the outer query: SQLite pushes it down into the FTS scan as a per-rowid seek,
+        # the slow plan described above (50k notes, common term, page of 50: 16.6 ms p50
+        # against 4.5 ms; this marker measured 3.9 ms with the same MATCH-only plan).
+        f" CASE WHEN rowid IN ({rph}) THEN 1 END AS on_page"
         " FROM j2_notes_fts WHERE j2_notes_fts MATCH ?"
-        ") WHERE body_snippet IS NOT NULL",
-        [*rids, *rids, expr],
+        ") WHERE on_page = 1",
+        [*rids, *rids, *rids, expr],
     ).fetchall()
     out: dict[str, dict[str, str]] = {}
     for r in rows:
@@ -1526,8 +1533,11 @@ def list_notes(
                     "title": "title COLLATE NOCASE ASC",
                     # Trash view default: most recently deleted first — a member
                     # scanning for "the thing I just deleted" shouldn't have to sort.
-                    "deleted": "deleted_at DESC",
-                }.get(sort, "deleted_at DESC" if deleted else "updated_at DESC")
+                    # Ties break by id: a batch trash stamps ONE deleted_at on many
+                    # notes, and without a tiebreak their order (and so which note
+                    # lands on which page) was whatever the plan happened to scan.
+                    "deleted": "deleted_at DESC, id ASC",
+                }.get(sort, "deleted_at DESC, id ASC" if deleted else "updated_at DESC")
                 sql += f" ORDER BY {order_col}"
         sql += " LIMIT ? OFFSET ?"
         params = params + [max(1, min(limit, 500)), max(0, offset)]

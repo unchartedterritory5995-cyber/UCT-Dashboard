@@ -194,3 +194,36 @@ def test_the_tasks_read_starts_from_the_task_bearing_partial_index(conn):
     main = [st for s, st in plans if "taskItem" in s]
     assert main, "the tasks read no longer names taskItem -- update this rail with it"
     assert any("idx_j2_notes_live_tasks" in s for s in main[0]), main[0]
+
+
+def test_the_trash_order_breaks_deleted_at_ties_by_id(conn):
+    """Trash (`sort="deleted"`, and the deleted-view default) orders by `deleted_at DESC, id ASC`.
+
+    A batch trash stamps ONE `deleted_at` on many notes. Without the id tiebreak, their order --
+    and therefore which note lands on which page -- was whatever the plan scanned, and the
+    wave-7 index work changed it (review M-2: 39 of 1,032 differential combinations, every one a
+    tie). The ids are inserted in an order that is neither id order nor its reverse, so neither a
+    forward nor a reverse index scan can pass this by accident. The plan still walks
+    `idx_j2_notes_user_deleted` for the date part; only the ties are sorted.
+    """
+    stamp = "2026-09-20T12:00:00+00:00"
+    for nid in ("t3", "t1", "t4", "t2"):
+        conn.execute("INSERT INTO j2_notes (id, user_id, title, body_json, body_plain, tags,"
+                     " created_at, updated_at, deleted_at) VALUES (?,?,?,?,?,?,?,?,?)",
+                     (nid, U, nid, '{"type":"doc"}', "", "[]", stamp, stamp, stamp))
+    conn.execute("INSERT INTO j2_notes (id, user_id, title, body_json, body_plain, tags,"
+                 " created_at, updated_at, deleted_at) VALUES (?,?,?,?,?,?,?,?,?)",
+                 ("t0", U, "t0", '{"type":"doc"}', "", "[]", stamp, stamp, "2026-09-21T00:00:00+00:00"))
+    conn.commit()
+    expect = ["t0", "t1", "t2", "t3", "t4"]
+    got = [n["id"] for n in notes_svc.list_notes(U, deleted=True, sort="deleted", conn=conn)]
+    assert got == expect, got
+    paged = [n["id"] for off in (0, 2, 4)
+             for n in notes_svc.list_notes(U, deleted=True, sort="deleted", limit=2, offset=off, conn=conn)]
+    assert paged == expect, paged
+    # the deleted view's fallback (an unknown sort key) is the same order
+    assert [n["id"] for n in notes_svc.list_notes(U, deleted=True, sort="nope", conn=conn)] == expect
+    (sql, steps), = [p for p in _plans(conn, lambda c: notes_svc.list_notes(
+        U, deleted=True, sort="deleted", conn=c)) if "ORDER BY" in p[0]]
+    assert "deleted_at DESC, id ASC" in sql, sql
+    assert any("idx_j2_notes_user_deleted" in s for s in steps), steps
