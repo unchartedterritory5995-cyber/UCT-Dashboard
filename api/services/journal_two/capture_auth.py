@@ -210,6 +210,15 @@ CREATE INDEX IF NOT EXISTS idx_j2_capture_auth_codes_user
 
 def ensure_capture_auth_schema(conn: sqlite3.Connection) -> None:
     conn.executescript(_CAPTURE_AUTH_DDL)
+    # Wave 7 (G3): the email-in address (`notes+<token>@…`) is the third kind of
+    # capture credential — a capability to write into one member's Notebook.
+    # Its DDL stays in inbound_email.py (one authority; that module also
+    # ensures it on every call); it is invoked HERE too because this function
+    # is what `db.ensure_schema` runs at boot, so the table exists wherever the
+    # j2 schema does and account deletion always finds it — never a table the
+    # purge manifest names that a fresh database does not have.
+    from api.services.journal_two.inbound_email import ensure_inbound_schema
+    ensure_inbound_schema(conn)
 
 
 # ── The handshake ────────────────────────────────────────────────────────────

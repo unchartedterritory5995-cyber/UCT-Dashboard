@@ -912,6 +912,11 @@
       "where": [],
       "note": "Wave 7 lane G, 2026-09-25. Enablement gate for image (OCR via the J2_OCR_ENABLED tesseract adapter) and .docx (stdlib zip+xml) attachments becoming searchable documents through document_extraction.on_attachment_saved. Unset means OFF and that is the decision: while off, an image or docx upload creates no document row and the member sees exactly today's behaviour. Read per call; a flip needs no restart. Distinct from J2_OCR_ENABLED, which only says whether tesseract is present."
     },
+    "NOTEBOOK_INBOUND_EMAIL_ENABLED": {
+      "status": "dark",
+      "where": [],
+      "note": "Wave 7 lane G, 2026-09-25. Enablement gate for the inbound-email door (POST /api/j2/inbound-email, HMAC-signed by the Cloudflare Email Worker in cloudflare/inbound-email-worker/, plus the member address endpoints). Unset means OFF and that is the decision: every route answers 404 and no address token is minted. Stays dark until the owner approves the Privacy page sentence naming Cloudflare as a processor (draft in docs/notebook/email-in-setup.md) and sets the routing rule + worker secret. Read per request; a flip needs no restart."
+    },
     "NOTEBOOK_OFFLINE_READ_ON": {
       "status": "dark",
       "where": [],

@@ -116,6 +116,11 @@ _DIRECT_USER_TABLES = (
     # by that pass, so on a pod where it never ran this is a "no such table"
     # no-op. Wave 6 fix round 4, R4-4.
     "j2_task_reminder_log",
+    # Wave 7 (lane G, G3 email-in) — the member's private `notes+<token>@`
+    # address. Self-ensured by inbound_email.py (never db.py), so on a pod
+    # where email-in never ran this is a "no such table" no-op. A live address
+    # whose member is gone would keep turning mail into notes for nobody.
+    "j2_inbound_addresses",
 )
 
 # j2_broker_digest_dedup is deliberately excluded: it is a single global row
