@@ -1958,6 +1958,14 @@ _PERF_INDEXES = [
     # costs ~6 ms. `j2_notes_fts_map` already maps each note to its FTS rowid
     # (the delete path's O(1) lookup); this indexes the other direction.
     "CREATE INDEX IF NOT EXISTS idx_j2_notes_fts_map_rowid ON j2_notes_fts_map(fts_rowid)",
+    # The sidebar's expanded-folder rows (notes_for_folders): one folder's live notes
+    # by title, LIMIT 200. Without an index in title order SQLite read every note of
+    # the folder and sorted them all to keep 200 -- and once idx_j2_notes_live_cover
+    # existed the planner read them in updated_at order, a random walk over the
+    # table (wave 7 A/B at 50k, docs/notebook/perf-budgets.md §2). In title order
+    # the LIMIT stops the walk at 200.
+    "CREATE INDEX IF NOT EXISTS idx_j2_notes_live_folder_title"
+    " ON j2_notes(user_id, deleted_at, archived_at, folder_id, title COLLATE NOCASE)",
 ]
 
 

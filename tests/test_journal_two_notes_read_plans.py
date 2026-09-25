@@ -7,7 +7,8 @@ a second authority that drifts from the code it claims to check.
 What is pinned, and why each one matters (numbers: docs/notebook/perf-budgets.md §2,
 measured at 50k notes):
   * the folder counts, the tag grouping (tag cloud + tree) and the whole-library
-    count are answered from `idx_j2_notes_live_cover` ALONE. A note row's ~2 KB body
+    count are answered from a live covering index ALONE (`idx_j2_notes_live_cover`;
+    the folder counts may take the narrower `idx_j2_notes_live_folder_title`). A note row's ~2 KB body
     pushes `tags` / `folder_id` / `deleted_at` / `archived_at` onto an overflow page,
     so any plan that touches the table pays an overflow walk per note;
   * the symbol filters (`embed_symbol=`, `ticker=`, sector/theme `symbol_in`) and
@@ -108,11 +109,25 @@ def test_the_live_cover_index_exists_after_ensure_schema(conn):
     names = {r[0] for r in conn.execute("SELECT name FROM sqlite_master WHERE type='index'")}
     assert "idx_j2_notes_live_cover" in names
     assert "idx_j2_notes_live_tasks" in names
+    assert "idx_j2_notes_live_folder_title" in names
 
 
-def test_folder_counts_are_served_from_the_cover_index_alone(conn):
+def test_folder_counts_are_served_from_a_live_covering_index_alone(conn):
+    # Either live index answers it without a row read (both lead with user_id,
+    # deleted_at, archived_at, folder_id); the defect is a plan that reads rows.
     (sql, steps), = _plans(conn, lambda c: notes_svc.folder_note_counts(U, conn=c))
-    assert _covered_by_live_cover(steps), steps
+    assert any("USING COVERING INDEX idx_j2_notes_live_" in s for s in steps), steps
+
+
+def test_a_folders_rows_are_walked_in_title_order_not_sorted(conn):
+    # notes_for_folders: LIMIT 200 of one folder by title. Sorting the whole folder
+    # read every note in it (~111 ms at 50k, wave 7 A/B); walked in title order the
+    # LIMIT stops the walk.
+    conn.execute("UPDATE j2_notes SET folder_id = 'f1'")
+    conn.commit()
+    (sql, steps), = _plans(conn, lambda c: notes_svc.notes_for_folders(U, ["f1"], conn=c))
+    assert any("idx_j2_notes_live_folder_title" in s for s in steps), steps
+    assert not any("TEMP B-TREE FOR ORDER BY" in s for s in steps), steps
 
 
 def test_the_tags_route_makes_ONE_tag_pass_and_it_is_served_from_the_cover_index(conn):
