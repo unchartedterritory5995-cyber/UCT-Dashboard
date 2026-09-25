@@ -3855,6 +3855,38 @@ def _parse_mdy(s):
         return (0, 0, 0)
 
 
+#: How long `_flow_dates_all` may serve a cached answer. The list only ever GAINS a date, so a
+#: stale read can omit a brand-new session for at most this long and can never invent one.
+_FLOW_DATES_ALL_TTL_S = float(os.environ.get("FLOW_DATES_CACHE_TTL_S", "60") or 60)
+
+
+def _flow_dates_all() -> list:
+    """Every distinct `CreatedDate` in flow.db, all sources, CACHED for `_FLOW_DATES_ALL_TTL_S`.
+
+    ⛔⛔ THIS QUERY IS THE FIXED COST OF EVERY SINGLE-TICKER `/flow`. Measured in the flow-worker
+    pod 2026-09-25: `SELECT DISTINCT CreatedDate FROM flow` = 1,993–2,075 ms (181 dates over
+    ~20M rows; SQLite walks the whole date index to dedupe), and it ran INSIDE `_build_by_contract`
+    on every `only_ticker` call — so a one-contract answer for BP cost 2.5 s, of which 2.0 s was
+    this, and a thin name widening through four rungs (GEMI, ACI) paid it four times: 8.5 s.
+    `flow_db.get_available_dates` had already solved the identical problem for `/live-massive`
+    (its docstring: "~3.0 s, on a WARM pod") with a 60 s TTL; this is the same shape for the
+    all-sources list the rollup wants.
+    ⛔ Keyed by `DB_PATH`: two callers over different files (web's frozen copy, the flow-worker's
+    live tape, every test's fixture) must never serve each other's dates."""
+    from api.services.cache import cache as _shared
+    ck = f"flow_dates_all::{DB_PATH}"
+    hit = _shared.get(ck)
+    if hit is not None:
+        return list(hit)
+    _c = sqlite3.connect(DB_PATH, timeout=10)
+    try:
+        dates = [r[0] for r in _c.execute("SELECT DISTINCT CreatedDate FROM flow").fetchall() if r[0]]
+    finally:
+        _c.close()
+    _shared.set(ck, list(dates), ttl=_FLOW_DATES_ALL_TTL_S)
+    return dates
+
+
 def _build_by_contract(today: str, stock_etf: str, min_hits: int,
                        exclude_algo: bool, lookback_days: int = 1,
                        only_ticker: str = None) -> dict:
@@ -3907,12 +3939,7 @@ def _build_by_contract(today: str, stock_etf: str, min_hits: int,
         # means the last TRADING day: on a weekend / holiday / long weekend / before
         # today's tape starts, `/flow TICKER` with no window picked shows the last
         # working day's flow instead of an empty card.
-        _c = sqlite3.connect(DB_PATH, timeout=10)
-        try:
-            all_dates = [r[0] for r in _c.execute(
-                "SELECT DISTINCT CreatedDate FROM flow").fetchall() if r[0]]
-        finally:
-            _c.close()
+        all_dates = _flow_dates_all()
         today_key = _parse_mdy(today)
         dated = sorted([d for d in all_dates if _parse_mdy(d) <= today_key],
                        key=_parse_mdy, reverse=True)
@@ -4508,11 +4535,21 @@ def _contract_has_sweep_map(sym: str, dates) -> dict:
     conn = sqlite3.connect(DB_PATH, timeout=10)
     try:
         ph = ",".join("?" * len(dates))
+        # ⛔⛔ `+Symbol`, NOT `Symbol`. The unary plus stops the planner using a Symbol-led index
+        # for this predicate, and that is the whole difference between 163 ms and 4,175 ms on
+        # SPY (measured in the flow-worker pod 2026-09-25, 27,273 SPY rows on the day). Without it
+        # SQLite picks `idx_flow_contract (Symbol, CallPut, Strike, ExpirationDate)` because its
+        # shape matches the GROUP BY, and then walks EVERY SPY row in history (millions) filtering
+        # on the date afterwards. `api/flow_worker_main.py` already records this exact seduction
+        # ("idx_flow_contract's shape otherwise seduces the planner") for the sibling query it
+        # indexes around; this function was written later and fell into the same trap. With the
+        # steer the planner takes `idx_flow_created_symbol (CreatedDate=?)`, or `idx_flow_date` on
+        # a database without the extra index — either way the day's rows, not the symbol's history.
         for r in conn.execute(
             "SELECT CallPut, Strike, ExpirationDate, "
             "MAX(CASE WHEN UPPER(Type) LIKE '%SWEEP%' OR UPPER(Type) LIKE '%ISO%' "
             "         THEN 1 ELSE 0 END) "
-            "FROM flow WHERE Symbol=? AND CreatedDate IN (" + ph + ") "
+            "FROM flow WHERE +Symbol=? AND CreatedDate IN (" + ph + ") "
             "GROUP BY CallPut, Strike, ExpirationDate", [sym] + dates):
             try:
                 sk = float(r[1])

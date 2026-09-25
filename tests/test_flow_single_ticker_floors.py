@@ -202,3 +202,56 @@ def test_the_reply_and_the_card_both_name_a_widened_window():
     assert _flow_window_phrase({"days_requested": "1"}) == "today"
     assert _flow_window_phrase({"days_requested": "all"}) == "all history"
     assert _window_label({"days_requested": "5", "active_days": 2}) == "last 5 trading days  ·  2 active days"
+
+
+# ── the fixed cost of a single-ticker call (measured in the pod 2026-09-25) ────────────────
+
+def test_the_distinct_dates_scan_runs_once_per_ttl_and_is_keyed_by_db_path(tape, tmp_path, monkeypatch):
+    """`SELECT DISTINCT CreatedDate FROM flow` cost 2.0 s of BP's 2.5 s and ran on EVERY
+    single-ticker call — four times for a name widening through the ladder. It is now cached
+    for `_FLOW_DATES_ALL_TTL_S`, keyed by the database file so two files never share an answer."""
+    real_connect = lmr.sqlite3.connect
+    opened = []
+
+    def counting_connect(path, *a, **k):
+        opened.append(str(path))
+        return real_connect(path, *a, **k)
+    monkeypatch.setattr(lmr.sqlite3, "connect", counting_connect)
+    first = lmr._flow_dates_all()
+    second = lmr._flow_dates_all()
+    assert first == second and first, first
+    assert len(opened) == 1, f"the dates scan reopened the database on a warm read: {opened}"
+    # a DIFFERENT database file is a different answer, never the cached one
+    other = tmp_path / "other.db"
+    FlowDB(str(other))
+    monkeypatch.setattr(lmr, "DB_PATH", str(other))
+    assert lmr._flow_dates_all() == [], "a second database served the first one's dates"
+
+
+def test_the_sweep_map_is_right_and_steers_the_planner_off_the_symbol_index(tape, monkeypatch):
+    """Two contracts on the fixture: one sweep-backed, one block-only. The map must say so — and
+    the SQL must carry the `+Symbol` steer: without it SQLite takes the Symbol-led contract index
+    and walks the symbol's whole history (SPY: 4,175 ms vs 163 ms, pod, 2026-09-25)."""
+    today = tape
+    exp = dt.datetime.now(lmr.ET).date() + dt.timedelta(days=30)
+    exp_s = f"{exp.month}/{exp.day}/{exp.year}"
+    conn = sqlite3.connect(lmr.DB_PATH)
+    conn.execute(
+        "INSERT INTO flow (source, CreatedDate, CreatedTime, Symbol, Type, Volume, Price, Side, CallPut, "
+        "Strike, Spot, Premium, ExpirationDate, Color, Dte, MktCap, OI, dedup_key) VALUES "
+        "('stocks', ?, '10:05:00', ?, 'BLOCK', '100', '15.0', 'A', 'CALL', '540', '530', '150000', ?, "
+        "'YELLOW', '30', ?, '100', 'blk540')", (today, TICKER, exp_s, str(MEGA_CAP)))
+    conn.commit(); conn.close()
+    seen_sql = []
+    real_connect = lmr.sqlite3.connect
+
+    class _Conn:
+        def __init__(self, c): self._c = c
+        def execute(self, sql, *a):
+            seen_sql.append(sql); return self._c.execute(sql, *a)
+        def close(self): self._c.close()
+    monkeypatch.setattr(lmr.sqlite3, "connect", lambda *a, **k: _Conn(real_connect(*a, **k)))
+    m = lmr._contract_has_sweep_map(TICKER, [today])
+    assert m[("C", 535.0, exp_s)] is True, m       # three SWEEP prints
+    assert m[("C", 540.0, exp_s)] is False, m      # BLOCK only
+    assert any("+Symbol=?" in s for s in seen_sql), "the planner steer is gone; SPY pays 4 s again"
