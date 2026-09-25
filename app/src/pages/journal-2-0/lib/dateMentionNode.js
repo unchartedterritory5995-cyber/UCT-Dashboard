@@ -103,6 +103,26 @@ export function dateMentionLongLabel(date) {
   return `${DOW_LONG[d.getUTCDay()]}, ${MON_LONG[d.getUTCMonth()]} ${d.getUTCDate()}, ${d.getUTCFullYear()}`
 }
 
+/**
+ * ⛔ M16 (wave 6 fix round 1): A RELATIVE LABEL IS ONLY TRUE ON THE DAY IT WAS
+ * PAINTED. ⚰️ It was computed once, when the node view was built, so a note left
+ * open overnight still said "Tomorrow" about today. Every live mention is
+ * registered here, and when the page comes back into view (a tab switched back
+ * to, a laptop woken, the window focused) each one repaints if ITS "today" has
+ * moved. One pair of listeners for the whole page, installed on first use.
+ */
+const LIVE_MENTIONS = new Set()
+let repaintListening = false
+function repaintStaleMentions() {
+  LIVE_MENTIONS.forEach((recheck) => { try { recheck() } catch { /* one view never stops the rest */ } })
+}
+function listenForANewDay() {
+  if (repaintListening || typeof document === 'undefined') return
+  repaintListening = true
+  document.addEventListener('visibilitychange', () => { if (document.visibilityState !== 'hidden') repaintStaleMentions() })
+  if (typeof window !== 'undefined') window.addEventListener('focus', repaintStaleMentions)
+}
+
 // `@word` preceded by the start of the text or a space/bracket (never an email
 // address), ended by a space or punctuation. No lookbehind (iOS 16 floor): the
 // leading character is matched, and the handler starts at the `@`.
@@ -148,24 +168,32 @@ export const DateMention = Node.create({
       dom.setAttribute('data-type', 'date-mention')
       dom.className = 'uctDateMention'
       dom.contentEditable = 'false'
+      let paintedFor = null
       const paint = (n) => {
         const date = isIsoDate(n.attrs.date) ? n.attrs.date : null
+        paintedFor = today()
         if (date) dom.setAttribute('data-date', date)
         else dom.removeAttribute('data-date')
-        dom.textContent = date ? dateMentionLabel(date, today()) : 'Date'
+        dom.textContent = date ? dateMentionLabel(date, paintedFor) : 'Date'
         dom.setAttribute('title', date ? dateMentionLongLabel(date) : '')
         dom.setAttribute('aria-label', date ? `Date: ${dateMentionLongLabel(date)}` : 'Date')
       }
       paint(node)
       let current = node
+      // M16: repaint when THIS view's "today" is no longer the day it painted.
+      const recheck = () => { if (today() !== paintedFor) paint(current) }
+      LIVE_MENTIONS.add(recheck)
+      listenForANewDay()
       return {
         dom,
         update(next) {
           if (next.type !== current.type) return false
-          if (next.attrs.date !== current.attrs.date) paint(next)
+          const changed = next.attrs.date !== current.attrs.date
           current = next
+          if (changed) paint(next)
           return true
         },
+        destroy() { LIVE_MENTIONS.delete(recheck) },
       }
     }
   },

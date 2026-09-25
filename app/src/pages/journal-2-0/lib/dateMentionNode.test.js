@@ -178,3 +178,44 @@ describe('⭐ the contract with lane F (tasks read a dateMention as the due date
     expect(tasks[0].text.replace(/\s+/g, ' ').trim()).toBe('Earnings prep')
   })
 })
+
+// ⛔ M16 (wave 6 fix round 1): a relative label is true only on the day it was
+// painted. A note left open overnight kept saying "Tomorrow" about today.
+describe('a date mention re-reads "today" when the page comes back', () => {
+  const clock = { today: '2026-09-24' }
+  function mountWithClock(content) {
+    const el = document.createElement('div')
+    document.body.appendChild(el)
+    const extensions = buildExtensions().map((e) => (e.name === 'dateMention' ? e.configure({ today: () => clock.today }) : e))
+    editor = new Editor({ element: el, extensions, content: { type: 'doc', content } })
+    return editor
+  }
+  const label = () => document.querySelector('.ProseMirror .uctDateMention').textContent
+  const mention = (date) => ({ type: 'paragraph', content: [{ type: 'text', text: 'Due ' }, { type: 'dateMention', attrs: { date } }] })
+
+  it('open overnight: "Tomorrow" becomes "Today" when the tab is looked at again', () => {
+    clock.today = '2026-09-24'
+    mountWithClock([mention('2026-09-25')])
+    expect(label()).toBe('Tomorrow')
+    clock.today = '2026-09-25'                       // midnight passes; nothing in the note changes
+    document.dispatchEvent(new Event('visibilitychange'))
+    expect(label()).toBe('Today')
+  })
+
+  it('…and when the window is focused again (a laptop woken, a window switched back to)', () => {
+    clock.today = '2026-09-24'
+    mountWithClock([mention('2026-09-24')])
+    expect(label()).toBe('Today')
+    clock.today = '2026-09-25'
+    window.dispatchEvent(new Event('focus'))
+    expect(label()).toBe('Yesterday')
+  })
+
+  it('CONTROL — the same day repaints nothing (the label is not rebuilt on every event)', () => {
+    clock.today = '2026-09-24'
+    mountWithClock([mention('2026-09-25')])
+    const node = document.querySelector('.ProseMirror .uctDateMention').firstChild
+    document.dispatchEvent(new Event('visibilitychange'))
+    expect(document.querySelector('.ProseMirror .uctDateMention').firstChild).toBe(node)
+  })
+})
