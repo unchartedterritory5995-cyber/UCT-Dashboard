@@ -1336,6 +1336,11 @@ export default function NotebookTab() {
                     note={note}
                     onOpenBeside={isDesktop ? (n) => showBeside(n.id) : undefined}
                     besideExclude={sideId ? [sideId] : []}
+                    // M2 (wave 6 fix round 2): route the menu's Unlock
+                    // through the editor's OWN unlock (lands the revision,
+                    // moves the save baseline, settles the offline queue) —
+                    // never a second, thinner door.
+                    onUnlock={api?.unlockNote}
                     onChanged={() => {
                       api?.refresh?.()
                       refresh()

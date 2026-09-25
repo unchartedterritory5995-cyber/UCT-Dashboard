@@ -37,8 +37,18 @@ import styles from './NoteMenuActions.module.css'
  *   passes it on desktop, for the main pane): no split, no button, no dead click.
  * @param besideExclude  ids the search must not offer besides this note (the
  *   note already beside it).
+ * @param onUnlock  M2 (wave 6 fix round 2): `() => Promise<void>` — the
+ *   EDITOR's own unlock (NoteEditorPage's `unlockNote`, passed through the
+ *   `noteMenu` render prop). Unlocking through `setNoteLock` alone lands the
+ *   revision but skips the editor's save-baseline move and its
+ *   `settleMetadataRevision` offline-queue settle — the menu's Unlock button
+ *   used to do exactly that, costing the member's next keystroke a 409 +
+ *   re-fetch. Optional: when omitted (this component's own unit tests,
+ *   which never mount a real editor), Unlock falls back to `setNoteLock`
+ *   exactly as before. Lock is unaffected either way — a locked note isn't
+ *   about to be typed into, so there is no imminent save to protect.
  */
-export default function NoteMenuActions({ note, onChanged, onOpenBeside, besideExclude = [] }) {
+export default function NoteMenuActions({ note, onChanged, onOpenBeside, besideExclude = [], onUnlock }) {
   const [busy, setBusy] = useState(false)
   const [status, setStatus] = useState(null) // { message, tone }
   const [templateDraft, setTemplateDraft] = useState(null) // string while naming
@@ -70,11 +80,18 @@ export default function NoteMenuActions({ note, onChanged, onOpenBeside, besideE
     : { done: 'Archived. It is under Archived in the sidebar, still in its folder.',
       failed: "Couldn't archive this note. Nothing changed." })
 
-  const toggleLock = () => run(() => setNoteLock(note.id, !locked), locked
-    ? { done: 'Unlocked. You can edit this note again.',
-      failed: "Couldn't unlock this note. It is still locked." }
-    : { done: 'Locked. Editing is off until you unlock it.',
-      failed: "Couldn't lock this note. Nothing changed." })
+  // M2 (wave 6 fix round 2): unlocking through the editor's own `onUnlock`
+  // when it is given — the one door that also moves the save baseline and
+  // settles the offline queue. Locking always uses `setNoteLock` directly:
+  // a locked note is not about to be typed into.
+  const toggleLock = () => run(
+    () => (locked && onUnlock ? onUnlock() : setNoteLock(note.id, !locked)),
+    locked
+      ? { done: 'Unlocked. You can edit this note again.',
+        failed: "Couldn't unlock this note. It is still locked." }
+      : { done: 'Locked. Editing is off until you unlock it.',
+        failed: "Couldn't lock this note. Nothing changed." },
+  )
 
   // Wave 6 item 3: "Save as template" — the SERVER copies this note's title,
   // body and property values; the name defaults to the title.

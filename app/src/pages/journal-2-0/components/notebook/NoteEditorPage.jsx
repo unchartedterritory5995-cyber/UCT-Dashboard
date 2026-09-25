@@ -2984,8 +2984,16 @@ export default function NoteEditorPage({ noteId, onBack, showBack = true, onTitl
               actions (Lock, Archive, Save as template, Open beside). Lane E's
               own file (NoteMenuActions.jsx) renders itself; this is the one
               line that reads the render prop NotebookTab has passed since wave
-              6 landed. */}
-          {noteMenu?.(note, { refresh })}
+              6 landed.
+              M2 (wave 6 fix round 2): `unlockNote` is THIS editor's own
+              unlock — the one that lands the revision, moves the save
+              baseline when the server moved by metadata only, and settles
+              the offline queue (`settleMetadataRevision`). The menu's own
+              Unlock button used a second door (`setNoteLock` alone) that did
+              only the first of those three, costing the next save a 409 +
+              re-fetch; passing this through lets the menu route through the
+              SAME settle instead of restating a worse copy of it. */}
+          {noteMenu?.(note, { refresh, unlockNote })}
         </div>
       </header>
 
