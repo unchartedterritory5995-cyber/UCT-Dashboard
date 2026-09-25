@@ -277,6 +277,21 @@ const TEST_INFRA = /(^|[\\/])(__tests__|__fixtures__|__mocks__|testing|test-stub
  * recorded in a diff with a reason beside it; that is the point.
  */
 const AWAITING_A_DECISION = {
+  // ── FILTER BAND — ORPHANED BY #178, RECORDED NOT DELETED (2026-09-25) ────
+  //
+  // The owner removed the per-control percentile bands and the basis note from
+  // FilterRail on 2026-09-21 (46d03d3c4, "remove range bands"); FilterRail.jsx
+  // says so at its own render site. That left this renderer with no importer,
+  // its "wire" tests red, and this rail red — all three since the same commit.
+  // Recorded rather than deleted because tests/test_screener_distribution.py
+  // still READS FilterBand.jsx for its refusal sentences: deleting the file
+  // means re-pointing that Python rail in the same commit, which is the
+  // screener owner's call (delete both, or re-wire the band somewhere). Expiry:
+  // whichever of those happens — then drop this entry.
+  'app/src/pages/screener/shell/FilterBand.jsx':
+    'FILTER BAND — the measured-range renderer FilterRail stopped mounting in '
+    + '#178 (2026-09-21). Delete it with tests/test_screener_distribution.py '
+    + 're-pointed, or re-wire it; do not leave it looking shipped.',
   // ── THE PINE RUNTIME, NOT YET MOUNTED (2026-09-09) ───────────────────────
   //
   // ⛔⛔ THESE ARE ORPHANS ON PURPOSE AND FOR A DATED REASON, WHICH IS THE ONLY

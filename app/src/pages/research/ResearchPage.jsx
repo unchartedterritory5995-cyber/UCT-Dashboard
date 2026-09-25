@@ -13,6 +13,7 @@ import NewsTab from './tabs/NewsTab'
 import CatalystsTab from './tabs/CatalystsTab'
 import ModelBookTab from './tabs/ModelBookTab'
 import TechnicalTab from './tabs/TechnicalTab'
+import FlowTab from './tabs/FlowTab'
 import RatingsTab from './tabs/RatingsTab'
 import OwnershipTab from './tabs/OwnershipTab'
 import CallsTab from './tabs/CallsTab'
@@ -88,13 +89,22 @@ import styles from './ResearchPage.module.css'
 // joins the "what others/we have said about this name" grouping (with
 // Analyst Ratings/Calls & Transcript), ahead of the raw-document tabs
 // (Filings) -- has this ticker ever been a curated Model Book entry.
-const TABS = ['Overview', 'News', 'Catalysts', 'Technical', 'Financials', 'Estimates', 'Analyst Ratings', 'Ratings', 'Ownership', 'Calls & Transcript', 'Model Book', 'Filings', 'Ask AI', 'My Research']
+//
+// A13 Wave B (2026-09-23, roadmap-2026-09-23): "Flow" joins the same
+// "what's happening now" grouping as News/Technical/Catalysts, right after
+// Technical -- what has the options tape actually shown on this ticker,
+// reusing the existing per-ticker flow endpoint (see FlowTab.jsx for the
+// scope-revision rationale: this replaced a literal thesis+setup+trade+flow
+// merged panel, which would have violated this page's own "MY RESEARCH vs
+// MARKET DATA" boundary below). Ships DARK behind RESEARCH_FLOW_TAB_ENABLED,
+// same mechanism and polarity as RESEARCH_TECHNICAL_TAB_ENABLED.
+const TABS = ['Overview', 'News', 'Catalysts', 'Technical', 'Flow', 'Financials', 'Estimates', 'Analyst Ratings', 'Ratings', 'Ownership', 'Calls & Transcript', 'Model Book', 'Filings', 'Ask AI', 'My Research']
 
 // P2: the earnings modal's rail LINK items deep-open /research/:sym?section=…
 // (spec §4.3). Seeding the initial tab from that param is the whole contract —
 // the tab stays local state afterwards, and P3 replaces this bar with SectionRail.
 const SECTION_TO_TAB = {
-  overview: 'Overview', news: 'News', catalysts: 'Catalysts', technical: 'Technical', financials: 'Financials', estimates: 'Estimates',
+  overview: 'Overview', news: 'News', catalysts: 'Catalysts', technical: 'Technical', flow: 'Flow', financials: 'Financials', estimates: 'Estimates',
   'analyst-ratings': 'Analyst Ratings',
   ratings: 'Ratings', ownership: 'Ownership', calls: 'Calls & Transcript', modelbook: 'Model Book',
   filings: 'Filings', ai: 'Ask AI', research: 'My Research',
@@ -103,7 +113,7 @@ const SECTION_TO_TAB = {
 export default function ResearchPage() {
   const { sym: rawSym } = useParams()
   const navigate = useNavigate()
-  const { isPaid, researchTechnicalTabEnabled } = useAuth()
+  const { isPaid, researchTechnicalTabEnabled, researchFlowTabEnabled } = useAuth()
   const [searchParams] = useSearchParams()
   const [rawActive, setActive] = useState(
     () => SECTION_TO_TAB[(searchParams.get('section') || '').toLowerCase()] || 'Overview',
@@ -120,7 +130,12 @@ export default function ResearchPage() {
   // tab is absent from the strip AND `?section=technical` falls through to
   // Overview rather than selecting a tab that is not there, which would render
   // an empty content area under a strip that never offered it.
-  const tabs = researchTechnicalTabEnabled ? TABS : TABS.filter(t => t !== 'Technical')
+  //
+  // A13 Wave B's "Flow" tab ships dark the same way behind
+  // RESEARCH_FLOW_TAB_ENABLED — same reasoning, independent flag.
+  const tabs = TABS.filter(t =>
+    (t !== 'Technical' || researchTechnicalTabEnabled) &&
+    (t !== 'Flow' || researchFlowTabEnabled))
   const active = tabs.includes(rawActive) ? rawActive : 'Overview'
 
   const data = useResearchOverview(rawSym)
@@ -159,6 +174,7 @@ export default function ResearchPage() {
       {active === 'News' && <NewsTab sym={sym} />}
       {active === 'Catalysts' && <CatalystsTab sym={sym} />}
       {active === 'Technical' && <TechnicalTab sym={sym} />}
+      {active === 'Flow' && <FlowTab sym={sym} />}
       {active === 'Financials' && <FinancialsTab sym={sym} />}
       {active === 'Estimates' && <EstimatesTab sym={sym} />}
       {active === 'Analyst Ratings' && <AnalystRatingsTab sym={sym} />}

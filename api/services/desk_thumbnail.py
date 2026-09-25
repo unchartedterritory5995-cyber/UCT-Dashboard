@@ -179,6 +179,19 @@ def _resolve_theme(variant: str | None, eyebrow_label: str) -> Theme:
     return _DEFAULT_THEME
 
 
+# Layouts that are a HOST's own card (owner-commissioned per-host art), not a
+# per-show placeholder. desk_creative.render_cover declines to paint an AI cover
+# over these — the card IS the answer for that host's episodes.
+_BESPOKE_LAYOUTS = frozenset({"plate", "zen"})
+
+
+def has_bespoke_card(eyebrow_label: str) -> bool:
+    """True when this eyebrow resolves to a host's own card (ChartMaster's
+    plate, Zen's yin-yang). Derived from _resolve_theme, so it can never
+    disagree with which card actually renders."""
+    return _resolve_theme(None, eyebrow_label).layout in _BESPOKE_LAYOUTS
+
+
 def _episode_seed(date_text: str, eyebrow_label: str) -> int:
     """Deterministic per-episode seed derived from the episode's own inputs —
     same date+eyebrow always reproduces the same card; a different date or
