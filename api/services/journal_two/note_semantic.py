@@ -391,11 +391,46 @@ def index_member(user_id: str, *, conn: sqlite3.Connection | None = None,
             conn.close()
 
 
+# The members a sweep has WORK for, oldest-indexed first -- ONE statement, no
+# note body read (whole-branch review M-4). A member has work when a live note's
+# revision marker is missing or differs (a new note, an edit, a provider
+# switch: `_revision_marker` is `<updated_at>|<provider>`), or when a stored
+# vector's note is no longer live (trashed, archived, deleted, or the member's
+# notes are gone altogether -- the review's M-5 purge race). ⚰️ It listed EVERY
+# member with a live note, and the budget shrank only by embeds, so an idle run
+# walked every member's whole library (bodies included) plus a DELETE and a
+# commit per member, four times an hour. ⛔ Not "newest note vs newest indexed
+# block": a member whose older notes were deferred past a run's budget has an
+# indexed newest note, and that test would strand the rest forever.
+_MEMBERS_WITH_WORK_SQL = (
+    "WITH live AS ("
+    "  SELECT user_id, id, updated_at FROM j2_notes"
+    "  WHERE deleted_at IS NULL AND archived_at IS NULL),"
+    " idx AS ("
+    "  SELECT user_id, note_id, MAX(updated_at) AS at FROM j2_note_embeddings"
+    "  GROUP BY user_id, note_id),"
+    " work AS ("
+    "  SELECT l.user_id FROM live l LEFT JOIN idx i"
+    "    ON i.user_id = l.user_id AND i.note_id = l.id"
+    "  WHERE i.at IS NULL OR i.at <> (l.updated_at || '|' || ?)"
+    "  UNION"
+    # ⛔ A SET DIFFERENCE, not a join back to j2_notes by id: the join read each
+    # indexed note's ROW (its deleted_at/archived_at sit past a ~2 KB body, an
+    # overflow walk per note); EXCEPT reads both sides from covering indexes.
+    "  SELECT user_id FROM (SELECT user_id, note_id FROM idx"
+    "                       EXCEPT SELECT user_id, id FROM live))"
+    " SELECT w.user_id FROM work w"
+    " LEFT JOIN (SELECT user_id, MAX(at) AS last_at FROM idx GROUP BY user_id) m"
+    "   ON m.user_id = w.user_id"
+    " ORDER BY COALESCE(m.last_at, '') ASC, w.user_id ASC")
+
+
 def run_sweep(*, conn: sqlite3.Connection | None = None,
               provider: EmbeddingProvider | None = None,
               max_embeds: int = MAX_EMBEDS_PER_SWEEP) -> dict[str, Any]:
-    """Every member with notes, oldest-indexed first, until the run's budget is
-    spent. ⛔ Dark: a no-op that touches nothing."""
+    """Every member with something to index or drop (`_MEMBERS_WITH_WORK_SQL`),
+    oldest-indexed first, until the run's budget is spent; a member with
+    nothing pending is never visited. ⛔ Dark: a no-op that touches nothing."""
     if not semantic_enabled():
         return {"skipped": "dark"}
     provider = provider or get_provider()
@@ -404,12 +439,7 @@ def run_sweep(*, conn: sqlite3.Connection | None = None,
     try:
         conn.row_factory = sqlite3.Row
         ensure_semantic_schema(conn)
-        members = [r[0] for r in conn.execute(
-            "SELECT n.user_id FROM j2_notes n"
-            " LEFT JOIN (SELECT user_id, MAX(updated_at) AS at FROM j2_note_embeddings"
-            "            GROUP BY user_id) e ON e.user_id = n.user_id"
-            " WHERE n.deleted_at IS NULL GROUP BY n.user_id"
-            " ORDER BY COALESCE(MAX(e.at), '') ASC, n.user_id ASC")]
+        members = [r[0] for r in conn.execute(_MEMBERS_WITH_WORK_SQL, (provider.name,))]
         total = {"members": 0, "embedded": 0, "deferred": 0}
         budget = max_embeds
         for uid in members:
