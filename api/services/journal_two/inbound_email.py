@@ -132,6 +132,10 @@ CREATE TABLE IF NOT EXISTS j2_inbound_drops (
     last_at  TEXT NOT NULL,
     PRIMARY KEY (user_id, day, reason)
 );
+CREATE TABLE IF NOT EXISTS j2_inbound_seen (
+    signature_key  TEXT PRIMARY KEY,
+    expires_at     REAL NOT NULL
+);
 """
 
 
@@ -291,6 +295,53 @@ def verify_signature(
         return False
     expected = expected_signature(secret, timestamp, raw_body).encode("ascii")
     return hmac.compare_digest(expected, given)
+
+
+# ── One delivery per signature (whole-branch review M-6) ─────────────────────
+#
+# ⚰️ A captured signed request verifies for its whole window (±5 minutes), so it
+# could be REPLAYED -- and every replay passed `admit()`, spending the address's
+# rolling 20/hour. The member's genuine mail was then silently dropped for up
+# to an hour, besides the note being made twenty times. (The setup doc said a
+# replay "would make a second copy of the note".) Now a signature is delivered
+# ONCE: the router claims it after it verifies and before anything is parsed
+# or charged; a second arrival is answered like any other request (202 -- no
+# oracle) and makes nothing. The Email Worker signs every POST afresh, so a
+# genuine retry never carries an old signature.
+#
+# DURABLE (auth.db, `j2_inbound_seen`), holding a HASH of the signature (never
+# the signature itself) until the instant it could no longer verify, pruned on
+# every claim. It names no member, so it is not in the account purge.
+
+def _signature_key(signature: str) -> str:
+    return hashlib.sha256(signature.strip().lower().encode("ascii", "ignore")).hexdigest()[:40]
+
+
+def claim_delivery(signature: str, timestamp: str, *, now: float | None = None,
+                   conn: sqlite3.Connection | None = None) -> bool:
+    """True the FIRST time a verified signature is presented, False for every
+    later arrival while it could still verify. Call only AFTER
+    `verify_signature` passed: an unverified request is never recorded."""
+    now = time.time() if now is None else float(now)
+    expires = int(timestamp) + REPLAY_WINDOW_SECONDS + 1
+    owned = conn is None
+    conn = conn or get_connection()
+    try:
+        ensure_inbound_schema(conn)
+        conn.execute("BEGIN IMMEDIATE")
+        conn.execute("DELETE FROM j2_inbound_seen WHERE expires_at < ?", (now,))
+        cur = conn.execute(
+            "INSERT OR IGNORE INTO j2_inbound_seen (signature_key, expires_at) VALUES (?, ?)",
+            (_signature_key(signature), float(expires)))
+        conn.commit()
+        return cur.rowcount == 1
+    except BaseException:
+        if conn.in_transaction:
+            conn.rollback()
+        raise
+    finally:
+        if owned:
+            conn.close()
 
 
 # ── Limits ───────────────────────────────────────────────────────────────────

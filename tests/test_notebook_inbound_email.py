@@ -185,7 +185,8 @@ class TestDark:
             monkeypatch.setenv(GATE, value)
         monkeypatch.setenv("NOTEBOOK_INBOUND_EMAIL_SECRET", SECRET)
         called = []
-        for name in ("ingest", "get_or_create_address", "rotate", "resolve", "verify_signature"):
+        for name in ("ingest", "get_or_create_address", "rotate", "resolve", "verify_signature",
+                     "claim_delivery"):
             monkeypatch.setattr(inbound_email, name, lambda *a, _n=name, **k: called.append(_n))
         _as_member(app, _user())
         r = _send(client, {"to": "notes+" + "a" * 24 + "@uctintelligence.com", "subject": "x"})
@@ -596,6 +597,81 @@ class TestLimits:
         uid = _user()
         assert _send(client, {"to": _address(uid), "text": "x"}).status_code == 202
         assert parsed == [] and _notes(uid) == []
+
+
+# ── whole-branch fix · M-6: a replayed signed request is dropped ──────────────
+
+def _usage_count(uid):
+    from api.services.auth_db import get_connection
+    c = get_connection()
+    try:
+        return c.execute("SELECT COUNT(*) FROM j2_inbound_usage WHERE user_id = ?", (uid,)).fetchone()[0]
+    finally:
+        c.close()
+
+
+class TestReplay:
+    """⚰️ Backend review M-6. A captured signed request verifies for its whole
+    five-minute window, so it could be REPLAYED up to the address's 20/hour --
+    each replay passed `admit()` and spent the address's rolling allowance, so
+    the member's genuine mail was then silently dropped (`address_rate`) for up
+    to an hour, as well as the note being duplicated 20 times. The docs said a
+    replay "would make a second copy of the note". Now each signature is
+    delivered ONCE: the second arrival is answered like any other (202, no
+    oracle) and makes nothing, and the record is durable (auth.db), pruned with
+    the window."""
+
+    def test_a_REPLAYED_request_is_answered_the_same_and_makes_nothing(self, client, on):
+        uid = _user()
+        raw, headers = _signed({"to": _address(uid), "subject": "once", "text": "x"})
+        first = client.post("/api/j2/inbound-email", content=raw, headers=headers)
+        replays = [client.post("/api/j2/inbound-email", content=raw, headers=headers) for _ in range(3)]
+        assert {(r.status_code, r.content) for r in [first, *replays]} == {(202, b'{"accepted":true}')}
+        assert [n["title"] for n in _notes(uid)] == ["once"]
+        assert _usage_count(uid) == 1, "a replay was charged against the allowance"
+
+    def test_a_replay_cannot_burn_the_hourly_allowance(self, client, on, monkeypatch):
+        from api.services.journal_two import inbound_email
+        monkeypatch.setattr(inbound_email, "ADDRESS_MAX_MESSAGES_PER_HOUR", 2)
+        uid = _user()
+        raw, headers = _signed({"to": _address(uid), "subject": "captured", "text": "x"})
+        for _ in range(5):
+            client.post("/api/j2/inbound-email", content=raw, headers=headers)
+        assert _send(client, {"to": _address(uid), "subject": "genuine", "text": "y"}).status_code == 202
+        assert sorted(n["title"] for n in _notes(uid)) == ["captured", "genuine"]
+        assert _drops(uid) == [], "genuine mail was dropped after a replay burst"
+
+    def test_CONTROL_two_different_emails_signed_in_the_same_second_both_land(self, client, on):
+        uid = _user()
+        ts = int(time.time())
+        _send(client, {"to": _address(uid), "subject": "first", "text": "x"}, ts=ts)
+        _send(client, {"to": _address(uid), "subject": "second", "text": "x"}, ts=ts)
+        assert sorted(n["title"] for n in _notes(uid)) == ["first", "second"]
+
+    def test_the_record_is_DURABLE_and_pruned_with_the_window(self, db_path):
+        from api.services.auth_db import get_connection
+        from api.services.journal_two import inbound_email as ie
+        t0 = 1_760_000_000
+        assert ie.claim_delivery("a" * 64, str(t0), now=t0) is True
+        assert ie.claim_delivery("A" * 64, str(t0), now=t0 + 10) is False     # the same signature
+        # still inside the window from the other side: still refused
+        assert ie.claim_delivery("a" * 64, str(t0), now=t0 + ie.REPLAY_WINDOW_SECONDS) is False
+        # a later claim prunes every record whose signature can no longer verify
+        assert ie.claim_delivery("b" * 64, str(t0 + 900), now=t0 + 900) is True
+        c = get_connection()
+        try:
+            rows = c.execute("SELECT COUNT(*) FROM j2_inbound_seen").fetchone()[0]
+        finally:
+            c.close()
+        assert rows == 1, "the record outlived the window it guards"
+
+    def test_a_bad_signature_is_never_recorded(self, client, on, monkeypatch):
+        from api.services.journal_two import inbound_email
+        claimed = []
+        monkeypatch.setattr(inbound_email, "claim_delivery", lambda *a, **k: claimed.append(a) or True)
+        raw, headers = _signed({"to": "x", "text": "y"}, secret="not-the-secret")
+        assert client.post("/api/j2/inbound-email", content=raw, headers=headers).status_code == 401
+        assert claimed == []
 
 
 # ── fix round 1 · M-12: a lapsed plan stops the address making notes ─────────

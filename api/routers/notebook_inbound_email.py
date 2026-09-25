@@ -18,6 +18,7 @@ any address is minted. Read per request.
 from __future__ import annotations
 
 import json
+import logging
 import os
 from typing import Any
 
@@ -27,6 +28,8 @@ from starlette.concurrency import run_in_threadpool
 
 from api.middleware.auth_middleware import get_current_user_with_plan, is_paid_user
 from api.services.journal_two import inbound_email
+
+logger = logging.getLogger(__name__)
 
 NOT_FOUND = "Not Found"   # byte-identical to FastAPI's unknown-route body
 # Cloudflare Email Routing accepts messages up to 25 MiB; base64 inflates the
@@ -87,12 +90,10 @@ async def receive_email(request: Request) -> Response:
     raw = await _read_capped(request)
     if raw is None:
         return Response(status_code=413)
+    timestamp = request.headers.get("x-uct-timestamp")
+    signature = request.headers.get("x-uct-signature")
     ok = inbound_email.verify_signature(
-        os.environ.get(inbound_email.SECRET_ENV),
-        request.headers.get("x-uct-timestamp"),
-        request.headers.get("x-uct-signature"),
-        raw,
-    )
+        os.environ.get(inbound_email.SECRET_ENV), timestamp, signature, raw)
     if not ok:
         # ⛔ NO BODY. Not "bad signature", not "expired": a caller without the
         # secret learns nothing about which check it failed.
@@ -103,6 +104,12 @@ async def receive_email(request: Request) -> Response:
         return Response(status_code=400)
     if not isinstance(payload, dict):
         return Response(status_code=400)
+    # ⛔ ONE DELIVERY PER SIGNATURE (whole-branch review M-6): a replay of a
+    # captured request is answered exactly like a delivery and makes nothing --
+    # no note, and no charge against the address's hourly allowance.
+    if not await run_in_threadpool(inbound_email.claim_delivery, signature, timestamp):
+        logger.warning("[inbound-email] a replayed signed request was dropped")
+        return JSONResponse({"accepted": True}, status_code=202)
     # Whatever `ingest` decides -- a note, an unknown address, a lapsed plan, a
     # limit reached -- the worker is told the same thing.
     await run_in_threadpool(inbound_email.ingest, payload, size=len(raw))
