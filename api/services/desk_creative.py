@@ -831,6 +831,13 @@ def render_cover(*, section: str, eyebrow: str, date_text: str,
     insights pass uses this to re-skin a cover with what the session ACTUALLY
     discussed once the transcript lands (headline + tickers)."""
     try:
+        # A host's own card (ChartMaster's plate, Zen's yin-yang) is never
+        # painted over. Every AI-cover path — publish, transcript refresh,
+        # retry queue, backfill sweep — comes through here, so this is the one
+        # place the refusal lives. Returns before any LLM/image spend.
+        from api.services.desk_thumbnail import has_bespoke_card
+        if has_bespoke_card(eyebrow):
+            return None
         if ctx is _UNSET:
             ctx = day_context()
         if not ctx:

@@ -277,6 +277,35 @@ const TEST_INFRA = /(^|[\\/])(__tests__|__fixtures__|__mocks__|testing|test-stub
  * recorded in a diff with a reason beside it; that is the point.
  */
 const AWAITING_A_DECISION = {
+  // ── S4 CP1 DIVERGENCE DETECTOR — RECORDED, NOT MOUNTED (2026-09-25, R-29) ─
+  //
+  // Its own header is the reason: approved scope (owner, 2026-09-13) is "a
+  // derivation + a divergence rail. Read-only. Mounts nothing." Its consumer is
+  // `focusDivergence.test.jsx`, which this walk cannot see because it starts
+  // from App.jsx. It was filed as R-29 in the joystick closure and left red on
+  // master since; recorded here so the rail stops crying wolf about a decision
+  // that was made in writing. Expiry: S4 mounts a consumer (S4 CP3 already
+  // derives HubContext.symbol from useAppFocus — the detector may then be
+  // retired) or deletes the module; then drop this entry.
+  'app/src/lib/context/focusDivergence.js':
+    'S4 CP1 divergence detector — read-only, mounts nothing BY APPROVED SCOPE '
+    + '(2026-09-13); reached only by its own rail. R-29. Mount, retire, or '
+    + 'delete it; then drop this entry.',
+  // ── FILTER BAND — ORPHANED BY #178, RECORDED NOT DELETED (2026-09-25) ────
+  //
+  // The owner removed the per-control percentile bands and the basis note from
+  // FilterRail on 2026-09-21 (46d03d3c4, "remove range bands"); FilterRail.jsx
+  // says so at its own render site. That left this renderer with no importer,
+  // its "wire" tests red, and this rail red — all three since the same commit.
+  // Recorded rather than deleted because tests/test_screener_distribution.py
+  // still READS FilterBand.jsx for its refusal sentences: deleting the file
+  // means re-pointing that Python rail in the same commit, which is the
+  // screener owner's call (delete both, or re-wire the band somewhere). Expiry:
+  // whichever of those happens — then drop this entry.
+  'app/src/pages/screener/shell/FilterBand.jsx':
+    'FILTER BAND — the measured-range renderer FilterRail stopped mounting in '
+    + '#178 (2026-09-21). Delete it with tests/test_screener_distribution.py '
+    + 're-pointed, or re-wire it; do not leave it looking shipped.',
   // ── THE PINE RUNTIME, NOT YET MOUNTED (2026-09-09) ───────────────────────
   //
   // ⛔⛔ THESE ARE ORPHANS ON PURPOSE AND FOR A DATED REASON, WHICH IS THE ONLY

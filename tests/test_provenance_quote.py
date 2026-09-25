@@ -1,8 +1,13 @@
 """Tests for GET /api/provenance/quote (S8 Step 2 — live D1 -> S8 wiring).
 
-No-auth, matching /api/live-prices and /api/fundamentals/{ticker}'s existing
-no-auth convention for ordinary quote-shaped data. Mocks the HTTP layer
-inside each adapter (never the network), same pattern as
+Signed in as a paid member for every behaviour case below (the autouse
+fixture from tests/authclients), because since 2026-09-25 the route takes
+`get_current_user` — the same gate OI-17 (`caebdab16`, 2026-09-23) put on
+/api/live-prices and three sibling market-data endpoints. ⚰️ Until then it
+was no-auth, citing a "no-auth convention" those siblings had already left,
+and its only consumer (/provenance-demo) was a public route; both moved behind
+the gate together. `test_anonymous_is_refused` pins the gate itself. Mocks the
+HTTP layer inside each adapter (never the network), same pattern as
 test_fmp_client.py / test_massive_d1.py.
 """
 import time
@@ -14,12 +19,31 @@ from fastapi.testclient import TestClient
 from api.services import fmp_client as fc
 from api.services import massive as m
 from api.services.cache import cache as _cache
+from api.middleware.auth_middleware import get_current_user
+from tests.authclients import PAID_MEMBER, _autouse_as
+
+# Every case below runs as a signed-in paid member; the gate itself is left in
+# place and exercised by `test_anonymous_is_refused`.
+_signed_in = _autouse_as(PAID_MEMBER)
 
 
 @pytest.fixture(scope="module")
 def client():
     from api.main import app
     return TestClient(app, raise_server_exceptions=False)
+
+
+def test_anonymous_is_refused(client):
+    """⛔ The gate. Lift the signed-in override for one request and the route must
+    answer 401, not a quote — the OI-17 class this route joined on 2026-09-25."""
+    from api.main import app
+    saved = app.dependency_overrides.pop(get_current_user, None)
+    try:
+        r = client.get("/api/provenance/quote", params={"symbol": "AAPL", "vendor": "fmp"})
+        assert r.status_code == 401, r.text
+    finally:
+        if saved is not None:
+            app.dependency_overrides[get_current_user] = saved
 
 
 @pytest.fixture(autouse=True)

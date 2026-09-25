@@ -27,6 +27,25 @@ let _timer = null
 let _inflight = false
 let _pollAgain = false // a poll was requested while one was in-flight (union grew)
 
+// OI-17 note: /api/live-prices started requiring a session (Depends(get_current_user))
+// on 2026-09-23. Before that, 401 was structurally impossible here. A session that
+// expires mid-poll (30-day TTL, so rare but real) now gets a 401 on every chunk, and
+// `.then((r) => r.ok ? r.json() : null)` below treats that identically to a network
+// blip — the store silently freezes the last-good price forever with no visible
+// signal, because nothing else re-polls auth state on its own (AuthContext's
+// fetchUser runs once on mount). `_onUnauthorized` closes that gap: AuthContext
+// registers itself here (see AuthContext.jsx) so a 401 forces a definitive
+// /api/auth/me re-check, which flips `user` to null and lets AuthGuard redirect
+// to /login — the same visible outcome a member gets from any other expired session.
+let _onUnauthorized = null
+let _unauthorizedFired = false // fire at most once per timer run — see _startTimer
+
+/** Registered by AuthContext. Not required — a store used outside the app
+ * (a test, a standalone tool) just keeps degrading silently as before. */
+export function setUnauthorizedHandler(fn) {
+  _onUnauthorized = typeof fn === 'function' ? fn : null
+}
+
 const _isMobile =
   typeof window !== 'undefined' &&
   ('ontouchstart' in window || navigator.maxTouchPoints > 0 || window.innerWidth <= 640)
@@ -71,7 +90,15 @@ async function _poll() {
     }
     const parts = await Promise.all(chunks.map((chunk) =>
       fetch(`/api/live-prices?tickers=${chunk.join(',')}`, _ac ? { signal: _ac.signal } : undefined)
-        .then((r) => (r.ok ? r.json() : null))
+        .then((r) => {
+          // A 401 is the backend answering "no", never a transient blip — treat it
+          // as the distinct signal it is (see the OI-17 note above), not silence.
+          if (r.status === 401 && !_unauthorizedFired) {
+            _unauthorizedFired = true
+            _onUnauthorized?.()
+          }
+          return r.ok ? r.json() : null
+        })
         .catch(() => null),
     ))
     if (parts.every((p) => p == null)) return // every chunk failed — keep last prices, retry next tick
@@ -119,6 +146,7 @@ async function _poll() {
 
 function _startTimer() {
   if (_timer != null) return
+  _unauthorizedFired = false // re-arm: a fresh subscriber set / tab refocus deserves its own check
   _timer = setInterval(_poll, _intervalMs())
 }
 
@@ -185,4 +213,6 @@ export function __resetForTest() {
   _stopTimer()
   _inflight = false
   _pollAgain = false
+  _onUnauthorized = null
+  _unauthorizedFired = false
 }

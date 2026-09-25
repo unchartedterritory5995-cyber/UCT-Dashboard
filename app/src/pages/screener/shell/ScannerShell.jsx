@@ -39,7 +39,7 @@ const densityKey = 'uct.screener.density'
  * `ScreensManager` keeps its menu in private `open` state and exposes no prop for it, and that
  * file belongs to another workstream. So the seam lives HERE, in the component that renders it:
  * `root` is the element this shell wraps the manager in, and the trigger is the manager's own
- * "Screens ▾" button — the same control a member taps. Opening the member's own door is what
+ * "Screener ▾" button (renamed from "Screens ▾" in #167) — the same control a member taps. Opening the member's own door is what
  * makes this a seam rather than a second authority over what a saved screen is; a copy of the
  * picker mounted from the hub would be two menus disagreeing the day one of them changed.
  *
@@ -299,7 +299,7 @@ export default function ScannerShell({ embedded = false }) {
              * and it deliberately differs from the match count beside it.
              * Opens the IN-SCREENER review overlay (below) — no navigation to
              * /charts; the member flips through the charts here, keyboard-driven. */
-            <button type="button" className={styles.toolBtn} onClick={() => setReviewOpen(true)}>
+            <button type="button" className={styles.toolBtn} data-testid="review-charts" onClick={() => setReviewOpen(true)}>
               <UIcon name="chart" size={13} /> Review charts <b>{displayRows.length}</b>
             </button>
           ) : null}

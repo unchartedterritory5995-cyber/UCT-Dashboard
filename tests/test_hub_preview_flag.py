@@ -167,6 +167,56 @@ def test_the_technical_tab_gate_is_read_per_request(access_payload, a_member, mo
 
 
 # ---------------------------------------------------------------------------
+# RESEARCH_FLOW_TAB_ENABLED — the Research "Flow" tab gate (A13 Wave B).
+#
+# Same request-time mechanism and ENABLEMENT polarity as
+# RESEARCH_TECHNICAL_TAB_ENABLED above — an independent flag on the same
+# universal auth path, so the property worth pinning is identical: no
+# environment value, however malformed, can make the payload builder raise.
+# ---------------------------------------------------------------------------
+
+@pytest.mark.parametrize("raw,expected", [
+    ("1", True), ("true", True), ("TRUE", True), ("  on  ", True), ("Yes", True),
+    ("0", False), ("false", False), ("no", False), ("off", False),
+    ("", False), ("   ", False), ("banana", False), ("2", False),
+    ("null", False), ("None", False), ("[]", False), ("\t\n", False),
+])
+def test_the_flow_tab_gate_normalizes_and_never_raises(
+    access_payload, a_member, monkeypatch, raw, expected
+):
+    monkeypatch.setenv("RESEARCH_FLOW_TAB_ENABLED", raw)
+    payload = access_payload(a_member, "free")          # must not raise
+    assert payload["research_flow_tab_enabled"] is expected
+
+
+def test_the_flow_tab_gate_is_off_when_unset(access_payload, a_member, monkeypatch):
+    """Unset must read as NOT RELEASED — a forgotten variable can never expose
+    a surface nobody decided to ship."""
+    monkeypatch.delenv("RESEARCH_FLOW_TAB_ENABLED", raising=False)
+    assert access_payload(a_member, "free")["research_flow_tab_enabled"] is False
+
+
+def test_the_flow_tab_gate_is_read_per_request(access_payload, a_member, monkeypatch):
+    """Flipping it in Railway must change behaviour once the pod restarts, with
+    no code change. A module-level capture would need a redeploy of the app."""
+    monkeypatch.setenv("RESEARCH_FLOW_TAB_ENABLED", "0")
+    assert access_payload(a_member, "free")["research_flow_tab_enabled"] is False
+    monkeypatch.setenv("RESEARCH_FLOW_TAB_ENABLED", "1")
+    assert access_payload(a_member, "free")["research_flow_tab_enabled"] is True
+
+
+def test_the_flow_tab_gate_is_independent_of_the_technical_gate(access_payload, a_member, monkeypatch):
+    """Two separate flags on the same payload -- flipping one must never move
+    the other. This is what lets A13 Wave B ship dark without disturbing the
+    already-released Technical tab."""
+    monkeypatch.setenv("RESEARCH_TECHNICAL_TAB_ENABLED", "1")
+    monkeypatch.setenv("RESEARCH_FLOW_TAB_ENABLED", "0")
+    payload = access_payload(a_member, "free")
+    assert payload["research_technical_tab_enabled"] is True
+    assert payload["research_flow_tab_enabled"] is False
+
+
+# ---------------------------------------------------------------------------
 # NOTEBOOK_* — Wave K puts four more flags on this same payload.
 #
 # ⛔⛔ THE PER-REQUEST PROPERTY IS ASSERTED HERE, FOR THEM TOO, AND THE ROSTER IS

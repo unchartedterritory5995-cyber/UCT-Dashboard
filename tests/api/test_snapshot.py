@@ -2,6 +2,7 @@ import pytest
 from unittest.mock import patch
 from httpx import AsyncClient, ASGITransport
 from api.main import app
+from api.middleware.auth_middleware import get_current_user
 
 MOCK_SNAPSHOT = {
     "futures": {
@@ -19,8 +20,30 @@ MOCK_SNAPSHOT = {
     }
 }
 
+
+@pytest.fixture
+def auth_override():
+    """Fakes the GATE'S INPUT, never the gate itself — the real
+    Depends(get_current_user) route code still runs. Cleared after every
+    test so the override can never leak into another module."""
+    app.dependency_overrides[get_current_user] = lambda: {
+        "id": 1, "role": "user", "email": "member@test",
+    }
+    yield
+    app.dependency_overrides.clear()
+
+
 @pytest.mark.asyncio
-async def test_snapshot_returns_structure():
+async def test_snapshot_requires_auth():
+    """Without a session, `/api/snapshot` refuses rather than serving live
+    quotes anonymously (OI-17)."""
+    async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as ac:
+        r = await ac.get("/api/snapshot")
+    assert r.status_code == 401
+
+
+@pytest.mark.asyncio
+async def test_snapshot_returns_structure(auth_override):
     with patch("api.routers.snapshot.get_snapshot", return_value=MOCK_SNAPSHOT):
         async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as ac:
             r = await ac.get("/api/snapshot")
@@ -31,9 +54,26 @@ async def test_snapshot_returns_structure():
     assert "NQ" in data["futures"]
     assert "QQQ" in data["etfs"]
 
+
 @pytest.mark.asyncio
-async def test_snapshot_503_on_error():
+async def test_snapshot_503_on_error(auth_override):
     with patch("api.routers.snapshot.get_snapshot", side_effect=Exception("API down")):
         async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as ac:
             r = await ac.get("/api/snapshot")
     assert r.status_code == 503
+
+
+@pytest.mark.asyncio
+async def test_ticker_snapshot_requires_auth():
+    async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as ac:
+        r = await ac.get("/api/snapshot/AAPL")
+    assert r.status_code == 401
+
+
+@pytest.mark.asyncio
+async def test_ticker_snapshot_authenticated(auth_override):
+    with patch("api.routers.snapshot.get_ticker_snapshot", return_value={"price": 200.0}):
+        async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as ac:
+            r = await ac.get("/api/snapshot/AAPL")
+    assert r.status_code == 200
+    assert r.json()["price"] == 200.0

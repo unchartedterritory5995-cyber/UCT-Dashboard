@@ -286,18 +286,20 @@
       "note": "DARK, set on no service. Holds breadth_reconstructed_daily resident in the web process as {date: metrics JSON STRING}, so a deep cold read skips the 12 chunked SELECTs entirely. OFF leaves reconstructed_for_dates byte-identical to the shipped path and builds no resident object at all (asserted by the ABSENCE of the object, not by a timing). MEASURED, all 4,700 rows: resident 5,214,625 B = 1.15x the 4,523,328 wire bytes, inside the standing 2x bound; build 46 ms; invalidation is two-stage — PRAGMA data_version at 0.0034 ms on every request, falling back to a COUNT+3xMAX signature at 4.17 ms only when the file changed, against a reconstructed_fetch of 61.5 ms p50 and 975.6 ms p90. ⛔ IT HOLDS JSON STRINGS, NOT PARSED ROWS, AND THAT IS A MEASURED TRADE: parsed rows would also remove rf_materialise but cost 22,909,972 B = 5.06x wire, breaking the bound. At p90 the split is rf_fetch 607.1 ms against rf_materialise 54.4 ms, so the strings capture ~90% of the tail win for 23% of the memory; the parse stays on the request path. ⚠️ RESIDUAL: built_at has SECOND resolution, so two rebuilds inside one second with the same row count and watermarks are indistinguishable — which is why data_version is the first stage and the signature is the second. FLIP IS AN OPEN QUESTION decided on sampler data (D-051): flipping it starts a NEW pool, because rf_resident is a pooled flag and the reader changes."
     },
     "BREADTH_SERIES_BOOT_WARM_ENABLED": {
-      "status": "dark",
-      "where": [],
-      "owner": "breadth-charts programme",
-      "note": "DC-3(b)/D-056. Dark, unset means NOT RUNNING — an enablement gate, same polarity as BREADTH_DC_V2_2/3_ENABLED, not the hub kill-switch polarity. ON, calls warm_series_deep() once from the existing delayed dashboard-warm background thread (never the request path, never blocks /api/health): one get_history_deep() read back to MAX_HISTORY_FROM (2008-01-02), matching V2-3's own Max preset. MEASURED, not inferred: a fresh boot's first /series request into the deep/reconstructed path cost 20-45s, almost entirely in the adv_seed phase (_adv_decline_seed_before scanning breadth_daily_ohlc/breadth_snapshots for every row before the window's oldest date); io_read_bytes confirmed real disk I/O on that first request, and the SAME query pattern answered fast on every later request including a larger span asked immediately after — an OS-page-cache-cold cost, not the reader's own unfixable cold path. The existing _breadth() dashboard-warm (days=90) does NOT already cover this: 90 days sits entirely inside the collector floor and never touches the deep/reconstructed scan at all. Rollback is the variable alone: unset it and the next boot skips the warm, byte-identical to before this flag existed. Record: docs/breadth/DECISIONS.md D-056."
-    },
-    "BREADTH_SERIES_ENDPOINT_ENABLED": {
-      "status": "dark",
+      "status": "armed",
       "where": [
         "web"
       ],
       "owner": "breadth-charts programme",
-      "note": "B1 (D-035). Gates GET /api/breadth-monitor/series — the columnar long-history reader the Data Charts V2 tab will use. UNSET = 404 for EVERY caller class, including a paid one: the flag dependency is declared BEFORE require_paid because FastAPI resolves in declaration order, so a dark route cannot be probed as a paid feature before it ships. Rollback is the variable alone — unset it and the route is gone, no redeploy and no code change. Shipped dark: set on no service. The row lands in the SAME commit as the code because test_the_ledger_does_not_describe_gates_that_no_longer_exist computes stale = ledger - (gates | visibility_flags), so a row for an unread flag is rot by definition."
+      "note": "DC-3(b)/D-056. Dark, unset means NOT RUNNING — an enablement gate, same polarity as BREADTH_DC_V2_2/3_ENABLED, not the hub kill-switch polarity. ON, calls warm_series_deep() once from the existing delayed dashboard-warm background thread (never the request path, never blocks /api/health): one get_history_deep() read back to MAX_HISTORY_FROM (2008-01-02), matching V2-3's own Max preset. MEASURED, not inferred: a fresh boot's first /series request into the deep/reconstructed path cost 20-45s, almost entirely in the adv_seed phase (_adv_decline_seed_before scanning breadth_daily_ohlc/breadth_snapshots for every row before the window's oldest date); io_read_bytes confirmed real disk I/O on that first request, and the SAME query pattern answered fast on every later request including a larger span asked immediately after — an OS-page-cache-cold cost, not the reader's own unfixable cold path. The existing _breadth() dashboard-warm (days=90) does NOT already cover this: 90 days sits entirely inside the collector floor and never touches the deep/reconstructed scan at all. Rollback is the variable alone: unset it and the next boot skips the warm, byte-identical to before this flag existed. Record: docs/breadth/DECISIONS.md D-056. Ledger corrected 2026-09-24: this entry said dark while the variable was SET ON web (value 1), read 2026-09-24 by tools/flag_ledger_audit.py + `railway variables --service web --kv`. The flip itself was made by the owning programme and is recorded here as MEASURED, not decided; if the intent differs, the owning programme corrects this note."
+    },
+    "BREADTH_SERIES_ENDPOINT_ENABLED": {
+      "status": "armed",
+      "where": [
+        "web"
+      ],
+      "owner": "breadth-charts programme",
+      "note": "B1 (D-035). Gates GET /api/breadth-monitor/series — the columnar long-history reader the Data Charts V2 tab will use. UNSET = 404 for EVERY caller class, including a paid one: the flag dependency is declared BEFORE require_paid because FastAPI resolves in declaration order, so a dark route cannot be probed as a paid feature before it ships. Rollback is the variable alone — unset it and the route is gone, no redeploy and no code change. Shipped dark: set on no service. The row lands in the SAME commit as the code because test_the_ledger_does_not_describe_gates_that_no_longer_exist computes stale = ledger - (gates | visibility_flags), so a row for an unread flag is rot by definition. Ledger corrected 2026-09-24: this entry said dark while the variable was SET ON web (value 1), read 2026-09-24 by tools/flag_ledger_audit.py + `railway variables --service web --kv`. The flip itself was made by the owning programme and is recorded here as MEASURED, not decided; if the intent differs, the owning programme corrects this note."
     },
     "BREADTH_UNIVERSE_BACKFILL_ENABLED": {
       "status": "dark",
@@ -478,6 +480,11 @@
         "flow-worker"
       ],
       "note": "Armed live 2026-09-06 (api/flow_worker_main.py:469-489), superseding ALPHA_GOLD_EOD_ENABLED on the adjacent cron slot (16:10 ET weekdays, 5 min after the now-dark Alpha Gold job). The scheduler job registers unconditionally and self-gates on this flag (api/cream_card.py:83) -- off means the job builds and posts nothing. Posts the day's highest-conviction AGGREGATE options-flow builds (curation-free, via live_massive_router.compute_cream) to Discord as an image-only card, filling the blind spot Top Flow (single prints) and the hand-curated Watchlist both had."
+    },
+    "D2_DUAL_COMPUTE_WARM_READER_ENABLED": {
+      "status": "dark",
+      "where": [],
+      "note": "D2 CP2 dual-compute WARM READER: an in-process APScheduler job (api/main.py, job id d2_dual_compute_warm_reader, 09:45-15:45 ET hourly on weekdays) that runs ticker_returns_warm_reader.run_warm_pass() -- a log-only comparison sweep that writes no member data and serves no surface. Default OFF ('0'); set on no service as of 2026-09-24 (go-live packet 2026-09-24 section 2b). Dark on purpose: instrumentation, not a feature -- enable when someone wants the warm-pass numbers in the logs. Declared 2026-09-24 after tests/test_feature_flag_ledger.py flagged it undeclared."
     },
     "D2_SAMPLE_PERSIST_ENABLED": {
       "status": "armed",
@@ -725,11 +732,11 @@
       "note": ""
     },
     "FUNDAMENTALS_PIT_ENABLED": {
-      "status": "dark",
+      "status": "armed",
       "where": [
         "web"
       ],
-      "note": "Historical point-in-time fundamentals (Indicators -> Fundamentals, `fund:` chart source). Unset/0: /api/fundamentals/pit/* returns 404 and the Fundamentals tab shows a neutral notice; stored chart settings holding `fund:` instances are untouched and draw nothing. Dark until the production store, backfill and R2 publication are validated (docs/fundamentals-pit/MORNING-PLAN.md). Rollback = unset."
+      "note": "Historical point-in-time fundamentals (Indicators -> Fundamentals, `fund:` chart source). Unset/0: /api/fundamentals/pit/* returns 404 and the Fundamentals tab shows a neutral notice; stored chart settings holding `fund:` instances are untouched and draw nothing. Dark until the production store, backfill and R2 publication are validated (docs/fundamentals-pit/MORNING-PLAN.md). Rollback = unset. Ledger corrected 2026-09-24: this entry said dark while the variable was SET ON web (value 1), read 2026-09-24 by tools/flag_ledger_audit.py + `railway variables --service web --kv`. The flip itself was made by the owning programme and is recorded here as MEASURED, not decided; if the intent differs, the owning programme corrects this note."
     },
     "FUNDAMENTALS_PIT_INCREMENTAL_ENABLED": {
       "status": "dark",
@@ -827,11 +834,11 @@
       "note": "Wave P OCR. Read as FLAG = \"J2_OCR_ENABLED\" then os.getenv(FLAG, \"0\") in api/services/journal_two/document_ocr_tesseract.py. ⛔⛔ IT WAS INVISIBLE TO THIS LEDGER UNTIL 2026-09-12: the AST index matched a string CONSTANT at the call site, and an env name held in a variable has none — so a LIVE, ARMED production flag had no entry and nothing could tell. Found when the index was generalised for Wave K. Read live from Railway the same day: J2_OCR_ENABLED=1 on web, unset on worker and bars-api."
     },
     "J2_SHARE_LINKS_ENABLED": {
-      "status": "dark",
+      "status": "armed",
       "where": [
         "web"
       ],
-      "note": "STALE until 2026-09-22: this entry read status=armed with an empty note, and that was wrong — read live via `railway variables --service web --kv`, the value is 0. The owner returned it to 0 on 2026-09-07 (docs/notebook/competitive-gap-ledger.md, row G-080): no affirmative evidence the §21 legal review (shared vendor-data exposure) was ever completed, and \"a sanitized payload, static embeds, a wired UI and an uneventful live period are risk controls and elapsed time, not approval.\" The implementation is real and is NOT to be deleted; re-arm only on durable evidence that review has completed."
+      "note": "STALE until 2026-09-22: this entry read status=armed with an empty note, and that was wrong — read live via `railway variables --service web --kv`, the value is 0. The owner returned it to 0 on 2026-09-07 (docs/notebook/competitive-gap-ledger.md, row G-080): no affirmative evidence the §21 legal review (shared vendor-data exposure) was ever completed, and \"a sanitized payload, static embeds, a wired UI and an uneventful live period are risk controls and elapsed time, not approval.\" The implementation is real and is NOT to be deleted; re-arm only on durable evidence that review has completed. Ledger corrected 2026-09-24: this entry said dark while the variable was SET AND OFF (value 0) on web, read 2026-09-24 by tools/flag_ledger_audit.py + `railway variables --service web --kv` -- a recorded decision, not an accident; status is `armed` per this file's own definition (set on a service; the VALUE is the decision), so read the value, not the status word. The flip itself was made by the owning programme and is recorded here as MEASURED, not decided; if the intent differs, the owning programme corrects this note."
     },
     "LIVEFLOW_MONITOR_ENABLED": {
       "status": "armed",
@@ -894,9 +901,11 @@
       "note": "Wave K, 2026-09-12. Enablement gate for the Q2 conflict-resolution UX, which is NOT BUILT. Q1's fork-never-clobber already runs and is not gated by this; this key only releases the surface that would let a member reconcile a fork. Unset means OFF, deliberately."
     },
     "NOTEBOOK_DOOR_GUARD": {
-      "status": "dark",
-      "where": [],
-      "note": "NOT RELEASED: the permissive mode has never run in production; the flag sits at its default. A MODE, not a gate: full (default, shipped behaviour) | unknown-only. Q1 fix 6's FIRST rollback lever. `full` defers a capture while the note is dirty or has a queued entry; `unknown-only` defers ONLY when the store cannot be read, letting the append route through to fix 6. Unset or unrecognised => full, on BOTH ends (a typo degrades to more guarding, never less). Read per request in api/routers/auth.py::_notebook_flags and latched per tab by journal-2-0/lib/offline/notebookFlags.js. It is flipped to unknown-only only immediately before a staged rig window (P3) and flipped back on any RED. ROLLBACK ORDER for fix 6: (1) `railway variable --set NOTEBOOK_DOOR_GUARD=full --service web`, which REDEPLOYS (delete does NOT); verify in-process via railway ssh, never --kv. (2) the kill switch NOTEBOOK_OFFLINE_DEFAULT_ON. Rail: tests/test_notebook_door_guard_flag.py; index axis: feature_flag_index.mode_flags()."
+      "status": "armed",
+      "where": [
+        "web"
+      ],
+      "note": "NOT RELEASED: the permissive mode has never run in production; the flag sits at its default. A MODE, not a gate: full (default, shipped behaviour) | unknown-only. Q1 fix 6's FIRST rollback lever. `full` defers a capture while the note is dirty or has a queued entry; `unknown-only` defers ONLY when the store cannot be read, letting the append route through to fix 6. Unset or unrecognised => full, on BOTH ends (a typo degrades to more guarding, never less). Read per request in api/routers/auth.py::_notebook_flags and latched per tab by journal-2-0/lib/offline/notebookFlags.js. It is flipped to unknown-only only immediately before a staged rig window (P3) and flipped back on any RED. ROLLBACK ORDER for fix 6: (1) `railway variable --set NOTEBOOK_DOOR_GUARD=full --service web`, which REDEPLOYS (delete does NOT); verify in-process via railway ssh, never --kv. (2) the kill switch NOTEBOOK_OFFLINE_DEFAULT_ON. Rail: tests/test_notebook_door_guard_flag.py; index axis: feature_flag_index.mode_flags(). Ledger corrected 2026-09-24: this entry said dark while the variable was SET on web to `unknown-only`, read 2026-09-24 by tools/flag_ledger_audit.py + `railway variables --service web --kv`. The flip itself was made by the owning programme and is recorded here as MEASURED, not decided; if the intent differs, the owning programme corrects this note."
     },
     "NOTEBOOK_OFFLINE_READ_ON": {
       "status": "dark",
@@ -1008,6 +1017,13 @@
       "where": [],
       "note": "The artifact cache + coalescing (2.5, 03 §3.6), built on the branch and wired to NOTHING yet - no call site in runtime.py, commands.py or bindings.py reads it. An ENABLEMENT gate, not a kill switch: unset means OFF, because it ADDS behaviour and must not turn itself on in every environment the moment it merges. In-memory and per-process by design (this pod redeploys every ~8 minutes; durability was not built and is not implied). The cache key is (command, normalised args, DATA VINTAGE) - never the wall clock, or the same closed-market input would key differently every second and §3.10 determinism would be unobservable. Bounded by DISCORD_RENDER_CACHE_MAX_ENTRIES and DISCORD_RENDER_CACHE_BYTES (64 MiB default - the web pod HEAP, deliberately not §3.6's 512 MiB, which describes an on-volume cache that was not built). Owner flips it after it is wired.",
       "owner": "owner"
+    },
+    "RESEARCH_FLOW_TAB_ENABLED": {
+      "status": "armed",
+      "where": [
+        "web"
+      ],
+      "note": "A13 Wave B (2026-09-23 roadmap): the Research page's new 'Flow' tab, reusing the existing, partner-owned GET /api/live/massive/ticker-flow endpoint as-is (read-only, zero new backend computation). Same request-time mechanism and ENABLEMENT polarity as RESEARCH_TECHNICAL_TAB_ENABLED: unset means not released yet, so a forgotten variable can never expose a surface nobody decided to ship. ON since 2026-09-24 ~19:24 UTC by owner ruling, after the go-live packet review + a real local mobile verification pass (docs/terminal-research/10-roadmap/2026-09-24-go-live-packet.md). Verified fully post-flip: config set (--kv), a genuine new boot (uptime reset), the flag correctly served in-process (research_flow_tab_enabled:true via a real authenticated fetch), and the tab itself exercised on live production for two tickers (AAPL, NVDA) via a real browser session -- both rendered the correct empty-state copy for zero qualifying prints, no error, no crash. One diagnostic detour worth recording: the tab appeared stuck on 'Loading options-flow evidence...' for several seconds on first click in an automated/backgrounded browser tab; traced to the backgrounded tab's own throttling (document.visibilityState stayed 'hidden' throughout), not the feature -- the underlying endpoint, the bundled client code, and the SWR fetch all confirmed correct, and the tab resolved correctly once given enough real wall-clock time. TURN OFF: set 0 (never delete -- deleting has been measured to leave the old value live in-process while --kv reports it gone) on web."
     },
     "RESEARCH_TECHNICAL_TAB_ENABLED": {
       "status": "armed",
@@ -1195,14 +1211,18 @@
       "note": "MEMBER-VISIBLE when on: Wisdom CALL/MENTION markers on Desk charts via ticker_mentions. Owner flips (W1 §0.4c)."
     },
     "WISDOM_DISCORD_LISTENER_ENABLED": {
-      "status": "dark",
-      "where": [],
-      "note": "Wisdom Discord listener + backfill for the four author channels (stream S-C, W1 §2.1). REST only, authors only, member messages dropped before any write. Internal."
+      "status": "armed",
+      "where": [
+        "web"
+      ],
+      "note": "Wisdom Discord listener + backfill for the four author channels (stream S-C, W1 §2.1). REST only, authors only, member messages dropped before any write. Internal. Ledger corrected 2026-09-24: this entry said dark while the variable was SET ON web (value 1), read 2026-09-24 by tools/flag_ledger_audit.py + `railway variables --service web --kv`. The flip itself was made by the owning programme and is recorded here as MEASURED, not decided; if the intent differs, the owning programme corrects this note."
     },
     "WISDOM_TWITTER_LISTENER_ENABLED": {
-      "status": "dark",
-      "where": [],
-      "note": "Wisdom Twitter/X source (stream 'x', session 28, 2026-09-19). Reads the existing tweets.db cache read-only for the three official trader accounts only; never calls the Twitter API itself. Internal."
+      "status": "armed",
+      "where": [
+        "web"
+      ],
+      "note": "Wisdom Twitter/X source (stream 'x', session 28, 2026-09-19). Reads the existing tweets.db cache read-only for the three official trader accounts only; never calls the Twitter API itself. Internal. Ledger corrected 2026-09-24: this entry said dark while the variable was SET ON web (value 1), read 2026-09-24 by tools/flag_ledger_audit.py + `railway variables --service web --kv`. The flip itself was made by the owning programme and is recorded here as MEASURED, not decided; if the intent differs, the owning programme corrects this note."
     },
     "WISDOM_DOSSIER_ENABLED": {
       "status": "dark",
@@ -1215,14 +1235,23 @@
       "note": "Wisdom weekly 50-segment second-pass extractor audit (stream S-D, W1 §6.5). Internal; disagreements go to the owner review queue."
     },
     "WISDOM_EXTRACT_ENABLED": {
+      "status": "armed",
+      "where": [
+        "web"
+      ],
+      "note": "Wisdom Batch extraction submit/reap (stream S-D). Spends Anthropic Batch budget under the hard WISDOM_EXTRACT_BUDGET_USD cap and the golden gate. Internal. Ledger corrected 2026-09-24: this entry said dark while the variable was SET ON web (value 1), read 2026-09-24 by tools/flag_ledger_audit.py + `railway variables --service web --kv`. The flip itself was made by the owning programme and is recorded here as MEASURED, not decided; if the intent differs, the owning programme corrects this note."
+    },
+    "WISDOM_EXTRACT_PRESCREEN_ENABLED": {
       "status": "dark",
       "where": [],
-      "note": "Wisdom Batch extraction submit/reap (stream S-D). Spends Anthropic Batch budget under the hard WISDOM_EXTRACT_BUDGET_USD cap and the golden gate. Internal."
+      "note": "Wisdom Loop extract PRESCREEN (api/services/wisdom/extract/prescreen.py, PRESCREEN_ENV): null-screens that skip segments the floor would otherwise pay to extract and discard. Defaults OFF by R102's own ruling -- MEASURE, not ENABLE: built and tested so the measured recall-loss bound (docs/wisdom/COST-REDUCED-PRICING-2026-09-18.md, Step B3) can be weighed before anyone turns coverage-affecting filtering on. Set on no service as of 2026-09-24. Owned by the Wisdom programme; this entry records the decision the code already states, it does not make one. Declared 2026-09-24 after tests/test_feature_flag_ledger.py flagged it undeclared."
     },
     "WISDOM_INGEST_ENABLED": {
-      "status": "dark",
-      "where": [],
-      "note": "UCT Wisdom Loop MASTER switch (docs/wisdom/CONTRACTS.md §4). Every Wisdom job no-ops unless set. Internal ingest only, nothing member-visible. Read in api/services/wisdom/core/flags.py; armed by the Wisdom integrator after the Wave 1 merges."
+      "status": "armed",
+      "where": [
+        "web"
+      ],
+      "note": "UCT Wisdom Loop MASTER switch (docs/wisdom/CONTRACTS.md §4). Every Wisdom job no-ops unless set. Internal ingest only, nothing member-visible. Read in api/services/wisdom/core/flags.py; armed by the Wisdom integrator after the Wave 1 merges. Ledger corrected 2026-09-24: this entry said dark while the variable was SET ON web (value 1), read 2026-09-24 by tools/flag_ledger_audit.py + `railway variables --service web --kv`. The flip itself was made by the owning programme and is recorded here as MEASURED, not decided; if the intent differs, the owning programme corrects this note."
     },
     "WISDOM_LEVEL_ALERTS_ENABLED": {
       "status": "dark",
@@ -1271,9 +1300,11 @@
       "note": "Wisdom FTS5 retrieval index refresh inside wisdom.db (stream S-F). Internal; the Ask-AI consumer has its own member-visible flag."
     },
     "WISDOM_SOURCES_INGEST_ENABLED": {
-      "status": "dark",
-      "where": [],
-      "note": "Wisdom transcript and Sunday Scans source ingest into wisdom.db (stream S-C). Published posts only, read-only on education.db and desk.db. Internal."
+      "status": "armed",
+      "where": [
+        "web"
+      ],
+      "note": "Wisdom transcript and Sunday Scans source ingest into wisdom.db (stream S-C). Published posts only, read-only on education.db and desk.db. Internal. Ledger corrected 2026-09-24: this entry said dark while the variable was SET ON web (value 1), read 2026-09-24 by tools/flag_ledger_audit.py + `railway variables --service web --kv`. The flip itself was made by the owning programme and is recorded here as MEASURED, not decided; if the intent differs, the owning programme corrects this note."
     },
     "WISDOM_VISION_ENABLED": {
       "status": "dark",

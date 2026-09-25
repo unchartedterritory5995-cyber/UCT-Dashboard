@@ -58,8 +58,10 @@ def _remote(ticker: str, days: str, source: str, timeout_s: float):
     base = (os.environ.get("WORKER_INTERNAL_URL") or "").rstrip("/")
     if not base:
         raise LookupError("WORKER_INTERNAL_URL is unset")
+    # `widen=1`: see `live_massive_router._compute_ticker_flow` — an empty window climbs the
+    # ladder server-side and reports `window.widened_from`. Same flag the pre-V2 job sends.
     r = httpx.get(f"{base}/api/live/massive/ticker-flow",
-                  params={"symbol": ticker, "days": days, "source": source},
+                  params={"symbol": ticker, "days": days, "source": source, "widen": "1"},
                   timeout=httpx.Timeout(timeout_s, connect=min(CONNECT_TIMEOUT_S, timeout_s)))
     r.raise_for_status()
     return r.json()
@@ -67,7 +69,7 @@ def _remote(ticker: str, days: str, source: str, timeout_s: float):
 
 def _local(ticker: str, days: str, source: str, top_n: int):
     from api import live_massive_router as lmr
-    return lmr._compute_ticker_flow(ticker, days, source, top_n)
+    return lmr._compute_ticker_flow(ticker, days, source, top_n, widen=True)
 
 
 def _stamp(data: dict, provider: str):

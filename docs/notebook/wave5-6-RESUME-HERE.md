@@ -1,4 +1,4 @@
-# RESUME — Notebook 10/10 program, waves 5–6 — checkpoint 2026-09-24
+# RESUME — Notebook 10/10 program, waves 5–6 — checkpoint 2026-09-24 (updated 19:15 CT: wave 5 evidence complete)
 
 > ⭐ **THIS IS THE CURRENT HEADER.** Read this file top to bottom before touching
 > either worktree. Everything in it was verified at the timestamps given —
@@ -26,166 +26,129 @@ one you reconnect to, it may carry its own conversation history for this same
 program — read this file anyway before trusting recollection, since this file
 is the one place both worktrees' state was actually re-verified.
 
-## 1. Where things stand, measured 2026-09-24
-
-**Two worktrees, both branches now pushed to origin (safety backup done this session):**
+## 1. Where things stand, measured 2026-09-24 19:15 CT
 
 | Worktree | Branch | HEAD SHA | Pushed? | Working tree |
 |---|---|---|---|---|
-| `C:\Users\Patrick\uct-worktrees\notebook-k` | `feat/notebook-10` | `c679090fd...` (docs: CLAUDE.md pointer) | ✅ `origin/feat/notebook-10` | clean except 6 gitignored shard logs (harmless, never committed by convention) |
-| `C:\Users\Patrick\uct-worktrees\notebook-w6` | `feat/notebook-w6` | `d1f4312e3...` (docs: CLAUDE.md pointer) | ✅ `origin/feat/notebook-w6` | clean |
+| `C:\Users\Patrick\uct-worktrees\notebook-k` | `feat/notebook-10` (wave 5) | `34f3fb6d2` (tools: the walk script; evidence `f8976a114`; gate `8f963fefa`; code tip `8370e15ad`) | ✅ `origin/feat/notebook-10` at the same SHA | clean except 6 gitignored `shard-*.log` files (never committed by convention) |
+| `C:\Users\Patrick\uct-worktrees\notebook-w6` | `feat/notebook-w6` (wave 6) | moving — lanes D and E were committing at 19:00 (`158b98b06` and later); run `git log --oneline -8` there | pushed by the lanes at their checkpoints — verify with `git status -sb` | lane E had UNCOMMITTED daily-note files at 19:00 (`api/services/journal_two/note_daily.py`, `lib/dailyNote.js`, a router test, edits to `journal_two.py`/`db.py`/`notes.py`/`NoteEditorPage.jsx`) — an agent's work in flight, never yours to stash or reset |
 
-Both worktrees' own `CLAUDE.md` now carry a short pointer section (search
-"Notebook 10/10 program") back to this file and to the SDD ledger, as
-belt-and-suspenders in case this file itself isn't the first thing read.
+**Wave 5 is CODE-COMPLETE, REVIEWED, GATED AND WALKED.** Its only remaining item
+is an owner action: open the PR (`gh` is unauthenticated on this box).
 
-`feat/notebook-w6` was built on top of `feat/notebook-10`'s tip as of when it
-branched — **it does NOT yet include `82c56dd63`, `1320d0f83`, `a555f99bf`,
-`9ee43bc26`, `de8aafd9d` or `c679090fd`** (all landed on `feat/notebook-10`
-after `feat/notebook-w6` branched — B1 fix, rollback doc, gate evidence, this
-resume doc, and the CLAUDE.md pointer). Merging wave-5's tail
-onto wave-6 is already a known open item (see §4).
+`feat/notebook-w6` carries ALL of wave 5's code (merge `07e1a74ae`, with the
+eight wave-6 node types registered at schema level 2 on both sides). It is
+behind `feat/notebook-10` only by the four docs/evidence commits that followed
+(`8370e15ad` rollback-doc fix, `8f963fefa` gate manifest, `f8976a114` walk
+evidence, `34f3fb6d2` walk script) — merge that tail before the wave-6 PR.
 
-**Both branches were UNPUSHED before this session's checkpoint** — all of
-waves 5 and 6 existed only on local disk until just now. That is now fixed.
+Both worktrees' own `CLAUDE.md` carry a pointer section (search "Notebook
+10/10 program") back to this file and to the SDD ledger.
 
-## 2. THE BLOCKER — read this before dispatching anything
+## 2. Blockers as of 21:15 CT — the H14 hotfix is LIVE (#187 merged, deployed, verified); a session rate limit (resets 22:00 CT) still gates new subagents
 
-**Weekly Opus rate limit, hit simultaneously across three concurrent agents on
-2026-09-24: `HTTP 429`, resets `2026-09-25, 6pm America/Chicago`.** This is a
-weekly account-level limit, distinct from any daily session limit. It blocks
-**new Opus subagent dispatch** — it did NOT block the controller session
-itself, which is how the B1 fix got finished and committed without a new
-dispatch (see §3).
+- **Session rate limit** ("You've hit your session limit · resets 10pm America/Chicago", HTTP 429
+  on Opus) killed lane E and lane D's re-review at ~19:45 CT. The controller session still runs.
+  **Do not dispatch new subagents before 22:00 CT**; controller-level work (gates, ledger, docs,
+  pushes) continues. Lane E's last commit is pushed; its UNCOMMITTED item-8 files sit in
+  `notebook-w6` (`api/services/journal_two/notes.py` modified; two new router tests) — leave them,
+  re-dispatch E after 22:00 with a pointer to them. Lane D's re-review wrote no report — re-dispatch.
+- **H14 hotfix — `hotfix/notebook-metadata-settle` (`0f485f6cf` + `abc2f168c`, pushed).** Lane D's
+  fix round found a data-loss class LIVE on production: a metadata door's settle queued the
+  editor's stale body on the door's new revision, so a later drain overwrote another device's words
+  with no 409 and no fork. Confirmed on production source (`5fd248c40`), reproduced with the real
+  drain on identical source, gate proven both ways by mutation on master's own code (the first
+  green was VACUOUS — a missing `METADATA_ONLY` import made the predicate throw; the CONTROL caught
+  it). **Every Notebook deploy (#183, wave 5) is HELD behind this hotfix.** **PR #187 is MERGED AND LIVE** (master `d4a1a13b6`, Railway SUCCESS 01:55Z record, fresh boot verified 20:58 CT; the deploy block is lifted). For the record: master's own baseline was measured on a pristine detached worktree at
+  `73a4286d0` (126 rows, adopted as `ac128755d`, with the two gate-parser fixes cherry-picked), and the
+  official six-shard gate on that tip is **0 NEW** (manifest `2163e5dcf`). Merge order: **#187 → #183 →
+  #186**. PR body = `.superpowers/sdd/2026-09-23-notebook-10/hotfix-metadata-settle-PR-draft.md`.
 
-**Until the reset time above, do not attempt to dispatch a new Opus subagent**
-(the review, lane E, or anything else requiring one). If you are resuming
-before that time and there is no other Opus-independent work queued, the
-correct action is to wait, or to do controller-level mechanical work only
-(reading, ledger updates, doc fixes, pushing branches) — not to retry
-dispatch in a loop.
+## 3. What's actually done (wave 5) — everything
 
-## 3. What's actually done (wave 5)
+- **Lanes A, B, C** closed and merged; `f84cb5add` was the whole-branch-review tip.
+- **Whole-branch review** (`wave5-FINAL-review.md`): CHANGES REQUESTED — B1 blocker, S1, 7 notes.
+- **B1 fix** (`82c56dd63`) + **S1/N1/N2 + server-side B1 rail** (`1320d0f83`).
+- **B1 scoped re-review** (agent `a4c2bf62877fd8e5c`, after the account switch): B1 ADDRESSED,
+  S1 ADDRESSED, N1/N2/N3/N5/N7 ADDRESSED, traced end to end on all three doors with controls;
+  the Web Locks question confirmed and pinned by seven rails. `wave5-B1-fix-re-review.md`.
+- **Rollback doc final** (`8370e15ad`): the rule for `82c56dd63` is "every bundle that declares
+  level ≥ 1 must carry it"; Procedure B keeps all three never-revert commits
+  (`8167f7aa0`, `fd87271fd`, `82c56dd63`); the earlier wrong window-story is tombstoned.
+- **Six-shard gate on the FINAL tip** `8370e15ad` (`docs/notebook/gate-runs/wave5/2026-09-24T18-23-10.md`,
+  commit `8f963fefa`): **VERDICT=NO_NEW_FAILURES**, 0 NEW, 1,779 test files reconcile.
+- **Live re-walk on the final tip** (`docs/notebook/gate-runs/wave5/walk-8370e15ad.json`, run
+  `r185200`, commit `f8976a114`): **all 19 checks PASS, 0 page errors**; both walk-found defects
+  confirmed fixed on screen ("plan" opens the Plan note — controller item 8; stacked notices keep
+  Undo on top at 1200/820/390). The phone joystick-corner clause was additionally MEASURED as the
+  sandbox admin (hub mounted, no overlap) because a member does not get the hub at the current
+  rollout stage — recorded in the ledger.
+- **The walk script preserved** at `tools/notebook_wave5_walk.py` (`34f3fb6d2`) with its three
+  preconditions in the header.
+- **PR draft** `.superpowers/sdd/2026-09-23-notebook-10/wave5-PR-draft.md`: complete, no placeholders.
 
-All five wave-5 lanes (A, B, C) are closed and merged into `feat/notebook-10`,
-the schema guard is built and independently re-reviewed, and the B1
-safety-critical gap the re-review found has been fixed, verified three
-independent ways by the controller, and committed:
+**STILL OWED: nothing on the branch.** The PR is the owner's action (§5, step 1).
 
-- **Lanes A, B, C**: closed, `f84cb5add` was the tip going into the whole-branch review.
-- **Whole-branch review** (`wave5-FINAL-review.md`): CHANGES REQUESTED — 1
-  BLOCKER (B1), 1 SHOULD-FIX (S1), 7 notes.
-- **B1 fix** (`82c56dd63`): stamps `writtenSchema` on every capture that might
-  be sent by a later page load (durable record, outbox entry, crash draft);
-  any door forwarding a body it did not just freshly read sends
-  `min(stamp, sender's own level)`, never its own level unconditionally. Fixes
-  the sender-vs-writer gap: a stale tab's blanked note could previously be
-  adopted and sent by a newer tab at the newer tab's own (higher) schema level.
-  Includes a justified, disclosed exception touching the F5-**frozen**
-  `outboxDrain.js` (minimal, additive, no control-flow change — matches the
-  documented "D3 lift" precedent).
-- **S1 fix + N1/N2 + server-side B1 rail** (`1320d0f83`): replaced the fragile
-  per-line regex Python parser of `NOTEBOOK_TYPE_SCHEMA` with a real
-  Node-subprocess import of `notebookSchema.js` (immune to layout); structural
-  invariant tests replacing the hand-typed level-1 name list; pinned
-  `SCHEMA_REFUSAL_DETAIL` == `notebook_schema.py`'s `REFUSAL_DETAIL`.
-- **Controller verification of the B1 fix** (done directly, without an Opus
-  subagent, because the fixing agent was rate-limited mid-flight): full manual
-  diff review against `wave5-B1-fix-brief.md`; 68 vitest files / 1220 tests +
-  17 pytest files green, zero new regressions; independent mutation
-  spot-checks on the two most safety-critical guards (the `min()`-forwarding
-  logic and `isSchemaRefusal`), both proven load-bearing.
-- **Rollback doc** (`docs/notebook/wave5-rollback.md`, commit `a555f99bf`):
-  fully updated to name all three never-revert commits (`8167f7aa0`,
-  `fd87271fd`, `82c56dd63`), with an explicit, honest caveat that `82c56dd63`'s
-  rollback interaction is **reasoned, not yet measured** (unlike the first two,
-  which were measured in a real simulated rollback).
-- **Wave-5 gate run** (commit `9ee43bc26`): six-shard gate at `f84cb5add`
-  (the tip *before* the B1 fix commits) — **0 NEW failures** vs the adopted
-  master baseline. This gate has **not yet been re-run on the post-B1-fix
-  tip** — see §4, step 3.
+## 4. Wave 6 — where lanes D, E, F stand (19:00 CT)
 
-**STILL OWED before wave 5 can be called fully closed:** a scoped re-review of
-`82c56dd63` + `1320d0f83` against `wave5-B1-fix-brief.md`'s exact required
-rails and the Web Locks trace question — blocked on the rate limit (§2).
-
-## 4. Wave 6 — where lanes D, E, F actually stand
-
-- **Lane F** (client error beacon, Notebook telemetry, unlinked mentions,
-  tasks-across-notes + reminders): **CLOSED.** 3 fix rounds, 2 re-review
-  rounds, all resolved. Tip contribution: `f6a392bbf`, `995a0327b`, etc. (see
-  `progress.md` for the full commit list).
-- **Lane D** (13-item brief: editor 2, in-note TOC, tag suggest, locked notes,
-  @date mentions, pasted-link handling, delete-vs-trash, etc.): **IN
-  PROGRESS**, tip `80adeaa7a` "ONE predicate for 'the base has no body'" —
-  this looked like a clean stopping point when the rate limit hit, but has
-  **not been formally closed out** (no final report, no dedicated re-review of
-  lane D specifically). Confirm what's actually left on the 13-item brief
-  before assuming it's done.
-- **Lane E** (organization 2: archive, lock, member templates, daily note,
-  relation property, timeline view, split view, tag rename, `tag=` escaping):
-  **DISPATCHED** (`a408503ecbe9a872a`) then hit the rate limit before reporting
-  any progress. **Confirmed nothing to recover** — `notebook-w6`'s tip is
-  exactly lane D's `80adeaa7a` with a clean working tree. **Needs a fresh
-  dispatch from scratch**, not a resume, once the rate limit clears.
+- **Controller wiring** `7dd7f2705` on `feat/notebook-w6`: `notebook_insights` mounted BEFORE
+  `journal_two` (route order is load-bearing), `client_errors`, `notebook_link_preview`, the task
+  reminder job, `installErrorBeacon`, boundary `reportError`, Ask telemetry;
+  `tests/test_main_router_order.py` rails the order with non-vacuity controls.
+- **Wave 5 merged into wave 6** at `07e1a74ae` (`keepRefusedWords` re-wired to
+  `reconcileConflict(null, { refused: true })`; eight wave-6 node types at schema 2 both sides;
+  every red classified — PositionDetailPage/TradeDetailPage are pre-existing baseline reds).
+- **Lane F** (error beacon, telemetry, unlinked mentions, tasks + reminders): **CLOSED.**
+- **Lane D** (13 items): all landed (`82f0a4a57`..`80adeaa7a`); task review verdicts I1–I4 + items
+  7/10 captured in `wave6-D-R1-fix-brief.md`; **fix round 1 IN FLIGHT** (agent `af4f13291d6b20de3`,
+  fresh implementer) — by 19:00 it had landed item 10 (`5c3b230c7`), the TOC `_prose` fix
+  (`e490c4408`), I3 (`0d66df0e7`), M7 (`158b98b06`). When it reports: scoped re-review.
+- **Lane E** (organization 2): **IN FLIGHT** (agent `a4047419e353d4941`, dispatched on the merged
+  tip with D's lock contract — `wave6-E-dispatch-addendum.md`); item 3 member templates landed
+  (`1858b3d0a`); the daily note was in progress, uncommitted, at 19:00. When it reports: task
+  review; handle its split-view `NoteEditorPage` prop request.
+- After D and E close: wave-6 whole-branch review (most capable model) → six-shard gate → live walk
+  (base it on `tools/notebook_wave5_walk.py`; sandbox from a w6 `app/dist` build; the data dir
+  `C:\data-g064-w5final` already holds a paid walk account, see §6) → PR, targeting master AFTER
+  wave 5 merges.
 
 ## 5. Exact next actions, in order
 
-**Do these only after `2026-09-25 18:00 America/Chicago` (unless marked
-otherwise):**
-
-1. **Confirm the rate limit has actually cleared** before dispatching anything
-   — try a small Opus subagent dispatch first if uncertain, rather than
-   assuming the clock alone settles it.
-2. **Dispatch the scoped re-review** of `82c56dd63` + `1320d0f83` against
-   `.superpowers/sdd/2026-09-23-notebook-10/wave5-B1-fix-brief.md`'s exact
-   required rails and the Web Locks trace question. Use the same review
-   package pattern as the rest of this SDD program (`scripts/review-package`
-   from the `subagent-driven-development` skill, BASE = `77a19e832`, HEAD =
-   current tip).
-3. **Re-run the six-shard gate** on the post-B1-fix tip (currently
-   `9ee43bc26`, or later if the re-review requires more fixes). The last gate
-   run (`docs/notebook/gate-runs/wave5/2026-09-23T22-27-39.md`) was at
-   `f84cb5add`, BEFORE the B1 fix commits — it does not cover them.
-4. **Re-walk**: rebuild `app/dist` from the final tree and re-run
-   `scratchpad/wave5_walk.py` against a fresh sandbox boot (see §6 for the
-   sandbox process note — the one from this session, `ble7mghd3`, is almost
-   certainly dead after a restart and needs re-booting).
-5. **Push the branch and open the PR** for `feat/notebook-10` (already pushed
-   as a branch; the PR itself was never opened — `gh` was unauthenticated
-   earlier in this program, confirm current auth state).
-6. **Once §5.2–5.4 are clean**, post the corrected Discord update from
-   `DISCORD-QUEUE.md` (see §8) reflecting the actual go/no-go on #183.
-7. **Re-dispatch lane E from scratch** (item 4 above) — organization 2 brief,
-   `wave6-E-brief.md` in the SDD workspace.
-8. **Confirm/close out lane D** — check whether the 13-item brief
-   (`wave6-D-brief.md`) is actually complete at `80adeaa7a`, dispatch a task
-   review if not already done, then close the lane.
-9. **Merge wave 5's tail onto `feat/notebook-w6`** — `feat/notebook-w6` does
-   not yet have `82c56dd63`/`1320d0f83`/`a555f99bf`/`9ee43bc26`. This was
-   already a known open item in `OPEN-ITEMS.md` ("Before the wave-6 PR: merge
-   the rest of wave 5 into feat/notebook-w6") even before this session; it is
-   now more overdue since wave 5 gained four more commits.
-10. **Continue with waves 7–9** per `wave7-briefs.md` once 5 and 6 are fully
-    closed and merged, per the standing plan
-    (`docs/notebook/NOTEBOOK-10-OF-10-PLAN.md`).
+1. **OWNER: merge in this order, each as its own deploy** — **#187** (`hotfix/notebook-metadata-settle`,
+   draft until its gate manifest is committed and it is marked ready) → **#183** → **#186**
+   (`feat/notebook-10`, wave 5). Both PR bodies carry the member-impact paragraph for the deploy
+   summary (`feedback_master_push_needs_explicit_deploy_and_member_summary`). `gh` is
+   authenticated on this box since 20:35 CT, so the controller opens and updates PRs itself.
+2. **Lane D fix round 1 reports** → generate the review package (BASE = the tip before the
+   round) → scoped re-review against `wave6-D-R1-fix-brief.md` → close lane D.
+3. **Lane E reports** → review package → task review → fix rounds as needed → close lane E.
+4. **Merge wave 5's tail** (`8370e15ad..34f3fb6d2`, docs/evidence/tools only) into
+   `feat/notebook-w6`.
+5. **Wave-6 whole-branch review** → **six-shard gate** (`scripts/gate_shards.py --shards 6 --out
+   docs/notebook/gate-runs/wave6 --max-workers 4`; one gate at a time on this box; read the
+   manifest's `VERDICT=`) → **live walk** on the final w6 tip → **PR draft** → owner opens it.
+6. **Post the Discord update** — the consolidated entry at the END of `DISCORD-QUEUE.md` supersedes
+   the five above it; post it alone when the Chrome extension reconnects (§9).
+7. **Waves 7–9** per `wave7-briefs.md` with the recorded pre-verification deltas (G gated on E's
+   daily note; H gated on D's fix round + merge; I's tag/bundle figures stale; ownership re-cut;
+   four flags need ledger entries) — `docs/notebook/NOTEBOOK-10-OF-10-PLAN.md` is the plan.
 
 ## 6. Background processes — what dies on restart, what doesn't
 
-- **The hub sandbox** (background task `ble7mghd3` from this session,
-  `python scripts/hub_sandbox_boot.py --data-dir C:\data-g064 --port 8093`,
-  serving the wave-5 final walk) **will NOT survive a PC restart** — it is an
-  ordinary foreground-launched background process, not a scheduled service.
-  If a fresh browser walk is needed (§5, step 4), re-boot it fresh:
-  `python scripts/hub_sandbox_boot.py --data-dir C:\data-g064-fresh --port 8093`
-  (use a **fresh** data dir name — `C:\data-g064` may hold state from the
-  earlier run; check before reusing it). Read
-  `docs/plans/joystick/sandbox-runs/` after boot for the integrity-log
-  confirmation that nothing leaked to `C:\data`.
-- **Nothing else this program runs locally.** No Task Scheduler jobs, no
-  other daemons. Any Windows Task Scheduler jobs unrelated to this program
-  (Morning Wire, breadth collector, etc.) resume on their own per the main
-  `CLAUDE.md`.
+- **The wave-5 hub sandbox is STOPPED** (pid 14828, `--data-dir C:\data-g064-w5final --port
+  8093`, stopped gracefully via a console Ctrl+C at 18:55:32 so the launcher's `finally:` wrote
+  the shutdown integrity row). ⚠️ That row lists 7 live `C:\data` files changed — by a process
+  OTHER than the sandbox; the ruling with five independent reasons is in `progress.md`
+  ("SANDBOX INTEGRITY, RULING"), the log is committed as recorded, and the owner is told (§9).
+- **`C:\data-g064-w5final` persists and is worth REUSING for the wave-6 walk:** it holds
+  `hubtest@local.dev` (admin via `ADMIN_EMAILS`, password `LocalTest2026!`) and `g064@local.dev`
+  (comped Pro via `POST /api/auth/admin/comp-access`). A FRESH data dir needs both steps again —
+  an unpaid walk account is redirected off every notebook route and the walk aborts INCOMPLETE.
+- **Lanes D and E** are subagents of the controller session — they die with it. Their commits are
+  on `feat/notebook-w6`; on resume, `git log`/`git status` in `notebook-w6` is the truth, and any
+  uncommitted files there are theirs (leave them; re-dispatch the lane with a pointer to them).
+- **Nothing else this program runs locally.** Unrelated Task Scheduler jobs resume on their own
+  per the main `CLAUDE.md`.
 
 ## 7. Verification checklist — re-derive everything above after restart
 
@@ -230,15 +193,14 @@ otherwise treats this directory as disposable. **It is not disposable.** If
 this worktree is ever removed, back up `.superpowers/sdd/2026-09-23-notebook-10/`
 first.
 
-## 9. Discord — one message queued, not yet sent
+## 9. Discord — queued, the Chrome extension was still disconnected at 19:10 CT
 
-`DISCORD-QUEUE.md` (local-disk-only, see §8) has a queued update as of
-2026-09-24 explaining that the #183-hold fix is done and self-verified, with
-one more independent review still owed once the rate limit clears. It has
-**not** been posted — the Chrome extension was disconnected the last time this
-was checked. **Check the extension connection and post the queue when you
-resume**, rather than re-summarizing from scratch — the queued text is already
-accurate as of this checkpoint.
+`DISCORD-QUEUE.md` (local-disk-only, §8) ends with a **consolidated entry (2026-09-24 ~19:10 CT)
+that supersedes the five older ones** — wave 5 complete and verified, the two owner items (open
+the PR; ship #183 with the batch), the box-hygiene FYI, the Enter-wait trade-off, wave-6 status.
+Post that one alone when `mcp__claude-in-chrome__navigate` works again (`tabs_context_mcp`
+creating a group is NOT proof the extension is connected — navigate is), and mark the older
+five as superseded. Channel: `#main-to-do-list-or-must-do`, tag `<@339816805805588480>`.
 
 ## 10. Standing rules — pointers only, not restated
 
@@ -264,13 +226,23 @@ resuming this program:
 
 ## 11. Known gotchas specific to this checkpoint
 
-- `feat/notebook-w6` is **behind** `feat/notebook-10`'s tip by four commits
-  (see §1, §4 item 9) — don't assume the two branches share a common current
-  state without checking.
-- The wave-5 gate run committed in this checkpoint (`9ee43bc26`) is at
-  `f84cb5add`, **before** the B1 fix — it is evidence for the PRE-B1-fix
-  state, not a verification of the current tip. Don't cite it as covering
+- `feat/notebook-w6` carries all of wave 5's CODE but is behind by four docs/evidence commits
+  (`8370e15ad..34f3fb6d2`) — merge that tail before the wave-6 PR (§5, step 4).
+- The gate that covers the B1 fix is `8f963fefa` (manifest `2026-09-24T18-23-10.md`, tip
+  `8370e15ad`); `9ee43bc26` (tip `f84cb5add`) is the PRE-fix evidence — do not cite it for
   `82c56dd63`/`1320d0f83`.
-- Lane D's stopping point (`80adeaa7a`) was reached because of the rate limit,
-  not because the lane reported itself done — treat it as a checkpoint, not a
-  close-out, until verified against `wave6-D-brief.md`.
+- **The walk instrument failed three times before the product passed once; each fault has a
+  control in `progress.md`:** a fixed-sleep sampler (use waiters); an UNPAID sandbox account
+  (AuthGuard → `/morning-wire`; the script now aborts on `paid_equiv` false); an editor seed with an
+  EMPTY TEXT NODE (`P("")`) that ProseMirror cannot build — the content guard `4da0b1fcd` now opens
+  it read-only where the pre-guard editor silently blanked it, so a fixture that passed on
+  `f84cb5add` is not a control for the new tip.
+- The walk's `hubOverlap` reads `null` for a MEMBER (hub not mounted at the current rollout stage);
+  the phone joystick-corner clause is measured as the sandbox ADMIN
+  (`scratchpad/probe_hub_overlap.py` pattern; result: no overlap, Undo clear of the pad by 0.3 px
+  horizontally at 390 px — tight, noted).
+- The sandbox integrity log's shutdown row is CHANGED (7 live files) and that is NOT the
+  sandbox's doing — read the ruling before treating the walk as void or re-running it.
+- `check_repo_hygiene.py --staged` must run from INSIDE the worktree (a `-C`-style path reported
+  "0 staged"); the Bash classifier can refuse `cd <worktree> && git …` — use `git -C`.
+

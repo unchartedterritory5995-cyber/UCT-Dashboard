@@ -271,6 +271,9 @@ export function Harness({ initialSettings }) {
         return k && dbg[k].engineSeries ? dbg[k].engineSeries() : null
       },
       audit: () => audit(sym, opts.tf, opts.settings),
+      // SAVE / RELOAD, the way a stored layout travels: JSON out, and back in through
+      // `mergeChartSettings` (the allow-list every stored blob is read through).
+      save: () => { localStorage.setItem('fundHarnessSaved', JSON.stringify(opts.settings)); return true },
       requests: () => REQUESTS.slice(),
       blocked: () => BLOCKED.slice(),
     }
@@ -302,6 +305,10 @@ export function Harness({ initialSettings }) {
 
 const seedIds = (params.get('seed') || '').split(',').filter(Boolean)
 const controlIds = (params.get('control') || '').split(',').filter(Boolean)
-Promise.resolve(seedSettings(seedIds, controlIds)).then((cs) => {
+const restored = (() => {
+  if (params.get('restore') !== '1') return null
+  try { return mergeChartSettings(JSON.parse(localStorage.getItem('fundHarnessSaved'))) } catch { return null }
+})()
+Promise.resolve(restored || seedSettings(seedIds, controlIds)).then((cs) => {
   createRoot(document.getElementById('root')).render(<Harness initialSettings={cs} />)
 })

@@ -202,8 +202,15 @@ function renderScreenerPage() {
     </MemoryRouter>,
   )
 }
-const openMenu = async (user) => user.click(await screen.findByRole('button', { name: 'Screens ▾' }))
-const writes = () => H.requests.filter((r) => r.method !== 'GET')
+const openMenu = async (user) => user.click(await screen.findByRole('button', { name: 'Screener ▾' }))
+// ⛔ WRITES TO THE STORE'S OWN DOOR, not every non-GET on the page. Since PACKET-AB CP1
+// the shell also POSTs the cheap /api/screener/count preview (and the scan itself is a
+// POST), so "every non-GET" counted 3 on a single Save and read as a triple write. The
+// assertions below are about the definitions store — "ONE POST through
+// saveUserDefinition" — so that is the door this counts. A genuine duplicate store write
+// still fails here; a preview count never could.
+const writes = () => H.requests.filter(
+  (r) => r.method !== 'GET' && r.url.split('?')[0].startsWith(USER_DEFINITIONS_KEY))
 
 describe('🔴 the authoring door on the route a member navigates to', () => {
   it('New scan → the REAL sheet opens on Conditions → a starter → Save → ONE POST through saveUserDefinition → the new scan\'s results', async () => {

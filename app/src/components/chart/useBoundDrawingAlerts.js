@@ -22,7 +22,10 @@
  * silently and nothing is sent. Only a real MOVE reaches the network.
  */
 import { useEffect, useMemo } from 'react'
-import useSWR, { mutate as globalMutate } from 'swr'
+import { mutate as globalMutate } from 'swr'
+// ⭐ `useMobileSWR` (2026-09-25): this poll rides every chart, phones included —
+// halves there, stops while hidden (`hooks/pollingSites.rail.test.js`).
+import useMobileSWR from '../../hooks/useMobileSWR'
 import { anchorsForDrawing, alertKindFor, geometrySignature, parseBoundId } from './drawingAlertAnchors'
 
 // ⛔ MODULE-LEVEL ON PURPOSE. N charts on one symbol mount N copies of this hook
@@ -53,7 +56,7 @@ export default function useBoundDrawingAlerts({ sym, drawings, getBars, tf, etOf
     [drawings],
   )
 
-  const { data } = useSWR(symU && hasLineDrawing ? '/api/watchlist-alerts' : null, fetcher, {
+  const { data } = useMobileSWR(symU && hasLineDrawing ? '/api/watchlist-alerts' : null, fetcher, {
     refreshInterval: 60000,
     dedupingInterval: 30000,
   })

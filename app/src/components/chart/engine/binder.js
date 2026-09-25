@@ -77,6 +77,7 @@ import { fundamentalFormatOfInstance, fundamentalPriceFormat } from './fundament
 import { ohlcCapabilityOf, barHasOhlc, outputIsSource } from './ohlcCapability'
 import { sourceCapabilityOf } from './sourceCapability'
 import { resolvePlotStyle, resolveCandleColors } from './presentation'
+import { splitGapRuns, hasFundamentalLineage, isConnectedPool, valueAtFor } from './gapRuns'
 
 /** A fill's colour and opacity — the plot's own `fillColor`/`fillOpacity` when it
  *  declares them, else its series colour at a low default alpha.
@@ -283,6 +284,57 @@ function lastPointValue(points) {
   if (!Array.isArray(points) || points.length === 0) return undefined
   const last = points[points.length - 1]
   return last ? last.value : undefined
+}
+
+/** A binding's GAP-RUN series (`gapRuns.js`) -- the render-only series that draw
+ *  the EARLIER valid runs of one fundamental line. They live and die with the
+ *  binding that owns them: every path that removes `b.series` removes these. */
+function removeRunSeries(chart, entry) {
+  const runs = entry && Array.isArray(entry.runSeries) ? entry.runSeries : []
+  for (const s of runs) attempt(() => chart.removeSeries(s))
+}
+
+/** One split per points ARRAY: `pointsFor` memoises points on the column's
+ *  identity, so an unchanged line hands back the same array and the same runs --
+ *  which is what lets a reused run series skip its `setData` below. */
+const splitMemo = new WeakMap()
+function splitFor(points) {
+  let sp = splitMemo.get(points)
+  if (!sp) { sp = splitGapRuns(points); splitMemo.set(points, sp) }
+  return sp
+}
+
+const valueAtMemo = new WeakMap()
+function valueAtOf(points) {
+  let f = valueAtMemo.get(points)
+  if (!f) { f = valueAtFor(points); valueAtMemo.set(points, f) }
+  return f
+}
+
+/** Shallow (one level into plain objects) equality of two option sets, so an
+ *  unchanged run series is not handed `applyOptions` on every ~1s engine tick --
+ *  measured, that alone doubled an unchanged re-sync at the store's worst run
+ *  count. Functions and frozen singletons compare by identity. */
+function sameOptions(a, b) {
+  if (a === b) return true
+  if (!a || !b) return false
+  const ka = Object.keys(a)
+  if (ka.length !== Object.keys(b).length) return false
+  for (const k of ka) {
+    const x = a[k]; const y = b[k]
+    if (x === y) continue
+    if (!x || !y || typeof x !== 'object' || typeof y !== 'object' || Array.isArray(x) !== Array.isArray(y)) return false
+    const kx = Object.keys(x)
+    if (kx.length !== Object.keys(y).length) return false
+    for (const j of kx) if (x[j] !== y[j]) return false
+  }
+  return true
+}
+
+/** Run series never write on the axis: the one last-value tag and price line
+ *  belong to the LOGICAL series (the primary, which holds the newest run). */
+function runSeriesOptions(options) {
+  return { ...options, lastValueVisible: false, priceLineVisible: false }
 }
 
 /**
@@ -701,7 +753,7 @@ export function createBinder({ chart, LWC }) {
   }
 
   function releaseAll() {
-    for (const b of held) attempt(() => chart.removeSeries(b.series))
+    for (const b of held) { attempt(() => chart.removeSeries(b.series)); removeRunSeries(chart, b) }
     // ⛔ THE DRAWINGS GO WITH THE SERIES. A layer that merely stopped updating
     // would leave its last picture frozen over the chart, which reads as "the
     // indicator is still on" — the ghost-state defect this release path exists
@@ -1130,7 +1182,7 @@ export function createBinder({ chart, LWC }) {
     //       renderer just gave back. (The planner has already guaranteed nothing
     //       released here could have been reused, so this is ordering hygiene
     //       rather than a second policy.) ──
-    for (const b of release) attempt(() => chart.removeSeries(b.series))
+    for (const b of release) { attempt(() => chart.removeSeries(b.series)); removeRunSeries(chart, b) }
 
     // ── 4. Bind ──
     //
@@ -1142,7 +1194,10 @@ export function createBinder({ chart, LWC }) {
     // reachable with the native registry today (every def has a string id and
     // `normalizeInstances` validates `placement.target`), and it fails in the
     // wrong direction for a Phase C catalog definition, so it is closed now.
-    const orphan = (b) => { if (b.series) attempt(() => chart.removeSeries(b.series)) }
+    const orphan = (b) => {
+      if (b.series) attempt(() => chart.removeSeries(b.series))
+      removeRunSeries(chart, b.from)
+    }
 
     /** The column→LWC-points mapping, reused whenever nothing it depends on has
      *  moved. `adjustTime` is part of the key because it is what stamps every
@@ -1312,7 +1367,7 @@ export function createBinder({ chart, LWC }) {
         attempt(() => series.applyOptions(options))
       }
 
-      prepared.push({ b, paneIndex, scaleId, scaleOptions, series, guideHandles })
+      prepared.push({ b, paneIndex, scaleId, scaleOptions, series, guideHandles, options })
     }
 
     // ⛔⛔ THE LEFT AXIS IS ASSERTED **BEFORE** ANY SCALE IS WRITTEN, and the order
@@ -1551,13 +1606,51 @@ export function createBinder({ chart, LWC }) {
 
       // ── TRAP #1: a first bind is setData, whatever the plan says ──
       const points = pointsFor(b, columns.get(b.key))
+      // ⛔⛔ A CANONICAL GAP IS A BREAK, NOT A MISSING POINT (`gapRuns.js`). A
+      // connected line of fundamental lineage is split into one render series per
+      // valid run; the primary keeps the newest run and every time slot, the rest
+      // are drawn by run series this binding owns. Everything else is untouched:
+      // `gapBreak` false means the exact calls this pass always made.
+      const gapBreak = isConnectedPool(b.poolKey) && hasFundamentalLineage(b.inst, instances)
+      const split = gapBreak ? splitFor(points) : null
+      const drawn = split ? split.primary : points
       if (firstBindNeedsSetData(b, planMode)) {
-        attempt(() => series.setData(points))
+        attempt(() => series.setData(drawn))
       } else if (typeof ctx.applyData === 'function') {
-        attempt(() => ctx.applyData(series, points))
+        attempt(() => ctx.applyData(series, drawn))
       } else {
-        attempt(() => series.setData(points))
+        attempt(() => series.setData(drawn))
       }
+
+      // Reconcile the run series: reuse what this binding (or the one it was
+      // pooled from) already owned, IN ORDER; create the shortfall; remove the
+      // surplus. A run series follows its primary's pane and options exactly, so
+      // a style, pane or visibility change can never leave an old run behind.
+      const carried = (b.from && Array.isArray(b.from.runSeries)) ? b.from.runSeries : []
+      const carriedData = (b.from && Array.isArray(b.from.runData)) ? b.from.runData : []
+      const wanted = split ? split.runs : []
+      const runSeries = []
+      const runData = []
+      if (wanted.length) {
+        const ropts = runSeriesOptions(p.options)
+        const ctor = LWC[SERIES_CTOR[b.poolKey]]
+        for (let k = 0; k < wanted.length; k++) {
+          let rs = carried[k] || null
+          const same = !!rs && carriedData[k] === wanted[k]
+          if (rs) {
+            if (b.from.paneIndex !== paneIndex) attempt(() => rs.moveToPane(paneIndex))
+            if (!sameOptions(b.from.runOptions, ropts)) attempt(() => rs.applyOptions(ropts))
+          } else {
+            const made = attempt(() => chart.addSeries(ctor, ropts, paneIndex))
+            rs = made.ok ? made.value : null
+          }
+          if (!rs) continue
+          if (!same) attempt(() => rs.setData(wanted[k]))
+          runSeries.push(rs)
+          runData.push(wanted[k])
+        }
+      }
+      for (let k = wanted.length; k < carried.length; k++) attempt(() => chart.removeSeries(carried[k]))
 
       next.push({
         markerLayer,
@@ -1584,6 +1677,12 @@ export function createBinder({ chart, LWC }) {
         // the series are both in hand; `readout.js` is pure and gets no other
         // route to the value legacy reads off `indicatorData`.
         lastValue: lastPointValue(points),
+        // Render-only; never persisted. Empty for every non-gap binding.
+        runSeries,
+        runData,
+        runOptions: runSeries.length ? runSeriesOptions(p.options) : null,
+        // The legend's reading of a gap-breaking line at a bar (`readout.chipsFrom`).
+        ...(gapBreak ? { valueAt: valueAtOf(points) } : {}),
       })
     }
 

@@ -59,6 +59,13 @@ export const WidgetEmbed = Node.create({
       // Default null — every embed stored before it simply lacks one, and
       // citations to those keep the widgetId|capturedAt fallback. Rendered as
       // a data- attribute so copy/paste and the importer round-trip keep it.
+      // ⚠️ Schema-guard limit (wave-5 review N6): NOTEBOOK_TYPE_SCHEMA versions
+      // node/mark TYPES, not attributes — an older bundle silently DROPS an
+      // attr it does not know, so an attr addition gets no level bump and no
+      // refusal. That is safe here only because absence has a meaning (the
+      // fallback key). An attribute whose absence would change what the note
+      // MEANS needs its own mechanism; see docs/notebook/wave5-rollback.md,
+      // "Rules that outlive this wave".
       embedId: stringAttr('data-embed-id'),
       mode: stringAttr('data-mode', 'snapshot'),
       fallback: jsonAttr('data-fallback', null),

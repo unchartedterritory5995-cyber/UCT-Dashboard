@@ -1,7 +1,7 @@
 {
-  "measured_at": "2026-09-23 (ADOPTED from the six-shard run on master 51a61a8b8; manifest docs/notebook/gate-runs/g064-closeout/master-51a61a8b8-2026-09-23T16-10-14.md)",
-  "sha": "51a61a8b87b9b43b4d7ffb3301e3650dbb179cf4",
-  "how": "Extracted by scripts/gate_shards.py::parse_failures (the FAIL-line parser that counts a line only when its identity starts with a test-file path, ac9987280/f5cae6ade) from the six shard logs of a six-shard run on MASTER ITSELF at 51a61a8b8, in a detached worktree with no branch in the tree. Every banked row is master's.",
+  "measured_at": "2026-09-24 (ADOPTED from the six-shard run on master 73a4286d0; manifest docs/notebook/gate-runs/master-baseline-73a4286d0/2026-09-24T20-16-01.md; shard logs re-parsed with the fixed FAIL parser ac9987280/f5cae6ade)",
+  "sha": "73a4286d0dc4b3adcaea9f6f8ec9b80a1bff8735",
+  "how": "Extracted by scripts/gate_shards.py::parse_failures (the FAIL-line parser that counts a line only when its identity starts with a test-file path) from the six shard logs of a six-shard run on MASTER ITSELF at 73a4286d0, in a detached worktree with no branch in the tree. Every banked row is master's. Timeouts are NOT banked (see timeouts_not_banked).",
   "provenance_caveat": "⭐ CORROBORATED TWICE, at two different merge-bases. Originally seeded from a run on the branch; corroborated at 78ac8016b, then RE-corroborated at f58383e69 after the rebase. At the new base the two sets are IDENTICAL: master introduced no failure this baseline lacks, and after removing the one entry master FIXED (see removed_because_master_fixed_it, attributed to 4fef130d9) no baseline entry is absent at the base. Nothing here is the hub's. ⛔ If either of the two load-sensitive names recorded under prior_base appears as NEW in a future run, re-run it ALONE before treating it as a regression. 2026-09-10: ChartDrawingOverlay.surfaces.test.jsx was ADDED by the Wave Q1 session, not because Wave Q1 caused it -- it did not -- but because MASTER MOVED and this baseline is a measurement OF master. It is blamed to 8de4da43b (charts Phase 9). Proof, and the third step is the one that counts: it fails at rest alone in 1.4s (so it is not the load-sensitive population); the test and its subject are byte-identical to origin/master; and the same test was RUN on a detached worktree at origin/master with no Wave Q1 code present and failed identically. Left stale, this file would have reported a phantom regression to every branch that ran the gate from now on -- a gate list drifts like any other artifact. 2026-09-10 (2nd): TWO rows REMOVED because MASTER FIXED THEM -- sourcesAreText's NUL bytes and ImportBox.thinkscript's line endings (5e7a88258 'normalise fixture line endings'). ⛔ Removed by measurement, not by hope: both were in the baseline, both are now green in a full run at 591d1a7b7. A baseline that keeps a fixed row makes the next real fix look like a regression's absence.",
   "files": [
     "src/components/Layout.pageTracking.test.jsx",
@@ -72,6 +72,7 @@
     "src/components/chart/engine/__tests__/graphRuntime.test.js > C2C.19 — what the sharing costs, and what it saves > wall clock per document, with and without the shared memo",
     "src/components/chart/engine/__tests__/memberPaneGate.test.js > the member-pane gate > the ledger declares it, and names the reader that really reads it",
     "src/components/chart/engine/__tests__/stockChartWiring.test.jsx > an engine series is inserted where its legacy twin would have been > and BEFORE the whole rest of the chart, not just the first block",
+    "src/components/chart/engine/__tests__/stockChartWiring.test.jsx > an engine-drawn indicator still appears in the crosshair legend > ⛔⛔ A HOVER REACHES THE RENDERER NOT AT ALL",
     "src/components/chart/engine/ast/bothLanesAgreeOnFacts.test.js > a7.2 — both lanes agree on the facts, across every source > ⭐⭐ the rail reaches all three sources, and Clouds is one of them",
     "src/components/chart/engine/ast/capabilityDemandCensus.test.js > ⭐⭐⭐ capability demand — total, not just first blocker (§7) > reports both numbers for every family",
     "src/components/chart/engine/ast/historyDemandCensus.test.js > 2F-2 — runtime history demand across every corpus > reports both numbers, and they are different questions",
@@ -84,7 +85,6 @@
     "src/components/chart/engine/runtime/__tests__/carriedState.test.js > ⭐ length, resources and what is NOT admitted > ⛔⛔ `barssince`/`valuewhen` are NOT carried members, and the reason is not shyness",
     "src/components/dailyFirstPaintAcceptance.test.jsx > DAILY first-paint acceptance > NC-B late right-edge insertion",
     "src/components/dailyFirstPaintAcceptance.test.jsx > DAILY first-paint acceptance > NC-C stale wick corrected after paint",
-    "src/components/dailyFirstPaintAcceptance.test.jsx > DAILY first-paint acceptance > NC-D camera moved after first paint",
     "src/components/dailyFirstPaintIncidental.test.jsx > CASE B — a same-length daily refetch merges instead of dropping the oldest bar > the oldest cached bar survives and the geometry does not translate",
     "src/components/screener/reachable.test.js > 🔴 every module under app/src is REACHABLE from an entry point > and nothing committed is connected to nothing",
     "src/hooks/pollingSites.rail.test.js > polling sites — the opt-in helper gets a rail > no NEW bare polling site, and no allow-listed one that has since moved",
@@ -258,9 +258,9 @@
     {
       "sha": "1216958ed29aa263a91f7b3224e237ca4ecb7e03",
       "measured_at": "2026-09-14 (ADOPTED from the six-shard run on master 1216958ed; manifest gate-runs/2026-09-14T17-48-27.md)",
-      "count": 10,
-      "superseded_at": "2026-09-23",
-      "why": "Re-adopted under the owner's delegation of 2026-09-23 ('Approve fully everything on full judgement call by you'). The 2026-09-14 set was 10 rows while master itself failed ~120: every gate reported 130+ NEW that were master's. The old parser also recorded the dailyFirstPaint probes' own 'FAIL | NC-…' report-table rows (timings inside) as failures, which could never be banked meaningfully; ac9987280 fixed that, which is what made a clean adoption possible."
+      "rows": 10,
+      "superseded_on": "2026-09-24",
+      "why": "master's own failing set had grown far past this record; every gate on a master-based tree reported master's own reds as NEW. Re-adopted from a six-shard run on master itself."
     }
   ],
   "additions": [
@@ -325,12 +325,6 @@
       "why_not_fixed_here": "⛔ DELIBERATELY NOT RUN. A Notebook change set editing `docs/plans/joystick/` is the rule-12 shape inverted, and `hub/rule12Paths.test.js` fires on any change set touching those paths. Running the one-line fix would trade one red for a different one and put this workstream's name on the joystick's artifact.",
       "verified_by": "six-shard detached gate 2026-09-17T23-24-19 on bfb7c010343a8f626cffa8e0f6617e196525aa39; tree hash identical at both ends; 1399 files on disk reconciling with 1399 summed",
       "provisional": false
-    },
-    {
-      "added": "126 rows (the whole measured master set, timeouts excluded)",
-      "added_at": "2026-09-23",
-      "added_in": "docs/notebook/gate-runs/g064-closeout/master-51a61a8b8-2026-09-23T16-10-14.md",
-      "why": "master's own failing set at the adoption SHA; see superseded_baselines' last entry"
     }
   ],
   "files_note": "⚰️ files[] is DERIVED from failures[] as of 2026-09-14 and is documentation only — scripts/gate_shards.py reads sha, measured_at and failures, never this. It had drifted: it listed src/__tests__/sourcesAreText.test.js and src/components/chart/builder/ImportBox.thinkscript.test.jsx (both removed when master fixed them) and src/components/screener/reachable.test.js (removed 2026-09-11), while omitting src/components/chart/ChartDrawingOverlay.surfaces.test.jsx (added 2026-09-10). A derived list cannot drift; a typed one already had.",
@@ -338,5 +332,16 @@
   "expected_red": [],
   "expected_red_reasons": {},
   "expected_red_note": "DELIBERATE reproductions added by a branch, red BECAUSE the defect is real. NOT the same as `failures`, which is a measurement OF MASTER ('Nothing here is the hub's'). Each entry names the fix it waits on. An entry that turns GREEN is STALE and fails the gate.",
-  "load_sensitive_note": "2026-09-17: the six-shard run 2026-09-17T23-24-19 reported 4 NEW. THREE were TIMEOUTS at 15000ms and are NOT banked - a timeout is never banked as permitted breakage, because a banked slot is one a real failure can later occupy unnoticed. Each passed ALONE on the same tree, by a wide margin: captureConvergence 'capture.js is the ONLY module that names the capture endpoint' 2856ms; focusDivergence 'M-7' 1218ms; surfaces/manifest 'no file outside src/surfaces imports it' 616ms. All three walk app/src with an AST or a filesystem crawl, which is exactly the shape that goes load-sensitive - and this run was contended: vitest spawned ~15 concurrent workers despite --maxWorkers=1, with available memory spiking down to 0.66 GB."
+  "load_sensitive_note": "2026-09-17: the six-shard run 2026-09-17T23-24-19 reported 4 NEW. THREE were TIMEOUTS at 15000ms and are NOT banked - a timeout is never banked as permitted breakage, because a banked slot is one a real failure can later occupy unnoticed. Each passed ALONE on the same tree, by a wide margin: captureConvergence 'capture.js is the ONLY module that names the capture endpoint' 2856ms; focusDivergence 'M-7' 1218ms; surfaces/manifest 'no file outside src/surfaces imports it' 616ms. All three walk app/src with an AST or a filesystem crawl, which is exactly the shape that goes load-sensitive - and this run was contended: vitest spawned ~15 concurrent workers despite --maxWorkers=1, with available memory spiking down to 0.66 GB.",
+  "timeouts_not_banked": {},
+  "order_sensitive_on_master": {
+    "instruction": "⛔ RE-RUN ALONE ON A PRISTINE MASTER WORKTREE BEFORE CLASSIFYING. These names PASSED inside master's own six-shard baseline run and FAIL when the file runs alone on the same master tree, so a branch gate can report them as NEW without the branch having touched them. Not banked as failures (the baseline is a measurement of the sharded run); not the branch's; re-check provenance with git diff --stat against the base.",
+    "names": [
+      {
+        "name": "src/components/dailyFirstPaintAcceptance.test.jsx > DAILY first-paint acceptance > NC-D camera moved after first paint",
+        "seen": "hotfix/notebook-metadata-settle first gate (stale-baseline run 2026-09-24T19-42-58, tree abc2f168c): red in-shard while master's baseline run 2026-09-24T20-16-01 at 73a4286d0 had it green in-shard",
+        "evidence": "alone on the PRISTINE master worktree at 73a4286d0: 2 failed | 16 passed, twice in a row (master-ncd-alone-1/2.log); alone on the hotfix tree: the same file fails. The hotfix touches NoteEditorPage.jsx, its metadataSettle rail, scripts/gate_shards.py + tests/test_gate_shards.py and these baseline files -- no chart code -- so the flip is master's own order/shard-composition sensitivity, not the branch's."
+      }
+    ]
+  }
 }

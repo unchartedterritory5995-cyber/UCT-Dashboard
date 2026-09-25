@@ -754,7 +754,7 @@ The voice orb (`voice/FloatingOrb.jsx`, paid-only, bottom-right) and the feedbac
 `hooks/useMediaQuery.js` seeds from `matchMedia(q).matches` at MOUNT and only updates on a media **`change`** event. In a fixed mobile context the viewport never changes, so a JS `useIsTouch()` read can render the desktop variant on a phone. **Use CSS `@media` queries for layout/positioning** (for inline-styled components add a CSS-module class + `!important` inside the query); reserve `useIsTouch()` for click-triggered conditional rendering (open a `Sheet` vs anchored popover on tap). Scroll listeners must use capture phase — the app scrolls the inner `.main` element, not `window` (`Layout.module.css`: `.shell` overflow:hidden, `.main` overflow-y:auto).
 
 ### OptionsFlow mobile (partner-owned, ~7k lines, all inline styles)
-Rebase-safe technique only: add `className` HOOKS to `OptionsFlow.jsx` (never edit its inline `style={{}}` objects) + ride the additive `OptionsFlow.mobile.css` layer (all `@media (max-width:640px)` + `!important`). Hooks in use, verified against `OptionsFlow.jsx` source 2026-09-22: `of-mroot` (root), `of-tabs` (tab bar), `of-chiprow-seg`/`of-chiprow-wrap` (filter strips → horizontal scroll, 44px), plus `of-fetchpl`/`of-order`/`of-pickrow`/`of-picks`/`of-refresh` (present, not previously documented here). ⚰️ **`of-tip` and its `data-pin` tap-toggle are GONE** — the theme-help ⓘ hook this line described no longer exists in the component. `OptionsFlow.mobile.css` still declares `.of-tip` and a bare `.of-chiprow` selector that now match nothing in the JSX (dead CSS, not a live hook) — a cleanup candidate, not corrected here.
+Rebase-safe technique only: add `className` HOOKS to `OptionsFlow.jsx` (never edit its inline `style={{}}` objects) + ride the additive `OptionsFlow.mobile.css` layer (all `@media (max-width:640px)` + `!important`). Hooks in use, verified against `OptionsFlow.jsx` source 2026-09-22: `of-mroot` (root), `of-tabs` (tab bar), `of-chiprow-seg`/`of-chiprow-wrap` (filter strips → horizontal scroll, 44px), plus `of-fetchpl`/`of-pickrow`/`of-picks`/`of-refresh` (present, not previously documented here). ⚰️ **`of-tip` and its `data-pin` tap-toggle are GONE** — the theme-help ⓘ hook this line described no longer exists in the component. `OptionsFlow.mobile.css` still declares `.of-tip` and a bare `.of-chiprow` selector that now match nothing in the JSX (dead CSS, not a live hook) — a cleanup candidate, not corrected here. ⚰️ **Correction, 2026-09-24: `of-order` was NOT a real hook** — re-verified against current `OptionsFlow.jsx` (literal grep, case-insensitive grep, and a template-literal-className grep, all zero hits outside an unrelated "Out-of-order guard" code comment at line ~3903). Dropped from this list; the eight `of-*` hooks above are the complete, re-verified set. **New in this window, unmounted by design:** `app/src/pages/optionsFlow/FlowExplainButton.jsx` (+ `FlowExplainModal`) is a complete, tested (9/9) "explain this print" UI for the existing `POST /api/flow-explain` backend — built as `PACKET-AA CP1`, deliberately **not** imported by `OptionsFlow.jsx`. Mounting it (`CP2`, one additive `of-explain*` className hook) is queued and requires owner+Ravi coordination before it lands — tracked in `docs/terminal-research/12-decisions/gates/packet-aa-flow-explain-wiring-gate.md` and the `AWAITING_A_DECISION` entry in `app/src/components/screener/reachable.test.js`. Do not mount it without that coordination.
 
 ## Responsive / Mobile System (2026-06-05 — mobile-seamless initiative)
 
@@ -3577,7 +3577,7 @@ exactly as it did before K.
   rate, and `tools/window_check.py` now stamps that reading — reporting **absent**
   and **off** as different facts, because a pod predating K serves no keys at all.
 
-### 📓 Notebook 10/10 program — waves 5–6, IN PROGRESS, blocked on a rate limit as of 2026-09-24
+### 📓 Notebook 10/10 program — waves 5–6: wave 5 COMPLETE (awaiting the owner's PR), wave 6 in build, 2026-09-24
 
 ⭐⭐ **READ `docs/notebook/wave5-6-RESUME-HERE.md` FIRST** — it is the checkpoint
 for this program and carries exact SHAs and the next actions in order. This
@@ -3585,28 +3585,28 @@ section is a pointer, not a substitute for it. `docs/notebook/RESUME-PROMPT.md`
 is a paste-ready prompt covering the whole program.
 
 Two worktrees: `C:\Users\Patrick\uct-worktrees\notebook-k` (`feat/notebook-10`,
-wave 5) and `C:\Users\Patrick\uct-worktrees\notebook-w6` (`feat/notebook-w6`,
-wave 6). Plan: `docs/notebook/NOTEBOOK-10-OF-10-PLAN.md`. Both branches are
-pushed. **All of wave 5 (lanes A/B/C and the B1 schema-guard fix `82c56dd63`)
-is merged into `feat/notebook-w6`** as of 2026-09-24, so wave 6 carries the
-schema guard — ⛔ every node/mark type wave 6 added (columns/column,
-dateMention, imageFigure, tableOfContents, the web link/embed nodes, and any
-new callout variant type) MUST be registered at schema 2 in
-`lib/notebookSchema.js` and its Python mirror before this branch ships; a type
-missing from that map reads as level 0 and is exactly how a note blanks
-(`docs/notebook/wave5-rollback.md`, "Rules that outlive this wave").
+wave 5, tip `34f3fb6d2`, pushed) and `C:\Users\Patrick\uct-worktrees\notebook-w6`
+(`feat/notebook-w6`, wave 6, carries all of wave 5's code via merge `07e1a74ae`;
+behind wave 5 only by four docs/evidence commits). Plan:
+`docs/notebook/NOTEBOOK-10-OF-10-PLAN.md`.
 
-The 2026-09-24 weekly Opus rate limit that stalled three agents cleared with an
-account switch the same day; dispatch resumed. Wave 6 lane D's 13 items all
-landed (`82f0a4a57`..`80adeaa7a`) but the lane never wrote its report — its
-task review and lane E's fresh dispatch are tracked in the resume doc.
+✅ **Wave 5 is reviewed (incl. the B1 re-review), gated on its final tip
+(`8f963fefa`, 0 NEW) and walked live on that tip (`f8976a114`, all 19 checks).**
+The one open item is the OWNER opening the PR from `feat/notebook-10` — `gh` is
+unauthenticated on this box. ⛔ The three never-revert commits `8167f7aa0`,
+`fd87271fd`, `82c56dd63` and the rule for them are in `docs/notebook/wave5-rollback.md`.
+
+⛔ **`tools/notebook_wave5_walk.py` is the walk that produced the evidence** — its
+header names the three preconditions (a sandbox from the tip; a PAID walk account
+on that data dir, or every notebook route redirects; `app/dist` rebuilt). The walk
+failed three times on the INSTRUMENT before the product passed once; the lessons
+are in the resume doc §11.
 
 ⛔⛔ **The SDD ledger for this program lives at
-`notebook-k/.superpowers/sdd/2026-09-23-notebook-10/` (the `notebook-k`
-worktree) and is gitignored — local disk only, never pushed.** Do not delete
-that worktree without backing it up first; the full lane-by-lane history
-(`progress.md`) and the single open-items tracker (`OPEN-ITEMS.md`) exist
-nowhere else.
+`notebook-k/.superpowers/sdd/2026-09-23-notebook-10/` and is gitignored — local
+disk only, never pushed.** Do not delete that worktree without backing it up
+first; the full lane-by-lane history (`progress.md`) and the single open-items
+tracker (`OPEN-ITEMS.md`) exist nowhere else.
 
 ### ✅ B7 / rule 12 — the rail now identifies WHOSE change set it is (CLOSED 2026-09-13)
 
