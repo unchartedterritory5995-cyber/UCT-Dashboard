@@ -1031,6 +1031,75 @@ def _market_dates(src: str) -> list:
     return out
 
 
+def _symbol_session_counts(sym: str) -> list:
+    """[(date 'M/D/YYYY', rows)] for ONE symbol, oldest first — a COVERING read of
+    `idx_flow_symbol_created (Symbol, CreatedDate)`, so no row is touched (NVDA, 180 sessions /
+    386K rows: 157 ms; SPY: 373 ms; measured in the pod 2026-09-25). No `source` term on purpose:
+    it would force a table read per row, and a symbol lives in one partition (the stream that
+    follows still filters on source)."""
+    with db._conn() as conn:
+        raw = conn.execute("SELECT CreatedDate, COUNT(*) FROM flow WHERE Symbol = ? GROUP BY CreatedDate",
+                           (sym,)).fetchall()
+    dated = [(db._parse_date_mdy(d), d, n) for d, n in raw if d and db._parse_date_mdy(d)]
+    dated.sort(key=lambda x: x[0])
+    return [(d, n) for _, d, n in dated]
+
+
+def _pick_basis(counts: list, cap_rows: int) -> list:
+    """The NEWEST sessions whose rows sum to <= cap_rows (always at least the newest one)."""
+    picked, acc = [], 0
+    for d, n in reversed(counts):
+        if picked and acc + n > cap_rows:
+            break
+        picked.append(d); acc += n
+    return list(reversed(picked))
+
+
+def _basis_ticker_product(sym: str, src: str, version: str, cap_rows: int, st):
+    """The Discord card's page-derived product: the SAME derivation the page runs, over the
+    largest recent history that fits `cap_rows`.
+
+    ⭐ WHY A ROW CAP AND NOT A SESSION COUNT. `processFlowData` decides a print's direction
+    partly from contract-level totals across EVERY row it is given (the whale-dominance block
+    rescue, flow shape, ML siblings, deep-OTM clusters), so parity with the page is a property of
+    which rows it sees. Measured 2026-09-25 against the page's own full-history product, one
+    session displayed: a 1-session basis flipped MSTR's direction and ran up to 1.9x gross; 60
+    sessions stayed within 2.6%; ALL stored sessions matched exactly (14/14 and 4/4). And the
+    size is concentrated in recent sessions (AMD: 220K of 224K rows are in the last 60), so a
+    fixed session count does not bound cost — rows do. Under the cap the basis is full history
+    (DELL, PLTR, IWM: exact, 2-7 s); over it, the newest sessions that fit (NVDA 20, SPY 7), and
+    the answer says so (`basis_complete: false`)."""
+    key = (sym, src, version, f"r{cap_rows}")
+    cached = _search_product_cache_get(key)
+    st.mark("cache_lookup", hit=bool(cached), basis_rows=cap_rows)
+    if cached is not None:
+        st.flush("HIT_BASIS")
+        return _search_response(cached, version, "hit")
+    if not flow_aggregate.available():
+        st.flush("NO_BUNDLE")
+        return JSONResponse({"ok": False, "error": "bundle unavailable"}, status_code=503)
+    counts = _symbol_session_counts(sym)
+    market = _market_dates(src)[-20:]
+    if not counts:
+        return JSONResponse({"ok": True, "sym": sym, "source": src, "version": version,
+                             "schema": _SEARCH_PRODUCT_SCHEMA, "window_dates": [], "market_dates": market,
+                             "basis_complete": True, "basis_rows": 0, "sessions_total": 0,
+                             "product": {"all_directional": [], "TICKER_DB": []}, "rows": 0})
+    dates = _pick_basis(counts, cap_rows)
+    extra = {"window_dates": dates, "market_dates": market, "basis_complete": len(dates) == len(counts),
+             "basis_rows": sum(n for d, n in counts if d in set(dates)), "sessions_total": len(counts)}
+    if not _SEARCH_BUILD_LOCK.acquire(blocking=False):
+        st.flush("DECLINED_BUSY")
+        return JSONResponse({"ok": False, "error": "busy"}, status_code=503)
+    try:
+        gz, err = _build_search_product(sym, src, key, version, st, dates=dates, extra=extra)
+        if err is not None:
+            return err
+        return _search_response(gz, version, "basis")
+    finally:
+        _SEARCH_BUILD_LOCK.release()
+
+
 def _windowed_ticker_product(sym: str, src: str, version: str, wd: int, st):
     """The Search derivation over ONE symbol, restricted to the last `wd` MARKET sessions (the
     Discord card's page-derived path, 2026-09-25). Its own cache key beside the full product,
@@ -1080,6 +1149,7 @@ def _windowed_ticker_product(sym: str, src: str, version: str, wd: int, st):
 def get_flow_ticker_product(symbol: str, source: str = "stocks",
                             warm_only: str = "",
                             window_days: int = 0,
+                            basis_rows: int = 0,
                             _auth: dict = Depends(require_flow_user)):
     """The Search deep-dive product for ONE ticker: {all_directional, TICKER_DB}.
 
@@ -1102,6 +1172,12 @@ def get_flow_ticker_product(symbol: str, source: str = "stocks",
     version = _search_freshness(sym, src)
     key = (sym, src, version)
 
+    try:
+        br = int(basis_rows or 0)
+    except (TypeError, ValueError):
+        br = 0
+    if br > 0:
+        return _basis_ticker_product(sym, src, version, min(br, 400_000), st)
     try:
         wd = int(window_days or 0)
     except (TypeError, ValueError):

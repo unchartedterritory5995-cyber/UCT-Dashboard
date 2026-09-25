@@ -233,7 +233,9 @@ def render_ticker_flow_card(data: dict) -> bytes:
     # Which derivation drew this card. "page-derived" = the Options Flow page's own product
     # (option A); the rollup says nothing, so today's cards are pixel-identical.
     if str(data.get("derivation") or "") == "page":
-        foot_l += " · page-derived"
+        _w = data.get("window") or {}
+        foot_l += (" · page-derived" if _w.get("basis_complete", True)
+                   else f" · page-derived, {_w.get('basis_sessions')}-session basis")
     txt(36, H - 32, foot_l, f_foot, _DIM)
     txt(_W - 36, H - 32, "uctintelligence.com", f_foot, _GOLD_DIM, "r")
 

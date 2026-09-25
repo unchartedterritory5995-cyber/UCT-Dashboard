@@ -46,6 +46,33 @@ page left side-less.
 Instrument: `python tools/flow_card_parity_audit.py --symbols DELL,PLTR --days 1 --widen`
 (needs `SMOKE_EMAIL` / `SMOKE_PASSWORD`). `--self-check` proves it can fail.
 
+## As built and measured (2026-09-25 evening) — read this before the design sketch below
+
+The sketch below proposed a WINDOWED derivation. Measuring it against the page's own
+full-history product changed the design:
+
+`processFlowData` decides a print's direction partly from contract-level totals across EVERY row
+it is given (the whale-dominance block rescue, flow shape, ML siblings, deep-OTM clusters), so
+parity is a property of which rows it sees. One session displayed, 14 names whose full product the
+page could derive (`evidence/flow-parity/2026-09-25-basis-residual.md`):
+
+| derivation basis | exact match | same direction | max gross vs page |
+|---|---|---|---|
+| 1 session | 8/14 | 13/14 (MSTR flipped) | 1.92x |
+| 20 sessions | 8/14 | 14/14 | 1.49x |
+| 60 sessions | 10/14 | 14/14 | 1.03x |
+| all stored sessions | 4/4 of the remaining | 4/4 | 1.00x |
+
+And cost follows ROWS, not sessions (AMD: 220K of its 224K rows are in the last 60 sessions). So
+the endpoint takes `basis_rows=N` (the card sends 150,000): it counts rows per session from a
+covering index, derives over the newest sessions that fit, and reports `basis_complete`. Under
+the cap the basis is the symbol's whole stored history and the card equals the page (DELL, PLTR,
+HOOD, SOFI, ASTS, IWM, SMH: 1.8-7 s — five of these the page's own server product declines).
+Over it the basis is the newest sessions that fit (NVDA 20, AMD 37, QQQ 9, SPY 7) and the card's
+footer says "page-derived, N-session basis". The card then climbs its display ladder
+(1 -> 5 -> 20 -> all) over that one product, scoped by the MARKET calendar like the page's
+"Last N". One fetch per `/flow`.
+
 ## Option A — derive the card FROM the page product (recommended)
 
 **Principle.** One authority. The card shows what a member would see if they opened the page,

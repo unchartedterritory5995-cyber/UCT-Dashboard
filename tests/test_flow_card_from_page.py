@@ -97,38 +97,6 @@ def test_top_n_keeps_the_biggest_by_premium_but_nets_over_everything():
 
 # ── the ladder and the fallback contract ────────────────────────────────────────────────────
 
-def test_the_ladder_widens_to_the_first_rung_with_a_contract_and_says_so(monkeypatch):
-    monkeypatch.setenv("WORKER_INTERNAL_URL", "http://flow-worker.test")
-    calls = []
-
-    def fake_get(ticker, params, headers):
-        calls.append(dict(params))
-        wd = params.get("window_days")
-        if wd == 1:
-            return {"ok": True, "window_dates": ["9/24/2026"], "product": {"all_directional": []}}
-        return {"ok": True, "window_dates": WIN, "product": PRODUCT}
-    p = page.page_derived_payload("DELL", "1", "stocks", get=fake_get)
-    assert [c.get("window_days") for c in calls] == [1, 5]
-    assert p["window"]["days_requested"] == "5" and p["window"]["widened_from"] == "1"
-    assert p["derivation"] == "page"
-
-
-def test_a_declined_derivation_on_every_rung_is_none_so_the_rollup_answers(monkeypatch):
-    monkeypatch.setenv("WORKER_INTERNAL_URL", "http://flow-worker.test")
-    assert page.page_derived_payload("NVDA", "1", "stocks", get=lambda *a: {"ok": False}) is None
-    assert page.page_derived_payload("NVDA", "1", "stocks", get=lambda *a: (_ for _ in ()).throw(RuntimeError("x"))) is None
-
-
-def test_the_etf_partition_is_asked_for_with_the_pages_word(monkeypatch):
-    monkeypatch.setenv("WORKER_INTERNAL_URL", "http://flow-worker.test")
-    seen = {}
-
-    def fake_get(ticker, params, headers):
-        seen.update(params); return {"ok": True, "window_dates": WIN, "product": PRODUCT}
-    page.page_derived_payload("IWM", "1", "etfs", get=fake_get)
-    assert seen["source"] == "indexes"
-
-
 def test_without_the_worker_url_the_path_declines_without_touching_the_network(monkeypatch):
     monkeypatch.delenv("WORKER_INTERNAL_URL", raising=False)
     assert page.fetch_product("DELL", "stocks", 1, 5.0) is None
@@ -369,18 +337,93 @@ def test_the_windowed_stream_is_per_date_equality_and_returns_the_same_rows(tmp_
         "the windowed stream went back to an IN list; the planner walks the symbol's history for it")
 
 
-def test_the_ladder_shares_ONE_budget_and_yields_to_the_rollup_when_it_is_spent(monkeypatch):
-    """A stalled flow-worker must not cost 4 x the timeout before the rollup fallback starts."""
-    monkeypatch.setenv("WORKER_INTERNAL_URL", "http://flow-worker.test")
-    t = {"now": 0.0}
-    asked = []
+# ── the basis product (one derivation, local display ladder) ────────────────────────────────
 
-    def slow_empty(ticker, params, headers):
-        asked.append(params.get("window_days", "all"))
-        t["now"] += 8.0                               # every rung costs 8 s and finds nothing
-        return {"ok": True, "window_dates": ["9/24/2026"], "product": {"all_directional": []}}
-    out = page.page_derived_payload("THIN", "1", "stocks", timeout_s=20.0, get=slow_empty,
-                                    clock=lambda: t["now"])
-    assert out is None
-    assert asked == [1, 5, 20], asked                 # the 'all' rung never started: 24 s > 20 s budget
-    assert t["now"] <= 24.0
+BASIS_BODY = {"ok": True, "window_dates": ["9/10/2026", "9/22/2026", "9/23/2026", "9/24/2026"],
+              "market_dates": WIN, "basis_complete": True, "product": PRODUCT}
+
+
+def test_one_fetch_then_the_display_ladder_widens_over_the_same_product(monkeypatch):
+    """PRODUCT has rows on 9/23 and 9/24 (and 9/10). Asked for one session on a market whose last
+    session is 9/25, the 1-rung is empty and the 5-rung carries both — from ONE fetch."""
+    monkeypatch.setenv("WORKER_INTERNAL_URL", "http://flow-worker.test")
+    calls = []
+    body = dict(BASIS_BODY, market_dates=WIN + ["9/25/2026"])
+
+    def fake_get(ticker, params, headers):
+        calls.append(dict(params)); return body
+    p = page.page_derived_payload("DELL", "1", "stocks", get=fake_get)
+    assert len(calls) == 1 and calls[0]["basis_rows"] == page.BASIS_ROWS and calls[0]["source"] == "stocks"
+    assert p["window"]["days_requested"] == "5" and p["window"]["widened_from"] == "1"
+    assert p["window"]["basis_complete"] is True and p["derivation"] == "page"
+    assert {c["strike"] for c in p["contracts"]} == {535.0, 520.0}
+
+
+def test_an_incomplete_basis_is_labelled_on_the_all_rung_and_on_the_card(monkeypatch):
+    from api.flow_ticker_card import render_ticker_flow_card
+    monkeypatch.setenv("WORKER_INTERNAL_URL", "http://flow-worker.test")
+    body = dict(BASIS_BODY, basis_complete=False, market_dates=["9/28/2026"])   # nothing in 1/5/20
+    p = page.page_derived_payload("SPY", "1", "etfs", get=lambda *a: body)
+    assert p["window"]["days_requested"] == "4", p["window"]        # "all" of an incomplete basis names its size
+    assert p["window"]["basis_complete"] is False and p["window"]["basis_sessions"] == 4
+    assert render_ticker_flow_card(p).startswith(bytes([0x89, 0x50, 0x4E, 0x47]))
+
+
+def test_empty_on_every_rung_is_an_honest_empty_that_records_what_it_checked(monkeypatch):
+    monkeypatch.setenv("WORKER_INTERNAL_URL", "http://flow-worker.test")
+    body = dict(BASIS_BODY, product={"all_directional": []})
+    p = page.page_derived_payload("QUIET", "1", "stocks", get=lambda *a: body)
+    assert p["contracts"] == [] and p["window"]["days_requested"] == "1"
+    assert p["window"]["widened_checked"] == ["5", "20", "all"]
+
+
+def test_a_declined_basis_is_none_so_the_labelled_rollup_answers(monkeypatch):
+    monkeypatch.setenv("WORKER_INTERNAL_URL", "http://flow-worker.test")
+    assert page.page_derived_payload("NVDA", "1", "stocks", get=lambda *a: {"ok": False}) is None
+    boom = lambda *a: (_ for _ in ()).throw(RuntimeError("x"))
+    assert page.page_derived_payload("NVDA", "1", "stocks", get=boom) is None
+
+
+def test_the_etf_partition_is_asked_for_with_the_pages_word(monkeypatch):
+    monkeypatch.setenv("WORKER_INTERNAL_URL", "http://flow-worker.test")
+    seen = {}
+    page.page_derived_payload("IWM", "1", "etfs", get=lambda t, params, h: seen.update(params) or BASIS_BODY)
+    assert seen["source"] == "indexes"
+
+
+def test_pick_basis_takes_the_newest_sessions_under_the_cap_and_always_one():
+    from api import flow_router as fr
+    counts = [("1/1/2026", 100), ("1/2/2026", 50), ("1/5/2026", 60), ("1/6/2026", 70)]
+    assert fr._pick_basis(counts, 1000) == [d for d, _ in counts]           # everything fits: full history
+    assert fr._pick_basis(counts, 150) == ["1/5/2026", "1/6/2026"]
+    assert fr._pick_basis([("1/1/2026", 10), ("1/2/2026", 900)], 100) == ["1/2/2026"]   # never empty
+
+
+def test_the_basis_endpoint_routes_and_reports_its_basis(monkeypatch, tmp_path):
+    fr, c = _client(monkeypatch, tmp_path, ["9/22/2026", "9/23/2026", "9/24/2026"])
+    seen = {}
+
+    def fake_build(sym, src, key, version, st, dates=None, extra=None):
+        import gzip, json as _j
+        seen.update(dates=dates, key=key, extra=extra)
+        body = {"ok": True, "product": {"all_directional": []}}; body.update(extra or {})
+        return gzip.compress(_j.dumps(body).encode()), None
+    monkeypatch.setattr(fr, "_build_search_product", fake_build)
+    r = c.get("/api/flow/ticker-product/DELL?source=stocks&basis_rows=2")
+    assert r.status_code == 200 and r.headers.get("X-Flow-Cache") == "basis", (r.status_code, r.text[:200])
+    j = r.json()
+    assert j["window_dates"] == ["9/23/2026", "9/24/2026"] and j["basis_complete"] is False
+    assert j["sessions_total"] == 3 and j["market_dates"] == ["9/22/2026", "9/23/2026", "9/24/2026"]
+    assert seen["key"] == ("DELL", "stocks", "v1", "r2")
+    r2 = c.get("/api/flow/ticker-product/DELL?source=stocks&basis_rows=100")
+    assert r2.json()["basis_complete"] is True
+
+
+def test_the_session_counts_read_is_covering_with_no_source_term():
+    """A `source` term forces a table read per row (the 47 s cold-scan class). The count query
+    must stay on (Symbol, CreatedDate)."""
+    import inspect
+    from api import flow_router as fr
+    src = inspect.getsource(fr._symbol_session_counts)
+    sql = src[src.index('"SELECT'):src.index("(sym,)")]
+    assert "WHERE Symbol = ?" in sql and "source" not in sql, sql

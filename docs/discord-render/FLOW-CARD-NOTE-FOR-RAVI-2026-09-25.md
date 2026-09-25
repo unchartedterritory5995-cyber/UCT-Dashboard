@@ -29,7 +29,8 @@ every existing caller, including your search build, sees the identical call.
 
 ### `api/flow_router.py`
 
-`GET /api/flow/ticker-product/{symbol}?window_days=N` — the **same** `flow-facts search`
+`GET /api/flow/ticker-product/{symbol}?basis_rows=N` (what the card uses) and `?window_days=N`
+(the parity tool) — the **same** `flow-facts search`
 derivation over the last N **market** sessions (your `availableDates` calendar via
 `db.get_available_dates`, cached 60 s), the same "Last N" your `_scopeAllDirectional` uses. It lives in its own function
 (`_windowed_ticker_product`), has its own cache key `(sym, src, version, "wN")`, takes the same
@@ -59,6 +60,12 @@ SELECT x FROM d WHERE x IS NOT NULL
 
 The card's own paths now use this (`_flow_dates_all`, `_market_dates`). Your page's `/api/flow/dates`
 and `/live-massive` would get the same win on their first load after a flow-worker deploy.
+
+Why `basis_rows`: your derivation sets direction from contract-level totals across every row it
+is given, so the card derives over the symbol's WHOLE stored history whenever it fits 150K rows
+(exact match with your full product, measured) and over the newest sessions that fit otherwise.
+Row counts come from a covering read of `idx_flow_symbol_created`; the stream is one
+`CreatedDate = ?` query per session on `idx_flow_created_symbol`.
 
 ## What reads your derivation now (dark)
 
