@@ -99,26 +99,40 @@ def card_summary(payload: dict) -> dict:
             "dir": net.get("dir") or "NEUTRAL",
             "window": payload.get("window") or {},
             "top": [(_contract_key(c.get("cp"), c.get("strike"), c.get("exp")),
-                     round(float(c.get("premium") or 0))) for c in cs]}
+                     round(float(c.get("premium") or 0))) for c in cs],
+            # the contracts the CARD gave a side to; only these can be checked against the page's
+            # directional rows, because a side-less card contract can never appear there
+            "sided": [_contract_key(c.get("cp"), c.get("strike"), c.get("exp")) for c in cs
+                      if str(c.get("direction") or "").upper() in ("BULL", "BEAR", "MIXED")]}
 
 
 def compare(page: dict, card: dict) -> dict:
-    """The verdict for one symbol/window. Pure, so --self-check can plant a disagreement."""
+    """The verdict for one symbol/window. Pure, so --self-check can plant a disagreement.
+
+    Two PROBLEMS (a DISAGREE verdict): the card is empty while the page has directional prints,
+    or the two net directions contradict each other. Everything else is reported as a NOTE:
+    the page's `all_directional` holds only prints its classifier gave a side, so a card
+    contract the page has no row for is a classifier difference (the card sided a print the
+    page left side-less), not a defect -- and it is counted, not failed. The first cut of this
+    instrument failed every symbol on that count and read as 'nothing agrees' the day after the
+    direction flip it was built to catch had actually been fixed."""
     page_keys = {k for k, _ in page["top"]}
     card_keys = {k for k, _ in card["top"]}
-    shown_not_on_page = sorted(str(k) for k in card_keys - page_keys)
-    problems = []
+    sided = list(card.get("sided") or [])
+    sided_not_on_page = sorted(str(k) for k in set(sided) - page_keys)
+    problems, notes = [], []
     if page["prints"] > 0 and (card["contract_count"] or 0) == 0:
         problems.append("card EMPTY while the page has %d directional prints (BULL $%s / BEAR $%s)"
                         % (page["prints"], format(page["bull"], ","), format(page["bear"], ",")))
     if page["dir"] != "NEUTRAL" and card["dir"] != "NEUTRAL" and page["dir"] != card["dir"]:
         problems.append("net direction disagrees: page %s vs card %s" % (page["dir"], card["dir"]))
-    if shown_not_on_page:
-        problems.append("card shows contracts the page has no directional print for: %s"
-                        % shown_not_on_page[:5])
+    if sided_not_on_page:
+        notes.append("card sided %d of %d contracts the page left side-less, e.g. %s"
+                     % (len(sided_not_on_page), len(sided), sided_not_on_page[:3]))
     return {"agree_direction": page["dir"] == card["dir"],
             "card_contracts_on_page": len(card_keys & page_keys), "card_contracts": len(card_keys),
-            "problems": problems}
+            "card_sided": len(sided), "card_sided_on_page": len(set(sided) & page_keys),
+            "problems": problems, "notes": notes}
 
 
 # ---- I/O -------------------------------------------------------------------------------
@@ -220,11 +234,18 @@ def self_check() -> int:
                               "contracts": [{"cp": "C", "strike": 535, "exp": "10/9/2026", "premium": 9}]})
     assert compare(page, good_card)["problems"] == [], "an agreeing card must stay QUIET"
     alien = card_summary({"contract_count": 1, "net": {"bull": 9, "bear": 0, "dir": "BULL"},
-                          "contracts": [{"cp": "C", "strike": 999, "exp": "10/9/2026", "premium": 9}]})
-    assert any("no directional print" in p for p in compare(page, alien)["problems"]), "an alien contract must FIRE"
+                          "contracts": [{"cp": "C", "strike": 999, "exp": "10/9/2026", "premium": 9,
+                                         "direction": "Bull"}]})
+    r = compare(page, alien)
+    assert r["problems"] == [] and any("side-less" in n for n in r["notes"]), (
+        "a card-sided contract the page left side-less is a NOTE, never a failure")
+    unsided = card_summary({"contract_count": 1, "net": {"bull": 0, "bear": 0, "dir": "NEUTRAL"},
+                            "contracts": [{"cp": "C", "strike": 999, "exp": "10/9/2026", "premium": 9,
+                                           "direction": "Unclear"}]})
+    assert compare(page, unsided)["notes"] == [], "an unsided card contract is not even a note"
     assert scope_page_rows([{"Dt": "9/24"}, {"Dt": "9/23"}], {_mdy("9/24")}) == [{"Dt": "9/24"}]
     assert _mdy("10/9/26") == dt.date(2026, 10, 9) and _mdy("10/9/2026") == dt.date(2026, 10, 9)
-    print("self-check OK: fires on empty / flipped / alien, quiet on agreement")
+    print("self-check OK: fires on empty / flipped, notes a sided-vs-side-less contract, quiet on agreement")
     return 0
 
 
@@ -261,6 +282,8 @@ def main() -> int:
         print("   VERDICT: %s" % r["verdict"])
         for prob in (r.get("compare") or {}).get("problems", []):
             print("     - %s" % prob)
+        for note in (r.get("compare") or {}).get("notes", []):
+            print("     note: %s" % note)
     if a.json:
         print(json.dumps(res, indent=1, default=str))
     return 0 if all(r["verdict"] == "AGREE" for r in res["results"]) else 1
