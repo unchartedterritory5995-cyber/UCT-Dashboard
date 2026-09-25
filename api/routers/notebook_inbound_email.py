@@ -21,6 +21,7 @@ from __future__ import annotations
 import json
 import logging
 import os
+import time
 from typing import Any
 
 from fastapi import APIRouter, Depends, HTTPException, Request, Response
@@ -93,8 +94,13 @@ async def receive_email(request: Request) -> Response:
         return Response(status_code=413)
     timestamp = request.headers.get("x-uct-timestamp")
     signature = request.headers.get("x-uct-signature")
+    # ONE clock read per request (backend re-review N2): the signature is
+    # verified AND its delivery claimed at this instant, however long the body
+    # below takes to parse -- a replay that verified is judged by the same
+    # clock that verified it.
+    now = time.time()
     ok = inbound_email.verify_signature(
-        os.environ.get(inbound_email.SECRET_ENV), timestamp, signature, raw)
+        os.environ.get(inbound_email.SECRET_ENV), timestamp, signature, raw, now=now)
     if not ok:
         # ⛔ NO BODY. Not "bad signature", not "expired": a caller without the
         # secret learns nothing about which check it failed.
@@ -108,7 +114,7 @@ async def receive_email(request: Request) -> Response:
     # ⛔ ONE DELIVERY PER SIGNATURE (whole-branch review M-6): a replay of a
     # captured request is answered exactly like a delivery and makes nothing --
     # no note, and no charge against the address's hourly allowance.
-    if not await run_in_threadpool(inbound_email.claim_delivery, signature, timestamp):
+    if not await run_in_threadpool(inbound_email.claim_delivery, signature, timestamp, now=now):
         logger.warning("[inbound-email] a replayed signed request was dropped")
         return JSONResponse({"accepted": True}, status_code=202)
     # Whatever `ingest` decides -- a note, an unknown address, a lapsed plan, a

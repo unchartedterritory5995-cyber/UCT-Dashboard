@@ -63,6 +63,13 @@ LOCAL_PART = "notes"
 _GATE_ON_VALUES = {"1", "true", "yes", "on"}
 
 REPLAY_WINDOW_SECONDS = 300
+# How long a delivered signature's record outlives the window it can verify in
+# (backend re-review N2). ⚰️ It was one second, and the router's verify and
+# claim were two clock reads around a body parse of up to MAX_BODY_BYTES: a
+# replay verified in the window's last second and claimed 1.5 s later found
+# the record pruned and was delivered. The router now reads the clock once
+# for both; this margin is the second, independent guard.
+REPLAY_RECORD_MARGIN_SECONDS = REPLAY_WINDOW_SECONDS
 TOKEN_BYTES = 12                     # 24 lowercase hex characters, 96 bits
 _TOKEN_RE = re.compile(r"^[0-9a-f]{24}$")
 _ADDR_RE = re.compile(r"notes\+([0-9a-zA-Z]+)@([0-9A-Za-z.\-]+)", re.IGNORECASE)
@@ -342,9 +349,14 @@ def claim_delivery(signature: str, timestamp: str, *, now: float | None = None,
                    conn: sqlite3.Connection | None = None) -> bool:
     """True the FIRST time a verified signature is presented, False for every
     later arrival while it could still verify. Call only AFTER
-    `verify_signature` passed: an unverified request is never recorded."""
+    `verify_signature` passed: an unverified request is never recorded.
+
+    Pass the SAME `now` the request was verified at (the router reads the clock
+    once). The record is kept `REPLAY_RECORD_MARGIN_SECONDS` past the last
+    instant its signature could verify, so a claim that starts late still
+    finds it."""
     now = time.time() if now is None else float(now)
-    expires = int(timestamp) + REPLAY_WINDOW_SECONDS + 1
+    expires = int(timestamp) + REPLAY_WINDOW_SECONDS + REPLAY_RECORD_MARGIN_SECONDS
     owned = conn is None
     conn = conn or get_connection()
     try:

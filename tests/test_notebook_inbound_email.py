@@ -699,6 +699,66 @@ class TestReplay:
         assert client.post("/api/j2/inbound-email", content=raw, headers=headers).status_code == 401
         assert claimed == []
 
+    # ── backend re-review N2: the window's last second ───────────────────────
+
+    def test_a_replay_verified_at_the_windows_EDGE_is_refused_however_late_its_claim(self, db_path):
+        """The re-reviewer's probe. A replay verifies at T+300 (the window's last
+        second) and its claim starts later -- a large body's parse, a busy pool.
+        ⚰️ The record expired at T+301, so a claim at T+301.5 found it pruned
+        and DELIVERED the replay. The record now outlives the window by a real
+        margin, so a request that verified can never be claimed after it."""
+        from api.services.journal_two import inbound_email as ie
+        t0 = 1_760_000_000
+        raw = json.dumps({"to": "x", "text": "edge"}).encode("utf-8")
+        sig = ie.expected_signature(SECRET, str(t0), raw)
+        assert ie.claim_delivery(sig, str(t0), now=t0 + 5) is True          # the delivery
+        edge = t0 + ie.REPLAY_WINDOW_SECONDS
+        assert ie.verify_signature(SECRET, str(t0), sig, raw, now=edge)     # the replay verifies
+        for late in (1.5, 5, 60):
+            assert ie.claim_delivery(sig, str(t0), now=edge + late) is False, (
+                f"a replay that verified was delivered by a claim {late}s after the window")
+
+    def test_the_claim_is_judged_at_the_instant_the_request_VERIFIED(self, client, on, monkeypatch):
+        """The router reads the clock ONCE per request, and the claim is judged
+        at that instant, however long the body takes to parse. The clock here
+        jumps far past any margin DURING the parse: a claim that read its own
+        clock would find the record pruned and deliver the replay."""
+        from api.routers import notebook_inbound_email as door
+        from api.services.journal_two import inbound_email as ie
+        uid = _user()
+        t0 = int(time.time())
+        raw, headers = _signed({"to": _address(uid), "subject": "edge", "text": "x"}, ts=t0)
+        assert client.post("/api/j2/inbound-email", content=raw, headers=headers).status_code == 202
+
+        class Clock:
+            def __init__(self, t):
+                self.t = float(t)
+
+            def time(self):
+                return self.t
+
+            def __getattr__(self, name):
+                return getattr(time, name)
+
+        clock = Clock(t0 + ie.REPLAY_WINDOW_SECONDS)       # the replay verifies at the edge
+
+        class SlowParse:
+            def loads(self, s, *a, **k):
+                clock.t += 10 * ie.REPLAY_WINDOW_SECONDS  # ...and the parse outlasts any margin
+                return json.loads(s, *a, **k)
+
+            def __getattr__(self, name):
+                return getattr(json, name)
+
+        monkeypatch.setattr(ie, "time", clock)
+        monkeypatch.setattr(door, "time", clock, raising=False)
+        monkeypatch.setattr(door, "json", SlowParse())
+        replay = client.post("/api/j2/inbound-email", content=raw, headers=headers)
+        assert (replay.status_code, replay.content) == (202, b'{"accepted":true}')
+        assert clock.t > t0 + 2 * ie.REPLAY_WINDOW_SECONDS, "non-vacuity: the parse never moved the clock"
+        assert [n["title"] for n in _notes(uid)] == ["edge"], "the replay was delivered"
+        assert _usage_count(uid) == 1
+
 
 # ── fix round 1 · M-12: a lapsed plan stops the address making notes ─────────
 
