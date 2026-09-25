@@ -17,6 +17,60 @@ const fetcher = (url) =>
     return r.json()
   })
 
+// ── One tag read per refresh, however many lists see it (review N-2, wave 7 fix round 2) ──
+// Every notes list asks the tag key when its OWN refresh moves a tag (useJ2Notes). NotebookTab
+// mounts two lists (up to six useJ2Notes in all) and SWR never dedupes a mutate, so a decision
+// made per hook instance asked once PER LIST: one local tag op cost 3 tag reads, one focus after
+// a tag moved elsewhere cost 2. So:
+//   * a WAVE is every read started in one synchronous turn -- a key-predicate revalidation
+//     (NotebookTab.refreshSidebarCounts) or a focus event starts all of its reads in one;
+//   * a list whose refresh moved a tag asks only when NO tag read has started in its own wave
+//     or since. The tag read the refresh itself started (refreshSidebarCounts includes the tag
+//     key), or the first list's ask, then answers every other list of that wave.
+// A tag read from an EARLIER wave never excuses one: it may predate the change the list saw.
+// The waves are module state and the fetchers stamp them, so this hook needs nothing from SWR
+// but `useSWR` (surfaces that mock 'swr' down to its default export keep rendering). One app
+// cache is assumed: two SWR caches alive at once would share the stamps.
+// Rail: useJ2Notes.tagFollow.test.jsx ("two notes lists, one tag cloud").
+let wave = 0
+let waveOpen = false
+function currentWave() {
+  if (!waveOpen) {
+    wave += 1
+    waveOpen = true
+    queueMicrotask(() => { waveOpen = false })
+  }
+  return wave
+}
+
+// Bounded like a small LRU: a search box makes one list key per query.
+const KEEP = 64
+export function rememberBounded(map, key, value) {
+  map.delete(key)
+  map.set(key, value)
+  if (map.size > KEEP) map.delete(map.keys().next().value)
+}
+
+let tagWave = 0
+const listWave = new Map()
+
+/** The notes-list fetcher calls this as a read of `url` starts. */
+export function stampListRead(url) {
+  rememberBounded(listWave, url, currentWave())
+}
+
+/** True when a tag read started in the wave of `url`'s latest read, or after it. A key with no
+ *  recorded read (seeded or optimistically written, or aged out) is never served: the failure
+ *  direction is one extra tag read, never a tag cloud left contradicting the list. */
+export function tagReadServes(url) {
+  return tagWave >= (listWave.get(url) ?? Infinity)
+}
+
+const tagFetcher = (url) => {
+  tagWave = currentWave()
+  return fetcher(url)
+}
+
 /** The SWR key — exported so a caller revalidating "every notes list" can
  *  leave this one out when its change cannot move a tag count (R1-N4). */
 export const NOTE_TAGS_KEY = '/api/j2/notes/tags'
@@ -35,7 +89,7 @@ export function tagSignature(notes) {
 }
 
 export default function useJ2NoteTags() {
-  const { data, error, isLoading, mutate } = useSWR(NOTE_TAGS_KEY, fetcher, {
+  const { data, error, isLoading, mutate } = useSWR(NOTE_TAGS_KEY, tagFetcher, {
     // ⛔ NOT on focus. This key is the most expensive read in the Notebook: it runs the
     // whole-library tag count AND the tag tree, and it was measured at ~1.4 s at 50k
     // notes (review R1-N4) before wave 7's rework. It used to set `true` here, overriding

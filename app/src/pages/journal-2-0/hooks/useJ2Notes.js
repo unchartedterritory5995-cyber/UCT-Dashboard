@@ -1,16 +1,36 @@
 /** Notebook notes SWR hook. */
-import { useCallback, useEffect, useRef, useState } from 'react'
+import { useCallback, useEffect, useState } from 'react'
 import useSWR, { mutate as globalMutate, useSWRConfig } from 'swr'
 import { invalidateNoteLinkTarget } from '../lib/noteLinkTargetsBatch'
 import { settleNoteWrite } from '../lib/offline/settleNoteWrite'
 import { notebookSchemaHeaders } from '../lib/notebookSchema'
-import { NOTE_TAGS_KEY, tagSignature } from './useJ2NoteTags'
+import {
+  NOTE_TAGS_KEY, rememberBounded, stampListRead, tagReadServes, tagSignature,
+} from './useJ2NoteTags'
 
 const fetcher = (url) =>
   fetch(url, { credentials: 'include' }).then((r) => {
     if (!r.ok) throw new Error(`${r.status}`)
     return r.json()
   })
+
+// The first page's read of a list key stamps its wave (useJ2NoteTags, review N-2).
+const listFetcher = (url) => {
+  stampListRead(url)
+  return fetcher(url)
+}
+
+// Per SWR cache: each list key's last tag signature, SHARED by every hook instance showing that
+// key, so two instances of one key cannot both see the same move (review N-2).
+const sigsByCache = new WeakMap()
+function listSignatures(cache) {
+  let sigs = sigsByCache.get(cache)
+  if (!sigs) {
+    sigs = new Map()
+    sigsByCache.set(cache, sigs)
+  }
+  return sigs
+}
 
 // Mirrors the backend default (`list_notes`/`list_notes_endpoint` both
 // default `limit=100`) — the size of one page, and of a "Load more" click.
@@ -60,30 +80,36 @@ export default function useJ2Notes({
   // callers that only sometimes need this data (e.g. a search panel that
   // shouldn't hit the default list on every render) pass this instead of
   // calling the hook conditionally (not allowed — same hook, every render).
-  const { data, error, isLoading, isValidating, mutate } = useSWR(url, fetcher, {
+  const { data, error, isLoading, isValidating, mutate } = useSWR(url, listFetcher, {
     revalidateOnFocus: true,
     shouldRetryOnError: false,
   })
 
   // Review M-4 (wave 7 fix round 1): the tag cloud no longer refetches on focus
-  // (useJ2NoteTags), but this list still does. When THIS list's refresh returns a page
-  // whose tags differ from the page it replaced -- the SAME url, so the same query seen
-  // again, never a filter change -- the tag counts are asked once, so the sidebar cannot
-  // keep counts the list already contradicts. A refresh that changed nothing costs no
-  // tag query: SWR keeps `data` referentially equal for a deep-equal payload, so this
-  // effect does not even run, and a change that moves no tag (a title, a body, an
-  // untagged note) leaves the signature equal.
+  // (useJ2NoteTags), but this list still does. When a refresh of this list's key returns a
+  // page whose tags differ from the page it replaced -- the SAME url, so the same query seen
+  // again, never a filter change -- the tag counts are asked, so the sidebar cannot keep
+  // counts the list already contradicts. A refresh that changed nothing costs no tag query:
+  // SWR keeps `data` referentially equal for a deep-equal payload, so this effect does not
+  // even run, and a change that moves no tag (a title, a body, an untagged note) leaves the
+  // signature equal.
+  // Review N-2 (fix round 2): ONCE per refresh, never once per hook instance. The last
+  // signature lives per SWR key in module state (listSignatures), so two instances showing
+  // one key cannot both see the same move; and a list asks only when no tag read has started
+  // in its own read's wave or since (tagReadServes; useJ2NoteTags explains the wave), so the
+  // refresh's own tag read, or the first list's ask, answers every other list.
   // The cache-bound mutate (not the module-level one), so the ask reaches the same SWR
   // cache the tag cloud reads from, whichever provider this list is mounted under.
-  const { mutate: cacheMutate } = useSWRConfig()
-  const tagSeen = useRef({ url: null, sig: null })
+  const { cache, mutate: cacheMutate } = useSWRConfig()
   useEffect(() => {
-    if (!Array.isArray(data?.notes)) return
+    if (!url || !Array.isArray(data?.notes)) return
+    const sigs = listSignatures(cache)
     const sig = tagSignature(data.notes)
-    const prev = tagSeen.current
-    tagSeen.current = { url, sig }
-    if (prev.url === url && prev.sig !== null && prev.sig !== sig) cacheMutate(NOTE_TAGS_KEY)
-  }, [url, data, cacheMutate])
+    const prev = sigs.get(url)
+    rememberBounded(sigs, url, sig)
+    if (prev === undefined || prev === sig || tagReadServes(url)) return
+    cacheMutate(NOTE_TAGS_KEY)
+  }, [url, data, cache, cacheMutate])
 
   const firstPage = data?.notes ?? []
   // `total` is the TRUE count from SQL (`count_notes` in
