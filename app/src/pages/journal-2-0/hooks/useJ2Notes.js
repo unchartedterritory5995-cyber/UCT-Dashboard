@@ -1,9 +1,10 @@
 /** Notebook notes SWR hook. */
-import { useCallback, useState } from 'react'
-import useSWR, { mutate as globalMutate } from 'swr'
+import { useCallback, useEffect, useRef, useState } from 'react'
+import useSWR, { mutate as globalMutate, useSWRConfig } from 'swr'
 import { invalidateNoteLinkTarget } from '../lib/noteLinkTargetsBatch'
 import { settleNoteWrite } from '../lib/offline/settleNoteWrite'
 import { notebookSchemaHeaders } from '../lib/notebookSchema'
+import { NOTE_TAGS_KEY, tagSignature } from './useJ2NoteTags'
 
 const fetcher = (url) =>
   fetch(url, { credentials: 'include' }).then((r) => {
@@ -63,6 +64,26 @@ export default function useJ2Notes({
     revalidateOnFocus: true,
     shouldRetryOnError: false,
   })
+
+  // Review M-4 (wave 7 fix round 1): the tag cloud no longer refetches on focus
+  // (useJ2NoteTags), but this list still does. When THIS list's refresh returns a page
+  // whose tags differ from the page it replaced -- the SAME url, so the same query seen
+  // again, never a filter change -- the tag counts are asked once, so the sidebar cannot
+  // keep counts the list already contradicts. A refresh that changed nothing costs no
+  // tag query: SWR keeps `data` referentially equal for a deep-equal payload, so this
+  // effect does not even run, and a change that moves no tag (a title, a body, an
+  // untagged note) leaves the signature equal.
+  // The cache-bound mutate (not the module-level one), so the ask reaches the same SWR
+  // cache the tag cloud reads from, whichever provider this list is mounted under.
+  const { mutate: cacheMutate } = useSWRConfig()
+  const tagSeen = useRef({ url: null, sig: null })
+  useEffect(() => {
+    if (!Array.isArray(data?.notes)) return
+    const sig = tagSignature(data.notes)
+    const prev = tagSeen.current
+    tagSeen.current = { url, sig }
+    if (prev.url === url && prev.sig !== null && prev.sig !== sig) cacheMutate(NOTE_TAGS_KEY)
+  }, [url, data, cacheMutate])
 
   const firstPage = data?.notes ?? []
   // `total` is the TRUE count from SQL (`count_notes` in

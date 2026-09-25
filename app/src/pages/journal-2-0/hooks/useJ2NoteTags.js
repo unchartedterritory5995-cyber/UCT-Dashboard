@@ -21,6 +21,19 @@ const fetcher = (url) =>
  *  leave this one out when its change cannot move a tag count (R1-N4). */
 export const NOTE_TAGS_KEY = '/api/j2/notes/tags'
 
+/** A page of notes reduced to what can move a tag count: each TAGGED note's id and its
+ *  sorted tags, order-independent. Two pages with the same signature cannot disagree about
+ *  a tag count; a note merely changing place, title or body -- or an untagged note coming or
+ *  going -- leaves it unchanged. Used by useJ2Notes to decide whether its own refresh
+ *  warrants re-asking this key (wave 7 fix round 1, review M-4). */
+export function tagSignature(notes) {
+  return (notes || [])
+    .filter((n) => Array.isArray(n?.tags) && n.tags.length)
+    .map((n) => `${n.id}\u0001${[...n.tags].sort().join('\u0002')}`)
+    .sort()
+    .join('\n')
+}
+
 export default function useJ2NoteTags() {
   const { data, error, isLoading, mutate } = useSWR(NOTE_TAGS_KEY, fetcher, {
     // ⛔ NOT on focus. This key is the most expensive read in the Notebook: it runs the
@@ -30,7 +43,12 @@ export default function useJ2NoteTags() {
     // app paid for it even when nothing could have changed a tag.
     // It revalidates when a tag COULD have changed, through the paths that already know:
     // NotebookTab's `refreshSidebarCounts` (tags on unless the op cannot move a count,
-    // `TAG_COUNT_OPS`), the editor's `refresh()` after a tag delta, and a remount.
+    // `TAG_COUNT_OPS`), the editor's `refresh()` after a tag delta, a remount -- and
+    // (review M-4) the notes LIST's own refresh, when the page it brings back carries
+    // different tags than the page it replaced (useJ2Notes, `tagSignature`). A tag changed
+    // in another tab or device, by an import, a connector or an email append therefore
+    // reaches the tag cloud with the list that shows it, and a focus that changed nothing
+    // still costs no tag query.
     // `false` is written out rather than inherited, so a surface mounted outside the
     // app's SWRConfig (a test harness, an embed) cannot bring the focus fetch back.
     // Rail: useJ2NoteTags.revalidate.test.jsx.
