@@ -442,13 +442,15 @@ def test_a_claim_table_from_before_the_status_column_still_dedupes(svc):
     from api.services import auth_db
     _note_with(ns, "u1", "Plan", _task(False, "Due today", "2026-09-23"))
     conn = auth_db.get_connection()
-    conn.executescript(
-        "CREATE TABLE j2_task_reminder_log (user_id TEXT NOT NULL, day TEXT NOT NULL,"
-        " due_today INTEGER NOT NULL DEFAULT 0, overdue INTEGER NOT NULL DEFAULT 0,"
-        " created_at TEXT NOT NULL, PRIMARY KEY (user_id, day));"
-        "INSERT INTO j2_task_reminder_log VALUES ('u1', '2026-09-23', 1, 0, '2026-09-23T07:00:00');")
-    conn.commit()
-    conn.close()
+    try:
+        conn.executescript(
+            "CREATE TABLE j2_task_reminder_log (user_id TEXT NOT NULL, day TEXT NOT NULL,"
+            " due_today INTEGER NOT NULL DEFAULT 0, overdue INTEGER NOT NULL DEFAULT 0,"
+            " created_at TEXT NOT NULL, PRIMARY KEY (user_id, day));"
+            "INSERT INTO j2_task_reminder_log VALUES ('u1', '2026-09-23', 1, 0, '2026-09-23T07:00:00');")
+        conn.commit()
+    finally:
+        conn.close()
     rec = _Recorder()
     out = nt.run_task_reminders(now=NOW.replace(hour=9), deliver=rec)
     assert rec.calls == [] and out["already_sent"] == 1 and out["marked"] is True
@@ -511,3 +513,51 @@ def test_reminder_copy_is_plain_and_pluralised():
     assert nt.reminder_copy(2, 0) == ("Tasks due today", "You have 2 tasks due today in your Notebook.")
     assert nt.reminder_copy(0, 1) == ("An overdue task", "You have 1 overdue task in your Notebook.")
     assert nt.reminder_copy(0, 3) == ("Overdue tasks", "You have 3 overdue tasks in your Notebook.")
+
+
+def _connection_sites(tree):
+    """`(enclosing test, line, closed_in_finally)` for every `x = <...>.get_connection()`."""
+    import ast
+    sites = []
+    for fn in ast.walk(tree):
+        if not isinstance(fn, (ast.FunctionDef, ast.AsyncFunctionDef)):
+            continue
+        for block in ast.walk(fn):
+            body = getattr(block, "body", None)
+            if not isinstance(body, list):
+                continue
+            for i, stmt in enumerate(body):
+                if not (isinstance(stmt, ast.Assign) and len(stmt.targets) == 1
+                        and isinstance(stmt.targets[0], ast.Name)
+                        and isinstance(stmt.value, ast.Call)
+                        and isinstance(stmt.value.func, ast.Attribute)
+                        and stmt.value.func.attr == "get_connection"):
+                    continue
+                name = stmt.targets[0].id
+                nxt = body[i + 1] if i + 1 < len(body) else None
+                closed = isinstance(nxt, ast.Try) and any(
+                    isinstance(s, ast.Expr) and isinstance(s.value, ast.Call)
+                    and isinstance(s.value.func, ast.Attribute) and s.value.func.attr == "close"
+                    and isinstance(s.value.func.value, ast.Name) and s.value.func.value.id == name
+                    for s in nxt.finalbody)
+                sites.append((fn.name, stmt.lineno, closed))
+    return sites
+
+
+def test_every_connection_this_file_opens_is_closed_in_a_finally():
+    """Wave 7 lane J, J2. A connection opened and then closed on a later line is
+    LEAKED by any raise in between, and on Windows the leaked handle holds the WAL
+    sidecars open -- so the NEXT test's teardown fails, on the wrong file, naming
+    the wrong test. Every `get_connection()` here is followed by a `try:` whose
+    `finally:` closes it. Parsed from this file's own source, so a site added
+    tomorrow is covered the day it lands."""
+    import ast
+    sites = _connection_sites(ast.parse(Path(__file__).read_text(encoding="utf-8")))
+    # Non-vacuity, by name: the walk must SEE the three sites this file has today.
+    seen = {s[0] for s in sites}
+    for known in ("test_trash_archive_and_other_members_are_excluded",
+                  "test_two_passes_racing_on_one_day_deliver_every_member_exactly_once_between_them",
+                  "test_a_claim_table_from_before_the_status_column_still_dedupes"):
+        assert known in seen, f"the walk did not see {known}: {sorted(seen)}"
+    leaked = [f"{fn}:{line}" for fn, line, closed in sites if not closed]
+    assert not leaked, "opened a connection without a try/finally that closes it: " + ", ".join(leaked)
