@@ -128,6 +128,75 @@ def test_uploading_a_non_pdf_attachment_creates_no_document_row(app, client):
     assert docs == []
 
 
+def _tiny_png() -> bytes:
+    import io as _io
+    from PIL import Image
+    buf = _io.BytesIO()
+    Image.new("RGB", (4, 4), (200, 30, 30)).save(buf, "PNG")
+    return buf.getvalue()
+
+
+def test_both_upload_routes_report_every_saved_attachment_to_the_seam(app, client, monkeypatch):
+    """Seam S1 (wave 7). The router never decides what becomes a document:
+    it hands EVERY saved attachment -- the /images route and the
+    /attachments route alike -- to document_extraction.on_attachment_saved
+    with the kind and the content type, AFTER the bytes are saved. Lane G
+    extends that one function (image OCR, docx text) behind its own gate.
+    If a route stops calling it, image and docx documents silently never
+    happen while every upload still answers 200 -- which is why this rail
+    spies on the seam rather than on any document row."""
+    from api.services.journal_two import document_extraction
+    calls = []
+
+    def _spy(user_id, note_id, att, content_type, *, kind):
+        calls.append((user_id, note_id, dict(att), content_type, kind))
+        return None
+
+    monkeypatch.setattr(document_extraction, "on_attachment_saved", _spy)
+    _login_as(app, "u1")
+    note_id = _create_note(client)
+
+    r_img = client.post(f"/api/j2/notes/{note_id}/images", files={"file": ("shot.png", _tiny_png(), "image/png")})
+    assert r_img.status_code == 200, r_img.text
+    r_file = client.post(f"/api/j2/notes/{note_id}/attachments", files={"file": ("notes.csv", b"a,b,c", "text/csv")})
+    assert r_file.status_code == 200, r_file.text
+
+    assert [(c[1], c[3], c[4]) for c in calls] == [
+        (note_id, "image/png", "image"),
+        (note_id, "text/csv", "file"),
+    ]
+    assert calls[0][0] == "u1"
+    # the seam receives the SAVED artifact (the dict the route answers with),
+    # never a pre-save guess -- its url is the join key back to the bytes
+    assert calls[0][2]["url"] == r_img.json()["url"]
+    assert calls[1][2]["url"] == r_file.json()["url"]
+
+
+def test_the_seam_itself_still_makes_a_pdf_a_document_and_nothing_else(monkeypatch):
+    """The PDF behaviour lives INSIDE the seam now: a file kind with a PDF
+    content type creates the row and queues extraction; an image kind or a
+    non-PDF file returns None and touches nothing. (The router-level PDF
+    test above proves the route reaches this; this proves the decision.)"""
+    from api.services.journal_two import document_extraction
+    created, queued = [], []
+    monkeypatch.setattr(document_extraction, "create_document",
+                        lambda uid, nid, url, name, **kw: created.append((uid, nid, url, name)) or {"id": "doc-1"})
+    monkeypatch.setattr(document_extraction, "queue_extraction", lambda doc_id: queued.append(doc_id))
+
+    out = document_extraction.on_attachment_saved(
+        "u1", "n1", {"url": "/x/report.pdf", "name": "report.pdf", "size": 3}, "application/pdf", kind="file")
+    assert out == {"id": "doc-1"}
+    assert created == [("u1", "n1", "/x/report.pdf", "report.pdf")]
+    assert queued == ["doc-1"]
+
+    assert document_extraction.on_attachment_saved(
+        "u1", "n1", {"url": "/x/a.png", "width": 4, "height": 4}, "image/png", kind="image") is None
+    assert document_extraction.on_attachment_saved(
+        "u1", "n1", {"url": "/x/notes.csv", "name": "notes.csv", "size": 5}, "text/csv", kind="file") is None
+    assert created == [("u1", "n1", "/x/report.pdf", "report.pdf")]
+    assert queued == ["doc-1"]
+
+
 def test_list_documents_on_a_note_with_none_is_an_empty_list_not_404(app, client):
     _login_as(app, "u1")
     note_id = _create_note(client)

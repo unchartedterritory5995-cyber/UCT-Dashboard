@@ -319,3 +319,35 @@ def queue_extraction(document_id: str) -> None:
         daemon=True,
         name="j2-doc-extract",
     ).start()
+
+
+# ── Seam S1 (wave 7) ─────────────────────────────────────────────────────────
+
+def on_attachment_saved(
+    user_id: str,
+    note_id: str,
+    att: dict[str, Any],
+    content_type: str | None,
+    *,
+    kind: str = "file",
+) -> dict[str, Any] | None:
+    """The ONE place that decides whether a freshly saved attachment becomes
+    a searchable document. Called by BOTH upload routes in
+    api/routers/journal_two.py (``kind="image"`` from /images, ``kind="file"``
+    from /attachments) AFTER the bytes are on disk, so a failure here can
+    never make the upload look broken (callers do not await anything of it
+    beyond the synchronous row insert).
+
+    Today: a PDF file gets a pending document row + async extraction (the
+    Wave I behaviour, unchanged). Everything else returns None. Lane G
+    extends this function -- image OCR, docx text -- behind its own gate,
+    and never the router.
+
+    ``att`` is the dict the save function returned: ``{url, name, size}`` for
+    a file, ``{url, width, height}`` for an image (no ``name`` key).
+    """
+    if kind == "file" and content_type == "application/pdf":
+        doc = create_document(user_id, note_id, att["url"], att.get("name"))
+        queue_extraction(doc["id"])
+        return doc
+    return None

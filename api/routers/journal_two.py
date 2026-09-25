@@ -3494,6 +3494,14 @@ async def upload_note_image_endpoint(
         )
     except NoteValidationError as e:
         raise HTTPException(status_code=400, detail=str(e))
+    # Wave 7 seam S1: every saved attachment reports to document_extraction,
+    # which decides whether it becomes a searchable document. The decision
+    # lives THERE so this router never grows a per-type branch (lane G adds
+    # image OCR / docx behind its own gate without touching this file).
+    from api.services.journal_two import document_extraction
+    document_extraction.on_attachment_saved(
+        user["id"], note_id, img, file.content_type, kind="image",
+    )
     return img
 
 
@@ -3554,12 +3562,13 @@ async def upload_note_attachment_endpoint(
     # extraction, queued AFTER the upload itself already succeeded — never
     # blocking this response, and a failed/slow extraction can never make
     # the underlying attachment (which is already saved) look broken.
-    if content_type == "application/pdf":
-        from api.services.journal_two import document_extraction
-        doc = document_extraction.create_document(
-            user["id"], note_id, att["url"], att.get("name"),
-        )
-        document_extraction.queue_extraction(doc["id"])
+    # Wave 7 seam S1: the "is this a document?" decision moved into
+    # document_extraction.on_attachment_saved (PDF today; lane G adds docx
+    # and image kinds behind its own gate there, never here).
+    from api.services.journal_two import document_extraction
+    document_extraction.on_attachment_saved(
+        user["id"], note_id, att, content_type, kind="file",
+    )
     return att
 
 
