@@ -442,7 +442,10 @@ trades (`imported:true` flag + `coach_prompts.py` rule).
   instance doubles both) · the `api/limiter.py` Limiter's in-memory storage, which
   since wave 7 also holds the personal-API per-token limit (scope
   `notebook-personal-api`, key `personal-api:tok:<sha256 of the bearer>`, 30/minute
-  — a second process doubles a Shortcut's budget). Durable equivalents exist where a repeat is
+  — a second process doubles a Shortcut's budget) · `note_ask._writing_help_by_user`
+  (wave 7 lane H: the editor writing help's OWN 60-per-member-per-day counter, ruling
+  D-H2 — a second process doubles it, and a restart resets it; the email-in limits of
+  the same wave are DURABLE in auth.db by contrast). Durable equivalents exist where a repeat is
   genuinely costly (`j2_broker_member_stale_notify` for member email,
   `j2_broker_digest_dedup` for the owner digest) — extend that pattern rather than
   adding new module dicts if the web pod ever goes multi-instance.

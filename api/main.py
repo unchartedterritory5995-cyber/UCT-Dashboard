@@ -88,6 +88,11 @@ from api.routers import capture_auth as capture_auth_router
 # NOTEBOOK_INBOUND_EMAIL_ENABLED is set, read per request.
 from api.routers import notebook_personal_api as notebook_personal_api_router
 from api.routers import notebook_inbound_email as notebook_inbound_email_router
+# Wave 7 lane H (controller wiring): editor writing help -- an SSE door on the
+# firm's LLM key, DARK until NOTEBOOK_WRITING_HELP_ENABLED is set (read per
+# request by the router's own dependency). Its stream path is exempted from
+# gzip in _is_gzip_exempt below, or no event ever reaches the editor.
+from api.routers import notebook_writing_help as notebook_writing_help_router
 from api.routers import community as community_router
 from api.routers import watchlists as watchlists_router
 from api.routers import ticker_tags as ticker_tags_router
@@ -8059,6 +8064,22 @@ async def lifespan(app: FastAPI):
                 print("[startup] notebook task reminders registered (07:00 + 09:00 ET, boot catch-up)")
         except Exception as e:
             print(f"[startup] notebook task reminders registration failed (non-fatal): {e}")
+        # Wave 7 (controller wiring, lane H) — Notebook semantic-search index
+        # sweep. DARK: run_sweep() answers {"skipped": "dark"} and touches nothing
+        # unless NOTEBOOK_SEMANTIC_SEARCH_ENABLED is set, read at every RUN, never
+        # here, so flipping it needs no restart. The job walks members
+        # oldest-indexed first and embeds at most MAX_EMBEDS_PER_SWEEP per run;
+        # max_instances=1 because two sweeps would race on the same members.
+        # Cadence ruling: every 15 minutes (2,000 embeds per run caps a fully
+        # armed pod at ~192k blocks/day). Rail: tests/test_notebook_semantic_sweep_registered.py.
+        try:
+            from api.services.journal_two import note_semantic as _j2_note_semantic
+            _scheduler.add_job(_j2_note_semantic.sweep_job, "interval", minutes=15,
+                               id="notebook_semantic_sweep", max_instances=1, coalesce=True,
+                               replace_existing=True)
+            print("[startup] notebook semantic sweep registered (every 15 min; dark unless NOTEBOOK_SEMANTIC_SEARCH_ENABLED)")
+        except Exception as e:
+            print(f"[startup] notebook semantic sweep registration failed (non-fatal): {e}")
     else:
         print("[startup] APScheduler skipped -- lock held by another uvicorn worker (multi-worker mode)")
 
@@ -8250,6 +8271,7 @@ def _is_gzip_exempt(path: str) -> bool:
         or path == "/api/ai-search/stream"               # AI Search token stream
         or path == "/api/j2/ask/stream"                  # unified Ask token stream
         or (path.startswith("/api/j2/notes/") and path.endswith("/ask/stream"))  # legacy Ask Current Note URL
+        or (path.startswith("/api/j2/notes/") and path.endswith("/writing-help/stream"))  # wave 7 editor writing help (SSE)
         # Compass chat SSE family (cancel/confirm/*_onboarding/stream all
         # return text/event-stream) and the curated flow tail. Both were
         # MISSING until the rail below started deriving SSE routes from the
@@ -8629,6 +8651,12 @@ app.include_router(alerts_router.router)
 app.include_router(notebook_insights_router.router)
 app.include_router(client_errors_router.router)
 app.include_router(notebook_link_preview_router.router)
+# Wave 7 lane H (controller wiring): /api/j2/notes/{note_id}/writing-help/stream.
+# Mounted beside the other pre-journal_two Notebook routers; no path here can
+# be shadowed by journal_two's /api/j2/notes/{note_id} (different depth), but
+# the family is kept together and the mount is railed by name
+# (tests/test_main_router_order.py).
+app.include_router(notebook_writing_help_router.router)
 app.include_router(journal_two_router.router)
 # Phase 2a — the joystick hub's planned-trades backend. No client writes to it
 # yet; the preview is navigation-only plus Voice.

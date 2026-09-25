@@ -59,6 +59,16 @@ def test_the_three_wave6_routers_are_mounted__by_source():
         assert alias in lines, f"{alias} is imported but never mounted"
 
 
+def test_the_three_wave7_routers_are_mounted__by_source():
+    # Wave 7: lane G's two dark doors and lane H's writing-help SSE door. Each is
+    # imported under this alias in api/main.py; a router imported and never
+    # mounted is the "built, tested green, unreachable" class this file exists for.
+    lines = _include_router_lines()
+    for alias in ("notebook_personal_api_router", "notebook_inbound_email_router",
+                  "notebook_writing_help_router"):
+        assert alias in lines, f"{alias} is imported but never mounted"
+
+
 def test_the_routes_resolve_and_tasks_precedes_the_note_id_wildcard__on_the_real_app():
     # Under pytest the repo-root conftest has already pinned every /data path to a sandbox
     # and armed the tripwire, so importing the app is safe here (it is NOT safe bare).
