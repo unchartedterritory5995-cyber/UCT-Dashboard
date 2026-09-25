@@ -28,16 +28,11 @@ export function pythonAvailable() {
   }
 }
 
-/** The exporter's Markdown for `doc`. Throws with the script's stderr on failure. */
-export function exportMarkdown(doc) {
-  const script = path.join(REPO_ROOT, 'tools', 'md_export_bridge.py')
-  const r = spawnSync('python', [script], { input: JSON.stringify(doc), encoding: 'utf8', maxBuffer: 16 * 1024 * 1024 })
-  if (r.status !== 0) throw new Error(`md_export_bridge.py failed (exit ${r.status}): ${r.stderr}`)
-  return JSON.parse(r.stdout).markdown
-}
-
 /**
  * The exporter's Markdown for EVERY document in `docs`, in order, from ONE spawn.
+ * (The single-document `exportMarkdown(doc)` wrapper that stood here had no caller
+ * once every rail batched -- wave 7 lane J nit N-1 -- and is gone; the Python
+ * bridge's single-document form is still railed in test_notebook_bridges_pin_the_root.py.)
  *
  * ⛔ Wave 7 lane J, fix round 1 (review I-1): every bridge spawn imports the repo-root
  * conftest (the census + tripwire, J1), ~7 s. Paid once PER TEST it ran each test against
