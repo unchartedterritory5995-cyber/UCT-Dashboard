@@ -188,3 +188,71 @@ def end_stream(user_id) -> None:
 def inflight(user_id) -> int:
     with _synth_lock:
         return _inflight.get(user_id, 0)
+
+
+def shared_cap_reached() -> bool:
+    """True when the SHARED dollar cap (Ask + writing help) has no room for one
+    more call. Read-only. Lets a refused reservation say WHICH limit refused it:
+    a member who used none of their own allowance must not read that they did
+    (wave 7 fix round 1, review M-2)."""
+    with _synth_lock:
+        _roll_day_locked()
+        return _synth_spend + _APPROX_COST > _SYNTH_GLOBAL_HARD
+
+
+# ── Charging a stream (wave 7 lane H, fix round 1: review I-3) ─────────────────
+
+def refund_due(*, sent: bool, failed: bool) -> bool:
+    """THE ONE RULE for when a streamed Ask answer or writing-help draft gives
+    its reservation back. Both routes ask this; neither restates it.
+
+    A stream is CHARGED FROM ITS FIRST DELTA OF VISIBLE TEXT (the routes set
+    `sent` only for a delta with non-whitespace content: a whitespace-only
+    draft is refunded, as it always was). After that the member has text in
+    hand and the provider has billed the tokens, so an ABORT (Stop, closing the
+    panel, a dropped connection -- all of which land in the stream's `finally`
+    with no server error) keeps the charge. ⚰️ The rule this replaces was
+    "refund unless the stream SETTLED", which refunded every abort: clicking
+    Stop just before `final` was an unlimited supply of free drafts that never
+    reached the 60/day count or the shared dollar cap.
+
+    It refunds in exactly two cases:
+      * `failed` -- a SERVER-side failure (the provider raised). The member got
+        an error sentence, not an answer; that is our failure, not their spend.
+      * not `sent` -- no delta ever reached the member (an abort before the
+        first word, an empty answer, a stream that never started).
+    """
+    return bool(failed) or not bool(sent)
+
+
+class StreamCharge:
+    """One stream's reservation + concurrency slot, released EXACTLY ONCE.
+
+    The route sets `sent` just before it yields the first delta and `failed` in
+    its `except Exception`; `close()` releases the slot and applies
+    `refund_due`. It is called from the stream's `finally` AND from the
+    response's background task, because Starlette can cancel a response before
+    its body generator ever starts -- a generator that never ran has no
+    `finally`, and the slot and the reservation would both leak until the
+    process restarts. Idempotent: whichever runs first does the work."""
+
+    def __init__(self, user_id, refund):
+        self.user_id = user_id
+        self._refund = refund
+        self.sent = False
+        self.failed = False
+        self._closed = False
+        self._lock = threading.Lock()
+
+    @property
+    def closed(self) -> bool:
+        return self._closed
+
+    def close(self) -> None:
+        with self._lock:
+            if self._closed:
+                return
+            self._closed = True
+        end_stream(self.user_id)
+        if refund_due(sent=self.sent, failed=self.failed):
+            self._refund(self.user_id)

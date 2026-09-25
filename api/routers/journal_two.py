@@ -3180,13 +3180,23 @@ async def _ask_stream(user: dict, scope: str, target: str | None,
 
     kwargs = asvc.request(prepared, query, model=asvc.model_name(),
                           max_tokens=asvc.max_tokens(), history=history)
+    # ⛔ CHARGED FROM THE FIRST DELTA (wave 7 lane H fix round 1, review I-3 —
+    # the one Ask site the controller granted lane H; lane I is closed). The
+    # rule is `note_ask.refund_due`, shared with editor writing help: an abort
+    # after the member has text in hand keeps the charge; only a server failure
+    # or a stream that sent nothing refunds. ⚰️ This used to refund whenever
+    # the stream had not SETTLED, so Stop just before `final` was a free answer.
+    from starlette.background import BackgroundTask
+    charge = note_ask.StreamCharge(user_id, note_ask.refund_ask)
 
     async def gen():
         settled = False
         text = ""
         buffered = ""
-        yield f"data: {json.dumps(head)}\n\n"
         try:
+            # Inside the try: a disconnect at the very first chunk still
+            # reaches `finally` (review M-3, inherited here).
+            yield f"data: {json.dumps(head)}\n\n"
             async for delta in asvc.synthesize(kwargs):
                 if not delta:
                     continue
@@ -3196,22 +3206,25 @@ async def _ask_stream(user: dict, scope: str, target: str | None,
                 # as a bracket and then flicker into a chip a chunk later.
                 safe, buffered = asvc.hold_back(buffered)
                 if safe:
+                    if safe.strip():       # BEFORE the yield; visible text only
+                        charge.sent = True
                     yield f"data: {json.dumps({'type': 'delta', 'text': safe})}\n\n"
             if buffered:
+                if buffered.strip():
+                    charge.sent = True
                 yield f"data: {json.dumps({'type': 'delta', 'text': buffered})}\n\n"
             settled = True
         except Exception:
             # ⛔ NO QUESTION, ANSWER OR SOURCE TEXT IN THE LOG. The scope and
             # the failure are enough to operate on.
+            charge.failed = True
             logger.exception(f"[ask] synthesis failed scope={scope}")
             yield f"data: {json.dumps({'type': 'error', 'detail': 'Something went wrong answering that.'})}\n\n"
         finally:
             # RELEASE FIRST, AND ALWAYS. A disconnect, an exception and a
             # cancellation all land here; a leaked slot locks the member out
             # until the process restarts.
-            note_ask.end_stream(user_id)
-            if not settled or not text.strip():
-                note_ask.refund_ask(user_id)
+            charge.close()
             resolved = asvc.resolve_answer(text, prepared)
             notes_service._log_notebook_event(
                 user_id, "notebook_ask_used",
@@ -3223,9 +3236,12 @@ async def _ask_stream(user: dict, scope: str, target: str | None,
             "invalidCitations": resolved["invalid"],
         }) + "\n\n")
 
+    # Second door to `charge.close()`: a response cancelled before `gen` ever
+    # starts has no `finally` to release the slot. Idempotent.
     return StreamingResponse(
         gen(), media_type="text/event-stream",
-        headers={"Cache-Control": "no-cache", "X-Accel-Buffering": "no"})
+        headers={"Cache-Control": "no-cache", "X-Accel-Buffering": "no"},
+        background=BackgroundTask(charge.close))
 
 
 @router.post("/ask/stream")

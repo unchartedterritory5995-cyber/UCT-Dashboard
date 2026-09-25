@@ -31,6 +31,8 @@ from typing import Any
 
 from fastapi import APIRouter, Depends, HTTPException
 from fastapi.responses import StreamingResponse
+from starlette.background import BackgroundTask
+from starlette.concurrency import run_in_threadpool
 
 from api.middleware.auth_middleware import get_current_user_with_plan, is_paid_user
 from api.services import note_ask
@@ -85,11 +87,16 @@ async def writing_help_stream(
 
     # ⛔ 404 FOR A NOTE THE MEMBER DOES NOT OWN, without saying why: another
     # member's note is indistinguishable from one that does not exist.
-    if notes_service.get_note(user_id, note_id) is None:
+    # Off the event loop: this is a sync SQLite read inside an `async def`
+    # route, and the web pod has ONE loop for every member (review M-3).
+    if await run_in_threadpool(notes_service.get_note, user_id, note_id) is None:
         raise HTTPException(status_code=404, detail="Not found")
 
     if not note_ask.reserve_writing_help(user_id):
-        raise HTTPException(status_code=429, detail=wh.BUDGET_SENTENCE)
+        # Say WHICH limit refused (review M-2): the shared dollar cap is not
+        # the member's own 60, and they may have used none of it.
+        raise HTTPException(status_code=429, detail=(
+            wh.SHARED_CAP_SENTENCE if note_ask.shared_cap_reached() else wh.BUDGET_SENTENCE))
     # Claimed AFTER the reservation so the failure path has one thing to undo.
     # ⛔ The SAME slots as Ask (ruling D-H2): one member's open drafts and open
     # answers share the two a member may hold at once.
@@ -102,35 +109,51 @@ async def writing_help_stream(
     head = {"type": "start", "action": req["action"], "model": model,
             "scope": req["scope"], "instruction": wh.instruction(req)}
     t0 = time.time()
+    # ⛔ CHARGED FROM THE FIRST DELTA (review I-3, rule `note_ask.refund_due`):
+    # an abort after the member has text in hand keeps the charge; only a
+    # server failure or a stream that sent nothing refunds.
+    charge = note_ask.StreamCharge(user_id, note_ask.refund_writing_help)
 
     async def gen():
         settled = False
         text = ""
-        yield _sse(head)
         try:
+            # INSIDE the try (review M-3): a disconnect at this very first
+            # chunk still reaches `finally`, so the slot is released and the
+            # untouched reservation refunded.
+            yield _sse(head)
             async for delta in wh.stream_text(kwargs):
                 if not delta:
                     continue
                 text += delta
+                if delta.strip():
+                    # Set BEFORE the yield (an abort at it still counts), and
+                    # only for VISIBLE text: whitespace is not a draft in hand.
+                    charge.sent = True
                 yield _sse({"type": "delta", "text": delta})
             settled = True
         except Exception:
             # ⛔ NO PASSAGE OR OUTPUT TEXT IN THE LOG -- the action is enough.
+            charge.failed = True
             logger.exception(f"[writing-help] synthesis failed action={req['action']}")
             yield _sse({"type": "error", "detail": wh.FAILED_SENTENCE})
         finally:
             # RELEASE FIRST, AND ALWAYS: a disconnect, an exception and a
             # cancellation all land here; a leaked slot locks the member out
-            # until the process restarts.
-            note_ask.end_stream(user_id)
-            if not settled or not text.strip():
-                note_ask.refund_writing_help(user_id)
+            # until the process restarts. Synchronous on purpose: under
+            # anyio's level-triggered cancellation an `await` in this finally
+            # would be cancelled again and skip what follows it.
+            charge.close()
             notes_service._log_notebook_event(
                 user_id, "notebook_writing_help_used",
                 wh.telemetry(req, started=t0, settled=settled, produced=bool(text.strip())))
         if settled:
             yield _sse({"type": "final", "text": text, "action": req["action"], "model": model})
 
+    # The background task is the second door to `charge.close()`: Starlette can
+    # cancel a response before this generator ever starts, and a generator that
+    # never ran has no `finally`. Idempotent -- a finished stream closed already.
     return StreamingResponse(
         gen(), media_type="text/event-stream",
-        headers={"Cache-Control": "no-cache", "X-Accel-Buffering": "no"})
+        headers={"Cache-Control": "no-cache", "X-Accel-Buffering": "no"},
+        background=BackgroundTask(charge.close))

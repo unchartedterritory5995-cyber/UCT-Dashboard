@@ -71,6 +71,11 @@ UNKNOWN_STYLE_SENTENCE = "Pick a rewrite style: shorter, clearer or formal."
 UNKNOWN_LANG_SENTENCE = "Pick a language to translate into."
 UNKNOWN_SCOPE_SENTENCE = "Writing help works on a selection or on the whole note."
 BUDGET_SENTENCE = "You've used today's writing help — it resets at midnight ET"
+# The SHARED dollar cap (Ask + writing help, every member) refused, not the
+# member's own 60 -- they must not read that they used something they did not
+# (review M-2).
+SHARED_CAP_SENTENCE = ("Writing help has reached today's limit for everyone — it resets "
+                       "at midnight ET. Your own allowance is untouched.")
 BUSY_SENTENCE = "You already have an answer in progress — wait for it to finish."
 FAILED_SENTENCE = "Something went wrong writing that. Nothing was changed in your note."
 
