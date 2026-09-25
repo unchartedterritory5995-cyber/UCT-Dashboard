@@ -23,7 +23,18 @@ export const NOTE_TAGS_KEY = '/api/j2/notes/tags'
 
 export default function useJ2NoteTags() {
   const { data, error, isLoading, mutate } = useSWR(NOTE_TAGS_KEY, fetcher, {
-    revalidateOnFocus: true,
+    // ⛔ NOT on focus. This key is the most expensive read in the Notebook: it runs the
+    // whole-library tag count AND the tag tree, and it was measured at ~1.4 s at 50k
+    // notes (review R1-N4) before wave 7's rework. It used to set `true` here, overriding
+    // the app-wide `revalidateOnFocus: false` (App.jsx), so every tab switch back to the
+    // app paid for it even when nothing could have changed a tag.
+    // It revalidates when a tag COULD have changed, through the paths that already know:
+    // NotebookTab's `refreshSidebarCounts` (tags on unless the op cannot move a count,
+    // `TAG_COUNT_OPS`), the editor's `refresh()` after a tag delta, and a remount.
+    // `false` is written out rather than inherited, so a surface mounted outside the
+    // app's SWRConfig (a test harness, an embed) cannot bring the focus fetch back.
+    // Rail: useJ2NoteTags.revalidate.test.jsx.
+    revalidateOnFocus: false,
     shouldRetryOnError: false,
   })
   return {
