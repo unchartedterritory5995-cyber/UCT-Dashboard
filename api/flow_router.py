@@ -771,8 +771,13 @@ _NEWLINE = bytes([10])   # written this way so no escape survives three layers o
 _SEARCH_CSV_DEADLINE_S = float(os.environ.get("FLOW_SEARCH_CSV_DEADLINE_S", "20") or 20)
 
 
-def _build_search_product(sym: str, src: str, key: tuple, version: str, st):
+def _build_search_product(sym: str, src: str, key: tuple, version: str, st, dates=None, extra=None):
     """Derive, serialise, gzip and CACHE one ticker's Search product.
+
+    `dates` (2026-09-25): restrict the rows to those `CreatedDate` values — the WINDOWED product
+    the Discord card's page-derived path asks for (`?window_days=N`), so a head name whose full
+    history exceeds the budget can still be derived over its last N sessions. `extra` is merged
+    into the response body (the window's dates, so the caller can resolve year-less `Dt`).
 
     Returns `(gz_bytes, None)` on success or `(None, error_response)` on any
     failure, so the request path can return the error and the background warmer
@@ -803,7 +808,7 @@ def _build_search_product(sym: str, src: str, key: tuple, version: str, st):
         csv_len = 0
         t_csv = time.monotonic()
         overrun = None
-        for chunk in db.stream_csv_symbol(sym, source=src, columns=None):
+        for chunk in db.stream_csv_symbol(sym, source=src, columns=None, dates=dates):
             b = chunk if isinstance(chunk, bytes) else str(chunk).encode("utf-8")
             parts.append(b)
             csv_len += len(b)
@@ -869,6 +874,8 @@ def _build_search_product(sym: str, src: str, key: tuple, version: str, st):
         "product": derived.get("product"),
         "rows": derived.get("rows", 0),
     }
+    if extra:
+        body.update(extra)
     st.mark("serialize_begin")
     raw = json.dumps(body, separators=(",", ":")).encode("utf-8")
     st.mark("serialize_end", kb=len(raw) // 1024)
@@ -1000,14 +1007,37 @@ def _spawn_search_warm(sym: str, src: str, key: tuple, version: str) -> bool:
 
 
 @flow_router.get("/ticker-product/{symbol}")
+def _symbol_dates(sym: str, src: str) -> list:
+    """The sessions ONE symbol has rows on, 'M/D/YYYY', oldest first. Indexed by
+    (Symbol, CreatedDate) on the pod; a few hundred distinct values at most."""
+    with db._conn() as conn:
+        raw = [r[0] for r in conn.execute(
+            "SELECT DISTINCT CreatedDate FROM flow WHERE source = ? AND Symbol = ?",
+            (src, sym)).fetchall() if r[0]]
+    dated = []
+    for d in raw:
+        parsed = db._parse_date_mdy(d)
+        if parsed:
+            dated.append((parsed, d))
+    dated.sort()
+    return [d for _, d in dated]
+
+
 def get_flow_ticker_product(symbol: str, source: str = "stocks",
                             warm_only: str = "",
+                            window_days: int = 0,
                             _auth: dict = Depends(require_flow_user)):
     """The Search deep-dive product for ONE ticker: {all_directional, TICKER_DB}.
 
     Stamped with the identity the client validates before trusting it. A client
     whose ticker/source/version disagrees declines and falls back to the legacy
     raw-tape path, which stays semantically identical.
+
+    `window_days=N` (2026-09-25, the Discord card's page-derived path): the SAME derivation
+    over the symbol's last N sessions only, cached under its own key beside the full product
+    and answering with `window_dates` so the caller can resolve year-less `Dt`. It never
+    takes the `warm_only` short-cut (its caller is a background job, not a member waiting on
+    a click) but it does take the same build lane, so it cannot run beside a member's build.
     """
     sym = (symbol or "").strip().upper()
     if not sym:
@@ -1017,6 +1047,38 @@ def get_flow_ticker_product(symbol: str, source: str = "stocks",
     st.mark("accepted")
     version = _search_freshness(sym, src)
     key = (sym, src, version)
+
+    try:
+        wd = int(window_days or 0)
+    except (TypeError, ValueError):
+        wd = 0
+    if wd > 0:
+        wd = min(wd, 400)
+        key = (sym, src, version, f"w{wd}")
+        cached = _search_product_cache_get(key)
+        st.mark("cache_lookup", hit=bool(cached), window=wd)
+        if cached is not None:
+            st.flush("HIT_WINDOWED")
+            return _search_response(cached, version, "hit")
+        if not flow_aggregate.available():
+            st.flush("NO_BUNDLE")
+            return JSONResponse({"ok": False, "error": "bundle unavailable"}, status_code=503)
+        dates = _symbol_dates(sym, src)[-wd:]
+        if not dates:
+            return JSONResponse({"ok": True, "sym": sym, "source": src, "version": version,
+                                 "schema": _SEARCH_PRODUCT_SCHEMA, "window_dates": [],
+                                 "product": {"all_directional": [], "TICKER_DB": []}, "rows": 0})
+        if not _SEARCH_BUILD_LOCK.acquire(blocking=False):
+            st.flush("DECLINED_BUSY")
+            return JSONResponse({"ok": False, "error": "busy"}, status_code=503)
+        try:
+            gz, err = _build_search_product(sym, src, key, version, st, dates=dates,
+                                            extra={"window_dates": dates, "window_days": wd})
+            if err is not None:
+                return err
+            return _search_response(gz, version, "windowed")
+        finally:
+            _SEARCH_BUILD_LOCK.release()
 
     cached = _search_product_cache_get(key)
     st.mark("cache_lookup", hit=bool(cached))

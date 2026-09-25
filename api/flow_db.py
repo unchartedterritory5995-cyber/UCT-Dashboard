@@ -637,8 +637,15 @@ class FlowDB:
         """
         return "%d.%d" % (self.symbol_max_id(symbol, source), self.prune_generation())
 
-    def stream_csv_symbol(self, symbol: str, source: str = "stocks", columns=None):
+    def stream_csv_symbol(self, symbol: str, source: str = "stocks", columns=None, dates=None):
         """Stream ALL flow rows for a single SYMBOL, uncapped, across every date.
+
+        `dates` (2026-09-25): an optional list of `CreatedDate` values ('M/D/YYYY', the store's
+        own spelling) that restricts the stream to those sessions. The Discord `/flow` card's
+        page-derived path asks for the last N trading days of ONE symbol so the same
+        `processFlowData` derivation the Options Flow page runs can be produced for a head name
+        (NVDA, SPY) whose full history exceeds the search budget. `None` is every date, so every
+        existing caller is untouched.
 
         The bulk stream_csv caps large ranges to the top-N rows by premium, which
         silently drops most of a small-cap ticker\'s low-premium prints — so its
@@ -673,10 +680,18 @@ class FlowDB:
         conn.execute("PRAGMA journal_mode=WAL")
         conn.execute("PRAGMA synchronous=NORMAL")
         try:
-            cursor = conn.execute(
-                f"SELECT {select_cols} FROM flow WHERE source = ? AND Symbol = ?",
-                (source, symbol),
-            )
+            if dates:
+                ph = ",".join("?" * len(dates))
+                cursor = conn.execute(
+                    f"SELECT {select_cols} FROM flow WHERE source = ? AND Symbol = ? "
+                    f"AND CreatedDate IN ({ph})",
+                    (source, symbol, *[str(d) for d in dates]),
+                )
+            else:
+                cursor = conn.execute(
+                    f"SELECT {select_cols} FROM flow WHERE source = ? AND Symbol = ?",
+                    (source, symbol),
+                )
             yield header_line
             buf = io.StringIO()
             writer = csv.writer(buf)

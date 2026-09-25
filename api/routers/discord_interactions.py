@@ -285,8 +285,23 @@ def run_flow_card_job(app_id: str, token: str, ticker: str, days: str,
     ack = edit_fn or di.edit_original            # edits/posts the deferred interaction reply
     data = None
     fail_cls, fail_detail = "flow_error", ""
+    # ⭐ OPTION A (2026-09-25, dark under DISCORD_FLOW_CARD_SOURCE=page): the card derived from
+    # the Options Flow PAGE's own product, so it reads what a member sees when they open the
+    # page. When the product cannot be derived for any rung the rollup below answers instead,
+    # LABELLED (`derivation: rollup`) — a degraded delivery, never a silent second truth.
+    from api.services import flow_card_from_page as _page
+    if _page.enabled():                      # on BOTH paths: `fetch_fn` (V2) is the fallback, not a bypass
+        try:
+            data = _page.page_derived_payload(ticker, days, source, timeout_s=timeout_s)
+        except Exception as e:  # noqa: BLE001 — the rollup is the fallback
+            log.warning("[flow] page-derived card failed %s (%s): %s", ticker, days, e)
+            data = None
+        if data is None:
+            log.info("[flow] page-derived card unavailable for %s (%s); rollup fallback", ticker, days)
     try:
-        if fetch_fn is not None:
+        if data is not None:
+            pass
+        elif fetch_fn is not None:
             data = fetch_fn(ticker, days)
         else:
             base = (os.environ.get("WORKER_INTERNAL_URL") or "").rstrip("/")
@@ -340,6 +355,8 @@ def run_flow_card_job(app_id: str, token: str, ticker: str, days: str,
             content=f"⚠️ **{ticker}** — {_contract.plain(_cls)}."
                     + (" Try again in a moment." if _retryable else ""))
         return
+    if "derivation" not in data:
+        data["derivation"] = "rollup"
     win = _flow_window_phrase(data.get("window") or {})
     if not (data.get("contracts") or []):
         # With `widen`, this is reached only when EVERY rung of the ladder was empty, and the

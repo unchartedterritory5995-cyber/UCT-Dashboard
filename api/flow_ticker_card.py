@@ -229,6 +229,10 @@ def render_ticker_flow_card(data: dict) -> bytes:
     d.rectangle([s(36), s(H - 40), s(_W - 36), s(H - 40) + 1], fill=_DIV)
     cc = data.get("contract_count")
     foot_l = f"UCT Intelligence · {cc} contracts" if cc else "UCT Intelligence"
+    # Which derivation drew this card. "page-derived" = the Options Flow page's own product
+    # (option A); the rollup says nothing, so today's cards are pixel-identical.
+    if str(data.get("derivation") or "") == "page":
+        foot_l += " · page-derived"
     txt(36, H - 32, foot_l, f_foot, _DIM)
     txt(_W - 36, H - 32, "uctintelligence.com", f_foot, _GOLD_DIM, "r")
 
