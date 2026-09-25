@@ -165,7 +165,13 @@ export const ITEMS = [
     command: ({ editor, range }) => {
       editor.chain().focus().deleteRange(range).run()
       // Trigger the editor's external file picker via a custom event.
-      window.dispatchEvent(new CustomEvent('uct:notebook-open-image-picker'))
+      // ⛔ Wave 6 fix round 1, I5 — dispatched on THIS editor's own DOM root,
+      // never `window`: with two panes open (split view) every mounted
+      // editor shared one listener on `window`, so an image picked from the
+      // side pane's Image item landed in the MAIN note. NoteEditorPage's
+      // listener is bound to the same node (`editor.view.dom`), so only the
+      // editor this command actually ran against ever answers.
+      editor.view.dom.dispatchEvent(new CustomEvent('uct:notebook-open-image-picker', { bubbles: true }))
     },
   },
 ]

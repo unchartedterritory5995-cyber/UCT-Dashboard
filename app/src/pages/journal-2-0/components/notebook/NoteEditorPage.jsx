@@ -2424,11 +2424,20 @@ export default function NoteEditorPage({ noteId, onBack, showBack = true, onTitl
 
   // Slash menu's "Image" option dispatches this event so we can open the
   // native file picker from outside the editor's React tree.
+  // ⛔ Wave 6 fix round 1, I5 — listens on THIS editor's own DOM root
+  // (`editor.view.dom`), never `window`: SlashMenu.jsx now dispatches on the
+  // exact editor instance the command ran against, so with two panes open
+  // only the editor a member actually typed the slash command in ever hears
+  // its own request. A second mounted editor's identical listener on the
+  // SAME shared target (`window`) is exactly how an image picked from the
+  // side pane used to land in the main note.
   useEffect(() => {
+    const dom = editor?.view?.dom
+    if (!dom) return undefined
     const onOpenPicker = () => fileInputRef.current?.click()
-    window.addEventListener('uct:notebook-open-image-picker', onOpenPicker)
-    return () => window.removeEventListener('uct:notebook-open-image-picker', onOpenPicker)
-  }, [])
+    dom.addEventListener('uct:notebook-open-image-picker', onOpenPicker)
+    return () => dom.removeEventListener('uct:notebook-open-image-picker', onOpenPicker)
+  }, [editor])
 
   const onHeroChange = async () => {
     // Hero update already persisted by HeroImagePicker — refresh local copy.
