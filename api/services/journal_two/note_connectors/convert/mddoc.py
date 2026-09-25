@@ -512,11 +512,19 @@ def _basename(ref: str) -> str:
 # explicit, unlisted scheme (`javascript:`, `vbscript:`, ...) is rejected —
 # the mark is stripped and the text run is kept, mirroring the real editor's
 # parseHTML rule returning `false` for a disallowed `<a href>`.
+# `[^a-z+.-:]` is a RANGE, `.` to `:` -- it excludes `/` and the digits -- in
+# JavaScript AND in Python `re`, and the pattern below is TipTap's text
+# verbatim (a rail in test_note_convert_mddoc.py reads the INSTALLED
+# @tiptap/extension-link and compares). Until wave 7 lane J fix round 1
+# (review M-1) the hyphen was escaped here, which made it three literal
+# characters: `notes/x.md`, `a1/b` and `javascript0:` were stored as links by
+# this converter while the editor's parseHTML refused them -- one file, two
+# answers, and a dead `href=""` wherever the stored mark was rendered.
 _LINK_ALLOWED_PROTOCOLS = (
     "http", "https", "ftp", "ftps", "mailto", "tel", "callto", "sms", "cid", "xmpp",
 )
 _LINK_URI_RE = re.compile(
-    r"^(?:(?:" + "|".join(_LINK_ALLOWED_PROTOCOLS) + r"):|[^a-z]|[a-z0-9+.\-]+(?:[^a-z+.\-:]|$))",
+    r"^(?:(?:" + "|".join(_LINK_ALLOWED_PROTOCOLS) + r"):|[^a-z]|[a-z0-9+.-]+(?:[^a-z+.-:]|$))",
     re.IGNORECASE,
 )
 

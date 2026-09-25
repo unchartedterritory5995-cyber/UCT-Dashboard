@@ -1005,6 +1005,63 @@ def test_no_python_source_splits_into_more_lines_than_it_has_newlines():
     assert len(sample.splitlines()) != sample.count("\n")
 
 
+# ---------------------------------------------------------------------------
+# Wave 7 lane J, fix round 1 -- review M-1: the scheme check is TipTap's regex.
+#
+# TipTap's `[^a-z+.-:]` is a range `.`-`:` (it excludes `/` and the digits);
+# mddoc escaped the hyphen, so a slash-relative or digit-bearing href was a
+# link here and plain text in the editor. Measured with node against the
+# shipped regex: the six hrefs below are refused by TipTap.
+# ---------------------------------------------------------------------------
+
+
+def test_a_slash_relative_or_digit_scheme_href_is_refused_as_tiptap_refuses_it():
+    from api.services.journal_two.note_connectors.convert.mddoc import _is_allowed_link_href
+
+    for href in ("notes/x.md", "img/a.png", "sub/page.md", "a1/b",
+                 "java/script:alert(1)", "javascript0:alert(1)"):
+        assert _is_allowed_link_href(href) is False, repr(href)
+    for href in ("./notes/x.md", "../x.md", "notes.md", "notes", "x-y"):
+        assert _is_allowed_link_href(href) is True, repr(href)
+    # Through the markdown door: the words stay, the mark does not.
+    para = md_to_tiptap("[Other](sub/page.md)\n")["doc"]["content"][0]
+    assert _plain_text(para) == "Other"
+    assert all(n.get("marks", []) == [] for n in para["content"] if n.get("type") == "text")
+
+
+def test_the_link_scheme_check_is_the_regex_tiptap_ships():
+    """Derive, do not restate: the pattern, its protocol list and the invisible-
+    character class are read from the INSTALLED @tiptap/extension-link and compared
+    with mddoc's, so a TipTap upgrade that moves any of them reds here."""
+    import codecs
+    import re
+    from pathlib import Path
+
+    import pytest
+
+    from api.services.journal_two.note_connectors.convert import mddoc
+
+    dist = (Path(__file__).resolve().parents[3] / "app" / "node_modules" / "@tiptap"
+            / "extension-link" / "dist" / "index.js")
+    if not dist.is_file():
+        pytest.skip(f"TipTap link parity NOT VERIFIED in this run: {dist} is not installed")
+    src = dist.read_text(encoding="utf-8")
+    protocols = re.search(r"const allowedProtocols = \[([^\]]*)\];", src)
+    template = re.search(r"`(\^\(\?:\(\?:\$\{allowedProtocols\.join\(\"\|\"\)\}\):[^`]*)`", src)
+    space = re.search(r'var UNICODE_WHITESPACE_PATTERN = "([^"]*)";', src)
+    assert protocols and template and space, "the shipped isAllowedUri no longer has the shape this rail reads"
+
+    shipped_protocols = tuple(json.loads("[" + protocols.group(1) + "]"))
+    assert mddoc._LINK_ALLOWED_PROTOCOLS == shipped_protocols
+    shipped = template.group(1).replace('${allowedProtocols.join("|")}', "|".join(shipped_protocols))
+    assert mddoc._LINK_URI_RE.pattern == shipped
+    assert mddoc._LINK_URI_RE.flags & re.IGNORECASE
+    shipped_space = re.compile(codecs.decode(space.group(1), "unicode_escape"))
+    differ = [hex(cp) for cp in range(0x10000) if not 0xD800 <= cp <= 0xDFFF
+              and bool(shipped_space.match(chr(cp))) != bool(mddoc._LINK_URI_INVISIBLE_RE.match(chr(cp)))]
+    assert not differ, differ[:10]
+
+
 def test_media_dedup_by_ref_minor():
     # Minor: the SAME image src referenced twice must not produce two media
     # entries (JS parity, `dedupeMedia`) — both occurrences still carry the
