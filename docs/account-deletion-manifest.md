@@ -33,7 +33,8 @@ never purged. This manifest and the new `account_purge.py` cover all 14.
 ⛔ **The table below is GENERATED from the purge code and is never hand-typed.** It is
 derived by `tools/account_deletion_manifest.py` (an AST read of
 `api/services/journal_two/account_purge.py`: `_DIRECT_USER_TABLES`, one
-`DELETE ... WHERE user_id = ?` each, plus every literal `_run("<table>", ...)` join delete).
+`DELETE ... WHERE user_id = ?` each, plus every literal `_run("<table>", ...)` — a join delete,
+or a delete keyed on the member's id through a column not named `user_id`).
 Regenerate after any change to the purge:
 
 ```sh
@@ -48,7 +49,7 @@ the wave-6 close and 20 short by wave 7 (wave 7 lane J, J4).
 
 <!-- BEGIN GENERATED: python tools/account_deletion_manifest.py --write (derived from api/services/journal_two/account_purge.py) -- never hand-edit -->
 
-**72 tables** (70 direct, 2 indirect).
+**73 tables** (70 direct by `user_id`, 1 direct by another member key, 2 indirect).
 
 | Table | Owner key | Ownership | How the purge deletes it |
 |---|---|---|---|
@@ -124,6 +125,7 @@ the wave-6 close and 20 short by wave 7 (wave 7 lane J, J4).
 | `j2_inbound_usage` | `user_id` | Direct | `DELETE FROM j2_inbound_usage WHERE user_id = ?` |
 | `j2_inbound_drops` | `user_id` | Direct | `DELETE FROM j2_inbound_drops WHERE user_id = ?` |
 | `j2_note_embeddings` | `user_id` | Direct | `DELETE FROM j2_note_embeddings WHERE user_id = ?` |
+| `daily_usage_counters` | `subject` (the member's id) | Direct | `DELETE FROM daily_usage_counters WHERE subject = ?` |
 
 <!-- END GENERATED -->
 
@@ -161,6 +163,10 @@ delete them and that the code names them.
   round 4, R4-4 — `test_j2_task_reminder_log_is_purged_on_account_deletion`).
 - Wave 7: `j2_inbound_addresses` (lane G, G3) and `j2_inbound_usage` / `j2_inbound_drops`
   (lane G fix round 1, I-1, `3de679697`); `j2_note_embeddings` (lane H, H3, `90f6f160f`).
+- Wave 7 whole-branch fix, ruling D-H10: `daily_usage_counters` (auth.db, ruling D-H5b's
+  durable daily caps), keyed by `subject` — the member's id for the per-member counts. The
+  shared dollar cap's row (subject `*`) is nobody's and stays; so does every other member's
+  row. Rail: `test_daily_usage_counters_member_rows_are_purged_and_the_global_row_is_not`.
 
 ## Verification method
 

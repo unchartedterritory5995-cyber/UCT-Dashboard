@@ -11,9 +11,14 @@ the code it describes drifts; so the table is generated from that code and never
 
 Read by AST, never by importing the purge module: `_DIRECT_USER_TABLES` (one
 `DELETE ... WHERE user_id = ?` each) and every `_run("<table>", "<sql>", ...)` call whose
-table is a literal -- the indirect-ownership join deletes, whose owner key is read out of
-their own SQL. `tests/test_account_deletion_manifest.py` parses the doc's table and this
-derivation and fails BY NAME on a difference in either direction.
+table is a literal. Such a call is one of two shapes, and anything else RAISES:
+  * an indirect-ownership JOIN delete, whose owner key is read out of its own SQL;
+  * a KEYED delete, `DELETE FROM <t> WHERE <col> = ?` with the member's `user_id` as its one
+    parameter, for a member-keyed table whose column is not named `user_id` (ruling D-H10's
+    `daily_usage_counters`, keyed by `subject`). A keyed delete ON `user_id` is refused: that
+    table belongs in `_DIRECT_USER_TABLES`, the one list of direct deletes.
+`tests/test_account_deletion_manifest.py` parses the doc's table and this derivation and fails
+BY NAME on a difference in either direction.
 
 Pure text in, text out: this touches no database and no path outside the repo.
 """
@@ -37,6 +42,15 @@ _JOIN = re.compile(
     r"\(SELECT id FROM (?P<parent>\w+) WHERE user_id = \?\)",
     re.IGNORECASE,
 )
+_KEYED = re.compile(r"^\s*DELETE FROM (?P<table>\w+) WHERE (?P<col>\w+) = \?\s*$", re.IGNORECASE)
+
+
+def _params_are_the_user_id(node: ast.Call) -> bool:
+    """`_run(table, sql, (user_id,))` -- the member's id and nothing else."""
+    if len(node.args) < 3 or not isinstance(node.args[2], ast.Tuple):
+        return False
+    elts = node.args[2].elts
+    return len(elts) == 1 and isinstance(elts[0], ast.Name) and elts[0].id == "user_id"
 
 
 class DerivationError(RuntimeError):
@@ -44,7 +58,8 @@ class DerivationError(RuntimeError):
 
 
 def derive(source: str | None = None) -> dict:
-    """`{"direct": [names in code order], "indirect": [(table, fk, parent)]}`."""
+    """`{"direct": [names in code order], "indirect": [(table, fk, parent)],
+    "keyed": [(table, column)]}`."""
     src = PURGE.read_text(encoding="utf-8") if source is None else source
     tree = ast.parse(src)
     direct = None
@@ -60,7 +75,7 @@ def derive(source: str | None = None) -> dict:
                 direct.append(elt.value)
     if not direct:
         raise DerivationError("no _DIRECT_USER_TABLES assignment found in account_purge.py")
-    indirect = []
+    indirect, keyed = [], []
     for node in ast.walk(tree):
         if not (isinstance(node, ast.Call) and isinstance(node.func, ast.Name) and node.func.id == "_run"):
             continue
@@ -69,19 +84,26 @@ def derive(source: str | None = None) -> dict:
         table = node.args[0].value
         sql = node.args[1].value if len(node.args) > 1 and isinstance(node.args[1], ast.Constant) else ""
         m = _JOIN.search(sql or "")
-        if not m or m.group("table") != table:
-            raise DerivationError(f"_run({table!r}, ...) at line {node.lineno}: its SQL is not a "
-                                  f"join delete this derivation can read an owner key from")
-        indirect.append((table, m.group("fk"), m.group("parent")))
+        if m and m.group("table") == table:
+            indirect.append((table, m.group("fk"), m.group("parent")))
+            continue
+        k = _KEYED.match(sql or "")
+        if k and k.group("table") == table and k.group("col").lower() != "user_id" \
+                and _params_are_the_user_id(node):
+            keyed.append((table, k.group("col")))
+            continue
+        why = ("a `user_id` delete belongs in _DIRECT_USER_TABLES" if k and k.group("col").lower() == "user_id"
+               else "its SQL is neither a join delete nor a keyed delete on the member's user_id")
+        raise DerivationError(f"_run({table!r}, ...) at line {node.lineno}: {why}")
     dupes = sorted({t for t in direct if direct.count(t) > 1})
     if dupes:
         raise DerivationError(f"listed twice in _DIRECT_USER_TABLES: {dupes}")
-    return {"direct": direct, "indirect": indirect}
+    return {"direct": direct, "indirect": indirect, "keyed": keyed}
 
 
 def purged_tables(source: str | None = None) -> set[str]:
     d = derive(source)
-    return set(d["direct"]) | {t for t, _fk, _p in d["indirect"]}
+    return set(d["direct"]) | {t for t, _fk, _p in d["indirect"]} | {t for t, _c in d["keyed"]}
 
 
 def render(source: str | None = None) -> str:
@@ -89,8 +111,9 @@ def render(source: str | None = None) -> str:
     rows = [
         BEGIN,
         "",
-        f"**{len(d['direct']) + len(d['indirect'])} tables** "
-        f"({len(d['direct'])} direct, {len(d['indirect'])} indirect).",
+        f"**{len(d['direct']) + len(d['keyed']) + len(d['indirect'])} tables** "
+        f"({len(d['direct'])} direct by `user_id`, {len(d['keyed'])} direct by another member key, "
+        f"{len(d['indirect'])} indirect).",
         "",
         "| Table | Owner key | Ownership | How the purge deletes it |",
         "|---|---|---|---|",
@@ -100,6 +123,9 @@ def render(source: str | None = None) -> str:
                     f"join delete through `{parent}`, run before the direct deletes |")
     for table in d["direct"]:
         rows.append(f"| `{table}` | `user_id` | Direct | `DELETE FROM {table} WHERE user_id = ?` |")
+    for table, col in d["keyed"]:
+        rows.append(f"| `{table}` | `{col}` (the member's id) | Direct | "
+                    f"`DELETE FROM {table} WHERE {col} = ?` |")
     rows += ["", END]
     return "\n".join(rows)
 

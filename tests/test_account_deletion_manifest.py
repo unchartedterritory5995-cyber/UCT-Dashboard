@@ -31,7 +31,10 @@ sys.path.insert(0, str(REPO / "tools"))
 import account_deletion_manifest as gen  # noqa: E402
 
 DOC = REPO / "docs" / "account-deletion-manifest.md"
-_ROW = re.compile(r"^\|\s*`(j2_[a-z0-9_]+)`\s*\|")
+# Any table name, not only `j2_*`: ruling D-H10 put `daily_usage_counters` (auth.db, keyed by
+# `subject`) in the purge, and a `j2_`-only pattern read the doc as one table short of the
+# runtime -- the rail below would have said so, by name.
+_ROW = re.compile(r"^\|\s*`([a-z][a-z0-9_]*)`\s*\|")
 
 
 def _doc_text() -> str:
@@ -101,6 +104,23 @@ def test_the_derivation_reads_what_the_purge_runs():
     indirect = {t: (fk, parent) for t, fk, parent in gen.derive()["indirect"]}
     assert indirect.get("j2_option_legs") == ("strategy_id", "j2_option_strategies")
     assert indirect.get("j2_broker_member_stale_notify") == ("broker_account_id", "j2_broker_accounts")
+    # Ruling D-H10: the durable daily counters are keyed by `subject`, the member's id.
+    assert dict(gen.derive()["keyed"]).get("daily_usage_counters") == "subject"
+
+
+def test_a_keyed_delete_is_read_only_when_it_is_keyed_on_the_members_id():
+    """The keyed form (ruling D-H10) is `DELETE FROM <t> WHERE <col> = ?` with `(user_id,)` as
+    its one parameter. Anything looser is an owner key the manifest cannot state, so it RAISES."""
+    ok = ("_DIRECT_USER_TABLES = ('a',)\n"
+          "_run('c', 'DELETE FROM c WHERE subject = ?', (user_id,))\n")
+    assert gen.derive(ok)["keyed"] == [("c", "subject")]
+    assert gen.purged_tables(ok) == {"a", "c"}
+    for bad in ("_run('c', 'DELETE FROM c WHERE subject = ?', (other,))\n",       # not the member
+                "_run('c', 'DELETE FROM c WHERE subject = ?', (user_id, 1))\n",    # more than the id
+                "_run('c', 'DELETE FROM d WHERE subject = ?', (user_id,))\n",      # a different table
+                "_run('c', 'DELETE FROM c', (user_id,))\n"):                        # no key at all
+        with pytest.raises(gen.DerivationError):
+            gen.derive("_DIRECT_USER_TABLES = ('a',)\n" + bad)
 
 
 def test_the_generated_block_in_the_doc_is_current():

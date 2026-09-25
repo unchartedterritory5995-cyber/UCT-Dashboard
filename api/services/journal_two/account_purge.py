@@ -183,6 +183,22 @@ def purge_user_data(user_id: str, conn: sqlite3.Connection) -> dict[str, Any]:
     for table in _DIRECT_USER_TABLES:
         deleted[table] = _run(table, f"DELETE FROM {table} WHERE user_id = ?", (user_id,))
 
+    # Wave 7 whole-branch fix, ruling D-H10 -- the durable daily counters
+    # (`api/services/daily_counters.py`, ruling D-H5b): one row per (scope,
+    # subject, ET day) in auth.db, and for the per-member scopes (Ask's and
+    # writing help's daily counts, the meaning search's daily embeds) the
+    # SUBJECT is the member's id. There is no `user_id` column, so it is keyed
+    # here rather than listed in `_DIRECT_USER_TABLES`. The shared dollar cap's
+    # row (subject `daily_counters.GLOBAL`, "*") is nobody's and stays.
+    # Self-ensured by daily_counters (never db.py), so on a pod where no counter
+    # was ever written this is a "no such table" no-op. "It is pruned within two
+    # days anyway" is exactly the reasoning that leaves a table out next time.
+    deleted["daily_usage_counters"] = _run(
+        "daily_usage_counters",
+        "DELETE FROM daily_usage_counters WHERE subject = ?",
+        (user_id,),
+    )
+
     conn.commit()
 
     # On-disk attachments: notebook inline/hero images AND trade screenshots
