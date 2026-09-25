@@ -1,0 +1,43 @@
+nav entries derived from NavBar.jsx: 19
+extra routes R-27 names that the nav cannot supply: /settings, /journal/notebook
+rig profile: C:\Users\Patrick\uct-worktrees\notebook-primary-platform\.worktrees\canary-chrome-profile-persistent  · marker `canary-chrome-profile-persistent`
+(node:19636) [DEP0169] DeprecationWarning: `url.parse()` behavior is not standardized and prone to errors that have security implications. Use the WHATWG URL API instead. CVEs are not issued for `url.parse()` vulnerabilities.
+(Use `node --trace-deprecation ...` to show where the warning was created)
+viewport pinned to 1440x900 (desktop NavBar tier)
+
+opt-in keys on the rig, as found: {'uct.j2.offline.enabled': None, 'uct.nb.capture.enabled': None}
+/api/auth/me: 200
+
+── CLIENT-SIDE NAVIGATION (clicked, never goto) ──
+  PASS    /calendar            3017ms
+  PASS    /charts              377ms
+  PASS    /morning-wire        216ms
+  PASS    /dashboard           267ms
+  PASS    /ai-search           236ms
+  PASS    /uct-20              256ms
+  PASS    /breadth             345ms
+  PASS    /screener            240ms
+  PASS    /options-flow        225ms
+  PASS    /flow-scoreboard     231ms
+  PASS    /live-massive        208ms
+  PASS    /catalysts/history   274ms
+  PASS    /model-book          228ms
+  ABSENT  /formulas/reference  not rendered for this account
+  ABSENT  /desk                not rendered for this account
+  ABSENT  /journal             not rendered for this account
+  ABSENT  /portfolio-heat      not rendered for this account
+  ABSENT  /community           not rendered for this account
+  ABSENT  /support             not rendered for this account
+
+── ROUTES R-27 NAMES THAT ARE NOT NAV ENTRIES ──
+  PASS    /settings              rendered 1739 chars
+  PASS    /journal/notebook      rendered 740 chars
+
+── RENDER STABILITY (5s idle each) ──
+  PASS    /dashboard     stable (13 commits, 239 mutations)
+  FAIL    /charts        RENDER LOOP: 86 React commits in 5s idle (ceiling 60)
+  PASS    /screener      stable but NOISY (17 commits, 4169 mutations — live data, not a loop)
+  PASS    /journal       stable (4 commits, 8 mutations)
+
+⛔⛔ FAILED — 1 finding(s). This is H4: roll back first.
+   · /charts: RENDER LOOP: 86 React commits in 5s idle (ceiling 60)
