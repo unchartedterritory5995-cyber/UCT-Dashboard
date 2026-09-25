@@ -201,3 +201,38 @@ def test_evidence_scope_is_every_filing_that_contributes_facts_whatever_its_form
     monkeypatch.setattr(INC, "instance_evidence", lambda cik, accn, f=None: asked.append(accn) or [])
     INC.instance_signal_pass(c, workers=1)
     assert sorted(asked) == ["A-10Q", "A-20F", "A-8K"]
+
+
+# ── REAL filing evidence: CELH FY2021 10-K (0000950170-22-003965), verbatim excerpt ──
+# Every restatement-axis context the filing uses for revenue and net income, with the
+# plain counterparts of the same periods, copied unmodified from the SEC instance.
+# REVENUE sits on the restatement axis with NOTHING changed; net income was restated
+# for Q2 and Q3 2021 only. The extractor on this excerpt yields exactly what it yields
+# on the whole filing (checked 2026-09-25).
+_CELH_10K = __import__("pathlib").Path(__file__).parent / "fixtures" / "celh_fy21_10k_restatement_excerpt.xml"
+
+
+def test_real_celh_10k_only_genuine_restatements_count():
+    """PRE-LAUNCH RAIL for 'treat every instance marker as relevant': the value-aware
+    rule is what keeps CELH's unchanged revenue (and its un-restated Q1) out."""
+    xml = _CELH_10K.read_text(encoding="utf-8")
+    assert "Revenue" in xml and "RestatementAxis" in xml                     # the marker IS there for revenue
+    got = R.instance_signals("0000950170-22-003965", xml)
+    assert got == [("0000950170-22-003965", "us-gaap:NetIncomeLoss", "2021-04-01", "2021-06-30", R.KIND),
+                   ("0000950170-22-003965", "us-gaap:NetIncomeLoss", "2021-07-01", "2021-09-30", R.KIND)]
+
+
+# ── REAL filing evidence: CIK 1664703 10-Q/A (0001664703-20-000061), verbatim excerpt ──
+# Single-axis "previously reported" contexts: CASH is marked but UNCHANGED; ASSETS and
+# LIABILITIES were genuinely restated. Copied unmodified from the SEC instance.
+_Q_A = __import__("pathlib").Path(__file__).parent / "fixtures" / "cik1664703_10qa_2020_restatement_excerpt.xml"
+
+
+def test_real_10qa_an_unchanged_previously_reported_value_is_not_a_restatement():
+    """PRE-LAUNCH RAIL (value half): a marker whose previously-reported value equals the
+    current one is not evidence -- only the genuinely changed balances count."""
+    xml = _Q_A.read_text(encoding="utf-8")
+    assert "CashAndCashEquivalentsAtCarryingValue" in xml and "ScenarioPreviouslyReportedMember" in xml
+    got = R.instance_signals("0001664703-20-000061", xml)
+    assert [(t, s, e) for _, t, s, e, _ in got] == [("us-gaap:Assets", "2019-06-30", "2019-06-30"),
+                                                    ("us-gaap:Liabilities", "2019-06-30", "2019-06-30")]

@@ -1,0 +1,166 @@
+<xbrli:xbrl>
+<xbrli:context id="C_05ea2e2c-1f54-44c7-9eca-e16327a9c93a">
+        <entity>
+            <identifier scheme="http://www.sec.gov/CIK">0001341766</identifier>
+            <segment>
+                <xbrldi:explicitMember dimension="srt:CumulativeEffectPeriodOfAdoptionAxis">celh:EffectsOfTheAdjustmentsOnAYearToDateBasisMember</xbrldi:explicitMember>
+                <xbrldi:explicitMember dimension="srt:RestatementAxis">srt:RestatementAdjustmentMember</xbrldi:explicitMember>
+            </segment>
+        </entity>
+        <period>
+            <startDate>2021-07-01</startDate>
+            <endDate>2021-09-30</endDate>
+        </period>
+    </xbrli:context>
+<xbrli:context id="C_16530c97-2857-4ddf-ac4e-ff672c80b323">
+        <entity>
+            <identifier scheme="http://www.sec.gov/CIK">0001341766</identifier>
+            <segment>
+                <xbrldi:explicitMember dimension="srt:CumulativeEffectPeriodOfAdoptionAxis">celh:EffectsOfTheAdjustmentsOnAYearToDateBasisMember</xbrldi:explicitMember>
+                <xbrldi:explicitMember dimension="srt:RestatementAxis">srt:RestatementAdjustmentMember</xbrldi:explicitMember>
+            </segment>
+        </entity>
+        <period>
+            <startDate>2021-04-01</startDate>
+            <endDate>2021-06-30</endDate>
+        </period>
+    </xbrli:context>
+<xbrli:context id="C_202ae3b5-2323-4284-9851-2d096b8ede5e">
+        <entity>
+            <identifier scheme="http://www.sec.gov/CIK">0001341766</identifier>
+            <segment>
+                <xbrldi:explicitMember dimension="srt:CumulativeEffectPeriodOfAdoptionAxis">celh:EffectsOfTheAdjustmentsOnAStandaloneQuarterBasisMember</xbrldi:explicitMember>
+                <xbrldi:explicitMember dimension="srt:RestatementAxis">srt:ScenarioPreviouslyReportedMember</xbrldi:explicitMember>
+            </segment>
+        </entity>
+        <period>
+            <startDate>2021-07-01</startDate>
+            <endDate>2021-09-30</endDate>
+        </period>
+    </xbrli:context>
+<xbrli:context id="C_22a30c76-8611-4564-9887-ad5b65584206">
+        <entity>
+            <identifier scheme="http://www.sec.gov/CIK">0001341766</identifier>
+            <segment>
+                <xbrldi:explicitMember dimension="srt:CumulativeEffectPeriodOfAdoptionAxis">celh:EffectsOfTheAdjustmentsOnAYearToDateBasisMember</xbrldi:explicitMember>
+                <xbrldi:explicitMember dimension="srt:RestatementAxis">srt:ScenarioPreviouslyReportedMember</xbrldi:explicitMember>
+            </segment>
+        </entity>
+        <period>
+            <startDate>2021-07-01</startDate>
+            <endDate>2021-09-30</endDate>
+        </period>
+    </xbrli:context>
+<xbrli:context id="C_33acc934-7a87-4c5b-aab4-88f2f3622749">
+        <entity>
+            <identifier scheme="http://www.sec.gov/CIK">0001341766</identifier>
+            <segment>
+                <xbrldi:explicitMember dimension="srt:CumulativeEffectPeriodOfAdoptionAxis">celh:EffectsOfTheAdjustmentsOnAStandaloneQuarterBasisMember</xbrldi:explicitMember>
+                <xbrldi:explicitMember dimension="srt:RestatementAxis">srt:ScenarioPreviouslyReportedMember</xbrldi:explicitMember>
+            </segment>
+        </entity>
+        <period>
+            <startDate>2021-04-01</startDate>
+            <endDate>2021-06-30</endDate>
+        </period>
+    </xbrli:context>
+<xbrli:context id="C_874222fc-d347-4190-9b3e-5ef5b08b83ca">
+        <entity>
+            <identifier scheme="http://www.sec.gov/CIK">0001341766</identifier>
+            <segment>
+                <xbrldi:explicitMember dimension="srt:CumulativeEffectPeriodOfAdoptionAxis">celh:EffectsOfTheAdjustmentsOnAYearToDateBasisMember</xbrldi:explicitMember>
+                <xbrldi:explicitMember dimension="srt:RestatementAxis">srt:ScenarioPreviouslyReportedMember</xbrldi:explicitMember>
+            </segment>
+        </entity>
+        <period>
+            <startDate>2021-04-01</startDate>
+            <endDate>2021-06-30</endDate>
+        </period>
+    </xbrli:context>
+<xbrli:context id="C_dba42097-2f84-4fdc-8d3a-34543dcafdc2">
+        <entity>
+            <identifier scheme="http://www.sec.gov/CIK">0001341766</identifier>
+            <segment>
+                <xbrldi:explicitMember dimension="srt:CumulativeEffectPeriodOfAdoptionAxis">celh:EffectsOfTheAdjustmentsOnAStandaloneQuarterBasisMember</xbrldi:explicitMember>
+                <xbrldi:explicitMember dimension="srt:RestatementAxis">srt:RestatementAdjustmentMember</xbrldi:explicitMember>
+            </segment>
+        </entity>
+        <period>
+            <startDate>2021-07-01</startDate>
+            <endDate>2021-09-30</endDate>
+        </period>
+    </xbrli:context>
+<xbrli:context id="C_e862f124-e9de-4bae-93d4-ae5d962a6121">
+        <entity>
+            <identifier scheme="http://www.sec.gov/CIK">0001341766</identifier>
+            <segment>
+                <xbrldi:explicitMember dimension="srt:CumulativeEffectPeriodOfAdoptionAxis">celh:EffectsOfTheAdjustmentsOnAStandaloneQuarterBasisMember</xbrldi:explicitMember>
+                <xbrldi:explicitMember dimension="srt:RestatementAxis">srt:RestatementAdjustmentMember</xbrldi:explicitMember>
+            </segment>
+        </entity>
+        <period>
+            <startDate>2021-04-01</startDate>
+            <endDate>2021-06-30</endDate>
+        </period>
+    </xbrli:context>
+<us-gaap:Revenues
+      contextRef="C_33acc934-7a87-4c5b-aab4-88f2f3622749"
+      decimals="0"
+      id="F_57ddccd1-78ee-4a38-af6a-90d3c268671a"
+      unitRef="U_USD">65073323</us-gaap:Revenues>
+<us-gaap:Revenues
+      contextRef="C_202ae3b5-2323-4284-9851-2d096b8ede5e"
+      decimals="0"
+      id="F_a9c09c10-68cd-49f4-bf85-a59455ade180"
+      unitRef="U_USD">94909100</us-gaap:Revenues>
+<us-gaap:NetIncomeLoss
+      contextRef="C_33acc934-7a87-4c5b-aab4-88f2f3622749"
+      decimals="0"
+      id="F_198e8c0a-0339-4a66-b876-7c832e8e8c67"
+      unitRef="U_USD">3960344</us-gaap:NetIncomeLoss>
+<us-gaap:NetIncomeLoss
+      contextRef="C_202ae3b5-2323-4284-9851-2d096b8ede5e"
+      decimals="0"
+      id="F_37bd1eb5-737b-4693-8309-9294e98b5a1d"
+      unitRef="U_USD">2745791</us-gaap:NetIncomeLoss>
+<us-gaap:NetIncomeLoss
+      contextRef="C_e862f124-e9de-4bae-93d4-ae5d962a6121"
+      decimals="0"
+      id="F_364943f5-cb33-4f20-9989-9a05bbbc1d4d"
+      unitRef="U_USD">-3180353</us-gaap:NetIncomeLoss>
+<us-gaap:NetIncomeLoss
+      contextRef="C_dba42097-2f84-4fdc-8d3a-34543dcafdc2"
+      decimals="0"
+      id="F_12524346-eb0d-4eae-839c-ac6cdf33a50a"
+      unitRef="U_USD">-12116438</us-gaap:NetIncomeLoss>
+<us-gaap:Revenues
+      contextRef="C_874222fc-d347-4190-9b3e-5ef5b08b83ca"
+      decimals="0"
+      id="F_a3261a65-0bd2-4ee2-b5b4-501f812777e6"
+      unitRef="U_USD">115108202</us-gaap:Revenues>
+<us-gaap:Revenues
+      contextRef="C_22a30c76-8611-4564-9887-ad5b65584206"
+      decimals="0"
+      id="F_6cb75412-2e86-4bd9-ae68-00a2cb08ff22"
+      unitRef="U_USD">210217302</us-gaap:Revenues>
+<us-gaap:NetIncomeLoss
+      contextRef="C_874222fc-d347-4190-9b3e-5ef5b08b83ca"
+      decimals="0"
+      id="F_4b1b7215-7c3d-4721-88a6-463e4c9bf912"
+      unitRef="U_USD">4545768</us-gaap:NetIncomeLoss>
+<us-gaap:NetIncomeLoss
+      contextRef="C_22a30c76-8611-4564-9887-ad5b65584206"
+      decimals="0"
+      id="F_60e8278f-5d99-4d3c-b099-7b0b6ed8e69a"
+      unitRef="U_USD">7251559</us-gaap:NetIncomeLoss>
+<us-gaap:NetIncomeLoss
+      contextRef="C_16530c97-2857-4ddf-ac4e-ff672c80b323"
+      decimals="0"
+      id="F_28c128a2-9657-428a-b418-4f469353af59"
+      unitRef="U_USD">-3180353</us-gaap:NetIncomeLoss>
+<us-gaap:NetIncomeLoss
+      contextRef="C_05ea2e2c-1f54-44c7-9eca-e16327a9c93a"
+      decimals="0"
+      id="F_9ff2be24-f6f8-4dd8-b984-98c38760d911"
+      unitRef="U_USD">-15296791</us-gaap:NetIncomeLoss>
+</xbrli:xbrl>
