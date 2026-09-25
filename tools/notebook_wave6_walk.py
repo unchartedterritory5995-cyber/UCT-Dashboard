@@ -152,6 +152,167 @@ def notebook_url(note_id=None, extra=""):
     return f"{BASE}/journal/notebook{extra}"
 
 
+# ⛔⛔ REAL, REPRODUCIBLE DEFECT FOUND WHILE BUILDING THIS WALK, NOT A WALK
+# ARTIFACT -- read before touching anything below.
+#
+# `NoteEditorPage.jsx:2448` (wave 6 fix round 1, I5 -- the split-view image-
+# picker isolation fix): `const dom = editor?.view?.dom` inside a bare
+# `useEffect(() => {...}, [editor])`. Measured on this tip: opening ANY note
+# throws `[tiptap error]: The editor view is not available ... The editor may
+# not be mounted yet.` on roughly HALF of all note-opens (6 fresh contexts,
+# fresh notes, generous waits: 3/6 crashed; a second run of 4: 2/4 crashed),
+# caught by the nearest route-level ErrorBoundary, which replaces the ENTIRE
+# editor with "Something went wrong on this page" -- not a wave-6-specific
+# glitch, EVERY check that opens a note in a browser hits this.
+#
+# This is a NAMED hazard class from wave 5, reintroduced unguarded in wave 6:
+# `NoteFindBar.jsx:63-64` carries the comment (still in the tree today) --
+# "`isDestroyed` guards a note-switch/unmount racing this callback --
+#  `editor.view` THROWS once destroyed (not merely undefined), so a bare
+#  `editor?.view` optional-chain does not protect against it." -- and guards
+# every one of its own `.view`/`.state` reads with `if (!editor ||
+# editor.isDestroyed) return`. `NoteEditorPage.jsx:2448` has no such guard.
+# Optional chaining only short-circuits on a null/undefined LEFT side; it does
+# not catch a GETTER that itself throws, which is exactly what tiptap's
+# `Editor.prototype.view` does pre-mount/post-destroy.
+#
+# Out of this walk's scope to fix (the brief: "you touch ONLY your new
+# script"). Reported prominently in the JSON (see "CRITICAL_FINDING" below)
+# and the report; the remedy pattern already lives in the same file family
+# (`NoteFindBar.jsx`'s `isDestroyed` guard) for whoever picks this up.
+_CRASH_STATS = {"count": 0, "attempts_log": []}
+
+
+def _editor_view_crash_visible(pg):
+    try:
+        return pg.get_by_text("Something went wrong on this page").count() > 0
+    except Exception:  # noqa: BLE001
+        return False
+
+
+def _fresh_page(ctx, old_pg=None):
+    if old_pg is not None:
+        try:
+            old_pg.close()
+        except Exception:  # noqa: BLE001
+            pass
+    npg = ctx.new_page()
+    npg.on("pageerror", lambda e: res["errors"].append(str(e)[:300]))
+    return npg
+
+
+def open_note(ctx, url, page=None, max_tries=8, prosemirror_timeout=15000, extra_listeners=None):
+    """Navigate (hard nav) to a note URL, retrying through the known
+    `editor?.view?.dom` throwing-getter crash (see the block above).
+
+    ⛔ MEASURED: retrying on the SAME page object made the crash rate climb to
+    100% by the end of a long run (48/48 retries failed once the walk was many
+    note-opens deep on one shared page) -- a genuine compounding effect, not
+    just a 50/50 coin flip. Every attempt here therefore gets a BRAND NEW page
+    from the same context (closing the previous one), with a short backoff, so
+    a slow/contended backend (the sandbox's own ~20-75s post-boot warm jobs
+    were still running during the first measurement) gets a real chance to
+    settle between tries.
+
+    Returns the PAGE that actually mounted the editor (which may not be the
+    `page` passed in) -- callers MUST reassign: `page = open_note(ctx, url, page)`.
+    Raises after `max_tries` straight failures so the caller's own @guarded
+    wrapper reports INCONCLUSIVE with a real reason rather than hanging.
+
+    ⛔ The `page` passed in is BORROWED, never closed by this function -- on
+    total failure the caller's existing page reference is still open and
+    reusable for the NEXT check's unrelated navigation (a list view, say).
+    Only pages THIS function creates for retries 2+ are owned and recycled."""
+    pg = page if page is not None else _fresh_page(ctx)
+    owns_pg = page is None
+    for event, handler in (extra_listeners or []):
+        pg.on(event, handler)
+    for attempt in range(1, max_tries + 1):
+        if attempt > 1:
+            pg = _fresh_page(ctx, pg if owns_pg else None)
+            owns_pg = True
+            for event, handler in (extra_listeners or []):
+                pg.on(event, handler)
+        pg.goto(url)
+        pg.wait_for_timeout(900)
+        try:
+            pg.keyboard.press("Escape")
+        except Exception:  # noqa: BLE001
+            pass
+        pg.wait_for_timeout(500)
+        if _editor_view_crash_visible(pg):
+            _CRASH_STATS["count"] += 1
+            _CRASH_STATS["attempts_log"].append({"url": url, "attempt": attempt, "outcome": "error_boundary"})
+            pg.wait_for_timeout(1500 * attempt)
+            continue
+        try:
+            pg.wait_for_selector(".ProseMirror", timeout=prosemirror_timeout)
+            return pg
+        except Exception:  # noqa: BLE001
+            if _editor_view_crash_visible(pg):
+                _CRASH_STATS["count"] += 1
+                _CRASH_STATS["attempts_log"].append({"url": url, "attempt": attempt, "outcome": "error_boundary"})
+                pg.wait_for_timeout(1500 * attempt)
+                continue
+            _CRASH_STATS["attempts_log"].append({"url": url, "attempt": attempt, "outcome": "prosemirror_timeout_no_boundary"})
+    if owns_pg:
+        try:
+            pg.close()
+        except Exception:  # noqa: BLE001
+            pass
+    raise RuntimeError(
+        f"note editor never mounted after {max_tries} attempts, each on a FRESH "
+        f"page (see the NoteEditorPage.jsx:2448 editor?.view?.dom throwing-getter "
+        f"defect documented above _CRASH_STATS) -- url={url}"
+    )
+
+
+def reload_note(ctx, page, max_tries=8, prosemirror_timeout=15000):
+    """Same retry discipline as open_note, for re-fetching an already-open
+    note (used where a check needs the SAME note re-fetched, e.g. after an
+    archive/unarchive PATCH). Retries also use a fresh page (a plain `goto`
+    to the same URL rather than `page.reload()`, since the fresh-page
+    discipline is what open_note measured as reliable).
+
+    ⛔ Same borrow discipline as open_note: `page` is never closed by this
+    function on total failure."""
+    url = page.url
+    pg = page
+    owns_pg = False
+    for attempt in range(1, max_tries + 1):
+        if attempt == 1:
+            pg.reload()
+        else:
+            pg = _fresh_page(ctx, pg if owns_pg else None)
+            owns_pg = True
+            pg.goto(url)
+        pg.wait_for_timeout(700)
+        if _editor_view_crash_visible(pg):
+            _CRASH_STATS["count"] += 1
+            _CRASH_STATS["attempts_log"].append({"url": url, "attempt": attempt, "outcome": "error_boundary(reload)"})
+            pg.wait_for_timeout(1500 * attempt)
+            continue
+        try:
+            pg.wait_for_selector(".ProseMirror", timeout=prosemirror_timeout)
+            return pg
+        except Exception:  # noqa: BLE001
+            if _editor_view_crash_visible(pg):
+                _CRASH_STATS["count"] += 1
+                _CRASH_STATS["attempts_log"].append({"url": url, "attempt": attempt, "outcome": "error_boundary(reload)"})
+                pg.wait_for_timeout(1500 * attempt)
+                continue
+            _CRASH_STATS["attempts_log"].append({"url": url, "attempt": attempt, "outcome": "prosemirror_timeout_no_boundary(reload)"})
+    if owns_pg:
+        try:
+            pg.close()
+        except Exception:  # noqa: BLE001
+            pass
+    raise RuntimeError(
+        f"note editor never remounted after {max_tries} reloads (see the "
+        f"NoteEditorPage.jsx:2448 editor?.view?.dom throwing-getter defect) -- url={url}"
+    )
+
+
 def type_by_walk(node):
     """Walk a bodyJson-shaped dict/list and count node types."""
     counts = {}
@@ -196,6 +357,13 @@ with sync_playwright() as p:
         c = actx.request.post(BASE + "/api/auth/admin/comp-access",
                                data={"email": email, "action": "grant"})
         res.setdefault("comp_status", {})[email] = c.status
+        # A non-admin signup starts email_verified=False, and AuthGuard sends an
+        # unverified member to /verify-pending regardless of plan -- every
+        # notebook route redirects there, reading as "the editor never
+        # rendered" if missed (the same class of trap wave 5's own header warns
+        # about for the PAID gate). Admin-only door: POST /admin/verify-email.
+        v = actx.request.post(BASE + "/api/auth/admin/verify-email", data={"email": email})
+        res.setdefault("verify_email_status", {})[email] = v.status
 
     me = api.get(BASE + "/api/auth/me").json()
     res["account"] = {"role": (me.get("user") or {}).get("role"), "plan": me.get("plan"),
@@ -220,13 +388,13 @@ with sync_playwright() as p:
     # =========================================================================
     @guarded("W1_lock_unlock")
     def check_w1():
+        global page
         note = api.post(BASE + "/api/j2/notes", data={
             "title": f"Walk W1 lock {RUN}",
             "bodyJson": {"type": "doc", "content": [P("Original body.")]},
         }).json()["note"]
         nid = note["id"]
-        page.goto(notebook_url(nid))
-        page.wait_for_selector(".ProseMirror", timeout=20000)
+        page = open_note(ctx, notebook_url(nid), page)
         page.wait_for_timeout(400)
 
         menu = page.get_by_role("group", name="Organise this note")
@@ -309,6 +477,7 @@ with sync_playwright() as p:
     # =========================================================================
     @guarded("W2_archive")
     def check_w2():
+        global page
         n1 = api.post(BASE + "/api/j2/notes", data={
             "title": f"Walk W2 archive {RUN}",
             "bodyJson": {"type": "doc", "content": [P("Archive me.")]},
@@ -320,8 +489,7 @@ with sync_playwright() as p:
             folder_id = (fb.get("folder") or fb).get("id")
             api.put(BASE + f"/api/j2/notes/{n1['id']}", data={"folderId": folder_id})
 
-        page.goto(notebook_url(n1["id"]))
-        page.wait_for_selector(".ProseMirror", timeout=20000)
+        page = open_note(ctx, notebook_url(n1["id"]), page)
         page.wait_for_timeout(400)
         menu = page.get_by_role("group", name="Organise this note")
         menu.wait_for(state="visible", timeout=8000)
@@ -342,8 +510,7 @@ with sync_playwright() as p:
         in_folder_titles = [x.get("title") for x in in_folder.get("notes", [])]
 
         # Restore/Unarchive from the note menu -> back in default + still in its folder.
-        page.reload()
-        page.wait_for_selector(".ProseMirror", timeout=20000)
+        page = reload_note(ctx, page)
         page.wait_for_timeout(400)
         menu2 = page.get_by_role("group", name="Organise this note")
         menu2.wait_for(state="visible", timeout=8000)
@@ -416,12 +583,12 @@ with sync_playwright() as p:
     # =========================================================================
     @guarded("W3_templates")
     def check_w3():
+        global page
         src = api.post(BASE + "/api/j2/notes", data={
             "title": f"Walk W3 source {RUN}",
             "bodyJson": {"type": "doc", "content": [P("Reusable body.")]},
         }).json()["note"]
-        page.goto(notebook_url(src["id"]))
-        page.wait_for_selector(".ProseMirror", timeout=20000)
+        page = open_note(ctx, notebook_url(src["id"]), page)
         page.wait_for_timeout(400)
         menu = page.get_by_role("group", name="Organise this note")
         menu.wait_for(state="visible", timeout=8000)
@@ -516,6 +683,7 @@ with sync_playwright() as p:
     # =========================================================================
     @guarded("W5_relation")
     def check_w5():
+        global page
         a = api.post(BASE + "/api/j2/notes", data={
             "title": f"Walk W5 A {RUN}", "bodyJson": {"type": "doc", "content": [P("A")]},
         }).json()["note"]
@@ -523,8 +691,7 @@ with sync_playwright() as p:
             "title": f"Walk W5 B {RUN}", "bodyJson": {"type": "doc", "content": [P("B")]},
         }).json()["note"]
 
-        page.goto(notebook_url(a["id"]))
-        page.wait_for_selector(".ProseMirror", timeout=20000)
+        page = open_note(ctx, notebook_url(a["id"]), page)
         page.wait_for_timeout(500)
         add_prop = page.get_by_role("button", name=re.compile("Add propert", re.I))
         if add_prop.count() == 0:
@@ -565,8 +732,7 @@ with sync_playwright() as p:
         props = server_a.get("properties") or {}
         relation_prop_values = [v for v in props.values() if isinstance(v, list) and b["id"] in v]
 
-        page.goto(notebook_url(b["id"]))
-        page.wait_for_selector(".ProseMirror", timeout=20000)
+        page = open_note(ctx, notebook_url(b["id"]), page)
         page.wait_for_timeout(600)
         related_from = page.get_by_text(re.compile(r"Related from"))
         related_from_present = related_from.count() > 0
@@ -605,7 +771,10 @@ with sync_playwright() as p:
         saved_ok = False
         if save_btn.count():
             save_btn.click()
-            name_field = page.get_by_label("Name")
+            # ⛔ `get_by_label("Name")` is ambiguous page-wide (folder-rename
+            # buttons compose accessible names like "Daily Rename Daily Add",
+            # which CONTAIN "Name") -- the id is unambiguous (SavedViewEditor.jsx).
+            name_field = page.locator("#save-view-name")
             name_field.wait_for(state="visible", timeout=5000)
             name_field.fill(view_name)
             with page.expect_response(lambda r: r.url.endswith("/api/j2/saved-views") and r.request.method == "POST") as si:
@@ -648,6 +817,7 @@ with sync_playwright() as p:
     # =========================================================================
     @guarded("W7_split_view")
     def check_w7():
+        global page
         a = api.post(BASE + "/api/j2/notes", data={
             "title": f"Walk W7 A {RUN}", "bodyJson": {"type": "doc", "content": [P("A body")]},
         }).json()["note"]
@@ -655,8 +825,7 @@ with sync_playwright() as p:
             "title": f"Walk W7 B {RUN}", "bodyJson": {"type": "doc", "content": [P("B body")]},
         }).json()["note"]
 
-        page.goto(notebook_url(a["id"]))
-        page.wait_for_selector(".ProseMirror", timeout=20000)
+        page = open_note(ctx, notebook_url(a["id"]), page)
         page.wait_for_timeout(400)
         menu = page.get_by_role("group", name="Organise this note")
         menu.get_by_role("button", name=re.compile("Open a note beside")).click()
@@ -785,8 +954,7 @@ with sync_playwright() as p:
         signup_or_login(dev2.request, EMAIL, PW, "g064")
         dpage = dev2.new_page()
         dpage.on("pageerror", lambda e: res["errors"].append("dev2: " + str(e)[:300]))
-        dpage.goto(notebook_url(n_dirty["id"]))
-        dpage.wait_for_selector(".ProseMirror", timeout=20000)
+        dpage = open_note(dev2, notebook_url(n_dirty["id"]), dpage)
         dpage.wait_for_timeout(500)
         dev2.set_offline(True)
         dpage.locator(".ProseMirror").click()
@@ -850,13 +1018,13 @@ with sync_playwright() as p:
     # =========================================================================
     @guarded("W9_editor_nodes_reload")
     def check_w9():
+        global page
         note = api.post(BASE + "/api/j2/notes", data={
             "title": f"Walk W9 nodes {RUN}",
             "bodyJson": {"type": "doc", "content": [{"type": "paragraph"}]},
         }).json()["note"]
         nid = note["id"]
-        page.goto(notebook_url(nid))
-        page.wait_for_selector(".ProseMirror", timeout=20000)
+        page = open_note(ctx, notebook_url(nid), page)
         page.wait_for_timeout(500)
         ed = page.locator(".ProseMirror")
         ed.click()
@@ -923,8 +1091,7 @@ with sync_playwright() as p:
         before = api.get(BASE + f"/api/j2/notes/{nid}").json().get("note", {})
         before_counts = type_by_walk(before.get("bodyJson"))
 
-        page.reload()
-        page.wait_for_selector(".ProseMirror", timeout=20000)
+        page = reload_note(ctx, page)
         page.wait_for_timeout(800)
         not_blank = page.locator(".ProseMirror").inner_text().strip() != ""
         toc_nav = page.locator("nav.uctToc")
@@ -962,12 +1129,12 @@ with sync_playwright() as p:
     # =========================================================================
     @guarded("W10_link_paste")
     def check_w10():
+        global page
         note = api.post(BASE + "/api/j2/notes", data={
             "title": f"Walk W10 link {RUN}",
             "bodyJson": {"type": "doc", "content": [{"type": "paragraph"}]},
         }).json()["note"]
-        page.goto(notebook_url(note["id"]))
-        page.wait_for_selector(".ProseMirror", timeout=20000)
+        page = open_note(ctx, notebook_url(note["id"]), page)
         page.wait_for_timeout(500)
         ctx.grant_permissions(["clipboard-read", "clipboard-write"])
         page.locator(".ProseMirror").click()
@@ -1029,6 +1196,7 @@ with sync_playwright() as p:
     # =========================================================================
     @guarded("W11_unlinked_mentions")
     def check_w11a():
+        global page
         target_title = f"Cup and handle walk {RUN}"
         target = api.post(BASE + "/api/j2/notes", data={
             "title": target_title, "bodyJson": {"type": "doc", "content": [P("thesis body")]},
@@ -1040,8 +1208,7 @@ with sync_playwright() as p:
 
         server_check = api.get(BASE + f"/api/j2/notes/{mentioner['id']}/unlinked-mentions").json()
 
-        page.goto(notebook_url(target["id"]))
-        page.wait_for_selector(".ProseMirror", timeout=20000)
+        page = open_note(ctx, notebook_url(target["id"]), page)
         page.wait_for_timeout(700)
         section = page.get_by_text(re.compile(r"Unlinked mentions \(\d+\)"))
         section_present = section.count() > 0
@@ -1132,6 +1299,7 @@ with sync_playwright() as p:
 
     @guarded("W11_telemetry_and_error_beacon")
     def check_w11d():
+        global page
         note = api.post(BASE + "/api/j2/notes", data={
             "title": f"Walk W11 telemetry {RUN}",
             "bodyJson": {"type": "doc", "content": [P("x")]},
@@ -1146,9 +1314,11 @@ with sync_playwright() as p:
                         telemetry_seen["body"] = b
                 except Exception:
                     pass
-        page.on("request", on_tel)
-        page.goto(notebook_url(note["id"]))
-        page.wait_for_selector(".ProseMirror", timeout=20000)
+        # ⛔ attached via open_note's extra_listeners, not page.on() directly --
+        # a retry inside open_note swaps to a FRESH page object, and a listener
+        # bound only to the original page would never see the telemetry POST
+        # fired by whichever page actually ends up mounting the editor.
+        page = open_note(ctx, notebook_url(note["id"]), page, extra_listeners=[("request", on_tel)])
         page.wait_for_timeout(1500)
 
         error_beacon_seen = {"body": None}
@@ -1184,14 +1354,12 @@ with sync_playwright() as p:
 
         tab1 = ctx.new_page()
         tab1.on("pageerror", lambda e: res["errors"].append("tab1: " + str(e)[:300]))
-        tab1.goto(notebook_url(nid))
-        tab1.wait_for_selector(".ProseMirror", timeout=20000)
+        tab1 = open_note(ctx, notebook_url(nid), tab1)
         tab1.wait_for_timeout(600)
 
         tab2 = ctx.new_page()
         tab2.on("pageerror", lambda e: res["errors"].append("tab2: " + str(e)[:300]))
-        tab2.goto(notebook_url(nid))
-        tab2.wait_for_selector(".ProseMirror", timeout=20000)
+        tab2 = open_note(ctx, notebook_url(nid), tab2)
         tab2.wait_for_timeout(600)
 
         puts_from = {"tab1": 0, "tab2": 0}
@@ -1221,7 +1389,13 @@ with sync_playwright() as p:
         tab2.goto(BASE + "/dashboard")
         tab2.wait_for_timeout(800)
         tab2.go_back()
-        tab2.wait_for_selector(".ProseMirror", timeout=20000)
+        try:
+            tab2.wait_for_selector(".ProseMirror", timeout=15000)
+        except Exception:  # noqa: BLE001
+            if _editor_view_crash_visible(tab2):
+                _CRASH_STATS["count"] += 1
+                _CRASH_STATS["attempts_log"].append({"url": "go_back()", "attempt": 1, "outcome": "error_boundary(go_back)"})
+            tab2 = reload_note(ctx, tab2)
         tab2.wait_for_timeout(600)
         stuck_notice = tab2.get_by_text(re.compile("another tab owns this note", re.I)).count() > 0
 
@@ -1256,14 +1430,70 @@ with sync_playwright() as p:
             except Exception as e:  # noqa: BLE001
                 integrity_summary = f"could not read {latest_log}: {e}"
 
+    # W11's own error-beacon check DELIBERATELY forces one client error to
+    # prove it reaches /api/client-errors -- that is an intentional test
+    # input, not a defect the walk observed, and it must not be counted
+    # against "zero pageerror across the whole walk".
+    genuine_errors = [e for e in res["errors"] if "wave6 walk forced error" not in e]
+    deliberate_test_errors = [e for e in res["errors"] if "wave6 walk forced error" in e]
+
     record(
         "W13_errors_and_sandbox_integrity",
-        "PASS" if not res["errors"] else "FAIL",
-        pageerror_count=len(res["errors"]),
-        pageerrors=res["errors"][:20],
+        "PASS" if not genuine_errors else "FAIL",
+        pageerror_count=len(genuine_errors),
+        pageerrors=genuine_errors[:20],
+        deliberate_test_errors_excluded=len(deliberate_test_errors),
         sandbox_runs_file=latest_log,
         sandbox_integrity_tail=integrity_summary,
     )
+
+    res["CRITICAL_FINDING_editor_view_throwing_getter"] = {
+        "file": "app/src/pages/journal-2-0/components/notebook/NoteEditorPage.jsx",
+        "line": 2448,
+        "code": "const dom = editor?.view?.dom",
+        "introduced_by": "wave 6 fix round 1, I5 (split-view image-picker isolation)",
+        "symptom": (
+            "opening a note throws '[tiptap error]: The editor view is not available. "
+            "Cannot access view[\\'dom\\']. The editor may not be mounted yet.', caught by "
+            "the route ErrorBoundary, which replaces the ENTIRE editor with "
+            "'Something went wrong on this page' -- not scoped to split view or any "
+            "wave-6-specific feature; it can hit any note open."
+        ),
+        "measured_crash_rate": "reproduced on this tip across 3 independent samples before "
+                                "this walk's retry wrapper was added: 3/6, 2/4, then 1/2 -- "
+                                "roughly half of all note-opens, on fresh contexts and fresh notes",
+        "root_cause": (
+            "optional chaining (?.) only short-circuits on a null/undefined LEFT side; it "
+            "does not guard a property GETTER that itself throws. tiptap's Editor.view "
+            "getter throws (not undefined) once destroyed or before the internal "
+            "EditorView is constructed -- exactly the case here."
+        ),
+        "already_a_named_hazard_class_in_this_codebase": (
+            "NoteFindBar.jsx:63-64 carries this exact comment, still in the tree today: "
+            "'isDestroyed guards a note-switch/unmount racing this callback -- "
+            "editor.view THROWS once destroyed (not merely undefined), so a bare "
+            "editor?.view optional-chain does not protect against it.' NoteFindBar.jsx "
+            "itself guards every .view/.state read with `if (!editor || "
+            "editor.isDestroyed) return` (lines 67, 146, 191, 194). "
+            "NoteEditorPage.jsx:2448 has no such guard -- the wave-6 fix reintroduced a "
+            "pattern the wave-5 review had already named and fixed elsewhere in the "
+            "same component family."
+        ),
+        "suggested_remedy_pattern_already_in_tree": (
+            "guard with `if (!editor || editor.isDestroyed) return undefined` before "
+            "reading `editor.view`, matching NoteFindBar.jsx's own pattern"
+        ),
+        "walk_mitigation": (
+            "this walk's own open_note()/reload_note() helpers retry through the crash "
+            "(up to 5 attempts) so the OTHER 12 checks below can still run and produce "
+            "real evidence; _CRASH_STATS records every occurrence"
+        ),
+        "crash_stats": _CRASH_STATS,
+        "out_of_scope_for_this_walk": (
+            "the walk author's brief is to touch ONLY tools/notebook_wave6_walk.py -- "
+            "this finding is reported, not fixed, here"
+        ),
+    }
 
     browser.close()
 
