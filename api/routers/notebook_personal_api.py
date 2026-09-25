@@ -18,7 +18,8 @@ Two halves, and they authenticate differently ON PURPOSE:
 credential is read or anything is written. Read per request.
 
 ⛔ EVERY REFUSAL IS A SENTENCE A SHORTCUT CAN SHOW: `{"detail": "<sentence>"}`
-for 400/401/403/404/413/423/429. The Browser Capture resolver's own 401/403
+for 400/401/403/404/413/423/429, and 503 when the database is busy. The
+Browser Capture resolver's own 401/403
 bodies speak to the EXTENSION ("Reconnect UCT Browser Capture"), so they are
 translated here rather than leaked to a phone.
 
@@ -30,6 +31,7 @@ from __future__ import annotations
 
 import hashlib
 import json
+import sqlite3
 from typing import Any, Optional
 
 from fastapi import APIRouter, Cookie, Depends, Header, HTTPException, Request
@@ -100,6 +102,18 @@ def _enforce_rate(request: Request, principal: dict[str, Any]) -> None:
         raise HTTPException(status_code=429, detail=RATE_SENTENCE)
 
 
+def _database_busy(e: BaseException) -> bool:
+    """SQLite's own words for another writer holding the database past our
+    connection's timeout (auth.db opens with `timeout=3`)."""
+    text = str(e).lower()
+    return isinstance(e, sqlite3.OperationalError) and ("locked" in text or "busy" in text)
+
+
+def _busy() -> HTTPException:
+    return HTTPException(status_code=503, detail=papi.BUSY_SENTENCE,
+                         headers={"Retry-After": "5"})
+
+
 def personal_scope(scope: str):
     """`require_capture_scope(scope)`, with the refusals a Shortcut can read and
     the per-token rate limit applied once the credential is known good.
@@ -125,6 +139,12 @@ def personal_scope(scope: str):
             if e.status_code == 403:
                 raise HTTPException(status_code=403, detail=FORBIDDEN_SENTENCE) from e
             raise
+        except sqlite3.OperationalError as e:
+            # Resolving a token can write its `last_used_at` (at most every 5
+            # minutes); a busy database there is the same 503 as in `_run`.
+            if not _database_busy(e):
+                raise
+            raise _busy() from e
         _enforce_rate(request, principal)
         return principal
 
@@ -149,26 +169,46 @@ async def _json_body(request: Request) -> dict[str, Any]:
 
 async def _run(fn, *args, **kwargs):
     """Service work is SQLite: off the event loop, with its refusals mapped to
-    their status and sentence."""
+    their status and sentence.
+
+    ⛔ A BUSY DATABASE IS A SENTENCE TOO (fix round 1, M-8). `BEGIN IMMEDIATE`
+    waits auth.db's 3 s and then raises `OperationalError: database is
+    locked`; unmapped, that was a bare 500 on a door whose every refusal is
+    promised as a sentence a Shortcut can show. It is a 503 that says to try
+    again, with `Retry-After`."""
     try:
         return await run_in_threadpool(fn, *args, **kwargs)
     except papi.PersonalApiError as e:
         raise HTTPException(status_code=e.status, detail=e.message) from e
+    except sqlite3.OperationalError as e:
+        if not _database_busy(e):
+            raise
+        raise _busy() from e
+
+
+def _mint(user_id: str, label: str | None) -> dict[str, Any]:
+    try:
+        return capture_auth.mint_personal_token(user_id, label)
+    except capture_auth.CaptureAuthError as e:
+        raise papi.PersonalApiError(400, str(e)) from e
 
 
 # ── token management (session) ───────────────────────────────────────────────
 
 @router.post("/tokens")
-def mint_token(payload: dict[str, Any] | None = None, user: dict = Depends(require_paid)) -> dict[str, Any]:
+async def mint_token(request: Request, user: dict = Depends(require_paid)) -> dict[str, Any]:
     """Make a personal token. The bearer is in THIS response and nowhere else,
-    ever — the list below never carries it."""
-    label = (payload or {}).get("label")
+    ever — the list below never carries it.
+
+    ⛔ The label is read INSIDE the handler (`_json_body`), never as a body
+    parameter: FastAPI parses a declared body before the router's dependencies
+    run, so a malformed body answered 422 even while the gate was off -- an
+    answer a route that does not exist never gives (fix round 1, M-1)."""
+    body = await _json_body(request)
+    label = body.get("label")
     if label is not None and not isinstance(label, str):
         raise HTTPException(status_code=400, detail="“label” must be text.")
-    try:
-        return capture_auth.mint_personal_token(user["id"], label)
-    except capture_auth.CaptureAuthError as e:
-        raise HTTPException(status_code=400, detail=str(e)) from e
+    return await _run(_mint, user["id"], label)
 
 
 @router.get("/tokens")

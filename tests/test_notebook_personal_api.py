@@ -167,6 +167,29 @@ class TestDark:
         monkeypatch.setenv(GATE, "0")
         assert client.get("/api/j2/personal/tokens").status_code == 404
 
+    def test_a_malformed_body_while_dark_is_still_404(self, app, client, monkeypatch):
+        """⛔ Fix round 1, M-1. A body PARAMETER is parsed before the router's
+        gate runs, so `POST /tokens` with `{` answered 422 while dark -- a
+        route that does not exist never answers 422. Every POST is sent a
+        malformed body here, not only valid JSON."""
+        monkeypatch.delenv(GATE, raising=False)
+        _as_member(app, _user())
+        for method, path, _body in ROUTES:
+            if method != "POST":
+                continue
+            r = client.post(path, content=b"{", headers={**_bearer("uctpat_x"),
+                                                        "Content-Type": "application/json"})
+            assert r.status_code == 404 and r.json() == {"detail": "Not Found"}, (path, r.text)
+
+    def test_lit_a_malformed_mint_body_is_a_sentence_not_a_422(self, app, client, gate_on):
+        from api.routers import notebook_personal_api as router_mod
+        _as_member(app, _user())
+        r = client.post("/api/j2/personal/tokens", content=b"{",
+                        headers={"Content-Type": "application/json"})
+        assert r.status_code == 400 and r.json() == {"detail": router_mod.BAD_JSON_SENTENCE}
+        ok = client.post("/api/j2/personal/tokens", json={"label": "Phone"})
+        assert ok.status_code == 200 and ok.json()["label"] == "Phone"
+
 
 # ── tokens ───────────────────────────────────────────────────────────────────
 
@@ -519,6 +542,58 @@ class TestAppend:
             papi.append_markdown(uid, n["id"], "x")
         assert e.value.status == 409
         assert seen["expected"] == n["updatedAt"]
+
+
+# ── fix round 1 · M-8: a busy database is a sentence, not a bare 500 ─────────
+
+class TestBusyDatabase:
+    """A REAL lock, held by a second connection exactly as another writer on
+    the pod would hold it -- not a monkeypatched exception. auth.db waits its
+    3 s timeout, then SQLite raises `database is locked`."""
+
+    def _append(self, client, token, note_id, text):
+        return client.post(f"/api/j2/personal/notes/{note_id}/append", headers=_bearer(token),
+                           json={"markdown": text})
+
+    def test_a_locked_database_during_the_append_is_a_503_sentence(self, app, client, gate_on, db_path):
+        from api.services.journal_two import note_personal_api as papi
+        uid = _user()
+        token = _mint(uid)
+        n = _note(uid)
+        # a first call stamps the token's last_used_at, so the locked call below
+        # reaches the append itself (that stamp is written at most every 5 min)
+        assert self._append(client, token, n["id"], "one").status_code == 200
+        holder = sqlite3.connect(db_path, timeout=0)
+        holder.execute("BEGIN IMMEDIATE")
+        try:
+            r = self._append(client, token, n["id"], "two")
+        finally:
+            holder.rollback()
+            holder.close()
+        assert r.status_code == 503, r.text
+        assert r.json() == {"detail": papi.BUSY_SENTENCE}
+        assert r.headers.get("retry-after") == "5"
+        assert "two" not in _body_text(n["id"])
+        # control: the lock released, the same append lands
+        assert self._append(client, token, n["id"], "two").status_code == 200
+        assert "two" in _body_text(n["id"])
+
+    def test_a_locked_database_while_the_token_is_resolved_is_the_same_503(
+            self, app, client, gate_on, db_path):
+        """A token's FIRST use writes its `last_used_at`, inside the bearer
+        dependency and before `_run` -- the same lock there is the same 503."""
+        from api.services.journal_two import note_personal_api as papi
+        uid = _user()
+        token = _mint(uid)
+        n = _note(uid)
+        holder = sqlite3.connect(db_path, timeout=0)
+        holder.execute("BEGIN IMMEDIATE")
+        try:
+            r = self._append(client, token, n["id"], "first")
+        finally:
+            holder.rollback()
+            holder.close()
+        assert r.status_code == 503 and r.json() == {"detail": papi.BUSY_SENTENCE}
 
 
 # ── the daily door ───────────────────────────────────────────────────────────
