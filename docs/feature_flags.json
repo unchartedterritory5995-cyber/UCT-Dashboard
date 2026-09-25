@@ -467,6 +467,11 @@
       "note": "Off 2026-09-02 by decision: this gates ONLY the scheduler SEND of the weekly operator email. The compute and the status endpoint are ungated and always callable, so the numbers (chat volume, active users, tool-failure rate) are available on demand without it. Off therefore means no weekly email is being sent, NOT no health data. Whether the owner wants a recurring email is theirs to say, and nothing is lost while it is off.",
       "where": []
     },
+    "COMPASS_NOTES_TOOL_ENABLED": {
+      "status": "dark",
+      "where": [],
+      "note": "Wave 7 lane H, 2026-09-25. Enablement gate for the text-chat Compass tool search_my_notes (coach_chat_tools.TOOLS -> ask_retrieval.retrieve, titles/snippets/ids only, member-scoped). Unset means OFF and that is the decision: the tool is absent from the registry the model sees. Read per call, never at import, so a flip needs no restart. The VOICE registration is deliberately not built (OpenAI Realtime would receive note text; deferred with the zero-retention condition)."
+    },
     "COMPASS_WEEKLY_DIGEST_ENABLED": {
       "status": "armed",
       "where": [

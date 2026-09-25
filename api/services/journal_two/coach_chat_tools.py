@@ -1840,3 +1840,130 @@ _BRAIN_TOOLS = {
 
 if os.environ.get("BRAIN_TOOLS_ENABLED", "0") == "1":
     TOOLS.update(_BRAIN_TOOLS)
+
+
+# ── Wave 7 lane H (H4): search_my_notes — TEXT CHAT ONLY, DARK ────────────────
+#
+# ⛔⛔ READ PER CALL, NEVER AT IMPORT. `_BRAIN_TOOLS` above is decided once, when
+# this module is imported, so flipping BRAIN_TOOLS_ENABLED needs a restart.
+# This tool's gate is read on EVERY access to the registry (so the model only
+# ever sees the tool while it is on) and again inside the tool itself (so a
+# call that raced a flip is refused, not served).
+#
+# ⛔ VOICE IS DELIBERATELY NOT BUILT (ruling D-H4): registering it with the
+# voice agent would hand note text to OpenAI Realtime, which keeps data for up
+# to 30 days — deferred with semantic search's zero-retention condition.
+
+NOTES_TOOL_GATE = "COMPASS_NOTES_TOOL_ENABLED"
+_NOTES_TOOL_ON_VALUES = {"1", "true", "yes", "on"}
+_NOTES_TOOL_LIMIT = 8
+_NOTES_TOOL_SNIPPET = 400
+_NOTES_TOOL_OFF = "Searching your notes isn't available right now."
+
+
+def notes_tool_enabled() -> bool:
+    """The gate, read PER CALL. Unset, or anything but an on-value, is OFF."""
+    raw = os.environ.get(NOTES_TOOL_GATE)
+    return raw is not None and raw.strip().lower() in _NOTES_TOOL_ON_VALUES
+
+
+def _exec_search_my_notes(*, user_id, account_id, args, conn=None) -> dict:
+    """Search the member's OWN Notebook for what they wrote about something.
+
+    Text chat only — the voice registration is not built this wave (ruling
+    D-H4: it would send note text to OpenAI Realtime). Retrieval is
+    `ask_retrieval.retrieve(user_id, query, limit=8)` — the same member-scoped
+    retrieval Ask Notebook runs — projected through
+    `ask_service.public_source`, then narrowed again to what a coach needs:
+    a title, a snippet of at most 400 characters and the note id. ⛔ Never a
+    whole body. ⛔ The member's own notes only: every retrieval query carries
+    `user_id`.
+    """
+    if not notes_tool_enabled():
+        return {"ok": False, "error": _NOTES_TOOL_OFF}
+    query = str((args or {}).get("query") or "").strip()
+    if not query:
+        return {"ok": False, "error": "What should I look for in your notes?"}
+    from api.services.journal_two import ask_retrieval, ask_service
+    # Its own connection, never the chat's: retrieval sets a row factory on the
+    # connection it is handed.
+    found = ask_retrieval.retrieve(user_id, query[:500], limit=_NOTES_TOOL_LIMIT)
+    results = []
+    for n, item in enumerate((found.get("evidence") or [])[:_NOTES_TOOL_LIMIT], 1):
+        src = ask_service.public_source(n, item)
+        nav = src.get("navigation") or {}
+        results.append({
+            "n": n,
+            "title": src.get("label") or "",
+            "snippet": (src.get("snippet") or "")[:_NOTES_TOOL_SNIPPET],
+            "note_id": nav.get("note_id"),
+            "type": src.get("type"),
+        })
+    return {"ok": True, "query": query, "results": results,
+            "no_answer": bool(found.get("no_answer")), "count": len(results)}
+
+
+TOOLS["search_my_notes"] = {
+    "name": "search_my_notes",
+    "description": (
+        "Search the trader's OWN Notebook — the notes they wrote, documents they "
+        "attached and passages they saved — for what they wrote about something. "
+        "Returns titles, short snippets and note ids, never whole notes. Use for "
+        "'what did I write about X', 'find my notes on Y', 'did I have a plan for Z'. "
+        "Quote only what the snippets say."
+    ),
+    "requires_confirm": False,
+    "executor": _exec_search_my_notes,
+    "input_schema": {"type": "object", "properties": {
+        "query": {"type": "string", "description": "What to look for, in the trader's words."}},
+        "required": ["query"]},
+}
+
+
+class _GatedToolRegistry(dict):
+    """TOOLS, with some entries visible only while their gate is ON — checked
+    on EVERY access, so a flip changes what the next request sees with no
+    restart. Every entry without a gate behaves exactly as in a plain dict.
+
+    ⛔ The views it returns are real set-like views (a caller does
+    `expected - TOOLS.keys()`), built fresh per access over the visible set."""
+
+    def __init__(self, base: dict, gated: dict[str, Callable[[], bool]]):
+        super().__init__(base)
+        self._gated = dict(gated)
+
+    def _visible(self, key) -> bool:
+        gate = self._gated.get(key)
+        return gate is None or bool(gate())
+
+    def _snapshot(self) -> dict:
+        return {k: v for k, v in super().items() if self._visible(k)}
+
+    def __getitem__(self, key):
+        if not self._visible(key):
+            raise KeyError(key)
+        return super().__getitem__(key)
+
+    def get(self, key, default=None):
+        return super().get(key, default) if self._visible(key) else default
+
+    def __contains__(self, key) -> bool:
+        return super().__contains__(key) and self._visible(key)
+
+    def __iter__(self):
+        return iter(self._snapshot())
+
+    def __len__(self) -> int:
+        return len(self._snapshot())
+
+    def keys(self):
+        return self._snapshot().keys()
+
+    def values(self):
+        return self._snapshot().values()
+
+    def items(self):
+        return self._snapshot().items()
+
+
+TOOLS = _GatedToolRegistry(TOOLS, {"search_my_notes": notes_tool_enabled})
