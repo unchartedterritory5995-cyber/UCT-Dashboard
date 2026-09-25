@@ -133,7 +133,30 @@ function stripManifestProse() {
 
 export default defineConfig({
   plugins: [react(), comingSoonMeta(), stripManifestProse()],
+  // ⛔⛔ ONE `build` KEY. There were TWO top-level `build` keys from 2026-09-12 (`d261d0731`
+  // added the engine floor below as a second `build: { target }` block) until wave 7. In an
+  // object literal the LATER key wins, so the first block — `manualChunks` and
+  // `chunkSizeWarningLimit` — was silently discarded and the dist shipped with zero
+  // `vendor-*` chunks. Nothing errored: the build succeeded, the app worked, and the entry
+  // chunk was simply ~1.1 MB. `src/__tests__/viteConfigDuplicateKeys.test.js` now fails on a
+  // duplicate key anywhere in this config and on either intent (floor, chunk map) going missing.
   build: {
+    // ⛔⛔ THE SUPPORTED-ENGINE FLOOR, DECLARED. It was UNDECLARED before 2026-09-12, which is
+    // precisely how the Notebook route came to crash on every iOS below 18.4: Vite's default
+    // target is `'modules'` (~safari14), so a reader would reasonably believe old Safari was
+    // covered.
+    //
+    // ⭐ IT WOULD NOT HAVE HELPED, AND THAT IS THE LESSON WORTH KEEPING. `build.target` governs
+    // SYNTAX DOWNLEVELLING ONLY — esbuild rewrites `??=` and class fields, and does not add a
+    // single polyfill. `Iterator` is a GLOBAL, not syntax, so no target setting here would have
+    // caught `typeof Iterator.prototype.join` inside a dependency. Declaring the floor is worth
+    // doing so the intent is written down; the thing that actually catches this class is
+    // `iteratorGlobalFloor.test.js`, which reads the built chunks.
+    target: ['safari16', 'es2021'],
+    // `dist/.vite/manifest.json` — the import graph `tools/notebook_perf_budgets.py` walks to
+    // price the Notebook route (entry + everything it reaches), instead of a hand-typed chunk
+    // list that goes stale on the next rename. It changes no chunk; it only writes the graph.
+    manifest: true,
     chunkSizeWarningLimit: 4000,
     rollupOptions: {
       output: {
@@ -192,20 +215,6 @@ export default defineConfig({
     proxy: {
       '/api': 'http://localhost:8000'
     }
-  },
-  // ⛔⛔ THE SUPPORTED-ENGINE FLOOR, DECLARED. It was UNDECLARED before 2026-09-12, which is
-  // precisely how the Notebook route came to crash on every iOS below 18.4: Vite's default
-  // target is `'modules'` (~safari14), so a reader would reasonably believe old Safari was
-  // covered.
-  //
-  // ⭐ IT WOULD NOT HAVE HELPED, AND THAT IS THE LESSON WORTH KEEPING. `build.target` governs
-  // SYNTAX DOWNLEVELLING ONLY — esbuild rewrites `??=` and class fields, and does not add a
-  // single polyfill. `Iterator` is a GLOBAL, not syntax, so no target setting here would have
-  // caught `typeof Iterator.prototype.join` inside a dependency. Declaring the floor is worth
-  // doing so the intent is written down; the thing that actually catches this class is
-  // `iteratorGlobalFloor.test.js`, which reads the built chunks.
-  build: {
-    target: ['safari16', 'es2021'],
   },
   test: {
     environment: 'jsdom',
