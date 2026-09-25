@@ -397,6 +397,24 @@ function rather than carrying a copy.
   2,000 paragraphs (`w7I/i2-columnsguard-cost.log`, Node, minimal schema). Where the rest of
   the ~18 ms goes was not attributed (a browser profile per plugin and per React commit).
 
+  **Every typing reading of this wave, with its provenance** (tooling review M-6: this record
+  held only lane I's, and the loaded-box 2,000-¶ figure was being quoted as *the* number). Same
+  harness, `typing_per_char` p95:
+
+  | who, when | tree | box | 1,000 ¶ | 2,000 ¶ |
+  |---|---|---|---:|---:|
+  | lane I, I2 (the table above) | `658f364af` | loaded (the §2 machine load) | 17.6 ms | 22.4 ms |
+  | lane H, the final run of its round | `b14dfca1e` | loaded (shared) | 17.3 ms | 19.7 ms |
+  | lane H, interleaved A/B, **B = the lane-H tip** (median of 4 runs) | `e6bb581a5` | quiet | **16.95 ms** | **17.70 ms** |
+  | lane H, interleaved A/B, A (median of 4 runs) | `09bc51ecb` | quiet | 17.05 ms | 17.30 ms |
+
+  The A/B ran 2026-09-25 13:53–14:05 local, alternating A1 B1 … A4 B4, both trees on the same
+  harness bytes with `--boot --sizes 1000,2000 --opens 20 --chars 60`, a fresh data dir per
+  run; every B median sits inside A's own run-to-run range (no regression, and no
+  improvement). **The verdict does not move: typing is over its 16 ms/char line at both sizes
+  on every reading, and no line moved.** What moves is the size of the gap: the loaded-box
+  22.4 ms at 2,000 ¶ overstates it by ~4.7 ms against the quiet-box median of 17.70 ms.
+
 ## 4. Bundle after I3
 
 `npm run build` at the tree of `658f364af` (`w7I/i3-build.log`), measured with
