@@ -2332,7 +2332,12 @@ def notes_batch_export_endpoint(
     `build_selection_export_to_tempfile`, notes_export.py): each note keeps
     its OWN folder path in the zip, and a link between two selected notes is
     a relative `.md` path, not a not-bundled reference. Two notes with the
-    same title in different folders are told apart by their path, not by id.
+    same title in DIFFERENT folders are told apart by their path alone, no id
+    needed. N-g (wave 6 fix round 3): that is not the whole rule — two notes
+    with the same title in the SAME folder would collide on that path, so
+    `_compute_note_export_paths` appends an 8-char id suffix to whichever one
+    it reaches second (`notes_export.py`); same-title notes in one folder ARE
+    told apart by id, only same-title notes across folders are not.
 
     Guarded like the whole-notebook export: one export slot per pod (429
     when busy), built to a temp file and streamed, never held in memory.
