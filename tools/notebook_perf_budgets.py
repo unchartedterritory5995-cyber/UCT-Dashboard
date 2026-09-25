@@ -96,11 +96,19 @@ def closure_bytes(manifest: dict, dist: Path, keys: list[str]) -> tuple[int, lis
 
 
 def check_bytes(budgets: dict, dist: Path) -> tuple[list[str], dict]:
-    """(breaches, detail) for every entry under budgets["bytes"]."""
+    """(breaches, detail) for every entry under budgets["bytes"].
+
+    ⛔ A budget file with no `bytes` budget is UNEVALUABLE, never a pass (tooling review M-8):
+    `--dist` against it checked nothing and printed `VERDICT: PASS`, which is this tool's own
+    rule broken -- a budget that could not be checked did not pass."""
+    specs = budgets.get("bytes") or {}
+    if not specs:
+        raise Unevaluable("the budget file has no `bytes` budget -- `--dist` would check nothing, "
+                          "and a budget that could not be checked did not pass")
     manifest = load_manifest(dist)
     breaches: list[str] = []
     detail: dict = {}
-    for name, spec in (budgets.get("bytes") or {}).items():
+    for name, spec in specs.items():
         roots = [ENTRY, *spec["roots"]]
         keys = static_closure(manifest, roots)
         total, rows = closure_bytes(manifest, dist, keys)

@@ -100,6 +100,26 @@ def test_main_exit_codes_and_the_json_it_writes(tmp_path, capsys):
     assert pb.main(["--budgets", str(good)]) == 3  # nothing to check is not a pass
 
 
+def test_dist_against_a_budget_file_with_no_bytes_budget_fails_closed(tmp_path, capsys):
+    """Review M-8: an empty `{}` manifest plus a budget file with no `bytes` section printed
+    `VERDICT: PASS -- within every budget checked` and exited 0, having checked nothing. It is
+    UNEVALUABLE (exit 3), like every other input that cannot answer the question."""
+    nobytes = tmp_path / "nobytes.json"
+    nobytes.write_text(json.dumps({"search": {"tier": 1, "p95_ms_max": 1, "ops": ["a"]}}), encoding="utf-8")
+    empty_dist = _dist(tmp_path / "empty", {}, {})              # the review's probe: an empty manifest
+    real_dist = _dist(tmp_path / "real", FILES, MANIFEST)       # ...and a real one: still nothing to check
+    for d in (empty_dist, real_dist):
+        assert pb.main(["--budgets", str(nobytes), "--dist", str(d)]) == 3
+        out = capsys.readouterr().out
+        assert "VERDICT: UNEVALUABLE" in out and "no `bytes` budget" in out, out
+        assert "PASS" not in out
+    for empty in ({}, {"bytes": {}}, {"bytes": None}):
+        with pytest.raises(pb.Unevaluable, match="no `bytes` budget"):
+            pb.check_bytes(empty, real_dist)
+    # control: the same dist with a bytes budget is evaluated (and passes)
+    assert pb.check_bytes(_budgets(10_000), real_dist)[0] == []
+
+
 def _report(n, ops):
     return {"tiers": [{"n": n, "ops": {k: {"p95_ms": v} for k, v in ops.items()}}]}
 
