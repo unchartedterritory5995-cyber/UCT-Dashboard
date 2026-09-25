@@ -9,6 +9,13 @@ the resolver here is reached ONLY through `require_capture_scope`, which only
 the allow-listed Browser Capture routes depend on.
 `tests/test_capture_auth_boundary.py` is the structural rail on that.
 
+⚠️ WAVE 7 (G1) ADDED A SECOND KIND OF ROW, and the sentence above still holds
+for it. A `client_type = "personal_api"` token is a member-made bearer for the
+personal API (create a note, append to a note or today's daily note), with its
+OWN two scopes that intersect nothing the extension holds. It is resolved by
+the same `resolve_token`, reaches only routes that demand one of its scopes,
+and is equally worthless at every ordinary endpoint. See `mint_personal_token`.
+
 ⛔ THE PRIOR ART IS A TRAP, NAMED HERE SO IT IS NOT "REUSED" LATER. The calendar
 export token is `hmac(PUSH_SECRET, user_id)` — its own comment says "Stable per
 user (no TTL)". Copying that shape would produce a derived, never-expiring,
@@ -55,10 +62,25 @@ SCOPE_DESTINATIONS_READ = "notebook:capture:destinations:read"
 # than "whatever the client asked for" — a client does not choose its own
 # authority.
 GRANTED_SCOPES = (SCOPE_CAPTURE_WRITE, SCOPE_DESTINATIONS_READ)
-KNOWN_SCOPES = frozenset(GRANTED_SCOPES)
+
+# ── Wave 7 lane G (G1): the member's PERSONAL API token ──────────────────────
+# A second, DISJOINT kind of row in the same table: `client_type =
+# "personal_api"`, minted by a session-authed Settings button (a Shortcut or a
+# curl cannot receive the extension's chromiumapp.org redirect), carrying ONLY
+# the two notebook:notes:* scopes below and NEVER the capture scopes. The
+# scope sets do not intersect, so a personal token is refused (403) at every
+# Browser Capture route and a Browser Capture token is refused at every
+# personal-API route — by the same `require_capture_scope` check, not by a
+# second rule. `GRANTED_SCOPES` (what the extension handshake grants) is
+# unchanged on purpose.
+SCOPE_NOTES_CREATE = "notebook:notes:create"
+SCOPE_NOTES_APPEND = "notebook:notes:append"
+PERSONAL_SCOPES = (SCOPE_NOTES_CREATE, SCOPE_NOTES_APPEND)
+KNOWN_SCOPES = frozenset(GRANTED_SCOPES + PERSONAL_SCOPES)
 
 CLIENT_TYPE = "browser_capture_extension"
 CLIENT_ID = "uct-browser-capture"
+PERSONAL_CLIENT_TYPE = "personal_api"
 
 # ── Lifetimes ────────────────────────────────────────────────────────────────
 TOKEN_TTL_DAYS = 30            # see module docstring — bounded BY the session's own TTL
@@ -69,6 +91,20 @@ AUTH_CODE_TTL_SECONDS = 120    # a hand-off, not a credential: seconds, not minu
 LAST_USED_WRITE_INTERVAL_SECONDS = 300
 
 TOKEN_PREFIX = "uctcap_"       # a LABEL, never a claim: the server trusts nothing in it
+
+# ⛔ 365 DAYS, ABSOLUTE — a RULED exception to the 30-day derivation above
+# (wave 7 D-G2). A Shortcut on a phone cannot re-run a browser handshake every
+# month, so the session-bounded ceiling would break it monthly. What bounds a
+# year-long bearer instead: it is shown ONCE and never listed again, it is
+# revocable at any moment from Settings, it reaches only the personal-API
+# routes (create a note / append), it can read nothing, and the whole surface
+# is dark behind NOTEBOOK_PERSONAL_API_ENABLED. Use does not extend it.
+PERSONAL_TOKEN_TTL_DAYS = 365
+PERSONAL_TOKEN_PREFIX = "uctpat_"   # a label too: resolution is by digest alone
+# A member making a new token every time they build a Shortcut is fine; an
+# unbounded pile of live year-long bearers is not.
+MAX_PERSONAL_TOKENS = 20
+PERSONAL_LABEL_DEFAULT = "Personal API"
 
 
 class CaptureAuthError(Exception):
@@ -275,6 +311,59 @@ def exchange_authorization_code(
             conn.close()
 
 
+# ── Wave 7 (G1): minting a personal token ────────────────────────────────────
+
+def mint_personal_token(
+    user_id: str,
+    label: str | None = None,
+    conn: sqlite3.Connection | None = None,
+) -> dict[str, Any]:
+    """A personal-API bearer for ONE member, returned exactly once.
+
+    Called only from the session-authenticated, paid-gated Settings route
+    (`api/routers/notebook_personal_api.py`), so the caller is the account
+    itself — a token can never mint a token. The database keeps only the
+    digest; the presented value exists in this return value and nowhere else.
+    Refused past `MAX_PERSONAL_TOKENS` live tokens.
+    """
+    clean = " ".join(str(label or "").split())[:80] or PERSONAL_LABEL_DEFAULT
+    owned = conn is None
+    conn = conn or get_connection()
+    try:
+        ensure_capture_auth_schema(conn)
+        now = _now()
+        live = conn.execute(
+            "SELECT COUNT(*) FROM j2_capture_tokens WHERE user_id = ? AND client_type = ?"
+            " AND revoked_at IS NULL AND expires_at > ?",
+            (user_id, PERSONAL_CLIENT_TYPE, _iso(now)),
+        ).fetchone()[0]
+        if live >= MAX_PERSONAL_TOKENS:
+            raise CaptureAuthError(
+                f"You already have {MAX_PERSONAL_TOKENS} personal tokens. "
+                "Revoke one you no longer use, then make a new one.")
+        token = PERSONAL_TOKEN_PREFIX + secrets.token_urlsafe(32)
+        token_id = secrets.token_hex(16)
+        expires_at = now + timedelta(days=PERSONAL_TOKEN_TTL_DAYS)
+        conn.execute(
+            "INSERT INTO j2_capture_tokens "
+            "(id, user_id, token_hash, scopes, client_type, label, created_at, expires_at) "
+            "VALUES (?,?,?,?,?,?,?,?)",
+            (token_id, user_id, _hash(token), " ".join(PERSONAL_SCOPES),
+             PERSONAL_CLIENT_TYPE, clean, _iso(now), _iso(expires_at)),
+        )
+        conn.commit()
+        return {
+            "token": token,
+            "tokenId": token_id,
+            "label": clean,
+            "scopes": list(PERSONAL_SCOPES),
+            "expiresAt": _iso(expires_at),
+        }
+    finally:
+        if owned:
+            conn.close()
+
+
 # ── Resolution ───────────────────────────────────────────────────────────────
 
 def resolve_token(
@@ -324,19 +413,33 @@ def resolve_token(
 
 # ── Member-facing management (§16) ───────────────────────────────────────────
 
-def list_connections(user_id: str, conn: sqlite3.Connection | None = None) -> list[dict[str, Any]]:
+def list_connections(
+    user_id: str,
+    conn: sqlite3.Connection | None = None,
+    *,
+    client_type: str | None = None,
+) -> list[dict[str, Any]]:
     """What the member sees in Settings. NEVER the token, and never its hash —
     a hash of a live credential is still a fact about that credential and has
-    no place in a UI response."""
+    no place in a UI response.
+
+    ``client_type`` (wave 7): None — the default, and what the Browser Capture
+    card's route passes — lists every kind EXCEPT personal-API tokens, so that
+    card shows exactly what it showed before personal tokens existed. A value
+    lists only that kind (the Personal API card passes `personal_api`)."""
     owned = conn is None
     conn = conn or get_connection()
     try:
         ensure_capture_auth_schema(conn)
+        if client_type is None:
+            kind_sql, kind_arg = "client_type != ?", PERSONAL_CLIENT_TYPE
+        else:
+            kind_sql, kind_arg = "client_type = ?", client_type
         rows = conn.execute(
             "SELECT id, label, client_type, created_at, expires_at, revoked_at, last_used_at, scopes "
-            "FROM j2_capture_tokens WHERE user_id = ? AND revoked_at IS NULL "
+            f"FROM j2_capture_tokens WHERE user_id = ? AND revoked_at IS NULL AND {kind_sql} "
             "ORDER BY created_at DESC",
-            (user_id,),
+            (user_id, kind_arg),
         ).fetchall()
         now = _now()
         out = []
