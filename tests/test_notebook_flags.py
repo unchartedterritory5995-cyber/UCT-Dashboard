@@ -3,10 +3,10 @@ Notebook's keys.
 
 `tests/test_hub_preview_flag.py` already pins the load-bearing property for the
 hub flag: **it is read PER REQUEST**, because a module-level capture makes the
-no-redeploy rollback a fiction. Wave K puts four more flags on the same payload,
-so the same property is asserted for them here — a rail that covered one flag and
-not its four neighbours would be satisfied by exactly the mistake it exists to
-catch.
+no-redeploy rollback a fiction. Wave K put four more flags on the same payload
+(and G-064 a fifth), so the same property is asserted for them here — a rail that
+covered one flag and not its neighbours would be satisfied by exactly the mistake
+it exists to catch.
 """
 from __future__ import annotations
 
@@ -23,6 +23,7 @@ NOTEBOOK_KEYS = [
     "notebook_offline_read_on",
     "notebook_conflict_ux_on",
     "notebook_attachments_on",
+    "notebook_ask_insert_on",
 ]
 
 

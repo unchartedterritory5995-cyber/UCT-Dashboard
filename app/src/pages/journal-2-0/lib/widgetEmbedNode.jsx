@@ -55,6 +55,11 @@ export const WidgetEmbed = Node.create({
       widgetId: stringAttr('data-widget-id'),
       params: jsonAttr('data-params', {}),
       capturedAt: stringAttr('data-captured-at'),
+      // Wave 4 chart identity: one per NODE (widgetEmbedCore.newEmbedId).
+      // Default null — every embed stored before it simply lacks one, and
+      // citations to those keep the widgetId|capturedAt fallback. Rendered as
+      // a data- attribute so copy/paste and the importer round-trip keep it.
+      embedId: stringAttr('data-embed-id'),
       mode: stringAttr('data-mode', 'snapshot'),
       fallback: jsonAttr('data-fallback', null),
       // Frozen-to-image: renders the captured PNG at the embed's own size (no

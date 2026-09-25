@@ -1384,3 +1384,148 @@ def test_full_export_lists_document_excerpt_evidence_by_page_citation():
     body = zipfile.ZipFile(io.BytesIO(blob)).read("NVDA Thesis.md").decode("utf-8")
     assert "thesis_evidence:" in body
     assert "Investor Deck.pdf, p.17" in body
+
+
+def _g064_doc(question="What about margins?", inserted_at="2026-09-22T14:03:00.000Z"):
+    return {"type": "doc", "content": [
+        {"type": "askInsert",
+         "attrs": {"insertedAt": inserted_at, "scope": "note", "question": question},
+         "content": [
+             {"type": "paragraph", "content": [
+                 {"type": "text", "text": "Margins fell "},
+                 {"type": "askCitation", "attrs": {"n": 1, "label": "NVDA thesis"}},
+                 {"type": "text", "text": " in Q3."}]},
+             {"type": "paragraph", "content": [
+                 {"type": "text", "text": "Guidance held "},
+                 {"type": "askCitation", "attrs": {"n": 2, "label": "Call notes"}},
+                 {"type": "askCitation", "attrs": {"n": 1, "label": "NVDA thesis"}},
+                 {"type": "text", "text": "."}]}]}]}
+
+
+def test_g064_an_inserted_answer_exports_as_a_labelled_quote():
+    assert tiptap_to_markdown(_g064_doc()) == (
+        "> **From Ask Notebook** · 2026-09-22 · Q: What about margins?\n"
+        "> \n"
+        "> Margins fell [1] in Q3.\n"
+        "> \n"
+        "> Guidance held [2][1].\n"
+        "> \n"
+        "> Sources as of insertion: [1] NVDA thesis · [2] Call notes"
+    )
+
+
+def test_g064_missing_date_and_question_still_label_the_block():
+    out = tiptap_to_markdown(_g064_doc(question="", inserted_at=None))
+    assert out.startswith("> **From Ask Notebook**\n> \n> Margins fell [1] in Q3.")
+
+
+def test_g064_a_blank_quoted_line_is_written_exactly_as_the_blockquote_writer_writes_one():
+    """G-064 close-out: the answer's quote wrote a blank line as `>` where this
+    file's own blockquote writer writes `> `. The expected form is READ from the
+    blockquote writer (an empty paragraph inside a blockquote), never restated,
+    so the two cannot drift apart again."""
+    quote = tiptap_to_markdown(_doc({"type": "blockquote", "content": [
+        _para("a"), {"type": "paragraph"}, _para("b")]}))
+    reference_blank = quote.split("\n")[1]
+    assert reference_blank.strip() == ">"  # control: this IS the blank quoted line
+
+    lines = tiptap_to_markdown(_g064_doc()).split("\n")
+    blanks = [ln for ln in lines if ln.strip() == ">"]
+    assert len(blanks) == 3  # non-vacuity: the header gap, the paragraph gap, the sources gap
+    assert all(ln == reference_blank for ln in blanks)
+    assert all(ln.startswith("> ") for ln in lines)
+
+
+# G-064 close-out: an askInsert or askCitation whose `attrs` is not a dict (a
+# hand-edited or corrupted body) must never raise inside an export -- one bad
+# node would otherwise fail the whole archive. It reads as empty attrs.
+_MALFORMED_ATTRS = [None, [], [1, 2], "", "junk"]
+
+
+@pytest.mark.parametrize("attrs", _MALFORMED_ATTRS, ids=repr)
+def test_g064_an_ask_insert_with_malformed_attrs_exports_as_an_unlabelled_quote(attrs):
+    doc = _doc({"type": "askInsert", "attrs": attrs, "content": [_para("Margins fell.")]})
+    assert tiptap_to_markdown(doc) == "> **From Ask Notebook**\n> \n> Margins fell."
+
+
+@pytest.mark.parametrize("attrs", _MALFORMED_ATTRS, ids=repr)
+def test_g064_a_chip_with_malformed_attrs_exports_as_nothing_outside_a_block(attrs):
+    doc = _doc({"type": "paragraph", "content": [
+        {"type": "text", "text": "See "},
+        {"type": "askCitation", "attrs": attrs},
+        {"type": "text", "text": "here."}]})
+    assert tiptap_to_markdown(doc) == "See here."
+
+
+@pytest.mark.parametrize("attrs", _MALFORMED_ATTRS, ids=repr)
+def test_g064_a_chip_with_malformed_attrs_inside_a_block_is_left_out_of_the_sources(attrs):
+    doc = _doc({"type": "askInsert",
+                "attrs": {"insertedAt": "2026-09-22T14:03:00.000Z", "question": "q"},
+                "content": [{"type": "paragraph", "content": [
+                    {"type": "text", "text": "Margins fell "},
+                    {"type": "askCitation", "attrs": attrs},
+                    {"type": "askCitation", "attrs": {"n": 1, "label": "NVDA thesis"}},
+                    {"type": "text", "text": "."}]}]})
+    assert tiptap_to_markdown(doc) == (
+        "> **From Ask Notebook** · 2026-09-22 · Q: q\n"
+        "> \n"
+        "> Margins fell [1].\n"
+        "> \n"
+        "> Sources as of insertion: [1] NVDA thesis"
+    )
+
+
+def test_g064_a_chip_outside_a_block_exports_as_its_number():
+    doc = {"type": "doc", "content": [{"type": "paragraph", "content": [
+        {"type": "text", "text": "See "},
+        {"type": "askCitation", "attrs": {"n": 3, "label": "x"}}]}]}
+    assert tiptap_to_markdown(doc) == "See [3]"
+
+
+# G-064 close-out (review Minor #5): an `n` that is not an int or a string --
+# a list or dict is unhashable -- raised TypeError in the answer's source list
+# (`num not in sources`) and failed the WHOLE archive. It now reads as missing,
+# through ONE helper the chip branch shares, so the chip cannot print a number
+# the sources line leaves out.
+_MALFORMED_N = [[1], {"a": 1}, 1.5, True]
+
+
+@pytest.mark.parametrize("n", _MALFORMED_N, ids=repr)
+def test_g064_a_chip_with_a_malformed_n_inside_a_block_is_left_out_everywhere(n):
+    doc = _doc({"type": "askInsert",
+                "attrs": {"insertedAt": "2026-09-22T14:03:00.000Z", "question": "q"},
+                "content": [{"type": "paragraph", "content": [
+                    {"type": "text", "text": "Margins fell "},
+                    {"type": "askCitation", "attrs": {"n": n, "label": "Bad"}},
+                    {"type": "askCitation", "attrs": {"n": 1, "label": "NVDA thesis"}},
+                    {"type": "text", "text": "."}]}]})
+    assert tiptap_to_markdown(doc) == (
+        "> **From Ask Notebook** · 2026-09-22 · Q: q\n"
+        "> \n"
+        "> Margins fell [1].\n"
+        "> \n"
+        "> Sources as of insertion: [1] NVDA thesis"
+    )
+
+
+@pytest.mark.parametrize("n", _MALFORMED_N, ids=repr)
+def test_g064_a_chip_with_a_malformed_n_outside_a_block_exports_as_nothing(n):
+    doc = _doc({"type": "paragraph", "content": [
+        {"type": "text", "text": "See "},
+        {"type": "askCitation", "attrs": {"n": n, "label": "Bad"}},
+        {"type": "text", "text": "here."}]})
+    assert tiptap_to_markdown(doc) == "See here."
+
+
+def test_g064_a_string_n_still_exports_and_is_listed():
+    doc = _doc({"type": "askInsert", "attrs": {},
+                "content": [{"type": "paragraph", "content": [
+                    {"type": "text", "text": "A "},
+                    {"type": "askCitation", "attrs": {"n": "2", "label": "Call notes"}}]}]})
+    assert tiptap_to_markdown(doc) == (
+        "> **From Ask Notebook**\n"
+        "> \n"
+        "> A [2]\n"
+        "> \n"
+        "> Sources as of insertion: [2] Call notes"
+    )

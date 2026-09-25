@@ -5,6 +5,7 @@ that note's images."""
 
 from __future__ import annotations
 
+import json
 import sqlite3
 
 import pytest
@@ -126,3 +127,26 @@ def test_attachment_proxy_scope(conn, root):
     assert note_shares.resolve_share_attachment("nope", "inline", "abc123.png", conn=conn) is None
     note_shares.revoke_share("u1", n["id"], conn=conn)
     assert note_shares.resolve_share_attachment(tok, "inline", "abc123.png", conn=conn) is None
+
+
+def test_g064_a_shared_note_never_leaks_citation_labels_or_links(conn):
+    n = notes_svc.create_note("u1", {"title": "Shared with answer"}, conn=conn)
+    body = {"type": "doc", "content": [{
+        "type": "askInsert",
+        "attrs": {"insertedAt": "2026-09-22T12:00:00Z", "scope": "notebook", "question": "my question"},
+        "content": [{"type": "paragraph", "content": [
+            {"type": "text", "text": "Answer "},
+            {"type": "askCitation", "attrs": {
+                "n": 1, "label": "Private other note",
+                "nav": {"kind": "note", "note_id": "secret-note"},
+                "citation": "exact", "claim": "Answer"}}]}]}]}
+    notes_svc.update_note("u1", n["id"], {"bodyJson": body}, conn=conn)
+    share = note_shares.create_share("u1", n["id"], conn=conn)
+    pub = note_shares.resolve_share(share["token"], conn=conn)
+    chip = pub["bodyJson"]["content"][0]["content"][0]["content"][1]
+    assert chip == {"type": "askCitation", "attrs": {"n": 1}}
+    dumped = json.dumps(pub)
+    assert "Private other note" not in dumped
+    assert "secret-note" not in dumped
+    # The member's own question, inside the note they chose to share, stays.
+    assert pub["bodyJson"]["content"][0]["attrs"]["question"] == "my question"

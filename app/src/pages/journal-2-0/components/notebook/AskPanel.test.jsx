@@ -154,6 +154,17 @@ describe('sources are listed, ranking internals are not', () => {
     expect(screen.getByTestId('ask-sources').textContent).toContain('page only')
   })
 
+  // G-064 final fix wave — a precision value that happens to name an Object
+  // prototype member must never render that member: `{}['constructor']` is a
+  // function, and it is truthy.
+  it('a precision that names a prototype key reads "unavailable", never a function', async () => {
+    await ask({}, [head({ sources: [{ ...SOURCE, citation: 'constructor' }] }),
+                   { type: 'final', answer: 'see [1]', cited: [1], invalidCitations: [] }])
+    const text = screen.getByTestId('ask-sources').textContent
+    expect(text).toContain('unavailable')
+    expect(text).not.toContain('function')
+  })
+
   it('an uncited answer shows no Sources section', async () => {
     await ask({}, [head(),
                    { type: 'final', answer: 'No citations here.', cited: [], invalidCitations: [] }])

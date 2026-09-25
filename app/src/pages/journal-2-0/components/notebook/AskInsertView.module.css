@@ -1,0 +1,19 @@
+/* G-064 — the Callout box (NoteEditorPage.module.css [data-type="callout"]). */
+.block {
+  margin: 14px 0;
+  padding: 10px 14px 12px;
+  border-radius: var(--radius-md);
+  background: var(--bg-surface);
+  border: 1px solid var(--border);
+}
+.header {
+  display: flex;
+  align-items: center;
+  font-size: 12px;
+  color: var(--text-muted);
+  margin-bottom: 6px;
+  user-select: none;
+}
+.label { font-weight: 600; }
+.date { white-space: pre; }
+.body { min-width: 0; }

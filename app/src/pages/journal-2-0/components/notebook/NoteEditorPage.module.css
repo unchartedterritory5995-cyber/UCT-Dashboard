@@ -360,18 +360,18 @@
   background: var(--bg-surface);
   border: 1px solid var(--border);
 }
-.proseEditor [data-type="callout"] .uctCalloutIcon {
+.proseEditor [data-type="callout"] :global(.uctCalloutIcon) {
   flex: 0 0 auto;
   font-size: 18px;
   line-height: 1.5;
   user-select: none;
 }
-.proseEditor [data-type="callout"] .uctCalloutBody {
+.proseEditor [data-type="callout"] :global(.uctCalloutBody) {
   flex: 1 1 auto;
   min-width: 0;
 }
-.proseEditor [data-type="callout"] .uctCalloutBody > :first-child { margin-top: 0; }
-.proseEditor [data-type="callout"] .uctCalloutBody > :last-child { margin-bottom: 0; }
+.proseEditor [data-type="callout"] :global(.uctCalloutBody) > :first-child { margin-top: 0; }
+.proseEditor [data-type="callout"] :global(.uctCalloutBody) > :last-child { margin-bottom: 0; }
 
 /* Toggle — the other Notion import block. Real <details>/<summary> under the
    hood (toggleNode.js's node view); the chevron is UI CHROME, so it is a
@@ -384,7 +384,7 @@
   gap: 4px;
   margin: 14px 0;
 }
-.proseEditor .uctToggleChevron {
+.proseEditor :global(.uctToggleChevron) {
   flex: 0 0 auto;
   display: flex;
   align-items: center;
@@ -399,31 +399,31 @@
   cursor: pointer;
   border-radius: var(--radius-sm, 4px);
 }
-.proseEditor .uctToggleChevron:hover { color: var(--accent); background: rgba(255, 255, 255, 0.05); }
-.proseEditor .uctToggleChevron svg { transition: transform 0.12s ease; }
-.proseEditor [data-type="toggle"][data-open="true"] .uctToggleChevron svg { transform: rotate(90deg); }
+.proseEditor :global(.uctToggleChevron):hover { color: var(--accent); background: rgba(255, 255, 255, 0.05); }
+.proseEditor :global(.uctToggleChevron) svg { transition: transform 0.12s ease; }
+.proseEditor [data-type="toggle"][data-open="true"] :global(.uctToggleChevron) svg { transform: rotate(90deg); }
 /* Touch tier is <=1024px, never 640px (canonical breakpoint, breakpoints.css). */
 @media (max-width: 1024px) {
-  .proseEditor .uctToggleChevron { width: var(--tap-min, 44px); height: var(--tap-min, 44px); }
+  .proseEditor :global(.uctToggleChevron) { width: var(--tap-min, 44px); height: var(--tap-min, 44px); }
 }
-.proseEditor .uctToggleDetails { flex: 1 1 auto; min-width: 0; }
-.proseEditor .uctToggleDetails > summary {
+.proseEditor :global(.uctToggleDetails) { flex: 1 1 auto; min-width: 0; }
+.proseEditor :global(.uctToggleDetails) > summary {
   cursor: text;
   font-weight: 600;
   list-style: none;
 }
-.proseEditor .uctToggleDetails > summary::-webkit-details-marker { display: none; }
-.proseEditor .uctToggleDetails > [data-type="toggleContent"] {
+.proseEditor :global(.uctToggleDetails) > summary::-webkit-details-marker { display: none; }
+.proseEditor :global(.uctToggleDetails) > [data-type="toggleContent"] {
   margin: 6px 0 0;
   padding-left: 2px;
 }
-.proseEditor .uctToggleDetails > [data-type="toggleContent"] > :first-child { margin-top: 0; }
-.proseEditor .uctToggleDetails > [data-type="toggleContent"] > :last-child { margin-bottom: 0; }
+.proseEditor :global(.uctToggleDetails) > [data-type="toggleContent"] > :first-child { margin-top: 0; }
+.proseEditor :global(.uctToggleDetails) > [data-type="toggleContent"] > :last-child { margin-bottom: 0; }
 /* Collapsed: the body stays in the document (never removed -- see
    toggleNode.js), only hidden. The native <details> element already does
    this for its own children, so this rule is a belt for the STATIC (no node
    view) renderHTML fallback path, which sets no such behavior on its own. */
-.proseEditor [data-type="toggle"][data-open="false"] .uctToggleDetails > [data-type="toggleContent"] {
+.proseEditor [data-type="toggle"][data-open="false"] :global(.uctToggleDetails) > [data-type="toggleContent"] {
   display: none;
 }
 .proseEditor p.is-editor-empty:first-child::before {

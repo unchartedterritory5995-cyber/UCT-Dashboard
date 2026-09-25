@@ -21,6 +21,9 @@ import { NoteLink } from './noteLinkNode'
 import { NoteLinkMenuExtension } from '../components/notebook/NoteLinkMenu'
 import { FinancialFact } from './financialFactNode'
 import { DocumentExcerpt } from './documentExcerptNode'
+import { AskInsert } from './askInsertNode'
+import { AskCitation } from './askCitationNode'
+import { PasteContainers } from './pasteContainers'
 import { fmtTime } from '../../../components/video/playerUtils'
 
 export function buildExtensions({ placeholder = 'Start writing… or type / for blocks and charts' } = {}) {
@@ -82,6 +85,26 @@ export function buildExtensions({ placeholder = 'Start writing… or type / for 
     // time.
     FinancialFact,
     DocumentExcerpt,
+    // G-064: an inserted Ask Notebook answer and its citation chips. Same
+    // "never remove" rule as WidgetEmbed above -- TipTap drops unknown node
+    // types at parse time, and the flag gates only the Insert button.
+    AskInsert,
+    AskCitation,
+    // Paste/copy for the three `defining` containers (askInsert, callout,
+    // toggle): a container OPEN at a slice edge travels as plain content, a
+    // whole one keeps its wrapper -- see pasteContainers.js. It is the ONLY
+    // transformPasted/transformCopied in this roster; add a container to its
+    // PASTE_CONTAINERS set rather than a second hook on the node.
+    // ⛔ ITS POSITION HERE IS LOAD-BEARING. TipTap builds plugins from the
+    // REVERSED extension list, so among same-priority extensions the LAST one
+    // listed handles a paste FIRST. Last here puts its handlePaste after Link's
+    // (priority 1000) and BEFORE prosemirror-tables' cell paste and the code
+    // block's VS Code handler -- so a multi-line paste into a toggle title is
+    // placed by pasteContainers and never reaches the VS Code handler, whose
+    // behaviour inside a title has never been measured. Moving it earlier in
+    // this array reverses that order.
+    // Rail: pasteContainers.unit.test.js ("handles a paste after Link ...").
+    PasteContainers,
   ]
 }
 

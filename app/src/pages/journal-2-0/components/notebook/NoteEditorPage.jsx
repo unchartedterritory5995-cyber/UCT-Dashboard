@@ -9,8 +9,11 @@ import {
 import Toast from '../Toast'
 import DocumentPreviewSheet from './DocumentPreviewSheet'
 import CapturedSourceSheet from './CapturedSourceSheet'
-import { targetFromParams, applyTargetToParams, excerptRevisitTarget, citationTarget,
+import { targetFromParams, applyTargetToParams, citationTarget,
          reviewTargetFromParams } from '../../lib/searchNavigation'
+import { openExcerptCitation, openDocumentCitation, openDocumentPage, SOURCE_NOWHERE,
+         PASSAGE_GONE, PASSAGE_NOT_PINPOINTED, NOTE_LEVEL_SOURCE } from '../../lib/openCitation'
+import { SOURCE_WEB } from '../../lib/searchResultLabel'
 import useNoteDocuments from '../../hooks/useNoteDocuments'
 import DocumentTextStatus from './DocumentTextStatus'
 import useNoteExcerpts from '../../hooks/useNoteExcerpts'
@@ -42,8 +45,10 @@ import {
 import { stampChartSettings } from '../../lib/widgetEmbedCore'
 import WidgetPalette from './WidgetPalette'
 import { sharedNoteUrl } from '../../lib/noteShareLink'
-import AskPanel from './AskPanel'
-import { PRECISE_STATES } from '../../lib/askCitation'
+import AskPanel, { PRECISE_CITATION } from './AskPanel'
+import { PRECISE_STATES, isBlockAtomRange } from '../../lib/askCitation'
+import { appendAskInsert } from '../../lib/askInsert'
+import usePendingAskInsert from '../../hooks/usePendingAskInsert'
 import NoteFindBar from './NoteFindBar'
 import NoteHistoryPanel from './NoteHistoryPanel'
 import NoteBacklinksSection from './NoteBacklinksSection'
@@ -115,6 +120,11 @@ const DRAFT_KEY = (noteId) => `uct.j2.notedraft.${noteId}`
 // `setContent(x, false)` emits, `setContent(x, EMIT_NOTHING)` does not.
 // ⛔ One authority, named, so a fifth call site cannot quietly get it wrong.
 const EMIT_NOTHING = { emitUpdate: false }
+
+// G-064 fix round 1 (F5) — ONE string, read by both the direct-click insert
+// path and the pending-hand-off path, so the two can never say something
+// different about the same outcome.
+const ASK_INSERT_SUCCESS_MSG = 'Answer inserted at the end of this note.'
 
 // Toolbar Font dropdown — the app's approved family set (each option previews in
 // its own face). Value is a full CSS font-family stack; '' clears.
@@ -638,6 +648,18 @@ export default function NoteEditorPage({ noteId, onBack, showBack = true, onTitl
   // local copies could be ordered at all. ⛔ An ambiguous answer is SAID so,
   // not smoothed over: the member is the only one who can settle it.
   const [recovery, setRecovery] = useState(null)
+  // G-064 fix round 1 (F2, controller ruling) — WHICH note the decision is
+  // for, not a bare boolean. DEFENSE IN DEPTH: production mounts this page as
+  // `<NoteEditorPage key={noteId}>` (tabs/NotebookTab.jsx:715), so each note
+  // gets a FRESH instance and this state starts null. The per-note value
+  // matters only if this instance is ever reused across notes: on the first
+  // render after `noteId` changed, the state would not yet be reset (that
+  // happens in an effect, one render later), so a plain `recoveryDecided`
+  // boolean would stay stale-true across the switch and gate nothing.
+  // `recoveryDecidedFor` is compared against the CURRENT `noteId` at every
+  // read, so a decision made for another note can never authorize an insert
+  // into this one.
+  const [recoveryDecidedFor, setRecoveryDecidedFor] = useState(null)
   // Re-entrancy guard for restoreDraft (see its own comment) — a plain ref,
   // not state, since it must be checked synchronously before any render.
   const restoringDraftRef = useRef(false)
@@ -670,6 +692,7 @@ export default function NoteEditorPage({ noteId, onBack, showBack = true, onTitl
 
   useEffect(() => {
     if (!note) return undefined
+    setRecoveryDecidedFor(null)
     setTitle(note.title || '')
     titleRef.current = note.title || ''
     setSubtitle(note.subtitle || '')
@@ -711,6 +734,7 @@ export default function NoteEditorPage({ noteId, onBack, showBack = true, onTitl
       if (decision && decision.unsynced) {
         setPendingDraft({ ...decision.state, savedAt: lsDraft?.savedAt ?? null })
         setRecovery(decision)
+        setRecoveryDecidedFor(note.id)
         return
       }
       // Nothing local differs from the server: it saved fine (or was never
@@ -718,6 +742,7 @@ export default function NoteEditorPage({ noteId, onBack, showBack = true, onTitl
       if (raw) { try { localStorage.removeItem(DRAFT_KEY(note.id)) } catch { /* private mode */ } }
       setPendingDraft(null)
       setRecovery(null)
+      setRecoveryDecidedFor(note.id)
     }
     decide()
     return () => { cancelled = true }
@@ -921,6 +946,62 @@ export default function NoteEditorPage({ noteId, onBack, showBack = true, onTitl
   const { documents: noteDocuments, refresh: refreshDocuments } = useNoteDocuments(noteId)
   const { excerpts: noteExcerpts, refresh: refreshExcerpts } = useNoteExcerpts(noteId)
 
+  // Wave J: opens the preview Sheet for a document_excerpt evidence row in
+  // ThesisSection -- the excerpt may belong to a DIFFERENT note than the
+  // one open here, so it's resolved via GET /excerpts/{id} (carries the
+  // source document's attachmentUrl directly, no second lookup) rather
+  // than assuming it's among this note's own documents/excerpts.
+  // ⛔⛔ WAVE N §9 -- a captured web source carries `web:<sha256>`, an IDENTITY
+  // string, not a file, and is revisited as a captured passage, never in a
+  // PDF viewer (`excerptRevisitTarget`, the rule Search already obeys).
+  // ⭐ The transport now lives in lib/openCitation.js, the ONE path every Ask
+  // host shares -- an Ask citation of an excerpt reaches it through
+  // `jumpToCitation` below, a thesis evidence row directly. It returns the
+  // sentence to show when nothing opened; the evidence row ignores it, as
+  // before (that row already says "source no longer available" itself).
+  const handleOpenExcerptSource = useCallback((excerptId, { signal } = {}) => openExcerptCitation(excerptId, {
+    signal, openDocument: setPreviewDoc, openCapturedSource: setCapturedSource,
+  }), [])
+
+  // ⛔⛔ WAVE N §9 -- ONE DOOR FROM "A DOCUMENT OF THIS NOTE" TO A VIEWER.
+  // This note's document list holds captured web pages too (their
+  // `attachmentUrl` is `web:<sha256>`), and every entry point that holds one of
+  // its rows -- the `?doc=&page=` route below (Search, Ask's page route and an
+  // old Ask packet, any deep link), an excerpt card's citation, a PDF chip --
+  // opens it HERE. A captured page (`sourceKind`, the server's `is_web_capture`
+  // answer) opens as a captured passage through the excerpt path, the excerpt
+  // `capture_web_source` wrote beside it (`capturePassages`); a page whose
+  // saved passage is gone opens nothing -- this note, its honest floor, is
+  // already open -- and SAYS so. Everything else is a PDF, opened at its page
+  // as before.
+  //
+  // ⛔ NOTHING IS SILENT HERE EITHER. It returns what the excerpt path returns
+  // (null when something opened, else the sentence), or PASSAGE_GONE when the
+  // page has no passage left, and it forwards the caller's abort `signal`, so
+  // an Ask tap that routes through it keeps last-tap-wins. The Ask route hands
+  // the sentence to the panel; the doors outside Ask (the `?doc=` route, an
+  // excerpt card, a chip) show it in this page's own Toast (`sayIfNothingOpened`).
+  const openNoteDocument = useCallback((doc, { page, excerptId, emphasizeExcerpt, signal } = {}) => {
+    if (doc.sourceKind === SOURCE_WEB) {
+      const passages = doc.capturePassages || []
+      const id = excerptId
+        || (page ? passages.find((p) => p.pageNumber === page)?.excerptId : passages[0]?.excerptId)
+      return id ? handleOpenExcerptSource(id, { signal }) : PASSAGE_GONE
+    }
+    setPreviewDoc({
+      href: doc.attachmentUrl, name: doc.name, documentId: doc.id,
+      page: page || undefined,
+      emphasizeExcerptId: excerptId || undefined,
+      emphasizeExcerpt: emphasizeExcerpt ?? null,
+    })
+    return null
+  }, [handleOpenExcerptSource])
+  // The page's single Toast is mounted at page level, so it outlives the card
+  // or chip that asked -- never a message owned by the element that fired it.
+  const sayIfNothingOpened = useCallback((outcome) => Promise.resolve(outcome).then((msg) => {
+    if (msg) setUploadToast({ message: msg, tone: 'error' })
+  }), [])
+
   // ⭐ WAVE M — SEARCH LANDS ON THE OBJECT IT NAMED. A search hit that reads
   // "NVDA 10-Q · p.47" carries `?doc=&page=` alongside `?note=`, and this opens
   // the SAME `previewDoc` shape Wave J's click-to-source above already uses —
@@ -949,18 +1030,16 @@ export default function NoteEditorPage({ noteId, onBack, showBack = true, onTitl
     const localExcerpt = navTarget.excerptId
       ? noteExcerpts.find((e) => e.id === navTarget.excerptId) || null
       : null
-    setPreviewDoc({
-      href: doc.attachmentUrl, name: doc.name, documentId: doc.id,
-      page: navTarget.page || undefined,
-      emphasizeExcerptId: navTarget.excerptId || undefined,
-      emphasizeExcerpt: localExcerpt,
-    })
+    sayIfNothingOpened(openNoteDocument(doc, {
+      page: navTarget.page, excerptId: navTarget.excerptId, emphasizeExcerpt: localExcerpt,
+    }))
     setSearchParams((prev) => {
       const next = new URLSearchParams(prev)
       for (const k of ['doc', 'page', 'excerpt']) next.delete(k)
       return next
     }, { replace: true })
-  }, [navTargetKey, navTarget, noteDocuments, noteExcerpts, setSearchParams])
+  }, [navTargetKey, navTarget, noteDocuments, noteExcerpts, setSearchParams, openNoteDocument,
+      sayIfNothingOpened])
 
   // ⭐ O6 §4: the same routing contract, one param further. A review is NOT a
   // document, so it deliberately does not go through `targetFromParams` /
@@ -1056,10 +1135,9 @@ export default function NoteEditorPage({ noteId, onBack, showBack = true, onTitl
       const doc = noteDocuments.find((d) => d.id === documentId)
       const localExcerpt = noteExcerpts.find((e) => e.id === excerptId)
       if (doc) {
-        setPreviewDoc({
-          href: doc.attachmentUrl, name: doc.name, documentId, page,
-          emphasizeExcerptId: excerptId, emphasizeExcerpt: localExcerpt || null,
-        })
+        sayIfNothingOpened(openNoteDocument(doc, { page, excerptId, emphasizeExcerpt: localExcerpt || null }))
+      } else if (localExcerpt?.sourceKind === SOURCE_WEB) {
+        sayIfNothingOpened(handleOpenExcerptSource(excerptId))
       } else if (localExcerpt?.attachmentUrl) {
         // The excerpt's own document isn't one of THIS note's attachments
         // (an excerpt saved from elsewhere but inserted here) -- the
@@ -1091,6 +1169,7 @@ export default function NoteEditorPage({ noteId, onBack, showBack = true, onTitl
     // list -- the chip's own attrs never carried an id (attachments have
     // none of their own, per Wave I's filesystem-path identity model).
     const doc = noteDocuments.find((d) => d.attachmentUrl === href)
+    if (doc?.sourceKind === SOURCE_WEB) { sayIfNothingOpened(openNoteDocument(doc)); return }
     setPreviewDoc({ href, name, documentId: doc?.id || null })
   }
 
@@ -1109,7 +1188,11 @@ export default function NoteEditorPage({ noteId, onBack, showBack = true, onTitl
    * preferable to a confident mis-navigation: landing on the wrong paragraph
    * looks exactly like landing on the right one.
    */
-  const jumpToCitation = useCallback((source, resolved) => {
+  const jumpToCitation = useCallback((source, resolved, { signal } = {}) => {
+    // ⛔ NOTHING HERE IS A SILENT NO-OP. Every branch that does not navigate
+    // RETURNS the sentence AskPanel shows inside itself -- the panel is a
+    // modal Sheet on touch, and a click that changes nothing reads as broken.
+    //
     // ⭐ O6 §4: a cited REVIEW is not a passage in the note body — it lives
     // in the review panel's history, and it may belong to a different note
     // entirely (Ask My Notebook and Ask Security Research both span theses).
@@ -1120,12 +1203,18 @@ export default function NoteEditorPage({ noteId, onBack, showBack = true, onTitl
     if (source?.navigation?.kind === 'review') {
       const nid = source.navigation.note_id
       const rid = source.navigation.review_id
-      if (!nid || !rid) return
+      if (!nid || !rid) return SOURCE_NOWHERE
       setSearchParams(
         (prev) => applyTargetToParams(prev, { noteId: nid, reviewId: rid, depth: 'review' }),
         { replace: false },
       )
-      return
+      return null
+    }
+    // ⚰️ AN EXCERPT CITATION USED TO FALL THROUGH TO THE `kind !== 'note'`
+    // GUARD BELOW AND RETURN SILENTLY, while this page already knew how to open
+    // an excerpt by id for a thesis evidence row. It now takes that same path.
+    if (source?.navigation?.kind === 'excerpt') {
+      return handleOpenExcerptSource(source.navigation.excerpt_id, { signal })
     }
     // ⚰️ WAVE P3 §12 — A CITED DOCUMENT PAGE USED TO GO NOWHERE. This handler
     // knew about reviews and about the note body, and returned silently for
@@ -1141,20 +1230,69 @@ export default function NoteEditorPage({ noteId, onBack, showBack = true, onTitl
     if (source?.navigation?.kind === 'document') {
       // The decision lives in `searchNavigation`, beside the one Search uses,
       // so the two can never answer differently about the same document.
-      const target = citationTarget(source, { fallbackNoteId: noteId })
-      if (!target) return
-      setSearchParams((prev) => applyTargetToParams(prev, target),
-                      { replace: false })
-      return
+      const openNote = ({ id }) => setSearchParams(
+        (prev) => applyTargetToParams(prev, { noteId: id, depth: 'note' }), { replace: false })
+      const openPage = (nav) => {
+        const here = noteDocuments.find((d) => d.id === nav.document_id)
+        // A captured page of THIS note (an old packet has no kind; the list
+        // does) goes straight to the door, with the tap's abort signal, and
+        // whatever it could not open is said in the panel.
+        if (here?.sourceKind === SOURCE_WEB) {
+          const page = Number(nav.page_number)
+          return openNoteDocument(here, { page: Number.isFinite(page) && page > 0 ? page : null, signal })
+        }
+        // ⛔ A cited document of THIS note that the list no longer holds used
+        // to set `?doc=` and wait forever for a row that never came. Read the
+        // list again, and hand the FRESH row to the same one door
+        // (`openNoteDocument`) -- a captured page the cached list had not caught
+        // up with opens as a captured passage, never as a PDF viewer over
+        // `web:<sha256>`, even for a packet that names no kind. A document that
+        // left the note says so, in the same words the spanning hosts use: this
+        // note is the one already open (`hereNoteId`), so it is never "opened".
+        if (!here && (nav.note_id || noteId) === noteId) {
+          return openDocumentPage({ ...nav, note_id: noteId }, {
+            signal, openNote, hereNoteId: noteId,
+            openRow: (doc, { page }) => openNoteDocument(doc, { page, signal }),
+          })
+        }
+        const target = citationTarget({ navigation: nav }, { fallbackNoteId: noteId })
+        if (!target) return SOURCE_NOWHERE
+        setSearchParams((prev) => applyTargetToParams(prev, target),
+                        { replace: false })
+        return null
+      }
+      // ⛔ AND IT GOES BY THE KIND THE SERVER SENT, through lib/openCitation.js
+      // like every other host: a PDF takes the page route above; a captured
+      // web passage opens as a captured passage (never `?doc=`, whose viewer
+      // would be a PDF viewer over `web:<sha256>` -- Wave N §9). A packet with
+      // no kind takes the same page route, and it guesses nothing: a row of
+      // this note's list opens by the list's `sourceKind`, and a row the list
+      // did not hold yet is read fresh and handed to the same door.
+      return openDocumentCitation(source.navigation, {
+        signal, openPage, legacy: openPage, hereNoteId: noteId,
+        openDocument: setPreviewDoc, openCapturedSource: setCapturedSource, openNote,
+      })
     }
     const ed = editorRef.current
-    if (!ed || source?.navigation?.kind !== 'note') return
-    if (!resolved || !PRECISE_STATES.has(resolved.state)) return
-    ed.chain().focus()
-      .setTextSelection({ from: resolved.from, to: resolved.to })
-      .scrollIntoView()
-      .run()
-  }, [setSearchParams, noteId])
+    if (!ed || source?.navigation?.kind !== 'note') return SOURCE_NOWHERE
+    // NEVER JUMP TO AN UNVERIFIED POSITION -- but say why nothing moved,
+    // rather than letting the click read as a broken one. A passage the server
+    // promised exactly and the live doc can no longer verify has CHANGED; a
+    // source it only ever promised at note level (a thesis state, a note-only
+    // block) never had a passage to land on.
+    if (!resolved || !PRECISE_STATES.has(resolved.state)) {
+      return PRECISE_CITATION.has(source?.citation) ? PASSAGE_NOT_PINPOINTED : NOTE_LEVEL_SOURCE
+    }
+    // A passage that is exactly one block atom (a chip, an excerpt, a chart)
+    // is selected as that NODE: a TextSelection cannot sit around a block
+    // leaf -- ProseMirror warns and the member sees nothing selected.
+    const chain = ed.chain().focus()
+    const selected = isBlockAtomRange(ed.state.doc, resolved.from, resolved.to)
+      ? chain.setNodeSelection(resolved.from)
+      : chain.setTextSelection({ from: resolved.from, to: resolved.to })
+    selected.scrollIntoView().run()
+    return null
+  }, [setSearchParams, noteId, handleOpenExcerptSource, noteDocuments, openNoteDocument])
 
   const handleSaveExcerpt = async ({ pageNumber, capturedText, quotePrefix, quoteSuffix, charStart, charEnd }) => {
     const ed = editorRef.current
@@ -1226,40 +1364,6 @@ export default function NoteEditorPage({ noteId, onBack, showBack = true, onTitl
     } catch (e) {
       setUploadToast({ message: "Couldn't save that excerpt. Your note is unchanged.", tone: 'error' })
     }
-  }
-
-  // Wave J: opens the preview Sheet for a document_excerpt evidence row in
-  // ThesisSection -- the excerpt may belong to a DIFFERENT note than the
-  // one open here, so it's resolved via GET /excerpts/{id} (carries the
-  // source document's attachmentUrl directly, no second lookup) rather
-  // than assuming it's among this note's own documents/excerpts.
-  const handleOpenExcerptSource = async (excerptId) => {
-    try {
-      const res = await fetch(`/api/j2/excerpts/${excerptId}`, { credentials: 'include' })
-      if (!res.ok) return
-      const { excerpt } = await res.json()
-      if (!excerpt?.attachmentUrl) return
-      // ⛔⛔ WAVE N §9. `attachmentUrl` alone does NOT mean "there is a document
-      // to open": a captured web source carries `web:<sha256>`, an IDENTITY
-      // string, not a file. This used to hand that straight to
-      // DocumentPreviewSheet, so revisiting a captured Reuters paragraph opened
-      // a FULLSCREEN PDF VIEWER over a non-URL, with "Open in new tab" and
-      // "Download" controls that could not work — a fake document viewer, which
-      // §9 forbids by name.
-      // ⭐ THE DECISION ALREADY EXISTS AND SEARCH ALREADY OBEYS IT. Wave M's
-      // depth rule answers 'note' for a web capture ("there is no viewer to
-      // scroll"); `excerptRevisitTarget` is that same rule for one excerpt, so
-      // these two surfaces cannot disagree about one object.
-      const target = excerptRevisitTarget(excerpt)
-      if (!target) return
-      if (target.kind === 'captured_source') {
-        // The deepest TRUTHFUL destination: the passage itself and where it
-        // came from. We hold one paragraph; only the publisher has the rest.
-        setCapturedSource(excerpt)
-        return
-      }
-      setPreviewDoc({ ...target, emphasizeExcerpt: excerpt })
-    } catch (e) { /* noop -- opening evidence is best-effort, never blocks the thesis view */ }
   }
 
   const previewExcerpts = useMemo(() => {
@@ -1418,6 +1522,71 @@ export default function NoteEditorPage({ noteId, onBack, showBack = true, onTitl
   useEffect(() => {
     hydratedRef.current = Boolean(editor && !editor.isDestroyed && note)
   }, [note?.id, editor, note])
+
+  // G-064 — insert an Ask Notebook answer into THIS note: an editor transaction
+  // on the normal autosave path (spec §5.2). No endpoint, no settle, no door.
+  const insertAskAnswer = useCallback((node) => {
+    const ok = appendAskInsert(editorRef.current, node)
+    if (ok) setUploadToast({ message: ASK_INSERT_SUCCESS_MSG, tone: 'success' })
+    return ok
+  }, [])
+  // G-064 final fix wave (M1, as amended by the coordinator's ruling) — the
+  // CLICK path is offered while the editor is editable and no recovered draft
+  // awaits Restore/Discard (a Restore's setContent would erase the insert).
+  // ⛔ NOT gated on `saveStatus`: an insert during an ordinary in-flight
+  // autosave is the same as typing during one — the transaction re-arms the
+  // debounce and the next PUT carries it. Gating on 'saving' made the button
+  // blink out on every save. The PENDING path below keeps its own
+  // `saveStatus !== 'saving'` gate, which exists for a Restore's PUT
+  // specifically. Otherwise the hosts get `null`, and AskPanel offers no Insert.
+  const askInsertHere = editor && editor.isEditable && !pendingDraft
+    ? insertAskAnswer
+    : null
+
+  // G-064 — an answer picked for this note on another page (spec §5.2).
+  // ⛔ WHAT KEEPS THIS BEHIND HYDRATION, stated exactly: `ready` below reads
+  // `hydratedRef.current` DURING RENDER, so the declaration order of the
+  // effects is NOT what protects it. The protection is that `ready` also
+  // requires `recoveryDecidedFor === noteId`, and that decision is ALWAYS set
+  // asynchronously — after the `await durableRef.current.recover(...)` in the
+  // recovery effect, and an `await` yields even on an already-settled value —
+  // so it resumes only once the whole effect flush that started it has
+  // finished, the arming effect of that same commit included. Its setState
+  // then re-renders this page, and that render reads the ref already armed.
+  // Inserting before hydration is the "document changed without a person"
+  // class the arming effect exists to refuse. (If the note's editor is only
+  // committed AFTER the decision, the render that commits it reads the ref
+  // before its own arming effect runs, so `ready` stays false until the page
+  // next re-renders: the answer WAITS, it is never inserted early.
+  // Controller ruling M2: kept as is.)
+  //
+  // ⛔⛔ G-064 fix round 1 (F2, controller ruling) — `recoveryDecidedFor` is
+  // compared against THIS render's `noteId`, never a bare boolean. DEFENSE IN
+  // DEPTH: NotebookTab keys this page by noteId today
+  // (tabs/NotebookTab.jsx:715), so a switch mounts a fresh instance; if this
+  // instance is ever reused across notes, a decision made for A must still
+  // never authorize an insert into B. `note?.id === noteId` is the companion
+  // half — `note` can lag `noteId` by a render (the fetch hasn't resolved
+  // yet), and a stale A note object must not pass either.
+  //
+  // ⛔⛔ G-064 fix round 1 (F4, controller ruling) — `saveStatus !== 'saving'`
+  // closes the slow-restore race: `restoreDraft()` sets `saveStatus:'saving'`
+  // BEFORE its `await update(...)`, and clears `pendingDraft` in that same
+  // synchronous span. Gating on `pendingDraft` alone left a window, while the
+  // restore's own PUT was still in flight, where a pending Ask insert could
+  // fire and its OWN autosave would carry the PRE-restore `baseUpdatedAt` —
+  // racing the restore's write with a stale baseline. Waiting for
+  // `saveStatus` to leave `'saving'` means the insert's autosave always reads
+  // `lastSavedRef.current.updatedAt` AFTER the restore has updated it.
+  usePendingAskInsert({
+    noteId,
+    editor,
+    ready: recoveryDecidedFor === noteId && note?.id === noteId
+      && !pendingDraft && hydratedRef.current && saveStatus !== 'saving',
+    onResult: (ok) => setUploadToast(ok
+      ? { message: ASK_INSERT_SUCCESS_MSG, tone: 'success' }
+      : { message: "This note can't take changes right now, so the answer wasn't inserted. Ask again to get it back.", tone: 'error' }),
+  })
 
   // A15 conflict reconcile: pull the fresh note, merge in any block the SERVER
   // appended that the local doc lacks, then advance the baseline so the
@@ -1909,6 +2078,7 @@ export default function NoteEditorPage({ noteId, onBack, showBack = true, onTitl
         onSaveExcerpt={handleSaveExcerpt}
         emphasizeExcerptId={previewDoc?.emphasizeExcerptId}
         documentId={previewDoc?.documentId}
+        onInsert={askInsertHere}
       />
       <CapturedSourceSheet
         open={!!capturedSource}
@@ -2024,6 +2194,7 @@ export default function NoteEditorPage({ noteId, onBack, showBack = true, onTitl
                against. */
             getEditorDoc={() => editorRef.current?.state?.doc}
             onNavigate={jumpToCitation}
+            onInsert={askInsertHere}
           />
           {/*
             ⛔ FIND HAD NO VISIBLE ENTRY POINT -- Cmd/Ctrl+F was the ONLY door

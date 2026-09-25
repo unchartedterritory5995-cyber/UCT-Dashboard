@@ -338,6 +338,11 @@ GATE_READ_PATHS = (
     "tests/fixtures_pm_citation_text.json",
     "tests/test_ast_conformance.py",
     "tests/test_the_member_loop_end_to_end.py",
+    # ⛔ READ BY app/src/pages/journal-2-0/lib/askCitation.schemaParity.test.js, which regex-
+    # reads the Python tables (_LEAF_TYPES, _INLINE_LEAF_TYPES, _TEXTBLOCK_TYPES, _ATOM_TEXT)
+    # and pins them to the editor's real schema -- a change to this file CAN change a suite
+    # result, so a carry-over verdict must not cross it.
+    "api/services/journal_two/note_citation_text.py",
     # generators the rails execute, and the artifacts they byte-compare
     "tools/hub_surface_matrix.mjs",
     "tools/chart_parity_cases.json",
