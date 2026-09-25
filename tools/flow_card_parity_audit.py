@@ -203,7 +203,15 @@ def run(symbols: list, days: str, source: str, widen: bool, end: dt.date) -> dic
         row = {"symbol": sym}
         ad, note = fetch_page_product(op, sym, source)
         row["page_note"] = note
-        card_payload = fetch_card(op, sym, source, days, widen)
+        # A card fetch that fails is that symbol's INCONCLUSIVE, never the whole run's crash: a
+        # 502 during a web swap took down a six-symbol run once (2026-09-25) and left no rows.
+        try:
+            card_payload = fetch_card(op, sym, source, days, widen)
+        except (urllib.error.HTTPError, urllib.error.URLError, TimeoutError, OSError) as e:
+            row["card"] = None
+            row["verdict"] = "INCONCLUSIVE (card fetch failed: %s)" % str(e)[:80]
+            out["results"].append(row)
+            continue
         card = card_summary(card_payload)
         row["card"] = card
         if ad is None:
@@ -274,6 +282,9 @@ def main() -> int:
     for r in res["results"]:
         c = r["card"]
         p = r.get("page")
+        if c is None:
+            print("== %s  days=%s" % (r["symbol"], res["days"])); print("   VERDICT: %s" % r["verdict"])
+            continue
         print("== %s  days=%s  card window=%s" % (r["symbol"], res["days"], c["window"]))
         print("   CARD: %s contracts  BULL $%s  BEAR $%s  UNCL $%s  net %s"
               % (c["contract_count"], format(c["bull"], ","), format(c["bear"], ","),
