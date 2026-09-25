@@ -92,7 +92,25 @@ VIEWPORT_W, VIEWPORT_H = 1440, 900
 # So: a RENDER LOOP is defined by commits. Mutations stay as a second signal for a
 # genuine runaway only, and the gap between the two is reported as NOISY —
 # informational, never a failure.
-COMMIT_CEILING = 60        # committed renders tolerated across the whole idle
+# ⚰️ AND 60 COMMITS PER IDLE WAS THE SAME MISTAKE ONE LEVEL UP — MEASURED 2026-09-25. During
+# the session, /charts (a five-widget board, 15 canvases) idled at 51 / 63 / 86 commits per 5 s
+# on three runs and this tool printed "RENDER LOOP … H4: roll back first" twice, on a change
+# that touches no file /charts imports, while every navigation — /charts included — PASSED.
+# The controlled experiment (docs/terminal-research/10-roadmap/evidence/2026-09-25-charts-
+# commit-ceiling/): same build, same minute, the live tape removed at the NETWORK (stream,
+# live-prices and snapshot requests aborted) → 10 / 10 / 5 commits; tape on → 86 / 67 / 88.
+# The commits ARE the tape repainting the board, ~15 per second; the 2026-09-10 loop ran
+# ~4,500 per second. A ceiling of 60 per 5 s cannot tell a live market from a loop — exactly
+# the mutation mistake above, repeated for commits. So commits get the same two-band shape:
+# above COMMIT_NOISY they are REPORTED as live data, above COMMIT_CEILING they FAIL.
+# 600 per 5 s is 120/s: 7× the busiest live reading measured (88) and 37× under the loop's
+# ~22,500. ⛔ Do not re-tune either number from the next single run; re-derive from an
+# experiment like the one cited, which is what these numbers came from.
+# ⚠️ The first no-tape arm of that experiment used the app's own kill switches
+# (`uct.barsPush.enabled=0`, `uct.ssePool.disabled=1`) and read 77–88 — those keys RE-ROUTE
+# live data (Finnhub poll, legacy per-instance SSE), they do not remove it. Withdrawn.
+COMMIT_NOISY = 60          # above this it is REPORTED as live data, and it is not a failure
+COMMIT_CEILING = 600       # above this React is looping, whatever the tape is doing
 
 # Measured basis, not a guess: the busiest surface in this app (/screener, live
 # prices over a scan table) sits near 1,600 mutations per 5s idle. This is >12x
@@ -194,9 +212,11 @@ def stability_verdict(idle: dict) -> tuple[bool, str]:
     if idle["mutations"] > MUTATION_CEILING:
         return False, (f"DOM RUNAWAY: {idle['mutations']} mutations in "
                        f"{idle['seconds']}s idle (ceiling {MUTATION_CEILING})")
-    if idle["mutations"] > MUTATION_NOISY:
-        # ⭐ Reported, NOT failed. Live data repainting is the product working, and
-        # the commit count is what says whether React is looping.
+    if idle["mutations"] > MUTATION_NOISY or idle["commits"] > COMMIT_NOISY:
+        # ⭐ Reported, NOT failed. Live data repainting is the product working — in DOM
+        # mutations AND in React commits (a live /charts board commits ~15/s during the
+        # session, measured); only a commit count in the loop's own order of magnitude
+        # says React is looping.
         return True, (f"stable but NOISY ({idle['commits']} commits, "
                       f"{idle['mutations']} mutations — live data, not a loop)")
     return True, f"stable ({idle['commits']} commits, {idle['mutations']} mutations)"
@@ -259,6 +279,13 @@ def self_check() -> int:
          "NOISY" in stability_verdict({"commits": 7, "mutations": 1598, "seconds": 5})[1])
     case("⛔ CONTROL — the ceiling still separates 7 commits from the 2026-09-10 storm",
          stability_verdict({"commits": 22500, "mutations": 1598, "seconds": 5})[0] is False)
+    case("⭐ /charts' REAL live-market numbers pass — 88 commits, measured 2026-09-25 with the tape on",
+         stability_verdict({"commits": 88, "mutations": 1844, "seconds": 5})[0] is True)
+    case("⭐ ...and are reported as NOISY, never silently swallowed",
+         "NOISY" in stability_verdict({"commits": 88, "mutations": 40, "seconds": 5})[1])
+    case("⛔ CONTROL — one commit over COMMIT_CEILING still FAILS, so the band has an edge",
+         stability_verdict({"commits": COMMIT_CEILING + 1, "mutations": 40, "seconds": 5})[0] is False
+         and stability_verdict({"commits": COMMIT_CEILING, "mutations": 40, "seconds": 5})[0] is True)
     case("⭐ CONTROL — the loop verdict names the number it saw",
          "22000" in stability_verdict({"commits": 22000, "mutations": 9, "seconds": 5})[1])
     case("the ceilings are not zero (a live ticker may legitimately move)",
