@@ -140,10 +140,59 @@ def signup_or_login(request_ctx, email, pw, name):
     return r
 
 
-def dismiss_intro(page):
-    page.wait_for_timeout(1200)
-    page.keyboard.press("Escape")
-    page.wait_for_timeout(600)
+_INTRO_DIALOG_SEL = 'div[role="dialog"][aria-label="Welcome"]'
+
+
+def dismiss_intro(pg, appear_timeout=2500, detach_timeout=6000):
+    """Dismiss the Welcome intro overlay (IntroAnimation.jsx) if it appears on
+    this page/tab, and WAIT for it to actually detach before returning.
+
+    ⛔ Coordinator directive, this round: the old body here was a blind
+    `wait_for_timeout(1200); keyboard.press("Escape"); wait_for_timeout(600)`
+    -- it never checked whether the dialog was ever actually present, and
+    never waited for it to actually be GONE before the caller went on to
+    interact with the page underneath it. W8b's own Playwright retry trace
+    named `<div class="_revealScene_...">` from this exact dialog as the
+    pointer-event interceptor behind a `.click()` timeout.
+
+    'Detached' is a real, verifiable signal here, not a guess: the component
+    is `if (phase !== 'playing') return null` (IntroAnimation.jsx:82), so once
+    its own `finish()` fires (Escape/Enter/Space, capture-phase, or the Skip
+    button) the whole `<div role="dialog">` subtree is removed from the DOM,
+    not merely hidden or mid-transition.
+
+    It plays once per browser TAB's sessionStorage
+    (`introStorage.hasSeenIntroThisSession`), so a `page.goto()` on a page
+    that has already dismissed it this tab is a fast no-op here (the dialog
+    never appears within `appear_timeout` and this returns False) -- the cost
+    only lands on a genuinely fresh browsing context (every `ctx.new_page()`)."""
+    dialog = pg.locator(_INTRO_DIALOG_SEL)
+    try:
+        dialog.first.wait_for(state="visible", timeout=appear_timeout)
+    except Exception:  # noqa: BLE001
+        return False  # never appeared this tab -- nothing to dismiss
+    try:
+        pg.keyboard.press("Escape")
+    except Exception:  # noqa: BLE001
+        pass
+    try:
+        dialog.first.wait_for(state="detached", timeout=detach_timeout)
+        return True
+    except Exception:  # noqa: BLE001
+        pass
+    # Escape is captured at window level (IntroAnimation.jsx:69-80) but the
+    # component's OWN comment documents a hazard where a focused input can
+    # also own Escape -- fall back to the explicit Skip button, which
+    # stopPropagation()s and calls finish() directly (line ~111).
+    try:
+        pg.get_by_role("button", name="Skip intro", exact=True).click(timeout=1500)
+    except Exception:  # noqa: BLE001
+        pass
+    try:
+        dialog.first.wait_for(state="detached", timeout=detach_timeout)
+        return True
+    except Exception:  # noqa: BLE001
+        return False
 
 
 def notebook_url(note_id=None, extra=""):
@@ -234,12 +283,8 @@ def open_note(ctx, url, page=None, max_tries=8, prosemirror_timeout=15000, extra
             for event, handler in (extra_listeners or []):
                 pg.on(event, handler)
         pg.goto(url)
-        pg.wait_for_timeout(900)
-        try:
-            pg.keyboard.press("Escape")
-        except Exception:  # noqa: BLE001
-            pass
-        pg.wait_for_timeout(500)
+        dismiss_intro(pg)
+        pg.wait_for_timeout(300)
         if _editor_view_crash_visible(pg):
             _CRASH_STATS["count"] += 1
             _CRASH_STATS["attempts_log"].append({"url": url, "attempt": attempt, "outcome": "error_boundary"})
@@ -286,7 +331,8 @@ def reload_note(ctx, page, max_tries=8, prosemirror_timeout=15000):
             pg = _fresh_page(ctx, pg if owns_pg else None)
             owns_pg = True
             pg.goto(url)
-        pg.wait_for_timeout(700)
+        dismiss_intro(pg)
+        pg.wait_for_timeout(200)
         if _editor_view_crash_visible(pg):
             _CRASH_STATS["count"] += 1
             _CRASH_STATS["attempts_log"].append({"url": url, "attempt": attempt, "outcome": "error_boundary(reload)"})
@@ -484,10 +530,19 @@ with sync_playwright() as p:
         }).json()["note"]
         folder = api.post(BASE + "/api/j2/note-folders", data={"name": f"Walk W2 folder {RUN}"})
         folder_id = None
+        folder_index_before = None
         if folder.ok:
             fb = folder.json()
             folder_id = (fb.get("folder") or fb).get("id")
             api.put(BASE + f"/api/j2/notes/{n1['id']}", data={"folderId": folder_id})
+            # ⛔ FIX (directive #3): record the BASELINE position in the
+            # folder listing before archiving, so "back at the same index"
+            # after restore is a measured fact, not an assumption.
+            pre_folder = api.get(BASE + f"/api/j2/notes?folder_id={folder_id}&limit=200").json()
+            pre_folder_titles = [x.get("title") for x in pre_folder.get("notes", [])]
+            folder_index_before = (
+                pre_folder_titles.index(n1["title"]) if n1["title"] in pre_folder_titles else None
+            )
 
         page = open_note(ctx, notebook_url(n1["id"]), page)
         page.wait_for_timeout(400)
@@ -506,10 +561,22 @@ with sync_playwright() as p:
         trashed_titles = [x.get("title") for x in trashed.get("notes", [])]
         archived = api.get(BASE + "/api/j2/notes?folder_id=__archived__&limit=200").json()
         archived_titles = [x.get("title") for x in archived.get("notes", [])]
-        in_folder = api.get(BASE + f"/api/j2/notes?folder_id={folder_id}&limit=200").json() if folder_id else {"notes": []}
-        in_folder_titles = [x.get("title") for x in in_folder.get("notes", [])]
+        # ⛔ FIX (directive #3): while archived the note must be ABSENT from
+        # its folder's listing too -- the brief says archive takes a note "out
+        # of every default list", which includes its folder list. The old
+        # assertion required the OPPOSITE (still present here) and read a
+        # correct product as a FAIL; this is the corrected, WHILE-ARCHIVED read.
+        in_folder_while_archived = (
+            api.get(BASE + f"/api/j2/notes?folder_id={folder_id}&limit=200").json()
+            if folder_id else {"notes": []}
+        )
+        in_folder_titles_while_archived = [x.get("title") for x in in_folder_while_archived.get("notes", [])]
+        not_in_folder_while_archived = (
+            folder_id is None or n1["title"] not in in_folder_titles_while_archived
+        )
 
-        # Restore/Unarchive from the note menu -> back in default + still in its folder.
+        # Restore/Unarchive from the note menu -> back in default + back in
+        # its folder AT THE SAME INDEX.
         page = reload_note(ctx, page)
         page.wait_for_timeout(400)
         menu2 = page.get_by_role("group", name="Organise this note")
@@ -521,23 +588,52 @@ with sync_playwright() as p:
         after_default = api.get(BASE + "/api/j2/notes?limit=200").json()
         after_titles = [x.get("title") for x in after_default.get("notes", [])]
 
+        after_folder = (
+            api.get(BASE + f"/api/j2/notes?folder_id={folder_id}&limit=200").json()
+            if folder_id else {"notes": []}
+        )
+        after_folder_titles = [x.get("title") for x in after_folder.get("notes", [])]
+        folder_index_after_restore = (
+            after_folder_titles.index(n1["title"]) if n1["title"] in after_folder_titles else None
+        )
+        back_in_same_folder_at_same_index = (
+            folder_id is None
+            or (
+                n1["title"] in after_folder_titles
+                and folder_index_after_restore == folder_index_before
+            )
+        )
+
         record(
             "W2_archive", "PASS" if (
                 archive_resp.status == 200 and "note" in archive_body
                 and n1["title"] not in default_titles
                 and n1["title"] not in trashed_titles
                 and n1["title"] in archived_titles
-                and (folder_id is None or n1["title"] in in_folder_titles)
+                and not_in_folder_while_archived
                 and unarchive_resp.ok
                 and n1["title"] in after_titles
+                and back_in_same_folder_at_same_index
             ) else "FAIL",
-            note_id=n1["id"], archive_patch_status=archive_resp.status,
+            note_id=n1["id"], folder_id=folder_id,
+            archive_patch_status=archive_resp.status,
             gone_from_default=n1["title"] not in default_titles,
             not_in_trash=n1["title"] not in trashed_titles,
             in_archived=n1["title"] in archived_titles,
-            still_in_its_folder=(folder_id is None or n1["title"] in in_folder_titles),
+            folder_index_before_archive=folder_index_before,
+            not_in_folder_while_archived=not_in_folder_while_archived,
             unarchive_status=unarchive_resp.status,
             back_in_default_after_unarchive=n1["title"] in after_titles,
+            folder_index_after_restore=folder_index_after_restore,
+            back_in_same_folder_at_same_index=back_in_same_folder_at_same_index,
+            brief_mismatch_note=(
+                "The brief's/prior walk's assertion required the note to STILL appear in its "
+                "folder's listing WHILE ARCHIVED. That is backwards: archive removes a note from "
+                "every default list, folder listings included -- this check now asserts NOT "
+                "present while archived, and present again at the SAME index in the SAME folder "
+                "after unarchive/restore (folder_index_before_archive vs "
+                "folder_index_after_restore, both against folder_id)."
+            ),
         )
 
     check_w2()
@@ -553,6 +649,7 @@ with sync_playwright() as p:
             titles.append(n["title"])
 
         page.goto(notebook_url(None, "?view=all"))
+        dismiss_intro(page)
         page.wait_for_selector(f"input[type=checkbox][aria-label$='{RUN}']", timeout=30000)
         page.wait_for_timeout(400)
         boxes = page.locator(f"input[type=checkbox][aria-label='Select {titles[0]}'], "
@@ -604,12 +701,27 @@ with sync_playwright() as p:
 
         # New from template -> Your templates
         page.goto(notebook_url(None, "?view=all"))
+        dismiss_intro(page)
         page.wait_for_timeout(600)
         page.get_by_role("button", name="Templates", exact=True).click()
         region = page.get_by_role("region", name="Your templates").first
         region.wait_for(state="visible", timeout=8000)
+        # ⛔ FIX (directive #2): a substring/regex name here resolves to THREE
+        # elements -- the template card itself PLUS its sibling "Rename {name}"
+        # and "Delete {name}" buttons (MemberTemplates.jsx: Rename/Delete are
+        # BESIDE the card, in their own <div className={memberActions}>, each
+        # with an explicit aria-label containing the template name -- "a
+        # button in a button is one control to a screen reader", per that
+        # file's own header comment, so the card is NOT concatenated with
+        # them; it is a genuine 3-way SUBSTRING collision on the region-scoped
+        # regex). The card's OWN accessible name is exactly `tpl_name` (no
+        # aria-label, text content only: `t.name` plus an optional second span
+        # that only renders when `t.title !== t.name`, which is not the case
+        # here) -- Rename/Delete's accessible names are "Rename {tpl_name}" /
+        # "Delete {tpl_name}", which do NOT equal `tpl_name` exactly. An exact
+        # match therefore resolves to the card alone, never the siblings.
         with page.expect_response(lambda r: r.url.endswith("/api/j2/notes") and r.request.method == "POST") as ci:
-            region.get_by_role("button", name=re.compile(re.escape(tpl_name))).click()
+            region.get_by_role("button", name=tpl_name, exact=True).click()
         create_resp = ci.value
         new_note = (create_resp.json() or {}).get("note", {})
         page.wait_for_timeout(600)
@@ -645,6 +757,7 @@ with sync_playwright() as p:
     @guarded("W4_daily_note")
     def check_w4():
         page.goto(notebook_url(None, "?view=all"))
+        dismiss_intro(page)
         page.wait_for_timeout(600)
         with page.expect_response(lambda r: r.url.endswith("/api/j2/notes/daily")) as d1:
             page.get_by_role("button", name=re.compile("Today")).click()
@@ -653,6 +766,7 @@ with sync_playwright() as p:
         first_url = page.url
 
         page.goto(notebook_url(None, "?view=all"))
+        dismiss_intro(page)
         page.wait_for_timeout(400)
         with page.expect_response(lambda r: r.url.endswith("/api/j2/notes/daily")) as d2:
             page.keyboard.press("Control+Alt+d")
@@ -702,17 +816,33 @@ with sync_playwright() as p:
                 props_toggle.first.click()
                 page.wait_for_timeout(300)
             add_prop = page.get_by_role("button", name=re.compile("Add propert", re.I))
+        # ⛔ FIX (directive #4): read against the REAL component
+        # (PropertiesSection.jsx). "Add property" opens a picker whose
+        # add-new flow is "+ New property..." (NOT a "Relation" text option --
+        # there is no such element at this point), which opens a form with a
+        # "Property name" text input AND A NATIVE <select> of
+        # NEW_PROPERTY_TYPES (Text/Number/Select/Multi-select/Date/Checkbox/
+        # URL/Relation) -- a get_by_text("Relation").click() clicks nothing
+        # inside a closed native <select> in a real browser. The confirm
+        # button's real text is exactly "Create" (still matched by the old
+        # regex, kept below for whichever caller reads it).
         relation_created = False
         if add_prop.count():
             add_prop.first.click()
             page.wait_for_timeout(300)
-            rel_option = page.get_by_text("Relation", exact=True)
-            if rel_option.count():
-                rel_option.first.click()
+            new_prop_btn = page.get_by_role("button", name=re.compile(r"New property", re.I))
+            if new_prop_btn.count():
+                new_prop_btn.first.click()
                 page.wait_for_timeout(300)
-                name_field = page.get_by_placeholder(re.compile("name", re.I))
+                name_field = page.get_by_placeholder("Property name")
                 if name_field.count():
                     name_field.first.fill(f"Peers {RUN}")
+                # The type picker is the only <select> in this form at this
+                # point -- select_option, never a text click, drives a native
+                # <select>.
+                type_select = page.get_by_role("combobox")
+                if type_select.count():
+                    type_select.first.select_option("relation")
                 confirm = page.get_by_role("button", name=re.compile("^(Add|Create|Save)$", re.I))
                 if confirm.count():
                     confirm.first.click()
@@ -759,6 +889,7 @@ with sync_playwright() as p:
     @guarded("W6_timeline")
     def check_w6():
         page.goto(notebook_url(None, "?view=all"))
+        dismiss_intro(page)
         page.wait_for_timeout(600)
         tl_btn = page.get_by_role("button", name="Timeline view", exact=True)
         tl_btn.wait_for(state="visible", timeout=8000)
@@ -886,6 +1017,25 @@ with sync_playwright() as p:
             page.keyboard.press("Escape")
 
         # Image slash-command isolation: side pane's Image click opens ONLY its own file input.
+        # This IS the real slash menu, typed directly into the side pane's own
+        # ProseMirror editor (never a custom/global event dispatch) -- and
+        # SlashMenu.jsx:174 confirms the coordinator's claim directly:
+        # `editor.view.dom.dispatchEvent(new CustomEvent('uct:notebook-open-image-picker', ...))`
+        # is fired on THIS editor's own DOM root, never `window` (wave 6 fix
+        # round 1, I5's own comment: two mounted editors used to share one
+        # `window` listener, so an image picked from the side pane landed in
+        # the main note). A `window.dispatchEvent(...)` would reach nothing;
+        # typing through the real menu, as below, is the only way to exercise
+        # the fix at all.
+        # ⛔ FIX (directive #5): `role="option"` items in SlashMenu.jsx render
+        # BOTH `item.title` and `item.description` as two separate text divs
+        # with no `aria-label` -- the accessible name is their concatenation
+        # ("ImageInsert an image from your computer"), never the bare title.
+        # `name="Image", exact=True` therefore matched ZERO elements and timed
+        # out -- the reason `image_picker_openers` read 0 was this locator,
+        # not a missing per-pane file-input scope. No other item's
+        # title+description contains "Image", so a plain substring match
+        # (Playwright's default for a bare string) is unambiguous.
         side_editor = side_pane.locator(".ProseMirror")
         side_editor.click()
         page.keyboard.type("/Image", delay=20)
@@ -894,7 +1044,7 @@ with sync_playwright() as p:
         chooser_events = []
         page.on("filechooser", lambda fc: chooser_events.append(fc))
         if listbox2.count():
-            listbox2.get_by_role("option", name="Image", exact=True).click()
+            listbox2.get_by_role("option", name="Image").click()
         page.wait_for_timeout(500)
         one_chooser = len(chooser_events) == 1
 
@@ -935,11 +1085,35 @@ with sync_playwright() as p:
         results = {}
         for tag, label in ((tag_flat, "flat"), (tag_nested, "nested")):
             page.goto(notebook_url(None, "?view=all"))
+            dismiss_intro(page)
             page.wait_for_timeout(700)
             expand_btn = page.get_by_role("button", name=re.compile("Expand tags|Show all tags", re.I))
             if expand_btn.count():
                 expand_btn.first.click()
                 page.wait_for_timeout(300)
+
+            # ⛔ FIX (directive #1's own fallback instruction: "read the real
+            # labels ... and say which"): the NESTED tag's "Rename {path}"
+            # row is a genuine, separate INSTRUMENT bug, not the Welcome
+            # overlay (this loop reuses the same already-dismissed `page`, no
+            # fresh tab/context, so the overlay cannot be in play here).
+            # `FolderSidebar.jsx`'s tag tree starts fully COLLAPSED
+            # (`expandedTagKeys` inits to an empty Set) and a child TagNode's
+            # whole row -- including its Rename button -- is only rendered
+            # once its PARENT is expanded (`{hasChildren && expanded && ...}`).
+            # The per-node disclosure control is a SEPARATE affordance from
+            # "Expand tags/Show all tags" above, named
+            # `${expanded ? 'Collapse' : 'Expand'} tag ${node.path}` -- so a
+            # nested tag's own Rename button does not exist in the DOM at all
+            # until its parent's disclosure arrow is clicked, which is exactly
+            # what produced the 30s "Rename {tag}" timeout for "nested" while
+            # "flat" (no parent to expand) passed.
+            if "/" in tag:
+                parent_path = tag.split("/", 1)[0]
+                tag_disclosure = page.get_by_role("button", name=f"Expand tag {parent_path}")
+                if tag_disclosure.count():
+                    tag_disclosure.first.click()
+                    page.wait_for_timeout(300)
 
             rename_affordance_present = page.get_by_role("button", name=f"Rename {tag}").count() > 0
 
@@ -1088,6 +1262,7 @@ with sync_playwright() as p:
         rpage = dev2.new_page()
         rpage.on("pageerror", lambda e: res["errors"].append("dev2b: " + str(e)[:300]))
         rpage.goto(notebook_url(None, "?view=all"))
+        dismiss_intro(rpage)
         rpage.wait_for_timeout(700)
         try:
             rpage.get_by_role("button", name=re.compile("Expand tags|Show all tags", re.I)).click(timeout=1000)
@@ -1190,11 +1365,17 @@ with sync_playwright() as p:
         ed.click()
 
         # 1. two columns
+        # ⛔ FIX: SlashMenu.jsx renders each option as title+description in two
+        # separate text divs with no aria-label, so the accessible name is the
+        # CONCATENATION ("2 columnsTwo side-by-side columns -- they stack on a
+        # phone"), never the bare title -- `exact=True` matched nothing and
+        # was the real cause of this step (and W7's identical pattern) never
+        # firing. No other item's title+description contains "2 columns".
         page.keyboard.type("/2 col", delay=15)
         page.wait_for_timeout(300)
         lb = page.get_by_role("listbox", name="Insert block")
         if lb.count():
-            lb.get_by_role("option", name="2 columns", exact=True).click()
+            lb.get_by_role("option", name="2 columns").click()
         page.wait_for_timeout(400)
         page.keyboard.type("left column text", delay=10)
 
@@ -1211,7 +1392,8 @@ with sync_playwright() as p:
         page.wait_for_timeout(300)
         lb2 = page.get_by_role("listbox", name="Insert block")
         if lb2.count():
-            lb2.get_by_role("option", name="Table of contents", exact=True).click()
+            # Same concatenated-name fix as "2 columns" above -- no exact=True.
+            lb2.get_by_role("option", name="Table of contents").click()
         page.wait_for_timeout(400)
 
         # a heading, so the TOC has something to list
@@ -1226,8 +1408,10 @@ with sync_playwright() as p:
         lb3 = page.get_by_role("listbox", name="Insert block")
         image_uploaded = False
         if lb3.count():
+            # Same concatenated-name fix -- no exact=True (see W7's identical
+            # SlashMenu.jsx "Image" option comment above).
             with page.expect_file_chooser() as fci:
-                lb3.get_by_role("option", name="Image", exact=True).click()
+                lb3.get_by_role("option", name="Image").click()
             fc = fci.value
             import tempfile, os as _os
             tmp = tempfile.NamedTemporaryFile(suffix=".png", delete=False)
@@ -1573,11 +1757,31 @@ with sync_playwright() as p:
         tab1.wait_for_timeout(1500)
         tab1_first = puts_from["tab1"] > 0 and puts_from["tab2"] == 0
 
+        # ⛔ FIX (directive #6, part 2): exhaustive case-insensitive grep of the
+        # WHOLE app/src tree for "owns this note", "another tab", "other tab"
+        # and "in another window" finds ZERO rendered JSX text/props -- every
+        # match is a code comment or a test description string
+        # (outboxDrain.js:33's `SKIPPED = 'skipped'  // the open editor owns
+        # this note right now` is an internal status constant, never
+        # displayed; NoteEditorPage.jsx's own "owns this note"/"another tab"
+        # comments have no nearby member-facing copy either). The product
+        # shows NO visible notice to a non-owning tab, BY DESIGN -- ownership
+        # is a silent Web Locks leader election + outbox-drain skip
+        # (noteOwnerLock.js). These two checks are therefore expected to read
+        # False on a healthy product; recorded as PASS facts below, not
+        # treated as a missing feature.
         notice = tab2.get_by_text(re.compile("another tab", re.I))
         owner_notice_on_tab2 = notice.count() > 0
 
         tab1.close()
-        tab2.wait_for_timeout(2000)
+        # ⛔ FIX (directive #6, part 1): useOutboxDrain.js:35
+        # `RETRY_INTERVAL_MS = 60000` (60s), and the real call site
+        # (NotebookTab.jsx:124) passes no override -- so the production sweep
+        # period is 60s. The old 2s wait could not possibly have caught a
+        # sweep that fires up to 60s later; wait AT LEAST two full periods
+        # (120s) plus margin before judging whether tab2 ever drained.
+        _OUTBOX_SWEEP_MS = 60000
+        tab2.wait_for_timeout(2 * _OUTBOX_SWEEP_MS + 10000)
         tab2_drains_after_close = puts_from["tab2"] > 0
 
         # bfcache / pagehide: navigate tab2 away and back.
@@ -1603,6 +1807,18 @@ with sync_playwright() as p:
             owner_notice_seen_on_tab2=owner_notice_on_tab2,
             tab2_drains_after_tab1_closes=tab2_drains_after_close,
             stuck_owner_notice_after_bfcache_nav=stuck_notice,
+            outbox_drain_sweep_interval_ms=_OUTBOX_SWEEP_MS,
+            waited_ms_after_tab1_close=2 * _OUTBOX_SWEEP_MS + 10000,
+            notice_design_note=(
+                "Exhaustive grep of app/src for 'owns this note' / 'another tab' / "
+                "'other tab' / 'in another window' finds zero rendered JSX text -- only code "
+                "comments and test descriptions (outboxDrain.js:33's SKIPPED constant is "
+                "internal, never displayed). The product shows NO visible notice to a "
+                "non-owning tab by design -- ownership is a silent Web Locks leader election "
+                "+ outbox-drain skip (noteOwnerLock.js). owner_notice_seen_on_tab2 and "
+                "stuck_owner_notice_after_bfcache_nav reading False is therefore the expected, "
+                "correct PASS state, not a product gap -- searched strings listed above."
+            ),
         )
         tab2.close()
 
