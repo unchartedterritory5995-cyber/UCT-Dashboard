@@ -15,10 +15,12 @@ the auth payload as `notebook_writing_help_enabled`). Read per request, so a
 flip needs no restart.
 
 ⛔ THE BUDGET (ruling D-H2). Writing help has its OWN per-member daily counter,
-`note_ask.reserve_writing_help` (60/day), and SHARES Ask Notebook's global
-dollar cap and its per-member concurrent stream slots
-(`note_ask.begin_stream` / `end_stream`). Both are per-process state -- listed
-for the CLAUDE.md single-process roster.
+`note_ask.reserve_writing_help` (60/day, read per call), and SHARES Ask
+Notebook's global dollar cap and its per-member concurrent stream slots
+(`note_ask.begin_stream` / `end_stream`). The two daily counters are DURABLE
+in auth.db since ruling D-H5b (a deploy no longer resets them); the stream
+slots are per-process state -- listed for the CLAUDE.md single-process roster.
+Each call is charged `estimate_cost` (ruling D-H5), never the flat figure.
 
 ⛔ THE PROMPT BOUNDARY is Ask's, applied to a passage instead of retrieved
 evidence (see ask_prompt.py for the measured defect it exists for): the system
@@ -31,6 +33,7 @@ says "ignore previous instructions" is words to rewrite, not a request.
 """
 from __future__ import annotations
 
+import math
 import os
 import time
 from typing import Any
@@ -211,6 +214,33 @@ def build_messages(req: dict[str, Any]) -> dict[str, Any]:
                f"<<{FENCE} END>>")
     return {"system": system_prompt(),
             "messages": [{"role": "user", "content": passage + "\n\n" + task_line(req)}]}
+
+
+# ── What a call is charged (ruling D-H5) ──────────────────────────────────────
+# ⚰️ The shared $25/day cap charged every writing-help call a flat $0.02
+# (`note_ask._APPROX_COST`), while one call can be 20,000 characters in and
+# 2,400 tokens out: the flat charge undercounted exactly the expensive calls.
+#
+# Characters per input token for the estimate. Deliberately LOW (English prose
+# averages about four): an over-estimate refuses a draft early on a busy day,
+# which is the safe direction; an under-estimate lets the day's spend pass the
+# cap it claims to hold.
+CHARS_PER_TOKEN = 3
+
+
+def estimate_cost(req: dict[str, Any], *, model: str) -> float:
+    """USD this request is charged against the shared daily cap: the prompt it
+    will actually send (system prompt + fenced passage + task line) in tokens,
+    plus the action's max output tokens -- the most it can cost -- at the
+    model's published rates (`narrative_cost_guard.estimate_cost`, whose price
+    table the repo pins; an unknown model is priced at the priciest known
+    rate, never $0). The same figure is charged at reservation and given back
+    by a refund."""
+    from api.services import narrative_cost_guard
+    built = build_messages(req)
+    chars = len(built["system"]) + sum(len(m["content"]) for m in built["messages"])
+    tokens_in = math.ceil(chars / CHARS_PER_TOKEN)
+    return narrative_cost_guard.estimate_cost(model, tokens_in, _MAX_TOKENS[req["action"]])
 
 
 def request_kwargs(req: dict[str, Any], *, model: str) -> dict[str, Any]:

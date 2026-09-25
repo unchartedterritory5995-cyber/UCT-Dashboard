@@ -58,17 +58,27 @@ def db_path(monkeypatch):
         pass
 
 
+DAY = "2026-09-25"
+
+
 @pytest.fixture(autouse=True)
 def _fresh_ledger(monkeypatch):
-    """Every test starts on a fresh ET day with empty counters and no slots."""
-    monkeypatch.setattr(note_ask, "_et_day", lambda: "2026-09-25")
+    """Every test starts on a fresh ET day with empty counters and no slots.
+    The counters are DURABLE since ruling D-H5b (`daily_counters`, auth.db), so
+    "empty" is a cleared table, not a cleared dict; a test with `db_path` then
+    moves to a fresh database of its own anyway."""
+    from api.services import daily_counters
+    monkeypatch.setattr(note_ask, "_et_day", lambda: DAY)
+    monkeypatch.delenv("NOTEBOOK_WRITING_HELP_PERUSER_CAP", raising=False)
+    daily_counters.clear()
     with note_ask._synth_lock:
-        note_ask._synth_day = ""
-        note_ask._synth_by_user.clear()
-        note_ask._writing_help_by_user.clear()
-        note_ask._synth_spend = 0.0
         note_ask._inflight.clear()
     yield
+
+
+def _spend_the_days_dollars():
+    from api.services import daily_counters as dc
+    dc.take(DAY, [dc.Charge(note_ask.SCOPE_SPEND, dc.GLOBAL, note_ask._SYNTH_GLOBAL_HARD)])
 
 
 @pytest.fixture
@@ -212,7 +222,7 @@ def test_another_members_note_is_a_plain_404_and_costs_nothing(app, client, gate
     _as_member(app, "u1")
     r = client.post(URL.format(theirs["id"]), json=BODY)
     assert r.status_code == 404 and r.json()["detail"] == "Not found"
-    assert note_ask._writing_help_by_user.get("u1", 0) == 0
+    assert note_ask.writing_help_used("u1") == 0
     assert stub["client"].calls == []
 
 
@@ -232,7 +242,7 @@ def test_every_bad_request_is_a_422_SENTENCE_and_costs_nothing(app, client, gate
     r = client.post(URL.format(n["id"]), json={**BODY, **patch})
     assert r.status_code == 422
     assert r.json()["detail"] == sentence
-    assert note_ask._writing_help_by_user.get("u1", 0) == 0 and stub["client"].calls == []
+    assert note_ask.writing_help_used("u1") == 0 and stub["client"].calls == []
 
 
 # ── the stream and the prompt ────────────────────────────────────────────────
@@ -249,7 +259,7 @@ def test_the_stream_is_start_deltas_final_and_the_slot_is_released(app, client, 
     assert evs[-1] == {"type": "final", "text": "A tighter version.", "action": "rewrite",
                        "model": note_ask._SYNTH_MODEL}
     assert note_ask.inflight("u1") == 0
-    assert note_ask._writing_help_by_user["u1"] == 1
+    assert note_ask.writing_help_used("u1") == 1
 
 
 def test_the_prompt_boundary_member_text_never_reaches_system_and_the_task_is_last(app, client, gate_on, stub, db_path):
@@ -288,7 +298,8 @@ def test_each_action_builds_its_own_task_line(body, task):
 # ── the budget (ruling D-H2) ─────────────────────────────────────────────────
 
 def test_the_OWN_60_a_day_counter_then_the_sentence(app, client, gate_on, stub, db_path, monkeypatch):
-    monkeypatch.setattr(note_ask, "_WRITING_HELP_PERUSER_CAP", 3)
+    # read per call (tests shard cross 2): the env value in force at the request
+    monkeypatch.setenv("NOTEBOOK_WRITING_HELP_PERUSER_CAP", "3")
     _as_member(app, "u1")
     n = _note("u1")
     for _ in range(3):
@@ -297,7 +308,7 @@ def test_the_OWN_60_a_day_counter_then_the_sentence(app, client, gate_on, stub, 
     assert r.status_code == 429
     assert r.json()["detail"] == "You've used today's writing help — it resets at midnight ET"
     # ⛔ OWN counter: Ask's questions were not spent by drafting
-    assert note_ask._synth_by_user.get("u1", 0) == 0
+    assert note_ask.ask_used("u1") == 0
     assert note_ask.reserve_ask("u1") is True
 
 
@@ -311,9 +322,7 @@ def test_the_default_member_cap_is_60_in_source():
 def test_the_GLOBAL_dollar_cap_is_SHARED_with_Ask(app, client, gate_on, stub, db_path):
     _as_member(app, "u1")
     n = _note("u1")
-    with note_ask._synth_lock:
-        note_ask._synth_day = "2026-09-25"
-        note_ask._synth_spend = note_ask._SYNTH_GLOBAL_HARD   # Ask spent the day's dollars
+    _spend_the_days_dollars()                            # Ask spent the day's dollars
     r = client.post(URL.format(n["id"]), json=BODY)
     assert r.status_code == 429
     assert stub["client"].calls == []
@@ -327,7 +336,7 @@ def test_the_stream_SLOTS_are_SHARED_with_Ask_and_a_busy_refusal_is_refunded(app
     r = client.post(URL.format(n["id"]), json=BODY)
     assert r.status_code == 429
     assert r.json()["detail"] == wh.BUSY_SENTENCE
-    assert note_ask._writing_help_by_user.get("u1", 0) == 0, "the reservation was not given back"
+    assert note_ask.writing_help_used("u1") == 0, "the reservation was not given back"
     assert stub["client"].calls == []
 
 
@@ -340,7 +349,7 @@ def test_a_failure_mid_stream_says_so_releases_the_slot_and_refunds(app, client,
     assert evs[-1] == {"type": "error", "detail": wh.FAILED_SENTENCE}
     assert "final" not in [e["type"] for e in evs]
     assert note_ask.inflight("u1") == 0
-    assert note_ask._writing_help_by_user.get("u1", 0) == 0
+    assert note_ask.writing_help_used("u1") == 0
 
 
 def test_an_EMPTY_draft_is_refunded(app, client, gate_on, stub, db_path):
@@ -348,18 +357,23 @@ def test_an_EMPTY_draft_is_refunded(app, client, gate_on, stub, db_path):
     _as_member(app, "u1")
     n = _note("u1")
     client.post(URL.format(n["id"]), json=BODY)
-    assert note_ask._writing_help_by_user.get("u1", 0) == 0
+    assert note_ask.writing_help_used("u1") == 0
 
 
 def test_ONE_day_rollover_clears_BOTH_counters(monkeypatch):
+    """Since ruling D-H5b the day is part of every counter's KEY, so a new day
+    starts at zero for both by construction -- whichever reservation arrives
+    first -- and yesterday's rows are still yesterday's."""
     days = iter(["2026-09-25", "2026-09-25", "2026-09-26"])
     monkeypatch.setattr(note_ask, "_et_day", lambda: next(days))
     assert note_ask.reserve_writing_help("u1") is True     # day 25: wh=1
     assert note_ask.reserve_ask("u1") is True              # day 25: ask=1
     # day 26 arrives through ASK's reservation: writing help's count must reset too
     assert note_ask.reserve_ask("u1") is True
-    assert note_ask._writing_help_by_user.get("u1", 0) == 0
-    assert note_ask._synth_by_user["u1"] == 1
+    assert note_ask.writing_help_used("u1", day="2026-09-26") == 0
+    assert note_ask.ask_used("u1", day="2026-09-26") == 1
+    assert (note_ask.writing_help_used("u1", day="2026-09-25"),
+            note_ask.ask_used("u1", day="2026-09-25")) == (1, 1)
 
 
 # ── parity: one fact in two files, pinned against each other ─────────────────

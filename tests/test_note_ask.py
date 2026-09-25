@@ -33,13 +33,12 @@ FREE = {"id": "u1", "email": "free@example.test", "role": "member", "plan": "fre
 
 @pytest.fixture(autouse=True)
 def _reset_note_ask_counters():
-    note_ask._synth_day = ""
-    note_ask._synth_by_user = {}
-    note_ask._synth_spend = 0.0
+    # Durable since ruling D-H5b (`daily_counters`, auth.db): a reset is a
+    # cleared table, not a cleared dict.
+    from api.services import daily_counters
+    daily_counters.clear()
     yield
-    note_ask._synth_day = ""
-    note_ask._synth_by_user = {}
-    note_ask._synth_spend = 0.0
+    daily_counters.clear()
 
 
 async def _fake_ok_synthesize(kwargs):
@@ -158,7 +157,7 @@ def test_refund_gives_back_the_reservation(monkeypatch):
 def test_refund_never_underflows(monkeypatch):
     monkeypatch.setattr(note_ask, "_et_day", lambda: "2026-09-05")
     note_ask.refund_ask("never-reserved")  # must not raise or go negative
-    assert note_ask._synth_by_user.get("never-reserved", 0) == 0
+    assert note_ask.ask_used("never-reserved") == 0
 
 
 def test_global_cap_blocks_regardless_of_per_user_room(monkeypatch):
@@ -328,7 +327,7 @@ def test_too_many_open_streams_is_a_429_that_does_not_charge(client, monkeypatch
     assert "in progress" in r.json()["detail"]
     # The reservation was refunded, so the member did not pay for being told
     # to wait: the one daily slot is still theirs.
-    assert note_ask._synth_by_user.get(PAID["id"], 0) == 0
+    assert note_ask.ask_used(PAID["id"]) == 0
 
 
 # ── Multi-user isolation (HTTP layer) ─────────────────────────────────────

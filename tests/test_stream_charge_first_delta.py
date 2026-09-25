@@ -39,14 +39,16 @@ ASK_QUERY = {"query": "what did I say about margins"}
 
 # ── fixtures ─────────────────────────────────────────────────────────────────
 
+DAY = "2026-09-25"
+
+
 @pytest.fixture(autouse=True)
 def _fresh_ledger(monkeypatch):
-    monkeypatch.setattr(note_ask, "_et_day", lambda: "2026-09-25")
+    """The day is pinned and the slots are empty. The COUNTERS are durable since
+    ruling D-H5b (auth.db, `daily_counters`): each route test gets a fresh
+    database from the `db` fixture, so they start at zero with it."""
+    monkeypatch.setattr(note_ask, "_et_day", lambda: DAY)
     with note_ask._synth_lock:
-        note_ask._synth_day = ""
-        note_ask._synth_by_user.clear()
-        note_ask._writing_help_by_user.clear()
-        note_ask._synth_spend = 0.0
         note_ask._inflight.clear()
     yield
     with note_ask._synth_lock:
@@ -113,8 +115,20 @@ class _Route:
         return await journal_two._ask_stream(dict(PAID), "note", self.target, dict(ASK_QUERY))
 
     def charged(self) -> int:
-        book = note_ask._writing_help_by_user if self.name == "writing_help" else note_ask._synth_by_user
-        return book.get(UID, 0)
+        if self.name == "writing_help":
+            return note_ask.writing_help_used(UID)
+        return note_ask.ask_used(UID)
+
+    def expected_charge(self) -> float:
+        """What one charged stream costs the shared dollar cap. Ask pays the
+        flat `_APPROX_COST`; writing help pays ruling D-H5's per-action
+        estimate for THIS request -- re-derived from the estimator, never
+        restated (tests shard M-3: the flat figure this assertion used to pin
+        is the one the ruling rejected for writing help)."""
+        if self.name == "writing_help":
+            from api.services.journal_two import writing_help as wh
+            return wh.estimate_cost(wh.parse_request(dict(WH_BODY)), model=wh.model_name())
+        return note_ask._APPROX_COST
 
 
 @pytest.fixture(params=["writing_help", "ask"])
@@ -163,7 +177,11 @@ def test_an_ABORT_after_the_first_delta_KEEPS_the_charge(route):
     _resp, got = _pull(route, n=2)                 # head + the first delta, then Stop
     assert '"delta"' in got[1]
     assert route.charged() == 1, "Stop after the member had text must not refund"
-    assert note_ask._synth_spend == pytest.approx(note_ask._APPROX_COST)
+    assert note_ask.spend_today() == pytest.approx(route.expected_charge())
+    if route.name == "writing_help":
+        # non-vacuity: the per-action estimate is not the flat charge, so the
+        # line above could not pass on the rejected flat figure
+        assert route.expected_charge() != pytest.approx(note_ask._APPROX_COST)
     assert note_ask.inflight(UID) == 0             # the slot is released either way
 
 
@@ -172,7 +190,7 @@ def test_an_ABORT_before_any_delta_refunds_and_releases(route):
     _resp, got = _pull(route, n=1)                 # only the head, then Stop
     assert len(got) == 1
     assert route.charged() == 0, "nothing reached the member, so nothing is charged"
-    assert note_ask._synth_spend == 0.0
+    assert note_ask.spend_today() == 0.0
     assert note_ask.inflight(UID) == 0, "a disconnect at the first chunk leaked the slot"
 
 
@@ -231,11 +249,10 @@ def test_the_SHARED_cap_says_so_and_the_member_cap_says_the_member(db, monkeypat
         assert e.value.status_code == 429
         return e.value.detail
 
-    with note_ask._synth_lock:
-        note_ask._synth_day = "2026-09-25"
-        note_ask._synth_spend = note_ask._SYNTH_GLOBAL_HARD      # everyone's cap, not theirs
+    from api.services import daily_counters as dc
+    # everyone's cap, not theirs
+    dc.take(DAY, [dc.Charge(note_ask.SCOPE_SPEND, dc.GLOBAL, note_ask._SYNTH_GLOBAL_HARD)])
     assert refusal() == wh.SHARED_CAP_SENTENCE
-    with note_ask._synth_lock:
-        note_ask._synth_spend = 0.0
-        note_ask._writing_help_by_user[UID] = note_ask._WRITING_HELP_PERUSER_CAP
+    dc.clear()
+    dc.take(DAY, [dc.Charge(note_ask.SCOPE_WRITING_HELP, UID, note_ask.writing_help_peruser_cap())])
     assert refusal() == wh.BUDGET_SENTENCE                        # control: their own 60

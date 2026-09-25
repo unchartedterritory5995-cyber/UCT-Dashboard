@@ -3163,7 +3163,10 @@ async def _ask_stream(user: dict, scope: str, target: str | None,
             refuse(), media_type="text/event-stream",
             headers={"Cache-Control": "no-cache", "X-Accel-Buffering": "no"})
 
-    if not note_ask.reserve_ask(user_id):
+    # The day's counters are durable (auth.db, ruling D-H5b): a SQLite write,
+    # so off the web pod's one event loop.
+    from starlette.concurrency import run_in_threadpool
+    if not await run_in_threadpool(note_ask.reserve_ask, user_id):
         raise HTTPException(
             status_code=429,
             detail="You've hit today's Ask limit — it resets at midnight ET.",
@@ -3172,7 +3175,7 @@ async def _ask_stream(user: dict, scope: str, target: str | None,
     # hold open at once. Claimed AFTER the reservation so the failure path has
     # exactly one thing to undo.
     if not note_ask.begin_stream(user_id):
-        note_ask.refund_ask(user_id)
+        await run_in_threadpool(note_ask.refund_ask, user_id)
         raise HTTPException(
             status_code=429,
             detail="You already have an answer in progress — wait for it to finish.",

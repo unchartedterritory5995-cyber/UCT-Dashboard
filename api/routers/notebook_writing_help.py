@@ -25,6 +25,7 @@ ACCEPTS, as one `askInsert` block; a discarded draft was never in the note.
 """
 from __future__ import annotations
 
+import functools
 import json
 import time
 from typing import Any
@@ -92,19 +93,25 @@ async def writing_help_stream(
     if await run_in_threadpool(notes_service.get_note, user_id, note_id) is None:
         raise HTTPException(status_code=404, detail="Not found")
 
-    if not note_ask.reserve_writing_help(user_id):
+    model = wh.model_name()
+    # ⛔ CHARGED PER ACTION (ruling D-H5): the request's own estimate, never the
+    # flat figure -- and the same number is what a refund gives back.
+    cost = wh.estimate_cost(req, model=model)
+    # The counters are durable (auth.db, ruling D-H5b): a SQLite write, so off
+    # the event loop like the note read above.
+    if not await run_in_threadpool(note_ask.reserve_writing_help, user_id, cost=cost):
         # Say WHICH limit refused (review M-2): the shared dollar cap is not
         # the member's own 60, and they may have used none of it.
+        shared = await run_in_threadpool(note_ask.shared_cap_reached, cost=cost)
         raise HTTPException(status_code=429, detail=(
-            wh.SHARED_CAP_SENTENCE if note_ask.shared_cap_reached() else wh.BUDGET_SENTENCE))
+            wh.SHARED_CAP_SENTENCE if shared else wh.BUDGET_SENTENCE))
     # Claimed AFTER the reservation so the failure path has one thing to undo.
     # ⛔ The SAME slots as Ask (ruling D-H2): one member's open drafts and open
     # answers share the two a member may hold at once.
     if not note_ask.begin_stream(user_id):
-        note_ask.refund_writing_help(user_id)
+        await run_in_threadpool(note_ask.refund_writing_help, user_id, cost=cost)
         raise HTTPException(status_code=429, detail=wh.BUSY_SENTENCE)
 
-    model = wh.model_name()
     kwargs = wh.request_kwargs(req, model=model)
     head = {"type": "start", "action": req["action"], "model": model,
             "scope": req["scope"], "instruction": wh.instruction(req)}
@@ -112,7 +119,7 @@ async def writing_help_stream(
     # ⛔ CHARGED FROM THE FIRST DELTA (review I-3, rule `note_ask.refund_due`):
     # an abort after the member has text in hand keeps the charge; only a
     # server failure or a stream that sent nothing refunds.
-    charge = note_ask.StreamCharge(user_id, note_ask.refund_writing_help)
+    charge = note_ask.StreamCharge(user_id, functools.partial(note_ask.refund_writing_help, cost=cost))
 
     async def gen():
         settled = False
