@@ -22,7 +22,9 @@
     "pm_end": 13,
     "text": "Hello world."
    }
-  ]
+  ],
+  "leafSpans": [],
+  "passages": []
  },
  "markBoundary": {
   "json": {
@@ -70,7 +72,9 @@
     "pm_end": 53,
     "text": " to normalize lower."
    }
-  ]
+  ],
+  "leafSpans": [],
+  "passages": []
  },
  "adjacentMarks": {
   "json": {
@@ -149,7 +153,9 @@
     "pm_end": 6,
     "text": "e"
    }
-  ]
+  ],
+  "leafSpans": [],
+  "passages": []
  },
  "twoParas": {
   "json": {
@@ -188,7 +194,9 @@
     "pm_end": 26,
     "text": "Second para."
    }
-  ]
+  ],
+  "leafSpans": [],
+  "passages": []
  },
  "headingAndPara": {
   "json": {
@@ -230,7 +238,9 @@
     "pm_end": 32,
     "text": "Margins normalize."
    }
-  ]
+  ],
+  "leafSpans": [],
+  "passages": []
  },
  "nestedList": {
   "json": {
@@ -298,7 +308,9 @@
     "pm_end": 51,
     "text": "Customer concentration"
    }
-  ]
+  ],
+  "leafSpans": [],
+  "passages": []
  },
  "blockquote": {
   "json": {
@@ -342,7 +354,9 @@
     "pm_end": 24,
     "text": "After."
    }
-  ]
+  ],
+  "leafSpans": [],
+  "passages": []
  },
  "linkAcross": {
   "json": {
@@ -393,7 +407,9 @@
     "pm_end": 26,
     "text": " for detail"
    }
-  ]
+  ],
+  "leafSpans": [],
+  "passages": []
  },
  "duplicatePhrase": {
   "json": {
@@ -432,6 +448,2451 @@
     "pm_end": 50,
     "text": "Revenue guidance was raised."
    }
+  ],
+  "leafSpans": [],
+  "passages": []
+ },
+ "askCitationChip": {
+  "json": {
+   "type": "doc",
+   "content": [
+    {
+     "type": "paragraph",
+     "content": [
+      {
+       "type": "text",
+       "text": "Margins fell "
+      },
+      {
+       "type": "askCitation",
+       "attrs": {
+        "n": 1
+       }
+      },
+      {
+       "type": "text",
+       "text": " in Q3."
+      }
+     ]
+    }
+   ]
+  },
+  "text": "Margins fell  in Q3.",
+  "contentSize": 23,
+  "textSpans": [
+   {
+    "pm_start": 1,
+    "pm_end": 14,
+    "text": "Margins fell "
+   },
+   {
+    "pm_start": 15,
+    "pm_end": 22,
+    "text": " in Q3."
+   }
+  ],
+  "leafSpans": [],
+  "passages": []
+ },
+ "askInsertBlock": {
+  "json": {
+   "type": "doc",
+   "content": [
+    {
+     "type": "paragraph",
+     "content": [
+      {
+       "type": "text",
+       "text": "My own view."
+      }
+     ]
+    },
+    {
+     "type": "askInsert",
+     "content": [
+      {
+       "type": "paragraph",
+       "content": [
+        {
+         "type": "text",
+         "text": "Inserted answer "
+        },
+        {
+         "type": "askCitation",
+         "attrs": {
+          "n": 1
+         }
+        },
+        {
+         "type": "text",
+         "text": " here."
+        }
+       ]
+      }
+     ]
+    },
+    {
+     "type": "paragraph",
+     "content": [
+      {
+       "type": "text",
+       "text": "After."
+      }
+     ]
+    }
+   ]
+  },
+  "text": "My own view.\nInserted answer  here.\nAfter.",
+  "contentSize": 49,
+  "textSpans": [
+   {
+    "pm_start": 1,
+    "pm_end": 13,
+    "text": "My own view."
+   },
+   {
+    "pm_start": 16,
+    "pm_end": 32,
+    "text": "Inserted answer "
+   },
+   {
+    "pm_start": 33,
+    "pm_end": 39,
+    "text": " here."
+   },
+   {
+    "pm_start": 42,
+    "pm_end": 48,
+    "text": "After."
+   }
+  ],
+  "leafSpans": [],
+  "passages": []
+ },
+ "emptyParaStart": {
+  "json": {
+   "type": "doc",
+   "content": [
+    {
+     "type": "paragraph"
+    },
+    {
+     "type": "paragraph",
+     "content": [
+      {
+       "type": "text",
+       "text": "First."
+      }
+     ]
+    },
+    {
+     "type": "paragraph",
+     "content": [
+      {
+       "type": "text",
+       "text": "Second."
+      }
+     ]
+    }
+   ]
+  },
+  "text": "\nFirst.\nSecond.",
+  "contentSize": 19,
+  "textSpans": [
+   {
+    "pm_start": 3,
+    "pm_end": 9,
+    "text": "First."
+   },
+   {
+    "pm_start": 11,
+    "pm_end": 18,
+    "text": "Second."
+   }
+  ],
+  "leafSpans": [],
+  "passages": []
+ },
+ "emptyParaMiddle": {
+  "json": {
+   "type": "doc",
+   "content": [
+    {
+     "type": "paragraph",
+     "content": [
+      {
+       "type": "text",
+       "text": "First."
+      }
+     ]
+    },
+    {
+     "type": "paragraph"
+    },
+    {
+     "type": "paragraph",
+     "content": [
+      {
+       "type": "text",
+       "text": "Second."
+      }
+     ]
+    }
+   ]
+  },
+  "text": "First.\n\nSecond.",
+  "contentSize": 19,
+  "textSpans": [
+   {
+    "pm_start": 1,
+    "pm_end": 7,
+    "text": "First."
+   },
+   {
+    "pm_start": 11,
+    "pm_end": 18,
+    "text": "Second."
+   }
+  ],
+  "leafSpans": [],
+  "passages": []
+ },
+ "emptyParaEnd": {
+  "json": {
+   "type": "doc",
+   "content": [
+    {
+     "type": "paragraph",
+     "content": [
+      {
+       "type": "text",
+       "text": "First."
+      }
+     ]
+    },
+    {
+     "type": "paragraph",
+     "content": [
+      {
+       "type": "text",
+       "text": "Second."
+      }
+     ]
+    },
+    {
+     "type": "paragraph"
+    }
+   ]
+  },
+  "text": "First.\nSecond.\n",
+  "contentSize": 19,
+  "textSpans": [
+   {
+    "pm_start": 1,
+    "pm_end": 7,
+    "text": "First."
+   },
+   {
+    "pm_start": 9,
+    "pm_end": 16,
+    "text": "Second."
+   }
+  ],
+  "leafSpans": [],
+  "passages": []
+ },
+ "consecutiveEmpty": {
+  "json": {
+   "type": "doc",
+   "content": [
+    {
+     "type": "paragraph",
+     "content": [
+      {
+       "type": "text",
+       "text": "First."
+      }
+     ]
+    },
+    {
+     "type": "paragraph"
+    },
+    {
+     "type": "paragraph"
+    },
+    {
+     "type": "paragraph"
+    },
+    {
+     "type": "paragraph",
+     "content": [
+      {
+       "type": "text",
+       "text": "Second."
+      }
+     ]
+    }
+   ]
+  },
+  "text": "First.\n\n\n\nSecond.",
+  "contentSize": 23,
+  "textSpans": [
+   {
+    "pm_start": 1,
+    "pm_end": 7,
+    "text": "First."
+   },
+   {
+    "pm_start": 15,
+    "pm_end": 22,
+    "text": "Second."
+   }
+  ],
+  "leafSpans": [],
+  "passages": []
+ },
+ "onlyEmpty": {
+  "json": {
+   "type": "doc",
+   "content": [
+    {
+     "type": "paragraph"
+    }
+   ]
+  },
+  "text": "",
+  "contentSize": 2,
+  "textSpans": [],
+  "leafSpans": [],
+  "passages": []
+ },
+ "twoEmpty": {
+  "json": {
+   "type": "doc",
+   "content": [
+    {
+     "type": "paragraph"
+    },
+    {
+     "type": "paragraph"
+    }
+   ]
+  },
+  "text": "\n",
+  "contentSize": 4,
+  "textSpans": [],
+  "leafSpans": [],
+  "passages": []
+ },
+ "emptyHeading": {
+  "json": {
+   "type": "doc",
+   "content": [
+    {
+     "type": "paragraph",
+     "content": [
+      {
+       "type": "text",
+       "text": "Intro."
+      }
+     ]
+    },
+    {
+     "type": "heading",
+     "attrs": {
+      "level": 2
+     }
+    },
+    {
+     "type": "paragraph",
+     "content": [
+      {
+       "type": "text",
+       "text": "Body text."
+      }
+     ]
+    }
+   ]
+  },
+  "text": "Intro.\n\nBody text.",
+  "contentSize": 22,
+  "textSpans": [
+   {
+    "pm_start": 1,
+    "pm_end": 7,
+    "text": "Intro."
+   },
+   {
+    "pm_start": 11,
+    "pm_end": 21,
+    "text": "Body text."
+   }
+  ],
+  "leafSpans": [],
+  "passages": []
+ },
+ "emptyListItem": {
+  "json": {
+   "type": "doc",
+   "content": [
+    {
+     "type": "paragraph",
+     "content": [
+      {
+       "type": "text",
+       "text": "Risks:"
+      }
+     ]
+    },
+    {
+     "type": "bulletList",
+     "content": [
+      {
+       "type": "listItem",
+       "content": [
+        {
+         "type": "paragraph",
+         "content": [
+          {
+           "type": "text",
+           "text": "China exposure"
+          }
+         ]
+        }
+       ]
+      },
+      {
+       "type": "listItem",
+       "content": [
+        {
+         "type": "paragraph"
+        }
+       ]
+      },
+      {
+       "type": "listItem",
+       "content": [
+        {
+         "type": "paragraph",
+         "content": [
+          {
+           "type": "text",
+           "text": "Customer concentration"
+          }
+         ]
+        }
+       ]
+      }
+     ]
+    }
+   ]
+  },
+  "text": "Risks:\nChina exposure\n\nCustomer concentration",
+  "contentSize": 58,
+  "textSpans": [
+   {
+    "pm_start": 1,
+    "pm_end": 7,
+    "text": "Risks:"
+   },
+   {
+    "pm_start": 11,
+    "pm_end": 25,
+    "text": "China exposure"
+   },
+   {
+    "pm_start": 33,
+    "pm_end": 55,
+    "text": "Customer concentration"
+   }
+  ],
+  "leafSpans": [],
+  "passages": []
+ },
+ "emptyBlockquoteChild": {
+  "json": {
+   "type": "doc",
+   "content": [
+    {
+     "type": "blockquote",
+     "content": [
+      {
+       "type": "paragraph"
+      },
+      {
+       "type": "paragraph",
+       "content": [
+        {
+         "type": "text",
+         "text": "Quoted claim."
+        }
+       ]
+      }
+     ]
+    },
+    {
+     "type": "paragraph",
+     "content": [
+      {
+       "type": "text",
+       "text": "After."
+      }
+     ]
+    }
+   ]
+  },
+  "text": "\nQuoted claim.\nAfter.",
+  "contentSize": 27,
+  "textSpans": [
+   {
+    "pm_start": 4,
+    "pm_end": 17,
+    "text": "Quoted claim."
+   },
+   {
+    "pm_start": 20,
+    "pm_end": 26,
+    "text": "After."
+   }
+  ],
+  "leafSpans": [],
+  "passages": []
+ },
+ "emptyTableCells": {
+  "json": {
+   "type": "doc",
+   "content": [
+    {
+     "type": "table",
+     "content": [
+      {
+       "type": "tableRow",
+       "content": [
+        {
+         "type": "tableCell",
+         "content": [
+          {
+           "type": "paragraph",
+           "content": [
+            {
+             "type": "text",
+             "text": "A1"
+            }
+           ]
+          }
+         ]
+        },
+        {
+         "type": "tableCell",
+         "content": [
+          {
+           "type": "paragraph"
+          }
+         ]
+        }
+       ]
+      },
+      {
+       "type": "tableRow",
+       "content": [
+        {
+         "type": "tableCell",
+         "content": [
+          {
+           "type": "paragraph"
+          }
+         ]
+        },
+        {
+         "type": "tableCell",
+         "content": [
+          {
+           "type": "paragraph",
+           "content": [
+            {
+             "type": "text",
+             "text": "B2"
+            }
+           ]
+          }
+         ]
+        }
+       ]
+      }
+     ]
+    }
+   ]
+  },
+  "text": "A1\n\n\nB2",
+  "contentSize": 26,
+  "textSpans": [
+   {
+    "pm_start": 4,
+    "pm_end": 6,
+    "text": "A1"
+   },
+   {
+    "pm_start": 20,
+    "pm_end": 22,
+    "text": "B2"
+   }
+  ],
+  "leafSpans": [],
+  "passages": []
+ },
+ "emptyCodeBlock": {
+  "json": {
+   "type": "doc",
+   "content": [
+    {
+     "type": "paragraph",
+     "content": [
+      {
+       "type": "text",
+       "text": "Before."
+      }
+     ]
+    },
+    {
+     "type": "codeBlock"
+    },
+    {
+     "type": "paragraph",
+     "content": [
+      {
+       "type": "text",
+       "text": "After."
+      }
+     ]
+    }
+   ]
+  },
+  "text": "Before.\n\nAfter.",
+  "contentSize": 19,
+  "textSpans": [
+   {
+    "pm_start": 1,
+    "pm_end": 8,
+    "text": "Before."
+   },
+   {
+    "pm_start": 12,
+    "pm_end": 18,
+    "text": "After."
+   }
+  ],
+  "leafSpans": [],
+  "passages": []
+ },
+ "chipMiddle": {
+  "json": {
+   "type": "doc",
+   "content": [
+    {
+     "type": "paragraph",
+     "content": [
+      {
+       "type": "text",
+       "text": "Before."
+      }
+     ]
+    },
+    {
+     "type": "attachmentChip",
+     "attrs": {
+      "name": "q3-filing.pdf"
+     }
+    },
+    {
+     "type": "paragraph",
+     "content": [
+      {
+       "type": "text",
+       "text": "After."
+      }
+     ]
+    }
+   ]
+  },
+  "text": "Before.\n[file: q3-filing.pdf]\nAfter.",
+  "contentSize": 18,
+  "textSpans": [
+   {
+    "pm_start": 1,
+    "pm_end": 8,
+    "text": "Before."
+   },
+   {
+    "pm_start": 11,
+    "pm_end": 17,
+    "text": "After."
+   }
+  ],
+  "leafSpans": [
+   {
+    "pm_start": 9,
+    "pm_end": 10,
+    "text": "[file: q3-filing.pdf]",
+    "atom": null
+   }
+  ],
+  "passages": []
+ },
+ "chipFirst": {
+  "json": {
+   "type": "doc",
+   "content": [
+    {
+     "type": "attachmentChip",
+     "attrs": {
+      "name": "q3-filing.pdf"
+     }
+    },
+    {
+     "type": "paragraph",
+     "content": [
+      {
+       "type": "text",
+       "text": "After."
+      }
+     ]
+    }
+   ]
+  },
+  "text": "[file: q3-filing.pdf]\nAfter.",
+  "contentSize": 9,
+  "textSpans": [
+   {
+    "pm_start": 2,
+    "pm_end": 8,
+    "text": "After."
+   }
+  ],
+  "leafSpans": [
+   {
+    "pm_start": 0,
+    "pm_end": 1,
+    "text": "[file: q3-filing.pdf]",
+    "atom": null
+   }
+  ],
+  "passages": []
+ },
+ "chipLast": {
+  "json": {
+   "type": "doc",
+   "content": [
+    {
+     "type": "paragraph",
+     "content": [
+      {
+       "type": "text",
+       "text": "Before."
+      }
+     ]
+    },
+    {
+     "type": "attachmentChip",
+     "attrs": {
+      "name": "q3-filing.pdf"
+     }
+    }
+   ]
+  },
+  "text": "Before.\n[file: q3-filing.pdf]",
+  "contentSize": 10,
+  "textSpans": [
+   {
+    "pm_start": 1,
+    "pm_end": 8,
+    "text": "Before."
+   }
+  ],
+  "leafSpans": [
+   {
+    "pm_start": 9,
+    "pm_end": 10,
+    "text": "[file: q3-filing.pdf]",
+    "atom": null
+   }
+  ],
+  "passages": []
+ },
+ "excerptMiddle": {
+  "json": {
+   "type": "doc",
+   "content": [
+    {
+     "type": "paragraph",
+     "content": [
+      {
+       "type": "text",
+       "text": "Before."
+      }
+     ]
+    },
+    {
+     "type": "documentExcerpt",
+     "attrs": {
+      "excerptId": "ex1"
+     }
+    },
+    {
+     "type": "paragraph",
+     "content": [
+      {
+       "type": "text",
+       "text": "After."
+      }
+     ]
+    }
+   ]
+  },
+  "text": "Before.\n[excerpt]\nAfter.",
+  "contentSize": 18,
+  "textSpans": [
+   {
+    "pm_start": 1,
+    "pm_end": 8,
+    "text": "Before."
+   },
+   {
+    "pm_start": 11,
+    "pm_end": 17,
+    "text": "After."
+   }
+  ],
+  "leafSpans": [
+   {
+    "pm_start": 9,
+    "pm_end": 10,
+    "text": "[excerpt]",
+    "atom": {
+     "type": "documentExcerpt",
+     "id": "ex1"
+    }
+   }
+  ],
+  "passages": []
+ },
+ "widgetMiddle": {
+  "json": {
+   "type": "doc",
+   "content": [
+    {
+     "type": "paragraph",
+     "content": [
+      {
+       "type": "text",
+       "text": "Before."
+      }
+     ]
+    },
+    {
+     "type": "widgetEmbed",
+     "attrs": {
+      "widgetId": "chart",
+      "searchText": "NVDA daily chart"
+     }
+    },
+    {
+     "type": "paragraph",
+     "content": [
+      {
+       "type": "text",
+       "text": "After."
+      }
+     ]
+    }
+   ]
+  },
+  "text": "Before.\nNVDA daily chart\nAfter.",
+  "contentSize": 18,
+  "textSpans": [
+   {
+    "pm_start": 1,
+    "pm_end": 8,
+    "text": "Before."
+   },
+   {
+    "pm_start": 11,
+    "pm_end": 17,
+    "text": "After."
+   }
+  ],
+  "leafSpans": [
+   {
+    "pm_start": 9,
+    "pm_end": 10,
+    "text": "NVDA daily chart",
+    "atom": null
+   }
+  ],
+  "passages": []
+ },
+ "widgetNoSearchText": {
+  "json": {
+   "type": "doc",
+   "content": [
+    {
+     "type": "paragraph",
+     "content": [
+      {
+       "type": "text",
+       "text": "Before."
+      }
+     ]
+    },
+    {
+     "type": "widgetEmbed",
+     "attrs": {
+      "widgetId": "chart",
+      "searchText": null
+     }
+    },
+    {
+     "type": "paragraph",
+     "content": [
+      {
+       "type": "text",
+       "text": "After."
+      }
+     ]
+    }
+   ]
+  },
+  "text": "Before.\n[widget]\nAfter.",
+  "contentSize": 18,
+  "textSpans": [
+   {
+    "pm_start": 1,
+    "pm_end": 8,
+    "text": "Before."
+   },
+   {
+    "pm_start": 11,
+    "pm_end": 17,
+    "text": "After."
+   }
+  ],
+  "leafSpans": [
+   {
+    "pm_start": 9,
+    "pm_end": 10,
+    "text": "[widget]",
+    "atom": null
+   }
+  ],
+  "passages": []
+ },
+ "chipThenBlockquote": {
+  "json": {
+   "type": "doc",
+   "content": [
+    {
+     "type": "attachmentChip",
+     "attrs": {
+      "name": "q3-filing.pdf"
+     }
+    },
+    {
+     "type": "blockquote",
+     "content": [
+      {
+       "type": "paragraph",
+       "content": [
+        {
+         "type": "text",
+         "text": "Quoted."
+        }
+       ]
+      }
+     ]
+    }
+   ]
+  },
+  "text": "[file: q3-filing.pdf]\nQuoted.",
+  "contentSize": 12,
+  "textSpans": [
+   {
+    "pm_start": 3,
+    "pm_end": 10,
+    "text": "Quoted."
+   }
+  ],
+  "leafSpans": [
+   {
+    "pm_start": 0,
+    "pm_end": 1,
+    "text": "[file: q3-filing.pdf]",
+    "atom": null
+   }
+  ],
+  "passages": []
+ },
+ "twoAtomsInARow": {
+  "json": {
+   "type": "doc",
+   "content": [
+    {
+     "type": "paragraph",
+     "content": [
+      {
+       "type": "text",
+       "text": "Before."
+      }
+     ]
+    },
+    {
+     "type": "attachmentChip",
+     "attrs": {
+      "name": "a.pdf"
+     }
+    },
+    {
+     "type": "widgetEmbed",
+     "attrs": {
+      "widgetId": "chart",
+      "searchText": "NVDA daily chart"
+     }
+    },
+    {
+     "type": "paragraph",
+     "content": [
+      {
+       "type": "text",
+       "text": "After."
+      }
+     ]
+    }
+   ]
+  },
+  "text": "Before.\n[file: a.pdf]\nNVDA daily chart\nAfter.",
+  "contentSize": 19,
+  "textSpans": [
+   {
+    "pm_start": 1,
+    "pm_end": 8,
+    "text": "Before."
+   },
+   {
+    "pm_start": 12,
+    "pm_end": 18,
+    "text": "After."
+   }
+  ],
+  "leafSpans": [
+   {
+    "pm_start": 9,
+    "pm_end": 10,
+    "text": "[file: a.pdf]",
+    "atom": null
+   },
+   {
+    "pm_start": 10,
+    "pm_end": 11,
+    "text": "NVDA daily chart",
+    "atom": null
+   }
+  ],
+  "passages": []
+ },
+ "hardBreakInline": {
+  "json": {
+   "type": "doc",
+   "content": [
+    {
+     "type": "paragraph",
+     "content": [
+      {
+       "type": "text",
+       "text": "line one"
+      },
+      {
+       "type": "hardBreak"
+      },
+      {
+       "type": "text",
+       "text": "line two"
+      }
+     ]
+    }
+   ]
+  },
+  "text": "line one line two",
+  "contentSize": 19,
+  "textSpans": [
+   {
+    "pm_start": 1,
+    "pm_end": 9,
+    "text": "line one"
+   },
+   {
+    "pm_start": 10,
+    "pm_end": 18,
+    "text": "line two"
+   }
+  ],
+  "leafSpans": [
+   {
+    "pm_start": 9,
+    "pm_end": 10,
+    "text": " ",
+    "atom": null
+   }
+  ],
+  "passages": []
+ },
+ "noteLinkInline": {
+  "json": {
+   "type": "doc",
+   "content": [
+    {
+     "type": "paragraph",
+     "content": [
+      {
+       "type": "text",
+       "text": "See "
+      },
+      {
+       "type": "noteLink",
+       "attrs": {
+        "noteId": "n2"
+       }
+      },
+      {
+       "type": "text",
+       "text": " for more."
+      }
+     ]
+    }
+   ]
+  },
+  "text": "See  for more.",
+  "contentSize": 17,
+  "textSpans": [
+   {
+    "pm_start": 1,
+    "pm_end": 5,
+    "text": "See "
+   },
+   {
+    "pm_start": 6,
+    "pm_end": 16,
+    "text": " for more."
+   }
+  ],
+  "leafSpans": [],
+  "passages": []
+ },
+ "realisticMixed": {
+  "json": {
+   "type": "doc",
+   "content": [
+    {
+     "type": "heading",
+     "attrs": {
+      "level": 2
+     },
+     "content": [
+      {
+       "type": "text",
+       "text": "NVDA Thesis"
+      }
+     ]
+    },
+    {
+     "type": "paragraph"
+    },
+    {
+     "type": "paragraph",
+     "content": [
+      {
+       "type": "text",
+       "text": "Management expects "
+      },
+      {
+       "type": "text",
+       "text": "gross margins",
+       "marks": [
+        {
+         "type": "bold"
+        }
+       ]
+      },
+      {
+       "type": "text",
+       "text": " to normalize."
+      }
+     ]
+    },
+    {
+     "type": "attachmentChip",
+     "attrs": {
+      "name": "q3-10q.pdf"
+     }
+    },
+    {
+     "type": "paragraph",
+     "content": [
+      {
+       "type": "text",
+       "text": "Guidance was raised for Q4."
+      }
+     ]
+    },
+    {
+     "type": "paragraph"
+    },
+    {
+     "type": "widgetEmbed",
+     "attrs": {
+      "widgetId": "chart",
+      "searchText": "NVDA daily chart, 50/200 SMA"
+     }
+    },
+    {
+     "type": "paragraph",
+     "content": [
+      {
+       "type": "text",
+       "text": "Conclusion: hold."
+      }
+     ]
+    }
+   ]
+  },
+  "text": "NVDA Thesis\n\nManagement expects gross margins to normalize.\n[file: q3-10q.pdf]\nGuidance was raised for Q4.\n\nNVDA daily chart, 50/200 SMA\nConclusion: hold.",
+  "contentSize": 115,
+  "textSpans": [
+   {
+    "pm_start": 1,
+    "pm_end": 12,
+    "text": "NVDA Thesis"
+   },
+   {
+    "pm_start": 16,
+    "pm_end": 35,
+    "text": "Management expects "
+   },
+   {
+    "pm_start": 35,
+    "pm_end": 48,
+    "text": "gross margins"
+   },
+   {
+    "pm_start": 48,
+    "pm_end": 62,
+    "text": " to normalize."
+   },
+   {
+    "pm_start": 65,
+    "pm_end": 92,
+    "text": "Guidance was raised for Q4."
+   },
+   {
+    "pm_start": 97,
+    "pm_end": 114,
+    "text": "Conclusion: hold."
+   }
+  ],
+  "leafSpans": [
+   {
+    "pm_start": 63,
+    "pm_end": 64,
+    "text": "[file: q3-10q.pdf]",
+    "atom": null
+   },
+   {
+    "pm_start": 95,
+    "pm_end": 96,
+    "text": "NVDA daily chart, 50/200 SMA",
+    "atom": null
+   }
+  ],
+  "passages": []
+ },
+ "astralBefore": {
+  "json": {
+   "type": "doc",
+   "content": [
+    {
+     "type": "paragraph",
+     "content": [
+      {
+       "type": "text",
+       "text": "🔥 Margins fell sharply."
+      }
+     ]
+    },
+    {
+     "type": "paragraph",
+     "content": [
+      {
+       "type": "text",
+       "text": "Second."
+      }
+     ]
+    }
+   ]
+  },
+  "text": "🔥 Margins fell sharply.\nSecond.",
+  "contentSize": 35,
+  "textSpans": [
+   {
+    "pm_start": 1,
+    "pm_end": 25,
+    "text": "🔥 Margins fell sharply."
+   },
+   {
+    "pm_start": 27,
+    "pm_end": 34,
+    "text": "Second."
+   }
+  ],
+  "leafSpans": [],
+  "passages": [
+   {
+    "text": "Margins fell",
+    "pm_from": 4,
+    "pm_to": 16
+   },
+   {
+    "text": "sharply.",
+    "pm_from": 17,
+    "pm_to": 25
+   },
+   {
+    "text": "Second.",
+    "pm_from": 27,
+    "pm_to": 34
+   }
   ]
+ },
+ "astralInside": {
+  "json": {
+   "type": "doc",
+   "content": [
+    {
+     "type": "paragraph",
+     "content": [
+      {
+       "type": "text",
+       "text": "Revenue 🔥 grew 𝔸 fast."
+      }
+     ]
+    }
+   ]
+  },
+  "text": "Revenue 🔥 grew 𝔸 fast.",
+  "contentSize": 26,
+  "textSpans": [
+   {
+    "pm_start": 1,
+    "pm_end": 25,
+    "text": "Revenue 🔥 grew 𝔸 fast."
+   }
+  ],
+  "leafSpans": [],
+  "passages": [
+   {
+    "text": "Revenue",
+    "pm_from": 1,
+    "pm_to": 8
+   },
+   {
+    "text": "🔥 grew 𝔸",
+    "pm_from": 9,
+    "pm_to": 19
+   },
+   {
+    "text": "grew",
+    "pm_from": 12,
+    "pm_to": 16
+   },
+   {
+    "text": "fast.",
+    "pm_from": 20,
+    "pm_to": 25
+   }
+  ]
+ },
+ "astralAfter": {
+  "json": {
+   "type": "doc",
+   "content": [
+    {
+     "type": "paragraph",
+     "content": [
+      {
+       "type": "text",
+       "text": "Guidance raised 🔥"
+      }
+     ]
+    },
+    {
+     "type": "paragraph",
+     "content": [
+      {
+       "type": "text",
+       "text": "Next 𝔸"
+      }
+     ]
+    }
+   ]
+  },
+  "text": "Guidance raised 🔥\nNext 𝔸",
+  "contentSize": 29,
+  "textSpans": [
+   {
+    "pm_start": 1,
+    "pm_end": 19,
+    "text": "Guidance raised 🔥"
+   },
+   {
+    "pm_start": 21,
+    "pm_end": 28,
+    "text": "Next 𝔸"
+   }
+  ],
+  "leafSpans": [],
+  "passages": [
+   {
+    "text": "Guidance raised",
+    "pm_from": 1,
+    "pm_to": 16
+   },
+   {
+    "text": "🔥",
+    "pm_from": 17,
+    "pm_to": 19
+   },
+   {
+    "text": "Next",
+    "pm_from": 21,
+    "pm_to": 25
+   },
+   {
+    "text": "𝔸",
+    "pm_from": 26,
+    "pm_to": 28
+   }
+  ]
+ },
+ "astralAcrossMarks": {
+  "json": {
+   "type": "doc",
+   "content": [
+    {
+     "type": "paragraph",
+     "content": [
+      {
+       "type": "text",
+       "text": "Up "
+      },
+      {
+       "type": "text",
+       "text": "🔥🔥",
+       "marks": [
+        {
+         "type": "bold"
+        }
+       ]
+      },
+      {
+       "type": "text",
+       "text": " today 𝔸"
+      }
+     ]
+    }
+   ]
+  },
+  "text": "Up 🔥🔥 today 𝔸",
+  "contentSize": 18,
+  "textSpans": [
+   {
+    "pm_start": 1,
+    "pm_end": 4,
+    "text": "Up "
+   },
+   {
+    "pm_start": 4,
+    "pm_end": 8,
+    "text": "🔥🔥"
+   },
+   {
+    "pm_start": 8,
+    "pm_end": 17,
+    "text": " today 𝔸"
+   }
+  ],
+  "leafSpans": [],
+  "passages": [
+   {
+    "text": "Up",
+    "pm_from": 1,
+    "pm_to": 3
+   },
+   {
+    "text": "🔥 today",
+    "pm_from": 6,
+    "pm_to": 14
+   },
+   {
+    "text": "today 𝔸",
+    "pm_from": 9,
+    "pm_to": 17
+   }
+  ]
+ },
+ "astralThenExcerpts": {
+  "json": {
+   "type": "doc",
+   "content": [
+    {
+     "type": "paragraph",
+     "content": [
+      {
+       "type": "text",
+       "text": "🚀 NVDA thesis"
+      }
+     ]
+    },
+    {
+     "type": "documentExcerpt",
+     "attrs": {
+      "excerptId": "ex1"
+     }
+    },
+    {
+     "type": "documentExcerpt",
+     "attrs": {
+      "excerptId": "ex2"
+     }
+    },
+    {
+     "type": "paragraph",
+     "content": [
+      {
+       "type": "text",
+       "text": "After."
+      }
+     ]
+    }
+   ]
+  },
+  "text": "🚀 NVDA thesis\n[excerpt]\n[excerpt]\nAfter.",
+  "contentSize": 26,
+  "textSpans": [
+   {
+    "pm_start": 1,
+    "pm_end": 15,
+    "text": "🚀 NVDA thesis"
+   },
+   {
+    "pm_start": 19,
+    "pm_end": 25,
+    "text": "After."
+   }
+  ],
+  "leafSpans": [
+   {
+    "pm_start": 16,
+    "pm_end": 17,
+    "text": "[excerpt]",
+    "atom": {
+     "type": "documentExcerpt",
+     "id": "ex1"
+    }
+   },
+   {
+    "pm_start": 17,
+    "pm_end": 18,
+    "text": "[excerpt]",
+    "atom": {
+     "type": "documentExcerpt",
+     "id": "ex2"
+    }
+   }
+  ],
+  "passages": [
+   {
+    "text": "NVDA thesis",
+    "pm_from": 4,
+    "pm_to": 15
+   },
+   {
+    "text": "After.",
+    "pm_from": 19,
+    "pm_to": 25
+   }
+  ]
+ },
+ "astralThenChip": {
+  "json": {
+   "type": "doc",
+   "content": [
+    {
+     "type": "paragraph",
+     "content": [
+      {
+       "type": "text",
+       "text": "🔥 hot"
+      }
+     ]
+    },
+    {
+     "type": "attachmentChip",
+     "attrs": {
+      "name": "q3.pdf"
+     }
+    },
+    {
+     "type": "paragraph",
+     "content": [
+      {
+       "type": "text",
+       "text": "After 𝔸."
+      }
+     ]
+    }
+   ]
+  },
+  "text": "🔥 hot\n[file: q3.pdf]\nAfter 𝔸.",
+  "contentSize": 20,
+  "textSpans": [
+   {
+    "pm_start": 1,
+    "pm_end": 7,
+    "text": "🔥 hot"
+   },
+   {
+    "pm_start": 10,
+    "pm_end": 19,
+    "text": "After 𝔸."
+   }
+  ],
+  "leafSpans": [
+   {
+    "pm_start": 8,
+    "pm_end": 9,
+    "text": "[file: q3.pdf]",
+    "atom": null
+   }
+  ],
+  "passages": [
+   {
+    "text": "hot",
+    "pm_from": 4,
+    "pm_to": 7
+   },
+   {
+    "text": "[file: q3.pdf]",
+    "pm_from": 8,
+    "pm_to": 9
+   },
+   {
+    "text": "After 𝔸.",
+    "pm_from": 10,
+    "pm_to": 19
+   }
+  ]
+ },
+ "identityAtoms": {
+  "json": {
+   "type": "doc",
+   "content": [
+    {
+     "type": "paragraph",
+     "content": [
+      {
+       "type": "text",
+       "text": "Thesis."
+      }
+     ]
+    },
+    {
+     "type": "attachmentChip",
+     "attrs": {
+      "name": "q3.pdf",
+      "href": "/api/j2/notes/n1/attachments/9f2c/q3.pdf"
+     }
+    },
+    {
+     "type": "attachmentChip",
+     "attrs": {
+      "name": "q3.pdf",
+      "href": "/api/j2/notes/n1/attachments/41ab/q3.pdf"
+     }
+    },
+    {
+     "type": "documentExcerpt",
+     "attrs": {
+      "excerptId": "ex1"
+     }
+    },
+    {
+     "type": "documentExcerpt",
+     "attrs": {
+      "excerptId": "ex2"
+     }
+    },
+    {
+     "type": "widgetEmbed",
+     "attrs": {
+      "widgetId": "chart",
+      "searchText": "NVDA daily chart",
+      "capturedAt": "2026-09-01T14:00:00.000Z"
+     }
+    },
+    {
+     "type": "widgetEmbed",
+     "attrs": {
+      "widgetId": "chart",
+      "searchText": "NVDA daily chart",
+      "capturedAt": "2026-09-02T14:00:00.000Z"
+     }
+    },
+    {
+     "type": "paragraph",
+     "content": [
+      {
+       "type": "text",
+       "text": "After."
+      }
+     ]
+    }
+   ]
+  },
+  "text": "Thesis.\n[file: q3.pdf]\n[file: q3.pdf]\n[excerpt]\n[excerpt]\nNVDA daily chart\nNVDA daily chart\nAfter.",
+  "contentSize": 23,
+  "textSpans": [
+   {
+    "pm_start": 1,
+    "pm_end": 8,
+    "text": "Thesis."
+   },
+   {
+    "pm_start": 16,
+    "pm_end": 22,
+    "text": "After."
+   }
+  ],
+  "leafSpans": [
+   {
+    "pm_start": 9,
+    "pm_end": 10,
+    "text": "[file: q3.pdf]",
+    "atom": {
+     "type": "attachmentChip",
+     "id": "/api/j2/notes/n1/attachments/9f2c/q3.pdf"
+    }
+   },
+   {
+    "pm_start": 10,
+    "pm_end": 11,
+    "text": "[file: q3.pdf]",
+    "atom": {
+     "type": "attachmentChip",
+     "id": "/api/j2/notes/n1/attachments/41ab/q3.pdf"
+    }
+   },
+   {
+    "pm_start": 11,
+    "pm_end": 12,
+    "text": "[excerpt]",
+    "atom": {
+     "type": "documentExcerpt",
+     "id": "ex1"
+    }
+   },
+   {
+    "pm_start": 12,
+    "pm_end": 13,
+    "text": "[excerpt]",
+    "atom": {
+     "type": "documentExcerpt",
+     "id": "ex2"
+    }
+   },
+   {
+    "pm_start": 13,
+    "pm_end": 14,
+    "text": "NVDA daily chart",
+    "atom": {
+     "type": "widgetEmbed",
+     "id": "chart|2026-09-01T14:00:00.000Z"
+    }
+   },
+   {
+    "pm_start": 14,
+    "pm_end": 15,
+    "text": "NVDA daily chart",
+    "atom": {
+     "type": "widgetEmbed",
+     "id": "chart|2026-09-02T14:00:00.000Z"
+    }
+   }
+  ],
+  "passages": []
+ },
+ "identityAttrsEmpty": {
+  "json": {
+   "type": "doc",
+   "content": [
+    {
+     "type": "paragraph",
+     "content": [
+      {
+       "type": "text",
+       "text": "Before."
+      }
+     ]
+    },
+    {
+     "type": "attachmentChip",
+     "attrs": {
+      "name": "q3.pdf",
+      "href": ""
+     }
+    },
+    {
+     "type": "documentExcerpt",
+     "attrs": {
+      "excerptId": ""
+     }
+    },
+    {
+     "type": "widgetEmbed",
+     "attrs": {
+      "widgetId": "chart",
+      "searchText": "NVDA",
+      "capturedAt": ""
+     }
+    },
+    {
+     "type": "paragraph",
+     "content": [
+      {
+       "type": "text",
+       "text": "After."
+      }
+     ]
+    }
+   ]
+  },
+  "text": "Before.\n[file: q3.pdf]\n[excerpt]\nNVDA\nAfter.",
+  "contentSize": 20,
+  "textSpans": [
+   {
+    "pm_start": 1,
+    "pm_end": 8,
+    "text": "Before."
+   },
+   {
+    "pm_start": 13,
+    "pm_end": 19,
+    "text": "After."
+   }
+  ],
+  "leafSpans": [
+   {
+    "pm_start": 9,
+    "pm_end": 10,
+    "text": "[file: q3.pdf]",
+    "atom": null
+   },
+   {
+    "pm_start": 10,
+    "pm_end": 11,
+    "text": "[excerpt]",
+    "atom": null
+   },
+   {
+    "pm_start": 11,
+    "pm_end": 12,
+    "text": "NVDA",
+    "atom": null
+   }
+  ],
+  "passages": []
+ },
+ "chartsMtfThenSingle": {
+  "json": {
+   "type": "doc",
+   "content": [
+    {
+     "type": "paragraph",
+     "content": [
+      {
+       "type": "text",
+       "text": "NVDA thesis."
+      }
+     ]
+    },
+    {
+     "type": "widgetEmbed",
+     "attrs": {
+      "widgetId": "chart",
+      "searchText": "[chart: NVDA D]",
+      "capturedAt": "2026-09-01T14:00:00.000Z",
+      "embedId": "e-mtf-d"
+     }
+    },
+    {
+     "type": "widgetEmbed",
+     "attrs": {
+      "widgetId": "chart",
+      "searchText": "[chart: NVDA 1h]",
+      "capturedAt": "2026-09-01T14:00:00.000Z",
+      "embedId": "e-mtf-1h"
+     }
+    },
+    {
+     "type": "widgetEmbed",
+     "attrs": {
+      "widgetId": "chart",
+      "searchText": "[chart: NVDA 15m]",
+      "capturedAt": "2026-09-01T14:00:00.000Z",
+      "embedId": "e-mtf-15m"
+     }
+    },
+    {
+     "type": "paragraph",
+     "content": [
+      {
+       "type": "text",
+       "text": "Later."
+      }
+     ]
+    },
+    {
+     "type": "widgetEmbed",
+     "attrs": {
+      "widgetId": "chart",
+      "searchText": "[chart: AMD D]",
+      "capturedAt": "2026-09-01T14:05:00.000Z",
+      "embedId": "e-amd-d"
+     }
+    }
+   ]
+  },
+  "text": "NVDA thesis.\n[chart: NVDA D]\n[chart: NVDA 1h]\n[chart: NVDA 15m]\nLater.\n[chart: AMD D]",
+  "contentSize": 26,
+  "textSpans": [
+   {
+    "pm_start": 1,
+    "pm_end": 13,
+    "text": "NVDA thesis."
+   },
+   {
+    "pm_start": 18,
+    "pm_end": 24,
+    "text": "Later."
+   }
+  ],
+  "leafSpans": [
+   {
+    "pm_start": 14,
+    "pm_end": 15,
+    "text": "[chart: NVDA D]",
+    "atom": {
+     "type": "widgetEmbed",
+     "id": "e-mtf-d"
+    }
+   },
+   {
+    "pm_start": 15,
+    "pm_end": 16,
+    "text": "[chart: NVDA 1h]",
+    "atom": {
+     "type": "widgetEmbed",
+     "id": "e-mtf-1h"
+    }
+   },
+   {
+    "pm_start": 16,
+    "pm_end": 17,
+    "text": "[chart: NVDA 15m]",
+    "atom": {
+     "type": "widgetEmbed",
+     "id": "e-mtf-15m"
+    }
+   },
+   {
+    "pm_start": 25,
+    "pm_end": 26,
+    "text": "[chart: AMD D]",
+    "atom": {
+     "type": "widgetEmbed",
+     "id": "e-amd-d"
+    }
+   }
+  ],
+  "passages": []
+ },
+ "chartsCompare": {
+  "json": {
+   "type": "doc",
+   "content": [
+    {
+     "type": "paragraph",
+     "content": [
+      {
+       "type": "text",
+       "text": "Before the print."
+      }
+     ]
+    },
+    {
+     "type": "widgetEmbed",
+     "attrs": {
+      "widgetId": "chart",
+      "searchText": "[chart: NVDA D]",
+      "capturedAt": "2026-09-02T14:00:00.000Z",
+      "embedId": "e-cmp-before"
+     }
+    },
+    {
+     "type": "widgetEmbed",
+     "attrs": {
+      "widgetId": "chart",
+      "searchText": "[chart: NVDA D]",
+      "capturedAt": "2026-09-02T14:00:00.000Z",
+      "embedId": "e-cmp-after"
+     }
+    },
+    {
+     "type": "paragraph",
+     "content": [
+      {
+       "type": "text",
+       "text": "After."
+      }
+     ]
+    }
+   ]
+  },
+  "text": "Before the print.\n[chart: NVDA D]\n[chart: NVDA D]\nAfter.",
+  "contentSize": 29,
+  "textSpans": [
+   {
+    "pm_start": 1,
+    "pm_end": 18,
+    "text": "Before the print."
+   },
+   {
+    "pm_start": 22,
+    "pm_end": 28,
+    "text": "After."
+   }
+  ],
+  "leafSpans": [
+   {
+    "pm_start": 19,
+    "pm_end": 20,
+    "text": "[chart: NVDA D]",
+    "atom": {
+     "type": "widgetEmbed",
+     "id": "e-cmp-before"
+    }
+   },
+   {
+    "pm_start": 20,
+    "pm_end": 21,
+    "text": "[chart: NVDA D]",
+    "atom": {
+     "type": "widgetEmbed",
+     "id": "e-cmp-after"
+    }
+   }
+  ],
+  "passages": []
+ },
+ "chartsMtfThenSingleLegacy": {
+  "json": {
+   "type": "doc",
+   "content": [
+    {
+     "type": "paragraph",
+     "content": [
+      {
+       "type": "text",
+       "text": "NVDA thesis."
+      }
+     ]
+    },
+    {
+     "type": "widgetEmbed",
+     "attrs": {
+      "widgetId": "chart",
+      "searchText": "[chart: NVDA D]",
+      "capturedAt": "2026-09-01T14:00:00.000Z"
+     }
+    },
+    {
+     "type": "widgetEmbed",
+     "attrs": {
+      "widgetId": "chart",
+      "searchText": "[chart: NVDA 1h]",
+      "capturedAt": "2026-09-01T14:00:00.000Z"
+     }
+    },
+    {
+     "type": "widgetEmbed",
+     "attrs": {
+      "widgetId": "chart",
+      "searchText": "[chart: NVDA 15m]",
+      "capturedAt": "2026-09-01T14:00:00.000Z"
+     }
+    },
+    {
+     "type": "paragraph",
+     "content": [
+      {
+       "type": "text",
+       "text": "Later."
+      }
+     ]
+    },
+    {
+     "type": "widgetEmbed",
+     "attrs": {
+      "widgetId": "chart",
+      "searchText": "[chart: AMD D]",
+      "capturedAt": "2026-09-01T14:05:00.000Z"
+     }
+    }
+   ]
+  },
+  "text": "NVDA thesis.\n[chart: NVDA D]\n[chart: NVDA 1h]\n[chart: NVDA 15m]\nLater.\n[chart: AMD D]",
+  "contentSize": 26,
+  "textSpans": [
+   {
+    "pm_start": 1,
+    "pm_end": 13,
+    "text": "NVDA thesis."
+   },
+   {
+    "pm_start": 18,
+    "pm_end": 24,
+    "text": "Later."
+   }
+  ],
+  "leafSpans": [
+   {
+    "pm_start": 14,
+    "pm_end": 15,
+    "text": "[chart: NVDA D]",
+    "atom": {
+     "type": "widgetEmbed",
+     "id": "chart|2026-09-01T14:00:00.000Z"
+    }
+   },
+   {
+    "pm_start": 15,
+    "pm_end": 16,
+    "text": "[chart: NVDA 1h]",
+    "atom": {
+     "type": "widgetEmbed",
+     "id": "chart|2026-09-01T14:00:00.000Z"
+    }
+   },
+   {
+    "pm_start": 16,
+    "pm_end": 17,
+    "text": "[chart: NVDA 15m]",
+    "atom": {
+     "type": "widgetEmbed",
+     "id": "chart|2026-09-01T14:00:00.000Z"
+    }
+   },
+   {
+    "pm_start": 25,
+    "pm_end": 26,
+    "text": "[chart: AMD D]",
+    "atom": {
+     "type": "widgetEmbed",
+     "id": "chart|2026-09-01T14:05:00.000Z"
+    }
+   }
+  ],
+  "passages": []
+ },
+ "chartsCompareLegacy": {
+  "json": {
+   "type": "doc",
+   "content": [
+    {
+     "type": "paragraph",
+     "content": [
+      {
+       "type": "text",
+       "text": "Before the print."
+      }
+     ]
+    },
+    {
+     "type": "widgetEmbed",
+     "attrs": {
+      "widgetId": "chart",
+      "searchText": "[chart: NVDA D]",
+      "capturedAt": "2026-09-02T14:00:00.000Z"
+     }
+    },
+    {
+     "type": "widgetEmbed",
+     "attrs": {
+      "widgetId": "chart",
+      "searchText": "[chart: NVDA D]",
+      "capturedAt": "2026-09-02T14:00:00.000Z"
+     }
+    },
+    {
+     "type": "paragraph",
+     "content": [
+      {
+       "type": "text",
+       "text": "After."
+      }
+     ]
+    }
+   ]
+  },
+  "text": "Before the print.\n[chart: NVDA D]\n[chart: NVDA D]\nAfter.",
+  "contentSize": 29,
+  "textSpans": [
+   {
+    "pm_start": 1,
+    "pm_end": 18,
+    "text": "Before the print."
+   },
+   {
+    "pm_start": 22,
+    "pm_end": 28,
+    "text": "After."
+   }
+  ],
+  "leafSpans": [
+   {
+    "pm_start": 19,
+    "pm_end": 20,
+    "text": "[chart: NVDA D]",
+    "atom": {
+     "type": "widgetEmbed",
+     "id": "chart|2026-09-02T14:00:00.000Z"
+    }
+   },
+   {
+    "pm_start": 20,
+    "pm_end": 21,
+    "text": "[chart: NVDA D]",
+    "atom": {
+     "type": "widgetEmbed",
+     "id": "chart|2026-09-02T14:00:00.000Z"
+    }
+   }
+  ],
+  "passages": []
+ },
+ "hardBreaks": {
+  "json": {
+   "type": "doc",
+   "content": [
+    {
+     "type": "paragraph",
+     "content": [
+      {
+       "type": "text",
+       "text": "Guidance"
+      },
+      {
+       "type": "hardBreak"
+      },
+      {
+       "type": "text",
+       "text": "raised"
+      },
+      {
+       "type": "hardBreak"
+      },
+      {
+       "type": "hardBreak"
+      },
+      {
+       "type": "text",
+       "text": "again",
+       "marks": [
+        {
+         "type": "bold"
+        }
+       ]
+      }
+     ]
+    },
+    {
+     "type": "paragraph",
+     "content": [
+      {
+       "type": "hardBreak"
+      },
+      {
+       "type": "text",
+       "text": "lead"
+      }
+     ]
+    },
+    {
+     "type": "paragraph",
+     "content": [
+      {
+       "type": "text",
+       "text": "tail"
+      },
+      {
+       "type": "hardBreak"
+      }
+     ]
+    }
+   ]
+  },
+  "text": "Guidance raised  again\n lead\ntail ",
+  "contentSize": 38,
+  "textSpans": [
+   {
+    "pm_start": 1,
+    "pm_end": 9,
+    "text": "Guidance"
+   },
+   {
+    "pm_start": 10,
+    "pm_end": 16,
+    "text": "raised"
+   },
+   {
+    "pm_start": 18,
+    "pm_end": 23,
+    "text": "again"
+   },
+   {
+    "pm_start": 26,
+    "pm_end": 30,
+    "text": "lead"
+   },
+   {
+    "pm_start": 32,
+    "pm_end": 36,
+    "text": "tail"
+   }
+  ],
+  "leafSpans": [
+   {
+    "pm_start": 9,
+    "pm_end": 10,
+    "text": " ",
+    "atom": null
+   },
+   {
+    "pm_start": 16,
+    "pm_end": 17,
+    "text": " ",
+    "atom": null
+   },
+   {
+    "pm_start": 17,
+    "pm_end": 18,
+    "text": " ",
+    "atom": null
+   },
+   {
+    "pm_start": 25,
+    "pm_end": 26,
+    "text": " ",
+    "atom": null
+   },
+   {
+    "pm_start": 36,
+    "pm_end": 37,
+    "text": " ",
+    "atom": null
+   }
+  ],
+  "passages": [
+   {
+    "text": "Guidance raised",
+    "pm_from": 1,
+    "pm_to": 16
+   },
+   {
+    "text": "raised  again",
+    "pm_from": 10,
+    "pm_to": 23
+   },
+   {
+    "text": "lead",
+    "pm_from": 26,
+    "pm_to": 30
+   },
+   {
+    "text": "tail",
+    "pm_from": 32,
+    "pm_to": 36
+   }
+  ]
+ },
+ "longBlock": {
+  "json": {
+   "type": "doc",
+   "content": [
+    {
+     "type": "paragraph",
+     "content": [
+      {
+       "type": "text",
+       "text": "Intro."
+      }
+     ]
+    },
+    {
+     "type": "paragraph",
+     "content": [
+      {
+       "type": "text",
+       "text": "Guidance 🔥 raised 𝔸: the quarter closed with margins widening across every segment. the quarter closed with margins widening across every segment. the quarter closed with margins widening across every segment. the quarter closed with margins widening across every segment. the quarter closed with margins widening across every segment. the quarter closed with margins widening across every segment. the quarter closed with margins widening across every segment. the quarter closed with margins widening across every segment. Final word."
+      }
+     ]
+    },
+    {
+     "type": "paragraph",
+     "content": [
+      {
+       "type": "text",
+       "text": "After."
+      }
+     ]
+    }
+   ]
+  },
+  "text": "Intro.\nGuidance 🔥 raised 𝔸: the quarter closed with margins widening across every segment. the quarter closed with margins widening across every segment. the quarter closed with margins widening across every segment. the quarter closed with margins widening across every segment. the quarter closed with margins widening across every segment. the quarter closed with margins widening across every segment. the quarter closed with margins widening across every segment. the quarter closed with margins widening across every segment. Final word.\nAfter.",
+  "contentSize": 556,
+  "textSpans": [
+   {
+    "pm_start": 1,
+    "pm_end": 7,
+    "text": "Intro."
+   },
+   {
+    "pm_start": 9,
+    "pm_end": 547,
+    "text": "Guidance 🔥 raised 𝔸: the quarter closed with margins widening across every segment. the quarter closed with margins widening across every segment. the quarter closed with margins widening across every segment. the quarter closed with margins widening across every segment. the quarter closed with margins widening across every segment. the quarter closed with margins widening across every segment. the quarter closed with margins widening across every segment. the quarter closed with margins widening across every segment. Final word."
+   },
+   {
+    "pm_start": 549,
+    "pm_end": 555,
+    "text": "After."
+   }
+  ],
+  "leafSpans": [],
+  "passages": []
  }
 }

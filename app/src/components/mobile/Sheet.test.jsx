@@ -1,4 +1,5 @@
-import { render, screen, fireEvent } from '@testing-library/react'
+import { useState } from 'react'
+import { act, createEvent, render, screen, fireEvent } from '@testing-library/react'
 import { test, expect, vi } from 'vitest'
 import Sheet from './Sheet'
 
@@ -185,4 +186,149 @@ test('focus trap: only the TOPMOST sheet traps, so nested sheets do not fight', 
   // the INNER (topmost) sheet claims it, so focus lands inside that panel
   const panels = document.querySelectorAll('[data-sheet-panel]')
   expect(panels[panels.length - 1].contains(document.activeElement)).toBe(true)
+})
+
+
+// ─── a parent re-render must never move focus ───────────────────────────────
+//
+// ⛔⛔ Callers pass `onClose` inline, a new function on every render. The focus
+// effect was keyed on `[open, onClose]`, so every parent render restored focus
+// to whatever held it on open and then focused the panel a frame later. On the
+// deployed build (386px, touch tier) every keystroke in Ask's question box
+// moved focus to the Ask toggle behind the sheet and then to the panel, which
+// on a phone closes the keyboard after each character. The panel is focused
+// ONCE per open, focus is restored ONCE per close, and Escape calls the
+// caller's LATEST onClose.
+
+// Two animation frames, flushed for real: the panel focus is scheduled with
+// requestAnimationFrame, so a check that does not wait for it cannot fail.
+const frames = (n = 2) => act(() => new Promise((resolve) => {
+  const step = (k) => (k ? requestAnimationFrame(() => step(k - 1)) : resolve())
+  step(n)
+}))
+
+function TypingHost({ onClosed, variant }) {
+  const [open, setOpen] = useState(false)
+  const [q, setQ] = useState('')
+  return (
+    <>
+      <button type="button" onClick={() => setOpen(true)}>Open search</button>
+      {/* Inline, and closing over `q`: a new function on every keystroke. */}
+      <Sheet open={open} onClose={() => { onClosed(q); setOpen(false) }} title="Search" variant={variant}>
+        <input aria-label="query" value={q} onChange={(e) => setQ(e.target.value)} />
+      </Sheet>
+    </>
+  )
+}
+
+test('re-renders with a fresh inline onClose never move focus out of an input inside the sheet', async () => {
+  const onClosed = vi.fn()
+  render(<TypingHost onClosed={onClosed} />)
+  const opener = screen.getByRole('button', { name: 'Open search' })
+  opener.focus()
+  fireEvent.click(opener)
+  await frames()
+
+  const panel = document.querySelector('[data-sheet-panel]')
+  expect(document.activeElement).toBe(panel) // focused on open, as before
+  let panelFocuses = 0
+  panel.addEventListener('focus', () => { panelFocuses += 1 })
+
+  const input = screen.getByRole('textbox', { name: 'query' })
+  input.focus()
+  for (const value of ['a', 'ab', 'abc']) {
+    fireEvent.change(input, { target: { value } })
+    await frames()
+    expect(document.activeElement).toBe(input)
+  }
+  expect(panelFocuses).toBe(0)
+
+  // Escape calls the LATEST onClose: the one that closes over "abc".
+  fireEvent.keyDown(document, { key: 'Escape' })
+  expect(onClosed).toHaveBeenCalledTimes(1)
+  expect(onClosed).toHaveBeenCalledWith('abc')
+  await frames()
+  expect(document.querySelector('[data-sheet-panel]')).toBeNull()
+  expect(document.activeElement).toBe(opener) // restored once, on close
+})
+
+test('the backdrop calls the LATEST onClose too', async () => {
+  const onClosed = vi.fn()
+  render(<TypingHost onClosed={onClosed} />)
+  fireEvent.click(screen.getByRole('button', { name: 'Open search' }))
+  await frames()
+  const input = screen.getByRole('textbox', { name: 'query' })
+  fireEvent.change(input, { target: { value: 'xy' } })
+  fireEvent.mouseDown(document.querySelector('[class*="backdrop"]'))
+  expect(onClosed).toHaveBeenCalledWith('xy')
+})
+
+test('drag-to-dismiss calls the LATEST onClose too', async () => {
+  const onClosed = vi.fn()
+  render(<TypingHost onClosed={onClosed} variant="bottom-sheet" />)
+  fireEvent.click(screen.getByRole('button', { name: 'Open search' }))
+  await frames()
+  fireEvent.change(screen.getByRole('textbox', { name: 'query' }), { target: { value: 'dr' } })
+  const grip = document.querySelector('[class*="grip"]')
+  fireEvent.pointerDown(grip, { clientY: 100, pointerId: 1 })
+  fireEvent.pointerMove(grip, { clientY: 300, pointerId: 1 })
+  fireEvent.pointerUp(grip, { clientY: 300, pointerId: 1 })
+  expect(onClosed).toHaveBeenCalledWith('dr')
+})
+
+// ⛔ A drag-dismiss calls onClose ONCE, from the pointerup handler, never from
+// inside a state updater. It used to decide inside `setDragY((d) => ...)`. When
+// a pointermove's update is still pending as pointerup lands (the moves and
+// the release in one task, outside act -- the G-064 close-out re-review's
+// reproduction), React cannot run that updater eagerly: it runs during
+// Sheet's RENDER, twice (update rebasing), so the caller's onClose ran twice,
+// inside a render, with React's "Cannot update a component while rendering a
+// different component" warning. No StrictMode is involved.
+test('a fast drag-dismiss calls onClose exactly once, outside any render, with no React warning', async () => {
+  const calls = []
+  const errors = []
+  const spy = vi.spyOn(console, 'error').mockImplementation((...args) => { errors.push(String(args[0])) })
+  function Host() {
+    const [open, setOpen] = useState(true)
+    return (
+      <Sheet
+        open={open}
+        variant="bottom-sheet"
+        title="T"
+        onClose={() => {
+          calls.push(new Error().stack.includes('renderWithHooks') ? 'in-render' : 'in-handler')
+          setOpen(false)
+        }}
+      >
+        body
+      </Sheet>
+    )
+  }
+  render(<Host />)
+  const grip = document.querySelector('[class*="grip"]')
+  const prev = globalThis.IS_REACT_ACT_ENVIRONMENT
+  globalThis.IS_REACT_ACT_ENVIRONMENT = false
+  try {
+    grip.dispatchEvent(createEvent.pointerDown(grip, { clientY: 100, pointerId: 1 }))
+    grip.dispatchEvent(createEvent.pointerMove(grip, { clientY: 300, pointerId: 1 }))
+    grip.dispatchEvent(createEvent.pointerUp(grip, { clientY: 300, pointerId: 1 }))
+    await new Promise((resolve) => setTimeout(resolve, 50))
+  } finally {
+    globalThis.IS_REACT_ACT_ENVIRONMENT = prev
+    spy.mockRestore()
+  }
+  expect(calls).toEqual(['in-handler'])
+  expect(errors.filter((e) => /Cannot update a component/.test(e))).toEqual([])
+  expect(document.querySelector('[data-sheet-panel]')).toBeNull() // it did close
+})
+
+test('a short drag springs back and does not close', () => {
+  const onClose = vi.fn()
+  render(<Sheet open variant="bottom-sheet" onClose={onClose} title="T">body</Sheet>)
+  const grip = document.querySelector('[class*="grip"]')
+  fireEvent.pointerDown(grip, { clientY: 100, pointerId: 1 })
+  fireEvent.pointerMove(grip, { clientY: 180, pointerId: 1 })
+  fireEvent.pointerUp(grip, { clientY: 180, pointerId: 1 })
+  expect(onClose).not.toHaveBeenCalled()
+  expect(document.querySelector('[data-sheet-panel]').style.transform).toBe('')
 })

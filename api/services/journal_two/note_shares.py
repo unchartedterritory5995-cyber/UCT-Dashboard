@@ -121,6 +121,19 @@ def _rewrite_attachment_urls(raw_json: str, user_id: str, note_id: str, token: s
     )
 
 
+def _reduce_ask_citations(node: Any) -> Any:
+    """G-064 (spec §7.5): a chip's label, link, precision and claim describe notes
+    the member did NOT share. The public copy keeps only the number. Mutates in
+    place and returns the node."""
+    if isinstance(node, dict):
+        if node.get("type") == "askCitation":
+            attrs = node.get("attrs") if isinstance(node.get("attrs"), dict) else {}
+            node["attrs"] = {"n": attrs.get("n")}
+        for child in node.get("content") or []:
+            _reduce_ask_citations(child)
+    return node
+
+
 def resolve_share(token: str, conn: sqlite3.Connection | None = None) -> dict[str, Any] | None:
     """The SANITIZED public payload for an active token, or None."""
     owned = conn is None
@@ -145,7 +158,7 @@ def resolve_share(token: str, conn: sqlite3.Connection | None = None) -> dict[st
         return {
             "title": note.get("title") or "",
             "subtitle": note.get("subtitle"),
-            "bodyJson": json.loads(body_raw),
+            "bodyJson": _reduce_ask_citations(json.loads(body_raw)),
             "heroImageUrl": hero,
             "updatedAt": note.get("updatedAt"),
         }

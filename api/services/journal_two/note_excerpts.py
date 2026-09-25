@@ -76,6 +76,11 @@ def _now_iso() -> str:
     return _impl()
 
 
+def _document_source_kind(row) -> str | None:
+    from api.services.journal_two.ask_evidence import document_source_kind
+    return document_source_kind(row)
+
+
 def _row_to_excerpt(row: sqlite3.Row) -> dict[str, Any]:
     keys = row.keys()
     return {
@@ -97,7 +102,13 @@ def _row_to_excerpt(row: sqlite3.Row) -> dict[str, Any]:
         # depth for a web hit (`searchNavigation.navigationDepth` → 'note',
         # "there is no viewer to scroll"); this read simply never carried the
         # column that decision needs. API SERIALIZATION IS A CONSUMER.
-        "sourceKind": row["source_kind"] if "source_kind" in keys else None,
+        # ⛔ And it is the ONE server rule (`ask_evidence.document_source_kind`,
+        # i.e. `is_web_capture`, either column), not the raw `source_kind`
+        # column: the note's document list, a cited page's navigation and both
+        # Search sections give the same answer, so a door that trusts the list
+        # and then reads this excerpt can never be told "PDF" about a capture.
+        # None when the query selected neither capture column, as before.
+        "sourceKind": _document_source_kind(row),
         "sourceUrl": row["source_url"] if "source_url" in keys else None,
         "captureType": row["capture_type"] if "capture_type" in keys else None,
         "pageNumber": row["page_number"],

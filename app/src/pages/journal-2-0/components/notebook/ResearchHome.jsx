@@ -1,7 +1,11 @@
+import { useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import UIcon from '../../../../components/ui/UIcon'
 import useNotebookHome from '../../hooks/useNotebookHome'
+import { openSpanningCitation } from '../../lib/openCitation'
 import AskPanel from './AskPanel'
+import DocumentPreviewSheet from './DocumentPreviewSheet'
+import CapturedSourceSheet from './CapturedSourceSheet'
 import { notePath } from '../../../../hooks/useNoteBacklinks'
 import { SkeletonLine } from '../../../../components/Skeleton'
 import styles from './ResearchHome.module.css'
@@ -69,6 +73,10 @@ function Section({ title, notes, onOpen, viewAllHref, emptyReason }) {
 export default function ResearchHome({ onOpenNote, onCreateNote, onCreateThesis, onImport, hasAnyNotes }) {
   const { home, isLoading } = useNotebookHome()
   const navigate = useNavigate()
+  // What an Ask citation opened in place: a document page, or a captured web
+  // passage (lib/openCitation.js decides which).
+  const [previewDoc, setPreviewDoc] = useState(null)
+  const [capturedSource, setCapturedSource] = useState(null)
 
   const openNote = (note) => (onOpenNote ? onOpenNote(note) : navigate(notePath(note.id)))
 
@@ -128,10 +136,13 @@ export default function ResearchHome({ onOpenNote, onCreateNote, onCreateThesis,
           answers "what was I working on, and where do I resume?" -- Ask is
           one affordance on that page, not the page. */}
       <div className={styles.askRow}>
-        <AskPanel scope="notebook" onNavigate={(s) => {
-          const id = s?.navigation?.note_id
-          if (id) openNote({ id })
-        }} />
+        {/* ⛔ An EXCERPT citation used to be a dead click here: its navigation
+            carries no `note_id`, and this handler knew nothing else. The one
+            shared router opens it in place, and returns a sentence for
+            AskPanel to show when a source cannot be opened. */}
+        <AskPanel scope="notebook" onOpenNote={openNote} onNavigate={(s, _r, { signal } = {}) => openSpanningCitation(s, {
+          signal, openNote, openDocument: setPreviewDoc, openCapturedSource: setCapturedSource,
+        })} />
       </div>
       <Section title="Continue working" notes={home.continueWorking} onOpen={openNote} viewAllHref="/journal/notebook?view=all" />
       <Section title="Favorites" notes={home.favorites} onOpen={openNote} />
@@ -143,6 +154,28 @@ export default function ResearchHome({ onOpenNote, onCreateNote, onCreateThesis,
         emptyReason={<span className={styles.rowDate}>Open position</span>}
       />
       <Section title="Needs review" notes={home.needsReview} onOpen={openNote} />
+      <DocumentPreviewSheet
+        open={!!previewDoc}
+        href={previewDoc?.href}
+        name={previewDoc?.name}
+        page={previewDoc?.page}
+        onClose={() => setPreviewDoc(null)}
+        /* The viewer emphasises an excerpt only if it is HANDED that excerpt. */
+        excerpts={previewDoc?.emphasizeExcerpt ? [previewDoc.emphasizeExcerpt] : []}
+        emphasizeExcerptId={previewDoc?.emphasizeExcerptId}
+        documentId={previewDoc?.documentId}
+        onOpenNote={openNote}
+      />
+      <CapturedSourceSheet
+        open={!!capturedSource}
+        excerpt={capturedSource}
+        onClose={() => setCapturedSource(null)}
+        onOpenOwningNote={capturedSource ? () => {
+          const id = capturedSource.noteId
+          setCapturedSource(null)
+          openNote({ id })
+        } : null}
+      />
     </div>
   )
 }

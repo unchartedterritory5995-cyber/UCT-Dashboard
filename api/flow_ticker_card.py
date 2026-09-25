@@ -89,6 +89,12 @@ def _window_label(w: dict) -> str:
     active = w.get("active_days")
     span = f"{start} – {end}" if start and end and start != end else (start or end or "")
     head = "all history" if req == "all" else (f"last {req} trading days" if req else "")
+    # A WIDENED window says so on the image itself, not only in the reply text: the card is
+    # what gets screenshotted and re-posted, and a 20-day card must never pass for today's.
+    frm = str(w.get("widened_from") or "").lower()
+    if head and frm and frm != req:
+        asked = "all history" if frm == "all" else ("today" if frm == "1" else f"last {frm} days")
+        head = f"{head} (nothing {asked})"
     bits = [b for b in (head, span) if b]
     tail = f"{active} active day{'s' if active != 1 else ''}" if active else ""
     if tail:

@@ -132,6 +132,34 @@ def is_web_capture(row) -> bool:
             or _row_get(row, "source_kind") == SOURCE_KIND_WEB)
 
 
+def document_source_kind(row) -> str | None:
+    """What a CLIENT may act on when a document page is cited: `"web"` or
+    `"attachment"` -- the values `web_capture` writes into
+    `j2_note_documents.source_kind`, decided by `is_web_capture` above, the one
+    server answer to "is this row a web capture?". Never a second rule.
+
+    ⛔ None when the row's query selected NEITHER capture column -- a schema
+    that predates captures, or a query that forgot them (Wave N §1's exact
+    defect). The client then keeps its old behaviour instead of trusting an
+    "attachment" nobody established: calling a captured passage an attachment
+    is what put a PDF viewer over a `web:<sha256>` identity (Wave N §9).
+    """
+    from api.services.journal_two.web_capture import (
+        SOURCE_KIND_ATTACHMENT, SOURCE_KIND_WEB as _WEB)
+    if not any(_row_has(row, c) for c in ("capture_type", "source_kind")):
+        return None
+    return _WEB if is_web_capture(row) else SOURCE_KIND_ATTACHMENT
+
+
+def _row_has(row, key) -> bool:
+    if isinstance(row, dict):
+        return key in row
+    try:
+        return key in row.keys()
+    except (AttributeError, TypeError):
+        return False
+
+
 def coverage_for_row(row) -> str:
     """Coverage from a retrieved row, preferring the finer column.
 
@@ -319,9 +347,20 @@ def from_document_page(row, *, snippet: str, score: float = 0.0) -> dict[str, An
         # that already knows the note (the editor asking about ITS note) can
         # supply it, and a missing one degrades to "open the note I am in"
         # rather than to a confident jump into the wrong one.
+        #
+        # ⛔ AND THE KIND TRAVELS WITH IT. A document citation can only open the
+        # viewer at its page when the client KNOWS it is a PDF; a captured web
+        # passage is revisited as a captured passage (never a PDF viewer over a
+        # `web:` identity, Wave N §9), and for that the client needs the
+        # excerpt `capture_web_source` wrote beside the page -- the retrieval
+        # query attaches its id as `capture_excerpt_id`. No kind means an old
+        # schema or a query that did not ask, and the client does NOT guess.
         navigation={"kind": "document", "document_id": row["document_id"],
                     "page_number": row["page_number"],
-                    **({"note_id": row["note_id"]} if row.get("note_id") else {})},
+                    **({"note_id": row["note_id"]} if row.get("note_id") else {}),
+                    **({"source_kind": kind} if (kind := document_source_kind(row)) else {}),
+                    **({"excerpt_id": row["capture_excerpt_id"]}
+                       if row.get("capture_excerpt_id") else {})},
         citation_validity=CITE_PAGE_ONLY,
         lineage_key=f"page:{row['document_id']}#{row['page_number']}",
         coverage=coverage_for_row(row),

@@ -2,6 +2,7 @@ import { useRef } from 'react'
 import Sheet from '../../../../components/mobile/Sheet'
 import UIcon from '../../../../components/ui/UIcon'
 import AskPanel from './AskPanel'
+import { SOURCE_NOWHERE } from '../../lib/openCitation'
 // ⛔ THE VIEWER IS BEHIND A BOUNDARY, NOT IMPORTED DIRECTLY. A static import here is what
 // let a pdfjs incompatibility take the whole /journal/notebook route down on iOS 17
 // (2026-09-12). See PdfViewerBoundary.jsx for the incident and both mechanisms.
@@ -24,6 +25,10 @@ export default function DocumentPreviewSheet({
   open, href, name, page, onClose,
   excerpts = [], onSaveExcerpt, emphasizeExcerptId,
   documentId = null,
+  // G-064: inside a note, `onInsert` puts an answer into that note; in the
+  // research workspace, `onOpenNote` enables the picker (spec §3.2-3.3).
+  onInsert = null,
+  onOpenNote = null,
 }) {
   // Wave P5 — `bodyClassName` makes the sheet's body a flex column that does
   // not scroll, so the viewer below can size to the space that is LEFT and
@@ -63,8 +68,14 @@ export default function DocumentPreviewSheet({
               target={documentId}
               onNavigate={(source) => {
                 const p = source?.navigation?.page_number
-                if (p) viewerRef.current?.scrollToPage?.(p)
+                // A source with no page has nowhere to go in this viewer, and
+                // AskPanel says so inside itself rather than doing nothing.
+                if (!p) return SOURCE_NOWHERE
+                viewerRef.current?.scrollToPage?.(p)
+                return null
               }}
+              onInsert={onInsert}
+              onOpenNote={onOpenNote}
             />
           )}
         </div>

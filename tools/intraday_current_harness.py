@@ -1,4 +1,4 @@
-"""Measure T0 -> TC: the FIRST CURRENT-ENOUGH VISIBLE PAINT.
+r"""Measure T0 -> TC: the FIRST CURRENT-ENOUGH VISIBLE PAINT.
 
 The metric this replaces was actively misleading. `T0 -> paint` records when
 candles reach the canvas and says nothing about WHICH SESSION they describe, so

@@ -277,6 +277,35 @@ const TEST_INFRA = /(^|[\\/])(__tests__|__fixtures__|__mocks__|testing|test-stub
  * recorded in a diff with a reason beside it; that is the point.
  */
 const AWAITING_A_DECISION = {
+  // ── S4 CP1 DIVERGENCE DETECTOR — RECORDED, NOT MOUNTED (2026-09-25, R-29) ─
+  //
+  // Its own header is the reason: approved scope (owner, 2026-09-13) is "a
+  // derivation + a divergence rail. Read-only. Mounts nothing." Its consumer is
+  // `focusDivergence.test.jsx`, which this walk cannot see because it starts
+  // from App.jsx. It was filed as R-29 in the joystick closure and left red on
+  // master since; recorded here so the rail stops crying wolf about a decision
+  // that was made in writing. Expiry: S4 mounts a consumer (S4 CP3 already
+  // derives HubContext.symbol from useAppFocus — the detector may then be
+  // retired) or deletes the module; then drop this entry.
+  'app/src/lib/context/focusDivergence.js':
+    'S4 CP1 divergence detector — read-only, mounts nothing BY APPROVED SCOPE '
+    + '(2026-09-13); reached only by its own rail. R-29. Mount, retire, or '
+    + 'delete it; then drop this entry.',
+  // ── FILTER BAND — ORPHANED BY #178, RECORDED NOT DELETED (2026-09-25) ────
+  //
+  // The owner removed the per-control percentile bands and the basis note from
+  // FilterRail on 2026-09-21 (46d03d3c4, "remove range bands"); FilterRail.jsx
+  // says so at its own render site. That left this renderer with no importer,
+  // its "wire" tests red, and this rail red — all three since the same commit.
+  // Recorded rather than deleted because tests/test_screener_distribution.py
+  // still READS FilterBand.jsx for its refusal sentences: deleting the file
+  // means re-pointing that Python rail in the same commit, which is the
+  // screener owner's call (delete both, or re-wire the band somewhere). Expiry:
+  // whichever of those happens — then drop this entry.
+  'app/src/pages/screener/shell/FilterBand.jsx':
+    'FILTER BAND — the measured-range renderer FilterRail stopped mounting in '
+    + '#178 (2026-09-21). Delete it with tests/test_screener_distribution.py '
+    + 're-pointed, or re-wire it; do not leave it looking shipped.',
   // ── THE PINE RUNTIME, NOT YET MOUNTED (2026-09-09) ───────────────────────
   //
   // ⛔⛔ THESE ARE ORPHANS ON PURPOSE AND FOR A DATED REASON, WHICH IS THE ONLY
@@ -663,28 +692,6 @@ const AWAITING_A_DECISION = {
     'PACKET-AA CP1 — built and tested, deliberately unmounted pending CP2 '
     + '(requires owner+Ravi coordination on the OptionsFlow.jsx insertion '
     + 'point). See docs/terminal-research gate packet-aa-flow-explain-wiring-gate.md.',
-  //
-  // ── S4 CP1 — THE FOCUS-DIVERGENCE DETECTOR, FILED AS R-29 (2026-09-24) ──
-  //
-  // `76c62c494` ("S4 CP1: the divergence detector — read-only, mounts nothing")
-  // built `lib/context/focusDivergence.js` ahead of its consumer. At master today
-  // its only non-test mention is a COMMENT in `hub/HubContext.jsx`, so it has zero
-  // real importers and this rail is right to name it. It has redded every full
-  // gate on master since 2026-09-13 (`docs/plans/joystick/requests.md`, R-29); it
-  // was once REMOVED from an allow-list on evidence it had stopped failing, and
-  // was re-orphaned — the ledger's own argument for an entry with a reason over
-  // another removal: an entry survives a re-orphaning, a removal does not.
-  //
-  // ⛔ THE DECISION IS NOT MADE HERE. Mount-or-delete belongs to the S4 workstream
-  // (R-29's owner); this entry records that it is PENDING, which is the third of
-  // the three outcomes this rail's own message offers. DELETE THIS ENTRY in the
-  // commit that wires the detector or removes the file — the wired/gone checks
-  // below will insist on it.
-  'app/src/lib/context/focusDivergence.js':
-    'S4 CP1 (76c62c494) — the symbol-link focus-divergence detector, read-only '
-    + 'and mounted by nothing at master; R-29 (filed 2026-09-13) owns the '
-    + 'mount-or-delete decision. Recorded PENDING, not shipped. Delete this entry '
-    + 'in the commit that wires it or removes it.',
   }
 
 describe('🔴 every module under app/src is REACHABLE from an entry point', () => {

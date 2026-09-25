@@ -183,6 +183,14 @@ def resolve_entity(conn, user_id: str, query: str) -> dict[str, Any] | None:
 
 # ── Per-source retrieval ─────────────────────────────────────────────────────
 
+# G-064 fix round 1 (Finding 3): `_notes` drops answer-only notes AFTER the SQL
+# LIMIT, so a burst of pasted-answer notes that out-rank a real member note on
+# bm25 could fill every slot and leave the caller with nothing. Over-fetch a
+# multiple of the requested limit so dropped candidates still leave room for a
+# real one further down the ranking.
+_INSERT_OVERFETCH = 3
+
+
 def _notes(conn, user_id: str, expr: str, limit: int,
            note_ids: list[str] | None = None) -> list[dict[str, Any]]:
     """Candidate notes via FTS, then the passage LOCATED inside each.
@@ -204,42 +212,108 @@ def _notes(conn, user_id: str, expr: str, limit: int,
         sql += f" AND n.id IN ({','.join('?' * len(note_ids))})"
         params.extend(note_ids)
     sql += " ORDER BY score LIMIT ?"
-    params.append(limit)
+    params.append(limit * _INSERT_OVERFETCH)
 
     out: list[dict[str, Any]] = []
     for r in conn.execute(sql, params).fetchall():
+        if len(out) >= limit:
+            break
         row = dict(r)
         doc = _json(row.get("body_json"))
-        snippet, location, validity = _best_note_passage(doc, expr)
+        snippet, location, validity = _best_note_passage(doc, expr, row.get("title") or "")
+        if snippet is None:
+            # G-064 (spec §7.2): the body is only inserted Ask answers.
+            # Presenting it would hand the model its own earlier output as
+            # "notes they wrote".
+            continue
         out.append(ev.from_note(row, snippet=snippet, location=location,
                                 citation_validity=validity, score=-row["score"]))
     return out
 
 
-def _best_note_passage(doc, expr: str):
+def _best_note_passage(doc, expr: str, title: str = ""):
     """Pick a passage to cite and give it a real ProseMirror location.
 
     Falls back honestly: if no query term can be located in the canonical
     text, the citation opens the note WITHOUT claiming a passage (§21) rather
     than pointing at a guess.
+
+    ⛔ G-064 (spec §7.2): text inside an inserted Ask Notebook answer is never a
+    passage and never part of a snippet. A body whose ONLY text is inserted
+    answers returns (None, None, None) and the caller drops the note.
+
+    ⛔ G-064 fix round 1 (Finding 2, spec §7.2): "A note whose only match is
+    inside an inserted answer yields no passage, so it is not cited." A term
+    every one of whose occurrences sits inside an insert is NOT the honest
+    note_only fallback below -- unless the note's own TITLE independently
+    names the term, in which case the note is genuinely about the subject and
+    still opens (without a passage claim, snippet drawn from member text only).
     """
     flat = nct.flatten(doc)
     text = flat["text"]
     if not text:
         return "", None, ev.CITE_NOTE_ONLY
+    own = nct.member_text(flat)
+    if not own.strip():
+        return None, None, None
     terms = [t for t in _terms(expr) if len(t) > 2]
+    found_only_in_insert = False
+    index = nct.SpanIndex(flat["spans"])  # one index for every occurrence's lookups
     for term in terms:
-        idx = text.lower().find(term.lower())
+        # ⛔ MATCH IN THE ORIGINAL TEXT, NEVER IN `text.lower()` (Wave 4). A
+        # lowercased copy is not index-aligned with the text it came from:
+        # 'İ' (U+0130) lowercases to TWO code points, so every offset found in
+        # the copy after one pointed one character further along the real
+        # text, and the citation landed on the wrong characters. re's
+        # IGNORECASE folds one character to one character, so a match's
+        # offsets address `text` itself and it spans exactly len(term). The
+        # lookahead keeps overlapping occurrences, as the find loop did.
+        # Iterated LAZILY (review M5): the loop stops at the first usable
+        # occurrence, so a common term in a huge note is not collected whole
+        # first. Measured on a 1.17M-character note, one common term, the
+        # whole call (flatten included): collecting 68 ms, lazy 48 ms, the
+        # pre-Wave-4 find loop 49 ms; answers identical over 87,196 cases.
+        saw_any = False
+        idx = first = -1
+        for m in re.finditer(f"(?={re.escape(term)})", text, re.IGNORECASE):
+            at = m.start()
+            saw_any = True
+            if index.in_ask_insert(at, at + len(term)):
+                continue
+            if first < 0:
+                first = at
+            # Review M2: an occurrence inside an atom that can carry no
+            # identity only opens the note, so a LATER occurrence that can
+            # be cited exactly is preferred; with none, the first stands.
+            occ = index.pm_range(at, at + len(term))
+            if occ is None or index.precise(occ):
+                idx = at
+                break
         if idx < 0:
+            idx = first
+        if idx < 0:
+            if saw_any:
+                found_only_in_insert = True
             continue
         start = max(0, idx - 90)
         end = min(len(text), idx + len(term) + 150)
-        snippet = text[start:end].strip()
-        rng = nct.pm_range(idx, idx + len(term), flat["spans"])
+        snippet = nct.member_text(flat, start, end).strip()
+        rng = index.pm_range(idx, idx + len(term))
         if rng:
-            return snippet, {**rng, "fingerprint": nct.fingerprint(doc),
-                             "snippet_start": idx, "snippet_end": idx + len(term)}, ev.CITE_EXACT
-    return text[:200].strip(), None, ev.CITE_NOTE_ONLY
+            location = {**rng, "fingerprint": nct.fingerprint(doc),
+                        "snippet_start": idx, "snippet_end": idx + len(term)}
+            atom = index.atom_at(rng)
+            if atom:
+                # The term matched inside one atom's placeholder: cite the
+                # atom by identity, never by that text (review N1).
+                location["atom"] = atom
+            return snippet, location, (ev.CITE_EXACT if index.precise(rng)
+                                       else ev.CITE_NOTE_ONLY)
+    if found_only_in_insert:
+        low_title = (title or "").lower()
+        if not any(t.lower() in low_title for t in terms):
+            return None, None, None
+    return own[:200].strip(), None, ev.CITE_NOTE_ONLY
 
 
 # Words that cannot decide whether a passage ANSWERS a question. Kept small
@@ -351,14 +425,43 @@ def ask_match_expr(query: str) -> str | None:
     return " OR ".join(f'"{w}"' for w in words)
 
 
+def _link_capture_excerpts(conn, user_id: str, rows: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    """⭐ A CAPTURED WEB PASSAGE IS AN EXCERPT AS WELL AS A PAGE.
+    `web_capture_store.capture_web_source` writes the page and its excerpt in
+    one transaction, and a member revisits a captured passage THROUGH the
+    excerpt (the captured-passage sheet reads it). So a web page row carries
+    its excerpt's id to the client as `capture_excerpt_id`; a PDF page never
+    needs one. Tenant-scoped, one query per call, and a web page whose excerpt
+    was deleted simply carries none -- a host that spans notes then opens the
+    owning note, and "This note" (already open) says "That passage is no longer
+    available." instead.
+
+    ⛔ Decided by `ev.is_web_capture`, the one server answer, so a row that did
+    not select the capture columns is never linked (it is not known to be web).
+    The pairing itself is `web_capture_store.capture_excerpt_ids`, the one join
+    the note's document list uses too.
+    """
+    from api.services.journal_two.web_capture_store import capture_excerpt_ids
+    web = [r for r in rows if ev.is_web_capture(r)]
+    if not web:
+        return rows
+    first = capture_excerpt_ids(conn, user_id, (r["document_id"] for r in web))
+    for r in web:
+        eid = first.get((r["document_id"], r["page_number"]))
+        if eid:
+            r["capture_excerpt_id"] = eid
+    return rows
+
+
 def _document_pages(conn, user_id: str, q: str, limit: int) -> list[dict[str, Any]]:
     from api.services.journal_two.document_search import search_document_pages
-    out = []
+    rows = []
     for r in search_document_pages(user_id, q, limit=limit, conn=conn):
         row = dict(r)
         row["user_id"] = user_id
-        out.append(ev.from_document_page(row, snippet=row.get("snippet") or "", score=0.5))
-    return out
+        rows.append(row)
+    return [ev.from_document_page(row, snippet=row.get("snippet") or "", score=0.5)
+            for row in _link_capture_excerpts(conn, user_id, rows)]
 
 
 def _excerpts(conn, user_id: str, q: str, limit: int) -> list[dict[str, Any]]:
@@ -706,13 +809,13 @@ def _document_pages_scoped(conn, user_id: str, document_id: str, q: str,
         " ORDER BY bm25(j2_note_document_pages_fts) LIMIT ?",
         (expr, user_id, document_id, limit),
     ).fetchall()
-    out = []
+    found = []
     for r in rows:
         row = dict(r)
         row["user_id"] = user_id
-        out.append(ev.from_document_page(row, snippet=row.get("snippet") or "",
-                                         score=0.6))
-    return out
+        found.append(row)
+    return [ev.from_document_page(row, snippet=row.get("snippet") or "", score=0.6)
+            for row in _link_capture_excerpts(conn, user_id, found)]
 
 
 def _excerpts_scoped(conn, user_id: str, document_id: str, q: str,
@@ -942,13 +1045,13 @@ def _document_pages_in_note(conn, user_id: str, note_id: str, q: str,
         if not _no_capture_tables(e):
             raise
         return []
-    out = []
+    found = []
     for r in rows:
         row = dict(r)
         row["user_id"] = user_id
-        out.append(ev.from_document_page(row, snippet=row.get("snippet") or "",
-                                         score=0.6))
-    return out
+        found.append(row)
+    return [ev.from_document_page(row, snippet=row.get("snippet") or "", score=0.6)
+            for row in _link_capture_excerpts(conn, user_id, found)]
 
 
 def _excerpts_in_note(conn, user_id: str, note_id: str, q: str,
@@ -1131,6 +1234,9 @@ def _note_blocks(doc, q: str) -> list[dict[str, Any]]:
         return []
     fp = nct.fingerprint(doc)
     terms = [t.lower() for t in _content_terms(q)]
+    # ONE index for every block's lookups: per-block scans of all spans made a
+    # 3,000-paragraph note take ~3.7 s (final review M-1).
+    index = nct.SpanIndex(flat["spans"])
 
     out: list[dict[str, Any]] = []
     cursor = 0
@@ -1140,16 +1246,33 @@ def _note_blocks(doc, q: str) -> list[dict[str, Any]]:
         body = raw.strip()
         if len(body) < _MIN_BLOCK_CHARS:
             continue
-        rng = nct.pm_range(start, end, flat["spans"])
+        rng = index.pm_range(start, end)
         if rng is None:
+            continue
+        if index.in_ask_insert(start, end):
+            # G-064 (spec §7.2): an inserted Ask answer is not the member's
+            # writing, so it is never evidence in "This note" either.
             continue
         low = body.lower()
         hits = sum(1 for t in terms if t in low)
-        out.append({
-            "text": body, "hits": hits,
-            "location": {**rng, "fingerprint": fp,
-                         "snippet_start": start, "snippet_end": end},
-        })
+        # ⛔ `text_length` IS HOW THE CLIENT KNOWS IT WAS SENT A PREFIX (Wave 4).
+        # The browser receives this block's text capped at
+        # ask_service._SNIPPET_CAP (and ask_ranking may cut it shorter still),
+        # so a long block's snippet is only its first part: matched as a whole
+        # it never verified, and re-found it landed on the first 400 characters
+        # only. The block's full length -- in UTF-16 units, the browser's own
+        # measure of the trimmed text -- lets askCitation.js tell a prefix from
+        # the whole and extend it to the end of the block, never beyond, and
+        # never for a snippet that is already whole.
+        location = {**rng, "fingerprint": fp, "snippet_start": start, "snippet_end": end,
+                    "text_length": nct.utf16_length(body)}
+        atom = index.atom_at(rng)
+        if atom:
+            # A block that IS one atom is cited by that atom's identity: its
+            # placeholder text cannot tell it from a look-alike (review N1).
+            location["atom"] = atom
+        out.append({"text": body, "hits": hits, "location": location,
+                     "precise": index.precise(rng)})
     return out
 
 
@@ -1191,7 +1314,8 @@ def retrieve_note(user_id: str, note_id: str, query: str, *, limit: int = 40,
         items = []
         for i, b in enumerate(blocks):
             e = ev.from_note(row, snippet=b["text"], location=b["location"],
-                             citation_validity=ev.CITE_EXACT,
+                             citation_validity=(ev.CITE_EXACT if b["precise"]
+                                                else ev.CITE_NOTE_ONLY),
                              score=float(b["hits"]))
             # Each block is its own citable passage, so identity must be per
             # block -- otherwise lineage dedupe would collapse the note to one
@@ -1377,6 +1501,7 @@ def _entity_documents(conn, user_id: str, note_ids: list[str], q: str,
         return []
     ph = ",".join("?" * len(note_ids))
     out: list[dict[str, Any]] = []
+    pages: list[dict[str, Any]] = []
     for r in conn.execute(
         "SELECT p.document_id AS document_id, p.page_number AS page_number,"
         " snippet(j2_note_document_pages_fts, 3, '', '', '...', 18) AS snippet,"
@@ -1398,7 +1523,9 @@ def _entity_documents(conn, user_id: str, note_ids: list[str], q: str,
     ).fetchall():
         row = dict(r)
         row["user_id"] = user_id
-        out.append(ev.from_document_page(row, snippet=row.get("snippet") or "", score=0.6))
+        pages.append(row)
+    out.extend(ev.from_document_page(row, snippet=row.get("snippet") or "", score=0.6)
+               for row in _link_capture_excerpts(conn, user_id, pages))
     for r in conn.execute(
         "SELECT e.*, d.name AS document_name"
         f"{_capture_cols(conn)}"
