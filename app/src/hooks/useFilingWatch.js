@@ -1,4 +1,9 @@
-import useSWR, { mutate as globalMutate } from 'swr'
+import { mutate as globalMutate } from 'swr'
+// ⭐ `useMobileSWR` (2026-09-25): the filing-watch list is polled on every member
+// surface incl. phones, so the tick halves there and stops while hidden
+// (`hooks/pollingSites.rail.test.js`). `revalidateOnFocus` becomes true — a fresh
+// list on return is what a watch is for.
+import useMobileSWR from './useMobileSWR'
 import { useState, useCallback } from 'react'
 import { useAuth } from '../context/AuthContext'
 
@@ -25,7 +30,7 @@ export default function useFilingWatch() {
   const { user, s7FilingWatchEnabled } = useAuth()
   // Gating the KEY, not just the render: a dark feature must make no network
   // calls. A null key means SWR never fetches and never polls.
-  const { data, isLoading } = useSWR(
+  const { data, isLoading } = useMobileSWR(
     user && s7FilingWatchEnabled ? LIST_KEY : null, fetcher, {
     refreshInterval: 30000,
     dedupingInterval: 10000,

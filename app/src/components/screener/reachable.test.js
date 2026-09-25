@@ -277,6 +277,20 @@ const TEST_INFRA = /(^|[\\/])(__tests__|__fixtures__|__mocks__|testing|test-stub
  * recorded in a diff with a reason beside it; that is the point.
  */
 const AWAITING_A_DECISION = {
+  // ── S4 CP1 DIVERGENCE DETECTOR — RECORDED, NOT MOUNTED (2026-09-25, R-29) ─
+  //
+  // Its own header is the reason: approved scope (owner, 2026-09-13) is "a
+  // derivation + a divergence rail. Read-only. Mounts nothing." Its consumer is
+  // `focusDivergence.test.jsx`, which this walk cannot see because it starts
+  // from App.jsx. It was filed as R-29 in the joystick closure and left red on
+  // master since; recorded here so the rail stops crying wolf about a decision
+  // that was made in writing. Expiry: S4 mounts a consumer (S4 CP3 already
+  // derives HubContext.symbol from useAppFocus — the detector may then be
+  // retired) or deletes the module; then drop this entry.
+  'app/src/lib/context/focusDivergence.js':
+    'S4 CP1 divergence detector — read-only, mounts nothing BY APPROVED SCOPE '
+    + '(2026-09-13); reached only by its own rail. R-29. Mount, retire, or '
+    + 'delete it; then drop this entry.',
   // ── FILTER BAND — ORPHANED BY #178, RECORDED NOT DELETED (2026-09-25) ────
   //
   // The owner removed the per-control percentile bands and the basis note from

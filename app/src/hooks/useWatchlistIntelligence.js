@@ -1,4 +1,6 @@
-import useSWR from 'swr'
+// ⭐ `useMobileSWR` (2026-09-25): a 2-minute member poll that phones render too —
+// halves there, stops while hidden (`hooks/pollingSites.rail.test.js`).
+import useMobileSWR from './useMobileSWR'
 
 // Unlike useWatchlistPerformance/useWatchlistMeta/useWatchlistThemes, a fetch
 // failure here does NOT collapse to `{}` -- every requested symbol reads
@@ -34,7 +36,7 @@ export default function useWatchlistIntelligence(tickers = [], changes = {}, pri
       body: JSON.stringify({ tickers: sorted, changes, price_observed_at: priceObservedAt }),
     }).then(r => r.ok ? r.json() : null)
 
-  const { data, error } = useSWR(key, postFetcher, {
+  const { data, error } = useMobileSWR(key, postFetcher, {
     refreshInterval: 2 * 60 * 1000,
     dedupingInterval: 60 * 1000,
   })
