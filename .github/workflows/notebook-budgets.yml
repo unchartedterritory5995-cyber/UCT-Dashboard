@@ -1,0 +1,115 @@
+# promotion-gate: no — ADVISORY. The latency job times real reads on a shared GitHub
+#   runner whose speed is not ours to control, so a red here means "look at this", never
+#   "do not deploy". The byte job is deterministic but rides in the same file. The
+#   ENFORCING gate for the brief's number (search p95 < 100 ms at 50,000 notes) is LOCAL:
+#   `python tools/notebook_scale_benchmark.py --tiers 50000 --thresholds
+#   docs/notebook/perf-budgets.json --budget search --budget reads --budget tasks`
+#   (docs/notebook/perf-budgets.md). Added 2026-09-25, wave 7 lane I.
+# ─── NOTEBOOK PERFORMANCE BUDGETS, IN CI ─────────────────────────────────────
+#
+# Two budgets, both read from `docs/notebook/perf-budgets.json` (edited BY HAND) and
+# both checked by ONE tool, `tools/notebook_perf_budgets.py`:
+#
+#  1. Notebook JS bytes: the JS a browser fetches before the Notebook route renders,
+#     summed over the STATIC import closure of the route's lazy roots in the Vite build
+#     manifest (`build.manifest: true` in app/vite.config.js). Derived from the graph on
+#     every run, never a hand-typed chunk list. Budget = the I0 baseline + 5%.
+#  2. Read latency p95, from `tools/notebook_scale_benchmark.py --json`.
+#
+# ⛔ WHY ONLY THE 1k AND 10k TIERS RUN HERE. The 50k tier seeds ~50,000 notes with ~2 KB
+#   bodies and their FTS index (a ~370 MB SQLite file, minutes of seeding) and then times
+#   19 reads 22 times each. On a shared runner that is slow, and its timing is noisy
+#   enough that a 100 ms line would flap. At 10k the same line is loose ON PURPOSE: it
+#   still catches the gross regressions this wave fixed (the correlated sidecar EXISTS
+#   was 717 ms p95 at 10k), and it cannot cry wolf on runner noise. The 50k number is
+#   the local gate named in the marker above.
+#
+# ⛔ AN OP OR TIER THE RUN DID NOT MEASURE IS A BREACH, and a missing manifest or a
+#   renamed route root exits 3 (fails CLOSED). A budget that could not be checked did
+#   not pass.
+name: notebook budgets
+
+on:
+  push:
+    paths:
+      - 'api/services/journal_two/**'
+      - 'api/routers/journal_two.py'
+      - 'app/src/**'
+      - 'app/vite.config.js'
+      - 'app/package.json'
+      - 'app/package-lock.json'
+      - 'tools/notebook_scale_benchmark.py'
+      - 'tools/notebook_perf_budgets.py'
+      - 'docs/notebook/perf-budgets.json'
+      - '.github/workflows/notebook-budgets.yml'
+  pull_request:
+    paths:
+      - 'api/services/journal_two/**'
+      - 'api/routers/journal_two.py'
+      - 'app/src/**'
+      - 'app/vite.config.js'
+      - 'app/package.json'
+      - 'app/package-lock.json'
+      - 'tools/notebook_scale_benchmark.py'
+      - 'tools/notebook_perf_budgets.py'
+      - 'docs/notebook/perf-budgets.json'
+      - '.github/workflows/notebook-budgets.yml'
+
+jobs:
+  latency:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Install
+        run: python -m pip install --quiet -r requirements.txt
+
+      # The benchmark imports the repo-root conftest before any api.* module, so every
+      # /data path it could touch is pinned to a sandbox and a stray write fails the run.
+      - name: Benchmark the 1k and 10k tiers (50k is the local gate -- see the header)
+        run: python tools/notebook_scale_benchmark.py --tiers 1000,10000 --json notebook-bench.json
+
+      - name: Latency budgets at the CI tier
+        run: >
+          python tools/notebook_perf_budgets.py --bench notebook-bench.json
+          --budget search_ci --budget reads_ci --budget tasks_ci
+
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: notebook-bench
+          path: notebook-bench.json
+          if-no-files-found: warn
+
+  bytes:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: npm
+          cache-dependency-path: app/package-lock.json
+
+      - name: Install
+        working-directory: app
+        run: npm ci
+
+      - name: Build (writes dist/.vite/manifest.json)
+        working-directory: app
+        run: npm run build
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      # Stdlib only: the byte check reads the manifest and the files beside it.
+      - name: Notebook JS byte budget
+        run: python tools/notebook_perf_budgets.py --dist app/dist

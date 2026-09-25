@@ -1,0 +1,92 @@
+{
+  "_": "Notebook performance budgets, enforced by tools/notebook_perf_budgets.py (bytes from the Vite manifest; latency from a tools/notebook_scale_benchmark.py --json report). EDITED BY HAND, and only when a budget is raised or lowered ON PURPOSE: say why in docs/notebook/perf-budgets.md and in the commit. Never regenerate this file from a run -- a budget that follows the measurement is not a budget.",
+  "bytes": {
+    "notebook_first_open": {
+      "roots": [
+        "src/pages/journal-2-0/JournalLayout.jsx",
+        "src/pages/journal-2-0/surfaces/NotebookSurface.jsx"
+      ],
+      "baseline": 2323886,
+      "baseline_from": "I0, app/vite.config.js merged (7f8f24056); docs/notebook/perf-budgets.md section 1",
+      "max": 2440080,
+      "max_rule": "floor(baseline * 1.05)"
+    }
+  },
+  "search": {
+    "tier": 50000,
+    "p95_ms_max": 100,
+    "why": "The brief's search budget: what a member waits for when the Notebook list answers a search, a filter or the switcher, at 50k notes. Local gate (the 50k seed is too slow for CI).",
+    "ops": [
+      "GET /notes default (list+count)",
+      "GET /notes q=common (list+count)",
+      "GET /notes q=rare (list+count)",
+      "GET /notes q=common, relevance (search box)",
+      "GET /notes q=rare, relevance (search box)",
+      "GET /notes tag=setups (list+count)",
+      "GET /notes embed_symbol (list+count)",
+      "switcher_search (word start)",
+      "switcher_search (fuzzy, in order)"
+    ]
+  },
+  "reads": {
+    "tier": 50000,
+    "p95_ms_max": 100,
+    "why": "Lane I's own budget, not the brief's: the whole-library reads the sidebar and ticker surfaces make on open, held to the same line as search.",
+    "ops": [
+      "GET /notes/tags (tags+tree)",
+      "folder_note_counts (whole library)",
+      "notes_for_folders (heavy + 2 others)",
+      "get_symbol_backlinks"
+    ]
+  },
+  "tasks": {
+    "tier": 50000,
+    "p95_ms_max": 150,
+    "why": "Lane I's own budget, not the brief's, and ABOVE the 100 ms search line on purpose: the tasks view parses every task-bearing note's body in Python (~3.8k notes, ~9 MB of JSON at 50k). The lever under it is a maintained task index, which is the every-writer aggregate the brief warned about; see perf-budgets.md section 2.",
+    "ops": [
+      "list_tasks (open, ?view=tasks)"
+    ]
+  },
+  "editor": {
+    "open_p95_ms_max": 300,
+    "open_up_to_paragraphs": 1000,
+    "typing_p95_ms_per_char_max": 16,
+    "typing_up_to_paragraphs": 2000,
+    "why": "The brief's editor budgets, measured in a real browser by tools/notebook_perf_harness.py (local only). The typing budget stops at 2,000 paragraphs: G-035's 71 ms/char at the size cap stands as the owner ruled."
+  },
+  "search_ci": {
+    "tier": 10000,
+    "p95_ms_max": 100,
+    "why": "CI runs the 1k and 10k tiers only. At 10k the same line is loose on purpose: it catches the gross regressions (the correlated sidecar EXISTS was 717 ms p95 at 10k) without failing on a shared runner's noise.",
+    "ops": [
+      "GET /notes default (list+count)",
+      "GET /notes q=common (list+count)",
+      "GET /notes q=rare (list+count)",
+      "GET /notes q=common, relevance (search box)",
+      "GET /notes q=rare, relevance (search box)",
+      "GET /notes tag=setups (list+count)",
+      "GET /notes embed_symbol (list+count)",
+      "switcher_search (word start)",
+      "switcher_search (fuzzy, in order)"
+    ]
+  },
+  "reads_ci": {
+    "tier": 10000,
+    "p95_ms_max": 100,
+    "why": "The reads budget at the CI tier.",
+    "ops": [
+      "GET /notes/tags (tags+tree)",
+      "folder_note_counts (whole library)",
+      "notes_for_folders (heavy + 2 others)",
+      "get_symbol_backlinks"
+    ]
+  },
+  "tasks_ci": {
+    "tier": 10000,
+    "p95_ms_max": 150,
+    "why": "The tasks budget at the CI tier.",
+    "ops": [
+      "list_tasks (open, ?view=tasks)"
+    ]
+  }
+}

@@ -115,6 +115,34 @@ def test_check_thresholds_counts_an_unmeasured_op_or_tier_as_a_breach():
     assert len(out) == 1 and "was not run" in out[0]
 
 
+def test_check_thresholds_IS_the_budget_tool_not_a_copy(monkeypatch):
+    """One comparison, two callers. The CI job reads the budget tool and a local run read
+    the benchmark's own copy; two copies of one rule drift. The benchmark delegates."""
+    from tools import notebook_perf_budgets as pb
+    monkeypatch.setattr(pb, "check_search", lambda report, spec: ["sentinel", spec["tier"]])
+    assert bench.check_thresholds({}, {"tasks": {"tier": 7}}, "tasks") == ["sentinel", 7]
+
+
+def test_the_route_pairs_time_what_the_routes_call(tmp_path, monkeypatch):
+    """`GET /notes` and `GET /notes/tags` each run ONE combined read; timing the separate
+    functions would measure a request the product no longer makes."""
+    calls = []
+    real_lc, real_tt = bench.notes_svc.list_and_count_notes, bench.notes_svc.tag_counts_and_tree
+
+    def lc(*a, **kw):
+        calls.append("list_and_count_notes")
+        return real_lc(*a, **kw)
+
+    def tt(*a, **kw):
+        calls.append("tag_counts_and_tree")
+        return real_tt(*a, **kw)
+
+    monkeypatch.setattr(bench.notes_svc, "list_and_count_notes", lc)
+    monkeypatch.setattr(bench.notes_svc, "tag_counts_and_tree", tt)
+    bench.run_tier(200, reps=1, warmup=0, paragraphs=1, work_dir=str(tmp_path))
+    assert "list_and_count_notes" in calls and "tag_counts_and_tree" in calls
+
+
 def _write_thresholds(path, p95_max, tier):
     path.write_text(json.dumps({"search": {"p95_ms_max": p95_max, "tier": tier,
                                            "ops": ["tag_counts (whole library)",
@@ -138,7 +166,7 @@ def test_main_exits_2_and_names_the_breach_when_a_budget_is_missed(tmp_path, cap
     text = capsys.readouterr().out
     assert code == 2
     assert "VERDICT: BUDGET BREACH" in text
-    assert "BREACH 'tag_counts (whole library)' at 200 notes: p95" in text
+    assert "BREACH [search] 'tag_counts (whole library)' at 200 notes: p95" in text
     report = json.loads(out_json.read_text(encoding="utf-8"))
     assert report["meta"]["shared_root_writes"] == []
     assert [t["n"] for t in report["tiers"]] == [200]
@@ -150,6 +178,21 @@ def test_main_exits_0_under_a_generous_budget(tmp_path, capsys, quiet_sink):
                        "--work-dir", str(tmp_path), "--thresholds", th])
     assert code == 0
     assert "VERDICT: PASS -- every budgeted op" in capsys.readouterr().out
+
+
+def test_main_applies_every_named_budget_and_names_which_one_breached(tmp_path, capsys, quiet_sink):
+    th = tmp_path / "th.json"
+    th.write_text(json.dumps({
+        "search": {"p95_ms_max": 1e9, "tier": 200, "ops": ["GET /notes q=common (list+count)"]},
+        "tasks": {"p95_ms_max": 0.000001, "tier": 200, "ops": ["list_tasks (open, ?view=tasks)"]},
+    }), encoding="utf-8")
+    code = bench.main(["--tiers", "200", "--reps", "1", "--warmup", "0", "--paragraphs", "1",
+                       "--work-dir", str(tmp_path), "--thresholds", str(th),
+                       "--budget", "search", "--budget", "tasks"])
+    text = capsys.readouterr().out
+    assert code == 2
+    assert "BREACH [tasks] 'list_tasks (open, ?view=tasks)' at 200 notes: p95" in text
+    assert "[search]" not in text
 
 
 def test_main_exits_3_on_a_budget_file_it_cannot_evaluate(tmp_path, capsys, quiet_sink):

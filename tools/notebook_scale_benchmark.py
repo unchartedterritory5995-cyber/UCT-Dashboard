@@ -13,15 +13,18 @@ Wave 7 (lane I, I1) additions:
     and arms the shared-root tripwire, so a stray write can never reach `C:\\data`.
   * Every read is timed REPEATEDLY: `--warmup` untimed runs, then `--reps` timed runs.
     Each op reports p50 / p95 / max. One sample is an anecdote, not a p95.
-  * New reads: `tag_tree`, the `/notes/tags` pair (tag_counts + tag_tree), the `GET /notes`
-    pair (list + count, as the route runs them), `switcher_search`, and the `list_tasks`
-    scan (the `?view=tasks` read).
+  * New reads: `tag_tree`, the `/notes/tags` pair, the `GET /notes` pair (list + count),
+    `switcher_search`, and the `list_tasks` scan (the `?view=tasks` read). The two pairs call
+    what their ROUTES call (`tag_counts_and_tree`, `list_and_count_notes`), so the number is
+    what a member waits for; the single-function rows beside them are the parts.
   * A realistic seed: nested tags (`a/b/c`) beside the flat pool, a case variant of one
     flat tag, a trashed share and an archived share, cashtag mentions beside chart embeds,
     task lists with due dates, spread `updated_at`, and ~2 KB bodies (the size the wave-5
     switcher index was measured at).
   * `--json <path>`, which is what `tools/notebook_perf_budgets.py` reads. `--thresholds`
-    compares a run against the committed budget and exits non-zero on a breach.
+    compares a run against the committed budget file and exits non-zero on a breach; which
+    budgets, with `--budget` (repeatable, default `search`). The comparison itself is
+    `notebook_perf_budgets.check_search` -- ONE implementation, never a copy here.
 
 A `q=` search also writes one `activity_log` row (`notes._log_notebook_event`), a real
 commit production pays on every search. The conftest sandbox's auth.db gets its schema
@@ -36,7 +39,7 @@ number is the reverse-index read only.
 Usage:
     python tools/notebook_scale_benchmark.py [--tiers 1000,10000,50000] [--reps 20]
         [--warmup 2] [--json report.json] [--thresholds docs/notebook/perf-budgets.json]
-        [--keep-db] [--work-dir DIR]
+        [--budget search [--budget tasks ...]] [--keep-db] [--work-dir DIR]
 
 Exit codes: 0 = every correctness check passed and no budget was breached; 1 = a
 correctness check failed; 2 = a budget was breached (named on stdout); 3 = bad arguments
@@ -125,11 +128,13 @@ TIMED_OPS = [
     "GET /notes q=common (list+count)",
     "list_notes (FTS, rare term, 1 note)",
     "GET /notes q=rare (list+count)",
+    "GET /notes q=common, relevance (search box)",
+    "GET /notes q=rare, relevance (search box)",
     "GET /notes tag=setups (list+count)",
     "GET /notes embed_symbol (list+count)",
     "tag_counts (whole library)",
     "tag_tree (whole library)",
-    "GET /notes/tags (tag_counts+tag_tree)",
+    "GET /notes/tags (tags+tree)",
     "folder_note_counts (whole library)",
     "notes_for_folders (heavy + 2 others)",
     "get_symbol_backlinks",
@@ -337,12 +342,12 @@ def run_tier(n: int, *, reps: int, warmup: int, paragraphs: int, keep_db: bool =
     now_et = datetime(2026, 9, 25, 12, tzinfo=note_tasks.ET)  # == TODAY in ET
 
     def pair(**kw):
-        rows = notes_svc.list_notes(U, conn=conn, **kw)
-        total = notes_svc.count_notes(U, conn=conn, **{k: v for k, v in kw.items() if k != "sort"})
-        return rows, total
+        # What `GET /notes` runs: the page and its true total, one call (wave 7).
+        return notes_svc.list_and_count_notes(U, conn=conn, **kw)
 
     def tags_pair():
-        return notes_svc.tag_counts(U, conn=conn), notes_svc.tag_tree(U, conn=conn)
+        # What `GET /notes/tags` runs: both halves from one grouping pass (wave 7).
+        return notes_svc.tag_counts_and_tree(U, conn=conn)
 
     ops = {
         "list_notes (page 1, default sort)": lambda: notes_svc.list_notes(U, conn=conn),
@@ -353,11 +358,14 @@ def run_tier(n: int, *, reps: int, warmup: int, paragraphs: int, keep_db: bool =
         "GET /notes q=common (list+count)": lambda: pair(q=_COMMON_MARKER),
         "list_notes (FTS, rare term, 1 note)": lambda: notes_svc.list_notes(U, q=_RARE_MARKER, conn=conn),
         "GET /notes q=rare (list+count)": lambda: pair(q=_RARE_MARKER),
+        # What the search box itself asks for (FolderSidebar: sort=relevance, limit=100).
+        "GET /notes q=common, relevance (search box)": lambda: pair(q=_COMMON_MARKER, sort="relevance", limit=100),
+        "GET /notes q=rare, relevance (search box)": lambda: pair(q=_RARE_MARKER, sort="relevance", limit=100),
         "GET /notes tag=setups (list+count)": lambda: pair(tag="setups"),
         "GET /notes embed_symbol (list+count)": lambda: pair(embed_symbol=truth["embed_symbol"]),
         "tag_counts (whole library)": lambda: notes_svc.tag_counts(U, conn=conn),
         "tag_tree (whole library)": lambda: notes_svc.tag_tree(U, conn=conn),
-        "GET /notes/tags (tag_counts+tag_tree)": tags_pair,
+        "GET /notes/tags (tags+tree)": tags_pair,
         "folder_note_counts (whole library)": lambda: notes_svc.folder_note_counts(U, conn=conn),
         "notes_for_folders (heavy + 2 others)":
             lambda: notes_svc.notes_for_folders(U, [heavy["id"], others[0], others[1]], conn=conn),
@@ -450,26 +458,16 @@ def _git(*args: str) -> str | None:
         return None
 
 
-def check_thresholds(report: dict, thresholds: dict) -> list[str]:
-    """Every breach of `thresholds["search"]` in `report`, as sentences naming the op,
-    tier, measured p95 and budget. An op the budget names but the run did not measure is
-    a breach too: a budget that cannot be checked is not a budget that passed."""
-    spec = thresholds.get("search") or {}
-    limit = float(spec["p95_ms_max"])
-    tier = int(spec["tier"])
-    ops = spec["ops"]
-    breaches: list[str] = []
-    by_n = {t["n"]: t for t in report.get("tiers", [])}
-    if tier not in by_n:
-        return [f"budget tier {tier:,} was not run (ran: {sorted(by_n)}) -- nothing was checked"]
-    measured = by_n[tier]["ops"]
-    for op in ops:
-        st = measured.get(op)
-        if st is None:
-            breaches.append(f"{op!r} at {tier:,} notes: not measured by this run")
-        elif st["p95_ms"] >= limit:
-            breaches.append(f"{op!r} at {tier:,} notes: p95 {st['p95_ms']:.1f} ms >= budget {limit:.0f} ms")
-    return breaches
+def check_thresholds(report: dict, thresholds: dict, budget: str = "search") -> list[str]:
+    """Every breach of `thresholds[budget]` in `report`, as sentences naming the op, tier,
+    measured p95 and budget. An op the budget names but the run did not measure is a breach
+    too: a budget that cannot be checked is not a budget that passed.
+
+    ⛔ Delegates to `tools/notebook_perf_budgets.check_search`. This used to be a second copy
+    of that comparison, and two copies of one rule drift (the CI job reads the budget tool,
+    a local run read this)."""
+    from tools.notebook_perf_budgets import check_search
+    return check_search(report, thresholds[budget])
 
 
 def _prepare_activity_sink() -> None:
@@ -497,6 +495,8 @@ def main(argv: list[str] | None = None) -> int:
     ap.add_argument("--json", dest="json_path", default=None, help="write the machine-readable report here")
     ap.add_argument("--out", dest="json_path", help=argparse.SUPPRESS)  # the old flag name
     ap.add_argument("--thresholds", default=None, help="budget JSON (docs/notebook/perf-budgets.json)")
+    ap.add_argument("--budget", action="append", default=None,
+                    help="which budget key(s) of --thresholds to apply (repeatable; default: search)")
     ap.add_argument("--keep-db", action="store_true")
     ap.add_argument("--work-dir", default=None, help="where the per-tier SQLite files go (default: TEMP)")
     args = ap.parse_args(argv)
@@ -510,10 +510,15 @@ def main(argv: list[str] | None = None) -> int:
         print("need at least one tier, --reps >= 1 and --warmup >= 0")
         return 3
     thresholds = None
+    budget_keys = args.budget or ["search"]
     if args.thresholds:
         try:
             thresholds = json.loads(Path(args.thresholds).read_text(encoding="utf-8"))
-            thresholds["search"]["p95_ms_max"], thresholds["search"]["tier"], thresholds["search"]["ops"]
+            for key in budget_keys:
+                spec = thresholds[key]
+                float(spec["p95_ms_max"]), int(spec["tier"])
+                if not spec["ops"]:
+                    raise ValueError(f"budget {key!r} names no ops")
         except (OSError, ValueError, KeyError, TypeError) as e:
             print(f"cannot read a search budget from {args.thresholds}: {e!r}")
             return 3
@@ -558,14 +563,17 @@ def main(argv: list[str] | None = None) -> int:
         print("VERDICT: FAIL -- a correctness check failed (a fast wrong answer is not a pass)")
         return 1
     if thresholds is not None:
-        breaches = check_thresholds(report, thresholds)
+        breaches = []
+        for key in budget_keys:
+            breaches += [f"[{key}] {b}" for b in check_thresholds(report, thresholds, key)]
         if breaches:
             print("VERDICT: BUDGET BREACH")
             for b in breaches:
                 print(f"  BREACH {b}")
             return 2
-        print(f"VERDICT: PASS -- every budgeted op under {thresholds['search']['p95_ms_max']} ms p95 "
-              f"at {thresholds['search']['tier']:,} notes")
+        print("VERDICT: PASS -- every budgeted op under its p95 budget: " + "; ".join(
+            f"{k} < {thresholds[k]['p95_ms_max']} ms at {int(thresholds[k]['tier']):,} notes"
+            for k in budget_keys))
         return 0
     print("VERDICT: PASS (no thresholds given)")
     return 0
