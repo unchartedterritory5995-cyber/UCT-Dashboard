@@ -10,3 +10,12 @@ dQw4w9WgXcQ 200
 vslaRnO9G3E 404
 hmGZSV_axHo 404
 znjo804B_0k 404
+
+# DELETE run by the owner 2026-09-25 (owner answer "1. Yes"), via desk_rows_delete.py through the admin route:
+login 200
+library before: 332 | targets present: [324, 353, 354]
+DELETE 324: 200 {"ok":true}
+DELETE 353: 200 {"ok":true}
+DELETE 354: 200 {"ok":true}
+library after: 329 | removed: [324, 353, 354] | added: []
+VERDICT: OK exactly the three

@@ -8,9 +8,14 @@ import json, os, sys, urllib.request, http.cookiejar
 BASE = "https://uctintelligence.com"
 UA = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) desk-rows-delete"
 IDS = [324, 353, 354]
-BACKUP = "desk_rows_backup.json"
-if not os.path.exists(BACKUP):
-    print("REFUSED: no pre-delete backup"); sys.exit(3)
+# The backup lives BESIDE this script (the scratchpad copy is desk_rows_backup.json; the
+# committed evidence copy is rows-before-delete.json) -- resolve from the script's own
+# directory, never the caller's cwd, or a run from the repo root refuses for no reason.
+_HERE = os.path.dirname(os.path.abspath(__file__))
+BACKUP = next((p for p in (os.path.join(_HERE, "desk_rows_backup.json"),
+                           os.path.join(_HERE, "rows-before-delete.json")) if os.path.exists(p)), None)
+if not BACKUP:
+    print(f"REFUSED: no pre-delete backup beside {_HERE}"); sys.exit(3)
 bk = json.load(open(BACKUP, encoding="utf-8"))
 assert sorted(r["id"] for r in bk["rows"]) == IDS, "backup does not hold exactly the three rows"
 assert not bk["path_references"], "a path still references one of the rows"
