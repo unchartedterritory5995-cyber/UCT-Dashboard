@@ -1,4 +1,4 @@
-# RESUME — Notebook 10/10 program, wave 7 — checkpoint 2026-09-25 10:55 CT (mid-wave: G closed, I in re-review, H building, J queued)
+# RESUME — Notebook 10/10 program, wave 7 — checkpoint 2026-09-25 13:20 CT (G and I closed; H and J in their fix rounds; whole-branch review next)
 
 This is the checkpoint for **wave 7** (capture & mobile · performance · AI + editor · hardening).
 Waves 5–6 have their own checkpoint, `docs/notebook/wave5-6-RESUME-HERE.md`, and it still
@@ -9,17 +9,17 @@ Bare-minimum one-liner: "Resume the Notebook 10/10 program at wave 7 — read
 `docs/notebook/wave7-RESUME-HERE.md` in `C:\Users\Patrick\uct-worktrees\notebook-w7` first,
 then the SDD ledger it names, then continue exactly where §5 says to."
 
-## 1. Where things stand, measured 10:55 CT
+## 1. Where things stand, measured 13:20 CT
 
 | what | where | state |
 |---|---|---|
-| wave 7 branch | `feat/notebook-w7`, worktree `C:\Users\Patrick\uct-worktrees\notebook-w7` (owner file present) | tip `2064d8029`, pushed, tree clean apart from lane H's in-flight edits |
+| wave 7 branch | `feat/notebook-w7`, worktree `C:\Users\Patrick\uct-worktrees\notebook-w7` (owner file present) | tip `42ef504f2`, pushed; dirty files are lanes H and J mid-fix-round |
 | base | `5f60d5d5b` = the wave-6 checkpoint tip (`feat/notebook-w6`) | wave 6 is NOT yet merged into wave 7 — do it once the lanes are quiet (§5 step 6) |
 | lane G (capture & mobile) | image OCR + docx documents, personal API, iOS Shortcuts doc, email-in — all DARK behind `NOTEBOOK_IMAGE_DOCX_DOCUMENTS_ENABLED` / `NOTEBOOK_PERSONAL_API_ENABLED` / `NOTEBOOK_INBOUND_EMAIL_ENABLED` | **CLOSED** at `09bc51ecb`: build `b0aaa2c41..de4d1dedf` → task review → fix round 1 `a4f157a95..37ceae2da` → re-review ALL ADDRESSED + one new Minor → fix round 2 `09bc51ecb`, verified by the controller |
 | controller wiring for G | `48373b67c` (mounts, Settings cards, boundary rail, door ledger ⑤, single-process note), `04b5d484e` (hygiene rail reads its capture ONCE + personal-API case) | landed, pushed |
-| lane I (performance) | search rewrites + indexes, budgets tool + hand-edited `docs/notebook/perf-budgets.json`, advisory `.github/workflows/notebook-budgets.yml`, lazy highlighter/views, one vite `build` key | built `7f8f24056..d53e0f0d4` → task review (spec PARTIAL on numbers, honest; 0 Critical / 1 Important / 9 Minor) → fix round 1 `8531f317c..eb645d08a` incl. ruling D-I1 (vendor-echarts removed) → **scoped re-review RUNNING** |
-| lane H (AI + editor) | H1 dictation + G5 Scan door `7d20f97f9`; H2 writing help `d5b62f592`, `5beafa181`; H3 meaning search DARK `90f6f160f`; H4 Compass `search_my_notes` text-only DARK `a871ddf60`; ask correlated-EXISTS fix `7daf14b57`; M-3 `2064d8029` | **BUILDING** the remaining carry-overs; report `wave7-H-report.md` not yet written; task review next |
-| lane J (hardening) | brief `wave7-J-brief.md` (J1–J8; J7 gated on lane I closing) | **QUEUED** — dispatch when an agent seat frees (cap: 2 agents + integrator) |
+| lane I (performance) | search rewrites + indexes, budgets tool + hand-edited `docs/notebook/perf-budgets.json`, advisory `.github/workflows/notebook-budgets.yml`, lazy highlighter/views, one vite `build` key | built `7f8f24056..d53e0f0d4` → task review (spec PARTIAL on numbers, honest; 0 Critical / 1 Important / 9 Minor) → fix round 1 `8531f317c..eb645d08a` incl. ruling D-I1 (vendor-echarts removed) → re-review 4 open → fix round 2 `576213b14..8d34a5fdf` → **CLOSED**, the controller's own scoped re-check (27 py + the tag-follow rail green; 3 mutations red, restored to the report's hashes) |
+| lane H (AI + editor) | H1 dictation + G5 Scan door `7d20f97f9`; H2 writing help `d5b62f592`, `5beafa181`; H3 meaning search DARK `90f6f160f`; H4 Compass `search_my_notes` text-only DARK `a871ddf60`; ask correlated-EXISTS fix `7daf14b57`; M-3 `2064d8029` M-4 `e7ea9e54a`, M14 `db4d0cb1c`, M5 `80541eff5`, M-9 `b14dfca1e` | DONE_WITH_CONCERNS → task review PASS / 0 Critical, 7 Important, 11 Minor (`wave7-H-review.md`: unbounded armed search + 500 on embed failure, sweep held the write lock across the vendor call, abort refunded the 60/day, silent mic drop, hub write-door declaration, M14 race → J9, harness A/B owed) → **FIX ROUND 1 RUNNING** (I-5 `8c9aba1fa`, I-2 `42ef504f2` landed so far; the readAt clean-up added as an addendum); controller wiring `593447621` (mount, gzip exemption, semantic sweep every 15 min max_instances=1, single-process entry) landed |
+| lane J (hardening) | J1–J10 `94bc9f1f8..a59f4ff36` (bridges pin the root, `finally`, media byte budget, DERIVED deletion manifest, valid saved-view row, href stripping, ticker_research EXISTS, `{note, changed}` on PATCH tags with `moved := changed`, chunked-rename detail, the 39 baseline AuthContext-mock reds from master's `7ac9ff5ce`) | DONE_WITH_CONCERNS → task review PASS / 0 Critical, 2 Important, 9 Minor (`wave7-J-review.md`: GATE RISK — the bridges' ~6.5 s conftest import × per-test spawns against a 15 s timeout → spawn once per file under a 60 s budget; a behavioural rail for the trigger-emptied FTS tables) → **FIX ROUND 1 RUNNING** |
 | CLAUDE.md | `28da814ce` points at the perf-budgets record | landed |
 | PR #186 (wave 5) | head `d8846006c` | MERGEABLE, waits on the owner's `gh pr merge 186 --squash`; full-suite verdict classified in its body (honest delta vs master's own run = 2 rows, both classified) |
 | PR #193 (wave 6) | head `e9a87394c` | **CONFLICTING** with master on ONE file (`usePreferences.additionsOnly.test.js`); GitHub runs no PR CI on a conflicting head; resolved by the planned post-#186 merge of master into `feat/notebook-w6` |
