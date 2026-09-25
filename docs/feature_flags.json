@@ -907,6 +907,11 @@
       ],
       "note": "NOT RELEASED: the permissive mode has never run in production; the flag sits at its default. A MODE, not a gate: full (default, shipped behaviour) | unknown-only. Q1 fix 6's FIRST rollback lever. `full` defers a capture while the note is dirty or has a queued entry; `unknown-only` defers ONLY when the store cannot be read, letting the append route through to fix 6. Unset or unrecognised => full, on BOTH ends (a typo degrades to more guarding, never less). Read per request in api/routers/auth.py::_notebook_flags and latched per tab by journal-2-0/lib/offline/notebookFlags.js. It is flipped to unknown-only only immediately before a staged rig window (P3) and flipped back on any RED. ROLLBACK ORDER for fix 6: (1) `railway variable --set NOTEBOOK_DOOR_GUARD=full --service web`, which REDEPLOYS (delete does NOT); verify in-process via railway ssh, never --kv. (2) the kill switch NOTEBOOK_OFFLINE_DEFAULT_ON. Rail: tests/test_notebook_door_guard_flag.py; index axis: feature_flag_index.mode_flags(). Ledger corrected 2026-09-24: this entry said dark while the variable was SET on web to `unknown-only`, read 2026-09-24 by tools/flag_ledger_audit.py + `railway variables --service web --kv`. The flip itself was made by the owning programme and is recorded here as MEASURED, not decided; if the intent differs, the owning programme corrects this note."
     },
+    "NOTEBOOK_IMAGE_DOCX_DOCUMENTS_ENABLED": {
+      "status": "dark",
+      "where": [],
+      "note": "Wave 7 lane G, 2026-09-25. Enablement gate for image (OCR via the J2_OCR_ENABLED tesseract adapter) and .docx (stdlib zip+xml) attachments becoming searchable documents through document_extraction.on_attachment_saved. Unset means OFF and that is the decision: while off, an image or docx upload creates no document row and the member sees exactly today's behaviour. Read per call; a flip needs no restart. Distinct from J2_OCR_ENABLED, which only says whether tesseract is present."
+    },
     "NOTEBOOK_OFFLINE_READ_ON": {
       "status": "dark",
       "where": [],

@@ -178,6 +178,9 @@ def test_the_seam_itself_still_makes_a_pdf_a_document_and_nothing_else(monkeypat
     non-PDF file returns None and touches nothing. (The router-level PDF
     test above proves the route reaches this; this proves the decision.)"""
     from api.services.journal_two import document_extraction
+    # Wave 7 G4: images and docx become documents only under their own gate;
+    # this rail pins the gate-OFF decision, so the gate is pinned off here.
+    monkeypatch.delenv(document_extraction.IMAGE_DOCX_GATE, raising=False)
     created, queued = [], []
     monkeypatch.setattr(document_extraction, "create_document",
                         lambda uid, nid, url, name, **kw: created.append((uid, nid, url, name)) or {"id": "doc-1"})
@@ -195,6 +198,69 @@ def test_the_seam_itself_still_makes_a_pdf_a_document_and_nothing_else(monkeypat
         "u1", "n1", {"url": "/x/notes.csv", "name": "notes.csv", "size": 5}, "text/csv", kind="file") is None
     assert created == [("u1", "n1", "/x/report.pdf", "report.pdf")]
     assert queued == ["doc-1"]
+
+
+_DOCX_MIME = "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+
+
+def _tiny_docx() -> bytes:
+    import io as _io
+    import zipfile as _zf
+    buf = _io.BytesIO()
+    with _zf.ZipFile(buf, "w") as z:
+        z.writestr("word/document.xml",
+                   '<w:document xmlns:w="http://schemas.openxmlformats.org/'
+                   'wordprocessingml/2006/main"><w:body><w:p><w:r><w:t>memo</w:t>'
+                   '</w:r></w:p></w:body></w:document>')
+    return buf.getvalue()
+
+
+def _upload_image_and_docx(client, note_id):
+    r_img = client.post(f"/api/j2/notes/{note_id}/images",
+                        files={"file": ("shot.png", _tiny_png(), "image/png")})
+    assert r_img.status_code == 200, r_img.text
+    r_doc = client.post(f"/api/j2/notes/{note_id}/attachments",
+                        files={"file": ("memo.docx", _tiny_docx(), _DOCX_MIME)})
+    assert r_doc.status_code == 200, r_doc.text
+    return r_img.json(), r_doc.json()
+
+
+def test_gate_off_an_image_or_docx_upload_creates_no_document_row(app, client, monkeypatch):
+    """Wave 7 G4, through the REAL upload routes: with
+    NOTEBOOK_IMAGE_DOCX_DOCUMENTS_ENABLED unset both uploads still answer 200
+    and the note carries no document -- exactly the pre-wave-7 behaviour."""
+    from api.services.journal_two import document_extraction
+    monkeypatch.delenv(document_extraction.IMAGE_DOCX_GATE, raising=False)
+    _login_as(app, "u1")
+    note_id = _create_note(client)
+    _upload_image_and_docx(client, note_id)
+    assert client.get(f"/api/j2/notes/{note_id}/documents").json()["documents"] == []
+
+
+def test_gate_on_an_image_and_a_docx_upload_each_create_a_document_row(app, client, monkeypatch):
+    """The same two uploads with the gate ON: one pending row each, keyed by
+    the saved URL, carrying its own source_kind. The list's `sourceKind`
+    stays "attachment" for both -- they ARE filesystem attachments, never web
+    captures -- which is the one server rule (`ask_evidence.document_source_kind`)
+    this lane deliberately did not widen."""
+    from api.services.auth_db import get_connection
+    from api.services.journal_two import document_extraction
+    monkeypatch.setenv(document_extraction.IMAGE_DOCX_GATE, "1")
+    _login_as(app, "u1")
+    note_id = _create_note(client)
+    img, doc = _upload_image_and_docx(client, note_id)
+    docs = client.get(f"/api/j2/notes/{note_id}/documents").json()["documents"]
+    assert sorted(d["attachmentUrl"] for d in docs) == sorted([img["url"], doc["url"]])
+    assert {d["status"] for d in docs} == {"pending"}
+    assert {d["sourceKind"] for d in docs} == {"attachment"}
+    c = get_connection()
+    try:
+        kinds = {r[0]: r[1] for r in c.execute(
+            "SELECT attachment_url, source_kind FROM j2_note_documents WHERE note_id = ?",
+            (note_id,)).fetchall()}
+    finally:
+        c.close()
+    assert kinds == {img["url"]: "attachment_image", doc["url"]: "attachment_docx"}
 
 
 def test_list_documents_on_a_note_with_none_is_an_empty_list_not_404(app, client):
