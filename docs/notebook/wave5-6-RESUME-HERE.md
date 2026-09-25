@@ -45,12 +45,25 @@ evidence, `34f3fb6d2` walk script) — merge that tail before the wave-6 PR.
 Both worktrees' own `CLAUDE.md` carry a pointer section (search "Notebook
 10/10 program") back to this file and to the SDD ledger.
 
-## 2. Blockers — NONE as of 19:15 CT
+## 2. Blockers as of 19:50 CT — a session rate limit (resets 22:00 CT) and an H14 hotfix ahead of every Notebook deploy
 
-The weekly Opus rate limit that stalled three agents on 2026-09-24 cleared the
-same day with an account switch; every dispatch since has worked. Nothing is
-blocked on a limit. The only gate outside this session's reach is the owner
-opening the wave-5 PR (§5, step 1).
+- **Session rate limit** ("You've hit your session limit · resets 10pm America/Chicago", HTTP 429
+  on Opus) killed lane E and lane D's re-review at ~19:45 CT. The controller session still runs.
+  **Do not dispatch new subagents before 22:00 CT**; controller-level work (gates, ledger, docs,
+  pushes) continues. Lane E's last commit is pushed; its UNCOMMITTED item-8 files sit in
+  `notebook-w6` (`api/services/journal_two/notes.py` modified; two new router tests) — leave them,
+  re-dispatch E after 22:00 with a pointer to them. Lane D's re-review wrote no report — re-dispatch.
+- **H14 hotfix — `hotfix/notebook-metadata-settle` (`0f485f6cf` + `abc2f168c`, pushed).** Lane D's
+  fix round found a data-loss class LIVE on production: a metadata door's settle queued the
+  editor's stale body on the door's new revision, so a later drain overwrote another device's words
+  with no 409 and no fork. Confirmed on production source (`5fd248c40`), reproduced with the real
+  drain on identical source, gate proven both ways by mutation on master's own code (the first
+  green was VACUOUS — a missing `METADATA_ONLY` import made the predicate throw; the CONTROL caught
+  it). **Every Notebook deploy (#183, wave 5) is HELD behind this hotfix.** Its six-shard gate ran
+  (1723 files reconcile) but against master's STALE baseline record (10 failures) — the 139 "NEW"
+  are master's own reds; a pristine detached worktree `master-baseline-73a4286d0` is measuring the
+  true baseline; then adopt it into the hotfix tree and re-run for an official manifest. PR draft:
+  `.superpowers/sdd/2026-09-23-notebook-10/hotfix-metadata-settle-PR-draft.md`.
 
 ## 3. What's actually done (wave 5) — everything
 
