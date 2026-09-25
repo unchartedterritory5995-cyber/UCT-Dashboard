@@ -4267,7 +4267,7 @@ def patch_note_tags(
     add: list[str],
     remove: list[str],
     conn: sqlite3.Connection | None = None,
-) -> dict[str, Any] | None:
+) -> tuple[dict[str, Any] | None, bool]:
     """Wave 6 (controller-added, lane D's M14) — `PATCH /notes/{id}/tags`:
     applies a tag DELTA to the note's STORED list, read and written inside
     ONE transaction so a second device's own concurrent tag write cannot
@@ -4277,10 +4277,18 @@ def patch_note_tags(
     plain SELECT takes no lock at all, so a lock taken only at the later
     UPDATE would still let a racing writer's commit land in between.
 
-    Answers with the note at its NEW revision (`update_note`'s own shape,
-    same serializer the lock endpoint uses) so the client can settle it; a
-    change that changes nothing moves no revision. None for a trashed note,
-    another member's, or none at all."""
+    -> `(note, changed)`. The note at its NEW revision (`update_note`'s own
+    shape, same serializer the lock endpoint uses) so the client can settle
+    it; a change that changes nothing moves no revision and answers with the
+    note AS STORED. `(None, False)` for a trashed note, another member's, or
+    none at all.
+
+    ⛔⛔ `changed` IS THE ONLY TRUTHFUL "DID THIS REQUEST WRITE" (wave 7 lane J,
+    J9). It is decided inside the transaction: True exactly when this call
+    wrote the row. A client cannot derive it from the answer's revision --
+    when another writer satisfied the same delta between the client's read
+    and this call, nothing is written and the answer carries THAT writer's
+    revision, which a timestamp compare would record as the client's own."""
     owned = conn is None
     conn = conn or get_connection()
     try:
@@ -4291,13 +4299,13 @@ def patch_note_tags(
         ).fetchone()
         if row is None:
             conn.rollback()
-            return None
+            return None, False
         existing_tags = json.loads(row["tags"] or "[]")
         patched = patched_tag_list(existing_tags, add, remove)
         if patched is None:
             conn.rollback()
-            return _row_to_note(row)
-        return update_note(user_id, note_id, {"tags": patched}, conn=conn)
+            return _row_to_note(row), False
+        return update_note(user_id, note_id, {"tags": patched}, conn=conn), True
     except BaseException:
         if conn.in_transaction:
             conn.rollback()

@@ -33,7 +33,8 @@ beforeEach(() => {
   settleSpy.mockClear()
   calls = []
   patchStatus = 200
-  patchAnswer = { note: { ...NOTE, tags: ['earnings', 'mine'], updatedAt: 'T2' } }
+  // ⭐ Wave 7 lane J, J9: the route says whether THIS request wrote (`changed`).
+  patchAnswer = { note: { ...NOTE, tags: ['earnings', 'mine'], updatedAt: 'T2' }, changed: true }
   global.fetch = vi.fn(async (url, init = {}) => {
     calls.push({ url: String(url), init })
     if (init.method === 'PATCH') {
@@ -72,13 +73,36 @@ describe('useJ2Note().patchTags — the tag DELTA door (M14)', () => {
   it('⛔ an answer at the revision the caller READ wrote nothing: it is shown, never landed as ours', async () => {
     // e.g. another device had already added the tag -- the route returns the
     // note as stored, and nothing about that revision is this page's.
-    patchAnswer = { note: { ...NOTE, tags: ['earnings', 'mine'], updatedAt: 'T1' } }
+    patchAnswer = { note: { ...NOTE, tags: ['earnings', 'mine'], updatedAt: 'T1' }, changed: false }
     const { result } = await mounted()
     let landed
     await act(async () => { landed = await result.current.patchTags({ add: ['mine'] }, { readAt: 'T1' }) })
     expect(settleSpy).not.toHaveBeenCalled()
     expect(landed).toBeNull()
     await waitFor(() => expect(result.current.note.tags).toEqual(['earnings', 'mine']))
+  })
+
+  it('⛔⛔ J9: a delta ANOTHER writer already satisfied answers at THEIR revision -- changed:false, never landed', async () => {
+    // The residual race M14 left: between this page's read (T1) and its PATCH, another
+    // device added the same tag (-> T3). The route wrote nothing and answers with the note
+    // as stored: T3 is NOT the revision the page read, so a timestamp compare called it
+    // "moved" and recorded another writer's revision as ours. Only the route knows.
+    patchAnswer = { note: { ...NOTE, tags: ['earnings', 'mine'], updatedAt: 'T3' }, changed: false }
+    const { result } = await mounted()
+    let landed
+    await act(async () => { landed = await result.current.patchTags({ add: ['mine'] }, { readAt: 'T1' }) })
+    expect(settleSpy).not.toHaveBeenCalled()
+    expect(landed).toBeNull()
+    await waitFor(() => expect(result.current.note.tags).toEqual(['earnings', 'mine']))
+  })
+
+  it('an answer that does not say `changed` lands nothing (unknown is never "ours")', async () => {
+    patchAnswer = { note: { ...NOTE, tags: ['earnings', 'mine'], updatedAt: 'T2' } }
+    const { result } = await mounted()
+    let landed
+    await act(async () => { landed = await result.current.patchTags({ add: ['mine'] }, { readAt: 'T1' }) })
+    expect(settleSpy).not.toHaveBeenCalled()
+    expect(landed).toBeNull()
   })
 
   it('a refusal throws with its status and lands nothing', async () => {

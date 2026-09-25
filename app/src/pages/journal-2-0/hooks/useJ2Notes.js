@@ -261,10 +261,18 @@ export function useJ2Note(noteId) {
     // delta that changes nothing, and then answers with the note AS STORED --
     // whose revision may be ANOTHER writer's. Recording that as ours would tell
     // guard 2 "ours" about a second writer's edit and the fork that protects
-    // the member would not happen. So the caller passes the revision it READ
-    // (`readAt`): an answer at that same revision wrote nothing and is shown,
-    // never landed. -> the note when this write moved it, else null.
-    patchTags: async (delta, { readAt } = {}) => {
+    // the member would not happen.
+    //
+    // ⭐ ONLY THE ROUTE KNOWS (wave 7 lane J, J9). This used to compare the
+    // answer's `updatedAt` with the revision the caller READ (`readAt`) -- which
+    // cannot see a second writer that satisfied the SAME delta between the read
+    // and the PATCH: the route wrote nothing, answered at THAT writer's
+    // revision, and the compare called it moved. The route now says whether
+    // THIS request wrote a row (`changed`, from inside its one transaction), and
+    // that is the only thing that lands a revision. An answer without it lands
+    // nothing: unknown is never "ours". `readAt` is still accepted from the
+    // editor and no longer consulted. -> the note when this write moved it, else null.
+    patchTags: async (delta) => {
       const res = await fetch(`/api/j2/notes/${noteId}/tags`, {
         method: 'PATCH',
         credentials: 'include',
@@ -278,7 +286,7 @@ export function useJ2Note(noteId) {
         throw err
       }
       const body = await res.json()
-      const moved = Boolean(body.note?.updatedAt) && body.note.updatedAt !== readAt
+      const moved = body.changed === true && Boolean(body.note)
       if (moved) await settleNoteWrite(noteId, body.note)
       // Shown either way: the answer IS the server's current list, so the chips
       // catch up even when this delta changed nothing.

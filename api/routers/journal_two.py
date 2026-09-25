@@ -3456,19 +3456,23 @@ def patch_note_tags_endpoint(
     device's own concurrent add can never be silently overwritten by a list
     this request computed before that add existed.
 
-    ⛔ ANSWERS WITH THE NOTE at its new revision — the lock endpoint's shape —
-    so the client can settle it. A change that changes nothing moves no
-    revision. 404 for a trashed note, another member's, or none at all; a
-    request that cannot apply (a bad shape, or the same tag in both `add` and
-    `remove`) is a 400 and writes nothing."""
+    ⛔ ANSWERS `{note, changed}` — the note at its new revision (the lock
+    endpoint's shape) so the client can settle it, and `changed`: True
+    exactly when THIS request wrote the row (wave 7 lane J, J9). A change
+    that changes nothing moves no revision and answers `changed: false` with
+    the note as stored — whose revision may be ANOTHER writer's, which is why
+    the client must never infer "mine" from the timestamp. 404 for a trashed
+    note, another member's, or none at all; a request that cannot apply (a
+    bad shape, or the same tag in both `add` and `remove`) is a 400 and
+    writes nothing."""
     try:
         add, remove = notes_service.parse_tag_patch(payload or {})
-        n = notes_service.patch_note_tags(user["id"], note_id, add, remove)
+        n, changed = notes_service.patch_note_tags(user["id"], note_id, add, remove)
     except NoteValidationError as e:
         raise HTTPException(status_code=400, detail=str(e))
     if n is None:
         raise HTTPException(status_code=404, detail="Not found")
-    return {"note": n}
+    return {"note": n, "changed": bool(changed)}
 
 
 @router.patch("/notes/{note_id}/archive")
