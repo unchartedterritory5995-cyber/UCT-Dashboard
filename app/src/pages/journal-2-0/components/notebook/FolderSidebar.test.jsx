@@ -1554,6 +1554,97 @@ describe('Saved View rename/delete (UX #1)', () => {
 })
 
 /**
+ * ⛔ Wave 7 lane J, J5 — a saved-view row NESTED its Rename/Delete controls inside the
+ * select <button>: interactive content inside a button is invalid HTML, the two controls
+ * were spans no keyboard could reach, and the row's accessible name concatenated all three
+ * ("Active Theses Rename Active Theses Delete Active Theses" -- the wave-6 walk measured it
+ * in Chromium and moved to `get_by_title` to survive it). The row is now a container whose
+ * select, rename and delete are three SIBLING buttons. The walk's locator is kept working:
+ * the select button alone carries `title={view.name}`, the two controls keep the literal
+ * titles "Rename view"/"Delete view" and their `Rename <name>`/`Delete <name>` labels.
+ */
+describe('a saved-view row is three sibling buttons, never a button inside a button (J5)', () => {
+  const views = [
+    { id: 'v1', name: 'Active Theses', viewType: 'list' },
+    { id: 'v2', name: 'Watching', viewType: 'board' },
+  ]
+  const renderRows = (props = {}) => render(
+    <FolderSidebar notes={[]} activeFolderId={null} onSelectFolder={() => {}}
+                   activeTag={null} onSelectTag={() => {}} savedViews={views} {...props} />)
+  const section = () => screen.getByText('Saved Views').closest('div').parentElement
+
+  it('no button in the Saved Views section holds another control', () => {
+    renderRows()
+    const buttons = [...section().querySelectorAll('button')]
+    // Non-vacuity: the walk saw the header toggle AND every row's three controls.
+    expect(buttons.length).toBeGreaterThanOrEqual(1 + views.length * 3)
+    const nested = buttons.filter((b) => b.querySelector(
+      'button, a[href], input, select, textarea, [role="button"], [tabindex], [aria-label]'))
+    expect(nested.map((b) => b.getAttribute('title') || b.textContent)).toEqual([])
+  })
+
+  it('select, rename and delete are each a button with its own name', () => {
+    renderRows()
+    // The select button is named by the view alone -- no concatenated control names.
+    const select = screen.getByRole('button', { name: 'Active Theses' })
+    expect(select).toHaveAttribute('title', 'Active Theses')
+    expect(screen.getByRole('button', { name: 'Rename Active Theses' })).toHaveAttribute('title', 'Rename view')
+    expect(screen.getByRole('button', { name: 'Delete Active Theses' })).toHaveAttribute('title', 'Delete view')
+    // The wave-6 walk locates the row by title == view name: exactly one element carries it.
+    expect(section().querySelectorAll('[title="Active Theses"]')).toHaveLength(1)
+  })
+
+  it('select is reachable by keyboard: focus + Enter selects the view', async () => {
+    const user = userEvent.setup()
+    const onSelectView = vi.fn()
+    renderRows({ onSelectView })
+    screen.getByRole('button', { name: 'Active Theses' }).focus()
+    await user.keyboard('{Enter}')
+    expect(onSelectView).toHaveBeenCalledWith(views[0])
+  })
+
+  it('rename is the next Tab stop after select, and Enter opens the rename field', async () => {
+    const user = userEvent.setup()
+    const onSelectView = vi.fn()
+    renderRows({ onSelectView })
+    screen.getByRole('button', { name: 'Active Theses' }).focus()
+    await user.tab()
+    expect(document.activeElement).toHaveAccessibleName('Rename Active Theses')
+    await user.keyboard('{Enter}')
+    expect(screen.getByDisplayValue('Active Theses').tagName).toBe('INPUT')
+    expect(onSelectView).not.toHaveBeenCalled()
+  })
+
+  it('the controls a keyboard can reach are also SHOWN on focus, not only on hover', async () => {
+    // jsdom applies no stylesheet, so this reads the rule itself: a Tab stop at opacity 0
+    // is reachable and invisible, which is the failure the keyboard tests cannot see.
+    const { readFileSync } = await import('node:fs')
+    const { join } = await import('node:path')
+    const css = readFileSync(join(process.cwd(),
+      'src/pages/journal-2-0/components/notebook/FolderSidebar.module.css'), 'utf8')
+      .replace(/\/\*[\s\S]*?\*\//g, '')
+    const rule = [...css.matchAll(/([^{}]+)\{([^}]*)\}/g)]
+      .find(([, sel]) => sel.split(',').map((s) => s.trim()).includes('.viewRow:focus-within .actions'))
+    expect(rule, 'no `.viewRow:focus-within .actions` rule').toBeTruthy()
+    expect(rule[2]).toMatch(/opacity:\s*1\b/)
+  })
+
+  it('delete is the Tab stop after rename, and Enter deletes WITHOUT selecting', async () => {
+    const user = userEvent.setup()
+    const onSelectView = vi.fn()
+    const onDeleteView = vi.fn()
+    renderRows({ onSelectView, onDeleteView })
+    screen.getByRole('button', { name: 'Active Theses' }).focus()
+    await user.tab()
+    await user.tab()
+    expect(document.activeElement).toHaveAccessibleName('Delete Active Theses')
+    await user.keyboard('{Enter}')
+    expect(onDeleteView).toHaveBeenCalledWith('v1', 'Active Theses')
+    expect(onSelectView).not.toHaveBeenCalled()
+  })
+})
+
+/**
  * ⛔⛔ RENAME HAD ZERO VISUAL AFFORDANCE — discoverable only by
  * double-clicking a folder row, a desktop-file-manager convention this
  * product never taught anywhere. Competitive audit finding UX #10,

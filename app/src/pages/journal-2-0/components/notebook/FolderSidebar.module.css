@@ -377,12 +377,14 @@
 .noteTitle { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .actions { display: flex; gap: 4px; opacity: 0; transition: opacity 100ms ease; margin-left: auto; }
 .row:hover .actions { opacity: 1; }
-/* UX #1, 2026-09-22: Saved Views' row/rename/delete affordance reuses
-   `.actions`/`.iconBtn` (the same hover-reveal pattern folder rows already
-   use), but that row is `.noteRow`, not `.row` -- a different class, so the
-   rule above never matched it and the icons would sit at opacity:0
-   permanently, unreachable even on hover, without this. */
-.noteRow:hover .actions { opacity: 1; }
+/* UX #1, 2026-09-22: Saved Views' rename/delete affordance reuses
+   `.actions`/`.iconBtn` (the same hover-reveal pattern folder rows use).
+   Wave 7 lane J, J5: those two controls are now real buttons BESIDE the
+   select button, not inside it, so they are revealed by the ROW
+   (`.viewRow`) -- on hover, and on keyboard focus of any of its three
+   buttons, so a Tab stop is never an invisible control. */
+.viewRow:hover .actions,
+.viewRow:focus-within .actions { opacity: 1; }
 .iconBtn {
   display: inline-flex;
   align-items: center;
@@ -391,6 +393,10 @@
   color: var(--text-muted);
   cursor: pointer;
   border-radius: 3px;
+  /* a <button> as well as a <span>: no native chrome */
+  border: none;
+  background: transparent;
+  font: inherit;
 }
 .iconBtn:hover { color: var(--loss); }
 .iconBtnAdd:hover { color: var(--accent); }

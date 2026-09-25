@@ -271,8 +271,18 @@ function SavedViewsSection({ views, activeViewId, onSelectView, onRenameView, on
           Saved Views
         </span>
       </div>
+      {/*
+        ⛔ THREE SIBLING BUTTONS, NEVER A BUTTON INSIDE A BUTTON (wave 7 lane J, J5). The
+        row used to be the select <button> with Rename/Delete nested INSIDE it as spans:
+        invalid HTML, two controls no keyboard could reach, and an accessible name that
+        concatenated all three. `title={view.name}` stays on the select button ALONE --
+        the wave-6 walk locates the row with `get_by_title(view_name)` -- and the two
+        controls keep the literal titles "Rename view"/"Delete view". `.viewRow` reveals
+        them on hover AND on keyboard focus (`:focus-within`), so a Tab stop is never an
+        invisible control. Rail: FolderSidebar.test.jsx, "...three sibling buttons...".
+      */}
       {expanded && views.map((view) => (
-        <div key={view.id} className={styles.rowWrap}>
+        <div key={view.id} className={`${styles.rowWrap} ${styles.viewRow}`}>
           <span className={styles.disclosureSpacer} aria-hidden="true" />
           {editingViewId === view.id ? (
             <input
@@ -286,7 +296,7 @@ function SavedViewsSection({ views, activeViewId, onSelectView, onRenameView, on
                 if (e.key === 'Escape') setEditingViewId(null)
               }}
             />
-          ) : (
+          ) : (<>
             <button
               type="button"
               className={`${styles.noteRow} ${activeViewId === view.id ? styles.rowActive : ''}`}
@@ -311,22 +321,24 @@ function SavedViewsSection({ views, activeViewId, onSelectView, onRenameView, on
                 data-view-icon={VIEW_MODES.find((m) => m.id === view.viewType)?.icon || 'rows'}
               />
               <span className={styles.noteTitle}>{view.name}</span>
-              <span className={styles.actions}>
-                <span
-                  className={styles.iconBtn}
-                  onClick={(e) => { e.stopPropagation(); setEditingViewId(view.id); setEditViewName(view.name) }}
-                  title="Rename view"
-                  aria-label={`Rename ${view.name}`}
-                ><UIcon name="edit" size={11} gold={false} /></span>
-                <span
-                  className={styles.iconBtn}
-                  onClick={(e) => { e.stopPropagation(); onDeleteView(view.id, view.name) }}
-                  title="Delete view"
-                  aria-label={`Delete ${view.name}`}
-                ><UIcon name="x" size={11} gold={false} /></span>
-              </span>
             </button>
-          )}
+            <span className={styles.actions}>
+              <button
+                type="button"
+                className={styles.iconBtn}
+                onClick={() => { setEditingViewId(view.id); setEditViewName(view.name) }}
+                title="Rename view"
+                aria-label={`Rename ${view.name}`}
+              ><UIcon name="edit" size={11} gold={false} /></button>
+              <button
+                type="button"
+                className={styles.iconBtn}
+                onClick={() => onDeleteView(view.id, view.name)}
+                title="Delete view"
+                aria-label={`Delete ${view.name}`}
+              ><UIcon name="x" size={11} gold={false} /></button>
+            </span>
+          </>)}
         </div>
       ))}
     </div>
