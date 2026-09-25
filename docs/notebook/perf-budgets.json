@@ -6,9 +6,9 @@
         "src/pages/journal-2-0/JournalLayout.jsx",
         "src/pages/journal-2-0/surfaces/NotebookSurface.jsx"
       ],
-      "baseline": 2323886,
-      "baseline_from": "I0, app/vite.config.js merged (7f8f24056); docs/notebook/perf-budgets.md section 1",
-      "max": 2440080,
+      "baseline": 2145850,
+      "baseline_from": "I3, the highlighter and the opt-in views/dialogs made lazy; docs/notebook/perf-budgets.md section 4 (the I0 baseline was 2,323,886, section 1)",
+      "max": 2253142,
       "max_rule": "floor(baseline * 1.05)"
     }
   },

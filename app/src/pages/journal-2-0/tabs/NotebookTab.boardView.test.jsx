@@ -95,17 +95,19 @@ describe('NotebookTab — board view wiring', () => {
     expect(boardBtn()).toBeInTheDocument()
   })
 
-  it('switching to board mounts the board and takes down the card grid', () => {
+  it('switching to board mounts the board and takes down the card grid', async () => {
     renderTab()
     expect(screen.getAllByTestId('note-card').length).toBe(2)
     fireEvent.click(boardBtn())
+    await screen.findByTestId('note-board')
     expect(screen.getByTestId('note-board')).toBeInTheDocument()
     expect(screen.queryByTestId('note-card')).toBeNull()
   })
 
-  it('DOES hand the board this page filtered slice -- the opposite of the graph', () => {
+  it('DOES hand the board this page filtered slice -- the opposite of the graph', async () => {
     renderTab()
     fireEvent.click(boardBtn())
+    await screen.findByTestId('note-board')
     // A board is a view OF THE CURRENT SELECTION; a graph is only honest over
     // the whole notebook. If these two ever agree, one of them is wrong.
     expect(boardProps.notes).toHaveLength(2)
@@ -114,23 +116,26 @@ describe('NotebookTab — board view wiring', () => {
     expect(typeof boardProps.onChanged).toBe('function')
   })
 
-  it('clicking a card opens that note', () => {
+  it('clicking a card opens that note', async () => {
     renderTab()
     fireEvent.click(boardBtn())
+    await screen.findByTestId('note-board')
     fireEvent.click(screen.getByRole('button', { name: 'open n2' }))
     expect(screen.getByTestId('note-editor')).toHaveAttribute('data-note-id', 'n2')
   })
 
-  it('a move tells the tab to re-fetch, so the list and the board agree', () => {
+  it('a move tells the tab to re-fetch, so the list and the board agree', async () => {
     renderTab()
     fireEvent.click(boardBtn())
+    await screen.findByTestId('note-board')
     fireEvent.click(screen.getByRole('button', { name: 'fire onChanged' }))
     expect(mockRefresh).toHaveBeenCalled()
   })
 
-  it('TRASH never renders the board -- its cards WRITE to the note', () => {
+  it('TRASH never renders the board -- its cards WRITE to the note', async () => {
     renderTab()
     fireEvent.click(boardBtn())
+    await screen.findByTestId('note-board')
     expect(screen.getByTestId('note-board')).toBeInTheDocument()
     fireEvent.click(screen.getByRole('button', { name: 'go to trash' }))
     expect(screen.queryByTestId('note-board')).toBeNull()
@@ -141,6 +146,7 @@ describe('NotebookTab — board view wiring', () => {
     // ⚰️ Asserted the opposite while the server enum was ("list","table").
     renderTab()
     fireEvent.click(boardBtn())
+    await screen.findByTestId('note-board')
     expect(screen.getByRole('button', { name: /save view/i })).toBeInTheDocument()
 
     // ⛔ A board without what it groups by is not the view the member saved.

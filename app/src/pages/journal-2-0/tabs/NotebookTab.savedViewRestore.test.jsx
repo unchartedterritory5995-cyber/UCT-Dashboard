@@ -107,7 +107,7 @@ describe('R5-2 — a saved view reopens in the mode it was saved in, through the
     await reopenSavedView('Walk timeline')
 
     expect(pressed('timeline'), 'the saved timeline reopened as another mode').toBe('true')
-    expect(screen.getByText('Stand-in: timeline view')).toBeInTheDocument()
+    expect(await screen.findByText('Stand-in: timeline view')).toBeInTheDocument()
   })
 
   // CONTROL: the branch table is complete — every saveable mode, read from the
@@ -122,7 +122,7 @@ describe('R5-2 — a saved view reopens in the mode it was saved in, through the
     await reopenSavedView(`Saved ${mode}`)
     expect(pressed(mode), `the saved ${mode} view reopened as another mode`).toBe('true')
     for (const other of MODES.filter((m) => m !== mode)) expect(pressed(other)).toBe('false')
-    if (STAND_IN[mode]) expect(screen.getByText(`Stand-in: ${STAND_IN[mode]} view`)).toBeInTheDocument()
+    if (STAND_IN[mode]) expect(await screen.findByText(`Stand-in: ${STAND_IN[mode]} view`)).toBeInTheDocument()
   })
 
   it('the Tasks mode is never offered as a saveable view (saveable: false)', () => {

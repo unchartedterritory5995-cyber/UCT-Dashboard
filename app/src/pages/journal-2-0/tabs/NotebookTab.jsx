@@ -1,4 +1,4 @@
-import { useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react'
+import { Suspense, lazy, useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react'
 import { useSearchParams } from 'react-router-dom'
 import { mutate as globalMutate } from 'swr'
 import useJ2Notes from '../hooks/useJ2Notes'
@@ -7,19 +7,12 @@ import useJ2SavedViews from '../hooks/useJ2SavedViews'
 import useJ2PropertyDefs from '../hooks/useJ2PropertyDefs'
 import NoteCard from '../components/notebook/NoteCard'
 import NotesTableView from '../components/notebook/NotesTableView'
-import NoteGraphView from '../components/notebook/NoteGraphView'
-import NoteBoardView from '../components/notebook/NoteBoardView'
-import NoteCalendarView from '../components/notebook/NoteCalendarView'
-import NoteTimelineView from '../components/notebook/NoteTimelineView'
-import NoteTasksView from '../components/notebook/NoteTasksView'
 import { TASK_PARAM } from '../lib/noteTasks'
 import SavedViewEditor from '../components/notebook/SavedViewEditor'
 import FolderSidebar from '../components/notebook/FolderSidebar'
 import NoteEditorPage from '../components/notebook/NoteEditorPage'
 import ResearchHome from '../components/notebook/ResearchHome'
 import TemplatePicker from '../components/notebook/TemplatePicker'
-import ImportWizard from '../components/notebook/import/ImportWizard'
-import ExportDialog from '../components/notebook/export/ExportDialog'
 import NoteConnectorsTrustStrip from '../components/connectors/NoteConnectorsTrustStrip'
 import Sheet from '../../../components/mobile/Sheet'
 import UIcon from '../../../components/ui/UIcon'
@@ -54,6 +47,55 @@ import { useHubEligible } from '../../../hub/useHubActive'
 import { BOTTOM_OFFSET_PX, PAD_PX } from '../../../hub/constants'
 import useJ2NoteTags, { NOTE_TAGS_KEY } from '../hooks/useJ2NoteTags'
 import { fallbackNodes } from '../lib/tagTree'
+
+// ── Wave 7 (lane I3): the views and dialogs a member opens ON PURPOSE load on demand ──
+// Graph, board, calendar, timeline and tasks are view modes; Import and Export are
+// dialogs. None of them is what the Notebook paints first (the note list and the
+// editor are, and they stay static), so each is its own chunk, fetched the first time
+// it is shown. The wrappers keep each view's NAME, so nothing below this block
+// changed: every render site reads exactly as it did.
+// ⛔ One <Suspense> per view, never one around the page: a boundary around the page
+// would blank the list and the editor while a view's chunk downloads.
+function lazyView(load, label) {
+  const Chunk = lazy(load)
+  function LazyNotebookView(props) {
+    return (
+      <Suspense fallback={<div role="status" aria-label={`Loading ${label}`}><SkeletonLine width="40%" height={13} /></div>}>
+        <Chunk {...props} />
+      </Suspense>
+    )
+  }
+  LazyNotebookView.displayName = `Lazy(${label})`
+  return LazyNotebookView
+}
+
+// A dialog that is always rendered with `open` is fetched on its FIRST open and then
+// stays mounted, so its own close handling (both reset on `open` turning false, and
+// guard their in-flight work with a generation counter) runs exactly as before.
+// Before the first open it renders nothing, which is what a closed Sheet renders.
+function lazyDialog(load, label) {
+  const Chunk = lazy(load)
+  function LazyNotebookDialog(props) {
+    const [opened, setOpened] = useState(Boolean(props.open))
+    if (props.open && !opened) setOpened(true)
+    if (!opened) return null
+    return (
+      <Suspense fallback={null}>
+        <Chunk {...props} />
+      </Suspense>
+    )
+  }
+  LazyNotebookDialog.displayName = `Lazy(${label})`
+  return LazyNotebookDialog
+}
+
+const NoteGraphView = lazyView(() => import('../components/notebook/NoteGraphView'), 'graph')
+const NoteBoardView = lazyView(() => import('../components/notebook/NoteBoardView'), 'board')
+const NoteCalendarView = lazyView(() => import('../components/notebook/NoteCalendarView'), 'calendar')
+const NoteTimelineView = lazyView(() => import('../components/notebook/NoteTimelineView'), 'timeline')
+const NoteTasksView = lazyView(() => import('../components/notebook/NoteTasksView'), 'tasks')
+const ImportWizard = lazyDialog(() => import('../components/notebook/import/ImportWizard'), 'import')
+const ExportDialog = lazyDialog(() => import('../components/notebook/export/ExportDialog'), 'export')
 
 // Folders panel resize bounds (px).
 const SB_MIN = 190

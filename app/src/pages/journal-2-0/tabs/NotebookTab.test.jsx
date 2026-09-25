@@ -246,7 +246,7 @@ describe('NotebookTab — Wave H Research Home vs. All Notes grid', () => {
 })
 
 describe('NotebookTab — import', () => {
-  it('header AND empty-state each expose an Import entry point; the empty-state one opens the wizard', () => {
+  it('header AND empty-state each expose an Import entry point; the empty-state one opens the wizard', async () => {
     renderTab()
     expect(screen.queryByTestId('import-wizard')).not.toBeInTheDocument()
     // On <=640px the toolbar row stacks above the (scrollable) list, so the
@@ -256,14 +256,14 @@ describe('NotebookTab — import', () => {
     // DOM order: header toolbar renders before the empty-state pitch, so the
     // empty-state button is the last match.
     fireEvent.click(importButtons[importButtons.length - 1])
-    expect(screen.getByTestId('import-wizard')).toBeInTheDocument()
+    expect(await screen.findByTestId('import-wizard')).toBeInTheDocument()
   })
 
-  it('the header Import button also opens the wizard', () => {
+  it('the header Import button also opens the wizard', async () => {
     renderTab()
     const importButtons = screen.getAllByRole('button', { name: /import/i })
     fireEvent.click(importButtons[0])
-    expect(screen.getByTestId('import-wizard')).toBeInTheDocument()
+    expect(await screen.findByTestId('import-wizard')).toBeInTheDocument()
   })
 
   it('empty state pitches the import path', () => {
@@ -271,11 +271,11 @@ describe('NotebookTab — import', () => {
     expect(screen.getByText(/Notion, Obsidian, Evernote/i)).toBeInTheDocument()
   })
 
-  it('a completed import (ImportWizard calling onImported) refreshes notes', () => {
+  it('a completed import (ImportWizard calling onImported) refreshes notes', async () => {
     renderTab()
     fireEvent.click(screen.getAllByRole('button', { name: /import/i })[0])
     expect(mockRefresh).not.toHaveBeenCalled()
-    fireEvent.click(screen.getByText('fire onImported'))
+    fireEvent.click(await screen.findByText('fire onImported'))
     expect(mockRefresh).toHaveBeenCalled()
   })
 })
@@ -289,11 +289,11 @@ describe('NotebookTab — export', () => {
   // rail: delete the toolbar button and every ExportDialog test still
   // passes. Driving the real component through the real toolbar button is
   // what makes removing the door go red.
-  it('the toolbar Export button opens the real export dialog', () => {
+  it('the toolbar Export button opens the real export dialog', async () => {
     renderTab()
     expect(screen.queryByText('Export your notebook')).not.toBeInTheDocument()
     fireEvent.click(screen.getByRole('button', { name: 'Export' }))
-    expect(screen.getByText('Export your notebook')).toBeInTheDocument()
+    expect(await screen.findByText('Export your notebook')).toBeInTheDocument()
     // The dialog's own primary action is present too — proof this is the
     // real ExportDialog mounted and rendering its idle step, not a stub.
     expect(screen.getByRole('button', { name: /Download/ })).toBeInTheDocument()
