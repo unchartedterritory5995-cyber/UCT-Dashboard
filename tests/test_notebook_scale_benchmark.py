@@ -10,7 +10,9 @@ of the query functions it exists to time.
 from __future__ import annotations
 
 import json
+import re
 import sys
+from pathlib import Path
 
 import pytest
 
@@ -201,3 +203,125 @@ def test_main_exits_3_on_a_budget_file_it_cannot_evaluate(tmp_path, capsys, quie
     code = bench.main(["--tiers", "200", "--reps", "1", "--thresholds", str(bad)])
     assert code == 3
     assert "cannot read a search budget" in capsys.readouterr().out
+
+
+# ── wave 7 whole-branch fix, tooling review I-3: a latency breach must REPRODUCE ──────────────
+#
+# The CI job went red on 8 of 56 runs of feat/notebook-w7, every one on `search_ci`'s `q=` ops and
+# several on commits that could not move a read. An op over its line is now re-timed ONCE (same
+# warmup, same reps) and breaches only when the second reading is over the line too. These rails
+# drive the REAL `_measure` and `remeasure_breaches` from one fake timer, so a one-off spike and a
+# reproducing slowdown are written, not waited for; the verdict is the budget tool's own
+# `check_search` (the one implementation the CI step and `--thresholds` both call).
+
+class _FakeClock:
+    """A timer only the op advances: each call of `op` costs the next scripted duration."""
+
+    def __init__(self, durations_ms):
+        self.t = 0.0
+        self._left = list(durations_ms)
+
+    def __call__(self):
+        return self.t
+
+    def op(self):
+        self.t += self._left.pop(0) / 1000.0
+
+    @property
+    def unused(self):
+        return len(self._left)
+
+
+_OP = "GET /notes q=rare, relevance (search box)"
+_SPEC = {"tier": 10000, "p95_ms_max": 100, "ops": [_OP]}
+
+
+def _two_passes(first, second):
+    """One op, timed by the real `_measure` and then offered to the real `remeasure_breaches`
+    against a 100 ms line; both passes read the same fake clock."""
+    from functools import partial
+    clock = _FakeClock(list(first) + list(second))
+    measure = partial(bench._measure, clock=clock)
+    stats = {_OP: measure(clock.op, 0, len(first))[0]}
+    bench.remeasure_breaches(stats, {_OP: clock.op}, {_OP: 100.0}, warmup=0, reps=len(second),
+                             measure=measure)
+    return {"tiers": [{"n": 10000, "ops": stats}]}, stats, clock
+
+
+def test_a_one_off_spike_is_re_timed_and_is_NOT_a_breach():
+    from tools import notebook_perf_budgets as pb
+    report, stats, clock = _two_passes([5.0] * 18 + [500.0] * 2, [5.0] * 20)
+    # Control: the spike alone made the first p95 (nearest rank 19 of 20), so on the old rule
+    # this reading WAS a breach -- the case the CI job kept failing on.
+    assert stats[_OP]["p95_ms"] == 500.0
+    assert stats[_OP]["remeasure"]["p95_ms"] == 5.0 and stats[_OP]["remeasure"]["reps"] == 20
+    assert clock.unused == 0, "the re-measure did not take its own full pass"
+    assert pb.check_search(report, _SPEC) == []
+    assert bench.check_thresholds(report, {"search_ci": _SPEC}, "search_ci") == []
+    notes = pb.unreproduced_notes(report, _SPEC)
+    assert len(notes) == 1 and "p95 500.0 ms, then 5.0 ms" in notes[0] and "did not reproduce" in notes[0], notes
+
+
+def test_a_reproducing_slowdown_breaches_and_names_both_readings():
+    from tools import notebook_perf_budgets as pb
+    report, stats, _ = _two_passes([500.0] * 20, [480.0] * 20)
+    assert pb.check_search(report, _SPEC) == [
+        f"{_OP!r} at 10,000 notes: p95 500.0 ms >= budget 100 ms; re-measured 480.0 ms"]
+    assert pb.unreproduced_notes(report, _SPEC) == []
+
+
+def test_an_op_under_its_line_is_never_re_timed():
+    report, stats, clock = _two_passes([5.0] * 20, [999.0] * 20)
+    assert "remeasure" not in stats[_OP]
+    assert clock.unused == 20, "an op under its line was re-timed -- a quiet run must pay nothing"
+
+
+def test_run_tier_re_times_exactly_the_ops_over_their_lines(tmp_path):
+    """The wiring: `run_tier` hands its own op table and reps to the re-measure. A 0 ms line
+    is crossed by every reading, a 1e9 ms line by none."""
+    over = ["GET /notes q=common (list+count)", "tag_counts (whole library)"]
+    lines = {**{op: 0.0 for op in over}, "folder_note_counts (whole library)": 1e9}
+    r = bench.run_tier(200, reps=2, warmup=0, paragraphs=1, work_dir=str(tmp_path), remeasure_lines=lines)
+    got = sorted(op for op, st in r["ops"].items() if "remeasure" in st)
+    assert got == sorted(over), got
+    for op in over:
+        assert r["ops"][op]["remeasure"]["reps"] == 2 and r["ops"][op]["remeasure"]["line_ms"] == 0.0
+    assert not [k for k, ok in r["correctness"].items() if not ok]
+
+
+def test_main_re_measures_every_budget_named_with_remeasure(tmp_path, monkeypatch, quiet_sink):
+    """The CI job's form: no --thresholds (the budget tool judges the JSON afterwards), the
+    lines read from the committed budget file -- pointed at a stand-in here."""
+    from tools import notebook_perf_budgets as pb
+    budgets = tmp_path / "budgets.json"
+    budgets.write_text(json.dumps({"x_ci": {"tier": 200, "p95_ms_max": 0.000001,
+                                            "ops": ["tag_counts (whole library)"]}}), encoding="utf-8")
+    monkeypatch.setattr(pb, "DEFAULT_BUDGETS", budgets)
+    out_json = tmp_path / "r.json"
+    code = bench.main(["--tiers", "200", "--reps", "1", "--warmup", "0", "--paragraphs", "1",
+                       "--work-dir", str(tmp_path), "--json", str(out_json), "--remeasure", "x_ci"])
+    assert code == 0            # no --thresholds: nothing is enforced here
+    report = json.loads(out_json.read_text(encoding="utf-8"))
+    assert report["meta"]["remeasure_budgets"] == ["x_ci"]
+    ops = report["tiers"][0]["ops"]
+    assert "remeasure" in ops["tag_counts (whole library)"]
+    assert "remeasure" not in ops["count_notes (whole library)"]
+    # ...and the budget tool reads that JSON the way the CI step does: both readings over the line.
+    assert pb.main(["--budgets", str(budgets), "--bench", str(out_json), "--budget", "x_ci"]) == 1
+    assert bench.main(["--tiers", "200", "--reps", "1", "--remeasure", "no_such_budget"]) == 3
+
+
+def test_the_ci_job_re_measures_every_budget_it_enforces():
+    """The workflow wiring, read from the workflow itself: every `--budget` its latency step
+    applies is a `--remeasure` of its benchmark step, or a flapping reading still reds the job."""
+    import yaml
+    wf = yaml.safe_load((Path(bench.__file__).resolve().parents[1] / ".github" / "workflows"
+                         / "notebook-budgets.yml").read_text(encoding="utf-8"))
+    runs = [" ".join(str(s.get("run", "")).split()) for s in wf["jobs"]["latency"]["steps"]]
+    bench_cmd = [r for r in runs if "notebook_scale_benchmark.py" in r]
+    check_cmd = [r for r in runs if "notebook_perf_budgets.py" in r]
+    assert len(bench_cmd) == 1 and len(check_cmd) == 1, runs
+    budgets = re.findall(r"--budget (\S+)", check_cmd[0])
+    remeasured = re.findall(r"--remeasure (\S+)", bench_cmd[0])
+    assert budgets == ["search_ci", "reads_ci", "tasks_ci"], budgets        # non-vacuity, by name
+    assert set(budgets) <= set(remeasured), (budgets, remeasured)

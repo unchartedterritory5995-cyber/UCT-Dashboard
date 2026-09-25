@@ -18,6 +18,17 @@ and in the commit.
    `"informational"` ops: measured and printed against the same line, never a breach. That is
    for a tier where the line is known to sit inside a shared runner's noise; it is never a
    raised budget, and the op stays enforced by whichever budget lists it in `ops`.
+   ⛔ A BREACH COUNTS ONLY IF IT REPRODUCES (wave 7 whole-branch fix, tooling review I-3). When
+   the report carries a re-measure of an op (`"remeasure"`, written by the benchmark's
+   `--remeasure` / `--thresholds`: the op re-timed once, same warmup and reps, right after the
+   pass that read it over its line), the op breaches only when BOTH readings are at or over the
+   line. A reading that did not reproduce is printed as a note, never a breach, and no line
+   moves. A report without a re-measure is judged on its one reading -- the stricter direction.
+   Why a re-measure and not more reps: several of the CI job's reds were BURSTS, not two stray
+   samples -- in 3 of the 6 red runs whose artifacts were read, the breaching op's p50 was 2-3x
+   its usual value (run 36197064574: `q=common, relevance` p50 74.7 ms, p95 192.5 ms), so more
+   reps in the same pass would mostly sample more of the same burst. A second pass, taken after
+   every other op has been timed, is what a burst on a shared runner usually does not reach.
 
 Usage:
     python tools/notebook_perf_budgets.py --dist app/dist            # bytes only
@@ -106,10 +117,23 @@ def check_bytes(budgets: dict, dist: Path) -> tuple[list[str], dict]:
     return breaches, detail
 
 
+def remeasured_p95(st: dict) -> float | None:
+    """The p95 of the op's re-measure, or None when the run did not re-time it (or wrote
+    something this cannot read -- judged on the one reading, the stricter direction)."""
+    again = st.get("remeasure") if isinstance(st, dict) else None
+    if not isinstance(again, dict):
+        return None
+    try:
+        return float(again["p95_ms"])
+    except (KeyError, TypeError, ValueError):
+        return None
+
+
 def check_search(report: dict, spec: dict) -> list[str]:
     """Every breach of one search budget in a benchmark report, as sentences naming the op,
     tier, measured p95 and the budget. The ONE implementation: the benchmark's own
-    `--thresholds` calls this too."""
+    `--thresholds` calls this too. An op over its line whose re-measure came in UNDER it did
+    not reproduce, so it is not a breach (`unreproduced_notes` reports it)."""
     limit = float(spec["p95_ms_max"])
     tier = int(spec["tier"])
     ops = list(spec["ops"])
@@ -128,8 +152,46 @@ def check_search(report: dict, spec: dict) -> list[str]:
         if st is None:
             breaches.append(f"{op!r} at {tier:,} notes: not measured by this run")
         elif st["p95_ms"] >= limit:
-            breaches.append(f"{op!r} at {tier:,} notes: p95 {st['p95_ms']:.1f} ms >= budget {limit:.0f} ms")
+            again = remeasured_p95(st)
+            if again is not None and again < limit:
+                continue                  # did not reproduce: a note, never a breach
+            tail = f"; re-measured {again:.1f} ms" if again is not None else ""
+            breaches.append(f"{op!r} at {tier:,} notes: p95 {st['p95_ms']:.1f} ms >= budget {limit:.0f} ms{tail}")
     return breaches
+
+
+def unreproduced_notes(report: dict, spec: dict) -> list[str]:
+    """The enforced ops that read over the line once and UNDER it on their immediate
+    re-measure, as sentences with both numbers. Never a breach, never silent."""
+    limit, tier = float(spec["p95_ms_max"]), int(spec["tier"])
+    measured = {t["n"]: t for t in report.get("tiers", [])}.get(tier, {}).get("ops", {})
+    notes = []
+    for op in spec.get("ops", []):
+        st = measured.get(op)
+        if st is None or st["p95_ms"] < limit:
+            continue
+        again = remeasured_p95(st)
+        if again is not None and again < limit:
+            notes.append(f"{op!r} at {tier:,} notes: p95 {st['p95_ms']:.1f} ms, then {again:.1f} ms "
+                         f"on an immediate re-measure -- did not reproduce, not a breach "
+                         f"(the {limit:.0f} ms line is unchanged)")
+    return notes
+
+
+def lines_at_tier(budgets: dict, keys: list[str], tier: int) -> dict[str, float]:
+    """`{op: line}` for every op the named budgets ENFORCE at `tier` (the lowest line when two
+    budgets name one op) -- what the benchmark re-times when a reading crosses it. Informational
+    ops are not re-timed: they can never breach."""
+    lines: dict[str, float] = {}
+    for key in keys:
+        spec = budgets.get(key)
+        if not spec:
+            raise Unevaluable(f"no {key!r} budget to re-measure against")
+        if int(spec["tier"]) != int(tier):
+            continue
+        for op in spec["ops"]:
+            lines[op] = min(lines.get(op, float("inf")), float(spec["p95_ms_max"]))
+    return lines
 
 
 def informational_notes(report: dict, spec: dict) -> list[str]:
@@ -192,13 +254,14 @@ def main(argv: list[str] | None = None) -> int:
                     raise Unevaluable(f"no {key!r} budget in {args.budgets}")
                 s = check_search(report, spec)
                 info = informational_notes(report, spec)
+                once = unreproduced_notes(report, spec)
                 out["breaches"] += [f"[{key}] {b}" for b in s]
                 out["latency"][key] = {"tier": spec["tier"], "p95_ms_max": spec["p95_ms_max"],
                                        "ops": len(spec["ops"]), "breaches": len(s),
-                                       "informational": info}
+                                       "informational": info, "unreproduced": once}
                 print(f"{key}: {len(spec['ops'])} ops at {int(spec['tier']):,} notes, "
                       f"p95 < {spec['p95_ms_max']} ms -- {len(s)} breach(es)")
-                for note in info:
+                for note in info + once:
                     print(f"  note [{key}] {note}")
     except (Unevaluable, OSError, ValueError, KeyError) as e:
         print(f"VERDICT: UNEVALUABLE -- {e}")

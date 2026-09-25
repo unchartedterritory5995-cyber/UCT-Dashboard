@@ -57,7 +57,7 @@
   "search_ci": {
     "tier": 10000,
     "p95_ms_max": 100,
-    "why": "CI runs the 1k and 10k tiers only. At 10k the same line is loose on purpose: it catches the gross regressions (the correlated sidecar EXISTS was 717 ms p95 at 10k) without failing on a shared runner's noise.",
+    "why": "CI runs the 1k and 10k tiers only. At 10k the same line is loose on purpose: it catches the gross regressions (the correlated sidecar EXISTS was 717 ms p95 at 10k). It is NOT immune to a shared runner's noise (8 of 56 runs red on feat/notebook-w7, all on q= ops), so a breach counts only when an immediate re-measure of the op reproduces it (the benchmark's --remeasure, tooling review I-3). The line is not raised.",
     "ops": [
       "GET /notes default (list+count)",
       "GET /notes q=common (list+count)",

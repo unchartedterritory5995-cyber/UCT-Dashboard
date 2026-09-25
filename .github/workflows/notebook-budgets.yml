@@ -18,11 +18,24 @@
 #
 # ⛔ WHY ONLY THE 1k AND 10k TIERS RUN HERE. The 50k tier seeds ~50,000 notes with ~2 KB
 #   bodies and their FTS index (a ~370 MB SQLite file, minutes of seeding) and then times
-#   19 reads 22 times each. On a shared runner that is slow, and its timing is noisy
-#   enough that a 100 ms line would flap. At 10k the same line is loose ON PURPOSE: it
-#   still catches the gross regressions this wave fixed (the correlated sidecar EXISTS
-#   was 717 ms p95 at 10k), and it cannot cry wolf on runner noise. The 50k number is
-#   the local gate named in the marker above.
+#   every read in the benchmark's TIMED_OPS (2 warm-ups, then 20 reps each). On a shared
+#   runner that is slow. At 10k the same 100 ms line is loose ON PURPOSE: it still catches
+#   the gross regressions this wave fixed (the correlated sidecar EXISTS was 717 ms p95 at
+#   10k). The 50k number is the local gate named in the marker above.
+#
+# ⚰️ THIS SAID THE 10k LINE "CANNOT CRY WOLF ON RUNNER NOISE". MEASURED, IT DID. Re-counted
+#   2026-09-25 18:26 CT (`gh run list --workflow "notebook budgets" --branch feat/notebook-w7
+#   --limit 100`): 8 of 56 runs red, every one the latency job on search_ci's `q=` ops, never
+#   bytes. On unchanged code `q=rare, relevance` read 160.0 ms p95 (730153a60, which changed
+#   one JS test file) against 13.56 ms on a green run (e6bb581a5); run 36198655258 on
+#   46334dc85, a comments-only commit, breached `q=common, relevance` at 191.6 ms while its
+#   parent 894f04c58 passed.
+# ⛔ SO A LATENCY BREACH MUST REPRODUCE (wave 7 whole-branch fix, tooling review I-3). The
+#   benchmark re-times ONCE, with the same warm-ups and reps, every op that reads over a line
+#   of a budget named with --remeasure, and the budget tool breaches an op only when BOTH
+#   readings are over it; one that did not reproduce is printed as a note. No line was raised.
+#   The red rate under this rule is NOT yet measured: count the runs after it lands before
+#   trusting a red here, or a green.
 #
 # ⛔ AN OP OR TIER THE RUN DID NOT MEASURE IS A BREACH, and a missing manifest or a
 #   renamed route root exits 3 (fails CLOSED). A budget that could not be checked did
@@ -72,7 +85,12 @@ jobs:
       # The benchmark imports the repo-root conftest before any api.* module, so every
       # /data path it could touch is pinned to a sandbox and a stray write fails the run.
       - name: Benchmark the 1k and 10k tiers (50k is the local gate -- see the header)
-        run: python tools/notebook_scale_benchmark.py --tiers 1000,10000 --json notebook-bench.json
+        # --remeasure: an op over one of these budgets' lines is re-timed once before it can
+        # count (I-3 in the header); tests/test_notebook_scale_benchmark.py holds every --budget
+        # of the next step to a --remeasure here.
+        run: >
+          python tools/notebook_scale_benchmark.py --tiers 1000,10000 --json notebook-bench.json
+          --remeasure search_ci --remeasure reads_ci --remeasure tasks_ci
 
       - name: Latency budgets at the CI tier
         run: >

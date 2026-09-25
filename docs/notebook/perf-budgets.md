@@ -340,7 +340,17 @@ function rather than carrying a copy.
 - **CI** (`.github/workflows/notebook-budgets.yml`, `# promotion-gate: no`): the 1k and 10k
   tiers and the byte budget after `npm run build`. The 50k tier is the local gate: seeding it
   takes minutes on a runner and a shared runner's timing would make a 100 ms line flap. At
-  10k the line still catches the gross regressions (the correlated `EXISTS` was 717 ms at 10k).
+  10k the line still catches the gross regressions (the correlated `EXISTS` was 717 ms at 10k)
+  — ⚰️ but it is **not** quiet, as this bullet and the workflow once implied. Re-counted
+  2026-09-25 18:26 CT: **8 of 56** runs of the job on `feat/notebook-w7` went red, every one on
+  `search_ci`'s `q=` ops and never on bytes; `q=rare, relevance` read 160.0 ms p95 on a commit
+  that changed one JS test file (`730153a60`) against 13.56 ms on a green run (`e6bb581a5`), and
+  a comments-only commit (`46334dc85`, run 36198655258) breached `q=common, relevance` at
+  191.6 ms while its parent passed. **Since the wave-7 whole-branch fix (tooling review I-3) a
+  breach must REPRODUCE:** the benchmark re-times an op that reads over a budgeted line once,
+  same warm-ups and reps (`--remeasure`, which the CI job passes for all three `_ci` budgets),
+  and `check_search` breaches only when both readings are over the line; a one-off is printed
+  as a note. No line was raised. The red rate under the new rule is **not yet measured**.
   **One op is informational there (review M-8):** `switcher_search (fuzzy, in order)`, whose
   code this lane never touched, already read 90.5 ms p95 at 10k on this box (section 2's
   table), inside a shared runner's noise of the 100 ms line, so enforcing it would flap the job

@@ -162,6 +162,31 @@ def test_an_informational_op_is_printed_against_the_line_and_never_breaches():
         pb.check_search(report, {**spec, "ops": ["a", "fuzzy"]})
 
 
+def test_a_reading_that_did_not_reproduce_is_a_note_and_one_that_did_is_a_breach(tmp_path, capsys):
+    """Tooling review I-3, at the budget tool's own door (what the CI step runs): an op over its
+    line whose `remeasure` came in under it passes with a note naming both numbers; one whose
+    re-measure is over too breaches and names both; a report with no re-measure is judged on its
+    one reading (the stricter direction, unchanged)."""
+    budgets = tmp_path / "b.json"
+    budgets.write_text(json.dumps({"s": {"tier": 10000, "p95_ms_max": 100, "ops": ["a"]}}), encoding="utf-8")
+    bench = tmp_path / "bench.json"
+
+    def run(st):
+        bench.write_text(json.dumps({"tiers": [{"n": 10000, "ops": {"a": st}}]}), encoding="utf-8")
+        code = pb.main(["--budgets", str(budgets), "--bench", str(bench), "--budget", "s"])
+        return code, capsys.readouterr().out
+
+    code, out = run({"p95_ms": 160.0, "remeasure": {"p95_ms": 13.6}})
+    assert code == 0 and "VERDICT: PASS" in out, out
+    assert "p95 160.0 ms, then 13.6 ms on an immediate re-measure -- did not reproduce" in out, out
+    code, out = run({"p95_ms": 160.0, "remeasure": {"p95_ms": 151.0}})
+    assert code == 1 and "BREACH [s] 'a' at 10,000 notes: p95 160.0 ms >= budget 100 ms; re-measured 151.0 ms" in out
+    code, out = run({"p95_ms": 160.0})
+    assert code == 1 and "p95 160.0 ms >= budget 100 ms" in out and "re-measured" not in out
+    code, out = run({"p95_ms": 160.0, "remeasure": {"oops": 1}})      # unreadable: one reading
+    assert code == 1, out
+
+
 def test_the_ci_switcher_is_informational_at_10k_and_still_enforced_at_50k():
     """The committed shape of M-8: the untouched switcher's fuzzy op reads 90.5 ms p95 at 10k on
     this box (perf-budgets.md section 2) and would flap on a shared runner, so the CI twin only

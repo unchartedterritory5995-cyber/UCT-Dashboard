@@ -26,6 +26,17 @@ Wave 7 (lane I, I1) additions:
     budgets, with `--budget` (repeatable, default `search`). The comparison itself is
     `notebook_perf_budgets.check_search` -- ONE implementation, never a copy here.
 
+Wave 7 whole-branch fix (tooling review I-3): A BREACH MUST REPRODUCE. After a tier's timed
+pass, every op whose p95 is at or over a line it is budgeted against is RE-TIMED once, with the
+same warmup and reps, and the second reading is written beside the first (`"remeasure"`).
+`check_search` then breaches an op only when both readings are over the line; one that did not
+reproduce is printed as a note. The lines come from `--remeasure KEY` (repeatable; the CI job
+names its three budgets) and, with `--thresholds`, from every enforced `--budget` too, read out
+of the budget file (`--thresholds`, else `docs/notebook/perf-budgets.json`). No line moves:
+this changes what counts as a reading, never what a reading must be under. Measured before the
+fix: 8 of 56 runs of the CI job on `feat/notebook-w7` went red, every one on `search_ci`'s
+`q=` ops, several on commits that could not move a read.
+
 A `q=` search also writes one `activity_log` row (`notes._log_notebook_event`), a real
 commit production pays on every search. The conftest sandbox's auth.db gets its schema
 (`auth_db.init_db()`) at start-up, so that write lands and is timed. It must not fail fast,
@@ -39,7 +50,8 @@ number is the reverse-index read only.
 Usage:
     python tools/notebook_scale_benchmark.py [--tiers 1000,10000,50000] [--reps 20]
         [--warmup 2] [--json report.json] [--thresholds docs/notebook/perf-budgets.json]
-        [--budget search [--budget tasks ...]] [--keep-db] [--work-dir DIR]
+        [--budget search [--budget tasks ...]] [--remeasure search_ci [--remeasure ...]]
+        [--keep-db] [--work-dir DIR]
 
 Exit codes: 0 = every correctness check passed and no budget was breached; 1 = a
 correctness check failed; 2 = a budget was breached (named on stdout); 3 = bad arguments
@@ -301,15 +313,18 @@ def percentile(samples: list[float], pct: float) -> float:
     return s[rank - 1]
 
 
-def _measure(fn, warmup: int, reps: int) -> tuple[dict, object]:
+def _measure(fn, warmup: int, reps: int, clock=None) -> tuple[dict, object]:
+    # `clock` is late-bound (a default argument is bound at import): a rail drives it with a
+    # fake timer so a spike and a reproducing slowdown can be written, not waited for.
+    clock = clock or time.perf_counter
     result = None
     for _ in range(warmup):
         result = fn()
     samples = []
     for _ in range(reps):
-        t0 = time.perf_counter()
+        t0 = clock()
         result = fn()
-        samples.append((time.perf_counter() - t0) * 1000.0)
+        samples.append((clock() - t0) * 1000.0)
     return {
         "p50_ms": round(percentile(samples, 50), 3),
         "p95_ms": round(percentile(samples, 95), 3),
@@ -319,8 +334,31 @@ def _measure(fn, warmup: int, reps: int) -> tuple[dict, object]:
     }, result
 
 
+def remeasure_breaches(stats: dict[str, dict], ops: dict, lines: dict[str, float], *,
+                       warmup: int, reps: int, measure=None) -> list[str]:
+    """Re-time, ONCE and with the same warmup and reps, every op whose p95 is at or over its
+    line in `lines` (`{op label: p95 line in ms}`), and write the second reading beside the first
+    as `stats[op]["remeasure"]`. Returns the labels re-timed. `measure` is late-bound (`_measure`
+    by default) so a rail can drive both passes from one fake clock.
+
+    ⛔ This is what makes a CI latency breach mean "it reproduced" (tooling review I-3): the job
+    went red on 8 of 56 runs, all on runner noise; `check_search` now breaches an op only when
+    this second reading is over the line too. Only an op that ALREADY read over its line is
+    re-timed, so a quiet run pays nothing."""
+    measure = measure or _measure
+    again = []
+    for label, line in lines.items():
+        st = stats.get(label)
+        if st is None or label not in ops or st["p95_ms"] < line:
+            continue
+        second, _ = measure(ops[label], warmup, reps)
+        st["remeasure"] = {**second, "line_ms": line}
+        again.append(label)
+    return again
+
+
 def run_tier(n: int, *, reps: int, warmup: int, paragraphs: int, keep_db: bool = False,
-             work_dir: str | None = None) -> dict:
+             work_dir: str | None = None, remeasure_lines: dict[str, float] | None = None) -> dict:
     tmp_dir = tempfile.mkdtemp(prefix=f"j2_bench_{n}_", dir=work_dir)
     db_path = os.path.join(tmp_dir, "bench.db")
     conn = sqlite3.connect(db_path)
@@ -387,6 +425,10 @@ def run_tier(n: int, *, reps: int, warmup: int, paragraphs: int, keep_db: bool =
         # would have sent the fix work after a slowness the product does not have.
         for label, fn in ops.items():
             stats[label], results[label] = _measure(fn, warmup, reps)
+        # A reading over a budgeted line is re-timed once before it can count (I-3), still
+        # untraced, after every op has had its first pass.
+        if remeasure_lines:
+            remeasure_breaches(stats, ops, remeasure_lines, warmup=warmup, reps=reps)
         # Peak memory comes from ONE untimed pass per op, traced separately.
         tracemalloc.start()
         for fn in ops.values():
@@ -497,6 +539,10 @@ def main(argv: list[str] | None = None) -> int:
     ap.add_argument("--thresholds", default=None, help="budget JSON (docs/notebook/perf-budgets.json)")
     ap.add_argument("--budget", action="append", default=None,
                     help="which budget key(s) of --thresholds to apply (repeatable; default: search)")
+    ap.add_argument("--remeasure", action="append", default=None,
+                    help="budget key(s) whose lines trigger a one-time re-measure of an op that reads "
+                         "over them (repeatable; read from --thresholds, else docs/notebook/perf-budgets.json). "
+                         "Every --budget applied with --thresholds is re-measured too")
     ap.add_argument("--keep-db", action="store_true")
     ap.add_argument("--work-dir", default=None, help="where the per-tier SQLite files go (default: TEMP)")
     args = ap.parse_args(argv)
@@ -522,6 +568,24 @@ def main(argv: list[str] | None = None) -> int:
         except (OSError, ValueError, KeyError, TypeError) as e:
             print(f"cannot read a search budget from {args.thresholds}: {e!r}")
             return 3
+    # I-3: which budgets' lines trigger a re-measure. Every enforced --budget (with
+    # --thresholds) plus every --remeasure key, read from the thresholds file when one was given,
+    # else the committed budget file (looked up at CALL time, so a rail can point it elsewhere).
+    remeasure_keys = list(dict.fromkeys((budget_keys if thresholds is not None else []) + (args.remeasure or [])))
+    remeasure_src = thresholds
+    if remeasure_keys:
+        from tools import notebook_perf_budgets as pb
+        try:
+            if remeasure_src is None:
+                remeasure_src = pb.load_budgets(pb.DEFAULT_BUDGETS)
+            for key in remeasure_keys:
+                spec = remeasure_src[key]
+                float(spec["p95_ms_max"]), int(spec["tier"])
+                if not spec["ops"]:
+                    raise ValueError(f"budget {key!r} names no ops")
+        except (pb.Unevaluable, OSError, ValueError, KeyError, TypeError) as e:
+            print(f"cannot read a re-measure budget: {e!r}")
+            return 3
 
     violations_before = len(conftest.SHARED_ROOT_VIOLATIONS)
     _prepare_activity_sink()
@@ -535,19 +599,26 @@ def main(argv: list[str] | None = None) -> int:
             "python": platform.python_version(), "sqlite": sqlite3.sqlite_version,
             "platform": platform.platform(), "reps": args.reps, "warmup": args.warmup,
             "paragraphs": args.paragraphs, "started_at": time.strftime("%Y-%m-%dT%H:%M:%S%z"),
+            "remeasure_budgets": remeasure_keys,
         },
         "tiers": [],
     }
     for n in tiers:
         print(f"\n=== Seeding + measuring {n:,} notes ({args.reps} reps after {args.warmup} warmup) ===")
+        lines = pb.lines_at_tier(remeasure_src, remeasure_keys, n) if remeasure_keys else None
         r = run_tier(n, reps=args.reps, warmup=args.warmup, paragraphs=args.paragraphs,
-                     keep_db=args.keep_db, work_dir=args.work_dir)
+                     keep_db=args.keep_db, work_dir=args.work_dir, remeasure_lines=lines)
         report["tiers"].append(r)
         print(f"  seed {r['seed_ms'] / 1000:.1f}s  db {r['db_bytes'] / 1e6:.1f} MB  "
               f"active {r['active']:,} trashed {r['trashed']:,} archived {r['archived']:,}")
         print(f"  {'op':52s} {'p50':>9s} {'p95':>9s} {'max':>9s}")
         for label, st in r["ops"].items():
             print(f"  {label:52s} {st['p50_ms']:8.2f}ms {st['p95_ms']:8.2f}ms {st['max_ms']:8.2f}ms")
+        for label, st in r["ops"].items():
+            if "remeasure" in st:
+                again = st["remeasure"]
+                print(f"  re-measured {label}: p95 {st['p95_ms']:.2f} ms -> {again['p95_ms']:.2f} ms "
+                      f"(line {again['line_ms']:g} ms)")
         failed = [k for k, v in r["correctness"].items() if not v]
         print(f"  XX CORRECTNESS FAILURES: {failed}" if failed else "  OK all correctness checks passed")
 
@@ -564,11 +635,11 @@ def main(argv: list[str] | None = None) -> int:
         return 1
     if thresholds is not None:
         breaches = []
-        from tools.notebook_perf_budgets import informational_notes
+        from tools.notebook_perf_budgets import informational_notes, unreproduced_notes
         for key in budget_keys:
             breaches += [f"[{key}] {b}" for b in check_thresholds(report, thresholds, key)]
-            # reported against the same line, never a breach (review M-8)
-            for note in informational_notes(report, thresholds[key]):
+            # reported against the same line, never a breach (review M-8; I-3's one-offs)
+            for note in informational_notes(report, thresholds[key]) + unreproduced_notes(report, thresholds[key]):
                 print(f"  note [{key}] {note}")
         if breaches:
             print("VERDICT: BUDGET BREACH")
