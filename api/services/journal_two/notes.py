@@ -501,6 +501,19 @@ def _tag_prefilter(key: str) -> tuple[str, list[Any]]:
             [needle])
 
 
+def _tag_clause(key: str) -> tuple[str, list[Any]]:
+    """The note-carries-this-tag-or-one-below-it predicate, for a NON-EMPTY
+    `tag_key`: the cheap prefilter, then the exact per-tag match. ⛔ ONE copy,
+    used by the list/count predicate (`_notes_filter_sql`) and by the tag
+    rename's roster (`tag_member_notes`) — a rename that found its notes by a
+    different rule than the filter shows them would miss some, or touch others."""
+    pre_sql, pre_params = _tag_prefilter(key)
+    return (f"{pre_sql} AND EXISTS (SELECT 1 FROM"
+            " json_each(COALESCE(j2_notes.tags, '[]')) jt"
+            " WHERE j2_tag_match(jt.value, ?))",
+            [*pre_params, key])
+
+
 def _validate_tags(raw: Any) -> list[str]:
     if raw is None:
         return []
@@ -524,6 +537,55 @@ def _validate_tags(raw: Any) -> list[str]:
         seen.add(key)
         out.append(t2)
     return out
+
+
+def patched_tag_list(existing: Any, add: list[str], remove: list[str]) -> list[str] | None:
+    """Wave 6 (lane E) — a tag DELTA applied to a STORED list (`PATCH
+    /notes/{id}/tags`): drop every tag whose identity (`tag_key`) is in
+    `remove` — exactly that tag, a parent's children stay — then append each
+    `add` the list does not already hold. → the new list, or None when nothing
+    would change (so an idempotent request moves no revision). Pure: no SQL;
+    the length and cap checks stay `_validate_tags`' (update_note runs it)."""
+    before = list(existing or [])
+    gone = {tag_key(t) for t in remove}
+    out = [t for t in before if tag_key(t) not in gone]
+    have = {tag_key(t) for t in out}
+    for t in add:
+        k = tag_key(t)
+        if k and k not in have:
+            out.append(t)
+            have.add(k)
+    return None if out == before else out
+
+
+def renamed_tag_list(existing: Any, from_tag: str, to_tag: str) -> list[str] | None:
+    """Wave 6 (lane E, item 8) — rename `from_tag`, AND every tag below it, to
+    `to_tag` in one note's list: `a` -> `x` makes `a/b` -> `x/b` (a tag is the
+    parent of its `tag/…` children, as the tree and the `tag=` filter read it).
+    Matched by identity (`tag_key`), whole levels only ("researcher" is not
+    below "research"); a child keeps its OWN spelling below the renamed part.
+    Two tags that become one are one (the first kept). → the new list, or None
+    when nothing changes. Pure; a renamed child that outgrows the tag length is
+    refused by `_validate_tags` when update_note writes it."""
+    before = list(existing or [])
+    fk = tag_key(from_tag)
+    depth = len(fk.split("/"))
+    out: list[str] = []
+    seen: set[str] = set()
+    for t in before:
+        k = tag_key(t)
+        if k == fk:
+            t2 = to_tag
+        elif k.startswith(fk + "/"):
+            t2 = "/".join([to_tag, *_normalize_tag_path(str(t)).split("/")[depth:]])
+        else:
+            t2 = t
+        k2 = tag_key(t2)
+        if k2 in seen:
+            continue
+        seen.add(k2)
+        out.append(t2)
+    return None if out == before else out
 
 
 def _validate_body_json(raw: Any) -> dict[str, Any]:
@@ -1161,11 +1223,9 @@ def _notes_filter_sql(
         # callers run it on a connection from `register_note_sql_functions`.
         key = tag_key(tag)
         if key:
-            pre_sql, pre_params = _tag_prefilter(key)
-            sql += (f" AND {pre_sql} AND EXISTS (SELECT 1 FROM"
-                    " json_each(COALESCE(j2_notes.tags, '[]')) jt"
-                    " WHERE j2_tag_match(jt.value, ?))")
-            params.extend([*pre_params, key])
+            tag_sql, tag_params = _tag_clause(key)
+            sql += f" AND {tag_sql}"
+            params.extend(tag_params)
         else:
             # A tag that normalises to nothing names no tag: an honest empty
             # result, never a silently ignored filter.
@@ -3909,6 +3969,36 @@ def switcher_search(
 # here would be an eighth advancing function that rail does not know about.
 
 _BATCH_READ_CHUNK = 400  # stays well under SQLite's bound-parameter limit
+
+
+def tag_member_notes(
+    user_id: str,
+    tag: str,
+    conn: sqlite3.Connection | None = None,
+) -> list[dict[str, Any]]:
+    """Wave 6 (lane E, item 8) — the notes a rename of `tag` touches:
+    `[{id, title}]` of this member's notes carrying the tag or a tag below it,
+    most recently updated first. ⛔ LIVE notes, ARCHIVED ones included — an
+    archive is a shelf, and unarchiving a note must not bring the old name
+    back — and never a trashed one (the batch refuses to write those anyway).
+    The tag match is the list filter's own clause (`_tag_clause`)."""
+    key = tag_key(tag)
+    if not key:
+        return []
+    owned = conn is None
+    conn = conn or get_connection()
+    try:
+        register_note_sql_functions(conn)
+        tag_sql, tag_params = _tag_clause(key)
+        rows = conn.execute(
+            "SELECT id, title FROM j2_notes WHERE user_id = ? AND deleted_at IS NULL"
+            f" AND {tag_sql} ORDER BY updated_at DESC",
+            [user_id, *tag_params],
+        ).fetchall()
+        return [{"id": r["id"], "title": r["title"] or ""} for r in rows]
+    finally:
+        if owned:
+            conn.close()
 
 
 def note_batch_heads(

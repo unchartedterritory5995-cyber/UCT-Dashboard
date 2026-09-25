@@ -1845,6 +1845,28 @@ def note_tag_counts_endpoint(
     }
 
 
+@router.get("/notes/tag-members")
+def note_tag_members_endpoint(
+    tag: str | None = None,
+    user: dict = Depends(get_current_user),
+) -> dict[str, Any]:
+    """Wave 6 (lane E, item 8) — the notes a rename of `tag` would touch:
+    `{notes: [{id, title}], total}` for this member's LIVE notes (archived
+    ones too — unarchiving must not bring the old name back), carrying `tag`
+    or a tag below it, never a trashed note or another member's, matched by
+    the same identity (`tag_key`) the tag tree and the `tag=` filter already
+    use — never a letters-only lookalike ("researcher" for "research"). A
+    blank tag is a 400: a typo nobody meant is not an honest empty answer.
+
+    ⛔ MUST stay declared ABOVE `GET /notes/{note_id}` — same reason as
+    `/notes/tags` immediately above."""
+    key = notes_service.tag_key(tag or "")
+    if not key:
+        raise HTTPException(status_code=400, detail="tag is required")
+    notes = notes_service.tag_member_notes(user["id"], tag or "")
+    return {"notes": notes, "total": len(notes)}
+
+
 @router.get("/notes/folder-counts")
 def note_folder_counts_endpoint(
     user: dict = Depends(get_current_user),
@@ -1965,7 +1987,7 @@ def note_switcher_endpoint(
 # be demanded of it.
 NOTE_BATCH_MAX = 500
 NOTE_BATCH_OPS = ("move", "addTag", "removeTag", "favorite", "unfavorite", "trash", "restore",
-                  "archive", "unarchive")
+                  "archive", "unarchive", "renameTag")
 
 
 def _parse_batch_ids(raw: Any, cap: int = NOTE_BATCH_MAX) -> list[str]:
@@ -1990,9 +2012,18 @@ def notes_batch_endpoint(
     """Apply ONE operation to many notes: `{ids, op, args}`.
 
     ops: `move` {folderId | null} · `addTag` {tag} · `removeTag` {tag} ·
-    `favorite` · `unfavorite` · `trash` · `restore` · `archive` · `unarchive`.
+    `favorite` · `unfavorite` · `trash` · `restore` · `archive` · `unarchive` ·
+    `renameTag` {from, to}.
     (Archive, like a favourite, moves no revision — its results carry no
     `updatedAt`, and a trashed note answers `in_trash`.)
+
+    `renameTag` (wave 6, lane E, item 8): renames `from` to `to` on every
+    listed note that carries it, AND every tag below it (`a` -> `x` makes
+    `a/b` -> `x/b` — a tag is the parent of its `tag/...` children, as the
+    tree and the `tag=` filter already read it). Matched by identity
+    (`tag_key`), whole levels only. `GET /notes/tag-members?tag=` names the
+    notes to pass as `ids`. A request naming nothing to rename (`from`/`to`
+    blank, not strings, or the same tag) is a 400 before anything is written.
 
     `move` also takes `{folders: {<id>: folderId | null}}` — a folder PER
     NOTE, for putting a selection back where each note came from (the bulk
@@ -2030,6 +2061,8 @@ def notes_batch_endpoint(
     try:
         target_folder = None
         tag = None
+        rename_from = None
+        rename_to = None
         per_note_folder: dict[str, str | None] | None = None
         gone_folders: set[str] = set()
         expect_guard = False
@@ -2075,6 +2108,21 @@ def notes_batch_endpoint(
             if not cleaned:
                 raise HTTPException(status_code=400, detail="tag is required")
             tag = cleaned[0]
+        elif op == "renameTag":
+            frm_raw, to_raw = args.get("from"), args.get("to")
+            if not isinstance(frm_raw, str) or not isinstance(to_raw, str):
+                raise HTTPException(status_code=400, detail="from and to must be strings")
+            rename_from = notes_service._normalize_tag_path(frm_raw)
+            rename_to = notes_service._normalize_tag_path(to_raw)
+            if not rename_from or not rename_to:
+                raise HTTPException(status_code=400, detail="from and to are required")
+            if rename_from == rename_to:
+                # ⛔ Compared by the normalised SPELLING, never `tag_key` — a
+                # case-only rename ("semis" -> "Semis") is a real, meaningful
+                # rename (it changes the stored spelling) even though the two
+                # sides share one identity; only an exactly-identical request
+                # asks for nothing.
+                raise HTTPException(status_code=400, detail="from and to must be different tags")
 
         heads = notes_service.note_batch_heads(uid, ids, conn=conn)
         favs = notes_service.favorite_note_ids(uid, ids, conn=conn) if op in ("favorite", "unfavorite") else set()
@@ -2154,6 +2202,32 @@ def notes_batch_endpoint(
                     outcome: dict[str, Any] | None = None
                     for _attempt in range(2):
                         new_tags = _tag_patch(head)
+                        if new_tags is None:
+                            outcome = {"id": nid, "status": "unchanged"}
+                            break
+                        try:
+                            n = notes_service.update_note(
+                                uid, nid, {"tags": new_tags}, conn=conn,
+                                expected_updated_at=head["updatedAt"],
+                            )
+                        except notes_service.NoteConflictError:
+                            head = notes_service.note_batch_heads(uid, [nid], conn=conn).get(nid)
+                            if head is None or head["deleted"]:
+                                outcome = {"id": nid, "status": "not_found" if head is None else "in_trash"}
+                                break
+                            continue
+                        outcome = ({"id": nid, "status": "changed", "updatedAt": n["updatedAt"]}
+                                   if n else {"id": nid, "status": "not_found"})
+                        break
+                    results.append(outcome or {"id": nid, "status": "conflict"})
+                elif op == "renameTag":
+                    # Same compare-and-set + one retry shape as addTag/removeTag
+                    # above: a tag list edited meanwhile is re-read and
+                    # re-merged, never overwritten by a rename computed before
+                    # that edit existed.
+                    outcome: dict[str, Any] | None = None
+                    for _attempt in range(2):
+                        new_tags = notes_service.renamed_tag_list(head["tags"], rename_from, rename_to)
                         if new_tags is None:
                             outcome = {"id": nid, "status": "unchanged"}
                             break
