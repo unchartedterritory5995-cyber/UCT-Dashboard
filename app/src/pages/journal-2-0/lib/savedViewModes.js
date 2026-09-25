@@ -26,6 +26,8 @@ export const VIEW_MODES = [
   { id: 'board', icon: 'board', label: 'Board view' },
   { id: 'calendar', icon: 'calendar', label: 'Calendar view' },
   { id: 'graph', icon: 'graph', label: 'Graph view' },
+  // Wave 6: notes on a time axis, in lanes by folder or tag. Read-only in v1.
+  { id: 'timeline', icon: 'clock', label: 'Timeline view' },
 ]
 
 // ⛔ DERIVED, NOT RESTATED. A hand-written second copy of these five ids is the

@@ -496,7 +496,7 @@ def get_saved_view(user_id: str, view_id: str, conn: sqlite3.Connection | None =
 #: ⚠️ board and calendar also store a property ID in their spec (`groupBy`,
 #: `dateProperty`). The server does not resolve those -- the client applies them
 #: on restore. Ids, never names, so a rename cannot break a saved view.
-SAVEABLE_VIEW_TYPES = ("list", "table", "board", "calendar", "graph")
+SAVEABLE_VIEW_TYPES = ("list", "table", "board", "calendar", "graph", "timeline")
 
 
 def create_saved_view(

@@ -10,6 +10,7 @@ import NotesTableView from '../components/notebook/NotesTableView'
 import NoteGraphView from '../components/notebook/NoteGraphView'
 import NoteBoardView from '../components/notebook/NoteBoardView'
 import NoteCalendarView from '../components/notebook/NoteCalendarView'
+import NoteTimelineView from '../components/notebook/NoteTimelineView'
 import SavedViewEditor from '../components/notebook/SavedViewEditor'
 import FolderSidebar from '../components/notebook/FolderSidebar'
 import NoteEditorPage from '../components/notebook/NoteEditorPage'
@@ -183,6 +184,9 @@ export default function NotebookTab() {
   // observes the answer.
   const [boardGroupBy, setBoardGroupBy] = useState(null)
   const [calendarDateProp, setCalendarDateProp] = useState(null)
+  // Wave 6: what the timeline places by, its zoom and grouping, as it REPORTS
+  // them — so a saved timeline stores what was drawn, not a default.
+  const [timelineSettings, setTimelineSettings] = useState(null)
   const [propertyFilter, setPropertyFilter] = useState(null)
   const [propertySort, setPropertySort] = useState(null)
   const [saveViewOpen, setSaveViewOpen] = useState(false)
@@ -519,6 +523,7 @@ export default function NotebookTab() {
     const spec = { propertyFilter, propertySort }
     if (viewMode === 'board' && boardGroupBy) spec.groupBy = boardGroupBy
     if (viewMode === 'calendar' && calendarDateProp) spec.dateProperty = calendarDateProp
+    if (viewMode === 'timeline' && timelineSettings) spec.timeline = timelineSettings
     const view = await createSavedView(name, viewMode, spec)
     setActiveView(view)
     setSaveViewOpen(false)
@@ -1491,7 +1496,19 @@ export default function NotebookTab() {
               ⚰️ This comment used to justify the exclusion by saying the
               calendar was read-only. It was, for one commit.
             */}
-            {viewMode === 'calendar' && !isShelfView ? (
+            {viewMode === 'timeline' && !isShelfView ? (
+              /* ⛔ THE RESTORE BRANCH: keyed by the saved view, so opening one
+                 remounts the timeline with THAT view's settings (a stale
+                 instance would keep drawing the previous view's axis). */
+              <NoteTimelineView
+                key={activeView?.id || 'adhoc'}
+                notes={notes}
+                propertyDefs={propertyDefs}
+                onOpenNote={openNote}
+                initialSettings={activeView?.spec?.timeline || null}
+                onSettingsChange={setTimelineSettings}
+              />
+            ) : viewMode === 'calendar' && !isShelfView ? (
               <NoteCalendarView
                 notes={notes}
                 propertyDefs={propertyDefs}

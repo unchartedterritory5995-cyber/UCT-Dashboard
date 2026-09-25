@@ -282,8 +282,25 @@ def test_every_saveable_type_is_actually_accepted(app, client):
 def test_an_unknown_view_type_is_still_refused(app, client):
     """⛔ THE CONTROL. Widening an enum is only safe if it still has an edge."""
     _login_as(app, "u1")
-    r = client.post("/api/j2/saved-views", json={"name": "nope", "viewType": "timeline", "spec": {}})
+    # ⚰️ This control named "timeline" until wave 6 made timeline a real view
+    # type; the control's job is an UNKNOWN type, so it names another.
+    r = client.post("/api/j2/saved-views", json={"name": "nope", "viewType": "gantt", "spec": {}})
     assert r.status_code >= 400
+
+
+def test_a_timeline_view_keeps_its_settings_and_the_property_ID_it_places_by(app, client):
+    """Wave 6: a timeline stores what it places notes by (a property ID when it is
+    a property -- survives a rename), its zoom and its grouping; the client
+    applies them on restore, so the server must return them intact."""
+    _login_as(app, "u1")
+    spec = {"propertyFilter": None, "propertySort": None,
+            "timeline": {"timeBy": "builtin:review_date", "zoom": "quarter", "groupBy": "tag"}}
+    r = client.post("/api/j2/saved-views", json={"name": "Reviews by quarter", "viewType": "timeline", "spec": spec})
+    assert r.status_code == 200, r.text
+    listed = client.get("/api/j2/saved-views").json()["savedViews"]
+    mine = [v for v in listed if v["name"] == "Reviews by quarter"][0]
+    assert mine["viewType"] == "timeline"
+    assert mine["spec"]["timeline"] == {"timeBy": "builtin:review_date", "zoom": "quarter", "groupBy": "tag"}
 
 
 def test_a_board_view_keeps_the_property_ID_it_groups_by(app, client):
