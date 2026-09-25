@@ -1,6 +1,6 @@
 import { useEditor, EditorContent } from '@tiptap/react'
 import {
-  Suspense, lazy, useCallback, useEffect, useId, useMemo, useReducer, useRef, useState,
+  Suspense, useCallback, useEffect, useId, useMemo, useReducer, useRef, useState,
 } from 'react'
 import { useSearchParams, useNavigate } from 'react-router-dom'
 import useSWR, { mutate as globalMutate } from 'swr'
@@ -96,16 +96,22 @@ import {
   WRITING_HELP_EVENT, acceptWritingHelp, captureWritingHelpScope,
 } from '../../lib/writingHelp'
 import { notebookFlag } from '../../lib/offline/notebookFlags'
+import lazyChunk from '../../lib/lazyChunk'
 
 // Wave 7 lane H1 — the toolbar mic. LAZY: the recorder (MediaRecorder, the Web
 // Speech fallback, the Whisper upload) is not needed to open a note, and a
 // member who is not paid never downloads it at all (the mount below is gated on
 // `isPaid`). Rendered inside its own <Suspense fallback={null}>, so a note never
 // waits for it.
-const VoiceInputButton = lazy(() => import('../VoiceInputButton'))
+// ⛔ Through lib/lazyChunk.js, never a bare React.lazy (wave 7 whole-branch fix,
+// frontend review I-1): a chunk that fails to fetch is asked for again in place,
+// then handed to the app's one-reload-per-session stale-chunk recovery. A bare lazy
+// sent the first failure straight to the route boundary -- the whole Notebook blanked
+// over an optional control. Railed tree-wide in tabs/NotebookTab.lazyViews.test.js.
+const VoiceInputButton = lazyChunk(() => import('../VoiceInputButton'))
 // Wave 7 lane H2 — the writing-help preview. LAZY for the same reason: it is
 // fetched the first time a member opens it, never on note open.
-const WritingHelpPanel = lazy(() => import('./WritingHelpPanel'))
+const WritingHelpPanel = lazyChunk(() => import('./WritingHelpPanel'))
 
 // A note can carry its source video in heroImageUrl (set by the Desk "Save
 // notes to Journal Notebook" export). When it does, we render an embedded
