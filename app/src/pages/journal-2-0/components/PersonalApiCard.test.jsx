@@ -33,6 +33,42 @@ describe('PersonalApiCard', () => {
     await waitFor(() => expect(container).toBeEmptyDOMElement())
   })
 
+  // ⛔ Wave 7 whole-branch fix (frontend review M-2): DARK MEANS ABSENT holds before the answer
+  // too. The card used to render its title, a paragraph describing the unreleased feature and
+  // "Loading…" until the 404 came back -- and on any other error (a 502 in a deploy swap, a dropped
+  // connection) it stayed up saying "Could not load your tokens." while the gate was dark.
+  it('renders NOTHING while the gate answer is not known yet (the first request in flight)', async () => {
+    global.fetch = vi.fn(() => new Promise(() => {}))
+    const { container } = renderCard()
+    await waitFor(() => expect(global.fetch).toHaveBeenCalled())
+    await new Promise((r) => setTimeout(r, 20))
+    expect(container).toBeEmptyDOMElement()
+  })
+
+  it('renders NOTHING when the first answer is an error other than 404 (the gate is still unknown)', async () => {
+    global.fetch = vi.fn(async () => json(502, {}))
+    const { container } = renderCard()
+    await waitFor(() => expect(global.fetch).toHaveBeenCalled())
+    await new Promise((r) => setTimeout(r, 20))
+    expect(container).toBeEmptyDOMElement()
+  })
+
+  it('an error AFTER the gate is known ON shows the card’s own sentence', async () => {
+    const cache = new Map()
+    const mount = () => render(
+      <SWRConfig value={{ provider: () => cache, dedupingInterval: 0 }}>
+        <PersonalApiCard />
+      </SWRConfig>,
+    )
+    global.fetch = vi.fn(async () => json(200, { tokens: [] }))
+    const first = mount()
+    await screen.findByRole('button', { name: 'Make a token' })
+    first.unmount()
+    global.fetch = vi.fn(async () => json(502, {}))
+    mount()
+    expect(await screen.findByText('Could not load your tokens.')).toBeInTheDocument()
+  })
+
   it('lists tokens without ever showing token material, and revokes one', async () => {
     let tokens = [{
       id: 't1', label: 'iPhone Shortcuts', clientType: 'personal_api',

@@ -13,7 +13,16 @@ import styles from './InboundEmailCard.module.css'
  * pressed — that the old address stops working at once.
  *
  * ⛔ DARK MEANS ABSENT. While `NOTEBOOK_INBOUND_EMAIL_ENABLED` is off every route
- * answers 404 and this card renders nothing.
+ * answers 404 and this card renders nothing -- and it renders nothing BEFORE that answer
+ * too (wave 7 whole-branch fix, frontend review M-2): until the first GET says the gate is
+ * on, the card cannot know whether the feature exists, so a first request still in flight,
+ * or one that failed with anything but a 404 (a 502 in a deploy swap, a dropped connection),
+ * shows nothing. Its own error sentence appears only once the gate is known ON.
+ *
+ * ⛔ MINTED ON INTENT, NEVER ON VIEW (wave 7 whole-branch fix, frontend M-1 / backend M-10).
+ * GET answers `{"address": null}` until the member creates one; POST creates-or-rotates.
+ * With no address the card offers "Create my address" -- opening Settings to manage a broker
+ * must not leave a live key the member never asked for.
  */
 
 const URL = '/api/j2/inbound-email/address'
@@ -27,7 +36,7 @@ async function fetcher(u) {
 }
 
 export default function InboundEmailCard() {
-  const { data, error, isLoading, mutate } = useSWR(URL, fetcher, { revalidateOnFocus: false })
+  const { data, error, mutate } = useSWR(URL, fetcher, { revalidateOnFocus: false })
   const [confirming, setConfirming] = useState(false)
   const [busy, setBusy] = useState(false)
   const [copied, setCopied] = useState(false)
@@ -43,22 +52,29 @@ export default function InboundEmailCard() {
     }
   }, [data])
 
-  const rotate = useCallback(async () => {
+  // POST creates the address, or rotates an existing one -- the same door for both.
+  const post = useCallback(async ({ done, failed }) => {
     setBusy(true); setMessage(null); setCopied(false)
     try {
       const res = await fetch(URL, { method: 'POST', credentials: 'include' })
       if (!res.ok) throw new Error(String(res.status))
       await mutate(await res.json(), { revalidate: false })
       setConfirming(false)
-      setMessage('New address made. The old one no longer works.')
+      setMessage(done)
     } catch {
-      setMessage('Could not make a new address. Try again.')
+      setMessage(failed)
     } finally {
       setBusy(false)
     }
   }, [mutate])
+  const create = useCallback(() => post({ done: null, failed: 'Could not make your address. Try again.' }), [post])
+  const rotate = useCallback(() => post({
+    done: 'New address made. The old one no longer works.', failed: 'Could not make a new address. Try again.',
+  }), [post])
 
-  if (data?.dark) return null
+  // ⛔ M-2: no answer yet, or a first answer that was not a 404 -- the gate is unknown.
+  if (data === undefined || data.dark) return null
+  const noAddressYet = !data.unpaid && !data.address
 
   return (
     <TileCard icon="upload" title="Email to Notebook">
@@ -68,10 +84,15 @@ export default function InboundEmailCard() {
         anyone who has it can add notes here.
       </p>
 
-      {isLoading && <div className={styles.muted}>Loading…</div>}
       {error && <div className={styles.muted}>Could not load your address.</div>}
       {data?.unpaid && (
         <div className={styles.muted}>Email to Notebook needs a paid plan.</div>
+      )}
+
+      {noAddressYet && (
+        <button type="button" className="btn btn-primary" disabled={busy} onClick={create}>
+          {busy ? 'Making…' : 'Create my address'}
+        </button>
       )}
 
       {data?.address && (

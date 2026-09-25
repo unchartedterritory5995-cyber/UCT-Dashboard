@@ -55,6 +55,70 @@ describe('InboundEmailCard', () => {
     expect(screen.getByRole('textbox', { name: 'Your Notebook email address' })).toHaveValue(NEW)
   })
 
+  // ⛔ Wave 7 whole-branch fix (frontend M-1 / backend M-10): the address is minted on INTENT,
+  // never on view. GET answers {"address": null} until the member creates one; POST
+  // creates-or-rotates. Opening Settings -> Connections to manage a broker must not leave a live
+  // notes+<token>@ key the member never asked for.
+  it('no address yet: offers "Create my address", sends NOTHING until pressed, then shows it', async () => {
+    let created = false
+    global.fetch = vi.fn(async (url, init = {}) => {
+      if (init.method === 'POST') { created = true; return json(200, { address: ADDR, createdAt: 'x', rotatedAt: null }) }
+      return json(200, { address: created ? ADDR : null })
+    })
+    renderCard()
+    const create = await screen.findByRole('button', { name: 'Create my address' })
+    expect(screen.queryByRole('textbox')).not.toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: 'Make a new address…' })).not.toBeInTheDocument()
+    expect(global.fetch).not.toHaveBeenCalledWith(URL, expect.objectContaining({ method: 'POST' }))
+    fireEvent.click(create)
+    expect(await screen.findByRole('textbox', { name: 'Your Notebook email address' })).toHaveValue(ADDR)
+    expect(screen.queryByRole('button', { name: 'Create my address' })).not.toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Make a new address…' })).toBeInTheDocument()
+    expect(global.fetch.mock.calls.filter(([, i]) => i?.method === 'POST')).toHaveLength(1)
+  })
+
+  it('a create the server refuses is SAID, and the button stays', async () => {
+    global.fetch = vi.fn(async (url, init = {}) => (
+      init.method === 'POST' ? json(500, { detail: 'boom' }) : json(200, { address: null })))
+    renderCard()
+    fireEvent.click(await screen.findByRole('button', { name: 'Create my address' }))
+    expect(await screen.findByText('Could not make your address. Try again.')).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Create my address' })).toBeInTheDocument()
+  })
+
+  // ⛔ M-2: DARK MEANS ABSENT holds before the answer too, not only after a clean 404.
+  it('renders NOTHING while the gate answer is not known yet (the first request in flight)', async () => {
+    global.fetch = vi.fn(() => new Promise(() => {}))
+    const { container } = renderCard()
+    await waitFor(() => expect(global.fetch).toHaveBeenCalled())
+    await new Promise((r) => setTimeout(r, 20))
+    expect(container).toBeEmptyDOMElement()
+  })
+
+  it('renders NOTHING when the first answer is an error other than 404 (the gate is still unknown)', async () => {
+    global.fetch = vi.fn(async () => json(502, {}))
+    const { container } = renderCard()
+    await waitFor(() => expect(global.fetch).toHaveBeenCalled())
+    await new Promise((r) => setTimeout(r, 20))
+    expect(container).toBeEmptyDOMElement()
+  })
+
+  it('an error AFTER the gate is known ON shows the card’s own sentence', async () => {
+    const cache = new Map()
+    const mount = () => render(
+      <SWRConfig value={{ provider: () => cache, dedupingInterval: 0 }}>
+        <InboundEmailCard />
+      </SWRConfig>,
+    )
+    global.fetch = vi.fn(async () => json(200, { address: ADDR }))
+    const first = mount()
+    await screen.findByRole('textbox', { name: 'Your Notebook email address' })
+    first.unmount()
+    global.fetch = vi.fn(async () => json(502, {}))
+    mount()
+    expect(await screen.findByText('Could not load your address.')).toBeInTheDocument()
+  })
+
   it('says a paid plan is needed on 402', async () => {
     global.fetch = vi.fn(async () => json(402, { detail: 'Email to Notebook requires a paid plan' }))
     renderCard()

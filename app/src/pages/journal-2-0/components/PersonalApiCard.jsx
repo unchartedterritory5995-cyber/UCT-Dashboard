@@ -13,7 +13,10 @@ import styles from './PersonalApiCard.module.css'
  * says plainly that it will not be shown again, and forgets it on Done.
  *
  * ⛔ DARK MEANS ABSENT. While `NOTEBOOK_PERSONAL_API_ENABLED` is off every route
- * answers 404, and this card renders nothing at all — no disabled teaser.
+ * answers 404, and this card renders nothing at all — no disabled teaser. Nor BEFORE
+ * that answer (wave 7 whole-branch fix, frontend review M-2): a first request still in
+ * flight, or one that failed with anything but a 404, leaves the gate unknown and the card
+ * absent; its own error sentence appears only once the gate is known ON.
  *
  * Revoking works for a member whose plan lapsed (the server does not paid-gate
  * list or revoke); only making a new token needs a paid plan.
@@ -109,7 +112,8 @@ export default function PersonalApiCard() {
     }
   }, [mutate])
 
-  if (data?.dark) return null
+  // ⛔ M-2: no answer yet, or a first answer that was not a 404 -- the gate is unknown.
+  if (data === undefined || data.dark) return null
   const tokens = data?.tokens || []
 
   return (
@@ -120,7 +124,6 @@ export default function PersonalApiCard() {
         sign in as you. Each token lasts a year unless you revoke it.
       </p>
 
-      {isLoading && <div className={styles.muted}>Loading…</div>}
       {error && <div className={styles.muted}>Could not load your tokens.</div>}
 
       {made ? (
