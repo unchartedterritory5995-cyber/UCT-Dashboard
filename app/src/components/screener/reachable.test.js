@@ -703,9 +703,23 @@ const AWAITING_A_DECISION = {
     'COMMUNITY SURFACE — the pooled EventSource for the chat stream. Its only '
     + 'importers are the community files above, so it moves with them or not '
     + 'at all (same pairing rule as buildRail / DeskVideoRail).',
-  // (PACKET-AA CP1's FlowExplainButton.jsx block stood here until 2026-09-25;
-  // CP2 mounted it in OptionsFlow.jsx's Strike Flow Detail table and the block
-  // and its expiry were deleted in that commit, as the block's own text said.)
+  // ── PACKET-AA CP1 (fingerprint f7fb7c477) — held unmounted ON PURPOSE ────
+  //
+  // The AI Print Explainer backend (api/flow_explain.py) is fully built,
+  // cost-guarded, paid-gated, and had zero frontend caller. CP1 built the
+  // standalone UI door (this file, exporting both FlowExplainButton and
+  // FlowExplainModal) in complete isolation, deliberately WITHOUT touching
+  // OptionsFlow.jsx — see the packet's own §5 ("why this is two checkpoints
+  // and not one"). CP2 is the only piece that mounts a trigger for it, via
+  // one additive className hook on a flow-print row, and CP2 explicitly
+  // requires the owner's coordination with Ravi (OptionsFlow.jsx's partner
+  // owner) before it lands — same treatment as the joystick hub's own
+  // "kept on purpose" entries above. DELETE THIS ENTRY in the same commit
+  // that lands CP2's mount.
+  'app/src/pages/optionsFlow/FlowExplainButton.jsx':
+    'PACKET-AA CP1 — built and tested, deliberately unmounted pending CP2 '
+    + '(requires owner+Ravi coordination on the OptionsFlow.jsx insertion '
+    + 'point). See docs/terminal-research gate packet-aa-flow-explain-wiring-gate.md.',
   }
 
 /**
@@ -757,8 +771,12 @@ const PARKING_EXPIRES = {
   // what is new — the merge, not either side, and exactly the interaction S4
   // exists to surface rather than let park itself forever.
   //
-  // (Its expiry, 2026-11-30, was deleted 2026-09-25 with the block: CP2 mounted
-  // the component, so the parking note had nothing left to outlive.)
+  // ⛔ THE DATE IS THE REGISTER'S LONGEST HORIZON, and it is a PROPOSAL, as the
+  // note above says of all of them. CP2 is blocked on owner+Ravi coordination
+  // over `OptionsFlow.jsx`'s insertion point — a partner dependency with no date
+  // of its own — so it gets the same horizon as the other coordination-blocked
+  // entries rather than a shorter one invented here to look decisive.
+  'PACKET-AA CP1 (fingerprint f7fb7c477) — held unmounted ON PURPOSE': '2026-11-30',
 }
 
 /** ⛔ A DATE COMPARISON, NOT A DURATION. Both sides are ISO `YYYY-MM-DD`, which
