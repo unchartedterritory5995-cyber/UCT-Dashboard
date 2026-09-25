@@ -145,6 +145,24 @@ took the 38; the integrator re-ran every touched file in its own tree before eac
 | **lane 2's cluster** | 7 | **FIXED 10** (all ports or stale assertions overtaken by master's own commits; each mutation-proved): stockChartWiring (port of the merge re-take's `paints()` predicate, re-measured here — the one series after the engine block is the invisible future-axis whitespace series; 451aed688's gap-run series are minted inside the binder's bind pass, so NOT a window regression) · controlDoorCensus (ledgers `testing/scan/scanHarness.jsx`, on master since `a974dd77a` 9/21) · memberPaneGate (ledger says `armed` since `c2c048653` 9/18 — the test expected `dark`; ⚠️ `memberPaneGate.js` header still says nothing renders a member's Pine, product-docs drift, reported) · ChartDrawingOverlay.surfaces (text-distance probe read the checkout's CRLF; normalised, span NOT widened) · Layout.routeSuspense + Layout.pageTracking (NavBar mocks keep the real `NAV_ITEMS` that `surfaces/pageTitle.js` reads since S1 CP2) · formulaLibrary.route (ruling holds; the READER broke when `307d7e2fb` moved `FREE_PAGES` to `constants/freePages.js` — now read at its home and AuthGuard's consumption proved) · Login.totp ×2 (`finishLogin()` routes on `paid_equiv` since `307d7e2fb`; fixtures without it were FREE members landing on `/morning-wire`, correct product behaviour) · usePreferences.additionsOnly (declares the two opaque-key call sites master added: `BreadthChartsV2.jsx` `breadth_charts_state`, `useColumnPresets.js` `screener_column_presets` — ⚠️ a NEW member-preference key with no other declaration). **OWNER-DECISION 1**: pollingSites.rail — NOT load-sensitive (red alone ×2): 13 new bare `useSWR refreshInterval` sites in 9 files landed 9/03–9/23, each needing a bare-vs-`useMobileSWR` ruling the rail forbids silencing; phone-reachable ones: `chart/useBoundDrawingAlerts.js` (60s, via StockChart), `floor2/hooks/useFloor.js` ×5 (10–30s), `hooks/useFilingWatch.js` (30s, TickerHubSheet/TickerPopup); admin-only: ChatModerationPanel, CompassHealthPanel, ThemeEngineHealthPanel, PatternAdmin ×2; plus `useWatchlistIntelligence.js` (120s), `pages/OpenFlow.jsx` (120s). 
 |
 
+### 3c-bis. ⚰️ A second session did the same sweep on master at the same time (2026-09-24 20:40–21:16 CT)
+
+While #185 waited for a merge click, another session landed on master `a461ed3ac`
+(the three screener rails, same three files, same fixes) and `7e0ab34c2` (the polling rail
+— the SAME seven conversions and six declarations as PR #192 — plus the R-29 `reachable`
+entry). GitHub then reported #185 in conflict. Resolution, in master's favour throughout:
+`394b3be50` merges master into the sweep, takes master's `Screener.door`,
+`ScannerShell.review` and `FilterBand` tests, **restores `FilterBand.jsx` + its CSS** —
+`tests/test_screener_distribution.py` still READS that file for its refusal sentences, so
+the sweep's deletion (`6e5bd692f`, "completing #178") would have broken a backend test the
+sweep's scoped pytest never ran; a real correction — and keeps master's single R-29 entry.
+Every affected file and the backend reader re-run green (27 passed). **PR #192 was closed as
+superseded** (identical content on master). #184's resolved branch was re-derived the same
+way (`7885fd5c0`, conflict-free against master; the two parked blocks master added got the
+expiries that line's rail demands). ⛔ Lesson for the next sweep: **two sessions fixing the
+same reds in parallel is the collision this repo's worktree rules exist to prevent** — a
+sweep should announce its file set (the resume doc's §3 table is the place) before starting.
+
 ### 3d. What is still owed
 
 1. ✅ **Gate C ran** (`docs/plans/joystick/gate-runs/2026-09-24T18-59-50.*`, on `a25c8a77a`,
