@@ -96,6 +96,17 @@ owns the saved-object model). Agent-buildable on 10-12; nothing before.
 
 **Re-open trigger:** Wave Q1 shows a keep-or-revert regression before 10-12.
 
+> **Amended the same day under "we are on a one-week crunch — expedite".** The 10-12 gate
+> binds the S5 saved-object half only (gap 2 of A12 CP1's rail, the `watchlist_view_documents`
+> store copied from S5's CAS shape). The other two gaps depend on nothing that is not live
+> today, so they were built and shipped as **A12 CP2 (part 1)**: the chosen performance
+> columns persist per member (`watchlist_perf_cols`, hydrated after prefs load, written on
+> change — CP1's gap-1 pin flipped as designed and was updated), and `/charts?openWatchlist=
+> <watchKey>` is a real address in the same shape as the layout doors (validated against the
+> registry's forms, retargets the board's Watchlist widget or adds one, strips its param,
+> degrades on junk). Rails: 5 + 4 new cases, 59/59 existing Watchlists tests, the A12 rail
+> 7/7. **Gap 2 stays on 2026-10-12.** Record: RESUME-HERE §3 / §5.
+
 ---
 
 ## CARD 4 — A14 Portfolio & Risk
