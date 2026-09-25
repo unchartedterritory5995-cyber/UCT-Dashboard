@@ -247,7 +247,7 @@ def test_the_REAL_handler_answers_with_the_lexical_notes_when_the_vendor_is_down
         folder_id=None, tag=None, ticker=None, q=NL, embed_symbol=None,
         embed_widget=None, sort="updated", limit=100, offset=0, deleted=False,
         dateFrom=None, dateTo=None, sector=None, theme=None, savedViewId=None,
-        propertyFilter=None, propertySort=None, user={"id": U})
+        propertyFilter=None, propertySort=None, meaning=True, user={"id": U})
     assert [n["id"] for n in body["notes"]] == [lexical["id"]]
     assert body["total"] == 1
 
@@ -327,6 +327,6 @@ def test_the_HANDLER_passes_its_limit_to_the_hook(db_path):
         folder_id=None, tag=None, ticker=None, q=NL, embed_symbol=None,
         embed_widget=None, sort="updated", limit=2, offset=0, deleted=False,
         dateFrom=None, dateTo=None, sector=None, theme=None, savedViewId=None,
-        propertyFilter=None, propertySort=None, user={"id": U})
+        propertyFilter=None, propertySort=None, meaning=True, user={"id": U})
     assert len(body["notes"]) == 2
     assert body["notes"][1].get("matchKind") == "meaning"      # non-vacuity: it did append

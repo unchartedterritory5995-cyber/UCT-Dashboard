@@ -957,6 +957,9 @@ export default function FolderSidebar({
     sort: 'relevance',
     limit: SEARCH_RESULT_LIMIT,
     enabled: searchEnabled,
+    // D-H9: this list renders "related by meaning" rows with their reason line (D-H8), so it is
+    // the one that asks the server for them (`meaning=1`); no other notes list does.
+    meaning: true,
     dateFrom: dateFrom || undefined,
     dateTo: dateTo || undefined,
     sector: sectorFilter || undefined,

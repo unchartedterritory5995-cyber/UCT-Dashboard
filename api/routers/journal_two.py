@@ -1698,6 +1698,7 @@ def list_notes_endpoint(
     savedViewId: str | None = None,
     propertyFilter: str | None = None,
     propertySort: str | None = None,
+    meaning: bool = False,
     user: dict = Depends(get_current_user),
 ) -> dict[str, Any]:
     """`deleted=true` (Wave 0 trash view): the mirror-image question — only
@@ -1769,13 +1770,19 @@ def list_notes_endpoint(
     # A note-id list, never a change to the filters or a second whole-library
     # query; off, it returns `rows` untouched and issues no SQL at all
     # (note_semantic.append_meaning_hits says why each refusal is where it is).
-    from api.services.journal_two import note_semantic
-    rows = note_semantic.append_meaning_hits(
-        user["id"], q, rows, total=total, offset=offset, limit=limit,
-        only_query=not (folder_id or tag or ticker or embed_symbol or embed_widget
-                        or deleted or date_from or date_to or symbol_in is not None
-                        or savedViewId or property_filter),
-    )
+    # ⛔ OPT-IN BY REQUEST (ruling D-H9): only a request carrying `meaning=1`
+    # reaches it -- today the Notebook search box, the one list that labels a
+    # meaning row (D-H8). The [[ picker, AddPositionModal, ThesisSection and
+    # Model Book call this same endpoint and would otherwise receive rows that
+    # match no word typed, with nothing to say why (and spend an embed each).
+    if meaning:
+        from api.services.journal_two import note_semantic
+        rows = note_semantic.append_meaning_hits(
+            user["id"], q, rows, total=total, offset=offset, limit=limit,
+            only_query=not (folder_id or tag or ticker or embed_symbol or embed_widget
+                            or deleted or date_from or date_to or symbol_in is not None
+                            or savedViewId or property_filter),
+        )
     return {"notes": rows, "total": total, "limit": limit, "offset": offset}
 
 

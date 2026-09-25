@@ -361,11 +361,13 @@ def _record_handler(monkeypatch, **params):
     log: list = []
     monkeypatch.setattr(notes, "get_connection", lambda: Recorder(real(), log))
     monkeypatch.setattr(ns, "get_connection", lambda: Recorder(real(), log))
+    # meaning=True: the search box's request (ruling D-H9) -- every rail here is
+    # about what the hook does when it IS asked; the opt-in has its own file.
     body = router.list_notes_endpoint(
         folder_id=None, tag=None, ticker=None, q=params.get("q"), embed_symbol=None,
         embed_widget=None, sort="updated", limit=100, offset=0, deleted=False,
         dateFrom=None, dateTo=None, sector=None, theme=None, savedViewId=None,
-        propertyFilter=None, propertySort=None, user={"id": U})
+        propertyFilter=None, propertySort=None, meaning=True, user={"id": U})
     return body, log
 
 
@@ -420,7 +422,8 @@ def _record_handler_with(monkeypatch, **overrides):
     kw = dict(folder_id=None, tag=None, ticker=None, q="why did I cut my winners early",
               embed_symbol=None, embed_widget=None, sort="updated", limit=100, offset=0,
               deleted=False, dateFrom=None, dateTo=None, sector=None, theme=None,
-              savedViewId=None, propertyFilter=None, propertySort=None, user={"id": U})
+              savedViewId=None, propertyFilter=None, propertySort=None, meaning=True,
+              user={"id": U})
     kw.update(overrides)
     body = router.list_notes_endpoint(**kw)
     return body, log

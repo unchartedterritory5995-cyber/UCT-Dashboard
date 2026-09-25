@@ -459,6 +459,30 @@ describe('search panel — rows related by MEANING say so, and the count is hone
   })
 })
 
+// ⛔ Ruling D-H9: the server appends meaning rows only to a request that asks (`meaning=1`), and
+// this search box -- the one list that renders them with a reason line (D-H8) -- is the one that
+// asks. Its counter lists do not.
+describe('search panel — the search box is the one list that asks for meaning rows (D-H9)', () => {
+  beforeEach(() => { vi.useFakeTimers() })
+  afterEach(() => { vi.useRealTimers() })
+
+  it('the search request carries meaning: true; the counter lists do not', () => {
+    render(<FolderSidebar notes={[]} activeFolderId={null} onSelectFolder={() => {}}
+                          activeTag={null} onSelectTag={() => {}} />)
+    fireEvent.click(screen.getByLabelText('Search notes'))
+    fireEvent.change(screen.getByPlaceholderText(/search notes/i), { target: { value: 'why did I sell out of fear' } })
+    act(() => { vi.advanceTimersByTime(300) })
+    const calls = useJ2NotesMock.mock.calls.map(([opts]) => opts || {})
+    const search = calls.filter((o) => o.enabled && o.q)
+    expect(search.length).toBeGreaterThan(0)                       // non-vacuity: the search ran
+    expect(search.every((o) => o.meaning === true)).toBe(true)
+    // the Unfiled / Trash / Archived counter lists (folderId or deleted)
+    const counters = calls.filter((o) => o.folderId || o.deleted)
+    expect(counters.length).toBeGreaterThan(0)                      // the counters were seen too
+    expect(counters.some((o) => o.meaning)).toBe(false)
+  })
+})
+
 describe('folder delete error surfacing', () => {
   beforeEach(() => {
     removeMock.mockReset()

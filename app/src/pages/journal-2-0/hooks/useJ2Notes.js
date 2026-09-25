@@ -38,7 +38,7 @@ const DEFAULT_PAGE_SIZE = 100
 
 function buildNotesUrl({
   folderId, tag, ticker, q, sort, limit, offset, deleted, dateFrom, dateTo, sector, theme,
-  savedViewId, propertyFilter, propertySort,
+  savedViewId, propertyFilter, propertySort, meaning,
 }) {
   const params = new URLSearchParams()
   if (folderId) params.set('folder_id', folderId)
@@ -64,17 +64,21 @@ function buildNotesUrl({
   if (savedViewId) params.set('savedViewId', savedViewId)
   if (propertyFilter) params.set('propertyFilter', JSON.stringify(propertyFilter))
   if (propertySort) params.set('propertySort', JSON.stringify(propertySort))
+  // Wave 7 whole-branch fix, ruling D-H9: the armed meaning search appends "related by meaning"
+  // rows ONLY to a request that asks. A caller asks only if it renders them with their reason
+  // line (FolderSidebar's search box, D-H8); every other list of notes stays exactly lexical.
+  if (meaning) params.set('meaning', '1')
   const qs = params.toString()
   return `/api/j2/notes${qs ? `?${qs}` : ''}`
 }
 
 export default function useJ2Notes({
   folderId, tag, ticker, q, sort = 'updated', limit, enabled = true, deleted = false,
-  dateFrom, dateTo, sector, theme, savedViewId, propertyFilter, propertySort,
+  dateFrom, dateTo, sector, theme, savedViewId, propertyFilter, propertySort, meaning = false,
 } = {}) {
   const url = enabled ? buildNotesUrl({
     folderId, tag, ticker, q, sort, limit, deleted, dateFrom, dateTo, sector, theme,
-    savedViewId, propertyFilter, propertySort,
+    savedViewId, propertyFilter, propertySort, meaning,
   }) : null
   // `enabled=false` passes SWR a null key, which skips the fetch entirely —
   // callers that only sometimes need this data (e.g. a search panel that
@@ -156,7 +160,7 @@ export default function useJ2Notes({
     try {
       const nextUrl = buildNotesUrl({
         folderId, tag, ticker, q, sort, deleted, dateFrom, dateTo, sector, theme,
-        savedViewId, propertyFilter, propertySort,
+        savedViewId, propertyFilter, propertySort, meaning,
         limit: limit || DEFAULT_PAGE_SIZE,
         offset: notes.length,
       })
@@ -176,7 +180,7 @@ export default function useJ2Notes({
       setIsLoadingMore(false)
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [url, hasMore, isLoadingMore, folderId, tag, ticker, q, sort, limit, deleted, notes, dateFrom, dateTo, sector, theme])
+  }, [url, hasMore, isLoadingMore, folderId, tag, ticker, q, sort, limit, deleted, notes, dateFrom, dateTo, sector, theme, meaning])
 
   return {
     notes,
