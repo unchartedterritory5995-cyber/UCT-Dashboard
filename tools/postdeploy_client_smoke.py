@@ -258,6 +258,24 @@ def click_nav(page, entry: dict) -> tuple[str, str]:
     return "FAIL", "neither URL nor screen settled"
 
 
+def spawn_rig_or_reason(spawn=None):
+    """`(spawned, None)` when the rig came up, `(None, why)` when it REFUSED to start.
+
+    ⚰️ 2026-09-25: a chain ran this tool without `--profile`; `wc.spawn_rig()`
+    raised its STOP (no rig profile at this checkout's default path) as a string
+    `SystemExit`, which Python reports as exit **1** — the MEASURED-failure code,
+    the one H15 rolls back on. Nothing had been measured. A rig that will not
+    start is "rig down", which this tool's own contract files under exit 2
+    (INCONCLUSIVE), so the refusal is converted here and the reason is kept.
+    `spawn` is late-bound so the self-check can prove the conversion without a
+    browser."""
+    spawn = spawn or wc.spawn_rig
+    try:
+        return spawn(), None
+    except SystemExit as e:
+        return None, (str(e) or "the rig refused to start").strip()
+
+
 def self_check() -> int:
     """Rule 14: prove the verdicts can FAIL, without a browser."""
     bad = 0
@@ -294,6 +312,11 @@ def self_check() -> int:
          len(hns.nav_items()) > 5)
     case("⛔ the extra routes name only what the nav cannot supply",
          all(r not in [e["to"] for e in hns.nav_items()] for r, _ in EXTRA_ROUTES))
+    refused = spawn_rig_or_reason(spawn=lambda: (_ for _ in ()).throw(SystemExit("STOP: no rig profile at X")))
+    case("⛔ a rig that REFUSES to start is a reason, not a measurement (→ exit 2, never 1)",
+         refused[0] is None and "no rig profile" in refused[1])
+    case("⭐ CONTROL — a rig that starts is passed through untouched",
+         spawn_rig_or_reason(spawn=lambda: ("proc", "ws://x", "v"))[0] == ("proc", "ws://x", "v"))
     print("self-check:", "PASS" if not bad else f"FAIL ({bad})")
     return 1 if bad else 0
 
@@ -334,7 +357,11 @@ def main(argv=None) -> int:
         + ", ".join(r for r, _ in EXTRA_ROUTES))
 
     from playwright.sync_api import sync_playwright
-    proc, endpoint, version = wc.spawn_rig()
+    spawned, why = spawn_rig_or_reason()
+    if spawned is None:
+        say(f"INCONCLUSIVE — the rig refused to start: {why}")
+        return 2
+    proc, endpoint, version = spawned
     if not version:
         say("INCONCLUSIVE — the rig did not answer")
         return 2
