@@ -848,6 +848,39 @@ class TestAttachmentLinking:
         assert [c["attrs"]["name"] for c in body if c["type"] == "attachmentChip"] == ["n.txt"]
 
 
+    def test_a_note_LOCKED_while_its_attachments_save_is_not_touched(self, client, on, monkeypatch, caplog):
+        """Whole-branch tests shard I-1, second half: email-in's attachment link
+        is the third door through `append_nodes`, and it CAN reach a locked
+        note -- the member locks the brand-new note in the milliseconds its
+        attachments take to save. The link is refused (423) like the personal
+        API's appends: the note is left exactly as locked, the email is still
+        answered 202, and the refusal is one log line naming the status. The
+        files stay saved (the same stance as the deleted-note case)."""
+        import logging
+        from api.services.journal_two import inbound_email, notes
+        real_save = inbound_email._save_attachment
+
+        def save_then_member_locks(user_id, note_id, att):
+            out = real_save(user_id, note_id, att)
+            notes.update_note(user_id, note_id, {"locked": True})
+            return out
+
+        monkeypatch.setattr(inbound_email, "_save_attachment", save_then_member_locks)
+        caplog.set_level(logging.WARNING, logger=inbound_email.log.name)
+        uid = _user()
+        r = _send(client, {"to": _address(uid), "subject": "locked", "text": "original",
+                           "attachments": [{"name": "n.txt", "content_type": "text/plain",
+                                            "base64": _b64(b"hello")}]})
+        assert r.status_code == 202 and r.json() == {"accepted": True}
+        [n] = _notes(uid)
+        body = json.loads(n["body_json"])["content"]
+        assert not any(c["type"] == "attachmentChip" for c in body), "a locked note was appended to"
+        assert "original" in n["body_plain"]
+        assert notes.get_note(uid, n["id"])["locked"] is True
+        lines = [rec.getMessage() for rec in caplog.records if "attachments not linked" in rec.getMessage()]
+        assert len(lines) == 1 and "423" in lines[0]
+
+
 # ── the worker agrees with the server, byte for byte ─────────────────────────
 
 def _node(script_input: dict) -> dict:

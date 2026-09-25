@@ -670,6 +670,22 @@ class TestDaily:
         text = _body_text(rows[0]["id"])
         assert "alpha words" in text and "bravo words" in text, "neither append was lost"
 
+    def test_a_LOCKED_daily_note_refuses_the_daily_door_with_423(self, app, client, gate_on):
+        """Whole-branch tests shard I-1. D-G1(d)'s 423 had ONE rail, on the
+        note-append door; the daily door reached it only because it happens to
+        share `append_nodes`, and a mutation that unlocks the daily note before
+        appending (G1) survived 167 tests. This is the review's rail, as given."""
+        from api.services.journal_two import note_personal_api as papi, notes
+        uid = _user(); token = _mint(uid)
+        r1 = client.post("/api/j2/personal/daily/append", headers=_bearer(token), json={"markdown": "one"})
+        nid = r1.json()["note"]["id"]
+        notes.update_note(uid, nid, {"locked": True})
+        before = _row(nid)
+        r = client.post("/api/j2/personal/daily/append", headers=_bearer(token), json={"markdown": "two"})
+        assert r.status_code == 423 and r.json() == {"detail": papi.LOCKED_SENTENCE}
+        after = _row(nid)
+        assert (after["body_json"], after["updated_at"]) == (before["body_json"], before["updated_at"])
+
     def test_the_members_daily_template_seeds_a_new_daily_note(self, db_path):
         from api.services import auth_service
         from api.services.journal_two import note_personal_api as papi
