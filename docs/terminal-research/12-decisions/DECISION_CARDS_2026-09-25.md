@@ -77,6 +77,12 @@ to FLIP** — FLIP waits for `legacy_only == 0` over ≥ 5 sessions on ≥ 3 def
 > definitions; the last shares its tree with the smoke account's 09-21 subscription, so that
 > definition now has two members, one real). Read back exactly three, `mode: both`. The
 > nightly sweep projects them from tonight; five sessions per definition is the floor.
+>
+> **CP4 measured satisfied the same evening (18:3xZ):** the s7-dark cohort already held all
+> 29 members (`seed_cohort_all_members` added 0; audit in the gate packet). So the cohort was
+> never the limit — the absence of real-member alerts and subscriptions was, and the owner's
+> five levels and three screens are the first. Both S7 bars are now purely sessions ×
+> real-member predicates; no further widening step exists.
 
 ---
 

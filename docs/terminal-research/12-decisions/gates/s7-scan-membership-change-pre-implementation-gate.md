@@ -12,6 +12,16 @@ evidence_ceiling: SOURCE ONLY. `screener.db` was not opened, no Railway variable
 
 # ✅ NOT APPROVED — `scan-membership-change`
 
+> ✅ **CP4 — MEASURED SATISFIED 2026-09-25, recorded under owner delegation ("you decide
+> all"), packet fingerprint `e2db98cfc` at this write.** CP4 is, by this packet's own §4
+> definition, *"all members, still dark — a tag assignment (`rollout.py`), not a code path."*
+> The owner ran `rollout.seed_cohort_all_members(S7_DARK)` on the web pod (idempotent, with a
+> before/after audit): tag `rollout:s7-dark`, **users 29, cohort_before 29, cohort_after 29,
+> added 0, removed none, covers_every_user true** — the cohort already held every member
+> before the run. Nothing about delivery changed; both S7 dark comparisons now read every
+> member's real `screen_alert_subs` and `watchlist_alerts` rows. The FLIP line still needs its
+> own owner (or delegated) ruling against the bars in `DECISION_CARDS_2026-09-25.md` CARDS 1–2.
+
 ## ⛔ APPROVAL — this block is filled in by the OWNER, not the author
 
 ```
