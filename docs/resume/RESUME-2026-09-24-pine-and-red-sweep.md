@@ -163,13 +163,22 @@ took the 38; the integrator re-ran every touched file in its own tree before eac
 
 ### 3e. Owner walkthrough — what only you can do, in order
 
-1. **Say "open the PR"** (or open it yourself): base `master`, head `fix/master-red-sweep`,
-   body prepared in the session scratchpad as `PR-BODY-red-sweep.md`. `gh` is not
-   authenticated on this box and `GITHUB_PERSONAL_ACCESS_TOKEN` is invalid — either run
-   `gh auth login` in a normal terminal / replace the token at github.com/settings/tokens
-   (scopes `repo`, `read:org`) and restart Claude Code, or the agent opens it through the
-   browser as it did for #184. Merging is the usual "deploy" + member-impact call: this is
-   test-only plus the four product files above, so the member impact is nil.
+1. ✅ **PR #185 is OPEN** — https://github.com/unchartedterritory5995-cyber/UCT-Dashboard/pull/185
+   (`master ← fix/master-red-sweep`, 38 files, MERGEABLE; every check green except a
+   report-only pytest shard that was still pending). `gh` is authenticated again (a fresh
+   fine-grained token, 2026-09-24; the classic "Claude — repo" token had expired 2026-05-19)
+   and `GITHUB_PERSONAL_ACCESS_TOKEN` is persisted for the MCP server after a restart.
+   Merging is the usual "deploy" + member-impact call: test-only plus the four product files
+   above, so the member impact is nil.
+   ⚠️ **#184 also targets master, and the two overlap in six test files** — three of them
+   (graphRuntime, stockChartWiring, carriedState) CONFLICT whichever lands second, because the
+   sweep ported #184's own re-takes to master. **Merge #185 first.** Then fast-forward #184
+   to the pre-resolved branch `merge/pine-up-to-master-resolved` (`e28d9e6a2` = #184 +
+   #185 merged, conflicts taken from the pine side, the six shared files re-run there: all
+   green except `reachable`'s three pine runtime orphans, #184's own pre-existing red):
+   `git push origin merge/pine-up-to-master-resolved:merge/pine-up-to-master`. #184's gated
+   head (`526b5e2aa`) is untouched until you do that; its gate evidence then needs the
+   carry-over check (`tools/gate_carry_over.py`) or a re-gate — owner's call.
 2. **Rule on the fractional-window bug** (member-facing, since #145): say "fix it" and the
    agent changes ONE line at `pine.js:8048` (do not defer a literal `num` that is not a usable
    window — `usableWindowBound` already answers null for `27.5`), adds a rail, and the four
