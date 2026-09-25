@@ -165,13 +165,157 @@ def audit_sessions(*, now: float | None = None) -> dict:
     return report
 
 
+# ── Liveness: does the video STILL EXIST on YouTube? ─────────────────────────
+# ⚰️ 2026-09-25: the Day 7 walkthrough found three published Desk videos that had
+# been removed from the channel AFTER the pipeline published them (ids 324/353/354
+# — every card thumbnail 404'd for weeks; the owner deleted the rows by hand). The
+# audit above checks that artifacts LANDED and never that they still EXIST, and
+# its 3-day window could not have seen them anyway: they were weeks old. So this
+# is a separate, BOUNDED, RESUMABLE sweep over the WHOLE library — a round-robin
+# of `DESK_VIDEO_LIVENESS_PER_RUN` videos per daily run, asking YouTube's oEmbed
+# endpoint (the same probe that named the three) — and it reports a video ONCE,
+# the first run that sees it gone, by name. State lives beside the cover-retry
+# ledger on the volume so a redeploy neither re-alerts nor restarts the cursor.
+# ⛔ UNKNOWN (network error, 5xx, rate limit) is never GONE: an outage at YouTube
+# must not manufacture a library's worth of findings.
+
+_DEFAULT_LIVENESS_PER_RUN = 40
+_LIVENESS_TIMEOUT_S = 6.0
+_OEMBED_URL = ("https://www.youtube.com/oembed?url=https://www.youtube.com/watch?v={vid}"
+               "&format=json")
+_OEMBED_UA = "Mozilla/5.0 (compatible; UCT-Desk-liveness/1.0)"
+
+
+def liveness_enabled() -> bool:
+    return os.environ.get("DESK_VIDEO_LIVENESS_ENABLED", "1") != "0"
+
+
+def _liveness_per_run() -> int:
+    try:
+        return max(1, int(os.environ.get("DESK_VIDEO_LIVENESS_PER_RUN", _DEFAULT_LIVENESS_PER_RUN)))
+    except ValueError:
+        return _DEFAULT_LIVENESS_PER_RUN
+
+
+def _liveness_path(override=None) -> str:
+    from api.services import desk_creative
+    return override or os.path.join(desk_creative._data_dir(), "desk_video_liveness.json")
+
+
+def _read_state(path) -> dict:
+    try:
+        with open(path, "r", encoding="utf-8") as f:
+            data = json.load(f)
+        return data if isinstance(data, dict) else {}
+    except (OSError, ValueError):
+        return {}
+
+
+def _write_state(path, data: dict) -> None:
+    import tempfile
+    d = os.path.dirname(path) or "."
+    os.makedirs(d, exist_ok=True)
+    fd, tmp = tempfile.mkstemp(dir=d, prefix=os.path.basename(path), suffix=".tmp")
+    try:
+        with os.fdopen(fd, "w", encoding="utf-8") as f:
+            json.dump(data, f, ensure_ascii=False)
+        os.replace(tmp, path)
+    except Exception:
+        try:
+            os.unlink(tmp)
+        except OSError:
+            pass
+        raise
+
+
+def youtube_live(youtube_id: str, *, timeout: float = _LIVENESS_TIMEOUT_S):
+    """True = YouTube serves the video. False = YouTube says it is gone (404),
+    private/blocked (401/403) or the id is malformed (400) — in every one of those
+    the member's card cannot play. None = UNKNOWN (network error, 5xx, 429) and is
+    deliberately NOT a verdict."""
+    import requests
+    try:
+        r = requests.get(_OEMBED_URL.format(vid=youtube_id), timeout=timeout,
+                         headers={"User-Agent": _OEMBED_UA})
+    except Exception:
+        return None
+    if r.status_code == 200:
+        return True
+    if r.status_code in (400, 401, 403, 404):
+        return False
+    return None
+
+
+def sweep_liveness(*, now: float | None = None, path: str | None = None,
+                   check=None, limit: int | None = None) -> dict:
+    """Check the next `limit` library videos (round-robin by id, cursor persisted)
+    and report the ones YouTube no longer serves — NEW ones by name, the running
+    total by count. `check` is late-bound so a test can inject a verdict table
+    without a socket. Never raises."""
+    now = float(now if now is not None else time.time())
+    path = _liveness_path(path)
+    check = check or youtube_live
+    limit = int(limit if limit is not None else _liveness_per_run())
+    out: dict = {"checked": 0, "library": 0, "unknown": 0, "gone_new": [],
+                 "recovered": [], "gone_total": 0, "cursor": None}
+    try:
+        from api.services import education_service
+        rows = [v for v in education_service.list_videos() if (v.get("youtube_id") or "").strip()]
+        rows.sort(key=lambda v: int(v.get("id") or 0))
+        out["library"] = len(rows)
+        state = _read_state(path)
+        try:
+            cursor = int(state.get("cursor") or 0)
+        except (TypeError, ValueError):
+            cursor = 0
+        gone = state.get("gone") if isinstance(state.get("gone"), dict) else {}
+        ordered = [v for v in rows if int(v.get("id") or 0) > cursor] + \
+                  [v for v in rows if int(v.get("id") or 0) <= cursor]
+        last_id = cursor
+        for v in ordered[:limit]:
+            vid, yid = int(v.get("id") or 0), (v.get("youtube_id") or "").strip()
+            title = (v.get("title") or "").strip()
+            try:
+                verdict = check(yid)
+            except Exception:
+                verdict = None
+            out["checked"] += 1
+            last_id = vid
+            if verdict is False:
+                if yid not in gone:
+                    gone[yid] = {"id": vid, "title": title, "first_seen": int(now)}
+                    out["gone_new"].append({"id": vid, "title": title, "youtube_id": yid})
+            elif verdict is True:
+                if yid in gone:
+                    out["recovered"].append({"id": vid, "title": title, "youtube_id": yid})
+                    del gone[yid]
+            else:
+                out["unknown"] += 1
+        out["gone_total"] = len(gone)
+        out["cursor"] = last_id
+        _write_state(path, {"cursor": last_id, "gone": gone, "checked_at": int(now),
+                            "library": len(rows)})
+    except Exception as e:                                   # a diagnostic never raises
+        out["error"] = f"{type(e).__name__}: {e}"
+    return out
+
+
 def format_alert(report: dict) -> str:
-    """One Discord-ready block NAMING each incomplete session and what it lacks."""
+    """One Discord-ready block NAMING each incomplete session and what it lacks,
+    and each library video YouTube no longer serves."""
     lines = [f"Checked {report.get('checked', 0)} published session(s) from the last "
              f"{report.get('window_days', 0):.0f} day(s):"]
     for s in report.get("incomplete", []):
         lines.append(f"• **{s['title']}** (video {s['id']}) — missing: "
                      f"{', '.join(s['missing'])}")
+    live = report.get("liveness") or {}
+    if live.get("gone_new"):
+        lines.append(f"No longer on YouTube (library sweep, {live.get('checked', 0)} of "
+                     f"{live.get('library', 0)} checked this run, {live.get('gone_total', 0)} "
+                     f"gone in total) — the card cannot play; delete the row "
+                     f"(admin `DELETE /api/education/videos/{{id}}`) or re-upload:")
+        for g in live["gone_new"]:
+            lines.append(f"• **{g['title']}** (video {g['id']}, YouTube `{g['youtube_id']}`)")
     return "\n".join(lines)
 
 
@@ -183,13 +327,18 @@ def _send_alert(text: str) -> None:
 
 
 def run_audit_and_alert(*, now: float | None = None) -> dict:
-    """Scheduler entry point. Silent when everything landed; one message naming
-    every gap when it didn't. NEVER raises — a failing alert channel must not
-    take down the scheduler thread it shares."""
+    """Scheduler entry point. Silent when everything landed AND every checked
+    video still plays; one message naming every gap when it didn't. NEVER raises
+    — a failing alert channel must not take down the scheduler thread it shares."""
     if not is_enabled():
         return {"skipped": "disabled"}
     report = audit_sessions(now=now)
-    if report.get("incomplete"):
+    if liveness_enabled():
+        try:
+            report["liveness"] = sweep_liveness(now=now)
+        except Exception as e:                               # belt and braces
+            report["liveness"] = {"error": f"{type(e).__name__}: {e}"}
+    if report.get("incomplete") or (report.get("liveness") or {}).get("gone_new"):
         try:
             _send_alert(format_alert(report))
         except Exception as e:

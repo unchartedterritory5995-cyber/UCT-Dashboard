@@ -24,6 +24,11 @@ def edu_db(monkeypatch):
     with tempfile.TemporaryDirectory() as d:
         monkeypatch.setattr(edu, "_DB_PATH", os.path.join(d, "education.db"))
         edu._init_db()
+        # The liveness sweep asks YouTube over the network and persists a cursor;
+        # the artifact-audit cases above it are offline by construction, so the
+        # sweep is OFF here and switched on, with an injected verdict table and a
+        # temp state file, by its own cases below.
+        monkeypatch.setenv("DESK_VIDEO_LIVENESS_ENABLED", "0")
         yield edu
 
 
@@ -169,6 +174,110 @@ def test_a_discord_failure_never_escapes_the_scheduler_job(edu_db, monkeypatch):
     monkeypatch.setattr(audit, "_send_alert",
                         lambda text: (_ for _ in ()).throw(RuntimeError("discord down")))
     audit.run_audit_and_alert(now=time.time() + 4 * HOUR)   # must not raise
+
+
+# ── DOES THE VIDEO STILL EXIST? — the library liveness sweep ────────────────
+# 2026-09-25: three published Desk videos (ids 324/353/354) had been removed from
+# YouTube weeks after publish; every card thumbnail 404'd and this audit, which only
+# checks that artifacts LANDED inside a 3-day window, could not see them. The sweep
+# below is bounded, resumable and offline-testable through its injected `check`.
+
+def _video(title, yid):
+    return edu.create_video({"youtube_id": yid, "title": title,
+                             "category": "Sunday Scans", "sort_order": 0})["id"]
+
+
+@pytest.fixture
+def liveness_state(tmp_path):
+    return str(tmp_path / "desk_video_liveness.json")
+
+
+def test_a_video_youtube_no_longer_serves_is_reported_by_name_ONCE(edu_db, liveness_state):
+    keep = _video("Sunday Scans — August 9, 2026", "LIVE1")
+    dead = _video("Evening Update — September 10, 2026", "GONE1")
+    table = {"LIVE1": True, "GONE1": False}
+    first = audit.sweep_liveness(path=liveness_state, check=table.get, now=1000)
+    assert first["checked"] == 2 and first["library"] == 2 and "error" not in first
+    assert [g["id"] for g in first["gone_new"]] == [dead]
+    assert first["gone_new"][0]["title"] == "Evening Update — September 10, 2026"
+    assert first["gone_total"] == 1
+    # The same video is never reported twice — the state file remembers it.
+    second = audit.sweep_liveness(path=liveness_state, check=table.get, now=2000)
+    assert second["gone_new"] == [] and second["gone_total"] == 1
+    assert keep not in [g["id"] for g in first["gone_new"]]
+
+
+def test_an_UNKNOWN_verdict_is_never_gone(edu_db, liveness_state):
+    """A YouTube outage must not manufacture a library's worth of findings —
+    and the control proves the same rows ARE reported when the verdict is real."""
+    _video("Sunday Scans — August 16, 2026", "MAYBE1")
+    r = audit.sweep_liveness(path=liveness_state, check=lambda yid: None, now=1000)
+    assert r["checked"] == 1 and r["unknown"] == 1 and r["gone_new"] == []
+    r2 = audit.sweep_liveness(path=liveness_state, check=lambda yid: False, now=2000)
+    assert [g["youtube_id"] for g in r2["gone_new"]] == ["MAYBE1"]
+
+
+def test_a_video_that_comes_back_is_dropped_from_the_gone_set(edu_db, liveness_state):
+    _video("Workshop — August 2, 2026", "FLAP1")
+    audit.sweep_liveness(path=liveness_state, check=lambda yid: False, now=1000)
+    r = audit.sweep_liveness(path=liveness_state, check=lambda yid: True, now=2000)
+    assert [g["youtube_id"] for g in r["recovered"]] == ["FLAP1"] and r["gone_total"] == 0
+
+
+def test_the_sweep_is_BOUNDED_and_resumes_round_robin_across_runs(edu_db, liveness_state):
+    ids = [_video(f"Video {i}", f"V{i}") for i in range(1, 6)]
+    seen = []
+    check = lambda yid: seen.append(yid) or True
+    for _ in range(3):
+        audit.sweep_liveness(path=liveness_state, check=check, limit=2, now=1000)
+    # 5 videos, 2 per run: run 1 = V1 V2, run 2 = V3 V4, run 3 = V5 then wraps to V1.
+    assert seen == ["V1", "V2", "V3", "V4", "V5", "V1"], seen
+    assert len(ids) == 5
+
+
+def test_youtube_live_classifies_what_youtube_answers(monkeypatch):
+    import requests
+
+    class R:
+        def __init__(self, code): self.status_code = code
+    answers = {}
+    monkeypatch.setattr(requests, "get", lambda url, **kw: answers[url.split("v=")[1].split("&")[0]])
+    answers.update({"ok": R(200), "gone": R(404), "private": R(401), "bad": R(400), "outage": R(503)})
+    assert audit.youtube_live("ok") is True
+    assert audit.youtube_live("gone") is False
+    assert audit.youtube_live("private") is False
+    assert audit.youtube_live("bad") is False
+    assert audit.youtube_live("outage") is None
+    monkeypatch.setattr(requests, "get", lambda url, **kw: (_ for _ in ()).throw(OSError("dns")))
+    assert audit.youtube_live("ok") is None
+
+
+def test_run_audit_and_alert_names_a_video_that_is_no_longer_on_youtube(edu_db, liveness_state, monkeypatch):
+    _session()                                         # a complete session: nothing missing
+    _video("Evening Update — September 10, 2026", "GONE2")
+    monkeypatch.setenv("DESK_VIDEO_LIVENESS_ENABLED", "1")
+    monkeypatch.setattr(audit, "_liveness_path", lambda override=None: liveness_state)
+    monkeypatch.setattr(audit, "youtube_live", lambda yid, **kw: yid != "GONE2")
+    sent = []
+    monkeypatch.setattr(audit, "_send_alert", lambda text: sent.append(text))
+    report = audit.run_audit_and_alert(now=time.time() + 4 * HOUR)
+    assert report["incomplete"] == [] and report["liveness"]["gone_total"] == 1
+    assert len(sent) == 1
+    assert "Evening Update — September 10, 2026" in sent[0]
+    assert "No longer on YouTube" in sent[0] and "GONE2" in sent[0]
+    # And the second daily run stays silent about the same video.
+    sent.clear()
+    audit.run_audit_and_alert(now=time.time() + 28 * HOUR)
+    assert sent == []
+
+
+def test_a_liveness_failure_never_escapes_the_scheduler_job(edu_db, monkeypatch):
+    _session()
+    monkeypatch.setenv("DESK_VIDEO_LIVENESS_ENABLED", "1")
+    monkeypatch.setattr(audit, "sweep_liveness",
+                        lambda **kw: (_ for _ in ()).throw(RuntimeError("volume gone")))
+    report = audit.run_audit_and_alert(now=time.time() + 4 * HOUR)   # must not raise
+    assert "error" in report["liveness"]
 
 
 # ── IS IT ACTUALLY WIRED? ───────────────────────────────────────────────────
