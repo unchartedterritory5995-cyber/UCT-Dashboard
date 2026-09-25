@@ -445,7 +445,10 @@ trades (`imported:true` flag + `coach_prompts.py` rule).
   — a second process doubles a Shortcut's budget) · `note_ask._writing_help_by_user`
   (wave 7 lane H: the editor writing help's OWN 60-per-member-per-day counter, ruling
   D-H2 — a second process doubles it, and a restart resets it; the email-in limits of
-  the same wave are DURABLE in auth.db by contrast). Durable equivalents exist where a repeat is
+  the same wave are DURABLE in auth.db by contrast) · `note_semantic._paused_until` (wave 7
+  lane H fix round 1: after a provider failure the armed meaning search fails OPEN and skips
+  the vendor for 60 s — per process, so a second pod keeps calling a failing vendor for
+  its own 60 s, and a restart clears the pause). Durable equivalents exist where a repeat is
   genuinely costly (`j2_broker_member_stale_notify` for member email,
   `j2_broker_digest_dedup` for the owner digest) — extend that pattern rather than
   adding new module dicts if the web pod ever goes multi-instance.
