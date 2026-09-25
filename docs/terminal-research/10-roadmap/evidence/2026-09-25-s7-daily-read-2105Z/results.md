@@ -134,6 +134,30 @@ the honest options are in §5's CARD 2 row.
 
 ---
 
+## ✅ CLOSED THE SAME EVENING — the report now states this itself (`4885dadc2`)
+
+The hand probe above is no longer how anyone learns this. `arming_census()` shipped in
+`4885dadc2` (web SUCCESS 21:41:53Z) and the live admin dark report now answers it directly:
+
+```
+predicate_count: 1
+subscriptions: 4 | members: 2 | definitions: 3 | definitions_with_a_comparison: 1
+ARMED BUT NEVER COMPARED:
+    sha256:f8d8650d0 — Above 50 on volume
+    sha256:fd0e04f2a — 26wk HV
+```
+
+⭐ **The product reproduced the hand probe exactly, and explains the arithmetic the probe
+could not.** Four subscriptions across two members but only **three distinct definitions** —
+the owner's third screen (Oops Reversal) is the one **shared with the smoke account's
+definition**, which is why exactly one definition has a comparison and the other two are
+named as armed and silent. The 2 + 1 split is the whole finding, now printed beside
+`predicate_count` instead of being invisible behind it.
+
+Verified on the live payload: no `user_id` appears anywhere in the census.
+
+---
+
 ## What the agent is doing about it, without being asked again
 
 * The daily read continues per §9, and now **always reports `legacy_only` and the
