@@ -3615,6 +3615,14 @@ the Notebook workstream out by branch-name family and a DETACHED checkout has no
 name: two phantom NEW rows, measured the same night. A `node_modules` junction to
 `notebook-k`'s install is enough; remove it with a NON-recursive delete only.
 
+⛔ **Never commit in a worktree where another agent is active — the INDEX is shared,
+not only the tree.** `git add <pathspec>` protects the working tree; `git commit` then
+commits EVERYTHING staged, including the other agent's `git add`. Measured 2026-09-25
+(`a9b4916e5`: a controller docs commit swept in an implementer's staged test file; content
+kept, attribution wrong, an empty provenance commit followed). Either wait for the agent to
+report, or commit with a pathspec on the COMMIT (`git commit -- <paths>`), which ignores
+other staged files. Read the hygiene line's staged-file COUNT before committing.
+
 ⛔ **`tools/notebook_wave5_walk.py` / `notebook_wave6_walk.py` are the walks that
 produce the evidence** — their headers name the preconditions (a sandbox from the
 tip; a PAID walk account on that data dir, or every notebook route redirects;

@@ -45,24 +45,24 @@ evidence, `34f3fb6d2` walk script) — merge that tail before the wave-6 PR.
 Both worktrees' own `CLAUDE.md` carry a pointer section (search "Notebook
 10/10 program") back to this file and to the SDD ledger.
 
-## 2. Blockers as of 21:15 CT — the H14 hotfix is LIVE (#187 merged, deployed, verified); a session rate limit (resets 22:00 CT) still gates new subagents
+## 2. Blockers as of 2026-09-25 03:00 CT — none on the code; #186 waits on the owner's merge, wave 6 waits on its final gate + walk
 
-- **Session rate limit** ("You've hit your session limit · resets 10pm America/Chicago", HTTP 429
-  on Opus) killed lane E and lane D's re-review at ~19:45 CT. The controller session still runs.
-  **Do not dispatch new subagents before 22:00 CT**; controller-level work (gates, ledger, docs,
-  pushes) continues. Lane E's last commit is pushed; its UNCOMMITTED item-8 files sit in
-  `notebook-w6` (`api/services/journal_two/notes.py` modified; two new router tests) — leave them,
-  re-dispatch E after 22:00 with a pointer to them. Lane D's re-review wrote no report — re-dispatch.
-- **H14 hotfix — `hotfix/notebook-metadata-settle` (`0f485f6cf` + `abc2f168c`, pushed).** Lane D's
-  fix round found a data-loss class LIVE on production: a metadata door's settle queued the
-  editor's stale body on the door's new revision, so a later drain overwrote another device's words
-  with no 409 and no fork. Confirmed on production source (`5fd248c40`), reproduced with the real
-  drain on identical source, gate proven both ways by mutation on master's own code (the first
-  green was VACUOUS — a missing `METADATA_ONLY` import made the predicate throw; the CONTROL caught
-  it). **Every Notebook deploy (#183, wave 5) is HELD behind this hotfix.** **PR #187 is MERGED AND LIVE** (master `d4a1a13b6`, Railway SUCCESS 01:55Z record, fresh boot verified 20:58 CT; the deploy block is lifted). For the record: master's own baseline was measured on a pristine detached worktree at
-  `73a4286d0` (126 rows, adopted as `ac128755d`, with the two gate-parser fixes cherry-picked), and the
-  official six-shard gate on that tip is **0 NEW** (manifest `2163e5dcf`). Merge order: **#187 → #183 →
-  #186**. PR body = `.superpowers/sdd/2026-09-23-notebook-10/hotfix-metadata-settle-PR-draft.md`.
+- **#187 and #183 are MERGED and LIVE** (master `d4a1a13b6` / `a3d9f5a1e`; production fast-forwarded
+  to `74beea1d2`, verified by a SUCCESS record CONTAINING the sha + ancestry + fresh boot —
+  `scratchpad/deploy_watch_contains.py`, never hash equality: the promotion queue can jump past a squash).
+- **#186 (`feat/notebook-10`, wave 5) is OPEN, gated green on its landing tree `9ec80e965` (one NEW row =
+  the recorded NC-D order-sensitive probe; manifest `145478ec1`), tags `notebook-wave5-guard-*` +
+  `notebook-wave5-tip-2026-09-24` pushed, PR body READY.** The only action is the owner's
+  `! gh pr merge 186 --squash`; then `deploy_watch_contains.py <squash sha>`; then merge master into
+  `feat/notebook-w6` (14 squash-induced conflicts resolve as OURS — the g064 history is an ancestor;
+  `NoteEditorPage.metadataSettle.test.jsx` → w6's combobox variant).
+- **Wave 6 (`feat/notebook-w6`)**: every lane closed; whole-branch review + combined re-review done;
+  fix round 5 (the live walk's findings) landed at `70426b0a8`. Remaining: the FINAL six-shard gate on
+  that tip in the detached worktree `notebook-w6-gate` ON THE BRANCH NAME `notebook-w6-gate` (a detached
+  checkout trips `rule12Paths` — two phantom NEW rows, measured), the live walk on that tip
+  (`tools/notebook_wave6_walk.py`; previous run `walk-7006f1504.json` found the editor crash), the PR (opened from feat/notebook-w6 right after this checkpoint commit (gh pr list --head feat/notebook-w6)).
+- **Expected NEW rows on the final gate, already classified as NOT wave 6's:** `dailyFirstPaintIncidental`
+  CASE A (hour-dependent: fails identically on the wave-5 tree past midnight); anything else NEW is ours.
 
 ## 3. What's actually done (wave 5) — everything
 
@@ -114,24 +114,24 @@ Both worktrees' own `CLAUDE.md` carry a pointer section (search "Notebook
 
 ## 5. Exact next actions, in order
 
-1. **OWNER: merge in this order, each as its own deploy** — **#187** (`hotfix/notebook-metadata-settle`,
-   draft until its gate manifest is committed and it is marked ready) → **#183** → **#186**
-   (`feat/notebook-10`, wave 5). Both PR bodies carry the member-impact paragraph for the deploy
-   summary (`feedback_master_push_needs_explicit_deploy_and_member_summary`). `gh` is
-   authenticated on this box since 20:35 CT, so the controller opens and updates PRs itself.
-2. **Lane D fix round 1 reports** → generate the review package (BASE = the tip before the
-   round) → scoped re-review against `wave6-D-R1-fix-brief.md` → close lane D.
-3. **Lane E reports** → review package → task review → fix rounds as needed → close lane E.
-4. **Merge wave 5's tail** (`8370e15ad..34f3fb6d2`, docs/evidence/tools only) into
-   `feat/notebook-w6`.
-5. **Wave-6 whole-branch review** → **six-shard gate** (`scripts/gate_shards.py --shards 6 --out
-   docs/notebook/gate-runs/wave6 --max-workers 4`; one gate at a time on this box; read the
-   manifest's `VERDICT=`) → **live walk** on the final w6 tip → **PR draft** → owner opens it.
-6. **Post the Discord update** — the consolidated entry at the END of `DISCORD-QUEUE.md` supersedes
-   the five above it; post it alone when the Chrome extension reconnects (§9).
-7. **Waves 7–9** per `wave7-briefs.md` with the recorded pre-verification deltas (G gated on E's
-   daily note; H gated on D's fix round + merge; I's tag/bundle figures stale; ownership re-cut;
-   four flags need ledger entries) — `docs/notebook/NOTEBOOK-10-OF-10-PLAN.md` is the plan.
+1. **OWNER:** `! gh pr merge 186 --squash` (wave 5). Then the controller: deploy watch (contains-sha),
+   merge master into `feat/notebook-w6` (ours on the squash-induced conflicts), push.
+2. **Wave 6 final gate** on `70426b0a8`: in `notebook-w6-gate` run `git checkout -B notebook-w6-gate 70426b0a8`,
+   verify the junction (`Get-Item -Force` → Junction → notebook-k's node_modules), then
+   `python scripts/gate_shards.py --shards 6 --out docs/notebook/gate-runs/wave6 --max-workers 4`; read the
+   manifest's NEW section (never a task's last line); classify each NEW row alone on the branch and on
+   `notebook-k` as the control. Record: docs/notebook/gate-runs/wave6/2026-09-25T03-35-52.md.
+3. **Wave 6 live walk** on `70426b0a8` (walk author: rebuild `app/dist`, sandbox `C:\data-w6walk` from
+   PowerShell, comp the account, run `tools/notebook_wave6_walk.py`, commit the JSON by pathspec):
+   every check PASS or an accepted INCONCLUSIVE (W11 reminders: no manual trigger). Record: docs/notebook/gate-runs/wave6/walk-70426b0a8.json.
+4. **Scoped re-review of round 5** (small, opus) → residuals adjudicated → **PR** from `feat/notebook-w6`
+   (body draft `scratchpad/wave6-pr-body-draft.md`; tag the tip before the squash; the eight schema
+   level-2 entries are never-revert) → owner merges after #186 is live → deploy watch.
+5. **Checkpoint docs** (this file, CLAUDE.md pointer + the shared-INDEX rule, `wave6-ownership.md`,
+   OPEN-ITEMS sweep, gate manifests copied into `docs/notebook/gate-runs/wave6/`, `data-w6walk/` removed
+   from the worktree) → memory topic file + MEMORY.md (pointer gate).
+6. **Waves 7–9** per `wave7-briefs.md`, with the wave-6 carry-overs listed in OPEN-ITEMS (M-3, M-4, M-8,
+   M-9, `guarded_media_get`, the deletion manifest, M14's client caller, the owner's M-10 statement and I3 device run).
 
 ## 6. Background processes — what dies on restart, what doesn't
 
