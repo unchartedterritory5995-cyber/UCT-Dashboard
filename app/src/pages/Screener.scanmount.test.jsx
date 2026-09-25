@@ -34,7 +34,7 @@
 // `SavedScreensPanel` → `ScanResults` → `CoverageLine`. That tab is gone.
 // `ScreensManager` (mounted inside `ScannerShell`, which is the Scanner Hub's
 // DEFAULT and now only screen) absorbed the definition detail: a member opens
-// the `Screens ▾` menu and clicks the My-scans row bearing the formula they
+// the `Screener ▾` menu and clicks the My-scans row bearing the formula they
 // saved. The chain is now `/screener` → `ScannerShell` → `ScreensManager` →
 // `ScanResults` → `CoverageLine`, and every assertion below still measures the
 // SAME four-outcome receipt reaching the SAME real DOM — only the door changed.
@@ -228,12 +228,12 @@ function renderScreenerPage() {
  *  on a private attribute would stay green through a menu that renders
  *  invisible. */
 async function openScreensMenu(user) {
-  await user.click(await screen.findByRole('button', { name: 'Screens ▾' }))
+  await user.click(await screen.findByRole('button', { name: 'Screener ▾' }))
 }
 
 /** Do the only things a member can do to reach the scan surface: open the
  *  manager, then open the My-scans row bearing the screen they saved (K6 — the
- *  door is now `Screens ▾` → the My-scans row, not a "My Formulas" tab). */
+ *  door is now `Screener ▾` → the My-scans row, not a "My Formulas" tab). */
 async function openTheScanSurface(user) {
   await openScreensMenu(user)
   await user.click(await screen.findByRole('button', { name: SCREEN_NAME }))
@@ -286,7 +286,7 @@ describe('🔴 the scan chip: the downgrade only the shell\'s scanJoins threadin
     const user = userEvent.setup()
     renderScreenerPage()
 
-    // DOOR: Screens ▾ → the My-scans row's own "Use as filter" action — the
+    // DOOR: Screener ▾ → the My-scans row's own "Use as filter" action — the
     // real UI path a member drives (not a URL-seeded spec): `useScreenSpec`
     // is the REAL hook in this file (only ScannerShell's three data hooks are
     // mocked), so `s.filters`/`s.setFilter` are live state, and ScannerShell's
@@ -449,11 +449,11 @@ describe('🔴 withheld renders as BREADTH, never folded into "no matches"', () 
 })
 
 describe('the scan surface is a real destination, not a rail-satisfying stub', () => {
-  it('the "Screens ▾" door is offered on the page App.jsx routes to', async () => {
+  it('the "Screener ▾" door is offered on the page App.jsx routes to', async () => {
     renderScreenerPage()
     expect(screen.getByRole('heading', { name: /^screener$/i })).toBeInTheDocument()
     // The control a member clicks — findable by its label, like every other one.
-    expect(await screen.findByRole('button', { name: 'Screens ▾' })).toBeInTheDocument()
+    expect(await screen.findByRole('button', { name: 'Screener ▾' })).toBeInTheDocument()
   })
 
   it('and the page never asks for /api/candidates at all', async () => {

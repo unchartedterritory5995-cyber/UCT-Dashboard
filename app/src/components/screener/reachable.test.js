@@ -691,6 +691,28 @@ const AWAITING_A_DECISION = {
     'PACKET-AA CP1 — built and tested, deliberately unmounted pending CP2 '
     + '(requires owner+Ravi coordination on the OptionsFlow.jsx insertion '
     + 'point). See docs/terminal-research gate packet-aa-flow-explain-wiring-gate.md.',
+  //
+  // ── S4 CP1 — THE FOCUS-DIVERGENCE DETECTOR, FILED AS R-29 (2026-09-24) ──
+  //
+  // `76c62c494` ("S4 CP1: the divergence detector — read-only, mounts nothing")
+  // built `lib/context/focusDivergence.js` ahead of its consumer. At master today
+  // its only non-test mention is a COMMENT in `hub/HubContext.jsx`, so it has zero
+  // real importers and this rail is right to name it. It has redded every full
+  // gate on master since 2026-09-13 (`docs/plans/joystick/requests.md`, R-29); it
+  // was once REMOVED from an allow-list on evidence it had stopped failing, and
+  // was re-orphaned — the ledger's own argument for an entry with a reason over
+  // another removal: an entry survives a re-orphaning, a removal does not.
+  //
+  // ⛔ THE DECISION IS NOT MADE HERE. Mount-or-delete belongs to the S4 workstream
+  // (R-29's owner); this entry records that it is PENDING, which is the third of
+  // the three outcomes this rail's own message offers. DELETE THIS ENTRY in the
+  // commit that wires the detector or removes the file — the wired/gone checks
+  // below will insist on it.
+  'app/src/lib/context/focusDivergence.js':
+    'S4 CP1 (76c62c494) — the symbol-link focus-divergence detector, read-only '
+    + 'and mounted by nothing at master; R-29 (filed 2026-09-13) owns the '
+    + 'mount-or-delete decision. Recorded PENDING, not shipped. Delete this entry '
+    + 'in the commit that wires it or removes it.',
   }
 
 /**
