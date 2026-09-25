@@ -385,10 +385,15 @@ function SearchModeIcon() {
  */
 function TagRenameableRow({
   path, label, total, active, onSelect, ariaLabel, title, depth = 0, disclosure = null,
+  // Wave 6 fix round 2, M6: `false` when the caller gave FolderSidebar no
+  // `onRenameTag` at all — the same "hide, never a live control that
+  // silently does nothing" rule NoteMenuActions already applies to its own
+  // optional `onOpenBeside` (shown only when given).
+  renameEnabled = true,
   renaming, preview, renameValue, renameBusy,
   onStartRename, onRenameChange, onSubmitRename, onCancelRename,
 }) {
-  const isRenaming = renaming === path
+  const isRenaming = renameEnabled && renaming === path
   return (
     <>
       <div className={styles.rowWrap} style={{ paddingLeft: depth * 14 }}>
@@ -404,15 +409,17 @@ function TagRenameableRow({
           <span>{label}</span>
           <span className={styles.count}>{total}</span>
         </button>
-        <button
-          type="button"
-          className={styles.renameTagBtn}
-          onClick={(e) => { e.stopPropagation(); onStartRename(path) }}
-          title="Rename tag"
-          aria-label={`Rename ${path}`}
-        >
-          <UIcon name="edit" size={12} gold={false} />
-        </button>
+        {renameEnabled && (
+          <button
+            type="button"
+            className={styles.renameTagBtn}
+            onClick={(e) => { e.stopPropagation(); onStartRename(path) }}
+            title="Rename tag"
+            aria-label={`Rename ${path}`}
+          >
+            <UIcon name="edit" size={12} gold={false} />
+          </button>
+        )}
       </div>
       {isRenaming && (
         <div className={styles.tagRenamePanel} style={{ paddingLeft: depth * 14 + 20 }}>
@@ -469,6 +476,9 @@ function TagNode({
   // GET /notes/tag-members answer for it (`{status, notes, total}`).
   renaming = null, preview = null, renameValue = '', renameBusy = false,
   onStartRename = () => {}, onRenameChange = () => {}, onSubmitRename = () => {}, onCancelRename = () => {},
+  // Wave 6 fix round 2, M6 — false when FolderSidebar's own `onRenameTag`
+  // prop was not given.
+  renameEnabled = true,
 }) {
   const hasChildren = node.children.length > 0
   const expanded = expandedKeys.has(node.key)
@@ -496,6 +506,7 @@ function TagNode({
             <Chevron expanded={expanded} />
           </button>
         ) : null}
+        renameEnabled={renameEnabled}
         renaming={renaming}
         preview={preview}
         renameValue={renameValue}
@@ -515,6 +526,7 @@ function TagNode({
               expandedKeys={expandedKeys}
               onToggle={onToggle}
               onSelect={onSelect}
+              renameEnabled={renameEnabled}
               renaming={renaming}
               preview={preview}
               renameValue={renameValue}
@@ -745,9 +757,12 @@ export default function FolderSidebar({
   onSelectAllNotes = null,
   // Wave 6 fix round 1, I4 — item 8's rename, client side: `(from, to,
   // noteIds) => Promise<void>`, the caller's own runBulk('renameTag', ...)
-  // door. Optional/no-op default so an existing caller/test that only
-  // exercises selection still renders exactly as before.
-  onRenameTag = async () => {},
+  // door. ⛔ M6 (wave 6 fix round 2): `null`, never a no-op default — a
+  // no-op function let the whole preview-and-rename UI render and then
+  // silently do nothing on submit. `null` makes `canRenameTags` below false,
+  // which HIDES the Rename affordance entirely, the same rule
+  // `NoteMenuActions` already applies to its own optional `onOpenBeside`.
+  onRenameTag = null,
 }) {
   const { folders, create, rename, remove } = useJ2NoteFolders()
   // Wave 6 item 7: a search hit opens beside on Ctrl/Cmd+click, like a row.
@@ -770,6 +785,9 @@ export default function FolderSidebar({
   const [tagFilter, setTagFilter] = useState('')
   const [showAllTags, setShowAllTags] = useState(false)
   // Wave 6 fix round 1, I4 — item 8's rename, client side.
+  // M6 (wave 6 fix round 2): the Rename affordance is HIDDEN, not a live
+  // control that silently does nothing, when the caller gave no onRenameTag.
+  const canRenameTags = typeof onRenameTag === 'function'
   const [renamingTag, setRenamingTag] = useState(null) // the full path being renamed, or null
   const [renamePreview, setRenamePreview] = useState(null) // {status, notes, total}
   const [renameValue, setRenameValue] = useState('')
@@ -1660,6 +1678,7 @@ export default function FolderSidebar({
                       total={n.total}
                       active={activeTagKey === n.key}
                       onSelect={() => { onSelectTag(n.path); onSelectFolder(null) }}
+                      renameEnabled={canRenameTags}
                       renaming={renamingTag}
                       preview={renamePreview}
                       renameValue={renameValue}
@@ -1686,6 +1705,7 @@ export default function FolderSidebar({
                       total={n.total}
                       active={activeTagKey === n.key}
                       onSelect={() => { onSelectTag(n.path); onSelectFolder(null) }}
+                      renameEnabled={canRenameTags}
                       renaming={renamingTag}
                       preview={renamePreview}
                       renameValue={renameValue}
@@ -1709,6 +1729,7 @@ export default function FolderSidebar({
                       expandedKeys={expandedTagKeys}
                       onToggle={toggleTagExpanded}
                       onSelect={(path) => { onSelectTag(path); onSelectFolder(null) }}
+                      renameEnabled={canRenameTags}
                       renaming={renamingTag}
                       preview={renamePreview}
                       renameValue={renameValue}

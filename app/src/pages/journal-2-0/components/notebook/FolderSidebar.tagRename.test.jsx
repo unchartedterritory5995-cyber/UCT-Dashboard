@@ -60,6 +60,21 @@ function renderSidebar(props = {}) {
   return { onRenameTag }
 }
 
+/** M6 (wave 6 fix round 2): a caller that omits `onRenameTag` gets NO
+ *  `onRenameTag` prop at all — never the vi.fn() `renderSidebar` supplies. */
+function renderSidebarWithoutRenameHandler(props = {}) {
+  render(
+    <FolderSidebar
+      notes={[]}
+      activeFolderId={null}
+      onSelectFolder={vi.fn()}
+      activeTag={null}
+      onSelectTag={vi.fn()}
+      {...props}
+    />,
+  )
+}
+
 beforeEach(() => {
   tagsHook.mockReturnValue(NESTED_FIXTURE)
   global.fetch = vi.fn(() => Promise.resolve({
@@ -105,6 +120,27 @@ describe('FolderSidebar — tag rename (wave 6 fix round 1, I4)', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Rename research' }))
     expect(await screen.findByText(/No live notes carry #research/)).toBeTruthy()
     expect(screen.getByRole('button', { name: 'Rename' })).toBeDisabled()
+  })
+})
+
+describe('FolderSidebar — M6 (wave 6 fix round 2): no onRenameTag means no live-but-inert control', () => {
+  it('HIDES the Rename affordance on the nested tree when no onRenameTag is given', () => {
+    renderSidebarWithoutRenameHandler()
+    expect(screen.queryByRole('button', { name: 'Rename research' })).toBeNull()
+    // the select button itself is unaffected — still reachable, still named.
+    expect(screen.getByRole('button', { name: /^Tag research,/ })).toBeInTheDocument()
+  })
+
+  it('HIDES the Rename affordance on a flat-library row too', () => {
+    tagsHook.mockReturnValue({
+      tagCounts: [{ tag: 'swing', count: 5 }],
+      tagTree: [{ path: 'swing', key: 'swing', own: 5, total: 5 }],
+      isLoading: false,
+      error: null,
+    })
+    renderSidebarWithoutRenameHandler()
+    expect(screen.queryByRole('button', { name: 'Rename swing' })).toBeNull()
+    expect(screen.getByText('#swing')).toBeInTheDocument()
   })
 })
 

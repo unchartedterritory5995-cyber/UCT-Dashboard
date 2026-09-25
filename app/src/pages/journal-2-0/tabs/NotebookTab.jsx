@@ -87,6 +87,12 @@ function _logNotebookVisit() {
 // Archive moves a note out of the tag tree's counts too (it counts the notes
 // the tag filter lists, and that filter leaves archived notes out).
 const TAG_COUNT_OPS = new Set(['addTag', 'removeTag', 'renameTag', 'trash', 'restore', 'archive', 'unarchive'])
+// M5 (wave 6 fix round 2): matches NOTE_BATCH_MAX in api/routers/journal_two.py
+// (`POST /api/j2/notes/batch` refuses more ids than this in one request) — the
+// tag-rename door's own client-side chunk size, since its ids come from an
+// UNCAPPED preview (GET /notes/tag-members), unlike every other bulk op's ids
+// (the member's own, page-bounded, selection).
+const RENAME_TAG_CHUNK_SIZE = 500
 
 export default function NotebookTab() {
   const [searchParams, setSearchParams] = useSearchParams()
@@ -908,7 +914,21 @@ export default function NotebookTab() {
   // with this tag" re-derived here. Reuses `runBulk` so refusal (blocked /
   // still-sending) is reported the SAME way every other bulk action is —
   // rendered text in `bulkNotice`, never a second status surface.
-  const onRenameTag = (from, to, ids) => runBulk('renameTag', { from, to }, { tag: from, renameTo: to }, ids)
+  //
+  // M5 (wave 6 fix round 2): `GET /notes/tag-members` is UNCAPPED, but
+  // `POST /api/j2/notes/batch` refuses more than NOTE_BATCH_MAX (500) ids in
+  // one request (journal_two.py) — a tag on more than 500 notes previewed
+  // honestly and then failed outright. Chunked here, SEQUENTIALLY: each
+  // `runBulk` call is awaited to completion (its own `finally` clears the
+  // busy guard) before the next chunk's request is sent, so this is never
+  // more than one request in flight for the same rename.
+  const onRenameTag = async (from, to, ids) => {
+    for (let i = 0; i < ids.length; i += RENAME_TAG_CHUNK_SIZE) {
+      const chunk = ids.slice(i, i + RENAME_TAG_CHUNK_SIZE)
+      // eslint-disable-next-line no-await-in-loop
+      await runBulk('renameTag', { from, to }, { tag: from, renameTo: to }, chunk)
+    }
+  }
 
   const runUndo = (undo) => {
     if (bulkBusyRef.current) return   // still queued: the effect below retries

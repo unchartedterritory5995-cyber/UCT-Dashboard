@@ -481,6 +481,13 @@
   .iconBtn { min-width: var(--tap-min, 44px); min-height: var(--tap-min, 44px); padding: 0; }
   .disclosureBtn,
   .disclosureSpacer { min-width: var(--tap-min, 44px); min-height: var(--tap-min, 44px); width: var(--tap-min, 44px); height: var(--tap-min, 44px); }
+  /* M7 (wave 6 fix round 2): the tag-rename controls (I4) shipped with no
+   * touch-size floor at all — a ~20px pencil and 12px input on a phone or
+   * tablet, and iOS focus-zooms on any input under 16px. Same treatment as
+   * `.iconBtn`/`.tagFilterInput` above. */
+  .renameTagBtn { min-width: var(--tap-min, 44px); min-height: var(--tap-min, 44px); padding: 0; }
+  .tagRenameActionBtn { min-height: var(--tap-min, 44px); }
+  .tagRenameInput { font-size: 16px; min-height: var(--tap-min, 44px); }
 }
 
 /* TOUCH TIER (<=1024px) -- generated ------------------------------------------
@@ -540,6 +547,17 @@
   .disclosureBtn,
   .disclosureSpacer {
     min-width: var(--tap-min, 44px);
+    min-height: var(--tap-min, 44px);
+  }
+  /* M7 (wave 6 fix round 2) — tablet half of the same floor above. */
+  .renameTagBtn {
+    min-width: var(--tap-min, 44px);
+    min-height: var(--tap-min, 44px);
+  }
+  .tagRenameActionBtn {
+    min-height: var(--tap-min, 44px);
+  }
+  .tagRenameInput {
     min-height: var(--tap-min, 44px);
   }
   /* Wave 4's date/sector/theme search filters — reachable only via

@@ -29,10 +29,15 @@ vi.mock('../hooks/useJ2Notes', () => ({
     total: NOTES.length, hasMore: false, loadMore: vi.fn(), isLoadingMore: false,
   }),
 }))
+// M5 (wave 6 fix round 2): a module-level, test-overridable id list — the
+// preview's own ids, same as FolderSidebar's real `submitTagRename` would
+// hand `onRenameTag` after GET /notes/tag-members. Defaults to the two-note
+// N1/I4 scenario every other test in this file exercises.
+let renameIds = ['n1', 'n2']
 vi.mock('../components/notebook/FolderSidebar', () => ({
   default: ({ onRenameTag }) => (
     <div data-testid="folder-sidebar">
-      <button type="button" onClick={() => onRenameTag('earnings', 'quarterly', ['n1', 'n2'])}>
+      <button type="button" onClick={() => onRenameTag('earnings', 'quarterly', renameIds)}>
         rename earnings to quarterly
       </button>
     </div>
@@ -122,6 +127,7 @@ beforeEach(() => {
   blockedIds = new Set()
   hubEligible = false
   batchCalls = []
+  renameIds = ['n1', 'n2']
   setCurrentAccountId('acct-A')
   global.fetch = vi.fn((url, init = {}) => {
     const u = String(url)
@@ -204,5 +210,33 @@ describe('NotebookTab — N1 (wave 6 fix round 2): a rename the device cannot ch
     // (the ctx carry — without it this reads "#undefined" instead).
     await waitFor(() => expect(screen.getByTestId('bulk-notice'))
       .toHaveTextContent('Renamed 1 note from #earnings to #quarterly.'))
+  })
+})
+
+describe('NotebookTab — M5 (wave 6 fix round 2): a tag on more than 500 notes is chunked, not refused', () => {
+  it('501 ids become two requests, both renameTag, ids disjoint and complete', async () => {
+    renameIds = Array.from({ length: 501 }, (_, i) => `id-${i}`)
+    renderTab()
+    fireEvent.click(screen.getByRole('button', { name: 'rename earnings to quarterly' }))
+    await waitFor(() => expect(batchCalls).toHaveLength(2))
+
+    expect(batchCalls[0].op).toBe('renameTag')
+    expect(batchCalls[1].op).toBe('renameTag')
+    expect(batchCalls[0].args).toEqual({ from: 'earnings', to: 'quarterly' })
+    expect(batchCalls[1].args).toEqual({ from: 'earnings', to: 'quarterly' })
+
+    // The server's own cap (NOTE_BATCH_MAX in journal_two.py) — the first
+    // chunk is exactly at it, never over.
+    expect(batchCalls[0].ids).toHaveLength(500)
+    expect(batchCalls[1].ids).toHaveLength(1)
+
+    // Disjoint AND complete: every one of the 501 ids appears in EXACTLY one
+    // of the two requests, never both, never neither.
+    const seen = new Map()
+    for (const id of [...batchCalls[0].ids, ...batchCalls[1].ids]) {
+      seen.set(id, (seen.get(id) || 0) + 1)
+    }
+    expect(seen.size).toBe(501)
+    expect([...seen.values()].every((n) => n === 1)).toBe(true)
   })
 })
