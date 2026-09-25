@@ -341,7 +341,7 @@ const BARE_POLL_SITES = {
   'app/src/pages/ModelBook.jsx': 3,
   'app/src/pages/MorningWire.jsx': 1,
   'app/src/pages/UCT20.jsx': 4,
-  'app/src/pages/Watchlists.jsx': 3,
+  'app/src/pages/Watchlists.jsx': 2,   // 3 -> 2 on 2026-09-24: one of its polls left the bare form on master; the rail's shrink-or-fail half caught it
   'app/src/pages/admin/PatternAdmin.jsx': 2,   // 1 -> 2 on 2026-09-24: a second admin-only poll (health), same reason as the block above
   // ⭐ ADDED AFTER THE CENSUS, AND THE DECISION WENT TO BARE `useSWR` — measured,
   // not defaulted. The Analogue Deck reads `/api/breadth-monitor/analogues`,
