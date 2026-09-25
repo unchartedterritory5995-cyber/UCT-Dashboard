@@ -82,6 +82,24 @@ def expiry_mdy(row: dict) -> str | None:
     return mdy(d) if d else None
 
 
+def signed_moneyness(cp: str, strike: float, spot) -> float | None:
+    """The card's convention (`live_massive_router._moneyness`): (spot − strike) / strike × 100,
+    sign flipped for puts, so POSITIVE is in the money and |pct| < 1 reads ATM. ⛔ The page's
+    `pctFromSpot` is `Math.abs(strike − spot) / spot` — UNSIGNED, a distance — and passing it
+    through drew "2% ITM" on an out-of-the-money call. Computed here from the row's own strike
+    and spot, never copied."""
+    try:
+        spot = float(spot); strike = float(strike)
+    except (TypeError, ValueError):
+        return None
+    if not spot or not strike:
+        return None
+    pct = (spot - strike) / strike * 100.0
+    if cp == "P":
+        pct = -pct
+    return round(pct, 1)
+
+
 def _resolve_row_date(row: dict, window_dates: list[str]) -> str | None:
     """`Dt` is 'M/D'. Map it onto the window's 'M/D/YYYY' dates by month/day; a row whose M/D is
     not in the window is outside it (or, for an all-history product, resolved to the most recent
@@ -170,8 +188,7 @@ def build_payload(product: dict, window_dates: list[str], sym: str, source: str,
                 pass
         if r.get("Spot") is not None:
             g["spot"] = r.get("Spot")
-        if r.get("pctFromSpot") is not None:
-            g["moneyness"] = r.get("pctFromSpot")
+            g["moneyness"] = signed_moneyness(cp, strike, r.get("Spot"))
         g["dates"].add(day)
         resolved_dates.add(day)
 

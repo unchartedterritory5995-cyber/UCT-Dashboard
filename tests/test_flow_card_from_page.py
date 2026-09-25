@@ -70,6 +70,25 @@ def test_a_year_less_trade_date_resolves_against_the_window_never_the_wall_clock
     assert page._resolve_row_date({"Dt": ""}, WIN) is None
 
 
+def test_moneyness_is_signed_the_cards_way_not_the_pages_unsigned_distance():
+    """The page's pctFromSpot is |strike−spot|/spot (a distance). The card reads positive as ITM,
+    so a 535 call at spot 525 must read −1.9 (OTM), a 535 put at 525 must read +1.9 (ITM), and
+    the page's own field must never reach the payload."""
+    assert page.signed_moneyness("C", 535, 525) == -1.9
+    assert page.signed_moneyness("P", 535, 525) == 1.9
+    assert page.signed_moneyness("C", 535, 0) is None
+    prod = {"all_directional": [_row("9/24", "C", 535, "10/9", 1000, "BULL", Spot=525.0, pct=1.9,
+                                     expiry="2026-10-09T00:00:00.000Z")]}
+    p = page.build_payload(prod, WIN, "DELL", "stocks", "1")
+    assert p["contracts"][0]["moneynessPct"] == -1.9
+
+
+def test_the_card_subtitle_says_today_for_a_one_day_window():
+    from api.flow_ticker_card import _window_label
+    assert _window_label({"days_requested": "1", "start": "9/24/2026", "end": "9/24/2026", "active_days": 1}).startswith("today")
+    assert _window_label({"days_requested": "5", "active_days": 2}).startswith("last 5 trading days")
+
+
 def test_top_n_keeps_the_biggest_by_premium_but_nets_over_everything():
     p = page.build_payload(PRODUCT, WIN, "DELL", "stocks", "5", top_n=1)
     assert len(p["contracts"]) == 1 and p["contracts"][0]["strike"] == 535.0
