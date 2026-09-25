@@ -368,14 +368,23 @@ def run_tier(n: int, *, reps: int, warmup: int, paragraphs: int, keep_db: bool =
     }
     assert list(ops) == TIMED_OPS, "TIMED_OPS and the op table drifted"
 
-    tracemalloc.start()
     stats: dict[str, dict] = {}
     results: dict[str, object] = {}
     with _ticker_meta_stubbed():
+        # ⛔⛔ TIMED WITH TRACEMALLOC OFF. The wave-0 version timed every read INSIDE
+        # tracemalloc, which hooks every Python allocation. Measured on the 50k seed:
+        # switcher_search 62 ms untraced vs 435 ms traced (x7.0), list_tasks x1.9,
+        # tag_tree x1.6, while the SQL-bound reads did not move (tag_counts, folder
+        # counts x1.0). So the instrument inflated exactly the Python-heavy reads and
+        # would have sent the fix work after a slowness the product does not have.
         for label, fn in ops.items():
             stats[label], results[label] = _measure(fn, warmup, reps)
-    _, peak_bytes = tracemalloc.get_traced_memory()
-    tracemalloc.stop()
+        # Peak memory comes from ONE untimed pass per op, traced separately.
+        tracemalloc.start()
+        for fn in ops.values():
+            fn()
+        _, peak_bytes = tracemalloc.get_traced_memory()
+        tracemalloc.stop()
 
     counts = results["folder_note_counts (whole library)"]
     tag_rows = {notes_svc.tag_key(r["tag"]): r["count"] for r in results["tag_counts (whole library)"]}

@@ -54,6 +54,26 @@ def test_CONTROL_a_wrong_answer_turns_a_correctness_check_red(tmp_path, monkeypa
     assert r["correctness"]["tag_counts equals the recomputed truth for every tag (flat and nested)"] is False
 
 
+def test_no_timed_call_runs_under_tracemalloc(tmp_path, monkeypatch):
+    """tracemalloc hooks every Python allocation. Timing inside it inflated the
+    switcher x7 on the 50k seed (62 -> 435 ms) and left the SQL-bound reads alone, so
+    the instrument pointed the fix work at a slowness the product does not have. Every
+    warm-up and timed call must run untraced; only the separate memory pass is traced."""
+    import tracemalloc
+    seen = []
+    real = bench.notes_svc.folder_note_counts
+
+    def spy(user_id, conn=None):
+        seen.append(tracemalloc.is_tracing())
+        return real(user_id, conn=conn)
+
+    monkeypatch.setattr(bench.notes_svc, "folder_note_counts", spy)
+    r = bench.run_tier(200, reps=3, warmup=1, paragraphs=1, work_dir=str(tmp_path))
+    assert seen[:4] == [False, False, False, False], seen   # 1 warm-up + 3 timed
+    assert seen[4:] == [True], seen                          # the memory pass, and only it
+    assert r["peak_tracemalloc_bytes"] > 0
+
+
 def test_the_ticker_meta_stub_is_scoped_to_the_measurement(tmp_path):
     key = "api.services.ticker_meta"
     before = sys.modules.get(key)
