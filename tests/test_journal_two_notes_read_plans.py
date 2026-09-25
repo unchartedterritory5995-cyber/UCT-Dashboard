@@ -145,9 +145,15 @@ def test_the_tags_route_makes_ONE_tag_pass_and_it_is_served_from_the_cover_index
 ])
 def test_the_symbol_filters_carry_no_correlated_sidecar_subquery(conn, kwargs):
     for fn in (notes_svc.count_notes, notes_svc.list_notes):
-        for sql, steps in _plans(conn, lambda c: fn(U, conn=c, **kwargs)):
-            if "j2_note_embeds" not in sql:
-                continue
+        inspected = [(sql, steps) for sql, steps in _plans(conn, lambda c: fn(U, conn=c, **kwargs))
+                     if "j2_note_embeds" in sql]
+        # ⛔ Non-vacuity, PER (filter, function) pair (tests shard M-6): statements that do
+        # not name the sidecar are skipped, so a refactor reading it through another name
+        # (a view, a CTE) would pass with nothing checked. Every pair reaches exactly one
+        # sidecar statement today (the review's probe: 8 of 8).
+        assert inspected, (f"{fn.__name__}({kwargs}) ran no statement naming j2_note_embeds -- "
+                           "the rail would check nothing for this pair")
+        for sql, steps in inspected:
             assert not any("CORRELATED" in s for s in steps), (kwargs, fn.__name__, steps)
 
 
