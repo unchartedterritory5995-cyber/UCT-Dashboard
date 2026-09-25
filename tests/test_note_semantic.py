@@ -438,6 +438,33 @@ def test_the_hook_CONTROL_with_no_other_filter_it_does_append(db_path, monkeypat
     assert any("j2_note_embeddings" in s for s, _ in log)
 
 
+@pytest.mark.parametrize("kind", ["sector", "theme", "saved_view", "property_filter"])
+def test_the_hook_never_appends_under_a_SECTOR_THEME_SAVED_VIEW_or_PROPERTY_FILTER(
+        db_path, monkeypatch, on_noop, kind):
+    """Review M-1 (fix round 1): the three filters the rail above did not
+    cover. Each reaches the hook's refusal ON ITS OWN, so for a filtered page
+    the meaning candidate set is empty: a sector or theme resolves to
+    `symbol_in == []` (falsy, but not None), and a saved view whose spec holds
+    no property filter is refused by `savedViewId` alone."""
+    import json
+    _note(U, "Winners diary", "why did I cut my winners early today")
+    _note(U, "Selling into strength", "I cut winners early out of fear again")
+    ns.index_member(U)
+    if kind == "sector":
+        override = {"sector": "Technology"}
+    elif kind == "theme":
+        override = {"theme": "AI Infrastructure"}
+    elif kind == "saved_view":
+        from api.services.journal_two import note_properties
+        override = {"savedViewId": note_properties.create_saved_view(U, "Everything", "list", {})["id"]}
+    else:
+        override = {"propertyFilter": json.dumps(
+            [{"propertyId": "builtin:thesis_status", "op": "is_empty"}])}
+    body, log = _record_handler_with(monkeypatch, **override)
+    assert not any("j2_note_embeddings" in s for s, _ in log), kind
+    assert not any(r.get("matchKind") == "meaning" for r in body["notes"]), kind
+
+
 def test_PLAN_RAIL_flag_on_a_TICKER_query_is_still_exactly_lexical(db_path, monkeypatch, on_noop):
     _note(U, "NVDA plan", "NVDA breakout plan")
     ns.index_member(U)

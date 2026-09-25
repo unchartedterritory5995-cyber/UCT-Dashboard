@@ -1771,7 +1771,7 @@ def list_notes_endpoint(
     # (note_semantic.append_meaning_hits says why each refusal is where it is).
     from api.services.journal_two import note_semantic
     rows = note_semantic.append_meaning_hits(
-        user["id"], q, rows, total=total, offset=offset,
+        user["id"], q, rows, total=total, offset=offset, limit=limit,
         only_query=not (folder_id or tag or ticker or embed_symbol or embed_widget
                         or deleted or date_from or date_to or symbol_in is not None
                         or savedViewId or property_filter),

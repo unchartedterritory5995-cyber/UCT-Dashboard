@@ -34,19 +34,21 @@ text to OpenAI. Read per call; a flip needs no restart.
 
 ⛔ NOTHING HERE LOGS NOTE OR QUERY TEXT. Counts only.
 
-⚠️ PER-PROCESS: nothing. The index is durable (auth.db); the only state is the
-gate, read per call.
+⚠️ PER-PROCESS: one thing -- the pause after a failed meaning search
+(`_paused_until`, see "Failing open"). The index is durable (auth.db) and the
+gate is read per call.
 """
 from __future__ import annotations
 
 import hashlib
 import json
 import logging
-import math
 import os
 import re
 import sqlite3
 import struct
+import threading
+import time
 from typing import Any, Protocol
 
 from api.services.auth_db import get_connection
@@ -73,6 +75,11 @@ MAX_EMBEDS_PER_MEMBER_RUN = 400
 MAX_EMBEDS_PER_SWEEP = 2000
 APPEND_K = 8                 # meaning hits appended after the lexical list
 _BATCH = 64
+# The search bound and its fallback (review I-1) -- the Search section says
+# why each is the value it is.
+MAX_SEARCH_BLOCKS = 2000
+QUERY_EMBED_TIMEOUT_S = 2.0
+PAUSE_AFTER_FAILURE_S = 60
 
 LEXICAL = "lexical"
 SEMANTIC = "semantic"
@@ -184,10 +191,6 @@ def get_provider() -> EmbeddingProvider | None:
 
 def _encode(vec: list[float]) -> bytes:
     return struct.pack(f"<{len(vec)}f", *vec)
-
-
-def _decode(blob: bytes) -> list[float]:
-    return list(struct.unpack(f"<{len(blob) // 4}f", blob))
 
 
 def _sha(text: str) -> str:
@@ -428,11 +431,66 @@ def sweep_job() -> None:
 
 
 # ── Search ───────────────────────────────────────────────────────────────────
+#
+# ⛔⛔ BOUNDED, AND FAIL-OPEN (review I-1). `GET /notes` is a sync handler on the
+# web pod's ONE shared anyio pool, so everything below is paid by a pool worker
+# while a member waits on a type-ahead search.
+#   * THE CANDIDATE SET is the notes that could still be APPENDED to the page:
+#     the member's active notes (not trashed, not archived -- a note that can
+#     never be shown is never scored), minus the note ids the router's lexical
+#     page already holds, newest first, cut at `MAX_SEARCH_BLOCKS` blocks.
+#     WHY 2,000: measured at 50k stored blocks (1,536 dims), reading and
+#     scoring costs ~10 us per candidate block, linearly -- 2,000 is ~20 ms
+#     (p50 22.5 ms, peak 15.6 MB; it was 6.1 s and 318 MB unbounded), under
+#     a quarter of the Notebook's 100 ms search budget, so the vendor round
+#     trip stays the only real cost of an armed search.
+#     It is the newest ~100-200 notes at 10-20 blocks a note (never fewer
+#     than 10, at the 200-block per-note ceiling); older notes stay
+#     reachable lexically. The ceiling holds whatever the library's size.
+#     ⚰️ It used to fetch and score EVERY stored vector in pure Python --
+#     0.106-0.124 ms per block, 5.3-6.2 s at 50k blocks, 127 MB at 20k.
+#   * THE QUERY EMBED is one request with its own short ceiling
+#     (`query_embed_timeout()`, default 2 s, no retries) -- never the shared
+#     client's 120 s.
+#   * ANY FAILURE (vendor, timeout, database) serves the lexical page unchanged:
+#     one log line, then meaning search pauses for `PAUSE_AFTER_FAILURE_S` so a
+#     vendor outage costs one short wait a minute, not one per keystroke.
+
+
+# ⛔ `CROSS JOIN` IS LOAD-BEARING: it makes SQLite walk the member's LIVE notes
+# newest-first on an index (`idx_j2_notes_switcher_live`) and stop at the
+# LIMIT, probing each note's blocks by primary key. ⚰️ The plain JOIN let the
+# planner start from the embeddings and sort every candidate's 6 KB vector in a
+# temp B-tree before the LIMIT applied -- measured at 50k stored blocks: 1,337 ms
+# to read 4,000 rows, against 30 ms this way. No `n.id` tiebreak for the same
+# reason (the index does not carry it); notes edited in the same instant may
+# come in either order, which the scorer does not care about.
+_CANDIDATES_SQL = (
+    "SELECT e.note_id, e.vector FROM j2_notes n"
+    " CROSS JOIN j2_note_embeddings e ON e.user_id = n.user_id AND e.note_id = n.id"
+    " WHERE n.user_id = ? AND n.deleted_at IS NULL AND n.archived_at IS NULL"
+    " AND n.id NOT IN (SELECT value FROM json_each(?))"
+    " ORDER BY n.updated_at DESC LIMIT ?")
+
+
+def query_embed_timeout() -> float:
+    """The query embedding's ceiling, seconds. Default 2: text-embedding-3-small
+    answers a one-line input well under a second, the lexical answer is already
+    computed and waiting, and every second past that is a pool worker pinned for
+    a result the page can live without. `NOTEBOOK_SEMANTIC_QUERY_TIMEOUT_SECS`
+    retunes it from Railway (llm_timeouts.seconds: a bad value falls back)."""
+    from api.services import llm_timeouts
+    return llm_timeouts.seconds("NOTEBOOK_SEMANTIC_QUERY_TIMEOUT_SECS", QUERY_EMBED_TIMEOUT_S)
+
 
 def search(user_id: str, query: str, k: int = 10, *, conn: sqlite3.Connection | None = None,
-           provider: EmbeddingProvider | None = None) -> list[dict[str, Any]]:
+           provider: EmbeddingProvider | None = None,
+           exclude_note_ids: set[str] | frozenset[str] = frozenset()) -> list[dict[str, Any]]:
     """The member's notes closest in MEANING to `query`: `[{note_id, score}]`,
     best first, one entry per note (its best block), above the provider's floor.
+    Scores at most `MAX_SEARCH_BLOCKS` blocks, from active notes not in
+    `exclude_note_ids`, newest first. RAISES on a provider or database failure:
+    `append_meaning_hits` is where failing open is decided.
     ⛔ Dark: `[]` at once — nothing embedded, nothing sent, nothing read."""
     if not semantic_enabled():
         return []
@@ -445,20 +503,11 @@ def search(user_id: str, query: str, k: int = 10, *, conn: sqlite3.Connection | 
     try:
         conn.row_factory = sqlite3.Row
         ensure_semantic_schema(conn)
-        rows = conn.execute(
-            "SELECT note_id, vector FROM j2_note_embeddings WHERE user_id = ?",
-            (user_id,)).fetchall()
-        if not rows:
+        note_ids, mat = _read_candidates(conn, user_id, exclude_note_ids)
+        if not note_ids:
             return []
-        qv = provider.embed([q])[0]
-        best: dict[str, float] = {}
-        for r in rows:
-            v = _decode(r["vector"])
-            if len(v) != len(qv):
-                continue      # a vector from another provider's space: re-embedded by the sweep
-            s = _cosine(qv, v)
-            if s > best.get(r["note_id"], -1.0):
-                best[r["note_id"]] = s
+        qv = provider.embed([q], timeout=query_embed_timeout())[0]
+        best = _score(qv, note_ids, mat)
         ranked = sorted((item for item in best.items() if item[1] >= provider.min_score),
                         key=lambda kv: (-kv[1], kv[0]))
         return [{"note_id": nid, "score": round(score, 4)} for nid, score in ranked[:max(0, k)]]
@@ -467,15 +516,84 @@ def search(user_id: str, query: str, k: int = 10, *, conn: sqlite3.Connection | 
             conn.close()
 
 
-def _cosine(a: list[float], b: list[float]) -> float:
-    dot = na = nb = 0.0
-    for x, y in zip(a, b):
-        dot += x * y
-        na += x * x
-        nb += y * y
-    if na <= 0 or nb <= 0:
-        return 0.0
-    return dot / (math.sqrt(na) * math.sqrt(nb))
+def _read_candidates(conn, user_id: str, exclude_note_ids) -> tuple[list[str], Any]:
+    """The candidate blocks, streamed a chunk at a time into ONE preallocated
+    float32 matrix (at most `MAX_SEARCH_BLOCKS` rows), so the request's peak is
+    the matrix and one chunk -- never every vector held twice. The width is the
+    newest block's; a block of another width (a provider switch the sweep has
+    not reached yet -- it revisits newest first) is skipped, never compared."""
+    import numpy as np
+    limit = max(0, MAX_SEARCH_BLOCKS)
+    cur = conn.execute(_CANDIDATES_SQL, (
+        user_id, json.dumps(sorted(x for x in exclude_note_ids if x)), limit))
+    note_ids: list[str] = []
+    mat = None
+    width = 0
+    while True:
+        chunk = cur.fetchmany(256)
+        if not chunk:
+            break
+        for r in chunk:
+            blob = r["vector"]
+            if mat is None:
+                width = len(blob)
+                mat = np.empty((limit, width // 4), dtype="<f4")
+            if len(blob) != width:
+                continue
+            mat[len(note_ids)] = np.frombuffer(blob, dtype="<f4")
+            note_ids.append(r["note_id"])
+    return note_ids, (mat[:len(note_ids)] if mat is not None else None)
+
+
+def _score(qv: list[float], note_ids: list[str], mat) -> dict[str, float]:
+    """Cosine of the query against every candidate block, one float32 matrix
+    product; the best block per note. A query of another width than the index
+    (the provider changed and the sweep has not caught up) scores nothing."""
+    import numpy as np
+    q = np.asarray(qv, dtype=np.float32)
+    q_norm = float(np.linalg.norm(q))
+    if mat is None or not note_ids or mat.shape[1] != q.size or q_norm <= 0:
+        return {}
+    # einsum, not np.linalg.norm(axis=1): the norm builds a squared copy of the
+    # whole matrix first, which doubled the request's peak.
+    norms = np.sqrt(np.einsum("ij,ij->i", mat, mat)) * q_norm
+    dots = mat @ q
+    scores = np.divide(dots, norms, out=np.zeros_like(dots), where=norms > 0)
+    best: dict[str, float] = {}
+    for nid, s in zip(note_ids, scores.tolist()):
+        if s > best.get(nid, -1.0):
+            best[nid] = s
+    return best
+
+
+# ── Failing open ─────────────────────────────────────────────────────────────
+# ⚠️ PER-PROCESS state (the web pod is one process): after a failure, meaning
+# search is skipped until `_paused_until`. A second process would pause
+# separately; nothing breaks, each just pays its own first failure.
+
+_pause_lock = threading.Lock()
+_paused_until = 0.0
+
+
+def _now() -> float:
+    return time.monotonic()
+
+
+def meaning_paused() -> bool:
+    with _pause_lock:
+        return _now() < _paused_until
+
+
+def _fail_open(err: BaseException) -> None:
+    """ONE log line per pause, naming the failure's CLASS only: never the query
+    (member text) and never the provider's message (which can echo input)."""
+    global _paused_until
+    with _pause_lock:
+        already = _now() < _paused_until
+        _paused_until = _now() + PAUSE_AFTER_FAILURE_S
+    if not already:
+        log.warning("[note-semantic] meaning search failed (%s); served the lexical page,"
+                    " meaning paused %ss", type(err).__name__, PAUSE_AFTER_FAILURE_S)
 
 
 # ── Query-shape routing (ruling D-H3) ────────────────────────────────────────
@@ -502,6 +620,7 @@ def query_shape(q: str | None) -> str:
 
 def append_meaning_hits(user_id: str, q: str | None, rows: list[dict[str, Any]], *,
                         total: int, offset: int, only_query: bool,
+                        limit: int | None = None,
                         conn: sqlite3.Connection | None = None) -> list[dict[str, Any]]:
     """The one hook in `GET /notes` (journal_two.py), AFTER its single
     `list_and_count_notes` call. Returns `rows`, or `rows` + meaning hits.
@@ -509,27 +628,48 @@ def append_meaning_hits(user_id: str, q: str | None, rows: list[dict[str, Any]],
     ⛔ Order of refusals, each before any SQL or vendor call:
       1. dark -> the lexical rows, untouched (the handler's SQL is byte-identical
          to lane I's plan rail: this issues NONE);
-      2. any other filter is set (folder, tag, ticker, trash, dates, property,
-         saved view...) -> untouched: a meaning hit is a note-id LIST, never a
-         bypass of the filters the lexical page was built under;
-      3. not the first page, or the lexical answer spans pages -> untouched:
-         meaning is appended AFTER the lexical list, so only on the page where
-         that list ends, and only when all of it is in hand to dedupe against;
+      2. any other filter is set (folder, tag, ticker, trash, dates, sector or
+         theme, property filter, saved view...) -> untouched: a meaning hit is a
+         note-id LIST, never a bypass of the filters the lexical page was built
+         under (for a filtered page the candidate set is EMPTY);
+      3. not the first page, or the lexical answer spans pages, or the page has
+         no room left under `limit` -> untouched: meaning is appended AFTER the
+         lexical list, only on the page where that list ends, only when all of
+         it is in hand to dedupe against, and never past the page size the
+         client asked for (review M-5);
       4. query shape LEXICAL (<=2 tokens, quoted, ticker-shaped) -> untouched,
-         and `search()` is never called.
+         and `search()` is never called;
+      5. meaning search is paused after a recent failure -> untouched.
+    Past the refusals it FAILS OPEN (review I-1): any exception -- the vendor,
+    its timeout, the database -- returns `rows` unchanged, never a 500.
     Appended rows are the list's own projection, marked `matchKind: "meaning"`,
-    active notes only, in meaning order, deduped by id."""
+    active notes only, in meaning order, deduped by id. `total` stays the
+    lexical count (the appended rows are extra, and say so by their mark)."""
     if not semantic_enabled():
         return rows
     if not only_query or offset or total > len(rows):
         return rows
+    room = APPEND_K if limit is None else min(APPEND_K, max(0, limit - len(rows)))
+    if room <= 0:
+        return rows
     if query_shape(q) != SEMANTIC:
         return rows
-    hits = search(user_id, q or "", k=APPEND_K * 2, conn=conn)
-    have = {r.get("id") for r in rows}
-    ids = [h["note_id"] for h in hits if h["note_id"] not in have][:APPEND_K]
-    if not ids:
+    if meaning_paused():
         return rows
+    try:
+        return rows + _meaning_rows(user_id, q or "", rows, room, conn)
+    except Exception as err:  # noqa: BLE001 -- failing open IS the contract here
+        _fail_open(err)
+        return rows
+
+
+def _meaning_rows(user_id: str, q: str, rows: list[dict[str, Any]], room: int,
+                  conn: sqlite3.Connection | None) -> list[dict[str, Any]]:
+    have = {r.get("id") for r in rows}
+    hits = search(user_id, q, k=room * 2, conn=conn, exclude_note_ids=have)
+    ids = [h["note_id"] for h in hits if h["note_id"] not in have][:room]
+    if not ids:
+        return []
     from api.services.journal_two import notes as notes_service
     owned = conn is None
     c = conn or get_connection()
@@ -549,4 +689,4 @@ def append_meaning_hits(user_id: str, q: str | None, rows: list[dict[str, Any]],
             row = notes_service._row_to_note_summary(found[nid])
             row["matchKind"] = "meaning"
             extra.append(row)
-    return rows + extra
+    return extra
