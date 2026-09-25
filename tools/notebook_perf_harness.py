@@ -34,6 +34,15 @@ refuses a data dir that resolves inside C:\\data or /data. It refuses a busy por
 never kills whatever holds it. `--base` measures an already-running sandbox instead, and
 needs `--integrity-log` (that sandbox's own snapshot log) for the reason below.
 
+⛔ `--base` WRITES NOTHING UNTIL THE SERVER PROVES WHO IT IS (tooling review M-3). A port is
+not an identity: a stale non-sandbox backend on that port resolves every path to C:\\data,
+and the sign-up, comp and seed writes would land in the owner's live auth.db while the run
+read some other sandbox's clean log. The launcher writes a per-run nonce into its integrity
+log and serves it at `sandbox_identity.IDENTITY_PATH`; before `--base` sends one request that
+writes, `sandbox_identity.verify(--base, --integrity-log)` must find the SAME nonce in both
+places (`scripts/sandbox_identity.py`). Otherwise the run is REFUSED (exit 3) with a sentence
+naming what was checked. `--boot` starts its own launcher on a port it proved free.
+
 ⛔ THE SANDBOX'S SNAPSHOT VERDICT IS THIS HARNESS'S FIRST OUTPUT LINE (CLAUDE.md: "every
 sandbox or staging boot reports the snapshot-compare result as its first line"). The
 launcher hashes the shared data root before boot, at +15 s, at +120 s and at SHUTDOWN, and
@@ -587,6 +596,16 @@ def dry_run() -> int:
     return 0
 
 
+def _sandbox_identity():
+    """`scripts/sandbox_identity.py`, the launcher's identity marker (M-3). Imported at call
+    time from the launcher's own directory, so this module stays importable anywhere."""
+    scripts = str(REPO / "scripts")
+    if scripts not in sys.path:
+        sys.path.insert(0, scripts)
+    import sandbox_identity
+    return sandbox_identity
+
+
 def _log_home(json_path: str | None) -> tuple[Path, str]:
     """Where this run's own files go: beside --json when given, else a fresh temp directory.
     Never the current directory (the old default left a stray perf.sandbox.log wherever the
@@ -667,6 +686,12 @@ def main(argv: list[str] | None = None) -> int:
         integ = read_integrity(box.integrity_path(), required)
         note = f"stop: {box.stop_how}; launcher output: {box.log_path}"
     else:
+        # M-3: prove the server at --base IS the sandbox that writes --integrity-log BEFORE the
+        # first request that writes (sign-up, comp, seed). Looked up at call time.
+        identity = _sandbox_identity().verify(base, args.integrity_log)
+        if not identity.ok:
+            print(f"REFUSED: {identity.sentence}")
+            return 3
         try:
             live = run_live(base, sizes, args.opens, args.chars)
         except SetupFailed as e:
@@ -687,7 +712,8 @@ def main(argv: list[str] | None = None) -> int:
                 time.sleep(1.0)
         required = [PRE_BOOT, POST_BOOT, SHUTDOWN] + ([PREWARM] if args.hold_past_prewarm else [])
         integ = read_integrity(args.integrity_log, required)
-        note = "--base: the sandbox was started and stopped by its operator, not by this harness"
+        note = ("--base: the sandbox was started and stopped by its operator, not by this harness; "
+                f"identity: {identity.sentence}")
     if integ["path"] and Path(integ["path"]).is_file():
         integ["copy"] = str(home / f"{stem}.integrity.md")
         shutil.copyfile(integ["path"], integ["copy"])

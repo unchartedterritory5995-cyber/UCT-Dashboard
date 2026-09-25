@@ -14,10 +14,12 @@ No browser here: `run_live` is replaced with canned samples. The real Playwright
 from __future__ import annotations
 
 import ast
+import contextlib
 import json
 import os
 import socket
 import sys
+import threading
 from pathlib import Path
 
 import pytest
@@ -27,6 +29,7 @@ sys.path.insert(0, str(REPO))
 sys.path.insert(0, str(REPO / "scripts"))
 
 import data_root_snapshot as drs  # noqa: E402  (the launcher's own log writer)
+import sandbox_identity as sid  # noqa: E402  (the launcher's own identity marker, M-3)
 from tools import notebook_perf_harness as h  # noqa: E402
 
 ALL = [h.PRE_BOOT, h.POST_BOOT, h.SHUTDOWN]
@@ -189,10 +192,54 @@ def _no_timing_rows(lines: list[str]) -> bool:
     return not any("| note_open |" in ln or "| typing_per_char |" in ln or "p95" in ln for ln in lines)
 
 
-def _write_log(path: Path, labels: list[str]) -> str:
+def _write_log(path: Path, labels: list[str], nonce: str | None = None) -> str:
+    """The launcher's log, written by its own writer; the pre-boot line carries the run's
+    identity exactly as `scripts/hub_sandbox_boot.py` writes it (M-3)."""
     for label in labels:
-        drs.append_log(str(path), label, "FAKE", 1, [])
+        extra = sid.log_extra("FAKE-SANDBOX", nonce) if (nonce and label == h.PRE_BOOT) else None
+        drs.append_log(str(path), label, "FAKE", 1, [], extra=extra)
     return str(path)
+
+
+@contextlib.contextmanager
+def _fake_base(nonce: str | None, *, serve_identity: bool = True):
+    """A server that answers `/api/health` 200 -- and, when `serve_identity`, the launcher's
+    identity marker with `nonce`. Anything else is FastAPI's JSON 404."""
+    from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
+    marker = json.dumps(sid.payload(nonce or "", data_dir="FAKE-SANDBOX", integrity_log="its-own.md",
+                                    pid=0, started_at="t")).encode("utf-8")
+
+    class Handler(BaseHTTPRequestHandler):
+        def do_GET(self):  # noqa: N802
+            if self.path == "/api/health":
+                code, out = 200, b'{"status": "ok"}'
+            elif self.path == sid.IDENTITY_PATH and serve_identity:
+                code, out = 200, marker
+            else:
+                code, out = 404, b'{"detail": "Not Found"}'
+            self.send_response(code)
+            self.send_header("Content-Type", "application/json")
+            self.send_header("Content-Length", str(len(out)))
+            self.end_headers()
+            self.wfile.write(out)
+
+        def log_message(self, *a):
+            pass
+
+    srv = ThreadingHTTPServer(("127.0.0.1", 0), Handler)
+    threading.Thread(target=srv.serve_forever, daemon=True).start()
+    try:
+        yield f"http://127.0.0.1:{srv.server_address[1]}"
+    finally:
+        srv.shutdown()
+        srv.server_close()
+
+
+def _live_that_must_not_run(calls: list):
+    def live(base, sizes, opens, chars):
+        calls.append(base)
+        return _canned_live(base, sizes, opens, chars)
+    return live
 
 
 def test_a_missing_post_boot_checkpoint_withholds_every_timing(tmp_path, monkeypatch, capsys):
@@ -214,26 +261,31 @@ def test_a_missing_post_boot_checkpoint_withholds_every_timing(tmp_path, monkeyp
     assert rec["timings"] == "WITHHELD" and "raw" not in rec and "rows" not in rec, rec
 
 
-def test_a_missing_integrity_log_withholds_every_timing(tmp_path, monkeypatch, capsys):
-    """N-1, MISSING: --base pointed at an integrity log that does not exist."""
-    monkeypatch.setattr(h, "run_live", _canned_live)
+def test_a_missing_integrity_log_is_refused_before_anything_is_written(tmp_path, monkeypatch, capsys):
+    """N-1, MISSING, --base -- stricter since M-3: the integrity log is what NAMES the sandbox,
+    so without it the server cannot be proven to be the sandbox, and the run is refused before
+    its first write (exit 3, no timings, no record). The server here does serve a marker, so the
+    log is the only half missing."""
+    calls: list = []
+    monkeypatch.setattr(h, "run_live", _live_that_must_not_run(calls))
     out_json = tmp_path / "run" / "editor.json"
-    rc = h.main(["--base", "http://127.0.0.1:1", "--integrity-log", str(tmp_path / "nope.md"),
-                 "--shutdown-wait", "0", "--sizes", "1000", "--json", str(out_json), "--md", "-"])
+    with _fake_base(sid.mint()) as base:
+        rc = h.main(["--base", base, "--integrity-log", str(tmp_path / "nope.md"),
+                     "--shutdown-wait", "0", "--sizes", "1000", "--json", str(out_json), "--md", "-"])
     lines = capsys.readouterr().out.splitlines()
-    assert lines[0].startswith("SANDBOX INTEGRITY: MISSING"), lines
-    assert rc == 2, lines
-    assert _no_timing_rows(lines), lines
-    rec = json.loads(out_json.read_text(encoding="utf-8"))
-    assert rec["timings"] == "WITHHELD" and rec["integrity"]["status"] == "MISSING", rec
+    assert lines[0].startswith("REFUSED:") and "does not exist" in lines[0], lines
+    assert rc == 3 and calls == [], (rc, calls)
+    assert _no_timing_rows(lines) and not out_json.exists(), lines
 
 
 def test_base_mode_withholds_until_its_sandbox_has_a_shutdown_checkpoint(tmp_path, monkeypatch, capsys):
     """N-4: a --base run whose sandbox has only pre-boot and +15 s is INCOMPLETE, like --boot."""
     monkeypatch.setattr(h, "run_live", _canned_live)
-    log = _write_log(tmp_path / "integrity.md", [h.PRE_BOOT, h.POST_BOOT])
-    rc = h.main(["--base", "http://127.0.0.1:1", "--integrity-log", log, "--shutdown-wait", "0",
-                 "--sizes", "1000", "--json", str(tmp_path / "run" / "editor.json"), "--md", "-"])
+    nonce = sid.mint()
+    log = _write_log(tmp_path / "integrity.md", [h.PRE_BOOT, h.POST_BOOT], nonce)
+    with _fake_base(nonce) as base:
+        rc = h.main(["--base", base, "--integrity-log", log, "--shutdown-wait", "0",
+                     "--sizes", "1000", "--json", str(tmp_path / "run" / "editor.json"), "--md", "-"])
     lines = capsys.readouterr().out.splitlines()
     assert lines[0].startswith("SANDBOX INTEGRITY: INCOMPLETE") and "'shutdown'" in lines[0], lines
     assert rc == 2 and _no_timing_rows(lines), lines
@@ -243,20 +295,60 @@ def test_base_mode_waits_for_the_shutdown_checkpoint_then_reports(tmp_path, monk
     """N-4, the other half: the shutdown line lands WHILE the harness waits, so the run reports."""
     import threading
     monkeypatch.setattr(h, "run_live", _canned_live)
-    log = _write_log(tmp_path / "integrity.md", [h.PRE_BOOT, h.POST_BOOT])
+    nonce = sid.mint()
+    log = _write_log(tmp_path / "integrity.md", [h.PRE_BOOT, h.POST_BOOT], nonce)
     timer = threading.Timer(1.5, lambda: drs.append_log(log, h.SHUTDOWN, "FAKE", 1, []))
     timer.start()
     try:
-        rc = h.main(["--base", "http://127.0.0.1:1", "--integrity-log", log, "--shutdown-wait", "30",
-                     "--sizes", "1000", "--json", str(tmp_path / "run" / "editor.json"), "--md", "-"])
+        with _fake_base(nonce) as base:
+            rc = h.main(["--base", base, "--integrity-log", log, "--shutdown-wait", "30",
+                         "--sizes", "1000", "--json", str(tmp_path / "run" / "editor.json"), "--md", "-"])
     finally:
         timer.cancel()
     captured = capsys.readouterr()
     lines = captured.out.splitlines()
     assert lines[0].startswith("SANDBOX INTEGRITY: CLEAN") and f"{h.SHUTDOWN} CLEAN" in lines[0], lines
+    assert "proved it is the sandbox that writes" in lines[0], lines[0]      # the identity, named
     assert any(ln.startswith("| note_open |") for ln in lines[1:]), lines
     assert rc == 0, lines
     assert "waiting up to 30 s for the shutdown checkpoint" in captured.err, captured.err
+
+
+# ── wave 7 whole-branch fix, M-3: --base writes NOTHING until the server proves who it is ────
+
+def test_base_mode_REFUSES_a_server_that_answers_health_but_not_the_identity(tmp_path, monkeypatch, capsys):
+    """The review's scenario: a stale non-sandbox backend holds the port. It answers /api/health
+    like any backend, and has no identity marker -- so the run must not sign up, comp or seed
+    anything through it. The integrity log is a real sandbox's (its identity is there)."""
+    import urllib.request
+    calls: list = []
+    monkeypatch.setattr(h, "run_live", _live_that_must_not_run(calls))
+    nonce = sid.mint()
+    log = _write_log(tmp_path / "integrity.md", [h.PRE_BOOT, h.POST_BOOT, h.SHUTDOWN], nonce)
+    out_json = tmp_path / "run" / "editor.json"
+    with _fake_base(nonce, serve_identity=False) as base:
+        with urllib.request.urlopen(base + "/api/health", timeout=5) as r:     # non-vacuity:
+            assert r.status == 200                                            # it IS a live server
+        rc = h.main(["--base", base, "--integrity-log", log, "--shutdown-wait", "0",
+                     "--sizes", "1000", "--json", str(out_json), "--md", "-"])
+    lines = capsys.readouterr().out.splitlines()
+    assert rc == 3, lines
+    assert calls == [], "the run wrote through a server that never proved it is the sandbox"
+    assert lines[0].startswith("REFUSED:"), lines
+    assert sid.IDENTITY_PATH in lines[0] and "HTTP 404" in lines[0] and "Nothing was written" in lines[0], lines[0]
+    assert _no_timing_rows(lines) and not out_json.exists()
+
+
+def test_base_mode_REFUSES_a_different_sandbox_than_the_logs(tmp_path, monkeypatch, capsys):
+    """Two sandboxes on one box: the log names one, the port answers the other."""
+    calls: list = []
+    monkeypatch.setattr(h, "run_live", _live_that_must_not_run(calls))
+    log = _write_log(tmp_path / "integrity.md", [h.PRE_BOOT, h.POST_BOOT, h.SHUTDOWN], sid.mint())
+    with _fake_base(sid.mint()) as base:
+        rc = h.main(["--base", base, "--integrity-log", log, "--shutdown-wait", "0", "--sizes", "1000"])
+    lines = capsys.readouterr().out.splitlines()
+    assert rc == 3 and calls == [], (rc, calls)
+    assert lines[0].startswith("REFUSED:") and "not the one that writes" in lines[0], lines[0]
 
 
 # ── fix round 2: a run that could not start is NOT RUN, exit 3 (N-3) ────────────────────────
