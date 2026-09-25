@@ -4113,9 +4113,17 @@ def _build_by_contract(today: str, stock_etf: str, min_hits: int,
         # most permissive" band ($15K/print, $100K/contract); the market-wide callers still
         # pass the real cap. Regression rail: tests/test_flow_single_ticker_floors.py.
         _band_cap = 0 if only_ticker else g["mkt_cap"]
-        floor = _rollup_floor(_band_cap, g["source"], thresholds)
+        # ⛔ AND THE INDEX PARTITION TOO. `_rollup_floor` / `_rollup_total_floor` answer the mega
+        # floors for `source == "indexes"` BEFORE they look at the cap, so passing a cap of 0 left
+        # every ETF/index lookup at $250K/print and $1M/contract. ⚰️ 2026-09-25, first ETF parity
+        # run: /flow IWM kept 6 of the page's 229 contracts — the six largest, mostly put hedges —
+        # and read net BEAR $4.0M/$15.9M against the page's near-even net BULL $24.5M/$22.7M.
+        # A single-name lookup uses the permissive band on BOTH axes; market-wide callers keep
+        # the index floors that stop SPX 0DTE churn flooding the feed.
+        _floor_src = "stocks" if only_ticker else g["source"]
+        floor = _rollup_floor(_band_cap, _floor_src, thresholds)
         qual = sum(1 for p in g["prints"] if (p["premium"] or 0) >= floor)
-        total_floor = _rollup_total_floor(_band_cap, g["source"], thresholds)
+        total_floor = _rollup_total_floor(_band_cap, _floor_src, thresholds)
         # Gate: enough repeated meaningful clips AND a total that clears the
         # cap-scaled bar. The hit floor is low (repetition of small clips on a
         # small name is the signal); the cap-scaling lives in the total floor.

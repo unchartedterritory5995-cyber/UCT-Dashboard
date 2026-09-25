@@ -255,3 +255,41 @@ def test_the_sweep_map_is_right_and_steers_the_planner_off_the_symbol_index(tape
     assert m[("C", 535.0, exp_s)] is True, m       # three SWEEP prints
     assert m[("C", 540.0, exp_s)] is False, m      # BLOCK only
     assert any("+Symbol=?" in s for s in seen_sql), "the planner steer is gone; SPY pays 4 s again"
+
+
+# ── the index partition (ETFs) — found by the first ETF parity run, 2026-09-25 ─────────────
+
+@pytest.fixture
+def etf_tape(tape):
+    """An ETF's $450K sweep-backed contract under source='indexes' — the partition every ETF and
+    index print lives in. `_rollup_floor` returns the MEGA floors for that source before it looks
+    at the cap, which is why the 9/24 floor fix never reached /flow IWM."""
+    exp = dt.datetime.now(lmr.ET).date() + dt.timedelta(days=30)
+    exp_s = f"{exp.month}/{exp.day}/{exp.year}"
+    conn = sqlite3.connect(lmr.DB_PATH)
+    for i in range(3):
+        conn.execute(
+            "INSERT INTO flow (source, CreatedDate, CreatedTime, Symbol, Type, Volume, Price, Side, "
+            "CallPut, Strike, Spot, Premium, ExpirationDate, Color, Dte, MktCap, OI, dedup_key) "
+            "VALUES ('indexes', ?, ?, 'IWMX', 'SWEEP', '100', '15.0', 'A', 'PUT', '260', '262', "
+            "'150000', ?, 'YELLOW', '30', '0', '100', ?)",
+            (tape, f"11:0{i}:00", exp_s, f"etf{i}"))
+    conn.commit(); conn.close()
+    lmr._ticker_flow_cache.clear()
+    return exp_s
+
+
+def test_a_single_etf_lookup_uses_the_permissive_floors_too(etf_tape):
+    p = lmr._build_by_contract(lmr._today_mdyyyy(), "etfs", 1, True, 1, only_ticker="IWMX")
+    got = [(c["cp"], c["strike"], c["total_premium"], c["source"]) for c in p["contracts"]]
+    assert got == [("P", 260.0, 450_000, "indexes")], (
+        f"an ETF's $450K contract vanished from its own card (index floors still applied): {got}")
+
+
+def test_the_market_wide_etf_feed_keeps_its_index_floors(etf_tape, monkeypatch):
+    """THE CONTROL: the ETF feed still asks an index contract to total $1M, or SPX 0DTE churn
+    floods it. `etf_enabled` is off by default, so switch it on for the market-wide read."""
+    th = dict(lmr._load_thresholds()); th["etf_enabled"] = True
+    monkeypatch.setattr(lmr, "_thresholds_cache", th)
+    p = lmr._build_by_contract(lmr._today_mdyyyy(), "etfs", 1, True, 1)
+    assert p["contracts"] == [], f"the index floor no longer applies market-wide: {p['contracts']}"

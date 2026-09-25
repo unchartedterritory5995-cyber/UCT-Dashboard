@@ -162,8 +162,11 @@ def login(op) -> bool:
 
 def fetch_page_product(op, sym: str, source: str):
     """-> (all_directional | None, note)."""
+    # The page names the ETF/index partition `indexes`; the card names it `etfs`. Passing the
+    # card's word through made the page read the STOCKS partition for SPY and answer empty.
+    page_source = "indexes" if source == "etfs" else "stocks"
     try:
-        r = op.open("%s/api/flow/ticker-product/%s?source=%s" % (BASE, sym, source), timeout=180)
+        r = op.open("%s/api/flow/ticker-product/%s?source=%s" % (BASE, sym, page_source), timeout=180)
         d = json.loads(r.read().decode())
         return (d.get("product") or {}).get("all_directional") or [], "version %s" % d.get("version")
     except urllib.error.HTTPError as e:
