@@ -17,6 +17,7 @@ its uncommitted rows and pass either way.
 from __future__ import annotations
 
 import sqlite3
+import threading
 
 import pytest
 
@@ -100,3 +101,125 @@ def test_non_vacuity_a_fresh_connection_sees_a_committed_folder(db_path):
     path, _ = db_path
     notes_svc.create_folder(U, "Direct")
     assert {name for _, name, _ in _fresh_rows(path)} == {"Direct"}
+
+
+# ── whole-branch fix · M-9: concurrent first use makes ONE folder ─────────────
+
+class _HeldAfterFirstRead:
+    """A connection whose FIRST "is this folder there?" read waits at a barrier
+    until every racer has made it: the exact interleaving that makes two
+    `Inbox` folders when the check and the insert are split."""
+
+    def __init__(self, conn, barrier):
+        self._c = conn
+        self._barrier = barrier
+        self._held = False
+
+    def execute(self, sql, *args):
+        cur = self._c.execute(sql, *args)
+        if not self._held and sql.lstrip().upper().startswith("SELECT ID FROM J2_NOTE_FOLDERS"):
+            self._held = True
+            self._barrier.wait(timeout=10)
+        return cur
+
+    def __getattr__(self, name):
+        return getattr(self._c, name)
+
+
+def _race(n, go):
+    results, errors = [], []
+
+    def run():
+        try:
+            results.append(go())
+        except Exception as e:  # noqa: BLE001 -- surfaced below
+            errors.append(repr(e))
+
+    threads = [threading.Thread(target=run) for _ in range(n)]
+    for t in threads:
+        t.start()
+    for t in threads:
+        t.join(timeout=30)
+    return results, errors
+
+
+def _inbox_rows(path):
+    return [r for r in _fresh_rows(path) if r[1] == "Inbox"]
+
+
+def test_two_concurrent_first_uses_make_ONE_folder_when_it_owns_the_connection(db_path, monkeypatch):
+    """Backend review M-9: `ensure_folder_path` did a SELECT and then an INSERT
+    with no lock between them, and there is no unique index on (user_id,
+    parent_id, name) -- deliberately none now either: existing production
+    duplicates would make such a migration fail. Email-in's `Inbox` and the
+    personal API's `folder` path are concurrent first users (Cloudflare
+    delivers in parallel). The check and the insert now run under BEGIN
+    IMMEDIATE."""
+    path, _ = db_path
+    barrier = threading.Barrier(2)
+
+    def _open():
+        conn = sqlite3.connect(str(path), timeout=10)
+        conn.row_factory = sqlite3.Row
+        return _HeldAfterFirstRead(conn, barrier)
+
+    monkeypatch.setattr(notes_svc, "get_connection", _open)
+    results, errors = _race(2, lambda: notes_svc.ensure_folder_path(U, ["Inbox"]))
+    assert errors == []
+    assert len(_inbox_rows(path)) == 1, _fresh_rows(path)
+    assert len(results) == 2 and len(set(results)) == 1, "the two callers were given different folders"
+
+
+def test_two_concurrent_first_uses_make_ONE_folder_on_the_callers_connections(db_path):
+    """The email-in / personal-API shape: each caller opens its own
+    connection, hands it in, and commits after."""
+    path, _ = db_path
+    barrier = threading.Barrier(2)
+
+    def go():
+        raw = sqlite3.connect(str(path), timeout=10)
+        raw.row_factory = sqlite3.Row
+        conn = _HeldAfterFirstRead(raw, barrier)
+        try:
+            fid = notes_svc.ensure_folder_path(U, ["Inbox"], conn=conn)
+            raw.commit()
+            return fid
+        finally:
+            raw.close()
+
+    results, errors = _race(2, go)
+    assert errors == []
+    assert len(_inbox_rows(path)) == 1, _fresh_rows(path)
+    assert len(set(results)) == 1
+
+
+def test_an_EXISTING_folder_takes_no_write_lock(db_path):
+    """The common case -- the folder is already there -- stays a plain read: a
+    caller's connection is not left holding a write transaction for nothing."""
+    path, _ = db_path
+    first = notes_svc.ensure_folder_path(U, ["Inbox"])
+    c = sqlite3.connect(str(path))
+    c.row_factory = sqlite3.Row
+    try:
+        assert notes_svc.ensure_folder_path(U, ["Inbox"], conn=c) == first
+        assert not c.in_transaction, "an existing folder took the write lock"
+    finally:
+        c.close()
+
+
+def test_a_caller_already_in_a_transaction_is_left_to_commit_it(db_path):
+    """The importer's shape: it has written before it asks for a folder, so its
+    transaction already holds the lock; the function must not try to open a
+    second one (`cannot start a transaction within a transaction`)."""
+    path, _ = db_path
+    c = sqlite3.connect(str(path))
+    c.row_factory = sqlite3.Row
+    try:
+        notes_svc.create_folder(U, "Earlier", conn=c)
+        assert c.in_transaction
+        fid = notes_svc.ensure_folder_path(U, ["Inbox"], conn=c)
+        assert c.in_transaction and fid
+        c.commit()
+        assert {name for _, name, _ in _fresh_rows(path)} == {"Earlier", "Inbox"}
+    finally:
+        c.close()

@@ -4589,16 +4589,34 @@ def ensure_folder_path(user_id: str, path_parts: list[str], dest_folder_id: str 
     committed and thrown away on close. The caller got back an id for a folder
     that did not exist (lane G, wave 7: "The note wasn't saved: folder not found").
     tests/test_journal_two_ensure_folder_path_commits.py reads the result from a
-    fresh connection."""
+    fresh connection.
+
+    ⛔ A MISSING FOLDER IS CHECKED AGAIN, AND MADE, UNDER THE WRITE LOCK (whole-
+    branch review M-9). ⚰️ The check and the insert were split, and nothing makes
+    (user_id, parent_id, name) unique -- deliberately still nothing: existing
+    production duplicates would make that migration fail. Two concurrent first
+    users (email-in's `Inbox` while Cloudflare delivers in parallel, the
+    personal API's `folder` path) both read "no Inbox" and both made one. Now a
+    missing segment takes `BEGIN IMMEDIATE` (when the connection is not already
+    in a transaction -- the importer's has written, so it holds the lock), reads
+    again, and only then inserts; the second racer waits, then finds the
+    first's folder. A chain that already exists stays a plain read."""
     owned = conn is None
     conn = conn or get_connection()
     try:
         pid = dest_folder_id or ""
+
+        def existing(parent: str, name: str):
+            return conn.execute(
+                "SELECT id FROM j2_note_folders WHERE user_id = ? AND parent_id = ? AND name = ?",
+                (user_id, parent, name)).fetchone()
+
         for raw in path_parts:
             name = (raw or "").strip()[:80] or "Untitled"
-            row = conn.execute(
-                "SELECT id FROM j2_note_folders WHERE user_id = ? AND parent_id = ? AND name = ?",
-                (user_id, pid, name)).fetchone()
+            row = existing(pid, name)
+            if row is None and not conn.in_transaction:
+                conn.execute("BEGIN IMMEDIATE")
+                row = existing(pid, name)
             if row:
                 pid = row["id"]
             else:
@@ -4606,6 +4624,10 @@ def ensure_folder_path(user_id: str, path_parts: list[str], dest_folder_id: str 
         if owned:
             conn.commit()
         return pid
+    except BaseException:
+        if owned and conn.in_transaction:
+            conn.rollback()
+        raise
     finally:
         if owned:
             conn.close()
