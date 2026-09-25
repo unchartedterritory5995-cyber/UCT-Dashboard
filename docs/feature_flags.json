@@ -932,10 +932,16 @@
       "where": [],
       "note": "Wave 7 lane G, 2026-09-25. Enablement gate for the member personal API (api/routers/notebook_personal_api.py: mint/list/revoke personal tokens; create a note; append to a note or to today's daily note). Unset means OFF and that is the decision: every route answers 404 and no token can be minted. Read per request; a flip needs no restart. Tokens are client_type=personal_api rows in j2_capture_tokens with the two notebook:notes:* scopes and never the capture scopes."
     },
+    "NOTEBOOK_SEMANTIC_PROVIDER": {
+      "status": "pending",
+      "since": "2026-09-25",
+      "where": [],
+      "note": "MODE (openai default | noop); read per call in note_semantic.provider_mode; inert while NOTEBOOK_SEMANTIC_SEARCH_ENABLED is unset; the default is the vendor-sending choice, so the provider decision rides the zero-retention precondition"
+    },
     "NOTEBOOK_SEMANTIC_SEARCH_ENABLED": {
       "status": "dark",
       "where": [],
-      "note": "Wave 7 lane H, 2026-09-25. Enablement gate for meaning-search over a member's notes (note_semantic.py: OpenAI text-embedding-3-small through voice_embeddings_service, j2_note_embeddings, a scheduled sweep, query-shape routing into GET /notes). Unset means OFF and that is the decision: nothing is embedded, nothing is sent to the vendor, the sweep is a no-op. STAYS DARK until OpenAI zero-retention terms are confirmed (docs/notebook VENDOR-TERMS). Read per call; a flip needs no restart."
+      "note": "Wave 7 lane H, 2026-09-25. Enablement gate for meaning-search over a member's notes (note_semantic.py: OpenAI text-embedding-3-small through voice_embeddings_service, j2_note_embeddings, a scheduled sweep, query-shape routing into GET /notes). Unset means OFF and that is the decision: nothing is embedded, nothing is sent to the vendor, the sweep is a no-op. STAYS DARK until OpenAI zero-retention terms are confirmed (docs/notebook VENDOR-TERMS). Read per call; a flip needs no restart. Armed, the query embed is bounded per member (ruling D-H6): one in flight, a 256-entry / 10-minute query-vector cache keyed by member, 200 embeds a day on the durable counter; each bound fails open to the lexical page. The append is opt-in per request (`meaning=1`, ruling D-H9): only the Notebook search box asks."
     },
     "NOTEBOOK_TASK_REMINDERS_ENABLED": {
       "status": "pending",
@@ -946,7 +952,7 @@
     "NOTEBOOK_WRITING_HELP_ENABLED": {
       "status": "dark",
       "where": [],
-      "note": "Wave 7 lane H, 2026-09-25. Enablement gate for editor writing help (summarize / rewrite / continue / translate through POST /api/j2/notes/{id}/writing-help/stream, sharing Ask Notebook's client, global dollar cap and stream slots, with its own 60/day member counter). Unset means OFF and that is the decision: the route answers 404 and the editor shows no writing-help entry. Rides the auth payload as notebook_writing_help_enabled; read per request; a flip needs no restart."
+      "note": "Wave 7 lane H, 2026-09-25. Enablement gate for editor writing help (summarize / rewrite / continue / translate through POST /api/j2/notes/{id}/writing-help/stream, sharing Ask Notebook's client, global dollar cap and stream slots, with its own 60/day member counter). Unset means OFF and that is the decision: the route answers 404 and the editor shows no writing-help entry. Rides the auth payload as notebook_writing_help_enabled; read per request; a flip needs no restart. The member cap NOTEBOOK_WRITING_HELP_PERUSER_CAP (default 60) is read per call, so a change needs no restart. The 60/day count and the shared $25/day cap are durable in auth.db (`daily_usage_counters`, ruling D-H5b): a deploy no longer resets them. Each call is charged a per-action estimate (`writing_help.estimate_cost`, ruling D-H5)."
     },
     "NOTE_SYNC_ENABLED": {
       "status": "armed",
