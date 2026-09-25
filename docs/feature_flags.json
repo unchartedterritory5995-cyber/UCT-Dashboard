@@ -927,6 +927,11 @@
       "where": [],
       "note": "Wave 7 lane G, 2026-09-25. Enablement gate for the member personal API (api/routers/notebook_personal_api.py: mint/list/revoke personal tokens; create a note; append to a note or to today's daily note). Unset means OFF and that is the decision: every route answers 404 and no token can be minted. Read per request; a flip needs no restart. Tokens are client_type=personal_api rows in j2_capture_tokens with the two notebook:notes:* scopes and never the capture scopes."
     },
+    "NOTEBOOK_SEMANTIC_SEARCH_ENABLED": {
+      "status": "dark",
+      "where": [],
+      "note": "Wave 7 lane H, 2026-09-25. Enablement gate for meaning-search over a member's notes (note_semantic.py: OpenAI text-embedding-3-small through voice_embeddings_service, j2_note_embeddings, a scheduled sweep, query-shape routing into GET /notes). Unset means OFF and that is the decision: nothing is embedded, nothing is sent to the vendor, the sweep is a no-op. STAYS DARK until OpenAI zero-retention terms are confirmed (docs/notebook VENDOR-TERMS). Read per call; a flip needs no restart."
+    },
     "NOTEBOOK_TASK_REMINDERS_ENABLED": {
       "status": "pending",
       "since": "2026-09-23",

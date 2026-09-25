@@ -1764,6 +1764,18 @@ def list_notes_endpoint(
         )
     except note_properties.PropertyValidationError as e:
         raise HTTPException(status_code=400, detail=str(e))
+    # Wave 7 lane H (H3), DARK behind NOTEBOOK_SEMANTIC_SEARCH_ENABLED: meaning
+    # hits APPENDED after the lexical page above, by query shape (ruling D-H3).
+    # A note-id list, never a change to the filters or a second whole-library
+    # query; off, it returns `rows` untouched and issues no SQL at all
+    # (note_semantic.append_meaning_hits says why each refusal is where it is).
+    from api.services.journal_two import note_semantic
+    rows = note_semantic.append_meaning_hits(
+        user["id"], q, rows, total=total, offset=offset,
+        only_query=not (folder_id or tag or ticker or embed_symbol or embed_widget
+                        or deleted or date_from or date_to or symbol_in is not None
+                        or savedViewId or property_filter),
+    )
     return {"notes": rows, "total": total, "limit": limit, "offset": offset}
 
 

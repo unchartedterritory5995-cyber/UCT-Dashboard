@@ -133,6 +133,10 @@ def _seed_full_manifest(conn, user_id: str, tag: str) -> dict[str, str]:
     # j2_task_reminder_log, likewise: note_tasks.run_task_reminders creates
     # it on its first pass (wave 6 fix round 4, R4-4).
     nt.ensure_reminder_schema(conn)
+    # j2_note_embeddings, likewise: note_semantic.py self-ensures it on the
+    # first index or search (wave 7 lane H, H3).
+    from api.services.journal_two import note_semantic as nsem
+    nsem.ensure_semantic_schema(conn)
 
     for table in ap._DIRECT_USER_TABLES:
         _insert_minimal_row(conn, table, user_id, tag)

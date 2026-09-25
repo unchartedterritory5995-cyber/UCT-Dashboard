@@ -126,6 +126,11 @@ _DIRECT_USER_TABLES = (
     # self-ensured schema as the address table above.
     "j2_inbound_usage",
     "j2_inbound_drops",
+    # Wave 7 (lane H, H3 meaning search) — one vector per block of the member's
+    # notes (note_semantic.py). A vector is derived from their writing and
+    # leaves with it. Self-ensured by note_semantic.py (never db.py), so on a
+    # pod where meaning search never ran this is a "no such table" no-op.
+    "j2_note_embeddings",
 )
 
 # j2_broker_digest_dedup is deliberately excluded: it is a single global row
