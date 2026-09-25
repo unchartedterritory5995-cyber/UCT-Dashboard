@@ -41,6 +41,25 @@ pass unchanged.
 helper instead of the handler. It was caught before any deploy (your two rails above caught it;
 mine did not), and there is now a rail that resolves the route through FastAPI.
 
+## One measured recommendation for your code (not changed)
+
+`flow_db.get_available_dates(source)` runs `SELECT DISTINCT CreatedDate FROM flow WHERE source = ?`,
+which reads every entry of the date index to produce ~180 values. In the flow-worker pod
+(2026-09-25, warm cache) that is **1,335 ms for `indexes` and 1,971 ms for `stocks`**; on a
+freshly booted pod the `indexes` call took **~47 s**. A loose index scan returns the **identical**
+list (178/178 and 182/182) in **1.8 ms**:
+
+```sql
+WITH RECURSIVE d(x) AS (
+  SELECT MIN(CreatedDate) FROM flow WHERE source = ?1
+  UNION ALL SELECT (SELECT MIN(CreatedDate) FROM flow WHERE source = ?1 AND CreatedDate > d.x)
+  FROM d WHERE d.x IS NOT NULL)
+SELECT x FROM d WHERE x IS NOT NULL
+```
+
+The card's own paths now use this (`_flow_dates_all`, `_market_dates`). Your page's `/api/flow/dates`
+and `/live-massive` would get the same win on their first load after a flow-worker deploy.
+
 ## What reads your derivation now (dark)
 
 `api/services/flow_card_from_page.py` turns the windowed product into the card: it scopes rows to

@@ -1007,6 +1007,30 @@ def _spawn_search_warm(sym: str, src: str, key: tuple, version: str) -> bool:
     return True
 
 
+#: The page's calendar for one partition as a LOOSE INDEX SCAN: one seek per distinct date on
+#: (source, CreatedDate). Same list `db.get_available_dates(src)` returns (proven identical in the
+#: pod, 178/178 and 182/182) at 1.8 ms instead of 1.3-2.0 s warm and ~47 s on a cold pod.
+_LOOSE_SOURCE_DATES_SQL = (
+    "WITH RECURSIVE d(x) AS (SELECT MIN(CreatedDate) FROM flow WHERE source = ?1 "
+    "UNION ALL SELECT (SELECT MIN(CreatedDate) FROM flow WHERE source = ?1 AND CreatedDate > d.x) "
+    "FROM d WHERE d.x IS NOT NULL) SELECT x FROM d WHERE x IS NOT NULL")
+
+
+def _market_dates(src: str) -> list:
+    """Chronological 'M/D/YYYY' sessions for a partition, cached 60 s per database file."""
+    from api.services.cache import cache as _shared
+    ck = f"flow_dates_loose::{db.db_path}::{src}"
+    hit = _shared.get(ck)
+    if hit is not None:
+        return list(hit)
+    with db._conn() as conn:
+        raw = [r[0] for r in conn.execute(_LOOSE_SOURCE_DATES_SQL, (src,)).fetchall() if r[0]]
+    dated = sorted(((db._parse_date_mdy(d), d) for d in raw if db._parse_date_mdy(d)), key=lambda x: x[0])
+    out = [d for _, d in dated]
+    _shared.set(ck, list(out), ttl=60)
+    return out
+
+
 def _windowed_ticker_product(sym: str, src: str, version: str, wd: int, st):
     """The Search derivation over ONE symbol, restricted to the last `wd` MARKET sessions (the
     Discord card's page-derived path, 2026-09-25). Its own cache key beside the full product,
@@ -1015,7 +1039,8 @@ def _windowed_ticker_product(sym: str, src: str, version: str, wd: int, st):
 
     ⛔ THE WINDOW IS THE MARKET'S CALENDAR, NOT THE TICKER'S. The page's `_scopeAllDirectional`
     defines "Last N" as the last N market trading days from `availableDates` (a thin name must
-    not reach past the window), and `db.get_available_dates` is that list, cached 60 s. ⚰️ The
+    not reach past the window), and `_market_dates` is that list (`db.get_available_dates`'s
+    answer, read as a loose index scan), cached 60 s. ⚰️ The
     first cut asked `SELECT DISTINCT CreatedDate ... WHERE source=? AND Symbol=?` instead: no
     covering index, so it read the name's whole history from disk, and on a freshly booted pod
     it cost 70 s for DELL, 99 s for SPY and 218 s for NVDA (the stream and the derivation after
@@ -1029,7 +1054,7 @@ def _windowed_ticker_product(sym: str, src: str, version: str, wd: int, st):
     if not flow_aggregate.available():
         st.flush("NO_BUNDLE")
         return JSONResponse({"ok": False, "error": "bundle unavailable"}, status_code=503)
-    dates = db.get_available_dates(src)[-wd:]
+    dates = _market_dates(src)[-wd:]
     if not dates:
         return JSONResponse({"ok": True, "sym": sym, "source": src, "version": version,
                              "schema": _SEARCH_PRODUCT_SCHEMA, "window_dates": [],

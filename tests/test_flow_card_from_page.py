@@ -307,8 +307,9 @@ def test_the_windowed_path_never_scans_the_tickers_history(monkeypatch, tmp_path
     monkeypatch.setattr(fr2, "_build_search_product", lambda *a, **k: (b"", None))
     monkeypatch.setattr(fr2, "_search_response", lambda gz, v, how: {"how": how})
     c.get("/api/flow/ticker-product/DELL?source=stocks&window_days=2")
-    bad = [q for q in seen_sql if "DISTINCT CreatedDate" in q and "Symbol" in q]
-    assert not bad, f"the windowed path scanned a ticker's history for its dates: {bad}"
+    bad = [q for q in seen_sql if "DISTINCT CreatedDate" in q]
+    assert not bad, f"the windowed path ran a full DISTINCT-dates scan (ticker history or partition): {bad}"
+    assert any("RECURSIVE" in q for q in seen_sql), "the windowed calendar is not the loose index scan"
 
 
 def test_the_windowed_request_routes_end_to_end(monkeypatch, tmp_path):
@@ -327,3 +328,42 @@ def test_the_windowed_request_routes_end_to_end(monkeypatch, tmp_path):
     assert r.json()["window_dates"] == ["9/23/2026", "9/24/2026"]
     assert r.headers.get("X-Flow-Cache") == "windowed"
     assert seen["key"] == ("DELL", "stocks", "v1", "w2")
+
+
+# ── the loose-scan calendar and the per-date stream (measured in the pod 2026-09-25) ──────────
+
+def _multi_date_db(tmp_path):
+    from api.flow_db import FlowDB
+    dbp = tmp_path / "flow.db"
+    db = FlowDB(str(dbp))
+    conn = sqlite3.connect(str(dbp))
+    rows = [("stocks", "9/2/2026", "DELL"), ("stocks", "9/10/2026", "DELL"), ("stocks", "10/1/2026", "AMD"),
+            ("indexes", "9/10/2026", "SPY"), ("indexes", "12/31/2025", "SPY"), ("stocks", "9/10/2026", "AMD")]
+    for i, (src, day, sym) in enumerate(rows):
+        conn.execute("INSERT INTO flow (source, CreatedDate, Symbol, Premium, dedup_key) VALUES (?,?,?,'1',?)",
+                     (src, day, sym, f"m{i}"))
+    conn.commit(); conn.close()
+    return db
+
+
+def test_the_windowed_calendar_is_exactly_the_pages_get_available_dates(tmp_path, monkeypatch):
+    from api import flow_router as fr
+    db = _multi_date_db(tmp_path)
+    monkeypatch.setattr(fr, "db", db)
+    for src in ("stocks", "indexes"):
+        assert fr._market_dates(src) == db.get_available_dates(src), src
+    assert fr._market_dates("indexes") == ["12/31/2025", "9/10/2026"]
+
+
+def test_the_windowed_stream_is_per_date_equality_and_returns_the_same_rows(tmp_path):
+    db = _multi_date_db(tmp_path)
+    want = [l for l in "".join(db.stream_csv_symbol("DELL", "stocks")).strip().splitlines()[1:]
+            if "9/10/2026" in l or "9/2/2026" in l]
+    got = "".join(db.stream_csv_symbol("DELL", "stocks", dates=["9/2/2026", "9/10/2026"])).strip().splitlines()[1:]
+    assert sorted(got) == sorted(want) and len(got) == 2
+    import inspect
+    src = inspect.getsource(type(db).stream_csv_symbol)
+    body = src[src.index("if dates:"):src.index("else:", src.index("if dates:"))]
+    code = "\n".join(l.split("#")[0] for l in body.splitlines())          # comments are not code
+    assert "CreatedDate = ?" in code and " IN (" not in code, (
+        "the windowed stream went back to an IN list; the planner walks the symbol's history for it")

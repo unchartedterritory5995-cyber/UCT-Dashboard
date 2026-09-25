@@ -3880,11 +3880,22 @@ def _flow_dates_all() -> list:
         return list(hit)
     _c = sqlite3.connect(DB_PATH, timeout=10)
     try:
-        dates = [r[0] for r in _c.execute("SELECT DISTINCT CreatedDate FROM flow").fetchall() if r[0]]
+        dates = [r[0] for r in _c.execute(_LOOSE_DATES_SQL).fetchall() if r[0]]
     finally:
         _c.close()
     _shared.set(ck, list(dates), ttl=_FLOW_DATES_ALL_TTL_S)
     return dates
+
+
+#: ⛔ A LOOSE INDEX SCAN, not `SELECT DISTINCT CreatedDate FROM flow`. The DISTINCT reads every
+#: entry of the date index (~20M rows) to produce ~180 values: 2,361 ms warm in the pod and tens
+#: of seconds on a freshly booted pod with a cold page cache — measured 2026-09-25 as the bulk of
+#: an 85 s first `/flow` after a flow-worker deploy. The recursive form does one index seek per
+#: distinct value (1.8 ms, identical 182 dates). Text order is fine: callers sort by `_parse_mdy`.
+_LOOSE_DATES_SQL = (
+    "WITH RECURSIVE d(x) AS (SELECT MIN(CreatedDate) FROM flow "
+    "UNION ALL SELECT (SELECT MIN(CreatedDate) FROM flow WHERE CreatedDate > d.x) "
+    "FROM d WHERE d.x IS NOT NULL) SELECT x FROM d WHERE x IS NOT NULL")
 
 
 def _build_by_contract(today: str, stock_etf: str, min_hits: int,

@@ -681,12 +681,19 @@ class FlowDB:
         conn.execute("PRAGMA synchronous=NORMAL")
         try:
             if dates:
-                ph = ",".join("?" * len(dates))
-                cursor = conn.execute(
-                    f"SELECT {select_cols} FROM flow WHERE source = ? AND Symbol = ? "
-                    f"AND CreatedDate IN ({ph})",
-                    (source, symbol, *[str(d) for d in dates]),
-                )
+                # ⛔ ONE EQUALITY QUERY PER DATE, never `CreatedDate IN (...)`. With a list the
+                # planner takes `idx_flow_symbol (Symbol=?)` and walks the symbol's whole
+                # history (QQQ, 5 days: 2.3 s warm, 100 s on a cold pod); with equality it takes
+                # `idx_flow_created_symbol (CreatedDate=? AND Symbol=?)` (0.86 s for the same
+                # 84,970 rows). Measured in the flow-worker pod 2026-09-25.
+                def _per_date():
+                    for d in dates:
+                        yield from conn.execute(
+                            f"SELECT {select_cols} FROM flow WHERE source = ? AND Symbol = ? "
+                            f"AND CreatedDate = ?",
+                            (source, symbol, str(d)),
+                        )
+                cursor = _per_date()
             else:
                 cursor = conn.execute(
                     f"SELECT {select_cols} FROM flow WHERE source = ? AND Symbol = ?",

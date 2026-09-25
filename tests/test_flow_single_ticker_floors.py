@@ -293,3 +293,27 @@ def test_the_market_wide_etf_feed_keeps_its_index_floors(etf_tape, monkeypatch):
     monkeypatch.setattr(lmr, "_thresholds_cache", th)
     p = lmr._build_by_contract(lmr._today_mdyyyy(), "etfs", 1, True, 1)
     assert p["contracts"] == [], f"the index floor no longer applies market-wide: {p['contracts']}"
+
+
+def test_the_all_source_calendar_is_a_loose_scan_with_the_same_answer_as_distinct(tape, monkeypatch):
+    """`SELECT DISTINCT CreatedDate FROM flow` was 2.4 s warm and the bulk of an 85 s cold first
+    `/flow` after a flow-worker deploy; the loose index scan is 1.8 ms. Same set of dates, and
+    the rollup never issues the full DISTINCT again."""
+    conn = sqlite3.connect(lmr.DB_PATH)
+    for i, (src, day) in enumerate([("indexes", "9/10/2026"), ("stocks", "12/31/2025"), ("stocks", "1/2/2026")]):
+        conn.execute("INSERT INTO flow (source, CreatedDate, Symbol, Premium, dedup_key) VALUES (?,?, 'ZZZ', '1', ?)",
+                     (src, day, f"cal{i}"))
+    conn.commit()
+    distinct = sorted(r[0] for r in conn.execute("SELECT DISTINCT CreatedDate FROM flow") if r[0])
+    conn.close()
+    real = lmr.sqlite3.connect
+    seen = []
+
+    class _C:
+        def __init__(self, c): self._c = c
+        def execute(self, sql, *a):
+            seen.append(" ".join(str(sql).split())); return self._c.execute(sql, *a)
+        def __getattr__(self, n): return getattr(self._c, n)
+    monkeypatch.setattr(lmr.sqlite3, "connect", lambda *a, **k: _C(real(*a, **k)))
+    assert sorted(lmr._flow_dates_all()) == distinct
+    assert seen and all("DISTINCT" not in q for q in seen) and any("RECURSIVE" in q for q in seen), seen
