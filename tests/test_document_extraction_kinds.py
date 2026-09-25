@@ -320,9 +320,10 @@ class TestDocxText:
     # ⛔⛔ I-2 (fix round 1). The chunker re-sliced a long paragraph's remainder
     # once per page and built every page before the list was cut to
     # `_MAX_PAGES`: a 19 MB single-paragraph run cost 14.2 s (the reviewer's
-    # box) / 23.7 s (this one) of GIL-holding copying for a file a few KB on
-    # the wire. Three rails, one per property: the output is unchanged, the
-    # time is linear, and the cap is applied WHILE chunking.
+    # box) and 23.7-30.6 s across two runs on this one, of GIL-holding copying
+    # for a file a few KB on the wire. Three rails, one per property: the
+    # output is unchanged, the time is linear, and the cap is applied WHILE
+    # chunking.
 
     @staticmethod
     def _reference_chunk(paragraphs, size):
@@ -371,8 +372,9 @@ class TestDocxText:
 
     def test_a_19_mb_paragraph_is_paged_inside_a_cpu_budget(self):
         """The whole door -- unzip, parse, page -- on one 19 MB paragraph, in
-        CPU seconds (`process_time`, so a busy box does not move it much).
-        Measured after the fix: 0.047 s. Before: 23.7 s for the chunker alone."""
+        CPU seconds (`process_time`, so a busy box does not move it much; on
+        Windows it ticks in ~15.6 ms steps). Measured after the fix across two
+        runs: 0.047-0.078 s. Before, the chunker ALONE: 23.7-30.6 s."""
         import time
         data = _docx(_p(_r(self._big_paragraph())))
         assert len(data) < 100_000, "a bomb is small on the wire, or it proves nothing"
