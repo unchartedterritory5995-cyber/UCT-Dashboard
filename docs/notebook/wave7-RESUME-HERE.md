@@ -1,4 +1,4 @@
-# RESUME — Notebook 10/10 program, wave 7 — checkpoint 2026-09-25 13:20 CT (G and I closed; H and J in their fix rounds; whole-branch review next)
+# RESUME — Notebook 10/10 program, wave 7 — checkpoint 2026-09-25 17:25 CT (all four lanes closed; whole-branch review done; the whole-branch fix round in progress)
 
 This is the checkpoint for **wave 7** (capture & mobile · performance · AI + editor · hardening).
 Waves 5–6 have their own checkpoint, `docs/notebook/wave5-6-RESUME-HERE.md`, and it still
@@ -9,30 +9,32 @@ Bare-minimum one-liner: "Resume the Notebook 10/10 program at wave 7 — read
 `docs/notebook/wave7-RESUME-HERE.md` in `C:\Users\Patrick\uct-worktrees\notebook-w7` first,
 then the SDD ledger it names, then continue exactly where §5 says to."
 
-## 1. Where things stand, measured 13:20 CT
+## 1. Where things stand, measured 17:25 CT
 
 | what | where | state |
 |---|---|---|
-| wave 7 branch | `feat/notebook-w7`, worktree `C:\Users\Patrick\uct-worktrees\notebook-w7` (owner file present) | tip `42ef504f2`, pushed; dirty files are lanes H and J mid-fix-round |
-| base | `5f60d5d5b` = the wave-6 checkpoint tip (`feat/notebook-w6`) | wave 6 is NOT yet merged into wave 7 — do it once the lanes are quiet (§5 step 6) |
-| lane G (capture & mobile) | image OCR + docx documents, personal API, iOS Shortcuts doc, email-in — all DARK behind `NOTEBOOK_IMAGE_DOCX_DOCUMENTS_ENABLED` / `NOTEBOOK_PERSONAL_API_ENABLED` / `NOTEBOOK_INBOUND_EMAIL_ENABLED` | **CLOSED** at `09bc51ecb`: build `b0aaa2c41..de4d1dedf` → task review → fix round 1 `a4f157a95..37ceae2da` → re-review ALL ADDRESSED + one new Minor → fix round 2 `09bc51ecb`, verified by the controller |
-| controller wiring for G | `48373b67c` (mounts, Settings cards, boundary rail, door ledger ⑤, single-process note), `04b5d484e` (hygiene rail reads its capture ONCE + personal-API case) | landed, pushed |
-| lane I (performance) | search rewrites + indexes, budgets tool + hand-edited `docs/notebook/perf-budgets.json`, advisory `.github/workflows/notebook-budgets.yml`, lazy highlighter/views, one vite `build` key | built `7f8f24056..d53e0f0d4` → task review (spec PARTIAL on numbers, honest; 0 Critical / 1 Important / 9 Minor) → fix round 1 `8531f317c..eb645d08a` incl. ruling D-I1 (vendor-echarts removed) → re-review 4 open → fix round 2 `576213b14..8d34a5fdf` → **CLOSED**, the controller's own scoped re-check (27 py + the tag-follow rail green; 3 mutations red, restored to the report's hashes) |
-| lane H (AI + editor) | H1 dictation + G5 Scan door `7d20f97f9`; H2 writing help `d5b62f592`, `5beafa181`; H3 meaning search DARK `90f6f160f`; H4 Compass `search_my_notes` text-only DARK `a871ddf60`; ask correlated-EXISTS fix `7daf14b57`; M-3 `2064d8029` M-4 `e7ea9e54a`, M14 `db4d0cb1c`, M5 `80541eff5`, M-9 `b14dfca1e` | DONE_WITH_CONCERNS → task review PASS / 0 Critical, 7 Important, 11 Minor (`wave7-H-review.md`: unbounded armed search + 500 on embed failure, sweep held the write lock across the vendor call, abort refunded the 60/day, silent mic drop, hub write-door declaration, M14 race → J9, harness A/B owed) → **FIX ROUND 1 RUNNING** (I-5 `8c9aba1fa`, I-2 `42ef504f2` landed so far; the readAt clean-up added as an addendum); controller wiring `593447621` (mount, gzip exemption, semantic sweep every 15 min max_instances=1, single-process entry) landed |
-| lane J (hardening) | J1–J10 `94bc9f1f8..a59f4ff36` (bridges pin the root, `finally`, media byte budget, DERIVED deletion manifest, valid saved-view row, href stripping, ticker_research EXISTS, `{note, changed}` on PATCH tags with `moved := changed`, chunked-rename detail, the 39 baseline AuthContext-mock reds from master's `7ac9ff5ce`) | DONE_WITH_CONCERNS → task review PASS / 0 Critical, 2 Important, 9 Minor (`wave7-J-review.md`: GATE RISK — the bridges' ~6.5 s conftest import × per-test spawns against a 15 s timeout → spawn once per file under a 60 s budget; a behavioural rail for the trigger-emptied FTS tables) → **FIX ROUND 1 RUNNING** |
-| CLAUDE.md | `28da814ce` points at the perf-budgets record | landed |
-| PR #186 (wave 5) | head `d8846006c` | MERGEABLE, waits on the owner's `gh pr merge 186 --squash`; full-suite verdict classified in its body (honest delta vs master's own run = 2 rows, both classified) |
-| PR #193 (wave 6) | head `e9a87394c` | **CONFLICTING** with master on ONE file (`usePreferences.additionsOnly.test.js`); GitHub runs no PR CI on a conflicting head; resolved by the planned post-#186 merge of master into `feat/notebook-w6` |
+| wave 7 branch | `feat/notebook-w7`, worktree `C:\Users\Patrick\uct-worktrees\notebook-w7` (owner file present) | tip `2082a414e` (84 commits over base), pushed; dirty files are the two fix implementers mid-item |
+| base | `5f60d5d5b` = the wave-6 checkpoint tip (`feat/notebook-w6`) | wave 6 NOT yet merged into wave 7; dry run CLEAN at `e9a87394c` (§5 step 6) |
+| lane G (capture & mobile) | image OCR + docx documents, personal API, iOS Shortcuts doc, email-in — all DARK | **CLOSED** at `09bc51ecb` (review → R1 → re-review → R2, controller-verified) |
+| lane I (performance) | search rewrites + indexes, budgets checker + hand-edited `perf-budgets.json`, advisory CI job, lazy highlighter/views, one vite `build` key, D-I1 | **CLOSED** at `8d34a5fdf` (review → R1 → re-review → R2, controller-verified) |
+| lane H (AI + editor) | dictation + Scan, writing help (DARK), meaning search (DARK), Compass `search_my_notes` (DARK), carry-overs | **CLOSED** at `e6bb581a5` (review 0/7/11 → R1 → re-review: 0 Critical, 0 Important; its two Minors settled by D-H5 and the D-H1 addendum) |
+| lane J (hardening) | J1–J10 | **CLOSED** at `730153a60` (review 0/2/9 → R1 → re-review ALL ADDRESSED) |
+| controller commits | wiring `48373b67c`, `04b5d484e`, `593447621`; docs `28da814ce`, `4c4f4006a`; rail `35fe1367e` | landed, pushed |
+| wave-7 walk | `tools/notebook_wave7_walk.py` `03f07b9bd`, 30 checks | phase 1 DONE (W14–W18 PASS on `4c4f4006a`; sandbox integrity CLEAN ×4); phase 2 on the final tip |
+| whole-branch review | four shards (backend, frontend, tests, tooling), synthesis `wave7-whole-branch-review.md` | **0 Critical, 8 Important, 34 Minor**; every item ruled and in `wave7-branch-fix-list.md` (57 lines) |
+| whole-branch fix round | BACKEND implementer (api/, tests/) + FRONTEND implementer (app/src/) in parallel; a small TOOLING fix after both | **IN PROGRESS**: frontend has landed H N-2/N-3, J N-1, I-1 (lazyChunk everywhere under journal-2-0), I-2 (caret after Accept) |
+| PR #186 (wave 5) | head `d8846006c` | OPEN, waits on the owner's `gh pr merge 186 --squash` |
+| PR #193 (wave 6) | head `e9a87394c` | OPEN, CONFLICTING with master (one test file); resolved by the post-#186 merge of master into w6 |
 
 ## 2. Blockers
 
-- **None on the code.** Two agent seats are in use (lane H, lane I's re-review); lane J waits for one.
-- **Owner-gated:** `! gh pr merge 186 --squash` → deploy watch → master into w6 → re-gate → `! gh pr merge 193 --squash`. Also M-10 (locked notes ruling; the new doors refuse 423 meanwhile), the Privacy sentence for email-in, Cloudflare Email Routing + worker secret, the BrowserStack device run (mic + `capture="environment"` Scan + HEIC), OpenAI zero-retention before semantic search, and the email-in limit values (20/40 per hour, 50/100 MiB per day; see the Discord queue).
-- **The account rate limit** killed both running agents at ~10:4x CT (reset 10:50); both were resumed from their transcripts by `SendMessage`, nothing lost (every checkpoint was committed and pushed). If it trips again: wait for the reset, resume by message, never spawn fresh.
+- **None on the code.** Two agent seats are in use (the two fix implementers).
+- **Owner-gated:** `! gh pr merge 186 --squash` → deploy watch → master into w6 → re-gate → `! gh pr merge 193 --squash`; then wave 7's PR. Flip preconditions for the dark gates (none is needed for the merge): M-10 (locked notes ruling; new doors refuse 423 meanwhile); the Privacy sentence for email-in; Cloudflare Email Routing + worker secret + a **WAF Skip rule for Browser Integrity Check on `POST /api/j2/inbound-email`** and a first-message test while dark (the worker's UA-less POST is otherwise blocked — NOT VERIFIED on the live account); OpenAI zero-retention + vendor terms before semantic search; the email-in limit values; the BrowserStack device run (mic + Scan + HEIC); delete `C:\data-w7walk` by hand after the walk.
+- **The account's session limit** killed running agents twice today (~10:4x, ~14:5x CT). Every checkpoint was committed and pushed; agents were resumed by `SendMessage`. The second hit also killed a reviewer that had overflowed its own context on a 1.9 MB package — hence the sharded review.
 
 ## 3. Rulings this wave (`wave7-rulings.md` in the SDD workspace)
 
-D-G1..D-G4 (new server doors refuse locked notes 423; personal tokens `client_type="personal_api"`, 365 d, one-time; image/docx behind a NEW dark gate; email-in = Cloudflare, dark, Privacy sentence drafted only) · D-H1..D-H4 (askInsert gains `action`/`model` attrs, no schema bump; writing help own 60/day counter; semantic search dark until zero-retention; Compass notes tool TEXT ONLY, flag read per call) · D-I1 (drop `vendor-echarts`: +580 KB on Calendar/Research/MyStocks to save ≤7 KB on 93 routes) · M-7 stays (never widen `sourceKind`; the raw `kind` field is separate, `575eff414`).
+D-G1..D-G4 · D-H1..D-H4 (+ the D-H1 addendum: no schema bump ⇒ an older bundle MISLABELS provenance) · D-I1 (drop `vendor-echarts`) · D-H5 (per-action writing-help cost estimate) · D-H5b (ONE durable daily counter in auth.db for the shared LLM $ cap, writing help's 60/day and the embed count) · D-H6 (meaning search: per-member single-flight, query-vector cache, daily embed count; fail open) · D-G5 (a clean open editor re-reads on focus/visible; fall back to wording if an F5-frozen file would have to change) · D-H7 (writing help refuses inside an Ask answer) · D-H8 (the client renders meaning rows and an honest count) · M-7 stays (never widen `sourceKind`).
 
 ## 4. Numbers that are NOT met, recorded rather than hidden
 
@@ -40,25 +42,23 @@ From lane I's report and review (loaded box: the runs overlapped a live trading 
 search p95 < 100 ms at 50k is missed on the common-term pair (146.5), the search box's relevance
 request (293.5, was 561 s), the tag pair (124.6) and the untouched switcher; typing is 17.6 ms/char
 at 1,000 ¶ and 22.4 at 2,000 against a 16 ms line; `list_tasks` 188.7 vs 150. `perf-budgets.json`
-never had a latency line raised; the bytes line moved only by measurement. Lane H's bar is
-therefore NO REGRESSION against those numbers, and lane H's `90f6f160f` changed how `GET /notes`
-routes queries — its task review must re-measure the search-budget ops through the new routing.
+never had a latency line raised. Lane H's same-window A/B found NO REGRESSION BEYOND NOISE (its
+earlier "improvement" claim was withdrawn). The armed meaning search fell from ~6 s to ~21 ms at 50k
+blocks after lane H's round.
 
 ## 5. Exact next actions, in order
 
-1. Lane I re-review verdict (`wave7-I-fr1-re-review.md`) → adjudicate → close lane I or fix round 2 (resume the lane I agent by message).
-2. Lane H hand-back → `review_package.py` over its commits → task review (opus) with the lens: no schema bump, dark gates unchanged and False when unset, the I-HOOK append never bypasses `list_and_count_notes`, the search ops re-measured, the harness readings before/after each editor addition, `capture="environment"` Scan to G's spec, 60/day counter own.
-3. Controller wiring for H, in one commit with its rails: mount `api/routers/notebook_writing_help.py` (prefix `/api/j2`, own dark gate) in `api/main.py` BEFORE `journal_two` the way `notebook_insights` is (route-order rail); add the writing-help SSE path to `_is_gzip_exempt` (`/api/j2/notes/{id}/writing-help/stream` — GZip would buffer the stream) with its test row; schedule `note_semantic.run_sweep` under `semantic_enabled()` like the wave-6 reminders job; the writing-help 60/day counter joins the single-process list in CLAUDE.md if it is in-process.
-4. Dispatch lane J (`wave7-J-brief.md`) when a seat frees; J7 only after lane I closes.
-5. Whole-branch review (opus, most capable model), ONE fix dispatch, scoped re-review.
-6. Merge `feat/notebook-w6` into `feat/notebook-w7` (lanes quiet); then, if #186 has landed, master into w7 as well (ours on squash-induced conflicts; the one known conflict is the preferences opaque-key map — take master's, re-add MemberTemplates).
-7. Six-shard gate in a BRANCH-NAMED gate worktree (`git checkout -B notebook-w7-gate <sha>`; `node_modules` junction to `notebook-k`, removed with a non-recursive delete only), never in the implementer's worktree.
-8. Wave-7 walk (`tools/notebook_wave7_walk.py`, from the wave-6 walk; sandbox data dir passed from PowerShell; a PAID walk account) on the final tip; evidence committed before interpretation.
-9. PR: body carries the member-impact paragraph, the HMAC deviation for email-in (`"<timestamp>.<raw body>"`), the known limits (within-window replay, D-G1(b) fork, no plan re-check), the flip checklist (G's I-1..I-4 + N-1 fixed; the limit values for the owner; zero-retention for semantic search), the never-revert list, the CI classification. Owner merges.
+1. Backend + frontend fix hand-backs → package each → ONE scoped re-review of the whole fix round.
+2. TOOLING fix dispatch (after both; it places doc wording both decide): email-in-setup.md's BIC skip-rule step + first-message test + 403 diagnosis; the CI latency flap (breach only on reproduce); the `NOTEBOOK_SEMANTIC_PROVIDER` ledger row; the benchmark census rail and the workflow-advisory rail (surviving mutations A, B); `--base` identity check; the D-G5 wording in personal-api.md / ios-shortcuts.md / email-in-setup.md; perf-budgets provenance; fail-closed bytes check; harness log location.
+3. Controller: CLAUDE.md single-process list (after D-H5b: remove `_writing_help_by_user`, name the durable counter, add `_inflight`, the PermitPools, D-H6's single-flight + cache); the D-G1(b) ruling wording; this file.
+4. Merge `feat/notebook-w6` into `feat/notebook-w7` (dry run clean). Master into w7 only after #186 lands; at that merge take master's two AuthContext-mock test files (master fixed them in `521351f21`; J10 becomes redundant) and re-run the dry run for the preferences opaque-key map.
+5. Six-shard gate in a BRANCH-NAMED gate worktree (`git checkout -B notebook-w7-gate <sha>`; `node_modules` junction to `notebook-k`, removed with a non-recursive delete only), never in the implementers' worktree.
+6. Walk phase 2 on the final tip: the walk author first fixes W13's integrity evidence (tooling I-2: reuse the harness's `read_integrity` + `--shutdown-wait`), then runs; evidence committed before interpretation.
+7. PR: member impact, rollback, flip checklist per gate (incl. the BIC rule), known limits, the NOT-met numbers, the whole-branch review summary, CI classification (flow-worker watch: INERT STRAND). Owner merges after #186 and #193.
 
 ## 6. Background processes
 
-None of this wave's tooling runs unattended. Lane I's sandbox (`C:\data-w7perf`) and its 2.4 GB seeds were deleted in its fix round; lane H booted `C:\data-w7Hperf` for its baseline (a real directory — check `Get-Item -Force` before any delete). `C:\data` was CLEAN at every checkpoint both lanes reported.
+None of this wave's tooling runs unattended. All lane sandboxes and seed data were deleted by their lanes except `C:\data-w7walk` (the walk's; reused for phase 2, then deleted by hand — the agents' delete tool refuses root-level paths). `C:\data` read CLEAN at every checkpoint every lane and the walk reported.
 
 ## 7. Verification checklist after a restart
 
