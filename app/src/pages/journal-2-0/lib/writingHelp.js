@@ -16,6 +16,7 @@
  * the autosave and the offline layer never see words the member did not keep.
  */
 import { closeHistory } from '@tiptap/pm/history'
+import { TextSelection } from '@tiptap/pm/state'
 
 // ⛔ EAGER, SO KEPT SMALL: the editor page and the slash menu import this file
 // on every note open. The request itself -- the SSE client, the choices, the
@@ -98,10 +99,47 @@ export function acceptWritingHelp(editor, {
   const ok = editor.chain()
     .command(({ tr }) => { closeHistory(tr); return true })
     .insertContentAt({ from, to }, node)
+    .command(({ tr }) => caretAfterBlock(tr, node.attrs.insertedAt))
     .run()
   // A transaction a filter refused (an askInsert edge) changes nothing and
   // still reports success, so the DOCUMENT is the only honest witness.
   if (!ok || editor.state.doc.eq(before)) return { ok: false, reason: 'blocked' }
   if (!editor.isDestroyed) editor.view.dispatch(closeHistory(editor.state.tr))
   return { ok: true, replaced }
+}
+
+/**
+ * ⛔ THE CARET LANDS AFTER THE BLOCK, NEVER IN IT (wave 7 whole-branch fix, frontend review
+ * I-2 -- the G-064 close-out lesson, `askInsert.js` `caretAfterAnswer`, reused here).
+ *
+ * `insertContentAt` leaves the selection at the end of what it inserted. With the caret at the
+ * end of a paragraph (the whole-note case at the end of a note) that is INSIDE the block's last
+ * paragraph: the Sheet hands focus back to the editor and the member's next words went into a
+ * block labelled "Compass · Summarize · …", which Ask then leaves out as not their writing.
+ *
+ * Within Accept's own transaction (so ONE undo takes it all back out): when the selection sits
+ * inside the block just inserted, it moves into an empty paragraph directly after the block --
+ * the one already there, or a new one. When the insert split a paragraph (the caret was
+ * mid-text) the selection is already after the block and nothing is added: no stray empty line.
+ * The editor is not focused here; the panel's close decides focus.
+ */
+function caretAfterBlock(tr, insertedAt) {
+  const { $from } = tr.selection
+  let depth = -1
+  for (let d = $from.depth; d > 0; d -= 1) {
+    const n = $from.node(d)
+    if (n.type.name === 'askInsert' && n.attrs.insertedAt === insertedAt) { depth = d; break }
+  }
+  if (depth < 0) return true
+  const paragraph = tr.doc.type.schema.nodes.paragraph
+  if (!paragraph) return true
+  const after = $from.after(depth)
+  const next = tr.doc.nodeAt(after)
+  if (!(next && next.type === paragraph && next.content.size === 0)) {
+    const $after = tr.doc.resolve(after)
+    if (!$after.parent.canReplaceWith($after.index(), $after.index(), paragraph)) return true
+    tr.insert(after, paragraph.create())
+  }
+  tr.setSelection(TextSelection.create(tr.doc, after + 1))
+  return true
 }

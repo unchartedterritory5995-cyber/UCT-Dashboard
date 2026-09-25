@@ -156,6 +156,58 @@ describe('acceptWritingHelp — the one document write', () => {
   })
 })
 
+// ⛔ Wave 7 whole-branch fix (frontend review I-2) — THE CARET LANDS AFTER THE BLOCK, NEVER IN IT.
+// Wave 5's G-064 close-out learned this for the Ask insert (askInsert.js, `caretAfterAnswer`):
+// `insertContentAt` leaves the selection at the end of what it inserted, i.e. INSIDE the block's
+// last paragraph. The Sheet then hands focus back to the editor, and the member's next words went
+// into a block labelled "Compass · Summarize · …" -- which Ask then drops as not the member's own
+// writing. These rails TYPE after Accept, the way the probe that found it did.
+describe('⛔ the caret lands AFTER the accepted block, never in it (I-2)', () => {
+  const insideAnswer = () => {
+    const { $from } = editor.state.selection
+    for (let d = $from.depth; d > 0; d -= 1) if ($from.node(d).type.name === 'askInsert') return true
+    return false
+  }
+  // What a keystroke does: text at the selection, in its own transaction.
+  const typeWords = (t) => editor.view.dispatch(editor.state.tr.insertText(t))
+  const summary = { draft: 'Summary line.', action: 'summarize', model: 'claude-sonnet-5', instruction: 'Summarize', now: NOW }
+
+  it('whole-note help with the caret at the END: the member\'s next words land after the block, not in it', () => {
+    make([P('I sold NVDA early.'), P('It was fear.')])
+    const end = at('fear.') + 'fear.'.length
+    select(end, end)
+    expect(acceptWritingHelp(editor, { ...captureWritingHelpScope(editor), ...summary }).ok).toBe(true)
+    expect(insideAnswer()).toBe(false)
+    typeWords('my own words')
+    const [block] = inserts()
+    expect(block.textContent).toBe('Summary line.')
+    const last = editor.state.doc.lastChild
+    expect(last.type.name).toBe('paragraph')
+    expect(last.textContent).toBe('my own words')
+  })
+
+  it('ONE undo still takes the block AND the paragraph made for the caret back out', () => {
+    make([P('Alpha.')])
+    const end = at('Alpha.') + 'Alpha.'.length
+    select(end, end)
+    const before = editor.getJSON()
+    acceptWritingHelp(editor, { ...captureWritingHelpScope(editor), ...summary })
+    expect(inserts()).toHaveLength(1)
+    editor.commands.undo()
+    expect(editor.getJSON()).toEqual(before)
+  })
+
+  it('CONTROL — caret mid-paragraph: the block splits it, the caret is already after it, and no empty line is added', () => {
+    make([P('Alpha beta.')])
+    select(at('beta'), at('beta'))
+    acceptWritingHelp(editor, { ...captureWritingHelpScope(editor), ...summary })
+    expect(insideAnswer()).toBe(false)
+    expect(editor.state.doc.childCount).toBe(3) // Alpha · the block · beta.
+    typeWords('X')
+    expect(inserts()[0].textContent).toBe('Summary line.')
+  })
+})
+
 describe('no schema bump — an older bundle still reads a writing-help block', () => {
   it('an editor whose askInsert has no action/model attrs keeps the block and its text', () => {
     const OldAskInsert = AskInsert.extend({
