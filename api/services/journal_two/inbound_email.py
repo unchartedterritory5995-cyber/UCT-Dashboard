@@ -37,6 +37,7 @@ import base64
 import binascii
 import hashlib
 import hmac
+import json
 import logging
 import os
 import re
@@ -71,12 +72,65 @@ MAX_TEXT_BYTES = 200 * 1024          # same ceiling the personal API applies
 MAX_HTML_BYTES = 1024 * 1024
 MAX_ATTACHMENTS = 20
 
+# ── Limits (wave 7 fix round 1, I-1) ─────────────────────────────────────────
+#
+# ⛔ ANYONE WHO HOLDS AN ADDRESS CAN SEND TO IT, and an address leaks in
+# ordinary ways (a CC, a forwarding rule, a mailing list). Before these limits
+# the only bound was the volume-wide import floor in `notes_quota` -- a flood
+# to one address could fill the shared /data volume for every member.
+#
+# Two keys, each with a MESSAGE RATE (per rolling hour) and a VOLUME (bytes of
+# signed request body per rolling day):
+#   * the ADDRESS -- what a flood to a leaked address hits first;
+#   * the MEMBER -- every address they have had, so ROTATING (the member's own
+#     remedy for a leak) cannot also be a way to multiply the allowance.
+# Over a limit the mail is answered EXACTLY like any other (202, dropped), so
+# there is still no oracle, and the drop is RECORDED (a counter row per member,
+# day and reason in `j2_inbound_drops`, plus a log line).
+#
+# ⭐ DURABLE, NOT PER-PROCESS: the window lives in auth.db (`j2_inbound_usage`,
+# pruned to one day on every write), so a restart does not reset it and a
+# second web process would share it. Changing a limit is a code change.
+ADDRESS_MAX_MESSAGES_PER_HOUR = 20
+ADDRESS_MAX_BYTES_PER_DAY = 50 * 1024 * 1024
+MEMBER_MAX_MESSAGES_PER_HOUR = 40
+MEMBER_MAX_BYTES_PER_DAY = 100 * 1024 * 1024
+_HOUR = 3600
+_DAY = 86400
+DROP_RETENTION_DAYS = 30
+
+DROP_ADDRESS_RATE = "address_rate"
+DROP_ADDRESS_VOLUME = "address_volume"
+DROP_MEMBER_RATE = "member_rate"
+DROP_MEMBER_VOLUME = "member_volume"
+DROP_NOT_PAID = "not_paid"
+
 _DDL = """
 CREATE TABLE IF NOT EXISTS j2_inbound_addresses (
     user_id     TEXT PRIMARY KEY,
     token       TEXT NOT NULL UNIQUE,
     created_at  TEXT NOT NULL,
     rotated_at  TEXT
+);
+CREATE TABLE IF NOT EXISTS j2_inbound_usage (
+    id           INTEGER PRIMARY KEY AUTOINCREMENT,
+    user_id      TEXT NOT NULL,
+    address_key  TEXT NOT NULL,
+    received_at  REAL NOT NULL,
+    bytes        INTEGER NOT NULL
+);
+CREATE INDEX IF NOT EXISTS idx_j2_inbound_usage_user
+    ON j2_inbound_usage (user_id, received_at);
+CREATE INDEX IF NOT EXISTS idx_j2_inbound_usage_address
+    ON j2_inbound_usage (address_key, received_at);
+CREATE TABLE IF NOT EXISTS j2_inbound_drops (
+    user_id  TEXT NOT NULL,
+    day      TEXT NOT NULL,
+    reason   TEXT NOT NULL,
+    count    INTEGER NOT NULL DEFAULT 0,
+    bytes    INTEGER NOT NULL DEFAULT 0,
+    last_at  TEXT NOT NULL,
+    PRIMARY KEY (user_id, day, reason)
 );
 """
 
@@ -216,16 +270,156 @@ def verify_signature(
 
     ⛔ Every branch fails closed: no secret, no timestamp, a timestamp that is
     not a whole number, one outside the window (either side), no signature, or
-    one that does not match."""
+    one that does not match.
+
+    ⛔ AND NO BRANCH RAISES: this runs on an unauthenticated door, and a 500
+    there is an answer a caller can tell apart from the bare 401. Header bytes
+    arrive as latin-1, so `'²'` (0xB2) passes `isdigit()` and then breaks
+    `int()`; a 5,000-digit timestamp breaks `int()` too; and a non-ASCII
+    signature makes `compare_digest` raise on two `str`s. Hence ASCII decimal
+    digits only, at most 12 of them, and the digests compared as BYTES."""
     if not secret or not timestamp or not signature:
         return False
-    if not timestamp.isdigit():
+    if not (timestamp.isascii() and timestamp.isdecimal() and len(timestamp) <= 12):
         return False
     now = time.time() if now is None else now
     if abs(now - int(timestamp)) > REPLAY_WINDOW_SECONDS:
         return False
-    expected = expected_signature(secret, timestamp, raw_body)
-    return hmac.compare_digest(expected, signature.strip().lower())
+    try:
+        given = signature.strip().lower().encode("ascii")
+    except UnicodeEncodeError:
+        return False
+    expected = expected_signature(secret, timestamp, raw_body).encode("ascii")
+    return hmac.compare_digest(expected, given)
+
+
+# ── Limits ───────────────────────────────────────────────────────────────────
+
+def _address_key(token: str) -> str:
+    """The address, as the usage table knows it: a hash, so the table that
+    outlives rotations never holds a second copy of a live credential."""
+    return hashlib.sha256(token.encode("ascii", "ignore")).hexdigest()[:32]
+
+
+def admit(user_id: str, token: str, size: int, *, now: float | None = None,
+          conn: sqlite3.Connection | None = None) -> str | None:
+    """Count one email against its address's and its member's limits.
+
+    Returns None when it is ADMITTED (and counted), or the reason it was
+    DROPPED (and recorded). One `BEGIN IMMEDIATE` transaction: read the
+    windows, decide, write -- so two emails arriving together cannot both read
+    the same count and both slip under it. Dropped mail does not count against
+    the allowance (a flood must not keep the window full by itself)."""
+    now = time.time() if now is None else float(now)
+    size = max(0, int(size))
+    key = _address_key(token)
+    owned = conn is None
+    conn = conn or get_connection()
+    try:
+        ensure_inbound_schema(conn)
+        conn.execute("BEGIN IMMEDIATE")
+        conn.execute("DELETE FROM j2_inbound_usage WHERE received_at < ?", (now - _DAY,))
+
+        def window(column: str, value: str) -> tuple[int, int]:
+            msgs = conn.execute(
+                f"SELECT COUNT(*) FROM j2_inbound_usage WHERE {column} = ? AND received_at >= ?",
+                (value, now - _HOUR)).fetchone()[0]
+            used = conn.execute(
+                f"SELECT COALESCE(SUM(bytes), 0) FROM j2_inbound_usage"
+                f" WHERE {column} = ? AND received_at >= ?",
+                (value, now - _DAY)).fetchone()[0]
+            return int(msgs), int(used)
+
+        a_msgs, a_bytes = window("address_key", key)
+        m_msgs, m_bytes = window("user_id", user_id)
+        reason = None
+        if a_msgs >= ADDRESS_MAX_MESSAGES_PER_HOUR:
+            reason = DROP_ADDRESS_RATE
+        elif a_bytes + size > ADDRESS_MAX_BYTES_PER_DAY:
+            reason = DROP_ADDRESS_VOLUME
+        elif m_msgs >= MEMBER_MAX_MESSAGES_PER_HOUR:
+            reason = DROP_MEMBER_RATE
+        elif m_bytes + size > MEMBER_MAX_BYTES_PER_DAY:
+            reason = DROP_MEMBER_VOLUME
+        if reason is None:
+            conn.execute(
+                "INSERT INTO j2_inbound_usage (user_id, address_key, received_at, bytes)"
+                " VALUES (?, ?, ?, ?)", (user_id, key, now, size))
+        else:
+            _record_drop(conn, user_id, reason, size, now)
+        conn.commit()
+    except BaseException:
+        if conn.in_transaction:
+            conn.rollback()
+        raise
+    finally:
+        if owned:
+            conn.close()
+    if reason is not None:
+        log.warning("[inbound-email] dropped for %s: %s (%s bytes)", user_id, reason, size)
+    return reason
+
+
+def _record_drop(conn: sqlite3.Connection, user_id: str, reason: str, size: int,
+                 now: float) -> None:
+    """One counter row per member, UTC day and reason -- bounded however hard
+    the address is flooded -- pruned to `DROP_RETENTION_DAYS`."""
+    stamp = datetime.fromtimestamp(now, timezone.utc)
+    day = stamp.strftime("%Y-%m-%d")
+    cutoff = datetime.fromtimestamp(now - DROP_RETENTION_DAYS * _DAY, timezone.utc).strftime(
+        "%Y-%m-%d")
+    conn.execute("DELETE FROM j2_inbound_drops WHERE day < ?", (cutoff,))
+    conn.execute(
+        "INSERT INTO j2_inbound_drops (user_id, day, reason, count, bytes, last_at)"
+        " VALUES (?, ?, ?, 1, ?, ?)"
+        " ON CONFLICT (user_id, day, reason) DO UPDATE SET"
+        " count = count + 1, bytes = bytes + excluded.bytes, last_at = excluded.last_at",
+        (user_id, day, reason, size, stamp.isoformat()))
+
+
+def record_drop(user_id: str, reason: str, size: int, *, now: float | None = None) -> None:
+    """Record a drop decided outside `admit` (the plan re-check)."""
+    now = time.time() if now is None else float(now)
+    conn = get_connection()
+    try:
+        ensure_inbound_schema(conn)
+        _record_drop(conn, user_id, reason, max(0, int(size)), now)
+        conn.commit()
+    finally:
+        conn.close()
+    log.warning("[inbound-email] dropped for %s: %s", user_id, reason)
+
+
+def drops(user_id: str) -> list[dict[str, Any]]:
+    """The recorded drops for one member, newest day first."""
+    conn = get_connection()
+    try:
+        ensure_inbound_schema(conn)
+        rows = conn.execute(
+            "SELECT day, reason, count, bytes, last_at FROM j2_inbound_drops"
+            " WHERE user_id = ? ORDER BY day DESC, reason", (user_id,)).fetchall()
+        return [dict(r) for r in rows]
+    finally:
+        conn.close()
+
+
+def _member_can_receive(user_id: str) -> bool:
+    """M-12: is this member still on a plan that includes email-in? The SAME
+    predicate the address endpoints are gated on (`require_paid` ->
+    `is_paid_user` over the user row plus `get_user_plan`), asked per email --
+    so a lapsed member's address stops making notes the moment they could no
+    longer see or rotate it. Any error answers no (fail closed)."""
+    try:
+        from api.middleware.auth_middleware import is_paid_user
+        from api.services.auth_service import get_user_by_id, get_user_plan
+        user = get_user_by_id(user_id)
+        if not user:
+            return False
+        user["plan"] = get_user_plan(user_id)
+        return bool(is_paid_user(user))
+    except Exception as e:  # noqa: BLE001 — unknown is not paid
+        log.warning("[inbound-email] plan check failed: %s", type(e).__name__)
+        return False
 
 
 # ── Building the note ────────────────────────────────────────────────────────
@@ -241,7 +435,11 @@ def _para(text: str) -> dict[str, Any]:
     return {"type": "paragraph", "content": [{"type": "text", "text": text}]}
 
 
-def _body_nodes(text: Any, html: Any) -> list[dict[str, Any]]:
+FALLBACK_SENTENCE = "(This email's formatting couldn't be kept, so here is its text.)"
+_TAG_RE = re.compile(r"<[^>]*>")
+
+
+def _converted_body(text: Any, html: Any) -> list[dict[str, Any]]:
     """text/plain through `mddoc.md_to_tiptap` when there is any, else the HTML
     through mddoc's HTML walk. Either way media refs become text markers."""
     from api.services.journal_two.note_connectors.convert.mddoc import html_to_tiptap
@@ -260,6 +458,41 @@ def _body_nodes(text: Any, html: Any) -> list[dict[str, Any]]:
     if cut:
         nodes.append(_para("(The rest of this email was cut: it was over the size limit.)"))
     return nodes
+
+
+def _plain_body(text: Any, html: Any) -> list[dict[str, Any]]:
+    """The email as plain paragraphs, built with no parser at all: the text
+    part if there is one, else the HTML with its tags removed. What is kept
+    when the converters cannot cope (see `_body_nodes`)."""
+    import html as html_lib
+
+    if isinstance(text, str) and text.strip():
+        raw, _cut = _truncate_utf8(text.replace("\r\n", "\n"), MAX_TEXT_BYTES)
+    elif isinstance(html, str) and html.strip():
+        clipped, _cut = _truncate_utf8(html, MAX_HTML_BYTES)
+        raw = html_lib.unescape(_TAG_RE.sub("\n", clipped))
+    else:
+        return []
+    lines = [" ".join(ln.split()) for ln in raw.split("\n")]
+    paras = [_para(ln) for ln in lines if ln]
+    return [_para(FALLBACK_SENTENCE)] + paras if paras else []
+
+
+def _body_nodes(text: Any, html: Any) -> list[dict[str, Any]]:
+    """The note body for an email, and NEVER a raise.
+
+    ⛔ An email whose body the converters cannot handle still becomes a note.
+    ⚰️ `html_to_tiptap` raised RecursionError on 2,000 nested `<div>`s (about
+    10 KB of HTML); `ingest` raised, the door answered 500, the worker threw
+    and the email bounced with nothing kept -- while a refused ATTACHMENT was
+    already "one line, never a failure". The body now falls back to plain
+    paragraphs the same way."""
+    try:
+        return _converted_body(text, html)
+    except Exception as e:  # noqa: BLE001 — RecursionError included; keep the words
+        log.warning("[inbound-email] body conversion failed (%s); kept as plain text",
+                    type(e).__name__)
+        return _plain_body(text, html)
 
 
 def _title(subject: Any) -> str:
@@ -344,26 +577,62 @@ def _save_attachment(user_id: str, note_id: str, att: Any) -> dict[str, Any]:
     return {"node": node}
 
 
-def ingest(payload: dict[str, Any]) -> dict[str, Any]:
+def _create_email_note(user_id: str, fields: dict[str, Any], body: list[dict[str, Any]],
+                       payload: dict[str, Any]) -> dict[str, Any]:
+    """`notes.create_note`, falling back to a body that cannot fail: a body the
+    Notebook refuses becomes one explanatory line, and one too deeply nested to
+    store becomes plain paragraphs."""
+    from api.services.journal_two import notes
+
+    def create(nodes: list[dict[str, Any]]) -> dict[str, Any]:
+        return notes.create_note(user_id, {**fields, "bodyJson": {"type": "doc", "content": nodes}})
+
+    try:
+        return create(body)
+    except notes.NoteValidationError:
+        return create([_para("This email couldn't be imported as text. "
+                             "Its attachments, if any, are below.")])
+    except RecursionError:
+        return create(_plain_body(payload.get("text"), payload.get("html")))
+
+
+def ingest(payload: dict[str, Any], *, size: int | None = None) -> dict[str, Any]:
     """Turn one signed, parsed email into a note. Returns what happened; the
     router answers the worker identically whatever it is.
 
-    ⛔ The note is made FIRST (an attachment's storage path needs the note's
-    id), then its attachments are saved and the body is written once more with
-    them, as a compare-and-set against the revision just created."""
-    from api.services.journal_two import notes
+    In order: the address picks the member (unknown -> dropped); the member
+    must still be on a plan that includes email-in (M-12); the address's and
+    the member's limits are charged (`admit`, I-1); only then is anything
+    parsed or written. `size` is the signed request body's length, which is
+    what the volume limit counts (a direct caller that omits it is charged the
+    payload's JSON length).
 
-    user_id = resolve(recipient_token(payload.get("to")))
+    ⛔ The note is made FIRST (an attachment's storage path needs the note's
+    id), then its attachments are saved and APPENDED to whatever the note holds
+    by then, inside `BEGIN IMMEDIATE` (`note_personal_api.append_nodes`, the
+    same read-and-append the personal API uses). ⚰️ It used to REPLACE the body
+    with the pre-create body plus the attachments as a compare-and-set, and on
+    a conflict only logged: the files stayed on disk, unlinked, and no line in
+    the note said so."""
+    from api.services.journal_two.note_personal_api import PersonalApiError, append_nodes
+
+    token = recipient_token(payload.get("to"))
+    user_id = resolve(token)
     if user_id is None:
         return {"status": "dropped"}
+    if size is None:
+        size = len(json.dumps(payload).encode("utf-8"))
+    if not _member_can_receive(user_id):
+        record_drop(user_id, DROP_NOT_PAID, size)
+        return {"status": "dropped", "reason": DROP_NOT_PAID}
+    reason = admit(user_id, token, size)
+    if reason is not None:
+        return {"status": "dropped", "reason": reason}
+
     body = _body_nodes(payload.get("text"), payload.get("html"))
     folder_id = _inbox_folder(user_id)
     fields = {"title": _title(payload.get("subject")), "folderId": folder_id}
-    try:
-        note = notes.create_note(user_id, {**fields, "bodyJson": {"type": "doc", "content": body}})
-    except notes.NoteValidationError:
-        body = [_para("This email couldn't be imported as text. Its attachments, if any, are below.")]
-        note = notes.create_note(user_id, {**fields, "bodyJson": {"type": "doc", "content": body}})
+    note = _create_email_note(user_id, fields, body, payload)
 
     atts = payload.get("attachments") or []
     if not isinstance(atts, list):
@@ -377,9 +646,9 @@ def ingest(payload: dict[str, Any]) -> dict[str, Any]:
                            f"(the limit is {MAX_ATTACHMENTS} per email)."))
     if extra:
         try:
-            notes.update_note(
-                user_id, note["id"], {"bodyJson": {"type": "doc", "content": body + extra}},
-                expected_updated_at=note["updatedAt"])
-        except notes.NoteConflictError:
-            log.warning("[inbound-email] note changed before its attachments were linked")
+            append_nodes(user_id, note["id"], extra)
+        except PersonalApiError as e:
+            # The note was deleted or locked in the milliseconds since it was
+            # made. The files are saved; say so in the log with the reason.
+            log.warning("[inbound-email] attachments not linked (%s): %s", e.status, e.message)
     return {"status": "created", "note_id": note["id"], "user_id": user_id}

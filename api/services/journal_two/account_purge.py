@@ -121,6 +121,11 @@ _DIRECT_USER_TABLES = (
     # where email-in never ran this is a "no such table" no-op. A live address
     # whose member is gone would keep turning mail into notes for nobody.
     "j2_inbound_addresses",
+    # Wave 7 fix round 1 (I-1) — email-in's rolling usage window (one row per
+    # admitted email for a day) and its per-day drop counters. Same
+    # self-ensured schema as the address table above.
+    "j2_inbound_usage",
+    "j2_inbound_drops",
 )
 
 # j2_broker_digest_dedup is deliberately excluded: it is a single global row

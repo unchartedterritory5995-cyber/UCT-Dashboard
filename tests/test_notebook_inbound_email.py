@@ -73,6 +73,26 @@ def _no_background_extraction(monkeypatch):
     monkeypatch.setattr(document_extraction, "queue_extraction", lambda document_id: None)
 
 
+from api.services.journal_two import inbound_email as _inbound_email_module  # noqa: E402
+
+_REAL_PLAN_CHECK = _inbound_email_module._member_can_receive
+
+
+@pytest.fixture(autouse=True)
+def _members_are_paid(monkeypatch):
+    """These rails use made-up user ids with no `users` row, so the M-12 plan
+    re-check would drop every email. It is answered "paid" here; the
+    `real_plan_check` fixture below puts the real one back for the rails that
+    are ABOUT it (they use real user rows and a real subscription)."""
+    monkeypatch.setattr(_inbound_email_module, "_member_can_receive", lambda user_id: True)
+
+
+@pytest.fixture
+def real_plan_check(monkeypatch):
+    monkeypatch.setattr(_inbound_email_module, "_member_can_receive", _REAL_PLAN_CHECK)
+    monkeypatch.setenv("J2_TRIAL_ENABLED", "0")    # the plan alone decides
+
+
 @pytest.fixture
 def on(monkeypatch):
     monkeypatch.setenv(GATE, "1")
@@ -458,12 +478,299 @@ class TestAddress:
         assert inbound_email.resolve(tok) is None
 
 
+# ── fix round 1 · I-1: per-address AND per-member limits ─────────────────────
+
+def _drops(uid):
+    from api.services.journal_two import inbound_email
+    return [(d["reason"], d["count"]) for d in inbound_email.drops(uid)]
+
+
+class TestLimits:
+    def test_over_the_address_rate_the_mail_is_dropped_with_the_same_202_and_recorded(
+            self, client, on, monkeypatch):
+        from api.services.journal_two import inbound_email
+        monkeypatch.setattr(inbound_email, "ADDRESS_MAX_MESSAGES_PER_HOUR", 2)
+        uid = _user()
+        answers = [_send(client, {"to": _address(uid), "subject": f"m{i}", "text": "x"})
+                   for i in range(3)]
+        # ⛔ NO ORACLE: the dropped one is answered exactly like the two kept
+        assert {(r.status_code, r.content) for r in answers} == {(202, b'{"accepted":true}')}
+        assert sorted(n["title"] for n in _notes(uid)) == ["m0", "m1"]
+        assert _drops(uid) == [(inbound_email.DROP_ADDRESS_RATE, 1)]
+
+    def test_rotating_the_address_does_not_reset_the_members_limit(self, client, on, monkeypatch):
+        """The address limit resets with a new address -- that is the point of
+        rotating after a leak. The MEMBER limit does not, or rotation would
+        multiply the allowance."""
+        from api.services.journal_two import inbound_email
+        monkeypatch.setattr(inbound_email, "ADDRESS_MAX_MESSAGES_PER_HOUR", 2)
+        monkeypatch.setattr(inbound_email, "MEMBER_MAX_MESSAGES_PER_HOUR", 3)
+        uid = _user()
+        first = _address(uid)
+        for i in range(2):
+            _send(client, {"to": first, "subject": f"a{i}", "text": "x"})
+        second = inbound_email.rotate(uid)["address"]
+        for i in range(2):
+            _send(client, {"to": second, "subject": f"b{i}", "text": "x"})
+        assert sorted(n["title"] for n in _notes(uid)) == ["a0", "a1", "b0"]
+        assert _drops(uid) == [(inbound_email.DROP_MEMBER_RATE, 1)]
+
+    def test_volume_is_counted_in_bytes_of_the_signed_body(self, client, on, monkeypatch):
+        from api.services.journal_two import inbound_email
+        uid = _user()
+        big = {"to": _address(uid), "subject": "big0", "text": "y" * 5_000}
+        size = len(_signed(big)[0])                 # every "bigN" below is this long
+        monkeypatch.setattr(inbound_email, "ADDRESS_MAX_BYTES_PER_DAY", size * 2)
+        for i in range(3):
+            _send(client, {**big, "subject": f"big{i}"})
+        assert sorted(n["title"] for n in _notes(uid)) == ["big0", "big1"]
+        assert _drops(uid) == [(inbound_email.DROP_ADDRESS_VOLUME, 1)]
+
+    def test_the_windows_are_an_hour_for_rate_and_a_day_for_volume(self, db_path, monkeypatch):
+        from api.services.journal_two import inbound_email as ie
+        monkeypatch.setattr(ie, "ADDRESS_MAX_MESSAGES_PER_HOUR", 1)
+        monkeypatch.setattr(ie, "ADDRESS_MAX_BYTES_PER_DAY", 100)
+        uid, tok = _user(), "a" * 24
+        t0 = 1_760_000_000.0
+        assert ie.admit(uid, tok, 10, now=t0) is None
+        assert ie.admit(uid, tok, 10, now=t0 + 3599) == ie.DROP_ADDRESS_RATE
+        assert ie.admit(uid, tok, 85, now=t0 + 3601) is None       # a new hour; 95 bytes today
+        assert ie.admit(uid, tok, 10, now=t0 + 7300) == ie.DROP_ADDRESS_VOLUME
+        # ⛔ a DROPPED email is not counted, or a flood would keep its own window full
+        assert ie.admit(uid, tok, 5, now=t0 + 7300) is None        # 100 bytes: exactly the cap
+        assert ie.admit(uid, tok, 1, now=t0 + 86_400 + 3602) is None  # yesterday has aged out
+
+    def test_simultaneous_emails_cannot_both_take_the_last_slot(self, db_path, monkeypatch):
+        """`admit` reads the window and writes the charge in ONE `BEGIN
+        IMMEDIATE`, so six emails racing for one slot get exactly one.
+
+        ⛔ THE INTERLEAVING IS FORCED, NOT HOPED FOR: every write of a charge is
+        held for 150 ms. Inside one transaction the other racers are waiting on
+        the lock for those 150 ms; with the read and the write split apart they
+        read the window during it and every one of them is admitted. (Unforced,
+        that window is microseconds wide and the split passes -- measured.)"""
+        import threading
+        import time as _time
+        from api.services import auth_db
+        from api.services.journal_two import inbound_email as ie
+        monkeypatch.setattr(ie, "ADDRESS_MAX_MESSAGES_PER_HOUR", 1)
+        uid, tok = _user(), "b" * 24
+        real_connect = auth_db.get_connection
+
+        class SlowCharge:
+            def __init__(self, conn):
+                self._c = conn
+
+            def execute(self, sql, *args):
+                if sql.startswith("INSERT INTO j2_inbound_usage"):
+                    _time.sleep(0.15)
+                return self._c.execute(sql, *args)
+
+            def __getattr__(self, name):
+                return getattr(self._c, name)
+
+        monkeypatch.setattr(ie, "get_connection", lambda: SlowCharge(real_connect()))
+        gate = threading.Barrier(6)
+        results, errors = [], []
+
+        def race():
+            gate.wait()
+            try:
+                results.append(ie.admit(uid, tok, 1))
+            except Exception as e:  # noqa: BLE001
+                errors.append(repr(e))
+
+        threads = [threading.Thread(target=race) for _ in range(6)]
+        for t in threads:
+            t.start()
+        for t in threads:
+            t.join(timeout=30)
+        assert errors == []
+        assert results.count(None) == 1 and len(results) == 6, results
+
+    def test_the_limits_are_charged_before_anything_is_parsed(self, client, on, monkeypatch):
+        from api.services.journal_two import inbound_email
+        monkeypatch.setattr(inbound_email, "ADDRESS_MAX_MESSAGES_PER_HOUR", 0)
+        parsed = []
+        monkeypatch.setattr(inbound_email, "_body_nodes", lambda *a: parsed.append(1) or [])
+        uid = _user()
+        assert _send(client, {"to": _address(uid), "text": "x"}).status_code == 202
+        assert parsed == [] and _notes(uid) == []
+
+
+# ── fix round 1 · M-12: a lapsed plan stops the address making notes ─────────
+
+class TestPlanRecheck:
+    def _member(self, email):
+        from api.services import auth_service
+        return auth_service.create_user(email, "a-password-1234")["id"]
+
+    def test_mail_to_a_lapsed_members_address_is_dropped_and_recorded(
+            self, client, on, real_plan_check):
+        from api.services import auth_service
+        from api.services.journal_two import inbound_email
+        email = f"m12-{uuid.uuid4().hex[:8]}@example.com"
+        uid = self._member(email)
+        to = _address(uid)
+        r = _send(client, {"to": to, "subject": "while free", "text": "x"})
+        assert r.status_code == 202 and r.json() == {"accepted": True}
+        assert _notes(uid) == []
+        assert _drops(uid) == [(inbound_email.DROP_NOT_PAID, 1)]
+        # control: the same member, now on a paid plan, gets the note
+        auth_service.comp_user_access(email, True)
+        _send(client, {"to": to, "subject": "while paid", "text": "x"})
+        assert [n["title"] for n in _notes(uid)] == ["while paid"]
+
+
+# ── fix round 1 · M-2: hostile header bytes are a 401, never a 500 ───────────
+
+class TestHostileHeaders:
+    @pytest.mark.parametrize("ts,sig", [
+        (b"\xb2", None),                   # latin-1 '²' passes isdigit(), breaks int()
+        (b"9" * 5000, None),               # past int()'s digit limit
+        (None, b"\xe9" * 64),              # a non-ASCII signature
+    ])
+    def test_every_hostile_header_is_a_bare_401(self, on, db_path, ts, sig):
+        """Driven with the RAW header bytes. ⚰️ Through the test client these
+        rows were vacuous: it re-encodes a header value as UTF-8, so the pod
+        received `Â²` (which already fails `isdigit()`) instead of `²`."""
+        from api.routers import notebook_inbound_email as router_mod
+        payload = {"to": _address(_user()), "text": "x"}
+        raw, headers = _signed(payload)
+        headers = {k: v.encode("ascii") for k, v in headers.items()}
+        if ts is not None:
+            headers["X-UCT-Timestamp"] = ts
+        if sig is not None:
+            headers["X-UCT-Signature"] = sig
+        resp, _reads = _drive(router_mod.receive_email, headers=headers, chunks=[raw])
+        assert resp.status_code == 401 and resp.body == b""
+
+    def test_the_verifier_itself_never_raises(self):
+        from api.services.journal_two import inbound_email as ie
+        for ts, sig in [("²", "a" * 64), ("9" * 5000, "a" * 64), ("1760000000", "é" * 64),
+                        (" 1760000000", "a" * 64), ("1760000000", "")]:
+            assert ie.verify_signature(SECRET, ts, sig, b"{}", now=1760000000) is False
+
+
+# ── fix round 1 · M-3: the cap limits BUFFERING, not only parsing ────────────
+
+def _drive(handler, *, headers, chunks):
+    """Call the door directly with a request whose body arrives in `chunks`,
+    counting how many of them the door actually READ."""
+    import asyncio
+    from starlette.requests import Request
+    sent = []
+
+    async def receive():
+        i = len(sent)
+        sent.append(1)
+        if i < len(chunks):
+            return {"type": "http.request", "body": chunks[i], "more_body": i + 1 < len(chunks)}
+        return {"type": "http.disconnect"}
+
+    scope = {"type": "http", "method": "POST", "path": "/api/j2/inbound-email",
+             "headers": [(k.lower().encode(), v if isinstance(v, bytes) else v.encode())
+                         for k, v in headers.items()],
+             "query_string": b""}
+    resp = asyncio.run(handler(Request(scope, receive)))
+    return resp, len(sent)
+
+
+class TestBodyCap:
+    def test_a_declared_length_past_the_cap_is_refused_before_a_byte_is_read(
+            self, on, db_path, monkeypatch):
+        from api.routers import notebook_inbound_email as router_mod
+        monkeypatch.setattr(router_mod, "MAX_BODY_BYTES", 10_000)
+        resp, reads = _drive(router_mod.receive_email,
+                             headers={"content-length": "10001"}, chunks=[b"x" * 1000] * 11)
+        assert resp.status_code == 413 and reads == 0
+
+    def test_an_undeclared_stream_is_abandoned_as_soon_as_it_passes_the_cap(
+            self, on, db_path, monkeypatch):
+        from api.routers import notebook_inbound_email as router_mod
+        monkeypatch.setattr(router_mod, "MAX_BODY_BYTES", 10_000)
+        resp, reads = _drive(router_mod.receive_email, headers={}, chunks=[b"x" * 1000] * 100)
+        assert resp.status_code == 413
+        assert reads == 11, f"read {reads} chunks of 100 -- the body was buffered past the cap"
+
+
+# ── fix round 1 · M-4: a body the converter cannot handle is still a note ────
+
+class TestBodyFallback:
+    def test_two_thousand_nested_divs_become_a_note_not_a_bounce(self, client, on):
+        from api.services.journal_two import inbound_email
+        uid = _user()
+        html = "<div>" * 2000 + "deeply buried words" + "</div>" * 2000
+        r = _send(client, {"to": _address(uid), "subject": "nested", "html": html})
+        assert r.status_code == 202
+        [n] = _notes(uid)
+        assert "deeply buried words" in n["body_plain"]
+        assert inbound_email.FALLBACK_SENTENCE in n["body_plain"]
+
+
+# ── fix round 1 · M-5: hostile HTML shapes never reach a member's note ───────
+
+class TestHostileHtml:
+    def _body(self, client, html):
+        uid = _user()
+        assert _send(client, {"to": _address(uid), "subject": "h", "html": html}).status_code == 202
+        [n] = _notes(uid)
+        return n["body_json"]
+
+    def test_a_script_shaped_link_keeps_its_words_and_loses_its_href(self, client, on):
+        body = self._body(client, '<p><a href="java&#9;script:alert(document.domain)">'
+                                  'click me</a> and <a href="https://example.com/x">safe</a></p>')
+        assert "click me" in body and "script:" not in body
+        assert "https://example.com/x" in body, "control: an allowed link survives"
+
+    def test_an_import_attachment_placeholder_becomes_a_line_of_text(self, client, on):
+        body = self._body(client, '<p><a href="import-attachment-ref://report.pdf">report</a></p>')
+        assert "attachmentChip" not in body and "import-ref://" not in body
+        assert "[attachment: report.pdf]" in body
+
+
+# ── fix round 1 · M-6: attachments are appended to what the note holds NOW ───
+
+class TestAttachmentLinking:
+    def test_an_edit_made_while_attachments_save_is_kept_and_they_are_still_linked(
+            self, client, on, monkeypatch):
+        """The member edits the brand-new note while its attachments are being
+        saved. ⚰️ The old compare-and-set lost the race: the attachments were
+        saved and never linked, and nothing in the note said so."""
+        from api.services.journal_two import inbound_email, notes
+        real_save = inbound_email._save_attachment
+
+        def save_then_member_edits(user_id, note_id, att):
+            out = real_save(user_id, note_id, att)
+            note = notes.get_note(user_id, note_id)
+            notes.update_note(user_id, note_id, {"bodyJson": {"type": "doc", "content": [
+                {"type": "paragraph", "content": [{"type": "text", "text": "member edit"}]}]}},
+                expected_updated_at=note["updatedAt"])
+            return out
+
+        monkeypatch.setattr(inbound_email, "_save_attachment", save_then_member_edits)
+        uid = _user()
+        _send(client, {"to": _address(uid), "subject": "race", "text": "original",
+                       "attachments": [{"name": "n.txt", "content_type": "text/plain",
+                                        "base64": _b64(b"hello")}]})
+        [n] = _notes(uid)
+        body = json.loads(n["body_json"])["content"]
+        assert "member edit" in json.dumps(body), "the member's edit was overwritten"
+        assert [c["attrs"]["name"] for c in body if c["type"] == "attachmentChip"] == ["n.txt"]
+
+
 # ── the worker agrees with the server, byte for byte ─────────────────────────
 
 def _node(script_input: dict) -> dict:
     node = shutil.which("node")
     if node is None:
-        pytest.skip("node is not on PATH — the worker parity rail cannot run here")
+        # ⛔ A HARD FAILURE, NOT A SKIP (fix round 1, M-11). This rail is the
+        # only proof the worker signs exactly the bytes the server verifies;
+        # skipped, it reads as coverage it never gave. CI installs node for
+        # every pytest shard (.github/workflows/full-suite-report.yml), and
+        # tests/test_ast_interpret.py fails the same way for the same reason.
+        pytest.fail("node is not on PATH -- the worker parity rail cannot run, "
+                    "and a skipped parity rail is how it rots")
     js = (
         f"import {{ signBody, buildPayload }} from {json.dumps(SIGN_JS.resolve().as_uri())};\n"
         "let data = ''; for await (const c of process.stdin) data += c;\n"

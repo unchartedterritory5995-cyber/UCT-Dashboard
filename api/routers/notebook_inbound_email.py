@@ -56,10 +56,36 @@ def require_paid(user: dict = Depends(get_current_user_with_plan)) -> dict:
     return user
 
 
+async def _read_capped(request: Request) -> bytes | None:
+    """The request body, or None once it passes `MAX_BODY_BYTES`.
+
+    ⛔ THE CAP LIMITS WHAT IS BUFFERED, NOT ONLY WHAT IS PARSED (fix round 1,
+    M-3). A declared `Content-Length` over the cap is refused before a byte is
+    read; without one, the stream is read with a running total and abandoned
+    the moment it passes the cap. ⚰️ It was `await request.body()` and then a
+    length check -- the whole unauthenticated body in memory first. Cloudflare
+    caps it at the edge; nothing did through the `*.railway.app` origin."""
+    declared = request.headers.get("content-length")
+    if declared is not None:
+        try:
+            if int(declared) > MAX_BODY_BYTES:
+                return None
+        except ValueError:
+            return None
+    chunks: list[bytes] = []
+    total = 0
+    async for chunk in request.stream():
+        total += len(chunk)
+        if total > MAX_BODY_BYTES:
+            return None
+        chunks.append(chunk)
+    return b"".join(chunks)
+
+
 @router.post("")
 async def receive_email(request: Request) -> Response:
-    raw = await request.body()
-    if len(raw) > MAX_BODY_BYTES:
+    raw = await _read_capped(request)
+    if raw is None:
         return Response(status_code=413)
     ok = inbound_email.verify_signature(
         os.environ.get(inbound_email.SECRET_ENV),
@@ -77,7 +103,9 @@ async def receive_email(request: Request) -> Response:
         return Response(status_code=400)
     if not isinstance(payload, dict):
         return Response(status_code=400)
-    await run_in_threadpool(inbound_email.ingest, payload)
+    # Whatever `ingest` decides -- a note, an unknown address, a lapsed plan, a
+    # limit reached -- the worker is told the same thing.
+    await run_in_threadpool(inbound_email.ingest, payload, size=len(raw))
     return JSONResponse({"accepted": True}, status_code=202)
 
 
