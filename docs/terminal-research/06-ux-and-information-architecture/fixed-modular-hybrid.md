@@ -274,9 +274,13 @@ subtree) lands before Terminal-Next composes anything.
 
 ## 7. What would overturn this, stated before anyone relies on it
 
+⚰️ **CORRECTION, same day, and it is this document's own instance of the defect it was written inside.** The first version of this table and of GAPS said *"OI-06 is not in"* and called it the highest-value confirming input. **OI-06 was answered by the owner on 2026-09-19** and sits in `OWNER_INPUTS_REQUESTED.md`'s Answered table (L47): *thinkorswim, TradingView, Finviz and Unusual Whales all opened by hand, plus unitemized others; TradingView alerts part of the workflow.* CP-06 records the same and notes the answer *"closed four days before this correction and was never propagated"*. I took `READINESS_REVIEW_DAY1` L337-338 at its word — a document written **before** 09-19 — and did not check whether its named precondition had since landed. **The lesson is the one this program keeps paying for and I had corrected three times in the preceding hour: a precondition quoted from a dated document is a claim about that date, not about today.**
+
+**What OI-06's real answer does to the lock.** It **mildly supports hybrid** and does not close it. The desk already composes across **four** external surfaces by hand, simultaneously, every trading day — which is behavioural evidence that a single fixed page is not how this desk works, and it is independent of §3's staff-cohort telemetry. ⛔ But it is **not** the signal READINESS_REVIEW actually named as overturning, which was *"a desk-observed morning showing the desk wants a **fully modular** surface"* — four hand-opened tools is consistent with B and with C, and cannot separate them. Row 1 is renamed accordingly.
+
 | # | Signal | Effect |
 |---|---|---|
-| 1 | **OI-06 / a desk-observed morning showing the desk wants a fully modular surface** [READINESS_REVIEW L339-340] | B → C. §3's cohort cannot answer this; only watching the desk work can |
+| 1 | **A desk-observed morning showing the desk wants a fully MODULAR surface** [READINESS_REVIEW L339-340]. ⚠️ Not OI-06 — that is answered (above) and supports B without separating B from C. This needs watching the desk work | B → C. Neither §3's cohort nor OI-06 can answer it |
 | 2 | The generic-promotion test in §4 costs a bespoke widget per route | B's price is wrong; re-cost against A |
 | 3 | A member cohort (post-`COMING_SOON_MODE`) whose `charts_workspace_layout` adoption is far below 17/29 | B's composable half is speculative for members; A becomes the honest default |
 | 4 | The popout spike (RG-27) shows dockview/FlexLayout breaks the one-SSE-pool property | constrains *library*, not this decision — UCT's popout is a React portal into `window.open`, one pool browser-wide [C5-01 §10, D-06 §1.5] |
@@ -303,7 +307,9 @@ subtree) lands before Terminal-Next composes anything.
 
 ## GAPS
 
-* **OI-06 is not in.** The single highest-value confirming input for the lock (§7 row 1).
+* ✅ **OI-06 IS in** (owner, 2026-09-19) — see the correction at the head of §7. It supports
+  hybrid without separating it from modular. **The open input is a desk-observed morning**,
+  which is an observation session and not a question anyone can answer from a document.
 * **Member-cohort telemetry is impossible today** by construction — `COMING_SOON_MODE` means
   there is no member population to measure. §3's ceiling cannot be lifted until there is.
 * **`personalization-patterns.md` (C5-02) is cited as an accepted input but its §9 synthesis
