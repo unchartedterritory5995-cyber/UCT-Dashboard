@@ -1064,8 +1064,10 @@ def _row_to_note(row: sqlite3.Row) -> dict[str, Any]:
         # the library. Archive is not trash — an archived note still opens.
         "archivedAt": row["archived_at"] if "archived_at" in row.keys() else None,
         # Wave 6 lock: only an explicit lock is a lock (a row from before the
-        # column existed reads unlocked). The server never enforces it — the
-        # editor does (see the column in db.py).
+        # column existed reads unlocked). The EDITOR enforces it for the
+        # member's own writes; the server-side append doors refuse a locked
+        # note with 423 (ruling D-G1(d), `note_personal_api.append_nodes`) --
+        # see the column in db.py.
         "locked": bool(row["locked"]) if "locked" in row.keys() else False,
         # Wave 6 daily note: the ET day this note is the member's daily note
         # for, or None. Set only at creation (note_daily.open_daily_note).

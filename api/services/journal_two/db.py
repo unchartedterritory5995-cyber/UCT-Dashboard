@@ -1788,12 +1788,17 @@ _PHASE_2_ALTERS = [
     # advances `updated_at` (notes.set_note_archived says why).
     "ALTER TABLE j2_notes ADD COLUMN archived_at TEXT",
     # Wave 6 (lane E, lock): 1 = the member locked this note against ACCIDENTAL
-    # edits, as Notion's lock does. ⛔⛔ THE SERVER STORES THE FLAG AND DOES NOT
-    # REFUSE BODY WRITES: a queued offline edit must never become a conflict
-    # inside the frozen offline layer. The lock is enforced in the EDITOR
-    # (lib/lockedNote.js: `editable = false`), and nowhere else. Set only by
-    # `PATCH /notes/{id}/lock`, which advances `updated_at` like any metadata
-    # write so another tab's compare-and-set and the outbox see it.
+    # edits, as Notion's lock does. ⛔⛔ THE SERVER DOES NOT REFUSE THE EDITOR'S
+    # OWN BODY WRITES: a queued offline edit must never become a conflict inside
+    # the frozen offline layer, so for the member's editor and every existing
+    # door the lock is enforced in the EDITOR (lib/lockedNote.js:
+    # `editable = false`). ⛔ BUT THE SERVER-SIDE APPEND DOORS REFUSE A LOCKED
+    # NOTE (wave 7, ruling D-G1(d)): `note_personal_api.append_nodes` answers
+    # 423 "This note is locked -- unlock it in the Notebook first" -- the
+    # personal API's note append and daily append, and email-in's attachment
+    # link, all go through it. Set only by `PATCH /notes/{id}/lock`, which
+    # advances `updated_at` like any metadata write so another tab's
+    # compare-and-set and the outbox see it.
     "ALTER TABLE j2_notes ADD COLUMN locked INTEGER NOT NULL DEFAULT 0",
     # Wave 6 (lane E, daily note): the ET date (YYYY-MM-DD) a note is the
     # member's daily note FOR; NULL for every other note. ⛔⛔ EXACTLY ONE PER
