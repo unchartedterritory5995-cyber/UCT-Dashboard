@@ -70,12 +70,28 @@ def dark_report(alert_type: str, *, db_path: str | None = None) -> dict[str, Any
         conn.close()
 
     predicate_ids = [r["predicate_id"] for r in rows]
-    return {
+    out = {
         "alert_type": alert_type,
         "table": table,
         "predicate_count": len(predicate_ids),
         "predicates": [mod.report(pid, db_path=db_path) for pid in predicate_ids],
     }
+
+    # ⛔ ARMED IS NOT OBSERVED, AND `predicate_count` ONLY EVER SHOWED THE SECOND.
+    # A type whose predicates are keyed on a FIRE (scan-membership-change) reports
+    # nothing at all for a subscription that has not fired yet — so a real member
+    # can arm three screens and the report still says `predicate_count 1`, which
+    # reads like a quiet population rather than an unobservable one. Measured
+    # 2026-09-25: that took a hand-rolled probe on the production pod to discover.
+    # Duck-typed on purpose: a type that can census its own arming exposes
+    # `arming_census`, the other six are untouched and may opt in later.
+    census = getattr(mod, "arming_census", None)
+    if callable(census):
+        try:
+            out["arming"] = census(db_path=db_path)
+        except Exception as e:          # a diagnostic must never break the report
+            out["arming"] = {"error": f"{type(e).__name__}: {e}"}
+    return out
 
 
 def dark_report_all(*, db_path: str | None = None) -> dict[str, Any]:
