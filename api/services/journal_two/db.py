@@ -823,7 +823,7 @@ CREATE TABLE IF NOT EXISTS j2_note_properties (
     id          TEXT PRIMARY KEY,
     user_id     TEXT NOT NULL,
     name        TEXT NOT NULL,
-    type        TEXT NOT NULL,            -- text|number|select|multi_select|date|checkbox|url
+    type        TEXT NOT NULL,            -- text|number|select|multi_select|date|checkbox|url|relation
     options_json TEXT,                    -- select/multi_select only: [{id,label,color}]
     sort_order  INTEGER NOT NULL DEFAULT 0,
     created_at  TEXT NOT NULL,

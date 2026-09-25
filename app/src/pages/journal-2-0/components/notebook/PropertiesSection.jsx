@@ -2,6 +2,7 @@ import { useEffect, useMemo, useRef, useState } from 'react'
 import useNoteProperties from '../../hooks/useNoteProperties'
 import useJ2PropertyDefs from '../../hooks/useJ2PropertyDefs'
 import UIcon from '../../../../components/ui/UIcon'
+import RelationPropertyValue from './RelationPropertyValue'
 import styles from './PropertiesSection.module.css'
 
 const NEW_PROPERTY_TYPES = [
@@ -12,7 +13,12 @@ const NEW_PROPERTY_TYPES = [
   { value: 'date', label: 'Date' },
   { value: 'checkbox', label: 'Checkbox' },
   { value: 'url', label: 'URL' },
+  // Wave 6: links to other notes (a list of note ids).
+  { value: 'relation', label: 'Relation' },
 ]
+// ⛔ ONE FACT IN TWO FILES with the server's `note_properties._VALID_TYPES`,
+// pinned by tests/test_journal_two_relation_property_router.py (it PARSES this
+// list, so keep it a literal array of `{ value: '…', label: '…' }`).
 
 /**
  * Wave E — the note editor's Properties section. Progressive disclosure by
@@ -145,6 +151,7 @@ export default function PropertiesSection({ noteId, updateNote, ticker }) {
               <span className={styles.control}>
                 <PropertyControl
                   prop={p}
+                  noteId={noteId}
                   disabled={p.source !== 'user_set' || saving === p.id}
                   onChange={(v) => setValue(p.id, v)}
                   labelId={labelId}
@@ -212,8 +219,12 @@ export default function PropertiesSection({ noteId, updateNote, ticker }) {
   )
 }
 
-function PropertyControl({ prop, disabled, onChange, labelId }) {
+function PropertyControl({ prop, disabled, onChange, labelId, noteId = null }) {
   const { type, value } = prop
+  if (disabled && type === 'relation') {
+    // (Only while its own save is in flight: never flash raw note ids.)
+    return <span className={styles.readonlyValue}>{Array.isArray(value) ? `${value.length} linked` : '—'}</span>
+  }
   if (disabled) {
     // financial_derived (read-only) -- plain text, never an input the member
     // could mistake for editable (checkpoint's "UCT already knows this"
@@ -221,6 +232,11 @@ function PropertyControl({ prop, disabled, onChange, labelId }) {
     // control, so no aria-labelledby needed -- reading order already puts
     // the label span directly before it.
     return <span className={styles.readonlyValue}>{value === null ? '—' : String(value)}</span>
+  }
+  if (type === 'relation') {
+    return (
+      <RelationPropertyValue value={value} onChange={onChange} labelId={labelId} currentNoteId={noteId} />
+    )
   }
   if (type === 'checkbox') {
     return (

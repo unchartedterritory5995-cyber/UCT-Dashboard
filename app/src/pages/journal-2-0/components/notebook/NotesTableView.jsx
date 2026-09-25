@@ -17,6 +17,11 @@ function formatCellValue(def, value) {
       .filter(Boolean)
     return labels.length ? labels.join(', ') : null
   }
+  if (def.type === 'relation') {
+    // Wave 6: a list of note ids — said as a count, never printed as raw ids.
+    const n = Array.isArray(value) ? value.length : 0
+    return n ? `${n} linked note${n === 1 ? '' : 's'}` : null
+  }
   return String(value)
 }
 
@@ -154,7 +159,9 @@ export default function NotesTableView({
     { key: 'updated', header: updatedHeader, secondary: true, render: (n) => timeAgo(n.updatedAt) },
     ...usedDefs.map((def) => ({
       key: def.id,
-      header: (
+      // Wave 6: a relation has no order a member means (the server refuses to
+      // sort by one), so its header is a label, never a sort button that 400s.
+      header: def.type === 'relation' ? def.name : (
         <button
           type="button"
           className={styles.sortBtn}

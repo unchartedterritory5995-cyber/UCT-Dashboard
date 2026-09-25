@@ -1996,6 +1996,49 @@ def get_note_backlinks(
             conn.close()
 
 
+def get_note_related_from(
+    user_id: str, note_id: str, conn: sqlite3.Connection | None = None,
+) -> dict[str, Any]:
+    """Wave 6 (lane E, item 5): "Related from" — the member's live notes whose
+    RELATION property holds `note_id`, newest edit first, once per note with the
+    names of the relations that hold it: `{count, notes: [{id, title,
+    updatedAt, properties}]}`.
+
+    Owner-scoped on both the notes and the property definitions; a trashed
+    source and a deleted relation property are left out, and so is the note
+    itself (a note related to itself is not news on its own page). Archived
+    sources stay, as they do in "Linked from": archive is not trash."""
+    owned = conn is None
+    conn = conn or get_connection()
+    try:
+        rows = conn.execute(
+            "SELECT n.id, n.title, n.updated_at, d.name AS prop_name"
+            " FROM j2_notes n"
+            " JOIN json_each(COALESCE(n.properties_json, '{}')) p"
+            " JOIN j2_note_properties d"
+            "   ON d.id = p.key AND d.user_id = n.user_id"
+            "  AND d.type = 'relation' AND d.deleted_at IS NULL"
+            " WHERE n.user_id = ? AND n.deleted_at IS NULL AND n.id != ?"
+            "   AND p.type = 'array'"
+            "   AND EXISTS (SELECT 1 FROM json_each(p.value) v WHERE v.value = ?)"
+            " ORDER BY n.updated_at DESC, d.name",
+            (user_id, note_id, note_id),
+        ).fetchall()
+        by_id: dict[str, dict[str, Any]] = {}
+        for r in rows:
+            entry = by_id.setdefault(r["id"], {
+                "id": r["id"], "title": r["title"] or "Untitled",
+                "updatedAt": r["updated_at"], "properties": [],
+            })
+            if r["prop_name"] not in entry["properties"]:
+                entry["properties"].append(r["prop_name"])
+        notes = list(by_id.values())
+        return {"count": len(notes), "notes": notes}
+    finally:
+        if owned:
+            conn.close()
+
+
 def get_note_graph(
     user_id: str, limit: int = 1500, conn: sqlite3.Connection | None = None,
 ) -> dict[str, Any]:

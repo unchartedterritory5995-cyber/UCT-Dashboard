@@ -2551,6 +2551,13 @@ def note_note_backlinks_endpoint(
 
 # ── Wave E — Structured Research Properties / Saved Views ───────────────────
 
+@router.get("/notes/{note_id}/related-from")
+def note_related_from_endpoint(note_id: str, user: dict = Depends(get_current_user)) -> dict[str, Any]:
+    """Wave 6 (lane E): the notes whose relation property holds this one —
+    the "Related from" list beside "Linked from"."""
+    return notes_service.get_note_related_from(user["id"], note_id)
+
+
 @router.get("/notes/{note_id}/properties")
 def note_properties_endpoint(note_id: str, user: dict = Depends(get_current_user)) -> dict[str, Any]:
     """The full resolved property list for ONE note (every def, that note's
