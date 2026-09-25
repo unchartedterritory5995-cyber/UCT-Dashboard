@@ -808,7 +808,8 @@ def _build_search_product(sym: str, src: str, key: tuple, version: str, st, date
         csv_len = 0
         t_csv = time.monotonic()
         overrun = None
-        for chunk in db.stream_csv_symbol(sym, source=src, columns=None, dates=dates):
+        _win = {"dates": dates} if dates else {}
+        for chunk in db.stream_csv_symbol(sym, source=src, columns=None, **_win):
             b = chunk if isinstance(chunk, bytes) else str(chunk).encode("utf-8")
             parts.append(b)
             csv_len += len(b)
@@ -1006,7 +1007,6 @@ def _spawn_search_warm(sym: str, src: str, key: tuple, version: str) -> bool:
     return True
 
 
-@flow_router.get("/ticker-product/{symbol}")
 def _symbol_dates(sym: str, src: str) -> list:
     """The sessions ONE symbol has rows on, 'M/D/YYYY', oldest first. Indexed by
     (Symbol, CreatedDate) on the pod; a few hundred distinct values at most."""
@@ -1023,6 +1023,43 @@ def _symbol_dates(sym: str, src: str) -> list:
     return [d for _, d in dated]
 
 
+def _windowed_ticker_product(sym: str, src: str, version: str, wd: int, st):
+    """The Search derivation over ONE symbol's last `wd` sessions (the Discord card's
+    page-derived path, 2026-09-25). Its own cache key beside the full product, the same
+    single-flight build lane, and `window_dates` in the body so the caller can resolve the
+    product's year-less `Dt`."""
+    key = (sym, src, version, f"w{wd}")
+    cached = _search_product_cache_get(key)
+    st.mark("cache_lookup", hit=bool(cached), window=wd)
+    if cached is not None:
+        st.flush("HIT_WINDOWED")
+        return _search_response(cached, version, "hit")
+    if not flow_aggregate.available():
+        st.flush("NO_BUNDLE")
+        return JSONResponse({"ok": False, "error": "bundle unavailable"}, status_code=503)
+    dates = _symbol_dates(sym, src)[-wd:]
+    if not dates:
+        return JSONResponse({"ok": True, "sym": sym, "source": src, "version": version,
+                             "schema": _SEARCH_PRODUCT_SCHEMA, "window_dates": [],
+                             "product": {"all_directional": [], "TICKER_DB": []}, "rows": 0})
+    if not _SEARCH_BUILD_LOCK.acquire(blocking=False):
+        st.flush("DECLINED_BUSY")
+        return JSONResponse({"ok": False, "error": "busy"}, status_code=503)
+    try:
+        gz, err = _build_search_product(sym, src, key, version, st, dates=dates,
+                                        extra={"window_dates": dates, "window_days": wd})
+        if err is not None:
+            return err
+        return _search_response(gz, version, "windowed")
+    finally:
+        _SEARCH_BUILD_LOCK.release()
+
+
+# ⛔ THE DECORATOR BELONGS TO THE HANDLER. On 2026-09-25 `_symbol_dates` was inserted between this
+# line and the handler and silently took the route: every Search request 422'd on the missing
+# `sym`/`src` query params while a test that called the handler directly stayed green.
+# tests/test_flow_card_from_page.py now requests THROUGH the router.
+@flow_router.get("/ticker-product/{symbol}")
 def get_flow_ticker_product(symbol: str, source: str = "stocks",
                             warm_only: str = "",
                             window_days: int = 0,
@@ -1053,32 +1090,10 @@ def get_flow_ticker_product(symbol: str, source: str = "stocks",
     except (TypeError, ValueError):
         wd = 0
     if wd > 0:
-        wd = min(wd, 400)
-        key = (sym, src, version, f"w{wd}")
-        cached = _search_product_cache_get(key)
-        st.mark("cache_lookup", hit=bool(cached), window=wd)
-        if cached is not None:
-            st.flush("HIT_WINDOWED")
-            return _search_response(cached, version, "hit")
-        if not flow_aggregate.available():
-            st.flush("NO_BUNDLE")
-            return JSONResponse({"ok": False, "error": "bundle unavailable"}, status_code=503)
-        dates = _symbol_dates(sym, src)[-wd:]
-        if not dates:
-            return JSONResponse({"ok": True, "sym": sym, "source": src, "version": version,
-                                 "schema": _SEARCH_PRODUCT_SCHEMA, "window_dates": [],
-                                 "product": {"all_directional": [], "TICKER_DB": []}, "rows": 0})
-        if not _SEARCH_BUILD_LOCK.acquire(blocking=False):
-            st.flush("DECLINED_BUSY")
-            return JSONResponse({"ok": False, "error": "busy"}, status_code=503)
-        try:
-            gz, err = _build_search_product(sym, src, key, version, st, dates=dates,
-                                            extra={"window_dates": dates, "window_days": wd})
-            if err is not None:
-                return err
-            return _search_response(gz, version, "windowed")
-        finally:
-            _SEARCH_BUILD_LOCK.release()
+        # A separate function on purpose: the member path below is railed by POSITION (its
+        # warm_only decline must precede the build-lock acquire in this handler's source), and
+        # a second acquire inlined here reads as the member's.
+        return _windowed_ticker_product(sym, src, version, min(wd, 400), st)
 
     cached = _search_product_cache_get(key)
     st.mark("cache_lookup", hit=bool(cached))

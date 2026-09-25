@@ -1,0 +1,15 @@
+== DELL  days=1  card window={'start': '9/25/2026', 'end': '9/25/2026', 'active_days': 1, 'days_requested': '1'}
+   CARD: 6 contracts  BULL $3,405,585  BEAR $586,020  UNCL $974,400  net BULL
+   PAGE: 49 prints / 38 contracts  BULL $3,540,892  BEAR $1,188,925  net BULL   (version 40673295.0; dates ['2026-09-25'])
+   VERDICT: AGREE
+     note: card sided 4 of 5 contracts the page left side-less, e.g. ["('C', 550.0, '2026-09-25')", "('P', 597.5, '2026-10-16')", "('P', 602.5, '2026-10-16')"]
+== PLTR  days=1  card window={'start': '9/25/2026', 'end': '9/25/2026', 'active_days': 1, 'days_requested': '1'}
+   CARD: 4 contracts  BULL $0  BEAR $130,290  UNCL $5,365,040  net BEAR
+   PAGE: 31 prints / 17 contracts  BULL $999,968  BEAR $1,897,401  net BEAR   (version 40673393.0; dates ['2026-09-25'])
+   VERDICT: AGREE
+     note: card sided 1 of 1 contracts the page left side-less, e.g. ["('P', 200.0, '2027-02-19')"]
+== BP  days=1  card window={'start': '9/1/2026', 'end': '9/16/2026', 'active_days': 6, 'days_requested': '20', 'widened_from': '1'}
+   CARD: 6 contracts  BULL $809,977  BEAR $0  UNCL $1,574,374  net BULL
+   PAGE: 142 prints / 73 contracts  BULL $5,786,799  BEAR $1,088,652  net BULL   (version 40672824.0; dates ['2026-08-28', '2026-08-31', '2026-09-01', '2026-09-02', '2026-09-03', '2026-09-04', '2026-09-08', '2026-09-09', '2026-09-10', '2026-09-11', '2026-09-14', '2026-09-15', '2026-09-16', '2026-09-17', '2026-09-18', '2026-09-21', '2026-09-22', '2026-09-23', '2026-09-24', '2026-09-25'])
+   VERDICT: AGREE
+     note: card sided 1 of 3 contracts the page left side-less, e.g. ["('C', 46.0, '2026-12-18')"]

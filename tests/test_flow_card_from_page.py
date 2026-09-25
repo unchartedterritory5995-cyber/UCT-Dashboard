@@ -217,3 +217,66 @@ def test_the_router_builds_a_windowed_product_over_the_last_n_sessions(tmp_path,
     assert captured["dates"] == ["9/23/2026", "9/24/2026"], captured
     assert captured["extra"]["window_dates"] == ["9/23/2026", "9/24/2026"]
     assert captured["key"] == ("DELL", "stocks", "v1", "w2"), "the windowed product must not share the full product's cache key"
+
+
+# ── THROUGH THE ROUTER, not the handler (2026-09-25: the decorator landed on the wrong def) ───
+
+def _client(monkeypatch, tmp_path, dates):
+    from fastapi import FastAPI
+    from fastapi.testclient import TestClient
+    from api import flow_router as fr
+    from api.flow_admin_auth import require_flow_user
+    from api.flow_db import FlowDB
+    dbp = tmp_path / "flow.db"
+    FlowDB(str(dbp))
+    conn = sqlite3.connect(str(dbp))
+    for i, day in enumerate(dates):
+        conn.execute("INSERT INTO flow (source, CreatedDate, Symbol, Premium, dedup_key) "
+                     "VALUES ('stocks', ?, 'DELL', '1', ?)", (day, f"r{i}"))
+    conn.commit(); conn.close()
+    monkeypatch.setattr(fr, "db", FlowDB(str(dbp)))
+    monkeypatch.setattr(fr, "_search_freshness", lambda sym, src: "v1")
+    monkeypatch.setattr(fr.flow_aggregate, "available", lambda: True)
+    fr._SEARCH_PRODUCT_CACHE.clear()
+    app = FastAPI()
+    app.include_router(fr.flow_router)
+    app.dependency_overrides[require_flow_user] = lambda: {"via": "test"}
+    return fr, TestClient(app, raise_server_exceptions=False)
+
+
+def test_the_ticker_product_route_is_bound_to_its_handler():
+    """Resolve the route the way FastAPI does. A helper defined between the decorator and the
+    handler takes the route silently; this is the assertion that names it."""
+    from api import flow_router as fr
+    bound = {r.path: r.endpoint.__name__ for r in fr.flow_router.routes if hasattr(r, "endpoint")}
+    assert bound["/api/flow/ticker-product/{symbol}"] == "get_flow_ticker_product", bound
+
+
+def test_the_members_search_request_still_routes_and_declines_cold_as_before(monkeypatch, tmp_path):
+    """The Options Flow page's own call (`warm_only=1`) on a cold key: an immediate 503 'not warm'
+    and a background warm, exactly as before option A. With the decorator on the wrong def this
+    was a 422 for every member search."""
+    fr, c = _client(monkeypatch, tmp_path, ["9/24/2026"])
+    warmed = []
+    monkeypatch.setattr(fr, "_spawn_search_warm", lambda *a: warmed.append(a))
+    r = c.get("/api/flow/ticker-product/DELL?source=stocks&warm_only=1")
+    assert r.status_code == 503 and r.json().get("error") == "not warm", (r.status_code, r.text[:200])
+    assert warmed, "the cold member request did not start a background warm"
+
+
+def test_the_windowed_request_routes_end_to_end(monkeypatch, tmp_path):
+    fr, c = _client(monkeypatch, tmp_path, ["9/18/2026", "9/22/2026", "9/23/2026", "9/24/2026"])
+    seen = {}
+
+    def fake_build(sym, src, key, version, st, dates=None, extra=None):
+        import gzip, json as _j
+        seen.update(dates=dates, key=key)
+        body = {"ok": True, "sym": sym, "source": src, "version": version, "product": {"all_directional": []}}
+        body.update(extra or {})
+        return gzip.compress(_j.dumps(body).encode()), None
+    monkeypatch.setattr(fr, "_build_search_product", fake_build)
+    r = c.get("/api/flow/ticker-product/DELL?source=stocks&window_days=2")
+    assert r.status_code == 200, (r.status_code, r.text[:200])
+    assert r.json()["window_dates"] == ["9/23/2026", "9/24/2026"]
+    assert r.headers.get("X-Flow-Cache") == "windowed"
+    assert seen["key"] == ("DELL", "stocks", "v1", "w2")
