@@ -771,13 +771,16 @@ _NEWLINE = bytes([10])   # written this way so no escape survives three layers o
 _SEARCH_CSV_DEADLINE_S = float(os.environ.get("FLOW_SEARCH_CSV_DEADLINE_S", "20") or 20)
 
 
-def _build_search_product(sym: str, src: str, key: tuple, version: str, st, dates=None, extra=None):
+def _build_search_product(sym: str, src: str, key: tuple, version: str, st, dates=None, extra=None,
+                          pre_chunks=None):
     """Derive, serialise, gzip and CACHE one ticker's Search product.
 
     `dates` (2026-09-25): restrict the rows to those `CreatedDate` values — the WINDOWED product
     the Discord card's page-derived path asks for (`?window_days=N`), so a head name whose full
     history exceeds the budget can still be derived over its last N sessions. `extra` is merged
     into the response body (the window's dates, so the caller can resolve year-less `Dt`).
+    `pre_chunks` replaces the store stream with CSV chunks the caller already read (the card's
+    basis path reads newest-first under a time budget); every check below still applies.
 
     Returns `(gz_bytes, None)` on success or `(None, error_response)` on any
     failure, so the request path can return the error and the background warmer
@@ -809,7 +812,9 @@ def _build_search_product(sym: str, src: str, key: tuple, version: str, st, date
         t_csv = time.monotonic()
         overrun = None
         _win = {"dates": dates} if dates else {}
-        for chunk in db.stream_csv_symbol(sym, source=src, columns=None, **_win):
+        _chunks = (pre_chunks if pre_chunks is not None
+                   else db.stream_csv_symbol(sym, source=src, columns=None, **_win))
+        for chunk in _chunks:
             b = chunk if isinstance(chunk, bytes) else str(chunk).encode("utf-8")
             parts.append(b)
             csv_len += len(b)
@@ -1055,6 +1060,33 @@ def _pick_basis(counts: list, cap_rows: int) -> list:
     return list(reversed(picked))
 
 
+#: How long the basis path may spend READING before it derives over what it has. Newest sessions
+#: are read first, so a cold pod still gets the most recent history (measured 2026-09-25: on a pod
+#: four minutes after boot DELL's full history streamed 14,001 rows in 20.9 s, oldest first, and
+#: was declined; recent sessions stay in the page cache — NVDA's 128K recent rows read in 6.7 s).
+_BASIS_READ_BUDGET_S = float(os.environ.get("FLOW_CARD_BASIS_READ_BUDGET_S", "12") or 12)
+
+
+def _read_basis_newest_first(sym: str, src: str, dates: list, budget_s: float, clock=None):
+    """Read `dates` NEWEST FIRST, one session at a time, until `budget_s` is spent (always at least
+    the newest). Returns (sessions read, oldest first; CSV chunks in that CHRONOLOGICAL order with
+    one header) — the same bytes `stream_csv_symbol(dates=used)` would produce, so the derivation
+    sees rows in the order the page's product does."""
+    now = clock or time.monotonic
+    t0 = now()
+    header, bodies = None, {}
+    for d in reversed(dates):
+        if bodies and (now() - t0) > budget_s:
+            break
+        text = "".join(c if isinstance(c, str) else c.decode("utf-8")
+                       for c in db.stream_csv_symbol(sym, source=src, columns=None, dates=[d]))
+        head, _, body = text.partition(chr(10))
+        header = header or head + chr(10)
+        bodies[d] = body
+    used = [d for d in dates if d in bodies]
+    return used, [header or ""] + [bodies[d] for d in used]
+
+
 def _basis_ticker_product(sym: str, src: str, version: str, cap_rows: int, st):
     """The Discord card's page-derived product: the SAME derivation the page runs, over the
     largest recent history that fits `cap_rows`.
@@ -1086,13 +1118,17 @@ def _basis_ticker_product(sym: str, src: str, version: str, cap_rows: int, st):
                              "basis_complete": True, "basis_rows": 0, "sessions_total": 0,
                              "product": {"all_directional": [], "TICKER_DB": []}, "rows": 0})
     dates = _pick_basis(counts, cap_rows)
-    extra = {"window_dates": dates, "market_dates": market, "basis_complete": len(dates) == len(counts),
-             "basis_rows": sum(n for d, n in counts if d in set(dates)), "sessions_total": len(counts)}
     if not _SEARCH_BUILD_LOCK.acquire(blocking=False):
         st.flush("DECLINED_BUSY")
         return JSONResponse({"ok": False, "error": "busy"}, status_code=503)
     try:
-        gz, err = _build_search_product(sym, src, key, version, st, dates=dates, extra=extra)
+        used, chunks = _read_basis_newest_first(sym, src, dates, _BASIS_READ_BUDGET_S)
+        st.mark("basis_read", sessions=len(used), of=len(dates), total=len(counts))
+        n_by_date = dict(counts)
+        extra = {"window_dates": used, "market_dates": market, "basis_complete": len(used) == len(counts),
+                 "basis_rows": sum(n_by_date.get(d, 0) for d in used), "sessions_total": len(counts)}
+        gz, err = _build_search_product(sym, src, key, version, st, dates=used, extra=extra,
+                                        pre_chunks=chunks)
         if err is not None:
             return err
         return _search_response(gz, version, "basis")

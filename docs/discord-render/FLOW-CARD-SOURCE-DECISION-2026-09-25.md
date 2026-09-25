@@ -73,6 +73,12 @@ footer says "page-derived, N-session basis". The card then climbs its display la
 (1 -> 5 -> 20 -> all) over that one product, scoped by the MARKET calendar like the page's
 "Last N". One fetch per `/flow`.
 
+The server reads the basis NEWEST session first under a 12 s budget and derives over what it read,
+reassembled in chronological order (byte-identical to the store's own stream). Measured on a pod four
+minutes after boot: full-history reads are cold on disk (DELL 14,001 rows in 20.9 s, oldest first) while
+recent sessions stay in the page cache (NVDA 128K recent rows in 6.7 s). So a warm pod gives the full
+history and exact parity, and a cold one gives the most recent history it could read, labelled as such.
+
 ## Option A — derive the card FROM the page product (recommended)
 
 **Principle.** One authority. The card shows what a member would see if they opened the page,

@@ -403,9 +403,9 @@ def test_the_basis_endpoint_routes_and_reports_its_basis(monkeypatch, tmp_path):
     fr, c = _client(monkeypatch, tmp_path, ["9/22/2026", "9/23/2026", "9/24/2026"])
     seen = {}
 
-    def fake_build(sym, src, key, version, st, dates=None, extra=None):
+    def fake_build(sym, src, key, version, st, dates=None, extra=None, pre_chunks=None):
         import gzip, json as _j
-        seen.update(dates=dates, key=key, extra=extra)
+        seen.update(dates=dates, key=key, extra=extra, pre_chunks=pre_chunks)
         body = {"ok": True, "product": {"all_directional": []}}; body.update(extra or {})
         return gzip.compress(_j.dumps(body).encode()), None
     monkeypatch.setattr(fr, "_build_search_product", fake_build)
@@ -427,3 +427,68 @@ def test_the_session_counts_read_is_covering_with_no_source_term():
     src = inspect.getsource(fr._symbol_session_counts)
     sql = src[src.index('"SELECT'):src.index("(sym,)")]
     assert "WHERE Symbol = ?" in sql and "source" not in sql, sql
+
+
+# ── newest-first basis read under a time budget (cold-pod measurement, 2026-09-25) ────────────
+
+def _five_session_db(tmp_path):
+    from api.flow_db import FlowDB
+    dbp = tmp_path / "flow.db"
+    db = FlowDB(str(dbp))
+    conn = sqlite3.connect(str(dbp))
+    days = ["9/18/2026", "9/21/2026", "9/22/2026", "9/23/2026", "9/24/2026"]
+    for i, day in enumerate(days):
+        for j in range(2):
+            conn.execute("INSERT INTO flow (source, CreatedDate, Symbol, Premium, Strike, dedup_key) "
+                         "VALUES ('stocks', ?, 'DELL', ?, ?, ?)", (day, str(100 + i), str(500 + j), f"b{i}{j}"))
+    conn.commit(); conn.close()
+    return db, days
+
+
+def test_a_full_basis_read_is_byte_identical_to_the_stores_multi_date_stream(tmp_path, monkeypatch):
+    from api import flow_router as fr
+    db, days = _five_session_db(tmp_path)
+    monkeypatch.setattr(fr, "db", db)
+    used, chunks = fr._read_basis_newest_first("DELL", "stocks", days, budget_s=999)
+    assert used == days
+    assert "".join(chunks) == "".join(db.stream_csv_symbol("DELL", "stocks", dates=days))
+
+
+def test_a_spent_budget_keeps_the_NEWEST_sessions_in_chronological_order(tmp_path, monkeypatch):
+    from api import flow_router as fr
+    db, days = _five_session_db(tmp_path)
+    monkeypatch.setattr(fr, "db", db)
+    t = {"now": 0.0}
+
+    def clock():
+        t["now"] += 5.0                        # every look at the clock costs 5 s of "cold IO"
+        return t["now"]
+    used, chunks = fr._read_basis_newest_first("DELL", "stocks", days, budget_s=12, clock=clock)
+    assert used == ["9/22/2026", "9/23/2026", "9/24/2026"], used
+    body = "".join(chunks)
+    assert body.index("9/22/2026") < body.index("9/23/2026") < body.index("9/24/2026")
+    assert "9/18/2026" not in body and body.count("CreatedDate") == 1      # one header
+
+
+def test_even_an_instantly_spent_budget_reads_the_newest_session(tmp_path, monkeypatch):
+    from api import flow_router as fr
+    db, days = _five_session_db(tmp_path)
+    monkeypatch.setattr(fr, "db", db)
+    used, _ = fr._read_basis_newest_first("DELL", "stocks", days, budget_s=0, clock=iter(range(0, 10**6, 100)).__next__)
+    assert used == ["9/24/2026"]
+
+
+def test_the_basis_endpoint_reports_a_truncated_read_as_an_incomplete_basis(monkeypatch, tmp_path):
+    fr, c = _client(monkeypatch, tmp_path, ["9/22/2026", "9/23/2026", "9/24/2026"])
+    monkeypatch.setattr(fr, "_BASIS_READ_BUDGET_S", -1.0)                  # spent before the second session
+    seen = {}
+
+    def fake_build(sym, src, key, version, st, dates=None, extra=None, pre_chunks=None):
+        import gzip, json as _j
+        seen.update(dates=dates, chunks=pre_chunks)
+        body = {"ok": True, "product": {"all_directional": []}}; body.update(extra or {})
+        return gzip.compress(_j.dumps(body).encode()), None
+    monkeypatch.setattr(fr, "_build_search_product", fake_build)
+    j = c.get("/api/flow/ticker-product/DELL?source=stocks&basis_rows=100").json()
+    assert j["window_dates"] == ["9/24/2026"] and j["basis_complete"] is False and j["sessions_total"] == 3
+    assert seen["dates"] == ["9/24/2026"] and "9/24/2026" in "".join(seen["chunks"])

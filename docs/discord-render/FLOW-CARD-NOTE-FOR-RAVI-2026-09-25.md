@@ -58,7 +58,13 @@ WITH RECURSIVE d(x) AS (
 SELECT x FROM d WHERE x IS NOT NULL
 ```
 
-The card's own paths now use this (`_flow_dates_all`, `_market_dates`). Your page's `/api/flow/dates`
+The card's own paths now use this (`_flow_dates_all`, `_market_dates`).
+
+A second one: on a freshly booted pod your full-history Search build is disk-bound on OLD sessions.
+`DELL/stocks warm TOO_BIG total=22544ms :: ... rows=8001` (23:25 UTC 9/25, four minutes after a deploy):
+8,001 rows in 22.5 s, streamed oldest first, then declined. Recent sessions stay hot. The card's basis
+path reads newest-first under a budget for exactly this reason (`_read_basis_newest_first`); your
+Search build could do the same, or keep its all-or-nothing contract and accept declines after deploys. Your page's `/api/flow/dates`
 and `/live-massive` would get the same win on their first load after a flow-worker deploy.
 
 Why `basis_rows`: your derivation sets direction from contract-level totals across every row it
