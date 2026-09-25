@@ -174,16 +174,27 @@ def test_ON_with_the_NOOP_provider_the_table_fills_and_nothing_leaves(db_path, o
     assert no_network == []
 
 
-def test_the_OpenAI_provider_is_the_default_and_goes_through_embed_text(db_path, monkeypatch):
+def test_the_OpenAI_provider_is_the_default_and_uses_the_shared_client(db_path, monkeypatch):
+    """The existing client (`voice_openai._get_client`), one request for the
+    batch (fix round 1, review I-2 -- the per-block `embed_text` loop is gone;
+    `test_note_semantic_sweep_lock.py` rails the batching itself)."""
     monkeypatch.setenv(GATE, "1")
     monkeypatch.delenv("NOTEBOOK_SEMANTIC_PROVIDER", raising=False)
     p = ns.get_provider()
     assert isinstance(p, ns.OpenAIEmbeddingProvider)
-    from api.services import voice_embeddings_service as ves
-    seen = []
-    monkeypatch.setattr(ves, "embed_text", lambda t: seen.append(t) or [0.5, 0.5])
+    from types import SimpleNamespace
+    from api.services import voice_openai
+    sent = []
+
+    def create(*, model, input):
+        sent.append(list(input))
+        return SimpleNamespace(data=[SimpleNamespace(index=i, embedding=[0.5, 0.5])
+                                     for i in range(len(input))])
+
+    monkeypatch.setattr(voice_openai, "_get_client",
+                        lambda: SimpleNamespace(embeddings=SimpleNamespace(create=create)))
     assert p.embed(["a", "b"]) == [[0.5, 0.5], [0.5, 0.5]]
-    assert seen == ["a", "b"]
+    assert sent == [["a", "b"]]
 
 
 def test_incremental_unchanged_notes_cost_nothing_and_an_edit_reembeds_only_what_moved(db_path, on_noop):
@@ -223,19 +234,19 @@ def test_an_inserted_answer_is_not_the_members_writing_and_is_not_indexed(db_pat
 
 
 def test_a_provider_switch_reembeds_instead_of_mixing_two_vector_spaces(db_path, on_noop, monkeypatch):
+    """With NO edit to the note (fix round 1): the revision marker names the
+    provider, so a switch revisits every note by itself. ⚰️ This test used to
+    force the revisit by hand, which hid that the sweep never would -- the
+    note stayed on the old provider's vectors, unreadable by the new one."""
     _note(U, "Plan", "Alpha paragraph.")
     ns.index_member(U)
 
     class Other(ns.NoOpEmbeddingProvider):
         name = "noop:other"
 
-    from api.services.auth_db import get_connection
-    c = get_connection()
-    c.execute("UPDATE j2_note_embeddings SET updated_at = '0'")   # force a revisit
-    c.commit()
-    c.close()
     r = ns.index_member(U, provider=Other())
     assert r["embedded"] == 2 and r["reused"] == 0
+    assert ns.index_member(U, provider=Other())["unchanged"] == 1     # and then it settles
 
 
 def test_search_is_member_scoped_and_ranked(db_path, on_noop):

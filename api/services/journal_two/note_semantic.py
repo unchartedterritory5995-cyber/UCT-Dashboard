@@ -5,10 +5,11 @@ question, not naming words; lexical search finds the notes that contain those
 words and misses the one that says "I sold into strength again". This module
 adds MEANING to the Notebook's search, the way ruling D-H3 decided:
 
-  * EMBEDDINGS: OpenAI `text-embedding-3-small` through the existing
-    `voice_embeddings_service.embed_text` path (the `brain_kb_service`
-    precedent), behind a provider interface with a second, NO-OP
-    implementation that never leaves the process.
+  * EMBEDDINGS: OpenAI `text-embedding-3-small` on the existing client
+    (`voice_openai._get_client`, `voice_embeddings_service`'s model and chunk
+    ceiling -- the `brain_kb_service` precedent), one request per batch, behind
+    a provider interface with a second, NO-OP implementation that never leaves
+    the process.
   * THE INDEX: `j2_note_embeddings` in auth.db, one row per note BLOCK
     (`ask_retrieval._note_blocks` is the splitter, so a block here is the same
     unit Ask cites), incremental by `content_hash`, SELF-ENSURED on every call
@@ -106,21 +107,43 @@ class EmbeddingProvider(Protocol):
     name: str
     min_score: float
 
-    def embed(self, texts: list[str]) -> list[list[float]]: ...
+    def embed(self, texts: list[str], *, timeout: float | None = None) -> list[list[float]]: ...
 
 
 class OpenAIEmbeddingProvider:
-    """`text-embedding-3-small` through voice_embeddings_service.embed_text —
-    the existing client (voice_openai._get_client, with its timeout), never a
+    """`text-embedding-3-small` (voice_embeddings_service's model and chunk
+    ceiling) on the existing client, `voice_openai._get_client` -- never a
     second one. ⛔ Constructed only by `get_provider()`, which refuses while the
-    gate is off."""
+    gate is off.
+
+    ONE HTTP REQUEST PER CALL (`input=[...]`, review I-2): the caller batches
+    (`_BATCH`). ⚰️ It used to call `embed_text` once per block, so one batch of
+    64 was 64 sequential round trips -- inside a write transaction, at the time.
+
+    `timeout` is a per-call ceiling on the SHARED client (`with_options`, which
+    copies the client, never constructs a new one), and it disables the SDK's
+    retries: a caller that passes one has a fallback, and a retry would spend
+    the time the fallback exists to save. None keeps the client's own ceiling
+    (REQUEST_PATH_LONG) and retries -- the sweep's case, on a scheduler thread
+    with no lock held."""
 
     name = "openai:text-embedding-3-small"
     min_score = 0.30
 
-    def embed(self, texts: list[str]) -> list[list[float]]:
+    def embed(self, texts: list[str], *, timeout: float | None = None) -> list[list[float]]:
         from api.services import voice_embeddings_service as ves
-        return [ves.embed_text(t) for t in texts]
+        from api.services import voice_openai
+        if not texts:
+            return []
+        client = voice_openai._get_client()
+        if timeout is not None:
+            client = client.with_options(timeout=timeout, max_retries=0)
+        resp = client.embeddings.create(
+            model=ves.EMBEDDING_MODEL, input=[t[:ves.MAX_CHUNK_CHARS] for t in texts])
+        got = sorted(resp.data, key=lambda d: d.index)   # the API does not promise order
+        if len(got) != len(texts):
+            raise RuntimeError(f"the provider answered {len(got)} vectors for {len(texts)} texts")
+        return [list(d.embedding) for d in got]
 
 
 class NoOpEmbeddingProvider:
@@ -132,7 +155,7 @@ class NoOpEmbeddingProvider:
     min_score = 0.20
     _DIM = 256
 
-    def embed(self, texts: list[str]) -> list[list[float]]:
+    def embed(self, texts: list[str], *, timeout: float | None = None) -> list[list[float]]:
         return [self._vector(t) for t in texts]
 
     def _vector(self, text: str) -> list[float]:
@@ -219,45 +242,96 @@ def _content_hash(provider_name: str, text: str) -> str:
 
 
 # ── Indexing ─────────────────────────────────────────────────────────────────
+#
+# ⛔⛔ NO TRANSACTION IS EVER OPEN ACROSS A VENDOR CALL (review I-2). auth.db is
+# the session and notes database for every member, and `get_connection()` is
+# Python's legacy implicit-BEGIN isolation: the first INSERT/UPDATE/DELETE
+# takes the write lock and holds it until commit. ⚰️ The sweep used to take it
+# with the DELETE of dropped notes and keep it through the first note's
+# embedding (and a long note's second batch ran after its first batch's
+# INSERT), so an unrelated write elsewhere in the app waited on OpenAI --
+# measured: `database is locked` after 619 ms. Now: plan a note with reads
+# only, embed with no transaction open (`_embed_unlocked` REFUSES to run
+# otherwise), then write the note in ONE short transaction.
 
-def _index_note(conn, provider, user_id: str, note: sqlite3.Row, budget: int) -> dict[str, int]:
+
+def _revision_marker(note_updated_at: str, provider_name: str) -> str:
+    """What `j2_note_embeddings.updated_at` records: WHICH REVISION of the note
+    the vectors came from AND which provider made them. The provider is part
+    of it so a provider switch revisits every note without waiting for an edit
+    -- vectors from two spaces cannot be compared, and the one the search
+    cannot read would leave the note invisible to it."""
+    return f"{note_updated_at}|{provider_name}"
+
+
+def _plan_note(conn, provider, user_id: str, note: sqlite3.Row) -> dict[str, Any]:
+    """Reads only: what this note needs embedded, reused and dropped."""
     blocks = note_blocks(note["title"], note["body_json"])
     existing = {r["block_id"]: r["content_hash"] for r in conn.execute(
         "SELECT block_id, content_hash FROM j2_note_embeddings WHERE user_id = ? AND note_id = ?",
         (user_id, note["id"]))}
     want = {b["block_id"]: _content_hash(provider.name, b["text"]) for b in blocks}
-    todo = [b for b in blocks if existing.get(b["block_id"]) != want[b["block_id"]]]
-    if len(todo) > budget:
-        return {"embedded": 0, "reused": 0, "deferred": 1}
-    embedded = 0
-    for i in range(0, len(todo), _BATCH):
-        chunk = todo[i:i + _BATCH]
-        vectors = provider.embed([b["text"] for b in chunk])
+    return {"blocks": blocks, "want": want,
+            "todo": [b for b in blocks if existing.get(b["block_id"]) != want[b["block_id"]]],
+            "gone": [bid for bid in existing if bid not in want]}
+
+
+def _embed_unlocked(conn, provider, texts: list[str]) -> list[list[float]]:
+    """Every sweep vendor call goes through here, in batches of `_BATCH` (one
+    HTTP request each). ⛔ Refuses to run while `conn` holds a transaction:
+    failing the sweep is recoverable next run; a write lock held across the
+    network is an outage for every member writing to auth.db meanwhile."""
+    if conn.in_transaction:
+        raise RuntimeError("note_semantic: a transaction is open across a vendor call")
+    out: list[list[float]] = []
+    for i in range(0, len(texts), _BATCH):
+        out.extend(provider.embed(texts[i:i + _BATCH]))
+    if len(out) != len(texts):
+        raise RuntimeError(f"the provider answered {len(out)} vectors for {len(texts)} texts")
+    return out
+
+
+def _index_note(conn, provider, user_id: str, note: sqlite3.Row, plan: dict[str, Any]) -> int:
+    vectors = _embed_unlocked(conn, provider, [b["text"] for b in plan["todo"]])
+    # ONE short write transaction per note, opened only now that every vector
+    # is in hand: nothing between here and the commit leaves the process.
+    marker = _revision_marker(note["updated_at"], provider.name)
+    try:
         conn.executemany(
             "INSERT OR REPLACE INTO j2_note_embeddings"
             " (user_id, note_id, block_id, content_hash, vector, updated_at)"
             " VALUES (?, ?, ?, ?, ?, ?)",
-            [(user_id, note["id"], b["block_id"], want[b["block_id"]], _encode(v), note["updated_at"])
-             for b, v in zip(chunk, vectors)])
-        embedded += len(chunk)
-    gone = [bid for bid in existing if bid not in want]
-    if gone:
-        conn.executemany(
-            "DELETE FROM j2_note_embeddings WHERE user_id = ? AND note_id = ? AND block_id = ?",
-            [(user_id, note["id"], bid) for bid in gone])
-    # ⭐ `updated_at` records WHICH REVISION of the note these vectors came from
-    # (j2_notes.updated_at), never the wall clock: a note edited during a sweep
-    # then reads as changed on the next one instead of looking indexed forever.
-    conn.execute(
-        "UPDATE j2_note_embeddings SET updated_at = ? WHERE user_id = ? AND note_id = ?",
-        (note["updated_at"], user_id, note["id"]))
-    return {"embedded": embedded, "reused": len(blocks) - len(todo), "deferred": 0}
+            [(user_id, note["id"], b["block_id"], plan["want"][b["block_id"]], _encode(v), marker)
+             for b, v in zip(plan["todo"], vectors)])
+        if plan["gone"]:
+            conn.executemany(
+                "DELETE FROM j2_note_embeddings WHERE user_id = ? AND note_id = ? AND block_id = ?",
+                [(user_id, note["id"], bid) for bid in plan["gone"]])
+        # ⭐ The marker records WHICH REVISION of the note these vectors came
+        # from (j2_notes.updated_at), never the wall clock: a note edited
+        # during a sweep then reads as changed on the next one instead of
+        # looking indexed forever.
+        conn.execute(
+            "UPDATE j2_note_embeddings SET updated_at = ? WHERE user_id = ? AND note_id = ?",
+            (marker, user_id, note["id"]))
+        conn.commit()
+    except Exception:
+        conn.rollback()
+        raise
+    return len(plan["todo"])
 
 
 def index_member(user_id: str, *, conn: sqlite3.Connection | None = None,
                  provider: EmbeddingProvider | None = None,
                  max_embeds: int = MAX_EMBEDS_PER_MEMBER_RUN) -> dict[str, Any]:
-    """Bring one member's index up to date. → counts (never text).
+    """Bring one member's index up to date, newest notes first. → counts
+    (never text).
+
+    The walk STOPS at the first note the remaining budget cannot cover (review
+    M-6): every note after it is counted as deferred without being parsed.
+    ⚰️ It used to parse every remaining body and defer each one -- measured
+    `notes 954, indexed 10, deferred 944` for a 64-embed budget, all of it
+    repeated by the next run.
 
     ⛔ Dark: returns at once — no connection, no provider, nothing sent."""
     if not semantic_enabled():
@@ -270,36 +344,34 @@ def index_member(user_id: str, *, conn: sqlite3.Connection | None = None,
         ensure_semantic_schema(conn)
         notes = conn.execute(
             "SELECT id, title, body_json, updated_at FROM j2_notes"
-            " WHERE user_id = ? AND deleted_at IS NULL AND archived_at IS NULL",
+            " WHERE user_id = ? AND deleted_at IS NULL AND archived_at IS NULL"
+            " ORDER BY updated_at DESC, id",
             (user_id,)).fetchall()
         indexed_at = {r["note_id"]: r["at"] for r in conn.execute(
             "SELECT note_id, MAX(updated_at) AS at FROM j2_note_embeddings"
             " WHERE user_id = ? GROUP BY note_id", (user_id,))}
-        live = [n["id"] for n in notes]
-        # A note trashed, archived or deleted since the last run leaves the index.
+        # A note trashed, archived or deleted since the last run leaves the
+        # index -- in its OWN short transaction, committed before any vendor call.
         dropped = conn.execute(
             "DELETE FROM j2_note_embeddings WHERE user_id = ?"
             " AND note_id NOT IN (SELECT value FROM json_each(?))",
-            (user_id, json.dumps(live))).rowcount
-        out = {"notes": len(notes), "indexed": 0, "unchanged": 0, "deferred": 0,
-               "embedded": 0, "reused": 0, "dropped": max(0, dropped or 0)}
-        budget = max_embeds
-        for n in notes:
-            if indexed_at.get(n["id"]) == n["updated_at"]:
-                out["unchanged"] += 1
-                continue
-            r = _index_note(conn, provider, user_id, n, budget)
-            budget -= r["embedded"]
-            out["embedded"] += r["embedded"]
-            out["reused"] += r["reused"]
-            if r["deferred"]:
-                out["deferred"] += 1
-            else:
-                out["indexed"] += 1
-            conn.commit()
-            if budget <= 0:
-                break
+            (user_id, json.dumps([n["id"] for n in notes]))).rowcount
         conn.commit()
+        pending = [n for n in notes
+                   if indexed_at.get(n["id"]) != _revision_marker(n["updated_at"], provider.name)]
+        out = {"notes": len(notes), "indexed": 0, "unchanged": len(notes) - len(pending),
+               "deferred": 0, "embedded": 0, "reused": 0, "dropped": max(0, dropped or 0)}
+        budget = max_embeds
+        for i, n in enumerate(pending):
+            plan = _plan_note(conn, provider, user_id, n)
+            if len(plan["todo"]) > budget:
+                out["deferred"] = len(pending) - i
+                break
+            embedded = _index_note(conn, provider, user_id, n, plan)
+            budget -= embedded
+            out["embedded"] += embedded
+            out["reused"] += len(plan["blocks"]) - embedded
+            out["indexed"] += 1
         return out
     finally:
         if owned:
