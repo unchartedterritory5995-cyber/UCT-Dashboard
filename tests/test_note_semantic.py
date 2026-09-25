@@ -100,6 +100,15 @@ def on_noop(monkeypatch):
     monkeypatch.setenv("NOTEBOOK_SEMANTIC_PROVIDER", "noop")
 
 
+@pytest.fixture(autouse=True)
+def _no_cached_query_vectors():
+    """Ruling D-H6 caches query vectors per (member, provider, query) for ten
+    minutes; each test starts and ends without any."""
+    ns.clear_query_cache()
+    yield
+    ns.clear_query_cache()
+
+
 def P(t):
     return {"type": "paragraph", "content": [{"type": "text", "text": t}]}
 

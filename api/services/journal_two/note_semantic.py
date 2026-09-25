@@ -34,9 +34,11 @@ text to OpenAI. Read per call; a flip needs no restart.
 
 ⛔ NOTHING HERE LOGS NOTE OR QUERY TEXT. Counts only.
 
-⚠️ PER-PROCESS: one thing -- the pause after a failed meaning search
-(`_paused_until`, see "Failing open"). The index is durable (auth.db) and the
-gate is read per call.
+⚠️ PER-PROCESS: the pause after a failed meaning search (`_paused_until`, see
+"Failing open"), and ruling D-H6's single-flight set (`_embedding_now`) and
+query-vector cache (`_query_cache`, see "The query embed's bounds"). The index
+and D-H6's daily embed count are durable (auth.db) and the gate is read per
+call.
 """
 from __future__ import annotations
 
@@ -49,8 +51,10 @@ import sqlite3
 import struct
 import threading
 import time
+from collections import OrderedDict
 from typing import Any, Protocol
 
+from api.services import daily_counters
 from api.services.auth_db import get_connection
 
 log = logging.getLogger(__name__)
@@ -80,6 +84,12 @@ _BATCH = 64
 MAX_SEARCH_BLOCKS = 2000
 QUERY_EMBED_TIMEOUT_S = 2.0
 PAUSE_AFTER_FAILURE_S = 60
+# The query embed's per-member bounds (ruling D-H6) -- "The query embed's
+# bounds" below says why each is the value it is.
+QUERY_EMBEDS_PER_MEMBER_PER_DAY = 200
+QUERY_CACHE_MAX = 256
+QUERY_CACHE_TTL_S = 600
+SCOPE_QUERY_EMBED = "notebook_semantic_query_embed"   # a daily_counters scope
 
 LEXICAL = "lexical"
 SEMANTIC = "semantic"
@@ -506,7 +516,11 @@ def search(user_id: str, query: str, k: int = 10, *, conn: sqlite3.Connection | 
         note_ids, mat = _read_candidates(conn, user_id, exclude_note_ids)
         if not note_ids:
             return []
-        qv = provider.embed([q], timeout=query_embed_timeout())[0]
+        qv = _query_vector(user_id, provider, q)
+        if qv is None:
+            # A bound refused the embed (ruling D-H6): no meaning hits, and the
+            # caller serves the lexical page it already has.
+            return []
         best = _score(qv, note_ids, mat)
         ranked = sorted((item for item in best.items() if item[1] >= provider.min_score),
                         key=lambda kv: (-kv[1], kv[0]))
@@ -596,6 +610,102 @@ def _fail_open(err: BaseException) -> None:
                     " meaning paused %ss", type(err).__name__, PAUSE_AFTER_FAILURE_S)
 
 
+# ── The query embed's bounds (ruling D-H6) ───────────────────────────────────
+# ⚰️ Armed, every 3+ word `GET /notes` query was one synchronous OpenAI embed
+# bounded only by the 2 s timeout and the FAILURE pause above: the one wave-7
+# vendor path with no per-member, per-day or concurrency limit and no cache
+# (backend review I-1). Each call holds one of the web pod's shared pool
+# workers and spends the shared OpenAI key's rate limit. Three bounds, and
+# every one of them FAILS OPEN TO THE LEXICAL PAGE -- the search answers, only
+# the meaning append is skipped:
+#   (a) ONE query embed in flight per member (`_embedding_now`): a second
+#       concurrent query-shaped request from the same member (a client with
+#       overlapping type-ahead requests, a script) gets the lexical page;
+#   (b) a bounded query-vector cache, `QUERY_CACHE_MAX` entries for
+#       `QUERY_CACHE_TTL_S`, least recently used out first: re-typing a query or
+#       paging back to it costs no second embed. ⛔ The MEMBER is in the key,
+#       with the provider and the normalised query: a cache shared across
+#       members would let one member time whether another searched the same
+#       words in the last ten minutes. A provider switch misses (vectors from
+#       two spaces are never compared);
+#   (c) `QUERY_EMBEDS_PER_MEMBER_PER_DAY` embeds a member a day, on the durable
+#       counter of ruling D-H5b (`daily_counters`, so a deploy does not reset
+#       it). A cache hit is not an embed and is not counted. A counter that
+#       cannot be read or written admits the embed -- the counter's own rule
+#       (a cap that fails closed refuses every member on a busy database), and
+#       (a), (b) and the 2 s timeout still hold.
+# ⚠️ (a) and (b) are PER-PROCESS: a second web process would double (a) and keep
+# its own cache -- listed for the CLAUDE.md single-process roster.
+
+_bounds_lock = threading.Lock()
+_embedding_now: set[str] = set()
+_query_cache: "OrderedDict[tuple[str, str, str], tuple[float, list[float]]]" = OrderedDict()
+
+
+def _et_day() -> str:
+    """The ET day the daily embed count is kept for."""
+    from datetime import datetime
+    from api.services.journal_two.timeutil import ET
+    return datetime.now(ET).date().isoformat()
+
+
+def _normalise_query(q: str) -> str:
+    return " ".join((q or "").lower().split())
+
+
+def _cached_vector(key: tuple[str, str, str]) -> list[float] | None:
+    with _bounds_lock:
+        entry = _query_cache.get(key)
+        if entry is None:
+            return None
+        if _now() - entry[0] > QUERY_CACHE_TTL_S:
+            del _query_cache[key]
+            return None
+        _query_cache.move_to_end(key)
+        return entry[1]
+
+
+def _remember_vector(key: tuple[str, str, str], vector: list[float]) -> None:
+    with _bounds_lock:
+        _query_cache[key] = (_now(), vector)
+        _query_cache.move_to_end(key)
+        while len(_query_cache) > max(0, QUERY_CACHE_MAX):
+            _query_cache.popitem(last=False)
+
+
+def clear_query_cache() -> None:
+    """Forget every cached query vector (tests; an operator after a provider
+    incident). Nothing in the product calls it."""
+    with _bounds_lock:
+        _query_cache.clear()
+
+
+def _query_vector(user_id: str, provider: EmbeddingProvider, q: str) -> list[float] | None:
+    """The query's vector under ruling D-H6's three bounds, or None when a bound
+    refused it (the caller then serves the lexical page). RAISES a provider
+    failure, like the embed it wraps: `append_meaning_hits` decides failing
+    open, and the member's in-flight slot is released either way."""
+    key = (str(user_id), provider.name, _normalise_query(q))
+    hit = _cached_vector(key)
+    if hit is not None:
+        return hit
+    with _bounds_lock:
+        if key[0] in _embedding_now:                          # (a)
+            return None
+        _embedding_now.add(key[0])
+    try:
+        refused = daily_counters.take(_et_day(), [daily_counters.Charge(      # (c)
+            SCOPE_QUERY_EMBED, key[0], 1, QUERY_EMBEDS_PER_MEMBER_PER_DAY)])
+        if refused is not None:
+            return None
+        vector = provider.embed([q], timeout=query_embed_timeout())[0]
+        _remember_vector(key, vector)                          # (b)
+        return vector
+    finally:
+        with _bounds_lock:
+            _embedding_now.discard(key[0])
+
+
 # ── Query-shape routing (ruling D-H3) ────────────────────────────────────────
 
 _TICKER_TOKEN = re.compile(r"^\$[A-Za-z]{1,6}(?:[.\-][A-Za-z]{1,2})?$|^[A-Z]{2,5}(?:[.\-][A-Z]{1,2})?$")
@@ -639,7 +749,9 @@ def append_meaning_hits(user_id: str, q: str | None, rows: list[dict[str, Any]],
          client asked for (review M-5);
       4. query shape LEXICAL (<=2 tokens, quoted, ticker-shaped) -> untouched,
          and `search()` is never called;
-      5. meaning search is paused after a recent failure -> untouched.
+      5. meaning search is paused after a recent failure -> untouched;
+      6. one of ruling D-H6's bounds refuses the query embed (this member
+         already has one in flight, or has used the day's count) -> untouched.
     Past the refusals it FAILS OPEN (review I-1): any exception -- the vendor,
     its timeout, the database -- returns `rows` unchanged, never a 500.
     Appended rows are the list's own projection, marked `matchKind: "meaning"`,
@@ -657,7 +769,10 @@ def append_meaning_hits(user_id: str, q: str | None, rows: list[dict[str, Any]],
     if meaning_paused():
         return rows
     try:
-        return rows + _meaning_rows(user_id, q or "", rows, room, conn)
+        extra = _meaning_rows(user_id, q or "", rows, room, conn)
+        # Nothing to append (no hit, or a D-H6 bound refused the embed): the
+        # lexical page itself, exactly as the handler built it.
+        return rows + extra if extra else rows
     except Exception as err:  # noqa: BLE001 -- failing open IS the contract here
         _fail_open(err)
         return rows

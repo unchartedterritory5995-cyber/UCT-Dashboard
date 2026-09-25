@@ -37,9 +37,14 @@ NL = "why did I cut my winners early"          # a SEMANTIC-shaped query
 
 @pytest.fixture(autouse=True)
 def _unpaused():
+    # ...and no query vector left over from another test (ruling D-H6's cache:
+    # a provider stand-in with the no-op's name would otherwise HIT a vector
+    # another test cached and never reach the failure it exists to raise).
     ns._paused_until = 0.0
+    ns.clear_query_cache()
     yield
     ns._paused_until = 0.0
+    ns.clear_query_cache()
 
 
 @pytest.fixture
@@ -180,6 +185,7 @@ def test_the_query_embed_carries_the_SHORT_timeout_and_no_retries(db_path, monke
     assert options == [{"timeout": ns.QUERY_EMBED_TIMEOUT_S, "max_retries": 0}]
     assert ns.QUERY_EMBED_TIMEOUT_S == 2.0, "the stated ceiling moved; say why in the ruling"
     monkeypatch.setenv("NOTEBOOK_SEMANTIC_QUERY_TIMEOUT_SECS", "0.5")
+    ns.clear_query_cache()          # the same query again would be a cache hit (D-H6)
     ns.search(U, NL)
     assert options[-1] == {"timeout": 0.5, "max_retries": 0}
 
