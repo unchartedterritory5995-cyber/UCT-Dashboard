@@ -2853,6 +2853,24 @@ export default function NoteEditorPage({ noteId, onBack, showBack = true, onTitl
     setUnsentTrash(null)
     await trashNow()
   }
+  // ⭐ Wave 7 (M-9): "Save as template" copies the SERVER's copy of the note,
+  // so words still inside the autosave window (or queued) would be missing from
+  // the template while the note keeps them. The note menu asks this first: send
+  // what is pending NOW, then confirm nothing is left unsent -- the same
+  // witnesses the Delete gate asks (`holdsUnsent`). -> true when the server
+  // holds everything this editor has.
+  const sendPendingEdits = async () => {
+    if (saveTimerRef.current) { clearTimeout(saveTimerRef.current); saveTimerRef.current = null }
+    durableRef.current.flush()
+    try { await commitSaveRef.current() } catch { /* the save reports its own failure */ }
+    // The landed save settles the durable copy without being awaited, so ask
+    // again a few times before saying something is still unsent.
+    for (let i = 0; i < 5; i += 1) {
+      if (!holdsUnsent(await unsentVerdict())) return true
+      await new Promise((r) => setTimeout(r, 200))
+    }
+    return false
+  }
 
   const ToolButton = ({ active, onClick, label, title }) => (
     <button
@@ -3150,7 +3168,7 @@ export default function NoteEditorPage({ noteId, onBack, showBack = true, onTitl
               only the first of those three, costing the next save a 409 +
               re-fetch; passing this through lets the menu route through the
               SAME settle instead of restating a worse copy of it. */}
-          {noteMenu?.(note, { refresh, unlockNote })}
+          {noteMenu?.(note, { refresh, unlockNote, sendPendingEdits })}
         </div>
       </header>
 

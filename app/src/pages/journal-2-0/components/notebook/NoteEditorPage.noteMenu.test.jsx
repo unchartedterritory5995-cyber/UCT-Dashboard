@@ -19,8 +19,9 @@ const baseNote = () => ({
   bodyJson: { type: 'doc', content: [P('Intro line.')] },
 })
 
+const updateMock = vi.fn()
 vi.mock('../../hooks/useJ2Notes', () => ({
-  useJ2Note: () => ({ note: NOTE, isLoading: false, update: vi.fn(), refresh: vi.fn() }),
+  useJ2Note: () => ({ note: NOTE, isLoading: false, update: updateMock, refresh: vi.fn() }),
   recordNoteOpened: vi.fn(),
   setNoteFavorite: vi.fn(),
 }))
@@ -29,6 +30,8 @@ vi.mock('../../hooks/useJ2NoteFolders', () => ({ default: () => ({ folders: [] }
 
 beforeEach(() => {
   NOTE = baseNote()
+  updateMock.mockReset()
+  updateMock.mockImplementation(async (patch) => ({ ...NOTE, ...patch, updatedAt: '2026-01-03T00:00:00Z' }))
 })
 afterEach(() => vi.clearAllMocks())
 
@@ -110,5 +113,31 @@ describe('NoteEditorPage — the note menu door (wave 6 fix round 1, I1)', () =>
     const result = await screen.findByRole('button', { name: 'Weekly review' })
     fireEvent.click(result)
     expect(onOpenBeside).toHaveBeenCalledWith({ id: 'n2', title: 'Weekly review' })
+  })
+
+  // ⛔ Wave 7 (M-9): Save as template copies the SERVER's copy of the note, so
+  // the editor hands the menu `sendPendingEdits` -- words still inside the
+  // autosave window are sent BEFORE it answers, and it answers true only once
+  // nothing is left unsent.
+  it('the menu api carries sendPendingEdits: a word inside the autosave window is sent before it answers', async () => {
+    global.fetch = vi.fn(() => Promise.resolve({ ok: true, json: () => Promise.resolve({}) }))
+    let api = null
+    await renderEditor((note, a) => { api = a; return <NoteMenuActions note={note} onChanged={vi.fn()} /> })
+    expect(typeof api?.sendPendingEdits).toBe('function')
+    const editor = document.querySelector('.ProseMirror').editor
+    editor.commands.insertContentAt(editor.state.doc.content.size - 1, ' Typed just now.')
+    expect(updateMock).not.toHaveBeenCalled()          // still inside the debounce
+    let answered
+    await waitFor(async () => { answered = await api.sendPendingEdits(); expect(answered).toBe(true) })
+    const sent = updateMock.mock.calls.map(([p]) => JSON.stringify(p.bodyJson || {}))
+    expect(sent.some((b) => b.includes('Typed just now.'))).toBe(true)
+  })
+
+  it('CONTROL: with nothing typed there is nothing to send, and it answers true', async () => {
+    global.fetch = vi.fn(() => Promise.resolve({ ok: true, json: () => Promise.resolve({}) }))
+    let api = null
+    await renderEditor((note, a) => { api = a; return <NoteMenuActions note={note} onChanged={vi.fn()} /> })
+    expect(await api.sendPendingEdits()).toBe(true)
+    expect(updateMock.mock.calls.filter(([p]) => p && 'bodyJson' in p)).toEqual([])
   })
 })

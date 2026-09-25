@@ -1479,6 +1479,9 @@ export default function NotebookTab() {
                     // moves the save baseline, settles the offline queue) —
                     // never a second, thinner door.
                     onUnlock={api?.unlockNote}
+                    // M-9 (wave 7): the template copies the SERVER's note, so the
+                    // editor's pending edits are sent first.
+                    onBeforeTemplate={api?.sendPendingEdits}
                     onChanged={() => {
                       api?.refresh?.()
                       refresh()
@@ -1532,6 +1535,7 @@ export default function NotebookTab() {
                       // that also moves the save baseline and settles the
                       // offline queue.
                       onUnlock={api?.unlockNote}
+                      onBeforeTemplate={api?.sendPendingEdits}
                       onChanged={() => {
                         api?.refresh?.()
                         refresh()
