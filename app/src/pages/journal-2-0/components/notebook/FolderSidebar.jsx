@@ -369,70 +369,60 @@ function SearchModeIcon() {
 }
 
 /**
- * Wave 5 nested tags: one level of the tag tree. A parent's count is the
- * DISTINCT notes in its whole subtree (server-computed) — and choosing a
- * parent shows exactly those notes, children included, because the `tag=`
- * filter treats a tag as the parent of every `tag/…` below it.
+ * Wave 6 fix round 2, I4 (remainder) — the ONE tag-row rename control shared
+ * by all three row kinds (nested `TagNode`, the flat-library rows and the
+ * filtered-search rows): the select button (with an optional disclosure slot
+ * for the nested tree), the "Rename" pencil, and the inline preview-and-input
+ * panel when this row's own path is the one being renamed. Round 1 built this
+ * only inside `TagNode`, so a library with no `/` in any tag — every library
+ * that predates wave 5's nested tags — could not rename a tag at all. A fix
+ * to the affordance (or its touch sizing, M7) now lands once, not three times.
+ *
+ * The select button and the panel are SIBLINGS (a Fragment), matching the
+ * pre-existing layout: the panel must sit BELOW the row, never inside its
+ * flex line, so callers render this as the sole children of a block-level
+ * wrapper (`folderItem` for nested/flat/filtered alike).
  */
-function TagNode({
-  node, activeTagKey, expandedKeys, onToggle, onSelect,
-  // Wave 6 fix round 1, I4 — item 8's rename, client side. `renaming` is the
-  // full path currently open for rename (or null); `preview` is the
-  // GET /notes/tag-members answer for it (`{status, notes, total}`).
-  renaming = null, preview = null, renameValue = '', renameBusy = false,
-  onStartRename = () => {}, onRenameChange = () => {}, onSubmitRename = () => {}, onCancelRename = () => {},
+function TagRenameableRow({
+  path, label, total, active, onSelect, ariaLabel, title, depth = 0, disclosure = null,
+  renaming, preview, renameValue, renameBusy,
+  onStartRename, onRenameChange, onSubmitRename, onCancelRename,
 }) {
-  const hasChildren = node.children.length > 0
-  const expanded = expandedKeys.has(node.key)
-  const active = activeTagKey === node.key
-  const noteWord = node.total === 1 ? 'note' : 'notes'
-  const isRenaming = renaming === node.path
+  const isRenaming = renaming === path
   return (
-    <div className={styles.folderItem}>
-      <div className={styles.rowWrap} style={{ paddingLeft: node.depth * 14 }}>
-        {hasChildren ? (
-          <button
-            type="button"
-            className={styles.disclosureBtn}
-            aria-label={`${expanded ? 'Collapse' : 'Expand'} tag ${node.path}`}
-            aria-expanded={expanded}
-            onClick={() => onToggle(node.key)}
-          >
-            <Chevron expanded={expanded} />
-          </button>
-        ) : (
-          <span className={styles.disclosureSpacer} aria-hidden="true" />
-        )}
+    <>
+      <div className={styles.rowWrap} style={{ paddingLeft: depth * 14 }}>
+        {disclosure || <span className={styles.disclosureSpacer} aria-hidden="true" />}
         <button
           type="button"
           className={`${styles.row} ${active ? styles.rowActive : ''}`}
-          onClick={() => onSelect(node.path)}
+          onClick={onSelect}
           aria-current={active ? 'true' : undefined}
-          aria-label={`Tag ${node.path}, ${node.total} ${noteWord}${hasChildren ? ' including the tags below it' : ''}`}
-          title={`#${node.path}`}
+          aria-label={ariaLabel}
+          title={title}
         >
-          <span>{node.depth === 0 ? `#${node.label}` : node.label}</span>
-          <span className={styles.count}>{node.total}</span>
+          <span>{label}</span>
+          <span className={styles.count}>{total}</span>
         </button>
         <button
           type="button"
           className={styles.renameTagBtn}
-          onClick={(e) => { e.stopPropagation(); onStartRename(node.path) }}
+          onClick={(e) => { e.stopPropagation(); onStartRename(path) }}
           title="Rename tag"
-          aria-label={`Rename ${node.path}`}
+          aria-label={`Rename ${path}`}
         >
           <UIcon name="edit" size={12} gold={false} />
         </button>
       </div>
       {isRenaming && (
-        <div className={styles.tagRenamePanel} style={{ paddingLeft: node.depth * 14 + 20 }}>
+        <div className={styles.tagRenamePanel} style={{ paddingLeft: depth * 14 + 20 }}>
           <div className={styles.tagRenamePreview} role="status">
             {(!preview || preview.status === 'loading') && 'Checking which notes this touches…'}
             {preview?.status === 'error' && "Couldn't check which notes this touches. Nothing was renamed."}
             {preview?.status === 'ready' && (
               preview.total === 0
-                ? `No live notes carry #${node.path} right now.`
-                : `Renaming #${node.path} will affect ${preview.total} ${preview.total === 1 ? 'note' : 'notes'}: ${
+                ? `No live notes carry #${path} right now.`
+                : `Renaming #${path} will affect ${preview.total} ${preview.total === 1 ? 'note' : 'notes'}: ${
                   preview.notes.slice(0, 3).map((n) => n.title || 'Untitled').join(', ')
                 }${preview.total > 3 ? `, and ${preview.total - 3} more` : ''}.`
             )}
@@ -441,7 +431,7 @@ function TagNode({
             className={styles.tagRenameInput}
             value={renameValue}
             onChange={(e) => onRenameChange(e.target.value)}
-            aria-label={`Rename tag ${node.path}`}
+            aria-label={`Rename tag ${path}`}
             disabled={renameBusy}
             autoFocus
             onKeyDown={(e) => {
@@ -462,6 +452,59 @@ function TagNode({
           </button>
         </div>
       )}
+    </>
+  )
+}
+
+/**
+ * Wave 5 nested tags: one level of the tag tree. A parent's count is the
+ * DISTINCT notes in its whole subtree (server-computed) — and choosing a
+ * parent shows exactly those notes, children included, because the `tag=`
+ * filter treats a tag as the parent of every `tag/…` below it.
+ */
+function TagNode({
+  node, activeTagKey, expandedKeys, onToggle, onSelect,
+  // Wave 6 fix round 1, I4 — item 8's rename, client side. `renaming` is the
+  // full path currently open for rename (or null); `preview` is the
+  // GET /notes/tag-members answer for it (`{status, notes, total}`).
+  renaming = null, preview = null, renameValue = '', renameBusy = false,
+  onStartRename = () => {}, onRenameChange = () => {}, onSubmitRename = () => {}, onCancelRename = () => {},
+}) {
+  const hasChildren = node.children.length > 0
+  const expanded = expandedKeys.has(node.key)
+  const active = activeTagKey === node.key
+  const noteWord = node.total === 1 ? 'note' : 'notes'
+  return (
+    <div className={styles.folderItem}>
+      <TagRenameableRow
+        path={node.path}
+        label={node.depth === 0 ? `#${node.label}` : node.label}
+        total={node.total}
+        active={active}
+        depth={node.depth}
+        title={`#${node.path}`}
+        ariaLabel={`Tag ${node.path}, ${node.total} ${noteWord}${hasChildren ? ' including the tags below it' : ''}`}
+        onSelect={() => onSelect(node.path)}
+        disclosure={hasChildren ? (
+          <button
+            type="button"
+            className={styles.disclosureBtn}
+            aria-label={`${expanded ? 'Collapse' : 'Expand'} tag ${node.path}`}
+            aria-expanded={expanded}
+            onClick={() => onToggle(node.key)}
+          >
+            <Chevron expanded={expanded} />
+          </button>
+        ) : null}
+        renaming={renaming}
+        preview={preview}
+        renameValue={renameValue}
+        renameBusy={renameBusy}
+        onStartRename={onStartRename}
+        onRenameChange={onRenameChange}
+        onSubmitRename={onSubmitRename}
+        onCancelRename={onCancelRename}
+      />
       {hasChildren && expanded && (
         <div className={styles.childrenList} style={{ '--guide-x': `${node.depth * 14 + 7}px` }}>
           {node.children.map((child) => (
@@ -1605,30 +1648,54 @@ export default function FolderSidebar({
                 />
               )}
               {filteredTagNodes ? (
-                // Filtering: every matching tag at any level, by its full path.
+                // Filtering: every matching tag at any level, by its full
+                // path — sharing the ONE rename control with the flat and
+                // nested rows (I4 remainder, wave 6 fix round 2): a filtered
+                // match is reachable to rename exactly like any other row.
                 filteredTagNodes.map((n) => (
-                  <button
-                    key={n.key}
-                    type="button"
-                    className={`${styles.row} ${activeTagKey === n.key ? styles.rowActive : ''}`}
-                    onClick={() => { onSelectTag(n.path); onSelectFolder(null) }}
-                  >
-                    <span>#{n.path}</span>
-                    <span className={styles.count}>{n.total}</span>
-                  </button>
+                  <div key={n.key} className={styles.folderItem}>
+                    <TagRenameableRow
+                      path={n.path}
+                      label={`#${n.path}`}
+                      total={n.total}
+                      active={activeTagKey === n.key}
+                      onSelect={() => { onSelectTag(n.path); onSelectFolder(null) }}
+                      renaming={renamingTag}
+                      preview={renamePreview}
+                      renameValue={renameValue}
+                      renameBusy={renameBusy}
+                      onStartRename={startTagRename}
+                      onRenameChange={setRenameValue}
+                      onSubmitRename={submitTagRename}
+                      onCancelRename={cancelTagRename}
+                    />
+                  </div>
                 ))
               ) : !nestedTags ? (
-                // ⛔ FLAT LIBRARY: exactly the rows this section always drew.
+                // ⛔ FLAT LIBRARY: the same rows this section always drew,
+                // now sharing the rename control with the nested tree (I4
+                // remainder, wave 6 fix round 2) — a library with no `/` in
+                // any tag can rename a tag too. No `ariaLabel`/`title`: the
+                // CONTROL in FolderSidebar.tags.test.jsx pins that the select
+                // button itself carries no new accessible name.
                 visibleTagRoots.map((n) => (
-                  <button
-                    key={n.key}
-                    type="button"
-                    className={`${styles.row} ${activeTagKey === n.key ? styles.rowActive : ''}`}
-                    onClick={() => { onSelectTag(n.path); onSelectFolder(null) }}
-                  >
-                    <span>#{n.path}</span>
-                    <span className={styles.count}>{n.total}</span>
-                  </button>
+                  <div key={n.key} className={styles.folderItem}>
+                    <TagRenameableRow
+                      path={n.path}
+                      label={`#${n.path}`}
+                      total={n.total}
+                      active={activeTagKey === n.key}
+                      onSelect={() => { onSelectTag(n.path); onSelectFolder(null) }}
+                      renaming={renamingTag}
+                      preview={renamePreview}
+                      renameValue={renameValue}
+                      renameBusy={renameBusy}
+                      onStartRename={startTagRename}
+                      onRenameChange={setRenameValue}
+                      onSubmitRename={submitTagRename}
+                      onCancelRename={cancelTagRename}
+                    />
+                  </div>
                 ))
               ) : (
                 // Nested: the same disclosure-button + row-button idiom as the
