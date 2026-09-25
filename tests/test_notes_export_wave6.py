@@ -7,6 +7,8 @@ shows, and a member's words must never be dropped.
 """
 from __future__ import annotations
 
+import pytest
+
 from api.services.journal_two.notes_export import tiptap_to_markdown
 
 
@@ -154,6 +156,28 @@ def test_an_unknown_or_malformed_variant_is_an_emoji_callout_and_never_raises():
     for bad in ("purple", ["warning"], {"v": 1}, 7, None):
         md = tiptap_to_markdown(_doc(_callout({"variant": bad, "emoji": "\u2705"}, _para("ok"))))
         assert md == "<aside>\n\u2705 ok\n</aside>", bad
+
+
+_CODE_WITH_A_BLANK_LINE = {"type": "codeBlock", "attrs": {"language": "python"},
+                           "content": [{"type": "text", "text": "entry = 120\n\nstop = 114"}]}
+
+
+@pytest.mark.parametrize("attrs", [{"variant": "warning"}, {"emoji": "\U0001F4A1"}],
+                         ids=["styled", "emoji-control"])
+def test_a_callout_holding_a_blank_line_is_ONE_html_block_to_a_commonmark_reader(attrs):
+    """\u26d4 Wave 6 whole-branch review I-4. `<aside>` opens a CommonMark type-6 HTML
+    block, which ENDS AT THE FIRST BLANK LINE; `_html_island` turns every blank
+    line inside the island into `<br>`. The styled branch skipped it, so a code
+    block with an empty line inside a styled callout -- and every callout wave 6
+    creates is styled -- parsed as html_block, paragraph, fence: the tail and
+    `</aside>` escaped into Markdown and `</aside>` re-imported as a code block.
+    Read by the reader (markdown-it, CommonMark), never by a regex."""
+    from markdown_it import MarkdownIt
+
+    md = tiptap_to_markdown(_doc(_callout(attrs, _para("Plan:"), _CODE_WITH_A_BLANK_LINE)))
+    blocks = [t.type for t in MarkdownIt("commonmark").parse(md) if t.level == 0]
+    assert blocks == ["html_block"], f"{blocks} -- the callout broke out of its HTML island:\n{md}"
+    assert "stop = 114" in md and md.rstrip().endswith("</aside>")    # nothing was dropped to get there
 
 
 # ── item 3: an image caption is text; alignment is style ─────────────────────

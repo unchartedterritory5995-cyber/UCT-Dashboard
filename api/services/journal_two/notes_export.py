@@ -986,8 +986,13 @@ def _block(node: dict[str, Any], resolver=None) -> str:
         raw_variant = attrs.get("variant")
         variant = raw_variant if isinstance(raw_variant, str) and raw_variant in _CALLOUT_VARIANTS else None
         if variant:
-            return f'<aside data-variant="{variant}">\n{inner}\n</aside>' if inner else \
-                f'<aside data-variant="{variant}">\n</aside>'
+            # ⛔ THROUGH `_html_island`, like its emoji sibling (wave 6 whole-
+            # branch review I-4). Outside it, a child's own blank line (a code
+            # block with an empty line) ended the HTML block and the rest of the
+            # callout escaped into Markdown -- on the default path, since every
+            # callout wave 6 creates is styled.
+            return _html_island(f'<aside data-variant="{variant}">\n{inner}\n</aside>' if inner else
+                                f'<aside data-variant="{variant}">\n</aside>')
         first_line = f"{emoji} {inner}" if inner else emoji
         return _html_island(f"<aside>\n{first_line}\n</aside>")
     if ntype == "toggle":
