@@ -140,9 +140,14 @@ show that sentence.
 | 503 | *UCT is busy saving other changes. Wait a few seconds and try again.* | Run the Shortcut again in a few seconds. Nothing was added. |
 | 400 | a sentence naming the field | Usually an empty dictation — nothing to add. |
 
-**If today's note is open on your computer with unsaved typing** when the
-Shortcut adds to it, that browser tab keeps your typing as a conflict copy of
-the note. Nothing is lost; you reconcile the two in the Notebook.
+**If today's note is open in a browser tab on your computer** when the Shortcut
+adds to it: switch away from that tab and back (or reload it) before you type
+there again, and the tab picks the new text up, with your cursor where you left
+it. A tab that stays in front, with its window focused, while the Shortcut runs
+does not see the addition, so your next keystroke there saves a conflict copy of
+the note instead; typing the tab had not saved yet always goes to a conflict
+copy. Nothing is lost either way; you reconcile the two in the Notebook. (The
+full rule, with its one exception, is in `personal-api.md` §4.)
 
 ---
 

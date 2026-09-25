@@ -37,6 +37,11 @@ Things to know about a token:
   good habit: you can then revoke one without breaking the others.
 - **Making a token needs a paid plan.** Seeing and revoking your tokens does
   not — if your plan lapses you can still find and revoke every token you made.
+- **Only MAKING a token checks your plan.** A token you already have keeps
+  working after your plan lapses, until it expires (up to 365 days after you
+  made it) or you revoke it. Revoke the ones you no longer want. (Email to
+  Notebook is different: it checks the plan on every email, and mail for a
+  lapsed plan becomes no note.)
 - **Treat it like a password.** Anyone holding it can add notes to your
   Notebook until you revoke it.
 
@@ -165,12 +170,32 @@ Two limits, stated so they do not surprise you:
 locked — unlock it in the Notebook first"*. Nothing is changed: not the text,
 not the note's last-edited time. Unlock it in the Notebook and send again.
 
-**If the note is open in a tab with unsaved words at the moment the append
-lands, that tab keeps its words as a conflict copy.** Nothing is lost — your
-typing and the appended text both survive — but you will have two versions of
-that note to reconcile. The simplest way to avoid it is not to append to a note
-you are in the middle of typing into. (Wave 7 known limit, ruling D-G1(b); a
-merge that removes it is planned for wave 8.)
+**If the note is open in a browser tab when the append lands** (ruling D-G5,
+wave 7):
+
+- **Coming back to the tab brings the append in.** When the tab becomes
+  visible again, or its window regains focus, and it holds nothing unsent, it
+  re-reads the note and shows the appended text, with your cursor where you
+  left it.
+- **A tab that stays visible AND focused while the append lands does not see
+  it.** Your next keystroke there saves against the note as it was before the
+  append, so the tab keeps your words as a *conflict copy* of the note — never
+  over the appended text. Nothing is lost, but you have two versions to
+  reconcile.
+- **Words the tab has not sent yet always go to a conflict copy**, whenever the
+  append lands.
+- **The habit that avoids a copy:** after an append, switch away from the tab
+  and back (or reload it) before you type into it. Not appending "while you are
+  typing" does not avoid it — what matters is whether the tab has come back to
+  the front since.
+- One exception: a note with a YouTube video at the top whose text still carries
+  old-style bold `[MM:SS]` time stamps. The editor turns those stamps into links
+  as it opens the note, which reads as unsent words, so that tab does not pick
+  an append up until the note has been saved once — it saves a conflict copy
+  instead, the safe direction.
+
+(Wave 7 known limit, ruling D-G1(b) as corrected by D-G5; a merge that removes
+the conflict copy is planned for wave 8.)
 
 Every append is written as one atomic step that re-checks the note it read, so
 an append can never overwrite a change that landed a moment earlier.
@@ -203,7 +228,19 @@ shown to you as-is (an iOS Shortcut's *Show Result* displays it):
 
 - Gate: `NOTEBOOK_PERSONAL_API_ENABLED` (`1`/`true`/`yes`/`on` = on), read on
   every request; a flip needs no restart. Off, every route — token management
-  included — answers `404` with the same body as a route that does not exist.
+  included — answers `404` with the body `{"detail": "Not Found"}`, from the API
+  router itself (`_require_enabled`, a router-level dependency, so no credential
+  is read and no table is touched). ⚠️ That is **not** what an unknown path
+  answers in production: there an unknown `POST` gets `405` and an unknown `GET`
+  gets the web app's page (`200`, the SPA fallback). A switched-off personal API
+  is therefore distinguishable from a route that does not exist; it just does
+  nothing.
+- ⚠️ **Known limit — no plan re-check after minting.** Only `POST /tokens` is
+  paid-gated (`require_paid`); the three note doors authenticate the token
+  (`personal_scope` → `require_capture_scope`) and check no plan, so a token
+  keeps writing after its member's plan lapses, until it expires (365 days,
+  `PERSONAL_TOKEN_TTL_DAYS`) or is revoked. Email-in, by contrast, re-checks the
+  plan on every message and drops mail for a lapsed plan (`not_paid`).
 - Code: `api/routers/notebook_personal_api.py` (routes),
   `api/services/journal_two/note_personal_api.py` (conversion and writes),
   `api/services/journal_two/capture_auth.py::mint_personal_token` (tokens —

@@ -47,6 +47,7 @@ and shows in `wrangler tail`.
 ```
 POST /api/j2/inbound-email
 Content-Type: application/json
+User-Agent: uct-inbound-email/1 (+https://uctintelligence.com)
 X-UCT-Timestamp: <unix seconds>
 X-UCT-Signature: <hex HMAC-SHA256 of "<timestamp>.<body>" with NOTEBOOK_INBOUND_EMAIL_SECRET>
 
@@ -58,5 +59,11 @@ X-UCT-Signature: <hex HMAC-SHA256 of "<timestamp>.<body>" with NOTEBOOK_INBOUND_
 - `to` is the **envelope** recipient (`message.to`), not the `To:` header.
 - UCT answers `202 {"accepted": true}` for every message it accepts — including
   one to an address that names nobody, which it drops. `401` means the two
-  secrets disagree (or the clock is more than five minutes off); `404` means
-  email-in is switched off on UCT.
+  secrets disagree (or the clock is more than five minutes off); `403` means
+  **Cloudflare's own edge** refused the request before UCT saw it (Browser
+  Integrity Check, error 1010 — the skip rule in the setup doc's §5a, an owner
+  step not verified on the live account); `404` means the request reached UCT
+  and email-in is switched off there.
+- The `User-Agent` names the worker so Security → Events can find its requests.
+  It does not get the request past Browser Integrity Check; only the §5a rule
+  does.

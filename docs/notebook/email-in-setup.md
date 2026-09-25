@@ -7,10 +7,15 @@ with it.
 
 > **Status (wave 7, 2026-09-25): built and DARK** behind
 > `NOTEBOOK_INBOUND_EMAIL_ENABLED`. Unset means every route answers `404`, the
-> Settings card does not appear, and no address is ever minted.
+> Settings card does not appear, and no address is ever minted. Lit, an address
+> exists only once the member presses **Create my address**
+> (`POST /api/j2/inbound-email/address`); the GET answers `{"address": null}`
+> until then.
 > ⛔ **It stays dark until the owner approves the Privacy page sentence in §1**
-> — it names Cloudflare as a processor of these emails — and until the routing
-> rule and the secret in §4–§6 are set. This wave does **not** edit
+> — it names Cloudflare as a processor of these emails — and until the secret,
+> the edge rule and the routing rule in §4–§6 are set and the first message has
+> reached UCT while the gate is still dark (§7 step 7). ⛔ The edge rule (§5a)
+> is **NOT VERIFIED** on the live account. This wave does **not** edit
 > `Privacy.jsx`; public copy is the owner's ship gate.
 
 ```
@@ -22,6 +27,7 @@ sender ──SMTP──▶ Cloudflare Email Routing  (rule: notes+*@<domain>)
                    │  sign: HMAC-SHA256("<unix ts>.<body>", NOTEBOOK_INBOUND_EMAIL_SECRET)
                    ▼
                  POST https://uctintelligence.com/api/j2/inbound-email
+                   │  this zone's own edge rules run FIRST: a 403 here never reached UCT (§5a)
                    │  401 (no body) unless the signature and the 5-minute window check out
                    │  202 {"accepted": true} for every accepted message — known address or not
                    ▼
@@ -120,6 +126,42 @@ message: there is no unsigned mode.
 running process after the boot (CLAUDE.md, *"railway variables --set — measured
 BOTH ways"*).
 
+## 5a. Let the worker's request through Cloudflare's edge (before the routing rule)
+
+⛔ **NOT VERIFIED on the live account, and a flip precondition** (whole-branch
+review I-1). The worker POSTs to the PUBLIC hostname (`INBOUND_URL` in
+`wrangler.toml`), so its request enters this zone's edge like any visitor's —
+Cloudflare documents that a Worker's subrequest to its own zone passes through
+the zone's rules. This zone refuses non-browser clients with error **1010**
+(CLAUDE.md: *"Cloudflare 1010-blocks raw curl/python UAs"* to
+uctintelligence.com), which is **Browser Integrity Check**, and the worker is
+exactly such a client. What was **not measured**: whether Browser Integrity
+Check fires on an Email Worker's request, and whether Bot Fight Mode is on for
+the zone. The first message in §7 step 7 is what finds out — before any member
+can send one.
+
+In the Cloudflare dashboard, zone `uctintelligence.com` → **Security → WAF →
+Custom rules → Create rule**:
+
+- **Name:** `email-in door skips BIC`
+- **Expression:**
+  `(http.host eq "uctintelligence.com" and http.request.uri.path eq "/api/j2/inbound-email" and http.request.method eq "POST")`
+- **Action:** **Skip** → **Browser Integrity Check**. If the zone's plan offers
+  **Super Bot Fight Mode**, skip that too. Free-plan **Bot Fight Mode** cannot be
+  skipped by a custom rule, so read **Security → Settings** first; if it is on,
+  that is a separate decision.
+- **Order:** first.
+
+Equivalent: a **Configuration Rule** with the same expression that sets
+**Browser Integrity Check: Off**. Nothing is lost by skipping it on this one
+path: the door answers a bare `401` to any request without a valid signature
+(§9).
+
+⚠️ The worker names itself — it sends
+`User-Agent: uct-inbound-email/1 (+https://uctintelligence.com)` — so Security →
+Events can tell its requests apart. **That does not replace the rule**: a
+non-browser user agent is exactly what the zone refuses.
+
 ## 6. The routing rule
 
 In the Cloudflare dashboard, **Email → Email Routing** on the chosen domain:
@@ -139,7 +181,7 @@ account.)
 
 ## 7. The flip order
 
-Each step is safe to stop after. Nothing a member can see changes until step 6.
+Each step is safe to stop after. Nothing a member can see changes until step 8.
 
 1. **The owner approves §1**, and the sentence is added to `Privacy.jsx` and
    deployed. Nothing else happens first.
@@ -147,17 +189,35 @@ Each step is safe to stop after. Nothing a member can see changes until step 6.
 3. **Deploy the worker with its secret** (§4).
 4. **DNS** (§2–§3): Email Routing on the chosen domain; if a subdomain, set
    `NOTEBOOK_INBOUND_EMAIL_DOMAIN` on `web` too.
-5. **The routing rule** (§6). No member has an address yet (the Settings card
+5. **The edge rule** (§5a) — the WAF custom rule that skips Browser Integrity
+   Check for the worker's POST, ordered first. ⛔ Not verified on the live
+   account; step 7 is the check.
+6. **The routing rule** (§6). No member has an address yet (the Settings card
    is still hidden), so nothing real can arrive.
-6. **`railway variables --service web --set "NOTEBOOK_INBOUND_EMAIL_ENABLED=1"`.**
+7. **The first message, with the gate still DARK.** `NOTEBOOK_INBOUND_EMAIL_ENABLED`
+   is still unset. In `cloudflare/inbound-email-worker/`, run `npx wrangler tail`
+   and send an email to `notes+000000000000000000000000@<domain>`:
+   - **Pass:** the tail shows `UCT refused the message: HTTP 404`. The request
+     reached UCT, and a dark door answers `404` (the worker throws on anything
+     but `202`, so a throw is what passing looks like here).
+   - **`HTTP 403`** (Cloudflare's error 1010 is a `403`): the EDGE refused the
+     request before UCT saw it. Open **Security → Events**, filter on the path
+     `/api/j2/inbound-email`, read which product blocked it, fix the §5a rule,
+     and resend until the tail reads `404`.
+   - Do not go on to step 8 until it reads `404`. ⛔ This is the flip
+     precondition the edge rule has, and it has **not** been run on the live
+     account.
+8. **`railway variables --service web --set "NOTEBOOK_INBOUND_EMAIL_ENABLED=1"`.**
    Verify the boot and the value in-process. The **Email to Notebook** card
    now appears in Settings (once the controller's Settings mount has shipped).
-7. **Walk it:** Settings → Email to Notebook → copy the address → send it an
-   email with a subject, some text and a small PDF → the note appears in
-   **Inbox** with the PDF attached; `npx wrangler tail` shows a `202`. Send one
-   to a made-up `notes+000000000000000000000000@<domain>`: it must produce a
-   `202` in the tail and **no** note anywhere.
-8. **Check the limits are the ones you want** before any member has an address
+9. **Walk it:** Settings → Email to Notebook → **Create my address** (the card
+   shows no address until the member asks for one — opening Settings mints
+   nothing) → copy the address → send it an email with a subject, some text and
+   a small PDF → the note appears in **Inbox** with the PDF attached;
+   `npx wrangler tail` shows a `202`. Send one to a made-up
+   `notes+000000000000000000000000@<domain>`: it must produce a `202` in the
+   tail and **no** note anywhere.
+10. **Check the limits are the ones you want** before any member has an address
    — they are constants in `api/services/journal_two/inbound_email.py`, so a
    change is a code change and a deploy, not a variable:
 
@@ -174,8 +234,20 @@ Each step is safe to stop after. Nothing a member can see changes until step 6.
    line. The windows live in `auth.db` (`j2_inbound_usage`), so a restart does
    not reset them. Walk it once: send 21 emails to one address inside an hour
    and confirm the 21st produces no note and a `address_rate` row.
-9. **Record the flip** in `docs/feature_flags.json`: `status` `armed`, `where`
+11. **Record the flip** in `docs/feature_flags.json`: `status` `armed`, `where`
    `["web"]`, and the flip time in the note — in the same docs push.
+
+### Reading `npx wrangler tail`
+
+The worker throws on any answer but `202`, naming the HTTP status:
+
+| The tail shows | What it means | What to do |
+|---|---|---|
+| no error | UCT accepted the message (`202`) — including one to an address that names nobody, which it drops | nothing |
+| `HTTP 401` | the two secrets disagree, or the worker's clock is more than five minutes off | §5 |
+| `HTTP 403` | **Cloudflare's edge refused the request before it reached UCT** — Browser Integrity Check (error 1010), Bot Fight Mode or another WAF rule | §5a: Security → Events filtered on `/api/j2/inbound-email`, fix the rule, resend |
+| `HTTP 404` | it reached UCT and email-in is switched off (`NOTEBOOK_INBOUND_EMAIL_ENABLED` unset) — the expected answer in §7 step 7 | flip it when ready (§7 step 8) |
+| `HTTP 413` | the signed request was over UCT's 36 MB cap | §8, *Size* |
 
 ### Rolling back
 
@@ -222,14 +294,21 @@ Each step is safe to stop after. Nothing a member can see changes until step 6.
   so an oversized body is never buffered whole.
 - **Limits and plan:** the address and the member are each held to a message
   rate and a daily volume, and the member must still be on a plan that includes
-  Email to Notebook (§7 step 8). Over a limit, or on a lapsed plan, the mail is
+  Email to Notebook (§7 step 10). Over a limit, or on a lapsed plan, the mail is
   answered like any other and recorded as a drop — no note.
 - **A body the converter cannot handle** (for example thousands of nested
   `<div>`s) still becomes a note: its text is kept as plain paragraphs under a
   line saying the formatting could not be kept.
 - **Attachments are appended** to whatever the note holds by the time they are
   saved, inside one locked read-and-write, so an edit made in those
-  milliseconds is kept and the attachments are still linked.
+  milliseconds is kept and the attachments are still linked. If that brand-new
+  note is already open in a browser tab while they are saved (rare: the window
+  is the few seconds the attachments take), the tab follows the same rule as
+  every other append (`personal-api.md` §4, ruling D-G5): a tab with nothing
+  unsent picks the attachments up when it becomes visible again or its window
+  regains focus; a tab that stays visible and focused while they land saves a
+  conflict copy on its next keystroke instead; words the tab has not sent yet
+  always go to a conflict copy. Nothing is lost either way.
 - **Links** whose address is not an allowed kind once whitespace and control
   characters are removed (for example `java&#9;script:`) keep their words and
   lose the link. A placeholder for a file the email did not carry becomes a
@@ -242,10 +321,14 @@ Each step is safe to stop after. Nothing a member can see changes until step 6.
   signed bytes, so a captured request cannot be replayed under a new timestamp;
   anything more than five minutes old (or ahead) is refused. The comparison is
   constant-time. A refusal is a bare `401` with no body.
-- ⚠️ **Known limit:** a captured request replayed *within* its five minutes is
-  not de-duplicated and would make a second copy of the note. It needs the
-  secret-bearing request itself (TLS end to end) — recorded, not solved, in
-  wave 7.
+- **One delivery per signature:** a captured request replayed *within* its five minutes is
+  answered `202` like any other and makes nothing — no note, and no charge against the address's hourly
+  allowance. The server keeps a hash of each verified signature in `j2_inbound_seen` (auth.db) until
+  the instant it could no longer verify, pruned on every delivery (`inbound_email.claim_delivery`).
+  The Email Worker signs every POST afresh, so a genuine retry never carries an old signature.
+  ⚰️ Before the wave-7 whole-branch fix (M-6) a replay was not de-duplicated: up to 20 replays an hour
+  each made a copy of the note and spent the address's rolling allowance, so the member's genuine mail
+  was then dropped for up to an hour — not merely "a second copy of the note".
 - The worker and the server share their signing and payload code's contract
   through a test that RUNS the worker's `src/sign.js` under Node
   (`tests/test_notebook_inbound_email.py::TestWorkerParity`).
@@ -259,7 +342,8 @@ Each step is safe to stop after. Nothing a member can see changes until step 6.
   `api/services/journal_two/inbound_email.py` (tables `j2_inbound_addresses`,
   `j2_inbound_usage` and `j2_inbound_drops`, created on first use, removed with
   the account by `account_purge.py`; `inbound_email.drops(user_id)` reads a
-  member's recorded drops),
+  member's recorded drops; and `j2_inbound_seen` — signature hashes for the
+  replay window; names no member, so it is not in the account purge),
   `cloudflare/inbound-email-worker/`, the Settings card
   `app/src/pages/journal-2-0/components/InboundEmailCard.jsx`.
 - Rails: `tests/test_notebook_inbound_email.py`, `InboundEmailCard.test.jsx`.
