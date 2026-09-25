@@ -7,9 +7,10 @@
     `{"accepted": true}` — whether a note was made or the address named nobody
     (accept-and-drop), so the answer is never an oracle for which addresses
     exist.
-  * `GET  /api/j2/inbound-email/address` — the member's address (minted on first
-    ask); `POST` the same path makes a new one and retires the old one at once.
-    Session + a paid plan.
+  * `GET  /api/j2/inbound-email/address` — the member's address, or
+    `{"address": null}` until they make one: it NEVER mints (whole-branch
+    review M-10). `POST` the same path creates the address the first time and
+    rotates it after that (the old one retires at once). Session + a paid plan.
 
 ⛔ DARK: `NOTEBOOK_INBOUND_EMAIL_ENABLED` unset means every route here answers
 404 with FastAPI's own unknown-route body — before the signature is read, before
@@ -118,9 +119,14 @@ async def receive_email(request: Request) -> Response:
 
 @router.get("/address")
 def get_address(user: dict = Depends(require_paid)) -> dict[str, Any]:
-    return inbound_email.get_or_create_address(user["id"])
+    """`{"address": null}` until the member makes one; ⛔ never mints (review
+    M-10: the Settings card reads this on mount, so a minting GET handed every
+    paid member who opened Settings a live address they never asked for)."""
+    return inbound_email.get_address(user["id"]) or {"address": None}
 
 
 @router.post("/address")
-def rotate_address(user: dict = Depends(require_paid)) -> dict[str, Any]:
+def create_or_rotate_address(user: dict = Depends(require_paid)) -> dict[str, Any]:
+    """The member's own act: the first POST creates the address, every later
+    one rotates it (the old one stops working at once). `{"address": ...}`."""
     return inbound_email.rotate(user["id"])

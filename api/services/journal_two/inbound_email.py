@@ -172,8 +172,28 @@ def _public(row: sqlite3.Row | dict) -> dict[str, Any]:
 
 # ── Addresses ────────────────────────────────────────────────────────────────
 
+def get_address(user_id: str, conn: sqlite3.Connection | None = None) -> dict[str, Any] | None:
+    """The member's address, or None when they have never made one. READ-ONLY:
+    ⛔ it never mints (whole-branch review M-10) -- viewing Settings must not
+    hand a paid member a live write capability they never asked for. The
+    member makes one with `rotate` (the POST), which creates the first."""
+    owned = conn is None
+    conn = conn or get_connection()
+    try:
+        ensure_inbound_schema(conn)
+        row = conn.execute(
+            "SELECT token, created_at, rotated_at FROM j2_inbound_addresses WHERE user_id = ?",
+            (user_id,)).fetchone()
+        return _public(row) if row else None
+    finally:
+        if owned:
+            conn.close()
+
+
 def get_or_create_address(user_id: str, conn: sqlite3.Connection | None = None) -> dict[str, Any]:
-    """The member's address, minted the first time it is asked for."""
+    """The member's address, minted if there is none. ⛔ NOT a door any more:
+    the address GET answers from `get_address` and never mints (review M-10);
+    this stays for callers that must have one (the tests' fixtures)."""
     owned = conn is None
     conn = conn or get_connection()
     try:
@@ -197,9 +217,10 @@ def get_or_create_address(user_id: str, conn: sqlite3.Connection | None = None) 
 
 
 def rotate(user_id: str, conn: sqlite3.Connection | None = None) -> dict[str, Any]:
-    """Replace the member's address. The old one stops working at once: mail
-    to it is accepted and dropped like mail to any address that never
-    existed."""
+    """Create the member's address, or replace it. The address POST's one
+    action: the first call makes it (the member's own act -- review M-10), every
+    later call rotates it and the old one stops working at once: mail to it is
+    accepted and dropped like mail to any address that never existed."""
     owned = conn is None
     conn = conn or get_connection()
     try:

@@ -185,8 +185,8 @@ class TestDark:
             monkeypatch.setenv(GATE, value)
         monkeypatch.setenv("NOTEBOOK_INBOUND_EMAIL_SECRET", SECRET)
         called = []
-        for name in ("ingest", "get_or_create_address", "rotate", "resolve", "verify_signature",
-                     "claim_delivery"):
+        for name in ("ingest", "get_or_create_address", "get_address", "rotate", "resolve",
+                     "verify_signature", "claim_delivery"):
             monkeypatch.setattr(inbound_email, name, lambda *a, _n=name, **k: called.append(_n))
         _as_member(app, _user())
         r = _send(client, {"to": "notes+" + "a" * 24 + "@uctintelligence.com", "subject": "x"})
@@ -442,19 +442,32 @@ class TestIngest:
 # ── the member's address ─────────────────────────────────────────────────────
 
 class TestAddress:
-    def test_get_mints_once_and_post_rotates_per_member(self, app, client, on):
+    def test_get_NEVER_mints_and_post_creates_or_rotates_per_member(self, app, client, on):
+        """Backend review M-10 / frontend M-1: the GET used to MINT on first ask,
+        and the Settings card GETs on mount -- so every paid member who merely
+        opened Settings got a live `notes+<token>@` address (a write capability)
+        they never asked for, from a GET with a side effect. The contract now:
+        GET answers `{"address": null}` until one exists and never mints; POST
+        creates the address the first time and rotates it after that. The card
+        shows a "Create my address" button against exactly this."""
+        from api.services.journal_two import inbound_email
+        url = "/api/j2/inbound-email/address"
         a, b = _user(), _user()
         _as_member(app, a)
-        first = client.get("/api/j2/inbound-email/address").json()
-        assert first["address"].startswith("notes+") and first["address"].endswith("@uctintelligence.com")
-        assert len(first["address"].split("+")[1].split("@")[0]) == 24
-        assert client.get("/api/j2/inbound-email/address").json()["address"] == first["address"]
-        rotated = client.post("/api/j2/inbound-email/address").json()
-        assert rotated["address"] != first["address"] and rotated["rotatedAt"]
+        assert client.get(url).json() == {"address": None}
+        assert client.get(url).json() == {"address": None}, "a second view minted"
+        assert inbound_email.get_address(a) is None, "a GET left an address behind"
+        created = client.post(url).json()
+        assert created["address"].startswith("notes+") and created["address"].endswith("@uctintelligence.com")
+        assert len(created["address"].split("+")[1].split("@")[0]) == 24
+        assert client.get(url).json()["address"] == created["address"]
+        rotated = client.post(url).json()
+        assert rotated["address"] != created["address"] and rotated["rotatedAt"]
+        assert client.get(url).json()["address"] == rotated["address"]
         _as_member(app, b)
-        other = client.get("/api/j2/inbound-email/address").json()["address"]
-        assert other not in (first["address"], rotated["address"])
-        from api.services.journal_two import inbound_email
+        assert client.get(url).json() == {"address": None}, "one member's address answered another's"
+        other = client.post(url).json()["address"]
+        assert other not in (created["address"], rotated["address"])
         tok = rotated["address"].split("+")[1].split("@")[0]
         assert inbound_email.resolve(tok) == a
 
