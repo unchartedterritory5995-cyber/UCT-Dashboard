@@ -154,11 +154,19 @@ def test_trash_archive_and_other_members_are_excluded(svc):
     _note_with(ns, "u2", "Theirs", _task(False, "Not mine"))
     ns.delete_note("u1", gone)
     assert {t["text"] for t in nt.list_tasks("u1", now=NOW)["tasks"]} == {"Kept", "Archived"}
+    # ⚰️ Wave 6 fix round 5, R5-3: this ALTERed `archived_at` onto j2_notes
+    # itself — written on lane F's base, before lane E's Archive
+    # (3d838c0e8) made the column part of the real schema. Merged, the ALTER
+    # died on "duplicate column name". The column is real now, so the test
+    # says so instead of adding it.
+    from api.services.journal_two.note_mentions import has_column
     conn = auth_db.get_connection()
-    conn.execute("ALTER TABLE j2_notes ADD COLUMN archived_at TEXT")
-    conn.execute("UPDATE j2_notes SET archived_at = '2026-09-22' WHERE id = ?", (arch,))
-    conn.commit()
-    conn.close()
+    try:
+        assert has_column(conn, "j2_notes", "archived_at"), "the real schema no longer carries archived_at"
+        conn.execute("UPDATE j2_notes SET archived_at = '2026-09-22' WHERE id = ?", (arch,))
+        conn.commit()
+    finally:
+        conn.close()
     assert [t["noteId"] for t in nt.list_tasks("u1", now=NOW)["tasks"]] == [keep]
 
 
