@@ -99,9 +99,12 @@ async function renderEditor() {
 }
 
 async function addTagAndSettle(value) {
-  const input = screen.getByRole('combobox', { name: 'Add a tag to this note' })
+  // HOTFIX VARIANT (master): the tag door is the header's comma-separated input,
+  // committed on blur -> onTagsChange -> settleMetadataRevision. The wave-5/6
+  // branch drives its combobox instead; the door behind both is the same.
+  const input = screen.getByPlaceholderText('Tags (comma sep)')
   fireEvent.change(input, { target: { value } })
-  fireEvent.submit(input.closest('form'))
+  fireEvent.blur(input)
   await waitFor(() => expect(updateMock.mock.calls.some(([p]) => p && 'tags' in p)).toBe(true))
   await act(async () => { await settleIdb(8) })
 }

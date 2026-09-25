@@ -37,7 +37,7 @@ import { blockedLabel, unsyncedLabel, OFFLINE_VIEWING_BANNER } from '../../lib/o
 import { usableBaseline, isUsableBaseline } from '../../lib/offline/baseline'
 import { settleNoteWrite } from '../../lib/offline/settleNoteWrite'
 import {
-  BODY_REWRITE, appendedServerNodes, classifyServerChange, missingServerNodes, nodeKeyOf,
+  BODY_REWRITE, METADATA_ONLY, appendedServerNodes, classifyServerChange, missingServerNodes, nodeKeyOf,
 } from '../../lib/offline/serverChange'
 import { stampChartSettings } from '../../lib/widgetEmbedCore'
 import WidgetPalette from './WidgetPalette'
