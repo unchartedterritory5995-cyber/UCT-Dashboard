@@ -152,6 +152,14 @@ edit twice). **Merge on Ravi's acknowledgment — nobody decides that for him.**
 **2026-10-02**, the owner asks Ravi directly with the PR's "What Ravi needs to know" section;
 the PR stays a draft until then. Web-only; `flow-worker` imports nothing here (gate §6).
 
+> **Superseded the same day.** The owner released the Ravi precondition ("Forget Ravi we are
+> fine"); CP2 landed as `13ecb46e3` + `d199ea601` (SUCCESS 16:20:37Z), was **rolled back under
+> H15** (`3b2e1a28a`, 16:31:53Z) when the warm-pod nav smoke timed out on a fresh
+> `/options-flow` load at +5.5 min, and was then **exonerated by the controlled comparison**:
+> the reverted build failed identically at the same pod age (RESUME-HERE §3 / §7). The re-land
+> is prepared on `merge-run` (`88399772c` + `056290d37`) and its push is the owner's one command
+> (RESUME-HERE §5). PR #194 is closed with the after-the-fact notice for Ravi.
+
 ---
 
 ## What is NOT decided here, on purpose
