@@ -2330,26 +2330,23 @@ def notes_batch_export_endpoint(
 ) -> StreamingResponse:
     """The SELECTED notes as one Markdown zip — `{ids}`.
 
-    ⛔ REUSES THE EXISTING EXPORT, NEVER A SECOND MARKDOWN WRITER: each note
-    is `notes_export.build_single_note_export` (the per-note markdown, front
-    matter and attachment bundling the whole-notebook export also uses), and
-    this only gathers those into one archive, carrying the same
-    `UCT_NOTEBOOK_EXPORT.json` marker so the importer recognises it as ours.
-    Notes sit at the archive root (a selection spans folders; the member
-    chose notes, not a tree); two with the same title are told apart by id.
+    ⛔ REUSES THE EXISTING EXPORT, NEVER A SECOND MARKDOWN WRITER: this calls
+    `notes_export.build_selection_export_to_tempfile` — the SAME archive
+    writer (`_write_notes_archive`) the whole-notebook export uses, restricted
+    to the requested ids — never a per-note merge. One temp file, streamed,
+    cleaned up on both success (the stream's own `finally`) and failure (the
+    builder deletes its own partial file; the route releases the slot it
+    acquired). Notes sit at the archive root (a selection spans folders; the
+    member chose notes, not a tree); two with the same title are told apart
+    by id.
 
     Guarded like the whole-notebook export: one export slot per pod (429
     when busy), built to a temp file and streamed, never held in memory.
     A note that is not the member's, or is in the trash, is not exported
     and is listed in EXPORT_ISSUES.txt — and counted in `X-Export-Skipped`
     so the client can say so without opening the zip."""
-    import re
-    import tempfile
-    import zipfile
-    from pathlib import Path
     from api.services.journal_two.notes_export import (
-        _EXPORT_MANIFEST_NAME, _EXPORT_MANIFEST_VERSION, _attachment_cap_bytes,
-        acquire_export_slot, build_single_note_export, release_export_slot,
+        acquire_export_slot, build_selection_export_to_tempfile, release_export_slot,
         stream_export_file,
     )
 
@@ -2359,66 +2356,12 @@ def notes_batch_export_endpoint(
             status_code=429,
             detail="An export is already running. Please wait a moment and try again.",
         )
-    stamp = datetime.now(UTC).strftime("%Y%m%d")
     try:
-        fd, tmp_name = tempfile.mkstemp(suffix=".zip", prefix="j2-notes-export-")
-        os.close(fd)
-        tmp_path = Path(tmp_name)
-        exported = 0
-        skipped: list[str] = []
-        issues: list[str] = []
-        used_md: set[str] = set()
-        written: set[str] = set()
-        # ⛔ N7: ONE attachment budget for the whole selection -- the cap that
-        # bounds the whole-notebook export, not that cap once per note.
-        budget = {"used_bytes": 0, "cap_bytes": _attachment_cap_bytes()}
-        try:
-            with zipfile.ZipFile(tmp_path, "w", zipfile.ZIP_DEFLATED) as zf:
-                for nid in ids:
-                    built = build_single_note_export(user["id"], nid, attachment_budget=budget)
-                    if built is None:
-                        skipped.append(nid)
-                        continue
-                    content, fname, media_type = built
-                    entries: list[tuple[str, bytes]] = []
-                    if media_type == "application/zip":
-                        with zipfile.ZipFile(io.BytesIO(content)) as inner:
-                            entries = [(i.filename, inner.read(i)) for i in inner.infolist()]
-                    else:
-                        base = re.sub(r"-\d{8}\.md$", "", fname)
-                        entries = [(f"{base}.md", content)]
-                    for name, data in entries:
-                        if name == "EXPORT_ISSUES.txt":
-                            issues.append(data.decode("utf-8", errors="replace").strip())
-                        elif name.endswith(".md") and "/" not in name:
-                            md_name = name if name not in used_md else f"{name[:-3]}-{nid[:8]}.md"
-                            used_md.add(md_name)
-                            zf.writestr(md_name, data)
-                        elif name not in written:
-                            written.add(name)  # attachments/<user>/<note>/... never collide
-                            zf.writestr(name, data)
-                    exported += 1
-                zf.writestr(_EXPORT_MANIFEST_NAME, json.dumps({
-                    "product": "uct-notebook-export",
-                    "manifest_version": _EXPORT_MANIFEST_VERSION,
-                    "exported_at": datetime.now(UTC).isoformat(),
-                    "note_count": exported,
-                    "selection": True,
-                }))
-                if skipped:
-                    issues.append(
-                        "These notes were not exported -- they are in the Trash or no "
-                        "longer exist:\n" + "\n".join(f"- {nid}" for nid in skipped))
-                if issues:
-                    zf.writestr("EXPORT_ISSUES.txt", "\n\n".join(issues) + "\n")
-        except Exception:
-            tmp_path.unlink(missing_ok=True)
-            raise
+        tmp_path, filename, exported, skipped = build_selection_export_to_tempfile(user["id"], ids)
     except Exception:
         release_export_slot()
         raise
 
-    filename = f"uct-notebook-selection-{stamp}.zip"
     return StreamingResponse(
         stream_export_file(tmp_path),
         media_type="application/zip",
