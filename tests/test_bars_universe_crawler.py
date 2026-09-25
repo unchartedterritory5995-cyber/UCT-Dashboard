@@ -10,6 +10,13 @@ from __future__ import annotations
 
 from api.services import bars_universe_crawler as C
 
+# ⚠️ `crawl_pass` now returns FIVE values: (cursor, filled, skipped, empty, no_advance).
+# The fifth exists because "the tail did not advance" and "nothing usable came back"
+# were previously one counter, and averaging them is what made the crawler's empty rate
+# unreadable. These rails keep the legacy BOOL contract working (True -> warmed,
+# False -> no-data) so a caller that only knows two outcomes is unaffected.
+
+
 
 def _recorder(fill=lambda s: True):
     calls = {"warm": [], "empty": [], "pace": 0, "beat": 0}
@@ -26,7 +33,7 @@ def test_only_stale_tickers_are_warmed_fresh_are_skipped_free():
     universe = ["A", "B", "C", "D"]
     stale = {"B", "D"}
     calls, warm, on_empty, pace, beat = _recorder()
-    cursor, filled, skipped, empty = C.crawl_pass(
+    cursor, filled, skipped, empty, _na = C.crawl_pass(
         universe, 0, is_stale=lambda s: s in stale, warm=warm, on_empty=on_empty,
         pace=pace, beat=beat)
     assert calls["warm"] == ["B", "D"], "only stale tickers warm"
@@ -50,7 +57,7 @@ def test_empty_warms_are_parked_via_on_empty():
     daemon can cooldown it — the mechanism that lets the crawler settle."""
     universe = ["A", "B", "C"]
     calls, warm, on_empty, pace, beat = _recorder(fill=lambda s: s != "B")
-    _, filled, skipped, empty = C.crawl_pass(
+    _, filled, skipped, empty, _na = C.crawl_pass(
         universe, 0, is_stale=lambda s: True, warm=warm, on_empty=on_empty,
         pace=pace, beat=beat)
     assert filled == 2 and empty == 1 and calls["empty"] == ["B"]
@@ -60,7 +67,7 @@ def test_empty_warms_are_parked_via_on_empty():
 def test_an_all_fresh_universe_costs_zero_paces():
     universe = ["A", "B", "C"]
     calls, warm, on_empty, pace, beat = _recorder()
-    _, filled, skipped, empty = C.crawl_pass(
+    _, filled, skipped, empty, _na = C.crawl_pass(
         universe, 0, is_stale=lambda s: False, warm=warm, on_empty=on_empty,
         pace=pace, beat=beat)
     assert filled == 0 and skipped == 3 and empty == 0 and calls["pace"] == 0
@@ -72,7 +79,7 @@ def test_a_throwing_warm_never_stops_the_sweep():
         if sym == "B":
             raise RuntimeError("provider blip")
         return True
-    _, filled, skipped, empty = C.crawl_pass(
+    _, filled, skipped, empty, _na = C.crawl_pass(
         universe, 0, is_stale=lambda s: True, warm=warm,
         on_empty=lambda s: None, pace=lambda: None, beat=lambda: None)
     assert filled == 2 and skipped == 1  # A + C filled; B failed → skipped; sweep finished
@@ -81,7 +88,7 @@ def test_a_throwing_warm_never_stops_the_sweep():
 def test_cursor_rotates_so_restarts_cover_different_tickers():
     universe = ["A", "B", "C", "D"]
     calls, warm, on_empty, pace, beat = _recorder()
-    cursor, filled, _, _ = C.crawl_pass(
+    cursor, filled, _, _, _ = C.crawl_pass(
         universe, 0, is_stale=lambda s: True, warm=warm, on_empty=on_empty,
         pace=pace, beat=beat, budget=2)
     assert filled == 2 and calls["warm"] == ["A", "B"]
@@ -94,14 +101,14 @@ def test_cursor_rotates_so_restarts_cover_different_tickers():
 def test_budget_caps_attempts_per_pass():
     universe = [f"T{i}" for i in range(50)]
     calls, warm, on_empty, pace, beat = _recorder()
-    _, filled, _, _ = C.crawl_pass(
+    _, filled, _, _, _ = C.crawl_pass(
         universe, 0, is_stale=lambda s: True, warm=warm, on_empty=on_empty,
         pace=pace, beat=beat, budget=5)
     assert filled == 5 and calls["pace"] == 5
 
 
 def test_empty_universe_is_a_safe_noop():
-    cursor, filled, skipped, empty = C.crawl_pass(
+    cursor, filled, skipped, empty, _na = C.crawl_pass(
         [], 0, is_stale=lambda s: True, warm=lambda s: True,
         on_empty=lambda s: None, pace=lambda: None, beat=lambda: None)
     assert (cursor, filled, skipped, empty) == (0, 0, 0, 0)
