@@ -60,6 +60,34 @@ def test_the_semantic_sweep_is_registered_once_with_max_instances_1():
         f"members); got {jobs[SWEEP_ID].get('max_instances')!r}")
 
 
+def test_the_sweep_runs_every_15_minutes_and_coalesces_missed_runs():
+    # The cadence is a RULING (api/main.py's comment: 2,000 embeds per run caps an armed pod
+    # at ~192k blocks/day), so the rail pins it -- the whole-branch tests review measured
+    # that `minutes=15` -> `minutes=1` (a 15x vendor spend) survived the rails above.
+    # `coalesce=True` keeps a pod that slept through several slots from firing them all at once.
+    tree = ast.parse(MAIN.read_text(encoding="utf-8"))
+    for node in ast.walk(tree):
+        if not (isinstance(node, ast.Call) and isinstance(node.func, ast.Attribute)
+                and node.func.attr == "add_job"):
+            continue
+        kws = {kw.arg: kw.value for kw in node.keywords}
+        idv = kws.get("id")
+        if not (isinstance(idv, ast.Constant) and idv.value == SWEEP_ID):
+            continue
+        trigger = node.args[1] if len(node.args) > 1 else kws.get("trigger")
+        assert isinstance(trigger, ast.Constant) and trigger.value == "interval", (
+            "the semantic sweep must be an interval job")
+        minutes = kws.get("minutes")
+        assert isinstance(minutes, ast.Constant) and minutes.value == 15, (
+            f"the semantic sweep's cadence is a ruling (every 15 min); got "
+            f"{getattr(minutes, 'value', minutes)!r}")
+        coalesce = kws.get("coalesce")
+        assert isinstance(coalesce, ast.Constant) and coalesce.value is True, (
+            "the semantic sweep must coalesce missed runs")
+        return
+    raise AssertionError(f"no add_job call with id={SWEEP_ID!r}")
+
+
 def test_the_sweep_is_registered_exactly_once_by_source():
     # Two registrations under one id would be a silent replace at runtime
     # (replace_existing=True) — and a sign that a merge duplicated the block.
