@@ -98,4 +98,30 @@ describe('NoteEditorPage — save-error sanitization (P1-1 fix)', () => {
     expect(status.getAttribute('title')).not.toContain('Failed to fetch')
     expect(status.getAttribute('title')).toMatch(/couldn't reach the server/i)
   })
+
+  // Wave 7 whole-branch fix (lane H nit N-3): the network reading is keyed on the
+  // BROWSER'S network words, never on the error's class. A TypeError is also what a
+  // programming fault on the save path throws, and calling that "couldn't reach the
+  // server" sends a member to check a connection that is fine.
+  it('a code fault (a TypeError that is not a network word) is never called the network, nor shown verbatim', async () => {
+    updateMock.mockRejectedValue(new TypeError("Cannot read properties of undefined (reading 'bodyJson')"))
+    await renderEditor()
+    await triggerAutosave()
+
+    const status = (await screen.findByText('Reconnecting…')).closest('[title]')
+    const said = status.getAttribute('title')
+    expect(said).not.toMatch(/couldn't reach the server/i)
+    expect(said).not.toContain('Cannot read properties')
+    expect(said).toBe('Could not save — retrying automatically.')
+  })
+
+  it('CONTROL — Safari\'s network TypeError ("Load failed") still reads as the network', async () => {
+    updateMock.mockRejectedValue(new TypeError('Load failed'))
+    await renderEditor()
+    await triggerAutosave()
+
+    const status = (await screen.findByText('Reconnecting…')).closest('[title]')
+    expect(status.getAttribute('title')).toMatch(/couldn't reach the server/i)
+    expect(status.getAttribute('title')).not.toContain('Load failed')
+  })
 })

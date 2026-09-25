@@ -137,10 +137,19 @@ const RETRY_BACKOFFS_MS = [1000, 2000, 4000, 8000, 15000, 30000]
 // plumbing, not the server's detail this function preserves, and it reached a
 // member verbatim on Insert image / Scan / attach. It reads as the network
 // failure it is.
+//
+// ⭐ Wave 7 whole-branch fix (lane H nit N-3): the network reading is keyed on those
+// WORDS, never on the error's class. A TypeError is also what a programming fault on
+// the save or upload path throws ("Cannot read properties of undefined …"); reading
+// every TypeError as the network sent a member to check a connection that was fine.
+// A TypeError that is not a network word is a code fault: never called the network,
+// never shown verbatim (it is plumbing too), and said as a plain failed save.
 const BROWSER_NETWORK_FAILURE = /^(failed to fetch|load failed|networkerror when attempting to fetch resource\.?|network request failed)$/i
 function friendlySaveError(e, status, { retrying = false } = {}) {
   const msg = e?.message
-  const browserSaid = e instanceof TypeError || (msg && BROWSER_NETWORK_FAILURE.test(msg.trim()))
+  const browserSaid = Boolean(msg && BROWSER_NETWORK_FAILURE.test(msg.trim()))
+  const codeFault = e instanceof TypeError && !browserSaid
+  if (codeFault) return retrying ? 'Could not save — retrying automatically.' : 'Could not save. Please try again.'
   if (msg && !browserSaid && !/^\d{3}$/.test(msg)) return msg
   if (!status || status >= 500) {
     return retrying
