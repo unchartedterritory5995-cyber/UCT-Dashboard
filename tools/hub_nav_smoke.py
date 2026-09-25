@@ -78,10 +78,47 @@ import secrets
 import socket
 import sys
 import threading
+import urllib.request
 
 REPO = pathlib.Path(__file__).resolve().parent.parent
 NAVBAR = REPO / "app" / "src" / "components" / "NavBar.jsx"
 PROD = "https://uctintelligence.com"
+
+# ⚰️ A SMOKE ON A POD UNDER THREE MINUTES OLD MEASURES THE BOOT, NOT THE DEPLOY. Measured
+# 2026-09-24/25 three times in one night: at +30-60 s after a fresh boot (new hashed chunks =
+# an edge-cache MISS on every chunk, warm-on-boot jobs still running) the heaviest route
+# (/options-flow) missed its 45 s page-load budget and six heavy lazy routes read "NO HUB" at
+# the touch probe's sample point — on TWO different builds, including a docs-only one; every
+# one of them passed on the same pod at +5 min. One of those runs triggered an H15 rollback of a
+# correct fix. So: below this floor the run is INCONCLUSIVE (exit 2), which H15 explicitly says
+# must NOT trigger a rollback. `--allow-cold` is the deliberate override for someone who wants
+# the cold-boot number itself.
+COLD_POD_FLOOR_S = 180
+
+
+def pod_age_seconds(base: str):
+    """`/api/health`'s uptime_seconds, or None when it cannot be read. ⛔ None is NOT "cold":
+    an unreadable health endpoint is its own problem and must not be laundered into a pod age."""
+    try:
+        req = urllib.request.Request(f"{base}/api/health",
+                                     headers={"User-Agent": "Mozilla/5.0 (hub_nav_smoke)"})
+        with urllib.request.urlopen(req, timeout=10) as r:   # noqa: S310 — the base is ours
+            body = json.load(r)
+        age = body.get("uptime_seconds")
+        return float(age) if isinstance(age, (int, float)) else None
+    except Exception:  # noqa: BLE001 — unreadable is reported as unreadable, never as cold
+        return None
+
+
+def cold_pod_verdict(age, floor: float = COLD_POD_FLOOR_S, allow_cold: bool = False):
+    """Pure, so the self-check can prove it fires. Returns the INCONCLUSIVE text when the run
+    must not judge, else None. An unknown age (None) never blocks — see pod_age_seconds."""
+    if allow_cold or age is None or age >= floor:
+        return None
+    return (f"INCONCLUSIVE — the pod is {age:.0f} s old (floor {floor:.0f} s). A smoke this early "
+            "measures the boot (cold edge cache on new chunks, warm-on-boot still running), not "
+            f"the deploy. Re-run in {floor - age:.0f} s, or pass --allow-cold to measure the cold "
+            "boot on purpose. ⛔ NOT a pass and NOT a product failure — H15 must not fire on this.")
 
 # Routes the smoke starts FROM. /dashboard is where the freeze was reported; /journal and
 # /screener are the other two surfaces that mount a hub section on a shared page.
@@ -787,11 +824,22 @@ def self_check() -> int:
         f"{idle_sample.get('fps', 0):.0f} fps)")
     say(f"  present-is-not-showing     : {showing_ok} "
         "(hidden attr and display:none both read as NOT showing; a real box reads as showing)")
+    # The cold-pod floor is pure, so it is proved here rather than trusted: a young pod is
+    # INCONCLUSIVE, an old one judges, an unreadable age judges (never laundered into "cold"),
+    # and the override is honoured.
+    cold_ok = (
+        cold_pod_verdict(30, 180, False) is not None
+        and cold_pod_verdict(600, 180, False) is None
+        and cold_pod_verdict(None, 180, False) is None
+        and cold_pod_verdict(30, 180, True) is None
+    )
+    say(f"  cold-pod floor fires       : {cold_ok} "
+        "(30 s -> INCONCLUSIVE; 600 s, unknown, and --allow-cold -> judge)")
     if not loop_sample.get("longtaskSupported", False):
         say("SELF-CHECK FAILED — this browser reports no longtask entries, so the render probe "
             "is BLIND here. Silence from a blind instrument is not health.", err=True)
         return 1
-    if frozen_caught and healthy_ok and loop_caught and idle_clean and showing_ok:
+    if frozen_caught and healthy_ok and loop_caught and idle_clean and showing_ok and cold_ok:
         say("SELF-CHECK PASS — both detectors fire on the thing they watch for and stay quiet "
             "on a healthy page.")
         return 0
@@ -917,10 +965,16 @@ def main(argv=None) -> int:
                     help="second pass in a phone-class touch context (393x852, DPR 3, coarse "
                          "pointer): does the hub mount where the registry says, and does any hub "
                          "code log an error? Requires --auth.")
+    ap.add_argument("--allow-cold", action="store_true",
+                    help=f"judge a pod younger than {COLD_POD_FLOOR_S}s anyway (measures the boot)")
     args = ap.parse_args(argv)
 
     if args.self_check:
         return self_check()
+    verdict = cold_pod_verdict(pod_age_seconds(args.base), allow_cold=args.allow_cold)
+    if verdict:
+        say(verdict)
+        return 2
     if args.touch:
         return touch_main(args)
 
