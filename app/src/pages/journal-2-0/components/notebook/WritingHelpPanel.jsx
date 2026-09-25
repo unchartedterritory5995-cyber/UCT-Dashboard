@@ -1,8 +1,9 @@
 import { useEffect, useRef, useState } from 'react'
 import Sheet from '../../../../components/mobile/Sheet'
+import { draftParagraphs } from '../../lib/writingHelp'
 import {
-  WRITING_HELP_CHOICES, WRITING_HELP_LANGUAGES, draftParagraphs, streamWritingHelp,
-} from '../../lib/writingHelp'
+  WRITING_HELP_CHOICES, WRITING_HELP_LANGUAGES, streamWritingHelp,
+} from '../../lib/writingHelpStream'
 import styles from './WritingHelpPanel.module.css'
 
 /**

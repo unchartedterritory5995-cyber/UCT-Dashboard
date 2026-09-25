@@ -12,10 +12,8 @@ import { Editor } from '@tiptap/core'
 import { NodeSelection, TextSelection } from '@tiptap/pm/state'
 import { buildExtensions } from './tiptap'
 import { AskInsert } from './askInsertNode'
-import {
-  WH_MESSAGES, WRITING_HELP_CHOICES, acceptWritingHelp, captureWritingHelpScope,
-  draftParagraphs, streamWritingHelp,
-} from './writingHelp'
+import { acceptWritingHelp, captureWritingHelpScope, draftParagraphs } from './writingHelp'
+import { WH_MESSAGES, WRITING_HELP_CHOICES, streamWritingHelp } from './writingHelpStream'
 
 const P = (t) => ({ type: 'paragraph', content: t ? [{ type: 'text', text: t }] : [] })
 let editor

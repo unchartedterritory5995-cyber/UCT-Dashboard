@@ -369,7 +369,7 @@ def _js(path):
 
 
 def test_the_editors_language_list_IS_the_servers_allowlist():
-    src = _js("app/src/pages/journal-2-0/lib/writingHelp.js")
+    src = _js("app/src/pages/journal-2-0/lib/writingHelpStream.js")
     block = src[src.index("WRITING_HELP_LANGUAGES = Object.freeze(["):]
     block = block[:block.index("])")]
     pairs = dict(re.findall(r"\['([a-z]+)',\s*'([^']+)'\]", block))
@@ -378,7 +378,7 @@ def test_the_editors_language_list_IS_the_servers_allowlist():
 
 
 def test_the_editors_choices_are_actions_and_styles_the_server_takes():
-    src = _js("app/src/pages/journal-2-0/lib/writingHelp.js")
+    src = _js("app/src/pages/journal-2-0/lib/writingHelpStream.js")
     block = src[src.index("WRITING_HELP_CHOICES = Object.freeze(["):]
     block = block[:block.index("])")]
     actions = set(re.findall(r"action: '([a-z]+)'", block))
