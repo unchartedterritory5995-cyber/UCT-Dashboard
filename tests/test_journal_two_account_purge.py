@@ -290,6 +290,46 @@ def test_purge_user_data_is_idempotent_on_a_second_call(db_path):
         conn.close()
 
 
+def test_j2_note_templates_is_purged_on_account_deletion(db_path):
+    """Wave 6 fix round 1, I3 — a member's own "Save as template" copies
+    (note_templates.py) are user-owned and must leave with the account, like
+    every other j2_* table. Hardcoded to THIS table, independent of
+    `_DIRECT_USER_TABLES`: the generic manifest test above seeds and checks
+    off that same tuple, so a table missing from it is invisible to that
+    test too (`lesson_a_fixture_that_cannot_distinguish_is_not_a_rail`) —
+    this is the rail that actually catches the omission."""
+    from api.services.auth_db import get_connection
+    from api.services.journal_two import account_purge as ap
+
+    user_id = f"u_tmpl_{uuid.uuid4().hex[:8]}"
+    conn = get_connection()
+    try:
+        _seed_user(conn, user_id, f"{user_id}@test.uct")
+        conn.commit()
+        conn.execute(
+            "INSERT INTO j2_note_templates "
+            "(id, user_id, name, title, body_json, created_at, updated_at) "
+            "VALUES (?, ?, 'My template', 'My template', '{}', "
+            "'2026-01-01T00:00:00Z', '2026-01-01T00:00:00Z')",
+            (f"tmpl_{user_id}", user_id),
+        )
+        conn.commit()
+        before = conn.execute(
+            "SELECT COUNT(*) FROM j2_note_templates WHERE user_id = ?", (user_id,)
+        ).fetchone()[0]
+        assert before == 1, "seeding itself is broken"
+
+        result = ap.purge_user_data(user_id, conn)
+        assert result["ok"] is True
+
+        after = conn.execute(
+            "SELECT COUNT(*) FROM j2_note_templates WHERE user_id = ?", (user_id,)
+        ).fetchone()[0]
+        assert after == 0, "j2_note_templates still has the deleted member's template row"
+    finally:
+        conn.close()
+
+
 def test_admin_delete_user_by_id_404s_for_an_unknown_user_without_raising_anything_else(db_path):
     from api.routers import auth as auth_router
 

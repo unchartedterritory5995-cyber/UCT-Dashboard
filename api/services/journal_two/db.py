@@ -1807,8 +1807,10 @@ _PHASE_2_ALTERS = [
     # Wave 6 (lane E, member templates): a member's own "Save as template"
     # copies -- title, body and property values of one of their notes, owned by
     # them (note_templates.py). A COPY, never a link to the note. ⛔ user-scoped:
-    # account deletion must purge it (requested in wave6-E-report.md --
-    # account_purge._DIRECT_USER_TABLES is not lane E's file).
+    # account deletion must purge it -- added to
+    # account_purge._DIRECT_USER_TABLES in wave 6 fix round 1 (I3). ⚰️ This
+    # comment used to claim the addition was "requested in wave6-E-report.md";
+    # no such request was ever written there.
     """CREATE TABLE IF NOT EXISTS j2_note_templates (
         id              TEXT PRIMARY KEY,
         user_id         TEXT NOT NULL,

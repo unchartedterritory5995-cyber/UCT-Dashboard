@@ -106,6 +106,10 @@ _DIRECT_USER_TABLES = (
     "j2_broker_drift_series",
     "j2_broker_precise_times",
     "j2_broker_live_checks",
+    # Wave 6 (lane E, member templates) — a member's own "Save as template"
+    # copies (note_templates.py); a copy, never a link to the note it was
+    # made from. Wave 6 fix round 1, I3.
+    "j2_note_templates",
 )
 
 # j2_broker_digest_dedup is deliberately excluded: it is a single global row
