@@ -1838,11 +1838,12 @@ def note_tag_counts_endpoint(
     Wave 5 nested tags: `tree` adds every node of the `a/b/c` hierarchy —
     implied parents included — with `own` (notes carrying exactly that tag)
     and `total` (distinct notes in its subtree, i.e. what filtering by it
-    returns). `tags` is unchanged for every existing reader."""
-    return {
-        "tags": notes_service.tag_counts(user["id"]),
-        "tree": notes_service.tag_tree(user["id"]),
-    }
+    returns). `tags` is unchanged for every existing reader.
+
+    Wave 7 (lane I): both halves come from ONE connection and ONE grouping pass
+    (`tag_counts_and_tree`), which is equal to the two separate calls by rail
+    (tests/test_journal_two_tag_counts_combined.py)."""
+    return notes_service.tag_counts_and_tree(user["id"])
 
 
 @router.get("/notes/tag-members")

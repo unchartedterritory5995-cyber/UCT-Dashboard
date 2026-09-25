@@ -291,10 +291,16 @@ def list_tasks(
     owned = conn is None
     conn = conn or auth_db.get_connection()
     try:
+        # ⛔ `instr(body_json, 'taskItem') > 0`, spelled EXACTLY as the partial index
+        # `idx_j2_notes_live_tasks` (db.py) spells it: a LIKE here reads every live
+        # note's whole body (303 ms p95 at 50k notes, wave 7 lane I) because SQLite
+        # can only use a partial index whose WHERE the query provably implies. The
+        # node type is always spelled "taskItem", so the case-sensitive test finds
+        # exactly the notes the case-insensitive LIKE found that hold a task.
         rows = conn.execute(
             "SELECT id, title, updated_at, body_json FROM j2_notes"
             " WHERE user_id = ?" + _live_clause(conn) +
-            " AND body_json LIKE '%taskItem%' ORDER BY updated_at DESC",
+            " AND instr(body_json, 'taskItem') > 0 ORDER BY updated_at DESC",
             (user_id,),
         ).fetchall()
         tasks: list[dict[str, Any]] = []
@@ -386,9 +392,10 @@ def reminder_copy(due_today: int, overdue: int) -> tuple[str, str]:
 
 
 def _due_counts_by_member(conn: sqlite3.Connection, today: str) -> dict[str, dict[str, int]]:
+    # Same partial index as `list_tasks` (and the same exact spelling).
     rows = conn.execute(
         "SELECT user_id, body_json FROM j2_notes WHERE 1=1" + _live_clause(conn) +
-        " AND body_json LIKE '%taskItem%' AND body_json LIKE '%dateMention%'",
+        " AND instr(body_json, 'taskItem') > 0 AND instr(body_json, 'dateMention') > 0",
     ).fetchall()
     counts: dict[str, dict[str, int]] = {}
     for r in rows:

@@ -501,17 +501,58 @@ def _tag_prefilter(key: str) -> tuple[str, list[Any]]:
             [needle])
 
 
-def _tag_clause(key: str) -> tuple[str, list[Any]]:
+def _symbol_note_ids_sql(user_id: str, symbols: list[str]) -> tuple[str, list[Any]]:
+    """`SELECT note_id ...` for the member's notes that carry a chart embed OR a
+    cashtag mention of any of `symbols`: the ONE answer to "which notes relate to
+    this symbol". The list filters (`ticker=`, `embed_symbol=`, the sector/theme
+    `symbol_in`) and `get_symbol_backlinks` all read this one set.
+
+    ⛔⛔ NON-CORRELATED, ON PURPOSE. This used to be two correlated
+    `EXISTS (... WHERE e.note_id = j2_notes.id AND e.user_id = j2_notes.user_id
+    AND e.symbol = ?)`. With no ANALYZE statistics (production runs none), the
+    planner answered each EXISTS from `idx_j2_note_embeds_user_sym`
+    `(user_id, symbol)` because it has two equality columns. That index holds
+    EVERY embed of the symbol, so the check scanned all of them once PER NOTE.
+    Measured at `acf1eb51e` (tools/notebook_scale_benchmark.py): `GET /notes?
+    embed_symbol=` list+count took 717 ms p95 at 10k notes and ~14.8 s at 50k.
+    As an `IN (subquery)` it is computed ONCE into an ephemeral index and each
+    note is one probe."""
+    marks = ",".join("?" * len(symbols))
+    return (f"SELECT note_id FROM j2_note_embeds WHERE user_id = ? AND symbol IN ({marks})"
+            f" UNION SELECT note_id FROM j2_note_mentions WHERE user_id = ? AND symbol IN ({marks})",
+            [user_id, *symbols, user_id, *symbols])
+
+
+def _tag_clause(user_id: str, key: str) -> tuple[str, list[Any]]:
     """The note-carries-this-tag-or-one-below-it predicate, for a NON-EMPTY
     `tag_key`: the cheap prefilter, then the exact per-tag match. ⛔ ONE copy,
     used by the list/count predicate (`_notes_filter_sql`) and by the tag
     rename's roster (`tag_member_notes`) — a rename that found its notes by a
-    different rule than the filter shows them would miss some, or touch others."""
+    different rule than the filter shows them would miss some, or touch others.
+
+    Wave 7 (lane I): phrased as a ROWID SET (`_tag_rowid_set_sql`), not a
+    per-row test. See there for why."""
+    set_sql, set_params = _tag_rowid_set_sql(user_id, key, "j2_tag_match")
+    return f"j2_notes.rowid IN ({set_sql})", set_params
+
+
+def _tag_rowid_set_sql(user_id: str, key: str, match_fn: str) -> tuple[str, list[Any]]:
+    """`SELECT rowid ...` of the member's notes (any status: the caller's own
+    WHERE decides live / trash / archive) whose tags satisfy `match_fn(tag, key)`
+    -- `j2_tag_match` (the tag or one below it) or `j2_tag_is` (exactly it).
+
+    ⛔⛔ A SET, NOT A PER-ROW TEST. As a correlated predicate the match read the
+    `tags` column of every candidate note, and `tags` sits after the ~2 KB body,
+    on an overflow page. As a set it is computed ONCE, from
+    `idx_j2_notes_live_cover` alone (db.py), and the outer query tests only
+    `rowid`, which every index carries. Measured at acf1eb51e, 50k notes: the
+    `q=` list for a term matching one note took 176 ms p95, walking every note's
+    overflow chain to test its tags (docs/notebook/perf-budgets.md §2)."""
     pre_sql, pre_params = _tag_prefilter(key)
-    return (f"{pre_sql} AND EXISTS (SELECT 1 FROM"
-            " json_each(COALESCE(j2_notes.tags, '[]')) jt"
-            " WHERE j2_tag_match(jt.value, ?))",
-            [*pre_params, key])
+    return (f"SELECT rowid FROM j2_notes WHERE user_id = ? AND {pre_sql}"
+            " AND EXISTS (SELECT 1 FROM json_each(COALESCE(j2_notes.tags, '[]')) jt"
+            f" WHERE {match_fn}(jt.value, ?))",
+            [user_id, *pre_params, key])
 
 
 def _validate_tags(raw: Any) -> list[str]:
@@ -1156,14 +1197,9 @@ def _notes_filter_sql(
         # membership question, the exact defect shape this file's own
         # docstring above warns about.
         t = ticker.strip().upper()
-        sql += (" AND (ticker = ?"
-                " OR EXISTS (SELECT 1 FROM j2_note_embeds e"
-                " WHERE e.note_id = j2_notes.id AND e.user_id = j2_notes.user_id"
-                " AND e.symbol = ?)"
-                " OR EXISTS (SELECT 1 FROM j2_note_mentions m"
-                " WHERE m.note_id = j2_notes.id AND m.user_id = j2_notes.user_id"
-                " AND m.symbol = ?))")
-        params.extend([t, t, t])
+        ids_sql, ids_params = _symbol_note_ids_sql(user_id, [t])
+        sql += f" AND (ticker = ? OR id IN ({ids_sql}))"
+        params.extend([t, *ids_params])
     # "Every entry where I traded/mentioned AMD" — the name `embed_symbol`
     # predates P0-3 (Wave 1 Slice 2) and is kept for every existing caller's
     # sake, but it now answers from BOTH sidecars: accepted chart embeds
@@ -1173,19 +1209,15 @@ def _notes_filter_sql(
     # (test_backlinks_and_the_list_filter_agree) — same membership question,
     # asked two different ways for two different callers' query shapes.
     if embed_symbol:
-        sql += (" AND (EXISTS (SELECT 1 FROM j2_note_embeds e"
-                " WHERE e.note_id = j2_notes.id AND e.user_id = j2_notes.user_id"
-                " AND e.symbol = ?)"
-                " OR EXISTS (SELECT 1 FROM j2_note_mentions m"
-                " WHERE m.note_id = j2_notes.id AND m.user_id = j2_notes.user_id"
-                " AND m.symbol = ?))")
-        params.append(embed_symbol.strip().upper())
-        params.append(embed_symbol.strip().upper())
+        ids_sql, ids_params = _symbol_note_ids_sql(user_id, [embed_symbol.strip().upper()])
+        sql += f" AND id IN ({ids_sql})"
+        params.extend(ids_params)
     if embed_widget:
-        sql += (" AND EXISTS (SELECT 1 FROM j2_note_embeds e"
-                " WHERE e.note_id = j2_notes.id AND e.user_id = j2_notes.user_id"
-                " AND e.widget_id = ?)")
-        params.append(embed_widget.strip())
+        # Same non-correlated shape as the symbol set above (and for the same
+        # reason: `idx_j2_note_embeds_user_widget` made the correlated EXISTS
+        # scan every embed of that widget once PER NOTE).
+        sql += " AND id IN (SELECT note_id FROM j2_note_embeds WHERE user_id = ? AND widget_id = ?)"
+        params.extend([user_id, embed_widget.strip()])
     if date_from:
         sql += " AND created_at >= ?"
         params.append(date_from)
@@ -1199,15 +1231,9 @@ def _notes_filter_sql(
         # clause -- `IN ()` matches nothing, an honest empty result rather
         # than silently skipping the filter.
         if symbol_in:
-            placeholders = ",".join("?" * len(symbol_in))
-            sql += (f" AND (EXISTS (SELECT 1 FROM j2_note_embeds e"
-                    f" WHERE e.note_id = j2_notes.id AND e.user_id = j2_notes.user_id"
-                    f" AND e.symbol IN ({placeholders}))"
-                    f" OR EXISTS (SELECT 1 FROM j2_note_mentions m"
-                    f" WHERE m.note_id = j2_notes.id AND m.user_id = j2_notes.user_id"
-                    f" AND m.symbol IN ({placeholders})))")
-            params.extend(symbol_in)
-            params.extend(symbol_in)
+            ids_sql, ids_params = _symbol_note_ids_sql(user_id, list(symbol_in))
+            sql += f" AND id IN ({ids_sql})"
+            params.extend(ids_params)
         else:
             sql += " AND 0"
     if tag:
@@ -1223,7 +1249,7 @@ def _notes_filter_sql(
         # callers run it on a connection from `register_note_sql_functions`.
         key = tag_key(tag)
         if key:
-            tag_sql, tag_params = _tag_clause(key)
+            tag_sql, tag_params = _tag_clause(user_id, key)
             sql += f" AND {tag_sql}"
             params.extend(tag_params)
         else:
@@ -1253,13 +1279,13 @@ def _notes_filter_sql(
         # The search box finds a note whose tag IS the text typed -- the same
         # `tag_key` identity the `tag=` filter uses (never its children: a
         # search for "research" is not a request for the whole subtree).
+        # ⛔ Wave 7 (lane I): every branch of the `q` match below is a ROWID SET,
+        # computed once, never a per-row test -- the tag and ticker columns sit
+        # after the body, on an overflow page (see `_tag_rowid_set_sql`).
         q_key = tag_key(q)
         if q_key:
-            q_pre_sql, q_pre_params = _tag_prefilter(q_key)
-            tag_sql = (f"({q_pre_sql} AND EXISTS (SELECT 1 FROM"
-                       " json_each(COALESCE(j2_notes.tags, '[]')) jt"
-                       " WHERE j2_tag_is(jt.value, ?)))")
-            tag_params: list[Any] = [*q_pre_params, q_key]
+            tag_set_sql, tag_params = _tag_rowid_set_sql(user_id, q_key, "j2_tag_is")
+            tag_sql = f"j2_notes.rowid IN ({tag_set_sql})"
         else:
             tag_sql, tag_params = "0", []
         # Wave 4 Slice 4 fix: a leading `$` (the natural way to type a
@@ -1271,15 +1297,27 @@ def _notes_filter_sql(
         # word/non-word split) so an internal hyphen (BRK-B) is untouched.
         exact_ticker = re.sub(r"^[^\w]+", "", q.strip()).upper()
         expr = fts_match_expr(q)
+        ticker_sql = "j2_notes.rowid IN (SELECT rowid FROM j2_notes WHERE user_id = ? AND ticker = ?)"
         if expr:
-            sql += (" AND (id IN (SELECT note_id FROM j2_notes_fts"
-                    " WHERE j2_notes_fts MATCH ? AND user_id = ?)"
-                    f" OR {tag_sql} OR ticker = ?)")
-            params.extend([expr, user_id, *tag_params, exact_ticker])
+            # The FTS match maps to note ids through `j2_notes_fts_map` (indexed
+            # both ways), never by reading `note_id` back out of each match's
+            # FTS content row -- that read, not the MATCH, was the cost of a
+            # dense term (~40 ms of ~46 ms for 15k hits at 50k notes).
+            # No user filter inside the set: the FTS index is one table for every
+            # member, so the set can hold another member's rowids, and the outer
+            # query's own `user_id = ?` drops them. Mapping by primary key is
+            # ~27 ms for 15k hits; filtering by user here forced a scan of the
+            # member's whole index instead (~44 ms).
+            sql += (" AND (j2_notes.rowid IN (SELECT n.rowid FROM j2_notes n WHERE"
+                    " n.id IN (SELECT m.note_id FROM j2_notes_fts_map m WHERE m.fts_rowid IN"
+                    " (SELECT rowid FROM j2_notes_fts WHERE j2_notes_fts MATCH ?)))"
+                    f" OR {tag_sql} OR {ticker_sql})")
+            params.extend([expr, *tag_params, user_id, exact_ticker])
         else:
-            sql += f" AND (lower(title) LIKE ? OR lower(body_plain) LIKE ? OR {tag_sql} OR ticker = ?)"
+            sql += (f" AND (lower(title) LIKE ? OR lower(body_plain) LIKE ? OR {tag_sql}"
+                    f" OR {ticker_sql})")
             ql = f"%{q.lower()}%"
-            params.extend([ql, ql, *tag_params, exact_ticker])
+            params.extend([ql, ql, *tag_params, user_id, exact_ticker])
     return sql, params
 
 
@@ -1297,9 +1335,27 @@ def _snippets_for(
     if not note_ids:
         return {}
     placeholders = ",".join("?" * len(note_ids))
+    # This page's FTS rowids, through the map (never by reading the UNINDEXED
+    # `note_id` / `user_id` back out of FTS content: that read, for EVERY match,
+    # was ~40 ms of a dense term's 48 ms at 50k notes).
+    by_rowid = {r[1]: r[0] for r in conn.execute(
+        f"SELECT note_id, fts_rowid FROM j2_notes_fts_map WHERE note_id IN ({placeholders})",
+        note_ids,
+    ).fetchall()}
+    if not by_rowid:
+        return {}
+    rids = list(by_rowid)
+    rph = ",".join("?" * len(rids))
+    # ⛔ ONE pass over the MATCH, snippet()/highlight() computed only for this
+    # page's rows. Constraining FTS5 by `rowid IN (...)` instead made it re-seek
+    # the MATCH per rowid, which measured SLOWER (~43 ms) than scanning every
+    # match and skipping the rows off the page (~6 ms). Same functions, same
+    # arguments, same row: the text is identical either way.
     rows = conn.execute(
-        "SELECT note_id,"
-        " snippet(j2_notes_fts, 3, '<mark>', '</mark>', '…', 12) AS body_snippet,"
+        "SELECT rid, body_snippet, title_highlight FROM ("
+        " SELECT rowid AS rid,"
+        f" CASE WHEN rowid IN ({rph}) THEN"
+        " snippet(j2_notes_fts, 3, '<mark>', '</mark>', '…', 12) END AS body_snippet,"
         # highlight(), not snippet(), for the title: snippet() truncates to
         # the requested token window regardless of whether THAT column
         # actually matched -- for a body-only match this would render an
@@ -1309,15 +1365,16 @@ def _snippets_for(
         # Python filter below then drops it unless the title itself
         # genuinely contains a <mark>, so the frontend contract stays
         # simple: titleSnippet present+non-empty means the TITLE matched.
-        " highlight(j2_notes_fts, 2, '<mark>', '</mark>') AS title_highlight"
-        " FROM j2_notes_fts"
-        f" WHERE j2_notes_fts MATCH ? AND user_id = ? AND note_id IN ({placeholders})",
-        [expr, user_id, *note_ids],
+        f" CASE WHEN rowid IN ({rph}) THEN"
+        " highlight(j2_notes_fts, 2, '<mark>', '</mark>') END AS title_highlight"
+        " FROM j2_notes_fts WHERE j2_notes_fts MATCH ?"
+        ") WHERE body_snippet IS NOT NULL",
+        [*rids, *rids, expr],
     ).fetchall()
     out: dict[str, dict[str, str]] = {}
     for r in rows:
         title_highlight = r["title_highlight"] or ""
-        out[r["note_id"]] = {
+        out[by_rowid[r["rid"]]] = {
             "bodySnippet": r["body_snippet"] or "",
             "titleSnippet": title_highlight if "<mark>" in title_highlight else "",
         }
@@ -1485,66 +1542,94 @@ def count_notes(
             conn.close()
 
 
+_ASCII_LOWER = str.maketrans("ABCDEFGHIJKLMNOPQRSTUVWXYZ", "abcdefghijklmnopqrstuvwxyz")
+
+
+def _sqlite_lower(value: str) -> str:
+    """SQLite's built-in `LOWER()`: ASCII letters only (no ICU). The tag counts
+    have always grouped by exactly this before folding by `tag_key`."""
+    return value.translate(_ASCII_LOWER)
+
+
+def _tag_scan(conn: sqlite3.Connection, user_id: str) -> list[tuple[Any, set[int]]]:
+    """ONE pass over every tag of every live note: `(tag value, {note rowids})`
+    per DISTINCT stored spelling.
+
+    Served from `idx_j2_notes_live_cover` (db.py) alone -- `tags` is in it -- so
+    no note row, and no row's overflow page, is read. Grouped by the exact
+    spelling in SQL and handed back as one comma-joined rowid list per spelling:
+    a library repeats a handful of spellings across thousands of notes, and
+    materialising ~90k `(rowid, value)` tuples in Python cost more than the scan
+    (measured at 50k notes: ~38 ms grouped + ~8 ms to parse, against ~50 ms for
+    the raw rows before any Python work)."""
+    rows = conn.execute(
+        "SELECT je.value, group_concat(j2_notes.rowid)"
+        " FROM j2_notes, json_each(COALESCE(j2_notes.tags, '[]')) je"
+        " WHERE j2_notes.user_id = ? AND j2_notes.deleted_at IS NULL"
+        " AND j2_notes.archived_at IS NULL"
+        " GROUP BY je.value",
+        (user_id,),
+    ).fetchall()
+    return [(r[0], set(map(int, str(r[1]).split(",")))) for r in rows if r[0] is not None]
+
+
+def _tag_index(scan: list[tuple[Any, set[int]]]) -> tuple[dict[str, list], list[tuple[str, set[int]]]]:
+    """`(by_lk, nested)`: `by_lk[LOWER(tag)] = [MAX(tag), {rowids}]` -- what the
+    old SQL `GROUP BY LOWER(je.value)` returned, with the note SET kept rather than
+    reduced to a count -- and `nested` = the `(tag, {rowids})` spellings holding a
+    '/'. SQLite compares text by UTF-8 bytes and Python by code point, which order
+    strings identically, so `max` here is the old `MAX(je.value)`."""
+    by_lk: dict[str, list] = {}
+    nested: list[tuple[str, set[int]]] = []
+    for value, ids in scan:
+        v = str(value)
+        lk = _sqlite_lower(v)
+        e = by_lk.get(lk)
+        if e is None:
+            by_lk[lk] = [v, set(ids)]
+        else:
+            e[1] |= ids
+            if v > e[0]:
+                e[0] = v
+        if "/" in v:
+            nested.append((v, ids))
+    return by_lk, nested
+
+
+def _fold_tag_index(by_lk: dict[str, list], *, flat_only: bool) -> dict[str, dict[str, Any]]:
+    """Fold the per-`LOWER(tag)` groups by `tag_key`, the key the tree and the
+    filter compare by: `tag_key -> {"tag", "c", "lks", "ids"}`. The two keys agree
+    for almost every tag; where they do not (a legacy "Q3 / Q4" beside "Q3/Q4", or
+    "Élan" beside "élan", which SQLite's ASCII-only LOWER keeps apart) the count is
+    the UNION of the notes, so a note carrying two spellings of one tag counts once.
+    (That recount used to take another whole-library scan; the scan now keeps the
+    note sets, so the union is free.)"""
+    groups: dict[str, dict[str, Any]] = {}
+    for lk, (maxv, ids) in by_lk.items():
+        if flat_only and "/" in lk:
+            continue
+        key = tag_key(lk)
+        if not key:
+            continue
+        g = groups.get(key)
+        if g is None:
+            groups[key] = {"tag": maxv, "lks": [lk], "ids": ids}
+        else:
+            g["tag"] = max(g["tag"], maxv)
+            g["lks"].append(lk)
+            g["ids"] = g["ids"] | ids
+    for g in groups.values():
+        g["c"] = len(g["ids"])
+    return groups
+
+
 def _tag_groups(
     conn: sqlite3.Connection, user_id: str, *, flat_only: bool = False,
 ) -> dict[str, dict[str, Any]]:
     """`tag_key -> {"tag": display spelling, "c": DISTINCT notes, "lks": [...]}`
-    over the member's active notes (flat tags only when `flat_only`).
-
-    Grouped in SQL by `LOWER(value)` — C speed, one pass — then FOLDED here by
-    `tag_key`, which is what the tree and the filter compare by. The two agree
-    for almost every tag; where they do not (a legacy "Q3 / Q4" beside
-    "Q3/Q4", or "Élan" beside "élan", which SQLite's ASCII-only LOWER keeps
-    apart) the folded group is recounted exactly, so a note carrying two
-    spellings of one tag still counts once. Measured on 50,000 notes: grouping
-    by a Python key inside SQL cost ~120 ms more per call than this."""
-    rows = conn.execute(
-        "SELECT MAX(je.value) AS tag, LOWER(je.value) AS lk,"
-        " COUNT(DISTINCT j2_notes.id) AS c"
-        " FROM j2_notes, json_each(COALESCE(j2_notes.tags, '[]')) je"
-        " WHERE j2_notes.user_id = ? AND j2_notes.deleted_at IS NULL"
-        " AND j2_notes.archived_at IS NULL"
-        + (" AND instr(je.value, '/') = 0" if flat_only else "")
-        + " GROUP BY LOWER(je.value)",
-        (user_id,),
-    ).fetchall()
-    groups: dict[str, dict[str, Any]] = {}
-    for r in rows:
-        key = tag_key(r["lk"])
-        if not key:
-            continue
-        g = groups.setdefault(key, {"tag": "", "c": 0, "lks": []})
-        g["tag"] = max(g["tag"], str(r["tag"] or ""))
-        g["c"] += int(r["c"] or 0)
-        g["lks"].append(r["lk"])
-    collided = [g for g in groups.values() if len(g["lks"]) > 1]
-    if collided:
-        ids = _note_ids_by_lowered_tag(conn, user_id, [lk for g in collided for lk in g["lks"]])
-        for g in collided:
-            g["c"] = len(set().union(*(ids.get(lk, set()) for lk in g["lks"])))
-    return groups
-
-
-def _note_ids_by_lowered_tag(
-    conn: sqlite3.Connection, user_id: str, lowered: list[str],
-) -> dict[str, set[str]]:
-    """`LOWER(tag) -> active note ids carrying it`, for the `lowered` values
-    asked about — ONE pass over the member's notes, never one per tag."""
-    out: dict[str, set[str]] = {}
-    wanted = list(dict.fromkeys(lowered))
-    for start in range(0, len(wanted), _BATCH_READ_CHUNK):
-        chunk = wanted[start:start + _BATCH_READ_CHUNK]
-        placeholders = ",".join("?" * len(chunk))
-        for nid, lk in conn.execute(
-            "SELECT j2_notes.id, LOWER(je.value)"
-            " FROM j2_notes, json_each(COALESCE(j2_notes.tags, '[]')) je"
-            " WHERE j2_notes.user_id = ? AND j2_notes.deleted_at IS NULL"
-            " AND j2_notes.archived_at IS NULL"
-            f" AND LOWER(je.value) IN ({placeholders})",
-            [user_id, *chunk],
-        ):
-            out.setdefault(lk, set()).add(nid)
-    return out
+    over the member's active notes (flat tags only when `flat_only`)."""
+    by_lk, _nested = _tag_index(_tag_scan(conn, user_id))
+    return _fold_tag_index(by_lk, flat_only=flat_only)
 
 
 def tag_counts(
@@ -1590,9 +1675,38 @@ def tag_counts(
     try:
         # Wave 0 trash: a soft-deleted note's tags must not inflate the tag
         # cloud — same "active notebook only" predicate as everywhere else.
-        groups = _tag_groups(conn, user_id)
-        ordered = sorted(groups.items(), key=lambda kv: (-kv[1]["c"], kv[0]))
-        return [{"tag": g["tag"], "count": g["c"]} for _k, g in ordered]
+        return _counts_from_groups(_tag_groups(conn, user_id))
+    finally:
+        if owned:
+            conn.close()
+
+
+def _counts_from_groups(groups: dict[str, dict[str, Any]]) -> list[dict[str, Any]]:
+    ordered = sorted(groups.items(), key=lambda kv: (-kv[1]["c"], kv[0]))
+    return [{"tag": g["tag"], "count": g["c"]} for _k, g in ordered]
+
+
+def tag_counts_and_tree(
+    user_id: str,
+    conn: sqlite3.Connection | None = None,
+) -> dict[str, list[dict[str, Any]]]:
+    """`{"tags": tag_counts(...), "tree": tag_tree(...)}` from ONE connection and
+    ONE scan: what `GET /notes/tags` returns.
+
+    Wave 7 (lane I). The route used to call `tag_counts` and `tag_tree`
+    separately, each on its own connection; between them they made four
+    whole-library `json_each` passes (two groupings, the nested rows, the parents'
+    recount), each reading every note's `tags` off its overflow page. Measured at
+    acf1eb51e, 50k notes: 984 ms p95. Now one pass over the covering index feeds
+    both halves. ⛔ The answer must equal the two separate calls AND a from-scratch
+    recomputation; tests/test_journal_two_tag_counts_combined.py pins both on a
+    library holding every tag shape the fold treats specially."""
+    owned = conn is None
+    conn = conn or get_connection()
+    try:
+        by_lk, nested = _tag_index(_tag_scan(conn, user_id))
+        return {"tags": _counts_from_groups(_fold_tag_index(by_lk, flat_only=False)),
+                "tree": _tree_from_index(by_lk, nested)}
     finally:
         if owned:
             conn.close()
@@ -1616,69 +1730,65 @@ def tag_tree(
     "research", and a summed count would claim two — the same honest-count
     discipline as `tag_counts`. It is what filtering by that tag returns.
 
-    ⭐ Cheap for the common case: flat tags are counted in SQL exactly as
-    `tag_counts` counts them, and only rows carrying a `/` (plus the flat
-    parents those rows actually hang under) are read into Python."""
+    ⭐ One pass (wave 7): the same `_tag_scan` rows `tag_counts` folds, read
+    from the covering index; every tag spelling is parsed once, not once per
+    note (see `_tree_from_index`)."""
     owned = conn is None
     conn = conn or get_connection()
     try:
-        flat_groups = _tag_groups(conn, user_id, flat_only=True)
-        nested_rows = conn.execute(
-            "SELECT j2_notes.id AS nid, je.value AS tag"
-            " FROM j2_notes, json_each(COALESCE(j2_notes.tags, '[]')) je"
-            " WHERE j2_notes.user_id = ? AND j2_notes.deleted_at IS NULL"
-            " AND j2_notes.archived_at IS NULL"
-            " AND instr(je.value, '/') > 0",
-            (user_id,),
-        ).fetchall()
-
-        own: dict[str, int] = {}
-        spelled: dict[str, str] = {}      # explicit spellings win
-        implied: dict[str, str] = {}      # a parent named only through a child
-        for key, g in flat_groups.items():
-            own[key] = own.get(key, 0) + g["c"]
-            spelled[key] = max(spelled.get(key, ""), _normalize_tag_path(g["tag"]))
-
-        under: dict[str, set[str]] = {}  # key -> notes tagged it OR anything below it
-        own_nested: dict[str, set[str]] = {}
-        for r in nested_rows:
-            path = _normalize_tag_path(str(r["tag"] or ""))
-            if not path:
-                continue
-            segs = path.split("/")
-            for i in range(1, len(segs) + 1):
-                prefix = "/".join(segs[:i])
-                pkey = prefix.lower()
-                under.setdefault(pkey, set()).add(r["nid"])
-                if i < len(segs):
-                    implied[pkey] = max(implied.get(pkey, ""), prefix)
-            own_nested.setdefault(path.lower(), set()).add(r["nid"])
-            spelled[path.lower()] = max(spelled.get(path.lower(), ""), path)
-
-        # A flat tag that is also a PARENT: its own notes join its subtree.
-        parents = [k for k in under if "/" not in k and k in flat_groups]
-        if parents:
-            ids = _note_ids_by_lowered_tag(conn, user_id, [lk for k in parents for lk in flat_groups[k]["lks"]])
-            for k in parents:
-                for lk in flat_groups[k]["lks"]:
-                    under[k] |= ids.get(lk, set())
-
-        for k, ids in own_nested.items():
-            own[k] = own.get(k, 0) + len(ids)
-
-        out: list[dict[str, Any]] = []
-        for key in set(own) | set(under):
-            out.append({
-                "path": spelled.get(key) or implied.get(key) or key,
-                "key": key,
-                "own": own.get(key, 0),
-                "total": len(under[key]) if key in under else own.get(key, 0),
-            })
-        out.sort(key=lambda n: (-n["total"], n["key"]))
-        return out
+        by_lk, nested = _tag_index(_tag_scan(conn, user_id))
+        return _tree_from_index(by_lk, nested)
     finally:
         if owned:
             conn.close()
+
+
+def _tree_from_index(by_lk: dict[str, list], nested: list[tuple[str, set[int]]]) -> list[dict[str, Any]]:
+    """`tag_tree`'s body (see `tag_tree` for the rules), from `_tag_index`."""
+    flat_groups = _fold_tag_index(by_lk, flat_only=True)
+    own: dict[str, int] = {}
+    spelled: dict[str, str] = {}      # explicit spellings win
+    implied: dict[str, str] = {}      # a parent named only through a child
+    for key, g in flat_groups.items():
+        own[key] = own.get(key, 0) + g["c"]
+        spelled[key] = max(spelled.get(key, ""), _normalize_tag_path(g["tag"]))
+
+    # Per DISTINCT nested spelling (with the set of notes carrying it), never per
+    # note: the scan already grouped them. Same rules, same result.
+    under: dict[str, set[int]] = {}   # key -> notes tagged it OR anything below it
+    own_nested: dict[str, set[int]] = {}
+    for tag, ids in nested:
+        path = _normalize_tag_path(tag)
+        if not path:
+            continue
+        segs = path.split("/")
+        for i in range(1, len(segs) + 1):
+            prefix = "/".join(segs[:i])
+            pkey = prefix.lower()
+            under.setdefault(pkey, set()).update(ids)
+            if i < len(segs):
+                implied[pkey] = max(implied.get(pkey, ""), prefix)
+        own_nested.setdefault(path.lower(), set()).update(ids)
+        spelled[path.lower()] = max(spelled.get(path.lower(), ""), path)
+
+    # A flat tag that is also a PARENT: its own notes join its subtree. The scan
+    # kept every flat tag's note set, so this is a union, never another scan.
+    for k in [k for k in under if "/" not in k and k in flat_groups]:
+        under[k] |= flat_groups[k]["ids"]
+
+    for k, ids in own_nested.items():
+        own[k] = own.get(k, 0) + len(ids)
+
+    out: list[dict[str, Any]] = []
+    for key in set(own) | set(under):
+        out.append({
+            "path": spelled.get(key) or implied.get(key) or key,
+            "key": key,
+            "own": own.get(key, 0),
+            "total": len(under[key]) if key in under else own.get(key, 0),
+        })
+    out.sort(key=lambda n: (-n["total"], n["key"]))
+    return out
 
 
 def folder_note_counts(
@@ -1836,15 +1946,16 @@ def get_symbol_backlinks(
         # excludes soft-deleted notes via its base WHERE clause. Without
         # this, a trashed note's embed would still count here while the
         # list filter it's pinned against had already stopped counting it.
+        # The SAME note-id set the list filter reads (`_symbol_note_ids_sql`),
+        # driven from the set: CROSS JOIN pins it as the outer loop. Left to
+        # itself the planner walked every live note and probed the set per note
+        # (~160 ms at 50k, acf1eb51e); from the set it is one PK lookup per hit.
+        ids_sql, ids_params = _symbol_note_ids_sql(user_id, [sym])
         row = conn.execute(
-            "SELECT COUNT(DISTINCT x.note_id) AS c FROM ("
-            "  SELECT note_id FROM j2_note_embeds WHERE user_id = ? AND symbol = ?"
-            "  UNION"
-            "  SELECT note_id FROM j2_note_mentions WHERE user_id = ? AND symbol = ?"
-            ") x"
-            " JOIN j2_notes n ON n.id = x.note_id AND n.user_id = ?"
-            " WHERE n.deleted_at IS NULL",
-            (user_id, sym, user_id, sym, user_id),
+            f"SELECT COUNT(*) AS c FROM ({ids_sql}) x"
+            " CROSS JOIN j2_notes n ON n.id = x.note_id"
+            " WHERE n.user_id = ? AND n.deleted_at IS NULL",
+            (*ids_params, user_id),
         ).fetchone()
         out["count"] = int(row["c"] or 0) if row else 0
         if not out["count"]:
@@ -1861,20 +1972,16 @@ def get_symbol_backlinks(
             "SELECT n.id, n.title, n.updated_at,"
             "       COALESCE(e.refs, 0) AS refs,"
             "       e.widgets AS widgets"
-            " FROM ("
-            "  SELECT note_id FROM j2_note_embeds WHERE user_id = ? AND symbol = ?"
-            "  UNION"
-            "  SELECT note_id FROM j2_note_mentions WHERE user_id = ? AND symbol = ?"
-            " ) x"
-            " JOIN j2_notes n ON n.id = x.note_id AND n.user_id = ?"
+            f" FROM ({ids_sql}) x"
+            " CROSS JOIN j2_notes n ON n.id = x.note_id"
             " LEFT JOIN ("
             "  SELECT note_id, COUNT(*) AS refs, GROUP_CONCAT(DISTINCT widget_id) AS widgets"
             "  FROM j2_note_embeds WHERE user_id = ? AND symbol = ? GROUP BY note_id"
             " ) e ON e.note_id = n.id"
-            " WHERE n.deleted_at IS NULL"
+            " WHERE n.user_id = ? AND n.deleted_at IS NULL"
             " ORDER BY n.updated_at DESC"
             " LIMIT ?",
-            (user_id, sym, user_id, sym, user_id, user_id, sym, max(1, min(limit, 25))),
+            (*ids_params, user_id, sym, user_id, max(1, min(limit, 25))),
         ).fetchall()
         out["notes"] = [{
             "id": r["id"],
@@ -3989,7 +4096,7 @@ def tag_member_notes(
     conn = conn or get_connection()
     try:
         register_note_sql_functions(conn)
-        tag_sql, tag_params = _tag_clause(key)
+        tag_sql, tag_params = _tag_clause(user_id, key)
         rows = conn.execute(
             "SELECT id, title FROM j2_notes WHERE user_id = ? AND deleted_at IS NULL"
             f" AND {tag_sql} ORDER BY updated_at DESC",
