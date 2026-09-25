@@ -166,9 +166,13 @@ def test_the_gate_is_read_per_call_never_captured(monkeypatch):
     monkeypatch.setenv(GATE, "1")
     assert ns.semantic_enabled() is True
     src = open(ns.__file__, encoding="utf-8").read().split("\n")
-    for i, line in enumerate(src):
-        if "os.environ" in line:
-            assert line.startswith((" ", "\t")), f"note_semantic.py:{i + 1} reads the env at import"
+    # Tests shard M-7: both spellings (a module-level `os.getenv(...)` passed the
+    # `os.environ`-only scan), and a CONTROL that the scan saw a read at all --
+    # a scan that finds nothing proves nothing.
+    reads = [(i, line) for i, line in enumerate(src) if "os.environ" in line or "getenv" in line]
+    assert reads, "non-vacuity: the scan saw no environment read in note_semantic.py"
+    for i, line in reads:
+        assert line.startswith((" ", "\t")), f"note_semantic.py:{i + 1} reads the env at import"
 
 
 # ── on, with the no-op provider ──────────────────────────────────────────────

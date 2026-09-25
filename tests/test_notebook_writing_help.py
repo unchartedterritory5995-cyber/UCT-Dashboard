@@ -234,9 +234,12 @@ def test_the_gate_is_read_PER_REQUEST_a_flip_needs_no_restart(app, client, monke
 
 def test_the_gate_function_holds_no_module_level_capture():
     src = (REPO / "api/services/journal_two/writing_help.py").read_text(encoding="utf-8")
-    for i, line in enumerate(src.split("\n")):
-        if "os.environ" in line:
-            assert line.startswith((" ", "\t")), f"writing_help.py:{i + 1} reads the environment at import: {line}"
+    # Tests shard M-7: both spellings, and a CONTROL that the scan saw a read at all.
+    reads = [(i, line) for i, line in enumerate(src.split("\n"))
+             if "os.environ" in line or "getenv" in line]
+    assert reads, "non-vacuity: the scan saw no environment read in writing_help.py"
+    for i, line in reads:
+        assert line.startswith((" ", "\t")), f"writing_help.py:{i + 1} reads the environment at import: {line}"
 
 
 # ── paid, ownership, validation ─────────────────────────────────────────────
