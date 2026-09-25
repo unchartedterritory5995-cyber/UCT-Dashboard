@@ -58,7 +58,7 @@ C4-Python is mandatory and never short-circuited by C0. Last run: 255 passed, ex
 
 ---
 
-## 3. Programme B — the master red sweep (RESUME HERE)
+## 3. Programme B — the master red sweep (CLOSED 2026-09-25 — every PR landed; see 3f)
 
 Branch `fix/master-red-sweep`, cut from master `451aed688`.
 Worktree: `C:/Users/Patrick/uct-dashboard/.worktrees/master-fix`
@@ -248,6 +248,44 @@ agent lands PRs from then on, or click Merge on GitHub. Order: #185 → #188 →
 #192, one at a time, each after the previous `web` deploy reaches SUCCESS; then fast-forward
 #184 to `merge/pine-up-to-master-resolved` (a branch push the agent CAN do).
 
+### 3f. ✅ LANDED 2026-09-25 — the walkthrough above is history; this is what happened
+
+The owner merged each PR by typing `! gh pr merge <n> --merge --delete-branch=false --repo
+unchartedterritory5995-cyber/UCT-Dashboard` (the `!` runs it as the owner; `--repo` is
+REQUIRED because from the memory checkout `gh` resolves the wrong repository and says
+"Could not resolve to a PullRequest"). The agent verified every deploy by the artifact: gate
+run green → Railway `web` SUCCESS → `/api/health` uptime reset.
+
+| PR | what | merge commit | web deploy |
+|---|---|---|---|
+| #185 | the sweep, test-only (re-merged onto master after a second session landed the same reds: `394b3be50`) | `217880b04` | SUCCESS 2026-09-24 21:49 CT, uptime reset |
+| #188 | `pine.js` literal fractional window refused at the door (one line) | `bd9d7cd6d` | SUCCESS 2026-09-25 06:47 CT, uptime 71 s |
+| #189 | BuilderSheet contract ruled B, railed | `ba3745bd2` | SUCCESS 07:51 CT, uptime 40 s |
+| #191 | rule12 carve-out for gate receipts | `4e16a7661` | SUCCESS 08:00 CT, uptime 78 s |
+| #184 | the Pine engine merge (`merge/pine-up-to-master` @ `524cbb356`, gate E 0 NEW) | `09a218e86` | SUCCESS 08:30 CT, uptime 61 s |
+| #192 | polling rulings | CLOSED, superseded by master's own `7e0ab34c2` (identical rulings) | — |
+
+**#184's merge evidence, since gate E's tree was not master's final tree.** A local preview
+merge of master `4e16a7661` into `524cbb356` produced tree `bb8028433`; after the click,
+master's tree hash was byte-identical to that preview. Its `app/` delta over gate E's tree
+(`7885fd5c0`) was exactly two test files (`BuilderSheet.pine.test.jsx` from #189,
+`rule12Paths.test.js` from #191), both green on the merged tree (42/42); `pine.js` was
+byte-identical to #184's copy with the fractional-window guard present once; the five backend
+test files master gained since (`test_bars_universe_crawler`, `test_crawler_tail_cohort`,
+`test_crawler_yield_semantics`, `test_flow_single_ticker_floors`, `test_rs_warm_retry`) passed
+scoped, 58/58. So the measurement for the merge is gate E + that delta; a full gate F would
+have re-run gate E's tree plus two green files. Member impact: the host-lane translator,
+member pane definition and indicators registry (live behind `VITE_PINE_MEMBER_PANE_ENABLED=1`);
+the runtime lane still has zero live importers (ruling D2); the new objects-only pane reads
+`VITE_PINE_OBJECTS_ONLY_PANE_ENABLED`, unset on Railway, so it is OFF.
+
+**Still open, all optional and owner-only:** (5) the licence-withheld corpus re-fetch on the
+rig, then `OOS_MEASURED_WRITE=1`; a `Bash(gh pr merge:*)` permission rule via `/permissions`
+if the owner wants the agent to land PRs; rotating the fine-grained token that was pasted
+into a session transcript on 2026-09-24. The Pine UFCS lane's 2026-09-23 result (the
+`objects:iterated-tree-not-last-bar` row yields ZERO draws behind eight second walls) is
+recorded in `docs/pine/RVOL-SLICE-RESUME.md` ("DO NOT RE-PROBE").
+
 
 ---
 
@@ -291,6 +329,10 @@ holds two gate-run artifacts from the baseline gate plus one pre-existing
 ---
 
 ## 6. Two things blocked on you
+
+> ✅ **Both resolved 2026-09-24.** `gh` is logged in with a fresh fine-grained token and
+> `GITHUB_PERSONAL_ACCESS_TOKEN` was replaced via `setx`; the `github` MCP server reads the
+> new value only after Claude Code restarts. Kept below as the record.
 
 1. **`gh` is not authenticated.** The device flow timed out twice when run as a
    background task. Run `gh auth login` in a NORMAL terminal where you can watch
