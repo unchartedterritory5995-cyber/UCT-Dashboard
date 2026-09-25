@@ -1,7 +1,7 @@
 # `/flow` card data source — the decision packet (2026-09-25)
 
 **Decision owner:** Patrick, with Ravi (the Options Flow page and `live_massive_router.py`
-are his surface). **Written by:** the 2026-09-24/25 flow session. **Status:** A is BUILT and DARK (2026-09-25 evening, `DISCORD_FLOW_CARD_SOURCE`, default `rollup`, master `54802b3c8`); the FLIP is the open decision.
+are his surface). **Written by:** the 2026-09-24/25 flow session. **Status:** A is BUILT and DARK (2026-09-25 evening, `DISCORD_FLOW_CARD_PAGE_ENABLED`, unset = rollup, master `54802b3c8`); the FLIP is the open decision.
 
 ## The question in one sentence
 
@@ -86,7 +86,7 @@ the page's full-history result, because `processFlowData`'s contract-level rules
 today's rollup **and label the card** ("rollup fallback") — a degraded delivery, never a silent
 second truth. Never fall back on `ok: false` from the derivation itself.
 
-**Flag.** `DISCORD_FLOW_CARD_SOURCE=page|rollup` on web and flow-worker, default `rollup` until
+**Flag.** `DISCORD_FLOW_CARD_PAGE_ENABLED=1` on web (the job runs there), unset = rollup until
 the parity tool reads AGREE with a magnitude ratio inside a stated band on a 20-name sweep.
 
 **Cost.** ~1 day: the windowed endpoint (partner file `api/flow_router.py`, Node bundle unchanged),

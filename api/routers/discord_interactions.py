@@ -285,7 +285,7 @@ def run_flow_card_job(app_id: str, token: str, ticker: str, days: str,
     ack = edit_fn or di.edit_original            # edits/posts the deferred interaction reply
     data = None
     fail_cls, fail_detail = "flow_error", ""
-    # ⭐ OPTION A (2026-09-25, dark under DISCORD_FLOW_CARD_SOURCE=page): the card derived from
+    # ⭐ OPTION A (2026-09-25, dark under DISCORD_FLOW_CARD_PAGE_ENABLED=1): the card derived from
     # the Options Flow PAGE's own product, so it reads what a member sees when they open the
     # page. When the product cannot be derived for any rung the rollup below answers instead,
     # LABELLED (`derivation: rollup`) — a degraded delivery, never a silent second truth.

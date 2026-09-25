@@ -118,9 +118,9 @@ def test_without_the_worker_url_the_path_declines_without_touching_the_network(m
 def test_the_flag_defaults_to_the_rollup(monkeypatch):
     monkeypatch.delenv(page.FLAG, raising=False)
     assert page.enabled() is False
-    monkeypatch.setenv(page.FLAG, "page")
+    monkeypatch.setenv(page.FLAG, "1")
     assert page.enabled() is True
-    monkeypatch.setenv(page.FLAG, "rollup")
+    monkeypatch.setenv(page.FLAG, "0")
     assert page.enabled() is False
 
 
@@ -130,7 +130,7 @@ def test_the_job_uses_the_page_when_flagged_and_labels_a_rollup_fallback(monkeyp
     from api.routers import discord_interactions as router
     sent = []
     edit = lambda app_id, token, **kw: sent.append(kw)
-    monkeypatch.setenv(page.FLAG, "page")
+    monkeypatch.setenv(page.FLAG, "1")
     payload = page.build_payload(PRODUCT, WIN, "DELL", "stocks", "1")
     monkeypatch.setattr(page, "page_derived_payload", lambda *a, **k: payload)
     rendered = {}
@@ -147,7 +147,7 @@ def test_the_job_uses_the_page_when_flagged_and_labels_a_rollup_fallback(monkeyp
                              edit_fn=edit, source="stocks", timeout_s=1.0)
     assert rendered["d"]["derivation"] == "rollup"
     # ...and with the flag OFF the page is never consulted, even when it would answer
-    monkeypatch.setenv(page.FLAG, "rollup")
+    monkeypatch.setenv(page.FLAG, "0")
     monkeypatch.setattr(page, "page_derived_payload", lambda *a, **k: (_ for _ in ()).throw(AssertionError("consulted")))
     rendered.clear()
     router.run_flow_card_job("A", "T", "DELL", "1", fetch_fn=lambda t, d: dict(rollup),

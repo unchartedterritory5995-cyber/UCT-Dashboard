@@ -21,8 +21,8 @@ gives them the ticker's full history and scopes afterwards, this path gives them
 card says "page-derived" in its footer so a reader knows which it is looking at, and the parity
 instrument (`tools/flow_card_parity_audit.py`) measures the residual before the flag flips.
 
-⛔ DARK BY DEFAULT. `DISCORD_FLOW_CARD_SOURCE` unset or `rollup` = the card members have today;
-`page` = this path, with the rollup as a LABELLED fallback when the product cannot be derived.
+⛔ DARK BY DEFAULT. `DISCORD_FLOW_CARD_PAGE_ENABLED` unset or `0` = the card members have today;
+`1` = this path, with the rollup as a LABELLED fallback when the product cannot be derived.
 """
 from __future__ import annotations
 
@@ -37,17 +37,17 @@ log = logging.getLogger(__name__)
 #: `live_massive_router.TICKER_FLOW_WIDEN_LADDER` uses, restated here only because this module
 #: must not import the rollup it exists to replace.
 WIDEN_LADDER = (1, 5, 20, "all")
-FLAG = "DISCORD_FLOW_CARD_SOURCE"
+FLAG = "DISCORD_FLOW_CARD_PAGE_ENABLED"
 
 
 def enabled() -> bool:
-    """True only when the operator has opted this path in. Unset is the rollup.
+    """True only when the operator has opted this path in (`1`/`true`/`on`). Unset is the rollup.
 
     ⛔ The environment name is a LITERAL here on purpose: `api/services/feature_flag_index.py`
     derives the flag ledger's universe by AST from `os.environ.get("<literal>")`, and a read
     through the `FLAG` constant is invisible to it, which made the ledger's entry read as
     "a gate the code does not read at all". `FLAG` stays for the tests' `monkeypatch.setenv`."""
-    return str(os.environ.get("DISCORD_FLOW_CARD_SOURCE", "rollup")).strip().lower() == "page"
+    return str(os.environ.get("DISCORD_FLOW_CARD_PAGE_ENABLED", "")).strip().lower() in ("1", "true", "yes", "on", "page")
 
 
 # ── field normalisation ─────────────────────────────────────────────────────────────────────
