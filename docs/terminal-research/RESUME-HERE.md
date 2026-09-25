@@ -44,16 +44,30 @@ honour `--profile` — all shipped as `6e7b10407` (see §3). The "215 matches" s
 observation from the walkthrough was re-probed and is not a defect (3,721 → 215 follows
 the filter, server and screen agree).
 
+**2026-09-25, after 02:00Z — the leftovers are finished and live, not filed.** The owner's
+standing instruction that session ("every time we come to this I want you to solve and
+finish it") re-opened four items this file had labelled owner-bound; each turned out to be
+decided already by a prior ruling or by the rail's own header, so each was finished:
+polling sites, R-29, the provenance-quote gate — all in `7e0ab34c2`, SUCCESS 02:23:42Z, the
+gate proved on the live pod (§3). The screener rails were repaired first (`a461ed3ac`, 30
+reds → 2, every one drift behind an owner-merged PR). Two things were found rather than
+built: three Desk videos deleted from YouTube after publish (§5 — an owner content
+decision, the rows are named) and a GitHub Actions runner-starvation mode that makes any
+clock-bounded deploy watch expire while the promotion is still queued (§7). One backend
+change is queued behind the pre-push guard's burst clause: the RS-rankings boot warmer
+retrying a failed warm in 2 min instead of 50 (`6d2dfa952`, re-based by chain 3; §3 row
+when it lands).
+
 ---
 
 ## 2 · Where everything lives (worktrees, branches, remotes)
 
 | Worktree | Path | Branch | Purpose | State right now |
 |---|---|---|---|---|
-| Docs/roadmap | `C:\Users\Patrick\uct-worktrees\terminal-research` | `terminal-research` | The living roadmap + go-live packet + this file | Clean, pushed, HEAD `32550b1b9` (this file itself is a NEW commit on top — see §6) |
-| Shipping pipeline | `C:\Users\Patrick\uct-worktrees\_merge-master` | `merge-run` | Where every commit gets cherry-picked, tested, and pushed to `origin/master` | Clean, matches `origin/master` at `ef0c79480` |
+| Docs/roadmap | `C:\Users\Patrick\uct-worktrees\terminal-research` | `terminal-research` | The living roadmap + go-live packet + this file | Pushed through `32b402b3d` (2026-09-25); this file's §1/§3/§7 edits of 02:3xZ are the next commit on top |
+| Shipping pipeline | `C:\Users\Patrick\uct-worktrees\_merge-master` | `merge-run` | Where every commit gets cherry-picked, tested, and pushed to `origin/master` | Re-based by chain 3 onto `origin/master` (`74beea1d2`) with `6d2dfa952` (RS-warm retry) cherry-picked on top, awaiting the guard — see §3 |
 | An older feature branch | `C:\Users\Patrick\uct-worktrees\s7-price-level` | `feat/s7-price-level` | Where the OI-17 session-expiry fix (`56f06c223`) was originally authored before shipping | Clean, nothing further needed here |
-| Production | — | `origin/production` | What members actually see | **In sync with `origin/master` at `ef0c79480`**, confirmed via `git merge-base --is-ancestor origin/master origin/production` |
+| Production | — | `origin/production` | What members actually see | `74beea1d2` at 02:26Z 2026-09-25 (contains every §3 commit; `7e0ab34c2` confirmed by `git merge-base --is-ancestor`). ⚠️ Three workstreams pushed inside ten minutes tonight; verify by ANCESTRY, never by "the newest record is mine" |
 
 **The shipping pipeline, exactly, every time** (this is the established, working
 process — repeat it for anything new):
@@ -94,6 +108,7 @@ In shipping order, all confirmed `SUCCESS` + ancestor-of-`origin/production`:
 | `6e7b10407` | Flag-ledger truth-up (2 undeclared gates declared, 10 entries corrected to measured Railway values — live audit exit 0), provenance-quote no-auth rationale corrected (router + test docstrings), R-27 smoke tool honours `--profile`/`UCT_Q1_RIG_PROFILE` and drops the stale `/catalysts/history` extra route | Docs/tests/tools only — no member-visible change, no behaviour change; web restart only |
 | `68872b3e0` → rolled back `5fd248c40` → **re-landed `73a4286d0`** | Bars-pack client sends the session cookie on every `/api/barspack` fetch (the pack had 401'd for every browser since the 2026-09-13 chart-data gate); router docstring corrected; mutation-proved rail; plus the joystick touch-smoke record. `68872b3e0` SUCCESS 23:35Z → its +30 s smoke failed on `/options-flow` page-load timing → H15 rollback `5fd248c40` SUCCESS 23:47Z → controlled comparison exonerated the change → `73a4286d0` SUCCESS 00:19Z (2026-09-25), **warm-pod smoke PASS 19/31, barspack 401s in console 0, anonymous manifest 401** | No flag. **Member-visible improvement:** the Universe Bars Pack (instant first-view D/W/M charts from IndexedDB) works again for every member. Gate unchanged |
 | `7469f242e` · `76ae927dd` · `e7f832df6` | Instrument hardening: the touch probe waits (bounded 20 s) for the hub root before calling an absence real, and the false hub-regression record is corrected; both post-deploy smokes refuse to judge a pod under 180 s (exit 2 INCONCLUSIVE, `--allow-cold` overrides, proved in `--self-check`); three tools' invalid-escape SyntaxWarnings silenced | Tools/docs only — Railway created no web boot for any of them (`SKIPPED` / no record); promoted to `production` by the workflow. No member impact |
+| `7e0ab34c2` | The four "owner-bound leftovers" finished in one commit (authored as `b31109ba8`, re-based over the concurrent Notebook hotfix `d4a1a13b6`): the nine undeclared polling sites decided per the rail's own header — `useFloor` ×5, `useFilingWatch`, `useWatchlistIntelligence`, `useBoundDrawingAlerts` → `useMobileSWR`, the three admin panels + `PatternAdmin` + `OpenFlow` kept bare with dated reason rows; R-29 `focusDivergence.js` recorded in `reachable.test.js`; `/api/provenance/quote` takes `Depends(get_current_user)` and `/provenance-demo` moved inside `<AuthGuard/>` (anonymous → 401 pinned, 10/10). Rails on the merge tree: 25 backend, 51 frontend | Pushed 02:06:11Z 2026-09-25; gate green 02:14:29Z after 6 min queued for a runner; the promotion then sat queued a further 9 min (Actions pool saturated, §7) while two other workstreams stacked on master. **SUCCESS 02:23:42Z**, fresh boot (uptime 33 s), ancestor of `origin/production`. Live-pod probe at 02:27Z (uptime 66 s): anonymous `/api/provenance/quote` **401** (was 200 on the previous pod), anonymous barspack manifest 401. Warm-pod smoke + the R-27 `--reset-keys` rig run: chain 3, on the pod that settles after `74beea1d2`'s build — result appended in this row when in. **Member-visible:** the provenance demo now needs a sign-in (it was never linked from any nav); on phones five polling surfaces halve their cadence and stop while the tab is hidden. No flag |
 | `a461ed3ac` | Screener rails repaired 30 reds → 2 (all drift behind owner-merged #163/#167/#178: the `Screens ▾ → Screener ▾` rename in the two route-level rails; the review rail ported to the in-screener overlay seam + its lost `data-testid`; the door rail's write counter scoped to the store's door — proving no duplicate scan write; the six `FilterBand` "wire" cases that asserted the bands #178 removed; `FilterBand.jsx` recorded as awaiting a decision) | One attribute on the Review charts button, otherwise tests. SUCCESS 01:49Z 2026-09-25, warm-pod smoke PASS (19 routes / 28 nav entries), barspack 401s 0. No member-visible change |
 
 Also already live **before this week started** and re-confirmed, not re-shipped:
@@ -243,6 +258,22 @@ leave them alone indefinitely with no consequence.
   H15 does not fire on; `--allow-cold` overrides), and the touch probe waits (bounded 20 s)
   for the hub root instead of sampling. On ANY smoke fail, compare the previous build at the
   same timing before attributing.
+- **A deploy watch bounded by the CLOCK expires while the promotion is still queued at
+  GitHub — bound it on the promotion run's state, or on ancestry, never on minutes.**
+  (2026-09-25 02:06–02:3x Z.) `7e0ab34c2` was pushed at 02:06:11; its gate run waited
+  **6 min** for a runner, went green at 02:14:29, and the `promote-production` run it
+  triggered then sat `queued` for 10+ min more — the account's Actions pool was saturated
+  (21 runs queued, 14 in progress, two of them other workstreams' hour-long "full suite
+  (report-only)" runs). Meanwhile two more pushes stacked on master (a Notebook PR merge
+  and two flow commits). Chain 1's deploy poll, bounded in iterations, gave up and printed
+  a correct-but-useless "NOT on origin/production" against the OLD pod. Neither the
+  pre-push guard (it reads Railway, which has no record yet) nor `/api/health` (old pod,
+  uptime climbing) can see a queued promotion; `gh run list --workflow promote-production.yml`
+  can. The promotion pushes the GATED sha (`workflow_run.head_sha`) to `production`, not
+  master's tip, so a stacked master still promotes each commit in order. The replacement
+  chain waits for `git merge-base --is-ancestor <sha> origin/production` AND a terminal
+  Railway record whose commit CONTAINS the sha, then for the storm to settle (newest record
+  SUCCESS, nothing building, pod ≥ 300 s) before it smokes.
 - **Re-sync `_merge-master` to `origin/master` before EVERY cherry-pick, no
   exceptions.** Lost a push once today (`git push` rejected as non-fast-forward)
   because another concurrent workstream landed a commit on master between syncs.
