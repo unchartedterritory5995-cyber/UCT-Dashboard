@@ -1,7 +1,7 @@
 # `/flow` card data source — the decision packet (2026-09-25)
 
 **Decision owner:** Patrick, with Ravi (the Options Flow page and `live_massive_router.py`
-are his surface). **Written by:** the 2026-09-24/25 flow session. **Status:** A is BUILT and DARK (2026-09-25 evening, `DISCORD_FLOW_CARD_PAGE_ENABLED`, unset = rollup, master `54802b3c8`); the FLIP is the open decision.
+are his surface). **Written by:** the 2026-09-24/25 flow session. **Status:** A is BUILT and DARK (2026-09-25 evening, `DISCORD_FLOW_CARD_PAGE_ENABLED`, unset = rollup; on master since `a1d6e5ed3`..`9558a23dd`, calendar fix `0dcc101cc`); the FLIP is the open decision.
 
 ## The question in one sentence
 
@@ -56,9 +56,10 @@ scoped to the same dates, summed the same way. No second classifier to drift.
 1. The Discord job (both the pre-V2 `run_flow_card_job` and the V2 `adapters/flow.py`) asks
    flow-worker for a **windowed page product**: a new
    `GET /api/flow/ticker-product/{sym}?source=&window_days=N` that runs the SAME `flow-facts
-   search` derivation over the ticker's rows **restricted to the last N trading days** (SQL on
+   search` derivation over the ticker's rows **restricted to the last N MARKET sessions** — the page's
+   own `availableDates` calendar via the cached `db.get_available_dates`, as built (SQL on
    `CreatedDate`, using `idx_flow_created_symbol`), returning `{all_directional, TICKER_DB}`
-   exactly as today's product does. Cache identity `(sym, source, version, window_days)`.
+   exactly as today's product does. Cache identity `(sym, source, version, "wN")`, as built.
 2. The card builder maps page rows → card contracts:
 
    | card field | from the page row |
