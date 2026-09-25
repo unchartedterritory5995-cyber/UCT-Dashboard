@@ -1,0 +1,104 @@
+/* Wave 7 lane G (G1) — Settings → Personal API. */
+.lead {
+  margin: 0 0 12px;
+  line-height: 1.6;
+  color: var(--text-muted);
+  font-size: 13px;
+}
+
+.muted {
+  color: var(--text-muted);
+}
+
+.makeRow,
+.tokenRow {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+  margin-bottom: 8px;
+}
+
+.labelInput,
+.tokenInput {
+  flex: 1 1 220px;
+  min-width: 0;
+  min-height: 34px;
+  padding: 6px 10px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  background: var(--bg);
+  color: var(--text-bright);
+  font-size: 13px;
+}
+
+.tokenInput {
+  font-family: var(--font-mono);
+}
+
+.made {
+  padding: 12px;
+  margin-bottom: 12px;
+  border: 1px solid var(--border-accent);
+  border-radius: var(--radius-lg);
+  background: var(--bg-surface);
+}
+
+.madeTitle {
+  font-weight: 600;
+  color: var(--text-bright);
+  margin-bottom: 4px;
+}
+
+.warn {
+  margin: 0 0 8px;
+  font-size: 12px;
+  color: var(--warn);
+}
+
+.done {
+  margin-top: 4px;
+}
+
+.row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 10px 0;
+  border-top: 1px solid var(--border);
+}
+
+.rowText {
+  min-width: 0;
+}
+
+.rowTitle {
+  font-weight: 600;
+  color: var(--text-bright);
+  overflow-wrap: anywhere;
+}
+
+.rowState {
+  font-weight: 400;
+  font-size: 12px;
+  color: var(--text-muted);
+}
+
+.rowMeta {
+  font-size: 12px;
+  color: var(--text-muted);
+}
+
+.alert {
+  margin-top: 8px;
+  color: var(--loss);
+  font-size: 13px;
+}
+
+@media (max-width: 1024px) {
+  .labelInput,
+  .tokenInput {
+    min-height: var(--tap-min, 44px);
+  }
+}
