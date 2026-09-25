@@ -1,0 +1,812 @@
+{
+  "verdict": "COVERAGE_LOST",
+  "counts": {
+    "new": 2,
+    "fixed": 97,
+    "unchanged": 180,
+    "missing": 8,
+    "baseline": 285,
+    "current": 183,
+    "current_ran": 53149,
+    "new_flaky": 1,
+    "flaky_size": 5,
+    "flaky_new": 2,
+    "flaky_fixed": 0,
+    "file_level_resolved": 2,
+    "coverage_lost": 8,
+    "new_ours": 0,
+    "new_others": 1,
+    "new_unattributed": 1
+  },
+  "arithmetic": "baseline 285 = unchanged 180 + fixed 97 + missing 8  |  current 183 = unchanged 180 + new 2 + new-but-flaky 1",
+  "invalid_because": [],
+  "baseline_run_id": "36080813145",
+  "current_run_id": "36090206009",
+  "baseline_sha": "7469f242ecb3ad178d75e292c2470340b87462fe",
+  "current_sha": "24092c91db0fe40413a73ba440efc9cd8ba2a4cc",
+  "commit_range": "7469f242ecb3ad178d75e292c2470340b87462fe..24092c91db0fe40413a73ba440efc9cd8ba2a4cc",
+  "first_run": false,
+  "new": [
+    "pytest|tests.test_ask_document_navigation|test_the_client_reads_the_SAME_two_values",
+    "pytest|tests.test_mutation_harness_anchors|test_every_mutation_anchor_still_matches_exactly_once[mutation_harness_symbols.py]"
+  ],
+  "missing": [
+    "vitest|src/pages/Screener.scanmount.test.jsx|the scan surface is a real destination, not a rail-satisfying stub > the \"Screens \u25be\" door is offered on the page App.jsx routes to",
+    "vitest|src/pages/screener/shell/FilterBand.test.jsx|FilterRail \u2014 the wire, not the component > a REFUSAL is what the select points at when there is no range",
+    "vitest|src/pages/screener/shell/FilterBand.test.jsx|FilterRail \u2014 the wire, not the component > a control with no band names no description \u2014 same probe, both populations",
+    "vitest|src/pages/screener/shell/FilterBand.test.jsx|FilterRail \u2014 the wire, not the component > mounts the band under the real control, off the real meta payload",
+    "vitest|src/pages/screener/shell/FilterBand.test.jsx|FilterRail \u2014 the wire, not the component > renders the server's own disclaimer verbatim, exactly once",
+    "vitest|src/pages/screener/shell/FilterBand.test.jsx|FilterRail \u2014 the wire, not the component > the select is DESCRIBED BY its measured band, not merely followed by it",
+    "vitest|src/pages/screener/shell/FilterBand.test.jsx|FilterRail \u2014 the wire, not the component > two rails on the page keep two separate associations",
+    "vitest|src/pages/screener/shell/ScannerShell.review.test.jsx|the screener hands its order to the review > \u26d4 an EMPTY screen offers a disabled door, and publishes nothing"
+  ],
+  "fixed": [
+    "pytest|tests.test_discord_close_note|test_a_note_that_cannot_be_written_still_posts_the_charts",
+    "pytest|tests.test_mutation_check.TestVerdicts|test_expect_red_naming_the_right_test_passes",
+    "pytest|tests.test_ticker_logos|test_retry_skips_known_clean_failures_but_still_tries_clearbit",
+    "pytest|tests.test_ticker_logos_prewarm|test_run_pass_skips_warm_and_resolves_cold",
+    "vitest|src/components/Layout.pageTracking.test.jsx|src/components/Layout.pageTracking.test.jsx",
+    "vitest|src/components/Layout.routeSuspense.test.jsx|src/components/Layout.routeSuspense.test.jsx",
+    "vitest|src/components/chart/engine/__tests__/controlDoorCensus.test.js|the control-door census \u2014 how many doors, and whether an eighth exists > \u2b50 door EIGHT \u2014 the per-INSTANCE door has exactly the callers this census names",
+    "vitest|src/components/chart/engine/__tests__/graphRuntime.test.js|C2C.11 \u2014 the shared memo computes the SAME numbers > mid_engagement__22-rsi-levels-regime-map",
+    "vitest|src/components/chart/engine/__tests__/graphRuntime.test.js|C2C.19 \u2014 what the sharing costs, and what it saves > expanding a graph costs about what walking the trees costs",
+    "vitest|src/components/chart/engine/__tests__/graphRuntime.test.js|C2C.19 \u2014 what the sharing costs, and what it saves > wall clock per document, with and without the shared memo",
+    "vitest|src/components/chart/engine/__tests__/memberPaneGate.test.js|the member-pane gate > the ledger declares it, and names the reader that really reads it",
+    "vitest|src/components/chart/engine/__tests__/stockChartWiring.test.jsx|an engine series is inserted where its legacy twin would have been > and BEFORE the whole rest of the chart, not just the first block",
+    "vitest|src/components/chart/engine/ast/pine.tupleBuiltins.test.js|a tuple refusal says WHICH thing went wrong > \u2b50\u2b50 an unknown name lists what CAN be taken apart, derived",
+    "vitest|src/components/chart/engine/runtime/__tests__/carriedState.test.js|\u2b50 length, resources and what is NOT admitted > \u26d4\u26d4 `barssince`/`valuewhen` are NOT carried members, and the reason is not shyness",
+    "vitest|src/components/dailyFirstPaintAcceptance.test.jsx|DAILY first-paint acceptance > NC-B late right-edge insertion",
+    "vitest|src/components/dailyFirstPaintAcceptance.test.jsx|DAILY first-paint acceptance > NC-C stale wick corrected after paint",
+    "vitest|src/components/dailyFirstPaintAcceptance.test.jsx|DAILY first-paint acceptance > NC-D camera moved after first paint",
+    "vitest|src/components/dailyFirstPaintIncidental.test.jsx|CASE B \u2014 a same-length daily refetch merges instead of dropping the oldest bar > the oldest cached bar survives and the geometry does not translate",
+    "vitest|src/components/screener/reachable.test.js|\ud83d\udd34 every module under app/src is REACHABLE from an entry point > and nothing committed is connected to nothing",
+    "vitest|src/hooks/pollingSites.rail.test.js|polling sites \u2014 the opt-in helper gets a rail > no NEW bare polling site, and no allow-listed one that has since moved",
+    "vitest|src/hooks/usePreferences.additionsOnly.test.js|S5 CP2 \u2014 additions only > NO NEW opaque-key call site appears \u2014 the way around this rail is railed",
+    "vitest|src/hub/sections/chartDrawDoor.test.jsx|D-01 \u2014 the Draw action > is declared by the registry AND shipped by the controller \u2014 both halves, separately",
+    "vitest|src/hub/sections/chartDrawDoor.test.jsx|D-01 \u2014 the Draw action > \u26d4\u26d4 arms the REAL trendline tool \u2014 the drawbar tile a thumb taps reads pressed",
+    "vitest|src/hub/sections/chartDrawDoor.test.jsx|selectTool refuses instead of no-opping > returns false for a tool id no button owns, and arms nothing",
+    "vitest|src/hub/sections/chartDrawDoor.test.jsx|selectTool refuses instead of no-opping > returns false on a read-only mount, where nothing would draw",
+    "vitest|src/pages/CotData.smoke.test.jsx|CotData \u2014 one fetch per symbol, lookback slices client-side > fetches the full history once, the SPY proxy once, and shows the 1Y slice with the rail",
+    "vitest|src/pages/CotData.smoke.test.jsx|CotData \u2014 one fetch per symbol, lookback slices client-side > switching lookback re-slices without another request",
+    "vitest|src/pages/Login.totp.test.jsx|Login 2FA challenge step > a requires_totp response swaps to the code step and verifies",
+    "vitest|src/pages/Login.totp.test.jsx|Login 2FA challenge step > normal accounts log straight in \u2014 no code step",
+    "vitest|src/pages/Screener.door.test.jsx|\ud83d\udd34 Edit and Delete from the screener go through the ONE store door > Delete asks first; Confirm issues ONE DELETE to the store and the row leaves My scans",
+    "vitest|src/pages/Screener.door.test.jsx|\ud83d\udd34 Edit and Delete from the screener go through the ONE store door > Edit \u2192 Save changes PUTs to the SAME id \u2014 an edit is a new VERSION, never a second scan",
+    "vitest|src/pages/Screener.door.test.jsx|\ud83d\udd34 Edit and Delete from the screener go through the ONE store door > \u2b50 a REFUSED delete reaches the member in the SERVER'S OWN WORDS, and the row stays",
+    "vitest|src/pages/Screener.door.test.jsx|\ud83d\udd34 the authoring door on the route a member navigates to > Edit opens the SAME sheet on the row \u2014 its own source, in the box, on the Formula tab",
+    "vitest|src/pages/Screener.door.test.jsx|\ud83d\udd34 the authoring door on the route a member navigates to > New scan \u2192 the REAL sheet opens on Conditions \u2192 a starter \u2192 Save \u2192 ONE POST through saveUserDefinition \u2192 the new scan's results",
+    "vitest|src/pages/Screener.door.test.jsx|\ud83d\udd34 the authoring door on the route a member navigates to > \u2b50 a row stored WITHOUT its source still opens on the Formula \u2014 the seed knew, and nothing else could have",
+    "vitest|src/pages/Screener.door.test.jsx|\ud83d\udd34 the authoring door on the route a member navigates to > \u2b50\u2b50 Evidence is reachable FROM THE PAGE, and it asks the server for the study",
+    "vitest|src/pages/Screener.scanmount.test.jsx|the scan surface is a real destination, not a rail-satisfying stub > a member with no saved formulas is told so \u2014 never shown a blank panel",
+    "vitest|src/pages/Screener.scanmount.test.jsx|the scan surface is a real destination, not a rail-satisfying stub > and a REFUSED read is reported, never rendered as \"you have none\"",
+    "vitest|src/pages/Screener.scanmount.test.jsx|the scan surface is a real destination, not a rail-satisfying stub > and the page never asks for /api/candidates at all",
+    "vitest|src/pages/Screener.scanmount.test.jsx|\ud83d\udd34 the scan chip: the downgrade only the shell's scanJoins threading can produce > a scan filter applied via the manager renders scanJoins' downgrade, and clears through onReplace",
+    "vitest|src/pages/Screener.scanmount.test.jsx|\ud83d\udd34 the scan receipt reaches a member from the route they navigate to > /screener mounts the scan surface, and CoverageLine renders all four counts",
+    "vitest|src/pages/Screener.scanmount.test.jsx|\ud83d\udd34 the scan receipt reaches a member from the route they navigate to > and the hits are on screen, so the receipt is describing a real answer",
+    "vitest|src/pages/Screener.scanmount.test.jsx|\ud83d\udd34 the scan receipt reaches a member from the route they navigate to > and the read it drives carries the DEFINITION the member picked, by hash",
+    "vitest|src/pages/Screener.scanmount.test.jsx|\ud83d\udd34 the scan receipt reaches a member from the route they navigate to > the member sees the screen they saved, by the name THEY gave it",
+    "vitest|src/pages/Screener.scanmount.test.jsx|\ud83d\udd34 withheld renders as BREADTH, never folded into \"no matches\" > a capped screen says what it did not look at, BESIDE the four counts",
+    "vitest|src/pages/Screener.scanmount.test.jsx|\ud83d\udd34 withheld renders as BREADTH, never folded into \"no matches\" > a screen that answered NOTHING says it is a data gap, not a quiet market",
+    "vitest|src/pages/Screener.scanmount.test.jsx|\ud83d\udd34 withheld renders as BREADTH, never folded into \"no matches\" > and an UNRUN session says so, rather than rendering as zero matches",
+    "vitest|src/pages/Watchlists.virtualized.test.jsx|a large watchlist > asks for NOTHING extra while the list is unsorted",
+    "vitest|src/pages/Watchlists.virtualized.test.jsx|a large watchlist > asks for the WHOLE list the moment a column sort is active",
+    "vitest|src/pages/Watchlists.virtualized.test.jsx|a large watchlist > mounts far fewer rows than it has members",
+    "vitest|src/pages/Watchlists.virtualized.test.jsx|a large watchlist > streams only what is on screen",
+    "vitest|src/pages/Watchlists.virtualized.test.jsx|a small watchlist > renders every row outright and streams all of them",
+    "vitest|src/pages/Watchlists.virtualized.test.jsx|keyboard navigation across a virtualized list > walks past the edge of the rendered window",
+    "vitest|src/pages/formulas/formulaLibrary.route.test.jsx|\ud83d\udd34 the library is wired into the app > \u26d4\u26d4 the library is BEHIND the paywall, and that is a ruling with a rail",
+    "vitest|src/pages/journal-2-0/components/position/PositionDetailPage.test.jsx|PositionDetailPage > History lists only this symbol: the open entry + the AAPL closed trade",
+    "vitest|src/pages/journal-2-0/components/position/PositionDetailPage.test.jsx|PositionDetailPage > Your Position shows the six figures from the open AAPL position only",
+    "vitest|src/pages/journal-2-0/components/position/PositionDetailPage.test.jsx|PositionDetailPage > analyst bar reflects RH bucketing",
+    "vitest|src/pages/journal-2-0/components/position/PositionDetailPage.test.jsx|PositionDetailPage > renders header, chart, and every RH section for the symbol",
+    "vitest|src/pages/journal-2-0/components/position/PositionDetailPage.test.jsx|PositionDetailPage \u2014 Attention (Attention Signal Propagation V1) > reads a different symbol's attention entry on symbol change (no stale prior-symbol card)",
+    "vitest|src/pages/journal-2-0/components/position/PositionDetailPage.test.jsx|PositionDetailPage \u2014 Attention (Attention Signal Propagation V1) > renders a distinct \"could not check\" state on a total fetch failure, never silence",
+    "vitest|src/pages/journal-2-0/components/position/PositionDetailPage.test.jsx|PositionDetailPage \u2014 Attention (Attention Signal Propagation V1) > renders nothing when the symbol has no open position (attention map has no entry)",
+    "vitest|src/pages/journal-2-0/components/position/PositionDetailPage.test.jsx|PositionDetailPage \u2014 Attention (Attention Signal Propagation V1) > renders the same fact vocabulary as PortfolioAttentionBanner when the batch endpoint has an entry for this symbol",
+    "vitest|src/pages/journal-2-0/components/position/PositionDetailPage.test.jsx|PositionDetailPage \u2014 Attention (Attention Signal Propagation V1) > shows \"Nothing notable\" for a non-notable held symbol, never fabricating a fact",
+    "vitest|src/pages/journal-2-0/components/position/PositionDetailPage.test.jsx|PositionDetailPage \u2014 Attention (Attention Signal Propagation V1) > surfaces a degraded status pill rather than hiding it silently",
+    "vitest|src/pages/journal-2-0/components/position/PositionDetailPage.test.jsx|PositionDetailPage \u2014 History click-through (Journal / Trade Lifecycle Convergence V1) > clicking the closed AAPL trade row navigates to its real j2_trades.id detail page",
+    "vitest|src/pages/journal-2-0/components/position/PositionDetailPage.test.jsx|PositionDetailPage \u2014 History click-through (Journal / Trade Lifecycle Convergence V1) > keyboard Enter on the closed-trade row also navigates",
+    "vitest|src/pages/journal-2-0/components/position/PositionDetailPage.test.jsx|PositionDetailPage \u2014 History click-through (Journal / Trade Lifecycle Convergence V1) > the OPEN position row is not clickable (no navigation on click)",
+    "vitest|src/pages/journal-2-0/components/position/PositionDetailPage.test.jsx|PositionDetailPage \u2014 linked research on the open position (P1-19 fix) > renders nothing extra for a symbol with no linked research (no forced empty state)",
+    "vitest|src/pages/journal-2-0/components/position/PositionDetailPage.test.jsx|PositionDetailPage \u2014 linked research on the open position (P1-19 fix) > shows the existing LinkedNotesPanel, reused verbatim, keyed to the raw position id",
+    "vitest|src/pages/journal-2-0/components/trade/TradeDetailPage.test.jsx|TradeDetailPage > ArrowRight navigates to the next trade in the filtered set",
+    "vitest|src/pages/journal-2-0/components/trade/TradeDetailPage.test.jsx|TradeDetailPage > True R shows the no-adverse dash when trueR is null on a computed excursion",
+    "vitest|src/pages/journal-2-0/components/trade/TradeDetailPage.test.jsx|TradeDetailPage > a real excursion renders the % + bar-approx resolution label",
+    "vitest|src/pages/journal-2-0/components/trade/TradeDetailPage.test.jsx|TradeDetailPage > insufficient data quality shows N/A",
+    "vitest|src/pages/journal-2-0/components/trade/TradeDetailPage.test.jsx|TradeDetailPage > keeps the executions section collapsed by default",
+    "vitest|src/pages/journal-2-0/components/trade/TradeDetailPage.test.jsx|TradeDetailPage > null excursion shows the Pending exit-efficiency state",
+    "vitest|src/pages/journal-2-0/components/trade/TradeDetailPage.test.jsx|TradeDetailPage > renders True R from the excursion (stop-free, signed, colored)",
+    "vitest|src/pages/journal-2-0/components/trade/TradeDetailPage.test.jsx|TradeDetailPage > renders the excursion-analysis placeholder copy (pending, no excursion)",
+    "vitest|src/pages/journal-2-0/components/trade/TradeDetailPage.test.jsx|TradeDetailPage > renders the outcome header from the fixture trade",
+    "vitest|src/pages/journal-2-0/components/trade/TradeDetailPage.test.jsx|TradeDetailPage > shows the no-stop R label + an Add-stop affordance",
+    "vitest|src/pages/journal-2-0/components/trade/TradeDetailPage.test.jsx|TradeDetailPage > underlying data quality is labeled underlying-based",
+    "vitest|src/pages/journal-2-0/components/trade/TradeDetailPage.test.jsx|TradeDetailPage \u2014 Research trigger (Full Research / Ask AI / Compare) > Ask AI navigates to the same route with ?section=ai, tagged with a return-context marker (Seam 12)",
+    "vitest|src/pages/journal-2-0/components/trade/TradeDetailPage.test.jsx|TradeDetailPage \u2014 Research trigger (Full Research / Ask AI / Compare) > Compare reveals the \"+ Compare\" picker, and a comparator navigates to the exact canonical compare route (uppercased), tagged with a return-context marker (Seam 12)",
+    "vitest|src/pages/journal-2-0/components/trade/TradeDetailPage.test.jsx|TradeDetailPage \u2014 Research trigger (Full Research / Ask AI / Compare) > Full Research navigates to the canonical /research/:sym route, tagged with a return-context marker (Seam 12), and closes the menu",
+    "vitest|src/pages/journal-2-0/components/trade/TradeDetailPage.test.jsx|TradeDetailPage \u2014 Research trigger (Full Research / Ask AI / Compare) > opens without disturbing the other 4 CTA elements",
+    "vitest|src/pages/journal-2-0/components/trade/TradeDetailPage.test.jsx|TradeDetailPage \u2014 Research trigger (Full Research / Ask AI / Compare) > the Compare picker receives the real current sym, not null (Identity Normalization Hardening V1)",
+    "vitest|src/pages/journal-2-0/components/trade/TradeDetailPage.test.jsx|TradeDetailPage \u2014 Save to Notebook (Wave 1, P1-1: tradeRef) > captures this trade's chart, framed to the holding window, tagged with tradeRef",
+    "vitest|src/pages/journal-2-0/components/trade/TradeDetailPage.test.jsx|TradeDetailPage \u2014 trade-card PNG actions > Notes draft flush on navigate-away > does not fire a PATCH on unmount when the Notes draft was never edited",
+    "vitest|src/pages/journal-2-0/components/trade/TradeDetailPage.test.jsx|TradeDetailPage \u2014 trade-card PNG actions > Notes draft flush on navigate-away > flushes an unsaved Notes edit to the server when the page unmounts without ever blurring",
+    "vitest|src/pages/journal-2-0/components/trade/TradeDetailPage.test.jsx|TradeDetailPage \u2014 trade-card PNG actions > Notes draft flush on navigate-away > still flushes via onBlur for the ordinary case (unchanged behavior)",
+    "vitest|src/pages/journal-2-0/components/trade/TradeDetailPage.test.jsx|TradeDetailPage \u2014 trade-card PNG actions > clicking Copy image renders the card then copies it to the clipboard",
+    "vitest|src/pages/journal-2-0/components/trade/TradeDetailPage.test.jsx|TradeDetailPage \u2014 trade-card PNG actions > clicking Save image renders the card then downloads it",
+    "vitest|src/pages/journal-2-0/components/trade/TradeDetailPage.test.jsx|TradeDetailPage \u2014 trade-card PNG actions > hides Save/Copy image when the tradePng flag is off",
+    "vitest|src/pages/journal-2-0/components/trade/TradeDetailPage.test.jsx|TradeDetailPage \u2014 trade-card PNG actions > shows Save/Copy image buttons when the flag is on",
+    "vitest|src/pages/screener/shell/ScannerShell.review.test.jsx|the screener hands its order to the review > CONTROL: with the toggle OFF the rendered order IS the snapshot one",
+    "vitest|src/pages/screener/shell/ScannerShell.review.test.jsx|the screener hands its order to the review > \u26d4\u26d4 WITH THE LIVE RE-SORT ON, THE REVIEW WALKS THE LIVE ORDER",
+    "vitest|src/pages/screener/shell/ScannerShell.review.test.jsx|the screener hands its order to the review > \ud83d\udd34 the review door is ON the toolbar, and it publishes the rendered order",
+    "vitest|src/utils/jsonFetcher.test.js|no shipped surface parses a response it never checked > NO NEW SURFACE joins the list \u2014 and a healed one must leave it"
+  ],
+  "new_flaky": [
+    "pytest|tests.test_mutation_check.TestRestoreGuarantee|test_the_file_is_byte_identical_after_a_detected_mutation"
+  ],
+  "flaky": [
+    "pytest|tests.test_discord_close_note|test_a_note_that_cannot_be_written_still_posts_the_charts",
+    "pytest|tests.test_mutation_check.TestRestoreGuarantee|test_the_file_is_byte_identical_after_a_detected_mutation",
+    "pytest|tests.test_mutation_check.TestVerdicts|test_a_detected_mutation_passes_the_check",
+    "pytest|tests.test_mutation_check.TestVerdicts|test_expect_red_naming_the_right_test_passes",
+    "vitest|src/components/chart/engine/__tests__/stockChartWiring.test.jsx|an engine-drawn indicator still appears in the crosshair legend > \u26d4\u26d4 A HOVER REACHES THE RENDERER NOT AT ALL"
+  ],
+  "file_level_resolved": [
+    "vitest|src/components/Layout.pageTracking.test.jsx|src/components/Layout.pageTracking.test.jsx",
+    "vitest|src/components/Layout.routeSuspense.test.jsx|src/components/Layout.routeSuspense.test.jsx"
+  ],
+  "coverage_lost": [
+    "vitest|src/pages/Screener.scanmount.test.jsx|the scan surface is a real destination, not a rail-satisfying stub > the \"Screens \u25be\" door is offered on the page App.jsx routes to",
+    "vitest|src/pages/screener/shell/FilterBand.test.jsx|FilterRail \u2014 the wire, not the component > a REFUSAL is what the select points at when there is no range",
+    "vitest|src/pages/screener/shell/FilterBand.test.jsx|FilterRail \u2014 the wire, not the component > a control with no band names no description \u2014 same probe, both populations",
+    "vitest|src/pages/screener/shell/FilterBand.test.jsx|FilterRail \u2014 the wire, not the component > mounts the band under the real control, off the real meta payload",
+    "vitest|src/pages/screener/shell/FilterBand.test.jsx|FilterRail \u2014 the wire, not the component > renders the server's own disclaimer verbatim, exactly once",
+    "vitest|src/pages/screener/shell/FilterBand.test.jsx|FilterRail \u2014 the wire, not the component > the select is DESCRIBED BY its measured band, not merely followed by it",
+    "vitest|src/pages/screener/shell/FilterBand.test.jsx|FilterRail \u2014 the wire, not the component > two rails on the page keep two separate associations",
+    "vitest|src/pages/screener/shell/ScannerShell.review.test.jsx|the screener hands its order to the review > \u26d4 an EMPTY screen offers a disabled door, and publishes nothing"
+  ],
+  "missing_buckets": {
+    "vitest|src/pages/Screener.scanmount.test.jsx|the scan surface is a real destination, not a rail-satisfying stub > the \"Screens \u25be\" door is offered on the page App.jsx routes to": [
+      "UNATTRIBUTED",
+      "src/pages/Screener.scanmount.test.jsx is absent and no deletion is attributable in the diff"
+    ],
+    "vitest|src/pages/screener/shell/FilterBand.test.jsx|FilterRail \u2014 the wire, not the component > a REFUSAL is what the select points at when there is no range": [
+      "UNATTRIBUTED",
+      "src/pages/screener/shell/FilterBand.test.jsx is absent and no deletion is attributable in the diff"
+    ],
+    "vitest|src/pages/screener/shell/FilterBand.test.jsx|FilterRail \u2014 the wire, not the component > a control with no band names no description \u2014 same probe, both populations": [
+      "UNATTRIBUTED",
+      "src/pages/screener/shell/FilterBand.test.jsx is absent and no deletion is attributable in the diff"
+    ],
+    "vitest|src/pages/screener/shell/FilterBand.test.jsx|FilterRail \u2014 the wire, not the component > mounts the band under the real control, off the real meta payload": [
+      "UNATTRIBUTED",
+      "src/pages/screener/shell/FilterBand.test.jsx is absent and no deletion is attributable in the diff"
+    ],
+    "vitest|src/pages/screener/shell/FilterBand.test.jsx|FilterRail \u2014 the wire, not the component > renders the server's own disclaimer verbatim, exactly once": [
+      "UNATTRIBUTED",
+      "src/pages/screener/shell/FilterBand.test.jsx is absent and no deletion is attributable in the diff"
+    ],
+    "vitest|src/pages/screener/shell/FilterBand.test.jsx|FilterRail \u2014 the wire, not the component > the select is DESCRIBED BY its measured band, not merely followed by it": [
+      "UNATTRIBUTED",
+      "src/pages/screener/shell/FilterBand.test.jsx is absent and no deletion is attributable in the diff"
+    ],
+    "vitest|src/pages/screener/shell/FilterBand.test.jsx|FilterRail \u2014 the wire, not the component > two rails on the page keep two separate associations": [
+      "UNATTRIBUTED",
+      "src/pages/screener/shell/FilterBand.test.jsx is absent and no deletion is attributable in the diff"
+    ],
+    "vitest|src/pages/screener/shell/ScannerShell.review.test.jsx|the screener hands its order to the review > \u26d4 an EMPTY screen offers a disabled door, and publishes nothing": [
+      "UNATTRIBUTED",
+      "src/pages/screener/shell/ScannerShell.review.test.jsx is absent and no deletion is attributable in the diff"
+    ]
+  },
+  "attribution": {
+    "pytest|tests.test_ask_document_navigation|test_the_client_reads_the_SAME_two_values": {
+      "class": "test-file-change",
+      "commits": [
+        "a3d9f5a1e"
+      ],
+      "workstreams": [
+        {
+          "commit": "a3d9f5a1e",
+          "workstream": "Notebook",
+          "confidence": "message-tag",
+          "ours": false
+        }
+      ]
+    },
+    "pytest|tests.test_mutation_harness_anchors|test_every_mutation_anchor_still_matches_exactly_once[mutation_harness_symbols.py]": {
+      "class": "UNATTRIBUTED",
+      "commits": [],
+      "workstreams": [],
+      "reason": "no commit in 7469f242e..24092c91d touched tests/test_mutation_harness_anchors.py or anything it imports"
+    },
+    "pytest|tests.test_discord_close_note|test_a_note_that_cannot_be_written_still_posts_the_charts": {
+      "class": "UNATTRIBUTED",
+      "commits": [],
+      "workstreams": [],
+      "reason": "no commit in 7469f242e..24092c91d touched tests/test_discord_close_note.py or anything it imports"
+    },
+    "pytest|tests.test_mutation_check.TestVerdicts|test_expect_red_naming_the_right_test_passes": {
+      "class": "UNATTRIBUTED",
+      "commits": [],
+      "workstreams": [],
+      "reason": "no commit in 7469f242e..24092c91d touched tests/test_mutation_check.py or anything it imports"
+    },
+    "pytest|tests.test_ticker_logos|test_retry_skips_known_clean_failures_but_still_tries_clearbit": {
+      "class": "imported-file-change",
+      "commits": [
+        "24092c91d"
+      ],
+      "workstreams": [
+        {
+          "commit": "24092c91d",
+          "workstream": "fix",
+          "confidence": "message-tag",
+          "ours": false
+        }
+      ]
+    },
+    "pytest|tests.test_ticker_logos_prewarm|test_run_pass_skips_warm_and_resolves_cold": {
+      "class": "UNATTRIBUTED",
+      "commits": [],
+      "workstreams": [],
+      "reason": "no commit in 7469f242e..24092c91d touched tests/test_ticker_logos_prewarm.py or anything it imports"
+    },
+    "vitest|src/components/Layout.pageTracking.test.jsx|src/components/Layout.pageTracking.test.jsx": {
+      "class": "UNATTRIBUTED",
+      "commits": [],
+      "workstreams": [],
+      "reason": "no commit in 7469f242e..24092c91d touched src/components/Layout.pageTracking.test.jsx or anything it imports"
+    },
+    "vitest|src/components/Layout.routeSuspense.test.jsx|src/components/Layout.routeSuspense.test.jsx": {
+      "class": "UNATTRIBUTED",
+      "commits": [],
+      "workstreams": [],
+      "reason": "no commit in 7469f242e..24092c91d touched src/components/Layout.routeSuspense.test.jsx or anything it imports"
+    },
+    "vitest|src/components/chart/engine/__tests__/controlDoorCensus.test.js|the control-door census \u2014 how many doors, and whether an eighth exists > \u2b50 door EIGHT \u2014 the per-INSTANCE door has exactly the callers this census names": {
+      "class": "UNATTRIBUTED",
+      "commits": [],
+      "workstreams": [],
+      "reason": "no commit in 7469f242e..24092c91d touched src/components/chart/engine/__tests__/controlDoorCensus.test.js or anything it imports"
+    },
+    "vitest|src/components/chart/engine/__tests__/graphRuntime.test.js|C2C.11 \u2014 the shared memo computes the SAME numbers > mid_engagement__22-rsi-levels-regime-map": {
+      "class": "UNATTRIBUTED",
+      "commits": [],
+      "workstreams": [],
+      "reason": "no commit in 7469f242e..24092c91d touched src/components/chart/engine/__tests__/graphRuntime.test.js or anything it imports"
+    },
+    "vitest|src/components/chart/engine/__tests__/graphRuntime.test.js|C2C.19 \u2014 what the sharing costs, and what it saves > expanding a graph costs about what walking the trees costs": {
+      "class": "UNATTRIBUTED",
+      "commits": [],
+      "workstreams": [],
+      "reason": "no commit in 7469f242e..24092c91d touched src/components/chart/engine/__tests__/graphRuntime.test.js or anything it imports"
+    },
+    "vitest|src/components/chart/engine/__tests__/graphRuntime.test.js|C2C.19 \u2014 what the sharing costs, and what it saves > wall clock per document, with and without the shared memo": {
+      "class": "UNATTRIBUTED",
+      "commits": [],
+      "workstreams": [],
+      "reason": "no commit in 7469f242e..24092c91d touched src/components/chart/engine/__tests__/graphRuntime.test.js or anything it imports"
+    },
+    "vitest|src/components/chart/engine/__tests__/memberPaneGate.test.js|the member-pane gate > the ledger declares it, and names the reader that really reads it": {
+      "class": "UNATTRIBUTED",
+      "commits": [],
+      "workstreams": [],
+      "reason": "no commit in 7469f242e..24092c91d touched src/components/chart/engine/__tests__/memberPaneGate.test.js or anything it imports"
+    },
+    "vitest|src/components/chart/engine/__tests__/stockChartWiring.test.jsx|an engine series is inserted where its legacy twin would have been > and BEFORE the whole rest of the chart, not just the first block": {
+      "class": "UNATTRIBUTED",
+      "commits": [],
+      "workstreams": [],
+      "reason": "no commit in 7469f242e..24092c91d touched src/components/chart/engine/__tests__/stockChartWiring.test.jsx or anything it imports"
+    },
+    "vitest|src/components/chart/engine/ast/pine.tupleBuiltins.test.js|a tuple refusal says WHICH thing went wrong > \u2b50\u2b50 an unknown name lists what CAN be taken apart, derived": {
+      "class": "UNATTRIBUTED",
+      "commits": [],
+      "workstreams": [],
+      "reason": "no commit in 7469f242e..24092c91d touched src/components/chart/engine/ast/pine.tupleBuiltins.test.js or anything it imports"
+    },
+    "vitest|src/components/chart/engine/runtime/__tests__/carriedState.test.js|\u2b50 length, resources and what is NOT admitted > \u26d4\u26d4 `barssince`/`valuewhen` are NOT carried members, and the reason is not shyness": {
+      "class": "UNATTRIBUTED",
+      "commits": [],
+      "workstreams": [],
+      "reason": "no commit in 7469f242e..24092c91d touched src/components/chart/engine/runtime/__tests__/carriedState.test.js or anything it imports"
+    },
+    "vitest|src/components/dailyFirstPaintAcceptance.test.jsx|DAILY first-paint acceptance > NC-B late right-edge insertion": {
+      "class": "UNATTRIBUTED",
+      "commits": [],
+      "workstreams": [],
+      "reason": "no commit in 7469f242e..24092c91d touched src/components/dailyFirstPaintAcceptance.test.jsx or anything it imports"
+    },
+    "vitest|src/components/dailyFirstPaintAcceptance.test.jsx|DAILY first-paint acceptance > NC-C stale wick corrected after paint": {
+      "class": "UNATTRIBUTED",
+      "commits": [],
+      "workstreams": [],
+      "reason": "no commit in 7469f242e..24092c91d touched src/components/dailyFirstPaintAcceptance.test.jsx or anything it imports"
+    },
+    "vitest|src/components/dailyFirstPaintAcceptance.test.jsx|DAILY first-paint acceptance > NC-D camera moved after first paint": {
+      "class": "UNATTRIBUTED",
+      "commits": [],
+      "workstreams": [],
+      "reason": "no commit in 7469f242e..24092c91d touched src/components/dailyFirstPaintAcceptance.test.jsx or anything it imports"
+    },
+    "vitest|src/components/dailyFirstPaintIncidental.test.jsx|CASE B \u2014 a same-length daily refetch merges instead of dropping the oldest bar > the oldest cached bar survives and the geometry does not translate": {
+      "class": "UNATTRIBUTED",
+      "commits": [],
+      "workstreams": [],
+      "reason": "no commit in 7469f242e..24092c91d touched src/components/dailyFirstPaintIncidental.test.jsx or anything it imports"
+    },
+    "vitest|src/components/screener/reachable.test.js|\ud83d\udd34 every module under app/src is REACHABLE from an entry point > and nothing committed is connected to nothing": {
+      "class": "UNATTRIBUTED",
+      "commits": [],
+      "workstreams": [],
+      "reason": "no commit in 7469f242e..24092c91d touched src/components/screener/reachable.test.js or anything it imports"
+    },
+    "vitest|src/hooks/pollingSites.rail.test.js|polling sites \u2014 the opt-in helper gets a rail > no NEW bare polling site, and no allow-listed one that has since moved": {
+      "class": "UNATTRIBUTED",
+      "commits": [],
+      "workstreams": [],
+      "reason": "no commit in 7469f242e..24092c91d touched src/hooks/pollingSites.rail.test.js or anything it imports"
+    },
+    "vitest|src/hooks/usePreferences.additionsOnly.test.js|S5 CP2 \u2014 additions only > NO NEW opaque-key call site appears \u2014 the way around this rail is railed": {
+      "class": "UNATTRIBUTED",
+      "commits": [],
+      "workstreams": [],
+      "reason": "no commit in 7469f242e..24092c91d touched src/hooks/usePreferences.additionsOnly.test.js or anything it imports"
+    },
+    "vitest|src/hub/sections/chartDrawDoor.test.jsx|D-01 \u2014 the Draw action > is declared by the registry AND shipped by the controller \u2014 both halves, separately": {
+      "class": "UNATTRIBUTED",
+      "commits": [],
+      "workstreams": [],
+      "reason": "no commit in 7469f242e..24092c91d touched src/hub/sections/chartDrawDoor.test.jsx or anything it imports"
+    },
+    "vitest|src/hub/sections/chartDrawDoor.test.jsx|D-01 \u2014 the Draw action > \u26d4\u26d4 arms the REAL trendline tool \u2014 the drawbar tile a thumb taps reads pressed": {
+      "class": "UNATTRIBUTED",
+      "commits": [],
+      "workstreams": [],
+      "reason": "no commit in 7469f242e..24092c91d touched src/hub/sections/chartDrawDoor.test.jsx or anything it imports"
+    },
+    "vitest|src/hub/sections/chartDrawDoor.test.jsx|selectTool refuses instead of no-opping > returns false for a tool id no button owns, and arms nothing": {
+      "class": "UNATTRIBUTED",
+      "commits": [],
+      "workstreams": [],
+      "reason": "no commit in 7469f242e..24092c91d touched src/hub/sections/chartDrawDoor.test.jsx or anything it imports"
+    },
+    "vitest|src/hub/sections/chartDrawDoor.test.jsx|selectTool refuses instead of no-opping > returns false on a read-only mount, where nothing would draw": {
+      "class": "UNATTRIBUTED",
+      "commits": [],
+      "workstreams": [],
+      "reason": "no commit in 7469f242e..24092c91d touched src/hub/sections/chartDrawDoor.test.jsx or anything it imports"
+    },
+    "vitest|src/pages/CotData.smoke.test.jsx|CotData \u2014 one fetch per symbol, lookback slices client-side > fetches the full history once, the SPY proxy once, and shows the 1Y slice with the rail": {
+      "class": "UNATTRIBUTED",
+      "commits": [],
+      "workstreams": [],
+      "reason": "no commit in 7469f242e..24092c91d touched src/pages/CotData.smoke.test.jsx or anything it imports"
+    },
+    "vitest|src/pages/CotData.smoke.test.jsx|CotData \u2014 one fetch per symbol, lookback slices client-side > switching lookback re-slices without another request": {
+      "class": "UNATTRIBUTED",
+      "commits": [],
+      "workstreams": [],
+      "reason": "no commit in 7469f242e..24092c91d touched src/pages/CotData.smoke.test.jsx or anything it imports"
+    },
+    "vitest|src/pages/Login.totp.test.jsx|Login 2FA challenge step > a requires_totp response swaps to the code step and verifies": {
+      "class": "UNATTRIBUTED",
+      "commits": [],
+      "workstreams": [],
+      "reason": "no commit in 7469f242e..24092c91d touched src/pages/Login.totp.test.jsx or anything it imports"
+    },
+    "vitest|src/pages/Login.totp.test.jsx|Login 2FA challenge step > normal accounts log straight in \u2014 no code step": {
+      "class": "UNATTRIBUTED",
+      "commits": [],
+      "workstreams": [],
+      "reason": "no commit in 7469f242e..24092c91d touched src/pages/Login.totp.test.jsx or anything it imports"
+    },
+    "vitest|src/pages/Screener.door.test.jsx|\ud83d\udd34 Edit and Delete from the screener go through the ONE store door > Delete asks first; Confirm issues ONE DELETE to the store and the row leaves My scans": {
+      "class": "UNATTRIBUTED",
+      "commits": [],
+      "workstreams": [],
+      "reason": "no commit in 7469f242e..24092c91d touched src/pages/Screener.door.test.jsx or anything it imports"
+    },
+    "vitest|src/pages/Screener.door.test.jsx|\ud83d\udd34 Edit and Delete from the screener go through the ONE store door > Edit \u2192 Save changes PUTs to the SAME id \u2014 an edit is a new VERSION, never a second scan": {
+      "class": "UNATTRIBUTED",
+      "commits": [],
+      "workstreams": [],
+      "reason": "no commit in 7469f242e..24092c91d touched src/pages/Screener.door.test.jsx or anything it imports"
+    },
+    "vitest|src/pages/Screener.door.test.jsx|\ud83d\udd34 Edit and Delete from the screener go through the ONE store door > \u2b50 a REFUSED delete reaches the member in the SERVER'S OWN WORDS, and the row stays": {
+      "class": "UNATTRIBUTED",
+      "commits": [],
+      "workstreams": [],
+      "reason": "no commit in 7469f242e..24092c91d touched src/pages/Screener.door.test.jsx or anything it imports"
+    },
+    "vitest|src/pages/Screener.door.test.jsx|\ud83d\udd34 the authoring door on the route a member navigates to > Edit opens the SAME sheet on the row \u2014 its own source, in the box, on the Formula tab": {
+      "class": "UNATTRIBUTED",
+      "commits": [],
+      "workstreams": [],
+      "reason": "no commit in 7469f242e..24092c91d touched src/pages/Screener.door.test.jsx or anything it imports"
+    },
+    "vitest|src/pages/Screener.door.test.jsx|\ud83d\udd34 the authoring door on the route a member navigates to > New scan \u2192 the REAL sheet opens on Conditions \u2192 a starter \u2192 Save \u2192 ONE POST through saveUserDefinition \u2192 the new scan's results": {
+      "class": "UNATTRIBUTED",
+      "commits": [],
+      "workstreams": [],
+      "reason": "no commit in 7469f242e..24092c91d touched src/pages/Screener.door.test.jsx or anything it imports"
+    },
+    "vitest|src/pages/Screener.door.test.jsx|\ud83d\udd34 the authoring door on the route a member navigates to > \u2b50 a row stored WITHOUT its source still opens on the Formula \u2014 the seed knew, and nothing else could have": {
+      "class": "UNATTRIBUTED",
+      "commits": [],
+      "workstreams": [],
+      "reason": "no commit in 7469f242e..24092c91d touched src/pages/Screener.door.test.jsx or anything it imports"
+    },
+    "vitest|src/pages/Screener.door.test.jsx|\ud83d\udd34 the authoring door on the route a member navigates to > \u2b50\u2b50 Evidence is reachable FROM THE PAGE, and it asks the server for the study": {
+      "class": "UNATTRIBUTED",
+      "commits": [],
+      "workstreams": [],
+      "reason": "no commit in 7469f242e..24092c91d touched src/pages/Screener.door.test.jsx or anything it imports"
+    },
+    "vitest|src/pages/Screener.scanmount.test.jsx|the scan surface is a real destination, not a rail-satisfying stub > a member with no saved formulas is told so \u2014 never shown a blank panel": {
+      "class": "UNATTRIBUTED",
+      "commits": [],
+      "workstreams": [],
+      "reason": "no commit in 7469f242e..24092c91d touched src/pages/Screener.scanmount.test.jsx or anything it imports"
+    },
+    "vitest|src/pages/Screener.scanmount.test.jsx|the scan surface is a real destination, not a rail-satisfying stub > and a REFUSED read is reported, never rendered as \"you have none\"": {
+      "class": "UNATTRIBUTED",
+      "commits": [],
+      "workstreams": [],
+      "reason": "no commit in 7469f242e..24092c91d touched src/pages/Screener.scanmount.test.jsx or anything it imports"
+    },
+    "vitest|src/pages/Screener.scanmount.test.jsx|the scan surface is a real destination, not a rail-satisfying stub > and the page never asks for /api/candidates at all": {
+      "class": "UNATTRIBUTED",
+      "commits": [],
+      "workstreams": [],
+      "reason": "no commit in 7469f242e..24092c91d touched src/pages/Screener.scanmount.test.jsx or anything it imports"
+    },
+    "vitest|src/pages/Screener.scanmount.test.jsx|\ud83d\udd34 the scan chip: the downgrade only the shell's scanJoins threading can produce > a scan filter applied via the manager renders scanJoins' downgrade, and clears through onReplace": {
+      "class": "UNATTRIBUTED",
+      "commits": [],
+      "workstreams": [],
+      "reason": "no commit in 7469f242e..24092c91d touched src/pages/Screener.scanmount.test.jsx or anything it imports"
+    },
+    "vitest|src/pages/Screener.scanmount.test.jsx|\ud83d\udd34 the scan receipt reaches a member from the route they navigate to > /screener mounts the scan surface, and CoverageLine renders all four counts": {
+      "class": "UNATTRIBUTED",
+      "commits": [],
+      "workstreams": [],
+      "reason": "no commit in 7469f242e..24092c91d touched src/pages/Screener.scanmount.test.jsx or anything it imports"
+    },
+    "vitest|src/pages/Screener.scanmount.test.jsx|\ud83d\udd34 the scan receipt reaches a member from the route they navigate to > and the hits are on screen, so the receipt is describing a real answer": {
+      "class": "UNATTRIBUTED",
+      "commits": [],
+      "workstreams": [],
+      "reason": "no commit in 7469f242e..24092c91d touched src/pages/Screener.scanmount.test.jsx or anything it imports"
+    },
+    "vitest|src/pages/Screener.scanmount.test.jsx|\ud83d\udd34 the scan receipt reaches a member from the route they navigate to > and the read it drives carries the DEFINITION the member picked, by hash": {
+      "class": "UNATTRIBUTED",
+      "commits": [],
+      "workstreams": [],
+      "reason": "no commit in 7469f242e..24092c91d touched src/pages/Screener.scanmount.test.jsx or anything it imports"
+    },
+    "vitest|src/pages/Screener.scanmount.test.jsx|\ud83d\udd34 the scan receipt reaches a member from the route they navigate to > the member sees the screen they saved, by the name THEY gave it": {
+      "class": "UNATTRIBUTED",
+      "commits": [],
+      "workstreams": [],
+      "reason": "no commit in 7469f242e..24092c91d touched src/pages/Screener.scanmount.test.jsx or anything it imports"
+    },
+    "vitest|src/pages/Screener.scanmount.test.jsx|\ud83d\udd34 withheld renders as BREADTH, never folded into \"no matches\" > a capped screen says what it did not look at, BESIDE the four counts": {
+      "class": "UNATTRIBUTED",
+      "commits": [],
+      "workstreams": [],
+      "reason": "no commit in 7469f242e..24092c91d touched src/pages/Screener.scanmount.test.jsx or anything it imports"
+    },
+    "vitest|src/pages/Screener.scanmount.test.jsx|\ud83d\udd34 withheld renders as BREADTH, never folded into \"no matches\" > a screen that answered NOTHING says it is a data gap, not a quiet market": {
+      "class": "UNATTRIBUTED",
+      "commits": [],
+      "workstreams": [],
+      "reason": "no commit in 7469f242e..24092c91d touched src/pages/Screener.scanmount.test.jsx or anything it imports"
+    },
+    "vitest|src/pages/Screener.scanmount.test.jsx|\ud83d\udd34 withheld renders as BREADTH, never folded into \"no matches\" > and an UNRUN session says so, rather than rendering as zero matches": {
+      "class": "UNATTRIBUTED",
+      "commits": [],
+      "workstreams": [],
+      "reason": "no commit in 7469f242e..24092c91d touched src/pages/Screener.scanmount.test.jsx or anything it imports"
+    },
+    "vitest|src/pages/Watchlists.virtualized.test.jsx|a large watchlist > asks for NOTHING extra while the list is unsorted": {
+      "class": "UNATTRIBUTED",
+      "commits": [],
+      "workstreams": [],
+      "reason": "no commit in 7469f242e..24092c91d touched src/pages/Watchlists.virtualized.test.jsx or anything it imports"
+    },
+    "vitest|src/pages/Watchlists.virtualized.test.jsx|a large watchlist > asks for the WHOLE list the moment a column sort is active": {
+      "class": "UNATTRIBUTED",
+      "commits": [],
+      "workstreams": [],
+      "reason": "no commit in 7469f242e..24092c91d touched src/pages/Watchlists.virtualized.test.jsx or anything it imports"
+    },
+    "vitest|src/pages/Watchlists.virtualized.test.jsx|a large watchlist > mounts far fewer rows than it has members": {
+      "class": "UNATTRIBUTED",
+      "commits": [],
+      "workstreams": [],
+      "reason": "no commit in 7469f242e..24092c91d touched src/pages/Watchlists.virtualized.test.jsx or anything it imports"
+    },
+    "vitest|src/pages/Watchlists.virtualized.test.jsx|a large watchlist > streams only what is on screen": {
+      "class": "UNATTRIBUTED",
+      "commits": [],
+      "workstreams": [],
+      "reason": "no commit in 7469f242e..24092c91d touched src/pages/Watchlists.virtualized.test.jsx or anything it imports"
+    },
+    "vitest|src/pages/Watchlists.virtualized.test.jsx|a small watchlist > renders every row outright and streams all of them": {
+      "class": "UNATTRIBUTED",
+      "commits": [],
+      "workstreams": [],
+      "reason": "no commit in 7469f242e..24092c91d touched src/pages/Watchlists.virtualized.test.jsx or anything it imports"
+    },
+    "vitest|src/pages/Watchlists.virtualized.test.jsx|keyboard navigation across a virtualized list > walks past the edge of the rendered window": {
+      "class": "UNATTRIBUTED",
+      "commits": [],
+      "workstreams": [],
+      "reason": "no commit in 7469f242e..24092c91d touched src/pages/Watchlists.virtualized.test.jsx or anything it imports"
+    },
+    "vitest|src/pages/formulas/formulaLibrary.route.test.jsx|\ud83d\udd34 the library is wired into the app > \u26d4\u26d4 the library is BEHIND the paywall, and that is a ruling with a rail": {
+      "class": "UNATTRIBUTED",
+      "commits": [],
+      "workstreams": [],
+      "reason": "no commit in 7469f242e..24092c91d touched src/pages/formulas/formulaLibrary.route.test.jsx or anything it imports"
+    },
+    "vitest|src/pages/journal-2-0/components/position/PositionDetailPage.test.jsx|PositionDetailPage > History lists only this symbol: the open entry + the AAPL closed trade": {
+      "class": "UNATTRIBUTED",
+      "commits": [],
+      "workstreams": [],
+      "reason": "no commit in 7469f242e..24092c91d touched src/pages/journal-2-0/components/position/PositionDetailPage.test.jsx or anything it imports"
+    },
+    "vitest|src/pages/journal-2-0/components/position/PositionDetailPage.test.jsx|PositionDetailPage > Your Position shows the six figures from the open AAPL position only": {
+      "class": "UNATTRIBUTED",
+      "commits": [],
+      "workstreams": [],
+      "reason": "no commit in 7469f242e..24092c91d touched src/pages/journal-2-0/components/position/PositionDetailPage.test.jsx or anything it imports"
+    },
+    "vitest|src/pages/journal-2-0/components/position/PositionDetailPage.test.jsx|PositionDetailPage > analyst bar reflects RH bucketing": {
+      "class": "UNATTRIBUTED",
+      "commits": [],
+      "workstreams": [],
+      "reason": "no commit in 7469f242e..24092c91d touched src/pages/journal-2-0/components/position/PositionDetailPage.test.jsx or anything it imports"
+    },
+    "vitest|src/pages/journal-2-0/components/position/PositionDetailPage.test.jsx|PositionDetailPage > renders header, chart, and every RH section for the symbol": {
+      "class": "UNATTRIBUTED",
+      "commits": [],
+      "workstreams": [],
+      "reason": "no commit in 7469f242e..24092c91d touched src/pages/journal-2-0/components/position/PositionDetailPage.test.jsx or anything it imports"
+    },
+    "vitest|src/pages/journal-2-0/components/position/PositionDetailPage.test.jsx|PositionDetailPage \u2014 Attention (Attention Signal Propagation V1) > reads a different symbol's attention entry on symbol change (no stale prior-symbol card)": {
+      "class": "UNATTRIBUTED",
+      "commits": [],
+      "workstreams": [],
+      "reason": "no commit in 7469f242e..24092c91d touched src/pages/journal-2-0/components/position/PositionDetailPage.test.jsx or anything it imports"
+    },
+    "vitest|src/pages/journal-2-0/components/position/PositionDetailPage.test.jsx|PositionDetailPage \u2014 Attention (Attention Signal Propagation V1) > renders a distinct \"could not check\" state on a total fetch failure, never silence": {
+      "class": "UNATTRIBUTED",
+      "commits": [],
+      "workstreams": [],
+      "reason": "no commit in 7469f242e..24092c91d touched src/pages/journal-2-0/components/position/PositionDetailPage.test.jsx or anything it imports"
+    },
+    "vitest|src/pages/journal-2-0/components/position/PositionDetailPage.test.jsx|PositionDetailPage \u2014 Attention (Attention Signal Propagation V1) > renders nothing when the symbol has no open position (attention map has no entry)": {
+      "class": "UNATTRIBUTED",
+      "commits": [],
+      "workstreams": [],
+      "reason": "no commit in 7469f242e..24092c91d touched src/pages/journal-2-0/components/position/PositionDetailPage.test.jsx or anything it imports"
+    },
+    "vitest|src/pages/journal-2-0/components/position/PositionDetailPage.test.jsx|PositionDetailPage \u2014 Attention (Attention Signal Propagation V1) > renders the same fact vocabulary as PortfolioAttentionBanner when the batch endpoint has an entry for this symbol": {
+      "class": "UNATTRIBUTED",
+      "commits": [],
+      "workstreams": [],
+      "reason": "no commit in 7469f242e..24092c91d touched src/pages/journal-2-0/components/position/PositionDetailPage.test.jsx or anything it imports"
+    },
+    "vitest|src/pages/journal-2-0/components/position/PositionDetailPage.test.jsx|PositionDetailPage \u2014 Attention (Attention Signal Propagation V1) > shows \"Nothing notable\" for a non-notable held symbol, never fabricating a fact": {
+      "class": "UNATTRIBUTED",
+      "commits": [],
+      "workstreams": [],
+      "reason": "no commit in 7469f242e..24092c91d touched src/pages/journal-2-0/components/position/PositionDetailPage.test.jsx or anything it imports"
+    },
+    "vitest|src/pages/journal-2-0/components/position/PositionDetailPage.test.jsx|PositionDetailPage \u2014 Attention (Attention Signal Propagation V1) > surfaces a degraded status pill rather than hiding it silently": {
+      "class": "UNATTRIBUTED",
+      "commits": [],
+      "workstreams": [],
+      "reason": "no commit in 7469f242e..24092c91d touched src/pages/journal-2-0/components/position/PositionDetailPage.test.jsx or anything it imports"
+    },
+    "vitest|src/pages/journal-2-0/components/position/PositionDetailPage.test.jsx|PositionDetailPage \u2014 History click-through (Journal / Trade Lifecycle Convergence V1) > clicking the closed AAPL trade row navigates to its real j2_trades.id detail page": {
+      "class": "UNATTRIBUTED",
+      "commits": [],
+      "workstreams": [],
+      "reason": "no commit in 7469f242e..24092c91d touched src/pages/journal-2-0/components/position/PositionDetailPage.test.jsx or anything it imports"
+    },
+    "vitest|src/pages/journal-2-0/components/position/PositionDetailPage.test.jsx|PositionDetailPage \u2014 History click-through (Journal / Trade Lifecycle Convergence V1) > keyboard Enter on the closed-trade row also navigates": {
+      "class": "UNATTRIBUTED",
+      "commits": [],
+      "workstreams": [],
+      "reason": "no commit in 7469f242e..24092c91d touched src/pages/journal-2-0/components/position/PositionDetailPage.test.jsx or anything it imports"
+    },
+    "vitest|src/pages/journal-2-0/components/position/PositionDetailPage.test.jsx|PositionDetailPage \u2014 History click-through (Journal / Trade Lifecycle Convergence V1) > the OPEN position row is not clickable (no navigation on click)": {
+      "class": "UNATTRIBUTED",
+      "commits": [],
+      "workstreams": [],
+      "reason": "no commit in 7469f242e..24092c91d touched src/pages/journal-2-0/components/position/PositionDetailPage.test.jsx or anything it imports"
+    },
+    "vitest|src/pages/journal-2-0/components/position/PositionDetailPage.test.jsx|PositionDetailPage \u2014 linked research on the open position (P1-19 fix) > renders nothing extra for a symbol with no linked research (no forced empty state)": {
+      "class": "UNATTRIBUTED",
+      "commits": [],
+      "workstreams": [],
+      "reason": "no commit in 7469f242e..24092c91d touched src/pages/journal-2-0/components/position/PositionDetailPage.test.jsx or anything it imports"
+    },
+    "vitest|src/pages/journal-2-0/components/position/PositionDetailPage.test.jsx|PositionDetailPage \u2014 linked research on the open position (P1-19 fix) > shows the existing LinkedNotesPanel, reused verbatim, keyed to the raw position id": {
+      "class": "UNATTRIBUTED",
+      "commits": [],
+      "workstreams": [],
+      "reason": "no commit in 7469f242e..24092c91d touched src/pages/journal-2-0/components/position/PositionDetailPage.test.jsx or anything it imports"
+    },
+    "vitest|src/pages/journal-2-0/components/trade/TradeDetailPage.test.jsx|TradeDetailPage > ArrowRight navigates to the next trade in the filtered set": {
+      "class": "UNATTRIBUTED",
+      "commits": [],
+      "workstreams": [],
+      "reason": "no commit in 7469f242e..24092c91d touched src/pages/journal-2-0/components/trade/TradeDetailPage.test.jsx or anything it imports"
+    },
+    "vitest|src/pages/journal-2-0/components/trade/TradeDetailPage.test.jsx|TradeDetailPage > True R shows the no-adverse dash when trueR is null on a computed excursion": {
+      "class": "UNATTRIBUTED",
+      "commits": [],
+      "workstreams": [],
+      "reason": "no commit in 7469f242e..24092c91d touched src/pages/journal-2-0/components/trade/TradeDetailPage.test.jsx or anything it imports"
+    },
+    "vitest|src/pages/journal-2-0/components/trade/TradeDetailPage.test.jsx|TradeDetailPage > a real excursion renders the % + bar-approx resolution label": {
+      "class": "UNATTRIBUTED",
+      "commits": [],
+      "workstreams": [],
+      "reason": "no commit in 7469f242e..24092c91d touched src/pages/journal-2-0/components/trade/TradeDetailPage.test.jsx or anything it imports"
+    },
+    "vitest|src/pages/journal-2-0/components/trade/TradeDetailPage.test.jsx|TradeDetailPage > insufficient data quality shows N/A": {
+      "class": "UNATTRIBUTED",
+      "commits": [],
+      "workstreams": [],
+      "reason": "no commit in 7469f242e..24092c91d touched src/pages/journal-2-0/components/trade/TradeDetailPage.test.jsx or anything it imports"
+    },
+    "vitest|src/pages/journal-2-0/components/trade/TradeDetailPage.test.jsx|TradeDetailPage > keeps the executions section collapsed by default": {
+      "class": "UNATTRIBUTED",
+      "commits": [],
+      "workstreams": [],
+      "reason": "no commit in 7469f242e..24092c91d touched src/pages/journal-2-0/components/trade/TradeDetailPage.test.jsx or anything it imports"
+    },
+    "vitest|src/pages/journal-2-0/components/trade/TradeDetailPage.test.jsx|TradeDetailPage > null excursion shows the Pending exit-efficiency state": {
+      "class": "UNATTRIBUTED",
+      "commits": [],
+      "workstreams": [],
+      "reason": "no commit in 7469f242e..24092c91d touched src/pages/journal-2-0/components/trade/TradeDetailPage.test.jsx or anything it imports"
+    },
+    "vitest|src/pages/journal-2-0/components/trade/TradeDetailPage.test.jsx|TradeDetailPage > renders True R from the excursion (stop-free, signed, colored)": {
+      "class": "UNATTRIBUTED",
+      "commits": [],
+      "workstreams": [],
+      "reason": "no commit in 7469f242e..24092c91d touched src/pages/journal-2-0/components/trade/TradeDetailPage.test.jsx or anything it imports"
+    },
+    "vitest|src/pages/journal-2-0/components/trade/TradeDetailPage.test.jsx|TradeDetailPage > renders the excursion-analysis placeholder copy (pending, no excursion)": {
+      "class": "UNATTRIBUTED",
+      "commits": [],
+      "workstreams": [],
+      "reason": "no commit in 7469f242e..24092c91d touched src/pages/journal-2-0/components/trade/TradeDetailPage.test.jsx or anything it imports"
+    },
+    "vitest|src/pages/journal-2-0/components/trade/TradeDetailPage.test.jsx|TradeDetailPage > renders the outcome header from the fixture trade": {
+      "class": "UNATTRIBUTED",
+      "commits": [],
+      "workstreams": [],
+      "reason": "no commit in 7469f242e..24092c91d touched src/pages/journal-2-0/components/trade/TradeDetailPage.test.jsx or anything it imports"
+    },
+    "vitest|src/pages/journal-2-0/components/trade/TradeDetailPage.test.jsx|TradeDetailPage > shows the no-stop R label + an Add-stop affordance": {
+      "class": "UNATTRIBUTED",
+      "commits": [],
+      "workstreams": [],
+      "reason": "no commit in 7469f242e..24092c91d touched src/pages/journal-2-0/components/trade/TradeDetailPage.test.jsx or anything it imports"
+    },
+    "vitest|src/pages/journal-2-0/components/trade/TradeDetailPage.test.jsx|TradeDetailPage > underlying data quality is labeled underlying-based": {
+      "class": "UNATTRIBUTED",
+      "commits": [],
+      "workstreams": [],
+      "reason": "no commit in 7469f242e..24092c91d touched src/pages/journal-2-0/components/trade/TradeDetailPage.test.jsx or anything it imports"
+    },
+    "vitest|src/pages/journal-2-0/components/trade/TradeDetailPage.test.jsx|TradeDetailPage \u2014 Research trigger (Full Research / Ask AI / Compare) > Ask AI navigates to the same route with ?section=ai, tagged with a return-context marker (Seam 12)": {
+      "class": "UNATTRIBUTED",
+      "commits": [],
+      "workstreams": [],
+      "reason": "no commit in 7469f242e..24092c91d touched src/pages/journal-2-0/components/trade/TradeDetailPage.test.jsx or anything it imports"
+    },
+    "vitest|src/pages/journal-2-0/components/trade/TradeDetailPage.test.jsx|TradeDetailPage \u2014 Research trigger (Full Research / Ask AI / Compare) > Compare reveals the \"+ Compare\" picker, and a comparator navigates to the exact canonical compare route (uppercased), tagged with a return-context marker (Seam 12)": {
+      "class": "UNATTRIBUTED",
+      "commits": [],
+      "workstreams": [],
+      "reason": "no commit in 7469f242e..24092c91d touched src/pages/journal-2-0/components/trade/TradeDetailPage.test.jsx or anything it imports"
+    },
+    "vitest|src/pages/journal-2-0/components/trade/TradeDetailPage.test.jsx|TradeDetailPage \u2014 Research trigger (Full Research / Ask AI / Compare) > Full Research navigates to the canonical /research/:sym route, tagged with a return-context marker (Seam 12), and closes the menu": {
+      "class": "UNATTRIBUTED",
+      "commits": [],
+      "workstreams": [],
+      "reason": "no commit in 7469f242e..24092c91d touched src/pages/journal-2-0/components/trade/TradeDetailPage.test.jsx or anything it imports"
+    },
+    "vitest|src/pages/journal-2-0/components/trade/TradeDetailPage.test.jsx|TradeDetailPage \u2014 Research trigger (Full Research / Ask AI / Compare) > opens without disturbing the other 4 CTA elements": {
+      "class": "UNATTRIBUTED",
+      "commits": [],
+      "workstreams": [],
+      "reason": "no commit in 7469f242e..24092c91d touched src/pages/journal-2-0/components/trade/TradeDetailPage.test.jsx or anything it imports"
+    },
+    "vitest|src/pages/journal-2-0/components/trade/TradeDetailPage.test.jsx|TradeDetailPage \u2014 Research trigger (Full Research / Ask AI / Compare) > the Compare picker receives the real current sym, not null (Identity Normalization Hardening V1)": {
+      "class": "UNATTRIBUTED",
+      "commits": [],
+      "workstreams": [],
+      "reason": "no commit in 7469f242e..24092c91d touched src/pages/journal-2-0/components/trade/TradeDetailPage.test.jsx or anything it imports"
+    },
+    "vitest|src/pages/journal-2-0/components/trade/TradeDetailPage.test.jsx|TradeDetailPage \u2014 Save to Notebook (Wave 1, P1-1: tradeRef) > captures this trade's chart, framed to the holding window, tagged with tradeRef": {
+      "class": "UNATTRIBUTED",
+      "commits": [],
+      "workstreams": [],
+      "reason": "no commit in 7469f242e..24092c91d touched src/pages/journal-2-0/components/trade/TradeDetailPage.test.jsx or anything it imports"
+    },
+    "vitest|src/pages/journal-2-0/components/trade/TradeDetailPage.test.jsx|TradeDetailPage \u2014 trade-card PNG actions > Notes draft flush on navigate-away > does not fire a PATCH on unmount when the Notes draft was never edited": {
+      "class": "UNATTRIBUTED",
+      "commits": [],
+      "workstreams": [],
+      "reason": "no commit in 7469f242e..24092c91d touched src/pages/journal-2-0/components/trade/TradeDetailPage.test.jsx or anything it imports"
+    },
+    "vitest|src/pages/journal-2-0/components/trade/TradeDetailPage.test.jsx|TradeDetailPage \u2014 trade-card PNG actions > Notes draft flush on navigate-away > flushes an unsaved Notes edit to the server when the page unmounts without ever blurring": {
+      "class": "UNATTRIBUTED",
+      "commits": [],
+      "workstreams": [],
+      "reason": "no commit in 7469f242e..24092c91d touched src/pages/journal-2-0/components/trade/TradeDetailPage.test.jsx or anything it imports"
+    },
+    "vitest|src/pages/journal-2-0/components/trade/TradeDetailPage.test.jsx|TradeDetailPage \u2014 trade-card PNG actions > Notes draft flush on navigate-away > still flushes via onBlur for the ordinary case (unchanged behavior)": {
+      "class": "UNATTRIBUTED",
+      "commits": [],
+      "workstreams": [],
+      "reason": "no commit in 7469f242e..24092c91d touched src/pages/journal-2-0/components/trade/TradeDetailPage.test.jsx or anything it imports"
+    },
+    "vitest|src/pages/journal-2-0/components/trade/TradeDetailPage.test.jsx|TradeDetailPage \u2014 trade-card PNG actions > clicking Copy image renders the card then copies it to the clipboard": {
+      "class": "UNATTRIBUTED",
+      "commits": [],
+      "workstreams": [],
+      "reason": "no commit in 7469f242e..24092c91d touched src/pages/journal-2-0/components/trade/TradeDetailPage.test.jsx or anything it imports"
+    },
+    "vitest|src/pages/journal-2-0/components/trade/TradeDetailPage.test.jsx|TradeDetailPage \u2014 trade-card PNG actions > clicking Save image renders the card then downloads it": {
+      "class": "UNATTRIBUTED",
+      "commits": [],
+      "workstreams": [],
+      "reason": "no commit in 7469f242e..24092c91d touched src/pages/journal-2-0/components/trade/TradeDetailPage.test.jsx or anything it imports"
+    },
+    "vitest|src/pages/journal-2-0/components/trade/TradeDetailPage.test.jsx|TradeDetailPage \u2014 trade-card PNG actions > hides Save/Copy image when the tradePng flag is off": {
+      "class": "UNATTRIBUTED",
+      "commits": [],
+      "workstreams": [],
+      "reason": "no commit in 7469f242e..24092c91d touched src/pages/journal-2-0/components/trade/TradeDetailPage.test.jsx or anything it imports"
+    },
+    "vitest|src/pages/journal-2-0/components/trade/TradeDetailPage.test.jsx|TradeDetailPage \u2014 trade-card PNG actions > shows Save/Copy image buttons when the flag is on": {
+      "class": "UNATTRIBUTED",
+      "commits": [],
+      "workstreams": [],
+      "reason": "no commit in 7469f242e..24092c91d touched src/pages/journal-2-0/components/trade/TradeDetailPage.test.jsx or anything it imports"
+    },
+    "vitest|src/pages/screener/shell/ScannerShell.review.test.jsx|the screener hands its order to the review > CONTROL: with the toggle OFF the rendered order IS the snapshot one": {
+      "class": "UNATTRIBUTED",
+      "commits": [],
+      "workstreams": [],
+      "reason": "no commit in 7469f242e..24092c91d touched src/pages/screener/shell/ScannerShell.review.test.jsx or anything it imports"
+    },
+    "vitest|src/pages/screener/shell/ScannerShell.review.test.jsx|the screener hands its order to the review > \u26d4\u26d4 WITH THE LIVE RE-SORT ON, THE REVIEW WALKS THE LIVE ORDER": {
+      "class": "UNATTRIBUTED",
+      "commits": [],
+      "workstreams": [],
+      "reason": "no commit in 7469f242e..24092c91d touched src/pages/screener/shell/ScannerShell.review.test.jsx or anything it imports"
+    },
+    "vitest|src/pages/screener/shell/ScannerShell.review.test.jsx|the screener hands its order to the review > \ud83d\udd34 the review door is ON the toolbar, and it publishes the rendered order": {
+      "class": "UNATTRIBUTED",
+      "commits": [],
+      "workstreams": [],
+      "reason": "no commit in 7469f242e..24092c91d touched src/pages/screener/shell/ScannerShell.review.test.jsx or anything it imports"
+    },
+    "vitest|src/utils/jsonFetcher.test.js|no shipped surface parses a response it never checked > NO NEW SURFACE joins the list \u2014 and a healed one must leave it": {
+      "class": "UNATTRIBUTED",
+      "commits": [],
+      "workstreams": [],
+      "reason": "no commit in 7469f242e..24092c91d touched src/utils/jsonFetcher.test.js or anything it imports"
+    }
+  }
+}
