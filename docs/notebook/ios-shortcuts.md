@@ -33,6 +33,12 @@ at the top. After that the Shortcut carries it. Anyone who can open your
 Shortcuts can read it, so keep your phone locked; if the phone is lost, revoke
 the token in **Settings → Personal API** and it stops working immediately.
 
+> **Never share these Shortcuts.** Sharing a Shortcut (an iCloud link, AirDrop,
+> *Add to Home Screen* for someone else) sends the token inside it, and the
+> token lets whoever has it write to your Notebook for up to a year. If you
+> did share one, revoke that token in **Settings → Personal API**, make a new
+> one, and paste the new one into your own copy.
+
 ---
 
 ## 2. Shortcut: "Append to today's note"
@@ -131,6 +137,7 @@ show that sentence.
 | 413 | *That text is over the 200 KB limit. Send it in smaller pieces.* | Very long dictation or a whole article — split it. |
 | 423 | *This note is locked — unlock it in the Notebook first* | Unlock the note in UCT, then run the Shortcut again. |
 | 429 | *Too many requests with this token. Wait a minute and try again.* | More than 30 runs in a minute with one token. |
+| 503 | *UCT is busy saving other changes. Wait a few seconds and try again.* | Run the Shortcut again in a few seconds. Nothing was added. |
 | 400 | a sentence naming the field | Usually an empty dictation — nothing to add. |
 
 **If today's note is open on your computer with unsaved typing** when the

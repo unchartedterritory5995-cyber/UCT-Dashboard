@@ -195,6 +195,7 @@ shown to you as-is (an iOS Shortcut's *Show Result* displays it):
 | `413` | the Markdown is over 200 KB | send it in smaller pieces |
 | `423` | the note is locked | unlock it in the Notebook |
 | `429` | more than 30 requests in a minute with this token | wait a minute |
+| `503` | the database was busy with other writes for longer than 3 seconds; nothing was written (the answer carries `Retry-After: 5`) | send it again in a few seconds |
 
 ---
 

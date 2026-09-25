@@ -157,7 +157,24 @@ Each step is safe to stop after. Nothing a member can see changes until step 6.
    **Inbox** with the PDF attached; `npx wrangler tail` shows a `202`. Send one
    to a made-up `notes+000000000000000000000000@<domain>`: it must produce a
    `202` in the tail and **no** note anywhere.
-8. **Record the flip** in `docs/feature_flags.json`: `status` `armed`, `where`
+8. **Check the limits are the ones you want** before any member has an address
+   — they are constants in `api/services/journal_two/inbound_email.py`, so a
+   change is a code change and a deploy, not a variable:
+
+   | Limit | Per address | Per member (every address they have had) |
+   |---|---|---|
+   | Messages | 20 in any rolling hour | 40 in any rolling hour |
+   | Volume (signed request bytes, attachments included) | 50 MiB in any rolling day | 100 MiB in any rolling day |
+
+   Mail over a limit — or to a member whose plan has lapsed — is answered
+   `202` exactly like any other and **not** turned into a note. Each drop is
+   recorded: one row per member, UTC day and reason in `j2_inbound_drops`
+   (`address_rate`, `address_volume`, `member_rate`, `member_volume`,
+   `not_paid`), and a `[inbound-email] dropped for <user id>: <reason>` log
+   line. The windows live in `auth.db` (`j2_inbound_usage`), so a restart does
+   not reset them. Walk it once: send 21 emails to one address inside an hour
+   and confirm the 21st produces no note and a `address_rate` row.
+9. **Record the flip** in `docs/feature_flags.json`: `status` `armed`, `where`
    `["web"]`, and the flip time in the note — in the same docs push.
 
 ### Rolling back
@@ -200,7 +217,23 @@ Each step is safe to stop after. Nothing a member can see changes until step 6.
   too once `NOTEBOOK_IMAGE_DOCX_DOCUMENTS_ENABLED` is on).
 - **Size:** Cloudflare Email Routing's own message limit applies before UCT
   sees anything (documented by Cloudflare as 25 MiB; not measured here). UCT
-  refuses a request body over 36 MB.
+  refuses a request body over 36 MB — by its declared `Content-Length` before
+  reading anything, and otherwise as soon as the running total passes the cap,
+  so an oversized body is never buffered whole.
+- **Limits and plan:** the address and the member are each held to a message
+  rate and a daily volume, and the member must still be on a plan that includes
+  Email to Notebook (§7 step 8). Over a limit, or on a lapsed plan, the mail is
+  answered like any other and recorded as a drop — no note.
+- **A body the converter cannot handle** (for example thousands of nested
+  `<div>`s) still becomes a note: its text is kept as plain paragraphs under a
+  line saying the formatting could not be kept.
+- **Attachments are appended** to whatever the note holds by the time they are
+  saved, inside one locked read-and-write, so an edit made in those
+  milliseconds is kept and the attachments are still linked.
+- **Links** whose address is not an allowed kind once whitespace and control
+  characters are removed (for example `java&#9;script:`) keep their words and
+  lose the link. A placeholder for a file the email did not carry becomes a
+  line `[attachment: <name>]`.
 
 ## 9. Security, in one place
 
@@ -223,8 +256,10 @@ Each step is safe to stop after. Nothing a member can see changes until step 6.
   `NOTEBOOK_INBOUND_EMAIL_SECRET`, optional `NOTEBOOK_INBOUND_EMAIL_DOMAIN`
   (default `uctintelligence.com`). All read per request.
 - Code: `api/routers/notebook_inbound_email.py`,
-  `api/services/journal_two/inbound_email.py` (table `j2_inbound_addresses`,
-  created on first use, removed with the account by `account_purge.py`),
+  `api/services/journal_two/inbound_email.py` (tables `j2_inbound_addresses`,
+  `j2_inbound_usage` and `j2_inbound_drops`, created on first use, removed with
+  the account by `account_purge.py`; `inbound_email.drops(user_id)` reads a
+  member's recorded drops),
   `cloudflare/inbound-email-worker/`, the Settings card
   `app/src/pages/journal-2-0/components/InboundEmailCard.jsx`.
 - Rails: `tests/test_notebook_inbound_email.py`, `InboundEmailCard.test.jsx`.
