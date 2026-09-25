@@ -1,0 +1,15 @@
+# read 2026-09-25T14:13:28Z as the admin smoke account; user ids masked; summary per predicate:
+ready=True  sessions= 5 agreed=0 new_only=0 legacy_only=2344 nc=0 kinds=['price'] trendline=False | legacy:08d68edb-d4b
+ready=True  sessions=10 agreed=0 new_only=0 legacy_only=0 nc=0 kinds=['price'] trendline=False | legacy:2cc1f7db-61b
+ready=True  sessions=10 agreed=0 new_only=0 legacy_only=0 nc=0 kinds=['price'] trendline=False | legacy:4896a625-3d9
+ready=True  sessions=10 agreed=0 new_only=0 legacy_only=0 nc=0 kinds=['price'] trendline=False | legacy:7b69ac30-1ae
+ready=True  sessions= 6 agreed=0 new_only=0 legacy_only=0 nc=0 kinds=['line'] trendline=False | legacy:89a2d6a8-4e1
+ready=True  sessions= 6 agreed=0 new_only=0 legacy_only=0 nc=0 kinds=['line'] trendline=False | legacy:98fa7ebc-50d
+ready=True  sessions=10 agreed=0 new_only=0 legacy_only=0 nc=0 kinds=['price'] trendline=False | legacy:b4996557-2b7
+ready=True  sessions= 5 agreed=0 new_only=0 legacy_only=0 nc=0 kinds=['price'] trendline=False | legacy:b99aae00-577
+ready=True  sessions=10 agreed=0 new_only=0 legacy_only=0 nc=0 kinds=['price'] trendline=False | legacy:c591ef0b-081
+ready=False sessions= 2 agreed=0 new_only=0 legacy_only=0 nc=0 kinds=['price'] trendline=False | legacy:d347ee61-6e4
+ready=True  sessions=10 agreed=0 new_only=0 legacy_only=0 nc=0 kinds=['price'] trendline=False | legacy:e07ea57a-999
+ready=True  sessions=10 agreed=1 new_only=0 legacy_only=0 nc=0 kinds=['price'] trendline=False | legacy:f0d66360-4ad
+ready=True  sessions=10 agreed=0 new_only=0 legacy_only=0 nc=0 kinds=['price'] trendline=False | legacy:fb781c79-e44
+TOTAL {'agreed': 1, 'new_only': 0, 'legacy_only': 2344, 'not_comparable': 0} | ready 12 of 13 | trendline-exercised 0

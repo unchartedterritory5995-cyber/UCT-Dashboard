@@ -168,6 +168,11 @@ meantime.
 
 ## 3 · Genuinely still open — not a flip, a real remaining decision or dependency
 
+> **2026-09-25 — every row below was RULED under explicit owner delegation ("you decide
+> all"); the rulings, their evidence and each row's re-open trigger are
+> `12-decisions/DECISION_CARDS_2026-09-25.md` (CARDS 1–8), and `RESUME-HERE.md` §5 carries
+> the current row text. This table is kept as the 2026-09-24 snapshot it was.**
+
 | Item | What's actually blocking it | Whose call |
 |---|---|---|
 | S7 Alerts — price-level flip | Explicitly RULED HOLD 2026-09-18, re-affirmed 2026-09-23 (`DECISION_CARDS_2026-09-18.md` CARD 6) — persistence semantics (fire-once vs re-fire) is a genuinely unmade product call, sample is thin/partly synthetic | Owner, whenever the semantics question is ready to be made — not urgent, no member exposure today |
