@@ -3511,6 +3511,30 @@ def restore_note_endpoint(
     return {"note": n}
 
 
+async def _hand_off_to_documents(user_id: str, note_id: str, saved: dict, content_type,
+                                 *, kind: str) -> None:
+    """Wave 7 seam S1, for the editor's two upload routes: every saved
+    attachment reports to `document_extraction.on_attachment_saved`, which
+    decides whether it becomes a searchable document.
+
+    ⛔ GUARDED, AND OFF THE EVENT LOOP (whole-branch review M-2). The seam's own
+    promise is that "a failure here can never make the upload look broken";
+    only email-in kept it. Here it ran unguarded and synchronously inside these
+    `async` routes: `create_document` is a SQLite SELECT + INSERT + commit, so a
+    busy auth.db answered 500 for a file that was already saved (the editor then
+    said it had not uploaded) and stalled the web pod's ONE loop for every
+    member meanwhile. The bytes are saved before this runs; its failure is one
+    log line, naming the error's class only."""
+    from starlette.concurrency import run_in_threadpool
+    from api.services.journal_two import document_extraction
+    try:
+        await run_in_threadpool(document_extraction.on_attachment_saved,
+                                user_id, note_id, saved, content_type, kind=kind)
+    except Exception as e:  # noqa: BLE001 -- extraction never costs the upload
+        logger.warning("[notes] document hand-off failed after a saved upload (%s)",
+                       type(e).__name__)
+
+
 @router.post("/notes/{note_id}/images")
 async def upload_note_image_endpoint(
     note_id: str,
@@ -3530,10 +3554,7 @@ async def upload_note_image_endpoint(
     # which decides whether it becomes a searchable document. The decision
     # lives THERE so this router never grows a per-type branch (lane G adds
     # image OCR / docx behind its own gate without touching this file).
-    from api.services.journal_two import document_extraction
-    document_extraction.on_attachment_saved(
-        user["id"], note_id, img, file.content_type, kind="image",
-    )
+    await _hand_off_to_documents(user["id"], note_id, img, file.content_type, kind="image")
     return img
 
 
@@ -3597,10 +3618,7 @@ async def upload_note_attachment_endpoint(
     # Wave 7 seam S1: the "is this a document?" decision moved into
     # document_extraction.on_attachment_saved (PDF today; lane G adds docx
     # and image kinds behind its own gate there, never here).
-    from api.services.journal_two import document_extraction
-    document_extraction.on_attachment_saved(
-        user["id"], note_id, att, content_type, kind="file",
-    )
+    await _hand_off_to_documents(user["id"], note_id, att, content_type, kind="file")
     return att
 
 
