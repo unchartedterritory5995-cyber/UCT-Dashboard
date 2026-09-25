@@ -115,7 +115,7 @@ Ravi conversation rather than touched here.
 | # | Checklist item | Status |
 |---|---|---|
 | 1 | Tests pass | ✅ 22/22, re-run fresh 2026-09-23 |
-| 2 | Named flag, defaults OFF | ⚠️ Flag exists in code but is **not declared** in `docs/feature_flags.json` — found in passing during A13's ship, not yet fixed (a small, real cleanup, not a functional gap) |
+| 2 | Named flag, defaults OFF | ✅ **Declared 2026-09-24 in `6e7b10407`** (status `dark`, alongside `WISDOM_EXTRACT_PRESCREEN_ENABLED`, the other undeclared gate the same sweep found); `tools/flag_ledger_audit.py` against live Railway now exits 0. ⚰️ This row said "not declared … not yet fixed" for a day after it was |
 | 3-9 | — | Not member-facing at all: this is a dark, log-only dual-compute comparison recorder (`ticker_returns.py`'s scheduled reader), never serves a value to any surface. There is nothing here for a member to be impacted by. |
 
 **Recommendation:** this is not a go-live decision — it's an internal instrumentation
@@ -146,7 +146,7 @@ meantime.
 | D5 CP2 (inert corp-actions ledger) | Deliberately unauthorized — nothing reads it, so nothing is waiting on it; building it would need its own scope grant the same way every `address_book.py` extension has | Owner, only if/when a real consumer need appears — not today |
 | D5 CP6 merger/relation_added | No vendor signal exists on the current Massive plan (verified live against real M&A tickers — both 404) | Would need a different provider or plan tier — a cost/licensing question, not code |
 | CP7 member-facing adjustment sentence | Deliberately deferred to S8/S10 by its own approval | A product-copy decision, not an engineering gap |
-| `/api/provenance/quote` + `/provenance-demo` still public (found 2026-09-24) | Same class as OI-17 — a no-auth Massive/FMP quote endpoint — kept open only because its sole consumer `/provenance-demo` is a deliberately public route; gating one means gating both, and whether the demo page stays public has never been decided. Docstrings corrected in `6e7b10407` to say so instead of citing the retired live-prices "convention" | Owner — no urgency, demo surface only |
+| ~~`/api/provenance/quote` + `/provenance-demo` still public (found 2026-09-24)~~ — **CLOSED 2026-09-25, `7e0ab34c2`** | Gated together in one commit under OI-17's delegated ruling: the endpoint takes `Depends(get_current_user)`, the page moved inside `<AuthGuard/>`; anonymous → 401 pinned (`tests/test_provenance_quote.py`, 10/10) and proved on the live pod (401 where the previous pod answered 200). The demo was never linked from any nav, so no member path changed | Done — `RESUME-HERE.md` §3 |
 
 ---
 
