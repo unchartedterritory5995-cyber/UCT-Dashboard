@@ -1,0 +1,1852 @@
+{
+  "flaky": [
+    "pytest|tests.test_discord_close_note|test_a_note_that_cannot_be_written_still_posts_the_charts",
+    "pytest|tests.test_mutation_check.TestRestoreGuarantee|test_the_file_is_byte_identical_after_a_detected_mutation",
+    "pytest|tests.test_mutation_check.TestVerdicts|test_a_detected_mutation_passes_the_check",
+    "pytest|tests.test_mutation_check.TestVerdicts|test_expect_red_naming_the_right_test_passes",
+    "vitest|src/components/chart/engine/__tests__/stockChartWiring.test.jsx|an engine-drawn indicator still appears in the crosshair legend > \u26d4\u26d4 A HOVER REACHES THE RENDERER NOT AT ALL"
+  ],
+  "flaky_size": 5,
+  "flaky_new": 2,
+  "flaky_fixed": 0,
+  "stable_runs_to_leave": 5,
+  "runs": [
+    "101",
+    "102",
+    "103",
+    "104",
+    "105",
+    "107",
+    "108",
+    "110",
+    "111",
+    "113",
+    "114",
+    "117",
+    "120",
+    "122",
+    "124",
+    "125",
+    "128",
+    "129",
+    "132",
+    "133",
+    "134",
+    "136",
+    "137",
+    "139",
+    "140",
+    "141",
+    "142",
+    "146",
+    "147",
+    "148",
+    "15",
+    "150",
+    "151",
+    "152",
+    "155",
+    "156",
+    "158",
+    "159",
+    "16",
+    "160",
+    "161",
+    "162",
+    "163",
+    "165",
+    "166",
+    "167",
+    "168",
+    "169",
+    "17",
+    "170",
+    "171",
+    "172",
+    "173",
+    "174",
+    "176",
+    "177",
+    "178",
+    "179",
+    "18",
+    "180",
+    "181",
+    "182",
+    "183",
+    "184",
+    "185",
+    "187",
+    "188",
+    "189",
+    "19",
+    "190",
+    "191",
+    "192",
+    "194",
+    "196",
+    "198",
+    "199",
+    "20",
+    "200",
+    "202",
+    "203",
+    "204",
+    "205",
+    "206",
+    "207",
+    "208",
+    "209",
+    "21",
+    "210",
+    "211",
+    "213",
+    "214",
+    "215",
+    "216",
+    "217",
+    "218",
+    "219",
+    "22",
+    "220",
+    "221",
+    "222",
+    "224",
+    "225",
+    "226",
+    "227",
+    "228",
+    "229",
+    "23",
+    "230",
+    "232",
+    "233",
+    "234",
+    "235",
+    "236",
+    "237",
+    "238",
+    "239",
+    "24",
+    "240",
+    "241",
+    "244",
+    "245",
+    "246",
+    "247",
+    "248",
+    "249",
+    "25",
+    "252",
+    "253",
+    "256",
+    "257",
+    "259",
+    "26",
+    "260",
+    "261",
+    "262",
+    "263",
+    "264",
+    "265",
+    "266",
+    "267",
+    "269",
+    "27",
+    "270",
+    "271",
+    "274",
+    "275",
+    "276",
+    "278",
+    "279",
+    "28",
+    "280",
+    "281",
+    "283",
+    "285",
+    "287",
+    "289",
+    "29",
+    "291",
+    "293",
+    "294",
+    "297",
+    "298",
+    "30",
+    "300",
+    "301",
+    "306",
+    "307",
+    "309",
+    "31",
+    "312",
+    "315",
+    "316",
+    "318",
+    "319",
+    "32",
+    "320",
+    "321",
+    "322",
+    "323",
+    "324",
+    "325",
+    "326",
+    "327",
+    "328",
+    "329",
+    "33",
+    "330",
+    "334",
+    "338",
+    "339",
+    "34",
+    "340",
+    "341",
+    "342",
+    "343",
+    "345",
+    "346",
+    "348",
+    "349",
+    "35",
+    "350",
+    "352",
+    "353",
+    "354",
+    "355",
+    "356",
+    "357",
+    "358",
+    "36",
+    "360",
+    "362",
+    "37",
+    "370",
+    "378",
+    "38",
+    "383",
+    "39",
+    "393",
+    "396",
+    "398",
+    "399",
+    "40",
+    "400",
+    "41",
+    "42",
+    "43",
+    "45",
+    "46",
+    "48",
+    "49",
+    "50",
+    "51",
+    "52",
+    "54",
+    "57",
+    "58",
+    "59",
+    "60",
+    "61",
+    "63",
+    "64",
+    "66",
+    "67",
+    "68",
+    "69",
+    "70",
+    "72",
+    "74",
+    "75",
+    "77",
+    "79",
+    "80",
+    "81",
+    "83",
+    "85",
+    "89",
+    "90",
+    "91",
+    "92",
+    "93",
+    "94",
+    "96",
+    "99"
+  ],
+  "pairs": [
+    {
+      "a": "101",
+      "b": "102",
+      "equivalent": null,
+      "why": "the diff a4257400a..4c7c4c03f is UNREADABLE (shallow checkout?)"
+    },
+    {
+      "a": "102",
+      "b": "103",
+      "equivalent": null,
+      "why": "the diff 4c7c4c03f..09be672f4 is UNREADABLE (shallow checkout?)"
+    },
+    {
+      "a": "103",
+      "b": "104",
+      "equivalent": null,
+      "why": ".github/workflows/promote-production.yml is UNREADABLE at one of the two commits"
+    },
+    {
+      "a": "104",
+      "b": "105",
+      "equivalent": null,
+      "why": ".github/workflows/promote-production.yml is UNREADABLE at one of the two commits"
+    },
+    {
+      "a": "105",
+      "b": "107",
+      "equivalent": null,
+      "why": ".github/workflows/promote-production.yml is UNREADABLE at one of the two commits"
+    },
+    {
+      "a": "107",
+      "b": "108",
+      "equivalent": null,
+      "why": "the diff 1a937192f..2996f606a is UNREADABLE (shallow checkout?)"
+    },
+    {
+      "a": "108",
+      "b": "110",
+      "equivalent": null,
+      "why": "the diff 2996f606a..76fb85247 is UNREADABLE (shallow checkout?)"
+    },
+    {
+      "a": "110",
+      "b": "111",
+      "equivalent": null,
+      "why": "the diff 76fb85247..7696be75f is UNREADABLE (shallow checkout?)"
+    },
+    {
+      "a": "111",
+      "b": "113",
+      "equivalent": null,
+      "why": "the diff 7696be75f..e855f62cd is UNREADABLE (shallow checkout?)"
+    },
+    {
+      "a": "113",
+      "b": "114",
+      "equivalent": null,
+      "why": ".github/workflows/clock-parity-fixture.yml is UNREADABLE at one of the two commits"
+    },
+    {
+      "a": "114",
+      "b": "117",
+      "equivalent": null,
+      "why": ".github/workflows/clock-parity-fixture.yml is UNREADABLE at one of the two commits"
+    },
+    {
+      "a": "117",
+      "b": "120",
+      "equivalent": false,
+      "why": "api/main.py is referenced by 1098 source file(s); api/routers/member.py is referenced by 2105 source file(s)"
+    },
+    {
+      "a": "120",
+      "b": "122",
+      "equivalent": false,
+      "why": "tools/q1_window_queue.json is referenced by 2 source file(s)"
+    },
+    {
+      "a": "122",
+      "b": "124",
+      "equivalent": false,
+      "why": "api/services/wisdom/core/flags.py is referenced by 408 source file(s); api/services/wisdom/sources/jobs.py is referenced by 209 source file(s); api/services/wisdom/sources/schema.py is referenced by 488 source file(s)"
+    },
+    {
+      "a": "124",
+      "b": "125",
+      "equivalent": true,
+      "why": "no changed file can reach a test"
+    },
+    {
+      "a": "125",
+      "b": "128",
+      "equivalent": false,
+      "why": "api/routers/stream.py is referenced by 394 source file(s); api/services/bar_broadcaster.py is referenced by 15 source file(s); app/src/pages/BreadthCharts.jsx is referenced by 32 source file(s)"
+    },
+    {
+      "a": "128",
+      "b": "129",
+      "equivalent": null,
+      "why": ".github/workflows/clock-parity-fixture.yml is UNREADABLE at one of the two commits"
+    },
+    {
+      "a": "129",
+      "b": "132",
+      "equivalent": null,
+      "why": ".github/workflows/clock-parity-fixture.yml is UNREADABLE at one of the two commits"
+    },
+    {
+      "a": "132",
+      "b": "133",
+      "equivalent": false,
+      "why": "app/src/components/chart/engine/__tests__/fakeChart.js is referenced by 23 source file(s); app/src/components/chart/engine/fillPrimitive.js is referenced by 7 source file(s)"
+    },
+    {
+      "a": "133",
+      "b": "134",
+      "equivalent": null,
+      "why": ".github/workflows/clock-parity-fixture.yml is UNREADABLE at one of the two commits"
+    },
+    {
+      "a": "134",
+      "b": "136",
+      "equivalent": null,
+      "why": ".github/workflows/clock-parity-fixture.yml is UNREADABLE at one of the two commits"
+    },
+    {
+      "a": "136",
+      "b": "137",
+      "equivalent": null,
+      "why": ".github/workflows/clock-parity-fixture.yml is UNREADABLE at one of the two commits"
+    },
+    {
+      "a": "137",
+      "b": "139",
+      "equivalent": null,
+      "why": ".github/workflows/clock-parity-fixture.yml is UNREADABLE at one of the two commits"
+    },
+    {
+      "a": "139",
+      "b": "140",
+      "equivalent": false,
+      "why": "app/src/components/TickerPopup.jsx is referenced by 132 source file(s); app/src/pages/ThemeTrackerPage.jsx is referenced by 20 source file(s); app/src/pages/Watchlists.jsx is referenced by 84 source file(s)"
+    },
+    {
+      "a": "140",
+      "b": "141",
+      "equivalent": false,
+      "why": "app/src/pages/breadth/v2/BreadthChartsV2.jsx is referenced by 7 source file(s); app/src/pages/breadth/v2/presentation.test.jsx is referenced by 2 source file(s)"
+    },
+    {
+      "a": "141",
+      "b": "142",
+      "equivalent": null,
+      "why": ".github/workflows/clock-parity-fixture.yml is UNREADABLE at one of the two commits"
+    },
+    {
+      "a": "142",
+      "b": "146",
+      "equivalent": null,
+      "why": ".github/workflows/clock-parity-fixture.yml is UNREADABLE at one of the two commits"
+    },
+    {
+      "a": "146",
+      "b": "147",
+      "equivalent": null,
+      "why": ".github/workflows/clock-parity-fixture.yml is UNREADABLE at one of the two commits"
+    },
+    {
+      "a": "147",
+      "b": "148",
+      "equivalent": null,
+      "why": ".github/workflows/clock-parity-fixture.yml is UNREADABLE at one of the two commits"
+    },
+    {
+      "a": "148",
+      "b": "15",
+      "equivalent": null,
+      "why": ".github/workflows/clock-parity-fixture.yml is UNREADABLE at one of the two commits"
+    },
+    {
+      "a": "15",
+      "b": "150",
+      "equivalent": null,
+      "why": ".github/workflows/clock-parity-fixture.yml is UNREADABLE at one of the two commits"
+    },
+    {
+      "a": "150",
+      "b": "151",
+      "equivalent": false,
+      "why": "tools/q1_f5_matrix.py is referenced by 5 source file(s)"
+    },
+    {
+      "a": "151",
+      "b": "152",
+      "equivalent": null,
+      "why": ".github/workflows/clock-parity-fixture.yml is UNREADABLE at one of the two commits"
+    },
+    {
+      "a": "152",
+      "b": "155",
+      "equivalent": null,
+      "why": ".github/workflows/clock-parity-fixture.yml is UNREADABLE at one of the two commits"
+    },
+    {
+      "a": "155",
+      "b": "156",
+      "equivalent": null,
+      "why": ".github/workflows/clock-parity-fixture.yml is UNREADABLE at one of the two commits"
+    },
+    {
+      "a": "156",
+      "b": "158",
+      "equivalent": null,
+      "why": ".github/workflows/clock-parity-fixture.yml is UNREADABLE at one of the two commits"
+    },
+    {
+      "a": "158",
+      "b": "159",
+      "equivalent": false,
+      "why": "api/flow_worker_deploy_marker.txt is referenced by 2 source file(s); api/services/alert_taxonomy/indicator_condition.py is referenced by 10 source file(s); api/services/alert_taxonomy/indicator_condition_compare.py is referenced by 5 source file(s)"
+    },
+    {
+      "a": "159",
+      "b": "16",
+      "equivalent": null,
+      "why": ".github/workflows/clock-parity-fixture.yml is UNREADABLE at one of the two commits"
+    },
+    {
+      "a": "16",
+      "b": "160",
+      "equivalent": false,
+      "why": ".github/workflows/full-suite-report.yml changed OUTSIDE `jobs:` \u2014 every job sees that; api/data/entitlements_manifest.json is referenced by 2 source file(s); api/main.py is referenced by 949 source file(s)"
+    },
+    {
+      "a": "160",
+      "b": "161",
+      "equivalent": null,
+      "why": ".github/workflows/clock-parity-fixture.yml is UNREADABLE at one of the two commits"
+    },
+    {
+      "a": "161",
+      "b": "162",
+      "equivalent": null,
+      "why": ".github/workflows/clock-parity-fixture.yml is UNREADABLE at one of the two commits"
+    },
+    {
+      "a": "162",
+      "b": "163",
+      "equivalent": null,
+      "why": ".github/workflows/clock-parity-fixture.yml is UNREADABLE at one of the two commits"
+    },
+    {
+      "a": "163",
+      "b": "165",
+      "equivalent": false,
+      "why": "api/services/wisdom/publish/adapters/drafts.py is referenced by 36 source file(s); tests/test_wisdom_publish_adapters_drafts.py is referenced by 1 source file(s)"
+    },
+    {
+      "a": "165",
+      "b": "166",
+      "equivalent": null,
+      "why": ".github/workflows/clock-parity-fixture.yml is UNREADABLE at one of the two commits"
+    },
+    {
+      "a": "166",
+      "b": "167",
+      "equivalent": false,
+      "why": "app/src/hub/HubContext.jsx is referenced by 35 source file(s); app/src/hub/confirmFieldsReachable.test.jsx is referenced by 3 source file(s); app/src/hub/linkTickerWritesTheNote.test.jsx is referenced by 2 source file(s)"
+    },
+    {
+      "a": "167",
+      "b": "168",
+      "equivalent": null,
+      "why": ".github/workflows/clock-parity-fixture.yml is UNREADABLE at one of the two commits"
+    },
+    {
+      "a": "168",
+      "b": "169",
+      "equivalent": null,
+      "why": ".github/workflows/clock-parity-fixture.yml is UNREADABLE at one of the two commits"
+    },
+    {
+      "a": "169",
+      "b": "17",
+      "equivalent": false,
+      "why": ".github/workflows/full-suite-report.yml changed OUTSIDE `jobs:` \u2014 every job sees that; api/main.py is referenced by 945 source file(s); api/routers/bars.py is referenced by 1455 source file(s)"
+    },
+    {
+      "a": "17",
+      "b": "170",
+      "equivalent": null,
+      "why": ".github/workflows/clock-parity-fixture.yml is UNREADABLE at one of the two commits"
+    },
+    {
+      "a": "170",
+      "b": "171",
+      "equivalent": false,
+      "why": "app/src/components/chart/engine/ast/bothLanesAreTwoLanes.test.js is referenced by 2 source file(s); app/src/components/chart/engine/ast/objectProgram.js is referenced by 14 source file(s); app/src/components/chart/engine/ast/pine.js is referenced by 346 source file(s)"
+    },
+    {
+      "a": "171",
+      "b": "172",
+      "equivalent": false,
+      "why": "api/routers/journal_two.py is referenced by 464 source file(s); api/services/journal_two/notes.py is referenced by 687 source file(s); app/src/components/ui/UIcon.jsx is referenced by 368 source file(s)"
+    },
+    {
+      "a": "172",
+      "b": "173",
+      "equivalent": null,
+      "why": "the diff c4f45103b..04d3ca329 is UNREADABLE (shallow checkout?)"
+    },
+    {
+      "a": "173",
+      "b": "174",
+      "equivalent": null,
+      "why": "the diff 04d3ca329..d9983b3d4 is UNREADABLE (shallow checkout?)"
+    },
+    {
+      "a": "174",
+      "b": "176",
+      "equivalent": false,
+      "why": "api/darkpool_aggregator.py is referenced by 10 source file(s)"
+    },
+    {
+      "a": "176",
+      "b": "177",
+      "equivalent": false,
+      "why": "api/services/journal_two/note_properties.py is referenced by 12 source file(s); app/src/pages/journal-2-0/components/notebook/CaptureDialog.module.css is referenced by 1 source file(s); app/src/pages/journal-2-0/components/notebook/NoteBoardView.jsx is referenced by 4 source file(s)"
+    },
+    {
+      "a": "177",
+      "b": "178",
+      "equivalent": null,
+      "why": "the diff 15c8059c8..823dc1cfc is UNREADABLE (shallow checkout?)"
+    },
+    {
+      "a": "178",
+      "b": "179",
+      "equivalent": null,
+      "why": "the diff 823dc1cfc..f90af28c6 is UNREADABLE (shallow checkout?)"
+    },
+    {
+      "a": "179",
+      "b": "18",
+      "equivalent": null,
+      "why": ".github/workflows/clock-parity-fixture.yml is UNREADABLE at one of the two commits"
+    },
+    {
+      "a": "18",
+      "b": "180",
+      "equivalent": null,
+      "why": "the diff c89dd6b81..ada12cc7f is UNREADABLE (shallow checkout?)"
+    },
+    {
+      "a": "180",
+      "b": "181",
+      "equivalent": null,
+      "why": "the diff ada12cc7f..79c4be893 is UNREADABLE (shallow checkout?)"
+    },
+    {
+      "a": "181",
+      "b": "182",
+      "equivalent": null,
+      "why": ".github/workflows/clock-parity-fixture.yml is UNREADABLE at one of the two commits"
+    },
+    {
+      "a": "182",
+      "b": "183",
+      "equivalent": null,
+      "why": "the diff 87b5735f4..ba3d115f2 is UNREADABLE (shallow checkout?)"
+    },
+    {
+      "a": "183",
+      "b": "184",
+      "equivalent": null,
+      "why": "the diff ba3d115f2..1c29ae5c9 is UNREADABLE (shallow checkout?)"
+    },
+    {
+      "a": "184",
+      "b": "185",
+      "equivalent": null,
+      "why": ".github/workflows/clock-parity-fixture.yml is UNREADABLE at one of the two commits"
+    },
+    {
+      "a": "185",
+      "b": "187",
+      "equivalent": null,
+      "why": "the diff 8a946b699..079b35544 is UNREADABLE (shallow checkout?)"
+    },
+    {
+      "a": "187",
+      "b": "188",
+      "equivalent": null,
+      "why": "the diff 079b35544..99fedc3f7 is UNREADABLE (shallow checkout?)"
+    },
+    {
+      "a": "188",
+      "b": "189",
+      "equivalent": null,
+      "why": "the diff 99fedc3f7..19e4475f2 is UNREADABLE (shallow checkout?)"
+    },
+    {
+      "a": "189",
+      "b": "19",
+      "equivalent": null,
+      "why": "the diff 19e4475f2..aba219779 is UNREADABLE (shallow checkout?)"
+    },
+    {
+      "a": "19",
+      "b": "190",
+      "equivalent": null,
+      "why": ".github/workflows/clock-parity-fixture.yml is UNREADABLE at one of the two commits"
+    },
+    {
+      "a": "190",
+      "b": "191",
+      "equivalent": null,
+      "why": "the diff a7176a764..dc791510e is UNREADABLE (shallow checkout?)"
+    },
+    {
+      "a": "191",
+      "b": "192",
+      "equivalent": null,
+      "why": "the diff dc791510e..5141c74c4 is UNREADABLE (shallow checkout?)"
+    },
+    {
+      "a": "192",
+      "b": "194",
+      "equivalent": null,
+      "why": "the diff 5141c74c4..9daa6e131 is UNREADABLE (shallow checkout?)"
+    },
+    {
+      "a": "194",
+      "b": "196",
+      "equivalent": null,
+      "why": "the diff 9daa6e131..eac4dd3a8 is UNREADABLE (shallow checkout?)"
+    },
+    {
+      "a": "196",
+      "b": "198",
+      "equivalent": null,
+      "why": "the diff eac4dd3a8..14d3566bc is UNREADABLE (shallow checkout?)"
+    },
+    {
+      "a": "198",
+      "b": "199",
+      "equivalent": null,
+      "why": "the diff 14d3566bc..a15242eee is UNREADABLE (shallow checkout?)"
+    },
+    {
+      "a": "199",
+      "b": "20",
+      "equivalent": null,
+      "why": ".github/workflows/clock-parity-fixture.yml is UNREADABLE at one of the two commits"
+    },
+    {
+      "a": "20",
+      "b": "200",
+      "equivalent": null,
+      "why": "the diff 03ebbd7f7..ee26ba604 is UNREADABLE (shallow checkout?)"
+    },
+    {
+      "a": "200",
+      "b": "202",
+      "equivalent": null,
+      "why": "the diff ee26ba604..fa296d6e7 is UNREADABLE (shallow checkout?)"
+    },
+    {
+      "a": "202",
+      "b": "203",
+      "equivalent": null,
+      "why": "the diff fa296d6e7..42d6e439c is UNREADABLE (shallow checkout?)"
+    },
+    {
+      "a": "203",
+      "b": "204",
+      "equivalent": false,
+      "why": "api/services/journal_two/notes.py is referenced by 688 source file(s); app/src/pages/journal-2-0/components/notebook/NoteGraphView.jsx is referenced by 7 source file(s); app/src/pages/journal-2-0/components/notebook/NoteGraphView.test.jsx is referenced by 1 source file(s)"
+    },
+    {
+      "a": "204",
+      "b": "205",
+      "equivalent": null,
+      "why": "the diff 3cee6c6ae..2be7a17e6 is UNREADABLE (shallow checkout?)"
+    },
+    {
+      "a": "205",
+      "b": "206",
+      "equivalent": null,
+      "why": "the diff 2be7a17e6..2e70032bc is UNREADABLE (shallow checkout?)"
+    },
+    {
+      "a": "206",
+      "b": "207",
+      "equivalent": false,
+      "why": "app/src/pages/journal-2-0/components/notebook/FolderSidebar.module.css is referenced by 1 source file(s); app/src/pages/journal-2-0/components/notebook/ResearchHome.module.css is referenced by 1 source file(s); app/src/pages/journal-2-0/tabs/NotebookTab.module.css is referenced by 2 source file(s)"
+    },
+    {
+      "a": "207",
+      "b": "208",
+      "equivalent": null,
+      "why": "the diff 270606777..b6932a79a is UNREADABLE (shallow checkout?)"
+    },
+    {
+      "a": "208",
+      "b": "209",
+      "equivalent": null,
+      "why": "the diff b6932a79a..541529320 is UNREADABLE (shallow checkout?)"
+    },
+    {
+      "a": "209",
+      "b": "21",
+      "equivalent": null,
+      "why": ".github/workflows/clock-parity-fixture.yml is UNREADABLE at one of the two commits"
+    },
+    {
+      "a": "21",
+      "b": "210",
+      "equivalent": null,
+      "why": ".github/workflows/clock-parity-fixture.yml is UNREADABLE at one of the two commits"
+    },
+    {
+      "a": "210",
+      "b": "211",
+      "equivalent": null,
+      "why": "the diff f243fe3f7..0f5308ebf is UNREADABLE (shallow checkout?)"
+    },
+    {
+      "a": "211",
+      "b": "213",
+      "equivalent": null,
+      "why": "the diff 0f5308ebf..fee9a7721 is UNREADABLE (shallow checkout?)"
+    },
+    {
+      "a": "213",
+      "b": "214",
+      "equivalent": null,
+      "why": "the diff fee9a7721..af6069781 is UNREADABLE (shallow checkout?)"
+    },
+    {
+      "a": "214",
+      "b": "215",
+      "equivalent": null,
+      "why": "the diff af6069781..cbc7b177b is UNREADABLE (shallow checkout?)"
+    },
+    {
+      "a": "215",
+      "b": "216",
+      "equivalent": null,
+      "why": "the diff cbc7b177b..a2c635cde is UNREADABLE (shallow checkout?)"
+    },
+    {
+      "a": "216",
+      "b": "217",
+      "equivalent": null,
+      "why": "the diff a2c635cde..e9ded2770 is UNREADABLE (shallow checkout?)"
+    },
+    {
+      "a": "217",
+      "b": "218",
+      "equivalent": null,
+      "why": "the diff e9ded2770..8a4b8ddd1 is UNREADABLE (shallow checkout?)"
+    },
+    {
+      "a": "218",
+      "b": "219",
+      "equivalent": null,
+      "why": "the diff 8a4b8ddd1..67bfadd05 is UNREADABLE (shallow checkout?)"
+    },
+    {
+      "a": "219",
+      "b": "22",
+      "equivalent": null,
+      "why": "the diff 67bfadd05..9fa4ee150 is UNREADABLE (shallow checkout?)"
+    },
+    {
+      "a": "22",
+      "b": "220",
+      "equivalent": null,
+      "why": ".github/workflows/clock-parity-fixture.yml is UNREADABLE at one of the two commits"
+    },
+    {
+      "a": "220",
+      "b": "221",
+      "equivalent": false,
+      "why": "api/routers/watchlists.py is referenced by 145 source file(s); api/services/screener/snapshot_db.py is referenced by 94 source file(s); api/services/watchlist_prebuilt.py is referenced by 20 source file(s)"
+    },
+    {
+      "a": "221",
+      "b": "222",
+      "equivalent": false,
+      "why": "api/routers/watchlists.py is referenced by 145 source file(s)"
+    },
+    {
+      "a": "222",
+      "b": "224",
+      "equivalent": null,
+      "why": "the diff 4fec5bb99..e952059c6 is UNREADABLE (shallow checkout?)"
+    },
+    {
+      "a": "224",
+      "b": "225",
+      "equivalent": null,
+      "why": "the diff e952059c6..602f8865a is UNREADABLE (shallow checkout?)"
+    },
+    {
+      "a": "225",
+      "b": "226",
+      "equivalent": null,
+      "why": "the diff 602f8865a..276d7107c is UNREADABLE (shallow checkout?)"
+    },
+    {
+      "a": "226",
+      "b": "227",
+      "equivalent": null,
+      "why": "the diff 276d7107c..69b05f97c is UNREADABLE (shallow checkout?)"
+    },
+    {
+      "a": "227",
+      "b": "228",
+      "equivalent": false,
+      "why": "api/data/screener_buyout_exclude.json is referenced by 1 source file(s); api/routers/screener.py is referenced by 548 source file(s); api/services/screener/screener_universe.py is referenced by 3 source file(s)"
+    },
+    {
+      "a": "228",
+      "b": "229",
+      "equivalent": true,
+      "why": "SAME SHA \u2014 the strongest form of the rule"
+    },
+    {
+      "a": "229",
+      "b": "23",
+      "equivalent": null,
+      "why": ".github/workflows/clock-parity-fixture.yml is UNREADABLE at one of the two commits"
+    },
+    {
+      "a": "23",
+      "b": "230",
+      "equivalent": null,
+      "why": "the diff ce615a2eb..0cd80feca is UNREADABLE (shallow checkout?)"
+    },
+    {
+      "a": "230",
+      "b": "232",
+      "equivalent": null,
+      "why": "the diff 0cd80feca..be66e9031 is UNREADABLE (shallow checkout?)"
+    },
+    {
+      "a": "232",
+      "b": "233",
+      "equivalent": null,
+      "why": "the diff be66e9031..66b182fcb is UNREADABLE (shallow checkout?)"
+    },
+    {
+      "a": "233",
+      "b": "234",
+      "equivalent": null,
+      "why": "the diff 66b182fcb..7ac9ff5ce is UNREADABLE (shallow checkout?)"
+    },
+    {
+      "a": "234",
+      "b": "235",
+      "equivalent": null,
+      "why": "the diff 7ac9ff5ce..af1b1b57e is UNREADABLE (shallow checkout?)"
+    },
+    {
+      "a": "235",
+      "b": "236",
+      "equivalent": null,
+      "why": "the diff af1b1b57e..267d512ce is UNREADABLE (shallow checkout?)"
+    },
+    {
+      "a": "236",
+      "b": "237",
+      "equivalent": null,
+      "why": "the diff 267d512ce..c35da9445 is UNREADABLE (shallow checkout?)"
+    },
+    {
+      "a": "237",
+      "b": "238",
+      "equivalent": null,
+      "why": "the diff c35da9445..a39cce5ce is UNREADABLE (shallow checkout?)"
+    },
+    {
+      "a": "238",
+      "b": "239",
+      "equivalent": null,
+      "why": "the diff a39cce5ce..46d03d3c4 is UNREADABLE (shallow checkout?)"
+    },
+    {
+      "a": "239",
+      "b": "24",
+      "equivalent": null,
+      "why": ".github/workflows/clock-parity-fixture.yml is UNREADABLE at one of the two commits"
+    },
+    {
+      "a": "24",
+      "b": "240",
+      "equivalent": null,
+      "why": ".github/workflows/clock-parity-fixture.yml is UNREADABLE at one of the two commits"
+    },
+    {
+      "a": "240",
+      "b": "241",
+      "equivalent": false,
+      "why": ".gitignore is referenced by 10 source file(s); api/data/naaim_history.csv is referenced by 4 source file(s); api/main.py is referenced by 1112 source file(s)"
+    },
+    {
+      "a": "241",
+      "b": "244",
+      "equivalent": false,
+      "why": "api/main.py is referenced by 1114 source file(s); api/routers/market_indicators.py is referenced by 18 source file(s); api/services/market_indicators/cboe_store.py is referenced by 5 source file(s)"
+    },
+    {
+      "a": "244",
+      "b": "245",
+      "equivalent": false,
+      "why": "api/routers/bars.py is referenced by 1708 source file(s); edge/bars-edge-router/worker.js is referenced by 420 source file(s); edge/bars-edge-router/worker.test.mjs is referenced by 2 source file(s)"
+    },
+    {
+      "a": "245",
+      "b": "246",
+      "equivalent": false,
+      "why": "api/routers/bars.py is referenced by 1708 source file(s); tests/test_market_indicators_edge_routing.py is referenced by 1 source file(s)"
+    },
+    {
+      "a": "246",
+      "b": "247",
+      "equivalent": null,
+      "why": ".github/workflows/clock-parity-fixture.yml is UNREADABLE at one of the two commits"
+    },
+    {
+      "a": "247",
+      "b": "248",
+      "equivalent": false,
+      "why": "api/services/alert_taxonomy/price_level_compare.py is referenced by 6 source file(s); api/services/alert_taxonomy/price_level_projection.py is referenced by 13 source file(s)"
+    },
+    {
+      "a": "248",
+      "b": "249",
+      "equivalent": null,
+      "why": ".github/workflows/clock-parity-fixture.yml is UNREADABLE at one of the two commits"
+    },
+    {
+      "a": "249",
+      "b": "25",
+      "equivalent": null,
+      "why": ".github/workflows/clock-parity-fixture.yml is UNREADABLE at one of the two commits"
+    },
+    {
+      "a": "25",
+      "b": "252",
+      "equivalent": null,
+      "why": ".github/workflows/clock-parity-fixture.yml is UNREADABLE at one of the two commits"
+    },
+    {
+      "a": "252",
+      "b": "253",
+      "equivalent": null,
+      "why": ".github/workflows/clock-parity-fixture.yml is UNREADABLE at one of the two commits"
+    },
+    {
+      "a": "253",
+      "b": "256",
+      "equivalent": null,
+      "why": ".github/workflows/clock-parity-fixture.yml is UNREADABLE at one of the two commits"
+    },
+    {
+      "a": "256",
+      "b": "257",
+      "equivalent": false,
+      "why": "api/routers/ticker_search.py is referenced by 21 source file(s); api/services/breadth_sentiment_history.py is referenced by 15 source file(s); api/services/market_indicators/aaii_store.py is referenced by 3 source file(s)"
+    },
+    {
+      "a": "257",
+      "b": "259",
+      "equivalent": false,
+      "why": "api/services/journal_two/test_wave_g_thesis.py is referenced by 1 source file(s); api/services/journal_two/thesis_changelog.py is referenced by 2 source file(s); app/src/pages/journal-2-0/components/notebook/FolderSidebar.module.css is referenced by 1 source file(s)"
+    },
+    {
+      "a": "259",
+      "b": "26",
+      "equivalent": null,
+      "why": ".github/workflows/clock-parity-fixture.yml is UNREADABLE at one of the two commits"
+    },
+    {
+      "a": "26",
+      "b": "260",
+      "equivalent": null,
+      "why": ".github/workflows/clock-parity-fixture.yml is UNREADABLE at one of the two commits"
+    },
+    {
+      "a": "260",
+      "b": "261",
+      "equivalent": false,
+      "why": "api/services/market_indicators/registry.py is referenced by 714 source file(s); api/services/market_indicators/series.py is referenced by 1049 source file(s); app/src/components/StockChart.jsx is referenced by 386 source file(s)"
+    },
+    {
+      "a": "261",
+      "b": "262",
+      "equivalent": null,
+      "why": "the diff 317516151..af1f757cb is UNREADABLE (shallow checkout?)"
+    },
+    {
+      "a": "262",
+      "b": "263",
+      "equivalent": null,
+      "why": "the diff af1f757cb..798d5dacd is UNREADABLE (shallow checkout?)"
+    },
+    {
+      "a": "263",
+      "b": "264",
+      "equivalent": null,
+      "why": "the diff 798d5dacd..ffa77ef69 is UNREADABLE (shallow checkout?)"
+    },
+    {
+      "a": "264",
+      "b": "265",
+      "equivalent": null,
+      "why": "the diff ffa77ef69..57d0602b3 is UNREADABLE (shallow checkout?)"
+    },
+    {
+      "a": "265",
+      "b": "266",
+      "equivalent": false,
+      "why": "app/src/pages/journal-2-0/components/notebook/CaptureConnectPage.module.css is referenced by 2 source file(s); app/src/pages/journal-2-0/components/notebook/CaptureDialog.module.css is referenced by 1 source file(s); app/src/pages/journal-2-0/components/notebook/CapturedSourceSheet.module.css is referenced by 1 source file(s)"
+    },
+    {
+      "a": "266",
+      "b": "267",
+      "equivalent": true,
+      "why": "no changed file can reach a test"
+    },
+    {
+      "a": "267",
+      "b": "269",
+      "equivalent": true,
+      "why": "no changed file can reach a test"
+    },
+    {
+      "a": "269",
+      "b": "27",
+      "equivalent": null,
+      "why": ".github/workflows/clock-parity-fixture.yml is UNREADABLE at one of the two commits"
+    },
+    {
+      "a": "27",
+      "b": "270",
+      "equivalent": false,
+      "why": ".github/workflows/full-suite-report.yml changed OUTSIDE `jobs:` \u2014 every job sees that; api/darkpool_aggregator.py is referenced by 10 source file(s); api/data/canonical_address_book.json is referenced by 7 source file(s)"
+    },
+    {
+      "a": "270",
+      "b": "271",
+      "equivalent": false,
+      "why": "tests/test_signature_router.py is referenced by 2 source file(s)"
+    },
+    {
+      "a": "271",
+      "b": "274",
+      "equivalent": false,
+      "why": "api/data/bars_ordinal_census.json is referenced by 2 source file(s); tests/test_signature_router.py is referenced by 2 source file(s); tools/bars_ordinal_census.py is referenced by 1 source file(s)"
+    },
+    {
+      "a": "274",
+      "b": "275",
+      "equivalent": null,
+      "why": ".github/workflows/clock-parity-fixture.yml is UNREADABLE at one of the two commits"
+    },
+    {
+      "a": "275",
+      "b": "276",
+      "equivalent": false,
+      "why": "app/src/components/mobile/ResponsiveTable.jsx is referenced by 3 source file(s); app/src/pages/journal-2-0/components/notebook/BlockedBadge.jsx is referenced by 6 source file(s); app/src/pages/journal-2-0/components/notebook/BlockedBadge.module.css is referenced by 1 source file(s)"
+    },
+    {
+      "a": "276",
+      "b": "278",
+      "equivalent": false,
+      "why": "app/src/pages/journal-2-0/components/connectors/ConnectTilesCompact.jsx is referenced by 4 source file(s); app/src/pages/journal-2-0/components/notebook/FolderSidebar.jsx is referenced by 18 source file(s); app/src/pages/journal-2-0/components/notebook/FolderSidebar.module.css is referenced by 1 source file(s)"
+    },
+    {
+      "a": "278",
+      "b": "279",
+      "equivalent": false,
+      "why": "app/src/pages/journal-2-0/components/notebook/WidgetPalette.jsx is referenced by 2 source file(s)"
+    },
+    {
+      "a": "279",
+      "b": "28",
+      "equivalent": null,
+      "why": ".github/workflows/clock-parity-fixture.yml is UNREADABLE at one of the two commits"
+    },
+    {
+      "a": "28",
+      "b": "280",
+      "equivalent": false,
+      "why": ".github/workflows/full-suite-report.yml changed OUTSIDE `jobs:` \u2014 every job sees that; api/darkpool_aggregator.py is referenced by 10 source file(s); api/data/bars_ordinal_census.json is referenced by 2 source file(s)"
+    },
+    {
+      "a": "280",
+      "b": "281",
+      "equivalent": false,
+      "why": "api/routers/modelbook.py is referenced by 45 source file(s); api/services/modelbook_service.py is referenced by 17 source file(s); app/src/pages/research/ResearchPage.jsx is referenced by 34 source file(s)"
+    },
+    {
+      "a": "281",
+      "b": "283",
+      "equivalent": null,
+      "why": ".github/workflows/clock-parity-fixture.yml is UNREADABLE at one of the two commits"
+    },
+    {
+      "a": "283",
+      "b": "285",
+      "equivalent": false,
+      "why": "api/routers/journal_two.py is referenced by 467 source file(s); api/services/journal_two/notes.py is referenced by 694 source file(s); api/services/journal_two/test_wave4_search_evolution.py is referenced by 2 source file(s)"
+    },
+    {
+      "a": "285",
+      "b": "287",
+      "equivalent": false,
+      "why": "app/src/components/StockChart.jsx is referenced by 391 source file(s); app/src/components/chart/legendHandoff.test.js is referenced by 1 source file(s); app/src/components/chart/liveBarClassify.js is referenced by 2 source file(s)"
+    },
+    {
+      "a": "287",
+      "b": "289",
+      "equivalent": null,
+      "why": ".github/workflows/clock-parity-fixture.yml is UNREADABLE at one of the two commits"
+    },
+    {
+      "a": "289",
+      "b": "29",
+      "equivalent": false,
+      "why": ".github/workflows/full-suite-report.yml changed OUTSIDE `jobs:` \u2014 every job sees that; api/darkpool_aggregator.py is referenced by 10 source file(s); api/data/canonical_address_book.json is referenced by 7 source file(s)"
+    },
+    {
+      "a": "29",
+      "b": "291",
+      "equivalent": null,
+      "why": ".github/workflows/clock-parity-fixture.yml is UNREADABLE at one of the two commits"
+    },
+    {
+      "a": "291",
+      "b": "293",
+      "equivalent": null,
+      "why": ".github/workflows/clock-parity-fixture.yml is UNREADABLE at one of the two commits"
+    },
+    {
+      "a": "293",
+      "b": "294",
+      "equivalent": null,
+      "why": ".github/workflows/clock-parity-fixture.yml is UNREADABLE at one of the two commits"
+    },
+    {
+      "a": "294",
+      "b": "297",
+      "equivalent": false,
+      "why": "api/data/bars_ordinal_census.json is referenced by 2 source file(s); api/data/canonical_address_book.json is referenced by 7 source file(s); app/src/pages/journal-2-0/GlobalAddPositionProvider.jsx is referenced by 13 source file(s)"
+    },
+    {
+      "a": "297",
+      "b": "298",
+      "equivalent": null,
+      "why": ".github/workflows/clock-parity-fixture.yml is UNREADABLE at one of the two commits"
+    },
+    {
+      "a": "298",
+      "b": "30",
+      "equivalent": false,
+      "why": ".github/workflows/full-suite-report.yml changed OUTSIDE `jobs:` \u2014 every job sees that; api/darkpool_aggregator.py is referenced by 10 source file(s); api/data/canonical_address_book.json is referenced by 7 source file(s)"
+    },
+    {
+      "a": "30",
+      "b": "300",
+      "equivalent": null,
+      "why": ".github/workflows/clock-parity-fixture.yml is UNREADABLE at one of the two commits"
+    },
+    {
+      "a": "300",
+      "b": "301",
+      "equivalent": null,
+      "why": ".github/workflows/clock-parity-fixture.yml is UNREADABLE at one of the two commits"
+    },
+    {
+      "a": "301",
+      "b": "306",
+      "equivalent": false,
+      "why": "app/src/components/admin/ChatModerationPanel.jsx is referenced by 2 source file(s); app/src/components/admin/CompassHealthPanel.jsx is referenced by 2 source file(s); app/src/components/research/EarningsResearchModal.jsx is referenced by 26 source file(s)"
+    },
+    {
+      "a": "306",
+      "b": "307",
+      "equivalent": null,
+      "why": ".github/workflows/clock-parity-fixture.yml is UNREADABLE at one of the two commits"
+    },
+    {
+      "a": "307",
+      "b": "309",
+      "equivalent": true,
+      "why": "no changed file can reach a test"
+    },
+    {
+      "a": "309",
+      "b": "31",
+      "equivalent": null,
+      "why": ".github/workflows/clock-parity-fixture.yml is UNREADABLE at one of the two commits"
+    },
+    {
+      "a": "31",
+      "b": "312",
+      "equivalent": false,
+      "why": ".github/workflows/full-suite-report.yml changed OUTSIDE `jobs:` \u2014 every job sees that; api/darkpool_aggregator.py is referenced by 10 source file(s); api/data/bars_ordinal_census.json is referenced by 2 source file(s)"
+    },
+    {
+      "a": "312",
+      "b": "315",
+      "equivalent": null,
+      "why": ".github/workflows/clock-parity-fixture.yml is UNREADABLE at one of the two commits"
+    },
+    {
+      "a": "315",
+      "b": "316",
+      "equivalent": null,
+      "why": ".github/workflows/clock-parity-fixture.yml is UNREADABLE at one of the two commits"
+    },
+    {
+      "a": "316",
+      "b": "318",
+      "equivalent": null,
+      "why": ".github/workflows/clock-parity-fixture.yml is UNREADABLE at one of the two commits"
+    },
+    {
+      "a": "318",
+      "b": "319",
+      "equivalent": null,
+      "why": "the diff a0adf6a9f..9bb79cbe5 is UNREADABLE (shallow checkout?)"
+    },
+    {
+      "a": "319",
+      "b": "32",
+      "equivalent": null,
+      "why": "the diff 9bb79cbe5..4c4ba1cb1 is UNREADABLE (shallow checkout?)"
+    },
+    {
+      "a": "32",
+      "b": "320",
+      "equivalent": null,
+      "why": ".github/workflows/clock-parity-fixture.yml is UNREADABLE at one of the two commits"
+    },
+    {
+      "a": "320",
+      "b": "321",
+      "equivalent": null,
+      "why": "the diff ecdfef01e..6ec3ebf1e is UNREADABLE (shallow checkout?)"
+    },
+    {
+      "a": "321",
+      "b": "322",
+      "equivalent": null,
+      "why": "the diff 6ec3ebf1e..bab3f8b5c is UNREADABLE (shallow checkout?)"
+    },
+    {
+      "a": "322",
+      "b": "323",
+      "equivalent": null,
+      "why": ".github/workflows/clock-parity-fixture.yml is UNREADABLE at one of the two commits"
+    },
+    {
+      "a": "323",
+      "b": "324",
+      "equivalent": null,
+      "why": ".github/workflows/clock-parity-fixture.yml is UNREADABLE at one of the two commits"
+    },
+    {
+      "a": "324",
+      "b": "325",
+      "equivalent": null,
+      "why": ".github/workflows/clock-parity-fixture.yml is UNREADABLE at one of the two commits"
+    },
+    {
+      "a": "325",
+      "b": "326",
+      "equivalent": null,
+      "why": ".github/workflows/clock-parity-fixture.yml is UNREADABLE at one of the two commits"
+    },
+    {
+      "a": "326",
+      "b": "327",
+      "equivalent": false,
+      "why": "api/main.py is referenced by 1145 source file(s); api/routers/fundamentals_pit.py is referenced by 42 source file(s); api/services/fundamentals_pit/__init__.py is referenced by 391 source file(s)"
+    },
+    {
+      "a": "327",
+      "b": "328",
+      "equivalent": false,
+      "why": "api/services/fundamentals_pit/backfill.py is referenced by 260 source file(s); tests/fundamentals_pit/test_pipeline.py is referenced by 1 source file(s)"
+    },
+    {
+      "a": "328",
+      "b": "329",
+      "equivalent": false,
+      "why": "api/main.py is referenced by 1146 source file(s); api/services/fundamentals_pit/backfill.py is referenced by 261 source file(s); api/services/fundamentals_pit/derive.py is referenced by 311 source file(s)"
+    },
+    {
+      "a": "329",
+      "b": "33",
+      "equivalent": null,
+      "why": "the diff c44be58a8..026a6693f is UNREADABLE (shallow checkout?)"
+    },
+    {
+      "a": "33",
+      "b": "330",
+      "equivalent": null,
+      "why": "the diff 026a6693f..057c085eb is UNREADABLE (shallow checkout?)"
+    },
+    {
+      "a": "330",
+      "b": "334",
+      "equivalent": false,
+      "why": "app/src/components/admin/DataPipelineHealthPanel.jsx is referenced by 2 source file(s); app/src/components/admin/ThemeEngineHealthPanel.jsx is referenced by 2 source file(s); app/src/components/screener/reachable.test.js is referenced by 22 source file(s)"
+    },
+    {
+      "a": "334",
+      "b": "338",
+      "equivalent": null,
+      "why": ".github/workflows/clock-parity-fixture.yml is UNREADABLE at one of the two commits"
+    },
+    {
+      "a": "338",
+      "b": "339",
+      "equivalent": false,
+      "why": "api/services/bars_prewarm.py is referenced by 26 source file(s); api/services/bars_universe_crawler.py is referenced by 5 source file(s)"
+    },
+    {
+      "a": "339",
+      "b": "34",
+      "equivalent": null,
+      "why": ".github/workflows/clock-parity-fixture.yml is UNREADABLE at one of the two commits"
+    },
+    {
+      "a": "34",
+      "b": "340",
+      "equivalent": null,
+      "why": ".github/workflows/clock-parity-fixture.yml is UNREADABLE at one of the two commits"
+    },
+    {
+      "a": "340",
+      "b": "341",
+      "equivalent": null,
+      "why": "the diff 51a61a8b8..475fe1699 is UNREADABLE (shallow checkout?)"
+    },
+    {
+      "a": "341",
+      "b": "342",
+      "equivalent": null,
+      "why": "the diff 475fe1699..47faa70b8 is UNREADABLE (shallow checkout?)"
+    },
+    {
+      "a": "342",
+      "b": "343",
+      "equivalent": null,
+      "why": "the diff 47faa70b8..e2ca7407f is UNREADABLE (shallow checkout?)"
+    },
+    {
+      "a": "343",
+      "b": "345",
+      "equivalent": false,
+      "why": "api/routers/auth.py is referenced by 774 source file(s); api/routers/charts_layouts.py is referenced by 4 source file(s); api/services/charts_layout_service.py is referenced by 5 source file(s)"
+    },
+    {
+      "a": "345",
+      "b": "346",
+      "equivalent": false,
+      "why": "api/services/desk_creative.py is referenced by 14 source file(s); api/services/desk_daily_session.py is referenced by 18 source file(s); api/services/desk_thumbnail.py is referenced by 7 source file(s)"
+    },
+    {
+      "a": "346",
+      "b": "348",
+      "equivalent": false,
+      "why": "api/data/canonical_address_book.json is referenced by 7 source file(s); api/gex_router.py is referenced by 5 source file(s); api/routers/live_prices.py is referenced by 48 source file(s)"
+    },
+    {
+      "a": "348",
+      "b": "349",
+      "equivalent": false,
+      "why": "app/src/context/AuthContext.jsx is referenced by 272 source file(s); app/src/hooks/livePriceStore.js is referenced by 14 source file(s); app/src/hooks/livePriceStore.test.js is referenced by 1 source file(s)"
+    },
+    {
+      "a": "349",
+      "b": "35",
+      "equivalent": null,
+      "why": "the diff 3207690b4..217ae7230 is UNREADABLE (shallow checkout?)"
+    },
+    {
+      "a": "35",
+      "b": "350",
+      "equivalent": null,
+      "why": "the diff 217ae7230..0b42d050c is UNREADABLE (shallow checkout?)"
+    },
+    {
+      "a": "350",
+      "b": "352",
+      "equivalent": false,
+      "why": "app/src/pages/screener/shell/FilterRail.jsx is referenced by 4 source file(s); app/src/pages/screener/shell/ScannerShell.module.css is referenced by 14 source file(s)"
+    },
+    {
+      "a": "352",
+      "b": "353",
+      "equivalent": false,
+      "why": "api/services/bars_prewarm.py is referenced by 27 source file(s)"
+    },
+    {
+      "a": "353",
+      "b": "354",
+      "equivalent": false,
+      "why": "app/fundamentals-gap-harness.html is referenced by 3 source file(s); app/src/components/StockChart.jsx is referenced by 395 source file(s); app/src/components/chart/engine/__tests__/fixtures/fundamentalsGolden.v4.json is referenced by 2 source file(s)"
+    },
+    {
+      "a": "354",
+      "b": "355",
+      "equivalent": null,
+      "why": "the diff 451aed688..415c5346f is UNREADABLE (shallow checkout?)"
+    },
+    {
+      "a": "355",
+      "b": "356",
+      "equivalent": null,
+      "why": "the diff 415c5346f..ef0c79480 is UNREADABLE (shallow checkout?)"
+    },
+    {
+      "a": "356",
+      "b": "357",
+      "equivalent": null,
+      "why": "the diff ef0c79480..aea50bf2e is UNREADABLE (shallow checkout?)"
+    },
+    {
+      "a": "357",
+      "b": "358",
+      "equivalent": null,
+      "why": "the diff aea50bf2e..6e7b10407 is UNREADABLE (shallow checkout?)"
+    },
+    {
+      "a": "358",
+      "b": "36",
+      "equivalent": null,
+      "why": "the diff 6e7b10407..d25a84ae4 is UNREADABLE (shallow checkout?)"
+    },
+    {
+      "a": "36",
+      "b": "360",
+      "equivalent": null,
+      "why": "the diff d25a84ae4..5fd248c40 is UNREADABLE (shallow checkout?)"
+    },
+    {
+      "a": "360",
+      "b": "362",
+      "equivalent": false,
+      "why": "api/routers/barspack_router.py is referenced by 4 source file(s); app/src/lib/barsPackClient.js is referenced by 6 source file(s); app/src/lib/barsPackClient.test.js is referenced by 1 source file(s)"
+    },
+    {
+      "a": "362",
+      "b": "37",
+      "equivalent": null,
+      "why": ".github/workflows/clock-parity-fixture.yml is UNREADABLE at one of the two commits"
+    },
+    {
+      "a": "37",
+      "b": "370",
+      "equivalent": null,
+      "why": "the diff 35ce385b5..a6dfa7d05 is UNREADABLE (shallow checkout?)"
+    },
+    {
+      "a": "370",
+      "b": "378",
+      "equivalent": null,
+      "why": "the diff a6dfa7d05..2024d4a26 is UNREADABLE (shallow checkout?)"
+    },
+    {
+      "a": "378",
+      "b": "38",
+      "equivalent": null,
+      "why": "the diff 2024d4a26..d25eddf49 is UNREADABLE (shallow checkout?)"
+    },
+    {
+      "a": "38",
+      "b": "383",
+      "equivalent": null,
+      "why": "the diff d25eddf49..9cfcbfe88 is UNREADABLE (shallow checkout?)"
+    },
+    {
+      "a": "383",
+      "b": "39",
+      "equivalent": null,
+      "why": "the diff 9cfcbfe88..e4b2658ec is UNREADABLE (shallow checkout?)"
+    },
+    {
+      "a": "39",
+      "b": "393",
+      "equivalent": null,
+      "why": "the diff e4b2658ec..8452b14d8 is UNREADABLE (shallow checkout?)"
+    },
+    {
+      "a": "393",
+      "b": "396",
+      "equivalent": null,
+      "why": "the diff 8452b14d8..12705f187 is UNREADABLE (shallow checkout?)"
+    },
+    {
+      "a": "396",
+      "b": "398",
+      "equivalent": null,
+      "why": "the diff 12705f187..24092c91d is UNREADABLE (shallow checkout?)"
+    },
+    {
+      "a": "398",
+      "b": "399",
+      "equivalent": false,
+      "why": "api/services/bars_universe_crawler.py is referenced by 6 source file(s)"
+    },
+    {
+      "a": "399",
+      "b": "40",
+      "equivalent": null,
+      "why": ".github/workflows/clock-parity-fixture.yml is UNREADABLE at one of the two commits"
+    },
+    {
+      "a": "40",
+      "b": "400",
+      "equivalent": null,
+      "why": ".github/workflows/clock-parity-fixture.yml is UNREADABLE at one of the two commits"
+    },
+    {
+      "a": "400",
+      "b": "41",
+      "equivalent": null,
+      "why": ".github/workflows/clock-parity-fixture.yml is UNREADABLE at one of the two commits"
+    },
+    {
+      "a": "41",
+      "b": "42",
+      "equivalent": false,
+      "why": "requirements.txt is referenced by 37 source file(s)"
+    },
+    {
+      "a": "42",
+      "b": "43",
+      "equivalent": false,
+      "why": "api/main.py is referenced by 1023 source file(s); tests/test_oi44_loop_blockers_gate.py is referenced by 2 source file(s)"
+    },
+    {
+      "a": "43",
+      "b": "45",
+      "equivalent": false,
+      "why": "api/main.py is referenced by 1024 source file(s); api/routers/breadth_monitor.py is referenced by 71 source file(s); api/services/wisdom/extract/batch.py is referenced by 296 source file(s)"
+    },
+    {
+      "a": "45",
+      "b": "46",
+      "equivalent": true,
+      "why": "no changed file can reach a test"
+    },
+    {
+      "a": "46",
+      "b": "48",
+      "equivalent": false,
+      "why": "tools/wisdom/extract_golden_gate.py is referenced by 8 source file(s)"
+    },
+    {
+      "a": "48",
+      "b": "49",
+      "equivalent": false,
+      "why": "api/services/wisdom/extract/prompt.py is referenced by 225 source file(s)"
+    },
+    {
+      "a": "49",
+      "b": "50",
+      "equivalent": true,
+      "why": "no changed file can reach a test"
+    },
+    {
+      "a": "50",
+      "b": "51",
+      "equivalent": false,
+      "why": "app/src/components/StockChart.jsx is referenced by 349 source file(s); app/src/components/StockChart.verticalViewLock.test.jsx is referenced by 1 source file(s); app/src/components/chart/engine/__tests__/controlDoorCensus.test.js is referenced by 8 source file(s)"
+    },
+    {
+      "a": "51",
+      "b": "52",
+      "equivalent": false,
+      "why": "api/main.py is referenced by 1027 source file(s); api/routers/breadth_monitor.py is referenced by 71 source file(s)"
+    },
+    {
+      "a": "52",
+      "b": "54",
+      "equivalent": null,
+      "why": ".github/workflows/promote-production.yml is UNREADABLE at one of the two commits"
+    },
+    {
+      "a": "54",
+      "b": "57",
+      "equivalent": null,
+      "why": ".github/workflows/promote-production.yml is UNREADABLE at one of the two commits"
+    },
+    {
+      "a": "57",
+      "b": "58",
+      "equivalent": true,
+      "why": "no changed file can reach a test"
+    },
+    {
+      "a": "58",
+      "b": "59",
+      "equivalent": null,
+      "why": ".github/workflows/promote-production.yml is UNREADABLE at one of the two commits"
+    },
+    {
+      "a": "59",
+      "b": "60",
+      "equivalent": null,
+      "why": ".github/workflows/promote-production.yml is UNREADABLE at one of the two commits"
+    },
+    {
+      "a": "60",
+      "b": "61",
+      "equivalent": true,
+      "why": "no changed file can reach a test"
+    },
+    {
+      "a": "61",
+      "b": "63",
+      "equivalent": false,
+      "why": "railway.web.json is referenced by 2 source file(s)"
+    },
+    {
+      "a": "63",
+      "b": "64",
+      "equivalent": null,
+      "why": ".github/workflows/promote-production.yml is UNREADABLE at one of the two commits"
+    },
+    {
+      "a": "64",
+      "b": "66",
+      "equivalent": false,
+      "why": "api/services/alert_taxonomy/price_level_projection.py is referenced by 12 source file(s)"
+    },
+    {
+      "a": "66",
+      "b": "67",
+      "equivalent": null,
+      "why": ".github/workflows/promote-production.yml is UNREADABLE at one of the two commits"
+    },
+    {
+      "a": "67",
+      "b": "68",
+      "equivalent": false,
+      "why": "app/src/hub/HubChip.jsx is referenced by 19 source file(s); app/src/hub/HubFan.jsx is referenced by 13 source file(s); app/src/hub/HubRoot.jsx is referenced by 85 source file(s)"
+    },
+    {
+      "a": "68",
+      "b": "69",
+      "equivalent": true,
+      "why": "no changed file can reach a test"
+    },
+    {
+      "a": "69",
+      "b": "70",
+      "equivalent": null,
+      "why": ".github/workflows/promote-production.yml is UNREADABLE at one of the two commits"
+    },
+    {
+      "a": "70",
+      "b": "72",
+      "equivalent": null,
+      "why": "the diff 3bf13974a..593b3da4a is UNREADABLE (shallow checkout?)"
+    },
+    {
+      "a": "72",
+      "b": "74",
+      "equivalent": null,
+      "why": "the diff 593b3da4a..888791525 is UNREADABLE (shallow checkout?)"
+    },
+    {
+      "a": "74",
+      "b": "75",
+      "equivalent": null,
+      "why": "the diff 888791525..3d8c20edc is UNREADABLE (shallow checkout?)"
+    },
+    {
+      "a": "75",
+      "b": "77",
+      "equivalent": null,
+      "why": "the diff 3d8c20edc..4fc829aec is UNREADABLE (shallow checkout?)"
+    },
+    {
+      "a": "77",
+      "b": "79",
+      "equivalent": false,
+      "why": "app/src/components/StockChart.jsx is referenced by 352 source file(s); app/src/components/chart/ChartSettingsIndicators.jsx is referenced by 14 source file(s); app/src/components/chart/ChartSettingsModal.jsx is referenced by 51 source file(s)"
+    },
+    {
+      "a": "79",
+      "b": "80",
+      "equivalent": null,
+      "why": ".github/workflows/promote-production.yml is UNREADABLE at one of the two commits"
+    },
+    {
+      "a": "80",
+      "b": "81",
+      "equivalent": false,
+      "why": "api/services/entity_master_d5_producer.py is referenced by 1 source file(s)"
+    },
+    {
+      "a": "81",
+      "b": "83",
+      "equivalent": null,
+      "why": ".github/workflows/promote-production.yml is UNREADABLE at one of the two commits"
+    },
+    {
+      "a": "83",
+      "b": "85",
+      "equivalent": false,
+      "why": "app/src/hub/HubKnob.jsx is referenced by 15 source file(s); app/src/hub/hub.module.css is referenced by 26 source file(s); app/src/styles/tokens.css is referenced by 256 source file(s)"
+    },
+    {
+      "a": "85",
+      "b": "89",
+      "equivalent": false,
+      "why": "api/services/screener/live_tier.py is referenced by 14 source file(s); api/services/wisdom/extract/batch.py is referenced by 300 source file(s); api/services/wisdom/extract/prescreen.py is referenced by 4 source file(s)"
+    },
+    {
+      "a": "89",
+      "b": "90",
+      "equivalent": null,
+      "why": "the diff 9abba727b..05e8c59c4 is UNREADABLE (shallow checkout?)"
+    },
+    {
+      "a": "90",
+      "b": "91",
+      "equivalent": null,
+      "why": "the diff 05e8c59c4..8ad9e1d62 is UNREADABLE (shallow checkout?)"
+    },
+    {
+      "a": "91",
+      "b": "92",
+      "equivalent": null,
+      "why": ".github/workflows/promote-production.yml is UNREADABLE at one of the two commits"
+    },
+    {
+      "a": "92",
+      "b": "93",
+      "equivalent": null,
+      "why": "the diff e38d47b55..cafed9844 is UNREADABLE (shallow checkout?)"
+    },
+    {
+      "a": "93",
+      "b": "94",
+      "equivalent": null,
+      "why": "the diff cafed9844..47e2ad559 is UNREADABLE (shallow checkout?)"
+    },
+    {
+      "a": "94",
+      "b": "96",
+      "equivalent": false,
+      "why": "api/services/calendar_personalization.py is referenced by 10 source file(s); app/src/pages/Calendar.jsx is referenced by 170 source file(s); app/src/pages/calendar/FeedView.jsx is referenced by 10 source file(s)"
+    },
+    {
+      "a": "96",
+      "b": "99",
+      "equivalent": null,
+      "why": ".github/workflows/promote-production.yml is UNREADABLE at one of the two commits"
+    }
+  ]
+}
