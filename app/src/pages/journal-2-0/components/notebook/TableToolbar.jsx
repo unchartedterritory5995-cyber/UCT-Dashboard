@@ -152,7 +152,9 @@ export default function TableToolbar({ editor }) {
       // Back to the cell the member came from: focusing the bar never moved the
       // editor's own selection, so focusing the editor restores it.
       document.activeElement?.blur?.()
-      editor.view.focus()
+      // ⛔ `editor.view` THROWS once the editor is destroyed (a note switch
+      // with the bar still focused) — wave 6 fix round 5, R5-1 sweep.
+      if (!editor.isDestroyed) editor.view.focus()
       return
     }
     if (e.key !== 'ArrowRight' && e.key !== 'ArrowLeft') return

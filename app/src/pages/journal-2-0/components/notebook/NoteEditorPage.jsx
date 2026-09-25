@@ -2448,12 +2448,46 @@ export default function NoteEditorPage({ noteId, onBack, showBack = true, onTitl
   // its own request. A second mounted editor's identical listener on the
   // SAME shared target (`window`) is exactly how an image picked from the
   // side pane used to land in the main note.
+  //
+  // ⛔⛔ Wave 6 fix round 5, R5-1 — `editor.view` IS A THROWING GETTER. With no
+  // EditorView (not mounted yet, or unmounted/destroyed) tiptap returns a Proxy
+  // whose `get` trap THROWS "The editor view is not available. Cannot access
+  // view['dom']" — never `undefined` — so `editor?.view?.dom` walked straight
+  // into it (optional chaining guards a null LEFT side only), and the route
+  // ErrorBoundary replaced the whole editor on about half of all note-opens
+  // (live walk on 7006f1504). Same hazard NoteFindBar.jsx:63 already names.
+  // `editor.isDestroyed` is tiptap's own `editorView?.isDestroyed ?? true`, so
+  // it is false EXACTLY when a live view exists: read `.view` only past it.
+  // ⛔ And a guard alone is half a fix: this effect runs once per editor, so an
+  // editor whose view mounts AFTER it would never get the listener and the
+  // Image item would silently do nothing. Attach now if the view exists, and
+  // again on tiptap's own `mount`/`create`; detach on `unmount`.
   useEffect(() => {
-    const dom = editor?.view?.dom
-    if (!dom) return undefined
+    if (!editor) return undefined
     const onOpenPicker = () => fileInputRef.current?.click()
-    dom.addEventListener('uct:notebook-open-image-picker', onOpenPicker)
-    return () => dom.removeEventListener('uct:notebook-open-image-picker', onOpenPicker)
+    let dom = null
+    const detach = () => {
+      if (dom) dom.removeEventListener('uct:notebook-open-image-picker', onOpenPicker)
+      dom = null
+    }
+    const attach = () => {
+      if (editor.isDestroyed) return   // no live view: `editor.view` would throw
+      const next = editor.view.dom
+      if (next === dom) return
+      detach()
+      dom = next
+      dom.addEventListener('uct:notebook-open-image-picker', onOpenPicker)
+    }
+    attach()
+    editor.on('mount', attach)
+    editor.on('create', attach)
+    editor.on('unmount', detach)
+    return () => {
+      editor.off('mount', attach)
+      editor.off('create', attach)
+      editor.off('unmount', detach)
+      detach()
+    }
   }, [editor])
 
   const onHeroChange = async () => {

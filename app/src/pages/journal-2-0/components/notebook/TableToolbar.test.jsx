@@ -168,6 +168,29 @@ describe('<TableToolbar>', () => {
     expect(cellText(ed)).toBe('NVDA')
   })
 
+  it('Escape on a bar whose editor was destroyed under it does not throw (wave 6 fix round 5, R5-1 sweep)', () => {
+    // tiptap's `editor.view` is a THROWING getter once the editor is destroyed
+    // (a note switch while the bar still holds focus): `editor.view.focus()`
+    // unguarded is "[tiptap error]: The editor view is not available".
+    const ed = mount([TABLE])
+    render(<Harness ed={ed} />)
+    caretIn(ed, 'NVDA')
+    fireEvent.keyDown(ed.view.dom, { key: 'F10', altKey: true })
+    const bar = screen.getByRole('toolbar', { name: 'Table' })
+    expect(bar.contains(document.activeElement)).toBe(true)
+    const thrown = []
+    const onError = (e) => { thrown.push(e.error?.message || e.message); e.preventDefault() }
+    window.addEventListener('error', onError)
+    try {
+      ed.destroy()
+      fireEvent.keyDown(document.activeElement, { key: 'Escape' })
+    } finally {
+      window.removeEventListener('error', onError)
+    }
+    expect(thrown, 'Escape on the bar threw on a destroyed editor').toEqual([])
+    expect(bar.contains(document.activeElement)).toBe(false)
+  })
+
   it('tableAtSelection is null outside a table (non-vacuity for the gate above)', () => {
     const ed = mount([P('x'), TABLE])
     caretIn(ed, 'x')
