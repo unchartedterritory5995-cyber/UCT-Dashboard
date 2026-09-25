@@ -1,0 +1,369 @@
+/opt/hostedtoolcache/Python/3.12.14/x64/lib/python3.12/site-packages/pytest_asyncio/plugin.py:208: PytestDeprecationWarning: The configuration option "asyncio_default_fixture_loop_scope" is unset.
+The event loop scope for asynchronous fixtures will default to the fixture caching scope. Future versions of pytest-asyncio will default the loop scope for asynchronous fixtures to function scope. Set the default fixture loop scope explicitly in order to avoid unexpected behavior in the future. Valid fixture loop scopes are: "function", "class", "module", "package", "session"
+
+  warnings.warn(PytestDeprecationWarning(_DEFAULT_FIXTURE_LOOP_SCOPE_UNSET))
+........................................................................ [  4%]
+..........F............................................................. [  8%]
+........................................................................ [ 12%]
+........................................................................ [ 16%]
+........................................................................ [ 20%]
+........................................................................ [ 25%]
+........................................................................ [ 29%]
+........................................................................ [ 33%]
+........................................................................ [ 37%]
+........................................................................ [ 41%]
+........................................................................ [ 45%]
+........................................................................ [ 50%]
+........................................................................ [ 54%]
+........................................................................ [ 58%]
+............................................F.........F................. [ 62%]
+........................................................................ [ 66%]
+........................................................................ [ 70%]
+........................................................................ [ 75%]
+........................................................................ [ 79%]
+......................F.............F.F.....F.F.........F............... [ 83%]
+........................................................................ [ 87%]
+........................................................................ [ 91%]
+........................................................................ [ 96%]
+....................................................................     [100%]
+=================================== FAILURES ===================================
+_________________ test_most_anticipated_card_render_is_pinned __________________
+
+    def test_most_anticipated_card_render_is_pinned():
+        """calendar_png_common is shared by all three cards, so a change there
+        reaches this already-shipped one too. The hash is a TRIPWIRE, not a
+        freeze: when a deliberate chrome change trips it, look at the render and
+        re-pin. Last re-pinned 2026-07-30 for the full-bleed logo tile (which
+        also nudged the monogram corner radius 0.22 -> 0.24)."""
+        import hashlib
+        from api.services.calendar_anticipated_png import render_anticipated_png
+        entries = [
+            {"sym": "AAPL", "name": "Apple Inc.", "timing": "amc", "weekday": "MON",
+             "mc_b": 3400.0, "logo_path": None},
+            {"sym": "MSFT", "name": "Microsoft Corporation", "timing": "bmo",
+             "weekday": "WED", "mc_b": 3100.0, "logo_path": None},
+            {"sym": "NVDA", "name": "NVIDIA Corporation", "timing": "amc",
+             "weekday": "THU", "mc_b": 4200.0, "logo_path": None},
+            {"sym": "XOM", "name": "Exxon Mobil Corporation", "timing": "bmo",
+             "weekday": "FRI", "mc_b": 480.0, "logo_path": None},
+            {"sym": "KO", "name": "The Coca-Cola Company", "timing": "bmo",
+             "weekday": "TUE", "mc_b": 290.5, "logo_path": None},
+            {"sym": "F", "name": "Ford Motor Company", "timing": "amc",
+             "weekday": "TUE", "mc_b": 0.42, "logo_path": None},
+        ]
+        got = hashlib.sha256(
+            render_anticipated_png("Week of Aug 3-7, 2026", entries)).hexdigest()
+>       assert got == "f1ae5925d8d831afff593177813d75518587518dca245ce9b3bfc17075e86d0c"
+E       AssertionError: assert '814a9107c457...e7d9627274bdd' == 'f1ae5925d8d8...fc17075e86d0c'
+E         
+E         - f1ae5925d8d831afff593177813d75518587518dca245ce9b3bfc17075e86d0c
+E         + 814a9107c457afb2317fcc8d49c5e2ce60fea889e08b325febfe7d9627274bdd
+
+tests/test_calendar_week_post.py:283: AssertionError
+______ test_every_closed_table_citation_in_source_resolves_to_a_real_key _______
+
+    def test_every_closed_table_citation_in_source_resolves_to_a_real_key():
+        table = _manifest()
+        offenders = []
+        for rel, line, cited in _citations():
+            if (rel, cited) in _NOT_A_KEY:
+                continue
+            why = _resolve(table, cited)
+            if why is not None:
+                offenders.append(f"{rel}:{line}  closedTable.json::{cited}  —  {why}")
+>       assert not offenders, (
+            "these comments send a reader to the manifest for a ruling the manifest "
+            "does not carry. A citation is the one claim a reader does not check, so "
+            "a dangling one keeps a decision in a commit message forever. Point it at "
+            "the real key, state the ruling where it is implemented, or — if it is "
+            "genuinely not a manifest path — add it to `_NOT_A_KEY` WITH ITS "
+            "REASON:\n  " + "\n  ".join(offenders)
+        )
+E       AssertionError: these comments send a reader to the manifest for a ruling the manifest does not carry. A citation is the one claim a reader does not check, so a dangling one keeps a decision in a commit message forever. Point it at the real key, state the ruling where it is implemented, or — if it is genuinely not a manifest path — add it to `_NOT_A_KEY` WITH ITS REASON:
+E           app/src/components/chart/engine/ast/pine.js:9368  closedTable.json::series.supertrend  —  `supertrend` is not a key of `series`
+E       assert not ['app/src/components/chart/engine/ast/pine.js:9368  closedTable.json::series.supertrend  —  `supertrend` is not a key of `series`']
+
+tests/test_closed_table_citations.py:165: AssertionError
+_______ test_a_WARM_ticker_serves_normally_and_never_kicks_a_cold_fetch ________
+
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x7ff078dd1a00>
+
+    def test_a_WARM_ticker_serves_normally_and_never_kicks_a_cold_fetch(monkeypatch):
+        """A ticker WITH stored rows takes the delta path, not the cold branch — it must
+        serve 200 and never touch the cold-fetch background path."""
+        monkeypatch.setattr(bars_fetch.cache, "get", lambda k: None)
+        monkeypatch.setattr(bars_fetch.cache, "set", lambda k, v, ttl=None: None)
+        monkeypatch.setattr(bars_fetch._sqlite, "get_last_ts", lambda s, tf: 20260818)
+        rows = [(20260818, 1.0, 1.1, 0.9, 1.05, 100)]
+        monkeypatch.setattr(bars_fetch._sqlite, "get_bars", lambda s, tf, n: rows)
+        monkeypatch.setattr(bars_fetch, "_fmt_sqlite_bars", lambda r, tf, t=None: [{"t": 1}])
+        monkeypatch.setattr(bars_fetch, "_needs_fresh", lambda ts, tf: True)
+        monkeypatch.setattr(bars_fetch, "_is_cold_stale_daily", lambda tf, ts: True)   # force Layer 4
+        monkeypatch.setattr(bars_fetch, "_daily_deblockable", lambda tf, ts: False)
+        monkeypatch.setattr(bars_fetch, "_history_complete", lambda s, tf: True)
+        monkeypatch.setattr(bars_fetch, "_maybe_kick_deepfill", lambda *a, **k: None)
+        monkeypatch.setattr(bars_fetch, "_record_intraday_request", lambda *a, **k: None)
+        monkeypatch.setattr(bars_fetch, "_inflight", {})
+        monkeypatch.setattr(bars_fetch, "_delta_daily", lambda s, ts: [])
+        kicked = {"n": 0}
+        monkeypatch.setattr(bars_fetch, "_kick_cold_fetch",
+                            lambda *a, **k: kicked.__setitem__("n", kicked["n"] + 1))
+    
+>       resp = bars_fetch._get_bars_inner("AAPL", "D", 300)
+
+tests/test_cold_fetch_pool_protection.py:106: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+ticker = 'AAPL', tf = 'D', bars = 300
+
+    def _get_bars_inner(ticker: str, tf: str, bars: int):  # noqa: C901
+        _mark_serve("miss")  # default; each serve path below overwrites it
+        _time_reset()        # behavior-neutral phase timing (Server-Timing sub-metrics)
+        ticker_up = ticker.upper()
+        # Market indices (^IXIC etc.) live only in yfinance — short-circuit the
+        # whole Massive/SQLite path. Used by the Model Book index-comparison pane.
+        if _is_yf_only_symbol(ticker_up):
+            _mark_serve("yf-only")
+            return _yf_only_bars_response(ticker_up, tf, bars)
+        _record_intraday_request(ticker_up, tf)
+        # On-demand deep gap-fill of the viewed range (background, throttled, bounded;
+        # fills interior holes at ANY history depth the user pans to). Never blocks.
+        _maybe_kick_deepfill(ticker_up, tf, bars)
+        cache_key = f"bars_{ticker_up}_{tf}_{bars}"
+        date_tf   = tf in ("D", "W", "M")
+    
+        # ── Layer 1: In-memory TTL cache (<1 ms) ─────────────────────────────────
+        cached = cache.get(cache_key)
+        if cached is not None:
+            _mark_serve("mem")
+            return JSONResponse(
+                content=cached,
+                headers={"Cache-Control": f"public, max-age={_CACHE_TTL.get(tf, 300)}"},
+            )
+    
+        # ── Layer 2: SQLite persistent store (<5 ms) ──────────────────────────────
+        _time_ck("pre_sqlite")
+        last_ts     = _sqlite.get_last_ts(ticker_up, tf)
+        _time_ck("last_ts")
+        stored_rows = _sqlite.get_bars(ticker_up, tf, bars) if last_ts is not None else []
+        _time_ck("get_bars")
+    
+        # SQLite has fresh data AND enough rows for this request count.
+        # The "len(stored_rows) >= bars * 0.9" check catches the case where SQLite
+        # was previously populated with fewer bars than the user is now asking for
+        # (e.g., a small bars=10 admin call populated SQLite with 10 rows, then a
+        # chart asks for bars=300 — without this check the endpoint would happily
+        # serve 10 rows because they're "fresh", leaving a huge gap on the chart).
+        # Fall through to the stale-while-revalidate path when we have data but
+        # less than requested — bg fetch will populate the missing depth.
+>       if stored_rows and not _needs_fresh(last_ts, tf, ticker_up) and (
+            len(stored_rows) >= bars * 0.9 or _history_complete(ticker_up, tf)
+        ):
+E       TypeError: test_a_WARM_ticker_serves_normally_and_never_kicks_a_cold_fetch.<locals>.<lambda>() takes 2 positional arguments but 3 were given
+
+api/services/bars_fetch.py:3016: TypeError
+____ test_EVERY_concept_RESOLVES_and_the_grounding_is_LOOKED_UP_not_claimed ____
+
+    def test_EVERY_concept_RESOLVES_and_the_grounding_is_LOOKED_UP_not_claimed():
+        """🔴 AMENDMENT 1 §A1.3, made mechanical. The moat is that UCT's answer comes
+        from the firm's own assets; a "grounding" nobody verifies is a comment.
+    
+        Every citation is resolved against the artifact it names — a preset in the
+        screener's filter registry, a screen the screener ships, a column the closed
+        table declares, or a labelled branch of firm code located by AST.
+        """
+        report = cv.grounding_report()
+        assert report["concepts"], "the vocabulary is empty; every rail here is vacuous"
+>       assert report["unresolved"] == [], report
+E       AssertionError: {'concepts': [{'attribution': None, 'cites': ['new_52w_high: whether the bar made a new 52-week high'], 'has_sentence'...ry can ground it.', 'word': 'strong'}, ...], 'resolved': 20, 'unresolved': ['leaders pulling back', 'tight base'], ...}
+E       assert ['leaders pul... 'tight base'] == []
+E         
+E         Left contains 2 more items, first extra item: 'leaders pulling back'
+E         
+E         Full diff:
+E         - []
+E         + [
+E         +     'leaders pulling back',
+E         +     'tight base',
+E         + ]
+
+tests/test_concept_vocabulary.py:196: AssertionError
+_______________ test_NO_NUMBER_IN_A_CONCEPTS_TREE_IS_THE_AUTHORS _______________
+
+    def test_NO_NUMBER_IN_A_CONCEPTS_TREE_IS_THE_AUTHORS():
+        """⭐⭐ THE RAIL THAT MAKES THIS A VOCABULARY RATHER THAN AN OPINION.
+    
+        Every numeric literal in every concept's tree must be published by one of
+        that concept's own citations — the firm's preset, the firm's screen, the
+        firm's classifier windows, or the 0/1 of a boolean column. `rs_rank >= 80`
+        is here because `FILTERS['rs_rank']` ships a preset labelled `Over 80`.
+    
+        ⛔ AND THE SCALARS TOO. A concept that quietly added a fourth column to a
+        three-filter screen would keep every threshold honest and still screen on
+        something nobody cited.
+        """
+        for word in cv.concepts():
+            got = cv.resolve(word)
+>           assert got["ok"] is True, (word, got.get("reason"))
+E           AssertionError: ('leaders pulling back', '"leaders pulling back" is no longer grounded: the screener no longer ships a starter screen ...e2_breakout\', \'starter_three_weeks_tight\', \'starter_tight_base\', \'starter_uct_50\', \'starter_value_quality\'])')
+E           assert False is True
+
+tests/test_concept_vocabulary.py:525: AssertionError
+_________ test_a_concept_that_screens_on_an_UNCITED_column_is_refused __________
+
+    def test_a_concept_that_screens_on_an_UNCITED_column_is_refused():
+        """⛔ THE OTHER HALF OF THE SAME RAIL, and the one a threshold check misses.
+    
+        A fourth column quietly added to a three-filter screen keeps every number
+        honest and still screens on something nobody at the firm agreed to. The
+        plant uses a BARE boolean column so it carries no literal at all — the
+        threshold rail cannot see it, and only the citation-keys rail can.
+        """
+        planted = _raw()
+        leader = planted["concepts"]["leader"]
+        leader["ast"] = {"type": "op", "name": "&&", "args": [
+            leader["ast"], {"type": "series", "name": "above_50sma"}]}
+        out = cv.resolve("leader", vocab=planted)
+        assert out["ok"] is False and out["gate"] == cv.GATE_UNGROUNDED
+        assert "above_50sma" in out["reason"], out["reason"]
+        # The control: the same column IS cited by the screen-grounded concept, and
+        # that one resolves — so the rail is about the citation, not the column.
+>       assert cv.resolve("leaders pulling back")["ok"] is True
+E       assert False is True
+
+tests/test_concept_vocabulary.py:571: AssertionError
+__ test_the_vocabularys_own_KEYS_are_NORMALISED_so_two_spellings_cannot_drift __
+
+    def test_the_vocabularys_own_KEYS_are_NORMALISED_so_two_spellings_cannot_drift():
+        for word in cv.concepts():
+            assert word == cv.normalise(word), word
+        for word in cv.refused():
+            assert word == cv.normalise(word), word
+>       assert cv.resolve("  Leaders   Pulling BACK ")["ok"] is True
+E       assert False is True
+
+tests/test_concept_vocabulary.py:641: AssertionError
+_________ test_the_SENTENCE_resolve_HANDS_BACK_IS_THE_FILES_OWN_BYTES __________
+
+    def test_the_SENTENCE_resolve_HANDS_BACK_IS_THE_FILES_OWN_BYTES():
+        """⛔ THIS LANE HAS NO READ-BACK AND MUST NEVER GROW ONE.
+    
+        `sentence.js` is the ONE producer of the text a member confirms, and the JS
+        lane re-derives every frozen sentence from the shipped module on every run.
+        What Python can guarantee is the other half: that `resolve` is a
+        PASS-THROUGH — no prettifying, no title-casing, no fallback to the word, no
+        synthesised text for a concept that carries none. Any of those would be the
+        second vocabulary this whole design exists to prevent, arriving through the
+        lane that cannot check itself.
+    
+        ⛔ AND IT SAYS NOTHING ABOUT WHICH CONCEPTS HAVE ONE. Whether a tree is
+        sayable is `sentence.js`'s answer; a rule here that "every concept carries a
+        sentence" would be a SECOND AUTHORITY over a value another module owns, and
+        would go red for the wrong reason the day the read-back legitimately refuses
+        something.
+        """
+        raw = _raw()["concepts"]
+        for word in cv.concepts():
+            got = cv.resolve(word)
+>           assert got["ok"] is True, (word, got.get("reason"))
+E           AssertionError: ('leaders pulling back', '"leaders pulling back" is no longer grounded: the screener no longer ships a starter screen ...e2_breakout\', \'starter_three_weeks_tight\', \'starter_tight_base\', \'starter_uct_50\', \'starter_value_quality\'])')
+E           assert False is True
+
+tests/test_concept_vocabulary.py:699: AssertionError
+_ test_grounding_report_is_TOTAL_over_the_vocabulary_and_names_the_unresolved __
+
+    def test_grounding_report_is_TOTAL_over_the_vocabulary_and_names_the_unresolved():
+        """⭐ THE ARTIFACT A REVIEW READS: every word, what it means, and what makes
+        that the firm's answer. Total over the file, so a concept cannot be reviewed
+        by being left out of the report."""
+        report = cv.grounding_report()
+        assert {r["word"] for r in report["concepts"]} == set(cv.concepts())
+        assert {r["word"] for r in report["refused"]} == set(cv.refused())
+>       assert report["resolved"] == len(cv.concepts())
+E       AssertionError: assert 20 == 22
+E        +  where 22 = len(mappingproxy({'trending': mappingproxy({'source': 'close > sma(close, 20) && sma(close, 20) > sma(close, 50) && sma(cl...c Flag/Pullback'}), 'note': 'The firm ships this screen. Every term is one of its four filters, at its thresholds.'})}))
+E        +    where mappingproxy({'trending': mappingproxy({'source': 'close > sma(close, 20) && sma(close, 20) > sma(close, 50) && sma(cl...c Flag/Pullback'}), 'note': 'The firm ships this screen. Every term is one of its four filters, at its thresholds.'})}) = <function concepts at 0x7ff0835bc360>()
+E        +      where <function concepts at 0x7ff0835bc360> = cv.concepts
+
+tests/test_concept_vocabulary.py:876: AssertionError
+=============================== warnings summary ===============================
+../../../../../opt/hostedtoolcache/Python/3.12.14/x64/lib/python3.12/site-packages/starlette/testclient.py:40
+  /opt/hostedtoolcache/Python/3.12.14/x64/lib/python3.12/site-packages/starlette/testclient.py:40: DeprecationWarning: The anyio.abc.BlockingPortal alias is deprecated, use anyio.from_thread.BlockingPortal instead.
+    _PortalFactoryType = typing.Callable[[], typing.ContextManager[anyio.abc.BlockingPortal]]
+
+api/baselines.py:456
+  /home/runner/work/UCT-Dashboard/UCT-Dashboard/api/baselines.py:456: DeprecationWarning: datetime.datetime.utcnow() is deprecated and scheduled for removal in a future version. Use timezone-aware objects to represent datetimes in UTC: datetime.datetime.now(datetime.UTC).
+    _baselines_last_loaded = datetime.utcnow()
+
+tests/test_chart_renderer_admin_recycle.py: 32 warnings
+tests/test_chart_renderer_pool.py: 17 warnings
+tests/test_chart_renderer_service.py: 6 warnings
+  /home/runner/work/UCT-Dashboard/UCT-Dashboard/services/chart_renderer/app.py:720: DeprecationWarning: 
+          on_event is deprecated, use lifespan event handlers instead.
+  
+          Read more about it in the
+          [FastAPI docs for Lifespan Events](https://fastapi.tiangolo.com/advanced/events/).
+          
+    @app.on_event("startup")
+
+tests/test_chart_renderer_admin_recycle.py: 64 warnings
+tests/test_chart_renderer_pool.py: 34 warnings
+tests/test_chart_renderer_service.py: 12 warnings
+  /opt/hostedtoolcache/Python/3.12.14/x64/lib/python3.12/site-packages/fastapi/applications.py:4495: DeprecationWarning: 
+          on_event is deprecated, use lifespan event handlers instead.
+  
+          Read more about it in the
+          [FastAPI docs for Lifespan Events](https://fastapi.tiangolo.com/advanced/events/).
+          
+    return self.router.on_event(event_type)
+
+tests/test_chart_renderer_admin_recycle.py: 32 warnings
+tests/test_chart_renderer_pool.py: 17 warnings
+tests/test_chart_renderer_service.py: 6 warnings
+  /home/runner/work/UCT-Dashboard/UCT-Dashboard/services/chart_renderer/app.py:827: DeprecationWarning: 
+          on_event is deprecated, use lifespan event handlers instead.
+  
+          Read more about it in the
+          [FastAPI docs for Lifespan Events](https://fastapi.tiangolo.com/advanced/events/).
+          
+    @app.on_event("shutdown")
+
+tests/test_comparison_ai_adapter.py::TestRoute::test_route_shape_when_authenticated
+tests/test_comparison_ai_adapter.py::TestRoute::test_route_degrades_safely_on_an_exception
+  /opt/hostedtoolcache/Python/3.12.14/x64/lib/python3.12/site-packages/starlette/testclient.py:484: DeprecationWarning: Setting per-request cookies=<...> is being deprecated, because the expected behaviour on cookie persistence is ambiguous. Set cookies directly on the client instance instead.
+    return super().request(
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+- generated xml file: /home/runner/work/UCT-Dashboard/UCT-Dashboard/pytest-junit.xml -
+=========================== short test summary info ============================
+SKIPPED [1] tests/test_chart_parity_harness.py:46: chart_parity imports playwright at module scope
+FAILED tests/test_calendar_week_post.py::test_most_anticipated_card_render_is_pinned - AssertionError: assert '814a9107c457...e7d9627274bdd' == 'f1ae5925d8d8...fc17075e86d0c'
+  
+  - f1ae5925d8d831afff593177813d75518587518dca245ce9b3bfc17075e86d0c
+  + 814a9107c457afb2317fcc8d49c5e2ce60fea889e08b325febfe7d9627274bdd
+FAILED tests/test_closed_table_citations.py::test_every_closed_table_citation_in_source_resolves_to_a_real_key - AssertionError: these comments send a reader to the manifest for a ruling the manifest does not carry. A citation is the one claim a reader does not check, so a dangling one keeps a decision in a commit message forever. Point it at the real key, state the ruling where it is implemented, or — if it is genuinely not a manifest path — add it to `_NOT_A_KEY` WITH ITS REASON:
+    app/src/components/chart/engine/ast/pine.js:9368  closedTable.json::series.supertrend  —  `supertrend` is not a key of `series`
+assert not ['app/src/components/chart/engine/ast/pine.js:9368  closedTable.json::series.supertrend  —  `supertrend` is not a key of `series`']
+FAILED tests/test_cold_fetch_pool_protection.py::test_a_WARM_ticker_serves_normally_and_never_kicks_a_cold_fetch - TypeError: test_a_WARM_ticker_serves_normally_and_never_kicks_a_cold_fetch.<locals>.<lambda>() takes 2 positional arguments but 3 were given
+FAILED tests/test_concept_vocabulary.py::test_EVERY_concept_RESOLVES_and_the_grounding_is_LOOKED_UP_not_claimed - AssertionError: {'concepts': [{'attribution': None, 'cites': ['new_52w_high: whether the bar made a new 52-week high'], 'has_sentence'...ry can ground it.', 'word': 'strong'}, ...], 'resolved': 20, 'unresolved': ['leaders pulling back', 'tight base'], ...}
+assert ['leaders pul... 'tight base'] == []
+  
+  Left contains 2 more items, first extra item: 'leaders pulling back'
+  
+  Full diff:
+  - []
+  + [
+  +     'leaders pulling back',
+  +     'tight base',
+  + ]
+FAILED tests/test_concept_vocabulary.py::test_NO_NUMBER_IN_A_CONCEPTS_TREE_IS_THE_AUTHORS - AssertionError: ('leaders pulling back', '"leaders pulling back" is no longer grounded: the screener no longer ships a starter screen ...e2_breakout\', \'starter_three_weeks_tight\', \'starter_tight_base\', \'starter_uct_50\', \'starter_value_quality\'])')
+assert False is True
+FAILED tests/test_concept_vocabulary.py::test_a_concept_that_screens_on_an_UNCITED_column_is_refused - assert False is True
+FAILED tests/test_concept_vocabulary.py::test_the_vocabularys_own_KEYS_are_NORMALISED_so_two_spellings_cannot_drift - assert False is True
+FAILED tests/test_concept_vocabulary.py::test_the_SENTENCE_resolve_HANDS_BACK_IS_THE_FILES_OWN_BYTES - AssertionError: ('leaders pulling back', '"leaders pulling back" is no longer grounded: the screener no longer ships a starter screen ...e2_breakout\', \'starter_three_weeks_tight\', \'starter_tight_base\', \'starter_uct_50\', \'starter_value_quality\'])')
+assert False is True
+FAILED tests/test_concept_vocabulary.py::test_grounding_report_is_TOTAL_over_the_vocabulary_and_names_the_unresolved - AssertionError: assert 20 == 22
+ +  where 22 = len(mappingproxy({'trending': mappingproxy({'source': 'close > sma(close, 20) && sma(close, 20) > sma(close, 50) && sma(cl...c Flag/Pullback'}), 'note': 'The firm ships this screen. Every term is one of its four filters, at its thresholds.'})}))
+ +    where mappingproxy({'trending': mappingproxy({'source': 'close > sma(close, 20) && sma(close, 20) > sma(close, 50) && sma(cl...c Flag/Pullback'}), 'note': 'The firm ships this screen. Every term is one of its four filters, at its thresholds.'})}) = <function concepts at 0x7ff0835bc360>()
+ +      where <function concepts at 0x7ff0835bc360> = cv.concepts
+9 failed, 1715 passed, 1 skipped, 224 warnings in 221.13s (0:03:41)
