@@ -3593,6 +3593,37 @@ def serve_note_attachment(
 from api.services.journal_two import document_extraction, document_search
 
 
+def _document_kind(row, source_kind: str | None) -> str | None:
+    """The document's own kind for a CLIENT that must pick a viewer: "pdf",
+    "image", "docx" or "web" (wave 7, lane I; review finding M-7).
+
+    `sourceKind` answers one question, "is this a captured web page?", and says
+    `attachment` for every file, so a PDF, a photographed page and a .docx look
+    the same to it and the preview had to guess the viewer from the attachment
+    URL. This field is SEPARATE on purpose: older clients switch on `sourceKind`
+    and must keep reading exactly what they read.
+
+    ⛔ Web is decided by the ONE rule `sourceKind` already used
+    (`ask_evidence.document_source_kind` -> `is_web_capture`, either column), so
+    the two fields can never disagree about a captured page. The file kinds come
+    from the stored `source_kind`, named by document_extraction's own constants.
+    ⛔ A stored value this table does not name is passed through VERBATIM, never
+    filed as a PDF: a kind added later must reach the client as itself.
+    None when the capture columns were not selected (nothing is known)."""
+    from api.services.journal_two.web_capture import SOURCE_KIND_WEB
+    if source_kind is None:
+        return None
+    if source_kind == SOURCE_KIND_WEB:
+        return "web"
+    raw = row["source_kind"] if "source_kind" in row.keys() else None
+    by_stored = {
+        document_extraction.SOURCE_KIND_ATTACHMENT: "pdf",
+        document_extraction.SOURCE_KIND_IMAGE: "image",
+        document_extraction.SOURCE_KIND_DOCX: "docx",
+    }
+    return by_stored.get(raw or document_extraction.SOURCE_KIND_ATTACHMENT, raw)
+
+
 @router.get("/notes/{note_id}/documents")
 def list_note_documents_endpoint(
     note_id: str,
@@ -3662,6 +3693,9 @@ def list_note_documents_endpoint(
                 # and "we have the whole document" are different facts (§15).
                 "textComplete": bool(st.get("text_complete")),
                 "sourceKind": kinds[r["id"]],
+                # The document's own kind (pdf | image | docx | web), BESIDE
+                # sourceKind and never folded into it -- see `_document_kind`.
+                "kind": _document_kind(r, kinds[r["id"]]),
                 "capturePassages": sorted(
                     ({"pageNumber": p, "excerptId": eid}
                      for (d, p), eid in passages.items() if d == r["id"]),
