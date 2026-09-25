@@ -4439,7 +4439,17 @@ def delete_folder(
 
 def ensure_folder_path(user_id: str, path_parts: list[str], dest_folder_id: str = "", conn=None) -> str:
     """Upsert a folder chain under dest_folder_id; returns leaf folder id.
-    Truncates each segment to the 80-char folder-name cap."""
+    Truncates each segment to the 80-char folder-name cap.
+
+    Handed a connection, it writes inside the caller's transaction and leaves the
+    commit to the caller (the importer and the personal API commit after the note
+    write). Handed none, it owns the connection and COMMITS before closing it.
+    ⚰️ It used not to: `create_folder` commits only a connection IT opened, and it
+    is handed this function's, so the chain was written in a transaction nobody
+    committed and thrown away on close. The caller got back an id for a folder
+    that did not exist (lane G, wave 7: "The note wasn't saved: folder not found").
+    tests/test_journal_two_ensure_folder_path_commits.py reads the result from a
+    fresh connection."""
     owned = conn is None
     conn = conn or get_connection()
     try:
@@ -4453,6 +4463,8 @@ def ensure_folder_path(user_id: str, path_parts: list[str], dest_folder_id: str 
                 pid = row["id"]
             else:
                 pid = create_folder(user_id, name, parent_id=pid, conn=conn)["id"]
+        if owned:
+            conn.commit()
         return pid
     finally:
         if owned:
