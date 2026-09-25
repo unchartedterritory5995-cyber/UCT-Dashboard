@@ -426,7 +426,10 @@ with sync_playwright() as p:
 
     page = ctx.new_page()
     page.on("pageerror", lambda e: res["errors"].append(str(e)[:300]))
-    page.goto(notebook_url())
+    # Consistent with every other navigation in this file (and with the fixed
+    # W3 second-member check above) -- a bare notebook_url() lands on a
+    # different initial layout than the Notebook list view.
+    page.goto(notebook_url(None, "?view=all"))
     dismiss_intro(page)
 
     # =========================================================================
@@ -489,15 +492,33 @@ with sync_playwright() as p:
             pass
         page.wait_for_timeout(1600)   # autosave debounce window
 
-        listed = api.get(BASE + f"/api/j2/notes?limit=200").json()
-        notes = listed.get("notes", listed if isinstance(listed, list) else [])
-        conflicted = [n for n in notes if "(conflicted copy)" in (n.get("title") or "")]
+        # ⛔ FIX (this run): this used to scan the member's ENTIRE notes list
+        # (limit=200) for ANY title containing "(conflicted copy)" -- testing
+        # whole-ACCOUNT state, not whether THIS check's own lock/unlock/edit
+        # cycle produced one. This sandbox's account is reused across every
+        # walk run in this session (by design -- the data dir persists), so a
+        # conflicted copy left behind by a DIFFERENT check in a PRIOR run
+        # (confirmed live: three stray "(conflicted copy)" notes from a
+        # previous run's W9/W10/W12, titled with THAT run's RUN suffix, not
+        # this one's) permanently fails every future run's W1 regardless of
+        # whether lock/unlock/autosave -- the actual feature under test --
+        # worked. It did: lock_ok/read_only_while_locked/unlock_ok/
+        # autosave_fired are all independently true above. Scope the check to
+        # THIS test's own note by exact id, which is what W1 actually claims
+        # to verify.
+        conflicted = [
+            n for n in api.get(BASE + f"/api/j2/notes?limit=200").json().get("notes", [])
+            if n.get("id") != nid and "(conflicted copy)" in (n.get("title") or "")
+            and note.get("title", "") in (n.get("title") or "")
+        ]
+        own_note_now = api.get(BASE + f"/api/j2/notes/{nid}").json().get("note", {})
+        own_note_became_conflicted = "(conflicted copy)" in (own_note_now.get("title") or "")
 
         lock_ok = lock_resp.ok and lock_body.get("note", {}).get("locked") is True
         read_only_while_locked = editable_attr == "false"
         unlock_ok = unlock_resp.ok and editable_after_unlock in (None, "true")
         autosave_fired = len(put_bodies) > 0
-        no_conflict_copy = not conflicted
+        no_conflict_copy = not conflicted and not own_note_became_conflicted
 
         record(
             "W1_lock_unlock", "PASS" if (
@@ -511,6 +532,7 @@ with sync_playwright() as p:
             editable_while_locked=editable_attr,
             unlock_patch_status=unlock_resp.status,
             editable_after_unlock=editable_after_unlock,
+            own_note_became_conflicted=own_note_became_conflicted,
             autosave_put_fired=len(put_bodies) > 0,
             autosave_put_base_updated_at=(put_bodies[-1].get("baseUpdatedAt") if put_bodies else None),
             conflicted_copies_in_list=[n.get("title") for n in conflicted],
@@ -700,28 +722,70 @@ with sync_playwright() as p:
         tpl_id = (tpl_body.get("template") or {}).get("id")
 
         # New from template -> Your templates
-        page.goto(notebook_url(None, "?view=all"))
-        dismiss_intro(page)
-        page.wait_for_timeout(600)
-        page.get_by_role("button", name="Templates", exact=True).click()
+        # ⛔ FIX (this run): a bare re-run of this exact sequence timed out
+        # after 30s waiting for the "Templates" button -- a locator that
+        # matches ZERO elements the whole window, not one blocked by an
+        # overlay. Reproduced in isolation (login -> create source note ->
+        # save as template -> goto ?view=all -> dismiss intro -> click
+        # Templates) and it worked first try, with the sandbox's console
+        # logging a transient `503 (Service Unavailable)` from an unrelated
+        # background fetch mid-navigation -- this sandbox runs the darkpool/
+        # logo/ticker-search prewarm jobs concurrently on one dev box, and a
+        # slow/failed early request can leave the list page's initial render
+        # incomplete. This is sandbox resource contention, not a reproduced
+        # product defect (the button and its handler are real and correct,
+        # per NotebookTab.jsx:1633-1641). The instrument fix is the same
+        # retry-through-a-transient-miss shape `open_note()` already uses for
+        # the known editor-crash class: reload and retry a few times before
+        # concluding the button is genuinely absent.
+        for _tpl_attempt in range(3):
+            page.goto(notebook_url(None, "?view=all"))
+            dismiss_intro(page)
+            page.wait_for_timeout(600)
+            templates_btn = page.get_by_role("button", name="Templates", exact=True)
+            try:
+                templates_btn.wait_for(state="visible", timeout=6000)
+                templates_btn.click()
+                break
+            except Exception:
+                if _tpl_attempt == 2:
+                    raise
+                page.wait_for_timeout(800)
         region = page.get_by_role("region", name="Your templates").first
         region.wait_for(state="visible", timeout=8000)
-        # ⛔ FIX (directive #2): a substring/regex name here resolves to THREE
-        # elements -- the template card itself PLUS its sibling "Rename {name}"
-        # and "Delete {name}" buttons (MemberTemplates.jsx: Rename/Delete are
-        # BESIDE the card, in their own <div className={memberActions}>, each
-        # with an explicit aria-label containing the template name -- "a
-        # button in a button is one control to a screen reader", per that
-        # file's own header comment, so the card is NOT concatenated with
-        # them; it is a genuine 3-way SUBSTRING collision on the region-scoped
-        # regex). The card's OWN accessible name is exactly `tpl_name` (no
-        # aria-label, text content only: `t.name` plus an optional second span
-        # that only renders when `t.title !== t.name`, which is not the case
-        # here) -- Rename/Delete's accessible names are "Rename {tpl_name}" /
-        # "Delete {tpl_name}", which do NOT equal `tpl_name` exactly. An exact
-        # match therefore resolves to the card alone, never the siblings.
+        # ⛔ FIX (directive #2, round 1): a substring/regex name here resolves
+        # to THREE elements -- the template card itself PLUS its sibling
+        # "Rename {name}" and "Delete {name}" buttons (MemberTemplates.jsx:
+        # Rename/Delete are BESIDE the card, in their own
+        # <div className={memberActions}>, each with an explicit aria-label
+        # containing the template name -- "a button in a button is one
+        # control to a screen reader", per that file's own header comment).
+        # An `exact=True` match on the bare `tpl_name` fixed THAT collision --
+        # but re-running exposed a SECOND, different defect the exact match
+        # then walked into:
+        #
+        # ⛔ FIX (round 2, this run): `saveNoteAsTemplate` -> `note_templates.
+        # create_template` (api/services/journal_two/note_templates.py) sets
+        # `title = note.get("title")` (the SOURCE note's own title, here
+        # "Walk W3 source {RUN}") and `name = <what the member typed>` (here
+        # `tpl_name`, "Walk template {RUN}") as TWO SEPARATE, independent
+        # fields. MemberTemplates.jsx's card renders
+        # `<span>{t.name}</span>{t.title && t.title !== t.name &&
+        # <span>{t.title}</span>}` -- no aria-label on the button, so when
+        # title != name (true here: the member renamed the template away from
+        # the source note's own title, which is the whole POINT of the
+        # "Template name" field) the card's accessible name is the
+        # CONCATENATION "{tpl_name} {source note title}", never `tpl_name`
+        # alone. `exact=True` on the bare `tpl_name` therefore matched ZERO
+        # elements -- the same concatenated-accessible-name defect class as
+        # SlashMenu.jsx's role="option" items (W7/W9), just on a THIRD
+        # component. Fix: anchor a regex on the START of the accessible name
+        # (`^` + the escaped name) -- the card is the only element in this
+        # region whose name STARTS WITH `tpl_name` (Rename/Delete's names
+        # start with "Rename "/"Delete ", never with `tpl_name`), so this is
+        # unambiguous without needing `exact=True` at all.
         with page.expect_response(lambda r: r.url.endswith("/api/j2/notes") and r.request.method == "POST") as ci:
-            region.get_by_role("button", name=tpl_name, exact=True).click()
+            region.get_by_role("button", name=re.compile("^" + re.escape(tpl_name))).click()
         create_resp = ci.value
         new_note = (create_resp.json() or {}).get("note", {})
         page.wait_for_timeout(600)
@@ -731,9 +795,21 @@ with sync_playwright() as p:
             json.dumps({"type": "doc", "content": [P("Reusable body.")]}, sort_keys=True)
 
         # A second member does not see it.
+        # ⛔ FIX (this run): the ONLY navigation in this whole script that
+        # called bare `notebook_url()` instead of `notebook_url(None,
+        # "?view=all")` -- traced live for the second member's (never-used)
+        # account: without `?view=all` the route lands on a DIFFERENT
+        # initial layout (an account-overview-flavoured screen with "Log
+        # Trade" / a default-account balance selector / "Add thesis starter
+        # views" -- none of NotebookTab's own toolbar buttons, Templates
+        # included, are present) rather than the Notebook list view. Adding
+        # `?view=all`, the exact query every other page.goto in this file
+        # already uses, reproduced the Templates button immediately (count
+        # 1). This is why the click waited the full 30s for a button that
+        # was never going to render on that page.
         page2 = ctx2.new_page()
         page2.on("pageerror", lambda e: res["errors"].append("member2: " + str(e)[:300]))
-        page2.goto(notebook_url())
+        page2.goto(notebook_url(None, "?view=all"))
         dismiss_intro(page2)
         page2.get_by_role("button", name="Templates", exact=True).click()
         page2.wait_for_timeout(600)
@@ -837,10 +913,22 @@ with sync_playwright() as p:
                 name_field = page.get_by_placeholder("Property name")
                 if name_field.count():
                     name_field.first.fill(f"Peers {RUN}")
-                # The type picker is the only <select> in this form at this
-                # point -- select_option, never a text click, drives a native
-                # <select>.
-                type_select = page.get_by_role("combobox")
+                # ⛔ FIX (this run): `page.get_by_role("combobox").first` grabs
+                # the FIRST <select> on the WHOLE PAGE, not this form's type
+                # picker -- NoteEditorPage's own header chrome renders an
+                # earlier native <select> (resolved live as
+                # `<select class="_headerSelect_aowso_251">`, a page-header
+                # view-mode control unrelated to properties), so `.first`
+                # silently drove THAT select instead and `select_option`
+                # timed out waiting for a "relation" option that select does
+                # not have. PropertiesSection.jsx renders the type <select>
+                # as the very NEXT SIBLING of the "Property name" <input>,
+                # both direct children of the same `newPropForm` div -- so
+                # scope from that known-good anchor instead of the whole page.
+                type_select = (
+                    name_field.locator("xpath=following-sibling::select[1]")
+                    if name_field.count() else page.locator("__no_name_field__")
+                )
                 if type_select.count():
                     type_select.first.select_option("relation")
                 confirm = page.get_by_role("button", name=re.compile("^(Add|Create|Save)$", re.I))
@@ -852,7 +940,24 @@ with sync_playwright() as p:
         if link_btn.count():
             link_btn.first.click()
             find_box = page.get_by_role("textbox", name="Find a note to link")
-            find_box.fill(b["title"].split(" ")[0])
+            # ⛔ FIX (this run): searching by the first word of the title
+            # ("Walk", shared by literally every note this whole walk
+            # program has ever created, across every run in this session)
+            # is not a query, it is a firehose. `notes.switcher_search`
+            # (api/services/journal_two/notes.py) ranks a tier-1 "starts
+            # with" match by (a) whether the NOTE was previously opened in
+            # THIS browser -- `isRecent`/`recent_at` notes lead their tier
+            # regardless of true recency -- then (b) most-recently-updated.
+            # A raw-API-created note that was never opened in this browser
+            # sits at the END of that tier, behind every previously-opened
+            # "Walk ..." note from this whole session, and the picker caps
+            # results at 8 (NoteSearchPicker.jsx: `limit=8`) -- so the exact
+            # target can fall off the visible list entirely while dozens of
+            # OTHER "Walk ..." notes fill it. The full, exact title is
+            # unique (RUN + timestamp), so it always resolves to
+            # `matchTier: 0` (SWITCHER_TIER_EXACT), which the ranking always
+            # places first regardless of recents/favourites.
+            find_box.fill(b["title"])
             page.wait_for_timeout(500)
             listbox = page.get_by_role("listbox", name="Notes to link")
             listbox.get_by_role("button", name=b["title"], exact=True).click()
@@ -993,7 +1098,20 @@ with sync_playwright() as p:
         menu = page.get_by_role("group", name="Organise this note")
         menu.get_by_role("button", name=re.compile("Open a note beside")).click()
         find_box = menu.get_by_label("Find a note to open beside")
-        find_box.fill(b["title"].split(" ")[0])
+        # ⛔ FIX (this run): same root cause as W5's "Link a note" search,
+        # traced live against `notes.switcher_search` -- querying by the
+        # first word ("Walk") ties this note with every "Walk ..." note this
+        # whole session has ever created, and `_ranked()` places any
+        # PREVIOUSLY-OPENED ("isRecent") tier-1 match ahead of a raw,
+        # never-opened one regardless of true recency, with only 8 slots
+        # (NoteSearchPicker.jsx `limit=8`) -- so a brand-new note created via
+        # a raw API POST (never opened in this browser) can fall off the
+        # list entirely behind older, previously-opened "Walk ..." notes.
+        # Confirmed live: querying "walk" for a note created seconds earlier
+        # returned 8 OTHER "Walk ..." notes and never the target
+        # (`matchTier` 1 for all, target absent); the exact, unique title
+        # always resolves to `matchTier: 0` and sorts first. Use it.
+        find_box.fill(b["title"])
         page.wait_for_timeout(500)
         listbox = menu.get_by_role("listbox", name="Notes to open beside")
         listbox.get_by_role("button", name=b["title"], exact=True).click()
@@ -1010,7 +1128,10 @@ with sync_playwright() as p:
         if beside_btn2.count():
             beside_btn2.click()
             find2 = main_pane.get_by_label("Find a note to open beside")
-            find2.fill(a["title"].split(" ")[0])
+            # Same fix as above -- an exact, unique query so this assertion
+            # is about the exclusion, not about whether the query happened
+            # to surface A among a firehose of same-prefixed notes.
+            find2.fill(a["title"])
             page.wait_for_timeout(400)
             offered = main_pane.get_by_role("listbox", name="Notes to open beside").get_by_text(a["title"])
             refused_self = offered.count() == 0
@@ -1038,6 +1159,21 @@ with sync_playwright() as p:
         # (Playwright's default for a bare string) is unambiguous.
         side_editor = side_pane.locator(".ProseMirror")
         side_editor.click()
+        # ⛔ FIX (this run): note B's body is NOT empty ("B body", seeded via
+        # the API) -- a bare click focuses the editor but leaves the caret
+        # wherever the click landed in existing text, so typing "/Image"
+        # there APPENDS literal text ("B body/Image") instead of opening the
+        # slash menu. Confirmed live: the identical click+type sequence on a
+        # note whose body starts as a single EMPTY paragraph (W9's note)
+        # opens the menu correctly, and reproducing this exact scenario
+        # (existing text, bare click, no Control+End+Enter) via a standalone
+        # script left `listbox.count() == 0`, matching the real run's
+        # `image_picker_openers: 0`. The slash command needs a fresh, empty
+        # block -- move to the end of the note and open one, exactly like
+        # every other slash-command step in check_w9 already does before
+        # typing a command.
+        page.keyboard.press("Control+End")
+        page.keyboard.press("Enter")
         page.keyboard.type("/Image", delay=20)
         page.wait_for_timeout(300)
         listbox2 = page.get_by_role("listbox", name="Insert block")
@@ -1074,14 +1210,31 @@ with sync_playwright() as p:
             "tags": [tag_nested],
         }).json()["note"] for i in range(2)]
 
-        # Final semantics (fix round 3, N1): the brief's "Rename the others"
-        # waiver is GONE. When a rename touches notes this device could not
-        # check for unsynced changes -- true of EVERY note here, since each
-        # was created via a raw API POST and never passed through this
-        # device's own durable-write pipeline -- the dialog NAMES those notes,
-        # offers a single Close, and issues exactly one
-        # /api/j2/notes/batch request. No button whose text contains "anyway"
-        # or "others" exists, and no second batch request follows.
+        # ⛔ FIX (this run): the paragraph this replaces asserted "this
+        # device could not check" for EVERY note here because each was
+        # "created via a raw API POST" -- traced live against
+        # `noteHasUnsentWork.js` and that is backwards. That file's own
+        # header comment says it outright: "ABSENT IS NOT UNKNOWN... with no
+        # account there is no store, and with no note id there is nothing
+        # that could hold a queued entry -- in both cases no unsent work CAN
+        # exist. Returning TRUE here deferred five legitimate door tests,
+        # which is the guard refusing to let a member through a door that
+        # was never dangerous." A note this browser has NO local IndexedDB
+        # record for at all (never opened here) reads back
+        # `{unsent: false, why: null}` -- a CLEAN verdict, not `unreadable` --
+        # so `checkUnsentWork` never adds it to `unchecked`, and it is sent
+        # in the batch normally. The "this device could not check" / "old
+        # tag" / "rename it again" copy (`UNCHECKED_OP_COPY.renameTag` in
+        # noteBatch.js) is for a note whose LOCAL STORE COULD NOT BE OPENED
+        # OR READ (`why: 'unreadable'`) -- a different, narrower case this
+        # test never constructs (W8b does, deliberately, via a live network
+        # interception). For these four plain, never-opened notes the real
+        # and correct behaviour is an ordinary, unconditional rename: a
+        # single /api/j2/notes/batch request, a plain "Renamed N notes from
+        # #a to #b." notice, and both notes landing on the NEW tag. Confirmed
+        # live: `new_tag_total: 2, old_tag_total: 0` for both flat and
+        # nested, notice text exactly that plain sentence -- this is the
+        # product working as designed, not a defect.
         results = {}
         for tag, label in ((tag_flat, "flat"), (tag_nested, "nested")):
             page.goto(notebook_url(None, "?view=all"))
@@ -1151,7 +1304,18 @@ with sync_playwright() as p:
                     "button", name=re.compile("anyway|others", re.I)
                 ).count() > 0
 
-                close_btn = page.get_by_role("button", name=re.compile("^Close$", re.I))
+                # ⛔ FIX (this run): NotebookTab.jsx's bulk-notice dismiss
+                # button has NO text node -- its accessible name comes from
+                # `aria-label="Dismiss this message"` (`styles.bulkNoticeClose`,
+                # a bare UIcon "x" inside) -- so a name=="Close" match (exact
+                # or not) always resolved to zero elements regardless of
+                # scenario, which is why `has_single_close` read False even
+                # where the real dismiss button was on screen the whole time.
+                # It is rendered unconditionally whenever `bulkNotice` is set
+                # (NotebookTab.jsx ~line 1303), independent of tone/waiver, so
+                # it is expected present for BOTH a plain success and a
+                # partial-failure notice.
+                close_btn = page.get_by_role("button", name="Dismiss this message")
                 has_single_close = close_btn.count() == 1
                 if close_btn.count():
                     close_btn.first.click()
@@ -1160,9 +1324,14 @@ with sync_playwright() as p:
                 page.remove_listener("response", _count_batch)
 
             notice_lower = (notice_text or "").lower()
+            # These two phrases belong to `UNCHECKED_OP_COPY.renameTag`'s
+            # message (noteBatch.js) -- the UNREADABLE-local-store case, not
+            # this test's scenario. Recorded as evidence, correctly expected
+            # False below (see the fixed comment above the loop).
             names_this_device_could_not_check = "this device could not check" in notice_lower
             mentions_keep_old_tag = "old tag" in notice_lower
             mentions_rename_again = "rename it again" in notice_lower
+            plain_success_notice = bool(re.search(r"renamed \d+ notes? from #", notice_lower))
 
             new_count = api.get(BASE + f"/api/j2/notes/tag-members?tag={new_tag}").json()
             old_count = api.get(BASE + f"/api/j2/notes/tag-members?tag={tag}").json()
@@ -1171,6 +1340,7 @@ with sync_playwright() as p:
                 "preview_total": preview_total,
                 "batch_request_count": len(batch_requests),
                 "notice_text": notice_text,
+                "plain_success_notice": plain_success_notice,
                 "names_this_device_could_not_check": names_this_device_could_not_check,
                 "mentions_keep_old_tag": mentions_keep_old_tag,
                 "mentions_rename_again": mentions_rename_again,
@@ -1180,17 +1350,22 @@ with sync_playwright() as p:
                 "old_tag_total": old_count.get("total"),
             }
 
+        # ⛔ FIX (this run): these four notes have no local IndexedDB record
+        # at all (never opened in this browser), so `noteHasUnsentWork`
+        # reads them as CLEAN (`why: null`), never `unreadable` -- the
+        # "device could not check" copy therefore correctly never fires here
+        # (see W8b for the scenario where it should). The real, correct pass
+        # bar is a plain, unconditional, successful rename.
         ok = all(
             r["rename_affordance_present"]
             and r["preview_total"] == 2
             and r["batch_request_count"] == 1
-            and r["names_this_device_could_not_check"]
-            and r["mentions_keep_old_tag"]
-            and r["mentions_rename_again"]
+            and r["plain_success_notice"]
+            and not r["names_this_device_could_not_check"]
             and not r["has_waiver_button"]
             and r["has_single_close"]
-            and r["old_tag_total"] == 2
-            and r["new_tag_total"] == 0
+            and r["old_tag_total"] == 0
+            and r["new_tag_total"] == 2
             for r in results.values()
         )
         record(
@@ -1198,13 +1373,17 @@ with sync_playwright() as p:
             **results,
             brief_mismatch_note=(
                 "The brief expected a 'Rename the others' waiver-and-confirm flow. Fix round 3 "
-                "(N1, final ruling, see NotebookTab.tagRename.test.jsx) removed every waiver: a "
-                "rename that touches notes this device could not check (notes it has never "
-                "synced/loaded locally -- true of every note this walk seeds via a raw API POST) "
-                "now NAMES those notes in a notice, offers a single Close, issues exactly one "
-                "/api/j2/notes/batch request, and leaves them on the OLD tag until they sync. "
-                "This check asserts that real behaviour, not the brief's stale waiver-button "
-                "expectation."
+                "(N1, final ruling, see NotebookTab.tagRename.test.jsx) removed every waiver -- "
+                "but a PRIOR version of this walk also mis-read `noteHasUnsentWork.js`'s own "
+                "documented ruling: a note this device has NO local record for at all (never "
+                "opened here) is CLEAN, not unchecked ('ABSENT IS NOT UNKNOWN', that file's own "
+                "words) -- so these four raw-API-created, never-opened notes rename normally: "
+                "one /api/j2/notes/batch request, a plain 'Renamed N notes from #a to #b.' "
+                "notice, both landing on the NEW tag. The 'this device could not check' / 'old "
+                "tag' / 'rename it again' copy is for a note whose local store could not be "
+                "OPENED OR READ -- a narrower case W8b constructs deliberately via a live "
+                "network interception, not simply 'seeded via the API'. This check now asserts "
+                "the real behaviour for the scenario it actually builds."
             ),
         )
 
@@ -1296,7 +1475,23 @@ with sync_playwright() as p:
 
         notice_lower = (notice_text or "").lower()
         names_dirty_note = bool(notice_text) and n_dirty["title"] in (notice_text or "")
+        # ⛔ FIX (this run): traced live against noteHasUnsentWork.js +
+        # noteBatch.js. n_dirty has a QUEUED/DIRTY local record with a
+        # READABLE store (dpage's intercepted PUT never reached the server,
+        # so `dirty`/`queued` is true) -- that reads back
+        # `{unsent: true, why: 'dirty'|'queued'|'both'}`, which
+        # `checkUnsentWork` buckets as UNSENT, never UNCHECKED.
+        # "this device could not check" is `UNCHECKED_OP_COPY.renameTag`'s
+        # copy for the DIFFERENT, narrower `unreadable` case (the local
+        # store itself could not be opened/read) -- this scenario instead
+        # produces `FAILURE_WORDS.unsent`, "is still syncing -- try again in
+        # a moment" (noteBatch.js:201), confirmed live in `notice_text`
+        # above ("...still syncing — try again in a moment."). Assert the
+        # phrase this scenario actually produces; W8 (not W8b) is the one
+        # that legitimately expects "this device could not check" to be
+        # ABSENT, and does.
         names_this_device_could_not_check = "this device could not check" in notice_lower
+        notes_still_syncing = "still syncing" in notice_lower
         has_waiver_button = rpage.get_by_role("button", name=re.compile("anyway|others", re.I)).count() > 0
 
         try:
@@ -1310,7 +1505,7 @@ with sync_playwright() as p:
         verdict = "PASS" if (
             rename_fired
             and names_dirty_note
-            and names_this_device_could_not_check
+            and notes_still_syncing
             and not has_waiver_button
             and len(batch_requests) == 1
         ) else "INCONCLUSIVE"
@@ -1319,6 +1514,7 @@ with sync_playwright() as p:
             rename_fired=rename_fired, notice_text=notice_text,
             names_the_unsent_note=names_dirty_note,
             names_this_device_could_not_check=names_this_device_could_not_check,
+            notes_still_syncing=notes_still_syncing,
             has_waiver_button=has_waiver_button,
             batch_request_count=len(batch_requests),
             intercepted_write_methods=intercepted_writes,
@@ -1334,15 +1530,22 @@ with sync_playwright() as p:
                 "The brief expects a 'Rename the others' waiver button; wave 6 fix round 3 "
                 "(N1, final ruling, see NotebookTab.tagRename.test.jsx) REMOVED that waiver "
                 "entirely -- the unsent note now gets no waiver of any kind, only a named "
-                "notice ('these N notes have changes this device could not check...') and a "
-                "single Close, and exactly one /api/j2/notes/batch request is issued. This "
-                "check verifies the REAL current behaviour."
+                "notice and a single Close, and exactly one /api/j2/notes/batch request is "
+                "issued. ⛔ FIX (this run): a PRIOR version of this walk also asserted the wrong "
+                "wording here -- a note with a queued/dirty but READABLE local record is UNSENT "
+                "(noteHasUnsentWork.js: why='dirty'/'queued'/'both'), not UNCHECKED "
+                "(why='unreadable'); noteBatch.js's UNSENT case renders FAILURE_WORDS.unsent "
+                "('is still syncing — try again in a moment'), never "
+                "UNCHECKED_OP_COPY.renameTag's 'this device could not check' sentence -- that "
+                "sentence belongs to W8's scenario (an unreadable store), which this check "
+                "confirms is correctly ABSENT here (`names_this_device_could_not_check` is "
+                "recorded but not required). This check now asserts the real behaviour."
             ),
             reason=None if verdict == "PASS" else (
                 "the race did not reproduce (the intercepted write may have been retried/"
                 "flushed before the rename ran), or the rename UI could not be driven, or the "
-                "notice text did not match the expected 'this device could not check' phrasing "
-                "-- see notice_text"
+                "notice text did not match the expected 'still syncing' phrasing -- see "
+                "notice_text"
             ),
         )
 
@@ -1417,12 +1620,30 @@ with sync_playwright() as p:
             tmp = tempfile.NamedTemporaryFile(suffix=".png", delete=False)
             tmp.write(PNG_1PX)
             tmp.close()
-            fc.set_files(tmp.path)
+            # ⛔ FIX (this run): `tempfile.NamedTemporaryFile` exposes the
+            # path as `.name`, never `.path` -- `_io.BufferedRandom` (what
+            # `.close()` leaves behind) has no `.path` attribute at all,
+            # which is why this raised `AttributeError` before
+            # `set_files`/`unlink` ever ran. A pure instrument bug: nothing
+            # about the product was exercised.
+            fc.set_files(tmp.name)
             page.wait_for_timeout(1200)
             image_uploaded = page.locator(".ProseMirror img").count() > 0
-            _os.unlink(tmp.path)
+            _os.unlink(tmp.name)
             if image_uploaded:
-                page.locator(".ProseMirror img").first.click()
+                # ⛔ FIX (this run): a real resize-handle overlay
+                # (`<span class="_handle_1ywux_121 _hSE_1ywux_139">`, the
+                # image node view's south-east resize grip) sits exactly at
+                # the img element's default click point and intercepts
+                # pointer events there -- Playwright's actionability check
+                # correctly refuses a click that would land on a DIFFERENT
+                # element and retries for the full 30s. This is real product
+                # UI (a resizable image), not a bug: selecting the image to
+                # reveal its caption toolbar doesn't need to land inside the
+                # handle's hit area, so `force=True` (bypass the
+                # interception check, same as clicking a corner the handle
+                # doesn't cover) is the correct instrument fix.
+                page.locator(".ProseMirror img").first.click(force=True)
                 toolbar = page.get_by_role("toolbar")
                 add_caption = toolbar.get_by_text("Add caption", exact=False)
                 if add_caption.count():
@@ -1774,14 +1995,29 @@ with sync_playwright() as p:
         owner_notice_on_tab2 = notice.count() > 0
 
         tab1.close()
-        # ⛔ FIX (directive #6, part 1): useOutboxDrain.js:35
-        # `RETRY_INTERVAL_MS = 60000` (60s), and the real call site
-        # (NotebookTab.jsx:124) passes no override -- so the production sweep
-        # period is 60s. The old 2s wait could not possibly have caught a
-        # sweep that fires up to 60s later; wait AT LEAST two full periods
-        # (120s) plus margin before judging whether tab2 ever drained.
-        _OUTBOX_SWEEP_MS = 60000
-        tab2.wait_for_timeout(2 * _OUTBOX_SWEEP_MS + 10000)
+        # ⛔ FIX (this run, supersedes directive #6, part 1): the wait-two-
+        # sweep-periods fix (60s x2 + margin) was aimed at the WRONG
+        # mechanism, traced live against useOutboxDrain.js's own header
+        # comment: "AND THE OPEN NOTE IS NOT THE SWEEP'S. The editor owns
+        # saving the note it has open, with its own backoff; this drains
+        # everything else." tab2 has THIS note open for the entire check and
+        # never typed anything, so it has NOTHING queued in ANY outbox --
+        # neither the background sweep (which explicitly excludes the open
+        # note) nor the editor's own live-save (which never fires without an
+        # edit). Waiting through any number of 60s sweeps could never
+        # produce a PUT from tab2 here; that was true by design, not a
+        # product defect, and the original 130s wait was measuring a
+        # mechanism this scenario never engages.
+        #
+        # The real question W12 asks -- does the surviving tab become a
+        # working sole writer once the other tab's ownership lock releases --
+        # is answered by having tab2 make its OWN edit now and confirming
+        # ITS editor-owned save (the same direct-PUT path that made
+        # `tab1_first` true above) reaches the server.
+        tab2.locator(".ProseMirror").click()
+        tab2.keyboard.press("End")
+        tab2.keyboard.type(" from tab two after tab one closed.", delay=15)
+        tab2.wait_for_timeout(1500)
         tab2_drains_after_close = puts_from["tab2"] > 0
 
         # bfcache / pagehide: navigate tab2 away and back.
@@ -1805,10 +2041,9 @@ with sync_playwright() as p:
             puts_while_both_open=dict(puts_from),
             tab1_sole_writer_while_open=tab1_first,
             owner_notice_seen_on_tab2=owner_notice_on_tab2,
-            tab2_drains_after_tab1_closes=tab2_drains_after_close,
+            tab2_writes_successfully_after_tab1_closes=tab2_drains_after_close,
             stuck_owner_notice_after_bfcache_nav=stuck_notice,
-            outbox_drain_sweep_interval_ms=_OUTBOX_SWEEP_MS,
-            waited_ms_after_tab1_close=2 * _OUTBOX_SWEEP_MS + 10000,
+            outbox_drain_sweep_interval_ms=60000,
             notice_design_note=(
                 "Exhaustive grep of app/src for 'owns this note' / 'another tab' / "
                 "'other tab' / 'in another window' finds zero rendered JSX text -- only code "
@@ -1818,6 +2053,18 @@ with sync_playwright() as p:
                 "+ outbox-drain skip (noteOwnerLock.js). owner_notice_seen_on_tab2 and "
                 "stuck_owner_notice_after_bfcache_nav reading False is therefore the expected, "
                 "correct PASS state, not a product gap -- searched strings listed above."
+            ),
+            instrument_fix_note=(
+                "⛔ FIX (this run): field renamed from 'tab2_drains_after_tab1_closes' -- the "
+                "prior version waited 2x the 60s outbox-drain sweep period "
+                "(useOutboxDrain.js RETRY_INTERVAL_MS) hoping tab2 would eventually emit a PUT "
+                "on its own, but that file's own header comment rules this out by design: "
+                "'the OPEN NOTE IS NOT THE SWEEP'S... the editor owns saving the note it has "
+                "open, with its own backoff; this drains everything else.' tab2 had this note "
+                "open the whole time and never typed anything, so it had nothing queued in any "
+                "outbox to drain -- no wait, however long, could have produced a PUT. This run "
+                "instead has tab2 make its own edit after tab1 closes and checks THAT lands, "
+                "which is the real test of single-writer hand-off."
             ),
         )
         tab2.close()
