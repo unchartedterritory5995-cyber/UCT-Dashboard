@@ -303,27 +303,6 @@
 .uCountStale { opacity: .45; transition: opacity .1s; }
 @media (max-width: 640px) { .uBaseHint { display: none; } }
 
-/* One-click preset-scan chips in the scan bar (PresetChips). */
-.presetChips { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
-.presetChip { font-family: inherit; font-size: 11.5px; padding: 4px 11px; border-radius: 999px;
-  border: 1px solid var(--border); background: var(--bg-elevated); color: var(--text-muted);
-  cursor: pointer; white-space: nowrap; transition: color .1s, border-color .1s, background .1s; }
-.presetChip:hover { color: var(--text); border-color: var(--ut-gold); }
-.presetChipOn { background: var(--ut-gold); color: #141207; border-color: var(--ut-gold); font-weight: 600; }
-/* "Edit" — pick which preset scans appear as chips. */
-.presetManageWrap { position: relative; display: inline-flex; }
-.presetManageBtn { display: inline-flex; align-items: center; gap: 4px; font-family: inherit;
-  font-size: 11px; color: var(--text-muted); background: none; border: 1px dashed var(--border);
-  border-radius: 999px; padding: 3px 10px; cursor: pointer; }
-.presetManageBtn:hover { color: var(--ut-gold); border-color: var(--ut-gold); }
-.presetManageMenu { position: absolute; left: 0; top: calc(100% + 6px); z-index: 40; min-width: 220px;
-  max-height: 60vh; overflow-y: auto; background: var(--bg-surface); border: 1px solid var(--border-accent);
-  border-radius: var(--radius-md, 8px); box-shadow: var(--shadow-popover, 0 8px 24px rgba(0,0,0,.4)); padding: 6px; }
-.presetManageItem { display: flex; align-items: center; gap: 9px; padding: 5px 8px; border-radius: 5px;
-  font-size: 12.5px; color: var(--text); cursor: pointer; }
-.presetManageItem:hover { background: var(--bg-hover); }
-.presetManageItem input { accent-color: var(--ut-gold); }
-
 /* The ⓘ that opens the "what each universe means" popover, and the Clear that
    resets the pool to All Market. Both sit in the Universe row. */
 .uInfoBtn {
