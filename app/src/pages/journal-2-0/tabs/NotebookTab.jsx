@@ -1,4 +1,4 @@
-import { Suspense, lazy, useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react'
+import { Suspense, useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react'
 import { useSearchParams } from 'react-router-dom'
 import { mutate as globalMutate } from 'swr'
 import useJ2Notes from '../hooks/useJ2Notes'
@@ -47,6 +47,7 @@ import { useHubEligible } from '../../../hub/useHubActive'
 import { BOTTOM_OFFSET_PX, PAD_PX } from '../../../hub/constants'
 import useJ2NoteTags, { NOTE_TAGS_KEY } from '../hooks/useJ2NoteTags'
 import { fallbackNodes } from '../lib/tagTree'
+import lazyChunk from '../lib/lazyChunk'
 
 // ── Wave 7 (lane I3): the views and dialogs a member opens ON PURPOSE load on demand ──
 // Graph, board, calendar, timeline and tasks are view modes; Import and Export are
@@ -56,8 +57,11 @@ import { fallbackNodes } from '../lib/tagTree'
 // changed: every render site reads exactly as it did.
 // ⛔ One <Suspense> per view, never one around the page: a boundary around the page
 // would blank the list and the editor while a view's chunk downloads.
+// Each chunk loads through `lazyChunk`: a failed fetch is retried once in place, and a
+// second failure (a deploy since this tab loaded) reloads the page the way every lazy
+// route in App.jsx already does (review M-5).
 function lazyView(load, label) {
-  const Chunk = lazy(load)
+  const Chunk = lazyChunk(load)
   function LazyNotebookView(props) {
     return (
       <Suspense fallback={<div role="status" aria-label={`Loading ${label}`}><SkeletonLine width="40%" height={13} /></div>}>
@@ -74,7 +78,7 @@ function lazyView(load, label) {
 // guard their in-flight work with a generation counter) runs exactly as before.
 // Before the first open it renders nothing, which is what a closed Sheet renders.
 function lazyDialog(load, label) {
-  const Chunk = lazy(load)
+  const Chunk = lazyChunk(load)
   function LazyNotebookDialog(props) {
     const [opened, setOpened] = useState(Boolean(props.open))
     if (props.open && !opened) setOpened(true)

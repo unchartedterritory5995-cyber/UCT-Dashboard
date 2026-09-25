@@ -27,9 +27,11 @@ const LAZY = [
 const ast = JsxParser.parse(fs.readFileSync(FILE, 'utf8'), { ecmaVersion: 'latest', sourceType: 'module' })
 const staticImports = ast.body.filter((n) => n.type === 'ImportDeclaration').map((n) => n.source.value)
 const dynamicImports = []
+const calls = []
 ;(function visit(n) {
   if (!n || typeof n.type !== 'string') return
   if (n.type === 'ImportExpression' && n.source.type === 'Literal') dynamicImports.push(n.source.value)
+  if (n.type === 'CallExpression' && n.callee.type === 'Identifier') calls.push(n.callee.name)
   for (const v of Object.values(n)) {
     if (Array.isArray(v)) v.forEach(visit)
     else if (v && typeof v.type === 'string') visit(v)
@@ -44,6 +46,17 @@ describe('NotebookTab loads its opt-in views and dialogs on demand', () => {
 
   it('each of them is a dynamic import, exactly once', () => {
     expect([...dynamicImports].sort()).toEqual([...LAZY].sort())
+  })
+
+  // Fix round 1 (review M-5): a bare React.lazy turns a chunk that failed to fetch into a
+  // route-boundary reload on the FIRST view click. lib/lazyChunk.test.jsx proves the helper;
+  // this proves NotebookTab actually uses it (a helper test is blind to a wrapper that stops
+  // calling it).
+  it('every on-demand chunk loads through lazyChunk, never a bare React.lazy', () => {
+    expect(staticImports).toContain('../lib/lazyChunk')
+    expect(calls).toContain('useState') // non-vacuity: the walk sees ordinary calls
+    expect(calls.filter((c) => c === 'lazy')).toEqual([])
+    expect(calls.filter((c) => c === 'lazyChunk')).toHaveLength(2) // lazyView + lazyDialog
   })
 
   it('the editor, the first paint, stays static', () => {
