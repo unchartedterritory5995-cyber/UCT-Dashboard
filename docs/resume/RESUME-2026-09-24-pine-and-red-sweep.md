@@ -179,15 +179,25 @@ took the 38; the integrator re-ran every touched file in its own tree before eac
    `git push origin merge/pine-up-to-master-resolved:merge/pine-up-to-master`. #184's gated
    head (`526b5e2aa`) is untouched until you do that; its gate evidence then needs the
    carry-over check (`tools/gate_carry_over.py`) or a re-gate — owner's call.
-2. **Rule on the fractional-window bug** (member-facing, since #145): say "fix it" and the
-   agent changes ONE line at `pine.js:8048` (do not defer a literal `num` that is not a usable
-   window — `usableWindowBound` already answers null for `27.5`), adds a rail, and the four
-   red cases in `pineBoxSuggestVoice` / `ImportBox.thinkscript` go green. Or leave it to the
-   pine programme.
-3. **Rule on the BuilderSheet contract**: which sibling case is right — "the saved document
-   is byte-identical to the typed one" or "the author's lengths arrive as FIELDS". One of
-   the two tests changes; no product code either way unless you want the door to strip the
-   knobs.
+   ⛔ **The merge button is yours.** `gh pr merge` from the agent's session is refused by
+   Claude Code's auto-mode classifier ("Production Deploy"); the guard said master was clear
+   at 20:25 CT (the two pushes after 73a4286d0 were `tools/`-only, Railway SKIPPED their web
+   builds). Click **Merge pull request** (merge commit) on #185, or add a Bash permission
+   rule for `gh pr merge` so the agent can land PRs from here on.
+2. ✅ **Fractional-window bug — FIXED, PR #188 open** (owner said "do it all"):
+   https://github.com/unchartedterritory5995-cyber/UCT-Dashboard/pull/188 — one line at
+   `pine.js:8048` (`resolved.type !== 'num' && isBindFoldableLength(resolved)`): a literal has
+   no binding to wait for, so it is refused at the door with its `hma(...)` suggestion again.
+   `pineBoxSuggestVoice` 4/4, `ImportBox.thinkscript` 25/25, nine neighbouring rails green,
+   mutation-proved, ESLint delta zero. The identical hunk is on `merge/pine-up-to-master-resolved`
+   so #184 cannot conflict with it. **Merge #188 after #185** (same click).
+3. ✅ **BuilderSheet contract — RULED B and railed, PR #189 open**:
+   https://github.com/unchartedterritory5995-cyber/UCT-Dashboard/pull/189 — the saved Pine
+   document is the typed one PLUS exactly the author's knob machinery (`compute.paramManifest`,
+   `scanPlot`, `sources`, `trees`, `treesHash`, one `plots[]` entry and a colour+width input per
+   additional plot); every typed key byte-identical, `compute.fn` included. 16/16, four
+   mutation proofs. Reversible in one line if you rule A instead. Carries the sweep's finder
+   commit (identical content to #185's; merges clean either order). **Merge after #185.**
 4. **`rule12Paths` scoping** (hub rail owner): decide whether gate manifests under
    `docs/plans/joystick/gate-runs/` and `fix/`-family branches should count as a joystick
    change set. Green on master regardless.
