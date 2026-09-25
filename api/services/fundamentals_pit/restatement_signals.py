@@ -170,9 +170,27 @@ _FACTV = re.compile(r"<([A-Za-z][\w\-]*):([A-Za-z]\w*)\b([^>]*)>([^<]*)</\1:\2>"
 _CREF = re.compile(r"\bcontextRef=\"([^\"]+)\"")
 
 
-def instance_signals(accn: str, instance_xml: str) -> list[tuple]:
+def is_breakdown_axis(dimension: str) -> bool:
+    """A STANDARD-taxonomy axis other than the restatement axes: segment, product,
+    geography, related party, equity component, consolidating entity, ... A fact on
+    one is a COMPONENT of the consolidated quantity, not the quantity itself.
+    Company-extension axes (CELH's own "standalone quarter / YTD basis" axis) are
+    not breakdowns and stay adjustment-only (`_collect`)."""
+    prefix = dimension.split(":", 1)[0]
+    return prefix in _STD_PREFIX and dimension not in RESTATEMENT_AXES_XML
+
+
+def instance_signals(accn: str, instance_xml: str, consolidated_only: bool = True) -> list[tuple]:
     """[(accn, tag, start_iso, end_iso, KIND)] for every standard-taxonomy
-    concept the filing RESTATED (value-aware, as fs_dataset_signals)."""
+    concept the filing RESTATED (value-aware, as fs_dataset_signals).
+
+    V5 (the ONE evidence model for full and incremental derivation):
+      * spans are the context's EXACT dates -- never reconstructed or rounded;
+      * `consolidated_only`: a restatement context that also carries a standard
+        BREAKDOWN axis describes a component (a product line, a related party),
+        not the consolidated quantity, and is ignored. MEASURED on the 121-filing
+        parity corpus: every instance-only signal on a breakdown axis was a
+        component disclosure (ProductOrServiceAxis revenue, related-party debt)."""
     plain_ctx: dict[str, tuple[str, str]] = {}
     axis_ctx: dict[str, tuple] = {}
     for cid, body in _CTX.findall(instance_xml):
@@ -186,6 +204,8 @@ def instance_signals(accn: str, instance_xml: str) -> list[tuple]:
             plain_ctx[cid] = (s.group(1), e.group(1))
             continue
         hit = [m for d, m in mems if d in RESTATEMENT_AXES_XML]
+        if hit and consolidated_only and any(is_breakdown_axis(d) for d, _ in mems):
+            continue
         if hit:
             member = hit[0].strip().split(":")[-1]
             member = member[:-6] if member.endswith("Member") else member

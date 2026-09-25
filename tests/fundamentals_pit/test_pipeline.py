@@ -3,6 +3,8 @@ publish, snapshot-archive gate, provenance. No network: bulk archives and
 SEC fetchers are synthetic."""
 import json
 import zipfile
+
+import pytest
 from datetime import datetime, timezone
 from pathlib import Path
 
@@ -31,6 +33,14 @@ FACTS = [("2023-01-01", "2023-09-30", 330, "A-23-3", "10-Q", "2023-11-01"),
          ("2023-01-01", "2023-12-31", 460, "A-24-1", "10-K", "2024-02-15")]
 ACCNS = [("A-23-3", "2023-11-01", "2023-11-01T20:00:00.000Z", "10-Q"),
          ("A-24-1", "2024-02-15", "2024-02-15T21:00:00.000Z", "10-K")]
+
+
+@pytest.fixture(autouse=True)
+def _offline_instances(monkeypatch):
+    """The V5 backfill takes restatement evidence from each filing's own instance; these
+    fixtures have no instances, and no test may reach SEC."""
+    from api.services.fundamentals_pit import sec_client as SEC
+    monkeypatch.setattr(SEC, "filing_instance", lambda cik, accn: None)
 
 
 def _zips(tmp: Path, facts=FACTS, accns=ACCNS):

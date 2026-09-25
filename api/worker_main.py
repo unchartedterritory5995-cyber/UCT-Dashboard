@@ -901,6 +901,14 @@ def main():
     _start_wick_backfill()
     _start_combined_pass()
     _start_memwatch()
+    # Historical PIT fundamentals: incremental SEC ingestion + publication. The
+    # WORKER owns these jobs (it holds the store); dark unless
+    # FUNDAMENTALS_PIT_INCREMENTAL_ENABLED=1, single-instance by a lock on the volume.
+    try:
+        from api.services.fundamentals_pit.schedule import start_worker_scheduler
+        start_worker_scheduler()
+    except Exception as e:
+        log.warning(f"fundamentals_pit scheduler failed to start (non-fatal): {e}")
     # Universe Bars Pack builder — once/ET-day, repackages local bars.db D/W/M
     # into a static R2 artifact so browsers pre-seed IndexedDB for instant
     # first-view charts. Dark until BARSPACK_ENABLED=1; zero provider cost.

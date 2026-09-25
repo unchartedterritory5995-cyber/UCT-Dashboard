@@ -6302,14 +6302,9 @@ async def lifespan(app: FastAPI):
         except Exception as e:
             print(f"[scheduler] wisdom registration error: {e}")
 
-        # -- Historical PIT fundamentals: incremental SEC ingestion (worker only) --
-        try:
-            from api.services.fundamentals_pit.schedule import register_fundamentals_pit_jobs
-            _fpit = register_fundamentals_pit_jobs(_scheduler)
-            if _fpit:
-                print(f"[startup] fundamentals_pit jobs registered: {', '.join(_fpit)}")
-        except Exception as e:
-            print(f"[scheduler] fundamentals_pit registration error: {e}")
+        # -- Historical PIT fundamentals: NOT scheduled here. This scheduler runs on
+        #    the WEB pod, which has no fundamentals store; the jobs are owned by the
+        #    WORKER (api/worker_main.py -> fundamentals_pit.schedule.start_worker_scheduler).
 
         # -- Full-market screener nightly snapshot build (spec 2026-06-19) --
         try:

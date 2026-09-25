@@ -81,22 +81,82 @@ def enqueue(conn, events: list[dict], universe_ciks: set[int] | None, now: float
     return n
 
 
-def check_signals(conn, cik: int, *, fetch_instance=SEC.filing_instance, now: float | None = None) -> int:
-    """Inspect the own instance of every periodic filing not yet checked."""
+# ── V5: ONE restatement-evidence model for full AND incremental derivation ──
+#
+# ⛔⛔ MEASURED 2026-09-25: the full (v4) derivation took restatement evidence from
+# the SEC FS data sets -- spans RECONSTRUCTED from (rounded end, quarter count) --
+# and the incremental path from each filing's own instance (EXACT spans). 71 of 121
+# filings disagreed and CELH 2022-05-10 derived differently in the two modes. V5 has
+# ONE seam: every restatement signal, historical or new, is `instance_evidence`
+# (the filing's own XBRL instance, exact context periods, consolidated-only) and is
+# written by `record_evidence`. `check_signals` (incremental) and
+# `instance_signal_pass` (full backfill) are two schedulers of the same two calls.
+
+def instance_evidence(cik: int, accn: str, fetch_instance=None) -> list[tuple] | None:
+    """The filing's restatement evidence, from its OWN instance. None = no instance.
+    The fetcher resolves at CALL time (SEC.filing_instance), so one stub covers every route."""
+    xml = (fetch_instance or SEC.filing_instance)(cik, accn)
+    return None if xml is None else R.instance_signals(accn, xml)
+
+
+def record_evidence(conn, accn: str, rows: list[tuple] | None, now: float) -> int:
+    rows = rows or []
+    with S.tx(conn):
+        n = S.put_signals(conn, rows, "instance", now)
+        conn.execute("INSERT OR REPLACE INTO signal_check VALUES (?,?,?,?)", (accn, now, len(rows), "instance"))
+    return n
+
+
+def _unchecked(conn, ciks=None) -> list[tuple[int, str]]:
+    forms = ",".join(f"'{f}'" for f in SIGNAL_FORMS)
+    sql = (f"SELECT f.cik, f.accn FROM filing f LEFT JOIN signal_check c ON c.accn = f.accn "
+           f"WHERE c.accn IS NULL AND f.form IN ({forms})")
+    rows = conn.execute(sql).fetchall()
+    if ciks is not None:
+        keep = set(ciks)
+        rows = [r for r in rows if r[0] in keep]
+    return sorted(rows)
+
+
+def check_signals(conn, cik: int, *, fetch_instance=None, now: float | None = None) -> int:
+    """INCREMENTAL: the evidence of every periodic filing of this company not yet checked."""
     now = time.time() if now is None else now
-    todo = conn.execute(
-        "SELECT f.accn, f.form FROM filing f LEFT JOIN signal_check c ON c.accn = f.accn "
-        "WHERE f.cik=? AND c.accn IS NULL", (cik,)).fetchall()
     total = 0
-    for accn, form in todo:
-        if form not in SIGNAL_FORMS:
-            continue
-        xml = fetch_instance(cik, accn)
-        rows = R.instance_signals(accn, xml) if xml else []
-        with S.tx(conn):
-            total += S.put_signals(conn, rows, "instance", now)
-            conn.execute("INSERT OR REPLACE INTO signal_check VALUES (?,?,?,?)", (accn, now, len(rows), "instance"))
+    for _, accn in _unchecked(conn, [cik]):
+        total += record_evidence(conn, accn, instance_evidence(cik, accn, fetch_instance), now)
     return total
+
+
+def instance_signal_pass(conn, ciks=None, *, workers: int = 8, fetch_instance=None,
+                         now: float | None = None, progress=None) -> dict:
+    """FULL: the same evidence for every unchecked periodic filing. Fetch + extract run
+    on a thread pool under sec_client's ONE process-wide rate limiter; every write is
+    on this thread. RESUMABLE: `signal_check` is the checkpoint -- a restart skips
+    every filing already recorded."""
+    from concurrent.futures import ThreadPoolExecutor
+    now = time.time() if now is None else now
+    todo = _unchecked(conn, ciks)
+    out = {"todo": len(todo), "checked": 0, "signals": 0, "no_instance": 0, "failed": []}
+
+    def work(item):
+        cik, accn = item
+        try:
+            return item, instance_evidence(cik, accn, fetch_instance), None
+        except Exception as e:                           # NOT recorded: retried on the next pass
+            return item, None, str(e)[:300]
+
+    with ThreadPoolExecutor(max(1, workers)) as ex:
+        for (cik, accn), rows, err in ex.map(work, todo):
+            if err is not None:
+                out["failed"].append([cik, accn, err])
+                continue
+            if rows is None:
+                out["no_instance"] += 1
+            out["signals"] += record_evidence(conn, accn, rows, now)
+            out["checked"] += 1
+            if progress and out["checked"] % 500 == 0:
+                progress(out)
+    return out
 
 
 def mark_backfilled_signals(conn, source: str, accns: set[str], now: float | None = None) -> None:
@@ -109,7 +169,7 @@ def mark_backfilled_signals(conn, source: str, accns: set[str], now: float | Non
 
 
 def refresh_company(conn, cik: int, *, cache_dir: str | None = None, local_root: str | None = None,
-                    sources=PRODUCTION_SOURCES, fetch_instance=SEC.filing_instance,
+                    sources=PRODUCTION_SOURCES, fetch_instance=None,
                     fetch_company=None, now: float | None = None) -> dict:
     """Ingest -> signals -> derive -> publish for ONE company."""
     now = time.time() if now is None else now
