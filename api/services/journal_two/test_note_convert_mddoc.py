@@ -857,6 +857,67 @@ def test_relative_and_journal_and_import_link_hrefs_still_allowed():
         assert text_node["marks"][0]["attrs"]["href"] == href
 
 
+# ---------------------------------------------------------------------------
+# ⛔ Wave 7 lane J, J6 — the href is checked AS A BROWSER READS IT.
+#
+# TipTap's `isAllowedUri` (@tiptap/extension-link 3.23.6, dist/index.js:190)
+# removes every character of UNICODE_WHITESPACE_PATTERN (U+0000-U+0020,
+# U+00A0, U+1680, U+180E, U+2000-U+2029, U+205F, U+3000) from the WHOLE uri
+# before the scheme check; a browser ignores them inside a scheme too, so
+# `java<TAB>script:` IS `javascript:`. `_is_allowed_link_href` checked the
+# raw string, so these three shapes were refused by the editor and ADMITTED
+# here -- stored as links a share page or an HTML export would render.
+# ---------------------------------------------------------------------------
+
+
+def test_is_allowed_link_href_refuses_a_scheme_hidden_by_whitespace_or_control_characters():
+    from api.services.journal_two.note_connectors.convert.mddoc import _is_allowed_link_href
+
+    for href in (
+        "  javascript:alert(1)",       # leading spaces
+        "\tjavascript:alert(1)",       # a leading tab
+        "java\x00script:alert(1)",     # NUL inside the scheme
+        "java\tscript:alert(1)",       # a tab inside the scheme
+        "java script:alert(1)",   # a no-break space inside the scheme
+        "\n\rvbscript:msgbox(1)",      # newline + CR ahead of another script scheme
+    ):
+        assert _is_allowed_link_href(href) is False, repr(href)
+
+
+def test_is_allowed_link_href_still_allows_real_links_after_the_strip():
+    from api.services.journal_two.note_connectors.convert.mddoc import _is_allowed_link_href
+
+    for href in (
+        "https://example.com/a?b=c",
+        " https://example.com",        # a stray leading space on a real link stays a link (as in TipTap)
+        "mailto:a@example.com",
+        "/journal?j2tab=notebook&note=1",
+        "import-link://obsidian:x.md",
+        "#anchor",
+        "notes.md",                    # a relative link
+        "",                            # the empty href short-circuit
+    ):
+        assert _is_allowed_link_href(href) is True, repr(href)
+
+
+def test_an_html_link_whose_scheme_hides_behind_a_tab_or_spaces_keeps_its_words_not_its_link():
+    """Through a real call site: the HTML converter reads `href` after entity
+    decoding, so `&#9;` arrives as a TAB -- the exact shape lane G's personal
+    API had to strip around (fix round 1, M-5)."""
+    from api.services.journal_two.note_connectors.convert.mddoc import html_to_tiptap
+
+    for raw in ('java&#9;script:alert(1)', '  javascript:alert(1)', '&#10;javascript:alert(1)'):
+        result = html_to_tiptap(f'<p><a href="{raw}">words</a></p>')
+        para = result["doc"]["content"][0]
+        assert _plain_text(para) == "words", raw
+        for n in para["content"]:
+            if n.get("type") == "text":
+                assert n.get("marks", []) == [], (raw, n)
+    # Control: an ordinary https link through the same door keeps its mark.
+    ok = html_to_tiptap('<p><a href="https://example.com">words</a></p>')["doc"]["content"][0]
+    assert ok["content"][0]["marks"] == [{"type": "link", "attrs": {"href": "https://example.com"}}]
+
+
 def test_media_dedup_by_ref_minor():
     # Minor: the SAME image src referenced twice must not produce two media
     # entries (JS parity, `dedupeMedia`) — both occurrences still carry the

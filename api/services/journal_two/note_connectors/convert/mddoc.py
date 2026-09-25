@@ -521,12 +521,23 @@ _LINK_URI_RE = re.compile(
 )
 
 
+# ⛔ What TipTap's `isAllowedUri` strips from the WHOLE uri before the scheme
+# check -- `UNICODE_WHITESPACE_PATTERN` in @tiptap/extension-link 3.23.6
+# (dist/index.js): U+0000-U+0020, U+00A0, U+1680, U+180E, U+2000-U+2029, U+205F,
+# U+3000. A browser ignores them inside a scheme too, so `java<TAB>script:` IS
+# `javascript:`. Checked here on the raw string, `"  javascript:..."`,
+# `"\tjavascript:..."` and `"java\x00script:..."` were refused by the editor
+# and ADMITTED by this converter (wave 7 lane J, J6).
+_LINK_URI_INVISIBLE_RE = re.compile("[\u0000-   ᠎ -  　]")
+
+
 def _is_allowed_link_href(href: str) -> bool:
     if not href:
         return True  # mirrors the JS helper's `!uri` short-circuit
+    # tiptap.js's own override tests these two prefixes on the RAW url, ahead of the default check.
     if href.startswith("/journal") or href.startswith(LINK_PREFIX):
         return True
-    return bool(_LINK_URI_RE.match(href))
+    return bool(_LINK_URI_RE.match(_LINK_URI_INVISIBLE_RE.sub("", href)))
 
 
 def _inline_nodes(
