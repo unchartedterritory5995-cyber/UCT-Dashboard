@@ -1,0 +1,18 @@
+{
+  "suite": "pytest",
+  "collected": 1751,
+  "passed": 1741,
+  "failed": 9,
+  "errored": 0,
+  "skipped": 1,
+  "wall_s": 228.42,
+  "failed_files": [
+    "tests/test_calendar_week_post.py",
+    "tests/test_closed_table_citations.py",
+    "tests/test_cold_fetch_pool_protection.py",
+    "tests/test_concept_vocabulary.py"
+  ],
+  "totals_line_found": true,
+  "runner_line": "9 failed, 1741 passed, 1 skipped, 224 warnings in 228.42s (0:03:48)",
+  "ok": true
+}
