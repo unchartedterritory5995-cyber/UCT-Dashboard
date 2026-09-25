@@ -714,6 +714,30 @@ REACHED_FROM_FREE_PAGE = {
         "that over-matches makes this rail MORE sensitive, and tuning a matcher "
         "until it agrees with the list it is supposed to check is how a guard "
         "stops guarding.",
+    # ⚰️ 2026-09-25, found by PR #186's CI run: five more routes became reachable from
+    # the FREE page's IMPORT graph in one hop -- Layout -> CommandPalette -> useJ2Notes
+    # (the wave-5 schema guard, 8167f7aa0) -> lib/notebookSchema.js -> `import('./tiptap')`
+    # -> widgetEmbedNode -> the three widget embeds -> the /charts widgets that fetch
+    # them. The edge into the editor is DYNAMIC (notebookSchema.js:138), so no free page
+    # LOADS the editor for it; this walk follows lazy edges on purpose and reports it.
+    # The verdict, made out loud: the Journal is itself a free page, so a free member
+    # could already reach these same widgets by opening any note; each route stays
+    # require_paid and the 402 is proved by this file's own free-member test; and a
+    # live embed whose fetch fails falls to the error boundary WidgetEmbedView.jsx
+    # keeps for exactly that (its archived image), never a spinner.
+    "/api/ai-search":
+        "AiSearchEmbed -> AiSearchWidget, reached from the free shell only through "
+        "the command palette's schema guard and a lazy editor import. A free member's "
+        "fetch is refused 402 and the embed shows its archived image.",
+    "/api/ai-search/signal":
+        "Same widget, same reach, same refusal.",
+    "/api/ai-search/stream":
+        "Same widget, same reach, same refusal.",
+    "/api/fundamentals/earnings-table":
+        "FundamentalsEmbed -> FundamentalsWidget -> useEarningsTable; same reach, "
+        "same 402, archived image on the free tier.",
+    "/api/news-catalysts/":
+        "NewsEmbed -> NewsWidget -> useNewsCatalysts; same reach, same refusal.",
 }
 
 

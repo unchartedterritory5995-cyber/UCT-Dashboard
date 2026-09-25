@@ -169,6 +169,20 @@ jobs:
           # ⚠️ COST, MEASURED on the publish job in run #23 before this was applied
           # anywhere else: 7 s -> 13 s, **+6 s** against a 60 s budget.
           fetch-depth: 0
+      # ⚰️ 2026-09-25 — THE BRIDGE RAILS NEED THE APP'S PYTHON, NOT A BARE INTERPRETER.
+      # `calloutNode.variant.test.js`, `selectionExport.roundtrip.test.js` and
+      # `importer/exportRoundtrip.test.js` shell out to tools/md_export_bridge.py,
+      # tools/selection_export_bridge.py and roundtrip_export_fixture.py, which import
+      # the real exporter (`anyio`) and the repo-root conftest (`pytest`). With no install
+      # every one of them failed HERE with ModuleNotFoundError while passing on every
+      # developer box — 9 rows on PR #193's run 36123041392, all one cause, and the
+      # bridges' own assertions never ran. ⛔ Not a skip: a bridge that cannot run has
+      # proved nothing. Same install the pytest job below does, for the same reason.
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Install the Python the bridge rails shell out to
+        run: python -m pip install --quiet -r requirements.txt
       - uses: actions/setup-node@v4
         with:
           node-version: '20'
