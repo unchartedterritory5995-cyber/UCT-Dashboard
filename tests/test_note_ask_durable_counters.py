@@ -113,14 +113,24 @@ def test_rows_older_than_yesterday_are_pruned_on_a_write(db, monkeypatch):
     assert [r[2] for r in _counter_rows(db)] == ["2026-09-24", DAY]
 
 
-def test_two_requests_racing_for_the_LAST_slot_get_exactly_one(db, monkeypatch):
+@pytest.mark.parametrize("prune", ["real", "no-op"])
+def test_two_requests_racing_for_the_LAST_slot_get_exactly_one(db, monkeypatch, prune):
     """The read and the charge are ONE `BEGIN IMMEDIATE`.
 
     ⛔ THE INTERLEAVING IS FORCED: every read of a counter is held 100 ms, so
     with the read and the write split apart every racer reads the same count
-    and every one is admitted (the email-in limits' race rail, same shape)."""
+    and every one is admitted (the email-in limits' race rail, same shape).
+
+    ⛔ AND IT IS RUN WITH THE PRUNE A NO-OP (backend re-review N4). The prune's
+    DELETE runs first inside `take`, and in the legacy transaction mode even a
+    zero-row DELETE takes the write lock -- so with the prune in place,
+    deleting `BEGIN IMMEDIATE` alone stayed serialised and its mutation
+    survived. With the prune stubbed out, `BEGIN IMMEDIATE` is the ONLY
+    holder, and this case goes red the moment that one line goes."""
     from api.services import auth_db, daily_counters as dc
     real = auth_db.get_connection
+    if prune == "no-op":
+        monkeypatch.setattr(dc, "_prune", lambda conn, day: None)
 
     class SlowRead:
         def __init__(self, conn):
@@ -164,6 +174,31 @@ def test_two_requests_racing_for_the_LAST_slot_get_exactly_one(db, monkeypatch):
     assert errors == []
     assert results.count(None) == 1 and len(results) == 4, results
     assert dc.value(DAY, "race", "u1") == 1
+
+
+def test_a_lock_timeout_INSIDE_the_transaction_fails_open_with_one_log_line(db, monkeypatch, caplog):
+    """Backend re-review N4: the failure a busy auth.db actually produces is a
+    lock timeout at `BEGIN IMMEDIATE` (or a write) -- INSIDE `take`'s
+    transaction, not at connect. A REAL write lock is held by a second
+    connection, exactly as another writer on the pod holds it; the counter
+    waits its bounded time, then admits, counts nothing, and says so once."""
+    from api.services import daily_counters as dc
+    assert dc.value(DAY, "held", "u1") == 0.0          # the file exists, in WAL mode
+    monkeypatch.setattr(dc, "BUSY_TIMEOUT_MS", 150)
+    holder = sqlite3.connect(db, timeout=0, isolation_level=None)
+    caplog.set_level(logging.WARNING, logger=dc.log.name)
+    try:
+        holder.execute("BEGIN IMMEDIATE")
+        assert dc.take(DAY, [dc.Charge("held", "u1", 1, 5)]) is None      # admitted
+        dc.give_back(DAY, [dc.Charge("held", "u1", 1)])                   # never raises
+    finally:
+        holder.execute("ROLLBACK")
+        holder.close()
+    lines = [r.getMessage() for r in caplog.records if r.name == dc.log.name]
+    assert len(lines) == 2, lines                                          # one per failed call
+    assert "take failed (OperationalError)" in lines[0]
+    assert "give_back failed (OperationalError)" in lines[1]
+    assert dc.value(DAY, "held", "u1") == 0.0, "a timed-out take counted something"
 
 
 def test_a_database_error_FAILS_OPEN_with_one_log_line(db, monkeypatch, caplog):
