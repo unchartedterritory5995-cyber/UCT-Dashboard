@@ -374,11 +374,19 @@ function SearchModeIcon() {
  * parent shows exactly those notes, children included, because the `tag=`
  * filter treats a tag as the parent of every `tag/…` below it.
  */
-function TagNode({ node, activeTagKey, expandedKeys, onToggle, onSelect }) {
+function TagNode({
+  node, activeTagKey, expandedKeys, onToggle, onSelect,
+  // Wave 6 fix round 1, I4 — item 8's rename, client side. `renaming` is the
+  // full path currently open for rename (or null); `preview` is the
+  // GET /notes/tag-members answer for it (`{status, notes, total}`).
+  renaming = null, preview = null, renameValue = '', renameBusy = false,
+  onStartRename = () => {}, onRenameChange = () => {}, onSubmitRename = () => {}, onCancelRename = () => {},
+}) {
   const hasChildren = node.children.length > 0
   const expanded = expandedKeys.has(node.key)
   const active = activeTagKey === node.key
   const noteWord = node.total === 1 ? 'note' : 'notes'
+  const isRenaming = renaming === node.path
   return (
     <div className={styles.folderItem}>
       <div className={styles.rowWrap} style={{ paddingLeft: node.depth * 14 }}>
@@ -406,7 +414,54 @@ function TagNode({ node, activeTagKey, expandedKeys, onToggle, onSelect }) {
           <span>{node.depth === 0 ? `#${node.label}` : node.label}</span>
           <span className={styles.count}>{node.total}</span>
         </button>
+        <button
+          type="button"
+          className={styles.renameTagBtn}
+          onClick={(e) => { e.stopPropagation(); onStartRename(node.path) }}
+          title="Rename tag"
+          aria-label={`Rename ${node.path}`}
+        >
+          <UIcon name="edit" size={12} gold={false} />
+        </button>
       </div>
+      {isRenaming && (
+        <div className={styles.tagRenamePanel} style={{ paddingLeft: node.depth * 14 + 20 }}>
+          <div className={styles.tagRenamePreview} role="status">
+            {(!preview || preview.status === 'loading') && 'Checking which notes this touches…'}
+            {preview?.status === 'error' && "Couldn't check which notes this touches. Nothing was renamed."}
+            {preview?.status === 'ready' && (
+              preview.total === 0
+                ? `No live notes carry #${node.path} right now.`
+                : `Renaming #${node.path} will affect ${preview.total} ${preview.total === 1 ? 'note' : 'notes'}: ${
+                  preview.notes.slice(0, 3).map((n) => n.title || 'Untitled').join(', ')
+                }${preview.total > 3 ? `, and ${preview.total - 3} more` : ''}.`
+            )}
+          </div>
+          <input
+            className={styles.tagRenameInput}
+            value={renameValue}
+            onChange={(e) => onRenameChange(e.target.value)}
+            aria-label={`Rename tag ${node.path}`}
+            disabled={renameBusy}
+            autoFocus
+            onKeyDown={(e) => {
+              if (e.key === 'Enter') onSubmitRename()
+              if (e.key === 'Escape') onCancelRename()
+            }}
+          />
+          <button
+            type="button"
+            className={styles.tagRenameActionBtn}
+            onClick={onSubmitRename}
+            disabled={renameBusy || preview?.status !== 'ready' || !preview.notes.length}
+          >
+            {renameBusy ? 'Renaming…' : 'Rename'}
+          </button>
+          <button type="button" className={styles.tagRenameActionBtn} onClick={onCancelRename} disabled={renameBusy}>
+            Cancel
+          </button>
+        </div>
+      )}
       {hasChildren && expanded && (
         <div className={styles.childrenList} style={{ '--guide-x': `${node.depth * 14 + 7}px` }}>
           {node.children.map((child) => (
@@ -417,6 +472,14 @@ function TagNode({ node, activeTagKey, expandedKeys, onToggle, onSelect }) {
               expandedKeys={expandedKeys}
               onToggle={onToggle}
               onSelect={onSelect}
+              renaming={renaming}
+              preview={preview}
+              renameValue={renameValue}
+              renameBusy={renameBusy}
+              onStartRename={onStartRename}
+              onRenameChange={onRenameChange}
+              onSubmitRename={onSubmitRename}
+              onCancelRename={onCancelRename}
             />
           ))}
         </div>
@@ -637,6 +700,11 @@ export default function FolderSidebar({
   // behavior when omitted, so an existing caller/test is unaffected.
   isHome = false,
   onSelectAllNotes = null,
+  // Wave 6 fix round 1, I4 — item 8's rename, client side: `(from, to,
+  // noteIds) => Promise<void>`, the caller's own runBulk('renameTag', ...)
+  // door. Optional/no-op default so an existing caller/test that only
+  // exercises selection still renders exactly as before.
+  onRenameTag = async () => {},
 }) {
   const { folders, create, rename, remove } = useJ2NoteFolders()
   // Wave 6 item 7: a search hit opens beside on Ctrl/Cmd+click, like a row.
@@ -658,6 +726,11 @@ export default function FolderSidebar({
   const searchInputRef = useRef(null)
   const [tagFilter, setTagFilter] = useState('')
   const [showAllTags, setShowAllTags] = useState(false)
+  // Wave 6 fix round 1, I4 — item 8's rename, client side.
+  const [renamingTag, setRenamingTag] = useState(null) // the full path being renamed, or null
+  const [renamePreview, setRenamePreview] = useState(null) // {status, notes, total}
+  const [renameValue, setRenameValue] = useState('')
+  const [renameBusy, setRenameBusy] = useState(false)
   // Wave 4 (Search Evolution I): date/sector/theme filters, collapsed
   // behind a toggle by default -- the design doc's own "don't overcomplicate
   // Stage 1" instruction. `showFilters` starts false so a member who just
@@ -971,6 +1044,40 @@ export default function FolderSidebar({
       setFolderError("Couldn't rename that folder. It kept its old name.")
     }
     setEditingId(null)
+  }
+
+  // Wave 6 fix round 1, I4 — item 8's rename, client side: `GET
+  // /notes/tag-members?tag=` for the "who it touches" preview, then the
+  // caller's `onRenameTag` (its own batch `renameTag` op) once confirmed.
+  const startTagRename = async (path) => {
+    setRenamingTag(path)
+    setRenameValue(path)
+    setRenamePreview({ status: 'loading' })
+    try {
+      const res = await fetch(`/api/j2/notes/tag-members?tag=${encodeURIComponent(path)}`, { credentials: 'include' })
+      if (!res.ok) throw new Error(String(res.status))
+      const body = await res.json()
+      setRenamePreview({ status: 'ready', notes: body.notes || [], total: body.total || 0 })
+    } catch {
+      setRenamePreview({ status: 'error' })
+    }
+  }
+  const cancelTagRename = () => {
+    setRenamingTag(null)
+    setRenamePreview(null)
+    setRenameValue('')
+  }
+  const submitTagRename = async () => {
+    const from = renamingTag
+    const to = renameValue.trim()
+    if (!from || !to || to === from || renamePreview?.status !== 'ready' || !renamePreview.notes.length) return
+    setRenameBusy(true)
+    try {
+      await onRenameTag(from, to, renamePreview.notes.map((n) => n.id))
+    } finally {
+      setRenameBusy(false)
+      cancelTagRename()
+    }
   }
 
   // Wave B: native confirm() replaced with the shared ConfirmModal (G-103) —
@@ -1535,6 +1642,14 @@ export default function FolderSidebar({
                       expandedKeys={expandedTagKeys}
                       onToggle={toggleTagExpanded}
                       onSelect={(path) => { onSelectTag(path); onSelectFolder(null) }}
+                      renaming={renamingTag}
+                      preview={renamePreview}
+                      renameValue={renameValue}
+                      renameBusy={renameBusy}
+                      onStartRename={startTagRename}
+                      onRenameChange={setRenameValue}
+                      onSubmitRename={submitTagRename}
+                      onCancelRename={cancelTagRename}
                     />
                   ))}
                 </div>

@@ -86,7 +86,7 @@ function _logNotebookVisit() {
 /** Bulk ops that can change what GET /api/j2/notes/tags counts (R1-N4). */
 // Archive moves a note out of the tag tree's counts too (it counts the notes
 // the tag filter lists, and that filter leaves archived notes out).
-const TAG_COUNT_OPS = new Set(['addTag', 'removeTag', 'trash', 'restore', 'archive', 'unarchive'])
+const TAG_COUNT_OPS = new Set(['addTag', 'removeTag', 'renameTag', 'trash', 'restore', 'archive', 'unarchive'])
 
 export default function NotebookTab() {
   const [searchParams, setSearchParams] = useSearchParams()
@@ -898,6 +898,14 @@ export default function NotebookTab() {
     }
   }
 
+  // Wave 6 fix round 1, I4 — the tag tree's own rename door: FolderSidebar
+  // already previewed who it touches (GET /notes/tag-members) before calling
+  // this, so `ids` is exactly that preview's note ids, never "every note
+  // with this tag" re-derived here. Reuses `runBulk` so refusal (blocked /
+  // still-sending) is reported the SAME way every other bulk action is —
+  // rendered text in `bulkNotice`, never a second status surface.
+  const onRenameTag = (from, to, ids) => runBulk('renameTag', { from, to }, { tag: from, renameTo: to }, ids)
+
   const runUndo = (undo) => {
     if (bulkBusyRef.current) return   // still queued: the effect below retries
     undoQueuedRef.current = false
@@ -1250,6 +1258,7 @@ export default function NotebookTab() {
             onAddStarterViews={addStarterThesisViews}
             isHome={isHome}
             onSelectAllNotes={selectAllNotes}
+            onRenameTag={onRenameTag}
           />
         </div>
       </div>

@@ -407,6 +407,59 @@
 }
 .tagFilterInput:focus { outline: none; border-color: var(--ut-gold); }
 
+/* Wave 6 fix round 1, I4 — the tag tree's rename affordance (item 8, client
+   side). `.renameTagBtn` mirrors `.iconBtn`'s look; the panel is its own
+   small block below the row, since it carries a preview sentence + input +
+   two buttons, not a single swapped label the way a folder rename does. */
+.renameTagBtn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0 4px;
+  margin-left: 2px;
+  color: var(--text-muted);
+  cursor: pointer;
+  border: none;
+  background: transparent;
+  border-radius: 3px;
+  flex: 0 0 auto;
+}
+.renameTagBtn:hover { color: var(--accent); }
+.tagRenamePanel {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 4px 10px 10px;
+}
+.tagRenamePreview {
+  font-size: 11px;
+  color: var(--text-muted);
+  line-height: 1.4;
+}
+.tagRenameInput {
+  width: 100%;
+  padding: 6px 10px;
+  background: var(--bg-surface);
+  border: 1px solid var(--ut-gold);
+  border-radius: 7px;
+  color: var(--text-bright);
+  font-size: 12px;
+}
+.tagRenameInput:focus { outline: none; }
+.tagRenameActionBtn {
+  align-self: flex-start;
+  margin-right: 6px;
+  background: transparent;
+  border: 1px solid var(--border);
+  color: var(--text-muted);
+  padding: 4px 10px;
+  border-radius: var(--radius-md);
+  cursor: pointer;
+  font-size: 12px;
+}
+.tagRenameActionBtn:hover:not(:disabled) { border-color: var(--ut-gold); color: var(--accent); }
+.tagRenameActionBtn:disabled { opacity: 0.5; cursor: default; }
+
 /* Touch: no hover to reveal row actions, so keep them always visible and
  * give every control a 44px tap target. Desktop (≥1025px) is untouched. */
 @media (hover: none) {

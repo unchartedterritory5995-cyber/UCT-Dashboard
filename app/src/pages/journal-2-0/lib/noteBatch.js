@@ -60,11 +60,19 @@ import { openNotebookDb } from './offline/notebookDb'
 /** Ops that write the note row — refused for a blocked note. Favourites live
  *  in their own table and never touch the note, so they are allowed. So are
  *  `archive` / `unarchive` (wave 6): a visibility flag that moves no revision,
- *  so a queued offline edit still lands on the archived note, unconflicted. */
-export const NOTE_WRITING_OPS = new Set(['move', 'addTag', 'removeTag', 'trash', 'restore'])
+ *  so a queued offline edit still lands on the archived note, unconflicted.
+ *  `renameTag` (wave 6 fix round 1, I4) rewrites the tag list exactly like
+ *  `addTag`/`removeTag` — same table, same column. */
+export const NOTE_WRITING_OPS = new Set(['move', 'addTag', 'removeTag', 'renameTag', 'trash', 'restore'])
 
-/** Ops that also refuse a note whose words are still being sent (see above). */
-export const UNSENT_REFUSED_OPS = new Set(['trash'])
+/** Ops that also refuse a note whose words are still being sent (see above).
+ *  `renameTag` (wave 6 fix round 1, I4) joins `trash` here, not `addTag`/
+ *  `removeTag`: those two MERGE one tag into whatever tag list the server
+ *  reads at write time, so a queued PUT landing after them is unaffected —
+ *  a rename REBUILDS the whole list from the tags read at request time
+ *  (`renamed_tag_list`), and a queued PUT still in flight would be silently
+ *  overwritten by a rewrite computed before it arrived. */
+export const UNSENT_REFUSED_OPS = new Set(['trash', 'renameTag'])
 
 /** How long asking the device may take before its notes count as UNCHECKED.
  *  `openNotebookDb` never settles while a version upgrade is blocked by
@@ -214,13 +222,17 @@ function failureWords(r, { backToOrigin = false } = {}) {
  * did not and why. Never just a count — "3 failed" tells nobody what to do.
  *
  * @param outcome  runNoteBatch's return value
- * @param ctx      { folderName, tag, backToOrigin, earlier, titleOf(id) } —
+ * @param ctx      { folderName, tag, renameTo, backToOrigin, earlier, titleOf(id) } —
  *                 `backToOrigin` marks a move that put notes back where they
  *                 were (Undo); `earlier` counts notes an EARLIER batch of the
  *                 same member action already changed (R23-N5: a "Trash anyway"
- *                 finishing a partial trash reads as the whole trash).
+ *                 finishing a partial trash reads as the whole trash);
+ *                 `renameTo` is `renameTag`'s new spelling (`tag` carries the
+ *                 old one, the same slot addTag/removeTag already use).
  */
-export function describeBatch(outcome, { folderName, tag, backToOrigin = false, earlier = 0, titleOf = () => null } = {}) {
+export function describeBatch(outcome, {
+  folderName, tag, renameTo, backToOrigin = false, earlier = 0, titleOf = () => null,
+} = {}) {
   const { op, changed, unchanged } = outcome
   const n = plural(changed + earlier, 'note')
   const done = {
@@ -229,6 +241,7 @@ export function describeBatch(outcome, { folderName, tag, backToOrigin = false, 
       : `Moved ${n} to ${folderName || 'Unfiled'}.`,
     addTag: `Tagged ${n} #${tag}.`,
     removeTag: `Removed #${tag} from ${n}.`,
+    renameTag: `Renamed ${n} from #${tag} to #${renameTo}.`,
     favorite: `Added ${n} to Favorites.`,
     unfavorite: `Removed ${n} from Favorites.`,
     trash: `Moved ${n} to the Trash.`,
