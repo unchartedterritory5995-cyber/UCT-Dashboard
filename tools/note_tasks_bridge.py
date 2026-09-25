@@ -6,25 +6,30 @@ document the EDITOR built (a `dateMention` typed as `@tomorrow`) through lane
 F's server-side reader and assert the due date it reads -- the contract checked
 across both runtimes rather than against a hand-typed fixture on one side.
 
-⛔ `extract_tasks` is a pure function of the document. Its module imports
-`auth_db`, whose path is captured at import, so AUTH_DB_PATH is pointed at a
-throwaway location FIRST: nothing here can resolve to the shared data root.
+⛔ THE CENSUS, NOT A HAND-PICKED VARIABLE (CLAUDE.md, "`C:\\data` IS REAL ON THIS
+BOX"; wave 7 lane J, J1). `extract_tasks` is a pure function of the document, but
+its module imports `auth_db`, whose path is captured at import. This used to pin
+`AUTH_DB_PATH` alone -- root cause 1, "`DATA_DIR` IS NOT AN AUTHORITY": the paths
+resolve independently, so one hand-picked variable is the same defect with one
+variable instead of zero. Importing the repo-root `conftest` pins EVERY variable
+the AST census finds and arms the tripwire, before any `api.*` import.
+`tests/test_notebook_bridges_pin_the_root.py` runs this bridge from a clean
+environment and reads the tripwire's record.
 """
 from __future__ import annotations
 
 import json
-import os
 import sys
-import tempfile
 from pathlib import Path
 
 _REPO_ROOT = Path(__file__).resolve().parents[1]
 if str(_REPO_ROOT) not in sys.path:
     sys.path.insert(0, str(_REPO_ROOT))
 
+import conftest  # noqa: E402,F401 -- the census and the tripwire, before any api.* import
+
 
 def main() -> int:
-    os.environ["AUTH_DB_PATH"] = os.path.join(tempfile.gettempdir(), "note_tasks_bridge_never_opened.db")
     from api.services.journal_two.note_tasks import extract_tasks
 
     doc = json.loads(sys.stdin.buffer.read().decode("utf-8"))

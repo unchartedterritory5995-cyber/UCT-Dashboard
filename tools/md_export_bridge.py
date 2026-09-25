@@ -8,9 +8,17 @@ back through the importer -- the round trip crosses both runtimes, so neither
 half is a hand-typed stand-in for the other (the gap
 `importer/exportRoundtrip.test.js` exists to close, per its own header).
 
-⛔ No resolver is passed, so nothing here touches an attachment root, a
-database, or any path under the shared data root: it is a pure function of the
-document on stdin.
+No resolver is passed, so the exporter itself touches no attachment root and no
+database: it is a pure function of the document on stdin -- TODAY.
+
+⛔ THE CENSUS, NOT A HAND-PICKED VARIABLE (CLAUDE.md, "`C:\\data` IS REAL ON THIS
+BOX"; wave 7 lane J, J1). "Pure today" is one import away from not being: this
+process is not under pytest, so nothing else pins the paths `api.*` modules
+capture at import. Importing the repo-root `conftest` pins every environment
+variable the AST census finds naming a path under the shared data root to a
+sandbox and arms the tripwire -- BEFORE any `api.*` import, the way
+`selection_export_bridge.py` does. It costs a few seconds per spawn.
+`tests/test_notebook_bridges_pin_the_root.py` fails if a bridge stops doing this.
 """
 from __future__ import annotations
 
@@ -21,6 +29,8 @@ from pathlib import Path
 _REPO_ROOT = Path(__file__).resolve().parents[1]
 if str(_REPO_ROOT) not in sys.path:
     sys.path.insert(0, str(_REPO_ROOT))
+
+import conftest  # noqa: E402,F401 -- the census and the tripwire, before any api.* import
 
 
 def main() -> int:
