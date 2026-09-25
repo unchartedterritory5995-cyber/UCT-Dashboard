@@ -33,6 +33,12 @@ from api.middleware import auth_middleware as authmw
 
 GATE = "NOTEBOOK_PERSONAL_API_ENABLED"
 
+# Tests shard M-4: the daily rails read THE SERVER'S ET DAY, so they pin the
+# clock the server reads it from (`note_tasks._now`) -- a run that crossed
+# 00:00 ET went red for the wrong reason. A day far from today, one second
+# before its own midnight, so an unpinned read cannot pass by coincidence.
+PINNED_ET_DAY = "2031-03-14"
+
 
 @pytest.fixture
 def db_path(monkeypatch):
@@ -47,6 +53,15 @@ def db_path(monkeypatch):
         os.unlink(tmp.name)
     except OSError:
         pass
+
+
+@pytest.fixture
+def pinned_clock(monkeypatch):
+    """`note_tasks._now` is the module clock the server's ET day is read from
+    (looked up at call time), pinned one second before PINNED_ET_DAY's midnight."""
+    from api.services.journal_two import note_tasks
+    from api.services.journal_two.timeutil import ET
+    monkeypatch.setattr(note_tasks, "_now", lambda: datetime(2031, 3, 14, 23, 59, 59, tzinfo=ET))
 
 
 @pytest.fixture(autouse=True)
@@ -608,27 +623,26 @@ class TestDaily:
         assert out["note"]["title"] == "2026-09-24 · Thursday"
         assert out["created"] is True
 
-    def test_first_append_makes_todays_note_and_the_next_one_reuses_it(self, app, client, gate_on):
-        from api.services.journal_two import note_tasks
+    def test_first_append_makes_todays_note_and_the_next_one_reuses_it(self, app, client, gate_on, pinned_clock):
         uid = _user()
         token = _mint(uid)
         r1 = client.post("/api/j2/personal/daily/append", headers=_bearer(token), json={"markdown": "one"})
         r2 = client.post("/api/j2/personal/daily/append", headers=_bearer(token), json={"markdown": "two"})
         assert r1.status_code == r2.status_code == 200, (r1.text, r2.text)
         assert r1.json()["created"] is True and r2.json()["created"] is False
-        assert r1.json()["day"] == note_tasks.today_et()
+        assert r1.json()["day"] == PINNED_ET_DAY           # the server's (pinned) ET day
         assert r1.json()["note"]["id"] == r2.json()["note"]["id"]
         text = _body_text(r1.json()["note"]["id"])
         assert text.index("one") < text.index("two")
 
-    def test_two_concurrent_appends_on_a_fresh_day_make_exactly_one_note(self, db_path, monkeypatch):
+    def test_two_concurrent_appends_on_a_fresh_day_make_exactly_one_note(self, db_path, monkeypatch, pinned_clock):
         """⛔ THE RACE IS FORCED, NOT HOPED FOR. Both requests are held right
         after their first "is there a daily note yet?" read until BOTH have read
         "no" — the exact interleaving that would make two notes. (Left to
         thread timing, a naive find-then-create passed this rail: measured.)"""
         from api.services.auth_db import get_connection
         from api.services.journal_two import note_personal_api as papi
-        from api.services.journal_two import note_tasks, notes
+        from api.services.journal_two import notes
         uid = _user()
         start = threading.Barrier(2)
         both_read = threading.Barrier(2)
@@ -662,7 +676,7 @@ class TestDaily:
         c = get_connection()
         try:
             rows = c.execute("SELECT id FROM j2_notes WHERE user_id = ? AND daily_date = ?"
-                             " AND deleted_at IS NULL", (uid, note_tasks.today_et())).fetchall()
+                             " AND deleted_at IS NULL", (uid, PINNED_ET_DAY)).fetchall()
         finally:
             c.close()
         assert len(rows) == 1, "exactly one daily note per member per ET day"

@@ -30,6 +30,7 @@ import subprocess
 import tempfile
 import time
 import uuid
+from datetime import datetime
 from pathlib import Path
 
 import pytest
@@ -39,6 +40,10 @@ from fastapi.testclient import TestClient
 from api.middleware import auth_middleware as authmw
 
 GATE = "NOTEBOOK_INBOUND_EMAIL_ENABLED"
+# Tests shard M-4: a subject-less email is titled by THE SERVER'S ET DAY, so the
+# rail pins the clock the server reads it from (`note_tasks._now`). A day far
+# from today, one second before its own midnight.
+PINNED_ET_DAY = "2031-03-14"
 SECRET = "test-inbound-secret-" + "x" * 20
 REPO = Path(__file__).resolve().parents[1]
 SIGN_JS = REPO / "cloudflare" / "inbound-email-worker" / "src" / "sign.js"
@@ -57,6 +62,15 @@ def db_path(monkeypatch):
         os.unlink(tmp.name)
     except OSError:
         pass
+
+
+@pytest.fixture
+def pinned_clock(monkeypatch):
+    """`note_tasks._now` is the module clock the server's ET day is read from
+    (looked up at call time), pinned one second before PINNED_ET_DAY's midnight."""
+    from api.services.journal_two import note_tasks
+    from api.services.journal_two.timeutil import ET
+    monkeypatch.setattr(note_tasks, "_now", lambda: datetime(2031, 3, 14, 23, 59, 59, tzinfo=ET))
 
 
 @pytest.fixture
@@ -348,11 +362,10 @@ class TestIngest:
         assert "[image: https://tracker.example.com/pixel.gif]" in body
         assert "Weekly" in n["body_plain"]
 
-    def test_no_subject_titles_the_note_by_the_et_day(self, client, on):
-        from api.services.journal_two import note_tasks
+    def test_no_subject_titles_the_note_by_the_et_day(self, client, on, pinned_clock):
         uid = _user()
         _send(client, {"to": _address(uid), "subject": "   ", "text": "x"})
-        assert [n["title"] for n in _notes(uid)] == [f"Email {note_tasks.today_et()}"]
+        assert [n["title"] for n in _notes(uid)] == [f"Email {PINNED_ET_DAY}"]
 
     def test_attachments_are_saved_linked_and_handed_to_the_document_seam(
             self, client, on, monkeypatch, attachment_root):
