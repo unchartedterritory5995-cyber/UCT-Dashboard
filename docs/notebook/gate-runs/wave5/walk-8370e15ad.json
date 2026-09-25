@@ -1,0 +1,84 @@
+{
+ "errors": [],
+ "login": 200,
+ "account": {
+  "role": "member",
+  "plan": "pro",
+  "paid_equiv": true
+ },
+ "folder_status": 200,
+ "folder_error": null,
+ "folder_id": "250446ef3a2b47d5beb193ddc548f702",
+ "S1_rows": [
+  "Walk note 03 r185200Unfiled"
+ ],
+ "S1_url": "http://127.0.0.1:8093/journal/notebook?note=f0d196ca58764313b08a70c3dfc9ba10",
+ "S1_opened_right_note": true,
+ "S1b_plan_url": "http://127.0.0.1:8093/journal/notebook?note=fe6243d682ce46a2adfb77c447be1d56",
+ "S1b_plan_opened_a_Plan_note": true,
+ "S1b_nvda_url": "http://127.0.0.1:8093/research/NVDA",
+ "S1b_nvda_research": true,
+ "S2_checkboxes": 40,
+ "S2_bar_visible": true,
+ "S2b_choose_alone_moved": 0,
+ "S2_in_folder": [
+  "Walk note 38 r185200",
+  "Walk note 39 r185200",
+  "Walk note 40 r185200"
+ ],
+ "S2c_trash_to_notice_ms": 164,
+ "S2c_trashed": 10,
+ "S2c_after_undo_still_trashed": 0,
+ "S2c_picked": 10,
+ "S2d": {
+  "1200": {
+   "boxes": 40,
+   "undo": "present",
+   "undoHitsItself": true,
+   "hitWhat": "BUTTON._bulkNoticeBtn_ke0w6_889",
+   "undoInViewport": true,
+   "siblingNotices": 2,
+   "hubOverlap": null,
+   "w": 1200,
+   "undoClick": "ok"
+  },
+  "820": {
+   "boxes": 40,
+   "undo": "present",
+   "undoHitsItself": true,
+   "hitWhat": "BUTTON._bulkNoticeBtn_ke0w6_889",
+   "undoInViewport": true,
+   "siblingNotices": 2,
+   "hubOverlap": null,
+   "w": 820,
+   "undoClick": "ok"
+  },
+  "390-touch": {
+   "boxes": 40,
+   "undo": "present",
+   "undoHitsItself": true,
+   "hitWhat": "BUTTON._bulkNoticeBtn_ke0w6_889",
+   "undoInViewport": true,
+   "siblingNotices": 2,
+   "hubOverlap": null,
+   "w": 390,
+   "undoClick": "ok"
+  }
+ },
+ "S3_code": {
+  "hl": 2,
+  "text": "const x = 42"
+ },
+ "S4_katex": 1,
+ "S5_after_replace": true,
+ "S5_one_undo_restores": true,
+ "S5b_whole_word_toggle": true,
+ "S5b_page_responsive": true,
+ "S5b_ms": 326,
+ "S6_toggle_found": true,
+ "S6_red_option": 1,
+ "S6_red_span": [
+  "beta"
+ ],
+ "S7_stats": "1 of 11 words selected"
+}
