@@ -261,6 +261,27 @@ const BARE_POLL_SITES = {
   // zero — and the shrink-or-fail half of this rail is what forced these three to
   // be looked at rather than quietly left behind.
   'app/src/hooks/useConfluence.js': 1,
+  // ⭐ THE 2026-09-25 SWEEP — nine sites had accumulated undeclared and this rail
+  // had been red in the full suite for it (it only runs there). Each was decided
+  // the way the header asks, not rubber-stamped:
+  //   • CONVERTED to `useMobileSWR`, so they are NOT rows here: `useFloor.js`'s
+  //     five Floor polls (a phone surface — feed/thread/status/notifications/
+  //     activity halve on touch and stop while hidden), `useFilingWatch.js`,
+  //     `useWatchlistIntelligence.js`, `chart/useBoundDrawingAlerts.js` (every
+  //     chart, phones included). `revalidateOnFocus` flips to true on each — a
+  //     fresh list on return is the right instinct for all four.
+  //   • KEPT BARE, rows below: the three admin panels (admin-only surfaces that a
+  //     phone effectively never renders, so the halving buys nothing, and the
+  //     wrapper's focus revalidate + `useMarketOpen` timer per panel is pure
+  //     cost on a 60 s tick) — and `PatternAdmin.jsx`'s row above rises 1 → 2 for
+  //     the same reason (its second site polls `/api/admin/patterns/health`).
+  //     `OpenFlow.jsx` already sets `revalidateOnFocus: false` BY HAND on a 120 s
+  //     tick against a heavy flow-board payload — exactly `useConfluence.js`'s
+  //     shape above, and the same decision.
+  'app/src/components/admin/ChatModerationPanel.jsx': 1,
+  'app/src/components/admin/CompassHealthPanel.jsx': 1,
+  'app/src/components/admin/ThemeEngineHealthPanel.jsx': 1,
+  'app/src/pages/OpenFlow.jsx': 1,
   'app/src/components/mobile/MoreSheet.jsx': 2,
   'app/src/components/tiles/CompassTodayTile.jsx': 1,
   'app/src/components/tiles/FlowScoreboardTile.jsx': 1,
@@ -323,8 +344,10 @@ const BARE_POLL_SITES = {
   'app/src/pages/ModelBook.jsx': 3,
   'app/src/pages/MorningWire.jsx': 1,
   'app/src/pages/UCT20.jsx': 4,
-  'app/src/pages/Watchlists.jsx': 3,
-  'app/src/pages/admin/PatternAdmin.jsx': 1,
+  // 3 → 2 on 2026-09-25: the rail's shrink-or-fail half found one of the three
+  // bare polls had already left the file. Lowered, not left.
+  'app/src/pages/Watchlists.jsx': 2,
+  'app/src/pages/admin/PatternAdmin.jsx': 2,
   // ⭐ ADDED AFTER THE CENSUS, AND THE DECISION WENT TO BARE `useSWR` — measured,
   // not defaulted. The Analogue Deck reads `/api/breadth-monitor/analogues`,
   // which is itself server-cached for 6 hours, and the interval here matches it
