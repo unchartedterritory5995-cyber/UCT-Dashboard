@@ -233,7 +233,43 @@ describe('paste a real screener script and get a working scan', () => {
       mode: evaluateFormula(EXPECTED.formula, BUILDER_INPUT_SCOPE).verdict.mode,
       readback: evaluateFormula(EXPECTED.formula, BUILDER_INPUT_SCOPE).readback,
     })
-    expect(sent).toEqual(typed)
+    // ⚰️ 2026-09-24: THIS READ `expect(sent).toEqual(typed)` AND HAD NEVER BEEN TRUE.
+    // The finder bug above threw before it could run; with the save actually found, the
+    // diff is ADDITIONS ONLY — the Pine door carries the author's lengths as member knobs
+    // (`compute.paramManifest`), the plot the scan reads (`scanPlot`), the per-plot
+    // `sources` and `trees` (this script also plots a `signal`). A typed formula has
+    // none of those, and the sibling case in this file ("the author's lengths arrive as
+    // FIELDS") celebrates exactly what this line forbade; both landed in e855f62cd (#145).
+    // The contract that holds — and that the chart, the alert and the scan actually
+    // read — is stated below: EVERY key the typed document has is byte-identical, and
+    // the additions are EXACTLY the knob machinery, named, so a fifth addition or a
+    // changed `mode` still reds here. Owner's call under the red sweep ("do it all");
+    // reversible in one line if the ruling goes the other way.
+    for (const k of Object.keys(typed)) {
+      if (k === 'compute' || k === 'inputs' || k === 'plots') continue   // all three pinned below, additions and all
+      expect(sent[k], `top-level \`${k}\` differs from the typed document`).toEqual(typed[k])
+    }
+    const { paramManifest, scanPlot, sources, trees, treesHash, ...computeRest } = sent.compute
+    expect(computeRest, 'compute differs beyond the knob machinery').toEqual(typed.compute)
+    expect(Object.keys(sent.compute).filter((k) => !(k in typed.compute)).sort())
+      .toEqual(['paramManifest', 'scanPlot', 'sources', 'trees', 'treesHash'])
+    expect(treesHash).toMatch(/^sha256:[0-9a-f]{64}$/)   // the trees' own fingerprint, not a second def_hash
+    // ⭐ And the additions describe THIS script, not a template: the scan reads the
+    // `value` plot, whose source is the very formula the member would have typed.
+    expect(scanPlot).toBe('value')
+    expect(sources.value).toBe(EXPECTED.formula)
+    expect(Object.keys(trees).sort()).toEqual(Object.keys(sources).sort())
+    expect(Object.values(paramManifest).map((p) => p.sourceName).sort()).toEqual(['maLen', 'rsiLen'])
+    // ⭐ The typed document's inputs are a byte-identical PREFIX; what follows is exactly
+    // one colour + one width knob per ADDITIONAL plot (here `signal`), nothing else.
+    expect(sent.inputs.slice(0, typed.inputs.length)).toEqual(typed.inputs)
+    const extraPlots = Object.keys(trees).filter((p) => p !== scanPlot)
+    expect(sent.inputs.slice(typed.inputs.length).map((i) => i.key).sort())
+      .toEqual(extraPlots.flatMap((p) => [`${p}Color`, `${p}Width`]).sort())
+    // ⭐ And `plots` likewise: the typed plot list is an identical PREFIX, followed by
+    // exactly the additional plots the trees declare, by key.
+    expect(sent.plots.slice(0, typed.plots.length)).toEqual(typed.plots)
+    expect(sent.plots.slice(typed.plots.length).map((p) => p.key).sort()).toEqual([...extraPlots].sort())
 
     // ⭐ `compute.fn` IS `astHash`, which IS `def_hash`. A Pine-authored
     // definition and a typed one of the same shape are ONE object to the chart,
