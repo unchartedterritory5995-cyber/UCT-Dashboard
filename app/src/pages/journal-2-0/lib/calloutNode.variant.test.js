@@ -153,7 +153,7 @@ d('export round trip — the real exporter, then the real importer', () => {
     exported = new Map([...CALLOUT_VARIANTS, 'emoji'].map((key, i) => [key, markdowns[i]]))
   }, 60_000)
 
-  it.each(CALLOUT_VARIANTS)('a %s callout comes back as a %s callout, text intact', (variant) => {
+  it.each(CALLOUT_VARIANTS)('a %s callout comes back as the same style, text intact', (variant) => {
     const md = exported.get(variant)
     expect(md).toContain(`<aside data-variant="${variant}">`)
     expect(md).not.toContain('💡')
