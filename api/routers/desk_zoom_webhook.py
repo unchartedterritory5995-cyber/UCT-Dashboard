@@ -267,6 +267,31 @@ def session_audit(request: Request):
     return desk_session_audit.audit_sessions()
 
 
+@router.post("/video-liveness")
+def video_liveness(request: Request, limit: int | None = None):
+    """Does each library video STILL EXIST on YouTube? Sweeps the next `limit`
+    videos (round-robin, cursor persisted on the volume) and reports the ones
+    YouTube no longer serves — the card a member clicks cannot play.
+
+    ⛔ THIS EXISTS BECAUSE THE READ PATH DID NOT REACH THE SWEEP. `GET
+    /session-audit` above is a pure read of the `edu_videos` artifacts; the
+    liveness sweep ships in `run_audit_and_alert`, which only the 09:00 ET job
+    calls. So a capability built to answer *"has a published video been pulled?"*
+    was answerable once a day and not on demand — the shape this repo keeps
+    paying for. It is a POST, not a query param on that GET, because the sweep
+    MUTATES (it advances the cursor and records the gone-set).
+
+    `limit` is clamped to `ENDPOINT_LIVENESS_MAX`; re-POST to walk further.
+    Gated by the PUSH_SECRET bearer like sessions-status."""
+    expected = os.environ.get("PUSH_SECRET", "")
+    auth = request.headers.get("authorization", "")
+    if not expected or auth != f"Bearer {expected}":
+        return Response(status_code=401)
+    from api.services import desk_session_audit
+    return desk_session_audit.sweep_liveness(
+        limit=desk_session_audit.clamp_liveness_limit(limit))
+
+
 def _recent_session_video_summaries(limit: int = 8) -> list[dict]:
     """Last `limit` session videos (have a meeting_uuid), newest first, with
     just enough shape to eyeball insights health: id/title/insights_at/

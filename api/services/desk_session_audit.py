@@ -181,6 +181,13 @@ def audit_sessions(*, now: float | None = None) -> dict:
 
 _DEFAULT_LIVENESS_PER_RUN = 40
 _LIVENESS_TIMEOUT_S = 6.0
+# ⛔ THE ON-DEMAND DOOR GETS A SMALLER CEILING THAN THE DAILY JOB, AND THE REASON
+# IS THE EDGE, NOT THE POD. The sweep is sequential and each probe may burn
+# `_LIVENESS_TIMEOUT_S`, so 40 is up to ~4 minutes — past Cloudflare's ~100 s
+# proxy budget, which would 524 the caller while the pod worked on. 15 keeps the
+# worst case under that and is typically a few seconds. The ledger is resumable,
+# so walking the whole library on demand is "POST it again", never a longer POST.
+ENDPOINT_LIVENESS_MAX = 15
 _OEMBED_URL = ("https://www.youtube.com/oembed?url=https://www.youtube.com/watch?v={vid}"
                "&format=json")
 _OEMBED_UA = "Mozilla/5.0 (compatible; UCT-Desk-liveness/1.0)"
@@ -195,6 +202,17 @@ def _liveness_per_run() -> int:
         return max(1, int(os.environ.get("DESK_VIDEO_LIVENESS_PER_RUN", _DEFAULT_LIVENESS_PER_RUN)))
     except ValueError:
         return _DEFAULT_LIVENESS_PER_RUN
+
+
+def clamp_liveness_limit(limit, ceiling: int = ENDPOINT_LIVENESS_MAX) -> int:
+    """Bound a caller-supplied sweep size. Pure, so the ceiling is provable
+    without a browser or a socket: `None` → the ceiling, junk → the ceiling,
+    anything below 1 → 1, anything above → the ceiling."""
+    try:
+        n = int(limit)
+    except (TypeError, ValueError):
+        return ceiling
+    return max(1, min(ceiling, n))
 
 
 def _liveness_path(override=None) -> str:

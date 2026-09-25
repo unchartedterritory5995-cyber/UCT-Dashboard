@@ -330,3 +330,57 @@ def test_the_audit_endpoint_is_mounted_on_the_desk_router():
         "the route probe found no sibling diagnostic endpoint; it is broken")
     assert any(p.endswith("/session-audit") for p in paths), (
         f"GET /session-audit is not mounted. Router paths: {paths}")
+
+
+def test_the_liveness_sweep_has_an_ON_DEMAND_door_and_it_is_a_POST():
+    """The sweep shipped reachable only from the 09:00 ET job, so "has a video
+    been pulled?" was answerable once a day. It MUTATES (cursor + gone-set), so
+    the door is a POST, never a query param on the read-only GET."""
+    from api.routers import desk_zoom_webhook as dzw
+    routes = [(getattr(r, "path", ""), set(getattr(r, "methods", ()) or ())) for r in dzw.router.routes]
+    assert any(p.endswith("/session-audit") for p, _ in routes), "the route probe is broken"
+    hit = [(p, m) for p, m in routes if p.endswith("/video-liveness")]
+    assert hit, f"POST /video-liveness is not mounted. Router paths: {[p for p, _ in routes]}"
+    assert "POST" in hit[0][1], f"/video-liveness must be a POST (it mutates); methods={hit[0][1]}"
+    # ⛔ and the read path stays a read: no GET may advance the cursor.
+    audit_methods = {m for p, ms in routes if p.endswith("/session-audit") for m in ms}
+    assert "POST" not in audit_methods, "GET /session-audit must not have grown a mutating verb"
+
+
+def test_the_on_demand_sweep_size_is_CLAMPED_under_the_edge_proxy_budget():
+    """Sequential probes × the 6 s timeout must stay under Cloudflare's ~100 s,
+    or a caller gets a 524 while the pod works on."""
+    c = audit.clamp_liveness_limit
+    assert c(None) == audit.ENDPOINT_LIVENESS_MAX
+    assert c("not a number") == audit.ENDPOINT_LIVENESS_MAX
+    assert c(9999) == audit.ENDPOINT_LIVENESS_MAX
+    assert c(0) == 1 and c(-5) == 1
+    assert c(5) == 5
+    assert audit.ENDPOINT_LIVENESS_MAX * audit._LIVENESS_TIMEOUT_S < 100, (
+        "the on-demand ceiling × the per-probe timeout now exceeds the edge proxy budget")
+    # The DAILY job keeps its own, larger default — it has no client waiting.
+    assert audit._liveness_per_run() > audit.ENDPOINT_LIVENESS_MAX
+
+
+def test_the_on_demand_door_refuses_without_the_bearer(edu_db, monkeypatch):
+    from fastapi import FastAPI
+    from fastapi.testclient import TestClient
+    from api.routers import desk_zoom_webhook as dzw
+    monkeypatch.setenv("PUSH_SECRET", "s3cret")
+    called = []
+    monkeypatch.setattr(audit, "sweep_liveness", lambda **kw: called.append(kw) or {"checked": 0})
+    app = FastAPI(); app.include_router(dzw.router)
+    client = TestClient(app)
+    assert client.post("/api/desk/video-liveness").status_code == 401
+    assert called == [], "the sweep ran for an unauthenticated caller"
+    ok = client.post("/api/desk/video-liveness?limit=3", headers={"Authorization": "Bearer s3cret"})
+    assert ok.status_code == 200, ok.text
+    assert called == [{"limit": 3}], f"the clamped limit did not reach the sweep: {called}"
+    # ⛔ THE ENDPOINT MUST APPLY THE CLAMP, not merely have one available: a caller
+    # asking for the whole library gets the ceiling, so no single POST can outlive
+    # the edge proxy. Without this the pure-function test above passes while the
+    # call site hands 9999 straight through.
+    called.clear()
+    client.post("/api/desk/video-liveness?limit=9999", headers={"Authorization": "Bearer s3cret"})
+    assert called == [{"limit": audit.ENDPOINT_LIVENESS_MAX}], (
+        f"the endpoint did not clamp an oversized limit: {called}")
