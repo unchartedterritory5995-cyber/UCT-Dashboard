@@ -3477,6 +3477,33 @@ def lock_note_endpoint(
     return {"note": n}
 
 
+@router.patch("/notes/{note_id}/tags")
+def patch_note_tags_endpoint(
+    note_id: str,
+    payload: dict[str, Any] | None = None,
+    user: dict = Depends(get_current_user),
+) -> dict[str, Any]:
+    """Wave 6 (controller-added, lane D's M14) — `{add: [...], remove:
+    [...]}`: a tag DELTA applied to the STORED list, read and written inside
+    ONE SQL transaction (`notes_service.patch_note_tags`) so a second
+    device's own concurrent add can never be silently overwritten by a list
+    this request computed before that add existed.
+
+    ⛔ ANSWERS WITH THE NOTE at its new revision — the lock endpoint's shape —
+    so the client can settle it. A change that changes nothing moves no
+    revision. 404 for a trashed note, another member's, or none at all; a
+    request that cannot apply (a bad shape, or the same tag in both `add` and
+    `remove`) is a 400 and writes nothing."""
+    try:
+        add, remove = notes_service.parse_tag_patch(payload or {})
+        n = notes_service.patch_note_tags(user["id"], note_id, add, remove)
+    except NoteValidationError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+    if n is None:
+        raise HTTPException(status_code=404, detail="Not found")
+    return {"note": n}
+
+
 @router.patch("/notes/{note_id}/archive")
 def archive_note_endpoint(
     note_id: str,

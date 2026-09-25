@@ -4001,6 +4001,73 @@ def tag_member_notes(
             conn.close()
 
 
+def parse_tag_patch(payload: Any) -> tuple[list[str], list[str]]:
+    """Wave 6 (controller-added, lane D's M14) — validates a `PATCH
+    /notes/{id}/tags` body `{add, remove}` BEFORE the note is even read: each
+    half accepts the same shape `_validate_tags` already enforces for a
+    note's own tag list (a list of strings, each under the length cap), and
+    the two halves must ask for genuinely different tags — asking to add and
+    remove the same identity in one request is refused rather than resolved
+    by silently picking a winner. -> (add, remove), both validated and
+    normalised. Raises NoteValidationError; a request this refuses writes
+    nothing."""
+    if not isinstance(payload, dict):
+        raise NoteValidationError("body must be an object")
+    add = _validate_tags(payload.get("add") or [])
+    remove = _validate_tags(payload.get("remove") or [])
+    if not add and not remove:
+        raise NoteValidationError("add or remove is required")
+    if {tag_key(t) for t in add} & {tag_key(t) for t in remove}:
+        raise NoteValidationError("a tag cannot be both added and removed")
+    return add, remove
+
+
+def patch_note_tags(
+    user_id: str,
+    note_id: str,
+    add: list[str],
+    remove: list[str],
+    conn: sqlite3.Connection | None = None,
+) -> dict[str, Any] | None:
+    """Wave 6 (controller-added, lane D's M14) — `PATCH /notes/{id}/tags`:
+    applies a tag DELTA to the note's STORED list, read and written inside
+    ONE transaction so a second device's own concurrent tag write cannot
+    land between this request's read and its write and be silently
+    overwritten by a list computed before it existed (the two-device case).
+    `BEGIN IMMEDIATE` takes the write lock before the read, not after — a
+    plain SELECT takes no lock at all, so a lock taken only at the later
+    UPDATE would still let a racing writer's commit land in between.
+
+    Answers with the note at its NEW revision (`update_note`'s own shape,
+    same serializer the lock endpoint uses) so the client can settle it; a
+    change that changes nothing moves no revision. None for a trashed note,
+    another member's, or none at all."""
+    owned = conn is None
+    conn = conn or get_connection()
+    try:
+        conn.execute("BEGIN IMMEDIATE")
+        row = conn.execute(
+            "SELECT * FROM j2_notes WHERE id = ? AND user_id = ? AND deleted_at IS NULL",
+            (note_id, user_id),
+        ).fetchone()
+        if row is None:
+            conn.rollback()
+            return None
+        existing_tags = json.loads(row["tags"] or "[]")
+        patched = patched_tag_list(existing_tags, add, remove)
+        if patched is None:
+            conn.rollback()
+            return _row_to_note(row)
+        return update_note(user_id, note_id, {"tags": patched}, conn=conn)
+    except BaseException:
+        if conn.in_transaction:
+            conn.rollback()
+        raise
+    finally:
+        if owned:
+            conn.close()
+
+
 def note_batch_heads(
     user_id: str,
     note_ids: list[str],
