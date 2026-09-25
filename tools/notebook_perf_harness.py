@@ -60,7 +60,13 @@ appends each checkpoint to its integrity log. The harness therefore:
   * a sign-in, comp or seed failure is not a measurement: the first line reads
     `SANDBOX INTEGRITY: NOT RUN (<reason>)` (still followed by the sandbox's own checkpoints)
     and the exit is 3, never 1 ("a budget breached").
-Logs go next to `--json` when given, else into a fresh temp directory (never the cwd).
+Where this run's files go: next to `--json` when given, else into a fresh temp directory --
+never the cwd, and a `--boot` run leaves NO file in the repo. The launcher writes its integrity
+log under the repo's `docs/plans/joystick/sandbox-runs/` (`data_root_snapshot.log_path_for` has
+no override); a `--boot` run's log is this run's own, so once the launcher has stopped it is
+MOVED beside the launcher's output (`<stem>.integrity.md`). A `--base` run's log belongs to its
+operator's sandbox and is copied, never moved. ⚰️ This said the logs never land in the cwd
+while `--boot` left the launcher's integrity log in the repo (tooling review M-9).
 
 Accounts: it signs up the sandbox admin (the launcher's ADMIN_EMAILS default,
 hubtest@local.dev) and a perf account, comps the perf account through
@@ -606,6 +612,31 @@ def _sandbox_identity():
     return sandbox_identity
 
 
+def _keep_integrity_log(integ: dict, dest: Path, *, own: bool) -> None:
+    """Keep the sandbox's integrity log beside this run's other files (review M-9).
+
+    `own` (a `--boot` run: this harness started the launcher, and it has stopped): the log is
+    MOVED -- it was written under the repo's `docs/plans/joystick/sandbox-runs/`, and a run must
+    leave the repo as it found it; `integ["path"]` then names where it is now, and the first line
+    says so. A move that fails falls back to a copy and says why. Not `own` (a `--base` run): the
+    operator's sandbox owns that log, so it is copied."""
+    src = integ.get("path")
+    if not src or not Path(src).is_file():
+        return
+    integ["copy"] = str(dest)
+    if not own:
+        shutil.copyfile(src, dest)
+        return
+    try:
+        shutil.move(src, dest)
+    except OSError as e:
+        shutil.copyfile(src, dest)
+        integ["move_failed"] = f"{type(e).__name__}: {e}"
+        return
+    integ["moved_from"] = src
+    integ["path"] = str(dest)
+
+
 def _log_home(json_path: str | None) -> tuple[Path, str]:
     """Where this run's own files go: beside --json when given, else a fresh temp directory.
     Never the current directory (the old default left a stray perf.sandbox.log wherever the
@@ -714,9 +745,7 @@ def main(argv: list[str] | None = None) -> int:
         integ = read_integrity(args.integrity_log, required)
         note = ("--base: the sandbox was started and stopped by its operator, not by this harness; "
                 f"identity: {identity.sentence}")
-    if integ["path"] and Path(integ["path"]).is_file():
-        integ["copy"] = str(home / f"{stem}.integrity.md")
-        shutil.copyfile(integ["path"], integ["copy"])
+    _keep_integrity_log(integ, home / f"{stem}.integrity.md", own=bool(args.boot))
     first = integrity_line(integ, note, not_run=not_run)
     print(first)  # ⛔ FIRST, before any number (CLAUDE.md, sandbox boots)
     sha = subprocess.run(["git", "-C", str(REPO), "rev-parse", "HEAD"], capture_output=True,

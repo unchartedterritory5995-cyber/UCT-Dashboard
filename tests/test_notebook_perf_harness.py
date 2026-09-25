@@ -55,7 +55,10 @@ ap = argparse.ArgumentParser()
 ap.add_argument("--data-dir"); ap.add_argument("--port", type=int); ap.add_argument("--host")
 a = ap.parse_args()
 os.makedirs(a.data_dir, exist_ok=True)
-log = os.path.join(a.data_dir, "integrity.md")
+# FAKE_LAUNCHER_REPO: write the log where the REAL launcher does, under that repo's
+# docs/plans/joystick/sandbox-runs/ (data_root_snapshot.log_path_for, the launcher's own call).
+repo = os.environ.get("FAKE_LAUNCHER_REPO")
+log = drs.log_path_for(repo) if repo else os.path.join(a.data_dir, "integrity.md")
 drs.append_log(log, {h.PRE_BOOT!r}, "FAKE", 1, [])
 print("  [pre-boot] integrity log: " + log)
 
@@ -165,6 +168,44 @@ def test_the_harness_prints_the_integrity_verdict_first_and_leaves_no_stray_file
     assert any(line.startswith("| note_open |") for line in lines[1:]), lines
     assert rc == 0, lines
     assert list(cwd.iterdir()) == [], "the harness wrote into the current directory"
+
+
+def test_a_boot_run_leaves_no_file_in_the_repos_sandbox_runs(tmp_path, monkeypatch, capsys):
+    """Review M-9: the launcher writes its integrity log under its repo's
+    docs/plans/joystick/sandbox-runs/ (log_path_for has no override), and a --boot run used to
+    copy it and leave it there -- an untracked file under docs/ in a shared worktree. The
+    stand-in launcher writes it exactly there, under a stand-in repo; after the run that
+    directory holds nothing, the log sits beside --json, and the first line points at it."""
+    fake_repo = tmp_path / "repo"
+    runs = fake_repo / "docs" / "plans" / "joystick" / "sandbox-runs"
+    real_runs = REPO / "docs" / "plans" / "joystick" / "sandbox-runs"
+    real_before = sorted(p.name for p in real_runs.iterdir()) if real_runs.is_dir() else []
+    monkeypatch.setattr(h, "BOOT_SCRIPT", _fake_launcher(tmp_path))
+    monkeypatch.setattr(h, "run_live", _canned_live)
+    monkeypatch.setenv("FAKE_LAUNCHER_REPO", str(fake_repo))
+    out_json = tmp_path / "run" / "editor.json"
+    rc = h.main(["--boot", "--data-dir", str(tmp_path / "data"), "--port", str(_free_port()),
+                 "--sizes", "1000", "--json", str(out_json), "--md", "-"])
+    lines = capsys.readouterr().out.splitlines()
+    assert rc == 0 and lines[0].startswith("SANDBOX INTEGRITY: CLEAN"), lines
+    kept = (tmp_path / "run" / "editor.integrity.md").resolve()
+    assert kept.is_file() and h.read_integrity(kept, ALL)["status"] == "CLEAN"
+    assert runs.is_dir(), "non-vacuity: the stand-in launcher never wrote under its repo's sandbox-runs"
+    assert list(runs.iterdir()) == [], f"left in the repo: {[p.name for p in runs.iterdir()]}"
+    assert f"log: {kept}" in lines[0], lines[0]
+    rec = json.loads(out_json.read_text(encoding="utf-8"))
+    assert rec["integrity"]["moved_from"].startswith(str(runs)), rec["integrity"]
+    real_after = sorted(p.name for p in real_runs.iterdir()) if real_runs.is_dir() else []
+    assert real_after == real_before, "a run wrote into THIS repo's sandbox-runs"
+
+
+def test_a_base_runs_integrity_log_is_copied_never_moved(tmp_path):
+    """The --base half of M-9: that log belongs to the operator's sandbox."""
+    log = Path(_write_log(tmp_path / "theirs.md", [h.PRE_BOOT, h.POST_BOOT, h.SHUTDOWN]))
+    integ = h.read_integrity(log, ALL)
+    h._keep_integrity_log(integ, tmp_path / "mine.integrity.md", own=False)
+    assert log.is_file() and (tmp_path / "mine.integrity.md").is_file()
+    assert integ["path"] == str(log) and "moved_from" not in integ
 
 
 def test_a_dirty_checkpoint_withholds_every_timing(tmp_path, monkeypatch, capsys):
