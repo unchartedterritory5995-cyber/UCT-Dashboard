@@ -479,6 +479,21 @@
   .editInput { font-size: 16px; min-height: var(--tap-min, 44px); }
   .tagFilterInput { font-size: 16px; min-height: var(--tap-min, 44px); }
   .iconBtn { min-width: var(--tap-min, 44px); min-height: var(--tap-min, 44px); padding: 0; }
+  /* N-e (wave 6 fix round 3 re-review): `.disclosureSpacer` widening to the
+   * SAME floor as `.disclosureBtn` here is INTENTIONAL, not a side effect of
+   * floor-everything-with-this-class-name. Every row in this panel — folder,
+   * note, saved view, and flat/filtered tag rows alike (`TagRenameableRow`
+   * with `disclosure={null}`) — opens with either a real chevron
+   * (`.disclosureBtn`) or this invisible placeholder, and both share ONE
+   * fixed width so a leaf row's icon/label lines up with a sibling row's
+   * that DOES have a chevron, at the same depth, anywhere in this column
+   * (a folder with children beside a leaf note; a nested tag parent beside
+   * a leaf tag). A flat or filtered tag list never shows a chevron of its
+   * own, but it renders in the same column as rows that do, so leaving its
+   * spacer at 18px while `.disclosureBtn` grew to 44px would shift every
+   * flat/filtered tag's label 26px left of a folder or nested-tag row at
+   * the same depth. The floor is on the CONTROL (`.disclosureBtn`); the
+   * spacer only follows it to keep that one column's alignment true. */
   .disclosureBtn,
   .disclosureSpacer { min-width: var(--tap-min, 44px); min-height: var(--tap-min, 44px); width: var(--tap-min, 44px); height: var(--tap-min, 44px); }
   /* M7 (wave 6 fix round 2): the tag-rename controls (I4) shipped with no
@@ -544,12 +559,22 @@
     min-width: var(--tap-min, 44px);
     min-height: var(--tap-min, 44px);
   }
+  /* N-e (wave 6 fix round 3 re-review): tablet half of the SAME intentional
+   * pairing explained above the phone block's `.disclosureBtn,
+   * .disclosureSpacer` rule — the spacer tracks the button's floor so a
+   * flat/filtered tag row's (or note/view leaf row's) label stays aligned
+   * with a chevron row at the same depth, not a side effect to remove. */
   .disclosureBtn,
   .disclosureSpacer {
     min-width: var(--tap-min, 44px);
     min-height: var(--tap-min, 44px);
   }
-  /* M7 (wave 6 fix round 2) — tablet half of the same floor above. */
+  /* M7 (wave 6 fix round 2) — tablet half of the same floor above.
+     M7 (remainder, wave 6 fix round 3): the round-2 pass repeated the
+     min-height floor here but not the phone block's `font-size: 16px` — so
+     a tablet fell back to the base 12px and re-triggered iOS Safari's
+     focus-zoom on this input. The brief's own rule is 16px on the WHOLE
+     touch tier (<=1024px), not just <=640px, so it is repeated here too. */
   .renameTagBtn {
     min-width: var(--tap-min, 44px);
     min-height: var(--tap-min, 44px);
@@ -558,6 +583,7 @@
     min-height: var(--tap-min, 44px);
   }
   .tagRenameInput {
+    font-size: 16px;
     min-height: var(--tap-min, 44px);
   }
   /* Wave 4's date/sector/theme search filters — reachable only via
