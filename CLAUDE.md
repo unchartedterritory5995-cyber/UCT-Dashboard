@@ -442,16 +442,25 @@ trades (`imported:true` flag + `coach_prompts.py` rule).
   instance doubles both) · the `api/limiter.py` Limiter's in-memory storage, which
   since wave 7 also holds the personal-API per-token limit (scope
   `notebook-personal-api`, key `personal-api:tok:<sha256 of the bearer>`, 30/minute
-  — a second process doubles a Shortcut's budget) · `note_ask._writing_help_by_user`
-  (wave 7 lane H: the editor writing help's OWN 60-per-member-per-day counter, ruling
-  D-H2 — a second process doubles it, and a restart resets it; the email-in limits of
-  the same wave are DURABLE in auth.db by contrast) · `note_semantic._paused_until` (wave 7
+  — a second process doubles a Shortcut's budget) · `note_ask._inflight` (the
+  concurrent Ask / writing-help stream slots, `NOTE_ASK_MAX_CONCURRENT`) ·
+  `note_semantic._embedding_now` + `_query_cache` (wave 7 ruling D-H6: the armed meaning
+  search's one-embed-in-flight-per-member valve and its query-vector cache — a second
+  process doubles the valve and keeps its own cache) · `note_semantic._paused_until` (wave 7
   lane H fix round 1: after a provider failure the armed meaning search fails OPEN and skips
   the vendor for 60 s — per process, so a second pod keeps calling a failing vendor for
-  its own 60 s, and a restart clears the pause). Durable equivalents exist where a repeat is
-  genuinely costly (`j2_broker_member_stale_notify` for member email,
-  `j2_broker_digest_dedup` for the owner digest) — extend that pattern rather than
-  adding new module dicts if the web pod ever goes multi-instance.
+  its own 60 s, and a restart clears the pause) · the two document permit pools
+  `document_extraction._EXTRACTION_POOL` and `document_ocr._OCR_POOL` (wave 7 lane G: a
+  second process doubles how many extractions and OCR runs the box does at once).
+  ⚰️ `note_ask._writing_help_by_user` was listed here until the wave-7 whole-branch fix; ruling
+  D-H5b moved writing help's 60/day, Ask's per-member count, the shared LLM dollar cap and
+  the meaning search's daily embed count into ONE durable table, so none of them doubles or
+  resets any more. Durable equivalents exist where a repeat is genuinely costly
+  (`j2_broker_member_stale_notify` for member email, `j2_broker_digest_dedup` for the owner
+  digest, and since wave 7 `daily_usage_counters` in auth.db — `api/services/daily_counters.py`,
+  one row per scope, subject and ET day, failing OPEN when the counter cannot be read) —
+  extend that pattern rather than adding new module dicts if the web pod ever goes
+  multi-instance.
 
 ## Journal 2.0 — Table & Analytics polish (2026-06-24)
 
@@ -3588,12 +3597,18 @@ exactly as it did before K.
   rate, and `tools/window_check.py` now stamps that reading — reporting **absent**
   and **off** as different facts, because a pod predating K serves no keys at all.
 
-### 📓 Notebook 10/10 program — waves 5–6: #187 + #183 LIVE, #186 (wave 5) awaiting the owner's merge, wave 6 at its final gate, 2026-09-25
+### 📓 Notebook 10/10 program — waves 5–7: #187 + #183 LIVE, #186 (wave 5) and #193 (wave 6) awaiting the owner's merge, wave 7 in its whole-branch fix round, 2026-09-25
 
 ⭐⭐ **READ `docs/notebook/wave5-6-RESUME-HERE.md` FIRST** — it is the checkpoint
 for this program and carries exact SHAs and the next actions in order. This
 section is a pointer, not a substitute for it. `docs/notebook/RESUME-PROMPT.md`
 is a paste-ready prompt covering the whole program.
+
+⭐⭐ **Wave 7 has its own checkpoint: `docs/notebook/wave7-RESUME-HERE.md`** (branch
+`feat/notebook-w7`, worktree `C:\Users\Patrick\uct-worktrees\notebook-w7`). It carries
+capture and mobile (image OCR, docx documents, a personal API, iOS Shortcuts, email-in),
+writing help, meaning search and a Compass notes tool — every one of them DARK behind its
+own gate — plus lane I's performance budgets. Read it before touching that branch.
 
 Two worktrees: `C:\Users\Patrick\uct-worktrees\notebook-k` (`feat/notebook-10`,
 wave 5, tip `145478ec1`, **PR #186 open, gated green, awaiting the owner's
@@ -3654,8 +3669,13 @@ app/dist`, fail-closed on a missing manifest). Latency: the 50k local gate
 an unmeasured op is a breach). Editor: `tools/notebook_perf_harness.py` (local Playwright over a
 sandbox boot; pass the data dir from PowerShell). `.github/workflows/notebook-budgets.yml` runs the
 1k/10k tiers + bytes and is **advisory** (`# promotion-gate: no`) — a shared runner's timing would
-flap a 100 ms line; the local 50k gate is the verdict. ⛔ Budgets are never raised to fit a reading:
-at wave-7 close typing was OVER its 16 ms/char line (17.6 at 1,000 ¶, 22.4 at 2,000, loaded box) and
+flap a 100 ms line; the local 50k gate is the verdict. ⚰️ The workflow said its looser 10k line
+"cannot cry wolf"; measured, it does — 8 of 56 runs on `feat/notebook-w7` went red on
+`search_ci` alone, one of them on a commit that changed only comments while its parent passed
+(`46334dc85`, `q=common, relevance` 191.6 ms). A red there is runner noise until it reproduces.
+⛔ Budgets are never raised to fit a reading: typing is OVER its 16 ms/char line — lane H's
+quiet-box A/B medians 16.95 / 17.70 ms at 1,000 / 2,000 ¶ (n=4, the lane-H tip), and lane I's
+mid-wave loaded-box reading 17.6 / 22.4 at `658f364af`, which overstates the 2,000-¶ gap — and
 the file says so rather than moving the line. ⚠️ The measured 50k numbers were taken while a live
 trading session ran on the box (1.6–1.7× slower); re-read them on a quiet machine before citing.
 
