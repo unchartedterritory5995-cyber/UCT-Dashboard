@@ -379,6 +379,15 @@ GATE_READ_PATHS = (
     "api/services/voice_client_action_tools.py",
     "api/services/journal_two/roundtrip_export_fixture.py",
     "api/services/ticker_meta.py",
+    # ⛔ THE NOTEBOOK BRIDGE + PARITY RAILS READ (AND EXECUTE) THESE. `calloutNode.variant`,
+    # `selectionExport.roundtrip` and `importer/exportRoundtrip` shell out to the export
+    # bridges, which import `notes.py`; `dateMentionNode` and the tag-key parity rails read
+    # the JSON corpora. A change to any of them CAN change a suite result, so a carry-over
+    # verdict must not cross it. Named by the derivation rail on PR #186's CI run
+    # (2026-09-25), which is the only way this list is ever extended.
+    "api/services/journal_two/notes.py",
+    "tests/fixtures_plain_text.json",
+    "tests/fixtures_tag_keys.json",
     # the Pine translator's own corpus + parity/lookback rails read these —
     # directories are whole-tree entries (same idiom as app/src above), the
     # rest are individual files `tests/test_the_read_set_covers_...` named
