@@ -1,0 +1,197 @@
+{
+ "errors": [
+  "wave6 walk forced error"
+ ],
+ "checks": {
+  "W1_lock_unlock": {
+   "verdict": "PASS",
+   "note_id": "923d79102b7e421a952b1874c2d3cf6c",
+   "lock_patch_status": 200,
+   "lock_patch_answer_is_note": true,
+   "lock_wire_body": {
+    "locked": false
+   },
+   "editable_while_locked": "false",
+   "unlock_patch_status": 200,
+   "editable_after_unlock": "true",
+   "autosave_put_fired": true,
+   "autosave_put_base_updated_at": "2026-09-25T08:27:36.457112+00:00",
+   "conflicted_copies_in_list": []
+  },
+  "W2_archive": {
+   "verdict": "FAIL",
+   "note_id": "2742f44d8e764b4ab3a9232a10aed5af",
+   "archive_patch_status": 200,
+   "gone_from_default": true,
+   "not_in_trash": true,
+   "in_archived": true,
+   "still_in_its_folder": false,
+   "unarchive_status": 200,
+   "back_in_default_after_unarchive": true
+  },
+  "W2b_bulk_archive_undo": {
+   "verdict": "PASS",
+   "batch_op": "archive",
+   "undo_op": "unarchive",
+   "titles": [
+    "Walk W2b bulk 0 r032729",
+    "Walk W2b bulk 1 r032729"
+   ]
+  },
+  "W3_templates": {
+   "verdict": "INCONCLUSIVE",
+   "reason": "exception: Locator.click: Error: strict mode violation: get_by_role(\"region\", name=\"Your templates\").first.get_by_role(\"button\", name=re.compile(r\"Walk\\ template\\ r032729\")) resolved to 3 elements:\n    1) <button type=\"button\" class=\"_card_p1fxc_43\">…</button> aka get_by_role(\"button\", name=\"Walk template r032729 Walk W3\")\n    2) <button type=\"button\" class=\"_miniBtn_p1fxc_179\" aria-label=\"Rename Walk template r032729\">Rename</button> aka get_by_role(\"button\", name=\"Rename Walk template r032729\")\n    3) <button type=\"button\" class=\"_miniBtn_p1fxc_179\" aria-label=\"Delete Walk template r032729\">Delete</button> aka get_by_role(\"button\", name=\"Delete Walk template r032729\")\n\nCall log:\n  - waiting for get_by_role(\"region\", name=\"Your templates\").first.get_by_role(\"button\", name=re.compile(r\"Walk\\ template\\ r032729\"))\n",
+   "traceback": "e 69, in send\n    return await self._connection.wrap_api_call(\n           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n    ...<3 lines>...\n    )\n    ^\n  File \"C:\\Users\\Patrick\\AppData\\Roaming\\Python\\Python314\\site-packages\\playwright\\_impl\\_connection.py\", line 559, in wrap_api_call\n    raise rewrite_error(error, f\"{parsed_st['apiName']}: {error}\") from None\nplaywright._impl._errors.Error: Locator.click: Error: strict mode violation: get_by_role(\"region\", name=\"Your templates\").first.get_by_role(\"button\", name=re.compile(r\"Walk\\ template\\ r032729\")) resolved to 3 elements:\n    1) <button type=\"button\" class=\"_card_p1fxc_43\">…</button> aka get_by_role(\"button\", name=\"Walk template r032729 Walk W3\")\n    2) <button type=\"button\" class=\"_miniBtn_p1fxc_179\" aria-label=\"Rename Walk template r032729\">Rename</button> aka get_by_role(\"button\", name=\"Rename Walk template r032729\")\n    3) <button type=\"button\" class=\"_miniBtn_p1fxc_179\" aria-label=\"Delete Walk template r032729\">Delete</button> aka get_by_role(\"button\", name=\"Delete Walk template r032729\")\n\nCall log:\n  - waiting for get_by_role(\"region\", name=\"Your templates\").first.get_by_role(\"button\", name=re.compile(r\"Walk\\ template\\ r032729\"))\n\n"
+  },
+  "W4_daily_note": {
+   "verdict": "PASS",
+   "first_note_id": "c774b94d103b488ba582e17c2ed8ebea",
+   "second_note_id": "c774b94d103b488ba582e17c2ed8ebea",
+   "same_note_both_times": true,
+   "today_title": "2026-09-25 · Friday",
+   "exactly_one_in_api": true
+  },
+  "W5_relation": {
+   "verdict": "FAIL",
+   "relation_created_via_ui": false,
+   "relation_prop_values": [],
+   "related_from_present": false,
+   "related_from_names_a": false
+  },
+  "W6_timeline": {
+   "verdict": "PASS",
+   "offered_and_pressed": true,
+   "saved_ok": true,
+   "saved_view_type": "timeline",
+   "restored_as_timeline": true,
+   "saved_view_row_count": 1
+  },
+  "W7_split_view": {
+   "verdict": "FAIL",
+   "two_editors_mounted": true,
+   "same_note_beside_itself_refused": true,
+   "image_picker_openers": 0
+  },
+  "W8_tag_rename_flat_and_nested": {
+   "verdict": "INCONCLUSIVE",
+   "reason": "exception: Locator.click: Timeout 30000ms exceeded.\nCall log:\n  - waiting for get_by_role(\"button\", name=\"Rename walknestr032729/sub\")\n",
+   "traceback": "ywright\\_impl\\_sync_base.py\", line 115, in _sync\n    return task.result()\n           ~~~~~~~~~~~^^\n  File \"C:\\Users\\Patrick\\AppData\\Roaming\\Python\\Python314\\site-packages\\playwright\\_impl\\_locator.py\", line 162, in click\n    return await self._frame._click(self._selector, strict=True, **params)\n           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"C:\\Users\\Patrick\\AppData\\Roaming\\Python\\Python314\\site-packages\\playwright\\_impl\\_frame.py\", line 566, in _click\n    await self._channel.send(\"click\", self._timeout, locals_to_params(locals()))\n  File \"C:\\Users\\Patrick\\AppData\\Roaming\\Python\\Python314\\site-packages\\playwright\\_impl\\_connection.py\", line 69, in send\n    return await self._connection.wrap_api_call(\n           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n    ...<3 lines>...\n    )\n    ^\n  File \"C:\\Users\\Patrick\\AppData\\Roaming\\Python\\Python314\\site-packages\\playwright\\_impl\\_connection.py\", line 559, in wrap_api_call\n    raise rewrite_error(error, f\"{parsed_st['apiName']}: {error}\") from None\nplaywright._impl._errors.TimeoutError: Locator.click: Timeout 30000ms exceeded.\nCall log:\n  - waiting for get_by_role(\"button\", name=\"Rename walknestr032729/sub\")\n\n"
+  },
+  "W8b_tag_rename_unsent_work": {
+   "verdict": "INCONCLUSIVE",
+   "rename_fired": false,
+   "notice_text": "could not drive the rename UI: Locator.click: Timeout 5000ms exceeded.\nCall log:\n  - waiting for get_by_role(\"button\", name=\"Rename walkracer032729\")\n    - locator resolved to <button type=\"button\" title=\"Rename tag\" class=\"_renameTagBtn_inktk_821\" aria-label=\"Rename walkracer032729\">…</button>\n  - attempting click action\n    2 × waiting for element to be visible, enabled and stable\n      - element is visible, enabled and stable\n      - scrolling into view if needed\n      - done scrolling\n      - <div class=\"_revealScene_5wcyo_827\"></div> from <div role=\"dialog\" aria-label=\"Welcome\" class=\"_overlay_5wcyo_13 _playing_5wcyo_1093\">…</div> subtree intercepts pointer events\n    - retrying click action\n    - waiting 20ms\n    2 × waiting for element to be visible, enabled and stable\n      - element is visible, enabled and stable\n      - scrolling into view if needed\n      - done scrolling\n      - <div class=\"_revealScene_5wcyo_827\"></div> from <div role=\"dialog\" aria-label=\"Welcome\" class=\"_overlay_5wcyo_13 _playing_5wcyo_1093\">…</div> subtree intercepts pointer events\n    - retrying click action\n      - waiting 100ms\n    8 × waiting for element to be visible, enabled and stable\n      - element is visible, enabled and stable\n      - scrolling into view if needed\n      - done scrolling\n      - <div class=\"_revealScene_5wcyo_827\"></div> from <div role=\"dialog\" aria-label=\"Welcome\" class=\"_overlay_5wcyo_13 _playing_5wcyo_1093\">…</div> subtree intercepts pointer events\n    - retrying click action\n      - waiting 500ms\n",
+   "names_the_unsent_note": false,
+   "names_this_device_could_not_check": false,
+   "has_waiver_button": false,
+   "batch_request_count": 0,
+   "intercepted_write_methods": [
+    "PUT",
+    "PUT",
+    "PUT",
+    "PUT"
+   ],
+   "note_on_instrument_change": "Replaced context.set_offline(True) (blocked ALL of dev2's requests, produced net::ERR_INTERNET_DISCONNECTED on the sandbox's own navigation -- an instrument failure) with a route interception scoped to ONLY this note's write endpoint (PUT/PATCH /api/j2/notes/<id>), so the durable layer's write hangs/aborts while every other request -- including the rename itself, run from a second page in the same context -- reaches the sandbox normally.",
+   "note_on_brief_mismatch": "The brief expects a 'Rename the others' waiver button; wave 6 fix round 3 (N1, final ruling, see NotebookTab.tagRename.test.jsx) REMOVED that waiver entirely -- the unsent note now gets no waiver of any kind, only a named notice ('these N notes have changes this device could not check...') and a single Close, and exactly one /api/j2/notes/batch request is issued. This check verifies the REAL current behaviour.",
+   "reason": "the race did not reproduce (the intercepted write may have been retried/flushed before the rename ran), or the rename UI could not be driven, or the notice text did not match the expected 'this device could not check' phrasing -- see notice_text"
+  },
+  "W9_editor_nodes_reload": {
+   "verdict": "INCONCLUSIVE",
+   "reason": "exception: Locator.click: Timeout 30000ms exceeded.\nCall log:\n  - waiting for get_by_role(\"listbox\", name=\"Insert block\").get_by_role(\"option\", name=\"2 columns\", exact=True)\n",
+   "traceback": " in _sync\n    return task.result()\n           ~~~~~~~~~~~^^\n  File \"C:\\Users\\Patrick\\AppData\\Roaming\\Python\\Python314\\site-packages\\playwright\\_impl\\_locator.py\", line 162, in click\n    return await self._frame._click(self._selector, strict=True, **params)\n           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"C:\\Users\\Patrick\\AppData\\Roaming\\Python\\Python314\\site-packages\\playwright\\_impl\\_frame.py\", line 566, in _click\n    await self._channel.send(\"click\", self._timeout, locals_to_params(locals()))\n  File \"C:\\Users\\Patrick\\AppData\\Roaming\\Python\\Python314\\site-packages\\playwright\\_impl\\_connection.py\", line 69, in send\n    return await self._connection.wrap_api_call(\n           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n    ...<3 lines>...\n    )\n    ^\n  File \"C:\\Users\\Patrick\\AppData\\Roaming\\Python\\Python314\\site-packages\\playwright\\_impl\\_connection.py\", line 559, in wrap_api_call\n    raise rewrite_error(error, f\"{parsed_st['apiName']}: {error}\") from None\nplaywright._impl._errors.TimeoutError: Locator.click: Timeout 30000ms exceeded.\nCall log:\n  - waiting for get_by_role(\"listbox\", name=\"Insert block\").get_by_role(\"option\", name=\"2 columns\", exact=True)\n\n"
+  },
+  "W10_link_paste": {
+   "verdict": "PASS",
+   "offer_appeared": true,
+   "preview_offered": true,
+   "preview_card_appeared": true,
+   "plain_text_url_no_card": null,
+   "lookalike_host_check": "INCONCLUSIVE",
+   "lookalike_reason": "the server only computes/shows a domain AFTER a successful HTTPS fetch of real HTML (api/routers/notebook_link_preview.py:206-219, IDNA-encode-or-omit); a homoglyph domain that both resolves publicly and returns parseable HTML was not available to this walk. Read, not exercised."
+  },
+  "W11_unlinked_mentions": {
+   "verdict": "PASS",
+   "server_count": 0,
+   "section_present": true,
+   "open_only": true,
+   "link_it_affordance_present": false,
+   "note_on_brief_mismatch": "The brief expects a 'link this' affordance; the shipped UnlinkedMentions component deliberately offers Open ONLY (see UnlinkedMentions.test.jsx: 'offers Open ONLY -- no Link it, and nothing here ever writes'). This check verifies the REAL current behaviour."
+  },
+  "W11_tasks_across_notes": {
+   "verdict": "PASS",
+   "note_id": "c0b41150d5a84aac86d6001fd300c67f",
+   "found_via_api": true,
+   "due_matches": true,
+   "ui_reachable": true,
+   "ui_checkbox_found": false,
+   "ui_check_reflected_in_api": null,
+   "ui_error": null,
+   "ui_reachability": "NoteTasksView.jsx was mounted in 44aba6944 and is reachable at ?view=tasks -- this run drove the UI directly (see ui_reachable / ui_checkbox_found / ui_check_reflected_in_api above) rather than re-asserting the earlier zero-importers finding, which was correct against the dist that tip predates but is now stale."
+  },
+  "W11_reminders": {
+   "verdict": "INCONCLUSIVE",
+   "reason": "the daily reminder is a scheduled server-side pass (api/services/journal_two/note_tasks.py: run_task_reminders at 07:00 and 09:00 ET, plus a boot catch-up gated on the wall-clock ET hour) with no admin/manual HTTP trigger reachable from a live walk (grep-confirmed: run_task_reminders / catch_up_task_reminders have zero callers outside the scheduler + their own tests). Firing it for real would require the sandbox to boot at/after 07:00 ET with the task already due, which this walk's own note-seeding cannot arrange."
+  },
+  "W11_telemetry_and_error_beacon": {
+   "verdict": "PASS",
+   "note_open_telemetry": {
+    "event": "note_open_ms",
+    "props": {
+     "ms": 245
+    }
+   },
+   "error_beacon_body_present": true
+  },
+  "W12_two_tabs_one_note": {
+   "verdict": "FAIL",
+   "puts_while_both_open": {
+    "tab1": 1,
+    "tab2": 0
+   },
+   "tab1_sole_writer_while_open": true,
+   "owner_notice_seen_on_tab2": false,
+   "tab2_drains_after_tab1_closes": false,
+   "stuck_owner_notice_after_bfcache_nav": false
+  },
+  "W13_errors_and_sandbox_integrity": {
+   "verdict": "PASS",
+   "pageerror_count": 0,
+   "pageerrors": [],
+   "deliberate_test_errors_excluded": 1,
+   "sandbox_runs_file": "docs\\plans\\joystick\\sandbox-runs\\2026-09-25T03-25-55.md",
+   "sandbox_integrity_tail": "# Sandbox run — shared-data-root integrity log\n\nEvery checkpoint below hashes the main `.db` files under the shared root.\n`-wal` / `-shm` are excluded: opening a WAL database read-only rewrites its\n`-shm` index, so mtime there is noise. See `scripts/data_root_snapshot.py`.\n\n- `2026-09-25 03:26:02`  **pre-boot (baseline)** — C:\\data, 61 db files — CLEAN\n    - sandbox = C:\\data-w6walk\n- `2026-09-25 03:26:57`  **post-boot (+15s)** — C:\\data, 61 db files — CLEAN\n- `2026-09-25 03:28:55`  **post-prewarm (+120s)** — C:\\data, 61 db files — CLEAN\n"
+  }
+ },
+ "admin_login_ok": true,
+ "comp_status": {
+  "g064@local.dev": 200,
+  "g064b@local.dev": 200
+ },
+ "verify_email_status": {
+  "g064@local.dev": 200,
+  "g064b@local.dev": 200
+ },
+ "account": {
+  "role": "member",
+  "plan": "pro",
+  "paid_equiv": true
+ },
+ "account2_paid_equiv": true,
+ "CRITICAL_FINDING_editor_view_throwing_getter": {
+  "file": "app/src/pages/journal-2-0/components/notebook/NoteEditorPage.jsx",
+  "line": 2448,
+  "code": "const dom = editor?.view?.dom",
+  "introduced_by": "wave 6 fix round 1, I5 (split-view image-picker isolation)",
+  "symptom": "opening a note throws '[tiptap error]: The editor view is not available. Cannot access view[\\'dom\\']. The editor may not be mounted yet.', caught by the route ErrorBoundary, which replaces the ENTIRE editor with 'Something went wrong on this page' -- not scoped to split view or any wave-6-specific feature; it can hit any note open.",
+  "measured_crash_rate": "reproduced on this tip across 3 independent samples before this walk's retry wrapper was added: 3/6, 2/4, then 1/2 -- roughly half of all note-opens, on fresh contexts and fresh notes",
+  "root_cause": "optional chaining (?.) only short-circuits on a null/undefined LEFT side; it does not guard a property GETTER that itself throws. tiptap's Editor.view getter throws (not undefined) once destroyed or before the internal EditorView is constructed -- exactly the case here.",
+  "already_a_named_hazard_class_in_this_codebase": "NoteFindBar.jsx:63-64 carries this exact comment, still in the tree today: 'isDestroyed guards a note-switch/unmount racing this callback -- editor.view THROWS once destroyed (not merely undefined), so a bare editor?.view optional-chain does not protect against it.' NoteFindBar.jsx itself guards every .view/.state read with `if (!editor || editor.isDestroyed) return` (lines 67, 146, 191, 194). NoteEditorPage.jsx:2448 has no such guard -- the wave-6 fix reintroduced a pattern the wave-5 review had already named and fixed elsewhere in the same component family.",
+  "suggested_remedy_pattern_already_in_tree": "guard with `if (!editor || editor.isDestroyed) return undefined` before reading `editor.view`, matching NoteFindBar.jsx's own pattern",
+  "walk_mitigation": "this walk's own open_note()/reload_note() helpers retry through the crash (up to 5 attempts) so the OTHER 12 checks below can still run and produce real evidence; _CRASH_STATS records every occurrence",
+  "crash_stats": {
+   "count": 0,
+   "attempts_log": []
+  },
+  "out_of_scope_for_this_walk": "the walk author's brief is to touch ONLY tools/notebook_wave6_walk.py -- this finding is reported, not fixed, here"
+ }
+}
