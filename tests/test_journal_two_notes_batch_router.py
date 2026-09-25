@@ -405,6 +405,53 @@ def test_the_route_calls_the_selection_builder_lane_d_shipped_not_the_per_note_m
     assert manifest["selection"] is True
 
 
+def test_route_level_round_trip_two_folders_a_cross_link_and_a_spaced_title(app, client):
+    """M4 (wave 6 fix round 2) — the addendum's own wire rail, which
+    tests/test_notes_export_wave6.py's own docstring says belongs here
+    ("the route's rail on the wire is lane E's") and which was never
+    written: the spy test above proves the route CALLS the builder, and
+    the builder's own tests (test_every_link_between_selected_notes_is_a_
+    markdown_link_that_resolves_inside_the_archive) prove the builder's
+    OUTPUT is correct in isolation — neither proves the two are wired
+    together correctly through the real HTTP door a member calls. This
+    drives real folders, a real inter-note link and a spaced title through
+    POST /api/j2/notes/batch/export itself."""
+    _login_as(app, "u1")
+    trading = _folder(client, "Trading")
+    research = _folder(client, "Research")
+    a = _note(client, "Cup and handle", folderId=trading)
+    b = _note(client, "NVDA thesis", folderId=research)
+    link_body = {"type": "doc", "content": [
+        {"type": "paragraph", "content": [{"type": "noteLink", "attrs": {"noteId": b["id"]}}]},
+    ]}
+    assert client.put(f"/api/j2/notes/{a['id']}", json={"bodyJson": link_body}).status_code == 200
+
+    r = _export(client, [a["id"], b["id"]])
+    zf = zipfile.ZipFile(io.BytesIO(r.content))
+    names = set(zf.namelist())
+    assert {"Trading/Cup and handle.md", "Research/NVDA thesis.md"} <= names
+
+    from markdown_it import MarkdownIt
+    import posixpath
+    from urllib.parse import unquote
+
+    linking_md = zf.read("Trading/Cup and handle.md").decode("utf-8")
+    hrefs = [
+        child.attrGet("href")
+        for tok in MarkdownIt("commonmark").parse(linking_md)
+        for child in (tok.children or [])
+        if child.type == "link_open"
+    ]
+    # ⛔ CommonMark itself must see it as a link (I2's percent-encoding fix):
+    # an unencoded space in the destination would not parse as one at all.
+    assert len(hrefs) == 1
+    resolved = posixpath.normpath(posixpath.join(
+        posixpath.dirname("Trading/Cup and handle.md"),
+        unquote(hrefs[0].split("#")[0].split("?")[0]),
+    ))
+    assert resolved == "Research/NVDA thesis.md"
+
+
 def test_a_failed_build_releases_the_slot_so_the_next_export_still_runs(app, client, monkeypatch):
     """The switch keeps the caller-owns-the-slot contract on failure too:
     `build_selection_export_to_tempfile` deletes its own partial tmp file (its

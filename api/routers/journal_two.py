@@ -2326,9 +2326,13 @@ def notes_batch_export_endpoint(
     to the requested ids — never a per-note merge. One temp file, streamed,
     cleaned up on both success (the stream's own `finally`) and failure (the
     builder deletes its own partial file; the route releases the slot it
-    acquired). Notes sit at the archive root (a selection spans folders; the
-    member chose notes, not a tree); two with the same title are told apart
-    by id.
+    acquired). ⛔ M3 (wave 6 fix round 2): this used to say notes sit at the
+    archive root -- stale since I2 switched this route to the SAME archive
+    writer the whole-notebook export uses (`_write_notes_archive`, via
+    `build_selection_export_to_tempfile`, notes_export.py): each note keeps
+    its OWN folder path in the zip, and a link between two selected notes is
+    a relative `.md` path, not a not-bundled reference. Two notes with the
+    same title in different folders are told apart by their path, not by id.
 
     Guarded like the whole-notebook export: one export slot per pod (429
     when busy), built to a temp file and streamed, never held in memory.
