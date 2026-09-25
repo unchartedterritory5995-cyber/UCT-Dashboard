@@ -27,7 +27,7 @@ import { useIsTouch } from '../../../../hooks/useBreakpoint'
 import UIcon from '../../../../components/ui/UIcon'
 import { currentHeadingIndex, outlineBaseLevel, outlineOf } from '../../lib/noteOutline'
 import { onDocChange } from '../../lib/onDocChange'
-import { Toggle } from '../../lib/toggleNode'
+import { jumpToHeading } from '../../lib/tableOfContentsNode'
 import styles from './NoteOutline.module.css'
 
 export const OUTLINE_DEBOUNCE_MS = 200
@@ -82,21 +82,10 @@ export default function NoteOutline({ editor, onClose, toggleRef }) {
       ? fresh[index]
       : fresh.find((h) => drawn && h.text === drawn.text && h.level === drawn.level)
     if (!target) { outlineRef.current = fresh; setOutline(fresh); return }
-    editor.chain().focus()
-      .command(({ tr }) => {
-        // Open every collapsed toggle around the heading (S4). Attribute
-        // steps move no positions, so target.pos stays valid.
-        const $pos = tr.doc.resolve(target.pos)
-        for (let d = $pos.depth; d > 0; d -= 1) {
-          const node = $pos.node(d)
-          if (node.type.name === Toggle.name && !node.attrs.open) tr.setNodeAttribute($pos.before(d), 'open', true)
-        }
-        return true
-      })
-      .setTextSelection(target.pos + 1)
-      .run()
-    const dom = editor.view.nodeDOM(target.pos)
-    dom?.scrollIntoView?.({ block: 'start', behavior: 'smooth' })
+    // ⭐ Wave 7 (M5): the ONE jump -- caret into the heading, every collapsed
+    // toggle around it opened in the same transaction (S4), scrolled into view.
+    // The in-note table of contents uses the same function; this was a copy.
+    jumpToHeading(editor, target.pos)
     if (isTouch) close(false)
   }
 
