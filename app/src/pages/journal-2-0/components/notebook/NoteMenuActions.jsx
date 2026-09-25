@@ -9,9 +9,10 @@
  *
  *     <NoteEditorPage … noteMenu={(note, { refresh }) => <NoteMenuActions … />} />
  *
- * and the editor renders `{noteMenu?.(note, { refresh })}` in its header row —
- * the one-line mount requested in wave6-E-report.md. Until that line lands the
- * prop is ignored and nothing here is reachable from the editor.
+ * and the editor renders `{noteMenu?.(note, { refresh })}` in its header row,
+ * past both of its early returns — wired in wave 6 fix round 1 (I1, M1: this
+ * comment used to describe the mount as still pending; it landed), so this
+ * component is reachable from the editor today.
  *
  * ⛔ Every write lands the revision the server reports (`settleNoteWrite`). For
  * the LOCK that is load-bearing: the lock ADVANCES the revision (so another

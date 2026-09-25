@@ -66,12 +66,16 @@ import { openNotebookDb } from './offline/notebookDb'
 export const NOTE_WRITING_OPS = new Set(['move', 'addTag', 'removeTag', 'renameTag', 'trash', 'restore'])
 
 /** Ops that also refuse a note whose words are still being sent (see above).
- *  `renameTag` (wave 6 fix round 1, I4) joins `trash` here, not `addTag`/
- *  `removeTag`: those two MERGE one tag into whatever tag list the server
- *  reads at write time, so a queued PUT landing after them is unaffected —
- *  a rename REBUILDS the whole list from the tags read at request time
- *  (`renamed_tag_list`), and a queued PUT still in flight would be silently
- *  overwritten by a rewrite computed before it arrived. */
+ *  `renameTag` (wave 6 fix round 1, I4) joins `trash` here. ⛔ Wave 6 fix
+ *  round 2, M8: this used to justify the entry with a MERGE-vs-REBUILD
+ *  mechanism distinction ("addTag/removeTag merge one tag; a rename rebuilds
+ *  the whole list") that the server does not actually make — `_new_tags_for`
+ *  (I7's fold) runs addTag, removeTag AND renameTag through the SAME
+ *  compare-and-set loop, each computing its own whole new tag list from the
+ *  head read at request time. The real reason is item 8's own requirement:
+ *  a note with unsent work is refused and NAMED for a rename exactly as it is
+ *  for a trash, so a member is never told a tag changed on a note whose
+ *  words the server does not have yet. */
 export const UNSENT_REFUSED_OPS = new Set(['trash', 'renameTag'])
 
 /** How long asking the device may take before its notes count as UNCHECKED.
@@ -271,17 +275,56 @@ export function describeBatch(outcome, {
 }
 
 /**
+ * Wave 6 fix round 2, N1 — the per-op copy/args table `describeUnchecked` and
+ * `runAnyway` both consult, so a new op's "could not check this device"
+ * prompt is never one `if` away from silently falling into another op's
+ * shape. `trash` is ALSO the fallback for any op with no entry of its own —
+ * on purpose: that is the exact shape the pre-fix code fell into for
+ * `renameTag` (N1's own defect), so an op added to `UNSENT_REFUSED_OPS`
+ * without a row here fails the same way it always would have, loudly enough
+ * for a rail to catch it, rather than a NEW, different-looking mistake.
+ */
+const UNCHECKED_OP_COPY = {
+  export: {
+    what: 'included',
+    label: 'Export anyway',
+    confirmLabel: 'Yes, export anyway',
+    confirm: (n) => `Export ${n} without checking this device? Words typed here that have not reached the server would be missing from the file.`,
+  },
+  renameTag: {
+    what: 'renamed',
+    label: 'Rename the others',
+    confirmLabel: 'Yes, rename the others',
+    confirm: (n) => `Rename ${n} without checking this device? Only the tag would change — the notes' own words are unaffected either way.`,
+  },
+  trash: {
+    what: 'moved to the Trash',
+    label: 'Trash anyway',
+    confirmLabel: 'Yes, trash anyway',
+    confirm: (n) => `Move ${n} to the Trash without checking this device? Words typed here that have not reached the server may not be kept.`,
+  },
+}
+
+/**
  * The sentence and the offer for notes the device could not be ASKED about
  * (review R1-S1) — or null when there are none. The offer is two-step: the
  * member presses `label`, reads `confirm`, and only `confirmLabel` proceeds.
  *
- * @param op   'trash' | 'export'
- * @param ids  the unchecked note ids
+ * @param op    the batch op ('trash' | 'export' | 'renameTag' | …)
+ * @param ids   the unchecked note ids
+ * @param args  N1: the op's OWN batch args (e.g. `{from, to}` for
+ *              `renameTag`) — carried into `anyway.args` so confirming the
+ *              offer (`runAnyway`) resends a request the server accepts,
+ *              instead of the `{}` that produced N1's 400.
+ * @param ctx   N1: the op's own `describeBatch` context (e.g.
+ *              `{tag, renameTo}`) — carried into `anyway.ctx` so the RETRIED
+ *              batch's own success sentence names the same tag, rather than
+ *              "#undefined".
  */
-export function describeUnchecked(op, ids, { titleOf = () => null } = {}) {
+export function describeUnchecked(op, ids, { titleOf = () => null, args = {}, ctx = {} } = {}) {
   const list = [...(ids || [])]
   if (!list.length) return null
-  const what = { trash: 'moved to the Trash', export: 'included' }[op] || 'changed'
+  const copy = UNCHECKED_OP_COPY[op] || UNCHECKED_OP_COPY.trash
   const named = list.slice(0, 3).map((id) => {
     const t = titleOf(id)
     return t ? `"${t}"` : 'a note'
@@ -289,17 +332,11 @@ export function describeUnchecked(op, ids, { titleOf = () => null } = {}) {
   const more = list.length > 3 ? ` and ${list.length - 3} more` : ''
   const n = plural(list.length, 'note')
   return {
-    message: `${UNCHECKED_SENTENCE} ${plural(list.length, 'note was', 'notes were')} not ${what}: ${named.join('; ')}${more}.`,
+    message: `${UNCHECKED_SENTENCE} ${plural(list.length, 'note was', 'notes were')} not ${copy.what}: ${named.join('; ')}${more}.`,
     tone: 'error',
-    anyway: op === 'export'
-      ? {
-        op, ids: list, label: 'Export anyway', confirmLabel: 'Yes, export anyway',
-        confirm: `Export ${n} without checking this device? Words typed here that have not reached the server would be missing from the file.`,
-      }
-      : {
-        op, ids: list, label: 'Trash anyway', confirmLabel: 'Yes, trash anyway',
-        confirm: `Move ${n} to the Trash without checking this device? Words typed here that have not reached the server may not be kept.`,
-      },
+    anyway: {
+      op, ids: list, args, ctx, label: copy.label, confirmLabel: copy.confirmLabel, confirm: copy.confirm(n),
+    },
   }
 }
 

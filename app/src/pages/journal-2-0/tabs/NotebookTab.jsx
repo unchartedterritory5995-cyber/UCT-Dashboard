@@ -865,8 +865,12 @@ export default function NotebookTab() {
       const { message, tone } = describeBatch(outcome, { ...ctx, titleOf })
       // R1-S1: notes this device could not be ASKED about are not "still
       // syncing" — they get their own sentence and a confirmed "anyway".
+      // N1 (wave 6 fix round 2): `args`/`ctx` are THIS op's own — carried so a
+      // confirmed "anyway" resends a request the op's own table (and its own
+      // describeBatch branch) can actually read, never `renameTag` with no
+      // `{from, to}`.
       const offer = describeUnchecked(
-        op, outcome.results.filter((r) => r.status === 'unchecked').map((r) => r.id), { titleOf })
+        op, outcome.results.filter((r) => r.status === 'unchecked').map((r) => r.id), { titleOf, args, ctx })
       const changedIds = outcome.results.filter((r) => r.status === 'changed').map((r) => r.id)
       // A trash and a move can be taken back (B1: a move said where each note
       // came from). An Undo itself cannot — and never replaces a newer one.
@@ -965,7 +969,11 @@ export default function NotebookTab() {
     if (!anyway || bulkBusyRef.current) return
     setBulkNotice(null)
     if (anyway.op === 'export') exportSelection(anyway.ids, { acceptUnchecked: true })
-    else runBulk(anyway.op, {}, {}, anyway.ids, { acceptUnchecked: true, continues: true })
+    // N1 (wave 6 fix round 2): `anyway.args`/`anyway.ctx` are the op's OWN —
+    // dropping them to `{}` is exactly N1 (a `renameTag` retry with no
+    // `{from, to}` 400s at the server, and its own success sentence would
+    // read "#undefined" without `ctx`).
+    else runBulk(anyway.op, anyway.args || {}, anyway.ctx || {}, anyway.ids, { acceptUnchecked: true, continues: true })
   }
 
   // Create a note. Blank note passes no title/body; a template seeds both
@@ -1298,10 +1306,11 @@ export default function NotebookTab() {
                 onBack={closeNote}
                 showBack={false}
                 onTitleChange={updateTreeNoteTitle}
-                // ⛔ Wave 6 (lane E): the note menu's organisation actions. The
-                // editor is lane D's file; it renders `noteMenu?.(note, { refresh })`
-                // in its header row (requested in wave6-E-report.md). Ignored until
-                // then — this prop alone changes nothing an editor does.
+                // Wave 6 (lane E), I1: the note menu's organisation actions.
+                // The editor (lane D's NoteEditorPage.jsx) renders
+                // `{noteMenu?.(note, { refresh })}` in its header row, past
+                // both early returns — wired in fix round 1 (M1: this comment
+                // used to describe that render as still pending; it landed).
                 noteMenu={(note, api) => (
                   <NoteMenuActions
                     note={note}

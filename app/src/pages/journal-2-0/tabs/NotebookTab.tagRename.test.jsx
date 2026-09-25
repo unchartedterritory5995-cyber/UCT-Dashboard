@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest'
-import { render, screen, fireEvent } from '@testing-library/react'
+import { render, screen, fireEvent, waitFor } from '@testing-library/react'
 import { MemoryRouter } from 'react-router-dom'
 
 /**
@@ -75,8 +75,11 @@ import { __resetNotebookFlags } from '../lib/offline/notebookFlags'
 import { installKeyRange } from '../lib/offline/__fixtures__/fakeIndexedDb'
 
 /** Same shape as NotebookTab.bulk.test.jsx's own helper: turns the offline
- *  wave on with a store holding unsent (queued) work for the given ids. */
-function withUnsentWork(queued) {
+ *  wave on with a store holding unsent (queued) work for the given ids.
+ *  `unreadable` (wave 6 fix round 2, N1) simulates a note the device could
+ *  not be ASKED about at all — the `get` request errors, so `checkUnsentWork`
+ *  reports it as `unchecked`, never `unsent`. */
+function withUnsentWork(queued, { unreadable = [] } = {}) {
   installKeyRange()
   localStorage.setItem('uct.notebook.offline', '1')
   vi.stubGlobal('indexedDB', { open: () => ({}) })
@@ -88,7 +91,11 @@ function withUnsentWork(queued) {
           return {
             get(noteId) {
               const req = {}
-              setTimeout(() => { req.result = { noteId, dirty: 0 }; req.onsuccess?.() }, 0)
+              setTimeout(() => {
+                if (unreadable.includes(noteId)) { req.onerror?.(); return }
+                req.result = { noteId, dirty: 0 }
+                req.onsuccess?.()
+              }, 0)
               return req
             },
             index() {
@@ -144,7 +151,11 @@ describe('NotebookTab — the tag-rename door refuses unsent work, named (wave 6
     renderTab()
     fireEvent.click(screen.getByRole('button', { name: 'rename earnings to quarterly' }))
     expect(await screen.findByText(/is still syncing/)).toBeInTheDocument()
-    const notice = screen.getByRole('status', { hidden: true }) || screen.getByRole('alert')
+    // M9 (wave 6 fix round 2): `getByRole` throws on no match, so an `||`
+    // fallback here could never run — this tone is always 'partial' (a
+    // change plus a named failure, never a bare error), so it is always
+    // `role="status"`.
+    const notice = screen.getByRole('status', { hidden: true })
     expect(notice.textContent).toMatch(/Renamed 1 note from #earnings to #quarterly/)
     expect(notice.textContent).toMatch(/"Second note" is still syncing/)
     expect(batchCalls).toHaveLength(1)
@@ -156,5 +167,42 @@ describe('NotebookTab — the tag-rename door refuses unsent work, named (wave 6
     fireEvent.click(screen.getByRole('button', { name: 'rename earnings to quarterly' }))
     expect(await screen.findByText(/Renamed 2 notes from #earnings to #quarterly/)).toBeInTheDocument()
     expect(batchCalls[0].ids).toEqual(['n1', 'n2'])
+  })
+})
+
+describe('NotebookTab — N1 (wave 6 fix round 2): a rename the device cannot check offers "Rename the others", never "Trash anyway"', () => {
+  it('names the unchecked note, offers "Rename the others", and confirming carries {from,to} + the tag names', async () => {
+    // n1 cannot be asked at all (unreadable); n2 is clean and gets renamed
+    // in the first batch — the same partial-plus-offer shape as trash's own
+    // R1-S1 test in NotebookTab.bulk.test.jsx.
+    withUnsentWork([], { unreadable: ['n1'] })
+    renderTab()
+    fireEvent.click(screen.getByRole('button', { name: 'rename earnings to quarterly' }))
+
+    // The first batch renames n2 only, and the unchecked note is named —
+    // never folded into a "still syncing" sentence.
+    const notice = await screen.findByTestId('bulk-notice')
+    expect(notice).toHaveTextContent('Renamed 1 note from #earnings to #quarterly.')
+    expect(notice).toHaveTextContent(
+      'Can\'t check this device for unsent words. 1 note was not renamed: "First note".')
+    expect(batchCalls).toEqual([{ ids: ['n2'], op: 'renameTag', args: { from: 'earnings', to: 'quarterly' } }])
+
+    // N1's own defect, pinned as its own absence: never "Trash anyway".
+    expect(screen.queryByRole('button', { name: 'Trash anyway' })).toBeNull()
+    const renameOthers = screen.getByRole('button', { name: 'Rename the others' })
+    fireEvent.click(renameOthers)
+
+    // The armed confirmation is a rename sentence, never a trash one.
+    const confirmText = screen.getByText(/^Rename 1 note without checking this device\?/)
+    expect(confirmText.textContent).not.toMatch(/Trash/)
+    fireEvent.click(screen.getByRole('button', { name: 'Yes, rename the others' }))
+
+    // The retried batch carries the op's own args (fixes the 400) …
+    await waitFor(() => expect(batchCalls).toHaveLength(2))
+    expect(batchCalls[1]).toEqual({ ids: ['n1'], op: 'renameTag', args: { from: 'earnings', to: 'quarterly' } })
+    // … and its OWN success sentence names the real tags, not "#undefined"
+    // (the ctx carry — without it this reads "#undefined" instead).
+    await waitFor(() => expect(screen.getByTestId('bulk-notice'))
+      .toHaveTextContent('Renamed 1 note from #earnings to #quarterly.'))
   })
 })
