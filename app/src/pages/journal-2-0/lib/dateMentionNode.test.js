@@ -176,7 +176,10 @@ describe('⭐ the contract with lane F (tasks read a dateMention as the due date
     const tasks = extractTasks(ed.getJSON())
     expect(tasks.map((t) => t.due)).toEqual([addDays(todayET(), 1), null])
     expect(tasks[0].text.replace(/\s+/g, ' ').trim()).toBe('Earnings prep')
-  })
+  // ⛔ An explicit budget (wave 7 lane J, fix round 1, I-1): this test spawns the task
+  // bridge once, and every bridge spawn pays the ~7 s census import (J1) -- under the
+  // default 15 s testTimeout a loaded box could time it out. One spawn under 60 s.
+  }, 60_000)
 })
 
 // ⛔ M16 (wave 6 fix round 1): a relative label is true only on the day it was

@@ -36,6 +36,25 @@ export function exportMarkdown(doc) {
   return JSON.parse(r.stdout).markdown
 }
 
+/**
+ * The exporter's Markdown for EVERY document in `docs`, in order, from ONE spawn.
+ *
+ * ⛔ Wave 7 lane J, fix round 1 (review I-1): every bridge spawn imports the repo-root
+ * conftest (the census + tripwire, J1), ~7 s. Paid once PER TEST it ran each test against
+ * vitest's 15 s `testTimeout`; a rail file calls this ONCE, in a `beforeAll` with its own
+ * budget (the `exportSelection` precedent in selectionExport.roundtrip.test.js).
+ */
+export function exportMarkdownMany(docs) {
+  const script = path.join(REPO_ROOT, 'tools', 'md_export_bridge.py')
+  const r = spawnSync('python', [script], { input: JSON.stringify(docs), encoding: 'utf8', maxBuffer: 64 * 1024 * 1024 })
+  if (r.status !== 0) throw new Error(`md_export_bridge.py failed (exit ${r.status}): ${r.stderr}`)
+  const { markdowns } = JSON.parse(r.stdout)
+  if (!Array.isArray(markdowns) || markdowns.length !== docs.length) {
+    throw new Error(`md_export_bridge.py answered ${Array.isArray(markdowns) ? markdowns.length : 'no list'} for ${docs.length} documents`)
+  }
+  return markdowns
+}
+
 /** What our importer makes of that Markdown: the note's TipTap JSON. */
 export function importMarkdown(md) {
   return htmlToNote(mdToHtml(md)).bodyJson

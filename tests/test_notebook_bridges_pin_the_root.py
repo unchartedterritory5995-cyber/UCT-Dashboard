@@ -28,6 +28,16 @@ Two halves, and they fail for different reasons:
   A guard nobody has seen fire is not a guard. Its twin runs the same driver over the same
   bridge with the import removed and must see NOTHING armed, so the probe can tell the two
   apart (a control that cannot fail is not a control).
+
+⚠️ WHAT THIS RAIL DOES NOT SEE (review M-7, recorded rather than guessed at):
+* the AST walk sees only ABSOLUTE `api` imports in the bridge itself -- a bridge importing a
+  non-`api` module (say a `tools.` helper) that imports `api.*` at ITS module level, before the
+  bridge's `import conftest` line runs, passes the walk;
+* `_env_writes` sees `os.environ[...] =`, `os.environ.setdefault/update` and `os.putenv`, not
+  `from os import environ; environ[...] = ...`;
+* the subprocess control runs ONE bridge (`note_tasks_bridge.py`, the one that hand-pinned).
+Low risk today (the three bridges' only non-`api` import, `tools.bridge_sandbox`, imports no
+`api`), and each is a place to widen the rail if a bridge ever grows that shape.
 """
 from __future__ import annotations
 
@@ -198,9 +208,14 @@ def _clean_env() -> dict:
 
 
 def _drive(bridge: Path, probe: Path, cwd: Path, *, call_main: bool, stdin: str = "") -> dict:
+    env = _clean_env()
+    # The child's census mints its sandboxes under TEMP: point it at this test's own
+    # directory so the driver (not a __main__ run, so no `run_bridge` release) leaves
+    # nothing in the real temp directory (review M-8).
+    env.update(TMP=str(cwd), TEMP=str(cwd), TMPDIR=str(cwd))
     r = subprocess.run(
         [sys.executable, "-c", _DRIVER, str(bridge), str(probe), str(REPO), "1" if call_main else "0"],
-        input=stdin, capture_output=True, text=True, encoding="utf-8", env=_clean_env(), cwd=str(cwd),
+        input=stdin, capture_output=True, text=True, encoding="utf-8", env=env, cwd=str(cwd),
         timeout=180,
     )
     assert r.returncode == 0, f"driver exit {r.returncode}\nstdout:\n{r.stdout}\nstderr:\n{r.stderr}"
@@ -272,3 +287,63 @@ def test_CONTROL_the_same_bridge_without_the_import_is_seen_unarmed(tmp_path):
     assert out["conftest_loaded"] is False
     assert out["armed"] is False
     assert out["auth_db_env"] is None, "AUTH_DB_PATH leaked into the child from somewhere other than the bridge"
+
+
+# ─── fix round 1: one spawn per rail FILE (I-1), and no sandbox left behind (M-8) ──────
+
+def _md_bridge_in_process(payload, monkeypatch):
+    """`md_export_bridge.main()` in THIS process: the census is already applied here by
+    pytest's own conftest import, so no ~7 s child is paid to check the stdin contract."""
+    import io
+    import runpy
+
+    g = runpy.run_path(str(TOOLS / "md_export_bridge.py"), run_name="uct_md_bridge_in_process")
+    out = io.BytesIO()
+    monkeypatch.setattr(sys, "stdin", io.TextIOWrapper(io.BytesIO(json.dumps(payload).encode("utf-8")),
+                                                       encoding="utf-8"))
+    monkeypatch.setattr(sys, "stdout", io.TextIOWrapper(out, encoding="utf-8"))
+    assert g["main"]() == 0
+    sys.stdout.flush()
+    return json.loads(out.getvalue().decode("utf-8"))
+
+
+_DOC_A = {"type": "doc", "content": [{"type": "paragraph", "content": [{"type": "text", "text": "alpha"}]}]}
+_DOC_B = {"type": "doc", "content": [{"type": "heading", "attrs": {"level": 2},
+                                      "content": [{"type": "text", "text": "beta"}]}]}
+
+
+def test_the_md_bridge_answers_one_document_AND_a_list_of_them(monkeypatch):
+    """I-1: a JS rail file exports every document it needs in ONE spawn (one census) by
+    handing the bridge a list; the single-document form stays for every other caller."""
+    one_a = _md_bridge_in_process(_DOC_A, monkeypatch)
+    one_b = _md_bridge_in_process(_DOC_B, monkeypatch)
+    many = _md_bridge_in_process([_DOC_A, _DOC_B], monkeypatch)
+    assert set(one_a) == {"markdown"} and "alpha" in one_a["markdown"]
+    assert set(many) == {"markdowns"}
+    assert many["markdowns"] == [one_a["markdown"], one_b["markdown"]]   # same answer, same order
+    assert _md_bridge_in_process([], monkeypatch) == {"markdowns": []}
+
+
+def test_a_bridge_run_as_a_script_leaves_no_census_sandbox_behind(tmp_path):
+    """M-8: importing the census mints two sandbox directories (`uct_tests_authdb_*`,
+    `uct_tests_datadir_*`) that only the NEXT day's prune reclaims -- two per spawn. A
+    bridge releases them on exit (only while EMPTY: `os.rmdir`). Run with TEMP pointed at a
+    private directory, so the check sees this child's directories and nobody else's."""
+    tmp = tmp_path / "temp"
+    tmp.mkdir()
+    env = _clean_env()
+    env.pop("UCT_TEST_SHARED_ROOT_GUARD", None)            # the default, enforce
+    env.update(TMP=str(tmp), TEMP=str(tmp), TMPDIR=str(tmp))
+    r = subprocess.run([sys.executable, str(TOOLS / "md_export_bridge.py")], input=json.dumps(_DOC_A),
+                       capture_output=True, text=True, encoding="utf-8", env=env, cwd=str(tmp_path),
+                       timeout=180)
+    assert r.returncode == 0, r.stderr
+    assert "alpha" in json.loads(r.stdout)["markdown"]      # stdout is still exactly one JSON answer
+    said = [ln for ln in r.stderr.splitlines() if ln.startswith("bridge: released census sandboxes ")]
+    assert said, f"the bridge did not say what it released:\n{r.stderr}"
+    released = json.loads(said[-1].split(" sandboxes ", 1)[1])
+    # Non-vacuity: two directories, both made in THIS child's temp, both gone now.
+    assert len(released) == 2, released
+    assert all(os.path.normcase(os.path.dirname(p)) == os.path.normcase(str(tmp)) for p in released), released
+    left = sorted(p.name for p in tmp.iterdir() if p.name.startswith("uct_tests_"))
+    assert left == [], left

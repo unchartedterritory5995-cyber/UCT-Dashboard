@@ -27,6 +27,7 @@ if str(_REPO_ROOT) not in sys.path:
     sys.path.insert(0, str(_REPO_ROOT))
 
 import conftest  # noqa: E402,F401 -- the census and the tripwire, before any api.* import
+from tools.bridge_sandbox import run_bridge  # noqa: E402 -- releases the census sandboxes on exit
 
 
 def main() -> int:
@@ -38,4 +39,4 @@ def main() -> int:
 
 
 if __name__ == "__main__":
-    sys.exit(main())
+    sys.exit(run_bridge(main))

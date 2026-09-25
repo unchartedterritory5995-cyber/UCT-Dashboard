@@ -1,7 +1,7 @@
 // Wave 6 item 2 — the callout picker: five styles chosen from the callout's
 // own control, drawn with UIcon (never an emoji), railed on a REAL editor and
 // round-tripped through the REAL exporter and the REAL importer.
-import { describe, it, expect, afterEach } from 'vitest'
+import { describe, it, expect, afterEach, beforeAll } from 'vitest'
 import { fireEvent } from '@testing-library/react'
 import { Editor, generateHTML, generateJSON } from '@tiptap/core'
 import fs from 'node:fs'
@@ -9,7 +9,7 @@ import path from 'node:path'
 import { buildExtensions } from './tiptap'
 import { CALLOUT_VARIANTS, normalizeCalloutVariant } from './calloutNode'
 import { ITEMS } from '../components/notebook/SlashMenu'
-import { REPO_ROOT, exportMarkdown, importMarkdown, pythonAvailable } from './testing/exportBridge'
+import { REPO_ROOT, exportMarkdownMany, importMarkdown, pythonAvailable } from './testing/exportBridge'
 
 let editor
 afterEach(() => { editor?.destroy(); editor = null; document.body.innerHTML = '' })
@@ -141,9 +141,20 @@ const d = hasPython ? describe : describe.skip
 if (!hasPython) console.warn('\n⛔ callout export round trip NOT VERIFIED: `python` is not on PATH.\n')
 
 d('export round trip — the real exporter, then the real importer', () => {
+  // ⛔ ONE spawn for the whole describe (wave 7 lane J, fix round 1, I-1): each bridge spawn
+  // pays the ~7 s census import, and six of them -- one per test -- ran every test against
+  // the 15 s testTimeout. The six documents are exported together here, under a 60 s hook
+  // budget (the selectionExport.roundtrip.test.js precedent), and each test reads its own.
+  const STYLED = (variant) => ({ type: 'doc', content: [CALLOUT({ variant, emoji: '💡' }, 'Gap fill below 120.')] })
+  const EMOJI = { type: 'doc', content: [CALLOUT({ emoji: '🔥' }, 'hot')] }
+  let exported
+  beforeAll(() => {
+    const markdowns = exportMarkdownMany([...CALLOUT_VARIANTS.map(STYLED), EMOJI])
+    exported = new Map([...CALLOUT_VARIANTS, 'emoji'].map((key, i) => [key, markdowns[i]]))
+  }, 60_000)
+
   it.each(CALLOUT_VARIANTS)('a %s callout comes back as a %s callout, text intact', (variant) => {
-    const doc = { type: 'doc', content: [CALLOUT({ variant, emoji: '💡' }, 'Gap fill below 120.')] }
-    const md = exportMarkdown(doc)
+    const md = exported.get(variant)
     expect(md).toContain(`<aside data-variant="${variant}">`)
     expect(md).not.toContain('💡')
     const back = importMarkdown(md)
@@ -153,7 +164,7 @@ d('export round trip — the real exporter, then the real importer', () => {
   })
 
   it('an emoji callout still round-trips as an emoji callout (no variant invented)', () => {
-    const md = exportMarkdown({ type: 'doc', content: [CALLOUT({ emoji: '🔥' }, 'hot')] })
+    const md = exported.get('emoji')
     const c = importMarkdown(md).content.find((n) => n.type === 'callout')
     expect(c.attrs).toMatchObject({ variant: null, emoji: '🔥' })
   })
