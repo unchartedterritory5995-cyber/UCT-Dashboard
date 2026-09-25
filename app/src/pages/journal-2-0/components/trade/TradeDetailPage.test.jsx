@@ -66,10 +66,17 @@ vi.mock('../../hooks/useTradeReview', () => ({
 // ChartPane also calls useFlagged() (Shift+F flag toast), which reads useAuth()
 // — extend the existing useIsPaid stub with a logged-out useAuth so that call
 // doesn't throw "useAuth must be used within AuthProvider".
-vi.mock('../../../../context/AuthContext', () => ({
-  useIsPaid: () => false,
-  useAuth: () => ({ user: null }),
-}))
+// ⭐ Wave 7 lane J, J10: useFlagged (hooks/useFlagged.js:34) reads
+// `useContext(AuthContext)` since master's 7ac9ff5ce, so the mock must export the
+// context too -- a real one, defaulting to the same logged-out user useAuth returns.
+vi.mock('../../../../context/AuthContext', async () => {
+  const { createContext } = await import('react')
+  return {
+    useIsPaid: () => false,
+    useAuth: () => ({ user: null }),
+    AuthContext: createContext({ user: null }),
+  }
+})
 vi.mock('../../hooks/useJ2SelectedAccount', () => ({
   default: () => ({ accountId: 'a1', account: null, accounts: [] }),
 }))

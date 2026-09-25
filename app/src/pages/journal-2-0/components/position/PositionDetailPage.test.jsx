@@ -18,7 +18,13 @@ vi.mock('../../../../components/CompanyLogo', () => ({
 // ChartPane calls useFlagged() (Shift+F flag toast, flag button state), which
 // reads useAuth() — stub it logged-out so that call doesn't throw "useAuth
 // must be used within AuthProvider" (this file renders without an AuthProvider).
-vi.mock('../../../../context/AuthContext', () => ({ useAuth: () => ({ user: null }) }))
+// ⭐ Wave 7 lane J, J10: useFlagged (hooks/useFlagged.js:34) reads
+// `useContext(AuthContext)` since master's 7ac9ff5ce, so the mock must export the
+// context too -- a real one, defaulting to the same logged-out user useAuth returns.
+vi.mock('../../../../context/AuthContext', async () => {
+  const { createContext } = await import('react')
+  return { useAuth: () => ({ user: null }), AuthContext: createContext({ user: null }) }
+})
 // The canonical SymbolSearch component has its own dedicated coverage
 // elsewhere; stub it here exactly as TickerPopup.test.jsx does so the Compare
 // action can be exercised without its real dropdown/fetch machinery. The
