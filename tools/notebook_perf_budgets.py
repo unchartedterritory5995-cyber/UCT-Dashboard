@@ -14,7 +14,10 @@ and in the commit.
 2. **Read latency p95.** Reads the JSON `tools/notebook_scale_benchmark.py --json` writes and
    checks every budgeted op's p95 at the budgeted tier, for each budget named with `--budget`
    (repeatable; default `search`). An op or tier the run did not measure is a BREACH, not a
-   pass: a budget that could not be checked did not pass.
+   pass: a budget that could not be checked did not pass. A budget may also name
+   `"informational"` ops: measured and printed against the same line, never a breach. That is
+   for a tier where the line is known to sit inside a shared runner's noise; it is never a
+   raised budget, and the op stays enforced by whichever budget lists it in `ops`.
 
 Usage:
     python tools/notebook_perf_budgets.py --dist app/dist            # bytes only
@@ -112,6 +115,9 @@ def check_search(report: dict, spec: dict) -> list[str]:
     ops = list(spec["ops"])
     if not ops:
         raise Unevaluable("the search budget names no ops -- it would pass by checking nothing")
+    both = sorted(set(ops) & set(spec.get("informational", [])))
+    if both:
+        raise Unevaluable(f"{both} are both enforced and informational -- a budget file must say which")
     by_n = {t["n"]: t for t in report.get("tiers", [])}
     if tier not in by_n:
         return [f"budget tier {tier:,} was not run (ran: {sorted(by_n)}) -- nothing was checked"]
@@ -124,6 +130,28 @@ def check_search(report: dict, spec: dict) -> list[str]:
         elif st["p95_ms"] >= limit:
             breaches.append(f"{op!r} at {tier:,} notes: p95 {st['p95_ms']:.1f} ms >= budget {limit:.0f} ms")
     return breaches
+
+
+def informational_notes(report: dict, spec: dict) -> list[str]:
+    """The ops a budget REPORTS but does not enforce at its tier (`"informational"`), as
+    sentences. Never a breach, and never a raised line: the number is still printed against
+    the same limit, and the op stays enforced wherever another budget lists it in `ops` (the
+    CI twin's switcher is informational at 10k and enforced by the local 50k `search` gate)."""
+    info = list(spec.get("informational", []))
+    if not info:
+        return []
+    limit, tier = float(spec["p95_ms_max"]), int(spec["tier"])
+    measured = {t["n"]: t for t in report.get("tiers", [])}.get(tier, {}).get("ops", {})
+    notes = []
+    for op in info:
+        st = measured.get(op)
+        if st is None:
+            notes.append(f"{op!r} at {tier:,} notes: not measured by this run (informational)")
+        else:
+            over = "OVER" if st["p95_ms"] >= limit else "under"
+            notes.append(f"{op!r} at {tier:,} notes: p95 {st['p95_ms']:.1f} ms, {over} the "
+                         f"{limit:.0f} ms line (informational at this tier, not enforced)")
+    return notes
 
 
 def load_budgets(path: Path) -> dict:
@@ -163,11 +191,15 @@ def main(argv: list[str] | None = None) -> int:
                 if not spec:
                     raise Unevaluable(f"no {key!r} budget in {args.budgets}")
                 s = check_search(report, spec)
+                info = informational_notes(report, spec)
                 out["breaches"] += [f"[{key}] {b}" for b in s]
                 out["latency"][key] = {"tier": spec["tier"], "p95_ms_max": spec["p95_ms_max"],
-                                       "ops": len(spec["ops"]), "breaches": len(s)}
+                                       "ops": len(spec["ops"]), "breaches": len(s),
+                                       "informational": info}
                 print(f"{key}: {len(spec['ops'])} ops at {int(spec['tier']):,} notes, "
                       f"p95 < {spec['p95_ms_max']} ms -- {len(s)} breach(es)")
+                for note in info:
+                    print(f"  note [{key}] {note}")
     except (Unevaluable, OSError, ValueError, KeyError) as e:
         print(f"VERDICT: UNEVALUABLE -- {e}")
         out["unevaluable"] = str(e)

@@ -564,8 +564,12 @@ def main(argv: list[str] | None = None) -> int:
         return 1
     if thresholds is not None:
         breaches = []
+        from tools.notebook_perf_budgets import informational_notes
         for key in budget_keys:
             breaches += [f"[{key}] {b}" for b in check_thresholds(report, thresholds, key)]
+            # reported against the same line, never a breach (review M-8)
+            for note in informational_notes(report, thresholds[key]):
+                print(f"  note [{key}] {note}")
         if breaches:
             print("VERDICT: BUDGET BREACH")
             for b in breaches:

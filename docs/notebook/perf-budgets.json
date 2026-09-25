@@ -66,9 +66,12 @@
       "GET /notes q=rare, relevance (search box)",
       "GET /notes tag=setups (list+count)",
       "GET /notes embed_symbol (list+count)",
-      "switcher_search (word start)",
+      "switcher_search (word start)"
+    ],
+    "informational": [
       "switcher_search (fuzzy, in order)"
-    ]
+    ],
+    "informational_why": "Review M-8, fix round 1: lane I did not touch the switcher, and its fuzzy search already read 90.5 ms p95 at 10k on this box (perf-budgets.md section 2), inside a shared runner's variance of the 100 ms line. Enforced there it would flap red and teach people to ignore the job. It is still measured and printed against 100 ms here, the line is NOT raised, and the local 50k `search` gate still enforces it."
   },
   "reads_ci": {
     "tier": 10000,

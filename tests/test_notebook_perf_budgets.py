@@ -141,6 +141,35 @@ def test_every_budgeted_op_is_an_op_the_benchmark_times():
     The names are checked against the benchmark's own list, never retyped here."""
     from tools import notebook_scale_benchmark as bench
     budgets = json.loads(pb.DEFAULT_BUDGETS.read_text(encoding="utf-8"))
-    named = {op for key in LATENCY_KEYS for op in budgets[key]["ops"]}
+    named = {op for key in LATENCY_KEYS for op in budgets[key]["ops"] + budgets[key].get("informational", [])}
     assert named, "non-vacuity: the budget names no ops at all"
     assert named <= set(bench.TIMED_OPS), sorted(named - set(bench.TIMED_OPS))
+
+
+def test_an_informational_op_is_printed_against_the_line_and_never_breaches():
+    """Review M-8: an op a budget names under "informational" is measured and reported against
+    the SAME line, and is never a breach. A name cannot be both enforced and informational."""
+    spec = {"p95_ms_max": 100, "tier": 10000, "ops": ["a"], "informational": ["fuzzy"]}
+    report = _report(10000, {"a": 12.0, "fuzzy": 131.5})
+    assert pb.check_search(report, spec) == []
+    assert pb.informational_notes(report, spec) == [
+        "'fuzzy' at 10,000 notes: p95 131.5 ms, OVER the 100 ms line (informational at this tier, not enforced)"]
+    # control: the same reading, enforced, IS a breach -- the line was not moved
+    assert pb.check_search(report, {**spec, "ops": ["a", "fuzzy"], "informational": []}) == [
+        "'fuzzy' at 10,000 notes: p95 131.5 ms >= budget 100 ms"]
+    assert "not measured" in pb.informational_notes(_report(10000, {"a": 1.0}), spec)[0]
+    with pytest.raises(pb.Unevaluable, match="both enforced and informational"):
+        pb.check_search(report, {**spec, "ops": ["a", "fuzzy"]})
+
+
+def test_the_ci_switcher_is_informational_at_10k_and_still_enforced_at_50k():
+    """The committed shape of M-8: the untouched switcher's fuzzy op reads 90.5 ms p95 at 10k on
+    this box (perf-budgets.md section 2) and would flap on a shared runner, so the CI twin only
+    reports it. The line is not raised, and the local 50k gate still enforces the op."""
+    budgets = json.loads(pb.DEFAULT_BUDGETS.read_text(encoding="utf-8"))
+    op = "switcher_search (fuzzy, in order)"
+    ci = budgets["search_ci"]
+    assert ci.get("informational") == [op] and op not in ci["ops"]
+    assert ci["p95_ms_max"] == 100 and budgets["search"]["p95_ms_max"] == 100
+    assert op in budgets["search"]["ops"], "the 50k gate must still enforce the switcher"
+    assert "M-8" in ci.get("informational_why", "")
