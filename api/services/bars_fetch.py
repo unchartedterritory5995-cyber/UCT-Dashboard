@@ -356,6 +356,14 @@ def _is_market_open() -> bool:
     return 930 <= hm < 1600
 
 
+def _week_key_yyyymmdd(ymd: int) -> int:
+    """The weekly bar key (the calendar FRIDAY of the ISO week) of a YYYYMMDD date. The same
+    key `_resample_weekly_iso` stamps, so a stored weekly bar and this compare exactly."""
+    s = str(int(ymd))
+    y, w, _ = datetime(int(s[:4]), int(s[4:6]), int(s[6:])).isocalendar()
+    return int(datetime.fromisocalendar(y, w, 5).strftime("%Y%m%d"))
+
+
 def _last_weekday_yyyymmdd() -> int:
     """Return the most recent NYSE trading day as YYYYMMDD (rolls Sat → Fri,
     Sun → Fri, AND walks back past any NYSE-closed holiday). Drives
@@ -478,6 +486,16 @@ def _needs_fresh(last_ts: int | None, tf: str, ticker: str | None = None) -> boo
     """
     if last_ts is None:
         return True
+    if tf == "W":
+        # ⛔⛔ A WEEKLY BAR IS KEYED BY ITS WEEK'S FRIDAY, WHICH IS AHEAD OF THE LATEST SESSION
+        # FROM MONDAY TO THURSDAY. The D/W/M rule below (`last_ts <= latest session`) therefore
+        # read the developing week's bar as FRESH all week and never refreshed it: it froze at
+        # whatever was stored first. Measured 2026-09-25 (Friday night) on production: AMD's
+        # week bar closed 615.52 with a high of 616.69 while its daily bars closed 630.63 and
+        # peaked at 639.00; MSFT/TSLA/AAPL likewise held one early-week session. Compare against
+        # the KEY of the latest session's week instead, which is the daily rule said correctly:
+        # refresh if the stored bar is from an earlier period OR it IS the current one.
+        return last_ts <= _week_key_yyyymmdd(_last_weekday_yyyymmdd())
     if tf in ("D", "W", "M"):
         # Refresh if cached bar is from before today's session, OR if it IS
         # today's bar (which keeps evolving — open is fixed at 9:30 ET but
@@ -885,6 +903,49 @@ def _enqueue_since_bg_heal(cache_key: str, ticker: str, tf: str, last_ts: int, d
         _bg_delta_sem.release()
 
 
+def _reconcile_developing_week(ticker: str, weekly: list[dict]) -> list[dict]:
+    """The developing week's candle, rebuilt from the STORED DAILY bars when they are further
+    along than the stored weekly bar. Read-only (no write on the serve path), no provider call.
+
+    ⭐ WHY. A chart is ONE fetch: the Discord renderer screenshots the first paint, and a member's
+    weekly chart paints once per mount. The weekly bar is refreshed stale-while-revalidate, so
+    the first paint after it went stale showed the stale week (NVDA's W chart read $224.58 at
+    21:21 ET on 9/25 while its own daily read $225.07). The daily store is refreshed far more
+    often (every daily chart, the universe prewarm), and the developing week IS the sum of those
+    daily bars, so deriving it here makes W agree with D on the first paint.
+
+    ⛔ ONLY WHEN THE DAILY SIDE IS FURTHER ALONG. A weekly delta pulls fresh dailies from the
+    provider and writes only the W row, so the W bar can be AHEAD of the D store. Cumulative
+    volume only grows inside a period, so the side with more volume is the fresher one; equal or
+    less volume keeps the stored bar (newest wins, never regress). Sealed weeks are never touched.
+    A daily week NEWER than the last weekly key (a Monday before the W store has this week) is
+    appended under its Friday key, the key `_resample_weekly_iso` would stamp."""
+    try:
+        drows = _sqlite.get_bars(ticker, "D", 8)
+    except Exception:
+        return weekly
+    if not drows:
+        return weekly
+    daily = []
+    for ts, o, h, l, c, v in drows:
+        if None in (o, h, l, c) or min(o, h, l, c) <= 0:
+            continue
+        s = str(ts)
+        daily.append({"t": f"{s[:4]}-{s[4:6]}-{s[6:]}", "o": o, "h": h, "l": l, "c": c, "v": v or 0})
+    derived = _resample_weekly_iso(daily)
+    if not derived:
+        return weekly
+    last_key = weekly[-1]["t"]
+    out = list(weekly)
+    for wk in derived:
+        if wk["t"] == last_key:
+            if (wk.get("v") or 0) > (out[-1].get("v") or 0):
+                out[-1] = wk
+        elif wk["t"] > last_key:
+            out.append(wk)
+    return out
+
+
 def _fmt_sqlite_bars(rows: list[tuple], tf: str, ticker: str | None = None) -> list[dict]:
     """Convert SQLite (ts, o, h, l, c, v) tuples to LightweightCharts format.
 
@@ -930,6 +991,8 @@ def _fmt_sqlite_bars(rows: list[tuple], tf: str, ticker: str | None = None) -> l
         else:
             t_val = ts
         out.append({"t": t_val, "o": o, "h": h, "l": l, "c": c, "v": v})
+    if ticker and weekly and out:
+        out = _reconcile_developing_week(ticker, out)
     if ticker and date_tf and out:
         try:
             from api.services.bars_sanitize import sanitize_daily_bars

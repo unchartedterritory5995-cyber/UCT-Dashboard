@@ -901,9 +901,9 @@
       "note": "Wave K, 2026-09-12. Enablement gate for the Q2 Notebook attachments surface, which is NOT BUILT. The key ships with K so the wave that builds it ships behind a switch that already works, instead of bolting one on afterwards. Unset means OFF and that is the decision. Rides the auth payload (_access_payload); see docs/notebook/wave-k-flip-packet.md."
     },
     "NOTEBOOK_ASK_INSERT_ON": {
-      "status": "dark",
-      "where": [],
-      "note": "G-064, 2026-09-22. Enablement gate for inserting an Ask Notebook answer into a note (spec docs/superpowers/specs/2026-09-22-ask-notebook-insert-design.md). Unset means OFF and that is the decision: the Insert button is hidden. The askInsert/askCitation node types are registered regardless, so a note that already holds an inserted answer keeps rendering after a rollback. Rides the auth payload (_access_payload)."
+      "status": "armed",
+      "where": ["web"],
+      "note": "G-064, 2026-09-22. Enablement gate for inserting an Ask Notebook answer into a note (spec docs/superpowers/specs/2026-09-22-ask-notebook-insert-design.md). Unset means OFF and that is the decision: the Insert button is hidden. The askInsert/askCitation node types are registered regardless, so a note that already holds an inserted answer keeps rendering after a rollback. Rides the auth payload (_access_payload). ARMED on web 2026-09-26 02:47Z (2026-09-25 22:47 ET), owner-approved flip (\"I approve all ... flipping productions settings\"), set by the owner from this session: new boot confirmed (deploy SUCCESS 02:47:37Z on 2c3ed3093, uptime reset), and /api/auth/me read in a real browser as the smoke account returns notebook_ask_insert_on=true."
     },
     "NOTEBOOK_CONFLICT_UX_ON": {
       "status": "dark",
