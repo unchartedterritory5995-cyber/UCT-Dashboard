@@ -98,3 +98,60 @@ and re-attempting the same action in a different wrapper would be routing around
 was attempted once and handed to the owner instead.
 
 The exact command is in `OWNER-ACTIONS.md` item 1, unchanged.
+
+---
+
+## 5 · ⭐⭐ ITEM 1 IS NOW MOSTLY ANSWERED — WITHOUT THE POD READ
+
+The `railway ssh` probe stayed refused. But the **admin dark report is reachable over the
+permitted path**, and it turns out to carry most of what the pod read was wanted for. Full
+record for the predicate, masked, read 2026-09-26 ~03:0xZ:
+
+```json
+{
+  "predicate_id": "legacy:08d68edb-d4b",
+  "agreed": 0, "new_only": 0, "legacy_only": 2344, "not_comparable": 0,
+  "spans": 1,
+  "sessions_covered": ["2026-09-14","2026-09-15","2026-09-16","2026-09-17","2026-09-18"],
+  "level_kinds": ["price"],
+  "is_trendline": false,
+  "verdict_ready": true,
+  "min_sessions_for_verdict": 5
+}
+```
+
+**Three of the four fields the owner command asks for are here.** `is_trendline` is **false**
+and `level_kinds` is **`["price"]`** — it is a plain price level, not a trendline, which
+matters because the compare module says in its own header that the bound-anchor machinery is
+*"not for a trendline, not ever"*. Only `direction`, `target_price` and `is_active` still
+need the DB.
+
+⭐ **And the dormancy is now READ, not inferred.** `sessions_covered` is exactly five
+consecutive sessions ending **2026-09-18**, enumerated. The previous read could only infer it
+from a count that did not move; this is the span itself.
+
+⭐⭐ **`spans: 1` is the load-bearing number, and it settles the three-orders-of-magnitude
+question.** A span is one predicate in one geometry epoch. **One span means the 2,344 is one
+alert's evaluations, not an aggregate over many alerts** — 2,344 / 5 sessions ≈ **469 per
+session**, which is a tick cadence over a 6.5-hour session, and which no product on earth
+delivers to a member 469 times a day.
+
+⛔⛔ **Which inverts what the counter's NAME implies, and this is the finding.** The dark
+report labels `legacy_only` as *"a LOST member alert on flip"*. Read with `agreed: 0` over the
+same five sessions, this predicate says: **the legacy rule evaluated true on essentially every
+tick for five straight days while the new rule never did.** That is the signature of a stale
+alert sitting on the wrong side of its own level and re-firing forever — so on this predicate
+`legacy_only` is not 2,344 alerts a member would have received and now loses. It is **2,344
+alerts the member would have been spammed with, which the new rule correctly declines to
+send.** For this predicate, "lost" is the desired outcome and the new rule is the fix.
+
+⚠️ **Stated as the strong inference it is, not as proof.** `is_active` and `target_price`
+would confirm it and are still behind the refused read. What is now established without them:
+one alert, one span, a plain price level, not a trendline, five consecutive sessions ending a
+week ago, nothing since, and a per-session rate that cannot be delivery.
+
+⛔ **So CARD 1's flip clause needs re-cutting, and that is the owner's ruling.** `legacy_only
+== 0` across the population cannot be met while a dormant predicate holds 2,344 that can never
+change — and on this reading it *should not* be met, because a rule that stops a spam loop
+SHOULD show `legacy_only > 0`. **A bar that treats correct suppression as a defect is measuring
+the wrong direction.**

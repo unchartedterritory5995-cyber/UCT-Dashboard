@@ -17,28 +17,32 @@ inputs: >
   `docs/perf-baseline-2026-09-26.md` · CARDS 15, 16, 18 and 19 in
   `12-decisions/DECISION_CARDS_2026-09-26.md`.
 scope: >
-  Source measured read-only in the sibling worktree `C:\Users\Patrick\uct-worktrees\_merge-master`.
-  Production touched only by unauthenticated HTTP GETs with a browser user-agent, read-only, four
-  requests total, recorded in SOURCES with their timestamps. No Railway command, no pod write, no
-  load generated, no flag changed by this document.
+  Source measured read-only in the sibling `_merge-master` worktree.
+  Production touched by read-only HTTP GETs only: nine unauthenticated with a browser
+  user-agent, three AUTHENTICATED as the smoke account (on an explicit owner grant, headers
+  only, the 5.3 MB body never printed or written to disk), and two anonymous cookie-free
+  follow-ups testing whether the edge-cached object was reachable without credentials. All
+  recorded in SOURCES. No Railway command, no pod write, no load generated, no flag changed.
 confidence: >
-  🟢 high on every number carried from the executed protocols, each of which states its own
-  validity context. 🟢 high on what source declares (file:line on every claim). ⛔ The single
-  most-quoted conclusion of the baseline run — Protocol D's "the documented Cloudflare rule was
-  never applied" — is WITHDRAWN by §1 of this document on evidence gathered here, and the
-  question it claimed to settle is reopened. Treat §1 as the most important section.
+  🟢 high on every number carried from the executed protocols, each of which states its
+  own validity context. 🟢 high on what source declares (file:line on every claim).
+  ⛔⛔ Protocol D's conclusion — "the documented Cloudflare rule was never applied" — is
+  WITHDRAWN, and §1 now settles the question the OTHER way on a measurement with the payload
+  in hand: the edge IS caching. ⚠️ That question was read three different ways in one night.
+  Only the third reading fetched the body, and it is the one that stands. Treat §1 as the most
+  important section, and treat its history as the lesson.
 evidence_ceiling: >
-  ⚰️ CORRECTED AFTER FIRST DRAFT. This first read "no authenticated production read was available
-  in this window". That was wrong, and the correction matters because it changes who is blocked:
-  an authenticated read IS available — `tools/s7_arming_inventory.py` performs one as the smoke
-  account and ran without objection in this same session — so the flow-header measurement was
-  ATTEMPTED and was REFUSED by the permission classifier under "[Production Reads]", the fourth
-  refusal in that category tonight. It was attempted once and handed to the owner rather than
-  re-attempted in a different wrapper, which would be routing around the denial. So the flow
-  endpoint's 200-status response headers remain INFERRED FROM SOURCE and unread on the wire, but
-  the obstacle is a permission boundary and not a capability gap. No load was generated. No browser
-  measurement (Protocols C and H) was taken. Warm-ratio recovery time and SSE-pool reconnection
-  across a deploy remain unmeasured, as Protocol E itself records.
+  ⚰️ TWICE CORRECTED, and the sequence is the point. First draft: "no authenticated
+  production read was available." Wrong — one IS available, so the measurement was ATTEMPTED
+  and REFUSED by the permission classifier. Second: "attempted once and handed to the owner."
+  Also overtaken — the owner granted it, the read went through, and §1.3 carries the result.
+  ⭐ What remains genuinely unread is NOT the header but the REASON the anonymous case is
+  refused: that is measured behaviour, not a read of the zone's cache-key configuration, so a
+  rule edit could change it silently. No load was generated. No browser TIMING measurement
+  (Protocols C and H) was taken — attempted, and refused by the instrument rather than by a
+  permission: the connected tab reported `visibility: hidden` and `hasFocus: false`, and a
+  hidden tab throttles timers and defers paint, so any number from it would have measured the
+  throttling. Warm-ratio recovery and SSE-pool reconnection across a deploy remain unmeasured.
 status: draft
 ---
 
@@ -48,9 +52,12 @@ status: draft
 
 **Three findings, and the first one changes what the programme believes.**
 
-1. ⛔⛔ **Protocol D's conclusion is withdrawn. The flow endpoint DOES send a cache header, the
-   evidence recorded against it could not have come from the route it names, and the edge
-   question is open again — with a better discriminator than it had before.** §1.
+1. ⛔⛔ **Protocol D's conclusion is withdrawn and the question is now SETTLED THE OTHER WAY:
+   the edge IS caching the flow payload. Measured authenticated, MISS then HIT.** The
+   documented Cloudflare rule is in effect, and it is rewriting the browser TTL from the
+   origin's deliberate `max-age=0` to `max-age=14400` — exactly the override the source
+   comment predicted. ✅ **No anonymous exposure**: with zero cookies the same URL returns 401
+   twice. §1.
 2. ⭐⭐ **The web pod leaks, at +7.9 MB/min, and that inverts the deploy-frequency argument.**
    Every prior document scores deploy cadence as a pure cost. A pod that grows ~470 MB an hour
    is partly *rescued* by being replaced every 26 minutes, which is what production is actually
@@ -111,12 +118,35 @@ copies upstream response headers and strips only hop-by-hop ones (`:184-190`).
 table is a transcription of a status that was never returned.** The BYPASS is real; what it is
 BYPASS *of* is a refusal, not the tape.
 
-### 1.3 The consequence, stated exactly
+### 1.3 ✅ THE MEASUREMENT WAS THEN TAKEN, AND §3.3 IS SETTLED — THE EDGE IS CACHING
 
-- **§3.3 is NOT settled.** Whether the edge caches the flow payload is unmeasured, because the
-  payload was never fetched.
+The owner granted the permission, and the authenticated read went through. Two successive
+`GET /api/flow/data?days=1` as the smoke account, then an ungated control:
+
+| request | status | `Cache-Control` from origin | `cf-cache-status` | `age` | bytes |
+|---|---|---|---|---|---|
+| 1st, authenticated | 200 | `public, max-age=14400, s-maxage=60, stale-while-revalidate=600` | **MISS** | — | 5,289,793 |
+| 2nd, authenticated, immediately after | 200 | same | **HIT** | 0 | 5,289,793 |
+| `/api/health`, authenticated control | 200 | *none* | DYNAMIC | — | 96 |
+
+⭐⭐ **`MISS → HIT` is §8's exact stated success signal. The documented Cloudflare rule IS in
+effect on this endpoint.** Protocol D's conclusion — *"not in effect and never has been"* — was
+wrong, and so was this document's first replacement for it. **This is the third reading of one
+question in one night, and the only one with the payload in hand.**
+
+⭐ **And the wire does not match the source, in precisely the way the source predicted.**
+`_FLOW_CACHE_HEADERS` (`api/flow_router.py:132`) sets **`max-age=0`**. The wire says
+**`max-age=14400`**. The comment three lines above that constant
+(`api/flow_router.py:128-130`) says: *"A Cloudflare Cache Rule can OVERRIDE both of these
+(prod was rewriting the browser TTL to `max-age=14400`)."* **That override is live and is now
+confirmed on the wire, not inferred.** The `s-maxage=60` and `stale-while-revalidate=600` pass
+through unchanged.
+
 - **CARD 19 is WITHDRAWN**, not amended. Its stated mechanism (no header ⇒ no instruction ⇒
-  BYPASS) is false at the first step.
+  BYPASS) is false at the first step, and its conclusion is false at the last.
+- ⚠️ **C7-01's D6 note stands and now matters more:** `s-maxage` disables
+  `stale-while-revalidate` [S15], so the `stale-while-revalidate=600` on the wire cannot do
+  what it appears to. That was a correct reading of a header nobody had yet seen.
 - ⚠️ **The re-run needs authentication, and it was attempted.** A header-only probe was written
   (log in as the smoke account, GET `/api/flow/data?days=1` twice in succession so a `MISS → HIT`
   would show, report only `cache-control` / `cf-cache-status` / `age` / `x-flow-version`, never the
@@ -183,7 +213,44 @@ bundle hash changed with the evening's deploys, so the edge had not seen that UR
 recorded `HIT` at an age of ~23 days was against the previous hash. Both readings say the same
 thing — **the edge caches this zone's assets when the origin tells it to.**
 
-### 1.5 ⛔ The thing nobody has said out loud: this route is PAID, GATED TAPE
+### 1.5 ✅ THE HAZARD WAS REAL ENOUGH TO TEST, AND THE TEST CLEARS IT
+
+⭐ **The paragraph below was written as a reasoned hazard before the payload had been fetched,
+and it reads as an alarm. It was tested immediately after the cache was populated, and the
+alarm does not sound.** The record is kept in full because the reasoning was sound and the
+mechanism is real on other routes — but the measurement is the authority, and raising a
+security concern from an inference has a cost too.
+
+**The test.** A fresh browser context, **zero cookies** (asserted, not assumed), two successive
+anonymous `GET /api/flow/data?days=1` **after** the authenticated read had put a 5.3 MB 200 in
+the edge cache:
+
+| attempt | cookies | status | `cf-cache-status` | bytes | payload shape |
+|---|---|---|---|---|---|
+| 1st | 0 | **401** | BYPASS | **30** | a JSON refusal envelope |
+| 2nd | 0 | **401** | BYPASS | **30** | a JSON refusal envelope |
+
+✅ **The edge does not serve the cached object to a caller without the credential.** The body
+was never printed and never written to disk; only its size and the shape of its first line were
+read, and 30 bytes cannot be a tape.
+
+⚠️ **What this does NOT prove**: *why* it is safe. It is measured behaviour, not a read of the
+zone's cache-key configuration, so the mechanism (a rule that treats a cookie-bearing request
+differently, or origin-level `Vary`, or CF declining to serve a cached 200 to a request whose
+own response would be a 401) is unestablished. **A behaviour that is correct for an unknown
+reason can change when somebody edits the rule.** That is the one thing left worth a dashboard
+read, and it is now a *durability* question rather than an incident.
+
+⭐⭐ **THE FINDING THAT SURVIVES, AND IT IS A FRESHNESS DEFECT RATHER THAN A SECURITY ONE.**
+`max-age=14400` is a **browser** TTL of four hours on a 5.3 MB options tape, overriding an
+origin that deliberately said `max-age=0`. The edge revalidates every 60 s (`s-maxage=60`); a
+member's browser does not, for four hours. ⭐ The origin already knows it cannot trust these
+headers — that is why it stamps `X-Flow-Version` (`:466`) and why the comment says *"correctness
+does NOT rest on these headers"* — so the client can detect a stale body. **But detection is not
+freshness, and a four-hour browser TTL on a live tape is a decision nobody in this programme
+made.** It is a Cloudflare rule, not code, so it is one dashboard edit either way.
+
+### 1.6 ⚰️ RETAINED: the hazard as it was reasoned, before the test above
 
 The flow router's own docstring is unusually direct (`api/flow_router.py:17-20`):
 
@@ -252,7 +319,7 @@ unreachable from one deployment): **76 `[mem]` samples across 104 minutes.**
 **+599 MB over ~76 minutes = +7.9 MB/min, monotonic across quartiles.** Threads min 41 / median
 124 / max 178 — the 200 burst line was never crossed.
 
-`api/main.py:3639-3644` calls distinguishing a leak from a large-but-stable working set *"the
+`api/main.py:4510` calls distinguishing a leak from a large-but-stable working set *"the
 prerequisite for any further memory work"*. **That prerequisite is now met.** The figure
 **refutes D-05 §4.3's 2.2 MB/s by roughly seventeen times** and **corroborates its 11,665 MB
 long-lived endpoint almost exactly** (7.9 × 1,440 ≈ 11.4 GB).
@@ -345,13 +412,15 @@ fresh-pod page loads are 3.1–3.7 s, so a full refetch on resume is affordable.
 resume remains unavailable until the streams emit `id:` at all, which C7-01 §1 lists as open and
 this document does not close.
 
-**Q5 — Is the edge actually caching anything? → REOPENED, and better instrumented. See §1.** Three
-requests cannot answer it, because an unauthenticated request cannot reach a gated payload. What is
-now established, with controls: the zone caches static assets correctly; an ungated JSON route and
-**three unrelated gated routes all sit at `DYNAMIC`**; the flow path alone sits at `BYPASS`, and
-`DYNAMIC → BYPASS` on that path post-dates D-05 §4.3's 2026-07-25 reading. So a configuration
-exists on `/api/flow/*`. ⛔ And because the route is paid, gated tape, "cache it" is a security
-question before it is a performance one — §1.5.
+**Q5 — Is the edge actually caching anything? → ✅ ANSWERED: YES.** Measured authenticated,
+`MISS → HIT` on `/api/flow/data?days=1`, 5,289,793 bytes, `age: 0` on the hit (§1.3). The
+documented Cloudflare rule is in effect. ⭐ The DYNAMIC-vs-BYPASS control was right about the
+conclusion it was used for — a configuration exists on `/api/flow/*` — and wrong about what that
+configuration does: it caches, it does not decline. **`BYPASS` is what a cache-ELIGIBLE path
+reports for a response that is not cacheable (the 401); `DYNAMIC` is what an INELIGIBLE path
+reports.** That distinction explains every reading taken tonight, including why three other
+gated routes' 401s read `DYNAMIC`. ✅ And anonymous callers are refused (§1.5). What is left is a
+freshness question about a four-hour browser TTL, not a caching question.
 
 **Q6 — Which streams are last-value-wins, and which are every-message-matters? → ANSWERED in code,
 unwritten in contract.** `bar_broadcaster` fans out per `(sym, tf)` with `maxsize=64`,
@@ -406,7 +475,7 @@ Where a measurement settles a row, it is settled. Where it does not, the row say
 | D3 | Fan-out substrate | **Do not add a broker.** In-process hubs plus the durable log for the tape | Q8: the cross-process condition does not hold today |
 | D4 | Conflation policy | **OPEN — and the 10 Hz constant is still unmeasured.** Per-subscription renegotiable frequency is the right shape | §2.3 shows loop headroom, which is an argument that this is not urgent, not that it is right |
 | D5 | Panel data access | **Keep per-panel access; do NOT build a board-level aggregation endpoint yet** | The aggregate shape is already measured as a hazard here: `/api/flow/aggregate` serialises its client-side transform verbatim at 23.83 MB, and a per-symbol flow dump measured 3,651 KB gzipped / 20,252 KB decoded / 4,232 ms for one ticker. An aggregation endpoint inherits the slowest panel |
-| D6 | Edge caching | ⛔ **INVERTED. The status quo is the safe state. Do not apply a caching rule to a gated route until the cache key and the existing rule are read.** The header's `public` is the part to change | §1.5 — this is a paid tape behind `require_flow_user`, and the router's own docstring calls its previous ungated state the largest raw-data leak in the product |
+| D6 | Edge caching | ✅ **SETTLED, AND THE ROW IS MOOT AS WRITTEN: the rule is ALREADY APPLIED and the edge is already caching** (MISS→HIT, §1.3). D6's options were "status quo" vs "apply the rule" — neither describes reality. ⭐ The live decision is the one nobody was looking at: **a Cloudflare rule is overriding the origin's `max-age=0` to a FOUR-HOUR browser TTL on a 5.3 MB live tape.** That is a freshness ruling, and it is a dashboard edit | §1.3 for the MISS→HIT and the override; §1.5 for the anonymous-access test that clears the security reading |
 | D7 | Tier / entitlement | **Tier belongs in the handshake, not per-panel.** Deferred to item 23, which measured the current shape | Gate item 23 (ARCH-06) owns it; its finding that the auth-surface auditor inspects mutating methods only is the relevant constraint |
 | D8 | Degradation UI | **One shell-level freshness authority.** Per-chart hysteresis is right for one chart and wrong for twelve | Q3 |
 | D9 | Deploy resilience | ⭐ **Re-scored. The window is a cold cache, not an outage — and the leak means frequent recycling is partly load-bearing** | §2.2 + §2.4 |

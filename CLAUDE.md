@@ -1,5 +1,25 @@
 # CLAUDE.md
 
+> ⛔⛔ **THIS COPY IS BEHIND THE `_merge-master` WORKTREE'S, AND TWO OF ITS CLAIMS ARE ACTIVELY
+> DANGEROUS.** This is a docs branch based on an older master, so staleness is expected — but the
+> harness auto-loads THIS file into any agent working in this worktree, including one whose brief
+> names the other worktree explicitly. Measured 2026-09-26: eight recorded facts behind.
+> **Read the `_merge-master` worktree's `CLAUDE.md` for anything you are about to act on.**
+>
+> The two that would cause harm if believed:
+>
+> 1. ⚰️ **It says `app/src/hooks/useTapeFeed.js` was DELETED.** Master records it **RESTORED** by
+>    `06d3a6318` (*"revert(web): restore useTapeFeed.js — it was never mine to delete"*) and says
+>    **do not mount it and do not delete it** — it is in-flight, and guessing at its owner's
+>    intent has already been reverted once.
+> 2. ⚰️ **It says `DESK_PUBLIC_SHOWS` defaults to unlisted, so only Sunday Scans publishes
+>    publicly.** Master records the live value as **`*` — EVERY show uploads public, by owner
+>    decision 2026-08-19, reaffirmed 2026-09-13.** Believing the stale version is what triggered
+>    the 2026-09-13 escalation in which 27 videos were set unlisted and then restored.
+>
+> ⭐ Recorded here rather than by syncing the file, because a partial sync of a 380 KB document
+> onto a docs branch is its own hazard, and this warning is what an agent actually reads first.
+
 This file provides guidance to Claude Code when working in this repository.
 
 ## Project Overview

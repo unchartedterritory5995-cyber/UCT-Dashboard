@@ -1004,9 +1004,16 @@ Network + Performance recording:
 
 ### Protocol D — CDN reality check (three requests total)
 
-⛔⛔ **EXECUTED 2026-09-26 AND WITHDRAWN. DO NOT RUN THIS AS WRITTEN — the protocol as
-specified below cannot settle §3.3, and its first execution produced a confident wrong
-answer that travelled into four artifacts before it was caught.** `/api/flow/data` is gated
+✅⛔ **EXECUTED 2026-09-26, AND THE ANSWER IS YES — BUT NOT BY THIS PROTOCOL AS WRITTEN.
+FIX IT BEFORE RUNNING IT.** Authenticated, `/api/flow/data?days=1` gives **MISS then HIT**
+(5,289,793 bytes, `age: 0`, `text/csv`), which is this section's own success signal: **the
+documented Cloudflare rule IS in effect.** ⭐ And the wire says `max-age=14400` where this
+code says `max-age=0`, confirming on the wire the browser-TTL override that
+`flow_router.py`'s own comment predicted — a four-hour browser TTL on a live tape, which is
+the finding that survives. ✅ Two cookie-free retries after the cache was populated returned
+401/30 bytes, so there is no anonymous exposure. ⛔ Run UNAUTHENTICATED, as specified below,
+it produced a confident WRONG answer that travelled into four artifacts before it was
+caught, and then a second wrong one in the other direction.** `/api/flow/data` is gated
 (`Depends(require_flow_user)`), so an unauthenticated request gets **401**, and a 401 carries
 no cache header and reports `cf-cache-status: BYPASS`. The run recorded exactly that and read
 it as a property of the payload. ⭐ **The fix to the protocol: authenticate first, or the

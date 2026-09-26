@@ -26,11 +26,31 @@ saying "you decide" does not unblock a classifier**, and routing around it would
 the permission-laundering this repo forbids. The masked command is in `RESUME-HERE.md` §5's
 CARD 1 row.
 
-**What I did instead, so the wait costs nothing.** The disagreement is now bounded rather than
-merely flagged: `tools/s7_arming_inventory.py` shows it is **1 of 181 predicates**, that
-`new_only` is **0 across all seven types** (so no type would send an EXTRA member alert on
-flip), and that the predicate's span **stopped advancing on 09-18**. CARD 1's bar cannot be
-met before ~2026-10-01 regardless, so nothing is blocked by this today.
+**What I did instead, so the wait costs nothing.** The disagreement is bounded: **1 of 181
+predicates**, `new_only` **0 across all seven types** (so no type would send an EXTRA member
+alert on flip), and the span **stopped advancing on 09-18**.
+
+⭐⭐ **AND THEN MOST OF IT WAS ANSWERED ANYWAY, over the app's own admin API rather than the
+pod.** The dark report carries the predicate's record: **`is_trendline: false`**,
+**`level_kinds: ["price"]`**, **`spans: 1`**, and `sessions_covered` enumerated as exactly five
+consecutive sessions ending **2026-09-18**. Three of the four fields the owner command asks for
+are therefore in hand; only `direction`, `target_price` and `is_active` still need the DB.
+
+⛔⛔ **`spans: 1` settles the three-orders-of-magnitude question and INVERTS the counter's
+name.** One span means 2,344 is ONE alert's evaluations, not an aggregate — ≈469 per session,
+a tick cadence, not a delivery rate. With `agreed: 0` over the same five sessions, the legacy
+rule evaluated true on essentially every tick for five days while the new rule never did: the
+signature of a stale alert sitting on the wrong side of its level and re-firing forever. **So
+`legacy_only` here is not 2,344 alerts a member loses — it is 2,344 they would have been
+spammed with, which the new rule correctly declines to send.** For this predicate "lost" is the
+desired outcome.
+
+⚠️ A strong inference, not proof — `is_active` would confirm it. Working:
+`10-roadmap/evidence/2026-09-26-s7-daily-read-0230Z/results.md` §5.
+
+CARD 1's bar cannot be met before ~2026-10-01 regardless, so nothing is blocked today — but
+see the note above: **a bar that treats correct suppression as a defect is measuring the wrong
+direction**, and re-cutting it is the owner's ruling.
 
 ---
 
@@ -250,7 +270,7 @@ watchdog actually ships with.
 
 ---
 
-## CARD 19 — ⛔⛔ WITHDRAWN THE SAME NIGHT IT WAS WRITTEN. The probe measured the GATE, not the payload.
+## CARD 19 — ⛔⛔ WITHDRAWN, THEN SETTLED THE OTHER WAY. The edge IS caching; the probe had measured the GATE.
 
 ☠️ **This card claimed: "the origin sends no `Cache-Control` at all, so Cloudflare has no
 instruction and defaults to BYPASS; the fix is a RESPONSE HEADER, not a dashboard rule." That is
@@ -293,9 +313,25 @@ without first reading the zone's cache key could serve the paid tape to an anony
 the edge.** The status quo is the safe state; the `public` directive is the part that looks
 wrong.
 
-**So the question is REOPENED, and it is no longer "which layer holds the fix".** It is: does a
-Cache Rule exist on `/api/flow/*`, what does it say, and does the cache key include the
-credential? Those are dashboard reads. ⛔ Nothing should change at the edge until they are done.
+✅✅ **THE MEASUREMENT WAS THEN TAKEN, ON THE OWNER'S GRANT, AND IT SETTLES §3.3 — THE OPPOSITE
+WAY FROM BOTH EARLIER READINGS.** Two successive authenticated `GET /api/flow/data?days=1`:
+**MISS then HIT**, 5,289,793 bytes, `age: 0` on the hit, `content-type: text/csv`. `MISS → HIT`
+is §8's own stated success signal. **The documented Cloudflare rule IS in effect.**
+
+⭐ **And the wire disagrees with the source exactly as the source predicted.** The constant sets
+`max-age=0`; the wire says **`max-age=14400`** — the very override the comment at `:128-130`
+records (*"prod was rewriting the browser TTL to `max-age=14400`"*). Confirmed, not inferred.
+
+✅ **AND THE LEAK HAZARD IS TESTED AND CLEAR.** A fresh context with **zero cookies**, twice,
+after the cache was populated: **401, 30 bytes, a JSON refusal, `BYPASS`** both times. The edge
+does not serve the cached object to a caller without the credential. ⚠️ Measured behaviour, not
+a read of the cache-key config — so it is correct for a reason nobody has established, and a
+rule edit could change it silently.
+
+⭐⭐ **WHAT SURVIVES IS A FRESHNESS DEFECT, NOT A SECURITY ONE:** a **four-hour browser TTL** on
+a 5.3 MB live options tape, overriding an origin that deliberately said `max-age=0`. The edge
+revalidates every 60 s; the member's browser does not, for four hours. One dashboard edit either
+way, and nobody in this programme chose it.
 
 ⚠️ **The lesson, stated generally because it will recur:** *an unauthenticated probe of a gated
 route measures the gate.* Any future latency or cache measurement against a paid surface either
@@ -314,6 +350,6 @@ authenticates first or declares that it did not.
 | **CP-02 / OI-04** | an external contract answer | ❌ no |
 | **A14 / S9 tiers** | ✅ **now has a DEFAULT** (CARD 17), vetoable in one word | — |
 | **arming the watchdog** | ✅ **ruled NOT YET** with a named condition (CARD 18) | — |
-| **the CDN "why"** | ⛔ **REOPENED — CARD 19 WITHDRAWN.** The probe measured a 401, not the payload. What is now needed is a read of the zone's Cache Rule on `/api/flow/*` and of its cache key, plus ONE authenticated `curl -D -` of the endpoint | ⭐ **PARTLY** — the authenticated curl needs the smoke credentials, which are operator-held; the Cloudflare dashboard read is yours either way |
+| **the CDN "why"** | ✅ **DONE, on your grant.** The edge IS caching (MISS→HIT). No anonymous exposure (401 on a cookie-free retry). What is LEFT is a ruling, not a measurement: **a Cloudflare rule is overriding the origin's `max-age=0` to a FOUR-HOUR browser TTL on a live tape** | ⛔ **NO — this half is genuinely yours:** it is a Cloudflare dashboard edit and a freshness decision |
 | **D5 CP6** | no vendor signal exists | ❌ no |
 | **CP-09 Bloomberg ceiling** | needs a seat or a practitioner | ❌ no |

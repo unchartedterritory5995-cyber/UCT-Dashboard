@@ -15,14 +15,21 @@ pod (§8 Governing Rule 2).
 
 ---
 
-## Protocol D — CDN reality check ⛔⛔ EXECUTED, AND WITHDRAWN — it measured the GATE, not the payload
+## Protocol D — CDN reality check ✅ WITHDRAWN, THEN SETTLED THE OTHER WAY — the edge IS caching
 
 ☠️ **READ THIS BEFORE THE SECTION BELOW, WHICH IS RETAINED AS THE RECORD OF A WITHDRAWN RUN.**
 `/api/flow/data` is gated (`Depends(require_flow_user)`, `api/flow_router.py:1732`) and answers an
 unauthenticated caller with **401**; it also serves `text/csv` (`:468`), so the
 `content-type: application/json` recorded below **cannot be this route's payload**. A re-read at
 02:0xZ reproduced every recorded field except the status, which was 401. **The probe measured the
-refusal.** §3.3 is NOT settled and the conclusion is withdrawn in full. Working and the controls
+refusal.** §3.3 is settled — but the OPPOSITE way from this run, and from its first correction. ✅✅ **The
+authenticated read was taken on the owner's grant: two successive `GET /api/flow/data?days=1`
+gave MISS then HIT, 5,289,793 bytes, `age: 0`, `text/csv`, and `max-age=14400` on the wire against
+the source's `max-age=0` — so the documented Cloudflare rule IS in effect and is overriding the
+browser TTL, exactly as the code comment predicted.** ✅ Two cookie-free retries after the cache
+was populated returned 401 / 30 bytes / BYPASS, so there is no anonymous exposure. ⭐⭐ What
+remains is a FRESHNESS ruling — a four-hour browser TTL on a live tape — not a caching or a
+security one. This run's conclusion is withdrawn in full. Working and the controls
 (three other gated routes answer 401 with `DYNAMIC`, only the flow path gives `BYPASS`, and
 §4.3's pre-gate 2026-07-25 reading of the real payload said `DYNAMIC`):
 `../../../07-technical-architecture/realtime-performance-architecture.md` §1. ⛔ And because this

@@ -20,7 +20,7 @@ recorded because the next person will have the same conflict and should schedule
 ## Protocol F — capacity telemetry ✅ THE HEADLINE RESULT
 
 §8: *"Export 24 h of Railway logs and plot both. This **distinguishes a leak from a
-large-but-stable working set** — which `api/main.py:3639-3644` calls 'the prerequisite for
+large-but-stable working set** — which `api/main.py:4510` calls 'the prerequisite for
 any further memory work'."*
 
 24 h is not reachable from one deployment when the median pod lives 26 minutes, so this used
@@ -73,7 +73,7 @@ histogram fired in this window, and none appears in any log sampled tonight. Aga
 
 ---
 
-## Protocol D — CDN reality check ⛔⛔ DOES NOT SETTLE §3.3 — the probe measured the GATE
+## Protocol D — CDN reality check ✅ SETTLED, on the THIRD reading — the edge IS caching
 
 ☠️ **This section originally read "✅ SETTLES §3.3" and concluded the documented Cloudflare rule is
 not in effect. That conclusion is WITHDRAWN.** Full working:
@@ -103,14 +103,25 @@ said `DYNAMIC`. Tonight the path reads `BYPASS`. ⛔ **The gate does not explain
 unrelated gated routes (`/api/watchlists`, `/api/j2/accounts`, `/api/auth/me`) all answer 401 with
 `DYNAMIC`. So something was configured on `/api/flow/*` between those dates.
 
-⛔ **And the route is paid, gated tape.** Its own router docstring calls the pre-gate state *the
-single largest raw-data leak in the product*. Making this path cache without first reading the
-zone's cache key could serve that tape to an anonymous caller from the edge. **Nothing should
-change at Cloudflare until the existing rule and the cache key are read.**
+⚰️ **THE PARAGRAPH BELOW WAS THE SECOND READING AND IS ALSO SUPERSEDED. Retained because the
+reasoning was sound and the mechanism is real on other routes — but it was an inference, it read
+as an alarm, and the test in the next paragraph clears it.**
 
-**What closes it:** one authenticated `curl -D -` of `/api/flow/data?days=1` reading
-`cache-control`, `cf-cache-status`, `age` and `x-flow-version`, plus a dashboard read of any Cache
-Rule on `/api/flow/*`.
+⛔ *(superseded)* **And the route is paid, gated tape.** Its own router docstring calls the
+pre-gate state *the single largest raw-data leak in the product*. Making this path cache without
+first reading the zone's cache key could serve that tape to an anonymous caller from the edge.
+**Nothing should change at Cloudflare until the existing rule and the cache key are read.**
+
+✅✅ **CLOSED. The authenticated read was taken on the owner's grant:** two successive
+`GET /api/flow/data?days=1` gave **MISS then HIT**, 5,289,793 bytes, `age: 0`, `text/csv`,
+`Cache-Control: public, max-age=14400, s-maxage=60, stale-while-revalidate=600`. **`MISS → HIT`
+is §8's own success signal, so the documented rule IS in effect** — the opposite of this
+protocol's original conclusion AND of its first correction. ⭐ The wire's `max-age=14400` against
+the source's `max-age=0` confirms the Cloudflare browser-TTL override the code comment predicted.
+✅ Two cookie-free retries after the cache was populated returned **401 / 30 bytes / BYPASS**, so
+there is no anonymous exposure. ⭐⭐ **What remains is a freshness ruling: a four-hour BROWSER TTL
+on a live tape, which no one in this programme chose.** Full working:
+`terminal-research/07-technical-architecture/realtime-performance-architecture.md` §1.3–§1.5.
 
 ---
 
