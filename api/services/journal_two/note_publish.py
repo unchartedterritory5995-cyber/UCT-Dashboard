@@ -112,12 +112,36 @@ _SCHEMA = (
 )
 
 
+#: What `_SCHEMA` creates, by name -- all three present means there is nothing to create.
+_SCHEMA_OBJECTS = ("j2_note_publications", "idx_j2_note_publications_target",
+                   "uq_j2_note_publications_active")
+
+
 def ensure_publish_schema(conn: sqlite3.Connection) -> None:
+    """Create the table and its two indexes if they are missing -- WITHOUT ever committing a
+    transaction the caller has open on `conn` (wave-8 final review M-8).
+
+    ⚰️ It ran the three CREATEs and `conn.commit()` on every first call per database, so a
+    caller that passed its own connection mid-transaction had that transaction committed
+    for it. Now: when all three objects exist it creates nothing and commits nothing; when
+    the caller has a transaction open, the CREATEs ride it (committed or rolled back WITH
+    the caller's work) and nothing is cached, so a rollback is re-ensured next time; only a
+    connection with no transaction open is committed, which commits nothing of anybody's."""
     key = note_shares._db_key(conn)
     if key and key in _SCHEMA_READY:
         return
+    marks = ",".join("?" for _ in _SCHEMA_OBJECTS)
+    present = {r[0] for r in conn.execute(
+        f"SELECT name FROM sqlite_master WHERE name IN ({marks})", _SCHEMA_OBJECTS).fetchall()}
+    if present == set(_SCHEMA_OBJECTS):
+        if key:
+            _SCHEMA_READY.add(key)
+        return
+    callers_txn = conn.in_transaction
     for stmt in _SCHEMA:
         conn.execute(stmt)
+    if callers_txn:
+        return
     conn.commit()
     if key:
         _SCHEMA_READY.add(key)
@@ -198,12 +222,31 @@ def _owner_view(conn: sqlite3.Connection, row: sqlite3.Row) -> dict[str, Any]:
 
 
 def _retire_expired(conn: sqlite3.Connection, user_id: str, kind: str, target_id: str) -> None:
+    """Retire this target's EXPIRED active publication, so the member can publish again.
+
+    ⚰️ Wave-8 final review M-8: this was a bare UPDATE on every publish. An UPDATE takes the
+    auth.db write lock even when it matches nothing, and on the common "already published"
+    path nothing committed afterwards -- so the lock was held through `_owner_view` (for a
+    folder, the whole tree scan) and released only by close's rollback, blocking every
+    other writer of auth.db for the duration. Now a plain SELECT decides first; the UPDATE
+    runs only when there IS something to retire, and commits at once, so no scan that
+    follows ever runs under the write lock."""
+    now = _iso(_now())
+    due = conn.execute(
+        "SELECT 1 FROM j2_note_publications"
+        " WHERE user_id = ? AND kind = ? AND target_id = ? AND revoked_at IS NULL"
+        " AND expires_at IS NOT NULL AND expires_at <= ? LIMIT 1",
+        (user_id, kind, target_id, now),
+    ).fetchone()
+    if due is None:
+        return
     conn.execute(
         "UPDATE j2_note_publications SET revoked_at = ?"
         " WHERE user_id = ? AND kind = ? AND target_id = ? AND revoked_at IS NULL"
         " AND expires_at IS NOT NULL AND expires_at <= ?",
-        (_iso(_now()), user_id, kind, target_id, _iso(_now())),
+        (now, user_id, kind, target_id, now),
     )
+    conn.commit()
 
 
 def _active_for(conn: sqlite3.Connection, user_id: str, kind: str, target_id: str) -> sqlite3.Row | None:

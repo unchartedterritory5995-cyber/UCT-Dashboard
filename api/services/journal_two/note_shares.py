@@ -93,6 +93,14 @@ def _db_key(conn: sqlite3.Connection) -> str:
 
 
 def ensure_share_schema(conn: sqlite3.Connection) -> None:
+    """Add `expires_at` if it is missing -- WITHOUT ever committing a transaction the
+    caller has open on `conn` (wave-8 final review M-8).
+
+    ⚰️ The ALTER was followed by `conn.commit()`, which commits whatever the caller had in
+    flight on a connection it passed in. Now the column is present -> nothing is altered or
+    committed; the caller has a transaction open -> the ALTER rides it (committed or rolled
+    back WITH the caller's work) and nothing is cached, so a rollback is re-ensured next
+    time; only a connection with no transaction open is committed."""
     key = _db_key(conn)
     if key and key in _SCHEMA_READY:
         return
@@ -100,12 +108,16 @@ def ensure_share_schema(conn: sqlite3.Connection) -> None:
     if not cols:
         return  # the j2 schema has not run here: nothing to alter (and nothing to read)
     if "expires_at" not in cols:
+        callers_txn = conn.in_transaction
         try:
             conn.execute("ALTER TABLE j2_note_shares ADD COLUMN expires_at TEXT")
-            conn.commit()
+            if not callers_txn:
+                conn.commit()
         except sqlite3.OperationalError as e:  # a concurrent ensure won the race
             if "duplicate column" not in str(e).lower():
                 raise
+        if callers_txn:
+            return
     if key:
         _SCHEMA_READY.add(key)
 

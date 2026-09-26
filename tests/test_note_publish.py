@@ -267,3 +267,148 @@ def test_M3_the_editor_context_reports_an_archived_note_as_not_publishable(svc):
     notes.set_note_archived(A, archived, False)                      # CONTROL: unarchived is publishable
     assert svc.list_mine(A, note_id=archived)["note"]["publishable"] is True
     assert svc.publish_note(A, archived) is not None
+
+
+# ── M-8: transaction scope (wave-8 final review) ─────────────────────────────────────────
+
+def _raw(db_path: str, timeout: float = 5.0) -> sqlite3.Connection:
+    c = sqlite3.connect(db_path, timeout=timeout)
+    c.row_factory = sqlite3.Row
+    return c
+
+
+def _cols(conn: sqlite3.Connection, table: str) -> set[str]:
+    return {r[1] for r in conn.execute(f"PRAGMA table_info({table})").fetchall()}
+
+
+def _objects(conn: sqlite3.Connection) -> set[str]:
+    return {r[0] for r in conn.execute("SELECT name FROM sqlite_master").fetchall()}
+
+
+def test_M8_ensure_share_schema_never_commits_the_callers_open_transaction(db_path):
+    """⚰️ The ALTER was followed by `conn.commit()`: a caller that passed its own connection
+    mid-transaction had its transaction committed for it. The ALTER now rides the caller's
+    transaction -- a rollback takes both back -- and is re-ensured, uncached, next time."""
+    from api.services.journal_two import note_shares
+    conn = _raw(db_path)
+    try:
+        assert "expires_at" not in _cols(conn, "j2_note_shares"), "precondition: the ALTER path must run"
+        conn.execute("CREATE TABLE m8_probe (x INTEGER)")
+        conn.execute("INSERT INTO m8_probe VALUES (1)")                # the caller's open write
+        assert conn.in_transaction
+        note_shares.ensure_share_schema(conn)
+        assert conn.in_transaction, "ensure_share_schema committed the caller's transaction"
+        conn.rollback()
+        assert conn.execute("SELECT COUNT(*) FROM m8_probe").fetchone()[0] == 0
+        assert "expires_at" not in _cols(conn, "j2_note_shares")       # the ALTER rode the caller's work
+        note_shares.ensure_share_schema(conn)                          # not cached: re-ensured, for good
+        assert "expires_at" in _cols(conn, "j2_note_shares")
+        # With the column present, an open transaction is left alone too.
+        note_shares._SCHEMA_READY.discard(note_shares._db_key(conn))
+        conn.execute("INSERT INTO m8_probe VALUES (2)")
+        note_shares.ensure_share_schema(conn)
+        assert conn.in_transaction
+        conn.rollback()
+        assert conn.execute("SELECT COUNT(*) FROM m8_probe").fetchone()[0] == 0
+    finally:
+        conn.close()
+
+
+def test_M8_ensure_publish_schema_never_commits_the_callers_open_transaction(db_path):
+    from api.services.journal_two import note_publish
+    conn = _raw(db_path)
+    try:
+        assert "j2_note_publications" not in _objects(conn), "precondition: the CREATE path must run"
+        conn.execute("CREATE TABLE m8_probe (x INTEGER)")
+        conn.execute("INSERT INTO m8_probe VALUES (1)")
+        note_publish.ensure_publish_schema(conn)
+        assert conn.in_transaction, "ensure_publish_schema committed the caller's transaction"
+        conn.rollback()
+        assert conn.execute("SELECT COUNT(*) FROM m8_probe").fetchone()[0] == 0
+        assert "j2_note_publications" not in _objects(conn)            # the CREATEs rode it
+        note_publish.ensure_publish_schema(conn)                       # re-ensured, uncached
+        assert set(note_publish._SCHEMA_OBJECTS) <= _objects(conn)
+        note_publish._SCHEMA_READY.discard(note_shares_key := note_publish.note_shares._db_key(conn))
+        conn.execute("INSERT INTO m8_probe VALUES (2)")
+        note_publish.ensure_publish_schema(conn)                       # present: creates and commits nothing
+        assert conn.in_transaction
+        conn.rollback()
+        assert conn.execute("SELECT COUNT(*) FROM m8_probe").fetchone()[0] == 0
+        assert note_shares_key in note_publish._SCHEMA_READY           # ...and caches the answer
+    finally:
+        conn.close()
+
+
+def test_M8_publishing_again_leaves_no_write_transaction_open(svc, db_path):
+    """⚰️ `_retire_expired` was a bare UPDATE on every publish: it took the write lock even
+    when it matched nothing, and on the "already published" path nothing committed after
+    it, so the caller's connection was left holding a write transaction."""
+    f = _folder(A, "Research")
+    _note(A, "in the folder", folderId=f)
+    solo = _note(A, "solo")
+    conn = _raw(db_path)
+    try:
+        assert svc.publish_folder(A, f, conn=conn) is not None
+        assert svc.publish_note(A, solo, conn=conn) is not None
+        assert not conn.in_transaction
+        assert svc.publish_folder(A, f, conn=conn) is not None         # already published
+        assert not conn.in_transaction, "publish_folder left a write transaction open"
+        assert svc.publish_note(A, solo, conn=conn) is not None
+        assert not conn.in_transaction, "publish_note left a write transaction open"
+    finally:
+        conn.close()
+
+
+def test_M8_no_folder_scan_runs_under_the_auth_db_write_lock(svc, db_path, monkeypatch):
+    """Every tree scan a publish runs (the snapshot, and the owner view's member count) is
+    probed from a SECOND connection that tries to take the write lock without waiting: it
+    must always get it -- on the already-published path and on the retire-then-republish
+    path alike."""
+    f = _folder(A, "Research")
+    _note(A, "in the folder", folderId=f)
+    first = svc.publish_folder(A, f)["slug"]
+    seen: list[str] = []
+    real = svc._live_notes_in_tree
+
+    def probing(conn, *a, **k):
+        other = _raw(db_path, timeout=0)
+        try:
+            other.execute("BEGIN IMMEDIATE")
+            other.rollback()
+            seen.append("free")
+        except sqlite3.OperationalError:
+            seen.append("LOCKED")
+        finally:
+            other.close()
+        return real(conn, *a, **k)
+
+    monkeypatch.setattr(svc, "_live_notes_in_tree", probing)
+    assert svc.publish_folder(A, f)["slug"] == first                   # nothing to retire
+    c = _raw(db_path)
+    try:
+        c.execute("UPDATE j2_note_publications SET expires_at = ? WHERE slug = ?",
+                  ("2000-01-01T00:00:00.000000+00:00", first))
+        c.commit()
+    finally:
+        c.close()
+    assert svc.publish_folder(A, f)["slug"] != first                   # retired, then republished
+    assert len(seen) >= 3, seen                                        # non-vacuity: the scans ran
+    assert seen == ["free"] * len(seen), seen
+
+
+def test_M8_CONTROL_the_lock_probe_sees_a_held_write_lock(db_path):
+    """CONTROL: the probe above answers LOCKED while another connection holds the lock, so
+    'free' is a measurement and not the probe's only answer."""
+    holder = _raw(db_path)
+    try:
+        holder.execute("CREATE TABLE IF NOT EXISTS m8_probe (x INTEGER)")
+        holder.execute("INSERT INTO m8_probe VALUES (1)")              # takes the write lock
+        other = _raw(db_path, timeout=0)
+        try:
+            with pytest.raises(sqlite3.OperationalError):
+                other.execute("BEGIN IMMEDIATE")
+        finally:
+            other.close()
+    finally:
+        holder.rollback()
+        holder.close()
