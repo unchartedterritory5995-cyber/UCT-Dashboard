@@ -138,8 +138,15 @@ def test_a_5xx_reading_is_SKIPPED_not_an_ANOMALY():
     assert "def is_skipped(" in gate_src
     body = gate_src[gate_src.index("    recs, gripes = parsed_rows()"):]
     assert "observed = [x for x in recs if not is_skipped(x)]" in body
-    for trigger in ("bad = [x for x in observed", "conf = [x for x in observed",
-                    "errs = [x for x in observed"):
+    # ⚰️ This pinned `bad = [x for x in observed` and `errs = [x for x in observed`
+    # and was RED at 324a5135a (wave 9 found it; nb_gate.py and this file were
+    # byte-identical to that commit): the 2026-09-14 ownership rulings rebuilt
+    # triggers 1 and 4 as `t1_attr = …` / `errs_all = …`, still over `observed`,
+    # and nobody moved the pins. The PROPERTY held; the spelling had moved. The
+    # pins now name the lines that actually read the partition today.
+    for trigger in ("t1_attr = [(x, flag_attribution(x.get('flag'))) for x in observed]",
+                    "conf = [x for x in observed",
+                    "errs_all = [x for x in observed"):
         assert trigger in body, trigger
 
 

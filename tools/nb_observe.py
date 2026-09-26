@@ -82,7 +82,12 @@ RIG_AND_OWNER = ("unchartedterritory5995@gmail.com",)
 SYNTHETIC_MEMBERS = (
     "smoke@uctintelligence.internal",            # the post-deploy client smoke
     "member-smoke@uctintelligence.internal",     # T-12's independent-member view
+    "bench@uctintelligence.internal",            # D-9A3's head-to-head benchmark
 )
+# ⛔⛔ ONE FACT IN TWO FILES. `api/services/journal_two/notebook_populations.py`
+# carries these three lists for the soak's server read; this copy runs outside
+# every worktree and cannot import `api`. tests/test_notebook_populations.py
+# reads THIS file by AST and asserts the two are equal -- change both or neither.
 
 # !!!! AN UNKNOWN ADDRESS ON OUR OWN INTERNAL DOMAIN IS FLAGGED, NOT COUNTED AS
 # ORGANIC. `.internal` is reserved (RFC 8375) and unroutable, so nobody outside
