@@ -1,0 +1,45 @@
+{
+ "probeVersion": "uct-bench-probe/1",
+ "app": "uct-sandbox-auto",
+ "op": "H5",
+ "kind": "search",
+ "status": "COMPLETE",
+ "userAgent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) HeadlessChrome/145.0.7632.6 Safari/537.36",
+ "viewport": {
+  "width": 1280,
+  "height": 800,
+  "dpr": 1
+ },
+ "capturedAt": "2026-09-26T21:09:18.737Z",
+ "samples": [
+  194.5,
+  195.7,
+  220,
+  215.9,
+  208,
+  195.6,
+  205.6,
+  211.7,
+  239.3,
+  208.3
+ ],
+ "invalid": [],
+ "selfTest": {
+  "ok": true,
+  "ms": 215.4,
+  "version": "uct-bench-probe/1",
+  "delayMs": 200,
+  "window": [
+   195,
+   260
+  ],
+  "at": "2026-09-26T21:09:10.171Z",
+  "invalid": []
+ },
+ "reps": 10,
+ "attempts": 10,
+ "ignored": 0,
+ "target": {
+  "marker": "Quokka zephyr cobalt"
+ }
+}
