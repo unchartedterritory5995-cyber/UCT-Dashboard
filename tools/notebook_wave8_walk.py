@@ -369,6 +369,30 @@ def make_block_once():
     return handler, state
 
 
+def chunk_url_matches(url, chunk_file):
+    """wave 8 (the run on 341bbccf3): whether `url` asks for `chunk_file` (a manifest path such
+    as `assets/NoteTasksView-abc.js`), judged by the URL's PATH so a query still matches.
+
+    ⛔ INSTRUMENT: W6 and W7 used a Playwright glob `**/<file>`, and a glob is matched against the
+    WHOLE URL, query included (measured, Playwright 1.58: `url_matches` says False for
+    `<file>?chunk-retry=1`). lazyChunk's retry asks for the chunk as `<file>?chunk-retry=<stamp>`
+    since 341bbccf3, so under the glob that request slipped past the interceptor: W7 could not
+    count it, and W6's "the tour chunk keeps failing" would have let it load."""
+    if not chunk_file:
+        return False
+    try:
+        path = urllib.parse.urlsplit(url).path
+    except ValueError:
+        return False
+    return path.endswith("/" + chunk_file.lstrip("/"))
+
+
+def chunk_request_label(url):
+    """A chunk request as the evidence records it: its path and query, no origin."""
+    parts = urllib.parse.urlsplit(url)
+    return parts.path + (("?" + parts.query) if parts.query else "")
+
+
 #: Two sentences the walk waits on that are JSX text, not constants -- typed ONCE here, and
 #: the rail proves each is still in the component it names.
 ROUTE_FALLBACK_TEXT = "Something went wrong on this page"   # components/AppErrorFallback.jsx
@@ -1538,6 +1562,9 @@ with sync_playwright() as p:
         res["instrument_notes"].append(
             "W3: the in-app address is the production URL shape (https://uctintelligence.com/journal/notebook"
             "?note=<id>) written as TEXT into sandbox data; nothing fetches it (the 'Preview card' press is never made)")
+        # wave 8 (the run on 341bbccf3): what the reducer writes in place of an in-app address
+        # (e94a3ad11), read off its constant, never typed
+        in_app_text = py_string(PUBLIC_PAYLOAD_PY, "IN_APP_LINK_TEXT")
         folder_name = f"Walk W3 folder {RUN}"
         fid = mk_folder(api, folder_name)
         other = mk_note(api, f"Walk W3 elsewhere {RUN}", DOC(P("a note outside the folder")))
@@ -1599,10 +1626,19 @@ with sync_playwright() as p:
                           "card_title_shown": f"In-app card {RUNWORD}" in text,
                           "pasted_url_text_shown": in_app in text,
                           "other_note_id_in_visible_text": other["id"] in text,
+                          "in_app_link_text": in_app_text,
+                          "in_app_link_text_shown": in_app_text in text,
                           "payload_leaks": sorted({l for x in note_page["payloads"] for l in x["leaks"]}),
                           "shot": shot(sp, "w3-stranger-note")})
         pub_api = [x for x in note_page["payloads"] if x["matched"]]
         note_page["api_headers_ok"] = bool(pub_api) and all(public_api_headers_ok(x["headers"])[0] for x in pub_api)
+        # the public JSON, asked for directly by the stranger: the replacement is in it, the id is not
+        pub_json_url = next((BASE + x["url"] for x in pub_api), None)
+        if pub_json_url:
+            pj = sctx.request.get(pub_json_url)
+            pj_text = pj.text()
+            note_page["public_json_direct"] = {"status": pj.status, "in_app_link_text_in_json": in_app_text in pj_text,
+                                               "other_note_id_in_json": other["id"] in pj_text}
         sp.close()
         sp, folder_page = public_facts(sctx, folder_url, "published-page", needles, is_pub)
         ftext = folder_page.pop("text")
@@ -1630,7 +1666,11 @@ with sync_playwright() as p:
             return ("noindex" in (pg_facts["html_headers"].get("x-robots-tag") or "")
                     and "noindex" in (pg_facts["meta"].get("robots") or ""))
 
+        # wave 8 (341bbccf3): the paste is proved to have reached the note (its link mark holds the
+        # id) and the public page says `in_app_text` where it was -- without both, an absent id could
+        # mean a paste that never landed (a non-vacuity control, not a new requirement)
         ok = (note_page["own_words_rendered"] and not note_page["card_title_shown"]
+              and saved_link and note_page["in_app_link_text_shown"]
               and not note_page["dom_leaks"] and not note_page["payload_leaks"]
               and noindex(note_page) and note_page["api_headers_ok"]
               and folder_page["lists_note"] and not folder_page["dom_leaks"] and not folder_page["payload_leaks"]
@@ -1887,7 +1927,10 @@ with sync_playwright() as p:
                  "and recorded. And an offline note opens from what the TAB already read (useJ2Note is an "
                  "SWR read with no store behind it; the durable copy supplies unsent words on top of a server "
                  "copy, never a note by itself), so after any document load a note unread in that tab shows "
-                 "its own load-error card. The verdict rests on the reachable paths",
+                 "its own load-error card. The verdict rests on the reachable paths. (Controller ruling, "
+                 "2026-09-26, after the run on 220354a6b: the brief's offline-RELOAD expectation is struck -- "
+                 "no caching service worker by charter, plan decision D6 -- and W6 is judged on the in-page "
+                 "offline paths)",
                  "api/main.py spa_index_response; app/src/main.jsx; hooks/useJ2Notes.js useJ2Note; "
                  "NoteEditorPage.jsx `if (!note)`")
         facts = {"tour_chunk": tour_file}
@@ -1904,7 +1947,7 @@ with sync_playwright() as p:
         banner = js_string("app/src/pages/journal-2-0/lib/offline/unsyncedCopy.js", "OFFLINE_VIEWING_BANNER")
         octx = clone_session(ctx, "walk-offline")
         tour_reqs = []
-        octx.on("request", lambda r: tour_reqs.append(r.url) if r.url.endswith(tour_file) else None)
+        octx.on("request", lambda r: tour_reqs.append(r.url) if chunk_url_matches(r.url, tour_file) else None)
         opg = _fresh_page(octx)
         opg.goto(notebook_url(None, "?view=all"))
         dismiss_intro(opg)
@@ -1978,12 +2021,15 @@ with sync_playwright() as p:
 
         # (b) a first-run member whose tour chunk FAILS: the Notebook stays, nothing reloads
         dctx, facts["provision_first_run_member"] = provision_member(browser, actx, f"w8chunk{RUN}@local.dev", "Chunk Walker")
-        attempts = []
+        attempts, attempt_urls = [], []
 
         def refuse(route):
             attempts.append(_t.time())
+            attempt_urls.append(chunk_request_label(route.request.url))
             route.abort("internetdisconnected")
-        dctx.route(f"**/{tour_file}", refuse)
+        # wave 8 (341bbccf3): matched by PATH, so the retry's `?chunk-retry=` request is refused too
+        # -- this case is a chunk that KEEPS failing (chunk_url_matches says why a glob cannot)
+        dctx.route(lambda u: chunk_url_matches(u, tour_file), refuse)
         dpg = _fresh_page(dctx)
         fence_open("W6: a first-run member's tour chunk refused (deliberate)")
         dpg.goto(notebook_url())
@@ -1995,7 +2041,8 @@ with sync_playwright() as p:
         while _t.time() < end and len(attempts) < 2:   # the gate's one in-place retry, if the engine makes it
             dpg.wait_for_timeout(250)
         dpg.wait_for_timeout(1500)   # settle: a reload or a boundary lands inside this
-        chunk_fail = {"attempts": len(attempts), "no_reload": dpg.evaluate(IS_ALIVE_JS),
+        chunk_fail = {"attempts": len(attempts), "attempt_urls": attempt_urls,
+                      "no_reload": dpg.evaluate(IS_ALIVE_JS),
                       "first_run_screen_still_shown": dpg.get_by_role("heading", name=home).first.is_visible(),
                       "no_route_fallback": not _route_fallback_visible(dpg), "no_tour_card": dpg.locator(TOUR_CARD).count() == 0}
         fence_close()
@@ -2022,11 +2069,15 @@ with sync_playwright() as p:
             record("W7_lazy_chunk_retry", "INCONCLUSIVE",
                    reason="no --dist manifest, so the chunk cannot be DERIVED (never guessed) -- instrument")
             return
+        retry_param = js_string("app/src/pages/journal-2-0/lib/lazyChunk.js", "CHUNK_RETRY_PARAM")
         bctx = clone_session(ctx, "walk-chunk")
         handler, state = make_block_once()
-        bctx.route(f"**/{tasks_file}", handler)
+        # wave 8 (341bbccf3): matched by PATH, not a glob, so the retry's `?chunk-retry=` request is
+        # routed (let through) and counted -- a glob matches the whole URL and would miss it
+        bctx.route(lambda u: chunk_url_matches(u, tasks_file), handler)
         requests_seen, console_errors, loads = [], [], []
-        bctx.on("request", lambda r: requests_seen.append(round(_t.time(), 3)) if r.url.endswith(tasks_file) else None)
+        bctx.on("request", lambda r: requests_seen.append(chunk_request_label(r.url))
+                if chunk_url_matches(r.url, tasks_file) else None)
         bpg = _fresh_page(bctx)
         bpg.on("console", lambda m: console_errors.append(m.text[:240]) if m.type == "error" else None)
         bpg.on("load", lambda _p: loads.append(round(_t.time(), 3)))   # one per DOCUMENT load
@@ -2034,6 +2085,7 @@ with sync_playwright() as p:
         bpg.locator("[data-note-card-id]").first.wait_for(state="visible", timeout=30000)
         bpg.evaluate(MARK_ALIVE_JS)
         loads_before = len(loads)
+        url_before = bpg.url.replace(BASE, "")
         fence_open("W7: one lazy chunk aborted once (deliberate)")
         t_click = _t.time()
         bpg.get_by_role("button", name="Tasks view", exact=True).click()
@@ -2047,6 +2099,9 @@ with sync_playwright() as p:
         fence_close()
         facts = {"chunk": tasks_file, "route_calls": state["calls"], "aborted": state["aborted"],
                  "let_through": state["continued"], "chunk_requests_seen": len(requests_seen),
+                 "chunk_request_urls": requests_seen[:6],
+                 "retry_param": retry_param,
+                 "retry_request_carried_param": any(f"{retry_param}=" in u for u in requests_seen[1:]),
                  "view_mounted": recovered, "no_reload": bpg.evaluate(IS_ALIVE_JS),
                  "document_loads_after_click": len(loads) - loads_before,
                  # >= the retry wait (lazyChunk.RETRY_WAIT_MS) means the in-place retry ran and
@@ -2054,13 +2109,16 @@ with sync_playwright() as p:
                  "ms_click_to_reload": (round((loads[loads_before] - t_click) * 1000) if len(loads) > loads_before else None),
                  "reload_flag_after": bpg.evaluate("() => { try { return sessionStorage.getItem('uct.chunk-reload-attempted') }"
                                                    " catch (e) { return 'unreadable' } }"),
-                 "url_after": bpg.url.replace(BASE, ""), "console_errors": console_errors[:8],
+                 "url_before": url_before, "url_after": bpg.url.replace(BASE, ""),
+                 "console_errors": console_errors[:8],
                  "no_route_fallback": not _route_fallback_visible(bpg),
                  "pressed": bpg.get_by_role("button", name="Tasks view", exact=True).get_attribute("aria-pressed")}
         bctx.close()
         # "recovers BY ITS RETRY": the chunk asked for twice, the view up, and no document reload
+        # wave 8 (341bbccf3): and the view is the one pressed, on the address the member was on
         ok = (facts["view_mounted"] and facts["aborted"] == 1 and facts["let_through"] >= 1
-              and facts["no_reload"] and facts["no_route_fallback"])
+              and facts["no_reload"] and facts["no_route_fallback"]
+              and facts["pressed"] == "true" and facts["url_after"] == url_before)
         record("W7_lazy_chunk_retry", "PASS" if ok else "FAIL", **facts)
 
     check_w7()

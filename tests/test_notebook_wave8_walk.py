@@ -599,3 +599,71 @@ def test_link_mark_hrefs_reads_marks_never_node_attributes(walk):
         {"type": "paragraph", "content": [{"type": "text", "text": "t",
                                            "marks": [{"type": "link", "attrs": {"href": "https://x/mark"}}]}]}]}
     assert walk["link_mark_hrefs"](body) == ["https://x/mark"]
+
+
+# ── wave 8, the run on 341bbccf3: chunk routes by PATH, and the two new source readers ──
+
+_TASKS = "assets/NoteTasksView-BrXPNdrU.js"
+_ORIGIN = "http://127.0.0.1:8228/"
+
+
+def test_a_chunk_is_matched_by_its_path_so_the_retry_query_still_matches(walk):
+    """lazyChunk's retry (341bbccf3) asks for `<file>?chunk-retry=<stamp>`. The walk must still
+    see that request as the chunk: W7 lets it through and counts it, W6 keeps refusing it."""
+    m = walk["chunk_url_matches"]
+    assert m(_ORIGIN + _TASKS, _TASKS)
+    assert m(_ORIGIN + _TASKS + "?chunk-retry=1790000000000", _TASKS)
+    assert not m(_ORIGIN + "assets/NoteBoardView-Zz.js", _TASKS)
+    assert not m(_ORIGIN + "xassets/NoteTasksView-BrXPNdrU.js", _TASKS), "a path, never a suffix of a name"
+    assert not m(_ORIGIN + _TASKS + ".map", _TASKS)
+    assert not m(_ORIGIN + _TASKS, "") and not m(_ORIGIN + _TASKS, None)
+    assert walk["chunk_request_label"](_ORIGIN + _TASKS + "?chunk-retry=7") == "/" + _TASKS + "?chunk-retry=7"
+    assert walk["chunk_request_label"](_ORIGIN + _TASKS) == "/" + _TASKS
+
+
+def test_the_glob_the_walk_used_to_route_by_cannot_see_the_retry():
+    """The control: why the route changed. Playwright matches a glob against the WHOLE URL, so
+    `**/<file>` never matches `<file>?chunk-retry=...` -- the retry escaped the interceptor."""
+    helper = pytest.importorskip("playwright._impl._helper")
+    assert helper.url_matches(None, _ORIGIN + _TASKS, "**/" + _TASKS), "non-vacuity: the glob matches the file"
+    assert not helper.url_matches(None, _ORIGIN + _TASKS + "?chunk-retry=1", "**/" + _TASKS)
+
+
+def test_W6_and_W7_route_and_count_chunks_by_path_never_by_a_glob():
+    main = _main_block(_tree())
+    fns = {n.name: n for n in ast.walk(main) if isinstance(n, ast.FunctionDef)}
+    for name in ("check_w6", "check_w7"):
+        routes = _calls(fns[name], "route")
+        assert routes, f"non-vacuity: {name} routes a chunk"
+        for c in routes:
+            assert isinstance(c.args[0], ast.Lambda) and _calls(c.args[0], "chunk_url_matches"), \
+                f"{name}: `{ast.unparse(c.args[0])}` is not matched by path"
+        listeners = [c for c in _calls(fns[name], "on") if c.args and isinstance(c.args[0], ast.Constant)
+                     and c.args[0].value == "request"]
+        assert listeners and all(_calls(c, "chunk_url_matches") for c in listeners), name
+    globs = [n for n in ast.walk(main) if isinstance(n, ast.JoinedStr)
+             and n.values and isinstance(n.values[0], ast.Constant) and str(n.values[0].value).startswith("**/")]
+    assert not globs, [ast.unparse(g) for g in globs]
+
+
+def test_the_retry_param_and_the_in_app_replacement_are_read_from_source(walk):
+    assert walk["js_string"]("app/src/pages/journal-2-0/lib/lazyChunk.js", "CHUNK_RETRY_PARAM") == "chunk-retry"
+    assert walk["py_string"](walk["PUBLIC_PAYLOAD_PY"], "IN_APP_LINK_TEXT") == "in-app link"
+
+
+def _ok_names(fn):
+    binds = [n for n in ast.walk(fn) if isinstance(n, ast.Assign)
+             and any(isinstance(t, ast.Name) and t.id == "ok" for t in n.targets)]
+    assert len(binds) == 1
+    return ast.unparse(binds[0].value)
+
+
+def test_W3_and_W7_verdicts_carry_their_non_vacuity_facts():
+    """W3: an absent id means nothing unless the paste landed and its replacement shows. W7: the
+    view must be the one pressed, on the address the member was on (a reload lands elsewhere)."""
+    main = _main_block(_tree())
+    fns = {n.name: n for n in ast.walk(main) if isinstance(n, ast.FunctionDef)}
+    w3 = _ok_names(fns["check_w3"])
+    assert "saved_link" in w3 and "in_app_link_text_shown" in w3 and "dom_leaks" in w3, w3
+    w7 = _ok_names(fns["check_w7"])
+    assert "pressed" in w7 and "url_before" in w7 and "let_through" in w7 and "no_reload" in w7, w7
