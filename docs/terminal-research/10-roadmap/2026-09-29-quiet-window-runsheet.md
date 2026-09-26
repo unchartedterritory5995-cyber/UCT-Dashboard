@@ -14,9 +14,22 @@ status: scheduled
 ⛔ **NO-DEPLOY BLOCK. Nobody pushes to master in this window, including the agent.** Everything
 run inside it is read-only.
 
-⚠️ **Pending: partner notification.** The owner asked for Bracco to be tagged in Discord with the
-block and an invitation to propose a different day. Until he has replied or the window has passed
-without objection, **treat the date as proposed rather than agreed.**
+✅ **Partner notified 2026-09-26 08:57 ET.** Posted to **`#deploys`** in the UCT Intelligence
+Discord (DEV ROOM category), tagging **@Brac** as a resolved mention, with the block's date and
+time and an invitation to reply with a different day if it clashes.
+
+⚠️ **The date is still PROPOSED, not agreed, until he replies or Tuesday arrives without
+objection.** The message explicitly invites a counter-proposal, so a reply naming another day
+moves the window and this run sheet is re-dated rather than argued with.
+
+⭐ **Channel choice, recorded because the owner said "any channel".** `#deploys` was chosen over
+`#dev-chat` and over the community channels: this is deploy planning, it belongs in the channel
+named for it, and one of this server's channels carries a large member audience where internal
+scheduling does not belong. ⛔ The admin webhook and the signup notifications also share a
+channel, so a bot post would have buried this among signup alerts — which is one of the two
+reasons it was posted by hand in the browser. The other is that **a webhook cannot resolve a
+mention**: it would have rendered `@bracco` as plain text and notified nobody, which would have
+defeated the entire purpose.
 
 ---
 
