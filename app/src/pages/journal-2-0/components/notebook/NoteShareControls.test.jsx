@@ -114,7 +114,7 @@ describe('share links', () => {
     const dialog = await openDoor()
     expect(within(dialog).getByRole('heading', { name: 'Share link' })).toBeInTheDocument()
     expect(dialog).toHaveTextContent(
-      'Anyone with the link can read this note without signing in. Market data such as charts is not shown.')
+      'Anyone with the link can read this note without signing in. Price charts are not shown.')
     const select = within(dialog).getByLabelText('Link stops working')
     expect([...select.options].map((o) => o.textContent)).toEqual(
       ['Never', 'After 7 days', 'After 30 days', 'After 90 days'])

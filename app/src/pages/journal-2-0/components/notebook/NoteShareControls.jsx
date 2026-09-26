@@ -207,7 +207,7 @@ function SharePanel({ noteId, shareOn, publishOn, onMessage }) {
           {!share ? (
             <>
               <p className={styles.lede}>
-                Anyone with the link can read this note without signing in. Market data such as charts is not shown.
+                Anyone with the link can read this note without signing in. Price charts are not shown.
               </p>
               <div className={styles.row}>
                 <label className={styles.label} htmlFor="share-expiry">Link stops working</label>
