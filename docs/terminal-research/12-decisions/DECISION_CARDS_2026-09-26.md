@@ -750,3 +750,31 @@ Several confirmations are recorded as given by the provider and **not captured f
 ⚠️ Two register rows worth carrying forward for the same reason, both from item 15's pass: **LIC-06** (*"no terms document exists at all"*) and **LIC-08** (*"no purchasable remedy at any price"*). A gap with no purchasable remedy is a permanent product boundary, like the no-execution ceiling — not a backlog item.
 
 **Reversal condition:** none on the clearance. ⚠️ §4 is a *scope statement*, not a challenge: if the owner intends the clearance to extend to feeds not yet acquired, one sentence says so and this section is struck.
+
+## CARD 27 — ⛔⛔ A VERIFIED PRODUCTION DEFECT: the morning-wire missed-run watchdog CANNOT FIRE on the morning it was built for
+
+**Found by the gate-item-14 author; verified independently at source before being recorded here. Not a research finding — a live guard that cannot fail.**
+
+### The mechanism, in three facts that are each true on their own
+
+1. **The watchdog runs once, at 09:05 ET, weekdays** — `api/main.py`, `register_wire_watchdog_job`: `CronTrigger(day_of_week="mon-fri", hour=9, minute=5, timezone=_ET)`.
+2. **Its test is `if wire_date < expected`**, where `expected = _expected_wire_date()` — an alias (`api/routers/engine_data.py:58-68`) that delegates to `api/services/engine.py::expected_wire_date`.
+3. **`expected_wire_date()` ROLLS BACK ONE DAY before 09:30 ET:** `if now.weekday() < 5 and (now.hour, now.minute) < (9, 30): d = d - timedelta(days=1)`.
+
+⛔ **So at 09:05 ET, `(9, 5) < (9, 30)` is TRUE and `expected` is YESTERDAY. A wire that missed this morning's run is dated yesterday. `yesterday < yesterday` is FALSE. The alert does not fire** — and because the job runs only at 09:05, **it does not fire later that day either.** It can only fire once the payload is TWO days stale.
+
+⚠️ **The member badge has the same root and a different blast radius.** `engine.py::wire_freshness` returns `"fresh" if wire_d >= expected_wire_date()`, so before 09:30 a one-day-stale payload reads **fresh** — then self-corrects at 09:30 when `expected` becomes today. **So the badge is wrong only during 07:35–09:30 ET; the ALERT is wrong all day.** The badge is the milder half, and 07:35–09:30 is the entire pre-open window — which is what the morning wire is FOR.
+
+### ⭐⭐ Why this is the `gate_that_cannot_fail` class and not an ordinary bug
+
+**The guard's own docstring names the case it misses.** It says it fires when the served wire "still carries a **pre-today** date" — but at 09:05 a pre-today date is precisely the EXPECTED state, by the very function it asks. **The docstring and the comparison disagree, and the docstring is the one a reader believes.**
+
+⚰️ **And the incident it was built to catch is recorded, dated, in a docstring twelve lines away.** `wire_freshness`'s own 🔴 WHY THIS EXISTS block: *"On 2026-08-14 the 06:35 run crashed before pushing and the dashboard served the prior day's rating all day with nothing on screen, or in the payload, able to say so."* **That is this exact failure, and the watchdog added to catch it still cannot.**
+
+### The fix, and it is one line
+
+**Move the cron past the rollback boundary** — `hour=9, minute=35` (or later) instead of `minute=5`. After 09:30 `expected` is today, a one-run miss gives `yesterday < today` → True, and the alert fires correctly. ⭐ **Preferred over changing `expected_wire_date()`**, because that function is deliberately ONE COPY shared with `/api/leadership`, the breadth payload and the exposure payload (its own docstring says two implementations "would drift into two different answers on the same day"). Re-timing one job touches one caller; changing the shared rule moves the member-facing freshness boundary for every surface that reads it.
+
+⚠️ **A rail must come with it, or the fix is unprovable:** a test that pins the job's scheduled minute ON THE FAR SIDE of `expected_wire_date`'s 09:30 boundary, and asserts the comparison FIRES for a one-day-stale payload at the scheduled time. A guard nobody has watched fail is not a guard.
+
+⛔ **NOT SHIPPED. This is a `master` change and master is production**, so it needs an explicit owner "deploy" plus a member-impact paragraph. Recorded here so the finding cannot be lost; the decision is the owner's.
