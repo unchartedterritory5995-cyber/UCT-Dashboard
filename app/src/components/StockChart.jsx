@@ -2285,6 +2285,7 @@ export default function StockChart({
   watermarkCenterX = null,   // px from the pane's left edge — when set, pins the watermark's horizontal CENTER here on every chart (no edge clamp) so it stays tucked in the top-left corner and never drifts by name width or pane width (Setup Library)
   watermarkPadTop = null,    // px top inset, independent of the side gutter (watermarkPad). Charts workspace uses this to drop the mark below the floating drawing toolbar. Falls back to watermarkPad when null.
   watermarkBrandMark = false, // UCT pseudo-tickers (breadth / theme indexes): the watermark "Logo" field uses the UCT compass brand mark, not a company-logo lookup on the synthetic symbol.
+  showBrandMark = true,      // the small compass mark pinned bottom-left over the date axis. The Discord render (ChartRender) turns it off: its header already carries the mark, and on a weekly chart this one sat on top of the first date label.
   onWatermarkCommit = null,  // (pos:{x,y}) => void — when set, a watermark drag persists HERE (per-example) instead of writing the global chart_settings (Setup Library)
   watermarkName = null,      // Model Book: curated company name for the watermark. For a REUSED ticker (e.g. WTW = Weight Watchers in 2017, now Willis Towers Watson) the live ticker meta is the wrong company — this overrides the name (and drops the then-wrong sector/industry).
   watermarkSector = null,    // Model Book: curated historical sector — used when the live ticker meta is the wrong/absent company (renamed/delisted), so the watermark still shows sector below the name like every other stock.
@@ -18221,7 +18222,7 @@ export default function StockChart({
           </div>
         )
       })(), document.body)}
-      {!showFatalError && (
+      {!showFatalError && showBrandMark && (
         <img
           src={brandMark}
           alt="Uncharted Territory"

@@ -120,18 +120,23 @@ function StatsStrip({ stats, bg, text }) {
     </span>
   )
   const rvol = stats.rvol
+  // A weekly chart's strip describes the WEEK (compute_stats(daily, 'W')): its change, its gap,
+  // its volume against the average week. Labelled so, or a member reads "Day" beside a week.
+  const weekly = stats.period === 'W'
+  const avgBars = stats.avg_bars || 50
+  const avgVol = stats.avg_vol ?? stats.avg_vol_50
   return (
     <div data-testid="stats-strip" style={{ height: STATS_STRIP_H, background: bg, display: 'flex', alignItems: 'center', padding: '0 16px', whiteSpace: 'nowrap', overflow: 'hidden' }}>
       <Cell label="O" value={fmtNum(stats.open)} />
       <Cell label="H" value={fmtNum(stats.high)} />
       <Cell label="L" value={fmtNum(stats.low)} />
       <Cell label="C" value={fmtNum(stats.close)} />
-      <Cell label="Day" value={fmtPct(stats.day_pct)} color={dirColor(stats.day_pct, text)} />
+      <Cell label={weekly ? 'Wk' : 'Day'} value={fmtPct(stats.day_pct)} color={dirColor(stats.day_pct, text)} />
       <Cell label="Gap" value={fmtPct(stats.gap_pct)} color={dirColor(stats.gap_pct, text)} />
       <Cell label="52w H" value={`${fmtNum(stats.hi_52w)} (${fmtPct(stats.from_52w_high_pct)})`} />
       <Cell label="52w L" value={fmtNum(stats.lo_52w)} />
       <Cell label="Vol" value={fmtNum(stats.volume)} />
-      <Cell label="Avg50" value={fmtNum(stats.avg_vol_50)} />
+      <Cell label={`Avg${avgBars}${weekly ? 'w' : ''}`} value={fmtNum(avgVol)} />
       <Cell label="RVOL" value={rvol == null ? '—' : `${Number(rvol).toFixed(2)}x`} color={rvol != null && Number(rvol) >= 1.5 ? '#c9a84c' : undefined} />
       <Cell label="$Vol" value={fmtNum(stats.dollar_vol)} />
       <Cell label="ADR" value={stats.adr_pct == null ? '—' : `${Number(stats.adr_pct).toFixed(1)}%`} />
@@ -873,6 +878,7 @@ export default function ChartRender() {
             sym={sym}
             tf={tf}
             height={`${chartH}px`}
+            showBrandMark={false}
             priceLines={priceLines}
             visibleBarsOverride={barsOverride}
             onBarsReady={onBarsReady}
