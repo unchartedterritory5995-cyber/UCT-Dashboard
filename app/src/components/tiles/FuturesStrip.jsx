@@ -130,10 +130,17 @@ function Sparkline({ sym, css }) {
   )
 }
 
-// TradingView symbol overrides (BTC + index-futures continuous front-months)
-const TV_SYMS = { BTC: 'BTCUSD', ES: 'ES1!', NQ: 'NQ1!', YM: 'YM1!', RTY: 'RTY1!' }
-// Symbols with no Finviz equity chart — TradingView only
-const TV_ONLY = new Set(['BTC', 'VIX'])
+// DELETED 2026-09-26: TV_SYMS + TV_ONLY, the dead TradingView path.
+// TV_ONLY was read NOWHERE in the repo, and TV_SYMS existed only to feed a
+// tvSym prop that TickerPopup destructured and never used - no iframe, no embed,
+// no outbound link. Somebody removed TradingView from the popup and left the
+// caller still computing symbols for it.
+// It mattered because roadmap item TERM-028 was written against this code as if
+// it were live ('TV_ONLY handing BTC/VIX charts to TradingView') and planned an
+// honest-blank remedy for a break-out that does not exist here. VIX is in fact
+// served by OUR OWN chart via CUSTOM_CHART below. Unreachable code read as live
+// is how a plan acquires a phantom work item.
+// Rail: FuturesStrip.noTradingViewBreakout.test.jsx
 // Symbols that use our /api/chart endpoint instead of Finviz or TradingView
 const CUSTOM_CHART = new Set(['VIX'])
 const TAB_TO_TF = { '5min': '5', '30min': '30', '1hr': '60', 'Daily': 'D', 'Weekly': 'W' }
@@ -146,7 +153,6 @@ export function Cell({ sym, price, chg, css }) {
   return (
     <TickerPopup
       sym={sym}
-      tvSym={TV_SYMS[sym]}
       customChartFn={customChartFn}
       as="div"
     >
