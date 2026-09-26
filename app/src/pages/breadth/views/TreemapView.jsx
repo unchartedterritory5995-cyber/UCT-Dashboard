@@ -16,6 +16,7 @@ export default function TreemapView({ currentRow, prevRow, pctileByKey, visibleK
     if (!currentRow) return {}
     const items = TREEMAP_DEF[0].items.filter(it => visibleKeys.has(it.metricKey))
     const weightBy = options.weightBy ?? 'curated'
+    const valFontSize = options.valFontSize ?? 30
     const tileWeight = (item) => {
       if (weightBy === 'equal') return 1
       if (weightBy === 'extremity') {
@@ -99,7 +100,10 @@ export default function TreemapView({ currentRow, prevRow, pctileByKey, visibleK
         },
         rich: {
           lbl: { fontSize: 11, fontFamily: 'Instrument Sans, sans-serif', fontWeight: 700, color: 'rgba(255,255,255,0.60)', lineHeight: 18 },
-          val: { fontSize: 30, fontFamily: 'Instrument Sans, sans-serif', fontWeight: 700, color: '#ffffff', lineHeight: 40 },
+          // options.valFontSize: the newsletter's MARKET INTERNALS panel renders
+          // narrower tiles than the Breadth page; at 30px a value carrying its
+          // tier arrow ("29.0% ▼") truncated to "29...." (9/26). Default unchanged.
+          val: { fontSize: valFontSize, fontFamily: 'Instrument Sans, sans-serif', fontWeight: 700, color: '#ffffff', lineHeight: Math.round(valFontSize * 4 / 3) },
         },
         position: 'inside', align: 'center', verticalAlign: 'middle', overflow: 'truncate',
       },

@@ -106,7 +106,7 @@ export default function InternalsRender() {
   const treemapBlock = (
     <div style={{ width: w - 36, height: 460 }}>
       {row ? (
-        <TreemapView currentRow={row} pctileByKey={{}} visibleKeys={VISIBLE_KEYS} options={{ weightBy: 'curated' }} />
+        <TreemapView currentRow={row} pctileByKey={{}} visibleKeys={VISIBLE_KEYS} options={{ weightBy: 'curated', valFontSize: 22 }} />
       ) : (
         <div style={{ color: '#888', padding: 12 }}>No breadth-monitor data.</div>
       )}
