@@ -187,6 +187,12 @@ the clipboard). Arm once per round; then per rep: create a NEW empty note (UCT: 
 body, Ctrl+V, wait until the paste has landed, and move on. Close any earlier pasted note first (an
 end marker still in the page makes the next rep INVALID).
 
+⛔ UCT: leave each pasted note with the sidebar's **All notes** row (`FolderSidebar.jsx:1638-1644`),
+never browser Back. After Back from a note made with `+ New note`, the next click on `+ New note`
+is lost -- it lands on the pane, no note is made (a product defect this lane found, with no probe in
+the page: `docs/notebook/evidence/wave9-9a-2f24a64fd/experiment6` and `experiment7b`; reported to
+the Notebook owner). A `+ New note` that opens nothing is a deviation to write down, never a rep.
+
 ### H9: cold start (LCP proxy)
 
 Per round: close DevTools, reload the app (Chrome: F5; Obsidian: the command "Reload app without

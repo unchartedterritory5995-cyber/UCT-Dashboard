@@ -308,50 +308,16 @@ def test_the_runner_evaluates_the_probe_file_itself():
     ("app/src/components/CommandPalette.jsx", "e.key.toLowerCase() === 'k'"),
     ("app/src/pages/journal-2-0/tabs/NotebookTab.jsx", 'data-tour="new-note"'),
     ("app/src/components/CommandPalette.jsx", "No matches for &quot;{query.trim()}&quot;"),
+    ("app/src/pages/journal-2-0/components/notebook/FolderSidebar.jsx", "<span>All notes</span>"),
 ])
 def test_every_selector_the_runner_uses_is_in_the_product(path, needle):
     assert needle in (REPO / path).read_text(encoding="utf-8"), f"{path} no longer carries {needle!r}"
 
 
-# ── H8's create pacing (_Traffic): experiment 5's second click, ~50 ms after Back, opened nothing ──
 
-class _Evt:
-    def __init__(self, url, resource_type="fetch"):
-        self.url, self.resource_type = url, resource_type
-
-
-class _EventPage:
-    """Only what _Traffic touches: `on` and `wait_for_timeout` (which really sleeps)."""
-
-    def __init__(self):
-        self.handlers = {}
-
-    def on(self, name, fn):
-        self.handlers.setdefault(name, []).append(fn)
-
-    def emit(self, name, req):
-        for fn in self.handlers.get(name, []):
-            fn(req)
-
-    def wait_for_timeout(self, ms):
-        import time as _t
-        _t.sleep(ms / 1000)
-
-
-def test_the_traffic_gate_waits_for_short_requests_and_never_for_a_stream():
-    pg = _EventPage()
-    t = u._Traffic(pg)
-    stream = _Evt("http://127.0.0.1:8096/api/stream/prices?tickers=SPY", "eventsource")
-    fetch = _Evt("http://127.0.0.1:8096/api/j2/notes?sort=title")
-    pg.emit("request", stream)                          # never finishes, and must not block
-    assert t.quiet(pg, quiet_ms=30, timeout_s=2) is True
-    pg.emit("request", fetch)                           # a refetch in flight: not quiet
-    assert t.quiet(pg, quiet_ms=30, timeout_s=0.3) is False
-    pg.emit("requestfinished", fetch)
-    assert t.quiet(pg, quiet_ms=30, timeout_s=2) is True
-    pg.emit("requestfinished", stream)                  # a stream's end never drives the count negative
-    assert t.inflight == 0
-
+# ── H8: leave a pasted note by the All notes row, never Back; a dead create is INCONCLUSIVE ──────
+# (the product defect it steps around: ALL_NOTES_ROW's comment, evidence wave9-9a-2f24a64fd/
+# experiment6 and experiment7b)
 
 class _Loc:
     def __init__(self, page, sel):
@@ -359,18 +325,34 @@ class _Loc:
 
     def click(self):
         self.page.log.append(("click", self.sel))
+        if self.sel == '[data-tour="new-note"]':
+            self.page.creates += 1
+            if self.page.creates <= self.page.working_creates:     # later creates are dead clicks
+                self.page.url = self.page.base + f"/journal/notebook?note=fixture{self.page.creates}"
+        elif self.sel == "All notes row":
+            self.page.url = self.page.base + "/journal/notebook?view=all"
 
     def wait_for(self, **_):
         self.page.log.append(("wait_for", self.sel))
-        if self.sel == ".ProseMirror":                  # the editor never shows in this fixture
+        if self.sel == ".ProseMirror" and "note=" not in self.page.url:
             raise TimeoutError("waiting for locator('.ProseMirror').first to be visible")
 
 
-class _PastePage:
-    url = "http://127.0.0.1:8096/journal/notebook?view=all"
+class _Keys:
+    def __init__(self, page):
+        self.page = page
 
-    def __init__(self):
-        self.log = []
+    def press(self, key):
+        self.page.log.append(("press", key))
+
+
+class _PastePage:
+    base = "http://127.0.0.1:8096"
+
+    def __init__(self, working_creates):
+        self.log, self.creates, self.working_creates = [], 0, working_creates
+        self.url = self.base + "/journal/notebook?view=all"
+        self.keyboard = _Keys(self)
 
     def bring_to_front(self):
         pass
@@ -378,8 +360,19 @@ class _PastePage:
     def evaluate(self, script, arg=None):
         return "ok" if "clipboard" in script else None
 
+    def wait_for_function(self, *_a, **_k):
+        return True
+
     def locator(self, sel):
         return _Loc(self, sel)
+
+    def get_by_role(self, role, name=None):
+        assert role == "button" and name is u.ALL_NOTES_ROW, (role, name)
+        return _Loc(self, "All notes row")
+
+    def go_back(self):
+        self.log.append(("go_back",))
+        self.url = self.base + "/journal/notebook?view=all"
 
     def wait_for_url(self, pred, timeout):
         self.log.append(("wait_for_url", timeout))
@@ -387,25 +380,29 @@ class _PastePage:
             raise TimeoutError(f"wait_for_url timed out after {timeout} ms")
 
 
-class _Quiet:
-    def __init__(self, page):
-        self.page = page
-
-    def quiet(self, pg):
-        self.page.log.append(("quiet",))
-        return True
-
-
-def test_each_create_waits_for_quiet_and_a_click_that_opens_nothing_is_INCONCLUSIVE(tmp_path):
+def _paste_fixture(tmp_path):
     (tmp_path / "paste-payload.html").write_text("<p>fixture-app paste</p>", encoding="utf-8")
     (tmp_path / "paste-payload.txt").write_text("fixture-app paste", encoding="utf-8")
-    pg = _PastePage()
-    step = {"id": "H8", "kind": "paste", "reps_per_round": 5, "end_marker": "zzqbfixtureend"}
+    return {"id": "H8", "kind": "paste", "reps_per_round": 3, "end_marker": "zzqbfixtureend"}
+
+
+def test_h8_leaves_each_pasted_note_by_the_all_notes_row_never_back(tmp_path, monkeypatch):
+    step = _paste_fixture(tmp_path)
+    pg = _PastePage(working_creates=3)
+    monkeypatch.setattr(u, "_dump", lambda *a, **k: ({"samples": []}, "fixture.json"))
+    u._drive(pg, step, 1, {}, tmp_path, lambda: None, lambda where: {"ok": True}, tmp_path)
+    assert ("go_back",) not in pg.log, "Back after a new note is the product defect ALL_NOTES_ROW steps around"
+    leaves = [i for i, e in enumerate(pg.log) if e == ("click", "All notes row")]
+    pastes = [i for i, e in enumerate(pg.log) if e == ("press", "Control+V")]
+    assert len(leaves) == len(pastes) == 3 and all(p < l for p, l in zip(pastes, leaves)), pg.log
+
+
+def test_a_create_click_that_opens_no_note_is_INCONCLUSIVE_naming_its_rep(tmp_path, monkeypatch):
+    step = _paste_fixture(tmp_path)
+    pg = _PastePage(working_creates=1)                  # rep 2's click is dead, as the product's was
+    monkeypatch.setattr(u, "_dump", lambda *a, **k: ({"samples": []}, "fixture.json"))
     with pytest.raises(u.OpInconclusive) as ei:
-        u._drive(pg, step, 1, {}, tmp_path, lambda: None, lambda where: {"ok": True}, tmp_path,
-                 traffic=_Quiet(pg))
+        u._drive(pg, step, 1, {}, tmp_path, lambda: None, lambda where: {"ok": True}, tmp_path)
     msg = str(ei.value)
-    assert "rep 1" in msg and "no note opened" in msg and "nothing was pasted" in msg, msg
-    kinds = [e[0] for e in pg.log]
-    assert kinds.index("quiet") < kinds.index("click"), f"the create must wait for quiet first: {kinds}"
-    assert ("wait_for", ".ProseMirror") not in pg.log, "the create check decides before the editor wait"
+    assert "rep 2" in msg and "no note opened" in msg and "nothing was pasted" in msg, msg
+    assert pg.log.count(("press", "Control+V")) == 1, "rep 2 must stop before any paste"

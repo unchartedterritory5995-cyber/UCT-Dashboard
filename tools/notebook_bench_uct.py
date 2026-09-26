@@ -41,8 +41,9 @@ In order, and each step refuses by name:
   8. the ops of `notebook_bench_report.OPS`, in order, each dump written to disk the moment it is
      taken (R-RAW), then the summary.
 ⛔ If the clipboard write fails, H8 is INCONCLUSIVE -- never a synthetic ClipboardEvent.
-⛔ H8 clicks '+ New note' only once the page has gone quiet, and a click that opens no note is
-INCONCLUSIVE with that sentence (`_Traffic`: a click ~50 ms after Back opened nothing).
+⛔ H8 leaves each pasted note by the sidebar's "All notes" row, never Back, and a '+ New note' that
+opens no note is INCONCLUSIVE with that sentence (see ALL_NOTES_ROW for the product defect this
+steps around).
 
 Selectors, all read in the product at this tree: the note card `[data-note-card-id]`
 (NoteCard.jsx:126), the sidebar Search tab (role tab, name "Search notes", FolderSidebar.jsx:1282-1287),
@@ -96,13 +97,21 @@ def card_selector(note_id: str) -> str:
 PROBE_TIMEOUT_MS = 15000      # the probe's own not-in-dom timeout
 TYPE_DELAY_MS = 25            # notebook_perf_harness.py:556
 SEARCH_KEY_DELAY_MS = 40
-# H8's setup pace (never inside a timed span: a paste's t0 is its own Control+V). Before each
-# '+ New note' the page must have had no request in flight for QUIET_MS (at most QUIET_TIMEOUT_S),
-# and the click must open a note -- the URL names it -- within CREATE_TIMEOUT_S, or the op is
-# INCONCLUSIVE with that sentence. See _Traffic for the run that named this.
-QUIET_MS = 400
-QUIET_TIMEOUT_S = 15.0
+# H8: '+ New note' must open a note -- the URL names it -- within CREATE_TIMEOUT_S, or the op is
+# INCONCLUSIVE with that sentence (setup, never inside a timed span: a paste's t0 is its Control+V).
 CREATE_TIMEOUT_S = 15.0
+# H8 leaves a pasted note by the sidebar's "All notes" row (FolderSidebar.jsx:1638-1644, the
+# button holding `<span>All notes</span>`), NEVER browser Back. A PRODUCT DEFECT, measured with no
+# probe in the page (evidence wave9-9a-2f24a64fd/experiment6 X1/X2, experiment7b Y1-Y5): after
+# Back from a note made with '+ New note', focus lands on the pane heading (NotebookTab.jsx:1623,
+# Wave 8 8A; measured, experiment6 X1 `active`), and the next '+ New note' click lands on the
+# pane's DIV, not the button -- no request, nothing opens (measured, experiment7b Y5's click
+# logger; run 4 names rep 2 in its own sentence, experiment 5's Playwright log shows the same).
+# The mechanism is READ, not measured: the heading's :focus style takes layout space
+# (NotebookTab.module.css:583-596), so the press that blurs it moves the toolbar under the
+# pointer. Back from an EXISTING note (focus goes to its card, Y1) and the All notes row (focus
+# stays on the row, X3/Y4) both leave the next click working. Reported to the Notebook owner.
+ALL_NOTES_ROW = re.compile(r"^All notes")
 # Read at call time, never bound as defaults (CLAUDE.md: "A DEFAULT ARGUMENT IS BOUND AT IMPORT"),
 # so a rail can turn the PowerShell load probe off.
 LOAD_PROBE = True
@@ -259,55 +268,6 @@ def _wait_attempts(pg, n: int) -> None:
                          arg=n, timeout=REP_TIMEOUT_S * 1000)
 
 
-class _Traffic:
-    """The page's requests in flight, long-lived streams left out (an EventSource never finishes).
-
-    Why it exists: in runs 1 and 3 and experiments 2 and 4 H8 died waiting for the editor, and
-    experiment 5's Playwright API log (docs/notebook/evidence/wave9-9a-7f8d9791c/experiment5,
-    exp-stderr.log, section W1) shows what happened: rep 1 created, pasted and went Back; rep 2's
-    '+ New note' click was performed ~50 ms after the grid card was visible again, and the app made
-    no create request at all (the sandbox log holds one POST /api/j2/notes for W1). A person does
-    not click that fast after Back. So before every create the runner waits for the page to go
-    quiet, the way a person pauses -- and then checks that the click opened a note."""
-
-    def __init__(self, pg):
-        self.inflight = 0
-        self.last = time.monotonic()
-        pg.on("request", self._start)
-        pg.on("requestfinished", self._end)
-        pg.on("requestfailed", self._end)
-
-    @staticmethod
-    def long_lived(req) -> bool:
-        return req.resource_type in ("eventsource", "websocket") or "/api/stream/" in req.url
-
-    def _start(self, req) -> None:
-        if not self.long_lived(req):
-            self.inflight += 1
-            self.last = time.monotonic()
-
-    def _end(self, req) -> None:
-        if not self.long_lived(req):
-            self.inflight = max(0, self.inflight - 1)
-            self.last = time.monotonic()
-
-    def quiet(self, pg, quiet_ms: float | None = None, timeout_s: float | None = None) -> bool:
-        """True once nothing short-lived has been in flight for quiet_ms; False at timeout_s (the
-        caller goes on, and the create check that follows is what decides). There is no Playwright
-        waiter for "no fetch since X" on a single-page app -- wait_for_load_state('networkidle')
-        answers for the DOCUMENT, which settled long ago -- so this polls, and each poll is a
-        wait_for_timeout, which is also what delivers the request events to the handlers above."""
-        quiet_ms = QUIET_MS if quiet_ms is None else quiet_ms
-        timeout_s = QUIET_TIMEOUT_S if timeout_s is None else timeout_s
-        deadline = time.monotonic() + timeout_s
-        while True:
-            if self.inflight == 0 and (time.monotonic() - self.last) * 1000 >= quiet_ms:
-                return True
-            if time.monotonic() >= deadline:
-                return False
-            pg.wait_for_timeout(50)
-
-
 def _dump(pg, op_id: str, rnd: int, dumps_dir: Path) -> tuple[dict, str]:
     """Take the dump and write it at once (R-RAW), before anything reads it."""
     text = pg.evaluate("([app, op]) => window.__uctBench.dump(app, op)", [AUTO_APP, op_id])
@@ -336,7 +296,6 @@ def run_live(base: str, corpus_dir: Path, manifest: dict, dumps_dir: Path) -> di
             clipboard_error = f"clipboard permissions could not be granted: {type(e).__name__}: {str(e)[:200]}"
         pg = ctx.new_page()
         pg.on("pageerror", lambda e: out["page_errors"].append(str(e)[:300]))
-        traffic = _Traffic(pg)                    # for the page's whole life, so no request is missed
 
         def grid() -> None:
             pg.goto(base + "/journal/notebook?view=all")
@@ -370,7 +329,7 @@ def run_live(base: str, corpus_dir: Path, manifest: dict, dumps_dir: Path) -> di
                 if step["kind"] == "paste" and clipboard_error:
                     raise OpInconclusive(clipboard_error)
                 for rnd in range(1, step["rounds"] + 1):
-                    d, name = _drive(pg, step, rnd, ids, corpus_dir, grid, self_test, dumps_dir, traffic=traffic)
+                    d, name = _drive(pg, step, rnd, ids, corpus_dir, grid, self_test, dumps_dir)
                     op_dumps.append(d)
                     names.append(name)
             except OpInconclusive as e:
@@ -410,8 +369,7 @@ class SelfTestFailed(Exception):
     """R-HON: a failed selfTest withholds what it underwrites."""
 
 
-def _drive(pg, step: dict, rnd: int, ids: dict, corpus_dir: Path, grid, self_test, dumps_dir: Path,
-           traffic: _Traffic | None = None):
+def _drive(pg, step: dict, rnd: int, ids: dict, corpus_dir: Path, grid, self_test, dumps_dir: Path):
     kind = step["kind"]
     if kind == "cold":
         pg.goto(pg.url.split("?")[0] + "?view=all")
@@ -486,9 +444,7 @@ def _drive(pg, step: dict, rnd: int, ids: dict, corpus_dir: Path, grid, self_tes
         if wrote != "ok":
             raise OpInconclusive(f"the clipboard write failed ({wrote}); never a synthetic ClipboardEvent")
         pg.evaluate("o => window.__uctBench.arm('paste', o)", arm_options(step))
-        traffic = traffic or _Traffic(pg)
         for k in range(1, step["reps_per_round"] + 1):
-            traffic.quiet(pg)                                            # a person's pause (_Traffic)
             before = pg.url
             pg.locator('[data-tour="new-note"]').first.click()
             try:
@@ -501,7 +457,7 @@ def _drive(pg, step: dict, rnd: int, ids: dict, corpus_dir: Path, grid, self_tes
             pg.locator(".ProseMirror").first.click()
             pg.keyboard.press("Control+V")
             _wait_attempts(pg, k)
-            pg.go_back()
+            pg.get_by_role("button", name=ALL_NOTES_ROW).first.click()     # never Back: ALL_NOTES_ROW
             pg.locator(GRID_CARD).first.wait_for(state="visible", timeout=30000)
         return _dump(pg, step["id"], rnd, dumps_dir)
     raise OpInconclusive(f"no driver for kind {kind!r}")
