@@ -62,8 +62,15 @@ _GATE_ON_VALUES = {"1", "true", "yes", "on"}
 SOURCE_KIND_ATTACHMENT = "attachment"
 SOURCE_KIND_IMAGE = "attachment_image"
 SOURCE_KIND_DOCX = "attachment_docx"
+# Wave 10 (G-160, ruling R-4): a spreadsheet rides the SAME gate as images and
+# .docx. Its text is native (cell values), so like a docx it is never OCR's.
+SOURCE_KIND_XLSX = "attachment_xlsx"
+# The kinds whose pages are read natively and that OCR must never plan or claim
+# (document_ocr.py asks this set, not a single kind).
+NATIVE_TEXT_KINDS = frozenset({SOURCE_KIND_DOCX, SOURCE_KIND_XLSX})
 
 DOCX_MIME = "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+XLSX_MIME = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
 
 # ⛔ A docx is a ZIP, so its text part can be a zip bomb: a few KB on the wire
 # that inflates to gigabytes. The member-facing cap is the 25 MB upload limit;
@@ -238,9 +245,11 @@ def _docx_paragraphs(xml: bytes) -> list[str]:
 
     Raises `_DocxRefused` for a DOCTYPE and expat's own error for anything
     that is not well-formed XML; the caller turns both into None.
-    """
-    from xml.parsers import expat
 
+    ⛔ ONE PARSER SET-UP, ONE DOCTYPE GUARD: `_parse_xml` (wave 10) is what the
+    xlsx parts go through too, so the refusal cannot hold for one format and
+    not the other.
+    """
     w = _W[1:-1] + " "                      # expat's "<uri> <local>" tag form
     p_tag, t_tag, tab_tag = w + "p", w + "t", w + "tab"
     breaks = (w + "br", w + "cr")
@@ -267,16 +276,7 @@ def _docx_paragraphs(xml: bytes) -> list[str]:
         if stack and open_tags and open_tags[-1] == t_tag:
             stack[-1].append(data)
 
-    def refuse_doctype(*_args):
-        raise _DocxRefused("DOCTYPE")
-
-    parser = expat.ParserCreate(namespace_separator=" ")
-    parser.buffer_text = True
-    parser.StartElementHandler = start
-    parser.EndElementHandler = end
-    parser.CharacterDataHandler = chars
-    parser.StartDoctypeDeclHandler = refuse_doctype
-    parser.Parse(xml, True)
+    _parse_xml(xml, start, end, chars)
     return out
 
 
@@ -387,6 +387,404 @@ def extract_docx_pages(data: bytes) -> tuple[list[str], int] | None:
         return None
     text_pages, page_count = _chunk_pages([p.replace("\x00", "") for p in paragraphs])
     return [_normalize_docx_text(p) for p in text_pages], page_count
+
+
+# ── Extraction (xlsx, stdlib only) — wave 10, G-160 ─────────────────────────
+#
+# A workbook is a ZIP of XML parts: `xl/workbook.xml` lists the sheets in tab
+# order, `xl/_rels/workbook.xml.rels` says which part each sheet is,
+# `xl/sharedStrings.xml` holds the TEXT of most text cells (a cell stores only
+# an index into it), `xl/styles.xml` says which cells are formatted as dates,
+# and `xl/worksheets/sheetN.xml` holds the cells.
+#
+# ⛔ THE SHARED STRINGS ARE THE TEXT. A text cell is `<c t="s"><v>7</v></c>` --
+# the 7 is not the word, it is the eighth `<si>` of sharedStrings.xml. An
+# extractor that ignores that part indexes a column of small integers and
+# finds none of a spreadsheet's words.
+#
+# ⛔ A FORMULA CELL SHOWS ITS CACHED VALUE ONLY. Nothing here evaluates a
+# formula: a cell's text is the value Excel (or whatever wrote the file) last
+# calculated and stored in `<v>`. A formula the writer never calculated has no
+# value and reads as empty. The viewer says so.
+#
+# ⛔ THE SAME CAPS AS A DOCX, PLUS ONE. Every part is read through a
+# size-limited read (`_DOCX_MAX_XML_BYTES` each -- an archive that lies about
+# its inflated size still cannot hand over more), AND the parts together may
+# inflate to no more than `_XLSX_MAX_TOTAL_XML_BYTES`: a workbook is many
+# parts, and a per-part cap alone would let fifty of them add up. Pages past
+# `_MAX_PAGES` are counted, never built. Every part is parsed by expat with a
+# DOCTYPE refused by the parser itself (`_DocxRefused`), the docx guard.
+_XLSX_MAX_TOTAL_XML_BYTES = 2 * _DOCX_MAX_XML_BYTES
+_XLSX_MAX_SHEETS = 100
+# A row is read up to this column (IV, Excel's pre-2007 width). Past it a
+# member's table is a data dump, not something read a page at a time.
+_XLSX_MAX_COLUMNS = 256
+# Excel's BUILT-IN date and time number formats (ECMA-376 §18.8.30).
+_XLSX_BUILTIN_DATE_FORMATS = frozenset({14, 15, 16, 17, 18, 19, 20, 21, 22, 45, 46, 47})
+
+
+class _XlsxRefused(Exception):
+    """A part is past a cap, or the workbook is not a readable spreadsheet."""
+
+
+def _local(name: str) -> str:
+    """expat's "<uri> <local>" name -> the local name. Namespace-agnostic on
+    purpose: transitional and strict OOXML name the same elements under two
+    different URIs."""
+    return name.rsplit(" ", 1)[-1]
+
+
+def _parse_xml(xml: bytes, start, end=None, chars=None) -> None:
+    """Stream `xml` through expat with a DOCTYPE refused by the parser (the
+    docx guard: it fires after decoding, so any encoding and any offset)."""
+    from xml.parsers import expat
+
+    def refuse_doctype(*_args):
+        raise _DocxRefused("DOCTYPE")
+
+    parser = expat.ParserCreate(namespace_separator=" ")
+    parser.buffer_text = True
+    parser.StartElementHandler = start
+    if end is not None:
+        parser.EndElementHandler = end
+    if chars is not None:
+        parser.CharacterDataHandler = chars
+    parser.StartDoctypeDeclHandler = refuse_doctype
+    parser.Parse(xml, True)
+
+
+class _XlsxParts:
+    """Reads a workbook's parts under a per-part AND a whole-workbook budget."""
+
+    def __init__(self, zf: zipfile.ZipFile):
+        self.zf = zf
+        self.spent = 0
+
+    def read(self, name: str) -> bytes | None:
+        try:
+            info = self.zf.getinfo(name)
+        except KeyError:
+            return None
+        if info.file_size > _DOCX_MAX_XML_BYTES:
+            raise _XlsxRefused(f"{name} declares {info.file_size} bytes")
+        cap = min(_DOCX_MAX_XML_BYTES, _XLSX_MAX_TOTAL_XML_BYTES - self.spent)
+        with self.zf.open(info) as fh:
+            data = fh.read(cap + 1)
+        if len(data) > cap:
+            raise _XlsxRefused(f"{name} inflates past the cap")
+        self.spent += len(data)
+        return data
+
+
+def _xlsx_sheets(workbook: bytes) -> tuple[list[tuple[str, str]], bool]:
+    """(`[(sheet name, relationship id)]` in tab order, the 1904 date system?)."""
+    sheets: list[tuple[str, str]] = []
+    date1904 = [False]
+
+    def start(tag, attrs):
+        local = _local(tag)
+        if local == "sheet":
+            rid = next((v for k, v in attrs.items() if _local(k) == "id" and " " in k), None)
+            if rid:
+                sheets.append((attrs.get("name") or "Sheet", rid))
+        elif local == "workbookPr":
+            date1904[0] = str(attrs.get("date1904", "")).strip().lower() in ("1", "true")
+
+    _parse_xml(workbook, start)
+    return sheets, date1904[0]
+
+
+def _xlsx_rels(rels: bytes | None) -> dict[str, str]:
+    """Relationship id -> the zip member it names (resolved against `xl/`)."""
+    import posixpath
+
+    out: dict[str, str] = {}
+    if not rels:
+        return out
+
+    def start(tag, attrs):
+        if _local(tag) == "Relationship" and attrs.get("Id") and attrs.get("Target"):
+            target = attrs["Target"]
+            path = target.lstrip("/") if target.startswith("/") else posixpath.normpath(
+                posixpath.join("xl", target))
+            out[attrs["Id"]] = path
+
+    _parse_xml(rels, start)
+    return out
+
+
+def _xlsx_shared_strings(xml: bytes | None) -> list[str]:
+    """The text of every `<si>`, in order. A rich-text string is its runs'
+    `<t>` joined; `<rPh>` (a phonetic reading shown ABOVE East Asian text, not
+    part of it) is skipped."""
+    out: list[str] = []
+    if not xml:
+        return out
+    cur: list[str] | None = None
+    depth = {"rPh": 0, "t": 0}
+
+    def start(tag, _attrs):
+        nonlocal cur
+        local = _local(tag)
+        if local == "si":
+            cur = []
+        elif local in depth:
+            depth[local] += 1
+
+    def end(tag):
+        nonlocal cur
+        local = _local(tag)
+        if local == "si" and cur is not None:
+            out.append("".join(cur))
+            cur = None
+        elif local in depth:
+            depth[local] -= 1
+
+    def chars(data):
+        if cur is not None and depth["t"] and not depth["rPh"]:
+            cur.append(data)
+
+    _parse_xml(xml, start, end, chars)
+    return out
+
+
+def _is_date_format(code: str) -> tuple[bool, bool]:
+    """(has a date part, has a time part) for a number-format code. Quoted
+    literals, escaped characters and `[...]` sections (colours, locales,
+    elapsed-time brackets) are not format letters and are dropped first."""
+    c = re.sub(r'"[^"]*"|\\.|\[[^\]]*\]', "", code or "").lower()
+    return bool(re.search(r"[dy]", c)), bool(re.search(r"[hs]", c))
+
+
+def _xlsx_date_styles(xml: bytes | None) -> dict[int, tuple[bool, bool]]:
+    """Cell style index (a cell's `s`) -> (date part, time part), for the
+    styles whose number format is a date or a time. Others are absent."""
+    if not xml:
+        return {}
+    custom: dict[int, str] = {}
+    xf_formats: list[int] = []
+    in_cell_xfs = [0]
+
+    def start(tag, attrs):
+        local = _local(tag)
+        if local == "numFmt":
+            try:
+                custom[int(attrs.get("numFmtId", ""))] = attrs.get("formatCode", "")
+            except ValueError:
+                pass
+        elif local == "cellXfs":
+            in_cell_xfs[0] += 1
+        elif local == "xf" and in_cell_xfs[0]:
+            try:
+                xf_formats.append(int(attrs.get("numFmtId", "0")))
+            except ValueError:
+                xf_formats.append(0)
+
+    def end(tag):
+        if _local(tag) == "cellXfs":
+            in_cell_xfs[0] -= 1
+
+    _parse_xml(xml, start, end)
+    out: dict[int, tuple[bool, bool]] = {}
+    for index, fmt in enumerate(xf_formats):
+        if fmt in custom:
+            kind = _is_date_format(custom[fmt])
+        elif fmt in _XLSX_BUILTIN_DATE_FORMATS:
+            kind = (fmt not in (18, 19, 20, 21, 45, 46, 47), fmt in (18, 19, 20, 21, 22, 45, 46, 47))
+        else:
+            continue
+        if kind[0] or kind[1]:
+            out[index] = kind
+    return out
+
+
+def _xlsx_number(raw: str) -> str:
+    """A stored number as a person reads it: 15 significant digits, so the
+    binary noise of 0.1 + 0.2 reads 0.3 and 120.5 stays 120.5."""
+    try:
+        x = float(raw)
+    except ValueError:
+        return raw.strip()
+    if x != x or x in (float("inf"), float("-inf")):
+        return raw.strip()
+    return format(x, ".15g")
+
+
+def _xlsx_serial(raw: str, date1904: bool, has_date: bool, has_time: bool) -> str:
+    """An Excel date serial as ISO text (`2026-09-26`, `2026-09-26 14:30`,
+    `14:30`). A value outside a real calendar is left as the number."""
+    from datetime import timedelta
+    try:
+        x = float(raw)
+    except ValueError:
+        return raw.strip()
+    if not (0 <= x < 2958466):
+        return _xlsx_number(raw)
+    epoch = datetime(1904, 1, 1) if date1904 else datetime(1899, 12, 30)
+    when = epoch + timedelta(days=x)
+    if has_date and has_time:
+        return when.strftime("%Y-%m-%d %H:%M")
+    if has_date:
+        return when.strftime("%Y-%m-%d")
+    return when.strftime("%H:%M")
+
+
+def _column_index(ref: str | None) -> int | None:
+    """"B12" -> 1 (zero-based column), or None."""
+    if not ref:
+        return None
+    m = re.match(r"([A-Za-z]{1,3})", ref)
+    if not m:
+        return None
+    n = 0
+    for ch in m.group(1).upper():
+        n = n * 26 + (ord(ch) - 64)
+    return n - 1
+
+
+def _xlsx_sheet_rows(xml: bytes, shared: list[str], date_styles: dict[int, tuple[bool, bool]],
+                     date1904: bool) -> list[str]:
+    """Each non-empty row of one sheet as its cells' text joined by TABs (a
+    gap keeps its column), in sheet order."""
+    rows: list[str] = []
+    row_cells: dict[int, str] | None = None
+    cell: dict[str, Any] | None = None
+    buf: list[str] = []
+    capture = [None]          # "v" | "t" (inline string text) | None
+    depth = {"is": 0, "rPh": 0}
+    next_col = [0]
+
+    def start(tag, attrs):
+        nonlocal row_cells, cell, buf
+        local = _local(tag)
+        if local == "row":
+            row_cells = {}
+            next_col[0] = 0
+        elif local == "c" and row_cells is not None:
+            col = _column_index(attrs.get("r"))
+            cell = {"t": attrs.get("t") or "n", "s": attrs.get("s"),
+                    "col": col if col is not None else next_col[0], "v": None, "inline": []}
+        elif cell is not None and local == "v":
+            capture[0], buf = "v", []
+        elif cell is not None and local in depth:
+            depth[local] += 1
+        elif cell is not None and local == "t" and depth["is"] and not depth["rPh"]:
+            capture[0] = "t"
+
+    def end(tag):
+        nonlocal row_cells, cell
+        local = _local(tag)
+        if local == "v" and cell is not None:
+            cell["v"] = "".join(buf)
+            capture[0] = None
+        elif local == "t" and capture[0] == "t":
+            capture[0] = None
+        elif local in depth and cell is not None:
+            depth[local] -= 1
+        elif local == "c" and cell is not None and row_cells is not None:
+            text = _xlsx_cell_text(cell, shared, date_styles, date1904)
+            if cell["col"] < _XLSX_MAX_COLUMNS and text:
+                row_cells[cell["col"]] = text
+            next_col[0] = cell["col"] + 1
+            cell = None
+        elif local == "row" and row_cells is not None:
+            if row_cells:
+                width = max(row_cells) + 1
+                rows.append("\t".join(row_cells.get(i, "") for i in range(width)))
+            row_cells = None
+
+    def chars(data):
+        if capture[0] == "v":
+            buf.append(data)
+        elif capture[0] == "t" and cell is not None:
+            cell["inline"].append(data)
+
+    _parse_xml(xml, start, end, chars)
+    return rows
+
+
+def _xlsx_cell_text(cell: dict[str, Any], shared: list[str],
+                    date_styles: dict[int, tuple[bool, bool]], date1904: bool) -> str:
+    """One cell as text. `t`: s (a shared string, by index), inlineStr, str (a
+    formula's text result), b (TRUE/FALSE), e (an error such as #DIV/0!), d
+    (an ISO date), n / absent (a number -- a date when its style says so)."""
+    t, v = cell["t"], cell["v"]
+    if t == "inlineStr":
+        return "".join(cell["inline"]).replace("\x00", "").strip()
+    if v is None:
+        return ""                     # a formula never calculated, or an empty cell
+    if t == "s":
+        try:
+            i = int(v.strip())
+        except ValueError:
+            return ""
+        return shared[i].replace("\x00", "").strip() if 0 <= i < len(shared) else ""
+    if t in ("str", "e", "d"):
+        return v.replace("\x00", "").strip()
+    if t == "b":
+        return "TRUE" if v.strip() == "1" else "FALSE"
+    try:
+        style = int(cell["s"]) if cell["s"] is not None else None
+    except ValueError:
+        style = None
+    if style is not None and style in date_styles:
+        return _xlsx_serial(v, date1904, *date_styles[style])
+    return _xlsx_number(v)
+
+
+def extract_xlsx_pages(data: bytes) -> tuple[list[str], int] | None:
+    """Text of an .xlsx as reading pages, stdlib only (`zipfile` + expat).
+    Returns (pages, page_count) or None when the file is not a readable
+    workbook. Never raises, same contract as `extract_docx_pages`.
+
+    Each sheet, in tab order, becomes its own run of pages, and every page
+    opens with the sheet's name (`Sheet: Trades`, then `Sheet: Trades
+    (continued)`), so a search hit's page says which sheet it is on. A row is
+    its cells' text joined by tabs. Text cells come from the shared-strings
+    table, formula cells show their CACHED value, dates are written as ISO
+    dates. Sheets past `_XLSX_MAX_SHEETS` are not read; pages past
+    `_MAX_PAGES` are counted, never built.
+    """
+    try:
+        with zipfile.ZipFile(BytesIO(data)) as zf:
+            parts = _XlsxParts(zf)
+            workbook = parts.read("xl/workbook.xml")
+            if workbook is None:
+                return None
+            sheets, date1904 = _xlsx_sheets(workbook)
+            rels = _xlsx_rels(parts.read("xl/_rels/workbook.xml.rels"))
+            shared = _xlsx_shared_strings(parts.read("xl/sharedStrings.xml"))
+            date_styles = _xlsx_date_styles(parts.read("xl/styles.xml"))
+            per_sheet: list[tuple[str, list[str]]] = []
+            for name, rid in sheets[:_XLSX_MAX_SHEETS]:
+                member = rels.get(rid)
+                xml = parts.read(member) if member else None
+                if xml is None:
+                    continue
+                rows = _xlsx_sheet_rows(xml, shared, date_styles, date1904)
+                if rows:
+                    per_sheet.append((name.replace("\x00", "").strip() or "Sheet", rows))
+    except (_DocxRefused, _XlsxRefused) as e:
+        log.warning("[doc-extract] xlsx refused: %s", type(e).__name__)
+        return None
+    except Exception as e:  # noqa: BLE001 — a malformed workbook fails locally, never the thread
+        log.warning("[doc-extract] xlsx extraction failed: %s", type(e).__name__)
+        return None
+
+    pages: list[str] = []
+    count = 0
+    for name, rows in per_sheet:
+        head = f"Sheet: {name}"
+        more = f"Sheet: {name} (continued)"
+        room = max(_MAX_PAGES - len(pages), 0)
+        sheet_pages, sheet_count = _chunk_pages(
+            rows, size=max(_DOCX_PAGE_CHARS - len(more) - 1, 200), max_pages=room)
+        for i, text in enumerate(sheet_pages):
+            pages.append(_normalize_docx_text(f"{head if i == 0 else more}\n{text}"))
+        count += sheet_count
+    if count == 0:
+        return [""], 1
+    return pages, count
 
 
 # ── Images (read for OCR, never stored as text here) ─────────────────────────
@@ -624,6 +1022,8 @@ def process_document(document_id: str, *, conn=None) -> dict[str, Any]:
             result = ([""], 1) if probe_image(data) else None
         elif kind == SOURCE_KIND_DOCX:
             result = extract_docx_pages(data)
+        elif kind == SOURCE_KIND_XLSX:
+            result = extract_xlsx_pages(data)
         else:
             result = extract_pdf_pages(data)
         if result is None:
@@ -723,7 +1123,9 @@ def on_attachment_saved(
     kinds become documents: an inline image (OCR through the existing
     tesseract adapter, honouring `J2_OCR_ENABLED` exactly as a scanned PDF
     page does -- no engine means the row lands `no_text`, never an error) and
-    a .docx file (stdlib text extraction). Everything else returns None.
+    a .docx file (stdlib text extraction) -- and, since wave 10 (G-160), a
+    .xlsx file (stdlib, cell text; `extract_xlsx_pages`). Everything else
+    returns None.
 
     ``att`` is the dict the save function returned: ``{url, name, size}`` for
     a file, ``{url, width, height}`` for an image (no ``name`` key).
@@ -754,6 +1156,14 @@ def on_attachment_saved(
     if kind == "file" and content_type == DOCX_MIME and url.lower().endswith(".docx"):
         doc = create_document(user_id, note_id, url, att.get("name"),
                               source_kind=SOURCE_KIND_DOCX)
+        queue_extraction(doc["id"])
+        return doc
+    # Wave 10 (G-160, R-4): a spreadsheet, under the SAME gate and the same
+    # rule -- the saved URL must really end in `.xlsx`, so the preview (which
+    # decides its viewer from the URL, documentKind.js) opens it as text.
+    if kind == "file" and content_type == XLSX_MIME and url.lower().endswith(".xlsx"):
+        doc = create_document(user_id, note_id, url, att.get("name"),
+                              source_kind=SOURCE_KIND_XLSX)
         queue_extraction(doc["id"])
         return doc
     return None

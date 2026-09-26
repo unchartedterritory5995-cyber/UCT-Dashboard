@@ -585,9 +585,10 @@ def ocr_document(document_id: str, adapter: OcrAdapter, *,
         kind = dx.document_source_kind(doc)
         targets = (page_numbers if page_numbers is not None
                    else pages_awaiting_ocr(conn, document_id))
-        # ⛔ A docx's text is native; nothing about it is OCR's. Planning never
-        # claims a docx page, so this only guards a caller naming pages by hand.
-        if not targets or kind == dx.SOURCE_KIND_DOCX:
+        # ⛔ A docx's (and, wave 10, an xlsx's) text is native; nothing about it
+        # is OCR's. Planning never claims such a page, so this only guards a
+        # caller naming pages by hand.
+        if not targets or kind in dx.NATIVE_TEXT_KINDS:
             return {"ok": True, "pages_read": 0, "pages_failed": 0,
                     "status": refresh_document_status(conn, user_id, document_id)}
 
@@ -741,7 +742,9 @@ def plan_document(document_id: str, *, conn=None) -> dict[str, Any]:
         # Wave 7 (G4): a docx carries native text only -- nothing to classify
         # and nothing for OCR to own. Its status is still refreshed from page
         # truth so this stays the one planner every kind passes through.
-        if kind == dx.SOURCE_KIND_DOCX:
+        # Wave 10 (G-160): an xlsx is the same (cell text), so the test is the
+        # NATIVE_TEXT_KINDS set -- an xlsx must never reach the PDF classifier.
+        if kind in dx.NATIVE_TEXT_KINDS:
             return {"ok": True, "classes": {}, "scanned_pages": [],
                     "ocr_required": [], "ocr_available": ocr_available(),
                     "status": refresh_document_status(conn, doc["user_id"], document_id)}

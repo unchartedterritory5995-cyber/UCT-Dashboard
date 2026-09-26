@@ -944,7 +944,7 @@
     "NOTEBOOK_IMAGE_DOCX_DOCUMENTS_ENABLED": {
       "status": "dark",
       "where": [],
-      "note": "Wave 7 lane G, 2026-09-25. Enablement gate for image (OCR via the J2_OCR_ENABLED tesseract adapter) and .docx (stdlib zip+xml) attachments becoming searchable documents through document_extraction.on_attachment_saved. Unset means OFF and that is the decision: while off, an image or docx upload creates no document row and the member sees exactly today's behaviour. Read per call; a flip needs no restart. Distinct from J2_OCR_ENABLED, which only says whether tesseract is present."
+      "note": "Wave 7 lane G, 2026-09-25. Enablement gate for image (OCR via the J2_OCR_ENABLED tesseract adapter) and .docx (stdlib zip+xml) attachments becoming searchable documents through document_extraction.on_attachment_saved. Unset means OFF and that is the decision: while off, an image or docx upload creates no document row and the member sees exactly today's behaviour. Read per call; a flip needs no restart. Distinct from J2_OCR_ENABLED, which only says whether tesseract is present. Wave 10 lane 10B (G-160, ruling R-4), 2026-09-26: .xlsx attachments ride this SAME gate (stdlib zip+expat cell text via document_extraction.extract_xlsx_pages; formula cells read as their cached value; source_kind attachment_xlsx, never OCR-planned) -- arming it also turns spreadsheets into searchable documents."
     },
     "NOTEBOOK_INBOUND_EMAIL_ENABLED": {
       "status": "dark",
