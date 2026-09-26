@@ -195,7 +195,8 @@ wave 7):
   instead, the safe direction.
 
 (Wave 7 known limit, ruling D-G1(b) as corrected by D-G5; a merge that removes
-the conflict copy is planned for wave 8.)
+the conflict copy is planned; not yet scheduled. It needs a single-change lift of
+the offline freeze first (ruling D-W2).)
 
 Every append is written as one atomic step that re-checks the note it read, so
 an append can never overwrite a change that landed a moment earlier.
