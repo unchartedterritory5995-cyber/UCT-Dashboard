@@ -11,7 +11,7 @@ role: the owner's own action list. Every open item an agent cannot close, why, a
 
 | # | item | why it is yours | cost |
 |---|---|---|---|
-| 1 | **Name a non-builder who will actually use the terminal** | ⭐ NEW, from CARD 22's panel. You cannot supply the verdict on your own definition of done | one name, or the honest answer that there isn't one |
+| 1 | **Name a non-builder who will actually use the terminal** | ⭐ from CARD 22's panel. You cannot supply the verdict on your own definition of done | one name — ✅ **and you just told me the pool is 750 paying Discord members, so "there isn't one" is no longer the likely answer** |
 | 2 | **The OI-04 contract answer** | it comes from outside the company | one email |
 | 3 | **Watch yourself work one trading morning** | an observation, not a decision | one morning, nothing waits on it |
 
@@ -77,11 +77,20 @@ other product's promo in one sentence, I inherited the splice, and I called it a
 four documents before checking whether anything had already resolved it. **One had:** the data
 cost model recorded the promo correctly, with its period and its source, weeks ago.
 
-⚠️ **Two small things this leaves, neither blocking:** the **seat model** (one plan,
-everything unmetered — but nothing says how many people may sit on one subscription), and
-whether the **~750-member** community figure this programme quotes counts the Whop audience,
-the UCT Intelligence audience, or both. The trial is already answered in code: 7 days, card
-required.
+✅ **AND YOU CLOSED BOTH LEFTOVERS IN THE SAME BREATH.** The **~750** figure is *paying Discord members* — the Whop product's population, not UCT Intelligence's ~26 accounts. And the **seat model** is de-scoped along with the rest of the cost and usage questions. The trial was already answered in code: 7 days, card required.
+
+## ✅ 5 · THE THESIS — you gave me the one sentence the programme was missing
+
+**"The goal is to aggregate all the best features so someone can only use our site instead of the others."** That is now recorded as **CARD 25** and it re-ranks the remaining work: the
+binding constraint is **coverage**, not proprietary depth, because one missing feature keeps a
+tab open no matter how much we own. **Gate item 9 — the cross-product capability matrix — is
+now the most goal-aligned thing left unbuilt**, and its inputs are already complete.
+
+⚠️ **One ceiling, which you may want to move and which I am not proposing:** "only use our
+site" cannot include **placing the trade** — there is a standing no-execution default, and that
+is exactly why thinkorswim came out of the analysis as structurally undisplaceable. So full
+substitution lands on research and analysis, and stops at execution, unless you decide
+otherwise.
 
 ---
 

@@ -663,7 +663,50 @@ behaves as a FLOOR rather than an override: the hashed static assets still carry
 **Consequences, in order of how much they change:**
 
 1. **The MVP has ZERO builds, not one.** B-1 (mount `ChartPane` in the drill) is already shipped. The conditional second build (`FB-S12-01`'s flag half) was already contingent on whether the named subject holds admin. ⭐ So **item 27's deliverable is now a pure measurement protocol with no engineering in it at all** — which its own §8.2 argued is the best available outcome, not an embarrassment, and I agree.
-2. ⛔⛔ **ITEM 13's ABSORB-OUTRIGHT VERDICT RESTS ON A PRODUCT STATE THAT NO LONGER HOLDS, and it is the row the whole MVP was selected from.** Item 13 verdicted exactly one of five tools "absorb outright" and item 27 called it *"the one absorb-outright row in the programme"*. If that row is the in-app Finviz chart embed, the absorption is **already complete** and the row should read *done*, not *do*. ⚠️ **NOT RE-VERDICTED HERE** — item 13's file is 783 lines and its author derived those verdicts from evidence I have not re-read; re-cutting its headline from one grep would be the same shortcut this programme keeps paying for. **It is flagged for a re-read against master, as the highest-value correction outstanding.**
+2. ✅✅ **CORRECTED BY CARD 25 — THIS ITEM WAS TOO QUICK AND ITS CONCLUSION IS WITHDRAWN. The owner has confirmed he personally uses Finviz, so item 13 verdicted a TOOL that is genuinely in use; the verdict STANDS and the displacement target merely relocates from the deleted in-app embed to his hand-use of finviz.com. What was wrong was item 27's READING of the verdict as being about the in-app tabs, not the verdict itself.** The superseded reasoning is kept below because the measurement in it is sound and still worth having.
+   ~~⛔⛔ **ITEM 13's ABSORB-OUTRIGHT VERDICT RESTS ON A PRODUCT STATE THAT NO LONGER HOLDS, and it is the row the whole MVP was selected from.** Item 13 verdicted exactly one of five tools "absorb outright" and item 27 called it *"the one absorb-outright row in the programme"*. If that row is the in-app Finviz chart embed, the absorption is **already complete** and the row should read *done*, not *do*. ⚠️ **NOT RE-VERDICTED HERE** — item 13's file is 783 lines and its author derived those verdicts from evidence I have not re-read; re-cutting its headline from one grep would be the same shortcut this programme keeps paying for. **It is flagged for a re-read against master, as the highest-value correction outstanding.**
 3. ⚠️ **`CLAUDE.md` (master) still documents the deleted component as live** — its DrillModal section describes *"Three chart tabs: Daily / Weekly (Finviz static PNG) / TradingView (iframe). Default: `'tv'`"* and a `chartPeriod` state initialised to `'tv'`. **None of that exists.** That is the same stale-documentation class the file's own ⚰️ markers record against everyone else. Not fixed here — it is a different worktree and a member-facing onboarding doc — but it is why item 27's author reasonably believed the tabs were live: **the repo's own guidance told them so.**
 
 ⭐ **The general lesson, which is this programme's kind-1 instrument failure wearing new clothes: a COMPETITIVE dependency can be retired by ordinary refactoring while the research describing it stays perfectly intact.** Item 13 read the dependency correctly as of whenever its source was written; the product moved underneath it. **Any "tool X is still load-bearing" claim needs a date and a re-grep, exactly like a flag state.**
+
+## CARD 25 — THE PRODUCT THESIS, IN THE OWNER'S OWN WORDS ✅ RULED, and it re-scores several gate items
+
+⭐⭐ **Verbatim, 2026-09-26: "the goal is to aggreagte all the best features so someone can only use our site instead of the others."**
+
+Three further owner facts arrived with it, also verbatim: **"We have 750 members in discord paying."** · **"Dont worry aobut anything else on costs or uses."** · **"Assume that i personally use every other site mentioned."**
+
+### 1. The thesis is AGGREGATION toward FULL SUBSTITUTION, not differentiation
+
+⛔ **This inverts how every capability document in this programme should be read.** Under a differentiation thesis the valuable capability is the one nobody else has. Under an aggregation thesis the binding constraint is **COVERAGE**, and the arithmetic is unforgiving: **any capability a competitor has and we lack is a reason a member keeps another tab open, so ONE missing feature can defeat a hundred proprietary ones.**
+
+⭐ **Consequence, and it is a re-ranking rather than new work:** proprietary depth (item 15) stops being the thing that decides whether the goal is met, and **gap coverage becomes it.** **Item 9, the Cross-Product Capability Matrix, is therefore now the single most goal-aligned not-started deliverable in the programme** — it is the coverage-gap ledger this thesis requires, and its row already records its inputs as genuinely complete. Item 10 (Best-of-Breed Matrix, DRAFT COMPLETE) is its other half.
+
+⚠️ **AND IT RAISES ITEM 13's BAR RATHER THAN LOWERING IT.** Item 13 verdicted five desk tools: one absorb-outright, two harden/bridge, one structurally undisplaceable, one never studied. Under "someone can only use our site", **a harden/bridge verdict is not a success state** — a bridge keeps the incumbent in the loop permanently, which is the opposite of substitution (item 27 made exactly this point about TradingView's webhook leg). Those verdicts are still correct as *measurements*; what changes is that three of the five now read as **unmet**, not as *done differently*.
+
+### 2. ⛔⛔ THE ONE CEILING NO FEATURE CAN CROSS — stated because the thesis invites it
+
+**"Only use our site" cannot include placing the trade.** A standing governing default (`GOVERNING_PRINCIPLES.md` §13) is **no execution and no order management**, and item 13's "structurally undisplaceable" row is thinkorswim precisely because it is inseparable from a funded brokerage account. So full substitution is achievable for **research and analysis** and structurally bounded at **execution**.
+
+⭐ **This is not an objection to the thesis and is not being treated as one** — it is the boundary the thesis runs to, and naming it is what keeps a coverage ledger honest: a workflow ending in "place the trade" leaves our site **by design**, and must be recorded as a STRUCTURAL break-out rather than counted as a coverage failure somebody could fix. ⚠️ Moving that boundary is an owner decision and nothing in this programme proposes it.
+
+### 3. 750 paying Discord members — and what it does to CARD 22's blocker
+
+✅ **The ~750 figure this programme kept quoting is now identified: PAYING Discord members**, which resolves the ambiguity CARD 23 opened and could not close. ⛔ **It is the Whop product's population and is NOT UCT Intelligence's** — that one is ~26 accounts, **13** with any page-view row, six of the roster admins. **Two products, two populations, never one denominator.**
+
+⭐⭐ **The load-bearing consequence: CARD 22's blocker is no longer "there may be no non-builder subject at all."** That panel ruled the owner cannot supply the verdict on his own definition of done — near-zero switching cost, no onboarding, QA indistinguishable from preference — and the honest fallback was **INCONCLUSIVE-BY-CONSTRUCTION**. **There are 750 people already paying for a sibling product.** The subject pool is not empty; it is large, reachable, and already transacting. ⚠️ **Still owner-only**: naming one is a decision about a real person and the panel's requirement is unchanged. But "there isn't one" is no longer the likely answer.
+
+### 4. Every desk tool is confirmed in live personal use
+
+✅ **"Assume that i personally use every other site mentioned"** makes the live use of thinkorswim/Schwab, TradingView, Finviz, Market Chameleon and the other named sites an **owner-stated fact**, not an assumption. Every document may now cite it.
+
+⛔ **It is an EXISTENCE statement, not a task attribution, and the difference is exactly what item 27 needs.** It settles *that* he uses Finviz; it does not settle *which step* he uses it for, and **CP-06 records that he declined to itemise per-tool workflows.** So "the owner uses tool X" is citable; "the owner uses tool X for step Y" remains a labelled inference.
+
+⭐⭐ **THIS PARTLY RESCUES CARD 24, AND I WAS TOO QUICK THERE.** CARD 24 measured that the in-app Finviz `chart.ashx` embed is gone from all of `app/src` and concluded that item 13's absorb-outright verdict "rests on a product state that no longer holds." **That was the wrong emphasis.** Item 13 verdicted a **TOOL**, not an embed — and the owner now confirms he uses that tool. ✅ **So the verdict stands and the displacement target simply RELOCATES**, from the deleted in-app embed to his hand-use of finviz.com. What was actually wrong was **item 27's reading** of the verdict as being about the in-app tabs. ⭐ **Item 27's surviving half is therefore not a remainder — it is the whole thing, and its incumbent is now confirmed in use by the one subject currently available.**
+
+### 5. Costs and usage: DE-SCOPED by the owner
+
+⛔ **"Dont worry aobut anything else on costs or uses."** No further cost modelling, spend estimation or usage-rate analysis. This closes the **seat-model** question CARD 23 left open and stands down the cost work generally.
+
+⚠️ **MY READING OF ITS SCOPE, stated so it can be corrected in one line rather than assumed: I am treating this as de-scoping gate item 34 (Cost Model) and the cost half of item 23**, while leaving **licensing and permission** work fully in force — *"can this feed legally serve members, and whose advantage is it"* is a compliance question, not a cost question, and item 4's provider ledger plus the licensing register remain load-bearing. **If item 34 is meant to be written anyway, one sentence reinstates it.**
+
+**Reversal condition:** none on the thesis — it is the owner's statement of what his product is for. The de-scoping of costs is likewise an owner instruction. ⚠️ The execution ceiling in §2 is a *consequence* recorded here, not a ruling, and the owner may move it.
