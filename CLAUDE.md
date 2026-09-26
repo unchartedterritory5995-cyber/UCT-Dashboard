@@ -3633,7 +3633,7 @@ exactly as it did before K.
   rate, and `tools/window_check.py` now stamps that reading — reporting **absent**
   and **off** as different facts, because a pod predating K serves no keys at all.
 
-### 📓 Notebook 10/10 program — waves 5–6 LIVE (#186 `2c3ed3093`, #193 `271a078b6`), wave 7 at its PR, waves 8–9 in build, 2026-09-26
+### 📓 Notebook 10/10 program — waves 5–7 LIVE (#186 `2c3ed3093`, #193 `271a078b6`, #196 `f883e0996`), the 9C soak PR next, waves 8–9 in build, 2026-09-26
 
 ⭐⭐ **READ `docs/notebook/wave5-6-RESUME-HERE.md` FIRST** — it is the checkpoint
 for this program and carries exact SHAs and the next actions in order. This
@@ -3649,12 +3649,15 @@ own gate — plus lane I's performance budgets. Read it before touching that bra
 ✅ **Wave 5 LIVE** (#186, master `2c3ed3093`, 2026-09-25 21:25 CT) and **wave 6 LIVE**
 (#193, master `271a078b6`, web SUCCESS 2026-09-26 01:18 CT, fresh boot, ancestor of
 `origin/production`, `hub_nav_smoke --auth` PASS, production browser check of the new
-view controls with 0 page errors). Wave 6's final tip is tagged
+view controls with 0 page errors). ✅ **Wave 7 LIVE** (#196, master `f883e0996`, web
+SUCCESS 2026-09-26 08:04Z, fresh boot, ancestor of `origin/production`, `hub_nav_smoke --auth`
+PASS; it also carried the H14 fix for the single-note export's Latin-1 header). Its gates
+`NOTEBOOK_WRITING_HELP_ENABLED` and `COMPASS_NOTES_TOOL_ENABLED` were ARMED on web
+2026-09-26 08:13Z (see `docs/feature_flags.json`); the other wave-7 gates stay dark. Wave 6's final tip is tagged
 `notebook-wave6-tip-2026-09-26` (`96051c043`; the older `-2026-09-25` tag predates the
-round-5 fixes). Wave 7 (`feat/notebook-w7`) carries both and master `271a078b6` by a
-tree-identical `-s ours` merge; wave 8 is `feat/notebook-w8` (worktree `notebook-w8`, its
-own `node_modules` since D-W4), wave 9's soak kit is `feat/notebook-w9c`. Landing order:
-wave 7 → the soak PR (9C) → wave 8. Plan: `docs/notebook/NOTEBOOK-10-OF-10-PLAN.md`.
+round-5 fixes), wave 7's `notebook-wave7-tip-2026-09-26`. Wave 8 is `feat/notebook-w8`
+(worktree `notebook-w8`, its own `node_modules` since D-W4), wave 9's soak kit is
+`feat/notebook-w9c`. Landing order: the soak PR (9C) → wave 8. Plan: `docs/notebook/NOTEBOOK-10-OF-10-PLAN.md`.
 
 ✅ **Merged and LIVE on production (2026-09-24):** #187 (the H14 metadata-settle
 hotfix, master `d4a1a13b6`) and #183 (Ask on phones / paste / citations / G-064
