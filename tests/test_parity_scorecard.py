@@ -11,6 +11,12 @@ citations index under a research-ledger R-row (so the 10% re-fetch control is me
 Fix round 1 (controller, 2026-09-26): every cited file:line still holds its quoted fragment
 (`tools/parity_scorecard.py --verify`, offline), with a control proving the check can refuse; and
 the plan's "Now" cells carry exactly the scorecard's clause counts.
+
+Fix round 2 (controller ruling, 2026-09-26): the scorecard is a MEASUREMENT AT A COMMIT, so the
+citation rail checks at the revision the scorecard's own header records ("Document written at"),
+parsed from its text here, never typed and never HEAD: an unrelated edit that moves a cited line
+must not red it. A revision this clone does not hold (that one, or be9ca78b6 for the flag records)
+fails as "unverifiable: <sha> not in this clone"; unknown is never a pass.
 """
 from __future__ import annotations
 
@@ -220,23 +226,57 @@ def test_every_cited_url_is_indexed_under_an_r_row_the_research_ledger_has():
 
 # ── fix round 1: the offline citation check, and the plan's clause counts ──────────────────────
 
+_WRITTEN_AT = re.compile(r'\*\*Document written at:\*\* `([0-9a-f]{7,40})`')
+_NOT_AN_OBJECT = '0' * 40   # git's null object id: never a commit in any clone
+
+
+def _written_at():
+    """(scorecard text, the revision its own header records as "Document written at"), parsed from the
+    text by this file's own pattern and cross-checked with the tool's, so neither can drift to HEAD."""
+    text = SCORECARD.read_bytes().decode('utf-8')
+    found = _WRITTEN_AT.findall(text)
+    assert len(found) == 1, f'non-vacuity: the header must record exactly one "Document written at" revision, found {found}'
+    assert psc.recorded_rev(text) == found[0], (psc.recorded_rev(text), found[0])
+    return text, found[0]
+
+
 def test_every_cited_file_line_still_holds_its_fragment():
-    """tools/parity_scorecard.py --verify, offline: every CODE/RULING/RECORD/MEASURE file:line still
-    holds its quoted fragment, every WALK check still carries its verdict, every TEST log still carries
-    its totals line, every flag RECORD still matches master's ledger at be9ca78b6. When the code moves,
-    this goes red by name: re-read the citation, never trust it."""
-    counts, problems = psc.verify()
-    assert counts['CODE'] > 100 and counts['WALK'] > 20 and counts['TEST'] > 5 and counts['RECORD'] > 10, counts
+    """tools/parity_scorecard.py --verify, offline, AT THE REVISION THE SCORECARD RECORDS: every
+    CODE/RULING/RECORD/MEASURE file:line holds its quoted fragment, every WALK check carries its
+    verdict, every TEST log carries its totals line, every flag RECORD matches master's ledger at
+    be9ca78b6. Pinned, so a later unrelated edit never reds it; `--verify --rev HEAD` is the human's
+    question "has the code moved since?". A revision not in this clone fails as unverifiable."""
+    text, rev = _written_at()
+    counts, problems = psc.verify(text, rev=rev)
     assert not problems, problems
+    assert counts['CODE'] > 100 and counts['WALK'] > 20 and counts['TEST'] > 5 and counts['RECORD'] > 10, counts
+    assert counts['FLAG'] > 5, counts
 
 
 def test_the_verifier_can_fail_on_a_fragment_that_is_not_on_its_line():
-    # control: the same text with one fragment changed must be refused.
-    text = SCORECARD.read_bytes().decode('utf-8')
+    # control, at the same pinned revision: the text with one fragment changed must be refused.
+    text, rev = _written_at()
     good = '`api/services/journal_two/notes.py`:3531 "def restore_note("'
     assert good in text, 'non-vacuity: the control citation is not in the scorecard'
-    _, problems = psc.verify(text.replace(good, good.replace('restore_note(', 'restore_notes('), 1))
+    _, problems = psc.verify(text.replace(good, good.replace('restore_note(', 'restore_notes('), 1), rev=rev)
     assert any('notes.py:3531' in p for p in problems), problems
+
+
+def test_a_recorded_revision_not_in_this_clone_is_unverifiable_never_a_pass():
+    text, rev = _written_at()
+    swapped = text.replace(f'**Document written at:** `{rev}`', f'**Document written at:** `{_NOT_AN_OBJECT}`', 1)
+    assert psc.recorded_rev(swapped) == _NOT_AN_OBJECT, 'non-vacuity: the header swap did not take'
+    counts, problems = psc.verify(swapped)
+    assert problems == [f'unverifiable: {_NOT_AN_OBJECT} not in this clone'], problems
+    assert not counts, counts
+    assert psc.verify(text, rev=_NOT_AN_OBJECT)[1] == [f'unverifiable: {_NOT_AN_OBJECT} not in this clone']
+
+
+def test_a_flag_ledger_revision_not_in_this_clone_is_unverifiable_never_a_pass(monkeypatch):
+    text, rev = _written_at()
+    monkeypatch.setattr(psc, 'FLAGS_REV', _NOT_AN_OBJECT)
+    _, problems = psc.verify(text, rev=rev)
+    assert f'unverifiable: {_NOT_AN_OBJECT} not in this clone' in problems, problems
 
 
 def test_the_plans_now_column_carries_the_scorecards_clause_counts():

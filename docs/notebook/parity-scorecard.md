@@ -1,6 +1,6 @@
 # Notebook parity scorecard — every ledger row, the 16 standards, the honest misses
 
-**Date:** 2026-09-26 (lane 9B, wave 9). **Product scored:** the trees of tip `8a0098029` — app tree `8a870dd38f92781e53982baa04f2758acaf133ed`, api tree `d6838d6d65f243836096f962716db688bb878caa` — the tree the browser check was built from (`docs/notebook/evidence/wave9-9b-8a0098029/built-trees.txt`). **Document written at:** `2f24a64fd` (app tree `efb6267ab`, api tree `d6838d6d6`); the product files are unchanged since `8a0098029` — `git diff --name-only 8a0098029 HEAD -- app api` lists 1 file(s), all tests: `app/src/__tests__/benchProbes.test.js`.
+**Date:** 2026-09-26 (lane 9B, wave 9). **Product scored:** the trees of tip `8a0098029` — app tree `8a870dd38f92781e53982baa04f2758acaf133ed`, api tree `d6838d6d65f243836096f962716db688bb878caa` — the tree the browser check was built from (`docs/notebook/evidence/wave9-9b-8a0098029/built-trees.txt`). **Document written at:** `330a08964` (app tree `efb6267ab`, api tree `d6838d6d6`); the product files are unchanged since `8a0098029` — `git diff --name-only 8a0098029 HEAD -- app api` lists 1 file(s), all tests: `app/src/__tests__/benchProbes.test.js`.
 
 **What this is, and what it is not.**
 - The **gap ledger** (`docs/notebook/competitive-gap-ledger.md`) is the STATUS authority (ruling D-9B4). This scorecard COMPARES only: its "ledger row" column cites the row and never restates its status. Where the two disagree, the ledger wins and this file is the one that drifted.

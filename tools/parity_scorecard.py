@@ -1,6 +1,8 @@
 """Build and verify docs/notebook/parity-scorecard.md — the Notebook's parity re-score (wave 9, lane 9B).
 
     python tools/parity_scorecard.py --verify [--rev REV]   # offline: re-check every cited file:line
+                                                             #   at the revision the scorecard records
+                                                             #   (--rev HEAD: "has the code moved since?")
     python tools/parity_scorecard.py --dry-run [--pages DIR] # build in memory, check, write nothing
     python tools/parity_scorecard.py --write   [--pages DIR] # rebuild the scorecard
 
@@ -18,15 +20,20 @@ The pages are the vendors' text and are NOT in the repo; without --pages the quo
 length only, and the tool says so. A competitor page is re-fetched by hand (ruling D-9B3), never here.
 
 --verify is the offline half the rails run (tests/test_parity_scorecard.py): it parses the COMMITTED
-scorecard and re-checks every `CODE|RULING|RECORD|MEASURE path:line "fragment"` against the file
-(working tree by default, or `--rev REV` through `git cat-file`), every WALK check id and verdict in
-its report, every TEST totals line in its log, and every flag RECORD against be9ca78b6. A cited line
-that no longer holds its fragment fails by name: the scorecard is a snapshot of one tree, so when
-the code moves the citation must be re-read (and this tool's line numbers updated), never trusted.
+scorecard and re-checks every `CODE|RULING|RECORD|MEASURE path:line "fragment"`, every WALK check id
+and verdict in its report, and every TEST totals line in its log, all read through `git show REV:path`
+at ONE revision; and every flag RECORD against be9ca78b6. The scorecard is a MEASUREMENT AT A COMMIT:
+REV defaults to the revision its own header records ("Document written at"), so an unrelated edit
+that moves a cited line later never reds it. `--rev HEAD` asks the other question, "has the code
+moved since?", and a line that moved fails by name there (re-read it; never trust it). A revision
+that is not in the local object store is never a pass: it fails as "unverifiable: <sha> not in this
+clone" (the recorded revision and be9ca78b6 alike; a clone needs full history, e.g. fetch-depth 0).
 
 --write refuses to write while any check fails: a quote not verbatim (with --pages), a fragment not
 on its line, a walk check not PASS, a flag state that differs from master's ledger, a log without
-its totals line, a verdict of AHEAD/PARITY/BEHIND against a vendor with no citation.
+its totals line, a verdict of AHEAD/PARITY/BEHIND against a vendor with no citation. It also refuses
+unless the built text verifies at the revision its header records (HEAD): a cited input that is
+edited but not committed would make that header a revision the citations are not true at.
 """
 from __future__ import annotations
 
@@ -1363,25 +1370,37 @@ _CITE = re.compile(r'(CODE|RULING|RECORD|MEASURE) `([^`]+)`:(\d+(?:-\d+)?) "(.*?
 _WALK = re.compile(r'WALK `([^`]+)`:(\w+) (\w+) — report `([^`]+)`')
 _TEST = re.compile(r'TEST `([^`]+)` — run by 9B: `([^`]+)`, "([^"]+)"')
 _FLAG = re.compile(r'RECORD `docs/feature_flags\.json` as on master (\w+), key (\w+): status (\w+)')
+_WRITTEN_AT = re.compile(r'\*\*Document written at:\*\* `([0-9a-f]{7,40})`')
+
+
+def recorded_rev(text):
+    """The revision the scorecard's own header records as "Document written at" (None if it records none)."""
+    m = _WRITTEN_AT.search(text)
+    return m.group(1) if m else None
+
+
+def in_clone(rev):
+    """True when `rev` names a commit in the local object store (a shallow clone may not have it)."""
+    return subprocess.run(['git', '-C', ROOT, 'cat-file', '-e', f'{rev}^{{commit}}'],
+                          capture_output=True).returncode == 0
 
 
 class _Reader:
-    """File text at a revision (`git show REV:path`, once per file) or in the working tree."""
+    """File text at one revision (`git show REV:path`, once per file). Never the working tree."""
 
-    def __init__(self, rev=None):
+    def __init__(self, rev):
         self.rev = rev
         self.cache = {}
 
-    def lines(self, path):
+    def text(self, path):
         if path not in self.cache:
-            if self.rev is None:
-                p = os.path.join(ROOT, path)
-                txt = open(p, encoding='utf-8', errors='replace').read() if os.path.exists(p) else None
-            else:
-                r = subprocess.run(['git', '-C', ROOT, 'show', f'{self.rev}:{path}'], capture_output=True)
-                txt = r.stdout.decode('utf-8', 'replace') if r.returncode == 0 else None
-            self.cache[path] = None if txt is None else txt.replace('\r\n', '\n').split('\n')
+            r = subprocess.run(['git', '-C', ROOT, 'show', f'{self.rev}:{path}'], capture_output=True)
+            self.cache[path] = r.stdout.decode('utf-8', 'replace').replace('\r\n', '\n') if r.returncode == 0 else None
         return self.cache[path]
+
+    def lines(self, path):
+        t = self.text(path)
+        return None if t is None else t.split('\n')
 
 
 def _cells_of(text):
@@ -1396,9 +1415,21 @@ def _cells_of(text):
 
 
 def verify(text=None, rev=None):
-    """Re-check every citation the committed scorecard makes. Returns (counts, problems)."""
+    """Re-check every citation the scorecard makes, at ONE revision. Returns (counts, problems).
+
+    `rev` defaults to the revision the scorecard's header records ("Document written at"): the
+    scorecard is a measurement at that commit, so later edits elsewhere never red it. Pass
+    rev='HEAD' to ask whether the code has moved since. A revision the local object store does not
+    hold is never a pass: the only problem returned is "unverifiable: <sha> not in this clone".
+    """
     if text is None:
         text = open(os.path.join(ROOT, SCORECARD), 'rb').read().decode('utf-8')
+    if rev is None:
+        rev = recorded_rev(text)
+        if rev is None:
+            return Counter(), ['unverifiable: the scorecard records no "Document written at" revision']
+    if not in_clone(rev):
+        return Counter(), [f'unverifiable: {rev} not in this clone']
     rd = _Reader(rev)
     problems, counts = [], Counter()
     flags = None
@@ -1414,7 +1445,7 @@ def verify(text=None, rev=None):
                 if flags is None:
                     flags = _master_flags()
                     if flags is None:
-                        problems.append(f'flag records unverifiable: {FLAGS_REV} is not in this repository')
+                        problems.append(f'unverifiable: {FLAGS_REV} not in this clone')
                         flags = {}
                 rev_, key, want = m.groups()
                 got = (flags.get(key) or {}).get('status')
@@ -1427,7 +1458,7 @@ def verify(text=None, rev=None):
                 L = rd.lines(path)
                 counts[kind] += 1
                 if L is None:
-                    problems.append(f'{kind} {path}:{span}: the file does not exist')
+                    problems.append(f'{kind} {path}:{span}: the file does not exist at {rev}')
                     continue
                 if '-' in span:
                     a, b = (int(x) for x in span.split('-'))
@@ -1442,11 +1473,11 @@ def verify(text=None, rev=None):
             for mm in _WALK.finditer(item):
                 tool, cid, verdict, report = mm.groups()
                 counts['WALK'] += 1
-                p = os.path.join(ROOT, report)
-                if not os.path.exists(p):
-                    problems.append(f'WALK report {report} missing')
+                t = rd.text(report)
+                if t is None:
+                    problems.append(f'WALK report {report} missing at {rev}')
                     continue
-                checks = json.load(open(p, encoding='utf-8'))['checks']
+                checks = json.loads(t)['checks']
                 if isinstance(checks, dict):
                     got = (checks.get(cid) or {}).get('verdict') if isinstance(checks.get(cid), dict) else checks.get(cid)
                 else:
@@ -1457,11 +1488,10 @@ def verify(text=None, rev=None):
             for mm in _TEST.finditer(item):
                 fname, log, totals = mm.groups()
                 counts['TEST'] += 1
-                p = os.path.join(ROOT, log)
-                if not os.path.exists(p):
-                    problems.append(f'TEST log {log} missing')
+                t = rd.text(log)
+                if t is None:
+                    problems.append(f'TEST log {log} missing at {rev}')
                     continue
-                t = open(p, encoding='utf-8', errors='replace').read()
                 if _norm(totals) not in _norm(t):
                     problems.append(f'TEST {log}: totals line "{totals}" not in the log')
                 if fname.replace('app/', '', 1) not in t:
@@ -1487,7 +1517,7 @@ def build(pages_dir=None):
     PROBLEMS = []
     FLAGS = _master_flags()
     if FLAGS is None:
-        PROBLEMS.append(f'{FLAGS_REV} is not in this repository: flag records cannot be checked')
+        PROBLEMS.append(f'unverifiable: {FLAGS_REV} not in this clone (flag records cannot be checked)')
         FLAGS = {}
 
 
@@ -2642,12 +2672,18 @@ def main(argv=None):
     g.add_argument('--verify', action='store_true')
     g.add_argument('--dry-run', action='store_true')
     g.add_argument('--write', action='store_true')
-    ap.add_argument('--rev', default=None, help='--verify against a commit instead of the working tree')
+    ap.add_argument('--rev', default=None,
+                    help='--verify at this revision instead of the one the scorecard records (e.g. HEAD)')
     ap.add_argument('--pages', default=None, help='the fetched page texts, to re-verify every quote verbatim')
     a = ap.parse_args(argv)
+    try:
+        sys.stdout.reconfigure(encoding='utf-8', errors='replace')
+    except (AttributeError, ValueError):
+        pass
     if a.verify:
-        counts, problems = verify(rev=a.rev)
-        where = a.rev or 'the working tree'
+        text = open(os.path.join(ROOT, SCORECARD), 'rb').read().decode('utf-8')
+        counts, problems = verify(text, rev=a.rev)
+        where = a.rev or f'{recorded_rev(text)} (the revision the scorecard records)'
         print(f'checked against {where}: ' + ', '.join(f'{k} {v}' for k, v in sorted(counts.items())))
         for p in problems:
             print('  FAIL', p)
@@ -2664,6 +2700,14 @@ def main(argv=None):
     if a.dry_run:
         print('dry run OK:', summary)
         return 0
+    at = recorded_rev(text)
+    _, held = verify(text, rev=at)
+    if held:
+        print(f'REFUSING TO WRITE — the built scorecard does not hold at the revision it records ({at}); '
+              'commit its cited inputs first:')
+        for p in held:
+            print('  -', p)
+        return 1
     dst = os.path.join(ROOT, SCORECARD)
     with open(dst, 'wb') as fh:
         fh.write(text.encode('utf-8'))
