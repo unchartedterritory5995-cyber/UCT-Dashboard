@@ -778,3 +778,53 @@ Several confirmations are recorded as given by the provider and **not captured f
 ⚠️ **A rail must come with it, or the fix is unprovable:** a test that pins the job's scheduled minute ON THE FAR SIDE of `expected_wire_date`'s 09:30 boundary, and asserts the comparison FIRES for a one-day-stale payload at the scheduled time. A guard nobody has watched fail is not a guard.
 
 ⛔ **NOT SHIPPED. This is a `master` change and master is production**, so it needs an explicit owner "deploy" plus a member-impact paragraph. Recorded here so the finding cannot be lost; the decision is the owner's.
+
+## CARD 28 — does "no execution" reach HISTORICAL BACKTESTING? ✅ RULED: NO, IT DOES NOT. Backtesting is IN CHARTER — and it already ships.
+
+**Delegated ruling.** The owner said *"make judgement calls and decisions"* (2026-09-26) after gate item 9 named this its highest-leverage open question, because **BRK-01's size depends on it**. ⭐ Per CARD 17's post-mortem, the documents searched BEFORE defaulting are named: `GOVERNING_PRINCIPLES.md` §13, `05-product-strategy/non-goals.md` (NG-01..NG-03), `OWNER_DECISIONS.md`, `charter/OWNER_SEED_FACTS.md`, CARDs 1–27. **None of them rules on historical simulation.** A default over an unread answer is an overwrite; this one is over a genuine silence.
+
+### ⛔ THE ARGUMENT IS NOT NEEDED, BECAUSE THE BOUNDARY HAS ALREADY BEEN DRAWN IN SHIPPED CODE
+
+**`app/src/pages/cot/cotAnalogs.js` is a backtest, it is LIVE, and it is MOUNTED** — imported by `app/src/pages/CotData.jsx` and `app/src/pages/cot/PositioningRail.jsx` (verified at `origin/master`). Its own header: *"Historical precedents for the current positioning setup … its forward return is how the proxy ETF's weekly close moved 4 / 8 / 13 weeks after the stretch BEGAN … a precedent only knows what was knowable then (no lookahead past idx)."*
+
+⭐⭐ **That is point-in-time historical performance measurement with explicit lookahead discipline — the defining shape of a backtest — serving members today, and nobody in the history of this codebase treated it as an execution question.** The neighbours agree: `setup_triggers` carries win/loss records over historical fires, `uct20_nav.py` chains a composition-aware historical equity curve, and the breadth analogues match patterns to forward outcomes. **The permissive boundary is not being proposed here; it is being READ OFF what already runs.**
+
+### The rule, stated so it cannot be stretched
+
+✅ **IN CHARTER:** computing over past data — historical precedent studies, per-setup expectancy, forward-return distributions, strategy simulation with stated assumptions. **No order exists at any point, so there is nothing for "no execution or order management" to attach to.** §13 governs ORDER FLOW; a backtest has none.
+
+⛔ **STILL OUT, and these are the edges a backtest must not creep across:**
+1. **No "run this strategy" / "execute" affordance** of any kind, live or paper. The moment a simulation acquires a button that places or stages an order it is NG-01.
+2. **No broker write path, including a send-to-broker bridge** (NG-03).
+3. **No position-of-record.** A simulated portfolio is a computation, never an account state (NG-02).
+4. ⚠️ **FILL ASSUMPTIONS MUST BE STATED ON THE SURFACE.** A backtest that reports returns without disclosing how it filled is an **unfalsifiable trust claim** — NG-17 — and that, not execution, is the real hazard in this feature. `cotAnalogs` sets the standard to match: it states its proxy and its no-lookahead rule in the code that computes it.
+
+⭐ **CONSEQUENCE: BRK-01 KEEPS ITS FULL SCOPE** — chain UI, greeks, vol surface, payoff/risk graph **and** strategy backtesting — and remains the largest actionable item in the programme. **Reversal condition:** one owner sentence reading §13 more broadly; BRK-01 then shrinks to its chain/greeks/vol-surface half and item 9 §4's sizing is re-cut. Nothing else in the programme changes.
+
+## CARD 29 — the UNIT OF ACCOUNT ✅ RULED: JOBS carry the verdict, FEATURES carry the evidence. No rework.
+
+**Delegated ruling**, same authority. Gate item 18 adopted *best MECHANISM per JOB*; gate item 9 headlined JOBS and built an 80-row named-feature table underneath, and found that **several rows FLIP VERDICT between the two units** — which is what made this worth deciding rather than leaving implicit.
+
+### ⭐ The decisive argument is the owner's own success test
+
+CARD 25 states the goal as **"someone can only use our site"** — a claim about whether a person can FINISH, which is a property of a completed task, not of a feature checklist. **Nobody keeps a tab open for a feature; they keep it open for a step they cannot complete here.** So the verdict layer must be the job.
+
+⛔ **And a feature-unit ledger fails in BOTH directions, which a job-unit one does not:**
+- It would let us **claim coverage while a member still breaks out** — we ship "a chart", so the cell reads COVERED, while the one step they need is missing.
+- It would let us **report a gap where none exists** — a competitor's named feature we achieve by a different mechanism reads as absent. That is the error that produced two withdrawn rows in item 14 and five false absence claims in item 9's inputs.
+
+⭐ **Features stay as the EVIDENCE layer, and that is not a compromise — it is what makes the ruling cheap to reverse.** Item 9 §2.2's 80 competitor features are named verbatim and keyed to job rows, so a feature-level recount is a **re-aggregation of an existing table, not a rewrite**; and a marketing-facing parity view needs no new work. It also preserves the charter's no-Frankenstein clause, which a one-for-one feature copy would violate by construction.
+
+✅ **So items 18 and 9 both STAND AS WRITTEN and there is no rework.** Every document must state which unit its headline counts, in one line, at the top — an implicit unit is how a number comes to mean something different to its next reader. **Reversal condition:** an owner sentence preferring literal feature parity; the recount is then a re-aggregation of item 9 §2.2 and nothing is rewritten.
+
+## CARD 30 — three smaller calls, made rather than left open
+
+**1. NG-03 (no broker write path) is KEPT, and its provenance is corrected.** Item 18 flagged it honestly as **its own extension** of §13 rather than a cited ruling, and offered to demote it. ✅ **Keep the rule** — a send-to-broker bridge is an order path under another name, and CARD 25's own reasoning is that a bridge keeps the incumbent permanently in the loop, which is the opposite of substitution. ⚠️ **But relabel it: DERIVED (integrator-ratified 2026-09-26), not owner-ruled.** A register that blurs which rows the owner ruled and which were inferred is the second-authority defect in a new costume, and item 18's own admissibility rule says that file may not originate a non-goal. The row count stays 24; the provenance column changes.
+
+**2. BRK-09 (transcripts) is DOWNGRADED and must not drive priority.** Item 9 flagged its break-out as *inferred, not evidenced* — no JTBD verdict names an external transcript product, and neither AlphaSense nor Quartr is a tool the owner was asked about. ✅ **It stays in the ledger as INFERRED and is excluded from the top of any roadmap** until `RG-15`'s coverage re-read happens (still `planned` 24 days on). ⚠️ **The actionable half is the monitor, not the feature**: the coverage reading was `transcript: null (n=0)`, and if that is stale the row collapses from "biggest silent failure" to "fine, needs a monitor". **Re-read first, build second.**
+
+**3. Item 34 (Cost Model) is CONFIRMED stood down.** CARD 26 §5 recorded it as a reading of the owner's *"Dont worry aobut anything else on costs or uses"*; the owner has since said to make the calls. ✅ **It is now a decision, not a reading: item 34 is DE-SCOPED.** ⚠️ Licensing and permission work is untouched and remains load-bearing — *may this feed legally serve members* is a compliance question, not a cost question.
+
+## ⛔⛔ WHAT "MAKE JUDGEMENT CALLS" DOES **NOT** AUTHORISE — stated so the boundary is on the record
+
+**CARD 27's production fix is still NOT SHIPPED, deliberately.** The standing rule is that `master` is production and a push there needs an explicit *"deploy"* plus a member-impact paragraph. ⭐ **"Make judgement calls and decisions" was said in the context of two research questions, and reading it as deploy authorisation would be exactly the inference that rule exists to prevent** — the same shape as defaulting over an unread answer (CARD 17) or reading a clearance as covering feeds nobody has bought (CARD 26 §4). The fix, its one-line change and its required rail are all recorded and ready; it ships when the owner says the word.
