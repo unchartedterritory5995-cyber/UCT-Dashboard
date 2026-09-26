@@ -93,3 +93,15 @@ def test_the_house_render_is_handed_the_stats_for_ITS_timeframe():
                             house_fn=house)
         assert out[0] == "ok", out[0]
         assert seen["stats"]["period"] == period, (tf, seen["stats"].get("period"))
+
+
+def test_the_renderer_waits_for_the_pages_header_before_any_ready_branch():
+    """2026-09-25: the first /chart after a deploy went out as just "AMD W" — the header's own
+    lookups had not landed, and neither readiness branch waited for them."""
+    from api.services.discord_chart_house import HOUSE_READY_JS, house_ready_js
+    js = house_ready_js("AMD")
+    guard = "if (window.__chartHeaderReady === false) return false;"
+    assert guard in js
+    assert js.index("__chartBarsReady") < js.index(guard) < js.index("__chartReady === true")
+    assert js.index(guard) < js.index("getImageData")
+    assert "__chartHeaderReady !== false" in HOUSE_READY_JS
