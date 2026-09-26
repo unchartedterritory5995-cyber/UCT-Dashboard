@@ -64,11 +64,17 @@ evidence_ceiling: >
   is explicitly not in the record: CP-06 records the owner "declined that level of detail as
   unnecessary". So the workflow in §6 is the programme's best-evidenced CANDIDATE and the owner may
   replace it in one sentence, which §6 is built to survive.
-  SECOND CEILING: **the capability ledger understates what ships, six for six.** Its 2026-09-26
-  banner reads *"DO NOT TREAT AN 'absent' CELL HERE AS EVIDENCE THAT SOMETHING IS ABSENT"* and
-  records that all six checked cells were wrong in the same direction. Every "does not exist today"
-  below therefore carries the cheapest read that would settle it, and the likely direction of error
-  is that this MVP is SMALLER than stated, never larger.
+  SECOND CEILING: **an "absent" cell in the capability ledger is not evidence of absence.** Its
+  banner reads *"DO NOT TREAT AN 'absent' CELL HERE AS EVIDENCE THAT SOMETHING IS ABSENT"*, and
+  that much is right. ⚰️ **CORRECTED 2026-09-26 (found by the gate-item-31 author): this ceiling
+  originally read "understates what ships, six for six" and concluded the error direction was that
+  this MVP is "SMALLER than stated, never larger". THAT IS FALSIFIED.** Measured across seven
+  re-derived cells: five understated, **one OVERSTATED** (row A8 records `cap_universe.json`
+  at 3,742; the file at master holds **3,640**), two were exactly right. **A ledger cell is a dated
+  measurement whose error has NO RELIABLE SIGN**, so the ceiling is real but directionless — the
+  old wording licensed reading a small cell as a floor, which is the one inference it must not
+  support. Every "does not exist today" below therefore carries the cheapest read that would settle
+  it, and the direction of the error is **unknown until that read is done**.
   THIRD CEILING: **no member and no trader asked for any of this.** Item 16 §5 records *"No member
   ever asked for anything in this file"*, signup is closed under `COMING_SOON_MODE`, and the richest
   usage table supports an existence check over 13 accounts, 6 of them admins (item 35 §3.1).
