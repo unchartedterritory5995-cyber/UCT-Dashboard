@@ -44,7 +44,13 @@ SERVICE_HEADER = "X-Chart-Edge-Token"
 
 @router.post("/api/r/edge-service-token")
 def edge_service_token(authorization: str = Header(default="")):
-    if not _push_secret_ok(authorization):
+    try:
+        ok = _push_secret_ok(authorization)
+    except TypeError:
+        # compare_digest refuses non-ASCII str: a malformed header is a refusal,
+        # never a 500 (review 2026-09-25).
+        ok = False
+    if not ok:
         raise HTTPException(status_code=401, detail="Not authenticated")
     token = cet.mint_service()
     if not token:
