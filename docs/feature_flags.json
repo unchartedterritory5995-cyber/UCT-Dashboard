@@ -409,6 +409,12 @@
       ],
       "note": ""
     },
+    "CLIENT_ERROR_BEACON_ENABLED": {
+      "status": "pending",
+      "since": "2026-09-23",
+      "where": [],
+      "note": "Notebook 10/10 wave 6 (D14): the client error beacon's KILL SWITCH. SHIPS ON BY DEFAULT and is kept as a ROLLBACK switch: unset, or any value but 0/false/no/off, means the server accepts reports; 0/false/no/off means POST /api/client-errors answers {enabled: false} and writes nothing, and a page that receives that answer stops sending for the rest of its life (app/src/lib/errorBeacon.js). SERVICE: web - api/routers/client_errors.py is mounted in api/main.py, and the value is read PER REQUEST in api/services/client_errors.py::enabled(). REACH: every report that reaches the web process after the new value is live is refused; each open page stops at the answer to its next report, and a page that reports nothing is never told. FLIPPING IT NEEDS NO RESTART OF ITS OWN: the value is read per request, never cached at import or registration, so the next report after the value reaches the web process obeys it. Getting the value there is Railway's part, not this flag's: `railway variables --set` on web has itself redeployed web each time it was measured (a platform behaviour, not a requirement of the flag), while `railway variable delete` does not, so follow a delete with `railway redeploy --service web --yes`; either way read the value in the running process, never from --kv. STATUS PENDING because no Railway service sets it, and unset already means ON. The AST index (feature_flag_index) reads os.environ.get with no default as off-unless-set, which is why this row is required at all. The open decision is whether to set it explicitly to 1 on web, so ON-on-purpose is distinguishable from never-decided (the D2_SAMPLE_PERSIST_ENABLED precedent). The store is its own file, CLIENT_ERRORS_DB_PATH (default /data/client_errors.db), rows kept 14 days and hard-capped at 15,000 rows of at most 8 KiB each (oldest deleted on write) - that byte ceiling, not the per-IP rate limit, is the bound against a caller rotating addresses. Turning it off stops COLLECTION and never deletes a collected row. What leaves the browser is scrubbed first (app/src/lib/errorBeacon.js: a message only as a matched engine template, else <Name>: <unrecognized #hash>; every digit #; stack frames only; every path reduced to lowercase route words with :id for anything else, share-route tokens always :id; no query or fragment on any URL)."
+    },
     "COMMUNITY_ASK_ENABLED": {
       "status": "armed",
       "where": [
@@ -462,6 +468,11 @@
       "status": "dark",
       "note": "Off 2026-09-02 by decision: this gates ONLY the scheduler SEND of the weekly operator email. The compute and the status endpoint are ungated and always callable, so the numbers (chat volume, active users, tool-failure rate) are available on demand without it. Off therefore means no weekly email is being sent, NOT no health data. Whether the owner wants a recurring email is theirs to say, and nothing is lost while it is off.",
       "where": []
+    },
+    "COMPASS_NOTES_TOOL_ENABLED": {
+      "status": "dark",
+      "where": [],
+      "note": "Wave 7 lane H, 2026-09-25. Enablement gate for the text-chat Compass tool search_my_notes (coach_chat_tools.TOOLS -> ask_retrieval.retrieve, titles/snippets/ids only, member-scoped). Unset means OFF and that is the decision: the tool is absent from the registry the model sees. Read per call, never at import, so a flip needs no restart. The VOICE registration is deliberately not built (OpenAI Realtime would receive note text; deferred with the zero-retention condition)."
     },
     "COMPASS_WEEKLY_DIGEST_ENABLED": {
       "status": "armed",
@@ -929,10 +940,47 @@
       ],
       "note": "NOT RELEASED: the permissive mode has never run in production; the flag sits at its default. A MODE, not a gate: full (default, shipped behaviour) | unknown-only. Q1 fix 6's FIRST rollback lever. `full` defers a capture while the note is dirty or has a queued entry; `unknown-only` defers ONLY when the store cannot be read, letting the append route through to fix 6. Unset or unrecognised => full, on BOTH ends (a typo degrades to more guarding, never less). Read per request in api/routers/auth.py::_notebook_flags and latched per tab by journal-2-0/lib/offline/notebookFlags.js. It is flipped to unknown-only only immediately before a staged rig window (P3) and flipped back on any RED. ROLLBACK ORDER for fix 6: (1) `railway variable --set NOTEBOOK_DOOR_GUARD=full --service web`, which REDEPLOYS (delete does NOT); verify in-process via railway ssh, never --kv. (2) the kill switch NOTEBOOK_OFFLINE_DEFAULT_ON. Rail: tests/test_notebook_door_guard_flag.py; index axis: feature_flag_index.mode_flags(). Ledger corrected 2026-09-24: this entry said dark while the variable was SET on web to `unknown-only`, read 2026-09-24 by tools/flag_ledger_audit.py + `railway variables --service web --kv`. The flip itself was made by the owning programme and is recorded here as MEASURED, not decided; if the intent differs, the owning programme corrects this note."
     },
+    "NOTEBOOK_IMAGE_DOCX_DOCUMENTS_ENABLED": {
+      "status": "dark",
+      "where": [],
+      "note": "Wave 7 lane G, 2026-09-25. Enablement gate for image (OCR via the J2_OCR_ENABLED tesseract adapter) and .docx (stdlib zip+xml) attachments becoming searchable documents through document_extraction.on_attachment_saved. Unset means OFF and that is the decision: while off, an image or docx upload creates no document row and the member sees exactly today's behaviour. Read per call; a flip needs no restart. Distinct from J2_OCR_ENABLED, which only says whether tesseract is present."
+    },
+    "NOTEBOOK_INBOUND_EMAIL_ENABLED": {
+      "status": "dark",
+      "where": [],
+      "note": "Wave 7 lane G, 2026-09-25. Enablement gate for the inbound-email door (POST /api/j2/inbound-email, HMAC-signed by the Cloudflare Email Worker in cloudflare/inbound-email-worker/, plus the member address endpoints). Unset means OFF and that is the decision: every route answers 404 and no address token is minted. Stays dark until the owner approves the Privacy page sentence naming Cloudflare as a processor (draft in docs/notebook/email-in-setup.md) and sets the routing rule + worker secret. Read per request; a flip needs no restart."
+    },
     "NOTEBOOK_OFFLINE_READ_ON": {
       "status": "dark",
       "where": [],
       "note": "Wave K, 2026-09-12. Enablement gate for Q2-A, the offline READ path, which is NOT BUILT. Distinct from NOTEBOOK_OFFLINE_DEFAULT_ON, which is a KILL switch defaulting ON and therefore needs no entry here by this ledger's own doctrine. Unset means OFF."
+    },
+    "NOTEBOOK_PERSONAL_API_ENABLED": {
+      "status": "dark",
+      "where": [],
+      "note": "Wave 7 lane G, 2026-09-25. Enablement gate for the member personal API (api/routers/notebook_personal_api.py: mint/list/revoke personal tokens; create a note; append to a note or to today's daily note). Unset means OFF and that is the decision: every route answers 404 and no token can be minted. Read per request; a flip needs no restart. Tokens are client_type=personal_api rows in j2_capture_tokens with the two notebook:notes:* scopes and never the capture scopes."
+    },
+    "NOTEBOOK_SEMANTIC_PROVIDER": {
+      "status": "pending",
+      "since": "2026-09-25",
+      "where": [],
+      "note": "MODE (openai default | noop); read per call in note_semantic.provider_mode; inert while NOTEBOOK_SEMANTIC_SEARCH_ENABLED is unset; the default is the vendor-sending choice, so the provider decision rides the zero-retention precondition"
+    },
+    "NOTEBOOK_SEMANTIC_SEARCH_ENABLED": {
+      "status": "dark",
+      "where": [],
+      "note": "Wave 7 lane H, 2026-09-25. Enablement gate for meaning-search over a member's notes (note_semantic.py: OpenAI text-embedding-3-small through voice_embeddings_service, j2_note_embeddings, a scheduled sweep, query-shape routing into GET /notes). Unset means OFF and that is the decision: nothing is embedded, nothing is sent to the vendor, the sweep is a no-op. STAYS DARK until OpenAI zero-retention terms are confirmed (docs/notebook VENDOR-TERMS). Read per call; a flip needs no restart. Armed, the query embed is bounded per member (ruling D-H6): one in flight, a 256-entry / 10-minute query-vector cache keyed by member, 200 embeds a day on the durable counter; each bound fails open to the lexical page. The append is opt-in per request (`meaning=1`, ruling D-H9): only the Notebook search box asks."
+    },
+    "NOTEBOOK_TASK_REMINDERS_ENABLED": {
+      "status": "pending",
+      "since": "2026-09-23",
+      "where": [],
+      "note": "Notebook 10/10 wave 6 lane F: KILL SWITCH for the daily task reminder. SHIPS ON BY DEFAULT and is kept as a ROLLBACK switch: unset = on; 0/false/no/off = off. SERVICE: web - api/main.py calls note_tasks.register_task_reminder_job once, inside the scheduler-lock block, which registers the 07:00 ET pass, a 09:00 ET second pass and a one-shot boot catch-up; a task's due date is the dateMention node (app/src/pages/journal-2-0/lib/dateMentionNode.js), so a task can be due. The value is read at the START of every run of api/services/journal_two/note_tasks.py::run_task_reminders (all three jobs), never at registration. REACH: the next pass after the new value is live in the web process; what it gates is one IN-APP bell notification per member per ET day for open tasks due today or overdue - never email (the Resend quota is spent daily), severity info so never Discord. Turning it off stops reminders and never deletes a row. FLIPPING IT NEEDS NO RESTART OF ITS OWN: the value is read at the start of every run of all three jobs, never cached at import or registration, so the next pass after the value reaches the web process obeys it. Getting the value there is Railway's part, not this flag's: `railway variables --set` on web has itself redeployed web each time it was measured (a platform behaviour, not a requirement of the flag), while `railway variable delete` does not, so follow a delete with `railway redeploy --service web --yes`; either way read the value in the running process, never from --kv. STATUS PENDING because no Railway service sets it, and unset already means ON. The AST index (feature_flag_index) reads os.environ.get with no default as off-unless-set, which is why this row is required at all. The open decision is whether to set it explicitly to 1 on web, so ON-on-purpose is distinguishable from never-decided (the D2_SAMPLE_PERSIST_ENABLED precedent). Deduped in the j2_task_reminder_log table (purged with the member's account, account_purge.py). The 07:00 and 09:00 ET jobs each carry a one-hour misfire grace; the 09:00 pass is a no-op for every member already reminded and reaches anyone 07:00 missed (a failed delivery, or a deploy spanning 07:00), and the boot catch-up runs the pass after 07:00 ET on a day the durable j2_task_reminder_runs marker does not close (a pod down at 09:00 too). Passes may overlap: each member's claim is one atomic INSERT on the (user_id, day) key, and the day is marked done only when every member due holds a DELIVERED claim, read from the store (round-2 R1-6)."
+    },
+    "NOTEBOOK_WRITING_HELP_ENABLED": {
+      "status": "dark",
+      "where": [],
+      "note": "Wave 7 lane H, 2026-09-25. Enablement gate for editor writing help (summarize / rewrite / continue / translate through POST /api/j2/notes/{id}/writing-help/stream, sharing Ask Notebook's client, global dollar cap and stream slots, with its own 60/day member counter). Unset means OFF and that is the decision: the route answers 404 and the editor shows no writing-help entry. Rides the auth payload as notebook_writing_help_enabled; read per request; a flip needs no restart. The member cap NOTEBOOK_WRITING_HELP_PERUSER_CAP (default 60) is read per call, so a change needs no restart. The 60/day count and the shared $25/day cap are durable in auth.db (`daily_usage_counters`, ruling D-H5b): a deploy no longer resets them. Each call is charged a per-action estimate (`writing_help.estimate_cost`, ruling D-H5)."
     },
     "NOTE_SYNC_ENABLED": {
       "status": "armed",

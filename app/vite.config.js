@@ -133,8 +133,15 @@ function stripManifestProse() {
 
 export default defineConfig({
   plugins: [react(), comingSoonMeta(), stripManifestProse()],
+  // ⛔⛔ ONE `build` KEY. There were TWO top-level `build` keys from 2026-09-12 (`d261d0731`
+  // added the engine floor below as a second `build: { target }` block) until 2026-09-20,
+  // fixed independently on master and on wave 7 (the two fixes met in the wave-7 merge). In an
+  // object literal the LATER key wins, so the first block — `manualChunks` and
+  // `chunkSizeWarningLimit` — was silently discarded and the dist shipped with zero
+  // `vendor-*` chunks. Nothing errored: the build succeeded, the app worked, and the entry
+  // chunk was simply ~1.1 MB. `src/__tests__/viteConfigDuplicateKeys.test.js` now fails on a
+  // duplicate key anywhere in this config and on either intent (floor, chunk map) going missing.
   build: {
-    chunkSizeWarningLimit: 4000,
     // ⛔⛔ THE SUPPORTED-ENGINE FLOOR, DECLARED. It was UNDECLARED before 2026-09-12, which is
     // precisely how the Notebook route came to crash on every iOS below 18.4: Vite's default
     // target is `'modules'` (~safari14), so a reader would reasonably believe old Safari was
@@ -146,8 +153,13 @@ export default defineConfig({
     // caught `typeof Iterator.prototype.join` inside a dependency. Declaring the floor is worth
     // doing so the intent is written down; the thing that actually catches this class is
     // `iteratorGlobalFloor.test.js`, which reads the built chunks.
-    //
-    // ⚰️⚰️ THIS LIVED IN A SECOND `build:` KEY UNTIL 2026-09-20, AND A DUPLICATE KEY IN AN
+    target: ['safari16', 'es2021'],
+    // `dist/.vite/manifest.json` — the import graph `tools/notebook_perf_budgets.py` walks to
+    // price the Notebook route (entry + everything it reaches), instead of a hand-typed chunk
+    // list that goes stale on the next rename. It changes no chunk; it only writes the graph.
+    manifest: true,
+    chunkSizeWarningLimit: 4000,
+    // ⚰️⚰️ THE `target` ABOVE LIVED IN A SECOND `build:` KEY UNTIL 2026-09-20, AND A DUPLICATE KEY IN AN
     // OBJECT LITERAL IS NOT A MERGE — THE LAST ONE WINS AND THE FIRST IS DISCARDED ENTIRELY.
     // So `target` was live and everything above it — `chunkSizeWarningLimit` and the WHOLE
     // `rollupOptions.manualChunks` block — was silently dead from the commit that added the
@@ -162,7 +174,6 @@ export default defineConfig({
     // ⭐ esbuild had been printing `Duplicate key "build" in object literal` on every vitest
     // run the whole time. It scrolls past above the test summary, which is exactly where a
     // warning goes to die.
-    target: ['safari16', 'es2021'],
     rollupOptions: {
       output: {
         // Object form (NOT function form): Rollup walks the dependency
@@ -193,7 +204,14 @@ export default defineConfig({
           ],
           'vendor-swr': ['swr'],
           'vendor-charts': ['lightweight-charts'],
-          'vendor-echarts': ['echarts', 'echarts-for-react'],
+          // ⛔ echarts is deliberately NOT listed either (ruling D-I1, wave 7, 2026-09-25).
+          // Listed, it forced ONE chunk holding both halves of echarts, so the routes that
+          // need only its core (zrender + echarts core) fetched all of it: +580,656 B on
+          // research/ResearchPage.jsx and +580,475 B on Calendar.jsx (the UCT Terminal) and
+          // calendar/MyStocksHub.jsx -- the routes members open most -- to save 1,239-9,278 B
+          // on each of 93 others. Unlisted, Rollup splits it by use again. Measured both
+          // ways in docs/notebook/perf-budgets.md section 1; viteConfigDuplicateKeys.test.js
+          // fails if it comes back.
           // ⛔ recharts and tiptap are deliberately NOT listed.
           //
           // Naming a package here FORCES a chunk into existence, and Rollup

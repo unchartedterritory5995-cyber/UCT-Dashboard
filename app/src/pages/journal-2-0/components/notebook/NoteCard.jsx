@@ -1,4 +1,5 @@
 import BlockedBadge from './BlockedBadge'
+import LockedGlyph from './LockedGlyph'
 import styles from './NoteCard.module.css'
 
 function relativeDate(iso) {
@@ -46,11 +47,29 @@ function cardThumb(note) {
  * Shift+Space) selects a range.
  */
 export default function NoteCard({
-  note, onOpen, onRestore, blocked = false,
+  note, onOpen, onRestore, onUnarchive, blocked = false,
   selectable = false, selected = false, onToggleSelect,
 }) {
   const title = note.title?.trim() || 'Untitled'
-  const card = renderCard({ note, title, onOpen, onRestore, blocked })
+  let card = renderCard({ note, title, onOpen, onRestore, blocked })
+  // Wave 6 archive: an archived note still OPENS — archive is not trash — so
+  // its Unarchive sits BESIDE the card button, never inside it (a button in a
+  // button is invalid HTML, flattened into one control by a screen reader).
+  if (onUnarchive && !onRestore) {
+    card = (
+      <div className={styles.shelfWrap}>
+        {card}
+        <button
+          type="button"
+          className={styles.shelfBtn}
+          onClick={() => onUnarchive(note)}
+          aria-label={`Unarchive ${title}`}
+        >
+          Unarchive
+        </button>
+      </div>
+    )
+  }
   if (!selectable) return card
   return (
     <div className={`${styles.selectWrap} ${selected ? styles.selectWrapOn : ''}`}>
@@ -114,6 +133,7 @@ function renderCard({ note, title, onOpen, onRestore, blocked }) {
           {(note.tags || []).slice(0, 3).map((t) => (
             <span key={t} className={styles.tag}>#{t}</span>
           ))}
+          <LockedGlyph note={note} />
           {blocked && <BlockedBadge />}
         </div>
       </div>

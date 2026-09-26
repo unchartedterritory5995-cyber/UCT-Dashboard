@@ -100,16 +100,18 @@ describe('NotebookTab — calendar view wiring', () => {
     }
   })
 
-  it('switching to calendar mounts it and takes down the card grid', () => {
+  it('switching to calendar mounts it and takes down the card grid', async () => {
     renderTab()
     fireEvent.click(calBtn())
+    await screen.findByTestId('note-calendar')
     expect(screen.getByTestId('note-calendar')).toBeInTheDocument()
     expect(screen.queryByTestId('note-card')).toBeNull()
   })
 
-  it('is handed the current slice, its property defs, AND the write props', () => {
+  it('is handed the current slice, its property defs, AND the write props', async () => {
     renderTab()
     fireEvent.click(calBtn())
+    await screen.findByTestId('note-calendar')
     expect(calProps.notes.map((n) => n.id)).toEqual(['n1', 'n2'])
     expect(calProps.propertyDefs).toBeDefined()
     // ⚰️ This test asserted the OPPOSITE for one commit, when the calendar was
@@ -123,9 +125,10 @@ describe('NotebookTab — calendar view wiring', () => {
     expect(calProps.blockedNoteIds).toBeDefined()
   })
 
-  it('clicking a day chip opens that note', () => {
+  it('clicking a day chip opens that note', async () => {
     renderTab()
     fireEvent.click(calBtn())
+    await screen.findByTestId('note-calendar')
     fireEvent.click(screen.getByRole('button', { name: 'open n2' }))
     expect(screen.getByTestId('note-editor')).toHaveAttribute('data-note-id', 'n2')
   })
@@ -142,6 +145,7 @@ describe('NotebookTab — calendar view wiring', () => {
     // ⚰️ Asserted the opposite while the server enum was ("list","table").
     renderTab()
     fireEvent.click(calBtn())
+    await screen.findByTestId('note-calendar')
     expect(screen.getByRole('button', { name: /save view/i })).toBeInTheDocument()
 
     // ⛔ A calendar without its date property is not the view the member saved

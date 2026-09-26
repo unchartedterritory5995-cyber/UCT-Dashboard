@@ -30,69 +30,143 @@ never purged. This manifest and the new `account_purge.py` cover all 14.
 
 ## Manifest
 
-Ownership was determined by reading the actual schema (`api/services/journal_two/db.py`) and
-the code that writes each table — not assumed from the `j2_` prefix. One row, `j2_broker_digest_dedup`,
-is correctly **not** purged: it is a single global row (`id='fleet_digest'`) for the owner's
-own internal fleet-check digest, not per-user member data.
+⛔ **The table below is GENERATED from the purge code and is never hand-typed.** It is
+derived by `tools/account_deletion_manifest.py` (an AST read of
+`api/services/journal_two/account_purge.py`: `_DIRECT_USER_TABLES`, one
+`DELETE ... WHERE user_id = ?` each, plus every literal `_run("<table>", ...)` — a join delete,
+or a delete keyed on the member's id through a column not named `user_id`).
+Regenerate after any change to the purge:
 
-| Table / store | Owner key | Direct / indirect | Prior behavior | Now | Verification |
-|---|---|---|---|---|---|
-| `j2_settings` | `user_id` | Direct | Not purged | Purged | Test matrix below |
-| `j2_positions` | `user_id` | Direct | Not purged | Purged | " |
-| `j2_trades` | `user_id` | Direct | Not purged | Purged | " |
-| `j2_day_notes` | `user_id` | Direct | Not purged | Purged | " |
-| `j2_accounts` | `user_id` | Direct | Not purged | Purged | " |
-| `j2_option_strategies` | `user_id` | Direct | Not purged | Purged | " |
-| `j2_option_legs` | `strategy_id` → `j2_option_strategies.user_id` | **Indirect** | Not purged | Purged (join delete) | " |
-| `j2_playbook_entries` | `user_id` | Direct | Not purged | Purged | " |
-| `j2_coach_outputs` | `user_id` | Direct | Not purged | Purged | " |
-| `j2_chat_messages` | `user_id` | Direct | Not purged | Purged | " |
-| `j2_onboarding_responses` | `user_id` | Direct | Not purged | Purged | " |
-| `j2_verdicts` | `user_id` | Direct | Not purged | Purged | " |
-| `j2_trade_reviews` | `user_id` | Direct | Not purged | Purged | " |
-| `j2_interventions` | `user_id` | Direct | Not purged | Purged | " |
-| `j2_profile_suggestions` | `user_id` | Direct | Not purged | Purged | " |
-| `j2_journal_rules` | `user_id` | Direct | Not purged | Purged | " |
-| `j2_unified_coach_state` | `user_id` (PK) | Direct | Not purged | Purged | " |
-| `j2_weekly_email_log` | `user_id` | Direct | Not purged | Purged | " |
-| `j2_notes` | `user_id` | Direct | Not purged | Purged (fires the existing `AFTER DELETE` FTS-mirror trigger per row) | " |
-| `j2_notes_fts` / `j2_notes_fts_map` | derived from `j2_notes` | — | N/A (trigger-mirrored) | Cleaned automatically by the existing trigger when `j2_notes` rows are deleted | " |
-| `j2_note_folders` | `user_id` | Direct | Not purged | Purged | " |
-| `j2_note_embeds` | `user_id` | Direct | Not purged | Purged | " |
-| `j2_note_mentions` | `user_id` | Direct | Not purged | Purged | " |
-| `j2_capture_inbox` | `user_id` | Direct | Not purged | Purged | " |
-| `j2_public_profiles` | `user_id` (PK) | Direct | Not purged | Purged | " |
-| `j2_note_shares` | `user_id` | Direct | Not purged | Purged | " |
-| `j2_note_connectors` | `user_id` | Direct | Not purged | Purged | " |
-| `j2_note_sources` | `user_id` | Direct | Not purged | Purged | " |
-| `j2_note_sync_log` | `user_id` | Direct | Not purged | Purged | " |
-| `j2_note_remote_index` | `user_id` | Direct | Not purged | Purged | " |
-| `j2_obsidian_devices` | `user_id` | Direct | Not purged | Purged | " |
-| `j2_obsidian_staging` | `user_id` | Direct | Not purged | Purged | " |
-| `j2_obsidian_manifest` | `user_id` | Direct | Not purged | Purged | " |
-| `j2_obsidian_connect_epoch` | `user_id` (PK) | Direct | Not purged | Purged | " |
-| `j2_trade_attachments` | `user_id` | Direct | Not purged | Purged | " |
-| `j2_trade_excursions` | `user_id` | Direct | Not purged | Purged | " |
-| `j2_trade_adherence` | `user_id` | Direct | Not purged | Purged | " |
-| `j2_broker_users` | `user_id` (PK) | Direct | Purged (existing broker purge) | Purged (redundant-safe overlap) | " |
-| `j2_broker_accounts` | `user_id` | Direct | Purged (existing) | Purged (overlap) | " |
-| `j2_broker_activities` | `user_id` | Direct | Purged (existing) | Purged (overlap) | " |
-| `j2_broker_sync_log` | `user_id` | Direct | Purged (existing) | Purged (overlap) | " |
-| `j2_broker_dup_flags` | `user_id` | Direct | Purged (existing) | Purged (overlap) | " |
-| `j2_broker_equity_snapshots` | `user_id` | Direct | **Not purged** (missed by existing broker purge) | Purged | " |
-| `j2_broker_cash_flows` | `user_id` | Direct | **Not purged** | Purged | " |
-| `j2_broker_opt_holdings_memo` | `user_id` | Direct | **Not purged** | Purged | " |
-| `j2_broker_mirror_checks` | `user_id` | Direct | **Not purged** | Purged | " |
-| `j2_broker_drift_series` | `user_id` | Direct | **Not purged** | Purged | " |
-| `j2_broker_precise_times` | `user_id` | Direct | **Not purged** | Purged | " |
-| `j2_broker_live_checks` | `user_id` | Direct | **Not purged** | Purged | " |
-| `j2_broker_member_stale_notify` | `broker_account_id` → `j2_broker_accounts.user_id` | **Indirect** | **Not purged** | Purged (join delete) | " |
-| `j2_broker_digest_dedup` | none (global, `id='fleet_digest'`) | — | N/A | **Correctly not purged** — not member data | Manual schema read |
-| On-disk attachments (`attachment_root()/<user_id>/**`, both notes and trade screenshots, plus the legacy root fallback) | top-level directory name = `user_id` | Direct (per-user directory) | Not purged | Purged (`shutil.rmtree`) | Test matrix below |
+```sh
+python tools/account_deletion_manifest.py --write
+python tools/account_deletion_manifest.py --check
+```
 
-External-party data: SnapTrade's own revoke is unaffected by this change — it already runs via
-the existing broker purge, unchanged.
-| `j2_thesis_reviews` | `user_id` | Direct | n/a — new in Wave O | Purged | Test matrix below |
+`tests/test_account_deletion_manifest.py` parses this table, runs the real
+`purge_user_data` and reads the tables it reports deleting, and fails BY NAME on any
+difference in either direction. ⚰️ It replaced a hand-typed table that was 16 tables short at
+the wave-6 close and 20 short by wave 7 (wave 7 lane J, J4).
+
+<!-- BEGIN GENERATED: python tools/account_deletion_manifest.py --write (derived from api/services/journal_two/account_purge.py) -- never hand-edit -->
+
+**73 tables** (70 direct by `user_id`, 1 direct by another member key, 2 indirect).
+
+| Table | Owner key | Ownership | How the purge deletes it |
+|---|---|---|---|
+| `j2_option_legs` | `strategy_id` → `j2_option_strategies.user_id` | **Indirect** | join delete through `j2_option_strategies`, run before the direct deletes |
+| `j2_broker_member_stale_notify` | `broker_account_id` → `j2_broker_accounts.user_id` | **Indirect** | join delete through `j2_broker_accounts`, run before the direct deletes |
+| `j2_settings` | `user_id` | Direct | `DELETE FROM j2_settings WHERE user_id = ?` |
+| `j2_positions` | `user_id` | Direct | `DELETE FROM j2_positions WHERE user_id = ?` |
+| `j2_trades` | `user_id` | Direct | `DELETE FROM j2_trades WHERE user_id = ?` |
+| `j2_day_notes` | `user_id` | Direct | `DELETE FROM j2_day_notes WHERE user_id = ?` |
+| `j2_accounts` | `user_id` | Direct | `DELETE FROM j2_accounts WHERE user_id = ?` |
+| `j2_option_strategies` | `user_id` | Direct | `DELETE FROM j2_option_strategies WHERE user_id = ?` |
+| `j2_playbook_entries` | `user_id` | Direct | `DELETE FROM j2_playbook_entries WHERE user_id = ?` |
+| `j2_coach_outputs` | `user_id` | Direct | `DELETE FROM j2_coach_outputs WHERE user_id = ?` |
+| `j2_chat_messages` | `user_id` | Direct | `DELETE FROM j2_chat_messages WHERE user_id = ?` |
+| `j2_onboarding_responses` | `user_id` | Direct | `DELETE FROM j2_onboarding_responses WHERE user_id = ?` |
+| `j2_verdicts` | `user_id` | Direct | `DELETE FROM j2_verdicts WHERE user_id = ?` |
+| `j2_trade_reviews` | `user_id` | Direct | `DELETE FROM j2_trade_reviews WHERE user_id = ?` |
+| `j2_interventions` | `user_id` | Direct | `DELETE FROM j2_interventions WHERE user_id = ?` |
+| `j2_profile_suggestions` | `user_id` | Direct | `DELETE FROM j2_profile_suggestions WHERE user_id = ?` |
+| `j2_journal_rules` | `user_id` | Direct | `DELETE FROM j2_journal_rules WHERE user_id = ?` |
+| `j2_unified_coach_state` | `user_id` | Direct | `DELETE FROM j2_unified_coach_state WHERE user_id = ?` |
+| `j2_weekly_email_log` | `user_id` | Direct | `DELETE FROM j2_weekly_email_log WHERE user_id = ?` |
+| `j2_notes` | `user_id` | Direct | `DELETE FROM j2_notes WHERE user_id = ?` |
+| `j2_note_folders` | `user_id` | Direct | `DELETE FROM j2_note_folders WHERE user_id = ?` |
+| `j2_note_embeds` | `user_id` | Direct | `DELETE FROM j2_note_embeds WHERE user_id = ?` |
+| `j2_note_mentions` | `user_id` | Direct | `DELETE FROM j2_note_mentions WHERE user_id = ?` |
+| `j2_note_favorites` | `user_id` | Direct | `DELETE FROM j2_note_favorites WHERE user_id = ?` |
+| `j2_note_recents` | `user_id` | Direct | `DELETE FROM j2_note_recents WHERE user_id = ?` |
+| `j2_note_versions` | `user_id` | Direct | `DELETE FROM j2_note_versions WHERE user_id = ?` |
+| `j2_note_links` | `user_id` | Direct | `DELETE FROM j2_note_links WHERE user_id = ?` |
+| `j2_note_properties` | `user_id` | Direct | `DELETE FROM j2_note_properties WHERE user_id = ?` |
+| `j2_note_saved_views` | `user_id` | Direct | `DELETE FROM j2_note_saved_views WHERE user_id = ?` |
+| `j2_fact_observations` | `user_id` | Direct | `DELETE FROM j2_fact_observations WHERE user_id = ?` |
+| `j2_note_fact_refs` | `user_id` | Direct | `DELETE FROM j2_note_fact_refs WHERE user_id = ?` |
+| `j2_thesis_evidence` | `user_id` | Direct | `DELETE FROM j2_thesis_evidence WHERE user_id = ?` |
+| `j2_thesis_reviews` | `user_id` | Direct | `DELETE FROM j2_thesis_reviews WHERE user_id = ?` |
+| `j2_note_documents` | `user_id` | Direct | `DELETE FROM j2_note_documents WHERE user_id = ?` |
+| `j2_note_document_pages` | `user_id` | Direct | `DELETE FROM j2_note_document_pages WHERE user_id = ?` |
+| `j2_note_document_ocr_pages` | `user_id` | Direct | `DELETE FROM j2_note_document_ocr_pages WHERE user_id = ?` |
+| `j2_note_excerpts` | `user_id` | Direct | `DELETE FROM j2_note_excerpts WHERE user_id = ?` |
+| `j2_note_excerpt_refs` | `user_id` | Direct | `DELETE FROM j2_note_excerpt_refs WHERE user_id = ?` |
+| `j2_capture_inbox` | `user_id` | Direct | `DELETE FROM j2_capture_inbox WHERE user_id = ?` |
+| `j2_capture_tokens` | `user_id` | Direct | `DELETE FROM j2_capture_tokens WHERE user_id = ?` |
+| `j2_capture_auth_codes` | `user_id` | Direct | `DELETE FROM j2_capture_auth_codes WHERE user_id = ?` |
+| `j2_public_profiles` | `user_id` | Direct | `DELETE FROM j2_public_profiles WHERE user_id = ?` |
+| `j2_note_shares` | `user_id` | Direct | `DELETE FROM j2_note_shares WHERE user_id = ?` |
+| `j2_note_connectors` | `user_id` | Direct | `DELETE FROM j2_note_connectors WHERE user_id = ?` |
+| `j2_note_sources` | `user_id` | Direct | `DELETE FROM j2_note_sources WHERE user_id = ?` |
+| `j2_note_sync_log` | `user_id` | Direct | `DELETE FROM j2_note_sync_log WHERE user_id = ?` |
+| `j2_note_remote_index` | `user_id` | Direct | `DELETE FROM j2_note_remote_index WHERE user_id = ?` |
+| `j2_obsidian_devices` | `user_id` | Direct | `DELETE FROM j2_obsidian_devices WHERE user_id = ?` |
+| `j2_obsidian_staging` | `user_id` | Direct | `DELETE FROM j2_obsidian_staging WHERE user_id = ?` |
+| `j2_obsidian_manifest` | `user_id` | Direct | `DELETE FROM j2_obsidian_manifest WHERE user_id = ?` |
+| `j2_obsidian_connect_epoch` | `user_id` | Direct | `DELETE FROM j2_obsidian_connect_epoch WHERE user_id = ?` |
+| `j2_trade_attachments` | `user_id` | Direct | `DELETE FROM j2_trade_attachments WHERE user_id = ?` |
+| `j2_trade_excursions` | `user_id` | Direct | `DELETE FROM j2_trade_excursions WHERE user_id = ?` |
+| `j2_trade_adherence` | `user_id` | Direct | `DELETE FROM j2_trade_adherence WHERE user_id = ?` |
+| `j2_broker_users` | `user_id` | Direct | `DELETE FROM j2_broker_users WHERE user_id = ?` |
+| `j2_broker_accounts` | `user_id` | Direct | `DELETE FROM j2_broker_accounts WHERE user_id = ?` |
+| `j2_broker_equity_snapshots` | `user_id` | Direct | `DELETE FROM j2_broker_equity_snapshots WHERE user_id = ?` |
+| `j2_broker_activities` | `user_id` | Direct | `DELETE FROM j2_broker_activities WHERE user_id = ?` |
+| `j2_broker_sync_log` | `user_id` | Direct | `DELETE FROM j2_broker_sync_log WHERE user_id = ?` |
+| `j2_broker_dup_flags` | `user_id` | Direct | `DELETE FROM j2_broker_dup_flags WHERE user_id = ?` |
+| `j2_broker_cash_flows` | `user_id` | Direct | `DELETE FROM j2_broker_cash_flows WHERE user_id = ?` |
+| `j2_broker_opt_holdings_memo` | `user_id` | Direct | `DELETE FROM j2_broker_opt_holdings_memo WHERE user_id = ?` |
+| `j2_broker_mirror_checks` | `user_id` | Direct | `DELETE FROM j2_broker_mirror_checks WHERE user_id = ?` |
+| `j2_broker_drift_series` | `user_id` | Direct | `DELETE FROM j2_broker_drift_series WHERE user_id = ?` |
+| `j2_broker_precise_times` | `user_id` | Direct | `DELETE FROM j2_broker_precise_times WHERE user_id = ?` |
+| `j2_broker_live_checks` | `user_id` | Direct | `DELETE FROM j2_broker_live_checks WHERE user_id = ?` |
+| `j2_note_templates` | `user_id` | Direct | `DELETE FROM j2_note_templates WHERE user_id = ?` |
+| `j2_task_reminder_log` | `user_id` | Direct | `DELETE FROM j2_task_reminder_log WHERE user_id = ?` |
+| `j2_inbound_addresses` | `user_id` | Direct | `DELETE FROM j2_inbound_addresses WHERE user_id = ?` |
+| `j2_inbound_usage` | `user_id` | Direct | `DELETE FROM j2_inbound_usage WHERE user_id = ?` |
+| `j2_inbound_drops` | `user_id` | Direct | `DELETE FROM j2_inbound_drops WHERE user_id = ?` |
+| `j2_note_embeddings` | `user_id` | Direct | `DELETE FROM j2_note_embeddings WHERE user_id = ?` |
+| `daily_usage_counters` | `subject` (the member's id) | Direct | `DELETE FROM daily_usage_counters WHERE subject = ?` |
+
+<!-- END GENERATED -->
+
+### Removed without a table DELETE
+
+- The three full-text mirrors, each emptied by an `AFTER DELETE` trigger on a table the purge
+  deletes: `j2_notes_fts` / `j2_notes_fts_map` (on `j2_notes`), `j2_note_document_pages_fts` /
+  `_map` (on `j2_note_document_pages`), `j2_note_excerpts_fts` / `_map` (on `j2_note_excerpts`).
+  All three carry a `user_id` column; the rail reads the triggers from the schema and fails by
+  name on any `user_id` table `ensure_schema` creates that is neither purged nor trigger-emptied.
+- On-disk attachments — `attachment_root()/<user_id>/**` (notebook images and files AND trade
+  screenshots, which nest under the same per-user directory), plus the legacy root fallback:
+  one `shutil.rmtree` per root.
+- External-party data — SnapTrade's own revoke is unaffected; it runs via the existing broker
+  purge (`journal_two/broker/service.py::purge_on_account_deletion`), which this purge overlaps
+  on the 5 broker tables it covers and extends to the other 9.
+
+### Correctly NOT purged
+
+Each is excluded in `account_purge.py`'s own comments; the rail checks that the purge does not
+delete them and that the code names them.
+
+| Table | Why it stays |
+|---|---|
+| `j2_broker_digest_dedup` | one global row (`id='fleet_digest'`) for the owner's own fleet-check digest — not member data |
+| `j2_task_reminder_runs` | one row per ET `day` (`ran_at`, `members`, `delivered` counts) — counts only, no `user_id` |
+
+### History
+
+- 2026-09-05: the purge first shipped (`fix/account-deletion-notebook-purge`), covering the
+  Journal/Compass/Notebook/connector/broker families; ownership was determined by reading the
+  schema (`api/services/journal_two/db.py`) and the code that writes each table.
+- Wave O: `j2_thesis_reviews`. Wave 6: `j2_note_templates` (fix round 1, I3 —
+  `test_j2_note_templates_is_purged_on_account_deletion`) and `j2_task_reminder_log` (fix
+  round 4, R4-4 — `test_j2_task_reminder_log_is_purged_on_account_deletion`).
+- Wave 7: `j2_inbound_addresses` (lane G, G3) and `j2_inbound_usage` / `j2_inbound_drops`
+  (lane G fix round 1, I-1, `3de679697`); `j2_note_embeddings` (lane H, H3, `90f6f160f`).
+- Wave 7 whole-branch fix, ruling D-H10: `daily_usage_counters` (auth.db, ruling D-H5b's
+  durable daily caps), keyed by `subject` — the member's id for the per-member counts. The
+  shared dollar cap's row (subject `*`) is nobody's and stays; so does every other member's
+  row. Rail: `test_daily_usage_counters_member_rows_are_purged_and_the_global_row_is_not`.
 
 ## Verification method
 

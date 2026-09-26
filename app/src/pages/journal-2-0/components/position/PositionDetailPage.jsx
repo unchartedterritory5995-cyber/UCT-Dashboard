@@ -5,7 +5,7 @@
  * History. Every section is null-safe: a missing feed hides the section.
  * Short Interest is intentionally omitted (no data source).
  */
-import { useMemo, useState, lazy, Suspense } from 'react'
+import { useMemo, useState, Suspense } from 'react'
 import { Link, useNavigate, useParams } from 'react-router-dom'
 import useSWR from 'swr'
 import CompanyLogo from '../../../../components/CompanyLogo'
@@ -17,6 +17,7 @@ import useBrokerMarkPreference from '../../../../hooks/useBrokerMarkPreference'
 import useEarningsTable from '../../../../hooks/useEarningsTable'
 import useJ2Positions from '../../hooks/useJ2Positions'
 import useJ2Trades from '../../hooks/useJ2Trades'
+import lazyChunk from '../../lib/lazyChunk'
 import useJ2SelectedAccount from '../../hooks/useJ2SelectedAccount'
 import useJ2PositionsAttention from '../../hooks/useJ2PositionsAttention'
 import useAnimatedNumber from '../../../../hooks/useAnimatedNumber'
@@ -35,7 +36,7 @@ import styles from './PositionDetailPage.module.css'
 // The SAME chart the /charts workspace renders — identity row, session toggle,
 // market clock, timeframe bar, market-cap/earnings/UCT-rating meta, settings
 // gear and drawing tools. Lazy, so none of it lands in the eager entry chunk.
-const ChartPane = lazy(() => import('../../../../components/chart/pane/ChartPane'))
+const ChartPane = lazyChunk(() => import('../../../../components/chart/pane/ChartPane'))
 
 const fetcher = (url) =>
   fetch(url, { credentials: 'include' }).then((r) => (r.ok ? r.json() : null)).catch(() => null)

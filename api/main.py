@@ -75,8 +75,25 @@ from api.routers import avatar as avatar_router
 from api.routers import webhooks as webhooks_router
 from api.routers import alerts as alerts_router
 from api.routers import journal_two as journal_two_router
+# Wave 6 (controller wiring). notebook_insights MUST be mounted BEFORE
+# journal_two: it serves /api/j2/notes/tasks and /api/j2/notes/{id}/unlinked-mentions,
+# and journal_two's /api/j2/notes/{note_id} would otherwise answer "tasks" as a
+# note id. Pinned by tests/test_main_router_order.py.
+from api.routers import notebook_insights as notebook_insights_router
+from api.routers import client_errors as client_errors_router
+from api.routers import notebook_link_preview as notebook_link_preview_router
 from api.routers import hub_planned_trades as hub_planned_trades_router
 from api.routers import capture_auth as capture_auth_router
+# Wave 7 lane G (controller wiring): the member personal API and the inbound-email
+# door. Both DARK -- every route answers 404 until NOTEBOOK_PERSONAL_API_ENABLED /
+# NOTEBOOK_INBOUND_EMAIL_ENABLED is set, read per request.
+from api.routers import notebook_personal_api as notebook_personal_api_router
+from api.routers import notebook_inbound_email as notebook_inbound_email_router
+# Wave 7 lane H (controller wiring): editor writing help -- an SSE door on the
+# firm's LLM key, DARK until NOTEBOOK_WRITING_HELP_ENABLED is set (read per
+# request by the router's own dependency). Its stream path is exempted from
+# gzip in _is_gzip_exempt below, or no event ever reaches the editor.
+from api.routers import notebook_writing_help as notebook_writing_help_router
 from api.routers import community as community_router
 from api.routers import watchlists as watchlists_router
 from api.routers import ticker_tags as ticker_tags_router
@@ -8121,6 +8138,34 @@ async def lifespan(app: FastAPI):
                 print("[startup] j2 trash purge registered (03:20 ET daily)")
         except Exception as e:
             print(f"[startup] j2 trash purge registration failed (non-fatal): {e}")
+        # Wave 6 (controller wiring, lane F) — Notebook task reminders: one
+        # in-app bell per member per ET day for tasks due today/overdue. The
+        # registrar wires all three jobs itself (07:00 ET, a 09:00 ET second
+        # pass, and a one-shot boot catch-up); its kill switch
+        # NOTEBOOK_TASK_REMINDERS_ENABLED is read at every RUN, never here, so
+        # flipping it needs no restart. Never email, never Discord.
+        try:
+            from api.services.journal_two import note_tasks as _j2_note_tasks
+            if _j2_note_tasks.register_task_reminder_job(_scheduler):
+                print("[startup] notebook task reminders registered (07:00 + 09:00 ET, boot catch-up)")
+        except Exception as e:
+            print(f"[startup] notebook task reminders registration failed (non-fatal): {e}")
+        # Wave 7 (controller wiring, lane H) — Notebook semantic-search index
+        # sweep. DARK: run_sweep() answers {"skipped": "dark"} and touches nothing
+        # unless NOTEBOOK_SEMANTIC_SEARCH_ENABLED is set, read at every RUN, never
+        # here, so flipping it needs no restart. The job walks members
+        # oldest-indexed first and embeds at most MAX_EMBEDS_PER_SWEEP per run;
+        # max_instances=1 because two sweeps would race on the same members.
+        # Cadence ruling: every 15 minutes (2,000 embeds per run caps a fully
+        # armed pod at ~192k blocks/day). Rail: tests/test_notebook_semantic_sweep_registered.py.
+        try:
+            from api.services.journal_two import note_semantic as _j2_note_semantic
+            _scheduler.add_job(_j2_note_semantic.sweep_job, "interval", minutes=15,
+                               id="notebook_semantic_sweep", max_instances=1, coalesce=True,
+                               replace_existing=True)
+            print("[startup] notebook semantic sweep registered (every 15 min; dark unless NOTEBOOK_SEMANTIC_SEARCH_ENABLED)")
+        except Exception as e:
+            print(f"[startup] notebook semantic sweep registration failed (non-fatal): {e}")
     else:
         print("[startup] APScheduler skipped -- lock held by another uvicorn worker (multi-worker mode)")
 
@@ -8312,6 +8357,7 @@ def _is_gzip_exempt(path: str) -> bool:
         or path == "/api/ai-search/stream"               # AI Search token stream
         or path == "/api/j2/ask/stream"                  # unified Ask token stream
         or (path.startswith("/api/j2/notes/") and path.endswith("/ask/stream"))  # legacy Ask Current Note URL
+        or (path.startswith("/api/j2/notes/") and path.endswith("/writing-help/stream"))  # wave 7 editor writing help (SSE)
         # Compass chat SSE family (cancel/confirm/*_onboarding/stream all
         # return text/event-stream) and the curated flow tail. Both were
         # MISSING until the rail below started deriving SSE routes from the
@@ -8686,6 +8732,18 @@ app.include_router(support_status_router.router)
 app.include_router(avatar_router.router)
 app.include_router(webhooks_router.router)
 app.include_router(alerts_router.router)
+# Wave 6 (controller wiring) -- ORDER IS LOAD-BEARING: notebook_insights before
+# journal_two, or /api/j2/notes/tasks is answered as a note called "tasks"
+# (lane F's report; rail tests/test_main_router_order.py).
+app.include_router(notebook_insights_router.router)
+app.include_router(client_errors_router.router)
+app.include_router(notebook_link_preview_router.router)
+# Wave 7 lane H (controller wiring): /api/j2/notes/{note_id}/writing-help/stream.
+# Mounted beside the other pre-journal_two Notebook routers; no path here can
+# be shadowed by journal_two's /api/j2/notes/{note_id} (different depth), but
+# the family is kept together and the mount is railed by name
+# (tests/test_main_router_order.py).
+app.include_router(notebook_writing_help_router.router)
 app.include_router(journal_two_router.router)
 # Phase 2a — the joystick hub's planned-trades backend. No client writes to it
 # yet; the preview is navigation-only plus Voice.
@@ -8694,6 +8752,13 @@ app.include_router(hub_planned_trades_router.router)
 # surfaces. Separate path space from POST /api/j2/capture, so no route
 # shadows another; mounted beside it so the family reads as one.
 app.include_router(capture_auth_router.router)
+# Wave 7 lane G: /api/j2/personal (bearer tokens with the two notebook:notes:*
+# scopes, never the capture scopes -- tests/test_capture_auth_boundary.py pins
+# the reach) and /api/j2/inbound-email (HMAC is its credential; NO session or
+# bearer dependency by design). Outside /api/j2/notes/..., so mount order does
+# not matter (tests/test_main_router_order.py). Neither streams.
+app.include_router(notebook_personal_api_router.router)
+app.include_router(notebook_inbound_email_router.router)
 app.include_router(community_router.router)
 app.include_router(dashboard_signposts_router.router)
 app.include_router(market_calendar_router.router)  # public: NYSE full closures, derived from bars_fetch

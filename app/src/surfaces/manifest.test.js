@@ -156,7 +156,7 @@ describe('S1 CP1 — INERT: nothing mounts the manifest yet', () => {
       offenders.map((f) => path.relative(SRC, f)),
       'CP1 declares and does not mount — an importer means CP1 quietly became CP2',
     ).toEqual([]);
-  });
+  }, 60_000); // O(files) walk reading every file under src: 20.8 s under a loaded gate once the tree grew (~0.3 s alone).
 
   it('the comment-stripper can still see a real import (control)', () => {
     const real = "import { MANIFEST } from './surfaces/manifest.js';";

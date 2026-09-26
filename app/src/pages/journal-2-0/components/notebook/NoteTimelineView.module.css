@@ -1,0 +1,144 @@
+/* Wave 6 — the Timeline view: controls, a horizontally scrolling lane grid,
+   and the honest counts (outside the window, Unscheduled). */
+.wrap {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  min-width: 0;
+}
+.controls {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px;
+  font-size: 12px;
+  color: var(--text-muted);
+}
+.control {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+.control select {
+  padding: 2px 6px;
+  font-size: 12px;
+  color: var(--text);
+  background: transparent;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm, 6px);
+}
+.zoom,
+.nav {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+.zoomBtn,
+.navBtn,
+.chip {
+  padding: 2px 8px;
+  font-size: 12px;
+  color: var(--text);
+  background: transparent;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm, 6px);
+  cursor: pointer;
+}
+.zoomOn {
+  color: var(--ut-gold);
+  border-color: var(--ut-gold);
+}
+.windowLabel {
+  min-width: 110px;
+  text-align: center;
+  color: var(--text);
+  font-weight: 600;
+}
+.scroller {
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+}
+.grid {
+  border-collapse: collapse;
+  font-size: 12px;
+}
+.laneHead {
+  position: sticky;
+  left: 0;
+  z-index: 1;
+  padding: 4px 8px;
+  text-align: left;
+  white-space: nowrap;
+  color: var(--text);
+  background: var(--bg-surface);
+  border-bottom: 1px solid var(--border);
+}
+.colHead {
+  padding: 4px 6px;
+  font-weight: 500;
+  color: var(--text-muted);
+  white-space: nowrap;
+  border-bottom: 1px solid var(--border);
+}
+.cell {
+  min-width: 90px;
+  padding: 4px;
+  vertical-align: top;
+  border-left: 1px solid var(--border);
+  border-bottom: 1px solid var(--border);
+}
+.cell .chip {
+  display: block;
+  width: 100%;
+  margin-bottom: 3px;
+  overflow: hidden;
+  text-align: left;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.chip:hover,
+.zoomBtn:hover,
+.navBtn:hover {
+  border-color: var(--ut-gold);
+}
+.empty,
+.note {
+  margin: 0;
+  font-size: 12px;
+  color: var(--text-muted);
+}
+.unscheduled {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.unscheduledHead {
+  margin: 0;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text-muted);
+}
+.unscheduledList {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+.srOnly {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+}
+@media (max-width: 1024px) {
+  .zoomBtn,
+  .navBtn,
+  .chip,
+  .control select {
+    min-height: var(--tap-min);
+  }
+  .navBtn {
+    min-width: var(--tap-min);
+  }
+}

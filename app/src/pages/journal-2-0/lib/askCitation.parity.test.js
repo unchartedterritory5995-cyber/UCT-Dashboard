@@ -61,6 +61,18 @@ const schema = new Schema({
     askCitation: { group: 'inline', inline: true, atom: true, attrs: { n: { default: null } }, toDOM: () => ['span'] },
     inlineMath: { group: 'inline', inline: true, atom: true, attrs: { latex: { default: '' } }, toDOM: () => ['span'] },
     blockMath: { group: 'block', atom: true, attrs: { latex: { default: '' } }, toDOM: () => ['div'] },
+    // Wave 6 — copied from the generator with the rest.
+    image: { group: 'block', atom: true, attrs: { src: { default: null }, alt: { default: null }, align: { default: null } }, toDOM: () => ['img'] },
+    imageFigure: { group: 'block', content: 'image imageCaption', toDOM: () => ['figure', 0] },
+    imageCaption: { content: 'inline*', toDOM: () => ['figcaption', 0] },
+    columns: { group: 'block', content: 'column{2,3}', toDOM: () => ['div', 0] },
+    column: { content: 'block+', toDOM: () => ['div', 0] },
+    linkPreview: { group: 'block', atom: true, attrs: { url: { default: null }, title: { default: null }, description: { default: null }, domain: { default: null }, image: { default: null } }, toDOM: () => ['div'] },
+    webEmbed: { group: 'block', atom: true, attrs: { provider: { default: null }, ref: { default: null }, url: { default: null } }, toDOM: () => ['div'] },
+    dateMention: { group: 'inline', inline: true, atom: true, attrs: { date: { default: null } }, toDOM: () => ['span'] },
+    tableOfContents: { group: 'block', atom: true, toDOM: () => ['div'] },
+    taskList: { group: 'block', content: 'taskItem+', toDOM: () => ['ul', 0] },
+    taskItem: { content: 'paragraph block*', attrs: { checked: { default: false } }, toDOM: () => ['li', 0] },
   },
   marks: {
     bold: { toDOM: () => ['strong', 0] },

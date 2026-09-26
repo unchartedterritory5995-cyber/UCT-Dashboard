@@ -1,8 +1,8 @@
-import { useNavigate } from 'react-router-dom'
 import CollapsibleSection from '../CollapsibleSection'
 import UIcon from '../../../../components/ui/UIcon'
 import useNoteBacklinksList from '../../hooks/useNoteBacklinksList'
-import { notePath } from '../../../../hooks/useNoteBacklinks'
+import useNoteRelatedFrom from '../../hooks/useNoteRelatedFrom'
+import { useNoteNavigation } from '../../lib/splitView'
 import styles from './NoteBacklinksSection.module.css'
 
 /**
@@ -21,11 +21,42 @@ import styles from './NoteBacklinksSection.module.css'
  */
 export default function NoteBacklinksSection({ noteId }) {
   const { count, notes, isLoading, error } = useNoteBacklinksList(noteId)
-  const navigate = useNavigate()
-  if (isLoading || error || count === 0) return null
+  // Wave 6 (lane E): "Related from" — notes whose RELATION property holds this
+  // one. Its own list with its own rule, shown beside "Linked from" and held to
+  // the same "nothing while loading, on error, or at zero" discipline.
+  const related = useNoteRelatedFrom(noteId)
+  // Wave 6 item 7: a row opens its note in THIS pane when the page is split,
+  // beside on Ctrl/Cmd+click, and otherwise by the route it always used.
+  const go = useNoteNavigation()
+  const showLinked = !(isLoading || error || count === 0)
+  const showRelated = !(related.isLoading || related.error || related.count === 0)
+  if (!showLinked && !showRelated) return null
 
   return (
     <div className={styles.wrap} data-export-exclude>
+      {showRelated && (
+        <CollapsibleSection
+          id={`related-from-${noteId}`}
+          title={`Related from (${related.count})`}
+          defaultOpen={false}
+        >
+          <ul className={styles.list}>
+            {related.notes.map((n) => (
+              <li key={n.id}>
+                <button type="button" className={styles.row} onClick={(e) => go(n.id, e)}>
+                  <UIcon name="link" size={12} style={{ verticalAlign: '-2px', marginRight: 6, flexShrink: 0 }} />
+                  <span className={styles.rowMain}>
+                    <span className={styles.rowTitle}>{n.title}</span>
+                    {/* Which relation holds it — "Peers", "Supply chain"… */}
+                    <span className={styles.rowContext}>{(n.properties || []).join(' · ')}</span>
+                  </span>
+                </button>
+              </li>
+            ))}
+          </ul>
+        </CollapsibleSection>
+      )}
+      {showLinked && (
       <CollapsibleSection
         id={`backlinks-${noteId}`}
         title={`Linked from (${count})`}
@@ -37,7 +68,7 @@ export default function NoteBacklinksSection({ noteId }) {
               <button
                 type="button"
                 className={styles.row}
-                onClick={() => navigate(notePath(n.id))}
+                onClick={(e) => go(n.id, e)}
               >
                 <UIcon name="link" size={12} style={{ verticalAlign: '-2px', marginRight: 6, flexShrink: 0 }} />
                 <span className={styles.rowMain}>
@@ -55,6 +86,7 @@ export default function NoteBacklinksSection({ noteId }) {
           ))}
         </ul>
       </CollapsibleSection>
+      )}
     </div>
   )
 }

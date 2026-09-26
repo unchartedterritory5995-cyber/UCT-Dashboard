@@ -6,6 +6,13 @@
 import StarterKit from '@tiptap/starter-kit'
 import { TextStyle, FontFamily, FontSize } from '@tiptap/extension-text-style'
 import { ResizableImage } from './resizableImage'
+import { ImageFigure, ImageCaption } from './imageFigureNode'
+import { BlockHandle } from './blockHandle'
+import { Columns, Column, ColumnsGuard } from './columnsNode'
+import { LinkPreview, WebEmbed } from './webLinkNodes'
+import { LinkPasteOffer } from './linkPasteOffer'
+import { DateMention } from './dateMentionNode'
+import { TableOfContents } from './tableOfContentsNode'
 import Link from '@tiptap/extension-link'
 import { NotebookPlaceholder } from './notebookPlaceholder'
 import { Table, TableRow, TableHeader, TableCell } from '@tiptap/extension-table'
@@ -69,6 +76,27 @@ export function buildExtensions({ placeholder = 'Start writing… or type / for 
     TextColor,
     NotebookHighlight,
     ResizableImage.configure({ inline: false, allowBase64: false }),
+    // Wave 6: an image's caption (real text) and the figure holding both.
+    // Same "never remove" rule as WidgetEmbed below once notes hold captions;
+    // both are rows in the citation tables (imageCaption a textblock,
+    // imageFigure a container) and registered at schema 2.
+    ImageFigure, ImageCaption,
+    // Wave 6: two or three side-by-side columns (stacked at <=640px). Rows in
+    // the citation tables (containers), PASTE_CONTAINERS, schema 2. The guard
+    // refuses any transaction that would nest columns in a column.
+    Columns, Column, ColumnsGuard,
+    // Wave 6: a pasted link's preview card and an allowlisted embedded player
+    // (webLinkNodes.js). Block atoms with no text: rows in the citation
+    // tables' _LEAF_TYPES; schema 2. Same "never remove" rule as WidgetEmbed.
+    LinkPreview, WebEmbed,
+    // Wave 6: @today / @tomorrow / @next monday / @2026-10-02 -> an inline date
+    // (dateMentionNode.js). ⭐ Lane F's tasks service reads it as a task's due
+    // date: the name and the `date` attr are a contract. Citation leafText =
+    // the ISO date; schema 2. Same "never remove" rule as WidgetEmbed.
+    DateMention,
+    // Wave 6: /toc -- the note's headings, live, each a jump (tableOfContentsNode.js).
+    // A block leaf with no text (_LEAF_TYPES only); schema 2.
+    TableOfContents,
     Link.configure({
       openOnClick: false,
       autolink: true,
@@ -99,6 +127,11 @@ export function buildExtensions({ placeholder = 'Start writing… or type / for 
     // WidgetEmbed above once notes containing these exist.
     Callout,
     Toggle, ToggleSummary, ToggleContent,
+    // Wave 6: move a block -- the grip (drag on desktop, a visible grip with
+    // Move up / Move down on touch) and Alt+Shift+Up/Down. A drag it starts
+    // is prosemirror-view's own node drag, so every drop still reaches
+    // PasteContainers' handleDrop (blockHandle.js explains).
+    BlockHandle,
     // Wave B: find-in-note. Decorations only -- never touches doc content
     // (see noteFindExtension.js's own header for why that's structural, not
     // a convention).
@@ -135,6 +168,10 @@ export function buildExtensions({ placeholder = 'Start writing… or type / for 
     // placed by pasteContainers and never reaches the VS Code handler, whose
     // behaviour inside a title has never been measured. Moving it earlier in
     // this array reverses that order.
+    // Wave 6: a lone pasted link lands as a link and offers Link / Preview card
+    // / Embed (linkPasteOffer.js). Listed just BEFORE PasteContainers, so
+    // PasteContainers still sees every paste first and this one sees it next.
+    LinkPasteOffer,
     // Rail: pasteContainers.unit.test.js ("handles a paste after Link ...").
     PasteContainers,
   ]
@@ -157,7 +194,29 @@ export const ALLOWED_ATTACHMENT_MIMES = new Set([
  * the public URL. Used by the editor's drag-paste handler + the
  * toolbar "insert image" button.
  */
+// ⭐ Wave 7 fix round 1 (review M-10): an image the server would refuse by
+// TYPE or SIZE is refused here, before a byte is sent -- a phone's HEIC is
+// several megabytes shipped only to learn "Only PNG/JPG/GIF/WebP images
+// allowed". The same words and the same limits as the server
+// (notes.py `save_note_image_bytes`); `tests/test_inline_image_precheck_parity.py`
+// PARSES these two constants against `_ALLOWED_IMAGE_MIMES` / `_MAX_IMAGE_BYTES`,
+// so the two sides cannot drift. An EMPTY type (some pickers send none) is not
+// refused here: the server, which reads the bytes, decides.
+export const INLINE_IMAGE_MIMES = ['image/png', 'image/jpeg', 'image/gif', 'image/webp']
+export const INLINE_IMAGE_MAX_BYTES = 5 * 1024 * 1024
+
+function refuseBeforeUpload(file) {
+  let sentence = null
+  if (file?.type && !INLINE_IMAGE_MIMES.includes(file.type)) sentence = 'Only PNG/JPG/GIF/WebP images allowed'
+  else if (typeof file?.size === 'number' && file.size > INLINE_IMAGE_MAX_BYTES) sentence = 'Image must be < 5 MB'
+  if (!sentence) return
+  const err = new Error(sentence)
+  err.status = 400
+  throw err
+}
+
 export async function uploadInlineImage(noteId, file) {
+  refuseBeforeUpload(file)
   const fd = new FormData()
   fd.append('file', file)
   const res = await fetch(`/api/j2/notes/${noteId}/images`, {

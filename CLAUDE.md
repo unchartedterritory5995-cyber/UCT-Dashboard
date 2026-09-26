@@ -437,10 +437,30 @@ trades (`imported:true` flag + `coach_prompts.py` rule).
   idempotency guard against concurrent syncs of one account) · `recent_orders._last_poll`
   (SnapTrade's contractual ≤1 poll/5min/account) · `manual_refresh._last_trigger`
   (BILLED refresh calls) · `notifications._failure_pinged` + `_spike_pinged` (alert
-  dedup) · `partner_health._cache`. Durable equivalents exist where a repeat is
-  genuinely costly (`j2_broker_member_stale_notify` for member email,
-  `j2_broker_digest_dedup` for the owner digest) — extend that pattern rather than
-  adding new module dicts if the web pod ever goes multi-instance.
+  dedup) · `partner_health._cache` · `notebook_link_preview._inflight` / `_SEM` / `_cache`
+  (wave 6: the per-member link-preview cap and the preview slot valve — a second
+  instance doubles both) · the `api/limiter.py` Limiter's in-memory storage, which
+  since wave 7 also holds the personal-API per-token limit (scope
+  `notebook-personal-api`, key `personal-api:tok:<sha256 of the bearer>`, 30/minute
+  — a second process doubles a Shortcut's budget) · `note_ask._inflight` (the
+  concurrent Ask / writing-help stream slots, `NOTE_ASK_MAX_CONCURRENT`) ·
+  `note_semantic._embedding_now` + `_query_cache` (wave 7 ruling D-H6: the armed meaning
+  search's one-embed-in-flight-per-member valve and its query-vector cache — a second
+  process doubles the valve and keeps its own cache) · `note_semantic._paused_until` (wave 7
+  lane H fix round 1: after a provider failure the armed meaning search fails OPEN and skips
+  the vendor for 60 s — per process, so a second pod keeps calling a failing vendor for
+  its own 60 s, and a restart clears the pause) · the two document permit pools
+  `document_extraction._EXTRACTION_POOL` and `document_ocr._OCR_POOL` (wave 7 lane G: a
+  second process doubles how many extractions and OCR runs the box does at once).
+  ⚰️ `note_ask._writing_help_by_user` was listed here until the wave-7 whole-branch fix; ruling
+  D-H5b moved writing help's 60/day, Ask's per-member count, the shared LLM dollar cap and
+  the meaning search's daily embed count into ONE durable table, so none of them doubles or
+  resets any more. Durable equivalents exist where a repeat is genuinely costly
+  (`j2_broker_member_stale_notify` for member email, `j2_broker_digest_dedup` for the owner
+  digest, and since wave 7 `daily_usage_counters` in auth.db — `api/services/daily_counters.py`,
+  one row per scope, subject and ET day, failing OPEN when the counter cannot be read) —
+  extend that pattern rather than adding new module dicts if the web pod ever goes
+  multi-instance.
 
 ## Journal 2.0 — Table & Analytics polish (2026-06-24)
 
@@ -3613,36 +3633,89 @@ exactly as it did before K.
   rate, and `tools/window_check.py` now stamps that reading — reporting **absent**
   and **off** as different facts, because a pod predating K serves no keys at all.
 
-### 📓 Notebook 10/10 program — waves 5–6: wave 5 COMPLETE (awaiting the owner's PR), wave 6 in build, 2026-09-24
+### 📓 Notebook 10/10 program — waves 5–6 LIVE (#186 `2c3ed3093`, #193 `271a078b6`), wave 7 at its PR, waves 8–9 in build, 2026-09-26
 
 ⭐⭐ **READ `docs/notebook/wave5-6-RESUME-HERE.md` FIRST** — it is the checkpoint
 for this program and carries exact SHAs and the next actions in order. This
 section is a pointer, not a substitute for it. `docs/notebook/RESUME-PROMPT.md`
 is a paste-ready prompt covering the whole program.
 
-Two worktrees: `C:\Users\Patrick\uct-worktrees\notebook-k` (`feat/notebook-10`,
-wave 5, tip `34f3fb6d2`, pushed) and `C:\Users\Patrick\uct-worktrees\notebook-w6`
-(`feat/notebook-w6`, wave 6, carries all of wave 5's code via merge `07e1a74ae`;
-behind wave 5 only by four docs/evidence commits). Plan:
-`docs/notebook/NOTEBOOK-10-OF-10-PLAN.md`.
+⭐⭐ **Wave 7 has its own checkpoint: `docs/notebook/wave7-RESUME-HERE.md`** (branch
+`feat/notebook-w7`, worktree `C:\Users\Patrick\uct-worktrees\notebook-w7`). It carries
+capture and mobile (image OCR, docx documents, a personal API, iOS Shortcuts, email-in),
+writing help, meaning search and a Compass notes tool — every one of them DARK behind its
+own gate — plus lane I's performance budgets. Read it before touching that branch.
 
-✅ **Wave 5 is reviewed (incl. the B1 re-review), gated on its final tip
-(`8f963fefa`, 0 NEW) and walked live on that tip (`f8976a114`, all 19 checks).**
-The one open item is the OWNER opening the PR from `feat/notebook-10` — `gh` is
-unauthenticated on this box. ⛔ The three never-revert commits `8167f7aa0`,
-`fd87271fd`, `82c56dd63` and the rule for them are in `docs/notebook/wave5-rollback.md`.
+✅ **Wave 5 LIVE** (#186, master `2c3ed3093`, 2026-09-25 21:25 CT) and **wave 6 LIVE**
+(#193, master `271a078b6`, web SUCCESS 2026-09-26 01:18 CT, fresh boot, ancestor of
+`origin/production`, `hub_nav_smoke --auth` PASS, production browser check of the new
+view controls with 0 page errors). Wave 6's final tip is tagged
+`notebook-wave6-tip-2026-09-26` (`96051c043`; the older `-2026-09-25` tag predates the
+round-5 fixes). Wave 7 (`feat/notebook-w7`) carries both and master `271a078b6` by a
+tree-identical `-s ours` merge; wave 8 is `feat/notebook-w8` (worktree `notebook-w8`, its
+own `node_modules` since D-W4), wave 9's soak kit is `feat/notebook-w9c`. Landing order:
+wave 7 → the soak PR (9C) → wave 8. Plan: `docs/notebook/NOTEBOOK-10-OF-10-PLAN.md`.
 
-⛔ **`tools/notebook_wave5_walk.py` is the walk that produced the evidence** — its
-header names the three preconditions (a sandbox from the tip; a PAID walk account
-on that data dir, or every notebook route redirects; `app/dist` rebuilt). The walk
-failed three times on the INSTRUMENT before the product passed once; the lessons
-are in the resume doc §11.
+✅ **Merged and LIVE on production (2026-09-24):** #187 (the H14 metadata-settle
+hotfix, master `d4a1a13b6`) and #183 (Ask on phones / paste / citations / G-064
+insert dark, master `a3d9f5a1e`; production fast-forwarded past it to `74beea1d2`).
+⛔ The three never-revert commits `8167f7aa0`, `fd87271fd`, `82c56dd63` are tagged
+(`notebook-wave5-guard-*`) and the rule is `docs/notebook/wave5-rollback.md`.
+
+✅ **Wave 6** shipped lanes D, D3b, E and F (landing gate
+`docs/notebook/gate-runs/wave6-landing/2026-09-25T23-28-08.md`, walk
+`docs/notebook/gate-runs/wave6/walk-787a993f5.json` 17/18). Wave 6 adds eight schema level-2 node
+types (both `lib/notebookSchema.js` and `notebook_schema.py`) — **never-revert**,
+same rule as wave 5's.
+
+⛔ **A gate never shares a worktree with an implementer.** A six-shard gate checks
+UNCOMMITTED files at both ends, so an agent's first new test file voids it (measured
+2026-09-25, `TREE_DRIFT`). Gate a branch under active work from a separate worktree
+of the commit under test — and give that worktree a `notebook-*` BRANCH name
+(`git checkout -B notebook-w6-gate <sha>`), because `hub/rule12Paths.test.js` scopes
+the Notebook workstream out by branch-name family and a DETACHED checkout has no
+name: two phantom NEW rows, measured the same night. A `node_modules` junction to
+`notebook-k`'s install is enough; remove it with a NON-recursive delete only.
+
+⛔ **Never commit in a worktree where another agent is active — the INDEX is shared,
+not only the tree.** `git add <pathspec>` protects the working tree; `git commit` then
+commits EVERYTHING staged, including the other agent's `git add`. Measured 2026-09-25
+(`a9b4916e5`: a controller docs commit swept in an implementer's staged test file; content
+kept, attribution wrong, an empty provenance commit followed). Either wait for the agent to
+report, or commit with a pathspec on the COMMIT (`git commit -- <paths>`), which ignores
+other staged files. Read the hygiene line's staged-file COUNT before committing.
+
+⛔ **`tools/notebook_wave5_walk.py` / `notebook_wave6_walk.py` are the walks that
+produce the evidence** — their headers name the preconditions (a sandbox from the
+tip; a PAID walk account on that data dir, or every notebook route redirects;
+`app/dist` rebuilt). ⚠️ Pass the sandbox data dir from PowerShell or single-quoted:
+`C:\data-w6walk` through the Bash tool became a drive-relative `data-w6walk/` INSIDE
+the worktree (the launcher's guard held; `C:\data` read CLEAN at every checkpoint).
 
 ⛔⛔ **The SDD ledger for this program lives at
 `notebook-k/.superpowers/sdd/2026-09-23-notebook-10/` and is gitignored — local
 disk only, never pushed.** Do not delete that worktree without backing it up
 first; the full lane-by-lane history (`progress.md`) and the single open-items
 tracker (`OPEN-ITEMS.md`) exist nowhere else.
+
+📏 **Notebook performance budgets (wave 7, lane I) — `docs/notebook/perf-budgets.md` is the
+record; `docs/notebook/perf-budgets.json` is the budget file (edited BY HAND, never by a tool).**
+Bytes: the Notebook route's first-open static closure (`tools/notebook_perf_budgets.py --dist
+app/dist`, fail-closed on a missing manifest). Latency: the 50k local gate
+`python tools/notebook_scale_benchmark.py --tiers 50000 --thresholds docs/notebook/perf-budgets.json
+--budget search --budget reads --budget tasks` (seeds its own SQLite per tier under the census pins;
+an unmeasured op is a breach). Editor: `tools/notebook_perf_harness.py` (local Playwright over a
+sandbox boot; pass the data dir from PowerShell). `.github/workflows/notebook-budgets.yml` runs the
+1k/10k tiers + bytes and is **advisory** (`# promotion-gate: no`) — a shared runner's timing would
+flap a 100 ms line; the local 50k gate is the verdict. ⚰️ The workflow said its looser 10k line
+"cannot cry wolf"; measured, it does — 8 of 56 runs on `feat/notebook-w7` went red on
+`search_ci` alone, one of them on a commit that changed only comments while its parent passed
+(`46334dc85`, `q=common, relevance` 191.6 ms). A red there is runner noise until it reproduces.
+⛔ Budgets are never raised to fit a reading: typing is OVER its 16 ms/char line — lane H's
+quiet-box A/B medians 16.95 / 17.70 ms at 1,000 / 2,000 ¶ (n=4, the lane-H tip), and lane I's
+mid-wave loaded-box reading 17.6 / 22.4 at `658f364af`, which overstates the 2,000-¶ gap — and
+the file says so rather than moving the line. ⚠️ The measured 50k numbers were taken while a live
+trading session ran on the box (1.6–1.7× slower); re-read them on a quiet machine before citing.
 
 ### ✅ B7 / rule 12 — the rail now identifies WHOSE change set it is (CLOSED 2026-09-13)
 

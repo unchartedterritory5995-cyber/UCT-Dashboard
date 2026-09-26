@@ -1,0 +1,95 @@
+{
+  "_": "Notebook performance budgets, enforced by tools/notebook_perf_budgets.py (bytes from the Vite manifest; latency from a tools/notebook_scale_benchmark.py --json report). EDITED BY HAND, and only when a budget is raised or lowered ON PURPOSE: say why in docs/notebook/perf-budgets.md and in the commit. Never regenerate this file from a run -- a budget that follows the measurement is not a budget.",
+  "bytes": {
+    "notebook_first_open": {
+      "roots": [
+        "src/pages/journal-2-0/JournalLayout.jsx",
+        "src/pages/journal-2-0/surfaces/NotebookSurface.jsx"
+      ],
+      "baseline": 2153137,
+      "baseline_from": "Fix round 1, ruling D-I1 (vendor-echarts removed from manualChunks): measured with tools/notebook_perf_budgets.py --dist on a clean build of the tree of 0189bca13 plus that vite.config.js; docs/notebook/perf-budgets.md section 1, 'Decision D-I1'. The I3 baseline was 2,145,850 (section 4); +7,237 B came from the commits after I3, +50 B from D-I1 itself.",
+      "max": 2260793,
+      "max_rule": "floor(baseline * 1.05)"
+    }
+  },
+  "search": {
+    "tier": 50000,
+    "p95_ms_max": 100,
+    "why": "The brief's search budget: what a member waits for when the Notebook list answers a search, a filter or the switcher, at 50k notes. Local gate (the 50k seed is too slow for CI).",
+    "ops": [
+      "GET /notes default (list+count)",
+      "GET /notes q=common (list+count)",
+      "GET /notes q=rare (list+count)",
+      "GET /notes q=common, relevance (search box)",
+      "GET /notes q=rare, relevance (search box)",
+      "GET /notes tag=setups (list+count)",
+      "GET /notes embed_symbol (list+count)",
+      "switcher_search (word start)",
+      "switcher_search (fuzzy, in order)"
+    ]
+  },
+  "reads": {
+    "tier": 50000,
+    "p95_ms_max": 100,
+    "why": "Lane I's own budget, not the brief's: the whole-library reads the sidebar and ticker surfaces make on open, held to the same line as search.",
+    "ops": [
+      "GET /notes/tags (tags+tree)",
+      "folder_note_counts (whole library)",
+      "notes_for_folders (heavy + 2 others)",
+      "get_symbol_backlinks"
+    ]
+  },
+  "tasks": {
+    "tier": 50000,
+    "p95_ms_max": 150,
+    "why": "Lane I's own budget, not the brief's, and ABOVE the 100 ms search line on purpose: the tasks view parses every task-bearing note's body in Python (~3.8k notes, ~9 MB of JSON at 50k). The lever under it is a maintained task index, which is the every-writer aggregate the brief warned about; see perf-budgets.md section 2.",
+    "ops": [
+      "list_tasks (open, ?view=tasks)"
+    ]
+  },
+  "editor": {
+    "open_p95_ms_max": 300,
+    "open_up_to_paragraphs": 1000,
+    "typing_p95_ms_per_char_max": 16,
+    "typing_up_to_paragraphs": 2000,
+    "why": "The brief's editor budgets, measured in a real browser by tools/notebook_perf_harness.py (local only). The typing budget stops at 2,000 paragraphs: G-035's 71 ms/char at the size cap stands as the owner ruled."
+  },
+  "search_ci": {
+    "tier": 10000,
+    "p95_ms_max": 100,
+    "why": "CI runs the 1k and 10k tiers only. At 10k the same line is loose on purpose: it catches the gross regressions (the correlated sidecar EXISTS was 717 ms p95 at 10k). It is NOT immune to a shared runner's noise (8 of 56 runs red on feat/notebook-w7, all on q= ops), so a breach counts only when an immediate re-measure of the op reproduces it (the benchmark's --remeasure, tooling review I-3). The line is not raised.",
+    "ops": [
+      "GET /notes default (list+count)",
+      "GET /notes q=common (list+count)",
+      "GET /notes q=rare (list+count)",
+      "GET /notes q=rare, relevance (search box)",
+      "GET /notes tag=setups (list+count)",
+      "GET /notes embed_symbol (list+count)",
+      "switcher_search (word start)"
+    ],
+    "informational": [
+      "switcher_search (fuzzy, in order)",
+      "GET /notes q=common, relevance (search box)"
+    ],
+    "informational_why": "Review M-8, fix round 1: lane I did not touch the switcher, and its fuzzy search already read 90.5 ms p95 at 10k on this box (perf-budgets.md section 2), inside a shared runner's variance of the 100 ms line. Enforced there it would flap red and teach people to ignore the job. It is still measured and printed against 100 ms here, the line is NOT raised, and the local 50k `search` gate still enforces it. Ruling D-I3 (2026-09-25, after the tooling fix): the search box's common-term relevance request joins it. It is the one op that breached AND reproduced under the re-measure rule (run 36203106608: 239.1 ms, then 118.5 ms on the re-measure, on a test-and-comment commit), and it does NOT meet its line at the local 50k gate either (293.5 ms p95, recorded in perf-budgets.md). Enforced at 10k on a shared runner it keeps an advisory job red on a known miss plus noise, which teaches people to ignore the job. It is still measured and printed against 100 ms, the line is NOT raised, and the 50k gate still reports its miss."
+  },
+  "reads_ci": {
+    "tier": 10000,
+    "p95_ms_max": 100,
+    "why": "The reads budget at the CI tier.",
+    "ops": [
+      "GET /notes/tags (tags+tree)",
+      "folder_note_counts (whole library)",
+      "notes_for_folders (heavy + 2 others)",
+      "get_symbol_backlinks"
+    ]
+  },
+  "tasks_ci": {
+    "tier": 10000,
+    "p95_ms_max": 150,
+    "why": "The tasks budget at the CI tier.",
+    "ops": [
+      "list_tasks (open, ?view=tasks)"
+    ]
+  }
+}

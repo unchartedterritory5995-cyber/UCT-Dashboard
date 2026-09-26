@@ -50,6 +50,7 @@ from datetime import datetime, timedelta, timezone
 from typing import Any, Callable, NamedTuple
 
 from api.services.auth_db import get_connection
+from api.services.journal_two.permit_pool import PermitPool
 
 log = logging.getLogger(__name__)
 
@@ -137,6 +138,10 @@ def _max_concurrency() -> int:
 
 OCR_MAX_CONCURRENCY = _max_concurrency()
 _OCR_SEMAPHORE = threading.Semaphore(OCR_MAX_CONCURRENCY)
+# The OCR workers. Built FROM the semaphore (permit_pool.py): a worker thread
+# exists only while it holds a permit, so the semaphore above bounds both how
+# many pages are read at once and how many threads exist.
+_OCR_POOL = PermitPool("j2-doc-ocr", _OCR_SEMAPHORE)
 
 # ⚰️⚰️ WAVE P5, FOUND UNDER THE CONCURRENCY THE DIRECTIVE ASKED FOR.
 #
@@ -577,9 +582,12 @@ def ocr_document(document_id: str, adapter: OcrAdapter, *,
         doc = dict(doc)
         user_id = doc["user_id"]
 
+        kind = dx.document_source_kind(doc)
         targets = (page_numbers if page_numbers is not None
                    else pages_awaiting_ocr(conn, document_id))
-        if not targets:
+        # ⛔ A docx's text is native; nothing about it is OCR's. Planning never
+        # claims a docx page, so this only guards a caller naming pages by hand.
+        if not targets or kind == dx.SOURCE_KIND_DOCX:
             return {"ok": True, "pages_read": 0, "pages_failed": 0,
                     "status": refresh_document_status(conn, user_id, document_id)}
 
@@ -591,12 +599,28 @@ def ocr_document(document_id: str, adapter: OcrAdapter, *,
             return {"ok": False, "error": "source unreadable",
                     "status": refresh_document_status(conn, user_id, document_id)}
 
-        import io
-        reader = PdfReader(io.BytesIO(data))
+        # Wave 7 (G4): WHERE A PAGE'S IMAGE COMES FROM is the only thing that
+        # differs by kind. An image attachment is its own single page; a PDF
+        # page hands over its embedded image. Everything after this -- the
+        # claim, the adapter, the usability gate, the FTS-safe replace, the
+        # lock handling -- is the one loop below, for both.
+        if kind == dx.SOURCE_KIND_IMAGE:
+            total_pages = 1
+
+            def images_for(_n):
+                im = dx.load_image_for_ocr(data)
+                return [im] if im is not None else []
+        else:
+            import io
+            reader = PdfReader(io.BytesIO(data))
+            total_pages = len(reader.pages)
+
+            def images_for(n):
+                return page_images(reader.pages[n - 1])
         read = failed = 0
         locked_out = False
         for n in targets:
-            if n < 1 or n > len(reader.pages):
+            if n < 1 or n > total_pages:
                 _set_page_status(conn, document_id, n, OCR_FAILED,
                                  error_class="page_out_of_range", bump_attempts=True)
                 failed += 1
@@ -618,7 +642,7 @@ def ocr_document(document_id: str, adapter: OcrAdapter, *,
                 locked_out = True
                 break
             try:
-                images = page_images(reader.pages[n - 1])
+                images = images_for(n)
                 if not images:
                     raise ValueError("no page image")
                 parts = []
@@ -713,21 +737,44 @@ def plan_document(document_id: str, *, conn=None) -> dict[str, Any]:
         if doc is None:
             return {"ok": False, "error": "document not found"}
         doc = dict(doc)
+        kind = dx.document_source_kind(doc)
+        # Wave 7 (G4): a docx carries native text only -- nothing to classify
+        # and nothing for OCR to own. Its status is still refreshed from page
+        # truth so this stays the one planner every kind passes through.
+        if kind == dx.SOURCE_KIND_DOCX:
+            return {"ok": True, "classes": {}, "scanned_pages": [],
+                    "ocr_required": [], "ocr_available": ocr_available(),
+                    "status": refresh_document_status(conn, doc["user_id"], document_id)}
         data = dx._resolve_pdf_bytes(doc["user_id"], doc["note_id"],
                                      doc["attachment_url"])
         if data is None:
             return {"ok": False, "error": "source unreadable"}
-        import io
-        reader = PdfReader(io.BytesIO(data))
         classes = {}
         scanned = []
-        for i, page in enumerate(reader.pages, start=1):
-            if i > dx._MAX_PAGES:
-                break
-            k = classify_page(page)
-            classes[i] = k
-            if k == PAGE_SCANNED:
-                scanned.append(i)
+        if kind == dx.SOURCE_KIND_IMAGE:
+            # ⛔ AN IMAGE IS ONE SCANNED PAGE -- but only once extraction has
+            # stored that page. An image the extractor could not decode has NO
+            # page row; claiming page 1 for it would record a promise with
+            # nothing behind it and leave the document "pending" for a page
+            # that does not exist.
+            has_page = conn.execute(
+                "SELECT 1 FROM j2_note_document_pages"
+                " WHERE document_id = ? AND page_number = 1",
+                (document_id,)).fetchone()
+            if not has_page:
+                return {"ok": False, "error": "no page to read"}
+            classes[1] = PAGE_SCANNED
+            scanned.append(1)
+        else:
+            import io
+            reader = PdfReader(io.BytesIO(data))
+            for i, page in enumerate(reader.pages, start=1):
+                if i > dx._MAX_PAGES:
+                    break
+                k = classify_page(page)
+                classes[i] = k
+                if k == PAGE_SCANNED:
+                    scanned.append(i)
         # ⛔ CLASSIFY ALWAYS, CLAIM ONLY IF AN ENGINE EXISTS. The classes are
         # useful on their own (they are what tells a caller a page is a scan);
         # marking a page `required` is a PROMISE that something will read it.
@@ -852,18 +899,24 @@ def requeue_awaiting(adapter: "OcrAdapter", *, now: datetime | None = None,
     return {"requeued": len(requeued), "documents": requeued}
 
 
+def _run_ocr_job(document_id: str, adapter: OcrAdapter) -> None:
+    """One queued OCR job. Runs on an `_OCR_POOL` worker, which already holds
+    one of `_OCR_SEMAPHORE`'s permits -- it must not take the semaphore again."""
+    try:
+        ocr_document(document_id, adapter)
+    except Exception as e:  # noqa: BLE001 — a background job must not propagate
+        log.warning("[doc-ocr] background job crashed for %s: %s", document_id, e)
+
+
 def queue_ocr(document_id: str, adapter: OcrAdapter) -> None:
-    """Fire-and-forget, bounded by the same discipline extraction already uses:
-    a daemon thread behind a process-wide semaphore, so one large scan cannot
-    starve every other member's upload."""
-    def _run():
-        with _OCR_SEMAPHORE:
-            try:
-                ocr_document(document_id, adapter)
-            except Exception as e:  # noqa: BLE001 — a daemon thread must not propagate
-                log.warning("[doc-ocr] background job crashed for %s: %s",
-                            document_id, e)
-    threading.Thread(target=_run, daemon=True, name="j2-doc-ocr").start()
+    """Fire-and-forget, bounded by the same discipline extraction uses: the job
+    is queued on `_OCR_POOL`, whose worker threads exist only while they hold
+    one of `_OCR_SEMAPHORE`'s permits -- so one large scan cannot starve every
+    other member's upload, and a burst of scans cannot park a thread each.
+
+    ⚰️ Wave 7 fix round 1 (I-1): this started one daemon thread per document
+    that then waited on the semaphore, so the THREAD count had no bound."""
+    _OCR_POOL.submit(_run_ocr_job, document_id, adapter)
 
 
 # ── Wave P4 §11/§14/§40/§41 · the page transcript ───────────────────────────

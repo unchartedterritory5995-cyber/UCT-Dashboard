@@ -65,6 +65,21 @@ def test_the_name_comes_from_the_files_own_name_line():
     assert gating_map["flow-worker deploy coverage"] == "no"
 
 
+def test_the_notebook_budgets_workflow_is_ADVISORY_and_can_never_gate_promotion():
+    """Wave 7 whole-branch fix, tooling review M-5 (mutation B SURVIVED): flipping this
+    workflow's `# promotion-gate: no` to `yes` passed every rail, because the classification
+    rail above checks that a marker EXISTS, never its value. Its latency job times real reads
+    on a shared GitHub runner and was measured to flap (8 of 56 runs red on runner noise alone,
+    tooling review I-3). A job that flaps must NEVER gate production promotion: every false red
+    would hold `web` back, and people learn to wave reds through -- including the real
+    regression it exists to catch. Read through the tool's own reader, by the workflow's own
+    `name:` line, never a regex of this file's."""
+    gating_map, unclassified = pg.read_workflow_dir(REPO)
+    assert "notebook budgets" in gating_map, sorted(gating_map)      # non-vacuity, by name
+    assert gating_map["notebook budgets"] == "no"
+    assert "notebook-budgets.yml" not in unclassified
+
+
 # ── the decision ─────────────────────────────────────────────────────────────
 
 def test_an_empty_run_list_refuses():

@@ -56,6 +56,8 @@ export default function BulkActionBar({
   onSelectAll,
   onClear,
   trashView = false,
+  /** Wave 6: the Archived entry — its notes can be brought back, exported or trashed. */
+  archiveView = false,
   busy = false,
   selectedTags = [],
   /** The member's tag tree nodes (`{path, key, total}`), for suggestions. */
@@ -68,6 +70,8 @@ export default function BulkActionBar({
   onExport,
   onTrash,
   onRestore,
+  onArchive,
+  onUnarchive,
 }) {
   const { folders } = useJ2NoteFolders()
   const folderOptions = useMemo(() => folderPathOptions(folders), [folders])
@@ -124,6 +128,23 @@ export default function BulkActionBar({
             <UIcon name="refresh" size={14} gold={false} />
             Restore
           </button>
+        ) : archiveView ? (
+          <>
+            {/* Archive is not trash: bringing a note back puts it exactly where
+                it was, in its own folder. */}
+            <button type="button" className={styles.action} onClick={onUnarchive} disabled={busy}>
+              <UIcon name="library" size={14} gold={false} />
+              Unarchive
+            </button>
+            <button type="button" className={styles.action} onClick={onExport} disabled={busy}>
+              <UIcon name="download" size={14} gold={false} />
+              Export selected
+            </button>
+            <button type="button" className={`${styles.action} ${styles.danger}`} onClick={onTrash} disabled={busy}>
+              <UIcon name="trash" size={14} gold={false} />
+              Move to Trash
+            </button>
+          </>
         ) : (
           <>
             <span className={styles.moveGroup}>
@@ -180,6 +201,10 @@ export default function BulkActionBar({
                   Export that downloads the WHOLE notebook. */}
               Export selected
             </button>
+            <button type="button" className={styles.action} onClick={onArchive} disabled={busy}>
+              <UIcon name="library" size={14} gold={false} />
+              Archive
+            </button>
             <button type="button" className={`${styles.action} ${styles.danger}`} onClick={onTrash} disabled={busy}>
               <UIcon name="trash" size={14} gold={false} />
               Move to Trash
@@ -189,7 +214,7 @@ export default function BulkActionBar({
         {busy && <span className={styles.busy} role="status">Working…</span>}
       </div>
 
-      {!trashView && tagsOpen && (
+      {!trashView && !archiveView && tagsOpen && (
         <div id={tagPanelId} className={styles.tagPanel}>
           <form className={styles.tagForm} onSubmit={submitTag}>
             {/* Suggests the member's own tags, hierarchy first — "res" offers

@@ -100,7 +100,7 @@ describe('the Python walker describes the SAME schema the editor runs', () => {
     // reads as nothing at its defaults, so it is sampled with that attribute
     // set. Every other leaf is read at its defaults, as before. The empty case
     // is pinned on both sides by the `mathEmpty` fixture.
-    const SAMPLE_ATTRS = { inlineMath: { latex: 'x^2' }, blockMath: { latex: 'x^2' } }
+    const SAMPLE_ATTRS = { inlineMath: { latex: 'x^2' }, blockMath: { latex: 'x^2' }, dateMention: { date: '2026-10-02' } }
     for (const n of Object.keys(SAMPLE_ATTRS)) expect(schema.nodes[n], `${n} is in the app schema`).toBeTruthy()
     const reading = real.filter((t) => t.isLeaf && citationLeafText(t.create(SAMPLE_ATTRS[t.name])) !== '')
       .map((t) => t.name)

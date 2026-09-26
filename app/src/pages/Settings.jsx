@@ -17,6 +17,8 @@ import VoiceHallucinationsPanel from '../components/voice/VoiceHallucinationsPan
 import VoiceLearningPanel from '../components/voice/VoiceLearningPanel'
 import BrokerConnectionsCard from './journal-2-0/components/BrokerConnectionsCard'
 import BrowserCaptureCard from './journal-2-0/components/BrowserCaptureCard'
+import PersonalApiCard from './journal-2-0/components/PersonalApiCard'
+import InboundEmailCard from './journal-2-0/components/InboundEmailCard'
 import ConnectedAppsCard from './journal-2-0/components/connectors/ConnectedAppsCard'
 import IndicatorAlertManager from '../components/chart/IndicatorAlertManager'
 import FilingWatchesPanel from '../components/settings/FilingWatchesPanel'
@@ -2392,6 +2394,10 @@ export default function Settings() {
       card('broker', <BrokerConnectionsCard />),
       card('noteConnectors', <ConnectedAppsCard />),
       card('browserCapture', <BrowserCaptureCard />),
+      // Wave 7 lane G -- both render null while their gate is off
+      // (NOTEBOOK_PERSONAL_API_ENABLED / NOTEBOOK_INBOUND_EMAIL_ENABLED, dark).
+      card('personalApi', <PersonalApiCard />),
+      card('inboundEmail', <InboundEmailCard />),
     ],
     legal: [
       card('privacy', privacyCard),

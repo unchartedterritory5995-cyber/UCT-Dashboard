@@ -128,6 +128,201 @@ def test_uploading_a_non_pdf_attachment_creates_no_document_row(app, client):
     assert docs == []
 
 
+def _tiny_png() -> bytes:
+    import io as _io
+    from PIL import Image
+    buf = _io.BytesIO()
+    Image.new("RGB", (4, 4), (200, 30, 30)).save(buf, "PNG")
+    return buf.getvalue()
+
+
+def test_both_upload_routes_report_every_saved_attachment_to_the_seam(app, client, monkeypatch):
+    """Seam S1 (wave 7). The router never decides what becomes a document:
+    it hands EVERY saved attachment -- the /images route and the
+    /attachments route alike -- to document_extraction.on_attachment_saved
+    with the kind and the content type, AFTER the bytes are saved. Lane G
+    extends that one function (image OCR, docx text) behind its own gate.
+    If a route stops calling it, image and docx documents silently never
+    happen while every upload still answers 200 -- which is why this rail
+    spies on the seam rather than on any document row."""
+    from api.services.journal_two import document_extraction
+    calls = []
+
+    def _spy(user_id, note_id, att, content_type, *, kind):
+        calls.append((user_id, note_id, dict(att), content_type, kind))
+        return None
+
+    monkeypatch.setattr(document_extraction, "on_attachment_saved", _spy)
+    _login_as(app, "u1")
+    note_id = _create_note(client)
+
+    r_img = client.post(f"/api/j2/notes/{note_id}/images", files={"file": ("shot.png", _tiny_png(), "image/png")})
+    assert r_img.status_code == 200, r_img.text
+    r_file = client.post(f"/api/j2/notes/{note_id}/attachments", files={"file": ("notes.csv", b"a,b,c", "text/csv")})
+    assert r_file.status_code == 200, r_file.text
+
+    assert [(c[1], c[3], c[4]) for c in calls] == [
+        (note_id, "image/png", "image"),
+        (note_id, "text/csv", "file"),
+    ]
+    assert calls[0][0] == "u1"
+    # the seam receives the SAVED artifact (the dict the route answers with),
+    # never a pre-save guess -- its url is the join key back to the bytes
+    assert calls[0][2]["url"] == r_img.json()["url"]
+    assert calls[1][2]["url"] == r_file.json()["url"]
+
+
+def _upload(client, note_id, route):
+    if route == "images":
+        return client.post(f"/api/j2/notes/{note_id}/images",
+                           files={"file": ("shot.png", _tiny_png(), "image/png")})
+    return client.post(f"/api/j2/notes/{note_id}/attachments",
+                       files={"file": ("report.pdf", make_pdf(["Seam probe"]), "application/pdf")})
+
+
+@pytest.mark.parametrize("route", ["images", "attachments"])
+def test_a_seam_that_RAISES_never_makes_the_upload_look_broken(app, client, monkeypatch, caplog, route):
+    """Whole-branch review M-2. Seam S1's own promise -- "a failure here can
+    never make the upload look broken" (document_extraction.on_attachment_saved)
+    -- was kept only by email-in. Both editor upload routes called it
+    UNGUARDED: a busy auth.db during `create_document` answered 500 for an
+    image or file that was already saved, and the editor said it had not
+    uploaded. The upload answers with what was saved; the seam's failure is
+    one log line."""
+    import logging
+    import sqlite3
+    from api.services.journal_two import document_extraction
+
+    def seam_fails(*a, **k):
+        raise sqlite3.OperationalError("database is locked")
+
+    monkeypatch.setattr(document_extraction, "on_attachment_saved", seam_fails)
+    _login_as(app, "u1")
+    note_id = _create_note(client)
+    caplog.set_level(logging.WARNING)
+    r = _upload(client, note_id, route)
+    assert r.status_code == 200, r.text
+    assert r.json()["url"], "the saved attachment is what the upload answers with"
+    lines = [rec for rec in caplog.records if "document hand-off failed" in rec.getMessage()]
+    assert len(lines) == 1 and "OperationalError" in lines[0].getMessage()
+
+
+def test_the_seam_runs_OFF_the_event_loop_for_both_routes(app, client, monkeypatch):
+    """`create_document` is a sync SQLite write (a SELECT, an INSERT, a commit
+    with a 3 s busy timeout): on the ONE event loop it stalls every member for
+    as long as auth.db is busy. Inside a threadpool worker there is no running
+    loop, which is what the seam checks here."""
+    import asyncio
+    from api.services.journal_two import document_extraction
+    where = []
+
+    def spy(*a, **k):
+        try:
+            asyncio.get_running_loop()
+            where.append("event loop")
+        except RuntimeError:
+            where.append("worker thread")
+        return None
+
+    monkeypatch.setattr(document_extraction, "on_attachment_saved", spy)
+    _login_as(app, "u1")
+    note_id = _create_note(client)
+    for route in ("images", "attachments"):
+        assert _upload(client, note_id, route).status_code == 200
+    assert where == ["worker thread", "worker thread"]
+
+
+def test_the_seam_itself_still_makes_a_pdf_a_document_and_nothing_else(monkeypatch):
+    """The PDF behaviour lives INSIDE the seam now: a file kind with a PDF
+    content type creates the row and queues extraction; an image kind or a
+    non-PDF file returns None and touches nothing. (The router-level PDF
+    test above proves the route reaches this; this proves the decision.)"""
+    from api.services.journal_two import document_extraction
+    # Wave 7 G4: images and docx become documents only under their own gate;
+    # this rail pins the gate-OFF decision, so the gate is pinned off here.
+    monkeypatch.delenv(document_extraction.IMAGE_DOCX_GATE, raising=False)
+    created, queued = [], []
+    monkeypatch.setattr(document_extraction, "create_document",
+                        lambda uid, nid, url, name, **kw: created.append((uid, nid, url, name)) or {"id": "doc-1"})
+    monkeypatch.setattr(document_extraction, "queue_extraction", lambda doc_id: queued.append(doc_id))
+
+    out = document_extraction.on_attachment_saved(
+        "u1", "n1", {"url": "/x/report.pdf", "name": "report.pdf", "size": 3}, "application/pdf", kind="file")
+    assert out == {"id": "doc-1"}
+    assert created == [("u1", "n1", "/x/report.pdf", "report.pdf")]
+    assert queued == ["doc-1"]
+
+    assert document_extraction.on_attachment_saved(
+        "u1", "n1", {"url": "/x/a.png", "width": 4, "height": 4}, "image/png", kind="image") is None
+    assert document_extraction.on_attachment_saved(
+        "u1", "n1", {"url": "/x/notes.csv", "name": "notes.csv", "size": 5}, "text/csv", kind="file") is None
+    assert created == [("u1", "n1", "/x/report.pdf", "report.pdf")]
+    assert queued == ["doc-1"]
+
+
+_DOCX_MIME = "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+
+
+def _tiny_docx() -> bytes:
+    import io as _io
+    import zipfile as _zf
+    buf = _io.BytesIO()
+    with _zf.ZipFile(buf, "w") as z:
+        z.writestr("word/document.xml",
+                   '<w:document xmlns:w="http://schemas.openxmlformats.org/'
+                   'wordprocessingml/2006/main"><w:body><w:p><w:r><w:t>memo</w:t>'
+                   '</w:r></w:p></w:body></w:document>')
+    return buf.getvalue()
+
+
+def _upload_image_and_docx(client, note_id):
+    r_img = client.post(f"/api/j2/notes/{note_id}/images",
+                        files={"file": ("shot.png", _tiny_png(), "image/png")})
+    assert r_img.status_code == 200, r_img.text
+    r_doc = client.post(f"/api/j2/notes/{note_id}/attachments",
+                        files={"file": ("memo.docx", _tiny_docx(), _DOCX_MIME)})
+    assert r_doc.status_code == 200, r_doc.text
+    return r_img.json(), r_doc.json()
+
+
+def test_gate_off_an_image_or_docx_upload_creates_no_document_row(app, client, monkeypatch):
+    """Wave 7 G4, through the REAL upload routes: with
+    NOTEBOOK_IMAGE_DOCX_DOCUMENTS_ENABLED unset both uploads still answer 200
+    and the note carries no document -- exactly the pre-wave-7 behaviour."""
+    from api.services.journal_two import document_extraction
+    monkeypatch.delenv(document_extraction.IMAGE_DOCX_GATE, raising=False)
+    _login_as(app, "u1")
+    note_id = _create_note(client)
+    _upload_image_and_docx(client, note_id)
+    assert client.get(f"/api/j2/notes/{note_id}/documents").json()["documents"] == []
+
+
+def test_gate_on_an_image_and_a_docx_upload_each_create_a_document_row(app, client, monkeypatch):
+    """The same two uploads with the gate ON: one pending row each, keyed by
+    the saved URL, carrying its own source_kind. The list's `sourceKind`
+    stays "attachment" for both -- they ARE filesystem attachments, never web
+    captures -- which is the one server rule (`ask_evidence.document_source_kind`)
+    this lane deliberately did not widen."""
+    from api.services.auth_db import get_connection
+    from api.services.journal_two import document_extraction
+    monkeypatch.setenv(document_extraction.IMAGE_DOCX_GATE, "1")
+    _login_as(app, "u1")
+    note_id = _create_note(client)
+    img, doc = _upload_image_and_docx(client, note_id)
+    docs = client.get(f"/api/j2/notes/{note_id}/documents").json()["documents"]
+    assert sorted(d["attachmentUrl"] for d in docs) == sorted([img["url"], doc["url"]])
+    assert {d["status"] for d in docs} == {"pending"}
+    assert {d["sourceKind"] for d in docs} == {"attachment"}
+    c = get_connection()
+    try:
+        kinds = {r[0]: r[1] for r in c.execute(
+            "SELECT attachment_url, source_kind FROM j2_note_documents WHERE note_id = ?",
+            (note_id,)).fetchall()}
+    finally:
+        c.close()
+    assert kinds == {img["url"]: "attachment_image", doc["url"]: "attachment_docx"}
+
+
 def test_list_documents_on_a_note_with_none_is_an_empty_list_not_404(app, client):
     _login_as(app, "u1")
     note_id = _create_note(client)

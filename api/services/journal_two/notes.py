@@ -501,6 +501,99 @@ def _tag_prefilter(key: str) -> tuple[str, list[Any]]:
             [needle])
 
 
+def _symbol_note_ids_sql(user_id: str, symbols: list[str]) -> tuple[str, list[Any]]:
+    """`SELECT note_id ...` for the member's notes that carry a chart embed OR a
+    cashtag mention of any of `symbols`: the ONE answer to "which notes relate to
+    this symbol". The list filters (`ticker=`, `embed_symbol=`, the sector/theme
+    `symbol_in`) and `get_symbol_backlinks` all read this one set.
+
+    ⛔⛔ NON-CORRELATED, ON PURPOSE. This used to be two correlated
+    `EXISTS (... WHERE e.note_id = j2_notes.id AND e.user_id = j2_notes.user_id
+    AND e.symbol = ?)`. With no ANALYZE statistics (production runs none), the
+    planner answered each EXISTS from `idx_j2_note_embeds_user_sym`
+    `(user_id, symbol)` because it has two equality columns. That index holds
+    EVERY embed of the symbol, so the check scanned all of them once PER NOTE.
+    Measured at `acf1eb51e` (tools/notebook_scale_benchmark.py): `GET /notes?
+    embed_symbol=` list+count took 717 ms p95 at 10k notes and ~14.8 s at 50k.
+    As an `IN (subquery)` it is computed ONCE into an ephemeral index and each
+    note is one probe."""
+    marks = ",".join("?" * len(symbols))
+    return (f"SELECT note_id FROM j2_note_embeds WHERE user_id = ? AND symbol IN ({marks})"
+            f" UNION SELECT note_id FROM j2_note_mentions WHERE user_id = ? AND symbol IN ({marks})",
+            [user_id, *symbols, user_id, *symbols])
+
+
+class _RowidSets:
+    """One request's rowid sets, each computed ONCE and handed to every query of
+    that request as a bound JSON array (wave 7, lane I).
+
+    `GET /notes` asks two questions over one filter set -- the page and its true
+    total -- and each used to recompute the expensive part of the filter (the
+    search's FTS + tag + ticker match, the tag filter's per-tag match) from
+    scratch. Measured at 50k notes on a common search term: the match is ~42 ms
+    and was paid twice. With this memo the page and the total read the SAME set,
+    which also means they cannot disagree about which notes matched.
+
+    ⛔ Only for queries on ONE connection within one request: the set is a
+    snapshot of the moment it was computed. Keyed by the exact SQL and params, so
+    two different sets can never be confused."""
+
+    def __init__(self, conn: sqlite3.Connection):
+        self._conn = conn
+        self._memo: dict[tuple, str] = {}
+        self.computed = 0          # how many sets were actually run (rails read this)
+
+    def clause(self, set_sql: str, set_params: list[Any]) -> tuple[str, list[Any]]:
+        key = (set_sql, tuple(set_params))
+        js = self._memo.get(key)
+        if js is None:
+            js = json.dumps([r[0] for r in self._conn.execute(set_sql, set_params)])
+            self._memo[key] = js
+            self.computed += 1
+        return "j2_notes.rowid IN (SELECT value FROM json_each(?))", [js]
+
+
+def _rowid_in(shared: _RowidSets | None, set_sql: str, set_params: list[Any]) -> tuple[str, list[Any]]:
+    """`j2_notes.rowid IN <set>`: inline as a subquery, or -- inside a request
+    that shares its sets -- the set computed once (`_RowidSets`). ⛔ The SAME
+    `set_sql` either way, so the shared form cannot drift from the inline one."""
+    if shared is None:
+        return f"j2_notes.rowid IN ({set_sql})", list(set_params)
+    return shared.clause(set_sql, set_params)
+
+
+def _tag_clause(user_id: str, key: str, shared: _RowidSets | None = None) -> tuple[str, list[Any]]:
+    """The note-carries-this-tag-or-one-below-it predicate, for a NON-EMPTY
+    `tag_key`: the cheap prefilter, then the exact per-tag match. ⛔ ONE copy,
+    used by the list/count predicate (`_notes_filter_sql`) and by the tag
+    rename's roster (`tag_member_notes`) — a rename that found its notes by a
+    different rule than the filter shows them would miss some, or touch others.
+
+    Wave 7 (lane I): phrased as a ROWID SET (`_tag_rowid_set_sql`), not a
+    per-row test. See there for why."""
+    set_sql, set_params = _tag_rowid_set_sql(user_id, key, "j2_tag_match")
+    return _rowid_in(shared, set_sql, set_params)
+
+
+def _tag_rowid_set_sql(user_id: str, key: str, match_fn: str) -> tuple[str, list[Any]]:
+    """`SELECT rowid ...` of the member's notes (any status: the caller's own
+    WHERE decides live / trash / archive) whose tags satisfy `match_fn(tag, key)`
+    -- `j2_tag_match` (the tag or one below it) or `j2_tag_is` (exactly it).
+
+    ⛔⛔ A SET, NOT A PER-ROW TEST. As a correlated predicate the match read the
+    `tags` column of every candidate note, and `tags` sits after the ~2 KB body,
+    on an overflow page. As a set it is computed ONCE, from
+    `idx_j2_notes_live_cover` alone (db.py), and the outer query tests only
+    `rowid`, which every index carries. Measured at acf1eb51e, 50k notes: the
+    `q=` list for a term matching one note took 176 ms p95, walking every note's
+    overflow chain to test its tags (docs/notebook/perf-budgets.md §2)."""
+    pre_sql, pre_params = _tag_prefilter(key)
+    return (f"SELECT rowid FROM j2_notes WHERE user_id = ? AND {pre_sql}"
+            " AND EXISTS (SELECT 1 FROM json_each(COALESCE(j2_notes.tags, '[]')) jt"
+            f" WHERE {match_fn}(jt.value, ?))",
+            [user_id, *pre_params, key])
+
+
 def _validate_tags(raw: Any) -> list[str]:
     if raw is None:
         return []
@@ -524,6 +617,55 @@ def _validate_tags(raw: Any) -> list[str]:
         seen.add(key)
         out.append(t2)
     return out
+
+
+def patched_tag_list(existing: Any, add: list[str], remove: list[str]) -> list[str] | None:
+    """Wave 6 (lane E) — a tag DELTA applied to a STORED list (`PATCH
+    /notes/{id}/tags`): drop every tag whose identity (`tag_key`) is in
+    `remove` — exactly that tag, a parent's children stay — then append each
+    `add` the list does not already hold. → the new list, or None when nothing
+    would change (so an idempotent request moves no revision). Pure: no SQL;
+    the length and cap checks stay `_validate_tags`' (update_note runs it)."""
+    before = list(existing or [])
+    gone = {tag_key(t) for t in remove}
+    out = [t for t in before if tag_key(t) not in gone]
+    have = {tag_key(t) for t in out}
+    for t in add:
+        k = tag_key(t)
+        if k and k not in have:
+            out.append(t)
+            have.add(k)
+    return None if out == before else out
+
+
+def renamed_tag_list(existing: Any, from_tag: str, to_tag: str) -> list[str] | None:
+    """Wave 6 (lane E, item 8) — rename `from_tag`, AND every tag below it, to
+    `to_tag` in one note's list: `a` -> `x` makes `a/b` -> `x/b` (a tag is the
+    parent of its `tag/…` children, as the tree and the `tag=` filter read it).
+    Matched by identity (`tag_key`), whole levels only ("researcher" is not
+    below "research"); a child keeps its OWN spelling below the renamed part.
+    Two tags that become one are one (the first kept). → the new list, or None
+    when nothing changes. Pure; a renamed child that outgrows the tag length is
+    refused by `_validate_tags` when update_note writes it."""
+    before = list(existing or [])
+    fk = tag_key(from_tag)
+    depth = len(fk.split("/"))
+    out: list[str] = []
+    seen: set[str] = set()
+    for t in before:
+        k = tag_key(t)
+        if k == fk:
+            t2 = to_tag
+        elif k.startswith(fk + "/"):
+            t2 = "/".join([to_tag, *_normalize_tag_path(str(t)).split("/")[depth:]])
+        else:
+            t2 = t
+        k2 = tag_key(t2)
+        if k2 in seen:
+            continue
+        seen.add(k2)
+        out.append(t2)
+    return None if out == before else out
 
 
 def _validate_body_json(raw: Any) -> dict[str, Any]:
@@ -918,6 +1060,18 @@ def _row_to_note(row: sqlite3.Row) -> dict[str, Any]:
         # normal `get_note` never returns a deleted row at all, so this key
         # is `None` on every other read.
         "deletedAt": row["deleted_at"] if "deleted_at" in row.keys() else None,
+        # Wave 6 archive: ISO time the note was archived, None while it is in
+        # the library. Archive is not trash — an archived note still opens.
+        "archivedAt": row["archived_at"] if "archived_at" in row.keys() else None,
+        # Wave 6 lock: only an explicit lock is a lock (a row from before the
+        # column existed reads unlocked). The EDITOR enforces it for the
+        # member's own writes; the server-side append doors refuse a locked
+        # note with 423 (ruling D-G1(d), `note_personal_api.append_nodes`) --
+        # see the column in db.py.
+        "locked": bool(row["locked"]) if "locked" in row.keys() else False,
+        # Wave 6 daily note: the ET day this note is the member's daily note
+        # for, or None. Set only at creation (note_daily.open_daily_note).
+        "dailyDate": row["daily_date"] if "daily_date" in row.keys() else None,
         # Wave E: user-set property VALUES only, keyed by property_id --
         # parsed (matching bodyJson/tags' own convention) but NOT resolved
         # into display form (names/labels/derived values) here; that
@@ -940,7 +1094,7 @@ _NOTE_SUMMARY_COLS = (
     "id, user_id, account_id, folder_id, title, subtitle, "
     f"substr(coalesce(body_plain, ''), 1, {_LIST_PLAIN_CHARS}) AS body_plain, "
     "hero_image_url, first_image_url, ticker, tags, created_at, updated_at, deleted_at, "
-    "properties_json"
+    "properties_json, archived_at, locked"
 )
 
 
@@ -968,6 +1122,10 @@ def _row_to_note_summary(row: sqlite3.Row) -> dict[str, Any]:
         # Wave 0 trash: present only in a trash-view list (`deleted=True`);
         # `None` on every normal (active-notes) list row.
         "deletedAt": row["deleted_at"] if "deleted_at" in row.keys() else None,
+        # Wave 6 archive: set only on a row listed under the Archived entry.
+        "archivedAt": row["archived_at"] if "archived_at" in row.keys() else None,
+        # Wave 6: the card/row lock glyph reads this.
+        "locked": bool(row["locked"]) if "locked" in row.keys() else False,
         # Wave E: user-set values only (parsed) -- the list card's compact
         # property-chip row reads directly off this; NOT the full resolved
         # (name/label/derived) form, which is a per-note-editor concern.
@@ -1018,6 +1176,7 @@ def _notes_filter_sql(
     date_from: str | None = None,
     date_to: str | None = None,
     symbol_in: list[str] | None = None,
+    shared: _RowidSets | None = None,
 ) -> tuple[str, list[Any]]:
     """The WHERE clause (starting at ``WHERE user_id = ?``) + its bound params
     for "which notes match this filter set". `list_notes` and `count_notes`
@@ -1050,6 +1209,18 @@ def _notes_filter_sql(
     silently ignored."""
     sql = " WHERE user_id = ? AND deleted_at IS " + ("NOT NULL" if deleted else "NULL")
     params: list[Any] = [user_id]
+    # Wave 6 archive. `folder_id="__archived__"` is the sidebar's Archived entry
+    # (a sentinel, exactly like `__unfiled__` below and the client's own
+    # `__trash__`): archived notes only, from every folder. Every OTHER ordinary
+    # question leaves archived notes out. The trash is the one exception: a
+    # trashed note is listed there whether or not it was archived first, because
+    # the trash answers "what can I restore", and that note can be restored.
+    # ⛔ One predicate for the list AND its count, like every clause here.
+    archived_view = folder_id == "__archived__"
+    if archived_view:
+        folder_id = None
+    if not deleted:
+        sql += " AND archived_at IS " + ("NOT NULL" if archived_view else "NULL")
     if folder_id == "__unfiled__":
         sql += " AND folder_id IS NULL"
     elif folder_id:
@@ -1068,14 +1239,9 @@ def _notes_filter_sql(
         # membership question, the exact defect shape this file's own
         # docstring above warns about.
         t = ticker.strip().upper()
-        sql += (" AND (ticker = ?"
-                " OR EXISTS (SELECT 1 FROM j2_note_embeds e"
-                " WHERE e.note_id = j2_notes.id AND e.user_id = j2_notes.user_id"
-                " AND e.symbol = ?)"
-                " OR EXISTS (SELECT 1 FROM j2_note_mentions m"
-                " WHERE m.note_id = j2_notes.id AND m.user_id = j2_notes.user_id"
-                " AND m.symbol = ?))")
-        params.extend([t, t, t])
+        ids_sql, ids_params = _symbol_note_ids_sql(user_id, [t])
+        sql += f" AND (ticker = ? OR id IN ({ids_sql}))"
+        params.extend([t, *ids_params])
     # "Every entry where I traded/mentioned AMD" — the name `embed_symbol`
     # predates P0-3 (Wave 1 Slice 2) and is kept for every existing caller's
     # sake, but it now answers from BOTH sidecars: accepted chart embeds
@@ -1085,19 +1251,15 @@ def _notes_filter_sql(
     # (test_backlinks_and_the_list_filter_agree) — same membership question,
     # asked two different ways for two different callers' query shapes.
     if embed_symbol:
-        sql += (" AND (EXISTS (SELECT 1 FROM j2_note_embeds e"
-                " WHERE e.note_id = j2_notes.id AND e.user_id = j2_notes.user_id"
-                " AND e.symbol = ?)"
-                " OR EXISTS (SELECT 1 FROM j2_note_mentions m"
-                " WHERE m.note_id = j2_notes.id AND m.user_id = j2_notes.user_id"
-                " AND m.symbol = ?))")
-        params.append(embed_symbol.strip().upper())
-        params.append(embed_symbol.strip().upper())
+        ids_sql, ids_params = _symbol_note_ids_sql(user_id, [embed_symbol.strip().upper()])
+        sql += f" AND id IN ({ids_sql})"
+        params.extend(ids_params)
     if embed_widget:
-        sql += (" AND EXISTS (SELECT 1 FROM j2_note_embeds e"
-                " WHERE e.note_id = j2_notes.id AND e.user_id = j2_notes.user_id"
-                " AND e.widget_id = ?)")
-        params.append(embed_widget.strip())
+        # Same non-correlated shape as the symbol set above (and for the same
+        # reason: `idx_j2_note_embeds_user_widget` made the correlated EXISTS
+        # scan every embed of that widget once PER NOTE).
+        sql += " AND id IN (SELECT note_id FROM j2_note_embeds WHERE user_id = ? AND widget_id = ?)"
+        params.extend([user_id, embed_widget.strip()])
     if date_from:
         sql += " AND created_at >= ?"
         params.append(date_from)
@@ -1111,15 +1273,9 @@ def _notes_filter_sql(
         # clause -- `IN ()` matches nothing, an honest empty result rather
         # than silently skipping the filter.
         if symbol_in:
-            placeholders = ",".join("?" * len(symbol_in))
-            sql += (f" AND (EXISTS (SELECT 1 FROM j2_note_embeds e"
-                    f" WHERE e.note_id = j2_notes.id AND e.user_id = j2_notes.user_id"
-                    f" AND e.symbol IN ({placeholders}))"
-                    f" OR EXISTS (SELECT 1 FROM j2_note_mentions m"
-                    f" WHERE m.note_id = j2_notes.id AND m.user_id = j2_notes.user_id"
-                    f" AND m.symbol IN ({placeholders})))")
-            params.extend(symbol_in)
-            params.extend(symbol_in)
+            ids_sql, ids_params = _symbol_note_ids_sql(user_id, list(symbol_in))
+            sql += f" AND id IN ({ids_sql})"
+            params.extend(ids_params)
         else:
             sql += " AND 0"
     if tag:
@@ -1135,11 +1291,9 @@ def _notes_filter_sql(
         # callers run it on a connection from `register_note_sql_functions`.
         key = tag_key(tag)
         if key:
-            pre_sql, pre_params = _tag_prefilter(key)
-            sql += (f" AND {pre_sql} AND EXISTS (SELECT 1 FROM"
-                    " json_each(COALESCE(j2_notes.tags, '[]')) jt"
-                    " WHERE j2_tag_match(jt.value, ?))")
-            params.extend([*pre_params, key])
+            tag_sql, tag_params = _tag_clause(user_id, key, shared)
+            sql += f" AND {tag_sql}"
+            params.extend(tag_params)
         else:
             # A tag that normalises to nothing names no tag: an honest empty
             # result, never a silently ignored filter.
@@ -1167,15 +1321,14 @@ def _notes_filter_sql(
         # The search box finds a note whose tag IS the text typed -- the same
         # `tag_key` identity the `tag=` filter uses (never its children: a
         # search for "research" is not a request for the whole subtree).
+        # ⛔ Wave 7 (lane I): every branch of the `q` match below is a ROWID SET,
+        # computed once, never a per-row test -- the tag and ticker columns sit
+        # after the body, on an overflow page (see `_tag_rowid_set_sql`).
         q_key = tag_key(q)
         if q_key:
-            q_pre_sql, q_pre_params = _tag_prefilter(q_key)
-            tag_sql = (f"({q_pre_sql} AND EXISTS (SELECT 1 FROM"
-                       " json_each(COALESCE(j2_notes.tags, '[]')) jt"
-                       " WHERE j2_tag_is(jt.value, ?)))")
-            tag_params: list[Any] = [*q_pre_params, q_key]
+            tag_set_sql, tag_params = _tag_rowid_set_sql(user_id, q_key, "j2_tag_is")
         else:
-            tag_sql, tag_params = "0", []
+            tag_set_sql, tag_params = None, []
         # Wave 4 Slice 4 fix: a leading `$` (the natural way to type a
         # cashtag) used to survive into this comparison unstripped, so
         # "$NVDA" never matched a note whose only NVDA signal was the
@@ -1185,15 +1338,41 @@ def _notes_filter_sql(
         # word/non-word split) so an internal hyphen (BRK-B) is untouched.
         exact_ticker = re.sub(r"^[^\w]+", "", q.strip()).upper()
         expr = fts_match_expr(q)
+        ticker_set_sql = "SELECT rowid FROM j2_notes WHERE user_id = ? AND ticker = ?"
         if expr:
-            sql += (" AND (id IN (SELECT note_id FROM j2_notes_fts"
-                    " WHERE j2_notes_fts MATCH ? AND user_id = ?)"
-                    f" OR {tag_sql} OR ticker = ?)")
-            params.extend([expr, user_id, *tag_params, exact_ticker])
+            # The FTS match maps to note ids through `j2_notes_fts_map` (indexed
+            # both ways), never by reading `note_id` back out of each match's
+            # FTS content row -- that read, not the MATCH, was the cost of a
+            # dense term (~40 ms of ~46 ms for 15k hits at 50k notes).
+            # No user filter inside the FTS part: the FTS index is one table for
+            # every member, so the set can hold another member's rowids, and the
+            # outer query's own `user_id = ?` drops them. Mapping by primary key
+            # is ~27 ms for 15k hits; filtering by user here forced a scan of the
+            # member's whole index instead (~44 ms).
+            # ONE set, the union of the three ways a search matches (text, the tag
+            # it names, the ticker it names) -- so a request that asks for the page
+            # AND its total can compute it once (`_RowidSets`).
+            q_set_sql = ("SELECT n.rowid FROM j2_notes n WHERE"
+                         " n.id IN (SELECT m.note_id FROM j2_notes_fts_map m WHERE m.fts_rowid IN"
+                         " (SELECT rowid FROM j2_notes_fts WHERE j2_notes_fts MATCH ?))")
+            q_set_params: list[Any] = [expr]
+            if tag_set_sql:
+                q_set_sql += f" UNION ALL {tag_set_sql}"
+                q_set_params.extend(tag_params)
+            q_set_sql += f" UNION ALL {ticker_set_sql}"
+            q_set_params.extend([user_id, exact_ticker])
+            q_clause, q_params = _rowid_in(shared, q_set_sql, q_set_params)
+            sql += f" AND {q_clause}"
+            params.extend(q_params)
         else:
-            sql += f" AND (lower(title) LIKE ? OR lower(body_plain) LIKE ? OR {tag_sql} OR ticker = ?)"
+            # The fallback for text FTS cannot parse stays a per-row test on the
+            # already-narrowed candidates (it is rare, and as a set it would read
+            # every note's title and body).
+            tag_sql = f"j2_notes.rowid IN ({tag_set_sql})" if tag_set_sql else "0"
+            sql += (f" AND (lower(title) LIKE ? OR lower(body_plain) LIKE ? OR {tag_sql}"
+                    f" OR j2_notes.rowid IN ({ticker_set_sql}))")
             ql = f"%{q.lower()}%"
-            params.extend([ql, ql, *tag_params, exact_ticker])
+            params.extend([ql, ql, *tag_params, user_id, exact_ticker])
     return sql, params
 
 
@@ -1211,9 +1390,27 @@ def _snippets_for(
     if not note_ids:
         return {}
     placeholders = ",".join("?" * len(note_ids))
+    # This page's FTS rowids, through the map (never by reading the UNINDEXED
+    # `note_id` / `user_id` back out of FTS content: that read, for EVERY match,
+    # was ~40 ms of a dense term's 48 ms at 50k notes).
+    by_rowid = {r[1]: r[0] for r in conn.execute(
+        f"SELECT note_id, fts_rowid FROM j2_notes_fts_map WHERE note_id IN ({placeholders})",
+        note_ids,
+    ).fetchall()}
+    if not by_rowid:
+        return {}
+    rids = list(by_rowid)
+    rph = ",".join("?" * len(rids))
+    # ⛔ ONE pass over the MATCH, snippet()/highlight() computed only for this
+    # page's rows. Constraining FTS5 by `rowid IN (...)` instead made it re-seek
+    # the MATCH per rowid, which measured SLOWER (~43 ms) than scanning every
+    # match and skipping the rows off the page (~6 ms). Same functions, same
+    # arguments, same row: the text is identical either way.
     rows = conn.execute(
-        "SELECT note_id,"
-        " snippet(j2_notes_fts, 3, '<mark>', '</mark>', '…', 12) AS body_snippet,"
+        "SELECT rid, body_snippet, title_highlight FROM ("
+        " SELECT rowid AS rid,"
+        f" CASE WHEN rowid IN ({rph}) THEN"
+        " snippet(j2_notes_fts, 3, '<mark>', '</mark>', '…', 12) END AS body_snippet,"
         # highlight(), not snippet(), for the title: snippet() truncates to
         # the requested token window regardless of whether THAT column
         # actually matched -- for a body-only match this would render an
@@ -1223,15 +1420,23 @@ def _snippets_for(
         # Python filter below then drops it unless the title itself
         # genuinely contains a <mark>, so the frontend contract stays
         # simple: titleSnippet present+non-empty means the TITLE matched.
-        " highlight(j2_notes_fts, 2, '<mark>', '</mark>') AS title_highlight"
-        " FROM j2_notes_fts"
-        f" WHERE j2_notes_fts MATCH ? AND user_id = ? AND note_id IN ({placeholders})",
-        [expr, user_id, *note_ids],
+        f" CASE WHEN rowid IN ({rph}) THEN"
+        " highlight(j2_notes_fts, 2, '<mark>', '</mark>') END AS title_highlight,"
+        # The page filter is its OWN marker. Never `body_snippet IS NOT NULL`: FTS5's
+        # snippet() returns NULL for a matched row whose body column is NULL, and that
+        # filter then dropped the row's title highlight with it. And never `rid IN (...)`
+        # on the outer query: SQLite pushes it down into the FTS scan as a per-rowid seek,
+        # the slow plan described above (50k notes, common term, page of 50: 16.6 ms p50
+        # against 4.5 ms; this marker measured 3.9 ms with the same MATCH-only plan).
+        f" CASE WHEN rowid IN ({rph}) THEN 1 END AS on_page"
+        " FROM j2_notes_fts WHERE j2_notes_fts MATCH ?"
+        ") WHERE on_page = 1",
+        [*rids, *rids, *rids, expr],
     ).fetchall()
     out: dict[str, dict[str, str]] = {}
     for r in rows:
         title_highlight = r["title_highlight"] or ""
-        out[r["note_id"]] = {
+        out[by_rowid[r["rid"]]] = {
             "bodySnippet": r["body_snippet"] or "",
             "titleSnippet": title_highlight if "<mark>" in title_highlight else "",
         }
@@ -1258,6 +1463,7 @@ def list_notes(
     property_sort: dict[str, Any] | None = None,
     property_filter_strict: bool = True,
     conn: sqlite3.Connection | None = None,
+    _shared: _RowidSets | None = None,
 ) -> list[dict[str, Any]]:
     owned = conn is None
     conn = conn or get_connection()
@@ -1267,6 +1473,7 @@ def list_notes(
             user_id, folder_id=folder_id, tag=tag, ticker=ticker, q=q,
             embed_symbol=embed_symbol, embed_widget=embed_widget, deleted=deleted,
             date_from=date_from, date_to=date_to, symbol_in=symbol_in,
+            shared=_shared,
         )
         if property_filter:
             from api.services.journal_two.note_properties import property_filter_sql
@@ -1285,20 +1492,31 @@ def list_notes(
         relevance_expr = fts_match_expr(q) if (sort == "relevance" and q) else None
         if relevance_expr:
             # bm25() is only callable within a SELECT that itself carries a
-            # MATCH on that FTS table -- this correlated scalar subquery
-            # satisfies that per outer row. A row with NO matching FTS entry
-            # (a tag/ticker-only match) gets no bm25 score at all (subquery
-            # returns no row -> NULL); COALESCE treats "matched on an exact
-            # structured field" as the BEST possible rank (a very negative
-            # sentinel -- bm25 is ascending, lower = more relevant) rather
-            # than losing that precise a match beneath every fuzzy-text hit.
-            sql += (
-                " ORDER BY COALESCE("
-                "(SELECT bm25(j2_notes_fts) FROM j2_notes_fts"
-                " WHERE note_id = j2_notes.id AND user_id = j2_notes.user_id"
-                " AND j2_notes_fts MATCH ?), -1e9) ASC, updated_at DESC"
-            )
-            params.append(relevance_expr)
+            # MATCH on that FTS table. A row with NO matching FTS entry (a
+            # tag/ticker-only match) has no bm25 score; COALESCE treats "matched
+            # on an exact structured field" as the BEST possible rank (a very
+            # negative sentinel -- bm25 is ascending, lower = more relevant)
+            # rather than losing that precise a match beneath every fuzzy-text hit.
+            #
+            # ⛔⛔ Wave 7 (lane I): ONE ranked MATCH pass, joined -- never a
+            # correlated `(SELECT bm25(...) ... WHERE note_id = j2_notes.id AND
+            # MATCH ?)` per row. That subquery re-ran the whole full-text query
+            # for EVERY candidate note, so the search box (FolderSidebar asks for
+            # sort=relevance) cost O(candidates x matches): at 50k notes a common
+            # term did not finish in 300 s (docs/notebook/perf-budgets.md §2).
+            # The ranked set is keyed by note id through `j2_notes_fts_map`, and
+            # the order is the same expression over the same scores.
+            # ⛔ TWO PHASES. The order is decided over rowids and the two sort keys
+            # only; the page's columns are read for the page alone. Sorting the
+            # full summary columns made SQLite read every candidate's body off its
+            # overflow pages to sort 15k rows it then threw away (~280 ms at 50k).
+            sql = ("SELECT j2_notes.rowid FROM j2_notes LEFT JOIN ("
+                   "SELECT m.note_id AS rank_note_id, bm25(j2_notes_fts) AS rank_score"
+                   " FROM j2_notes_fts JOIN j2_notes_fts_map m ON m.fts_rowid = j2_notes_fts.rowid"
+                   " WHERE j2_notes_fts MATCH ?) ranked ON ranked.rank_note_id = j2_notes.id"
+                   + where_sql
+                   + " ORDER BY COALESCE(ranked.rank_score, -1e9) ASC, j2_notes.updated_at DESC")
+            params = [relevance_expr, *params]
         else:
             prop_sort_result = None
             if property_sort:
@@ -1317,12 +1535,25 @@ def list_notes(
                     "title": "title COLLATE NOCASE ASC",
                     # Trash view default: most recently deleted first — a member
                     # scanning for "the thing I just deleted" shouldn't have to sort.
-                    "deleted": "deleted_at DESC",
-                }.get(sort, "deleted_at DESC" if deleted else "updated_at DESC")
+                    # Ties break by id: a batch trash stamps ONE deleted_at on many
+                    # notes, and without a tiebreak their order (and so which note
+                    # lands on which page) was whatever the plan happened to scan.
+                    "deleted": "deleted_at DESC, id ASC",
+                }.get(sort, "deleted_at DESC, id ASC" if deleted else "updated_at DESC")
                 sql += f" ORDER BY {order_col}"
         sql += " LIMIT ? OFFSET ?"
         params = params + [max(1, min(limit, 500)), max(0, offset)]
-        rows = conn.execute(sql, params).fetchall()
+        if relevance_expr:
+            order = [r[0] for r in conn.execute(sql, params).fetchall()]
+            by_rowid = {}
+            if order:
+                marks = ",".join("?" * len(order))
+                by_rowid = {r["rid"]: r for r in conn.execute(
+                    f"SELECT j2_notes.rowid AS rid, {_NOTE_SUMMARY_COLS} FROM j2_notes"
+                    f" WHERE j2_notes.rowid IN ({marks})", order).fetchall()}
+            rows = [by_rowid[rid] for rid in order if rid in by_rowid]
+        else:
+            rows = conn.execute(sql, params).fetchall()
         results = [_row_to_note_summary(r) for r in rows]
         # Slice 2: query-aware snippets, scoped to just this page's rows.
         # `relevance_expr` above is gated on sort="relevance"; snippets are
@@ -1367,6 +1598,7 @@ def count_notes(
     property_filter: list[dict[str, Any]] | None = None,
     property_filter_strict: bool = True,
     conn: sqlite3.Connection | None = None,
+    _shared: _RowidSets | None = None,
 ) -> int:
     """The TRUE total behind `list_notes`'s same filter set — a real
     ``SELECT COUNT(*)`` over the whole match, never the length of a
@@ -1383,6 +1615,7 @@ def count_notes(
             user_id, folder_id=folder_id, tag=tag, ticker=ticker, q=q,
             embed_symbol=embed_symbol, embed_widget=embed_widget, deleted=deleted,
             date_from=date_from, date_to=date_to, symbol_in=symbol_in,
+            shared=_shared,
         )
         if property_filter:
             from api.services.journal_two.note_properties import property_filter_sql
@@ -1399,64 +1632,138 @@ def count_notes(
             conn.close()
 
 
+_COUNT_FILTER_KEYS = (
+    "folder_id", "tag", "ticker", "q", "embed_symbol", "embed_widget", "deleted",
+    "date_from", "date_to", "symbol_in", "property_filter", "property_filter_strict",
+)
+
+
+def list_and_count_notes(
+    user_id: str,
+    *,
+    sort: str = "updated",
+    limit: int = 100,
+    offset: int = 0,
+    property_sort: dict[str, Any] | None = None,
+    conn: sqlite3.Connection | None = None,
+    **filters: Any,
+) -> tuple[list[dict[str, Any]], int]:
+    """`(list_notes(...), count_notes(...))` over ONE filter set, on ONE
+    connection, with each expensive match set computed ONCE: what `GET /notes`
+    returns as `notes` + `total` (wave 7, lane I).
+
+    The page and its total used to rebuild the search match (FTS + the tag it
+    names + the ticker it names) and the tag filter's match independently.
+    Measured at 50k notes: the common-term pair ~106 ms, of which the match
+    was ~42 ms paid twice. The two halves now read the same `_RowidSets`.
+    ⛔ Still the SAME `_notes_filter_sql` predicate for both halves -- only the
+    evaluation of its sets is shared -- and it must equal the two separate calls:
+    tests/test_journal_two_notes_list_and_count.py pins that."""
+    unknown = set(filters) - set(_COUNT_FILTER_KEYS)
+    if unknown:
+        raise TypeError(f"list_and_count_notes: unknown filter(s) {sorted(unknown)}")
+    owned = conn is None
+    conn = conn or get_connection()
+    register_note_sql_functions(conn)
+    try:
+        shared = _RowidSets(conn)
+        rows = list_notes(user_id, sort=sort, limit=limit, offset=offset,
+                          property_sort=property_sort, conn=conn, _shared=shared, **filters)
+        total = count_notes(user_id, conn=conn, _shared=shared, **filters)
+        return rows, total
+    finally:
+        if owned:
+            conn.close()
+
+
+_ASCII_LOWER = str.maketrans("ABCDEFGHIJKLMNOPQRSTUVWXYZ", "abcdefghijklmnopqrstuvwxyz")
+
+
+def _sqlite_lower(value: str) -> str:
+    """SQLite's built-in `LOWER()`: ASCII letters only (no ICU). The tag counts
+    have always grouped by exactly this before folding by `tag_key`."""
+    return value.translate(_ASCII_LOWER)
+
+
+def _tag_scan(conn: sqlite3.Connection, user_id: str) -> list[tuple[Any, set[int]]]:
+    """ONE pass over every tag of every live note: `(tag value, {note rowids})`
+    per DISTINCT stored spelling.
+
+    Served from `idx_j2_notes_live_cover` (db.py) alone -- `tags` is in it -- so
+    no note row, and no row's overflow page, is read. Grouped by the exact
+    spelling in SQL and handed back as one comma-joined rowid list per spelling:
+    a library repeats a handful of spellings across thousands of notes, and
+    materialising ~90k `(rowid, value)` tuples in Python cost more than the scan
+    (measured at 50k notes: ~38 ms grouped + ~8 ms to parse, against ~50 ms for
+    the raw rows before any Python work)."""
+    rows = conn.execute(
+        "SELECT je.value, group_concat(j2_notes.rowid)"
+        " FROM j2_notes, json_each(COALESCE(j2_notes.tags, '[]')) je"
+        " WHERE j2_notes.user_id = ? AND j2_notes.deleted_at IS NULL"
+        " AND j2_notes.archived_at IS NULL"
+        " GROUP BY je.value",
+        (user_id,),
+    ).fetchall()
+    return [(r[0], set(map(int, str(r[1]).split(",")))) for r in rows if r[0] is not None]
+
+
+def _tag_index(scan: list[tuple[Any, set[int]]]) -> tuple[dict[str, list], list[tuple[str, set[int]]]]:
+    """`(by_lk, nested)`: `by_lk[LOWER(tag)] = [MAX(tag), {rowids}]` -- what the
+    old SQL `GROUP BY LOWER(je.value)` returned, with the note SET kept rather than
+    reduced to a count -- and `nested` = the `(tag, {rowids})` spellings holding a
+    '/'. SQLite compares text by UTF-8 bytes and Python by code point, which order
+    strings identically, so `max` here is the old `MAX(je.value)`."""
+    by_lk: dict[str, list] = {}
+    nested: list[tuple[str, set[int]]] = []
+    for value, ids in scan:
+        v = str(value)
+        lk = _sqlite_lower(v)
+        e = by_lk.get(lk)
+        if e is None:
+            by_lk[lk] = [v, set(ids)]
+        else:
+            e[1] |= ids
+            if v > e[0]:
+                e[0] = v
+        if "/" in v:
+            nested.append((v, ids))
+    return by_lk, nested
+
+
+def _fold_tag_index(by_lk: dict[str, list], *, flat_only: bool) -> dict[str, dict[str, Any]]:
+    """Fold the per-`LOWER(tag)` groups by `tag_key`, the key the tree and the
+    filter compare by: `tag_key -> {"tag", "c", "lks", "ids"}`. The two keys agree
+    for almost every tag; where they do not (a legacy "Q3 / Q4" beside "Q3/Q4", or
+    "Élan" beside "élan", which SQLite's ASCII-only LOWER keeps apart) the count is
+    the UNION of the notes, so a note carrying two spellings of one tag counts once.
+    (That recount used to take another whole-library scan; the scan now keeps the
+    note sets, so the union is free.)"""
+    groups: dict[str, dict[str, Any]] = {}
+    for lk, (maxv, ids) in by_lk.items():
+        if flat_only and "/" in lk:
+            continue
+        key = tag_key(lk)
+        if not key:
+            continue
+        g = groups.get(key)
+        if g is None:
+            groups[key] = {"tag": maxv, "lks": [lk], "ids": ids}
+        else:
+            g["tag"] = max(g["tag"], maxv)
+            g["lks"].append(lk)
+            g["ids"] = g["ids"] | ids
+    for g in groups.values():
+        g["c"] = len(g["ids"])
+    return groups
+
+
 def _tag_groups(
     conn: sqlite3.Connection, user_id: str, *, flat_only: bool = False,
 ) -> dict[str, dict[str, Any]]:
     """`tag_key -> {"tag": display spelling, "c": DISTINCT notes, "lks": [...]}`
-    over the member's active notes (flat tags only when `flat_only`).
-
-    Grouped in SQL by `LOWER(value)` — C speed, one pass — then FOLDED here by
-    `tag_key`, which is what the tree and the filter compare by. The two agree
-    for almost every tag; where they do not (a legacy "Q3 / Q4" beside
-    "Q3/Q4", or "Élan" beside "élan", which SQLite's ASCII-only LOWER keeps
-    apart) the folded group is recounted exactly, so a note carrying two
-    spellings of one tag still counts once. Measured on 50,000 notes: grouping
-    by a Python key inside SQL cost ~120 ms more per call than this."""
-    rows = conn.execute(
-        "SELECT MAX(je.value) AS tag, LOWER(je.value) AS lk,"
-        " COUNT(DISTINCT j2_notes.id) AS c"
-        " FROM j2_notes, json_each(COALESCE(j2_notes.tags, '[]')) je"
-        " WHERE j2_notes.user_id = ? AND j2_notes.deleted_at IS NULL"
-        + (" AND instr(je.value, '/') = 0" if flat_only else "")
-        + " GROUP BY LOWER(je.value)",
-        (user_id,),
-    ).fetchall()
-    groups: dict[str, dict[str, Any]] = {}
-    for r in rows:
-        key = tag_key(r["lk"])
-        if not key:
-            continue
-        g = groups.setdefault(key, {"tag": "", "c": 0, "lks": []})
-        g["tag"] = max(g["tag"], str(r["tag"] or ""))
-        g["c"] += int(r["c"] or 0)
-        g["lks"].append(r["lk"])
-    collided = [g for g in groups.values() if len(g["lks"]) > 1]
-    if collided:
-        ids = _note_ids_by_lowered_tag(conn, user_id, [lk for g in collided for lk in g["lks"]])
-        for g in collided:
-            g["c"] = len(set().union(*(ids.get(lk, set()) for lk in g["lks"])))
-    return groups
-
-
-def _note_ids_by_lowered_tag(
-    conn: sqlite3.Connection, user_id: str, lowered: list[str],
-) -> dict[str, set[str]]:
-    """`LOWER(tag) -> active note ids carrying it`, for the `lowered` values
-    asked about — ONE pass over the member's notes, never one per tag."""
-    out: dict[str, set[str]] = {}
-    wanted = list(dict.fromkeys(lowered))
-    for start in range(0, len(wanted), _BATCH_READ_CHUNK):
-        chunk = wanted[start:start + _BATCH_READ_CHUNK]
-        placeholders = ",".join("?" * len(chunk))
-        for nid, lk in conn.execute(
-            "SELECT j2_notes.id, LOWER(je.value)"
-            " FROM j2_notes, json_each(COALESCE(j2_notes.tags, '[]')) je"
-            " WHERE j2_notes.user_id = ? AND j2_notes.deleted_at IS NULL"
-            f" AND LOWER(je.value) IN ({placeholders})",
-            [user_id, *chunk],
-        ):
-            out.setdefault(lk, set()).add(nid)
-    return out
+    over the member's active notes (flat tags only when `flat_only`)."""
+    by_lk, _nested = _tag_index(_tag_scan(conn, user_id))
+    return _fold_tag_index(by_lk, flat_only=flat_only)
 
 
 def tag_counts(
@@ -1502,9 +1809,38 @@ def tag_counts(
     try:
         # Wave 0 trash: a soft-deleted note's tags must not inflate the tag
         # cloud — same "active notebook only" predicate as everywhere else.
-        groups = _tag_groups(conn, user_id)
-        ordered = sorted(groups.items(), key=lambda kv: (-kv[1]["c"], kv[0]))
-        return [{"tag": g["tag"], "count": g["c"]} for _k, g in ordered]
+        return _counts_from_groups(_tag_groups(conn, user_id))
+    finally:
+        if owned:
+            conn.close()
+
+
+def _counts_from_groups(groups: dict[str, dict[str, Any]]) -> list[dict[str, Any]]:
+    ordered = sorted(groups.items(), key=lambda kv: (-kv[1]["c"], kv[0]))
+    return [{"tag": g["tag"], "count": g["c"]} for _k, g in ordered]
+
+
+def tag_counts_and_tree(
+    user_id: str,
+    conn: sqlite3.Connection | None = None,
+) -> dict[str, list[dict[str, Any]]]:
+    """`{"tags": tag_counts(...), "tree": tag_tree(...)}` from ONE connection and
+    ONE scan: what `GET /notes/tags` returns.
+
+    Wave 7 (lane I). The route used to call `tag_counts` and `tag_tree`
+    separately, each on its own connection; between them they made four
+    whole-library `json_each` passes (two groupings, the nested rows, the parents'
+    recount), each reading every note's `tags` off its overflow page. Measured at
+    acf1eb51e, 50k notes: 984 ms p95. Now one pass over the covering index feeds
+    both halves. ⛔ The answer must equal the two separate calls AND a from-scratch
+    recomputation; tests/test_journal_two_tag_counts_combined.py pins both on a
+    library holding every tag shape the fold treats specially."""
+    owned = conn is None
+    conn = conn or get_connection()
+    try:
+        by_lk, nested = _tag_index(_tag_scan(conn, user_id))
+        return {"tags": _counts_from_groups(_fold_tag_index(by_lk, flat_only=False)),
+                "tree": _tree_from_index(by_lk, nested)}
     finally:
         if owned:
             conn.close()
@@ -1528,68 +1864,65 @@ def tag_tree(
     "research", and a summed count would claim two — the same honest-count
     discipline as `tag_counts`. It is what filtering by that tag returns.
 
-    ⭐ Cheap for the common case: flat tags are counted in SQL exactly as
-    `tag_counts` counts them, and only rows carrying a `/` (plus the flat
-    parents those rows actually hang under) are read into Python."""
+    ⭐ One pass (wave 7): the same `_tag_scan` rows `tag_counts` folds, read
+    from the covering index; every tag spelling is parsed once, not once per
+    note (see `_tree_from_index`)."""
     owned = conn is None
     conn = conn or get_connection()
     try:
-        flat_groups = _tag_groups(conn, user_id, flat_only=True)
-        nested_rows = conn.execute(
-            "SELECT j2_notes.id AS nid, je.value AS tag"
-            " FROM j2_notes, json_each(COALESCE(j2_notes.tags, '[]')) je"
-            " WHERE j2_notes.user_id = ? AND j2_notes.deleted_at IS NULL"
-            " AND instr(je.value, '/') > 0",
-            (user_id,),
-        ).fetchall()
-
-        own: dict[str, int] = {}
-        spelled: dict[str, str] = {}      # explicit spellings win
-        implied: dict[str, str] = {}      # a parent named only through a child
-        for key, g in flat_groups.items():
-            own[key] = own.get(key, 0) + g["c"]
-            spelled[key] = max(spelled.get(key, ""), _normalize_tag_path(g["tag"]))
-
-        under: dict[str, set[str]] = {}  # key -> notes tagged it OR anything below it
-        own_nested: dict[str, set[str]] = {}
-        for r in nested_rows:
-            path = _normalize_tag_path(str(r["tag"] or ""))
-            if not path:
-                continue
-            segs = path.split("/")
-            for i in range(1, len(segs) + 1):
-                prefix = "/".join(segs[:i])
-                pkey = prefix.lower()
-                under.setdefault(pkey, set()).add(r["nid"])
-                if i < len(segs):
-                    implied[pkey] = max(implied.get(pkey, ""), prefix)
-            own_nested.setdefault(path.lower(), set()).add(r["nid"])
-            spelled[path.lower()] = max(spelled.get(path.lower(), ""), path)
-
-        # A flat tag that is also a PARENT: its own notes join its subtree.
-        parents = [k for k in under if "/" not in k and k in flat_groups]
-        if parents:
-            ids = _note_ids_by_lowered_tag(conn, user_id, [lk for k in parents for lk in flat_groups[k]["lks"]])
-            for k in parents:
-                for lk in flat_groups[k]["lks"]:
-                    under[k] |= ids.get(lk, set())
-
-        for k, ids in own_nested.items():
-            own[k] = own.get(k, 0) + len(ids)
-
-        out: list[dict[str, Any]] = []
-        for key in set(own) | set(under):
-            out.append({
-                "path": spelled.get(key) or implied.get(key) or key,
-                "key": key,
-                "own": own.get(key, 0),
-                "total": len(under[key]) if key in under else own.get(key, 0),
-            })
-        out.sort(key=lambda n: (-n["total"], n["key"]))
-        return out
+        by_lk, nested = _tag_index(_tag_scan(conn, user_id))
+        return _tree_from_index(by_lk, nested)
     finally:
         if owned:
             conn.close()
+
+
+def _tree_from_index(by_lk: dict[str, list], nested: list[tuple[str, set[int]]]) -> list[dict[str, Any]]:
+    """`tag_tree`'s body (see `tag_tree` for the rules), from `_tag_index`."""
+    flat_groups = _fold_tag_index(by_lk, flat_only=True)
+    own: dict[str, int] = {}
+    spelled: dict[str, str] = {}      # explicit spellings win
+    implied: dict[str, str] = {}      # a parent named only through a child
+    for key, g in flat_groups.items():
+        own[key] = own.get(key, 0) + g["c"]
+        spelled[key] = max(spelled.get(key, ""), _normalize_tag_path(g["tag"]))
+
+    # Per DISTINCT nested spelling (with the set of notes carrying it), never per
+    # note: the scan already grouped them. Same rules, same result.
+    under: dict[str, set[int]] = {}   # key -> notes tagged it OR anything below it
+    own_nested: dict[str, set[int]] = {}
+    for tag, ids in nested:
+        path = _normalize_tag_path(tag)
+        if not path:
+            continue
+        segs = path.split("/")
+        for i in range(1, len(segs) + 1):
+            prefix = "/".join(segs[:i])
+            pkey = prefix.lower()
+            under.setdefault(pkey, set()).update(ids)
+            if i < len(segs):
+                implied[pkey] = max(implied.get(pkey, ""), prefix)
+        own_nested.setdefault(path.lower(), set()).update(ids)
+        spelled[path.lower()] = max(spelled.get(path.lower(), ""), path)
+
+    # A flat tag that is also a PARENT: its own notes join its subtree. The scan
+    # kept every flat tag's note set, so this is a union, never another scan.
+    for k in [k for k in under if "/" not in k and k in flat_groups]:
+        under[k] |= flat_groups[k]["ids"]
+
+    for k, ids in own_nested.items():
+        own[k] = own.get(k, 0) + len(ids)
+
+    out: list[dict[str, Any]] = []
+    for key in set(own) | set(under):
+        out.append({
+            "path": spelled.get(key) or implied.get(key) or key,
+            "key": key,
+            "own": own.get(key, 0),
+            "total": len(under[key]) if key in under else own.get(key, 0),
+        })
+    out.sort(key=lambda n: (-n["total"], n["key"]))
+    return out
 
 
 def folder_note_counts(
@@ -1621,7 +1954,7 @@ def folder_note_counts(
     try:
         rows = conn.execute(
             "SELECT folder_id, COUNT(*) AS c FROM j2_notes"
-            " WHERE user_id = ? AND deleted_at IS NULL"
+            " WHERE user_id = ? AND deleted_at IS NULL AND archived_at IS NULL"
             " GROUP BY folder_id",
             (user_id,),
         ).fetchall()
@@ -1669,7 +2002,8 @@ def notes_for_folders(
                 continue
             rows = conn.execute(
                 f"SELECT {_NOTE_SUMMARY_COLS} FROM j2_notes"
-                " WHERE user_id = ? AND deleted_at IS NULL AND folder_id = ?"
+                " WHERE user_id = ? AND deleted_at IS NULL AND archived_at IS NULL"
+                " AND folder_id = ?"
                 " ORDER BY title COLLATE NOCASE ASC"
                 " LIMIT ?",
                 (user_id, folder_id, max(1, min(limit_per_folder, 500))),
@@ -1746,15 +2080,16 @@ def get_symbol_backlinks(
         # excludes soft-deleted notes via its base WHERE clause. Without
         # this, a trashed note's embed would still count here while the
         # list filter it's pinned against had already stopped counting it.
+        # The SAME note-id set the list filter reads (`_symbol_note_ids_sql`),
+        # driven from the set: CROSS JOIN pins it as the outer loop. Left to
+        # itself the planner walked every live note and probed the set per note
+        # (~160 ms at 50k, acf1eb51e); from the set it is one PK lookup per hit.
+        ids_sql, ids_params = _symbol_note_ids_sql(user_id, [sym])
         row = conn.execute(
-            "SELECT COUNT(DISTINCT x.note_id) AS c FROM ("
-            "  SELECT note_id FROM j2_note_embeds WHERE user_id = ? AND symbol = ?"
-            "  UNION"
-            "  SELECT note_id FROM j2_note_mentions WHERE user_id = ? AND symbol = ?"
-            ") x"
-            " JOIN j2_notes n ON n.id = x.note_id AND n.user_id = ?"
-            " WHERE n.deleted_at IS NULL",
-            (user_id, sym, user_id, sym, user_id),
+            f"SELECT COUNT(*) AS c FROM ({ids_sql}) x"
+            " CROSS JOIN j2_notes n ON n.id = x.note_id"
+            " WHERE n.user_id = ? AND n.deleted_at IS NULL",
+            (*ids_params, user_id),
         ).fetchone()
         out["count"] = int(row["c"] or 0) if row else 0
         if not out["count"]:
@@ -1771,20 +2106,16 @@ def get_symbol_backlinks(
             "SELECT n.id, n.title, n.updated_at,"
             "       COALESCE(e.refs, 0) AS refs,"
             "       e.widgets AS widgets"
-            " FROM ("
-            "  SELECT note_id FROM j2_note_embeds WHERE user_id = ? AND symbol = ?"
-            "  UNION"
-            "  SELECT note_id FROM j2_note_mentions WHERE user_id = ? AND symbol = ?"
-            " ) x"
-            " JOIN j2_notes n ON n.id = x.note_id AND n.user_id = ?"
+            f" FROM ({ids_sql}) x"
+            " CROSS JOIN j2_notes n ON n.id = x.note_id"
             " LEFT JOIN ("
             "  SELECT note_id, COUNT(*) AS refs, GROUP_CONCAT(DISTINCT widget_id) AS widgets"
             "  FROM j2_note_embeds WHERE user_id = ? AND symbol = ? GROUP BY note_id"
             " ) e ON e.note_id = n.id"
-            " WHERE n.deleted_at IS NULL"
+            " WHERE n.user_id = ? AND n.deleted_at IS NULL"
             " ORDER BY n.updated_at DESC"
             " LIMIT ?",
-            (user_id, sym, user_id, sym, user_id, user_id, sym, max(1, min(limit, 25))),
+            (*ids_params, user_id, sym, user_id, max(1, min(limit, 25))),
         ).fetchall()
         out["notes"] = [{
             "id": r["id"],
@@ -1966,6 +2297,49 @@ def get_note_backlinks(
             conn.close()
 
 
+def get_note_related_from(
+    user_id: str, note_id: str, conn: sqlite3.Connection | None = None,
+) -> dict[str, Any]:
+    """Wave 6 (lane E, item 5): "Related from" — the member's live notes whose
+    RELATION property holds `note_id`, newest edit first, once per note with the
+    names of the relations that hold it: `{count, notes: [{id, title,
+    updatedAt, properties}]}`.
+
+    Owner-scoped on both the notes and the property definitions; a trashed
+    source and a deleted relation property are left out, and so is the note
+    itself (a note related to itself is not news on its own page). Archived
+    sources stay, as they do in "Linked from": archive is not trash."""
+    owned = conn is None
+    conn = conn or get_connection()
+    try:
+        rows = conn.execute(
+            "SELECT n.id, n.title, n.updated_at, d.name AS prop_name"
+            " FROM j2_notes n"
+            " JOIN json_each(COALESCE(n.properties_json, '{}')) p"
+            " JOIN j2_note_properties d"
+            "   ON d.id = p.key AND d.user_id = n.user_id"
+            "  AND d.type = 'relation' AND d.deleted_at IS NULL"
+            " WHERE n.user_id = ? AND n.deleted_at IS NULL AND n.id != ?"
+            "   AND p.type = 'array'"
+            "   AND EXISTS (SELECT 1 FROM json_each(p.value) v WHERE v.value = ?)"
+            " ORDER BY n.updated_at DESC, d.name",
+            (user_id, note_id, note_id),
+        ).fetchall()
+        by_id: dict[str, dict[str, Any]] = {}
+        for r in rows:
+            entry = by_id.setdefault(r["id"], {
+                "id": r["id"], "title": r["title"] or "Untitled",
+                "updatedAt": r["updated_at"], "properties": [],
+            })
+            if r["prop_name"] not in entry["properties"]:
+                entry["properties"].append(r["prop_name"])
+        notes = list(by_id.values())
+        return {"count": len(notes), "notes": notes}
+    finally:
+        if owned:
+            conn.close()
+
+
 def get_note_graph(
     user_id: str, limit: int = 1500, conn: sqlite3.Connection | None = None,
 ) -> dict[str, Any]:
@@ -2029,9 +2403,9 @@ def get_note_graph(
             "                           THEN l.target_note_id ELSE l.note_id END"
             "          WHERE l.user_id = n.user_id"
             "            AND (l.note_id = n.id OR l.target_note_id = n.id)"
-            "            AND m.deleted_at IS NULL) AS degree"
+            "            AND m.deleted_at IS NULL AND m.archived_at IS NULL) AS degree"
             " FROM j2_notes n"
-            " WHERE n.user_id = ? AND n.deleted_at IS NULL"
+            " WHERE n.user_id = ? AND n.deleted_at IS NULL AND n.archived_at IS NULL"
             " ORDER BY n.updated_at DESC"
             " LIMIT ?",
             (user_id, cap + 1),
@@ -2070,7 +2444,10 @@ def get_note_graph(
             # ⛔ Both ends must be in the RETURNED node set. When the node list
             # is capped, an edge to a note that did not make the cut would be a
             # line to nothing — a renderer cannot draw it and should not have to
-            # guess what it meant.
+            # guess what it meant. ⭐ This is also the ONE place an archived
+            # note leaves the edges (wave 6): it is not a node (the query above),
+            # so no edge touches it -- a second archived_at test in the edge SQL
+            # was a copy of this rule that no rail could tell apart from it.
             if e["s"] in ids and e["t"] in ids
         ]
         return out
@@ -2326,7 +2703,15 @@ def create_note(
     user_id: str,
     payload: dict[str, Any] | None = None,
     conn: sqlite3.Connection | None = None,
+    *,
+    daily_date: str | None = None,
+    properties: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
+    """`daily_date` and `properties` are INTERNAL (never read from `payload`,
+    so `POST /notes` cannot set them): the daily note is made in ONE insert,
+    with its day and its template's property values, so there is no second
+    write — no revision a caller would have to land. A second note for a day
+    is refused by the database (`idx_j2_notes_daily`), as `sqlite3.IntegrityError`."""
     payload = payload or {}
     title = (payload.get("title") or "").strip()
     if len(title) > MAX_TITLE_CHARS:
@@ -2359,18 +2744,27 @@ def create_note(
             ).fetchone()
             if not ok:
                 raise NoteValidationError("folder not found")
+        properties_json = None
+        if properties:
+            from api.services.journal_two.note_properties import (
+                set_note_properties, PropertyValidationError,
+            )
+            try:
+                properties_json = set_note_properties(user_id, new_id, properties, conn, replace=True)
+            except PropertyValidationError as e:
+                raise NoteValidationError(str(e)) from e
         conn.execute(
             """
             INSERT INTO j2_notes (
                 id, user_id, account_id, folder_id, title, subtitle,
                 body_json, body_plain, hero_image_url, first_image_url, ticker, tags,
-                created_at, updated_at
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                created_at, updated_at, daily_date, properties_json
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             """,
             (
                 new_id, user_id, account_id, folder_id, title, subtitle,
                 json.dumps(body_json), body_plain, hero, first_image, ticker,
-                json.dumps(tags), now, now,
+                json.dumps(tags), now, now, daily_date, properties_json,
             ),
         )
         _sync_note_sidecars(conn, user_id, new_id, body_json, body_plain)
@@ -2720,6 +3114,18 @@ def update_note(
             if h is not None and not isinstance(h, str):
                 raise NoteValidationError("heroImageUrl must be string or null")
             sets.append("hero_image_url = ?"); params.append(h)
+        if "locked" in patch:
+            # Wave 6 lock. ⛔ Written ONLY through `PATCH /notes/{id}/lock` (the
+            # PUT strips the key): one door for the value, so a stale PUT the
+            # outbox replays can never unlock a note behind the member's back.
+            # Only a change is a write — re-locking a locked note moves no
+            # revision. ⛔ And NOTHING here refuses a body write to a locked
+            # note: see the column in db.py.
+            want = patch["locked"]
+            if not isinstance(want, bool):
+                raise NoteValidationError("locked must be true or false")
+            if bool(existing["locked"]) != want:
+                sets.append("locked = ?"); params.append(1 if want else 0)
         if "importMediaPending" in patch:
             # audit B5: the import commit pipeline's OWN signal for whether
             # its post-confirm media-upload + link-rewrite phase actually
@@ -3150,6 +3556,74 @@ def restore_note(
             conn.close()
 
 
+def set_note_archived(
+    user_id: str,
+    note_id: str,
+    archived: bool,
+    conn: sqlite3.Connection | None = None,
+) -> dict[str, Any] | None:
+    """Wave 6 (lane E, item 1): archive or unarchive one note. Returns the note
+    (the `get_note` shape, with `archivedAt`), or None when there is no such
+    note of this member's in the library — a trashed note is not archivable
+    (restore it first), the same 404 an edit of it gets.
+
+    ⛔ ARCHIVE IS NOT TRASH. Nothing is deleted, the note keeps its folder, its
+    tags and its properties, and it still opens; it only leaves the default
+    surfaces (`_notes_filter_sql` owns that rule). Unarchive therefore restores
+    it EXACTLY where it was.
+
+    ⛔⛔ AND IT NEVER ADVANCES `updated_at`. Archive is a visibility flag, like a
+    favourite, not an edit of the note: moving the revision would turn the next
+    save of an editor that has this note open — in this tab or another — into a
+    409 against a write nobody in that editor made, and the offline layer forks
+    a note on exactly that. Keeping the revision also keeps "exactly where it
+    was" true of the list's recently-updated order. (Contrast the LOCK, which
+    DOES advance it: a lock must reach another tab's editor, and a newer
+    revision is how it gets there.) Idempotent: archiving an archived note keeps
+    its first archive time."""
+    owned = conn is None
+    conn = conn or get_connection()
+    try:
+        stamp = _now_iso() if archived else None
+        # Only a live note, and only when the flag actually changes.
+        cur = conn.execute(
+            "UPDATE j2_notes SET archived_at = ?"
+            " WHERE id = ? AND user_id = ? AND deleted_at IS NULL"
+            " AND (archived_at IS NULL) = ?",
+            (stamp, note_id, user_id, 1 if archived else 0),
+        )
+        conn.commit()
+        if cur.rowcount:
+            _log_notebook_event(
+                user_id, "notebook_note_archived" if archived else "notebook_note_unarchived")
+        return get_note(user_id, note_id, conn=conn)
+    finally:
+        if owned:
+            conn.close()
+
+
+def find_daily_note_id(user_id: str, daily_date: str, conn: sqlite3.Connection) -> str | None:
+    """The member's LIVE note for this day (archived counts: it still opens)."""
+    row = conn.execute(
+        "SELECT id FROM j2_notes WHERE user_id = ? AND daily_date = ? AND deleted_at IS NULL",
+        (user_id, daily_date),
+    ).fetchone()
+    return row["id"] if row else None
+
+
+def release_trashed_daily_date(user_id: str, daily_date: str, conn: sqlite3.Connection) -> None:
+    """A TRASHED note that was this day's daily note gives the day up, so a new
+    one can be made — and restoring the old one later brings back an ordinary
+    note, never a second note for the day. A bookkeeping column on a trashed
+    row, so the revision (and so the offline layer) is untouched. No commit:
+    the caller's transaction owns it."""
+    conn.execute(
+        "UPDATE j2_notes SET daily_date = NULL"
+        " WHERE user_id = ? AND daily_date = ? AND deleted_at IS NOT NULL",
+        (user_id, daily_date),
+    )
+
+
 def purge_expired_deleted_notes(
     retention_days: int = TRASH_RETENTION_DAYS,
     now: datetime | None = None,
@@ -3301,7 +3775,7 @@ def list_favorites(
         rows = conn.execute(
             "SELECT n.* FROM j2_note_favorites f "
             "JOIN j2_notes n ON n.id = f.note_id AND n.user_id = f.user_id "
-            "WHERE f.user_id = ? AND n.deleted_at IS NULL "
+            "WHERE f.user_id = ? AND n.deleted_at IS NULL AND n.archived_at IS NULL "
             "ORDER BY f.created_at DESC LIMIT ?",
             (user_id, limit),
         ).fetchall()
@@ -3345,7 +3819,7 @@ def list_recents(
         rows = conn.execute(
             "SELECT n.* FROM j2_note_recents r "
             "JOIN j2_notes n ON n.id = r.note_id AND n.user_id = r.user_id "
-            "WHERE r.user_id = ? AND n.deleted_at IS NULL "
+            "WHERE r.user_id = ? AND n.deleted_at IS NULL AND n.archived_at IS NULL "
             "ORDER BY r.opened_at DESC LIMIT ?",
             (user_id, limit),
         ).fetchall()
@@ -3420,7 +3894,7 @@ SWITCHER_FUZZY_SCOPE = 5000      # most recently edited notes the fuzzy tiers re
 # recents/favourites reads must start from the member's own (small) lists.
 _SWITCHER_SCAN_SQL = (
     "SELECT rowid, title FROM j2_notes"
-    " WHERE user_id = ? AND deleted_at IS NULL"
+    " WHERE user_id = ? AND deleted_at IS NULL AND archived_at IS NULL"
     " ORDER BY updated_at DESC, title ASC, rowid ASC"
 )
 # CROSS JOIN pins the recents/favourites table as the OUTER loop — left to
@@ -3428,12 +3902,12 @@ _SWITCHER_SCAN_SQL = (
 _SWITCHER_RECENTS_SQL = (
     "SELECT n.rowid, r.opened_at FROM j2_note_recents r"
     " CROSS JOIN j2_notes n ON n.id = r.note_id AND n.user_id = r.user_id"
-    " WHERE r.user_id = ? AND n.deleted_at IS NULL"
+    " WHERE r.user_id = ? AND n.deleted_at IS NULL AND n.archived_at IS NULL"
 )
 _SWITCHER_FAVORITES_SQL = (
     "SELECT n.rowid FROM j2_note_favorites f"
     " CROSS JOIN j2_notes n ON n.id = f.note_id AND n.user_id = f.user_id"
-    " WHERE f.user_id = ? AND n.deleted_at IS NULL"
+    " WHERE f.user_id = ? AND n.deleted_at IS NULL AND n.archived_at IS NULL"
 )
 
 
@@ -3738,12 +4212,117 @@ def switcher_search(
 _BATCH_READ_CHUNK = 400  # stays well under SQLite's bound-parameter limit
 
 
+def tag_member_notes(
+    user_id: str,
+    tag: str,
+    conn: sqlite3.Connection | None = None,
+) -> list[dict[str, Any]]:
+    """Wave 6 (lane E, item 8) — the notes a rename of `tag` touches:
+    `[{id, title}]` of this member's notes carrying the tag or a tag below it,
+    most recently updated first. ⛔ LIVE notes, ARCHIVED ones included — an
+    archive is a shelf, and unarchiving a note must not bring the old name
+    back — and never a trashed one (the batch refuses to write those anyway).
+    The tag match is the list filter's own clause (`_tag_clause`)."""
+    key = tag_key(tag)
+    if not key:
+        return []
+    owned = conn is None
+    conn = conn or get_connection()
+    try:
+        register_note_sql_functions(conn)
+        tag_sql, tag_params = _tag_clause(user_id, key)
+        rows = conn.execute(
+            "SELECT id, title FROM j2_notes WHERE user_id = ? AND deleted_at IS NULL"
+            f" AND {tag_sql} ORDER BY updated_at DESC",
+            [user_id, *tag_params],
+        ).fetchall()
+        return [{"id": r["id"], "title": r["title"] or ""} for r in rows]
+    finally:
+        if owned:
+            conn.close()
+
+
+def parse_tag_patch(payload: Any) -> tuple[list[str], list[str]]:
+    """Wave 6 (controller-added, lane D's M14) — validates a `PATCH
+    /notes/{id}/tags` body `{add, remove}` BEFORE the note is even read: each
+    half accepts the same shape `_validate_tags` already enforces for a
+    note's own tag list (a list of strings, each under the length cap), and
+    the two halves must ask for genuinely different tags — asking to add and
+    remove the same identity in one request is refused rather than resolved
+    by silently picking a winner. -> (add, remove), both validated and
+    normalised. Raises NoteValidationError; a request this refuses writes
+    nothing."""
+    if not isinstance(payload, dict):
+        raise NoteValidationError("body must be an object")
+    add = _validate_tags(payload.get("add") or [])
+    remove = _validate_tags(payload.get("remove") or [])
+    if not add and not remove:
+        raise NoteValidationError("add or remove is required")
+    if {tag_key(t) for t in add} & {tag_key(t) for t in remove}:
+        raise NoteValidationError("a tag cannot be both added and removed")
+    return add, remove
+
+
+def patch_note_tags(
+    user_id: str,
+    note_id: str,
+    add: list[str],
+    remove: list[str],
+    conn: sqlite3.Connection | None = None,
+) -> tuple[dict[str, Any] | None, bool]:
+    """Wave 6 (controller-added, lane D's M14) — `PATCH /notes/{id}/tags`:
+    applies a tag DELTA to the note's STORED list, read and written inside
+    ONE transaction so a second device's own concurrent tag write cannot
+    land between this request's read and its write and be silently
+    overwritten by a list computed before it existed (the two-device case).
+    `BEGIN IMMEDIATE` takes the write lock before the read, not after — a
+    plain SELECT takes no lock at all, so a lock taken only at the later
+    UPDATE would still let a racing writer's commit land in between.
+
+    -> `(note, changed)`. The note at its NEW revision (`update_note`'s own
+    shape, same serializer the lock endpoint uses) so the client can settle
+    it; a change that changes nothing moves no revision and answers with the
+    note AS STORED. `(None, False)` for a trashed note, another member's, or
+    none at all.
+
+    ⛔⛔ `changed` IS THE ONLY TRUTHFUL "DID THIS REQUEST WRITE" (wave 7 lane J,
+    J9). It is decided inside the transaction: True exactly when this call
+    wrote the row. A client cannot derive it from the answer's revision --
+    when another writer satisfied the same delta between the client's read
+    and this call, nothing is written and the answer carries THAT writer's
+    revision, which a timestamp compare would record as the client's own."""
+    owned = conn is None
+    conn = conn or get_connection()
+    try:
+        conn.execute("BEGIN IMMEDIATE")
+        row = conn.execute(
+            "SELECT * FROM j2_notes WHERE id = ? AND user_id = ? AND deleted_at IS NULL",
+            (note_id, user_id),
+        ).fetchone()
+        if row is None:
+            conn.rollback()
+            return None, False
+        existing_tags = json.loads(row["tags"] or "[]")
+        patched = patched_tag_list(existing_tags, add, remove)
+        if patched is None:
+            conn.rollback()
+            return _row_to_note(row), False
+        return update_note(user_id, note_id, {"tags": patched}, conn=conn), True
+    except BaseException:
+        if conn.in_transaction:
+            conn.rollback()
+        raise
+    finally:
+        if owned:
+            conn.close()
+
+
 def note_batch_heads(
     user_id: str,
     note_ids: list[str],
     conn: sqlite3.Connection | None = None,
 ) -> dict[str, dict[str, Any]]:
-    """`note_id -> {folderId, tags, updatedAt, deleted}` for the ids this
+    """`note_id -> {folderId, tags, updatedAt, deleted, archived}` for the ids this
     member OWNS, active or trashed. An id that is not theirs (or does not
     exist) is simply absent — the caller reports it as not found, which is
     also what it must say about another member's note (never "forbidden":
@@ -3757,7 +4336,7 @@ def note_batch_heads(
             chunk = ids[start:start + _BATCH_READ_CHUNK]
             placeholders = ",".join("?" * len(chunk))
             rows = conn.execute(
-                "SELECT id, folder_id, tags, updated_at, deleted_at FROM j2_notes"
+                "SELECT id, folder_id, tags, updated_at, deleted_at, archived_at FROM j2_notes"
                 f" WHERE user_id = ? AND id IN ({placeholders})",
                 [user_id, *chunk],
             ).fetchall()
@@ -3767,6 +4346,7 @@ def note_batch_heads(
                     "tags": json.loads(r["tags"] or "[]"),
                     "updatedAt": r["updated_at"],
                     "deleted": r["deleted_at"] is not None,
+                    "archived": r["archived_at"] is not None,
                 }
         return out
     finally:
@@ -4001,21 +4581,55 @@ def delete_folder(
 
 def ensure_folder_path(user_id: str, path_parts: list[str], dest_folder_id: str = "", conn=None) -> str:
     """Upsert a folder chain under dest_folder_id; returns leaf folder id.
-    Truncates each segment to the 80-char folder-name cap."""
+    Truncates each segment to the 80-char folder-name cap.
+
+    Handed a connection, it writes inside the caller's transaction and leaves the
+    commit to the caller (the importer and the personal API commit after the note
+    write). Handed none, it owns the connection and COMMITS before closing it.
+    ⚰️ It used not to: `create_folder` commits only a connection IT opened, and it
+    is handed this function's, so the chain was written in a transaction nobody
+    committed and thrown away on close. The caller got back an id for a folder
+    that did not exist (lane G, wave 7: "The note wasn't saved: folder not found").
+    tests/test_journal_two_ensure_folder_path_commits.py reads the result from a
+    fresh connection.
+
+    ⛔ A MISSING FOLDER IS CHECKED AGAIN, AND MADE, UNDER THE WRITE LOCK (whole-
+    branch review M-9). ⚰️ The check and the insert were split, and nothing makes
+    (user_id, parent_id, name) unique -- deliberately still nothing: existing
+    production duplicates would make that migration fail. Two concurrent first
+    users (email-in's `Inbox` while Cloudflare delivers in parallel, the
+    personal API's `folder` path) both read "no Inbox" and both made one. Now a
+    missing segment takes `BEGIN IMMEDIATE` (when the connection is not already
+    in a transaction -- the importer's has written, so it holds the lock), reads
+    again, and only then inserts; the second racer waits, then finds the
+    first's folder. A chain that already exists stays a plain read."""
     owned = conn is None
     conn = conn or get_connection()
     try:
         pid = dest_folder_id or ""
+
+        def existing(parent: str, name: str):
+            return conn.execute(
+                "SELECT id FROM j2_note_folders WHERE user_id = ? AND parent_id = ? AND name = ?",
+                (user_id, parent, name)).fetchone()
+
         for raw in path_parts:
             name = (raw or "").strip()[:80] or "Untitled"
-            row = conn.execute(
-                "SELECT id FROM j2_note_folders WHERE user_id = ? AND parent_id = ? AND name = ?",
-                (user_id, pid, name)).fetchone()
+            row = existing(pid, name)
+            if row is None and not conn.in_transaction:
+                conn.execute("BEGIN IMMEDIATE")
+                row = existing(pid, name)
             if row:
                 pid = row["id"]
             else:
                 pid = create_folder(user_id, name, parent_id=pid, conn=conn)["id"]
+        if owned:
+            conn.commit()
         return pid
+    except BaseException:
+        if owned and conn.in_transaction:
+            conn.rollback()
+        raise
     finally:
         if owned:
             conn.close()

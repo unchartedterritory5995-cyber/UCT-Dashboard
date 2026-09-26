@@ -134,6 +134,10 @@ NOTEBOOK_FLAGS = {
     "NOTEBOOK_CONFLICT_UX_ON": False,       # enablement   — unset means OFF
     "NOTEBOOK_ATTACHMENTS_ON": False,       # enablement   — unset means OFF
     "NOTEBOOK_ASK_INSERT_ON": False,        # enablement   — unset means OFF (G-064)
+    # Wave 7 lane H (H2): editor writing help. Payload key DERIVED as
+    # `notebook_writing_help_enabled` (the one derivation, above); the route
+    # reads the same variable per request (journal_two/writing_help.py).
+    "NOTEBOOK_WRITING_HELP_ENABLED": False,  # enablement  — unset means OFF
 }
 
 # ⛔⛔ A MODE, NOT A SWITCH — so it gets its OWN table rather than a boolean with

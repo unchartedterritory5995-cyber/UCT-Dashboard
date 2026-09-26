@@ -2,6 +2,7 @@ import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { render, screen, fireEvent, within, waitFor, act } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import FolderSidebar, { buildFolderTree, renderSnippetMarks, matchReasonFor } from './FolderSidebar'
+import { SplitViewContext } from '../../lib/splitView'
 
 const removeMock = vi.fn()
 
@@ -403,6 +404,85 @@ describe('search panel — the true total, not the length of the loaded page (B2
   })
 })
 
+// ⛔ Wave 7 whole-branch fix, ruling D-H8 (cross-shard 1; lane H's flip precondition M-5): the
+// armed meaning search APPENDS rows past the lexical `total` with `matchKind: "meaning"`. Nothing
+// here read it: those rows showed a bare title with no reason, and the count read "Showing 7 of 2
+// notes". A meaning row now says why it is there, and the count says what the list holds.
+describe('search panel — rows related by MEANING say so, and the count is honest (D-H8)', () => {
+  const settle = () => act(() => { vi.advanceTimersByTime(300) })
+  beforeEach(() => { vi.useFakeTimers() })
+  afterEach(() => { vi.useRealTimers() })
+  function typeQuery(value) {
+    fireEvent.click(screen.getByLabelText('Search notes'))
+    fireEvent.change(screen.getByPlaceholderText(/search notes/i), { target: { value } })
+  }
+  const lexical = (id, title) => ({
+    id, title, bodyPlain: '', folderId: null, tags: [], bodySnippet: `a <mark>fear</mark> line in ${title}`,
+  })
+  const meaning = (id, title) => ({ id, title, bodyPlain: '', folderId: null, tags: [], matchKind: 'meaning' })
+  function serve(notes, total) {
+    useJ2NotesMock.mockImplementation((opts) => {
+      if (!opts?.enabled) return { notes: [], isLoading: false, isValidating: false, error: null }
+      return { notes, isLoading: false, isValidating: false, error: null, total, hasMore: false, loadMore: vi.fn(), isLoadingMore: false }
+    })
+    render(<FolderSidebar notes={[]} activeFolderId={null} onSelectFolder={() => {}}
+                          activeTag={null} onSelectTag={() => {}} />)
+    typeQuery('why did I sell out of fear')
+    settle()
+  }
+
+  it('2 matches + 5 related: the count says so, and every related row carries its reason line', () => {
+    serve([
+      lexical('l1', 'Fear log'), lexical('l2', 'Exit review'),
+      meaning('m1', 'Panic in March'), meaning('m2', 'Stops'), meaning('m3', 'Selling early'),
+      meaning('m4', 'Nerves'), meaning('m5', 'Discipline'),
+    ], 2)
+    expect(screen.getByText('7 shown: 2 matches, 5 related')).toBeInTheDocument()
+    expect(screen.queryByText(/Showing 7 of 2/)).not.toBeInTheDocument()
+    expect(screen.getAllByText('Related by meaning')).toHaveLength(5)
+    const row = screen.getByText('Panic in March').closest('button')
+    expect(within(row).getByText('Related by meaning')).toBeInTheDocument()
+    // a lexical row keeps its snippet and says nothing about meaning
+    const lex = screen.getByText('Fear log').closest('button')
+    expect(within(lex).queryByText('Related by meaning')).not.toBeInTheDocument()
+  })
+
+  it('singulars read as singulars', () => {
+    serve([lexical('l1', 'Fear log'), meaning('m1', 'Panic in March')], 1)
+    expect(screen.getByText('2 shown: 1 match, 1 related')).toBeInTheDocument()
+  })
+
+  it('CONTROL — no meaning rows: the count is the familiar "Showing N of M" and no reason line appears', () => {
+    serve([lexical('l1', 'Fear log'), lexical('l2', 'Exit review')], 2)
+    expect(screen.getByText('Showing 2 of 2 notes')).toBeInTheDocument()
+    expect(screen.queryByText('Related by meaning')).not.toBeInTheDocument()
+  })
+})
+
+// ⛔ Ruling D-H9: the server appends meaning rows only to a request that asks (`meaning=1`), and
+// this search box -- the one list that renders them with a reason line (D-H8) -- is the one that
+// asks. Its counter lists do not.
+describe('search panel — the search box is the one list that asks for meaning rows (D-H9)', () => {
+  beforeEach(() => { vi.useFakeTimers() })
+  afterEach(() => { vi.useRealTimers() })
+
+  it('the search request carries meaning: true; the counter lists do not', () => {
+    render(<FolderSidebar notes={[]} activeFolderId={null} onSelectFolder={() => {}}
+                          activeTag={null} onSelectTag={() => {}} />)
+    fireEvent.click(screen.getByLabelText('Search notes'))
+    fireEvent.change(screen.getByPlaceholderText(/search notes/i), { target: { value: 'why did I sell out of fear' } })
+    act(() => { vi.advanceTimersByTime(300) })
+    const calls = useJ2NotesMock.mock.calls.map(([opts]) => opts || {})
+    const search = calls.filter((o) => o.enabled && o.q)
+    expect(search.length).toBeGreaterThan(0)                       // non-vacuity: the search ran
+    expect(search.every((o) => o.meaning === true)).toBe(true)
+    // the Unfiled / Trash / Archived counter lists (folderId or deleted)
+    const counters = calls.filter((o) => o.folderId || o.deleted)
+    expect(counters.length).toBeGreaterThan(0)                      // the counters were seen too
+    expect(counters.some((o) => o.meaning)).toBe(false)
+  })
+})
+
 describe('folder delete error surfacing', () => {
   beforeEach(() => {
     removeMock.mockReset()
@@ -761,6 +841,37 @@ describe('Wave 0 trash: a "Trash" entry in the sidebar', () => {
                           activeTag={null} onSelectTag={() => {}} />)
     const trashRow = screen.getByText('Trash').closest('button')
     expect(trashRow.className).toMatch(/rowActive/)
+  })
+})
+
+describe('Wave 6 archive: an "Archived" entry in the sidebar', () => {
+  it('shows its OWN list total and routes selection through the __archived__ sentinel', () => {
+    useJ2NotesMock.mockImplementation((opts) => {
+      // ⛔ The badge is the Archived list's own total — the same hook call
+      // shape as the list the entry opens, never a separate count.
+      if (opts?.folderId === '__archived__') return { notes: [], isLoading: false, isValidating: false, error: null, total: 4 }
+      if (opts?.deleted) return { notes: [], isLoading: false, isValidating: false, error: null, total: 7 }
+      return { notes: [], isLoading: false, isValidating: false, error: null }
+    })
+    const onSelectFolder = vi.fn()
+    const onSelectTag = vi.fn()
+    render(<FolderSidebar notes={[]} activeFolderId={null} onSelectFolder={onSelectFolder}
+                          activeTag="swing" onSelectTag={onSelectTag} />)
+    const row = screen.getByText('Archived').closest('button')
+    expect(within(row).getByText('4')).toBeInTheDocument()
+    // Non-vacuity: the two shelves are two rows with two different counts.
+    expect(within(screen.getByText('Trash').closest('button')).getByText('7')).toBeInTheDocument()
+    fireEvent.click(row)
+    expect(onSelectFolder).toHaveBeenCalledWith('__archived__')
+    expect(onSelectTag).toHaveBeenCalledWith(null)
+  })
+
+  it('shows no badge while the archive total is unknown, and highlights when selected', () => {
+    render(<FolderSidebar notes={[]} activeFolderId="__archived__" onSelectFolder={() => {}}
+                          activeTag={null} onSelectTag={() => {}} />)
+    const row = screen.getByText('Archived').closest('button')
+    expect(within(row).queryByText('0')).not.toBeInTheDocument()
+    expect(row.className).toMatch(/rowActive/)
   })
 })
 
@@ -1522,6 +1633,97 @@ describe('Saved View rename/delete (UX #1)', () => {
 })
 
 /**
+ * ⛔ Wave 7 lane J, J5 — a saved-view row NESTED its Rename/Delete controls inside the
+ * select <button>: interactive content inside a button is invalid HTML, the two controls
+ * were spans no keyboard could reach, and the row's accessible name concatenated all three
+ * ("Active Theses Rename Active Theses Delete Active Theses" -- the wave-6 walk measured it
+ * in Chromium and moved to `get_by_title` to survive it). The row is now a container whose
+ * select, rename and delete are three SIBLING buttons. The walk's locator is kept working:
+ * the select button alone carries `title={view.name}`, the two controls keep the literal
+ * titles "Rename view"/"Delete view" and their `Rename <name>`/`Delete <name>` labels.
+ */
+describe('a saved-view row is three sibling buttons, never a button inside a button (J5)', () => {
+  const views = [
+    { id: 'v1', name: 'Active Theses', viewType: 'list' },
+    { id: 'v2', name: 'Watching', viewType: 'board' },
+  ]
+  const renderRows = (props = {}) => render(
+    <FolderSidebar notes={[]} activeFolderId={null} onSelectFolder={() => {}}
+                   activeTag={null} onSelectTag={() => {}} savedViews={views} {...props} />)
+  const section = () => screen.getByText('Saved Views').closest('div').parentElement
+
+  it('no button in the Saved Views section holds another control', () => {
+    renderRows()
+    const buttons = [...section().querySelectorAll('button')]
+    // Non-vacuity: the walk saw the header toggle AND every row's three controls.
+    expect(buttons.length).toBeGreaterThanOrEqual(1 + views.length * 3)
+    const nested = buttons.filter((b) => b.querySelector(
+      'button, a[href], input, select, textarea, [role="button"], [tabindex], [aria-label]'))
+    expect(nested.map((b) => b.getAttribute('title') || b.textContent)).toEqual([])
+  })
+
+  it('select, rename and delete are each a button with its own name', () => {
+    renderRows()
+    // The select button is named by the view alone -- no concatenated control names.
+    const select = screen.getByRole('button', { name: 'Active Theses' })
+    expect(select).toHaveAttribute('title', 'Active Theses')
+    expect(screen.getByRole('button', { name: 'Rename Active Theses' })).toHaveAttribute('title', 'Rename view')
+    expect(screen.getByRole('button', { name: 'Delete Active Theses' })).toHaveAttribute('title', 'Delete view')
+    // The wave-6 walk locates the row by title == view name: exactly one element carries it.
+    expect(section().querySelectorAll('[title="Active Theses"]')).toHaveLength(1)
+  })
+
+  it('select is reachable by keyboard: focus + Enter selects the view', async () => {
+    const user = userEvent.setup()
+    const onSelectView = vi.fn()
+    renderRows({ onSelectView })
+    screen.getByRole('button', { name: 'Active Theses' }).focus()
+    await user.keyboard('{Enter}')
+    expect(onSelectView).toHaveBeenCalledWith(views[0])
+  })
+
+  it('rename is the next Tab stop after select, and Enter opens the rename field', async () => {
+    const user = userEvent.setup()
+    const onSelectView = vi.fn()
+    renderRows({ onSelectView })
+    screen.getByRole('button', { name: 'Active Theses' }).focus()
+    await user.tab()
+    expect(document.activeElement).toHaveAccessibleName('Rename Active Theses')
+    await user.keyboard('{Enter}')
+    expect(screen.getByDisplayValue('Active Theses').tagName).toBe('INPUT')
+    expect(onSelectView).not.toHaveBeenCalled()
+  })
+
+  it('the controls a keyboard can reach are also SHOWN on focus, not only on hover', async () => {
+    // jsdom applies no stylesheet, so this reads the rule itself: a Tab stop at opacity 0
+    // is reachable and invisible, which is the failure the keyboard tests cannot see.
+    const { readFileSync } = await import('node:fs')
+    const { join } = await import('node:path')
+    const css = readFileSync(join(process.cwd(),
+      'src/pages/journal-2-0/components/notebook/FolderSidebar.module.css'), 'utf8')
+      .replace(/\/\*[\s\S]*?\*\//g, '')
+    const rule = [...css.matchAll(/([^{}]+)\{([^}]*)\}/g)]
+      .find(([, sel]) => sel.split(',').map((s) => s.trim()).includes('.viewRow:focus-within .actions'))
+    expect(rule, 'no `.viewRow:focus-within .actions` rule').toBeTruthy()
+    expect(rule[2]).toMatch(/opacity:\s*1\b/)
+  })
+
+  it('delete is the Tab stop after rename, and Enter deletes WITHOUT selecting', async () => {
+    const user = userEvent.setup()
+    const onSelectView = vi.fn()
+    const onDeleteView = vi.fn()
+    renderRows({ onSelectView, onDeleteView })
+    screen.getByRole('button', { name: 'Active Theses' }).focus()
+    await user.tab()
+    await user.tab()
+    expect(document.activeElement).toHaveAccessibleName('Delete Active Theses')
+    await user.keyboard('{Enter}')
+    expect(onDeleteView).toHaveBeenCalledWith('v1', 'Active Theses')
+    expect(onSelectView).not.toHaveBeenCalled()
+  })
+})
+
+/**
  * ⛔⛔ RENAME HAD ZERO VISUAL AFFORDANCE — discoverable only by
  * double-clicking a folder row, a desktop-file-manager convention this
  * product never taught anywhere. Competitive audit finding UX #10,
@@ -1716,5 +1918,83 @@ describe('search panel — scanned-text provenance on a document hit', () => {
     searchWith({ textOrigin: 'ocr' })
     expect(screen.getByText(/filing\.pdf · p\.12/)).toBeInTheDocument()
     expect(screen.getByText('margin').tagName).toBe('MARK')
+  })
+})
+
+// ── Wave 6 (lane E, item 7): Ctrl/Cmd+click a note in the sidebar opens it
+// beside (desktop split view). Each of the three row kinds is its own call
+// site, so each has its own rail.
+describe('Wave 6 split view: Ctrl/Cmd+click opens a note beside', () => {
+  const renderSplit = (props, canSplit = true) => {
+    const openToSide = vi.fn()
+    const onOpenNote = vi.fn()
+    render(
+      <SplitViewContext.Provider value={{ canSplit, openToSide }}>
+        <FolderSidebar notes={[]} activeFolderId={null} onSelectFolder={() => {}}
+                       activeTag={null} onSelectTag={() => {}} onOpenNote={onOpenNote} {...props} />
+      </SplitViewContext.Provider>,
+    )
+    return { openToSide, onOpenNote }
+  }
+
+  it('a Recents row: Ctrl+click opens beside; a plain click opens it as before', () => {
+    useJ2RecentsMock.mockImplementation(() => ({
+      notes: [{ id: 'r1', title: 'Recently Opened' }], isLoading: false, error: null, refresh: vi.fn(),
+    }))
+    const { openToSide, onOpenNote } = renderSplit()
+    fireEvent.click(screen.getByText('Recently Opened'), { ctrlKey: true })
+    expect(openToSide).toHaveBeenCalledWith('r1')
+    expect(onOpenNote).not.toHaveBeenCalled()
+    fireEvent.click(screen.getByText('Recently Opened'))
+    expect(onOpenNote).toHaveBeenCalledWith({ id: 'r1', title: 'Recently Opened' })
+    expect(openToSide).toHaveBeenCalledTimes(1)
+  })
+
+  it('a note under its folder: Cmd+click opens beside', () => {
+    const { openToSide, onOpenNote } = renderSplit({
+      notes: [{ id: 'n1', title: 'Commentary', folderId: 'c', tags: [] }],
+    })
+    fireEvent.click(screen.getByLabelText('Expand Journal'))
+    fireEvent.click(screen.getByText('Commentary'), { metaKey: true })
+    expect(openToSide).toHaveBeenCalledWith('n1')
+    expect(onOpenNote).not.toHaveBeenCalled()
+  })
+
+  it('a search hit: Ctrl+click opens beside', () => {
+    vi.useFakeTimers()
+    try {
+      useJ2NotesMock.mockImplementation((opts) => (opts?.enabled
+        ? { notes: [{ id: 's1', title: 'Search Hit', folderId: null, tags: [] }], isLoading: false, isValidating: false, error: null }
+        : { notes: [], isLoading: false, isValidating: false, error: null }))
+      const { openToSide, onOpenNote } = renderSplit()
+      fireEvent.click(screen.getByLabelText('Search notes'))
+      fireEvent.change(screen.getByPlaceholderText(/search notes/i), { target: { value: 'hit' } })
+      act(() => { vi.advanceTimersByTime(300) })
+      fireEvent.click(screen.getByText('Search Hit'), { ctrlKey: true })
+      expect(openToSide).toHaveBeenCalledWith('s1')
+      expect(onOpenNote).not.toHaveBeenCalled()
+    } finally {
+      vi.useRealTimers()
+    }
+  })
+
+  it('where the page cannot split (≤1024px), Ctrl+click opens the note the ordinary way', () => {
+    useJ2RecentsMock.mockImplementation(() => ({
+      notes: [{ id: 'r1', title: 'Recently Opened' }], isLoading: false, error: null, refresh: vi.fn(),
+    }))
+    const { openToSide, onOpenNote } = renderSplit({}, false)
+    fireEvent.click(screen.getByText('Recently Opened'), { ctrlKey: true })
+    expect(onOpenNote).toHaveBeenCalledWith({ id: 'r1', title: 'Recently Opened' })
+    expect(openToSide).not.toHaveBeenCalled()
+  })
+
+  it('Ctrl+Shift+click is not the gesture — the row opens as usual', () => {
+    useJ2RecentsMock.mockImplementation(() => ({
+      notes: [{ id: 'r1', title: 'Recently Opened' }], isLoading: false, error: null, refresh: vi.fn(),
+    }))
+    const { openToSide, onOpenNote } = renderSplit()
+    fireEvent.click(screen.getByText('Recently Opened'), { ctrlKey: true, shiftKey: true })
+    expect(openToSide).not.toHaveBeenCalled()
+    expect(onOpenNote).toHaveBeenCalled()
   })
 })

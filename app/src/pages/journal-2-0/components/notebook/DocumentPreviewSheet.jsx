@@ -7,6 +7,11 @@ import { SOURCE_NOWHERE } from '../../lib/openCitation'
 // let a pdfjs incompatibility take the whole /journal/notebook route down on iOS 17
 // (2026-09-12). See PdfViewerBoundary.jsx for the incident and both mechanisms.
 import PdfViewerBoundary from './PdfViewerBoundary'
+// Wave 7 lane G (G4): an image or a .docx can be a document too. Neither viewer
+// touches pdfjs, so both are plain imports; the PDF path stays behind its boundary.
+import ImageDocumentViewer from './ImageDocumentViewer'
+import TextPagesViewer from './TextPagesViewer'
+import { DOCUMENT_KIND_DOCX, DOCUMENT_KIND_IMAGE, documentKindFromHref } from './documentKind'
 import styles from './DocumentPreviewSheet.module.css'
 
 /**
@@ -20,6 +25,13 @@ import styles from './DocumentPreviewSheet.module.css'
  * authenticated `href`, the same page-target contract (now driven by
  * PdfDocumentViewer's own scroll-to-page instead of the browser's native
  * `#page=N` fragment convention -- functionally equivalent, live-verified).
+ *
+ * Wave 7 (G4): the preview area BRANCHES on what the document is. The mounts
+ * pass no kind (and are unchanged by ruling), so the kind is read from the
+ * attachment URL, which the server makes say what the row is — see
+ * `documentKind.js`. An image opens beside the text read from it; a .docx
+ * opens as page-numbered text on the page a search hit named; everything else
+ * — every PDF — opens exactly as before.
  */
 export default function DocumentPreviewSheet({
   open, href, name, page, onClose,
@@ -36,6 +48,7 @@ export default function DocumentPreviewSheet({
   // reason is in `.body` in this module's CSS.
   const viewerRef = useRef(null)
   if (!href) return null
+  const kind = documentKindFromHref(href)
   return (
     <Sheet
       open={open}
@@ -80,17 +93,23 @@ export default function DocumentPreviewSheet({
           )}
         </div>
       </div>
-      <PdfViewerBoundary
-        ref={viewerRef}
-        href={href}
-        /* Wave P4: the viewer needs the document id to fetch ONE page's
-           scanned-text transcript. */
-        documentId={documentId}
-        initialPage={page}
-        excerpts={excerpts}
-        onSaveExcerpt={onSaveExcerpt}
-        emphasizeExcerptId={emphasizeExcerptId}
-      />
+      {kind === DOCUMENT_KIND_IMAGE ? (
+        <ImageDocumentViewer ref={viewerRef} href={href} documentId={documentId} name={name} />
+      ) : kind === DOCUMENT_KIND_DOCX ? (
+        <TextPagesViewer ref={viewerRef} href={href} documentId={documentId} initialPage={page} />
+      ) : (
+        <PdfViewerBoundary
+          ref={viewerRef}
+          href={href}
+          /* Wave P4: the viewer needs the document id to fetch ONE page's
+             scanned-text transcript. */
+          documentId={documentId}
+          initialPage={page}
+          excerpts={excerpts}
+          onSaveExcerpt={onSaveExcerpt}
+          emphasizeExcerptId={emphasizeExcerptId}
+        />
+      )}
     </Sheet>
   )
 }

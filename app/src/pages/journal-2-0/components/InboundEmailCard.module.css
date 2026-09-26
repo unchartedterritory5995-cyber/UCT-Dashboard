@@ -1,0 +1,56 @@
+/* Wave 7 lane G (G3) — Settings → Email to Notebook.
+   Its OWN module (fix round 1, M-13): it used to borrow PersonalApiCard's, so a
+   style change to one card moved the other. The two look alike on purpose; they
+   no longer share a file. */
+.lead {
+  margin: 0 0 12px;
+  line-height: 1.6;
+  color: var(--text-muted);
+  font-size: 13px;
+}
+
+.muted {
+  color: var(--text-muted);
+}
+
+.makeRow,
+.tokenRow {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+  margin-bottom: 8px;
+}
+
+.tokenInput {
+  flex: 1 1 220px;
+  min-width: 0;
+  min-height: 34px;
+  padding: 6px 10px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  background: var(--bg);
+  color: var(--text-bright);
+  font-size: 13px;
+  font-family: var(--font-mono);
+}
+
+.made {
+  padding: 12px;
+  margin-bottom: 12px;
+  border: 1px solid var(--border-accent);
+  border-radius: var(--radius-lg);
+  background: var(--bg-surface);
+}
+
+.warn {
+  margin: 0 0 8px;
+  font-size: 12px;
+  color: var(--warn);
+}
+
+@media (max-width: 1024px) {
+  .tokenInput {
+    min-height: var(--tap-min, 44px);
+  }
+}

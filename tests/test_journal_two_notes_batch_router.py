@@ -369,33 +369,105 @@ def test_export_is_a_zip_of_the_selected_notes_only_and_says_what_it_skipped(app
     assert gone["id"] in issues and theirs["id"] in issues
 
 
-def test_export_merges_a_notes_own_zip_attachments_and_issues(app, client, monkeypatch):
-    # A single-note export comes back as a ZIP when the note bundles files.
-    # This pins the merge: the note's .md at the root, its attachments under
-    # their own per-note path, and its issue lines carried into ONE issues file.
+# ⚰️ Wave 6 fix round 1, I2 — `test_export_merges_a_notes_own_zip_attachments_
+# and_issues` (which faked `build_single_note_export` returning a zip and
+# asserted the ROUTE merged it) is REMOVED, not adapted: that was the
+# per-note-merge implementation this fix replaces, so the mock it drove is
+# never called by the new route at all. Real-attachment bundling in a
+# selection export is what `test_the_selection_export_shares_ONE_
+# attachment_budget_across_its_notes` below already proves, against real
+# files on disk through the ACTUAL writer (`_write_notes_archive`) the route
+# now calls — a stronger rail than a faked per-note zip ever was.
+
+
+def test_the_route_calls_the_selection_builder_lane_d_shipped_not_the_per_note_merge(app, client, monkeypatch):
+    """Wave 6 fix round 1, I2 — `build_selection_export_to_tempfile` (lane D's
+    file) had no caller; the route hand-merged per-note zips instead. The old
+    and new paths can produce an outwardly identical zip (both are pinned by
+    `test_export_is_a_zip_of_the_selected_notes_only_and_says_what_it_skipped`
+    above), so only a spy on the module attribute can prove the SWITCH."""
     _login_as(app, "u1")
-    a = _note(client, "With image")
-    b = _note(client, "Plain")
+    a = _note(client, "Alpha")
     from api.services.journal_two import notes_export
-    real = notes_export.build_single_note_export
+    real = notes_export.build_selection_export_to_tempfile
+    calls = []
 
-    def fake(user_id, note_id, conn=None, attachment_budget=None):
-        if note_id != a["id"]:
-            return real(user_id, note_id, conn=conn, attachment_budget=attachment_budget)
-        buf = io.BytesIO()
-        with zipfile.ZipFile(buf, "w") as zf:
-            zf.writestr("With image.md", "# With image\n![](attachments/u1/x/img/p.png)\n")
-            zf.writestr("attachments/u1/x/img/p.png", b"PNGDATA")
-            zf.writestr("EXPORT_ISSUES.txt", "- one attachment was too large")
-        return buf.getvalue(), "With image-20260923.zip", "application/zip"
+    def spy(user_id, note_ids, conn=None):
+        calls.append((user_id, list(note_ids)))
+        return real(user_id, note_ids, conn=conn)
 
-    monkeypatch.setattr(notes_export, "build_single_note_export", fake)
+    monkeypatch.setattr(notes_export, "build_selection_export_to_tempfile", spy)
+    r = _export(client, [a["id"]])
+    assert calls == [("u1", [a["id"]])]
+    zf = zipfile.ZipFile(io.BytesIO(r.content))
+    assert "Alpha.md" in zf.namelist()
+    manifest = json.loads(zf.read("UCT_NOTEBOOK_EXPORT.json"))
+    assert manifest["selection"] is True
+
+
+def test_route_level_round_trip_two_folders_a_cross_link_and_a_spaced_title(app, client):
+    """M4 (wave 6 fix round 2) — the addendum's own wire rail, which
+    tests/test_notes_export_wave6.py's own docstring says belongs here
+    ("the route's rail on the wire is lane E's") and which was never
+    written: the spy test above proves the route CALLS the builder, and
+    the builder's own tests (test_every_link_between_selected_notes_is_a_
+    markdown_link_that_resolves_inside_the_archive) prove the builder's
+    OUTPUT is correct in isolation — neither proves the two are wired
+    together correctly through the real HTTP door a member calls. This
+    drives real folders, a real inter-note link and a spaced title through
+    POST /api/j2/notes/batch/export itself."""
+    _login_as(app, "u1")
+    trading = _folder(client, "Trading")
+    research = _folder(client, "Research")
+    a = _note(client, "Cup and handle", folderId=trading)
+    b = _note(client, "NVDA thesis", folderId=research)
+    link_body = {"type": "doc", "content": [
+        {"type": "paragraph", "content": [{"type": "noteLink", "attrs": {"noteId": b["id"]}}]},
+    ]}
+    assert client.put(f"/api/j2/notes/{a['id']}", json={"bodyJson": link_body}).status_code == 200
+
     r = _export(client, [a["id"], b["id"]])
     zf = zipfile.ZipFile(io.BytesIO(r.content))
     names = set(zf.namelist())
-    assert {"With image.md", "Plain.md", "attachments/u1/x/img/p.png"} <= names
-    assert zf.read("attachments/u1/x/img/p.png") == b"PNGDATA"
-    assert "one attachment was too large" in zf.read("EXPORT_ISSUES.txt").decode()
+    assert {"Trading/Cup and handle.md", "Research/NVDA thesis.md"} <= names
+
+    from markdown_it import MarkdownIt
+    import posixpath
+    from urllib.parse import unquote
+
+    linking_md = zf.read("Trading/Cup and handle.md").decode("utf-8")
+    hrefs = [
+        child.attrGet("href")
+        for tok in MarkdownIt("commonmark").parse(linking_md)
+        for child in (tok.children or [])
+        if child.type == "link_open"
+    ]
+    # ⛔ CommonMark itself must see it as a link (I2's percent-encoding fix):
+    # an unencoded space in the destination would not parse as one at all.
+    assert len(hrefs) == 1
+    resolved = posixpath.normpath(posixpath.join(
+        posixpath.dirname("Trading/Cup and handle.md"),
+        unquote(hrefs[0].split("#")[0].split("?")[0]),
+    ))
+    assert resolved == "Research/NVDA thesis.md"
+
+
+def test_a_failed_build_releases_the_slot_so_the_next_export_still_runs(app, client, monkeypatch):
+    """The switch keeps the caller-owns-the-slot contract on failure too:
+    `build_selection_export_to_tempfile` deletes its own partial tmp file (its
+    own docstring), and the route must still release the slot it acquired."""
+    _login_as(app, "u1")
+    a = _note(client, "Alpha")
+    from api.services.journal_two import notes_export
+
+    def boom(user_id, note_ids, conn=None):
+        raise RuntimeError("disk full")
+
+    monkeypatch.setattr(notes_export, "build_selection_export_to_tempfile", boom)
+    with pytest.raises(RuntimeError):
+        client.post("/api/j2/notes/batch/export", json={"ids": [a["id"]]})
+    monkeypatch.undo()
+    _export(client, [a["id"]])  # would 429 if the failed attempt leaked the slot
 
 
 def test_export_is_refused_while_another_export_holds_the_slot(app, client, monkeypatch):

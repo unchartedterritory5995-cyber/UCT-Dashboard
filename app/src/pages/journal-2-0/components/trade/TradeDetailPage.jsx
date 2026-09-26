@@ -13,12 +13,13 @@
  * Mirrors PositionDetailPage's structure, hooks, skeleton + CSS conventions.
  */
 
-import { useCallback, useEffect, useMemo, useRef, useState, lazy, Suspense } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState, Suspense } from 'react'
 import { Link, useNavigate, useLocation, useParams, useSearchParams } from 'react-router-dom'
 import ShareToFloor from '../../../../components/community/ShareToFloor'
 import useSWR from 'swr'
 import { SkeletonLine } from '../../../../components/Skeleton'
 import useJ2Trades from '../../hooks/useJ2Trades'
+import lazyChunk from '../../lib/lazyChunk'
 import useJ2SelectedAccount from '../../hooks/useJ2SelectedAccount'
 import useJ2Settings from '../../hooks/useJ2Settings'
 import useTradeReview from '../../hooks/useTradeReview'
@@ -59,7 +60,7 @@ function tradeChartWindow(trade) {
 // The SAME chart the /charts workspace renders — identity row, session toggle,
 // market clock, timeframe bar, market-cap/earnings/UCT-rating meta, settings
 // gear and drawing tools. Lazy, so none of it lands in the eager entry chunk.
-const ChartPane = lazy(() => import('../../../../components/chart/pane/ChartPane'))
+const ChartPane = lazyChunk(() => import('../../../../components/chart/pane/ChartPane'))
 
 // Exit-efficiency honest-state copy. EFFICIENCY_TITLE = the pending default
 // (kept for the "not yet computed" state + shown in the chart footer then).

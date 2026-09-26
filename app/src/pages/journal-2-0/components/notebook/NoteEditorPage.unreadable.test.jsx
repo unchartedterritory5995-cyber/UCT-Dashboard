@@ -11,8 +11,10 @@
  * IndexedDB (the durable harness), so a write through ANY of those layers shows.
  */
 import { render, screen, act, fireEvent, cleanup } from '@testing-library/react'
+import userEvent from '@testing-library/user-event'
 import { MemoryRouter } from 'react-router-dom'
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest'
+import { Editor } from '@tiptap/core'
 import { createFakeIndexedDbFactory, settleIdb } from '../../lib/offline/__fixtures__/fakeIndexedDb'
 import { __resetNotebookConnections } from '../../lib/offline/useDurableNote'
 import { OFFLINE_FLAG_KEY } from '../../lib/offline/offlineFlag'
@@ -29,9 +31,11 @@ const BODIES = {
   control: { type: 'doc', content: [para('Original body')] },
 }
 let body = BODIES.control
+let noteLocked = false        // wave 6 item 8's `locked` field (I-3 rails flip it)
 const note = () => ({
   id: 'n1', title: 'NVDA thesis', subtitle: '', folderId: null,
   ticker: null, tags: [], heroImageUrl: null, updatedAt: 'T1', isFavorite: false, bodyJson: body,
+  locked: noteLocked,
 })
 
 const updateMock = vi.fn()
@@ -49,6 +53,7 @@ let factory
 beforeEach(() => {
   localStorage.clear()
   localStorage.setItem(OFFLINE_FLAG_KEY, '1')
+  noteLocked = false
   updateMock.mockReset()
   updateMock.mockImplementation(async (patch) => ({ ...note(), ...patch, updatedAt: 'T2' }))
   __resetNotebookConnections()
@@ -65,9 +70,9 @@ afterEach(() => {
   delete globalThis.indexedDB
 })
 
-async function renderEditor() {
+async function renderEditor(props = {}) {
   const NoteEditorPage = (await import('./NoteEditorPage')).default
-  const view = render(<MemoryRouter><NoteEditorPage noteId="n1" onBack={vi.fn()} /></MemoryRouter>)
+  const view = render(<MemoryRouter><NoteEditorPage noteId="n1" onBack={vi.fn()} {...props} /></MemoryRouter>)
   await screen.findByPlaceholderText('Title')
   await act(async () => { await settleIdb(4) })
   return view
@@ -169,5 +174,75 @@ describe('⛔ the control — a note this bundle CAN read', () => {
     await renderEditor()
     expect(screen.queryByText(UNREADABLE_NOTE_MESSAGE)).toBeNull()
     expect(liveEditor().isEditable).toBe(true)
+  })
+})
+
+/**
+ * ⛔ Wave 6 whole-branch review I-3. The wave-5 merge (07e1a74ae) auto-merged
+ * wave 5's `readOnly={unreadable}` BESIDE wave 6's `readOnly={locked}` on the
+ * title and subtitle inputs; in JSX the later prop wins, so an unreadable note
+ * that is not locked took typing again — `commitSave` dropped it silently while
+ * the sidebar already showed the new title. And the lock effect handed such a
+ * note's editor `setEditable(true)` until the guard re-locked it a render later.
+ * ⭐ Typed with user-event, which honours `readOnly` the way a keyboard does:
+ * `fireEvent.change` would change a read-only input and prove nothing.
+ */
+describe('⛔ I-3 — an unreadable note is read-only in its title and subtitle too', () => {
+  it('unlocked: both inputs are read-only, typing changes nothing, nothing is renamed or written', async () => {
+    body = BODIES.node
+    const onTitleChange = vi.fn()
+    await renderEditor({ onTitleChange })
+    const title = screen.getByPlaceholderText('Title')
+    const subtitle = screen.getByPlaceholderText('Subtitle (optional)')
+    expect(screen.getByText(UNREADABLE_NOTE_MESSAGE)).toBeInTheDocument()   // the guard tripped
+    expect(title.readOnly).toBe(true)
+    expect(subtitle.readOnly).toBe(true)
+
+    const user = userEvent.setup({ advanceTimers: vi.advanceTimersByTime })
+    await user.type(title, ' — edited')
+    await user.type(subtitle, 'a subtitle')
+    await act(async () => { vi.advanceTimersByTime(2000); await settleIdb(8) })
+
+    expect(title.value).toBe('NVDA thesis')
+    expect(subtitle.value).toBe('')
+    expect(onTitleChange).not.toHaveBeenCalled()          // the sidebar is not told a title that never saves
+    expect(updateMock).not.toHaveBeenCalled()             // and no PUT of any kind
+  })
+
+  it('a lock and then an unlock never hand the editor back as editable', async () => {
+    body = BODIES.node
+    const setEditable = vi.spyOn(Editor.prototype, 'setEditable')
+    try {
+      const onBack = vi.fn()
+      const view = await renderEditor({ onBack })
+      const NoteEditorPage = (await import('./NoteEditorPage')).default
+      const rerender = () => view.rerender(
+        <MemoryRouter><NoteEditorPage noteId="n1" onBack={onBack} /></MemoryRouter>)
+      noteLocked = true
+      await act(async () => { rerender() })
+      noteLocked = false
+      await act(async () => { rerender() })
+
+      // ⛔ THE LOAD-BEARING ONE: not "is it read-only now" — the guard re-locks a
+      // render later, so the end state hides the flip. Was it ever handed `true`?
+      expect(setEditable.mock.calls.filter(([editable]) => editable === true)).toEqual([])
+      expect(liveEditor().isEditable).toBe(false)
+      expect(screen.getByPlaceholderText('Title').readOnly).toBe(true)
+      expect(screen.getByPlaceholderText('Subtitle (optional)').readOnly).toBe(true)
+    } finally {
+      setEditable.mockRestore()
+    }
+  })
+
+  it('⛔ control: a readable note that is not locked IS typeable (the rail can see typing land)', async () => {
+    body = BODIES.control
+    const onTitleChange = vi.fn()
+    await renderEditor({ onTitleChange })
+    const title = screen.getByPlaceholderText('Title')
+    expect(title.readOnly).toBe(false)
+    const user = userEvent.setup({ advanceTimers: vi.advanceTimersByTime })
+    await user.type(title, '!')
+    expect(title.value).toBe('NVDA thesis!')
+    expect(onTitleChange).toHaveBeenCalled()
   })
 })

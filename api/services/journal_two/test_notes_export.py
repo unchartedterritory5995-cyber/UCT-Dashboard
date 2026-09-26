@@ -1042,7 +1042,9 @@ def test_full_export_renders_a_linked_note_as_a_relative_path_to_its_bundled_fil
     blob, _ = build_export_zip("u1", conn=c)
     zf = zipfile.ZipFile(io.BytesIO(blob))
     body = zf.read("Source.md").decode("utf-8")
-    assert "[Target Note](Target Note.md)" in body
+    # ⛔ Percent-encoded (wave 6 fix round 1, I2): an unencoded space is not a
+    # CommonMark link destination, so this used to pin plain text.
+    assert "[Target Note](Target%20Note.md)" in body
 
 
 def test_full_export_linked_note_path_reflects_a_title_collision_disambiguator():

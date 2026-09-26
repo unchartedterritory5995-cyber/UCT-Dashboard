@@ -1,25 +1,24 @@
 /**
- * Wave 5 — the Notebook's code-block syntax highlighting: ONE curated
- * language roster, ONE lowlight instance.
+ * Wave 5 — the Notebook's code-block syntax highlighting: ONE curated language
+ * roster, ONE lowlight instance.
  *
- * ⛔ CURATED, NEVER `lowlight/common` OR `all`. Every grammar registered here
- * ships in the Notebook's editor chunk for every member who opens a note, code
- * block or not. `common` is 37 grammars and `all` is ~190; this roster is the
- * languages a trader's notebook actually holds (strategy code, queries,
- * spreadsheets, config) — add one deliberately, and re-measure the chunk.
+ * Wave 7 (lane I3): this module is LOADED ON DEMAND. The roster itself (ids, labels,
+ * aliases) lives in `./codeLanguages`, which the editor imports eagerly; this file
+ * holds the heavy half -- highlight.js core, the 19 grammars and lowlight, ~100 KB --
+ * and is reached only through `codeLanguages.loadHighlighter()`, the first time a note
+ * holds a code block. A note without one never downloads it. ⛔ Never import this file
+ * statically from the editor: that would put it back in every note's first open
+ * (`codeBlockNode.lazyHighlighter.test.js` fails if the editor's modules do).
  *
- * ⛔ THE ROSTER IS THE AUTHORITY FOR THE PICKER TOO. The language picker on a
- * code block (codeBlockNode.js) offers exactly `CODE_LANGUAGES`, in this
- * order; the aliases a pasted fence may carry (```py, ```ts, ```sh) are read
- * from each grammar's OWN `aliases`, never retyped here, so they cannot drift
- * from what lowlight actually recognises.
+ * ⛔ CURATED, NEVER `lowlight/common` OR `all`. `common` is 37 grammars and `all` is
+ * ~190; this roster is the languages a trader's notebook actually holds (strategy
+ * code, queries, spreadsheets, config) — add one deliberately (to `codeLanguages.js`
+ * AND a grammar here), and re-measure the chunk.
  *
- * ⛔ NO AUTO-DETECTION. A block with no language (every code block written
- * before this wave, and "Plain text") renders as plain text. The stock plugin
- * calls `highlightAuto` for an unlabelled block — every grammar tried against
- * the whole block — and it does that for EVERY code block in the note on every
- * keystroke typed inside any of them. The member picks a language; guessing
- * one per keystroke is a cost with no owner.
+ * ⛔ NO AUTO-DETECTION. A block with no language (every code block written before
+ * wave 5, and "Plain text") renders as plain text. Guessing a language means trying
+ * every grammar against the whole block, for every code block in the note, on every
+ * keystroke; the member picks a language instead.
  */
 import hljs from 'highlight.js/lib/core'
 import { createLowlight } from 'lowlight'
@@ -42,75 +41,38 @@ import sql from 'highlight.js/lib/languages/sql'
 import typescript from 'highlight.js/lib/languages/typescript'
 import xml from 'highlight.js/lib/languages/xml'
 import yaml from 'highlight.js/lib/languages/yaml'
+import { CODE_LANGUAGES as ROSTER } from './codeLanguages'
 
-/**
- * The picker's options after "Plain text", in the order a trader reaches for
- * them. `id` is what the node stores (`codeBlock.attrs.language`) and what a
- * Markdown fence carries (```python), so it is the highlight.js name, never a
- * display label.
- */
-export const CODE_LANGUAGES = Object.freeze([
-  { id: 'python', label: 'Python', grammar: python },
-  { id: 'sql', label: 'SQL', grammar: sql },
-  { id: 'javascript', label: 'JavaScript', grammar: javascript },
-  { id: 'typescript', label: 'TypeScript', grammar: typescript },
-  { id: 'r', label: 'R', grammar: r },
-  { id: 'excel', label: 'Excel formula', grammar: excel },
-  { id: 'json', label: 'JSON', grammar: json },
-  { id: 'bash', label: 'Shell', grammar: bash },
-  { id: 'yaml', label: 'YAML', grammar: yaml },
-  { id: 'markdown', label: 'Markdown', grammar: markdown },
-  { id: 'xml', label: 'HTML / XML', grammar: xml },
-  { id: 'css', label: 'CSS', grammar: css },
-  { id: 'java', label: 'Java', grammar: java },
-  { id: 'csharp', label: 'C#', grammar: csharp },
-  { id: 'cpp', label: 'C++', grammar: cpp },
-  { id: 'c', label: 'C', grammar: c },
-  { id: 'go', label: 'Go', grammar: go },
-  { id: 'rust', label: 'Rust', grammar: rust },
-  { id: 'diff', label: 'Diff', grammar: diff },
-].map(Object.freeze))
-
-/** The option that means "no language": stored as `null`. */
-export const PLAIN_TEXT_LABEL = 'Plain text'
-
-const BY_ID = new Map(CODE_LANGUAGES.map((l) => [l.id, l]))
-
-// alias -> canonical id, read from each grammar's own definition (a grammar is
-// a pure function of the hljs API object; calling it registers nothing).
-const ALIAS_TO_ID = new Map()
-for (const lang of CODE_LANGUAGES) {
-  for (const alias of lang.grammar(hljs).aliases || []) ALIAS_TO_ID.set(String(alias).toLowerCase(), lang.id)
+const GRAMMARS = {
+  bash, c, cpp, csharp, css, diff, excel, go, java, javascript, json, markdown,
+  python, r, rust, sql, typescript, xml, yaml,
 }
 
-/**
- * The roster id a stored language means, or null when it is none of ours.
- * `py` -> 'python', 'Python' -> 'python', 'pinescript' -> null.
- */
-export function canonicalLanguage(language) {
-  if (typeof language !== 'string' || !language) return null
-  const key = language.toLowerCase()
-  if (BY_ID.has(key)) return key
-  return ALIAS_TO_ID.get(key) || null
-}
+/** The roster with each language's grammar, in the roster's order. A roster id with
+ *  no grammar here throws at load rather than silently highlighting nothing. */
+export const CODE_LANGUAGES = Object.freeze(ROSTER.map((l) => {
+  const grammar = GRAMMARS[l.id]
+  if (!grammar) throw new Error(`codeHighlight: no grammar for roster language ${l.id}`)
+  return Object.freeze({ ...l, grammar })
+}))
 
-/** What the picker shows for a stored language. An unknown one is shown as
- *  itself — never silently mapped to "Plain text", which would read as if the
- *  member's label had been thrown away. */
-export function languageLabel(language) {
-  if (!language) return PLAIN_TEXT_LABEL
-  const id = canonicalLanguage(language)
-  return id ? BY_ID.get(id).label : String(language)
+/** alias -> id, derived from each grammar's OWN `aliases` (a grammar is a pure
+ *  function of the hljs API object; calling it registers nothing). The roster's
+ *  eager copy (`codeLanguages.CODE_LANGUAGE_ALIASES`) is tested against this. */
+export function grammarAliases() {
+  const out = {}
+  for (const lang of CODE_LANGUAGES) {
+    for (const alias of lang.grammar(hljs).aliases || []) out[String(alias).toLowerCase()] = lang.id
+  }
+  return out
 }
 
 const base = createLowlight(Object.fromEntries(CODE_LANGUAGES.map((l) => [l.id, l.grammar])))
 
 /**
- * The instance the code block plugin runs on. Identical to lowlight's own
- * except `highlightAuto`, which returns the block unhighlighted (see the file
- * header: no auto-detection). The plugin only calls `highlight` for a language
- * `registered()` confirms, so an unknown stored language lands here too and
- * renders as plain text — never an exception inside a keystroke.
+ * The instance the code block's decoration plugin runs on. Identical to lowlight's own
+ * except `highlightAuto`, which returns the block unhighlighted (see the file header:
+ * no auto-detection).
  */
 export const notebookLowlight = Object.freeze({
   ...base,

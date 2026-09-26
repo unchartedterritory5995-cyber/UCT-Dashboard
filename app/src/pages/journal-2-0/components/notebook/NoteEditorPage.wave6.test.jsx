@@ -1,0 +1,367 @@
+import { render, screen, waitFor, act, fireEvent, cleanup } from '@testing-library/react'
+import { MemoryRouter } from 'react-router-dom'
+import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest'
+import { TextSelection } from '@tiptap/pm/state'
+
+// Wave 6 (editor lane D) — the new editor content as the member reaches it,
+// through the REAL NoteEditorPage (real editor mount; the wave-5 file's
+// convention). Each feature's own behaviour is railed in its module's test
+// file; this file rails the DOOR: that the page wires it.
+
+// jsdom has no layout: a caret scrolled into view (?task=) measures a Range.
+if (!Range.prototype.getClientRects) Range.prototype.getClientRects = () => []
+if (!Range.prototype.getBoundingClientRect) Range.prototype.getBoundingClientRect = () => ({ top: 0, left: 0, right: 0, bottom: 0, width: 0, height: 0 })
+
+const P = (t) => ({ type: 'paragraph', content: [{ type: 'text', text: t }] })
+const cell = (t, type = 'tableCell') => ({ type, content: [P(t)] })
+const row = (...c) => ({ type: 'tableRow', content: c })
+
+let NOTE
+const baseNote = () => ({
+  id: 'n1', title: 'Original Title', subtitle: '', folderId: null,
+  ticker: null, tags: [], heroImageUrl: null, updatedAt: '2026-01-01T00:00:00Z',
+  isFavorite: false,
+  bodyJson: { type: 'doc', content: [
+    P('Intro line.'),
+    { type: 'table', content: [row(cell('Sym', 'tableHeader'), cell('R', 'tableHeader')), row(cell('NVDA'), cell('2.1'))] },
+    { type: 'callout', attrs: { variant: 'note' }, content: [P('Watch the gap.')] },
+  ] },
+})
+
+vi.mock('../../hooks/useJ2Notes', () => ({
+  useJ2Note: () => ({ note: NOTE, isLoading: false, update: vi.fn(), refresh: vi.fn() }),
+  recordNoteOpened: vi.fn(),
+  setNoteFavorite: vi.fn(),
+}))
+vi.mock('../../../../context/AuthContext', () => ({ useAuth: () => ({ user: null }) }))
+vi.mock('../../hooks/useJ2NoteFolders', () => ({ default: () => ({ folders: [] }) }))
+
+beforeEach(() => {
+  NOTE = baseNote()
+  global.fetch = vi.fn(() => Promise.resolve({ ok: true, json: () => Promise.resolve({}) }))
+})
+afterEach(() => vi.clearAllMocks())
+
+async function renderEditor() {
+  const NoteEditorPage = (await import('./NoteEditorPage')).default
+  render(<MemoryRouter><NoteEditorPage noteId="n1" onBack={vi.fn()} showBack /></MemoryRouter>)
+  await screen.findByPlaceholderText('Title')
+  const dom = await waitFor(() => {
+    const el = document.querySelector('.ProseMirror')
+    if (!el?.editor) throw new Error('editor not mounted')
+    return el
+  })
+  return dom.editor
+}
+const caretIn = (editor, text) => {
+  let at = null
+  editor.state.doc.descendants((n, pos) => { if (at == null && n.isText && n.text === text) at = pos + 1 })
+  act(() => { editor.view.dispatch(editor.state.tr.setSelection(TextSelection.create(editor.state.doc, at))) })
+}
+
+describe('NoteEditorPage — table toolbar door (wave 6 item 1)', () => {
+  it('the toolbar appears while the caret is in a table and edits THIS note', async () => {
+    const editor = await renderEditor()
+    caretIn(editor, 'Intro line.')
+    expect(screen.queryByRole('toolbar', { name: 'Table' })).toBeNull()
+    caretIn(editor, 'NVDA')
+    fireEvent.click(await screen.findByRole('button', { name: 'Add a row below' }))
+    let rows = 0
+    editor.state.doc.descendants((n) => { if (n.type.name === 'tableRow') rows += 1 })
+    expect(rows).toBe(3)
+  })
+})
+
+describe('NoteEditorPage — callout picker door (wave 6 item 2)', () => {
+  it('the callout\'s own control restyles it in the page\'s editor', async () => {
+    const editor = await renderEditor()
+    const pick = document.querySelector('[data-type="callout"] button.uctCalloutPick')
+    expect(pick.getAttribute('aria-label')).toBe('Callout style: Note')
+    fireEvent.click(pick)
+    const warning = [...document.querySelectorAll('[aria-label="Callout style"] button')].find((b) => b.textContent === 'Warning')
+    fireEvent.click(warning)
+    let variant = null
+    editor.state.doc.descendants((n) => { if (n.type.name === 'callout') variant = n.attrs.variant })
+    expect(variant).toBe('warning')
+  })
+})
+
+describe('NoteEditorPage — image caption + alignment door (wave 6 item 3)', () => {
+  it('a selected image offers its bar in the page; a caption added there is text the word count reads', async () => {
+    NOTE = { ...baseNote(), bodyJson: { type: 'doc', content: [
+      P('Intro line.'),
+      { type: 'image', attrs: { src: '/api/j2/notes/n1/images/a.png', alt: 'chart' } },
+    ] } }
+    const { NodeSelection } = await import('@tiptap/pm/state')
+    const editor = await renderEditor()
+    let imgPos = null
+    editor.state.doc.descendants((n, pos) => { if (n.type.name === 'image') imgPos = pos })
+    act(() => { editor.view.dispatch(editor.state.tr.setSelection(NodeSelection.create(editor.state.doc, imgPos))) })
+    fireEvent.click(await screen.findByRole('button', { name: 'Add caption' }))
+    act(() => { editor.commands.insertContent('Breakout day three') })
+    let fig = null
+    editor.state.doc.forEach((n) => { if (n.type.name === 'imageFigure') fig = n })
+    expect(fig?.lastChild.textContent).toBe('Breakout day three')
+    await waitFor(() => expect(screen.getByTestId('note-stats').textContent).toBe('5 words · 1 min read'))
+  })
+})
+
+describe('NoteEditorPage — moving a block door (wave 6 item 4)', () => {
+  it('Alt+Shift+Down moves the caret\'s block in the page\'s editor; the grip exists for it', async () => {
+    const editor = await renderEditor()
+    caretIn(editor, 'Intro line.')
+    fireEvent.keyDown(editor.view.dom, { key: 'ArrowDown', code: 'ArrowDown', altKey: true, shiftKey: true })
+    const names = []
+    editor.state.doc.forEach((n) => names.push(n.type.name))
+    expect(names.slice(0, 2)).toEqual(['table', 'paragraph'])
+    expect(document.querySelector('button[aria-label="Move this block"]')).toBeTruthy()
+  })
+})
+
+describe('NoteEditorPage — columns door (wave 6 item 5)', () => {
+  it('a note with columns renders them side by side; the slash item inserts outside a column and is withheld inside one', async () => {
+    NOTE = { ...baseNote(), bodyJson: { type: 'doc', content: [
+      P('Intro line.'),
+      { type: 'columns', content: [{ type: 'column', content: [P('Bull.')] }, { type: 'column', content: [P('Bear.')] }] },
+    ] } }
+    const { ITEMS, blockItemsAvailable } = await import('./SlashMenu')
+    const editor = await renderEditor()
+    expect(document.querySelectorAll('.ProseMirror .uctColumns > .uctColumn')).toHaveLength(2)
+    caretIn(editor, 'Bull.')
+    expect(blockItemsAvailable(editor).map((i) => i.title)).not.toContain('2 columns')
+    caretIn(editor, 'Intro line.')
+    expect(blockItemsAvailable(editor).map((i) => i.title)).toContain('2 columns')
+    const from = editor.state.selection.from
+    act(() => { ITEMS.find((i) => i.title === '3 columns').command({ editor, range: { from, to: from } }) })
+    let cols = 0
+    editor.state.doc.descendants((n) => { if (n.type.name === 'column') cols += 1 })
+    expect(cols).toBe(5)
+  })
+
+  it('the LIVE slash menu: typing /c lists the columns items outside a column and never inside one', async () => {
+    NOTE = { ...baseNote(), bodyJson: { type: 'doc', content: [
+      P('Intro line.'),
+      { type: 'columns', content: [{ type: 'column', content: [P('Bull.')] }, { type: 'column', content: [P('Bear.')] }] },
+    ] } }
+    const editor = await renderEditor()
+    const typeSlashAfter = (text) => {
+      let end = null
+      editor.state.doc.descendants((n, pos) => { if (end == null && n.isText && n.text === text) end = pos + n.nodeSize })
+      act(() => {
+        editor.view.dispatch(editor.state.tr.setSelection(TextSelection.create(editor.state.doc, end)))
+        editor.view.dispatch(editor.state.tr.insertText(' /c'))
+      })
+    }
+    const offered = () => [...document.querySelectorAll('[role="listbox"][aria-label="Insert block"] [role="option"]')]
+      .map((o) => o.firstChild?.textContent)
+    typeSlashAfter('Intro line.')
+    await waitFor(() => expect(offered()).toEqual(expect.arrayContaining(['2 columns', '3 columns'])))
+    act(() => { editor.view.dispatch(editor.state.tr.insertText(' ')) })
+    typeSlashAfter('Bull.')
+    // The session inside the column is live (the menu shows its OTHER matches)…
+    await waitFor(() => expect(offered().length).toBeGreaterThan(0))
+    // …and columns are not among them.
+    expect(offered()).not.toContain('2 columns')
+    expect(offered()).not.toContain('3 columns')
+  })
+})
+
+describe('NoteEditorPage — pasted link door (wave 6 item 6)', () => {
+  it('a lone YouTube link pasted in the page offers Link · Preview card · Embed, and Embed places the player', async () => {
+    if (typeof globalThis.ClipboardEvent === 'undefined') {
+      globalThis.ClipboardEvent = class extends Event {
+        constructor(type, opts) { super(type, opts); this.clipboardData = (opts && opts.clipboardData) || null }
+      }
+    }
+    const editor = await renderEditor()
+    let end = null
+    editor.state.doc.descendants((n, pos) => { if (end == null && n.isText && n.text === 'Intro line.') end = pos + n.nodeSize })
+    act(() => {
+      editor.view.dispatch(editor.state.tr.setSelection(TextSelection.create(editor.state.doc, end)))
+      editor.commands.splitBlock()
+      editor.view.pasteText('https://youtu.be/dQw4w9WgXcQ')
+    })
+    const bar = await screen.findByRole('toolbar', { name: 'Pasted link' })
+    expect([...bar.querySelectorAll('button')].map((b) => b.textContent.trim())).toEqual(['Link', 'Preview card', 'Embed'])
+    fireEvent.click(screen.getByRole('button', { name: 'Embed' }))
+    const names = []
+    editor.state.doc.forEach((n) => names.push(n.type.name))
+    expect(names.slice(0, 2)).toEqual(['paragraph', 'webEmbed'])
+    expect(document.querySelector('.ProseMirror .uctWebEmbed iframe').getAttribute('src'))
+      .toBe('https://www.youtube-nocookie.com/embed/dQw4w9WgXcQ?rel=0&modestbranding=1&playsinline=1')
+  })
+})
+
+describe('NoteEditorPage — lane F wiring (wave 6 item 7)', () => {
+  const TASKS = () => ({ type: 'taskList', content: ['Review NVDA thesis', 'Log the AMD trade', 'Earnings prep'].map((t) => (
+    { type: 'taskItem', attrs: { checked: false }, content: [P(t)] })) })
+
+  async function renderAt(url) {
+    const NoteEditorPage = (await import('./NoteEditorPage')).default
+    render(<MemoryRouter initialEntries={[url]}><NoteEditorPage noteId="n1" onBack={vi.fn()} showBack /></MemoryRouter>)
+    await screen.findByPlaceholderText('Title')
+    return waitFor(() => {
+      const el = document.querySelector('.ProseMirror')
+      if (!el?.editor) throw new Error('editor not mounted')
+      return el.editor
+    })
+  }
+  const taskOfCaret = (editor) => {
+    const { $from } = editor.state.selection
+    for (let d = $from.depth; d > 0; d -= 1) if ($from.node(d).type.name === 'taskItem') return $from.node(d).textContent
+    return null
+  }
+  const telemetry = () => global.fetch.mock.calls
+    .filter(([u, o]) => u === '/api/j2/telemetry' && o?.method === 'POST')
+    .map(([, o]) => JSON.parse(o.body))
+
+  it('?task=<n> opens the note with the caret in task n (the server\'s order) and says so in note_open_ms', async () => {
+    NOTE = { ...baseNote(), bodyJson: { type: 'doc', content: [P('Intro line.'), TASKS()] } }
+    // Task 1 of 3 (index 0): NOT where the page puts the caret by itself (that
+    // is the end of the note, i.e. the LAST task), so this cannot pass by luck.
+    const editor = await renderAt('/?note=n1&task=0')
+    await waitFor(() => expect(taskOfCaret(editor)).toBe('Review NVDA thesis'))
+    await waitFor(() => expect(telemetry().filter((e) => e.event === 'note_open_ms')).toHaveLength(1))
+    const open = telemetry().find((e) => e.event === 'note_open_ms')
+    expect(open.props.source).toBe('tasks')
+    expect(Number.isInteger(open.props.ms)).toBe(true)
+  })
+
+  it('a ?task= past the note\'s last task opens the note normally', async () => {
+    NOTE = { ...baseNote(), bodyJson: { type: 'doc', content: [P('Intro line.'), TASKS()] } }
+    const control = await renderAt('/?note=n1')
+    await waitFor(() => expect(telemetry().some((e) => e.event === 'note_open_ms')).toBe(true))
+    const where = control.state.selection.from
+    expect(telemetry().find((e) => e.event === 'note_open_ms').props.source).toBeUndefined()
+    cleanup()
+    const editor = await renderAt('/?note=n1&task=9')
+    await waitFor(() => expect(telemetry().filter((e) => e.event === 'note_open_ms')).toHaveLength(2))
+    expect(editor.state.selection.from).toBe(where)
+  })
+
+  it('Unlinked mentions sits under "Linked from" in the page', async () => {
+    global.fetch = vi.fn((url) => Promise.resolve({
+      ok: true,
+      json: () => Promise.resolve(String(url).includes('/unlinked-mentions')
+        ? { count: 1, title: 'Original Title', notes: [{ id: 'n9', title: 'Weekly review', occurrences: 1, snippet: null }] }
+        : {}),
+    }))
+    await renderEditor()
+    expect(await screen.findByText('Unlinked mentions (1)')).toBeTruthy()
+    expect(global.fetch.mock.calls.some(([u]) => u === '/api/j2/notes/n1/unlinked-mentions')).toBe(true)
+  })
+})
+
+// Lane E's `locked` field and PATCH /api/j2/notes/{id}/lock were NOT on this
+// branch when this was built: these rails run against the contract as written
+// in wave6-E-brief.md (a `locked: true` payload; `{locked}` PATCHed).
+describe('NoteEditorPage — a locked note (wave 6 item 8)', () => {
+  const lockCalls = () => global.fetch.mock.calls.filter(([u, o]) => u === '/api/j2/notes/n1/lock' && o?.method === 'PATCH')
+
+  it('opens read-only with the banner, read-only title and no editing controls; Outline stays', async () => {
+    NOTE = { ...baseNote(), locked: true }
+    const editor = await renderEditor()
+    expect(screen.getByText('Locked — editing is off').closest('[role="status"]')).toBeTruthy()
+    expect(editor.isEditable).toBe(false)
+    expect(screen.getByPlaceholderText('Title').readOnly).toBe(true)
+    expect(screen.getByPlaceholderText('Subtitle (optional)').readOnly).toBe(true)
+    expect(screen.queryByLabelText('Font family')).toBeNull()
+    expect(screen.queryByLabelText('Insert widget')).toBeNull()
+    expect(screen.getByLabelText('Outline')).toBeTruthy()
+  })
+
+  it('Unlock PATCHes {locked:false}, and the note is editable at once', async () => {
+    NOTE = { ...baseNote(), locked: true }
+    const editor = await renderEditor()
+    fireEvent.click(screen.getByRole('button', { name: 'Unlock' }))
+    await waitFor(() => expect(screen.queryByText('Locked — editing is off')).toBeNull())
+    expect(lockCalls()).toHaveLength(1)
+    expect(JSON.parse(lockCalls()[0][1].body)).toEqual({ locked: false })
+    // `setEditable` runs in the page's effect, one passive-effect flush after the
+    // banner leaves the DOM: waited for, not read in the same tick (under a
+    // loaded run the synchronous read raced it — wave 6 D fix round 1).
+    await waitFor(() => expect(editor.isEditable).toBe(true))
+    expect(screen.getByPlaceholderText('Title').readOnly).toBe(false)
+    expect(screen.getByLabelText('Font family')).toBeTruthy()
+  })
+
+  it('an Unlock the server refuses says so and the note STAYS locked', async () => {
+    NOTE = { ...baseNote(), locked: true }
+    global.fetch = vi.fn((url, o) => Promise.resolve(url === '/api/j2/notes/n1/lock' && o?.method === 'PATCH'
+      ? { ok: false, status: 500, json: () => Promise.resolve({}) }
+      : { ok: true, json: () => Promise.resolve({}) }))
+    const editor = await renderEditor()
+    fireEvent.click(screen.getByRole('button', { name: 'Unlock' }))
+    expect(await screen.findByText("Couldn't unlock. Try again.")).toBeTruthy()
+    expect(editor.isEditable).toBe(false)
+    expect(screen.getByText('Locked — editing is off')).toBeTruthy()
+  })
+
+  it('CONTROL: a note with no lock (or locked:false) is editable, with no banner', async () => {
+    NOTE = { ...baseNote(), locked: false }
+    const editor = await renderEditor()
+    expect(editor.isEditable).toBe(true)
+    expect(screen.queryByText('Locked — editing is off')).toBeNull()
+  })
+
+  it('after an Unlock the server confirmed, a LATER lock applies again (the local unlock does not outlive it)', async () => {
+    NOTE = { ...baseNote(), locked: true }
+    const NoteEditorPage = (await import('./NoteEditorPage')).default
+    const ui = () => <MemoryRouter><NoteEditorPage noteId="n1" onBack={vi.fn()} showBack /></MemoryRouter>
+    const { rerender } = render(ui())
+    await screen.findByPlaceholderText('Title')
+    const editor = await waitFor(() => { const el = document.querySelector('.ProseMirror'); if (!el?.editor) throw new Error('x'); return el.editor })
+    fireEvent.click(screen.getByRole('button', { name: 'Unlock' }))
+    await waitFor(() => expect(editor.isEditable).toBe(true))
+    NOTE = { ...NOTE, locked: false }
+    rerender(ui())
+    NOTE = { ...NOTE, locked: true }
+    rerender(ui())
+    await waitFor(() => expect(editor.isEditable).toBe(false))
+  })
+
+  it('a lock that arrives while the note is open (a refresh) turns editing off', async () => {
+    const NoteEditorPage = (await import('./NoteEditorPage')).default
+    const ui = () => <MemoryRouter><NoteEditorPage noteId="n1" onBack={vi.fn()} showBack /></MemoryRouter>
+    const { rerender } = render(ui())
+    await screen.findByPlaceholderText('Title')
+    const editor = await waitFor(() => { const el = document.querySelector('.ProseMirror'); if (!el?.editor) throw new Error('x'); return el.editor })
+    expect(editor.isEditable).toBe(true)
+    NOTE = { ...NOTE, locked: true }
+    rerender(ui())
+    await waitFor(() => expect(editor.isEditable).toBe(false))
+    expect(screen.getByText('Locked — editing is off')).toBeTruthy()
+  })
+})
+
+describe('NoteEditorPage — /toc door (wave 6 item 13)', () => {
+  it('typing /toc offers "Table of contents"; the block it inserts lists the headings and jumps', async () => {
+    NOTE = { ...baseNote(), bodyJson: { type: 'doc', content: [
+      P('Intro line.'),
+      { type: 'heading', attrs: { level: 2 }, content: [{ type: 'text', text: 'Plan' }] },
+      P('Body.'),
+    ] } }
+    const editor = await renderEditor()
+    let end = null
+    editor.state.doc.descendants((n, pos) => { if (end == null && n.isText && n.text === 'Intro line.') end = pos + n.nodeSize })
+    act(() => {
+      editor.view.dispatch(editor.state.tr.setSelection(TextSelection.create(editor.state.doc, end)))
+      editor.view.dispatch(editor.state.tr.insertText(' /toc'))
+    })
+    const option = await waitFor(() => {
+      const o = [...document.querySelectorAll('[role="listbox"][aria-label="Insert block"] [role="option"]')]
+        .find((el) => el.firstChild?.textContent === 'Table of contents')
+      if (!o) throw new Error('no option')
+      return o
+    })
+    fireEvent.mouseDown(option)
+    const nav = await waitFor(() => {
+      const n = document.querySelector('.ProseMirror nav.uctToc')
+      if (!n) throw new Error('no toc')
+      return n
+    })
+    const link = [...nav.querySelectorAll('button.uctTocLink')].find((b) => b.textContent === 'Plan')
+    fireEvent.click(link)
+    expect(editor.state.selection.$from.parent.textContent).toBe('Plan')
+  })
+})

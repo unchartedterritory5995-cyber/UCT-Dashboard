@@ -1,4 +1,4 @@
-import { useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react'
+import { Suspense, useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react'
 import { useSearchParams } from 'react-router-dom'
 import { mutate as globalMutate } from 'swr'
 import useJ2Notes from '../hooks/useJ2Notes'
@@ -7,16 +7,12 @@ import useJ2SavedViews from '../hooks/useJ2SavedViews'
 import useJ2PropertyDefs from '../hooks/useJ2PropertyDefs'
 import NoteCard from '../components/notebook/NoteCard'
 import NotesTableView from '../components/notebook/NotesTableView'
-import NoteGraphView from '../components/notebook/NoteGraphView'
-import NoteBoardView from '../components/notebook/NoteBoardView'
-import NoteCalendarView from '../components/notebook/NoteCalendarView'
+import { TASK_PARAM } from '../lib/noteTasks'
 import SavedViewEditor from '../components/notebook/SavedViewEditor'
 import FolderSidebar from '../components/notebook/FolderSidebar'
 import NoteEditorPage from '../components/notebook/NoteEditorPage'
 import ResearchHome from '../components/notebook/ResearchHome'
 import TemplatePicker from '../components/notebook/TemplatePicker'
-import ImportWizard from '../components/notebook/import/ImportWizard'
-import ExportDialog from '../components/notebook/export/ExportDialog'
 import NoteConnectorsTrustStrip from '../components/connectors/NoteConnectorsTrustStrip'
 import Sheet from '../../../components/mobile/Sheet'
 import UIcon from '../../../components/ui/UIcon'
@@ -35,15 +31,75 @@ import { SkeletonLine } from '../../../components/Skeleton'
 import styles from './NotebookTab.module.css'
 import { settleNoteWrite } from '../lib/offline/settleNoteWrite'
 import BulkActionBar from '../components/notebook/BulkActionBar'
+import NoteMenuActions from '../components/notebook/NoteMenuActions'
+import { ARCHIVED_FOLDER, setNoteArchived } from '../lib/noteArchive'
+import { getMemberTemplate } from '../lib/memberTemplates'
+import { DAILY_TEMPLATE_PREF, isDailyShortcut, openDailyNote } from '../lib/dailyNote'
+import usePreferences from '../../../hooks/usePreferences'
 import { useNoteSelection } from '../lib/noteSelection'
+import { useIsDesktop } from '../../../hooks/useBreakpoint'
+import { NotePaneContext, SIDE_PARAM, SplitViewContext } from '../lib/splitView'
 import {
-  checkUnsentWork, describeBatch, describeExport, describeUnchecked, exportSelectedNotes, joinUndo, runNoteBatch,
-  undoFor,
+  checkUnsentWork, describeBatch, describeExport, describeUnchecked, describeUnsentRename, exportSelectedNotes,
+  joinUndo, runNoteBatch, undoFor,
 } from '../lib/noteBatch'
 import { useHubEligible } from '../../../hub/useHubActive'
 import { BOTTOM_OFFSET_PX, PAD_PX } from '../../../hub/constants'
 import useJ2NoteTags, { NOTE_TAGS_KEY } from '../hooks/useJ2NoteTags'
 import { fallbackNodes } from '../lib/tagTree'
+import lazyChunk from '../lib/lazyChunk'
+
+// ── Wave 7 (lane I3): the views and dialogs a member opens ON PURPOSE load on demand ──
+// Graph, board, calendar, timeline and tasks are view modes; Import and Export are
+// dialogs. None of them is what the Notebook paints first (the note list and the
+// editor are, and they stay static), so each is its own chunk, fetched the first time
+// it is shown. The wrappers keep each view's NAME, so nothing below this block
+// changed: every render site reads exactly as it did.
+// ⛔ One <Suspense> per view, never one around the page: a boundary around the page
+// would blank the list and the editor while a view's chunk downloads.
+// Each chunk loads through `lazyChunk`: a failed fetch is retried once in place, and a
+// second failure (a deploy since this tab loaded) reloads the page the way every lazy
+// route in App.jsx already does (review M-5).
+function lazyView(load, label) {
+  const Chunk = lazyChunk(load)
+  function LazyNotebookView(props) {
+    return (
+      <Suspense fallback={<div role="status" aria-label={`Loading ${label}`}><SkeletonLine width="40%" height={13} /></div>}>
+        <Chunk {...props} />
+      </Suspense>
+    )
+  }
+  LazyNotebookView.displayName = `Lazy(${label})`
+  return LazyNotebookView
+}
+
+// A dialog that is always rendered with `open` is fetched on its FIRST open and then
+// stays mounted, so its own close handling (both reset on `open` turning false, and
+// guard their in-flight work with a generation counter) runs exactly as before.
+// Before the first open it renders nothing, which is what a closed Sheet renders.
+function lazyDialog(load, label) {
+  const Chunk = lazyChunk(load)
+  function LazyNotebookDialog(props) {
+    const [opened, setOpened] = useState(Boolean(props.open))
+    if (props.open && !opened) setOpened(true)
+    if (!opened) return null
+    return (
+      <Suspense fallback={null}>
+        <Chunk {...props} />
+      </Suspense>
+    )
+  }
+  LazyNotebookDialog.displayName = `Lazy(${label})`
+  return LazyNotebookDialog
+}
+
+const NoteGraphView = lazyView(() => import('../components/notebook/NoteGraphView'), 'graph')
+const NoteBoardView = lazyView(() => import('../components/notebook/NoteBoardView'), 'board')
+const NoteCalendarView = lazyView(() => import('../components/notebook/NoteCalendarView'), 'calendar')
+const NoteTimelineView = lazyView(() => import('../components/notebook/NoteTimelineView'), 'timeline')
+const NoteTasksView = lazyView(() => import('../components/notebook/NoteTasksView'), 'tasks')
+const ImportWizard = lazyDialog(() => import('../components/notebook/import/ImportWizard'), 'import')
+const ExportDialog = lazyDialog(() => import('../components/notebook/export/ExportDialog'), 'export')
 
 // Folders panel resize bounds (px).
 const SB_MIN = 190
@@ -76,11 +132,29 @@ function _logNotebookVisit() {
 }
 
 /** Bulk ops that can change what GET /api/j2/notes/tags counts (R1-N4). */
-const TAG_COUNT_OPS = new Set(['addTag', 'removeTag', 'trash', 'restore'])
+// Archive moves a note out of the tag tree's counts too (it counts the notes
+// the tag filter lists, and that filter leaves archived notes out).
+const TAG_COUNT_OPS = new Set(['addTag', 'removeTag', 'renameTag', 'trash', 'restore', 'archive', 'unarchive'])
+// M5 (wave 6 fix round 2): matches NOTE_BATCH_MAX in api/routers/journal_two.py
+// (`POST /api/j2/notes/batch` refuses more ids than this in one request) — the
+// tag-rename door's own client-side chunk size, since its ids come from an
+// UNCAPPED preview (GET /notes/tag-members), unlike every other bulk op's ids
+// (the member's own, page-bounded, selection).
+const RENAME_TAG_CHUNK_SIZE = 500
 
 export default function NotebookTab() {
   const [searchParams, setSearchParams] = useSearchParams()
   const noteId = searchParams.get('note')
+  // Wave 6 (lane E, item 7) — split view: `?side=` is a second note beside the
+  // first, desktop only. Each pane is an ordinary editor (lib/splitView.js).
+  // ⛔⛔ `sideId` is NEVER the open note: a URL naming one note twice (a pasted
+  // link, Back into an old state, an editor that routed `?note=` to the note on
+  // the right) opens it ONCE. Two editors on one note are two writers, and the
+  // offline layer forks the note. The doors below refuse it with words; this is
+  // the line that holds whatever door the URL came through.
+  const isDesktop = useIsDesktop()
+  const sideParam = searchParams.get(SIDE_PARAM)
+  const sideId = isDesktop && noteId && sideParam && sideParam !== noteId ? sideParam : null
 
   // Wave Q1 — the reconnect. Mounted HERE, not in the editor: the queue is
   // account-wide, and a note edited offline then closed must still reach the
@@ -169,13 +243,19 @@ export default function NotebookTab() {
   // `propertySort` are the AD-HOC equivalents, used only while no saved
   // view is active (a table-column-header click or a quick-filter chip).
   const [activeView, setActiveView] = useState(null)
-  const [viewMode, setViewMode] = useState('list')
+  // `?view=tasks` opens the Tasks mode on first paint (the reminder's link —
+  // TASKS_VIEW_URL in api/services/journal_two/note_tasks.py); the effect
+  // below handles it arriving on an already-mounted tab.
+  const [viewMode, setViewMode] = useState(() => (searchParams.get('view') === 'tasks' ? 'tasks' : 'list'))
   // What the board is grouping by / the calendar is laying out, reported up by
   // those views so a saved view can capture it. The views keep their own
   // "open on a property the notes actually use" default-picking; this only
   // observes the answer.
   const [boardGroupBy, setBoardGroupBy] = useState(null)
   const [calendarDateProp, setCalendarDateProp] = useState(null)
+  // Wave 6: what the timeline places by, its zoom and grouping, as it REPORTS
+  // them — so a saved timeline stores what was drawn, not a default.
+  const [timelineSettings, setTimelineSettings] = useState(null)
   const [propertyFilter, setPropertyFilter] = useState(null)
   const [propertySort, setPropertySort] = useState(null)
   const [saveViewOpen, setSaveViewOpen] = useState(false)
@@ -300,6 +380,11 @@ export default function NotebookTab() {
   // Wave 0 trash: the sidebar's "Trash" row selects this sentinel exactly
   // like '__unfiled__' already does for Unfiled — no new selection channel.
   const isTrashView = folderId === '__trash__'
+  // Wave 6: the Archived entry. Like the Trash it is a SHELF — notes set aside
+  // from every folder — so folder/tag/saved-view scoping does not apply and it
+  // lists as cards. Unlike the Trash its notes still open (archive is not trash).
+  const isArchiveView = folderId === ARCHIVED_FOLDER
+  const isShelfView = isTrashView || isArchiveView
 
   // `total` is the TRUE count from SQL for this filter set (folder/tag), never
   // the length of `notes` — a migrated library of thousands of notes must see
@@ -318,16 +403,16 @@ export default function NotebookTab() {
     notes, isLoading, error, refresh, total, hasMore, loadMore, isLoadingMore,
   } = useJ2Notes({
     folderId: isTrashView ? undefined : folderId,
-    tag: isTrashView ? undefined : tag,
-    ticker: isTrashView ? undefined : tickerFilter,
+    tag: isShelfView ? undefined : tag,
+    ticker: isShelfView ? undefined : tickerFilter,
     sort: isTrashView ? 'deleted' : sort,
     deleted: isTrashView,
     // Wave E: savedViewId wins exclusively (server resolves ITS OWN stored
     // spec -- directive §87); the ad-hoc propertyFilter/propertySort below
     // are only ever sent when no saved view is active.
-    savedViewId: !isTrashView ? activeView?.id : undefined,
-    propertyFilter: !isTrashView && !activeView ? propertyFilter : undefined,
-    propertySort: !isTrashView && !activeView ? propertySort : undefined,
+    savedViewId: !isShelfView ? activeView?.id : undefined,
+    propertyFilter: !isShelfView && !activeView ? propertyFilter : undefined,
+    propertySort: !isShelfView && !activeView ? propertySort : undefined,
   })
   // The folder sidebar renders every folder's notes as leaf rows AND runs its
   // own search, so it needs a note set covering every folder — not the
@@ -365,8 +450,27 @@ export default function NotebookTab() {
   // grid. "All notes" itself stays one click away (the sidebar row), now
   // via the explicit `view=all` flag rather than being indistinguishable
   // from Home.
-  const viewAll = searchParams.get('view') === 'all'
+  // Wave 6: `?view=tasks` is the Tasks mode's door (the 07:00/09:00 ET task
+  // reminder links there). It is never Home — for the render before the effect
+  // below turns it into `?view=all`, too.
+  const viewParam = searchParams.get('view')
+  const viewAll = viewParam === 'all' || viewParam === 'tasks'
   const isHome = !noteId && !hasActiveFilters && !viewAll && !isTrashView
+  // A one-shot INSTRUCTION, applied then stripped (the same arrive-and-strip
+  // pattern as `?folder=`/`?ticker=` above): it selects the Tasks mode and
+  // becomes the explicit All-notes state, so the switcher, a reload and Back
+  // behave exactly as they do for every other mode. A saved view pins its own
+  // mode, so this door clears it.
+  useEffect(() => {
+    if (viewParam !== 'tasks') return
+    setViewMode('tasks')
+    setActiveView(null)
+    setSearchParams((prev) => {
+      const next = new URLSearchParams(prev)
+      next.set('view', 'all')
+      return next
+    }, { replace: true })
+  }, [viewParam, setSearchParams])
   // ⛔ UX #4 (competitive audit, 2026-09-22): bare-root Home and an explicit
   // `?view=all` on a genuinely empty notebook render two different "you have
   // no notes" screens for the identical fact. Attempted a route-into-
@@ -402,14 +506,50 @@ export default function NotebookTab() {
       && (tags || !key.startsWith(NOTE_TAGS_KEY)))
   }
 
+  // ── Wave 6 (lane E, item 7): split view ─────────────────────────────────────
+  // A side note with no main note, or the main note named again, is dropped
+  // from the URL (replace — not a step Back has to walk through). ⛔ At ≤1024px
+  // the param is only ignored, never dropped: widening the window brings the
+  // pane back.
+  useEffect(() => {
+    if (!sideParam || (noteId && sideParam !== noteId)) return
+    setSearchParams((prev) => {
+      const next = new URLSearchParams(prev)
+      next.delete(SIDE_PARAM)
+      return next
+    }, { replace: true })
+  }, [sideParam, noteId, setSearchParams])
+  const mainPaneRef = useRef(null)
+  const sidePaneRef = useRef(null)
+  // A refusal is said IN the pane it points at, and focus goes there.
+  const [paneNotice, setPaneNotice] = useState(null) // { pane: 'main'|'side', text }
+  useEffect(() => {
+    if (!paneNotice) return
+    ;(paneNotice.pane === 'side' ? sidePaneRef : mainPaneRef).current?.focus?.()
+  }, [paneNotice])
+  const refuseSecondPane = (pane) => setPaneNotice({
+    pane,
+    text: sideId
+      ? `That note is already open in the ${pane} pane. A note opens in one pane at a time.`
+      : 'That note is already open.',
+  })
+
   // ⭐ WAVE M: an optional `target` carries the OBJECT the caller actually
   // named — a document page or a saved excerpt — through the same `?note=`
   // routing every other opener already uses. Callers that just want the note
   // pass nothing and behave exactly as before.
-  const openNote = (note, target = null) => {
+  // Wave 6: `task` opens the note AT one of its checklist items (`?task=`, read
+  // by the editor — lib/noteTasks.js); any other open drops a stale one.
+  const openNote = (note, target = null, { task = null } = {}) => {
+    // ⛔⛔ Wave 6 item 7: the note on the right is not opened a second time on
+    // the left — refused, and the side pane (which has it) takes focus.
+    if (sideId && note?.id === sideId) { refuseSecondPane('side'); return }
+    setPaneNotice(null)
     setSearchParams((prev) => {
       const next = applyTargetToParams(prev, target)
       next.set('note', note.id)
+      next.delete(TASK_PARAM)
+      if (Number.isInteger(task) && task >= 0) next.set(TASK_PARAM, String(task))
       // Deep-link params ride along in `prev` when a template create opened
       // this note (setSearchParams' functional prev can be a render stale) —
       // drop them here so the final URL is always clean.
@@ -424,7 +564,11 @@ export default function NotebookTab() {
   const closeNote = () => {
     setSearchParams((prev) => {
       const next = new URLSearchParams(prev)
-      next.delete('note')
+      // Wave 6 item 7: with a note open beside it, closing this one (the
+      // editor closes itself after a delete) leaves THAT note open, alone.
+      if (sideId) next.set('note', sideId)
+      else next.delete('note')
+      next.delete(SIDE_PARAM)
       return next
     }, { replace: false })
     refresh()
@@ -437,6 +581,7 @@ export default function NotebookTab() {
   const clearNoteParam = () => setSearchParams((prev) => {
     const next = new URLSearchParams(prev)
     next.delete('note')
+    next.delete(SIDE_PARAM)
     return next
   }, { replace: false })
   // Wave H: `?view=all` is the explicit flag distinguishing "the All Notes
@@ -457,9 +602,58 @@ export default function NotebookTab() {
       const next = new URLSearchParams(prev)
       next.set('view', 'all')
       next.delete('note')
+      next.delete(SIDE_PARAM)
       return next
     }, { replace: false })
   }
+  // Wave 6 item 7 — "open to the side". ⛔⛔ The main note is refused (focus
+  // goes to it); the side note already there just takes focus. With no note
+  // open there is no "beside" yet, so the note opens as the one note.
+  const showBeside = (id) => {
+    if (!id) return
+    if (!noteId) { openNote({ id }); return }
+    if (id === noteId) { refuseSecondPane('main'); return }
+    setPaneNotice(null)
+    if (id === sideId) { sidePaneRef.current?.focus?.(); return }
+    setSearchParams((prev) => {
+      const next = new URLSearchParams(prev)
+      next.set(SIDE_PARAM, id)
+      return next
+    }, { replace: false })
+  }
+  const closeSide = () => {
+    setPaneNotice(null)
+    setSearchParams((prev) => {
+      const next = new URLSearchParams(prev)
+      next.delete(SIDE_PARAM)
+      return next
+    }, { replace: false })
+  }
+  // Both editors change notes in one commit; React runs every unmount effect
+  // before any mount effect, so neither note is ever held by two editors.
+  const swapPanes = () => {
+    if (!sideId) return
+    setPaneNotice(null)
+    setSearchParams((prev) => {
+      const next = new URLSearchParams(prev)
+      next.set('note', sideId)
+      next.set(SIDE_PARAM, noteId)
+      return next
+    }, { replace: false })
+  }
+  // ⛔ Stable context values (a ref to the latest function): a fresh object per
+  // render would re-render every consumer inside both editors on every render.
+  const showBesideRef = useRef(showBeside)
+  showBesideRef.current = showBeside
+  const openNoteRef = useRef(openNote)
+  openNoteRef.current = openNote
+  const splitView = useMemo(
+    () => ({ canSplit: isDesktop, openToSide: (id) => showBesideRef.current(id) }),
+    [isDesktop],
+  )
+  const mainPaneApi = useMemo(() => ({ pane: 'main', open: (id) => openNoteRef.current({ id }) }), [])
+  const sidePaneApi = useMemo(() => ({ pane: 'side', open: (id) => showBesideRef.current(id) }), [])
+
   const handleSelectFolder = (id) => { setFolderId(id); setActiveView(null); setTickerFilter(null); clearViewAllParam(); if (noteId) clearNoteParam() }
   const handleSelectTag = (t) => { setTag(t); setActiveView(null); setTickerFilter(null); clearViewAllParam(); if (noteId) clearNoteParam() }
   const handleSelectView = (view) => {
@@ -507,6 +701,7 @@ export default function NotebookTab() {
     const spec = { propertyFilter, propertySort }
     if (viewMode === 'board' && boardGroupBy) spec.groupBy = boardGroupBy
     if (viewMode === 'calendar' && calendarDateProp) spec.dateProperty = calendarDateProp
+    if (viewMode === 'timeline' && timelineSettings) spec.timeline = timelineSettings
     const view = await createSavedView(name, viewMode, spec)
     setActiveView(view)
     setSaveViewOpen(false)
@@ -575,12 +770,26 @@ export default function NotebookTab() {
     }
   }
 
+  // Wave 6: bring one archived note back (the card's own Unarchive). It returns
+  // to its folder exactly where it was; nothing about the note moved.
+  const unarchiveNote = async (note) => {
+    try {
+      await setNoteArchived(note.id, false)
+      refresh()
+      refreshAll()
+      refreshSidebarCounts()
+    } catch (e) {
+      console.error('[notebook] unarchive note failed', e)
+      setActionError("Couldn't unarchive that note. It is still archived.")
+    }
+  }
+
   // ── Wave 5 bulk operations ────────────────────────────────────────────────
   // Multi-select over the notes IN VIEW, in the two views that list notes one
   // per row/card (list, table) and in the Trash. The board, calendar and graph
   // keep their own gestures — a checkbox there would be a second way to write
   // the same property the card's own control already writes.
-  const selectionOn = !noteId && !isHome && (isTrashView || viewMode === 'list' || viewMode === 'table')
+  const selectionOn = !noteId && !isHome && (isShelfView || viewMode === 'list' || viewMode === 'table')
   const visibleIds = useMemo(() => (selectionOn ? notes.map((n) => n.id) : []), [selectionOn, notes])
   const selection = useNoteSelection(visibleIds)
   const [bulkBusy, setBulkBusy] = useState(false)
@@ -736,8 +945,12 @@ export default function NotebookTab() {
       const { message, tone } = describeBatch(outcome, { ...ctx, titleOf })
       // R1-S1: notes this device could not be ASKED about are not "still
       // syncing" — they get their own sentence and a confirmed "anyway".
+      // N1 (wave 6 fix round 2): `args`/`ctx` are THIS op's own — carried so a
+      // confirmed "anyway" resends a request the op's own table (and its own
+      // describeBatch branch) can actually read, never `renameTag` with no
+      // `{from, to}`.
       const offer = describeUnchecked(
-        op, outcome.results.filter((r) => r.status === 'unchecked').map((r) => r.id), { titleOf })
+        op, outcome.results.filter((r) => r.status === 'unchecked').map((r) => r.id), { titleOf, args, ctx })
       const changedIds = outcome.results.filter((r) => r.status === 'changed').map((r) => r.id)
       // A trash and a move can be taken back (B1: a move said where each note
       // came from). An Undo itself cannot — and never replaces a newer one.
@@ -758,11 +971,103 @@ export default function NotebookTab() {
           ? { ...offer, message: [message, offer.message].filter(Boolean).join(' ') }
           : { message, tone })
       }
-      if (op === 'trash' || op === 'restore') clearSelection()
+      // Each of these takes the selected notes OUT of the view they were chosen in.
+      if (['trash', 'restore', 'archive', 'unarchive'].includes(op)) clearSelection()
       afterBulkWrite(op, changedIds)
     } catch (e) {
       console.error('[notebook] bulk action failed', e)
       setBulkNotice({ message: e?.message || 'That did not go through. Nothing was changed.', tone: 'error' })
+    } finally {
+      endBulk()
+    }
+  }
+
+  // Wave 6 fix round 1, I4 — the tag tree's own rename door: FolderSidebar
+  // already previewed who it touches (GET /notes/tag-members) before calling
+  // this, so `ids` is exactly that preview's note ids, never "every note
+  // with this tag" re-derived here.
+  //
+  // M5 (wave 6 fix round 2): `GET /notes/tag-members` is UNCAPPED, but
+  // `POST /api/j2/notes/batch` refuses more than NOTE_BATCH_MAX (500) ids in
+  // one request (journal_two.py) — a tag on more than 500 notes previewed
+  // honestly and then failed outright. Chunked here, SEQUENTIALLY.
+  //
+  // ⛔⛔ N-b (wave 6 fix round 3). This used to route each chunk through
+  // `runBulk` — one `setBulkNotice` call per chunk, each REPLACING the
+  // last (`runBulk`'s own docstring: it owns the single-batch notice, and
+  // was never meant to be called more than once for one member action). A
+  // tag on 900 notes therefore ended on chunk 2's sentence alone: chunk 1's
+  // "refused and named" (item 8's own guarantee) and its "unchecked" offer
+  // (N1) both vanished, and a chunk 1 that failed on the REQUEST ITSELF
+  // (network/4xx/5xx) was invisible — the loop kept sending chunk 2, which
+  // could read as complete success while up to 500 notes never went out.
+  //
+  // This runs its own loop over `runNoteBatch` directly (never `runBulk`,
+  // which stays the single-batch primitive every OTHER op uses unchanged),
+  // folds every chunk's results into ONE combined outcome, and sets
+  // `bulkNotice` exactly ONCE at the end — so "refused and named" and
+  // "unchecked and named" hold for a multi-chunk rename exactly as they do
+  // for a single-batch one. It STOPS at the first chunk whose REQUEST
+  // failed (an exception from `runNoteBatch` — nothing in that chunk was
+  // written) and says how many notes were never attempted: a refusal
+  // WITHIN a successful chunk (a blocked or unchecked note) is not a stop
+  // condition, because the chunk it is in still ran and the notes after it
+  // still can.
+  const onRenameTag = async (from, to, ids) => {
+    if (!ids.length || !startBulk()) return
+    const args = { from, to }
+    const ctx = { tag: from, renameTo: to }
+    let combined = { op: 'renameTag', results: [], changed: 0, unchanged: 0, failed: 0 }
+    let stoppedAt = null
+    try {
+      for (let i = 0; i < ids.length; i += RENAME_TAG_CHUNK_SIZE) {
+        const chunk = ids.slice(i, i + RENAME_TAG_CHUNK_SIZE)
+        let outcome
+        try {
+          // eslint-disable-next-line no-await-in-loop
+          outcome = await runNoteBatch({ ids: chunk, op: 'renameTag', args, blockedNoteIds })
+        } catch (e) {
+          // J7: keep WHICH ids never went out and the error's parts, not only a count.
+          stoppedAt = { err: e, ids: ids.slice(i), left: ids.length - i }
+          break
+        }
+        combined = {
+          op: 'renameTag',
+          results: [...combined.results, ...outcome.results],
+          changed: combined.changed + outcome.changed,
+          unchanged: combined.unchanged + outcome.unchanged,
+          failed: combined.failed + outcome.failed,
+        }
+      }
+      // ⚰️ R4-3 (wave 6 fix round 4, NB-1). A LATER chunk failing used to
+      // append the sentence below after "Renamed 500 notes from #a to #b.",
+      // and with no server `detail` its reason is runNoteBatch's single-batch
+      // fallback, which ends "…Nothing was changed." — true of the failed
+      // chunk, false of the member's action. When anything WAS renamed, the
+      // stop is folded into describeBatch's lead instead ("Renamed N notes;
+      // the rest could not be renamed (M notes left unrenamed)."), and the
+      // stop sentence is kept only for a rename that changed nothing, where
+      // "Nothing was changed" is true.
+      //
+      // ⭐ J7 (wave 7 lane J). That lead is a COUNT; the sentence after it now
+      // says WHICH notes still carry the old tag (the titles this page holds,
+      // at most three) and WHY the request failed (the server's own words, its
+      // status, or that it never reached the server), then what finishes the
+      // job. `describeUnsentRename` owns the words for both branches.
+      const renamedSome = combined.changed > 0
+      const { message, tone } = describeBatch(combined, {
+        ...ctx, titleOf, stoppedLeft: stoppedAt && renamedSome ? stoppedAt.left : 0,
+      })
+      const offer = describeUnchecked(
+        'renameTag', combined.results.filter((r) => r.status === 'unchecked').map((r) => r.id), { titleOf, args, ctx })
+      const changedIds = combined.results.filter((r) => r.status === 'changed').map((r) => r.id)
+      const parts = [message]
+      if (offer) parts.push(offer.message)
+      if (stoppedAt) {
+        parts.push(describeUnsentRename(stoppedAt.ids, { tag: from, err: stoppedAt.err, renamedSome, titleOf }))
+      }
+      setBulkNotice({ message: parts.filter(Boolean).join(' '), tone: stoppedAt ? 'error' : (offer ? offer.tone : tone) })
+      afterBulkWrite('renameTag', changedIds)
     } finally {
       endBulk()
     }
@@ -827,7 +1132,11 @@ export default function NotebookTab() {
     if (!anyway || bulkBusyRef.current) return
     setBulkNotice(null)
     if (anyway.op === 'export') exportSelection(anyway.ids, { acceptUnchecked: true })
-    else runBulk(anyway.op, {}, {}, anyway.ids, { acceptUnchecked: true, continues: true })
+    // N1 (wave 6 fix round 2): `anyway.args`/`anyway.ctx` are the op's OWN —
+    // dropping them to `{}` is exactly N1 (a `renameTag` retry with no
+    // `{from, to}` 400s at the server, and its own success sentence would
+    // read "#undefined" without `ctx`).
+    else runBulk(anyway.op, anyway.args || {}, anyway.ctx || {}, anyway.ids, { acceptUnchecked: true, continues: true })
   }
 
   // Create a note. Blank note passes no title/body; a template seeds both
@@ -845,7 +1154,10 @@ export default function NotebookTab() {
       // should not make you retype AMD. An explicit ticker always wins; focus
       // only fills the blank.
       const seededTicker = ticker || focusSymbol || null
-      const safeFolderId = folderId && folderId !== '__unfiled__' && folderId !== '__trash__' ? folderId : undefined
+      // The sentinels are views, not folders: a note made while one is open is
+      // made unfiled (a new note is never born archived or trashed).
+      const safeFolderId = folderId && !['__unfiled__', '__trash__', ARCHIVED_FOLDER].includes(folderId)
+        ? folderId : undefined
       const created = await createNoteViaApi({ title, bodyJson, tags, ticker: seededTicker, folderId: safeFolderId, properties })
       // Instant: put it in the tree now, then reconcile from the server.
       addNoteToTree(created)
@@ -880,8 +1192,66 @@ export default function NotebookTab() {
     })
   }
 
+  // Wave 6: a member's OWN template (saved from one of their notes). The full
+  // template is read when picked, then made through the SAME createNote ->
+  // createNoteViaApi path as a built-in: title, body and property values.
+  const createFromMemberTemplate = async (summary) => {
+    setCreating(true)
+    setPickerOpen(false)
+    let full
+    try {
+      full = await getMemberTemplate(summary.id)
+    } catch (e) {
+      console.error('[notebook] read member template failed', e)
+      setActionError(`Couldn't open the template “${summary.name}”. Nothing was created.`)
+      setCreating(false)
+      return
+    }
+    await createNote({ title: full.title, bodyJson: full.bodyJson, properties: full.properties })
+  }
+
   const handlePick = (tplOrNull) =>
     tplOrNull ? createFromTemplate(tplOrNull) : createNote()
+
+  // Wave 6 (item 4): Today — open the member's note for today's ET date,
+  // making it the first time (the server keeps it to one per day). The daily
+  // template is the member's own preference.
+  const { prefs } = usePreferences()
+  const dailyTemplateId = prefs?.[DAILY_TEMPLATE_PREF] || ''
+  const openingTodayRef = useRef(false)
+  const openToday = async () => {
+    if (openingTodayRef.current) return
+    openingTodayRef.current = true
+    setActionError('')
+    try {
+      const { note, created, templateMissing } = await openDailyNote({ templateId: dailyTemplateId })
+      if (created) {
+        addNoteToTree(note)
+        refreshAll()
+        refreshSidebarCounts()
+      }
+      if (templateMissing) {
+        setActionError("Your daily template no longer exists, so today's note started blank.")
+      }
+      openNote(note)
+    } catch (e) {
+      console.error('[notebook] open daily note failed', e)
+      setActionError("Couldn't open today's note. Nothing was created.")
+    } finally {
+      openingTodayRef.current = false
+    }
+  }
+  const openTodayRef = useRef(openToday)
+  openTodayRef.current = openToday
+  useEffect(() => {
+    const onKey = (e) => {
+      if (!isDailyShortcut(e)) return
+      e.preventDefault()
+      openTodayRef.current()
+    }
+    window.addEventListener('keydown', onKey)
+    return () => window.removeEventListener('keydown', onKey)
+  }, [])
 
   // A successful import can create notes AND folders — refresh both. Notes
   // come back through useJ2Notes' own refresh(); folders live behind
@@ -924,6 +1294,9 @@ export default function NotebookTab() {
   }, [newKey])
 
   return (
+    // Wave 6 item 7: the split-view door for everything below — the sidebar's
+    // Ctrl/Cmd+click and every note link inside either editor (lib/splitView.js).
+    <SplitViewContext.Provider value={splitView}>
     <div
       ref={wrapRef}
       className={`${styles.wrap} ${sidebarOpen ? '' : styles.collapsed} ${dragging ? styles.dragging : ''}`}
@@ -1056,6 +1429,7 @@ export default function NotebookTab() {
             onAddStarterViews={addStarterThesisViews}
             isHome={isHome}
             onSelectAllNotes={selectAllNotes}
+            onRenameTag={onRenameTag}
           />
         </div>
       </div>
@@ -1068,11 +1442,120 @@ export default function NotebookTab() {
         aria-label="Resize folders panel"
       />
 
-      <div className={`${styles.main} ${noteId ? styles.mainNote : ''}`}>
+      <div className={`${styles.main} ${noteId ? styles.mainNote : ''} ${sideId ? styles.mainSplit : ''}`}>
         {noteId ? (
-          // Key by noteId so switching notes from the persistent sidebar remounts
-          // the editor fresh (TipTap state + autosave), same as opening from the grid.
-          <NoteEditorPage key={noteId} noteId={noteId} onBack={closeNote} showBack={false} onTitleChange={updateTreeNoteTitle} />
+          <>
+          {/* ⛔ Wave 6 item 7: the main editor sits in the SAME pane element
+              whether or not a note is beside it — moving it into a new parent
+              when the side opens would remount it (a flushed save, a reloaded
+              note, under the member's cursor). */}
+          <div
+            ref={mainPaneRef}
+            tabIndex={-1}
+            className={styles.notePane}
+            data-note-pane="main"
+            role={sideId ? 'region' : undefined}
+            aria-label={sideId ? 'Main note' : undefined}
+          >
+            {paneNotice?.pane === 'main' && (
+              <p className={styles.paneNotice} role="status">{paneNotice.text}</p>
+            )}
+            <NotePaneContext.Provider value={sideId ? mainPaneApi : null}>
+              {/* Key by noteId so switching notes from the persistent sidebar remounts
+                  the editor fresh (TipTap state + autosave), same as opening from the grid. */}
+              <NoteEditorPage
+                key={noteId}
+                noteId={noteId}
+                onBack={closeNote}
+                showBack={false}
+                onTitleChange={updateTreeNoteTitle}
+                // Wave 6 (lane E), I1: the note menu's organisation actions.
+                // The editor (lane D's NoteEditorPage.jsx) renders
+                // `{noteMenu?.(note, { refresh, unlockNote })}` in its header
+                // row, past both early returns — wired in fix round 1 (M1:
+                // this comment used to describe that render as still
+                // pending; it landed). N-f (fix round 3): the object gained
+                // `unlockNote` in M2 (round 2); this comment did not, until now.
+                noteMenu={(note, api) => (
+                  <NoteMenuActions
+                    note={note}
+                    onOpenBeside={isDesktop ? (n) => showBeside(n.id) : undefined}
+                    besideExclude={sideId ? [sideId] : []}
+                    // M2 (wave 6 fix round 2): route the menu's Unlock
+                    // through the editor's OWN unlock (lands the revision,
+                    // moves the save baseline, settles the offline queue) —
+                    // never a second, thinner door.
+                    onUnlock={api?.unlockNote}
+                    // M-9 (wave 7): the template copies the SERVER's note, so the
+                    // editor's pending edits are sent first.
+                    onBeforeTemplate={api?.sendPendingEdits}
+                    onChanged={() => {
+                      api?.refresh?.()
+                      refresh()
+                      refreshAll()
+                      refreshSidebarCounts()
+                    }}
+                  />
+                )}
+              />
+            </NotePaneContext.Provider>
+          </div>
+          {sideId && (
+            <div
+              ref={sidePaneRef}
+              tabIndex={-1}
+              className={`${styles.notePane} ${styles.sidePane}`}
+              data-note-pane="side"
+              role="region"
+              aria-label="Side note"
+            >
+              <div className={styles.sidePaneBar}>
+                <span className={styles.sidePaneLabel}>Beside</span>
+                <button type="button" className={styles.sidePaneBtn} onClick={swapPanes}
+                  title="Put this note on the left and the other on the right">
+                  <UIcon name="columns" size={12} gold={false} />
+                  Swap panes
+                </button>
+                <button type="button" className={styles.sidePaneClose} onClick={closeSide}
+                  aria-label="Close the side note" title="Close the side note">
+                  <UIcon name="x" size={12} gold={false} />
+                </button>
+              </div>
+              {paneNotice?.pane === 'side' && (
+                <p className={styles.paneNotice} role="status">{paneNotice.text}</p>
+              )}
+              <NotePaneContext.Provider value={sidePaneApi}>
+                <NoteEditorPage
+                  key={`side:${sideId}`}
+                  noteId={sideId}
+                  onBack={closeSide}
+                  showBack={false}
+                  onTitleChange={updateTreeNoteTitle}
+                  noteMenu={(note, api) => (
+                    <NoteMenuActions
+                      note={note}
+                      // M2 (remainder, wave 6 fix round 3): the side pane's
+                      // menu took the thin `setNoteLock`-only door — the
+                      // round-2 re-review found only the MAIN pane's
+                      // `noteMenu` was wired to `api?.unlockNote`. Same fix,
+                      // same reason: the editor's own unlock is the one door
+                      // that also moves the save baseline and settles the
+                      // offline queue.
+                      onUnlock={api?.unlockNote}
+                      onBeforeTemplate={api?.sendPendingEdits}
+                      onChanged={() => {
+                        api?.refresh?.()
+                        refresh()
+                        refreshAll()
+                        refreshSidebarCounts()
+                      }}
+                    />
+                  )}
+                />
+              </NotePaneContext.Provider>
+            </div>
+          )}
+          </>
         ) : isHome ? (
           // Wave H: bare-root Research Home (checkpoint decision 33/57) --
           // "All notes" itself is unchanged, one click away via the sidebar.
@@ -1086,6 +1569,7 @@ export default function NotebookTab() {
         ) : (
           <>
         <div className={styles.toolbar}>
+          {isArchiveView && <span className={styles.trashLabel}>Archived</span>}
           {isTrashView ? (
             // Trash view sort is fixed (most recently deleted first) — the
             // toolbar's Recently-updated/Recently-created/Title options are
@@ -1118,7 +1602,7 @@ export default function NotebookTab() {
               Clear filter
             </button>
           )}
-          {!isTrashView && (
+          {!isShelfView && (
             <div className={styles.viewModeWrap}>
               {/*
                 ⛔ ONE BUTTON, RENDERED FIVE TIMES — not five buttons. These were
@@ -1160,7 +1644,8 @@ export default function NotebookTab() {
                 actually mean (e.g. a local-graph scope) -- competitive audit
                 finding UX #18, 2026-09-22.
               */}
-              {!activeView && viewMode !== 'graph' && (
+              {/* Wave 6: a mode the table marks `saveable: false` (Tasks) offers no Save either. */}
+              {!activeView && viewMode !== 'graph' && SAVEABLE_VIEW_MODES.has(viewMode) && (
                 <button
                   type="button"
                   className={styles.saveViewBtn}
@@ -1195,6 +1680,16 @@ export default function NotebookTab() {
             <button
               type="button"
               className={styles.templatesBtn}
+              onClick={openToday}
+              title="Open today's daily note (Ctrl+Alt+D)"
+              aria-keyshortcuts="Control+Alt+D Meta+Alt+D"
+            >
+              <UIcon name="sun" size={16} gold={false} />
+              Today
+            </button>
+            <button
+              type="button"
+              className={styles.templatesBtn}
               onClick={() => setPickerOpen(true)}
               disabled={creating}
               aria-haspopup="dialog"
@@ -1221,7 +1716,7 @@ export default function NotebookTab() {
           variant="auto"
           maxWidth={720}
         >
-          <TemplatePicker onPick={handlePick} busy={creating} />
+          <TemplatePicker onPick={handlePick} onPickMember={createFromMemberTemplate} busy={creating} />
         </Sheet>
 
         <ImportWizard
@@ -1275,6 +1770,7 @@ export default function NotebookTab() {
             onSelectAll={selection.selectAll}
             onClear={selection.clear}
             trashView={isTrashView}
+            archiveView={isArchiveView}
             busy={bulkBusy}
             selectedTags={selectedTags}
             tagNodes={tagTreeNodes}
@@ -1286,10 +1782,21 @@ export default function NotebookTab() {
             onExport={() => exportSelection()}
             onTrash={() => runBulk('trash')}
             onRestore={() => runBulk('restore')}
+            onArchive={() => runBulk('archive')}
+            onUnarchive={() => runBulk('unarchive')}
           />
         )}
 
-        {isLoading && notes.length === 0 ? (
+        {viewMode === 'tasks' && !isShelfView ? (
+          /* Wave 6: every checklist item across the notebook. ⛔ Tested BEFORE
+             the notes list's loading/empty branches: it reads its own endpoint
+             (GET /api/j2/notes/tasks), not this page's filtered notes, so it
+             neither waits for them nor carries their "Showing N of M" row. A
+             row opens its note AT that task through `openNote`, the tab's one
+             door — so split view's one-pane rule holds here too. Excluded from
+             Trash/Archive like every other mode. */
+          <NoteTasksView onOpenTask={(id, index) => openNote({ id }, null, { task: index })} />
+        ) : isLoading && notes.length === 0 ? (
           // G-106 (Wave B lower-frequency sweep): a small grid of card-shaped
           // skeleton placeholders -- reusing the same `.grid` layout the real
           // NoteCard grid renders into -- instead of bare text. Not
@@ -1333,7 +1840,7 @@ export default function NotebookTab() {
               </div>
             )}
             <div className={styles.emptyPicker}>
-              <TemplatePicker onPick={handlePick} busy={creating} />
+              <TemplatePicker onPick={handlePick} onPickMember={createFromMemberTemplate} busy={creating} />
             </div>
           </div>
         ) : (
@@ -1368,7 +1875,19 @@ export default function NotebookTab() {
               ⚰️ This comment used to justify the exclusion by saying the
               calendar was read-only. It was, for one commit.
             */}
-            {viewMode === 'calendar' && !isTrashView ? (
+            {viewMode === 'timeline' && !isShelfView ? (
+              /* ⛔ THE RESTORE BRANCH: keyed by the saved view, so opening one
+                 remounts the timeline with THAT view's settings (a stale
+                 instance would keep drawing the previous view's axis). */
+              <NoteTimelineView
+                key={activeView?.id || 'adhoc'}
+                notes={notes}
+                propertyDefs={propertyDefs}
+                onOpenNote={openNote}
+                initialSettings={activeView?.spec?.timeline || null}
+                onSettingsChange={setTimelineSettings}
+              />
+            ) : viewMode === 'calendar' && !isShelfView ? (
               <NoteCalendarView
                 notes={notes}
                 propertyDefs={propertyDefs}
@@ -1378,7 +1897,7 @@ export default function NotebookTab() {
                 initialDatePropertyId={activeView?.spec?.dateProperty || null}
                 onDatePropertyChange={setCalendarDateProp}
               />
-            ) : viewMode === 'board' && !isTrashView ? (
+            ) : viewMode === 'board' && !isShelfView ? (
               <NoteBoardView
                 notes={notes}
                 propertyDefs={propertyDefs}
@@ -1388,7 +1907,7 @@ export default function NotebookTab() {
                 initialGroupById={activeView?.spec?.groupBy || null}
                 onGroupByChange={setBoardGroupBy}
               />
-            ) : viewMode === 'graph' && !isTrashView ? (
+            ) : viewMode === 'graph' && !isShelfView ? (
               /*
                 ⛔ THE GRAPH EMITS AN ID; `openNote` READS `.id` OFF A NOTE
                 OBJECT. Passing `openNote` straight through type-checks fine,
@@ -1400,7 +1919,7 @@ export default function NotebookTab() {
                 a caller would be the more dishonest of the two shapes.
               */
               <NoteGraphView onOpenNote={(id) => openNote({ id })} />
-            ) : viewMode === 'table' && !isTrashView ? (
+            ) : viewMode === 'table' && !isShelfView ? (
               <NotesTableView
                 notes={notes}
                 propertyDefs={propertyDefs}
@@ -1427,6 +1946,7 @@ export default function NotebookTab() {
                     note={n}
                     onOpen={openNote}
                     onRestore={isTrashView ? restoreNote : undefined}
+                    onUnarchive={isArchiveView ? unarchiveNote : undefined}
                     blocked={blockedNoteIds.has(n.id)}
                     selectable={selectionOn}
                     selected={selection.isSelected(n.id)}
@@ -1469,5 +1989,6 @@ export default function NotebookTab() {
         )}
       </div>
     </div>
+    </SplitViewContext.Provider>
   )
 }

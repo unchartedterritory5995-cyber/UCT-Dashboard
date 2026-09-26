@@ -20,6 +20,7 @@
 // Notebook tab's main chunk for every user who never imports anything.
 import { Component, useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useVirtualizer } from '@tanstack/react-virtual'
+import { reportError } from '../../../../../lib/errorBeacon'
 import Sheet from '../../../../../components/mobile/Sheet'
 import UIcon from '../../../../../components/ui/UIcon'
 import { useIsTouch } from '../../../../../hooks/useBreakpoint'
@@ -207,6 +208,9 @@ export class ImportWizardBoundary extends Component {
 
   componentDidCatch(error, info) {
     console.error('ImportWizard crashed', error, info)
+    // Wave 6 (controller wiring, lane F's beacon): the scrubbed report reaches
+    // /api/client-errors, so an import crash on a member's device is seen.
+    reportError(error, { kind: 'boundary', componentStack: info?.componentStack })
   }
 
   render() {

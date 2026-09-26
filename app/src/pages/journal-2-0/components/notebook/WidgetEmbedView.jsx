@@ -1,4 +1,4 @@
-import { Component, Suspense, lazy, useCallback, useEffect, useRef, useState } from 'react'
+import { Component, Suspense, useCallback, useEffect, useRef, useState } from 'react'
 import { NodeViewWrapper } from '@tiptap/react'
 import {
   resolveEmbedRender, embedAutoCaption, countLiveEmbeds, LIVE_EMBEDS_PER_ENTRY,
@@ -11,6 +11,7 @@ import { captureElementPng, storeFallbackImage, kickSnapshotWarm } from '../../l
 import { RENDER_UNAVAILABLE, showsUnavailableFrame } from '../../../../lib/captureSafety'
 import UIcon from '../../../../components/ui/UIcon'
 import styles from './WidgetEmbedView.module.css'
+import { lazyLeaf } from '../../lib/lazyChunk'
 
 // Free-resize bounds (px). MAX_W is generous so a resize can reach the full
 // note-column width on wide screens; `.sized { max-width: 100% }` keeps it
@@ -32,22 +33,25 @@ const ARCHIVE_MAX_RETRIES = 5
 
 // The journal's widget-component bindings — which registry ids can mount LIVE
 // inside a note, and with what renderer. Everything else renders its archived
-// image. Lazy so opening a note with no live embeds never loads chart code.
+// image. Lazy so opening a note with no live embeds never loads chart code --
+// through lib/lazyChunk.js's LEAF form (one in-place retry of a failed fetch, never a page
+// reload -- wave 7 I-1, ruling D-I2), so EmbedErrorBoundary below catches whatever a chunk
+// throws and the embed falls back to its archived image.
 // ⚠️ A registry entry flipped reconstructable WITHOUT a binding here degrades
 // to its archive (never crashes) — flip both together.
 const EMBED_COMPONENTS = {
-  chart: lazy(() => import('./ChartEmbed')),
-  calendar: lazy(() => import('./CalendarEmbed')),
-  aisearch: lazy(() => import('./AiSearchEmbed')),
-  fundamentals: lazy(() => import('./FundamentalsEmbed')),
-  news: lazy(() => import('./NewsEmbed')),
-  breadth: lazy(() => import('./BreadthEmbed')),
-  indexes: lazy(() => import('./IndexesEmbed')),
-  marketcontext: lazy(() => import('./MarketContextEmbed')),
-  alerts: lazy(() => import('./AlertsEmbed')),
-  scanner: lazy(() => import('./ScannerEmbed')),
-  watchlist: lazy(() => import('./WatchlistEmbed')),
-  themes: lazy(() => import('./ThemesEmbed')),
+  chart: lazyLeaf(() => import('./ChartEmbed')),
+  calendar: lazyLeaf(() => import('./CalendarEmbed')),
+  aisearch: lazyLeaf(() => import('./AiSearchEmbed')),
+  fundamentals: lazyLeaf(() => import('./FundamentalsEmbed')),
+  news: lazyLeaf(() => import('./NewsEmbed')),
+  breadth: lazyLeaf(() => import('./BreadthEmbed')),
+  indexes: lazyLeaf(() => import('./IndexesEmbed')),
+  marketcontext: lazyLeaf(() => import('./MarketContextEmbed')),
+  alerts: lazyLeaf(() => import('./AlertsEmbed')),
+  scanner: lazyLeaf(() => import('./ScannerEmbed')),
+  watchlist: lazyLeaf(() => import('./WatchlistEmbed')),
+  themes: lazyLeaf(() => import('./ThemesEmbed')),
 }
 
 // The never-a-broken-embed rule, enforced at the React layer too: any render

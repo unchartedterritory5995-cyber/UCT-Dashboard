@@ -27,6 +27,20 @@ test('says what each AI provider receives, not just that it exists', () => {
   expect(screen.getByText(/When you use AI Search/)).toBeInTheDocument()
 })
 
+test('the owner-approved wave-7 lines are present (legal sign-off 2026-09-25, items L6 and L8)', () => {
+  const { container } = renderWithProviders(<Privacy />)
+  const text = container.textContent
+  // Email-in: Cloudflare Email Routing + a Worker receive the member's mail
+  // (docs/notebook/email-in-setup.md §1). The drafted clause "handles those
+  // messages only to deliver them to UCT" was dropped: no Cloudflare document
+  // we could find says it, so the page must not claim it.
+  expect(text).toMatch(/if you use your Notebook email address, receiving those emails and passing them\s+to us \(Cloudflare Email Routing and Workers\)/)
+  expect(text).not.toMatch(/only to deliver them to UCT/)
+  // Writing help sends the selected text to Anthropic (writing_help.py reads
+  // note_ask._SYNTH_MODEL), the same vendor and data class as Ask Notebook.
+  expect(text).toMatch(/including Ask Notebook,\s+writing help in the Notebook, Compass coaching/)
+})
+
 test('community sharing names everything another member can see', () => {
   const { container } = renderWithProviders(<Privacy />)
   const text = container.textContent

@@ -823,7 +823,7 @@ CREATE TABLE IF NOT EXISTS j2_note_properties (
     id          TEXT PRIMARY KEY,
     user_id     TEXT NOT NULL,
     name        TEXT NOT NULL,
-    type        TEXT NOT NULL,            -- text|number|select|multi_select|date|checkbox|url
+    type        TEXT NOT NULL,            -- text|number|select|multi_select|date|checkbox|url|relation
     options_json TEXT,                    -- select/multi_select only: [{id,label,color}]
     sort_order  INTEGER NOT NULL DEFAULT 0,
     created_at  TEXT NOT NULL,
@@ -1780,8 +1780,63 @@ _PHASE_2_ALTERS = [
     # and ~30 ms off this index. Only a title change, a trash/restore or an
     # edit (updated_at) moves an entry -- the same churn idx_j2_notes_user_updated
     # already pays. notes.py::switcher_search is its reader.
-    "CREATE INDEX IF NOT EXISTS idx_j2_notes_switcher"
-    " ON j2_notes(user_id, deleted_at, updated_at DESC, title)",
+    # Wave 6 (lane E, archive): NULL = in the library. Set (ISO time) = archived
+    # -- out of the default list, search, quick switcher, graph, folder/tag
+    # counts, favorites and recents, and listed under the sidebar's Archived
+    # entry (`folder_id=__archived__`). ⛔ ARCHIVE IS NOT TRASH: nothing is ever
+    # deleted by it, the note keeps its folder, and setting or clearing it never
+    # advances `updated_at` (notes.set_note_archived says why).
+    "ALTER TABLE j2_notes ADD COLUMN archived_at TEXT",
+    # Wave 6 (lane E, lock): 1 = the member locked this note against ACCIDENTAL
+    # edits, as Notion's lock does. ⛔⛔ THE SERVER DOES NOT REFUSE THE EDITOR'S
+    # OWN BODY WRITES: a queued offline edit must never become a conflict inside
+    # the frozen offline layer, so for the member's editor and every existing
+    # door the lock is enforced in the EDITOR (lib/lockedNote.js:
+    # `editable = false`). ⛔ BUT THE SERVER-SIDE APPEND DOORS REFUSE A LOCKED
+    # NOTE (wave 7, ruling D-G1(d)): `note_personal_api.append_nodes` answers
+    # 423 "This note is locked -- unlock it in the Notebook first" -- the
+    # personal API's note append and daily append, and email-in's attachment
+    # link, all go through it. Set only by `PATCH /notes/{id}/lock`, which
+    # advances `updated_at` like any metadata write so another tab's
+    # compare-and-set and the outbox see it.
+    "ALTER TABLE j2_notes ADD COLUMN locked INTEGER NOT NULL DEFAULT 0",
+    # Wave 6 (lane E, daily note): the ET date (YYYY-MM-DD) a note is the
+    # member's daily note FOR; NULL for every other note. ⛔⛔ EXACTLY ONE PER
+    # MEMBER PER DAY IS THE INDEX'S JOB, not a check's: two tabs pressing Today
+    # at once can both pass any SELECT, and only this refuses the second
+    # INSERT. Trashed notes stay in it, so creating a new daily note first
+    # releases the day from a trashed holder (notes.release_trashed_daily_date).
+    "ALTER TABLE j2_notes ADD COLUMN daily_date TEXT",
+    "CREATE UNIQUE INDEX IF NOT EXISTS idx_j2_notes_daily"
+    " ON j2_notes(user_id, daily_date) WHERE daily_date IS NOT NULL",
+    # Wave 6 (lane E, member templates): a member's own "Save as template"
+    # copies -- title, body and property values of one of their notes, owned by
+    # them (note_templates.py). A COPY, never a link to the note. ⛔ user-scoped:
+    # account deletion must purge it -- added to
+    # account_purge._DIRECT_USER_TABLES in wave 6 fix round 1 (I3). ⚰️ This
+    # comment used to claim the addition was "requested in wave6-E-report.md";
+    # no such request was ever written there.
+    """CREATE TABLE IF NOT EXISTS j2_note_templates (
+        id              TEXT PRIMARY KEY,
+        user_id         TEXT NOT NULL,
+        name            TEXT NOT NULL,
+        title           TEXT NOT NULL DEFAULT '',
+        body_json       TEXT NOT NULL,
+        properties_json TEXT,
+        created_at      TEXT NOT NULL,
+        updated_at      TEXT NOT NULL
+    )""",
+    "CREATE INDEX IF NOT EXISTS idx_j2_note_templates_user"
+    " ON j2_note_templates(user_id, created_at DESC)",
+    # ⛔ The switcher's keystroke scan skips archived notes too, so its covering
+    # index carries `archived_at` -- a predicate on a column the index lacks
+    # would send every keystroke back to the wide rows (the ~150 ms read the
+    # wave-5 index removed). The old index is DROPPED, not kept beside the new
+    # one: two indexes paying one churn for one reader. The column is added on
+    # the line above, so this can never index a column that does not exist.
+    "DROP INDEX IF EXISTS idx_j2_notes_switcher",
+    "CREATE INDEX IF NOT EXISTS idx_j2_notes_switcher_live"
+    " ON j2_notes(user_id, deleted_at, archived_at, updated_at DESC, title)",
     # Wave 1 (P1-1): a capture routed to the inbox must not silently drop the
     # member-typed comment or a trade link — the SAME two fields the "current
     # note"/"new entry" destinations already carry via the full widgetEmbed
@@ -1860,6 +1915,64 @@ _PHASE_2_ALTERS = [
     "ON hub_planned_trades(user_id, created_at DESC)",
 ]
 
+# ── Wave 7 (lane I): the Notebook's read-path indexes ──────────────────────────
+#
+# ⛔⛔ WHY THE WHOLE-LIBRARY READS WERE SLOW: ROW WIDTH, NOT ROW COUNT. A note row
+# carries `body_json` and `body_plain` ahead of `ticker`, `tags`, `deleted_at` and
+# `archived_at` in column order. A ~2 KB body pushes those later columns onto an
+# OVERFLOW page, so reading any of them for one note costs a walk down the row's
+# overflow chain. Every read that asked "which notes are live, and what are their
+# tags / folder / ticker" did that for every note in the library. The folder counts,
+# the tag cloud and tree, the `tag=` filter and the tag/ticker half of search all
+# paid it. Measured at `acf1eb51e`, 50k notes: docs/notebook/perf-budgets.md §2.
+#
+# `idx_j2_notes_live_cover` holds exactly the narrow columns those reads need,
+# led by the same `(user_id, deleted_at, archived_at)` equality every one of them
+# already says, so they are answered from the index alone and never touch a row.
+# (A PARTIAL index `WHERE deleted_at IS NULL AND archived_at IS NULL` was measured
+# too: with no ANALYZE statistics the planner kept choosing the switcher index,
+# whose three equality columns it rates higher, so the partial one went unused.) It sits BESIDE `idx_j2_notes_switcher_live` rather than
+# replacing it: the switcher reads `title` and must stay the smallest scan, and
+# `tests/test_journal_two_notes_switcher_router.py` pins its plan by name.
+#
+# Built by `ensure_schema` in its own loop, so a failure is logged and skipped,
+# never a startup crash (see there). Rollback: DROP INDEX IF EXISTS <name>.
+_PERF_INDEXES = [
+    # folder_id right after the three equality columns, so the folder counts'
+    # GROUP BY walks it in order (6 ms at 50k); led by folder_id's own index they
+    # took 124 ms, reading every row for deleted_at/archived_at.
+    "CREATE INDEX IF NOT EXISTS idx_j2_notes_live_cover"
+    " ON j2_notes(user_id, deleted_at, archived_at, folder_id, updated_at DESC, id, ticker, tags)",
+    # The tasks read (`?view=tasks`, note_tasks.list_tasks) and the 07:00 reminder
+    # pass look ONLY at live notes holding a checklist. Without this they read
+    # every live note's whole body_json to test for "taskItem" (303 ms p95 at 50k,
+    # acf1eb51e). The partial index holds just the notes that have one. ⛔ The
+    # readers must spell the predicate EXACTLY as the index does,
+    # `instr(body_json, 'taskItem') > 0`, or SQLite cannot prove the index applies
+    # and silently goes back to the full scan. tests/test_journal_two_notes_read_
+    # plans.py pins the plan.
+    # Led by the same three equality columns as every live read: with no ANALYZE
+    # statistics a `(user_id, updated_at)` partial index LOST to the switcher index
+    # and went unused (measured, wave 7). 23 ms at 50k once chosen.
+    "CREATE INDEX IF NOT EXISTS idx_j2_notes_live_tasks"
+    " ON j2_notes(user_id, deleted_at, archived_at, updated_at DESC)"
+    " WHERE instr(body_json, 'taskItem') > 0",
+    # FTS match -> note id WITHOUT reading the FTS content row. A dense search
+    # term matches ~15k notes at 50k; reading `note_id` (an UNINDEXED column)
+    # back out of each match's content row cost ~40 ms, while the MATCH itself
+    # costs ~6 ms. `j2_notes_fts_map` already maps each note to its FTS rowid
+    # (the delete path's O(1) lookup); this indexes the other direction.
+    "CREATE INDEX IF NOT EXISTS idx_j2_notes_fts_map_rowid ON j2_notes_fts_map(fts_rowid)",
+    # The sidebar's expanded-folder rows (notes_for_folders): one folder's live notes
+    # by title, LIMIT 200. Without an index in title order SQLite read every note of
+    # the folder and sorted them all to keep 200 -- and once idx_j2_notes_live_cover
+    # existed the planner read them in updated_at order, a random walk over the
+    # table (wave 7 A/B at 50k, docs/notebook/perf-budgets.md §2). In title order
+    # the LIMIT stops the walk at 200.
+    "CREATE INDEX IF NOT EXISTS idx_j2_notes_live_folder_title"
+    " ON j2_notes(user_id, deleted_at, archived_at, folder_id, title COLLATE NOCASE)",
+]
+
 
 def ensure_schema(conn: sqlite3.Connection) -> None:
     """Create Journal 2.0 tables if missing. Safe to call repeatedly.
@@ -1883,6 +1996,17 @@ def ensure_schema(conn: sqlite3.Connection) -> None:
             msg = str(e).lower()
             if "duplicate column" not in msg and "already exists" not in msg:
                 raise
+    conn.commit()
+
+    # Wave 7 (lane I): read-path indexes. An index is an optimisation, never a
+    # correctness requirement, so one that cannot be built is LOGGED and skipped
+    # rather than allowed to stop the process: a missing index makes a read
+    # slower, while a startup crash takes the whole pod down.
+    for stmt in _PERF_INDEXES:
+        try:
+            conn.execute(stmt)
+        except sqlite3.OperationalError as e:
+            print(f"[j2-schema] perf index skipped ({e}): {stmt[:80]}")
     conn.commit()
 
     try:

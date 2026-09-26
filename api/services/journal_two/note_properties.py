@@ -29,7 +29,16 @@ from typing import Any
 
 from api.services.auth_db import get_connection
 
-_VALID_TYPES = ("text", "number", "select", "multi_select", "date", "checkbox", "url")
+# ⛔ ONE FACT IN TWO FILES with the client's NEW_PROPERTY_TYPES
+# (components/notebook/PropertiesSection.jsx), pinned against each other by
+# tests/test_journal_two_relation_property_router.py, which PARSES the client.
+# `relation` (wave 6): a list of the member's note ids — see
+# validate_property_value and notes.get_note_related_from.
+_VALID_TYPES = ("text", "number", "select", "multi_select", "date", "checkbox", "url", "relation")
+
+# A relation holds at most this many notes; each id is at most this long.
+MAX_RELATION_NOTES = 50
+_MAX_RELATION_ID_CHARS = 64
 
 
 def _now_iso() -> str:
@@ -305,6 +314,22 @@ def validate_property_value(prop_def: dict[str, Any], value: Any) -> Any:
         if not isinstance(value, list) or any(v not in valid_ids for v in value):
             raise PropertyValidationError(f"{prop_def['name']}: unknown option(s) in {value!r}")
         return value
+    if t == "relation":
+        # Note ids, trimmed, de-duplicated in order. Not checked against the
+        # member's notes here (this function is pure): every READ of a relation
+        # resolves its ids owner-scoped, so a foreign or missing id can only
+        # ever render as "missing note", never as someone else's title.
+        if not isinstance(value, list):
+            raise PropertyValidationError(f"{prop_def['name']} must be a list of notes")
+        out: list[str] = []
+        for item in value:
+            if not isinstance(item, str) or not item.strip() or len(item.strip()) > _MAX_RELATION_ID_CHARS:
+                raise PropertyValidationError(f"{prop_def['name']}: {item!r} is not a note")
+            if item.strip() not in out:
+                out.append(item.strip())
+        if len(out) > MAX_RELATION_NOTES:
+            raise PropertyValidationError(f"{prop_def['name']} can link at most {MAX_RELATION_NOTES} notes")
+        return out or None
     raise PropertyValidationError(f"Unsupported property type: {t!r}")
 
 
@@ -471,7 +496,7 @@ def get_saved_view(user_id: str, view_id: str, conn: sqlite3.Connection | None =
 #: ⚠️ board and calendar also store a property ID in their spec (`groupBy`,
 #: `dateProperty`). The server does not resolve those -- the client applies them
 #: on restore. Ids, never names, so a rename cannot break a saved view.
-SAVEABLE_VIEW_TYPES = ("list", "table", "board", "calendar", "graph")
+SAVEABLE_VIEW_TYPES = ("list", "table", "board", "calendar", "graph", "timeline")
 
 
 def create_saved_view(
@@ -622,13 +647,18 @@ def property_filter_sql(
             clauses.append(f"{extract} IS NOT NULL")
             params.append(path_param)
             continue
-        if prop_def["type"] == "multi_select" and op == "contains":
+        # `contains` asks "does this list hold X?" — a multi-select option, or
+        # (wave 6) a relation's note id.
+        if prop_def["type"] in ("multi_select", "relation") and op == "contains":
             clauses.append(
                 f"EXISTS (SELECT 1 FROM json_each({extract}) WHERE json_each.value = ?)"
             )
             params.append(path_param)
             params.append(validate_property_value(prop_def, [value])[0])
             continue
+        if prop_def["type"] == "relation":
+            # A list of notes is never "equal to" or "greater than" anything.
+            raise PropertyValidationError(f"{op!r} is not supported for a relation")
         validated = validate_property_value(prop_def, value)
         sql_op = {"eq": "=", "neq": "!=", "gt": ">", "gte": ">=", "lt": "<", "lte": "<="}.get(op)
         if sql_op:
@@ -675,6 +705,11 @@ def property_sort_sql(
     if prop_def is None:
         if strict:
             raise PropertyValidationError(f"Unknown property: {property_id!r}")
+        return None
+    if prop_def["type"] == "relation":
+        # A list of notes has no order a member means (wave 6).
+        if strict:
+            raise PropertyValidationError("A relation cannot be sorted")
         return None
     # NULLS LAST regardless of direction -- an unset property should never
     # dominate the top of an ascending sort just because SQLite treats NULL

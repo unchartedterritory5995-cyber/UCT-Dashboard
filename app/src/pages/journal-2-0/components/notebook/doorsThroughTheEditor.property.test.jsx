@@ -62,6 +62,7 @@ import { __resetNotebookConnections } from '../../lib/offline/useDurableNote'
 import { OFFLINE_FLAG_KEY } from '../../lib/offline/offlineFlag'
 import { dbNameFor } from '../../lib/offline/notebookDb'
 import { useOutboxDrain } from '../../lib/offline/useOutboxDrain'
+import { mergeTagDelta, sameTagList } from '../../lib/tagDelta'
 
 Range.prototype.getClientRects = () => []
 Range.prototype.getBoundingClientRect = () => ({ top: 0, left: 0, right: 0, bottom: 0, width: 0, height: 0 })
@@ -133,10 +134,12 @@ let factory
 
 // The doors + commitSave reach the server through this.
 const updateMock = vi.fn()
+// Wave 7 (M14): the tag door reaches the SAME server through the delta route.
+const patchTagsMock = vi.fn()
 vi.mock('../../hooks/useJ2Notes', () => ({
   useJ2Note: () => ({
     note: server.note, isLoading: false, error: null,
-    update: updateMock, refresh: vi.fn(),
+    update: updateMock, refresh: vi.fn(), patchTags: patchTagsMock,
   }),
   recordNoteOpened: vi.fn(),
   setNoteFavorite: vi.fn(),
@@ -157,6 +160,18 @@ beforeEach(() => {
     if (!server.online) throw server.offlineError()
     if (server.gate) await server.gate.promise
     return server.applyPut(patch, 'editor')
+  })
+  // `PATCH /notes/{id}/tags`: the delta applied to the list the server holds,
+  // no baseline (a metadata door) -- the `useJ2Note().patchTags` contract since
+  // lane J's J9: the note back ONLY when this request wrote it (the route's
+  // `changed: true`), null for a no-op, never inferred from a revision.
+  patchTagsMock.mockReset()
+  patchTagsMock.mockImplementation(async (delta) => {
+    if (!server.online) throw server.offlineError()
+    if (server.gate) await server.gate.promise
+    const tags = mergeTagDelta(server.note.tags, delta)
+    if (sameTagList(tags, server.note.tags)) return null            // changed: false
+    return server.applyPut({ tags }, 'editor')                       // changed: true
   })
 
   global.fetch = vi.fn(async (url, opts = {}) => {
@@ -240,7 +255,13 @@ async function settle(ms = 1200, n = 8) {
 const doors = {
   folder: () => fireEvent.change(screen.getByDisplayValue('Unfiled'), { target: { value: 'f1' } }),
   ticker: () => fireEvent.blur(screen.getByPlaceholderText('Ticker'), { target: { value: 'NVDA' } }),
-  tags: () => fireEvent.blur(screen.getByPlaceholderText('Tags (comma sep)'), { target: { value: 'thesis' } }),
+  // Wave 6 items 9 + 12: the tag door is an ADD (a delta applied to the
+  // server's list), through the tag field's own form.
+  tags: () => {
+    const input = screen.getByLabelText('Add a tag to this note')
+    fireEvent.change(input, { target: { value: 'thesis' } })
+    fireEvent.submit(input.closest('form'))
+  },
 }
 
 /**
@@ -369,6 +390,9 @@ describe('⛔⛔ THE INVARIANT — the offline sentence reaches the server body,
     await offlineSentenceThenDoor('tags', 3)
     expect(serverBodyHasSentence()).toBe(true)
     expect(forkCount()).toBe(0)
+    // Non-vacuity (wave 6): the tag door is now an add through a form; it
+    // must really have written, or this case proves nothing about a door.
+    expect(server.puts.some((p) => Array.isArray(p.patch.tags) && p.patch.tags.includes('thesis'))).toBe(true)
   })
 })
 

@@ -109,7 +109,98 @@ _J2_TELEMETRY_EVENTS = {
     #
     # ⛔ NEVER note content: a per-session id, the flag state, a timestamp.
     "notebook_offline_opt_in",
+    # Wave 6 (D14) — Notebook core-action telemetry. The client door is
+    # app/src/pages/journal-2-0/lib/notebookTelemetry.js, which drops every
+    # prop not on its per-event schema and sends strings only from closed
+    # enums; the server applies the same schema again on arrival
+    # (_NOTEBOOK_PROP_SCHEMAS, below), so a title or a query cannot ride along
+    # even on a raw fetch. Counted by GET /api/admin/notebook-telemetry
+    # (api/routers/client_errors.py). tests/test_notebook_telemetry_events.py
+    # reads the names AND the schemas out of the client source and asserts
+    # both are here — never retyped.
+    "note_open_ms", "save_failed", "conflict_forked", "ask_used",
+    "capture_used", "search_used", "switcher_used",
 }
+
+# Wave 6 (D14, S-3) — the seven Notebook events' prop schemas, applied on
+# ARRIVAL. The client helper is a convention, not a wall: any lane can post to
+# /telemetry with a raw fetch, and a free-text prop would land in activity_log
+# verbatim. Same rules as the client's `sanitizeProps`: a key not listed is
+# dropped; "num" must be a JSON number a double can hold and finite (rounded
+# as JS Math.round does — a numeric STRING is not a number, and is dropped);
+# "bool" must be a bool; an enum (a tuple) keeps a string only if it is one of
+# its values, else 'other'. ⛔ ONE FACT IN TWO FILES: this dict and the client's
+# EVENT_SCHEMAS are pinned by tests/test_notebook_telemetry_events.py, which
+# PARSES the client source — change both or neither.
+_NOTEBOOK_PROP_SCHEMAS: dict[str, dict[str, Any]] = {
+    "note_open_ms": {
+        "ms": "num",
+        "source": ("list", "switcher", "link", "search", "deeplink", "new", "tasks", "mention"),
+        "cached": "bool",
+    },
+    "save_failed": {
+        "status": "num",
+        "reason": ("network", "http", "conflict", "quota", "offline", "too-large", "unknown"),
+        "offline": "bool",
+        "retrying": "bool",
+    },
+    "conflict_forked": {
+        "door": ("editor", "outbox", "restore", "board", "capture", "import", "unknown"),
+        "queued": "bool",
+    },
+    "ask_used": {
+        "scope": ("note", "notebook", "selection"),
+        "inserted": "bool",
+        "ms": "num",
+    },
+    "capture_used": {
+        "target": ("current", "new", "inbox"),
+        "widget": ("chart", "widget", "fact", "excerpt", "web", "quote", "unknown"),
+    },
+    "search_used": {
+        "results": "num",
+        "filters": "num",
+        "mode": ("text", "tag", "ticker", "filter"),
+        "ms": "num",
+    },
+    "switcher_used": {
+        "results": "num",
+        "rank": "num",
+        "picked": "bool",
+        "mode": ("title", "recent", "favorite", "create"),
+    },
+}
+
+
+def _sanitize_notebook_props(event: str, props: Any) -> dict[str, Any]:
+    """The server twin of notebookTelemetry.js `sanitizeProps`."""
+    import math
+
+    schema = _NOTEBOOK_PROP_SCHEMAS.get(event)
+    if not schema or not isinstance(props, dict):
+        return {}
+    out: dict[str, Any] = {}
+    for key, spec in schema.items():
+        if key not in props:
+            continue
+        v = props[key]
+        if spec == "num":
+            # Through float(), as the client's JSON number is a double: an int
+            # no double can hold (`1` and 400 zeros) raises OverflowError here
+            # and is dropped like any other invalid value — never a 500 (R1-5).
+            if isinstance(v, (int, float)) and not isinstance(v, bool):
+                try:
+                    f = float(v)
+                except OverflowError:
+                    continue
+                if math.isfinite(f):
+                    out[key] = int(math.floor(f + 0.5))
+        elif spec == "bool":
+            if isinstance(v, bool):
+                out[key] = v
+        else:
+            out[key] = v if isinstance(v, str) and v in spec else "other"
+    return out
 
 
 @router.post("/telemetry")
@@ -118,12 +209,16 @@ def j2_telemetry(payload: dict, user: dict = Depends(get_current_user)):
 
     Body: {"event": str, "props": dict|None}. Unknown event → 400. Writes via
     auth_service.log_activity(action=f"j2:{event}", details=json.dumps(props)[:500]).
+    A Notebook event's props are cleaned by `_sanitize_notebook_props` first.
     """
     event = str(payload.get("event") or "")
     if event not in _J2_TELEMETRY_EVENTS:
         raise HTTPException(status_code=400, detail="Unknown event")
+    props = payload.get("props") or {}
+    if event in _NOTEBOOK_PROP_SCHEMAS:
+        props = _sanitize_notebook_props(event, props)
     from api.services.auth_service import log_activity
-    log_activity(user["id"], f"j2:{event}", json.dumps(payload.get("props") or {})[:500])
+    log_activity(user["id"], f"j2:{event}", json.dumps(props)[:500])
     return {"ok": True}
 
 
@@ -1603,6 +1698,7 @@ def list_notes_endpoint(
     savedViewId: str | None = None,
     propertyFilter: str | None = None,
     propertySort: str | None = None,
+    meaning: bool = False,
     user: dict = Depends(get_current_user),
 ) -> dict[str, Any]:
     """`deleted=true` (Wave 0 trash view): the mirror-image question — only
@@ -1652,7 +1748,14 @@ def list_notes_endpoint(
         property_filter = _parse_property_filter_param(propertyFilter)
         property_sort = _parse_property_sort_param(propertySort)
     try:
-        rows = notes_service.list_notes(
+        # `total` is the TRUE count over the same filters (folder/tag/ticker/embed/q),
+        # never the length of `rows` — a migrated library of thousands of notes must
+        # see its real count, not "however many fit on this page". Built from the
+        # identical WHERE predicate as the page (`notes.py::_notes_filter_sql`)
+        # so the two can never disagree about which notes match.
+        # Wave 7 (lane I): one call, one connection, and the search/tag match sets
+        # computed ONCE for both halves (`list_and_count_notes`).
+        rows, total = notes_service.list_and_count_notes(
             user["id"], folder_id=folder_id, tag=tag, ticker=ticker, q=q,
             embed_symbol=embed_symbol, embed_widget=embed_widget,
             sort=sort, limit=limit, offset=offset, deleted=deleted,
@@ -1660,19 +1763,26 @@ def list_notes_endpoint(
             property_filter=property_filter, property_sort=property_sort,
             property_filter_strict=property_filter_strict,
         )
-        # `total` is the TRUE count over the same filters (folder/tag/ticker/embed/q),
-        # never the length of `rows` — a migrated library of thousands of notes must
-        # see its real count, not "however many fit on this page". Built from the
-        # identical WHERE predicate as the list above (`notes.py::_notes_filter_sql`)
-        # so the two can never disagree about which notes match.
-        total = notes_service.count_notes(
-            user["id"], folder_id=folder_id, tag=tag, ticker=ticker, q=q,
-            embed_symbol=embed_symbol, embed_widget=embed_widget, deleted=deleted,
-            date_from=date_from, date_to=date_to, symbol_in=symbol_in,
-            property_filter=property_filter, property_filter_strict=property_filter_strict,
-        )
     except note_properties.PropertyValidationError as e:
         raise HTTPException(status_code=400, detail=str(e))
+    # Wave 7 lane H (H3), DARK behind NOTEBOOK_SEMANTIC_SEARCH_ENABLED: meaning
+    # hits APPENDED after the lexical page above, by query shape (ruling D-H3).
+    # A note-id list, never a change to the filters or a second whole-library
+    # query; off, it returns `rows` untouched and issues no SQL at all
+    # (note_semantic.append_meaning_hits says why each refusal is where it is).
+    # ⛔ OPT-IN BY REQUEST (ruling D-H9): only a request carrying `meaning=1`
+    # reaches it -- today the Notebook search box, the one list that labels a
+    # meaning row (D-H8). The [[ picker, AddPositionModal, ThesisSection and
+    # Model Book call this same endpoint and would otherwise receive rows that
+    # match no word typed, with nothing to say why (and spend an embed each).
+    if meaning:
+        from api.services.journal_two import note_semantic
+        rows = note_semantic.append_meaning_hits(
+            user["id"], q, rows, total=total, offset=offset, limit=limit,
+            only_query=not (folder_id or tag or ticker or embed_symbol or embed_widget
+                            or deleted or date_from or date_to or symbol_in is not None
+                            or savedViewId or property_filter),
+        )
     return {"notes": rows, "total": total, "limit": limit, "offset": offset}
 
 
@@ -1743,11 +1853,34 @@ def note_tag_counts_endpoint(
     Wave 5 nested tags: `tree` adds every node of the `a/b/c` hierarchy —
     implied parents included — with `own` (notes carrying exactly that tag)
     and `total` (distinct notes in its subtree, i.e. what filtering by it
-    returns). `tags` is unchanged for every existing reader."""
-    return {
-        "tags": notes_service.tag_counts(user["id"]),
-        "tree": notes_service.tag_tree(user["id"]),
-    }
+    returns). `tags` is unchanged for every existing reader.
+
+    Wave 7 (lane I): both halves come from ONE connection and ONE grouping pass
+    (`tag_counts_and_tree`), which is equal to the two separate calls by rail
+    (tests/test_journal_two_tag_counts_combined.py)."""
+    return notes_service.tag_counts_and_tree(user["id"])
+
+
+@router.get("/notes/tag-members")
+def note_tag_members_endpoint(
+    tag: str | None = None,
+    user: dict = Depends(get_current_user),
+) -> dict[str, Any]:
+    """Wave 6 (lane E, item 8) — the notes a rename of `tag` would touch:
+    `{notes: [{id, title}], total}` for this member's LIVE notes (archived
+    ones too — unarchiving must not bring the old name back), carrying `tag`
+    or a tag below it, never a trashed note or another member's, matched by
+    the same identity (`tag_key`) the tag tree and the `tag=` filter already
+    use — never a letters-only lookalike ("researcher" for "research"). A
+    blank tag is a 400: a typo nobody meant is not an honest empty answer.
+
+    ⛔ MUST stay declared ABOVE `GET /notes/{note_id}` — same reason as
+    `/notes/tags` immediately above."""
+    key = notes_service.tag_key(tag or "")
+    if not key:
+        raise HTTPException(status_code=400, detail="tag is required")
+    notes = notes_service.tag_member_notes(user["id"], tag or "")
+    return {"notes": notes, "total": len(notes)}
 
 
 @router.get("/notes/folder-counts")
@@ -1869,7 +2002,8 @@ def note_switcher_endpoint(
 # editor or the durable copy from forking on its next save — would no longer
 # be demanded of it.
 NOTE_BATCH_MAX = 500
-NOTE_BATCH_OPS = ("move", "addTag", "removeTag", "favorite", "unfavorite", "trash", "restore")
+NOTE_BATCH_OPS = ("move", "addTag", "removeTag", "favorite", "unfavorite", "trash", "restore",
+                  "archive", "unarchive", "renameTag")
 
 
 def _parse_batch_ids(raw: Any, cap: int = NOTE_BATCH_MAX) -> list[str]:
@@ -1894,7 +2028,18 @@ def notes_batch_endpoint(
     """Apply ONE operation to many notes: `{ids, op, args}`.
 
     ops: `move` {folderId | null} · `addTag` {tag} · `removeTag` {tag} ·
-    `favorite` · `unfavorite` · `trash` · `restore`.
+    `favorite` · `unfavorite` · `trash` · `restore` · `archive` · `unarchive` ·
+    `renameTag` {from, to}.
+    (Archive, like a favourite, moves no revision — its results carry no
+    `updatedAt`, and a trashed note answers `in_trash`.)
+
+    `renameTag` (wave 6, lane E, item 8): renames `from` to `to` on every
+    listed note that carries it, AND every tag below it (`a` -> `x` makes
+    `a/b` -> `x/b` — a tag is the parent of its `tag/...` children, as the
+    tree and the `tag=` filter already read it). Matched by identity
+    (`tag_key`), whole levels only. `GET /notes/tag-members?tag=` names the
+    notes to pass as `ids`. A request naming nothing to rename (`from`/`to`
+    blank, not strings, or the same tag) is a 400 before anything is written.
 
     `move` also takes `{folders: {<id>: folderId | null}}` — a folder PER
     NOTE, for putting a selection back where each note came from (the bulk
@@ -1932,6 +2077,8 @@ def notes_batch_endpoint(
     try:
         target_folder = None
         tag = None
+        rename_from = None
+        rename_to = None
         per_note_folder: dict[str, str | None] | None = None
         gone_folders: set[str] = set()
         expect_guard = False
@@ -1977,6 +2124,21 @@ def notes_batch_endpoint(
             if not cleaned:
                 raise HTTPException(status_code=400, detail="tag is required")
             tag = cleaned[0]
+        elif op == "renameTag":
+            frm_raw, to_raw = args.get("from"), args.get("to")
+            if not isinstance(frm_raw, str) or not isinstance(to_raw, str):
+                raise HTTPException(status_code=400, detail="from and to must be strings")
+            rename_from = notes_service._normalize_tag_path(frm_raw)
+            rename_to = notes_service._normalize_tag_path(to_raw)
+            if not rename_from or not rename_to:
+                raise HTTPException(status_code=400, detail="from and to are required")
+            if rename_from == rename_to:
+                # ⛔ Compared by the normalised SPELLING, never `tag_key` — a
+                # case-only rename ("semis" -> "Semis") is a real, meaningful
+                # rename (it changes the stored spelling) even though the two
+                # sides share one identity; only an exactly-identical request
+                # asks for nothing.
+                raise HTTPException(status_code=400, detail="from and to must be different tags")
 
         heads = notes_service.note_batch_heads(uid, ids, conn=conn)
         favs = notes_service.favorite_note_ids(uid, ids, conn=conn) if op in ("favorite", "unfavorite") else set()
@@ -1993,6 +2155,16 @@ def notes_batch_endpoint(
             if op == "addTag":
                 return None if present else existing + [tag]
             return [t for t in existing if notes_service.tag_key(t) != key] if present else None
+
+        def _new_tags_for(head: dict[str, Any]) -> list[str] | None:
+            """Wave 6 fix round 1, I7 — the one per-note transform the shared
+            compare-and-set loop below is parameterized by: `addTag`/
+            `removeTag` go through `_tag_patch`, `renameTag` through
+            `notes_service.renamed_tag_list`. Folded from what was a verbatim
+            copy of the same loop, twice."""
+            if op == "renameTag":
+                return notes_service.renamed_tag_list(head["tags"], rename_from, rename_to)
+            return _tag_patch(head)
 
         results: list[dict[str, Any]] = []
         for nid in ids:
@@ -2048,14 +2220,20 @@ def notes_batch_endpoint(
                                    if n else {"id": nid, "status": "not_found"})
                         break
                     results.append(outcome or {"id": nid, "status": "conflict"})
-                elif op in ("addTag", "removeTag"):
+                elif op in ("addTag", "removeTag", "renameTag"):
                     # Compare-and-set against the revision this batch READ, so a
                     # tag list edited meanwhile (the editor, another tab) is
                     # re-read and re-merged rather than overwritten. One retry;
                     # a note still moving under us is reported, not clobbered.
+                    # ⛔ Wave 6 fix round 1, I7 — ONE loop for all three ops,
+                    # parameterized by `_new_tags_for` (the per-note transform);
+                    # `renameTag` used to be a verbatim copy of this same loop.
+                    # The `update_note(` call stays literally here, in the
+                    # handler body -- the doorEnumeration rail derives doors
+                    # from that call site.
                     outcome: dict[str, Any] | None = None
                     for _attempt in range(2):
-                        new_tags = _tag_patch(head)
+                        new_tags = _new_tags_for(head)
                         if new_tags is None:
                             outcome = {"id": nid, "status": "unchanged"}
                             break
@@ -2099,6 +2277,14 @@ def notes_batch_endpoint(
                     n = notes_service.restore_note(uid, nid, conn=conn)
                     results.append({"id": nid, "status": "changed", "updatedAt": n["updatedAt"]}
                                    if n else {"id": nid, "status": "not_found"})
+                elif op in ("archive", "unarchive"):
+                    want = op == "archive"
+                    if head["archived"] == want:
+                        results.append({"id": nid, "status": "unchanged"})
+                        continue
+                    n = notes_service.set_note_archived(uid, nid, want, conn=conn)
+                    results.append({"id": nid, "status": "changed"}
+                                   if n else {"id": nid, "status": "not_found"})
             except NoteValidationError as e:
                 results.append({"id": nid, "status": "invalid", "error": str(e)})
         conn.commit()  # add/remove_favorite leave committing to the owner of a shared conn
@@ -2122,6 +2308,24 @@ def _folder_named(conn: Any, uid: str, folder_id: str | None) -> dict[str, Any]:
     return {"stayedInFolderId": folder_id, "stayedInFolderName": row[0] if row else None}
 
 
+@router.post("/notes/daily")
+def daily_note_endpoint(
+    payload: dict[str, Any] | None = None,
+    user: dict = Depends(get_current_user),
+) -> dict[str, Any]:
+    """Wave 6 (lane E): `{date: "YYYY-MM-DD", templateId?}` — open the member's
+    daily note for that ET day (the client sends `todayET()`), creating it the
+    first time. Answers `{note, created, templateMissing}`. Exactly one per
+    member per day — see note_daily.py. ⛔ Declared above every
+    `/notes/{note_id}` route, as the other fixed `/notes/...` paths are."""
+    from api.services.journal_two import note_daily
+    body = payload or {}
+    try:
+        return note_daily.open_daily_note(user["id"], body.get("date"), body.get("templateId"))
+    except note_daily.DailyNoteError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+
+
 NOTE_BATCH_EXPORT_MAX = 500
 
 
@@ -2132,26 +2336,32 @@ def notes_batch_export_endpoint(
 ) -> StreamingResponse:
     """The SELECTED notes as one Markdown zip — `{ids}`.
 
-    ⛔ REUSES THE EXISTING EXPORT, NEVER A SECOND MARKDOWN WRITER: each note
-    is `notes_export.build_single_note_export` (the per-note markdown, front
-    matter and attachment bundling the whole-notebook export also uses), and
-    this only gathers those into one archive, carrying the same
-    `UCT_NOTEBOOK_EXPORT.json` marker so the importer recognises it as ours.
-    Notes sit at the archive root (a selection spans folders; the member
-    chose notes, not a tree); two with the same title are told apart by id.
+    ⛔ REUSES THE EXISTING EXPORT, NEVER A SECOND MARKDOWN WRITER: this calls
+    `notes_export.build_selection_export_to_tempfile` — the SAME archive
+    writer (`_write_notes_archive`) the whole-notebook export uses, restricted
+    to the requested ids — never a per-note merge. One temp file, streamed,
+    cleaned up on both success (the stream's own `finally`) and failure (the
+    builder deletes its own partial file; the route releases the slot it
+    acquired). ⛔ M3 (wave 6 fix round 2): this used to say notes sit at the
+    archive root -- stale since I2 switched this route to the SAME archive
+    writer the whole-notebook export uses (`_write_notes_archive`, via
+    `build_selection_export_to_tempfile`, notes_export.py): each note keeps
+    its OWN folder path in the zip, and a link between two selected notes is
+    a relative `.md` path, not a not-bundled reference. Two notes with the
+    same title in DIFFERENT folders are told apart by their path alone, no id
+    needed. N-g (wave 6 fix round 3): that is not the whole rule — two notes
+    with the same title in the SAME folder would collide on that path, so
+    `_compute_note_export_paths` appends an 8-char id suffix to whichever one
+    it reaches second (`notes_export.py`); same-title notes in one folder ARE
+    told apart by id, only same-title notes across folders are not.
 
     Guarded like the whole-notebook export: one export slot per pod (429
     when busy), built to a temp file and streamed, never held in memory.
     A note that is not the member's, or is in the trash, is not exported
     and is listed in EXPORT_ISSUES.txt — and counted in `X-Export-Skipped`
     so the client can say so without opening the zip."""
-    import re
-    import tempfile
-    import zipfile
-    from pathlib import Path
     from api.services.journal_two.notes_export import (
-        _EXPORT_MANIFEST_NAME, _EXPORT_MANIFEST_VERSION, _attachment_cap_bytes,
-        acquire_export_slot, build_single_note_export, release_export_slot,
+        acquire_export_slot, build_selection_export_to_tempfile, release_export_slot,
         stream_export_file,
     )
 
@@ -2161,66 +2371,12 @@ def notes_batch_export_endpoint(
             status_code=429,
             detail="An export is already running. Please wait a moment and try again.",
         )
-    stamp = datetime.now(UTC).strftime("%Y%m%d")
     try:
-        fd, tmp_name = tempfile.mkstemp(suffix=".zip", prefix="j2-notes-export-")
-        os.close(fd)
-        tmp_path = Path(tmp_name)
-        exported = 0
-        skipped: list[str] = []
-        issues: list[str] = []
-        used_md: set[str] = set()
-        written: set[str] = set()
-        # ⛔ N7: ONE attachment budget for the whole selection -- the cap that
-        # bounds the whole-notebook export, not that cap once per note.
-        budget = {"used_bytes": 0, "cap_bytes": _attachment_cap_bytes()}
-        try:
-            with zipfile.ZipFile(tmp_path, "w", zipfile.ZIP_DEFLATED) as zf:
-                for nid in ids:
-                    built = build_single_note_export(user["id"], nid, attachment_budget=budget)
-                    if built is None:
-                        skipped.append(nid)
-                        continue
-                    content, fname, media_type = built
-                    entries: list[tuple[str, bytes]] = []
-                    if media_type == "application/zip":
-                        with zipfile.ZipFile(io.BytesIO(content)) as inner:
-                            entries = [(i.filename, inner.read(i)) for i in inner.infolist()]
-                    else:
-                        base = re.sub(r"-\d{8}\.md$", "", fname)
-                        entries = [(f"{base}.md", content)]
-                    for name, data in entries:
-                        if name == "EXPORT_ISSUES.txt":
-                            issues.append(data.decode("utf-8", errors="replace").strip())
-                        elif name.endswith(".md") and "/" not in name:
-                            md_name = name if name not in used_md else f"{name[:-3]}-{nid[:8]}.md"
-                            used_md.add(md_name)
-                            zf.writestr(md_name, data)
-                        elif name not in written:
-                            written.add(name)  # attachments/<user>/<note>/... never collide
-                            zf.writestr(name, data)
-                    exported += 1
-                zf.writestr(_EXPORT_MANIFEST_NAME, json.dumps({
-                    "product": "uct-notebook-export",
-                    "manifest_version": _EXPORT_MANIFEST_VERSION,
-                    "exported_at": datetime.now(UTC).isoformat(),
-                    "note_count": exported,
-                    "selection": True,
-                }))
-                if skipped:
-                    issues.append(
-                        "These notes were not exported -- they are in the Trash or no "
-                        "longer exist:\n" + "\n".join(f"- {nid}" for nid in skipped))
-                if issues:
-                    zf.writestr("EXPORT_ISSUES.txt", "\n\n".join(issues) + "\n")
-        except Exception:
-            tmp_path.unlink(missing_ok=True)
-            raise
+        tmp_path, filename, exported, skipped = build_selection_export_to_tempfile(user["id"], ids)
     except Exception:
         release_export_slot()
         raise
 
-    filename = f"uct-notebook-selection-{stamp}.zip"
     return StreamingResponse(
         stream_export_file(tmp_path),
         media_type="application/zip",
@@ -2400,15 +2556,16 @@ def export_single_note_endpoint(note_id: str, user: dict = Depends(get_current_u
     the note has no attachments and a `.zip` only when it does, and why an
     in-memory build is safe here (bounded by one note, unlike the whole-
     notebook export's tempfile+semaphore path just above)."""
-    from api.services.journal_two.notes_export import build_single_note_export
+    from api.services.journal_two.notes_export import build_single_note_export, content_disposition
 
     built = build_single_note_export(user["id"], note_id)
     if built is None:
         raise HTTPException(status_code=404, detail="Not found")
     content, filename, media_type = built
+    # The filename is the member's title: never raw into a Latin-1 header (H14, 8C).
     return Response(
         content=content, media_type=media_type,
-        headers={"Content-Disposition": f'attachment; filename="{filename}"'},
+        headers={"Content-Disposition": content_disposition(filename)},
     )
 
 
@@ -2426,6 +2583,13 @@ def note_note_backlinks_endpoint(
 
 
 # ── Wave E — Structured Research Properties / Saved Views ───────────────────
+
+@router.get("/notes/{note_id}/related-from")
+def note_related_from_endpoint(note_id: str, user: dict = Depends(get_current_user)) -> dict[str, Any]:
+    """Wave 6 (lane E): the notes whose relation property holds this one —
+    the "Related from" list beside "Linked from"."""
+    return notes_service.get_note_related_from(user["id"], note_id)
+
 
 @router.get("/notes/{note_id}/properties")
 def note_properties_endpoint(note_id: str, user: dict = Depends(get_current_user)) -> dict[str, Any]:
@@ -3007,7 +3171,12 @@ async def _ask_stream(user: dict, scope: str, target: str | None,
             refuse(), media_type="text/event-stream",
             headers={"Cache-Control": "no-cache", "X-Accel-Buffering": "no"})
 
-    if not note_ask.reserve_ask(user_id):
+    # The day's counters are durable (auth.db, ruling D-H5b): a SQLite write,
+    # so off the web pod's one event loop (ruling D-H11). The day is read ONCE:
+    # the reservation, the busy refund and the stream's refund all key to it.
+    from starlette.concurrency import run_in_threadpool
+    day = note_ask.charge_day()
+    if not await run_in_threadpool(note_ask.reserve_ask, user_id, day=day):
         raise HTTPException(
             status_code=429,
             detail="You've hit today's Ask limit — it resets at midnight ET.",
@@ -3016,7 +3185,7 @@ async def _ask_stream(user: dict, scope: str, target: str | None,
     # hold open at once. Claimed AFTER the reservation so the failure path has
     # exactly one thing to undo.
     if not note_ask.begin_stream(user_id):
-        note_ask.refund_ask(user_id)
+        await run_in_threadpool(note_ask.refund_ask, user_id, day=day)
         raise HTTPException(
             status_code=429,
             detail="You already have an answer in progress — wait for it to finish.",
@@ -3024,13 +3193,23 @@ async def _ask_stream(user: dict, scope: str, target: str | None,
 
     kwargs = asvc.request(prepared, query, model=asvc.model_name(),
                           max_tokens=asvc.max_tokens(), history=history)
+    # ⛔ CHARGED FROM THE FIRST DELTA (wave 7 lane H fix round 1, review I-3 —
+    # the one Ask site the controller granted lane H; lane I is closed). The
+    # rule is `note_ask.refund_due`, shared with editor writing help: an abort
+    # after the member has text in hand keeps the charge; only a server failure
+    # or a stream that sent nothing refunds. ⚰️ This used to refund whenever
+    # the stream had not SETTLED, so Stop just before `final` was a free answer.
+    from starlette.background import BackgroundTask
+    charge = note_ask.StreamCharge(user_id, note_ask.refund_ask, day=day)
 
     async def gen():
         settled = False
         text = ""
         buffered = ""
-        yield f"data: {json.dumps(head)}\n\n"
         try:
+            # Inside the try: a disconnect at the very first chunk still
+            # reaches `finally` (review M-3, inherited here).
+            yield f"data: {json.dumps(head)}\n\n"
             async for delta in asvc.synthesize(kwargs):
                 if not delta:
                     continue
@@ -3040,25 +3219,31 @@ async def _ask_stream(user: dict, scope: str, target: str | None,
                 # as a bracket and then flicker into a chip a chunk later.
                 safe, buffered = asvc.hold_back(buffered)
                 if safe:
+                    if safe.strip():       # BEFORE the yield; visible text only
+                        charge.sent = True
                     yield f"data: {json.dumps({'type': 'delta', 'text': safe})}\n\n"
             if buffered:
+                if buffered.strip():
+                    charge.sent = True
                 yield f"data: {json.dumps({'type': 'delta', 'text': buffered})}\n\n"
             settled = True
         except Exception:
             # ⛔ NO QUESTION, ANSWER OR SOURCE TEXT IN THE LOG. The scope and
             # the failure are enough to operate on.
+            charge.failed = True
             logger.exception(f"[ask] synthesis failed scope={scope}")
             yield f"data: {json.dumps({'type': 'error', 'detail': 'Something went wrong answering that.'})}\n\n"
         finally:
             # RELEASE FIRST, AND ALWAYS. A disconnect, an exception and a
             # cancellation all land here; a leaked slot locks the member out
-            # until the process restarts.
-            note_ask.end_stream(user_id)
-            if not settled or not text.strip():
-                note_ask.refund_ask(user_id)
+            # until the process restarts. ⛔ Neither durable write runs HERE,
+            # on the loop (ruling D-H11): `close()` hands the refund to a
+            # worker thread, and the telemetry row (an auth.db write too) rides
+            # the same fire-and-forget door.
+            charge.close()
             resolved = asvc.resolve_answer(text, prepared)
-            notes_service._log_notebook_event(
-                user_id, "notebook_ask_used",
+            note_ask.run_in_background(
+                notes_service._log_notebook_event, user_id, "notebook_ask_used",
                 asvc.telemetry(scope, prepared, started=t0, settled=settled,
                                answered=bool(text.strip()), resolved=resolved))
         yield ("data: " + json.dumps({
@@ -3067,9 +3252,12 @@ async def _ask_stream(user: dict, scope: str, target: str | None,
             "invalidCitations": resolved["invalid"],
         }) + "\n\n")
 
+    # Second door to `charge.close()`: a response cancelled before `gen` ever
+    # starts has no `finally` to release the slot. Idempotent.
     return StreamingResponse(
         gen(), media_type="text/event-stream",
-        headers={"Cache-Control": "no-cache", "X-Accel-Buffering": "no"})
+        headers={"Cache-Control": "no-cache", "X-Accel-Buffering": "no"},
+        background=BackgroundTask(charge.close))
 
 
 @router.post("/ask/stream")
@@ -3131,6 +3319,10 @@ def update_note_endpoint(
     # (Send-to-Journal append, second tab) turns this PUT into a 409 instead
     # of a silent clobber of that write. Absent = legacy last-writer-wins.
     base = patch.pop("baseUpdatedAt", None) if isinstance(patch, dict) else None
+    # Wave 6: the lock has ONE door (`PATCH /notes/{id}/lock`). A body save —
+    # including a stale one the outbox replays — never changes it.
+    if isinstance(patch, dict):
+        patch.pop("locked", None)
     try:
         n = notes_service.update_note(
             user["id"], note_id, patch,
@@ -3168,6 +3360,156 @@ def delete_note_endpoint(
     return {"ok": True}
 
 
+# ── Wave 6 (lane E): member templates ────────────────────────────────────────
+# `/note-templates`, never `/notes/templates`: a path under `/notes/` would have
+# to be declared above `GET /notes/{note_id}` or be swallowed by it (this file
+# has paid for that ordering three times).
+
+def _template_error(e: Exception) -> HTTPException:
+    return HTTPException(status_code=400, detail=str(e))
+
+
+@router.get("/note-templates")
+def list_note_templates_endpoint(user: dict = Depends(get_current_user)) -> dict[str, Any]:
+    """The member's own templates, newest first — names only (no bodies)."""
+    from api.services.journal_two import note_templates
+    return {"templates": note_templates.list_templates(user["id"])}
+
+
+@router.post("/note-templates")
+def create_note_template_endpoint(
+    payload: dict[str, Any] | None = None,
+    user: dict = Depends(get_current_user),
+) -> dict[str, Any]:
+    """"Save as template": `{noteId, name?}`. The SERVER reads the note and
+    copies its title, body and properties — the client never supplies the body.
+    404 for a note that is not the member's, is trashed, or does not exist."""
+    from api.services.journal_two import note_templates
+    note_id = (payload or {}).get("noteId")
+    if not isinstance(note_id, str) or not note_id.strip():
+        raise HTTPException(status_code=400, detail="noteId is required")
+    try:
+        t = note_templates.create_from_note(user["id"], note_id.strip(), (payload or {}).get("name"))
+    except note_templates.TemplateValidationError as e:
+        raise _template_error(e)
+    if t is None:
+        raise HTTPException(status_code=404, detail="Not found")
+    return {"template": t}
+
+
+@router.get("/note-templates/{template_id}")
+def get_note_template_endpoint(template_id: str, user: dict = Depends(get_current_user)) -> dict[str, Any]:
+    """One template in full, ready for the client's create-from-template write."""
+    from api.services.journal_two import note_templates
+    t = note_templates.get_template(user["id"], template_id)
+    if t is None:
+        raise HTTPException(status_code=404, detail="Not found")
+    return {"template": t}
+
+
+@router.patch("/note-templates/{template_id}")
+def rename_note_template_endpoint(
+    template_id: str,
+    payload: dict[str, Any] | None = None,
+    user: dict = Depends(get_current_user),
+) -> dict[str, Any]:
+    from api.services.journal_two import note_templates
+    try:
+        t = note_templates.rename_template(user["id"], template_id, (payload or {}).get("name"))
+    except note_templates.TemplateValidationError as e:
+        raise _template_error(e)
+    if t is None:
+        raise HTTPException(status_code=404, detail="Not found")
+    return {"template": t}
+
+
+@router.delete("/note-templates/{template_id}")
+def delete_note_template_endpoint(template_id: str, user: dict = Depends(get_current_user)) -> dict[str, Any]:
+    from api.services.journal_two import note_templates
+    if not note_templates.delete_template(user["id"], template_id):
+        raise HTTPException(status_code=404, detail="Not found")
+    return {"ok": True}
+
+
+@router.patch("/notes/{note_id}/lock")
+def lock_note_endpoint(
+    note_id: str,
+    payload: dict[str, Any] | None = None,
+    user: dict = Depends(get_current_user),
+) -> dict[str, Any]:
+    """Wave 6 (lane E): `{locked: true|false}` — the contract lane D's editor
+    (`lib/lockedNote.js::setNoteLock`) was built against.
+
+    ⛔ ANSWERS WITH THE NOTE (the `_row_to_note` shape every metadata writer
+    returns), carrying `locked` and the NEW `updatedAt`: the write advances the
+    revision like any metadata write, and the editor must land it
+    (`settleNoteWrite`) or an unlock followed by a keystroke 409s and forks the
+    note. `{ok: true}` is not enough.
+
+    ⛔⛔ The server stores the flag and does NOT refuse body writes to a locked
+    note — a queued offline edit must never become a conflict. The lock is the
+    editor's to enforce. 404 for a trashed note, another member's, or none."""
+    # The ONE check that `locked` is a boolean lives in update_note (every
+    # caller passes through it); a missing key reaches it as None and is a 400.
+    try:
+        n = notes_service.update_note(user["id"], note_id, {"locked": (payload or {}).get("locked")})
+    except NoteValidationError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+    if n is None:
+        raise HTTPException(status_code=404, detail="Not found")
+    return {"note": n}
+
+
+@router.patch("/notes/{note_id}/tags")
+def patch_note_tags_endpoint(
+    note_id: str,
+    payload: dict[str, Any] | None = None,
+    user: dict = Depends(get_current_user),
+) -> dict[str, Any]:
+    """Wave 6 (controller-added, lane D's M14) — `{add: [...], remove:
+    [...]}`: a tag DELTA applied to the STORED list, read and written inside
+    ONE SQL transaction (`notes_service.patch_note_tags`) so a second
+    device's own concurrent add can never be silently overwritten by a list
+    this request computed before that add existed.
+
+    ⛔ ANSWERS `{note, changed}` — the note at its new revision (the lock
+    endpoint's shape) so the client can settle it, and `changed`: True
+    exactly when THIS request wrote the row (wave 7 lane J, J9). A change
+    that changes nothing moves no revision and answers `changed: false` with
+    the note as stored — whose revision may be ANOTHER writer's, which is why
+    the client must never infer "mine" from the timestamp. 404 for a trashed
+    note, another member's, or none at all; a request that cannot apply (a
+    bad shape, or the same tag in both `add` and `remove`) is a 400 and
+    writes nothing."""
+    try:
+        add, remove = notes_service.parse_tag_patch(payload or {})
+        n, changed = notes_service.patch_note_tags(user["id"], note_id, add, remove)
+    except NoteValidationError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+    if n is None:
+        raise HTTPException(status_code=404, detail="Not found")
+    return {"note": n, "changed": bool(changed)}
+
+
+@router.patch("/notes/{note_id}/archive")
+def archive_note_endpoint(
+    note_id: str,
+    payload: dict[str, Any] | None = None,
+    user: dict = Depends(get_current_user),
+) -> dict[str, Any]:
+    """Wave 6 (lane E): `{archived: true|false}` archives or unarchives the
+    note, answering with the note (its `archivedAt` says which). Archive is not
+    trash — see `notes_service.set_note_archived`, including why it moves no
+    revision. 404 for a trashed note, another member's, or none at all."""
+    archived = (payload or {}).get("archived")
+    if not isinstance(archived, bool):
+        raise HTTPException(status_code=400, detail="archived must be true or false")
+    n = notes_service.set_note_archived(user["id"], note_id, archived)
+    if n is None:
+        raise HTTPException(status_code=404, detail="Not found")
+    return {"note": n}
+
+
 @router.post("/notes/{note_id}/restore")
 def restore_note_endpoint(
     note_id: str,
@@ -3180,6 +3522,30 @@ def restore_note_endpoint(
     if n is None:
         raise HTTPException(status_code=404, detail="Not found")
     return {"note": n}
+
+
+async def _hand_off_to_documents(user_id: str, note_id: str, saved: dict, content_type,
+                                 *, kind: str) -> None:
+    """Wave 7 seam S1, for the editor's two upload routes: every saved
+    attachment reports to `document_extraction.on_attachment_saved`, which
+    decides whether it becomes a searchable document.
+
+    ⛔ GUARDED, AND OFF THE EVENT LOOP (whole-branch review M-2). The seam's own
+    promise is that "a failure here can never make the upload look broken";
+    only email-in kept it. Here it ran unguarded and synchronously inside these
+    `async` routes: `create_document` is a SQLite SELECT + INSERT + commit, so a
+    busy auth.db answered 500 for a file that was already saved (the editor then
+    said it had not uploaded) and stalled the web pod's ONE loop for every
+    member meanwhile. The bytes are saved before this runs; its failure is one
+    log line, naming the error's class only."""
+    from starlette.concurrency import run_in_threadpool
+    from api.services.journal_two import document_extraction
+    try:
+        await run_in_threadpool(document_extraction.on_attachment_saved,
+                                user_id, note_id, saved, content_type, kind=kind)
+    except Exception as e:  # noqa: BLE001 -- extraction never costs the upload
+        logger.warning("[notes] document hand-off failed after a saved upload (%s)",
+                       type(e).__name__)
 
 
 @router.post("/notes/{note_id}/images")
@@ -3197,6 +3563,11 @@ async def upload_note_image_endpoint(
         )
     except NoteValidationError as e:
         raise HTTPException(status_code=400, detail=str(e))
+    # Wave 7 seam S1: every saved attachment reports to document_extraction,
+    # which decides whether it becomes a searchable document. The decision
+    # lives THERE so this router never grows a per-type branch (lane G adds
+    # image OCR / docx behind its own gate without touching this file).
+    await _hand_off_to_documents(user["id"], note_id, img, file.content_type, kind="image")
     return img
 
 
@@ -3257,12 +3628,10 @@ async def upload_note_attachment_endpoint(
     # extraction, queued AFTER the upload itself already succeeded — never
     # blocking this response, and a failed/slow extraction can never make
     # the underlying attachment (which is already saved) look broken.
-    if content_type == "application/pdf":
-        from api.services.journal_two import document_extraction
-        doc = document_extraction.create_document(
-            user["id"], note_id, att["url"], att.get("name"),
-        )
-        document_extraction.queue_extraction(doc["id"])
+    # Wave 7 seam S1: the "is this a document?" decision moved into
+    # document_extraction.on_attachment_saved (PDF today; lane G adds docx
+    # and image kinds behind its own gate there, never here).
+    await _hand_off_to_documents(user["id"], note_id, att, content_type, kind="file")
     return att
 
 
@@ -3284,6 +3653,37 @@ def serve_note_attachment(
 
 # ── Wave I: document processing status + page-aware search ──────────────────
 from api.services.journal_two import document_extraction, document_search
+
+
+def _document_kind(row, source_kind: str | None) -> str | None:
+    """The document's own kind for a CLIENT that must pick a viewer: "pdf",
+    "image", "docx" or "web" (wave 7, lane I; review finding M-7).
+
+    `sourceKind` answers one question, "is this a captured web page?", and says
+    `attachment` for every file, so a PDF, a photographed page and a .docx look
+    the same to it and the preview had to guess the viewer from the attachment
+    URL. This field is SEPARATE on purpose: older clients switch on `sourceKind`
+    and must keep reading exactly what they read.
+
+    ⛔ Web is decided by the ONE rule `sourceKind` already used
+    (`ask_evidence.document_source_kind` -> `is_web_capture`, either column), so
+    the two fields can never disagree about a captured page. The file kinds come
+    from the stored `source_kind`, named by document_extraction's own constants.
+    ⛔ A stored value this table does not name is passed through VERBATIM, never
+    filed as a PDF: a kind added later must reach the client as itself.
+    None when the capture columns were not selected (nothing is known)."""
+    from api.services.journal_two.web_capture import SOURCE_KIND_WEB
+    if source_kind is None:
+        return None
+    if source_kind == SOURCE_KIND_WEB:
+        return "web"
+    raw = row["source_kind"] if "source_kind" in row.keys() else None
+    by_stored = {
+        document_extraction.SOURCE_KIND_ATTACHMENT: "pdf",
+        document_extraction.SOURCE_KIND_IMAGE: "image",
+        document_extraction.SOURCE_KIND_DOCX: "docx",
+    }
+    return by_stored.get(raw or document_extraction.SOURCE_KIND_ATTACHMENT, raw)
 
 
 @router.get("/notes/{note_id}/documents")
@@ -3355,6 +3755,9 @@ def list_note_documents_endpoint(
                 # and "we have the whole document" are different facts (§15).
                 "textComplete": bool(st.get("text_complete")),
                 "sourceKind": kinds[r["id"]],
+                # The document's own kind (pdf | image | docx | web), BESIDE
+                # sourceKind and never folded into it -- see `_document_kind`.
+                "kind": _document_kind(r, kinds[r["id"]]),
                 "capturePassages": sorted(
                     ({"pageNumber": p, "excerptId": eid}
                      for (d, p), eid in passages.items() if d == r["id"]),

@@ -102,9 +102,18 @@ const ENTRIES = [
     module: 'pages/journal-2-0/hooks/useJ2Notes.js',
     entry: 'useJ2Note',
     hubCallSite: 'hub/sections/notebookSection.js — `armed.update({ ticker })` inside `linkTicker`',
-    reachable: ['PUT /api/j2/notes/{param}'],
+    // ⭐ DECLARED BY THE NOTEBOOK WORKSTREAM (wave 7 lane H, fix round 1 I-5), 2026-09-25, with
+    // the controller's ownership grant — the same kind of one-declaration edit as 49ac7f866.
+    // `db4d0cb1c` (M14) put the tag-DELTA door inside `useJ2Note`'s returned object as
+    // `patchTags`, and this rail walks from the hook (its documented granularity), so it now
+    // finds TWO writes and said so by name. The PATCH is declared REACHABLE, never moved to
+    // `alsoInModule` and never hidden by narrowing the walk: it is genuinely reachable from the
+    // hook. What the hub itself calls is still only `update` (`linkTicker` never touches tags).
+    reachable: ['PUT /api/j2/notes/{param}', 'PATCH /api/j2/notes/{param}/tags'],
     alsoInModule: ['POST /api/j2/notes/{param}/opened'],
-    why: 'useJ2Note holds exactly one write — the note PUT behind `update`. The recency beacon '
+    why: 'useJ2Note holds two writes: the note PUT behind `update` — the one the hub reaches via '
+       + '`linkTicker` — and, since M14 (db4d0cb1c), the member\'s own tag-DELTA note write behind '
+       + '`patchTags`, which only the editor\'s tag field calls. The recency beacon '
        + '(`recordNoteOpened`) and the favourite toggle are sibling module-level functions this '
        + 'hook never calls.\n'
        + '⚠️ RECORDED RATHER THAN CLAIMED: `setNoteFavorite` writes with '

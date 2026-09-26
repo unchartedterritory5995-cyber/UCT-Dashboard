@@ -18,13 +18,16 @@ from __future__ import annotations
 import asyncio
 import ipaddress
 import socket
+import zlib
 from abc import ABC, abstractmethod
+from contextlib import aclosing
 from dataclasses import dataclass, field
 from typing import Any
 from urllib.parse import urljoin, urlsplit
 
 import httpx
 
+from ...notes import _MAX_FILE_BYTES
 from ..errors import NoteConnTransient, NoteConnUnsupported
 
 
@@ -290,9 +293,126 @@ async def assert_public_https(url: str, *, what: str = "media reference") -> str
 
 _REDIRECT_STATUSES = frozenset({301, 302, 303, 307, 308})
 
+# ── the byte budget on every read `guarded_media_stream` makes (wave 6 whole-
+# branch review I-1) ──────────────────────────────────────────────────────
+#
+# ⛔ A REDIRECT OR ERROR BODY IS NEVER CONTENT. The status (and a redirect's
+# Location) is the whole answer; the body is at most a diagnostic. It used to be
+# read whole with `aread()`: a `404` streaming without end, or a few MB of gzip
+# that inflate to GBs, ran the single web pod out of memory -- and wave 6's link
+# preview made that one member request away (`GET /api/j2/link-preview`). A side
+# body is now read to at most this many bytes, never decoded, then abandoned.
+_SIDE_BODY_MAX_BYTES = 4 * 1024
+_IDENTITY_ENCODINGS = frozenset({"", "identity"})
+# The only encodings this module inflates itself, each through a zlib object
+# that is never allowed to produce more than the budget left (`max_length`).
+_ZLIB_ENCODINGS = frozenset({"gzip", "x-gzip", "deflate"})
+
+
+def _content_encoding(response: httpx.Response) -> str:
+    return (response.headers.get("content-encoding") or "").strip().lower()
+
+
+async def _read_side_body(response: httpx.Response) -> bytes:
+    """At most `_SIDE_BODY_MAX_BYTES` of a redirect/error body, as sent.
+
+    An ENCODED side body is not read at all: decoding it is exactly the work a
+    bomb needs, and nothing downstream uses the bytes. An identity body passes
+    through httpx's identity decoder unchanged, so what is counted is what is
+    held."""
+    if _content_encoding(response) not in _IDENTITY_ENCODINGS:
+        return b""
+    out = bytearray()
+    async with aclosing(response.aiter_bytes()) as chunks:
+        async for chunk in chunks:
+            out += chunk[: _SIDE_BODY_MAX_BYTES - len(out)]
+            if len(out) >= _SIDE_BODY_MAX_BYTES:
+                break
+    return bytes(out)
+
+
+def _over_cap(what: str, max_bytes: int, how: str) -> NoteConnUnsupported:
+    return NoteConnUnsupported(
+        f"Cannot fetch {what}: exceeds the {max_bytes}-byte cap ({how})",
+        reason=f"{what} is larger than the allowed size limit",
+    )
+
+
+async def _read_content_capped(response: httpx.Response, *, max_bytes: int, what: str) -> bytes:
+    """The final response's body, refusing (never truncating) past `max_bytes`.
+
+    ⛔ THE CAP COUNTS DECODED BYTES. httpx decodes `Content-Encoding` while it
+    reads, one whole network chunk at a time, so a running total over
+    `aiter_bytes()` still lets ONE compressed chunk inflate without bound before
+    the total is checked (and httpx decodes `br` too whenever `brotli` is
+    installed). So an encoded body never goes through httpx's decoder: gzip and
+    deflate are inflated here through `zlib` with `max_length` set to the budget
+    left, and any other encoding is refused unread. `guarded_media_stream` asks
+    for `identity` on every hop, so a server that honours it never reaches the
+    inflating branch at all."""
+    encoding = _content_encoding(response)
+    pieces: list[bytes] = []
+    total = 0
+    if encoding in _IDENTITY_ENCODINGS:
+        async with aclosing(response.aiter_bytes()) as chunks:
+            async for chunk in chunks:
+                total += len(chunk)
+                if total > max_bytes:
+                    raise _over_cap(what, max_bytes, "exceeded while streaming")
+                pieces.append(chunk)
+        return b"".join(pieces)
+    if encoding not in _ZLIB_ENCODINGS:
+        raise NoteConnUnsupported(
+            f"Cannot fetch {what}: unsupported content-encoding {encoding!r}",
+            reason=f"{what} was sent in an encoding this server does not read",
+        )
+    # MAX_WBITS | 32: a gzip OR a zlib header, detected from the stream itself.
+    decoder = zlib.decompressobj(zlib.MAX_WBITS | 32)
+    try:
+        async with aclosing(response.aiter_raw()) as raws:
+            async for raw in raws:
+                data = raw
+                while data and not decoder.eof:
+                    piece = decoder.decompress(data, max_bytes - total + 1)
+                    total += len(piece)
+                    if total > max_bytes:
+                        raise _over_cap(what, max_bytes, "exceeded while inflating")
+                    pieces.append(piece)
+                    data = decoder.unconsumed_tail
+                if decoder.eof:
+                    break
+        tail = decoder.flush()
+    except zlib.error as exc:
+        raise NoteConnUnsupported(
+            f"Cannot fetch {what}: its compressed body does not decode ({exc})",
+            reason=f"{what} could not be decoded",
+        ) from exc
+    total += len(tail)
+    if total > max_bytes:
+        raise _over_cap(what, max_bytes, "exceeded while inflating")
+    pieces.append(tail)
+    return b"".join(pieces)
+
+
+#: The byte budget `guarded_media_get` reads a media body to when its caller
+#: names none: `notes._MAX_FILE_BYTES` (25 MiB), IMPORTED, never retyped. It is
+#: the largest body the importer would keep -- every `fetch_media` result lands
+#: in `save_note_attachment_bytes` (refuses past `_MAX_FILE_BYTES`) or
+#: `save_note_image_bytes` (refuses past `_MAX_IMAGE_BYTES`, 5 MiB, smaller) --
+#: so a byte past it is a byte the sync would throw away after holding it.
+#: `guarded_media_get` cannot know which of the two its caller saves as, so it
+#: takes the larger. Resolved per call, never bound into a default argument.
+MEDIA_MAX_BYTES = _MAX_FILE_BYTES
+
+# The hop-level headers that describe the bytes AS SENT. The buffered response
+# `guarded_media_get` returns carries the bytes as READ (decoded, whole), so
+# repeating these would make httpx decode them a second time.
+_TRANSFER_HEADERS = frozenset({"content-encoding", "content-length", "transfer-encoding"})
+
 
 async def guarded_media_get(
     client: httpx.AsyncClient, url: str, *, what: str = "media reference", max_redirects: int = 5,
+    max_bytes: int | None = None,
 ) -> httpx.Response:
     """Guarded stand-in for `client.get(url, follow_redirects=True)` on a
     content-controlled `ref`. `follow_redirects=True` alone re-validates
@@ -302,33 +422,38 @@ async def guarded_media_get(
     not each new target. This follows redirects manually instead, one hop
     at a time, running `assert_public_https` before every single request
     (the first and every subsequent hop) so no Location header ever reaches
-    `client.get` unchecked. Bounded by `max_redirects` so a malicious or
+    the client unchecked. Bounded by `max_redirects` so a malicious or
     misconfigured server chaining redirects can't hang the request.
+
+    ⛔ AND A BYTE BUDGET (wave 7 lane J, J3). This used to be `client.get`,
+    which httpx buffers WHOLE before a caller can look at a size -- five
+    providers' `fetch_media` (dropbox, obsidian, onedrive, onenote, roam) sent a
+    URL taken from note CONTENT through it on every sync. It now reads through
+    `guarded_media_stream` -- ONE implementation of the hop loop and of every
+    read budget -- with `max_bytes` (default `MEDIA_MAX_BYTES`, above, and why):
+    an honest oversized `Content-Length` is refused before any body byte, and
+    the running total over the DECODED bytes refuses the rest WHILE READING,
+    so an absent or lying header is caught by the read, never after it. A
+    refusal is `NoteConnUnsupported` -- the member this helper already raised
+    for an unsafe URL -- so no caller needs a new branch. A redirect or >= 400
+    body is a bounded diagnostic prefix, as in `guarded_media_stream`; the five
+    callers act on the status alone.
+
+    Returns a BUFFERED `httpx.Response` (status, headers, request, and
+    `.content` = the whole body as read), the shape every caller already uses.
 
     ⚠️ Inherits `assert_public_https`'s NOT-rebinding-proof caveat at every
     hop: each `assert_public_https` call resolves and checks a hostname,
-    then the very next line's `client.get` re-resolves that SAME hostname
-    itself to actually connect -- a DNS-rebinding attacker controlling the
-    answer between those two lookups is not caught. See the module-level
-    comment above this section."""
-    next_url = url
-    for _ in range(max_redirects + 1):
-        await assert_public_https(next_url, what=what)
-        try:
-            response = await client.get(next_url, follow_redirects=False)
-        except httpx.RequestError as exc:
-            raise NoteConnTransient(f"Failed to download {what}: {exc}") from exc
-        if response.status_code in _REDIRECT_STATUSES:
-            location = response.headers.get("location")
-            if not location:
-                return response
-            next_url = urljoin(next_url, location)
-            continue
-        return response
-    raise NoteConnUnsupported(
-        f"Too many redirects fetching {what}",
-        reason="Media reference redirected too many times",
+    then the very next request re-resolves that SAME hostname itself to
+    actually connect -- a DNS-rebinding attacker controlling the answer
+    between those two lookups is not caught. See the module-level comment
+    above this section."""
+    budget = MEDIA_MAX_BYTES if max_bytes is None else max_bytes
+    content, streamed = await guarded_media_stream(
+        client, url, what=what, max_redirects=max_redirects, max_bytes=budget,
     )
+    headers = [(k, v) for k, v in streamed.headers.multi_items() if k.lower() not in _TRANSFER_HEADERS]
+    return httpx.Response(streamed.status_code, headers=headers, content=content, request=streamed.request)
 
 
 async def guarded_media_stream(
@@ -355,9 +480,17 @@ async def guarded_media_stream(
     (original URL and every subsequent Location), so a public-looking URL
     that redirects to a private/metadata address is still refused before
     ANY request reaches it. Only the FINAL (non-redirect) response is
-    streamed; a redirect hop's body (typically empty) is drained via
-    `aread()` without ever being size-checked against `max_bytes` (it isn't
-    the content being fetched).
+    streamed; a redirect hop's body is not read at all.
+
+    ⛔ EVERY READ IS BUDGETED (wave 6 whole-branch review I-1). A redirect
+    hop's body, and a >= 400 body, are read to at most
+    `_SIDE_BODY_MAX_BYTES` and never decoded (`_read_side_body`) -- the
+    returned bytes for those are that prefix, a diagnostic, never the whole
+    body. The final body counts DECODED bytes against `max_bytes`
+    (`_read_content_capped`), and every hop asks for `Accept-Encoding:
+    identity`. ⚰️ Both side bodies used to be read whole with `aread()`,
+    which httpx also decodes: a `404` that never ends, or a gzip bomb,
+    exhausted the single web pod's memory.
 
     Returns `(bytes, response)` on success -- the `response` object stays
     valid (headers already arrived before body streaming starts) after this
@@ -376,20 +509,21 @@ async def guarded_media_stream(
     for _ in range(max_redirects + 1):
         await assert_public_https(next_url, what=what)
         try:
-            async with client.stream("GET", next_url, follow_redirects=False) as response:
+            async with client.stream(
+                "GET", next_url, follow_redirects=False,
+                headers={"Accept-Encoding": "identity"},
+            ) as response:
                 if response.status_code in _REDIRECT_STATUSES:
-                    await response.aread()  # drain the (typically empty) redirect body
                     location = response.headers.get("location")
                     if not location:
-                        return response.content, response
+                        return await _read_side_body(response), response
+                    # The redirect's body is never read: the Location is the answer.
                     next_url = urljoin(next_url, location)
                     continue
                 if response.status_code >= 400:
-                    # Error bodies are typically small -- safe to buffer so
-                    # the caller can still inspect status/content for
-                    # diagnostics, same as guarded_media_get's non-2xx path.
-                    await response.aread()
-                    return response.content, response
+                    # The status is what the caller acts on; the bytes are a
+                    # bounded diagnostic prefix, never the whole body.
+                    return await _read_side_body(response), response
                 content_length = response.headers.get("content-length")
                 if content_length is not None:
                     try:
@@ -401,18 +535,7 @@ async def guarded_media_stream(
                             )
                     except ValueError:
                         pass  # unparseable header -- fall through to the streamed check
-                chunks: list[bytes] = []
-                total = 0
-                async for chunk in response.aiter_bytes():
-                    total += len(chunk)
-                    if total > max_bytes:
-                        raise NoteConnUnsupported(
-                            f"Cannot fetch {what}: exceeds the {max_bytes}-byte cap "
-                            "(exceeded while streaming)",
-                            reason=f"{what} is larger than the allowed size limit",
-                        )
-                    chunks.append(chunk)
-                return b"".join(chunks), response
+                return await _read_content_capped(response, max_bytes=max_bytes, what=what), response
         except httpx.RequestError as exc:
             raise NoteConnTransient(f"Failed to download {what}: {exc}") from exc
     raise NoteConnUnsupported(

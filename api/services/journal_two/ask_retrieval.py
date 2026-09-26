@@ -746,20 +746,29 @@ def retrieve(user_id: str, query: str, *, limit: int = 8,
 
 def _entity_note_ids(conn, user_id: str, entity: dict[str, Any]) -> list[str]:
     """Wave H membership, reused verbatim: ticker field OR embed OR mention
-    over the resolved ALIAS set. Not a substring filter (§11)."""
+    over the resolved ALIAS set. Not a substring filter (§11).
+
+    ⛔⛔ NON-CORRELATED, ON PURPOSE (wave 7, lane H carry-over). The embed and
+    mention halves were two correlated `EXISTS (... WHERE e.note_id = n.id AND
+    e.user_id = n.user_id AND e.symbol IN (...))` -- the shape lane I measured
+    on the `GET /notes` symbol filters at 717 ms p95 at 10k notes and ~14.8 s
+    at 50k (with no ANALYZE statistics the planner answers each EXISTS from
+    `idx_j2_note_embeds_user_sym`, i.e. every embed of the symbol, once PER
+    note). The sidecar half is now `notes._symbol_note_ids_sql` -- the ONE
+    answer to "which notes relate to this symbol" that every list filter and
+    the symbol backlinks already read -- as an `IN (subquery)` computed once.
+    Rail: tests/test_ask_retrieval_plans.py."""
     symbols = entity.get("symbols") or []
     if not symbols:
         return []
+    from api.services.journal_two.notes import _symbol_note_ids_sql
+    side_sql, side_params = _symbol_note_ids_sql(user_id, symbols)
     ph = ",".join("?" * len(symbols))
     rows = conn.execute(
         "SELECT DISTINCT n.id FROM j2_notes n"
         " WHERE n.user_id = ? AND n.deleted_at IS NULL"
-        f" AND (n.ticker IN ({ph})"
-        f" OR EXISTS (SELECT 1 FROM j2_note_embeds e WHERE e.note_id = n.id"
-        f"            AND e.user_id = n.user_id AND e.symbol IN ({ph}))"
-        f" OR EXISTS (SELECT 1 FROM j2_note_mentions m WHERE m.note_id = n.id"
-        f"            AND m.user_id = n.user_id AND m.symbol IN ({ph})))",
-        (user_id, *symbols, *symbols, *symbols),
+        f" AND (n.ticker IN ({ph}) OR n.id IN ({side_sql}))",
+        (user_id, *symbols, *side_params),
     ).fetchall()
     return [r["id"] for r in rows]
 

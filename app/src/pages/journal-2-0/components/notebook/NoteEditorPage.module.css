@@ -90,6 +90,32 @@
   border-color: var(--ut-gold);
   color: var(--ut-gold);
 }
+/* Wave 6 item 8: a locked note says so, once, with the way out beside it. */
+.lockBanner {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+  margin: 0 0 10px;
+  padding: 8px 12px;
+  border-radius: var(--radius-md);
+  border: 1px solid var(--border);
+  background: var(--bg-surface);
+  color: var(--text-bright);
+  font-size: 12px;
+}
+.lockBannerError { color: var(--loss); }
+.lockBannerBtn {
+  margin-left: auto;
+  background: transparent;
+  border: 1px solid var(--ut-gold);
+  color: var(--ut-gold);
+  padding: 4px 10px;
+  border-radius: var(--radius-sm, 6px);
+  cursor: pointer;
+  font-size: 12px;
+}
+.lockBannerBtn:disabled { opacity: 0.5; cursor: default; }
 .headerControls {
   margin-left: auto;
   display: flex;
@@ -196,6 +222,10 @@
   background: rgba(220, 187, 94, 0.15);
   color: var(--accent);
 }
+/* Wave 7 G5: the camera "Scan" door exists on the touch tier only (shown in
+   the `max-width: 1024px` block at the end of this file); a desktop has no
+   rear camera to photograph a page with. Its tap floor is `.toolBtn`'s. */
+.scanBtn { display: none; }
 .proseEditor {
   font-family: Georgia, 'Times New Roman', serif;
   font-size: 17px;
@@ -697,5 +727,14 @@
   .chromeBtn {
     min-height: var(--tap-min, 44px);
     min-width: var(--tap-min, 44px);
+  }
+  .lockBannerBtn {
+    min-height: var(--tap-min, 44px);
+    min-width: var(--tap-min, 44px);
+  }
+  /* Wave 7 G5: the touch tier's camera door (hidden above 1024px). */
+  .scanBtn {
+    display: inline-flex;
+    align-items: center;
   }
 }

@@ -26,6 +26,18 @@
 // zipfile.testzip, and prints a FRAME: begin marker, path, sha256, end marker.
 // Only what is inside the frame is read; a broken frame is reported as exactly
 // that; and the sha256 proves the file read is the file written.
+//
+// ⛔ ONE PYTHON SPAWN FOR THE WHOLE FILE, IN A beforeAll WITH ITS OWN BUDGET (wave 7
+// whole-branch fix; the `192f4a60a` pattern). The fixture used to be spawned in a
+// beforeAll with NO budget (vitest's hookTimeout is 10 s) and again in three tests --
+// four fixture processes per file, each importing the exporter cold. Now ONE driver
+// process runs every variant these rails need -- the clean fixture, the fixture with
+// stray output around its frame, and the fixture with its archive changed after it was
+// written -- through the fixture's own `__main__` (runpy, exactly what
+// `python roundtrip_export_fixture.py <root>` runs), each with its stdout captured on
+// its own, and prints them as one JSON line. Every rail below reads a variant's stdout
+// the way it used to read a process's; what each asserts is unchanged.
+// `lib/testing/exportBridge.spawnBudget.test.js` holds this file to one budgeted spawn.
 
 import fs from 'node:fs'
 import { createHash } from 'node:crypto'
@@ -35,7 +47,7 @@ import process from 'node:process'
 import { spawnSync } from 'node:child_process'
 import { unzipSync } from 'fflate'
 import MarkdownIt from 'markdown-it'
-import { describe, it, expect, beforeAll } from 'vitest'
+import { describe, it, expect, beforeAll, afterAll } from 'vitest'
 import { detectAdapter } from './registry'
 import { genericAdapter } from './adapters/generic'
 import { obsidianAdapter } from './adapters/obsidian'
@@ -90,24 +102,65 @@ function readFixtureArchive(stdout) {
   return new Uint8Array(bytes)
 }
 
-// `pythonArgs(script, attachRoot)` lets a rail run the fixture under a wrapper
-// that misbehaves (prints around it, tampers with its file); by default it is
-// the fixture itself.
-function buildRealExportVfiles(pythonArgs = (script, root) => [script, root]) {
+const VARIANTS_MARK = 'UCT-EXPORT-FIXTURE-VARIANTS '
+
+// The one driver: the REAL fixture's `__main__`, once per variant, each variant's stdout
+// captured on its own; then every variant's stdout, as one JSON line after VARIANTS_MARK.
+// Anything the process prints outside a variant is ignored, like anything outside a frame.
+const DRIVER = `
+import contextlib, io, json, runpy, sys
+fixture, root = sys.argv[1], sys.argv[2]
+
+def run(before=None, after=None):
+    buf = io.StringIO()
+    with contextlib.redirect_stdout(buf):
+        if before:
+            before()
+        sys.argv = [fixture, root]
+        runpy.run_path(fixture, run_name='__main__')
+        if after:
+            after(buf)
+    return buf.getvalue()
+
+def stray_before():
+    print('stray: a module printed at import')
+    sys.stdout.write('stray: no newline, then ')
+
+def stray_after(buf):
+    print('stray: printed after the payload')
+
+def tamper(buf):
+    lines = buf.getvalue().splitlines()
+    path = lines[lines.index('${FRAME_BEGIN}') + 1]
+    with open(path, 'ab') as f:
+        f.write(b'\\0')
+
+out = {'clean': run(), 'noisy': run(stray_before, stray_after), 'tampered': run(after=tamper)}
+buf = io.StringIO()
+with contextlib.redirect_stdout(buf):
+    print('UEsDBBQ garbage that looks like base64 and is not a frame')
+out['noFrame'] = buf.getvalue()
+sys.stdout.write('\\n${VARIANTS_MARK}' + json.dumps(out) + '\\n')
+`
+
+/** ONE python process for the file: `{ attachRoot, runs: {clean, noisy, tampered, noFrame} }`,
+ * each run the stdout of one variant. The archives stay in `attachRoot` until afterAll. */
+function spawnFixtureVariants() {
   const attachRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'uct-export-fixture-'))
-  let result
-  let zipBytes
-  try {
-    result = spawnSync('python', pythonArgs(FIXTURE, attachRoot), { encoding: 'utf8', maxBuffer: 50 * 1024 * 1024 })
-    if (result.status !== 0) {
-      throw new Error(`roundtrip_export_fixture.py failed (exit ${result.status}): ${result.stderr}`)
-    }
-    zipBytes = readFixtureArchive(result.stdout)
-  } finally {
-    // The archive is in memory now; the planted attachments and the zip file
-    // have nothing left to say.
+  const result = spawnSync('python', ['-c', DRIVER, FIXTURE, attachRoot], { encoding: 'utf8', maxBuffer: 50 * 1024 * 1024 })
+  const line = (result.stdout || '').split(/\r?\n/).reverse().find((l) => l.startsWith(VARIANTS_MARK))
+  if (result.status !== 0 || !line) {
     fs.rmSync(attachRoot, { recursive: true, force: true })
+    throw new Error(`the roundtrip_export_fixture.py driver failed (exit ${result.status}, `
+      + `${line ? 'variants printed' : `no ${VARIANTS_MARK.trim()} line`}): ${result.stderr}`)
   }
+  return { attachRoot, runs: JSON.parse(line.slice(VARIANTS_MARK.length)) }
+}
+
+/** One variant's stdout -> the archive its frame names, unzipped into importer vfiles. Pure JS:
+ * no process is spawned here. */
+function vfilesFromStdout(stdout) {
+  const zipBytes = readFixtureArchive(stdout)
   let entries
   try {
     entries = unzipSync(zipBytes)
@@ -122,7 +175,7 @@ function buildRealExportVfiles(pythonArgs = (script, root) => [script, root]) {
       lastModified: null,
       bytes: async () => data,
     }))
-  return Object.assign(vfiles, { stdout: result.stdout })
+  return Object.assign(vfiles, { stdout })
 }
 
 const hasPython = pythonAvailable()
@@ -145,11 +198,26 @@ if (!hasPython) {
   )
 }
 
+// ONE fixture spawn for the whole file, with its own budget (the header says why). Guarded,
+// so a frontend-only checkout without python neither spawns nor fails here: both suites below
+// are skipped, and the warning above says what that costs.
+let attachRoot
+let runs
+
+beforeAll(() => {
+  if (hasPython) ({ attachRoot, runs } = spawnFixtureVariants())
+}, 60_000)
+
+afterAll(() => {
+  // The archives have been read; the planted attachments and the zips have nothing left to say.
+  if (attachRoot) fs.rmSync(attachRoot, { recursive: true, force: true })
+})
+
 d('our own export round-trips through our own importer', () => {
   let vfiles
 
   beforeAll(() => {
-    vfiles = buildRealExportVfiles()
+    vfiles = vfilesFromStdout(runs.clean)
   })
 
   it('is claimed by NEITHER generic nor obsidian with any real confidence (documents the "before" state)', async () => {
@@ -303,29 +371,17 @@ d('our own export round-trips through our own importer', () => {
   })
 })
 
-// Round 4: the transport cannot be contaminated. Each rail runs the REAL fixture
-// under a small Python wrapper that misbehaves in exactly one way.
+// Round 4: the transport cannot be contaminated. Each rail reads the REAL fixture's
+// stdout from a variant that misbehaves in exactly one way (the driver above).
 d('the fixture transport cannot be contaminated', () => {
-  const runsFixture = (before, after = '') => `
-import runpy, sys
-${before}
-sys.argv = [sys.argv[1], sys.argv[2]]
-try:
-    runpy.run_path(sys.argv[0], run_name='__main__')
-finally:
-    ${after || 'pass'}
-`
   const noteMd = async (vfiles) => {
     const f = vfiles.find((v) => v.path.endsWith('.md') && v.path.includes('AAPL'))
     return new TextDecoder().decode(await f.bytes())
   }
 
   it('stray output before and after the payload changes nothing: the same archive comes back', async () => {
-    const clean = buildRealExportVfiles()
-    const noisy = buildRealExportVfiles((script, root) => ['-c', runsFixture(
-      "print('stray: a module printed at import')\nsys.stdout.write('stray: no newline, then ')",
-      "print('stray: printed after the payload')",
-    ), script, root])
+    const clean = vfilesFromStdout(runs.clean)
+    const noisy = vfilesFromStdout(runs.noisy)
     // non-vacuity: the wrapper really did print around the payload
     expect(noisy.stdout).toMatch(/^stray: a module printed at import/)
     expect(noisy.stdout).toMatch(/stray: printed after the payload\s*$/)
@@ -334,17 +390,14 @@ finally:
   })
 
   it('output with no intact frame is a CLEAR failure that quotes it, never a decompress error', () => {
-    expect(() => buildRealExportVfiles(() => ['-c', "print('UEsDBBQ garbage that looks like base64 and is not a frame')"]))
+    expect(() => vfilesFromStdout(runs.noFrame))
       .toThrow(/fixture stdout was contaminated or cut short .*UEsDBBQ garbage/)
   })
 
   it('an archive changed after the fixture wrote it is refused by its sha256', () => {
-    // Run the fixture, then append a byte to the file its frame names.
-    const tamper = runsFixture(
-      'import io, contextlib\n_buf = io.StringIO()\n_ctx = contextlib.redirect_stdout(_buf)\n_ctx.__enter__()',
-      "_ctx.__exit__(None, None, None)\n    _out = _buf.getvalue()\n    _lines = _out.splitlines()\n    _p = _lines[_lines.index('UCT-EXPORT-FIXTURE-ZIP-BEGIN') + 1]\n    open(_p, 'ab').write(b'\\0')\n    sys.stdout.write(_out)",
-    )
-    expect(() => buildRealExportVfiles((script, root) => ['-c', tamper, script, root]))
+    // The driver ran the fixture, then appended a byte to the file its frame names.
+    expect(runs.tampered).toContain(FRAME_BEGIN)      // non-vacuity: a real frame, a real file
+    expect(() => vfilesFromStdout(runs.tampered))
       .toThrow(/is not the one the fixture wrote/)
   })
 })

@@ -1,8 +1,7 @@
 import { NodeViewWrapper } from '@tiptap/react'
-import { useNavigate } from 'react-router-dom'
 import UIcon from '../../../../components/ui/UIcon'
 import useNoteLinkTarget from '../../hooks/useNoteLinkTarget'
-import { notePath } from '../../../../hooks/useNoteBacklinks'
+import { useNoteNavigation } from '../../lib/splitView'
 import styles from './NoteLinkView.module.css'
 
 /**
@@ -20,12 +19,19 @@ import styles from './NoteLinkView.module.css'
 export default function NoteLinkView({ node }) {
   const noteId = node.attrs.noteId
   const target = useNoteLinkTarget(noteId)
-  const navigate = useNavigate()
+  // Wave 6 fix round 1, I6 — the same door the switcher and the note list
+  // use: Ctrl/Cmd+click opens the target beside (where the page can split),
+  // a plain click inside the side pane navigates THAT pane, and otherwise
+  // the ordinary route every note link has always used. A bare `navigate`
+  // here ignored split view entirely -- Ctrl/Cmd+click did nothing extra,
+  // and a click inside the side pane collapsed the split by navigating the
+  // whole app to the main route.
+  const goToNote = useNoteNavigation()
 
   const onClick = (e) => {
     e.preventDefault()
     if (!noteId || target.status === 'unavailable') return
-    navigate(notePath(noteId))
+    goToNote(noteId, e)
   }
 
   const unavailable = target.status === 'unavailable'
