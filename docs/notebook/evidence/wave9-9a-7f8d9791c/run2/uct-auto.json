@@ -1,0 +1,78 @@
+{
+ "tool": "tools/notebook_bench_uct.py",
+ "git_head": "7f8d9791cbf72bfd92f02955793a1edb7455b035",
+ "base": "http://127.0.0.1:8096",
+ "app": "uct-sandbox-auto",
+ "certifying": false,
+ "note": "a lane acceptance run and per-release cross-check: NOT certification evidence and NOT the UCT column of the head-to-head (ruling D-9A3)",
+ "corpus": {
+  "dir": "C:\\Users\\Patrick\\AppData\\Local\\Temp\\claude\\C--Users-Patrick\\e5af7430-5c97-49c2-9846-4da28941d38c\\scratchpad\\w9A\\corpus-live",
+  "generator_version": "notebook-bench-corpus/1",
+  "seed": 20260926,
+  "total_notes": 992,
+  "verified": true
+ },
+ "machine": {
+  "available_mbytes_before": 13991.0,
+  "floor_mbytes": 4608.0,
+  "box_state": "FREE",
+  "box_load": "load: QUIET \u2014 0 marked processes outside our own tree at 2026-09-26T15:12:50",
+  "lock": {
+   "acquired": true,
+   "path": "C:\\ProgramData\\uct\\gate-box.lock",
+   "run_id": "notebook-bench-uct-20260926T151252",
+   "reclaimed": null,
+   "released": true
+  },
+  "hostname": "DESKTOP-1NPCBSM",
+  "python": "3.14.0",
+  "available_mbytes_after": 14009.0
+ },
+ "integrity": {
+  "path": "C:\\Users\\Patrick\\uct-worktrees\\notebook-w9\\docs\\notebook\\evidence\\wave9-9a-7f8d9791c\\run2\\uct-auto.integrity.md",
+  "required": [
+   "pre-boot (baseline)",
+   "post-boot (+15s)",
+   "shutdown"
+  ],
+  "checkpoints": [
+   {
+    "label": "pre-boot (baseline)",
+    "at": "2026-09-26 15:12:59",
+    "root": "C:\\data",
+    "db_files": 62,
+    "verdict": "CLEAN"
+   },
+   {
+    "label": "post-boot (+15s)",
+    "at": "2026-09-26 15:13:33",
+    "root": "C:\\data",
+    "db_files": 62,
+    "verdict": "CLEAN"
+   },
+   {
+    "label": "shutdown",
+    "at": "2026-09-26 15:13:39",
+    "root": "C:\\data",
+    "db_files": 62,
+    "verdict": "CLEAN"
+   }
+  ],
+  "status": "CLEAN",
+  "clean": true,
+  "why": "",
+  "copy": "C:\\Users\\Patrick\\uct-worktrees\\notebook-w9\\docs\\notebook\\evidence\\wave9-9a-7f8d9791c\\run2\\uct-auto.integrity.md",
+  "moved_from": "C:\\Users\\Patrick\\uct-worktrees\\notebook-w9\\docs\\plans\\joystick\\sandbox-runs\\2026-09-26T15-12-54.md"
+ },
+ "self_test": {
+  "ok": false,
+  "ms": null,
+  "readings": []
+ },
+ "count": null,
+ "chromium": null,
+ "page_errors": [],
+ "failure": "note count: the manifest says 992, the API says 993, the page says 993",
+ "per_op": {},
+ "timings": "WITHHELD"
+}
