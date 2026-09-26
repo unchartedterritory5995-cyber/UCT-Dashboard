@@ -54,8 +54,10 @@ facilitator does, in order.
   are the record; write the seconds on the sheet afterwards from the recording, not from memory.
   Record whether the wave-8 tour appeared.
 - **After T1, before T2:** in your own browser, import the study notebook into the account
-  (Notebook → **Import** → **Choose a folder** → pick `study-notebook/`, so its folders come
-  along; "Choose files" would flatten them). If the importer offers to add
+  (Notebook → **All notes** in the sidebar → **Import** → **Choose a folder** → pick
+  `study-notebook/`, so its folders come along; "Choose files" would flatten them). The bare
+  Notebook page is Research Home, and once T1's note exists it no longer shows an Import button
+  of its own — the toolbar's Import is in All notes. If the importer offers to add
   live charts for tickers it found, choose **not now** — the offer is opt-in and the study does
   not need it. Then ask the participant to reload.
 - **The hint rule:** give a hint **only after 60 seconds of being stuck**, and mark the task **H**.

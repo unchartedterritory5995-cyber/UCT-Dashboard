@@ -157,6 +157,25 @@ def _summary(**kw):
 
 # ── Figures ─────────────────────────────────────────────────────────────────
 
+def test_a_row_in_the_same_second_as_until_lands_in_the_NEXT_tiled_read_exactly_once(db):
+    """Found by the sandbox browser check (run 1, `docs/notebook/evidence/wave9-9c-90e6a35d3/
+    run1-shakeout/`): `activity_log.created_at` is CURRENT_TIMESTAMP — ONE-SECOND resolution —
+    and a read floors both ends of its half-open `[since, until)` to the second. So a row stamped
+    in `until`'s own second is NOT in that read. The observer's reads tile (each `since` is the
+    previous read's `until`), and the next read's floored `since` takes it: counted once — never
+    twice, never not at all."""
+    from api.services.journal_two import notebook_soak
+    s = NOW.replace(microsecond=0)
+    _log(db, "u-org1", "save_failed", {"reason": "network"}, s)      # stamped in second S
+    cut = s + timedelta(milliseconds=600)                             # a read taken inside S
+    first = notebook_soak.soak_summary(cut - timedelta(hours=2), cut, now=cut)
+    later = cut + timedelta(hours=2)
+    second = notebook_soak.soak_summary(cut, later, now=later)
+    counts = (first["events"]["save_failed"]["organic"]["events"],
+              second["events"]["save_failed"]["organic"]["events"])
+    assert counts == (0, 1), f"a boundary row must land in exactly ONE tiled read, got {counts}"
+
+
 def test_integrity_events_are_split_by_population_and_prop(seeded):
     ev = _summary()["events"]
     sf = ev["save_failed"]
