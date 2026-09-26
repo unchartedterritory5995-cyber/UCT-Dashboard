@@ -1,0 +1,1 @@
+SANDBOX INTEGRITY: CLEAN -- pre-boot (baseline) CLEAN, post-boot (+15s) CLEAN, shutdown CLEAN, post-prewarm (+120s) CLEAN; 62 db files hashed; stop: graceful to the shutdown checkpoint, then forced exit; log: C:\Users\Patrick\uct-worktrees\notebook-w9\docs\notebook\evidence\wave9-9a-7f8d9791c\experiment4\integrity.md

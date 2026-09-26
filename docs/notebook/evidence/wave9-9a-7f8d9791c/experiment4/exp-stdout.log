@@ -1,0 +1,7 @@
+sandbox healthy {"ok": true}
+seeded {"api_total": 992}
+G1 {"via": "_drive", "ok": false, "error": "Locator.wait_for: Timeout 30000ms exceeded. | Call log: | - waiting for locator(\".ProseMirror\").first to be visible", "url_now": "/journal/notebook?view=all"}
+G2 {"via": "_drive", "ok": false, "error": "Locator.wait_for: Timeout 30000ms exceeded. | Call log: | - waiting for locator(\".ProseMirror\").first to be visible", "url_now": "/journal/notebook?view=all"}
+G3 {"via": "_drive", "ok": false, "error": "Locator.wait_for: Timeout 30000ms exceeded. | Call log: | - waiting for locator(\".ProseMirror\").first to be visible", "url_now": "/journal/notebook?view=all"}
+G4 {"via": "inline", "ok": true, "error": null, "url_now": "/journal/notebook?note=11403f5c66394d61bcf46fb14e23bb5c"}
+SANDBOX INTEGRITY: CLEAN -- pre-boot (baseline) CLEAN, post-boot (+15s) CLEAN, shutdown CLEAN, post-prewarm (+120s) CLEAN; 62 db files hashed; stop: graceful to the shutdown checkpoint, then forced exit; log: C:\Users\Patrick\uct-worktrees\notebook-w9\docs\notebook\evidence\wave9-9a-7f8d9791c\experiment4\integrity.md
