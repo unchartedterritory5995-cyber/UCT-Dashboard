@@ -857,3 +857,37 @@ CARD 25 states the goal as **"someone can only use our site"** — a claim about
 ✅ **Mitigation is one checklist line, not a new instrument: any diff containing a new `setPref(` runs `tests/test_preference_key_validation.py`, whatever language the diff is in.** The rail was never what failed.
 
 ⚠️ **AND IT SHARPENS THE MIGRATION RULE I GAVE THAT AUTHOR.** I briefed *"a rename needs a read-fallback shim in the same commit"*. That is now only HALF the requirement: without the allow-list row, **the shim's WRITE side 400s and nothing persists at all**. ⛔ On a migration this is worse than the three incidents, because the 400 lands on the very surface meant to prove it can replace TERMINAL-CURRENT — the member sets a view, returns, it forgot, so they go back to `/calendar` where it works. **The symptom is indistinguishable from the data loss NG-08 exists to prevent**, so it gets diagnosed as a broken shim or as evidence TERMINAL-NEXT is not ready, when the defect is one missing line in a dict.
+
+## CARD 33 — three owner questions DETERMINED, and the two that cannot be
+
+**Owner, 2026-09-26: "you do it all and determine it all."** Per CARD 17's post-mortem each determination names what was searched first: `GOVERNING_PRINCIPLES.md` §13, `05-product-strategy/non-goals.md`, `OWNER_DECISIONS.md`, `charter/OWNER_SEED_FACTS.md`, CARDs 1–32, and `origin/master` source. **All three are over genuine silences.**
+
+### 1. SEAT MODEL — one subscription is one account is one person. No seat product.
+
+✅ **Determined.** Grounded: **there is no seat or quantity concept anywhere in the auth surface** — a word-boundary search for *seat* over `api/routers/auth.py` and `api/services/auth_db.py` at master returns **nothing**. One paid tier (CARD 17), the entitlement axis is a **binary**, and `NG-06` forbids metering as a product mechanism. So there is no seat concept to configure, and adding one would build the tier axis `NG-05` permanently forecloses.
+
+⚠️ **Honest consequence, stated rather than dressed up: a shared login WORKS TODAY and nothing polices it.** Tolerated, not supported. ⛔ **If sharing ever becomes a revenue problem the lever is a CONCURRENT-SESSION limit, never a seat tier** — sessions are already a first-class object here, and a seat tier is a tier. **Reversal:** an owner sentence pricing seats, which reopens `NG-05` and is his to reopen.
+
+### 2. MAX AGE A PANEL MAY DISPLAY SILENTLY — one expected session.
+
+✅ **Determined: a panel may render data from the CURRENT expected session with no annotation; anything older must state its as-of ON THE SURFACE.** Grounded in a convention this codebase already keeps — `engine.wire_freshness` treats a payload as fresh until the next expected run and stale after it, which is exactly one session — so this ratifies a shipped rule rather than inventing a number.
+
+⭐ **And it is ADOPTION, not a build: the mechanism ships.** `app/src/components/provenance/FreshnessBadge.jsx` and `formatFreshnessAsOf` exist with tests (verified at master), and gate item 30 found **all four** provenance primitives shipping where two documents claimed two. ⚠️ **Carve-out so the rule is not absurd:** a surface whose data is intrinsically slower than daily — weekly COT, quarterly fundamentals — states its own cadence instead. One session is a ceiling for daily-cadence panels, not a claim everything is daily. ⛔ A silently stale panel is an **unfalsifiable trust claim** (`NG-17`), which is why this has a number at all.
+
+### 3. `TERM-081` — reclassified BLOCKED (owner-input-gated), not BUILDABLE.
+
+✅ **Determined on source, verbatim:** `api/data/entitlements_manifest.json` states its next step is **"NOT PROPOSABLE until OI-03(a)/OI-03(b)/OI-12 are answered by the owner."** The register reads `BUILDABLE`. **Source wins** — the register row is wrong, not optimistic. ⚠️ Recorded here rather than edited into `backlog.md`: that id space is gate item 30's, and a second authority over one ticket's status is the defect this programme logs most.
+
+### ⛔⛔ THE TWO I CANNOT DETERMINE, AND WHY THAT IS NOT A HEDGE
+
+**A NAMED NON-BUILDER SUBJECT.** ⛔ **Structurally not mine, and inventing one would be the exact fabrication this programme spent 38 deliverables refusing.** CARD 22's panel ruled that a simulated trader preferring a simulated terminal is evidence about the simulation — **a name I chose would be worse than none, because it would look like a fact.** ⭐ It is a claim about the world (who will actually open this) and only the owner holds it. The pool is ~750 paying Discord members, so the answer is probably not *nobody* — and if it is, **that is a finding**: the MVP returns INCONCLUSIVE-BY-CONSTRUCTION, which is a result rather than a failure.
+
+**ONE TRADING MORNING, WATCHED.** ⛔ An observation OF the owner; nobody else can supply it. Its value **decays** — every week it waits, more of what he would be seen using is software built to his own prior description.
+
+### ⚙️ Also done under the same instruction
+
+✅ **The Massive email is WRITTEN AND READY TO SEND** — `10-roadmap/2026-09-26-massive-vendor-ask.md`: one message covering all four register items (historical chains, IV history, a second OPRA connection, and whether the existing GEX view can be re-sourced inside the plan already paid for). ⛔ **Not sent** — it goes to a third party under the owner's name and needs a recipient only he has. ⭐ It also names the answer nobody plans for: **if Massive does not carry option history, `BRK-01` reframes from "buy the data" to "accumulate it from today forward"** — a slower shape worth knowing before a lane is spent.
+
+⚠️ **Citation correction to the verification appendix committed minutes ago:** it cites `PAID_PLANS` at `api/services/auth_middleware.py`, which **does not exist at master**. The symbol is real at **`api/middleware/auth_middleware.py`** (imported by `bars_auth.py:58` and `chart_edge_token.py:50`), so **the finding stands and only the directory was wrong** — recorded because a wrong path is how a true finding stops being checkable.
+
+**Reversal conditions:** §1 and §2 are defaultable determinations; any owner sentence overrides either. §3 is a reading of source and inverts the moment OI-03/OI-12 are answered.
