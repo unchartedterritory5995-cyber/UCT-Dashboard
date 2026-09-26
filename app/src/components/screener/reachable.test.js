@@ -252,8 +252,16 @@ function trackedModules() {
  *  and seven others were each imported by exactly one live, green test and by no
  *  screen — a blanket test-only exemption would have excused every one of them.
  *  These four markers say "this file's JOB is to support tests", which is a
- *  property of where it lives, not of who happens to import it today. */
-const TEST_INFRA = /(^|[\\/])(__tests__|__fixtures__|__mocks__|testing|test-stubs)[\\/]|(^|[\\/])test-[^\\/]*$/
+ *  property of where it lives, not of who happens to import it today.
+ *
+ *  ⭐ Wave 8, lane 8A: the Notebook's accessibility RAIL directory,
+ *  `pages/journal-2-0/a11y/`, holds nothing but rails and their support (the
+ *  axe harness, the fixture network, the surface manifest, the CSS audits) --
+ *  its job is to test. Named by its FULL path, never a bare `a11y/`, so a real
+ *  UI helper in some future `components/a11y/` is still judged like any other
+ *  module (control: 'the Notebook a11y rail directory is test infrastructure,
+ *  and nothing else is'). */
+const TEST_INFRA = /(^|[\\/])(__tests__|__fixtures__|__mocks__|testing|test-stubs)[\\/]|(^|[\\/])test-[^\\/]*$|(^|[\\/])pages[\\/]journal-2-0[\\/]a11y[\\/]/
 
 /**
  * Unreachable ON PURPOSE, each with the reason and the decision still owed.
@@ -718,6 +726,16 @@ describe('🔴 every module under app/src is REACHABLE from an entry point', () 
       .filter((k) => !tracked.has(path.join(ROOT, k)))
     expect(untrackedButKnown, 'git does not track files this rail already records as '
       + 'committed — the tracked set is wrong, not the allow-list').toEqual([])
+  })
+
+  it('the Notebook a11y rail directory is test infrastructure, and nothing else is', () => {
+    const rel = (...p) => path.join(...p)
+    expect(TEST_INFRA.test(rel('pages', 'journal-2-0', 'a11y', 'axeHarness.js'))).toBe(true)
+    expect(TEST_INFRA.test(rel('pages', 'journal-2-0', 'a11y', 'fixtures.jsx'))).toBe(true)
+    // a sibling component directory, and an a11y directory anywhere else, are NOT
+    expect(TEST_INFRA.test(rel('pages', 'journal-2-0', 'components', 'notebook', 'NoteGraphView.jsx'))).toBe(false)
+    expect(TEST_INFRA.test(rel('components', 'a11y', 'SkipLink.jsx'))).toBe(false)
+    expect(TEST_INFRA.test(rel('pages', 'journal-2-0', 'lib', 'graphNavigation.js'))).toBe(false)
   })
 
   it('and nothing committed is connected to nothing', () => {
