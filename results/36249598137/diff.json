@@ -1,0 +1,79 @@
+{
+  "verdict": "NO_NEW_FAILURES",
+  "counts": {
+    "new": 0,
+    "fixed": 3,
+    "unchanged": 173,
+    "missing": 0,
+    "baseline": 176,
+    "current": 175,
+    "current_ran": 57481,
+    "new_flaky": 2,
+    "flaky_size": 6,
+    "flaky_new": 2,
+    "flaky_fixed": 0,
+    "file_level_resolved": 0,
+    "coverage_lost": 0,
+    "new_ours": 0,
+    "new_others": 0,
+    "new_unattributed": 0
+  },
+  "arithmetic": "baseline 176 = unchanged 173 + fixed 3 + missing 0  |  current 175 = unchanged 173 + new 0 + new-but-flaky 2",
+  "invalid_because": [],
+  "baseline_run_id": "36246487715",
+  "current_run_id": "36249598137",
+  "baseline_sha": "f250a434cbfbb61962bee61da3a59081d3654932",
+  "current_sha": "2e0598bfa514303fe542c4473bd2f89470d04ec2",
+  "commit_range": "f250a434cbfbb61962bee61da3a59081d3654932..2e0598bfa514303fe542c4473bd2f89470d04ec2",
+  "first_run": false,
+  "new": [],
+  "missing": [],
+  "fixed": [
+    "pytest|tests.test_discord_render_goldens|test_a_fresh_capture_matches_the_stored_golden_at_zero_drift",
+    "pytest|tests.test_nb_observe|test_a_5xx_reading_is_SKIPPED_not_an_ANOMALY",
+    "pytest|tests.test_preference_key_validation|test_every_key_the_client_writes_is_still_accepted"
+  ],
+  "new_flaky": [
+    "pytest|tests.test_mutation_check.TestVerdicts|test_a_detected_mutation_passes_the_check",
+    "pytest|tests.test_mutation_check.TestVerdicts|test_expect_red_naming_the_right_test_passes"
+  ],
+  "flaky": [
+    "pytest|tests.test_discord_close_note|test_a_note_that_cannot_be_written_still_posts_the_charts",
+    "pytest|tests.test_mutation_check.TestRestoreGuarantee|test_the_file_is_byte_identical_after_a_detected_mutation",
+    "pytest|tests.test_mutation_check.TestVerdicts|test_a_detected_mutation_passes_the_check",
+    "pytest|tests.test_mutation_check.TestVerdicts|test_expect_red_naming_the_right_test_passes",
+    "vitest|src/components/chart/engine/__tests__/stockChartWiring.test.jsx|an engine-drawn indicator still appears in the crosshair legend > \u26d4\u26d4 A HOVER REACHES THE RENDERER NOT AT ALL",
+    "vitest|src/components/voice/VoiceHallucinationsPanel.test.jsx|VoiceHallucinationsPanel (Packet AD CP2) > populates the session dropdown and fires a POST re-audit for the selected session, then refreshes the flag list"
+  ],
+  "file_level_resolved": [],
+  "coverage_lost": [],
+  "missing_buckets": {},
+  "attribution": {
+    "pytest|tests.test_discord_render_goldens|test_a_fresh_capture_matches_the_stored_golden_at_zero_drift": {
+      "class": "UNATTRIBUTED",
+      "commits": [],
+      "workstreams": [],
+      "reason": "no commit in f250a434c..2e0598bfa touched tests/test_discord_render_goldens.py or anything it imports"
+    },
+    "pytest|tests.test_nb_observe|test_a_5xx_reading_is_SKIPPED_not_an_ANOMALY": {
+      "class": "test-file-change",
+      "commits": [
+        "2e0598bfa"
+      ],
+      "workstreams": [
+        {
+          "commit": "2e0598bfa",
+          "workstream": "Wave 9C",
+          "confidence": "message-tag",
+          "ours": false
+        }
+      ]
+    },
+    "pytest|tests.test_preference_key_validation|test_every_key_the_client_writes_is_still_accepted": {
+      "class": "UNATTRIBUTED",
+      "commits": [],
+      "workstreams": [],
+      "reason": "no commit in f250a434c..2e0598bfa touched tests/test_preference_key_validation.py or anything it imports"
+    }
+  }
+}
