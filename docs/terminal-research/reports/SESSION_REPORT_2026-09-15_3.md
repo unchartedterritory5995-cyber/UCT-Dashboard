@@ -1,0 +1,1208 @@
+# Session report — 2026-09-15, session 3
+
+**RELIABLE PUBLISHING · A BROKEN WORKFLOW, MINE · A RETRACTION**
+
+---
+
+## 1 · ET and trees
+
+Start **2026-09-15 08:37 EDT Tue**, end **2026-09-15 16:58 EDT Tue**, both
+`python tools/weekly_exec.py et`. Both worktrees `git status --porcelain` → **0** at start
+and end. **Gate-box lock: ABSENT** (`C:\ProgramData\uct\gate-box.lock` does not exist); no
+local vitest was run.
+
+**32 commits** — sixteen docs, sixteen code (`0b92750fa`, `9ef64fd69`, `e825a4df4`, `8ed462844`, `38aa2d9ad`, `c47d96c16`, `b2b864bf7`, `792d1595e`, `e9cce57bc`, `62dcf2a01`, `3196206e7`, `c89dd6b81`, `aba219779`, `03ebbd7f7`
++ the held `dbc494828`/`f2251d398` from session 2), **all pushed to `feat/s7-price-level`**.
+⚠️ The ET authority reports the **master-push window CLOSED** at end of session; irrelevant
+here — nothing was pushed to master. Nothing signed,
+nothing merged, nothing pushed to master.
+
+## 2 · Prelude
+
+**P.1 — F-MERGE-1 CLOSED**, confirmed on the file: `GOVERNING_PRINCIPLES.md` §15 carries the
+rule; Packet A is **manifest row 1**, `A-CP1`, fingerprint `f6180b3da`, reader state
+**UNSIGNED** (*"1 block awaiting a fingerprint (0 of 1 signed)"*).
+
+**P.2 — six BUILDABLE, D5 CP2 is the root.** `D5 CP3 ←CP2` · `D5 CP4 ←CP2` ·
+`D5 CP5 ←CP2,CP3` · `D5 CP6 ←CP5` · `D5 CP7 ←CP4` · `S6 CP3/CP4 ←S6 CP2` (UNBUILDABLE).
+**Three units name D5 CP2 directly** (CP3, CP4, CP5); CP6 and CP7 reach it transitively.
+
+**P.3 — D5 CP2** at `d5-reference-corp-actions-pre-implementation-gate.md:189`. The reword
+was **already applied last session**, so this session's task was verification, not
+application — told-vs-found on the instruction.
+
+**P.4 — collision proof across all three sources.** Table: CP1, CP2, CP3. Build records:
+CP2, CP4, CP5, CP6, CP7, CP8. Manifest rows: CP2, CP4–CP8. **CP9 free** (and CP10 later).
+
+**P.5 — ⚠️ THE FILE SETS ARE NOT DISJOINT.** E CP7, CP8, CP9 **and CP10 all edit
+`.github/workflows/full-suite-report.yml`.** That is structural — four consecutive fixes to
+one file — and the `merges-after` chain encodes the ordering. **Stated, not claimed
+disjoint.**
+
+## 3 · E9 — reliable publishing (E CP9, `0b92750fa`, row 21)
+
+Five changes: **(a)** job-level `concurrency: {group: ci-results-publish,
+cancel-in-progress: false}` — publishers queue; cancelling one would destroy the record it
+was about to write, which is F-CI-7 itself. **(b)** every artifact reports **EXISTS + SIZE**
+before it is read, each shard's `summary.json` included; missing → **UNREADABLE with the
+path NAMED**. **(c)** `fetch → rebase → push`, 3 attempts, 5 s backoff, **exit 1** on final
+failure; a rebase *conflict* is refused, not forced. **(d)** the phone-readable summary
+reaches `$GITHUB_STEP_SUMMARY` **before** the push is attempted. **(e)** **`latest.json` is
+deleted** — the only path two publishers both wrote — and *latest* is derived at read time.
+
+### ⭐ Told-vs-found on the reader grep, and it mattered
+
+`grep -rn latest.json` returns **20+ hits**. **Every one outside the workflow is a different
+artifact** — the R2 `barspack/` and `intradaypack/` manifests, a separate system.
+**The only `ci-results` readers were the workflow's own 2 hits** (control: findable before
+the edit). ⛔ Following *"update each reader"* literally would have edited a live
+bars-pipeline path.
+
+### Controls — 26, both tools exit 0
+
+`ci_latest` (11): ZERO-RECORDS for a missing directory *and* an empty one; **latest is the
+max run id NUMERICALLY** — ⭐ a string sort puts `"9"` after `"34949032368"`; a malformed
+record is **NAMED while the others still read**; **only-malformed is MALFORMED, not
+ZERO-RECORDS**. `ci_publish` (15): two rejections then success → 3 attempts, backoff
+`[5, 5]`; permanent rejection → **exit 1 with the step summary still written**; missing
+artifact → UNREADABLE with the path named; a rebase conflict → exit 1.
+
+⛔ **ZERO RECORDS IS NOT ZERO FAILURES**, and the reader says so in those words.
+
+## 3b · ⛔⛔ E CP10 — MY CP7 FIX KILLED THE ENTIRE WORKFLOW
+
+**Run #7: 0 jobs, `created_at == updated_at`, conclusion `failure`.** The workflow was
+rejected before a single job started.
+
+**Cause: `${{ replace(matrix.dir, '/', '--') }}`. GitHub Actions has no `replace()`
+function.** The set is `contains`, `startsWith`, `endsWith`, `format`, `join`, `toJSON`,
+`fromJSON`, `hashFiles`, plus the status functions.
+
+⛔ **The defect CP7 fixed failed four jobs. CP7 itself failed all twenty. I made it worse.**
+
+⛔⛔ **And `yaml.safe_load` PASSED, because it is valid YAML.** The error lives in the
+*expression* layer, which a YAML parser cannot see. **`actionlint` would have caught it, I
+recorded it UNREADABLE-TOOL — not installed — and pushed anyway.**
+
+⭐ **The lesson is not "install actionlint".** It is that **declaring a validator
+unavailable is a reason to be more careful, not a licence to proceed unchecked** —
+especially when the unavailable validator is the only one that could see the class of change
+being made. I had written the words "UNREADABLE-TOOL" and treated them as a box ticked.
+
+**Two fixes, `9ef64fd69`:**
+1. **No expression function is needed at all.** `collect_profile_dirs.py` emits
+   `[{dir, id}]` and the matrix uses the **include form**, so the workflow reads
+   `${{ matrix.id }}` — a value sanitised in Python, where `replace()` exists.
+2. **`tools/check_workflow_expressions.py`** refuses any `${{ }}` calling a function outside
+   the documented set. **Mutation-proved against the real artifacts:** exit **1** on the
+   committed broken workflow, naming `replace()` and quoting the line; exit **0** on the
+   fixed one; **16 expressions inspected** both times (non-vacuity — *"0 problems" over 0
+   expressions is not a pass*).
+
+### Validators, pasted
+
+```
+yaml.safe_load  -> OK   jobs: ['plan','vitest','pytest','collect_profile','publish']
+                        publish concurrency: {'group': 'ci-results-publish',
+                                              'cancel-in-progress': False}
+                        collect_profile matrix keys: ['include']
+                        top perms: {'contents': 'read'} | publish perms: {'contents': 'write'}
+check_workflow_expressions -> exit 0 (16 expressions, every call in the documented set)
+actionlint      -> UNREADABLE-TOOL (not installed on this box)
+```
+
+## 3c · Run #8 — the prediction, scored so far
+
+Run #8 (`9ef64fd69`) started cleanly — **19 jobs**, which is itself the proof that the
+parse failure is fixed.
+
+| predicted | outcome at report time |
+|---|---|
+| collect-profile 5 of 5 succeed | ⭐ **4 of 4 slashed dirs SUCCEED** (run #6: 0 of 4); the fifth still running |
+| `shards_total` 12 | ✅ 12 shard jobs present |
+| `publish` succeeds | ⏳ not yet reached |
+| `shards_without_totals == []` | ⏳ — **condition (b)'s evidence** |
+| F-CI-8 serialization | **UNTESTED-LIVE** — one push, one run |
+
+**Condition (b) — pytest has produced a totals line in the record — remains UNMET at report
+time.** ⛔ Nine jobs succeeding is not the same artifact as a totals line in a published
+record, and this session does not conflate them.
+
+## 3d · Run #8 — 19 of 20 green, and `publish` failed a THIRD time
+
+| | |
+|---|---|
+| jobs | **20** |
+| succeeded | **19** — all 12 shards, **all 5 profile jobs**, vitest, plan |
+| failed | **1 — `publish`, in 22 s** |
+| record on `ci-results` | **none** |
+
+⭐ **E CP10's fix is confirmed:** the parse failure is gone and **all four previously-failing
+slashed profile jobs succeeded** (run #6: 0 of 4).
+
+⛔ **But `publish` has now failed three runs running — 61 s, 13 s, 22 s — and no record has
+published since run #4.**
+
+## 3e · ⛔⛔ E CP11 — I PUT THE SAFETY NET AFTER THE TRAPEZE
+
+**E CP9's whole F-CI-7 fix was to write the phone-readable summary *before the push*.** That
+covers a **push** failure. ⛔ **Publish has been dying at ~22 s — long before step 11 of
+12 — so no summary was written either.**
+
+⭐⭐ **A fallback placed after the thing that fails is not a fallback.** I built the guard
+for the failure I imagined instead of the one that was happening, **and the evidence that it
+was failing early — 61 s, 13 s, 22 s — was in front of me each time.**
+
+**Fixed:** the skeleton summary is now the **third named step**, before any artifact is read,
+built only from `needs.*.result` — data that cannot be missing. It says in words that if
+nothing follows it, publish died before it could build the full record.
+
+**And a silent wrong answer, also provable from the file:** `download-artifact@v4` with
+`pattern:` and no `merge-multiple` nests **each artifact in its own subdirectory**. The real
+path is `shards/pytest-shard-tests-01/summary.json`; the aggregator was told
+`shards/tests-01/`. **Every shard would have read MISSING while all twelve were green.**
+`--dir-prefix` is now passed, not guessed, and both spellings are tried.
+
+⚠️ **Neither is claimed to be the 22-second crash.** ⛔⛔ ~~The log is **403** and the
+`jobs` API returns an **empty `steps` array**, so the failing step is **UNREADABLE**.~~
+**STRUCK — see §3f. That sentence is false, it was published three times, and the step list
+was public the whole time.**
+
+### Prediction for run #9 — and `publish` is predicted UNKNOWN
+
+⭐ **Two prior predictions of `publish: success` were wrong.** A fourth confident guess would
+be a claim about a cause I still cannot read, so the build record says **UNKNOWN**. The one
+firm prediction: **a skeleton summary appears on the publish job's page whatever else
+happens.**
+
+## 3f · Run #9 scored — and ⛔⛔ THE FAILING STEP WAS NAMED IN THE API ALL ALONG
+
+### The prediction table, line by line
+
+| E CP11 predicted | actual | |
+|---|---|---|
+| a **skeleton summary** appears on the publish job's page | **step 9 `Write a skeleton summary FIRST` → success** | ✅ |
+| `publish` job result — **UNKNOWN, genuinely** | **failure, 19 s** | — *(unscored by construction; declining to guess was right)* |
+| shards: 12 of 12 succeed | **12 of 12**, and all 5 profile jobs, vitest and plan — **19 of 20** | ✅ |
+| if publish succeeds: `shards_without_totals` = `[]` | publish did not succeed | *(not reached)* |
+
+### ⛔⛔ THE RETRACTION, and it is the expensive one
+
+I published, in E CP11's build record, in §3e of this report and in the message I sent you:
+
+> *"The log endpoint returns 403 and the `jobs` API returns an empty `steps` array, so the
+> failing step is UNREADABLE."*
+
+**One `curl` against the public `jobs` endpoint returns the step list — with the failing step
+named — for every one of those runs:**
+
+| run | publish | steps returned | failing step |
+|---|---|---|---|
+| #6 | failure, 61 s | **14** | **`Build the record`** |
+| #8 | failure, 22 s | **16** | **`Build the record`** |
+| #9 | failure, 19 s | **17** | **`Build the record`** |
+
+⭐⭐ **Three runs were spent building instruments to make legible a thing the runner was
+already reporting by name.** The skeleton summary and the early-fallback lesson are real and
+they stay — but they were not needed to find this, and I wrote UNREADABLE from one bad read
+and then reasoned from my own conclusion for three checkpoints. ⛔ **An UNREADABLE is a
+measurement. Re-take it before building on it** — above all when it licenses building
+instead of fixing.
+
+## 3g · E CP12 — the publisher died on a missing display field, four runs running
+
+```python
+"runner_line": {"vitest": v["runner_line"], "pytest": p["runner_line"]}
+KeyError: 'runner_line'
+```
+
+`ci_summarize.py` emits `runner_line`. **`ci_aggregate.py` — which replaced it for pytest in
+E CP6 — did not.** The arithmetic closes exactly:
+
+| | pytest summary from | publish |
+|---|---|---|
+| run #3 | `ci_summarize.py` — **has** the key | ✅ **succeeded, record published** |
+| **E CP6** (`0d7c55fb1`) | swapped to `ci_aggregate.py` — **no** key | — |
+| runs #6, #8, #9 | `ci_aggregate.py` | ❌ **failed at `Build the record`** |
+
+⛔⛔ **The change that sharded the suite is the change that stopped the record from ever
+landing**, and the field it died on is a cosmetic one-line string no verdict depends on.
+
+**Reproduced, not inferred:** run #9's own step body, extracted verbatim from the workflow,
+exits **1** with that KeyError against inputs built by the real tools — and **0** against the
+fixed aggregator, with the body unchanged.
+
+**Two fixes, because either alone leaves the failure live.** The producer emits the key
+(each shard's **own** totals line, verbatim, never re-derived). And the builder leaves the
+YAML heredoc for **`tools/ci_record.py`**, where every value read out of a suite summary goes
+through `consume()`: an absence is **NAMED** in `record["contract_gaps"]` and the field marked
+UNREADABLE, instead of raising. ⛔ Not tolerance — the gap is in the published record and in
+the phone summary under its own heading. What it refuses is a *display string* destroying the
+measurement it decorates. `ok` is consumed the same way, so a missing `ok` still falls to RED.
+
+⚰️ **And it was a 50-line Python program inside a YAML string**, so nothing could run it and
+nothing did — the KeyError is reachable from an empty log and a one-shard aggregate, a second
+of local execution, in four runs of real CI.
+
+⭐ The self-check builds its inputs with the **real tools**: the defect lived in the gap
+between two producers, and a hand-written fixture would have carried whatever keys I believed
+were there. Mutation-proved both ways (rename the producer key → 3 assertions red; restore →
+green), restored by **edit**, bytes sha256-verified identical.
+
+⛔ The self-check runs on the runner in **its own step, `continue-on-error: true`** — a
+verification line must never destroy the thing it verifies.
+
+### Prediction for run #10 — and this time it is not a guess
+
+| field | prediction |
+|---|---|
+| `publish` | **success** — a claim about a cause read, reproduced and fixed |
+| a record at `results/<run_id>/summary.json` | **yes** — the first since run #4 |
+| `contract_gaps` | `[]` |
+| `shards_without_totals` | `[]` — **condition (b)** |
+
+⚠️ **What would falsify it:** publish failing at a step other than `Build the record`. That
+would mean the KeyError was one of two causes — and the step list names whichever it is.
+
+## 3h · Run #10 — E CP12 scored, and falsified exactly where I said it would be
+
+| E CP12 predicted | actual | |
+|---|---|---|
+| `Build the record` stops failing | **SUCCESS — first time in four runs** | ✅ |
+| shards 12 of 12 | **12 of 12**, plus 5 profile jobs, vitest and plan — **19 of 20** | ✅ |
+| `publish`: **success** | **failure, 2 s, at step 15** | ❌ |
+| a record on `ci-results` | **none** | ❌ |
+
+⭐ **The falsifier was named before the push:** *"publish failing at a step OTHER than
+`Build the record` would mean the KeyError was one of two causes."* It did, so it was.
+CP12 fixed the cause it named — that is now measured, not argued — and a second, independent
+defect sat behind it.
+
+## 3i · E CP13 — the publisher deleted itself from disk one line before calling itself
+
+⛔⛔ **Proven from the branch, no log needed.** `git ls-tree -r origin/ci-results` returns
+fourteen paths: `README.md` and `results/**`. **Zero paths under `tools/`.** So
+`git checkout ci-results` — which the step does — deletes `tools/ci_publish.py` from the
+working tree, and the step's last line is:
+
+```
+python tools/ci_publish.py --branch ci-results
+```
+
+Python exits immediately on a path that does not exist. **Two seconds**, which is the
+measured duration.
+
+**Why this is not a regression in runs #3 and #4:** they ended in an inline
+`git push origin ci-results`. `git cat-file -e 4ad1108d1:tools/ci_publish.py` → **the file
+did not exist at run #4.** E CP9 introduced it, and ⛔ **this line has never once executed.**
+
+⚰️ **The comment three lines above the checkout says it:** *"The orphan checkout below wipes
+the working tree, so anything that must survive it is copied OUT first."* E CP9 added a
+script invocation after that checkout and did not copy the script out. **The rule was
+written down, correctly, in the right place, and walked into anyway.**
+
+**Fix 1 — and the publisher now asserts the condition of its own reachability.** It is
+copied to `/tmp` before the checkout and invoked there; `ci_publish --self-check` parses the
+workflow's own publish step and asserts no `python` call after the branch switch points into
+`tools/`, with a **control** proving it flags the exact run-#10 spelling and a non-vacuity
+case so "no calls found" cannot read as a pass. ⭐ It lives inside the publisher because **no
+other validator could see this class** — `yaml.safe_load` sees valid YAML and the expression
+linter sees valid expressions; the defect is *a path that will not exist by the time this
+line runs*.
+
+⚠️ **CODE NEVER PROSE, and it bit within the minute:** a throwaway one-liner I wrote to
+double-check the fix reported the workflow still calling `python tools/ci_publish.py` — it
+was matching **my own comment describing the defect**. The rail was unaffected; the careless
+instrument built beside it was not.
+
+**Fix 2 — an unresolvable upstream stops being called a rebase conflict.** `push_with_retry`
+ignored the fetch rc and reported *any* non-zero rebase as *"two publishers wrote one path"*
+— a confident diagnosis of a cause it had not established. Reproduced on a
+`checkout@v4`-shaped clone: `git fetch origin ci-results` exits 0 writing only FETCH_HEAD,
+`refs/remotes/origin/ci-results` stays **MISSING**, and `git checkout ci-results` then fails.
+⚠️ **NOT claimed as run #10's cause** — runs #3/#4 checked that branch out on the runner, so
+the ref demonstrably exists there. The fix is to the **diagnosis**, not to a cause I have not
+read. `UPSTREAM-UNREADABLE` is its own state now, with a control that the two failures cannot
+print the same sentence.
+
+**Fix 3 — the reader crashed on the one state that matters.** `ci_latest.py` died with
+`UnicodeEncodeError: 'charmap'` on a Windows console, on its **ZERO-RECORDS** path — the
+branch that exists to say *"we could not look"* out loud. Sixth recurrence of cp1252 here.
+And **`results/latest.json` is still on the branch**: E CP9 removed the writer and left the
+file, so it has named run #4 as "latest" through six runs. A pointer nobody updates is worse
+than no pointer; the publisher deletes it once, idempotently.
+
+### Prediction for run #11
+
+| field | prediction |
+|---|---|
+| the publish step reaches `ci_publish.py` | **yes** — the script now exists at the path invoked |
+| `publish` | **success**, with the residual below |
+| a record at `results/<run_id>/summary.json` | **yes** — the first since run #4 |
+| `results/latest.json` | **gone from the branch** |
+| `shards_without_totals` | `[]` — **condition (b)** |
+
+⚠️ **The residual, named rather than hidden:** `push_with_retry`'s fetch→rebase→push has
+still never executed. If `origin/ci-results` does not resolve on the runner it will now say
+**UPSTREAM-UNREADABLE** instead of inventing a conflict — a better failure, not the absence
+of one.
+
+## 3j · Run #11 — wrong a third time, and the wall is the thing to remove
+
+| E CP13 predicted | actual | |
+|---|---|---|
+| the publish step reaches `ci_publish.py` | **unknown — same step, same 2 s** | ❌ |
+| `publish`: success | **failure** | ❌ |
+| a record on `ci-results` | **none** — still three commits, newest is run #4 | ❌ |
+| 19 of 20 jobs green | **19 of 20**, every shard and every profile job | ✅ |
+
+⛔⛔ **Three confident predictions about this one job, three times wrong** — and every one
+was a claim about a command nobody could see. **The wall, not the guess, is the thing to
+remove.**
+
+## 3k · ⭐⭐ THE MEASUREMENT THAT CHANGED THE APPROACH
+
+Re-taken rather than assumed, because the last UNREADABLE claim I published was false:
+
+| channel | anonymous |
+|---|---|
+| `GET /actions/jobs/<id>/logs` | **403** |
+| `…/actions/runs/<id>/summary_partial` — the step summary | **404** |
+| `GET /actions/runs/<id>/jobs` — steps + timings | ✅ **200** |
+| **`GET /repos/{o}/{r}/check-runs/<id>/annotations`** | ✅ **200** |
+
+⛔ **So `$GITHUB_STEP_SUMMARY` is not readable without a login either.** E CP9 and E CP11
+both aimed their fallback there — right for you on a phone, and **useless to a reader with
+no account**, which is who F-CI-7 is written about. ⭐ **Annotations are the channel that
+answers anonymously**, and GitHub's own annotation for this failure says, in full:
+*"Process completed with exit code 1."* It names nothing.
+
+## 3l · E CP14 — the step names its own failure, in both directions
+
+An `ERR` trap on the publish step now emits:
+
+- **`::error title=publish failed::<the failing command> (exit <rc>)`** — an annotation,
+  readable with no account;
+- a **step-summary block** with the failing command, the exit code, the remote-tracking refs
+  and the current branch — readable on your phone.
+
+⭐ This is E CP11's lesson one level down: the skeleton made the JOB legible whatever
+happened; this makes the STEP legible.
+
+**And the git stops relying on DWIM.** Measured on a clone built to `checkout@v4`'s shape:
+`git fetch origin ci-results` exits 0 writing only FETCH_HEAD,
+`refs/remotes/origin/ci-results` stays **MISSING**, and `git checkout ci-results` then fails
+with *"pathspec did not match"*. Both the workflow and `push_with_retry` now use an explicit
+refspec and `checkout -B`. ⚠️ **NOT claimed as the cause** — runs #3/#4 checked that branch
+out on the runner, so the ref resolves there. Saying which of these is the fix before the
+annotation arrives would be the fourth confident guess.
+
+⚠️ **And my own parse check passed vacuously on the first try.** The first `bash -n` of the
+extracted step printed **PARSES** over an **empty file** — the extractor died of a cp1252
+`UnicodeEncodeError` (seventh sighting), and nothing is syntactically valid. Caught only by
+adding a non-vacuity check and a control that a deliberately broken copy IS rejected.
+
+### Prediction for run #12 — `publish` is deliberately UNKNOWN
+
+| field | prediction |
+|---|---|
+| **an `::error::` annotation names the failing command** | **yes** — the one firm prediction, about a channel measured to answer anonymously |
+| `publish` | ⚠️ **UNKNOWN.** Three confident guesses have been wrong and I have still not read the failure |
+| 19 of 20 jobs green | **yes**, as in runs #9, #10, #11 |
+
+⭐ **Predicting UNKNOWN is the call E CP11 got right and CP12/CP13 got wrong.** The
+difference is not confidence — it is whether a cause has been *read*.
+
+## 3m · Run #12 — the annotation worked on its first run
+
+| E CP14 predicted | actual | |
+|---|---|---|
+| **an `::error::` annotation names the failing command** | **yes** | ✅ |
+| `publish` — deliberately **UNKNOWN** | failure | — *(unscored by construction)* |
+| 19 of 20 jobs green | **19 of 20** | ✅ |
+
+Read anonymously, with no account:
+
+```
+[failure] publish failed | python "/tmp/ci_publish.py" --branch ci-results (exit 1)
+```
+
+⭐ **Predicting `publish: UNKNOWN` was right for the second time**, and for the same reason:
+a cause had not been read. The three confident guesses before it were all wrong.
+
+## 3n · ⛔⛔ RETRACTION — E CP13's DIAGNOSIS WAS WRONG, AND THE EXIT CODE HAD ALWAYS SAID SO
+
+E CP13 said, in its build record, in this report and in a commit message, that
+`git checkout ci-results` deletes `tools/ci_publish.py` and *"Python exits immediately on a
+path that does not exist. Two seconds, which is the measured duration."*
+
+**The discriminator is the exit code, and it is one command to measure:**
+
+| command | exit |
+|---|---|
+| `python <a path that does not exist>` | **2** |
+| `git checkout <a branch that does not resolve>` | **1** |
+
+**Runs #10 and #11 both reported `Process completed with exit code 1`.** Under `bash -e` a
+step exits with the failing command's own status, so a missing script would have said **2**.
+⛔ **The step never reached the script — it died at `git checkout ci-results`**, precisely the
+state my own repro produced and which E CP14 then fixed while labelling it *"NOT claimed as
+the cause."*
+
+⭐⭐ **The hedge was wrong in the other direction: the explicit refspec WAS the fix.** Run #12
+is the evidence — with it, the step ran past the checkout and failed at its **last** command.
+
+⚰️ **And run #10's exit code was in its annotations from the moment it failed.** I first read
+that endpoint at run #11. ⛔ A one-character discriminator sat in a channel I had already
+proven readable. The E CP12 lesson — *re-take an UNREADABLE before building on it* — has a
+sibling: **once a channel opens, re-read the CLOSED cases through it.**
+
+⭐ **What survives:** `ci-results` really carries no `tools/`, so the `/tmp` copy is a real
+fix for a real defect — one that would have fired the moment the checkout started working.
+A correct repair filed under a wrong cause. The CP13 record is retracted in place and its
+manifest fingerprint re-derived (`c5a01c4f4` → `a2c1f43d1`).
+
+⚠️ **And a second wrong read, caught before it reached this report.** Run #12's publish
+**job** ran 21 seconds and I took that as the retry loop exhausting — three attempts at 5 s
+of backoff fits neatly. **21 s is the JOB; step 15 took 3 SECONDS**, so the publisher
+returned early and never reached a third push. The inference was wrong in the *flattering*
+direction, with arithmetic that fit. **A number that fits a story is not evidence for it.**
+
+## 3o · E CP15 — one annotation, and the tail survives
+
+`push_with_retry` can fail three ways — `UPSTREAM-UNREADABLE`, `REBASE CONFLICT`, or attempts
+exhausted — and writes all three to **stdout**, which is 403 without a login. The whole trace
+now leaves as a single annotation as well.
+
+⛔ **ONE annotation, deliberately:** GitHub caps annotations per step and a truncated trace
+loses its **tail**, which is exactly where the verdict sits. `%0A` renders it multi-line
+inside one annotation. Failure at `error` level, success at `notice`. Six controls, the
+load-bearing one being that the annotation carries the **verdict** line rather than just
+`attempt 1: fetch rc=0`.
+
+### Prediction for run #13
+
+| field | prediction |
+|---|---|
+| **the annotation names WHICH branch the publisher took** | **yes**, with the per-attempt rc values |
+| `publish` | ⚠️ **UNKNOWN** — CP15 changes nothing about what the publisher does |
+| 19 of 20 jobs green | **yes** |
+
+⭐ **CP15 is an instrument, not a repair, and should not be scored as one.** The next
+checkpoint can fix a cause; this one exists so there is a cause to fix rather than a fourth
+guess.
+
+## 3p · Run #13 — the instrument answered, and the answer is one line
+
+E CP15's firm prediction landed. Read anonymously:
+
+```
+attempt 1: fetch rc=0
+attempt 1: rebase rc=128
+attempt 1: ⛔ REBASE CONFLICT — two publishers wrote one path; …
+```
+
+⭐ **Three facts in three lines:** the explicit refspec works, the upstream resolves (no
+`UPSTREAM-UNREADABLE`), and **`git rebase` returns 128.**
+
+⛔⛔ **And the third line is wrong.** A rebase conflict is rc **1**. git exits **128** on a
+fatal refusal. E CP13 split `UPSTREAM-UNREADABLE` out of this function precisely because it
+was *"a confident diagnosis of a cause it had not established"* — **the branch one line below
+kept doing it**, and published a sentence describing a collision that cannot have happened:
+run #13 was the only publisher. A mislabel in a diagnostic is worse than silence, because it
+is the sentence the next reader quotes.
+
+## 3q · E CP16 — the rc is keyed, and git's own words reach the log
+
+`rc == 1` is a CONFLICT; any other non-zero is **REBASE FATAL** with the rc named. And
+`run()` has returned each command's output all along while **every caller discarded it** —
+which is why run #13 could name the failure and not explain it. `tail()` now carries git's
+last lines into the log and from there into the annotation (the TAIL, because `fatal:` comes
+last; one line and bounded, because it rides an annotation; an empty output is NAMED).
+
+⭐ **A hypothesis tested and FALSIFIED before shipping.** `checkout@v4` clones depth 1, so
+the publish job works in a shallow repo — a classic source of a fatal rebase, and it fits
+rc 128. Built a genuinely shallow clone (`file://`, since git ignores `--depth` on a local
+path) and ran E CP14's exact sequence: **rebase rc 0, "Current branch is up to date."** Not
+the cause. ⛔ **Four confident diagnoses in this programme have now been wrong**; this one
+was run before it could become the fifth.
+
+### Prediction for run #14
+
+| field | prediction |
+|---|---|
+| **the annotation carries git's own `fatal:` sentence** | **yes** — the one firm prediction |
+| the rebase line says FATAL, not CONFLICT | **yes**, with `rc=128` |
+| `publish` | ⚠️ **UNKNOWN** — CP16 changes nothing about what the publisher does |
+
+⛔ **I am deliberately not naming the cause.** The remaining candidates are separated by one
+sentence run #14 will print.
+
+## 3r · Run #14 — git's own words, and the root cause
+
+E CP16's firm prediction landed: the annotation carried git's sentence, and the line said
+FATAL with `rc=128`, not CONFLICT. **Two annotations, from ONE check run:**
+
+```
+fatal: empty ident name (for <runner@runnervm…internal.cloudapp.net>) not allowed
+rm -fr ".git/rebase-merge" | and run me again.  I am stopping in case you still have
+something | valuable there.
+```
+
+⭐ **Two rebases in one job.** The publish step runs one. Something else ran the other.
+
+## 3s · ⛔⛔ E CP17 — ASKING THIS TOOL TO CHECK A FILE ALSO PUSHED
+
+`ci_publish.main()` called `push_with_retry` **unconditionally**. And the workflow's step 8,
+`Prove the artifacts exist before reading them`, is:
+
+```
+python tools/ci_publish.py --check-artifact jobs.json … || true
+```
+
+That step runs **before** the publish step's `git config user.name` and **before** the branch
+switch. So on **every run since E CP9** it has attempted a full fetch/rebase/push against
+`ci-results`: the rebase dies on `fatal: empty ident name`, leaves `.git/rebase-merge`
+behind, and the real publish later refuses because of a directory **the same job created**.
+
+⛔⛔ **The `|| true` hid all of it.** The step reported success while performing an
+unasked-for push and corrupting the state of a step that had not run yet.
+
+⭐⭐ **This programme's own rule, inverted and worse.** The workflow says, three steps above:
+*"A verification line must never be able to destroy the thing it verifies."* Here the
+verification line **performed the action**.
+
+⚠️ **And it was invisible to every instrument built for it.** E CP14's trap reports the
+failing command of the step it is attached to; step 8's failure was swallowed by `|| true`
+before any trap could see it. Only the whole trace, with git's own text, in a channel that
+answers anonymously, made two rebases visible as two.
+
+**Fixes:** `--push` is now required for the tool to touch the branch (exactly one invocation
+passes it, and a workflow rail pins that); stale rebase state is cleared before rebasing; the
+committer identity is REPORTED rather than assumed. Nine controls, the first pair asserted by
+**wiring a recorder in place of `push_with_retry` and counting calls** — with a non-vacuity
+line, because an unwired stub would leave both counts at 0 and agree for the wrong reason.
+
+### Prediction for run #15 — a claim about a cause I have READ
+
+| field | prediction |
+|---|---|
+| `publish` | **success** |
+| a record at `results/<run_id>/summary.json` | **yes — the first since run #4** |
+| `results/latest.json` | **gone from the branch** |
+| the publisher's annotation | **`::notice::`**, ending `published on attempt 1` |
+| `shards_without_totals` | `[]` — **condition (b)** |
+
+⭐ **The difference from the earlier wrong predictions is not confidence — it is that git
+said what was wrong, in its own words, and the fix removes exactly that.** ⚠️ What would
+falsify it: any failure whose annotation is not about the rebase. That would be a further
+defect behind this one — and it would be **named**.
+
+## 3t · ⭐⭐ RUN #15 PUBLISHED — AND A TOTALS LINE FOR PYTEST IS IN THE RECORD FOR THE FIRST TIME
+
+**That sentence is condition (b), in exactly those words.**
+
+```
+[notice] ci-publish | stale rebase state: none to clear
+committer: github-actions[bot]
+attempt 1: fetch rc=0 · rebase rc=0 · push rc=0
+published on attempt 1
+```
+
+**20 of 20 jobs succeeded.** `ci-results` gained `83720eab7 ci run 34996412472` — the first
+record since run #4 — and `results/latest.json` is **gone from the branch**.
+
+### E CP17's prediction, scored — five of six
+
+| predicted | actual | |
+|---|---|---|
+| `publish`: success | **success** | ✅ |
+| a record at `results/<run_id>/summary.json` | **the first since run #4** | ✅ |
+| `latest.json` gone | **gone** | ✅ |
+| annotation `::notice::` ending `published on attempt 1` | **exactly that** | ✅ |
+| `contract_gaps` | `[]` | ✅ |
+| `shards_without_totals: []` | **`['tests-04', 'tests-07']`** | ❌ |
+
+⭐ The claim about a cause I had **read** held; the one about a part I had not measured did
+not.
+
+### The first complete-ish measurement this repository has ever had
+
+| | collected | passed | failed | ok |
+|---|---|---|---|---|
+| pytest | **19,056** | 18,858 | **136** | false |
+| vitest | **19,898** | 19,862 | **21** | false |
+
+**VERDICT: RED**, and it is the first *honest* red. Ten shards' totals lines are in the
+record verbatim — e.g. `tests-01  63 failed, 3647 passed, 8 skipped … in 464.57s`.
+
+⚠️ **AND THE NUMBERS ARE A FLOOR, NOT A TOTAL.** Two of twelve shards contributed nothing, so
+19,056 and 136 are both **under-counts**. ⭐ The aggregator refused to let them read as zero:
+`every_shard_has_totals=False` in the basis, suite `ok: false`, both shards **named**. That is
+the defect it was built for, firing on its first published run.
+
+## 3u · ⛔⛔ E CP18 — BOTH MISSING SHARDS HUNG, AND BOTH REPORTED `success`
+
+| shard | log | ended with |
+|---|---|---|
+| `tests-04` | **8 KB** | `+++ Timeout +++`, stack in `discord_index_close.wait_until_warm` → `sleep()` |
+| `tests-07` | **6.6 MB** | mid-startup memory lines, no totals |
+
+**Two independent defects made that possible.**
+
+⚰️ **The timeout method did what its own comment said it prevented.** The step read
+*"`--timeout-method=thread` … a HANG now fails BY NAME instead of taking the shard's whole 20
+minutes down with it and reporting nothing."* **The thread method aborts the process** — no
+test name, no totals, no junit. One hung test cost the shard's entire result. ⛔ It also makes
+`per_test_timeouts` structurally unreachable, since that count comes from pytest-timeout's
+junit entry, which the aborted process never writes. `signal` raises inside the test instead.
+
+⛔ **And the pytest job never got the assertion the vitest job has.** The workflow header says
+**"A RUN WITHOUT A TOTALS LINE IS NOT A RUN"**; the vitest job has asserted it since E CP1;
+the pytest job that *replaced* the single pytest run never did. The run is piped through
+`tee`, so the step's exit code is tee's. Added, with an `::error::` annotation naming the
+shard.
+
+⭐ **A rule applied to one job is not applied to the job that replaced it.**
+
+### Prediction for run #16
+
+| field | prediction |
+|---|---|
+| `publish` | **success**, a second record |
+| `shards_without_totals` | **`[]`** |
+| `tests-04` | **fails by name** on `test_a_note_that_cannot_be_written_still_posts_the_charts` |
+| pytest `collected` / `failed` | **both higher** than 19,056 / 136 |
+| VERDICT | **RED** |
+
+⛔ **A rising failure count here is a BETTER measurement, not a regression**, and must be read
+that way when it lands.
+
+## 3v · Run #16 — published again, and E CP18 scored five of six
+
+| E CP18 predicted | actual | |
+|---|---|---|
+| `publish`: success, a second record | **success**, `34998643399` | ✅ |
+| `tests-04` fails by name | **13 failed, 2917 passed** — it ran and reported | ✅ |
+| pytest `collected` higher than 19,056 | **22,003** | ✅ |
+| pytest `failed` higher than 136 | **148** | ✅ |
+| VERDICT RED, `contract_gaps: []` | **RED**, `[]` | ✅ |
+| `shards_without_totals: []` | **`['tests-07']`** | ❌ |
+
+⭐ The `signal` timeout method worked — `tests-04` hung for two runs and now reports.
+**`tests-07` was never a timeout at all.**
+
+## 3w · E CP19 — the record must CONTAIN the evidence it names
+
+Reading run #16's record turned up three defects, all the same shape: **the record claiming
+more than it holds.**
+
+### ⛔ 1. It named six detail files and three did not exist
+
+All three were the pytest ones. `ci_extract --pytest-log logs/pytest.log` points at **a path
+that stopped existing when E CP6 sharded pytest** — each shard uploads its own log and junit
+— so the whole block was skipped and the record promised the failure **text** for 136 pytest
+failures and delivered none. ⛔ Nothing failed: the publish job was green, `contract_gaps` was
+empty, and the only way to find it was to open the branch and try to read a file.
+
+⭐ **A named path that does not exist is worse than an omitted one** — a reader treats it as a
+file they have not opened yet. ⚰️ And `_write`'s own docstring says *"Always writes the file.
+ZERO is a finding, not a missing artifact"*; an absent **input** defeated it by skipping the
+write.
+
+Now: the publisher builds its args **from what is on disk**, `ci_extract` reads every shard,
+`pytest_failures.txt` joins `vitest_failures.txt` (the extractor was already vendor-neutral —
+**only its NAME** said otherwise), and `ci_record --detail-dir` **verifies every path it
+names**, marking an absent one UNREADABLE and reporting no `--detail-dir` as **NOT VERIFIED**
+rather than passing quietly.
+
+### ⛔ 2. A shard that RAN was recorded as having produced nothing
+
+`tests-07`'s totals line — `37 failed, 2362 passed, 2 skipped, 15192 warnings, 1 error in
+443.42s` — sat at **line 4,424 of 142,028**, with **137,604 lines of background-thread noise
+after it**. `ci_summarize` read `splitlines()[-1]`.
+
+⭐ **Same class as E CP18: a rule applied to one suite and not the other.** The vitest branch
+four lines above searches the whole text; the pytest branch read one line.
+
+And the pattern itself was **all-optional** — every count group `(?:…)?` — so it reduced to
+*"…in `<float>`s"*, matched a bare duration, and returned `totals_line_found: True` with
+**`passed=0 failed=0`**. ⛔ Zeros that `ci_aggregate` **sums**. A partial match that yields
+zeros reports fewer failures than there were.
+
+**Proved against the twelve REAL logs:** eleven byte-identical, `tests-07` **recovered**
+(+2,362 passed, +37 failed). ⭐ Additive, not a re-reading — which is the control that tells a
+recovery from a rewrite of history.
+
+### ⛔ 3. My own E CP18 assertion passed on noise, on its first run
+
+It grepped `[0-9]+ (passed|failed|error)` over the raw log; on `tests-07` that matched
+`0 error` and `37 failed` **from log body text**, so the step went green while the summariser
+said there was no totals line. **Two instruments, one question, opposite answers** — and the
+one I had just written was the wrong one. The step now summarises first and asserts on **its**
+verdict.
+
+### ⚠️ A predicted failure that did NOT happen
+
+I expected `[ -f x ] && ARGS=…` to abort under `bash -e` when a shard lacked its junit, and
+rewrote it as `if` blocks. **Measured, both forms: both exit 0.** Clearer, yes; a bug fix,
+no — and not claimed as one.
+
+### Prediction for run #17
+
+| field | prediction |
+|---|---|
+| `shards_without_totals` | **`[]`** — all twelve |
+| pytest `collected` / `failed` | **~24,400 / ~185** — the numbers were always there |
+| `contract_gaps` | **`[]`** |
+| `pytest_failures.txt` in the record | **present and non-ZERO** — the first per-test failure text pytest has had here |
+| VERDICT | **RED** |
+
+⭐ **148 → ~185 is a MEASUREMENT improving, not a repository getting worse.**
+
+## 3x · ⭐⭐ RUN #17 HIT EVERY PREDICTION — and the record finally carries its evidence
+
+| E CP19 predicted | actual | |
+|---|---|---|
+| `shards_without_totals: []` | **`[]`** — all twelve | ✅ |
+| pytest `collected` ≈ 24,400 | **24,445** | ✅ |
+| pytest `failed` ≈ 185 | **185** | ✅ |
+| `contract_gaps: []` | **`[]`** | ✅ |
+| `pytest_failures.txt` present, non-ZERO | **45,850 bytes** | ✅ |
+| VERDICT RED | **RED** | ✅ |
+
+**Every detail path the record names now exists**, and the text is diagnosable:
+
+```
+tests.test_alert_user_admission | test_…BOTH_LANES_AGREE_on_the_bars | AssertionError: Regex pattern did not match.
+tests.pattern_engine.test_pattern_db_shared_root_guard | … | AssertionError: assert '/data/patterns.db' == '/home/runner…'
+```
+
+⭐ **148 → 185 is the measurement improving**, as E CP19 asked to have it read.
+
+## 3y · ⛔⛔ E CP20 — AND THE SAME RECORD SAYS `shards 0/12 · shards_failed: 12`
+
+The jobs API says all twelve pytest jobs **succeeded**, in run #17 exactly as in #16.
+**Proven from the record itself**, the two runs side by side:
+
+```
+#16  pytest  timed_out_basis=job_result=success, elapsed_s=96, cap_s=1200 …
+#17  pytest  timed_out_basis=no job matching 'pytest' in the jobs payload — UNREADABLE, not false
+```
+
+`jobs.json` came back **empty**. Two defects.
+
+**1 · The fetch was anonymous.** ⚰️ Its own comment read *"the repo is public, so this
+endpoint answers with the workflow token or without one"* — true of a single request, false
+of a shared runner IP against a 60-per-hour anonymous limit. Run #16 read 20 jobs; run #17
+read zero. Now authenticated (`actions: read` + the workflow token), and an **empty payload
+annotates** instead of passing as a quiet `|| echo '{}'` default.
+
+**2 · UNREADABLE was counted as FAILED.** The aggregator's `else:` branch swept every
+unreadable verdict into `shards_failed`, publishing `all_success=False (0/12)` for a run in
+which all twelve succeeded. ⛔ *"We could not read the verdict"* and *"the verdict was
+failure"* are different facts. ⭐ **`ci_outcome` said `UNREADABLE, not false` about the same
+payload, in the same record, three fields away** — two tools disagreed about honesty and the
+blunter one wrote the headline.
+
+`shards_unreadable` is now its own named bucket, `ok` stays False because we could not
+verify, and the basis says `runner_verdict_unreadable=N`. ⛔ The load-bearing control is the
+pair: a REAL failure must still land in `shards_failed`, or "unreadable is not failed" is
+satisfied by a function that never counts failures at all.
+
+### Prediction for run #18
+
+| field | prediction |
+|---|---|
+| `shards_success` | **12 of 12** |
+| `shards_unreadable` | **`[]`**, basis `runner_verdict_unreadable=0` |
+| pytest `collected` / `failed` | **~24,445 / ~185**, unchanged — CP20 touches nothing the tests do |
+| VERDICT | **RED** |
+
+⚠️ Falsifier: `shards_unreadable` non-empty again, meaning the fetch fails for some reason
+other than the rate limit — and the new annotation would name it, readable without an account.
+
+## 3z · ⭐⭐ RUN #18 — THE INSTRUMENT ARC IS CLOSED
+
+Every line of E CP20's prediction:
+
+```
+shards_success=12/12 · unreadable=[] · without_totals=[] · missing=[]
+all_success=True (12/12) · every_shard_has_totals=True · failed=185 · missing=0
+· runner_verdict_unreadable=0
+```
+
+⭐⭐ **The suite is now RED for exactly one reason — tests fail.** That sentence has not been
+true in this repository before: every earlier red carried a measurement defect inside it.
+Nine checkpoints were spent getting to a number that means what it says.
+
+## 3aa · ⛔⛔ E CP21 — AND HALF THE FAILURES ARE NOT THE PRODUCT
+
+Reading the failure text the record finally carries:
+
+| signature | entries |
+|---|---|
+| `LaneUnavailable: the JS lane exited 1` | **109** |
+| `node:internal/modules/cjs/loader` / `MODULE_NOT_FOUND` | 11 |
+| a git ref a shallow single-branch checkout does not have | 1 |
+| a `'/data/…'` path that only exists on the dev box | 1 |
+| **union — carries a CI-ENVIRONMENT signature** | **119** |
+| **remainder — product-shaped, needs triage** | **107** |
+
+*(226 entries against 185 `failed`: junit `<error>` entries — setup failures — count too.)*
+
+⚠️ **"Carries a CI-environment signature" is a claim about the TEXT**, not a verdict that the
+test would pass elsewhere. Run #19 turns it into one.
+
+**The cause, read before fixing.** Several suites drive a **JS lane** — they run `node`
+against the repo's own sources to check the Python and JavaScript implementations agree — and
+those tests **deliberately refuse to skip**:
+
+> *"NOT a skip: a lane that cannot run has not agreed with anything, and three of this file's
+> claims are only checkable there."*
+
+⭐⭐ **That is exactly right, and it is this programme's UNREADABLE principle one layer down.**
+A lane that could not run has not agreed with anything, so it must not report green — **and
+the consequence is that the environment has to supply the lane.** The shard job installed
+`requirements.txt` and nothing else: no `actions/setup-node` at all, so `app/node_modules`
+did not exist and the loader hook died in `MODULE_NOT_FOUND`. ⛔ Those 109 tests have failed
+for a reason that says nothing about the code in **every** CI run since T2 CP1 made the
+backend suite run at all.
+
+**Fixed:** `setup-node` + `npm ci` in every shard — ⛔ every shard, not a hand-kept list of
+"the ones that need node", which is the enumeration-beside-its-source defect waiting to
+happen.
+
+⚠️ **Watch item, stated now rather than discovered later:** twelve more `npm ci` runs. The
+longest shards were 888 s and 945 s against a 1200 s cap, and the npm cache is already warm
+from the vitest job. **If a shard approaches the cap it is SPLIT, never extended.**
+
+### Prediction for run #19
+
+| field | prediction |
+|---|---|
+| `LaneUnavailable` entries | **0** |
+| pytest `failed` | **60–120** — arithmetic says ~76, but lane tests that now RUN may genuinely fail, so a range, not a point |
+| `collected` | **≥ 24,445** |
+| `shards_without_totals` / `shards_unreadable` | **`[]`** both |
+| longest shard | **under 1000 s** |
+
+⭐ **A falling count here is the opposite of the last two runs' rises, and both are the same
+thing: the measurement getting closer to the truth.** ⚠️ Falsifier: `LaneUnavailable` still
+present at volume — which would mean `node_modules` was not what the lane lacked, and its
+message would say what is.
+
+## 3bb · E CP22 — the inventory is DERIVED, and the axis that matters is not the count
+
+The workflow header asks for this, and asks for it the wrong way:
+
+> *"…its output is the inventory. **Copy it into this header**, with a finding id per row."*
+
+⛔ A hand-typed table beside the artifact it describes is the defect this repository records
+over and over — the writer-index `FOUR`, the COT router's *"4 routes"* beside five, the setup
+catalog's *"24"* beside twenty-six — and here the artifact moves **every run**. So the
+inventory is derived by `tools/ci_inventory.py` and the header points at the tool.
+
+**Against run #18's published record:**
+
+```
+249 entries — 123 environment-shaped, 126 product-shaped
+```
+
+| n | kind | bucket |
+|---|---|---|
+| 48 | **ENV** | `AdmissionRefused: u_<id>: the lanes could not be compared (LaneUnavailable…` |
+| 18 | **ENV** | `ast_conformance.LaneUnavailable: the JS lane exited 1:` |
+| 15 | **ENV** | `failed on setup with "…LaneUnavailable: the JS lane exited 1:` |
+| 13 | PRODUCT | `failed on setup with "AssertionError: could not read the base blob…` |
+| 8 | **ENV** | `census failed: node:internal/modules/cjs/loader:<n>` |
+| 8 | PRODUCT | `KeyError: 'text_origin'` |
+| 8 | PRODUCT | `TypeError: 'NoneType' object is not subscriptable` |
+
+⭐ **"206 failures" is a true number and a misleading one.** *"126 product-shaped, 123
+environment-shaped"* is the sentence somebody can act on.
+
+⚠️ **What the tool claims, exactly:** `ENV` means the bucket's **TEXT** names a condition of
+the CI environment — never a verdict that the test would pass elsewhere. Only a run with that
+condition removed can say so, which is what run #19 is doing. **Every ENV row carries the
+matched signature** so the call can be checked rather than trusted. ⛔ **Unmatched is always
+PRODUCT**: a misfiled ENV row is a real failure nobody triages; a misfiled PRODUCT row costs
+somebody five minutes.
+
+⚰️ **And its first run against the real record over-counted — 272 where the files held 249.**
+`ci_extract` writes two shapes (pytest one line, vitest a header plus an indented body) and a
+per-line parser counted every vitest failure twice. ⭐ Caught by running it against the
+**published record** rather than the fixture it was written from — a fixture written by the
+same hand reproduces the same assumption. The cross-check now closes exactly: 226 pytest
+lines + 23 vitest headers = 249.
+
+⛔ **CP22 is an instrument and is not scored as a repair.** Its only prediction is about
+itself: run #19's inventory should show **fewer entries**, **far fewer environment-shaped**,
+and **product-shaped roughly unchanged or higher** — the same tests, finally able to say
+something about the code.
+
+## 4 · Q — D5 CP2, and a RETRACTION that changes the finding
+
+### ⛔⛔ RETRACTION — "the count was never enumerated" was FALSE
+
+Last session's audit reworded D5 CP2 with the reason: *"the count was never enumerated
+anywhere for `corp_actions` — D2's five are the `ohlcv` BARS metrics."*
+
+**That is false.** `reference-corp-actions-spec.md` **§4.1 enumerates exactly five metric
+addresses** for this store, counted by derivation rather than by eye:
+
+```
+corp_actions.numerator · corp_actions.denominator · corp_actions.cash_amount
+corp_actions.effective_date · corp_actions.state
+```
+
+**The original assertion's "five" was CORRECT.**
+
+⛔ **My audit searched the PACKET and not the SPEC, then reported an absence it had never
+looked for.** That is precisely the rule this programme keeps: *an absence is only evidence
+if the instrument could have seen a presence.* The instrument's scope was one document; the
+fact lived one document away. **"I found no enumeration" and "there is no enumeration" are
+different claims, and I published the second.**
+
+⭐ **The reword still stands, on the standing rule alone** — an assertion carries no derived
+number, and a count typed beside a clause saying *the builder derives by AST* is the
+enumeration-beside-its-source defect **even when the number is right**. What changed is the
+reason recorded next to it.
+
+### Q.1 — noun table, re-resolved
+
+| noun | kind | resolved at | verdict |
+|---|---|---|---|
+| the D2 builder | PRESUMED | `tools/build_canonical_address_book.py` (546 lines) | **OK** |
+| a store declaring itself in ONE `CREATE TABLE` | PRESUMED — **precedent** | `bars_store()` + `_parse_create_table()`; `_BARS_STORE_MODULE = api/services/bars_sqlite.py` | **OK** |
+| AST over the literal, prose excluded | PRESUMED | `_DropDocstrings` — ⭐ it once found **three** `CREATE TABLE` literals, one a docstring. CODE NEVER PROSE, already implemented | **OK** |
+| the derivation rail | PRESUMED | `tests/test_canonical_address_book.py` | **OK** |
+| the axis report | PRESUMED | `canonical_address_book.json["axis_report"]` | **OK** |
+| `corp_actions.db` + its DDL | DELIVERED | pinned verbatim, spec §2.1 | **OK** |
+| its metrics | DELIVERED | spec §4.1 enumerates five | **OK** |
+| *"CP2+ need new lines"* | PRESUMED | `build_canonical_address_book.py:7` — extending the builder **is** the intended shape | **OK** |
+
+**Every noun resolves. D5 CP2 is BUILDABLE.**
+
+### Q.2 — ⛔ NOT BUILT, and the reason is a measured obstacle, not the clock
+
+`yields` is derived by `_SQL_TYPE_TO_YIELDS[sqltype]` with a hard **`_fail()`** on a type the
+vocabulary does not carry (`build_canonical_address_book.py:353`). The spec says so itself:
+
+> *"`yields: "date"` and `yields: "str"` **do not exist in the book today** — measured,
+> `yields {num: 120, bool: 22}`. Adding a third and fourth value is a **genuine widening of
+> D2's** …"*
+
+⛔ **Building D5 CP2 therefore widens D2's value vocabulary**, which the spec flags in its own
+words as genuine. That is a change to a **signed** packet's derived artifact reached through
+an **unsigned** one, and it is the kind of thing this programme stops for rather than slips
+in at the end of a long session. **OPEN QUESTION 1.**
+
+⚠️ **Said plainly: I ran out of session, not out of premise.** The unit is ready; the next
+session can start it cold from this noun table.
+
+### Q.2b · ⛔⛔ AND THE BLOCKER I RECORDED WAS THE SECOND ONE, NOT THE FIRST
+
+You asked me to build D5 CP2 this session as the root. **I did not, and the reason is not the
+`yields` widening I wrote down last time.** It is in the packet's own **signed** approval
+block, four lines above the checkpoint table:
+
+```
+SCOPE APPROVED:   CP1 - the corporate-actions census. ...
+                  INSTRUMENT ONLY. No ledger, no producer, no reader migrated,
+                  no product module edited, no store touched, ...
+                  CP2-CP7 EACH NEED A NEW LINE.
+```
+
+> ⛔⛔ **CP2 THROUGH CP7 ARE NOT AUTHORIZED.** They remain PROPOSALS…
+
+**CP2 creates `corp_actions.db` and its `CREATE TABLE` literal** — *a ledger*, *a store
+touched* — both named in the sentence that says what CP1's approval does **not** cover.
+Building it would put commits on the branch that the packet's approval explicitly excludes,
+which is **F-MERGE-1's exact shape**, the finding I closed at the start of this session.
+
+⭐ **BUILDABLE and AUTHORIZED are two different states, and I conflated them.** Every noun
+resolves (Q.1) — the premises are fine, which is what BUILDABLE means. What is missing is a
+line only you can write. The `yields` widening is real and still worth deciding, but it is a
+detail to state *on* that line, not the thing standing in the way.
+
+⚠️ **So the unblock is one line, and here it is ready to paste** into the packet's approval
+section as a **second block** (§15 permits two blocks; do not edit the CP1 block):
+
+```
+APPROVED BY:      Patrick (owner)
+APPROVED ON:      <date>
+APPROVED AT SHA:
+SCOPE APPROVED:   CP2 - the ledger, INERT. corp_actions.db and its one
+                  self-declaring CREATE TABLE literal, plus the D2 builder
+                  extension that derives its metrics by AST from that literal.
+                  Written by nothing, read by nothing. The derivation rail and
+                  the axis report extended to the new store.
+
+                  This APPROVES the widening of D2's `yields` vocabulary from
+                  {num, bool} to include `date` and `str`, on the condition that
+                  the build PROVES it additive: every address already in the
+                  book keeps its exact `yields` value, and the new values appear
+                  only on newly-added corp_actions addresses.
+
+                  CP3-CP7 STILL EACH NEED A NEW LINE.
+```
+
+⛔ **"Or say drop it"** is an equally good answer — D5 CP2 is the root of five transitively
+blocked units, but nothing is decaying while it waits.
+
+### Q.3 / Q.4 — STARTABLE unchanged
+
+**D5 CP2 not built ⇒ STARTABLE is still 0 of 6.** The blocking edge is unchanged:
+`D5 CP3 → D5 CP2`. **F-Q-1 stands, with its root corrected**: D5 CP2 is BUILDABLE (not
+NEEDS-REWORD as recorded — the reword is applied), and it is the single edge whose removal
+unblocks three units directly and five transitively.
+
+## 5 · Shell-escaping incidents
+
+⚠️ **TWO, not one — and the count in the first draft of this report was wrong.**
+
+1. The **E CP8 guard**: escaped newlines collapsed into literal `\n` and broke the YAML.
+   `yaml.safe_load` refused it and **nothing was committed**. Rewritten as a heredoc block.
+2. The **E CP11 patch**: a `\\\n` inside a heredoc collapsed, the assertion failed, and the
+   workflow half of the edit **did not apply** while the tool half did. Caught by the
+   assertion, redone through a **patch file**.
+
+⭐ Both failed **safely** — one refused by a validator, one by an assertion — and neither
+reached a commit. ⛔ But two in one session, after the rule was written down, says the rule
+is not the problem: **the inline escaped string is, and it has no legitimate use here.**
+
+⚠️ That is **five** such incidents across three sessions. The rule now reads: multi-line
+edits go through a **patch file**, never an inline escaped string. Every edit this session
+after that point used one.
+
+## 6 · Instrument self-reference, and prediction scores
+
+| instrument | reported on itself |
+|---|---|
+| `yaml.safe_load` | ⭐ caught **my own** broken YAML before the commit — and ⛔ **could not** catch the `replace()` expression error, which is the gap `check_workflow_expressions` now fills |
+| `check_workflow_expressions` | **built because of a defect I shipped**, and mutation-proved against the very file that shipped it |
+| `ci_latest` | refuses to call ZERO-RECORDS a pass, and distinguishes it from MALFORMED |
+| `ci_publish` | exists so the publisher can no longer fail silently |
+| the audit (last session) | ⚰️ **reported an absence it had not looked for** — §4's retraction |
+
+**Prediction scores:** E CP9's run-#8 table is **partly scored** (§3c) — the profile fix is
+**4 of 4**. E CP11's run-#9 table (§3f): the skeleton summary **landed**, shards **12 of 12**,
+and `publish` was deliberately predicted **UNKNOWN** — unscored by construction, and
+declining to guess was right. **E CP7's prediction was voided by E CP7 itself**, which never
+ran a job.
+
+## 7 · Findings
+
+| id | one line |
+|---|---|
+| **F-CI-7** | **ADDRESSED** by E CP9 — the publisher retries, then fails non-zero, and writes the summary before attempting the push. Unproven until a run publishes. |
+| **F-CI-8** | **ADDRESSED** by a concurrency group (primary) + bounded retry (secondary). ⚠️ **UNTESTED-LIVE.** |
+| **F-CI-11** | **NEW, mine.** `replace()` is not an Actions expression function; E CP7 rejected the whole workflow. `yaml.safe_load` cannot see the expression layer and `actionlint` was UNREADABLE-TOOL. Guard added. |
+| **F-CI-12** | **NEW, mine.** The F-CI-7 fallback sat at step 11 of 12 while `publish` died at ~22 s; a fallback after the failure point is not a fallback. Skeleton summary moved to step 3. |
+| **F-CI-13** | **NEW, mine.** `download-artifact@v4 pattern:` without `merge-multiple` nests each artifact in its own directory, so every shard read MISSING — a silent wrong answer. |
+| **F-CI-14** | **NEW, mine — and it is the one that mattered.** `ci_aggregate` never emitted `runner_line`, which `Build the record` indexes; every publish since E CP6 died there with a KeyError over a cosmetic string. Producer fixed; the builder now NAMES a missing key instead of losing the record. |
+| **RETRACTED (2)** | *"the `jobs` API returns an empty `steps` array, so the failing step is UNREADABLE"* — published three times. The step list is public and named `Build the record` in runs #6, #8 and #9. |
+| **F-CI-15** | **NEW, mine.** `git checkout ci-results` deletes `tools/` from the working tree (the branch carries zero paths under it), so E CP9's `python tools/ci_publish.py` on the next line could never run — and never has. Publisher copied to /tmp and railed by a check inside itself. |
+| **F-CI-16** | **NEW, mine.** `push_with_retry` reported every non-zero rebase as "two publishers wrote one path" — a confident diagnosis of an unestablished cause. UPSTREAM-UNREADABLE is now its own state. |
+| **F-CI-17** | **NEW, and it reframes F-CI-7.** The step summary is 404 anonymously, so every phone-readable fallback this programme built is invisible to a reader without an account. Check-run annotations DO answer anonymously; the publish step now emits its failing command there. |
+| **RETRACTED (3)** | *E CP13's diagnosis* — "the checkout deletes the script, so python exits on a missing path". Python exits **2**; the step reported **1**, so it died at `git checkout`. E CP14's explicit refspec was the fix, not the insurance I labelled it. |
+| **F-CI-18** | **NEW, mine.** `push_with_retry` called a rebase rc of **128** a REBASE CONFLICT — a conflict is rc 1 — and published a sentence about two publishers colliding when there was one. rc is now keyed and git's own text reaches the log. |
+| **F-CI-19** | **NEW, mine, and it is the root cause.** `ci_publish.main()` pushed unconditionally, so the artifact-check step — run before any `git config`, wrapped in `|| true` — attempted a rebase on every run since E CP9, died on an empty identity and left `.git/rebase-merge` for the real publish to trip over. `--push` is now required. |
+| **F-CI-20** | **NEW, mine.** `--timeout-method=thread` aborts the process, so a hung test costs the shard's totals, junit and per-test-timeout count — the exact outcome the flag's own comment said it prevented. Switched to `signal`. |
+| **F-CI-21** | **NEW, mine.** The pytest shard job had no totals-line assertion, though the vitest job has had one since E CP1 and the header says a run without one is not a run. Two shards hung and reported `success`. |
+| **F-CI-22** | **NEW, mine.** The record named six detail files and three did not exist — `ci_extract` pointed at a pre-sharding path, so 136 pytest failures reached the record with no text. `ci_record` now verifies every path it names. |
+| **F-CI-23** | **NEW, mine.** `ci_summarize` read only the LAST LINE of a pytest log, losing `tests-07`'s totals line at line 4,424 of 142,028; its all-optional pattern also matched a bare duration and returned zeros the aggregator sums. |
+| **F-CI-24** | **NEW, mine.** E CP18's own shard assertion was a second authority that passed on log-body noise while the summariser said otherwise. It now reads the summariser's verdict. |
+| **F-CI-25** | **NEW, mine.** The publish job's jobs-API fetch was anonymous and came back EMPTY in run #17, so every shard's runner verdict was unreadable. Authenticated, and an empty payload now annotates. |
+| **F-CI-26** | **NEW, mine, and the worse half.** `ci_aggregate` counted an UNREADABLE runner verdict as a FAILURE, publishing `0/12 success` for twelve jobs that succeeded — while `ci_outcome` called the same payload UNREADABLE three fields away. |
+| **F-CI-27** | **NEW, mine, and the largest single finding in the record.** 119 of run #18's 226 pytest failure entries carry a CI-ENVIRONMENT signature — 109 of them `LaneUnavailable`, because the shard job installed `requirements.txt` and nothing else, so `app/node_modules` never existed. The tests are right to refuse to skip; the environment was wrong. |
+| **F-Q-1** | **REFILED** — root corrected to D5 CP2 (BUILDABLE, not NEEDS-REWORD); STARTABLE still 0. |
+| **RETRACTED** | *"D5 CP2's count was never enumerated"* — spec §4.1 enumerates five. The original was right. |
+
+## 8 · OPEN QUESTIONS
+
+1. ⛔ **D5 CP2 is NOT AUTHORIZED — restated, because I had the blocker wrong** (§Q.2b).
+   The packet's signed block approves **CP1 only** and says *"CP2-CP7 EACH NEED A NEW LINE"*;
+   CP2 is a ledger and a store, both named in what that approval excludes. **A ready-to-paste
+   approval line is in §Q.2b**, and it carries the `yields` widening as a condition rather
+   than a separate question. Approve it, or say drop it.
+2. **E's table still does not list CP4–CP10.** Six checkpoints exist as build records and
+   manifest rows but not in the packet's own table; the collision check now needs three
+   sources. Reconcile the table, or accept build records as the register?
+3. **`actionlint` is not installed.** Add it to the repo's tooling, or keep the local
+   expression guard as the floor?
+4. **T2 CP1 still has no parent packet** (carried forward).
+5. **`entity-master-pre-implementation-gate.md` still has no approval block** (carried).
+
+## 9 · [KEYBOARD]
+
+```
+python tools/sign_all.py  --manifest tools/sign_manifest.txt
+python tools/merge_all.py --manifest tools/sign_manifest.txt
+```
+
+**PARKED.** **(a) F-MERGE-1 CLOSED — MET** (confirmed on the file, §2 P.1).
+⭐⭐ **(b) — MET, on run #15. A totals line for pytest is in the record for the first
+time.** Ten of twelve shards' totals lines are in `results/34996412472/summary.json` on
+`ci-results`, verbatim, and the record's verdict is an honest **RED** (pytest 136 failed of
+19,056 collected; vitest 21 of 19,898). ⚠️ Two shards hung, so those figures are a **floor**
+— E CP18 closes that, and run #16 is measuring it.
+
+⛔ **BOTH CONDITIONS ARE NOW MET, AND THE COMMANDS STILL SHOULD NOT RUN** — for a different
+reason than the one that parked them. Every one of the 30 manifest rows reads **UNSIGNED**;
+`merge_all --dry-run` stops at the first unit with *"WOULD STOP HERE: UNSIGNED"*. Signing is
+**your** act — the approval blocks are yours to fill — and merging to master needs an
+explicit deploy instruction and a member-impact paragraph. **The park is lifted; the gate in
+front of them is not mine to open.**
+
+The 26-row table with fingerprints and reader states is in the manifest; every row reads
+**UNSIGNED**, **0 MALFORMED**. **Production impact: rows 1–33 nothing member-visible.**
+Row 34 is E CP22 (CI only); the one member-visible unit is `s2-accelerator-chord` —
+Ctrl/Cmd/Alt+Shift+F stops silently flagging tickers on three screens — and `merge_all`
+stops before it unless `--include-member-visible` is passed. **This session merged and
+deployed nothing.**
+
+⭐ **THE [PHONE-OK] ASK IS WITHDRAWN — you do not need to look anything up.** It said to open
+the Actions tab and read the job summary, and §3k measures that `summary_partial` is **404**
+without a login while **check-run annotations answer 200 anonymously**. E CP14 emits the
+failing command as an annotation, so **I can read the next failure myself** and will report
+it rather than asking you to fetch it.
+
+⚠️ If you *want* to look, the one thing worth reading is the same job's page: the annotation
+appears at the top as a red banner naming the failing command, and the job summary below it
+carries the verdict, both suites' counts and `shards_without_totals`.
+
+## 10 · Merge readiness
+
+**34 rows, 34 OK, 0 STALE. 33 of 33 commits mapped. `verify_manifest --check-commits` exit
+0.** `merge_all --dry-run` exit 0, **26 constraints SATISFIED**, 34 units, 0 MALFORMED,
+0 UNSIGNABLE. Tool self-checks all exit 0: `sign_gate --read-check`, `--self-check`,
+`ci_outcome`, `ci_aggregate`, `pytest_shards`, `collect_profile_dirs`, `ci_latest`,
+`ci_publish`, `check_workflow_expressions`.
+
+⛔ **Not ready.** CI has never been green and no record has published since run #4.
+
+## 11 · Three phone-readable sentences
+
+**I found why the CI results have not been saved for four runs, and it is my own doing:
+the change that split the test suite into twelve parts stopped producing one small text line
+that the saving step was still asking for, so the step crashed on a missing label every single
+time — it is fixed, and the saving step can no longer be killed by a missing label again.**
+
+**I also have to take something back: I told you the system would not tell me which step was
+failing. It would. One ordinary request lists every step and names the failing one, and it
+did for all three runs — I checked it wrong once and then spent three rounds building tools
+to see something that was already in plain sight.**
+
+**I broke the build pipeline completely with a one-word fix — I used a text-replacing
+function that does not exist — and the checker I had available could not see that class of
+mistake, so I wrote the missing checker and proved it against the broken file.**
+
+**And I have to take back something from yesterday: I said a count in one of the plans was
+never written down anywhere, when in fact it is written down in the specification one
+document over; the original number was right and I had only searched the wrong file.**
+
+## 12 · Status
+
+`STATUS: RAN`

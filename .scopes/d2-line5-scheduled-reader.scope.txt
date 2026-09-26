@@ -1,0 +1,1 @@
+LINE 5 (top-level CP3, scheduled reader) ONLY — the checkpoint(s) named here and nothing else in the packet.
