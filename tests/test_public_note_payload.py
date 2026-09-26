@@ -421,6 +421,48 @@ def test_M6_no_in_app_url_in_a_kept_node_attribute_reaches_a_stranger(attr, url,
     assert "uctintelligence.com" not in out, (attr, url, mode, out)
 
 
+# ── Wave-8 walk W3: an in-app ADDRESS written as TEXT ───────────────────────────────────
+#
+# The walk pasted `https://uctintelligence.com/journal/notebook?note=<id>` into a published note
+# through the real clipboard: the link MARK went (`_reduce_marks`), its TEXT -- the address
+# itself -- stayed, and the other note's id reached the public page and its JSON. The same
+# address pasted as plain text carries no mark at all. Every form in IN_APP_URLS is driven as
+# text, with and without a link mark, mid-sentence and with trailing punctuation.
+
+def _address_texts(url: str) -> list[dict]:
+    link = {"type": "link", "attrs": {"href": url}}
+    return [
+        doc(p(t(url, link))),                                          # pasted, auto-linked
+        doc(p(t(url))),                                                # pasted as plain text
+        doc(p(t(f"See {url}, then decide."))),                         # mid-sentence
+        doc(p(t("heading ")), {"type": "heading", "attrs": {"level": 2}, "content": [t(url)]}),
+    ]
+
+
+@pytest.mark.parametrize("mode", ["share", "publish"])
+@pytest.mark.parametrize("url", IN_APP_URLS)
+def test_W3_no_in_app_address_written_as_text_reaches_a_stranger(url, mode):
+    for body in _address_texts(url):
+        out = reduce(body, mode)
+        dumped = json.dumps(out)
+        assert OTHER not in dumped and "note=" not in dumped, (url, mode, dumped)
+        assert any(pnp.IN_APP_LINK_TEXT in s for s in texts_in(out)), (url, mode, dumped)
+
+
+@pytest.mark.parametrize("mode", ["share", "publish"])
+def test_W3_CONTROLS_words_external_addresses_and_public_page_addresses_stay(mode):
+    """The rule removes in-app ADDRESSES, not text: linked words keep their words, an external
+    address stays as written, a public page's own address stays (it names a slug or a token,
+    never a note id), trailing punctuation survives, and `//word` in prose is not an address."""
+    link = {"type": "link", "attrs": {"href": f"/journal/notebook?note={OTHER}"}}
+    assert texts_in(reduce(doc(p(t("my thesis", link))), mode)) == ["my thesis"]
+    for keep in (WEB_PAGE, "https://uctintelligence.com/p/AbC123",
+                 "https://uctintelligence.com/share/n/tok_xyz", "a // note on style, and //TODO"):
+        assert texts_in(reduce(doc(p(t(f"Read {keep}."))), mode)) == [f"Read {keep}."], keep
+    out = texts_in(reduce(doc(p(t(f"Open /journal/notebook?note={OTHER}."))), mode))
+    assert out == [f"Open {pnp.IN_APP_LINK_TEXT}."], out
+
+
 def test_M6_the_hero_follows_the_same_rule():
     for url in IN_APP_URLS:
         assert pnp.public_hero(url, owner_id=OWNER, note_id=NOTE, attachment_base=BASE) is None, url
