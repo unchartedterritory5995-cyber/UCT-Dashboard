@@ -291,3 +291,288 @@ def test_the_deployed_copy_matches_the_repo_or_the_drift_is_named(name):
         "still runs the old code every two hours. Copy it across and re-run this test; "
         "the repo edit alone changes nothing about what is measured."
     )
+
+
+# ===========================================================================
+# WAVE 9 (9C) — the 30-day soak's SIDECAR. One JSON line per run, and the Q1
+# table untouched.
+# ===========================================================================
+
+import datetime as _dt
+import hashlib as _hashlib
+import json as _json
+import types as _types
+
+# ⛔⛔ BYTE-UNCHANGED, PINNED BY VALUE. These are the sha256 of HEADER and of one
+# row() at 324a5135a (the base of wave 9 lane 9C), computed from `git show` of
+# that commit. `nb_gate` names every header cell through `_COLUMNS` and an
+# unknown cell turns the verdict INCOMPLETE — so a soak figure that leaked into
+# the Q1 table would make every soak Sunday unreadable. The soak's figures go to
+# the sidecar; this table does not move.
+_Q1_HEADER_SHA = "ace7c360c58a32df50860c684e975ef92003de06a3c27e1ead541955e8c08933"
+_Q1_ROW_SHA = "28df3076398c9417c5a23a4bab54f4273b28dc0947a5a014b5478a075c0d83a4"
+_ROW_ARGS = ("2026-10-05 14:00 ET", "L", 3, "0/0 — no member reported", 0, 3, 0, 0, "OK")
+
+
+def _sha(s: str) -> str:
+    return _hashlib.sha256(s.encode("utf-8")).hexdigest()
+
+
+def test_the_Q1_HEADER_and_row_are_byte_unchanged(tmp_path, monkeypatch):
+    monkeypatch.setenv("NB_OBSERVE_LOG", str(tmp_path / "l.md"))
+    obs = _load("nb_observe")
+    assert _sha(obs.HEADER) == _Q1_HEADER_SHA, "the Q1 table's header moved"
+    assert _sha(obs.row(*_ROW_ARGS)) == _Q1_ROW_SHA, "the Q1 table's row format moved"
+
+
+def test_every_Q1_header_cell_is_one_the_gate_can_name(tmp_path, monkeypatch):
+    monkeypatch.setenv("NB_OBSERVE_LOG", str(tmp_path / "l.md"))
+    obs = _load("nb_observe")
+    gate = _load("nb_gate")
+    cells = gate.split_cells(obs._column_line(obs.HEADER))
+    assert len(cells) == 9
+    assert all(gate.canonical(c) for c in cells), [c for c in cells if not gate.canonical(c)]
+    # ⭐ CONTROL: a soak column the gate cannot name is exactly what it refuses.
+    assert gate.canonical("organic note-edits (soak)") is None
+
+
+def _load_obs(tmp_path, monkeypatch, **env):
+    monkeypatch.setenv("NB_OBSERVE_LOG", str(tmp_path / "obs.md"))
+    monkeypatch.setenv("NB_SOAK_SAMPLES", str(tmp_path / "samples.jsonl"))
+    monkeypatch.delenv("NB_SOAK_START", raising=False)
+    for k, v in env.items():
+        monkeypatch.setenv(k, v)
+    return _load("nb_observe")
+
+
+def test_the_sidecar_path_is_its_own_file_beside_the_log(tmp_path, monkeypatch):
+    monkeypatch.setenv("NB_OBSERVE_LOG", str(tmp_path / "obs.md"))
+    monkeypatch.delenv("NB_SOAK_SAMPLES", raising=False)
+    obs = _load("nb_observe")
+    assert obs.SOAK_SAMPLES == tmp_path / "soak-samples.jsonl"
+    assert obs.SOAK_SAMPLES != obs.LOG
+
+
+def test_the_sidecar_appends_and_never_rewrites(tmp_path, monkeypatch):
+    obs = _load_obs(tmp_path, monkeypatch)
+    path = obs.SOAK_SAMPLES
+    before = b'{"kept":"one"}\nnot even json, and still kept\n'
+    path.write_bytes(before)
+    obs.append_soak_sample({"n": 1})
+    obs.append_soak_sample({"n": 2})
+    after = path.read_bytes()
+    assert after.startswith(before), "an existing line was rewritten"
+    tail = after[len(before):].decode("utf-8").splitlines()
+    assert [_json.loads(x) for x in tail] == [{"n": 1}, {"n": 2}]
+
+
+def test_a_cut_short_last_line_gets_a_newline_before_the_next(tmp_path, monkeypatch):
+    obs = _load_obs(tmp_path, monkeypatch)
+    obs.SOAK_SAMPLES.write_bytes(b'{"half":')          # a run killed mid-write
+    obs.append_soak_sample({"n": 3})
+    lines = obs.SOAK_SAMPLES.read_text(encoding="utf-8").splitlines()
+    assert lines == ['{"half":', '{"n":3}']
+
+
+_T0 = _dt.datetime(2026, 10, 5, 16, 0, tzinfo=_dt.timezone.utc)
+_T1 = _dt.datetime(2026, 10, 5, 18, 0, tzinfo=_dt.timezone.utc)
+
+
+@pytest.mark.parametrize("result", [
+    {"err": "HTTP 502"}, {"err": "not JSON (deploy blip?)"}, {"err": "HTTP 404"},
+    None, {}, {"body": "not an object"}, {"body": None},
+])
+def test_a_failed_read_writes_skipped_never_zeros(tmp_path, monkeypatch, result):
+    """⛔⛔ Zeros are a CLEAN interval; a failed read is an UNOBSERVED one."""
+    obs = _load_obs(tmp_path, monkeypatch)
+    line = obs.soak_sample_line("2026-10-05 14:00 ET", _T0, _T1, result, now=_T1)
+    assert set(line) == {"at", "row_at", "interval", "skipped"}, line
+    assert line["skipped"]
+    assert line["interval"] == {"since": "2026-10-05T16:00:00Z", "until": "2026-10-05T18:00:00Z"}
+
+
+def test_a_good_read_writes_the_figures_as_returned(tmp_path, monkeypatch):
+    obs = _load_obs(tmp_path, monkeypatch)
+    body = {"events": {"save_failed": {"organic": {"events": 0}}}, "exposure": {}}
+    line = obs.soak_sample_line("at", _T0, _T1, {"body": body}, now=_T1)
+    assert line["figures"] == body and "skipped" not in line
+
+
+def test_intervals_tile_from_the_newest_GOOD_line(tmp_path, monkeypatch):
+    obs = _load_obs(tmp_path, monkeypatch)
+    now = _T1
+    # nothing yet -> the trailing two hours
+    assert obs.next_soak_since(obs.SOAK_SAMPLES, now) == (now - obs.SOAK_INTERVAL, False)
+    good = obs.soak_sample_line("a", _T0 - _dt.timedelta(hours=4), _T0 - _dt.timedelta(hours=2),
+                                {"body": {}}, now=_T0)
+    bad = obs.soak_sample_line("b", _T0 - _dt.timedelta(hours=2), _T0, {"err": "HTTP 502"}, now=_T0)
+    obs.append_soak_sample(good)
+    obs.append_soak_sample(bad)
+    with obs.SOAK_SAMPLES.open("a", encoding="utf-8") as fh:
+        fh.write("garbage line\n")
+    since, clamped = obs.next_soak_since(obs.SOAK_SAMPLES, now)
+    # ⭐ the FAILED interval is re-read by the next good one: no server event is lost
+    assert since == _T0 - _dt.timedelta(hours=2) and clamped is False
+
+
+def test_a_gap_longer_than_one_read_is_clamped_and_says_so(tmp_path, monkeypatch):
+    obs = _load_obs(tmp_path, monkeypatch)
+    old = obs.soak_sample_line("a", _T1 - _dt.timedelta(days=60, hours=2),
+                               _T1 - _dt.timedelta(days=60), {"body": {}}, now=_T1)
+    obs.append_soak_sample(old)
+    since, clamped = obs.next_soak_since(obs.SOAK_SAMPLES, _T1)
+    assert clamped is True and since == _T1 - obs.SOAK_MAX_READ
+    line = obs.soak_sample_line("b", since, _T1, {"body": {}}, clamped=clamped, now=_T1)
+    assert line["interval"]["clamped"] is True
+
+
+def test_a_stamp_from_the_future_is_not_trusted(tmp_path, monkeypatch):
+    obs = _load_obs(tmp_path, monkeypatch)
+    obs.append_soak_sample(obs.soak_sample_line("a", _T1, _T1 + _dt.timedelta(hours=3),
+                                                {"body": {}}, now=_T1))
+    assert obs.next_soak_since(obs.SOAK_SAMPLES, _T1) == (_T1 - obs.SOAK_INTERVAL, False)
+
+
+def test_the_population_lists_still_match_the_server_module(tmp_path, monkeypatch):
+    """The import-side twin of tests/test_notebook_populations.py's AST rail."""
+    obs = _load_obs(tmp_path, monkeypatch)
+    from api.services.journal_two import notebook_populations as pops
+    assert obs.RIG_AND_OWNER == pops.RIG_AND_OWNER
+    assert obs.SYNTHETIC_MEMBERS == pops.SYNTHETIC_MEMBERS
+    assert obs.INTERNAL_DOMAIN == pops.INTERNAL_DOMAIN
+
+
+def test_the_soak_read_uses_the_same_guarded_fetch_as_the_other_reads(tmp_path, monkeypatch):
+    obs = _load_obs(tmp_path, monkeypatch)
+    js = obs.SOAK_JS
+    assert "/api/admin/notebook-soak?" in js and "credentials:'include'" in js
+    assert "if (!r.ok) return {err: 'HTTP ' + r.status};" in js
+    assert "if (!ct.includes('application/json')) return {err: 'not JSON (deploy blip?)'};" in js
+
+
+# ── main(), end to end, on a fake rig ──────────────────────────────────────
+
+class _FakePage:
+    def __init__(self, obs, soak_results):
+        self.obs, self.soak_results, self.soak_args = obs, list(soak_results), []
+
+    def on(self, *_a, **_k):
+        pass
+
+    def goto(self, *_a, **_k):
+        pass
+
+    def wait_for_timeout(self, *_a, **_k):
+        pass
+
+    def evaluate(self, js, arg=None):
+        o = self.obs
+        if js is o.wc.ACTIVITY_JS:
+            return {o.OPT_IN: {"count": 15}, o.BLOCKED: {"count": 0}}
+        if js is o.OPTIN_JS:
+            empty = {"identities": 0, "events": 0, "latest": None, "who": []}
+            return {"total": 15, "latest": "2026-09-25 03:00:06", "capped": False,
+                    "organic": empty, "synthetic": empty, "rigOwner": empty,
+                    "unknownInternal": empty}
+        if js is o.CONFIG_SERVED_JS:
+            return {"total": 0, "served": 0, "rows": 0}
+        if js is o.NOTES_JS:
+            return {"conflicts": 3}
+        if js is o.SOAK_JS:
+            self.soak_args.append(arg)
+            r = self.soak_results.pop(0)
+            if isinstance(r, Exception):
+                raise r
+            return r
+        raise AssertionError("unexpected evaluate")
+
+
+def _rig(obs, monkeypatch, page, busy=False):
+    monkeypatch.setattr(obs.wc, "use_profile", lambda *_: None)
+    monkeypatch.setattr(obs.wc, "resolve_profile", lambda *_: None)
+    monkeypatch.setattr(obs.wc, "profile_lock_released",
+                        lambda timeout=5: (False, ["chrome.exe 123"]) if busy else (True, []))
+    monkeypatch.setattr(obs.wc, "spawn_rig", lambda: (None, "ws://fake", "v"))
+    monkeypatch.setattr(obs.wc, "teardown", lambda: None)
+    ctx = _types.SimpleNamespace(pages=[page], new_page=lambda: page)
+    browser = _types.SimpleNamespace(contexts=[ctx])
+    chromium = _types.SimpleNamespace(connect_over_cdp=lambda _e: browser)
+
+    class _PW:
+        def __enter__(self):
+            return _types.SimpleNamespace(chromium=chromium)
+
+        def __exit__(self, *_):
+            return False
+
+    fake = _types.ModuleType("playwright.sync_api")
+    fake.sync_playwright = lambda: _PW()
+    monkeypatch.setitem(sys.modules, "playwright.sync_api", fake)
+
+
+def _samples(obs):
+    return [_json.loads(x) for x in obs.SOAK_SAMPLES.read_text(encoding="utf-8").splitlines()]
+
+
+def _q1_rows(obs):
+    return [ln for ln in obs.LOG.read_text(encoding="utf-8").splitlines() if ln.startswith("| 20")]
+
+
+def test_a_run_writes_ONE_q1_row_and_ONE_sidecar_line_with_the_figures(tmp_path, monkeypatch):
+    obs = _load_obs(tmp_path, monkeypatch)
+    page = _FakePage(obs, [{"body": {"events": {}, "exposure": {"identities_editing": {}}}}])
+    _rig(obs, monkeypatch, page)
+    assert obs.main() == 0
+    rows = _q1_rows(obs)
+    assert len(rows) == 1 and rows[0].rstrip().endswith("| OK |"), rows
+    s = _samples(obs)
+    assert len(s) == 1 and s[0]["figures"] == {"events": {}, "exposure": {"identities_editing": {}}}
+    assert s[0]["row_at"] == rows[0].split("|")[1].strip()
+    assert page.soak_args and set(page.soak_args[0]) == {"since", "until"}
+    assert "cumulative" not in s[0]
+
+
+def test_a_failed_soak_read_leaves_the_q1_row_alone_and_writes_skipped(tmp_path, monkeypatch):
+    obs = _load_obs(tmp_path, monkeypatch)
+    page = _FakePage(obs, [{"err": "HTTP 404"}])
+    _rig(obs, monkeypatch, page)
+    obs.main()
+    rows = _q1_rows(obs)
+    assert len(rows) == 1 and rows[0].rstrip().endswith("| OK |")
+    s = _samples(obs)
+    assert len(s) == 1 and s[0]["skipped"] == "HTTP 404" and "figures" not in s[0]
+
+
+def test_a_throwing_soak_read_is_skipped_never_a_crash(tmp_path, monkeypatch):
+    obs = _load_obs(tmp_path, monkeypatch)
+    page = _FakePage(obs, [RuntimeError("target closed")])
+    _rig(obs, monkeypatch, page)
+    obs.main()
+    s = _samples(obs)
+    assert len(s) == 1 and s[0]["skipped"].startswith("RuntimeError")
+    assert _q1_rows(obs)[0].rstrip().endswith("| OK |")
+
+
+def test_a_busy_profile_writes_a_skipped_row_AND_a_skipped_line(tmp_path, monkeypatch):
+    obs = _load_obs(tmp_path, monkeypatch)
+    _rig(obs, monkeypatch, _FakePage(obs, []), busy=True)
+    obs.main()
+    assert "rig profile busy" in _q1_rows(obs)[0]
+    s = _samples(obs)
+    assert len(s) == 1 and s[0]["skipped"].startswith("rig profile busy")
+
+
+def test_the_cumulative_read_runs_from_NB_SOAK_START(tmp_path, monkeypatch):
+    start = (_dt.datetime.now(_dt.timezone.utc) - _dt.timedelta(days=3)).strftime("%Y-%m-%dT%H:%M:%SZ")
+    obs = _load_obs(tmp_path, monkeypatch, NB_SOAK_START=start)
+    cum_body = {"exposure": {"identities_editing": {"organic": 2}, "notes_edited": {"organic": 7}},
+                "speed": {"label": "field: network + device"}}
+    page = _FakePage(obs, [{"body": {"events": {}}}, {"body": cum_body}])
+    _rig(obs, monkeypatch, page)
+    obs.main()
+    s = _samples(obs)
+    assert len(s) == 1
+    assert page.soak_args[1]["since"] == start
+    assert s[0]["cumulative"]["identities_editing"] == {"organic": 2}
+    assert s[0]["cumulative"]["notes_edited"] == {"organic": 7}
+    assert s[0]["cumulative"]["since"] == start
