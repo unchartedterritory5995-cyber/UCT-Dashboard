@@ -101,7 +101,9 @@
   font-family: var(--font-sans, 'Instrument Sans', sans-serif);
   font-size: 10px;
   letter-spacing: 0.03em;
-  color: var(--text-muted);
+  /* Wave 8 (8A, A5): drawn over a chart SNAPSHOT under a dark scrim, so the ink is
+     the theme-invariant light one; --text-muted is dark grey on the light theme. */
+  color: var(--menu-text);
   background: rgba(12, 12, 12, 0.72);
   border: 1px solid var(--border);
   pointer-events: none;

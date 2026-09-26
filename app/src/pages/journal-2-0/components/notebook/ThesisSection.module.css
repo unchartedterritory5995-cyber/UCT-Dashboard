@@ -223,7 +223,9 @@
 .saveBtn {
   min-height: 30px;
   background: var(--ut-gold);
-  color: #0a0c0f;
+  /* Wave 8 (8A, A5): the app's .btn-primary ink -- dark on the dark themes' gold,
+     white on the light theme's dark gold. A fixed near-black read 2.9-3.1:1 on light. */
+  color: var(--bg);
   border: none;
   border-radius: var(--radius-sm, 4px);
   font-size: 12px;

@@ -59,7 +59,9 @@
   border-radius: 50%;
   border: none;
   background: rgba(0, 0, 0, 0.7);
-  color: var(--text-bright);
+  /* Wave 8 (8A, A5): over a PHOTO, under a dark scrim -- the ink must be light in
+     every theme. --text-bright is near-black on the light theme (2.2:1 here). */
+  color: var(--menu-text);
   cursor: pointer;
   font-size: 16px;
 }
@@ -75,8 +77,10 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  background: rgba(0, 0, 0, 0.55);
-  color: var(--accent);
+  /* Wave 8 (8A, A5): a scrim dark enough for the hint over a WHITE photo too, in
+     a gold that does not turn brown on the light theme (--accent read 1.2:1). */
+  background: rgba(0, 0, 0, 0.72);
+  color: var(--menu-accent);
   font-size: 16px;
   font-weight: 600;
   pointer-events: none;

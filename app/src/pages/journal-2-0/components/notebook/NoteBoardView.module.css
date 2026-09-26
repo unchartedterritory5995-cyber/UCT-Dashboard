@@ -39,7 +39,8 @@
 
 .error {
   font-size: 12px;
-  color: var(--loss-border);
+  /* Wave 8 (8A, A5): the error colour, not the error BORDER tint (1.2:1 as text). */
+  color: var(--loss);
 }
 
 /* One horizontal scroller of columns. On a phone the columns simply narrow

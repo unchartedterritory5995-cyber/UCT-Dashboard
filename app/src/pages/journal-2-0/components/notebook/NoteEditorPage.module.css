@@ -247,9 +247,11 @@
   background: rgba(220, 187, 94, 0.32);
   border-radius: 2px;
 }
+/* Wave 8 (8A, A5): the current match wears the theme's gold with the button ink
+   on it -- a fixed 70% gold under white-on-light text measured 1.6:1. */
 .proseEditor :global(.uct-find-match-active) {
-  background: rgba(220, 187, 94, 0.7);
-  color: #14161b;
+  background: var(--ut-gold);
+  color: var(--bg);
 }
 /* ── PROSE TYPOGRAPHY STOPS AT A WIDGET EMBED ────────────────────────────────
    Every rule below targets a BARE ELEMENT, so it reaches by descent into the

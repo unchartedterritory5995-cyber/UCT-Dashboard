@@ -60,7 +60,9 @@
 .primary {
   border: 1px solid var(--accent);
   background: var(--accent);
-  color: #14161a;
+  /* Wave 8 (8A, A5): the app's .btn-primary ink -- dark on the dark themes' gold,
+     white on the light theme's dark gold. A fixed near-black read 2.9-3.1:1 on light. */
+  color: var(--bg);
 }
 .secondary {
   border: 1px solid var(--border);
