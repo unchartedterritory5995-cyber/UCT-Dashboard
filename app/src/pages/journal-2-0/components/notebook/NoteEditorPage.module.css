@@ -227,6 +227,11 @@
    the `max-width: 1024px` block at the end of this file); a desktop has no
    rear camera to photograph a page with. Its tap floor is `.toolBtn`'s. */
 .scanBtn { display: none; }
+/* Wave 10 (G-144): Undo / Redo exist on the touch tier only (shown in the
+   `max-width: 1024px` block at the end of this file) -- a keyboard already has
+   Ctrl+Z; a phone has nothing. Their tap floor is `.toolBtn`'s. */
+.historyBtn { display: none; }
+.historyBtn:disabled { opacity: 0.5; cursor: default; }
 .proseEditor {
   font-family: Georgia, 'Times New Roman', serif;
   font-size: 17px;
@@ -736,6 +741,11 @@
   }
   /* Wave 7 G5: the touch tier's camera door (hidden above 1024px). */
   .scanBtn {
+    display: inline-flex;
+    align-items: center;
+  }
+  /* Wave 10 (G-144): the touch tier's Undo / Redo (hidden above 1024px). */
+  .historyBtn {
     display: inline-flex;
     align-items: center;
   }

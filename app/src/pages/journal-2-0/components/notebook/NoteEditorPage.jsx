@@ -194,6 +194,17 @@ const DRAFT_KEY = (noteId) => `uct.j2.notedraft.${noteId}`
 // ⛔ One authority, named, so a fifth call site cannot quietly get it wrong.
 const EMIT_NOTHING = { emitUpdate: false }
 
+/**
+ * Wave 10 (G-144): can the editor's own history command run? The touch Undo /
+ * Redo buttons ask this for their disabled state, the same `can()` probe the
+ * table toolbar uses. A destroyed editor, or one without the history
+ * extension, answers false -- a disabled button, never a dead click.
+ */
+export function canRunHistory(editor, cmd) {
+  if (!editor || editor.isDestroyed || !editor.isEditable) return false
+  try { return Boolean(editor.can()[cmd]?.()) } catch { return false }
+}
+
 // G-064 fix round 1 (F5) — ONE string, read by both the direct-click insert
 // path and the pending-hand-off path, so the two can never say something
 // different about the same outcome.
@@ -3308,6 +3319,35 @@ export default function NoteEditorPage({
           {/* Wave 6: a locked note shows no editing controls at all -- a
               control that would do nothing is hidden, never silent. */}
           {!locked && (<>
+            {/* Wave 10 (G-144): Undo / Redo on the touch tier. A phone has no
+                Ctrl+Z, so without these a mistaken tap on a phone had no way
+                back. Shown only at <=1024px (`.historyBtn`, like Scan); each
+                runs the editor's OWN history command, so one tap is exactly one
+                of the steps Ctrl+Z would take. A control with nothing to undo
+                is disabled, never silent. `onMouseDown` keeps the caret (and a
+                phone's keyboard) where it was. */}
+            <button
+              type="button"
+              className={`${styles.toolBtn} ${styles.historyBtn}`}
+              onMouseDown={(e) => e.preventDefault()}
+              onClick={() => editor.chain().focus().undo().run()}
+              disabled={!canRunHistory(editor, 'undo')}
+              aria-label="Undo"
+              title="Undo the last change"
+            >
+              Undo
+            </button>
+            <button
+              type="button"
+              className={`${styles.toolBtn} ${styles.historyBtn}`}
+              onMouseDown={(e) => e.preventDefault()}
+              onClick={() => editor.chain().focus().redo().run()}
+              disabled={!canRunHistory(editor, 'redo')}
+              aria-label="Redo"
+              title="Redo the change you undid"
+            >
+              Redo
+            </button>
             <select
               className={styles.fontSelect}
               value={editor.getAttributes('textStyle').fontFamily || ''}
