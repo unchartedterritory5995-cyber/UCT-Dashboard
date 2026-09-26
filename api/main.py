@@ -2484,9 +2484,31 @@ def register_wire_watchdog_job(scheduler):
 
     The wire runs on the owner's laptop — if the machine is off/asleep on a
     trading day, NOTHING alerts (the engine's own publish gate only fires when
-    the engine RUNS). This job runs on Railway at 9:05 AM ET on weekdays: if
+    the engine RUNS). This job runs on Railway at 9:35 AM ET on weekdays: if
     the served wire_data still carries a pre-today date, fire a Discord ops
     alert. Disable with WIRE_WATCHDOG_ENABLED=0.
+
+    ⚰️⚰️ IT RAN AT 9:05 AND COULD NOT FIRE FOR THE CASE IT NAMES. `expected`
+    comes from `engine.expected_wire_date()`, which rolls back one day while the
+    clock is before 09:30 ET ("give it until 9:30 before expecting today's run").
+    So at 09:05 `expected` was YESTERDAY, a wire that missed this morning is
+    dated yesterday, and `yesterday < yesterday` is False — the alert stayed
+    silent, and because this job runs ONCE it stayed silent all day. It could
+    only fire at TWO days stale.
+
+    ⭐ The fix is the minute, not the rule: `expected_wire_date` is deliberately
+    ONE COPY shared with /api/leadership, the breadth payload and the exposure
+    payload, and its own docstring warns that two implementations "would drift
+    into two different answers on the same day". Re-timing this job past 09:30
+    touches one caller; changing the shared rule would move the member-facing
+    freshness boundary on every surface that reads it.
+
+    ⛔ So the scheduled minute is load-bearing and is NOT a free parameter: it
+    must sit after `expected_wire_date`'s 09:30 rollback boundary. The rail is
+    `tests/test_wire_watchdog_fires.py`, which derives this trigger's hour and
+    minute from this file by AST and asserts the comparison actually fires for a
+    one-day-stale payload — with a control pinning the old 09:05 behaviour so
+    the regression cannot come back quietly.
     """
     import os
     if os.environ.get("WIRE_WATCHDOG_ENABLED", "1") != "1":
@@ -2514,7 +2536,9 @@ def register_wire_watchdog_job(scheduler):
             print(f"[scheduler] wire watchdog error: {e}")
 
     scheduler.add_job(_check,
-                      trigger=CronTrigger(day_of_week="mon-fri", hour=9, minute=5, timezone=_ET),
+                      # ⛔ 9:35, NOT 9:05 — must be AFTER expected_wire_date()'s
+                      # 09:30 rollback, or this guard cannot fire. See docstring.
+                      trigger=CronTrigger(day_of_week="mon-fri", hour=9, minute=35, timezone=_ET),
                       id="wire_freshness_watchdog", max_instances=1,
                       replace_existing=True)
     return True
