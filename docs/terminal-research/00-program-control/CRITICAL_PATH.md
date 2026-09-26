@@ -22,7 +22,7 @@ on 2026-09-19/20 (owner-confirmed licensing) and CP-06 moved to 🟡 the same we
 (owner-answered desk workflows, OI-06) — this line previously said "NOT OPEN" and "CP-06
 still needs... the owner" on the strength of two stale citations nobody had propagated
 resolutions into, both closed for days before anyone reread the source docs that actually
-carry the answers. **Tier-1 count: 10 of 10 questions at 🟡 or better — the gate has been
+carry the answers. ⚰️ **Tier-1 count: 9 of 9 questions at 🟡 or better** — this read **"10 of 10"** against **9** Tier-1 rows until 2026-09-26, when a gate-item-35 author counted the rows. ⛔ A hand-typed count beside the list it describes, in this programme's own control document, which is the single defect this file records against everyone else. The count is now stated as derivable: it is the number of `| CP-n | 1 |` rows in the table below — the gate has been
 open since 2026-09-19 and this file simply never said so.** No owner-input item remains
 blocking Document B §27A's gate; whatever this program does next with that fact is a
 product decision, not a research one.

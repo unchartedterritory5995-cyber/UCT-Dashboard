@@ -186,22 +186,31 @@ drafted at 48 rows. Nothing else in the programme waits on it.
 
 ---
 
-## 5 · ✅ Tiers now has a DEFAULT — veto it in one word, or ignore it (CARD 17)
+## 5 · ✅ TIERS — YOU RULED THIS AND I HAD NOT UPDATED THIS SECTION
 
-**DEFAULT SET: two paid tiers, no free tier, Terminal-Next entirely inside the existing paid
-boundary.** Reasoned from what already ships rather than from preference: the free-page
-whitelist is **one page**, everything else is already paid-gated server-side, and A14's own
-shipped door is paid-gated the normal way. A free Terminal tier would be a *new* commercial
-posture, not a continuation of this one.
+⚰️⚰️ **THIS SECTION STILL SAID "DEFAULT SET: two paid tiers, no free tier" FOR SEVERAL HOURS
+AFTER YOU VETOED IT.** I rewrote this file's header, item 1, item 3 and item 6 when your ruling
+came in, and left section 5 — the section actually about tiers — carrying the struck default.
 
-⛔ **It sets no price, no trial length and no seat model.** Those are revenue decisions with no
-engineering dependency, and nothing in the programme is blocked by them. **"Free tier" or
-"three tiers" or "seats" reopens this in one word**, and the entitlement architecture is being
-written to express *a* tier boundary rather than a specific count, so a veto costs a
-paragraph and not a rewrite.
+✅ **YOUR RULING, verbatim, 2026-09-26: "there is one paid tier only that is it."**
 
-⚠️ The one thing still genuinely yours: A14 past the shipped door stays closed until you lift
-D8 in writing. That is a scope ruling you made, not a gap.
+**ONE paid tier. No free tier beyond the single already-free page. No second paid tier.
+Terminal-Next sits inside that one boundary.** Nothing here is open.
+
+⛔ **Why this mattered more than an ordinary stale line.** It was caught by an agent I had briefed
+off this very file, and its report says plainly that **an agent briefed off this section would have
+built a tier metric.** That is the same harm as the false checklist precondition I corrected
+earlier tonight, in the one document written for you rather than for the programme.
+
+⭐ **What one tier forecloses, so nothing re-proposes it:** no pricing table, no upgrade
+affordance, no locked-behind-a-higher-tier state, no per-tier entitlement rows, and no tier metric
+of any kind. The entitlement axis is a binary.
+
+⚠️ **Still genuinely open, and still yours:** the price, the trial and the seat model. One paid
+tier says nothing about what it costs. ⭐ And a correction to something I told my own agents: a
+price **does** exist in the code — `$200/mo or $2,000/yr` in `app/src/pages/Pricing.jsx:6` — so
+the accurate statement is not "there is no price" but **"there is no owner-ratified price and no
+cost ceiling"**, which is what leaves this open.
 
 ---
 
