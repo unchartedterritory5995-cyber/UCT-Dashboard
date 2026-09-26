@@ -1049,6 +1049,11 @@ def test_5_control_the_image_proxy_serves_this_notes_inline_image(app, client, r
 RATE_ROWS = sorted(r for r, s in PROOF_MATRIX.items() if s["bucket"])
 
 
+def _via_cloudflare(member_ip: str) -> dict:
+    return {"X-Forwarded-For": "104.16.0.1, 100.64.0.2", "CF-Connecting-IP": member_ip,
+            "X-Real-IP": member_ip}
+
+
 @pytest.mark.parametrize("row", RATE_ROWS, ids=_ids)
 def test_6_the_bucket_admits_its_limit_then_answers_429_with_a_sentence(row, app, client, world):
     spec = PROOF_MATRIX[row]
@@ -1058,7 +1063,10 @@ def test_6_the_bucket_admits_its_limit_then_answers_429_with_a_sentence(row, app
     else:
         signed_out(app)
     method, url = BUILDERS[row](world, "A" if spec["auth"] == "owner" else "missing")
-    headers = {"CF-Connecting-IP": "203.0.113.7"}
+    # The address as production hands it over: behind a Cloudflare edge, which Railway
+    # writes as the left-most X-Forwarded-For entry (request_ip.client_ip trusts
+    # CF-Connecting-IP only there; tests/test_request_ip_probe.py pins why).
+    headers = _via_cloudflare("203.0.113.7")
     for i in range(allowed):
         r = _call(client, method, url, headers=headers)
         assert r.status_code != 429, f"{row}: refused at request {i + 1} of {allowed}"
@@ -1070,7 +1078,7 @@ def test_6_the_bucket_admits_its_limit_then_answers_429_with_a_sentence(row, app
         for k, v in PUBLIC_HEADERS.items():
             assert over.headers.get(k) == v, (row, k)
         # ...and the bucket is per IP: another address is still served.
-        other = _call(client, method, url, headers={"CF-Connecting-IP": "198.51.100.9"})
+        other = _call(client, method, url, headers=_via_cloudflare("198.51.100.9"))
         assert other.status_code != 429
     else:
         # ...and the bucket is per member: another member is still served.

@@ -105,7 +105,8 @@ def enforce_rate(limit: str, scope: str, key: str, sentence: str, *, public: boo
 
 def client_key(request: Any) -> str:
     """The caller's IP through the Limiter's OWN key function (`api/limiter.py` ->
-    `request_ip.client_ip`, which reads CF-Connecting-IP first), never a second copy of it."""
+    `request_ip.client_ip`, which trusts CF-Connecting-IP only behind a Cloudflare edge),
+    never a second copy of it."""
     from api.limiter import limiter
     return "ip:" + str(limiter._key_func(request))
 
