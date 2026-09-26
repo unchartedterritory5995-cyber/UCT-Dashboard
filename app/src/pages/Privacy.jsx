@@ -6,7 +6,7 @@ export default function Privacy() {
     <div className={styles.page}>
       <Link to="/" className={styles.backLink}>&larr; Back to home</Link>
       <h1 className={styles.heading}>Privacy Policy</h1>
-      <p className={styles.subheading}>Last updated: September 23, 2026</p>
+      <p className={styles.subheading}>Last updated: September 25, 2026</p>
 
       <div className={styles.prose}>
         <h2>1. Information We Collect</h2>
@@ -83,10 +83,10 @@ export default function Privacy() {
           <li><strong>Stripe</strong> — payment processing and subscription management</li>
           <li><strong>Resend</strong> — email delivery (verification, password resets, alerts and digests you turn on)</li>
           <li><strong>Railway</strong> — application hosting; our databases run on Railway</li>
-          <li><strong>Cloudflare</strong> — network delivery and security for our website, and storage for backups of our account database (Cloudflare R2)</li>
+          <li><strong>Cloudflare</strong> — network delivery and security for our website, storage for backups of our account database (Cloudflare R2), and, if you use your Notebook email address, receiving those emails and passing them to us (Cloudflare Email Routing and Workers)</li>
           <li>
             <strong>Anthropic</strong> — powers our AI features, including Ask Notebook,
-            Compass coaching, and trade reviews. When you use one of these features, the
+            writing help in the Notebook, Compass coaching, and trade reviews. When you use one of these features, the
             content it needs (for example, your question and the notes or journal entries
             it draws on) is sent to Anthropic to produce the answer.
           </li>

@@ -81,6 +81,19 @@ This is physics, not policy, and it is the only reason a window exists at all.
 in-repo mirror is the header of `api/flow_worker_main.py`. Do not keep a second
 copy here — that is a second authority over one value.
 
+⛔⛔ **NO EXCEPTIONS AND NO OVERRIDE — measured 2026-09-25.** A Tier-2 push at 09:42 CT
+(`b13c04c4c`, `api/live_massive_router.py`) took the WHOLE Options Flow family to 502 for
+most of the session, not for a "15–60 s handoff". The mechanics, none of which this
+runbook knew before: the new consumer never re-authenticated after the swap →
+`flow_watchdog` force-exited a process that was serving HTTP fine ("no inserts for 303 s")
+→ Railway marked the deployment **CRASHED and did not restart it** → `railway redeploy`
+bought ~7 minutes of HTTP and then the same exit, twice → the only lever that breaks the
+loop (`FLOW_FREEZE_WATCHDOG_ENABLED=0` + restart) is an owner action. The tape had run all
+morning on the identical code; the DEPLOY was the cause. Timeline and evidence:
+`docs/discord-render/evidence/flow-parity/2026-09-25-flow-worker-rth-deploy-incident.md`.
+⭐ *"Never delay a deploy"* is a rule about `web`. *"I offered to hold and heard nothing"*
+is not permission. If it is on the watch list and the market is open, it waits.
+
 ⛔ `api/services/**` and `api/routers/**` are NOT on the list today, which cuts the
 other way: a change there deploys **nothing** to flow-worker and ships inert.
 `tools/flow_worker_watch_coverage.py` fails a diff that strands such a change.

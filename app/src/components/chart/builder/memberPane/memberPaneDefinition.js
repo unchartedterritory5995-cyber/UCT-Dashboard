@@ -24,6 +24,7 @@
 // `buildDefinition` call are the shapes it already proved land a valid document.
 import { translatePine } from '../../engine/ast/pine'
 import { paneGate } from '../../engine/ast/paneGate'
+import { objectsOnlyPaneEnabled } from '../../engine/objectsOnlyPaneGate'
 import { memberInputTranslation } from '../builderInputs'
 import { manifestFromPlacements, paramLocatorsIn } from '../pineParamManifest'
 import {
@@ -99,7 +100,10 @@ export function memberPaneDefinition({ source, id, name, translation = null } = 
     }
   }
 
-  const gate = paneGate(t)
+  // ⭐ THE FLAG IS READ HERE, ONCE. `paneGate` is a pure decision and stays one;
+  // the UI layer is what knows how this build was configured.
+  const allowObjectsOnly = objectsOnlyPaneEnabled()
+  const gate = paneGate(t, { allowObjectsOnly })
   if (!gate.ok) return no(gate.reason, gate.guard, t)
 
   // ⛔ THE ROWS ARE THE ONES A CHART CAN DRAW, and `hidden` is respected because
@@ -138,7 +142,19 @@ export function memberPaneDefinition({ source, id, name, translation = null } = 
   // ⛔ THE REFUSAL STILL KEYS OFF WHAT CAN BE *SEEN*. A script whose only rows are
   // hidden anchors draws nothing a member could look at, and saying "nothing a
   // chart can draw" remains the honest answer for it.
-  if (!visible.length) return no('this script declares nothing a chart can draw', null, t)
+  // ⭐⭐ …UNLESS WHAT IT DRAWS IS AN OBJECT. A table-only script has no output
+  // rows at all, so every row filter above empties — and "declares nothing a
+  // chart can draw" becomes FALSE about a script that draws a table. The
+  // definition already carries the object program (see `objects:` below) and
+  // `objectReaderFor` already reads it; the only thing standing in the way was
+  // this sentence, written when `ok: false` could only mean "nothing came out".
+  //
+  // ⛔ SAME GATE, SAME DEFAULT. Off, this returns exactly the refusal it always
+  // did, and the fact that it now asks a second question is invisible.
+  const drawsObjects = !!(t.objects && (t.objects.ops || []).length)
+  if (!visible.length && !(allowObjectsOnly && drawsObjects)) {
+    return no('this script declares nothing a chart can draw', null, t)
+  }
 
   // ⛔⛔ THE LINT SCOPE MUST BE THE SCOPE THE DOOR WILL USE.
   // `evaluateFormula` decides the repaint mode, and it needs the DEFINITION's
@@ -304,18 +320,62 @@ export function memberPaneDefinition({ source, id, name, translation = null } = 
     locators: paramLocatorsIn(t.inputParams || [], o.ast),
   })))
 
+  // ⭐⭐ AN OBJECTS-ONLY SCRIPT NEEDS AN ANCHOR ROW, AND ITS PEERS ALREADY WROTE
+  // ONE. A definition's primary `source`/`ast` come from its first plot, and a
+  // table-only script has none — so without this the document build dies on
+  // `rows[0].source` and the member is told "the translator threw".
+  //
+  // ⛔ IT IS HIDDEN, AND THE HIDDENNESS IS THE WHOLE JUSTIFICATION. The renderer
+  // draws no series for a hidden row, so this puts nothing on screen; the object
+  // program carries every visible thing the script does. `pine.js` records that
+  // real published table-drawing scripts conventionally carry a `plot(0)`
+  // placeholder for exactly this reason — this is that placeholder, supplied by
+  // the engine for an author who declined to write one, rather than a column
+  // invented out of nothing.
+  //
+  // ⚠ IT MUST NEVER BE OFFERED. It is not in `visible`, not in `drawable`, and
+  // not in the manifest — it exists only so the document has a well-formed
+  // primary. `objectsOnlyAnchor.test.js` is the rail on that.
+  const OBJECTS_ONLY_ANCHOR = Object.freeze({
+    key: 'value',
+    label: '',
+    source: '0',
+    ast: Object.freeze({ type: 'num', value: 0 }),
+    // ⛔⛔ THE STRING FROM `REPAINT_MODES`, NOT AN OLD VOCABULARY.
+    // `worstRepaint([anchor.mode])` — the pipeline that stamps `meta.repaint` —
+    // treats a mode it does not recognise as UNKNOWN and fails CLOSED to
+    // `'repaints'`. The install door then re-lints a literal `0` and correctly
+    // measures `'non-repainting'`, so the declaration disagrees with the
+    // measurement and the definition is refused with
+    // *"declared 'repaints' but the linter MEASURES 'non-repainting'"* —
+    // the same disagreement `evaluateFormula`/`nativeRegistry.validateAstLane`
+    // catch in both directions.
+    // ⚰️ THIS WAS `'clean'` and `'clean'` is not in `REPAINT_MODES`
+    // (`['non-repainting', 'preview-repaints', 'repaints']`), which is old
+    // vocabulary from before the modes were named this way. Grep-verified:
+    // `mode: 'clean'` appeared NOWHERE else in `chart/`. Nothing was ever
+    // installing a member's objects-only definition end to end because of it.
+    // A literal `0` never depends on any bar, so `'non-repainting'` is not just
+    // conservative here — it is exactly what the linter will measure.
+    mode: 'non-repainting',
+    readback: '',
+    style: 'line',
+    hidden: true,
+  })
+  const primary = rows.length ? rows[0] : OBJECTS_ONLY_ANCHOR
+
   const declaredName = String(name || t.title || 'Pine script').slice(0, 40)
   let definition = null
   try {
     definition = buildDefinition({
       defId: id || MEMBER_PANE_DEF_PREFIX,
       name: declaredName,
-      source: rows[0].source,
-      ast: rows[0].ast,
-      mode: rows[0].mode,
-      readback: rows[0].readback,
+      source: primary.source,
+      ast: primary.ast,
+      mode: primary.mode,
+      readback: primary.readback,
       inputs: memberSpecs,
-      plots: rows,
+      plots: rows.length ? rows : [primary],
       // ⭐ THE AUTHOR'S OWN PANE INTENT. `overlay = true` means the price pane;
       // anything else gets its own sub-pane at a quarter of the chart.
       // ⚰️ IT IS `presentation.overlay`, NOT `declaration.overlay`.

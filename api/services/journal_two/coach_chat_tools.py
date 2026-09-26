@@ -900,7 +900,10 @@ def _exec_list_pattern_types(*, user_id, account_id, args, conn=None) -> dict:
             "by_category": by_cat}
 
 
-TOOLS: dict[str, dict[str, Any]] = {
+# Built as a plain dict under its own name, then wrapped ONCE at the end of the
+# module (`TOOLS = _GatedToolRegistry(...)`): rebinding `TOOLS` itself made the
+# master deploy gate's tests/test_no_shadowed_definitions.py red.
+_TOOLS_UNGATED: dict[str, dict[str, Any]] = {
     "list_recent_trades": {
         "name": "list_recent_trades",
         "description": "Fetch closed trades from the journal, optionally filtered by days, symbol, setup, result, or regime.",
@@ -990,7 +993,7 @@ TOOLS: dict[str, dict[str, Any]] = {
     },
 }
 
-TOOLS.update({
+_TOOLS_UNGATED.update({
     "analyze_time_of_day": {
         "name": "analyze_time_of_day",
         "description": "Bucket trades by hour-of-entry (ET) and return per-hour win rate and R.",
@@ -1157,7 +1160,7 @@ def _exec_record_onboarding_answer(*, user_id, account_id, args, conn=None) -> d
     return {"ok": True, "summary": f"Logged {category} answer."}
 
 
-TOOLS.update({
+_TOOLS_UNGATED.update({
     "get_onboarding_progress": {
         "name": "get_onboarding_progress",
         "description": "Returns which onboarding categories have been answered in the current session and how many questions have been asked.",
@@ -1182,7 +1185,7 @@ TOOLS.update({
     },
 })
 
-TOOLS.update({
+_TOOLS_UNGATED.update({
     "tag_trade": {
         "name": "tag_trade",
         "description": "Append mistake and/or emotion tags to a closed trade. Requires the trade id.",
@@ -1366,7 +1369,7 @@ def _complete_onboarding_execute(*, user_id, account_id, args, conn=None) -> dic
     return {"ok": True, "summary": "Onboarding complete. Profile saved."}
 
 
-TOOLS.update({
+_TOOLS_UNGATED.update({
     "get_trade_by_id": {
         "name": "get_trade_by_id",
         "description": "Fetch one specific trade by its id. Use this when the user references a specific trade or you want full details after listing.",
@@ -1468,7 +1471,7 @@ def _resolve_profile_suggestion_execute(*, user_id, account_id, args, conn=None)
     return {"ok": True, "summary": "Suggestion resolved."}
 
 
-TOOLS.update({
+_TOOLS_UNGATED.update({
     "list_pending_profile_suggestions": {
         "name": "list_pending_profile_suggestions",
         "description": "List pending profile-refinement suggestions auto-created when the trader marked a recap unhelpful. Use this at the start of a chat turn to see if there's accumulated feedback to address.",
@@ -1510,7 +1513,7 @@ def _exec_pre_trade_verdict(*, user_id, account_id, args, conn=None) -> dict:
     )
 
 
-TOOLS.update({
+_TOOLS_UNGATED.update({
     "pre_trade_verdict": {
         "name": "pre_trade_verdict",
         "description": "Run a pre-trade verdict on a proposed trade. Returns GO/HOLD/SKIP + paragraph + factors. Use this when the trader asks 'can I take this trade?' or similar.",
@@ -1539,7 +1542,7 @@ def _exec_check_active_interventions(*, user_id, account_id, args, conn=None) ->
     )}
 
 
-TOOLS.update({
+_TOOLS_UNGATED.update({
     "check_active_interventions": {
         "name": "check_active_interventions",
         "description": "Check which Compass intervention rules are currently active (e.g., rapid_fire_trading, daily_loss_approach, loss_streak, cooling_off_active). Use this at the start of a turn when the trader seems to be making decisions under pressure or asks 'should I take this?'.",
@@ -1549,7 +1552,7 @@ TOOLS.update({
     },
 })
 
-TOOLS.update({
+_TOOLS_UNGATED.update({
     "propose_account_settings": {
         "name": "propose_account_settings",
         "description": "Propose initial discipline settings (max risk, daily loss limit, cooling-off, A+ setups) inferred from interview answers. Trader sees a preview card; one Confirm applies all supplied fields atomically.",
@@ -1839,7 +1842,7 @@ _BRAIN_TOOLS = {
 }
 
 if os.environ.get("BRAIN_TOOLS_ENABLED", "0") == "1":
-    TOOLS.update(_BRAIN_TOOLS)
+    _TOOLS_UNGATED.update(_BRAIN_TOOLS)
 
 
 # ── Wave 7 lane H (H4): search_my_notes — TEXT CHAT ONLY, DARK ────────────────
@@ -1903,7 +1906,7 @@ def _exec_search_my_notes(*, user_id, account_id, args, conn=None) -> dict:
             "no_answer": bool(found.get("no_answer")), "count": len(results)}
 
 
-TOOLS["search_my_notes"] = {
+_TOOLS_UNGATED["search_my_notes"] = {
     "name": "search_my_notes",
     "description": (
         "Search the trader's OWN Notebook — the notes they wrote, documents they "
@@ -1985,4 +1988,4 @@ class _GatedToolRegistry(dict):
     __hash__ = None
 
 
-TOOLS = _GatedToolRegistry(TOOLS, {"search_my_notes": notes_tool_enabled})
+TOOLS = _GatedToolRegistry(_TOOLS_UNGATED, {"search_my_notes": notes_tool_enabled})

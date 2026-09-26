@@ -267,6 +267,36 @@ def w13_verdict(integ, genuine_errors):
     return "PASS", None
 
 
+def _signup_or_login(request_ctx, base, email, pw, name, *, sleep=None, window_s=61.0, tries=3):
+    """Sign up, or sign in when the account already exists; the last answer.
+
+    ⛔ A 429 IS NOT "THIS ACCOUNT EXISTS" (wave 7 phase 2, found by the evidence run on
+    96fa5ca2a). The app limits sign-up to 3 a minute and sign-in to 5 a minute per client
+    (api/routers/auth.py `@limiter.limit("3/minute")` / `("5/minute")`), and answers a
+    refusal 429 with no Retry-After header. The walk makes more sign-up attempts than that
+    in a minute: every call tries sign-up first, and an existing account answers 409. So
+    any non-200 used to fall through to sign-in. A 429 for a NEW member therefore became a
+    401 sign-in for an account that was never made. W22's member never existed; its 1,000
+    seeded notes all answered 401, and its page opened on /login.
+    Now a 429 waits out the limiter's one-minute window and asks again (bounded by
+    `tries`); only a non-429 refusal of sign-up (409: it exists) goes on to sign-in."""
+    sleep = sleep or _t.sleep
+
+    def ask(path, data):
+        for attempt in range(tries):
+            r = request_ctx.post(base + path, data=data)
+            if r.status != 429:
+                return r
+            if attempt + 1 < tries:
+                sleep(window_s)
+        return r
+
+    r = ask("/api/auth/signup", {"email": email, "password": pw, "display_name": name})
+    if r.status in (200, 201):
+        return r
+    return ask("/api/auth/login", {"email": email, "password": pw})
+
+
 _ap = argparse.ArgumentParser(description="Wave 7 live walk (see the module header).")
 _ap.add_argument("out", nargs="?", default="wave7_walk.json")
 _ap.add_argument("--base", default="http://127.0.0.1:8094")
@@ -381,11 +411,7 @@ def guarded(key):
 
 
 def signup_or_login(request_ctx, email, pw, name):
-    r = request_ctx.post(BASE + "/api/auth/signup",
-                          data={"email": email, "password": pw, "display_name": name})
-    if r.status not in (200, 201):
-        r = request_ctx.post(BASE + "/api/auth/login", data={"email": email, "password": pw})
-    return r
+    return _signup_or_login(request_ctx, BASE, email, pw, name)
 
 
 _INTRO_DIALOG_SEL = 'div[role="dialog"][aria-label="Welcome"]'
@@ -848,9 +874,16 @@ def provision_member(browser, actx, email, name, **ctx_kwargs):
     signup_or_login(c.request, email, PW, name)
     comp = actx.request.post(BASE + "/api/auth/admin/comp-access", data={"email": email, "action": "grant"})
     ver = actx.request.post(BASE + "/api/auth/admin/verify-email", data={"email": email})
-    me = c.request.get(BASE + "/api/auth/me").json()
-    return c, {"comp": comp.status, "verify": ver.status, "paid_equiv": me.get("paid_equiv"),
-               "user_id": (me.get("user") or {}).get("id")}
+    me_r = c.request.get(BASE + "/api/auth/me")
+    me = me_r.json() if me_r.ok else {}
+    facts = {"comp": comp.status, "verify": ver.status, "me": me_r.status, "paid_equiv": me.get("paid_equiv"),
+             "user_id": (me.get("user") or {}).get("id")}
+    # ⛔ A row must never measure through a member that does not exist (wave 7 phase 2:
+    # W22 seeded 1,000 notes into 401s and read /login). Refuse here, loudly; the row's
+    # @guarded wrapper records it INCONCLUSIVE with these facts as the reason.
+    if not facts["paid_equiv"] or not facts["user_id"]:
+        raise RuntimeError(f"provisioning {email} did not produce a signed-in, paid member: {facts}")
+    return c, facts
 
 
 def select_box(pg, title):
@@ -3691,10 +3724,26 @@ with sync_playwright() as p:
         page.keyboard.press("Tab")
         page.keyboard.press("Tab")
         after_two_tabs = page.evaluate("() => document.activeElement && document.activeElement.getAttribute('aria-label')")
+        # ⛔ wave 7 phase 2 (instrument, found by the 96fa5ca2a run): "Delete <view>" does
+        # not delete on its own and raises no native confirm(). Since UX #1 (`ac88fadc5`)
+        # it opens the app's own ConfirmModal, `Delete view "<name>"?` (NotebookTab.jsx;
+        # NotebookTab.test.jsx:616), which focuses its "Delete" button on mount
+        # (ConfirmModal.jsx `confirmRef.current?.focus()`). So the KEYBOARD path is Enter
+        # on the row's Delete, then Enter on the modal's focused Delete. The native
+        # `dialog` listener stays, so a return to confirm() is still recorded.
         dialogs = []
         page.once("dialog", lambda d: (dialogs.append(d.message), d.accept()))
         url_before = page.url
         page.keyboard.press("Enter")
+        confirm = page.get_by_role("dialog", name=f'Delete view "{view_name}"?')
+        confirm_seen, confirm_focus = False, None
+        try:
+            confirm.wait_for(state="visible", timeout=10000)
+            confirm_seen = True
+            confirm_focus = page.evaluate("() => document.activeElement && document.activeElement.textContent.trim()")
+            page.keyboard.press("Enter")
+        except Exception:  # noqa: BLE001 -- recorded below; `gone` is the measured outcome
+            pass
         gone = False
         end = _t.time() + 10
         while _t.time() < end:
@@ -3764,9 +3813,9 @@ with sync_playwright() as p:
                                       "address_source": address_source, "secret": bool(INBOUND_SECRET),
                                       "undriven": True}
         # (c) the member-facing Import (client-side converter, lib/importer/convert.js):
-        # NotebookTab.test.jsx:264 `getAllByRole('button', {name: /import/i})[0]` ->
-        # testid import-wizard -> ImportWizard.test.jsx testid import-file-input -> /1 note/i
-        # -> button /^import$/i -> /imported/i.
+        # NotebookTab.test.jsx:264 `getAllByRole('button', {name: /import/i})[0]` -> the
+        # wizard's Sheet dialog -> ImportWizard.test.jsx testid import-file-input -> /1 note/i
+        # -> button /^import$/i -> the "Import complete" step title (ImportWizard.jsx).
         import_door = None
         try:
             import tempfile
@@ -3781,12 +3830,22 @@ with sync_playwright() as p:
             imp_btn = page.get_by_role("button", name="Import", exact=True)
             import_door = "exact 'Import'" if imp_btn.count() else "the test's /import/i, first"
             (imp_btn if imp_btn.count() else page.get_by_role("button", name=re.compile("import", re.I))).first.click()
-            wiz = page.get_by_test_id("import-wizard")
-            wiz.wait_for(state="visible", timeout=20000)
-            wiz.get_by_test_id("import-file-input").set_input_files(md_path)
+            # ⛔ wave 7 phase 2 (instrument, found by the 96fa5ca2a run): `data-testid=
+            # "import-wizard"` exists ONLY on NotebookTab.test.jsx's shallow MOCK of the
+            # wizard (:55); the real ImportWizard.jsx carries no such id, so waiting on it
+            # could never succeed. The real wizard is a Sheet (role="dialog") whose title is
+            # its step's (ImportWizard.jsx `sheetTitle`: "Import notes" -> "Review your
+            # import" -> "Importing…" -> "Import complete"), and whose file input is
+            # `data-testid="import-file-input"` (ImportWizard.jsx:924, ImportWizard.test.jsx
+            # :110) -- a HIDDEN input, so it is waited on as attached, not visible.
+            wiz = page.get_by_role("dialog").filter(
+                has_text=re.compile(r"Import notes|Review your import|Importing|Import complete"))
+            file_input = page.get_by_test_id("import-file-input")
+            file_input.wait_for(state="attached", timeout=20000)
+            file_input.set_input_files(md_path)
             wiz.get_by_text(re.compile(r"1 note", re.I)).first.wait_for(state="visible", timeout=20000)
-            wiz.get_by_role("button", name=re.compile(r"^import$", re.I)).click()
-            wiz.get_by_text(re.compile("imported", re.I)).first.wait_for(state="visible", timeout=30000)
+            wiz.get_by_role("button", name=re.compile(r"^import$", re.I)).click()   # ImportWizard.test.jsx:172
+            wiz.get_by_text("Import complete", exact=True).wait_for(state="visible", timeout=30000)
             imported = next((n for n in api.get(BASE + f"/api/j2/notes?q={RUNWORD}&limit=100").json().get("notes", [])
                              if "W23 import" in (n.get("title") or "") or f"walk-w23-{RUNWORD}" in (n.get("title") or "")), None)
             if imported:
@@ -3811,6 +3870,7 @@ with sync_playwright() as p:
                saved_view={"id": view_id, "buttons_in_section": nested["buttons"], "nested_controls": nested["nested"],
                            "tab_from_select_reaches": after_tab, "enter_opened_rename_field": field,
                            "two_tabs_reach": after_two_tabs, "enter_deleted": gone, "confirm_dialogs": dialogs,
+                           "confirm_modal_seen": confirm_seen, "confirm_modal_focus_on": confirm_focus,
                            "url_unchanged_by_delete": page.url == url_before},
                doors=doors)
 

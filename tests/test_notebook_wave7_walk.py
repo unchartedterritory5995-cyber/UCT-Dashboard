@@ -28,6 +28,7 @@ import json
 import sys
 import threading
 import time
+import types
 from pathlib import Path
 
 import pytest
@@ -56,12 +57,42 @@ def _args_cut(tree: ast.Module) -> int:
     raise AssertionError("the walk has no top-level `ARGS = ...` -- the importable part has no boundary")
 
 
+@contextlib.contextmanager
+def _playwright_importable():
+    """The importable part imports `playwright.sync_api` at top level and never CALLS it above
+    `ARGS = ...` (the one `with sync_playwright()` block is below the cut). The full-suite CI job
+    installs no Playwright, so there every rail here ERRORED at this fixture (PR #196, 21 rows)
+    while the verdict code under test needs no browser at all. A real install is used as is;
+    without one, a stub that REFUSES to be called stands in for the import only, and is removed
+    again so no other test ever sees it."""
+    try:
+        import playwright.sync_api  # noqa: F401
+    except ModuleNotFoundError:
+        pass
+    else:
+        yield
+        return
+
+    def _refuse(*_a, **_k):
+        raise AssertionError("the walk's importable part must never start a browser")
+
+    pkg, sub = types.ModuleType("playwright"), types.ModuleType("playwright.sync_api")
+    sub.sync_playwright, pkg.sync_api = _refuse, sub
+    sys.modules["playwright"], sys.modules["playwright.sync_api"] = pkg, sub
+    try:
+        yield
+    finally:
+        sys.modules.pop("playwright.sync_api", None)
+        sys.modules.pop("playwright", None)
+
+
 @pytest.fixture(scope="module")
 def walk() -> dict:
     """The walk's importable part, executed from its source."""
     tree = _tree()
     ns: dict = {"__file__": str(WALK), "__name__": "notebook_wave7_walk__importable"}
-    exec(compile(ast.Module(body=tree.body[:_args_cut(tree)], type_ignores=[]), str(WALK), "exec"), ns)
+    with _playwright_importable():
+        exec(compile(ast.Module(body=tree.body[:_args_cut(tree)], type_ignores=[]), str(WALK), "exec"), ns)
     return ns
 
 
@@ -348,3 +379,93 @@ def test_the_walk_checks_identity_before_its_first_request():
                  for c in ast.walk(stmt) if isinstance(c, ast.Call)
                  and isinstance(c.func, (ast.Name, ast.Attribute))} & _SENDS
         assert not sends, f"line {stmt.lineno} sends ({sends}) before the identity check"
+
+
+# ── sign-up vs the app's rate limiter (found by the evidence run on 96fa5ca2a) ────────────
+# /api/auth/signup is limited to 3 a minute and /login to 5 (api/routers/auth.py), and a
+# refusal is a 429 with no Retry-After. The walk read ANY non-200 sign-up as "the account
+# exists" and signed in instead -- so W22's new member was never made.
+
+class _FakeRequests:
+    """A stand-in for a Playwright APIRequestContext: answers each POST from a script."""
+
+    def __init__(self, answers):
+        self.answers = list(answers)
+        self.calls: list = []
+
+    def post(self, url, data=None):
+        self.calls.append(url.rsplit("/api/auth/", 1)[-1])
+        status = self.answers.pop(0)
+        return type("R", (), {"status": status, "ok": 200 <= status < 300})()
+
+
+def _run(walk, answers, **kw):
+    fake, slept = _FakeRequests(answers), []
+    r = walk["_signup_or_login"](fake, "http://sandbox", "m@local.dev", "pw", "m", sleep=slept.append, **kw)
+    return r.status, fake.calls, slept
+
+
+def test_a_rate_limited_signup_is_never_read_as_an_existing_account(walk):
+    status, calls, slept = _run(walk, [429, 200])
+    assert (status, calls) == (200, ["signup", "signup"]), "a 429 must be asked again, not answered by a login"
+    assert slept == [61.0], "the retry waits out the limiter's one-minute window"
+
+
+def test_an_existing_account_signs_in_without_waiting(walk):
+    assert _run(walk, [409, 200]) == (200, ["signup", "login"], [])
+
+
+def test_a_new_account_signs_up_at_once(walk):
+    assert _run(walk, [200]) == (200, ["signup"], [])
+
+
+def test_the_waits_are_bounded_and_the_sign_in_is_limited_too(walk):
+    # Three refused sign-ups (the bound), then a sign-in that is itself limited once.
+    status, calls, slept = _run(walk, [429, 429, 429, 429, 200])
+    assert calls == ["signup", "signup", "signup", "login", "login"] and status == 200
+    assert len(slept) == 3
+
+
+def test_the_walk_signs_in_through_it_and_refuses_an_unprovisioned_member():
+    tree = _tree()
+    fns = {n.name: n for n in tree.body if isinstance(n, ast.FunctionDef)}
+    wrapper = fns["signup_or_login"]
+    assert any(isinstance(c.func, ast.Name) and c.func.id == "_signup_or_login"
+               for c in ast.walk(wrapper) if isinstance(c, ast.Call)), "signup_or_login must delegate"
+    assert not [c for c in ast.walk(wrapper) if isinstance(c, ast.Call)
+                and isinstance(c.func, ast.Attribute) and c.func.attr == "post"], "no second sign-up path"
+    prov = fns["provision_member"]
+    raises = [n for n in ast.walk(prov) if isinstance(n, ast.Raise)]
+    guarded = [n for n in ast.walk(prov) if isinstance(n, ast.If)
+               and "paid_equiv" in ast.unparse(n.test) and any(isinstance(x, ast.Raise) for x in ast.walk(n))]
+    assert raises and guarded, "provision_member must refuse a member that is not signed in and paid"
+
+
+# ── selectors come from COMPONENTS, never from a test's mock (found by the 96fa5ca2a run) ──
+# W23 waited on `data-testid="import-wizard"`, which exists only on NotebookTab.test.jsx's
+# shallow MOCK of the wizard -- the real ImportWizard.jsx has no such id, so the door could
+# never be driven. Every test id the walk uses must be a data-testid a real (non-test)
+# component renders.
+
+_TEST_FILE = __import__("re").compile(r"\.(test|spec)\.[jt]sx?$")
+
+
+def _component_testids() -> set:
+    import re as _re
+    found = set()
+    for path in (REPO / "app" / "src").rglob("*"):
+        if path.suffix not in (".jsx", ".js", ".tsx", ".ts") or _TEST_FILE.search(path.name):
+            continue
+        text = path.read_text(encoding="utf-8", errors="replace")
+        found.update(_re.findall(r"""data-testid\s*=\s*\{?\s*["'`]([A-Za-z0-9_\-]+)["'`]""", text))
+    return found
+
+
+def test_every_test_id_the_walk_waits_on_is_rendered_by_a_real_component():
+    used = {c.args[0].value for c in _calls(_tree(), "get_by_test_id")
+            if c.args and isinstance(c.args[0], ast.Constant) and isinstance(c.args[0].value, str)}
+    assert "import-file-input" in used, "non-vacuity: the walk's known test ids were not read"
+    known = _component_testids()
+    assert "import-file-input" in known, "non-vacuity: no component test ids were found"
+    missing = sorted(used - known)
+    assert not missing, f"the walk waits on test ids no real component renders: {missing}"

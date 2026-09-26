@@ -1,0 +1,29 @@
+//@version=6
+indicator("UCTPROBE_W4_CROSS_ROUND", overlay = false)
+
+// ─── ⭐⭐ CROSSES, ROUNDING AND SYMBOL CONSTANTS ────────────────────────────
+//
+// Chosen by DEMAND over the 266-script committed corpus, not by intuition:
+// ta.crossover and ta.crossunder appear in 53 scripts each, math.round in 59,
+// syminfo.mintick in 37, timeframe.in_seconds in 28.
+//
+// ⛔ EVERY READING IS A DISCRIMINATOR. The rounding block in particular asks a
+// question with two defensible answers that differ on real prices: half-up
+// (2.5 -> 3) or half-to-even / banker's (2.5 -> 2). A renderer that guesses is
+// wrong on half the ties it ever sees.
+plot(bar_index,                              "X00_bar_index")
+plot(ta.crossover(close, ta.sma(close, 5))  ? 1 : 0, "X01_crossover_close_sma5")
+plot(ta.crossunder(close, ta.sma(close, 5)) ? 1 : 0, "X02_crossunder_close_sma5")
+plot(ta.cross(close, ta.sma(close, 5))      ? 1 : 0, "X03_cross_EITHER_DIRECTION")
+plot(ta.rising(close, 3)  ? 1 : 0,           "X04_rising3")
+plot(ta.falling(close, 3) ? 1 : 0,           "X05_falling3")
+plot(math.round(2.5),                        "X06_round_2p5_HALF_UP_OR_EVEN")
+plot(math.round(3.5),                        "X07_round_3p5_THE_SAME_QUESTION")
+plot(math.round(-2.5),                       "X08_round_neg2p5_WHICH_WAY")
+plot(math.round(-0.5),                       "X09_round_negHalf_IS_IT_MINUS_ZERO")
+plot(math.round(close, 2),                   "X10_round_close_2dp")
+plot(math.sign(0.0),                         "X11_sign_of_zero")
+plot(syminfo.mintick,                        "X12_mintick")
+plot(syminfo.pointvalue,                     "X13_pointvalue")
+plot(timeframe.in_seconds("D"),              "X14_in_seconds_D")
+plot(timeframe.multiplier,                   "X15_tf_multiplier")

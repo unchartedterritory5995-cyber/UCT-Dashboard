@@ -89,9 +89,30 @@ const MEMBERS = Object.keys(CARRIED)
 // counter. Deriving the subset means a fifth member lands in the right rails on
 // the day it is added instead of the day somebody remembers to widen a list.
 const SMOOTHERS = MEMBERS.filter((fn) => CARRIED[fn].alpha)
+// ⭐⭐ THE MEMBERS THAT EXIST IN BOTH LANES, DERIVED FROM THE TABLE — same idiom
+// as `SMOOTHERS` one line up, and for the same reason: a member added tomorrow
+// lands in the right rails on the day it is added.
+//
+// ⛔⛔ A DIFFERENTIAL NEEDS TWO LANES, AND `runtimeOnly` MEMBERS HAVE ONE.
+// `barssincePine` is Pine's unbounded `ta.barssince`; the columnar lane's
+// `barssince` is the DIFFERENT saturating function, so `pureLane` has nothing
+// to compare against — and the two loops below would spell it `ta.barssincePine`
+// and pass it `(source, 6)`, neither of which is the function. Excluding it here
+// is not a hole: `barssince.test.js` differentials it against its own vendor
+// capture AND against the house counter, which is the comparison that matters.
+const MIRRORED = MEMBERS.filter((fn) => !CARRIED[fn].runtimeOnly)
 
 describe('⭐⭐⭐ graph-vs-runtime differential — every declared member (§47/§76)', () => {
-  for (const fn of MEMBERS) {
+  it('⛔ CONTROL — the mirrored subset is REAL and is not the whole table', () => {
+    // ⭐ Without this, a `runtimeOnly` flag spreading across the table (or a typo
+    // in the property name) would empty or fill the loop below and every case in
+    // this describe would pass by never running / never excluding.
+    expect(MIRRORED.length, 'nothing left to differentiate').toBeGreaterThan(0)
+    expect(MEMBERS.length - MIRRORED.length, 'no member is runtime-only any more —'
+      + ' if that is deliberate, delete MIRRORED rather than leaving it inert').toBe(1)
+  })
+
+  for (const fn of MIRRORED) {
     it(`⭐ ta.${fn} over runtime state equals the columnar lane, index for index`, () => {
       const { out } = runPine(`${head}var x = 0.0\nx := close\nplot(ta.${fn}(x, 6))\n`)
       const want = pureLane(`ta.${fn}(close, 6)`)
@@ -107,9 +128,9 @@ describe('⭐⭐⭐ graph-vs-runtime differential — every declared member (§4
     // ⛔ OVER THE WHOLE SERIES, NOT A SIX-BAR SLICE. `rising` and `falling` are
     // booleans: on any six consecutive bars they can both read 0, and a window
     // that narrow would report two genuinely different members as one.
-    const seen = MEMBERS.map((fn) =>
+    const seen = MIRRORED.map((fn) =>
       JSON.stringify(Array.from(runPine(`${head}var x = 0.0\nx := close\nplot(ta.${fn}(x, 6))\n`).out)))
-    expect(new Set(seen).size, 'no two carried members may agree everywhere').toBe(MEMBERS.length)
+    expect(new Set(seen).size, 'no two carried members may agree everywhere').toBe(MIRRORED.length)
   })
 
   it('⭐ several lengths, including 1', () => {
@@ -139,15 +160,21 @@ describe('⭐⭐ the source can be any runtime value, at any scope', () => {
   })
 
   it('⭐⭐ AN EXPRESSION SOURCE — a recurrence needs no committed series', () => {
-    // ⛔ THE ASYMMETRY WITH 2F-2B IS DELIBERATE AND LOAD-BEARING.
-    // `ta.sma(x + 1, 5)` refuses (`runtime:history-expression`) because a window
-    // needs a committed series; `ta.ema(x + 1, 5)` executes, because a
-    // recurrence reads only this bar's value.
+    // ⛔ THE ASYMMETRY WITH 2F-2B IS DELIBERATE AND LOAD-BEARING, AND IT
+    // SURVIVED THE ROOT-STATEMENT HOIST INTACT — what changed is how it is
+    // OBSERVED. `ta.sma(x + 1, 5)` used to refuse; it now hoists the source into
+    // its own slot and allocates a RING. `ta.ema(x + 1, 5)` still allocates
+    // NONE, because a recurrence reads only this bar's value.
+    //
+    // ⚰️ THE OLD ASSERTION WAS A REFUSAL, AND A REFUSAL IS THE WEAKER WITNESS:
+    // once the window compiled, "it refuses" would have to be deleted, and
+    // deleting it would delete the asymmetry with it. A ring count of 0 against
+    // 1 says the same thing and keeps saying it.
     const { out, ir } = runPine(`${head}var x = 0.0\nx := close\nplot(ta.ema(x + 1, 5))\n`)
     sameSeries(out, pureLane('ta.ema(close + 1, 5)'), 'expression source')
-    expect(ir.history, 'an expression source must allocate NO ring').toHaveLength(0)
-    expect(refusalOf(`${head}var x = 0.0\nx := close\nplot(ta.sma(x + 1, 5))\n`).guard)
-      .toBe('runtime:history-expression')
+    expect(ir.history, 'a recurrence over an expression allocates NO ring').toHaveLength(0)
+    const { ir: winIr } = runPine(`${head}var x = 0.0\nx := close\nplot(ta.sma(x + 1, 5))\n`)
+    expect(winIr.history, 'a WINDOW over the same expression allocates one').toHaveLength(1)
   })
 
   it('⭐⭐ a UDF PARAMETER', () => {
@@ -373,13 +400,34 @@ describe('⭐ length, resources and what is NOT admitted', () => {
     // excluded because `pine.js` refuses the Pine spellings BY NAME: Pine's are
     // unbounded / occurrence-indexed, this table's are bounded / period-indexed.
     // Admitting them would build a runtime for a spelling no member can reach.
+    // ⭐ THE CARRIED-STATE HALF IS UNCHANGED, and it is the half this file is
+    // about: neither name is a carried member, because a carried member is a
+    // forward pass this runtime owns and these are not.
     expect(CARRIED.barssince).toBeUndefined()
     expect(CARRIED.valuewhen).toBeUndefined()
-    for (const src of ['ta.barssince(close > open)', 'ta.valuewhen(close > open, close, 0)']) {
-      const t = translatePine(`${head}plot(${src})\n`)
-      expect(t.ok, `${src} should be refused at the Pine door`).toBe(false)
-      expect(t.refusal.guard).toBe('pine:function')
-    }
+
+    // ⛔ `ta.barssince` IS STILL REFUSED AT THE PINE DOOR, for the reason above:
+    // Pine's is unbounded, this table's is bounded, and admitting it would build
+    // a runtime for a spelling no member can reach.
+    const bs = translatePine(`${head}plot(ta.barssince(close > open))\n`)
+    expect(bs.ok, 'ta.barssince should be refused at the Pine door').toBe(false)
+    expect(bs.refusal.guard).toBe('pine:function')
+
+    // ⚰️ `ta.valuewhen` IS NOT, SINCE 2026-09-23. This case's own reason said the
+    // Pine spelling is OCCURRENCE-indexed while the table's was period-indexed —
+    // true when written, and the merge of the two lineages added
+    // `valuewhenOccurrence`, which IS the occurrence-indexed one. So the spelling
+    // a member writes now reaches something, and the honest assertion is WHAT IT
+    // COMPUTES rather than that it refuses.
+    //
+    // ⛔ OCCURRENCE 0 IS THE MOST RECENT OCCURRENCE, NOT THE FIRST — the whole
+    // meaning of the index, and the half a period-indexed reading gets backwards.
+    // Verified end to end before this rail was changed: with the condition true
+    // on bars 1, 4 and 7, occurrence 0 holds each occurrence's value until the
+    // next and occurrence 1 trails it by exactly one.
+    const vw = translatePine(`${head}plot(ta.valuewhen(close > open, close, 0))\n`)
+    expect(vw.ok, JSON.stringify(vw.refusal)).toBe(true)
+    expect(String(vw.outputs[vw.selected].formula)).toMatch(/valuewhenOccurrence/)
   })
 })
 
@@ -674,10 +722,19 @@ describe('⭐ `ta.change` — lowered into semantics that already ship (§42–�
     sameSeries(out, pureLane('ta.change(close)'), 'change in a udf')
   })
 
+  it('⭐ an EXPRESSION source is hoisted at a root statement, and equals the columnar door', () => {
+    // ⚰️ THIS ASSERTED `runtime:history-expression`. The root statement list now
+    // gives the expression its own committed series, so `x - x[1]` is lowered
+    // over a hoisted slot — still ONE definition of `change`, with the ring
+    // supplying `x[1]` and the subtraction supplying the NaN rule.
+    const { out } = runPine(`${head}var x = 0.0\nx := close\nplot(ta.change(x * 2))\n`)
+    sameSeries(out, pureLane('ta.change(close * 2)'), 'change over an expression')
+  })
+
   it('⛔ the forms it does NOT serve refuse BY NAME, each for its own reason', () => {
-    // an expression source has no committed series — same wall as a window
-    expect(refusalOf(`${head}var x = 0.0\nx := close\nplot(ta.change(x + 1))\n`).guard)
-      .toBe('runtime:history-expression')
+    // an expression source INSIDE A BRANCH still has nowhere to put the series
+    const branch = `${head}var x = 0.0\nx := close\nvar y = 0.0\nif close > 0\n    y := ta.change(x + 1)\nplot(y)\n`
+    expect(refusalOf(branch).guard).toBe('runtime:history-expression')
     // `ta.change(source, length)` is a CLOSED TABLE gap: the table's `change`
     // declares one argument, so the two-argument Pine overload has no entry.
     const r = refusalOf(`${head}var x = 0.0\nx := close\nplot(ta.change(x, 3))\n`)
@@ -685,16 +742,34 @@ describe('⭐ `ta.change` — lowered into semantics that already ship (§42–�
     expect(r.message).toMatch(/closed-table gap/)
   })
 
-  it('⛔⛔ `ta.crossover`/`crossunder` STAY REFUSED, and the reason is MEASURED', () => {
-    // ⭐ THEY LOOK LIKE THE SAME SHAPE AND THEY ARE NOT SERVABLE THE SAME WAY.
-    // `interpret.js::crossing` answers NaN when ANY of the four values it reads
-    // is NaN. This grammar's `>` answers 0 on a NaN — measured below, not
-    // assumed — so lowering `a > b and a[1] <= b[1]` would answer 0 where the
-    // table says NOT COMPUTABLE. That is a silent approximation, so they wait
-    // for the family to get its own authoritative step.
+  it('⛔⛔ the cross family is NOT an operator lowering — the NaN reason still stands', () => {
+    // ⚰️ THIS TEST USED TO ASSERT THEY STAY REFUSED, and it was right until
+    // the condition it named came true. Its own words: they "wait for the family
+    // to get its own authoritative step". That step exists now (`CARRIED2`'s
+    // `crossOver`/`crossUnder`, `runtime/__tests__/crossFamily.test.js`), so
+    // `ta.crossover` over runtime state COMPILES and the refusal is gone.
+    //
+    // ⭐⭐ WHAT SURVIVES IS THE REASON, AND IT IS THE HALF WORTH RAILING. The
+    // refusal was never the point — the point is that `ta.change`'s trick does
+    // NOT generalise here: `interpret.js::crossing` answers NaN when any of its
+    // four values is NaN, while this grammar's `>` answers 0 on a NaN. So an
+    // operator lowering would report "did not cross" on every warm-up bar, where
+    // the table says NOT COMPUTABLE. The carried step is what keeps that
+    // distinction, and this asserts BOTH halves: the operator still swallows the
+    // NaN, and the served path still does not.
     expect(BINARY['>'](NaN, 5), 'the operator swallows the NaN').toBe(0)
-    expect(refusalOf(`${head}var x = 0.0\nx := close\nplot(ta.crossover(x, 102) ? 1 : 0)\n`).guard)
-      .toBe('runtime:call-windowed-state')
+
+    // ⛔ `ta.sma(close, 3)` is na on bars 0-1, so the cross is not computable
+    // on bars 0, 1 and 2 — bar 2 because the PREVIOUS bar is still na. An
+    // operator lowering answers 0 on all three, a different claim entirely.
+    const { out } = runPine(`${head}var m = na
+m := ta.sma(close, 3)
+`
+      + `plot(ta.crossover(close, m) ? 1 : 0)
+`)
+    expect(Number.isNaN(out[0]), 'bar 0 answered a number').toBe(true)
+    expect(Number.isNaN(out[2]), 'bar 2 answered a number — the PREVIOUS bar was na').toBe(true)
+    expect(out.slice(3).every((v) => v === 0 || v === 1), 'never became computable').toBe(true)
   })
 
   it('⛔ the classifier asks the TABLE, and a synthetic one proves the lookup is live', () => {

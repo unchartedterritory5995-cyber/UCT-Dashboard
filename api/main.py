@@ -51,6 +51,7 @@ from api.limiter import limiter
 from api.routers import snapshot, movers, engine_data, earnings, news, screener, traders, push, charts, calendar as calendar_router, bars as bars_router
 from api.routers import cot as cot_router
 from api.routers import render_panels as render_panels_router
+from api.routers import chart_edge_service as chart_edge_service_router
 from api.routers import live_prices as live_prices_router
 from api.routers import ticker_meta as ticker_meta_router
 from api.routers import quote_of_the_day as quote_of_the_day_router
@@ -1296,6 +1297,26 @@ def _start_calendar_enrichment_warm_background(delay_seconds: int = 90) -> None:
                      name="calendar-enrichment-warmer").start()
 
 
+RS_WARM_OK_SLEEP_S = 3000          # 50 min, under the 3600s cache TTL
+RS_WARM_RETRY_BASE_S = 120         # a FAILED warm retries in 2 min, doubling ...
+RS_WARM_RETRY_CAP_S = 900          # ... up to 15 min, never the 50-min happy-path wait
+
+
+def _rs_warm_sleep_seconds(ok: bool, failures: int) -> int:
+    """How long the RS warmer sleeps after an attempt. Pure, so it is railed.
+
+    ⚰️ Until 2026-09-25 a FAILED boot warm slept the same 50 minutes a successful
+    one does — so a transient error at +120 s (the boot herd on bar I/O is exactly
+    when this runs) left `/api/rs-rankings/{sym}` answering 404 and every RsBadge
+    blank for the next 50 minutes of that pod's life. Measured on a 9-minute-old
+    pod: AAPL 404, while the next pod's warm logged 3,612 entries at +2.5 min.
+    A failure now retries at 2/4/8/15/15 … minutes; success keeps the 50.
+    """
+    if ok:
+        return RS_WARM_OK_SLEEP_S
+    return min(RS_WARM_RETRY_BASE_S * (2 ** max(failures - 1, 0)), RS_WARM_RETRY_CAP_S)
+
+
 def _start_rs_rankings_warm_background(delay_seconds: int = 120) -> None:
     """Pre-compute RS rankings ~120s after startup so first user request is hot.
 
@@ -1313,7 +1334,9 @@ def _start_rs_rankings_warm_background(delay_seconds: int = 120) -> None:
         # user request (previously every hour the first requester ate the full
         # cold recompute). force=True after the initial populate.
         first = True
+        failures = 0
         while True:
+            ok = False
             try:
                 from api.services import rs_ranking
                 rankings = rs_ranking.compute_rs_scores(force=not first)
@@ -1321,14 +1344,21 @@ def _start_rs_rankings_warm_background(delay_seconds: int = 120) -> None:
                     "[rs-rankings] warmed: %d entries", len(rankings)
                 )
                 first = False
+                failures = 0
+                ok = True
             except Exception:
-                logging.getLogger(__name__).exception("[rs-rankings] warm failed")
+                failures += 1
+                logging.getLogger(__name__).exception(
+                    "[rs-rankings] warm failed (attempt %d) — retrying in %ds",
+                    failures, _rs_warm_sleep_seconds(False, failures))
             finally:
                 # Release the readiness gate after the FIRST attempt (success or
                 # not). Later iterations are re-warms, not boot readiness.
                 # mark_done is idempotent, so calling it each loop is harmless.
                 readiness.mark_done("rs_rankings")
-            time.sleep(3000)  # 50 min, under the 3600s cache TTL
+            # A success re-warms just under the 1h TTL; a failure retries soon
+            # (see _rs_warm_sleep_seconds) instead of leaving the table empty.
+            time.sleep(_rs_warm_sleep_seconds(ok, failures))
     threading.Thread(target=_delayed, daemon=True, name="rs-rankings-warmer").start()
 
 
@@ -8507,6 +8537,7 @@ from api import debug_dump_router as _debug_dump_router
 app.include_router(_debug_dump_router.router)
 app.include_router(terminal_next_reports.router)
 app.include_router(render_panels_router.router)
+app.include_router(chart_edge_service_router.router)
 app.include_router(hub_reports_router.router)
 app.include_router(snapshot.router)
 app.include_router(movers.router)

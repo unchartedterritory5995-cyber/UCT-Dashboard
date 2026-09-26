@@ -1291,7 +1291,7 @@ def produce_chart(req: ChartRequest, options: dict, prefs: dict, compare: tuple 
                 except Exception as e:  # noqa: BLE001
                     log.warning("[discord-chart] ext quote failed %s: %s", req.ticker, e)
             try:
-                png = house_fn(req.ticker, req.tf, compute_stats(daily), house_opts)
+                png = house_fn(req.ticker, req.tf, compute_stats(daily, req.tf), house_opts)
             except Exception as e:  # noqa: BLE001
                 log.warning("[discord-chart] house render raised %s %s: %s", req.ticker, req.tf, e)
                 png = None

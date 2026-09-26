@@ -157,7 +157,7 @@ def fmt_pct(v) -> str:
     return f"{float(v):+.1f}%"
 
 
-def compute_stats(daily_bars: list[dict]) -> dict:
+def compute_stats(daily_bars: list[dict], tf: str = "D") -> dict:
     """Price-action + volume facts off the daily series. Every derived value
     is None when the history is too short for it; the strip prints — there.
     Volume averages use the 50 COMPLETED bars before the last one (the last
@@ -172,34 +172,51 @@ def compute_stats(daily_bars: list[dict]) -> dict:
     Monday the post was captioned with, and the message's own AI read (computed
     from live snapshots) correctly said it had gained. Two numbers for one value,
     disagreeing in SIGN, in one message. A stamped vintage lets a caller ask
-    "is this today?"; without it there is nothing to ask."""
+    "is this today?"; without it there is nothing to ask.
+
+    ⭐ `tf="W"` describes the WEEK: O/H/L/C, change, gap and volume of the developing week
+    against the average of the 10 completed weeks before it, from the SAME weekly aggregation
+    the bars service serves (`bars_fetch._resample_weekly_iso`). ⚰️ Until 2026-09-25 a weekly
+    chart printed the day's strip under a header giving the week's change, so one image carried
+    two volumes (QQQ: "Vol 30.3M" in the strip, "Volume 179.4M" in the pane). 52-week range, ADR
+    and `as_of` stay daily: they describe the name and the data's vintage, not the bar size."""
     if not daily_bars:
         return {}
     b = daily_bars
-    last = b[-1]
-    prev = b[-2] if len(b) >= 2 else None
+    period, avg_n, per = "D", 50, b
+    if str(tf).upper() == "W":
+        try:
+            from api.services.bars_fetch import _resample_weekly_iso
+            weeks = _resample_weekly_iso(list(b))
+        except Exception:  # noqa: BLE001 — a strip never costs the chart
+            weeks = []
+        if weeks:
+            period, avg_n, per = "W", 10, weeks
+    last = per[-1]
+    prev = per[-2] if len(per) >= 2 else None
     o, h, l, c, v = float(last["o"]), float(last["h"]), float(last["l"]), float(last["c"]), float(last.get("v") or 0)
     pc = float(prev["c"]) if prev else None
     tail = b[-252:]
     hi = max(float(x["h"]) for x in tail)
     lo = min(float(x["l"]) for x in tail)
-    prior = b[-51:-1]
-    avg50 = (sum(float(x.get("v") or 0) for x in prior) / 50) if len(prior) == 50 else None
+    prior = per[-(avg_n + 1):-1]
+    avg50 = (sum(float(x.get("v") or 0) for x in prior) / avg_n) if len(prior) == avg_n else None
     adr_bars = b[-20:]
     adr = (sum((float(x["h"]) / float(x["l"]) - 1) * 100 for x in adr_bars if float(x["l"]) > 0) / len(adr_bars)) if len(adr_bars) == 20 else None
     try:
-        as_of = to_datetime(last["t"], "D").strftime("%Y-%m-%d")
+        as_of = to_datetime(b[-1]["t"], "D").strftime("%Y-%m-%d")
     except Exception:  # noqa: BLE001 — an unparseable bar time must not cost the whole strip
         as_of = None
     return {
         "as_of": as_of,
+        "period": period, "avg_bars": avg_n, "avg_vol": avg50,
         "open": o, "high": h, "low": l, "close": c,
         "day_pct": ((c / pc - 1) * 100) if pc else None,
         "gap_pct": ((o / pc - 1) * 100) if pc else None,
         "hi_52w": hi, "lo_52w": lo,
         "from_52w_high_pct": ((c / hi - 1) * 100) if hi else None,
         "volume": v,
-        "avg_vol_50": avg50,
+        "avg_vol_50": avg50 if period == "D" else None,
         "rvol": (v / avg50) if avg50 else None,
         "dollar_vol": v * c,
         "adr_pct": adr,
@@ -264,7 +281,7 @@ def _stats_rows(st: dict):
         ("H", L, B), (fmt_num(st["high"]), V, B),
         ("L", L, B), (fmt_num(st["low"]), V, B),
         ("C", L, B), (fmt_num(st["close"]), V, "bold"),
-        ("  Day", L, B), (fmt_pct(st["day_pct"]), _dir_color(st["day_pct"]), "bold"),
+        ("  Wk" if st.get("period") == "W" else "  Day", L, B), (fmt_pct(st["day_pct"]), _dir_color(st["day_pct"]), "bold"),
         ("  Gap", L, B), (fmt_pct(st["gap_pct"]), _dir_color(st["gap_pct"]), B),
         ("  52w High", L, B), (fmt_num(st["hi_52w"]), V, B),
         (f"({fmt_pct(st['from_52w_high_pct'])})", _dir_color(st["from_52w_high_pct"]), B),
@@ -272,7 +289,8 @@ def _stats_rows(st: dict):
     ]
     row2 = [
         ("Vol", L, B), (fmt_num(st["volume"]), V, "bold"),
-        ("  Avg(50)", L, B), (fmt_num(st["avg_vol_50"]), V, B),
+        (f"  Avg({st.get('avg_bars') or 50}{'w' if st.get('period') == 'W' else ''})", L, B),
+        (fmt_num(st.get("avg_vol", st.get("avg_vol_50"))), V, B),
         ("  RVOL", L, B), (f"{st['rvol']:.2f}x" if st["rvol"] is not None else "—",
                           GOLD if (st["rvol"] or 0) >= 1.5 else V, "bold"),
         ("  $Vol", L, B), (fmt_num(st["dollar_vol"]), V, B),
@@ -297,7 +315,7 @@ def render_chart_png(ticker: str, tf: str, bars: list[dict], daily_bars: list[di
     up_bar = float(view["Close"].iloc[-1]) >= float(view["Open"].iloc[-1])
     tag_color = GREEN if up_bar else RED
     footer = f"as of {_stamp(view.index[-1].to_pydatetime(), tf)} · uctintelligence.com"
-    stats = compute_stats(daily_bars) if daily_bars else {}
+    stats = compute_stats(daily_bars, tf) if daily_bars else {}
     row1, row2 = _stats_rows(stats)
 
     buf = io.BytesIO()

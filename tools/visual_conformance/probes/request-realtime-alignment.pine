@@ -1,0 +1,97 @@
+//@version=6
+indicator("UCTPROBE_REQ_REALTIME", overlay = false)
+
+// ⭐⭐ THE REALTIME HALF OF REQUEST ALIGNMENT — the one measurement in this
+// programme that CANNOT BE TAKEN AT THE WEEKEND.
+//
+// `pineRuntimeFrontend`'s request path refuses `lookahead` by name and says
+// exactly why:
+//
+//     Vendor packet M1 measured the HISTORICAL half of this alignment on a real
+//     chart; the realtime half needs an open market and is still owed. Serving
+//     lookahead on a guess would put a number on screen that nobody could have
+//     traded on — the most valuable-LOOKING wrong answer available.
+//
+// ⭐ AND THE SCOPE NARROWED ON 2026-09-23. A request for the chart's OWN symbol
+// at the chart's OWN period now folds to the expression, because there is no
+// period to be part-way through — so `lookahead` is inert there and needs no
+// measurement at all. What remains owed is ONLY the case this probe asks: a
+// requested timeframe genuinely ABOVE the chart's, on a bar that is still
+// forming.
+//
+// ⛔⛔ RUN IT ON AN INTRADAY CHART DURING REGULAR HOURS. On a daily chart the
+// requested 'D' IS the chart's period and every channel below collapses to the
+// identity — the probe would return a clean, meaningless row. **5m on SPY,
+// between 09:30 and 16:00 ET, with the newest bar forming.**
+//
+// ⛔ A FAILED STUDY KEEPS A ONE-PLOT STUB with an EMPTY `_data._items`, so
+// assert `isFailed === false` before reading the roster. See
+// `exchange-spelling.pine`, which learned that from an identifier that does not
+// exist in Pine v6.
+
+// ── the two readings whose DIFFERENCE is the whole question ─────────────────
+// ⭐ SAME CALL, SAME SYMBOL, SAME TIMEFRAME — only the merge strategy differs.
+// Anything else varying between them would make the delta unreadable.
+dOn  = request.security(syminfo.tickerid, "D", close, lookahead = barmerge.lookahead_on)
+dOff = request.security(syminfo.tickerid, "D", close, lookahead = barmerge.lookahead_off)
+
+plot(dOn,  "R1_close_D_lookahead_ON")
+plot(dOff, "R2_close_D_lookahead_OFF")
+
+// ⭐⭐ R3 IS THE MEASUREMENT. On a HISTORICAL bar the two must agree (packet M1
+// measured that half). On the FORMING bar they are expected to diverge — and by
+// how much, in which direction, is precisely what has never been read.
+// ⛔ A DIFFERENCE, NOT TWO NUMBERS: reading R1 and R2 separately invites
+// comparing values captured a tick apart.
+plot(dOn - dOff, "R3_DELTA_on_minus_off")
+
+// ⭐ R4/R5 SAY WHICH BARS THOSE WERE. Without them a non-zero R3 cannot be
+// attributed to the realtime bar rather than to a stale historical one, and the
+// whole capture becomes a shrug.
+plot(barstate.isrealtime ? 1 : 0, "R4_isrealtime")
+plot(barstate.islast     ? 1 : 0, "R5_islast")
+
+// ⭐⭐ R6 IS THE ANCHOR THE DELTA IS JUDGED AGAINST. `lookahead_on` at a HIGHER
+// timeframe is expected to return the value of the daily bar CURRENTLY forming —
+// which on the last bar should equal this chart's own `close`. If R1 equals R6
+// on a realtime bar, the merge is reading the in-progress period; if R2 equals
+// the PREVIOUS daily close instead, that is the non-repainting half.
+plot(close, "R6_chart_close")
+
+// ⭐ R7 — the previous completed daily close, so "off returns the last CLOSED
+// period" can be checked directly rather than inferred from a difference.
+plot(request.security(syminfo.tickerid, "D", close[1],
+     lookahead = barmerge.lookahead_off), "R7_prev_D_close_OFF")
+
+// ⛔ R8 IS THE NON-VACUITY CONTROL AND IT IS NOT OPTIONAL. Every channel above
+// can legitimately read 0 — a zero delta is in fact the EXPECTED historical
+// answer — so "the two strategies agree" and "the study never evaluated" are
+// otherwise the same row. `bar_index` is never constant on a chart with bars, so
+// a flat R8 means the probe is broken and the whole row must be discarded.
+plot(bar_index, "R8_bar_index_CONTROL")
+
+// ── how to run it ───────────────────────────────────────────────────────────
+// ⛔ FOLLOW `docs/pine/capture-procedure.md`, and read the VALUES from
+// `study._data._items` — never a screenshot. A pixel cannot carry a delta.
+//
+// ⚠️ THE LAST BAR IS THE ONLY ROW THAT ANSWERS. Capture the whole series, then
+// read the row where R5 (`islast`) is 1 and R4 (`isrealtime`) is 1. Every other
+// row is the historical half, which is already measured — those rows are the
+// probe's own control that it agrees with packet M1.
+//
+// WITNESS
+//     SPY, 5m, regular hours, newest bar forming.
+//
+// ⭐ ONE SYMBOL IS ENOUGH HERE, and that is a real difference from the syminfo
+// roster: the question is about the MERGE STRATEGY, which is a property of the
+// request, not of the instrument. A second symbol would repeat the reading
+// rather than widen it.
+//
+// RECORDING — name the invocation so the next reader can reproduce the row
+// rather than trust it, and record the ET timestamp of the capture: this is the
+// one reading whose meaning depends on the market being open when it was taken.
+//
+//     "_invocation": "tools/visual_conformance/probes/request-realtime-alignment.pine
+//                     pasted into the TradingView editor on SPY 5m during RTH;
+//                     plot values read from study._data._items per
+//                     docs/pine/capture-procedure.md"

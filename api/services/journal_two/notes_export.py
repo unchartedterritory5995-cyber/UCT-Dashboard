@@ -2352,6 +2352,20 @@ def _single_note_formatted(
     return note_bytes, f"{base}-{stamp}{ext}", media_type
 
 
+def content_disposition(filename: str) -> str:
+    """`attachment` with the filename twice: an ASCII fallback, and the real name as RFC 5987
+    `filename*` (UTF-8, percent-encoded).
+
+    ⛔ An HTTP header is Latin-1 on the wire. The single-note export wrote the note's title into
+    `filename="..."` raw, so a title holding an em dash, a curly quote or an emoji raised
+    `UnicodeEncodeError` inside the Response and the member got a 500 instead of their note
+    (H14, found by wave 8 lane 8C, live on production 271a078b6). The whole header is ASCII
+    now. The editor reads `filename="..."`, so it saves under the fallback until it learns
+    `filename*`."""
+    ascii_name = filename.encode("ascii", "replace").decode("ascii").replace("?", "_").replace('"', "_")
+    return f"attachment; filename=\"{ascii_name}\"; filename*=UTF-8''{quote(filename, safe='')}"
+
+
 def build_single_note_export(
     user_id: str, note_id: str, conn: sqlite3.Connection | None = None,
     attachment_budget: dict[str, int] | None = None, *, fmt: str = "md",

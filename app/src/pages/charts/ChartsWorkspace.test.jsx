@@ -14,7 +14,9 @@ vi.mock('./WidgetHost', () => ({
   // `data-mounted` surfaces the S1 CP3 mount-cap prop for
   // test_board_mount_count_is_bounded_by_staggered_mount below; every other
   // existing test reads only `data-testid` and is unaffected by the addition.
-  default: ({ widget, mounted }) => <div data-testid={`body-${widget.type}`} data-mounted={String(mounted)}>{widget.type}</div>,
+  // `data-watchkey` surfaces a watchlist widget's opts.watchKey for the A12 CP2
+  // ?openWatchlist= tests below; every other test still reads only `data-testid`.
+  default: ({ widget, mounted }) => <div data-testid={`body-${widget.type}`} data-mounted={String(mounted)} data-watchkey={widget.opts?.watchKey || ''}>{widget.type}</div>,
 }))
 vi.mock('./mobile/MobileChartsApp', () => ({ default: () => <div data-testid="mobile-charts-app">MOBILE</div> }))
 vi.mock('./grid/MultiChartGrid', () => ({ default: () => <div data-testid="multichart-grid">GRID</div> }))
@@ -830,6 +832,45 @@ test('?openLayout=<id> also resolves a GLOBAL (prebuilt) layout, not only the ow
   renderWS()
   expect(screen.getByTestId('body-watchlist')).toBeInTheDocument()
   mockLayouts.global = []
+})
+
+// ── A12 CP2 (2026-09-25): ?openWatchlist=<watchKey> — a list is an address ──
+//
+// Same goTo()/renderWS() shape. The mocked WidgetHost exposes opts.watchKey as
+// data-watchkey so the door's effect on the BOARD is what is asserted, not a
+// fetch it might have made.
+
+test('?openWatchlist=user:42 on a board with no watchlist widget ADDS one pointed at that list, and strips its param', () => {
+  mockPrefs = { charts_workspace_layout: JSON.stringify({ widgets: [], cols: 24 }) }
+  goTo('/charts?openWatchlist=user:42')
+  renderWS()
+  const w = screen.getByTestId('body-watchlist')
+  expect(w).toHaveAttribute('data-watchkey', 'user:42')
+  expect(window.location.search).not.toContain('openWatchlist')
+})
+
+test('?openWatchlist=community:7 on a board that already has a watchlist widget RETARGETS it instead of adding a second', () => {
+  mockPrefs = { charts_workspace_layout: JSON.stringify({ widgets: [{ id: 'w1', type: 'watchlist', color: 'A', x: 0, y: 0, w: 4, h: 8, opts: { watchKey: 'user:1', watchName: 'Old' } }], cols: 24 }) }
+  goTo('/charts?openWatchlist=community:7')
+  renderWS()
+  const all = document.querySelectorAll('[data-testid="body-watchlist"]')
+  expect(all.length).toBe(1)
+  expect(all[0]).toHaveAttribute('data-watchkey', 'community:7')
+})
+
+test('?openWatchlist with a key outside the registry\'s forms degrades — no crash, no widget added, param still stripped', () => {
+  mockPrefs = { charts_workspace_layout: JSON.stringify({ widgets: [], cols: 24 }) }
+  goTo('/charts?openWatchlist=javascript:alert(1)')
+  renderWS()
+  expect(document.querySelectorAll('[data-testid="body-watchlist"]').length).toBe(0)
+  expect(window.location.search).not.toContain('openWatchlist')
+})
+
+test('⛔ CONTROL — without the param the same board gets no watchlist widget (the door, not the default, added it above)', () => {
+  mockPrefs = { charts_workspace_layout: JSON.stringify({ widgets: [], cols: 24 }) }
+  goTo('/charts')
+  renderWS()
+  expect(document.querySelectorAll('[data-testid="body-watchlist"]').length).toBe(0)
 })
 
 test('?openLayout=<id> for an id that matches nothing degrades — no crash, no widget added', () => {

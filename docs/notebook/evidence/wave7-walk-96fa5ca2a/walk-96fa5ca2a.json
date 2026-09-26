@@ -1,0 +1,1052 @@
+{
+ "errors": [
+  "wave7 walk forced error"
+ ],
+ "checks": {
+  "W1_lock_unlock": {
+   "verdict": "PASS",
+   "note_id": "4c5a9afe899e49a29213f9de24025bb7",
+   "lock_patch_status": 200,
+   "lock_patch_answer_is_note": true,
+   "lock_wire_body": {
+    "locked": false
+   },
+   "editable_while_locked": "false",
+   "unlock_patch_status": 200,
+   "editable_after_unlock": "true",
+   "own_note_became_conflicted": false,
+   "autosave_put_fired": true,
+   "autosave_put_base_updated_at": "2026-09-26T01:15:47.086852+00:00",
+   "conflicted_copies_in_list": []
+  },
+  "W2_archive": {
+   "verdict": "PASS",
+   "note_id": "894a9f4a324b4580bd3cb57aaf1c24f8",
+   "folder_id": "819278fd1c4f49c4b64b05b424073ca1",
+   "archive_patch_status": 200,
+   "gone_from_default": true,
+   "not_in_trash": true,
+   "in_archived": true,
+   "folder_index_before_archive": 0,
+   "not_in_folder_while_archived": true,
+   "unarchive_status": 200,
+   "back_in_default_after_unarchive": true,
+   "folder_index_after_restore": 0,
+   "back_in_same_folder_at_same_index": true,
+   "brief_mismatch_note": "The brief's/prior walk's assertion required the note to STILL appear in its folder's listing WHILE ARCHIVED. That is backwards: archive removes a note from every default list, folder listings included -- this check now asserts NOT present while archived, and present again at the SAME index in the SAME folder after unarchive/restore (folder_index_before_archive vs folder_index_after_restore, both against folder_id)."
+  },
+  "W2b_bulk_archive_undo": {
+   "verdict": "PASS",
+   "batch_op": "archive",
+   "undo_op": "unarchive",
+   "titles": [
+    "Walk W2b bulk 0 r201541",
+    "Walk W2b bulk 1 r201541"
+   ]
+  },
+  "W3_templates": {
+   "verdict": "PASS",
+   "template_id": "72055f328db94060902ebddbebefa1b7",
+   "new_note_id": "1a3a5a0a66fe4c98890f64ce9fbb2bfc",
+   "body_matches": true,
+   "second_member_sees_it": false
+  },
+  "W4_daily_note": {
+   "verdict": "PASS",
+   "first_note_id": "383b605ed6864f96bef1a981a5cf9f23",
+   "second_note_id": "383b605ed6864f96bef1a981a5cf9f23",
+   "same_note_both_times": true,
+   "today_title": "2026-09-25 · Friday",
+   "exactly_one_in_api": true
+  },
+  "W5_relation": {
+   "verdict": "PASS",
+   "relation_created_via_ui": true,
+   "relation_prop_values": [],
+   "related_from_present": true,
+   "related_from_names_a": true
+  },
+  "W6_timeline": {
+   "verdict": "PASS",
+   "offered_and_pressed": true,
+   "saved_ok": true,
+   "saved_view_type": "timeline",
+   "restored_as_timeline": true,
+   "saved_view_row_count": 1
+  },
+  "W7_split_view": {
+   "verdict": "PASS",
+   "two_editors_mounted": true,
+   "same_note_beside_itself_refused": true,
+   "image_picker_openers": 1
+  },
+  "W8_tag_rename_flat_and_nested": {
+   "verdict": "PASS",
+   "flat": {
+    "rename_affordance_present": true,
+    "preview_total": 2,
+    "batch_request_count": 1,
+    "notice_text": "Renamed 2 notes from #walkflatr201541 to #walkflatr201541-renamed.",
+    "plain_success_notice": true,
+    "names_this_device_could_not_check": false,
+    "mentions_keep_old_tag": false,
+    "mentions_rename_again": false,
+    "has_waiver_button": false,
+    "has_single_close": true,
+    "new_tag_total": 2,
+    "old_tag_total": 0
+   },
+   "nested": {
+    "rename_affordance_present": true,
+    "preview_total": 2,
+    "batch_request_count": 1,
+    "notice_text": "Renamed 2 notes from #walknestr201541/sub to #walknestr201541/sub-renamed.",
+    "plain_success_notice": true,
+    "names_this_device_could_not_check": false,
+    "mentions_keep_old_tag": false,
+    "mentions_rename_again": false,
+    "has_waiver_button": false,
+    "has_single_close": true,
+    "new_tag_total": 2,
+    "old_tag_total": 0
+   },
+   "brief_mismatch_note": "The brief expected a 'Rename the others' waiver-and-confirm flow. Fix round 3 (N1, final ruling, see NotebookTab.tagRename.test.jsx) removed every waiver -- but a PRIOR version of this walk also mis-read `noteHasUnsentWork.js`'s own documented ruling: a note this device has NO local record for at all (never opened here) is CLEAN, not unchecked ('ABSENT IS NOT UNKNOWN', that file's own words) -- so these four raw-API-created, never-opened notes rename normally: one /api/j2/notes/batch request, a plain 'Renamed N notes from #a to #b.' notice, both landing on the NEW tag. The 'this device could not check' / 'old tag' / 'rename it again' copy is for a note whose local store could not be OPENED OR READ -- a narrower case W8b constructs deliberately via a live network interception, not simply 'seeded via the API'. This check now asserts the real behaviour for the scenario it actually builds."
+  },
+  "W8b_tag_rename_unsent_work": {
+   "verdict": "PASS",
+   "rename_fired": true,
+   "notice_text": "Renamed 1 note from #walkracer201541 to #walkracer201541-renamed. 1 note was not changed: \"Walk W8b dirty r201541\" is still syncing — try again in a moment.",
+   "names_the_unsent_note": true,
+   "names_this_device_could_not_check": false,
+   "notes_still_syncing": true,
+   "has_waiver_button": false,
+   "batch_request_count": 1,
+   "intercepted_write_methods": [
+    "PUT",
+    "PUT",
+    "PUT"
+   ],
+   "note_on_instrument_change": "Replaced context.set_offline(True) (blocked ALL of dev2's requests, produced net::ERR_INTERNET_DISCONNECTED on the sandbox's own navigation -- an instrument failure) with a route interception scoped to ONLY this note's write endpoint (PUT/PATCH /api/j2/notes/<id>), so the durable layer's write hangs/aborts while every other request -- including the rename itself, run from a second page in the same context -- reaches the sandbox normally.",
+   "note_on_brief_mismatch": "The brief expects a 'Rename the others' waiver button; wave 6 fix round 3 (N1, final ruling, see NotebookTab.tagRename.test.jsx) REMOVED that waiver entirely -- the unsent note now gets no waiver of any kind, only a named notice and a single Close, and exactly one /api/j2/notes/batch request is issued. ⛔ FIX (this run): a PRIOR version of this walk also asserted the wrong wording here -- a note with a queued/dirty but READABLE local record is UNSENT (noteHasUnsentWork.js: why='dirty'/'queued'/'both'), not UNCHECKED (why='unreadable'); noteBatch.js's UNSENT case renders FAILURE_WORDS.unsent ('is still syncing — try again in a moment'), never UNCHECKED_OP_COPY.renameTag's 'this device could not check' sentence -- that sentence belongs to W8's scenario (an unreadable store), which this check confirms is correctly ABSENT here (`names_this_device_could_not_check` is recorded but not required). This check now asserts the real behaviour.",
+   "reason": null
+  },
+  "W9_editor_nodes_reload": {
+   "verdict": "PASS",
+   "note_id": "eca7cb374d7b418a844aff0c8247253f",
+   "before_counts": {
+    "doc": 1,
+    "columns": 1,
+    "column": 2,
+    "paragraph": 4,
+    "text": 5,
+    "dateMention": 1,
+    "tableOfContents": 1,
+    "heading": 1,
+    "imageFigure": 1,
+    "image": 1,
+    "imageCaption": 1
+   },
+   "after_counts": {
+    "doc": 1,
+    "columns": 1,
+    "column": 2,
+    "paragraph": 4,
+    "text": 5,
+    "dateMention": 1,
+    "tableOfContents": 1,
+    "heading": 1,
+    "imageFigure": 1,
+    "image": 1,
+    "imageCaption": 1
+   },
+   "not_blank_after_reload": true,
+   "toc_present_after_reload": true,
+   "toc_jump_worked": true,
+   "image_uploaded": true,
+   "image_survived": true
+  },
+  "W10_link_paste": {
+   "verdict": "PASS",
+   "offer_appeared": true,
+   "preview_offered": true,
+   "preview_card_appeared": true,
+   "plain_text_url_no_card": null,
+   "lookalike_host_check": "INCONCLUSIVE",
+   "lookalike_reason": "the server only computes/shows a domain AFTER a successful HTTPS fetch of real HTML (api/routers/notebook_link_preview.py:206-219, IDNA-encode-or-omit); a homoglyph domain that both resolves publicly and returns parseable HTML was not available to this walk. Read, not exercised."
+  },
+  "W11_unlinked_mentions": {
+   "verdict": "PASS",
+   "server_count": 0,
+   "section_present": true,
+   "open_only": true,
+   "link_it_affordance_present": false,
+   "note_on_brief_mismatch": "The brief expects a 'link this' affordance; the shipped UnlinkedMentions component deliberately offers Open ONLY (see UnlinkedMentions.test.jsx: 'offers Open ONLY -- no Link it, and nothing here ever writes'). This check verifies the REAL current behaviour."
+  },
+  "W11_tasks_across_notes": {
+   "verdict": "PASS",
+   "note_id": "34455a44640f4cd8b35b6eb50faefdd1",
+   "found_via_api": true,
+   "due_matches": true,
+   "ui_reachable": true,
+   "ui_checkbox_found": false,
+   "ui_check_reflected_in_api": null,
+   "ui_error": null,
+   "ui_reachability": "NoteTasksView.jsx was mounted in 44aba6944 and is reachable at ?view=tasks -- this run drove the UI directly (see ui_reachable / ui_checkbox_found / ui_check_reflected_in_api above) rather than re-asserting the earlier zero-importers finding, which was correct against the dist that tip predates but is now stale."
+  },
+  "W11_reminders": {
+   "verdict": "INCONCLUSIVE",
+   "reason": "the daily reminder is a scheduled server-side pass (api/services/journal_two/note_tasks.py: run_task_reminders at 07:00 and 09:00 ET, plus a boot catch-up gated on the wall-clock ET hour) with no admin/manual HTTP trigger reachable from a live walk (grep-confirmed: run_task_reminders / catch_up_task_reminders have zero callers outside the scheduler + their own tests). Firing it for real would require the sandbox to boot at/after 07:00 ET with the task already due, which this walk's own note-seeding cannot arrange."
+  },
+  "W11_telemetry_and_error_beacon": {
+   "verdict": "PASS",
+   "note_open_telemetry": {
+    "event": "note_open_ms",
+    "props": {
+     "ms": 229
+    }
+   },
+   "error_beacon_body_present": true
+  },
+  "W12_two_tabs_one_note": {
+   "verdict": "PASS",
+   "puts_while_both_open": {
+    "tab1": 1,
+    "tab2": 1
+   },
+   "tab1_sole_writer_while_open": true,
+   "owner_notice_seen_on_tab2": false,
+   "tab2_writes_successfully_after_tab1_closes": true,
+   "stuck_owner_notice_after_bfcache_nav": false,
+   "outbox_drain_sweep_interval_ms": 60000,
+   "notice_design_note": "Exhaustive grep of app/src for 'owns this note' / 'another tab' / 'other tab' / 'in another window' finds zero rendered JSX text -- only code comments and test descriptions (outboxDrain.js:33's SKIPPED constant is internal, never displayed). The product shows NO visible notice to a non-owning tab by design -- ownership is a silent Web Locks leader election + outbox-drain skip (noteOwnerLock.js). owner_notice_seen_on_tab2 and stuck_owner_notice_after_bfcache_nav reading False is therefore the expected, correct PASS state, not a product gap -- searched strings listed above.",
+   "instrument_fix_note": "⛔ FIX (this run): field renamed from 'tab2_drains_after_tab1_closes' -- the prior version waited 2x the 60s outbox-drain sweep period (useOutboxDrain.js RETRY_INTERVAL_MS) hoping tab2 would eventually emit a PUT on its own, but that file's own header comment rules this out by design: 'the OPEN NOTE IS NOT THE SWEEP'S... the editor owns saving the note it has open, with its own backoff; this drains everything else.' tab2 had this note open the whole time and never typed anything, so it had nothing queued in any outbox to drain -- no wait, however long, could have produced a PUT. This run instead has tab2 make its own edit after tab1 closes and checks THAT lands, which is the real test of single-writer hand-off."
+  },
+  "W12b_clean_rebase_metadata_only": {
+   "verdict": "PASS",
+   "reason": null,
+   "note_id": "793bf3f83c7246afb7ea0e9de034582e",
+   "title": "Walk W12b clean wrcabfeb",
+   "u0": "2026-09-26T01:17:36.616642+00:00",
+   "u1_after_tab1": "2026-09-26T01:17:39.133721+00:00",
+   "tab1_write": "tag via the editor's tag door",
+   "tab1_status": 200,
+   "tab2_first_put_base": "2026-09-26T01:17:36.616642+00:00",
+   "tab2_put_statuses": [
+    409,
+    200
+   ],
+   "tab2_stale_proven": true,
+   "tab2_saw_tab1_revision": false,
+   "tab2_decisive_event": "put_200",
+   "tab2_traffic": [
+    {
+     "t": 1790385462.024,
+     "dir": "req",
+     "method": "PUT",
+     "path": "/api/j2/notes/793bf3f83c7246afb7ea0e9de034582e",
+     "baseUpdatedAt": "2026-09-26T01:17:36.616642+00:00"
+    },
+    {
+     "t": 1790385462.04,
+     "dir": "resp",
+     "method": "PUT",
+     "path": "/api/j2/notes/793bf3f83c7246afb7ea0e9de034582e",
+     "status": 409
+    },
+    {
+     "t": 1790385462.04,
+     "dir": "req",
+     "method": "GET",
+     "path": "/api/j2/notes/793bf3f83c7246afb7ea0e9de034582e"
+    },
+    {
+     "t": 1790385462.053,
+     "dir": "resp",
+     "method": "GET",
+     "path": "/api/j2/notes/793bf3f83c7246afb7ea0e9de034582e",
+     "status": 200
+    },
+    {
+     "t": 1790385462.108,
+     "dir": "req",
+     "method": "PUT",
+     "path": "/api/j2/notes/793bf3f83c7246afb7ea0e9de034582e",
+     "baseUpdatedAt": "2026-09-26T01:17:39.133721+00:00"
+    },
+    {
+     "t": 1790385462.123,
+     "dir": "resp",
+     "method": "PUT",
+     "path": "/api/j2/notes/793bf3f83c7246afb7ea0e9de034582e",
+     "status": 200
+    }
+   ],
+   "dom_base_row_seen": true,
+   "dom_rows_with_exact_title": 1,
+   "dom_rows_conflicted_copy": 0,
+   "api_copies": 0,
+   "copy_tags": [],
+   "tab1_words_in_note": null,
+   "tag_on_note": true,
+   "tab2_words_in_note": true,
+   "tab2_words_in_a_copy": false,
+   "tab1_words_in_a_copy": false
+  },
+  "W12b_conflicted_copy_same_block": {
+   "verdict": "PASS",
+   "reason": null,
+   "note_id": "641236e11b124e50a30e706127b17095",
+   "title": "Walk W12b same_block wrcabfeb",
+   "u0": "2026-09-26T01:17:45.359460+00:00",
+   "u1_after_tab1": "2026-09-26T01:17:49.285857+00:00",
+   "tab1_write": "prose in paragraph 0",
+   "tab1_status": 200,
+   "tab2_first_put_base": "2026-09-26T01:17:45.359460+00:00",
+   "tab2_put_statuses": [
+    409
+   ],
+   "tab2_stale_proven": true,
+   "tab2_saw_tab1_revision": false,
+   "tab2_decisive_event": "fork_post",
+   "tab2_traffic": [
+    {
+     "t": 1790385472.346,
+     "dir": "req",
+     "method": "PUT",
+     "path": "/api/j2/notes/641236e11b124e50a30e706127b17095",
+     "baseUpdatedAt": "2026-09-26T01:17:45.359460+00:00"
+    },
+    {
+     "t": 1790385472.358,
+     "dir": "resp",
+     "method": "PUT",
+     "path": "/api/j2/notes/641236e11b124e50a30e706127b17095",
+     "status": 409
+    },
+    {
+     "t": 1790385472.359,
+     "dir": "req",
+     "method": "GET",
+     "path": "/api/j2/notes/641236e11b124e50a30e706127b17095"
+    },
+    {
+     "t": 1790385472.369,
+     "dir": "resp",
+     "method": "GET",
+     "path": "/api/j2/notes/641236e11b124e50a30e706127b17095",
+     "status": 200
+    },
+    {
+     "t": 1790385472.37,
+     "dir": "req",
+     "method": "POST",
+     "path": "/api/j2/notes",
+     "title": "Walk W12b same_block wrcabfeb (conflicted copy)"
+    },
+    {
+     "t": 1790385472.393,
+     "dir": "resp",
+     "method": "POST",
+     "path": "/api/j2/notes",
+     "status": 200
+    }
+   ],
+   "dom_base_row_seen": true,
+   "dom_rows_with_exact_title": 1,
+   "dom_rows_conflicted_copy": 1,
+   "api_copies": 1,
+   "copy_tags": [
+    [
+     "sync-conflict"
+    ]
+   ],
+   "tab1_words_in_note": true,
+   "tag_on_note": null,
+   "tab2_words_in_note": false,
+   "tab2_words_in_a_copy": true,
+   "tab1_words_in_a_copy": false
+  },
+  "W12b_other_block_prose": {
+   "verdict": "PASS",
+   "reason": null,
+   "expected_by_product_contract": "fork (serverChange.js BODY_REWRITE: 'prose changed' in ANY block)",
+   "brief_model": "a clean rebase (block-level merge) -- not what the frozen classifier does",
+   "note_id": "446b5d98e84647f2a861c74414010da9",
+   "title": "Walk W12b other_block wrcabfeb",
+   "u0": "2026-09-26T01:17:55.677441+00:00",
+   "u1_after_tab1": "2026-09-26T01:17:59.236967+00:00",
+   "tab1_write": "prose in paragraph 1",
+   "tab1_status": 200,
+   "tab2_first_put_base": "2026-09-26T01:17:55.677441+00:00",
+   "tab2_put_statuses": [
+    409
+   ],
+   "tab2_stale_proven": true,
+   "tab2_saw_tab1_revision": false,
+   "tab2_decisive_event": "fork_post",
+   "tab2_traffic": [
+    {
+     "t": 1790385482.325,
+     "dir": "req",
+     "method": "PUT",
+     "path": "/api/j2/notes/446b5d98e84647f2a861c74414010da9",
+     "baseUpdatedAt": "2026-09-26T01:17:55.677441+00:00"
+    },
+    {
+     "t": 1790385482.331,
+     "dir": "resp",
+     "method": "PUT",
+     "path": "/api/j2/notes/446b5d98e84647f2a861c74414010da9",
+     "status": 409
+    },
+    {
+     "t": 1790385482.332,
+     "dir": "req",
+     "method": "GET",
+     "path": "/api/j2/notes/446b5d98e84647f2a861c74414010da9"
+    },
+    {
+     "t": 1790385482.339,
+     "dir": "resp",
+     "method": "GET",
+     "path": "/api/j2/notes/446b5d98e84647f2a861c74414010da9",
+     "status": 200
+    },
+    {
+     "t": 1790385482.339,
+     "dir": "req",
+     "method": "POST",
+     "path": "/api/j2/notes",
+     "title": "Walk W12b other_block wrcabfeb (conflicted copy)"
+    },
+    {
+     "t": 1790385482.356,
+     "dir": "resp",
+     "method": "POST",
+     "path": "/api/j2/notes",
+     "status": 200
+    }
+   ],
+   "dom_base_row_seen": true,
+   "dom_rows_with_exact_title": 1,
+   "dom_rows_conflicted_copy": 1,
+   "api_copies": 1,
+   "copy_tags": [
+    [
+     "sync-conflict"
+    ]
+   ],
+   "tab1_words_in_note": true,
+   "tag_on_note": null,
+   "tab2_words_in_note": false,
+   "tab2_words_in_a_copy": true,
+   "tab1_words_in_a_copy": false
+  },
+  "W14_image_ocr_document": {
+   "verdict": "PASS",
+   "reason": null,
+   "note_id": "7577e00d3dcf47f18c7b11030985eab7",
+   "upload_status": 200,
+   "upload_url": "/api/j2/notes/attachments/e75318c9-24a1-415a-be81-f663a921248e/7577e00d3dcf47f18c7b11030985eab7/inline/0b2e425b90eb0c31f4bad8c9cb3d35e2.png",
+   "img_in_editor": true,
+   "document": {
+    "id": "e50709756f1f4342aa0ab50aafcf4466",
+    "attachmentUrl": "/api/j2/notes/attachments/e75318c9-24a1-415a-be81-f663a921248e/7577e00d3dcf47f18c7b11030985eab7/inline/0b2e425b90eb0c31f4bad8c9cb3d35e2.png",
+    "name": "Image",
+    "status": "ready",
+    "pageCount": 1,
+    "createdAt": "2026-09-26T01:18:08.275188+00:00",
+    "processedAt": "2026-09-26T01:18:08.451147+00:00",
+    "pagesTotal": 1,
+    "pagesWithText": 1,
+    "pagesFromOcr": 1,
+    "pagesAwaitingOcr": 0,
+    "ocrUnavailable": false,
+    "pagesUnreadable": 0,
+    "textComplete": true,
+    "sourceKind": "attachment",
+    "kind": "image",
+    "capturePassages": []
+   },
+   "status_transitions": [
+    {
+     "at_s": 0.05,
+     "state": [
+      "pending",
+      0,
+      0
+     ]
+    },
+    {
+     "at_s": 1.06,
+     "state": [
+      "ready",
+      1,
+      1
+     ]
+    }
+   ],
+   "ocr_text": "PELICAN WRCABFEB\r\nQUARTZ HARBOR LEDGER",
+   "text_origin": "ocr",
+   "phrase": "wrcabfeb",
+   "phrase_in_ocr_text": true,
+   "api_search_hit": {
+    "documentId": "e50709756f1f4342aa0ab50aafcf4466",
+    "pageNumber": 1,
+    "snippet": "PELICAN <mark>WRCABFEB</mark>\r\nQUARTZ HARBOR LEDGER",
+    "noteId": "7577e00d3dcf47f18c7b11030985eab7",
+    "noteTitle": "Walk W14 ocr r201541",
+    "name": "Image",
+    "attachmentUrl": "/api/j2/notes/attachments/e75318c9-24a1-415a-be81-f663a921248e/7577e00d3dcf47f18c7b11030985eab7/inline/0b2e425b90eb0c31f4bad8c9cb3d35e2.png",
+    "sourceKind": "attachment",
+    "sourceUrl": null,
+    "textOrigin": "ocr"
+   },
+   "sidebar_search_shows_image_page": true,
+   "sidebar_hit_marked_scanned_text": true,
+   "seconds_upload_to_text": 1.06,
+   "seconds_upload_to_searchable": 1.08,
+   "ocr_fingerprint": [
+    "[startup] j2-ocr: flag=1 binary=C:\\Program Files\\Tesseract-OCR\\tesseract.exe version=tesseract_v5.4.0.20240606 active=True max_concurrency=1"
+   ]
+  },
+  "W15_personal_api": {
+   "verdict": "PASS",
+   "token_minted": true,
+   "token_prefix": "uctpat_",
+   "warned_not_shown_again": true,
+   "token_still_on_page_after_done": false,
+   "create_status": 200,
+   "created_note": {
+    "id": "dbb136c3eb7d4a509327934e7cbd9fc1",
+    "title": "Walk W15 created r201541",
+    "url": "https://uctintelligence.com/journal/notebook?note=dbb136c3eb7d4a509327934e7cbd9fc1"
+   },
+   "append_status": 200,
+   "daily_status": 200,
+   "daily_answer": {
+    "created": false,
+    "day": "2026-09-25"
+   },
+   "daily_note": {
+    "id": "383b605ed6864f96bef1a981a5cf9f23",
+    "title": "2026-09-25 · Friday",
+    "url": "https://uctintelligence.com/journal/notebook?note=383b605ed6864f96bef1a981a5cf9f23"
+   },
+   "appended_text_in_body": true,
+   "daily_text_in_body": true,
+   "created_row_in_ui_list": true,
+   "daily_row_in_ui_list": true,
+   "lock_patch_status": 200,
+   "locked_append_status": 423,
+   "locked_append_body": {
+    "detail": "This note is locked — unlock it in the Notebook first"
+   },
+   "locked_sentence_expected": "This note is locked — unlock it in the Notebook first",
+   "capture_with_personal_token_status": 403,
+   "capture_body": {
+    "detail": {
+     "error": "insufficient_scope",
+     "message": "This connection is not permitted to do that."
+    }
+   },
+   "auth_me_with_personal_token_status": 401,
+   "no_token_status": 401,
+   "no_token_body": {
+    "detail": "Your UCT token is missing, expired or revoked. Make a new one in UCT Settings → Personal API and paste it into your Shortcut."
+   },
+   "after_revoke_status": 401
+  },
+  "W16_email_in": {
+   "verdict": "PASS",
+   "reason": null,
+   "provision": {
+    "comp": 200,
+    "verify": 200,
+    "paid_equiv": true,
+    "user_id": "0b8ae3dd-76c5-49ee-bd1b-764dfce09d8e"
+   },
+   "address": "notes+b4aae7d61329f21d528c8497@uctintelligence.com",
+   "address_before_create": {
+    "address": null
+   },
+   "create_status": 200,
+   "address_after_create": "notes+b4aae7d61329f21d528c8497@uctintelligence.com",
+   "address_created_on_intent": true,
+   "signatures_distinct": true,
+   "unsigned_status": 401,
+   "unsigned_body_bytes": 0,
+   "bad_signature_status": 401,
+   "bad_signature_body_bytes": 0,
+   "stale_timestamp_status": 401,
+   "first_message_status": 202,
+   "first_message_body": {
+    "accepted": true
+   },
+   "statuses_messages_1_to_20": [
+    202,
+    202,
+    202,
+    202,
+    202,
+    202,
+    202,
+    202,
+    202,
+    202,
+    202,
+    202,
+    202,
+    202,
+    202,
+    202,
+    202,
+    202,
+    202,
+    202
+   ],
+   "over_limit": [
+    {
+     "n": 21,
+     "status": 202,
+     "body": {
+      "accepted": true
+     }
+    },
+    {
+     "n": 22,
+     "status": 202,
+     "body": {
+      "accepted": true
+     }
+    }
+   ],
+   "mail_note_id": "7e3b71a4c69e4744bc05f4921f034292",
+   "body_node_counts": {
+    "doc": 1,
+    "paragraph": 1,
+    "text": 1,
+    "image": 1,
+    "attachmentChip": 1
+   },
+   "folder": "Inbox",
+   "ui_row_in_list": true,
+   "ui_image_in_editor": true,
+   "ui_attachment_chip": true,
+   "fillers_created": 19,
+   "over_limit_notes_created": 0,
+   "drops_by_reason": {
+    "address_rate": 2
+   },
+   "drops_read_from": "the sandbox's auth.db j2_inbound_drops, read-only (no HTTP surface by design -- inbound_email.py: 'no oracle')",
+   "drop_log_lines": [
+    "2026-09-25 20:18:22,338 WARNING api.services.journal_two.inbound_email: [inbound-email] dropped for 0b8ae3dd-76c5-49ee-bd1b-764dfce09d8e: address_rate (169 bytes)",
+    "2026-09-25 20:18:22,356 WARNING api.services.journal_two.inbound_email: [inbound-email] dropped for 0b8ae3dd-76c5-49ee-bd1b-764dfce09d8e: address_rate (169 bytes)"
+   ]
+  },
+  "W17_mic_and_scan_touch_tier": {
+   "verdict": "PASS",
+   "reason": null,
+   "viewport": "820x1180 has_touch is_mobile",
+   "media": {
+    "innerWidth": 820,
+    "touchTier": true,
+    "coarse": true,
+    "secure": true
+   },
+   "scan_visible_on_touch": true,
+   "scan_box": {
+    "x": 608.234375,
+    "y": 485.78125,
+    "width": 63.359375,
+    "height": 44
+   },
+   "scan_input": {
+    "type": "file",
+    "accept": "image/*",
+    "capture": "environment",
+    "display": "none"
+   },
+   "scan_click_opened_a_file_chooser": true,
+   "chooser_input": {
+    "accept": "image/*",
+    "capture": "environment",
+    "label": "Scan a document with the camera — photo"
+   },
+   "chooser_error": null,
+   "mic_present": true,
+   "mic_in_toolbar": true,
+   "mic_enabled": true,
+   "dictate_slash_item_offered": true,
+   "denied_microphone_sentence": "Couldn't use the microphone — allow it for this site in your browser, then try again.\nUse browser speech\nDismiss",
+   "microphone_permission_state": null,
+   "desktop_scan_display": "none"
+  },
+  "W18_writing_help_no_key": {
+   "verdict": "PASS",
+   "provision": {
+    "comp": 200,
+    "verify": 200,
+    "paid_equiv": true,
+    "user_id": "41fec7f4-e66e-4e87-8783-90179f37d7f9"
+   },
+   "note_id": "e58a45067e8948a1817994c835261d2e",
+   "scope_says_selection": true,
+   "stream_status": 200,
+   "stream_events": [
+    {
+     "type": "start",
+     "action": "rewrite",
+     "model": "claude-sonnet-5",
+     "scope": "selection",
+     "instruction": "Rewrite — shorter"
+    },
+    {
+     "type": "error",
+     "detail": "Something went wrong writing that. Nothing was changed in your note."
+    }
+   ],
+   "alert_text": "Something went wrong writing that. Nothing was changed in your note.",
+   "expected_sentence": "Something went wrong writing that. Nothing was changed in your note.",
+   "note_byte_identical_after_cancel": true,
+   "counter_probe": {
+    "requests": 61,
+    "statuses": {
+     "200": 61
+    },
+    "budget_refusals": 0,
+    "last_event_types": [
+     "error"
+    ]
+   },
+   "durable_counter": {
+    "table": "daily_usage_counters",
+    "scope": "notebook_writing_help",
+    "subject": "41fec7f4-e66e-4e87-8783-90179f37d7f9",
+    "rows": [
+     {
+      "day": "2026-09-25",
+      "value": 0.0
+     }
+    ],
+    "settled_at_zero": true,
+    "read_error": null,
+    "read_from": "the sandbox's auth.db, read-only, after 62 failed drafts (1 from the panel + 61 direct)"
+   },
+   "accept_path": "INCONCLUSIVE -- no fake provider mode exists, so Accept cannot be driven without a model"
+  },
+  "W19_semantic_dark": {
+   "verdict": "PASS",
+   "reason": null,
+   "query": "why did my breakout trades fail wrcabfeb",
+   "query_tokens": 7,
+   "direct_rows": 1,
+   "search_box_rows": 1,
+   "search_box_request": "/api/j2/notes?q=why+did+my+breakout+trades+fail+wrcabfeb&sort=relevance&limit=100&meaning=1",
+   "meaning_rows": [],
+   "lexical_rows_present": true,
+   "embeddings_table_exists": false,
+   "embeddings_rows": 0,
+   "sweep_registration_lines": [
+    "[startup] notebook semantic sweep registered (every 15 min; dark unless NOTEBOOK_SEMANTIC_SEARCH_ENABLED)"
+   ],
+   "note_semantic_log_lines": [],
+   "no_embedding_call_evidence": "0 rows (or no table) in j2_note_embeddings after the searches; the sandbox's request log is not per-call, so the table is the instrument"
+  },
+  "W20_compass_notes_tool_dark": {
+   "verdict": "INCONCLUSIVE",
+   "reason": "the text chat's tool list is not exposed by any endpoint (it reaches only the model, server-side, and the sandbox has no model key) -- the brief's own rule: INCONCLUSIVE",
+   "voice_catalog_by_context": {
+    "global": {
+     "status": 200,
+     "tool_count": 146,
+     "has_search_my_notes": false
+    },
+    "journal": {
+     "status": 200,
+     "tool_count": 0,
+     "has_search_my_notes": false
+    },
+    "notebook": {
+     "status": 200,
+     "tool_count": 0,
+     "has_search_my_notes": false
+    }
+   },
+   "voice_note": "the VOICE catalog is a different registry (search_my_notes is text-chat only, ruling D-H4); it is recorded as a fact, not as the text chat's answer"
+  },
+  "W21_lazy_views": {
+   "verdict": "PASS",
+   "reason": null,
+   "tasks_chunk": "assets/NoteTasksView-TVLsyIuY.js",
+   "tasks_chunk_fetched": true,
+   "tasks_chunk_before_mount": true,
+   "seconds_nav_to_mount": 0.53,
+   "tasks_heading": true,
+   "tasks_view_pressed": "true",
+   "highlighter_chunk": "assets/codeHighlight-BfmCh03l.js",
+   "highlighter_requested": true,
+   "plain_pre_while_highlighter_held": true,
+   "highlighted_after_release": true
+  },
+  "W22_search_at_1k": {
+   "verdict": "INCONCLUSIVE",
+   "reason": "exception: Locator.click: Timeout 30000ms exceeded.\nCall log:\n  - waiting for get_by_label(\"Search notes\", exact=True)\n",
+   "traceback": "ite-packages\\playwright\\_impl\\_sync_base.py\", line 115, in _sync\n    return task.result()\n           ~~~~~~~~~~~^^\n  File \"C:\\Users\\Patrick\\AppData\\Roaming\\Python\\Python314\\site-packages\\playwright\\_impl\\_locator.py\", line 162, in click\n    return await self._frame._click(self._selector, strict=True, **params)\n           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"C:\\Users\\Patrick\\AppData\\Roaming\\Python\\Python314\\site-packages\\playwright\\_impl\\_frame.py\", line 566, in _click\n    await self._channel.send(\"click\", self._timeout, locals_to_params(locals()))\n  File \"C:\\Users\\Patrick\\AppData\\Roaming\\Python\\Python314\\site-packages\\playwright\\_impl\\_connection.py\", line 69, in send\n    return await self._connection.wrap_api_call(\n           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n    ...<3 lines>...\n    )\n    ^\n  File \"C:\\Users\\Patrick\\AppData\\Roaming\\Python\\Python314\\site-packages\\playwright\\_impl\\_connection.py\", line 559, in wrap_api_call\n    raise rewrite_error(error, f\"{parsed_st['apiName']}: {error}\") from None\nplaywright._impl._errors.TimeoutError: Locator.click: Timeout 30000ms exceeded.\nCall log:\n  - waiting for get_by_label(\"Search notes\", exact=True)\n\n"
+  },
+  "W23_saved_view_row_and_mddoc_links": {
+   "verdict": "FAIL",
+   "reason": null,
+   "saved_view": {
+    "id": "bfc75d4c1aae4223a2055a98b6309c5e",
+    "buttons_in_section": 7,
+    "nested_controls": [],
+    "tab_from_select_reaches": "Rename Walk J5 wrcabfeb",
+    "enter_opened_rename_field": true,
+    "two_tabs_reach": "Delete Walk J5 wrcabfeb",
+    "enter_deleted": false,
+    "confirm_dialogs": [],
+    "url_unchanged_by_delete": true
+   },
+   "doors": {
+    "personal_api_markdown": {
+     "note_id": "275d0a8dc1a743f48c2f4ecb49cc21ce",
+     "stored_hrefs": [
+      "java%09script:alert(1)",
+      "https://example.com/w23-wrcabfeb"
+     ],
+     "rendered_hrefs": [
+      "java%09script:alert(1)",
+      "https://example.com/w23-wrcabfeb"
+     ],
+     "script_hrefs_stored": [],
+     "script_hrefs_rendered": [],
+     "control_link_kept": true,
+     "words_kept": true
+    },
+    "email_in_html": {
+     "note_id": "13b0b644341d4bfd8916ac05d561663a",
+     "stored_hrefs": [
+      "https://example.com/w23-wrcabfeb"
+     ],
+     "rendered_hrefs": [
+      "https://example.com/w23-wrcabfeb"
+     ],
+     "script_hrefs_stored": [],
+     "script_hrefs_rendered": [],
+     "control_link_kept": true,
+     "words_kept": true,
+     "address_source": "existing"
+    },
+    "import_wizard_markdown": {
+     "undriven": true,
+     "error": "Locator.wait_for: Timeout 20000ms exceeded.\nCall log:\n  - waiting for get_by_test_id(\"import-wizard\") to be visible\n",
+     "opened_by": "exact 'Import'"
+    }
+   }
+  },
+  "W21_no_route_error_boundary": {
+   "verdict": "PASS",
+   "route_fallback_sightings": [],
+   "boundary_beacons": [],
+   "attempts_log": [],
+   "note": "every ErrorBoundary catch posts a beacon of kind 'boundary' (ErrorBoundary.jsx:20); the beacon cannot say whether it was the ROUTE boundary, so any boundary report fails this row conservatively and is listed; `route_fallback_sightings` are the route fallback's own text (AppErrorFallback) seen by a mount waiter"
+  },
+  "W13_errors_and_sandbox_integrity": {
+   "verdict": "PASS",
+   "reason": null,
+   "pageerror_count": 0,
+   "pageerrors": [],
+   "deliberate_test_errors_excluded": 1,
+   "client_error_beacons_unforced": 0,
+   "beacon_kinds": [],
+   "beacons": [],
+   "forced_beacon_fence": {
+    "from": 0,
+    "to": 1
+   },
+   "sandbox_integrity_status": "CLEAN",
+   "sandbox_integrity_checkpoints": [
+    "pre-boot (baseline): CLEAN",
+    "post-boot (+15s): CLEAN",
+    "post-prewarm (+120s): CLEAN",
+    "shutdown: CLEAN"
+   ],
+   "sandbox_integrity_required": [
+    "pre-boot (baseline)",
+    "post-boot (+15s)",
+    "shutdown"
+   ],
+   "sandbox_integrity_log": "C:\\Users\\Patrick\\AppData\\Local\\Temp\\claude\\C--Users-Patrick\\e5af7430-5c97-49c2-9846-4da28941d38c\\scratchpad\\w7walk\\tree-96fa5ca2a\\docs\\plans\\joystick\\sandbox-runs\\2026-09-25T20-14-54.md",
+   "launcher_log_names": "C:\\Users\\Patrick\\AppData\\Local\\Temp\\claude\\C--Users-Patrick\\e5af7430-5c97-49c2-9846-4da28941d38c\\scratchpad\\w7walk\\tree-96fa5ca2a\\docs\\plans\\joystick\\sandbox-runs\\2026-09-25T20-14-54.md",
+   "shutdown_waited_s": 31.04
+  }
+ },
+ "tip": "96fa5ca2a",
+ "base": "http://127.0.0.1:8094",
+ "port": 8094,
+ "run": "r201541",
+ "only": null,
+ "brief_mismatches": [
+  {
+   "check": "W12b",
+   "brief": "a second write stale on a DIFFERENT block rebases cleanly; stale on the SAME block forks",
+   "product": "the classifier is not block-aware: any server-side prose change forks; only a metadata-only change (tags/folder/ticker/hero) or a server-appended embed reconciles without a fork",
+   "source": "app/src/pages/journal-2-0/lib/offline/serverChange.js:12-28 (F5-frozen)"
+  },
+  {
+   "check": "W16",
+   "brief": "an unsigned body is 401 with a sentence",
+   "product": "an unsigned (or badly signed) body is a BARE 401 with NO body, so a caller without the secret learns nothing about which check failed",
+   "source": "api/routers/notebook_inbound_email.py receive_email; rail G3-E5 pins b''"
+  },
+  {
+   "check": "W18",
+   "brief": "Discard leaves the document byte-identical",
+   "product": "after a FAILED draft the panel offers 'Write it' and 'Cancel'; 'Cancel' calls the same `discard` the ready state's 'Discard' does",
+   "source": "WritingHelpPanel.jsx footer (status 'error')"
+  },
+  {
+   "check": "W18",
+   "brief": "if a fake provider mode exists, drive Accept",
+   "product": "no fake provider mode exists (writing_help.py streams through note_ask._async_client only), so Accept cannot be driven without a model",
+   "source": "api/services/journal_two/writing_help.py"
+  },
+  {
+   "check": "W20",
+   "brief": "read the tools list the chat endpoint exposes",
+   "product": "no endpoint exposes the TEXT chat's tool registry; GET .../coach/chat/status returns {enabled, rate_limit_remaining, conversation_message_count, onboarded, onboarding_mode}",
+   "source": "api/services/journal_two/coach_chat.py get_chat_status"
+  },
+  {
+   "check": "W22",
+   "brief": "record p50/p95 against the 1k tier in docs/notebook/perf-budgets.json",
+   "product": "the file declares tiers [10000, 50000] and no 1k tier; the readings are reported against the 100 ms p95 line both `search` (50k) and `search_ci` (10k) declare",
+   "source": "docs/notebook/perf-budgets.json"
+  },
+  {
+   "check": "W23",
+   "brief": "import a crafted markdown whose link href is ' javascript:alert(1)'",
+   "product": "markdown cannot carry a leading-space href: markdown-it trims the destination and refuses `javascript:` before a link exists, so the leading-space href reaches mddoc's check only through HTML (J6's own rail); both shapes are driven",
+   "source": "api/services/journal_two/test_note_convert_mddoc.py J6 rails"
+  }
+ ],
+ "instrument_notes": [],
+ "sandbox_identity": {
+  "ok": true,
+  "sentence": "http://127.0.0.1:8094 proved it is the sandbox that writes C:\\Users\\Patrick\\AppData\\Local\\Temp\\claude\\C--Users-Patrick\\e5af7430-5c97-49c2-9846-4da28941d38c\\scratchpad\\w7walk\\tree-96fa5ca2a\\docs\\plans\\joystick\\sandbox-runs\\2026-09-25T20-14-54.md (identity e8c306811d8f..., data dir C:\\data-w7walk)",
+  "nonce": "e8c306811d8fb4e5025205a78a75d4dd",
+  "base": "http://127.0.0.1:8094",
+  "integrity_log": "C:\\Users\\Patrick\\AppData\\Local\\Temp\\claude\\C--Users-Patrick\\e5af7430-5c97-49c2-9846-4da28941d38c\\scratchpad\\w7walk\\tree-96fa5ca2a\\docs\\plans\\joystick\\sandbox-runs\\2026-09-25T20-14-54.md"
+ },
+ "admin_login_ok": true,
+ "comp_status": {
+  "w7walk@local.dev": 200,
+  "w7walkb@local.dev": 200
+ },
+ "verify_email_status": {
+  "w7walk@local.dev": 200,
+  "w7walkb@local.dev": 200
+ },
+ "account": {
+  "role": "member",
+  "plan": "pro",
+  "paid_equiv": true
+ },
+ "account2_paid_equiv": true,
+ "gates": {
+  "walk_process_env": {
+   "NOTEBOOK_PERSONAL_API_ENABLED": "1",
+   "NOTEBOOK_IMAGE_DOCX_DOCUMENTS_ENABLED": "1",
+   "J2_OCR_ENABLED": "1",
+   "NOTEBOOK_WRITING_HELP_ENABLED": "1",
+   "NOTEBOOK_INBOUND_EMAIL_ENABLED": "1",
+   "NOTEBOOK_SEMANTIC_SEARCH_ENABLED": null,
+   "COMPASS_NOTES_TOOL_ENABLED": null
+  },
+  "walk_process_keys_blank": {
+   "ANTHROPIC_API_KEY": true,
+   "OPENAI_API_KEY": true
+  },
+  "walk_process_inbound_secret_present": true,
+  "observed_from_sandbox": {
+   "GET /api/j2/personal/tokens": 200,
+   "GET /api/j2/inbound-email/address": 200,
+   "auth_me.notebook_writing_help_enabled": true,
+   "launcher: j2-ocr fingerprint": [
+    "[startup] j2-ocr: flag=1 binary=C:\\Program Files\\Tesseract-OCR\\tesseract.exe version=tesseract_v5.4.0.20240606 active=True max_concurrency=1"
+   ],
+   "launcher: semantic sweep registration": [
+    "[startup] notebook semantic sweep registered (every 15 min; dark unless NOTEBOOK_SEMANTIC_SEARCH_ENABLED)"
+   ]
+  },
+  "not_observable_over_http": {
+   "NOTEBOOK_SEMANTIC_SEARCH_ENABLED": "no route of its own; W19 reads its dark BEHAVIOUR",
+   "COMPASS_NOTES_TOOL_ENABLED": "no endpoint exposes the text chat's tools; W20",
+   "NOTEBOOK_IMAGE_DOCX_DOCUMENTS_ENABLED": "no route of its own; W14 reads whether an image becomes a document"
+  }
+ },
+ "sandbox_integrity": {
+  "path": "C:\\Users\\Patrick\\AppData\\Local\\Temp\\claude\\C--Users-Patrick\\e5af7430-5c97-49c2-9846-4da28941d38c\\scratchpad\\w7walk\\tree-96fa5ca2a\\docs\\plans\\joystick\\sandbox-runs\\2026-09-25T20-14-54.md",
+  "required": [
+   "pre-boot (baseline)",
+   "post-boot (+15s)",
+   "shutdown"
+  ],
+  "checkpoints": [
+   {
+    "label": "pre-boot (baseline)",
+    "at": "2026-09-25 20:14:59",
+    "root": "C:\\data",
+    "db_files": 61,
+    "verdict": "CLEAN"
+   },
+   {
+    "label": "post-boot (+15s)",
+    "at": "2026-09-25 20:15:42",
+    "root": "C:\\data",
+    "db_files": 61,
+    "verdict": "CLEAN"
+   },
+   {
+    "label": "post-prewarm (+120s)",
+    "at": "2026-09-25 20:17:33",
+    "root": "C:\\data",
+    "db_files": 61,
+    "verdict": "CLEAN"
+   },
+   {
+    "label": "shutdown",
+    "at": "2026-09-25 20:20:37",
+    "root": "C:\\data",
+    "db_files": 61,
+    "verdict": "CLEAN"
+   }
+  ],
+  "status": "CLEAN",
+  "clean": true,
+  "why": "",
+  "launcher_log_names": "C:\\Users\\Patrick\\AppData\\Local\\Temp\\claude\\C--Users-Patrick\\e5af7430-5c97-49c2-9846-4da28941d38c\\scratchpad\\w7walk\\tree-96fa5ca2a\\docs\\plans\\joystick\\sandbox-runs\\2026-09-25T20-14-54.md",
+  "launcher_log_agrees": true,
+  "shutdown_waited_s": 31.04
+ },
+ "launcher_excerpts": {
+  "startup_gate_lines": [
+   "[startup] j2-ocr: flag=1 binary=C:\\Program Files\\Tesseract-OCR\\tesseract.exe version=tesseract_v5.4.0.20240606 active=True max_concurrency=1",
+   "[startup] notebook task reminders registered (07:00 + 09:00 ET, boot catch-up)",
+   "[startup] notebook semantic sweep registered (every 15 min; dark unless NOTEBOOK_SEMANTIC_SEARCH_ENABLED)"
+  ],
+  "shared_root_blocked": [
+   "A 'SHARED-ROOT WRITE BLOCKED' banner below means the app tried to"
+  ],
+  "integrity_lines": [
+   "[pre-boot] shared data root baseline: 61 db files hashed (sha256)",
+   "[post-boot (+15s)] shared data root CLEAN (61 db files byte-identical).",
+   "[post-prewarm (+120s)] shared data root CLEAN (61 db files byte-identical).",
+   "[shutdown] Massive WS consumer stop: clean",
+   "[shutdown] Bullflow SSE worker stop: clean",
+   "[shutdown] cache snapshot saved: 888 entries, 2983 KB",
+   "[shutdown] shared data root CLEAN (61 db files byte-identical). Log: C:\\Users\\Patrick\\AppData\\Local\\Temp\\claude\\C--Users-Patrick\\e5af7430-5c97-49c2-9846-4da28941d38c\\scratchpad\\w7walk\\tree-96fa5ca2a\\docs\\plans\\joystick\\sandbox-runs\\2026-09-25T20-14-54.md"
+  ]
+ }
+}

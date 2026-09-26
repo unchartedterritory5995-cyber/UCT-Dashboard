@@ -147,11 +147,30 @@ describe('⭐ timenow and its five calendar fields are declared, fetch-anchored 
       expect(out.ok, bad).toBe(false)
       expect(out.refusal.guard, bad).toBe('pine:builtin')
     }
-    // `time`/`time[1]` refuse on the PRE-EXISTING, unrelated units guard --
-    // measured, not assumed, so a future change to either refusal cannot
-    // silently make this assertion vacuous.
+    // ⚰️ THIS ASSERTED THE UNITS MESSAGE FOR A `//@version=6` SCRIPT, AND THE
+    // MERGE OF 2026-09-23 MADE THAT PREMISE FALSE — in the better direction.
+    //
+    // The other lineage carries BOTH halves of the clock question, side by side
+    // in `pine.js`: `PINE_CLOCK_MISMATCH` (the units sentence) and,
+    // immediately after it, *"A MISMATCH THAT IS EXACTLY RECONCILABLE, FOR A
+    // SCRIPT SPEAKING PINE"* — `PINE_CLOCK_TRANSFORM`, which reconciles `time`
+    // to Pine's milliseconds whenever the script declares a version. So for a
+    // VERSIONED script there is no longer a mismatch to report, and telling a
+    // member about one would be false; the honest refusal is the one they now
+    // get, that `year` does not take that argument.
+    //
+    // ⭐ THE CASE'S INTENT IS PRESERVED BY MOVING IT, NOT BY DELETING IT: the
+    // units guard is still real and still reachable, on the VERSIONLESS path
+    // where nothing reconciles anything — which is exactly what this assertion
+    // exists to prove cannot silently vanish.
+    const versionless = translatePine(`indicator(\"t\")\nplot(year(time))\n`, { strict: true })
+    expect(versionless.ok).toBe(false)
+    expect(versionless.refusal.message).toMatch(/MILLISECONDS/)
+    // ⛔ AND THE VERSIONED SCRIPT GETS THE TRUE REASON INSTEAD — asserted, so
+    // the two paths cannot quietly converge on one message again.
     const timeMsg = translatePine(S('year(time)'), { strict: true }).refusal.message
-    expect(timeMsg).toMatch(/MILLISECONDS/)
+    expect(timeMsg).not.toMatch(/MILLISECONDS/)
+    expect(timeMsg).toMatch(/year/)
     // A computed timestamp gets THIS feature's own bespoke message, not the
     // generic "maps to nothing" one `year` (a clock entry, not a function)
     // would otherwise produce.
@@ -163,7 +182,13 @@ describe('⭐ timenow and its five calendar fields are declared, fetch-anchored 
   it('⛔⛔ every real corpus script that names timenow still refuses on an unrelated blocker (measured, not overclaimed)', () => {
     const cases = [
       ['chart-champions-part-1-npoc-levels-vwaps__wdeUFJ4ZD2.pine', 'pine:builtin', /syminfo\.mintick/],
-      ['initial-balance-ib-and-previous-day-week-high-low-close__M0u1uaug4Q.pine', 'pine:builtin', /MILLISECONDS/],
+      // ⚰️ WAS /MILLISECONDS/. Same script, same guard, DIFFERENT blocker since
+      // 2026-09-23: the merge reconciles `time` to Pine's milliseconds for any
+      // script that declares a version, so this one no longer meets a units
+      // mismatch — it meets the true reason, that `year` does not take that
+      // argument. The case's claim is unchanged and still measured: it refuses,
+      // and NOT on `timenow`.
+      ['initial-balance-ib-and-previous-day-week-high-low-close__M0u1uaug4Q.pine', 'pine:builtin', /`year` with that argument/],
       ['mtf-key-levels-support-and-resistance__29f470a089.pine', 'pine:function-def', /f_round_up_to_tick/],
       ['swing-points-and-liquidity-by-leviathan__919c1fd9c6.pine', 'pine:request', /request/],
     ]

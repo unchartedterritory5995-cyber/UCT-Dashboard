@@ -212,7 +212,12 @@ const GUARD_FOR = {
   text: ['runtime:call-text-state', 'pine:text-value'],
   conversion: ['runtime:call-conversion-state'],
   presentation: ['runtime:presentation'],
-  udt: ['runtime:udt'],
+  // ⭐ THREE GUARDS, BECAUSE THE FAMILY SPLIT WHEN IT WAS BUILT. `runtime:udt`
+  // is now only a `type` declaration this lane could not READ; a construction,
+  // a field read and a field write all execute, and what is left of the family
+  // says WHICH part by its own name. Listing only the first would report the
+  // family's first-blocker count as 0 while a `method` blocked four scripts.
+  udt: ['runtime:udt', 'runtime:udt-field', 'runtime:udt-method'],
   varip: ['runtime:varip'],
   switch: ['runtime:switch'],
   udf: ['runtime:function', 'runtime:function-global-state'],

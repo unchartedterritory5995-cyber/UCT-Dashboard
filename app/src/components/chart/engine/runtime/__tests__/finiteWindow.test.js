@@ -387,11 +387,25 @@ describe('⛔⛔ what 2F-2B does NOT admit — the families stay apart', () => {
     }
   })
 
-  it('SCAN-BACKWARDS builtins are still refused', () => {
+  it('SCAN-BACKWARDS builtins are NOT window members — and now execute via CARRIED', () => {
+    // ⚰️ THIS ASSERTED `ta.barssince` OVER STATE WAS REFUSED `call-windowed-state`,
+    // and that stopped being true when Pine's unbounded `ta.barssince` landed as
+    // the `CARRIED` member `barssincePine` (its twin `ta.valuewhen` went to
+    // `CARRIED2` a wave earlier). The SCAN-BACKWARDS family is no longer a
+    // refusal category at all, so there is no specimen left to re-point to.
+    //
+    // ⭐ THE ASSERTION THEREFORE MOVES FROM "is refused" TO "is not a member",
+    // which is the property THIS file owns — exactly the move the `ema`/`rma`
+    // case immediately above already made, for the same reason and in the same
+    // words. Scanning backwards for a CONDITION is still not expressible through
+    // a window, and that is what these two lines say.
     expect(FINITE_WINDOW.barssince).toBeUndefined()
     expect(FINITE_WINDOW.valuewhen).toBeUndefined()
-    expect(refusalOf(`${head}var x = 0.0\nx := close\nplot(ta.barssince(x > 100))\n`).guard)
-      .toBe('runtime:call-windowed-state')
+    const b = buildRuntimeIr(`${head}var x = 0.0\nx := close\nplot(ta.barssince(x > 100))\n`,
+      { bars: BARS, inputs: {} })
+    expect(b.ok, 'ta.barssince over state should execute via CARRIED').toBe(true)
+    expect(b.ir.windows, 'a scan-backwards builtin must not allocate a window').toHaveLength(0)
+    expect(b.ir.carried.map((c) => c.fn)).toEqual(['barssincePine'])
   })
 
   it('CUMULATIVE and undeclared builtins are still refused', () => {
@@ -421,7 +435,23 @@ describe('⛔⛔ what 2F-2B does NOT admit — the families stay apart', () => {
     // ⚠️ AND IT MOVED NO CORPUS NUMBER — `call-undeclared-builtin-state` is 2
     // scripts before and after, because no corpus script hits one of the eight
     // as its FIRST blocker. A diagnostic can be wrong without being visible.
-    const r = refusalOf(`${head}var x = 0.0\nx := close\nplot(ta.crossover(x, 105) ? 1 : 0)\n`)
+    // ⚰️⚰️ AND THE SPECIMEN DRIFTED A SECOND TIME, IN THE SAME TEST. It was
+    // `ta.crossover`, which this lane now SERVES over runtime state (the cross
+    // family got its own carried step, `runtime/__tests__/crossFamily.test.js`)
+    // — so a probe pointed at it stopped testing "mapped but windowed" and
+    // started testing nothing at all. That is exactly the failure the `ta.cum`
+    // note below records, arriving again from the other direction: a specimen
+    // is only a specimen while the thing it stands for is still true of it.
+    // ⭐ `ta.dmiplusleg` is one of the same eight `PINE_CALL_SHAPES` mappings
+    // (`dmiplusleg` -> `plusDI`) and still answers windowed — established by
+    // driving ALL EIGHT, not by picking one that looked safe. Two of the eight
+    // would have been wrong: `crossover`/`crossunder` now compile, and
+    // `ta.wpr` answers `undeclared` today, which is a pre-existing hole in
+    // this very claim and is recorded here rather than quietly stepped around.
+    const r = refusalOf(`${head}var x = 0.0
+x := close
+plot(ta.dmiplusleg(x, 105))
+`)
     expect(r.guard).not.toBe('runtime:call-undeclared-builtin-state')
     expect(r.guard).toBe('runtime:call-windowed-state')
     // ⭐ NON-VACUITY: a name the table genuinely does NOT declare must still
@@ -434,9 +464,25 @@ describe('⛔⛔ what 2F-2B does NOT admit — the families stay apart', () => {
     expect(refusalOf(`${head}var x = 0.0\nx := close\nplot(ta.vwma(x, 3))\n`).guard)
       .toBe('runtime:call-undeclared-builtin-state')
   })
-  it('⛔ a window over an EXPRESSION needs its own series, and says so', () => {
-    expect(refusalOf(`${head}var x = 0.0\nx := close\nplot(ta.sma(x + 1, 3))\n`).guard)
-      .toBe('runtime:history-expression')
+  it('⭐ a window over an EXPRESSION is GIVEN its own series at a root statement', () => {
+    // ⚰️ THIS ASSERTED `runtime:history-expression` UNTIL THE ROOT STATEMENT
+    // LIST LEARNED TO HOIST. The sentence the refusal used to carry — "needs
+    // that expression's own committed series" — is now performed rather than
+    // demanded, and the ring is the proof: a hoisted source allocates ONE, which
+    // is what separates this from the recurrence family one file over.
+    const b = buildRuntimeIr(`${head}var x = 0.0\nx := close\nplot(ta.sma(x + 1, 3))\n`,
+      { bars: BARS, inputs: {} })
+    expect(b.ok, JSON.stringify(b.refusal || {})).toBe(true)
+    expect(b.ir.history, 'the hoisted source gets a ring').toHaveLength(1)
+  })
+
+  it('⛔ but a window over an EXPRESSION inside a BRANCH still says so', () => {
+    // ⛔ THE BOUND IS A CORRECTNESS ARGUMENT, NOT CAUTION. A declare hoisted out
+    // of this branch would run on every bar while the window inside it runs only
+    // on the bars the branch takes — two different series, and the vendor answer
+    // for a conditionally-called `ta.*` is not pinned here.
+    const src = `${head}var x = 0.0\nx := close\nvar y = 0.0\nif close > 0\n    y := ta.sma(x + 1, 3)\nplot(y)\n`
+    expect(refusalOf(src).guard).toBe('runtime:history-expression')
   })
 
   it('⛔ a non-value namespace cannot reach a window reducer', () => {
