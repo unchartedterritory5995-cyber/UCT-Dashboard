@@ -92,6 +92,13 @@ could read, labelled as such.
    matches exactly. At 250K, META/AMD/AMZN/AAPL/MSFT derive their full history. AMD, the slowest,
    takes about 20 s end to end, inside the job's 30 s. Eight names stay over the cap (SPXW, SPY,
    QQQ, MU, SPX, SNDK, NVDA, TSLA) and are labelled "N-session basis".
+**After the deploy (`ba6d4fb64`, warm pod): 15 of 15 derivable names EXACT to the dollar**, including
+AMD, META, AMZN, AAPL, MSFT, SMH and IWM. NVDA, TSLA and SPY carry a labelled partial basis, and the
+page's server cannot derive them either. Re-run it with
+`python tools/flow_card_parity_audit.py --card page --symbols ... --days 1`. **Still unmeasured before the
+flip:** build time during market hours. Every print moves a busy name's version, so each `/flow` rebuilds.
+AMD takes 20 s idle, against a 30 s job budget.
+
 3. **A read the time budget cut short is served for 60 s, not cached until the name trades.** The
    HOOD/SOFI/MSTR/CRWV/PLTR/DELL bases in the first post-deploy run were cold reads (19K–87K rows,
    nowhere near a cap) that stayed cached all night. `basis_cut` now says `"time"`, `"rows"` or

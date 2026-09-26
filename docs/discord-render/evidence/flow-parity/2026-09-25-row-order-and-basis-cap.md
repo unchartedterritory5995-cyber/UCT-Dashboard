@@ -104,6 +104,26 @@ so the truncated answer was served all night. A warm read takes 2–6 s and is c
 (`FLOW_CARD_BASIS_PARTIAL_TTL_S`) and then rebuilt. A row-capped or complete product is cached as
 before. The body now says which cut applied: `basis_cut` is `"time"`, `"rows"` or `null`.
 
+## 5. After the deploy of `ba6d4fb64` (both services SUCCESS 19:29 CT; card = the job's exact code path)
+
+The cold pass ran about 4 minutes after boot and the warm pass about 14 minutes after. The display day
+was 9/25.
+
+| name | cold | warm |
+|---|---|---|
+| AMD, META, AAPL, MSFT, AMZN (5-day widened), CRWV, RKLB, COIN, GME, IWM, SMH | EXACT, full history | EXACT |
+| DELL, PLTR, HOOD, SOFI, ASTS, MSTR | cold read cut short (34–74 sessions; same direction, ASTS exact) | **EXACT, full history** (the 60 s expiry let the warm read replace the cold one) |
+| NVDA, TSLA, SPY | row cap, labelled basis (12–35 sessions) | same; the page's server cannot derive these ("too big"), so there is no server answer to compare |
+
+**Warm result: 15 of 15 derivable names EXACT to the dollar, AMD included (BEAR $948,000 / $1,530,486,
+which had read BULL before the fix).** End-to-end time, warm: 1.1–6.3 s under 90K rows, 10–16 s for
+170–240K rows (AAPL, AMZN, MSFT, META), 20.0 s for AMD.
+
+The committed instrument now reproduces this:
+`python tools/flow_card_parity_audit.py --card page --symbols AMD,DELL,META,HOOD,NVDA --days 1` reads AMD, DELL,
+META and HOOD EXACT and NVDA INCONCLUSIVE (exit 2). `--source etfs --symbols SMH,IWM` reads both EXACT
+(exit 0).
+
 ## Rails
 
 `tests/test_flow_card_from_page.py`:
