@@ -828,3 +828,32 @@ CARD 25 states the goal as **"someone can only use our site"** — a claim about
 ## ⛔⛔ WHAT "MAKE JUDGEMENT CALLS" DOES **NOT** AUTHORISE — stated so the boundary is on the record
 
 **CARD 27's production fix is still NOT SHIPPED, deliberately.** The standing rule is that `master` is production and a push there needs an explicit *"deploy"* plus a member-impact paragraph. ⭐ **"Make judgement calls and decisions" was said in the context of two research questions, and reading it as deploy authorisation would be exactly the inference that rule exists to prevent** — the same shape as defaulting over an unread answer (CARD 17) or reading a clearance as covering feeds nobody has bought (CARD 26 §4). The fix, its one-line change and its required rail are all recorded and ready; it ships when the owner says the word.
+
+## CARD 31 — the per-user cohort mechanism SHIPS, and three programme documents say it does not
+
+**Found by the gate-item-26 author; every claim re-verified at `origin/master` (2e0598bfa) before being recorded.**
+
+| claim | reality at master |
+|---|---|
+| D-08 §6.2: *"no per-user, server-side feature flag or beta-cohort mechanism"*, and Stage 3 *"is the only stage that requires something new"* | ⛔ **False.** `api/services/rollout.py` = **347 lines**, `tools/rollout_cohort.py` = **147 lines** (operator CLI, dry-run default) |
+| item 37: S2 *"ABSENT today; the only rung that needs a build"* | ⛔ **False** on the same evidence |
+| item 9 BRK-07: `user_tags` *"written and read by no gate"* | ⛔ **False** |
+| — | ✅ **And it GENERALISED**: a second live cohort, `api/services/wisdom/publish/adapters/askai.py`, calls `rollout.includes(str(user_id), COHORT)` — verified at source |
+
+⭐ **Why all three were wrong the same way: the mechanism was owner-approved 2026-09-12, AFTER D-08 was written, and the two later documents inherited D-08's cell rather than re-deriving it.** One stale availability cell propagated into two downstream plans, and each restated it with more confidence than the last. **Their REASONING all stands** — only the availability cell moves.
+
+⭐⭐ **The precise consequence, which is better than "it ships": a TERMINAL-NEXT cohort is a COMMAND, not a build.** `python tools/rollout_cohort.py add --cohort terminal-next --user <id> --apply`, plus a gate function copied from `askai.py`'s worked template. ⚠️ Of item 37's four S2 build items, **one ships** (`has_tag` as `rollout.includes()`), **two are genuinely absent** (a reusable FastAPI dependency; a `cohorts` field on `_access_payload` — so the server can gate on a cohort while the CLIENT cannot know it is in one), and **`TERMINAL_NEXT_ENABLED` has ZERO occurrences in `api` or `app/src`** (verified) — so item 37's prerequisite 1 is unmet in source.
+
+## CARD 32 — ⚰️ A FALSE PRODUCTION ALARM I ALMOST RELAYED, AND THE REAL FINDING UNDERNEATH IT
+
+⛔⛔ **The item-26 author reported a member-facing 400 as LIVE IN PRODUCTION RIGHT NOW** — `notebook_daily_template` written by the client with no row in `api/routers/auth.py`'s `_PREFERENCE_KEYS` allow-list, *"measured still broken ~14:00Z"*. **It is NOT live. I checked before relaying it, and the fix is already in.** `auth.py:2143` reads `"notebook_daily_template": _PREF_OPAQUE,` at the very commit the author read (master has not moved: 2e0598bfa both times).
+
+⭐ **What it actually read was the ⚰️ POST-MORTEM COMMENT SITTING DIRECTLY ABOVE THE FIX.** The comment records the incident — shipped 01:18 CT without the row, 400 in production, measured at ~14:00Z — and the allow-list row immediately below it IS the remedy. **A true record of a closed incident, read as a live state: the programme's own kind-3 instrument failure, committed by an agent while documenting a different one.** Recorded here rather than quietly dropped, because the next reader of that comment will make the same mistake.
+
+✅ **THE STRUCTURAL FINDING UNDERNEATH IT IS REAL, VALUABLE, AND UNAFFECTED.** Three separate landings shipped a client-written preference key with no allow-list row in six days (the screener trio 9/20–9/23, `watchlist_perf_cols` 9/25, `notebook_daily_template` 9/26), each producing a 400 *"Unknown preference key"* in a member's face for days. **All three are fixed; the class is not.**
+
+⛔ **And the reason it keeps happening is a genuinely hard one, stated in the allow-list's own comment: the TRIGGER IS JAVASCRIPT AND THE RAIL IS PYTHON.** `test_every_key_the_client_writes_is_still_accepted` was red on master throughout, and each landing *correctly* ran only the rails its own diff touched — a sound convention that runs everything except this one. Page tests stay green because they mock the endpoint. And the key is added at the END of building a surface, when the work looks finished.
+
+✅ **Mitigation is one checklist line, not a new instrument: any diff containing a new `setPref(` runs `tests/test_preference_key_validation.py`, whatever language the diff is in.** The rail was never what failed.
+
+⚠️ **AND IT SHARPENS THE MIGRATION RULE I GAVE THAT AUTHOR.** I briefed *"a rename needs a read-fallback shim in the same commit"*. That is now only HALF the requirement: without the allow-list row, **the shim's WRITE side 400s and nothing persists at all**. ⛔ On a migration this is worse than the three incidents, because the 400 lands on the very surface meant to prove it can replace TERMINAL-CURRENT — the member sets a view, returns, it forgot, so they go back to `/calendar` where it works. **The symptom is indistinguishable from the data loss NG-08 exists to prevent**, so it gets diagnosed as a broken shim or as evidence TERMINAL-NEXT is not ready, when the defect is one missing line in a dict.
