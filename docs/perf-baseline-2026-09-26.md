@@ -121,7 +121,7 @@ correctness and latency, so **it does not establish the warm ratio.**
 
 ---
 
-## Protocol A — bars warm/cold ratio ⛔ VOID, AND RE-RUN STILL PENDING
+## Protocol A — bars warm/cold ratio ✅ VALID RUN OBTAINED, and the headline number is a definition problem
 
 §8: *"the highest-value single number in the whole protocol and it is one command"*;
 definition of done **≥ 99 % served `mem`/`sqlite`**.
@@ -139,12 +139,49 @@ pod that had just booted — the bars hot tier is an in-process `TTLCache` that 
 deploy. The protocol's own rule caught its first executor. **Retained only as the record of
 an invalid run.**
 
-**A re-run gated on uptime ≥ 900 s is in flight and has not yet found a window** — the pod
-was redeployed by other work twice while waiting. **No valid warm ratio exists as of this
-document.** This is the single most important hole in this baseline.
+### ✅ Attempt 2, 01:16:18Z — pod uptime **942 s**, after close. VALID.
 
-**Delta against §4.3** cannot be computed. For reference, its 2026-08-19 row records *"daily
-p50 ~60–70 ms, 100 % `stale-swr`; intraday 0 % warm, p50 366 ms → p50 66 ms after the fix"*.
+| tf | warm | layers | latency |
+|---|---|---|---|
+| **D** (300 bars) | **0 / 40 = 0 %** | `stale-swr` × 40 | "cold" p50 **104 ms**, max 301 ms |
+| **5** (240 bars) | **39 / 40 = 98 %** | `sqlite` × 39, `miss` × 1 | warm p50 **65 ms**, p95 75 ms |
+
+### ⛔⛔ THE 0 % IS A CLASSIFICATION ARTIFACT, NOT A PERFORMANCE FAILURE
+
+§8 defines warm as `mem`/`sqlite` and cold as *"`fetch`/`stale-swr`/`inflight-wait`/`disk`/
+`miss` — i.e. **the user waited**"*. Daily came back **100 % `stale-swr`**, so the tool scores
+it **0 % warm** against a **≥ 99 %** definition of done — a catastrophic-looking miss.
+
+**The measured latency for that same 0 % is p50 104 ms, max 301 ms.** A member served in
+104 ms did not wait. `stale-swr` is stale-while-revalidate: the cached copy is served
+immediately and a refresh happens behind it. Counting it beside `fetch` and `miss` under
+"the user waited" is what produces the 0 %.
+
+⭐ **So the actionable finding is about the target, not the tier.** The instant-origin plan's
+"≥ 99 % served `mem`/`sqlite`" and this tool's cold bucket disagree on whether
+stale-while-revalidate is a success. **Until that is settled, the daily warm ratio is
+unusable as a gate** — it will read 0 % forever while serving in ~100 ms. Intraday, which
+genuinely is `sqlite`, reads **98 %** at p50 65 ms and is essentially at target (one miss in
+forty).
+
+⚠️ **What `stale-swr` does concede:** the served copy *was* stale enough to trigger
+revalidation. After the close on daily bars that is harmless. **During RTH on intraday it
+would not be**, and this run cannot speak to that — it was taken after the bell.
+
+### Delta against §4.3 — daily is UNCHANGED since August; intraday is transformed
+
+§4.3's 2026-08-19 row: *"daily p50 ~60–70 ms, **100 % `stale-swr`**; intraday 0 % warm,
+p50 366 ms → p50 66 ms after the fix"*.
+
+* **Daily: 100 % `stale-swr` then, 100 % `stale-swr` now.** Not a regression — the documented
+  steady state, reproduced six weeks later. p50 104 ms tonight vs ~60–70 ms in August is the
+  same order, slightly slower, on a pod 942 s old.
+* ⭐ **Intraday: 0 % warm in August → 98 % `sqlite` tonight, p50 65 ms.** The August fix
+  holds, and this is the clearest improvement in the whole baseline.
+
+⛔ **Attempt 1 remains void and is retained above** as the record of how narrow the valid
+window is: this run needed a pod that survived 900 s, and it took ~17 minutes of waiting
+through other workstreams' deploys to get one.
 
 ---
 
@@ -190,9 +227,12 @@ figure to ~10 min against the current gated pipeline.
    corroborated.
 2. **The CDN rule is settled and is not working** — fourteen months of documentation
    describing a cache that returns `BYPASS`.
-3. **The warm ratio is still unknown**, and getting it requires a 15-minute quiet window that
-   this service did not offer once tonight. ⛔ That is a scheduling problem, not a tooling
-   problem, and it is the first thing to fix about this protocol.
+3. ⭐ **The warm ratio is measured, and it indicts the metric rather than the serving layer.**
+   Intraday is **98 % `sqlite` at p50 65 ms** — the August fix holds. Daily is **0 % warm and
+   p50 104 ms simultaneously**, because `stale-swr` is bucketed as "the user waited". ⛔ **The
+   ≥ 99 % mem/sqlite gate cannot be used until it decides whether stale-while-revalidate
+   counts as served.** Getting the run at all took a 900 s pod, which this service offered
+   once in seventeen minutes of waiting.
 4. **CP-05's remaining blocker is unchanged and is a decision:** §8 generates no load by
    design, roadmap Rule 4 bars load against production, so a load model needs a
    non-production target that does not exist.
