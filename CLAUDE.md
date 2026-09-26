@@ -3640,7 +3640,7 @@ exactly as it did before K.
   rate, and `tools/window_check.py` now stamps that reading — reporting **absent**
   and **off** as different facts, because a pod predating K serves no keys at all.
 
-### 📓 Notebook 10/10 program — waves 5–8 LIVE (#186 `2c3ed3093`, #193 `271a078b6`, #196 `f883e0996`, #198 `caf6d1b9e`) and the 9C soak kit (#197 `2e0598bfa`); wave 9 in build, 2026-09-26
+### 📓 Notebook 10/10 program — waves 5–9 LIVE (#186 `2c3ed3093`, #193 `271a078b6`, #196 `f883e0996`, #198 `caf6d1b9e`, #202 `1c4b0bf74`) and the 9C soak kit (#197 `2e0598bfa`); wave 10 in build, 2026-09-26
 
 ⭐⭐ **READ `docs/notebook/wave5-6-RESUME-HERE.md` FIRST** — it is the checkpoint
 for this program and carries exact SHAs and the next actions in order. This
@@ -3664,7 +3664,7 @@ PASS; it also carried the H14 fix for the single-note export's Latin-1 header). 
 `notebook-wave6-tip-2026-09-26` (`96051c043`; the older `-2026-09-25` tag predates the
 round-5 fixes), wave 7's `notebook-wave7-tip-2026-09-26`. Wave 8 is `feat/notebook-w8`
 (worktree `notebook-w8`, its own `node_modules` since D-W4), wave 9's soak kit is
-`feat/notebook-w9c`. Both landed: #197 (9C, `2e0598bfa`) then #198 (wave 8, `caf6d1b9e`, web SUCCESS 2026-09-26 18:48Z, tagged `notebook-wave8-tip-2026-09-26`). Wave 8's three gates — `J2_SHARE_LINKS_ENABLED`, `NOTEBOOK_PUBLISH_ENABLED`, `NOTEBOOK_ONBOARDING_ENABLED` — were ARMED on web 2026-09-26 18:53–18:58Z, one at a time (see `docs/feature_flags.json`). Wave 9 continues on `feat/notebook-w9` (lane 9D done). Plan: `docs/notebook/NOTEBOOK-10-OF-10-PLAN.md`.
+`feat/notebook-w9c`. Both landed: #197 (9C, `2e0598bfa`) then #198 (wave 8, `caf6d1b9e`, web SUCCESS 2026-09-26 18:48Z, tagged `notebook-wave8-tip-2026-09-26`). Wave 8's three gates — `J2_SHARE_LINKS_ENABLED`, `NOTEBOOK_PUBLISH_ENABLED`, `NOTEBOOK_ONBOARDING_ENABLED` — were ARMED on web 2026-09-26 18:53–18:58Z, one at a time (see `docs/feature_flags.json`). Wave 9 LIVE as #202 (`1c4b0bf74`, web SUCCESS 2026-09-26 22:27Z, tagged `notebook-wave9-tip-2026-09-26`): the benchmark instrument (9A), the parity scorecard (9B), the four-format selected export and the folder Publish door (9D). The wave-7 gates `NOTEBOOK_PERSONAL_API_ENABLED` and `NOTEBOOK_IMAGE_DOCX_DOCUMENTS_ENABLED` were ARMED on web 2026-09-26 23:11:17Z with `NOTEBOOK_TASK_REMINDERS_ENABLED=1` made explicit (one --set, one boot; see `docs/feature_flags.json`). Wave 10 builds on `feat/notebook-w10` (lanes on `feat/notebook-w10-b` / `-c`). Plan: `docs/notebook/NOTEBOOK-10-OF-10-PLAN.md`.
 
 ✅ **Merged and LIVE on production (2026-09-24):** #187 (the H14 metadata-settle
 hotfix, master `d4a1a13b6`) and #183 (Ask on phones / paste / citations / G-064
