@@ -310,10 +310,18 @@ def fetch_product(ticker: str, source: str, window, timeout_s: float, *, get=Non
 
 
 #: The row cap for the derivation basis. Under it the basis is the symbol's FULL stored history
-#: (exact parity with the page); over it, the newest sessions that fit. ~150K rows ≈ 11 s cold on
-#: flow-worker (AMD 224K rows: 18 s; DELL 65K: 5 s; measured 2026-09-25). The pre-V2 job allows
-#: 30 s; the dark V2 path's 10 s would send head names to the labelled rollup fallback.
-BASIS_ROWS = 150_000
+#: (exact parity with the page); over it, the newest sessions that fit, labelled on the card.
+#:
+#: ⭐ 250K, NOT 150K, and the reason is a wrong direction, not speed. Measured 2026-09-25 with the
+#: page's own bundle in the flow-worker pod: AMD's newest 37 sessions (the 150K basis) read BULL
+#: $9.2M/$2.7M for 9/25 while the page read BEAR $948K/$1.53M; full history (224K rows) matched
+#: the page exactly. Rows per symbol that day: 14 names over 150K, 8 over 250K (SPXW 1262K, SPY
+#: 956K, QQQ 791K, MU 609K, SPX 549K, SNDK 452K, NVDA 386K, TSLA 377K), so 250K gives META 238K,
+#: AMD 224K, AMZN 196K, AAPL 170K and MSFT 150K their full history. Cost, end to end through
+#: production after hours: AMD 19.9 s, PLTR 87K 6.4 s, MSTR 72K 5.7 s, HOOD 34K 3.3 s; a 400K
+#: basis took SPY 27 s and NVDA over the page's own 48 MB budget. The pre-V2 job allows 30 s; the
+#: dark V2 path's 10 s would send anything this size to the labelled rollup fallback.
+BASIS_ROWS = 250_000
 
 
 def fetch_basis_product(ticker: str, source: str, cap_rows: int, timeout_s: float, *, get=None) -> dict | None:

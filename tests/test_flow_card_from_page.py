@@ -445,29 +445,93 @@ def _five_session_db(tmp_path):
     return db, days
 
 
-def test_a_full_basis_read_is_byte_identical_to_the_stores_multi_date_stream(tmp_path, monkeypatch):
+# ⛔ ROW ORDER IS PART OF PARITY (measured 2026-09-25). `processFlowData`'s ML/ volume match is
+# order-dependent and date-blind; the page streams one symbol in CreatedDate-TEXT order, and a
+# chronological reassembly moved AMD's day by $217K over identical rows. These dates sort
+# differently as text and as dates, and rows are inserted INTERLEAVED across sessions so rowid
+# order is not session order either: a fixture where every wrong order is visible.
+ORDER_DAYS = ["12/31/2025", "1/2/2026", "9/30/2026", "10/1/2026"]        # chronological
+
+
+def _order_db(tmp_path):
+    from api.flow_db import FlowDB
+    dbp = tmp_path / "flow.db"
+    db = FlowDB(str(dbp))
+    conn = sqlite3.connect(str(dbp))
+    n = 0
+    for j in range(3):
+        for day in reversed(ORDER_DAYS):
+            n += 1
+            conn.execute("INSERT INTO flow (source, CreatedDate, Symbol, Premium, Strike, dedup_key) "
+                         "VALUES ('stocks', ?, 'AMD', ?, ?, ?)", (day, str(n), str(100 + j), f"o{n}"))
+    conn.commit(); conn.close()
+    return db
+
+
+def _col(stream_text, name):
+    lines = stream_text.strip().splitlines()
+    i = [h.strip() for h in lines[0].split(",")].index(name)
+    return [l.split(",")[i] for l in lines[1:]]
+
+
+def test_the_store_order_is_sqlites_text_order_not_the_calendar():
+    from api.flow_db import store_date_order
+    assert store_date_order(ORDER_DAYS) == ["1/2/2026", "10/1/2026", "12/31/2025", "9/30/2026"]
+    assert store_date_order(ORDER_DAYS) != ORDER_DAYS, "the fixture must be able to tell the orders apart"
+
+
+def test_the_per_date_stream_is_byte_identical_to_the_pages_unfiltered_stream(tmp_path):
+    db = _order_db(tmp_path)
+    page = "".join(db.stream_csv_symbol("AMD", "stocks"))
+    assert "".join(db.stream_csv_symbol("AMD", "stocks", dates=ORDER_DAYS)) == page
+    assert "".join(db.stream_csv_symbol("AMD", "stocks", dates=list(reversed(ORDER_DAYS)))) == page
+    days, prem = _col(page, "CreatedDate"), [int(p) for p in _col(page, "Premium")]
+    assert len(days) == 12
+    for d in ORDER_DAYS:                     # within a session: rowid (insertion) order
+        mine = [p for dd, p in zip(days, prem) if dd == d]
+        assert mine == sorted(mine) and len(mine) == 3, (d, mine)
+
+
+def test_a_full_basis_read_is_byte_identical_to_the_pages_own_stream(tmp_path, monkeypatch):
+    """The card's input must be the PAGE's input: the unfiltered stream, not a re-ordering of it."""
     from api import flow_router as fr
-    db, days = _five_session_db(tmp_path)
+    db = _order_db(tmp_path)
     monkeypatch.setattr(fr, "db", db)
-    used, chunks = fr._read_basis_newest_first("DELL", "stocks", days, budget_s=999)
-    assert used == days
-    assert "".join(chunks) == "".join(db.stream_csv_symbol("DELL", "stocks", dates=days))
+    used, chunks = fr._read_basis_newest_first("AMD", "stocks", ORDER_DAYS, budget_s=999)
+    assert used == ORDER_DAYS
+    page = "".join(db.stream_csv_symbol("AMD", "stocks"))
+    assert "".join(chunks) == page
+    # control: the chronological reassembly this replaced is the same bytes in another order
+    per = {d: "".join(db.stream_csv_symbol("AMD", "stocks", dates=[d])).partition(chr(10))[2] for d in ORDER_DAYS}
+    chron = chunks[0] + "".join(per[d] for d in ORDER_DAYS)
+    assert sorted(chron) == sorted(page) and chron != page
 
 
-def test_a_spent_budget_keeps_the_NEWEST_sessions_in_chronological_order(tmp_path, monkeypatch):
+def test_both_symbol_streams_state_their_order_instead_of_leaving_it_to_the_planner():
+    import inspect
+    from api.flow_db import FlowDB
+    src = inspect.getsource(FlowDB.stream_csv_symbol)
+    code = "\n".join(l.split("#")[0] for l in src.splitlines())            # comments are not code
+    body = code[code.index('"""', code.index('"""') + 3) + 3:]              # past the docstring
+    assert body.count("ORDER BY") == 2, "both the per-date and the unfiltered query must say their order"
+    assert "store_date_order(dates)" in body
+
+
+def test_a_spent_budget_keeps_the_NEWEST_sessions_in_the_stores_order(tmp_path, monkeypatch):
     from api import flow_router as fr
-    db, days = _five_session_db(tmp_path)
+    db = _order_db(tmp_path)
     monkeypatch.setattr(fr, "db", db)
     t = {"now": 0.0}
 
     def clock():
         t["now"] += 5.0                        # every look at the clock costs 5 s of "cold IO"
         return t["now"]
-    used, chunks = fr._read_basis_newest_first("DELL", "stocks", days, budget_s=12, clock=clock)
-    assert used == ["9/22/2026", "9/23/2026", "9/24/2026"], used
+    used, chunks = fr._read_basis_newest_first("AMD", "stocks", ORDER_DAYS, budget_s=12, clock=clock)
+    assert used == ["1/2/2026", "9/30/2026", "10/1/2026"], used              # newest three, oldest first
     body = "".join(chunks)
-    assert body.index("9/22/2026") < body.index("9/23/2026") < body.index("9/24/2026")
-    assert "9/18/2026" not in body and body.count("CreatedDate") == 1      # one header
+    assert _col(body, "CreatedDate")[::3] == ["1/2/2026", "10/1/2026", "9/30/2026"]
+    assert "12/31/2025" not in body and body.count("CreatedDate") == 1      # one header
+    assert body == "".join(db.stream_csv_symbol("AMD", "stocks", dates=used))
 
 
 def test_even_an_instantly_spent_budget_reads_the_newest_session(tmp_path, monkeypatch):
@@ -492,3 +556,50 @@ def test_the_basis_endpoint_reports_a_truncated_read_as_an_incomplete_basis(monk
     j = c.get("/api/flow/ticker-product/DELL?source=stocks&basis_rows=100").json()
     assert j["window_dates"] == ["9/24/2026"] and j["basis_complete"] is False and j["sessions_total"] == 3
     assert seen["dates"] == ["9/24/2026"] and "9/24/2026" in "".join(seen["chunks"])
+    assert j["basis_cut"] == "time"
+
+
+def _caching_build(fr, calls):
+    """The real builder's cache contract (it installs the product under `key`), without node."""
+    def fake_build(sym, src, key, version, st, dates=None, extra=None, pre_chunks=None):
+        import gzip, json as _j
+        calls.append(list(dates or []))
+        body = {"ok": True, "product": {"all_directional": []}}; body.update(extra or {})
+        gz = gzip.compress(_j.dumps(body).encode())
+        fr._search_product_cache_put(key, gz)
+        return gz, None
+    return fake_build
+
+
+def test_a_time_truncated_basis_is_not_served_past_its_short_ttl(monkeypatch, tmp_path):
+    """A cold-pod read (DELL 14 of 152 sessions) was cached under the version key and served all
+    night while a warm read took 2 s and was exact. Truncated-by-time lives 60 s; then the next
+    request reads again."""
+    fr, c = _client(monkeypatch, tmp_path, ["9/22/2026", "9/23/2026", "9/24/2026"])
+    fr._BASIS_PARTIAL_UNTIL.clear()
+    calls = []
+    monkeypatch.setattr(fr, "_build_search_product", _caching_build(fr, calls))
+    monkeypatch.setattr(fr, "_BASIS_READ_BUDGET_S", -1.0)                  # cold: one session only
+    url = "/api/flow/ticker-product/DELL?source=stocks&basis_rows=100"
+    key = ("DELL", "stocks", "v1", "r100")
+    assert c.get(url).json()["basis_cut"] == "time"
+    assert key in fr._BASIS_PARTIAL_UNTIL, "a time-truncated build must be marked short-lived"
+    r = c.get(url)                                                           # inside the TTL: served
+    assert r.headers.get("X-Flow-Cache") == "hit" and len(calls) == 1
+    monkeypatch.setattr(fr, "_BASIS_READ_BUDGET_S", 999.0)                 # the disk warmed up
+    fr._BASIS_PARTIAL_UNTIL[key] -= fr._BASIS_PARTIAL_TTL_S + 1             # the TTL has passed
+    j = c.get(url).json()
+    assert len(calls) == 2 and j["basis_complete"] is True and j["basis_cut"] is None
+    assert key not in fr._BASIS_PARTIAL_UNTIL
+    assert c.get(url).headers.get("X-Flow-Cache") == "hit" and len(calls) == 2   # complete: cached
+
+
+def test_a_complete_or_row_capped_basis_is_cached_like_any_product(monkeypatch, tmp_path):
+    fr, c = _client(monkeypatch, tmp_path, ["9/22/2026", "9/23/2026", "9/24/2026"])
+    fr._BASIS_PARTIAL_UNTIL.clear()
+    calls = []
+    monkeypatch.setattr(fr, "_build_search_product", _caching_build(fr, calls))
+    j = c.get("/api/flow/ticker-product/DELL?source=stocks&basis_rows=2").json()
+    assert j["basis_cut"] == "rows" and j["basis_complete"] is False
+    assert c.get("/api/flow/ticker-product/DELL?source=stocks&basis_rows=2").headers.get("X-Flow-Cache") == "hit"
+    assert len(calls) == 1 and not fr._BASIS_PARTIAL_UNTIL

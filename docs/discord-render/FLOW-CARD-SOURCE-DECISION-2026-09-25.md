@@ -1,7 +1,7 @@
 # `/flow` card data source — the decision packet (2026-09-25)
 
 **Decision owner:** Patrick, with Ravi (the Options Flow page and `live_massive_router.py`
-are his surface). **Written by:** the 2026-09-24/25 flow session. **Status:** A is BUILT and DARK (2026-09-25 evening, `DISCORD_FLOW_CARD_PAGE_ENABLED`, unset = rollup; on master since `a1d6e5ed3`..`9558a23dd`, calendar fix `0dcc101cc`); the FLIP is the open decision.
+are his surface). **Written by:** the 2026-09-24/25 flow session. **Status:** A is BUILT and DARK (2026-09-25 evening, `DISCORD_FLOW_CARD_PAGE_ENABLED`, unset = rollup; on master since `a1d6e5ed3`..`9558a23dd`, calendar fix `0dcc101cc`, row-order/cap/partial-TTL fix after the close the same night); the FLIP is the open decision.
 
 ## The question in one sentence
 
@@ -73,11 +73,29 @@ footer says "page-derived, N-session basis". The card then climbs its display la
 (1 -> 5 -> 20 -> all) over that one product, scoped by the MARKET calendar like the page's
 "Last N". One fetch per `/flow`.
 
-The server reads the basis NEWEST session first under a 12 s budget and derives over what it read,
-reassembled in chronological order (byte-identical to the store's own stream). Measured on a pod four
-minutes after boot: full-history reads are cold on disk (DELL 14,001 rows in 20.9 s, oldest first) while
-recent sessions stay in the page cache (NVDA 128K recent rows in 6.7 s). So a warm pod gives the full
-history and exact parity, and a cold one gives the most recent history it could read, labelled as such.
+The server reads the basis NEWEST session first under a 12 s budget and derives over what it read.
+Measured on a pod four minutes after boot: full-history reads are cold on disk (DELL 14,001 rows in
+20.9 s, oldest first) while recent sessions stay in the page cache (NVDA 128K recent rows in 6.7 s). So
+a warm pod gives the full history and exact parity, and a cold one gives the most recent history it
+could read, labelled as such.
+
+**Three corrections the same night** (`evidence/flow-parity/2026-09-25-row-order-and-basis-cap.md`):
+
+1. **Row order is part of parity.** `processFlowData`'s ML/ volume match is order-dependent and
+   date-blind. The page's stream is CreatedDate as TEXT, then rowid, which is not chronological. The
+   card reassembled chronologically, and over identical rows that moved AMD's 9/25 bear side by
+   $217K (SMH/DELL/AMD: same size, different sha). Now one helper (`flow_db.store_date_order`)
+   defines the order, both symbol streams state it with an ORDER BY that the same index satisfies
+   (same plan, byte-identical output), and a complete basis is byte-identical to the page's input.
+2. **The cap is 250K rows, not 150K.** AMD's newest 37 sessions (the 150K basis) read BULL
+   $9.2M/$2.7M for 9/25 where the page reads BEAR $948K/$1.53M; its full history (224K rows)
+   matches exactly. At 250K, META/AMD/AMZN/AAPL/MSFT derive their full history. AMD, the slowest,
+   takes about 20 s end to end, inside the job's 30 s. Eight names stay over the cap (SPXW, SPY,
+   QQQ, MU, SPX, SNDK, NVDA, TSLA) and are labelled "N-session basis".
+3. **A read the time budget cut short is served for 60 s, not cached until the name trades.** The
+   HOOD/SOFI/MSTR/CRWV/PLTR/DELL bases in the first post-deploy run were cold reads (19K–87K rows,
+   nowhere near a cap) that stayed cached all night. `basis_cut` now says `"time"`, `"rows"` or
+   `null`.
 
 ## Option A — derive the card FROM the page product (recommended)
 

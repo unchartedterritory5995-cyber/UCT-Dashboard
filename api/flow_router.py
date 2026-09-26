@@ -68,7 +68,7 @@ Performance design:
 from fastapi import APIRouter, Request, Depends
 from api.flow_admin_auth import require_flow_admin, require_flow_user
 from fastapi.responses import JSONResponse, Response
-from api.flow_db import FlowDB, parse_columns
+from api.flow_db import FlowDB, parse_columns, store_date_order
 from api.services import flow_aggregate
 import collections
 from collections import OrderedDict
@@ -1069,9 +1069,15 @@ _BASIS_READ_BUDGET_S = float(os.environ.get("FLOW_CARD_BASIS_READ_BUDGET_S", "12
 
 def _read_basis_newest_first(sym: str, src: str, dates: list, budget_s: float, clock=None):
     """Read `dates` NEWEST FIRST, one session at a time, until `budget_s` is spent (always at least
-    the newest). Returns (sessions read, oldest first; CSV chunks in that CHRONOLOGICAL order with
-    one header) — the same bytes `stream_csv_symbol(dates=used)` would produce, so the derivation
-    sees rows in the order the page's product does."""
+    the newest). Returns (sessions read, oldest first; CSV chunks with one header, in the STORE's
+    order) — the same bytes `stream_csv_symbol(dates=used)` produces, and when every session was
+    read, the same bytes as the page's own unfiltered stream.
+
+    ⛔ THE CHUNKS ARE IN `store_date_order`, NOT CHRONOLOGICAL. `processFlowData`'s ML/ volume
+    match is order-dependent and date-blind, so the page's answer is a function of its input
+    ORDER. ⚰️ This reassembled chronologically until 2026-09-25 and, over identical rows, moved
+    AMD's bear premium for the day by $217K (SMH and DELL: same size, different sha). The READ
+    stays newest-first; only the reassembly follows the store."""
     now = clock or time.monotonic
     t0 = now()
     header, bodies = None, {}
@@ -1084,7 +1090,30 @@ def _read_basis_newest_first(sym: str, src: str, dates: list, budget_s: float, c
         header = header or head + chr(10)
         bodies[d] = body
     used = [d for d in dates if d in bodies]
-    return used, [header or ""] + [bodies[d] for d in used]
+    return used, [header or ""] + [bodies[d] for d in store_date_order(used)]
+
+
+#: How long a basis product whose READ was cut short by `_BASIS_READ_BUDGET_S` may be served.
+#: ⚰️ It was cached like any other until 2026-09-25, and the version only moves when the symbol
+#: trades, so after hours a cold-pod read (DELL 14 of 152 sessions, HOOD 33 of 176) was served
+#: for the rest of the night while a warm read would have taken 2-3 s and been exact. Short, not
+#: zero: a burst of `/flow` for one name right after a deploy should not re-read in every request.
+_BASIS_PARTIAL_TTL_S = float(os.environ.get("FLOW_CARD_BASIS_PARTIAL_TTL_S", "60") or 60)
+_BASIS_PARTIAL_UNTIL: dict = {}
+_BASIS_PARTIAL_LOCK = threading.Lock()
+
+
+def _basis_partial_expired(key, now=None) -> bool:
+    """True when `key` holds a time-truncated product past its TTL; drops it from the cache."""
+    now = time.monotonic() if now is None else now
+    with _BASIS_PARTIAL_LOCK:
+        until = _BASIS_PARTIAL_UNTIL.get(key)
+        if until is None or now < until:
+            return False
+        _BASIS_PARTIAL_UNTIL.pop(key, None)
+    with _SEARCH_PRODUCT_LOCK:
+        _SEARCH_PRODUCT_CACHE.pop(key, None)
+    return True
 
 
 def _basis_ticker_product(sym: str, src: str, version: str, cap_rows: int, st):
@@ -1099,9 +1128,17 @@ def _basis_ticker_product(sym: str, src: str, version: str, cap_rows: int, st):
     sessions stayed within 2.6%; ALL stored sessions matched exactly (14/14 and 4/4). And the
     size is concentrated in recent sessions (AMD: 220K of 224K rows are in the last 60), so a
     fixed session count does not bound cost — rows do. Under the cap the basis is full history
-    (DELL, PLTR, IWM: exact, 2-7 s); over it, the newest sessions that fit (NVDA 20, SPY 7), and
-    the answer says so (`basis_complete: false`)."""
+    and the card equals the page; over it, the newest sessions that fit, and the answer says so
+    (`basis_complete: false`, `basis_cut: "rows"`). A read the time budget cut short says
+    `basis_cut: "time"` and is served for `_BASIS_PARTIAL_TTL_S` only.
+
+    ⭐ A PARTIAL BASIS IS NOT A SMALL ERROR. AMD on 9/25, measured with the page's own bundle:
+    full history BEAR $948K/$1.53M (the page, exactly); its newest 37 sessions (143K rows) BULL
+    $9.2M/$2.7M. The sessions that are cut can carry the contract-level totals that decide today's
+    direction."""
     key = (sym, src, version, f"r{cap_rows}")
+    if _basis_partial_expired(key):
+        st.mark("basis_partial_expired")
     cached = _search_product_cache_get(key)
     st.mark("cache_lookup", hit=bool(cached), basis_rows=cap_rows)
     if cached is not None:
@@ -1125,12 +1162,19 @@ def _basis_ticker_product(sym: str, src: str, version: str, cap_rows: int, st):
         used, chunks = _read_basis_newest_first(sym, src, dates, _BASIS_READ_BUDGET_S)
         st.mark("basis_read", sessions=len(used), of=len(dates), total=len(counts))
         n_by_date = dict(counts)
+        cut = "time" if len(used) < len(dates) else ("rows" if len(dates) < len(counts) else None)
         extra = {"window_dates": used, "market_dates": market, "basis_complete": len(used) == len(counts),
-                 "basis_rows": sum(n_by_date.get(d, 0) for d in used), "sessions_total": len(counts)}
+                 "basis_rows": sum(n_by_date.get(d, 0) for d in used), "sessions_total": len(counts),
+                 "basis_cut": cut}
         gz, err = _build_search_product(sym, src, key, version, st, dates=used, extra=extra,
                                         pre_chunks=chunks)
         if err is not None:
             return err
+        with _BASIS_PARTIAL_LOCK:
+            if cut == "time":
+                _BASIS_PARTIAL_UNTIL[key] = time.monotonic() + _BASIS_PARTIAL_TTL_S
+            else:
+                _BASIS_PARTIAL_UNTIL.pop(key, None)
         return _search_response(gz, version, "basis")
     finally:
         _SEARCH_BUILD_LOCK.release()

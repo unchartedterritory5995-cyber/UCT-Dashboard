@@ -27,6 +27,21 @@ and the one behaviour change that affects your page is described first.
 `stream_csv_symbol(..., dates=None)` — an optional `CreatedDate` filter. `None` is every date, so
 every existing caller, including your search build, sees the identical call.
 
+⚠️ **One change your Search build does see, and it is byte-identical by measurement:** the unfiltered
+query now ends `ORDER BY CreatedDate, rowid`. That is the order it already returned. The plan is
+`idx_flow_symbol_created (Symbol=?)`, the index satisfies the ORDER BY without a sort, and the output
+sha is unchanged for SMH, DELL and AMD (measured in the pod 2026-09-25). It is now stated instead of
+left to the planner because the card's per-date read has to reproduce it exactly.
+
+Why it matters: `processFlowData`'s ML/ volume match (`mlMatched` in `flowCompute.js`) removes the
+FIRST unmatched non-ML print with the same symbol/CP/strike/expiry/volume, and the key carries no
+date. So your page's answer depends on row order, and that order is CreatedDate as TEXT
+('10/1/2026' before '9/30/2026'), not chronological. Over identical AMD rows, a chronological order
+moved 9/25's bear premium from $1,530,486 to $1,747,710. This is not a bug report: it is your rule,
+and the card now reproduces its input order exactly. But if cross-date ML matching is not intended,
+it is worth a look, because it means a print on one day can be removed by an ML/ print from another
+day.
+
 ### `api/flow_router.py`
 
 `GET /api/flow/ticker-product/{symbol}?basis_rows=N` (what the card uses) and `?window_days=N`
@@ -68,8 +83,12 @@ Search build could do the same, or keep its all-or-nothing contract and accept d
 and `/live-massive` would get the same win on their first load after a flow-worker deploy.
 
 Why `basis_rows`: your derivation sets direction from contract-level totals across every row it
-is given, so the card derives over the symbol's WHOLE stored history whenever it fits 150K rows
+is given, so the card derives over the symbol's WHOLE stored history whenever it fits 250K rows
 (exact match with your full product, measured) and over the newest sessions that fit otherwise.
+It was 150K until the evening of 9/25, when AMD's 150K basis read BULL for the day and your full
+product read BEAR. A card build holds one of your two Search lanes for up to about 20 s (AMD), so
+under load your members' cold Search builds may see "busy" a little more often. Tell us if that is a
+problem and the cap comes down.
 Row counts come from a covering read of `idx_flow_symbol_created`; the stream is one
 `CreatedDate = ?` query per session on `idx_flow_created_symbol`.
 

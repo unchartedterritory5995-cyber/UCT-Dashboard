@@ -123,6 +123,27 @@ DEDUP_COLS = [
     "Price", "CallPut", "Strike", "ExpirationDate", "Premium"
 ]
 
+def store_date_order(dates) -> list:
+    """The order `stream_csv_symbol` emits sessions in: `CreatedDate` TEXT ascending, exactly as
+    SQLite's BINARY collation sorts it ('10/1/2026' before '9/30/2026'; it is NOT chronological).
+
+    ⛔ WHY THIS EXISTS (measured in the flow-worker pod 2026-09-25). `processFlowData` is not
+    order-independent: its ML/ volume match removes the FIRST unmatched non-ML print with the same
+    symbol/strike/expiry/volume, and that key carries no date, so which print survives depends on
+    the order the rows arrive in. The Options Flow page's Search product streams one symbol with
+    no date filter, and that stream comes back in `idx_flow_symbol_created` order: CreatedDate
+    TEXT, then rowid. The Discord card's basis read reassembled sessions CHRONOLOGICALLY instead:
+    the same bytes in a different order (SMH, DELL, AMD: equal size, different sha), which moved
+    AMD's bear premium on 9/25 by $217K over identical rows. Reassembled in this order, the
+    card's full-history CSV is byte-identical to the page's (sha-equal on all three).
+
+    One place defines the order so the unfiltered stream, the per-date stream and the card's
+    reassembly cannot drift apart. Python's `sorted` on these ASCII strings IS SQLite's BINARY
+    order, and `tests/test_flow_card_from_page.py` proves the two agree on the dates where
+    chronology and text disagree."""
+    return sorted({str(d) for d in dates if d})
+
+
 # How many rows to batch into a single chunk when streaming CSV.
 # Larger = fewer Python→ASGI round-trips, smaller = lower memory.
 _STREAM_BATCH = 2000
@@ -664,6 +685,14 @@ class FlowDB:
         build 2585 ms -> 678 ms.
 
         `columns=None` is every column, so every existing caller is untouched.
+
+        ⛔ ROW ORDER IS PART OF THE CONTRACT (2026-09-25): sessions in `store_date_order`, rows
+        within a session by rowid, with or without `dates`. That is the order the unfiltered
+        stream always came back in (the plan is `idx_flow_symbol_created (Symbol=?)`, CreatedDate
+        then rowid); it is now SAID, with an ORDER BY the same index satisfies without a sort
+        (same plan, byte-identical output for SMH/DELL/AMD, measured in the pod), so
+        `stream_csv_symbol(sym, src, dates=every_session)` is byte-for-byte the unfiltered stream
+        and the Discord card's basis read can reproduce the page's input exactly.
         """
         cols = list(columns) if columns else COLUMNS
         bad = [c for c in cols if c not in _COLUMN_SET]
@@ -687,16 +716,17 @@ class FlowDB:
                 # `idx_flow_created_symbol (CreatedDate=? AND Symbol=?)` (0.86 s for the same
                 # 84,970 rows). Measured in the flow-worker pod 2026-09-25.
                 def _per_date():
-                    for d in dates:
+                    for d in store_date_order(dates):
                         yield from conn.execute(
                             f"SELECT {select_cols} FROM flow WHERE source = ? AND Symbol = ? "
-                            f"AND CreatedDate = ?",
-                            (source, symbol, str(d)),
+                            f"AND CreatedDate = ? ORDER BY rowid",
+                            (source, symbol, d),
                         )
                 cursor = _per_date()
             else:
                 cursor = conn.execute(
-                    f"SELECT {select_cols} FROM flow WHERE source = ? AND Symbol = ?",
+                    f"SELECT {select_cols} FROM flow WHERE source = ? AND Symbol = ? "
+                    f"ORDER BY CreatedDate, rowid",
                     (source, symbol),
                 )
             yield header_line
