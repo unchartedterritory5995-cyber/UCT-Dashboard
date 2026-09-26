@@ -74,3 +74,26 @@ this commit the privacy policy discloses that; it does not change the flow.
    read that the permission system blocks for an agent.
 4. Railway "Build failed" 09-23 08:23 is **resolved**: the same commit `4d31451ad2` deployed
    SUCCESS 17 minutes later, and production serves `51a61a8b8` healthy.
+
+## 5. Owner legal sign-off -- 2026-09-25
+
+The owner was sent ten items (L1-L10) and approved all ten as sent, verbatim:
+*"LEGAL, we are OKAT on L1-L10 yes it is verified and accpeted and pproved."* Each item
+resolves to the recommendation it was sent with. This section records decision D8's sign-off;
+it changes no flag by itself.
+
+| Item | What was approved | Consequence |
+|---|---|---|
+| L1 | The Privacy + Terms rewrite in `24db02b9e` (section 3 above) | ships with PR #186 |
+| L2 | Send the two drafted inquiries (FMP, Finnhub) from the owner's Gmail | sent by the owner or the controller; answers decide L3/L5 |
+| L3 | Share links turn on only with market data replaced by a neutral line, until FMP and Massive answer in writing | `J2_SHARE_LINKS_ENABLED` flips after wave 8 ships that reducer |
+| L4 | The "Published notes and folders" Privacy sentence, as sent | lands with wave 8's publish lane; `NOTEBOOK_PUBLISH_ENABLED` flips after |
+| L5 | Analyst-consensus storage (G-062) stays blocked until FMP answers | `rights_class: conditional` unchanged |
+| L6 | The Cloudflare Privacy line for email-in, WITHOUT the draft's "only to deliver them to UCT" clause (no Cloudflare document found says it) | in `Privacy.jsx` on this branch; email-in may flip once live and the Cloudflare setup is done |
+| L7 | Meaning search stays dark until OpenAI confirms zero retention in writing | decision D7 unchanged |
+| L8 | Writing help and the Compass notes tool may flip after wave 7 is live; "writing help" named in the Anthropic line | in `Privacy.jsx` on this branch |
+| L9 | Voice-history embeddings accepted as disclosed; one zero-retention request to OpenAI covers them and L7 | no code change |
+| L10 | Benchmark results stay internal | wave 9A |
+
+Not approved by this, and still separate: Cloudflare Email Routing adds MX records to the domain, so
+the domain's existing MX records are checked before email-in is enabled.
