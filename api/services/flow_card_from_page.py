@@ -332,13 +332,18 @@ BASIS_ROWS = 250_000
 PAGE_FETCH_TIMEOUT_S = float(os.environ.get("FLOW_CARD_PAGE_TIMEOUT_S", "45") or 45)
 
 
-def fetch_basis_product(ticker: str, source: str, cap_rows: int, timeout_s: float, *, get=None) -> dict | None:
+def fetch_basis_product(ticker: str, source: str, cap_rows: int, timeout_s: float, *, get=None,
+                        diag: dict | None = None) -> dict | None:
     """The page's derivation over the largest recent history under `cap_rows`, or None.
 
     `get(ticker, params, headers)` replaces the internal HTTP call: the tests' fake, and the parity
-    tool's member session through web. With a `get`, no worker URL is needed."""
+    tool's member session through web. With a `get`, no worker URL is needed. `diag`, when given,
+    receives `reason` for a None — timeout / busy / too big / … — which the /flow outcome ledger
+    records so a rollup fallback says WHY (flow_card_ops)."""
+    diag = diag if diag is not None else {}
     base = (os.environ.get("WORKER_INTERNAL_URL") or "").rstrip("/")
     if not base and get is None:
+        diag["reason"] = "no worker url"
         return None
     params = {"source": "indexes" if source == "etfs" else "stocks", "basis_rows": int(cap_rows)}
     headers = {}
@@ -352,6 +357,11 @@ def fetch_basis_product(ticker: str, source: str, cap_rows: int, timeout_s: floa
                           headers=headers, timeout=timeout_s)
             if not r.is_success:
                 log.info("[flow-card:page] %s basis declined: HTTP %s", ticker, r.status_code)
+                try:
+                    why = (r.json() or {}).get("error")
+                except Exception:  # noqa: BLE001
+                    why = None
+                diag["reason"] = _reason(why) or f"http {r.status_code}"
                 return None
             body = r.json()
             as_of = r.headers.get("X-Flow-Basis-As-Of")
@@ -361,15 +371,30 @@ def fetch_basis_product(ticker: str, source: str, cap_rows: int, timeout_s: floa
             body = get(ticker, params, headers)
     except Exception as e:  # noqa: BLE001 — a failed derivation is the fallback's job
         log.info("[flow-card:page] %s basis failed: %s", ticker, e)
+        diag["reason"] = "timeout" if "timeout" in type(e).__name__.lower() else type(e).__name__
         return None
     if not isinstance(body, dict) or not body.get("ok"):
+        diag["reason"] = _reason(body.get("error") if isinstance(body, dict) else None) or "bad body"
         return None
     return body
 
 
+def _reason(error) -> str | None:
+    """flow_router's decline words → the ledger's short reason ("too big to derive within budget"
+    → "too big")."""
+    e = str(error or "").strip().lower()
+    if not e:
+        return None
+    for key, short in (("busy", "busy"), ("too big", "too big"), ("timeout", "timeout"),
+                       ("bundle", "bundle unavailable"), ("not warm", "not warm")):
+        if key in e:
+            return short
+    return e[:40]
+
+
 def page_derived_payload(ticker: str, days: str, source: str, timeout_s: float = 20.0,
                          top_n: int = 15, *, get=None, cap_rows: int = BASIS_ROWS,
-                         enrich: bool = True) -> dict | None:
+                         enrich: bool = True, diag: dict | None = None) -> dict | None:
     """The page-derived card payload for `/flow ticker days`: ONE derivation (`basis_rows`), then
     the display ladder (days → 5 → 20 → all) climbed over that same product, each rung scoped to
     the MARKET's last N sessions the way the page's `_scopeAllDirectional` scopes "Last N".
@@ -382,7 +407,7 @@ def page_derived_payload(ticker: str, days: str, source: str, timeout_s: float =
     `window.scope_dates` names the sessions the served rung summed, so an audit can scope the
     page's own product to exactly those dates. `enrich=False` skips the live OI/mark decoration
     (it never changes a premium, a side or a count), which the parity tool does off-box."""
-    body = fetch_basis_product(ticker, source, cap_rows, timeout_s, get=get)
+    body = fetch_basis_product(ticker, source, cap_rows, timeout_s, get=get, diag=diag)
     if body is None:
         return None
     product = body.get("product") or {}

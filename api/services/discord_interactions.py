@@ -462,13 +462,40 @@ def build_flow_command() -> dict:
 FLOW_CHART_PREFIX = "flowchart"
 
 
-def flow_components(ticker: str) -> list:
-    """One row under a /flow card: a button that opens the ticker's chart as an
-    EPHEMERAL popup (reuses the /chart house renderer). custom_id = flowchart|TICKER."""
+#: The window buttons under a /flow card, in the card's own ladder rungs (1 → 5 → 20 → all): the
+#: windows the page's "Last N" scopes and the ones the empty-window widening climbs through.
+FLOW_WINDOW_PREFIX = "flowwin"
+FLOW_WINDOWS = ("1", "5", "20", "all")
+_FLOW_WINDOW_LABELS = {"1": "1D", "5": "5D", "20": "20D", "all": "All"}
+
+
+def flow_components(ticker: str, active: str | None = None) -> list:
+    """One row under a /flow card: 'View chart' (the ticker's chart as an EPHEMERAL popup,
+    custom_id flowchart|TICKER), then the window buttons 1D · 5D · 20D · All (flowwin|TICKER|DAYS)
+    that re-draw THIS card in place for another window. `active` is the window on screen and is
+    lit (primary); the others are secondary. Five buttons: Discord's limit for one row.
+
+    ⭐ A window switch costs the server nothing: the page card derives the ticker's whole history
+    once and every window is a local re-scope of that product (flow_card_from_page)."""
     t = (ticker or "").strip().upper()[:12]
-    return [{"type": 1, "components": [
-        {"type": 2, "style": 2, "label": "View chart", "emoji": {"name": "\U0001F4C8"},
-         "custom_id": f"{FLOW_CHART_PREFIX}|{t}"}]}]
+    row = [{"type": 2, "style": 2, "label": "View chart", "emoji": {"name": "\U0001F4C8"},
+            "custom_id": f"{FLOW_CHART_PREFIX}|{t}"}]
+    for w in FLOW_WINDOWS:
+        row.append({"type": 2, "style": 1 if w == active else 2, "label": _FLOW_WINDOW_LABELS[w],
+                    "custom_id": f"{FLOW_WINDOW_PREFIX}|{t}|{w}"})
+    return [{"type": 1, "components": row}]
+
+
+def parse_flow_window(interaction: dict) -> tuple:
+    """(ticker, days) from a window button under a /flow card; CommandError on anything else."""
+    cid = str(((interaction.get("data") or {}).get("custom_id")) or "")
+    parts = cid.split("|")
+    if len(parts) != 3 or parts[0] != FLOW_WINDOW_PREFIX:
+        raise CommandError("Unknown button.")
+    ticker, days = parts[1].strip().upper(), parts[2].strip().lower()
+    if not _TICKER_RE.match(ticker) or days not in FLOW_WINDOWS:
+        raise CommandError("Couldn't read that button.")
+    return ticker, days
 
 
 def _window_choices() -> dict[str, str]:
