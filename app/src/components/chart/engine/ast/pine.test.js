@@ -728,9 +728,45 @@ describe('every unsupported construct refuses BY NAME, AT ITS OWN TOKEN', () => 
     // `time_close` and friends are not in our clock AT ALL, so they get the
     // generic sentence — which is true — and a case for them here would have been
     // asserting a message the code cannot produce.
+    // ⭐⭐ AND `time` HAS NOW MADE THE SAME JOURNEY THE LOOP ABOVE DID — from a
+    // case asserting a refusal to a case asserting a resolution. The difference
+    // is that this one is not a binding, it is a CONVERSION: our `clock.time`
+    // is whole SECONDS, so `time * 1000` IS Pine's millisecond value exactly,
+    // with nothing lost and nothing assumed.
+    //
+    // ⛔ THE OLD REFUSAL WAS NEVER WRONG AND IS NOT BEING SOFTENED. Binding on
+    // SPELLING alone would have been the silent thousand-fold mistranslation it
+    // described. What changed is that the difference is now CLOSED rather than
+    // merely named — and an exact conversion is a translation, where an
+    // approximate one would be this arm's first bug.
+    it('time RESOLVES in a Pine script, reconciled to Pine\'s own unit', () => {
+      const out = translatePine('//@version=5\nindicator("t")\nplot(time)\n')
+      expect(out.refusal, out.refusal && out.refusal.message).toBe(null)
+      const first = out.outputs.find((o) => o.refusal === null)
+      expect(first, 'no output translated').toBeTruthy()
+      // ⛔ THE COLUMN AND THE FACTOR, BOTH. Asserting only that it stopped
+      // refusing would pass for a binding that hands back SECONDS under Pine's
+      // name — which is precisely the defect the old refusal existed to prevent,
+      // arriving through the fix for it.
+      expect(first.ast).toEqual({
+        type: 'op',
+        name: '*',
+        args: [{ type: 'series', name: 'time' }, { type: 'num', value: 1000 }],
+      })
+    })
+
+    // ⛔⛔ AND THE VERSIONLESS DOOR STILL REFUSES, NAMING THE DIFFERENCE. This is
+    // the half that makes the reconciliation above safe, and it is where the
+    // owner's ruling about this sentence still lives: it must say what DIFFERS,
+    // not that work is pending.
+    // ⚠️ THE SOURCE HERE HAS NO `//@version` ON PURPOSE. `time` is a name in
+    // BOTH vocabularies — in the formula box it is OUR column, in seconds — so
+    // the pragma is the discriminator, exactly as it is for bare `pivothigh`.
+    // Applying the factor there would multiply a member's own data by a
+    // thousand under their own name.
     for (const [spelling, phrase] of [['time', 'MILLISECONDS']]) {
-      it(`${spelling} refuses, and the refusal names the DIFFERENCE`, () => {
-        const r = refusalOf(`//@version=5\nindicator("t")\nplot(${spelling})\n`)
+      it(`${spelling} still refuses where Pine is NOT spoken, naming the DIFFERENCE`, () => {
+        const r = refusalOf(`indicator("t")\nplot(${spelling})\n`)
         expect(r.guard, 'a Pine name we know is not an undefined name').toBe('pine:builtin')
         expect(r.token).toBe(spelling)
         expect(r.message, 'the refusal must say what DIFFERS, not that work is pending')

@@ -68,6 +68,10 @@ const GRID_COLS = 24
 const COLS = { lg: GRID_COLS, md: GRID_COLS, sm: GRID_COLS, xs: GRID_COLS, xxs: GRID_COLS }
 const BREAKPOINTS = { lg: 1200, md: 996, sm: 768, xs: 480, xxs: 0 }
 const FIXED_ROWS = _FIXED_ROWS   // viewport-locked row count (see ./rowHeight.js)
+// A12 CP2 (2026-09-25): the watchKey forms a Watchlist widget accepts (registry.js
+// paramsSchema: 'flagged' | user:<id> | community:<id> | tag:<color>). The ?openWatchlist=
+// door validates against this before touching the board; anything else degrades to a no-op.
+const WATCH_KEY_RE = /^(flagged|user:[A-Za-z0-9_-]+|community:[A-Za-z0-9_-]+|tag:[a-z]+)$/
 
 // S1 CP3 (gate fc609961a): the single board had no mount-count cap at all
 // (capability-ledger.md row C1 — "geometry is the implicit bound"), so opening a
@@ -89,9 +93,33 @@ const BODY_PAD = _BODY_PAD       // px padding around the grid (matches .workspa
 
 // New users (and Reset) land on an EMPTY workspace + the "get started" panel.
 // Their most recent arrangement is persisted and restored on every later visit.
+// ⭐ THE WORKSPACE DOCUMENT'S SCHEMA VERSION. Stamped on every save; read on every
+// load to decide whether the legacy SHAPE-INFERENCE migrations below may run.
+//
+// ⚰️ WHY THIS EXISTS (C5-03, `docs/terminal-research/06-ux-and-information-architecture/
+// fixed-modular-hybrid.md` §5). Until now this blob carried no version and both
+// migrations guessed from geometry. The `maxBottom` guess is the dangerous one:
+// D-06 §1.4 recorded that it "will misfire on any *legitimate* future layout whose
+// widgets all sit in the top half" — i.e. a member who deliberately parks everything
+// in the upper half of a 20-row grid gets their heights silently multiplied on the
+// next load. Measured 2026-09-25 on production: 17 of 29 accounts hold a board and
+// **0 of 17 carried a version field**, so every one of them was exposed to that guess.
+//
+// A version field replaces guessing with knowing, and that is the whole point:
+// - absent  → a pre-versioning blob. Run the legacy shape inference (it is the only
+//             way to read those), then the next save stamps it.
+// - >= 1    → the writer told us the shape. ⛔ NEVER shape-infer. This is what makes
+//             a top-half layout safe, and it is why the stamp had to land before
+//             TERMINAL-NEXT touches this key.
+// ⛔ Bumping this is a data migration, not a refactor: add a branch below, never
+// change what an existing number means.
+export const LAYOUT_SCHEMA_VERSION = 1
+
 const DEFAULT_LAYOUT = {
   widgets: [],
   cols: GRID_COLS,
+  // Born stamped: a new board must not look like a pre-versioning blob (§5, C5-03).
+  version: LAYOUT_SCHEMA_VERSION,
 }
 
 // The classic watchlist + chart + themes arrangement, offered as a one-click
@@ -309,40 +337,62 @@ const WIDGET_LABELS = labelMap('menu')
 const WIDGET_MENU_GROUPS = menuGroups('workspace')   // add-menu, grouped by category
 const HEADER_LABELS = labelMap('header')   // shown on the smart-placement ghost
 
-function parseLayout(raw) {
+// ⛔ THE ONE PLACE A WORKSPACE LAYOUT IS SERIALIZED. Six call sites write this key
+// (autosave, the unmount flush, template apply, normalize, blank, and restore), so a
+// version stamp added at each of them would be six copies of one rule — the shape
+// `lesson_a_guard_repeated_is_a_guard_unproved` names, and unprovable by mutation
+// because killing one copy leaves five. One function, and a rail asserting no site
+// bypasses it, is the whole guard.
+export function serializeLayout(layout) {
+  return JSON.stringify({ ...(layout || {}), version: LAYOUT_SCHEMA_VERSION })
+}
+
+export function parseLayout(raw) {
   if (!raw) return null
   try {
     const parsed = typeof raw === 'string' ? JSON.parse(raw) : raw
     if (parsed?.widgets && Array.isArray(parsed.widgets)) {
-      // Migrate legacy 12-col layouts to the 24-col grid. Detected by the
-      // absence of the cols:GRID_COLS marker (old saves have cols:12 or none).
-      // Double x AND w so every widget keeps its exact on-screen position + size,
-      // then stamp the new marker so this runs exactly once per user.
       let widgets = parsed.widgets
       let cols = parsed.cols
-      if (cols !== GRID_COLS) {
-        widgets = widgets.map(w => ({
-          ...w,
-          x: (w.x || 0) * 2,
-          w: Math.max(2, (w.w || 2) * 2),
-        }))
-        cols = GRID_COLS
-      }
-      // Auto-fit legacy layouts (h values < ~5) saved before the viewport-lock
-      // change so they don't appear tiny on resume. Detect by checking if max
-      // y+h is well below FIXED_ROWS — scale all h values up uniformly.
-      const maxBottom = widgets.reduce((m, w) => Math.max(m, (w.y || 0) + (w.h || 0)), 0)
-      if (maxBottom > 0 && maxBottom <= FIXED_ROWS / 2) {
-        const scale = Math.floor(FIXED_ROWS / maxBottom)
-        if (scale > 1) {
+      // A blob written by a versioned client states its own shape. Trust it, and
+      // skip BOTH heuristics — the cols marker included, since a versioned writer
+      // always persists `cols`.
+      const version = Number.isInteger(parsed.version) ? parsed.version : 0
+      if (version < 1) {
+        // Migrate legacy 12-col layouts to the 24-col grid. Detected by the
+        // absence of the cols:GRID_COLS marker (old saves have cols:12 or none).
+        // Double x AND w so every widget keeps its exact on-screen position + size,
+        // then stamp the new marker so this runs exactly once per user.
+        if (cols !== GRID_COLS) {
           widgets = widgets.map(w => ({
             ...w,
-            y: (w.y || 0) * scale,
-            h: Math.max(4, (w.h || 4) * scale),
+            x: (w.x || 0) * 2,
+            w: Math.max(2, (w.w || 2) * 2),
           }))
+          cols = GRID_COLS
         }
+        // Auto-fit legacy layouts (h values < ~5) saved before the viewport-lock
+        // change so they don't appear tiny on resume. Detect by checking if max
+        // y+h is well below FIXED_ROWS — scale all h values up uniformly.
+        // ⛔ GUESSWORK, and retired for versioned blobs by the gate above.
+        const maxBottom = widgets.reduce((m, w) => Math.max(m, (w.y || 0) + (w.h || 0)), 0)
+        if (maxBottom > 0 && maxBottom <= FIXED_ROWS / 2) {
+          const scale = Math.floor(FIXED_ROWS / maxBottom)
+          if (scale > 1) {
+            widgets = widgets.map(w => ({
+              ...w,
+              y: (w.y || 0) * scale,
+              h: Math.max(4, (w.h || 4) * scale),
+            }))
+          }
+        }
+      } else if (cols !== GRID_COLS) {
+        // A versioned blob whose cols disagree with the current grid is not a
+        // legacy 12-col save — it is a newer or corrupted writer. Do NOT rescale
+        // coordinates on a guess; keep them and let clampWidgetsToRows bound them.
+        cols = GRID_COLS
       }
-      return { ...parsed, widgets: clampWidgetsToRows(widgets), cols }
+      return { ...parsed, widgets: clampWidgetsToRows(widgets), cols, version: LAYOUT_SCHEMA_VERSION }
     }
   } catch {}
   return null
@@ -1016,7 +1066,7 @@ export default function ChartsWorkspace() {
   const scheduleSave = useCallback((nextLayout) => {
     if (saveTimerRef.current) clearTimeout(saveTimerRef.current)
     saveTimerRef.current = setTimeout(() => {
-      setPref('charts_workspace_layout', JSON.stringify(nextLayout))
+      setPref('charts_workspace_layout', serializeLayout(nextLayout))
     }, 500)
   }, [setPref])
 
@@ -1028,7 +1078,7 @@ export default function ChartsWorkspace() {
       if (saveTimerRef.current && hydratedRef.current) {
         clearTimeout(saveTimerRef.current)
         saveTimerRef.current = null
-        setPref('charts_workspace_layout', JSON.stringify(layoutRef.current))
+        setPref('charts_workspace_layout', serializeLayout(layoutRef.current))
       }
     }
   }, [setPref])
@@ -1778,7 +1828,7 @@ export default function ChartsWorkspace() {
     // charts_workspace_layout arrangement blob.
     const { chartSettings, watchlistSettings, themeTrackerSettings, fundamentalsSettings, breadthSettings, watchlistColumns, ...boardLayout } = parseLayout(tpl.layout) || tpl.layout
     setLayout(boardLayout)
-    setPref('charts_workspace_layout', JSON.stringify(boardLayout))
+    setPref('charts_workspace_layout', serializeLayout(boardLayout))
     // Restore the template's WIDGET appearance blobs (or defaults for a prebuilt/older
     // template that carries none) so a locked/prebuilt template never inherits the
     // user's personal widget styling. Watchlist / Theme Tracker / Fundamentals all
@@ -1881,6 +1931,38 @@ export default function ChartsWorkspace() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [templatesLoading, globalLayouts, myLayouts])
 
+  // ── A12 CP2 (2026-09-25): a WATCHLIST is a name, and a name is an address ──────
+  //
+  //   ?openWatchlist=<watchKey>   'flagged' | user:<id> | community:<id> | tag:<color>
+  //
+  // Terminal-grade property 3 applied to the Watchlists surface, in the same shape as
+  // the ?openLayout=/?openShared= doors above. The board's first Watchlist widget is
+  // pointed at the list through its own opts path (so the change persists exactly like
+  // a pick from the widget's menu); with no Watchlist widget on the board, one is added
+  // carrying the key. Runs once per mount, after prefs AND templates load (so it lands
+  // after the default-layout and named-address effects rather than under them), strips
+  // its own param, and an unrecognised key degrades to a no-op — never a crash.
+  const openWatchlistAppliedRef = useRef(false)
+  useEffect(() => {
+    if (openWatchlistAppliedRef.current || prefsLoading || templatesLoading) return
+    const params = new URLSearchParams(typeof window !== 'undefined' ? window.location.search : '')
+    const key = params.get('openWatchlist')
+    if (!key) return
+    openWatchlistAppliedRef.current = true
+    try {
+      params.delete('openWatchlist')
+      const q = params.toString()
+      window.history.replaceState({}, '', `${window.location.pathname}${q ? `?${q}` : ''}`)
+    } catch { /* history unavailable — a lingering param is harmless */ }
+    if (!WATCH_KEY_RE.test(key)) return
+    const existing = layoutRef.current?.widgets?.find(w => w.type === 'watchlist')
+    if (existing) {
+      handleOptsChange(existing.id, { ...(existing.opts || {}), watchKey: key, watchName: null, watchTab: null })
+    } else {
+      handleAddWidget('watchlist', { watchKey: key, watchName: null, watchTab: null }, { instant: true })
+    }
+  }, [prefsLoading, templatesLoading, handleAddWidget, handleOptsChange])
+
   // Apply the LOCKED "UCT Default" template: the frozen layout shell + the frozen
   // chart_settings + the default theme. Everything is loaded FROM the in-code
   // constants and written to the working prefs; the constants are never written
@@ -1893,7 +1975,7 @@ export default function ChartsWorkspace() {
     suppressAutoSave()
     const normalized = parseLayout(UCT_DEFAULT_LAYOUT) || UCT_DEFAULT_LAYOUT
     setLayout(normalized)
-    setPref('charts_workspace_layout', JSON.stringify(normalized))
+    setPref('charts_workspace_layout', serializeLayout(normalized))
     // On the LIGHT app theme, UCT Default paints a WHITE chart (chartDefaultsForTheme
     // 'light') and light-theme widget appearances; on dark it keeps the frozen owner
     // capture + the dark defaults. Parsed fresh each apply so the constants are never
@@ -1956,7 +2038,7 @@ export default function ChartsWorkspace() {
     suppressAutoSave()
     const blank = { widgets: [], cols: GRID_COLS }
     setLayout(blank)
-    setPref('charts_workspace_layout', JSON.stringify(blank))
+    setPref('charts_workspace_layout', serializeLayout(blank))
     const g = { A: null, B: null, C: null, D: null }
     setGroupSymsState(g)
     setPref('charts_workspace_groups', JSON.stringify(g))
@@ -2024,7 +2106,7 @@ export default function ChartsWorkspace() {
   // active ref is ignored (just saves the working board).
   const handleSaveLayout = useCallback(async () => {
     if (saveTimerRef.current) { clearTimeout(saveTimerRef.current); saveTimerRef.current = null }
-    setPref('charts_workspace_layout', JSON.stringify(layout))
+    setPref('charts_workspace_layout', serializeLayout(layout))
     setPref('charts_workspace_groups', JSON.stringify(groupSyms))
     const active = parsePref(prefs?.charts_active_template, null)
     if (active?.id != null && (active.scope !== 'global' || isAdmin)) {

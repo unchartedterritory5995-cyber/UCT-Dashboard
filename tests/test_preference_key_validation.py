@@ -79,11 +79,26 @@ _IMPORT = re.compile(r"import\s*\{([^}]*)\}\s*from\s*['\"]([^'\"]+)['\"]")
 _FORWARDED_PARAM_NAMES = {"key"}
 
 
+#: A test file is not the shipped client. ⚰️ 2026-09-25: `_iter_sources` walked
+#: `*.test.js` too, and `usePreferences.additionsOnly.test.js` (landed 9/24)
+#: carries the PROSE `"Use setPrefMerged (same module)"` inside a string — the
+#: call regex read it as a write of key `same`, and this rail sat red on master
+#: for a day for a key no client writes. The instrument matched its own
+#: neighbourhood's explanation (the "CODE, NEVER PROSE" class). Fix the tool:
+#: scan only what ships. Every test file's genuine `setPref(key` is already
+#: accounted for by `_FORWARDED_PARAM_NAMES`, so nothing real leaves the set.
+_TEST_SUFFIXES = (".test.js", ".test.jsx", ".spec.js", ".spec.jsx")
+
+
+def _is_test_file(name):
+    return name.endswith(_TEST_SUFFIXES)
+
+
 def _iter_sources():
     for dirpath, dirnames, filenames in os.walk(APP_SRC):
-        dirnames[:] = [d for d in dirnames if d not in ("node_modules", "__snapshots__")]
+        dirnames[:] = [d for d in dirnames if d not in ("node_modules", "__snapshots__", "__tests__")]
         for name in filenames:
-            if name.endswith((".js", ".jsx")):
+            if name.endswith((".js", ".jsx")) and not _is_test_file(name):
                 yield os.path.join(dirpath, name)
 
 
@@ -232,6 +247,25 @@ def test_every_key_the_client_writes_is_still_accepted(client):
         if resp.status_code != 200:
             refused.append((key, resp.status_code, resp.json().get("detail")))
     assert refused == [], f"the endpoint refuses keys the client writes: {refused}"
+
+
+def test_prose_in_a_test_file_is_not_read_as_a_client_write():
+    """The instrument must not match its own neighbourhood's explanation.
+
+    Control first: the prose that produced the false key is really on disk (so
+    this case is live, not vacuous). Then the derivation must neither report it
+    as a key nor as an unresolved expression. If the sentence is ever reworded
+    or moved, this control fails and the case must be re-pointed, not deleted.
+    """
+    prose_file = os.path.join(APP_SRC, "hooks", "usePreferences.additionsOnly.test.js")
+    assert os.path.exists(prose_file), "control: the prose-bearing test file moved"
+    assert "setPrefMerged (same" in _read(prose_file), "control: the prose match is gone — re-point this case"
+    assert prose_file not in list(_iter_sources()), "test files must not be scanned as the shipped client"
+
+    keys, unresolved = derive_client_preference_keys()
+    assert "same" not in keys and "same" not in unresolved, "prose in a test file was read as a preference write"
+    # And the scan still SEES a real call in a shipped file (non-vacuity).
+    assert "charts_workspace_layout" in keys
 
 
 def test_widget_global_pref_keys_are_accepted(client):

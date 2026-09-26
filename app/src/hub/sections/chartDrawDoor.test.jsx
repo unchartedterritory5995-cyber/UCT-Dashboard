@@ -81,7 +81,23 @@ vi.mock('../../hooks/usePreferences', async (importOriginal) => ({
   default: () => ({ prefs: {}, setPref: vi.fn(), loading: false }),
 }))
 vi.mock('../../hooks/useTickerMeta', () => ({ default: () => null }))
-vi.mock('../../hooks/useBreadthSymbols', () => ({ default: () => new Map() }))
+// ⚰️ THE DEFAULT EXPORT IS NOT THE WHOLE MODULE. `useMarketIndicators` imports
+// `symbolFamily`, `breadthRegistryReady` and `breadthRecord`, and `StockChart`
+// imports `loadBreadthSymbols` — so a `{ default }` mock makes vitest refuse the
+// module and this door renders nothing.
+//
+// ⭐ THE STUB IS THE REAL MODULE'S "REGISTRY NOT LOADED" STATE, read off its own
+// source rather than invented: with no cache, `symbolFamily` answers 'unknown'
+// and `breadthRecord` answers null — and that is consistent with the empty Map
+// the default already returns. A mock that claimed the registry was READY while
+// handing back nothing would be a different product than the one under test.
+vi.mock('../../hooks/useBreadthSymbols', () => ({
+  default: () => new Map(),
+  symbolFamily: () => 'unknown',
+  breadthRegistryReady: () => false,
+  breadthRecord: () => null,
+  loadBreadthSymbols: () => Promise.resolve(null),
+}))
 vi.mock('../../hooks/useFlagged', () => ({ useFlagged: () => ({ isFlagged: () => false, toggle: vi.fn() }) }))
 vi.mock('../../hooks/useWatchlistAlerts', () => ({
   default: () => ({ createAlert: vi.fn(() => Promise.resolve({})), deleteAlert: vi.fn(), getAlertsForSym: () => [], alerts: [] }),

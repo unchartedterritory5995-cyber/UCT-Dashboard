@@ -1181,6 +1181,45 @@ function monotoneStep(st, o, v, n, cmp) {
 const risingStep = (st, o, v, n) => monotoneStep(st, o, v, n, (a, b) => a > b)
 const fallingStep = (st, o, v, n) => monotoneStep(st, o, v, n, (a, b) => a < b)
 
+/** ⭐⭐ PINE'S `ta.barssince(condition)` — ONE CELL, AND IT IS UNBOUNDED.
+ *
+ *  ⛔⛔ NOT `interpret.js::barsSince`, WHICH SHARES THE NAME AND SATURATES.
+ *  That one's `n` is a SENTINEL meaning "not true within the last n bars", and
+ *  it caps both the count and the claim. Pine's counts back as far as the
+ *  condition requires and caps nothing — so translating one onto the other
+ *  would be a different number wearing the same name. The two coexist by ARITY;
+ *  see the table note above for why the house form is deliberately untouched.
+ *
+ *  ⭐ ONE CELL, AND `NaN` IS THE "NEVER FIRED" STATE RATHER THAN A SECOND FLAG.
+ *  That is not a trick: `na` is precisely what the vendor answers before the
+ *  first firing (405 of 405 bars on a never-true condition), so the state and
+ *  the answer are the same fact and cannot drift apart. A separate boolean
+ *  would be a second authority over "has it fired yet".
+ */
+const BARSSINCE_PINE_CELLS = 1
+
+function barsSincePineInit(st, o) { st[o] = NaN }
+
+/** One bar of Pine's `ta.barssince`.
+ *
+ *  ⛔ 0 ON THE FIRING BAR — measured, `theOrdinaryCase.min === 0` with no `na`
+ *  anywhere once the condition has fired. Answering 1 there is the obvious
+ *  off-by-one and there are 104 corpus sites riding on it.
+ *
+ *  ⚠️ AN `na` CONDITION DOES NOT FIRE, AND THE BAR STILL COUNTS. Nothing in the
+ *  capture exercises an `na` condition — its three probe channels are all
+ *  finite comparisons — so this is THIS ENGINE'S CHOICE and is pinned as such
+ *  in `barssince.test.js` rather than presented as a vendor fact. The reasoning:
+ *  `na` is not a firing (the `ta.valuewhen` twin already rules that way), but a
+ *  bar is still a bar, so a counter that has already started advances across it.
+ *  Resetting to `na` would forget a firing this engine really saw.
+ */
+function barsSincePineStep(st, o, cond) {
+  if (!Number.isNaN(cond) && cond !== 0) st[o] = 0
+  else if (!Number.isNaN(st[o])) st[o] += 1
+  return st[o]
+}
+
 // ⚰️ `emaCol` AND `rmaCol` LIVED HERE AND ARE GONE. They were one-line alpha
 // wrappers over `smoothCol`, and 2F-2C moved the alpha into `CARRIED` so the
 // runtime and this lane read the SAME constant from the SAME place. Keeping them
@@ -1221,6 +1260,34 @@ function elementwise2(a, b, f) {
  *  refuses a 0.5 at registration for a native; a formula must not be the way in.
  *  Alerts, the screener and the Python AST lane all consume this one shape, and
  *  a JS `true` round-trips through JSON as `true`, not as 1. */
+/** ⭐⭐ THE TWO CROSSING PREDICATES, DECLARED ONCE AND SHARED BY BOTH LANES.
+ *
+ *  ⛔ THEY WERE INLINE IN `crossOver`/`crossUnder` AND ARE LIFTED OUT RATHER
+ *  THAN COPIED. The runtime lane's carried step needs the same rule bar by bar;
+ *  a second `an > bn && ap <= bp` written there is
+ *  `lesson_a_second_authority_over_one_value`, and the copies would disagree
+ *  the first time either was touched — silently, because both answer a
+ *  plausible 0/1 series.
+ *
+ *  ⛔ THE ORDER MEANS SOMETHING: `crossOver(a, b)` is "a crossed ABOVE b". The
+ *  comparisons are NOT symmetric and swapping the pair yields the other
+ *  function, which is why the runtime test asserts the two spellings differ. */
+const CROSS_OVER_FIRED = (an, bn, ap, bp) => an > bn && ap <= bp
+const CROSS_UNDER_FIRED = (an, bn, ap, bp) => an < bn && ap >= bp
+/** ⭐ `ta.cross` IS THE OR OF THE TWO, AND THAT IS `pine.js`'S OWN RULE — it
+ *  rewrites `cross(a, b)` to `crossOver(a, b) || crossUnder(a, b)`, so this
+ *  composes the same two predicates rather than inventing a third.
+ *
+ *  ⛔ THE NaN AGREEMENT WAS MEASURED, NOT ASSUMED. The worry was that the
+ *  columnar path builds its answer with `||` over two NaN warm-ups while a
+ *  carried step propagates NaN directly — two different rules reaching one
+ *  name. Measured: `BINARY['||'](NaN, NaN)` is NaN, and `ta.cross` over pure
+ *  arguments answers `[na, na, na, 0, 1, 0]` on this fixture, the same warm-up
+ *  shape `ta.crossover` gives. The two agree, so the carried form is exact
+ *  parity rather than a near-miss. */
+const CROSS_ANY_FIRED = (an, bn, ap, bp) => (
+  CROSS_OVER_FIRED(an, bn, ap, bp) || CROSS_UNDER_FIRED(an, bn, ap, bp))
+
 function crossing(a, b, fired) {
   const out = nan(a.length)
   for (let i = 1; i < a.length; i++) {
@@ -1567,15 +1634,29 @@ const windowFn = (name) => (series, n) =>
  *  closed table does not declare it at all); `barssince`/`valuewhen` are the same
  *  SHAPE and deliberately NOT members — see the note below.
  *
- *  ⚠️ `barssince` AND `valuewhen` ARE ABSENT ON PURPOSE, AND IT IS NOT AN
- *  OVERSIGHT. `interpret.js::barsSince`/`valueWhen` are forward passes over two
- *  scalars each, so they FIT this table mechanically. They are excluded because
- *  `pine.js` refuses `ta.barssince` and `ta.valuewhen` BY NAME: Pine's are
- *  unbounded / occurrence-indexed and this table's are bounded / period-indexed,
- *  which are different functions. Admitting them here would build a runtime for
- *  a spelling no member can reach, and the honest first dependency is the CLOSED
- *  TABLE declaring Pine's actual signatures. Measured, not assumed — see the
- *  execution-shape census and gap register PART V.
+ *  ⚰️ THIS SAID `barssince` AND `valuewhen` WERE "ABSENT ON PURPOSE", and the
+ *  REASONING was right while the CONCLUSION has been overtaken. Its argument was
+ *  that `pine.js` refuses `ta.barssince`/`ta.valuewhen` BY NAME because Pine's
+ *  are unbounded / occurrence-indexed and the house pair are bounded /
+ *  period-indexed — different functions — so "admitting them here would build a
+ *  runtime for a spelling no member can reach".
+ *
+ *  ⭐⭐ THE ANSWER TURNED OUT TO BE A TWIN, NOT A CORRECTION TO THE TABLE.
+ *  Pine's `valuewhen` now lives in `CARRIED2` and Pine's `barssince` lives here
+ *  as `barssincePine`, BESIDE the house functions rather than over them:
+ *  `interpret.js::barsSince`/`valueWhen` are untouched and still serve the
+ *  screener's frozen column contract. What made the spelling reachable was the
+ *  runtime front end owning the Pine name (see `RUNTIME_PINE_TWINS`), not the
+ *  closed table changing its mind — so the "honest first dependency" this note
+ *  named was real but was not the only door.
+ *
+ *  ⛔⛔ AND THE HALF IT WAS RIGHT ABOUT IS STILL OPEN. Correcting the closed
+ *  table's `barssince(series, int)` to Pine's ONE-argument signature REMOVES a
+ *  call that translates today, which is a member-visible change and an owner
+ *  ruling — `tests/fixtures/vendor/r11-barssince-spy-1d-2026-09-11.json`'s own
+ *  `_notPinned` marker routes it that way. The twin below takes only the half
+ *  that removes nothing: ARITY 1 is Pine's, arity 2 is still the house
+ *  function's, and no call that worked before this wave answers differently.
  */
 export const CARRIED = Object.freeze({
   ema: { cells: SMOOTH_CELLS, init: smoothInit, step: smoothStep, alpha: (n) => 2 / (n + 1) },
@@ -1593,6 +1674,152 @@ export const CARRIED = Object.freeze({
   // this change is that only GAPPY sources should.
   rising: { cells: MONOTONE_CELLS, init: monotoneInit, step: risingStep },
   falling: { cells: MONOTONE_CELLS, init: monotoneInit, step: fallingStep },
+  // ⭐⭐ PINE'S UNBOUNDED `ta.barssince`, AND THE KEY IS `barssincePine` RATHER
+  // THAN `barssince` ON PURPOSE — this is a COLLISION GUARD, not a style.
+  // `carriedTarget()` resolves a Pine name to a member of THIS table by its bare
+  // spelling, so a member literally called `barssince` would capture the house
+  // two-argument call `barssince(cond, n)` — the one spelling that builds today
+  // — and refuse it for having the wrong arity. Measured before the rename was
+  // chosen: that call answers `[0,1,2,3,4,5,5,…]` on this build and must keep
+  // doing so. `CARRIED2.valuewhen` needs no such guard because `carriedTarget`
+  // never consults `CARRIED2`.
+  //
+  // ⭐ NO `alpha`, and its `step` reads no length — `n` is the slot `ema`/`rma`
+  // spend on a decay and `rising`/`falling` spend on a span, and this member
+  // spends on nothing. One signature, three uses, which is what lets a single
+  // driver serve the whole table.
+  //
+  // ⭐⭐⭐ `runtimeOnly` — THE FIRST MEMBER WITH NO COLUMNAR COUNTERPART, AND
+  // IT IS DECLARED HERE RATHER THAN SKIP-LISTED IN THE RAILS THAT DERIVE FROM
+  // THIS TABLE. Three of them do: `carriedState.test.js` differentials every
+  // member against the columnar lane under the spelling `ta.<key>(source, n)`,
+  // and `executionShapeCensus.test.js` requires every member to be a CLOSED
+  // TABLE name. All three assumptions are false for this one and TRUE for every
+  // other member, so the fact belongs to the table.
+  //
+  // ⛔ WHY IT CANNOT HAVE A COLUMNAR TWIN: its Pine spelling is `ta.barssince`,
+  // the columnar lane's `barssince` is the DIFFERENT saturating function, and
+  // giving this one a columnar entry would mean declaring Pine's one-argument
+  // signature in the closed table — the member-visible change that is an owner
+  // ruling. There is therefore nothing to differentiate it against, and a rail
+  // that pretended otherwise would be comparing it with a function it is
+  // deliberately not.
+  barssincePine: {
+    cells: BARSSINCE_PINE_CELLS,
+    init: barsSincePineInit,
+    step: barsSincePineStep,
+    runtimeOnly: true,
+  },
+})
+
+/** ─── ⭐⭐ TWO-INPUT CARRIED STATE — PINE'S `ta.valuewhen` ──────────────────
+ *
+ *  ⛔⛔ A SEPARATE TABLE FROM `CARRIED`, BECAUSE ITS MEMBERS TAKE TWO SERIES AND
+ *  SIZE THEIR OWN STATE. Every `CARRIED` member takes one series and a fixed
+ *  `cells` count; bending that table to admit a second input would change the
+ *  `step` signature for `ema`, `rma`, `rising` and `falling` too, and a member
+ *  reading its fourth argument as a decay where another reads it as a source is
+ *  how one driver quietly grows two meanings.
+ *
+ *  ⭐⭐ AND IT IS A TWIN OF `valueWhen`, NOT A REPLACEMENT FOR IT. This file's
+ *  `valueWhen(cond, src, n)` counts BARS — it holds a value only while the
+ *  firing is within the last `n` bars — and it is the screener's function, with
+ *  a frozen column contract. Pine's third argument is an OCCURRENCE INDEX, and
+ *  two firings may be a thousand bars apart. They line up positionally and
+ *  answer different numbers, which is why `docs/pine/computation-crossref.md`
+ *  records refusing `ta.valuewhen` as a DELIBERATE RULING rather than a gap.
+ *  Nothing here touches the bar-window function or the columns built on it.
+ *
+ *  ⭐⭐⭐ THE SEMANTICS ARE MEASURED, NOT CHOSEN —
+ *  `tests/fixtures/vendor/r11-valuewhen-spy-2026-09-11.json`, AMEX:SPY 1D, 610
+ *  bars: occurrence 0 is INCLUSIVE of the current bar (122 discriminating bars,
+ *  122 inclusive, 0 exclusive), occurrence N is the Nth most recent FIRING (the
+ *  step between consecutive occurrences is 5 and only 5, where counting bars
+ *  would give 1), and a condition that never fires is `na` and never 0.
+ */
+
+/** Ring of the last `n + 1` firing values, plus a write cursor and a count.
+ *
+ *  ⭐ THE RING IS EXACTLY `n + 1` LONG, WHICH IS WHAT MAKES THE READ FREE: the
+ *  slot the cursor is about to overwrite IS the Nth most recent firing, so the
+ *  answer never has to be searched for. */
+const VALUEWHEN_CELLS = (n) => n + 3
+
+function valueWhenPineInit(st, off, n) {
+  for (let i = 0; i <= n; i += 1) st[off + i] = NaN
+  st[off + n + 1] = 0   // write cursor
+  st[off + n + 2] = 0   // firings seen, saturating at n + 1
+}
+
+/** One bar of Pine's `ta.valuewhen`.
+ *
+ *  ⛔ THE PUSH HAPPENS BEFORE THE READ, AND THAT IS QUESTION 4. A firing on THIS
+ *  bar is counted as occurrence 0 — measured, 122/122, and the single most
+ *  likely place in this function to be off by one with 377 corpus sites riding
+ *  on it. Reading first and pushing after is the exclusive reading, which the
+ *  vendor never answered on any discriminating bar.
+ *
+ *  ⚠️ AN `na` CONDITION DOES NOT FIRE AND DOES NOT RESET. The host bar-window
+ *  twin clears its held value on `na`; nothing in the capture exercises an `na`
+ *  condition (its `_bounds` says one condition shape, firing every 5th bar), so
+ *  this does the least surprising thing and says out loud that it is unmeasured
+ *  rather than copying a rule from the function it is deliberately not. */
+function valueWhenPineStep(st, off, cond, src, n) {
+  if (!Number.isNaN(cond) && cond !== 0) {
+    const w = st[off + n + 1]
+    st[off + w] = src
+    st[off + n + 1] = (w + 1) % (n + 1)
+    const seen = st[off + n + 2]
+    if (seen < n + 1) st[off + n + 2] = seen + 1
+  }
+  // ⛔ FEWER FIRINGS THAN ASKED FOR IS `na`, NEVER 0 — measured on 610 bars.
+  // 0 is the dangerous answer: `valuewhen(cond, x, 0) > 0` would read "never
+  // happened" as a real value of zero.
+  if (st[off + n + 2] < n + 1) return NaN
+  return st[off + st[off + n + 1]]
+}
+
+/** ⭐⭐ THE CROSS FAMILY AS A CARRIED STEP — two series in, the PREVIOUS PAIR
+ *  as state, one value out. The fit to `CARRIED2` is exact, so this needed no
+ *  new opcode.
+ *
+ *  ⛔⛔ AND IT EXISTS BECAUSE THE OPERATOR LOWERING WOULD HAVE BEEN A SILENT
+ *  APPROXIMATION. `ta.change(x)` is lowered into `x - x[1]` because that IS its
+ *  definition; `a > b and a[1] <= b[1]` is NOT the definition of a crossing,
+ *  because `crossing` answers NaN when any of the four values is NaN while this
+ *  grammar's `>` answers 0 on a NaN. The operator form would report "did not
+ *  cross" on every warm-up bar, where the table says NOT COMPUTABLE.
+ *
+ *  ⭐ TWO CELLS: the previous `a` and the previous `b`. Initialised to NaN,
+ *  which is what makes bar 0 answer `na` without a separate counter —
+ *  `crossing` starts its loop at `i = 1` for the same reason. */
+const CROSS_CELLS = () => 2
+
+function crossInit(st, off) { st[off] = NaN; st[off + 1] = NaN }
+
+/** ⛔ THE PAIR IS STORED AFTER IT IS READ, and both halves are stored every bar
+ *  whether or not the answer is computable — a NaN input is still this bar's
+ *  value, and skipping the store would compare against a stale pair two bars
+ *  back and report a crossing that never happened. */
+const crossStep = (fired) => (st, off, a, b) => {
+  const ap = st[off]
+  const bp = st[off + 1]
+  st[off] = a
+  st[off + 1] = b
+  if (Number.isNaN(a) || Number.isNaN(b) || Number.isNaN(ap) || Number.isNaN(bp)) return NaN
+  return fired(a, b, ap, bp) ? 1 : 0
+}
+
+export const CARRIED2 = Object.freeze({
+  valuewhen: {
+    cells: VALUEWHEN_CELLS, init: valueWhenPineInit, step: valueWhenPineStep,
+  },
+  // ⭐ `n` IS UNUSED BY THESE TWO — it is the slot `valuewhen` reads as an
+  // occurrence, and one signature serving both is what lets one opcode drive
+  // the table. The same arrangement `CARRIED`'s `alpha` argument already has.
+  crossOver: { cells: CROSS_CELLS, init: crossInit, step: crossStep(CROSS_OVER_FIRED) },
+  crossUnder: { cells: CROSS_CELLS, init: crossInit, step: crossStep(CROSS_UNDER_FIRED) },
+  crossAny: { cells: CROSS_CELLS, init: crossInit, step: crossStep(CROSS_ANY_FIRED) },
 })
 
 /** ⛔ THE COLUMN DRIVER IS DERIVED FROM THE TABLE, so `FN.ema` and the runtime
@@ -1745,8 +1972,8 @@ export const FN = Object.freeze({
     return out
   },
   nz: (a, b) => elementwise2(a, b, POINTWISE.nz),
-  crossOver: (a, b) => crossing(a, b, (an, bn, ap, bp) => an > bn && ap <= bp),
-  crossUnder: (a, b) => crossing(a, b, (an, bn, ap, bp) => an < bn && ap >= bp),
+  crossOver: (a, b) => crossing(a, b, CROSS_OVER_FIRED),
+  crossUnder: (a, b) => crossing(a, b, CROSS_UNDER_FIRED),
 
   // ── the indicators, bound to the chart's own maths ──────────────────────
   //
@@ -2463,7 +2690,23 @@ function windowLiteral(node, index) {
   const arg = node.args[index]
   const spec = TABLE.functions[node.name]
   const role = spec && Array.isArray(spec.argRoles) ? spec.argRoles[index] : null
-  const min = role === 'occurrence' ? 0 : 1
+  // ⭐ THE ROLES WHOSE DOMAIN INCLUDES ZERO, BY NAME. The comment above is the
+  // rule this follows — widen only for a role that says so — and `percentage`
+  // joined it on 2026-09-23 with `percentileLinearInterpolation`.
+  //
+  // ⛔ A PERCENTAGE OF 0 IS THE 0TH PERCENTILE, AND IT IS MEASURED. The vendor
+  // capture behind that function records `atZero_equals_lowest` — the lower
+  // boundary clamps EXACTLY to `ta.lowest` — so 0 is not an edge case to be
+  // tolerated, it is one of the two readings the capture was taken for. With
+  // `min` fixed at 1 the engine served the 50th and the 100th percentile and
+  // refused the 0th, which is the shape of a bug that passes every test
+  // written against the middle of a range.
+  //
+  // ⚠️ NOT CAPPED AT 100 HERE. Above-100 behaviour is unmeasured, and refusing
+  // it would be a guess wearing a guard; the manifest declares no upper bound
+  // either, so this stays a floor.
+  const ZERO_IS_IN_DOMAIN = new Set(['occurrence', 'percentage'])
+  const min = ZERO_IS_IN_DOMAIN.has(role) ? 0 : 1
   if (!arg || arg.type !== 'num' || typeof arg.value !== 'number'
       || !Number.isInteger(arg.value) || arg.value < min) {
     refuse('resolve:window',

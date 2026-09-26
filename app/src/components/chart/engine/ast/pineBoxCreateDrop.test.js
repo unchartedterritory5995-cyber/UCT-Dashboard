@@ -72,21 +72,54 @@ plot(close)
     expect(ops.some((o) => o.k === 'create' && o.family === 'box')).toBe(false)
   })
 
-  it('the real fixture: droppedOps unchanged at 4, including exactly one create:box', () => {
+  it('the real fixture: exactly one create:box — and SIX drops, the two extra being METHOD FORM', () => {
     const fixturePath = path.resolve(
       __dirname, '../../../../../../tools/c0_parity_fixtures/mid_engagement__01-zeiierman-trend-pressure.pine',
     )
     const src = fs.readFileSync(fixturePath, 'utf8')
     const t = translatePine(src, { strict: true })
     // ⚠️ The script does not translate at all today, for an UNRELATED reason
-    // (a separate pine:function-def refusal on `con`, an earlier user
-    // function this diagnosis does not concern) -- the object lane still
-    // runs independently of the value lane's own output refusal, per this
-    // engine's two-lane architecture, so its diagnostics remain readable.
+    // (an earlier user function this diagnosis does not concern) -- the object
+    // lane still runs independently of the value lane's own output refusal, per
+    // this engine's two-lane architecture, so its diagnostics remain readable.
     expect(t.ok).toBe(false)
-    expect(t.refusal.guard).toBe('pine:function-def')
+    // ⚰️ WAS `pine:function-def`, NOW `pine:type` -- the merge of 2026-09-23.
+    // This case says in its own words that the guard is UNRELATED to what it
+    // diagnoses, and the claim it does make is asserted separately below. The
+    // guard is re-taken rather than loosened so the day it moves again stays
+    // visible.
+    expect(t.refusal.guard).toBe('pine:type')
     const d = t.objectDiagnostics
-    expect(d.droppedOps).toBe(4)
-    expect(d.dropReasons).toEqual({ 'guard:delete': 3, 'create:box': 1 })
+    // ⭐ THE LOAD-BEARING CLAIM, AND IT HAS NOT MOVED: exactly ONE create:box,
+    // dropped on its own parameter names. That is the defect this file diagnoses,
+    // and it is asserted on its own so the total below cannot carry it.
+    expect(d.dropReasons['create:box']).toBe(1)
+    // ⚰️ WAS 4, `{guard:delete: 3, create:box: 1}`. It is SIX here, and the two
+    // extra are `guard:update`. NOT merge damage: measured identical on
+    // `feat/pine-value-model` alone, before master was merged into it.
+    //
+    // ⭐ THE READER LEARNED PINE'S METHOD FORM. `pineObjects.js` now records
+    // that `b.set_right(x)` IS `box.set_right(b, x)`, so two calls the previous
+    // reader could not see AT ALL are collected as `update` ops:
+    //
+    //     :322   ubx.set_right(bar_index-1)
+    //     :340   lbx.set_right(bar_index-1)
+    //
+    // ⛔ PROVEN BY SUBSTITUTION, never inferred from a count. Renaming those two
+    // calls in a SCRATCH copy of the fixture (never the committed one) returns
+    // exactly the old row -- collected 4, `{guard:delete: 3, create:box: 1}` --
+    // and renaming only the first returns `guard:update: 1`. `grow()`'s three
+    // method-form setters at :176-178 stay unseen, because the collector does not
+    // walk a tuple-destructured call; that is a separate, pre-existing limit this
+    // diagnosis does not concern.
+    //
+    // ⭐ AND THE REFUSAL IS THE ONE THEIR SIBLINGS ALREADY GET. Both sit in the
+    // same `if bx / if us / else if ...` chain as `box.delete(ubx)` (:309) and
+    // `box.delete(lbx)` (:327), which this row has always counted as
+    // `guard:delete`. Seeing two more ops inside a block whose guard this lane
+    // cannot resolve is a WIDER READER, not a new refusal class -- which is why
+    // the number is re-taken with its reason rather than relaxed to a range.
+    expect(d.droppedOps).toBe(6)
+    expect(d.dropReasons).toEqual({ 'guard:delete': 3, 'create:box': 1, 'guard:update': 2 })
   })
 })

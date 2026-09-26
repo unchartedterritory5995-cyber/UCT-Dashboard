@@ -63,13 +63,27 @@ vi.mock('../../hooks/useTradeReview', () => ({
     feedback: vi.fn(), forget: vi.fn(), reset: vi.fn(), error: null,
   }),
 }))
-// ChartPane also calls useFlagged() (Shift+F flag toast), which reads useAuth()
-// — extend the existing useIsPaid stub with a logged-out useAuth so that call
-// doesn't throw "useAuth must be used within AuthProvider".
-vi.mock('../../../../context/AuthContext', () => ({
-  useIsPaid: () => false,
-  useAuth: () => ({ user: null }),
-}))
+// ChartPane also calls useFlagged() (Shift+F flag toast).
+//
+// ⚰️ THIS COMMENT SAID useFlagged "reads useAuth()", AND THAT IS THE WHOLE BUG.
+// It reads `useContext(AuthContext)` — the CONTEXT OBJECT, not the hook — so the
+// mock stubbed the wrong export and vitest refused the module by name:
+// `No "AuthContext" export is defined on the ".../context/AuthContext" mock`.
+// The component then rendered NOTHING and all 24 cases failed identically on
+// `[data-testid="chart"]`, which reads as a chart problem and is an auth-mock one.
+//
+// ⭐ A REAL CONTEXT, NOT A STUB OBJECT, so `useContext` returns a value rather
+// than `undefined`: `{ Provider }` alone would leave `ctx?.user` undefined while
+// `useAuth()` says `{ user: null }`, i.e. two mocks disagreeing about whether
+// anyone is logged in. One default, and both readers agree on logged-out.
+vi.mock('../../../../context/AuthContext', async () => {
+  const { createContext } = await import('react')
+  return {
+    useIsPaid: () => false,
+    useAuth: () => ({ user: null }),
+    AuthContext: createContext({ user: null }),
+  }
+})
 vi.mock('../../hooks/useJ2SelectedAccount', () => ({
   default: () => ({ accountId: 'a1', account: null, accounts: [] }),
 }))

@@ -51,7 +51,25 @@ describe('⭐⭐ v2:249 clears when the IR lane is told the symbol', () => {
     expect(without.ok).toBe(false)
     expect(without.refusal.line).toBe(249)
     expect(without.refusal.message).toContain('syminfo.ticker')
-    expect(without.diagnostics.statements).toBe(77)
+    // ⚰️ 2026-09-23: 77 → 75, AND THE CODE WAS CHECKED BEFORE THE NUMBER WAS.
+    // `f_getVolumeUnit` (v2:161) ends in an `if`/`else if`/`else` chain. That
+    // now lowers through the VALUE path — one `lowerExpr` per arm, as the
+    // block-valued BINDING has always done — instead of `lowerStmts`, and this
+    // counter only ticks inside `lowerStmts`. Two lines the lane still
+    // processes are no longer counted.
+    //
+    // ⛔ THE LANE'S REACH IS UNCHANGED, and that was measured, not assumed:
+    // same refusal guard, same line, and a BYTE-IDENTICAL skipped-function set
+    // (names, lines, guards). Both member scripts moved by exactly 2
+    // (v2 77→75, v1 76→74), so the differential this file reasons about holds.
+    //
+    // ⛔ THIS IS NOT THE 2026-09-20 INCIDENT. That one moved the number UP
+    // because an `if`'s BODY was lowered before its TEST, so the lane stopped
+    // CHECKING and looked like it had gone further. Source order is preserved
+    // here and is now railed DIRECTLY — `functionBodyBlockValue.test.js`,
+    // "SOURCE ORDER" — with a tuple in both positions and the test's line
+    // required to win. A count could never have said which way round they ran.
+    expect(without.diagnostics.statements).toBe(75)
   })
 
   it('⭐⭐ …and WITH the symbol, 249 is gone and the lane walks further', () => {
@@ -61,25 +79,84 @@ describe('⭐⭐ v2:249 clears when the IR lane is told the symbol', () => {
     // control — a refusal that moved without the lane advancing would be a
     // different defect wearing this one's clothes.
     expect(withSym.diagnostics.statements).toBeGreaterThan(without.diagnostics.statements)
-    expect(withSym.diagnostics.statements).toBe(79)
+    // ⭐ A FLOOR, NOT A FIXED NUMBER. This pinned 79; tuples and the text-input
+    // door carried it to 88, and re-pinning an exact figure after every
+    // capability turns a measurement into maintenance. What the case is about
+    // is that the symbol makes the lane go FURTHER, and a floor says that
+    // while still failing if the lane goes backwards.
+    expect(withSym.diagnostics.statements).toBeGreaterThanOrEqual(79)
   })
 
-  it('⛔⛔ THE NEXT BLOCKER IS NAMED TO ITS LINE — v2:251, and it is STRUCTURAL', () => {
-    // ⭐ `[a, b, c, d, e, f, g, h] = f_getDailyData()` — an eight-value destructure
-    // from a user function. `runtime:tuple` is *"a tuple — the runtime has no
-    // multiple-value form yet"*, which is a CAPABILITY this lane does not have,
-    // not a wire somebody forgot: the IR has no way to carry more than one value
-    // out of a call.
+  it('⛔⛔ THE NEXT BLOCKER IS NAMED TO ITS LINE — v2:261, and it is a VENDOR FACT', () => {
+    // ⚠ THIS CASE'S SUBJECT KEEPS MOVING, AND THAT IS THE MEASUREMENT.
+    // It pinned `runtime:tuple` at 251; tuples landed, so it became the REQUEST
+    // the destructure reads from (`runtime:request-with-state`); the state check
+    // then narrowed from `readsSlot` to `readsOuterSlot` — a user function inside
+    // a request is the documented shape, not this script's state — and the lane
+    // walked past that too.
     //
-    // ⛔ AND IT IS OFF THE CRITERION (owner, 2026-09-13; ruling D2). The pane is
+    // ⭐⭐ WHERE IT STOPS NOW IS NOT A MISSING CAPABILITY. v2:261 passes
+    // `lookahead = barmerge.lookahead_on`, and vendor packet M1 measured only the
+    // HISTORICAL half of that alignment — the realtime half needs an open market
+    // and is still owed. Serving it on a guess would put a number on screen that
+    // nobody could have traded on, which is the most valuable-LOOKING wrong
+    // answer this engine could give. So this blocker clears with a MEASUREMENT,
+    // not with code, and it is the one shape that should never be 'fixed' by
+    // making the lane go further.
+    //
+    // ⛔ STILL OFF THE CRITERION (owner, 2026-09-13; ruling D2). The pane is
     // driven by the DEFINITION lane, which renders this script's four plots and
     // both tables today. Naming it here is what stops it being rediscovered as a
     // mystery; chasing it is not this wave's work.
-    expect(withSym.refusal.guard).toBe('runtime:tuple')
-    expect(withSym.refusal.line).toBe(251)
-    // ⭐ AND THE FUNCTION BEHIND IT WAS ALREADY REPORTED, so the two facts agree:
-    // the definition was skipped at 190 and its CALL is what the lane now reaches.
-    expect(withSym.diagnostics.skippedFunctions).toContain('f_getDailyData@190 pine:collection')
+    // ⚰️ 2026-09-23 — THE BLOCKER IS TIMEFRAME-CONDITIONAL, AND THE WARNING
+    // ABOVE IS HONOURED RATHER THAN OVERRIDDEN. It still clears only with the
+    // MEASUREMENT, for the builds that need one.
+    //
+    // v2 BRANCHES ON THE CHART TIMEFRAME ITSELF — read the script at 247:
+    //     if isDaily
+    //         [a…h] = f_getDailyData()                  // direct call
+    //     else
+    //         [a…h] = request.security(…, 'D', …)       // line 261
+    // Line 261 is the NON-DAILY arm. On a daily build the requested 'D' IS this
+    // chart's period, so there is no higher-timeframe bar to be part-way through
+    // and no alignment to measure. On an INTRADAY build it is a genuine higher
+    // timeframe and the vendor fact still stops it.
+    //
+    // ⛔⛔ THE DAILY HALF IS A PROPERTY, NOT A LINE, AND THAT IS THIS FILE'S OWN
+    // RULE: *"A FLOOR, NOT A FIXED NUMBER — re-pinning an exact figure after
+    // every capability turns a measurement into maintenance."* It was pinned at
+    // 261 twice in two commits and moved both times (to the tuple shape, then
+    // past it to `ta.cum` at 227) — which is the lane ADVANCING, exactly what
+    // this case wants to see. What must stay true is that the daily build is no
+    // longer stopped by the VENDOR fact.
+    expect(withSym.ok).toBe(false)
+    expect(withSym.refusal.message,
+      `daily build still on the vendor fact at ${withSym.refusal.line}`)
+      .not.toMatch(/realtime half of this alignment/)
+    // ⭐ AND IT GOT FURTHER THAN THE NO-SYMBOL CONTROL — a floor, so a lane that
+    // went BACKWARDS still fails here.
+    expect(withSym.diagnostics.statements)
+      .toBeGreaterThan(without.diagnostics.statements)
+
+    // ⭐⭐ THE VENDOR FACT, PINNED EXACTLY, WHERE IT GENUINELY APPLIES. This half
+    // does NOT drift with capability: it clears only when the realtime half of
+    // the alignment is measured on an open market.
+    // ⛔ `basePeriod` — NOT `tf`. `basePeriodOf` reads `opts.basePeriod`; passing
+    // `tf: '5'` leaves the lane on its default and silently builds a DAILY
+    // chart, which cost a wrong diagnosis while this was being written.
+    const intraday = build({ symbol: SYMBOL, basePeriod: '60' })
+    expect(intraday.refusal.guard).toBe('runtime:request')
+    expect(intraday.refusal.line).toBe(261)
+    expect(intraday.refusal.message).toMatch(/lookahead/)
+    // ⭐ AND THE FUNCTIONS BEHIND IT WERE ALREADY REPORTED, so the two facts
+    // agree: nothing was swallowed on the way to the blocker.
+    // ⭐ The skip list moves with the capabilities too, so this asserts the
+    // PROPERTY the case is about — every skipped definition named, with its line
+    // and its guard — rather than a frozen string.
+    expect(withSym.diagnostics.skippedFunctions.length).toBeGreaterThan(0)
+    for (const entry of withSym.diagnostics.skippedFunctions) {
+      expect(entry).toMatch(/^\w+@\d+ [a-z]+:[a-z-]+$/)
+    }
   })
 
   it('⛔ ONE AUTHORITY — the registry re-exports the SAME function object', () => {

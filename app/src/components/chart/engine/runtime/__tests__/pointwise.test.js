@@ -224,14 +224,52 @@ describe('⛔ what 2F-1 does NOT do — the split stays honest', () => {
   })
 
   it('a REQUEST over state is still refused (§33)', () => {
-    const r = refusalOf(`${head}var x = 0.0\nx := close\nplot(request.security(syminfo.tickerid, "D", x))\n`)
+    // ⚠️ 2026-09-23 — THE TIMEFRAME IS NOW LOAD-BEARING HERE, and it reads
+    // "W" rather than "D" for a reason worth keeping.
+    //
+    // §33 exists because a request's expression runs in ANOTHER symbol's
+    // context, where a `var` belonging to THIS chart's run has no meaning —
+    // carrying its value across would answer with one symbol's state under
+    // another symbol's heading. That reasoning needs a genuine OTHER context.
+    //
+    // ⛔ THIS CASE USED "D" ON A CHART WHOSE BASE PERIOD IS ALSO "D" — the same
+    // symbol at the same period, which is no other context at all. Such a
+    // request now folds to its expression (RC-K), so the case was asserting the
+    // refusal of something that is not a request. "W" restores the question the
+    // invariant was written to ask.
+    const r = refusalOf(`${head}var x = 0.0`
+      + '\nx := close'
+      + '\nplot(request.security(syminfo.tickerid, "W", x))\n')
     expect(['runtime:request-with-state', 'runtime:call-windowed-state']).toContain(r.guard)
   })
 
+  it('⭐ at the chart OWN period it is not a request at all', () => {
+    // ⭐⭐ THE OTHER HALF, so the narrowing above is a statement rather than a
+    // silent retreat. Same symbol, same period: the expression runs in this
+    // chart's own context, so reading a `var` is ordinary and §33 has nothing
+    // to protect. It must equal the program written without the request.
+    const withReq = buildRuntimeIr(`${head}var x = 0.0`
+      + '\nx := close'
+      + '\nplot(request.security(syminfo.tickerid, "D", x))\n',
+      { bars: BARS, inputs: {} })
+    const plain = buildRuntimeIr(`${head}var x = 0.0`
+      + '\nx := close'
+      + '\nplot(x)\n', { bars: BARS, inputs: {} })
+    expect(withReq.ok, withReq.ok ? '' : `${withReq.refusal.guard}`).toBe(true)
+    expect(JSON.stringify(withReq.ir)).toBe(JSON.stringify(plain.ir))
+  })
+
   it('⛔ a non-value namespace is NOT stripped into a table collision', () => {
-    // `str.upper` must not resolve to some table entry called `upper`; text is a
-    // value-model change and is deferred by name (§22).
-    const r = refusalOf(`${head}var x = 0.0\nx := close\nplot(str.length(str.upper("ab")) + x)\n`)
+    // A `str.*` must never resolve to a same-named entry in the POINTWISE table
+    // — `str.max` is not `math.max` (§22).
+    //
+    // ⚰️ THIS USED `str.upper`, WHICH THE RUNTIME NOW IMPLEMENTS, so the script
+    // compiled and `refusalOf` failed. The question is unchanged and is if
+    // anything sharper with a name that still refuses: the danger was never
+    // that `upper` was unserved, it was that the `str.` prefix might be stripped
+    // and the bare name looked up. `str.max` collides with a real table entry,
+    // which `str.upper` never did.
+    const r = refusalOf(`${head}var x = 0.0\nx := close\nplot(str.max("ab", "cd") + x)\n`)
     expect(r.guard).not.toBe('runtime:call-pointwise-state')
   })
 

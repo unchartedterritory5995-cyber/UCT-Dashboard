@@ -147,8 +147,30 @@ const EXPECTED_UNEXERCISED = [
   // so no published script reaches this guard here, and that is correct rather
   // than a gap. `pineStrictMode.test.js` exercises it directly.
   'pine:live-bar-state',
+  // ⭐⭐ ARRIVED 2026-09-21, NEWLY DECLARED — and it arrived the same way
+  // `pine:objects-only` did, by splitting a sentence that was answering the
+  // wrong question. A member read off the RESULT of an expression
+  // (`arr.get(i).delete()`, `(l[1]).delete()`) used to reach the LEXER and be
+  // refused `pine:character`, which tells a member their script has a character
+  // Pine does not have — about a dot 23 of the 266 committed scripts write. The
+  // construct lexes and parses now; `pine:member` is what it says instead, and
+  // it names the receiver's type as the thing that is missing.
+  // ⚠️ NO SCRIPT IN THIS CENSUS'S CORPORA REACHES IT, and that is measured
+  // rather than assumed: `objectLaneCallSites` lists the live guards over
+  // `corpus/committed` and `pine:member` is not among them either — every one of
+  // the 23 meets an EARLIER blocker now that the dot no longer stops them.
+  'pine:member',
   'pine:na',
   'pine:named-argument',
+  // ⭐⭐ ARRIVED 2026-09-20, NEWLY DECLARED rather than newly unreachable, and
+  // the distinction is the one this list exists to make. `pine:objects-only` is
+  // what a script that draws a TABLE and offers no plot now says instead of
+  // `pine:no-output` — two different facts that used to be one sentence. No
+  // script in THIS census's corpora is table-only, so nothing here reaches it;
+  // the published dashboard that motivated it lives in `corpus/committed` and is
+  // pinned by `objectsOnly.test.js`, which is where the sentence a member reads
+  // is actually checked.
+  'pine:objects-only',
   'pine:offset-literal',
   'pine:offset-negative',
   'pine:operator',

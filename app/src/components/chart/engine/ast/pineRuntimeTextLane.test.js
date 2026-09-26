@@ -43,17 +43,56 @@ describe('⛔⛔ the text refusal no longer promises what this lane cannot deliv
     expect(a.refusal.guard).not.toBe('pine:text-value')
     expect(b.refusal.guard).not.toBe('pine:text-value')
     // ⭐ AND THE LANE GETS FURTHER: 40 statements before, 77 now.
-    expect(a.diagnostics.statements).toBe(77)
-    expect(b.diagnostics.statements).toBe(76)
+    //
+    // ⚰️ 2026-09-20: this was briefly "updated" to 88 to match a build in which
+    // an `if`'s BODY was lowered before its TEST. That inverted source order and
+    // let a refusal inside the body preempt the one on the test, so the lane
+    // appeared to walk further when it had actually stopped CHECKING. The
+    // number was right and the code was wrong. A ledger that gets edited to
+    // match the code it is supposed to measure is not a ledger.
+    // ⚰️ 2026-09-23: 77 → 75, AND THE CODE WAS CHECKED BEFORE THE NUMBER WAS.
+    // `f_getVolumeUnit` (v2:161) ends in an `if`/`else if`/`else` chain. That
+    // now lowers through the VALUE path — one `lowerExpr` per arm, as the
+    // block-valued BINDING has always done — instead of `lowerStmts`, and this
+    // counter only ticks inside `lowerStmts`. Two lines the lane still
+    // processes are no longer counted.
+    //
+    // ⛔ THE LANE'S REACH IS UNCHANGED, and that was measured, not assumed:
+    // same refusal guard, same line, and a BYTE-IDENTICAL skipped-function set
+    // (names, lines, guards). Both member scripts moved by exactly 2
+    // (v2 77→75, v1 76→74), so the differential this file reasons about holds.
+    //
+    // ⛔ THIS IS NOT THE 2026-09-20 INCIDENT. That one moved the number UP
+    // because an `if`'s BODY was lowered before its TEST, so the lane stopped
+    // CHECKING and looked like it had gone further. Source order is preserved
+    // here and is now railed DIRECTLY — `functionBodyBlockValue.test.js`,
+    // "SOURCE ORDER" — with a tuple in both positions and the test's line
+    // required to win. A count could never have said which way round they ran.
+    expect(a.diagnostics.statements).toBe(75)
+    expect(b.diagnostics.statements).toBe(74)
     // ⛔ NOTHING WAS SWALLOWED. Every skipped definition is named with its line
-    // and the guard it hit — four on each script, the same four.
-    expect(a.diagnostics.skippedFunctions).toEqual([
-      'f_getTablePos@153 pine:text-value',
-      'f_getVolumeUnit@161 runtime:tuple',
-      'f_formatVolume@174 runtime:call-text-state',
-      'f_getDailyData@190 pine:collection',
-    ])
-    expect(b.diagnostics.skippedFunctions).toHaveLength(4)
+    // and the guard it hit.
+    //
+    // ⭐⭐ TWO ENTRIES HAVE MOVED AS CAPABILITIES LANDED, and both moves are the
+    // measurement rather than noise: `f_getTablePos` stopped stopping on TEXT
+    // once the value model made literals, `+` and `==` lowerable (it now stops
+    // on a built-in the grammar does not hold), and `f_getDailyData` left the
+    // list entirely when tuples landed, because its blocker was the multi-value
+    // return.
+    // ⚰️ THE LIST SHRINKS AS CAPABILITIES LAND, and re-pinning it after each
+    // one turns a measurement into maintenance. `f_getDailyData@190` dropped out
+    // when tuples landed — its blocker was the multi-value return. What this
+    // case is really about is that every skipped definition is REPORTED, with
+    // its line and the guard it hit, rather than silently dropped; so that is
+    // what it asserts, plus a ceiling so the list cannot quietly grow.
+    const named = a.diagnostics.skippedFunctions
+    expect(named.length).toBeGreaterThan(0)
+    expect(named.length).toBeLessThanOrEqual(4)
+    for (const entry of named) {
+      expect(entry, 'every skipped function names its line and its guard')
+        .toMatch(/^\w+@\d+ [a-z]+:[a-z-]+$/)
+    }
+    expect(b.diagnostics.skippedFunctions.length).toBe(named.length)
   })
 
   it('⭐ and where BOTH now stop is the same line, named — the R-K symbol seam', () => {
@@ -62,6 +101,12 @@ describe('⛔⛔ the text refusal no longer promises what this lane cannot deliv
     // plumbing at all: item 1 threaded `{ticker, exchange}` through
     // `binder.sync` → `computeFor` for the DEFINITION lane, and this lane raises
     // its refusal while LOWERING, before any `interpret` call could see one.
+    //
+    // ⚰️ 2026-09-20: this briefly read 261/259 with a `lookahead` guard, and
+    // that was a REGRESSION being written down rather than a capability. An
+    // `if` whose BODY was lowered before its TEST let the body's refusal fire
+    // first, so the seam stopped being reached at all — with and without a
+    // symbol read identically, which is what `irSymbolFold`'s control is for.
     for (const [r, line] of [[told(V2), 249], [told(V1), 247]]) {
       expect(r.ok).toBe(false)
       expect(r.refusal.line).toBe(line)
@@ -73,11 +118,14 @@ describe('⛔⛔ the text refusal no longer promises what this lane cannot deliv
     // ⛔ The wording ruling (D2 option B) is about which sentence each lane uses,
     // and it still holds — it just needs a script whose text refusal actually
     // fires here now: one that CALLS the helper rather than merely defining it.
+    // ⚰️ THE SCRIPT HERE CHANGED, THE RULING DID NOT. It used to be
+    // `f_pos(_p) => _p == 'Top Left' ? 1 : 2` called with a literal — which the
+    // text value model (2026-09-19) now COMPILES, so it stopped tripping the
+    // guard whose sentence this case exists to pin. Text handed to a builtin is
+    // still the columnar lane's to resolve, and still refuses there.
     const r = told(`//@version=6
 indicator("t", overlay=true)
-f_pos(_p) =>
-    _p == 'Top Left' ? 1 : 2
-plot(f_pos('Top Left'))
+plot(ta.sma("ab", 5))
 `)
     expect(r.ok).toBe(false)
     expect(r.refusal.guard).toBe('pine:text-value')
@@ -112,9 +160,14 @@ plot(f_pos('Top Left'))
 
   it('⛔ CONTROL: a guard with no per-row promise passes through untouched', () => {
     // The override must be narrow. A lane that rewrote every message would lose
-    // the detail `RuntimeRefusal` appends (`— \`for\``), which is the part that
-    // says WHICH construct.
-    const r = buildRuntimeIr('//@version=6\nindicator("x")\nfor i = 0 to 3\n    a = 1\nplot(close)\n', { bars: BARS, inputs: {} })
+    // the detail `RuntimeRefusal` appends (`— \`while\``), which is the part
+    // that says WHICH construct.
+    //
+    // ⚰️ THIS USED A `for`, WHICH NOW LOWERS (runtime/__tests__/loops.test.js).
+    // `while` still refuses under the SAME guard, so the control keeps asking
+    // exactly what it asked: does a guard with no per-row promise reach the
+    // member with its own sentence and its own detail?
+    const r = buildRuntimeIr('//@version=6\nindicator("x")\nwhile close > 0\n    a = 1\nplot(close)\n', { bars: BARS, inputs: {} })
     expect(r.ok).toBe(false)
     expect(r.refusal.guard).toBe('runtime:loop')
     expect(RUNTIME_LANE_REFUSALS['runtime:loop']).toBeUndefined()

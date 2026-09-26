@@ -15,10 +15,19 @@
  *   ending one session back was replaced by a SLID window: the oldest bar was dropped,
  *   every logical index fell by one, and the chart translated by a bar the instant the
  *   tail landed.
+ *
+ * ⛔ THE WALL CLOCK IS PINNED (RTH on a plain Tuesday). Every fixture is a today-dated
+ *   daily cache expected to paint FIRST, and after the bell the product defers exactly
+ *   that cache to the sealed close by design (`isDailyTodayCloseProvisionalForPaint`,
+ *   a663b0d67) — so CASE B read as "the oldest cached bar was dropped" every day from
+ *   16:00 ET, when in fact the cache was never painted at all. Measured 2026-09-24:
+ *   real clock 18:12 ET → CASE B red · pinned 14:26 ET on the same tree → 5/5. See
+ *   `dailyFirstPaintAcceptance.test.jsx` for the full measurement and the after-bell case.
  */
 import React from 'react'
-import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
+import { describe, it, expect, vi, beforeEach, afterEach, afterAll } from 'vitest'
 import { render, cleanup, waitFor } from '@testing-library/react'
+import { pinWallClock } from '../testing/pinnedWallClock'
 
 const spy = vi.hoisted(() => ({ setVisibleLogicalRange: null, last: null }))
 const seriesLog = vi.hoisted(() => ({ calls: [] }))
@@ -98,6 +107,10 @@ vi.mock('../utils/barsIDB', async (importOriginal) => ({
   idbGet: async () => world.idbEntry,
   idbPut: async () => {},
 }))
+
+// The wall clock is an INPUT (see the header): Tue 2026-09-22 14:26 ET, inside RTH.
+const PINNED_RTH_ISO = '2026-09-22T18:26:00Z'
+const clock = pinWallClock(PINNED_RTH_ISO)
 
 const Mod = await import('./StockChart')
 const StockChart = Mod.default
@@ -221,6 +234,15 @@ beforeEach(() => {
   }))
 })
 afterEach(() => { vi.unstubAllGlobals() })
+afterAll(() => { clock.restore() })
+
+describe('session window', () => {
+  it('is pinned inside RTH on a plain Tuesday — the pin is load-bearing', () => {
+    // ⛔ Without the pin every case below is a function of the hour the gate runs.
+    expect(FRONTIER).toBe('2026-09-22')
+    expect(MS.isDailyTodayCloseProvisionalForPaint(FRONTIER)).toBe(false)
+  })
+})
 
 // ── CASE A ──────────────────────────────────────────────────────────────────
 describe('CASE A — a live price never rewrites a sealed prior-session candle', () => {

@@ -2132,12 +2132,31 @@ _PREFERENCE_KEYS = {
     "notebook_widget_settings": _PREF_OPAQUE,
     "options_flow_widget_settings": _PREF_OPAQUE,
     "profile_widget_settings": _PREF_OPAQUE,
+    # ⚰️ The Screener redesign shipped THREE client-written keys between 9/20 and
+    # 9/23 (#157 `useColumnPresets.js` PRESETS_KEY · #171 `ScreensManager.jsx`
+    # favourites · #182 `PresetChips.jsx` CHIPS_KEY) and none of them was added
+    # here, so a member's column presets, favourite screens and chosen preset
+    # chips all answered 400 "Unknown preference key" in production for 2–5 days
+    # while every page test stayed green. Found 2026-09-25 by
+    # `test_every_key_the_client_writes_is_still_accepted` the moment its own
+    # red (a prose match in a test file) was cleared — the rail was right and
+    # nobody could read it. Run that rail before landing any `setPref(` call.
+    "screener_column_presets": _PREF_OPAQUE,
+    "screener_favorite_screens": _PREF_OPAQUE,
+    "screener_preset_chips": _PREF_OPAQUE,
     # Written server-side by `ticker_tag_service.set_shared_tag_colors`, not
     # through this endpoint — listed so a client that ever writes it directly
     # is not refused for a key the product already owns.
     "shared_tag_colors": _PREF_OPAQUE,
     "tag_labels": _PREF_OPAQUE,
     "theme": _PREF_OPAQUE,
+    # A12 CP2 (2026-09-25): the Watchlists surface's chosen performance columns, a
+    # JSON array of its PERF_COLS keys (`Watchlists.jsx` WATCHLIST_PERF_COLS_KEY).
+    # ⚰️ Shipped client-side first (9a8c7163c) WITHOUT this row: every write 400'd
+    # "Unknown preference key" in production while the page tests were green —
+    # exactly the class `test_every_key_the_client_writes_is_still_accepted` rails
+    # by derivation, which was not run before that push. Run it.
+    "watchlist_perf_cols": _PREF_OPAQUE,
     "theme_tracker_settings": _PREF_OPAQUE,
     "tracings_doc": _PREF_OPAQUE,
     "volume_scan_lists": _PREF_OPAQUE,

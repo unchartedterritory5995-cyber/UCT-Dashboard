@@ -182,13 +182,22 @@ describe('⭐⭐ v2 reaches a member\'s pane with both of its dashboards', () =>
       .toContain('table.position@490')
   })
 
-  it('⛔ and the OTHER named drops are the two style props, also to the line', () => {
-    // `tableTextSize` is an `input.string` mapped to `size.*` and `atrMultColor`
-    // / `dcrColor` are chosen in an `if` branch. Both fall back — to `normal` and
-    // to the renderer's default ink — and a fallback nobody can see is the thing
-    // this list exists to stop. ⏭️ Both are routed; neither changes a NUMBER.
+  it('⛔ and the OTHER named drops are the style props, also to the line', () => {
+    // `atrMultColor` / `dcrColor` are chosen in an `if` branch, fall back to the
+    // renderer's default ink, and a fallback nobody can see is the thing this
+    // list exists to stop. ⏭️ Routed; it does not change a NUMBER.
+    //
+    // ⚰️ `cell.text_size` WAS SIX OF THESE AND IS NOW NONE (2026-09-20).
+    // `tableTextSize` is an `input.string` mapped to `size.*`, and the reason it
+    // dropped was that `ENUM_SLOTS` — the set of props whose value is a WORD —
+    // held `position` ALONE. Every other enum prop fell through to the numeric
+    // tree path, which cannot carry a string. A LITERAL `text_size = size.small`
+    // survived that (an earlier branch answers a bare enum name), so the hole
+    // only opened for a script that COMPUTED its size, and it stayed open
+    // because six silent fallbacks to `normal` look exactly like a design.
     const names = built.translation.objectDiagnostics.droppedPropNames
-    expect(names.filter((n) => n.startsWith('cell.text_size@'))).toHaveLength(6)
+    expect(names.filter((n) => n.startsWith('cell.text_size@')),
+      'a computed `text_size` should resolve through ENUM_SLOTS, not drop').toHaveLength(0)
     expect(names.filter((n) => n.startsWith('cell.text_color@'))).toHaveLength(2)
     // ⛔ AND NOTHING ELSE IS DROPPED SILENTLY — the named list accounts for the
     // whole count, so a tenth drop cannot appear without a name.

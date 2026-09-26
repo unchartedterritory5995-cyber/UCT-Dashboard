@@ -898,6 +898,16 @@ address is unroutable by design.
 stops being a control — the next run cannot tell a product change from its own leftovers.
 Whatever a run creates, that run removes.
 
+⛔⛔ **THE OWNER'S OWN CHROME IS NEVER A SMOKE-ACCOUNT BROWSER.** Measured 2026-09-25: a
+Claude-in-Chrome session opened the owner's Chrome to arm real-member alert data and found it
+**signed in as `smoke@uctintelligence.internal`** — from the tab, indistinguishable from the
+owner. Five alerts created there would have been synthetic data wearing a member's label, and
+every S7 ruling that night was about real-member data. Rule: a tool that needs the smoke account
+uses its OWN profile (`window_check`'s rig, Playwright's context in `hub_nav_smoke.py`), never the
+extension-driven Chrome; and **before any action taken "as the owner" in a browser, read
+`/api/auth/me` and check the EMAIL DOMAIN** — `uctintelligence.internal` means stop and sign it
+out (`POST /api/auth/logout`), then let the owner sign in as themselves.
+
 **Credentials.** `SMOKE_EMAIL` / `SMOKE_PASSWORD` in the operator's environment via `setx`, the
 same pattern as the BrowserStack credentials. Never in the repo, never in a log, never in a commit,
 never pasted into a chat. To rotate: `POST /api/auth/admin/reset-password` while signed in as the
@@ -2791,8 +2801,26 @@ supplied the CRLF at `git add` time and the diff stayed at 86/13 — but it was 
 and the same helper on a CRLF-stored file it had to hand-write would have flattened it.
 ⭐ This **narrows** the provenance rule rather than contradicting it: `git show <sha>:<file>` remains
 the right way to ask what a committed file **says**; it is not the way to ask what bytes end its
-lines. Cheap check: `git cat-file blob $(git rev-parse <sha>:<path>) | grep -c $'\r'` against the
-file's line count — equal means uniformly CRLF, zero means LF, anything between is MIXED.
+lines.
+
+⚰⚰ **AND THE CHEAP CHECK THIS LINE USED TO GIVE WAS VACUOUS.** It read
+*`git cat-file blob $(git rev-parse <sha>:<path>) | grep -c $'\r'` against the file's
+line count*. **`grep -c $'\r'` through the Bash tool ALWAYS ANSWERS 0** — from a file or
+from a pipe — because this Git Bash's grep strips CR on input. Measured with a
+control 2026-09-22: a blob holding **195 CR bytes** answers `0`, while `grep -c
+'a'` on that same blob answers `96` and `od -c` finds all 195. Every line-ending
+check written that way measured nothing about the file and everything about the
+tool.
+
+⭐ **COUNT THE BYTES INSTEAD** — and get all four numbers at once, because the
+interesting failures are not binary:
+
+    git cat-file blob HEAD:<path> | python -c "import sys; b=sys.stdin.buffer.read(); print('CR',b.count(b'\r'),'CRLF',b.count(b'\r\n'),'LF',b.count(b'\n'),'CRCRLF',b.count(b'\r\r\n'))"
+
+`CR == CRLF == LF` is uniformly CRLF · `CR 0` is LF · anything else is **MIXED**
+· and a non-zero **CRCRLF** is the double-translation corruption described
+further down this file. `python tools/check_repo_hygiene.py` remains the gate;
+this is the per-file question it does not answer.
 
 ⚰️ **And a related one, paid for in the same hour: `git checkout -- <file>` is not a restore.** Used
 to undo a one-line probe, it discarded an unrelated finished edit to the same file that had taken
@@ -3384,8 +3412,16 @@ shared defect inverts the one thing independence buys you.
 
 ⚠️ **`tools/check_repo_hygiene.py` cannot catch this shape**, by design: it
 reports a path only when line endings are the **ONLY** difference, and a file
-you are also editing has content changes too. The byte-level check is
-`grep -c $'\r\r\n'`, or count CR against CRLF and require them equal.
+you are also editing has content changes too. ⛔ **The byte-level check is NOT a
+`grep`** — see the measured note above; that command answers 0 here whatever the
+file contains. Count the bytes and require `CR == CRLF` and `CRCRLF == 0`:
+
+    git cat-file blob HEAD:<path> | python -c "import sys; b=sys.stdin.buffer.read(); print('CR',b.count(b'\r'),'CRLF',b.count(b'\r\n'),'LF',b.count(b'\n'),'CRCRLF',b.count(b'\r\r\n'))"
+
+⚰ **AND IT IS NOT HYPOTHETICAL — THIS CORRUPTION IS COMMITTED RIGHT NOW.** Run
+against `docs/plans/joystick/deferred.md` on 2026-09-22: **CR 195, CRLF 112,
+CRCRLF 82**. Eighty-two of that ledger's line endings are CR-CR-LF. It went
+unnoticed for exactly the reason above: every check anyone ran on it returned 0.
 
 ⛔ **And the write pattern that causes it, because it looks correct:**
 

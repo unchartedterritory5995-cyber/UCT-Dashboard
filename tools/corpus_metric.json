@@ -1,8 +1,8 @@
 {
-  "measured_at": "2026-09-21",
+  "measured_at": "2026-09-23",
   "scripts": 266,
-  "host_ok": 36,
-  "screener_ok": 50,
+  "host_ok": 43,
+  "screener_ok": 52,
   "threw": [
     "smart-money-breakouts-chartprime__ea79c79a67.pine"
   ],
@@ -327,13 +327,13 @@
     },
     {
       "file": "bigbeluga-smart-money-concepts__e41b7abd03.pine",
-      "host": false,
+      "host": true,
       "screener": false,
       "hostGuards": [
-        "pine:character"
+        "pine:constant-only"
       ],
       "screenerGuards": [
-        "pine:character"
+        "pine:constant-only"
       ]
     },
     {
@@ -424,10 +424,10 @@
       "host": false,
       "screener": false,
       "hostGuards": [
-        "pine:character"
+        "pine:module"
       ],
       "screenerGuards": [
-        "pine:character"
+        "pine:module"
       ]
     },
     {
@@ -682,10 +682,16 @@
       "host": false,
       "screener": false,
       "hostGuards": [
-        "pine:character"
+        "pine:module",
+        "pine:tuple",
+        "pine:function",
+        "pine:builtin"
       ],
       "screenerGuards": [
-        "pine:character"
+        "pine:module",
+        "pine:tuple",
+        "pine:function",
+        "pine:builtin"
       ]
     },
     {
@@ -772,14 +778,10 @@
     },
     {
       "file": "ema-ribbon-trend-filter-strixedge__737f5c58ad.pine",
-      "host": false,
+      "host": true,
       "screener": true,
-      "hostGuards": [
-        "pine:arity"
-      ],
-      "screenerGuards": [
-        "pine:arity"
-      ]
+      "hostGuards": [],
+      "screenerGuards": []
     },
     {
       "file": "engulfingcandle__0df91dc775.pine",
@@ -811,10 +813,10 @@
       "host": false,
       "screener": false,
       "hostGuards": [
-        "pine:no-output"
+        "pine:objects-only"
       ],
       "screenerGuards": [
-        "pine:no-output"
+        "pine:objects-only"
       ]
     },
     {
@@ -830,14 +832,10 @@
     },
     {
       "file": "fibonacci-pivot-points-cc__p8DQ3RIR97.pine",
-      "host": false,
-      "screener": false,
-      "hostGuards": [
-        "pine:request"
-      ],
-      "screenerGuards": [
-        "pine:request"
-      ]
+      "host": true,
+      "screener": true,
+      "hostGuards": [],
+      "screenerGuards": []
     },
     {
       "file": "fibonacci-retracement-mtflog__54a8dbfa8e.pine",
@@ -856,10 +854,10 @@
       "host": false,
       "screener": false,
       "hostGuards": [
-        "pine:character"
+        "pine:objects-only"
       ],
       "screenerGuards": [
-        "pine:character"
+        "pine:objects-only"
       ]
     },
     {
@@ -878,10 +876,10 @@
       "host": false,
       "screener": false,
       "hostGuards": [
-        "pine:character"
+        "pine:no-output"
       ],
       "screenerGuards": [
-        "pine:character"
+        "pine:no-output"
       ]
     },
     {
@@ -911,10 +909,12 @@
       "host": false,
       "screener": false,
       "hostGuards": [
-        "pine:character"
+        "pine:module",
+        "pine:tuple"
       ],
       "screenerGuards": [
-        "pine:character"
+        "pine:module",
+        "pine:tuple"
       ]
     },
     {
@@ -972,10 +972,10 @@
       "host": false,
       "screener": false,
       "hostGuards": [
-        "pine:character"
+        "pine:no-output"
       ],
       "screenerGuards": [
-        "pine:character"
+        "pine:no-output"
       ]
     },
     {
@@ -996,10 +996,10 @@
       "host": false,
       "screener": false,
       "hostGuards": [
-        "pine:no-output"
+        "pine:objects-only"
       ],
       "screenerGuards": [
-        "pine:no-output"
+        "pine:objects-only"
       ]
     },
     {
@@ -1007,10 +1007,10 @@
       "host": false,
       "screener": false,
       "hostGuards": [
-        "pine:character"
+        "pine:objects-only"
       ],
       "screenerGuards": [
-        "pine:character"
+        "pine:objects-only"
       ]
     },
     {
@@ -1018,10 +1018,10 @@
       "host": false,
       "screener": false,
       "hostGuards": [
-        "pine:character"
+        "pine:objects-only"
       ],
       "screenerGuards": [
-        "pine:character"
+        "pine:objects-only"
       ]
     },
     {
@@ -1029,10 +1029,10 @@
       "host": false,
       "screener": false,
       "hostGuards": [
-        "pine:no-output"
+        "pine:objects-only"
       ],
       "screenerGuards": [
-        "pine:no-output"
+        "pine:objects-only"
       ]
     },
     {
@@ -1040,21 +1040,21 @@
       "host": false,
       "screener": false,
       "hostGuards": [
-        "pine:no-output"
+        "pine:objects-only"
       ],
       "screenerGuards": [
-        "pine:no-output"
+        "pine:objects-only"
       ]
     },
     {
       "file": "ict-killzones-pivots-tfo__d0b8be94f1.pine",
-      "host": false,
+      "host": true,
       "screener": false,
       "hostGuards": [
-        "pine:character"
+        "pine:constant-only"
       ],
       "screenerGuards": [
-        "pine:character"
+        "pine:constant-only"
       ]
     },
     {
@@ -1141,10 +1141,10 @@
       "host": false,
       "screener": false,
       "hostGuards": [
-        "pine:character"
+        "pine:no-output"
       ],
       "screenerGuards": [
-        "pine:character"
+        "pine:no-output"
       ]
     },
     {
@@ -1152,10 +1152,10 @@
       "host": false,
       "screener": false,
       "hostGuards": [
-        "pine:no-output"
+        "pine:objects-only"
       ],
       "screenerGuards": [
-        "pine:no-output"
+        "pine:objects-only"
       ]
     },
     {
@@ -1184,14 +1184,10 @@
     },
     {
       "file": "keltner-center-of-gravity-channel__e4a81d76f6.pine",
-      "host": false,
+      "host": true,
       "screener": true,
-      "hostGuards": [
-        "pine:builtin"
-      ],
-      "screenerGuards": [
-        "pine:builtin"
-      ]
+      "hostGuards": [],
+      "screenerGuards": []
     },
     {
       "file": "keltner-channels-bands__T5FsnX45Dn.pine",
@@ -1238,10 +1234,10 @@
       "host": false,
       "screener": false,
       "hostGuards": [
-        "pine:no-output"
+        "pine:objects-only"
       ],
       "screenerGuards": [
-        "pine:no-output"
+        "pine:objects-only"
       ]
     },
     {
@@ -1287,10 +1283,10 @@
       "host": false,
       "screener": false,
       "hostGuards": [
-        "pine:no-output"
+        "pine:objects-only"
       ],
       "screenerGuards": [
-        "pine:no-output"
+        "pine:objects-only"
       ]
     },
     {
@@ -1432,7 +1428,7 @@
       "screener": false,
       "hostGuards": [],
       "screenerGuards": [
-        "pine:no-output"
+        "pine:objects-only"
       ]
     },
     {
@@ -1440,10 +1436,10 @@
       "host": false,
       "screener": false,
       "hostGuards": [
-        "pine:no-output"
+        "pine:objects-only"
       ],
       "screenerGuards": [
-        "pine:no-output"
+        "pine:objects-only"
       ]
     },
     {
@@ -1473,10 +1469,10 @@
       "host": false,
       "screener": false,
       "hostGuards": [
-        "pine:no-output"
+        "pine:objects-only"
       ],
       "screenerGuards": [
-        "pine:no-output"
+        "pine:objects-only"
       ]
     },
     {
@@ -1515,10 +1511,10 @@
       "host": false,
       "screener": false,
       "hostGuards": [
-        "pine:character"
+        "pine:no-output"
       ],
       "screenerGuards": [
-        "pine:character"
+        "pine:no-output"
       ]
     },
     {
@@ -1590,10 +1586,10 @@
       "host": false,
       "screener": false,
       "hostGuards": [
-        "pine:character"
+        "pine:no-output"
       ],
       "screenerGuards": [
-        "pine:character"
+        "pine:no-output"
       ]
     },
     {
@@ -1614,7 +1610,7 @@
       "host": false,
       "screener": false,
       "hostGuards": [
-        "pine:no-output"
+        "pine:objects-only"
       ],
       "screenerGuards": [
         "pine:no-output"
@@ -1682,10 +1678,10 @@
       "host": false,
       "screener": false,
       "hostGuards": [
-        "pine:statement"
+        "pine:block"
       ],
       "screenerGuards": [
-        "pine:statement"
+        "pine:block"
       ]
     },
     {
@@ -1726,10 +1722,10 @@
       "host": false,
       "screener": false,
       "hostGuards": [
-        "pine:builtin"
+        "pine:input-kind"
       ],
       "screenerGuards": [
-        "pine:builtin"
+        "pine:input-kind"
       ]
     },
     {
@@ -1789,10 +1785,10 @@
       "host": false,
       "screener": false,
       "hostGuards": [
-        "pine:no-output"
+        "pine:objects-only"
       ],
       "screenerGuards": [
-        "pine:no-output"
+        "pine:objects-only"
       ]
     },
     {
@@ -1894,10 +1890,10 @@
       "host": false,
       "screener": false,
       "hostGuards": [
-        "pine:no-output"
+        "pine:objects-only"
       ],
       "screenerGuards": [
-        "pine:no-output"
+        "pine:objects-only"
       ]
     },
     {
@@ -1905,10 +1901,10 @@
       "host": false,
       "screener": false,
       "hostGuards": [
-        "pine:no-output"
+        "pine:objects-only"
       ],
       "screenerGuards": [
-        "pine:no-output"
+        "pine:objects-only"
       ]
     },
     {
@@ -2053,18 +2049,22 @@
       "host": false,
       "screener": false,
       "hostGuards": [
-        "pine:builtin",
+        "pine:text-value",
         "pine:plot-offset",
         "pine:state",
         "pine:reassign",
-        "pine:request"
+        "pine:request",
+        "pine:window",
+        "pine:builtin"
       ],
       "screenerGuards": [
-        "pine:builtin",
+        "pine:text-value",
         "pine:plot-offset",
         "pine:state",
         "pine:reassign",
-        "pine:request"
+        "pine:request",
+        "pine:window",
+        "pine:builtin"
       ]
     },
     {
@@ -2103,10 +2103,10 @@
       "host": false,
       "screener": false,
       "hostGuards": [
-        "pine:no-output"
+        "pine:objects-only"
       ],
       "screenerGuards": [
-        "pine:no-output"
+        "pine:objects-only"
       ]
     },
     {
@@ -2181,14 +2181,10 @@
     },
     {
       "file": "sector-rotation__0fca060bf4.pine",
-      "host": false,
-      "screener": false,
-      "hostGuards": [
-        "pine:arity"
-      ],
-      "screenerGuards": [
-        "pine:arity"
-      ]
+      "host": true,
+      "screener": true,
+      "hostGuards": [],
+      "screenerGuards": []
     },
     {
       "file": "session-highs-and-lows-indicator-smc-sessions-dst-safe__c0ca8cf749.pine",
@@ -2206,10 +2202,10 @@
       "host": false,
       "screener": false,
       "hostGuards": [
-        "pine:builtin"
+        "pine:input-kind"
       ],
       "screenerGuards": [
-        "pine:builtin"
+        "pine:input-kind"
       ]
     },
     {
@@ -2239,10 +2235,16 @@
       "host": false,
       "screener": false,
       "hostGuards": [
-        "pine:character"
+        "pine:module",
+        "pine:function",
+        "pine:reassign",
+        "pine:type"
       ],
       "screenerGuards": [
-        "pine:character"
+        "pine:module",
+        "pine:function",
+        "pine:reassign",
+        "pine:type"
       ]
     },
     {
@@ -2306,10 +2308,12 @@
       "host": false,
       "screener": false,
       "hostGuards": [
-        "pine:character"
+        "pine:builtin",
+        "pine:reassign"
       ],
       "screenerGuards": [
-        "pine:character"
+        "pine:builtin",
+        "pine:reassign"
       ]
     },
     {
@@ -2329,11 +2333,11 @@
       "screener": false,
       "hostGuards": [
         "pine:function",
-        "pine:builtin"
+        "pine:offset-literal"
       ],
       "screenerGuards": [
         "pine:function",
-        "pine:builtin"
+        "pine:offset-literal"
       ]
     },
     {
@@ -2341,10 +2345,12 @@
       "host": false,
       "screener": false,
       "hostGuards": [
-        "pine:character"
+        "pine:block",
+        "pine:module"
       ],
       "screenerGuards": [
-        "pine:character"
+        "pine:block",
+        "pine:module"
       ]
     },
     {
@@ -2382,7 +2388,7 @@
       "screener": false,
       "hostGuards": [],
       "screenerGuards": [
-        "pine:no-output"
+        "pine:objects-only"
       ]
     },
     {
@@ -2416,10 +2422,16 @@
       "host": false,
       "screener": false,
       "hostGuards": [
-        "pine:character"
+        "pine:module",
+        "pine:reassign",
+        "pine:type",
+        "pine:tuple"
       ],
       "screenerGuards": [
-        "pine:character"
+        "pine:module",
+        "pine:reassign",
+        "pine:type",
+        "pine:tuple"
       ]
     },
     {
@@ -2438,10 +2450,10 @@
       "host": false,
       "screener": false,
       "hostGuards": [
-        "pine:no-output"
+        "pine:objects-only"
       ],
       "screenerGuards": [
-        "pine:no-output"
+        "pine:objects-only"
       ]
     },
     {
@@ -2503,10 +2515,10 @@
       "host": false,
       "screener": false,
       "hostGuards": [
-        "pine:character"
+        "pine:reassign"
       ],
       "screenerGuards": [
-        "pine:character"
+        "pine:reassign"
       ]
     },
     {
@@ -2569,10 +2581,10 @@
       "host": false,
       "screener": false,
       "hostGuards": [
-        "pine:character"
+        "pine:type"
       ],
       "screenerGuards": [
-        "pine:character"
+        "pine:type"
       ]
     },
     {
@@ -2656,10 +2668,16 @@
       "host": false,
       "screener": false,
       "hostGuards": [
-        "pine:character"
+        "pine:declaration-strategy",
+        "pine:module",
+        "pine:block",
+        "pine:strategy-call"
       ],
       "screenerGuards": [
-        "pine:character"
+        "pine:declaration-strategy",
+        "pine:module",
+        "pine:block",
+        "pine:strategy-call"
       ]
     },
     {
@@ -2693,13 +2711,13 @@
     },
     {
       "file": "trend-lines-supports-and-resistances__413ee2ee3b.pine",
-      "host": false,
+      "host": true,
       "screener": false,
       "hostGuards": [
-        "pine:character"
+        "pine:constant-only"
       ],
       "screenerGuards": [
-        "pine:character"
+        "pine:constant-only"
       ]
     },
     {
@@ -2769,10 +2787,10 @@
       "host": false,
       "screener": false,
       "hostGuards": [
-        "pine:no-output"
+        "pine:objects-only"
       ],
       "screenerGuards": [
-        "pine:no-output"
+        "pine:objects-only"
       ]
     },
     {
@@ -2826,10 +2844,10 @@
       "host": false,
       "screener": false,
       "hostGuards": [
-        "pine:no-output"
+        "pine:objects-only"
       ],
       "screenerGuards": [
-        "pine:no-output"
+        "pine:objects-only"
       ]
     },
     {
@@ -2837,10 +2855,10 @@
       "host": false,
       "screener": false,
       "hostGuards": [
-        "pine:character"
+        "pine:type"
       ],
       "screenerGuards": [
-        "pine:character"
+        "pine:type"
       ]
     },
     {
@@ -2872,10 +2890,14 @@
       "host": false,
       "screener": false,
       "hostGuards": [
-        "pine:character"
+        "pine:module",
+        "pine:input-kind",
+        "pine:reassign"
       ],
       "screenerGuards": [
-        "pine:character"
+        "pine:module",
+        "pine:input-kind",
+        "pine:reassign"
       ]
     },
     {
@@ -2918,10 +2940,10 @@
       "host": false,
       "screener": false,
       "hostGuards": [
-        "pine:character"
+        "pine:module"
       ],
       "screenerGuards": [
-        "pine:character"
+        "pine:module"
       ]
     },
     {
@@ -2940,7 +2962,7 @@
       "host": false,
       "screener": false,
       "hostGuards": [
-        "pine:no-output"
+        "pine:objects-only"
       ],
       "screenerGuards": [
         "pine:no-output"
@@ -2965,10 +2987,10 @@
       "host": false,
       "screener": false,
       "hostGuards": [
-        "pine:no-output"
+        "pine:objects-only"
       ],
       "screenerGuards": [
-        "pine:no-output"
+        "pine:objects-only"
       ]
     },
     {

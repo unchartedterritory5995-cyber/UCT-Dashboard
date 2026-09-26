@@ -41,9 +41,22 @@ vi.mock('swr', () => ({
   SWRConfig: ({ children }) => children,
 }))
 vi.mock('react-router-dom', () => ({ useNavigate: () => () => {} }))
-vi.mock('../context/AuthContext', () => ({
-  useAuth: () => ({ user: { id: 'u1', role: 'user', display_name: 'Pat' } }),
-}))
+// ⚰️ `AuthContext` ITSELF, not just the hook. `useFlagged` reads
+// `useContext(AuthContext)`, so a mock without that export makes vitest refuse
+// the whole module and the page renders NOTHING — six cases failing on missing
+// rows, which reads as a virtualization defect and is a missing mock export.
+//
+// ⭐ ONE USER, BOTH READERS. The context default is the SAME object the hook
+// hands back, so `useContext(AuthContext)?.user` and `useAuth().user` cannot
+// disagree about who is signed in.
+const MOCK_USER = { id: 'u1', role: 'user', display_name: 'Pat' }
+vi.mock('../context/AuthContext', async () => {
+  const { createContext } = await import('react')
+  return {
+    useAuth: () => ({ user: MOCK_USER }),
+    AuthContext: createContext({ user: MOCK_USER }),
+  }
+})
 vi.mock('../utils/prefetchBars', () => ({
   prefetchBars: () => {}, prefetchBarsToIDB: () => {}, prefetchAllTimeframes: () => {},
   prefetchBarOnIntent: () => {}, prefetchListAllTimeframes: () => {}, warmMemFromIDB: () => {},

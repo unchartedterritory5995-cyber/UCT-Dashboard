@@ -3855,6 +3855,49 @@ def _parse_mdy(s):
         return (0, 0, 0)
 
 
+#: How long `_flow_dates_all` may serve a cached answer. The list only ever GAINS a date, so a
+#: stale read can omit a brand-new session for at most this long and can never invent one.
+_FLOW_DATES_ALL_TTL_S = float(os.environ.get("FLOW_DATES_CACHE_TTL_S", "60") or 60)
+
+
+def _flow_dates_all() -> list:
+    """Every distinct `CreatedDate` in flow.db, all sources, CACHED for `_FLOW_DATES_ALL_TTL_S`.
+
+    ⛔⛔ THIS QUERY IS THE FIXED COST OF EVERY SINGLE-TICKER `/flow`. Measured in the flow-worker
+    pod 2026-09-25: `SELECT DISTINCT CreatedDate FROM flow` = 1,993–2,075 ms (181 dates over
+    ~20M rows; SQLite walks the whole date index to dedupe), and it ran INSIDE `_build_by_contract`
+    on every `only_ticker` call — so a one-contract answer for BP cost 2.5 s, of which 2.0 s was
+    this, and a thin name widening through four rungs (GEMI, ACI) paid it four times: 8.5 s.
+    `flow_db.get_available_dates` had already solved the identical problem for `/live-massive`
+    (its docstring: "~3.0 s, on a WARM pod") with a 60 s TTL; this is the same shape for the
+    all-sources list the rollup wants.
+    ⛔ Keyed by `DB_PATH`: two callers over different files (web's frozen copy, the flow-worker's
+    live tape, every test's fixture) must never serve each other's dates."""
+    from api.services.cache import cache as _shared
+    ck = f"flow_dates_all::{DB_PATH}"
+    hit = _shared.get(ck)
+    if hit is not None:
+        return list(hit)
+    _c = sqlite3.connect(DB_PATH, timeout=10)
+    try:
+        dates = [r[0] for r in _c.execute(_LOOSE_DATES_SQL).fetchall() if r[0]]
+    finally:
+        _c.close()
+    _shared.set(ck, list(dates), ttl=_FLOW_DATES_ALL_TTL_S)
+    return dates
+
+
+#: ⛔ A LOOSE INDEX SCAN, not `SELECT DISTINCT CreatedDate FROM flow`. The DISTINCT reads every
+#: entry of the date index (~20M rows) to produce ~180 values: 2,361 ms warm in the pod and tens
+#: of seconds on a freshly booted pod with a cold page cache — measured 2026-09-25 as the bulk of
+#: an 85 s first `/flow` after a flow-worker deploy. The recursive form does one index seek per
+#: distinct value (1.8 ms, identical 182 dates). Text order is fine: callers sort by `_parse_mdy`.
+_LOOSE_DATES_SQL = (
+    "WITH RECURSIVE d(x) AS (SELECT MIN(CreatedDate) FROM flow "
+    "UNION ALL SELECT (SELECT MIN(CreatedDate) FROM flow WHERE CreatedDate > d.x) "
+    "FROM d WHERE d.x IS NOT NULL) SELECT x FROM d WHERE x IS NOT NULL")
+
+
 def _build_by_contract(today: str, stock_etf: str, min_hits: int,
                        exclude_algo: bool, lookback_days: int = 1,
                        only_ticker: str = None) -> dict:
@@ -3907,12 +3950,7 @@ def _build_by_contract(today: str, stock_etf: str, min_hits: int,
         # means the last TRADING day: on a weekend / holiday / long weekend / before
         # today's tape starts, `/flow TICKER` with no window picked shows the last
         # working day's flow instead of an empty card.
-        _c = sqlite3.connect(DB_PATH, timeout=10)
-        try:
-            all_dates = [r[0] for r in _c.execute(
-                "SELECT DISTINCT CreatedDate FROM flow").fetchall() if r[0]]
-        finally:
-            _c.close()
+        all_dates = _flow_dates_all()
         today_key = _parse_mdy(today)
         dated = sorted([d for d in all_dates if _parse_mdy(d) <= today_key],
                        key=_parse_mdy, reverse=True)
@@ -4086,9 +4124,17 @@ def _build_by_contract(today: str, stock_etf: str, min_hits: int,
         # most permissive" band ($15K/print, $100K/contract); the market-wide callers still
         # pass the real cap. Regression rail: tests/test_flow_single_ticker_floors.py.
         _band_cap = 0 if only_ticker else g["mkt_cap"]
-        floor = _rollup_floor(_band_cap, g["source"], thresholds)
+        # ⛔ AND THE INDEX PARTITION TOO. `_rollup_floor` / `_rollup_total_floor` answer the mega
+        # floors for `source == "indexes"` BEFORE they look at the cap, so passing a cap of 0 left
+        # every ETF/index lookup at $250K/print and $1M/contract. ⚰️ 2026-09-25, first ETF parity
+        # run: /flow IWM kept 6 of the page's 229 contracts — the six largest, mostly put hedges —
+        # and read net BEAR $4.0M/$15.9M against the page's near-even net BULL $24.5M/$22.7M.
+        # A single-name lookup uses the permissive band on BOTH axes; market-wide callers keep
+        # the index floors that stop SPX 0DTE churn flooding the feed.
+        _floor_src = "stocks" if only_ticker else g["source"]
+        floor = _rollup_floor(_band_cap, _floor_src, thresholds)
         qual = sum(1 for p in g["prints"] if (p["premium"] or 0) >= floor)
-        total_floor = _rollup_total_floor(_band_cap, g["source"], thresholds)
+        total_floor = _rollup_total_floor(_band_cap, _floor_src, thresholds)
         # Gate: enough repeated meaningful clips AND a total that clears the
         # cap-scaled bar. The hit floor is low (repetition of small clips on a
         # small name is the signal); the cap-scaling lives in the total floor.
@@ -4508,11 +4554,21 @@ def _contract_has_sweep_map(sym: str, dates) -> dict:
     conn = sqlite3.connect(DB_PATH, timeout=10)
     try:
         ph = ",".join("?" * len(dates))
+        # ⛔⛔ `+Symbol`, NOT `Symbol`. The unary plus stops the planner using a Symbol-led index
+        # for this predicate, and that is the whole difference between 163 ms and 4,175 ms on
+        # SPY (measured in the flow-worker pod 2026-09-25, 27,273 SPY rows on the day). Without it
+        # SQLite picks `idx_flow_contract (Symbol, CallPut, Strike, ExpirationDate)` because its
+        # shape matches the GROUP BY, and then walks EVERY SPY row in history (millions) filtering
+        # on the date afterwards. `api/flow_worker_main.py` already records this exact seduction
+        # ("idx_flow_contract's shape otherwise seduces the planner") for the sibling query it
+        # indexes around; this function was written later and fell into the same trap. With the
+        # steer the planner takes `idx_flow_created_symbol (CreatedDate=?)`, or `idx_flow_date` on
+        # a database without the extra index — either way the day's rows, not the symbol's history.
         for r in conn.execute(
             "SELECT CallPut, Strike, ExpirationDate, "
             "MAX(CASE WHEN UPPER(Type) LIKE '%SWEEP%' OR UPPER(Type) LIKE '%ISO%' "
             "         THEN 1 ELSE 0 END) "
-            "FROM flow WHERE Symbol=? AND CreatedDate IN (" + ph + ") "
+            "FROM flow WHERE +Symbol=? AND CreatedDate IN (" + ph + ") "
             "GROUP BY CallPut, Strike, ExpirationDate", [sym] + dates):
             try:
                 sk = float(r[1])

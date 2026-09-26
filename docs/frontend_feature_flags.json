@@ -36,6 +36,14 @@
         "app/src/components/chart/engine/memberPaneGate.js::memberPaneEnabled"
       ],
       "note": "Whether a member's own translated Pine script may reach a chart pane. ON IN PRODUCTION as of the flip above -- verified end to end on the live site, not just in a local instance: Chart Settings -> Indicators -> New Formula -> Import -> paste a Pine script -> 'Add this script to my chart' now renders (previously absent). Confirmed with tests/fixtures/member/uncharted-clouds.pine on a real SPY/SMCI chart: the 20-layer teal/maroon gradient band drew correctly, matching the vendor-parity captures in docs/pine/capture/. With it ON, a saved definition reaches the member's own chart through the shipped doors; the OFF path (attach control absent, MemberPane returns null) is still driven on the REAL route by attachedPineDisclosures.test.jsx for regression coverage. Declared as a build ARG in Dockerfile.web: Railway hands service variables to the build as build args and drops undeclared ones silently, so without that line the flag could never have been switched on in production."
+    },
+    "VITE_PINE_OBJECTS_ONLY_PANE_ENABLED": {
+      "status": "dark",
+      "since": "2026-09-20",
+      "readBy": [
+        "app/src/components/chart/builder/memberPane/memberPaneDefinition.js::objectsOnlyPaneEnabled"
+      ],
+      "note": "A D2 revisit, owner decision 2026-09-20. `pine:objects-only` is a script that DRAWS -- a table, labels, boxes -- and offers no plot or alert condition, so `ok` is false for the SCREENER and the drawing is real. Measured: 19 of the 266 committed corpus scripts are in that state, plus the acceptance dashboard. OFF means the pane refuses them exactly as it did before. Rollback is the variable, not a revert."
     }
   }
 }

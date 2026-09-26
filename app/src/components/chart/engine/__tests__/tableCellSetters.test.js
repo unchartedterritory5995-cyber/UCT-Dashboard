@@ -182,11 +182,13 @@ plot(close)
   })
 
   it('⛔ a setter whose VALUE this door cannot read is a named drop, not a wrong one', () => {
-    // Formatting is constant-only (see gap 1), so a computed one refuses — and
-    // the REST of the cell must survive it: a patch that could not be read is a
-    // property left alone, never a property blanked.
+    // ⚰️ THIS CASE USED A CONDITIONAL, WHICH IS NOW CARRIED (the case below).
+    // Its claim is untouched and is what matters — a patch the door cannot read
+    // leaves the property ALONE rather than blanking it — so it is re-taken with
+    // a value that genuinely has no template: `close` is a number, not a
+    // `text_format`.
     const { t, cells } = wire(script(
-      '    table.cell_set_text_formatting(t, 0, 0, close > 0 ? text.format_italic : text.format_none)',
+      '    table.cell_set_text_formatting(t, 0, 0, close)',
     ))
     // ⭐ LINE 8 IS THE SETTER'S OWN LINE in the template above, not the cell's —
     // the point of a named drop is that it addresses the expression an engineer
@@ -194,5 +196,27 @@ plot(close)
     expect(t.objectDiagnostics.droppedPropNames).toContain('cell.text_formatting@8')
     expect(cells['0,0'].text_formatting).toBe(BASE.cells['0,0'].text_formatting)
     expect(cells['0,0'].text).toBe('A0')
+  })
+
+  it('⭐⭐ a CONDITIONAL setter value is carried, and patches BOTH ways', () => {
+    // ⭐ THE 2026-09-23 MERGE WIDENED THE READER — see `tableTextFormatting`'s
+    // gap-1 case for the measurement and why no second per-bar vocabulary was
+    // added. Asserted in both directions on purpose: a patch that always wrote
+    // the then-branch would satisfy a one-sided check while ignoring the
+    // condition entirely, which is a wrong answer wearing a working feature.
+    const on = wire(script(
+      '    table.cell_set_text_formatting(t, 0, 0, close > 0 ? text.format_italic : text.format_none)',
+    ))
+    const off = wire(script(
+      '    table.cell_set_text_formatting(t, 0, 0, close < 0 ? text.format_italic : text.format_none)',
+    ))
+    expect(on.t.objectDiagnostics.droppedPropNames).toBeFalsy()
+    expect(on.cells['0,0'].text_formatting).toBe('italic')
+    expect(off.cells['0,0'].text_formatting).toBe('none')
+    // ⛔ NON-VACUITY: the base cell is `bold`, so BOTH answers above are a real
+    // patch and neither is the value that was already there.
+    expect(BASE.cells['0,0'].text_formatting).toBe('bold')
+    // ⛔ AND THE REST OF THE CELL IS UNTOUCHED, same rule as the case above.
+    expect(on.cells['0,0'].text).toBe('A0')
   })
 })

@@ -26,6 +26,13 @@
 import React, { useEffect, useMemo, useState } from 'react'
 import { createRoot } from 'react-dom/client'
 import { createChart, LineSeries } from 'lightweight-charts'
+// ⛔ ONE fetcher for every JSON read here. `utils/jsonFetcher.test.js` sweeps
+// app/src for a `fetch(...).then(r => r.json())` that never checked `ok`, and this
+// file was the one NEW offender: a 402 answers JSON, its {detail} body is truthy,
+// so every `!data` guard downstream is skipped and an error renders as data.
+// jsonFetcher throws on non-OK, which routes such a response into the `.catch`
+// each site already carries -- a state this harness actually shows.
+import jsonFetcher from '../../utils/jsonFetcher'
 
 // ─── lock: no preference write can leave this page ──────────────────────────
 const _fetch = window.fetch.bind(window)
@@ -46,8 +53,7 @@ const FAMILY_ORDER = ['mcclellan', 'breadth', 'sentiment', 'volatility']
 function useCatalogue() {
   const [state, setState] = useState({ loading: true, rows: [], dormant: [], error: null })
   useEffect(() => {
-    fetch('/api/market-indicators')
-      .then(r => (r.ok ? r.json() : Promise.reject(new Error(`HTTP ${r.status}`))))
+    jsonFetcher('/api/market-indicators')
       .then(d => setState({ loading: false, rows: d.rows || [], dormant: d.dormant || [], error: null }))
       .catch(e => setState({ loading: false, rows: [], dormant: [], error: String(e) }))
   }, [])
@@ -78,8 +84,7 @@ function SeriesChart({ row }) {
       lineWidth: 2, priceLineVisible: false,
     })
     let dead = false
-    fetch(`/api/bars/${encodeURIComponent(row.symbol)}?tf=D&bars=5000`)
-      .then(r => r.json())
+    jsonFetcher(`/api/bars/${encodeURIComponent(row.symbol)}?tf=D&bars=5000`)
       .then(d => {
         if (dead) return
         const bars = (d.bars || []).map(b => ({ time: b.t, value: b.c }))
@@ -140,8 +145,7 @@ function App() {
     if (!q.trim()) { setHits(null); return undefined }
     let dead = false
     const id = setTimeout(() => {
-      fetch(`/api/market-indicators/search?q=${encodeURIComponent(q)}&limit=40`)
-        .then(r => r.json())
+      jsonFetcher(`/api/market-indicators/search?q=${encodeURIComponent(q)}&limit=40`)
         .then(d => { if (!dead) setHits(d.results || []) })
         .catch(() => { if (!dead) setHits([]) })
     }, 150)
