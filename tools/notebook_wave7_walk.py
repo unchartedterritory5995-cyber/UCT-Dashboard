@@ -6,7 +6,8 @@ its harness (`@guarded`, `record`, the partial dump, `dismiss_intro`,
 and every change to a wave-6 check is marked "wave 7:" in place.
 
 ⛔ READ THIS HEADER AND WAVE 6's / WAVE 5's BEFORE CHANGING A LINE. Their three
-traps bit real attempts, and they are still the three preconditions:
+traps bit real attempts, and they are still preconditions 1-3 (a fourth, the
+server's identity, arrived with the wave-7 whole-branch fix round):
 
   1. A SANDBOX FROM THE TIP, on :8094, and C:\\data CLEAN at every checkpoint.
      Boot it from a `git archive` export of the tip in YOUR SCRATCH, never from
@@ -55,6 +56,15 @@ traps bit real attempts, and they are still the three preconditions:
   3. app/dist REBUILT FROM THE TIP (`npm run build` in the export's app/, with
      a node_modules junction to notebook-k's install, removed afterwards with a
      NON-recursive `cmd /c rmdir`). `api/main.py` serves `<its repo>/app/dist`.
+
+  4. THE SERVER PROVES IT IS THIS RUN'S SANDBOX (tooling review M-3; wave 7
+     phase 2). The launcher mints a per-run nonce, writes it on its pre-boot
+     line (`identity = <hex>`) and serves it at `/__uct_sandbox_identity`.
+     Before the walk sends ONE request, `scripts/sandbox_identity.verify(--base,
+     --integrity-log)` must find the same nonce in both, or the walk prints
+     `REFUSED: <what was checked>` and exits 3 having written nothing. So
+     `--integrity-log` is REQUIRED, and it must be the log of the sandbox on
+     `--base` -- a port is not an identity.
 
     python tools/notebook_wave7_walk.py docs/notebook/gate-runs/wave7/walk-<sha>.json \\
         --tip <sha> --base http://127.0.0.1:8094 --data-dir 'C:\\data-w7walk' \\
@@ -151,12 +161,41 @@ from playwright.sync_api import sync_playwright
 # THE IMPORTABLE PART (wave 7 phase 2). Everything above `ARGS = _ap.parse_args()`
 # runs with no argv, no browser and no sandbox: tests/test_notebook_wave7_walk.py
 # executes exactly this prefix (cut by AST at that assignment) to rail W13's
-# verdict. Nothing here reads ARGS or sends a request.
+# verdict and the --base identity gate. Nothing here reads ARGS or sends a request
+# except the identity check, through the launcher's own helper.
 # ─────────────────────────────────────────────────────────────────────────────
 REPO = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 if REPO not in sys.path:
     sys.path.insert(0, REPO)
 from tools import notebook_perf_harness as _harness  # noqa: E402  (ONE integrity-log reader, review I-2)
+sys.path.insert(0, os.path.join(REPO, "scripts"))
+import sandbox_identity  # noqa: E402  (the launcher's identity marker, tooling review M-3)
+
+
+def require_sandbox_identity(base, integrity_log, *, sink=None, verify=None):
+    """⛔ A PORT IS NOT AN IDENTITY (tooling review M-3, the walk's half). The walk signs
+    up, comps and seeds through whatever answers `--base`; a stale non-sandbox backend
+    on that port resolves every path to C:\\data, and those writes would land in the
+    owner's live auth.db while W13 read some other sandbox's clean log. So BEFORE THE
+    FIRST REQUEST, `sandbox_identity.verify(base, integrity_log)` (scripts/, the
+    launcher's own helper, reused -- never a second one) must find the SAME per-run
+    nonce in the integrity log and at the server's `/__uct_sandbox_identity`.
+
+    The verdict goes into `sink` (the walk's JSON) either way. Refused: prints
+    `REFUSED: <the helper's sentence, naming what was checked>` and exits 3 (the perf
+    harness's "refused / not run"). `verify` is a seam, looked up at call time."""
+    check = verify if verify is not None else sandbox_identity.verify
+    verdict = check(base, integrity_log)
+    if sink is not None:
+        sink["sandbox_identity"] = {"ok": verdict.ok, "sentence": verdict.sentence, "nonce": verdict.nonce,
+                                    "base": base, "integrity_log": integrity_log}
+    if not verdict.ok:
+        if sink is not None:
+            sink["REFUSED"] = verdict.sentence
+        print("REFUSED: " + verdict.sentence, flush=True)
+        raise SystemExit(3)
+    print("SANDBOX IDENTITY: " + verdict.sentence, flush=True)
+    return verdict
 
 # W13 needs the launcher's pre-boot, +15 s AND shutdown checkpoints -- the harness's
 # labels, which are the launcher's own words (railed against scripts/hub_sandbox_boot.py
@@ -837,6 +876,11 @@ def wait_list_row(pg, title, timeout=30000):
 def mismatch(check, brief_says, product_does, source):
     res["brief_mismatches"].append({"check": check, "brief": brief_says, "product": product_does, "source": source})
 
+
+# ⛔ NOTHING IS SENT TO --base UNTIL IT PROVES IT IS THIS RUN'S SANDBOX (tooling review M-3):
+# the same nonce in --integrity-log and at the server, or the walk refuses (exit 3) with the
+# helper's sentence and writes nothing. Everything below -- provisioning first -- sends.
+require_sandbox_identity(BASE, ARGS.integrity_log, sink=res)
 
 with sync_playwright() as p:
     browser = p.chromium.launch()
