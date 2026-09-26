@@ -1,7 +1,15 @@
 import { useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
+import useSWR, { useSWRConfig } from 'swr'
 import UIcon from '../../../../components/ui/UIcon'
+import usePreferences from '../../../../hooks/usePreferences'
+import { useIsPaid } from '../../../../context/AuthContext'
 import useNotebookHome from '../../hooks/useNotebookHome'
+import { notebookFlag } from '../../lib/offline/notebookFlags'
+import { openNotebookTour } from './onboarding/tourControl'
+import {
+  SAMPLE_URL, SAMPLE_PREF, SAMPLE_COPY, readSamplePref, addSampleNotebook, removeSampleNotebook, isNotebookKey,
+} from './onboarding/sampleNotebook'
 import { openSpanningCitation } from '../../lib/openCitation'
 import AskPanel from './AskPanel'
 import DocumentPreviewSheet from './DocumentPreviewSheet'
@@ -62,6 +70,8 @@ function Section({ title, notes, onOpen, viewAllHref, emptyReason }) {
   )
 }
 
+const fetchStatus = (url) => fetch(url, { credentials: 'include' }).then((r) => (r.ok ? r.json() : null))
+
 /**
  * Wave H — Research Home. Renders in place of the bare-root All Notes grid
  * (checkpoint decision 33/57) -- "All notes" itself stays one click away in
@@ -79,6 +89,78 @@ export default function ResearchHome({ onOpenNote, onCreateNote, onCreateThesis,
   const [capturedSource, setCapturedSource] = useState(null)
 
   const openNote = (note) => (onOpenNote ? onOpenNote(note) : navigate(notePath(note.id)))
+
+  // ── Wave 8 lane 8C (C3): the sample notebook and the tour's door ──────────────────
+  // Both appear only while `notebook_onboarding_enabled` is on; the sample button only
+  // for a paid member who has never had the sample (its ids are in `notebook_sample`).
+  // While any recorded sample note is still out of Trash, a strip offers to remove them.
+  const onboarding = notebookFlag('notebook_onboarding_enabled') === true
+  const isPaid = useIsPaid()
+  const { prefs, setPref } = usePreferences()
+  const { mutate } = useSWRConfig()
+  const sample = onboarding ? readSamplePref(prefs[SAMPLE_PREF]) : null
+  const [adding, setAdding] = useState(false)
+  const [addError, setAddError] = useState('')
+  const [removing, setRemoving] = useState(false)
+  const [sampleMessage, setSampleMessage] = useState(null)   // { alert: bool, text }
+  const wantStatus = onboarding && hasAnyNotes && !!sample && !sample.dismissedAt
+  const { data: sampleStatus } = useSWR(wantStatus ? SAMPLE_URL : null, fetchStatus, { revalidateOnFocus: false })
+  const showStrip = wantStatus && Array.isArray(sampleStatus?.activeIds) && sampleStatus.activeIds.length > 0
+
+  const addSample = async () => {
+    if (adding) return
+    setAdding(true)
+    setAddError('')
+    const out = await addSampleNotebook()
+    setAdding(false)
+    if (!out.ok) {
+      setAddError(out.message)
+      return
+    }
+    mutate(isNotebookKey)
+    if (out.welcomeNoteId) openNote({ id: out.welcomeNoteId })
+  }
+
+  const removeSample = async () => {
+    if (removing) return
+    setRemoving(true)
+    setSampleMessage(null)
+    const out = await removeSampleNotebook()
+    setRemoving(false)
+    if (!out.ok) {
+      setSampleMessage({ alert: true, text: out.message })
+      return
+    }
+    setSampleMessage({ alert: false, text: SAMPLE_COPY.removed })
+    mutate(isNotebookKey)
+  }
+
+  const dismissStrip = () => {
+    if (sample) setPref(SAMPLE_PREF, { ...sample, dismissedAt: new Date().toISOString() })
+  }
+
+  const sampleNotice = (
+    <>
+      {showStrip && (
+        <div className={styles.sampleStrip}>
+          <span className={styles.sampleStripText}>{SAMPLE_COPY.strip} —</span>
+          <button type="button" className={styles.sampleStripAction} onClick={removeSample} disabled={removing}>
+            {removing ? SAMPLE_COPY.removing : SAMPLE_COPY.remove}
+          </button>
+          <button type="button" className={styles.sampleStripDismiss} onClick={dismissStrip}
+            aria-label={SAMPLE_COPY.dismiss} title={SAMPLE_COPY.dismiss}>
+            <UIcon name="x" size={14} gold={false} />
+          </button>
+        </div>
+      )}
+      {sampleMessage && (
+        <p className={sampleMessage.alert ? styles.sampleError : styles.sampleNote}
+          role={sampleMessage.alert ? 'alert' : 'status'}>
+          {sampleMessage.text}
+        </p>
+      )}
+    </>
+  )
 
   if (isLoading) {
     // G-106 (Wave B lower-frequency sweep): a skeleton approximating Home's
@@ -102,7 +184,7 @@ export default function ResearchHome({ onOpenNote, onCreateNote, onCreateThesis,
           This is where your research lives — theses, company notes, captured facts, and everything
           connected to your trades. It fills in as you use it.
         </p>
-        <div className={styles.firstRunActions}>
+        <div className={styles.firstRunActions} data-tour="first-run">
           <button type="button" className="btn btn-primary" onClick={onCreateNote}>
             <UIcon name="plus" size={14} gold={false} /> Start a note
           </button>
@@ -112,7 +194,19 @@ export default function ResearchHome({ onOpenNote, onCreateNote, onCreateThesis,
           <button type="button" className="btn btn-ghost" onClick={onImport}>
             <UIcon name="upload" size={14} gold={false} /> Import notes
           </button>
+          {onboarding && isPaid && !sample && (
+            <button type="button" className="btn btn-ghost" onClick={addSample} disabled={adding}>
+              <UIcon name="book" size={14} gold={false} /> {adding ? SAMPLE_COPY.adding : SAMPLE_COPY.add}
+            </button>
+          )}
+          {onboarding && (
+            <button type="button" className="btn btn-ghost" onClick={openNotebookTour}>
+              <UIcon name="sparkle" size={14} gold={false} /> {SAMPLE_COPY.tour}
+            </button>
+          )}
         </div>
+        {addError && <p className={styles.sampleError} role="alert">{addError}</p>}
+        {sampleNotice}
       </div>
     )
   }
@@ -124,6 +218,7 @@ export default function ResearchHome({ onOpenNote, onCreateNote, onCreateThesis,
   if (nothingToShow) {
     return (
       <div className={styles.quietState}>
+        {sampleNotice}
         <p>Nothing needs your attention right now.</p>
         <p className={styles.quietHint}>Favorite a note or set a thesis to Active to see it here.</p>
       </div>
@@ -132,6 +227,7 @@ export default function ResearchHome({ onOpenNote, onCreateNote, onCreateThesis,
 
   return (
     <div className={styles.home} data-export-exclude>
+      {sampleNotice}
       {/* ⛔ A CALM ENTRY POINT, NOT AN AI DASHBOARD. Research Home still
           answers "what was I working on, and where do I resume?" -- Ask is
           one affordance on that page, not the page. */}
