@@ -33,6 +33,10 @@ export default function ReadOnlyNote({ note }) {
     ...noteContentGuardOptions(),
     content: note.bodyJson || { type: 'doc', content: [] },
     editable: false,
+    // ⛔ TipTap gives every editor element role="textbox"; a READ-ONLY document with that
+    // role and no name is an axe `aria-input-field-name` violation (measured in the real
+    // browser on both public pages, wave 8 lane 8B). It is an article, named by its title.
+    editorProps: { attributes: { role: 'article', 'aria-label': note.title || 'Untitled' } },
     onBeforeCreate: ({ editor: ed }) => {
       ed.storage.uctJournalWidgets = { ...(ed.storage.uctJournalWidgets || {}), shareView: true }
     },

@@ -147,6 +147,19 @@ describe('the page tells a crawler not to index it, in every state', () => {
   })
 })
 
+describe('the read-only document is an article named by its title, not a nameless textbox', () => {
+  // Measured in the real browser (evidence/wave8-8b-67c219fd1/run2): TipTap's default
+  // role="textbox" on a read-only public document is an axe aria-input-field-name violation.
+  it('the rendered document carries role=article and the note title as its name', async () => {
+    openPage()
+    await screen.findByTestId('shared-note')
+    const doc = document.querySelector('.ProseMirror')
+    expect(doc.getAttribute('role')).toBe('article')
+    expect(doc).toHaveAccessibleName('Public request census')
+    expect(screen.queryByRole('textbox')).toBeNull()
+  })
+})
+
 describe('a keyboard user can see where focus is on the public page', () => {
   const css = readFileSync(join(process.cwd(), 'src/pages/journal-2-0/SharedNotePage.module.css'), 'utf8')
   const rules = css.replace(/\/\*[\s\S]*?\*\//g, '')
