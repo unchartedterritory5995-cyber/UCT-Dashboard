@@ -3499,7 +3499,10 @@ export default function NoteEditorPage({
                 text is selected). */}
             <NoteStats editor={editor} />
             {chromeMsg && <span className={styles.chromeMsg} role="status">{chromeMsg}</span>}
-            <NoteExportControls noteId={noteId} title={title} columnRef={columnRef} onMessage={setChromeMsg} />
+            {/* Final review M-9: the four file formats are built from the server's copy, so
+                this editor's pending edits are sent first (the Save-as-template precedent). */}
+            <NoteExportControls noteId={noteId} title={title} columnRef={columnRef} onMessage={setChromeMsg}
+              onBeforeExport={sendPendingEdits} />
           </div>
         </div>
       )}

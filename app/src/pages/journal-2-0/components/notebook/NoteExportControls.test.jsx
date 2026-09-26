@@ -6,7 +6,8 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { useState } from 'react'
 import { render, screen, fireEvent, waitFor, act } from '@testing-library/react'
-import NoteExportControls from './NoteExportControls'
+import NoteExportControls, { UNSENT_BEFORE_EXPORT } from './NoteExportControls'
+import { exportNoteAsPng } from '../../lib/exportNote'
 import { EXPORT_FORMATS } from './export/exportFormats'
 
 vi.mock('../../lib/exportNote', () => ({
@@ -14,12 +15,14 @@ vi.mock('../../lib/exportNote', () => ({
   printNote: vi.fn(),
 }))
 
-function Host({ noteId = 'n1' }) {
+function Host({ noteId = 'n1', onBeforeExport = null }) {
   const [msg, setMsg] = useState('')
   return (
     <div>
-      <NoteExportControls noteId={noteId} title="Plan" columnRef={{ current: null }} onMessage={setMsg} />
+      <NoteExportControls noteId={noteId} title="Plan" columnRef={{ current: null }} onMessage={setMsg}
+        onBeforeExport={onBeforeExport} />
       <p data-testid="chrome-msg">{msg}</p>
+      <button type="button">elsewhere in the note</button>
     </div>
   )
 }
@@ -196,5 +199,100 @@ describe('each format downloads through the format route', () => {
     await waitFor(() => expect(global.fetch).toHaveBeenCalledTimes(2))
     await waitFor(() => expect(screen.getByTestId('chrome-msg').textContent).toBe('export failed'))
     expect(clicked).toEqual([])
+  })
+})
+
+// ⛔ Wave 8 final review, M-9: every format is built from the SERVER's copy of the note, so the
+// editor's pending edits go first (`onBeforeExport`, the editor's `sendPendingEdits` -- wave
+// 7's Save-as-template precedent). JSON promises "every note exactly as stored, with nothing
+// left out"; a file missing the member's last sentence would break that promise.
+describe("the editor's pending edits are sent before the file is built (M-9)", () => {
+  it('asks the editor to send first, THEN fetches the file', async () => {
+    const order = []
+    const onBeforeExport = vi.fn(async () => { order.push('send pending edits'); return true })
+    global.fetch.mockImplementation(async () => { order.push('fetch the file'); return fileResponse('attachment; filename="Plan.json"') })
+    render(<Host onBeforeExport={onBeforeExport} />)
+    fireEvent.click(trigger())
+    fireEvent.click(screen.getByRole('menuitem', { name: 'JSON' }))
+    await waitFor(() => expect(screen.getByTestId('chrome-msg').textContent).toBe('downloaded'))
+    expect(order).toEqual(['send pending edits', 'fetch the file'])
+  })
+
+  it('with words still unsent, nothing is downloaded -- and the member is told why', async () => {
+    const onBeforeExport = vi.fn(async () => false)
+    render(<Host onBeforeExport={onBeforeExport} />)
+    fireEvent.click(trigger())
+    fireEvent.click(screen.getByRole('menuitem', { name: 'Word (.docx)' }))
+    await waitFor(() => expect(screen.getByTestId('chrome-msg').textContent).toBe(UNSENT_BEFORE_EXPORT))
+    expect(UNSENT_BEFORE_EXPORT).toBe(
+      "Your latest edits haven't reached the server yet, so the file would miss them. Nothing was downloaded — try again in a moment.")
+    expect(global.fetch).not.toHaveBeenCalled()
+    expect(clicked).toEqual([])
+    expect(trigger()).not.toBeDisabled()
+  })
+
+  it('PNG reads the note on screen, so it asks nothing first', async () => {
+    const onBeforeExport = vi.fn(async () => false)
+    render(<Host onBeforeExport={onBeforeExport} />)
+    fireEvent.click(screen.getByRole('button', { name: 'PNG' }))
+    await waitFor(() => expect(screen.getByTestId('chrome-msg').textContent).toBe('PNG saved'))
+    expect(onBeforeExport).not.toHaveBeenCalled()
+  })
+})
+
+// ⛔ Wave 8 final review, M-1: PNG and Export are DISABLED while a file is made, and a browser
+// moves focus off a disabled button (to <body>). jsdom does not, so each rail drops focus the
+// way the browser does, at the moment the button is disabled -- and asserts where it lands.
+// (jsdom will not blur a disabled button, so focus is parked on a throwaway field and the field
+// removed: jsdom's own removal fix-up then leaves it on <body>, where the browser leaves it.)
+const dropFocusToBody = () => act(() => {
+  const tmp = document.createElement('input')
+  document.body.appendChild(tmp)
+  tmp.focus()
+  tmp.remove()
+})
+
+describe('focus comes back to the button that made the file (M-1)', () => {
+  it('Export: back on the Export button once the download ends', async () => {
+    let release
+    global.fetch.mockReturnValue(new Promise((r) => { release = r }))
+    render(<Host />)
+    fireEvent.click(trigger())
+    fireEvent.click(screen.getByRole('menuitem', { name: 'JSON' }))
+    await waitFor(() => expect(trigger()).toBeDisabled())
+    dropFocusToBody()                                            // the browser's focus fix-up
+    expect(document.activeElement).toBe(document.body)
+    await act(async () => { release(fileResponse('attachment; filename="Plan.json"')) })
+    await waitFor(() => expect(screen.getByTestId('chrome-msg').textContent).toBe('downloaded'))
+    expect(document.activeElement).toBe(trigger())
+  })
+
+  it('PNG: back on PNG once the image is saved', async () => {
+    let release
+    exportNoteAsPng.mockImplementationOnce(() => new Promise((r) => { release = r }))
+    render(<Host />)
+    const png = screen.getByRole('button', { name: 'PNG' })
+    png.focus()
+    fireEvent.click(png)
+    await waitFor(() => expect(png).toBeDisabled())
+    dropFocusToBody()
+    expect(document.activeElement).toBe(document.body)
+    await act(async () => { release(true) })
+    await waitFor(() => expect(screen.getByTestId('chrome-msg').textContent).toBe('PNG saved'))
+    expect(document.activeElement).toBe(png)
+  })
+
+  it('a member who moved on meanwhile keeps their place', async () => {
+    let release
+    global.fetch.mockReturnValue(new Promise((r) => { release = r }))
+    render(<Host />)
+    fireEvent.click(trigger())
+    fireEvent.click(screen.getByRole('menuitem', { name: 'Markdown' }))
+    await waitFor(() => expect(trigger()).toBeDisabled())
+    const elsewhere = screen.getByRole('button', { name: 'elsewhere in the note' })
+    elsewhere.focus()
+    await act(async () => { release(fileResponse('attachment; filename="Plan.md"')) })
+    await waitFor(() => expect(screen.getByTestId('chrome-msg').textContent).toBe('downloaded'))
+    expect(document.activeElement).toBe(elsewhere)
   })
 })

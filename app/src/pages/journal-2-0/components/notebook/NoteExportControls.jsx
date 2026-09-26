@@ -16,6 +16,17 @@
 //
 // ⚠️ The buttons borrow NoteEditorPage.module.css's `.chromeBtn` so they render exactly as the
 // rest of the toolbar. A rename of that class in the editor's stylesheet reaches them too.
+//
+// ⛔ Final review M-9: every format is built from the SERVER's copy of the note, so words still
+// inside the editor's autosave window (or queued offline) would be missing from the file while
+// JSON promises "every note exactly as stored, with nothing left out". The editor's pending
+// edits are sent FIRST (`onBeforeExport`, the editor's `sendPendingEdits` -- wave 7's
+// Save-as-template precedent), and when words are still unsent nothing is downloaded.
+// PNG and Print read the note on screen, so they already carry every word.
+//
+// ⛔ Final review M-1: PNG and the Export button are DISABLED while a file is made, and a
+// disabled button loses focus (the browser moves it to <body>). When the work ends, the
+// button that started it takes focus back -- unless the member has moved on meanwhile.
 import { useCallback, useEffect, useId, useRef, useState } from 'react'
 import UIcon from '../../../../components/ui/UIcon'
 import { exportNoteAsPng, printNote } from '../../lib/exportNote'
@@ -33,16 +44,31 @@ async function failureSentence(res) {
   return 'export failed'
 }
 
-export default function NoteExportControls({ noteId, title, columnRef, onMessage }) {
+/** M-9: the sentence when the editor still holds words the server has not taken. */
+export const UNSENT_BEFORE_EXPORT = "Your latest edits haven't reached the server yet, so the file would miss them. Nothing was downloaded — try again in a moment."
+
+export default function NoteExportControls({ noteId, title, columnRef, onMessage, onBeforeExport = null }) {
   const [exportBusy, setExportBusy] = useState(false)
   const [menuOpen, setMenuOpen] = useState(false)
   const menuId = useId()
   const triggerRef = useRef(null)
+  const pngRef = useRef(null)
   const menuRef = useRef(null)
   const itemRefs = useRef([])
+  // M-1: the button to hand focus back to once the busy state clears.
+  const refocusRef = useRef(null)
+  useEffect(() => {
+    if (exportBusy || !refocusRef.current) return
+    const el = refocusRef.current
+    refocusRef.current = null
+    const active = document.activeElement
+    // only when focus was LOST with the disabled button -- never taken from where the member went
+    if (!active || active === document.body || active === el) el.focus()
+  }, [exportBusy])
 
   const savePng = async () => {
     if (exportBusy) return
+    refocusRef.current = pngRef.current
     setExportBusy(true)
     onMessage('rendering…')
     try {
@@ -65,9 +91,15 @@ export default function NoteExportControls({ noteId, title, columnRef, onMessage
   const download = async (format) => {
     closeMenu(true)
     if (exportBusy) return
+    refocusRef.current = triggerRef.current
     setExportBusy(true)
     onMessage('preparing…')
     try {
+      // M-9: the server builds the file from ITS copy -- send what this editor still holds first.
+      if (onBeforeExport && !(await onBeforeExport())) {
+        onMessage(UNSENT_BEFORE_EXPORT)
+        return
+      }
       const res = await fetch(noteExportUrl(noteId, format), { credentials: 'include' })
       if (!res.ok) {
         onMessage(await failureSentence(res))
@@ -130,7 +162,7 @@ export default function NoteExportControls({ noteId, title, columnRef, onMessage
     <>
       {/* Export: PNG rasterizes the note column (charts included); Print
           rides the browser's Save-as-PDF via the print stylesheet. */}
-      <button type="button" className={editorStyles.chromeBtn} onClick={savePng} disabled={exportBusy}
+      <button type="button" ref={pngRef} className={editorStyles.chromeBtn} onClick={savePng} disabled={exportBusy}
         title="Download this note as a PNG image">
         PNG
       </button>

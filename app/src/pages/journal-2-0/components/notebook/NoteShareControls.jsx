@@ -18,7 +18,7 @@
 //
 // ⚠️ The trigger borrows NoteEditorPage.module.css's `.chromeBtn` so it sits in the editor's
 // header row like its neighbours (lane 8A owns that stylesheet; do not rename the class).
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useEffect, useId, useRef, useState } from 'react'
 import { useAuth } from '../../../../context/AuthContext'
 import Sheet from '../../../../components/mobile/Sheet'
 import UIcon from '../../../../components/ui/UIcon'
@@ -100,6 +100,38 @@ function SharePanel({ noteId, shareOn, publishOn, onMessage }) {
   const [expiry, setExpiry] = useState('never')
   const [busy, setBusy] = useState(false)
   const [status, setStatus] = useState('')
+  // M-3: ids from useId, never fixed strings -- split view mounts two editors, so two of these
+  // popovers can exist at once, and a fixed id would be a duplicate the moment both open.
+  const uid = useId()
+  const ids = {
+    shareHeading: `${uid}-share-heading`,
+    expiry: `${uid}-expiry`,
+    revokeCaption: `${uid}-revoke-caption`,
+    publishHeading: `${uid}-publish-heading`,
+  }
+  // ⛔ Final review M-1: every action below swaps the control that was pressed for another
+  // (Create link -> the address and Copy link; Revoke -> Create link; Publish -> Copy page link;
+  // Unpublish -> Publish). The pressed button leaves the DOM, and focus with it -- a keyboard
+  // member was dropped on <body> with the status line announcing a result they could no longer
+  // act from. So the action names where focus goes NEXT, and once the busy state has cleared
+  // (the new control is disabled until then, and a disabled button cannot take focus) that
+  // control takes it.
+  const focusRefs = {
+    create: useRef(null),
+    copyLink: useRef(null),
+    publishNote: useRef(null),
+    copyPage: useRef(null),
+    publishFolder: useRef(null),
+    copyFolder: useRef(null),
+  }
+  const focusNextRef = useRef(null)
+  useEffect(() => {
+    if (busy || !focusNextRef.current) return
+    const target = focusRefs[focusNextRef.current]?.current
+    focusNextRef.current = null
+    target?.focus()
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [busy, share, pubs])
 
   const say = useCallback((msg) => {
     setStatus(msg)
@@ -142,6 +174,7 @@ function SharePanel({ noteId, shareOn, publishOn, onMessage }) {
         method: 'POST', body: JSON.stringify({ expiresInDays: choice ? choice.days : null }),
       })
       setShare(b.share)
+      focusNextRef.current = 'copyLink'
       const copied = await copyText(sharedNoteUrl(b.share.token))
       say(copied ? 'Share link created and copied.' : 'Share link created. Copy the address above.')
     } catch (e) {
@@ -158,6 +191,7 @@ function SharePanel({ noteId, shareOn, publishOn, onMessage }) {
     try {
       await requestJson(noteShareEndpoint(noteId), { method: 'DELETE' })
       setShare(null)
+      focusNextRef.current = 'create'
       say('Link revoked. It no longer works.')
     } catch (e) {
       say(e.detail || 'Could not revoke the link. Try again.')
@@ -172,6 +206,7 @@ function SharePanel({ noteId, shareOn, publishOn, onMessage }) {
       const b = await requestJson(url, { method: 'POST', body: JSON.stringify({ expiresInDays: null }) })
       const pub = { ...b.publication, state: 'active' }
       setPubs((prev) => [pub, ...prev.filter((p) => p.slug !== pub.slug)])
+      focusNextRef.current = kind === 'note' ? 'copyPage' : 'copyFolder'
       const copied = await copyText(publishedUrl(pub.slug))
       const what = kind === 'note' ? 'Published' : `Published "${ctx.folderName}"`
       say(copied ? `${what}. Page link copied.` : `${what}. Copy the address above.`)
@@ -189,6 +224,7 @@ function SharePanel({ noteId, shareOn, publishOn, onMessage }) {
     try {
       await requestJson(`${PUBLISH_ENDPOINT}/${encodeURIComponent(pub.slug)}`, { method: 'DELETE' })
       setPubs((prev) => prev.filter((p) => p.slug !== pub.slug))
+      focusNextRef.current = pub.kind === 'folder' ? 'publishFolder' : 'publishNote'
       say('Unpublished. The page no longer works.')
     } catch (e) {
       say(e.detail || 'Could not unpublish. Try again.')
@@ -202,17 +238,17 @@ function SharePanel({ noteId, shareOn, publishOn, onMessage }) {
   return (
     <div className={styles.panel}>
       {shareOn && (
-        <section className={styles.section} aria-labelledby="share-link-heading">
-          <h3 id="share-link-heading" className={styles.heading}>Share link</h3>
+        <section className={styles.section} aria-labelledby={ids.shareHeading}>
+          <h3 id={ids.shareHeading} className={styles.heading}>Share link</h3>
           {!share ? (
             <>
               <p className={styles.lede}>
                 Anyone with the link can read this note without signing in. Price charts are not shown.
               </p>
               <div className={styles.row}>
-                <label className={styles.label} htmlFor="share-expiry">Link stops working</label>
+                <label className={styles.label} htmlFor={ids.expiry}>Link stops working</label>
                 <select
-                  id="share-expiry"
+                  id={ids.expiry}
                   className={styles.select}
                   value={expiry}
                   onChange={(e) => setExpiry(e.target.value)}
@@ -224,7 +260,7 @@ function SharePanel({ noteId, shareOn, publishOn, onMessage }) {
                 </select>
               </div>
               <div className={styles.row}>
-                <button type="button" className={styles.action} onClick={createLink} disabled={busy}>Create link</button>
+                <button type="button" ref={focusRefs.create} className={styles.action} onClick={createLink} disabled={busy}>Create link</button>
               </div>
             </>
           ) : (
@@ -238,26 +274,26 @@ function SharePanel({ noteId, shareOn, publishOn, onMessage }) {
               />
               <p className={styles.caption}>{whenText(share.expiresAt)}</p>
               <div className={styles.row}>
-                <button type="button" className={styles.action} onClick={copyLink} disabled={busy}>Copy link</button>
+                <button type="button" ref={focusRefs.copyLink} className={styles.action} onClick={copyLink} disabled={busy}>Copy link</button>
                 <button
                   type="button"
                   className={`${styles.action} ${styles.danger}`}
                   onClick={revokeLink}
                   disabled={busy}
-                  aria-describedby="share-revoke-caption"
+                  aria-describedby={ids.revokeCaption}
                 >
                   Revoke link
                 </button>
               </div>
-              <p id="share-revoke-caption" className={styles.caption}>It stops working immediately.</p>
+              <p id={ids.revokeCaption} className={styles.caption}>It stops working immediately.</p>
             </>
           )}
         </section>
       )}
 
       {publishOn && (
-        <section className={styles.section} aria-labelledby="publish-heading">
-          <h3 id="publish-heading" className={styles.heading}>Publish to the web</h3>
+        <section className={styles.section} aria-labelledby={ids.publishHeading}>
+          <h3 id={ids.publishHeading} className={styles.heading}>Publish to the web</h3>
           <p className={styles.lede}>
             A published page can be read by anyone with its address, without signing in. Search engines are asked not to index it.
           </p>
@@ -271,7 +307,7 @@ function SharePanel({ noteId, shareOn, publishOn, onMessage }) {
                 onFocus={(e) => e.target.select()}
               />
               <div className={styles.row}>
-                <button type="button" className={styles.action} onClick={() => copyPage(notePub)} disabled={busy}>Copy page link</button>
+                <button type="button" ref={focusRefs.copyPage} className={styles.action} onClick={() => copyPage(notePub)} disabled={busy}>Copy page link</button>
                 <button type="button" className={`${styles.action} ${styles.danger}`} onClick={() => unpublish(notePub)} disabled={busy}>
                   Unpublish
                 </button>
@@ -279,7 +315,7 @@ function SharePanel({ noteId, shareOn, publishOn, onMessage }) {
             </>
           ) : (
             <div className={styles.row}>
-              <button type="button" className={styles.action} onClick={() => publish('note')} disabled={busy}>Publish this note</button>
+              <button type="button" ref={focusRefs.publishNote} className={styles.action} onClick={() => publish('note')} disabled={busy}>Publish this note</button>
             </div>
           )}
           {ctx?.folderId && (
@@ -293,7 +329,7 @@ function SharePanel({ noteId, shareOn, publishOn, onMessage }) {
                   onFocus={(e) => e.target.select()}
                 />
                 <div className={styles.row}>
-                  <button type="button" className={styles.action} onClick={() => copyPage(folderPub)} disabled={busy}>Copy folder link</button>
+                  <button type="button" ref={focusRefs.copyFolder} className={styles.action} onClick={() => copyPage(folderPub)} disabled={busy}>Copy folder link</button>
                   <button type="button" className={`${styles.action} ${styles.danger}`} onClick={() => unpublish(folderPub)} disabled={busy}>
                     Unpublish folder
                   </button>
@@ -302,7 +338,7 @@ function SharePanel({ noteId, shareOn, publishOn, onMessage }) {
             ) : (
               <>
                 <div className={styles.row}>
-                  <button type="button" className={styles.action} onClick={() => publish('folder')} disabled={busy}>
+                  <button type="button" ref={focusRefs.publishFolder} className={styles.action} onClick={() => publish('folder')} disabled={busy}>
                     {`Publish folder "${ctx.folderName}"`}
                   </button>
                 </div>

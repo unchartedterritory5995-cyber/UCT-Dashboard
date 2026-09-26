@@ -1,6 +1,6 @@
 import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
-import { cleanup, fireEvent, render, screen, within } from '@testing-library/react'
+import { cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import SharingCard from './SharingCard'
 import { __resetNotebookFlags, latchNotebookFlags } from '../lib/offline/notebookFlags'
@@ -130,6 +130,30 @@ describe('SharingCard — the list', () => {
     expect(await screen.findByText('"Weekly plans" updated. The page now shows 4 notes.')).toBeInTheDocument()
     expect(S.calls).toContain('POST /api/j2/publish/slugF/refresh')
     expect(screen.getByText('4 of up to 500 notes. A note added to the folder appears when you update.')).toBeInTheDocument()
+  })
+
+  // ⛔ Final review M-1: Revoke removes its own row, and the button that held focus with it.
+  // Focus goes to the list (named, so a screen reader says what it is and what is left), or to
+  // the empty-state sentence when that was the last row -- never to <body>.
+  it('M-1: after a Revoke, focus is on the list, not dropped with the row', async () => {
+    const list = await open()
+    const revoke = within(list).getByRole('button', { name: 'Revoke the share link to "March AMD post-mortem"' })
+    revoke.focus()
+    fireEvent.click(revoke)
+    await screen.findByText('Link to "March AMD post-mortem" revoked. It no longer works.')
+    await waitFor(() => expect(document.activeElement).toBe(screen.getByRole('list', { name: 'Your share links and published pages' })))
+    expect(document.activeElement.tabIndex).toBe(-1)
+  })
+
+  it('M-1: revoking the LAST row puts focus on the sentence that says there are none', async () => {
+    S.shares = []
+    S.pubs = [NOTE_PUB]
+    const list = await open()
+    const revoke = within(list).getByRole('button', { name: 'Revoke the published note "Weekly thesis"' })
+    revoke.focus()
+    fireEvent.click(revoke)
+    await screen.findByText('"Weekly thesis" unpublished. The page no longer works.')
+    await waitFor(() => expect(document.activeElement).toBe(screen.getByText('You have no share links or published pages.')))
   })
 
   it('with only share links on it reads the share list and shows no publications', async () => {

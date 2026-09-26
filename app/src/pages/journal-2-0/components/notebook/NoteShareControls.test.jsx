@@ -216,6 +216,89 @@ describe('publish to the web', () => {
   })
 })
 
+// ⛔ Wave 8 final review, M-1: each action swaps the pressed button for another, and the
+// pressed one leaves the DOM with focus in it. Focus goes to the control that replaced it,
+// once the busy state clears -- never <body>.
+describe('focus follows the swap (M-1)', () => {
+  const press = (dialog, name) => {
+    const b = within(dialog).getByRole('button', { name })
+    b.focus()
+    fireEvent.click(b)
+  }
+
+  it('Create link -> Copy link; Revoke link -> Create link', async () => {
+    mount({ j2_share_links_enabled: true })
+    const dialog = await openDoor()
+    press(dialog, 'Create link')
+    await within(dialog).findByText('Share link created and copied.')
+    await waitFor(() => expect(document.activeElement).toBe(within(dialog).getByRole('button', { name: 'Copy link' })))
+    press(dialog, 'Revoke link')
+    await within(dialog).findByText('Link revoked. It no longer works.')
+    await waitFor(() => expect(document.activeElement).toBe(within(dialog).getByRole('button', { name: 'Create link' })))
+  })
+
+  it('Publish this note -> Copy page link; Unpublish -> Publish this note', async () => {
+    mount({ notebook_publish_enabled: true })
+    const dialog = await openDoor()
+    press(dialog, 'Publish this note')
+    await within(dialog).findByText('Published. Page link copied.')
+    await waitFor(() => expect(document.activeElement).toBe(within(dialog).getByRole('button', { name: 'Copy page link' })))
+    press(dialog, 'Unpublish')
+    await within(dialog).findByText('Unpublished. The page no longer works.')
+    await waitFor(() => expect(document.activeElement).toBe(within(dialog).getByRole('button', { name: 'Publish this note' })))
+  })
+
+  it('Publish folder -> Copy folder link; Unpublish folder -> Publish folder', async () => {
+    mount({ notebook_publish_enabled: true })
+    const dialog = await openDoor()
+    press(dialog, 'Publish folder "Weekly plans"')
+    await within(dialog).findByText('Published "Weekly plans". Page link copied.')
+    await waitFor(() => expect(document.activeElement).toBe(within(dialog).getByRole('button', { name: 'Copy folder link' })))
+    press(dialog, 'Unpublish folder')
+    await within(dialog).findByText('Unpublished. The page no longer works.')
+    await waitFor(() => expect(document.activeElement).toBe(within(dialog).getByRole('button', { name: 'Publish folder "Weekly plans"' })))
+  })
+
+  it('a refusal moves nothing: focus stays on the button that was pressed', async () => {
+    S.shareStatus = 402
+    mount({ j2_share_links_enabled: true })
+    const dialog = await openDoor()
+    press(dialog, 'Create link')
+    await waitFor(() => expect(statusText(dialog)).toContain('Share links require a paid plan'))
+    expect(document.activeElement).toBe(within(dialog).getByRole('button', { name: 'Create link' }))
+  })
+})
+
+// ⛔ Wave 8 final review, M-3: split view mounts two editors, so two of these popovers can
+// exist at once. Its ids come from useId, never a fixed string.
+describe('ids are per instance (M-3)', () => {
+  it('no fixed id is left, and every label and description still points at its element', async () => {
+    const src = readFileSync(join(process.cwd(),
+      'src/pages/journal-2-0/components/notebook/NoteShareControls.jsx'), 'utf8')
+    expect(src).not.toMatch(/\b(?:id|htmlFor|aria-labelledby|aria-describedby)="[^"{]/)
+    mount({ j2_share_links_enabled: true, notebook_publish_enabled: true })
+    S.share = null
+    const dialog = await openDoor()
+    // labelled and described through the generated ids
+    expect(within(dialog).getByLabelText('Link stops working').tagName).toBe('SELECT')
+    expect(within(dialog).getByRole('region', { name: 'Share link' })).toBeInTheDocument()
+    expect(within(dialog).getByRole('region', { name: 'Publish to the web' })).toBeInTheDocument()
+  })
+
+  it('two popovers open at once share no id', async () => {
+    latchNotebookFlags({ j2_share_links_enabled: true, notebook_publish_enabled: true })
+    render(<><NoteShareControls noteId={NOTE} onMessage={vi.fn()} /><NoteShareControls noteId={NOTE} onMessage={vi.fn()} /></>)
+    const doors = screen.getAllByRole('button', { name: /share/i })
+    fireEvent.click(doors[0])
+    fireEvent.click(doors[1])
+    await waitFor(() => expect(screen.getAllByRole('dialog', { hidden: true })).toHaveLength(2))
+    await waitFor(() => expect(screen.queryAllByText('Loading…')).toHaveLength(0))
+    const ids = [...document.querySelectorAll('[role="dialog"] [id]')].map((el) => el.id)
+    expect(ids.length).toBeGreaterThan(4)
+    expect(new Set(ids).size).toBe(ids.length)
+  })
+})
+
 describe('the 44px touch floor', () => {
   const css = readFileSync(join(process.cwd(),
     'src/pages/journal-2-0/components/notebook/NoteShareControls.module.css'), 'utf8')

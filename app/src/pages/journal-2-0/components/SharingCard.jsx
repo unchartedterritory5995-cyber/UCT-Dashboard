@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import TileCard from '../../../components/TileCard'
 import { notebookFlag } from '../lib/offline/notebookFlags'
 import { noteShareEndpoint, SHARE_LINKS_ENDPOINT } from '../lib/noteShareLink'
@@ -63,6 +63,19 @@ function SharingList({ shareOn, publishOn }) {
   const [pubs, setPubs] = useState([])
   const [busy, setBusy] = useState(false)
   const [status, setStatus] = useState('')
+  // ⛔ Final review M-1: Revoke REMOVES its own row, and the button that held focus goes with
+  // it -- a keyboard member was dropped on <body>. After a revoke, focus goes to the list
+  // (named, so a screen reader says what it is and how many rows remain), or -- when that was
+  // the last row -- to the sentence that says there are none. Once `busy` clears: the list's
+  // buttons are disabled until then.
+  const listRef = useRef(null)
+  const emptyRef = useRef(null)
+  const focusListRef = useRef(false)
+  useEffect(() => {
+    if (busy || !focusListRef.current) return
+    focusListRef.current = false
+    ;(listRef.current || emptyRef.current)?.focus()
+  }, [busy, shares, pubs])
 
   const load = useCallback(async () => {
     try {
@@ -89,6 +102,7 @@ function SharingList({ shareOn, publishOn }) {
     try {
       await requestJson(noteShareEndpoint(s.noteId), { method: 'DELETE' })
       setShares((prev) => prev.filter((x) => x.token !== s.token))
+      focusListRef.current = true
       setStatus(`Link to "${s.title}" revoked. It no longer works.`)
     } catch (e) {
       setStatus(e.detail || 'Could not revoke the link. Try again.')
@@ -99,6 +113,7 @@ function SharingList({ shareOn, publishOn }) {
     try {
       await requestJson(`${PUBLISH_ENDPOINT}/${encodeURIComponent(p.slug)}`, { method: 'DELETE' })
       setPubs((prev) => prev.filter((x) => x.slug !== p.slug))
+      focusListRef.current = true
       setStatus(`"${p.name}" unpublished. The page no longer works.`)
     } catch (e) {
       setStatus(e.detail || 'Could not unpublish. Try again.')
@@ -127,9 +142,9 @@ function SharingList({ shareOn, publishOn }) {
         Anyone with one of these addresses can read the note or folder without signing in, until you revoke it.
       </p>
       {rows === 0 ? (
-        <p className={styles.empty}>You have no share links or published pages.</p>
+        <p ref={emptyRef} tabIndex={-1} className={styles.empty}>You have no share links or published pages.</p>
       ) : (
-        <ul className={styles.list} aria-label="Your share links and published pages">
+        <ul ref={listRef} tabIndex={-1} className={styles.list} aria-label="Your share links and published pages">
           {shares.map((s) => (
             <li key={`s:${s.token}`} className={styles.row}>
               <div className={styles.main}>
