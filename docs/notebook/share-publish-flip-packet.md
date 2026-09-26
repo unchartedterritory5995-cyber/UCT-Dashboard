@@ -62,7 +62,16 @@ What the code does with those answers (`api/services/journal_two/public_note_pay
 
 **Loosening Massive later is one line:** `"massive": SHOWN` in `VENDOR_VERDICT`.
 
-### 1.4 ⚠️ OPEN — one question for the owner before the publish flip
+### 1.4 ✅ SETTLED 2026-09-26 — option (a), the sentence moves
+
+The owner settled this on 2026-09-26 (wave 8 final review item I-4): the reducer stays as the P-7
+correction made it, and the Privacy sentence and the share-link lede are amended so they no longer
+over-promise. The Privacy page now ends the published-pages item "…or market data such as price
+charts; company figures you add to a note may appear." (rail: `Privacy.test.jsx`), and the share
+link lede reads "Price charts are not shown." (rail: `NoteShareControls.test.jsx`). The question as
+it was put, kept below as history:
+
+### 1.4a (history) the question that was open
 
 **The approved Privacy sentence (L4) and the corrected reducer (L3 correction) disagree about
 financial figures.** L4, now on the Privacy page verbatim, says published pages "do not show
@@ -88,9 +97,25 @@ asserts the rendered text, the em dash, and the position):
 > Published notes and folders — where available, if you publish a note or folder to the web,
 > anyone with its address can read it without signing in until you unpublish it. Published pages
 > ask search engines not to index them, and they do not show your account, your other notes, file
-> attachments, or market data such as charts and financial figures.
+> attachments, or market data such as price charts; company figures you add to a note may appear.
 
-See §1.4: the last clause over-promises for FMP and Finnhub figures.
+⚰️ The last clause read "…or market data such as charts and financial figures" as approved on
+2026-09-25; it over-promised for FMP and Finnhub figures and was amended on 2026-09-26 (§1.4).
+The page's "Last updated" date moved with it.
+
+### 2.1 Decisions settled 2026-09-26 (owner), recorded for the flip
+
+* **Ask answers on share links (G-064).** A share link keeps an Ask answer the member saved into
+  the note, including text drawn from notes that were not shared; publish strips them (D-B5).
+  Settled as ruled: the member chose to put that text in the note.
+* **Restoring a trashed note brings its link or page back (final review BE M-5).** Trash hides a
+  share link or a published page without revoking it, so Restore makes it live again. Settled as
+  is; the help article says so.
+* **The Cloudflare origin (final review BE M-10).** Every public rate limit keys on
+  `CF-Connecting-IP`. Before each flip, the controller checks whether the Railway origin answers
+  directly and records the answer in §4's verification; a directly reachable origin is recorded
+  as a known limit (the limits still bound any one caller that goes through Cloudflare), not a
+  blocker.
 
 ---
 
@@ -102,7 +127,8 @@ railway variables --service web --set NOTEBOOK_PUBLISH_ENABLED=1
 ```
 
 One at a time, with §4's verification between them. ⛔ Share links and publishing are separate
-gates on purpose: the share flip does not depend on §1.4; the publish flip does.
+gates on purpose. §1.4 is settled (2026-09-26), so neither flip waits on it any longer; both wait
+on wave 8 being LIVE (the reducer, the amended sentences and the final-review fixes ship in it).
 
 ## 4. Verification — a NEW BOOT, and the value read IN THE PROCESS
 

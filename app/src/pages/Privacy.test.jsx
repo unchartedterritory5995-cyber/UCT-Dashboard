@@ -50,13 +50,17 @@ test('community sharing names everything another member can see', () => {
   expect(text).toMatch(/the part of your email address before the @/)
 })
 
-test('publish-to-web is disclosed in the owner-approved words (L4, 2026-09-25), em dash and all', () => {
+test('publish-to-web is disclosed in the owner-approved words (L4, 2026-09-25; last clause per I-4, 2026-09-26), em dash and all', () => {
   const { container } = renderWithProviders(<Privacy />)
   // Owner legal sign-off L4: this sentence VERBATIM, in section 4, after the share-links item.
+  // ⚰️ Its last clause said "…or market data such as charts and financial figures" -- untrue once
+  // the P-7 correction let FMP and Finnhub figures show on public pages (wave 8 final review
+  // I-4); the owner settled it 2026-09-26 on the text below (option A).
   const VERBATIM = 'Published notes and folders — where available, if you publish a note or folder to '
     + 'the web, anyone with its address can read it without signing in until you unpublish it. '
     + 'Published pages ask search engines not to index them, and they do not show your account, '
-    + 'your other notes, file attachments, or market data such as charts and financial figures.'
+    + 'your other notes, file attachments, or market data such as price charts; company figures '
+    + 'you add to a note may appear.'
   const items = [...container.querySelectorAll('li')].map((li) => li.textContent.replace(/\s+/g, ' ').trim())
   const at = items.indexOf(VERBATIM)
   expect(at, `the published-pages item is not rendered verbatim:\n${items.join('\n')}`).toBeGreaterThan(-1)

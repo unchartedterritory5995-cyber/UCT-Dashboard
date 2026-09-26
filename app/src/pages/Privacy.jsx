@@ -6,7 +6,7 @@ export default function Privacy() {
     <div className={styles.page}>
       <Link to="/" className={styles.backLink}>&larr; Back to home</Link>
       <h1 className={styles.heading}>Privacy Policy</h1>
-      <p className={styles.subheading}>Last updated: September 25, 2026</p>
+      <p className={styles.subheading}>Last updated: September 26, 2026</p>
 
       <div className={styles.prose}>
         <h2>1. Information We Collect</h2>
@@ -131,7 +131,7 @@ export default function Privacy() {
             note or folder to the web, anyone with its address can read it without signing in
             until you unpublish it. Published pages ask search engines not to index them, and
             they do not show your account, your other notes, file attachments, or market data
-            such as charts and financial figures.
+            such as price charts; company figures you add to a note may appear.
           </li>
           <li>
             <strong>Alert destinations</strong> — if you send alerts to a service you choose,
