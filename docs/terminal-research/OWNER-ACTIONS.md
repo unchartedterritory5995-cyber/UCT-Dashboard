@@ -71,6 +71,29 @@ by three orders of magnitude, and CARD 1's `legacy_only == 0` clause cannot be e
 we know which. ⚠️ Nothing is blocked *today*: CARD 1's bar cannot be met before ~2026-10-01
 regardless.
 
+⭐⭐ **THIS GOT SUBSTANTIALLY LESS URGENT OVERNIGHT, AND YOU SHOULD READ WHY BEFORE SPENDING THE
+SIXTY SECONDS.** The 02:30Z daily read establishes that **this predicate is dormant, not merely
+stale.** It carried 5 sessions at 17:05 ET and still carries exactly 5 at 22:30 ET, with
+Thursday's full session having opened and closed in between — and it has gained none of the
+five trading sessions since its span ends on 09-18. **It is not being evaluated any more, so
+the 2,344 is a closed historical number that cannot grow.**
+
+That is also consistent with the benign one of the two readings: ≈469 ticks per session across
+five sessions, then nothing, is what a one-shot alert does after it fires or is switched off.
+The alarming reading would require a single alert to have delivered 469 times in one day, which
+nothing in this product does. **So the question has changed from *"are we losing thousands of
+member alerts?"* to *"confirm this is the dead alert it looks like"*** — still worth one
+command, no longer worth interrupting anything for. Working:
+`10-roadmap/evidence/2026-09-26-s7-daily-read-0230Z/results.md` §2.
+
+⛔ **And it exposes a defect in CARD 1's own bar that is yours to note.** That card's flip clause
+turns on `legacy_only == 0` across the population. If the counter is dominated by a dormant
+predicate whose value can never change, **the clause is not a gate, it is a permanent hold** —
+and it will be waived the first time somebody needs to ship, which is exactly how the retired
+warm-ratio gate failed earlier in this programme. The bar should exclude predicates that have
+stopped accumulating sessions. I have not changed CARD 1; that is a ruling, and it is flagged
+rather than taken.
+
 ---
 
 ## 2 · Watch yourself work for one morning ⭐ THE LAST THING GATING THE WORKSPACE DECISION

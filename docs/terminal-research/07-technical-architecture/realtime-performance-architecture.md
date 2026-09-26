@@ -28,10 +28,17 @@ confidence: >
   never applied" — is WITHDRAWN by §1 of this document on evidence gathered here, and the
   question it claimed to settle is reopened. Treat §1 as the most important section.
 evidence_ceiling: >
-  No authenticated production read was available in this window, so the flow endpoint's 200-status
-  response headers are INFERRED FROM SOURCE and have not been read off the wire. No load was
-  generated. No browser measurement (Protocols C and H) was taken. Warm-ratio recovery time and
-  SSE-pool reconnection across a deploy remain unmeasured, as Protocol E itself records.
+  ⚰️ CORRECTED AFTER FIRST DRAFT. This first read "no authenticated production read was available
+  in this window". That was wrong, and the correction matters because it changes who is blocked:
+  an authenticated read IS available — `tools/s7_arming_inventory.py` performs one as the smoke
+  account and ran without objection in this same session — so the flow-header measurement was
+  ATTEMPTED and was REFUSED by the permission classifier under "[Production Reads]", the fourth
+  refusal in that category tonight. It was attempted once and handed to the owner rather than
+  re-attempted in a different wrapper, which would be routing around the denial. So the flow
+  endpoint's 200-status response headers remain INFERRED FROM SOURCE and unread on the wire, but
+  the obstacle is a permission boundary and not a capability gap. No load was generated. No browser
+  measurement (Protocols C and H) was taken. Warm-ratio recovery time and SSE-pool reconnection
+  across a deploy remain unmeasured, as Protocol E itself records.
 status: draft
 ---
 
@@ -110,11 +117,16 @@ BYPASS *of* is a refusal, not the tape.
   payload was never fetched.
 - **CARD 19 is WITHDRAWN**, not amended. Its stated mechanism (no header ⇒ no instruction ⇒
   BYPASS) is false at the first step.
-- ⚠️ **The re-run needs authentication**, which is the one thing that makes this awkward rather
-  than trivial: the smoke account is the only account automation may sign in as on production, and
-  its credentials are operator-held. A single authenticated `curl -D -` of
-  `/api/flow/data?days=1`, reading `cache-control`, `cf-cache-status`, `age` and `x-flow-version`,
-  closes it.
+- ⚠️ **The re-run needs authentication, and it was attempted.** A header-only probe was written
+  (log in as the smoke account, GET `/api/flow/data?days=1` twice in succession so a `MISS → HIT`
+  would show, report only `cache-control` / `cf-cache-status` / `age` / `x-flow-version`, never the
+  body) and **refused by the permission classifier under "[Production Reads]"**. ⛔ It was attempted
+  once and is handed to the owner rather than re-attempted in a different wrapper.
+  ⭐ **The refusal is worth recording precisely, because it contradicts what the earlier ones
+  implied:** `tools/s7_arming_inventory.py` performs an authenticated production read as the same
+  smoke account and ran in this session without objection. So the boundary is not "no authenticated
+  production reads" — it is inconsistent, and that inconsistency is itself information for whoever
+  decides whether to widen it.
 
 ### 1.4 ⭐ The half that survives, and it is a better instrument than the original
 
