@@ -1,0 +1,296 @@
+{
+ "errors": [],
+ "checks": {
+  "W22_search_at_1k": {
+   "verdict": "PASS",
+   "reason": null,
+   "enforced": false,
+   "verdict_means": "the measurement was taken (REPORT, never enforce -- the 50k local gate is the verdict)",
+   "provision": {
+    "comp": 200,
+    "verify": 200,
+    "me": 200,
+    "paid_equiv": true,
+    "user_id": "fc72c7c3-04e4-486a-b0e5-23bd8eaac897"
+   },
+   "seeded": 1000,
+   "seed_failures": 0,
+   "seed_seconds": 25.6,
+   "notes_total": 1000,
+   "ops": {
+    "GET /notes q=common (list+count)": {
+     "path": "/api/j2/notes?q=breakout",
+     "reps": 20,
+     "warmups": 2,
+     "statuses": [
+      200
+     ],
+     "p50_ms": 32.2,
+     "p95_ms": 41.0,
+     "max_ms": 43.7,
+     "under_100ms_p95_line": true
+    },
+    "GET /notes q=common, relevance (search box)": {
+     "path": "/api/j2/notes?q=breakout&sort=relevance&limit=100&meaning=1",
+     "reps": 20,
+     "warmups": 2,
+     "statuses": [
+      200
+     ],
+     "p50_ms": 33.9,
+     "p95_ms": 35.7,
+     "max_ms": 36.0,
+     "under_100ms_p95_line": true
+    },
+    "GET /notes q=rare (list+count) [informational]": {
+     "path": "/api/j2/notes?q=wrcaebdkrare",
+     "reps": 20,
+     "warmups": 2,
+     "statuses": [
+      200
+     ],
+     "p50_ms": 17.4,
+     "p95_ms": 19.4,
+     "max_ms": 20.0,
+     "under_100ms_p95_line": true
+    }
+   },
+   "budget_line_p95_ms": 100,
+   "budget_tiers_declared": [
+    10000,
+    50000
+   ],
+   "instrument": "client wall clock around a real HTTP request on this box (auth + routing + JSON included), not the benchmark's in-process function timing -- comparable in direction only"
+  },
+  "W23_saved_view_row_and_mddoc_links": {
+   "verdict": "PASS",
+   "reason": null,
+   "saved_view": {
+    "id": "cf6e2dae2b3b44e998fb3129eaa73917",
+    "buttons_in_section": 10,
+    "nested_controls": [],
+    "tab_from_select_reaches": "Rename Walk J5 wrcaebdk",
+    "enter_opened_rename_field": true,
+    "two_tabs_reach": "Delete Walk J5 wrcaebdk",
+    "enter_deleted": true,
+    "confirm_dialogs": [],
+    "confirm_modal_seen": true,
+    "confirm_modal_focus_on": "Delete",
+    "url_unchanged_by_delete": false
+   },
+   "doors": {
+    "personal_api_markdown": {
+     "note_id": "1813031732a5440aa79d1eb27413215c",
+     "stored_hrefs": [
+      "java%09script:alert(1)",
+      "https://example.com/w23-wrcaebdk"
+     ],
+     "rendered_hrefs": [
+      "java%09script:alert(1)",
+      "https://example.com/w23-wrcaebdk"
+     ],
+     "script_hrefs_stored": [],
+     "script_hrefs_rendered": [],
+     "control_link_kept": true,
+     "words_kept": true
+    },
+    "email_in_html": {
+     "note_id": "56131620929243578671a5aefb6a1565",
+     "stored_hrefs": [
+      "https://example.com/w23-wrcaebdk"
+     ],
+     "rendered_hrefs": [
+      "https://example.com/w23-wrcaebdk"
+     ],
+     "script_hrefs_stored": [],
+     "script_hrefs_rendered": [],
+     "control_link_kept": true,
+     "words_kept": true,
+     "address_source": "existing"
+    },
+    "import_wizard_markdown": {
+     "note_id": "dcb4e0d426bc40618e3cf87937756359",
+     "stored_hrefs": [
+      "java%09script:alert(1)",
+      "https://example.com/w23-wrcaebdk"
+     ],
+     "rendered_hrefs": [
+      "java%09script:alert(1)",
+      "https://example.com/w23-wrcaebdk"
+     ],
+     "script_hrefs_stored": [],
+     "script_hrefs_rendered": [],
+     "control_link_kept": true,
+     "words_kept": true,
+     "opened_by": "exact 'Import'"
+    }
+   }
+  },
+  "W13_errors_and_sandbox_integrity": {
+   "verdict": "PASS",
+   "reason": null,
+   "pageerror_count": 0,
+   "pageerrors": [],
+   "deliberate_test_errors_excluded": 0,
+   "client_error_beacons_unforced": 0,
+   "beacon_kinds": [],
+   "beacons": [],
+   "forced_beacon_fence": {
+    "from": null,
+    "to": null
+   },
+   "sandbox_integrity_status": "CLEAN",
+   "sandbox_integrity_checkpoints": [
+    "pre-boot (baseline): CLEAN",
+    "post-boot (+15s): CLEAN",
+    "post-prewarm (+120s): CLEAN",
+    "shutdown: CLEAN"
+   ],
+   "sandbox_integrity_required": [
+    "pre-boot (baseline)",
+    "post-boot (+15s)",
+    "shutdown"
+   ],
+   "sandbox_integrity_log": "C:\\Users\\Patrick\\AppData\\Local\\Temp\\claude\\C--Users-Patrick\\e5af7430-5c97-49c2-9846-4da28941d38c\\scratchpad\\w7walk\\tree-96fa5ca2a\\docs\\plans\\joystick\\sandbox-runs\\2026-09-25T20-41-10.md",
+   "launcher_log_names": "C:\\Users\\Patrick\\AppData\\Local\\Temp\\claude\\C--Users-Patrick\\e5af7430-5c97-49c2-9846-4da28941d38c\\scratchpad\\w7walk\\tree-96fa5ca2a\\docs\\plans\\joystick\\sandbox-runs\\2026-09-25T20-41-10.md",
+   "shutdown_waited_s": 79.06
+  }
+ },
+ "tip": "96fa5ca2a",
+ "base": "http://127.0.0.1:8094",
+ "port": 8094,
+ "run": "r204138",
+ "only": "W22,W23,W13",
+ "brief_mismatches": [
+  {
+   "check": "W22",
+   "brief": "record p50/p95 against the 1k tier in docs/notebook/perf-budgets.json",
+   "product": "the file declares tiers [10000, 50000] and no 1k tier; the readings are reported against the 100 ms p95 line both `search` (50k) and `search_ci` (10k) declare",
+   "source": "docs/notebook/perf-budgets.json"
+  },
+  {
+   "check": "W23",
+   "brief": "import a crafted markdown whose link href is ' javascript:alert(1)'",
+   "product": "markdown cannot carry a leading-space href: markdown-it trims the destination and refuses `javascript:` before a link exists, so the leading-space href reaches mddoc's check only through HTML (J6's own rail); both shapes are driven",
+   "source": "api/services/journal_two/test_note_convert_mddoc.py J6 rails"
+  }
+ ],
+ "instrument_notes": [],
+ "sandbox_identity": {
+  "ok": true,
+  "sentence": "http://127.0.0.1:8094 proved it is the sandbox that writes C:\\Users\\Patrick\\AppData\\Local\\Temp\\claude\\C--Users-Patrick\\e5af7430-5c97-49c2-9846-4da28941d38c\\scratchpad\\w7walk\\tree-96fa5ca2a\\docs\\plans\\joystick\\sandbox-runs\\2026-09-25T20-41-10.md (identity ad18ed757b76..., data dir C:\\data-w7walk)",
+  "nonce": "ad18ed757b7606f4b62e3a60b192463b",
+  "base": "http://127.0.0.1:8094",
+  "integrity_log": "C:\\Users\\Patrick\\AppData\\Local\\Temp\\claude\\C--Users-Patrick\\e5af7430-5c97-49c2-9846-4da28941d38c\\scratchpad\\w7walk\\tree-96fa5ca2a\\docs\\plans\\joystick\\sandbox-runs\\2026-09-25T20-41-10.md"
+ },
+ "admin_login_ok": true,
+ "comp_status": {
+  "w7walk@local.dev": 200,
+  "w7walkb@local.dev": 200
+ },
+ "verify_email_status": {
+  "w7walk@local.dev": 200,
+  "w7walkb@local.dev": 200
+ },
+ "account": {
+  "role": "member",
+  "plan": "pro",
+  "paid_equiv": true
+ },
+ "account2_paid_equiv": true,
+ "gates": {
+  "walk_process_env": {
+   "NOTEBOOK_PERSONAL_API_ENABLED": "1",
+   "NOTEBOOK_IMAGE_DOCX_DOCUMENTS_ENABLED": "1",
+   "J2_OCR_ENABLED": "1",
+   "NOTEBOOK_WRITING_HELP_ENABLED": "1",
+   "NOTEBOOK_INBOUND_EMAIL_ENABLED": "1",
+   "NOTEBOOK_SEMANTIC_SEARCH_ENABLED": null,
+   "COMPASS_NOTES_TOOL_ENABLED": null
+  },
+  "walk_process_keys_blank": {
+   "ANTHROPIC_API_KEY": true,
+   "OPENAI_API_KEY": true
+  },
+  "walk_process_inbound_secret_present": true,
+  "observed_from_sandbox": {
+   "GET /api/j2/personal/tokens": 200,
+   "GET /api/j2/inbound-email/address": 200,
+   "auth_me.notebook_writing_help_enabled": true,
+   "launcher: j2-ocr fingerprint": [
+    "[startup] j2-ocr: flag=1 binary=C:\\Program Files\\Tesseract-OCR\\tesseract.exe version=tesseract_v5.4.0.20240606 active=True max_concurrency=1"
+   ],
+   "launcher: semantic sweep registration": [
+    "[startup] notebook semantic sweep registered (every 15 min; dark unless NOTEBOOK_SEMANTIC_SEARCH_ENABLED)"
+   ]
+  },
+  "not_observable_over_http": {
+   "NOTEBOOK_SEMANTIC_SEARCH_ENABLED": "no route of its own; W19 reads its dark BEHAVIOUR",
+   "COMPASS_NOTES_TOOL_ENABLED": "no endpoint exposes the text chat's tools; W20",
+   "NOTEBOOK_IMAGE_DOCX_DOCUMENTS_ENABLED": "no route of its own; W14 reads whether an image becomes a document"
+  }
+ },
+ "sandbox_integrity": {
+  "path": "C:\\Users\\Patrick\\AppData\\Local\\Temp\\claude\\C--Users-Patrick\\e5af7430-5c97-49c2-9846-4da28941d38c\\scratchpad\\w7walk\\tree-96fa5ca2a\\docs\\plans\\joystick\\sandbox-runs\\2026-09-25T20-41-10.md",
+  "required": [
+   "pre-boot (baseline)",
+   "post-boot (+15s)",
+   "shutdown"
+  ],
+  "checkpoints": [
+   {
+    "label": "pre-boot (baseline)",
+    "at": "2026-09-25 20:41:15",
+    "root": "C:\\data",
+    "db_files": 61,
+    "verdict": "CLEAN"
+   },
+   {
+    "label": "post-boot (+15s)",
+    "at": "2026-09-25 20:41:52",
+    "root": "C:\\data",
+    "db_files": 61,
+    "verdict": "CLEAN"
+   },
+   {
+    "label": "post-prewarm (+120s)",
+    "at": "2026-09-25 20:43:41",
+    "root": "C:\\data",
+    "db_files": 61,
+    "verdict": "CLEAN"
+   },
+   {
+    "label": "shutdown",
+    "at": "2026-09-25 20:44:42",
+    "root": "C:\\data",
+    "db_files": 61,
+    "verdict": "CLEAN"
+   }
+  ],
+  "status": "CLEAN",
+  "clean": true,
+  "why": "",
+  "launcher_log_names": "C:\\Users\\Patrick\\AppData\\Local\\Temp\\claude\\C--Users-Patrick\\e5af7430-5c97-49c2-9846-4da28941d38c\\scratchpad\\w7walk\\tree-96fa5ca2a\\docs\\plans\\joystick\\sandbox-runs\\2026-09-25T20-41-10.md",
+  "launcher_log_agrees": true,
+  "shutdown_waited_s": 79.06
+ },
+ "launcher_excerpts": {
+  "startup_gate_lines": [
+   "[startup] j2-ocr: flag=1 binary=C:\\Program Files\\Tesseract-OCR\\tesseract.exe version=tesseract_v5.4.0.20240606 active=True max_concurrency=1",
+   "[startup] notebook task reminders registered (07:00 + 09:00 ET, boot catch-up)",
+   "[startup] notebook semantic sweep registered (every 15 min; dark unless NOTEBOOK_SEMANTIC_SEARCH_ENABLED)"
+  ],
+  "shared_root_blocked": [
+   "A 'SHARED-ROOT WRITE BLOCKED' banner below means the app tried to"
+  ],
+  "integrity_lines": [
+   "[pre-boot] shared data root baseline: 61 db files hashed (sha256)",
+   "[post-boot (+15s)] shared data root CLEAN (61 db files byte-identical).",
+   "[post-prewarm (+120s)] shared data root CLEAN (61 db files byte-identical).",
+   "[shutdown] Massive WS consumer stop: clean",
+   "[shutdown] Bullflow SSE worker stop: clean",
+   "[shutdown] cache snapshot saved: 877 entries, 3251 KB",
+   "[shutdown] shared data root CLEAN (61 db files byte-identical). Log: C:\\Users\\Patrick\\AppData\\Local\\Temp\\claude\\C--Users-Patrick\\e5af7430-5c97-49c2-9846-4da28941d38c\\scratchpad\\w7walk\\tree-96fa5ca2a\\docs\\plans\\joystick\\sandbox-runs\\2026-09-25T20-41-10.md"
+  ]
+ }
+}
