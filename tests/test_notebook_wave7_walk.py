@@ -28,6 +28,7 @@ import json
 import sys
 import threading
 import time
+import types
 from pathlib import Path
 
 import pytest
@@ -56,12 +57,42 @@ def _args_cut(tree: ast.Module) -> int:
     raise AssertionError("the walk has no top-level `ARGS = ...` -- the importable part has no boundary")
 
 
+@contextlib.contextmanager
+def _playwright_importable():
+    """The importable part imports `playwright.sync_api` at top level and never CALLS it above
+    `ARGS = ...` (the one `with sync_playwright()` block is below the cut). The full-suite CI job
+    installs no Playwright, so there every rail here ERRORED at this fixture (PR #196, 21 rows)
+    while the verdict code under test needs no browser at all. A real install is used as is;
+    without one, a stub that REFUSES to be called stands in for the import only, and is removed
+    again so no other test ever sees it."""
+    try:
+        import playwright.sync_api  # noqa: F401
+    except ModuleNotFoundError:
+        pass
+    else:
+        yield
+        return
+
+    def _refuse(*_a, **_k):
+        raise AssertionError("the walk's importable part must never start a browser")
+
+    pkg, sub = types.ModuleType("playwright"), types.ModuleType("playwright.sync_api")
+    sub.sync_playwright, pkg.sync_api = _refuse, sub
+    sys.modules["playwright"], sys.modules["playwright.sync_api"] = pkg, sub
+    try:
+        yield
+    finally:
+        sys.modules.pop("playwright.sync_api", None)
+        sys.modules.pop("playwright", None)
+
+
 @pytest.fixture(scope="module")
 def walk() -> dict:
     """The walk's importable part, executed from its source."""
     tree = _tree()
     ns: dict = {"__file__": str(WALK), "__name__": "notebook_wave7_walk__importable"}
-    exec(compile(ast.Module(body=tree.body[:_args_cut(tree)], type_ignores=[]), str(WALK), "exec"), ns)
+    with _playwright_importable():
+        exec(compile(ast.Module(body=tree.body[:_args_cut(tree)], type_ignores=[]), str(WALK), "exec"), ns)
     return ns
 
 

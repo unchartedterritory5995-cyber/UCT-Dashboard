@@ -235,9 +235,22 @@ def test_the_trash_order_breaks_deleted_at_ties_by_id(conn):
     # Only the LAST term (the id tiebreak) is sorted; the index still orders `deleted_at`. A whole
     # temp-b-tree sort would read and sort every trashed note before the LIMIT (review nit, fr2).
     # Checked BEFORE the index name, so this assertion is the one a whole-sort plan trips.
-    assert any("USE TEMP B-TREE FOR LAST TERM OF ORDER BY" in s for s in steps), steps
+    # SQLite words that partial sort two ways: "LAST TERM OF ORDER BY" (3.50 on this box) and
+    # "RIGHT PART OF ORDER BY" (3.45, the ubuntu CI runner -- PR #196). Both mean the same plan.
+    assert any("USE TEMP B-TREE FOR LAST TERM OF ORDER BY" in s
+               or "USE TEMP B-TREE FOR RIGHT PART OF ORDER BY" in s for s in steps), steps
     assert not any("USE TEMP B-TREE FOR ORDER BY" in s for s in steps), steps
-    assert any("idx_j2_notes_user_deleted" in s for s in steps), steps
+    # Which index orders `deleted_at` is the planner's choice: 3.45 takes
+    # idx_j2_notes_live_folder_title, whose first two columns are also (user_id, deleted_at). The
+    # property is that the SEARCH walks an index leading with exactly those two, derived from the
+    # schema rather than named, so a future index of that shape is not a regression.
+    leading = set()
+    for (name,) in conn.execute("SELECT name FROM sqlite_master WHERE type='index' AND tbl_name='j2_notes'"):
+        cols = [r[2] for r in conn.execute(f"PRAGMA index_info('{name}')")]
+        if cols[:2] == ["user_id", "deleted_at"]:
+            leading.add(name)
+    assert "idx_j2_notes_user_deleted" in leading, leading  # non-vacuity: the derivation sees it
+    assert any(f"INDEX {n} (" in s for s in steps for n in leading), (steps, leading)
 
 
 def test_the_snippet_page_filter_keeps_the_MATCH_only_plan(conn):
