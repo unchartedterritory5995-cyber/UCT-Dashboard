@@ -650,6 +650,24 @@
       "note": "ON since 2026-09-25 21:49 ET (railway variables --set on web; Railway redeployed web on its own, deploy record 01:49:31Z) by owner ruling, verified in the RUNNING web process at 21:54 ET: value '1', flow_card_from_page.enabled() True, and the job's own run_flow_card_job rendered page-derived cards for AMD (BEAR $948,000/$1,530,486, exact to the page), DELL, SMH and NVDA (labelled 35-session basis) with nothing posted. The Discord /flow card is now derived from the Options Flow page's OWN product (processFlowData via the flow-facts bundle on flow-worker: GET /api/flow/ticker-product/{sym}?basis_rows=250000, full stored history under the cap, rows in the page's own order), footer 'page-derived' (', N-session basis' when capped/cut; 'as of HH:MM ET' when served behind the tape). If the page product cannot be had within 45 s the labelled rollup answers (derivation=rollup). Evidence: docs/discord-render/evidence/flow-parity/2026-09-25-row-order-and-basis-cap.md (warm, 15/15 derivable names EXACT). Re-check: python tools/flow_card_parity_audit.py --card page --symbols ... ROLLBACK: railway variable delete DISCORD_FLOW_CARD_PAGE_ENABLED --service web, THEN railway redeploy --service web --yes (a delete does not restart the process).",
       "owner": "owner"
     },
+    "DISCORD_RENDER_SMOKE_ENABLED": {
+      "status": "dark",
+      "where": [],
+      "note": "Kill switch, default ON (unset = runs): the post-deploy render smoke (api/services/flow_card_ops.run_smoke, added 2026-09-25). DISCORD_RENDER_SMOKE_DELAY_S (default 240) after each web boot it renders /chart NVDA D and W through the real produce_chart path, checks weekly = daily for NVDA/AMD/QQQ/MSFT/TSLA, and asks for the page-derived /flow AMD card, then posts ONE pass/fail line to #render-smoke as the bot (DISCORD_RENDER_SMOKE_CHANNEL, default 1549129739048853544, admin-only; allowed_mentions none). A failure also goes to #render-alerts. It exists because the 2026-09-25 cold-pod bare-header render was found by a person looking, and nothing would have said so otherwise. Posts nothing to members. Rollback: set it to 0 on web.",
+      "owner": "owner"
+    },
+    "DISCORD_FLOW_HOTWARM_ENABLED": {
+      "status": "dark",
+      "where": [],
+      "note": "Kill switch, default ON (unset = runs): the /flow pre-warm (flow_card_ops.flow_hot_warm, added 2026-09-25). Every DISCORD_FLOW_WARM_INTERVAL_S (120) during market hours (weekday 09:25-16:10 ET, not an NYSE holiday) it re-derives the page card's product for up to DISCORD_FLOW_WARM_MAX (4) names members asked /flow for in the last hour, inside a third of the interval, so the next member's card is a cache hit. It only runs while DISCORD_FLOW_CARD_PAGE_ENABLED is on, and the server side takes a build lane only if one is free and never queues, so it cannot starve the Options Flow page's own builds. Rollback: set it to 0 on web.",
+      "owner": "owner"
+    },
+    "DISCORD_FLOW_STATS_ENABLED": {
+      "status": "dark",
+      "where": [],
+      "note": "Kill switch, default ON (unset = runs): the daily /flow outcome line (flow_card_ops.daily_stats_and_post, added 2026-09-25). Mon-Fri 16:25 ET it posts ONE line to #render-alerts (DISCORD_RENDER_ALERT_WEBHOOK): cards served, how many were page-derived (and how many as-of), how many fell back to the rollup and WHY (timeout / busy / too big / not warm ...), empty and failed counts, page p50/p95 latency and the most-asked names. Read from the ledger /data/flow_card_stats.db (FLOW_CARD_STATS_DB_PATH), which the /flow job writes on every card and which prunes itself past 30 days. It stores ticker, source, window, outcome, reason and latency - no member identity. Rollback: set it to 0 on web.",
+      "owner": "owner"
+    },
     "DISCORD_RENDER_V2_ADAPTERS_ENABLED": {
       "status": "dark",
       "where": [],

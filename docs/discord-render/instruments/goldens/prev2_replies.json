@@ -926,6 +926,30 @@
                   "label": "View chart",
                   "style": 2,
                   "type": 2
+                },
+                {
+                  "custom_id": "flowwin|NVDA|1",
+                  "label": "1D",
+                  "style": 2,
+                  "type": 2
+                },
+                {
+                  "custom_id": "flowwin|NVDA|5",
+                  "label": "5D",
+                  "style": 1,
+                  "type": 2
+                },
+                {
+                  "custom_id": "flowwin|NVDA|20",
+                  "label": "20D",
+                  "style": 2,
+                  "type": 2
+                },
+                {
+                  "custom_id": "flowwin|NVDA|all",
+                  "label": "All",
+                  "style": 2,
+                  "type": 2
                 }
               ],
               "type": 1
@@ -951,6 +975,30 @@
                   },
                   "label": "View chart",
                   "style": 2,
+                  "type": 2
+                },
+                {
+                  "custom_id": "flowwin|NVDA|1",
+                  "label": "1D",
+                  "style": 2,
+                  "type": 2
+                },
+                {
+                  "custom_id": "flowwin|NVDA|5",
+                  "label": "5D",
+                  "style": 2,
+                  "type": 2
+                },
+                {
+                  "custom_id": "flowwin|NVDA|20",
+                  "label": "20D",
+                  "style": 2,
+                  "type": 2
+                },
+                {
+                  "custom_id": "flowwin|NVDA|all",
+                  "label": "All",
+                  "style": 1,
                   "type": 2
                 }
               ],

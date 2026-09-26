@@ -40,6 +40,21 @@ RETRY_LOOKUP_BUDGET_S = 0.5
 HEALTH_BUDGET_S = 2.0
 SYMBOL_BUDGET_S = 0.6
 FLOW_TIMEOUT_S = 10.0
+#: The deadline of a V2 /flow job while the page-derived card is on. ⛔ The runtime's default is
+#: 15 s and its watchdog then tells the member the render FAILED — while the page card's own wait
+#: is 45 s (flow_card_from_page.PAGE_FETCH_TIMEOUT_S: a first build of a 150-250K-row name after
+#: it traded) plus this path's 10 s rollup fallback. 60 s covers both; the member sees the card,
+#: not a failure notice followed by the card.
+FLOW_PAGE_DEADLINE_S = 60.0
+
+
+def flow_deadline_s() -> float | None:
+    """The /flow job's deadline: FLOW_PAGE_DEADLINE_S with the page card on, else the default."""
+    try:
+        from api.services import flow_card_from_page as _page
+        return FLOW_PAGE_DEADLINE_S if _page.enabled() else None
+    except Exception:  # noqa: BLE001
+        return None
 ADMINISTRATOR = 0x8
 
 _OFF = ("0", "false", "off", "no", "")
@@ -183,13 +198,16 @@ def _interaction_subset(interaction: dict) -> dict:
                 {"id": a.get("id")} for a in (msg.get("attachments") or []) if isinstance(a, dict)]}}
 
 
-def _job(interaction: dict, command: str, label: str, *, ephemeral: bool = False) -> Job:
+def _job(interaction: dict, command: str, label: str, *, ephemeral: bool = False,
+         deadline_s: float | None = None) -> Job:
+    extra = {"deadline_s": float(deadline_s)} if deadline_s else {}
     return Job(corr_id=corr_id(interaction.get("id")), command=command,
                app_id=str(interaction.get("application_id") or os.environ.get("DISCORD_CHART_APP_ID") or ""),
                token=str(interaction.get("token") or ""), args=_interaction_subset(interaction), label=label,
                user_id=di.interaction_user_id(interaction), guild_id=str(interaction.get("guild_id") or ""),
                channel_id=str(interaction.get("channel_id") or ""), interaction_id=str(interaction.get("id") or ""),
-               interaction_type=int(interaction.get("type") or 2), ephemeral=ephemeral, lane=INTERACTIVE)
+               interaction_type=int(interaction.get("type") or 2), ephemeral=ephemeral, lane=INTERACTIVE,
+               **extra)
 
 
 def _enqueue(job: Job, defer: dict, received: float) -> dict:
@@ -403,7 +421,8 @@ async def handle(interaction: dict, received: float) -> dict | None:
         refusal = await _symbol_refusal(interaction, [tkr])
         if refusal:
             return refusal
-        return _enqueue(_job(interaction, "flow", contract.command_label("flow", {"ticker": tkr, "days": days})),
+        return _enqueue(_job(interaction, "flow", contract.command_label("flow", {"ticker": tkr, "days": days}),
+                             deadline_s=flow_deadline_s()),
                         {"type": 5}, received)
 
     if itype == 2 and name == di.BUZZ_COMMAND and command_enabled("buzz"):
