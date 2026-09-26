@@ -348,3 +348,63 @@ def test_the_walk_checks_identity_before_its_first_request():
                  for c in ast.walk(stmt) if isinstance(c, ast.Call)
                  and isinstance(c.func, (ast.Name, ast.Attribute))} & _SENDS
         assert not sends, f"line {stmt.lineno} sends ({sends}) before the identity check"
+
+
+# ── sign-up vs the app's rate limiter (found by the evidence run on 96fa5ca2a) ────────────
+# /api/auth/signup is limited to 3 a minute and /login to 5 (api/routers/auth.py), and a
+# refusal is a 429 with no Retry-After. The walk read ANY non-200 sign-up as "the account
+# exists" and signed in instead -- so W22's new member was never made.
+
+class _FakeRequests:
+    """A stand-in for a Playwright APIRequestContext: answers each POST from a script."""
+
+    def __init__(self, answers):
+        self.answers = list(answers)
+        self.calls: list = []
+
+    def post(self, url, data=None):
+        self.calls.append(url.rsplit("/api/auth/", 1)[-1])
+        status = self.answers.pop(0)
+        return type("R", (), {"status": status, "ok": 200 <= status < 300})()
+
+
+def _run(walk, answers, **kw):
+    fake, slept = _FakeRequests(answers), []
+    r = walk["_signup_or_login"](fake, "http://sandbox", "m@local.dev", "pw", "m", sleep=slept.append, **kw)
+    return r.status, fake.calls, slept
+
+
+def test_a_rate_limited_signup_is_never_read_as_an_existing_account(walk):
+    status, calls, slept = _run(walk, [429, 200])
+    assert (status, calls) == (200, ["signup", "signup"]), "a 429 must be asked again, not answered by a login"
+    assert slept == [61.0], "the retry waits out the limiter's one-minute window"
+
+
+def test_an_existing_account_signs_in_without_waiting(walk):
+    assert _run(walk, [409, 200]) == (200, ["signup", "login"], [])
+
+
+def test_a_new_account_signs_up_at_once(walk):
+    assert _run(walk, [200]) == (200, ["signup"], [])
+
+
+def test_the_waits_are_bounded_and_the_sign_in_is_limited_too(walk):
+    # Three refused sign-ups (the bound), then a sign-in that is itself limited once.
+    status, calls, slept = _run(walk, [429, 429, 429, 429, 200])
+    assert calls == ["signup", "signup", "signup", "login", "login"] and status == 200
+    assert len(slept) == 3
+
+
+def test_the_walk_signs_in_through_it_and_refuses_an_unprovisioned_member():
+    tree = _tree()
+    fns = {n.name: n for n in tree.body if isinstance(n, ast.FunctionDef)}
+    wrapper = fns["signup_or_login"]
+    assert any(isinstance(c.func, ast.Name) and c.func.id == "_signup_or_login"
+               for c in ast.walk(wrapper) if isinstance(c, ast.Call)), "signup_or_login must delegate"
+    assert not [c for c in ast.walk(wrapper) if isinstance(c, ast.Call)
+                and isinstance(c.func, ast.Attribute) and c.func.attr == "post"], "no second sign-up path"
+    prov = fns["provision_member"]
+    raises = [n for n in ast.walk(prov) if isinstance(n, ast.Raise)]
+    guarded = [n for n in ast.walk(prov) if isinstance(n, ast.If)
+               and "paid_equiv" in ast.unparse(n.test) and any(isinstance(x, ast.Raise) for x in ast.walk(n))]
+    assert raises and guarded, "provision_member must refuse a member that is not signed in and paid"

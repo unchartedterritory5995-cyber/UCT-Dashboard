@@ -267,6 +267,36 @@ def w13_verdict(integ, genuine_errors):
     return "PASS", None
 
 
+def _signup_or_login(request_ctx, base, email, pw, name, *, sleep=None, window_s=61.0, tries=3):
+    """Sign up, or sign in when the account already exists; the last answer.
+
+    ⛔ A 429 IS NOT "THIS ACCOUNT EXISTS" (wave 7 phase 2, found by the evidence run on
+    96fa5ca2a). The app limits sign-up to 3 a minute and sign-in to 5 a minute per client
+    (api/routers/auth.py `@limiter.limit("3/minute")` / `("5/minute")`), and answers a
+    refusal 429 with no Retry-After header. The walk makes more sign-up attempts than that
+    in a minute: every call tries sign-up first, and an existing account answers 409. So
+    any non-200 used to fall through to sign-in. A 429 for a NEW member therefore became a
+    401 sign-in for an account that was never made. W22's member never existed; its 1,000
+    seeded notes all answered 401, and its page opened on /login.
+    Now a 429 waits out the limiter's one-minute window and asks again (bounded by
+    `tries`); only a non-429 refusal of sign-up (409: it exists) goes on to sign-in."""
+    sleep = sleep or _t.sleep
+
+    def ask(path, data):
+        for attempt in range(tries):
+            r = request_ctx.post(base + path, data=data)
+            if r.status != 429:
+                return r
+            if attempt + 1 < tries:
+                sleep(window_s)
+        return r
+
+    r = ask("/api/auth/signup", {"email": email, "password": pw, "display_name": name})
+    if r.status in (200, 201):
+        return r
+    return ask("/api/auth/login", {"email": email, "password": pw})
+
+
 _ap = argparse.ArgumentParser(description="Wave 7 live walk (see the module header).")
 _ap.add_argument("out", nargs="?", default="wave7_walk.json")
 _ap.add_argument("--base", default="http://127.0.0.1:8094")
@@ -381,11 +411,7 @@ def guarded(key):
 
 
 def signup_or_login(request_ctx, email, pw, name):
-    r = request_ctx.post(BASE + "/api/auth/signup",
-                          data={"email": email, "password": pw, "display_name": name})
-    if r.status not in (200, 201):
-        r = request_ctx.post(BASE + "/api/auth/login", data={"email": email, "password": pw})
-    return r
+    return _signup_or_login(request_ctx, BASE, email, pw, name)
 
 
 _INTRO_DIALOG_SEL = 'div[role="dialog"][aria-label="Welcome"]'
@@ -848,9 +874,16 @@ def provision_member(browser, actx, email, name, **ctx_kwargs):
     signup_or_login(c.request, email, PW, name)
     comp = actx.request.post(BASE + "/api/auth/admin/comp-access", data={"email": email, "action": "grant"})
     ver = actx.request.post(BASE + "/api/auth/admin/verify-email", data={"email": email})
-    me = c.request.get(BASE + "/api/auth/me").json()
-    return c, {"comp": comp.status, "verify": ver.status, "paid_equiv": me.get("paid_equiv"),
-               "user_id": (me.get("user") or {}).get("id")}
+    me_r = c.request.get(BASE + "/api/auth/me")
+    me = me_r.json() if me_r.ok else {}
+    facts = {"comp": comp.status, "verify": ver.status, "me": me_r.status, "paid_equiv": me.get("paid_equiv"),
+             "user_id": (me.get("user") or {}).get("id")}
+    # ⛔ A row must never measure through a member that does not exist (wave 7 phase 2:
+    # W22 seeded 1,000 notes into 401s and read /login). Refuse here, loudly; the row's
+    # @guarded wrapper records it INCONCLUSIVE with these facts as the reason.
+    if not facts["paid_equiv"] or not facts["user_id"]:
+        raise RuntimeError(f"provisioning {email} did not produce a signed-in, paid member: {facts}")
+    return c, facts
 
 
 def select_box(pg, title):
