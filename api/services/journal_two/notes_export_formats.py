@@ -111,6 +111,32 @@ def _mark_rule(state, silent: bool) -> bool:
     return True
 
 
+def _alt_text(children) -> str:
+    """An image's alt as plain text, keeping every character the member wrote (wave 8 C5).
+
+    markdown-it-py's default builds the alt with `renderInlineAsText`, which SKIPS a
+    backslash-escaped character and a decoded entity (both `text_special` tokens) -- so the
+    writer's `R\\&amp;D` came out "Ramp;D" and `\\*` vanished. The importer's renderer
+    (lib/importer/markdownExtensions.js `altText`) reads the same token types."""
+    out = []
+    for tok in children or []:
+        if tok.type in ("text", "text_special", "code_inline", "html_inline"):
+            out.append(tok.content)
+        elif tok.type == "math_inline":
+            out.append(f"${tok.content}$")
+        elif tok.type in ("softbreak", "hardbreak"):
+            out.append("\n")
+        elif tok.type == "image":
+            out.append(_alt_text(tok.children))
+    return "".join(out)
+
+
+def _render_image(self, tokens, idx, options, env):
+    token = tokens[idx]
+    token.attrSet("alt", _alt_text(token.children))
+    return self.renderToken(tokens, idx, options, env)
+
+
 _MD_BODY = None
 _MD_ISLAND = None
 
@@ -141,6 +167,7 @@ def _markdown_it(*, math: bool):
     md.use(tasklists_plugin, enabled=False)
     md.inline.ruler.before("emphasis", "uct_mark", _mark_rule)
     md.core.ruler.push("uct_heading_ids", _heading_ids)
+    md.add_render_rule("image", _render_image)
     if math:
         from mdit_py_plugins.dollarmath import dollarmath_plugin
         md.use(dollarmath_plugin, allow_labels=False, allow_space=False, allow_digits=False,

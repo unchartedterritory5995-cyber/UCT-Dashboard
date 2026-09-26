@@ -8,7 +8,9 @@ Two halves, and they fail for different reasons:
   selection, a single note with attachments, a single note without -- were captured BEFORE
   the seam existed (`09220eedf`, the lane's start) and are pinned below as one digest per
   export. Mutation: write the manifest's `"format"` key unconditionally and two of the four
-  go red.
+  go red. C5 (the fidelity carry-overs) then changed the Markdown ON PURPOSE in exactly two
+  lines of this library; the digests were re-captured after it, the two lines are named and
+  pinned beside them, and every other byte is the lane-start byte.
 * THE NEW FORMATS. Each serializer, the sanitizer, the docx package and the archive seam,
   asserted on what a reader of the file would see.
 
@@ -232,8 +234,35 @@ MARKDOWN_AT_START = {
 }
 
 
+# Re-captured AFTER C5 (the fidelity carry-overs), which changes the Markdown ON PURPOSE in
+# exactly two lines of this library -- measured by unzipping the whole export before and after
+# and diffing every member file (the lane report carries the diff):
+#   - the member's `\*literal\*` was written `\*literal\*` (it re-imported as `*literal*`) and
+#     is now `\\\*literal\\\*`;
+#   - the alt `chart *one* & $5` was written raw (it re-imported as "chart one & $5") and is
+#     now `chart \*one\* & \$5`.
+# Every other byte of all four exports is unchanged; `single_bare` did not move at all.
+# `test_the_c5_lines_are_the_only_reason_the_digests_moved` pins the two lines themselves.
+MARKDOWN_AFTER_C5 = {
+    "whole": "uct-notebook-export-20260926.zip|3786a4954dec41f6042633453391cb46dbb79a7c1ae3a5c008551e116ad8ac71",
+    "selection": "uct-notebook-selection-20260926.zip|e9e6fad3b49f6703d57a4b0946a360b339c792601b08d3da132ed3040295bf01",
+    "single_attachments": "Cup and handle- the reclaim-20260926.zip|application/zip|"
+                          "fd8d0f12f2d75bd6e62ba53daa85ca9197dbe4e0ee7226e6aef76f55faf4314d",
+    "single_bare": MARKDOWN_AT_START["single_bare"],
+}
+
+
 def test_the_markdown_exports_are_byte_identical_to_before_the_format_seam(library):
-    assert markdown_digests(library) == MARKDOWN_AT_START
+    # The format seam (C4) moved no byte; C5 moved exactly the two lines named above.
+    assert markdown_digests(library) == MARKDOWN_AFTER_C5
+
+
+def test_the_c5_lines_are_the_only_reason_the_digests_moved(library):
+    whole, _ = notes_export.build_export_zip(USER, conn=library)
+    with zipfile.ZipFile(io.BytesIO(whole)) as zf:
+        md = zf.read("Trading/Setups/Cup and handle- the reclaim.md").decode("utf-8")
+    assert "cost \\$5-\\$10 and \\\\\\*literal\\\\\\*." in md
+    assert "![chart \\*one\\* & \\$5](../../attachments/u1/a/inline/img1.png)" in md
 
 
 # ── the format names ─────────────────────────────────────────────────────────

@@ -10,7 +10,7 @@ this page and the measurement disagree.
 
 | Format | What it is | Where |
 |---|---|---|
-| **Markdown** (the default) | One `.md` per note with YAML front matter, folders as directories, attachments bundled beside them. The same archive the Notebook has always exported — its bytes did not move (`tests/test_notes_export_formats.py` pins them). | Export dialog; each note's *Export* menu; `GET /api/j2/notes/export`, `GET /api/j2/notes/{id}/export` |
+| **Markdown** (the default) | One `.md` per note with YAML front matter, folders as directories, attachments bundled beside them. The same archive the Notebook has always exported — the format seam moved none of its bytes, and the only changes are the C5 fidelity fixes below (`tests/test_notes_export_formats.py` pins both). | Export dialog; each note's *Export* menu; `GET /api/j2/notes/export`, `GET /api/j2/notes/{id}/export` |
 | **Web page (HTML)** | One standalone `.html` per note: the Markdown writer's output rendered by `markdown-it-py`, then an allowlist sanitizer, in a page with its styles inline. Opens in any browser, offline. Formulas stay as TeX in `<code class="math">`. | `GET /api/j2/export/notebook?format=html`, `GET /api/j2/export/notes/{id}?format=html` |
 | **JSON** | One `.json` per note: the stored document **verbatim** (only attachment addresses become their paths inside the archive), plus the note's title, subtitle, folder path, tags, ticker, properties, dates and schema level. The **lossless** format: our importer reads it back exactly. | `...?format=json` |
 | **Word (.docx)** | One `.docx` per note, written with the Python standard library (no dependency). Headings, marks, lists, tables, quotes, code, links and this note's images are Word's own; everything else becomes its text. | `...?format=docx` |
@@ -25,6 +25,23 @@ zip (the note, its attachments, and `EXPORT_ISSUES.txt` if anything could not be
 when it has some — the same rule as Markdown. A single note exported as Word is always one
 `.docx`: its images are inside it, and anything it could not hold (a file attachment, a
 missing image) is listed at the end of the document under *Not included in this export*.
+
+## Markdown fidelity fixes (wave 8, C5)
+
+Three carry-overs, each railed through the real exporter and importer in
+`app/src/pages/journal-2-0/lib/importer/fidelityCarryovers.roundtrip.test.js`:
+
+- **Math and highlight come back.** The writer's `$…$`, `$$` blocks and `==…==` now
+  re-import as a formula, a display formula and a highlight (the importer's reader:
+  `lib/importer/markdownExtensions.js`, the same rules the web page's renderer uses). A `$`
+  in prose is still escaped, and money written elsewhere (`$5 and $10`) or a comparison
+  (`a == b == c`) stays text.
+- **Image alts keep every character.** An alt holding `*`, `_`, `&amp;`, `$`, a backslash
+  or brackets is escaped in the Markdown (so two `$` can never pair as math) and comes back
+  exactly — in the Markdown re-import and in the web page's `<img alt>`.
+- **A typed backslash stays.** A backslash before punctuation (`\*`, `\_`, `\$`), a double
+  backslash, or one before a line break is written so it reads back as typed. A lone
+  backslash before a letter (`C:\Users`) is left as it was, so paths stay readable.
 
 ## How the table is measured
 
@@ -99,9 +116,9 @@ route takes none of them).
 | `widgetEmbed` | 0 | flattened | flattened | kept | flattened |
 | `askCitation` | 1 | flattened | flattened | kept | flattened |
 | `askInsert` | 1 | flattened | flattened | kept | flattened |
-| `blockMath` | 1 | flattened | kept | kept | flattened |
-| `highlight` | 1 | flattened | kept | kept | flattened |
-| `inlineMath` | 1 | flattened | kept | kept | flattened |
+| `blockMath` | 1 | kept | kept | kept | flattened |
+| `highlight` | 1 | kept | kept | kept | flattened |
+| `inlineMath` | 1 | kept | kept | kept | flattened |
 | `textColor` | 1 | flattened | flattened | kept | flattened |
 | `column` | 2 | flattened | flattened | kept | flattened |
 | `columns` | 2 | flattened | flattened | kept | flattened |
