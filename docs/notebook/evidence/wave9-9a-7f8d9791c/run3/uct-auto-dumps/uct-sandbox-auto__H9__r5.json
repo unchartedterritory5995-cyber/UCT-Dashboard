@@ -1,0 +1,41 @@
+{
+ "probeVersion": "uct-bench-probe/1",
+ "app": "uct-sandbox-auto",
+ "op": "H9",
+ "kind": "cold",
+ "status": "COMPLETE",
+ "label": "LCP proxy",
+ "userAgent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) HeadlessChrome/145.0.7632.6 Safari/537.36",
+ "viewport": {
+  "width": 1280,
+  "height": 800,
+  "dpr": 1
+ },
+ "capturedAt": "2026-09-26T20:19:18.900Z",
+ "samples": [
+  408
+ ],
+ "invalid": [],
+ "selfTest": {
+  "ok": true,
+  "ms": 201.8,
+  "version": "uct-bench-probe/1",
+  "delayMs": 200,
+  "window": [
+   195,
+   260
+  ],
+  "at": "2026-09-26T20:19:18.897Z",
+  "invalid": []
+ },
+ "reps": 1,
+ "attempts": 1,
+ "ignored": 0,
+ "target": {
+  "marker": null
+ },
+ "lcp": {
+  "size": 10047,
+  "element": "DIV Meet CompassTap to talk to your trading coach — markets, set"
+ }
+}
