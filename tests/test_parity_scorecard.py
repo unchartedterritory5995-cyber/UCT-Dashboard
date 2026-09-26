@@ -7,6 +7,10 @@ path it cites exists at HEAD, every competitor cell carries a URL and a date or 
 verified, a comparative verdict never stands on an uncited side, the 16 standards are the plan's
 16, the headline counts only standards whose every clause is MET, and every cited URL is in the
 citations index under a research-ledger R-row (so the 10% re-fetch control is mechanical).
+
+Fix round 1 (controller, 2026-09-26): every cited file:line still holds its quoted fragment
+(`tools/parity_scorecard.py --verify`, offline), with a control proving the check can refuse; and
+the plan's "Now" cells carry exactly the scorecard's clause counts.
 """
 from __future__ import annotations
 
@@ -28,6 +32,11 @@ _spec = importlib.util.spec_from_file_location('gap_ledger_summary_for_scorecard
 gls = importlib.util.module_from_spec(_spec)
 sys.modules[_spec.name] = gls
 _spec.loader.exec_module(gls)
+
+_pspec = importlib.util.spec_from_file_location('parity_scorecard_tool', REPO / 'tools' / 'parity_scorecard.py')
+psc = importlib.util.module_from_spec(_pspec)
+sys.modules[_pspec.name] = psc
+_pspec.loader.exec_module(psc)
 
 VERDICT = re.compile(r'^(AHEAD|PARITY|BEHIND|N/A|NOT-VERIFIED|OUT-OF-SCOPE \(D\d+\)|BLOCKED \((owner|external)\))$')
 KINDS = re.compile(r'^(CODE|TEST|WALK|MEASURE|RECORD|RULING) ')
@@ -207,3 +216,37 @@ def test_every_cited_url_is_indexed_under_an_r_row_the_research_ledger_has():
     rrows = set(re.findall(r'^\| (R\d+) \|', _text(RESEARCH), re.M))
     missing = sorted({r for r in indexed.values() if r not in rrows})
     assert not missing, missing
+
+
+# ── fix round 1: the offline citation check, and the plan's clause counts ──────────────────────
+
+def test_every_cited_file_line_still_holds_its_fragment():
+    """tools/parity_scorecard.py --verify, offline: every CODE/RULING/RECORD/MEASURE file:line still
+    holds its quoted fragment, every WALK check still carries its verdict, every TEST log still carries
+    its totals line, every flag RECORD still matches master's ledger at be9ca78b6. When the code moves,
+    this goes red by name: re-read the citation, never trust it."""
+    counts, problems = psc.verify()
+    assert counts['CODE'] > 100 and counts['WALK'] > 20 and counts['TEST'] > 5 and counts['RECORD'] > 10, counts
+    assert not problems, problems
+
+
+def test_the_verifier_can_fail_on_a_fragment_that_is_not_on_its_line():
+    # control: the same text with one fragment changed must be refused.
+    text = SCORECARD.read_bytes().decode('utf-8')
+    good = '`api/services/journal_two/notes.py`:3531 "def restore_note("'
+    assert good in text, 'non-vacuity: the control citation is not in the scorecard'
+    _, problems = psc.verify(text.replace(good, good.replace('restore_note(', 'restore_notes('), 1))
+    assert any('notes.py:3531' in p for p in problems), problems
+
+
+def test_the_plans_now_column_carries_the_scorecards_clause_counts():
+    """The plan's "Now" cells restate §B's clause counts (controller ruling, fix round 1); this keeps the
+    two from drifting apart — the scorecard is the authority, the plan cell must match it."""
+    plan = {}
+    for l in _text(PLAN).split('\n'):
+        m = re.match(r'^\| (\d+) \| \*\*.+?\*\*.*? \| [\d.]+ \(estimate\) · clauses met (\d+)/(\d+) \|', l)
+        if m:
+            plan[int(m.group(1))] = f'{m.group(2)}/{m.group(3)}'
+    card = {int(c[0]): c[3] for c in _card_standards()}
+    assert sorted(plan) == list(range(1, 17)), f'non-vacuity: parsed plan rows {sorted(plan)}'
+    assert plan == card, {n: (plan.get(n), card.get(n)) for n in card if plan.get(n) != card.get(n)}

@@ -104,6 +104,26 @@ def test_an_unknown_status_is_listed_under_unbucketed_by_id():
     assert '| DONE | 1 | G-901 |' in block
 
 
+def test_a_duplicate_is_its_own_bucket_listed_by_id_never_folded_into_done():
+    # Controller ruling, fix round 1: a DUPLICATE row stays, counted and listed on its own.
+    text = _fixture(_row('G-911', '**DONE**'),
+                    _row('G-912', '⚰️ was: see G-911 ⟶ **DUPLICATE of G-911 — tracked there**'))
+    rows = {r.rid: r for r in gls.parse(text)}
+    assert rows['G-912'].bucket == 'DUPLICATE'
+    block = gls.committed_block(text)
+    assert '| DUPLICATE | 1 | G-912 |' in block
+    assert '| DONE | 1 | G-911 |' in block, 'the duplicate was counted as DONE too'
+    assert 'UNBUCKETED (0): none' in block
+
+
+def test_the_real_ledgers_duplicate_row_is_counted_in_the_duplicate_bucket():
+    text = _ledger_text()
+    rows = {r.rid: r for r in gls.parse(text)}
+    assert rows['G-084'].bucket == 'DUPLICATE', rows['G-084']
+    dup = [l for l in gls.committed_block(text).split('\n') if l.startswith('| DUPLICATE |')]
+    assert dup and 'G-084' in dup[0], dup
+
+
 def test_a_malformed_row_is_unbucketed_by_id_never_read_off_the_wrong_column():
     short = '| G-903 | cap | comp | now | target | All | Low | ev | **DONE** | P1 | — | — |'  # 12 cells
     rows = {r.rid: r for r in gls.parse(_fixture(_row('G-901', 'OPEN'), short))}
@@ -120,6 +140,7 @@ def test_a_malformed_row_is_unbucketed_by_id_never_read_off_the_wrong_column():
     ('**SHIPPED + VERIFIED**', 'DONE'),
     ('**BLOCKED (owner)** — the store submission', 'BLOCKED'),
     ('see G-044', None),
+    ('⚰️ was: see G-044 ⟶ **DUPLICATE of G-044 — tracked there** (2026-09-26)', 'DUPLICATE'),
 ])
 def test_the_live_status_after_a_tombstone_and_the_first_keyword_wins(status, bucket):
     rows = gls.parse(_fixture(_row('G-904', status)))

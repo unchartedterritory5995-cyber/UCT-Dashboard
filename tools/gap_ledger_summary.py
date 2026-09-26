@@ -30,8 +30,13 @@ THE BUCKETING RULE — explicit, and the only one:
        REJECTED    REJECTED, OUT-OF-SCOPE, "OUT OF SCOPE"
        BLOCKED     BLOCKED
        EXPERIMENT  EXPERIMENT
+       DUPLICATE   DUPLICATE
    "First by position" is deliberate: `PARTIAL — price DONE, estimates gated` is PARTIAL,
    `EXPERIMENT, BLOCKED` is EXPERIMENT, `BUILT, DARK — BLOCKED on ZDR` is BUILT-DARK.
+   DUPLICATE (controller ruling, 2026-09-26, wave 9 lane 9B fix round 1): a row whose
+   capability is tracked by another row keeps its line — the ledger never deletes one — and
+   is counted in its OWN bucket, listed by ID, never folded into DONE or any other bucket
+   (`DUPLICATE of G-044 — tracked there` is DUPLICATE, not the status of G-044).
 4. A row whose live status holds none of the words is UNBUCKETED, listed by ID with the
    reason. Nothing is ever dropped: the block states that bucket counts plus UNBUCKETED
    equal the number of rows, and the tool refuses to write a block where they do not.
@@ -52,7 +57,7 @@ END = '<!-- GENERATED:gap-ledger-summary:END -->'
 TOMBSTONE = '⚰️ was:'
 ARROW = '⟶'
 
-BUCKETS = ('DONE', 'PARTIAL', 'OPEN', 'BUILT-DARK', 'REJECTED', 'BLOCKED', 'EXPERIMENT')
+BUCKETS = ('DONE', 'PARTIAL', 'OPEN', 'BUILT-DARK', 'REJECTED', 'BLOCKED', 'EXPERIMENT', 'DUPLICATE')
 KEYWORDS = (
     ('DONE', r'DONE|SHIPPED|FIXED|CLOSED|LIVE|ARMED'),
     ('PARTIAL', r'PARTIALLY|PARTIAL'),
@@ -61,6 +66,7 @@ KEYWORDS = (
     ('REJECTED', r'REJECTED|OUT-OF-SCOPE|OUT\s+OF\s+SCOPE'),
     ('BLOCKED', r'BLOCKED'),
     ('EXPERIMENT', r'EXPERIMENT'),
+    ('DUPLICATE', r'DUPLICATE'),
 )
 _KW = [(b, re.compile(r'(?<![A-Z0-9_-])(?:' + rx + r')(?![A-Z0-9_])')) for b, rx in KEYWORDS]
 

@@ -1,0 +1,45 @@
+C:\Users\Patrick\AppData\Roaming\Python\Python314\site-packages\pytest_asyncio\plugin.py:208: PytestDeprecationWarning: The configuration option "asyncio_default_fixture_loop_scope" is unset.
+The event loop scope for asynchronous fixtures will default to the fixture caching scope. Future versions of pytest-asyncio will default the loop scope for asynchronous fixtures to function scope. Set the default fixture loop scope explicitly in order to avoid unexpected behavior in the future. Valid fixture loop scopes are: "function", "class", "module", "package", "session"
+
+  warnings.warn(PytestDeprecationWarning(_DEFAULT_FIXTURE_LOOP_SCOPE_UNSET))
+.............F                                                           [100%]
+================================== FAILURES ===================================
+_______ test_the_plans_now_column_carries_the_scorecards_clause_counts ________
+
+    def test_the_plans_now_column_carries_the_scorecards_clause_counts():
+        """The plan's "Now" cells restate §B's clause counts (controller ruling, fix round 1); this keeps the
+        two from drifting apart — the scorecard is the authority, the plan cell must match it."""
+        plan = {}
+        for l in _text(PLAN).split('\n'):
+            m = re.match(r'^\| (\d+) \| \*\*.+?\*\*.*? \| [\d.]+ \(estimate\) · clauses met (\d+)/(\d+) \|', l)
+            if m:
+                plan[int(m.group(1))] = f'{m.group(2)}/{m.group(3)}'
+        card = {int(c[0]): c[3] for c in _card_standards()}
+        assert sorted(plan) == list(range(1, 17)), f'non-vacuity: parsed plan rows {sorted(plan)}'
+>       assert plan == card, {n: (plan.get(n), card.get(n)) for n in card if plan.get(n) != card.get(n)}
+E       AssertionError: {4: ('4/6', '3/6')}
+E       assert {1: '0/3', 2:...4: '4/6', ...} == {1: '0/3', 2:...4: '3/6', ...}
+E         
+E         Omitting 15 identical items, use -vv to show
+E         Differing items:
+E         {4: '4/6'} != {4: '3/6'}
+E         Use -v to get more diff
+
+tests\test_parity_scorecard.py:252: AssertionError
+============================== warnings summary ===============================
+..\..\AppData\Roaming\Python\Python314\site-packages\pytest_asyncio\plugin.py:179: 686 warnings
+  C:\Users\Patrick\AppData\Roaming\Python\Python314\site-packages\pytest_asyncio\plugin.py:179: DeprecationWarning: 'asyncio.iscoroutinefunction' is deprecated and slated for removal in Python 3.16; use inspect.iscoroutinefunction() instead
+    return asyncio.iscoroutinefunction(obj) or inspect.isasyncgenfunction(obj)
+
+..\..\AppData\Roaming\Python\Python314\site-packages\pytest_asyncio\plugin.py:450: 14 warnings
+  C:\Users\Patrick\AppData\Roaming\Python\Python314\site-packages\pytest_asyncio\plugin.py:450: DeprecationWarning: 'asyncio.iscoroutinefunction' is deprecated and slated for removal in Python 3.16; use inspect.iscoroutinefunction() instead
+    return asyncio.iscoroutinefunction(func)
+
+tests/test_parity_scorecard.py::test_the_scorecard_row_set_equals_the_ledgers_both_parsed
+  C:\Users\Patrick\AppData\Roaming\Python\Python314\site-packages\pytest_asyncio\plugin.py:1056: DeprecationWarning: 'asyncio.get_event_loop_policy' is deprecated and slated for removal in Python 3.16
+    return asyncio.get_event_loop_policy()
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+=========================== short test summary info ===========================
+FAILED tests/test_parity_scorecard.py::test_the_plans_now_column_carries_the_scorecards_clause_counts
+1 failed, 13 passed, 701 warnings in 1.11s
