@@ -225,6 +225,15 @@ When `nb_soak.py` reports the window complete:
   identities are exact only through the cumulative read (`NB_SOAK_START`).
 - **Telemetry mixes populations at the source**; the soak read splits them by full email
   (`notebook_populations.py`, pinned against `nb_observe.py` by an AST rail).
+- **`config_served` cannot fire on the default Journal shell** — found by the sandbox browser
+  check (run 3, `docs/notebook/evidence/wave9-9c-646e87341/run3/`): 16 Notebook visits by three
+  identities left ZERO `j2:notebook_config_served` rows, and the observer's own config-served
+  read printed `0/0 — no member reported`. From source: the event is sent only by
+  `NotebookFlagGate.jsx`, which only `JournalTwoRoot.jsx` (the legacy v8 shell) mounts; the v5
+  shell's `/journal/notebook` renders `NotebookSurface.jsx` → `NotebookTab` with no gate, and
+  `shellFlag.js` sends 100% of browsers to v5. Until the Notebook owner mounts the gate on the
+  v5 route, the soak's `config_served` figure (reported, never a verdict input) reads `0/0` for
+  every population, and so does K-1's precondition.
 - **The Q1 log stays at REVERT** (its 2026-09-13 19:00 ET row). That is why the soak has its own
   log; the D2 record (P2) is what rules on the old window.
 
