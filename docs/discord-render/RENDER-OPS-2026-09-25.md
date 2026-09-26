@@ -52,6 +52,7 @@ so recorded no image. The stub now takes the class and hashes it by name (`membe
   of four-day-old bars draws perfectly. The line now reads e.g. `5m fresh ok (last bar Fri Sep 25)`.
 - The master deploy gate runs `test_discord_render_goldens.py` + `test_discord_render_ops.py`
   (~10 s; extra installs `fastapi tzdata matplotlib pynacl`, measured as their whole import closure).
-  **ADVISORY** (`continue-on-error`) until its first green Linux run is recorded, then gating.
+  Ran ADVISORY first; run 36248565296 passed on Linux (16 s, no error annotation - a known-failing
+  run's exit-code annotation read as the control), so it is now **GATING**.
 - The wiring test now reads `api/main.py` by AST instead of importing it, so it runs on the gate's
   small install.
