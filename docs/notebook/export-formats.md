@@ -139,8 +139,9 @@ route takes none of them).
   member typed, and `javascript:` / `on<name>=` never appear in the file even as text.
   Railed with hostile input (`<script>` as text, a `javascript:` link, an image alt holding
   `" onerror="`) and mutation-proved.
+- **HTML typed as text renders as markup in the web page.** The web page is the Markdown file rendered (D-C2: HTML = Markdown fidelity), and the Markdown writer keeps a member's text as typed, so a `<b>x</b>` typed into a note is bold in the HTML export and a typed `<img src="https://…">` is an image there, exactly as any Markdown reader shows the `.md` — always after the sanitizer above, so nothing unsafe survives.
 - **Word**: the only external relationships a document carries are `http`/`https`
   hyperlinks; every other link is written as its text.
 - **Every format** reads attachments through the same tenancy check, path containment and
   byte cap (`NOTE_EXPORT_MAX_ATTACHMENT_BYTES`, default 200 MiB) as the Markdown export; Word
-  images count against that cap every time they are embedded.
+  images count against that cap at their EMBEDDED size (a converted image's, not the stored file's) every time they are embedded.
