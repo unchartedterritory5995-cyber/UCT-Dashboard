@@ -70,7 +70,7 @@ facilitator does, in order.
 | Task | The silent-failure check (after "done") |
 |---|---|
 | T1 | Ask the participant to **reload** the page: the note is there, with their words in it. |
-| T2 | **Click the source link** in the saved passage: the article opens. |
+| T2 | **Right-click the source link** in the saved passage → *Open link in new tab*: the article opens. ⚠️ A plain click or Ctrl+click on a link inside the note editor opens nothing (the editor does not follow links; measured in the sandbox browser check, run 3) — if the participant tries that, write down what they say; it is not their failure. |
 | T3 | **Reload**: the heading, the three-item checklist and the highlight are all present. |
 | T4 | **Read the open note's title**: it is ‘Earnings season playbook’, not a different note. |
 | T5 | **Reload, open the new folder**: all three notes are in it, and each shows the tag `earnings`. |
