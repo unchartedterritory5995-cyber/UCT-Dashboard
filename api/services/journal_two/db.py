@@ -2154,8 +2154,23 @@ def run_notebook_migration_v1(conn: sqlite3.Connection) -> None:
     a j2_notes row. Idempotent via .notebook_migration_v1 flag file.
     Safe to call on every startup.
 
-    The old j2_playbook_entries table is left in place as a backup —
-    manual DROP TABLE after ~30 days of green prod."""
+    ⛔⛔ DO NOT DROP j2_playbook_entries. ⚰️ This docstring said "left in place
+    as a backup — manual DROP TABLE after ~30 days of green prod", and that
+    instruction is OVERTURNED: `docs/runbooks/options-flow-status.md` rules it
+    **PARKED — DO NOT DROP**, because the table acquired 12 code refs during the
+    very window meant to prove it unneeded, and `account_purge.py:40` now lists
+    it in the purge set. **Dropping it breaks ACCOUNT DELETION.**
+
+    ⭐ Corrected here, in the docstring, because that is what an engineer reads:
+    the ruling lived only in a runbook they had no reason to open, while the
+    dangerous instruction sat in the function itself. A record that contradicts
+    a live obligation is worse than no record.
+
+    ⚠️ The "keep a reversible backup, drop it after 30 green days" precedent has
+    a MEASURED base rate in this repo of roughly one completion in three, and in
+    both overturns the kept backup gained a NEW consumer inside the countdown.
+    So at any such countdown, RE-DERIVE the consumer set from code before
+    dropping anything — never trust the plan that scheduled it."""
     flag = _data_dir() / ".notebook_migration_v1"
     try:
         if flag.exists():
