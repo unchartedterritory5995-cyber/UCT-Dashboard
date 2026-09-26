@@ -27,3 +27,19 @@ export const PUBLISHED_NOTE_ROUTE = `${PUBLISHED_ROUTE}/n/:pid`
 
 /** The public read on the server. No auth: a published page is public by definition. */
 export const PUBLISHED_ENDPOINT = '/api/j2/published'
+
+/** The member's own publish doors (lane 8B, api/routers/notebook_publish.py): list, publish a
+ *  note or a folder, Update, change expiry, unpublish. Session- or paid-gated server-side. */
+export const PUBLISH_ENDPOINT = '/api/j2/publish'
+
+/** In-app path of a publication (`pid` given: one note inside a published folder). */
+export function publishedPath(slug, pid) {
+  const s = encodeURIComponent(String(slug ?? ''))
+  return pid ? `${PUBLISHED_PATH}/${s}/n/${encodeURIComponent(String(pid))}` : `${PUBLISHED_PATH}/${s}`
+}
+
+/** The absolute URL the member copies and sends to somebody else. */
+export function publishedUrl(slug, pid) {
+  const origin = typeof window !== 'undefined' && window.location ? window.location.origin : ''
+  return `${origin}${publishedPath(slug, pid)}`
+}

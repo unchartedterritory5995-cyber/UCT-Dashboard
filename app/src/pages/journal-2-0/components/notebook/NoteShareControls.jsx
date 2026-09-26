@@ -1,70 +1,321 @@
-// The editor's share-link controls: Share / Copy link / Unshare (wave 8 seam S8-3).
+// The editor's Share door: share links and publish-to-web for this note (wave 8, lane 8B).
 //
-// ⛔ MOVED, NOT CHANGED. Everything below stood inside NoteEditorPage.jsx — the admin
-// gate, the status read, the mint-then-copy, the revoke and every `onMessage` sentence —
-// and was lifted out so lane 8B can build the member door (ruling D-B8: note share and
-// publish live HERE) without editing the editor, which is lane 8A's file this wave.
-// `onMessage` is the editor's `setChromeMsg`, so the sentences land where they always did.
+// ⛔ ONE DOOR IN THE EDITOR (ruling D-B8): a share link, the note's published page, and the
+// folder's published page all live in this one popover. There is no FolderSidebar door; the
+// folder is published from here, from a note inside it, and managed in Settings → Sharing &
+// publishing (SharingCard.jsx).
 //
-// ⚠️ Still ADMIN-ONLY, exactly as before: the server gate (`J2_SHARE_LINKS_ENABLED`, ruling
-// D-B9) stays off, and replacing `isAdmin` with the payload flag is lane 8B's change.
+// ⛔ WHO SEES IT: a PAID member, and only while a gate is on. `j2_share_links_enabled` shows the
+// share-link section, `notebook_publish_enabled` the publish section; both are latched from the
+// auth payload for the life of the tab (lib/offline/notebookFlags.js). The admin special case
+// that stood here is GONE (finding F-ADMIN-GATE): admins follow the flags like everyone else.
+// A member whose plan lapsed still sees and revokes every link in Settings, which is not
+// plan-gated (ruling D-B3).
 //
-// ⚠️ It borrows NoteEditorPage.module.css's `.chromeBtn` so the buttons render exactly as
-// before. A rename of that class in the editor's stylesheet reaches these buttons too.
-import { useEffect, useState } from 'react'
+// It opens a `Sheet` (a centered dialog on desktop, a bottom sheet on touch), which owns focus
+// trapping, Escape and focus return. Nothing is fetched until it opens: the editor already
+// makes enough requests on mount.
+//
+// ⚠️ The trigger borrows NoteEditorPage.module.css's `.chromeBtn` so it sits in the editor's
+// header row like its neighbours (lane 8A owns that stylesheet; do not rename the class).
+import { useCallback, useEffect, useState } from 'react'
 import { useAuth } from '../../../../context/AuthContext'
-import { sharedNoteUrl } from '../../lib/noteShareLink'
-import styles from './NoteEditorPage.module.css'
+import Sheet from '../../../../components/mobile/Sheet'
+import UIcon from '../../../../components/ui/UIcon'
+import { notebookFlag } from '../../lib/offline/notebookFlags'
+import { noteShareEndpoint, sharedNoteUrl, SHARE_EXPIRY_CHOICES } from '../../lib/noteShareLink'
+import { PUBLISH_ENDPOINT, publishedUrl } from '../../lib/notePublishLink'
+import editorStyles from './NoteEditorPage.module.css'
+import styles from './NoteShareControls.module.css'
+
+/** The server's sentence when it sent one, else ours. */
+async function requestJson(url, opts = {}) {
+  const res = await fetch(url, {
+    credentials: 'include',
+    ...opts,
+    headers: opts.body ? { 'Content-Type': 'application/json', ...(opts.headers || {}) } : opts.headers,
+  })
+  let body = null
+  try { body = await res.json() } catch { body = null }
+  if (!res.ok) {
+    const detail = body && typeof body.detail === 'string' ? body.detail : null
+    const err = new Error(detail || String(res.status))
+    err.detail = detail
+    err.status = res.status
+    throw err
+  }
+  return body || {}
+}
+
+function whenText(expiresAt) {
+  if (!expiresAt) return 'It never expires.'
+  const d = new Date(expiresAt)
+  if (Number.isNaN(d.getTime())) return 'It never expires.'
+  return `It stops working on ${d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}.`
+}
+
+async function copyText(text) {
+  try {
+    if (navigator.clipboard?.writeText) {
+      await navigator.clipboard.writeText(text)
+      return true
+    }
+  } catch { /* fall through: the address is on screen to copy by hand */ }
+  return false
+}
 
 export default function NoteShareControls({ noteId, onMessage }) {
-  const { user } = useAuth()
-  // Share links: admin-only surface while the owner evaluates (the server
-  // pair is additionally flag-gated). One active token per note; Unshare
-  // revokes it — a leaked link dies instantly.
-  const isAdmin = user?.role === 'admin'
-  const [share, setShare] = useState(null)
-  useEffect(() => {
-    if (!isAdmin || !noteId) return undefined
-    let alive = true
-    fetch(`/api/j2/notes/${noteId}/share`, { credentials: 'include' })
-      .then((r) => (r.ok ? r.json() : { share: null }))
-      .then((b) => { if (alive) setShare(b.share) })
-      .catch(() => {})
-    return () => { alive = false }
-  }, [isAdmin, noteId])
-  const copyShareLink = async () => {
-    try {
-      let s = share
-      if (!s) {
-        const res = await fetch(`/api/j2/notes/${noteId}/share`, { method: 'POST', credentials: 'include' })
-        if (!res.ok) throw new Error(String(res.status))
-        s = (await res.json()).share
-        setShare(s)
-      }
-      await navigator.clipboard.writeText(sharedNoteUrl(s.token))
-      onMessage('Share link copied')
-    } catch {
-      onMessage('share failed')
-    }
-  }
-  const unshare = async () => {
-    await fetch(`/api/j2/notes/${noteId}/share`, { method: 'DELETE', credentials: 'include' }).catch(() => {})
-    setShare(null)
-    onMessage('Link revoked')
-  }
-  if (!isAdmin) return null
+  const { isPaid } = useAuth()
+  const [open, setOpen] = useState(false)
+  const shareOn = notebookFlag('j2_share_links_enabled') === true
+  const publishOn = notebookFlag('notebook_publish_enabled') === true
+  if (!noteId || isPaid !== true || (!shareOn && !publishOn)) return null
   return (
     <>
-      <button type="button" className={styles.chromeBtn} onClick={copyShareLink}
-        title={share ? 'Copy the public link to this note' : 'Create a public read-only link and copy it'}>
-        {share ? 'Copy link' : 'Share'}
+      <button
+        type="button"
+        className={editorStyles.chromeBtn}
+        aria-haspopup="dialog"
+        aria-expanded={open}
+        title={publishOn ? 'Share a link to this note or publish it to the web' : 'Share a read-only link to this note'}
+        onClick={() => setOpen(true)}
+      >
+        <UIcon name="link" size={13} style={{ verticalAlign: '-2px', marginRight: 4 }} />
+        Share
       </button>
-      {share && (
-        <button type="button" className={styles.chromeBtn} onClick={unshare}
-          title="Revoke the public link — it stops working immediately">
-          Unshare
-        </button>
-      )}
+      <Sheet open={open} onClose={() => setOpen(false)} title="Share this note" ariaLabel="Share this note" maxWidth={460}>
+        {open && (
+          <SharePanel noteId={noteId} shareOn={shareOn} publishOn={publishOn} onMessage={onMessage} />
+        )}
+      </Sheet>
     </>
+  )
+}
+
+function SharePanel({ noteId, shareOn, publishOn, onMessage }) {
+  const [loading, setLoading] = useState(true)
+  const [share, setShare] = useState(null)
+  const [pubs, setPubs] = useState([])
+  const [ctx, setCtx] = useState(null)
+  const [expiry, setExpiry] = useState('never')
+  const [busy, setBusy] = useState(false)
+  const [status, setStatus] = useState('')
+
+  const say = useCallback((msg) => {
+    setStatus(msg)
+    onMessage?.(msg)
+  }, [onMessage])
+
+  useEffect(() => {
+    let alive = true
+    const jobs = []
+    if (shareOn) {
+      jobs.push(requestJson(noteShareEndpoint(noteId))
+        .then((b) => { if (alive) setShare(b.share || null) }).catch(() => {}))
+    }
+    if (publishOn) {
+      jobs.push(requestJson(`${PUBLISH_ENDPOINT}?note_id=${encodeURIComponent(noteId)}`)
+        .then((b) => {
+          if (!alive) return
+          setPubs(Array.isArray(b.publications) ? b.publications : [])
+          setCtx(b.note || null)
+        }).catch(() => {}))
+    }
+    Promise.all(jobs).then(() => { if (alive) setLoading(false) })
+    return () => { alive = false }
+  }, [noteId, shareOn, publishOn])
+
+  const livePub = (kind, targetId) => pubs.find((p) => p.kind === kind && p.targetId === targetId && p.state === 'active') || null
+  const notePub = livePub('note', noteId)
+  const folderPub = ctx?.folderId ? livePub('folder', ctx.folderId) : null
+
+  const run = async (fn) => {
+    if (busy) return
+    setBusy(true)
+    try { await fn() } finally { setBusy(false) }
+  }
+
+  const createLink = () => run(async () => {
+    try {
+      const choice = SHARE_EXPIRY_CHOICES.find((c) => String(c.days ?? 'never') === expiry)
+      const b = await requestJson(noteShareEndpoint(noteId), {
+        method: 'POST', body: JSON.stringify({ expiresInDays: choice ? choice.days : null }),
+      })
+      setShare(b.share)
+      const copied = await copyText(sharedNoteUrl(b.share.token))
+      say(copied ? 'Share link created and copied.' : 'Share link created. Copy the address above.')
+    } catch (e) {
+      say(e.detail || 'Could not create the link. Try again.')
+    }
+  })
+
+  const copyLink = () => run(async () => {
+    const copied = await copyText(sharedNoteUrl(share.token))
+    say(copied ? 'Share link copied.' : 'Copy the address above.')
+  })
+
+  const revokeLink = () => run(async () => {
+    try {
+      await requestJson(noteShareEndpoint(noteId), { method: 'DELETE' })
+      setShare(null)
+      say('Link revoked. It no longer works.')
+    } catch (e) {
+      say(e.detail || 'Could not revoke the link. Try again.')
+    }
+  })
+
+  const publish = (kind) => run(async () => {
+    const url = kind === 'note'
+      ? `${PUBLISH_ENDPOINT}/notes/${encodeURIComponent(noteId)}`
+      : `${PUBLISH_ENDPOINT}/folders/${encodeURIComponent(ctx.folderId)}`
+    try {
+      const b = await requestJson(url, { method: 'POST', body: JSON.stringify({ expiresInDays: null }) })
+      const pub = { ...b.publication, state: 'active' }
+      setPubs((prev) => [pub, ...prev.filter((p) => p.slug !== pub.slug)])
+      const copied = await copyText(publishedUrl(pub.slug))
+      const what = kind === 'note' ? 'Published' : `Published "${ctx.folderName}"`
+      say(copied ? `${what}. Page link copied.` : `${what}. Copy the address above.`)
+    } catch (e) {
+      say(e.detail || 'Could not publish. Try again.')
+    }
+  })
+
+  const copyPage = (pub) => run(async () => {
+    const copied = await copyText(publishedUrl(pub.slug))
+    say(copied ? 'Page link copied.' : 'Copy the address above.')
+  })
+
+  const unpublish = (pub) => run(async () => {
+    try {
+      await requestJson(`${PUBLISH_ENDPOINT}/${encodeURIComponent(pub.slug)}`, { method: 'DELETE' })
+      setPubs((prev) => prev.filter((p) => p.slug !== pub.slug))
+      say('Unpublished. The page no longer works.')
+    } catch (e) {
+      say(e.detail || 'Could not unpublish. Try again.')
+    }
+  })
+
+  if (loading) {
+    return <div className={styles.panel} role="status" aria-live="polite">Loading…</div>
+  }
+
+  return (
+    <div className={styles.panel}>
+      {shareOn && (
+        <section className={styles.section} aria-labelledby="share-link-heading">
+          <h3 id="share-link-heading" className={styles.heading}>Share link</h3>
+          {!share ? (
+            <>
+              <p className={styles.lede}>
+                Anyone with the link can read this note without signing in. Market data such as charts is not shown.
+              </p>
+              <div className={styles.row}>
+                <label className={styles.label} htmlFor="share-expiry">Link stops working</label>
+                <select
+                  id="share-expiry"
+                  className={styles.select}
+                  value={expiry}
+                  onChange={(e) => setExpiry(e.target.value)}
+                  disabled={busy}
+                >
+                  {SHARE_EXPIRY_CHOICES.map((c) => (
+                    <option key={String(c.days)} value={String(c.days ?? 'never')}>{c.label}</option>
+                  ))}
+                </select>
+              </div>
+              <div className={styles.row}>
+                <button type="button" className={styles.action} onClick={createLink} disabled={busy}>Create link</button>
+              </div>
+            </>
+          ) : (
+            <>
+              <input
+                className={styles.field}
+                readOnly
+                value={sharedNoteUrl(share.token)}
+                aria-label="Share link address"
+                onFocus={(e) => e.target.select()}
+              />
+              <p className={styles.caption}>{whenText(share.expiresAt)}</p>
+              <div className={styles.row}>
+                <button type="button" className={styles.action} onClick={copyLink} disabled={busy}>Copy link</button>
+                <button
+                  type="button"
+                  className={`${styles.action} ${styles.danger}`}
+                  onClick={revokeLink}
+                  disabled={busy}
+                  aria-describedby="share-revoke-caption"
+                >
+                  Revoke link
+                </button>
+              </div>
+              <p id="share-revoke-caption" className={styles.caption}>It stops working immediately.</p>
+            </>
+          )}
+        </section>
+      )}
+
+      {publishOn && (
+        <section className={styles.section} aria-labelledby="publish-heading">
+          <h3 id="publish-heading" className={styles.heading}>Publish to the web</h3>
+          <p className={styles.lede}>
+            A published page can be read by anyone with its address, without signing in. Search engines are asked not to index it.
+          </p>
+          {notePub ? (
+            <>
+              <input
+                className={styles.field}
+                readOnly
+                value={publishedUrl(notePub.slug)}
+                aria-label="Published page address"
+                onFocus={(e) => e.target.select()}
+              />
+              <div className={styles.row}>
+                <button type="button" className={styles.action} onClick={() => copyPage(notePub)} disabled={busy}>Copy page link</button>
+                <button type="button" className={`${styles.action} ${styles.danger}`} onClick={() => unpublish(notePub)} disabled={busy}>
+                  Unpublish
+                </button>
+              </div>
+            </>
+          ) : (
+            <div className={styles.row}>
+              <button type="button" className={styles.action} onClick={() => publish('note')} disabled={busy}>Publish this note</button>
+            </div>
+          )}
+          {ctx?.folderId && (
+            folderPub ? (
+              <>
+                <input
+                  className={styles.field}
+                  readOnly
+                  value={publishedUrl(folderPub.slug)}
+                  aria-label={`Published folder address, ${ctx.folderName}`}
+                  onFocus={(e) => e.target.select()}
+                />
+                <div className={styles.row}>
+                  <button type="button" className={styles.action} onClick={() => copyPage(folderPub)} disabled={busy}>Copy folder link</button>
+                  <button type="button" className={`${styles.action} ${styles.danger}`} onClick={() => unpublish(folderPub)} disabled={busy}>
+                    Unpublish folder
+                  </button>
+                </div>
+              </>
+            ) : (
+              <>
+                <div className={styles.row}>
+                  <button type="button" className={styles.action} onClick={() => publish('folder')} disabled={busy}>
+                    {`Publish folder "${ctx.folderName}"`}
+                  </button>
+                </div>
+                <p className={styles.caption}>
+                  Publishes up to 500 notes in this folder and the folders inside it. A note added later appears when you update the page in Settings.
+                </p>
+              </>
+            )
+          )}
+        </section>
+      )}
+
+      <p className={styles.status} role="status" aria-live="polite">{status}</p>
+    </div>
   )
 }

@@ -64,6 +64,50 @@
 .goneTitle { font-size: 18px; font-weight: 400; margin: 0; color: var(--text, #cfcfcf); }
 .goneWhy { font-size: 13px; margin: 0; }
 
+/* Published pages (PublishedPage.jsx): a folder's index, and the way back to it. */
+.crumbs {
+  max-width: 760px;
+  margin: 0 auto 18px;
+  font-family: var(--font-sans, 'Instrument Sans', sans-serif);
+  font-size: 13px;
+}
+.crumbLink,
+.indexLink {
+  color: var(--accent);
+  text-decoration: none;
+}
+.crumbLink:hover,
+.indexLink:hover { text-decoration: underline; }
+.crumbLink:focus-visible,
+.indexLink:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 3px;
+}
+.index {
+  list-style: none;
+  margin: 18px 0 0;
+  padding: 0;
+  font-family: var(--font-sans, 'Instrument Sans', sans-serif);
+}
+.indexItem {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 4px 16px;
+  padding: 12px 0;
+  border-bottom: 1px solid var(--border, #2a2a2a);
+}
+.indexLink { font-size: 17px; }
+.indexDate {
+  font-size: 12px;
+  color: var(--text-dim, #9a9a9a);
+}
+@media (max-width: 1024px) {
+  .indexLink { min-height: var(--tap-min); display: inline-flex; align-items: center; }
+  .crumbLink { min-height: var(--tap-min); display: inline-flex; align-items: center; }
+}
+
 .brandFoot {
   max-width: 760px;
   margin: 48px auto 0;
