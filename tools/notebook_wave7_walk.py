@@ -3724,10 +3724,26 @@ with sync_playwright() as p:
         page.keyboard.press("Tab")
         page.keyboard.press("Tab")
         after_two_tabs = page.evaluate("() => document.activeElement && document.activeElement.getAttribute('aria-label')")
+        # ⛔ wave 7 phase 2 (instrument, found by the 96fa5ca2a run): "Delete <view>" does
+        # not delete on its own and raises no native confirm(). Since UX #1 (`ac88fadc5`)
+        # it opens the app's own ConfirmModal, `Delete view "<name>"?` (NotebookTab.jsx;
+        # NotebookTab.test.jsx:616), which focuses its "Delete" button on mount
+        # (ConfirmModal.jsx `confirmRef.current?.focus()`). So the KEYBOARD path is Enter
+        # on the row's Delete, then Enter on the modal's focused Delete. The native
+        # `dialog` listener stays, so a return to confirm() is still recorded.
         dialogs = []
         page.once("dialog", lambda d: (dialogs.append(d.message), d.accept()))
         url_before = page.url
         page.keyboard.press("Enter")
+        confirm = page.get_by_role("dialog", name=f'Delete view "{view_name}"?')
+        confirm_seen, confirm_focus = False, None
+        try:
+            confirm.wait_for(state="visible", timeout=10000)
+            confirm_seen = True
+            confirm_focus = page.evaluate("() => document.activeElement && document.activeElement.textContent.trim()")
+            page.keyboard.press("Enter")
+        except Exception:  # noqa: BLE001 -- recorded below; `gone` is the measured outcome
+            pass
         gone = False
         end = _t.time() + 10
         while _t.time() < end:
@@ -3797,9 +3813,9 @@ with sync_playwright() as p:
                                       "address_source": address_source, "secret": bool(INBOUND_SECRET),
                                       "undriven": True}
         # (c) the member-facing Import (client-side converter, lib/importer/convert.js):
-        # NotebookTab.test.jsx:264 `getAllByRole('button', {name: /import/i})[0]` ->
-        # testid import-wizard -> ImportWizard.test.jsx testid import-file-input -> /1 note/i
-        # -> button /^import$/i -> /imported/i.
+        # NotebookTab.test.jsx:264 `getAllByRole('button', {name: /import/i})[0]` -> the
+        # wizard's Sheet dialog -> ImportWizard.test.jsx testid import-file-input -> /1 note/i
+        # -> button /^import$/i -> the "Import complete" step title (ImportWizard.jsx).
         import_door = None
         try:
             import tempfile
@@ -3814,12 +3830,22 @@ with sync_playwright() as p:
             imp_btn = page.get_by_role("button", name="Import", exact=True)
             import_door = "exact 'Import'" if imp_btn.count() else "the test's /import/i, first"
             (imp_btn if imp_btn.count() else page.get_by_role("button", name=re.compile("import", re.I))).first.click()
-            wiz = page.get_by_test_id("import-wizard")
-            wiz.wait_for(state="visible", timeout=20000)
-            wiz.get_by_test_id("import-file-input").set_input_files(md_path)
+            # ⛔ wave 7 phase 2 (instrument, found by the 96fa5ca2a run): `data-testid=
+            # "import-wizard"` exists ONLY on NotebookTab.test.jsx's shallow MOCK of the
+            # wizard (:55); the real ImportWizard.jsx carries no such id, so waiting on it
+            # could never succeed. The real wizard is a Sheet (role="dialog") whose title is
+            # its step's (ImportWizard.jsx `sheetTitle`: "Import notes" -> "Review your
+            # import" -> "Importing…" -> "Import complete"), and whose file input is
+            # `data-testid="import-file-input"` (ImportWizard.jsx:924, ImportWizard.test.jsx
+            # :110) -- a HIDDEN input, so it is waited on as attached, not visible.
+            wiz = page.get_by_role("dialog").filter(
+                has_text=re.compile(r"Import notes|Review your import|Importing|Import complete"))
+            file_input = page.get_by_test_id("import-file-input")
+            file_input.wait_for(state="attached", timeout=20000)
+            file_input.set_input_files(md_path)
             wiz.get_by_text(re.compile(r"1 note", re.I)).first.wait_for(state="visible", timeout=20000)
-            wiz.get_by_role("button", name=re.compile(r"^import$", re.I)).click()
-            wiz.get_by_text(re.compile("imported", re.I)).first.wait_for(state="visible", timeout=30000)
+            wiz.get_by_role("button", name=re.compile(r"^import$", re.I)).click()   # ImportWizard.test.jsx:172
+            wiz.get_by_text("Import complete", exact=True).wait_for(state="visible", timeout=30000)
             imported = next((n for n in api.get(BASE + f"/api/j2/notes?q={RUNWORD}&limit=100").json().get("notes", [])
                              if "W23 import" in (n.get("title") or "") or f"walk-w23-{RUNWORD}" in (n.get("title") or "")), None)
             if imported:
@@ -3844,6 +3870,7 @@ with sync_playwright() as p:
                saved_view={"id": view_id, "buttons_in_section": nested["buttons"], "nested_controls": nested["nested"],
                            "tab_from_select_reaches": after_tab, "enter_opened_rename_field": field,
                            "two_tabs_reach": after_two_tabs, "enter_deleted": gone, "confirm_dialogs": dialogs,
+                           "confirm_modal_seen": confirm_seen, "confirm_modal_focus_on": confirm_focus,
                            "url_unchanged_by_delete": page.url == url_before},
                doors=doors)
 

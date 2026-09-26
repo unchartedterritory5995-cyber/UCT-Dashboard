@@ -408,3 +408,33 @@ def test_the_walk_signs_in_through_it_and_refuses_an_unprovisioned_member():
     guarded = [n for n in ast.walk(prov) if isinstance(n, ast.If)
                and "paid_equiv" in ast.unparse(n.test) and any(isinstance(x, ast.Raise) for x in ast.walk(n))]
     assert raises and guarded, "provision_member must refuse a member that is not signed in and paid"
+
+
+# ── selectors come from COMPONENTS, never from a test's mock (found by the 96fa5ca2a run) ──
+# W23 waited on `data-testid="import-wizard"`, which exists only on NotebookTab.test.jsx's
+# shallow MOCK of the wizard -- the real ImportWizard.jsx has no such id, so the door could
+# never be driven. Every test id the walk uses must be a data-testid a real (non-test)
+# component renders.
+
+_TEST_FILE = __import__("re").compile(r"\.(test|spec)\.[jt]sx?$")
+
+
+def _component_testids() -> set:
+    import re as _re
+    found = set()
+    for path in (REPO / "app" / "src").rglob("*"):
+        if path.suffix not in (".jsx", ".js", ".tsx", ".ts") or _TEST_FILE.search(path.name):
+            continue
+        text = path.read_text(encoding="utf-8", errors="replace")
+        found.update(_re.findall(r"""data-testid\s*=\s*\{?\s*["'`]([A-Za-z0-9_\-]+)["'`]""", text))
+    return found
+
+
+def test_every_test_id_the_walk_waits_on_is_rendered_by_a_real_component():
+    used = {c.args[0].value for c in _calls(_tree(), "get_by_test_id")
+            if c.args and isinstance(c.args[0], ast.Constant) and isinstance(c.args[0].value, str)}
+    assert "import-file-input" in used, "non-vacuity: the walk's known test ids were not read"
+    known = _component_testids()
+    assert "import-file-input" in known, "non-vacuity: no component test ids were found"
+    missing = sorted(used - known)
+    assert not missing, f"the walk waits on test ids no real component renders: {missing}"
