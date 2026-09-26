@@ -1,0 +1,10 @@
+# Shake-out sandbox (0346eb56f export, C:\data-8a, :8211) -- its integrity lines, copied from the launcher output
+# (its integrity log file lived in the deleted build tree; these are the same checkpoints as printed)
+
+  [pre-boot] shared data root baseline: 62 db files hashed (sha256)
+  [pre-boot] integrity log: C:\Users\Patrick\AppData\Local\Temp\claude\C--Users-Patrick\e5af7430-5c97-49c2-9846-4da28941d38c\scratchpad\w8A\tip\docs\plans\joystick\sandbox-runs\2026-09-26T01-52-08.md
+  [pre-boot] sandbox identity: 50628a224b089de1ad90ace3567bae4b (served at /__uct_sandbox_identity)
+  [post-boot (+15s)] shared data root CLEAN (62 db files byte-identical).
+  [post-prewarm (+120s)] shared data root CLEAN (62 db files byte-identical).
+  [stop-file] C:\Users\Patrick\AppData\Local\Temp\claude\C--Users-Patrick\e5af7430-5c97-49c2-9846-4da28941d38c\scratchpad\w8A\sandbox.stop seen -- asking uvicorn to exit
+  [shutdown] shared data root CLEAN (62 db files byte-identical). Log: C:\Users\Patrick\AppData\Local\Temp\claude\C--Users-Patrick\e5af7430-5c97-49c2-9846-4da28941d38c\scratchpad\w8A\tip\docs\plans\joystick\sandbox-runs\2026-09-26T01-52-08.md
