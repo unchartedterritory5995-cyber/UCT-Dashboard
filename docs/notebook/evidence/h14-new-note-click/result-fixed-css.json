@@ -1,0 +1,48 @@
+{
+ "checks": [
+  {
+   "check": "A1 back-then-new-note",
+   "first_posts": 1,
+   "focus_after_back": "BODY.",
+   "second_posts": 1,
+   "second_url": "http://127.0.0.1:8233/journal/notebook?note=b70205420920483da52d1478b1d7237e",
+   "verdict": "INCONCLUSIVE (focus never reached the heading)"
+  },
+  {
+   "check": "A2 back-then-new-note",
+   "first_posts": 1,
+   "focus_after_back": "BODY.",
+   "second_posts": 1,
+   "second_url": "http://127.0.0.1:8233/journal/notebook?note=329488d3b9bc449ab9cddb4c4f9ea9d9",
+   "verdict": "INCONCLUSIVE (focus never reached the heading)"
+  },
+  {
+   "check": "A3 back-then-new-note",
+   "first_posts": 1,
+   "focus_after_back": "BODY.",
+   "second_posts": 1,
+   "second_url": "http://127.0.0.1:8233/journal/notebook?note=77ff84a4d48e44e783dd8cf46b7191c2",
+   "verdict": "INCONCLUSIVE (focus never reached the heading)"
+  },
+  {
+   "check": "B keyboard focus shows the heading, moves nothing",
+   "skip_link": "Skip to notes list",
+   "heading": {
+    "text": "All notes",
+    "position": "absolute",
+    "pointerEvents": "none",
+    "width": 73.4375,
+    "focusVisible": true
+   },
+   "button_moved_px": 0.0,
+   "next_click_posts": 1,
+   "verdict": "PASS"
+  }
+ ],
+ "integrity": [
+  "pre-boot (baseline)",
+  "post-boot (+15s)",
+  "shutdown"
+ ],
+ "stop": "graceful to the shutdown checkpoint, then forced exit"
+}

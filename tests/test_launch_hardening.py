@@ -15,8 +15,10 @@ def _req(headers=None, client_host="10.0.0.1"):
 
 # ── Fix 1: real client IP ─────────────────────────────────────────────────────
 def test_client_ip_prefers_cf_connecting_ip():
+    # Behind a Cloudflare edge (Railway writes the edge as the LEFT-most X-Forwarded-For
+    # entry). A CF header without a Cloudflare edge is NOT trusted: tests/test_request_ip_probe.py.
     from api.services.request_ip import client_ip
-    r = _req({"cf-connecting-ip": "1.2.3.4", "x-forwarded-for": "5.6.7.8"}, "10.0.0.1")
+    r = _req({"cf-connecting-ip": "1.2.3.4", "x-forwarded-for": "104.16.0.1, 100.64.0.2"}, "10.0.0.1")
     assert client_ip(r) == "1.2.3.4"
 
 

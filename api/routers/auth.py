@@ -952,6 +952,18 @@ def post_feedback(req: FeedbackRequest, user: dict = Depends(get_current_user)):
     return result
 
 
+@router.get("/admin/request-ip-probe")
+def admin_request_ip_probe(request: Request, user: dict = Depends(get_current_user)):
+    """Admin-only: the forwarding facts THIS request arrived with (peer, the forwarding
+    headers verbatim, the hop Railway reports and whether it is Cloudflare's, and what
+    `client_ip` derives today). A measurement for the Cloudflare-origin hardening in
+    `api/services/request_ip.py`, read once through the domain and once at the Railway
+    origin; it echoes only the caller's own request and writes nothing."""
+    _require_admin(user)
+    from api.services.request_ip import describe
+    return describe(request)
+
+
 @router.get("/admin/feedback")
 def admin_feedback(user: dict = Depends(get_current_user), limit: int = 50):
     """Admin-only: return recent feedback."""
