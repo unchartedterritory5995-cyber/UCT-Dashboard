@@ -1,0 +1,57 @@
+{
+  "dirs_total": 7,
+  "dirs_measured": 7,
+  "dirs_unmeasured": [],
+  "sum_collected": 32979,
+  "rows": [
+    {
+      "dir": "tests",
+      "collected": 29765,
+      "seconds": 150.91,
+      "rss_mb": 634.9,
+      "result": "ok"
+    },
+    {
+      "dir": "tests/pattern_engine",
+      "collected": 2628,
+      "seconds": 20.68,
+      "rss_mb": 310.1,
+      "result": "ok"
+    },
+    {
+      "dir": "tests/api",
+      "collected": 299,
+      "seconds": 17.73,
+      "rss_mb": 248.8,
+      "result": "ok"
+    },
+    {
+      "dir": "tests/theme_engine",
+      "collected": 64,
+      "seconds": 8.62,
+      "rss_mb": 123.5,
+      "result": "ok"
+    },
+    {
+      "dir": "tests/theme_curation",
+      "collected": 57,
+      "seconds": 11.65,
+      "rss_mb": 109.0,
+      "result": "ok"
+    },
+    {
+      "dir": "tests/discord_render",
+      "collected": 46,
+      "seconds": 9.6,
+      "rss_mb": 71.1,
+      "result": "ok"
+    },
+    {
+      "dir": "tests/fundamentals_pit",
+      "collected": 120,
+      "seconds": 11.01,
+      "rss_mb": 70.9,
+      "result": "ok"
+    }
+  ]
+}
