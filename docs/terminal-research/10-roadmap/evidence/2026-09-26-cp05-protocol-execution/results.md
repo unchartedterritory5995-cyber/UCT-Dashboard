@@ -15,7 +15,21 @@ pod (§8 Governing Rule 2).
 
 ---
 
-## Protocol D — CDN reality check ✅ EXECUTED, AND IT SETTLES §3.3
+## Protocol D — CDN reality check ⛔⛔ EXECUTED, AND WITHDRAWN — it measured the GATE, not the payload
+
+☠️ **READ THIS BEFORE THE SECTION BELOW, WHICH IS RETAINED AS THE RECORD OF A WITHDRAWN RUN.**
+`/api/flow/data` is gated (`Depends(require_flow_user)`, `api/flow_router.py:1732`) and answers an
+unauthenticated caller with **401**; it also serves `text/csv` (`:468`), so the
+`content-type: application/json` recorded below **cannot be this route's payload**. A re-read at
+02:0xZ reproduced every recorded field except the status, which was 401. **The probe measured the
+refusal.** §3.3 is NOT settled and the conclusion is withdrawn in full. Working and the controls
+(three other gated routes answer 401 with `DYNAMIC`, only the flow path gives `BYPASS`, and
+§4.3's pre-gate 2026-07-25 reading of the real payload said `DYNAMIC`):
+`../../../07-technical-architecture/realtime-performance-architecture.md` §1. ⛔ And because this
+route serves the firm's paid options tape, the follow-up is a *cache-key* read before it is a
+performance change.
+
+### The withdrawn run, retained verbatim
 
 §8 called this *"the cheapest high-value measurement here"* and said it *"settles §3.3's open
 question — whether the documented Cloudflare rule was ever applied"*. Three requests:

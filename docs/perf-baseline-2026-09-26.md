@@ -73,25 +73,44 @@ histogram fired in this window, and none appears in any log sampled tonight. Aga
 
 ---
 
-## Protocol D — CDN reality check ✅ SETTLES §3.3
+## Protocol D — CDN reality check ⛔⛔ DOES NOT SETTLE §3.3 — the probe measured the GATE
 
-| request | `cf-cache-status` | `age` | `content-type` |
-|---|---|---|---|
-| `/api/flow/data?days=1` | **BYPASS** | — | `application/json` |
-| `/api/flow/data?days=1` (+4 s) | **BYPASS** | — | `application/json` |
-| `/api/flow/data?days=20` | **BYPASS** | — | — |
+☠️ **This section originally read "✅ SETTLES §3.3" and concluded the documented Cloudflare rule is
+not in effect. That conclusion is WITHDRAWN.** Full working:
+`terminal-research/07-technical-architecture/realtime-performance-architecture.md` §1.
 
-**The documented Cloudflare rule is not in effect on this endpoint.** §8's success signal was
-`MISS → HIT` with a non-null `age`; every request returned `BYPASS`, which is neither. The
-`days=20`-shares-`days=1` hazard cannot arise — there is no cache entry to share.
+| request | status | `cf-cache-status` | `age` | `content-type` | as recorded |
+|---|---|---|---|---|---|
+| `/api/flow/data?days=1` | 200 ❓ | **BYPASS** | — | `application/json` ❓ | original run |
+| `/api/flow/data?days=1` (+4 s) | 200 ❓ | **BYPASS** | — | `application/json` ❓ | original run |
+| `/api/flow/data?days=20` | 200 ❓ | **BYPASS** | — | — | original run |
+| `/api/flow/data?days=1` | **401** | **BYPASS** | — | `application/json` | re-read 02:0xZ |
+| `/api/flow/data` | **401** | **BYPASS** | — | `application/json` | re-read 02:0xZ |
 
-**Delta against §4.3:** its 2026-07-25 row recorded `cf-cache-status: DYNAMIC, age: null` on
-this same endpoint. `DYNAMIC` → `BYPASS` is a change in header but not in outcome: **not
-cached then, not cached now, fourteen months of documentation notwithstanding.**
+⛔ **Two things make the original rows unusable.** `/api/flow/data` is gated
+(`Depends(require_flow_user)`, `api/flow_router.py:1732`) and answers an unauthenticated caller
+with **401**; and it serves `text/csv` (`_serve_csv`, `:468`), so the recorded
+`content-type: application/json` **could not have come from this route's payload at all**. The
+re-read matches the original rows in every field except the status. The most likely reading is
+that the probe measured the refusal throughout.
 
-⚠️ `BYPASS` does not separate *a Cloudflare rule bypassing this path* from *the origin
-sending `Cache-Control: private/no-store` and Cloudflare obeying*. That decides whether the
-fix is a dashboard rule or a response header, and it is one more `curl -D -` away.
+⭐ **The `days=20`-shares-`days=1` hazard still cannot arise from this evidence** — but that is now
+"unmeasured", not "impossible".
+
+**Delta against §4.3, now interpretable:** its 2026-07-25 row recorded `DYNAMIC, age: null` on this
+endpoint, **before the 2026-08-09 auth gate existed**, so that reading saw the real payload and
+said `DYNAMIC`. Tonight the path reads `BYPASS`. ⛔ **The gate does not explain the change:** three
+unrelated gated routes (`/api/watchlists`, `/api/j2/accounts`, `/api/auth/me`) all answer 401 with
+`DYNAMIC`. So something was configured on `/api/flow/*` between those dates.
+
+⛔ **And the route is paid, gated tape.** Its own router docstring calls the pre-gate state *the
+single largest raw-data leak in the product*. Making this path cache without first reading the
+zone's cache key could serve that tape to an anonymous caller from the edge. **Nothing should
+change at Cloudflare until the existing rule and the cache key are read.**
+
+**What closes it:** one authenticated `curl -D -` of `/api/flow/data?days=1` reading
+`cache-control`, `cf-cache-status`, `age` and `x-flow-version`, plus a dashboard read of any Cache
+Rule on `/api/flow/*`.
 
 ---
 

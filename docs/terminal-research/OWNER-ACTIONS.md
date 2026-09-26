@@ -27,8 +27,10 @@ earlier reads in the same session succeeded, so the boundary is real but not obv
 consistent — worth knowing before you decide whether to widen it.
 
 **Nothing below is a decision.** Those were all delegated and ruled in
-`12-decisions/DECISION_CARDS_2026-09-26.md`, cards 9–19. Two items that were on this list
-this morning are now closed by measurement, and one now has a default.
+`12-decisions/DECISION_CARDS_2026-09-26.md`, cards 9–19. One item is now closed by measurement,
+one now has a default, and **one I answered and then had to withdraw** — item 6's CDN bullet.
+The withdrawal is written out there rather than quietly deleted, because the wrong version was
+in your hands for an hour and the corrected version asks you for something different.
 
 **Ordered by leverage.** Item 1 is worth more than the rest combined.
 
@@ -157,7 +159,7 @@ D8 in writing. That is a scope ruling you made, not a gap.
 
 ---
 
-## 6 · ✅ BOTH OF THESE ARE CLOSED — no action needed
+## 6 · One closed, one REOPENED by my own error — and the reopened one needs a dashboard read
 
 * **Arming the event-loop killer — RULED NOT YET** (CARD 18). Observe mode measures max lag at
   **14.9 ms** against a **30-second** wedge threshold, with no missed checks. That is three
@@ -168,18 +170,29 @@ D8 in writing. That is a scope ruling you made, not a gap.
   ⛔ And the runbook's "three to five times the observed maximum" heuristic must not be applied
   to a 27-minute after-hours sample — that would set the threshold near 60 ms, vastly more
   aggressive than the 30 seconds it ships with.
-* **The CDN question — ANSWERED, with a control** (CARD 19). Measured on production:
+* ⛔⛔ **The CDN question — I GOT THIS WRONG AND HAVE WITHDRAWN IT.** An hour ago this list said
+  the answer was a missing response header. It is not. The flow endpoint is **gated**, so the
+  probe that produced that answer was reading a **401 refusal**, which naturally carries no cache
+  header. The endpoint does send one. Withdrawn in full, with the working, in
+  `07-technical-architecture/realtime-performance-architecture.md` §1.
 
-  | request | `Cache-Control` from the origin | edge cache status |
-  |---|---|---|
-  | the flow data endpoint | **none sent at all** | BYPASS |
-  | a hashed static asset (control) | `public, max-age=31536000, immutable` | **HIT**, age ~23 days |
+  ⭐ **The replacement finding is more useful, and it needs you.** An ungated JSON route sits at
+  Cloudflare's `DYNAMIC` state, which is what "not cached by default" looks like. The flow path
+  sits at `BYPASS`, which is what an explicit configuration looks like — and the code comment
+  records that production *was* rewriting that path's browser cache lifetime at some point. So a
+  rule exists on it.
 
-  ⭐ **The origin sends no caching instruction, so Cloudflare has none to follow and defaults to
-  BYPASS on a dynamic API path. The fix is a response header on the endpoint, not a dashboard
-  rule** — and the control proves the edge caches perfectly well when it is told to.
-  ⚠️ Whether that endpoint *should* be cached at all is a freshness question this does not
-  touch, and it is a real one.
+  ⛔ **And the part that turns this from performance into safety.** That endpoint serves the
+  firm's paid options tape behind a gate, and the router's own docstring calls its previous
+  ungated state *the single largest raw-data leak in the product*. Cloudflare keys its cache on
+  the URL, not the session, and our header says `public`. **Making that path cache without first
+  checking the cache key could hand the paid tape to an anonymous caller from the edge.** Nothing
+  should change at Cloudflare until somebody reads the rule.
+
+  **What would close it:** a look at the Cloudflare dashboard for any Cache Rule on
+  `/api/flow/*` and what the zone's cache key includes. That is a read only you can do. The
+  matching one-line authenticated request against the endpoint needs the smoke-account
+  credentials, which are also yours.
 
 ---
 

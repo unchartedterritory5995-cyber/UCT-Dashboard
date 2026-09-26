@@ -250,26 +250,56 @@ watchdog actually ships with.
 
 ---
 
-## CARD 19 — why the CDN rule is dead: it is a MISSING RESPONSE HEADER ✅ ANSWERED, not just ruled
+## CARD 19 — ⛔⛔ WITHDRAWN THE SAME NIGHT IT WAS WRITTEN. The probe measured the GATE, not the payload.
 
-Protocol D established that `/api/flow/data` returns `cf-cache-status: BYPASS`. §8 said the
-remaining question — *a Cloudflare rule bypassing it, or the origin forbidding cache?* —
-"decides whether the fix is a dashboard rule or a response header". **Measured, with a control:**
+☠️ **This card claimed: "the origin sends no `Cache-Control` at all, so Cloudflare has no
+instruction and defaults to BYPASS; the fix is a RESPONSE HEADER, not a dashboard rule." That is
+false at the first step, and the card is withdrawn rather than amended.** Full working:
+`07-technical-architecture/realtime-performance-architecture.md` §1 (gate item 24).
 
-| | `Cache-Control` sent by origin | `cf-cache-status` |
-|---|---|---|
-| `/api/flow/data?days=1` | **NONE** | BYPASS |
-| a hashed static asset (control) | `public, max-age=31536000, immutable, no-transform` | **HIT**, `age` 2,007,373 s (~23 days) |
+**What went wrong.** `/api/flow/data` is gated — `Depends(require_flow_user)` — so an
+unauthenticated probe gets **401**, and a 401 carries no cache header. Two reads taken at
+02:0xZ confirm it: `HTTP/1.1 401`, `content-type: application/json`, `cf-cache-status: BYPASS`,
+no `Cache-Control`. That is an exact match for what Protocol D recorded **except for the
+status**, and the recorded `application/json` could not have come from this route at all — it
+serves `text/csv`.
 
-⭐ **ANSWER: the origin sends no `Cache-Control` at all, so Cloudflare has no instruction to
-cache and defaults to BYPASS on a dynamic API path. The fix is a RESPONSE HEADER on the
-endpoint, not a dashboard rule.** The control proves the CDN caches correctly when told to —
-a 23-day-old asset served from edge — so nothing is wrong with the CDN configuration in
-general.
+⭐ **The header exists.** `api/flow_router.py:131-134` sends
+`public, max-age=0, s-maxage=60, stale-while-revalidate=600`, merged into every successful
+response at `:466`, and the web-side proxy forwards it (`flow_proxy.py:184-190`).
 
-⚠️ This says nothing about whether that endpoint *should* be cached; `days=1` flow data has a
-freshness contract this card does not touch. It only removes the ambiguity about where the fix
-lives.
+⭐⭐ **And the surviving half is a BETTER instrument than the original.** Three reads, same
+minute:
+
+| request | gated? | `Cache-Control` from origin | `cf-cache-status` |
+|---|---|---|---|
+| a hashed static asset (control) | no | `public, max-age=31536000, immutable, no-transform` | MISS (fresh hash after tonight's deploys) |
+| `/api/health` (ungated JSON control) | no | *none* | **DYNAMIC** |
+| `/api/flow/data` (401) | **yes** | *none* | **BYPASS** |
+
+**`DYNAMIC` and `BYPASS` are different Cloudflare states.** An ungated JSON route with no rule
+sits at `DYNAMIC` — which is what "JSON is not edge-cached by default" looks like. The flow path
+sits at `BYPASS`, the state produced when the zone's configuration explicitly declines. So the
+flow path is **not** at the default, and the source agrees: the comment at `:128-130` records
+that *"prod was rewriting the browser TTL to `max-age=14400`"*, i.e. a rule has demonstrably
+acted on this path.
+
+⛔⛔ **And the reason this matters more than a cache miss.** The router's own docstring
+(`:17-20`) says every read here is gated as of 2026-08-19, and that before the gate,
+`GET /api/flow/data` *"answered an anonymous caller with 3.07 MB of the firm's options-flow tape
+— the single largest raw-data leak in the product."* Cloudflare's default cache key is the URL,
+not the session, and the shipped header says `public`. **Turning this path into a cache HIT
+without first reading the zone's cache key could serve the paid tape to an anonymous caller from
+the edge.** The status quo is the safe state; the `public` directive is the part that looks
+wrong.
+
+**So the question is REOPENED, and it is no longer "which layer holds the fix".** It is: does a
+Cache Rule exist on `/api/flow/*`, what does it say, and does the cache key include the
+credential? Those are dashboard reads. ⛔ Nothing should change at the edge until they are done.
+
+⚠️ **The lesson, stated generally because it will recur:** *an unauthenticated probe of a gated
+route measures the gate.* Any future latency or cache measurement against a paid surface either
+authenticates first or declares that it did not.
 
 ---
 
@@ -284,6 +314,6 @@ lives.
 | **CP-02 / OI-04** | an external contract answer | ❌ no |
 | **A14 / S9 tiers** | ✅ **now has a DEFAULT** (CARD 17), vetoable in one word | — |
 | **arming the watchdog** | ✅ **ruled NOT YET** with a named condition (CARD 18) | — |
-| **the CDN "why"** | ✅ **ANSWERED** (CARD 19) — a missing response header | — |
+| **the CDN "why"** | ⛔ **REOPENED — CARD 19 WITHDRAWN.** The probe measured a 401, not the payload. What is now needed is a read of the zone's Cache Rule on `/api/flow/*` and of its cache key, plus ONE authenticated `curl -D -` of the endpoint | ⭐ **PARTLY** — the authenticated curl needs the smoke credentials, which are operator-held; the Cloudflare dashboard read is yours either way |
 | **D5 CP6** | no vendor signal exists | ❌ no |
 | **CP-09 Bloomberg ceiling** | needs a seat or a practitioner | ❌ no |
