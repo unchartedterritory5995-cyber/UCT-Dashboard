@@ -323,6 +323,14 @@ def fetch_product(ticker: str, source: str, window, timeout_s: float, *, get=Non
 #: dark V2 path's 10 s would send anything this size to the labelled rollup fallback.
 BASIS_ROWS = 250_000
 
+#: How long the job waits for the page-derived card before answering with the labelled rollup.
+#: 45 s, not the rollup's 30: a first build of a 150-250K-row name after it traded takes ~10-20 s
+#: on an idle pod (AMD 20.0 s, measured 2026-09-25 after the close), and during RTH the pod is also
+#: consuming the tape. The interaction is deferred (Discord allows 15 min), and a wait is better
+#: than a different classifier's answer (the rollup read BULL for AMD and META on 9/25 where the
+#: page read BEAR). Every build that outlives the wait still lands and serves the next request.
+PAGE_FETCH_TIMEOUT_S = float(os.environ.get("FLOW_CARD_PAGE_TIMEOUT_S", "45") or 45)
+
 
 def fetch_basis_product(ticker: str, source: str, cap_rows: int, timeout_s: float, *, get=None) -> dict | None:
     """The page's derivation over the largest recent history under `cap_rows`, or None.
@@ -346,6 +354,9 @@ def fetch_basis_product(ticker: str, source: str, cap_rows: int, timeout_s: floa
                 log.info("[flow-card:page] %s basis declined: HTTP %s", ticker, r.status_code)
                 return None
             body = r.json()
+            as_of = r.headers.get("X-Flow-Basis-As-Of")
+            if as_of and isinstance(body, dict):
+                body["_as_of"] = float(as_of)       # served a product the tape has moved past
         else:
             body = get(ticker, params, headers)
     except Exception as e:  # noqa: BLE001 — a failed derivation is the fallback's job
@@ -396,6 +407,7 @@ def page_derived_payload(ticker: str, days: str, source: str, timeout_s: float =
         payload["window"]["basis_complete"] = complete
         payload["window"]["scope_dates"] = list(scope)
         payload["window"]["scope_all_history"] = rung == "all"
+        payload["window"]["as_of"] = body.get("_as_of")
         if payload["contracts"]:
             if label != first_label:
                 payload["window"]["widened_from"] = first_label

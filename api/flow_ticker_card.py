@@ -82,6 +82,19 @@ def _fmt_perf(p):
     return (f"{'+' if p >= 0 else '−'}{abs(p):.0f}%", col)
 
 
+def _as_of_et(epoch) -> str:
+    """"10:42 ET" for a build time, or "" (no label) when there is none or it cannot be read."""
+    if not epoch:
+        return ""
+    try:
+        import datetime as _dt
+        from zoneinfo import ZoneInfo
+        t = _dt.datetime.fromtimestamp(float(epoch), tz=ZoneInfo("America/New_York"))
+    except Exception:  # noqa: BLE001 -- a label, never the card
+        return ""
+    return t.strftime("%I:%M").lstrip("0") + " ET"
+
+
 def _window_label(w: dict) -> str:
     w = w or {}
     req = str(w.get("days_requested") or "").lower()
@@ -236,6 +249,9 @@ def render_ticker_flow_card(data: dict) -> bytes:
         _w = data.get("window") or {}
         foot_l += (" · page-derived" if _w.get("basis_complete", True)
                    else f" · page-derived, {_w.get('basis_sessions')}-session basis")
+        _asof = _as_of_et(_w.get("as_of"))
+        if _asof:
+            foot_l += f" · as of {_asof}"       # the tape has moved past this product; say when it was
     txt(36, H - 32, foot_l, f_foot, _DIM)
     txt(_W - 36, H - 32, "uctintelligence.com", f_foot, _GOLD_DIM, "r")
 

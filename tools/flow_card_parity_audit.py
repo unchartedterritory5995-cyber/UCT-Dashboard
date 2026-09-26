@@ -247,7 +247,11 @@ def fetch_page_card(op, sym: str, source: str, days: str):
         q = "&".join("%s=%s" % kv for kv in params.items())
         try:
             r = op.open("%s/api/flow/ticker-product/%s?%s" % (BASE, ticker, q), timeout=180)
-            return json.loads(r.read().decode())
+            body = json.loads(r.read().decode())
+            as_of = r.headers.get("X-Flow-Basis-As-Of")      # the same header the job reads
+            if as_of and isinstance(body, dict):
+                body["_as_of"] = float(as_of)
+            return body
         except urllib.error.HTTPError as e:
             try:
                 return json.loads(e.read().decode())
@@ -287,7 +291,10 @@ def run_page_mode(symbols: list, days: str, source: str) -> dict:
                                       str(win.get("days_requested")),
                                       all_history=bool(win.get("scope_all_history")))
         row["page"] = {"net": page_pay["net"]}
-        verdict, problems = page_mode_verdict(card["net"], page_pay["net"], bool(win.get("basis_complete")))
+        # A card served "as of" an earlier build is the page's derivation behind the tape: it can
+        # only be held to the direction, like a partial basis. During RTH that is most cards.
+        exact_expected = bool(win.get("basis_complete")) and not win.get("as_of")
+        verdict, problems = page_mode_verdict(card["net"], page_pay["net"], exact_expected)
         row["verdict"], row["problems"] = verdict, problems
         out["results"].append(row)
     return out
@@ -402,6 +409,8 @@ def main() -> int:
                     c["net"]["dir"], format(c["net"]["bull"], ","), format(c["net"]["bear"], ","),
                     w.get("scope_dates") if len(w.get("scope_dates") or []) <= 5 else "%d sessions" % len(w["scope_dates"]),
                     w.get("basis_sessions"), w.get("basis_complete"))
+                if w.get("as_of"):
+                    line += " as_of=%s" % dt.datetime.fromtimestamp(float(w["as_of"])).strftime("%H:%M:%S")
             if p:
                 line += "  | page %s $%s/$%s" % (p["net"]["dir"], format(p["net"]["bull"], ","), format(p["net"]["bear"], ","))
             print(line)

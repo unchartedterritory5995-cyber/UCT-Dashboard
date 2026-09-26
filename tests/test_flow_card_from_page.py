@@ -206,6 +206,7 @@ def _client(monkeypatch, tmp_path, dates):
     monkeypatch.setattr(fr, "_search_freshness", lambda sym, src: "v1")
     monkeypatch.setattr(fr.flow_aggregate, "available", lambda: True)
     fr._SEARCH_PRODUCT_CACHE.clear()
+    fr._BASIS_RECENT.clear(); fr._BASIS_REFRESHING.clear(); fr._BASIS_PARTIAL_UNTIL.clear()
     app = FastAPI()
     app.include_router(fr.flow_router)
     app.dependency_overrides[require_flow_user] = lambda: {"via": "test"}
@@ -618,6 +619,125 @@ def test_a_time_truncated_basis_is_not_served_past_its_short_ttl(monkeypatch, tm
     assert len(calls) == 2 and j["basis_complete"] is True and j["basis_cut"] is None
     assert key not in fr._BASIS_PARTIAL_UNTIL
     assert c.get(url).headers.get("X-Flow-Cache") == "hit" and len(calls) == 2   # complete: cached
+
+
+# ── market hours: the version moves with every print (2026-09-25) ────────────────────────────
+
+def _moving_version(monkeypatch, fr):
+    v = {"now": "v1"}
+    monkeypatch.setattr(fr, "_search_freshness", lambda sym, src: v["now"])
+    return v
+
+
+def test_a_product_the_tape_moved_past_is_served_at_once_labelled_and_rebuilt_behind(monkeypatch, tmp_path):
+    fr, c = _client(monkeypatch, tmp_path, ["9/22/2026", "9/23/2026", "9/24/2026"])
+    v = _moving_version(monkeypatch, fr)
+    calls, spawned = [], []
+    monkeypatch.setattr(fr, "_build_search_product", _caching_build(fr, calls))
+    monkeypatch.setattr(fr, "_spawn_basis_refresh", lambda *a: spawned.append(a) or True)
+    url = "/api/flow/ticker-product/DELL?source=stocks&basis_rows=100"
+    first = c.get(url)
+    assert first.headers.get("X-Flow-Cache") == "basis" and "X-Flow-Basis-As-Of" not in first.headers
+    built_at = first.json()["built_at"]
+    v["now"] = "v2"                                                          # DELL printed
+    r = c.get(url)
+    assert r.headers.get("X-Flow-Cache") == "basis-recent", r.headers
+    assert float(r.headers["X-Flow-Basis-As-Of"]) == pytest.approx(built_at, abs=1)
+    assert r.headers.get("X-Flow-Version") == "v1" and len(calls) == 1      # no rebuild on the request
+    assert spawned == [("DELL", "stocks", "v2", 100)], "the next request must find a fresher product"
+
+
+def test_past_the_reuse_window_the_request_rebuilds_itself(monkeypatch, tmp_path):
+    fr, c = _client(monkeypatch, tmp_path, ["9/22/2026", "9/23/2026", "9/24/2026"])
+    v = _moving_version(monkeypatch, fr)
+    calls = []
+    monkeypatch.setattr(fr, "_build_search_product", _caching_build(fr, calls))
+    monkeypatch.setattr(fr, "_BASIS_REUSE_S", -1.0)
+    url = "/api/flow/ticker-product/DELL?source=stocks&basis_rows=100"
+    c.get(url); v["now"] = "v2"
+    r = c.get(url)
+    assert r.headers.get("X-Flow-Cache") == "basis" and len(calls) == 2
+    assert "X-Flow-Basis-As-Of" not in r.headers
+
+
+def test_a_busy_lane_answers_with_the_last_good_product_labelled_or_declines(monkeypatch, tmp_path):
+    fr, c = _client(monkeypatch, tmp_path, ["9/22/2026", "9/23/2026", "9/24/2026"])
+    v = _moving_version(monkeypatch, fr)
+    calls = []
+    monkeypatch.setattr(fr, "_build_search_product", _caching_build(fr, calls))
+    monkeypatch.setattr(fr, "_BASIS_REUSE_S", -1.0)
+    url = "/api/flow/ticker-product/DELL?source=stocks&basis_rows=100"
+    c.get(url); v["now"] = "v2"
+
+    class _Busy:
+        def acquire(self, blocking=False): return False
+        def release(self): raise AssertionError("never acquired")
+    monkeypatch.setattr(fr, "_SEARCH_BUILD_LOCK", _Busy())
+    r = c.get(url)
+    assert r.headers.get("X-Flow-Cache") == "basis-stale" and "X-Flow-Basis-As-Of" in r.headers
+    monkeypatch.setattr(fr, "_BASIS_STALE_MAX_S", -1.0)
+    r2 = c.get(url)
+    assert r2.status_code == 503 and r2.json()["error"] == "busy"
+
+
+def test_a_time_cut_read_is_never_kept_as_the_recent_answer(monkeypatch, tmp_path):
+    fr, c = _client(monkeypatch, tmp_path, ["9/22/2026", "9/23/2026", "9/24/2026"])
+    monkeypatch.setattr(fr, "_build_search_product", _caching_build(fr, []))
+    monkeypatch.setattr(fr, "_BASIS_READ_BUDGET_S", -1.0)
+    assert c.get("/api/flow/ticker-product/DELL?source=stocks&basis_rows=100").json()["basis_cut"] == "time"
+    assert fr._basis_recent_get("DELL", "stocks", 100) is None
+
+
+def test_the_background_refresh_builds_the_current_version_once(monkeypatch, tmp_path):
+    fr, c = _client(monkeypatch, tmp_path, ["9/22/2026", "9/23/2026", "9/24/2026"])
+    calls = []
+    monkeypatch.setattr(fr, "_build_search_product", _caching_build(fr, calls))
+
+    class _Inline:
+        def __init__(self, target=None, name=None, daemon=None): self.t = target
+        def start(self): self.t()
+    monkeypatch.setattr(fr.threading, "Thread", _Inline)
+    assert fr._spawn_basis_refresh("DELL", "stocks", "v9", 100) is True
+    assert len(calls) == 1 and fr._search_product_cache_get(("DELL", "stocks", "v9", "r100")) is not None
+    assert fr._basis_recent_get("DELL", "stocks", 100)["version"] == "v9"
+    assert fr._spawn_basis_refresh("DELL", "stocks", "v9", 100) is True and len(calls) == 1   # already built
+    fr._BASIS_REFRESHING.add(("DELL", "stocks", 100))
+    assert fr._spawn_basis_refresh("DELL", "stocks", "v10", 100) is False                  # one at a time
+    fr._BASIS_REFRESHING.clear()
+
+
+def test_the_card_reads_the_as_of_header_and_says_so_on_the_card(monkeypatch):
+    from api.flow_ticker_card import _as_of_et, render_ticker_flow_card
+    import httpx
+    monkeypatch.setenv("WORKER_INTERNAL_URL", "http://flow-worker.test")
+
+    class _Resp:
+        is_success, status_code = True, 200
+        headers = {"X-Flow-Basis-As-Of": "1790000000"}
+        def json(self): return dict(BASIS_BODY)
+    monkeypatch.setattr(httpx, "get", lambda *a, **k: _Resp())
+    p = page.page_derived_payload("DELL", "5", "stocks", enrich=False)
+    assert p["window"]["as_of"] == 1790000000.0
+    assert _as_of_et(p["window"]["as_of"]) == "10:13 ET"          # 2026-09-21 14:13:20 UTC, EDT
+    assert _as_of_et(None) == "" and _as_of_et("junk") == ""
+    assert render_ticker_flow_card(p).startswith(bytes([0x89, 0x50, 0x4E, 0x47]))
+    fresh = page.page_derived_payload("DELL", "5", "stocks", get=lambda *a: dict(BASIS_BODY), enrich=False)
+    assert fresh["window"]["as_of"] is None, "a current product carries no as-of label"
+
+
+def test_the_job_gives_the_page_derived_card_its_own_longer_wait(monkeypatch):
+    from api.routers import discord_interactions as router
+    monkeypatch.setenv(page.FLAG, "1")
+    seen = {}
+
+    def fake_page(ticker, days, source, timeout_s=None, **k):
+        seen["timeout_s"] = timeout_s
+        return None
+    monkeypatch.setattr(page, "page_derived_payload", fake_page)
+    router.run_flow_card_job("A", "T", "DELL", "1", fetch_fn=lambda t, d: {"ok": True, "contracts": []},
+                             render_fn=lambda d: b"png", edit_fn=lambda *a, **k: (True, "ok"),
+                             source="stocks", timeout_s=30.0)
+    assert seen["timeout_s"] == page.PAGE_FETCH_TIMEOUT_S >= 45
 
 
 def test_a_complete_or_row_capped_basis_is_cached_like_any_product(monkeypatch, tmp_path):

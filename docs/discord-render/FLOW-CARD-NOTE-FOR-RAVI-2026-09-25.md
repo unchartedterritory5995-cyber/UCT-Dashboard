@@ -89,6 +89,13 @@ It was 150K until the evening of 9/25, when AMD's 150K basis read BULL for the d
 product read BEAR. A card build holds one of your two Search lanes for up to about 20 s (AMD), so
 under load your members' cold Search builds may see "busy" a little more often. Tell us if that is a
 problem and the cap comes down.
+
+During market hours a name's version moves with every print, so the card keeps its newest good
+product per name. Within 120 s it serves that product (labelled "as of HH:MM ET") and rebuilds once
+in the background. The background rebuild takes a lane only if one is free
+(`acquire(blocking=False)`), so it never queues behind your members, and there is at most one per
+name at a time. It is counted in `_BASIS_REFRESH_STATS`, and the knobs are
+`FLOW_CARD_BASIS_REUSE_S` / `FLOW_CARD_BASIS_STALE_MAX_S`.
 Row counts come from a covering read of `idx_flow_symbol_created`; the stream is one
 `CreatedDate = ?` query per session on `idx_flow_created_symbol`.
 

@@ -658,14 +658,17 @@ def search_product_cache_state() -> dict:
         }
 
 
-def _search_response(gz: bytes, version: str, cache_state: str) -> Response:
-    """One place that decides the Search product response headers."""
-    return Response(
-        content=gz, media_type="application/json",
-        headers={"Content-Encoding": "gzip", "Cache-Control": "no-store",
-                 "X-Flow-Version": version, "X-Flow-Product": "search",
-                 "X-Flow-Cache": cache_state},
-    )
+def _search_response(gz: bytes, version: str, cache_state: str, as_of: float | None = None) -> Response:
+    """One place that decides the Search product response headers.
+
+    `as_of` (the Discord card's basis path only): the epoch the served product was BUILT, sent
+    when it is behind the symbol's current version, so the card can say "as of HH:MM ET"."""
+    headers = {"Content-Encoding": "gzip", "Cache-Control": "no-store",
+               "X-Flow-Version": version, "X-Flow-Product": "search",
+               "X-Flow-Cache": cache_state}
+    if as_of is not None:
+        headers["X-Flow-Basis-As-Of"] = "%.0f" % as_of
+    return Response(content=gz, media_type="application/json", headers=headers)
 
 
 # STAGE EVIDENCE MUST SURVIVE A TIMEOUT. The first cold-miss attempt died at the
@@ -1147,37 +1150,139 @@ def _basis_ticker_product(sym: str, src: str, version: str, cap_rows: int, st):
     if not flow_aggregate.available():
         st.flush("NO_BUNDLE")
         return JSONResponse({"ok": False, "error": "bundle unavailable"}, status_code=503)
+    rec = _basis_recent_get(sym, src, cap_rows)
+    if rec is not None and rec["age_s"] <= _BASIS_REUSE_S:
+        # ⭐ THE VERSION MOVED SINCE THIS WAS BUILT (the name traded), BUT NOT BY MUCH. Serve it now,
+        # labelled with its build time, and rebuild in the background for the next request.
+        _spawn_basis_refresh(sym, src, version, cap_rows)
+        st.flush("RECENT_BASIS")
+        return _search_response(rec["gz"], rec["version"], "basis-recent", as_of=rec["built_at"])
     counts = _symbol_session_counts(sym)
-    market = _market_dates(src)[-20:]
     if not counts:
         return JSONResponse({"ok": True, "sym": sym, "source": src, "version": version,
-                             "schema": _SEARCH_PRODUCT_SCHEMA, "window_dates": [], "market_dates": market,
+                             "schema": _SEARCH_PRODUCT_SCHEMA, "window_dates": [],
+                             "market_dates": _market_dates(src)[-20:],
                              "basis_complete": True, "basis_rows": 0, "sessions_total": 0,
                              "product": {"all_directional": [], "TICKER_DB": []}, "rows": 0})
-    dates = _pick_basis(counts, cap_rows)
     if not _SEARCH_BUILD_LOCK.acquire(blocking=False):
+        if rec is not None and rec["age_s"] <= _BASIS_STALE_MAX_S:
+            st.flush("STALE_BASIS_BUSY")
+            return _search_response(rec["gz"], rec["version"], "basis-stale", as_of=rec["built_at"])
         st.flush("DECLINED_BUSY")
         return JSONResponse({"ok": False, "error": "busy"}, status_code=503)
     try:
-        used, chunks = _read_basis_newest_first(sym, src, dates, _BASIS_READ_BUDGET_S)
-        st.mark("basis_read", sessions=len(used), of=len(dates), total=len(counts))
-        n_by_date = dict(counts)
-        cut = "time" if len(used) < len(dates) else ("rows" if len(dates) < len(counts) else None)
-        extra = {"window_dates": used, "market_dates": market, "basis_complete": len(used) == len(counts),
-                 "basis_rows": sum(n_by_date.get(d, 0) for d in used), "sessions_total": len(counts),
-                 "basis_cut": cut}
-        gz, err = _build_search_product(sym, src, key, version, st, dates=used, extra=extra,
-                                        pre_chunks=chunks)
-        if err is not None:
-            return err
-        with _BASIS_PARTIAL_LOCK:
-            if cut == "time":
-                _BASIS_PARTIAL_UNTIL[key] = time.monotonic() + _BASIS_PARTIAL_TTL_S
-            else:
-                _BASIS_PARTIAL_UNTIL.pop(key, None)
-        return _search_response(gz, version, "basis")
+        gz, err = _build_basis_locked(sym, src, version, cap_rows, st, counts=counts)
     finally:
         _SEARCH_BUILD_LOCK.release()
+    if err is not None:
+        if rec is not None and rec["age_s"] <= _BASIS_STALE_MAX_S:
+            return _search_response(rec["gz"], rec["version"], "basis-stale", as_of=rec["built_at"])
+        return err
+    return _search_response(gz, version, "basis")
+
+
+def _build_basis_locked(sym: str, src: str, version: str, cap_rows: int, st, counts=None):
+    """Read, derive and cache ONE basis product. The CALLER holds `_SEARCH_BUILD_LOCK`.
+    -> (gz, None) or (None, error_response). One implementation for the request path and the
+    background refresh, so the two cannot drift into different products for one key."""
+    key = (sym, src, version, f"r{cap_rows}")
+    counts = counts if counts is not None else _symbol_session_counts(sym)
+    market = _market_dates(src)[-20:]
+    dates = _pick_basis(counts, cap_rows)
+    used, chunks = _read_basis_newest_first(sym, src, dates, _BASIS_READ_BUDGET_S)
+    st.mark("basis_read", sessions=len(used), of=len(dates), total=len(counts))
+    n_by_date = dict(counts)
+    cut = "time" if len(used) < len(dates) else ("rows" if len(dates) < len(counts) else None)
+    built_at = time.time()
+    extra = {"window_dates": used, "market_dates": market, "basis_complete": len(used) == len(counts),
+             "basis_rows": sum(n_by_date.get(d, 0) for d in used), "sessions_total": len(counts),
+             "basis_cut": cut, "built_at": round(built_at, 3)}
+    gz, err = _build_search_product(sym, src, key, version, st, dates=used, extra=extra,
+                                    pre_chunks=chunks)
+    if err is not None:
+        return None, err
+    with _BASIS_PARTIAL_LOCK:
+        if cut == "time":
+            _BASIS_PARTIAL_UNTIL[key] = time.monotonic() + _BASIS_PARTIAL_TTL_S
+        else:
+            _BASIS_PARTIAL_UNTIL.pop(key, None)
+            # A time-cut read is never a "recent" answer: it would outlive its own 60 s TTL here.
+            _basis_recent_put(sym, src, cap_rows, gz, version, built_at)
+    return gz, None
+
+
+# ── market hours: the version moves with every print ─────────────────────────────────────────
+# ⛔ WHY THIS EXISTS. The card's cache key carries the symbol's freshness, which moves every time
+# the name prints, so during RTH a busy name misses on EVERY /flow and rebuilds its full history
+# (AMD: 20 s on an idle pod after the close, measured 2026-09-25; the Discord job gives up at 45 s
+# and answers with the labelled ROLLUP, which read BULL for AMD and META on 9/25 while the page
+# read BEAR). So the newest good product per (symbol, partition, cap) is kept beside the versioned
+# cache: within `_BASIS_REUSE_S` it is served at once and rebuilt in the background; within
+# `_BASIS_STALE_MAX_S` it answers only when a build cannot run (lanes busy, a failed build). Either
+# way the response carries `X-Flow-Basis-As-Of` and the card says "as of HH:MM ET": the page's own
+# derivation a minute behind the tape, labelled, instead of a different classifier.
+_BASIS_REUSE_S = float(os.environ.get("FLOW_CARD_BASIS_REUSE_S", "120") or 120)
+_BASIS_STALE_MAX_S = float(os.environ.get("FLOW_CARD_BASIS_STALE_MAX_S", "900") or 900)
+_BASIS_RECENT_MAX = 32
+_BASIS_RECENT: "OrderedDict" = OrderedDict()
+_BASIS_RECENT_LOCK = threading.Lock()
+_BASIS_REFRESHING: set = set()
+_BASIS_REFRESH_STATS = {"built": 0, "declined": 0, "failed": 0, "already": 0}
+
+
+def _basis_recent_put(sym, src, cap_rows, gz, version, built_at) -> None:
+    rk = (sym, src, int(cap_rows))
+    with _BASIS_RECENT_LOCK:
+        _BASIS_RECENT[rk] = {"gz": gz, "version": version, "built_at": built_at,
+                             "mono": time.monotonic()}
+        _BASIS_RECENT.move_to_end(rk)
+        while len(_BASIS_RECENT) > _BASIS_RECENT_MAX:
+            _BASIS_RECENT.popitem(last=False)
+
+
+def _basis_recent_get(sym, src, cap_rows):
+    """The newest good product for this name, with its age, or None."""
+    with _BASIS_RECENT_LOCK:
+        rec = _BASIS_RECENT.get((sym, src, int(cap_rows)))
+        if rec is None:
+            return None
+        return {**rec, "age_s": time.monotonic() - rec["mono"]}
+
+
+def _spawn_basis_refresh(sym: str, src: str, version: str, cap_rows: int) -> bool:
+    """Rebuild one name's basis product off the request path. Never raises, never queues: one
+    refresh per (name, partition, cap) at a time, and a busy lane is a skip, said in the log."""
+    rk = (sym, src, int(cap_rows))
+    with _BASIS_RECENT_LOCK:
+        if rk in _BASIS_REFRESHING:
+            _BASIS_REFRESH_STATS["already"] += 1
+            return False
+        _BASIS_REFRESHING.add(rk)
+
+    def _run():
+        try:
+            if not _SEARCH_BUILD_LOCK.acquire(blocking=False):
+                _BASIS_REFRESH_STATS["declined"] += 1
+                log.info("[flow-search] basis refresh %s/%s declined — build lane busy", sym, src)
+                return
+            try:
+                if _search_product_cache_get((sym, src, version, f"r{cap_rows}")) is not None:
+                    _BASIS_REFRESH_STATS["already"] += 1
+                    return
+                _, err = _build_basis_locked(sym, src, version, cap_rows,
+                                             _Stages(sym + "/" + src + " basis-refresh"))
+                _BASIS_REFRESH_STATS["failed" if err is not None else "built"] += 1
+            finally:
+                _SEARCH_BUILD_LOCK.release()
+        except Exception as e:  # noqa: BLE001 — nothing is watching this thread
+            _BASIS_REFRESH_STATS["failed"] += 1
+            log.warning("[flow-search] basis refresh failed for %s/%s: %s", sym, src, e)
+        finally:
+            with _BASIS_RECENT_LOCK:
+                _BASIS_REFRESHING.discard(rk)
+
+    threading.Thread(target=_run, name=f"flow-basis-refresh-{sym}", daemon=True).start()
+    return True
 
 
 def _windowed_ticker_product(sym: str, src: str, version: str, wd: int, st):
