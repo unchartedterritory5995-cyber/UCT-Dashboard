@@ -456,7 +456,9 @@
   color: var(--text-bright);
   font-size: 12px;
 }
-.tagRenameInput:focus { outline: none; }
+/* Wave 8 (8A): the field is gold-bordered at rest, so the border cannot
+   also be the focus cue -- a ring outside it is. */
+.tagRenameInput:focus { outline: none; box-shadow: 0 0 0 2px var(--ut-gold); }
 .tagRenameActionBtn {
   align-self: flex-start;
   margin-right: 6px;

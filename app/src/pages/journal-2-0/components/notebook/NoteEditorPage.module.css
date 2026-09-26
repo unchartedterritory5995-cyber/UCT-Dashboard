@@ -157,10 +157,12 @@
   font-weight: 700;
   color: var(--text-bright);
   padding: 8px 0;
-  outline: none;
   line-height: 1.15;
 }
-/* ⛔ `.titleInput`/`.subtitleInput`/`.proseEditor` all set `outline: none`
+/* ⚰️ Wave 8 (8A): the base rules no longer suppress the outline at all (the
+   focus-suppression rail forbids a suppression with no replacement in the
+   same rule), so this rule and the global one agree. The history:
+   ⛔ `.titleInput`/`.subtitleInput`/`.proseEditor` all set `outline: none`
    unconditionally, at the SAME specificity as the app-wide `:focus-visible`
    rule in tokens.css — component-after-global cascade order means these
    three silently defeat that global rule with no compensating indicator of
@@ -183,7 +185,6 @@
   font-size: 18px;
   color: var(--text-muted);
   padding: 4px 0 20px;
-  outline: none;
   font-style: italic;
 }
 .fontSelect, .fontSizeSelect {
@@ -232,7 +233,6 @@
   line-height: 1.7;
   color: var(--text-bright);
   min-height: 400px;
-  outline: none;
 }
 /* The first block sits flush under the subtitle — so a divider (or heading)
    inserted at the top doesn't leave a big gap above it. */

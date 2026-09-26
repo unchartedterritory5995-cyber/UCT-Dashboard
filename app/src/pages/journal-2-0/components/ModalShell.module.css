@@ -136,9 +136,10 @@
   font-family: inherit;
   font-size: 13px;
   font-variant-numeric: tabular-nums;
-  outline: none;
 }
 
+/* Wave 8 (8A): the base rule used to remove the outline for every state and
+   left the ring to this one; the ring is drawn here, so nothing is lost. */
 .textInput:focus,
 .numberInput:focus,
 .select:focus,

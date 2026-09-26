@@ -70,7 +70,8 @@
 }
 .open:focus-visible {
   outline: none;
-  box-shadow: var(--focus-ring);
+  /* Wave 8 (8A): --focus-ring measures 1.7:1 on the light theme. */
+  box-shadow: 0 0 0 2px var(--ut-gold);
 }
 
 @media (max-width: 1024px) {

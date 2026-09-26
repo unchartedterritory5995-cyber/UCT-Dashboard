@@ -28,11 +28,14 @@
   width: 100%;
   border-radius: 10px;
   overflow: hidden;
-  outline: none;
   transition: box-shadow 120ms ease;
 }
+/* Wave 8 (8A): the outline is removed only in the rule that draws the ring
+   in its place, and the ring is the gold token -- the old 50% gold measured
+   1.3:1 on the light theme. */
 .filled:focus {
-  box-shadow: 0 0 0 3px rgba(220, 187, 94, 0.5);
+  outline: none;
+  box-shadow: 0 0 0 3px var(--ut-gold);
 }
 .filled.dragOver {
   box-shadow: 0 0 0 3px var(--ut-gold);
