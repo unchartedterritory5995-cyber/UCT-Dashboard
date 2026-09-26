@@ -1,0 +1,169 @@
+{
+  "verdict": "NO_NEW_FAILURES",
+  "counts": {
+    "new": 0,
+    "fixed": 5,
+    "unchanged": 176,
+    "missing": 0,
+    "baseline": 181,
+    "current": 176,
+    "current_ran": 57311,
+    "new_flaky": 0,
+    "flaky_size": 6,
+    "flaky_new": 2,
+    "flaky_fixed": 0,
+    "file_level_resolved": 0,
+    "coverage_lost": 0,
+    "new_ours": 0,
+    "new_others": 0,
+    "new_unattributed": 0
+  },
+  "arithmetic": "baseline 181 = unchanged 176 + fixed 5 + missing 0  |  current 176 = unchanged 176 + new 0 + new-but-flaky 0",
+  "invalid_because": [],
+  "baseline_run_id": "36223010516",
+  "current_run_id": "36246487715",
+  "baseline_sha": "271a078b6023ede05cfa157de8e27af6315bd6f8",
+  "current_sha": "f250a434cbfbb61962bee61da3a59081d3654932",
+  "commit_range": "271a078b6023ede05cfa157de8e27af6315bd6f8..f250a434cbfbb61962bee61da3a59081d3654932",
+  "first_run": false,
+  "new": [],
+  "missing": [],
+  "fixed": [
+    "pytest|tests.test_bars_server_include_today|test_todays_daily_bar_stamps_today_and_caches",
+    "pytest|tests.test_mutation_check.TestVerdicts|test_expect_red_naming_the_right_test_passes",
+    "pytest|tests.test_ticker_logos|test_existing_three_call_sites_unpack_tuple_return",
+    "pytest|tests.test_ticker_logos|test_run_hires_upgrade_recaches_existing",
+    "pytest|tests.test_ticker_logos|test_run_hires_upgrade_writes_source_sidecar"
+  ],
+  "new_flaky": [],
+  "flaky": [
+    "pytest|tests.test_discord_close_note|test_a_note_that_cannot_be_written_still_posts_the_charts",
+    "pytest|tests.test_mutation_check.TestRestoreGuarantee|test_the_file_is_byte_identical_after_a_detected_mutation",
+    "pytest|tests.test_mutation_check.TestVerdicts|test_a_detected_mutation_passes_the_check",
+    "pytest|tests.test_mutation_check.TestVerdicts|test_expect_red_naming_the_right_test_passes",
+    "vitest|src/components/chart/engine/__tests__/stockChartWiring.test.jsx|an engine-drawn indicator still appears in the crosshair legend > \u26d4\u26d4 A HOVER REACHES THE RENDERER NOT AT ALL",
+    "vitest|src/components/voice/VoiceHallucinationsPanel.test.jsx|VoiceHallucinationsPanel (Packet AD CP2) > populates the session dropdown and fires a POST re-audit for the selected session, then refreshes the flag list"
+  ],
+  "file_level_resolved": [],
+  "coverage_lost": [],
+  "missing_buckets": {},
+  "attribution": {
+    "pytest|tests.test_bars_server_include_today|test_todays_daily_bar_stamps_today_and_caches": {
+      "class": "UNATTRIBUTED",
+      "commits": [],
+      "workstreams": [],
+      "reason": "no commit in 271a078b6..f250a434c touched tests/test_bars_server_include_today.py or anything it imports"
+    },
+    "pytest|tests.test_mutation_check.TestVerdicts|test_expect_red_naming_the_right_test_passes": {
+      "class": "UNATTRIBUTED",
+      "commits": [],
+      "workstreams": [],
+      "reason": "no commit in 271a078b6..f250a434c touched tests/test_mutation_check.py or anything it imports"
+    },
+    "pytest|tests.test_ticker_logos|test_existing_three_call_sites_unpack_tuple_return": {
+      "class": "imported-file-change",
+      "commits": [
+        "15ae7fdd2",
+        "a78fb74c2",
+        "f883e0996",
+        "f250a434c"
+      ],
+      "workstreams": [
+        {
+          "commit": "15ae7fdd2",
+          "workstream": "feat",
+          "confidence": "message-tag",
+          "ours": false
+        },
+        {
+          "commit": "a78fb74c2",
+          "workstream": "feat/discord-render-ops",
+          "confidence": "merge",
+          "ours": false
+        },
+        {
+          "commit": "f883e0996",
+          "workstream": "Notebook wave 7",
+          "confidence": "message-tag",
+          "ours": false
+        },
+        {
+          "commit": "f250a434c",
+          "workstream": "feat/discord-render-ops",
+          "confidence": "merge",
+          "ours": false
+        }
+      ]
+    },
+    "pytest|tests.test_ticker_logos|test_run_hires_upgrade_recaches_existing": {
+      "class": "imported-file-change",
+      "commits": [
+        "15ae7fdd2",
+        "a78fb74c2",
+        "f883e0996",
+        "f250a434c"
+      ],
+      "workstreams": [
+        {
+          "commit": "15ae7fdd2",
+          "workstream": "feat",
+          "confidence": "message-tag",
+          "ours": false
+        },
+        {
+          "commit": "a78fb74c2",
+          "workstream": "feat/discord-render-ops",
+          "confidence": "merge",
+          "ours": false
+        },
+        {
+          "commit": "f883e0996",
+          "workstream": "Notebook wave 7",
+          "confidence": "message-tag",
+          "ours": false
+        },
+        {
+          "commit": "f250a434c",
+          "workstream": "feat/discord-render-ops",
+          "confidence": "merge",
+          "ours": false
+        }
+      ]
+    },
+    "pytest|tests.test_ticker_logos|test_run_hires_upgrade_writes_source_sidecar": {
+      "class": "imported-file-change",
+      "commits": [
+        "15ae7fdd2",
+        "a78fb74c2",
+        "f883e0996",
+        "f250a434c"
+      ],
+      "workstreams": [
+        {
+          "commit": "15ae7fdd2",
+          "workstream": "feat",
+          "confidence": "message-tag",
+          "ours": false
+        },
+        {
+          "commit": "a78fb74c2",
+          "workstream": "feat/discord-render-ops",
+          "confidence": "merge",
+          "ours": false
+        },
+        {
+          "commit": "f883e0996",
+          "workstream": "Notebook wave 7",
+          "confidence": "message-tag",
+          "ours": false
+        },
+        {
+          "commit": "f250a434c",
+          "workstream": "feat/discord-render-ops",
+          "confidence": "merge",
+          "ours": false
+        }
+      ]
+    }
+  }
+}
