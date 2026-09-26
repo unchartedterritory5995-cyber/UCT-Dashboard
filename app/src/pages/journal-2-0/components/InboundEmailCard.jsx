@@ -90,6 +90,9 @@ export default function InboundEmailCard() {
       )}
 
       {noAddressYet && (
+        // ⛔ `disabled` while the POST is on the wire is load-bearing (wave 7 residual, lens e):
+        // POST creates-OR-ROTATES, so a second click would rotate the address the first one made,
+        // and the address shown would stop working at once. A refusal gives the button back.
         <button type="button" className="btn btn-primary" disabled={busy} onClick={create}>
           {busy ? 'Making…' : 'Create my address'}
         </button>

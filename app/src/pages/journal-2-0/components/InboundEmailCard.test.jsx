@@ -77,6 +77,44 @@ describe('InboundEmailCard', () => {
     expect(global.fetch.mock.calls.filter(([, i]) => i?.method === 'POST')).toHaveLength(1)
   })
 
+  // ⛔ Wave 7 residual, backend re-review lens (e): POST creates-OR-ROTATES, so a double-clicked
+  // first Create sent two requests -- the server created, then rotated, and the address shown
+  // first stopped working at once. The button is disabled while its request is on the wire (the
+  // rendered state), and a second click in the same instant sends nothing.
+  it('a double-clicked Create sends ONE request, and the button reads as busy while it is on the wire', async () => {
+    let release
+    const gate = new Promise((r) => { release = r })
+    let created = false
+    global.fetch = vi.fn(async (url, init = {}) => {
+      if (init.method === 'POST') {
+        await gate
+        created = true
+        return json(200, { address: ADDR, createdAt: 'x', rotatedAt: null })
+      }
+      return json(200, { address: created ? ADDR : null })
+    })
+    renderCard()
+    const create = await screen.findByRole('button', { name: 'Create my address' })
+    fireEvent.click(create)
+    fireEvent.click(create)
+    const pending = screen.getByRole('button', { name: 'Making…' })
+    expect(pending).toBeDisabled()
+    fireEvent.click(pending)
+    expect(global.fetch.mock.calls.filter(([, i]) => i?.method === 'POST')).toHaveLength(1)
+    release()
+    expect(await screen.findByRole('textbox', { name: 'Your Notebook email address' })).toHaveValue(ADDR)
+    expect(global.fetch.mock.calls.filter(([, i]) => i?.method === 'POST')).toHaveLength(1)
+  })
+
+  it('a refused create gives the button back, enabled', async () => {
+    global.fetch = vi.fn(async (url, init = {}) => (
+      init.method === 'POST' ? json(500, { detail: 'boom' }) : json(200, { address: null })))
+    renderCard()
+    fireEvent.click(await screen.findByRole('button', { name: 'Create my address' }))
+    await screen.findByText('Could not make your address. Try again.')
+    expect(screen.getByRole('button', { name: 'Create my address' })).toBeEnabled()
+  })
+
   it('a create the server refuses is SAID, and the button stays', async () => {
     global.fetch = vi.fn(async (url, init = {}) => (
       init.method === 'POST' ? json(500, { detail: 'boom' }) : json(200, { address: null })))
