@@ -1,0 +1,104 @@
+[
+ {
+  "at": "15:45:44",
+  "step": "sandbox healthy",
+  "ok": true
+ },
+ {
+  "at": "15:45:47",
+  "step": "seeded",
+  "api_total": 992
+ },
+ {
+  "at": "15:46:19",
+  "step": "F1: H8 round 1",
+  "ok": false,
+  "error": "Locator.wait_for: Timeout 30000ms exceeded. | Call log: | - waiting for locator(\".ProseMirror\").first to be visible",
+  "seconds": 31.8,
+  "urls_during_H8": [
+   [
+    "15:45:47",
+    "/journal/notebook?view=all"
+   ],
+   [
+    "15:45:47",
+    "/journal/notebook?view=all"
+   ],
+   [
+    "15:45:49",
+    "/journal/notebook?note=73d51f45a6914f65911a9c2ac002218d"
+   ],
+   [
+    "15:45:49",
+    "/journal/notebook?view=all"
+   ]
+  ],
+  "page_errors": [],
+  "end_state": {
+   "pm": [],
+   "url": "/journal/notebook?view=all"
+  }
+ },
+ {
+  "at": "15:46:26",
+  "step": "F2: H7 round 1",
+  "ok": true
+ },
+ {
+  "at": "15:47:01",
+  "step": "F2: H8 round 1",
+  "ok": false,
+  "error": "Locator.wait_for: Timeout 30000ms exceeded. | Call log: | - waiting for locator(\".ProseMirror\").first to be visible",
+  "seconds": 34.9,
+  "urls_during_H8": [
+   [
+    "15:46:26",
+    "/journal/notebook?view=all"
+   ],
+   [
+    "15:46:30",
+    "/journal/notebook?note=9cb139e10c9a450f99784cdc6deec755"
+   ],
+   [
+    "15:46:31",
+    "/journal/notebook?view=all"
+   ]
+  ],
+  "page_errors": [],
+  "end_state": {
+   "pm": [],
+   "url": "/journal/notebook?view=all"
+  }
+ },
+ {
+  "at": "15:47:05",
+  "step": "F3: H6 round 1",
+  "ok": true
+ },
+ {
+  "at": "15:47:40",
+  "step": "F3: H8 round 1",
+  "ok": false,
+  "error": "Locator.wait_for: Timeout 30000ms exceeded. | Call log: | - waiting for locator(\".ProseMirror\").first to be visible",
+  "seconds": 34.8,
+  "urls_during_H8": [
+   [
+    "15:47:05",
+    "/journal/notebook?view=all"
+   ],
+   [
+    "15:47:10",
+    "/journal/notebook?note=c7f0a869313544ada42b6c9946d7ce37"
+   ],
+   [
+    "15:47:10",
+    "/journal/notebook?view=all"
+   ]
+  ],
+  "page_errors": [],
+  "end_state": {
+   "pm": [],
+   "url": "/journal/notebook?view=all"
+  }
+ }
+]
