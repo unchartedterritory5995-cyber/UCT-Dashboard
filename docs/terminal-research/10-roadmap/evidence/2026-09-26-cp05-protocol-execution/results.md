@@ -78,6 +78,35 @@ first person to run it still tripped over it.
 
 ---
 
+## Protocol B — full chart-surface matrix ✅ EXECUTED, 0 FAIL / 11 checks
+
+`tools/market_open_chart_check.py`, 01:02Z, after close — which §8 calls *"the weekend-safe
+baseline it was written against"*. Pod uptime 85 s.
+
+| check | result |
+|---|---|
+| health | PASS — 200 in **136 ms**, `wire_date=2026-09-25` |
+| latency: all 200 | PASS — 8/8 |
+| latency: warm server-compute | PASS — warm max **12.6 ms**; layers seen `fetch, mem, miss` |
+| weekly dedup MSTR / AAPL | PASS — 200 bars each, **0 dup-weeks, 0 non-Friday keys** |
+| bar sanity AAPL/D, NVDA/5 | PASS — 300 bars each, **0 bad-OHLC, 0 future-dated** |
+| live-bar liveness | ⚠️ **WARN — skipped, market closed.** The tool says run again during RTH |
+| push-stream (Phase C) | PASS — `ws_connected=True`, subscribers 0, emitted 0, drops 0 (correct with the market shut) |
+| accuracy: daily drift monitor | PASS — `detect_only_drift_count=0`, healed 0 |
+| deep intraday (20k bars) | PASS — 200, `layer=sqlite`, server **407.9 ms**, total **590 ms**, 1.42 MB |
+
+**`0 FAIL / 11 checks`.** The one WARN is the market being closed, which is the honest state
+of a liveness check after the bell and not a defect.
+
+⚠️ **Read the layer mix, not just the pass.** `layers seen: fetch, mem, miss` at 85 s of
+uptime is the same freshly-booted pod that voided Protocol A — B passed because its criteria
+are correctness and latency, not warm ratio. **The one thing this run does NOT establish is
+the warm ratio**, which remains Protocol A's job.
+
+⭐ Two numbers worth carrying into any performance architecture: the deep-intraday path
+answers a 20,000-bar request in **590 ms total off `sqlite`** (§8 expected a slow first
+fetch), and warm server-compute is **12.6 ms** at its max across eight surfaces.
+
 ## Protocol E — deploy-swap behaviour ✅ OBSERVED ALL EVENING, incidentally
 
 §8 Protocol E asks for an observed deploy: how long `/api/*` is unavailable, whether SSE
@@ -105,8 +134,10 @@ recorded from those watches rather than from a dedicated session:
 ## What CP-05 still needs, precisely
 
 1. **Protocol A at uptime ≥ 900 s** — in flight. This is the ≥ 99 % number.
-2. **Protocol B** (`tools/market_open_chart_check.py`) at 09:45 ET and again after close.
-   Not run tonight; it is one command and wants a market-hours pass.
+2. ✅ **Protocol B is DONE for the after-close half** (0 FAIL / 11, above). What remains is
+   the **09:45 ET market-hours pass**, which is the only way to clear its one WARN —
+   live-bar liveness, the "frozen chart" regression class — and to read the push-stream
+   with real subscribers.
 3. **Protocol C** — browser waterfall per surface, cold and warm, with a HAR export. Needs a
    visible foreground tab, so it is an operator task, not a headless one.
 4. **Protocol F** — capacity telemetry off the pod's own `[mem] rss_mb=… threads=…` line.
