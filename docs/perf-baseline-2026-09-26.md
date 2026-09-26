@@ -237,6 +237,57 @@ figure to ~10 min against the current gated pipeline.
    design, roadmap Rule 4 bars load against production, so a load model needs a
    non-production target that does not exist.
 
+## Protocol G — loop-lag baseline ✅ ALREADY ARMED, and the number exists
+
+⚠️ **Listed as "NOT RUN, DELIBERATELY" in the table above, and that was wrong when written.**
+Checked 2026-09-26 01:28Z: `WATCHDOG_OBSERVE=1` **is already set** on `web`, and
+`GET /api/watchdog/status` answers.
+
+| field | value (27-min window, after close) | value (fresh pod, 18 checks) |
+|---|---|---|
+| `enabled` | **false** — kill path OFF (`WATCHDOG_ENABLED` unset) | false |
+| `observe_only` / `running` | true / true | true / true |
+| **`max_lag_ms`** | **14.9** | 26.2 |
+| `last_lag_ms` | 0.1 | 2.6 |
+| `checks` @ `check_sec` 5.0 | **330** (~27 min) | 18 (~90 s) |
+| `missed_streak` | 0 | 0 |
+| `wedge_sec` | 30.0 | 30.0 |
+
+⭐⭐ **This is the number §8 says "bounds how much event-loop budget Terminal-Next panels may
+spend", and it says there is real headroom**: worst case **14.9 ms** on a settled pod against a
+**30-second** wedge threshold, no missed checks. A panel board costing single-digit
+milliseconds of loop time per frame is not the constraint here.
+
+⚠️ The fresh-pod column is higher (26.2 ms over 90 s) exactly as boot contention predicts —
+another reason §8's uptime rule exists.
+
+⛔ **Not clearance to arm the killer.** `enabled:false` is correct and stays correct; arming is
+the watchdog runbook's own decision and needs a threshold argued against `wedge_sec`, not
+against 3–5× a 27-minute after-hours observation. Market-open lag is the interesting case and
+is unmeasured.
+
+---
+
+## ⛔ CARD 16 — THE ≥ 99 % WARM GATE IS RETIRED (owner-delegated, 2026-09-26)
+
+Protocol A showed daily at **0 % warm and p50 104 ms simultaneously**, because §8 buckets
+`stale-swr` with `fetch` and `miss` under *"the user waited"*. Ruling
+(`DECISION_CARDS_2026-09-26.md` CARD 16): **`stale-swr` counts as SERVED**, and the tier gate
+is replaced by a latency gate on the same one command:
+
+* **Gate:** p95 ≤ 250 ms per timeframe, on a pod ≥ 300 s old.
+* **Report the tier mix beside it, never as pass/fail** — the `stale-swr` share is a
+  *freshness* signal, not a latency one.
+* ⚠️ **One tier alarm survives:** `fetch`/`miss` above ~10 % on **intraday during RTH** is
+  still the August defect, and `stale-swr` is **not** exonerated there. A stale intraday bar
+  mid-session is a different product from a stale daily bar after the close — and every run in
+  this document was taken after the close.
+
+Against the new gate, tonight: **daily p50 104 ms / max 301 ms — PASS. Intraday p50 65 ms /
+p95 75 ms — PASS.**
+
+---
+
 ## SOURCES
 
 * `docs/terminal-research/07-technical-architecture/current-performance-and-realtime.md`
