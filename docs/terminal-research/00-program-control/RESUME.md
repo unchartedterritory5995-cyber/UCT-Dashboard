@@ -2,6 +2,130 @@
 
 ---
 
+## ⭐⭐ READ THIS FIRST — session of 2026-09-25/26, and it is the largest single night this programme has had
+
+**Branch `terminal-research`, pushed and ancestry-verified at every step. Nothing is uncommitted.**
+⛔ This is a **docs branch**, so none of it deploys. One commit went to `master`: the D2 flag-ledger
+record, landed 02:00:05Z.
+
+### The one thing an owner still has to do
+
+**Turn off a four-hour BROWSER cache on the flow endpoint at Cloudflare.** Keep the edge cache,
+which is working. The origin deliberately sets `max-age=0` and a Cloudflare rule is rewriting it to
+`max-age=14400` on a live options tape. Ruling and reasoning: `12-decisions/DECISION_CARDS_2026-09-26.md`
+CARD 20. ⛔ A dashboard edit no agent can make. Nothing is waiting on it.
+
+Everything else on the owner list is either closed or explicitly optional. `OWNER-ACTIONS.md` is the
+walkthrough and it was rewritten three times tonight as items closed.
+
+### Six gate items drafted, three in flight
+
+| item | deliverable | lines |
+|---|---|---|
+| 10 | best-of-breed matrix | 1,259 |
+| 11 | anti-pattern library, 65 entries | 2,622 |
+| 22 | AI architecture | 818 |
+| 23 | security & entitlement architecture | 873 |
+| 24 | performance architecture (written by the orchestrator) | ~650 |
+| 25 | observability architecture | 904 |
+
+**In flight when this was written:** item 16 feature-opportunity backlog, item 36 testing strategy,
+item 37 rollout and rollback. ⚠️ If their files exist but the checklist still says NOT STARTED,
+their reports never arrived — check the files against the checklist before assuming.
+
+### ⛔⛔ THE OWNER RULING THAT CHANGES DOWNSTREAM WORK
+
+> **"there is one paid tier only that is it."** — owner, 2026-09-26.
+
+**ONE paid tier. No free tier beyond the single already-free page. No second paid tier.** My CARD 17
+default had said *two* paid tiers and is struck. ⛔ **Consequence: no tier-comparison surface of any
+kind, ever, and the entitlement architecture's tier axis is a BINARY.** Gate item 23 survives
+unrewritten because it was deliberately written to express *a* boundary rather than a count.
+⚠️ Price, trial and seat model are still undecided and still the owner's.
+
+### ⚰️⚰️ THE CDN QUESTION WAS READ THREE WAYS IN ONE NIGHT. Read this before citing any of it.
+
+1. Protocol D: *"the documented Cloudflare rule is not in effect and never has been."* **Wrong** — it
+   measured a **401**, because the endpoint is gated, and a route serving `text/csv` cannot have
+   produced the `application/json` it recorded.
+2. My first correction: *"reopened, and caching a paid gated tape could expose it at the edge."*
+   **Also wrong**, and worse, because it read as a security alarm built from an inference.
+3. ✅ **The measurement, on the owner's grant: MISS then HIT, 5,289,793 bytes. The rule IS in effect
+   and always was.** The wire says `max-age=14400` where the source says `max-age=0`, confirming the
+   override the code comment predicted. And a cookie-free retry after the cache was populated returns
+   **401 / 30 bytes**, so there is **no anonymous exposure**.
+
+⭐ **The surviving lesson, and it is general: an unauthenticated probe of a gated route measures the
+gate.** All five artifacts carry the settled version plus the history.
+
+### ⭐⭐ The S7 alert question is mostly answered, and NOT by the read that stayed refused
+
+The pod read is still blocked. **The app's own admin dark report carries the record**:
+`is_trendline: false`, `level_kinds: ["price"]`, **`spans: 1`**, and `sessions_covered` enumerated as
+exactly five consecutive sessions ending **2026-09-18**, with `agreed: 0`.
+
+⛔⛔ **`spans: 1` settles the three-orders-of-magnitude question.** One span means the 2,344
+`legacy_only` is ONE alert's evaluations, ≈469 per session — a tick cadence, not a delivery rate.
+With `agreed: 0` over the same days, the old rule fired on essentially every tick for five days while
+the new rule never did: **a stale alert on the wrong side of its own level, re-firing forever.** So
+that counter holds alerts a member would have been SPAMMED with, which the new rule correctly
+declines to send. **"Lost" is the desired outcome here.**
+
+⛔ Which is why **CARD 21 re-cuts the flip clause**: `legacy_only == 0` is a bar a correct fix makes
+impossible to pass, and a gate a healthy system fails is a gate that gets waived — exactly how the
+warm-ratio gate failed (CARD 16). The new clause leads on `new_only == 0`, which has held on four
+consecutive reads, and restricts disagreements to predicates still accumulating sessions with every
+exclusion named and dispositioned. **An unexplained exclusion blocks the flip.**
+
+### ⭐ THE PERMISSION BOUNDARY HAS A PRECISE SHAPE, and knowing it unblocked two items
+
+- ✅ **Reads through the app's own HTTP API are ALLOWED.** That is how the alert inventory, the CDN
+  measurement, and the predicate record were taken, authenticated as the smoke account via
+  Playwright.
+- ⛔ **Reads via `railway ssh` into the pod are REFUSED, every time.** Attempted and refused four
+  times across the night, never routed around.
+
+**So before asking the owner for a pod read, ask whether an app endpoint already carries the field.**
+Tonight it did, for three of four.
+
+### Measured tonight, in a real foreground browser (owner moved a window to the front)
+
+`10-roadmap/evidence/2026-09-26-protocol-c-and-gridspike/results.md`.
+
+- ⛔⛔ **The 16-cell figures this programme has quoted for months are superseded.** ~900 ms → **2,582
+  ms**. And **"+63 MB" was ambiguous between two numbers differing by 4.8×**: **+218 MB settled**,
+  **+45 MB retained** after idle.
+- ⭐ Per-cell framing is 28 ms median, so the 2.6 s is **data, not drawing** — the mount queue works.
+- ⭐ **A 16-panel board is QUIET once settled**: 2 long tasks, worst 85 ms, over 60 s.
+- ⭐⭐ **`/options-flow`'s load puzzle is answered.** The document paints in 140 ms; a cold visit then
+  pulls **31.1 MB** of packs whose first two shards cost 8.6–10.9 s of **server** time each, stalling
+  ten unrelated 0–1 KB calls to ~10.5 s. **Client stall is 1–3 ms on every one**, which is what proves
+  it is the server; HTTP/3 throughout, so no connection limit is involved.
+- ⛔ **One defect reproduces warm and is the slowest call both times:** `schwab/market-narrative`,
+  **7,531 ms warm / 20,768 ms cold for a 1 KB response**, on a member page's load path. Actionable
+  without further research.
+- ⚠️ Hover sweep **INCONCLUSIVE, not zero** — the harness refused to score it because no pointer moved.
+
+### ⛔ Process lessons paid for tonight, each with its incident
+
+1. ⛔⛔ **Do NOT commit a delegated file before its author's hand-back arrives.** Item 10 was committed
+   at **317 lines** and is **1,259**. It already ended with its own §10 and a GAPS section, which is
+   exactly what made it look finished. Caught by comparing the author's reported count to the commit.
+2. **A stale line citation of mine** shipped in two artifacts: `api/main.py:3639-3644` for a comment
+   that is at **`:4510`**. Verified before accepting the correction.
+3. **An earlier gate count I reported was wrong** because I bucketed on the whole row instead of the
+   status cell. Read the **last** pipe-delimited cell.
+4. ⚠️ **This worktree's `CLAUDE.md` is eight facts behind `_merge-master`'s and the harness auto-loads
+   it into every agent working here.** A banner at the top now names the two claims that would cause
+   harm if believed. ⛔ Read the `_merge-master` copy for anything you are about to act on.
+5. ⚠️ **Checklist row 20 asserted a false precondition** (no per-widget error boundaries) and **agents
+   are dispatched with those rows as their brief**, so a false row is an active wrong-precedent
+   source. Corrected.
+
+---
+
+---
+
 ## ✅ DEPLOYED TO MASTER 2026-09-21/22 — all six ready items, in one push
 
 All six pieces of finished, tested work that had been sitting on `feat/s7-price-level` were
