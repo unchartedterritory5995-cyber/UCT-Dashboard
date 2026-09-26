@@ -760,6 +760,67 @@ class TestReplay:
         assert _usage_count(uid) == 1
 
 
+# ── ruling D-H12: the body parse never runs on the event loop ────────────────
+
+def test_the_body_PARSE_never_stalls_the_loop(app, on, monkeypatch):
+    """Ruling D-H12. The web pod has ONE event loop for every member, and a
+    signed body may be up to MAX_BODY_BYTES (~34 MB): `json.loads` of that ON
+    the loop stalls everyone. The parse is stubbed to take 0.6 s (standing for a
+    large body's real parse) while an unrelated 10 ms heartbeat runs on the same
+    loop: it must never pause 0.25 s or more, and the email must still land."""
+    import asyncio
+
+    import httpx
+
+    from api.routers import notebook_inbound_email as door
+    uid = _user()
+    raw, headers = _signed({"to": _address(uid), "subject": "big", "text": "x"})
+    took: list[float] = []
+
+    class SlowParse:
+        def loads(self, s, *a, **k):
+            t = time.perf_counter()
+            time.sleep(0.6)
+            out = json.loads(s, *a, **k)
+            took.append(time.perf_counter() - t)
+            return out
+
+        def __getattr__(self, name):
+            return getattr(json, name)
+
+    monkeypatch.setattr(door, "json", SlowParse())
+
+    async def run():
+        loop = asyncio.get_running_loop()
+        gaps, done = [], asyncio.Event()
+
+        async def unrelated_request():
+            last = loop.time()
+            while not done.is_set():
+                await asyncio.sleep(0.01)
+                now = loop.time()
+                gaps.append(now - last)
+                last = now
+
+        beat = asyncio.create_task(unrelated_request())
+        await asyncio.sleep(0.05)                      # the other request is already beating
+        try:
+            transport = httpx.ASGITransport(app=app)
+            async with httpx.AsyncClient(transport=transport, base_url="http://door") as c:
+                r = await c.post("/api/j2/inbound-email", content=raw, headers=headers)
+        finally:
+            done.set()
+            await beat
+        return r, gaps
+
+    r, gaps = asyncio.run(run())
+    assert (r.status_code, r.content) == (202, b'{"accepted":true}')
+    assert max(gaps) < 0.25, (
+        f"the loop stalled {max(gaps):.3f}s for every member while a body was parsed")
+    assert took and took[0] >= 0.5, "non-vacuity: the parse never took long enough to matter"
+    assert [n["title"] for n in _notes(uid)] == ["big"]
+
+
 # ── fix round 1 · M-12: a lapsed plan stops the address making notes ─────────
 
 class TestPlanRecheck:

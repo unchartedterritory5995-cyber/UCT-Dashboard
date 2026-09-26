@@ -105,8 +105,12 @@ async def receive_email(request: Request) -> Response:
         # ⛔ NO BODY. Not "bad signature", not "expired": a caller without the
         # secret learns nothing about which check it failed.
         return Response(status_code=401)
+    # ⛔ The parse runs in the threadpool, never on the event loop (ruling
+    # D-H12): a signed body may be up to MAX_BODY_BYTES (~34 MB), and the web
+    # pod has one loop for every member. The clock was read ABOVE, before the
+    # parse, so however long it takes the claim below is judged at `now` (N2).
     try:
-        payload = json.loads(raw)
+        payload = await run_in_threadpool(json.loads, raw)
     except ValueError:
         return Response(status_code=400)
     if not isinstance(payload, dict):
