@@ -227,12 +227,53 @@ export function graphRingRow(allVars = themeVars()) {
   return row
 }
 
-/** Every row across the derived Notebook stylesheet set, plus the ring. */
+/** Wave 10 (9b): the graph's hub labels are small TEXT (10px / 12px), so they
+ *  are held to the text bar; every other ink is a graphic (3:1). */
+export const GRAPH_TEXT_INKS = Object.freeze(['.inkLabel', '.inkLabelHover'])
+
+/** Wave 10 (9b): every colour the graph canvas paints -- the `.ink*` rules in
+ *  NoteGraphView.module.css, which the component reads with getComputedStyle --
+ *  against the `.canvasWrap` background they are drawn on. DERIVED from the
+ *  stylesheet (every `.inkX` rule), so an ink added tomorrow is measured the day
+ *  it lands; none found is an error, never an empty pass. */
+export function graphInkRows(allVars = themeVars()) {
+  const rel = 'components/notebook/NoteGraphView.module.css'
+  const rules = parseRules(readFileSync(join(J2_DIR, rel), 'utf8'))
+  const wrapRule = rules.find((x) => x.selector === '.canvasWrap')
+  const wrap = wrapRule && last(declarations(wrapRule), 'background')
+  if (!wrap) throw new Error(`${rel}: no background on .canvasWrap`)
+  const inks = rules.filter((r) => /^\.ink[A-Z][A-Za-z]*$/.test(r.selector))
+  if (!inks.length) throw new Error(`${rel}: no .ink* rules -- the graph's colours are not in the stylesheet`)
+  return inks.map((r) => {
+    const d = last(declarations(r), 'color')
+    if (!d) throw new Error(`${rel}: no color on ${r.selector}`)
+    const text = GRAPH_TEXT_INKS.includes(r.selector)
+    const bar = text ? BARS.text : BARS.ui
+    const row = {
+      file: rel, line: r.line, selector: `${r.selector} (graph ink) on .canvasWrap`,
+      kind: text ? 'text-graph-label' : 'ui-graph-ink', prop: 'color', value: d.value, themes: {},
+    }
+    for (const theme of THEMES) {
+      const v = allVars[theme]
+      try {
+        const w = worstRatio(d.value, surfacesFor(wrap, v), v)
+        row.themes[theme] = { ratio: w.ratio, on: w.on, bar }
+      } catch (e) {
+        row.themes[theme] = { error: e.message }
+      }
+    }
+    return row
+  })
+}
+
+/** Every row across the derived Notebook stylesheet set, plus the graph's
+ *  ring and (wave 10) the rest of its inks. */
 export function auditNotebook() {
   const vars = themeVars()
   const files = deriveNotebookCss()
   const rows = files.flatMap((f) => auditFile(f, vars))
   rows.push(graphRingRow(vars))
+  rows.push(...graphInkRows(vars))
   return { files, rows }
 }
 
