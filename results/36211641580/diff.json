@@ -1,0 +1,93 @@
+{
+  "verdict": "COVERAGE_LOST",
+  "counts": {
+    "new": 1,
+    "fixed": 3,
+    "unchanged": 177,
+    "missing": 1,
+    "baseline": 181,
+    "current": 178,
+    "current_ran": 55280,
+    "new_flaky": 0,
+    "flaky_size": 6,
+    "flaky_new": 2,
+    "flaky_fixed": 0,
+    "file_level_resolved": 0,
+    "coverage_lost": 1,
+    "new_ours": 0,
+    "new_others": 0,
+    "new_unattributed": 1
+  },
+  "arithmetic": "baseline 181 = unchanged 177 + fixed 3 + missing 1  |  current 178 = unchanged 177 + new 1 + new-but-flaky 0",
+  "invalid_because": [],
+  "baseline_run_id": "36208396823",
+  "current_run_id": "36211641580",
+  "baseline_sha": "2316c8ca443e2dd405eef7885d415dd5b4c33f2c",
+  "current_sha": "2c3ed30930141d4682718e9bc73a8d8b76878a2f",
+  "commit_range": "2316c8ca443e2dd405eef7885d415dd5b4c33f2c..2c3ed30930141d4682718e9bc73a8d8b76878a2f",
+  "first_run": false,
+  "new": [
+    "vitest|src/pages/journal-2-0/components/notebook/AskPanel.navNotice.test.jsx|AskPanel \u2014 the notice is brought into view on touch > on TOUCH, setting a notice scrolls THAT region into view, nearest"
+  ],
+  "missing": [
+    "vitest|src/pages/journal-2-0/lib/importer/exportRoundtrip.test.js|our own export round-trips through our own importer"
+  ],
+  "fixed": [
+    "pytest|tests.test_gate_shards|test_the_read_set_covers_every_root_relative_path_the_suite_reads",
+    "pytest|tests.test_mutation_check.TestVerdicts|test_a_detected_mutation_passes_the_check",
+    "pytest|tests.test_mutation_check.TestVerdicts|test_expect_red_naming_the_right_test_passes"
+  ],
+  "new_flaky": [],
+  "flaky": [
+    "pytest|tests.test_discord_close_note|test_a_note_that_cannot_be_written_still_posts_the_charts",
+    "pytest|tests.test_mutation_check.TestRestoreGuarantee|test_the_file_is_byte_identical_after_a_detected_mutation",
+    "pytest|tests.test_mutation_check.TestVerdicts|test_a_detected_mutation_passes_the_check",
+    "pytest|tests.test_mutation_check.TestVerdicts|test_expect_red_naming_the_right_test_passes",
+    "vitest|src/components/chart/engine/__tests__/stockChartWiring.test.jsx|an engine-drawn indicator still appears in the crosshair legend > \u26d4\u26d4 A HOVER REACHES THE RENDERER NOT AT ALL",
+    "vitest|src/components/voice/VoiceHallucinationsPanel.test.jsx|VoiceHallucinationsPanel (Packet AD CP2) > populates the session dropdown and fires a POST re-audit for the selected session, then refreshes the flag list"
+  ],
+  "file_level_resolved": [],
+  "coverage_lost": [
+    "vitest|src/pages/journal-2-0/lib/importer/exportRoundtrip.test.js|our own export round-trips through our own importer"
+  ],
+  "missing_buckets": {
+    "vitest|src/pages/journal-2-0/lib/importer/exportRoundtrip.test.js|our own export round-trips through our own importer": [
+      "UNATTRIBUTED",
+      "src/pages/journal-2-0/lib/importer/exportRoundtrip.test.js is absent and no deletion is attributable in the diff"
+    ]
+  },
+  "attribution": {
+    "vitest|src/pages/journal-2-0/components/notebook/AskPanel.navNotice.test.jsx|AskPanel \u2014 the notice is brought into view on touch > on TOUCH, setting a notice scrolls THAT region into view, nearest": {
+      "class": "UNATTRIBUTED",
+      "commits": [],
+      "workstreams": [],
+      "reason": "no commit in 2316c8ca4..2c3ed3093 touched src/pages/journal-2-0/components/notebook/AskPanel.navNotice.test.jsx or anything it imports"
+    },
+    "pytest|tests.test_gate_shards|test_the_read_set_covers_every_root_relative_path_the_suite_reads": {
+      "class": "test-file-change",
+      "commits": [
+        "2c3ed3093"
+      ],
+      "workstreams": [
+        {
+          "commit": "2c3ed3093",
+          "workstream": "author:unchartedterritory5995-cyber",
+          "confidence": "author",
+          "ours": false
+        }
+      ]
+    },
+    "pytest|tests.test_mutation_check.TestVerdicts|test_a_detected_mutation_passes_the_check": {
+      "class": "UNATTRIBUTED",
+      "commits": [],
+      "workstreams": [],
+      "reason": "no commit in 2316c8ca4..2c3ed3093 touched tests/test_mutation_check.py or anything it imports"
+    },
+    "pytest|tests.test_mutation_check.TestVerdicts|test_expect_red_naming_the_right_test_passes": {
+      "class": "UNATTRIBUTED",
+      "commits": [],
+      "workstreams": [],
+      "reason": "no commit in 2316c8ca4..2c3ed3093 touched tests/test_mutation_check.py or anything it imports"
+    }
+  }
+}
