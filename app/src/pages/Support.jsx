@@ -2,6 +2,8 @@ import { useState, useEffect, useCallback, useRef, useMemo } from 'react'
 import { Link, useSearchParams, useLocation } from 'react-router-dom'
 import UIcon from '../components/ui/UIcon'
 import { useAuth } from '../context/AuthContext'
+import { notebookFlag } from './journal-2-0/lib/offline/notebookFlags'
+import { TOUR_START_STATE } from './journal-2-0/components/notebook/onboarding/tourControl'
 import styles from './Support.module.css'
 
 const CATEGORIES = [
@@ -278,7 +280,43 @@ const STATUS_FILTERS = [
 // This is the source of truth for both "Quick answers" AND the article
 // suggestions that appear inline on the new-ticket form. If you add an
 // article here, both surfaces pick it up.
-const FAQS = [
+// ── Notebook articles: what decides whether a gated one is shown ─────────────
+//
+// ⛔ AN ARTICLE ABOUT A DARK DOOR DESCRIBES A DOOR THAT IS NOT THERE. An article
+// carrying `when` is shown only while `when()` is true, read at render from the
+// payload flags the auth responses latch (`lib/offline/notebookFlags.js`); an
+// unlatched flag reads as not-true, which hides the article — the safe direction.
+// Sentences about a door inside an otherwise-live article use the same reads.
+const notebookOn = (key) => notebookFlag(key) === true
+const sharingLinksOn = () => notebookOn('j2_share_links_enabled')
+const publishingOn = () => notebookOn('notebook_publish_enabled')
+const onboardingOn = () => notebookOn('notebook_onboarding_enabled')
+
+/** "Take the tour" — only where the tour exists. Opens the Notebook with the tour. */
+function TourLink() {
+  if (!onboardingOn()) return null
+  return (
+    <> <Link to="/journal/notebook" state={TOUR_START_STATE}>Take the tour</Link> to see
+      where everything is.</>
+  )
+}
+
+function ShareLinkSentence() {
+  if (!sharingLinksOn()) return null
+  return (
+    <> <strong>Share link</strong> makes a read-only link to the note that anyone with the
+      link can open.</>
+  )
+}
+
+function PublishSentence() {
+  if (!publishingOn()) return null
+  return (
+    <> <strong>Publish to the web</strong> turns the note into a public page.</>
+  )
+}
+
+export const FAQS = [
   {
     id: 'connect-broker',
     topic: 'journal',
@@ -369,6 +407,172 @@ const FAQS = [
       everything is down, check the status pill at the top of this page — if
       we're investigating, you'll see it there.</>,
   },
+  // ── The Notebook (wave 8, lane 8C, C1) ────────────────────────────────────
+  //
+  // `topic: 'notebook'`: `inferSourceTopic` returns it for any /journal/notebook
+  // path, so a member who came from the Notebook sees these first. Every
+  // `<Link to>` here must resolve to a route in App.jsx or a Settings section
+  // (Support.notebook.test.jsx derives both by parsing, never by a typed list).
+  // ⛔ No article for the personal API or email-in: their gates are server-only,
+  // so this page cannot tell whether they exist for the reader.
+  // ⛔ Shortcuts: the one chord named is the quick switcher's; everything else is
+  // "press ?", which lists every shortcut and cannot go stale.
+  {
+    id: 'notebook-getting-started',
+    topic: 'notebook',
+    q: 'How do I get started with the Notebook?',
+    keywords: 'notebook start begin first note new note thesis research write notes getting started tour',
+    a: <>Open the <Link to="/journal/notebook">Notebook</Link> and choose <strong>+ New note</strong>,
+      or start from a thesis. What you write saves as you type. Folders and tags are on the left,
+      and the Notebook home shows what you were working on, your favorites and your active
+      theses.<TourLink /></>,
+  },
+  {
+    id: 'notebook-templates-daily-note',
+    topic: 'notebook',
+    q: 'How do templates and the daily note work?',
+    keywords: 'template templates daily note today journal save as template your templates thesis',
+    a: <>Choose <strong>Templates</strong> in the Notebook's toolbar to start a note from a
+      layout — a thesis, a daily note and more. <strong>Today</strong> opens today's daily note,
+      and creates it the first time you open it each day. To reuse a layout of your own, open a
+      note and choose <strong>Save as template</strong> from its menu; it then appears under
+      <strong> Your templates</strong>.</>,
+  },
+  {
+    id: 'notebook-linking-notes',
+    topic: 'notebook',
+    q: 'How do I link notes together?',
+    keywords: 'link links linking backlinks unlinked mentions graph wiki brackets mention at date connect related',
+    a: <>Type <code>[[</code> in a note and pick another note to link to it. Each note lists the
+      notes that link to it under <strong>Backlinks</strong>, and <strong>Unlinked mentions</strong>
+      shows notes that name it without linking to it yet. Type <code>@</code> and a day —
+      <code> @today</code>, <code>@tomorrow</code>, <code>@monday</code> — to put a date in a note.
+      The <strong>Graph view</strong> draws every link between your notes, and its list view gives
+      the same connections as text.</>,
+  },
+  {
+    id: 'notebook-organizing',
+    topic: 'notebook',
+    q: 'How do I organize notes with folders, tags and archive?',
+    keywords: 'folder folders nested tags tag archive lock locked bulk select move delete organize trash restore',
+    a: <>Put notes in folders, and folders inside folders. Give notes tags; a tag written with a
+      slash, like <code>setups/breakouts</code>, sits under its parent tag. <strong>Archive</strong> a
+      note (from its menu) to keep it out of your lists without deleting it, and
+      <strong> Lock</strong> it to switch editing off until you unlock it. Select several notes to
+      move, tag, archive or delete them together. Deleted notes go to Trash, where you can restore
+      them.</>,
+  },
+  {
+    id: 'notebook-search-quick-switcher',
+    topic: 'notebook',
+    q: 'How do I search my notes and jump between them?',
+    keywords: 'search find quick switcher command palette jump open note cmd ctrl k keyboard',
+    a: <>The search box in the Notebook's sidebar finds any word in any note. To jump to a note
+      from anywhere in the app, open the quick switcher — <kbd>⌘ K</kbd> on a Mac,
+      <kbd> Ctrl K</kbd> elsewhere — and start typing its title.</>,
+  },
+  {
+    id: 'notebook-ask',
+    topic: 'notebook',
+    q: 'What can Ask your notebook answer?',
+    keywords: 'ask ai question answer citations sources notebook assistant refuse cannot find',
+    a: <>Ask answers questions from your own notes. Every answer shows numbered citations; open one
+      to go to the passage it came from. When nothing in your notes answers the question, Ask says
+      it couldn't find it rather than guessing.</>,
+  },
+  {
+    id: 'notebook-capture-web-phone',
+    topic: 'notebook',
+    q: 'How do I save pages from the web or my phone into the Notebook?',
+    keywords: 'capture clip clipper web browser save page article selection share sheet phone android',
+    a: <>On a computer, connect browser capture in <Link to="/settings?section=connections">Settings →
+      Connections</Link>, then save a page or a selection straight into your Notebook. On an Android
+      phone, add the site to your home screen; it then appears in your phone's <strong>Share</strong>
+      menu, and whatever you share lands in the Notebook.</>,
+  },
+  {
+    id: 'notebook-documents-scanned-text',
+    topic: 'notebook',
+    q: 'Can I keep PDFs and scanned documents in a note?',
+    keywords: 'pdf document documents word docx scan scanned ocr text attach attachment viewer search quote excerpt',
+    a: <>Yes. Attach a PDF or a Word document to a note and open it in the viewer. The Notebook
+      reads the text of scanned pages too, so you can search it and quote a passage into a note;
+      the quote links back to its page.</>,
+  },
+  {
+    id: 'notebook-import',
+    topic: 'notebook',
+    q: 'How do I import notes from Notion, Obsidian or Evernote?',
+    keywords: 'import notion obsidian evernote markdown files word docx html zip vault bring migrate move',
+    a: <>Choose <strong>Import</strong> in the Notebook's toolbar and add an export from Notion,
+      Obsidian or Evernote, or Markdown, text, web page or Word files. Folders, tags, images and the
+      links between the imported notes come with them. You see what will be added before anything
+      is saved, and importing the same files again does not make duplicates. A Notebook export —
+      Markdown, web page or JSON — imports back too.</>,
+  },
+  {
+    id: 'notebook-export-formats',
+    topic: 'notebook',
+    q: 'How do I export my notes, and what does each format keep?',
+    keywords: 'export download backup markdown html web page json word docx pdf print zip formats leave',
+    a: <>Choose <strong>Export</strong> in the Notebook's toolbar to download every note as one zip,
+      in the format you pick:
+      <ul>
+        <li><strong>Markdown</strong> — plain-text files with your folders, tags and attachments.
+          Opens in Obsidian and any Markdown app, and imports back into UCT.</li>
+        <li><strong>Web page (HTML)</strong> — each note as a page that opens in any browser,
+          offline.</li>
+        <li><strong>JSON</strong> — every note exactly as stored. The format to bring your notes
+          back into UCT with nothing lost.</li>
+        <li><strong>Word (.docx)</strong> — headings, lists, tables and images as Word's own;
+          anything Word has no match for becomes plain text.</li>
+      </ul>
+      For one note, use the <strong>Export</strong> menu in the note's toolbar. For a PDF, choose
+      <strong> Print</strong>, then Save as PDF.</>,
+  },
+  {
+    id: 'notebook-offline-conflicted-copies',
+    topic: 'notebook',
+    q: 'Does the Notebook work offline, and what is a conflicted copy?',
+    keywords: 'offline no connection internet sync saving conflict conflicted copy two devices tabs lost changes',
+    a: <>Yes. What you type is kept in your browser first and sent as soon as there is a
+      connection, so losing Wi-Fi mid-sentence loses nothing. If the same note was changed somewhere
+      else while you were writing — on another device or in another tab — neither version is
+      overwritten: yours is kept as a separate note marked <strong>(conflicted copy)</strong>, so you
+      can compare the two and keep what you want.</>,
+  },
+  {
+    id: 'notebook-keyboard-screen-readers',
+    topic: 'notebook',
+    q: 'Can I use the Notebook with a keyboard or a screen reader?',
+    keywords: 'keyboard shortcuts screen reader voiceover nvda jaws talkback accessibility accessible keys hotkeys cheat sheet',
+    a: <>Yes. Press <kbd>?</kbd> in the Journal to see every keyboard shortcut. Every control has a
+      name a screen reader reads out, dialogs keep focus inside until you close them, and Escape
+      closes them. The graph view's list view gives the same connections as text.</>,
+  },
+  {
+    id: 'notebook-sample-notebook',
+    topic: 'notebook',
+    when: onboardingOn,
+    q: 'What is the sample notebook, and how do I remove it?',
+    keywords: 'sample notebook example demo notes remove delete tour welcome practice',
+    a: <>When your Notebook is empty, its first screen offers <strong>Add a sample notebook</strong>:
+      five example notes in a folder called "Sample notebook" — a welcome note, a research note, a
+      thesis, a daily note and a checklist — to look around and practise on. It is only offered
+      while you have no notes. To remove it, choose <strong>Remove it</strong> on the strip at the top
+      of the Notebook home; the sample notes move to Trash, where you can still restore them.
+      <TourLink /></>,
+  },
+  {
+    id: 'notebook-sharing-publishing',
+    topic: 'notebook',
+    when: () => sharingLinksOn() || publishingOn(),
+    q: 'How do I share a note or publish it to the web?',
+    keywords: 'share sharing link publish web page public read only revoke unpublish folder',
+    a: <>Use the share button in a note's toolbar.<ShareLinkSentence /><PublishSentence /> Either
+      one stops working the moment you revoke or unpublish it. Every link and page you have made is
+      listed in <Link to="/settings?section=connections">Settings → Connections</Link>.</>,
+  },
   // ── The joystick ──────────────────────────────────────────────────────────
   //
   // ⚠️ APPENDED AT THE END ON PURPOSE. `topic: 'joystick'` is a value
@@ -457,16 +661,23 @@ const FAQS = [
 
 const FAQ_BY_ID = Object.fromEntries(FAQS.map(f => [f.id, f]))
 
+/** The articles this reader may see now: a gated one (`when`) only while its gate is on. */
+export function visibleFaqs(faqs = FAQS) {
+  return faqs.filter(f => typeof f.when !== 'function' || f.when() === true)
+}
+
 // ── Contextual ordering ───────────────────────────────────────────────────
 //
 // The user landed on /support from somewhere. If it was /journal, prioritize
 // journal-topic articles; if /charts, charts articles; and so on. The user's
 // prior route beats document.referrer (which only fires on hard reloads and
 // leaks nothing about intra-SPA navigation).
-function inferSourceTopic(location) {
+export function inferSourceTopic(location) {
   const from = location?.state?.from || document.referrer || ''
   const path = typeof from === 'string' ? from : from.pathname || ''
   const s = path.toLowerCase()
+  // The Notebook lives under /journal, so it is asked BEFORE the journal test.
+  if (/\/journal\/notebook/.test(s)) return 'notebook'
   if (/journal|broker/.test(s)) return 'journal'
   if (/chart|breadth|screener|watchlist|theme/.test(s)) return 'charts'
   if (/settings|billing|account|subscribe|profile/.test(s)) {
@@ -738,7 +949,12 @@ export default function Support() {
   const location = useLocation()
   const { user, plan } = useAuth()
   const sourceTopic = useMemo(() => inferSourceTopic(location), [location])
-  const orderedFaqs = useMemo(() => orderFaqsByContext(FAQS, sourceTopic), [sourceTopic])
+  // Gated articles are filtered at render: the flags latch from the auth payload, which can
+  // arrive after this page first renders.
+  const faqs = visibleFaqs(FAQS)
+  const faqKey = faqs.map(f => f.id).join('|')
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  const orderedFaqs = useMemo(() => orderFaqsByContext(faqs, sourceTopic), [faqKey, sourceTopic])
 
   const [votes, setVotes] = useState({})
   useEffect(() => {
@@ -1134,7 +1350,7 @@ export default function Support() {
               {!suggestionsDismissed && (
                 <ArticleSuggestions
                   query={subject}
-                  faqs={FAQS}
+                  faqs={faqs}
                   onDismiss={() => setSuggestionsDismissed(true)}
                 />
               )}
