@@ -285,6 +285,20 @@ def run_flow_card_job(app_id: str, token: str, ticker: str, days: str,
     ack = edit_fn or di.edit_original            # edits/posts the deferred interaction reply
     data = None
     fail_cls, fail_detail = "flow_error", ""
+    # ⭐ THE OUTCOME LEDGER (2026-09-25): every card says what it delivered — the page's card, the
+    # page's card "as of" an earlier build, the labelled rollup and WHY, an honest empty, or a
+    # failure — so the market-hours path is a daily number in #render-alerts, not a hope
+    # (api/services/flow_card_ops). Never raises into the card.
+    import time as _time
+    _t0 = _time.monotonic()
+    _page_diag: dict = {}
+
+    def _rec(outcome, reason=None):
+        try:
+            from api.services import flow_card_ops as _ops
+            _ops.record(ticker, source, days, outcome, reason, (_time.monotonic() - _t0) * 1000.0)
+        except Exception:  # noqa: BLE001
+            pass
     # ⭐ OPTION A (2026-09-25, dark under DISCORD_FLOW_CARD_PAGE_ENABLED=1): the card derived from
     # the Options Flow PAGE's own product, so it reads what a member sees when they open the
     # page. When the product cannot be derived for any rung the rollup below answers instead,
@@ -293,9 +307,11 @@ def run_flow_card_job(app_id: str, token: str, ticker: str, days: str,
     if _page.enabled():                      # on BOTH paths: `fetch_fn` (V2) is the fallback, not a bypass
         try:
             data = _page.page_derived_payload(ticker, days, source,
-                                              timeout_s=max(timeout_s, _page.PAGE_FETCH_TIMEOUT_S))
+                                              timeout_s=max(timeout_s, _page.PAGE_FETCH_TIMEOUT_S),
+                                              diag=_page_diag)
         except Exception as e:  # noqa: BLE001 — the rollup is the fallback
             log.warning("[flow] page-derived card failed %s (%s): %s", ticker, days, e)
+            _page_diag["reason"] = type(e).__name__
             data = None
         if data is None:
             log.info("[flow] page-derived card unavailable for %s (%s); rollup fallback", ticker, days)
@@ -335,6 +351,7 @@ def run_flow_card_job(app_id: str, token: str, ticker: str, days: str,
         data = None
 
     if not data or not data.get("ok"):
+        _rec("failed", fail_cls)
         if fail_fn is not None:
             fail_fn(fail_cls, fail_detail or "ok:false")
             return
@@ -367,12 +384,14 @@ def run_flow_card_job(app_id: str, token: str, ticker: str, days: str,
         checked = (data.get("window") or {}).get("widened_checked") or []
         tail = (" — and none on record in any wider window (checked back through all history)"
                 if "all" in [str(c) for c in checked] else "")
+        _rec("empty")
         ack(app_id, token, content=f"**{ticker}** — no significant options flow {win}{tail}.")
         return
     try:
         png = render(data)
     except Exception as e:  # noqa: BLE001
         log.warning("[flow] render failed %s: %s", ticker, e)
+        _rec("failed", "render")
         if fail_fn is not None:
             fail_fn("internal", "card render failed")
             return
@@ -381,8 +400,25 @@ def run_flow_card_job(app_id: str, token: str, ticker: str, days: str,
     # Post the card PUBLICLY as the bot — the deferred interaction @original is
     # app-owned, so the 'View chart' button routes back to us. Image-only (the card
     # already carries ticker/window/net).
+    if data.get("derivation") == "page":
+        _rec("page_asof" if (data.get("window") or {}).get("as_of") else "page")
+    elif _page.enabled():
+        _rec("rollup_fallback", _page_diag.get("reason") or "unknown")
+    else:
+        _rec("rollup")
     ack(app_id, token, content="", png=png, filename=f"{ticker}_flow.png",
-        components=di.flow_components(ticker))
+        components=di.flow_components(ticker, active=_served_window(data)))
+
+
+def _served_window(data: dict) -> str | None:
+    """The window the card actually shows, in the window buttons' words ('1' | '5' | '20' |
+    'all'), so the lit button is the one on screen — a card asked for today that widened to five
+    days lights 5D, not 1D. None when the card's window is not one of the buttons."""
+    w = (data or {}).get("window") or {}
+    raw = str(w.get("days_requested") or "").strip().lower()
+    if w.get("scope_all_history") or raw == "all":
+        return "all"
+    return raw if raw in di.FLOW_WINDOWS else None
 
 
 def breadth_adjust(req, prefs: dict):
@@ -693,6 +729,26 @@ async def _dispatch_interaction(request: Request, background: BackgroundTasks):
         # the 'View chart' button (app-owned message) routes back to us. The bot now
         # has post + attach rights in the channel.
         return {"type": 5}
+    if itype == 3 and str(((interaction.get("data") or {}).get("custom_id")) or "").startswith(di.FLOW_WINDOW_PREFIX + "|"):
+        # A window button under a /flow card (1D · 5D · 20D · All): re-draw THIS card for that
+        # window, in place. Type 6 = deferred update, so the job's edit_original PATCHes the
+        # message the button sits on (new image, re-lit buttons) instead of posting a new one.
+        # Same member budget as /flow and /chart (one valve). No `source=`: the job resolves the
+        # partition, keeping the ack path parse-and-defer (see the /flow dispatch above).
+        try:
+            tkr, days = di.parse_flow_window(interaction)
+        except di.CommandError as e:
+            return _ephemeral(str(e))
+        uid = di.interaction_user_id(interaction)
+        wait = di.user_rate_check(uid)
+        if wait:
+            return _ephemeral(di.throttle_message(wait, noun="flow cards"))
+        app_id = str(interaction.get("application_id") or os.environ.get("DISCORD_CHART_APP_ID") or "")
+        token = str(interaction.get("token") or "")
+        if not app_id or not token:
+            return _ephemeral("Discord did not supply a reply token.")
+        background.add_task(run_flow_card_job, app_id, token, tkr, days)
+        return {"type": 6}
     if itype == 3 and str(((interaction.get("data") or {}).get("custom_id")) or "").startswith(di.FLOW_CHART_PREFIX + "|"):
         # "View chart" button under a /flow card → open the ticker's chart as an
         # EPHEMERAL popup (only the clicker sees it; Discord's Dismiss closes it).

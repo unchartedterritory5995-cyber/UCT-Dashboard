@@ -833,6 +833,40 @@ DISCORD_CHART_WARM_INTERVAL_S = int(os.environ.get("DISCORD_CHART_WARM_INTERVAL_
 DISCORD_CHART_WARM_BUDGET_S = DISCORD_CHART_WARM_INTERVAL_S / 3.0
 
 
+#: The post-deploy render smoke runs this long after boot: past the pod's boot storm (the first
+#: /chart after a deploy is exactly the case that shipped a bare "AMD W" header on 2026-09-25),
+#: early enough that a broken deploy is reported within minutes. `flow_card_ops.run_smoke`.
+DISCORD_RENDER_SMOKE_DELAY_S = int(os.environ.get("DISCORD_RENDER_SMOKE_DELAY_S", "240"))
+
+
+def _discord_render_smoke() -> None:
+    """One pass/fail line in #render-smoke per web boot (a failure also in #render-alerts)."""
+    try:
+        from api.services import flow_card_ops
+        flow_card_ops.smoke_and_post()
+    except Exception as e:  # noqa: BLE001
+        logging.getLogger(__name__).warning("[render-smoke] failed: %s", e)
+
+
+def _discord_flow_hot_warm() -> None:
+    """Re-derive the page card for the names members asked /flow for in the last hour (market
+    hours only; flow_card_ops.flow_hot_warm bounds the names and the cycle)."""
+    try:
+        from api.services import flow_card_ops
+        flow_card_ops.flow_hot_warm()
+    except Exception as e:  # noqa: BLE001
+        logging.getLogger(__name__).warning("[flow-hot-warm] failed: %s", e)
+
+
+def _discord_flow_daily_stats() -> None:
+    """The day's /flow outcomes, one line in #render-alerts after the close."""
+    try:
+        from api.services import flow_card_ops
+        flow_card_ops.daily_stats_and_post()
+    except Exception as e:  # noqa: BLE001
+        logging.getLogger(__name__).warning("[flow-daily-stats] failed: %s", e)
+
+
 def _discord_chart_hot_warm() -> None:
     """Re-render the charts members keep asking for, just before their cache
     entry expires. A chart costs ~2.4 s of a shared Chromium and the same
@@ -6424,6 +6458,28 @@ async def lifespan(app: FastAPI):
                   f"{DISCORD_CHART_WARM_INTERVAL_S}s, {DISCORD_CHART_WARM_BUDGET_S:.0f}s cycle budget)")
         except Exception as e:
             print(f"[scheduler] discord-chart hot-warm registration error: {e}")
+        try:
+            # The Discord render products' own instruments (flow_card_ops, 2026-09-25): the flow
+            # pre-warm, the post-deploy render smoke, the daily /flow outcome line. Each is a
+            # default-ON kill switch in its own function, so a registration here never needs a
+            # variable set to take effect.
+            from datetime import timedelta as _td
+            from apscheduler.triggers.cron import CronTrigger as _Cron
+            from api.services import flow_card_ops as _fco
+            _scheduler.add_job(_discord_flow_hot_warm, "interval", seconds=_fco.FLOW_WARM_INTERVAL_S,
+                               id="discord_flow_hot_warm", max_instances=1, coalesce=True,
+                               misfire_grace_time=60)
+            _scheduler.add_job(_discord_render_smoke, trigger="date",
+                               run_date=datetime.now(_ET) + _td(seconds=DISCORD_RENDER_SMOKE_DELAY_S),
+                               id="discord_render_smoke", replace_existing=True)
+            _scheduler.add_job(_discord_flow_daily_stats,
+                               trigger=_Cron(day_of_week="mon-fri", hour=16, minute=25, timezone=_ET),
+                               id="discord_flow_daily_stats", replace_existing=True,
+                               max_instances=1, coalesce=True, misfire_grace_time=1800)
+            print(f"[startup] discord render ops scheduled (flow warm every {_fco.FLOW_WARM_INTERVAL_S}s, "
+                  f"smoke +{DISCORD_RENDER_SMOKE_DELAY_S}s, /flow daily line 16:25 ET)")
+        except Exception as e:
+            print(f"[scheduler] discord render ops registration error: {e}")
         try:
             # ⛔ `max_instances=1` is load-bearing, not decoration. `buzz_store`
             # caches ONE module-level connection, and `record_mentions` measures
