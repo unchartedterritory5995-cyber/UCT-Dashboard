@@ -2133,6 +2133,14 @@ _PREFERENCE_KEYS = {
     "joystick_hub": "joystick_hub",
     "multichart_state": _PREF_OPAQUE,
     "news_widget_settings": _PREF_OPAQUE,
+    # ⚰️ Notebook wave 6 lane E (#193, live 2026-09-26 01:18 CT) shipped the daily
+    # note's template choice (`lib/dailyNote.js` DAILY_TEMPLATE_PREF, also read by
+    # `note_personal_api.py`) WITHOUT this row: every choice answered 400 "Unknown
+    # preference key" in production, measured as the smoke account 2026-09-26
+    # ~14:00Z. `test_every_key_the_client_writes_is_still_accepted` was red on
+    # master the whole time; the landing ran only the Python rails its own diff
+    # touched, and this one reads a JS writer. Run it before any `setPref(` lands.
+    "notebook_daily_template": _PREF_OPAQUE,
     "notebook_widget_settings": _PREF_OPAQUE,
     "options_flow_widget_settings": _PREF_OPAQUE,
     "profile_widget_settings": _PREF_OPAQUE,
