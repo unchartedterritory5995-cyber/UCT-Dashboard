@@ -51,6 +51,7 @@ from api.limiter import limiter
 from api.routers import snapshot, movers, engine_data, earnings, news, screener, traders, push, charts, calendar as calendar_router, bars as bars_router
 from api.routers import cot as cot_router
 from api.routers import render_panels as render_panels_router
+from api.routers import chart_edge_service as chart_edge_service_router
 from api.routers import live_prices as live_prices_router
 from api.routers import ticker_meta as ticker_meta_router
 from api.routers import quote_of_the_day as quote_of_the_day_router
@@ -8481,6 +8482,7 @@ from api import debug_dump_router as _debug_dump_router
 app.include_router(_debug_dump_router.router)
 app.include_router(terminal_next_reports.router)
 app.include_router(render_panels_router.router)
+app.include_router(chart_edge_service_router.router)
 app.include_router(hub_reports_router.router)
 app.include_router(snapshot.router)
 app.include_router(movers.router)

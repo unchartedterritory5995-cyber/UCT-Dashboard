@@ -112,3 +112,21 @@ hostname is an **anonymous alternate entrance to the tier** today. Once
 enforcement begins it closes by construction: the `uct_chart_edge` cookie is
 scoped to `uctintelligence.com`, so a browser never sends it to `workers.dev`,
 which will classify `MISSING` and be denied.
+
+## ⛔ Before enforcement: renderers that run OFF the web pod
+
+Two renderers screenshot the public `/r/chart` page from the owner's PC, not from
+`chart-renderer`, and so never pass through `render_house_chart`:
+
+| Renderer | Where | Token source |
+| --- | --- | --- |
+| Morning Wire's Substack letter | `morning-wire/substack/chartwidget.py` | `POST /api/r/edge-service-token` (PUSH_SECRET bearer) |
+| Sunday Scans | `uct-sunday-scan/sunday_scan/charts.py` | same |
+
+Each must attach the returned `X-Chart-Edge-Token` to its `/api/bars/` requests
+(same host, https — the scope `services/chart_renderer/edge_scope.py` enforces).
+**Enforcement must not ship until the shadow log shows `EDGE_SERVICE_VALID` for
+both.** A renderer that is denied does not error: it drops every chart that fails
+its judge and ships the letter WITHOUT it — which is how the wire lost every
+chart 2026-09-14..25 when the web pod's `/api/bars` gate landed, unnoticed for
+ten drafts.
