@@ -1,0 +1,146 @@
+{
+  "verdict": "NEW_FAILURES",
+  "counts": {
+    "new": 4,
+    "fixed": 5,
+    "unchanged": 173,
+    "missing": 0,
+    "baseline": 178,
+    "current": 179,
+    "current_ran": 55315,
+    "new_flaky": 2,
+    "flaky_size": 6,
+    "flaky_new": 2,
+    "flaky_fixed": 0,
+    "file_level_resolved": 0,
+    "coverage_lost": 0,
+    "new_ours": 0,
+    "new_others": 1,
+    "new_unattributed": 3
+  },
+  "arithmetic": "baseline 178 = unchanged 173 + fixed 5 + missing 0  |  current 179 = unchanged 173 + new 4 + new-but-flaky 2",
+  "invalid_because": [],
+  "baseline_run_id": "36211641580",
+  "current_run_id": "36217215194",
+  "baseline_sha": "2c3ed30930141d4682718e9bc73a8d8b76878a2f",
+  "current_sha": "8ecf428bc27917ce3eb46072917c5663b33d1e7e",
+  "commit_range": "2c3ed30930141d4682718e9bc73a8d8b76878a2f..8ecf428bc27917ce3eb46072917c5663b33d1e7e",
+  "first_run": false,
+  "new": [
+    "pytest|tests.test_bars_server_include_today|test_todays_daily_bar_stamps_today_and_caches",
+    "pytest|tests.test_bars_server_timing|test_layer_sqlite_on_fresh_stored_rows",
+    "pytest|tests.test_massive_ws_stop|test_stop_idempotency_and_stop_before_start",
+    "vitest|src/components/dailyFirstPaint.probe.test.jsx|DAILY first-paint probe > session guard - only meaningful on a trading day"
+  ],
+  "missing": [],
+  "fixed": [
+    "pytest|tests.test_theme_index_watchlist|test_overlay_today_replaces_stale_and_appends_missing",
+    "pytest|tests.test_ticker_logos|test_existing_three_call_sites_unpack_tuple_return",
+    "pytest|tests.test_ticker_logos|test_run_hires_upgrade_recaches_existing",
+    "pytest|tests.test_ticker_logos|test_run_hires_upgrade_writes_source_sidecar",
+    "vitest|src/pages/journal-2-0/components/notebook/AskPanel.navNotice.test.jsx|AskPanel \u2014 the notice is brought into view on touch > on TOUCH, setting a notice scrolls THAT region into view, nearest"
+  ],
+  "new_flaky": [
+    "pytest|tests.test_mutation_check.TestVerdicts|test_a_detected_mutation_passes_the_check",
+    "pytest|tests.test_mutation_check.TestVerdicts|test_expect_red_naming_the_right_test_passes"
+  ],
+  "flaky": [
+    "pytest|tests.test_discord_close_note|test_a_note_that_cannot_be_written_still_posts_the_charts",
+    "pytest|tests.test_mutation_check.TestRestoreGuarantee|test_the_file_is_byte_identical_after_a_detected_mutation",
+    "pytest|tests.test_mutation_check.TestVerdicts|test_a_detected_mutation_passes_the_check",
+    "pytest|tests.test_mutation_check.TestVerdicts|test_expect_red_naming_the_right_test_passes",
+    "vitest|src/components/chart/engine/__tests__/stockChartWiring.test.jsx|an engine-drawn indicator still appears in the crosshair legend > \u26d4\u26d4 A HOVER REACHES THE RENDERER NOT AT ALL",
+    "vitest|src/components/voice/VoiceHallucinationsPanel.test.jsx|VoiceHallucinationsPanel (Packet AD CP2) > populates the session dropdown and fires a POST re-audit for the selected session, then refreshes the flag list"
+  ],
+  "file_level_resolved": [],
+  "coverage_lost": [],
+  "missing_buckets": {},
+  "attribution": {
+    "pytest|tests.test_bars_server_include_today|test_todays_daily_bar_stamps_today_and_caches": {
+      "class": "imported-file-change",
+      "commits": [
+        "066341b36"
+      ],
+      "workstreams": [
+        {
+          "commit": "066341b36",
+          "workstream": "fix",
+          "confidence": "message-tag",
+          "ours": false
+        }
+      ]
+    },
+    "pytest|tests.test_bars_server_timing|test_layer_sqlite_on_fresh_stored_rows": {
+      "class": "UNATTRIBUTED",
+      "commits": [],
+      "workstreams": [],
+      "reason": "no commit in 2c3ed3093..8ecf428bc touched tests/test_bars_server_timing.py or anything it imports"
+    },
+    "pytest|tests.test_massive_ws_stop|test_stop_idempotency_and_stop_before_start": {
+      "class": "UNATTRIBUTED",
+      "commits": [],
+      "workstreams": [],
+      "reason": "no commit in 2c3ed3093..8ecf428bc touched tests/test_massive_ws_stop.py or anything it imports"
+    },
+    "vitest|src/components/dailyFirstPaint.probe.test.jsx|DAILY first-paint probe > session guard - only meaningful on a trading day": {
+      "class": "UNATTRIBUTED",
+      "commits": [],
+      "workstreams": [],
+      "reason": "no commit in 2c3ed3093..8ecf428bc touched src/components/dailyFirstPaint.probe.test.jsx or anything it imports"
+    },
+    "pytest|tests.test_theme_index_watchlist|test_overlay_today_replaces_stale_and_appends_missing": {
+      "class": "UNATTRIBUTED",
+      "commits": [],
+      "workstreams": [],
+      "reason": "no commit in 2c3ed3093..8ecf428bc touched tests/test_theme_index_watchlist.py or anything it imports"
+    },
+    "pytest|tests.test_ticker_logos|test_existing_three_call_sites_unpack_tuple_return": {
+      "class": "imported-file-change",
+      "commits": [
+        "feb225f9a"
+      ],
+      "workstreams": [
+        {
+          "commit": "feb225f9a",
+          "workstream": "feat",
+          "confidence": "message-tag",
+          "ours": false
+        }
+      ]
+    },
+    "pytest|tests.test_ticker_logos|test_run_hires_upgrade_recaches_existing": {
+      "class": "imported-file-change",
+      "commits": [
+        "feb225f9a"
+      ],
+      "workstreams": [
+        {
+          "commit": "feb225f9a",
+          "workstream": "feat",
+          "confidence": "message-tag",
+          "ours": false
+        }
+      ]
+    },
+    "pytest|tests.test_ticker_logos|test_run_hires_upgrade_writes_source_sidecar": {
+      "class": "imported-file-change",
+      "commits": [
+        "feb225f9a"
+      ],
+      "workstreams": [
+        {
+          "commit": "feb225f9a",
+          "workstream": "feat",
+          "confidence": "message-tag",
+          "ours": false
+        }
+      ]
+    },
+    "vitest|src/pages/journal-2-0/components/notebook/AskPanel.navNotice.test.jsx|AskPanel \u2014 the notice is brought into view on touch > on TOUCH, setting a notice scrolls THAT region into view, nearest": {
+      "class": "UNATTRIBUTED",
+      "commits": [],
+      "workstreams": [],
+      "reason": "no commit in 2c3ed3093..8ecf428bc touched src/pages/journal-2-0/components/notebook/AskPanel.navNotice.test.jsx or anything it imports"
+    }
+  }
+}
