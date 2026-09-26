@@ -2919,7 +2919,8 @@ authoritative is the PROXY failure**, in the tool built to prevent it.
 OTHERWISE.** ⚰️ It read *"the master gate runs the full suite against the actual landed
 tree"*. Measured 2026-09-20 from `.github/workflows/master-deploy-gate.yml`: it runs
 **five fast checks** — secret scan, `test_no_shadowed_definitions.py`, VITE build-arg +
-flag-ledger tests, `test_visibility_flag_ledger.py`, `tools/check_repo_hygiene.py`. **No
+flag-ledger tests, `test_visibility_flag_ledger.py`, `tools/check_repo_hygiene.py` — plus,
+since 2026-09-26, the Discord render reply golden + render-ops rails (a sixth). **No
 vitest, no frontend build.** The workflow's own header says exactly that, so two files in
 this repo contradicted each other and the reassuring one was the one people read.
 

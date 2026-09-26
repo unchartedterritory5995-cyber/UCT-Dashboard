@@ -292,10 +292,11 @@ jobs:
       # Discord reply, so a broken card used to reach web and be found by the post-deploy smoke or
       # by a member. ~10 s. The four extra packages are the whole import closure of these two files,
       # measured on a clean venv 2026-09-26 — NOT requirements.txt.
-      # ⚠️ ADVISORY (continue-on-error) until its first green run on Linux is recorded: a step that
-      # fails for an environment reason would halt every promotion, for every session. Then gating.
-      - name: Discord render replies match the golden (ADVISORY until proven on Linux)
-        continue-on-error: true
+      # GATING since 2026-09-26. It ran advisory first, because a step failing for an environment
+      # reason would halt every promotion: run 36248565296 (74bdf4f68) passed on Linux in 16 s with
+      # no error annotation, and a known-failing run's `Process completed with exit code 1`
+      # annotation was read as the control that the check could see a failure.
+      - name: Discord render replies match the golden
         run: |
           python -m pip install --quiet fastapi tzdata matplotlib pynacl
           python -m pytest tests/test_discord_render_goldens.py tests/test_discord_render_ops.py -q
@@ -320,3 +321,4 @@ jobs:
           echo "  python -m pytest tests/test_dockerfile_vite_build_args.py tests/test_vite_flag_ledger.py -q"
           echo "  python -m pytest tests/test_visibility_flag_ledger.py -q"
           echo "  python tools/check_repo_hygiene.py"
+          echo "  python -m pytest tests/test_discord_render_goldens.py tests/test_discord_render_ops.py -q"
