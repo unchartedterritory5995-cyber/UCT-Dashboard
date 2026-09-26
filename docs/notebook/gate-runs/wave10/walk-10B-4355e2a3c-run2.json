@@ -1,0 +1,415 @@
+{
+ "wave": 10,
+ "lane": "10B",
+ "checks": {
+  "B1_touch_undo_redo": {
+   "verdict": "PASS",
+   "typed": true,
+   "undo_visible_390": true,
+   "undo_enabled": true,
+   "undo_box": {
+    "x": 60,
+    "y": -183.609375,
+    "width": 46.6875,
+    "height": 44
+   },
+   "text_after_undo": "Start.",
+   "text_after_redo": "Start. one",
+   "undo_visible_1280": false,
+   "screenshot": "r185143-B1-390.png"
+  },
+  "B2_table_sort_resize_reload": {
+   "verdict": "PASS",
+   "order_before": [
+    [
+     "Ticker",
+     "Price"
+    ],
+    [
+     "NVDA",
+     "120"
+    ],
+    [
+     "AMD",
+     "9.5"
+    ],
+    [
+     "TSLA",
+     "1,050"
+    ]
+   ],
+   "order_after_sort": [
+    [
+     "Ticker",
+     "Price"
+    ],
+    [
+     "AMD",
+     "9.5"
+    ],
+    [
+     "NVDA",
+     "120"
+    ],
+    [
+     "TSLA",
+     "1,050"
+    ]
+   ],
+   "order_after_one_undo": [
+    [
+     "Ticker",
+     "Price"
+    ],
+    [
+     "NVDA",
+     "120"
+    ],
+    [
+     "AMD",
+     "9.5"
+    ],
+    [
+     "TSLA",
+     "1,050"
+    ]
+   ],
+   "order_after_redo": [
+    [
+     "Ticker",
+     "Price"
+    ],
+    [
+     "AMD",
+     "9.5"
+    ],
+    [
+     "NVDA",
+     "120"
+    ],
+    [
+     "TSLA",
+     "1,050"
+    ]
+   ],
+   "resize_handle_seen": true,
+   "width_before": 416.8,
+   "width_after_drag": 507,
+   "width_after_reload": 507,
+   "stored": {
+    "colwidths": [
+     [
+      [
+       507
+      ],
+      null
+     ],
+     [
+      [
+       507
+      ],
+      null
+     ],
+     [
+      [
+       507
+      ],
+      null
+     ],
+     [
+      [
+       507
+      ],
+      null
+     ]
+    ],
+    "texts": [
+     [
+      "Ticker",
+      "Price"
+     ],
+     [
+      "AMD",
+      "9.5"
+     ],
+     [
+      "NVDA",
+      "120"
+     ],
+     [
+      "TSLA",
+      "1,050"
+     ]
+    ]
+   },
+   "order_after_reload": [
+    [
+     "Ticker",
+     "Price"
+    ],
+    [
+     "AMD",
+     "9.5"
+    ],
+    [
+     "NVDA",
+     "120"
+    ],
+    [
+     "TSLA",
+     "1,050"
+    ]
+   ],
+   "screenshots": [
+    "r185143-B2-before-reload.png",
+    "r185143-B2-after-reload.png"
+   ]
+  },
+  "B3_xlsx_cell_found": {
+   "verdict": "PASS",
+   "upload_status": 200,
+   "document": {
+    "id": "8ced55dddc41402e94f878f0198ab506",
+    "status": "ready",
+    "sourceKind": "attachment",
+    "pageCount": 1,
+    "name": "trades.xlsx"
+   },
+   "search_api_hits": 1,
+   "search_api_has_doc": true,
+   "sidebar_shows_word": true,
+   "first_hit": {
+    "documentId": "8ced55dddc41402e94f878f0198ab506",
+    "pageNumber": 1,
+    "snippet": "Sheet: Trades\n<mark>kimberlitewrbkfbed</mark>\t120.5",
+    "noteId": "1dc83716d835439cb86bc065cd4faf8e",
+    "noteTitle": "B3 xlsx r185143",
+    "name": "trades.xlsx",
+    "attachmentUrl": "/api/j2/notes/attachments/7ba466d0-55a5-4923-acad-fb687032d347/1dc83716d835439cb86bc065cd4faf8e/file/ddd7d492d88740e1b54a810a5ff006f0.xlsx",
+    "sourceKind": "attachment",
+    "sourceUrl": null,
+    "textOrigin": "native"
+   },
+   "screenshot": "r185143-B3-search.png"
+  },
+  "B4_best_matches": {
+   "verdict": "FAIL",
+   "pdf_status": "ready",
+   "excerpt_status": 200,
+   "group_visible": true,
+   "kind_labels": [],
+   "group_text": "BEST MATCHES · ALL 3, BEST FIRST\nNOTE\nB4 note r185143\nMy zirconwrbkfbed thesis note.\nSAVED EXCERPT\nreport.pdf · p.1\nThe zirconwrbkfbed deposit report\nDOCUMENT PAGE\nreport.pdf · p.1\nThe zirconwrbkfbed deposit report shows strong grades in every drill hole this…",
+   "sections_named": [],
+   "screenshot": "r185143-B4-best-matches.png"
+  },
+  "B5_import_google_keep": {
+   "verdict": "PASS",
+   "detected_in_preview": true,
+   "preview": "Review your import\n×\n\nDetected source: Google Keep\n\n2 notes · 1 folder · 1 media item found\n\nWill create 2 · update 0 · unchanged 0\n\nDESTINATION FOLDER\nImported from Google Keep\nSKIP FOLDERS\nGoogle Keep\nNOTES TO IMPORT (2 OF 2 SELECTED)\nSelect all\nSelect none\nGOOGLE KEEP\nAll\nNone\nCut losers fast\nWatchlist\nWARNINGS\nSkipped 1 note that was in Google Keep's trash.\nBack\nImport",
+   "summary": "Import complete\n×\n\nImported 2 notes.\n\nCreated: 2\nUpdated: 0\nUnchanged: 0\nBY FOLDER\nFOLDER\tARRIVED\tUNCHANGED\tNEEDS ATTENTION\nGoogle Keep\t2\t0\t—\nNOT INCLUDED IN THIS IMPORT\nSkipped 1 note that was in Google Keep's trash.\n\nWe found 1 note mentioning tickers. Want the live chart on them?\n\nThis adds a live chart inside each note — nothing else changes, and you can undo it right here.\n\nNot now\nAdd live charts\nDone",
+   "watchlist_tasks": [
+    [
+     "NVDA into earnings",
+     true
+    ],
+    [
+     "DDOG base breakout",
+     false
+    ]
+   ],
+   "watchlist_tags": [
+    "Trading"
+   ],
+   "trash_note_imported": false,
+   "untitled_note_present": true,
+   "screenshot": "r185143-B5-keep.png"
+  },
+  "B5_import_logseq": {
+   "verdict": "PASS",
+   "detected_in_preview": true,
+   "preview": "Review your import\n×\n\nDetected source: Logseq\n\n3 notes · 1 folder · 0 media items found\n\nWill create 3 · update 0 · unchanged 0\n\nDESTINATION FOLDER\nImported from Logseq\nImported from Google Keep\nSKIP FOLDERS\nJournals\nNOTES TO IMPORT (3 OF 3 SELECTED)\nSelect all\nSelect none\nJOURNALS\nAll\nNone\n2026-09-21\n2026-09-22\nUNFILED\nAll\nNone\nSetups/VCP\nBack\nImport",
+   "summary": "Import complete\n×\n\nImported 3 notes.\n\nCreated: 3\nUpdated: 0\nUnchanged: 0\nBY FOLDER\nFOLDER\tARRIVED\tUNCHANGED\tNEEDS ATTENTION\nJournals\t2\t0\t—\nUnfiled\t1\t0\t—\n\nWe found 1 note mentioning tickers. Want the live chart on them?\n\nThis adds a live chart inside each note — nothing else changes, and you can undo it right here.\n\nNot now\nAdd live charts\nDone",
+   "page_tasks": [
+    [
+     "Backtest the last ten",
+     false
+    ],
+    [
+     "Write the entry rules",
+     true
+    ]
+   ],
+   "page_tags": [
+    "setup",
+    "swing"
+   ],
+   "journals_present": [
+    true,
+    true
+   ],
+   "backup_copy_notes": [],
+   "screenshot": "r185143-B5-logseq.png"
+  },
+  "B5_import_onenote_docx": {
+   "verdict": "PASS",
+   "preview": "Review your import\n×\n\nDetected source: Files (Markdown, Text, HTML, Word)\n\n1 note · 0 folders · 0 media items found\n\nWill create 1 · update 0 · unchanged 0\n\nDESTINATION FOLDER\nImported from Files (Markdown, Text, HTML, Word)\nImported from Google Keep\nImported from Logseq\nNOTES TO IMPORT (1 OF 1 SELECTED)\nSelect all\nSelect none\nUNFILED\nAll\nNone\nWeekly review\nBack\nImport",
+   "summary": "Import complete\n×\n\nImported 1 note.\n\nCreated: 1\nUpdated: 0\nUnchanged: 0\nBY FOLDER\nFOLDER\tARRIVED\tUNCHANGED\tNEEDS ATTENTION\nUnfiled\t1\t0\t—\n\nWe found 1 note mentioning tickers. Want the live chart on them?\n\nThis adds a live chart inside each note — nothing else changes, and you can undo it right here.\n\nNot now\nAdd live charts\nDone",
+   "note_found": true,
+   "body_has_text": true,
+   "screenshot": "r185143-B5-onenote.png"
+  },
+  "B7_autofill_no_key": {
+   "verdict": "INCONCLUSIVE",
+   "reason": "no model key in the sandbox: no model output can be observed here; the production proof is after L1 (bench@)",
+   "offered": true,
+   "route_answer": {
+    "status": 502,
+    "body": "{\"detail\":\"Compass couldn't suggest values just now. Nothing was changed in your note.\"}"
+   },
+   "panel_text": "Suggested by Compass from this note\nClose\nCompass couldn't suggest values just now. Nothing was changed in your note.",
+   "note_unchanged": true,
+   "property_candidates": [
+    "builtin:thesis_status",
+    "builtin:confidence",
+    "builtin:research_type",
+    "builtin:review_date"
+   ],
+   "screenshot": "r185143-B7-autofill.png"
+  },
+  "B6_graph_light_theme": {
+   "verdict": "PASS",
+   "theme": "light",
+   "surface": "rgb(244, 245, 246)",
+   "inks": [
+    {
+     "name": "node",
+     "color": "rgb(31, 93, 122)",
+     "ratio": 6.62,
+     "min": 3.0,
+     "ok": true
+    },
+    {
+     "name": "orphan",
+     "color": "rgb(87, 96, 106)",
+     "ratio": 5.85,
+     "min": 3.0,
+     "ok": true
+    },
+    {
+     "name": "hover",
+     "color": "rgb(122, 92, 22)",
+     "ratio": 5.71,
+     "min": 3.0,
+     "ok": true
+    },
+    {
+     "name": "label",
+     "color": "rgb(87, 96, 106)",
+     "ratio": 5.85,
+     "min": 4.5,
+     "ok": true
+    },
+    {
+     "name": "labelHover",
+     "color": "rgb(11, 14, 17)",
+     "ratio": 17.73,
+     "min": 4.5,
+     "ok": true
+    },
+    {
+     "name": "edge",
+     "color": "rgb(87, 96, 106)",
+     "ratio": 5.85,
+     "min": 3.0,
+     "ok": true
+    },
+    {
+     "name": "edgeLit",
+     "color": "rgb(122, 92, 22)",
+     "ratio": 5.71,
+     "min": 3.0,
+     "ok": true
+    }
+   ],
+   "ring": {
+    "color": "rgb(122, 92, 22)",
+    "ratio": 5.71
+   },
+   "graph_edges": 1,
+   "ink_pixels_on_canvas": {
+    "node": 230,
+    "orphan": 330,
+    "hover": 0,
+    "label": 330,
+    "labelHover": 0,
+    "edge": 330,
+    "edgeLit": 0
+   },
+   "screenshot": "r185143-B6-graph-light.png"
+  },
+  "B8_no_page_errors": {
+   "verdict": "PASS",
+   "page_errors": 0,
+   "first": []
+  }
+ },
+ "errors": [],
+ "instrument_notes": [],
+ "tip": "4355e2a3c",
+ "base": "http://127.0.0.1:8212",
+ "data_dir": "C:\\data-w10b",
+ "instrument": "tools\\notebook_wave10b_walk.py",
+ "walk_process_env": {
+  "NOTEBOOK_IMAGE_DOCX_DOCUMENTS_ENABLED": true,
+  "NOTEBOOK_WRITING_HELP_ENABLED": true,
+  "ANTHROPIC_API_KEY": false,
+  "OPENAI_API_KEY": false
+ },
+ "sandbox_identity": {
+  "ok": true,
+  "sentence": "http://127.0.0.1:8212 proved it is the sandbox that writes C:\\Users\\Patrick\\uct-worktrees\\notebook-w10s1\\docs\\plans\\joystick\\sandbox-runs\\2026-09-26T18-51-02.md (identity 087bb7ea706a..., data dir C:\\data-w10b)"
+ },
+ "run": "r185143",
+ "member": "w10b-r185143@local.dev",
+ "server_flags": {
+  "notebook_writing_help_enabled": true,
+  "paid_equiv": true
+ },
+ "stop": "graceful to the shutdown checkpoint, then forced exit",
+ "first_line": "SANDBOX INTEGRITY: CLEAN -- pre-boot (baseline) CLEAN, post-boot (+15s) CLEAN, shutdown CLEAN; 62 db files hashed; post-prewarm (+120s) not reached: the run ended before it (--hold-past-prewarm waits for it); log: docs\\notebook\\gate-runs\\wave10\\walk-10B-4355e2a3c.integrity.md",
+ "integrity": {
+  "path": "docs\\notebook\\gate-runs\\wave10\\walk-10B-4355e2a3c.integrity.md",
+  "required": [
+   "pre-boot (baseline)",
+   "post-boot (+15s)",
+   "shutdown"
+  ],
+  "checkpoints": [
+   {
+    "label": "pre-boot (baseline)",
+    "at": "2026-09-26 18:51:06",
+    "root": "C:\\data",
+    "db_files": 62,
+    "verdict": "CLEAN"
+   },
+   {
+    "label": "post-boot (+15s)",
+    "at": "2026-09-26 18:51:42",
+    "root": "C:\\data",
+    "db_files": 62,
+    "verdict": "CLEAN"
+   },
+   {
+    "label": "shutdown",
+    "at": "2026-09-26 18:52:12",
+    "root": "C:\\data",
+    "db_files": 62,
+    "verdict": "CLEAN"
+   }
+  ],
+  "status": "CLEAN",
+  "clean": true,
+  "why": ""
+ },
+ "not_run": null
+}
