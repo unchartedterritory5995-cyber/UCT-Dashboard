@@ -93,6 +93,15 @@ from api.routers import notebook_inbound_email as notebook_inbound_email_router
 # request by the router's own dependency). Its stream path is exempted from
 # gzip in _is_gzip_exempt below, or no event ever reaches the editor.
 from api.routers import notebook_writing_help as notebook_writing_help_router
+# Wave 8 seam S8-2 (controller wiring): the five note-share routes MOVED out of
+# journal_two into notebook_shares (same paths, handlers and flag checks), and three
+# stub routers lanes 8B/8C fill without touching this file. notebook_shares MUST be
+# mounted BEFORE journal_two -- tests/test_notebook_share_routes.py asks the real app
+# that each share path is served exactly once and answered first by that router.
+from api.routers import notebook_shares as notebook_shares_router
+from api.routers import notebook_publish as notebook_publish_router
+from api.routers import notebook_export as notebook_export_router
+from api.routers import notebook_onboarding as notebook_onboarding_router
 from api.routers import community as community_router
 from api.routers import watchlists as watchlists_router
 from api.routers import ticker_tags as ticker_tags_router
@@ -8657,7 +8666,17 @@ app.include_router(notebook_link_preview_router.router)
 # the family is kept together and the mount is railed by name
 # (tests/test_main_router_order.py).
 app.include_router(notebook_writing_help_router.router)
+# Wave 8 seam S8-2: the share routes' own router, BEFORE journal_two (same family,
+# same pre-journal_two slot; tests/test_notebook_share_routes.py +
+# tests/test_main_router_order.py).
+app.include_router(notebook_shares_router.router)
 app.include_router(journal_two_router.router)
+# Wave 8 seam S8-2: three STUB routers (prefix, no routes yet) for lanes 8B/8C --
+# /api/j2/publish*|published* (8B), /api/j2/export (8C), /api/j2/onboarding (8C).
+# Outside /api/j2/notes/..., so mount order against journal_two does not matter.
+app.include_router(notebook_publish_router.router)
+app.include_router(notebook_export_router.router)
+app.include_router(notebook_onboarding_router.router)
 # Phase 2a — the joystick hub's planned-trades backend. No client writes to it
 # yet; the preview is navigation-only plus Voice.
 app.include_router(hub_planned_trades_router.router)

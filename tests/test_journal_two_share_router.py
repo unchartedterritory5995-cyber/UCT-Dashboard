@@ -40,7 +40,12 @@ def db_path(monkeypatch):
 @pytest.fixture
 def app(db_path):
     from api.routers import journal_two as journal_two_router
+    # Wave 8 seam S8-2: the five share routes MOVED to notebook_shares; journal_two
+    # still serves POST /api/j2/notes, which these tests use to make a note. Mounted
+    # in main.py's order -- the share router first.
+    from api.routers import notebook_shares as notebook_shares_router
     fa = FastAPI()
+    fa.include_router(notebook_shares_router.router)
     fa.include_router(journal_two_router.router)
     yield fa
     fa.dependency_overrides.clear()
