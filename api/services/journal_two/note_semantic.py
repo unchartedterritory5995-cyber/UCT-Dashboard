@@ -268,6 +268,19 @@ def _content_hash(provider_name: str, text: str) -> str:
 # otherwise), then write the note in ONE short transaction.
 
 
+# A note with NOTHING to embed (no title, and a body the splitter keeps nothing
+# of: an empty "Untitled", an image-only note, a note holding only an Ask
+# answer) gets ONE row under this block id with an EMPTY vector: the record
+# that this revision was indexed and holds nothing. ⚰️ It got no row at all, so
+# the sweep's work predicate read its revision as missing on every run and
+# visited its member every 15 minutes, forever (backend re-review N1). Real
+# block ids are "t:<sha>" / "b:<sha>", so this one can never collide; the row
+# lives and dies with the note's other rows (a later edit that adds words drops
+# it as a `gone` block, and the account purge deletes the table by member), and
+# the candidate read skips an empty vector.
+NO_BLOCKS_ID = "-"
+
+
 def _revision_marker(note_updated_at: str, provider_name: str) -> str:
     """What `j2_note_embeddings.updated_at` records: WHICH REVISION of the note
     the vectors came from AND which provider made them. The provider is part
@@ -320,6 +333,12 @@ def _index_note(conn, provider, user_id: str, note: sqlite3.Row, plan: dict[str,
             conn.executemany(
                 "DELETE FROM j2_note_embeddings WHERE user_id = ? AND note_id = ? AND block_id = ?",
                 [(user_id, note["id"], bid) for bid in plan["gone"]])
+        if not plan["blocks"]:
+            conn.execute(
+                "INSERT OR REPLACE INTO j2_note_embeddings"
+                " (user_id, note_id, block_id, content_hash, vector, updated_at)"
+                " VALUES (?, ?, ?, '', ?, ?)",
+                (user_id, note["id"], NO_BLOCKS_ID, b"", marker))
         # ⭐ The marker records WHICH REVISION of the note these vectors came
         # from (j2_notes.updated_at), never the wall clock: a note edited
         # during a sweep then reads as changed on the next one instead of
@@ -579,6 +598,8 @@ def _read_candidates(conn, user_id: str, exclude_note_ids) -> tuple[list[str], A
             break
         for r in chunk:
             blob = r["vector"]
+            if not blob:
+                continue            # a note with nothing to embed (NO_BLOCKS_ID), not a vector
             if mat is None:
                 width = len(blob)
                 mat = np.empty((limit, width // 4), dtype="<f4")

@@ -237,3 +237,95 @@ def test_the_members_with_work_are_taken_OLDEST_INDEXED_first(db_path, monkeypat
     seen = _visits(monkeypatch)
     ns.run_sweep()
     assert seen[:2] == [B, A]
+
+
+# ── backend re-review N1: a note with NOTHING to embed ───────────────────────
+
+E, F = "u-empty", "u-full"
+IMAGE = {"type": "image", "attrs": {"src": "https://example.test/chart.png"}}
+
+
+def _bare(user_id, *content):
+    """A note with no embeddable block: no title, and a body the splitter keeps
+    nothing of (empty, or an image only)."""
+    from api.services.journal_two import notes
+    return notes.create_note(user_id, {"title": "", "bodyJson": {"type": "doc", "content": list(content)}})
+
+
+def _rows_of(note_id):
+    """(block_id, vector bytes) for every stored row of one note."""
+    from api.services.auth_db import get_connection
+    c = get_connection()
+    try:
+        return c.execute("SELECT block_id, length(vector) FROM j2_note_embeddings WHERE note_id = ?",
+                         (note_id,)).fetchall()
+    finally:
+        c.close()
+
+
+def test_a_note_with_NOTHING_to_embed_retires_its_member_after_one_visit(db_path, monkeypatch):
+    """The re-reviewer's probe. ⚰️ A note whose `note_blocks` is [] never got a
+    row in j2_note_embeddings, so the work predicate read its revision as
+    missing on EVERY run: its member was visited every 15 minutes, forever -- a
+    full-library read, a DELETE and commit and an empty UPDATE and commit, the
+    exact cost M-4 set out to remove. An abandoned "Untitled" was enough."""
+    _bare(E)                                  # an empty "Untitled"
+    _bare(E, IMAGE)                           # an image and nothing else
+    _note(F, "Plan F", "Full words here.")
+    # non-vacuity: these notes really have nothing to embed
+    assert ns.note_blocks("", {"type": "doc", "content": []}) == []
+    assert ns.note_blocks("", {"type": "doc", "content": [IMAGE]}) == []
+    seen = _visits(monkeypatch)
+    first = ns.run_sweep()
+    assert sorted(seen) == [E, F] and first["embedded"] > 0
+    for sweep in (2, 3):
+        seen.clear()
+        r = ns.run_sweep()
+        assert seen == [], f"sweep {sweep} visited {seen}: a note with nothing to embed kept its member"
+        assert r["members"] == 0
+
+
+def test_an_empty_note_that_GAINS_words_is_indexed_and_one_that_stays_empty_retires_again(
+        db_path, monkeypatch):
+    from api.services.journal_two import notes
+    blank = _bare(E)
+    image = _bare(E, IMAGE)
+    ns.run_sweep()
+    notes.update_note(E, blank["id"], {"bodyJson": {"type": "doc", "content": [P("Now it has words.")]}})
+    notes.update_note(E, image["id"], {"bodyJson": {"type": "doc", "content": [IMAGE, IMAGE]}})
+    seen = _visits(monkeypatch)
+    ns.run_sweep()
+    assert seen == [E], "an edit to a note with nothing to embed is work"
+    rows = _rows_of(blank["id"])
+    assert rows and all(size > 0 for _bid, size in rows), (
+        f"the note that gained words must hold only real vectors: {rows}")
+    seen.clear()
+    ns.run_sweep()
+    assert seen == [], f"the note that stayed empty kept its member in the work set: {seen}"
+
+
+def test_a_member_whose_NEWEST_note_is_empty_still_gets_meaning_hits(db_path):
+    """The empty note's record is the member's FIRST candidate row (newest
+    first), and the candidate read takes the matrix width from the first row
+    it reads: read as a vector, a record of nothing would make the width zero
+    and skip every real vector -- no meaning hits at all for a member with a
+    blank newest note."""
+    from api.services.auth_db import get_connection
+    plan = _note(F, "Plan F", "Semis rotation and breadth thrust.")
+    blank = _bare(F)
+    c = get_connection()
+    try:                                       # pin the blank as the newest note
+        c.execute("UPDATE j2_notes SET updated_at = '2099-01-01T00:00:00Z' WHERE id = ?", (blank["id"],))
+        c.commit()
+    finally:
+        c.close()
+    ns.run_sweep()
+    c = get_connection()
+    try:                                       # non-vacuity: the blank's record comes FIRST
+        first = c.execute(ns._CANDIDATES_SQL, (F, "[]", 10)).fetchone()
+    finally:
+        c.close()
+    assert first is not None and first[0] == blank["id"], (tuple(first) if first else first)
+    ns.clear_query_cache()
+    hits = ns.search(F, "semis rotation breadth")
+    assert [h["note_id"] for h in hits] == [plan["id"]], hits
